@@ -26,6 +26,7 @@
 
 import { isPatch, isRoot } from './rules.ts'
 import { categoryOf } from './quality.ts'
+import { splitStacks, stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
 import type { Engine } from './engine.ts'
 import { NO_EXPIRY, type Writer } from './world.ts'
@@ -626,9 +627,9 @@ export class Controls {
 
   // ---------------------------------------------------------------- inventory slots
 
-  /** What makes items the same stack: type, name, tags, statuses. */
+  /** What makes items the same stack: type, name, tags, statuses (stacks.ts — a chest counts its slots by the same). */
   key(e: Entity): string {
-    return JSON.stringify([e.type, e.name ?? null, [...(e.tags ?? [])].sort(), Object.keys(e.statuses ?? {}).sort()])
+    return stackKey(e)
   }
 
   /** What the player wears (its `wear:` props), whether or not it works for them now: it is on them, not in the bag. */
@@ -824,7 +825,11 @@ export class Controls {
     if (!box || !it || !w.hasStatus({ e: box.id }, 'open')) return
     const k = this.key(it)
     const pool = from === 'chest' ? (box.contents ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : this.carried(true).get(k) ?? []
-    for (const e of all ? pool : pool.slice(0, 1)) {
+    const chunks = from === 'chest' ? splitStacks(pool) : [pool]
+    // A panel may still name the representative just moved; the remaining first slot is then its kind.
+    const slot = chunks.find((s) => s.some((e) => e.id === item)) ?? chunks[0] ?? []
+    const one = slot.find((e) => e.id === item) ?? slot[0]
+    for (const e of all ? slot : one ? [one] : []) {
       if (from === 'chest') eng.act('take', p.id, { e: e.id }, { instrument: null })
       else eng.act('put', p.id, { e: box.id }, { instrument: { e: e.id } })
     }

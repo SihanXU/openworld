@@ -517,6 +517,8 @@ const PEOPLE: Rule[] = [
 
 /** A person, with nothing drawn against them: what is in hand is not a blow on them (the AI says what it is). */
 const UNDRAWN_ON_PERSON: Cond = all(is('target', PERSON), not(has('actor', 'drawn')))
+// Putting a weapon on oneself is still dressing while drawn; an explicit attack remains a blow.
+const HANDLE_WEAPON: Cond = any(all({ same: ['actor', 'target'] }, not(param('attack', true))), UNDRAWN_ON_PERSON)
 
 const USE: Selector[] = []
 void USE
@@ -689,28 +691,28 @@ const INSTRUMENTS: Rule[] = [
     doc: 'A blade used on something strikes it with a cutting edge — on a person only with the blade drawn (X: a blow on a person is meant).',
     host: { type: 'item/weapon/blade' },
     on: 'act/use',
-    tree: IF(UNDRAWN_ON_PERSON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'cut', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'cut', ...WOUND }))),
   }),
   rule({
     id: 'use/polearm',
     doc: 'A spear or a halberd used on something strikes it with a point — on a person only with it drawn.',
     host: { type: 'item/weapon/polearm' },
     on: 'act/use',
-    tree: IF(UNDRAWN_ON_PERSON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'pierce', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'pierce', ...WOUND }))),
   }),
   rule({
     id: 'use/weapon',
     doc: 'A weapon used on something strikes it — on a person only with it drawn.',
     host: { type: 'item/weapon' },
     on: 'act/use',
-    tree: IF(UNDRAWN_ON_PERSON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND }))),
   }),
   rule({
     id: 'use/spell',
     doc: 'A wand cast at something strikes it with its element — at a person only with it drawn.',
     host: { type: 'item/weapon/magic' },
     on: 'act/use',
-    tree: IF(UNDRAWN_ON_PERSON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'magic', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'magic', ...WOUND }))),
   }),
   ...(
     [
@@ -817,7 +819,7 @@ const PLACING: Rule[] = [
   rule({
     id: 'core/receive-store',
     label: L('Put {instrument} in {target}', '把{instrument}放进{target}'),
-    doc: 'An open container takes what is put in it, up to its capacity; a closed one takes nothing.',
+    doc: 'An open container takes what is put in it, up to its capacity — the capacity is its slots, not its things: a slot holds a stack of one kind (what a kind already there takes no new slot, so a stack with room still takes one more); a closed one takes nothing.',
     host: CONTAINER,
     on: 'impulse/receive',
     tree: IF(
@@ -825,7 +827,12 @@ const PLACING: Rule[] = [
       'inherit',
       IF(
         has('host', 'open'),
-        IF({ count: { role: 'host', in: 'contents', cmp: { gte: { prop: 'capacity', of: 'host' } } } }, DO(say('It is full.', '已经装满了。', 'actor')), DO(taken('contents'), log('You put {item} into {host}.', '你把{item}放进了{host}。'))),
+        IF(
+          // the slots it would take with this one in, against the capacity it names: over it, there is no room
+          { count: { role: 'host', in: 'contents', stacks: true, adding: 'item', cmp: { gt: { prop: 'capacity', of: 'host' } } } },
+          DO(say('It is full.', '已经装满了。', 'actor')),
+          DO(taken('contents'), log('You put {item} into {host}.', '你把{item}放进了{host}。')),
+        ),
         DO(say('It is closed.', '它是关着的。', 'actor')),
       ),
     ),

@@ -7,6 +7,7 @@
 
 import { isA, typeDepth } from './ontology.ts'
 import { ruleTier, tiersFrom } from './quality.ts'
+import { slotsOf, stackKey } from './stacks.ts'
 import { FIGHT_TICKS } from './types.ts'
 import type { Bounds, Cmp, Cond, GameEvent, Leaf, Operand, PropValue, Reader, RoleName, Rule, Selector, StatusDef, Tier, Tree, TypeDef } from './types.ts'
 import type { View, World } from './world.ts'
@@ -91,7 +92,9 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
   if ('night' in c) return world.isNight() === c.night
   if ('count' in c) {
     const v = roles[c.count.role]
-    return !!v && within(countAt(v, c.count.in, c.count.match, world), c.count.cmp, roles, ev)
+    if (!v) return false
+    const adding = c.count.adding ? roles[c.count.adding] : undefined
+    return within(countAt(v, c.count.in, c.count.match, world, { stacks: c.count.stacks, adding }), c.count.cmp, roles, ev)
   }
   if ('topic' in c) return world.topicFresh(c.topic)
   if ('weather' in c) return c.weather.includes(world.calendar().weather)
@@ -135,7 +138,13 @@ export function sameRef(a: View, b: View): boolean {
 }
 
 /** Things in a role's contents, or lying on its tile besides the role itself (not the ground there), that match a selector. */
-export function countAt(v: View, where: 'contents' | 'tile' | 'map', match: Selector | undefined, world: World): number {
+export function countAt(
+  v: View,
+  where: 'contents' | 'tile' | 'map',
+  match: Selector | undefined,
+  world: World,
+  opts?: { stacks?: boolean; adding?: View },
+): number {
   let ids: Iterable<string>
   if (where === 'contents') ids = v.entity?.contents ?? []
   else {
@@ -143,9 +152,21 @@ export function countAt(v: View, where: 'contents' | 'tile' | 'map', match: Sele
     // its cell, or everything lying on its map (in the open: not what is carried or held)
     ids = !p ? [] : where === 'map' ? world.entitiesOnMap(p.map).filter((e) => e.place.on === 'tile').map((e) => e.id) : world.placedAt(p.map, p.x, p.y).map((e) => e.id)
   }
+  const keys: string[] = []
   let n = 0
-  for (const id of ids) if (id !== v.id && matchSelector(match, world.view({ e: id }))) n++
-  return n
+  for (const id of ids) {
+    if (id === v.id) continue
+    const w = world.view({ e: id })
+    if (w && matchSelector(match, w)) {
+      n++
+      if (opts?.stacks) keys.push(stackKey(w.entity ?? w))
+    }
+  }
+  // as things (the default): one apiece. As slots: one per kind, and one more for each STACK_MAX
+  // beyond the first — with the one at hand counted in, so a stack that still has room takes it.
+  if (!opts?.stacks) return n
+  if (opts.adding) keys.push(stackKey(opts.adding.entity ?? opts.adding))
+  return slotsOf(keys)
 }
 
 export function operand(o: Operand, roles: Roles, ev?: GameEvent): number | undefined {

@@ -10,6 +10,8 @@ import { OFFHAND, offhandOf, weaponOf } from './blows.ts'
 import type { JournalQuest, QuestOffer, QuestTarget } from './quests.ts'
 
 export interface ItemInfo {
+  /** The entity's bag identity, before display names and inherited tags are filled in. */
+  stackKey?: string
   id: Id
   type: string
   sprite: string
@@ -351,6 +353,7 @@ export function itemInfo(eng: Engine, id: Id): ItemInfo | undefined {
     type: e.type,
     sprite: r.sprite ?? e.type,
     name: e.name ?? r.name ?? e.type.split('/').pop()!,
+    stackKey: eng.controls.key(e),
     tags: [...r.tags, ...(e.tags ?? [])],
     statuses: Object.keys(e.statuses ?? {}),
     props: { ...r.props, ...(e.props ?? {}) },

@@ -4,6 +4,7 @@
 // grid above the bag, a click moving a stack to the other side.
 
 import type { AiQuality, CodexEntry, CodexView, Frame, ItemInfo, Look, Plan, Recipe, Rule, Text, Tree } from '@openworld/engine'
+import { splitStacks, stackKey } from '@openworld/engine'
 import { catalog, game, hasModule, ontology, professionById, type ShopDef } from '../game.ts'
 import { personLook } from '../assets/looks.ts'
 import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
@@ -828,7 +829,7 @@ export class Menu {
   private renderChest(f: Frame): void {
     const c = f.container
     if (!c) return
-    const sig = `${locale.value}|${c.id}|${c.contents.map((i) => i.id + i.type + i.statuses.join()).join(',')}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}`
+    const sig = `${locale.value}|${c.id}|${c.capacity}|${c.contents.map((i) => i.id + keyOf(i)).join(',')}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}`
     if (sig === this.chestSig) return
     this.chestSig = sig
     const stacks = stackItems(c.contents)
@@ -840,7 +841,7 @@ export class Menu {
     const bag = f.player.slots
     const zh = locale.value === 'zh'
     $('#chestSheet').innerHTML = `
-      <div class="jhead"><b>${esc(tx(c.name))}</b><span class="muted small">${c.contents.length} / ${c.capacity ?? '∞'}</span><button class="x" id="cClose">✕</button></div>
+      <div class="jhead"><b>${esc(tx(c.name))}</b><span class="muted small">${stacks.length} / ${c.capacity ?? '∞'}</span><button class="x" id="cClose">✕</button></div>
       <div class="inv chest-grid">${chunk(chestCells, ROW).map((r) => `<div class="grid-row">${r.join('')}</div>`).join('')}</div>
       <div class="inv-foot"><button id="cFill">⇣ ${t('fillStacks')}</button><button id="cOrg">⇅ ${t('organize')}</button><span class="muted small">${zh ? '点击：整堆移到另一边 · Shift+点击：移一个 · 右键：更多' : 'Click: the stack across · Shift+click: one · right click: more'}</span></div>
       <div class="inv bag-grid">${chunk(
@@ -900,13 +901,12 @@ function toolForm(tag: string): string | undefined {
 }
 
 function keyOf(it: ItemInfo): string {
-  return JSON.stringify([it.type, it.name, [...it.tags].sort(), [...it.statuses].sort()])
+  return stackKey(it)
 }
 
+/** What one slot holds: a stack of one kind, up to STACK_MAX (a kind beyond that takes the next slot). */
 function stackItems(items: ItemInfo[]): ItemInfo[][] {
-  const by = new Map<string, ItemInfo[]>()
-  for (const it of items) by.set(keyOf(it), [...(by.get(keyOf(it)) ?? []), it])
-  return [...by.values()]
+  return splitStacks(items)
 }
 
 function chunk<T>(a: T[], n: number): T[][] {

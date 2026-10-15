@@ -299,7 +299,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       '{chance:p}',
       '{hour:{from,to}}',
       "{night: true|false} — it is night (or day), as long as the story's night has grown (it lengthens as the seals fall)",
-      "{count:{role, in: contents|tile|map, match?: Selector, cmp: Bounds}} — how many things are in a role's contents (or on its tile besides itself, or lie anywhere on its map besides itself)",
+      "{count:{role, in: contents|tile|map, match?: Selector, cmp: Bounds, stacks?: boolean, adding?: RoleName}} — how many things are in a role's contents (or on its tile besides itself, or lie anywhere on its map besides itself); with stacks: true, how many slots they take instead (a slot holds STACK_MAX of one kind), and with adding, counted as if one more of that role's thing were among them (whether the one at hand still fits)",
       '{topic:id} — something that happened is still fresh',
       '{weather:[sun|cloud|rain|storm|fog]} — the weather now',
       '{exists: Selector} — something matching it exists anywhere in the world',
@@ -1223,6 +1223,10 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       role(k.role, `${where}.count.role`)
       if (k.in !== 'contents' && k.in !== 'tile' && k.in !== 'map') errors.push(`${where}.count.in must be contents|tile|map`)
       checkSel(k.match, `${where}.count.match`)
+      if (k.adding) {
+        role(k.adding, `${where}.count.adding`)
+        if (!k.stacks) errors.push(`${where}.count.adding needs stacks: it counts the one at hand into the slots`)
+      }
       if (!Object.keys(k.cmp ?? {}).length) errors.push(`${where}.count.cmp needs a bound`)
       for (const b of Object.keys(k.cmp ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.count.cmp.${b}: a bound is eq|gt|gte|lt|lte`)
       return
