@@ -219,21 +219,39 @@ export class WorldScene extends Phaser.Scene {
     return Math.min(this.fitZoom() - 0.5, Math.max(1, Math.floor(Math.min(h / (T * 24), w / (T * 40)) * 4) / 4))
   }
 
+  private padTick = 0
+  private padSig = ''
   /**
    * How much of each screen edge the HUD covers (the clock, the tracker and the minimap above, the toolbar below, the
    * corner buttons on the right), in screen pixels: the camera may go that far past the map's edge, so a cell in a corner
    * (the ossuary's stair down, under the tracker) can always be brought out from under it.
    */
+  private hudPad(): { top: number; right: number; bottom: number } {
+    const rect = (id: string) => {
+      const r = document.getElementById(id)?.getBoundingClientRect()
+      return r && r.width > 0 && r.height > 0 ? r : undefined
+    }
+    const h = this.scale.height || window.innerHeight
+    const w = this.scale.width || window.innerWidth
+    const top = Math.max(0, ...['clockbox', 'objective', 'minimap'].map((id) => rect(id)?.bottom ?? 0))
+    const corner = rect('corner')
+    // the toolbar's own height (it moves to the top near the bottom edge, so it is counted at the bottom alone)
+    const bar = rect('hotbar')
+    return { top, right: corner ? Math.max(0, w - corner.left) : 0, bottom: bar ? Math.min(h / 3, bar.height + 16) : 0 }
+  }
+
   private fitBounds(zoom = this.cameras.main.zoom): void {
     if (!this.base || this.free) return
     const cam = this.cameras.main
-    const mw = this.base.width * T
-    const mh = this.base.height * T
+    const pad = this.hudPad()
+    const top = pad.top / zoom, right = pad.right / zoom, bottom = pad.bottom / zoom
+    const mw = this.base.width * T + right
+    const mh = this.base.height * T + top + bottom
     const vw = cam.width / zoom
     const vh = cam.height / zoom
     const bw = Math.max(mw, vw)
     const bh = Math.max(mh, vh)
-    cam.setBounds(-(bw - mw) / 2, -(bh - mh) / 2, bw, bh)
+    cam.setBounds(-(bw - mw) / 2, -top - (bh - mh) / 2, bw, bh)
   }
 
 
@@ -422,6 +440,11 @@ export class WorldScene extends Phaser.Scene {
       return
     }
     if (f.map !== this.base.id) return
+    // the HUD shows and hides its panels (the tracker): now and then the camera's margins follow it
+    if (++this.padTick % 20 === 0) {
+      const sig = JSON.stringify(this.hudPad())
+      if (sig !== this.padSig) (this.padSig = sig), this.bossCam || this.fitBounds()
+    }
     this.playerId = f.player.id
     this.mainHand = f.player.worn?.weapon?.sprite
     this.playerAt = { x: f.player.x, y: f.player.y, z: f.player.z ?? 0 }
