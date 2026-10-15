@@ -1,7 +1,7 @@
 // The templates (wiki/pages/帮助/格式手册.md lists them all). Every data template reads the game model:
 // a table here is the game's own numbers, never a copy that can go stale.
 
-import { gearProps, type Entity, type QuestDef, type QuestReward, type QuestTrigger, type Text } from '@openworld/engine'
+import { gearProps, type CreatureSkill, type Entity, type QuestDef, type QuestReward, type QuestTrigger, type Text } from '@openworld/engine'
 import { BASE_RULES } from '@openworld-game/content'
 import {
   EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, VOWS, isAccessory, zh,
@@ -617,6 +617,19 @@ function bossSkills(ctx: Ctx, b: BossEnt): string {
   return table(['技能', '形状', '瞄准', '半径', '伤害', '二阶段伤害', '前摇', '二阶段前摇', '后摇', '效果'], rows)
 }
 
+/** A creature kind's own skills (the kits module, content kits.ts): the nearest kit its type or an ancestor names. */
+function creatureSkills(ctx: Ctx, c: CreatureEnt): string {
+  const kits = (ctx.g.ontology as { kits?: Record<string, CreatureSkill[]> }).kits ?? {}
+  let kit: CreatureSkill[] | undefined
+  for (let t = c.id; t && !kit; t = t.includes('/') ? t.slice(0, t.lastIndexOf('/')) : '') kit = kits[t]
+  if (!kit?.length) return `<p class="empty">没有自己的技能：只会普通攻击。</p>`
+  const move = (k: CreatureSkill) => join([k.move === 'leap' ? '跳到目标处' : k.move === 'dash' ? '沿直线冲过去' : '原地', k.back ? `命中后后跳 ${k.back} 格` : ''])
+  const when = (k: CreatureSkill) => join([k.range[0] === k.range[1] ? `相距 ${k.range[0]} 格` : `相距 ${k.range[0]}–${k.range[1]} 格`, k.aligned ? '同一行或同一列' : '', k.below !== undefined ? `生命低于 ${Math.round(k.below * 100)}%` : '', k.chance !== undefined && k.chance < 1 ? `每秒 ${Math.round(k.chance * 100)}% 几率` : ''])
+  const marks = (k: CreatureSkill) => (k.radius ? `${esc(T(ctx, '形状', k.shape))}，${k.radius} 格，${esc(T(ctx, '瞄准', k.aim))}` : '不标格子')
+  const rows = kit.map((k) => [`<b>${esc(zh(k.name))}</b>`, when(k), marks(k), move(k), secs(k.windup), secs(k.cooldown)])
+  return table(['技能', '什么时候用', '标记的格子', '怎么过去', '前摇', '冷却'], rows)
+}
+
 function mapView(ctx: Ctx, m: MapEnt): string {
   const W = m.map.width, H = m.map.height
   const pins: string[] = []
@@ -902,7 +915,7 @@ export function navbox(ctx: Ctx, name: string): string {
 
 const BLOCK = new Set([
   '信息框', '引言', '小作品', '规划中', '待设计', '开发者', '主条目', '另见', '导航框', '日程表', '对话', '人际关系', '相关任务', '肖像', '来源', '用途', '配方', '变体',
-  '出没', '掉落', '首领技能', '地图', '相连地点', '居民', '生物', '物品分布', '任务目标', '任务奖励', '任务对话', '任务阶段', '物品表', '居民表', '怪物表', '首领表', '地点表', '任务表',
+  '出没', '掉落', '首领技能', '怪物技能', '地图', '相连地点', '居民', '生物', '物品分布', '任务目标', '任务奖励', '任务对话', '任务阶段', '物品表', '居民表', '怪物表', '首领表', '地点表', '任务表',
   '配方表', '建造表', '技能树', '职业表', '恩赐表', '状态表', '元素表', '地形表', '材质表', '品质表', '装备栏表', '作物表', '食物表', '传送雕像表', '配乐表', '效率表',
   '房间用途表', '夜行生物表', '传说武器表', '圣痕之力表', '誓言表', '货摊表', '版本历史', '数值表', '门户', '原文', '图', '剧透',
 ])
@@ -1011,6 +1024,7 @@ export function runTemplate(ctx: Ctx, call: TemplateCall): { html: string; block
       return out(`<ul class="facts">${lines.join('')}</ul>`)
     }
     case '首领技能': { const x = need(['boss']); return out(x ? bossSkills(ctx, x as BossEnt) : '') }
+    case '怪物技能': { const x = need(['creature']); return out(x ? creatureSkills(ctx, x as CreatureEnt) : '') }
     case '地图': { const x = need(['map']); return out(x ? mapView(ctx, x as MapEnt) : '') }
     case '相连地点': { const x = need(['map']); return out(x ? mapLinks(ctx, x as MapEnt) : '') }
     case '居民': { const x = need(['map']); return out(x ? mapPeople(ctx, x as MapEnt) : '') }

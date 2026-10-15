@@ -169,6 +169,16 @@
           "$ref": "#/definitions/AffixTable",
           "description": "Gear's rolled extras (affixes.ts): how many a piece rolls when it is made, and from what."
         },
+        "kits": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/CreatureSkill"
+            }
+          },
+          "description": "The creatures' own skills (the kits module, docs/creatures.md), by type: a kind's kit is the nearest its type or an ancestor names. How a skill is aimed and timed is here; what it does where it lands is its host's rule (`act/use` with the param `kit`)."
+        },
         "efficiency": {
           "type": "object",
           "additionalProperties": {
@@ -1954,6 +1964,94 @@
       ],
       "additionalProperties": false,
       "description": "One extra a piece may roll: a stat key, its range and step, the slots it may roll on (all, if none), how often."
+    },
+    "CreatureSkill": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/definitions/Text"
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "circle",
+            "line",
+            "cone",
+            "cross"
+          ],
+          "description": "The cells it marks: a disk around its centre (`circle`), a line one wide ahead of it (`line`, `radius` long), a cone ahead (`cone`), a cross through its centre (`cross`)."
+        },
+        "aim": {
+          "type": "string",
+          "enum": [
+            "self",
+            "target"
+          ],
+          "description": "Its centre: the creature itself, or the foe's cell when it winds up (locked: a foe that moves away is missed)."
+        },
+        "radius": {
+          "type": "number"
+        },
+        "move": {
+          "type": "string",
+          "enum": [
+            "leap",
+            "dash"
+          ],
+          "description": "How it gets there: it leaps onto the aimed cell (a free one beside it when that is taken), or dashes along the line to the first foe or the first thing in the way. Without it, it stands where it is."
+        },
+        "back": {
+          "type": "number",
+          "description": "Having hit, it springs back so many cells from the one it struck (a bat's swoop)."
+        },
+        "range": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "The foe's distance (in cells, the greater axis) at which it may take the skill up: [nearest, farthest]."
+        },
+        "aligned": {
+          "type": "boolean",
+          "description": "A line or a cone, and a dash, is taken up only when the foe stands in a row or a column with it."
+        },
+        "windup": {
+          "type": "number"
+        },
+        "cooldown": {
+          "type": "number",
+          "description": "Ticks before it may take this skill up again."
+        },
+        "chance": {
+          "type": "number",
+          "description": "The chance it takes the skill up when it could (looked at once a second): default 1."
+        },
+        "below": {
+          "type": "number",
+          "description": "Taken up only under this share of its full health (a crab that shells up when hurt)."
+        },
+        "color": {
+          "type": "number",
+          "description": "The marks' colour (0xRRGGBB); default the warning red."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "shape",
+        "aim",
+        "radius",
+        "range",
+        "windup",
+        "cooldown"
+      ],
+      "additionalProperties": false,
+      "description": "A creature's skill (the kits module, docs/creatures.md): when its behaviour takes it up, how long it winds up on the cells it marks, and how it gets there. Ticks at 10 a second."
     },
     "WorldParams": {
       "type": "object",

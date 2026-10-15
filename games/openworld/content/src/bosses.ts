@@ -3,6 +3,7 @@
 // but the Face Thief span tiles. None has a campaign place yet.
 import type { BossDef, BossSkill, Effect, Entity, Pos, Rule, StatusDef, Tree, TypeDef } from '@openworld/engine'
 import { LEGENDARY_ARMS } from './items.ts'
+import { AFFLICTIONS } from './kits.ts'
 
 const L = (en: string, zh: string) => ({ en, zh })
 const skill = (sin: string, id: string, en: string, zh: string, shape: BossSkill['shape'], aim: BossSkill['aim'], radius: number, damage: number, windup: number, recovery: number, extra: Partial<BossSkill> = {}): BossSkill => ({
@@ -98,14 +99,10 @@ export const BOSS_RULES: Rule[] = [
   {
     id: 'sins/afflict',
     source: { origin: 'base' },
-    doc: 'What a sin\'s skill leaves clinging to a body: a mire that slows it, a trance that holds it.',
+    doc: 'What a sin\'s or a creature\'s skill leaves clinging to a body: a mire that slows it, a trance that holds it, a web, venom, a bleed, a stun, a beast\'s frenzy (kits.ts).',
     host: { type: 'actor' },
     on: 'impulse/coat',
-    tree: {
-      if: { param: { key: 'substance', cmp: 'mired' } },
-      then: { do: [{ op: 'addStatus', status: 'mired' }] },
-      else: { if: { param: { key: 'substance', cmp: 'entranced' } }, then: { do: [{ op: 'addStatus', status: 'entranced' }] }, else: 'inherit' },
-    },
+    tree: AFFLICTIONS.reduceRight<Rule['tree']>((rest, status) => ({ if: { param: { key: 'substance', cmp: status } }, then: { do: [{ op: 'addStatus', status }] }, else: rest }), 'inherit'),
   },
   {
     id: 'sins/story',
