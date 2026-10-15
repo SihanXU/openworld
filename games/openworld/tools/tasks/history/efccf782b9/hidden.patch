@@ -1,0 +1,147 @@
+diff --git a/games/openworld/content/test/life.test.ts b/games/openworld/content/test/life.test.ts
+index 5e9ebb5..e14799a 100644
+--- a/games/openworld/content/test/life.test.ts
++++ b/games/openworld/content/test/life.test.ts
+@@ -4,6 +4,7 @@
+ import { describe, expect, it } from 'vitest'
+ import { RuleLibrary, SANDBOX_MAP, buildSandbox, type Engine, type Key, type ScenarioEntity } from '@openworld/engine'
+ import { BASE_RULES, LIFE_SKILLS, RECIPE_BY_ID, SKILLS, buildOntology } from '../src/index.ts'
++import GAME from '../src/game.ts'
+ 
+ const onto = buildOntology()
+ const DAY = 14400
+@@ -109,6 +110,19 @@ describe('smithing', () => {
+   })
+ })
+ 
++describe('smithing in an older save', () => {
++  it('a Masterwork learned before the engine named the lift (`anvil:masterwork`) is the lift (`anvil:lift`) once loaded', () => {
++    const eng = patch()
++    const w = eng.world
++    eng.author(() => w.setProp(w.player, 'anvil:masterwork', 0.15))
++    eng.author(() => GAME.upgradeSave!(eng))
++    expect(w.num(w.player, 'anvil:lift')).toBe(0.15)
++    expect(w.player.props?.['anvil:masterwork']).toBeUndefined()
++    // the skill grants the lift itself now
++    expect(SKILLS.find((x) => x.id === 'masterwork')?.grant).toEqual({ 'anvil:lift': 0.15 })
++  })
++})
++
+ describe('agriculture', () => {
+   it('a harvest: a root farmer gets two more roots, a farmer a seed more; picking by hand gives two to green fingers', () => {
+     const eng = patch([{ type: 'fixture/crop/carrot/ripe', x: 2, y: 1 }], 'grass', 'farmland')
+diff --git a/games/starter/test/kernel.test.ts b/games/starter/test/kernel.test.ts
+index 286c600..65ed661 100644
+--- a/games/starter/test/kernel.test.ts
++++ b/games/starter/test/kernel.test.ts
+@@ -4,23 +4,23 @@
+ 
+ import { fileURLToPath } from 'node:url'
+ import { describe, expect, it } from 'vitest'
+-import { Game, RuleLibrary, TICKS_PER_HOUR, buildModSpec, decodeRawChunk, registeredModule, snapshot, type Engine, type Entity } from '@openworld/engine'
++import { Game, RuleLibrary, TICKS_PER_HOUR, buildModSpec, decodeRawChunk, registeredModule, snapshot, type Engine, type Entity, type QualityDef, type Recipe } from '@openworld/engine'
+ import { compileProject } from '@openworld/format/src/node.ts'
+ 
+ const ROOT = fileURLToPath(new URL('..', import.meta.url))
+ const compiled = compileProject(ROOT)
+ const { bundle, index } = compiled
+ 
+-function newGame(): Game {
+-  const game = Game.create(index, structuredClone(bundle.ontology), new RuleLibrary(bundle.rules))
++function newGame(ontology = bundle.ontology): Game {
++  const game = Game.create(index, structuredClone(ontology), new RuleLibrary(bundle.rules))
+   for (const c of compiled.chunks) game.loadChunk(decodeRawChunk(c, bundle.terrainChars))
+   game.engine.controls.sync()
+   return game
+ }
+ 
+ /** A new game, its opening watched to the end (each line advanced, as the player would): it has set its fact. */
+-function played(): Game {
+-  const game = newGame()
++function played(ontology = bundle.ontology): Game {
++  const game = newGame(ontology)
+   const eng = game.engine
+   for (let i = 0; i < 200 && (eng.world.scene || eng.world.fact('glade.arrived') !== 1); i++) {
+     eng.tick()
+@@ -171,3 +171,36 @@ describe('the starter, on the kernel alone', () => {
+     expect(Object.keys(back.engine.world.state.entities).sort()).toEqual(Object.keys(eng.world.state.entities).sort())
+   })
+ })
++
++describe('a made thing\'s quality, as the game\'s data says it', () => {
++  // qualities of the test's own, none of them OpenWorld's: three a maker's level reaches, one beyond any maker's reach
++  const QUALITIES: QualityDef[] = [
++    { id: 'rough', tag: 'quality:rough', factor: 0.8, from: -99 },
++    { id: 'plain', factor: 1, from: 0 },
++    { id: 'good', tag: 'quality:good', factor: 1.2, from: 5 },
++    { id: 'mythic', tag: 'quality:mythic', factor: 2 },
++  ]
++  const RECIPE: Recipe = { id: 'test/stone', name: 'a stone', sprite: 'item:stone', needs: [{ type: 'item/material/log', count: 1 }], make: { type: 'item/material/stone' } }
++  /** Make the stone by hand once, the maker's hand at the bench as `stats` say: the quality tags of what is made. */
++  const make = (stats: Record<string, number>): string[] => {
++    const eng = played({ ...bundle.ontology, qualities: QUALITIES }).engine
++    const w = eng.world
++    eng.recipes.set(RECIPE.id, RECIPE)
++    eng.author(() => {
++      for (const [k, v] of Object.entries(stats)) w.setProp(w.player, k, v)
++      w.create('item/material/log', { on: 'inside', holder: w.player.id })
++    })
++    const before = new Set(Object.keys(w.state.entities))
++    expect(eng.controls.craft(RECIPE)).toBe(true)
++    const made = Object.values(w.state.entities).find((e) => !before.has(e.id) && e.type === 'item/material/stone')!
++    return (made.tags ?? []).filter((t) => t.startsWith('quality:'))
++  }
++
++  it('is the tier the maker\'s level reaches; the hand\'s lift takes it one tier up the game\'s own; a quality beyond reach comes by its own chance', () => {
++    expect(make({})).toEqual([])
++    expect(make({ 'hands:lift': 1 })).toEqual(['quality:good'])
++    expect(make({ 'hands:mythic': 1 })).toEqual(['quality:mythic'])
++    // the level's reach and the craft's (`craft:<station>`): good already, and no tier above it to lift to
++    expect(make({ 'craft:hands': 5, 'hands:lift': 1 })).toEqual(['quality:good'])
++  })
++})
+diff --git a/packages/runtime/test/skillLayout.test.ts b/packages/runtime/test/skillLayout.test.ts
+new file mode 100644
+index 0000000..41cfc9f
+--- /dev/null
++++ b/packages/runtime/test/skillLayout.test.ts
+@@ -0,0 +1,39 @@
++// The skill tree's layout (ui/skillLayout.ts): the start in the middle, a direction's branches growing out from it, each
++// in a panel of its own. However many branches a game gives a direction, no two panels lie over each other.
++
++import { describe, expect, it } from 'vitest'
++import type { SkillDef } from '@openworld/engine'
++import { useGame, type ClientGame } from '../src/game.ts'
++import { layoutTree, type Panel } from '../src/ui/skillLayout.ts'
++
++/** A direction of `n` branches, each a hub's first skill and two after it. */
++function gameOf(n: number): SkillDef[] {
++  const branches = Array.from({ length: n }, (_, i) => ({ id: `b${i}`, direction: 'arts', name: `B${i}`, icon: '' }))
++  const skills: SkillDef[] = branches.flatMap((b) => [
++    { id: `${b.id}-1`, branch: b.id, name: '1' },
++    { id: `${b.id}-2`, branch: b.id, name: '2', requires: [`${b.id}-1`] },
++    { id: `${b.id}-3`, branch: b.id, name: '3', requires: [`${b.id}-1`] },
++  ] as SkillDef[])
++  useGame({ skills: { all: skills, branches, directions: [{ id: 'arts', name: 'Arts' }], professions: [] } } as unknown as ClientGame)
++  return skills
++}
++
++const overlap = (a: Panel, b: Panel) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
++
++describe('the skill tree\'s layout', () => {
++  for (const n of [4, 6, 9])
++    it(`${n} branches in a direction: every branch its panel, every skill placed, no two panels over each other`, () => {
++      const skills = gameOf(n)
++      const t = layoutTree(skills, 'arts')
++      expect(t.panels.size).toBe(n)
++      expect(t.nodes.size).toBe(skills.length)
++      const panels = [...t.panels.values()]
++      for (let i = 0; i < panels.length; i++) for (let j = i + 1; j < panels.length; j++) expect(overlap(panels[i], panels[j]), `b${i} and b${j}`).toBe(false)
++      // each skill inside its own branch's panel
++      for (const s of skills) {
++        const p = t.panels.get(s.branch!)!
++        const at = t.nodes.get(s.id)!
++        expect(at.x >= p.x && at.x <= p.x + p.w && at.y >= p.y && at.y <= p.y + p.h, s.id).toBe(true)
++      }
++    })
++})

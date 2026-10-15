@@ -1,0 +1,268 @@
+{
+ "name": "pilot",
+ "frozen": "2026-10-14",
+ "criterion": {
+  "verified": 20,
+  "from": "bench/pools/post-k3.json:5",
+  "seed": 0,
+  "always": [
+   "scikit-learn/scikit-learn",
+   "astropy/astropy",
+   "matplotlib/matplotlib",
+   "two of the 1-4 h and >4 h buckets"
+  ]
+ },
+ "sources": {
+  "verified": {
+   "dataset": "SWE-bench/SWE-bench_Verified",
+   "revision": "78f471bf655a3137b2e8a75af1501690ec009ec3"
+  },
+  "multilang": {
+   "dataset": "SWE-bench-Live/MultiLang",
+   "revision": "3638632e8153a10ca422c1022bed79023084b5c9"
+  }
+ },
+ "counts": {
+  "tasks": 25,
+  "by_source": {
+   "verified": 20,
+   "multilang": 5
+  },
+  "by_repo": {
+   "django/django": 4,
+   "scikit-learn/scikit-learn": 3,
+   "astropy/astropy": 3,
+   "matplotlib/matplotlib": 3,
+   "sphinx-doc/sphinx": 3,
+   "sympy/sympy": 2,
+   "pydata/xarray": 2,
+   "angularsen/UnitsNet": 1,
+   "playcanvas/engine": 1,
+   "IfcOpenShell/IfcOpenShell": 1,
+   "apache/rocketmq": 1,
+   "xroche/httrack": 1
+  }
+ },
+ "tasks": [
+  {
+   "instance_id": "scikit-learn__scikit-learn-25102",
+   "source": "verified",
+   "repo": "scikit-learn/scikit-learn",
+   "language": "python",
+   "created_at": "2022-12-02T20:03:37",
+   "image": "swebench/sweb.eval.x86_64.scikit-learn_1776_scikit-learn-25102:latest",
+   "difficulty": "1-4 hours"
+  },
+  {
+   "instance_id": "astropy__astropy-14539",
+   "source": "verified",
+   "repo": "astropy/astropy",
+   "language": "python",
+   "created_at": "2023-03-16T18:45:19",
+   "image": "swebench/sweb.eval.x86_64.astropy_1776_astropy-14539:latest",
+   "difficulty": "15 min - 1 hour"
+  },
+  {
+   "instance_id": "matplotlib__matplotlib-20488",
+   "source": "verified",
+   "repo": "matplotlib/matplotlib",
+   "language": "python",
+   "created_at": "2021-06-23T03:05:05",
+   "image": "swebench/sweb.eval.x86_64.matplotlib_1776_matplotlib-20488:latest",
+   "difficulty": "15 min - 1 hour"
+  },
+  {
+   "instance_id": "django__django-14631",
+   "source": "verified",
+   "repo": "django/django",
+   "language": "python",
+   "created_at": "2021-07-13T09:16:48",
+   "image": "swebench/sweb.eval.x86_64.django_1776_django-14631:latest",
+   "difficulty": "1-4 hours"
+  },
+  {
+   "instance_id": "sphinx-doc__sphinx-11510",
+   "source": "verified",
+   "repo": "sphinx-doc/sphinx",
+   "language": "python",
+   "created_at": "2023-07-24T22:46:12",
+   "image": "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-11510:latest",
+   "difficulty": "1-4 hours"
+  },
+  {
+   "instance_id": "django__django-16315",
+   "source": "verified",
+   "repo": "django/django",
+   "language": "python",
+   "created_at": "2022-11-22T09:44:54",
+   "image": "swebench/sweb.eval.x86_64.django_1776_django-16315:latest",
+   "difficulty": "15 min - 1 hour"
+  },
+  {
+   "instance_id": "django__django-14999",
+   "source": "verified",
+   "repo": "django/django",
+   "language": "python",
+   "created_at": "2021-10-16T09:31:21",
+   "image": "swebench/sweb.eval.x86_64.django_1776_django-14999:latest",
+   "difficulty": "<15 min fix"
+  },
+  {
+   "instance_id": "sympy__sympy-15349",
+   "source": "verified",
+   "repo": "sympy/sympy",
+   "language": "python",
+   "created_at": "2018-10-06T19:45:27",
+   "image": "swebench/sweb.eval.x86_64.sympy_1776_sympy-15349:latest",
+   "difficulty": "15 min - 1 hour"
+  },
+  {
+   "instance_id": "sympy__sympy-16450",
+   "source": "verified",
+   "repo": "sympy/sympy",
+   "language": "python",
+   "created_at": "2019-03-26T18:00:02",
+   "image": "swebench/sweb.eval.x86_64.sympy_1776_sympy-16450:latest",
+   "difficulty": "<15 min fix"
+  },
+  {
+   "instance_id": "sphinx-doc__sphinx-7440",
+   "source": "verified",
+   "repo": "sphinx-doc/sphinx",
+   "language": "python",
+   "created_at": "2020-04-08T13:46:43",
+   "image": "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-7440:latest",
+   "difficulty": "<15 min fix"
+  },
+  {
+   "instance_id": "django__django-13344",
+   "source": "verified",
+   "repo": "django/django",
+   "language": "python",
+   "created_at": "2020-08-24T20:50:35",
+   "image": "swebench/sweb.eval.x86_64.django_1776_django-13344:latest",
+   "difficulty": "1-4 hours"
+  },
+  {
+   "instance_id": "matplotlib__matplotlib-26466",
+   "source": "verified",
+   "repo": "matplotlib/matplotlib",
+   "language": "python",
+   "created_at": "2023-08-07T19:30:22",
+   "image": "swebench/sweb.eval.x86_64.matplotlib_1776_matplotlib-26466:latest",
+   "difficulty": "15 min - 1 hour"
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-12682",
+   "source": "verified",
+   "repo": "scikit-learn/scikit-learn",
+   "language": "python",
+   "created_at": "2018-11-27T08:30:51",
+   "image": "swebench/sweb.eval.x86_64.scikit-learn_1776_scikit-learn-12682:latest",
+   "difficulty": "15 min - 1 hour"
+  },
+  {
+   "instance_id": "sphinx-doc__sphinx-10673",
+   "source": "verified",
+   "repo": "sphinx-doc/sphinx",
+   "language": "python",
+   "created_at": "2022-07-16T19:29:29",
+   "image": "swebench/sweb.eval.x86_64.sphinx-doc_1776_sphinx-10673:latest",
+   "difficulty": "15 min - 1 hour"
+  },
+  {
+   "instance_id": "matplotlib__matplotlib-25311",
+   "source": "verified",
+   "repo": "matplotlib/matplotlib",
+   "language": "python",
+   "created_at": "2023-02-23T21:04:12",
+   "image": "swebench/sweb.eval.x86_64.matplotlib_1776_matplotlib-25311:latest",
+   "difficulty": "<15 min fix"
+  },
+  {
+   "instance_id": "pydata__xarray-6599",
+   "source": "verified",
+   "repo": "pydata/xarray",
+   "language": "python",
+   "created_at": "2022-05-12T15:12:41",
+   "image": "swebench/sweb.eval.x86_64.pydata_1776_xarray-6599:latest",
+   "difficulty": "15 min - 1 hour"
+  },
+  {
+   "instance_id": "astropy__astropy-14182",
+   "source": "verified",
+   "repo": "astropy/astropy",
+   "language": "python",
+   "created_at": "2022-12-16T11:13:37",
+   "image": "swebench/sweb.eval.x86_64.astropy_1776_astropy-14182:latest",
+   "difficulty": "15 min - 1 hour"
+  },
+  {
+   "instance_id": "scikit-learn__scikit-learn-14983",
+   "source": "verified",
+   "repo": "scikit-learn/scikit-learn",
+   "language": "python",
+   "created_at": "2019-09-14T15:31:18",
+   "image": "swebench/sweb.eval.x86_64.scikit-learn_1776_scikit-learn-14983:latest",
+   "difficulty": "<15 min fix"
+  },
+  {
+   "instance_id": "pydata__xarray-6461",
+   "source": "verified",
+   "repo": "pydata/xarray",
+   "language": "python",
+   "created_at": "2022-04-09T03:02:40",
+   "image": "swebench/sweb.eval.x86_64.pydata_1776_xarray-6461:latest",
+   "difficulty": "<15 min fix"
+  },
+  {
+   "instance_id": "astropy__astropy-7336",
+   "source": "verified",
+   "repo": "astropy/astropy",
+   "language": "python",
+   "created_at": "2018-03-28T15:31:32",
+   "image": "swebench/sweb.eval.x86_64.astropy_1776_astropy-7336:latest",
+   "difficulty": "<15 min fix"
+  },
+  {
+   "instance_id": "angularsen__UnitsNet-1698",
+   "source": "multilang",
+   "repo": "angularsen/UnitsNet",
+   "language": "cs",
+   "created_at": "2026-07-25T10:37:47",
+   "image": "starryzhang/sweb.eval.x86_64.angularsen_1776_unitsnet-1698"
+  },
+  {
+   "instance_id": "playcanvas__engine-9066",
+   "source": "multilang",
+   "repo": "playcanvas/engine",
+   "language": "js",
+   "created_at": "2026-07-17T10:37:44",
+   "image": "starryzhang/sweb.eval.x86_64.playcanvas_1776_engine-9066"
+  },
+  {
+   "instance_id": "IfcOpenShell__IfcOpenShell-8887",
+   "source": "multilang",
+   "repo": "IfcOpenShell/IfcOpenShell",
+   "language": "cpp",
+   "created_at": "2026-07-23T12:59:22",
+   "image": "starryzhang/sweb.eval.x86_64.ifcopenshell_1776_ifcopenshell-8887"
+  },
+  {
+   "instance_id": "apache__rocketmq-10662",
+   "source": "multilang",
+   "repo": "apache/rocketmq",
+   "language": "java",
+   "created_at": "2026-07-25T13:39:15",
+   "image": "starryzhang/sweb.eval.x86_64.apache_1776_rocketmq-10662"
+  },
+  {
+   "instance_id": "xroche__httrack-618",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-16T21:43:57",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-618"
+  }
+ ]
+}

@@ -1,0 +1,29 @@
+{
+ "sha": "3b36f8156b16d6680ae9cac77d2cc8af7bc2f2ca",
+ "parent": "6a97bb3ef2022092a74806a4e3dd31a4112cb18c",
+ "date": "2026-09-30T16:26:54Z",
+ "rung": "R2",
+ "lock": "03447b6cc934cf5833a59fdb80aeddf875b09e84",
+ "tests": [
+  "packages/content/test/woodcutting.test.ts"
+ ],
+ "code": [
+  "packages/content/src/ontology.ts",
+  "packages/content/src/rules.ts",
+  "packages/tools/src/coverage.ts"
+ ],
+ "lines": 109,
+ "areas": [
+  "content",
+  "tools"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/woodcutting.test.ts::woodcutting a cleared grove grows back in two days, except where stumps were dug out",
+  "packages/content/test/woodcutting.test.ts::woodcutting a notch heals if the tree is left alone",
+  "packages/content/test/woodcutting.test.ts::woodcutting breaks a charred tree down to coal and ash",
+  "packages/content/test/woodcutting.test.ts::woodcutting does not grow a tree around someone standing on the stump",
+  "packages/content/test/woodcutting.test.ts::woodcutting turns one tree into four planks"
+ ],
+ "PASS_TO_PASS": [],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

@@ -1,0 +1,52 @@
+diff --git a/packages/modder/test/economy.test.ts b/packages/modder/test/economy.test.ts
+index f7ab607..f66052a 100644
+--- a/packages/modder/test/economy.test.ts
++++ b/packages/modder/test/economy.test.ts
+@@ -1,7 +1,7 @@
+ import { describe, expect, it } from 'vitest'
+ import { buildOntology } from '@lsw/content'
+ import type { Ontology, Rule, Tree } from '@lsw/engine'
+-import { freeLunch, prices, ruleSteps, simplexMax, type Step } from '../src/economy.ts'
++import { economySteps, freeLunch, prices, ruleSteps, simplexMax, type Step } from '../src/economy.ts'
+ 
+ // The economy check's linear programme (economy.ts, world-model.md §8): the simplex itself, checked
+ // against duality and against Bellman-Ford on arbitrage; and how chance is counted (by expectation).
+@@ -178,6 +178,38 @@ describe('chance, counted by expectation', () => {
+     expect([s.takes.get(STICK), s.gives.get(STONE)]).toEqual([0.25, 1])
+   })
+ 
++  it('a grind that gives the thing itself back one time in five: the LP sums the rounds (1 / (1 - 0.2) = 1.25)', () => {
++    // a stick ground: a stone, and by chance p the stick again (ground again, and so on)
++    const grind = (p: number) =>
++      ruleSteps(
++        lottery(p, 0, {
++          if: { chance: p },
++          then: { do: [{ op: 'destroy' }, { op: 'spawn', type: STONE, at: 'host', count: 1 }, { op: 'spawn', type: STICK, at: 'host', count: 1 }] },
++          else: { do: [{ op: 'destroy' }, { op: 'spawn', type: STONE, at: 'host', count: 1 }] },
++        }),
++        onto,
++      )
++    const [g] = grind(0.2)
++    expect([g.takes.get(STICK), g.gives.get(STONE)]).toEqual([1, 1])
++    expect(g.gives.get(STICK)).toBeCloseTo(0.2, 12)
++    // 5 stones make 4 sticks; a stick ground to the end gives 1.25 stones: 4 sticks, 5 stones, even
++    const make = S('make', [[STONE, 5]], [[STICK, 4]])
++    expect(freeLunch([make, ...grind(0.2)])).toBeUndefined()
++    // one time in four: 4 sticks give 5 1/3 stones, a third of a stone from nothing
++    expect(freeLunch([make, ...grind(0.25)])?.makes.map((m) => m.type)).toEqual([STONE])
++    // every time: the stick never goes, a stone from nothing at once
++    expect(freeLunch(grind(1))?.makes).toEqual([{ type: STONE, n: 1 }])
++  })
++
++  it('a thing that breaks into itself by chance, and a part named twice, both count', () => {
++    const GEODE = 'item/material/geode_test'
++    const geode = { id: GEODE, name: { en: 'Geode', zh: '晶洞' }, tags: [], props: { maxHp: 4, material: 'stone' }, makeup: [{ type: STONE, count: 1 }, { type: STONE, count: 1, chance: 0.5 }, { type: GEODE, count: 1, chance: 0.2 }] }
++    const steps = economySteps({ ...onto, types: { ...onto.types, [GEODE]: geode } } as Ontology, [], 1)
++    const b = steps.find((s) => s.name === `break ${GEODE}`)!
++    expect(b.gives.get(STONE)).toBeCloseTo(1.5, 12)
++    expect(b.gives.get(GEODE)).toBeCloseTo(0.2, 12)
++  })
++
+   it('a count read from the kind of thing the host is counts', () => {
+     const withYield: Ontology = { ...onto, types: { ...onto.types, [STICK]: { ...onto.types[STICK], props: { ...onto.types[STICK].props, yield: 3 } } } }
+     const rule = lottery(1, 0, { do: [{ op: 'destroy' }, { op: 'spawn', type: STONE, at: 'host', count: { prop: 'yield', of: 'host', add: 1 } }] })

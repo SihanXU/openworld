@@ -1,0 +1,46 @@
+{
+ "sha": "86ba15ab16f921143d136e051f0c3f0d1db47582",
+ "parent": "4ca992fda22344f533b7bf8da41499c7eee9880f",
+ "date": "2026-10-09T17:46:26-04:00",
+ "rung": "R2",
+ "lock": "d8255c2c3962ee4efef4677fcd11300e4a95056d",
+ "tests": [
+  "packages/tools/test/sandbox.test.ts"
+ ],
+ "code": [
+  "packages/engine/src/conduct.ts",
+  "packages/engine/src/engine.ts",
+  "packages/engine/src/npc.ts"
+ ],
+ "lines": 16,
+ "areas": [
+  "engine"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/tools/test/sandbox.test.ts::people make way, and keep it for one who faces them one holding still for the player keeps their place against another on their way (no two pushing each other out of it in turn)"
+ ],
+ "PASS_TO_PASS": [
+  "packages/tools/test/sandbox.test.ts::deeds seen, remembered, told to the watch (§2.2–2.7) a face under a hood is not known: the stranger is remembered by the look, and known again when seen close",
+  "packages/tools/test/sandbox.test.ts::deeds seen, remembered, told to the watch (§2.2–2.7) a theft in the open: the owner cries out and asks it back, a guard who sees it charges the bounty at once",
+  "packages/tools/test/sandbox.test.ts::deeds seen, remembered, told to the watch (§2.2–2.7) sneaking behind someone, a hand in their pocket goes unseen: the thing taken is still theirs",
+  "packages/tools/test/sandbox.test.ts::deeds seen, remembered, told to the watch (§2.2–2.7) what is seen is told: a witness tells the next person it meets, who remembers it second-hand",
+  "packages/tools/test/sandbox.test.ts::talk, regard, trade, followers (§2.4, §2.9, §2.10) a gift raises regard by its worth; what was taken given back is forgiven",
+  "packages/tools/test/sandbox.test.ts::talk, regard, trade, followers (§2.4, §2.9, §2.10) a merchant sells at its price (worth, markup, regard) and buys what is yours; a fence takes what is not",
+  "packages/tools/test/sandbox.test.ts::talk, regard, trade, followers (§2.4, §2.9, §2.10) asked to come along, one who does not know you well declines; a hireling follows, waits when told, and comes from map to map",
+  "packages/tools/test/sandbox.test.ts::talk, regard, trade, followers (§2.4, §2.9, §2.10) intimidated, a witness lets it go (and will not tell the watch)",
+  "packages/tools/test/sandbox.test.ts::talk, regard, trade, followers (§2.4, §2.9, §2.10) spoken to, a person warms once a day and opens the talk; asked, they tell the news",
+  "packages/tools/test/sandbox.test.ts::talk, regard, trade, followers (§2.4, §2.9, §2.10) the modder sees a person: their role, ties, what they think of the one who acted and what they know of them",
+  "packages/tools/test/sandbox.test.ts::the night and the law of places (§2.6) on a household's doorstep at night, one awake there warns you off, then calls the watch",
+  "packages/tools/test/sandbox.test.ts::the people's looks are what is remembered (§2.3) two looks alike enough are taken for one",
+  "packages/tools/test/sandbox.test.ts::the watch: arrest and its choices (§2.7) a guard who knows the wanted goes to them and stops them; paid, the bounty is cleared and what was taken goes back",
+  "packages/tools/test/sandbox.test.ts::the watch: arrest and its choices (§2.7) anyone may be wanted: the hungry drifter with no coin takes a meal, is seen, and the watch takes him to the cells",
+  "packages/tools/test/sandbox.test.ts::the watch: arrest and its choices (§2.7) bribed: the bounty and half again, and what was taken is kept; murder is never bought off",
+  "packages/tools/test/sandbox.test.ts::the watch: arrest and its choices (§2.7) resisting, the guard fights and calls the watch",
+  "packages/tools/test/sandbox.test.ts::the watch: arrest and its choices (§2.7) too poor to pay, the cells: time passes, the bounty is cleared",
+  "packages/tools/test/sandbox.test.ts::violence, death and bodies (§2.8) a weapon on a person is the AI's to say unless it is drawn; drawn, it is a blow",
+  "packages/tools/test/sandbox.test.ts::violence, death and bodies (§2.8) killed, a villager the story does not need becomes their body: a container of what they carried, their household's; the watch will not forgive it",
+  "packages/tools/test/sandbox.test.ts::violence, death and bodies (§2.8) struck, one who fights fights back; one who flees is afraid",
+  "packages/tools/test/sandbox.test.ts::whose things are (docs/npc-sandbox.md §2.1) a thing is its own owner's, else what holds it, else the region it lies in; taken by another, it stays theirs"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

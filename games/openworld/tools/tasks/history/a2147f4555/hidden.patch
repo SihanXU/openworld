@@ -1,0 +1,480 @@
+diff --git a/packages/content/test/building.test.ts b/packages/content/test/building.test.ts
+index 10c8694..1d5f815 100644
+--- a/packages/content/test/building.test.ts
++++ b/packages/content/test/building.test.ts
+@@ -61,7 +61,7 @@ function press(eng: Engine, key: Key, type?: string): Pressed {
+   }
+ }
+ 
+-const here = (eng: Engine) => eng.world.entitiesAt(FRONT.map, FRONT.x, FRONT.y)
++const here = (eng: Engine) => eng.world.placedAt(FRONT.map, FRONT.x, FRONT.y)
+ const fixture = (eng: Engine) => here(eng).find((e) => !eng.world.isAgent(e) && !eng.world.isPortable(e))
+ const count = (eng: Engine, type: string) => here(eng).filter((e) => e.type === type).length
+ const said = (eng: Engine) => eng.world.fx.flatMap((f) => (f.t === 'say' || f.t === 'log' ? [textOf(f.text)] : []))
+diff --git a/packages/content/test/controls.test.ts b/packages/content/test/controls.test.ts
+index a3a7be8..b39ce01 100644
+--- a/packages/content/test/controls.test.ts
++++ b/packages/content/test/controls.test.ts
+@@ -17,7 +17,7 @@ function world(held: string | undefined, others: ScenarioEntity[], terrain?: str
+ 
+ const npc = (key = 'npc.hollis'): ScenarioEntity => ({ key, type: 'actor/person/farmer', x: 2, y: 1 })
+ /** The index of the ground among the layers of a tile (the chooser's pick). */
+-const ground = (eng: Engine, x = 2, y = 1) => eng.controls.layers({ map: 'sandbox', x, y }).findIndex((r) => 'tile' in r)
++const ground = (eng: Engine, x = 2, y = 1) => eng.controls.layers({ map: 'sandbox', x, y }).findIndex((r) => eng.world.cellRank(eng.world.get(r.e)!) >= 0)
+ const label = (p: Plan | undefined) => textOf(p?.label)
+ 
+ describe('the four inputs: one verb each', () => {
+@@ -84,8 +84,8 @@ describe('the four inputs: one verb each', () => {
+ 
+   it('an object used on bare ground is an experiment for the modder, not nothing', () => {
+     const eng = world('item/food/apple', [])
+-    expect(eng.controls.plan('use')).toMatchObject({ verb: 'use', target: { tile: { x: 2, y: 1 } }, unknown: true })
+-    expect(eng.controls.plan('use', { x: 2, y: 1 })).toMatchObject({ verb: 'use', target: { tile: { x: 2, y: 1 } }, unknown: true })
++    expect(eng.controls.plan('use')).toMatchObject({ verb: 'use', target: eng.world.cellRef('sandbox', 2, 1), unknown: true })
++    expect(eng.controls.plan('use', { x: 2, y: 1 })).toMatchObject({ verb: 'use', target: eng.world.cellRef('sandbox', 2, 1), unknown: true })
+   })
+ 
+   it('left click works the ground with a tool: the hoe strikes, the ground answers', () => {
+@@ -139,8 +139,8 @@ describe('the four inputs: one verb each', () => {
+   it('stepping onto a tile is contact: no change unless the tile says (nothing asked); a burning tile burns who steps on it', () => {
+     const eng = world(undefined, [])
+     const port = new ModPort(eng)
+-    eng.author(() => eng.applyStatus({ tile: { map: 'sandbox', x: 2, y: 1 } }, 'oiled'))
+-    eng.author(() => eng.applyStatus({ tile: { map: 'sandbox', x: 2, y: 0 } }, 'burning', 999))
++    eng.author(() => eng.applyStatus(eng.world.cellRef('sandbox', 2, 1), 'oiled'))
++    eng.author(() => eng.applyStatus(eng.world.cellRef('sandbox', 2, 0), 'burning', 999))
+     eng.trace = []
+     eng.world.player.facing = 'up'
+     expect(eng.step(eng.world.player, 'up')).toBe(true)
+diff --git a/packages/content/test/farming.test.ts b/packages/content/test/farming.test.ts
+index df0f3b6..b1bb756 100644
+--- a/packages/content/test/farming.test.ts
++++ b/packages/content/test/farming.test.ts
+@@ -62,7 +62,7 @@ const press = (eng: Engine, key: Key, type?: string): string[] => {
+ const wait = (eng: Engine, ticks: number) => {
+   for (let i = 0; i < ticks; i++) eng.tick()
+ }
+-const at = (eng: Engine, x: number, y = 1) => eng.world.entitiesAt(SANDBOX_MAP, x, y).map((e) => e.type)
++const at = (eng: Engine, x: number, y = 1) => eng.world.placedAt(SANDBOX_MAP, x, y).map((e) => e.type)
+ const everywhere = (eng: Engine, type: string) => Object.values(eng.world.state.entities).filter((e) => e.type === type).length
+ 
+ const SEED = 'item/seed/wheat'
+diff --git a/packages/content/test/ford.test.ts b/packages/content/test/ford.test.ts
+index df6c1a4..c785b81 100644
+--- a/packages/content/test/ford.test.ts
++++ b/packages/content/test/ford.test.ts
+@@ -56,7 +56,8 @@ describe('the Ford', () => {
+     expect(eng.world.num(eng.world.get('tree')!, 'cuts')).toBe(2)
+     expect(hit()).toBe('ford/chop-dead-tree')
+     expect(noHoles(eng)).toEqual([])
+-    expect(eng.world.get('tree')).toBeUndefined()
++    // what stands is its stump: the same thing, become part of its cell
++    expect(eng.world.get('tree')?.type).toBe('tile/stump')
+     expect(eng.world.terrainAt('sandbox', 2, 2)).toBe('stump')
+     expect([3, 4].map((x) => eng.world.terrainAt('sandbox', x, 2))).toEqual(['bridge', 'bridge'])
+     expect(eng.world.terrainAt('sandbox', 5, 2)).toBe('grass')
+@@ -66,16 +67,16 @@ describe('the Ford', () => {
+   it('felled toward dry land, the tree bridges nothing', () => {
+     const eng = ford([{ key: 'tree', type: 'fixture/nature/dead_tree', x: 1, y: 1, props: { cuts: 2 } }, { key: 'axe', type: 'item/weapon/blade/axe', x: 1, y: 2, heldBy: 'actor' }])
+     eng.act('use', 'actor', { e: 'tree' })
+-    expect(eng.world.get('tree')).toBeUndefined()
++    expect(eng.world.get('tree')?.type).toBe('tile/stump')
+     expect(eng.world.terrainAt('sandbox', 1, 0)).toBe('grass')
+     expect(eng.world.terrainAt('sandbox', 1, 1)).toBe('stump')
+   })
+ 
+   it('the ice: frost on the river freezes a path that thaws again, putting whoever stands on it ashore', () => {
+     const eng = ford([])
+-    eng.queue({ kind: 'impulse/element', host: { tile: { map: 'sandbox', x: 3, y: 2 } }, roles: { actor: { e: 'actor' } }, params: { element: 'ice', power: 3 }, cause: 'actor', origin: 'player' })
++    eng.queue({ kind: 'impulse/element', host: eng.world.cellRef('sandbox', 3, 2), roles: { actor: { e: 'actor' } }, params: { element: 'ice', power: 3 }, cause: 'actor', origin: 'player' })
+     expect(eng.world.terrainAt('sandbox', 3, 2)).toBe('ice')
+-    expect(eng.world.hasStatus({ tile: { map: 'sandbox', x: 3, y: 2 } }, 'chilled')).toBe(true)
++    expect(eng.world.hasStatus(eng.world.cellRef('sandbox', 3, 2), 'chilled')).toBe(true)
+     eng.author(() => eng.teleport(eng.world.player, { map: 'sandbox', x: 3, y: 2 }))
+     expect(eng.world.posOf(eng.world.player)).toMatchObject({ x: 3, y: 2 })
+     for (let i = 0; i < 1600; i++) eng.tick()
+diff --git a/packages/content/test/placement.test.ts b/packages/content/test/placement.test.ts
+index 0418652..f2f59f1 100644
+--- a/packages/content/test/placement.test.ts
++++ b/packages/content/test/placement.test.ts
+@@ -19,7 +19,7 @@ describe('rule-driven construction', () => {
+     const items = kit(e, r.id)
+     expect(previewPlacement(e, 'actor', r, at).ok).toBe(true)
+     expect(place(e, r.id).ok).toBe(true)
+-    const made = e.world.entitiesAt(at.map, at.x, at.y).find((x) => x.type === r.result)
++    const made = e.world.placedAt(at.map, at.x, at.y).find((x) => x.type === r.result)
+     expect(made).toBeDefined()
+     // every step answered by the rules it names, along its chain (an act and the impulses it sends)
+     const acted = e.trace.filter((x) => x.ev.kind.startsWith('act/')).length
+@@ -68,7 +68,7 @@ describe('vegetable garden', () => {
+     e.world.author(() => e.world.setTerrain(at.map, at.x, at.y, 'farmland'))
+     kit(e, 'sow-carrot'); kit(e, 'water')
+     place(e, 'sow-carrot')
+-    const crop = e.world.entitiesAt(at.map, at.x, at.y)[0]
++    const crop = e.world.placedAt(at.map, at.x, at.y)[0]
+     for (let i = 0; i < 1200; i++) e.tick()
+     expect(crop.type).toBe('fixture/crop/carrot/sprout')
+     expect(place(e, 'water').ok).toBe(true)
+@@ -84,7 +84,7 @@ describe('vegetable garden', () => {
+     expect(place(e, 'till').ok).toBe(true)
+     expect(e.world.terrainAt(at.map, at.x, at.y)).toBe('farmland')
+     expect(place(e, `sow-${c.id}`).ok).toBe(true)
+-    const crop = e.world.entitiesAt(at.map, at.x, at.y)[0]
++    const crop = e.world.placedAt(at.map, at.x, at.y)[0]
+     expect(crop.type).toBe(`fixture/crop/${c.id}/sprout`)
+     expect(place(e, `sow-${c.id}`).ok).toBe(false)
+     const grow = () => {
+diff --git a/packages/content/test/rules.test.ts b/packages/content/test/rules.test.ts
+index 38ddbd5..0c8f698 100644
+--- a/packages/content/test/rules.test.ts
++++ b/packages/content/test/rules.test.ts
+@@ -32,7 +32,8 @@ const lib = () => new RuleLibrary(BASE_RULES)
+ /** A provider still at work: the request stays pending until a patch or the time-out. */
+ const working = { resolve: () => new Promise<null>(() => {}) }
+ const field = (rows: string[]) => rows.map((r) => r.split('').map((c) => ({ '.': 'grass', ',': 'drygrass', '~': 'water', '#': 'cobble' })[c]!))
+-const tile = (x: number, y: number) => ({ tile: { map: 'sandbox', x, y } })
++/** A cell of the sandbox: what makes it up on top (world-model.md §4.6). */
++const cellOf = (eng: Engine, x: number, y: number) => eng.world.cellRef('sandbox', x, y)
+ /** A sandbox in strict mode: any change of state outside an outcome throws (design.md §5.13, A2). */
+ const sandbox = (sc: Scenario, l = lib()): Engine => {
+   const eng = buildSandbox(sc, onto, l)
+@@ -148,11 +149,11 @@ describe('acts and the impulses they send', () => {
+       ],
+       event: {},
+     })
+-    eng.author(() => eng.applyStatus(tile(1, 1), 'burning', 999))
+-    const rules = chain(eng, () => expect(eng.act('use', 'actor', tile(1, 1)).rule?.id).toBe('use/water'))
++    eng.author(() => eng.applyStatus(cellOf(eng, 1, 1), 'burning', 999))
++    const rules = chain(eng, () => expect(eng.act('use', 'actor', cellOf(eng, 1, 1)).rule?.id).toBe('use/water'))
+     expect(rules).toContain('core/element')
+-    expect(eng.world.hasStatus(tile(1, 1), 'burning')).toBe(false)
+-    expect(eng.world.hasStatus(tile(1, 1), 'wet')).toBe(true)
++    expect(eng.world.hasStatus(cellOf(eng, 1, 1), 'burning')).toBe(false)
++    expect(eng.world.hasStatus(cellOf(eng, 1, 1), 'wet')).toBe(true)
+     expect(eng.world.get('bucket')!.type).toBe('item/vessel/bucket/empty')
+   })
+ 
+diff --git a/packages/content/test/woodcutting.test.ts b/packages/content/test/woodcutting.test.ts
+index 109af9c..b455219 100644
+--- a/packages/content/test/woodcutting.test.ts
++++ b/packages/content/test/woodcutting.test.ts
+@@ -31,7 +31,7 @@ function grove(row: string[], held: string): Engine {
+ const terrain = (eng: Engine, x: number, y = 1) => eng.world.terrainAt('sandbox', x, y)
+ const itemsAt = (eng: Engine, x: number, y = 1) =>
+   eng.world
+-    .entitiesAt('sandbox', x, y)
++    .placedAt('sandbox', x, y)
+     .map((e) => e.type)
+     .sort()
+ /** The player walks to (x,2) (an act of moving; teleporting keeps the test about the rules), still facing up. */
+@@ -60,7 +60,7 @@ describe('woodcutting', () => {
+     const eng = grove(['grass', 'grass', 'tree', 'grass', 'grass'], 'item/weapon/blade/axe')
+     expect(press(eng, 'use')).toEqual(expect.arrayContaining(['use/blade', 'wood/fell']))
+     expect(terrain(eng, 2)).toBe('tree')
+-    expect(eng.world.hasStatus({ tile: { map: 'sandbox', x: 2, y: 1 } }, 'notched')).toBe(true)
++    expect(eng.world.hasStatus(eng.world.cellRef('sandbox', 2, 1), 'notched')).toBe(true)
+     expect(press(eng, 'use')).toContain('wood/fell')
+     expect(terrain(eng, 2)).toBe('stump')
+     expect(itemsAt(eng, 2).filter((t) => t !== 'item/seed/acorn')).toEqual(['item/material/log', 'item/material/log', 'item/material/stick'])
+@@ -77,7 +77,7 @@ describe('woodcutting', () => {
+ 
+   it('a notch heals if the tree is left alone', () => {
+     const eng = grove(['grass', 'grass', 'pine', 'grass', 'grass'], 'item/weapon/blade/axe')
+-    const pine = { tile: { map: 'sandbox', x: 2, y: 1 } }
++    const pine = eng.world.cellRef('sandbox', 2, 1)
+     press(eng, 'use')
+     expect(eng.world.hasStatus(pine, 'notched')).toBe(true)
+     for (let i = 0; i < 101; i++) eng.tick()
+@@ -104,12 +104,13 @@ describe('woodcutting', () => {
+     standAt(eng, 1)
+     // the logs lie on the stump: the chooser picks the ground under them
+     expect(press(eng, 'use', 'tile/stump')).toEqual(expect.arrayContaining(['use/shovel', 'wood/uproot']))
+-    expect(terrain(eng, 1)).toBe('dirt')
++    // the stump is gone: the ground it stood on shows
++    expect(terrain(eng, 1)).toBe('grass')
+     standAt(eng, 4)
+     days(eng, 1)
+     expect(terrain(eng, 0)).toBe('stump')
+     days(eng, 1)
+-    expect([0, 1, 2, 3, 4].map((x) => terrain(eng, x))).toEqual(['tree', 'dirt', 'tree', 'tree', 'tree'])
++    expect([0, 1, 2, 3, 4].map((x) => terrain(eng, x))).toEqual(['tree', 'grass', 'tree', 'tree', 'tree'])
+   })
+ 
+   it('does not grow a tree around someone standing on the stump', () => {
+@@ -125,10 +126,10 @@ describe('woodcutting', () => {
+     expect(terrain(eng, 2)).toBe('tree')
+   })
+ 
+-  it('breaks a charred tree down to coal and ash', () => {
++  it('breaks a charred tree down to coal', () => {
+     const eng = grove(['grass', 'grass', 'charred_tree', 'grass', 'grass'], 'item/weapon/blade/axe')
+     expect(press(eng, 'use')).toContain('wood/char')
+-    expect(terrain(eng, 2)).toBe('ash')
++    expect(terrain(eng, 2)).toBe('grass')
+     expect(itemsAt(eng, 2)).toEqual(['item/material/coal'])
+   })
+ 
+diff --git a/packages/content/test/world.test.ts b/packages/content/test/world.test.ts
+index bbc03f8..28dc65c 100644
+--- a/packages/content/test/world.test.ts
++++ b/packages/content/test/world.test.ts
+@@ -244,7 +244,7 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
+     const port = new ModPort(eng)
+     port.provider = working
+     eng.author(() => eng.applyStatus({ e: 'rope' }, 'burning'))
+-    eng.author(() => eng.applyStatus({ tile: { map: 'sandbox', x: 1, y: 1 } }, 'wet'))
++    eng.author(() => eng.applyStatus(eng.world.cellRef('sandbox', 1, 1), 'wet'))
+     eng.queue({ kind: 'impulse/element', host: { e: 'tree' }, roles: {}, params: { element: 'lightning', power: 4 }, origin: 'world' })
+     expect(eng.world.hasStatus({ e: 'tree' }, 'burning')).toBe(true)
+     expect(port.records).toHaveLength(0)
+diff --git a/packages/tools/test/cells.test.ts b/packages/tools/test/cells.test.ts
+new file mode 100644
+index 0000000..3dfee99
+--- /dev/null
++++ b/packages/tools/test/cells.test.ts
+@@ -0,0 +1,116 @@
++import { describe, expect, it } from 'vitest'
++import { CELL_SPACES, Game, RuleLibrary, TICKS_PER_HOUR, cellId, parseCellId, type Space } from '@lsw/engine'
++import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
++import { buildFord } from '../src/demo/world.ts'
++
++// A cell is made of things (world-model.md §4.6, §5.2): its floor, what roots in its soil, what
++// fills its volume, each with an id derived from its place. They live in the map's data until one
++// changes, then the state keeps it under the same id. These tests hold the checks of §10.2 that
++// this makes: one reference form, exclusivity, and a save of only what changed.
++
++function ford() {
++  const { index, chunks } = buildFord()
++  const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++  for (const c of chunks) game.loadChunk(decodeChunk(c))
++  return { game, index, chunks, eng: game.engine, w: game.engine.world }
++}
++
++describe('cells are things (world-model.md §4.6)', () => {
++  it('one reference form: a cell thing has one id, the same before and after it changes', () => {
++    const { eng, w } = ford()
++    // a tree on the Ford: what fills its cell
++    const map = w.map('ford')!
++    const i = map.terrain.findIndex((t) => t === 'tree')
++    const [x, y] = [i % map.width, Math.floor(i / map.width)]
++    const ref = w.cellRef('ford', x, y)
++    expect(ref.e).toBe(cellId('ford', x, y, 'volume'))
++    const before = w.get(ref.e)!
++    expect(before.type).toBe('tile/tree')
++    expect(w.isStatic(before)).toBe(true)
++    // it changes: the state keeps it, under the same id
++    eng.author(() => w.setStatus(ref, 'notched', -1))
++    const after = w.get(ref.e)!
++    expect(after).toBe(before)
++    expect(w.isStatic(after)).toBe(false)
++    expect(w.state.entities[ref.e]).toBe(after)
++    expect(w.entitiesAt('ford', x, y).filter((e) => e.id === ref.e)).toHaveLength(1)
++    // under it, the ground its neighbours show; the floor's id is its own
++    const floor = w.occupant('ford', x, y, 'floor')!
++    expect(floor.id).toBe(cellId('ford', x, y, 'floor'))
++    expect(w.isSolidTerrain(floor.type.slice(5))).toBe(false)
++    // gone, it stays gone: the map's data does not bring it back
++    eng.author(() => w.destroy(after))
++    expect(w.get(ref.e)).toBeUndefined()
++    w.reindex()
++    expect(w.get(ref.e)).toBeUndefined()
++    expect(w.terrainAt('ford', x, y)).toBe(floor.type.slice(5))
++  })
++
++  it('exclusivity: in every cell of every map each space has at most one occupant, before and after two days', () => {
++    const { eng, w } = ford()
++    const check = () => {
++      const bad: string[] = []
++      for (const m of w.state.loadedMaps) {
++        const data = w.map(m)!
++        for (let y = 0; y < data.height; y++)
++          for (let x = 0; x < data.width; x++) {
++            const n: Partial<Record<Space, number>> = {}
++            for (const e of w.entitiesAt(m, x, y)) for (const s of w.spacesOf(e)) n[s] = (n[s] ?? 0) + 1
++            for (const [s, k] of Object.entries(n)) if (k! > 1) bad.push(`${m} ${x},${y} ${s}: ${w.entitiesAt(m, x, y).filter((e) => w.spacesOf(e).includes(s as Space)).map((e) => e.type).join(', ')}`)
++            // and every cell has its floor
++            if (!w.occupant(m, x, y, 'floor')) bad.push(`${m} ${x},${y}: no floor`)
++          }
++      }
++      return bad
++    }
++    expect(check()).toEqual([])
++    for (let t = 0; t < TICKS_PER_HOUR * 48; t++) {
++      if (w.scene) eng.scenes.advance()
++      eng.tick()
++    }
++    expect(check()).toEqual([])
++  })
++
++  it('a save keeps only the cells that changed', () => {
++    const { game, eng, w } = ford()
++    const kept = () => Object.keys(game.save().state.entities).filter((id) => parseCellId(id))
++    expect(kept()).toEqual([])
++    const map = w.map('ford')!
++    const i = map.terrain.findIndex((t) => t === 'grass')
++    const [x, y] = [i % map.width, Math.floor(i / map.width)]
++    eng.author(() => w.setTerrain('ford', x, y, 'farmland'))
++    expect(kept()).toEqual([cellId('ford', x, y, 'floor')])
++    // and loading it again gives the same cell
++    const again = Game.load(structuredClone(game.save()), buildFord().index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++    for (const c of buildFord().chunks) again.loadChunk(decodeChunk(c))
++    expect(again.engine.world.terrainAt('ford', x, y)).toBe('farmland')
++    expect(again.engine.world.get(cellId('ford', x, y, 'floor'))?.type).toBe('tile/farmland')
++  })
++
++  it('an older save: its tile overrides become the cells’ things, its tile relations start again', () => {
++    const { game, index, chunks, w } = ford()
++    const map = w.map('ford')!
++    const tree = map.terrain.findIndex((t) => t === 'tree')
++    const grass = map.terrain.findIndex((t) => t === 'grass')
++    const at = (i: number) => [i % map.width, Math.floor(i / map.width)] as const
++    const [tx, ty] = at(tree)
++    const [gx, gy] = at(grass)
++    const old = structuredClone(game.save()) as ReturnType<Game['save']> & { state: { tiles?: unknown } }
++    old.state.tiles = {
++      [`ford:${tx}:${ty}`]: { terrain: 'stump', statuses: { regrowing: 999 } },
++      [`ford:${gx}:${gy}`]: { statuses: { wet: -1 } },
++    }
++    old.state.relations = { player: [`on|t|ford:${gx}:${gy}#grass`] }
++    const loaded = Game.load(old, index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++    for (const c of chunks) loaded.loadChunk(decodeChunk(c))
++    const lw = loaded.engine.world
++    expect(lw.terrainAt('ford', tx, ty)).toBe('stump')
++    expect(lw.hasStatus(lw.cellRef('ford', tx, ty), 'regrowing')).toBe(true)
++    expect(lw.hasStatus(lw.cellRef('ford', gx, gy), 'wet')).toBe(true)
++    expect(Object.values(lw.state.relations ?? {}).flat().some((k) => k.includes('|t|'))).toBe(false)
++    expect('tiles' in lw.state).toBe(false)
++    // the tree under the stump is gone, not waiting under it
++    expect(lw.occupant('ford', tx, ty, 'volume')).toBeUndefined()
++    expect(CELL_SPACES).toEqual(['floor', 'soil', 'volume'])
++  })
++})
+diff --git a/packages/tools/test/coverage.test.ts b/packages/tools/test/coverage.test.ts
+index 39f3fcf..bbbcdaf 100644
+--- a/packages/tools/test/coverage.test.ts
++++ b/packages/tools/test/coverage.test.ts
+@@ -56,8 +56,8 @@ describe('nothing put down is lost', () => {
+         event: {},
+       }
+       const key = target.scenario(sc)
+-      const ref: Ref = key === 'target' ? { e: key } : { tile: { map: SANDBOX_MAP, ...FRONT } }
+       const start = buildSandbox(sc, onto, lib)
++      const ref: Ref = key === 'target' ? { e: key } : start.world.cellRef(SANDBOX_MAP, FRONT.x, FRONT.y)
+       for (const form of FORMS) {
+         const eng = new Engine(structuredClone(start.world.state), start.world.onto.data, lib)
+         const actor = eng.world.get('actor')!
+diff --git a/packages/tools/test/demo.test.ts b/packages/tools/test/demo.test.ts
+index 709c180..3c3c4aa 100644
+--- a/packages/tools/test/demo.test.ts
++++ b/packages/tools/test/demo.test.ts
+@@ -244,10 +244,11 @@ req('B5', 'stepping onto a tile in a state is contact, answered by the tile (oil
+   stand(f, ...STAND.road, 'right')
+   const tile = { map: 'ford', x: STAND.road[0] + 1, y: STAND.road[1] }
+   run(f, 'use', tile.x, tile.y)
+-  expect(W(f).hasStatus({ tile }, 'oiled')).toBe(true)
++  const road = W(f).cellRef('ford', tile.x, tile.y)
++  expect(W(f).hasStatus(road, 'oiled')).toBe(true)
+   f.events.length = 0
+   f.eng.movePlayer('right')
+-  const touch = f.events.find((e) => e.kind === 'contact/begin' && 'tile' in e.host && e.host.tile.x === tile.x && e.host.tile.y === tile.y)
++  const touch = f.events.find((e) => e.kind === 'contact/begin' && e.host.e === road.e)
+   expect(touch?.params?.how).toBe('under')
+   expect(records(f)).toHaveLength(0)
+ })
+@@ -450,7 +451,7 @@ req('D2', 'every layer a target can be: a person, a creature, a fixture, a loose
+   // the cart is in Firstlight Village now
+   stand(f, ...STAND.cart, 'left', FIRSTLIGHT.map)
+   const layers = f.eng.controls.layers({ map: FIRSTLIGHT.map, ...at(...AT.cart) })
+-  const kinds = layers.map((r) => ('tile' in r ? 'ground' : formOf(W(f), W(f).get(r.e)!)))
++  const kinds = layers.map((r) => (W(f).isTerrain(W(f).get(r.e)!) ? 'ground' : formOf(W(f), W(f).get(r.e)!)))
+   expect(kinds).toEqual(['item', 'item', 'fixture', 'ground'])
+   hold(f, ofType(f, 'item/food/bread'))
+   for (const key of ['hands', 'take', 'use', 'put'] as Key[]) {
+@@ -629,7 +630,7 @@ req('F11', 'a place, not a picture: all that is drawn or in the way is terrain o
+   const plan = f.eng.controls.plan('use', point)!
+   expect(plan.target).toEqual({ e: stump.id })
+   // the long press reaches what lies under it: the ground
+-  expect(f.eng.controls.choices('use', point).map((c) => c.plan?.target)).toEqual([{ e: stump.id }, { tile: { map: 'ford', x, y } }])
++  expect(f.eng.controls.choices('use', point).map((c) => c.plan?.target)).toEqual([{ e: stump.id }, W(f).cellRef('ford', x, y)])
+   f.eng.controls.run(plan, true)
+   expect(plan.unknown).toBe(true)
+   // the blow is the axe's; what the stump does when struck is undefined, and asked of the stump
+diff --git a/packages/tools/test/skills.test.ts b/packages/tools/test/skills.test.ts
+index 60780cc..c73cb23 100644
+--- a/packages/tools/test/skills.test.ts
++++ b/packages/tools/test/skills.test.ts
+@@ -181,10 +181,11 @@ describe('the skill tree', () => {
+       const eng = setup([], 'tree')
+       if (skilled) learn(eng, 'woodcutter')
+       eng.world.author(() => eng.world.add({ id: 'axe', type: 'item/weapon/blade/axe', place: { on: 'hand', holder: 'actor' } }))
+-      const tree = { tile: { map: eng.world.posOf(eng.world.get('actor')!)!.map, ...FRONT } }
++      const map = eng.world.posOf(eng.world.get('actor')!)!.map
++      const tree = eng.world.cellRef(map, FRONT.x, FRONT.y)
+       eng.world.author(() => eng.world.setStatus(tree, 'notched', -1))
+       eng.interact('interact', 'actor', tree)
+-      return eng.world.entitiesAt(tree.tile.map, FRONT.x, FRONT.y).filter((e) => e.type === 'item/material/log').length
++      return eng.world.entitiesAt(map, FRONT.x, FRONT.y).filter((e) => e.type === 'item/material/log').length
+     }
+     expect(logs(true)).toBe(logs(false) + 1)
+   })
+@@ -449,7 +450,7 @@ describe('automatic combat talents', () => {
+     blow(eng, { e: 'other' })
+     expect(eng.world.player.combat!.comboTarget).toBe('other')
+     expect(eng.world.player.combat!.comboHits).toBe(1)
+-    blow(eng, { tile: { map, x: 0, y: ORIGIN.y } })
++    blow(eng, eng.world.cellRef(map, 0, ORIGIN.y))
+     expect(eng.world.player.combat!.comboHits).toBeUndefined()
+   })
+ 
+diff --git a/packages/tools/test/writes.test.ts b/packages/tools/test/writes.test.ts
+index 5fe0701..88a240f 100644
+--- a/packages/tools/test/writes.test.ts
++++ b/packages/tools/test/writes.test.ts
+@@ -23,7 +23,7 @@ function sources(): { file: string; lines: string[] }[] {
+   return out
+ }
+ 
+-/** What changes the state behind the mutators: a thing's props, tags, statuses, place, contents; the world's facts and tiles. */
++/** What changes the state behind the mutators: a thing's props, tags, statuses, place, contents; the things kept (entities). */
+ const WRITES: RegExp[] = [
+   /\.(props|tags|statusBy|contents|held|place)!?\s*(\?\?)?=[^=]/,
+   // a thing's statuses (not a rule library's status definitions)
+@@ -33,8 +33,8 @@ const WRITES: RegExp[] = [
+   /\(\s*[\w.!]+\.(props|tags|statuses) \?\?= /,
+   /Object\.assign\([^,]*\.props/,
+   /delete [\w.!]+\.(props|statuses|statusBy)\b/,
+-  /state\.(facts|tiles)!?(\.[\w$]+|\[[^\]]+\])?!?\s*(\?\?)?=[^=]/,
+-  /delete [\w.!]*state\.(facts|tiles)/,
++  /state\.entities!?(\.[\w$]+|\[[^\]]+\])!?\s*(\?\?)?=[^=]/,
++  /delete [\w.!]*state\.entities/,
+ ]
+ 
+ /**
+@@ -49,7 +49,7 @@ const MAY_GRANT = ['engine/src/engine.ts', 'engine/src/world.ts']
+ const code = (l: string) => l.replace(/\/\/.*$/, '').trim()
+ 
+ describe('the state changes only in outcomes, and an outcome only its host (design.md §5.13, A2–A3)', () => {
+-  it('no game code changes props, tags, statuses, places, facts or tiles behind the mutators', () => {
++  it('no game code changes props, tags, statuses, places or the kept things behind the mutators', () => {
+     const found: string[] = []
+     for (const { file, lines } of sources()) {
+       if (MAY_WRITE.includes(file)) continue
+@@ -104,7 +104,8 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
+       'Object.assign(existing.props ??= {}, { hp: 1 })',
+       'delete e.statuses',
+       'target.statuses = {}',
+-      "w.state.facts!['x'] = 1",
++      "w.state.entities['x'] = e",
++      'delete w.state.entities[id]',
+       'delete tile.statuses',
+     ])
+       expect(hit(c), c).toBe(true)
+@@ -123,7 +124,7 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
+   })
+ 
+   it('the writer is held once; a write without it throws, and so does an outcome writing beyond its host', () => {
+-    const eng = new Engine({ tick: 0, seed: 1, rng: 1, player: 'p', entities: {}, maps: {}, tiles: {}, loadedMaps: [], counter: 0, spawn: { map: 'm', x: 0, y: 0 } }, buildOntology(), new RuleLibrary(BASE_RULES))
++    const eng = new Engine({ tick: 0, seed: 1, rng: 1, player: 'p', entities: {}, maps: {}, loadedMaps: [], counter: 0, spawn: { map: 'm', x: 0, y: 0 } }, buildOntology(), new RuleLibrary(BASE_RULES))
+     eng.ensureResidents()
+     expect(() => eng.world.grant()).toThrow(/already held/)
+     // a fact is the story's prop: kept outside an outcome, it throws like any other write

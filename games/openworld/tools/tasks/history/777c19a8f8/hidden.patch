@@ -1,0 +1,307 @@
+diff --git a/packages/tools/test/demo.test.ts b/packages/tools/test/demo.test.ts
+index c2bb92c..fb04588 100644
+--- a/packages/tools/test/demo.test.ts
++++ b/packages/tools/test/demo.test.ts
+@@ -25,6 +25,7 @@ import {
+   xpToNext,
+   astar,
+   performPlacement,
++  snapshot,
+   regionId,
+   madeOf,
+   travelToWaypoint,
+@@ -39,7 +40,7 @@ import {
+   type Ref,
+   type World,
+ } from '@lsw/engine'
+-import { BASE_RULES, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, PROLOGUE_AT_FOOT, PROLOGUE_DONE, TUTORIAL_DONE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@lsw/content'
++import { BASE_RULES, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, PROLOGUE_AT_FOOT, PROLOGUE_DONE, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@lsw/content'
+ import { BLOCK, OVERWORLD } from '../src/demo/overworld.ts'
+ import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
+ import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts'
+@@ -1790,8 +1791,8 @@ req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem
+   expect(W(f).num(p, 'level')).toBeGreaterThan(1)
+ })
+ 
+-req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes round in a clearing, eats, gathers, makes an axe, fells a tree and splits planks, lights a fire, builds a house with a bed and gets through a night while the dead walk; the way out opens only on the first morning after the house, and nothing leads back', [
+-  'item/food/berries', 'item/material/stick', 'item/material/stone', 'item/material/grass',
++req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by lesson (each one thing, the keys it does not teach locked in the first ones): one comes round in a clearing, walks, eats, opens the bag, gathers, makes an axe, fells a tree and splits planks, lights a fire, builds a house on the outline with a door, a bed and a ceiling, knocks the training dummy down and gets through a night while the dead walk; the way out opens only on the first morning after the house, and nothing leads back', [
++  'item/food/berries', 'item/material/stick', 'item/material/stone', 'item/material/grass', 'fixture/dummy',
+ ], () => {
+   const { index, chunks } = buildFord()
+   const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]), 'tutorial')
+@@ -1800,11 +1801,23 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes
+   const w = W(f)
+   const p = w.player
+   const c = f.eng.controls
++  const story = f.eng.story
+   const T = 'tutorial'
+   const stage = () => w.num(p, 'prologue')
+   const until = (n: number, limit = 60) => expect(ticks(f, limit, () => stage() >= n), `stage ${n} (at ${stage()})`).toBe(true)
++  const lesson = () => story.lesson()?.def.id
++  /** The lesson at hand comes to be this one (the one before it done). */
++  const now = (id: string, limit = 60) => expect(ticks(f, limit, () => lesson() === id), `lesson ${id} (at ${lesson()})`).toBe(true)
++  /** A lesson is done when its state holds (looked at every few ticks). */
++  const done = (id: string, limit = 30) => expect(ticks(f, limit, () => !!w.fact(`lesson.${id}`)), `lesson ${id} done (at ${lesson()})`).toBe(true)
+   const carried = (type: string) => [p.held, ...(p.contents ?? [])].map((id) => w.get(id)).find((e) => e?.type === type)
+   const count = (type: string) => c.count(type)
++  /** An input the lesson does not teach: nothing happens, and the key shakes. */
++  const refused = (act: () => unknown) => {
++    w.fx.length = 0
++    act()
++    expect(w.fx.some((x) => x.t === 'lesson' && !!x.blocked), 'the lesson refuses it').toBe(true)
++  }
+   /** F on whatever lies at a spot, from beside it, until nothing more is taken there. */
+   const takeAll = (x: number, y: number) => {
+     stand(f, x, y + 1, 'up', T)
+@@ -1815,19 +1828,30 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes
+       f.eng.tick()
+     }
+   }
+-  /** The toolbar holds a stack: one of its kind comes to hand. */
++  /** The toolbar holds a stack: one of its kind comes to hand (the lesson's key: its number). */
+   const grab = (type: string) => {
+     c.select(p.slots!.indexOf(c.key(carried(type)!)))
+     expect(w.get(p.held)?.type).toBe(type)
+   }
+   const craft = (type: string, n = 1) => { for (let i = 0; i < n; i++) expect(c.craft(RECIPE_BY_ID[type]), `craft ${type}`).toBe(true) }
+-  // the morning of day 1: one lies out cold, then comes round, and Pip speaks
++  const eat = () => {
++    c.run(c.plan('self')!, true)
++    if (w.state.question) c.answer(true)
++    f.eng.tick()
++  }
++
++  // ---- stage 1: out cold, then one comes round, and Pip speaks
+   expect(w.posOf(p)).toMatchObject({ map: T, x: TUTORIAL.spawn[0], y: TUTORIAL.spawn[1] })
+   expect(Math.floor(w.hour())).toBe(7)
+   expect(w.hasStatus({ e: p.id }, 'out_cold')).toBe(true)
+   expect(stage()).toBe(0)
+   until(1, 80)
+-  expect(w.hasStatus({ e: p.id }, 'out_cold')).toBe(false)
++  // the first lesson: walking, and nothing else (F does nothing)
++  now('move')
++  const [bx, by] = TUTORIAL.berries[0]
++  stand(f, bx, by + 1, 'up', T)
++  refused(() => c.run(c.plan('take', at(bx, by))!, true))
++  expect(carried('item/food/berries')).toBeUndefined()
+   // the way out is shut: down the path to the edge, one only stands on it (and Pip says not yet)
+   const [ex] = TUTORIAL.exit
+   const h = TUTORIAL.size[1]
+@@ -1835,75 +1859,128 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes
+   for (let i = 0; i < 4; i++) walk(f, 'down')
+   expect(w.posOf(p)).toMatchObject({ map: T, x: ex, y: h - 1 })
+   expect(w.fact('seen.tut_too_soon')).toBeTruthy()
+-  // food: F takes the berries, a right click eats them
+-  const [bx, by] = TUTORIAL.berries[0]
++  // to the spot Pip shows
++  stand(f, 14, 12, 'right', T)
++  walk(f, 'right')
++  done('move')
++  // F: the berries
++  now('take')
+   takeAll(bx, by)
+-  hold(f, carried('item/food/berries'))
+-  c.run(c.plan('self')!, true)
+-  if (w.state.question) c.answer(true)
++  done('take')
++  // the number of their slot: in hand
++  now('hold')
++  grab('item/food/berries')
++  done('hold')
++  // a right click: eaten
++  now('eat')
++  eat()
+   until(2)
+-  // what lies about: sticks, stones, grass
++
++  // ---- stage 2: the bag (the view tells the story it was opened), then a stick, a stone, grass
++  now('bag')
++  const [kx, ky] = TUTORIAL.sticks[0]
++  stand(f, kx, ky + 1, 'up', T)
++  refused(() => c.run(c.plan('take', at(kx, ky))!, true))
++  story.ui('bag')
++  done('bag')
+   for (const [x, y] of [...TUTORIAL.sticks, ...TUTORIAL.stones, ...TUTORIAL.grass]) takeAll(x, y)
+   until(3)
+-  // C: a stone axe
++
++  // ---- stage 3: C, and only the axe is made
++  now('craft')
++  expect(c.craft(RECIPE_BY_ID['item/light/torch'])).toBe(false)
+   craft('item/weapon/blade/axe')
+   until(4)
+-  // the grove: three trees felled, their logs split into planks where they lie, the planks taken
+-  hold(f, carried('item/weapon/blade/axe'))
++
++  // ---- stage 4: the axe in hand; the grove's trees felled, their logs split, the planks taken
++  now('hold-axe')
++  grab('item/weapon/blade/axe')
++  done('hold-axe')
++  // the grove: three trees felled (the logs fly to the bag), then C splits every log into planks (the axe at hand)
++  now('chop')
+   for (const [x, y] of TUTORIAL.grove.slice(0, 3)) {
+     const [sx, sy, d] = beside(f, x, y, T)
+     stand(f, sx, sy, d, T)
+     for (let i = 0; i < 4 && w.terrainAt(T, x, y) === 'tree'; i++) run(f, 'use', x, y)
+     expect(w.terrainAt(T, x, y)).not.toBe('tree')
+-    // the logs lie in a pile with a stick: what is on top is taken (F) until the axe meets a log
+-    for (let i = 0; i < 12 && w.placedAt(T, x, y).some((e) => e.type === 'item/material/log'); i++) {
+-      const top = w.get(c.plan('use', at(x, y))!.target.e)
+-      if (top?.type === 'item/material/log') run(f, 'use', x, y)
+-      else run(f, 'take', x, y)
+-    }
+-    for (let i = 0; i < 30 && w.placedAt(T, x, y).some((e) => e.type === 'item/material/plank' || e.type === 'item/material/stick'); i++) {
+-      const plan = c.plan('take', at(x, y))
+-      if (!plan) break
+-      c.run(plan, true)
+-      f.eng.tick()
+-    }
++    ticks(f, 6)
+   }
++  done('chop')
++  now('split')
++  expect(c.craft(RECIPE_BY_ID['structure/wall'])).toBe(false)
++  c.craftAll(RECIPE_BY_ID['item/material/plank'])
+   expect(count('item/material/plank')).toBeGreaterThanOrEqual(12)
+   until(5)
+-  // B: a ring of stones and sticks is a campfire; C: a torch, and the fire lit with it
++
++  // ---- stage 5: B, a ring of stones and sticks is a campfire; C, a torch, and the fire lit with it
++  now('campfire')
+   const fire = { map: T, x: 14, y: 18 }
+   stand(f, fire.x, fire.y - 1, 'down', T)
++  expect(c.allows('build', { type: 'campfire' })).toBe(true)
+   expect(performPlacement(f.eng, 'player', PLACEMENT_BY_ID.campfire, fire).ok).toBe(true)
++  done('campfire')
++  // what the locks before kept one from gathering: the rest of the grass (a torch and a bed need it)
++  now('torch')
++  for (const [x, y] of TUTORIAL.grass) takeAll(x, y)
+   craft('item/light/torch')
+   hold(f, carried('item/light/torch'))
++  stand(f, fire.x, fire.y - 1, 'down', T)
+   run(f, 'use', fire.x, fire.y)
+   until(6)
+-  // a house round oneself: the bed at one's feet, walls and a door round, a floor over it all
+-  const [hx, hy] = [20, 12]
++
++  // ---- stage 6: the house. The first wall on the outline (off it, refused), then the rest round,
++  // a door, the bed at one's feet, and the ceiling (chosen: the chooser's last entry)
++  now('wall')
++  const [hx, hy] = TUTORIAL_HOUSE.bed
+   stand(f, hx, hy, 'down', T)
+-  craft('fixture/furniture/bed')
+   craft('structure/wall', 3)
+-  craft('structure/door')
+-  craft('structure/floor')
+   const put = (type: string, x: number, y: number, layer = 0) => {
+     grab(type)
+     run(f, 'put', x, y, layer)
+     f.eng.tick()
+   }
++  grab('structure/wall')
++  refused(() => c.run(c.plan('put', at(hx + 1, hy + 1))!))
++  expect(w.placedAt(T, hx + 1, hy + 1).some((e) => e.type === 'structure/wall')).toBe(false)
++  for (const [x, y] of TUTORIAL_HOUSE.walls) put('structure/wall', x, y)
++  done('wall')
++  craft('fixture/furniture/bed')
++  craft('structure/door')
++  craft('structure/floor')
++  put('structure/door', TUTORIAL_HOUSE.door[0], TUTORIAL_HOUSE.door[1])
++  done('door')
+   put('fixture/furniture/bed', hx, hy)
+-  for (const [x, y] of [[hx, hy - 1], [hx - 1, hy], [hx + 1, hy]] as const) put('structure/wall', x, y)
+-  put('structure/door', hx, hy + 1)
+-  // the ceiling over one's head: chosen (the chooser's last entry, as a long press of G offers it)
++  done('bed')
+   put('structure/floor', hx, hy, CEILING)
+   until(7)
+-  // one's fill of berries before dark (a hungry sleeper wakes in the night)
++
++  // ---- stage 7: hold E on the bed (the chooser; the view tells the story), the dummy knocked down
++  // (only blows), the door shut, then one's fill of berries and the night
++  now('chooser')
++  expect(c.choices('hands', at(hx, hy)).length).toBeGreaterThan(0)
++  story.ui('chooser')
++  done('chooser')
++  now('dummy')
++  const dummy = w.entitiesOnMap(T).find((e) => e.type === 'fixture/dummy')!
++  expect(w.posOf(dummy)).toMatchObject({ x: TUTORIAL_DUMMY[0], y: TUTORIAL_DUMMY[1] })
++  stand(f, TUTORIAL_DUMMY[0] - 1, TUTORIAL_DUMMY[1], 'right', T)
++  refused(() => c.run(c.plan('take', at(TUTORIAL_DUMMY[0], TUTORIAL_DUMMY[1] - 1)) ?? c.plan('hands', at(TUTORIAL_DUMMY[0], TUTORIAL_DUMMY[1]))!))
++  grab('item/weapon/blade/axe')
++  for (let i = 0; i < 12 && !w.fact('tutorial.dummy'); i++) {
++    run(f, 'use', TUTORIAL_DUMMY[0], TUTORIAL_DUMMY[1])
++    ticks(f, 8)
++  }
++  done('dummy')
++  // it stands again, whole
++  expect(w.get(dummy.id)).toBeDefined()
++  expect(w.num(dummy, 'hp')).toBe(w.num(dummy, 'maxHp'))
++  // the door was shut as it was set down
++  done('shut')
+   for (const [x, y] of TUTORIAL.berries.slice(1)) takeAll(x, y)
+   stand(f, hx, hy, 'down', T)
+   for (let i = 0; i < 12 && carried('item/food/berries') && w.num(p, 'hunger') < w.num(p, 'maxHunger'); i++) {
+     grab('item/food/berries')
+-    c.run(c.plan('self')!, true)
+-    if (w.state.question) c.answer(true)
+-    f.eng.tick()
++    eat()
+   }
+   // the day goes by (the test's hand on the clock) and the night comes: the dead walk the clearing,
+   // and an hour of it the shut door keeps them out
+@@ -1915,6 +1992,7 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes
+   expect(w.num(p, 'hp')).toBe(hp)
+   // E on the bed at one's feet: one sleeps the night through, and the first morning after the house comes
+   expect(stage()).toBe(7)
++  now('sleep')
+   const sleep = c.plan('hands', at(hx, hy))!
+   expect(sleep.target).toEqual({ e: w.placedAt(T, hx, hy).find((e) => e.type === 'fixture/furniture/bed')!.id })
+   c.run(sleep, true)
+@@ -1922,8 +2000,13 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes
+   // the first morning after the house: day 2, at first light
+   expect(w.calendar().day).toBe(2)
+   expect(w.fact(TUTORIAL_OPEN)).toBeTruthy()
+-  // out of the door and down the path: the way out leads to the foot of the mountain
+-  run(f, 'hands', hx, hy + 1)
++
++  // ---- stage 8: M, the world map; then out of the door and down the path to the foot of the mountain
++  now('map')
++  story.ui('map')
++  done('map')
++  expect(story.lesson()).toBeUndefined()
++  run(f, 'hands', TUTORIAL_HOUSE.door[0], TUTORIAL_HOUSE.door[1])
+   stand(f, ex, h - 2, 'down', T)
+   walk(f, 'down')
+   ticks(f, 10)
+@@ -1936,6 +2019,29 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs: one comes
+   expect(w.map(T)!.site).toBeUndefined()
+ })
+ 
++req('T3', 'a lesson of the tutorial can be skipped (Esc held): it is done, and what it locked works again; a game without the tutorial has no lessons', [], () => {
++  const { index, chunks } = buildFord()
++  const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]), 'tutorial')
++  for (const c of chunks) game.loadChunk(decodeChunk(c))
++  const f: Ford = { game, eng: game.engine, events: [], made: [] }
++  const w = W(f)
++  expect(ticks(f, 80, () => w.num(w.player, 'prologue') >= 1)).toBe(true)
++  expect(ticks(f, 60, () => f.eng.story.lesson()?.def.id === 'move')).toBe(true)
++  expect(f.eng.controls.allows('take')).toBe(false)
++  f.eng.story.skipLesson()
++  expect(w.fact('lesson.move')).toBeTruthy()
++  expect(f.eng.story.lesson()?.def.id).toBe('take')
++  expect(f.eng.controls.allows('take')).toBe(true)
++  // the view sees the lesson at hand: its key, what works, and its focus (the nearest berries)
++  const view = snapshot(f.eng).lesson!
++  expect(view).toMatchObject({ id: 'take', key: 'F', allow: ['move', 'take'], index: 1 })
++  expect(w.get(view.focus!.id!)?.type).toBe('item/food/berries')
++  // no tutorial, no lessons
++  const plain = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++  expect(plain.engine.story.lesson()).toBeUndefined()
++  expect(plain.engine.controls.allows('take')).toBe(true)
++})
++
+ req('T2', "a game without the tutorial begins at the foot of the mountain, at the seal stone's stage, the bird beside", [], () => {
+   const { index, chunks } = buildFord()
+   const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))

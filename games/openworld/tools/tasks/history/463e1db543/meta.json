@@ -1,0 +1,29 @@
+{
+ "sha": "463e1db543220f2a99099ea7819a90819357752c",
+ "parent": "db0c18c89e41c4283c33d06abc8fe33254cbdf15",
+ "date": "2026-10-04T14:25:07-04:00",
+ "rung": "R2",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/tools/test/writes.test.ts"
+ ],
+ "code": [
+  ".claude/launch.json",
+  "packages/client/src/worker.ts"
+ ],
+ "lines": 14,
+ "areas": [
+  "other",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/tools/test/writes.test.ts::the state changes only in outcomes, and an outcome only its host (design.md §5.13, A2–A3) the client changes the world only as the author (a new game, loading, the dev console) or through the input"
+ ],
+ "PASS_TO_PASS": [
+  "packages/tools/test/writes.test.ts::the state changes only in outcomes, and an outcome only its host (design.md §5.13, A2–A3) no game code changes props, tags, statuses, places, facts or tiles behind the mutators",
+  "packages/tools/test/writes.test.ts::the state changes only in outcomes, and an outcome only its host (design.md §5.13, A2–A3) only the engine claims the writer, and only loading and building write as the author",
+  "packages/tools/test/writes.test.ts::the state changes only in outcomes, and an outcome only its host (design.md §5.13, A2–A3) the scan sees the ways around the mutators, and not their definitions",
+  "packages/tools/test/writes.test.ts::the state changes only in outcomes, and an outcome only its host (design.md §5.13, A2–A3) the writer is held once; a write without it throws, and so does an outcome writing beyond its host"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

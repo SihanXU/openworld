@@ -1,0 +1,49 @@
+{
+ "sha": "1a1e5406591683e42b9d3d69742258e4bd921f5f",
+ "parent": "666d7e455b3d5e6422d30d363a397028eab61987",
+ "date": "2026-10-13T07:13:58Z",
+ "rung": "R4",
+ "lock": "c8aae8165c193e13e9cb62882998aceaf8916f35",
+ "tests": [
+  "packages/editor/test/mapEdit.test.ts",
+  "packages/editor/test/store.test.ts"
+ ],
+ "code": [
+  "games/starter/catalog.json",
+  "packages/editor/src/app/canvas.ts",
+  "packages/editor/src/app/context.ts",
+  "packages/editor/src/app/main.ts",
+  "packages/editor/src/app/mapEdit.ts",
+  "packages/editor/src/app/mapForms.ts",
+  "packages/editor/src/app/mapMode.ts",
+  "packages/editor/src/app/mapTree.ts",
+  "packages/editor/src/app/store.ts",
+  "packages/editor/src/app/thumbs.ts",
+  "packages/runtime/src/render/scene.ts"
+ ],
+ "lines": 2016,
+ "areas": [
+  "editor",
+  "other",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/editor/test/mapEdit.test.ts::blocks and things copies a block with its things and what they hold, and pastes it anew elsewhere",
+  "packages/editor/test/mapEdit.test.ts::blocks and things leaves out what falls off the map, and what such a thing held",
+  "packages/editor/test/mapEdit.test.ts::blocks and things moves a thing with its home, removes one with what it holds, clears a box",
+  "packages/editor/test/mapEdit.test.ts::buildings, rooms and interiors copies a building with its block, and moves a block with its things, building, portal and anchor",
+  "packages/editor/test/mapEdit.test.ts::buildings, rooms and interiors lays a room: walls in a frame, a floor, its doorways",
+  "packages/editor/test/mapEdit.test.ts::buildings, rooms and interiors makes the interior behind a door, with a portal each way",
+  "packages/editor/test/mapEdit.test.ts::buildings, rooms and interiors stamps a building as the builder does: its picture, its walls, its door",
+  "packages/editor/test/mapEdit.test.ts::on the starter, compiled a village drawn with the tools compiles with no new problem: a building, its interior, a duplicated map",
+  "packages/editor/test/mapEdit.test.ts::shapes a brush is a square about its cell; a rectangle and an ellipse fill their box",
+  "packages/editor/test/mapEdit.test.ts::shapes fills what is joined by its sides, and paints the ground or the height (heights dropped when all 0)",
+  "packages/editor/test/store.test.ts::the editor's store makes an undone edit again, until another edit; a stroke again at once; an added or removed file too"
+ ],
+ "PASS_TO_PASS": [
+  "packages/editor/test/store.test.ts::the editor's store adds and removes files, and undoes either",
+  "packages/editor/test/store.test.ts::the editor's store keeps an edit unsaved, and the compiled project shows it",
+  "packages/editor/test/store.test.ts::the editor's store undoes a stroke, however many cells it painted, at once; and a change that changes nothing is no edit"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

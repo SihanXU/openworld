@@ -1,0 +1,58 @@
+{
+ "sha": "0e3050b6db1381e9b83f06ce21a8ee7f09c16cfe",
+ "parent": "ab25a8f0ce03c5b0d18a1ce09192c686d65665ba",
+ "date": "2026-10-09T05:39:52-04:00",
+ "rung": "R2",
+ "lock": "d8255c2c3962ee4efef4677fcd11300e4a95056d",
+ "tests": [
+  "packages/content/test/rules.test.ts"
+ ],
+ "code": [
+  "packages/engine/src/engine.ts",
+  "packages/engine/src/mod.ts"
+ ],
+ "lines": 37,
+ "areas": [
+  "engine"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/rules.test.ts::the Mod port keeps a defined act's scene as the act found it: what it used up is still there to replay"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/rules.test.ts::acts and the impulses they send a chain may reach a hole further on: the act is defined, its impulse is not",
+  "packages/content/test/rules.test.ts::acts and the impulses they send a document with something written in it is read in hand; one with nothing written is the world's to answer",
+  "packages/content/test/rules.test.ts::acts and the impulses they send a shut door hides what is behind it; an open one is a gap",
+  "packages/content/test/rules.test.ts::acts and the impulses they send cooks raw fish on a lit campfire: held over it (use), or put to it (the fire takes it and the fish answers the fire)",
+  "packages/content/test/rules.test.ts::acts and the impulses they send douses a burning tile with a water bucket: the bucket pours, the tile answers the water",
+  "packages/content/test/rules.test.ts::acts and the impulses they send fills an empty flask at a well",
+  "packages/content/test/rules.test.ts::acts and the impulses they send leaves genuinely new combinations undefined, at the root of the act",
+  "packages/content/test/rules.test.ts::acts and the impulses they send takes an item into the hand (it is taken), then puts it into an open chest (the chest takes it)",
+  "packages/content/test/rules.test.ts::base library has no ties: two equally specific rules on the same kind never both answer one event",
+  "packages/content/test/rules.test.ts::base library has unique ids, and every rule passes the patch validator save for what only the base may do",
+  "packages/content/test/rules.test.ts::base library orders by specificity: the host first (instance, then type depth, then constraints), the kind next",
+  "packages/content/test/rules.test.ts::base library tells apart hosts that need incompatible property values",
+  "packages/content/test/rules.test.ts::base library the root is total: every kind reaches a root rule, and no root rule inherits",
+  "packages/content/test/rules.test.ts::determinism & persistence replays identically from the same seed",
+  "packages/content/test/rules.test.ts::determinism & persistence round-trips the rule library through JSON",
+  "packages/content/test/rules.test.ts::fire and elements a lit lantern post takes more fire as its flame and does not catch; a cauldron gone out is lit again",
+  "packages/content/test/rules.test.ts::fire and elements a wooden wall burns as any wooden thing: it reaches its neighbours, and one that burns down is ash, not planks",
+  "packages/content/test/rules.test.ts::fire and elements conduct: lightning arcs through wet neighbours and terminates",
+  "packages/content/test/rules.test.ts::fire and elements fire spreads across dry grass and burns out to ash; stone does not burn",
+  "packages/content/test/rules.test.ts::fire and elements freeze: ice on a wet creature immobilizes it (the body inherits physics)",
+  "packages/content/test/rules.test.ts::fire and elements ice turns water into walkable ice",
+  "packages/content/test/rules.test.ts::fire and elements oil + fire explodes, on a thing and on a creature",
+  "packages/content/test/rules.test.ts::fire and elements raw food set on a fire made for cooking cooks, as held over it does; set on a lamp it does not",
+  "packages/content/test/rules.test.ts::fire and elements something explosive that catches fire goes off: what is round it is struck, and it is gone",
+  "packages/content/test/rules.test.ts::fire and elements vaporize: fire on a wet creature dries it (and hurts) and does not set it burning",
+  "packages/content/test/rules.test.ts::text names roles as they were when the outcome started, even after it destroyed its host",
+  "packages/content/test/rules.test.ts::the Mod port a dismissed question is not asked again",
+  "packages/content/test/rules.test.ts::the Mod port a patch names its host, writes only it, and leaves nothing undefined",
+  "packages/content/test/rules.test.ts::the Mod port asks about one hole and class once at a time, and a question that failed not again this session",
+  "packages/content/test/rules.test.ts::the Mod port patches only fill holes: a patch on a defined outcome is never consulted",
+  "packages/content/test/rules.test.ts::the Mod port raises an undefined outcome, holds its participants, and applies a valid patch",
+  "packages/content/test/rules.test.ts::the Mod port rejects a patch whose rule does not answer the triggering event",
+  "packages/content/test/rules.test.ts::the Mod port rejects unknown statuses, failing tests, and patches that tie with patches",
+  "packages/content/test/rules.test.ts::the Mod port runs the default after the time-out and still accepts a late patch"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

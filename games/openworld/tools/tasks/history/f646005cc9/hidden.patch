@@ -1,0 +1,126 @@
+diff --git a/packages/tools/test/demo.test.ts b/packages/tools/test/demo.test.ts
+index d9a5cc6..b29d2eb 100644
+--- a/packages/tools/test/demo.test.ts
++++ b/packages/tools/test/demo.test.ts
+@@ -38,13 +38,13 @@ import {
+   type Ref,
+   type World,
+ } from '@lsw/engine'
+-import { BASE_RULES, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, PROLOGUE_DONE, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@lsw/content'
++import { BASE_RULES, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, PROLOGUE_AT_FOOT, PROLOGUE_DONE, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@lsw/content'
+ import { BLOCK, OVERWORLD } from '../src/demo/overworld.ts'
+ import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
+ import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts'
+ import { GARDEN } from '../src/demo/garden.ts'
+ import { HOLLOW } from '../src/demo/hollow.ts'
+-import { PAT } from '../src/demo/prologue.ts'
++import { PAT, TUTORIAL } from '../src/demo/prologue.ts'
+ 
+ const onto = buildOntology()
+ /** Every event kind made in any of the worlds below: dispatched, or offered and passed over because nothing could answer it (no change). */
+@@ -475,7 +475,9 @@ req('D2', 'every layer a target can be: a person, a creature, a fixture, a loose
+ 
+ req('F1', 'the goal is a state: the far bank ends the story, however the player got there', ['region:far_bank'], () => {
+   const f = fresh()
+-  stand(f, ...AT.farLanding)
++  // set down on the landing, then a step on it: arriving is an outcome (the author's hand makes no contact)
++  stand(f, ...AT.farLanding, 'right')
++  walk(f, 'right')
+   W(f).fx = []
+   const cards: unknown[] = []
+   expect(
+@@ -1059,9 +1061,9 @@ function reach(f: Ford, x: number, y: number): Set<string> {
+   return seen
+ }
+ 
+-req('W4', 'every map lies on the overworld, and its edges are open: mined through the rock at the summit\'s edge, one walks out onto its cell there', ['site/place'], () => {
++req('W4', 'every map but the tutorial lies on the overworld, and its edges are open: mined through the rock at the summit\'s edge, one walks out onto its cell there', ['site/place'], () => {
+   const f = fresh()
+-  for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD)) {
++  for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD && id !== 'tutorial')) {
+     const site = W(f).map(m)!.site!
+     expect([m, site.map]).toEqual([m, OVERWORLD])
+     expect([m, W(f).entitiesAt(OVERWORLD, site.x + 1, site.y + BLOCK - 1).some((e) => e.type === 'site/place' && e.props?.map === m)]).toEqual([m, true])
+@@ -1646,6 +1648,7 @@ req('Q2', 'chapter 2, the road east: past the far bank the road leads on; the bu
+ req('Q3', 'chapter 3, Emberfall: the elder tells of the dragon, gives bread, and sets the tasks; the smithy and the herbalist\'s cauldron are lit', ['npc.mara', 'fixture/water/well', 'fixture/sign/noticeboard', 'fixture/light/lamppost', 'fixture/craft/forge', 'fixture/craft/anvil', 'fixture/container/barrel', 'fixture/craft/cauldron', 'fixture/container/crate'], () => {
+   const f = fresh()
+   stand(f, 2, EMBERFALL.west[1], 'right', 'emberfall')
++  walk(f, 'right')
+   expect(ticks(f, 200, () => quest(f) === 3 && !W(f).scene)).toBe(true)
+   for (const t of ['fixture/water/well', 'fixture/sign/noticeboard', 'fixture/light/lamppost', 'fixture/container/barrel', 'fixture/container/crate']) expect(onMap(f, t, 'emberfall').length).toBeGreaterThan(0)
+   expect(W(f).hasStatus({ e: 'emberfall.forge' }, 'lit')).toBe(true)
+@@ -1797,6 +1800,46 @@ req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem
+   expect(W(f).num(p, 'level')).toBeGreaterThan(1)
+ })
+ 
++req('T1', "a new game begins in the tutorial: a bare plot with no way out, where nothing appears by day or comes by night; one that skips it begins at the foot of the mountain, at the seal stone's stage, the bird beside", [], () => {
++  const { index, chunks } = buildFord()
++  const begin = (start?: string): Ford => {
++    const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]), start)
++    for (const c of chunks) game.loadChunk(decodeChunk(c))
++    return { game, eng: game.engine, events: [], made: [] }
++  }
++  const t = begin()
++  const w = W(t)
++  expect(w.posOf(w.player)).toMatchObject({ map: 'tutorial', x: TUTORIAL.spawn[0], y: TUTORIAL.spawn[1] })
++  const plot = w.map('tutorial')!
++  const [width, height] = TUTORIAL.size
++  expect([plot.width, plot.height]).toEqual([width, height])
++  // bare: grass everywhere, and nothing on it but oneself and the bird
++  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) expect(w.terrainAt('tutorial', x, y)).toBe('grass')
++  const on = () => Object.values(w.state.entities).filter((e) => w.posOf(e)?.map === 'tutorial' && !w.isTerrain(e)).map((e) => e.id).sort()
++  expect(on()).toEqual(['pip', 'player'])
++  // no way out: no door, no place on the overworld, and every edge holds
++  expect(index.maps.find((m) => m.id === 'tutorial')!.portals).toEqual([])
++  expect(plot.site).toBeUndefined()
++  const edges: [number, number, NonNullable<Entity['facing']>][] = [[3, 0, 'up'], [3, height - 1, 'down'], [0, 4, 'left'], [width - 1, 4, 'right']]
++  for (const [x, y, dir] of edges) {
++    stand(t, x, y, dir, 'tutorial')
++    expect(walk(t, dir)).toMatchObject({ map: 'tutorial', x, y })
++  }
++  // a day and a night: nothing grows out of the ground, nothing comes out of the dark
++  ticks(t, TICKS_PER_HOUR * 24)
++  expect(on()).toEqual(['pip', 'player'])
++  // skipped: at the foot, before the seal stone, the bird beside; the stone's beat is the next
++  const s = begin('skip')
++  const sw = W(s)
++  expect(sw.posOf(sw.player)).toMatchObject({ map: 'foot', x: TUTORIAL.skip[0], y: TUTORIAL.skip[1] })
++  expect(sw.num(sw.player, 'prologue')).toBe(PROLOGUE_AT_FOOT)
++  expect(sw.posOf(sw.get('pip')!)?.map).toBe('foot')
++  stand(s, PAT.relic[0], 5, 'down', 'foot')
++  walk(s, 'down')
++  walk(s, 'down')
++  expect(ticks(s, 30, () => !!sw.fact('seen.relic'))).toBe(true)
++})
++
+ req('P1', 'the prologue, offline: down from the plateau to the Ford, every beat reached through the player\'s inputs, Pip at your side, the waypoint stones on the world map', [
+   'item/food/berries', 'fixture/sacred/waypoint', 'fixture/sacred/seal_stone', 'actor/creature/slime/green_slime', 'item/material/grass',
+ ], () => {
+@@ -1805,6 +1848,11 @@ req('P1', 'the prologue, offline: down from the plateau to the Ford, every beat
+   const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+   for (const c of chunks) game.loadChunk(decodeChunk(c))
+   const f: Ford = { game, eng: game.engine, events: [], made: [] }
++  // the mountain's own opening (a new game's is the tutorial, T1): one wakes in the shelter, the bird beside
++  f.eng.author(() => {
++    f.eng.teleport(f.eng.world.player, { map: 'summit', x: PAT.spawn[0], y: PAT.spawn[1] })
++    f.eng.teleport(f.eng.world.get('pip')!, { map: 'summit', x: PAT.spawn[0] - 1, y: PAT.spawn[1] })
++  })
+   const w = W(f)
+   const p = w.player
+   const c = f.eng.controls
+diff --git a/packages/tools/test/overworld.test.ts b/packages/tools/test/overworld.test.ts
+index b678c06..0405ccd 100644
+--- a/packages/tools/test/overworld.test.ts
++++ b/packages/tools/test/overworld.test.ts
+@@ -55,9 +55,9 @@ describe('the overworld (world-model.md §5.1, §10.2)', () => {
+     expect(split).toEqual([])
+   })
+ 
+-  it('every map but the overworld lies on a cell of land, and that cell holds the site that leads into it', () => {
++  it('every map but the overworld (and the tutorial, which lies nowhere) lies on a cell of land, and that cell holds the site that leads into it', () => {
+     const w = world()
+-    for (const id of w.state.loadedMaps.filter((m) => m !== OVERWORLD)) {
++    for (const id of w.state.loadedMaps.filter((m) => m !== OVERWORLD && m !== 'tutorial')) {
+       const s = w.map(id)!.site!
+       const site = w.entitiesAt(OVERWORLD, s.x + 1, s.y + BLOCK - 1).find((e) => e.props?.map === id)
+       expect([id, !!site]).toEqual([id, true])

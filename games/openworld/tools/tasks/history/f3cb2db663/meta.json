@@ -1,0 +1,53 @@
+{
+ "sha": "f3cb2db663c2b852cf85e419323e31f442212968",
+ "parent": "fda5d35b8fbc1da678cee8db17c324dca28ba3da",
+ "date": "2026-10-05T01:14:05-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/content/test/player.test.ts",
+  "packages/content/test/timers.test.ts"
+ ],
+ "code": [
+  "packages/engine/src/controls.ts",
+  "packages/engine/src/effects.ts",
+  "packages/engine/src/engine.ts",
+  "packages/engine/src/mod.ts",
+  "packages/engine/src/types.ts",
+  "packages/engine/src/world.ts"
+ ],
+ "lines": 130,
+ "areas": [
+  "engine"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/player.test.ts::Big Pack organizes 31 stacks without losing capacity or items",
+  "packages/content/test/player.test.ts::Big Pack organizes 40 stacks without losing capacity or items",
+  "packages/content/test/player.test.ts::inputs on a storey Space and aimed blows stay on the storey with item/weapon/ranged/bow",
+  "packages/content/test/player.test.ts::inputs on a storey Space and aimed blows stay on the storey with undefined",
+  "packages/content/test/player.test.ts::inputs on a storey hands chooses and acts on its own storey",
+  "packages/content/test/player.test.ts::inputs on a storey pointer layers, the chooser and a distant aim retain the storey",
+  "packages/content/test/player.test.ts::inputs on a storey put chooses and acts on its own storey",
+  "packages/content/test/player.test.ts::inputs on a storey reach rejects other storeys, including a carried target there",
+  "packages/content/test/player.test.ts::inputs on a storey take chooses and acts on its own storey",
+  "packages/content/test/player.test.ts::inputs on a storey the magnet takes only drops on its own storey",
+  "packages/content/test/player.test.ts::inputs on a storey the menu drops onto the floor in front on its own storey",
+  "packages/content/test/player.test.ts::inputs on a storey the ray ends on its own floor, and a sweep stays on its own storey",
+  "packages/content/test/player.test.ts::ranged blows a chosen target off the ray is refused without striking a bystander",
+  "packages/content/test/player.test.ts::ranged blows a closer body cannot replace the target announced by a plan",
+  "packages/content/test/player.test.ts::ranged blows a wall 1 tiles ahead stops Space and a chosen shot",
+  "packages/content/test/player.test.ts::ranged blows item/weapon/magic/staff used on a bag item keeps the announced target",
+  "packages/content/test/player.test.ts::ranged blows item/weapon/magic/wand used on a bag item keeps the announced target",
+  "packages/content/test/player.test.ts::ranged blows item/weapon/ranged/bow used on a bag item keeps the announced target",
+  "packages/content/test/timers.test.ts::dormant stage timers a stage with a zero wait cannot keep entry looping forever",
+  "packages/content/test/timers.test.ts::dormant stage timers condition waits catch up in time order alongside another stage clock",
+  "packages/content/test/timers.test.ts::dormant stage timers three laying periods yield the same eggs and next deadline as an active map",
+  "packages/content/test/timers.test.ts::dormant stage timers transformed stages continue from their deadlines, including entry within the event queue"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/player.test.ts::Big Pack organizes 30 stacks without losing capacity or items",
+  "packages/content/test/player.test.ts::ranged blows a wall 2 tiles ahead stops Space and a chosen shot",
+  "packages/content/test/player.test.ts::ranged blows an open ray still hits the body ahead"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

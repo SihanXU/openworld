@@ -6,11 +6,13 @@
 //
 //   npm run curriculum -- [--n 20] [--seed 1] [--scope demo|all] [--checkpoint 10]
 //                         [--improve-every 10] [--budget 5] [--engine]
-//                         [--profile live|offline] [--by hole] [--data <dir>]
+//                         [--profile live|offline] [--by hole] [--data <dir>] [--ladder [--until YYYY-MM-DD]]
 //   --profile live answers as a player would get it (one call; review after shipping; a failure
 //   escalates to the offline agent in the background); --by hole spreads the sample over the
 //   holes the cells reach. Every step is a row of <data>/runs/<time>.jsonl, with the coverage
 //   after it: how many undefined cells the patch answered (its class reaches further than the cell).
+//   --ladder works a ladder task (this repository's own commits, npm run ladder) every other step, from the windows
+//   before --until (a milestone's day: docs/rsi-experiments.md §6.2).
 //   (model from .env / the environment, as for `npm run modder`)
 
 import { appendFileSync, mkdirSync } from 'node:fs'
@@ -22,6 +24,7 @@ import { improve, runAgent, type TaskSource } from '@openworld/agent'
 import { openModder, type Modder } from '@openworld/modder'
 import { FRONT, ORIGIN, sweep, targets, type Cell } from './coverage.ts'
 import { engineSource, engineTask, engineTaskDefs } from './engine-tasks.ts'
+import { historyDefs, historySource, historyTask } from './ladder.ts'
 import { pickByHole, pickWeighted, scopedTotals, worldScope, type Scope } from './scope.ts'
 
 const SIZE = 9 // the request window is 7×7 around the target (or around the actor, using a thing on itself)
@@ -116,6 +119,10 @@ async function main(): Promise<void> {
   const improveEvery = Number(flag('improve-every', '0'))
   const budget = Number(flag('budget', '0'))
   const withEngine = argv.includes('--engine')
+  // the ladder (docs/rsi-experiments.md §5): this repository's commits as tasks, those of the windows up to --until
+  const withLadder = argv.includes('--ladder')
+  const ladderUntil = flag('until')
+  const ladder = withLadder ? historyDefs().filter((d) => !ladderUntil || d.date < ladderUntil) : []
   const profile = flag('profile', 'offline') as 'live' | 'offline'
   const byHole = flag('by') === 'hole'
   const data = flag('data')
@@ -134,7 +141,7 @@ async function main(): Promise<void> {
   mkdirSync(runs, { recursive: true })
   const runFile = join(runs, `${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`)
   let undefinedNow = before.totals.undefined
-  const sources: TaskSource[] = [modder.taskSource(), ...(withEngine ? [engineSource()] : [])]
+  const sources: TaskSource[] = [modder.taskSource(), ...(withEngine ? [engineSource()] : []), ...(withLadder ? [historySource()] : [])]
   console.log(`${scope ? `${scopedTotals(before.cells, scope).undefined} undefined in ${scopeName}` : `${open.length} undefined`}; taking ${cells.length} (seed ${seed}) with ${modder.model.name}`)
   let since = state.episodes().length
   if (every) checkpoint(modder, scope, scopeName, since, `ckpt-${state.episodes().length}-start-${Date.now().toString(36)}`)
@@ -188,6 +195,19 @@ async function main(): Promise<void> {
         try {
           const r = await runAgent(t.task, { model: modder.model, state, log: (l) => console.log(`  ${l}`) })
           console.log(`  engine ${t.task.id}: ${r.outcome}`)
+        } finally {
+          await t.dispose()
+        }
+    }
+    // and a ladder task every other step, one rung after another
+    if (ladder.length && (i + 1) % 2 === 0) {
+      const def = ladder[Math.floor((i + 1) / 2 - 1) % ladder.length]
+      const t = await historyTask(def)
+      if (!t) console.log('  ladder task skipped: no container here, and an unattended agent does not run its code on this machine')
+      else
+        try {
+          const r = await runAgent(t.task, { model: modder.model, state, log: (l) => console.log(`  ${l}`) })
+          console.log(`  ladder ${def.id} (${def.rung}): ${r.outcome}`)
         } finally {
           await t.dispose()
         }

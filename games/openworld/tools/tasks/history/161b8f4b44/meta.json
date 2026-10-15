@@ -1,0 +1,34 @@
+{
+ "sha": "161b8f4b442d1088053dea62d1f96ce32ab62880",
+ "parent": "071bd3f6bcdf160818d3ada0b0497dbb4a0312b2",
+ "date": "2026-10-04T23:47:54-04:00",
+ "rung": "R1",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/content/test/building.test.ts"
+ ],
+ "code": [
+  "packages/client/src/ui/menu.ts",
+  "packages/content/src/ontology.ts"
+ ],
+ "lines": 18,
+ "areas": [
+  "content",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/building.test.ts::a house walls, a door and a floor over them make a room round oneself; a bed makes it a bedroom; the door opens and shuts, and the room stays"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/building.test.ts::a chest from a frame a hammer on a frame of two makes a crate",
+  "packages/content/test/building.test.ts::a chest from a frame an axe breaks up a chest: its contents spill and two planks come back; a locked one is not taken apart, only worn",
+  "packages/content/test/building.test.ts::a chest from a frame an axe takes a frame apart into its planks",
+  "packages/content/test/building.test.ts::a chest from a frame counts planks into a frame, reports progress, and a hammer makes a chest",
+  "packages/content/test/building.test.ts::the same pattern a pickaxe takes a ring apart into its stones and sticks",
+  "packages/content/test/building.test.ts::the same pattern a ring of stones and two sticks make a campfire that lights",
+  "packages/content/test/building.test.ts::the same pattern a sign is built blank and written with a quill while carrying ink",
+  "packages/content/test/building.test.ts::the same pattern planks bridge shallow water, not deep water",
+  "packages/content/test/building.test.ts::the same pattern stakes make a fence"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

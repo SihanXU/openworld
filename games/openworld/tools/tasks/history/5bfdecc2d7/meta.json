@@ -1,0 +1,47 @@
+{
+ "sha": "5bfdecc2d7db06e6e128d38d3d73c41a3a8b15e5",
+ "parent": "e0bd9996500d47614f2efe903093d3872567d1a1",
+ "date": "2026-10-13T00:12:07-04:00",
+ "rung": "R2",
+ "lock": "c8aae8165c193e13e9cb62882998aceaf8916f35",
+ "tests": [
+  "games/openworld/tools/test/sandbox.test.ts"
+ ],
+ "code": [
+  "games/openworld/tools/src/demo/check.ts",
+  "packages/modules/src/society/social.ts"
+ ],
+ "lines": 14,
+ "areas": [
+  "modules",
+  "tools"
+ ],
+ "FAIL_TO_PASS": [
+  "games/openworld/tools/test/sandbox.test.ts::talk, regard, trade, followers (§2.4, §2.9, §2.10) the hungry keep their food: a hungry seller offers no meal, so the loaf is eaten, not sold round and round"
+ ],
+ "PASS_TO_PASS": [
+  "games/openworld/tools/test/sandbox.test.ts::deeds seen, remembered, told to the watch (§2.2–2.7) a face under a hood is not known: the stranger is remembered by the look, and known again when seen close",
+  "games/openworld/tools/test/sandbox.test.ts::deeds seen, remembered, told to the watch (§2.2–2.7) a theft in the open: the owner cries out and asks it back, a guard who sees it charges the bounty at once",
+  "games/openworld/tools/test/sandbox.test.ts::deeds seen, remembered, told to the watch (§2.2–2.7) sneaking behind someone, a hand in their pocket goes unseen: the thing taken is still theirs",
+  "games/openworld/tools/test/sandbox.test.ts::deeds seen, remembered, told to the watch (§2.2–2.7) what is seen is told: a witness tells the next person it meets, who remembers it second-hand",
+  "games/openworld/tools/test/sandbox.test.ts::people make way, and keep it for one who faces them one holding still for the player keeps their place against another on their way (no two pushing each other out of it in turn)",
+  "games/openworld/tools/test/sandbox.test.ts::talk, regard, trade, followers (§2.4, §2.9, §2.10) a gift raises regard by its worth; what was taken given back is forgiven",
+  "games/openworld/tools/test/sandbox.test.ts::talk, regard, trade, followers (§2.4, §2.9, §2.10) a merchant sells at its price (worth, markup, regard) and buys what is yours; a fence takes what is not",
+  "games/openworld/tools/test/sandbox.test.ts::talk, regard, trade, followers (§2.4, §2.9, §2.10) asked to come along, one who does not know you well declines; a hireling follows, waits when told, and comes from map to map",
+  "games/openworld/tools/test/sandbox.test.ts::talk, regard, trade, followers (§2.4, §2.9, §2.10) intimidated, a witness lets it go (and will not tell the watch)",
+  "games/openworld/tools/test/sandbox.test.ts::talk, regard, trade, followers (§2.4, §2.9, §2.10) spoken to, a person warms once a day and opens the talk; asked, they tell the news",
+  "games/openworld/tools/test/sandbox.test.ts::talk, regard, trade, followers (§2.4, §2.9, §2.10) the modder sees a person: their role, ties, what they think of the one who acted and what they know of them",
+  "games/openworld/tools/test/sandbox.test.ts::the night and the law of places (§2.6) on a household's doorstep at night, one awake there warns you off, then calls the watch",
+  "games/openworld/tools/test/sandbox.test.ts::the people's looks are what is remembered (§2.3) two looks alike enough are taken for one",
+  "games/openworld/tools/test/sandbox.test.ts::the watch: arrest and its choices (§2.7) a guard who knows the wanted goes to them and stops them; paid, the bounty is cleared and what was taken goes back",
+  "games/openworld/tools/test/sandbox.test.ts::the watch: arrest and its choices (§2.7) anyone may be wanted: the hungry drifter with no coin takes a meal, is seen, and the watch takes him to the cells",
+  "games/openworld/tools/test/sandbox.test.ts::the watch: arrest and its choices (§2.7) bribed: the bounty and half again, and what was taken is kept; murder is never bought off",
+  "games/openworld/tools/test/sandbox.test.ts::the watch: arrest and its choices (§2.7) resisting, the guard fights and calls the watch",
+  "games/openworld/tools/test/sandbox.test.ts::the watch: arrest and its choices (§2.7) too poor to pay, the cells: time passes, the bounty is cleared",
+  "games/openworld/tools/test/sandbox.test.ts::violence, death and bodies (§2.8) a weapon on a person is the AI's to say unless it is drawn; drawn, it is a blow",
+  "games/openworld/tools/test/sandbox.test.ts::violence, death and bodies (§2.8) killed, a villager the story does not need becomes their body: a container of what they carried, their household's; the watch will not forgive it",
+  "games/openworld/tools/test/sandbox.test.ts::violence, death and bodies (§2.8) struck, one who fights fights back; one who flees is afraid",
+  "games/openworld/tools/test/sandbox.test.ts::whose things are (docs/npc-sandbox.md §2.1) a thing is its own owner's, else what holds it, else the region it lies in; taken by another, it stays theirs"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

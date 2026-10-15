@@ -1,0 +1,545 @@
+diff --git a/packages/agent/test/claude-code.test.ts b/packages/agent/test/claude-code.test.ts
+index 1369896..64560d8 100644
+--- a/packages/agent/test/claude-code.test.ts
++++ b/packages/agent/test/claude-code.test.ts
+@@ -41,7 +41,9 @@ process.stdin.on('end', () => {
+   const say = (o) => (stream ? console.log(JSON.stringify({ type: 'system', subtype: 'init' }) + '\\n' + JSON.stringify({ type: 'result', ...o })) : console.log(JSON.stringify(o)))
+   let result
+   if (text.includes('FAIL')) return say({ is_error: true, result: 'Failed to authenticate' })
+-  if (text.includes('## Tools') && !text.includes('[tool result: ')) result = JSON.stringify({ tool_calls: [{ name: 'get_rule', args: { id: 'core/use' } }] })
++  // a sentence first, with braces of its own, then the call (seen live: the protocol asks for the object alone)
++  if (text.includes('PROSE') && text.includes('## Tools') && !text.includes('[tool result: ')) result = 'The { "from": "request" } form does not build here; I will read the rule.\\n' + JSON.stringify({ tool_calls: [{ name: 'get_rule', args: { id: 'core/use' } }] })
++  else if (text.includes('## Tools') && !text.includes('[tool result: ')) result = JSON.stringify({ tool_calls: [{ name: 'get_rule', args: { id: 'core/use' } }] })
+   else result = JSON.stringify({ model: arg('--model'), effort: arg('--effort'), tools: arg('--tools'), sawResult: text.includes('[tool result: get_rule'), json: text.includes('one JSON object') })
+   say({ is_error: false, result, total_cost_usd: 0.01, usage: { input_tokens: 10, cache_read_input_tokens: 90, output_tokens: 5, output_tokens_details: { thinking_tokens: 2 } } })
+ })
+@@ -92,6 +94,14 @@ describe('the Claude Code backend (claude -p)', () => {
+     expect(JSON.parse(second.content).sawResult).toBe(true)
+   })
+ 
++  it('finds the tool call after a sentence that has braces of its own', async () => {
++    const { bin } = fakeClaude()
++    const m = new ClaudeCodeModel({ model: 'claude-opus-5-5', bin })
++    const r = await m.chat([{ role: 'system', content: 'sys' }, { role: 'user', content: 'design PROSE' }], { tools })
++    expect(r.toolCalls).toMatchObject([{ name: 'get_rule', args: { id: 'core/use' } }])
++    expect(r.content).toBe('')
++  })
++
+   it('keeps the system prompt byte for byte as given, whatever the call asks (the cached prefix), and passes it in a file', async () => {
+     const { bin, systems } = fakeClaude()
+     const m = new ClaudeCodeModel({ model: 'claude-opus-5-5', bin })
+diff --git a/packages/client/test/afterSave.test.ts b/packages/client/test/afterSave.test.ts
+new file mode 100644
+index 0000000..04ad209
+--- /dev/null
++++ b/packages/client/test/afterSave.test.ts
+@@ -0,0 +1,35 @@
++import { afterEach, describe, expect, it, vi } from 'vitest'
++import { AfterSave } from '../src/afterSave.ts'
++
++describe('back to the title after the save is written', () => {
++  afterEach(() => vi.useRealTimers())
++
++  it('waits for the save, then runs once', () => {
++    vi.useFakeTimers()
++    const a = new AfterSave()
++    const run = vi.fn()
++    a.then(run)
++    vi.advanceTimersByTime(500)
++    expect(run).not.toHaveBeenCalled()
++    a.written()
++    a.written()
++    vi.advanceTimersByTime(5000)
++    expect(run).toHaveBeenCalledTimes(1)
++  })
++
++  it('goes on after a while when no save comes (nothing to save)', () => {
++    vi.useFakeTimers()
++    const a = new AfterSave()
++    const run = vi.fn()
++    a.then(run, 2000)
++    vi.advanceTimersByTime(1999)
++    expect(run).not.toHaveBeenCalled()
++    vi.advanceTimersByTime(1)
++    expect(run).toHaveBeenCalledTimes(1)
++  })
++
++  it('a save with nothing waiting does nothing', () => {
++    const a = new AfterSave()
++    expect(() => a.written()).not.toThrow()
++  })
++})
+diff --git a/packages/content/test/controls.test.ts b/packages/content/test/controls.test.ts
+index 196ff38..90320ea 100644
+--- a/packages/content/test/controls.test.ts
++++ b/packages/content/test/controls.test.ts
+@@ -1,6 +1,6 @@
+ import { describe, expect, it } from 'vitest'
+ import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_PACE, ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, textOf, type Engine, type Key, type Plan, type Ref, type ScenarioEntity, type Verb } from '@lsw/engine'
+-import { cellId } from '@lsw/engine'
++import { cellId, madeOf } from '@lsw/engine'
+ import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
+ 
+ const onto = buildOntology()
+@@ -212,6 +212,32 @@ describe('the five inputs: one act each', () => {
+     expect(helm.world.worn(h).map((e) => e.id)).toEqual(['held'])
+   })
+ 
++  it('a thing that changes form keeps its quality in its name (a masterwork bucket filled is a masterwork bucket)', () => {
++    const water = Array.from({ length: 5 }, (_, y) => Array.from({ length: 5 }, (_, x) => (y === 1 && x === 2 ? 'water' : 'grass')))
++    const eng = world('item/vessel/bucket/empty', [], water)
++    const w = eng.world
++    eng.author(() => Object.assign(w.get('held')!, madeOf(w.onto.data, w.onto, 'item/vessel/bucket/empty', undefined, 'masterwork'), { type: 'item/vessel/bucket/empty' }))
++    expect(textOf(w.get('held')!.name)).toMatch(/^Masterwork /)
++    eng.controls.run(eng.controls.plan('use')!)
++    const after = w.get('held')!
++    expect(after.type).not.toBe('item/vessel/bucket/empty')
++    expect(textOf(after.name)).toMatch(/^Masterwork /)
++    expect(textOf(after.name)).not.toBe(textOf(madeOf(w.onto.data, w.onto, 'item/vessel/bucket/empty', undefined, 'masterwork').name))
++  })
++
++  it('a right click on oneself says what it will do with what is held: put on or take off, and a weapon is wielded or put away', () => {
++    for (const [held, on, off] of [['item/clothing/cloak', 'Put on', 'Take off'], ['item/weapon/blade/axe', 'Wield', 'Put away']] as const) {
++      const eng = world(held, [])
++      const name = textOf(eng.world.get('held')!.name ?? eng.world.onto.resolve(held).name)
++      expect(label(eng.controls.plan('self'))).toBe(`${on} ${name}`)
++      eng.controls.run(eng.controls.plan('self')!)
++      expect(eng.world.worn(eng.world.player).map((e) => e.id)).toEqual(['held'])
++      expect(label(eng.controls.plan('self'))).toBe(`${off} ${name}`)
++      eng.controls.run(eng.controls.plan('self')!)
++      expect(eng.world.worn(eng.world.player)).toEqual([])
++    }
++  })
++
+   it('what an input does is said by what answers it: food eats or feeds; the unknown says its default with a ?, and a patch says its own once it fills the hole', () => {
+     const eng = world('item/food/apple', [npc(), { key: 'well', type: 'fixture/water/well', x: 1, y: 1 }])
+     eng.author(() => eng.world.setProp(eng.world.get('npc.hollis')!, 'maxHunger', 20))
+diff --git a/packages/content/test/placement.test.ts b/packages/content/test/placement.test.ts
+index 671facb..f9ce784 100644
+--- a/packages/content/test/placement.test.ts
++++ b/packages/content/test/placement.test.ts
+@@ -166,3 +166,11 @@ describe('vegetable garden', () => {
+     expect(e.world.get(bucket.id)!.type).toBe('item/vessel/bucket/empty')
+   })
+ })
++
++describe('one name for one thing', () => {
++  it.each(BUILDINGS)('the building panel calls $id what it builds is called (营火, not 篝火 in the labels)', (r) => {
++    const onto = buildOntology()
++    const made = onto.types[r.result!]?.name
++    expect(textOf(r.name, 'zh')).toBe(textOf(made, 'zh'))
++  })
++})
+diff --git a/packages/content/test/rules.test.ts b/packages/content/test/rules.test.ts
+index 1688f00..05a93e1 100644
+--- a/packages/content/test/rules.test.ts
++++ b/packages/content/test/rules.test.ts
+@@ -312,6 +312,16 @@ describe('fire and elements', () => {
+     expect(rp.errors).toEqual([])
+   })
+ 
++  it('one frost cast freezes its cell and some beside it, not the whole river', () => {
++    const river = field(Array.from({ length: 9 }, () => '~~~~~~~~~'))
++    const rp = replay({ ...fire('tile:4,4', 'ice', 2, [{ key: 'actor', type: 'actor/person/player', x: 4, y: 4, props: {} }], river), ticks: 30 }, onto, lib())
++    const w = rp.engine.world
++    const ice: [number, number][] = []
++    for (let y = 0; y < 9; y++) for (let x = 0; x < 9; x++) if (w.terrainAt('sandbox', x, y) === 'ice') ice.push([x, y])
++    expect(ice).toContainEqual([4, 4])
++    for (const [x, y] of ice) expect(Math.max(Math.abs(x - 4), Math.abs(y - 4)), `${x},${y}`).toBeLessThanOrEqual(1)
++  })
++
+   it('ice turns water into walkable ice', () => {
+     const rp = replay(fire('tile:2,2', 'ice', 3, [{ key: 'actor', type: 'actor/person/player', x: 2, y: 3 }], field(['.....', '.~~~.', '.~~~.', '.....'])), onto, lib())
+     expect(rp.resolution.rule?.id).toBe('element/freeze-water')
+@@ -497,6 +507,22 @@ describe('the Mod port', () => {
+     expect(eng.lib.rules.has('patch/rope-binds-creature')).toBe(true)
+   })
+ 
++  it('credits a shared patch to this game\'s own request (a revision of its answer), and only that', () => {
++    const eng = sandbox(ropeScenario())
++    const port = new ModPort(eng)
++    port.provider = working
++    ropeOnSlime(eng)
++    const mine = port.records[0].id
++    for (let i = 0; i < 120; i++) eng.tick()
++    const scene = port.records[0].request.scenario
++    expect(port.submit(undefined, ropePatch(), scene, mine).errors).toEqual([])
++    expect(eng.lib.rules.get('patch/rope-binds-creature')!.source).toMatchObject({ request: mine })
++    const eng2 = sandbox(ropeScenario())
++    const port2 = new ModPort(eng2)
++    expect(port2.submit(undefined, ropePatch(), scene, 'req-of-another-game').errors).toEqual([])
++    expect(eng2.lib.rules.get('patch/rope-binds-creature')!.source?.request).toBeUndefined()
++  })
++
+   it('asks about one hole and class once at a time, and a question that failed not again this session', async () => {
+     const two = (): Scenario => ({
+       ...ropeScenario(),
+@@ -694,3 +720,14 @@ describe('text', () => {
+     expect(line && line.t === 'log' && typeof line.text === 'object' && line.text.en).toBe('The green slime eats the Rope.')
+   })
+ })
++
++describe('a test whose given is not a scenario', () => {
++  it('is told what a scenario is, not met with a crash deep inside', () => {
++    expect(() => buildSandbox({ from: 'request' } as unknown as Scenario, onto, lib())).toThrow(/not a scenario.*entities/)
++    const rule: Rule = { id: 'patch/test-shape', host: { type: 'item/material/stone' }, on: 'act/use', tree: { do: [{ op: 'log', text: { en: 'Clack.', zh: '咔。' } }] }, tests: [{ given: { from: 'request' } as unknown as Scenario, expect: [] }] }
++    const res = validatePatch({ author: 'test', artifacts: [{ kind: 'rule', rule }] }, { ontology: onto, library: lib() })
++    const said = res.errors.join('\n')
++    expect(said).toMatch(/not a scenario/)
++    expect(said).not.toMatch(/Cannot read properties/)
++  })
++})
+diff --git a/packages/content/test/timers.test.ts b/packages/content/test/timers.test.ts
+index 67856cc..43d8c70 100644
+--- a/packages/content/test/timers.test.ts
++++ b/packages/content/test/timers.test.ts
+@@ -1,6 +1,6 @@
+ import { describe, expect, it } from 'vitest'
+ import { RuleLibrary, buildSandbox, type Engine, type Ontology } from '@lsw/engine'
+-import { BASE_RULES, buildOntology } from '../src/index.ts'
++import { BASE_RULES, EGGS_LIE, LAYS_EVERY, buildOntology } from '../src/index.ts'
+ 
+ function fresh(onto: Ontology = buildOntology()): Engine {
+   const eng = buildSandbox({
+@@ -33,6 +33,29 @@ describe('dormant stage timers', () => {
+     expect(run(true)).toEqual(active)
+   })
+ 
++  it('a hen stops laying while a dozen eggs lie about her map, active or dormant, and lays again once they are taken', () => {
++    const run = (away: boolean) => {
++      const eng = fresh()
++      const w = eng.world
++      const hen = eng.author(() => w.create('actor/creature/animal/chicken', { on: 'tile', map: 'sandbox', x: 1, y: 1 }))
++      const eggs = () => Object.values(w.state.entities).filter((e) => e.type === 'item/food/egg/raw' && e.place.on === 'tile')
++      const pass = (ticks: number) => {
++        if (away) travel(eng, 'away')
++        for (let i = 0; i < ticks; i++) (eng.tick(), w.drainFx())
++        if (away) travel(eng, 'sandbox')
++      }
++      pass(LAYS_EVERY * (EGGS_LIE + 3) + 1)
++      const piled = eggs().length
++      eng.author(() => eggs().forEach((e) => w.destroy(e)))
++      pass(LAYS_EVERY * 2 + 1)
++      return { piled, after: eggs().length, alive: !!w.get(hen.id) }
++    }
++    const active = run(false)
++    expect(active).toEqual({ piled: EGGS_LIE, after: expect.any(Number), alive: true })
++    expect(active.after).toBeGreaterThan(0)
++    expect(run(true)).toEqual(active)
++  })
++
+   it('transformed stages continue from their deadlines, including entry within the event queue', () => {
+     for (const queued of [false, true]) {
+       const onto = buildOntology()
+diff --git a/packages/modder/test/audit.test.ts b/packages/modder/test/audit.test.ts
+index cad1e67..eed6d93 100644
+--- a/packages/modder/test/audit.test.ts
++++ b/packages/modder/test/audit.test.ts
+@@ -133,6 +133,25 @@ describe('the auditor in the pipeline', () => {
+     expect(state.journalOf('audit')).toMatchObject([{ episode: reply.episode, rules: ['patch/rope-sniff'], skipped: 'narrates only', usage: { calls: 0 } }])
+   })
+ 
++  it('live: an auditor that fails keeps the patch, and the journal says it failed (not that it found nothing)', async () => {
++    let audits = 0
++    const model = new ScriptedModel((_messages: ChatMessage[], opts: ChatOptions) => {
++      if (opts.purpose === 'audit') {
++        audits++
++        throw new Error('model: no answer within 180000 ms')
++      }
++      if (opts.purpose === 'design') return { patch: bane, summary: 'a rope on a creature' }
++      return {}
++    })
++    const { library, state, modder } = setup(model, 'live')
++    const reply = await modder.resolve({ request: useRequest() })
++    expect(reply.outcome).toBe('accepted')
++    await modder.settled()
++    expect(audits).toBe(1)
++    expect(library.lib.rules.has('patch/rope-bane')).toBe(true)
++    expect(state.journalOf('audit')).toMatchObject([{ episode: reply.episode, confirmed: [], error: 'model: no answer within 180000 ms' }])
++  })
++
+   it('offline: a draft the auditor breaks goes back with the evidence; the next one ships', async () => {
+     const { model, calls } = scripted([bane, sniff], [becomesBane])
+     const { library, modder } = setup(model, 'offline')
+diff --git a/packages/modder/test/modder.test.ts b/packages/modder/test/modder.test.ts
+index 1f7d506..48377c7 100644
+--- a/packages/modder/test/modder.test.ts
++++ b/packages/modder/test/modder.test.ts
+@@ -1173,6 +1173,37 @@ describe('the live profile', () => {
+     expect(rev.outcome).toBe('accepted')
+   })
+ 
++  it('a background revision does not hold the lane a player\'s request waits in', async () => {
++    let release!: () => void
++    const gate = new Promise<void>((r) => (release = r))
++    let reviews = 0
++    let lives = 0
++    let revising = false
++    const model = new ScriptedModel(async (messages, opts) => {
++      if (opts.purpose === 'review') return reviews++ === 0 ? { verdict: 'revise', notes: ['Any creature can be tied up, not just slimes.'] } : { verdict: 'ship' }
++      if (opts.purpose === 'reflect') return {}
++      if (opts.tools?.length || messages.some((m) => m.role === 'tool')) {
++        revising = true
++        if (messages[messages.length - 1].role === 'user') return { content: '', toolCalls: [{ id: 'x', name: 'get_type', args: { id: 'item/tool/rope' } }] }
++        await gate
++        return { patch: patchOf(bindRule()) }
++      }
++      return { patch: patchOf(noTests(lives++ === 0 ? bindRule('patch/rope-binds-slime', 'actor/creature/slime', 'actor/creature/slime/frost_slime') : bindRule('patch/rope-binds-wolf', 'actor/creature/beast', 'actor/creature/beast/wolf'))) }
++    })
++    const { modder, state } = setup(model, undefined, 'live')
++    state.setHarness({ ...state.harness(), review: { ...state.harness().review, unflagged: true } }, 'test: review everything')
++    expect((await modder.resolve({ request: request() })).outcome).toBe('accepted')
++    for (let i = 0; i < 200 && !revising; i++) await new Promise((r) => setTimeout(r, 10))
++    expect(revising).toBe(true)
++    // a wolf offered rope: the slime's lane, while its revision is still being designed
++    const wolf = request('actor/creature/beast/wolf')
++    expect(laneOf(wolf)).toBe(laneOf(request()))
++    const second = await Promise.race([modder.resolve({ request: wolf }), new Promise<'blocked'>((r) => setTimeout(() => r('blocked'), 3000))])
++    expect(second).not.toBe('blocked')
++    release()
++    await modder.settled()
++  })
++
+   it('flags a rule that changes nothing for the reviewer', async () => {
+     const flavour: Rule = { id: 'patch/rope-on-creature-nothing', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: 'Nothing.', tree: { if: FIBER, then: { do: [{ op: 'log', text: 'You wave the rope about.' }] } } }
+     let seen = ''
+diff --git a/packages/tools/test/far-bank.test.ts b/packages/tools/test/far-bank.test.ts
+new file mode 100644
+index 0000000..397cb6d
+--- /dev/null
++++ b/packages/tools/test/far-bank.test.ts
+@@ -0,0 +1,39 @@
++// The far bank of the Ford is chapter one's hook only while the story is in chapter one.
++
++import { describe, expect, it } from 'vitest'
++import { Game, RuleLibrary, tickAt } from '@lsw/engine'
++import { BASE_RULES, PROLOGUE_DONE, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
++import { FAR_BANK, buildFord } from '../src/demo/world.ts'
++
++function acrossAt(quest: number) {
++  const { index, chunks } = buildFord()
++  const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++  for (const c of chunks) game.loadChunk(decodeChunk(c))
++  const eng = game.engine
++  const w = eng.world
++  eng.author(() => {
++    Object.assign(w.player.props!, { prologue: PROLOGUE_DONE, quest })
++    w.setFact('seen.arrival', 1)
++    w.setFact('seen.far_bank_early', 1)
++  })
++  w.state.tick = tickAt(3, 12)
++  let y = 12
++  while (!w.walkable('ford', FAR_BANK + 4, y)) y++
++  eng.author(() => eng.teleport(w.player, { map: 'ford', x: FAR_BANK + 4, y }))
++  for (let i = 0; i < 20; i++) eng.tick()
++  return { w, scene: w.scene?.id, hook: !!w.fact('seen.far_bank'), crossed: w.fact('ford.crossed'), quest: w.num(w.player, 'quest') }
++}
++
++describe('the far bank', () => {
++  it('at the finale: no chapter-one hook, the river is only marked crossed', () => {
++    const r = acrossAt(7)
++    expect(r.hook).toBe(false)
++    expect(r.crossed).toBe(1)
++    expect(r.quest).toBe(7)
++  })
++
++  it('in chapter one, after the letter: the hook plays', () => {
++    const r = acrossAt(1)
++    expect(r.hook).toBe(true)
++  })
++})
+diff --git a/packages/tools/test/greetings.test.ts b/packages/tools/test/greetings.test.ts
+new file mode 100644
+index 0000000..90be09e
+--- /dev/null
++++ b/packages/tools/test/greetings.test.ts
+@@ -0,0 +1,48 @@
++// A first meeting is a meeting, whatever was talked over: one who first spoke to the player about a quest
++// does not greet them as a stranger after it.
++
++import { describe, expect, it } from 'vitest'
++import { Game, RuleLibrary, tickAt } from '@lsw/engine'
++import { BASE_RULES, PROLOGUE_DONE, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
++import { buildFord } from '../src/demo/world.ts'
++
++describe('first meetings', () => {
++  it('a quest talked over first is the meeting: no first-meeting line after it', () => {
++    const { index, chunks } = buildFord()
++    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++    for (const c of chunks) game.loadChunk(decodeChunk(c))
++    const eng = game.engine
++    const w = eng.world
++    const fennick = w.get('npc.fennick')!
++    const at = w.posOf(fennick)!
++    eng.author(() => {
++      Object.assign(w.player.props!, { prologue: PROLOGUE_DONE, quest: 4, level: 5 })
++      w.setFact('ch1.letter', 1)
++      w.place(w.player, { on: 'tile', map: at.map, x: at.x, y: at.y + 1 })
++    })
++    w.state.tick = tickAt(2, 12)
++    const said = () => w.drainFx().flatMap((f) => (f.t === 'say' || f.t === 'log' ? [JSON.stringify(f)] : []))
++    const firstLine = fennick.npc!.person!.lines!.find((l) => l.key === 'greeting:first')!
++    const first = typeof firstLine.text === 'string' ? firstLine.text : firstLine.text.en
++    w.drainFx()
++    eng.act('hands', w.player.id, { e: fennick.id }, { instrument: null })
++    const offered = said().join('\n')
++    expect(offered).not.toContain(first.slice(0, 30))
++    // the quest is over and done with: the next word is not a stranger's greeting
++    eng.author(() => w.setFact('q.templar', 'done'))
++    eng.act('hands', w.player.id, { e: fennick.id }, { instrument: null })
++    expect(said().join('\n')).not.toContain(first.slice(0, 30))
++  })
++})
++
++describe('the quest log keeps what is done', () => {
++  it('a finished quest leaves the list under way and stays in the done list, by title', () => {
++    const { index, chunks } = buildFord()
++    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++    for (const c of chunks) game.loadChunk(decodeChunk(c))
++    const eng = game.engine
++    eng.author(() => eng.world.setFact('q.templar', 'done'))
++    expect(eng.quests.log().map((q) => q.id)).not.toContain('templar')
++    expect(eng.quests.done()).toContainEqual(expect.objectContaining({ id: 'templar', kind: 'side', title: expect.objectContaining({ zh: '老骑士' }) }))
++  })
++})
+diff --git a/packages/tools/test/names.test.ts b/packages/tools/test/names.test.ts
+new file mode 100644
+index 0000000..b44a516
+--- /dev/null
++++ b/packages/tools/test/names.test.ts
+@@ -0,0 +1,48 @@
++// What the keys say names a thing as what it is: a waypoint statue is "the Ford statue", not "the Ford".
++
++import { describe, expect, it } from 'vitest'
++import { Game, RuleLibrary, textOf } from '@lsw/engine'
++import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
++import { buildFord } from '../src/demo/world.ts'
++
++describe('names', () => {
++  it('every waypoint statue is named as a statue', () => {
++    const { chunks } = buildFord()
++    const statues = chunks.flatMap((c) => decodeChunk(c).entities).filter((e) => e.type === 'fixture/sacred/waypoint')
++    expect(statues.length).toBeGreaterThan(5)
++    for (const s of statues) {
++      expect(textOf(s.name, 'en'), s.id).toMatch(/statue$/)
++      expect(textOf(s.name, 'zh'), s.id).toMatch(/传送雕像$/)
++    }
++  })
++})
++
++describe('homes', () => {
++  it('no two anchors of a map are one cell (people of one home share an anchor; two homes never do)', () => {
++    const { chunks } = buildFord()
++    for (const c of chunks) {
++      const m = decodeChunk(c).map
++      const by: Record<string, string[]> = {}
++      for (const [k, v] of Object.entries(m.anchors ?? {})) (by[`${v[0]},${v[1]}`] ??= []).push(k)
++      for (const [cell, ks] of Object.entries(by)) expect(ks, `${m.id} ${cell}`).toHaveLength(1)
++    }
++  })
++})
++
++describe('news', () => {
++  it('every topic the story raises is told by someone (a topic nobody speaks of is lost)', async () => {
++    const { readFileSync, readdirSync } = await import('node:fs')
++    const { join } = await import('node:path')
++    const dir = join(__dirname, '../src/demo')
++    const files = [...readdirSync(dir).filter((f) => f.endsWith('.ts')).map((f) => join(dir, f)), ...readdirSync(join(dir, 'quest')).map((f) => join(dir, 'quest', f))]
++    const raised = new Set(files.flatMap((f) => [...readFileSync(f, 'utf8').matchAll(/\{ topic: '([a-z_]+)'/g)].map((m) => m[1])))
++    const { index, chunks } = buildFord()
++    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++    for (const c of chunks) game.loadChunk(decodeChunk(c))
++    const people = Object.values(game.engine.world.state.entities).filter((e) => e.npc?.person)
++    expect(people.length).toBeGreaterThan(10)
++    const told = new Set(people.flatMap((e) => e.npc!.person!.lines ?? []).filter((l) => l.key.startsWith('topic:')).map((l) => l.key.slice(6)))
++    expect(raised.size).toBeGreaterThan(0)
++    for (const t of raised) expect(told.has(t), t).toBe(true)
++  })
++})
+diff --git a/packages/tools/test/rest.test.ts b/packages/tools/test/rest.test.ts
+index 9f23228..464fe5d 100644
+--- a/packages/tools/test/rest.test.ts
++++ b/packages/tools/test/rest.test.ts
+@@ -3,7 +3,7 @@
+ // most of it, an empty one is woken by hunger in the small hours, and gets up again.
+ 
+ import { describe, expect, it } from 'vitest'
+-import { Game, RuleLibrary, textOf, tickAt, type Engine } from '@lsw/engine'
++import { Game, RuleLibrary, TICKS_PER_HOUR, textOf, tickAt, type Engine } from '@lsw/engine'
+ import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
+ import { buildFord } from '../src/demo/world.ts'
+ 
+@@ -46,6 +46,26 @@ describe('a night in bed', () => {
+     expect(eng.busy(p)).toBe(false)
+   })
+ 
++  it('passed a game hour a tick (the worker), the night is seen to pass: asleep and busy all the while, one night only', () => {
++    const { eng, bed } = bedtime(20)
++    const w = eng.world
++    const p = w.player
++    eng.fastForwardChunk = TICKS_PER_HOUR
++    const day = w.calendar().day
++    eng.act('hands', p.id, { e: bed }, { instrument: null })
++    eng.tick()
++    // an hour on, still in bed: the keys do nothing (a second press on the bed must not sleep another day)
++    expect(w.hasStatus({ e: p.id }, 'asleep')).toBe(true)
++    expect(eng.busy(p)).toBe(true)
++    expect(w.hour()).toBeLessThan(23.6)
++    let ticks = 0
++    while (w.hasStatus({ e: p.id }, 'asleep') && ticks++ < 30) eng.tick()
++    expect(ticks).toBeGreaterThan(5)
++    expect(w.calendar().day).toBe(day + 1)
++    expect(Math.floor(w.hour())).toBe(6)
++    expect(eng.busy(p)).toBe(false)
++  })
++
+   it('a low stomach sleeps the night through (hungry, the bar falls slowly, and slower asleep)', () => {
+     const { eng, bed } = bedtime(2)
+     const w = eng.world
+diff --git a/packages/tools/test/storeys.test.ts b/packages/tools/test/storeys.test.ts
+index 3095ebe..c40eca7 100644
+--- a/packages/tools/test/storeys.test.ts
++++ b/packages/tools/test/storeys.test.ts
+@@ -71,10 +71,13 @@ describe('a solid thing and a body never share a cell', () => {
+   it('a floor that comes down drops whoever stood on it beside what is below, not into it', () => {
+     const f = fresh()
+     const [x, y] = openRow(f, 5)
+-    stand(f, x + 4, y + 1)
++    // building reaches the next cell only: stand by each one as it goes up
++    stand(f, x, y + 1)
+     const wall = build(f, 'structure/wall', x, y, 'st.wall')
+-    build(f, 'structure/floor', x, y, 'st.over', true)
+-    build(f, 'structure/floor', x + 1, y, 'st.beside', true)
++    const over = build(f, 'structure/floor', x, y, 'st.over', true)
++    stand(f, x + 1, y + 1)
++    const beside = build(f, 'structure/floor', x + 1, y, 'st.beside', true)
++    expect([wall.place, over.place, beside.place]).toMatchObject([{ on: 'tile', x, y }, { on: 'tile', x, y, z: 1 }, { on: 'tile', x: x + 1, y, z: 1 }])
+     // a hen under the floor beside the wall, the player on that floor above her
+     f.eng.author(() => f.w.create('actor/creature/animal/chicken', { on: 'tile', map: 'ford', x: x + 1, y }, { id: 'st.hen' }))
+     stand(f, x + 1, y, 1)
+@@ -85,6 +88,25 @@ describe('a solid thing and a body never share a cell', () => {
+     expect(bodies(f, x + 1, y)).toEqual(['st.hen'])
+   })
+ 
++  it('a floor that comes down leaves its planks on the ground below, not hanging where it was', () => {
++    const f = fresh()
++    const [x, y] = openRow(f, 5)
++    stand(f, x, y + 1)
++    const wall = build(f, 'structure/wall', x, y, 'st.wall')
++    stand(f, x + 1, y + 1)
++    const floor = build(f, 'structure/floor', x + 1, y, 'st.beside', true)
++    expect(wall.place).toMatchObject({ on: 'tile', x, y })
++    expect(floor.place).toMatchObject({ on: 'tile', x: x + 1, y, z: 1 })
++    // far enough that the magnet does not take what falls
++    stand(f, x + 4, y + 4)
++    f.eng.author(() => f.eng.hurt(f.w.get(wall.id)!, 99, undefined, true))
++    for (let i = 0; i < 3; i++) f.eng.tick()
++    expect(f.w.get('st.beside')).toBeUndefined()
++    const planks = (z: number) => [x, x + 1].flatMap((cx) => f.w.entitiesAt('ford', cx, y, z)).filter((e) => e.type === 'item/material/plank')
++    expect(planks(1)).toEqual([])
++    expect(planks(0).length).toBeGreaterThan(0)
++  })
++
+   it('a wall is not set down on a hen, nor on the cell its builder stands in', () => {
+     const f = fresh()
+     const [x, y] = openRow(f, 3)

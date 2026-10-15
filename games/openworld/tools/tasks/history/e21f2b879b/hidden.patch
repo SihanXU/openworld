@@ -1,0 +1,283 @@
+diff --git a/packages/modder/test/modder.test.ts b/packages/modder/test/modder.test.ts
+index cccfa00..3c4e969 100644
+--- a/packages/modder/test/modder.test.ts
++++ b/packages/modder/test/modder.test.ts
+@@ -636,7 +636,7 @@ describe('the router: local, then find, then create', () => {
+   }
+   /** A creature offered rope leaves something behind: the router's answers are scripted by what each call shows. */
+   // (once, then not for a while: a yield costs its host — the repeat check, world-model.md §8.4)
+-  const leaves = (type: string): Rule => ({ id: 'patch/rope-on-creature-leaves', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: `A creature offered rope leaves ${type} behind, and not again for a while.`, tree: { if: { all: [FIBER, { not: { has: { role: 'host', status: 'laying' } } }] }, then: { do: [{ op: 'spawn', type, at: 'host' }, { op: 'addStatus', status: 'laying' }, { op: 'log', text: { en: 'Something drops.', zh: '掉下了东西。' } }] } } })
++  const leaves = (type: string): Rule => ({ id: 'patch/rope-on-creature-leaves', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: `A creature offered rope leaves ${type} behind, and not again for a while.`, tree: { if: { all: [FIBER, { not: { has: { role: 'host', status: 'stirred' } } }] }, then: { do: [{ op: 'spawn', type, at: 'host' }, { op: 'addStatus', status: 'stirred' }, { op: 'log', text: { en: 'Something drops.', zh: '掉下了东西。' } }] } } })
+   const INGOT_TYPE = { id: 'item/material/iron_ingot', name: { en: 'Iron Ingot', zh: '铁锭' }, tags: ['metal'] }
+ 
+   function router(o: { local: unknown; find?: unknown; create?: unknown; art?: (n: number) => unknown; onArt?: () => void }) {
+diff --git a/packages/tools/test/boss-challenge.test.ts b/packages/tools/test/boss-challenge.test.ts
+index eedbeee..e4599d4 100644
+--- a/packages/tools/test/boss-challenge.test.ts
++++ b/packages/tools/test/boss-challenge.test.ts
+@@ -39,7 +39,7 @@ describe('isolated profession boss challenges', () => {
+     expect(w.entitiesOnMap(FIRST_BOSS.map).filter((e) => w.isAgent(e))).toHaveLength(2)
+     expect(w.fits(w.get(FIRST_BOSS.id)!, FIRST_BOSS.map, FIRST_BOSS.x, FIRST_BOSS.y)).toBe(true)
+     expect(w.map(FIRST_BOSS.map)?.portals).toEqual([])
+-    expect(w.map(FIRST_BOSS.map)?.forage).toEqual([])
++    expect(w.map(FIRST_BOSS.map)?.appear).toEqual([])
+     expect(challengeOutcome(game)).toBeUndefined()
+   })
+ 
+diff --git a/packages/tools/test/cells.test.ts b/packages/tools/test/cells.test.ts
+index 3dfee99..c6394b3 100644
+--- a/packages/tools/test/cells.test.ts
++++ b/packages/tools/test/cells.test.ts
+@@ -16,6 +16,23 @@ function ford() {
+ }
+ 
+ describe('cells are things (world-model.md §4.6)', () => {
++  it('a stage in a map\'s own data starts its clock when the map comes (world-model.md §6.5): a map\'s stump grows back like a felled one', () => {
++    const { index, chunks } = buildFord()
++    const raw = structuredClone(chunks)
++    const ford = raw.find((c) => c.map.id === 'ford')!
++    const map = decodeChunk(ford).map
++    const i = map.terrain.findIndex((t) => t === 'grass')
++    const [x, y] = [i % map.width, Math.floor(i / map.width)]
++    ford.map.rows[y] = ford.map.rows[y].slice(0, x) + 'u' + ford.map.rows[y].slice(x + 1)
++    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++    for (const c of raw) game.loadChunk(decodeChunk(c))
++    const w = game.engine.world
++    expect(w.terrainAt('ford', x, y)).toBe('stump')
++    const stump = w.get(cellId('ford', x, y, 'soil'))!
++    expect(w.isStatic(stump)).toBe(false)
++    expect(w.statusesOf({ e: stump.id })?.stage).toBeGreaterThan(w.state.tick)
++  })
++
+   it('one reference form: a cell thing has one id, the same before and after it changes', () => {
+     const { eng, w } = ford()
+     // a tree on the Ford: what fills its cell
+@@ -105,7 +122,8 @@ describe('cells are things (world-model.md §4.6)', () => {
+     for (const c of chunks) loaded.loadChunk(decodeChunk(c))
+     const lw = loaded.engine.world
+     expect(lw.terrainAt('ford', tx, ty)).toBe('stump')
+-    expect(lw.hasStatus(lw.cellRef('ford', tx, ty), 'regrowing')).toBe(true)
++    // a stump's old clock is its stage's now (world-model.md §6.5)
++    expect(lw.hasStatus(lw.cellRef('ford', tx, ty), 'stage')).toBe(true)
+     expect(lw.hasStatus(lw.cellRef('ford', gx, gy), 'wet')).toBe(true)
+     expect(Object.values(lw.state.relations ?? {}).flat().some((k) => k.includes('|t|'))).toBe(false)
+     expect('tiles' in lw.state).toBe(false)
+diff --git a/packages/tools/test/demo.test.ts b/packages/tools/test/demo.test.ts
+index a6441c4..92f1430 100644
+--- a/packages/tools/test/demo.test.ts
++++ b/packages/tools/test/demo.test.ts
+@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest'
+ import {
+   EVENT_KINDS,
+   FIRE_RADIUS,
+-  FORAGE_EVERY,
++  APPEAR_EVERY,
+   Game,
+   RuleLibrary,
+   SLOT_COUNT,
+@@ -28,8 +28,6 @@ import {
+   madeOf,
+   travelToWaypoint,
+   PROFESSION_LEVEL,
+-  NIGHT_CAP,
+-  NIGHT_EVERY,
+   type Engine,
+   type Entity,
+   type GameEvent,
+@@ -39,7 +37,7 @@ import {
+   type Ref,
+   type World,
+ } from '@lsw/engine'
+-import { BASE_RULES, CROP_STAGES, FIRSTLIGHT, PROLOGUE_DONE, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@lsw/content'
++import { BASE_RULES, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, PROLOGUE_DONE, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, SKILLS, STORY_RULES, VEGETABLE_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor } from '@lsw/content'
+ import { BLOCK, OVERWORLD } from '../src/demo/overworld.ts'
+ import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
+ import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts'
+@@ -755,11 +753,11 @@ req('F12', "the ground yields sticks, stones and grass (Don't Starve): taken by
+   author(f, () => {
+     for (const type of FORAGE) for (const e of lying(f, type)) W(f).destroy(e)
+   })
+-  ticks(f, FORAGE_EVERY * 40)
+-  const forage = W(f).map('ford')!.forage!
++  ticks(f, APPEAR_EVERY * 40)
++  const appear = W(f).map('ford')!.appear!
+   for (const type of FORAGE) {
+     expect(lying(f, type).length).toBeGreaterThan(0)
+-    expect(lying(f, type).length).toBeLessThanOrEqual(forage.find((g) => g.type === type)!.max)
++    expect(lying(f, type).length).toBeLessThanOrEqual(appear.find((g) => type in g.types)!.max)
+   }
+ })
+ 
+@@ -845,12 +843,12 @@ req('F14', 'west of the Ford the village, and south of it the grassland (Minecra
+   // a hen lays an egg where she stands, and starts on the next
+   const hen = onMeadow(f, HEN)[0]
+   const eggs = meat('item/food/egg/raw')
+-  author(f, () => W(f).setStatus({ e: hen.id }, 'laying', W(f).state.tick + 1))
++  author(f, () => W(f).setStatus({ e: hen.id }, 'stage', W(f).state.tick + 1))
+   ticks(f, 3)
+   expect(meat('item/food/egg/raw')).toBe(eggs + 1)
+   const egg = lying(f, 'item/food/egg/raw', 'pasture').find((e) => !e.dropped)
+   expect(egg).toBeDefined()
+-  expect(W(f).hasStatus({ e: hen.id }, 'laying')).toBe(true)
++  expect(W(f).hasStatus({ e: hen.id }, 'stage')).toBe(true)
+   // each food feeds its own amount: hunger rises by its `food`
+   for (const type of ['item/food/meat/raw', 'item/food/chicken/raw', 'item/food/egg/raw']) {
+     const e = Object.values(W(f).state.entities).find((x) => x.type === type)!
+@@ -871,12 +869,13 @@ req('F14', 'west of the Ford the village, and south of it the grassland (Minecra
+   expect(onMeadow(f, COW).length).toBeLessThanOrEqual(1)
+   expect(onMeadow(f, HEN).length).toBeLessThanOrEqual(2)
+   ticks(f, 1200 * 6)
+-  const forage = W(f).map('pasture')!.forage!
++  const appear = W(f).map('pasture')!.appear!
+   for (const type of [COW, HEN]) {
+     expect(onMeadow(f, type).length).toBeGreaterThan(0)
+-    expect(onMeadow(f, type).length).toBeLessThanOrEqual(forage.find((g) => g.type === type)!.max)
++    expect(onMeadow(f, type).length).toBeLessThanOrEqual(appear.find((g) => type in g.types)!.max)
+   }
+-  expect(onMeadow(f, HEN).every((h) => W(f).hasStatus({ e: h.id }, 'laying'))).toBe(true)
++  // a hen comes laying: her stage's clock runs from when she appears
++  expect(onMeadow(f, HEN).every((h) => W(f).hasStatus({ e: h.id }, 'stage'))).toBe(true)
+ })
+ 
+ req('F15', 'south of the grassland, a forest: many trees within reach, and an axe fells them (two swings: a stump, logs and a stick)', [], () => {
+@@ -1235,6 +1234,45 @@ req('W11', 'rain falls only on what is out under the sky: in the room one stays
+   expect(W(f).hasStatus({ e: W(f).player.id }, 'wet')).toBe(false)
+ })
+ 
++req('W16', 'stages: a watered sprout out under the sky grows a stage, one in a room waits for light; a felled tree\'s stump grows back into a tree, but not up through someone standing on it', [], () => {
++  const f = fresh()
++  const [x, y] = buildRoom(f)
++  // an open cell outside, a few steps off
++  let out: [number, number] | undefined
++  for (let d = 3; d < 12 && !out; d++) for (const [ox, oy] of [[x + d, y], [x - d, y], [x, y + d], [x, y - d]]) if (!out && W(f).walkable('ford', ox, oy) && !W(f).placedAt('ford', ox, oy).length && !W(f).covered('ford', ox, oy)) out = [ox, oy]
++  const sprout = (cx: number, cy: number) => author(f, () => W(f).create('fixture/crop/carrot/sprout', { on: 'tile', map: 'ford', x: cx, y: cy }))
++  const inside = sprout(x, y)
++  const outside = sprout(...out!)
++  // nothing starts a crop's stage but water: unwatered, it stays
++  expect(W(f).hasStatus({ e: outside.id }, 'stage')).toBe(false)
++  for (const s of [inside, outside]) author(f, () => W(f).setStatus({ e: s.id }, 'watered', W(f).state.tick + 2))
++  ticks(f, 5)
++  expect(W(f).get(outside.id)?.type).toBe('fixture/crop/carrot/young')
++  expect(W(f).get(inside.id)?.type).toBe('fixture/crop/carrot/sprout')
++  // in the dark it waits, and looks again
++  expect(W(f).hasStatus({ e: inside.id }, 'watered')).toBe(true)
++  // a tree felled: its stump grows back on its own clock (two game days)
++  const map = W(f).map('ford')!
++  const i = map.terrain.findIndex((t, k) => t === 'tree' && !W(f).placedAt('ford', k % map.width, Math.floor(k / map.width)).length)
++  const [tx, ty] = [i % map.width, Math.floor(i / map.width)]
++  const tree = W(f).get(W(f).cellRef('ford', tx, ty).e)!
++  author(f, () => W(f).transform(tree, 'tile/stump'))
++  const stump = W(f).occupant('ford', tx, ty, 'soil') ?? W(f).get(tree.id)!
++  expect(stump.type).toBe('tile/stump')
++  expect(W(f).statusesOf({ e: stump.id })?.stage).toBe(W(f).state.tick + TREE_GROWS)
++  // someone standing on it: it waits
++  stand(f, tx, ty, 'down')
++  author(f, () => W(f).setStatus({ e: stump.id }, 'stage', W(f).state.tick + 1))
++  ticks(f, 3)
++  expect(W(f).terrainAt('ford', tx, ty)).toBe('stump')
++  expect(W(f).hasStatus({ e: stump.id }, 'stage')).toBe(true)
++  // gone, it grows
++  stand(f, ...out!, 'down')
++  author(f, () => W(f).setStatus({ e: stump.id }, 'stage', W(f).state.tick + 1))
++  ticks(f, 3)
++  expect(W(f).terrainAt('ford', tx, ty)).toBe('tree')
++})
++
+ req('W12', 'a second storey: walls, a floor laid over them (held up by them), stairs, and up one goes; break the wall and the floor comes down, and whoever stood on it falls', [], () => {
+   const f = fresh()
+   // an open stretch of the Ford, five cells across
+diff --git a/packages/tools/test/economy.test.ts b/packages/tools/test/economy.test.ts
+index bbd442d..9e46a40 100644
+--- a/packages/tools/test/economy.test.ts
++++ b/packages/tools/test/economy.test.ts
+@@ -1,6 +1,6 @@
+ import { describe, expect, it } from 'vitest'
+ import { OntologyIndex, RuleLibrary, buildSandbox, performPlacement, type Effect, type Rule, type Tree } from '@lsw/engine'
+-import { BASE_RULES, BUILDINGS, RECIPES, RECOVERY, STORY_RULES, TERRAINS, buildOntology, decodeChunk } from '@lsw/content'
++import { BASE_RULES, BUILDINGS, RECIPES, RECOVERY, STORY_RULES, TERRAINS, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@lsw/content'
+ import { buildFord } from '../src/demo/world.ts'
+ 
+ // The economy (world-model.md §6.4, §10.2, D23): what is built and broken back returns no more
+@@ -114,7 +114,7 @@ describe('the economy (world-model.md §10.2)', () => {
+     for (const c of chunks.map(decodeChunk)) {
+       for (const t of new Set(c.map.terrain)) present.add(`tile/${t}`)
+       for (const e of c.entities) (e.type.startsWith('item/') ? have : present).add(e.type)
+-      for (const f of c.map.forage ?? []) have.add(f.type)
++      for (const a of [...(c.map.appear ?? []), ...(onto.appear ?? [])]) for (const t of Object.keys(a.types)) (t.startsWith('item/') ? have : present).add(t)
+     }
+     for (const n of world.npcs) for (const it of (n as { _items?: { type: string }[] })._items ?? []) have.add(it.type)
+     const stations = new Set([...present].flatMap((t) => index.resolve(t).tags.filter((x) => x.startsWith('station:')).map((x) => x.slice(8))))
+@@ -144,4 +144,73 @@ describe('the economy (world-model.md §10.2)', () => {
+     expect(missing).toEqual([])
+     expect(TERRAINS.length).toBeGreaterThan(0)
+   })
++
++  it('reachability with renewables (world-model.md §10.2, W7): everything the recipes and buildings ask for comes back without end — from what appears by itself, from the wilderness that is made as one goes, or from a stage that returns (a stump grows back into a tree, a seed into a plant that gives seed, a hen lays)', () => {
++    const { chunks } = buildFord()
++    // what a type leads to: what it becomes or leaves (a rule on it, its stage), what breaking it gives, what it makes (a recipe)
++    const prop = (type: string, ref: string) => {
++      const key = ref.slice(6).replace(/^host\./, '')
++      const v = index.resolve(type).props[key]
++      return typeof v === 'string' ? v : undefined
++    }
++    const named = (type: string, t: string) => (t.startsWith('@prop:') ? prop(type, t) : t)
++    const edges = new Map<string, Set<string>>()
++    const stageEdges: [string, string][] = []
++    const link = (a: string, b: string | undefined) => {
++      if (!b || !onto.types[b]) return
++      if (!edges.has(a)) edges.set(a, new Set())
++      edges.get(a)!.add(b)
++    }
++    const types = Object.keys(onto.types)
++    for (const t of types) {
++      const r = index.resolve(t)
++      if (typeof r.props.maxHp === 'number') for (const m of r.makeup ?? []) link(t, m.type)
++      for (const rule of BASE_RULES as Rule[]) {
++        const h = rule.host
++        if (!h || (h.type && t !== h.type && !t.startsWith(h.type + '/')) || !(h.tags ?? []).every((x) => r.tags.includes(x))) continue
++        for (const e of effectsOf(rule.tree)) if (e.op === 'spawn') link(t, named(t, e.type)); else if (e.op === 'transform') link(t, named(t, e.into))
++      }
++      const st = r.stage
++      if (st) {
++        // a stage with nothing next returns to itself: what it leaves comes again and again
++        const next = st.into ?? t
++        link(t, next)
++        stageEdges.push([t, next])
++        for (const y of st.yields ?? []) (link(t, y.type), stageEdges.push([t, y.type]))
++      }
++    }
++    for (const r of RECIPES) for (const n of r.needs) link(n.type, r.make.type)
++    const reach = (from: string): Set<string> => {
++      const seen = new Set([from])
++      const todo = [from]
++      while (todo.length) for (const b of edges.get(todo.pop()!) ?? []) if (!seen.has(b)) (seen.add(b), todo.push(b))
++      return seen
++    }
++    // the sources without end: what appears by itself (each map's and the world's), the wilderness's things and
++    // grounds (made anew wherever one goes), and every stage on a cycle (only time makes more: a stage edge on it)
++    const sources = new Set<string>()
++    for (const c of chunks.map(decodeChunk)) for (const a of c.map.appear ?? []) for (const t of Object.keys(a.types)) sources.add(t)
++    for (const a of onto.appear ?? []) for (const t of Object.keys(a.types)) sources.add(t)
++    for (const g of WILD_GROUNDS)
++      for (let i = 0; i < 6; i++) {
++        const c = wildChunk(7 + i, i, 2 * i, g, undefined)
++        for (const t of new Set(c.map.terrain)) sources.add(`tile/${t}`)
++        for (const e of c.entities) sources.add(e.type)
++        for (const a of c.map.appear ?? []) for (const t of Object.keys(a.types)) sources.add(t)
++      }
++    const cycles: string[] = []
++    for (const [a, b] of stageEdges) if (reach(b).has(a)) (sources.add(a), cycles.push(`${a} → ${b}`))
++    // a stump grows back into the tree it was felled from; a seed grows into a plant that gives seed; a hen lays
++    expect(cycles).toEqual(expect.arrayContaining(['tile/stump → tile/tree', 'actor/creature/animal/chicken → actor/creature/animal/chicken', 'fixture/crop/wheat/young → fixture/crop/wheat/ripe']))
++    const renewable = new Set<string>()
++    for (const s of sources) for (const t of reach(s)) renewable.add(t)
++    const finite: string[] = []
++    for (const r of RECIPES) for (const n of r.needs) if (!renewable.has(n.type)) finite.push(`${r.id}: ${n.type}`)
++    for (const b of BUILDINGS)
++      for (const n of b.needs) {
++        const ok = n.match.type ? renewable.has(n.match.type) : [...renewable].some((t) => (n.match.tags ?? []).every((tag) => index.resolve(t).tags.includes(tag)))
++        if (!ok) finite.push(`${b.id}: ${JSON.stringify(n.match)}`)
++      }
++    expect([...new Set(finite)]).toEqual([])
++  })
+ })

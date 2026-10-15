@@ -1,0 +1,45 @@
+diff --git a/packages/content/test/building.test.ts b/packages/content/test/building.test.ts
+index 4a96322..d2ebf0e 100644
+--- a/packages/content/test/building.test.ts
++++ b/packages/content/test/building.test.ts
+@@ -413,6 +413,40 @@ describe('storeys: what one reaches, and where a thing goes (docs/building.md §
+     expect(eng.controls.plan('put', { x: 7, y: 6 })?.target.e).not.toBe(list.at(-1)!.plan!.target.e)
+   })
+ 
++  it('the left click builds: a built thing or a fixture in hand used on open ground, a floor, what is built or the ceiling is set down there as G sets it; elsewhere it stays an experiment', () => {
++    const eng = meadow()
++    const use = (x: number, y: number, layer = 0) => {
++      const plan = eng.controls.plan('use', { x, y }, layer)
++      if (plan) eng.controls.run(plan)
++      eng.tick()
++      return plan
++    }
++    hold(eng, 'structure/wall')
++    expect(eng.controls.plan('use', { x: 3, y: 3 })).toMatchObject({ sets: true, unknown: undefined })
++    use(3, 3)
++    expect(storeys(eng, 3, 3)).toEqual([['wall'], [], [], []])
++    // a floor laid, then a bed set on it
++    hold(eng, 'structure/floor')
++    use(2, 3)
++    hold(eng, 'fixture/furniture/bed')
++    expect(eng.controls.plan('use', { x: 2, y: 3 })?.sets).toBe(true)
++    use(2, 3)
++    expect(storeys(eng, 2, 3)[0].sort()).toEqual(['floor', 'furniture/bed'])
++    // the ceiling (R, or the chooser's last): a floor laid over the wall, held by it
++    hold(eng, 'structure/floor')
++    expect(eng.controls.choices('use', { x: 3, y: 3 }).at(-1)).toMatchObject({ layer: CEILING })
++    use(3, 3, CEILING)
++    expect(storeys(eng, 3, 3)).toEqual([['wall'], ['floor'], [], []])
++    // in the water, or anything else held: what it makes of that is the world's to learn (an experiment)
++    stand(eng, 4, 4)
++    hold(eng, 'structure/wall')
++    expect(eng.controls.plan('use', { x: 5, y: 4 })).toMatchObject({ unknown: true })
++    expect(eng.controls.plan('use', { x: 5, y: 4 })?.sets).toBeUndefined()
++    hold(eng, 'item/material/stick')
++    expect(eng.controls.plan('use', { x: 4, y: 3 })).toMatchObject({ unknown: true })
++    expect(eng.controls.choices('use', { x: 4, y: 3 }).some((c) => c.layer === CEILING)).toBe(false)
++  })
++
+   it('5 the ceiling chosen is the one drawn at the point (the view says which, as `over`): laid and taken there', () => {
+     const eng = meadow()
+     build(eng, 'structure/wall', 3, 2)

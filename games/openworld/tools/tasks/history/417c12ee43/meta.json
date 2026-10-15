@@ -1,0 +1,57 @@
+{
+ "sha": "417c12ee439e9fe8c46ba0bff8b4a1e75cdf7b19",
+ "parent": "0e5d616faf9b8efbdefd202b9085557308a05fd0",
+ "date": "2026-10-09T03:45:45-07:00",
+ "rung": "R3",
+ "lock": "d8255c2c3962ee4efef4677fcd11300e4a95056d",
+ "tests": [
+  "packages/tools/test/skills.test.ts"
+ ],
+ "code": [
+  "packages/client/src/ui/skillLayout.ts",
+  "packages/client/src/ui/skilltree.ts"
+ ],
+ "lines": 305,
+ "areas": [
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/tools/test/skills.test.ts::the skill tree has no cycles and no overlapping icon positions",
+  "packages/tools/test/skills.test.ts::the skill tree has two directions and eight branch entrances, including a profession slot"
+ ],
+ "PASS_TO_PASS": [
+  "packages/tools/test/skills.test.ts::automatic combat talents ambush requires four seconds without attacking or taking combat damage",
+  "packages/tools/test/skills.test.ts::automatic combat talents an NPC with the same profession and talents gets the same backstab calculations",
+  "packages/tools/test/skills.test.ts::automatic combat talents assassin training needs a dagger, not a common blade, and the dagger fights for no other profession",
+  "packages/tools/test/skills.test.ts::automatic combat talents backstab uses the victim facing, not the attacker facing or a side hit",
+  "packages/tools/test/skills.test.ts::automatic combat talents battle tempo and evasive step require a successful, recent move",
+  "packages/tools/test/skills.test.ts::automatic combat talents critical hits are deterministic, capped and stronger with deadly focus",
+  "packages/tools/test/skills.test.ts::automatic combat talents defiance mitigates low-health combat hits but not environmental or piercing damage",
+  "packages/tools/test/skills.test.ts::automatic combat talents does not consume a charge or build combo points on an incapacitated target",
+  "packages/tools/test/skills.test.ts::automatic combat talents executioner has a precise 30% threshold and damage still respects defence",
+  "packages/tools/test/skills.test.ts::automatic combat talents fractional haste changes actual movement/attack cadence and survives save/load",
+  "packages/tools/test/skills.test.ts::automatic combat talents guaranteed criticals do not spend randomness and all assassin talents deactivate with the profession",
+  "packages/tools/test/skills.test.ts::automatic combat talents iron stomach really slows hunger, and second wind heals at half a bar",
+  "packages/tools/test/skills.test.ts::automatic combat talents last stand never protects against environmental damage",
+  "packages/tools/test/skills.test.ts::automatic combat talents last stand prevents one lethal combat hit and its 30-second cooldown survives saving",
+  "packages/tools/test/skills.test.ts::automatic combat talents pursuit is a refreshing three-second reward for defeating a creature, not just hitting",
+  "packages/tools/test/skills.test.ts::automatic combat talents ranged attacks reset melee combos without triggering assassin openers or mobility charges",
+  "packages/tools/test/skills.test.ts::automatic combat talents relentless finishes every third hit, expires and resets on target change or a miss",
+  "packages/tools/test/skills.test.ts::automatic combat talents shadow recovery heals only on a creature defeated with a dagger, capped at max health",
+  "packages/tools/test/skills.test.ts::automatic combat talents sweep secondary targets never generate combo hits or inherit guaranteed opener criticals",
+  "packages/tools/test/skills.test.ts::automatic combat talents three successful steps charge only the primary melee hit, not sweep targets",
+  "packages/tools/test/skills.test.ts::automatic combat talents uses haste in real player input cooldowns, not just the stat calculation",
+  "packages/tools/test/skills.test.ts::the skill tree a big pack adds a row to the bag",
+  "packages/tools/test/skills.test.ts::the skill tree a firemaker lights a campfire with a plain stick (and nobody else does)",
+  "packages/tools/test/skills.test.ts::the skill tree a sweep also strikes the creatures beside the tile ahead",
+  "packages/tools/test/skills.test.ts::the skill tree a woodcutter fells a tree for one more log",
+  "packages/tools/test/skills.test.ts::the skill tree filters the profession tree and rejects learning for another profession in the engine",
+  "packages/tools/test/skills.test.ts::the skill tree is well formed: unique ids, known requirements, every branch ends in an ability",
+  "packages/tools/test/skills.test.ts::the skill tree keeps defence in survival and does not gate it on damage skills",
+  "packages/tools/test/skills.test.ts::the skill tree needs both arms and two points for a capstone",
+  "packages/tools/test/skills.test.ts::the skill tree spends points, needs what comes before, and is learned once",
+  "packages/tools/test/skills.test.ts::the skill tree starts without a profession and migrates old saves without replacing a chosen profession or tags",
+  "packages/tools/test/skills.test.ts::the skill tree vitality fills the health it adds"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

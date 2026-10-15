@@ -1,0 +1,61 @@
+{
+ "sha": "1033b8890366fa800dfcdf4408536fc940efa556",
+ "parent": "2581be1aeb36bb892a57c8beed34ead89e731ccc",
+ "date": "2026-10-06T21:26:22-04:00",
+ "rung": "R4",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/content/test/player.test.ts"
+ ],
+ "code": [
+  "packages/client/src/main.ts",
+  "packages/client/src/ui/common.ts",
+  "packages/client/src/ui/cover.ts",
+  "packages/client/src/ui/hud.ts",
+  "packages/client/src/ui/menu.ts",
+  "packages/engine/src/controls.ts",
+  "packages/engine/src/effects.ts",
+  "packages/engine/src/engine.ts",
+  "packages/engine/src/mod.ts",
+  "packages/engine/src/snapshot.ts",
+  "packages/engine/src/types.ts",
+  "packages/engine/src/world.ts",
+  "packages/modder/src/cli.ts",
+  "packages/modder/src/library.ts",
+  "packages/tools/src/dev.ts"
+ ],
+ "lines": 117,
+ "areas": [
+  "engine",
+  "modder",
+  "runtime",
+  "tools"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/player.test.ts::a canopy over the tree in front the tree beside you is the one an axe meets, though a farther tree's canopy is drawn over it"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/player.test.ts::Big Pack organizes 30 stacks without losing capacity or items",
+  "packages/content/test/player.test.ts::Big Pack organizes 31 stacks without losing capacity or items",
+  "packages/content/test/player.test.ts::Big Pack organizes 40 stacks without losing capacity or items",
+  "packages/content/test/player.test.ts::inputs on a storey Space and aimed blows stay on the storey with item/weapon/ranged/bow",
+  "packages/content/test/player.test.ts::inputs on a storey Space and aimed blows stay on the storey with undefined",
+  "packages/content/test/player.test.ts::inputs on a storey hands chooses and acts on its own storey",
+  "packages/content/test/player.test.ts::inputs on a storey pointer layers, the chooser and a distant aim retain the storey",
+  "packages/content/test/player.test.ts::inputs on a storey put chooses and acts on its own storey",
+  "packages/content/test/player.test.ts::inputs on a storey reach rejects other storeys, including a carried target there",
+  "packages/content/test/player.test.ts::inputs on a storey take chooses and acts on its own storey",
+  "packages/content/test/player.test.ts::inputs on a storey the magnet takes only drops on its own storey",
+  "packages/content/test/player.test.ts::inputs on a storey the menu drops onto the floor in front on its own storey",
+  "packages/content/test/player.test.ts::inputs on a storey the ray ends on its own floor, and a sweep stays on its own storey",
+  "packages/content/test/player.test.ts::ranged blows a chosen target off the ray is refused without striking a bystander",
+  "packages/content/test/player.test.ts::ranged blows a closer body cannot replace the target announced by a plan",
+  "packages/content/test/player.test.ts::ranged blows a wall 1 tiles ahead stops Space and a chosen shot",
+  "packages/content/test/player.test.ts::ranged blows a wall 2 tiles ahead stops Space and a chosen shot",
+  "packages/content/test/player.test.ts::ranged blows an open ray still hits the body ahead",
+  "packages/content/test/player.test.ts::ranged blows item/weapon/magic/staff used on a bag item keeps the announced target",
+  "packages/content/test/player.test.ts::ranged blows item/weapon/magic/wand used on a bag item keeps the announced target",
+  "packages/content/test/player.test.ts::ranged blows item/weapon/ranged/bow used on a bag item keeps the announced target"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

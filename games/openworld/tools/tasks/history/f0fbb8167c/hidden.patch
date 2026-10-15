@@ -1,0 +1,90 @@
+diff --git a/games/openworld/tools/test/demo.test.ts b/games/openworld/tools/test/demo.test.ts
+index 0ed6b12..2341f36 100644
+--- a/games/openworld/tools/test/demo.test.ts
++++ b/games/openworld/tools/test/demo.test.ts
+@@ -2469,7 +2469,7 @@ req('S1', 'a smithy in Firstlight Village, a house on the east road: inside, a l
+   expect(w.materialOf(dagger)?.id).toBe('iron')
+ })
+ 
+-req('T1', 'Firstlight\'s houses are walked into: every house on the village map has a door that leads into a furnished room — the elder\'s, the families\', two homes in the south lane, the general store, the smithy and the church — and out again to its door', ['fixture/furniture/bed', 'fixture/light/fireplace', 'fixture/furniture/chair', 'fixture/container/pot', 'fixture/container/bookshelf', 'fixture/container/shelf', 'fixture/furniture/counter'], () => {
++req('T1', 'Firstlight\'s houses are walked into: every house on the village map has a door that leads into a furnished room — the elder\'s, the families\', two homes in the south lane, the general store, the smithy and the chapel — and out again to its door', ['fixture/furniture/bed', 'fixture/light/fireplace', 'fixture/furniture/chair', 'fixture/container/pot', 'fixture/container/bookshelf', 'fixture/container/shelf', 'fixture/furniture/counter'], () => {
+   const f = fresh()
+   const w = W(f)
+   const village = w.map('meadow')!
+@@ -2513,7 +2513,7 @@ req('T2', 'the general store: Greta keeps it by day, behind her counter; a hand
+   expect(f.eng.controls.count('item/misc/thornmark')).toBe(10 - RECIPE_BY_ID['store/buy/light-torch'].needs[0].count + RECIPE_BY_ID['store/sell/material-herb'].count!)
+ })
+ 
+-req('T3', 'the church of the First Dawn: Brother Anselm keeps its bookstand, where every skill one learns from a book is sold — the common ones cheaper, a profession\'s dearer; bought and read, the book teaches its skill', ['npc.anselm', 'fixture/furniture/bookstand'], () => {
++req('T3', "Firstlight's chapel, Sister Ilse's, behind Astra's altar on the square: Brother Anselm keeps its bookstand, where every skill one learns from a book is sold — the common ones cheaper, a profession's dearer; bought and read, the book teaches its skill", ['npc.anselm', 'fixture/furniture/bookstand'], () => {
+   const f = fresh()
+   const w = W(f)
+   setHour(f, 2, 10)
+diff --git a/games/openworld/tools/test/pilgrimage.test.ts b/games/openworld/tools/test/pilgrimage.test.ts
+index 6f3c299..0507502 100644
+--- a/games/openworld/tools/test/pilgrimage.test.ts
++++ b/games/openworld/tools/test/pilgrimage.test.ts
+@@ -1,11 +1,11 @@
+ // The Pilgrim's Road's bugs (docs/chapter-1.md §14): a shrine never takes what must not be given away; the Rest's
+ // welcome and oath do not play once the knight has fallen, and its priest greets one who comes after him; the oath's
+ // scallop is the pilgrim's own, not the scallop Sister Ilse asks after; a save at the First Seal's stage 40 from before
+-// the road shows the oath; and the Rest's litany is read, not sold.
++// the road shows the oath; and Firstlight's chapel is Sister Ilse's, at Astra's altar.
+ 
+ import { describe, expect, it } from 'vitest'
+ import { Game, RuleLibrary, textOf, type Entity } from '@openworld/engine'
+-import { BASE_RULES, CH1, GAME, ORDER_SEAL, STORY_RULES, SWORN_SCALLOP, buildOntology, decodeChunk } from '@openworld-game/content'
++import { BASE_RULES, CHAPEL_SIGN, CH1, GAME, ORDER_SEAL, STORY_RULES, SWORN_SCALLOP, buildOntology, decodeChunk } from '@openworld-game/content'
+ import { buildFord } from '../src/demo/world.ts'
+ 
+ const onto = buildOntology()
+@@ -122,7 +122,7 @@ describe("the Pilgrims' Rest after the knight", () => {
+ })
+ 
+ describe("the Rest's chapel", () => {
+-  it('its litany on the bookstand is read with a hand (E), as any written thing; the skill books are the church\'s in Firstlight', () => {
++  it('its litany on the bookstand is read with a hand (E), as any written thing; the skill books are Firstlight\'s chapel\'s', () => {
+     const f = fresh()
+     const litany = Object.values(f.w.state.entities).find((e) => e.type === 'fixture/furniture/bookstand' && e.place.on === 'tile' && e.place.map === 'waystation.chapel')!
+     const at = f.w.posOf(litany)!
+@@ -134,8 +134,8 @@ describe("the Rest's chapel", () => {
+     f.eng.act('hands', 'player', { e: litany.id }, { instrument: null })
+     ticks(f, 2)
+     expect(f.w.fx.some((x) => x.t === 'panel')).toBe(false)
+-    expect(JSON.stringify(f.w.fx.filter((x) => x.t === 'say'))).toContain('苦难并非神的遗弃')
+-    // the church's stand in Firstlight still opens its shelves
++    expect(JSON.stringify(f.w.fx.filter((x) => x.t === 'say'))).toContain('极夜便不会归来')
++    // the chapel's stand in Firstlight still opens its shelves
+     const books = f.w.posOf(f.w.get('church.books')!)!
+     teleport(f, books.map, books.x, books.y + 1)
+     f.w.player.facing = 'up'
+@@ -203,3 +203,29 @@ describe('an older save at the First Seal across the river', () => {
+     expect(loaded.engine.quests.stage('first_seal')).toBe(50)
+   })
+ })
++
++describe("Firstlight's chapel", () => {
++  it("is Sister Ilse's, behind Astra's altar on the square: Brother Anselm keeps its bookstand; the First Dawn's is the chapel on Dawn Hill", () => {
++    const f = fresh()
++    const door = f.w.map('meadow')!.portals.find((p) => p.to === 'meadow.church')!
++    const altar = f.w.posOf(f.w.get('village.astra')!)!
++    expect([door.x, door.y + 2]).toEqual([altar.x, altar.y])
++    expect(f.w.map('meadow.church')!.name).toEqual({ en: 'Firstlight Chapel', zh: '初原村礼拜堂' })
++    expect(f.w.posOf(f.w.get('church.books')!)!.map).toBe('meadow.church')
++    expect(f.w.map('chapel')!.name).toEqual({ en: 'Chapel of the First Dawn', zh: '初晓礼拜堂' })
++    const sign = f.w.get(CHAPEL_SIGN.id)!
++    expect(f.w.posOf(sign)).toMatchObject({ map: 'meadow', x: CHAPEL_SIGN.at[0], y: CHAPEL_SIGN.at[1] })
++  })
++
++  it('an older save keeps its sign where the church stood: on loading it stands by the chapel and says whose it is', () => {
++    const f = fresh()
++    const old = structuredClone(f.game.save())
++    const sign = old.state.entities[CHAPEL_SIGN.id]
++    sign.place = { on: 'tile', map: 'meadow', x: CHAPEL_SIGN.was[0], y: CHAPEL_SIGN.was[1] }
++    sign.props = { ...sign.props, text: 'CHURCH OF THE FIRST DAWN — skill books at the stand inside, from Brother Anselm.', text_zh: '初晓教堂——里面的书架上有技能书，找安塞姆修士。' }
++    const loaded = Game.load(old, f.index, onto, lib(), GAME.upgradeSave)
++    const s = loaded.engine.world.get(CHAPEL_SIGN.id)!
++    expect(s.place).toMatchObject({ on: 'tile', map: 'meadow', x: CHAPEL_SIGN.at[0], y: CHAPEL_SIGN.at[1] })
++    expect(s.props?.text_zh).toBe(CHAPEL_SIGN.text_zh)
++  })
++})

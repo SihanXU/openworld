@@ -1,0 +1,72 @@
+{
+ "counted": "2026-10-14",
+ "cutoff": "2026-07-16",
+ "per_repo": 10,
+ "recipes": {
+  "repositories": 427,
+  "by_source": {
+   "rebench-leaderboard": 281,
+   "rebench-v2": 58,
+   "live": 88
+  }
+ },
+ "s1": {
+  "repositories_searched": 427,
+  "repositories_failed": 0,
+  "repositories_with_candidates": 328,
+  "funnel": {
+   "merged": 51047,
+   "bot": 9737,
+   "size": 4760,
+   "no-tests": 10842,
+   "no-code": 2570,
+   "no-python": 3656,
+   "no-issue": 13325,
+   "candidate": 6157,
+   "invalid": 4,
+   "kept": 2097
+  },
+  "candidates": 2072,
+  "issue_also_after": 1576,
+  "by_month": {
+   "2026-07": 169,
+   "2026-08": 445,
+   "2026-09": 782,
+   "2026-10": 676
+  },
+  "largest": {
+   "agentscope-ai/QwenPaw": 10,
+   "OpenHands/OpenHands": 10,
+   "aristanetworks/anta": 10,
+   "astropy/ccdproc": 10,
+   "aws-cloudformation/cfn-lint": 10,
+   "basicmachines-co/basic-memory": 10,
+   "BerriAI/litellm": 10,
+   "bodo-ai/PyDough": 10,
+   "BrianPugh/cyclopts": 10,
+   "cal-itp/benefits": 10
+  },
+  "repositories_with_5_or_more": 204,
+  "graphql_cost": 1526
+ },
+ "s4_rules": {
+  "kept": 1728,
+  "dropped": {
+   "short-statement": 96,
+   "large-gold-patch": 212,
+   "issue-taken": 28,
+   "statement-holds-the-fix": 7,
+   "only-links-or-logs": 1
+  }
+ },
+ "s2": {
+  "environments": 0,
+  "environments_ok": {},
+  "tasks_built": 0,
+  "tasks_failed": 0
+ },
+ "s3": {
+  "validated": 0,
+  "dropped": {}
+ }
+}

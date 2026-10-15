@@ -1,0 +1,41 @@
+{
+ "sha": "4db61d308574cc2f5cbbe4f8783b4013ef3bf873",
+ "parent": "bfd28ca008f03ad21b299f54c2b2db73ae67d673",
+ "date": "2026-10-04T21:47:19-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/modder/test/economy.test.ts",
+  "packages/tools/test/economy.test.ts"
+ ],
+ "code": [
+  "packages/modder/src/economy.ts"
+ ],
+ "lines": 186,
+ "areas": [
+  "modder"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a choice the state makes is the player's; a roll beside it is weighed in",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a count read from the kind of thing the host is counts",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a lottery that loses on average is no free lunch (3 stones three times in ten: 0.9 a stick)",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation nested rolls multiply, and an item taken in by chance is taken by its odds",
+  "packages/modder/test/economy.test.ts::the free lunch agrees with Bellman-Ford on 300 random markets (one thing in, one out: a positive cycle is arbitrage)",
+  "packages/modder/test/economy.test.ts::the free lunch prices: every thing worth at least 1, and no step gives more value than it takes",
+  "packages/modder/test/economy.test.ts::the simplex does not cycle on a degenerate vertex (Chvátal's example, where the largest coefficient rule cycles)",
+  "packages/modder/test/economy.test.ts::the simplex is optimal on 300 random programmes: x and y feasible, and c·x = b·y (strong duality)",
+  "packages/modder/test/economy.test.ts::the simplex says when a programme is unbounded, and refuses a start that is not a vertex",
+  "packages/modder/test/economy.test.ts::the simplex solves the textbook programme, with its shadow prices",
+  "packages/tools/test/economy.test.ts::the economy (world-model.md §10.2) and the proof of it: prices (each thing worth at least 1) under which no step gives more value than it takes"
+ ],
+ "PASS_TO_PASS": [
+  "packages/modder/test/economy.test.ts::chance, counted by expectation one that wins on average is (eight times in ten: 2.4 stones a stick, from 2)",
+  "packages/modder/test/economy.test.ts::the free lunch finds what takes several things and gives several, which no single exchange shows",
+  "packages/tools/test/economy.test.ts::the economy (world-model.md §10.2) build and break back: each building, broken, returns no more of anything than went into it",
+  "packages/tools/test/economy.test.ts::the economy (world-model.md §10.2) no mix of steps, of any length, makes more of anything than it takes (a linear programme)",
+  "packages/tools/test/economy.test.ts::the economy (world-model.md §10.2) no step and no two steps in a row make more of a thing than they took",
+  "packages/tools/test/economy.test.ts::the economy (world-model.md §10.2) reachability with renewables (world-model.md §10.2, W7): everything the recipes and buildings ask for comes back without end — from what appears by itself, from the wilderness that is made as one goes, or from a stage that returns (a stump grows back into a tree, a seed into a plant that gives seed, a hen lays)",
+  "packages/tools/test/economy.test.ts::the economy (world-model.md §10.2) reachability: without the AI, everything the recipes and buildings ask for can be had from the world as it starts"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

@@ -1,0 +1,44 @@
+{
+ "sha": "52d4d05752a7bea990fa56f8d7709408e0b6326e",
+ "parent": "e0bd9996500d47614f2efe903093d3872567d1a1",
+ "date": "2026-10-13T00:07:59-04:00",
+ "rung": "R4",
+ "lock": "c8aae8165c193e13e9cb62882998aceaf8916f35",
+ "tests": [
+  "games/openworld/tools/test/residence.test.ts",
+  "packages/runtime/test/hearts.test.ts"
+ ],
+ "code": [
+  "games/openworld/content/src/ontology.ts",
+  "games/openworld/content/src/social.ts",
+  "packages/engine/src/types.ts",
+  "packages/format/schema/ontology.schema.json",
+  "packages/modules/src/society/effects.ts",
+  "packages/modules/src/society/index.ts",
+  "packages/runtime/src/ui/hearts.ts",
+  "packages/runtime/src/ui/hud.ts"
+ ],
+ "lines": 122,
+ "areas": [
+  "content",
+  "engine",
+  "format",
+  "modules",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "games/openworld/tools/test/residence.test.ts::asked to come and live in the Held Ground full regard is a mark a liking keeps (the talk panel's ten hearts, 95): a day after the last gain one may still be asked, five days on too, and goes",
+  "games/openworld/tools/test/residence.test.ts::asked to come and live in the Held Ground one who follows, asked to come and live there, goes and follows no longer",
+  "games/openworld/tools/test/residence.test.ts::asked to come and live in the Held Ground the word said with no verb offered is answered as the verb asks: one the story needs and a stranger at low regard both stay, and say why",
+  "packages/runtime/test/hearts.test.ts::regard as ten hearts 95 — full regard, kept for days as a liking fades — reads ten whole hearts, as 100 does",
+  "packages/runtime/test/hearts.test.ts::regard as ten hearts a heart for every ten, rounded: whole from its fifth point, half before it; none at all for none"
+ ],
+ "PASS_TO_PASS": [
+  "games/openworld/tools/test/residence.test.ts::asked to come and live in the Held Ground at full regard, once the Held Ground is one's own, one not bound to the main story may be asked; the story's people may not",
+  "games/openworld/tools/test/residence.test.ts::asked to come and live in the Held Ground one bed by the camp from the first: the first asked moves there and spends days there; the next is told there is no bed; a residents' tent makes two more",
+  "games/openworld/tools/test/residence.test.ts::asked to come and live in the Held Ground the Held Ground holds seven at most: the camp's bed and two in each of three tents",
+  "games/openworld/tools/test/residence.test.ts::regard as hearts a liking fades slowly (a hundredth a day); a grudge heals at a tenth",
+  "games/openworld/tools/test/residence.test.ts::regard as hearts the talk panel carries the number (its hearts); a merchant in full regard asks three tenths less, and pays more"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

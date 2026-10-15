@@ -1,0 +1,28 @@
+{
+ "sha": "ee61923b4c6e4bcd3150b91d9f34542b890bdc55",
+ "parent": "0b23f973b717238213eea91840a82875622b09ea",
+ "date": "2026-10-09T14:46:13-04:00",
+ "rung": "R3",
+ "lock": "d8255c2c3962ee4efef4677fcd11300e4a95056d",
+ "tests": [
+  "packages/tools/test/topics.test.ts"
+ ],
+ "code": [
+  "packages/engine/src/mod.ts",
+  "packages/engine/src/story.ts",
+  "packages/tools/src/demo/world.ts"
+ ],
+ "lines": 44,
+ "areas": [
+  "engine",
+  "tools"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/tools/test/topics.test.ts::the story's topics a patch may not raise one, by a notice or as the story's own effect, for the player or the world",
+  "packages/tools/test/topics.test.ts::the story's topics are collected from its steps and its own rules, and protected in the world"
+ ],
+ "PASS_TO_PASS": [
+  "packages/tools/test/topics.test.ts::the story's topics a topic of its own is news a patch may raise, a near name included"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

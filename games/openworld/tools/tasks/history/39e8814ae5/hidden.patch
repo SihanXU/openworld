@@ -1,0 +1,342 @@
+diff --git a/games/openworld/client/test/bundle.test.ts b/games/openworld/client/test/bundle.test.ts
+index 6464ec4..f6660e5 100644
+--- a/games/openworld/client/test/bundle.test.ts
++++ b/games/openworld/client/test/bundle.test.ts
+@@ -20,7 +20,7 @@ describe('OpenWorld from its bundle', () => {
+     expect(g.looks.player).toEqual(CLIENT_GAME.looks.player)
+     expect([...g.looks.worn].sort()).toEqual([...CLIENT_GAME.looks.worn].sort())
+     expect(g.ontology()).toEqual(CLIENT_GAME.ontology())
+-    expect(bundle.game.modules).toEqual(['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society'])
++    expect(bundle.game.modules).toEqual(['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society', 'loot'])
+   })
+ 
+   it('works out what its app computes, the same', () => {
+diff --git a/games/openworld/content/test/controls.test.ts b/games/openworld/content/test/controls.test.ts
+index dbd56c2..7e02da9 100644
+--- a/games/openworld/content/test/controls.test.ts
++++ b/games/openworld/content/test/controls.test.ts
+@@ -1,5 +1,5 @@
+ import { describe, expect, it } from 'vitest'
+-import { ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, holeKey, textOf, type Engine, type Key, type Plan, type Ref, type ScenarioEntity, type Verb } from '@openworld/engine'
++import { ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, holeKey, textOf, type Engine, type Key, type Plan, type PropValue, type Ref, type ScenarioEntity, type Verb } from '@openworld/engine'
+ import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_PACE } from '@openworld/modules'
+ import { cellId, madeOf } from '@openworld/engine'
+ import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
+@@ -194,6 +194,25 @@ describe('the five inputs: one act each', () => {
+     expect(c.plan('hands', { x: 2, y: 2, stack: [{ e: 'actor' }, { e: cellId('sandbox', 2, 2, 'volume') }] })?.target).toEqual({ e: 'berries' })
+   })
+ 
++  it('E meets a person, then a companion, before what is drawn over them; F and the left click keep the layers\' order', () => {
++    const eng = world(undefined, [npc(), { key: 'stick', type: 'item/material/stick', x: 2, y: 1 }])
++    const c = eng.controls
++    // the view draws the stick over the farmer
++    const aim = { x: 2, y: 1, stack: [{ e: 'stick' }, { e: 'npc.hollis' }] }
++    expect(c.plan('hands', aim)?.target).toEqual({ e: 'npc.hollis' })
++    // F takes the stick, and a bare left click strikes it, not the farmer behind it (the order 33b18a7 and cad30b9 settled)
++    expect(c.plan('take', aim)?.target).toEqual({ e: 'stick' })
++    expect(c.choices('take', aim)[0]?.plan?.target).toEqual({ e: 'stick' })
++    expect(c.plan('use', aim)?.target).toEqual({ e: 'stick' })
++    // a companion is one whose `companion` prop names a leader (companion.ts), not anything of its kind: E reaches for
++    // the fairy that follows one before the stick under her, and for the stick under one that follows nobody
++    const fairy = (props: Record<string, PropValue>) => world(undefined, [{ key: 'stick', type: 'item/material/stick', x: 2, y: 1 }, { key: 'fairy', type: 'actor/companion', x: 2, y: 1, props }])
++    expect(fairy({ companion: 'actor' }).controls.plan('hands', { x: 2, y: 1 })?.target).toEqual({ e: 'fairy' })
++    expect(fairy({}).controls.plan('hands', { x: 2, y: 1 })?.target).toEqual({ e: 'stick' })
++    // and F, beside the fairy that follows one, still takes the stick
++    expect(fairy({ companion: 'actor' }).controls.plan('take', { x: 2, y: 1 })?.target).toEqual({ e: 'stick' })
++  })
++
+   it('a pointer beyond every reach aims at the farthest reached spot toward it, never at oneself', () => {
+     const eng = world('item/weapon/ranged/bow', [{ key: 's', type: 'actor/creature/slime/green_slime', x: 2, y: 9 }])
+     const c = eng.controls
+diff --git a/games/openworld/content/test/life.test.ts b/games/openworld/content/test/life.test.ts
+index e14799a..315c6a2 100644
+--- a/games/openworld/content/test/life.test.ts
++++ b/games/openworld/content/test/life.test.ts
+@@ -108,6 +108,39 @@ describe('smithing', () => {
+     expect(eng.controls.craft(RECIPE_BY_ID['smith/dagger-iron'])).toBe(true)
+     expect(made('item/weapon/blade/dagger')[0].tags?.some((t) => t === 'quality:masterwork' || t === 'quality:fine')).toBe(true)
+   })
++
++  it('a set\'s piece is of the metal it took and as well as its smith forges, under the set\'s name; what another named recipe makes is as the recipe says (Recipe.madeOf)', () => {
++    const eng = smithy()
++    const w = eng.world
++    const made = (type: string) => Object.values(w.state.entities).filter((e) => e.type === type)
++    // feed made by hand at the first level, before any quality is in reach
++    carry(eng, 'item/material/wheat', 4)
++    expect(eng.controls.craft(RECIPE_BY_ID['ranch/feed'])).toBe(true)
++    const [old] = made('item/material/feed')
++    // a smith far past every recipe's level: what is made of a material and a quality shows both
++    eng.author(() => w.setProp(w.player, 'level', 9))
++    knows(eng, 'forge-builder')
++    carry(eng, 'item/tool/smith_hammer')
++    carry(eng, 'item/material/steel_bar', 2)
++    carry(eng, 'item/material/leather', 1)
++    expect(RECIPE_BY_ID['set/shadowfang/weapon'].madeOf).toBe(true)
++    expect(eng.controls.craft(RECIPE_BY_ID['set/shadowfang/weapon'])).toBe(true)
++    const blade = made('item/weapon/blade/dagger')[0]
++    expect(blade.tags).toEqual(expect.arrayContaining(['material:steel', 'quality:masterwork']))
++    expect([blade.name, blade.props?.critChance]).toEqual([{ en: 'Shadowfang', zh: '影刃' }, 0.03])
++    // a smith's anvil made of iron at the forge: the anvil the recipe names, not an iron one of masterwork
++    carry(eng, 'item/material/iron_ingot', 3)
++    expect(RECIPE_BY_ID['smith/anvil'].madeOf).toBeUndefined()
++    expect(eng.controls.craft(RECIPE_BY_ID['smith/anvil'])).toBe(true)
++    const anvil = made('fixture/craft/anvil/smith')[0]
++    expect([anvil.name, anvil.tags]).toEqual([{ en: "Smith's Anvil", zh: '铁匠砧' }, undefined])
++    // feed made by hand at that level is feed, and keeps with the feed made before (one slot: Controls.key)
++    const before = new Set(made('item/material/feed').map((e) => e.id))
++    expect(eng.controls.craft(RECIPE_BY_ID['ranch/feed'])).toBe(true)
++    const feed = made('item/material/feed').filter((e) => !before.has(e.id))
++    expect(feed.length).toBeGreaterThan(0)
++    for (const f of feed) expect([f.tags, eng.controls.key(f)]).toEqual([undefined, eng.controls.key(old)])
++  })
+ })
+ 
+ describe('smithing in an older save', () => {
+diff --git a/games/openworld/tools/test/actives.test.ts b/games/openworld/tools/test/actives.test.ts
+index fd067a9..ee73e2a 100644
+--- a/games/openworld/tools/test/actives.test.ts
++++ b/games/openworld/tools/test/actives.test.ts
+@@ -274,6 +274,14 @@ describe('where active skills come from: the tree, a book, what one wears', () =
+     const give = (id: string) => eng.author(() => w.create('item/document/skillbook', { on: 'inside', holder: p.id }, skillBook(id)))
+     const book = give('whirlwind')
+     expect(w.num(p, 'skillPoints')).toBe(0)
++    // a book does not leap the tree: Whirlwind comes after Sweep, and is not read before it
++    expect(SKILL_BY_ID.whirlwind.requires).toEqual(['sweep'])
++    w.fx = []
++    eng.act('use', p.id, { e: p.id }, { instrument: { e: book.id } })
++    eng.tick()
++    expect([w.get(book.id) !== undefined, knownActives(eng, p)]).toEqual([true, []])
++    expect(w.fx.some((f) => f.t === 'log' && textOf(f.text, 'en').includes('Sweep'))).toBe(true)
++    eng.author(() => w.addTag(p, 'skill:sweep'))
+     eng.act('use', p.id, { e: p.id }, { instrument: { e: book.id } })
+     eng.tick()
+     expect(knownActives(eng, p)).toEqual([{ id: 'whirlwind', source: 'book' }])
+@@ -294,6 +302,21 @@ describe('where active skills come from: the tree, a book, what one wears', () =
+     expect(cast(eng, 2)).toBe(true)
+   })
+ 
++  it('a profession\'s book bought out of order is not read before the skill it comes after in the tree (Smoke Bomb after Shadow Strike)', () => {
++    const { eng, p } = field()
++    const w = eng.world
++    eng.author(() => w.setProp(p, 'profession', 'assassin'))
++    const smoke = eng.author(() => w.create('item/document/skillbook', { on: 'inside', holder: p.id }, skillBook('smoke-bomb')))
++    const read = () => (eng.act('use', p.id, { e: p.id }, { instrument: { e: smoke.id } }), eng.tick())
++    const knows = () => [w.get(smoke.id) === undefined, knownActives(eng, p).some((k) => k.id === 'smoke-bomb')]
++    expect(SKILL_BY_ID['smoke-bomb'].requires).toEqual(['shadow-strike'])
++    read()
++    expect(knows()).toEqual([false, false])
++    eng.author(() => w.addTag(p, 'skill:shadow-strike'))
++    read()
++    expect(knows()).toEqual([true, true])
++  })
++
+   it('a piece that lends a skill gives it while worn, whatever one\'s profession; taken off, the slot keeps it but it is not had', () => {
+     const { eng, p, x, y } = field()
+     const w = eng.world
+diff --git a/games/openworld/tools/test/trophies.test.ts b/games/openworld/tools/test/trophies.test.ts
+index 1ab7db9..a39db55 100644
+--- a/games/openworld/tools/test/trophies.test.ts
++++ b/games/openworld/tools/test/trophies.test.ts
+@@ -1,16 +1,18 @@
+ import { describe, expect, it } from 'vitest'
+-import { Game, Rng, RuleLibrary, rollAffixes, type Entity } from '@openworld/engine'
+-import { AFFIX_TABLE, BASE_RULES, FORM_BY_ID, STORY_RULES, TROPHIES, TROPHY_OF, TROPHY_SETS, buildOntology, decodeChunk, makeItem } from '@openworld-game/content'
++import { Game, MAINHAND, Rng, RuleLibrary, rollAffixes, weaponOf, type Entity, type Ontology } from '@openworld/engine'
++import { trophyTypes } from '@openworld/modules'
++import { AFFIX_TABLE, BASE_RULES, FORM_BY_ID, LOOT, STORY_RULES, TROPHIES, TROPHY_OF, TROPHY_SETS, buildOntology, decodeChunk, makeItem } from '@openworld-game/content'
+ import { buildFord } from '../src/demo/world.ts'
+ 
+-// Every kind of monster's own piece (content trophies.ts): a chance each felling, sure at the fiftieth; every piece of
+-// gear rolls four small extras as it is made (engine affixes.ts); a family's pieces worn together make a set.
++// Every kind of monster's own piece (content trophies.ts): a chance each felling, sure at the fiftieth (the loot
++// module); every piece of gear rolls four small extras as it is made (engine affixes.ts); a family's pieces worn
++// together make a set.
+ 
+ const onto = buildOntology()
+ 
+-function game() {
++function game(ontology: Ontology = onto) {
+   const { index, chunks } = buildFord()
+-  const g = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++  const g = Game.create(index, ontology, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+   for (const c of chunks) g.loadChunk(decodeChunk(c))
+   g.mods.provider = { resolve: () => new Promise<null>(() => {}) }
+   const eng = g.engine, w = eng.world, p = w.player
+@@ -36,7 +38,9 @@ function game() {
+     expect(w.fx.some((x) => x.t === 'vfx' && x.fx.startsWith('swing:') && x.who === p.id)).toBe(true)
+   }
+   const bag = (type: string) => Object.values(w.state.entities).filter((e) => e.type === type && e.place.on === 'inside' && e.place.holder === p.id)
+-  return { eng, w, p, fell, bag }
++  /** The defeat news the game's own rule sends the striker, shaped as any rule (a patch's) could send it: naming a piece. */
++  const defeat = (trophy: string, trophyChance = 1) => eng.queue({ kind: 'impulse/notify', host: { e: p.id }, roles: {}, params: { what: 'defeat', xp: 0, trophy, trophyChance } })
++  return { g, eng, w, p, fell, bag, defeat }
+ }
+ 
+ describe('monster trophies', () => {
+@@ -76,6 +80,76 @@ describe('monster trophies', () => {
+   })
+ })
+ 
++describe('the loot module (a trophy is the game\'s own spoils)', () => {
++  it('only a piece some kind names as its trophy is ever made: defeat news naming any other type, as a patch could send it, finds nothing', () => {
++    const { eng, w, p, bag, defeat } = game()
++    const ring = TROPHY_OF['actor/creature/slime/green_slime'].type
++    for (const other of ['item/weapon/blade/axe', 'item/material/gold_ingot', 'item/valuable/ring']) {
++      expect(w.onto.hasType(other)).toBe(true)
++      const before = bag(other).length
++      defeat(other)
++      expect([other, bag(other).length, w.prop(p, `trophy.${other}`)]).toEqual([other, before, undefined])
++    }
++    // the same news naming a kind's own piece: it comes
++    defeat(ring)
++    expect(bag(ring)).toHaveLength(1)
++    // nor does a kind the AI made (a learned type) make its word a trophy
++    const learned = { id: 'actor/creature/slime/gilded_slime', name: { en: 'gilded slime', zh: '镀金史莱姆' }, props: { trophy: 'item/material/gold_ingot', trophyChance: 1 } }
++    w.onto.addType(learned)
++    eng.lib.addType(learned)
++    expect(trophyTypes(eng).has(ring)).toBe(true)
++    expect(trophyTypes(eng).has('item/material/gold_ingot')).toBe(false)
++    const gold = bag('item/material/gold_ingot').length
++    defeat('item/material/gold_ingot')
++    expect(bag('item/material/gold_ingot')).toHaveLength(gold)
++  })
++
++  it('a save from before the module keeps its counts: the striker\'s trophy.<type> goes on where it was', () => {
++    const { g, eng, w, p } = game()
++    const ring = TROPHY_OF['actor/creature/slime/green_slime'].type
++    eng.author(() => w.setProp(p, `trophy.${ring}`, 49))
++    const { index, chunks } = buildFord()
++    const loaded = Game.load(structuredClone(g.save()), index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++    for (const c of chunks) loaded.loadChunk(decodeChunk(c))
++    const lp = loaded.engine.world.player
++    expect(loaded.engine.modules.map((m) => m.id)).toContain('loot')
++    loaded.engine.queue({ kind: 'impulse/notify', host: { e: lp.id }, roles: {}, params: { what: 'defeat', xp: 0, trophy: ring, trophyChance: 0 } })
++    expect(Object.values(loaded.engine.world.state.entities).filter((e) => e.type === ring && e.place.on === 'inside' && e.place.holder === lp.id)).toHaveLength(1)
++  })
++
++  it('its chance is a chance site of the world: the sandbox\'s exploration of luck takes both of its outcomes', () => {
++    const { w, bag, defeat } = game()
++    const ring = TROPHY_OF['actor/creature/slime/green_slime'].type
++    w.luck = () => false
++    defeat(ring, 0.04)
++    expect(bag(ring)).toHaveLength(0)
++    w.luck = () => true
++    defeat(ring, 0.04)
++    expect(bag(ring)).toHaveLength(1)
++  })
++
++  it('its pity and its words are the game\'s (Ontology.loot): sure at the game\'s count, told in the game\'s words', () => {
++    const { eng, w, p, bag, defeat } = game({ ...onto, loot: { pity: 3, found: LOOT.found } })
++    const ring = TROPHY_OF['actor/creature/slime/green_slime'].type
++    defeat(ring, 0)
++    defeat(ring, 0)
++    expect([bag(ring).length, w.prop(p, `trophy.${ring}`)]).toEqual([0, 2])
++    w.fx = []
++    defeat(ring, 0)
++    expect(bag(ring)).toHaveLength(1)
++    const name = (l: 'en' | 'zh') => eng.nameOf({ e: bag(ring)[0].id }, l)
++    const told = (fx: typeof w.fx) => fx.filter((f) => f.t === 'log' && JSON.stringify(f.text).includes(name('en')))
++    expect(told(w.fx)).toEqual([{ t: 'log', text: { en: `A trophy: ${name('en')}!`, zh: `获得专属装备：${name('zh')}！` }, tone: 'good' }])
++    // a game that gives no words says nothing of it (the engine has none of its own): only the pickup is shown
++    const quiet = game({ ...onto, loot: { pity: 1 } })
++    quiet.w.fx = []
++    quiet.defeat(ring, 0)
++    expect(quiet.bag(ring)).toHaveLength(1)
++    expect(told(quiet.w.fx)).toEqual([])
++    expect(quiet.w.fx.some((f) => f.t === 'pickup' && f.item === quiet.bag(ring)[0].id)).toBe(true)
++  })
++})
++
+ describe('rolled extras', () => {
+   it('a roll is four of the pool, each in its range on its step; a slot narrows the pool', () => {
+     const rng = new Rng(3)
+@@ -110,6 +184,27 @@ describe('rolled extras', () => {
+     eng.author(() => w.setProp(held, 'sub:critChance', 0.04))
+     expect(w.stat(p, 'critChance')).toBeCloseTo(crit + 0.04)
+   })
++
++  it('of weapons, only the one fought with counts its extras: one kept in the main hand while another is held does not (blows.ts weaponOf)', () => {
++    const { eng, w, p } = game()
++    const held = w.get(p.held)!
++    eng.author(() => w.setProp(held, 'sub:critChance', 0.02))
++    const bare = w.stat(p, 'critChance') - 0.02
++    // another axe kept in the main hand, with an extra of its own
++    const kept = eng.author(() => w.create('item/weapon/blade/axe', { on: 'inside', holder: p.id }, { props: { 'sub:critChance': 0.07 } }))
++    eng.author(() => w.setProp(p, MAINHAND, kept.id))
++    expect(w.worn(p).map((e) => e.id)).toContain(kept.id)
++    // the axe in hand is fought with: its extras count, the kept one's do not
++    expect(weaponOf(w, p)?.id).toBe(held.id)
++    expect(w.stat(p, 'critChance')).toBeCloseTo(bare + 0.02)
++    // the hand empty, the kept one is fought with: its extras count, once
++    eng.author(() => w.place(held, { on: 'inside', holder: p.id }))
++    expect(weaponOf(w, p)?.id).toBe(kept.id)
++    expect(w.stat(p, 'critChance')).toBeCloseTo(bare + 0.07)
++    // the kept one taken up into the hand as well: still once
++    eng.author(() => w.place(kept, { on: 'hand', holder: p.id }))
++    expect(w.stat(p, 'critChance')).toBeCloseTo(bare + 0.07)
++  })
+ })
+ 
+ describe('the families\' sets', () => {
+diff --git a/games/openworld/tools/test/writes.test.ts b/games/openworld/tools/test/writes.test.ts
+index 09f46cf..bd3f7df 100644
+--- a/games/openworld/tools/test/writes.test.ts
++++ b/games/openworld/tools/test/writes.test.ts
+@@ -13,7 +13,9 @@ import { BASE_RULES, buildOntology } from '@openworld-game/content'
+ // hand).
+ 
+ const ROOT = join(import.meta.dirname, '..', '..', '..', '..')
+-const GAME = ['packages/engine/src', ...['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society'].map((m) => `packages/modules/src/${m}`), 'games/openworld/content/src']
++/** The engine's modules: every folder of packages/modules/src, so a new module is scanned as soon as it is there. */
++const MODULE_DIRS = readdirSync(join(ROOT, 'packages/modules/src'), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => `packages/modules/src/${d.name}`)
++const GAME = ['packages/engine/src', ...MODULE_DIRS, 'games/openworld/content/src']
+ /** The client's code: the runtime and the game's own pages. */
+ const CLIENT = ['packages/runtime/src', 'games/openworld/client/src']
+ 
+@@ -52,6 +54,8 @@ const code = (l: string) => l.replace(/\/\/.*$/, '').trim()
+ 
+ describe('the state changes only in outcomes, and an outcome only its host (design.md §5.13, A2–A3)', () => {
+   it('no game code changes props, tags, statuses, places or the kept things behind the mutators', () => {
++    // every module is scanned, the ones the game names and the rest
++    for (const m of ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society', 'loot']) expect(MODULE_DIRS).toContain(`packages/modules/src/${m}`)
+     const found: string[] = []
+     for (const { file, lines } of sources()) {
+       if (MAY_WRITE.includes(file)) continue
+diff --git a/games/starter/test/kernel.test.ts b/games/starter/test/kernel.test.ts
+index 65ed661..24774ad 100644
+--- a/games/starter/test/kernel.test.ts
++++ b/games/starter/test/kernel.test.ts
+@@ -47,14 +47,14 @@ describe('the starter, on the kernel alone', () => {
+ 
+   it('loads no module, and the kernel needs none', () => {
+     expect(bundle.game.modules).toEqual([])
+-    for (const m of ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society']) expect(registeredModule(m)).toBeUndefined()
++    for (const m of ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society', 'loot']) expect(registeredModule(m)).toBeUndefined()
+     const game = newGame()
+     expect(game.engine.modules).toEqual([])
+     // the AI is told only of what this game has: the kernel's primitives, none of a module's
+     const spec = buildModSpec(game.engine.world.onto.data)
+     const ops = Object.keys(spec.primitives)
+     expect(ops).toContain('hurt')
+-    for (const op of ['feed', 'boon', 'talk', 'pay', 'arrest', 'release']) expect(ops).not.toContain(op)
++    for (const op of ['feed', 'boon', 'talk', 'pay', 'arrest', 'release', 'trophy']) expect(ops).not.toContain(op)
+   })
+ 
+   it('a new game begins at its start, at its hour, and the story opens', () => {
+diff --git a/packages/format/test/format.test.ts b/packages/format/test/format.test.ts
+index 60a6705..d8f5d27 100644
+--- a/packages/format/test/format.test.ts
++++ b/packages/format/test/format.test.ts
+@@ -67,6 +67,12 @@ describe.skipIf(!here)('the compiler', () => {
+     expect(onto.types['actor/creature']).toBeDefined()
+     expect(onto.modules).toEqual(['x'])
+   })
++
++  it('gear sets are keyed by id: a later file\'s set replaces the earlier\'s of its id and keeps the rest', () => {
++    const set = (id: string, atk: number) => ({ id, name: id, pieces: 2, bonuses: [{ pieces: 2, props: { atk }, text: `+${atk}` }] })
++    const onto = mergeOntology([{ sets: [set('wolf', 1), set('bear', 2)] }, { sets: [set('wolf', 5), set('owl', 3)] }], {})
++    expect(onto.sets?.map((s) => [s.id, s.bonuses[0].props.atk])).toEqual([['wolf', 5], ['bear', 2], ['owl', 3]])
++  })
+ })
+ 
+ describe.skipIf(!here)('the files', () => {

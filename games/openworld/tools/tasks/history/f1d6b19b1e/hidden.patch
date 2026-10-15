@@ -1,0 +1,1208 @@
+diff --git a/packages/content/test/building.test.ts b/packages/content/test/building.test.ts
+index e9a049d..ad7a2aa 100644
+--- a/packages/content/test/building.test.ts
++++ b/packages/content/test/building.test.ts
+@@ -19,17 +19,16 @@ function site(ground: string[] = [], front = 'grass'): Engine {
+     new RuleLibrary(BASE_RULES),
+   )
+   eng.world.get('actor')!.facing = 'up'
+-  eng.world.strict = true
+   return eng
+ }
+ 
+ /** Put a fresh `type` in the player's hand (whatever was there is gone), as if picked from the toolbar. */
+ function hold(eng: Engine, type: string): void {
+   const w = eng.world
+-  w.write(() => {
++  eng.author(() => {
+     const old = w.get(w.player.held)
+     if (old) w.destroy(old)
+-    w.create(type, { on: 'hand', holder: 'actor' })
++    w.author(() => w.create(type, { on: 'hand', holder: 'actor' }))
+   })
+   eng.controls.sync()
+ }
+@@ -38,7 +37,7 @@ function hold(eng: Engine, type: string): void {
+ function emptyHand(eng: Engine): void {
+   const w = eng.world
+   const old = w.get(w.player.held)
+-  if (old) w.write(() => w.destroy(old))
++  if (old) eng.author(() => w.destroy(old))
+   eng.controls.sync()
+ }
+ 
+@@ -145,7 +144,6 @@ describe('a chest from a frame', () => {
+       new RuleLibrary(BASE_RULES),
+     )
+     locked.world.get('actor')!.facing = 'up'
+-    locked.world.strict = true
+     // a plain blow on a locked chest is no rule's: undefined (the AI answers), nothing meanwhile
+     const r = press(locked, 'use', AXE)
+     expect(r.rules).not.toContain('build/dismantle-chest')
+@@ -205,7 +203,7 @@ describe('the same pattern', () => {
+     // a quill without ink writes nothing (the sign is only read)
+     expect(press(eng, 'use', 'item/misc/feather_quill').rules).not.toContain('build/write-sign')
+     expect(eng.world.hasTag(sign, 'blank')).toBe(true)
+-    eng.world.write(() => eng.world.create('item/misc/ink', { on: 'inside', holder: 'actor' }))
++    eng.author(() => eng.world.create('item/misc/ink', { on: 'inside', holder: 'actor' }))
+     expect(press(eng, 'use', 'item/misc/feather_quill').rules).toContain('build/write-sign')
+     expect(eng.world.hasTag(sign, 'blank')).toBe(false)
+     expect(eng.world.hasTag(sign, 'handmade')).toBe(true)
+diff --git a/packages/content/test/controls.test.ts b/packages/content/test/controls.test.ts
+index 0fd072c..a3a7be8 100644
+--- a/packages/content/test/controls.test.ts
++++ b/packages/content/test/controls.test.ts
+@@ -10,7 +10,6 @@ function world(held: string | undefined, others: ScenarioEntity[], terrain?: str
+   const entities: ScenarioEntity[] = [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2, props: {} }, ...others]
+   if (held) entities.push({ key: 'held', type: held, x: 2, y: 2, heldBy: 'actor' })
+   const eng = buildSandbox({ entities, event: {}, terrain }, onto, lib())
+-  eng.world.strict = true
+   eng.world.player.facing = 'up'
+   eng.controls.sync()
+   return eng
+@@ -140,8 +139,8 @@ describe('the four inputs: one verb each', () => {
+   it('stepping onto a tile is contact: no change unless the tile says (nothing asked); a burning tile burns who steps on it', () => {
+     const eng = world(undefined, [])
+     const port = new ModPort(eng)
+-    eng.applyStatus({ tile: { map: 'sandbox', x: 2, y: 1 } }, 'oiled')
+-    eng.applyStatus({ tile: { map: 'sandbox', x: 2, y: 0 } }, 'burning', 999)
++    eng.author(() => eng.applyStatus({ tile: { map: 'sandbox', x: 2, y: 1 } }, 'oiled'))
++    eng.author(() => eng.applyStatus({ tile: { map: 'sandbox', x: 2, y: 0 } }, 'burning', 999))
+     eng.trace = []
+     eng.world.player.facing = 'up'
+     expect(eng.step(eng.world.player, 'up')).toBe(true)
+@@ -317,7 +316,7 @@ describe('hunger', () => {
+     expect(p.props!.hunger).toBe(20)
+     expect(p.props!.hp).toBe(30)
+     // a healing herb is medicine: it heals as well
+-    const herb = eng.world.write(() => eng.world.create('item/material/herb', { on: 'inside', holder: p.id }))
++    const herb = eng.author(() => eng.world.create('item/material/herb', { on: 'inside', holder: p.id }))
+     eng.act('use', p.id, { e: p.id }, { instrument: { e: herb.id } })
+     expect(p.props!.hp).toBe(34)
+     // well fed: hurt health comes back slowly
+diff --git a/packages/content/test/farming.test.ts b/packages/content/test/farming.test.ts
+index c5302a2..df0f3b6 100644
+--- a/packages/content/test/farming.test.ts
++++ b/packages/content/test/farming.test.ts
+@@ -25,7 +25,6 @@ function farm(width: number, crops: Record<number, string> = {}, ground = 'farml
+     new RuleLibrary(BASE_RULES),
+   )
+   eng.world.get('actor')!.facing = 'up'
+-  eng.world.strict = true
+   return eng
+ }
+ 
+@@ -37,10 +36,10 @@ const standAt = (eng: Engine, x: number) => {
+ /** Put a fresh `type` in the player's hand (whatever was there is gone), as if picked from the toolbar. */
+ const hold = (eng: Engine, type: string) => {
+   const w = eng.world
+-  w.write(() => {
++  eng.author(() => {
+     const old = w.get(w.player.held)
+     if (old) w.destroy(old)
+-    w.create(type, { on: 'hand', holder: 'actor' })
++    w.author(() => w.create(type, { on: 'hand', holder: 'actor' }))
+   })
+   eng.controls.sync()
+ }
+@@ -48,7 +47,7 @@ const hold = (eng: Engine, type: string) => {
+ const stow = (eng: Engine) => {
+   const w = eng.world
+   const h = w.get(w.player.held)
+-  if (h) w.write(() => w.destroy(h))
++  if (h) eng.author(() => w.destroy(h))
+   eng.controls.sync()
+ }
+ 
+@@ -156,7 +155,6 @@ describe('fire and trees', () => {
+       new RuleLibrary(BASE_RULES),
+     )
+     eng.world.get('actor')!.facing = 'up'
+-    eng.world.strict = true
+     expect(press(eng, 'use', 'item/light/torch')).toEqual(expect.arrayContaining(['use/fire', 'core/element']))
+     expect(eng.world.hasStatus({ e: 'c13' }, 'burning')).toBe(true)
+     stow(eng)
+diff --git a/packages/content/test/ford.test.ts b/packages/content/test/ford.test.ts
+index 703d85b..6144a6b 100644
+--- a/packages/content/test/ford.test.ts
++++ b/packages/content/test/ford.test.ts
+@@ -14,7 +14,6 @@ const lib = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
+ function ford(extra: Scenario['entities'], player: Partial<Scenario['entities'][number]> = {}): Engine {
+   const row = ['grass', 'grass', 'grass', 'water', 'water', 'grass', 'grass']
+   const eng = buildSandbox({ terrain: Array.from({ length: 5 }, () => [...row]), entities: [{ key: 'actor', type: 'actor/person/player', x: 1, y: 2, ...player }, ...extra], event: {} }, onto, lib())
+-  eng.world.strict = true
+   return eng
+ }
+ 
+@@ -77,7 +76,7 @@ describe('the Ford', () => {
+     eng.queue({ kind: 'impulse/element', host: { tile: { map: 'sandbox', x: 3, y: 2 } }, roles: { actor: { e: 'actor' } }, params: { element: 'ice', power: 3 }, cause: 'actor', origin: 'player' })
+     expect(eng.world.terrainAt('sandbox', 3, 2)).toBe('ice')
+     expect(eng.world.hasStatus({ tile: { map: 'sandbox', x: 3, y: 2 } }, 'chilled')).toBe(true)
+-    eng.teleport(eng.world.player, { map: 'sandbox', x: 3, y: 2 })
++    eng.author(() => eng.teleport(eng.world.player, { map: 'sandbox', x: 3, y: 2 }))
+     expect(eng.world.posOf(eng.world.player)).toMatchObject({ x: 3, y: 2 })
+     for (let i = 0; i < 1600; i++) eng.tick()
+     expect(eng.world.terrainAt('sandbox', 3, 2)).toBe('water')
+diff --git a/packages/content/test/placement.test.ts b/packages/content/test/placement.test.ts
+index b844b77..0418652 100644
+--- a/packages/content/test/placement.test.ts
++++ b/packages/content/test/placement.test.ts
+@@ -9,7 +9,7 @@ function fresh(actorId = 'actor'): Engine {
+ function kit(eng: Engine, recipeId: string, actorId = 'actor') {
+   const r = PLACEMENT_BY_ID[recipeId]
+   const tools: Record<string, string> = { 'tool:hammer': 'item/tool/smith_hammer', 'tool:hoe': 'item/tool/hoe', 'tool:sickle': 'item/tool/sickle', 'liquid:water': 'item/vessel/bucket/water', 'empty-vessel': 'item/vessel/bucket/empty' }
+-  return r.needs.flatMap((n) => Array.from({ length: n.count }, () => eng.world.create(n.match.type ?? tools[n.match.tags![0]], { on: 'inside', holder: actorId })))
++  return r.needs.flatMap((n) => Array.from({ length: n.count }, () => eng.world.author(() => eng.world.create(n.match.type ?? tools[n.match.tags![0]], { on: 'inside', holder: actorId }))))
+ }
+ const place = (e: Engine, id: string, actor = 'actor') => performPlacement(e, actor, PLACEMENT_BY_ID[id], at)
+ 
+@@ -34,19 +34,19 @@ describe('rule-driven construction', () => {
+     kit(e, 'chest', 'builder')
+     expect(place(e, 'chest', 'builder').ok).toBe(true)
+     expect(e.world.player.id).not.toBe('builder')
+-    e.world.place(e.world.get('builder')!, { on: 'tile', map: at.map, x: 1, y: 1 })
++    e.world.author(() => e.world.place(e.world.get('builder')!, { on: 'tile', map: at.map, x: 1, y: 1 }))
+     expect(place(e, 'crate').ok).toBe(false)
+   })
+   it.each(['missing', 'occupied', 'self', 'far', 'fractional', 'water', 'frozen'] as const)('rejects %s without spending or changing equipment', (kind) => {
+     const e = fresh()
+     const items = kit(e, 'crate')
+     let target = at
+-    if (kind === 'missing') e.world.destroy(items[1])
+-    if (kind === 'occupied') e.world.create('item/material/stick', { on: 'tile', ...at })
++    if (kind === 'missing') e.world.author(() => e.world.destroy(items[1]))
++    if (kind === 'occupied') e.world.author(() => e.world.create('item/material/stick', { on: 'tile', ...at }))
+     if (kind === 'self') target = { ...at, y: 2 }
+     if (kind === 'far') target = { ...at, x: 4 }
+     if (kind === 'fractional') target = { ...at, x: 2.5 }
+-    if (kind === 'water') e.world.setTerrain(at.map, at.x, at.y, 'water')
++    if (kind === 'water') e.world.author(() => e.world.setTerrain(at.map, at.x, at.y, 'water'))
+     if (kind === 'frozen') items[0].frozenBy = 'pending'
+     const before = structuredClone(e.world.state)
+     expect(performPlacement(e, 'actor', PLACEMENT_BY_ID.crate, target).ok).toBe(false)
+@@ -65,7 +65,7 @@ describe('rule-driven construction', () => {
+ describe('vegetable garden', () => {
+   it('grows on the real expiry clock, never on an unwatered timer', () => {
+     const e = fresh()
+-    e.world.setTerrain(at.map, at.x, at.y, 'farmland')
++    e.world.author(() => e.world.setTerrain(at.map, at.x, at.y, 'farmland'))
+     kit(e, 'sow-carrot'); kit(e, 'water')
+     place(e, 'sow-carrot')
+     const crop = e.world.entitiesAt(at.map, at.x, at.y)[0]
+@@ -92,14 +92,14 @@ describe('vegetable garden', () => {
+       expect(place(e, 'water').ok).toBe(false)
+       expect(e.world.hasStatus({ e: crop.id }, 'watered')).toBe(true)
+       // two hours on: the watering runs out (the clock), and the crop grows a stage
+-      e.world.write(() => e.world.clearStatus({ e: crop.id }, 'watered'))
++      e.author(() => e.world.clearStatus({ e: crop.id }, 'watered'))
+       e.dispatch({ kind: 'time/timer', host: { e: crop.id }, roles: {}, params: { status: 'watered' }, origin: 'world' })
+       e.flush()
+     }
+     grow()
+     expect(crop.type).toBe(`fixture/crop/${c.id}/young`)
+     expect(place(e, 'harvest').ok).toBe(false)
+-    e.world.write(() => e.world.setTerrain(at.map, at.x - 1, at.y, 'water'))
++    e.author(() => e.world.setTerrain(at.map, at.x - 1, at.y, 'water'))
+     expect(performPlacement(e, 'actor', PLACEMENT_BY_ID.fill, { ...at, x: at.x - 1 }).ok).toBe(true)
+     grow()
+     expect(crop.type).toBe(`fixture/crop/${c.id}/ripe`)
+@@ -112,7 +112,7 @@ describe('vegetable garden', () => {
+   })
+   it('keeps the bucket in its selected slot across watering and refilling', () => {
+     const e = fresh()
+-    e.world.setTerrain(at.map, at.x, at.y, 'farmland')
++    e.world.author(() => e.world.setTerrain(at.map, at.x, at.y, 'farmland'))
+     kit(e, 'sow-carrot')
+     const [bucket] = kit(e, 'water')
+     e.controls.sync()
+diff --git a/packages/content/test/rules.test.ts b/packages/content/test/rules.test.ts
+index 14b6588..5fc94a2 100644
+--- a/packages/content/test/rules.test.ts
++++ b/packages/content/test/rules.test.ts
+@@ -36,7 +36,6 @@ const tile = (x: number, y: number) => ({ tile: { map: 'sandbox', x, y } })
+ /** A sandbox in strict mode: any change of state outside an outcome throws (design.md §5.13, A2). */
+ const sandbox = (sc: Scenario, l = lib()): Engine => {
+   const eng = buildSandbox(sc, onto, l)
+-  eng.world.strict = true
+   return eng
+ }
+ /** The rules that answered the events an act started, in order. */
+@@ -149,7 +148,7 @@ describe('acts and the impulses they send', () => {
+       ],
+       event: {},
+     })
+-    eng.applyStatus(tile(1, 1), 'burning', 999)
++    eng.author(() => eng.applyStatus(tile(1, 1), 'burning', 999))
+     const rules = chain(eng, () => expect(eng.act('use', 'actor', tile(1, 1)).rule?.id).toBe('use/water'))
+     expect(rules).toContain('core/element')
+     expect(eng.world.hasStatus(tile(1, 1), 'burning')).toBe(false)
+diff --git a/packages/content/test/storage.test.ts b/packages/content/test/storage.test.ts
+index 6d692b6..37d278b 100644
+--- a/packages/content/test/storage.test.ts
++++ b/packages/content/test/storage.test.ts
+@@ -23,7 +23,6 @@ function play(front: Omit<ScenarioEntity, 'x' | 'y'>[], held?: string, terrain?:
+   }
+   const eng = buildSandbox(sc, onto, new RuleLibrary(BASE_RULES))
+   eng.world.get('actor')!.facing = 'up'
+-  eng.world.strict = true
+   return eng
+ }
+ 
+@@ -51,7 +50,7 @@ const carried = (eng: Engine) => [...(eng.world.get('actor')!.contents ?? []), .
+ const stow = (eng: Engine) => {
+   const w = eng.world
+   const h = w.get(heldBy(eng))
+-  if (h) w.write(() => w.place(h, { on: 'inside', holder: 'actor' }))
++  if (h) eng.author(() => w.place(h, { on: 'inside', holder: 'actor' }))
+ }
+ 
+ describe('surfaces', () => {
+@@ -212,10 +211,9 @@ describe('the count condition', () => {
+       event: {},
+     }
+     const eng = buildSandbox(sc, onto, lib)
+-    eng.world.strict = true
+     const ev = { kind: 'impulse/handle' as const, host: { e: 'table' }, roles: { actor: { e: 'actor' } }, params: {} }
+     expect(eng.resolveEvent(ev).rule?.id).not.toBe('test/count')
+-    eng.world.write(() => eng.world.create('item/food/apple', { on: 'tile', map: 'sandbox', x: 2, y: 1 }))
++    eng.author(() => eng.world.create('item/food/apple', { on: 'tile', map: 'sandbox', x: 2, y: 1 }))
+     expect(eng.resolveEvent(ev).rule?.id).toBe('test/count')
+   })
+ 
+diff --git a/packages/content/test/woodcutting.test.ts b/packages/content/test/woodcutting.test.ts
+index 961e066..109af9c 100644
+--- a/packages/content/test/woodcutting.test.ts
++++ b/packages/content/test/woodcutting.test.ts
+@@ -25,7 +25,6 @@ function grove(row: string[], held: string): Engine {
+     new RuleLibrary(BASE_RULES),
+   )
+   eng.world.get('actor')!.facing = 'up'
+-  eng.world.strict = true
+   return eng
+ }
+ 
+@@ -97,9 +96,9 @@ describe('woodcutting', () => {
+     }
+     expect([0, 1, 2, 3, 4].map((x) => terrain(eng, x))).toEqual(Array(5).fill('stump'))
+     // the axe for a shovel
+-    eng.world.write(() => {
+-      eng.world.destroy(eng.world.get('held')!)
+-      eng.world.create('item/tool/shovel', { on: 'hand', holder: 'actor' })
++    eng.author(() => {
++      eng.world.author(() => eng.world.destroy(eng.world.get('held')!))
++      eng.world.author(() => eng.world.create('item/tool/shovel', { on: 'hand', holder: 'actor' }))
+     })
+     eng.controls.sync()
+     standAt(eng, 1)
+diff --git a/packages/content/test/world.test.ts b/packages/content/test/world.test.ts
+index ffb5ce6..cc4254f 100644
+--- a/packages/content/test/world.test.ts
++++ b/packages/content/test/world.test.ts
+@@ -41,7 +41,6 @@ function place(person: PersonData = {}, extra: Scenario['entities'] = [], size =
+     onto,
+     lib(),
+   )
+-  eng.world.strict = true
+   const h = eng.world.get('hesper')!
+   h.name = { en: 'Hesper', zh: '赫斯珀' }
+   h.npc = { role: 'ferrykeeper', schedule: [{ from: 0, to: 24, map: 'sandbox', x: 4, y: 4, activity: 'watch the water' }], person }
+@@ -58,7 +57,7 @@ const L = (key: string, en: string, more: Partial<LineDef> = {}): LineDef => ({
+ const ticks = (eng: Engine, n: number) => {
+   for (let i = 0; i < n; i++) eng.tick()
+ }
+-const fact = (eng: Engine, key: string, value: number) => eng.world.write(() => eng.world.setFact(key, value))
++const fact = (eng: Engine, key: string, value: number) => eng.author(() => eng.world.setFact(key, value))
+ 
+ describe('time and weather', () => {
+   it('days and nights, nothing more: day 1 begins at 06:00, a game minute is a second', () => {
+@@ -92,7 +91,7 @@ describe('people', () => {
+   it('say the most specific line that fits: first meeting, a fact, the weather, the hour, default — never the same twice in a row', () => {
+     const eng = place({ lines: [L('greeting:first', 'Who are you?'), L('fact:nets.mended', 'The line holds.', { once: true }), L('weather:storm', 'Get under something.'), L('default', 'A'), L('default', 'B')] })
+     expect(talk(eng)).toBe('Who are you?')
+-    expect(eng.world.fact('met.hesper')).toBe(true)
++    expect(eng.world.state.memory?.hesper?.talked).toBeDefined()
+     const a = talk(eng)
+     const b = talk(eng)
+     expect([a, b].sort()).toEqual(['A', 'B'])
+@@ -113,7 +112,7 @@ describe('people', () => {
+ 
+   it('take what they are handed and say what they make of it (no tastes, no points)', () => {
+     const eng = place({ lines: [L('given:item/food', 'Thank you.'), L('given', 'What is this?')] })
+-    const loaf = eng.world.write(() => eng.world.create('item/food/bread', { on: 'hand', holder: 'actor' }))
++    const loaf = eng.author(() => eng.world.create('item/food/bread', { on: 'hand', holder: 'actor' }))
+     eng.world.fx = []
+     eng.trace = []
+     eng.act('put', 'actor', { e: 'hesper' })
+@@ -244,8 +243,8 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
+     const eng = place({}, [{ key: 'rope', type: 'item/tool/rope', x: 3, y: 3 }, { key: 'tree', type: 'fixture/nature/dead_tree', x: 6, y: 3 }])
+     const port = new ModPort(eng)
+     port.provider = working
+-    eng.applyStatus({ e: 'rope' }, 'burning')
+-    eng.applyStatus({ tile: { map: 'sandbox', x: 1, y: 1 } }, 'wet')
++    eng.author(() => eng.applyStatus({ e: 'rope' }, 'burning'))
++    eng.author(() => eng.applyStatus({ tile: { map: 'sandbox', x: 1, y: 1 } }, 'wet'))
+     eng.queue({ kind: 'impulse/element', host: { e: 'tree' }, roles: {}, params: { element: 'lightning', power: 4 }, origin: 'world' })
+     expect(eng.world.hasStatus({ e: 'tree' }, 'burning')).toBe(true)
+     expect(port.records).toHaveLength(0)
+diff --git a/packages/tools/test/boss-challenge.test.ts b/packages/tools/test/boss-challenge.test.ts
+index bac56f5..f67da2e 100644
+--- a/packages/tools/test/boss-challenge.test.ts
++++ b/packages/tools/test/boss-challenge.test.ts
+@@ -26,7 +26,7 @@ describe('isolated profession boss challenges', () => {
+     if (id === 'mage') expect(w.prop(weapon, 'element')).toBe('fire')
+     // Each real loadout can hurt a multi-cell body through the normal attack path.
+     const boss = w.get(FIRST_BOSS.id)!
+-    w.place(p, { on: 'tile', map: FIRST_BOSS.map, x: 23, y: 16 })
++    w.author(() => w.place(p, { on: 'tile', map: FIRST_BOSS.map, x: 23, y: 16 }))
+     p.facing = 'up'
+     game.engine.playerAttack()
+     expect(w.num(boss, 'hp')).toBeLessThan(BOSS_BY_ID.greed.hp)
+diff --git a/packages/tools/test/bosses.test.ts b/packages/tools/test/bosses.test.ts
+index 8d0aff8..500c9ad 100644
+--- a/packages/tools/test/bosses.test.ts
++++ b/packages/tools/test/bosses.test.ts
+@@ -37,21 +37,21 @@ describe('seven original sin encounters', () => {
+     const { eng, w, boss, player } = arena()
+     expect(w.occupiedCells(boss)).toHaveLength(15)
+     for (const [x, y] of w.occupiedCells(boss)) expect(w.actorAt('arena', x, y)?.id).toBe(boss.id)
+-    w.place(player, { on: 'tile', map: 'arena', x: 13, y: 15 })
++    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 13, y: 15 }))
+     expect(eng.step(player, 'right')).toBe(false)
+     player.facing = 'right'
+     eng.playerAttack({ e: boss.id })
+     expect(w.num(boss, 'hp')).toBeLessThan(BOSS_BY_ID.greed.hp)
+     expect(w.entitiesOnMap('arena').filter((e) => e.id === boss.id)).toHaveLength(1)
+     // A wall under only the far side still prevents movement.
+-    w.setTerrain('arena', 19, 15, 'wall')
++    w.author(() => w.setTerrain('arena', 19, 15, 'wall'))
+     expect(eng.step(boss, 'right')).toBe(false)
+-    w.setTerrain('arena', 19, 15, 'grass')
++    w.author(() => w.setTerrain('arena', 19, 15, 'grass'))
+     expect(eng.step(boss, 'right')).toBe(true)
+     expect(w.actorAt('arena', 14, 16)).toBeUndefined()
+-    w.transform(boss, 'actor/creature/sin/envy')
++    w.author(() => w.transform(boss, 'actor/creature/sin/envy'))
+     expect(w.actorAt('arena', 18, 16)).toBeUndefined()
+-    w.destroy(boss)
++    w.author(() => w.destroy(boss))
+     expect(w.actorAt('arena', 17, 16)).toBeUndefined()
+   })
+ 
+@@ -63,7 +63,7 @@ describe('seven original sin encounters', () => {
+     expect(pending).toBeDefined()
+     expect(w.num(player, 'hp')).toBe(1000)
+     expect(snapshot(eng).entities.find((e) => e.id === boss.id)!.boss!.warning!.tiles).toEqual(pending.tiles)
+-    w.place(player, { on: 'tile', map: 'arena', x: 20, y: 19 })
++    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 20, y: 19 }))
+     ticks(pending.releaseAt - w.state.tick)
+     expect(w.num(player, 'hp')).toBe(1000)
+     expect(boss.boss!.pending).toBeUndefined()
+@@ -78,7 +78,7 @@ describe('seven original sin encounters', () => {
+     const tiles = bossPattern(skill, origin, aim)
+     const hit = tiles.find(([x, y]) => y > origin.y && w.walkable('arena', x, y, player.id))!
+     expect(hit).toBeDefined()
+-    w.place(player, { on: 'tile', map: 'arena', x: hit[0], y: hit[1] })
++    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: hit[0], y: hit[1] }))
+     const before = w.num(boss, 'hp') - 100
+     ;(boss.props ??= {}).hp = before
+     boss.boss!.pending = { skill: skillIndex, target: player.id, origin, aim, tiles, releaseAt: w.state.tick }
+@@ -96,8 +96,8 @@ describe('seven original sin encounters', () => {
+ 
+   it('uses factions, not player identity, and damages a large victim only once', () => {
+     const { eng, w, boss, player } = arena()
+-    w.place(player, { on: 'tile', map: 'arena', x: 35, y: 35 })
+-    const victim = w.add({ ...createBoss('gluttony', { map: 'arena', x: 16, y: 20 }, 'folk.guard'), ai: undefined, tags: ['faction:folk'] })
++    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 35, y: 35 }))
++    const victim = w.author(() => w.add({ ...createBoss('gluttony', { map: 'arena', x: 16, y: 20 }, 'folk.guard'), ai: undefined, tags: ['faction:folk'] }))
+     boss.boss!.nextSkill = 2
+     stepBosses(eng, 'arena')
+     const pending = boss.boss!.pending!
+@@ -111,11 +111,11 @@ describe('seven original sin encounters', () => {
+ 
+   it('never casts out of range while movement is cooling down; second phase shortens warning', () => {
+     const { eng, w, boss, player } = arena()
+-    w.place(player, { on: 'tile', map: 'arena', x: 16, y: 24 })
++    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 16, y: 24 }))
+     eng.setCooldown(boss.id, 30)
+     stepBosses(eng, 'arena')
+     expect(boss.boss!.pending).toBeUndefined()
+-    w.place(player, { on: 'tile', map: 'arena', x: 16, y: 20 })
++    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 16, y: 20 }))
+     ;(boss.props ??= {}).hp = 50
+     stepBosses(eng, 'arena')
+     expect(boss.boss!.phase).toBe(2)
+@@ -126,7 +126,7 @@ describe('seven original sin encounters', () => {
+   it('slows movement without slowing attacks, and preserves locked casts through saves', () => {
+     const { game, index, eng, w, boss, player, map, ticks } = arena()
+     const base = combatDelay(w, player, 4, 'move')
+-    eng.applyStatus({ e: player.id }, 'mired')
++    eng.author(() => eng.applyStatus({ e: player.id }, 'mired'))
+     expect(combatDelay(w, player, 4, 'move')).toBeGreaterThan(base)
+     expect(combatDelay(w, player, 5, 'attack')).toBe(5)
+     ticks(1)
+@@ -157,8 +157,8 @@ describe('seven original sin encounters', () => {
+ 
+   it('routes a wide body around an obstacle instead of clipping its side or getting stuck', () => {
+     const { eng, w, boss, player, ticks } = arena()
+-    w.place(player, { on: 'tile', map: 'arena', x: 16, y: 24 })
+-    for (let x = 14; x <= 18; x++) w.setTerrain('arena', x, 17, 'wall')
++    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 16, y: 24 }))
++    for (let x = 14; x <= 18; x++) w.author(() => w.setTerrain('arena', x, 17, 'wall'))
+     stepBosses(eng, 'arena')
+     expect(boss.ai!.detour?.path.length).toBeGreaterThan(0)
+     for (let i = 0; i < 100 && !boss.boss!.pending; i++) {
+@@ -177,8 +177,8 @@ describe('seven original sin encounters', () => {
+     ticks(release - w.state.tick)
+     expect(w.posOf(player)?.y).toBe(19)
+     expect(eng.busy(player)).toBe(true)
+-    w.place(player, { on: 'tile', map: 'arena', x: 36, y: 36 })
+-    w.place(boss, { on: 'tile', map: 'arena', x: 22, y: 20 })
++    w.author(() => w.place(player, { on: 'tile', map: 'arena', x: 36, y: 36 }))
++    w.author(() => w.place(boss, { on: 'tile', map: 'arena', x: 22, y: 20 }))
+     ticks(120)
+     expect(boss.boss!.pending).toBeUndefined()
+     const at = w.posOf(boss)!, home = boss.ai!.home
+@@ -228,9 +228,9 @@ describe('sin encounter assets and compatibility', () => {
+     const road = decodeChunk(chunks.find((c) => c.map.id === FIRST_BOSS.map)!)
+     if (visited) game.loadChunk({ ...road, entities: road.entities.filter((e) => !e.boss) })
+     ;(w.player.props ??= {}).quest = 6
+-    w.setFact('mq.smith', 3)
+-    if (visited) w.place(w.player, { on: 'tile', map: 'eastroad', x: 23, y: 15 })
+-    migrateBosses(game, visited ? road : undefined)
++    w.author(() => w.setFact('mq.smith', 3))
++    if (visited) w.author(() => w.place(w.player, { on: 'tile', map: 'eastroad', x: 23, y: 15 }))
++    game.engine.author(() => migrateBosses(game, visited ? road : undefined))
+     expect(w.fact(BOSS_LAYOUT)).toBe(true)
+     if (visited) {
+       const b = w.get(FIRST_BOSS.id)!
+@@ -244,7 +244,7 @@ describe('sin encounter assets and compatibility', () => {
+       expect(w.get(FIRST_BOSS.id)).toBeDefined()
+     }
+     const state = structuredClone(w.state)
+-    migrateBosses(game, road)
++    game.engine.author(() => migrateBosses(game, road))
+     expect(w.state).toEqual(state)
+     expect(w.num(w.player, 'quest')).toBe(6)
+     expect(w.fact('mq.smith')).toBe(3)
+@@ -254,8 +254,8 @@ describe('sin encounter assets and compatibility', () => {
+     const { index, chunks } = buildFord(), game = Game.create(index, onto, library()), w = game.engine.world
+     const road = decodeChunk(chunks.find((c) => c.map.id === FIRST_BOSS.map)!)
+     game.loadChunk({ ...road, entities: road.entities.filter((e) => !e.boss) })
+-    w.setFact('sins.defeated.greed', 1)
+-    migrateBosses(game, road)
++    w.author(() => w.setFact('sins.defeated.greed', 1))
++    game.engine.author(() => migrateBosses(game, road))
+     expect(w.get(FIRST_BOSS.id)).toBeUndefined()
+   })
+ 
+@@ -265,9 +265,9 @@ describe('sin encounter assets and compatibility', () => {
+     game.loadChunk(road)
+     const boss = w.get(FIRST_BOSS.id)!
+     boss.props = { hp: 60 }
+-    w.setFact('content.seven-sins-v1', true)
+-    w.place(w.player, { on: 'tile', map: FIRST_BOSS.map, x: 21, y: 15 })
+-    migrateBosses(game, road)
++    w.author(() => w.setFact('content.seven-sins-v1', true))
++    w.author(() => w.place(w.player, { on: 'tile', map: FIRST_BOSS.map, x: 21, y: 15 }))
++    game.engine.author(() => migrateBosses(game, road))
+     expect(w.num(boss, 'hp')).toBe(BOSS_BY_ID.greed.hp / 2)
+     expect(w.occupiedCells(boss)).not.toContainEqual([21, 15])
+     expect(w.fits(boss, FIRST_BOSS.map, w.posOf(boss)!.x, w.posOf(boss)!.y)).toBe(true)
+diff --git a/packages/tools/test/companion.test.ts b/packages/tools/test/companion.test.ts
+index 51d8981..a406c1d 100644
+--- a/packages/tools/test/companion.test.ts
++++ b/packages/tools/test/companion.test.ts
+@@ -16,7 +16,7 @@ describe('the companion', () => {
+     const w = eng.world
+     const p = w.player
+     // the slope's open middle row, from west to east and back, zig-zagging
+-    eng.teleport(p, { map: 'slope', x: 8, y: 12 })
++    eng.author(() => eng.teleport(p, { map: 'slope', x: 8, y: 12 }))
+     for (let i = 0; i < 10; i++) eng.tick()
+     const pip = w.get('pip')!
+     let prev = w.posOf(pip)!
+@@ -39,6 +39,42 @@ describe('the companion', () => {
+     const me = w.posOf(p)!
+     expect(Math.max(Math.abs(at.x - me.x), Math.abs(at.y - me.y))).toBe(1)
+   })
++
++  it('struck down, it cannot follow: its behaviour reports stuck, and the world (the AI) answers; with no answer it comes to and follows again', () => {
++    const { index, chunks } = buildFord()
++    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++    for (const c of chunks) game.loadChunk(decodeChunk(c))
++    const eng = game.engine
++    const w = eng.world
++    const p = w.player
++    eng.author(() => eng.teleport(p, { map: 'slope', x: 8, y: 12 }))
++    for (let i = 0; i < 20; i++) eng.tick()
++    const pip = w.get('pip')!
++    // the player strikes the bird it can point at (blows along the facing pass under a flyer)
++    eng.author(() => w.setProp(p, 'atk', 50))
++    const at = w.posOf(pip)!
++    const me = w.posOf(p)!
++    p.facing = at.x > me.x ? 'right' : at.x < me.x ? 'left' : at.y > me.y ? 'down' : 'up'
++    eng.playerAttack({ e: pip.id })
++    // essential: it goes down, it is not gone
++    expect(w.hasStatus({ e: pip.id }, 'down')).toBe(true)
++    // no modder: the request is the Mod port's to make; here it is only recorded and its default (wait) runs
++    eng.trace.length = 0
++    eng.author(() => eng.teleport(p, { map: 'slope', x: 14, y: 12 }))
++    for (let i = 0; i < 5; i++) eng.tick()
++    const stuck = eng.trace.find((t) => t.ev.kind === 'stuck' && 'e' in t.ev.host && t.ev.host.e === pip.id)
++    expect(stuck?.defined).toBe(false)
++    expect(stuck?.ev.params).toMatchObject({ activity: 'follow' })
++    expect(stuck?.ev.roles.target).toEqual({ e: p.id })
++    // it stays where it fell, and says so once an hour, not every tick
++    expect(eng.trace.filter((t) => t.ev.kind === 'stuck').length).toBe(1)
++    expect(w.posOf(pip)).toEqual(at)
++    // it comes to (the essential's timer) and flies after its leader again
++    for (let i = 0; i < 320; i++) eng.tick()
++    expect(w.hasStatus({ e: pip.id }, 'down')).toBe(false)
++    const back = w.posOf(pip)!
++    expect(Math.max(Math.abs(back.x - 14), Math.abs(back.y - 12))).toBeLessThanOrEqual(3)
++  })
+ })
+ 
+ describe('waypoint statues', () => {
+diff --git a/packages/tools/test/console.test.ts b/packages/tools/test/console.test.ts
+index 81ac765..7f14825 100644
+--- a/packages/tools/test/console.test.ts
++++ b/packages/tools/test/console.test.ts
+@@ -17,10 +17,10 @@ describe('the Mod Console template', () => {
+     const eng = game.engine
+     const w = eng.world
+     const press = (key: Key, held: string | undefined, at: readonly [number, number], target: readonly [number, number], facing: 'up' | 'right' = 'up') => {
+-      w.write(() => {
++      eng.author(() => {
+         const e = held ? w.create(held, { on: 'hand', holder: 'player' }) : undefined
+         w.player.held = e?.id
+-        w.place(w.player, { on: 'tile', map: 'ford', x: at[0], y: at[1] })
++        w.author(() => w.place(w.player, { on: 'tile', map: 'ford', x: at[0], y: at[1] }))
+         w.player.facing = facing
+       })
+       eng.controls.run(eng.controls.plan(key, { x: target[0], y: target[1] })!, true)
+diff --git a/packages/tools/test/coverage.test.ts b/packages/tools/test/coverage.test.ts
+index 09d15b0..39f3fcf 100644
+--- a/packages/tools/test/coverage.test.ts
++++ b/packages/tools/test/coverage.test.ts
+@@ -61,8 +61,7 @@ describe('nothing put down is lost', () => {
+       for (const form of FORMS) {
+         const eng = new Engine(structuredClone(start.world.state), start.world.onto.data, lib)
+         const actor = eng.world.get('actor')!
+-        eng.world.write(() => eng.world.add({ id: 'held', type: form.id, place: { on: 'hand', holder: 'actor' } }))
+-        eng.world.strict = true
++        eng.author(() => eng.world.add({ id: 'held', type: form.id, place: { on: 'hand', holder: 'actor' } }))
+         eng.trace.length = 0
+         const put = eng.act('put', 'actor', ref, { instrument: { e: 'held' } })
+         if (eng.trace.some((t) => t.rule && consumes(t.rule))) continue
+diff --git a/packages/tools/test/defaults.test.ts b/packages/tools/test/defaults.test.ts
+index 2bd1dc3..affcfdf 100644
+--- a/packages/tools/test/defaults.test.ts
++++ b/packages/tools/test/defaults.test.ts
+@@ -21,7 +21,7 @@ function setup(target: string, held: string, sink?: UndefinedSink): Engine {
+   const eng = new Engine(structuredClone(start.world.state), start.world.onto.data, lib)
+   eng.world.state.player = 'actor'
+   eng.world.get('actor')!.facing = 'up'
+-  eng.world.write(() => eng.world.add({ id: 'held', type: held, place: { on: 'hand', holder: 'actor' } }))
++  eng.author(() => eng.world.add({ id: 'held', type: held, place: { on: 'hand', holder: 'actor' } }))
+   if (sink) eng.undefinedSink = sink
+   return eng
+ }
+diff --git a/packages/tools/test/demo.test.ts b/packages/tools/test/demo.test.ts
+index 48fae3c..2612784 100644
+--- a/packages/tools/test/demo.test.ts
++++ b/packages/tools/test/demo.test.ts
+@@ -72,22 +72,21 @@ function fresh(opts: { arrival?: boolean; ai?: boolean } = {}): Ford {
+   const f = { game, eng, events, made }
+   // the Ford's tests begin where the prologue ends: down the mountain, on the Ford (docs/prologue.md)
+   author(f, () => ((eng.world.player.props ??= {}).prologue = PROLOGUE_DONE))
+-  eng.teleport(eng.world.player, { map: 'ford', x: AT.spawn[0], y: AT.spawn[1] })
++  eng.author(() => eng.teleport(eng.world.player, { map: 'ford', x: AT.spawn[0], y: AT.spawn[1] }))
+   if (!opts.arrival)
+     author(f, () => {
+-      eng.world.setFact('seen.arrival', true)
++      eng.world.author(() => eng.world.setFact('seen.arrival', true))
+       ;(eng.world.player.props ??= {}).quest = 1
+-      eng.world.create('item/food/bread', { on: 'inside', holder: 'player' })
++      eng.world.author(() => eng.world.create('item/food/bread', { on: 'inside', holder: 'player' }))
+       eng.controls.sync()
+     })
+   // from here on, only outcomes change the world (and the tests, as its author, in `author`)
+-  eng.world.strict = true
+   return f
+ }
+ 
+ const W = (f: Ford) => f.eng.world
+ /** The test sets the scene: an author's hand, not a change the world made. */
+-const author = <T>(f: Ford, fn: () => T): T => W(f).write(fn)
++const author = <T>(f: Ford, fn: () => T): T => f.eng.author(fn)
+ const ofType = (f: Ford, type: string) => Object.values(W(f).state.entities).find((e) => e.type === type)
+ const stand = (f: Ford, x: number, y: number, facing: Entity['facing'] = 'up', map = 'ford') =>
+   author(f, () => {
+@@ -1368,7 +1367,7 @@ req('P2', 'a profession trainer in Firstlight Village: spoken to, he offers the
+   const bram = w.get('npc.bram')!
+   const at = w.posOf(bram)!
+   expect(at.map).toBe('meadow')
+-  f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 })
++  f.eng.author(() => f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 }))
+   w.fx.length = 0
+   f.eng.interact('interact', 'player', { e: bram.id }, { instrument: null })
+   expect(w.fx.some((x) => x.t === 'panel' && x.panel === 'profession')).toBe(true)
+@@ -1385,7 +1384,7 @@ req('P2', 'a profession trainer in Firstlight Village: spoken to, he offers the
+ function talkTo(f: Ford, id: string): string {
+   const w = W(f)
+   const at = w.posOf(w.get(id)!)!
+-  f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 })
++  f.eng.author(() => f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 }))
+   w.player.facing = 'up'
+   w.fx.length = 0
+   f.eng.interact('interact', 'player', { e: id }, { instrument: null })
+@@ -1399,7 +1398,7 @@ function fell(f: Ford, e: Entity): void {
+   f.eng.controls.sync()
+   f.eng.controls.select(w.player.slots!.findIndex((s) => !s))
+   const at = w.posOf(e)!
+-  f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 })
++  f.eng.author(() => f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 }))
+   author(f, () => w.place(e, { on: 'tile', map: at.map, x: at.x, y: at.y }))
+   w.player.facing = 'up'
+   ;(e.props ??= {}).hp = 1
+@@ -1469,7 +1468,8 @@ req('P4', 'the villagers\' errands: three side quests (stew, a lost ring, cleari
+   stand(f, at.x, at.y + 1, 'up', 'hollow')
+   run(f, 'take', at.x, at.y)
+   expect(talkTo(f, 'npc.mia')).toContain('你找到了')
+-  expect([w.fact('q.ring'), w.get('quest.mia.ring')]).toEqual(['done', undefined])
++  // handed in: the ring goes back to Mia (she takes it into her bag)
++  expect([w.fact('q.ring'), w.get('quest.mia.ring')?.place]).toEqual(['done', { on: 'inside', holder: 'npc.mia' }])
+   // the hollow cleared: six felled there count; elsewhere they do not
+   w.player.props!.level = 2
+   expect(markOf(f, 'npc.holt')).toBe('!')
+@@ -1489,18 +1489,18 @@ req('P4', 'the villagers\' errands: three side quests (stew, a lost ring, cleari
+   w.state.tick = tickAt(w.calendar().day + 1, 8)
+   expect(markOf(f, 'npc.gus')).toBe('!')
+   // the night: in the wild (the grassland) they come, a few at a time; in the village, never
+-  const born = (map: string) => w.entitiesOnMap(map).filter((e) => e.props?.nightborn)
++  const born = (map: string) => w.entitiesOnMap(map).filter((e) => w.hasTag(e, 'nightborn'))
+   stand(f, 20, 12, 'down', 'pasture')
+   setHour(f, 2, 22)
+   ticks(f, NIGHT_EVERY * 8)
+   expect(born('pasture').length).toBeGreaterThan(0)
+   expect(born('pasture').length).toBeLessThanOrEqual(NIGHT_CAP)
+   expect(born('pasture').every((e) => e.type === 'actor/creature/undead/zombie' || e.type === 'actor/creature/beast/bat')).toBe(true)
+-  f.eng.teleport(w.player, { map: 'meadow', x: 20, y: 14 })
++  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow', x: 20, y: 14 }))
+   ticks(f, NIGHT_EVERY * 8)
+   expect(born('meadow')).toEqual([])
+   // dawn: those of the night crumble
+-  f.eng.teleport(w.player, { map: 'pasture', x: 20, y: 12 })
++  f.eng.author(() => f.eng.teleport(w.player, { map: 'pasture', x: 20, y: 12 }))
+   setHour(f, 3, 6)
+   ticks(f, 60)
+   expect(born('pasture')).toEqual([])
+@@ -1569,7 +1569,6 @@ describe('the event model is complete (design.md §5.13)', () => {
+     const f = fresh()
+     stand(f, ...AT.spawn)
+     ticks(f, 24 * TICKS_PER_HOUR)
+-    expect(W(f).strict).toBe(true)
+   })
+ 
+   it('the relation difference: a thing put in a chest is in it, a thing set down is on the ground', () => {
+diff --git a/packages/tools/test/firstlight.test.ts b/packages/tools/test/firstlight.test.ts
+index 1735b14..9fc9c1b 100644
+--- a/packages/tools/test/firstlight.test.ts
++++ b/packages/tools/test/firstlight.test.ts
+@@ -27,16 +27,16 @@ function legacy(visited = true, fordVisited = true) {
+   if (fordVisited) game.loadChunk({ ...oldFord, entities: [...ford.entities, ...goods] })
+   if (visited) game.loadChunk({ ...village, entities: village.entities.filter((e) => !e.id.startsWith('village.') && !garden(e) && !['ford.cart', 'tobin.wand', 'tobin.oil'].includes(e.id)) })
+   const tobin = w.get('npc.tobin')!
+-  w.place(tobin, { on: 'tile', map: 'ford', x: 20, y: 15 })
++  w.author(() => w.place(tobin, { on: 'tile', map: 'ford', x: 20, y: 15 }))
+   tobin.npc!.schedule = [{ from: 0, to: 24, map: 'ford', x: 20, y: 15, activity: 'mind the cart' }]
+   tobin.npc!.person!.schedules = [{ key: 'default', entries: structuredClone(tobin.npc!.schedule) }]
+   w.state.tick = tickAt(1, 13)
+-  w.place(w.player, { on: 'tile', map: 'ford', x: 14, y: 17 })
++  w.author(() => w.place(w.player, { on: 'tile', map: 'ford', x: 14, y: 17 }))
+   Object.assign(w.player.props!, { prologue: PROLOGUE_DONE, quest: 4, xp: 42 })
+-  w.setFact('seen.arrival', true)
+-  w.setFact('mq.smith', 3)
++  w.author(() => w.setFact('seen.arrival', true))
++  w.author(() => w.setFact('mq.smith', 3))
+   const resume = () => Game.load(structuredClone(game.save()), index, buildOntology(), lib())
+-  const migrate = (saved: Game) => migrateFirstlight(saved, index, ford, village)
++  const migrate = (saved: Game) => saved.engine.author(() => migrateFirstlight(saved, index, ford, village))
+   return { game, w, resume, migrate, ford, village }
+ }
+ 
+@@ -46,13 +46,13 @@ describe('Firstlight Village save compatibility', () => {
+     const crate = f.w.get('ford.garden.supplies')!
+     const before = [...crate.contents!]
+     const tool = f.w.get(before[8])!
+-    f.w.place(tool, { on: 'inside', holder: 'player' })
++    f.w.author(() => f.w.place(tool, { on: 'inside', holder: 'player' }))
+     const wand = f.w.get('legacy.wand')!
+-    f.w.place(wand, { on: 'hand', holder: 'player' })
+-    f.w.destroy(f.w.get('ford.garden.carrot.ripe')!)
+-    f.w.setStatus({ e: 'ford.garden.turnip.sprout' }, 'watered', f.w.state.tick + 600)
+-    f.w.setTerrain('ford', 17, 12, 'farmland')
+-    f.w.setTerrain('ford', 4, 19, 'farmland') // A user-made plot must not be removed.
++    f.w.author(() => f.w.place(wand, { on: 'hand', holder: 'player' }))
++    f.w.author(() => f.w.destroy(f.w.get('ford.garden.carrot.ripe')!))
++    f.w.author(() => f.w.setStatus({ e: 'ford.garden.turnip.sprout' }, 'watered', f.w.state.tick + 600))
++    f.w.author(() => f.w.setTerrain('ford', 17, 12, 'farmland'))
++    f.w.author(() => f.w.setTerrain('ford', 4, 19, 'farmland')) // A user-made plot must not be removed.
+     f.w.state.memory = { 'npc.tobin': { talked: 1, said: ['greeting:first'] } }
+     const saved = f.resume()
+     f.migrate(saved)
+@@ -85,9 +85,9 @@ describe('Firstlight Village save compatibility', () => {
+ 
+   it('preserves a partially repaired bridge, and relocates a player covered by the wider river', () => {
+     const f = legacy()
+-    f.w.setTerrain('ford', 29, 22, 'bridge')
+-    f.w.setTerrain('ford', 30, 22, 'bridge')
+-    f.w.place(f.w.player, { on: 'tile', map: 'ford', x: 33, y: 13 })
++    f.w.author(() => f.w.setTerrain('ford', 29, 22, 'bridge'))
++    f.w.author(() => f.w.setTerrain('ford', 30, 22, 'bridge'))
++    f.w.author(() => f.w.place(f.w.player, { on: 'tile', map: 'ford', x: 33, y: 13 }))
+     const saved = f.resume()
+     f.migrate(saved)
+     const w = saved.engine.world
+@@ -99,8 +99,8 @@ describe('Firstlight Village save compatibility', () => {
+ 
+   it('does not respawn a destroyed cart, empty garden or taken supply crate', () => {
+     const f = legacy(false)
+-    f.w.destroy(f.w.get('ford.cart')!)
+-    for (const e of Object.values(f.w.state.entities)) if (garden(e)) f.w.destroy(e)
++    f.w.author(() => f.w.destroy(f.w.get('ford.cart')!))
++    for (const e of Object.values(f.w.state.entities)) if (garden(e)) f.w.author(() => f.w.destroy(e))
+     const saved = f.resume()
+     f.migrate(saved)
+     expect(saved.engine.world.get('ford.cart')).toBeUndefined()
+@@ -119,8 +119,8 @@ describe('Firstlight Village save compatibility', () => {
+ 
+   it('keeps new builds and inventory when house walls replace open grass', () => {
+     const f = legacy()
+-    const crate = f.w.create('fixture/container/crate', { on: 'tile', map: FIRSTLIGHT.map, x: 8, y: 5 })
+-    const ore = f.w.create('item/material/stone', { on: 'inside', holder: crate.id })
++    const crate = f.w.author(() => f.w.create('fixture/container/crate', { on: 'tile', map: FIRSTLIGHT.map, x: 8, y: 5 }))
++    const ore = f.w.author(() => f.w.create('item/material/stone', { on: 'inside', holder: crate.id }))
+     const saved = f.resume()
+     f.migrate(saved)
+     const w = saved.engine.world
+diff --git a/packages/tools/test/general-skills.test.ts b/packages/tools/test/general-skills.test.ts
+index 4127285..ba46c0a 100644
+--- a/packages/tools/test/general-skills.test.ts
++++ b/packages/tools/test/general-skills.test.ts
+@@ -1,5 +1,5 @@
+ import { describe, expect, it } from 'vitest'
+-import { Engine, RuleLibrary, buildSandbox, combatDamage, combatDelay, combatStrike, combatTick, dash, finishCombatStrike, type Entity, type Scenario } from '@lsw/engine'
++import { Engine, RuleLibrary, buildSandbox, combatDamage, combatDelay, combatStrike, dash, finishCombatStrike, type Entity, type Scenario } from '@lsw/engine'
+ import { BASE_RULES, SKILLS, buildOntology } from '@lsw/content'
+ 
+ // The general combat branches, deeper (docs/skill-tree.md): swiftness (dodge, the dash and what
+@@ -28,6 +28,8 @@ function arena(skills: string[] = [], extra: Scenario['entities'] = []): { eng:
+   return { eng, p, foe }
+ }
+ const at = (eng: Engine, e: Entity) => eng.world.posOf(e)!
++/** What a blow of n does to e, in e's own outcome (`hurt` runs it). */
++const struck = (eng: Engine, e: Entity, n: number, by: Entity, pierce: boolean) => eng.author(() => combatDamage(eng, e, n, by, pierce))
+ 
+ describe('the general branches', () => {
+   it('each holds a second capstone that needs both new arms, costs two points, and ends the branch', () => {
+@@ -46,17 +48,17 @@ describe('swiftness', () => {
+     const { eng, p, foe } = arena()
+     p.props!.dodge = 0.9
+     let missed = 0
+-    for (let i = 0; i < 400; i++) if (combatDamage(eng.world, p, 5, foe, false) === 0) missed++
++    for (let i = 0; i < 400; i++) if (struck(eng, p, 5, foe, false) === 0) missed++
+     expect(missed / 400).toBeGreaterThan(0.4)
+     expect(missed / 400).toBeLessThan(0.6)
+     // piercing harm (hunger, fire) is never dodged
+-    expect(combatDamage(eng.world, p, 5, foe, true)).toBe(5)
++    expect(struck(eng, p, 5, foe, true)).toBe(5)
+   })
+ 
+   it('dodge: no roll at all for those without it (the world\'s dice stay as they were)', () => {
+     const { eng, p, foe } = arena()
+     const rng = eng.world.state.rng
+-    combatDamage(eng.world, p, 5, foe, false)
++    struck(eng, p, 5, foe, false)
+     expect(eng.world.state.rng).toBe(rng)
+   })
+ 
+@@ -64,7 +66,7 @@ describe('swiftness', () => {
+     const { eng, p } = arena(['dash'])
+     expect(dash(eng, p)).toBe(true)
+     expect(at(eng, p).x).toBe(2) // the slime at x=3 stops it
+-    eng.world.place(eng.world.get('foe')!, { on: 'tile', map: at(eng, p).map, x: 10, y: 0 })
++    eng.world.author(() => eng.world.place(eng.world.get('foe')!, { on: 'tile', map: at(eng, p).map, x: 10, y: 0 }))
+     expect(dash(eng, p)).toBe(false) // cooling down
+     for (let i = 0; i < 40; i++) eng.tick()
+     expect(dash(eng, p)).toBe(true)
+@@ -76,10 +78,10 @@ describe('swiftness', () => {
+     const slow = combatDelay(eng.world, p, 10, 'move')
+     expect(dash(eng, p)).toBe(true)
+     expect(at(eng, p).x).toBe(5) // through the slime, four tiles
+-    expect(combatDamage(eng.world, p, 9, foe, false)).toBe(0)
++    expect(struck(eng, p, 9, foe, false)).toBe(0)
+     expect(combatDelay(eng.world, p, 10, 'move')).toBeLessThan(slow)
+     for (let i = 0; i < 25; i++) eng.tick()
+-    expect(combatDamage(eng.world, p, 9, foe, false)).toBe(9)
++    expect(struck(eng, p, 9, foe, false)).toBe(9)
+     p.facing = 'left'
+     expect(dash(eng, p)).toBe(true) // 2.5 s cooldown
+   })
+@@ -135,12 +137,15 @@ describe('damage', () => {
+     foe.props!.def = 5
+     p.props!.critChance = 1
+     eng.attack(p, { e: foe.id }) // out of reach: place it beside first
+-    eng.world.place(foe, { on: 'tile', map: at(eng, p).map, x: 2, y: 1 })
++    eng.world.author(() => eng.world.place(foe, { on: 'tile', map: at(eng, p).map, x: 2, y: 1 }))
+     eng.attack(p, { e: foe.id })
+-    expect(foe.combat?.bleedUntil).toBeGreaterThan(eng.world.state.tick)
++    // the wound is the target's own status, opened in the striker's name
++    expect(eng.world.hasStatus({ e: foe.id }, 'bleeding')).toBe(true)
++    expect(eng.world.statusBy({ e: foe.id }, 'bleeding')).toBe(p.id)
+     const hp = eng.world.num(foe, 'hp')
+-    for (let i = 0; i < 60; i++) combatTick(eng, at(eng, foe).map), (eng.world.state.tick += 1)
++    for (let i = 0; i < 60; i++) eng.tick()
+     expect(hp - eng.world.num(foe, 'hp')).toBe(4)
++    expect(eng.world.hasStatus({ e: foe.id }, 'bleeding')).toBe(false)
+   })
+ })
+ 
+@@ -158,7 +163,7 @@ describe('survival', () => {
+     for (const [skills, fill] of [[[], 5], [['hearty-meals'], 7.5]] as const) {
+       const { eng, p } = arena([...skills])
+       p.props!.hunger = 2
+-      const bread = eng.world.create('item/food/bread', { on: 'hand', holder: p.id })
++      const bread = eng.world.author(() => eng.world.create('item/food/bread', { on: 'hand', holder: p.id }))
+       p.held = bread.id
+       eng.interact('interact', p.id, { e: p.id }, { instrument: { e: bread.id } })
+       expect(eng.world.num(p, 'hunger')).toBe(2 + Math.round(fill))
+@@ -182,7 +187,7 @@ describe('survival', () => {
+     const { eng, p } = arena(['phoenix'])
+     eng.damage(p, 999, undefined, true)
+     expect(eng.world.num(p, 'hp')).toBe(12)
+-    expect(combatDamage(eng.world, p, 50, eng.world.get('foe')!, false)).toBe(0) // untouchable a moment
++    expect(struck(eng, p, 50, eng.world.get('foe')!, false)).toBe(0) // untouchable a moment
+     for (let i = 0; i < 31; i++) eng.tick()
+     eng.damage(p, 999, undefined, true)
+     expect(eng.world.num(p, 'hp')).toBeLessThanOrEqual(0)
+diff --git a/packages/tools/test/profession.test.ts b/packages/tools/test/profession.test.ts
+index f2b2c53..488ee44 100644
+--- a/packages/tools/test/profession.test.ts
++++ b/packages/tools/test/profession.test.ts
+@@ -18,7 +18,7 @@ function atBram(eng: Engine, level: number, points = 0): Entity {
+   const w = eng.world
+   const bram = w.get('npc.bram')!
+   const at = w.posOf(bram)!
+-  eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 })
++  eng.author(() => eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 }))
+   Object.assign((w.player.props ??= {}), { level, skillPoints: points })
+   return bram
+ }
+@@ -26,7 +26,7 @@ function atBram(eng: Engine, level: number, points = 0): Entity {
+ /** How many of a type the player carries, in hand or bag. */
+ const carries = (eng: Engine, type: string) => [eng.world.player.held, ...(eng.world.player.contents ?? [])].filter((id) => eng.world.get(id)?.type === type).length
+ const learnAll = (eng: Engine, ids: string[]) => ids.forEach((id) => expect(eng.controls.learn(SKILL_BY_ID[id]), id).toBe(true))
+-const weapon = (eng: Engine, type: string, props: Record<string, number | string> = {}) => eng.world.create(type, { on: 'hand', holder: eng.world.state.player }, { props: { power: 3, ...props } })
++const weapon = (eng: Engine, type: string, props: Record<string, number | string> = {}) => eng.author(() => eng.world.create(type, { on: 'hand', holder: eng.world.state.player }, { props: { power: 3, ...props } }))
+ 
+ describe('professions', () => {
+   it('none at the start: no profession skill can be learned', () => {
+@@ -58,7 +58,7 @@ describe('professions', () => {
+     const w = eng.world
+     atBram(eng, PROFESSION_LEVEL - 1)
+     expect(eng.controls.takeProfession(PROFESSION_BY_ID.warrior, SKILLS)).toBe('level')
+-    eng.teleport(w.player, { map: 'ford', x: 14, y: 17 })
++    eng.author(() => eng.teleport(w.player, { map: 'ford', x: 14, y: 17 }))
+     w.player.props!.level = PROFESSION_LEVEL
+     expect(eng.controls.takeProfession(PROFESSION_BY_ID.warrior, SKILLS)).toBe('trainer')
+     atBram(eng, PROFESSION_LEVEL)
+@@ -98,7 +98,7 @@ describe('the new trees', () => {
+     eng.controls.takeProfession(PROFESSION_BY_ID[profession], SKILLS)
+     learnAll(eng, skills)
+     const pos = w.posOf(w.player)!
+-    const slime = w.create('actor/creature/slime/green_slime', { on: 'tile', map: pos.map, x: pos.x + 1, y: pos.y }, { props: { hp: 50, maxHp: 50 } })
++    const slime = w.author(() => w.create('actor/creature/slime/green_slime', { on: 'tile', map: pos.map, x: pos.x + 1, y: pos.y }, { props: { hp: 50, maxHp: 50 } }))
+     return { eng, w, p: w.player, slime }
+   }
+   const power = (f: ReturnType<typeof fighter>, held: Entity, range = 1) => combatStrike(f.w, f.p, f.slime, 3, range, held, true).power
+@@ -108,7 +108,7 @@ describe('the new trees', () => {
+     const mace = weapon(f.eng, 'item/weapon/blunt/mace')
+     f.p.held = mace.id
+     expect(power(f, mace)).toBe(4)
+-    expect(combatDamage(f.w, f.p, 10, f.slime, false)).toBe(9) // −15% (and retaliation is now ready)
++    expect(f.eng.author(() => combatDamage(f.eng, f.p, 10, f.slime, false))).toBe(9) // −15% (and retaliation is now ready)
+     expect(power(f, mace)).toBeCloseTo(4 * 1.4)
+   })
+ 
+@@ -118,7 +118,7 @@ describe('the new trees', () => {
+     expect(rangeBonus(f.w, f.p, bow)).toBe(1)
+     f.w.state.tick += 20 // stood still a while
+     const pos = f.w.posOf(f.p)!
+-    f.w.place(f.slime, { on: 'tile', map: pos.map, x: pos.x + 4, y: pos.y })
++    f.w.author(() => f.w.place(f.slime, { on: 'tile', map: pos.map, x: pos.x + 4, y: pos.y }))
+     expect(power(f, bow, 7)).toBeCloseTo(4 * (1 + 0.3 + 0.25))
+   })
+ 
+@@ -134,7 +134,7 @@ describe('the new trees', () => {
+     const wand = weapon(f.eng, 'item/weapon/magic/wand', { range: 5, element: 'fire' })
+     f.p.held = wand.id
+     expect(power(f, wand, 5)).toBeCloseTo(4 * 1.25)
+-    expect(combatDamage(f.w, f.p, 10, f.slime, false)).toBe(8)
++    expect(f.eng.author(() => combatDamage(f.eng, f.p, 10, f.slime, false))).toBe(8)
+     expect(rangeBonus(f.w, f.p, wand)).toBe(0)
+   })
+ })
+diff --git a/packages/tools/test/save.test.ts b/packages/tools/test/save.test.ts
+index 070ec9c..167b9dd 100644
+--- a/packages/tools/test/save.test.ts
++++ b/packages/tools/test/save.test.ts
+@@ -19,7 +19,7 @@ describe('a save taken while the modder works', () => {
+     // a modder still at work: the participants are held until it answers
+     game.mods.provider = { resolve: () => new Promise(() => {}) }
+     const p = w.player
+-    const rope = w.write(() => w.create('item/tool/rope', { on: 'hand', holder: p.id }))
++    const rope = eng.author(() => w.create('item/tool/rope', { on: 'hand', holder: p.id }))
+     const at = w.posOf(p)!
+     for (const e of w.entitiesOnMap(at.map)) {
+       if (e.id === p.id || e.place.on !== 'tile') continue
+diff --git a/packages/tools/test/skills.test.ts b/packages/tools/test/skills.test.ts
+index c498527..60780cc 100644
+--- a/packages/tools/test/skills.test.ts
++++ b/packages/tools/test/skills.test.ts
+@@ -170,7 +170,7 @@ describe('the skill tree', () => {
+     for (const skilled of [false, true]) {
+       const eng = setup([{ key: 'fire', type: 'fixture/light/campfire', ...FRONT }])
+       if (skilled) learn(eng, 'firemaker')
+-      eng.world.add({ id: 'stick', type: 'item/material/stick', place: { on: 'hand', holder: 'actor' } })
++      eng.world.author(() => eng.world.add({ id: 'stick', type: 'item/material/stick', place: { on: 'hand', holder: 'actor' } }))
+       eng.interact('interact', 'actor', { e: 'fire' })
+       expect(eng.world.hasStatus({ e: 'fire' }, 'lit')).toBe(skilled)
+     }
+@@ -180,9 +180,9 @@ describe('the skill tree', () => {
+     const logs = (skilled: boolean) => {
+       const eng = setup([], 'tree')
+       if (skilled) learn(eng, 'woodcutter')
+-      eng.world.add({ id: 'axe', type: 'item/weapon/blade/axe', place: { on: 'hand', holder: 'actor' } })
++      eng.world.author(() => eng.world.add({ id: 'axe', type: 'item/weapon/blade/axe', place: { on: 'hand', holder: 'actor' } }))
+       const tree = { tile: { map: eng.world.posOf(eng.world.get('actor')!)!.map, ...FRONT } }
+-      eng.world.setStatus(tree, 'notched', -1)
++      eng.world.author(() => eng.world.setStatus(tree, 'notched', -1))
+       eng.interact('interact', 'actor', tree)
+       return eng.world.entitiesAt(tree.tile.map, FRONT.x, FRONT.y).filter((e) => e.type === 'item/material/log').length
+     }
+@@ -198,7 +198,7 @@ describe('the skill tree', () => {
+       ])
+       if (skilled) learn(eng, 'sweep')
+       const full = eng.world.num(eng.world.get('b')!, 'hp')
+-      eng.world.add({ id: 'sword', type: 'item/weapon/blade/sword', place: { on: 'hand', holder: 'actor' } })
++      eng.world.author(() => eng.world.add({ id: 'sword', type: 'item/weapon/blade/sword', place: { on: 'hand', holder: 'actor' } }))
+       eng.attack(eng.world.get('actor')!)
+       // hurt, or felled outright
+       return ['b', 'c'].filter((id) => { const e = eng.world.get(id); return !e || eng.world.num(e, 'hp') < full }).length
+@@ -280,13 +280,13 @@ describe('automatic combat talents', () => {
+     const eng = duel(['windrunner', 'sweep'])
+     const p = eng.world.player
+     const map = eng.world.posOf(p)!.map
+-    for (const x of [0, 2]) eng.world.add({ id: `side${x}`, type: 'actor/creature/slime/green_slime', place: { on: 'tile', map, x, y: FRONT.y }, props: { hp: 200, maxHp: 200, def: 0 } })
++    for (const x of [0, 2]) eng.world.author(() => eng.world.add({ id: `side${x}`, type: 'actor/creature/slime/green_slime', place: { on: 'tile', map, x, y: FRONT.y }, props: { hp: 200, maxHp: 200, def: 0 } }))
+     eng.step(p, 'left')
+     expect(eng.step(p, 'left')).toBe(false)
+     eng.step(p, 'right')
+     eng.step(p, 'right')
+     expect(p.combat!.steps).toBe(3)
+-    eng.teleport(p, { map, ...ORIGIN })
++    eng.author(() => eng.teleport(p, { map, ...ORIGIN }))
+     p.facing = 'up'
+     expect(blow(eng)).toBe(15)
+     expect(p.combat!.steps).toBe(0)
+@@ -299,7 +299,7 @@ describe('automatic combat talents', () => {
+     const eng = duel(['windrunner', 'relentless'])
+     const p = eng.world.player
+     p.combat = { steps: 3, comboHits: 1, comboTarget: 'foe', comboTick: 0 }
+-    eng.world.setStatus({ e: 'foe' }, 'down', -1)
++    eng.world.author(() => eng.world.setStatus({ e: 'foe' }, 'down', -1))
+     expect(blow(eng)).toBe(0)
+     expect(p.combat.steps).toBe(3)
+     expect(p.combat.comboHits).toBeUndefined()
+@@ -408,7 +408,7 @@ describe('automatic combat talents', () => {
+   it('assassin training needs a melee blade and becomes inactive when profession changes', () => {
+     const eng = duel(['assassin-training'])
+     expect(blow(eng)).toBe(10)
+-    eng.world.add({ id: 'dagger', type: 'item/weapon/blade/dagger', place: { on: 'hand', holder: 'actor' } })
++    eng.world.author(() => eng.world.add({ id: 'dagger', type: 'item/weapon/blade/dagger', place: { on: 'hand', holder: 'actor' } }))
+     expect(blow(eng)).toBe(13)
+     eng.world.player.props!.profession = 'warrior'
+     expect(blow(eng)).toBe(12)
+@@ -445,7 +445,7 @@ describe('automatic combat talents', () => {
+     blow(eng)
+     expect(eng.world.player.combat!.comboHits).toBe(1)
+     const map = eng.world.posOf(eng.world.player)!.map
+-    eng.world.add({ id: 'other', type: 'actor/creature/slime/green_slime', place: { on: 'tile', map, x: 0, y: FRONT.y }, props: { hp: 200, maxHp: 200, def: 0 } })
++    eng.world.author(() => eng.world.add({ id: 'other', type: 'actor/creature/slime/green_slime', place: { on: 'tile', map, x: 0, y: FRONT.y }, props: { hp: 200, maxHp: 200, def: 0 } }))
+     blow(eng, { e: 'other' })
+     expect(eng.world.player.combat!.comboTarget).toBe('other')
+     expect(eng.world.player.combat!.comboHits).toBe(1)
+@@ -456,7 +456,7 @@ describe('automatic combat talents', () => {
+   it('sweep secondary targets never generate combo hits or inherit guaranteed opener criticals', () => {
+     const eng = duel(['relentless', 'ambush', 'death-dance', 'sweep'])
+     const map = eng.world.posOf(eng.world.player)!.map
+-    eng.world.add({ id: 'side', type: 'actor/creature/slime/green_slime', place: { on: 'tile', map, x: 0, y: FRONT.y }, props: { hp: 200, maxHp: 200, def: 0 } })
++    eng.world.author(() => eng.world.add({ id: 'side', type: 'actor/creature/slime/green_slime', place: { on: 'tile', map, x: 0, y: FRONT.y }, props: { hp: 200, maxHp: 200, def: 0 } }))
+     expect(blow(eng)).toBe(23)
+     expect(eng.world.player.combat!.comboHits).toBe(1)
+     expect(eng.world.get('side')!.props!.hp).toBe(190)
+@@ -465,7 +465,7 @@ describe('automatic combat talents', () => {
+   it('ranged attacks reset melee combos without triggering assassin openers or mobility charges', () => {
+     const eng = duel(['ambush', 'backstab', 'relentless', 'windrunner', 'death-dance'])
+     eng.world.player.combat = { steps: 3, comboHits: 2, comboTarget: 'foe', comboTick: 0 }
+-    eng.world.add({ id: 'bow', type: 'item/weapon/ranged/bow', place: { on: 'hand', holder: 'actor' } })
++    eng.world.author(() => eng.world.add({ id: 'bow', type: 'item/weapon/ranged/bow', place: { on: 'hand', holder: 'actor' } }))
+     expect(blow(eng)).toBe(13)
+     expect(eng.world.player.combat!.comboHits).toBeUndefined()
+     expect(eng.world.player.combat!.steps).toBe(3)
+@@ -483,7 +483,7 @@ describe('automatic combat talents', () => {
+     const ranged = duel(['shadow-recovery'])
+     ranged.world.player.props!.hp = 20
+     ranged.world.get('foe')!.props!.hp = 1
+-    ranged.world.add({ id: 'bow', type: 'item/weapon/ranged/bow', place: { on: 'hand', holder: 'actor' } })
++    ranged.world.author(() => ranged.world.add({ id: 'bow', type: 'item/weapon/ranged/bow', place: { on: 'hand', holder: 'actor' } }))
+     blow(ranged)
+     expect(ranged.world.player.props!.hp).toBe(20)
+   })
+@@ -502,7 +502,7 @@ describe('automatic combat talents', () => {
+   it('an NPC with the same profession and talents gets the same backstab calculations', () => {
+     const eng = duel()
+     const map = eng.world.posOf(eng.world.player)!.map
+-    const npc = eng.world.add({ id: 'npc', type: 'actor/person', place: { on: 'tile', map, x: 2, y: 1 }, props: { hp: 20, maxHp: 20, profession: 'assassin' }, tags: ['skill:backstab'] })
++    const npc = eng.world.author(() => eng.world.add({ id: 'npc', type: 'actor/person', place: { on: 'tile', map, x: 2, y: 1 }, props: { hp: 20, maxHp: 20, profession: 'assassin' }, tags: ['skill:backstab'] }))
+     eng.world.player.facing = 'left'
+     expect(combatStrike(eng.world, npc, eng.world.player, 10, 1, undefined, true).power).toBe(14)
+   })
+diff --git a/packages/tools/test/writes.test.ts b/packages/tools/test/writes.test.ts
+new file mode 100644
+index 0000000..541794d
+--- /dev/null
++++ b/packages/tools/test/writes.test.ts
+@@ -0,0 +1,120 @@
++import { readFileSync, readdirSync } from 'node:fs'
++import { join } from 'node:path'
++import { describe, expect, it } from 'vitest'
++import { Engine, RuleLibrary, World } from '@lsw/engine'
++import { BASE_RULES, buildOntology } from '@lsw/content'
++
++// Only outcomes and the clock change the state (design.md §5.13, A2), and an outcome writes only
++// its host (A3). The world's mutators hold both checks at run time: they throw unless the one
++// writer is lent to the caller, and, in an outcome, unless what they change is its host, held by
++// it, or made by it (a fact: unless the host is the story or the world). These tests hold the
++// rest: that nobody but the engine claims the writer, that game code never writes as the author,
++// and that no game code changes the state behind the mutators' back (a prop, a tag, a fact set by
++// hand).
++
++const ROOT = join(import.meta.dirname, '..', '..')
++const GAME = ['engine/src', 'content/src']
++
++function sources(): { file: string; lines: string[] }[] {
++  const out: { file: string; lines: string[] }[] = []
++  for (const dir of GAME)
++    for (const f of readdirSync(join(ROOT, dir)))
++      if (f.endsWith('.ts')) out.push({ file: `${dir}/${f}`, lines: readFileSync(join(ROOT, dir, f), 'utf8').split(/\r?\n/) })
++  return out
++}
++
++/** What changes the state behind the mutators: a thing's props, tags, statuses, place, contents; the world's facts and tiles. */
++const WRITES: RegExp[] = [
++  /\.(props|tags|statusBy|contents|held|place)!?\s*(\?\?)?=[^=]/,
++  // a thing's statuses (not a rule library's status definitions)
++  /(?<![\w.])(?!lib\b|cand\b|onto\b|this\b)\w+\.statuses!?(\[[^\]]+\])?\s*(\?\?)?=[^=]/,
++  /\.(props|statusBy)!?(\.[A-Za-z_$][\w$]*|\[[^\]]+\])\s*(\?\?)?=[^=>]/,
++  /\.tags!?\.(push|splice)\(/,
++  /\(\s*[\w.!]+\.(props|tags|statuses) \?\?= /,
++  /Object\.assign\([^,]*\.props/,
++  /delete [\w.!]+\.(props|statuses|statusBy)\b/,
++  /state\.(facts|tiles)!?(\.[\w$]+|\[[^\]]+\])?!?\s*(\?\?)?=[^=]/,
++  /delete [\w.!]*state\.(facts|tiles)/,
++]
++
++/**
++ * Where each is allowed: the world (its mutators) and the effect runner (the primitives, in an
++ * outcome) write; loading and building write as the author (Game, the sandbox) and so do the
++ * content's migrations of older saves.
++ */
++const MAY_WRITE = ['engine/src/world.ts', 'engine/src/effects.ts', 'engine/src/game.ts', 'engine/src/sandbox.ts', 'content/src/migrateFirstlight.ts', 'content/src/migrateBosses.ts']
++const MAY_AUTHOR = ['engine/src/engine.ts', 'engine/src/game.ts', 'engine/src/sandbox.ts']
++const MAY_GRANT = ['engine/src/engine.ts', 'engine/src/world.ts']
++
++const code = (l: string) => l.replace(/\/\/.*$/, '').trim()
++
++describe('the state changes only in outcomes, and an outcome only its host (design.md §5.13, A2–A3)', () => {
++  it('no game code changes props, tags, statuses, places, facts or tiles behind the mutators', () => {
++    const found: string[] = []
++    for (const { file, lines } of sources()) {
++      if (MAY_WRITE.includes(file)) continue
++      lines.forEach((l, i) => {
++        const c = code(l)
++        if (c.startsWith('*') || c.startsWith('/*')) return
++        if (WRITES.some((re) => re.test(c))) found.push(`${file}:${i + 1}: ${c.slice(0, 120)}`)
++      })
++    }
++    expect(found).toEqual([])
++  })
++
++  it('the scan sees the ways around the mutators, and not their definitions', () => {
++    const hit = (c: string) => WRITES.some((re) => re.test(c))
++    for (const c of [
++      '(lead.props ??= {})[k] = v',
++      'w.player.props!.quest = 0',
++      "e.props.hp = hp + healed",
++      'e.tags = (e.tags ?? []).filter((t) => t !== x)',
++      ';(e.tags ??= []).push(skillTag(def.id))',
++      'Object.assign(existing.props ??= {}, { hp: 1 })',
++      'delete e.statuses',
++      'target.statuses = {}',
++      "w.state.facts!['x'] = 1",
++      'delete tile.statuses',
++    ])
++      expect(hit(c), c).toBe(true)
++    for (const c of ['onto.statuses[s.id] = s', 'lib.statuses = [...this.statuses]', 'if (e.props?.hp === 1) x()', 'const props = { ...r.props }']) expect(hit(c), c).toBe(false)
++  })
++
++  it('only the engine claims the writer, and only loading and building write as the author', () => {
++    const found: string[] = []
++    for (const { file, lines } of sources())
++      lines.forEach((l, i) => {
++        const c = code(l)
++        if (/\.grant\(\)/.test(c) && !MAY_GRANT.includes(file)) found.push(`${file}:${i + 1}: grant`)
++        if (/\.author\(/.test(c) && !MAY_AUTHOR.includes(file)) found.push(`${file}:${i + 1}: author`)
++      })
++    expect(found).toEqual([])
++  })
++
++  it('the writer is held once; a write without it throws, and so does an outcome writing beyond its host', () => {
++    const eng = new Engine({ tick: 0, seed: 1, rng: 1, player: 'p', entities: {}, maps: {}, tiles: {}, loadedMaps: [], counter: 0, spawn: { map: 'm', x: 0, y: 0 } }, buildOntology(), new RuleLibrary(BASE_RULES))
++    expect(() => eng.world.grant()).toThrow(/already held/)
++    expect(() => eng.world.setFact('x', 1)).toThrow(/outside an outcome/)
++    expect(() => eng.world.add({ id: 'a', type: 'item/food/bread', place: { on: 'none' } })).toThrow(/outside an outcome/)
++    eng.author(() => eng.world.setFact('x', 1))
++    expect(eng.world.fact('x')).toBe(1)
++    // an outcome writes its host, what it holds and what it makes — and nothing else (A3)
++    const [a, b] = eng.author(() => [eng.world.create('item/food/bread', { on: 'none' }), eng.world.create('item/food/bread', { on: 'none' })])
++    const inA = (f: () => void) => {
++      const apply = eng.effects.apply
++      eng.effects.apply = () => f()
++      try {
++        eng.run([{ op: 'log', text: '' }], { kind: 'time/period', host: { e: a.id }, roles: {}, params: {} }, 'test')
++      } finally {
++        eng.effects.apply = apply
++      }
++    }
++    expect(() => inA(() => eng.world.setProp(a, 'x', 1))).not.toThrow()
++    expect(() => inA(() => eng.world.setProp(b, 'x', 1))).toThrow(/writes only its host/)
++    expect(() => inA(() => eng.world.setFact('y', 1))).toThrow(/writes only its host/)
++    expect(() => inA(() => eng.world.setProp(eng.world.create('item/food/bread', { on: 'none' }), 'x', 1))).not.toThrow()
++    // a world no engine holds cannot be written at all
++    const loose = new World(eng.world.state, eng.world.onto)
++    expect(() => loose.author(() => 0)).toThrow(/nobody may write it/)
++  })
++})

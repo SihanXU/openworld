@@ -1,0 +1,142 @@
+diff --git a/packages/content/test/world.test.ts b/packages/content/test/world.test.ts
+index 08ec9a4..5b50e61 100644
+--- a/packages/content/test/world.test.ts
++++ b/packages/content/test/world.test.ts
+@@ -276,6 +276,48 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
+   })
+ })
+ 
++describe('the Mod port holds up', () => {
++  it('a question with no reply at all (the service down) is asked again, a few times, not given up at once', async () => {
++    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
++    const port = new ModPort(eng)
++    let asked = 0
++    port.provider = { resolve: () => (asked++, Promise.reject(new Error('fetch failed'))) }
++    const strike = () => eng.queue({ kind: 'impulse/strike', host: { e: 'b' }, roles: {}, params: { power: 2, edge: 'blunt' }, origin: 'world' })
++    for (let i = 0; i < 5; i++) {
++      strike()
++      await Promise.resolve()
++      await Promise.resolve()
++    }
++    expect(asked).toBe(3)
++    expect(eng.world.get('b')!.frozenBy).toBeUndefined()
++  })
++
++  it('a request carries the lines said lately, after the frame drained them', () => {
++    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
++    const port = new ModPort(eng)
++    eng.world.fx.push({ t: 'log', text: { en: 'The ferry bell rings.', zh: '渡口的钟响了。' } })
++    eng.world.drainFx()
++    eng.queue({ kind: 'impulse/strike', host: { e: 'b' }, roles: {}, params: { power: 2, edge: 'blunt' }, origin: 'world' })
++    expect(port.records[0].request.context.recent).toContain('The ferry bell rings.')
++  })
++
++  it('a thing that changes type takes up the cells of its new footprint', () => {
++    const grow: Rule = { id: 'test/grow', host: { type: 'actor/creature/slime' }, on: 'impulse/handle', tree: { do: [{ op: 'transform', into: 'actor/creature/sin/greed' }] } }
++    const eng = buildSandbox(
++      { terrain: Array.from({ length: 9 }, () => Array(9).fill('grass')), entities: [{ key: 'actor', type: 'actor/person/player', x: 1, y: 4 }, { key: 'c', type: 'actor/creature/slime/green_slime', x: 4, y: 4 }], event: {} },
++      onto,
++      new RuleLibrary([...BASE_RULES, ...STORY_RULES, grow]),
++    )
++    const w = eng.world
++    eng.act('hands', 'actor', { e: 'c' }, { instrument: null })
++    const c = w.get('c')!
++    expect(c.type).toBe('actor/creature/sin/greed')
++    const cells = w.occupiedCells(c)
++    expect(cells.length).toBeGreaterThan(1)
++    for (const [x, y] of cells) expect(w.entitiesAt('sandbox', x, y).map((e) => e.id)).toContain('c')
++  })
++})
++
+ describe('the boundaries of the world\'s own patches (design.md §5.11)', () => {
+   const stuck: Scenario = {
+     entities: [
+diff --git a/packages/modder/test/modder.test.ts b/packages/modder/test/modder.test.ts
+index 0a364ec..b999e9e 100644
+--- a/packages/modder/test/modder.test.ts
++++ b/packages/modder/test/modder.test.ts
+@@ -441,6 +441,41 @@ describe('integrity', () => {
+     const elsewhere: Rule = { ...bindRule(), on: 'impulse/handle' }
+     expect(library.validate(patchOf(elsewhere), request()).errors.join()).toMatch(/still undefined/)
+   })
++
++  it('refuses two rules of one patch that tie with each other, as it would across patches', () => {
++    const { library } = setup()
++    const a = bindRule('patch/a')
++    const b = { ...bindRule('patch/b'), doc: 'the same class, said again' }
++    expect(library.validate(patchOf(a, b), request()).errors.join()).toMatch(/"patch\/a" ties with "patch\/b"/)
++  })
++
++  it('commits to the shared log only what stands on the shared library alone', async () => {
++    const glow: Rule = { ...bindRule('patch/rope-glows'), tree: { if: FIBER, then: { do: [{ op: 'addStatus', status: 'glowing', duration: 30 }] } }, tests: [] }
++    const status = { id: 'glowing', duration: 30 }
++    // the first draft leans on a status only this client has (a local patch of its own); the repair carries it
++    const { model, calls } = scripted([patchOf(glow), { artifacts: [{ kind: 'status', status }, { kind: 'rule', rule: glow }] }])
++    const { modder, library } = setup(model)
++    const ws = { patches: { rules: [], statuses: [status] } }
++    expect(library.validate(patchOf(glow), request(), ws).ok).toBe(true)
++    const reply = await modder.resolve({ request: request(), workspace: ws })
++    expect(reply.outcome).toBe('accepted')
++    expect(calls.log.some((c) => c.messages.some((m) => m.role !== 'system' && /glowing/.test(m.content) && /unknown status/.test(m.content)))).toBe(true)
++    // the shared library now knows the status, so every client can take the rule
++    expect(library.lib.statuses.map((s) => s.id)).toContain('glowing')
++  })
++
++  it('asks no model when the service\'s own base rules already answer (the client is older)', async () => {
++    const { model, calls } = scripted([patchOf(bindRule())])
++    const dir = mkdtempSync(join(tmpdir(), 'lsw-modder-'))
++    // the service's base rules have learned what the client's have not
++    const newer: Rule = { ...bindRule('creature/offered-rope'), source: { origin: 'base' } }
++    const library = new WorldLibrary(onto, [...BASE, newer], join(dir, 'library.jsonl'))
++    const modder = new Modder({ library, state: SelfState.open(join(dir, 'modder-state')), model })
++    const reply = await modder.resolve({ request: request() })
++    expect(reply).toMatchObject({ patch: null, outcome: 'failed' })
++    expect(reply.diagnostics?.join()).toMatch(/creature\/offered-rope/)
++    expect(calls.design).toBe(0)
++  })
+ })
+ 
+ describe('deterministic repairs', () => {
+diff --git a/packages/tools/test/save.test.ts b/packages/tools/test/save.test.ts
+new file mode 100644
+index 0000000..070ec9c
+--- /dev/null
++++ b/packages/tools/test/save.test.ts
+@@ -0,0 +1,37 @@
++// Saves taken mid-play: whatever the world was waiting on when the game was saved, a loaded game
++// plays on.
++
++import { describe, expect, it } from 'vitest'
++import { Game, RuleLibrary } from '@lsw/engine'
++import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@lsw/content'
++import { buildFord } from '../src/demo/world.ts'
++
++const onto = buildOntology()
++const lib = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
++
++describe('a save taken while the modder works', () => {
++  it('lets the held go on load: the request is not saved, so nobody would ever answer it', () => {
++    const { index, chunks } = buildFord()
++    const game = Game.create(index, onto, lib())
++    for (const c of chunks) game.loadChunk(decodeChunk(c))
++    const eng = game.engine
++    const w = eng.world
++    // a modder still at work: the participants are held until it answers
++    game.mods.provider = { resolve: () => new Promise(() => {}) }
++    const p = w.player
++    const rope = w.write(() => w.create('item/tool/rope', { on: 'hand', holder: p.id }))
++    const at = w.posOf(p)!
++    for (const e of w.entitiesOnMap(at.map)) {
++      if (e.id === p.id || e.place.on !== 'tile') continue
++      eng.act('use', p.id, { e: e.id }, { instrument: { e: rope.id } })
++      if (p.frozenBy) break
++    }
++    expect(eng.busy(p)).toBe(true)
++
++    const loaded = Game.load(structuredClone(game.save()), index, onto, lib())
++    for (const c of chunks) loaded.loadChunk(decodeChunk(c))
++    const p2 = loaded.engine.world.player
++    expect(Object.values(loaded.engine.world.state.entities).filter((e) => e.frozenBy)).toEqual([])
++    expect(loaded.engine.busy(p2)).toBe(false)
++  })
++})

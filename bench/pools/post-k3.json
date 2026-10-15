@@ -1,0 +1,1122 @@
+{
+ "name": "post-k3",
+ "frozen": "2026-10-14",
+ "criterion": {
+  "created_on_or_after": "2026-07-16",
+  "sources": [
+   "rebench-leaderboard",
+   "rebench-v2",
+   "live",
+   "multilang"
+  ],
+  "languages": null,
+  "images_checked": true
+ },
+ "sources": {
+  "rebench-leaderboard": {
+   "dataset": "nebius/SWE-rebench-leaderboard",
+   "revision": "34d5a58864acf91613740a09ec5d205228dcfa39"
+  },
+  "rebench-v2": {
+   "dataset": "nebius/SWE-rebench-V2",
+   "revision": "10483de0f50fe5da545942705a76c6150171af7f"
+  },
+  "live": {
+   "dataset": "SWE-bench-Live/SWE-bench-Live",
+   "revision": "b51a86422e10cfd403beb4773e5a2947953e36ec"
+  },
+  "multilang": {
+   "dataset": "SWE-bench-Live/MultiLang",
+   "revision": "3638632e8153a10ca422c1022bed79023084b5c9"
+  }
+ },
+ "counts": {
+  "tasks": 133,
+  "dropped_without_image": 0,
+  "by_source": {
+   "multilang": 133
+  },
+  "by_language": {
+   "rust": 32,
+   "c": 31,
+   "java": 28,
+   "cpp": 20,
+   "cs": 17,
+   "js": 5
+  },
+  "repositories": 39,
+  "largest_repositories": {
+   "xroche/httrack": 25,
+   "langchain4j/langchain4j": 14,
+   "duckdb/duckdb": 12,
+   "JasperFx/wolverine": 9,
+   "yvgude/lean-ctx": 6
+  }
+ },
+ "tasks": [
+  {
+   "instance_id": "rust-lang__rust-analyzer-22827",
+   "source": "multilang",
+   "repo": "rust-lang/rust-analyzer",
+   "language": "rust",
+   "created_at": "2026-07-16T00:33:57",
+   "image": "starryzhang/sweb.eval.x86_64.rust-lang_1776_rust-analyzer-22827"
+  },
+  {
+   "instance_id": "web-infra-dev__rspack-14806",
+   "source": "multilang",
+   "repo": "web-infra-dev/rspack",
+   "language": "rust",
+   "created_at": "2026-07-16T05:25:07",
+   "image": "starryzhang/sweb.eval.x86_64.web-infra-dev_1776_rspack-14806"
+  },
+  {
+   "instance_id": "xroche__httrack-596",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-16T06:28:19",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-596"
+  },
+  {
+   "instance_id": "xroche__httrack-599",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-16T08:24:06",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-599"
+  },
+  {
+   "instance_id": "yvgude__lean-ctx-927",
+   "source": "multilang",
+   "repo": "yvgude/lean-ctx",
+   "language": "rust",
+   "created_at": "2026-07-16T12:56:28",
+   "image": "starryzhang/sweb.eval.x86_64.yvgude_1776_lean-ctx-927"
+  },
+  {
+   "instance_id": "gleam-lang__gleam-5982",
+   "source": "multilang",
+   "repo": "gleam-lang/gleam",
+   "language": "rust",
+   "created_at": "2026-07-16T14:14:10",
+   "image": "starryzhang/sweb.eval.x86_64.gleam-lang_1776_gleam-5982"
+  },
+  {
+   "instance_id": "agentscope-ai__agentscope-java-2257",
+   "source": "multilang",
+   "repo": "agentscope-ai/agentscope-java",
+   "language": "java",
+   "created_at": "2026-07-16T15:14:32",
+   "image": "starryzhang/sweb.eval.x86_64.agentscope-ai_1776_agentscope-java-2257"
+  },
+  {
+   "instance_id": "kvcache-ai__Mooncake-2964",
+   "source": "multilang",
+   "repo": "kvcache-ai/Mooncake",
+   "language": "cpp",
+   "created_at": "2026-07-16T15:19:20",
+   "image": "starryzhang/sweb.eval.x86_64.kvcache-ai_1776_mooncake-2964"
+  },
+  {
+   "instance_id": "agentscope-ai__agentscope-java-2260",
+   "source": "multilang",
+   "repo": "agentscope-ai/agentscope-java",
+   "language": "java",
+   "created_at": "2026-07-16T15:53:14",
+   "image": "starryzhang/sweb.eval.x86_64.agentscope-ai_1776_agentscope-java-2260"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5788",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-16T15:56:28",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5788"
+  },
+  {
+   "instance_id": "xroche__httrack-610",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-16T16:59:20",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-610"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5790",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-16T17:37:56",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5790"
+  },
+  {
+   "instance_id": "floci-io__floci-1895",
+   "source": "multilang",
+   "repo": "floci-io/floci",
+   "language": "java",
+   "created_at": "2026-07-16T17:53:52",
+   "image": "starryzhang/sweb.eval.x86_64.floci-io_1776_floci-1895"
+  },
+  {
+   "instance_id": "apache__parquet-java-3669",
+   "source": "multilang",
+   "repo": "apache/parquet-java",
+   "language": "java",
+   "created_at": "2026-07-16T17:58:18",
+   "image": "starryzhang/sweb.eval.x86_64.apache_1776_parquet-java-3669"
+  },
+  {
+   "instance_id": "colbymchenry__codegraph-1313",
+   "source": "multilang",
+   "repo": "colbymchenry/codegraph",
+   "language": "c",
+   "created_at": "2026-07-16T20:27:08",
+   "image": "starryzhang/sweb.eval.x86_64.colbymchenry_1776_codegraph-1313"
+  },
+  {
+   "instance_id": "colbymchenry__codegraph-1314",
+   "source": "multilang",
+   "repo": "colbymchenry/codegraph",
+   "language": "c",
+   "created_at": "2026-07-16T20:30:15",
+   "image": "starryzhang/sweb.eval.x86_64.colbymchenry_1776_codegraph-1314"
+  },
+  {
+   "instance_id": "colbymchenry__codegraph-1317",
+   "source": "multilang",
+   "repo": "colbymchenry/codegraph",
+   "language": "c",
+   "created_at": "2026-07-16T20:55:36",
+   "image": "starryzhang/sweb.eval.x86_64.colbymchenry_1776_codegraph-1317"
+  },
+  {
+   "instance_id": "colbymchenry__codegraph-1318",
+   "source": "multilang",
+   "repo": "colbymchenry/codegraph",
+   "language": "c",
+   "created_at": "2026-07-16T21:01:06",
+   "image": "starryzhang/sweb.eval.x86_64.colbymchenry_1776_codegraph-1318"
+  },
+  {
+   "instance_id": "xroche__httrack-618",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-16T21:43:57",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-618"
+  },
+  {
+   "instance_id": "yvgude__lean-ctx-969",
+   "source": "multilang",
+   "repo": "yvgude/lean-ctx",
+   "language": "rust",
+   "created_at": "2026-07-17T00:09:51",
+   "image": "starryzhang/sweb.eval.x86_64.yvgude_1776_lean-ctx-969"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5792",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-17T03:33:27",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5792"
+  },
+  {
+   "instance_id": "h4ckf0r0day__obscura-440",
+   "source": "multilang",
+   "repo": "h4ckf0r0day/obscura",
+   "language": "rust",
+   "created_at": "2026-07-17T06:43:26",
+   "image": "starryzhang/sweb.eval.x86_64.h4ckf0r0day_1776_obscura-440"
+  },
+  {
+   "instance_id": "playcanvas__engine-9066",
+   "source": "multilang",
+   "repo": "playcanvas/engine",
+   "language": "js",
+   "created_at": "2026-07-17T10:37:44",
+   "image": "starryzhang/sweb.eval.x86_64.playcanvas_1776_engine-9066"
+  },
+  {
+   "instance_id": "modelcontextprotocol__rust-sdk-1005",
+   "source": "multilang",
+   "repo": "modelcontextprotocol/rust-sdk",
+   "language": "rust",
+   "created_at": "2026-07-17T13:27:42",
+   "image": "starryzhang/sweb.eval.x86_64.modelcontextprotocol_1776_rust-sdk-1005"
+  },
+  {
+   "instance_id": "JasperFx__wolverine-3456",
+   "source": "multilang",
+   "repo": "JasperFx/wolverine",
+   "language": "cs",
+   "created_at": "2026-07-17T22:34:32",
+   "image": "starryzhang/sweb.eval.x86_64.jasperfx_1776_wolverine-3456"
+  },
+  {
+   "instance_id": "lance-format__lance-7835",
+   "source": "multilang",
+   "repo": "lance-format/lance",
+   "language": "rust",
+   "created_at": "2026-07-17T23:47:01",
+   "image": "starryzhang/sweb.eval.x86_64.lance-format_1776_lance-7835"
+  },
+  {
+   "instance_id": "rust-lang__rust-analyzer-22849",
+   "source": "multilang",
+   "repo": "rust-lang/rust-analyzer",
+   "language": "rust",
+   "created_at": "2026-07-18T08:24:11",
+   "image": "starryzhang/sweb.eval.x86_64.rust-lang_1776_rust-analyzer-22849"
+  },
+  {
+   "instance_id": "nunit__nunit-5351",
+   "source": "multilang",
+   "repo": "nunit/nunit",
+   "language": "cs",
+   "created_at": "2026-07-18T08:38:12",
+   "image": "starryzhang/sweb.eval.x86_64.nunit_1776_nunit-5351"
+  },
+  {
+   "instance_id": "btraceio__btrace-910",
+   "source": "multilang",
+   "repo": "btraceio/btrace",
+   "language": "java",
+   "created_at": "2026-07-18T09:02:06",
+   "image": "starryzhang/sweb.eval.x86_64.btraceio_1776_btrace-910"
+  },
+  {
+   "instance_id": "notionnext-org__NotionNext-4290",
+   "source": "multilang",
+   "repo": "notionnext-org/NotionNext",
+   "language": "js",
+   "created_at": "2026-07-18T15:42:25",
+   "image": "starryzhang/sweb.eval.x86_64.notionnext-org_1776_notionnext-4290"
+  },
+  {
+   "instance_id": "JasperFx__wolverine-3488",
+   "source": "multilang",
+   "repo": "JasperFx/wolverine",
+   "language": "cs",
+   "created_at": "2026-07-18T21:26:26",
+   "image": "starryzhang/sweb.eval.x86_64.jasperfx_1776_wolverine-3488"
+  },
+  {
+   "instance_id": "rust-lang__rust-analyzer-22855",
+   "source": "multilang",
+   "repo": "rust-lang/rust-analyzer",
+   "language": "rust",
+   "created_at": "2026-07-19T09:49:55",
+   "image": "starryzhang/sweb.eval.x86_64.rust-lang_1776_rust-analyzer-22855"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5799",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-19T12:05:39",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5799"
+  },
+  {
+   "instance_id": "h4ckf0r0day__obscura-447",
+   "source": "multilang",
+   "repo": "h4ckf0r0day/obscura",
+   "language": "rust",
+   "created_at": "2026-07-19T19:49:52",
+   "image": "starryzhang/sweb.eval.x86_64.h4ckf0r0day_1776_obscura-447"
+  },
+  {
+   "instance_id": "floci-io__floci-1908",
+   "source": "multilang",
+   "repo": "floci-io/floci",
+   "language": "java",
+   "created_at": "2026-07-19T21:30:03",
+   "image": "starryzhang/sweb.eval.x86_64.floci-io_1776_floci-1908"
+  },
+  {
+   "instance_id": "JasperFx__wolverine-3513",
+   "source": "multilang",
+   "repo": "JasperFx/wolverine",
+   "language": "cs",
+   "created_at": "2026-07-19T23:45:47",
+   "image": "starryzhang/sweb.eval.x86_64.jasperfx_1776_wolverine-3513"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5806",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-20T02:26:23",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5806"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5807",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-20T02:26:56",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5807"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5809",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-20T04:07:35",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5809"
+  },
+  {
+   "instance_id": "colbymchenry__codegraph-1370",
+   "source": "multilang",
+   "repo": "colbymchenry/codegraph",
+   "language": "c",
+   "created_at": "2026-07-20T05:07:28",
+   "image": "starryzhang/sweb.eval.x86_64.colbymchenry_1776_codegraph-1370"
+  },
+  {
+   "instance_id": "root-project__root-22854",
+   "source": "multilang",
+   "repo": "root-project/root",
+   "language": "cpp",
+   "created_at": "2026-07-20T09:12:15",
+   "image": "starryzhang/sweb.eval.x86_64.root-project_1776_root-22854"
+  },
+  {
+   "instance_id": "root-project__root-22857",
+   "source": "multilang",
+   "repo": "root-project/root",
+   "language": "cpp",
+   "created_at": "2026-07-20T09:21:38",
+   "image": "starryzhang/sweb.eval.x86_64.root-project_1776_root-22857"
+  },
+  {
+   "instance_id": "JasperFx__wolverine-3523",
+   "source": "multilang",
+   "repo": "JasperFx/wolverine",
+   "language": "cs",
+   "created_at": "2026-07-20T12:06:18",
+   "image": "starryzhang/sweb.eval.x86_64.jasperfx_1776_wolverine-3523"
+  },
+  {
+   "instance_id": "DynamoRIO__dynamorio-8017",
+   "source": "multilang",
+   "repo": "DynamoRIO/dynamorio",
+   "language": "c",
+   "created_at": "2026-07-20T21:36:18",
+   "image": "starryzhang/sweb.eval.x86_64.dynamorio_1776_dynamorio-8017"
+  },
+  {
+   "instance_id": "web-infra-dev__rspack-14882",
+   "source": "multilang",
+   "repo": "web-infra-dev/rspack",
+   "language": "rust",
+   "created_at": "2026-07-20T22:45:34",
+   "image": "starryzhang/sweb.eval.x86_64.web-infra-dev_1776_rspack-14882"
+  },
+  {
+   "instance_id": "SubtitleEdit__subtitleedit-12685",
+   "source": "multilang",
+   "repo": "SubtitleEdit/subtitleedit",
+   "language": "cs",
+   "created_at": "2026-07-21T03:52:12",
+   "image": "starryzhang/sweb.eval.x86_64.subtitleedit_1776_subtitleedit-12685"
+  },
+  {
+   "instance_id": "duckdb__duckdb-24011",
+   "source": "multilang",
+   "repo": "duckdb/duckdb",
+   "language": "cpp",
+   "created_at": "2026-07-21T08:29:06",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_duckdb-24011"
+  },
+  {
+   "instance_id": "duckdb__duckdb-24018",
+   "source": "multilang",
+   "repo": "duckdb/duckdb",
+   "language": "cpp",
+   "created_at": "2026-07-21T08:53:05",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_duckdb-24018"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5817",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-21T12:28:42",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5817"
+  },
+  {
+   "instance_id": "agentscope-ai__agentscope-java-2343",
+   "source": "multilang",
+   "repo": "agentscope-ai/agentscope-java",
+   "language": "java",
+   "created_at": "2026-07-21T12:50:13",
+   "image": "starryzhang/sweb.eval.x86_64.agentscope-ai_1776_agentscope-java-2343"
+  },
+  {
+   "instance_id": "modelcontextprotocol__rust-sdk-1021",
+   "source": "multilang",
+   "repo": "modelcontextprotocol/rust-sdk",
+   "language": "rust",
+   "created_at": "2026-07-21T16:39:51",
+   "image": "starryzhang/sweb.eval.x86_64.modelcontextprotocol_1776_rust-sdk-1021"
+  },
+  {
+   "instance_id": "open-gsd__gsd-core-2492",
+   "source": "multilang",
+   "repo": "open-gsd/gsd-core",
+   "language": "js",
+   "created_at": "2026-07-21T18:52:01",
+   "image": "starryzhang/sweb.eval.x86_64.open-gsd_1776_gsd-core-2492"
+  },
+  {
+   "instance_id": "gleam-lang__gleam-6021",
+   "source": "multilang",
+   "repo": "gleam-lang/gleam",
+   "language": "rust",
+   "created_at": "2026-07-21T22:01:29",
+   "image": "starryzhang/sweb.eval.x86_64.gleam-lang_1776_gleam-6021"
+  },
+  {
+   "instance_id": "JasperFx__wolverine-3582",
+   "source": "multilang",
+   "repo": "JasperFx/wolverine",
+   "language": "cs",
+   "created_at": "2026-07-22T07:22:39",
+   "image": "starryzhang/sweb.eval.x86_64.jasperfx_1776_wolverine-3582"
+  },
+  {
+   "instance_id": "yvgude__lean-ctx-1164",
+   "source": "multilang",
+   "repo": "yvgude/lean-ctx",
+   "language": "rust",
+   "created_at": "2026-07-22T08:23:50",
+   "image": "starryzhang/sweb.eval.x86_64.yvgude_1776_lean-ctx-1164"
+  },
+  {
+   "instance_id": "gitbutlerapp__gitbutler-14920",
+   "source": "multilang",
+   "repo": "gitbutlerapp/gitbutler",
+   "language": "rust",
+   "created_at": "2026-07-22T08:58:17",
+   "image": "starryzhang/sweb.eval.x86_64.gitbutlerapp_1776_gitbutler-14920"
+  },
+  {
+   "instance_id": "yvgude__lean-ctx-1168",
+   "source": "multilang",
+   "repo": "yvgude/lean-ctx",
+   "language": "rust",
+   "created_at": "2026-07-22T09:01:35",
+   "image": "starryzhang/sweb.eval.x86_64.yvgude_1776_lean-ctx-1168"
+  },
+  {
+   "instance_id": "yvgude__lean-ctx-1179",
+   "source": "multilang",
+   "repo": "yvgude/lean-ctx",
+   "language": "rust",
+   "created_at": "2026-07-22T14:31:08",
+   "image": "starryzhang/sweb.eval.x86_64.yvgude_1776_lean-ctx-1179"
+  },
+  {
+   "instance_id": "pola-rs__polars-28484",
+   "source": "multilang",
+   "repo": "pola-rs/polars",
+   "language": "rust",
+   "created_at": "2026-07-22T14:36:14",
+   "image": "starryzhang/sweb.eval.x86_64.pola-rs_1776_polars-28484"
+  },
+  {
+   "instance_id": "yvgude__lean-ctx-1180",
+   "source": "multilang",
+   "repo": "yvgude/lean-ctx",
+   "language": "rust",
+   "created_at": "2026-07-22T14:42:17",
+   "image": "starryzhang/sweb.eval.x86_64.yvgude_1776_lean-ctx-1180"
+  },
+  {
+   "instance_id": "duckdb__duckdb-24074",
+   "source": "multilang",
+   "repo": "duckdb/duckdb",
+   "language": "cpp",
+   "created_at": "2026-07-23T04:47:54",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_duckdb-24074"
+  },
+  {
+   "instance_id": "IfcOpenShell__IfcOpenShell-8887",
+   "source": "multilang",
+   "repo": "IfcOpenShell/IfcOpenShell",
+   "language": "cpp",
+   "created_at": "2026-07-23T12:59:22",
+   "image": "starryzhang/sweb.eval.x86_64.ifcopenshell_1776_ifcopenshell-8887"
+  },
+  {
+   "instance_id": "floci-io__floci-1931",
+   "source": "multilang",
+   "repo": "floci-io/floci",
+   "language": "java",
+   "created_at": "2026-07-23T13:35:52",
+   "image": "starryzhang/sweb.eval.x86_64.floci-io_1776_floci-1931"
+  },
+  {
+   "instance_id": "floci-io__floci-1932",
+   "source": "multilang",
+   "repo": "floci-io/floci",
+   "language": "java",
+   "created_at": "2026-07-23T14:34:56",
+   "image": "starryzhang/sweb.eval.x86_64.floci-io_1776_floci-1932"
+  },
+  {
+   "instance_id": "gleam-lang__gleam-6030",
+   "source": "multilang",
+   "repo": "gleam-lang/gleam",
+   "language": "rust",
+   "created_at": "2026-07-23T16:20:13",
+   "image": "starryzhang/sweb.eval.x86_64.gleam-lang_1776_gleam-6030"
+  },
+  {
+   "instance_id": "SubtitleEdit__subtitleedit-12763",
+   "source": "multilang",
+   "repo": "SubtitleEdit/subtitleedit",
+   "language": "cs",
+   "created_at": "2026-07-23T16:57:41",
+   "image": "starryzhang/sweb.eval.x86_64.subtitleedit_1776_subtitleedit-12763"
+  },
+  {
+   "instance_id": "duckdb__ducklake-1339",
+   "source": "multilang",
+   "repo": "duckdb/ducklake",
+   "language": "cpp",
+   "created_at": "2026-07-23T17:42:37",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_ducklake-1339"
+  },
+  {
+   "instance_id": "duckdb__ducklake-1340",
+   "source": "multilang",
+   "repo": "duckdb/ducklake",
+   "language": "cpp",
+   "created_at": "2026-07-23T17:50:27",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_ducklake-1340"
+  },
+  {
+   "instance_id": "JasperFx__wolverine-3608",
+   "source": "multilang",
+   "repo": "JasperFx/wolverine",
+   "language": "cs",
+   "created_at": "2026-07-23T18:07:06",
+   "image": "starryzhang/sweb.eval.x86_64.jasperfx_1776_wolverine-3608"
+  },
+  {
+   "instance_id": "JasperFx__wolverine-3612",
+   "source": "multilang",
+   "repo": "JasperFx/wolverine",
+   "language": "cs",
+   "created_at": "2026-07-23T18:54:12",
+   "image": "starryzhang/sweb.eval.x86_64.jasperfx_1776_wolverine-3612"
+  },
+  {
+   "instance_id": "lakehq__sail-2284",
+   "source": "multilang",
+   "repo": "lakehq/sail",
+   "language": "rust",
+   "created_at": "2026-07-23T21:14:02",
+   "image": "starryzhang/sweb.eval.x86_64.lakehq_1776_sail-2284"
+  },
+  {
+   "instance_id": "modelcontextprotocol__rust-sdk-1044",
+   "source": "multilang",
+   "repo": "modelcontextprotocol/rust-sdk",
+   "language": "rust",
+   "created_at": "2026-07-24T02:53:56",
+   "image": "starryzhang/sweb.eval.x86_64.modelcontextprotocol_1776_rust-sdk-1044"
+  },
+  {
+   "instance_id": "duckdb__duckdb-24100",
+   "source": "multilang",
+   "repo": "duckdb/duckdb",
+   "language": "cpp",
+   "created_at": "2026-07-24T03:56:47",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_duckdb-24100"
+  },
+  {
+   "instance_id": "duckdb__duckdb-24101",
+   "source": "multilang",
+   "repo": "duckdb/duckdb",
+   "language": "cpp",
+   "created_at": "2026-07-24T05:00:28",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_duckdb-24101"
+  },
+  {
+   "instance_id": "duckdb__duckdb-24105",
+   "source": "multilang",
+   "repo": "duckdb/duckdb",
+   "language": "cpp",
+   "created_at": "2026-07-24T06:08:48",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_duckdb-24105"
+  },
+  {
+   "instance_id": "h4ckf0r0day__obscura-477",
+   "source": "multilang",
+   "repo": "h4ckf0r0day/obscura",
+   "language": "rust",
+   "created_at": "2026-07-24T07:04:52",
+   "image": "starryzhang/sweb.eval.x86_64.h4ckf0r0day_1776_obscura-477"
+  },
+  {
+   "instance_id": "h4ckf0r0day__obscura-479",
+   "source": "multilang",
+   "repo": "h4ckf0r0day/obscura",
+   "language": "rust",
+   "created_at": "2026-07-24T07:45:15",
+   "image": "starryzhang/sweb.eval.x86_64.h4ckf0r0day_1776_obscura-479"
+  },
+  {
+   "instance_id": "apache__shardingsphere-39237",
+   "source": "multilang",
+   "repo": "apache/shardingsphere",
+   "language": "java",
+   "created_at": "2026-07-24T14:06:56",
+   "image": "starryzhang/sweb.eval.x86_64.apache_1776_shardingsphere-39237"
+  },
+  {
+   "instance_id": "duckdb__duckdb-24150",
+   "source": "multilang",
+   "repo": "duckdb/duckdb",
+   "language": "cpp",
+   "created_at": "2026-07-25T05:58:34",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_duckdb-24150"
+  },
+  {
+   "instance_id": "angularsen__UnitsNet-1698",
+   "source": "multilang",
+   "repo": "angularsen/UnitsNet",
+   "language": "cs",
+   "created_at": "2026-07-25T10:37:47",
+   "image": "starryzhang/sweb.eval.x86_64.angularsen_1776_unitsnet-1698"
+  },
+  {
+   "instance_id": "apache__rocketmq-10662",
+   "source": "multilang",
+   "repo": "apache/rocketmq",
+   "language": "java",
+   "created_at": "2026-07-25T13:39:15",
+   "image": "starryzhang/sweb.eval.x86_64.apache_1776_rocketmq-10662"
+  },
+  {
+   "instance_id": "angularsen__UnitsNet-1699",
+   "source": "multilang",
+   "repo": "angularsen/UnitsNet",
+   "language": "cs",
+   "created_at": "2026-07-25T21:34:50",
+   "image": "starryzhang/sweb.eval.x86_64.angularsen_1776_unitsnet-1699"
+  },
+  {
+   "instance_id": "lakehq__sail-2292",
+   "source": "multilang",
+   "repo": "lakehq/sail",
+   "language": "rust",
+   "created_at": "2026-07-26T09:32:34",
+   "image": "starryzhang/sweb.eval.x86_64.lakehq_1776_sail-2292"
+  },
+  {
+   "instance_id": "notionnext-org__NotionNext-4316",
+   "source": "multilang",
+   "repo": "notionnext-org/NotionNext",
+   "language": "js",
+   "created_at": "2026-07-26T13:13:41",
+   "image": "starryzhang/sweb.eval.x86_64.notionnext-org_1776_notionnext-4316"
+  },
+  {
+   "instance_id": "JasperFx__wolverine-3642",
+   "source": "multilang",
+   "repo": "JasperFx/wolverine",
+   "language": "cs",
+   "created_at": "2026-07-26T15:20:28",
+   "image": "starryzhang/sweb.eval.x86_64.jasperfx_1776_wolverine-3642"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5847",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-27T04:12:52",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5847"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5848",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-27T04:12:59",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5848"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5850",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-27T05:02:24",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5850"
+  },
+  {
+   "instance_id": "xroche__httrack-763",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T07:00:20",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-763"
+  },
+  {
+   "instance_id": "xroche__httrack-765",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T07:07:33",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-765"
+  },
+  {
+   "instance_id": "duckdb__duckdb-24181",
+   "source": "multilang",
+   "repo": "duckdb/duckdb",
+   "language": "cpp",
+   "created_at": "2026-07-27T08:04:15",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_duckdb-24181"
+  },
+  {
+   "instance_id": "xroche__httrack-784",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T08:26:05",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-784"
+  },
+  {
+   "instance_id": "xroche__httrack-789",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T08:33:52",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-789"
+  },
+  {
+   "instance_id": "gleam-lang__gleam-6049",
+   "source": "multilang",
+   "repo": "gleam-lang/gleam",
+   "language": "rust",
+   "created_at": "2026-07-27T09:41:40",
+   "image": "starryzhang/sweb.eval.x86_64.gleam-lang_1776_gleam-6049"
+  },
+  {
+   "instance_id": "nearai__ironclaw-6706",
+   "source": "multilang",
+   "repo": "nearai/ironclaw",
+   "language": "rust",
+   "created_at": "2026-07-27T11:31:18",
+   "image": "starryzhang/sweb.eval.x86_64.nearai_1776_ironclaw-6706"
+  },
+  {
+   "instance_id": "xroche__httrack-803",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T11:39:52",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-803"
+  },
+  {
+   "instance_id": "xroche__httrack-807",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T11:50:04",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-807"
+  },
+  {
+   "instance_id": "xroche__httrack-809",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T11:50:38",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-809"
+  },
+  {
+   "instance_id": "xroche__httrack-810",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T11:50:40",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-810"
+  },
+  {
+   "instance_id": "xroche__httrack-811",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T11:52:12",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-811"
+  },
+  {
+   "instance_id": "xroche__httrack-815",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T12:00:48",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-815"
+  },
+  {
+   "instance_id": "xroche__httrack-817",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T12:08:52",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-817"
+  },
+  {
+   "instance_id": "nearai__ironclaw-6712",
+   "source": "multilang",
+   "repo": "nearai/ironclaw",
+   "language": "rust",
+   "created_at": "2026-07-27T12:39:22",
+   "image": "starryzhang/sweb.eval.x86_64.nearai_1776_ironclaw-6712"
+  },
+  {
+   "instance_id": "xroche__httrack-829",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T12:41:03",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-829"
+  },
+  {
+   "instance_id": "xroche__httrack-830",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T12:52:47",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-830"
+  },
+  {
+   "instance_id": "xroche__httrack-835",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T13:03:07",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-835"
+  },
+  {
+   "instance_id": "xroche__httrack-837",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T13:10:37",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-837"
+  },
+  {
+   "instance_id": "nearai__ironclaw-6724",
+   "source": "multilang",
+   "repo": "nearai/ironclaw",
+   "language": "rust",
+   "created_at": "2026-07-27T15:31:45",
+   "image": "starryzhang/sweb.eval.x86_64.nearai_1776_ironclaw-6724"
+  },
+  {
+   "instance_id": "xroche__httrack-849",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T19:21:45",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-849"
+  },
+  {
+   "instance_id": "xroche__httrack-850",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T19:25:51",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-850"
+  },
+  {
+   "instance_id": "xroche__httrack-851",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T19:30:13",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-851"
+  },
+  {
+   "instance_id": "apache__paimon-8874",
+   "source": "multilang",
+   "repo": "apache/paimon",
+   "language": "java",
+   "created_at": "2026-07-27T20:19:34",
+   "image": "starryzhang/sweb.eval.x86_64.apache_1776_paimon-8874"
+  },
+  {
+   "instance_id": "xroche__httrack-856",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-27T20:22:46",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-856"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5861",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-27T21:45:21",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5861"
+  },
+  {
+   "instance_id": "SubtitleEdit__subtitleedit-12895",
+   "source": "multilang",
+   "repo": "SubtitleEdit/subtitleedit",
+   "language": "cs",
+   "created_at": "2026-07-28T00:34:34",
+   "image": "starryzhang/sweb.eval.x86_64.subtitleedit_1776_subtitleedit-12895"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5864",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-28T01:57:50",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5864"
+  },
+  {
+   "instance_id": "floci-io__floci-2015",
+   "source": "multilang",
+   "repo": "floci-io/floci",
+   "language": "java",
+   "created_at": "2026-07-28T02:40:30",
+   "image": "starryzhang/sweb.eval.x86_64.floci-io_1776_floci-2015"
+  },
+  {
+   "instance_id": "duckdb__duckdb-24211",
+   "source": "multilang",
+   "repo": "duckdb/duckdb",
+   "language": "cpp",
+   "created_at": "2026-07-28T06:24:52",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_duckdb-24211"
+  },
+  {
+   "instance_id": "lance-format__lance-8049",
+   "source": "multilang",
+   "repo": "lance-format/lance",
+   "language": "rust",
+   "created_at": "2026-07-28T11:45:04",
+   "image": "starryzhang/sweb.eval.x86_64.lance-format_1776_lance-8049"
+  },
+  {
+   "instance_id": "notionnext-org__NotionNext-4338",
+   "source": "multilang",
+   "repo": "notionnext-org/NotionNext",
+   "language": "js",
+   "created_at": "2026-07-28T13:19:40",
+   "image": "starryzhang/sweb.eval.x86_64.notionnext-org_1776_notionnext-4338"
+  },
+  {
+   "instance_id": "langchain4j__langchain4j-5869",
+   "source": "multilang",
+   "repo": "langchain4j/langchain4j",
+   "language": "java",
+   "created_at": "2026-07-28T14:57:30",
+   "image": "starryzhang/sweb.eval.x86_64.langchain4j_1776_langchain4j-5869"
+  },
+  {
+   "instance_id": "floci-io__floci-2031",
+   "source": "multilang",
+   "repo": "floci-io/floci",
+   "language": "java",
+   "created_at": "2026-07-28T17:34:46",
+   "image": "starryzhang/sweb.eval.x86_64.floci-io_1776_floci-2031"
+  },
+  {
+   "instance_id": "JasperFx__wolverine-3695",
+   "source": "multilang",
+   "repo": "JasperFx/wolverine",
+   "language": "cs",
+   "created_at": "2026-07-28T19:39:43",
+   "image": "starryzhang/sweb.eval.x86_64.jasperfx_1776_wolverine-3695"
+  },
+  {
+   "instance_id": "duckdb__duckdb-24266",
+   "source": "multilang",
+   "repo": "duckdb/duckdb",
+   "language": "cpp",
+   "created_at": "2026-07-29T08:45:37",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_duckdb-24266"
+  },
+  {
+   "instance_id": "tursodatabase__turso-8102",
+   "source": "multilang",
+   "repo": "tursodatabase/turso",
+   "language": "rust",
+   "created_at": "2026-07-29T12:41:59",
+   "image": "starryzhang/sweb.eval.x86_64.tursodatabase_1776_turso-8102"
+  },
+  {
+   "instance_id": "xroche__httrack-876",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-29T15:41:44",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-876"
+  },
+  {
+   "instance_id": "JasperFx__marten-5080",
+   "source": "multilang",
+   "repo": "JasperFx/marten",
+   "language": "cs",
+   "created_at": "2026-07-29T18:24:51",
+   "image": "starryzhang/sweb.eval.x86_64.jasperfx_1776_marten-5080"
+  },
+  {
+   "instance_id": "duckdb__duckdb-24290",
+   "source": "multilang",
+   "repo": "duckdb/duckdb",
+   "language": "cpp",
+   "created_at": "2026-07-29T22:00:37",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_duckdb-24290"
+  },
+  {
+   "instance_id": "elsa-workflows__elsa-core-7898",
+   "source": "multilang",
+   "repo": "elsa-workflows/elsa-core",
+   "language": "cs",
+   "created_at": "2026-07-30T00:03:31",
+   "image": "starryzhang/sweb.eval.x86_64.elsa-workflows_1776_elsa-core-7898"
+  },
+  {
+   "instance_id": "duckdb__duckdb-24318",
+   "source": "multilang",
+   "repo": "duckdb/duckdb",
+   "language": "cpp",
+   "created_at": "2026-07-30T09:07:14",
+   "image": "starryzhang/sweb.eval.x86_64.duckdb_1776_duckdb-24318"
+  },
+  {
+   "instance_id": "stephenberry__glaze-2731",
+   "source": "multilang",
+   "repo": "stephenberry/glaze",
+   "language": "cpp",
+   "created_at": "2026-07-30T13:46:13",
+   "image": "starryzhang/sweb.eval.x86_64.stephenberry_1776_glaze-2731"
+  },
+  {
+   "instance_id": "xroche__httrack-893",
+   "source": "multilang",
+   "repo": "xroche/httrack",
+   "language": "c",
+   "created_at": "2026-07-30T15:24:27",
+   "image": "starryzhang/sweb.eval.x86_64.xroche_1776_httrack-893"
+  },
+  {
+   "instance_id": "FastLED__FastLED-3781",
+   "source": "multilang",
+   "repo": "FastLED/FastLED",
+   "language": "cpp",
+   "created_at": "2026-07-31T05:37:17",
+   "image": "starryzhang/sweb.eval.x86_64.fastled_1776_fastled-3781"
+  }
+ ]
+}

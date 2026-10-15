@@ -1,0 +1,1172 @@
+diff --git a/packages/client/test/learned.test.ts b/packages/client/test/learned.test.ts
+new file mode 100644
+index 0000000..4812a26
+--- /dev/null
++++ b/packages/client/test/learned.test.ts
+@@ -0,0 +1,206 @@
++// A learned thing made at hand from its makeup is crafted from the panel like the content's own:
++// the worker tells the panel its recipe, and finds it again when the panel's button names it.
++
++import { describe, expect, it } from 'vitest'
++import { ModPort, RuleLibrary, buildSandbox, type Patch, type SaveData } from '@lsw/engine'
++import { BASE_RULES, buildOntology } from '@lsw/content'
++import { artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeById, shareKept, sharedPart, takeDefinitions, withKept } from '../src/learned.ts'
++
++const art = { grid: Array.from({ length: 16 }, (_, y) => (y > 3 && y < 12 ? '....aaaaaaaa....' : '................')), palette: { a: '#a0522d' } }
++const twine = (station?: string): Patch => ({
++  artifacts: [{ kind: 'type', type: { id: 'item/material/twine', name: { en: 'Twine', zh: '麻绳' }, tags: ['fiber'], props: { material: 'plant' }, makeup: [{ type: 'item/material/grass', count: 2 }], ...(station && { station }), art } as never }],
++})
++const fresh = () => buildSandbox({ terrain: [['grass', 'grass'], ['grass', 'grass']], entities: [{ key: 'actor', type: 'actor/person/player', x: 0, y: 0 }], event: {} }, buildOntology(), new RuleLibrary(BASE_RULES))
++
++describe('learned recipes', () => {
++  it('are the recipes of types a patch brought, and are found by id beside the content\'s', () => {
++    const eng = fresh()
++    expect(learnedRecipes(eng)).toEqual([])
++    expect(new ModPort(eng).submit(undefined, twine('hands')).errors).toEqual([])
++    expect(learnedRecipes(eng).map((r) => r.id)).toEqual(['item/material/twine'])
++    expect(recipeById(eng, 'item/material/twine')?.needs).toEqual([{ type: 'item/material/grass', count: 2 }])
++    // the content's own are still found without an engine
++    expect(recipeById(undefined, 'fixture/craft/workbench')?.make.type).toBe('fixture/craft/workbench')
++  })
++
++  it('a learned thing only a rule makes (no station) has no recipe', () => {
++    const eng = fresh()
++    expect(new ModPort(eng).submit(undefined, twine()).errors).toEqual([])
++    expect(learnedRecipes(eng)).toEqual([])
++  })
++
++  it('a type the shared library rolled back is forgotten with its recipe, unless something here is made of it', () => {
++    const eng = fresh()
++    new ModPort(eng).submit(undefined, twine('hands'))
++    expect(forgetType(eng, 'item/material/twine')).toBe(true)
++    expect(eng.lib.types).toEqual([])
++    expect(eng.world.onto.hasType('item/material/twine')).toBe(false)
++    expect(learnedRecipes(eng)).toEqual([])
++    expect(recipeById(eng, 'item/material/twine')).toBeUndefined()
++    // a twine already made keeps what it is
++    const eng2 = fresh()
++    new ModPort(eng2).submit(undefined, twine('hands'))
++    eng2.author(() => eng2.world.create('item/material/twine', { on: 'inside', holder: 'actor' }))
++    expect(forgetType(eng2, 'item/material/twine')).toBe(false)
++    expect(eng2.world.onto.hasType('item/material/twine')).toBe(true)
++  })
++
++  it('a synced definition of a learned thing replaces the one kept here, and what was made of it becomes the new kind', () => {
++    const eng = fresh()
++    const port = new ModPort(eng)
++    port.submit(undefined, twine())
++    eng.author(() => eng.world.create('item/material/twine', { on: 'inside', holder: 'actor' }))
++    const corrected = twine('hands')
++    ;(corrected.artifacts[0] as { type: { tags: string[] } }).type.tags = ['fiber', 'cordage']
++    // without it the client refuses the library's corrected thing ("a type of this id exists already")
++    expect(port.submit(undefined, structuredClone(corrected)).ok).toBe(false)
++    expect(takeDefinitions(eng, corrected).replaced).toEqual(['item/material/twine'])
++    expect(port.submit(undefined, corrected).errors).toEqual([])
++    const held = Object.values(eng.world.state.entities).find((e) => e.type === 'item/material/twine')!
++    expect(eng.world.onto.resolve(held.type).tags).toContain('cordage')
++    expect(learnedRecipes(eng).map((r) => r.id)).toEqual(['item/material/twine'])
++    // the same definition again: nothing to replace
++    expect(takeDefinitions(eng, corrected).replaced).toEqual([])
++  })
++
++  it('puts the old definition back when the patch that brought the new one is not taken', () => {
++    const eng = fresh()
++    const port = new ModPort(eng)
++    port.submit(undefined, twine('hands'))
++    eng.author(() => eng.world.create('item/material/twine', { on: 'inside', holder: 'actor' }))
++    const bad = twine('hands')
++    ;(bad.artifacts[0] as { type: { props: object } }).type.props = {} // no material: refused
++    const took = takeDefinitions(eng, bad)
++    expect(port.submit(undefined, bad).ok).toBe(false)
++    took.restore()
++    expect(eng.world.onto.hasType('item/material/twine')).toBe(true)
++    expect(recipeById(eng, 'item/material/twine')?.station).toBe('hands')
++  })
++
++  it('a save keeps the learned kinds its own things are of, though another game\'s sync forgot them from the shared library', () => {
++    // save A: a twine in the bag, and the twine in its copy of the library (and the status on the player)
++    const eng = fresh()
++    const port = new ModPort(eng)
++    port.submit(undefined, twine('hands'))
++    port.submit(undefined, { artifacts: [{ kind: 'status', status: { id: 'honeyed', name: { en: 'Honeyed', zh: '抹了蜂蜜' } } }] })
++    eng.author(() => (eng.world.create('item/material/twine', { on: 'inside', holder: 'actor' }), eng.world.setStatus({ e: 'actor' }, 'honeyed', 99)))
++    const save = { state: eng.world.state, library: eng.lib.toJSON() } as unknown as SaveData
++    // the shared library, as save B left it: the twine and the status forgotten (nothing there had them)
++    const shared = { ...eng.lib.toJSON(), types: [], statuses: [] }
++    const { library, kept } = withKept(shared, save)
++    expect(library!.types.map((t) => t.id)).toEqual(['item/material/twine'])
++    expect(library!.statuses.map((x) => x.id)).toEqual(['honeyed'])
++    // they are this save's: the shared store is written without them, so another save does not get them back
++    expect(kept).toEqual({ types: ['item/material/twine'], statuses: ['honeyed'] })
++    const back = sharedPart(library!, { types: new Set(kept.types), statuses: new Set(kept.statuses) })
++    expect([back.types, back.statuses]).toEqual([[], []])
++    // an answer that brings one of them again makes it the library's (and a refused one puts it back)
++    const sets = { types: new Set(kept.types), statuses: new Set(kept.statuses) }
++    const undo = shareKept(sets, twine('hands'))
++    expect([...sets.types]).toEqual([])
++    undo()
++    expect([...sets.types]).toEqual(['item/material/twine'])
++    // what save A has none of stays forgotten; with nothing forgotten the shared library is taken as it is
++    const empty = { state: { ...eng.world.state, entities: { actor: { ...eng.world.state.entities.actor, contents: [], statuses: {} } } }, library: eng.lib.toJSON() } as unknown as SaveData
++    expect(withKept(shared, empty).library).toBe(shared)
++    expect(withKept(undefined, save).library).toBe(save.library)
++  })
++
++  it('a learned kind still named is kept: what a kept thing is made of, and the kind a thing here is a kind of', () => {
++    const eng = fresh()
++    const port = new ModPort(eng)
++    port.submit(undefined, twine('hands'))
++    // a rope made of twine, and a thing of a kind of twine
++    const rope = { id: 'item/material/twine_rope', name: { en: 'Twine Rope', zh: '麻绳索' }, tags: ['fiber'], props: { material: 'plant' }, makeup: [{ type: 'item/material/twine', count: 3 }], art }
++    const fine = { id: 'item/material/twine/fine', name: { en: 'Fine Twine', zh: '细麻绳' }, art }
++    expect(port.submit(undefined, { artifacts: [{ kind: 'type', type: rope as never }, { kind: 'type', type: fine as never }] }).errors).toEqual([])
++    eng.author(() => eng.world.create('item/material/twine_rope', { on: 'inside', holder: 'actor' }))
++    // the rope names twine; the fine twine is a kind of it
++    expect(forgetType(eng, 'item/material/twine')).toBe(false)
++    const save = { state: eng.world.state, library: eng.lib.toJSON() } as unknown as SaveData
++    const { kept } = withKept({ ...eng.lib.toJSON(), types: [] }, save)
++    expect(kept.types.sort()).toEqual(['item/material/twine', 'item/material/twine_rope'])
++  })
++
++  it('takes a corrected thing the library made under a new id and the same name, the old one kept beside it for what is made of it', () => {
++    const eng = fresh()
++    const port = new ModPort(eng)
++    const old = { id: 'item/food/jam', name: { en: 'Berry Jam', zh: '浆果酱' }, tags: ['sweet'], props: { material: 'plant', food: 4 }, makeup: [{ type: 'item/food/berries', count: 1 }], art }
++    ;(eng.lib.addType(old as never), eng.world.onto.addType(old as never))
++    eng.author(() => eng.world.create('item/food/jam', { on: 'inside', holder: 'actor' }))
++    const corrected: Patch = { artifacts: [{ kind: 'type', type: { ...old, id: 'item/food/berry_jam', tags: ['sweet', 'edible'] } as never }] }
++    // without stepping the old one aside the client refuses it: "item/food/jam" already is this thing
++    expect(port.submit(undefined, structuredClone(corrected)).ok).toBe(false)
++    const took = takeDefinitions(eng, corrected)
++    expect(port.submit(undefined, corrected).errors).toEqual([])
++    took.done()
++    expect(eng.lib.types.map((t) => t.id).sort()).toEqual(['item/food/berry_jam', 'item/food/jam'])
++    // with nothing made of the old one, it stays forgotten
++    const eng2 = fresh()
++    ;(eng2.lib.addType(old as never), eng2.world.onto.addType(old as never))
++    const took2 = takeDefinitions(eng2, corrected)
++    expect(new ModPort(eng2).submit(undefined, corrected).errors).toEqual([])
++    took2.done()
++    expect(eng2.lib.types.map((t) => t.id)).toEqual(['item/food/berry_jam'])
++    // and on the next load the kept one gives way: the library's corrected kind is not judged "the same thing" as it
++    expect(forgetInvalid(eng, new Set(['item/food/jam']))).toEqual([])
++    expect(eng.lib.types.map((t) => t.id).sort()).toEqual(['item/food/berry_jam', 'item/food/jam'])
++  })
++
++  it('forgets on loading what the checks no longer take (a jam kept from an older client, no edible), unless a thing here needs it', () => {
++    const eng = fresh()
++    const jam = { id: 'item/food/jam', name: { en: 'Berry Jam', zh: '浆果酱' }, tags: ['sweet'], props: { material: 'plant', food: 4 }, makeup: [{ type: 'item/food/berries', count: 1 }], art }
++    const good = (twine('hands').artifacts[0] as { type: import('@lsw/engine').TypeDef }).type
++    const glued = { id: 'glued', name: { en: 'Glued', zh: '粘住' }, immobilize: true }
++    // as an older client kept them: past the checks of the time
++    for (const t of [jam, good] as never[]) (eng.lib.addType(t), eng.world.onto.addType(t))
++    ;(eng.lib.addStatus(glued as never), eng.world.onto.addStatus(glued as never))
++    // and a learned rule that makes the jam (berries into it): it would make a nameless thing without it
++    eng.lib.add({ id: 'patch/berries-to-jam', host: { type: 'item/food/berries' }, on: 'act/use', tree: { do: [{ op: 'transform', into: 'item/food/jam' }] }, source: { origin: 'patch' } } as never)
++    // (and one that leaves it as an open leaf's default, or bundles it)
++    eng.lib.add({ id: 'patch/stick-jam-default', host: { type: 'item/material/stick' }, on: 'act/use', tree: { undefined: true, default: [{ op: 'spawn', type: 'item/food/jam', at: 'host' }] }, source: { origin: 'patch' } } as never)
++    expect(forgetInvalid(eng).sort()).toEqual(['glued', 'item/food/jam', 'patch/berries-to-jam', 'patch/stick-jam-default'])
++    expect(eng.lib.types.map((t) => t.id)).toEqual(['item/material/twine'])
++    expect(eng.lib.rules.has('patch/berries-to-jam')).toBe(false)
++    // a jam in the bag keeps it
++    const eng2 = fresh()
++    ;(eng2.lib.addType(jam as never), eng2.world.onto.addType(jam as never))
++    eng2.author(() => eng2.world.create('item/food/jam', { on: 'inside', holder: 'actor' }))
++    expect(forgetInvalid(eng2)).toEqual([])
++  })
++
++  it('keeps what a kept kind turns into by a prop (raw eel kept for one in the bag, its cooked kind too, though it fails the checks)', () => {
++    const eng = fresh()
++    const cooked = { id: 'item/food/cooked_eel', name: { en: 'Cooked Eel', zh: '熟鳗鱼' }, tags: ['edible'], props: { material: 'meat' }, makeup: [{ type: 'item/food/fish/raw', count: 1 }], art }
++    const raw = { id: 'item/food/raw_eel', name: { en: 'Raw Eel', zh: '生鳗鱼' }, tags: ['edible', 'raw', 'cookable'], props: { material: 'meat', food: 2, cookedType: cooked.id }, makeup: [{ type: 'item/food/fish/raw', count: 1 }], art }
++    for (const t of [raw, cooked] as never[]) (eng.lib.addType(t), eng.world.onto.addType(t))
++    eng.author(() => eng.world.create(raw.id, { on: 'inside', holder: 'actor' }))
++    // the cooked one fills nothing (no food) and is judged after the raw one: the raw one names it, so it stays
++    expect(forgetInvalid(eng)).toEqual([])
++    expect(eng.lib.types.map((t) => t.id).sort()).toEqual([cooked.id, raw.id])
++  })
++
++  it('sends a learned thing\'s picture once, and again when a definition taken anew redraws it', () => {
++    const sent = new Map<string, string>()
++    const type = (twine('hands').artifacts[0] as { type: import('@lsw/engine').TypeDef }).type
++    expect(artsToSend([type], sent).map((a) => a.id)).toEqual(['item/material/twine'])
++    expect(artsToSend([type], sent)).toEqual([])
++    const redrawn = { ...type, art: { ...art, palette: { a: '#2e8b57' } } }
++    expect(artsToSend([redrawn], sent).map((a) => a.art.palette.a)).toEqual(['#2e8b57'])
++  })
++
++  it('a status the library forgot is forgotten unless something has it; a new definition replaces the old', () => {
++    const eng = fresh()
++    const port = new ModPort(eng)
++    const status = (zh: string) => ({ artifacts: [{ kind: 'status' as const, status: { id: 'honeyed', name: { en: 'Honeyed', zh }, overlay: 'oil' } }] })
++    expect(port.submit(undefined, status('抹了蜂蜜')).errors).toEqual([])
++    expect(takeDefinitions(eng, status('涂了蜜')).replaced).toEqual(['honeyed'])
++    expect(port.submit(undefined, status('涂了蜜')).errors).toEqual([])
++    expect(eng.lib.statuses.find((x) => x.id === 'honeyed')?.name).toEqual({ en: 'Honeyed', zh: '涂了蜜' })
++    eng.author(() => eng.world.setStatus({ e: 'actor' }, 'honeyed', 99))
++    expect(forgetStatus(eng, 'honeyed')).toBe(false)
++    eng.author(() => eng.world.clearStatus({ e: 'actor' }, 'honeyed'))
++    expect(forgetStatus(eng, 'honeyed')).toBe(true)
++  })
++})
++
+diff --git a/packages/client/test/untilUp.test.ts b/packages/client/test/untilUp.test.ts
+new file mode 100644
+index 0000000..2b82d6f
+--- /dev/null
++++ b/packages/client/test/untilUp.test.ts
+@@ -0,0 +1,55 @@
++import { afterEach, describe, expect, it, vi } from 'vitest'
++import { untilUp } from '../src/untilUp.ts'
++
++describe('asking a service until it answers', () => {
++  afterEach(() => vi.useRealTimers())
++
++  it('asks again every while until it answers, then no more', async () => {
++    vi.useFakeTimers()
++    const answers = [false, false, true]
++    const attempt = vi.fn(async () => answers.shift() ?? true)
++    untilUp(attempt, 5000)
++    await vi.advanceTimersByTimeAsync(0)
++    expect(attempt).toHaveBeenCalledTimes(1)
++    await vi.advanceTimersByTimeAsync(4999)
++    expect(attempt).toHaveBeenCalledTimes(1)
++    await vi.advanceTimersByTimeAsync(1)
++    expect(attempt).toHaveBeenCalledTimes(2)
++    await vi.advanceTimersByTimeAsync(5000)
++    expect(attempt).toHaveBeenCalledTimes(3)
++    await vi.advanceTimersByTimeAsync(60_000)
++    expect(attempt).toHaveBeenCalledTimes(3)
++  })
++
++  it('waits twice as long after each failure, up to its cap (a page with no service near is not busy asking)', async () => {
++    vi.useFakeTimers()
++    const start = Date.now()
++    const at: number[] = []
++    untilUp(async () => (at.push(Date.now() - start), false), 5000, 20_000)
++    await vi.advanceTimersByTimeAsync(80_000)
++    expect(at).toEqual([0, 5000, 15_000, 35_000, 55_000, 75_000])
++  })
++
++  it('stops asking when called off (another game connects anew)', async () => {
++    vi.useFakeTimers()
++    const attempt = vi.fn(async () => false)
++    const asking = untilUp(attempt, 5000)
++    await vi.advanceTimersByTimeAsync(5000)
++    expect(attempt).toHaveBeenCalledTimes(2)
++    asking.stop()
++    await vi.advanceTimersByTimeAsync(60_000)
++    expect(attempt).toHaveBeenCalledTimes(2)
++  })
++
++  it('tells a try under way that it was called off (a newer connection must not be met by an older probe)', async () => {
++    vi.useFakeTimers()
++    let answer: (v: boolean) => void = () => {}
++    let live: () => boolean = () => true
++    const asking = untilUp((l) => ((live = l), new Promise<boolean>((r) => (answer = r))), 5000)
++    expect(live()).toBe(true)
++    asking.stop()
++    expect(live()).toBe(false)
++    answer(false)
++    await vi.advanceTimersByTimeAsync(60_000)
++  })
++})
+diff --git a/packages/content/test/agree.test.ts b/packages/content/test/agree.test.ts
+new file mode 100644
+index 0000000..8081e93
+--- /dev/null
++++ b/packages/content/test/agree.test.ts
+@@ -0,0 +1,46 @@
++// Lines are written about anyone, and a name slot reads "you" when it is the player: what follows
++// agrees with it ("Suds and a splash: {actor} comes up clean" must not read "you comes").
++
++import { describe, expect, it } from 'vitest'
++import { RuleLibrary, agreeYou, buildSandbox, textOf, type Rule } from '@lsw/engine'
++import { BASE_RULES, buildOntology } from '../src/index.ts'
++
++const Y = '\u0001you\u0002'
++
++describe('a line about the player', () => {
++  it('agrees with "you": the verb after it, the possessive, a sentence it opens', () => {
++    expect(agreeYou(`Suds and a splash: ${Y} comes up clean.`)).toBe('Suds and a splash: you come up clean.')
++    // (only the verb right after it: a second one joined by "and" is the line's to avoid, as the ModSpec asks)
++    expect(agreeYou(`${Y} is soaked. ${Y} carries the scar; ${Y} goes on.`)).toBe('You are soaked. You carry the scar; you go on.')
++    expect(agreeYou(`${Y}'s hands are warm.`)).toBe('Your hands are warm.')
++    expect(agreeYou(`A warm glow mends ${Y}.`)).toBe('A warm glow mends you.')
++    // no verb after it: left as it is
++    expect(agreeYou(`Nothing for ${Y} across the river; ${Y} always know.`)).toBe('Nothing for you across the river; you always know.')
++    // the verbs that end oddly
++    expect(agreeYou(`${Y} dies. ${Y} lies down; ${Y} freezes, ${Y} dozes, ${Y} aches.`)).toBe('You die. You lie down; you freeze, you doze, you ache.')
++    // "you" that is no subject: what follows is not its verb (a review found "hands you thi map")
++    expect(agreeYou(`He hands ${Y} this map, gives ${Y} his word and tells ${Y} stories.`)).toBe('He hands you this map, gives you his word and tells you stories.')
++    expect(agreeYou(`Beside ${Y} lies a stone.`)).toBe('Beside you lies a stone.')
++    // the curly possessive, and a line that opens with a quote
++    expect(agreeYou(`${Y}\u2019s cloak.`)).toBe('Your cloak.')
++    expect(agreeYou(`"${Y} is late," she says.`)).toBe('"You are late," she says.')
++    // the negatives and the -oes verbs
++    expect(agreeYou(`${Y} doesn't move. ${Y} isn't hurt; ${Y} wasn\u2019t seen, and ${Y} hasn't a scratch. ${Y} echoes it.`)).toBe("You don't move. You aren't hurt; you weren\u2019t seen, and you haven't a scratch. You echo it.")
++    expect(agreeYou(`${Y} tiptoes past; ${Y} vetoes it.`)).toBe('You tiptoe past; you veto it.')
++    // nothing marked: nothing touched ("the slime comes" is about someone else)
++    expect(agreeYou('The slime comes closer.')).toBe('The slime comes closer.')
++  })
++
++  it('reads right in the log of an outcome, and about anyone else as written', () => {
++    const rule: Rule = { id: 'test/wash', host: { type: 'item/misc/soap' }, on: 'act/use', doc: 'd', tree: { do: [{ op: 'log', text: { en: 'Suds and a splash: {target} comes up clean.', zh: '{target}洗得干干净净。' } }] }, source: { origin: 'base' } }
++    const run = (on: 'actor' | 'npc') => {
++      const eng = buildSandbox({ entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'npc', type: 'actor/person/herbalist', x: 3, y: 2 }, { key: 'soap', type: 'item/misc/soap', x: 2, y: 2, heldBy: 'actor' }], event: {} }, buildOntology(), new RuleLibrary([...BASE_RULES, rule]))
++      eng.act('use', 'actor', { e: on }, { instrument: { e: 'soap' } })
++      const log = eng.world.fx.find((f) => f.t === 'log' && textOf(f.text).startsWith('Suds'))
++      return log && log.t === 'log' ? [textOf(log.text), textOf(log.text, 'zh')] : undefined
++    }
++    expect(run('actor')).toEqual(['Suds and a splash: you come up clean.', '你洗得干干净净。'])
++    // about another, as written
++    expect(run('npc')?.[0]).toMatch(/^Suds and a splash: (?!you).+ comes up clean\.$/)
++  })
++})
+diff --git a/packages/content/test/controls.test.ts b/packages/content/test/controls.test.ts
+index 2510fd0..c6b1090 100644
+--- a/packages/content/test/controls.test.ts
++++ b/packages/content/test/controls.test.ts
+@@ -170,6 +170,19 @@ describe('the five inputs: one act each', () => {
+     expect(eng.controls.plan('use', { x: 2, y: 2 })).toMatchObject({ verb: 'use', target: { e: 'actor' }, rule: 'use/eat' })
+   })
+ 
++  it('an open door is closed as a door: its name says it is open, the label does not say it twice', () => {
++    const eng = world(undefined, [{ key: 'door', type: 'structure/door/open', x: 2, y: 1 }])
++    expect(eng.controls.plan('hands', { x: 2, y: 1 })!.label).toEqual({ en: 'Close the door', zh: '关上门' })
++  })
++
++  it('a label aimed at oneself says "yourself", not "you"', () => {
++    // a learned answer for a cloth on anyone, oneself too (the live game's bandage)
++    const eng = world('item/material/cloth', [])
++    const on = eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'actor' }, { e: 'held' }))
++    eng.lib.add({ id: 'patch/cloth-binds', host: { type: 'item/material/cloth' }, on: 'act/use', hole: holeKey(on.hole!.rule.id, on.hole!.path), at: on.open!.path, label: { en: 'Bandage {target}', zh: '给{target}包扎' }, tree: { do: [{ op: 'destroy' }] }, source: { origin: 'patch' } })
++    expect(eng.controls.plan('self')!.label).toEqual({ en: 'Bandage yourself', zh: '给自己包扎' })
++  })
++
+   it("on one's own place E meets its top layer: the berries one stands on, though the pointer is on one's picture (over the tile behind) or the cell's own growth is drawn first", () => {
+     const eng = world(undefined, [{ key: 'berries', type: 'item/food/berries', x: 2, y: 2 }])
+     const c = eng.controls
+diff --git a/packages/content/test/newtypes.test.ts b/packages/content/test/newtypes.test.ts
+index 62f1603..6307927 100644
+--- a/packages/content/test/newtypes.test.ts
++++ b/packages/content/test/newtypes.test.ts
+@@ -3,7 +3,7 @@
+ // the icon format, and points at what exists when a patch names a type that does not.
+ 
+ import { describe, expect, it } from 'vitest'
+-import { ModPort, RuleLibrary, artProblems, buildSandbox, holeKey, scenarioEvent, validatePatch, type Patch, type PixelArt, type Rule, type Scenario, type TypeDef } from '@lsw/engine'
++import { ModPort, OntologyIndex, RuleLibrary, artProblems, buildSandbox, deriveRecipes, holeKey, scenarioEvent, snapshot, validatePatch, type Patch, type PixelArt, type Rule, type Scenario, type TypeDef } from '@lsw/engine'
+ import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
+ 
+ const onto = buildOntology()
+@@ -86,6 +86,19 @@ describe('a patch that brings a new thing', () => {
+     expect(eng.world.get('held')!.type).toBe('item/material/bone_ash')
+   })
+ 
++  it('is drawn by its own picture though the patch names no sprite (the art is the picture)', () => {
++    const index = new OntologyIndex({ ...onto, types: { ...onto.types } })
++    const { sprite: _, ...bare } = ingot()
++    index.addType(bare)
++    expect(index.resolve(bare.id).sprite).toBe('art:item/material/bone_ash')
++    // a kind of it with no picture of its own looks like it
++    index.addType({ id: 'item/material/bone_ash/fine', name: { en: 'Fine Bone Ash', zh: '细骨灰' } })
++    expect(index.resolve('item/material/bone_ash/fine').sprite).toBe('art:item/material/bone_ash')
++    // an agent is drawn by its kind's sheet, which a 16x16 picture is not: a new wolf looks like a wolf
++    index.addType({ id: 'actor/creature/beast/wolf/ash_wolf', name: { en: 'Ash Wolf', zh: '灰狼' }, art: INGOT_ART })
++    expect(index.resolve('actor/creature/beast/wolf/ash_wolf').sprite).toBe(index.resolve('actor/creature/beast/wolf').sprite)
++  })
++
+   it('names it by the world\'s conventions: new, under a parent that exists, snake_case, in both languages', () => {
+     const errors = (t: TypeDef) => check({ artifacts: [{ kind: 'type', type: t }, { kind: 'rule', rule: smelt(t.id) }] }).errors.join('\n')
+     expect(errors(ingot({ id: 'item/material/bone' }))).toMatch(/exists already/)
+@@ -103,6 +116,130 @@ describe('a patch that brings a new thing', () => {
+     expect(errors(ingot({ id: 'tile/frost_crust', name: { en: 'Frost Crust', zh: '霜壳' } }))).toMatch(/new kind of ground/)
+   })
+ 
++  it('a thing made at hand or at a station can leave the hand it is made into: a fixture says it is portable', () => {
++    const stool = (tags: string[]) => ingot({ id: 'fixture/furniture/stool', name: { en: 'Stool', zh: '凳子' }, tags, props: { material: 'wood' }, makeup: [{ type: 'item/material/plank', count: 1 }], station: 'hands' })
++    const errors = (t: TypeDef) => check({ artifacts: [{ kind: 'type', type: t }, { kind: 'rule', rule: smelt(t.id) }] }).errors.join('\n')
++    expect(errors(stool([]))).toMatch(/"portable"/)
++    expect(errors(stool(['portable']))).not.toMatch(/portable/)
++    // an item is carried by its kind, and a fixture nobody makes stays where it is set
++    expect(errors(ingot({ station: 'hands' }))).not.toMatch(/portable/)
++    expect(errors({ ...stool([]), station: undefined })).not.toMatch(/portable/)
++    // what the check spares: made without the tag, it comes into the hand and can never be set down
++    const eng = buildSandbox({ entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'plank', type: 'item/material/plank', x: 2, y: 2, heldBy: 'actor' }], event: {} }, onto, lib())
++    const t = stool([])
++    eng.world.onto.addType(t)
++    eng.lib.addType(t, 'test')
++    for (const r of deriveRecipes(eng.world.onto)) eng.recipes.set(r.id, r)
++    expect(eng.controls.craft(eng.recipes.get(t.id)!)).toBe(true)
++    for (let i = 0; i < 5; i++) eng.tick()
++    const made = Object.values(eng.world.state.entities).find((e) => e.type === t.id)!
++    eng.controls.sync()
++    eng.controls.run(eng.controls.plan('use', { x: 3, y: 2 })!)
++    for (let i = 0; i < 5; i++) eng.tick()
++    expect(eng.world.get(made.id)?.place).toMatchObject({ on: 'hand' })
++  })
++
++  it('what cannot be carried is never left in a hand: made there or turned into it there, it is set down at its holder\'s feet', () => {
++    const chairOf = (effects: unknown[]) => {
++      const l = lib()
++      l.add({ id: 'patch/plank-chair', host: { type: 'item/material/plank' }, on: 'act/use', tree: { do: effects } } as Rule, 'test')
++      const eng = buildSandbox({ entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'plank', type: 'item/material/plank', x: 2, y: 2, heldBy: 'actor' }], event: {} }, onto, l)
++      eng.act('use', 'actor', eng.world.cellRef('sandbox', 3, 2))
++      for (let i = 0; i < 3; i++) eng.tick()
++      return Object.values(eng.world.state.entities).find((e) => e.type === 'fixture/furniture/chair')?.place
++    }
++    // the held plank becomes a chair
++    expect(chairOf([{ op: 'transform', into: 'fixture/furniture/chair' }])).toMatchObject({ on: 'tile', x: 2, y: 2 })
++    // a chair made into the maker's hand
++    expect(chairOf([{ op: 'spawn', type: 'fixture/furniture/chair', at: 'actor', into: 'hand' }, { op: 'destroy' }])).toMatchObject({ on: 'tile', x: 2, y: 2 })
++  })
++
++  it('a drink in a vessel names the vessel it leaves: drunk without one, it would be there to drink again', () => {
++    const juice = (props: Record<string, unknown>) => ingot({ id: 'item/vessel/flask/apple_juice', name: { en: 'Apple Juice', zh: '苹果汁' }, tags: ['liquid', 'drinkable'], props: { material: 'glass', food: 3, ...props }, makeup: [{ type: 'item/vessel/flask/empty', count: 1 }] })
++    const errors = (t: TypeDef) => check({ artifacts: [{ kind: 'type', type: t }, { kind: 'rule', rule: smelt(t.id) }] }).errors.join('\n')
++    expect(errors(juice({}))).toMatch(/emptyType/)
++    expect(errors(juice({ emptyType: 'item/vessel/flask/nothing' }))).toMatch(/emptyType/)
++    expect(errors(juice({ emptyType: 'item/vessel/flask/empty' }))).not.toMatch(/emptyType/)
++    // what the check spares: drunk, a flask that names no empty one is still full
++    const t = juice({})
++    const l = lib()
++    l.addType(t, 'test')
++    const eng = buildSandbox({ entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'held', type: t.id, x: 2, y: 2, heldBy: 'actor' }], event: {} }, buildOntology(), l)
++    eng.author(() => eng.world.setProp(eng.world.player, 'hunger', 0))
++    eng.act('use', 'actor', { e: 'actor' })
++    for (let i = 0; i < 3; i++) eng.tick()
++    expect(eng.world.num(eng.world.player, 'hunger')).toBe(3)
++    expect(eng.world.get('held')?.type).toBe(t.id)
++  })
++
++  it('a seed sown by its tag names the crop it becomes: sown without one, it lies on the farmland as a seed', () => {
++    const seed = (props: Record<string, unknown>) => ingot({ id: 'item/seed/moonbean', name: { en: 'Moonbean Seeds', zh: '月豆种子' }, tags: ['plantable'], props: { material: 'plant', ...props }, makeup: [{ type: 'item/material/herb', count: 1 }] })
++    const errors = (t: TypeDef) => check({ artifacts: [{ kind: 'type', type: t }, { kind: 'rule', rule: smelt(t.id) }] }).errors.join('\n')
++    expect(errors(seed({}))).toMatch(/cropType/)
++    expect(errors(seed({ cropType: 'fixture/crop/moonbean/sprout' }))).toMatch(/cropType/)
++    expect(errors(seed({ cropType: 'fixture/crop/carrot/sprout' }))).not.toMatch(/cropType/)
++    // what the check spares: "You sow" it, and it is still a seed, lying on the farmland
++    const t = seed({})
++    const l = lib()
++    l.addType(t, 'test')
++    const eng = buildSandbox({ terrain: Array.from({ length: 5 }, () => Array<string>(5).fill('farmland')), entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'held', type: t.id, x: 2, y: 2, heldBy: 'actor' }], event: {} }, buildOntology(), l)
++    eng.act('use', 'actor', eng.world.cellRef('sandbox', 3, 2))
++    for (let i = 0; i < 3; i++) eng.tick()
++    expect(eng.world.get('held')).toMatchObject({ type: t.id, place: { on: 'tile', x: 3, y: 2 } })
++  })
++
++  it('so does every thing a rule turns by its tag: raw food its cooked one, an empty vessel its full one, ore its bar', () => {
++    const errors = (t: TypeDef) => check({ artifacts: [{ kind: 'type', type: t }, { kind: 'rule', rule: smelt(t.id) }] }).errors.join('\n')
++    const raw = (props: Record<string, unknown>) => ingot({ id: 'item/food/raw_eel', name: { en: 'Raw Eel Steak', zh: '生鳗鱼排' }, tags: ['edible', 'raw', 'cookable'], props: { material: 'meat', food: 2, ...props } })
++    expect(errors(raw({}))).toMatch(/cookedType/)
++    expect(errors(raw({ cookedType: 'item/food/fish/cooked' }))).not.toMatch(/cookedType/)
++    const jug = (props: Record<string, unknown>) => ingot({ id: 'item/vessel/jug_empty', name: { en: 'Empty Jug', zh: '空水罐' }, tags: ['empty-vessel'], props: { material: 'clay', ...props } })
++    expect(errors(jug({}))).toMatch(/waterType/)
++    expect(errors(jug({ waterType: 'item/vessel/flask/water' }))).not.toMatch(/waterType/)
++    const ore = (props: Record<string, unknown>) => ingot({ id: 'item/material/copper_ore', name: { en: 'Copper Ore', zh: '铜矿石' }, tags: ['ore'], props: { material: 'stone', ...props } })
++    expect(errors(ore({}))).toMatch(/smelts/)
++    expect(errors(ore({ smelts: 'item/material/iron_ingot' }))).not.toMatch(/smelts/)
++    // a vessel of a liquid is poured out (water on a fire, oil on the ground) and left empty
++    const pail = (props: Record<string, unknown>) => ingot({ id: 'item/vessel/bucket/brine', name: { en: 'Bucket of Brine', zh: '一桶盐水' }, tags: ['liquid', 'liquid:water'], props: { material: 'wood', ...props } })
++    expect(errors(pail({}))).toMatch(/emptyType/)
++    expect(errors(pail({ emptyType: 'item/vessel/bucket/empty' }))).not.toMatch(/emptyType/)
++  })
++
++  it('a food carries the tag it is eaten (or drunk) by: item/food does not give it, and the base then eats it', () => {
++    const jam = (tags: string[]) => ingot({ id: 'item/food/bone_broth', name: { en: 'Bone Broth', zh: '骨头汤' }, tags, props: { material: 'bone', food: 4 } })
++    const errors = (t: TypeDef) => check({ artifacts: [{ kind: 'type', type: t }, { kind: 'rule', rule: smelt(t.id) }] }).errors.join('\n')
++    expect(errors(jam(['warm']))).toMatch(/eaten by the tag "edible"/)
++    // something that nourishes under another parent needs it too
++    expect(errors(ingot({ props: { material: 'bone', food: 2 } }))).toMatch(/eaten by the tag "edible"/)
++    expect(errors(jam(['edible', 'warm']))).not.toMatch(/edible/)
++    // eaten, it fills by its food: a dish without one is eaten and gone, and fills nothing
++    expect(errors({ ...jam(['edible']), props: { material: 'bone' } })).toMatch(/props\.food/)
++    expect(errors(jam(['edible']))).not.toMatch(/props\.food/)
++    expect(errors(jam(['drinkable', 'liquid']))).not.toMatch(/edible/)
++    // a potion is drunk by its kind: one the world learns needs no tag of its own
++    const potion = ingot({ id: 'item/potion/frost_tonic', name: { en: 'Frost Tonic', zh: '霜之药剂' }, tags: ['cold'], props: { material: 'glass' } })
++    expect(errors(potion)).not.toMatch(/edible|drinkable/)
++    expect(new OntologyIndex({ ...onto, types: { ...onto.types, [potion.id]: potion } }).resolve(potion.id).tags).toContain('drinkable')
++    // with the tag, the base's own eating answers it: the hole is not asked of every new food
++    const lib2 = lib()
++    lib2.addType(jam(['edible']), 'test')
++    const sc: Scenario = { entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'held', type: 'item/food/bone_broth', x: 2, y: 2, heldBy: 'actor' }], event: { kind: 'act/use', actor: 'actor', instrument: 'held', target: 'actor', host: 'held' } }
++    const onto2 = buildOntology()
++    onto2.types['item/food/bone_broth'] = jam(['edible'])
++    const eng = buildSandbox(sc, onto2, lib2)
++    expect(eng.resolveEvent(scenarioEvent(sc, eng)).rule?.id).toBe('use/eat')
++  })
++
++  it('a thing worn names its slot: item/clothing gives none, and wearing does nothing without one', () => {
++    const errors = (t: TypeDef) => check({ artifacts: [{ kind: 'type', type: t }, { kind: 'rule', rule: smelt(t.id) }] }).errors.join('\n')
++    const scarf = (props: Record<string, unknown>) => ingot({ id: 'item/clothing/bone_scarf', name: { en: 'Bone Scarf', zh: '骨围巾' }, tags: ['warm'], props: { material: 'bone', ...props } })
++    expect(errors(scarf({}))).toMatch(/props\.slot/)
++    expect(errors(scarf({ slot: 'scarf' }))).toMatch(/props\.slot/)
++    expect(errors(scarf({ slot: 'neck' }))).not.toMatch(/slot/)
++    // a weapon has its slot from its kind
++    expect(errors(ingot({ id: 'item/weapon/blunt/bone_mace', name: { en: 'Bone Mace', zh: '骨锤' }, tags: [], props: { material: 'bone' } }))).not.toMatch(/slot/)
++  })
++
+   it('requires positive safe integers for makeup counts, keeping chance separate', () => {
+     for (const count of [0.5, 0, -1, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+       const res = check({ artifacts: [{ kind: 'type', type: ingot({ makeup: [{ type: 'item/material/bone', count }] }) }, { kind: 'rule', rule: smelt() }] })
+@@ -180,8 +317,42 @@ describe('a patch that brings a status', () => {
+     expect(eng.busy(eng.world.get('actor')!)).toBe(true)
+   })
+ 
++  it('draws over a cell as over a thing: the cell tells the overlay its learned status names', () => {
++    const eng = buildSandbox(scenario, onto, lib())
++    expect(new ModPort(eng).submit(undefined, { artifacts: [{ kind: 'status', status: { id: 'muddy', name: { en: 'Muddy', zh: '泥泞' }, overlay: 'wet' } }] }).errors).toEqual([])
++    const cell = eng.world.cellRef('sandbox', 1, 1)
++    eng.author(() => eng.world.setStatus(cell, 'muddy', 99))
++    const tile = snapshot(eng).tiles.find((t) => t.x === 1 && t.y === 1)
++    expect(tile?.statuses).toContain('muddy')
++    expect(tile?.overlays).toEqual({ muddy: 'wet' })
++  })
++
++  it('says plainly that a thing alone answers nothing: the event still needs a rule', () => {
++    const res = check({ artifacts: [{ kind: 'type', type: ingot() }] })
++    expect(res.ok).toBe(false)
++    expect(res.errors.join()).not.toMatch(/Cannot read/)
++    expect(res.errors.join()).toMatch(/no rule/)
++  })
++
++  it('never holds anyone still for good: a status that immobilizes ends, as given or as defined', () => {
++    // a new one names how long it lasts
++    const still = { id: 'glued', name: { en: 'Glued', zh: '粘住' }, immobilize: true }
++    const alone = (status: object) => validatePatch({ artifacts: [{ kind: 'status', status: status as never }] }, { ontology: onto, library: lib() })
++    expect(alone(still).errors.join()).toMatch(/holds.*still.*duration/)
++    expect(alone({ ...still, duration: 30 }).errors).toEqual([])
++    // the world's own `asleep` has no length of its own (the engine gives one): a patch that gives it says how long
++    const lull = (duration?: number): Patch => ({ artifacts: [{ kind: 'rule', rule: { ...smelt(), id: 'patch/bone-lulls', tree: { do: [{ op: 'addStatus', status: 'asleep', ...(duration !== undefined && { duration }) }] } } }] })
++    expect(check(lull()).errors.join()).toMatch(/asleep.*never end/)
++    expect(check(lull(-1)).errors.join()).toMatch(/asleep.*never end/)
++    expect(check(lull(60)).errors.join()).not.toMatch(/never end/)
++    // a duration of 0 is for good too, though the status's own runs out (frozen lasts 40 ticks)
++    const freeze = (duration: number): Patch => ({ artifacts: [{ kind: 'rule', rule: { ...smelt(), id: 'patch/bone-freezes', tree: { do: [{ op: 'addStatus', status: 'frozen', duration }] } } }] })
++    expect(check(freeze(0)).errors.join()).toMatch(/frozen.*never end/)
++    expect(check(freeze(20)).errors.join()).not.toMatch(/never end/)
++  })
++
+   it('cannot redefine a shared status or an earlier status in the same patch', () => {
+-    const status = { id: 'test_still', duration: 30, immobilize: true }
++    const status = { id: 'test_still', name: { en: 'Still', zh: '静止' }, duration: 30, immobilize: true }
+     const library = lib()
+     library.addStatus(status)
+     const changed = { ...status, immobilize: false }
+@@ -189,13 +360,22 @@ describe('a patch that brings a status', () => {
+     expect(check({ artifacts: [{ kind: 'status', status }, { kind: 'status', status: changed }] }).errors.join()).toMatch(/different definition/)
+   })
+ 
++  it('names a new status (the things that have it show it), in both languages', () => {
++    const errors = (status: object) => validatePatch({ artifacts: [{ kind: 'status', status: status as never }] }, { ontology: onto, library: lib() }).errors.join()
++    expect(errors({ id: 'honeyed', overlay: 'oil' })).toMatch(/a new status says what it is called/)
++    expect(errors({ id: 'honeyed', name: { en: 'Honeyed', zh: '' }, overlay: 'oil' })).toMatch(/a new status says what it is called/)
++    expect(errors({ id: 'honeyed', name: { en: 'Honeyed', zh: '抹了蜂蜜' }, overlay: 'oil' })).toBe('')
++    // a status the world has already, the same again: no name asked of it
++    expect(errors(onto.statuses.wet)).toBe('')
++  })
++
+   it('accepts identical definitions regardless of object key order', () => {
+     const frozen = onto.statuses.frozen
+     const reordered = Object.fromEntries(Object.entries(frozen).reverse()) as typeof frozen
+-    const status = { id: 'test_still', props: { speed: 1, def: 2 }, duration: 30 }
++    const status = { id: 'test_still', name: { en: 'Still', zh: '静止' }, props: { speed: 1, def: 2 }, duration: 30 }
+     const library = lib()
+     library.addStatus(status)
+-    expect(validatePatch({ artifacts: [{ kind: 'status', status: reordered }, { kind: 'status', status: { duration: 30, props: { def: 2, speed: 1 }, id: status.id } }] }, { ontology: onto, library }).ok).toBe(true)
++    expect(validatePatch({ artifacts: [{ kind: 'status', status: reordered }, { kind: 'status', status: { duration: 30, props: { def: 2, speed: 1 }, name: { zh: '静止', en: 'Still' }, id: status.id } }] }, { ontology: onto, library }).ok).toBe(true)
+     expect(validatePatch({ artifacts: [{ kind: 'status', status }, { kind: 'status', status: structuredClone(status) }] }, { ontology: onto, library: lib() }).ok).toBe(true)
+   })
+ })
+diff --git a/packages/content/test/replay-order.test.ts b/packages/content/test/replay-order.test.ts
+new file mode 100644
+index 0000000..0bff408
+--- /dev/null
++++ b/packages/content/test/replay-order.test.ts
+@@ -0,0 +1,39 @@
++// A patch does the same the first time (its act replayed when the answer comes) as every time after
++// (the act resolved by it): an impulse it sends before its host is used up meets the host still there.
++
++import { describe, expect, it } from 'vitest'
++import { ModPort, RuleLibrary, buildSandbox, holeKey, type Engine, type Patch } from '@lsw/engine'
++import { BASE_RULES, buildOntology } from '../src/index.ts'
++
++const scene = () => buildSandbox({ entities: [
++  { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
++  { key: 'held', type: 'item/material/stone', x: 2, y: 2, heldBy: 'actor' },
++  { key: 'stick', type: 'item/material/stick', x: 2, y: 1 },
++], event: {} }, buildOntology(), new RuleLibrary(BASE_RULES))
++
++/** The stone used on a stick takes the stick into itself and is used up with it (the strips-and-stick club, 2026-10-10). */
++const patch = (eng: Engine): Patch => {
++  const res = eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'stick' }, { e: 'held' }))
++  return { artifacts: [{ kind: 'rule', rule: { id: 'patch/stone-swallows-stick', host: { type: 'item/material/stone' }, on: 'act/use', hole: holeKey(res.hole!.rule.id, res.hole!.path), at: [], doc: 'd', label: { en: 'Bind', zh: '绑' },
++    tree: { if: { is: { role: 'target', sel: { type: 'item/material/stick' } } }, then: { do: [{ op: 'spawn', type: 'item/weapon/blunt/club', at: 'actor' }, { op: 'emit', impulse: 'taken', to: 'target', other: 'host', params: { into: 'contents' } }, { op: 'destroy' }] }, else: { undefined: true } } } }] }
++}
++
++describe('a patch the first time and after', () => {
++  it('uses the stick up when its act is replayed on the answer, as when the act is resolved by it', () => {
++    // the first time: asked, answered later, the act replayed
++    const first = scene()
++    const port = new ModPort(first)
++    port.provider = { resolve: () => new Promise(() => {}) }
++    port.timeoutTicks = 10_000
++    const p = patch(first)
++    first.act('use', 'actor', { e: 'stick' }, { instrument: { e: 'held' } })
++    expect(port.records[0]?.status).toBe('pending')
++    expect(port.submit(port.records[0].id, p).errors).toEqual([])
++    expect(first.world.get('stick')).toBeUndefined()
++    // every time after: the act resolved by the patch
++    const after = scene()
++    new ModPort(after).submit(undefined, patch(after))
++    after.act('use', 'actor', { e: 'stick' }, { instrument: { e: 'held' } })
++    expect(after.world.get('stick')).toBeUndefined()
++  })
++})
+diff --git a/packages/content/test/rules.test.ts b/packages/content/test/rules.test.ts
+index 50191c6..9dd509c 100644
+--- a/packages/content/test/rules.test.ts
++++ b/packages/content/test/rules.test.ts
+@@ -541,6 +541,8 @@ describe('the Mod port', () => {
+     expect(spec.primitives.emit).toBeTruthy()
+     expect(spec.impulses.strike).toBeTruthy()
+     expect(spec.ontology.statuses.map((s) => s.id)).toContain('notched')
++    // a status is named for the model as a type is: `stirred` is the water's, not "agitated"
++    expect(spec.ontology.statuses.find((s) => s.id === 'stirred')?.name).toBe('stirred up')
+ 
+     const v = port.submit(rec.id, stonePatch())
+     expect(v.errors).toEqual([])
+@@ -567,6 +569,38 @@ describe('the Mod port', () => {
+     expect(eng.lib.rules.has('patch/stone-wedges-dead-tree')).toBe(true)
+   })
+ 
++  it('lets the host adopt what its own answer brings before taking it, and puts it back when the answer is refused', async () => {
++    const calls: string[] = []
++    for (const [patch, taken] of [[stonePatch(), true], [{ artifacts: [{ kind: 'rule', rule: { id: 'patch/broken', host: { type: 'item/material/stone' }, on: 'act/use' } }] } as unknown as Patch, false]] as const) {
++      const eng = sandbox(stoneScenario())
++      const port = new ModPort(eng)
++      port.provider = { resolve: async () => patch }
++      // put back before the hole's default runs, so the default sees the world's definitions
++      const ranDefault = () => eng.world.fx.some((f) => f.t === 'log' && typeof f.text === 'object' && f.text.en === 'Nothing happens.')
++      port.adopt = (p) => (calls.push(`adopt ${p.artifacts.length}`), { restore: () => calls.push(`restore${ranDefault() ? ' after the default' : ''}`) })
++      stoneOnTree(eng)
++      await new Promise((r) => setTimeout(r, 0))
++      expect(port.records[0].status).toBe(taken ? 'patched' : 'rejected')
++    }
++    expect(calls).toEqual(['adopt 2', 'adopt 1', 'restore'])
++  })
++
++  it('lets the ground go when the outcome comes: a cell asked about takes the next act', () => {
++    const eng = sandbox(stoneScenario())
++    const port = new ModPort(eng)
++    port.provider = working
++    const ground = cellOf(eng, 2, 3)
++    eng.act('use', 'actor', ground)
++    expect(port.records[0]?.status).toBe('pending')
++    expect(eng.world.get((ground as { e: string }).e)!.frozenBy).toBe(port.records[0].id)
++    for (let i = 0; i < 120; i++) eng.tick()
++    expect(port.records[0].status).toBe('fallback')
++    // the cell's own thing is kept for its id, not in the state: it is let go all the same
++    expect(eng.world.get((ground as { e: string }).e)!.frozenBy).toBeUndefined()
++    eng.act('put', 'actor', ground, { instrument: { e: 'stone' } })
++    expect(eng.world.posOf(eng.world.get('stone')!)).toMatchObject({ x: 2, y: 3 })
++  })
++
+   it('credits a shared patch to this game\'s own request (a revision of its answer), and only that', () => {
+     const eng = sandbox(stoneScenario())
+     const port = new ModPort(eng)
+diff --git a/packages/content/test/world.test.ts b/packages/content/test/world.test.ts
+index abb8ddb..230598b 100644
+--- a/packages/content/test/world.test.ts
++++ b/packages/content/test/world.test.ts
+@@ -104,6 +104,19 @@ describe('people', () => {
+     expect(talk(eng)).toBe('Get under something.')
+   })
+ 
++  it('asked for news with no deed to tell, give the fresh news of the place (their topic line) before "quiet days"', () => {
++    const eng = place({ lines: [L('topic:theft', 'I saw that.'), L('default', 'Hm.')] })
++    eng.author(() => (eng.world.setFact('topic.theft', 1), eng.world.setFact('topic.theft.days', 2)))
++    const ask = () => {
++      eng.world.fx = []
++      eng.controls.talk('hesper', 'ask')
++      return eng.world.fx.flatMap((f) => (f.t === 'say' && f.who === 'hesper' ? [typeof f.text === 'string' ? f.text : f.text.en] : []))
++    }
++    expect(ask()).toEqual(['I saw that.'])
++    // said once: then there is nothing more to tell
++    expect(ask()).toEqual(['Nothing much has happened. Quiet days.'])
++  })
++
+   it('remember what happened: a topic line is said once while it is fresh', () => {
+     const eng = place({ lines: [L('topic:theft', 'I saw that.'), L('default', 'Hm.')] })
+     eng.world.get('hesper')!.npc!.memory = { talked: 1 }
+@@ -132,6 +145,13 @@ describe('people', () => {
+     expect(scheduleFor(eng, h)[0].x).toBe(2)
+     fact(eng, 'ford.crossed', 1)
+     expect(scheduleFor(eng, h)[0].x).toBe(3)
++    // a variant may join a fact and the weather: both holding, it is the more specific
++    const both = place({ schedules: [{ key: 'default', entries: at(1) }, { key: 'storm', entries: at(2) }, { key: 'fact:ford.crossed', entries: at(3) }, { key: 'fact:ford.crossed+storm', entries: at(4) }] })
++    const h2 = both.world.get('hesper')!
++    fact(both, 'ford.crossed', 1)
++    expect(scheduleFor(both, h2)[0].x).toBe(3)
++    both.world.weather = [{ day: 1, weather: 'storm' }]
++    expect(scheduleFor(both, h2)[0].x).toBe(4)
+     // an outcome may change its host's script (design.md §5.4): a ferrykeeper who cannot go on takes shelter
+     eng.world.state.maps.sandbox.anchors = { shelter: [6, 6] }
+     const stuck: GameEvent = { kind: 'stuck', host: { e: 'hesper' }, roles: {}, params: { activity: 'at 3' }, origin: 'world' }
+diff --git a/packages/modder/test/modder.test.ts b/packages/modder/test/modder.test.ts
+index 3d0869a..7990a3f 100644
+--- a/packages/modder/test/modder.test.ts
++++ b/packages/modder/test/modder.test.ts
+@@ -7,7 +7,7 @@ import { Server } from 'node:http'
+ import { describe, expect, it } from 'vitest'
+ import { ModPort, RuleLibrary, buildSandbox, holeKey, patchKey, placePatch, restoreLibrary, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@lsw/engine'
+ import { BASE_RULES, STORY_RULES, buildOntology } from '@lsw/content'
+-import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, qualifyTerrains, scriptFromFile, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
++import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, qualifyTerrains, scriptFromFile, stationFromRules, normalizePatch, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '../src/index.ts'
+ 
+ const onto = buildOntology()
+ const BASE = [...BASE_RULES, ...STORY_RULES]
+@@ -660,7 +660,7 @@ describe('integrity', () => {
+ 
+   it('commits to the shared log only what stands on the shared library alone', async () => {
+     const glow: Rule = { ...bindRule('patch/stone-glows'), tree: { if: STONY, then: { do: [{ op: 'addStatus', status: 'glowing', duration: 30 }] }, else: { undefined: true } }, tests: [] }
+-    const status = { id: 'glowing', duration: 30 }
++    const status = { id: 'glowing', name: { en: 'Glowing', zh: '发光' }, duration: 30 }
+     // the first draft leans on a status only this client has (a local patch of its own); the repair carries it
+     const { model, calls } = scripted([patchOf(glow), { artifacts: [{ kind: 'status', status }, { kind: 'rule', rule: glow }] }])
+     const { modder, library } = setup(model)
+@@ -712,6 +712,49 @@ describe('deterministic repairs', () => {
+     }
+   })
+ 
++  it('reads a rule the model wrote without its place (no on, no host) as a rule, bare or flattened beside its kind', () => {
++    // 2026-10-10, Opus 5.5 low (frostcap used on oneself): the harness sets host and on now, so the model leaves them out
++    const tree = { if: { same: ['actor', 'target'] }, then: { do: [{ op: 'destroy' }] }, else: { undefined: true } }
++    const bare = normalizePatch({ patch: { artifacts: [{ id: 'patch/frostcap-eaten-raw', doc: 'd', tree }] } })
++    expect(bare.patch!.artifacts).toEqual([{ kind: 'rule', rule: { id: 'patch/frostcap-eaten-raw', doc: 'd', tree } }])
++    const flat = normalizePatch({ patch: { artifacts: [{ kind: 'rule', id: 'patch/frostcap-eaten-raw', doc: 'd', tree }] } })
++    expect(flat.patch!.artifacts).toEqual([{ kind: 'rule', rule: { id: 'patch/frostcap-eaten-raw', doc: 'd', tree } }])
++    expect(flat.fixes.join()).toMatch(/wrapped rule/)
++    // a type is not taken for a rule
++    const type = normalizePatch({ patch: { artifacts: [{ kind: 'type', id: 'item/material/x', name: { en: 'X', zh: 'X' } }] } })
++    expect(type.patch!.artifacts[0]).toMatchObject({ kind: 'type', type: { id: 'item/material/x' } })
++  })
++
++  it('reads the station of a new thing off the branch that makes it on a workbench', () => {
++    const strips = { id: 'item/material/leather_strips', name: { en: 'Leather Strips', zh: '皮条' }, tags: ['fiber'], props: { material: 'leather' }, makeup: [{ type: 'item/material/leather', count: 1 }] }
++    const onWorkbench: Rule = { id: 'patch/leather-strips', host: { type: 'item/material/leather' }, on: 'act/use', doc: 'd', tree: { if: { is: { role: 'target', sel: { type: 'fixture/craft/workbench' } } }, then: { do: [{ op: 'transform', into: strips.id }] }, else: { undefined: true } } }
++    const made = (rule: Rule, type: object = strips) => stationFromRules({ artifacts: [{ kind: 'type', type: type as never }, { kind: 'rule', rule }] }, onto)
++    const { patch, fixes } = made(onWorkbench)
++    expect((patch.artifacts[0] as { type: { station?: string } }).type.station).toBe('workbench')
++    expect(fixes).toHaveLength(1)
++    // made two at a time by the rule: the recipe makes two (yields), whether or not the designer named the station
++    const two: Rule = { ...onWorkbench, tree: { if: { is: { role: 'target', sel: { type: 'fixture/craft/workbench' } } }, then: { do: [{ op: 'spawn', type: strips.id, at: 'target', count: 2 }, { op: 'destroy' }] }, else: { undefined: true } } }
++    expect((made(two).patch.artifacts[0] as { type: { yields?: number; station?: string } }).type).toMatchObject({ station: 'workbench', yields: 2 })
++    expect((made(two, { ...strips, station: 'workbench' }).patch.artifacts[0] as { type: { yields?: number } }).type.yields).toBe(2)
++    // made in a cauldron (no station), or said already: left alone
++    expect(made({ ...onWorkbench, tree: { if: { is: { role: 'target', sel: { type: 'fixture/craft/cauldron' } } }, then: { do: [{ op: 'transform', into: strips.id }] }, else: { undefined: true } } }).fixes).toEqual([])
++    expect(made(onWorkbench, { ...strips, station: 'hands' }).fixes).toEqual([])
++    // the shop's stall is a station of buying, not of making
++    expect(made({ ...onWorkbench, tree: { if: { is: { role: 'target', sel: { type: 'fixture/furniture/stall/trade' } } }, then: { do: [{ op: 'transform', into: strips.id }] }, else: { undefined: true } } }).fixes).toEqual([])
++  })
++
++  it('makes a fixture it gives a station portable: made into the hand, it can be set down', () => {
++    const stool = { id: 'fixture/furniture/stool', name: { en: 'Stool', zh: '凳子' }, tags: ['wooden'], props: { material: 'wood' }, makeup: [{ type: 'item/material/plank', count: 1 }] }
++    const rule: Rule = { id: 'patch/plank-stool', host: { type: 'item/material/plank' }, on: 'act/use', doc: 'd', tree: { if: { is: { role: 'target', sel: { type: 'fixture/craft/workbench' } } }, then: { do: [{ op: 'transform', into: stool.id }] }, else: { undefined: true } } }
++    const { patch, fixes } = stationFromRules({ artifacts: [{ kind: 'type', type: stool as never }, { kind: 'rule', rule }] }, onto)
++    expect((patch.artifacts[0] as { type: { station?: string; tags?: string[] } }).type).toMatchObject({ station: 'workbench', tags: ['wooden', 'portable'] })
++    expect(fixes.join()).toMatch(/portable/)
++    expect(validatePatch(patch, { ontology: onto, library: new RuleLibrary(BASE) }).errors.join()).not.toMatch(/portable/)
++    // a station the designer named, with its yields too: made portable all the same
++    const named = stationFromRules({ artifacts: [{ kind: 'type', type: { ...stool, station: 'workbench', yields: 2 } as never }, { kind: 'rule', rule }] }, onto)
++    expect((named.patch.artifacts[0] as { type: { tags?: string[] } }).type.tags).toContain('portable')
++  })
++
+   it('reads a bare terrain id as its tile type, in the host and in conditions', () => {
+     // 2026-10-03, Kimi K3: {"kind": "tile", "type": "bush"} for the bush tile (the kind goes in normalizePatch)
+     const r: Rule = { id: 'patch/bush-chop', host: { type: 'bush' }, on: 'impulse/strike', doc: 'd', tree: { if: { is: { role: 'other', sel: { type: 'grass' } } }, then: { do: [{ op: 'vfx', fx: 'leaves' }] } } }
+@@ -830,7 +873,7 @@ describe('the router: local, then find, then create', () => {
+   const leaves = (type: string): Rule => ({ id: 'patch/stone-on-creature-leaves', host: { type: 'actor/creature' }, on: 'impulse/offered', doc: `A creature offered a stone leaves ${type} behind, and not again for a while.`, tree: { if: { all: [STONY, { not: { has: { role: 'host', status: 'stirred' } } }] }, then: { do: [{ op: 'spawn', type, at: 'host' }, { op: 'addStatus', status: 'stirred' }, { op: 'log', text: { en: 'Something drops.', zh: '掉下了东西。' } }] } } })
+   const INGOT_TYPE = { id: 'item/material/steel_ingot', name: { en: 'Steel Ingot', zh: '钢锭' }, tags: ['metal'], props: { material: 'iron' }, makeup: [{ type: 'item/material/iron_ore', count: 1 }] }
+ 
+-  function router(o: { local: unknown; find?: unknown; create?: unknown; art?: (n: number) => unknown; onArt?: () => void }) {
++  function router(o: { local: unknown; find?: unknown; create?: unknown; art?: (n: number) => unknown; onArt?: () => void; onCreate?: () => void }) {
+     const seen: { purpose?: string; system: string; last: string }[] = []
+     let arts = 0
+     const model = new ScriptedModel((messages, opts) => {
+@@ -839,7 +882,7 @@ describe('the router: local, then find, then create', () => {
+       if (opts.purpose === 'review') return { verdict: 'ship' }
+       if (opts.purpose === 'reflect') return {}
+       if (opts.purpose === 'art') return (o.onArt?.(), o.art?.(arts++) ?? INGOT_ART) as object
+-      if (last.startsWith('# Create')) return o.create as object
++      if (last.startsWith('# Create')) return (o.onCreate?.(), o.create) as object
+       if (last.startsWith('# What you asked for')) return o.find as object
+       return o.local as object
+     })
+@@ -882,6 +925,59 @@ describe('the router: local, then find, then create', () => {
+     expect(library.lib.types).toEqual([])
+   })
+ 
++  it('a draft that makes a thing the world has no type for goes to create, not to a repair that swaps it for a known one', async () => {
++    const req = request()
++    let during: unknown
++    const { model, seen } = router({
++      // the designer writes the spawn at once, as if the thing existed (a recalled episode named it)
++      local: { patch: { artifacts: [{ kind: 'rule', rule: leaves('item/material/steel_ingot') }] } },
++      create: { patch: { artifacts: [{ kind: 'type', type: INGOT_TYPE }, { kind: 'rule', rule: leaves('item/material/steel_ingot') }] } },
++      onCreate: () => (during = modder.progressOf(req.id)),
++    })
++    const { modder, state, library } = setup(model, undefined, 'live')
++    const reply = await modder.resolve({ request: req })
++    expect(reply.outcome).toBe('accepted')
++    expect(state.episode(reply.episode!)).toMatchObject({ route: ['local', 'create'], created: ['item/material/steel_ingot'] })
++    expect(seen.find((x) => x.last.startsWith('# Create'))?.last).toContain('item/material/steel_ingot (Steel Ingot)')
++    // the player is told what is being made in either language: the id's words stand for the Chinese name it has not got yet
++    expect(during).toEqual({ stage: 'create', creating: [{ en: 'Steel Ingot', zh: 'Steel Ingot' }] })
++    expect(library.lib.types.map((t) => t.id)).toContain('item/material/steel_ingot')
++  })
++
++  it('takes a slip of a known id for a slip, and a malformed draft for the repair, not for a creation or a crash', async () => {
++    const { unknownMade } = await import('../src/pipeline.ts')
++    const spawning = (type: unknown) => ({ artifacts: [{ kind: 'rule' as const, rule: { ...leaves('x'), tree: { if: STONY, then: { do: [{ op: 'spawn', type, at: 'host' }] } } } as never }] })
++    expect(unknownMade(spawning('item/material/steel_ingot'), onto).map((c) => c.id)).toEqual(['item/material/steel_ingot'])
++    expect(unknownMade(spawning('item/food/berrie'), onto)).toEqual([])
++    expect(unknownMade({ artifacts: [{ kind: 'rule', rule: { ...leaves('x'), tree: { do: { op: 'spawn' } } } as never }] }, onto)).toEqual([])
++    expect(unknownMade({ artifacts: [{ kind: 'rule', rule: { ...leaves('x'), tree: { do: [null] } } as never }] }, onto)).toEqual([])
++    expect(stationFromRules({ artifacts: [{ kind: 'type' } as never, { kind: 'rule', rule: { ...leaves('x'), tree: { if: null, then: { do: [null] } } } as never }] }, onto).fixes).toEqual([])
++  })
++
++  it('does not design for a thing only the asking client knows (its own kind, or one its save kept): no answer could be shared', async () => {
++    let calls = 0
++    const model: Model = { name: 'scripted:counting', chat: async () => (calls++, { content: '{}' }) as never }
++    const { modder } = setup(model, undefined, 'live')
++    const req = request()
++    const local = { id: 'item/clothing/wool_scarf', name: { en: 'Wool Scarf', zh: '羊毛围巾' }, tags: ['wearable'], props: { material: 'cloth', slot: 'neck' }, makeup: [{ type: 'item/material/wool', count: 1 }] }
++    req.event.host = { ...req.event.host, type: local.id } as never
++    const reply = await modder.resolve({ request: req, workspace: { patches: { rules: [], types: [local as never], statuses: [] } } })
++    expect(reply.outcome).toBe('failed')
++    expect(reply.diagnostics?.join()).toMatch(/known only to this client/)
++    expect(calls).toBe(0)
++  })
++
++  it('draws a new creature too, but leaves it its kind\'s look: a picture is no animated sheet', async () => {
++    const { model } = router({ local: {} })
++    const { modder } = setup(model, undefined, 'live')
++    const drawn = (await (modder as unknown as { drawAll: (m: Model, p: Patch, c: unknown[]) => Promise<Patch> }).drawAll(model, {
++      artifacts: [{ kind: 'type', type: { id: 'actor/creature/beast/wolf/ash_wolf', name: { en: 'Ash Wolf', zh: '灰狼' } } as never }, { kind: 'type', type: { id: 'item/material/ash_fur', name: { en: 'Ash Fur', zh: '灰毛' } } as never }],
++    }, [])).artifacts.map((a) => (a.kind === 'type' ? a.type : undefined))
++    expect(drawn[0]).toMatchObject({ art: INGOT_ART })
++    expect(drawn[0]?.sprite).toBeUndefined()
++    expect(drawn[1]).toMatchObject({ art: INGOT_ART, sprite: 'art:item/material/ash_fur' })
++  })
++
+   it('creates what the world does not have, with its picture, and says so while it works', async () => {
+     let during: unknown
+     const req = request()
+@@ -999,6 +1095,23 @@ describe('the design prompt', () => {
+ 
+ const noTestsRule = (r: Rule): Rule => ({ ...r, tests: undefined })
+ 
++describe('a failure of the harness itself', () => {
++  it('keeps where it came from and the answer it failed on, so it can be found again', async () => {
++    const model = new ScriptedModel((_m, opts) => (opts.purpose === 'reflect' ? {} : opts.purpose === 'review' ? { verdict: 'ship' } : { patch: patchOf(noTestsRule(bindRule())) }))
++    const { modder, state, library } = setup(model, undefined, 'live')
++    // (2026-10-10: "Maximum call stack size exceeded" on a strike from a feather, with nothing kept to see why)
++    library.validate = () => {
++      throw new RangeError('Maximum call stack size exceeded')
++    }
++    const reply = await modder.resolve({ request: request() })
++    const ep = state.episode(reply.episode!)!
++    expect(ep).toMatchObject({ outcome: 'failed', error: 'Maximum call stack size exceeded' })
++    expect(ep.stack).toMatch(/at /)
++    expect(ep.attempts.at(-1)).toMatchObject({ errors: [expect.stringMatching(/harness failed on this answer/)] })
++    expect(ep.attempts.at(-1)!.raw).toMatch(/patch/)
++  })
++})
++
+ describe('the live profile', () => {
+   /** Live design calls carry no tools; offline ones do. */
+   function liveModel(o: { live: (n: number) => unknown; offline?: (n: number, m: ChatMessage[]) => unknown; review?: (n: number, m: ChatMessage[]) => unknown; reflect?: (n: number, m: ChatMessage[]) => unknown }) {
+@@ -1153,7 +1266,7 @@ describe('the live profile', () => {
+     await modder.settled()
+     expect(library.lib.rules.has('patch/stone-stills-slime')).toBe(false)
+     expect(library.lib.rules.has('patch/stone-stills-creature')).toBe(true)
+-    expect(library.since(0).map((e) => ('remove' in e ? `-${e.remove}` : `+${e.rules.join()}`))).toEqual(['+patch/stone-stills-slime', '-patch/stone-stills-slime', '+patch/stone-stills-creature'])
++    expect(library.since(0).map((e) => ('remove' in e ? `-${e.remove}` : 'patch' in e ? `+${e.rules.join()}` : 'removeType' in e ? `-type ${e.removeType}` : `-status ${e.removeStatus}`))).toEqual(['+patch/stone-stills-slime', '-patch/stone-stills-slime', '+patch/stone-stills-creature'])
+     const rev = state.episodes().map((e) => state.episode(e.id)!).find((e) => e.revises === first.episode)!
+     expect(rev.outcome).toBe('accepted')
+   })
+diff --git a/packages/modder/test/prune.test.ts b/packages/modder/test/prune.test.ts
+index 8cbc918..c0c2989 100644
+--- a/packages/modder/test/prune.test.ts
++++ b/packages/modder/test/prune.test.ts
+@@ -38,6 +38,55 @@ const answer = (id: string, type?: object, at: string[] = []): Patch => ({
+ })
+ 
+ describe('library prune', () => {
++  it('of two learned things by one name, forgets the later (the other name), keeping the one learned first', () => {
++    const dir = mkdtempSync(join(tmpdir(), 'lsw-prune-'))
++    const at = new Date().toISOString()
++    const bead = (id: string) => ({ id, name: { en: id.endsWith('glass_bead') ? 'Glass Bead' : 'Glassy Bead', zh: '玻璃珠' }, tags: [], props: { material: 'glass' }, makeup: [{ type: 'item/material/stone', count: 1 }] })
++    // the second came in under an older validator that did not compare Chinese names
++    const log = [
++      { seq: 1, at, patch: { artifacts: [{ kind: 'type', type: bead('item/material/glass_bead') }] }, rules: [] },
++      { seq: 2, at, patch: { artifacts: [{ kind: 'type', type: bead('item/material/glassy_bead') }] }, rules: [] },
++    ]
++    writeFileSync(join(dir, 'library.jsonl'), log.map((e) => JSON.stringify(e)).join('\n') + '\n')
++    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
++    library.prune()
++    expect(library.lib.types.map((t) => t.id)).toEqual(['item/material/glass_bead'])
++  })
++
++  it('keeps a revised thing made of something learned after it was first brought', () => {
++    const dir = mkdtempSync(join(tmpdir(), 'lsw-prune-'))
++    const at = new Date().toISOString()
++    const bead = (made: string) => ({ id: 'item/material/glass_bead', name: { en: 'Glass Bead', zh: '玻璃珠' }, tags: [], props: { material: 'glass' }, makeup: [{ type: made, count: 1 }] })
++    const grit = { id: 'item/material/grit', name: { en: 'Grit', zh: '砂砾' }, tags: [], props: { material: 'stone' }, makeup: [{ type: 'item/material/stone', count: 1 }] }
++    const log = [
++      { seq: 1, at, patch: answer('patch/stone-bead', bead('item/material/stone')), rules: ['patch/stone-bead'] },
++      { seq: 2, at, patch: { artifacts: [{ kind: 'type', type: grit }] }, rules: [] },
++      { seq: 3, at, patch: answer('patch/stone-bead-2', bead('item/material/grit')), rules: ['patch/stone-bead-2'], replaces: ['patch/stone-bead'] },
++    ]
++    writeFileSync(join(dir, 'library.jsonl'), log.map((e) => JSON.stringify(e)).join('\n') + '\n')
++    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
++    library.prune()
++    expect(library.lib.types.map((t) => t.id).sort()).toEqual(['item/material/glass_bead', 'item/material/grit'])
++  })
++
++  it('takes learned first by when it was first brought, not by a revision\'s redefinition; a kind of a forgotten thing goes with it', () => {
++    const dir = mkdtempSync(join(tmpdir(), 'lsw-prune-'))
++    const at = new Date().toISOString()
++    const bead = (id: string, en: string, tags: string[] = []) => ({ id, name: { en, zh: '玻璃珠' }, tags, props: { material: 'glass' }, makeup: [{ type: 'item/material/stone', count: 1 }] })
++    const blue = { id: 'item/material/glassy_bead/blue', name: { en: 'Blue Bead', zh: '蓝珠' }, tags: [], props: { material: 'glass' }, makeup: [{ type: 'item/material/stone', count: 1 }] }
++    const log = [
++      { seq: 1, at, patch: answer('patch/stone-bead', bead('item/material/glass_bead', 'Glass Bead')), rules: ['patch/stone-bead'] },
++      // under an older validator: the same Chinese name, and a kind of it in the same patch
++      { seq: 2, at, patch: { artifacts: [{ kind: 'type', type: bead('item/material/glassy_bead', 'Glassy Bead') }, { kind: 'type', type: blue }] }, rules: [] },
++      // the first bead's answer revised, the bead defined again (it moves to the end of the library's types)
++      { seq: 3, at, patch: answer('patch/stone-bead-2', bead('item/material/glass_bead', 'Glass Bead', ['shiny'])), rules: ['patch/stone-bead-2'], replaces: ['patch/stone-bead'] },
++    ]
++    writeFileSync(join(dir, 'library.jsonl'), log.map((e) => JSON.stringify(e)).join('\n') + '\n')
++    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
++    library.prune()
++    expect(library.lib.types.map((t) => t.id)).toEqual(['item/material/glass_bead'])
++  })
++
+   it('rolls back what no longer holds, and keeps what does: the types a patch brought are its own, not "a type that exists already"', () => {
+     const dir = mkdtempSync(join(tmpdir(), 'lsw-prune-'))
+     const at = new Date().toISOString()
+@@ -60,4 +109,88 @@ describe('library prune', () => {
+     // and once is enough: nothing more to roll back
+     expect(library.prune()).toEqual([])
+   })
++
++  it('takes the types a rolled-back patch brought with it, so no later answer makes them and a corrected one can be defined', () => {
++    const dir = mkdtempSync(join(tmpdir(), 'lsw-prune-'))
++    const at = new Date().toISOString()
++    // a food the validator has since learned to refuse: nothing can eat it (no edible)
++    const jam = (tags: string[]) => ({ id: 'item/food/stone_jam', name: { en: 'Stone Jam', zh: '石头酱' }, tags, props: { material: 'plant', food: 4 }, makeup: [{ type: 'item/material/stone', count: 1 }] })
++    writeFileSync(join(dir, 'library.jsonl'), JSON.stringify({ seq: 1, at, patch: answer('patch/stone-jam', jam(['sweet'])), rules: ['patch/stone-jam'] }) + '\n')
++    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
++    expect(library.lib.types.map((t) => t.id)).toContain('item/food/stone_jam')
++    expect(library.prune().map((g) => g.rules)).toEqual([['patch/stone-jam']])
++    expect(library.lib.rules.has('patch/stone-jam')).toBe(false)
++    expect(library.lib.types.map((t) => t.id)).not.toContain('item/food/stone_jam')
++    expect(library.since(1)).toEqual([expect.objectContaining({ remove: 'patch/stone-jam' }), expect.objectContaining({ removeType: 'item/food/stone_jam' })])
++    // a client that still holds the forgotten thing (something of it in its world) does not bring it back in its workspace
++    const stale = library.workspace({ patches: { types: [jam(['sweet']) as never], rules: [{ ...(answer('patch/stone-jam', jam(['sweet'])).artifacts[1] as { rule: object }).rule, source: { origin: 'patch' } } as never], statuses: [] } })
++    expect(stale.types.map((t) => t.id)).not.toContain('item/food/stone_jam')
++    expect(stale.rules.has('patch/stone-jam')).toBe(false)
++    // the corrected thing takes the id again
++    expect(library.validate(answer('patch/stone-jam-2', jam(['edible', 'sweet']))).errors).toEqual([])
++    // and the log, read again from its file, comes back to the same library
++    const again = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
++    expect(again.lib.types.map((t) => t.id)).not.toContain('item/food/stone_jam')
++  })
++
++  it('forgets a refused type a rule rolled back before still left behind, and the later answer that made it', () => {
++    const dir = mkdtempSync(join(tmpdir(), 'lsw-prune-'))
++    const at = new Date().toISOString()
++    const jam = { id: 'item/food/stone_jam', name: { en: 'Stone Jam', zh: '石头酱' }, tags: ['sweet'], props: { material: 'plant', food: 4 }, makeup: [{ type: 'item/material/stone', count: 1 }] }
++    const makes = answer('patch/stone-makes-jam')
++    ;(makes.artifacts[0] as { rule: { tree: object } }).rule.tree = { if: ON_DEAD_TREE, then: { do: [{ op: 'spawn', type: 'item/food/stone_jam', at: 'actor', into: 'hand' }, { op: 'destroy' }] }, else: { undefined: true } }
++    const log = [
++      { seq: 1, at, patch: answer('patch/stone-jam', jam), rules: ['patch/stone-jam'] },
++      // rolled back by an earlier prune, which left the type in the library
++      { seq: 2, at, remove: 'patch/stone-jam' },
++      { seq: 3, at, patch: makes, rules: ['patch/stone-makes-jam'] },
++    ]
++    writeFileSync(join(dir, 'library.jsonl'), log.map((e) => JSON.stringify(e)).join('\n') + '\n')
++    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
++    expect(library.lib.rules.has('patch/stone-makes-jam')).toBe(true)
++    const gone = library.prune()
++    expect(library.lib.types.map((t) => t.id)).not.toContain('item/food/stone_jam')
++    expect(gone.map((g) => g.rules)).toEqual([['patch/stone-makes-jam']])
++    expect(gone[0].reason).toMatch(/stone_jam/)
++  })
++
++  it('lets a revision define again what the patch it replaces made (a food made without its tag), and keeps it in the library', () => {
++    const dir = mkdtempSync(join(tmpdir(), 'lsw-prune-'))
++    const at = new Date().toISOString()
++    const jam = (tags: string[]) => ({ id: 'item/food/stone_jam', name: { en: 'Stone Jam', zh: '石头酱' }, tags, props: { material: 'plant', food: 4 }, makeup: [{ type: 'item/material/stone', count: 1 }] })
++    const makes = (id: string, type: object) => {
++      const p = answer(id, type)
++      ;(p.artifacts[1] as { rule: { tree: object } }).rule.tree = { if: ON_DEAD_TREE, then: { do: [{ op: 'spawn', type: 'item/food/stone_jam', at: 'actor' }, { op: 'destroy' }] }, else: { undefined: true } }
++      return p
++    }
++    writeFileSync(join(dir, 'library.jsonl'), JSON.stringify({ seq: 1, at, patch: makes('patch/stone-jam', jam(['sweet'])), rules: ['patch/stone-jam'] }) + '\n')
++    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
++    const revised = makes('patch/stone-jam-2', jam(['edible', 'sweet']))
++    // as a new answer the id is taken; in place of the old one it is the revision's to define again
++    expect(library.validate(revised).errors.join()).toMatch(/exists already/)
++    expect(library.validate(revised, undefined, undefined, ['patch/stone-jam']).errors).toEqual([])
++    library.commit(revised, undefined, undefined, ['patch/stone-jam'])
++    expect(library.lib.types.find((t) => t.id === 'item/food/stone_jam')?.tags).toContain('edible')
++    // and it holds when the library is pruned again (as every start of the service does), read back from its file too
++    expect(library.prune()).toEqual([])
++    const again = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
++    expect(again.prune()).toEqual([])
++    expect(again.lib.rules.has('patch/stone-jam-2')).toBe(true)
++    expect(again.lib.types.find((t) => t.id === 'item/food/stone_jam')?.tags).toContain('edible')
++  })
++
++  it('a revision that goes on making the same thing need not define it again', () => {
++    const dir = mkdtempSync(join(tmpdir(), 'lsw-prune-'))
++    const at = new Date().toISOString()
++    const jam = { id: 'item/food/stone_jam', name: { en: 'Stone Jam', zh: '石头酱' }, tags: ['edible'], props: { material: 'plant', food: 4 }, makeup: [{ type: 'item/material/stone', count: 1 }] }
++    const makes = (id: string, type?: object) => {
++      const p = answer(id, type)
++      ;(p.artifacts.at(-1) as { rule: { tree: object } }).rule.tree = { if: ON_DEAD_TREE, then: { do: [{ op: 'spawn', type: 'item/food/stone_jam', at: 'actor' }, { op: 'destroy' }] }, else: { undefined: true } }
++      return p
++    }
++    writeFileSync(join(dir, 'library.jsonl'), JSON.stringify({ seq: 1, at, patch: makes('patch/stone-jam', jam), rules: ['patch/stone-jam'] }) + '\n')
++    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
++    expect(library.validate(makes('patch/stone-jam-2'), undefined, undefined, ['patch/stone-jam']).errors).toEqual([])
++  })
+ })
++
+diff --git a/packages/tools/test/death.test.ts b/packages/tools/test/death.test.ts
+index 560a109..ed12c2f 100644
+--- a/packages/tools/test/death.test.ts
++++ b/packages/tools/test/death.test.ts
+@@ -49,6 +49,35 @@ describe('death and rising again', () => {
+     expect(textOf(f.fallen?.by)).toMatch(/slime/)
+   })
+ 
++  it('a fall names the harm that felled one, not an older blow (struck by a slime, then felled by the world)', () => {
++    const eng = ford()
++    const w = eng.world
++    const p = w.player
++    const at = w.posOf(p)!
++    const slime = eng.author(() => w.create('actor/creature/slime/green_slime', { on: 'tile', map: 'ford', x: at.x + 1, y: at.y }))
++    eng.author(() => w.setProp(p, 'hp', 40))
++    eng.act('use', slime.id, { e: p.id }, { instrument: null, params: { attack: true, power: 5 } })
++    expect(w.hasStatus({ e: p.id }, 'down')).toBe(false)
++    // later: a harm from no one (a fall, the clock) fells them
++    eng.damage(p, 999, undefined, true)
++    expect(w.hasStatus({ e: p.id }, 'down')).toBe(true)
++    expect(snapshot(eng).fallen?.by).toBeUndefined()
++  })
++
++  it('a wound from one now gone still names them (a bleed the slime opened, the slime gone)', () => {
++    const eng = ford()
++    const w = eng.world
++    const p = w.player
++    const at = w.posOf(p)!
++    const slime = eng.author(() => w.create('actor/creature/slime/green_slime', { on: 'tile', map: 'ford', x: at.x + 1, y: at.y }))
++    eng.author(() => w.setProp(p, 'hp', 40))
++    eng.act('use', slime.id, { e: p.id }, { instrument: null, params: { attack: true, power: 5 } })
++    eng.author(() => (eng.applyStatus({ e: p.id }, 'bleeding', 300, slime.id), w.setProp(p, 'hp', 2), w.destroy(w.get(slime.id)!)))
++    for (let i = 0; i < 100 && !w.hasStatus({ e: p.id }, 'down'); i++) eng.tick()
++    expect(w.hasStatus({ e: p.id }, 'down')).toBe(true)
++    expect(textOf(snapshot(eng).fallen?.by)).toMatch(/slime/)
++  })
++
+   it('easy: one gets up where one fell, whole, with everything', () => {
+     const eng = ford('easy')
+     const at = fall(eng)
+diff --git a/packages/tools/test/demo.test.ts b/packages/tools/test/demo.test.ts
+index ee58f85..2c19672 100644
+--- a/packages/tools/test/demo.test.ts
++++ b/packages/tools/test/demo.test.ts
+@@ -2599,6 +2599,9 @@ req('C1', 'Chapter 1, offline: the night of the flame (the grey man takes it), t
+   expect(w.hasStatus({ e: 'village.campfire' }, 'lit')).toBe(false)
+   expect(w.posOf(w.get('npc.severin')!)?.map).toBe('offstage')
+   expect(quest()).toBe(0.6)
++  // and it stays gone: the ones whose evening needs the fire do not light the Firstlight again
++  ticks(f, 600)
++  expect(w.hasStatus({ e: 'village.campfire' }, 'lit')).toBe(false)
+   // dawn: the Church's courier, the proclamation; the courier gone again
+   setHour(f, 2, 6)
+   expect(ticks(f, 900, () => w.fact('ch1.letter') === 1 && !w.scene)).toBe(true)
+diff --git a/packages/tools/test/firstlight.test.ts b/packages/tools/test/firstlight.test.ts
+index bf37988..0231f71 100644
+--- a/packages/tools/test/firstlight.test.ts
++++ b/packages/tools/test/firstlight.test.ts
+@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
+ import { Game, RuleLibrary, tickAt, type Entity } from '@lsw/engine'
+ import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_LAYOUT, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight } from '@lsw/content'
+ import { buildFord } from '../src/demo/world.ts'
++import { CANOPIES, reachingPlots } from '../src/demo/garden.ts'
+ 
+ const garden = (e: Entity) => e.id.startsWith('ford.garden.') || (e.place.on === 'inside' && e.place.holder === 'ford.garden.supplies')
+ 
+@@ -131,3 +132,12 @@ describe('Firstlight Village save compatibility', () => {
+     expect(w.get(ore.id)?.place).toEqual({ on: 'inside', holder: crate.id })
+   })
+ })
++
++describe('Firstlight Village garden', () => {
++  it('has no tree whose canopy hides a plot or the supplies crate (the pointer there would meet the tree)', () => {
++    const { chunks } = buildFord()
++    const village = decodeChunk(chunks.find((c) => c.map.id === FIRSTLIGHT.map)!)
++    const at = (x: number, y: number) => village.map.terrain[y * village.map.width + x]
++    expect(reachingPlots().map(([x, y]) => at(x, y)).filter((t) => CANOPIES.has(t))).toEqual([])
++  })
++})
+diff --git a/packages/tools/test/quests.test.ts b/packages/tools/test/quests.test.ts
+index f64529b..81722ce 100644
+--- a/packages/tools/test/quests.test.ts
++++ b/packages/tools/test/quests.test.ts
+@@ -123,6 +123,17 @@ describe('a quest makes what it is about, and keeps the people it names', () =>
+ })
+ 
+ describe('the journal follows one quest', () => {
++  it('points at a named area of a map not loaded here (the barrow mouth, from the village), not at the map\'s middle', () => {
++    const { eng } = world()
++    ticks(eng, 5)
++    // as the client keeps them: only the map one stands on
++    for (const id of Object.keys(eng.world.state.maps)) if (id !== 'meadow') delete eng.world.state.maps[id]
++    const mouth = eng.quests.targets().find((t) => t.objective === 'mouth')!
++    expect(mouth.map).toBe('hollow')
++    // the hollow's `mouth` area: [22, 22, 11, 6]
++    expect(mouth.x >= 22 && mouth.x < 33 && mouth.y >= 22 && mouth.y < 28, `${mouth.x},${mouth.y}`).toBe(true)
++  })
++
+   it('tracks the latest main quest by default, the one chosen after; the markers and the companion follow it', () => {
+     const { eng } = world([ERRAND])
+     const w = eng.world
+diff --git a/packages/tools/test/save.test.ts b/packages/tools/test/save.test.ts
+index 383c683..e1a3c61 100644
+--- a/packages/tools/test/save.test.ts
++++ b/packages/tools/test/save.test.ts
+@@ -59,3 +59,17 @@ describe('an older save (cells as tile overrides, before world-model.md §4.6)',
+   })
+ })
+ 
++describe('one game\'s learning', () => {
++  it('stays in that game: a second game made from the same world does not have its learned things', () => {
++    const world = buildOntology()
++    const { index } = buildFord()
++    const learned = { id: 'item/material/bone_ash', name: { en: 'Bone Ash', zh: '骨灰' }, tags: ['powder'], props: { material: 'bone' }, makeup: [{ type: 'item/material/bone', count: 1 }] }
++    const first = Game.create(index, world, lib())
++    first.engine.lib.addType(learned as never)
++    first.engine.world.onto.addType(learned as never)
++    expect(first.engine.world.onto.hasType('item/material/bone_ash')).toBe(true)
++    // the world's own definitions are left as they were, and the next game (a new one, another save) starts from them
++    expect('item/material/bone_ash' in world.types).toBe(false)
++    expect(Game.create(index, world, lib()).engine.world.onto.hasType('item/material/bone_ash')).toBe(false)
++  })
++})

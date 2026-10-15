@@ -1,0 +1,92 @@
+diff --git a/packages/tools/test/bosses.test.ts b/packages/tools/test/bosses.test.ts
+index eb86c2c..5410b7f 100644
+--- a/packages/tools/test/bosses.test.ts
++++ b/packages/tools/test/bosses.test.ts
+@@ -15,7 +15,7 @@ const library = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
+ function arena(id = 'greed') {
+   const { index } = buildFord()
+   const at = { map: 'arena', x: 16, y: 20 }
+-  Object.assign(index, { start: at, npcs: [], companions: [], scenes: [], beats: [], quests: [], invariants: [], waypoints: [] })
++  Object.assign(index, { start: at, npcs: [], companions: [], steps: [], quests: [], invariants: [], waypoints: [] })
+   index.player.place = { on: 'tile', ...at }
+   index.player.props = { ...index.player.props, hp: 1000, maxHp: 1000, def: 0, prologue: PROLOGUE_DONE }
+   const game = Game.create(index, onto, library()), eng = game.engine, w = eng.world
+diff --git a/packages/tools/test/cells.test.ts b/packages/tools/test/cells.test.ts
+index c6394b3..e715959 100644
+--- a/packages/tools/test/cells.test.ts
++++ b/packages/tools/test/cells.test.ts
+@@ -82,7 +82,7 @@ describe('cells are things (world-model.md §4.6)', () => {
+     }
+     expect(check()).toEqual([])
+     for (let t = 0; t < TICKS_PER_HOUR * 48; t++) {
+-      if (w.scene) eng.scenes.advance()
++      if (w.scene) eng.story.advance()
+       eng.tick()
+     }
+     expect(check()).toEqual([])
+diff --git a/packages/tools/test/demo.test.ts b/packages/tools/test/demo.test.ts
+index bd47374..b0acbb3 100644
+--- a/packages/tools/test/demo.test.ts
++++ b/packages/tools/test/demo.test.ts
+@@ -115,7 +115,7 @@ const run = (f: Ford, key: Key, x: number, y: number): Plan => {
+ }
+ const ticks = (f: Ford, n: number, until?: () => boolean) => {
+   for (let i = 0; i < n; i++) {
+-    if (W(f).scene?.waiting === 'advance') f.eng.scenes.advance()
++    if (W(f).scene?.waiting === 'advance') f.eng.story.advance()
+     f.eng.tick()
+     if (until?.()) return true
+   }
+@@ -1806,7 +1806,7 @@ req('P1', 'the prologue, offline: down from the plateau to the Ford, every beat
+   expect(w.hasStatus({ e: 'wp.summit' }, 'attuned')).toBe(true)
+   until(4)
+   // Pip pointed the statue out the first time it came into view
+-  expect(w.fact('beat.see_waypoint')).toBeTruthy()
++  expect(w.fact('seen.see_waypoint')).toBeTruthy()
+   // F on Pip: what to do now, and how
+   expect(askPip()).toContain('做一把石斧')
+   // the yard holds a stone axe's worth: a stick, a stone, a tuft of grass; C makes it
+@@ -1853,9 +1853,12 @@ req('P1', 'the prologue, offline: down from the plateau to the Ford, every beat
+   f.eng.movePlayer('down')
+   ticks(f, 10)
+   expect(w.posOf(p)?.map).toBe('foot')
+-  stand(f, PAT.relic[0], PAT.relic[1] + 1, 'up', 'foot')
++  // walking up to it: entering its ground starts the beat (an event, not a poll, world-model.md §6.12)
++  stand(f, PAT.relic[0], PAT.relic[1] + 6, 'up', 'foot')
++  for (let i = 0; i < 5; i++) walk(f, 'up')
++  expect(w.posOf(p)).toMatchObject({ map: 'foot', x: PAT.relic[0], y: PAT.relic[1] + 1 })
+   ticks(f, 10)
+-  expect(w.fact('beat.relic')).toBeTruthy()
++  expect(w.fact('seen.relic')).toBeTruthy()
+   run(f, 'use', ...PAT.relic)
+   until(9, 200)
+   // the trail comes out at the top of the Ford's cliff: the prologue is over, the story begins
+diff --git a/packages/tools/test/writes.test.ts b/packages/tools/test/writes.test.ts
+index 88a240f..0d60fe3 100644
+--- a/packages/tools/test/writes.test.ts
++++ b/packages/tools/test/writes.test.ts
+@@ -173,4 +173,24 @@ describe('the state is things and the clock (world-model.md §3)', () => {
+     expect(w.get('story')?.place).toEqual({ on: 'resident' })
+     expect(Object.values(w.state.entities).some((e) => e.type === 'region' && e.place.on === 'area')).toBe(true)
+   })
++
++  it("an older save's beats are steps of the story's one script: their records are seen.<id>, the latest step.last (world-model.md §6.12)", async () => {
++    const { Game } = await import('@lsw/engine')
++    const { STORY_RULES, decodeChunk } = await import('@lsw/content')
++    const { buildFord } = await import('../src/demo/world.ts')
++    const { index, chunks } = buildFord()
++    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++    for (const c of chunks) game.loadChunk(decodeChunk(c))
++    const old = structuredClone(game.save())
++    const story = old.state.entities.story
++    story.props = { ...(story.props ?? {}), 'beat.wake': 40, 'beat.outside': 90, 'beat.last': 'outside' }
++    const loaded = Game.load(old, index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++    const w = loaded.engine.world
++    expect(w.fact('seen.wake')).toBe(40)
++    expect(w.fact('seen.outside')).toBe(90)
++    expect(w.fact('step.last')).toBe('outside')
++    expect(Object.keys(w.story!.props ?? {}).filter((k) => k.startsWith('beat.'))).toEqual([])
++    // what the companion repeats is the latest beat's hint
++    expect(loaded.engine.story.hint()).toEqual(index.steps!.find((d) => d.id === 'outside')!.hint ?? index.steps!.find((d) => d.id === 'outside')!.say)
++  })
+ })

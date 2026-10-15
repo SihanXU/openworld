@@ -1,0 +1,743 @@
+diff --git a/games/openworld/tools/test/demo.test.ts b/games/openworld/tools/test/demo.test.ts
+index e510e30..6b014b0 100644
+--- a/games/openworld/tools/test/demo.test.ts
++++ b/games/openworld/tools/test/demo.test.ts
+@@ -17,6 +17,7 @@ import { CH1_AT } from '../src/demo/quest/chapter1.ts'
+ import { PEOPLE } from '../src/demo/people.ts'
+ import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts'
+ import { PILGRIM } from '../src/demo/quest/pilgrimage.ts'
++import { FAT, FLANKS } from '../src/demo/quest/flanks.ts'
+ import { GARDEN } from '../src/demo/garden.ts'
+ import { BARROW, HOLLOW, OSSUARY, UNDER_BARROW } from '../src/demo/hollow.ts'
+ import { PAT, TUTORIAL } from '../src/demo/prologue.ts'
+@@ -1423,7 +1424,8 @@ req('W17', 'combat by what things are made of: iron strikes harder than wood, fi
+   hold(f, hat)
+   run(f, 'self', 20, 14)
+   expect(w.prop(p, 'wear:head')).toBe(hat.id)
+-  expect(w.stat(p, 'def')).toBe(0)
++  // (a cloth hat keeps a little off: clothing has its own defence, 2026-10-12)
++  expect(w.stat(p, 'def')).toBe(1)
+   // the helmet again: on — and off the body, it leaves the hand (what is worn is on the body, not in the bag or the
+   // hand); taken off from the equipment, it is back in the bag
+   hold(f, helmet)
+@@ -1972,17 +1974,20 @@ req('S3', 'each profession\'s forged gear covers the whole body (head, ear, neck
+   // worn: one piece, its own dodge; two, the armour's first bonus too; four, its second
+   const wear = (e: Entity) => (f.eng.controls.wear(e.id, true), ticks(f, 1))
+   wear(jerkin)
+-  const dodge = () => Math.round(w.stat(w.player, 'dodge') * 100) / 100
++  // (less the small extras each forged piece rolled: the rolls are the seed's, not the set's)
++  const own = (key: string) => Math.round((w.stat(w.player, key) - w.worn(w.player).reduce((n, e) => n + w.num(e, `sub:${key}`), 0)) * 100) / 100
++  const dodge = () => own('dodge')
+   const base = dodge()
+   expect(base).toBeGreaterThanOrEqual(0.03)
+   wear(forge('feet'))
+   wear(forge('shoulders'))
+   expect(dodge()).toBeCloseTo(base + 0.02 + 0.02 + 0.03, 5)
+-  expect(w.stat(w.player, 'stealth')).toBe(0)
++  expect(own('luck')).toBe(0)
+   wear(forge('head'))
+   wear(forge('hands'))
+   wear(forge('waist'))
+-  expect(w.stat(w.player, 'stealth')).toBe(1 + 1 + 2)
++  // the belt's own luck, and the armour's second bonus at four
++  expect(own('luck')).toBeCloseTo(0.03 + 0.1, 5)
+ })
+ 
+ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14): past the river, the Church's Rest — its priest takes the oath at the five wounds; five wayside shrines on the road, each lit only by what its suffering asks; a penitent on it; the Abbey of the Thorn north of it — the roll, Alberic's statue, his journal, the writ of relief never sent; in its crypt the Order's last keeper and its seal; the Kneeling Field of the pilgrims before; each a stage of the First Seal", [
+@@ -3282,6 +3287,100 @@ req('V1', "Firstlight's vigil (the main line between the rescue and the night of
+   expect(underWay(f).map(([q]) => q)).toContain('first_seal')
+ })
+ 
++req('FL1', "the forest's flanks (docs/chapter-1.md §15): west, by the side trail, the Charcoal Dell — Orrin at his kilns by day, boars in the coppice, coal lying about, the roost oak the forest's birds fled to (at dusk, all facing east); east, by the clearing's trail, the Reed Bend on the river's own cell — Hilde on her pier, the river to fish, the drowned stone, Aldo's bell on the spit among water slimes; their errands: six logs for a clamp (paid in coal), four boars, the birds (Gus asked, three feathers), three fish, the bell", [
++  'npc.orrin', 'npc.hilde', 'item/material/coal', 'item/material/feather', 'item/misc/bell', 'actor/creature/slime/water_slime', 'item/food/fish/cooked',
++], () => {
++  const f = fresh()
++  const w = W(f)
++  const c = f.eng.controls
++  const { index } = buildFord()
++  const played = (id: string) => !!w.fact(`seen.${id}`)
++  const waitFor = (id: string) => expect([id, ticks(f, 900, () => played(id) && !w.scene)]).toEqual([id, true])
++  const go = (map: string, x: number, y: number) => f.eng.author(() => f.eng.teleport(w.player, { map, x, y }))
++  const give = (type: string, n: number) => { author(f, () => { for (let i = 0; i < n; i++) w.create(type, { on: 'inside', holder: 'player' }) }); c.sync() }
++  const objective = (quest: string, id: string) => f.eng.quests.journal().find((q) => q.quest === quest)!.objectives.find((o) => o.id === id)!
++  // the forest opens west and east, a trail to each
++  const forest = index.maps.find((m) => m.id === 'forest')!
++  expect(forest.portals.filter((p) => p.to === 'charcoal').map((p) => p.y).sort()).toEqual([...FLANKS.forestWest])
++  expect(forest.portals.filter((p) => p.to === 'reedbend').map((p) => p.y).sort()).toEqual([...FLANKS.forestEast])
++  for (const y of FLANKS.forestWest) expect(w.walkable('forest', 1, y)).toBe(true)
++  for (const y of FLANKS.forestEast) expect(w.walkable('forest', forest.width - 2, y)).toBe(true)
++  // the dell, early afternoon: Orrin by his kilns (solid mounds), boars in the coppice, coal and feathers on the ground
++  go('charcoal', 36, 15)
++  waitFor('dell_first')
++  expect(w.posOf(w.get('npc.orrin')!)?.map).toBe('charcoal')
++  for (const [x, y] of FAT.kilns) expect(w.walkable('charcoal', x + 1, y + 1)).toBe(false)
++  expect(onMap(f, 'actor/creature/beast/boar', 'charcoal').length).toBe(4)
++  expect(onMap(f, 'item/material/coal', 'charcoal').length).toBeGreaterThanOrEqual(3)
++  expect(onMap(f, 'item/material/feather', 'charcoal').length).toBeGreaterThanOrEqual(3)
++  // his errands: six logs, paid in coal
++  for (const id of ['clamp', 'birds']) expect(f.eng.quests.offers('npc.orrin', w.player).map((o) => o.ref)).toContain(id)
++  take(f, 'npc.orrin', 'clamp')
++  give('item/material/log', 6)
++  const coal = c.count('item/material/coal')
++  talkTo(f, 'npc.orrin')
++  ticks(f, 2)
++  expect([qs(f, 'clamp'), c.count('item/material/log'), c.count('item/material/coal') - coal]).toEqual(['done', 0, 4])
++  // four boars felled in the dell (for level 2)
++  w.player.props!.level = 2
++  take(f, 'npc.orrin', 'boars')
++  for (let i = 0; i < 4; i++) (fell(f, author(f, () => w.create('actor/creature/beast/boar', { on: 'tile', map: 'charcoal', x: 20, y: 15 }))), ticks(f, 1))
++  talkTo(f, 'npc.orrin')
++  ticks(f, 2)
++  expect(qs(f, 'boars')).toBe('done')
++  // the birds: Gus asked (he says what he never said), three feathers from under the oak
++  take(f, 'npc.orrin', 'birds')
++  expect(talkTo(f, 'npc.gus')).toContain('往西去了')
++  ticks(f, 1)
++  expect(objective('birds', 'gus')).toMatchObject({ state: 'done' })
++  for (const e of onMap(f, 'item/material/feather', 'charcoal').slice(0, 3)) {
++    const at = w.posOf(e)!
++    stand(f, at.x, at.y + 1, 'up', 'charcoal')
++    run(f, 'take', at.x, at.y)
++  }
++  talkTo(f, 'npc.orrin')
++  ticks(f, 2)
++  expect([qs(f, 'birds'), w.fact('ch1.birds'), c.count('item/misc/feather_quill')]).toEqual(['done', 1, 1])
++  // the roost at dusk: every bird of the forest, silent, facing east
++  setHour(f, 1, 18)
++  go('charcoal', FAT.roost[0] + 1, FAT.roost[1])
++  waitFor('roost_dusk')
++  expect(w.fact('ch1.roost')).toBe(1)
++  // the bend, next noon: Hilde on her pier, the river (deep past the shallows) to fish, the drowned stone
++  setHour(f, 2, 12)
++  go('reedbend', 4, 17)
++  waitFor('bend_first')
++  expect(w.posOf(w.get('npc.hilde')!)?.map).toBe('reedbend')
++  expect(w.map('reedbend')!.fish).toBe(true)
++  expect(w.terrainAt('reedbend', FAT.pier[0], FAT.pier[1])).toBe('bridge')
++  expect(w.terrainAt('reedbend', FAT.pier[0] + 4, FAT.pier[1])).toBe('deepwater')
++  go('reedbend', FAT.stone[0] - 1, FAT.stone[1])
++  waitFor('drowned_stone')
++  expect(w.fact('ch1.drowned_stone')).toBe(1)
++  // the bell on the spit, three water slimes about it
++  expect(onMap(f, 'actor/creature/slime/water_slime', 'reedbend').length).toBe(3)
++  expect(w.posOf(w.get('quest.hilde.bell')!)).toMatchObject({ map: 'reedbend', x: FAT.spit[0], y: FAT.spit[1] })
++  // her errands: three fish of any kind for the smoke (bait paid); the bell, which she keeps
++  take(f, 'npc.hilde', 'catch')
++  give('item/food/fish/eel', 2)
++  give('item/food/fish/raw', 1)
++  talkTo(f, 'npc.hilde')
++  ticks(f, 2)
++  expect([qs(f, 'catch'), c.count('item/food/fish/eel'), c.count('item/food/fish/raw'), c.count('item/misc/bait')]).toEqual(['done', 0, 0, 5])
++  take(f, 'npc.hilde', 'boatbell')
++  stand(f, FAT.spit[0], FAT.spit[1] + 1, 'up', 'reedbend')
++  run(f, 'take', ...FAT.spit)
++  expect(talkTo(f, 'npc.hilde')).toContain('还是那个声音')
++  ticks(f, 2)
++  expect([qs(f, 'boatbell'), w.fact('ch1.boatbell'), w.get('quest.hilde.bell')?.place]).toEqual(['done', 1, { on: 'inside', holder: 'npc.hilde' }])
++  // on the overworld: the dell two cells west of the bend, the bend a camp on the river's own cell — not stood on, so the river stays the barrier (W6)
++  const bend = w.map('reedbend')!.site!
++  expect(w.map('charcoal')!.site).toMatchObject({ x: bend.x - 2, y: bend.y })
++  expect(w.map('forest')!.site).toMatchObject({ x: bend.x - 1, y: bend.y })
++  expect(w.passable(OVERWORLD, bend.x, bend.y)).toBe(false)
++  expect(w.entitiesAt(OVERWORLD, bend.x, bend.y).some((e) => e.type === 'site/place/camp' && e.props?.map === 'reedbend')).toBe(true)
++})
++
+ req('H4', 'the Held Ground\'s steward: his talk has "The Held Ground…", which opens its panel — the land, its grounds, its buildings, the stock; the planted sword (a longsword point down in the earth) is only read', ['fixture/sacred/sword'], () => {
+   const f = fresh()
+   const w = W(f)
+diff --git a/games/openworld/tools/test/equipment.test.ts b/games/openworld/tools/test/equipment.test.ts
+index de69e12..a8c3453 100644
+--- a/games/openworld/tools/test/equipment.test.ts
++++ b/games/openworld/tools/test/equipment.test.ts
+@@ -1,7 +1,7 @@
+ import { describe, expect, it } from 'vitest'
+ import { Game, Rng, RuleLibrary, snapshot, tickAt } from '@openworld/engine'
+-import { combatDamage, combatStrike, finishCombatStrike } from '@openworld/modules'
+-import { BASE_RULES, FORM_BY_ID, RELICS, STORY_RULES, VOW_TRAITS, buildOntology, decodeChunk, makeItem } from '@openworld-game/content'
++import { combatDamage, combatDelay, combatStrike, finishCombatStrike, vowsOf } from '@openworld/modules'
++import { BASE_RULES, FORM_BY_ID, RELICS, STORY_RULES, VOWS, VOW_IDS, buildOntology, decodeChunk, makeItem } from '@openworld-game/content'
+ import { buildFord } from '../src/demo/world.ts'
+ 
+ // The body's ten slots (world-model.md §6.8): head, body, feet, hands, waist, shoulders, neck, two rings,
+@@ -85,9 +85,15 @@ describe('Vowbound traits and Stigmatic powers', () => {
+     const relics = Object.values(FORM_BY_ID).filter((f) => f.tags?.includes('quality:legendary')).map((f) => f.props?.relic)
+     expect(relics.every((r) => typeof r === 'string' && RELICS[r as string])).toBe(true)
+     expect(new Set(relics).size).toBe(relics.length)
+-    // a rolled Vowbound piece keeps a trait of its vow
++    // a rolled Vowbound piece takes a vow, and rolls its five extras like any piece; the one named is kept
+     const ring = makeItem(new Rng(7), FORM_BY_ID['item/valuable/ring'], { quality: 'vowed', material: 'silver' })
+-    expect(VOW_TRAITS.some((t) => Object.keys(t).every((k) => ring.props?.[k] === t[k]))).toBe(true)
++    expect(VOW_IDS).toContain(ring.props?.vow)
++    expect(Object.keys(ring.props ?? {}).filter((k) => k.startsWith('sub:'))).toHaveLength(5)
++    expect(makeItem(new Rng(7), FORM_BY_ID['item/valuable/ring'], { quality: 'vowed', vow: 'mercy' }).props?.vow).toBe('mercy')
++    // the scallop's is its form's; every vow has a name and a telling
++    expect(makeItem(new Rng(7), FORM_BY_ID['item/valuable/scallop']).props?.vow).toBeUndefined()
++    expect(FORM_BY_ID['item/valuable/scallop'].props?.vow).toBe('pilgrim')
++    for (const v of Object.values(VOWS)) expect([v.en, v.zh, v.text.en, v.text.zh].every((x) => x.length > 0)).toBe(true)
+   })
+ 
+   it('the Crown of Thorns makes the struck kneel, now and then', () => {
+@@ -136,3 +142,114 @@ describe('Vowbound traits and Stigmatic powers', () => {
+     expect(combatDamage(eng, p, 50, foe, false)).toBeGreaterThan(0)
+   })
+ })
++
++// The vows (content items.ts VOWS; classes combat.ts `vowsOf`): what a Vowbound piece keeps of the vow it was made
++// under — each a condition and what it pays, answered as a talent is, wherever the piece is worn or held.
++describe('the vows of the Vowbound', () => {
++  const sworn = (vow: string, type = 'item/armor/pauldrons') => {
++    const g = game()
++    const { eng, w, p } = g
++    const foe = eng.author(() => w.create('actor/creature/beast/wolf', { on: 'tile', map: w.posOf(p)!.map, x: w.posOf(p)!.x + 1, y: w.posOf(p)!.y }, { id: 'foe', props: { hp: 999, maxHp: 999 } }))
++    eng.author(() => w.create(type, { on: 'inside', holder: p.id }, { id: 'sworn', tags: ['quality:vowed'], props: { vow } }))
++    g.wear('sworn')
++    expect([...vowsOf(w, p)]).toEqual([vow])
++    return { ...g, foe }
++  }
++  const noon = (w: ReturnType<typeof game>['w']) => (w.state.tick = tickAt(w.calendar().day, 12))
++  const midnight = (w: ReturnType<typeof game>['w']) => (w.state.tick = tickAt(w.calendar().day, 23))
++
++  it('the Hunt: a blow on an unhurt foe falls true', () => {
++    const { w, p, foe } = sworn('hunt')
++    expect(combatStrike(w, p, foe, 3, 1, undefined, true).critical).toBe(true)
++    ;(foe.props ??= {}).hp = 998
++    expect(Array.from({ length: 20 }, () => combatStrike(w, p, foe, 3, 1, undefined, true).critical)).toContain(false)
++  })
++
++  it('the Held Ground: from where one stands, a quarter more given and three tenths less taken; a step ends it', () => {
++    const { eng, w, p, foe } = sworn('holdfast')
++    expect([12.5, 18.75]).toContain(combatStrike(w, p, foe, 10, 1, undefined, true).power)
++    expect(combatDamage(eng, p, 10, foe, false)).toBe(7)
++    ;(p.combat ??= {}).lastMoveTick = w.state.tick
++    expect([10, 15]).toContain(combatStrike(w, p, foe, 10, 1, undefined, true).power)
++    expect(combatDamage(eng, p, 10, foe, false)).toBe(10)
++  })
++
++  it("the Shield: a fight's first blow is turned half aside, the next not", () => {
++    const { eng, p, foe } = sworn('ward')
++    expect(combatDamage(eng, p, 10, foe, false)).toBe(5)
++    expect(combatDamage(eng, p, 10, foe, false)).toBe(10)
++  })
++
++  it('Mercy draws back from a foe near its end; Dawn from every blow by day, and takes a tenth less — not at night', () => {
++    const m = sworn('mercy')
++    noon(m.w)
++    expect(combatStrike(m.w, m.p, m.foe, 3, 1, undefined, true).drain).toBe(0)
++    ;(m.foe.props ??= {}).hp = 200
++    expect(combatStrike(m.w, m.p, m.foe, 3, 1, undefined, true).drain).toBe(2)
++    const d = sworn('dawn')
++    noon(d.w)
++    expect(combatStrike(d.w, d.p, d.foe, 3, 1, undefined, true).drain).toBe(1)
++    expect(combatDamage(d.eng, d.p, 10, d.foe, false)).toBe(9)
++    midnight(d.w)
++    expect(combatStrike(d.w, d.p, d.foe, 3, 1, undefined, true).drain).toBe(0)
++    expect(combatDamage(d.eng, d.p, 10, d.foe, false)).toBe(10)
++  })
++
++  it('Vigil: at night the blow finds its mark more often and the stride quickens', () => {
++    const { w, p, foe } = sworn('vigil')
++    midnight(w)
++    expect(Array.from({ length: 60 }, () => combatStrike(w, p, foe, 3, 1, undefined, true).critical)).toContain(true)
++    const night = combatDelay(w, p, 20, 'move')
++    noon(w)
++    expect(combatDelay(w, p, 20, 'move')).toBeGreaterThan(night)
++  })
++
++  it('Silence: sneaking slows its keeper no more, and the blow struck from it finds its mark', () => {
++    const { eng, w, p, foe } = sworn('silence')
++    eng.author(() => eng.applyStatus({ e: p.id }, 'sneaking', 1000))
++    expect(w.hasStatus({ e: p.id }, 'sneaking')).toBe(true)
++    expect(combatDelay(w, p, 10, 'move')).toBe(10)
++    expect(Array.from({ length: 60 }, () => combatStrike(w, p, foe, 3, 1, undefined, true).critical)).toContain(true)
++    const plain = game()
++    plain.eng.author(() => plain.eng.applyStatus({ e: plain.p.id }, 'sneaking', 1000))
++    expect(combatDelay(plain.w, plain.p, 10, 'move')).toBe(16)
++  })
++
++  it('the Road: a road under one\'s feet quickens the stride; on the move, blows are slipped more', () => {
++    const { eng, w, p, foe } = sworn('pilgrim')
++    let road: [number, number] | undefined
++    for (let y = 0; y < 80 && !road; y++) for (let x = 0; x < 80 && !road; x++) if (w.onto.terrain(w.terrainAt('ford', x, y))?.tags?.includes('road')) road = [x, y]
++    expect(road).toBeDefined()
++    const off = combatDelay(w, p, 20, 'move')
++    eng.author(() => eng.teleport(p, { map: 'ford', x: road![0], y: road![1] }))
++    expect(combatDelay(w, p, 20, 'move')).toBeLessThan(off)
++    // on the move: a tenth more dodge (none before)
++    ;(p.combat ??= {}).lastMoveTick = w.state.tick
++    expect(Array.from({ length: 80 }, () => combatDamage(eng, p, 10, foe, false))).toContain(0)
++  })
++
++  it('the Lone Road: with no companion by, blows deal more and are slipped more; a companion ends it', () => {
++    const { eng, w, p, foe } = sworn('lone')
++    const at = w.posOf(p)!
++    // (the Ford's companion follows from the start: sent away first)
++    const followers = w.entitiesOnMap(at.map).filter((c) => c.props?.companion === p.id)
++    expect(followers.length).toBeGreaterThan(0)
++    eng.author(() => { for (const c of followers) w.destroy(c) })
++    expect([11.5, 17.25]).toContain(combatStrike(w, p, foe, 10, 1, undefined, true).power)
++    eng.author(() => w.create('actor/creature/beast/wolf', { on: 'tile', map: at.map, x: at.x - 1, y: at.y }, { props: { companion: p.id } }))
++    expect([10, 15]).toContain(combatStrike(w, p, foe, 10, 1, undefined, true).power)
++  })
++
++  it('the Thorn: whoever strikes its keeper hand to hand is pricked, and a prick is not answered with a prick', () => {
++    const { eng, w, p, foe } = sworn('thorn')
++    const before = w.num(p, 'hp')
++    eng.damage(p, 5, undefined, false, { e: foe.id })
++    expect(w.num(p, 'hp')).toBeLessThan(before)
++    expect(w.num(foe, 'hp')).toBeLessThan(999)
++    // a foe out of reach is not pricked
++    eng.author(() => w.setProp(foe, 'hp', 999))
++    eng.author(() => eng.teleport(foe, { map: w.posOf(p)!.map, x: w.posOf(p)!.x + 4, y: w.posOf(p)!.y }))
++    eng.damage(p, 5, undefined, false, { e: foe.id })
++    expect(w.num(foe, 'hp')).toBe(999)
++  })
++})
+diff --git a/games/openworld/tools/test/gear-levels.test.ts b/games/openworld/tools/test/gear-levels.test.ts
+new file mode 100644
+index 0000000..a5dcd73
+--- /dev/null
++++ b/games/openworld/tools/test/gear-levels.test.ts
+@@ -0,0 +1,262 @@
++import { describe, expect, it } from 'vitest'
++import { Game, Rng, RuleLibrary, gearProps, levelFactor, rollAffixes, tickAt, type Entity } from '@openworld/engine'
++import { socialOf } from '@openworld/modules'
++import { BASE_RULES, FORMS, FORM_BY_ID, GEAR_LAYOUT, GEAR_LEVELS, MATERIAL_DEFS, NAMED_VOWS, QUALITIES, QUALITY_DEFS, QUESTS, RECIPE_BY_ID, STORY_RULES, TROPHIES, VOWS_LAYOUT, VOW_IDS, buildOntology, decodeChunk, makeItem, migrateGear, migrateVows } from '@openworld-game/content'
++import { buildFord } from '../src/demo/world.ts'
++
++// Gear's levels (world-model.md §6.8, content gear.ts): every piece worn or wielded has a level, 1 to 20; its main stats
++// grow with it and with its quality, so that at one level the finer piece is the better and at one quality the higher,
++// never the other way about. A finer piece also rolls more extras, a higher one wider ones. The level comes from where
++// the piece comes from: the maker's for what is forged, the merchant's for what is stocked, the map's for what is laid,
++// the kind's for a monster's own piece, the author's for a quest's gear; a Seal-bearer's arms are far above the Ford's.
++
++const onto = buildOntology()
++const ORDER = ['crude', 'common', 'fine', 'masterwork', 'vowed', 'legendary']
++const MAIN = ['power', 'def', 'atk'] as const
++const SHARES = ['critChance', 'critDamage', 'dodge', 'cdr', 'xpRate', 'luck', 'moveHaste', 'attackHaste', 'block'] as const
++const gearForms = FORMS.filter((f) => (typeof f.props?.slot === 'string' || f.id.startsWith('item/weapon')) && !f.tags?.includes('quality:legendary') && MAIN.some((k) => typeof f.props?.[k] === 'number'))
++const q = (id: string) => QUALITY_DEFS().find((x) => x.id === id)
++const sum = (p: Record<string, number>, keys: readonly string[]) => keys.reduce((n, k) => n + (p[k] ?? 0), 0)
++const COUNT: Record<string, number> = GEAR_LEVELS.affixCount ?? {}
++
++function fresh() {
++  const { index, chunks } = buildFord()
++  const g = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++  for (const c of chunks) g.loadChunk(decodeChunk(c))
++  g.mods.provider = undefined
++  const eng = g.engine, w = eng.world, p = w.player
++  eng.author(() => {
++    w.setFact('seen.arrival', true)
++    w.setFact('seen.village_arrival', true)
++    eng.quests.put('descent', 'done')
++  })
++  w.state.tick = tickAt(1, 12)
++  return { g, eng, w, p }
++}
++
++describe('a piece of gear at one level', () => {
++  it('is the better the finer it is: its main stats never less, its extras more, for every form and material', () => {
++    expect(gearForms.length).toBeGreaterThan(20)
++    for (const f of gearForms)
++      for (const mat of [undefined, ...(f.materials ?? [])])
++        for (const level of [1, 5, 10, 20])
++          for (let i = 1; i < ORDER.length; i++) {
++            const a = gearProps(f.props!, mat ? MATERIAL_DEFS[mat] : undefined, q(ORDER[i - 1]), level, GEAR_LEVELS)
++            const b = gearProps(f.props!, mat ? MATERIAL_DEFS[mat] : undefined, q(ORDER[i]), level, GEAR_LEVELS)
++            const where = `${f.id} ${mat ?? '-'} L${level} ${ORDER[i - 1]}→${ORDER[i]}`
++            expect([where, sum(b, MAIN) >= sum(a, MAIN) && sum(b, SHARES) >= sum(a, SHARES) - 1e-9]).toEqual([where, true])
++            // and strictly better in one of: its main stats, how many extras it rolls, a trait of its own (Vowbound, Stigmatic)
++            const more = sum(b, MAIN) > sum(a, MAIN) || COUNT[ORDER[i]] > COUNT[ORDER[i - 1]] || ORDER[i] === 'vowed' || ORDER[i] === 'legendary'
++            expect([where, more]).toEqual([where, true])
++          }
++  })
++
++  it('at one quality is the better the higher its level: never less from one level to the next, and more by the twentieth', () => {
++    for (const f of gearForms)
++      for (const quality of ORDER) {
++        let last = gearProps(f.props!, undefined, q(quality), 1, GEAR_LEVELS)
++        for (let level = 2; level <= GEAR_LEVELS.max; level++) {
++          const now = gearProps(f.props!, undefined, q(quality), level, GEAR_LEVELS)
++          expect([f.id, quality, level, sum(now, MAIN) >= sum(last, MAIN) && sum(now, SHARES) >= sum(last, SHARES) - 1e-9]).toEqual([f.id, quality, level, true])
++          expect(now.level).toBe(level)
++          last = now
++        }
++        const first = gearProps(f.props!, undefined, q(quality), 1, GEAR_LEVELS)
++        expect([f.id, quality, sum(last, MAIN) > sum(first, MAIN)]).toEqual([f.id, quality, true])
++      }
++    // the curve: a quarter a level on the main stats, an eighth on the shares; kept within 1 … 20
++    expect(levelFactor(GEAR_LEVELS, 5)).toBe(2)
++    expect(levelFactor(GEAR_LEVELS, 5, true)).toBe(1.5)
++    expect(levelFactor(GEAR_LEVELS, 99)).toBe(levelFactor(GEAR_LEVELS, 20))
++    expect(levelFactor(GEAR_LEVELS, 0)).toBe(1)
++    // an iron sword: 6 at the first level, common; 29 as a masterwork of the tenth (4 × 1.5 × 1.5 × 3.25)
++    expect(gearProps(FORM_BY_ID['item/weapon/blade/sword'].props!, MATERIAL_DEFS.iron, q('common'), 1, GEAR_LEVELS).power).toBe(6)
++    expect(gearProps(FORM_BY_ID['item/weapon/blade/sword'].props!, MATERIAL_DEFS.iron, q('masterwork'), 10, GEAR_LEVELS).power).toBe(29)
++  })
++
++  it('rolls its extras by its quality (two for crude … six for Stigmatic; the table\'s for a monster\'s piece), wider the higher its level', () => {
++    const counts: Record<string, number> = {}
++    for (const quality of ORDER) counts[quality] = Object.keys(rollAffixes(onto, 'head', new Rng(1).next.bind(new Rng(1)), { quality })).length
++    expect(counts).toEqual({ crude: 2, common: 3, fine: 4, masterwork: 5, vowed: 5, legendary: 6 })
++    expect(Object.keys(rollAffixes(onto, 'head', () => 0.5)).length).toBe(onto.affixes!.count)
++    // at the first level a rolled defence reaches 3; at the twentieth, nearly three times that
++    const top = (level: number) => {
++      let best = 0
++      const rng = new Rng(7)
++      for (let i = 0; i < 400; i++) best = Math.max(best, rollAffixes(onto, 'body', () => rng.next(), { quality: 'legendary', level })['sub:def'] ?? 0)
++      return best
++    }
++    expect(top(1)).toBe(3)
++    expect(top(20)).toBeGreaterThanOrEqual(8)
++    // a made piece carries its level and its quality's count
++    const fine = makeItem(new Rng(3), FORM_BY_ID['item/armor/helmet'], { material: 'iron', quality: 'fine', level: 6 })
++    expect(fine.props?.level).toBe(6)
++    expect(Object.keys(fine.props ?? {}).filter((k) => k.startsWith('sub:'))).toHaveLength(4)
++    // a bucket has no level
++    expect(makeItem(new Rng(3), FORM_BY_ID['item/vessel/bucket/empty']).props?.level).toBeUndefined()
++  })
++})
++
++describe('where a piece gets its level', () => {
++  it('a monster\'s own piece: its kind\'s, 1 to 20, its main stats scaled to it (a set\'s as a fine piece, one alone as a masterwork)', () => {
++    for (const t of TROPHIES) {
++      expect([t.type, t.level >= 1 && t.level <= GEAR_LEVELS.max]).toEqual([t.type, true])
++      expect(onto.types[t.type].props?.level).toBe(t.level)
++    }
++    const by = (kind: string) => TROPHIES.find((t) => t.kind === `actor/creature/${kind}`)!
++    // the crab's plate (level 4) guards better than the slime's vest (level 1); the golem's, alone, better still
++    expect(Number(by('crab').props.def)).toBeGreaterThan(Number(by('slime/green_slime').props.def))
++    expect(Number(by('golem/stone_golem').props.def)).toBeGreaterThan(Number(by('crab').props.def))
++    expect(by('slime/green_slime').props.def).toBe(3)
++    expect(by('golem/stone_golem').props.def).toBe(Math.round(3 * 1.5 * levelFactor(GEAR_LEVELS, 6)))
++  })
++
++  it('a Seal-bearer\'s arms: the Stigmatic level, their family\'s base at the Stigmatic quality', () => {
++    const sword = onto.types['item/weapon/blade/sword/oathbrand'].props!
++    expect(sword.level).toBe(10)
++    expect(sword.power).toBe(gearProps({ power: 4 }, undefined, q('legendary'), 10, GEAR_LEVELS).power)
++    expect(onto.types['item/relic/crown_of_thorns'].props).toMatchObject({ level: 10, xpRate: -0.5 })
++  })
++
++  it('a quest\'s gear: the author\'s level, its form\'s main stats in its first material at its quality', () => {
++    const items = QUESTS.flatMap((qd) => qd.stages.flatMap((s) => s.reward?.items ?? [])).filter((it) => typeof it.props?.slot === 'string')
++    expect(items.length).toBeGreaterThan(15)
++    for (const it of items) expect([it.type, typeof it.props?.level]).toEqual([it.type, 'number'])
++    const hauberk = items.find((it) => JSON.stringify(it.name ?? '').includes('Rowan'))!
++    expect(hauberk.props).toMatchObject({ level: 2, def: gearProps({ def: 3 }, MATERIAL_DEFS.iron, q('fine'), 2, GEAR_LEVELS).def })
++    expect(hauberk.tags).toContain('material:iron')
++  })
++
++  it('what is forged: the maker\'s level, no lower than the recipe\'s; its quality by the maker\'s level against the recipe\'s', () => {
++    const { eng, w, p } = fresh()
++    const r = RECIPE_BY_ID['smith/sword-iron']
++    eng.author(() => {
++      w.setProp(p, 'level', 7)
++      eng.teleport(p, { map: 'emberfall', x: 28, y: 9 })
++      w.create('item/tool/smith_hammer', { on: 'inside', holder: p.id })
++      for (const n of r.needs) for (let i = 0; i < n.count; i++) w.create(n.type, { on: 'inside', holder: p.id })
++    })
++    eng.controls.sync()
++    expect(eng.controls.craft(r)).toBe(true)
++    const sword = Object.values(w.state.entities).find((e) => e.type === 'item/weapon/blade/sword' && e.place.on === 'inside' && e.place.holder === p.id)!
++    expect(sword.props?.level).toBe(7)
++    // seven against the recipe's two: fine (three above; masterwork takes six); iron; the curve's 2.5 at the seventh level
++    expect(sword.tags).toContain('quality:fine')
++    expect(sword.props?.power).toBe(gearProps({ power: 4 }, MATERIAL_DEFS.iron, q('fine'), 7, GEAR_LEVELS).power)
++    expect(Object.keys(sword.props ?? {}).filter((k) => k.startsWith('sub:'))).toHaveLength(4)
++    // a first-level maker forges at the recipe's level
++    eng.author(() => { w.setProp(p, 'level', 1); for (const n of r.needs) for (let i = 0; i < n.count; i++) w.create(n.type, { on: 'inside', holder: p.id }) })
++    eng.controls.sync()
++    expect(eng.controls.craft(r)).toBe(true)
++    const plain = Object.values(w.state.entities).find((e) => e.type === 'item/weapon/blade/sword' && e.id !== sword.id && e.place.on === 'inside' && e.place.holder === p.id)!
++    expect(plain.props?.level).toBe(r.level)
++  })
++
++  it('what a merchant stocks: the merchant\'s level (the smith of Emberfall\'s four), at the start and at each restock; and worth more for it', () => {
++    const { eng, w, p } = fresh()
++    const s = socialOf(eng)
++    const garrick = w.get('npc.garrick')!
++    const stocked = () => (garrick.contents ?? []).map((id) => w.get(id)!).filter((e) => e.type === 'item/armor/helmet')
++    const [helm] = stocked()
++    expect(helm.props).toMatchObject({ level: 4 })
++    // sold out and restocked (the trade talk restocks first): the new one at his level too, its extras its own
++    eng.author(() => w.destroy(helm))
++    const at = w.posOf(garrick)!
++    eng.author(() => eng.teleport(p, { map: at.map, x: at.x, y: at.y + 1 }))
++    eng.controls.sync()
++    eng.controls.talk(garrick.id, 'trade')
++    eng.tick()
++    const [again] = stocked()
++    expect(again.props).toMatchObject({ level: 4, def: gearProps({ def: 1 }, undefined, undefined, 4, GEAR_LEVELS).def })
++    expect(Object.keys(again.props ?? {}).filter((k) => k.startsWith('sub:'))).toHaveLength(onto.affixes!.count)
++    // a higher piece is worth more
++    const low = eng.author(() => w.create('item/armor/helmet', { on: 'inside', holder: p.id }, { props: { level: 1 } }))
++    expect(s.value(again)).toBeGreaterThan(s.value(low))
++  })
++
++  it('what the map lays down: its level (deeper and further, higher), unless the piece says its own; an older save\'s pieces are stamped with the first', () => {
++    const { g, eng, w, p } = fresh()
++    const level = (id: string) => Number(w.get(id)!.props?.level)
++    // Tobin's wand on the village cart: the Ford's first level; Odo's pauldrons in the ossuary: its third; Tomas's belt on the warden: the sanctum's fourth
++    expect(level('tobin.wand')).toBe(1)
++    const odo = Object.values(w.state.entities).find((e) => JSON.stringify(e.name ?? '').includes("Odo's"))!
++    expect(odo.props).toMatchObject({ level: 3, def: gearProps({ def: 1 }, MATERIAL_DEFS.steel, q('vowed'), 3, GEAR_LEVELS).def })
++    const belt = Object.values(w.state.entities).find((e) => JSON.stringify(e.name ?? '').includes("Tomas's"))!
++    expect(belt.props).toMatchObject({ level: 4, 'night:def': 2 })
++    // an older save: a piece without a level has the first; a monster's piece keeps its kind's
++    const old: Entity = eng.author(() => w.create('item/armor/helmet', { on: 'inside', holder: p.id }, { props: { def: 1 } }))
++    const trophy: Entity = eng.author(() => w.create(TROPHIES[0].type, { on: 'inside', holder: p.id }))
++    eng.author(() => (w.setFact(GEAR_LAYOUT, false), migrateGear(g)))
++    expect(old.props?.level).toBe(1)
++    expect(trophy.props?.level).toBeUndefined()
++    expect(w.num(trophy, 'level')).toBe(TROPHIES[0].level)
++    expect(w.fact(GEAR_LAYOUT)).toBe(true)
++    void QUALITIES
++  })
++})
++
++// The Vowbound's vows (items.ts VOWS, world-model.md §6.8): a Vowbound piece carries one wherever it comes from, and
++// rolls its extras like any piece — a named one too, so that it is never the lesser of a common piece.
++describe('a Vowbound piece', () => {
++  const subs = (p: Record<string, unknown> | undefined) => Object.keys(p ?? {}).filter((k) => k.startsWith('sub:'))
++  const vowed = (e: Entity, w: ReturnType<typeof fresh>['w']) => [...(e.tags ?? []), ...w.onto.resolve(e.type).tags].includes('quality:vowed') && typeof w.prop(e, 'slot') === 'string'
++
++  it('laid on the map: its vow (the story\'s own for the named, the scallop\'s its form\'s) and its five extras', () => {
++    const { w } = fresh()
++    const pieces = Object.values(w.state.entities).filter((e) => vowed(e, w))
++    expect(pieces.length).toBeGreaterThanOrEqual(4)
++    for (const e of pieces) {
++      const en = typeof e.name === 'object' ? e.name.en : e.type
++      expect([en, VOW_IDS.includes(String(w.prop(e, 'vow'))), subs(e.props).length]).toEqual([en, true, 5])
++      if (typeof e.name === 'object' && NAMED_VOWS[e.name.en]) expect([en, w.prop(e, 'vow')]).toEqual([en, NAMED_VOWS[e.name.en]])
++    }
++    const scallop = pieces.find((e) => e.type === 'item/valuable/scallop')!
++    expect([w.prop(scallop, 'vow'), scallop.props?.def]).toEqual(['pilgrim', gearProps({ def: 1 }, undefined, q('vowed'), w.num(scallop, 'level', 1), GEAR_LEVELS).def])
++    expect(Object.keys(NAMED_VOWS).filter((n) => pieces.some((e) => typeof e.name === 'object' && e.name.en === n))).toHaveLength(3)
++  })
++
++  it('paid by a quest: the author\'s vow and its extras, seeded by its name; every quest\'s piece rolls its extras', () => {
++    const items = QUESTS.flatMap((qd) => qd.stages.flatMap((s) => s.reward?.items ?? [])).filter((it) => typeof it.props?.slot === 'string')
++    for (const it of items) expect([it.type, subs(it.props).length > 0]).toEqual([it.type, true])
++    const helm = items.find((it) => JSON.stringify(it.name ?? '').includes("Fennick's"))!
++    expect([helm.props?.vow, helm.props?.dodge, subs(helm.props).length]).toEqual(['ward', 0.1, 5])
++    expect(items.find((it) => JSON.stringify(it.name ?? '').includes("Cassian's"))!.props?.vow).toBe('dawn')
++    for (const [name, vow] of Object.entries(NAMED_VOWS)) {
++      const it = items.find((x) => JSON.stringify(x.name ?? '').includes(name))
++      if (it) expect([name, it.props?.vow]).toEqual([name, vow])
++    }
++  })
++
++  it('forged (the Legendary Smith\'s chance): a vow of the quality\'s', () => {
++    const { eng, w, p } = fresh()
++    const r = RECIPE_BY_ID['smith/sword-iron']
++    eng.author(() => {
++      w.setProp(p, 'level', 7)
++      w.setProp(p, `${r.station}:vowed`, 1)
++      eng.teleport(p, { map: 'emberfall', x: 28, y: 9 })
++      w.create('item/tool/smith_hammer', { on: 'inside', holder: p.id })
++      for (const n of r.needs) for (let i = 0; i < n.count; i++) w.create(n.type, { on: 'inside', holder: p.id })
++    })
++    eng.controls.sync()
++    expect(eng.controls.craft(r)).toBe(true)
++    const sword = Object.values(w.state.entities).find((e) => e.type === 'item/weapon/blade/sword' && e.place.on === 'inside' && e.place.holder === p.id)!
++    expect(sword.tags).toContain('quality:vowed')
++    expect(VOW_IDS).toContain(sword.props?.vow)
++    expect(subs(sword.props)).toHaveLength(5)
++  })
++
++  it('from an older save: takes its vow (the story\'s for the named), its numbers brought up to its tier\'s and never down, and the extras it never rolled', () => {
++    const { g, eng, w, p } = fresh()
++    const make = (type: string, extra: Partial<Entity>) => eng.author(() => w.create(type, { on: 'inside', holder: p.id }, extra))
++    const odo = make('item/armor/pauldrons', { name: { en: "Brother Odo's Pauldrons", zh: '奥多修士的护肩' }, tags: ['quality:vowed', 'material:steel', 'metal'], props: { def: 2, level: 3 } })
++    const rich = make('item/armor/pauldrons', { tags: ['quality:vowed', 'material:steel'], props: { def: 40, level: 3, 'sub:def': 1 } })
++    const plain = make('item/armor/pauldrons', { tags: ['material:steel'], props: { def: 2, level: 3 } })
++    eng.author(() => (w.setFact(VOWS_LAYOUT, false), migrateVows(g)))
++    expect(odo.props).toMatchObject({ vow: 'holdfast', def: gearProps({ def: 1 }, MATERIAL_DEFS.steel, q('vowed'), 3, GEAR_LEVELS).def })
++    expect(subs(odo.props)).toHaveLength(5)
++    expect(VOW_IDS).toContain(rich.props?.vow)
++    expect([rich.props?.def, subs(rich.props)]).toEqual([40, ['sub:def']])
++    expect([plain.props?.vow, subs(plain.props)]).toEqual([undefined, []])
++    expect(w.fact(VOWS_LAYOUT)).toBe(true)
++  })
++})
+diff --git a/games/openworld/tools/test/morals.test.ts b/games/openworld/tools/test/morals.test.ts
+new file mode 100644
+index 0000000..190934d
+--- /dev/null
++++ b/games/openworld/tools/test/morals.test.ts
+@@ -0,0 +1,147 @@
++import { describe, expect, it } from 'vitest'
++import { Game, RuleLibrary, TICKS_PER_DAY, type Entity } from '@openworld/engine'
++import { socialOf } from '@openworld/modules'
++import { BASE_RULES, STATS_LAYOUT, STORY_RULES, buildOntology, decodeChunk, migrateStats } from '@openworld-game/content'
++import { buildFord } from '../src/demo/world.ts'
++
++// Good and evil, faith, luck (content faith.ts): karma falls with one's own deeds, seen or not, and rises with
++// kindness; the good warm sooner to the good, the wicked to the wicked. Faith rises with prayer (once a day at a
++// place) and falls with words against the gods. Luck widens a creature's chance of leaving its trophy.
++
++const onto = buildOntology()
++const MAP = 'meadow'
++
++function fresh() {
++  const { index, chunks } = buildFord()
++  const g = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++  for (const c of chunks) g.loadChunk(decodeChunk(c))
++  g.mods.provider = undefined
++  const eng = g.engine, w = eng.world, p = w.player, s = socialOf(eng)
++  eng.author(() => {
++    w.setFact('seen.arrival', true)
++    w.setFact('seen.village_arrival', true)
++    eng.quests.put('descent', 'done')
++    eng.teleport(p, { map: MAP, x: 20, y: 15 })
++  })
++  eng.npcs.begin(MAP)
++  /** Everyone else sent away: no one to see. */
++  const clear = (keep: string[] = []) =>
++    eng.author(() => {
++      for (const e of Object.values(w.state.entities)) if (e.npc && !keep.includes(e.id) && e.place.on === 'tile') w.place(e, { on: 'tile', map: 'offstage', x: 1, y: 1 })
++    })
++  const make = (type: string, x: number, y: number, props?: Entity['props']) => eng.author(() => w.create(type, { on: 'tile', map: MAP, x, y }, props ? { props } : {}))
++  const hands = (x: number, y: number) => {
++    const plan = eng.controls.plan('hands', { x, y })
++    expect(plan).toBeDefined()
++    eng.controls.run(plan!)
++    eng.tick()
++  }
++  return { g, eng, w, p, s, clear, make, hands }
++}
++
++describe('good and evil', () => {
++  it('a theft no one sees still weighs on the thief: karma falls by a quarter of the deed', () => {
++    const { eng, w, p, clear, make } = fresh()
++    clear()
++    const loaf = make('item/food/bread', 20, 14, { owner: 'npc.marta' })
++    eng.act('take', p.id, { e: loaf.id }, { instrument: null, params: { into: 'contents' } })
++    expect(w.get('npc.marta')!.npc?.memory?.deeds ?? []).toEqual([])
++    expect(w.num(p, 'karma')).toBe(-4)
++    // taking what is no one's is no deed
++    const stone = make('item/material/stone', 20, 14)
++    eng.act('take', p.id, { e: stone.id }, { instrument: null, params: { into: 'contents' } })
++    expect(w.num(p, 'karma')).toBe(-4)
++  })
++
++  it('the good warm sooner to the good, and the wicked (Vigo, little honesty) to the wicked', () => {
++    const gain = (karma: number, who: string) => {
++      const { eng, w, p, s } = fresh()
++      eng.author(() => w.setProp(p, 'karma', karma))
++      return eng.author(() => s.changeRegard(w.get(who)!, p.id, 10))
++    }
++    expect(gain(60, 'npc.tam')).toBeGreaterThan(gain(0, 'npc.tam'))
++    expect(gain(-60, 'npc.tam')).toBeLessThan(gain(0, 'npc.tam'))
++    expect(gain(-60, 'npc.vigo')).toBeGreaterThan(gain(0, 'npc.vigo'))
++    expect(gain(60, 'npc.vigo')).toBeLessThan(gain(0, 'npc.vigo'))
++    // losses are what they are, whoever one is
++    const { eng, w, p, s } = fresh()
++    eng.author(() => w.setProp(p, 'karma', 80))
++    expect(eng.author(() => s.changeRegard(w.get('npc.tam')!, p.id, -10))).toBe(-10)
++  })
++
++  it('karma and faith stay within −100..100', () => {
++    const { eng, w, p, s } = fresh()
++    eng.author(() => (s.moral(p, 'karma', -500), s.moral(p, 'faith', 500)))
++    expect(w.num(p, 'karma')).toBe(-100)
++    expect(w.num(p, 'faith')).toBe(100)
++  })
++})
++
++describe('faith', () => {
++  it('a prayer at an altar raises faith, once a day there', () => {
++    const { eng, w, p, clear, make, hands } = fresh()
++    clear()
++    make('fixture/sacred/altar', 20, 14)
++    hands(20, 14)
++    expect(w.num(p, 'faith')).toBe(4)
++    hands(20, 14)
++    expect(w.num(p, 'faith')).toBe(4)
++    eng.author(() => void (w.state.tick += TICKS_PER_DAY + 1))
++    eng.tick()
++    hands(20, 14)
++    expect(w.num(p, 'faith')).toBe(8)
++  })
++
++  it('a wayside shrine is read and prayed at', () => {
++    const { w, p, clear, make, hands } = fresh()
++    clear()
++    make('fixture/sacred/wayshrine/crown', 20, 14)
++    w.fx = []
++    hands(20, 14)
++    expect(w.num(p, 'faith')).toBe(2)
++    expect(w.fx.some((x) => x.t === 'say' && JSON.stringify(x.text).includes('CROWN'))).toBe(true)
++  })
++
++  it('told there are no gods, the devout take it ill; the teller\'s faith wavers; once a day to each', () => {
++    const { eng, w, p, s } = fresh()
++    const anselm = w.get('npc.anselm')!
++    const at = w.posOf(anselm)!
++    eng.author(() => eng.travel(p, { map: at.map, x: at.x, y: at.y + 1 }))
++    eng.controls.sync()
++    expect(s.verbs(anselm, p).map((v) => v.id)).toContain('unbelief')
++    eng.controls.talk(anselm.id, 'unbelief')
++    eng.tick()
++    expect(w.num(p, 'faith')).toBe(-5)
++    expect(s.regard(anselm, p.id)).toBeLessThan(0)
++    expect(s.verbs(anselm, p).map((v) => v.id)).not.toContain('unbelief')
++  })
++})
++
++describe('luck', () => {
++  it('a creature\'s trophy comes more often to a lucky hand: chance × (1 + luck)', () => {
++    const drops = (luck: number) => {
++      const { eng, w, p } = fresh()
++      eng.author(() => w.setProp(p, 'luck', luck))
++      for (let i = 0; i < 12; i++) {
++        eng.queue({ kind: 'impulse/notify', host: { e: p.id }, roles: {}, params: { what: 'defeat', xp: 0, trophy: 'item/clothing/cloak/tidecloak', trophyChance: 0.5 } })
++        eng.flush()
++      }
++      return (p.contents ?? []).filter((id) => w.get(id)?.type === 'item/clothing/cloak/tidecloak').length
++    }
++    expect(drops(1)).toBe(12)
++    expect(drops(0)).toBeLessThan(12)
++  })
++})
++
++describe('an older save', () => {
++  it('its pieces lose standing your ground, stealth and perception for defence, dodge and luck', () => {
++    const { g, eng, w } = fresh()
++    const odo = eng.author(() => w.create('item/armor/pauldrons', { on: 'tile', map: MAP, x: 5, y: 5 }, { props: { def: 3, holdFast: 0.25 } }))
++    const ring = eng.author(() => w.create('item/valuable/ring', { on: 'tile', map: MAP, x: 5, y: 5 }, { props: { 'sub:stealth': 1, 'sub:perception': 2, 'sub:atk': 1 } }))
++    eng.author(() => w.setFact(STATS_LAYOUT, false))
++    eng.author(() => migrateStats(g))
++    expect(odo.props).toMatchObject({ def: 6 })
++    expect(odo.props?.holdFast).toBeUndefined()
++    expect(ring.props).toEqual({ 'sub:atk': 1, 'sub:luck': 0.1 })
++  })
++})
+diff --git a/games/openworld/tools/test/trophies.test.ts b/games/openworld/tools/test/trophies.test.ts
+index 1ab7db9..b2b03c6 100644
+--- a/games/openworld/tools/test/trophies.test.ts
++++ b/games/openworld/tools/test/trophies.test.ts
+@@ -4,7 +4,8 @@ import { AFFIX_TABLE, BASE_RULES, FORM_BY_ID, STORY_RULES, TROPHIES, TROPHY_OF,
+ import { buildFord } from '../src/demo/world.ts'
+ 
+ // Every kind of monster's own piece (content trophies.ts): a chance each felling, sure at the fiftieth; every piece of
+-// gear rolls four small extras as it is made (engine affixes.ts); a family's pieces worn together make a set.
++// gear rolls its small extras as it is made (engine affixes.ts: the table's four for a monster's piece, by quality for
++// the rest — gear-levels.test.ts); a family's pieces worn together make a set.
+ 
+ const onto = buildOntology()
+ 
+@@ -92,9 +93,11 @@ describe('rolled extras', () => {
+     }
+   })
+ 
+-  it('gear laid on a map or forged rolls them; what is not gear does not', () => {
++  it('gear laid on a map or forged rolls them (a common piece three, a fine one four); what is not gear does not', () => {
+     const helm = makeItem(new Rng(5), FORM_BY_ID['item/armor/helmet'], { material: 'iron', quality: 'common' })
+-    expect(Object.keys(helm.props ?? {}).filter((k) => k.startsWith('sub:'))).toHaveLength(4)
++    expect(Object.keys(helm.props ?? {}).filter((k) => k.startsWith('sub:'))).toHaveLength(3)
++    const fine = makeItem(new Rng(5), FORM_BY_ID['item/armor/helmet'], { material: 'iron', quality: 'fine' })
++    expect(Object.keys(fine.props ?? {}).filter((k) => k.startsWith('sub:'))).toHaveLength(4)
+     const bread = makeItem(new Rng(5), FORM_BY_ID['item/food/bread'])
+     expect(Object.keys(bread.props ?? {}).some((k) => k.startsWith('sub:'))).toBe(false)
+   })

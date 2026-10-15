@@ -1,0 +1,5 @@
+# The benchmark side of the RSI experiments (bench/pool.py, bench/fresh/): Python 3.12.
+#   uv venv --python 3.12 var/fresh/.venv && uv pip install --python var/fresh/.venv -r bench/requirements.txt
+swebench==5.0.2
+pyarrow
+pytest
