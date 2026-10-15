@@ -41,7 +41,7 @@ our SetStage. No patch may host a rule on a quest, and none may write one (mod.t
 ### 2.1 Definition (`QuestDef`)
 
 ```ts
-{ id, kind: 'main' | 'side' | 'favor', title, summary,
+{ id, kind: 'main' | 'side' | 'favor' | 'guide', title, summary,   // guide: a lesson the companion begins herself
   aliases?: Record<name, AliasDef>,          // who and what it is about
   objectives?: ObjectiveDef[],               // what the journal and the markers show
   stages: StageDef[],                        // the first is where it begins
@@ -169,7 +169,10 @@ Accepting:
   The options turn markers and the tracker off.
 - **Over heads**: a yellow **!** means an offer; a **?** means someone to speak to (a talk
   objective, or a hand-in ready now).
-- **Lumi** (E on the companion) says the tracked quest's open objectives and its stage's hint.
+- **Lumi** (E on the companion) says the tracked quest's open objectives and its stage's hint. Her panel's road
+  page shows the main quest under way and, beside it, her **guides** (kind `guide`, `quests/guides.ts`): the
+  teaching quests she begins herself, each with her tip; a guide never takes the main quest's place as the one
+  tracked by default.
 
 ### 2.6 Rules of thumb
 
@@ -200,6 +203,16 @@ Accepting:
 | `meal` 一口吃的 | favor (radiant) | news `hungry`: one who found no meal | bring them something to eat (G) |
 | `parcel` 捎个东西 | favor (radiant) | news `morning`, a household's errand | carry a parcel to someone of another household |
 | `cull` 清剿夜行者 | favor (radiant) | news `night`, from one who keeps the watch | put down night-born near the village |
+| `guide_skill` 第一个技能点 | guide | auto, the beat `guide_skill` (a skill point unspent, in a game proper) | learn a skill (the beat `guide_skill_learned`) |
+| `guide_profession` 选一条路 | guide | auto, the beat `guide_profession` (level 5, no profession) | a word with Bram; a profession chosen (the beat `guide_profession_chosen`) |
+| `guide_fish` 第一竿 | guide | auto, entering `meadow:pond` | a rod carried; a fish carried; bait paid |
+| `guide_farm` 菜圃的一课 | guide | auto, entering `meadow:garden` | the hoe, the sickle and seeds from the crate; a vegetable carried, a crop on the bare row (the beat `guide_sowed`), a crop watered near (`guide_watered`) |
+
+**The guides** (2026-10-13) are Lumi's own: a beat of the story notices the moment (`StepCond`: the leader's
+props, a skill learned, a crop on cells, a status near) and the quest answers it as the main line answers steps;
+her lines are the stages' `say`, `by: 'pip'`, and her panel lists them beside the main road. Their beats come last
+among the story's steps (one step plays at a poll: a lesson never delays the story's own moment). Their regions
+(`meadow:pond`, `meadow:garden`) are the map's (`FIRSTLIGHT.regions`), witnessed by the demo test (W20).
 
 The notice board in Firstlight Village (E) lists the radiant favours on offer, and accepts them.
 
@@ -223,7 +236,7 @@ The notice board in Firstlight Village (E) lists the radiant favours on offer, a
   - the derived tags in `world.ts`;
   - the journal, tracker and targets in `snapshot.ts`.
 - content:
-  - `quests/*.ts`: the definitions;
+  - `quests/*.ts`: the definitions (`guides.ts` the companion's guides and the beats they wait on);
   - the quest rules in `rules.ts`: `quest/news`, `quest/notify`, `quest/due`, `story/manager`;
   - the notice board.
 - client:

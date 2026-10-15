@@ -368,7 +368,7 @@ function questGiver(d: QuestDef): string | undefined {
   return d.aliases?.[name]?.id
 }
 
-const KIND_ZH: Record<string, string> = { main: '主线', side: '支线', favor: '委托' }
+const KIND_ZH: Record<string, string> = { main: '主线', side: '支线', favor: '委托', guide: '指引' }
 const NEWS_ZH: Record<string, string> = { hungry: '有人饿着肚子又没钱买吃的', deed: '有人当着失主的面拿走了东西', morning: '每天早上', night: '每天傍晚', begin: '新游戏开始' }
 
 /** A quest's trigger, in words (what has to be so). */
@@ -405,7 +405,16 @@ function triggerWords(ctx: Ctx, t: QuestTrigger | undefined, d?: QuestDef): stri
   if ('any' in t) return t.any.map((x) => triggerWords(ctx, x, d)).join('，或者')
   if ('not' in t) return `不再是「${triggerWords(ctx, t.not, d)}」`
   if ('done' in t) return `完成${entLink(ctx, ctx.g.byId.get(t.done), { icon: 0 }) || esc(t.done)}`
-  if ('quest' in t) return Object.keys(t.quest).map((id) => `${entLink(ctx, ctx.g.byId.get(id), { icon: 0 }) || esc(id)}进行到一定阶段`).join('，')
+  if ('quest' in t)
+    return Object.entries(t.quest)
+      .map(([id, c]) => {
+        const name = entLink(ctx, ctx.g.byId.get(id), { icon: 0 }) || esc(id)
+        // a quest at stage 0 has not begun (the guides wait on the tutorial's not having: a game proper)
+        if (c === 0 || (typeof c === 'object' && c !== null && 'eq' in c && c.eq === 0)) return `${name}没有开始（不在新手教程里）`
+        if (typeof c === 'object' && c !== null && 'gte' in c && typeof c.gte === 'number') return `${name}进行到第 ${c.gte} 阶段`
+        return `${name}进行到一定阶段`
+      })
+      .join('，')
   if ('fact' in t) return Object.keys(t.fact).map((f) => esc(T(ctx, '条件', `fact:${f}`))).join('，')
   if ('step' in t) return esc(T(ctx, '条件', `fact:seen.${t.step}`))
   if ('enter' in t) return `来到${mapLink(ctx, t.enter.split(':')[0])}`
@@ -773,7 +782,7 @@ function lists(ctx: Ctx, name: string, args: string[]): string | undefined {
     case '首领表': return table(['', '名字', '印', '生命（挑战）', '技能', '在哪里打'], g.bosses.map((b) => { const c = campaign(ctx, b); return [fit(b.sprite, 48), ctx.link(b.title, b.zh), esc(b.seal ?? ''), String(b.def.hp), b.def.skills.map((s) => esc(zh(s.name))).join('、'), c ? `${mapLink(ctx, c.map)}、${ctx.link('首领挑战')}` : ctx.link('首领挑战')] }))
     case '地点表': return table(['名称', '类型', '大小', '区域', '相连'], g.maps.map((m) => [ctx.link(m.title, m.zh), esc(T(ctx, '地图类型', m.map.kind)), `${m.map.width}×${m.map.height}`, m.map.zone ? esc(T(ctx, '区域', m.map.zone)) : '战斗区域', join([...new Set((m.map.portals ?? []).map((p: any) => p.to))].map((t) => mapLink(ctx, t as string)))]), 'wikitable sortable')
     case '任务表': {
-      const kind = ({ 主线: 'main', 支线: 'side', 委托: 'favor' } as Record<string, string>)[args[0] ?? ''] ?? ''
+      const kind = ({ 主线: 'main', 支线: 'side', 委托: 'favor', 指引: 'guide' } as Record<string, string>)[args[0] ?? ''] ?? ''
       const qs = g.quests.filter((q) => !kind || q.def.kind === kind)
       return table(['任务', '委托人', '目标', '奖励'], qs.map((q) => { const r = questRewards(q.def); const giver = questGiver(q.def); return [ctx.link(q.title, q.zh), giver ? personLink(ctx, giver) : 'news' in q.def.start ? '随机' : '—', (q.def.objectives ?? []).filter((o) => o.id !== 'back').map((x) => esc(zh(x.text))).join('<br>'), [r.xp ? `经验 +${r.xp}` : '', ...(r.items ?? []).map((it) => rewardItem(ctx, it))].filter(Boolean).join('<br>') || '—'] }))
     }
@@ -883,7 +892,7 @@ export function navbox(ctx: Ctx, name: string): string {
       break
     }
     case '任务': {
-      for (const [k, z] of [['main', '主线'], ['side', '支线'], ['favor', '委托']]) rows.push([z, links(g.quests.filter((q) => q.def.kind === k))])
+      for (const [k, z] of [['main', '主线'], ['side', '支线'], ['favor', '委托'], ['guide', '指引']]) rows.push([z, links(g.quests.filter((q) => q.def.kind === k))])
       if (ctx.pages.has('主线流程')) rows.push(['攻略', ctx.link('主线流程')])
       break
     }

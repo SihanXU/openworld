@@ -152,6 +152,7 @@ export const STRINGS: Record<string, [string, string]> = {
   q_main: ['Main', '主线'],
   q_side: ['Side', '支线'],
   q_favor: ['Favour', '委托'],
+  q_guide: ['Guide', '指引'],
   qTab_active: ['Under way', '进行中'],
   qTab_done: ['Done', '已完成'],
   qTab_failed: ['Failed', '失败'],

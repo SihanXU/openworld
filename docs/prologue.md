@@ -169,10 +169,16 @@ stays with you for the whole game:
   (`engine/src/story.ts`).
 - **E on the fairy** (`companion/talk`) says what the main road asks now (`@guide`: the tracked objective,
   else the stage's hint, else that nothing presses) and opens **her panel** (2026-10-12,
-  `runtime/src/ui/companion.ts`): her portrait with her wings and her light, and two pages — the main road
-  (the main quest's stage, its hint in her words, its objectives) and the seals' powers (five slots, the ones not
+  `runtime/src/ui/companion.ts`): her portrait with her wings and her light, and two pages — the road
+  (the main quest's stage, its hint in her words, its objectives, and beside it her guides) and the seals' powers (five slots, the ones not
   yet found sealed; the one she carries; another taken up only beside a woken waypoint statue, whose E opens the
   panel on that page). Her mood on the powers page follows the seal: each suffering stirs her its own way.
+- **Guides** (2026-10-13, `content/src/quests/guides.ts`, docs/quests.md §3): outside the clearing she goes on
+  teaching, one system at a time, as quests of the kind `guide` she begins herself — a beat notices the moment (a
+  skill point unspent; level five without a profession; the first step onto the pond's bank or into the garden of
+  Firstlight) and the quest answers it, its lines hers (`say`, `by: 'pip'`), its objectives states of the world (a
+  rod carried, a word with Bram, a crop standing on the bare row). They never take the main quest's place as the
+  one tracked; her panel shows them beside it.
 
 ## The map system
 

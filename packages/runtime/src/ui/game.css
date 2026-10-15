@@ -468,6 +468,8 @@
 .ql-detail { overflow-y: auto; }
 .ql-tag.favor { background: #8a5cb0; }
 .ql-quest.favor { border-left-color: #8a5cb0; }
+.ql-tag.guide { background: #2f8f8a; }
+.ql-quest.guide { border-left-color: #2f8f8a; }
 .ql-track { font: 600 12px var(--pixel); padding: 2px 8px; border-radius: 6px; border: 2px solid var(--wood-dark); background: var(--paper); color: var(--ink-warm); cursor: pointer; white-space: nowrap; }
 .ql-track.on { background: #ffd55a; }
 .ql-state.done { color: #3f6b1a; } .ql-state.failed { color: #b8321e; }

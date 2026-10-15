@@ -77,7 +77,8 @@ const W = (f: Ford) => f.eng.world
 /** A quest's state (its latest: offered, active, done, failed), or none (docs/quests.md). */
 const qs = (f: Ford, id: string) => f.eng.quests.stateOf(f.eng.quests.latest(id))
 /** What is under way, as the journal lists it: [the quest, its kind]. */
-const underWay = (f: Ford) => f.eng.quests.journal().filter((j) => j.state === 'active').map((j) => [j.quest, j.kind])
+/** The quests under way, the fairy's guides aside (they come and go with what the player learns, beside the main line: W20). */
+const underWay = (f: Ford) => f.eng.quests.journal().filter((j) => j.state === 'active' && j.kind !== 'guide').map((j) => [j.quest, j.kind])
 /**
  * Where the prologue stands, as docs/prologue.md numbers it: the clearing's days 1 … 8 (`awakening` 10 … 80), the foot
  * of the mountain 9 and the stone tried 10 (`descent` 10–20, 30), the Ford 11 (`descent` 40 on).
@@ -1096,6 +1097,36 @@ req('W19', "Firstlight's healing spring: Lumi points it out as one comes near; w
   ticks(f, 40)
   expect(w.num(w.player, 'hp')).toBeLessThanOrEqual(soaked + 1)
   expect(w.hasStatus({ e: w.player.id }, 'soaking')).toBe(false)
+})
+
+req('W20', "Firstlight's pond and its garden are where Lumi's guides begin (content quests/guides.ts): stepping onto the pond's bank begins the first cast, into the garden the garden's lesson — each told by her, beside the main road, its markers pointing there; the trainer's lesson waits on level five", ['region:pond', 'region:garden'], () => {
+  const f = fresh({ main: 'rescue' })
+  const w = W(f)
+  const q = f.eng.quests
+  const inside = (r: readonly [number, number, number, number]) => {
+    for (let y = r[1]; y < r[1] + r[3]; y++) for (let x = r[0]; x < r[0] + r[2]; x++) if (w.walkable(FIRSTLIGHT.map, x, y)) return { x, y }
+    throw new Error('nowhere to stand')
+  }
+  const within = (p: { map: string; x: number; y: number }, r: readonly [number, number, number, number]) => p.map === FIRSTLIGHT.map && p.x >= r[0] && p.x < r[0] + r[2] && p.y >= r[1] && p.y < r[1] + r[3]
+  expect(w.get(regionId(FIRSTLIGHT.map, 'pond'))?.type).toBe('region')
+  expect(w.get(regionId(FIRSTLIGHT.map, 'garden'))?.type).toBe('region')
+  // the pond: the first cast, its marker on the pond
+  w.fx.length = 0
+  author(f, () => f.eng.teleport(w.player, { map: FIRSTLIGHT.map, ...inside(FIRSTLIGHT.regions.pond) }))
+  ticks(f, 3)
+  expect(qs(f, 'guide_fish')).toBe('active')
+  expect(w.fx.some((x) => x.t === 'say' && x.who === 'pip')).toBe(true)
+  f.eng.controls.track('quest.guide_fish')
+  expect(q.targets().some((t) => within(t, FIRSTLIGHT.regions.pond))).toBe(true)
+  // the garden: its lesson, its marker on the supplies crate; the main line is still the road followed
+  author(f, () => f.eng.teleport(w.player, { map: FIRSTLIGHT.map, ...inside(FIRSTLIGHT.regions.garden) }))
+  ticks(f, 3)
+  expect(qs(f, 'guide_farm')).toBe('active')
+  f.eng.controls.track(undefined)
+  expect(q.tracked()?.id).toBe('quest.rescue')
+  expect(q.journal().filter((j) => j.kind === 'guide').map((j) => j.quest).sort()).toEqual(['guide_farm', 'guide_fish'])
+  // the trainer's: not before level five
+  expect(qs(f, 'guide_profession')).toBeUndefined()
 })
 
 req('W8', "height: the high ground at the mountain's foot stands two levels above the land below its face of rock; down the ramp and back up unharmed; off the edge a drop of two levels hurts, and the face cannot be climbed", [], () => {
@@ -4062,7 +4093,7 @@ describe('the event model is complete (design.md §5.13)', () => {
 describe('the Ford is minimal', () => {
   it('every placed thing, person and fixed piece of the world witnesses some requirement', () => {
     const { index, chunks } = buildFord()
-    const placed = new Set<string>([...chunks.flatMap((c) => c.entities.map((e) => e.type)), ...index.npcs.map((n) => n.id), 'weather:storm', 'region:far_bank', 'region:kingdom', 'region:spring'])
+    const placed = new Set<string>([...chunks.flatMap((c) => c.entities.map((e) => e.type)), ...index.npcs.map((n) => n.id), 'weather:storm', 'region:far_bank', 'region:kingdom', 'region:spring', 'region:pond', 'region:garden'])
     const witnessed = new Set(R.flatMap((r) => r.by))
     const idle = [...placed].filter((p) => !witnessed.has(p))
     expect(idle).toEqual([])

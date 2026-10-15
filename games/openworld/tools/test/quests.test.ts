@@ -3,10 +3,10 @@
 // journal's tracking and markers, the Story Manager's caps, the step conditions on quests, and the validator's word
 // that no patch hosts a quest.
 
-import { socialOf } from '@openworld/modules'
 import { describe, expect, it } from 'vitest'
+import { socialOf, takeProfession } from '@openworld/modules'
 import { Game, RuleLibrary, tickAt, validatePatch, type Engine, type QuestDef } from '@openworld/engine'
-import { BASE_RULES, CH1, QUESTS, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
+import { BASE_RULES, CH1, FIRSTLIGHT, GARDEN_BARE_ROW, PROFESSION_BY_ID, QUESTS, SKILLS, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()
@@ -233,5 +233,137 @@ describe('a quest is the content\'s', () => {
     expect(host.errors.join('\n')).toContain('a quest is the content')
     const use = validatePatch({ artifacts: [{ kind: 'rule', rule: { id: 'p/s', host: { type: 'actor/person' }, on: 'impulse/notify', tree: { do: [{ op: 'startQuest', id: 'meal' }] }, source: { origin: 'patch' } } }] }, { ontology: onto, library: lib })
     expect(use.errors.join('\n')).toContain("startQuest is the story's and the world's only")
+  })
+})
+
+// ------------------------------------------------------------------ the fairy's guides (quests/guides.ts)
+
+describe("the fairy's guides", () => {
+  const state = (eng: Engine, id: string) => eng.quests.stateOf(eng.quests.latest(id))
+  /** Said by Lumi (the companion) since the fx were last cleared. */
+  const lumiSaid = (eng: Engine, word: string) => eng.world.fx.some((x) => x.t === 'say' && x.who === 'pip' && JSON.stringify(x.text).includes(word))
+  /** Into the player's bag, as taken from a crate (the engine sees the carry). */
+  const bag = (eng: Engine, type: string, n = 1) => {
+    for (let i = 0; i < n; i++) {
+      const e = eng.author(() => eng.world.create(type, { on: 'inside', holder: 'player' }))
+      eng.touch({ e: e.id })
+    }
+    eng.controls.sync()
+  }
+  const carries = (eng: Engine, type: string) => [eng.world.player.held, ...(eng.world.player.contents ?? [])].filter((id) => eng.world.get(id)?.type === type).length
+  /** A cell one can stand on inside a region of Firstlight ([x, y, w, h]). */
+  const within = (eng: Engine, r: readonly [number, number, number, number]) => {
+    for (let y = r[1]; y < r[1] + r[3]; y++) for (let x = r[0]; x < r[0] + r[2]; x++) if (eng.world.walkable(FIRSTLIGHT.map, x, y)) return { x, y }
+    throw new Error('no cell to stand on')
+  }
+  const into = (eng: Engine, r: readonly [number, number, number, number]) => {
+    const at = within(eng, r)
+    eng.author(() => eng.teleport(eng.world.player, { map: FIRSTLIGHT.map, ...at }))
+  }
+
+  it('a skill point unspent: Lumi begins the first lesson herself, a guide beside the main road; a skill learned ends it', () => {
+    const { eng } = world()
+    const w = eng.world
+    ticks(eng, 5)
+    expect(state(eng, 'guide_skill')).toBeUndefined()
+    w.fx.length = 0
+    eng.author(() => (w.setProp(w.player, 'level', 2), w.setProp(w.player, 'skillPoints', 1)))
+    ticks(eng, 6)
+    expect(state(eng, 'guide_skill')).toBe('active')
+    expect(lumiSaid(eng, '技能点')).toBe(true)
+    const j = eng.quests.journal().find((q) => q.quest === 'guide_skill')!
+    expect([j.kind, j.hint && 'hint']).toEqual(['guide', 'hint'])
+    // a guide does not take the main quest's place as the one followed
+    expect(eng.quests.tracked()?.id).toBe('quest.rescue')
+    const general = SKILLS.find((s) => !s.profession && !s.requires?.length)!
+    expect(eng.controls.learn(general)).toBe(true)
+    ticks(eng, 6)
+    expect(state(eng, 'guide_skill')).toBe('done')
+  })
+
+  it('level five without a road: she sends you to Bram; a word with him, the choice, and it is done — one who chose already is not sent', () => {
+    const { eng } = world()
+    const w = eng.world
+    ticks(eng, 5)
+    w.fx.length = 0
+    eng.author(() => w.setProp(w.player, 'level', 5))
+    ticks(eng, 6)
+    expect(state(eng, 'guide_profession')).toBe('active')
+    expect(lumiSaid(eng, '布拉姆')).toBe(true)
+    // the trainer is the one to speak to, in the drill yard
+    expect(eng.quests.mark('npc.bram')).toBe('?')
+    eng.controls.track('quest.guide_profession')
+    // (both objectives point at him: one marker)
+    expect(eng.quests.targets().map((t) => t.map)).toEqual(['meadow'])
+    const bram = w.get('npc.bram')!
+    const at = w.posOf(bram)!
+    eng.author(() => eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 }))
+    eng.interact('interact', 'player', { e: bram.id }, { instrument: null })
+    ticks(eng, 3)
+    expect(eng.quests.stage('guide_profession')).toBe(20)
+    expect(takeProfession(eng, PROFESSION_BY_ID.warrior, SKILLS)).toBeUndefined()
+    ticks(eng, 6)
+    expect(state(eng, 'guide_profession')).toBe('done')
+
+    // another game, a road chosen before the fifth level came: no lesson
+    const other = world().eng
+    ticks(other, 5)
+    other.author(() => (other.world.setProp(other.world.player, 'profession', 'ranger'), other.world.setProp(other.world.player, 'level', 5)))
+    ticks(other, 6)
+    expect(state(other, 'guide_profession')).toBeUndefined()
+  })
+
+  it("the pond: stepping onto its bank begins the first cast, whose marker is the pond; a rod, then a fish, and she pays bait", () => {
+    const { eng } = world()
+    const w = eng.world
+    ticks(eng, 5)
+    w.fx.length = 0
+    into(eng, FIRSTLIGHT.regions.pond)
+    ticks(eng, 3)
+    expect(state(eng, 'guide_fish')).toBe('active')
+    expect(lumiSaid(eng, '鱼竿')).toBe(true)
+    eng.controls.track('quest.guide_fish')
+    const t = eng.quests.targets().find((x) => x.objective === 'fish')!
+    const [rx, ry, rw, rh] = FIRSTLIGHT.regions.pond
+    expect([t.map, t.x >= rx && t.x < rx + rw, t.y >= ry && t.y < ry + rh]).toEqual(['meadow', true, true])
+    bag(eng, 'item/tool/fishing_rod')
+    ticks(eng, 3)
+    expect(eng.quests.stage('guide_fish')).toBe(20)
+    bag(eng, 'item/food/fish/perch')
+    ticks(eng, 3)
+    expect(state(eng, 'guide_fish')).toBe('done')
+    expect(carries(eng, 'item/misc/bait')).toBe(3)
+  })
+
+  it("the garden: stepping in begins the lesson; the tools from the crate, then a harvest, a seed on the bare row and water end it", () => {
+    const { eng } = world()
+    const w = eng.world
+    ticks(eng, 5)
+    w.fx.length = 0
+    into(eng, FIRSTLIGHT.regions.garden)
+    ticks(eng, 3)
+    expect(state(eng, 'guide_farm')).toBe('active')
+    expect(lumiSaid(eng, '菜圃')).toBe(true)
+    eng.controls.track('quest.guide_farm')
+    // (the three tools point at the crate: one marker)
+    const crate = w.posOf(w.get('ford.garden.supplies')!)!
+    expect(eng.quests.targets()).toEqual([expect.objectContaining({ map: 'meadow', x: crate.x, y: crate.y })])
+    bag(eng, 'item/tool/hoe')
+    bag(eng, 'item/tool/sickle')
+    bag(eng, 'item/seed/carrot', 2)
+    ticks(eng, 3)
+    expect(eng.quests.stage('guide_farm')).toBe(20)
+    // harvested: a carrot in the bag; sown: a sprout on the bare row; watered: a crop in the garden
+    bag(eng, 'item/food/carrot')
+    const [sx, sy] = GARDEN_BARE_ROW[0]
+    eng.author(() => w.create('fixture/crop/carrot/sprout', { on: 'tile', map: FIRSTLIGHT.map, x: sx, y: sy }))
+    ticks(eng, 4)
+    expect(eng.quests.done('guide_farm.harvest')).toBe(true)
+    expect(eng.quests.done('guide_farm.sow')).toBe(true)
+    expect(state(eng, 'guide_farm')).toBe('active')
+    eng.author(() => w.setStatus({ e: 'ford.garden.carrot.young' }, 'watered', w.state.tick + 1200))
+    ticks(eng, 6)
+    expect(state(eng, 'guide_farm')).toBe('done')
+    expect(carries(eng, 'item/seed/turnip')).toBe(2)
   })
 })

@@ -171,6 +171,12 @@
     "fact:seen.tut_wake": "在空地上醒来之后",
     "fact:seen.tut_ate": "吃过东西之后",
     "fact:seen.tut_gathered": "收齐树枝、石头和草之后",
+    "fact:seen.guide_skill": "露米提醒技能点之后",
+    "fact:seen.guide_skill_learned": "学会第一个技能之后",
+    "fact:seen.guide_profession": "露米提醒选职业之后",
+    "fact:seen.guide_profession_chosen": "选定职业之后",
+    "fact:seen.guide_sowed": "在菜圃空行播种之后",
+    "fact:seen.guide_watered": "给作物浇过水之后",
     "fact:seen.tut_axe": "做出石斧之后",
     "fact:seen.tut_planks": "劈出木板之后",
     "fact:seen.tut_fire": "点起营火之后",
@@ -310,6 +316,7 @@
     "alias:recipient": "收信人",
     "alias:guard": "守卫",
     "tag:edible": "吃的",
-    "tag:nightborn": "夜行者"
+    "tag:nightborn": "夜行者",
+    "tag:vegetable": "蔬菜"
   }
 }

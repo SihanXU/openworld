@@ -10,7 +10,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@openworld/engine'
-import { BOSSES, QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, generateLook, type RawChunk } from '@openworld-game/content'
+import { BOSSES, QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, GUIDE_BEATS, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, generateLook, type RawChunk } from '@openworld-game/content'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
@@ -313,6 +313,9 @@ function buildMeadow(): MapBuilder {
   m.scenery('spring', sx - 1, sy - 1)
   // the ground round it, where Lumi points it out
   m.regions.spring = [sx - 4, sy - 3, 9, 7]
+  // the pond's banks and the garden's ground: where the fairy's guides begin (content quests/guides.ts)
+  m.regions.pond = [...FIRSTLIGHT.regions.pond]
+  m.regions.garden = [...FIRSTLIGHT.regions.garden]
   m.fixture('fixture/sign', sx - 2, sy - 2, { props: { text: 'Warm spring — sit a while, and it mends you.', text_zh: '温泉——泡一会儿，伤就好了。' } })
   // small things: flowers and tufts in the open, leaves under the trees
   const tree = (t: string) => t === 'tree' || t === 'pine'
@@ -758,8 +761,9 @@ export function buildFord(): FordWorld {
     else if (e.type.startsWith('actor/creature')) creatures++
   }
   const metaOf = (b: MapBuilder, c: RawChunk): MapMeta => ({ id: b.id, name: b.name, kind: b.kind, region: b.region, width: b.w, height: b.h, portals: b.portals, npcs: npcs.filter((n) => n.place.on === 'tile' && n.place.map === b.id).length, items: c.entities.filter((e) => e.type.startsWith('item/')).length, at: at.get(b.id), ...(Object.keys(b.regions).length && { regions: b.regions }) })
-  // the story's one script (world-model.md §6.12): the tutorial's beats, then the scenes
-  const steps = [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...PILGRIMAGE_STORY, ...FLANKS_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES]
+  // the story's one script (world-model.md §6.12): the tutorial's beats and Firstlight's, then the scenes; the fairy's
+  // guides last (one step plays at a poll: a lesson of hers never delays the story's own moment)
+  const steps = [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...PILGRIMAGE_STORY, ...FLANKS_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES, ...GUIDE_BEATS]
   const index: WorldIndex = {
     name: L('The Ford', '渡口'),
     version: VERSION,

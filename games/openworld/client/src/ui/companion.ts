@@ -1,12 +1,13 @@
 /// <reference types="vite/client" />
 
 // The companion's panel (2026-10-12; E on Lumi, or a woken waypoint statue): the fairy herself, her portrait drawn
-// with her wings and her light, and two pages — what the main road asks now (the main quest's stage, its hint in her
-// words, its objectives), and the seals' powers she has taken up (the boons module): five slots, the ones not yet found
+// with her wings and her light, and two pages — the road (the main quest's stage, its hint in her words, its objectives,
+// and beside it her guides: the teaching quests she begins herself, content quests/guides.ts), and the seals' powers she
+// has taken up (the boons module): five slots, the ones not yet found
 // sealed, the one she carries, and the choice of another — only beside a woken statue. OpenWorld's own panel
 // (ui/panels.ts: `companion` opens it on the road, `boons` on the powers), drawn into the host the runtime gives it.
 
-import type { Frame, JournalQuest, Mood } from '@openworld/engine'
+import type { Frame, JournalQuest, Mood, Text } from '@openworld/engine'
 import { BOON_BY_ID, COMPANION_LOOK } from '@openworld-game/content'
 import { portraitOf, preparePortrait } from '@openworld/runtime/src/assets/figure/index.ts'
 import { esc, locale, t, tx } from '@openworld/runtime/src/ui/common.ts'
@@ -60,8 +61,8 @@ class CompanionPanel implements GamePanel {
   render(f: Frame): void {
     this.frame = f
     const b = f.player.boons
-    const main = mainQuest(f)
-    const sig = `${locale.value}|${this.tab}|${b?.unlocked.join()}|${b?.active}|${b?.atWaypoint}|${JSON.stringify(main)}`
+    const road = roadOf(f)
+    const sig = `${locale.value}|${this.tab}|${b?.unlocked.join()}|${b?.active}|${b?.atWaypoint}|${JSON.stringify(road)}`
     if (sig === this.sig) return
     this.sig = sig
     const zh = locale.value === 'zh'
@@ -83,20 +84,19 @@ class CompanionPanel implements GamePanel {
           <div class="lm-tabs">${tab('guide', '✦', 'The Road', '主线指引')}${tab('powers', '✧', "The Seals' Powers", '印之力量')}</div>
           <button class="lm-x" data-close title="${zh ? '关闭' : 'Close'}">✕</button>
         </div>
-        <div class="lm-body">${this.tab === 'guide' ? this.guide(main, name) : this.powers(f)}</div>
+        <div class="lm-body">${this.tab === 'guide' ? this.guide(road, name) : this.powers(f)}</div>
       </section>
     </div>`
     // her face: on the road, glad when nothing presses; on the powers, as the seal she carries stirs her
     const seal = b?.active ? BOON_BY_ID[b.active]?.seal : undefined
     const carried = seal ? seal - 1 : b?.active ? (b.unlocked ?? []).indexOf(b.active) : -1
-    const rest = this.tab === 'guide' ? (main ? undefined : 'happy') : carried >= 0 ? SEAL_MOOD[carried] : undefined
+    const rest = this.tab === 'guide' ? (road.main || road.guides.length ? undefined : 'happy') : carried >= 0 ? SEAL_MOOD[carried] : undefined
     this.drawBust(rest)
     if (this.tab === 'powers') this.stirred(rest, epithet)
     this.host.querySelector<HTMLButtonElement>('[data-close]')!.onclick = () => this.ctx.close()
     this.host.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((el) => (el.onclick = () => ((this.tab = el.dataset.tab as CompanionTab), (this.sig = ''), this.render(f))))
     this.host.querySelectorAll<HTMLButtonElement>('[data-boon]').forEach((el) => (el.onclick = () => this.ctx.send.boon(el.dataset.boon!)))
-    const log = this.host.querySelector<HTMLButtonElement>('[data-log]')
-    if (log) log.onclick = () => this.ctx.openQuests()
+    this.host.querySelectorAll<HTMLButtonElement>('[data-log]').forEach((el) => (el.onclick = () => this.ctx.openQuests()))
   }
 
   /** On the powers page: a seal pointed at shows on her face, and its name under hers; away, the carried one's. */
@@ -133,13 +133,26 @@ class CompanionPanel implements GamePanel {
       })
   }
 
-  /** The main road: what she says to do now, and the quest's objectives. */
-  private guide(q: JournalQuest | undefined, name: string): string {
+  /**
+   * The road: what she says to do now (the tracked quest's hint when it is one of hers or the main's, else the main
+   * road's), the main quest's objectives, and beside it each guide under way — the lessons she began herself, each
+   * with her tip for it.
+   */
+  private guide(road: Road, name: string): string {
     const zh = locale.value === 'zh'
-    if (!q)
+    const { main, guides } = road
+    if (!main && !guides.length)
       return `<div class="lm-say"><span class="lm-who">${esc(name)}</span><p>${zh ? '现在没什么急事。想去哪就去哪吧！我跟着你。' : 'Nothing presses now. Go where you like — I’m right behind you!'}</p></div>`
-    const open = q.objectives.filter((o) => o.state === 'open' && !o.optional)
-    const words = q.hint ? tx(q.hint) : open[0] ? tx(open[0].text) : tx(q.summary)
+    const spoken = guides.find((q) => q.tracked) ?? main ?? guides[0]
+    const open = spoken.objectives.filter((o) => o.state === 'open' && !o.optional)
+    const words = spoken.hint ? tx(spoken.hint) : open[0] ? tx(open[0].text) : tx(spoken.summary)
+    const cards = [...(main ? [this.card(main, zh ? '主线' : 'Main quest', '')] : []), ...guides.map((q) => this.card(q, zh ? '指引 · 露米的教学' : 'Guide · a lesson of Lumi’s', 'guide', q === spoken ? undefined : q.hint))]
+    return `<div class="lm-say"><span class="lm-who">${esc(name)}</span><p>${esc(words)}</p></div>${cards.join('')}`
+  }
+
+  /** One quest on the road: its kind, its title, what it is about, its objectives (and her tip, when it is not the one she speaks). */
+  private card(q: JournalQuest, kicker: string, cls: string, hint?: Text): string {
+    const zh = locale.value === 'zh'
     const objectives = q.objectives
       .filter((o) => o.state !== 'failed')
       .map((o) => {
@@ -148,11 +161,11 @@ class CompanionPanel implements GamePanel {
         return `<li class="${done ? 'done' : ''}${o.optional ? ' opt' : ''}"><span class="lm-check">${done ? '✓' : ''}</span><span class="lm-obj">${esc(tx(o.text))}${o.optional ? `<small>${zh ? '（可选）' : ' (optional)'}</small>` : ''}${o.where && !done ? `<span class="lm-where">⌖ ${esc(tx(o.where))}</span>` : ''}</span>${bar}</li>`
       })
       .join('')
-    return `<div class="lm-say"><span class="lm-who">${esc(name)}</span><p>${esc(words)}</p></div>
-      <div class="lm-quest">
-        <div class="lm-kicker">${zh ? '主线' : 'Main quest'}${q.tracked ? `<span class="lm-tracked">${zh ? '追踪中' : 'Tracked'}</span>` : ''}</div>
+    return `<div class="lm-quest ${cls}">
+        <div class="lm-kicker">${kicker}${q.tracked ? `<span class="lm-tracked">${zh ? '追踪中' : 'Tracked'}</span>` : ''}</div>
         <h3>${esc(tx(q.title))}</h3>
         <p class="lm-summary">${esc(tx(q.summary))}</p>
+        ${hint ? `<p class="lm-hint">${esc(tx(hint))}</p>` : ''}
         <ul class="lm-objs">${objectives}</ul>
         <button class="cv-btn small lm-log" data-log>${zh ? '打开任务日志' : 'Open the quest log'}</button>
       </div>`
@@ -191,10 +204,16 @@ class CompanionPanel implements GamePanel {
 /** Her panel (ui/panels.ts). */
 export const companionPanel = (ctx: PanelContext): GamePanel => new CompanionPanel(ctx)
 
-/** The main quest under way, else the tracked one: what "the road" means. */
-function mainQuest(f: Frame): JournalQuest | undefined {
+/** What "the road" means: the main quest under way (else the tracked one, if it is not a guide), and her guides under way. */
+interface Road {
+  main?: JournalQuest
+  guides: JournalQuest[]
+}
+
+function roadOf(f: Frame): Road {
   const active = (f.quests?.journal ?? []).filter((q) => q.state === 'active')
-  return active.find((q) => q.kind === 'main') ?? active.find((q) => q.tracked)
+  const guides = active.filter((q) => q.kind === 'guide')
+  return { main: active.find((q) => q.kind === 'main') ?? active.find((q) => q.tracked && q.kind !== 'guide'), guides }
 }
 
 /**

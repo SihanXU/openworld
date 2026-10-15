@@ -1,5 +1,5 @@
 // The journal (L, or its button bottom right; docs/quests.md §2.5): three tabs — under way, done, failed. Each
-// quest shows its kind and who gave it, what it is about, its objectives (open with their counts, done ticked,
+// quest shows its kind (the main line, a side quest, a favour, a companion's guide) and who gave it, what it is about, its objectives (open with their counts, done ticked,
 // failed struck through, where they are when elsewhere) and its log, the lines of the stages reached, in order;
 // one is tracked (★: the tracker, the markers, a companion's guidance). The commission board (docs/quests.md §3) opens here too:
 // the favours on offer, to take on.
@@ -8,7 +8,7 @@ import type { Frame, JournalQuest, QuestOffer } from '@openworld/engine'
 import { $, esc, t, tx } from './common.ts'
 
 type Tab = 'active' | 'done' | 'failed'
-const KIND_TAG: Record<string, string> = { main: 'q_main', side: 'q_side', favor: 'q_favor' }
+const KIND_TAG: Record<string, string> = { main: 'q_main', side: 'q_side', favor: 'q_favor', guide: 'q_guide' }
 
 export class QuestLog {
   private sig = ''

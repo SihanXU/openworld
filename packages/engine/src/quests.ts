@@ -18,7 +18,8 @@ import { TICKS_PER_HOUR } from './calendar.ts'
 import { regionId } from './world.ts'
 import type { Cmp, Effect, Entity, GameEvent, Id, Lesson, PropValue, Selector, Text } from './types.ts'
 
-export type QuestKind = 'main' | 'side' | 'favor'
+/** The main line, someone's errand, a radiant favour, or a guide: the companion's teaching of one of the game's systems, told beside the main line in her panel. */
+export type QuestKind = 'main' | 'side' | 'favor' | 'guide'
 
 /** What makes a stage or an objective hold (docs/quests.md §2.2): data, each kind listening for some news. */
 export type QuestTrigger =
@@ -826,7 +827,8 @@ export class Quests {
       return q
     }
     if (d.deadline) w.setStatus({ e: q.id }, 'due', w.state.tick + Math.round(d.deadline * TICKS_PER_HOUR))
-    if (d.kind !== 'main' || d.stages[0]?.log) w.fx.push({ t: 'log', text: { en: `Quest taken: ${txt(d.title, 'en')}`, zh: `接受任务：${txt(d.title, 'zh')}` }, tone: 'good' })
+    if (d.kind === 'guide') w.fx.push({ t: 'log', text: { en: `New guide: ${txt(d.title, 'en')}`, zh: `新的指引：${txt(d.title, 'zh')}` }, tone: 'good' })
+    else if (d.kind !== 'main' || d.stages[0]?.log) w.fx.push({ t: 'log', text: { en: `Quest taken: ${txt(d.title, 'en')}`, zh: `接受任务：${txt(d.title, 'zh')}` }, tone: 'good' })
     // its first stage is its own outcome
     eng.queue({ kind: 'impulse/notify', host: { e: q.id }, roles: { actor: { e: by } }, params: { what: 'stage', n: d.stages[0].n }, cause: ev.cause, origin: ev.origin, depth: (ev.depth ?? 0) + 1 })
     return q

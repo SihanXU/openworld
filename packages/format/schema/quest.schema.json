@@ -90,8 +90,10 @@
       "enum": [
         "main",
         "side",
-        "favor"
-      ]
+        "favor",
+        "guide"
+      ],
+      "description": "The main line, someone's errand, a radiant favour, or a guide: the companion's teaching of one of the game's systems, told beside the main line in her panel."
     },
     "Text": {
       "anyOf": [

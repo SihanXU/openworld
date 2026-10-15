@@ -102,6 +102,13 @@
 .lm-who::before { content: '✦ '; color: #e0a83e; }
 .lm-say p { margin: 5px 0 0; font: 15px/1.75 var(--text); color: #3d2b5e; }
 .lm-quest { padding: 12px 14px 14px; border-radius: 10px; background: rgba(255, 251, 238, 0.75); border: 2px solid var(--parch-3); box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(74, 42, 20, 0.12); }
+.lm-quest + .lm-quest { margin-top: 12px; }
+/* her guides, beside the main road: the teaching quests she began herself */
+.lm-quest.guide { background: rgba(236, 250, 248, 0.78); border-color: #8fc9c4; }
+.lm-quest.guide .lm-kicker { color: #2f8f8a; }
+.lm-quest.guide .lm-kicker::before { background: linear-gradient(90deg, transparent, #2f8f8a); }
+.lm-hint { margin: 0 0 10px; padding: 6px 10px; border-left: 3px solid #9d86d8; border-radius: 0 6px 6px 0; background: rgba(244, 238, 255, 0.6); font: 13px/1.65 var(--text); color: #4a3a6e; }
+.lm-hint::before { content: '✦ '; color: #e0a83e; }
 .lm-kicker { display: flex; align-items: center; gap: 8px; font: 700 11px var(--pixel); letter-spacing: 0.24em; color: #b8562e; }
 .lm-kicker::before { content: ''; width: 18px; height: 2px; background: linear-gradient(90deg, transparent, #b8562e); }
 .lm-tracked { font: 600 10px var(--pixel); letter-spacing: 0.06em; color: #3f6b1a; padding: 2px 8px; border-radius: 10px; background: rgba(95, 145, 50, 0.15); border: 1px solid rgba(79, 125, 34, 0.5); }
