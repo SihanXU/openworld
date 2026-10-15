@@ -1,0 +1,43 @@
+{
+ "sha": "1d099d3374d7b4d131878765d903b4dd1a21ee7f",
+ "parent": "92945e8dbec89fc749329191d1c4bb3b51a2380a",
+ "date": "2026-10-09T21:16:58-04:00",
+ "rung": "R4",
+ "lock": "d8255c2c3962ee4efef4677fcd11300e4a95056d",
+ "tests": [
+  "packages/modder/test/promote.test.ts",
+  "packages/tools/test/upstream.test.ts"
+ ],
+ "code": [
+  "package.json",
+  "packages/agent/src/model.ts",
+  "packages/modder/src/derive.ts",
+  "packages/modder/src/index.ts",
+  "packages/modder/src/pipeline.ts",
+  "packages/modder/src/promote.ts",
+  "packages/modder/src/prompts.ts",
+  "packages/tools/src/coverage.ts",
+  "packages/tools/src/engine-tasks.ts",
+  "packages/tools/src/upstream.ts"
+ ],
+ "lines": 922,
+ "areas": [
+  "agent",
+  "modder",
+  "other",
+  "tools"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/modder/test/promote.test.ts::candidates S1 needs K types and a share S of what the class reaches at the hole",
+  "packages/modder/test/promote.test.ts::candidates S1: three slimes answering alike make one candidate on their class; a differing sibling is not in the cluster",
+  "packages/modder/test/promote.test.ts::candidates S2: a class asked N times at one hole, with no cluster, is a candidate on the narrowest class that qualifies",
+  "packages/modder/test/promote.test.ts::the lowest common ancestor is the deepest shared prefix below the root, never the root alone",
+  "packages/modder/test/promote.test.ts::tree equivalence keeps the conditions and the effects, drops the wording, and abstracts the host's own type",
+  "packages/tools/test/upstream.test.ts::the bounds take one rule in rules.ts within L lines, and nothing in the engine",
+  "packages/tools/test/upstream.test.ts::the coverage regression passes when every defined cell resolves as before and the gains are the candidate's",
+  "packages/tools/test/upstream.test.ts::the coverage regression reports a defined cell that changed hands or became a hole, and a gain beyond the proposal",
+  "packages/tools/test/upstream.test.ts::the upstream task names the branch after the hole and the class"
+ ],
+ "PASS_TO_PASS": [],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

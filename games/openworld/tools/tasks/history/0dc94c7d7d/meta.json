@@ -1,0 +1,29 @@
+{
+ "sha": "0dc94c7d7d3e7ca3d84c33a9faa82a6cdd7e7829",
+ "parent": "3a0e7eddc9c5ada3a5513bc37489268f7e61886a",
+ "date": "2026-10-07T02:11:59-04:00",
+ "rung": "R2",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/client/test/depth.test.ts"
+ ],
+ "code": [
+  "packages/client/src/render/depth.ts",
+  "packages/client/src/render/scene.ts",
+  "packages/client/tsconfig.json"
+ ],
+ "lines": 131,
+ "areas": [
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/client/test/depth.test.ts::the draw order (depth.ts) a body on the move is ordered by where it is drawn, kept within a row of its cell",
+  "packages/client/test/depth.test.ts::the draw order (depth.ts) a floor laid on the ground is part of the ground: under all that stands on it, over what lies flat",
+  "packages/client/test/depth.test.ts::the draw order (depth.ts) a storey up: the slab over the wall that holds it, under what stands on it; the row south in front of all",
+  "packages/client/test/depth.test.ts::the draw order (depth.ts) by the row first: what stands south is in front of what stands north, whatever it is",
+  "packages/client/test/depth.test.ts::the draw order (depth.ts) in one cell: the slab, a built block or fixture, what lies loose on it, a body",
+  "packages/client/test/depth.test.ts::the draw order (depth.ts) one flying over a building is over its roof; on the ground beside it, as anyone"
+ ],
+ "PASS_TO_PASS": [],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

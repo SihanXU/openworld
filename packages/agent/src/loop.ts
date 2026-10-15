@@ -99,7 +99,7 @@ async function hooks(task: AgentTask, h: Harness, stage: HookStage): Promise<{ n
   if (!task.env.isolated && !task.localRun) return out
   for (const name of h.agent.hooks[stage] ?? []) {
     if (!existsSync(join(task.env.root, '.agent', 'hooks', stage, `${name}.mjs`))) continue
-    const r = await task.env.exec(`node .agent/hooks/${stage}/${name}.mjs`, {
+    const r = await task.env.exec(`${task.env.node ?? 'node'} .agent/hooks/${stage}/${name}.mjs`, {
       timeoutMs: 120_000,
       env: { TASK_TESTS: task.tests?.command ?? '', TASK_ISSUE: '.agent/ISSUE.md', TASK_KIND: task.kind },
     })
@@ -248,10 +248,14 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
   return { outcome: ep.outcome as 'accepted' | 'failed', submitted, verdict, diff, episode: ep }
 }
 
+/** Where a workspace began, when it did not begin at HEAD's tree (a benchmark image's own state: swe.ts). */
+export const BASE_REF = 'refs/lsw/base'
+
 export async function gitDiff(env: Env): Promise<string> {
   // include new files in the diff without staging their content
   await env.exec('git add -A -N . 2>/dev/null; true', { timeoutMs: 60_000 })
-  const r = await env.exec('git -c core.autocrlf=false diff --no-color', { timeoutMs: 60_000 })
+  // against where the workspace began: what the agent changed, committed or not
+  const r = await env.exec(`git -c core.autocrlf=false diff --no-color $(git rev-parse -q --verify ${BASE_REF} || true)`, { timeoutMs: 60_000 })
   return r.stdout
 }
 

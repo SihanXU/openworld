@@ -1,0 +1,117 @@
+diff --git a/packages/editor/test/api.test.ts b/packages/editor/test/api.test.ts
+new file mode 100644
+index 0000000..8513b6e
+--- /dev/null
++++ b/packages/editor/test/api.test.ts
+@@ -0,0 +1,49 @@
++// The editor's service (src/server/api.ts): over a folder of games it lists the projects, reads one, writes the
++// format's files as the format writes them (and nothing else), makes a new project from the starter, and says
++// what the compiler finds.
++
++import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
++import { tmpdir } from 'node:os'
++import { join } from 'node:path'
++import { fileURLToPath } from 'node:url'
++import { afterAll, describe, expect, it } from 'vitest'
++import { formatJson } from '@openworld/format'
++import { ProjectsApi } from '../src/server/api.ts'
++
++const STARTER = fileURLToPath(new URL('../../../games/starter', import.meta.url))
++const games = mkdtempSync(join(tmpdir(), 'games-'))
++cpSync(STARTER, join(games, 'starter'), { recursive: true })
++const api = new ProjectsApi(games)
++afterAll(() => rmSync(games, { recursive: true, force: true }))
++
++describe.skipIf(!existsSync(STARTER))('the editor\'s service', () => {
++  it('lists the projects and reads one', () => {
++    expect(api.list().map((p) => p.id)).toEqual(['starter'])
++    const p = api.read('starter')
++    expect(p.maps.map((m) => m.data.map.id).sort()).toEqual(['cottage', 'glade'])
++  })
++
++  it('writes a file as the format writes it, and the compiler sees it', () => {
++    const p = api.read('starter')
++    const glade = p.maps.find((m) => m.data.map.id === 'glade')!
++    glade.data.map.rows[2] = 'T~~~~.T.........XXXXXX.T'
++    api.write('starter', glade.file, glade.data)
++    expect(readFileSync(join(games, 'starter', glade.file), 'utf8')).toBe(formatJson(glade.data))
++    expect(api.problems('starter').problems).toEqual([])
++  })
++
++  it('writes nothing outside the format\'s files', () => {
++    expect(() => api.write('starter', '../escape.json', {})).toThrow(/only the format's files/)
++    expect(() => api.write('starter', 'test/kernel.test.ts', {})).toThrow(/only the format's files/)
++    expect(() => api.write('nowhere', 'game.json', {})).toThrow(/no project/)
++  })
++
++  it('makes a new project from the starter, its own id and name, without the starter\'s tests', () => {
++    api.create('meadow', { en: 'The Meadow', zh: '草地' })
++    expect(existsSync(join(games, 'meadow', 'test'))).toBe(false)
++    expect(api.read('meadow').game).toMatchObject({ id: 'meadow', name: { en: 'The Meadow', zh: '草地' } })
++    expect(api.problems('meadow').problems).toEqual([])
++    expect(() => api.create('meadow', 'x')).toThrow(/exists/)
++    expect(() => api.create('Bad Id', 'x')).toThrow(/not a project id/)
++  })
++})
+diff --git a/packages/editor/test/store.test.ts b/packages/editor/test/store.test.ts
+new file mode 100644
+index 0000000..85df5e7
+--- /dev/null
++++ b/packages/editor/test/store.test.ts
+@@ -0,0 +1,44 @@
++// The project open in the editor (src/app/store.ts): edits in memory, unsaved until saved, a stroke undone at
++// once, and the compiler's view of the project as it is now.
++
++import { fileURLToPath } from 'node:url'
++import { existsSync } from 'node:fs'
++import { describe, expect, it } from 'vitest'
++import type { RawChunk } from '@openworld/engine'
++import { readProject } from '@openworld/format/src/node.ts'
++import { Store } from '../src/app/store.ts'
++
++const STARTER = fileURLToPath(new URL('../../../games/starter', import.meta.url))
++
++describe.skipIf(!existsSync(STARTER))('the editor\'s store', () => {
++  const fresh = () => new Store('starter', readProject(STARTER))
++
++  it('keeps an edit unsaved, and the compiled project shows it', () => {
++    const s = fresh()
++    expect(s.unsaved()).toBe(0)
++    s.change<RawChunk>('maps/glade.json', 'paint', (c) => (c.map.rows[2] = 'T~' + c.map.rows[2].slice(2)))
++    expect(s.unsaved()).toBe(1)
++    expect(s.compiled().chunks.find((c) => c.map.id === 'glade')?.map.rows[2].startsWith('T~')).toBe(true)
++  })
++
++  it('undoes a stroke, however many cells it painted, at once; and a change that changes nothing is no edit', () => {
++    const s = fresh()
++    const before = JSON.stringify(s.get('maps/glade.json'))
++    for (let x = 1; x < 6; x++) s.change<RawChunk>('maps/glade.json', 'paint', (c) => (c.map.rows[2] = c.map.rows[2].slice(0, x) + '~' + c.map.rows[2].slice(x + 1)), 7)
++    s.change<RawChunk>('maps/glade.json', 'nothing', () => {})
++    expect(s.undo()).toBe('paint')
++    expect(JSON.stringify(s.get('maps/glade.json'))).toBe(before)
++    expect(s.undo()).toBeUndefined()
++  })
++
++  it('adds and removes files, and undoes either', () => {
++    const s = fresh()
++    s.add('people/npc.ada.json', { id: 'npc.ada', type: 'actor/person', place: { on: 'none' } }, 'a person')
++    expect(s.list('people').map((p) => p.file)).toContain('people/npc.ada.json')
++    s.remove('people/mira.json', 'remove Mira')
++    expect(s.compiled().index.npcs.map((n) => n.id)).toEqual(['npc.ada'])
++    s.undo()
++    s.undo()
++    expect(s.list('people').map((p) => p.file)).toEqual(['people/mira.json'])
++  })
++})
+diff --git a/packages/engine/test/boundaries.test.ts b/packages/engine/test/boundaries.test.ts
+index c18ea53..2e60ccf 100644
+--- a/packages/engine/test/boundaries.test.ts
++++ b/packages/engine/test/boundaries.test.ts
+@@ -16,6 +16,7 @@ const MAY_IMPORT: Record<string, string[]> = {
+   modules: ['@openworld/engine'],
+   stdlib: ['@openworld/engine'],
+   format: ['@openworld/engine', '@openworld/stdlib', '@openworld/modules'],
++  editor: ['@openworld/engine', '@openworld/stdlib', '@openworld/format', '@openworld/modules', '@openworld/runtime'],
+   modder: ['@openworld/engine', '@openworld/modules', '@openworld/format', '@openworld/agent'],
+   runtime: ['@openworld/engine', '@openworld/modules', '@openworld/format'],
+ }

@@ -1,0 +1,65 @@
+{
+ "sha": "d85663d2eaeea1b199c0852de35539953e12c82d",
+ "parent": "fda5d35b8fbc1da678cee8db17c324dca28ba3da",
+ "date": "2026-10-05T01:43:11-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/content/test/newtypes.test.ts",
+  "packages/modder/test/economy.test.ts"
+ ],
+ "code": [
+  "packages/engine/src/effects.ts",
+  "packages/engine/src/mod.ts",
+  "packages/modder/src/economy.ts",
+  "packages/modder/src/library.ts"
+ ],
+ "lines": 388,
+ "areas": [
+  "engine",
+  "modder"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing refuses invalid recipe counts at execution, and consumes one ingredient for one craft",
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing requires positive safe integers for makeup counts, keeping chance separate",
+  "packages/content/test/newtypes.test.ts::a patch that brings a status cannot redefine a base status or change an already frozen actor",
+  "packages/content/test/newtypes.test.ts::a patch that brings a status cannot redefine a shared status or an earlier status in the same patch",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated composes a used-up item with the patched or defined receiver of its emit",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated counts a new fixture's own broken rule and a non-item host that is used up",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated counts the outputs when the broken fixture remains as a spent host",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated expands tag and parent-class hosts to the types that can be converted",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated follows a second emit and weighs its chance without duplicating the input",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated rechecks an existing sender when a new receiver changes its conversion",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated reports an output path whose emitted receivers cannot be counted",
+  "packages/modder/test/economy.test.ts::the free lunch keeps a tiny necessary step in the returned mix",
+  "packages/modder/test/economy.test.ts::the free lunch never calls a positive input without a source a free lunch, however small",
+  "packages/modder/test/economy.test.ts::the simplex keeps the solution and certificate when rows, columns and the objective are scaled"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing arrives in the hand that waited for it: the held ore becomes the ingot, in the same slot",
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing can be crafted as soon as it is learned, when it says where it is made",
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing draws a valid 16x16 picture",
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing is not another name for something the world has",
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing may define a new type with its own picture and make it",
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing names it by the world's conventions: new, under a parent that exists, snake_case, in both languages",
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing points at what exists when a patch names a type that does not",
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing says what it is made of (material and makeup), and is never a new kind of ground",
+  "packages/content/test/newtypes.test.ts::a patch that brings a status accepts identical definitions regardless of object key order",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a choice the state makes is the player's; a roll beside it is weighed in",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a count read from the kind of thing the host is counts",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a grind that gives the thing itself back one time in five: the LP sums the rounds (1 / (1 - 0.2) = 1.25)",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a lottery that loses on average is no free lunch (3 stones three times in ten: 0.9 a stick)",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a thing that breaks into itself by chance, and a part named twice, both count",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation nested rolls multiply, and an item taken in by chance is taken by its odds",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation one that wins on average is (eight times in ten: 2.4 stones a stick, from 2)",
+  "packages/modder/test/economy.test.ts::conversions checked when a patch is validated reports only what a patch adds that cannot be modelled, not the base library's gaps",
+  "packages/modder/test/economy.test.ts::the free lunch agrees with Bellman-Ford on 300 random markets (one thing in, one out: a positive cycle is arbitrage)",
+  "packages/modder/test/economy.test.ts::the free lunch finds what takes several things and gives several, which no single exchange shows",
+  "packages/modder/test/economy.test.ts::the free lunch prices: every thing worth at least 1, and no step gives more value than it takes",
+  "packages/modder/test/economy.test.ts::the simplex does not cycle on a degenerate vertex (Chvátal's example, where the largest coefficient rule cycles)",
+  "packages/modder/test/economy.test.ts::the simplex is optimal on 300 random programmes: x and y feasible, and c·x = b·y (strong duality)",
+  "packages/modder/test/economy.test.ts::the simplex says when a programme is unbounded, and refuses a start that is not a vertex",
+  "packages/modder/test/economy.test.ts::the simplex solves the textbook programme, with its shadow prices"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

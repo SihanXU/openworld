@@ -1,0 +1,37 @@
+diff --git a/packages/tools/test/sandbox.test.ts b/packages/tools/test/sandbox.test.ts
+index 11a36e5..8457f20 100644
+--- a/packages/tools/test/sandbox.test.ts
++++ b/packages/tools/test/sandbox.test.ts
+@@ -496,3 +496,32 @@ describe('the people\'s looks are what is remembered (§2.3)', () => {
+     expect(s.eng.social.likeness(a, { ...a, parts: { ...a.parts, hat: 'hat.hood' } })).toBeLessThan(0.8)
+   })
+ })
++
++describe('people make way, and keep it for one who faces them', () => {
++  it('one holding still for the player keeps their place against another on their way (no two pushing each other out of it in turn)', () => {
++    const s = fresh()
++    clear(s, ['npc.cass', 'npc.gus'])
++    // the player at the well, facing Cass below: she holds her round for them
++    put(s, 'player', 20, 14, 'down')
++    put(s, 'npc.cass', 20, 15, 'up')
++    put(s, 'npc.gus', 19, 15, 'right')
++    ticks(s, 2)
++    expect(s.eng.npcs.holding(get(s, 'npc.cass'))).toBe(true)
++    // Gus pushes on into her as long as it takes a swap: she keeps her place
++    for (let i = 0; i < 10; i++) {
++      put(s, 'npc.gus', 19, 15, 'right')
++      s.eng.step(get(s, 'npc.gus'), 'right')
++      ticks(s, 1)
++    }
++    expect(W(s).posOf(get(s, 'npc.cass'))).toMatchObject({ x: 20, y: 15 })
++    // the player still swaps with her (pushing on into a person is the player's way past)
++    put(s, 'player', 20, 14, 'down')
++    let swapped = false
++    for (let i = 0; i < 12 && !swapped; i++) {
++      s.eng.step(P(s), 'down')
++      ticks(s, 1)
++      swapped = W(s).posOf(P(s))?.y === 15
++    }
++    expect(swapped).toBe(true)
++  })
++})

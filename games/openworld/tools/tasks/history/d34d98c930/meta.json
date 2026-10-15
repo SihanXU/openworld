@@ -1,0 +1,44 @@
+{
+ "sha": "d34d98c930171c660012cf504eba6deaeb7a3f2a",
+ "parent": "0681d75a2afeb80da8567c1af496532870383ede",
+ "date": "2026-10-14T09:15:14+08:00",
+ "rung": "R2",
+ "lock": "c8aae8165c193e13e9cb62882998aceaf8916f35",
+ "tests": [
+  "packages/runtime/test/action.test.ts"
+ ],
+ "code": [
+  "packages/runtime/src/action.ts",
+  "packages/runtime/src/main.ts",
+  "packages/runtime/src/protocol.ts",
+  "packages/runtime/src/render/scene.ts",
+  "packages/runtime/src/ui/building.ts",
+  "packages/runtime/src/ui/common.ts",
+  "packages/runtime/src/ui/cursor.ts",
+  "packages/runtime/src/worker.ts"
+ ],
+ "lines": 122,
+ "areas": [
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/runtime/test/action.test.ts::the action a carrot sprout (hands unknown), bread in hand: the experiment, not eating",
+  "packages/runtime/test/action.test.ts::the action a chest: open it",
+  "packages/runtime/test/action.test.ts::the action a lesson that only takes: the take, not the word",
+  "packages/runtime/test/action.test.ts::the action a stone, its hands unknown: pick it up",
+  "packages/runtime/test/action.test.ts::the action a thing the hands could try, a bed in hand: the experiment, not the bed",
+  "packages/runtime/test/action.test.ts::the action another’s loaf: never a theft (an experiment instead)",
+  "packages/runtime/test/action.test.ts::the action nothing to act on",
+  "packages/runtime/test/action.test.ts::the action oneself, a feather in hand, its use unknown: the modder’s",
+  "packages/runtime/test/action.test.ts::the action rock, a bed in hand: it cannot rest there, nothing",
+  "packages/runtime/test/action.test.ts::the action someone, an axe in hand: still a word (handing over is G’s)",
+  "packages/runtime/test/action.test.ts::the action someone: a word",
+  "packages/runtime/test/action.test.ts::the action the bare ground, nothing in hand: nothing",
+  "packages/runtime/test/action.test.ts::the action the open ground, a bed in hand: set it down",
+  "packages/runtime/test/action.test.ts::the action the open ground, bread in hand: eat it",
+  "packages/runtime/test/action.test.ts::the action the tutorial’s meal (only move, select, self), no meal among the keys: nothing",
+  "packages/runtime/test/action.test.ts::the action the tutorial’s meal, with the meal among the keys"
+ ],
+ "PASS_TO_PASS": [],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

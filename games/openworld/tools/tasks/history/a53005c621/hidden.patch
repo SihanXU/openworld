@@ -1,0 +1,68 @@
+diff --git a/packages/content/test/controls.test.ts b/packages/content/test/controls.test.ts
+index 0ead802..3a6dafa 100644
+--- a/packages/content/test/controls.test.ts
++++ b/packages/content/test/controls.test.ts
+@@ -1,5 +1,6 @@
+ import { describe, expect, it } from 'vitest'
+ import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, ModPort, RuleLibrary, buildSandbox, textOf, type Engine, type Key, type Plan, type Ref, type ScenarioEntity, type Verb } from '@lsw/engine'
++import { cellId } from '@lsw/engine'
+ import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
+ 
+ const onto = buildOntology()
+@@ -137,9 +138,9 @@ describe('the five inputs: one act each', () => {
+ 
+   it('reach: E as far as the thing lets a hand (a bed only from on it), F and G the cells round, the left click as far as the held thing carries', () => {
+     const far = world(undefined, [{ key: 'stone', type: 'item/material/stone', x: 2, y: 0 }, npc()])
+-    // two cells off: nothing reaches the stone (and a pointer there falls back to the place in front for the keys)
++    // two cells off: nothing reaches the stone; a pointer there aims at the farthest spot toward it that is reached
+     expect(far.controls.reachable({ x: 2, y: 0 })).toBe(false)
+-    expect(far.controls.plan('use', { x: 2, y: 0 })).toBeUndefined()
++    expect(far.controls.plan('use', { x: 2, y: 0 })).toMatchObject({ at: { x: 2, y: 1 }, target: { e: 'npc.hollis' } })
+     expect(far.controls.plan('take', { x: 2, y: 0 })?.target).not.toEqual({ e: 'stone' })
+     // the engine itself holds every act to its reach, for anyone
+     expect(far.act('take', 'actor', { e: 'stone' }, { instrument: null }).defined).toBe(false)
+@@ -147,7 +148,7 @@ describe('the five inputs: one act each', () => {
+     // a bow carries: the far tile in line is within the left click's reach, one off the line is not
+     const bow = world('item/weapon/ranged/bow', [{ key: 's', type: 'actor/creature/slime/green_slime', x: 2, y: 0 }, { key: 't', type: 'actor/creature/slime/green_slime', x: 4, y: 1 }])
+     expect(bow.controls.plan('use', { x: 2, y: 0 })).toMatchObject({ attack: true, target: { e: 's' } })
+-    expect(bow.controls.plan('use', { x: 4, y: 1 })).toBeUndefined()
++    expect(bow.controls.plan('use', { x: 4, y: 1 })?.target).not.toEqual({ e: 't' })
+     // a bed is used from on it
+     const bed = world(undefined, [{ key: 'bed', type: 'fixture/furniture/bed', x: 2, y: 1 }])
+     expect(bed.controls.plan('hands', { x: 2, y: 1 })).toBeUndefined()
+@@ -165,6 +166,35 @@ describe('the five inputs: one act each', () => {
+     expect(eng.controls.plan('use', { x: 2, y: 2 })).toMatchObject({ verb: 'use', target: { e: 'actor' }, rule: 'use/eat' })
+   })
+ 
++  it("on one's own place E meets its top layer: the berries one stands on, though the pointer is on one's picture (over the tile behind) or the cell's own growth is drawn first", () => {
++    const eng = world(undefined, [{ key: 'berries', type: 'item/food/berries', x: 2, y: 2 }])
++    const c = eng.controls
++    expect(c.plan('hands', { x: 2, y: 2 })?.target).toEqual({ e: 'berries' })
++    // one's head is drawn over (2,1): the pointer there, on one's picture, is one's own place
++    expect(c.plan('hands', { x: 2, y: 1, stack: [{ e: 'actor' }] })).toMatchObject({ at: { x: 2, y: 2 }, target: { e: 'berries' } })
++    // the tile's own growth, drawn at the point, lies under what stands on it
++    expect(c.plan('hands', { x: 2, y: 2, stack: [{ e: 'actor' }, { e: cellId('sandbox', 2, 2, 'volume') }] })?.target).toEqual({ e: 'berries' })
++  })
++
++  it('a pointer beyond every reach aims at the farthest reached spot toward it, never at oneself', () => {
++    const eng = world('item/weapon/ranged/bow', [{ key: 's', type: 'actor/creature/slime/green_slime', x: 2, y: 9 }])
++    const c = eng.controls
++    // straight down: the bow reaches along its column, so the farthest spot is in the line (and short of the slime)
++    const down = c.aim({ x: 2, y: 30 })!.at
++    expect(down.x).toBe(2)
++    expect(down.y).toBeGreaterThan(3)
++    // off the line the bow does not carry: the farthest reached spot is the next one toward the pointer
++    expect(c.aim({ x: 9, y: 7 })!.at).toMatchObject({ x: 3, y: 3 })
++    // and along its row the bow carries again: as far as the map goes
++    expect(c.aim({ x: -5, y: 2 })!.at).toMatchObject({ x: 0, y: 2 })
++    for (const at of [{ x: 2, y: 30 }, { x: 9, y: 7 }, { x: -5, y: 2 }]) {
++      // some input reaches the spot (each only where it reaches), and none of them is on oneself
++      const plans = (['hands', 'take', 'use'] as Key[]).map((k) => c.plan(k, at)).filter((p) => !!p)
++      expect(plans.length).toBeGreaterThan(0)
++      for (const p of plans) expect(p.target).not.toEqual({ e: 'actor' })
++    }
++  })
++
+   it('what one eats, drinks or wears can be used on another: food feeds them, a draught heals them, armour is put on them', () => {
+     const eng = world('item/food/bread', [npc()])
+     const hollis = eng.world.get('npc.hollis')!

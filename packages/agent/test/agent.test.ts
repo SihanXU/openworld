@@ -1,10 +1,17 @@
 import { execSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
+  CONTAINER_SETUP,
+  HOOK_NODE,
+  IMAGE_INIT,
   LocalEnv,
+  OpenAICompatModel,
+  PIN_BREACH,
   ScriptedModel,
   SelfState,
   agentTools,
@@ -12,13 +19,22 @@ import {
   better,
   checkProposal,
   improve,
+  manifestOf,
+  modelFromEnv,
+  pinFromEnv,
+  recordsOf,
+  repositoryIn,
   runAgent,
+  runInstances,
   solve,
   type AgentTask,
   type ChatMessage,
   type Episode,
   type TaskSource,
 } from '../src/index.ts'
+
+/** A stand-in for the docker CLI (an image is a directory; exec runs here): the container path without Docker. */
+const FAKE_DOCKER = fileURLToPath(new URL('./fake-docker.mjs', import.meta.url))
 
 /** A small git repository with a bug and a test that shows it. */
 function bugRepo(): string {
@@ -234,6 +250,134 @@ describe('SWE-style instances', () => {
     expect(p.model_patch).not.toContain('later.txt')
     expect(state.episodes()).toHaveLength(0) // the benchmark never becomes training data
     rmSync(tmp, { recursive: true, force: true })
+  })
+
+  it("works a benchmark image's own repository: its build stays out of the diff, the hooks run with a mounted node, git trusts the workspace", { timeout: 60_000 }, async () => {
+    // the "image": its filesystem as a directory, the repository in /testbed as the environment's install left it
+    const img = mkdtempSync(join(tmpdir(), 'lsw-image-'))
+    cpSync(bugRepo(), join(img, 'testbed'), { recursive: true })
+    mkdirSync(join(img, 'testbed', 'build'))
+    writeFileSync(join(img, 'testbed', 'build', 'ext.so'), 'compiled in place\n') // untracked: the in-place build
+    writeFileSync(join(img, 'testbed', 'test.mjs'), readFileSync(join(img, 'testbed', 'test.mjs'), 'utf8') + '// rewritten by the install\n') // a tracked file the install changed
+    const tmp = mkdtempSync(join(tmpdir(), 'lsw-swe-docker-'))
+    process.env.FAKE_DOCKER_STATE = join(tmp, 'docker')
+    const state = freshState()
+    applyPreset(state, 'tuned') // a start hook and a presubmit hook: they need node, which a benchmark image lacks
+    try {
+      const p = await solve(
+        { instance_id: 'local__add-2', repo: 'local/add', base_commit: 'image', problem_statement: ISSUE, test_cmd: 'node test.mjs', image: img },
+        { model: engineer(), state, env: 'docker', docker: [process.execPath, FAKE_DOCKER], hookNode: process.execPath, owner: '4242:4242', cache: join(tmp, 'cache'), work: join(tmp, 'work') },
+      )
+      expect(p.outcome).toBe('accepted') // the presubmit hook ran (with the mounted node) and let it submit
+      expect(p.record).toMatchObject({ instance_id: 'local__add-2', submitted: true, ablated: [], providers: [] })
+      expect(p.record.steps).toBeGreaterThan(0)
+      expect(p.model_patch).toMatch(/\+export const add = \(a, b\) => a \+ b/)
+      expect(p.model_patch).not.toMatch(/ext\.so|build\//) // the image's build is not the answer
+      expect(p.model_patch).not.toContain('rewritten by the install') // nor is what the install changed
+      const calls = readFileSync(join(tmp, 'docker', 'calls.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l) as string[])
+      const scripts = calls.filter((c) => c[0] === 'exec').map((c) => c.at(-1)!)
+      expect(calls.some((c) => c[0] === 'cp' && /:\/testbed$/.test(c[1]))).toBe(true)
+      const run = calls.find((c) => c[0] === 'run')!
+      expect(run).toEqual(expect.arrayContaining(['--network', 'none', `${process.execPath}:${HOOK_NODE}:ro`]))
+      expect(scripts.some((s) => s.includes(CONTAINER_SETUP))).toBe(true)
+      expect(scripts.some((s) => s.includes(`${HOOK_NODE} .agent/hooks/presubmit/tests-pass.mjs`))).toBe(true)
+      expect(scripts.every((s) => s.startsWith(IMAGE_INIT))).toBe(true)
+      expect(scripts.some((s) => s.includes("chown -R '4242:4242' '/testbed'"))).toBe(true)
+    } finally {
+      delete process.env.FAKE_DOCKER_STATE
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  })
+
+  it('finds the repository where an image keeps it below /testbed (as some of SWE-bench-Live do)', { timeout: 60_000 }, async () => {
+    const img = mkdtempSync(join(tmpdir(), 'lsw-image-sub-'))
+    mkdirSync(join(img, 'testbed'))
+    writeFileSync(join(img, 'testbed', 'build.log'), 'the image builder left this beside the repository\n')
+    cpSync(bugRepo(), join(img, 'testbed', 'project'), { recursive: true })
+    expect(repositoryIn(join(img, 'testbed'))).toBe('project')
+    const tmp = mkdtempSync(join(tmpdir(), 'lsw-swe-docker-sub-'))
+    process.env.FAKE_DOCKER_STATE = join(tmp, 'docker')
+    try {
+      const p = await solve(
+        { instance_id: 'local__add-3', repo: 'local/add', base_commit: 'image', problem_statement: ISSUE, test_cmd: 'node test.mjs', image: img },
+        { model: engineer(), state: freshState(), env: 'docker', docker: [process.execPath, FAKE_DOCKER], hookNode: null, cache: join(tmp, 'cache'), work: join(tmp, 'work') },
+      )
+      expect(p.outcome).toBe('accepted')
+      expect(p.model_patch).toMatch(/\+export const add = \(a, b\) => a \+ b/)
+      const calls = readFileSync(join(tmp, 'docker', 'calls.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l) as string[])
+      expect(calls.filter((c) => c[0] === 'exec').every((c) => c.includes('/testbed/project'))).toBe(true) // the commands run in the repository
+    } finally {
+      delete process.env.FAKE_DOCKER_STATE
+      rmSync(tmp, { recursive: true, force: true })
+    }
+  })
+
+  it('runs instances several at a time, records each, resumes, and refuses to mix two runs', { timeout: 60_000 }, async () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'lsw-swe-run-'))
+    const inst = (n: number) => {
+      const repo = bugRepo()
+      return { instance_id: `local__add-${n}`, repo, base_commit: execSync('git rev-parse HEAD', { cwd: repo, encoding: 'utf8' }).trim(), problem_statement: ISSUE, test_cmd: 'node test.mjs' }
+    }
+    const items = [inst(1), inst(2)]
+    const out = join(tmp, 'preds.jsonl')
+    const manifest = { model: 'scripted', ablated: [] }
+    const o = { model: engineer(), state: freshState(), cache: join(tmp, 'cache'), work: join(tmp, 'work'), out, workers: 2, manifest }
+    expect(await runInstances(items, o)).toMatchObject({ done: 2, failed: 0, skipped: 0 })
+    expect(readFileSync(out, 'utf8').trim().split('\n')).toHaveLength(2)
+    const records = readFileSync(recordsOf(out), 'utf8').trim().split('\n').map((l) => JSON.parse(l))
+    expect(records.map((r) => r.outcome)).toEqual(['accepted', 'accepted'])
+    expect(records.every((r) => r.steps > 0 && typeof r.ms === 'number')).toBe(true)
+    expect(JSON.parse(readFileSync(manifestOf(out), 'utf8'))).toEqual(manifest)
+    await expect(runInstances(items, o)).rejects.toThrow(/exists: --resume/)
+    expect(await runInstances(items, { ...o, resume: true })).toMatchObject({ done: 0, skipped: 2 })
+    await expect(runInstances(items, { ...o, resume: true, manifest: { ...manifest, ablated: ['skills'] } })).rejects.toThrow(/differs in ablated/)
+    // a call served from outside the provider pin voids the instance: no prediction, retried on resume
+    const breach = new ScriptedModel(async () => {
+      throw new Error(`model: served by Parasail, ${PIN_BREACH} (moonshotai)`)
+    })
+    const out2 = join(tmp, 'void.jsonl')
+    expect(await runInstances(items, { ...o, model: breach, out: out2 })).toMatchObject({ done: 0, failed: 2 })
+    expect(existsSync(out2)).toBe(false)
+    expect(readFileSync(recordsOf(out2), 'utf8')).toContain(PIN_BREACH)
+    rmSync(tmp, { recursive: true, force: true })
+  })
+})
+
+describe('a frozen model', () => {
+  it('asks only the pinned providers, whatever a call prefers, and refuses an answer from another', async () => {
+    const bodies: Record<string, unknown>[] = []
+    const served = ['Moonshot AI', 'Parasail']
+    const server = createServer((req, res) => {
+      let b = ''
+      req.on('data', (d) => (b += d))
+      req.on('end', () => {
+        bodies.push(JSON.parse(b))
+        res.setHeader('Content-Type', 'application/json')
+        res.end(JSON.stringify({ provider: served.shift(), choices: [{ message: { content: 'ok' } }], usage: { prompt_tokens: 3, completion_tokens: 1 } }))
+      })
+    })
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+    try {
+      const port = (server.address() as { port: number }).port
+      // the path names OpenRouter, so the model treats this endpoint as OpenRouter
+      const m = new OpenAICompatModel({ baseUrl: `http://127.0.0.1:${port}/openrouter.ai/api/v1`, apiKey: 'k', model: 'moonshotai/kimi-k3', pin: { providers: ['moonshotai'], quantizations: ['fp8'] } })
+      const r = await m.chat([{ role: 'user', content: 'hi' }], { provider: { order: ['parasail'], allow_fallbacks: true } })
+      expect(r.content).toBe('ok')
+      expect(bodies[0].provider).toEqual({ only: ['moonshotai'], order: ['moonshotai'], allow_fallbacks: false, quantizations: ['fp8'] })
+      await expect(m.chat([{ role: 'user', content: 'hi' }])).rejects.toThrow(PIN_BREACH)
+    } finally {
+      server.close()
+    }
+    expect(pinFromEnv({ LSW_MODEL_PIN: 'moonshotai', LSW_MODEL_QUANT: 'fp8' })).toEqual({ providers: ['moonshotai'], quantizations: ['fp8'] })
+    expect(pinFromEnv({})).toBeUndefined()
+    expect(() => modelFromEnv({ LSW_MODEL_PIN: 'moonshotai', LSW_MODEL_BACKEND: 'claude-code' })).toThrow(/openrouter backend only/)
+    expect(() => modelFromEnv({ LSW_MODEL_PIN: 'moonshotai', LSW_MODEL_KEY: 'k', LSW_MODEL: 'm', LSW_MODEL_PROVIDERS: 'parasail' })).toThrow(/cannot be set with it/)
+  })
+
+  it('calls no Anthropic model on a machine that says so (LSW_NO_ANTHROPIC=1)', () => {
+    expect(() => modelFromEnv({ LSW_NO_ANTHROPIC: '1', LSW_MODEL_BACKEND: 'claude-code' })).toThrow(/refused on this machine/)
+    expect(() => modelFromEnv({ LSW_NO_ANTHROPIC: '1', LSW_MODEL_KEY: 'k', LSW_MODEL: 'anthropic/claude-sonnet-5.5' })).toThrow(/refused on this machine/)
+    expect(modelFromEnv({ LSW_NO_ANTHROPIC: '1', LSW_MODEL_KEY: 'k', LSW_MODEL: 'moonshotai/kimi-k3' })?.name).toBe('moonshotai/kimi-k3')
   })
 })
 

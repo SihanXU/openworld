@@ -1,0 +1,641 @@
+diff --git a/packages/content/test/breaking.test.ts b/packages/content/test/breaking.test.ts
+index ab790d5..62222f1 100644
+--- a/packages/content/test/breaking.test.ts
++++ b/packages/content/test/breaking.test.ts
+@@ -40,8 +40,8 @@ function place(type: string, tool?: string): Engine {
+     {
+       terrain,
+       entities: [
+-        { key: 'actor', type: 'actor/person/player', x: 2, y: 3, props: { atk: 4 } },
+-        ...(tool ? [{ key: 'tool', type: tool, x: 2, y: 3, heldBy: 'actor', tags: ['material:iron'] }] : []),
++        { key: 'actor', type: 'actor/person/player', x: 2, y: 2, props: { atk: 4 } },
++        ...(tool ? [{ key: 'tool', type: tool, x: 2, y: 2, heldBy: 'actor', tags: ['material:iron'] }] : []),
+         ...(isTile ? [] : [{ key: 'thing', type, x: 2, y: 1 }]),
+       ],
+       event: {},
+diff --git a/packages/content/test/building.test.ts b/packages/content/test/building.test.ts
+index ac816dc..85c751a 100644
+--- a/packages/content/test/building.test.ts
++++ b/packages/content/test/building.test.ts
+@@ -46,6 +46,8 @@ interface Pressed {
+   rules: string[]
+   /** The rules whose leaf was undefined (asked of the AI; the default ran). */
+   holes: string[]
++  /** The input offered the act (taking and putting are offered only where they change something). */
++  offered: boolean
+ }
+ 
+ /** Press a key at the tile in front (holding a fresh `type`, or with an empty hand). */
+@@ -55,9 +57,16 @@ function press(eng: Engine, key: Key, type?: string): Pressed {
+   const plan = eng.controls.plan(key)
+   eng.trace.length = 0
+   if (plan) eng.controls.run(plan, true)
++  // an input that would change nothing is not offered (taking and putting are physics): the act itself, as the world answers it
++  else if (key === 'put' || key === 'take') {
++    const front = eng.world.front(eng.world.player)!
++    const target = eng.controls.layers(front)[0]
++    if (target) eng.act(key, eng.world.state.player, target, { instrument: key === 'put' ? (eng.world.player.held ? { e: eng.world.player.held } : null) : null })
++  }
+   return {
+     rules: eng.trace.filter((t) => t.defined && t.rule).map((t) => t.rule!),
+     holes: eng.trace.filter((t) => !t.defined && t.rule).map((t) => t.rule!),
++    offered: !!plan,
+   }
+ }
+ 
+@@ -74,7 +83,7 @@ const AXE = 'item/weapon/blade/axe'
+ describe('a chest from a frame', () => {
+   it('counts planks into a frame, reports progress, and a hammer makes a chest', () => {
+     const eng = site([PLANK])
+-    expect(press(eng, 'put', PLANK)).toEqual({ rules: expect.arrayContaining(['build/plank-to-plank', 'build/start-frame']), holes: [] })
++    expect(press(eng, 'put', PLANK)).toMatchObject({ rules: expect.arrayContaining(['build/plank-to-plank', 'build/start-frame']), holes: [] })
+     expect(fixture(eng)?.type).toBe('fixture/build/frame')
+     expect(heldType(eng)).toBeUndefined() // the plank gave itself to the work
+     expect(press(eng, 'put', PLANK).rules).toEqual(expect.arrayContaining(['build/plank-to-frame', 'build/frame']))
+@@ -83,7 +92,7 @@ describe('a chest from a frame', () => {
+     expect(said(eng)).toContain('A frame of 3 planks. One more makes a chest.')
+     // a hammer on a frame of three: one more plank
+     const early = press(eng, 'use', HAMMER)
+-    expect(early).toEqual({ rules: expect.arrayContaining(['use/hammer', 'build/frame']), holes: [] })
++    expect(early).toMatchObject({ rules: expect.arrayContaining(['use/hammer', 'build/frame']), holes: [] })
+     expect(said(eng)).toContain('One more plank.')
+     expect(fixture(eng)?.type).toBe('fixture/build/frame')
+     expect(press(eng, 'put', PLANK).rules).toContain('build/plank-to-frame')
+@@ -114,7 +123,7 @@ describe('a chest from a frame', () => {
+     const eng = site([PLANK])
+     press(eng, 'put', PLANK)
+     press(eng, 'put', PLANK)
+-    expect(press(eng, 'use', AXE)).toEqual({ rules: expect.arrayContaining(['use/blade', 'build/unframe']), holes: [] })
++    expect(press(eng, 'use', AXE)).toMatchObject({ rules: expect.arrayContaining(['use/blade', 'build/unframe']), holes: [] })
+     expect(fixture(eng)).toBeUndefined()
+     expect(count(eng, PLANK)).toBe(3)
+   })
+@@ -189,7 +198,7 @@ describe('the same pattern', () => {
+     expect(press(eng, 'put', PLANK).rules).toEqual(expect.arrayContaining(['build/plank-on-water', 'water/bridge']))
+     expect(eng.world.terrainAt(FRONT.map, FRONT.x, FRONT.y)).toBe('bridge')
+     const deep = site([], 'deepwater')
+-    expect(press(deep, 'put', PLANK).rules).toContain('core/receive-water')
++    expect(press(deep, 'put', PLANK)).toMatchObject({ rules: expect.arrayContaining(['core/receive-water']), offered: false })
+     expect(deep.world.terrainAt(FRONT.map, FRONT.x, FRONT.y)).toBe('deepwater')
+     expect(heldType(deep)).toBe(PLANK) // nothing is lost
+   })
+diff --git a/packages/content/test/controls.test.ts b/packages/content/test/controls.test.ts
+index b39ce01..bae82bb 100644
+--- a/packages/content/test/controls.test.ts
++++ b/packages/content/test/controls.test.ts
+@@ -20,8 +20,8 @@ const npc = (key = 'npc.hollis'): ScenarioEntity => ({ key, type: 'actor/person/
+ const ground = (eng: Engine, x = 2, y = 1) => eng.controls.layers({ map: 'sandbox', x, y }).findIndex((r) => eng.world.cellRank(eng.world.get(r.e)!) >= 0)
+ const label = (p: Plan | undefined) => textOf(p?.label)
+ 
+-describe('the four inputs: one verb each', () => {
+-  it('E talks to a person whatever is held; right click gives the held thing', () => {
++describe('the five inputs: one act each', () => {
++  it('E talks to a person whatever is held; G gives the held thing', () => {
+     const eng = world('item/food/apple', [npc()])
+     const talk = eng.controls.plan('hands')
+     expect(talk).toMatchObject({ verb: 'hands', rule: 'people/talk', instrument: undefined })
+@@ -67,7 +67,7 @@ describe('the four inputs: one verb each', () => {
+     expect(meal.world.get('held')).toBeUndefined()
+   })
+ 
+-  it('F takes a loose item; right click places anything, tools included', () => {
++  it('F takes a loose item; G places anything, tools included', () => {
+     const take = world(undefined, [{ key: 'stone', type: 'item/material/stone', x: 2, y: 1 }])
+     const pick = take.controls.plan('take')
+     expect(pick).toMatchObject({ verb: 'take', target: { e: 'stone' } })
+@@ -114,7 +114,7 @@ describe('the four inputs: one verb each', () => {
+     expect(p2.records[0]).toMatchObject({ origin: 'player', request: { event: { kind: 'impulse/handle' }, hole: { rule: 'core/handle' } } })
+   })
+ 
+-  it('weapons strike (but on a person a blade is not a blow); a fist on a creature punches', () => {
++  it('weapons strike (but on a person a blade is not a blow); a bare left click is a blow on anything (Minecraft)', () => {
+     const well = world('item/weapon/blade/sword', [{ key: 'well', type: 'fixture/water/well', x: 2, y: 1 }])
+     const port = new ModPort(well)
+     const plan = well.controls.plan('use')!
+@@ -126,14 +126,70 @@ describe('the four inputs: one verb each', () => {
+     expect(person.controls.plan('use')!.attack).toBeUndefined()
+     const slime = world(undefined, [{ key: 's', type: 'actor/creature/slime/green_slime', x: 2, y: 1 }])
+     expect(slime.controls.plan('use')).toMatchObject({ verb: 'use', attack: true, rule: 'combat/struck' })
++    // with nothing held the left click is the body's own blow, whatever it meets: never E's hand
++    const rock = world(undefined, [{ key: 'rock', type: 'fixture/nature/boulder', x: 2, y: 1 }])
++    const punch = rock.controls.plan('use')!
++    expect(punch).toMatchObject({ verb: 'use', attack: true, instrument: undefined })
++    expect(label(punch)).toBe('Punch boulder')
++    rock.controls.run(punch)
++    expect(rock.world.fx.some((f) => f.t === 'log' && textOf(f.text) === 'Too hard.')).toBe(true)
++  })
++
++  it('reach: E as far as the thing lets a hand (a bed only from on it), F and G the cells round, the left click as far as the held thing carries', () => {
++    const far = world(undefined, [{ key: 'stone', type: 'item/material/stone', x: 2, y: 0 }, npc()])
++    // two cells off: nothing reaches the stone (and a pointer there falls back to the place in front for the keys)
++    expect(far.controls.reachable({ x: 2, y: 0 })).toBe(false)
++    expect(far.controls.plan('use', { x: 2, y: 0 })).toBeUndefined()
++    expect(far.controls.plan('take', { x: 2, y: 0 })?.target).not.toEqual({ e: 'stone' })
++    // the engine itself holds every act to its reach, for anyone
++    expect(far.act('take', 'actor', { e: 'stone' }, { instrument: null }).defined).toBe(false)
++    expect(far.world.get('stone')!.place.on).toBe('tile')
++    // a bow carries: the far tile in line is within the left click's reach, one off the line is not
++    const bow = world('item/weapon/ranged/bow', [{ key: 's', type: 'actor/creature/slime/green_slime', x: 2, y: 0 }, { key: 't', type: 'actor/creature/slime/green_slime', x: 4, y: 1 }])
++    expect(bow.controls.plan('use', { x: 2, y: 0 })).toMatchObject({ attack: true, target: { e: 's' } })
++    expect(bow.controls.plan('use', { x: 4, y: 1 })).toBeUndefined()
++    // a bed is used from on it
++    const bed = world(undefined, [{ key: 'bed', type: 'fixture/furniture/bed', x: 2, y: 1 }])
++    expect(bed.controls.plan('hands', { x: 2, y: 1 })).toBeUndefined()
++    bed.author(() => bed.world.place(bed.world.player, { on: 'tile', map: 'sandbox', x: 2, y: 1 }))
++    expect(bed.controls.plan('hands', { x: 2, y: 1 })).toMatchObject({ verb: 'hands', target: { e: 'bed' } })
++  })
++
++  it('E, F and G never take oneself: on one\'s own place they meet what is there; the right click is the held thing on oneself', () => {
++    const eng = world('item/food/bread', [{ key: 'stick', type: 'item/material/stick', x: 2, y: 2 }])
++    for (const key of ['hands', 'take', 'put'] as Key[]) expect(eng.controls.plan(key, { x: 2, y: 2 })?.target).not.toEqual({ e: 'actor' })
++    expect(eng.controls.plan('take', { x: 2, y: 2 })?.target).toEqual({ e: 'stick' })
++    const self = eng.controls.plan('self')!
++    expect(self).toMatchObject({ key: 'self', verb: 'use', target: { e: 'actor' }, rule: 'use/eat' })
++    // a left click on one's own place is the same act
++    expect(eng.controls.plan('use', { x: 2, y: 2 })).toMatchObject({ verb: 'use', target: { e: 'actor' }, rule: 'use/eat' })
++  })
++
++  it('what one eats, drinks or wears can be used on another: food feeds them, a draught heals them, armour is put on them', () => {
++    const eng = world('item/food/bread', [npc()])
++    const hollis = eng.world.get('npc.hollis')!
++    eng.author(() => eng.world.setProp(hollis, 'maxHunger', 20))
++    eng.author(() => eng.world.setProp(hollis, 'hunger', 5))
++    eng.controls.run(eng.controls.plan('use')!)
++    expect(eng.world.num(hollis, 'hunger')).toBeGreaterThan(5)
++    expect(eng.world.get('held')).toBeUndefined()
++    const helm = world('item/armor/helmet', [npc()])
++    helm.controls.run(helm.controls.plan('use')!)
++    const h = helm.world.get('npc.hollis')!
++    expect(helm.world.prop(h, 'wear:head')).toBe('held')
++    expect(helm.world.get('held')!.place).toMatchObject({ on: 'inside', holder: 'npc.hollis' })
++    expect(helm.world.worn(h).map((e) => e.id)).toEqual(['held'])
+   })
+ 
+   it('the chooser reaches any layer: the ground under a stick, the table under a pile', () => {
+     const eng = world('item/tool/hoe', [{ key: 'stick', type: 'item/material/stick', x: 2, y: 1 }])
+     expect(eng.controls.plan('use', undefined, ground(eng))!.rule).toBe('farm/till')
+     const pile = world(undefined, [{ key: 'table', type: 'fixture/furniture/table', x: 2, y: 1 }, { key: 'a', type: 'item/food/apple', x: 2, y: 1 }, { key: 'b', type: 'item/food/bread', x: 2, y: 1 }])
+-    const targets = pile.controls.choices('take').map((c) => c.plan?.target)
+-    for (const id of ['table', 'a', 'b']) expect(targets).toContainEqual({ e: id })
++    // F offers what it can take; E reaches the table under them
++    const takes = pile.controls.choices('take').map((c) => c.plan?.target)
++    for (const id of ['a', 'b']) expect(takes).toContainEqual({ e: id })
++    expect(takes).not.toContainEqual({ e: 'table' })
++    expect(pile.controls.choices('hands').map((c) => c.plan?.target)).toContainEqual({ e: 'table' })
+   })
+ 
+   it('stepping onto a tile is contact: no change unless the tile says (nothing asked); a burning tile burns who steps on it', () => {
+@@ -155,10 +211,12 @@ describe('the four inputs: one verb each', () => {
+ })
+ 
+ /**
+- * Completeness (design.md §5.2): every act (verb, instrument, target) the player can make is
+- * produced by some input — a key, the selected slot, the aim and a layer — and an input makes
+- * exactly one act. The scene has the hard cases: a pile on a table, a stick on the ground, a
+- * person, the player's own tile, a second thing in the bag.
++ * Completeness (design.md §5.2): every act (verb, instrument, target) the player can make within
++ * its reach is produced by some input — a key, the selected slot, the aim and a layer — and an
++ * input makes exactly one act. Taking and putting are offered where they change something; one
++ * never takes, puts or handles oneself; the held thing (or the bare body) is used on oneself by the
++ * right click. The scene has the hard cases: a pile on a table, a stick on the ground, a person, the
++ * player's own tile, a second thing in the bag.
+  */
+ describe('completeness of the inputs', () => {
+   const scene = () =>
+@@ -170,7 +228,7 @@ describe('completeness of the inputs', () => {
+       { key: 'apple', type: 'item/food/apple', x: 0, y: 0, inside: 'actor' },
+       { key: 'npc.oda', type: 'actor/person/merchant', x: 3, y: 1 },
+     ])
+-  const KEYS: Key[] = ['hands', 'take', 'use', 'put']
++  const KEYS: Key[] = ['hands', 'take', 'put', 'use', 'self']
+   const TILES = [{ x: 2, y: 1 }, { x: 1, y: 2 }, { x: 3, y: 1 }, { x: 2, y: 2 }] // a pile on a table, a stick on grass, a person, the own tile
+   const sig = (verb: string, inst: string, target: Ref) => JSON.stringify([verb, inst, target])
+ 
+@@ -193,19 +251,29 @@ describe('completeness of the inputs', () => {
+           }
+         }
+     }
+-    // what the player can do there: take or touch bare-handed, use or put any carried thing.
+-    // No weapon is carried and no creature is near, so nothing is a blow.
+-    const carried = [...new Set([...(p.contents ?? []), ...(p.held ? [p.held] : [])].map((id) => eng.world.get(id)!.type))]
++    // what the player can do: a hand on what is within its reach; take what can be taken and put any
++    // carried thing where it would go; use any carried thing (and the bare body: a blow) on what is
++    // within its reach but one's own place, and on oneself
++    const carried = [...new Set([...(p.contents ?? []), ...(p.held ? [p.held] : [])].map((id) => eng.world.get(id)!))]
++    const own = eng.world.posOf(p)!
++    const changes = (verb: Verb, target: Ref, inst?: string) => eng.preview(eng.actEvent(verb, p.id, target, inst ? { e: inst } : undefined)).changes
+     const missing: string[] = []
+     for (const tile of TILES)
+-      for (const target of c.layers({ map: 'sandbox', ...tile })) {
+-        for (const verb of ['take', 'hands'] as Verb[]) if (!made.has(sig(verb, 'none', target))) missing.push(sig(verb, 'none', target))
+-        for (const verb of ['use', 'put'] as Verb[]) for (const inst of carried) if (!made.has(sig(verb, inst, target))) missing.push(sig(verb, inst, target))
++      for (const target of c.layers({ map: 'sandbox', ...tile }).filter((r) => r.e !== p.id)) {
++        const ownPlace = tile.x === own.x && tile.y === own.y
++        if (eng.inReach('hands', p, target, undefined) && !made.has(sig('hands', 'none', target))) missing.push(sig('hands', 'none', target))
++        if (changes('take', target) && !made.has(sig('take', 'none', target))) missing.push(sig('take', 'none', target))
++        for (const inst of carried) if (changes('put', target, inst.id) && !made.has(sig('put', inst.type, target))) missing.push(sig('put', inst.type, target))
++        if (ownPlace) continue
++        for (const inst of carried) if (!made.has(sig('use', inst.type, target))) missing.push(sig('use', inst.type, target))
++        if (!made.has(sig('attack', 'none', target))) missing.push(sig('attack', 'none', target))
+       }
++    for (const inst of carried) if (!made.has(sig('use', inst.type, { e: p.id }))) missing.push(sig('use', inst.type, { e: p.id }))
++    if (!made.has(sig('attack', 'none', { e: p.id }))) missing.push(sig('attack', 'none', { e: p.id }))
+     expect(missing).toEqual([])
+   })
+ 
+-  it('each input makes exactly one act, of its own verb (a bare left click is a hand)', () => {
++  it('each input makes exactly one act, of its own verb (the left and right clicks use; a bare one is a blow)', () => {
+     const eng = scene()
+     const c = eng.controls
+     for (const slot of [eng.world.player.selected!, eng.world.player.slots!.findIndex((k, i) => !k && i < 10)]) {
+@@ -217,9 +285,9 @@ describe('completeness of the inputs', () => {
+             const a = c.plan(key, tile, layer)
+             const b = c.plan(key, tile, layer)
+             expect(JSON.stringify(a)).toBe(JSON.stringify(b))
+-            if (!a || a.attack) continue
+-            if (key === 'use' && !a.instrument) expect(a.verb).toBe('hands')
+-            else expect(a.verb).toBe(key)
++            if (!a) continue
++            if (!a.instrument && (key === 'use' || key === 'self')) expect(a.attack).toBe(true)
++            expect(a.verb).toBe(key === 'self' ? 'use' : key)
+           }
+         }
+     }
+diff --git a/packages/content/test/storage.test.ts b/packages/content/test/storage.test.ts
+index a7b0527..4a99088 100644
+--- a/packages/content/test/storage.test.ts
++++ b/packages/content/test/storage.test.ts
+@@ -30,17 +30,27 @@ interface Pressed {
+   rules: string[]
+   holes: string[]
+   panel?: string
++  /** The input offered the act (taking and putting are offered only where they change something). */
++  offered: boolean
+ }
+ 
+ /** Press a key at the tile in front: the rules the chain resolved to, the holes it reached, the panel it opens. */
+ function press(eng: Engine, key: Key): Pressed {
+   const plan = eng.controls.plan(key)
+   eng.trace.length = 0
+-  const { panel } = plan ? eng.controls.run(plan, true) : {}
++  let panel: string | undefined
++  if (plan) panel = eng.controls.run(plan, true).panel
++  // an input that would change nothing is not offered (taking and putting are physics): the act itself, as the world answers it
++  else if (key === 'put' || key === 'take') {
++    const front = eng.world.front(eng.world.player)!
++    const target = eng.controls.layers(front)[0]
++    if (target) eng.act(key, eng.world.state.player, target, { instrument: key === 'put' ? (eng.world.player.held ? { e: eng.world.player.held } : null) : null })
++  }
+   return {
+     rules: eng.trace.filter((t) => t.defined && t.rule).map((t) => t.rule!),
+     holes: eng.trace.filter((t) => !t.defined && t.rule).map((t) => t.rule!),
+     panel,
++    offered: !!plan,
+   }
+ }
+ 
+@@ -76,9 +86,11 @@ describe('surfaces', () => {
+     expect(carried(eng)).toContain('cup')
+     expect(eng.world.get('cup')!.place.on).not.toBe('tile')
+     stow(eng)
+-    // taking a table is no rule's: undefined (the AI answers); meanwhile it stays
+-    const r = press(eng, 'take')
+-    expect(r.holes).toContain('core/taken')
++    // a table stays where it is: taking is physics (never asked), and F does not offer what it cannot do
++    expect(eng.controls.plan('take')).toBeUndefined()
++    const r = eng.act('take', 'actor', { e: 'table' }, { instrument: null })
++    expect(r.defined).toBe(true)
++    expect(eng.trace.some((t) => !t.defined)).toBe(false)
+     expect(eng.world.get('table')!.place).toMatchObject({ on: 'tile', x: 2, y: 1 })
+     expect(carried(eng)).not.toContain('table')
+   })
+@@ -137,7 +149,7 @@ describe('containers', () => {
+ 
+   it('refuses when full, and the item stays in hand', () => {
+     const eng = play(chestOf(12), 'item/food/apple')
+-    expect(press(eng, 'put')).toMatchObject({ rules: expect.arrayContaining(['core/receive-store']), holes: [] })
++    expect(press(eng, 'put')).toMatchObject({ rules: expect.arrayContaining(['core/receive-store']), holes: [], offered: false })
+     expect(heldBy(eng)).toBe('held')
+     expect(eng.world.get('chest')!.contents).toHaveLength(12)
+     const pot = play([{ key: 'pot', type: 'fixture/container/pot', statuses: ['open'] }], 'item/food/apple')
+@@ -147,7 +159,7 @@ describe('containers', () => {
+ 
+   it('a closed container takes nothing', () => {
+     const eng = play(chestOf(0, []), 'item/food/apple')
+-    expect(press(eng, 'put').rules).toContain('core/receive-store')
++    expect(press(eng, 'put')).toMatchObject({ rules: expect.arrayContaining(['core/receive-store']), offered: false })
+     expect(heldBy(eng)).toBe('held')
+   })
+ 
+@@ -165,7 +177,7 @@ describe('containers', () => {
+ describe('the ground', () => {
+   it('water refuses what is put in it, but still fills an empty vessel', () => {
+     const eng = play([], 'item/food/apple', 'water')
+-    expect(press(eng, 'put').rules).toContain('core/receive-water')
++    expect(press(eng, 'put')).toMatchObject({ rules: expect.arrayContaining(['core/receive-water']), offered: false })
+     expect(heldBy(eng)).toBe('held')
+     const bucket = play([], 'item/vessel/bucket/empty', 'water')
+     expect(press(bucket, 'put').rules).toContain('use/fill-put')
+@@ -187,7 +199,7 @@ describe('the ground', () => {
+ 
+   it('a wall has no room', () => {
+     const eng = play([], 'item/material/stone', 'wall')
+-    expect(press(eng, 'put').rules).toContain('core/receive-solid')
++    expect(press(eng, 'put')).toMatchObject({ rules: expect.arrayContaining(['core/receive-solid']), offered: false })
+     expect(heldBy(eng)).toBe('held')
+   })
+ })
+diff --git a/packages/content/test/woodcutting.test.ts b/packages/content/test/woodcutting.test.ts
+index b94470d..45ddf98 100644
+--- a/packages/content/test/woodcutting.test.ts
++++ b/packages/content/test/woodcutting.test.ts
+@@ -143,12 +143,14 @@ describe('woodcutting', () => {
+     expect(itemsAt(eng, 2)).toEqual(['item/material/log'])
+   })
+ 
+-  it('bare hands on a tree: too hard, and nothing is asked', () => {
++  it("bare hands on a tree (Minecraft's fist): it wears down, slowly; nothing is asked", () => {
+     const eng = grove(['grass', 'grass', 'tree', 'grass', 'grass'], undefined)
++    const tree = eng.world.get(eng.world.cellRef('sandbox', 2, 1).e)!
+     eng.trace.length = 0
+-    eng.act('use', 'actor', eng.world.cellRef('sandbox', 2, 1), { instrument: null, params: { attack: true } })
++    eng.act('use', 'actor', { e: tree.id }, { instrument: null, params: { attack: true } })
+     expect(eng.trace.filter((t) => !t.defined)).toEqual([])
+-    expect(eng.world.fx.some((f) => f.t === 'log' && (f.text as { en: string }).en === 'Too hard.')).toBe(true)
++    expect(eng.world.fx.some((f) => f.t === 'log' && (f.text as { en: string }).en === 'Too hard.')).toBe(false)
++    expect(eng.world.num(tree, 'hp')).toBeLessThan(eng.world.num(tree, 'maxHp'))
+     expect(terrain(eng, 2)).toBe('tree')
+   })
+ })
+diff --git a/packages/content/test/world.test.ts b/packages/content/test/world.test.ts
+index fc31347..c7cf9a0 100644
+--- a/packages/content/test/world.test.ts
++++ b/packages/content/test/world.test.ts
+@@ -303,7 +303,7 @@ describe('the Mod port holds up', () => {
+   it('a thing that changes type takes up the cells of its new footprint', () => {
+     const grow: Rule = { id: 'test/grow', host: { type: 'actor/creature/slime' }, on: 'impulse/handle', tree: { do: [{ op: 'transform', into: 'actor/creature/sin/greed' }] } }
+     const eng = buildSandbox(
+-      { terrain: Array.from({ length: 9 }, () => Array(9).fill('grass')), entities: [{ key: 'actor', type: 'actor/person/player', x: 1, y: 4 }, { key: 'c', type: 'actor/creature/slime/green_slime', x: 4, y: 4 }], event: {} },
++      { terrain: Array.from({ length: 9 }, () => Array(9).fill('grass')), entities: [{ key: 'actor', type: 'actor/person/player', x: 4, y: 5 }, { key: 'c', type: 'actor/creature/slime/green_slime', x: 4, y: 4 }], event: {} },
+       onto,
+       new RuleLibrary([...BASE_RULES, ...STORY_RULES, grow]),
+     )
+diff --git a/packages/modder/test/modder.test.ts b/packages/modder/test/modder.test.ts
+index 3c4e969..e887032 100644
+--- a/packages/modder/test/modder.test.ts
++++ b/packages/modder/test/modder.test.ts
+@@ -27,7 +27,8 @@ function request(host = 'actor/creature/slime/green_slime', item = 'item/tool/ro
+   }
+   const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
+   const port = new ModPort(eng)
+-  eng.act('put', 'actor', { e: 'it' })
++  // the rope held out to it, as a rope used on it does (putting is physics: a creature does not take what is put on it)
++  eng.queue({ kind: 'impulse/offered', host: { e: 'it' }, roles: { actor: { e: 'actor' }, item: { e: 'held' }, source: { e: 'held' } }, params: {}, cause: 'actor', origin: 'player' })
+   const rec = port.records[0]
+   expect(rec?.request).toMatchObject({ event: { kind: 'impulse/offered', host: { type: host } }, hole: { rule: 'core/offered' } })
+   return rec.request
+@@ -84,8 +85,8 @@ function bindRule(id = 'patch/rope-binds-creature', host = 'actor/creature', tes
+             { key: 'r', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
+             { key: 'w', type: testHost, x: 2, y: 1 },
+           ],
+-          // the player's act: putting the rope on it (the creature is offered it, and answers)
+-          event: { kind: 'act/put', actor: 'actor', target: 'w', instrument: 'r' },
++          // the rope held out to it (as a rope used on it does): the creature answers
++          event: { kind: 'impulse/offered', host: 'w', actor: 'actor', item: 'r', source: 'r' },
+         },
+         expect: [{ key: 'w', hasStatus: 'frozen' }, { key: 'r', exists: true }],
+       },
+@@ -321,7 +322,7 @@ describe('the Mod port with the modder plugged in', () => {
+     const finished = new Promise<void>((r) => (done = r))
+     port.provider = { resolve: async (req) => (await modder.resolve({ request: req })).patch }
+     port.onChange = () => port.records[0]?.status === 'patched' && done()
+-    eng.act('put', 'actor', { e: 'slime' })
++    eng.queue({ kind: 'impulse/offered', host: { e: 'slime' }, roles: { actor: { e: 'actor' }, item: { e: 'rope' }, source: { e: 'rope' } }, params: {}, cause: 'actor', origin: 'player' })
+     // while the outcome waits, its participants are held — the one who started the chain too
+     expect(port.records[0]).toMatchObject({ status: 'pending', request: { event: { kind: 'impulse/offered' } } })
+     expect(eng.world.get('slime')!.frozenBy).toBe(port.records[0].id)
+@@ -362,7 +363,7 @@ describe('the service', () => {
+ })
+ 
+ describe('the offline script (fixtures/offline.json, for `serve --script`)', () => {
+-  it('answers a rope put on or used on a creature, live, and the patch covers the rest of the class', async () => {
++  it('answers a rope held out to or used on a creature, live, and the patch covers the rest of the class', async () => {
+     const model = scriptFromFile(fileURLToPath(new URL('../fixtures/offline.json', import.meta.url)))
+     for (const first of ['put', 'use'] as const) {
+       const { modder } = setup(model, undefined, 'live')
+@@ -507,18 +508,17 @@ describe('deterministic repairs', () => {
+     const sc: Scenario = {
+       entities: [
+         { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+-        { key: 'held', type: 'item/material/bone', x: 2, y: 2, heldBy: 'actor' },
+         { key: 'it', type: 'fixture/nature/ferns', x: 2, y: 1 },
+       ],
+       event: {},
+     }
+     const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
+     const port = new ModPort(eng)
+-    eng.act('put', 'actor', { e: 'it' })
++    // a bare blow on it: what cannot break has no answer of its own to a blow (core/strike)
++    eng.act('use', 'actor', { e: 'it' }, { instrument: null, params: { attack: true } })
+     const req = port.records[0].request
+-    // a fixture's own hole for what is put on it (fixture/receive, #11), under core/receive
+-    expect(req.hole.rule).toBe('fixture/receive')
+-    const shed = (id: string, host: Rule['host']): Rule => ({ id, host, on: 'impulse/receive', doc: 'Things slide off it.', tree: { do: [{ op: 'emit', impulse: 'taken', to: 'item', params: { into: 'tile' } }, { op: 'vfx', fx: 'leaves' }] } })
++    expect(req.hole.rule).toBe('core/strike')
++    const shed = (id: string, host: Rule['host']): Rule => ({ id, host, on: 'impulse/strike', doc: 'Struck, it is flattened.', tree: { do: [{ op: 'transform', into: 'fixture/nature/tuft' }, { op: 'vfx', fx: 'leaves' }] } })
+     const library = new WorldLibrary(onto, BASE)
+     expect(library.commit(patchOf(shed('patch/flowers-shed', { type: 'fixture/nature/flowers' }))).ok).toBe(true)
+     const d = deriveTests(patchOf(shed('patch/plants-shed', { type: 'fixture/nature', tags: ['plant'] })), req, library.lib, library.fullOntology())
+diff --git a/packages/modder/test/repo.test.ts b/packages/modder/test/repo.test.ts
+index 336ea47..e585c58 100644
+--- a/packages/modder/test/repo.test.ts
++++ b/packages/modder/test/repo.test.ts
+@@ -25,7 +25,8 @@ function request(host = 'actor/creature/slime/green_slime'): ModRequest {
+   }
+   const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
+   const port = new ModPort(eng)
+-  eng.act('put', 'actor', { e: 'it' })
++  // the rope held out to it, as a rope used on it does
++  eng.queue({ kind: 'impulse/offered', host: { e: 'it' }, roles: { actor: { e: 'actor' }, item: { e: 'held' }, source: { e: 'held' } }, params: {}, cause: 'actor', origin: 'player' })
+   return port.records[0].request
+ }
+ 
+@@ -54,7 +55,7 @@ const RULE: Rule = {
+           { key: 'r', type: 'item/tool/rope', x: 2, y: 2, heldBy: 'actor' },
+           { key: 'w', type: 'actor/creature/beast/wolf', x: 2, y: 1 },
+         ],
+-        event: { kind: 'act/put', actor: 'actor', target: 'w', instrument: 'r' },
++        event: { kind: 'impulse/offered', host: 'w', actor: 'actor', item: 'r', source: 'r' },
+       },
+       expect: [{ key: 'w', hasStatus: 'frozen' }],
+     },
+diff --git a/packages/tools/test/console.test.ts b/packages/tools/test/console.test.ts
+index 7f14825..e749cab 100644
+--- a/packages/tools/test/console.test.ts
++++ b/packages/tools/test/console.test.ts
+@@ -8,7 +8,7 @@ import { template } from '../../client/src/ui/template.ts'
+ import { AT, STAND, buildFord } from '../src/demo/world.ts'
+ 
+ describe('the Mod Console template', () => {
+-  it('is a valid patch for an undefined act, a receive, a strike and a handle', () => {
++  it('is a valid patch for an undefined act, a strike and a handle', () => {
+     const onto = buildOntology()
+     const { index, chunks } = buildFord()
+     const lib = new RuleLibrary([...BASE_RULES, ...STORY_RULES])
+@@ -26,11 +26,10 @@ describe('the Mod Console template', () => {
+       eng.controls.run(eng.controls.plan(key, { x: target[0], y: target[1] })!, true)
+     }
+     press('use', 'item/food/bread', STAND.winch, AT.winch)
+-    press('put', 'item/tool/rope', STAND.tree, AT.deadTree, 'right')
+     press('use', 'item/weapon/blade/axe', STAND.winch, AT.winch)
+     press('hands', undefined, STAND.raft, AT.raft, 'right')
+     const kinds = game.mods.records.map((r) => r.request.event.kind)
+-    expect(kinds).toEqual(['act/use', 'impulse/receive', 'impulse/strike', 'impulse/handle'])
++    expect(kinds).toEqual(['act/use', 'impulse/strike', 'impulse/handle'])
+     for (const r of game.mods.records) {
+       const patch = template({ id: r.id, request: r.request, status: r.status } as Parameters<typeof template>[0])
+       const res = validatePatch(patch, { ontology: onto, library: lib, scenario: r.request.scenario })
+diff --git a/packages/tools/test/defaults.test.ts b/packages/tools/test/defaults.test.ts
+index affcfdf..130856f 100644
+--- a/packages/tools/test/defaults.test.ts
++++ b/packages/tools/test/defaults.test.ts
+@@ -37,12 +37,12 @@ describe('the defaults of undefined outcomes', () => {
+     expect([actor.held, ...(actor.contents ?? [])]).toContain('held')
+   })
+ 
+-  it('the AI is asked first: a modder holding the event keeps the log in hand until it answers', () => {
++  it('putting is physics, never asked: with a modder listening, the log is set down at once', () => {
+     const raised: [GameEvent, Resolution][] = []
+     const eng = setup('fixture/nature/tuft', 'item/material/log', { raise: (ev, res) => (raised.push([ev, res]), true), tick: () => {} })
+     eng.act('put', 'actor', { e: 'target' })
+-    expect(raised.map(([, r]) => r.hole?.rule.id)).toEqual(['fixture/receive'])
+-    expect(eng.world.get('actor')!.held).toBe('held')
++    expect(raised).toEqual([])
++    expect(eng.world.get('actor')!.held).not.toBe('held')
+   })
+ 
+   it('a creature has no use for what is put on it: it stays in hand', () => {
+diff --git a/packages/tools/test/demo.test.ts b/packages/tools/test/demo.test.ts
+index b0acbb3..5772bb2 100644
+--- a/packages/tools/test/demo.test.ts
++++ b/packages/tools/test/demo.test.ts
+@@ -9,6 +9,7 @@
+ 
+ import { describe, expect, it } from 'vitest'
+ import {
++  textOf,
+   EVENT_KINDS,
+   FIRE_RADIUS,
+   APPEAR_EVERY,
+@@ -211,14 +212,17 @@ req('B1', 'using a thing on something its nature says nothing about is undefined
+   expect(r[0].request.hole.rule).toBe('core/use')
+ })
+ 
+-req('B2', 'putting something on a thing that does not say how it receives it is asked, hosted by the receiver (the axe on the dead tree)', ['item/weapon/blade/axe', 'fixture/nature/dead_tree'], () => {
++req('B2', 'putting is physics, never asked: the axe put on the dead tree is set down at its foot (what one makes of a thing goes by the left click)', ['item/weapon/blade/axe', 'fixture/nature/dead_tree'], () => {
+   const f = fresh()
+-  hold(f, ofType(f, 'item/weapon/blade/axe'))
++  const axe = ofType(f, 'item/weapon/blade/axe')!
++  hold(f, axe)
+   stand(f, ...STAND.tree, 'right')
+-  // the default would set it down at the tree's foot; the chooser picks the tree itself
+-  f.eng.controls.run(f.eng.controls.plan('put', at(...AT.deadTree), 0)!)
+-  // a fixture receiving what nothing defines is a hole of its own (its default: set it down there)
+-  expect(asked(f, 'impulse/receive', 'player').some((r) => hostIs(r.event, 'ford.dead_tree') && r.request.hole.rule === 'fixture/receive')).toBe(true)
++  const plan = f.eng.controls.plan('put', at(...AT.deadTree), 0)!
++  expect(plan.target).toEqual({ e: 'ford.dead_tree' })
++  expect(plan.unknown).toBeFalsy()
++  f.eng.controls.run(plan)
++  expect(W(f).get(axe.id)!.place).toMatchObject({ on: 'tile', x: AT.deadTree[0], y: AT.deadTree[1] })
++  expect(asked(f, 'impulse/receive', 'player')).toEqual([])
+ })
+ 
+ req('B3', 'a blow on a thing with no answer to it is asked, hosted by the one struck (an axe at the winch)', ['item/weapon/blade/axe', 'fixture/ferry/winch'], () => {
+@@ -689,11 +693,13 @@ req('F7', 'save and continue', [], () => {
+   expect(g.engine.world.fact('ford.tree')).toBe(1)
+ })
+ 
+-req('F8', 'legible: before a press, every input shows what it will do, and the unknown is marked', ['fixture/ferry/raft', 'fixture/ferry/winch'], () => {
++req('F8', 'legible: before a press, every input that reaches shows what it will do (taking what cannot be taken is no option), and the unknown is marked', ['fixture/ferry/raft', 'fixture/ferry/winch'], () => {
+   const f = fresh()
+   hold(f, ofType(f, 'item/food/bread'))
+   stand(f, ...STAND.raft, 'right')
+-  for (const key of ['hands', 'take', 'use', 'put'] as Key[]) expect(f.eng.controls.plan(key, at(...AT.raft))?.label).toBeDefined()
++  for (const key of ['hands', 'put', 'use'] as Key[]) expect(f.eng.controls.plan(key, at(...AT.raft))?.label).toBeDefined()
++  expect(f.eng.controls.plan('take', at(...AT.raft))?.target).not.toEqual({ e: 'ford.raft' })
++  expect(textOf(f.eng.controls.plan('self')?.label)).toBe('Eat Bread')
+   expect(f.eng.controls.plan('hands', at(...AT.raft))?.unknown).toBe(true)
+   stand(f, ...STAND.winch)
+   expect(f.eng.controls.plan('use', at(...AT.winch))?.unknown).toBe(true)
+@@ -1296,24 +1302,24 @@ req('W17', 'combat by what things are made of: iron strikes harder than wood, fi
+   const helmet = author(f, () => w.add({ ...made('item/armor/helmet', 'iron'), id: 'w17.helmet', place: { on: 'inside', holder: 'player' } }))
+   stand(f, 20, 14, 'up')
+   hold(f, helmet)
+-  expect(run(f, 'put', 20, 14).rule).toBe('body/wear')
++  expect(run(f, 'self', 20, 14).rule).toBe('body/wear')
+   expect(w.prop(p, 'wear:head')).toBe(helmet.id)
+   expect(w.stat(p, 'def')).toBe(2)
+   expect(blow(6)).toBe(4)
+   // a hat on the same head: the helmet comes off
+   const hat = author(f, () => w.add({ ...made('item/clothing/hat', 'cloth'), id: 'w17.hat', place: { on: 'inside', holder: 'player' } }))
+   hold(f, hat)
+-  run(f, 'put', 20, 14)
++  run(f, 'self', 20, 14)
+   expect(w.prop(p, 'wear:head')).toBe(hat.id)
+   expect(w.stat(p, 'def')).toBe(0)
+   // the helmet again, and again: on, then off
+   hold(f, helmet)
+-  run(f, 'put', 20, 14)
++  run(f, 'self', 20, 14)
+   expect(w.prop(p, 'wear:head')).toBe(helmet.id)
+-  run(f, 'put', 20, 14)
++  run(f, 'self', 20, 14)
+   expect(w.prop(p, 'wear:head')).toBeUndefined()
+   // what is no longer one's own is not worn
+-  run(f, 'put', 20, 14)
++  run(f, 'self', 20, 14)
+   author(f, () => w.place(w.get(helmet.id)!, { on: 'tile', map: 'ford', x: 21, y: 14 }))
+   expect(w.stat(p, 'def')).toBe(0)
+   // resistances: the herbalist's draught takes three quarters of fire's harm; a cloak that resists fire, the rest
+@@ -1323,7 +1329,7 @@ req('W17', 'combat by what things are made of: iron strikes harder than wood, fi
+   expect(blow(8, 'ice', true)).toBe(8)
+   const cloak = author(f, () => w.add({ ...made('item/clothing/cloak', 'leather'), id: 'w17.cloak', props: { slot: 'back', resFire: 25 }, place: { on: 'inside', holder: 'player' } }))
+   hold(f, cloak)
+-  run(f, 'put', 20, 14)
++  run(f, 'self', 20, 14)
+   expect(w.stat(p, 'resFire')).toBe(100)
+   expect(blow(8, 'fire', true)).toBe(0)
+ })
+@@ -1368,6 +1374,8 @@ req('W12', 'a second storey: walls, a floor laid over them (held up by them), st
+   for (let y = 3; y < 27 && !at; y++) for (let x = 3; x < 40 && !at; x++) if ([0, 1, 2, 3, 4].every((d) => W(f).walkable('ford', x + d, y) && !W(f).placedAt('ford', x + d, y).length && W(f).heightAt('ford', x + d, y) === 0)) at = [x, y]
+   const [x, y] = at!
+   const build = (type: string, cx: number) => {
++    // one sets a thing down within reach: beside the cell
++    stand(f, cx + 1, y, 'left')
+     const thing = author(f, () => W(f).add({ ...madeOf(W(f).onto.data, W(f).onto, type, 'wood'), id: `w12.${type}.${cx}`, place: { on: 'inside', holder: 'player' } }))
+     const target = W(f).placedAt('ford', cx, y).find((e) => e.type.startsWith('structure')) ?? W(f).cellTop('ford', cx, y)!
+     f.eng.act('put', 'player', { e: target.id }, { instrument: { e: thing.id } })
+@@ -1779,12 +1787,12 @@ req('P1', 'the prologue, offline: down from the plateau to the Ford, every beat
+   const until = (n: number, limit = 60) => expect(ticks(f, limit, () => stage() >= n), `prologue ${n} (at ${stage()})`).toBe(true)
+   const pip = () => w.get('pip')!
+   const carried = (type: string) => [p.held, ...(p.contents ?? [])].map((id) => w.get(id)).find((e) => e?.type === type)
+-  /** F on Pip, wherever it perches: what it says. */
++  /** E on Pip, wherever it perches: what it says. */
+   const askPip = () => {
+     ticks(f, 6)
+     const at = w.posOf(pip())!
+     w.fx.length = 0
+-    run(f, 'take', at.x, at.y)
++    run(f, 'hands', at.x, at.y)
+     const said = w.fx.find((x) => x.t === 'say' && x.who === 'pip')
+     return said && said.t === 'say' && typeof said.text === 'object' ? (said.text.zh ?? '') : ''
+   }
+@@ -1807,7 +1815,7 @@ req('P1', 'the prologue, offline: down from the plateau to the Ford, every beat
+   until(4)
+   // Pip pointed the statue out the first time it came into view
+   expect(w.fact('seen.see_waypoint')).toBeTruthy()
+-  // F on Pip: what to do now, and how
++  // E on Pip: what to do now, and how
+   expect(askPip()).toContain('做一把石斧')
+   // the yard holds a stone axe's worth: a stick, a stone, a tuft of grass; C makes it
+   for (const [x, y] of [[6, 13], [12, 14], [9, 14]] as const) {

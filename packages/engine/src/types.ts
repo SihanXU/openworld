@@ -260,6 +260,12 @@ export interface Ontology {
   /** Gear's rolled extras (affixes.ts): how many a piece rolls when it is made, and from what. */
   affixes?: AffixTable
   /**
+   * The creatures' own skills (the kits module, docs/creatures.md), by type: a kind's kit is the nearest its type or an
+   * ancestor names. How a skill is aimed and timed is here; what it does where it lands is its host's rule (`act/use`
+   * with the param `kit`).
+   */
+  kits?: Record<string, CreatureSkill[]>
+  /**
    * How well an instrument works on a material category (world-model.md §6.1): rows are its
    * capabilities (`tool:axe` …) and its edge (`edge:cut` …); an instrument takes its best row.
    * A category no row names: 1.
@@ -453,6 +459,43 @@ export interface BossSkill {
   heal?: number
   shift?: 'pull' | 'push'
   blink?: boolean
+}
+
+/**
+ * A creature's skill (the kits module, docs/creatures.md): when its behaviour takes it up, how long it winds up on the
+ * cells it marks, and how it gets there. Ticks at 10 a second.
+ */
+export interface CreatureSkill {
+  id: string
+  name: Text
+  /**
+   * The cells it marks: a disk around its centre (`circle`), a line one wide ahead of it (`line`, `radius` long), a cone
+   * ahead (`cone`), a cross through its centre (`cross`).
+   */
+  shape: 'circle' | 'line' | 'cone' | 'cross'
+  /** Its centre: the creature itself, or the foe's cell when it winds up (locked: a foe that moves away is missed). */
+  aim: 'self' | 'target'
+  radius: number
+  /**
+   * How it gets there: it leaps onto the aimed cell (a free one beside it when that is taken), or dashes along the line
+   * to the first foe or the first thing in the way. Without it, it stands where it is.
+   */
+  move?: 'leap' | 'dash'
+  /** Having hit, it springs back so many cells from the one it struck (a bat's swoop). */
+  back?: number
+  /** The foe's distance (in cells, the greater axis) at which it may take the skill up: [nearest, farthest]. */
+  range: [number, number]
+  /** A line or a cone, and a dash, is taken up only when the foe stands in a row or a column with it. */
+  aligned?: boolean
+  windup: number
+  /** Ticks before it may take this skill up again. */
+  cooldown: number
+  /** The chance it takes the skill up when it could (looked at once a second): default 1. */
+  chance?: number
+  /** Taken up only under this share of its full health (a crab that shells up when hurt). */
+  below?: number
+  /** The marks' colour (0xRRGGBB); default the warning red. */
+  color?: number
 }
 
 export interface BossDef {
@@ -1496,7 +1539,7 @@ export type EmitTo =
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
 /** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
-export type ModuleOp = 'release' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy'
+export type ModuleOp = 'release' | 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy'
 
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
@@ -1572,6 +1615,12 @@ export type Effect =
   | { op: 'learn'; book?: boolean }
   /** The host's encounter skill lands on the cells its act telegraphed (bosses.ts). */
   | { op: 'release' }
+  /**
+   * The host's kit skill lands (the kits module): it gets there as the skill says (a leap, a dash), and each foe on the
+   * cells its act marked is struck by `power` (with `element` and `edge`), coated with `coat` (a status it answers
+   * for itself), pushed `push` cells away; the host mends `heal` for each foe it hit.
+   */
+  | { op: 'unleash'; power?: Amount; element?: PropValue | Amount; edge?: string; coat?: string; push?: number; heal?: Amount }
   /** Open one of the panels the game's client shows, by its id (profession, board, haven, …), for the one at the keys who spoke to the host. */
   | { op: 'panel'; panel: string }
   | { op: 'scene'; id: string }

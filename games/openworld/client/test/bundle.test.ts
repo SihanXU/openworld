@@ -25,7 +25,7 @@ describe('OpenWorld from its bundle', () => {
     expect(g.looks.player).toEqual(CLIENT_GAME.looks.player)
     expect([...g.looks.worn].sort()).toEqual([...CLIENT_GAME.looks.worn].sort())
     expect(g.ontology()).toEqual(CLIENT_GAME.ontology())
-    expect(bundle.game.modules).toEqual(['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society', 'loot'])
+    expect(bundle.game.modules).toEqual(['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society', 'loot', 'kits'])
   })
 
   it('has its shops, each shelf saying whether it buys from one', () => {

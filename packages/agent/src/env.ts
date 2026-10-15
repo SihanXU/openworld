@@ -5,6 +5,7 @@
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export interface ExecResult {
@@ -28,6 +29,8 @@ export interface Env {
   readonly cwd: string
   /** commands cannot reach past the workspace (a container): only then may an agent run any command it likes */
   readonly isolated: boolean
+  /** the node that runs the agent's hooks where its commands run (default: `node` on the PATH) */
+  readonly node?: string
   exec(cmd: string, o?: ExecOptions): Promise<ExecResult>
   dispose?(): Promise<void>
 }
@@ -97,6 +100,17 @@ export class LocalEnv implements Env {
   }
 }
 
+/** The docker CLI: an executable, or an executable and its first arguments (tests drive a stand-in). */
+export type DockerCli = string | string[]
+
+function docker(cli: DockerCli | undefined, args: string[], timeoutMs: number): Promise<ExecResult> {
+  const [file, ...pre] = Array.isArray(cli) ? cli : [cli ?? 'docker']
+  return run(file, [...pre, ...args], { timeoutMs, env: process.env as Record<string, string> })
+}
+
+/** Where a mounted node sits in a container: the agent's hooks run with it, its own commands never see it. */
+export const HOOK_NODE = '/opt/lsw/bin/node'
+
 /**
  * Commands inside a container with the workspace bind-mounted (SWE-bench style images). No
  * network by default. Needs a docker CLI on the host.
@@ -107,13 +121,25 @@ export class DockerEnv implements Env {
     readonly root: string,
     readonly cwd: string,
     private id: string,
-    private docker: string,
+    private cli: DockerCli | undefined,
+    private init: string | undefined,
+    readonly node: string | undefined,
+    private owner: string | undefined,
+    private mount: string,
   ) {}
 
   /**
    * `mounts`: more host paths the commands may see, read-only unless said (code the tests need —
    * never secrets). `user`: run as this uid:gid, so what the task writes stays the host user's.
    * `limits`: memory and process caps, so a runaway command cannot take the host down.
+   * `node`: a node executable on the host, mounted read-only at HOOK_NODE for the agent's hooks
+   * (benchmark images have none; it must be built for the container's system).
+   * `init`: shell lines run before every command (the image's environment, e.g. a conda env).
+   * `setup`: commands run once, as the container starts.
+   * `owner`: uid:gid the workspace is given back to when the container goes (its commands ran as
+   * the image's user, often root, and what they wrote must stay removable on the host).
+   * `sub`: the repository's directory under the mount, when it is not the mount itself (some of
+   * SWE-bench-Live's images): the workspace and the commands' directory are there.
    */
   static async start(o: {
     image: string
@@ -123,30 +149,62 @@ export class DockerEnv implements Env {
     network?: boolean
     user?: string
     limits?: { memory?: string; cpus?: string; pids?: number }
-    docker?: string
+    node?: string
+    init?: string
+    setup?: string[]
+    owner?: string
+    sub?: string
+    docker?: DockerCli
   }): Promise<DockerEnv> {
-    const docker = o.docker ?? 'docker'
     const mount = o.mount ?? '/testbed'
-    const extra = (o.mounts ?? []).flatMap((m) => ['-v', `${m.host}:${m.container}${m.writable ? '' : ':ro'}`])
+    const extra = [...(o.mounts ?? []), ...(o.node ? [{ host: o.node, container: HOOK_NODE }] : [])].flatMap((m) => ['-v', `${m.host}:${m.container}${m.writable ? '' : ':ro'}`])
     const limits = [
       ...(o.limits?.memory ? ['--memory', o.limits.memory] : []),
       ...(o.limits?.cpus ? ['--cpus', o.limits.cpus] : []),
       ...(o.limits?.pids ? ['--pids-limit', String(o.limits.pids)] : []),
     ]
     const args = ['run', '-d', '--rm', ...(o.network ? [] : ['--network', 'none']), ...(o.user ? ['--user', o.user] : []), ...limits, '-v', `${o.root}:${mount}`, ...extra, '-w', mount, o.image, 'sleep', 'infinity']
-    const r = await run(docker, args, { timeoutMs: 300_000, env: process.env as Record<string, string> })
+    const r = await docker(o.docker, args, 300_000)
     if (r.code !== 0) throw new Error(`docker run failed: ${r.stderr.trim() || r.stdout.trim()}`)
-    return new DockerEnv(o.root, mount, r.stdout.trim(), docker)
+    const sub = (o.sub ?? '').replace(/^\/+|\/+$/g, '')
+    const env = new DockerEnv(sub ? join(o.root, sub) : o.root, sub ? `${mount}/${sub}` : mount, r.stdout.trim(), o.docker, o.init, o.node ? HOOK_NODE : undefined, o.owner, mount)
+    for (const cmd of o.setup ?? []) {
+      const s = await env.exec(cmd, { timeoutMs: 60_000 })
+      if (s.code !== 0) {
+        await env.dispose()
+        throw new Error(`container setup failed (${cmd}): ${s.stderr.trim() || s.stdout.trim()}`)
+      }
+    }
+    return env
+  }
+
+  /**
+   * A path of an image copied to the host (`to` must not exist yet): a benchmark image's
+   * repository with the environment's in-place build, which a fresh checkout would not have.
+   */
+  static async copyOut(o: { image: string; path: string; to: string; docker?: DockerCli }): Promise<void> {
+    const c = await docker(o.docker, ['create', o.image], 600_000)
+    if (c.code !== 0) throw new Error(`docker create failed: ${c.stderr.trim() || c.stdout.trim()}`)
+    const id = c.stdout.trim()
+    try {
+      const r = await docker(o.docker, ['cp', `${id}:${o.path}`, o.to], 900_000)
+      if (r.code !== 0) throw new Error(`docker cp failed: ${r.stderr.trim() || r.stdout.trim()}`)
+    } finally {
+      await docker(o.docker, ['rm', '-f', id], 60_000)
+    }
   }
 
   exec(cmd: string, o: ExecOptions = {}): Promise<ExecResult> {
     const secs = Math.ceil((o.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)
     const envArgs = Object.entries(o.env ?? {}).flatMap(([k, v]) => ['-e', `${k}=${v}`])
-    return run(this.docker, ['exec', '-i', ...envArgs, '-w', this.cwd, this.id, 'timeout', String(secs), 'bash', '-lc', cmd], { ...o, timeoutMs: (secs + 15) * 1000, env: process.env as Record<string, string> })
+    const script = this.init ? `${this.init}\n${cmd}` : cmd
+    const [file, ...pre] = Array.isArray(this.cli) ? this.cli : [this.cli ?? 'docker']
+    return run(file, [...pre, 'exec', '-i', ...envArgs, '-w', this.cwd, this.id, 'timeout', String(secs), 'bash', '-lc', script], { ...o, timeoutMs: (secs + 15) * 1000, env: process.env as Record<string, string> })
   }
 
   async dispose(): Promise<void> {
-    await run(this.docker, ['rm', '-f', this.id], { timeoutMs: 60_000, env: process.env as Record<string, string> })
+    if (this.owner) await this.exec(`chown -R ${sh(this.owner)} ${sh(this.mount)} 2>/dev/null; true`, { timeoutMs: 300_000 })
+    await docker(this.cli, ['rm', '-f', this.id], 60_000)
   }
 }
 

@@ -1613,6 +1613,44 @@
           "properties": {
             "op": {
               "type": "string",
+              "const": "unleash"
+            },
+            "power": {
+              "$ref": "#/definitions/Amount"
+            },
+            "element": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/PropValue"
+                },
+                {
+                  "$ref": "#/definitions/Amount"
+                }
+              ]
+            },
+            "edge": {
+              "type": "string"
+            },
+            "coat": {
+              "type": "string"
+            },
+            "push": {
+              "type": "number"
+            },
+            "heal": {
+              "$ref": "#/definitions/Amount"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
               "const": "panel"
             },
             "panel": {

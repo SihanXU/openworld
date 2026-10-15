@@ -1,0 +1,285 @@
+diff --git a/packages/content/test/ford.test.ts b/packages/content/test/ford.test.ts
+index 6144a6b..df6c1a4 100644
+--- a/packages/content/test/ford.test.ts
++++ b/packages/content/test/ford.test.ts
+@@ -96,7 +96,7 @@ describe('the Ford', () => {
+     expect(eng.world.fact('ford.charm')).toBe(1)
+     expect(chain(eng, () => eng.act('take', 'actor', { e: 'wand' }, { instrument: null }))).toContainEqual(['seen', 'ford/wand-is-yours'])
+     expect(eng.world.get('wand')!.place).toMatchObject({ holder: 'actor' })
+-    expect(eng.world.state.topics?.some((t) => t.id === 'theft')).toBeFalsy()
++    expect(eng.world.topicFresh('theft')).toBe(false)
+     expect(noHoles(eng)).toEqual([])
+   })
+ })
+diff --git a/packages/content/test/world.test.ts b/packages/content/test/world.test.ts
+index cc4254f..bbc03f8 100644
+--- a/packages/content/test/world.test.ts
++++ b/packages/content/test/world.test.ts
+@@ -78,7 +78,7 @@ describe('time and weather', () => {
+ 
+   it('rain wets people outdoors and puts out fires (the world\'s clock emits water; each thing answers it)', () => {
+     const eng = place({}, [{ key: 'hay', type: 'fixture/nature/haystack', x: 1, y: 1, statuses: ['burning'] }])
+-    eng.world.state.weather = [{ day: 1, weather: 'rain' }]
++    eng.world.weather = [{ day: 1, weather: 'rain' }]
+     eng.trace = []
+     ticks(eng, 60)
+     expect(eng.trace.some((t) => t.ev.kind === 'time/period' && t.ev.params?.name === 'weather' && t.rule === 'world/clocks')).toBe(true)
+@@ -91,21 +91,21 @@ describe('people', () => {
+   it('say the most specific line that fits: first meeting, a fact, the weather, the hour, default — never the same twice in a row', () => {
+     const eng = place({ lines: [L('greeting:first', 'Who are you?'), L('fact:nets.mended', 'The line holds.', { once: true }), L('weather:storm', 'Get under something.'), L('default', 'A'), L('default', 'B')] })
+     expect(talk(eng)).toBe('Who are you?')
+-    expect(eng.world.state.memory?.hesper?.talked).toBeDefined()
++    expect(eng.world.get('hesper')!.npc!.memory?.talked).toBeDefined()
+     const a = talk(eng)
+     const b = talk(eng)
+     expect([a, b].sort()).toEqual(['A', 'B'])
+     fact(eng, 'nets.mended', 1)
+     expect(talk(eng)).toBe('The line holds.')
+     expect(['A', 'B']).toContain(talk(eng))
+-    eng.world.state.weather = [{ day: 1, weather: 'storm' }]
++    eng.world.weather = [{ day: 1, weather: 'storm' }]
+     expect(talk(eng)).toBe('Get under something.')
+   })
+ 
+   it('remember what happened: a topic line is said once while it is fresh', () => {
+     const eng = place({ lines: [L('topic:theft', 'I saw that.'), L('default', 'Hm.')] })
+-    eng.world.state.memory = { hesper: { talked: 1 } }
+-    eng.world.state.topics = [{ id: 'theft', day: 1, days: 2 }]
++    eng.world.get('hesper')!.npc!.memory = { talked: 1 }
++    eng.author(() => (eng.world.setFact('topic.theft', 1), eng.world.setFact('topic.theft.days', 2)))
+     expect(talk(eng)).toBe('I saw that.')
+     expect(talk(eng)).toBe('Hm.')
+   })
+@@ -126,7 +126,7 @@ describe('people', () => {
+     const eng = place({ schedules: [{ key: 'default', entries: at(1) }, { key: 'storm', entries: at(2) }, { key: 'fact:ford.crossed', entries: at(3) }] })
+     const h = eng.world.get('hesper')!
+     expect(scheduleFor(eng, h)[0].x).toBe(1)
+-    eng.world.state.weather = [{ day: 1, weather: 'storm' }]
++    eng.world.weather = [{ day: 1, weather: 'storm' }]
+     expect(scheduleFor(eng, h)[0].x).toBe(2)
+     fact(eng, 'ford.crossed', 1)
+     expect(scheduleFor(eng, h)[0].x).toBe(3)
+@@ -170,7 +170,7 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
+     const seen = eng.trace.filter((t) => t.ev.kind === 'seen')
+     expect(seen.find((t) => 'e' in t.ev.host && t.ev.host.e === 'hesper')).toMatchObject({ rule: 'seen/owner-take', defined: true, ev: { params: { act: 'take', owner: 'mine' } } })
+     expect(seen.find((t) => 'e' in t.ev.host && t.ev.host.e === 'tobin')).toMatchObject({ rule: 'core/seen', defined: true, ev: { params: { owner: 'another' } } })
+-    expect(eng.world.state.topics?.some((t) => t.id === 'theft')).toBe(true)
++    expect(eng.world.topicFresh('theft')).toBe(true)
+     expect(port.records).toHaveLength(0)
+   })
+ 
+@@ -185,7 +185,7 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
+     eng.trace = []
+     eng.act('take', 'actor', { e: 'oil' }, { instrument: null })
+     expect(byHesper()).toEqual([])
+-    expect(eng.world.state.topics?.some((t) => t.id === 'theft')).toBeFalsy()
++    expect(eng.world.topicFresh('theft')).toBe(false)
+   })
+ 
+   it('stuck: a person whose fire is out lights it again (a rule); a burning cart is asked about, at most once an hour', () => {
+@@ -353,7 +353,8 @@ describe('the boundaries of the world\'s own patches (design.md §5.11)', () =>
+ 
+   it('but is never harmed, and never changes the story', () => {
+     expect(check(rule('patch/hurt', [{ op: 'hurt', amount: 5 }])).errors.join()).toContain('may not harm a person')
+-    expect(check(rule('patch/story', [{ op: 'setFact', key: 'ford.crossed', value: 1 }])).errors.join()).toContain("story's fact")
++    // the story's facts are its own props: a person's rule writes only the person (its own prop of that name is not the fact)
++    expect(check(rule('patch/story', [{ op: 'setProp', key: 'ford.crossed', value: 1 }])).errors.join()).not.toContain("story's fact")
+     // the player's own patches keep their limits
+     expect(check(rule('patch/hurt2', [{ op: 'hurt', amount: 5 }]), false).errors).toEqual([])
+   })
+diff --git a/packages/tools/test/demo.test.ts b/packages/tools/test/demo.test.ts
+index 9396504..709c180 100644
+--- a/packages/tools/test/demo.test.ts
++++ b/packages/tools/test/demo.test.ts
+@@ -24,6 +24,7 @@ import {
+   xpToNext,
+   astar,
+   performPlacement,
++  regionId,
+   travelToWaypoint,
+   PROFESSION_LEVEL,
+   NIGHT_CAP,
+@@ -114,7 +115,7 @@ const run = (f: Ford, key: Key, x: number, y: number): Plan => {
+ }
+ const ticks = (f: Ford, n: number, until?: () => boolean) => {
+   for (let i = 0; i < n; i++) {
+-    if (W(f).state.scene?.waiting === 'advance') f.eng.scenes.advance()
++    if (W(f).scene?.waiting === 'advance') f.eng.scenes.advance()
+     f.eng.tick()
+     if (until?.()) return true
+   }
+@@ -476,14 +477,30 @@ req('F1', 'the goal is a state: the far bank ends the story, however the player
+     ticks(f, 400, () => {
+       cards.push(...W(f).fx.filter((x) => x.t === 'card'))
+       W(f).fx = []
+-      return W(f).num(W(f).player, 'quest') === 2 && !W(f).state.scene
++      return W(f).num(W(f).player, 'quest') === 2 && !W(f).scene
+     }),
+   ).toBe(true)
+   expect(far(f)).toBe(true)
+   expect(cards.length).toBe(1)
+ })
+ 
+-req('F2a', 'the ferry: the rope from her chest, the winch mended, and she takes you over', ['item/tool/rope', 'fixture/container/chest', 'fixture/ferry/winch', 'npc.hesper', 'fixture/ferry/raft'], () => {
++req('F1b', 'a story step begins on entering an authored region: the far bank is a thing, entering it is contact (in-region), and its scene starts on the next tick, not at a poll', ['region:far_bank'], () => {
++  const f = fresh()
++  const bank = W(f).get(regionId('ford', 'far_bank'))!
++  expect(bank.type).toBe('region')
++  // a tick no poll falls on
++  W(f).state.tick += 5 - (W(f).state.tick % 20)
++  f.made.length = 0
++  author(f, () => f.eng.teleport(W(f).player, { map: 'ford', x: AT.farLanding[0], y: AT.farLanding[1] }))
++  const enter = f.made.filter((ev) => ev.kind === 'contact/begin' && ev.params?.how === 'in-region' && hostIs(ev, W(f).state.player))
++  // (an event is recorded when offered and again when dispatched)
++  expect(new Set(enter.map((ev) => ev.roles.other && 'e' in ev.roles.other && ev.roles.other.e))).toEqual(new Set([bank.id]))
++  expect(f.made.some((ev) => ev.kind === 'contact/begin' && ev.params?.how === 'encloses' && hostIs(ev, bank.id))).toBe(true)
++  f.eng.tick()
++  expect(W(f).scene?.id).toBe('far_bank')
++})
++
++req('F2a', 'the ferry:the rope from her chest, the winch mended, and she takes you over', ['item/tool/rope', 'fixture/container/chest', 'fixture/ferry/winch', 'npc.hesper', 'fixture/ferry/raft'], () => {
+   const f = fresh()
+   byFerry(f)
+   expect(far(f)).toBe(true)
+@@ -900,7 +917,7 @@ req('F15', 'south of the grassland, a forest: many trees within reach, and an ax
+ 
+ req('F9', 'the arrival opens the story: the scene, the loaf in the pack, and Hesper sends you to the village first (its rescue opens the bridge chapter, docs/quests.md)', ['npc.hesper', 'item/food/bread'], () => {
+   const f = fresh({ arrival: true })
+-  expect(ticks(f, 300, () => W(f).fact('village.sent') === 1 && !W(f).state.scene)).toBe(true)
++  expect(ticks(f, 300, () => W(f).fact('village.sent') === 1 && !W(f).scene)).toBe(true)
+   expect(W(f).num(W(f).player, 'quest')).toBe(0)
+   expect(W(f).player.contents?.some((id) => W(f).get(id)?.type === 'item/food/bread') || W(f).get(W(f).player.held)?.type === 'item/food/bread').toBe(true)
+ })
+@@ -1045,7 +1062,7 @@ req('Q1', 'chapter 1, mend the bridge: the old axe fells a tree, splits its logs
+   // The longer pier leads to the far bank; the missing span still costs three planks.
+   f.eng.setCooldown(p.id, 0)
+   walkEast(f)
+-  expect(ticks(f, 400, () => W(f).num(p, 'quest') === 2 && !W(f).state.scene)).toBe(true)
++  expect(ticks(f, 400, () => W(f).num(p, 'quest') === 2 && !W(f).scene)).toBe(true)
+   expect(far(f)).toBe(true)
+ })
+ 
+@@ -1091,23 +1108,23 @@ req('Q2', 'chapter 2, the road east: past the far bank the road leads on; the bu
+   expect(onMap(f, 'actor/creature/beast/boar', 'eastroad').length).toBe(1)
+   // the burned farm: the player sees the claw marks
+   stand(f, 24, 8, 'up', 'eastroad')
+-  expect(ticks(f, 200, () => fact(f, 'mq.farm') === 1 && !W(f).state.scene)).toBe(true)
++  expect(ticks(f, 200, () => fact(f, 'mq.farm') === 1 && !W(f).scene)).toBe(true)
+   // the road ends at Emberfall: chapter 3 begins
+   expect(cross(f, 'eastroad', EAST_ROAD.w - 2, EAST_ROAD.east[1], 'right')).toBe('emberfall')
+-  expect(ticks(f, 200, () => quest(f) === 3 && !W(f).state.scene)).toBe(true)
++  expect(ticks(f, 200, () => quest(f) === 3 && !W(f).scene)).toBe(true)
+ })
+ 
+ req('Q3', 'chapter 3, Emberfall: the elder tells of the dragon, gives bread, and sets the tasks; the smithy and the herbalist\'s cauldron are lit', ['npc.mara', 'fixture/water/well', 'fixture/sign/noticeboard', 'fixture/light/lamppost', 'fixture/craft/forge', 'fixture/craft/anvil', 'fixture/container/barrel', 'fixture/craft/cauldron', 'fixture/container/crate'], () => {
+   const f = fresh()
+   stand(f, 2, EMBERFALL.west[1], 'right', 'emberfall')
+-  expect(ticks(f, 200, () => quest(f) === 3 && !W(f).state.scene)).toBe(true)
++  expect(ticks(f, 200, () => quest(f) === 3 && !W(f).scene)).toBe(true)
+   for (const t of ['fixture/water/well', 'fixture/sign/noticeboard', 'fixture/light/lamppost', 'fixture/container/barrel', 'fixture/container/crate']) expect(onMap(f, t, 'emberfall').length).toBeGreaterThan(0)
+   expect(W(f).hasStatus({ e: 'emberfall.forge' }, 'lit')).toBe(true)
+   expect(W(f).hasStatus({ e: 'emberfall.cauldron' }, 'lit')).toBe(true)
+   expect(onMap(f, 'fixture/craft/anvil', 'emberfall').length).toBe(1)
+   const bread = f.eng.controls.count('item/food/bread')
+   run(f, 'hands', ...faceNpc(f, 'npc.mara'))
+-  expect(ticks(f, 400, () => quest(f) === 4 && !W(f).state.scene)).toBe(true)
++  expect(ticks(f, 400, () => quest(f) === 4 && !W(f).scene)).toBe(true)
+   expect(fact(f, 'mq.council')).toBe(1)
+   expect(f.eng.controls.count('item/food/bread')).toBe(bread + 2)
+ })
+@@ -1193,7 +1210,7 @@ req('Q5', 'chapter 5, fire and frost: fireweed grows in the meadow and frostcap
+   expect(W(f).num(p, 'hp')).toBe(37)
+   // with the blade too, the village sends you up the pass
+   author(f, () => W(f).setFact('mq.blade', 1))
+-  expect(ticks(f, 200, () => quest(f) === 5 && !W(f).state.scene)).toBe(true)
++  expect(ticks(f, 200, () => quest(f) === 5 && !W(f).scene)).toBe(true)
+ })
+ 
+ req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem on the way up, a fire to rest by; the dragon wakes at the mouth, calls its whelps at half health, and its fall ends the story', ['actor/creature/beast/frost_wolf', 'actor/creature/imp/fire_imp', 'actor/creature/golem/stone_golem', 'actor/creature/dragon'], () => {
+@@ -1205,7 +1222,7 @@ req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem
+   expect(onMap(f, 'fixture/light/campfire', 'pass').some((e) => W(f).hasStatus({ e: e.id }, 'lit'))).toBe(true)
+   // the lair at the top: its mouth wakes the dragon
+   expect(cross(f, 'pass', PASS.north[1], 1, 'up')).toBe('lair')
+-  expect(ticks(f, 200, () => quest(f) === 6 && !W(f).state.scene)).toBe(true)
++  expect(ticks(f, 200, () => quest(f) === 6 && !W(f).scene)).toBe(true)
+   const dragon = onMap(f, 'actor/creature/dragon', 'lair')[0]
+   expect(W(f).num(dragon, 'range')).toBeGreaterThan(1)
+   // Dragonsbane in hand; the dragon brought to bay
+@@ -1239,7 +1256,7 @@ req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem
+     ticks(f, 400, () => {
+       cards.push(...W(f).fx.filter((x) => x.t === 'card'))
+       W(f).fx = []
+-      return quest(f) === 7 && !W(f).state.scene
++      return quest(f) === 7 && !W(f).scene
+     }),
+   ).toBe(true)
+   expect(fact(f, 'mq.dragon')).toBe(1)
+@@ -1348,7 +1365,7 @@ req('P1', 'the prologue, offline: down from the plateau to the Ford, every beat
+   ticks(f, 10)
+   expect(w.posOf(p)?.map).toBe('ford')
+   until(PROLOGUE_DONE)
+-  expect(ticks(f, 400, () => w.fact('village.sent') === 1 && !w.state.scene)).toBe(true)
++  expect(ticks(f, 400, () => w.fact('village.sent') === 1 && !w.scene)).toBe(true)
+   expect(w.posOf(pip())?.map).toBe('ford')
+   // past the prologue, Pip tells the main story's next step: the village first (docs/quests.md)
+   expect(askPip()).toContain('去初原村帮忙')
+diff --git a/packages/tools/test/firstlight.test.ts b/packages/tools/test/firstlight.test.ts
+index 9fc9c1b..d4e1196 100644
+--- a/packages/tools/test/firstlight.test.ts
++++ b/packages/tools/test/firstlight.test.ts
+@@ -53,13 +53,13 @@ describe('Firstlight Village save compatibility', () => {
+     f.w.author(() => f.w.setStatus({ e: 'ford.garden.turnip.sprout' }, 'watered', f.w.state.tick + 600))
+     f.w.author(() => f.w.setTerrain('ford', 17, 12, 'farmland'))
+     f.w.author(() => f.w.setTerrain('ford', 4, 19, 'farmland')) // A user-made plot must not be removed.
+-    f.w.state.memory = { 'npc.tobin': { talked: 1, said: ['greeting:first'] } }
++    f.w.get('npc.tobin')!.npc!.memory = { talked: 1, said: ['greeting:first'] }
+     const saved = f.resume()
+     f.migrate(saved)
+     const w = saved.engine.world
+     expect(w.player.props).toMatchObject({ quest: 4, xp: 42 })
+     expect(w.fact('mq.smith')).toBe(3)
+-    expect(w.state.memory).toEqual(f.w.state.memory)
++    expect(w.get('npc.tobin')!.npc!.memory).toEqual({ talked: 1, said: ['greeting:first'] })
+     expect(w.get(tool.id)?.place).toEqual({ on: 'inside', holder: 'player' })
+     expect(w.get(wand.id)?.place).toEqual({ on: 'hand', holder: 'player' })
+     expect(w.get('tobin.wand')).toBeUndefined()
+diff --git a/packages/tools/test/writes.test.ts b/packages/tools/test/writes.test.ts
+index 4b941fb..5fe0701 100644
+--- a/packages/tools/test/writes.test.ts
++++ b/packages/tools/test/writes.test.ts
+@@ -124,7 +124,9 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
+ 
+   it('the writer is held once; a write without it throws, and so does an outcome writing beyond its host', () => {
+     const eng = new Engine({ tick: 0, seed: 1, rng: 1, player: 'p', entities: {}, maps: {}, tiles: {}, loadedMaps: [], counter: 0, spawn: { map: 'm', x: 0, y: 0 } }, buildOntology(), new RuleLibrary(BASE_RULES))
++    eng.ensureResidents()
+     expect(() => eng.world.grant()).toThrow(/already held/)
++    // a fact is the story's prop: kept outside an outcome, it throws like any other write
+     expect(() => eng.world.setFact('x', 1)).toThrow(/outside an outcome/)
+     expect(() => eng.world.add({ id: 'a', type: 'item/food/bread', place: { on: 'none' } })).toThrow(/outside an outcome/)
+     eng.author(() => eng.world.setFact('x', 1))
+@@ -149,3 +151,25 @@ describe('the state changes only in outcomes, and an outcome only its host (desi
+     expect(() => loose.author(() => 0)).toThrow(/nobody may write it/)
+   })
+ })
++
++describe('the state is things and the clock (world-model.md §3)', () => {
++  it('a played and saved Ford keeps nothing outside its things but the clock and the engine records', async () => {
++    const { Game } = await import('@lsw/engine')
++    const { STORY_RULES, decodeChunk } = await import('@lsw/content')
++    const { buildFord } = await import('../src/demo/world.ts')
++    const { index, chunks } = buildFord()
++    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
++    for (const c of chunks) game.loadChunk(decodeChunk(c))
++    for (let i = 0; i < 600; i++) game.engine.tick()
++    const state = game.save().state as unknown as Record<string, unknown>
++    // the clock and the generator; the things; the maps' base data and what changed on their cells;
++    // and the engine's own records (what is loaded, asked, frozen, related, reported) — no facts,
++    // topics, scenes, weather or memories beside the things they belong to
++    const ALLOWED = ['tick', 'seed', 'rng', 'counter', 'player', 'spawn', 'entities', 'maps', 'tiles', 'loadedMaps', 'question', 'dormant', 'relations', 'reported']
++    expect(Object.keys(state).filter((k) => !ALLOWED.includes(k))).toEqual([])
++    // the story and the world are things, and so are the maps' named areas
++    const w = game.engine.world
++    expect(w.get('story')?.place).toEqual({ on: 'resident' })
++    expect(Object.values(w.state.entities).some((e) => e.type === 'region' && e.place.on === 'area')).toBe(true)
++  })
++})

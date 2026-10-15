@@ -1,0 +1,44 @@
+{
+ "sha": "39da65866eb89a7acb3406a7ae884835f4eaf3d4",
+ "parent": "a46482b66f65dacbd74e95b0ca1141052440f94f",
+ "date": "2026-10-05T00:59:26-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/content/test/woodcutting.test.ts"
+ ],
+ "code": [
+  "packages/client/src/main.ts",
+  "packages/client/src/protocol.ts",
+  "packages/client/src/ui/common.ts",
+  "packages/client/src/ui/menu.ts",
+  "packages/client/src/worker.ts",
+  "packages/content/src/items.ts",
+  "packages/content/src/rules.ts",
+  "packages/engine/src/controls.ts",
+  "packages/engine/src/effects.ts",
+  "packages/engine/src/ontology.ts",
+  "packages/engine/src/recipes.ts",
+  "packages/engine/src/types.ts"
+ ],
+ "lines": 88,
+ "areas": [
+  "content",
+  "engine",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/woodcutting.test.ts::woodcutting a plank made two to a log breaks back into half a log, not a whole one",
+  "packages/content/test/woodcutting.test.ts::woodcutting splits logs into planks in the crafting panel with an axe carried (not used up): one log, two planks; \"all\" splits every log; a split log on the ground pops its planks out"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/woodcutting.test.ts::woodcutting a cleared grove grows back in two days, except where stumps were dug out",
+  "packages/content/test/woodcutting.test.ts::woodcutting a notch heals if the tree is left alone",
+  "packages/content/test/woodcutting.test.ts::woodcutting a plain axe blow on a stump breaks it: what it is made of comes back, at the recovery rate (world-model.md §6.3)",
+  "packages/content/test/woodcutting.test.ts::woodcutting bare hands on a tree (Minecraft's fist): it wears down, slowly; nothing is asked",
+  "packages/content/test/woodcutting.test.ts::woodcutting breaks a charred tree down to coal",
+  "packages/content/test/woodcutting.test.ts::woodcutting does not grow a tree around someone standing on the stump",
+  "packages/content/test/woodcutting.test.ts::woodcutting turns one tree into four planks"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

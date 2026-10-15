@@ -1,0 +1,222 @@
+diff --git a/games/openworld/content/test/controls.test.ts b/games/openworld/content/test/controls.test.ts
+index 1960891..f5e2c54 100644
+--- a/games/openworld/content/test/controls.test.ts
++++ b/games/openworld/content/test/controls.test.ts
+@@ -1,4 +1,4 @@
+-import { describe, expect, it } from 'vitest'
++import { describe, expect, it, vi } from 'vitest'
+ import { ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, holeKey, textOf, type Engine, type Key, type Plan, type PropValue, type Ref, type ScenarioEntity, type Verb } from '@openworld/engine'
+ import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_PACE } from '@openworld/modules'
+ import { cellId, madeOf } from '@openworld/engine'
+@@ -337,7 +337,7 @@ describe('completeness of the inputs', () => {
+       { key: 'apple', type: 'item/food/apple', x: 0, y: 0, inside: 'actor' },
+       { key: 'npc.oda', type: 'actor/person/merchant', x: 3, y: 1 },
+     ])
+-  const KEYS: Key[] = ['hands', 'take', 'put', 'use', 'self']
++  const KEYS: Key[] = ['hands', 'take', 'put', 'use', 'self', 'action']
+   const TILES = [{ x: 2, y: 1 }, { x: 1, y: 2 }, { x: 3, y: 1 }, { x: 2, y: 2 }] // a pile on a table, a stick on grass, a person, the own tile
+   const sig = (verb: string, inst: string, target: Ref) => JSON.stringify([verb, inst, target])
+ 
+@@ -346,24 +346,27 @@ describe('completeness of the inputs', () => {
+     const c = eng.controls
+     const p = eng.world.player
+     const typeOf = (r?: Ref) => (r && 'e' in r ? eng.world.get(r.e)!.type : 'none')
+-    // what the inputs make: every key × every slot (each carried thing, and an empty one) × every aim × every layer
++    // what the inputs make: every key × every slot (each carried thing, and an empty one) × every aim × a press
++    // and every layer chosen (the chooser)
+     const made = new Set<string>()
++    const pressed = new Set<string>()
+     const slots = [...p.slots!.map((k, i) => (k ? i : -1)).filter((i) => i >= 0), p.slots!.findIndex((k, i) => !k && i < 10)]
+     for (const slot of slots) {
+       c.select(slot)
+       for (const key of KEYS)
+         for (const tile of TILES) {
+           const n = c.layers({ map: 'sandbox', ...tile }).length
+-          for (let layer = 0; layer < n; layer++) {
++          for (const layer of [undefined, ...Array.from({ length: n }, (_, i) => i)]) {
+             const pl = c.plan(key, tile, layer)
+-            if (pl) made.add(sig(pl.attack ? 'attack' : pl.verb!, typeOf(pl.instrument), pl.target))
++            if (!pl) continue
++            made.add(sig(pl.attack ? 'attack' : pl.verb!, typeOf(pl.instrument), pl.target))
++            if (layer === undefined) pressed.add(sig(pl.attack ? 'attack' : pl.verb!, typeOf(pl.instrument), pl.target))
+           }
+         }
+     }
+     // what the player can do: a hand on what is within its reach; take what can be taken and put any
+     // carried thing where it would go; use any carried thing (and the bare body: a blow) on what is
+-    // within its reach but one's own place, and any carried thing on oneself (no blow: the inputs never
+-    // strike the one at the keys)
++    // within its reach but one's own place, and any carried thing (and the bare body) on oneself
+     const carried = [...new Set([...(p.contents ?? []), ...(p.held ? [p.held] : [])].map((id) => eng.world.get(id)!))]
+     const own = eng.world.posOf(p)!
+     const changes = (verb: Verb, target: Ref, inst?: string) => eng.preview(eng.actEvent(verb, p.id, target, inst ? { e: inst } : undefined)).changes
+@@ -379,11 +382,13 @@ describe('completeness of the inputs', () => {
+         if (!made.has(sig('attack', 'none', target))) missing.push(sig('attack', 'none', target))
+       }
+     for (const inst of carried) if (!made.has(sig('use', inst.type, { e: p.id }))) missing.push(sig('use', inst.type, { e: p.id }))
++    if (!made.has(sig('attack', 'none', { e: p.id }))) missing.push(sig('attack', 'none', { e: p.id }))
+     expect(missing).toEqual([])
+-    expect(made.has(sig('attack', 'none', { e: p.id }))).toBe(false)
++    // a blow on oneself is only ever chosen: no press strikes the one at the keys
++    expect(pressed.has(sig('attack', 'none', { e: p.id }))).toBe(false)
+   })
+ 
+-  it('each input makes exactly one act, of its own verb (the left and right clicks use; a bare one is a blow)', () => {
++  it('each input makes exactly one act, of its own verb (use on oneself and the left click use, a bare one is a blow; the action makes one of the others)', () => {
+     const eng = scene()
+     const c = eng.controls
+     for (const slot of [eng.world.player.selected!, eng.world.player.slots!.findIndex((k, i) => !k && i < 10)]) {
+@@ -391,18 +396,26 @@ describe('completeness of the inputs', () => {
+       for (const key of KEYS)
+         for (const tile of [{ x: 2, y: 1 }, { x: 1, y: 2 }, { x: 3, y: 1 }, { x: 2, y: 2 }]) {
+           const n = c.layers({ map: 'sandbox', ...tile }).length
+-          for (let layer = 0; layer < n; layer++) {
++          for (const layer of [undefined, ...Array.from({ length: n }, (_, i) => i)]) {
+             const a = c.plan(key, tile, layer)
+             const b = c.plan(key, tile, layer)
+             expect(JSON.stringify(a)).toBe(JSON.stringify(b))
+             if (!a) continue
+-            if (!a.instrument && (key === 'use' || key === 'self')) expect(a.attack).toBe(true)
+-            expect(a.verb).toBe(key === 'self' ? 'use' : key)
++            const own = key === 'action' ? a.key : key
++            if (key !== 'action') expect(a.key).toBe(key === 'use' && a.key === 'self' ? 'self' : key)
++            if (!a.instrument && (own === 'use' || own === 'self')) expect(a.attack).toBe(true)
++            expect(a.verb).toBe(own === 'self' ? 'use' : own)
+           }
+         }
+     }
+   })
+ 
++  it("the action's chooser is its plan on each layer", () => {
++    const eng = scene()
++    const c = eng.controls
++    for (const tile of TILES) for (const ch of c.choices('action', tile)) expect(c.plan('action', tile, ch.layer)).toEqual(ch.plan)
++  })
++
+   it('an item in the bag is a target too (the context menu)', () => {
+     const eng = scene()
+     expect(eng.controls.planOnItem('use', 'apple')).toMatchObject({ verb: 'use', target: { e: 'apple' } })
+@@ -411,6 +424,83 @@ describe('completeness of the inputs', () => {
+   })
+ })
+ 
++describe('the action (the right click): what the thing aimed at calls for', () => {
++  const at = { x: 2, y: 1 }
++  const act = (eng: Engine, aim: { x: number; y: number; stack?: Ref[] } = at) => eng.controls.plan('action', aim)
++  /** A lesson at hand that lets only these inputs work (docs/prologue.md, the drills). */
++  const drill = (eng: Engine, allow: string[]) => vi.spyOn(eng.story, 'lesson').mockReturnValue({ def: { id: 'drill', allow }, index: 0, total: 1 } as unknown as ReturnType<Engine['story']['lesson']>)
++
++  it('a word to someone, whatever is held (handing it over is G alone)', () => {
++    expect(act(world(undefined, [npc()]))).toMatchObject({ key: 'hands', rule: 'people/talk', instrument: undefined })
++    expect(act(world('item/weapon/blade/axe', [npc()]))).toMatchObject({ key: 'hands', rule: 'people/talk', instrument: undefined })
++  })
++
++  it('a hand where the bare hands do something (a chest opens); a take where they do not (a stone)', () => {
++    expect(act(world(undefined, [{ key: 'chest', type: 'fixture/container/chest', x: 2, y: 1 }]))).toMatchObject({ key: 'hands', rule: 'core/open-close' })
++    const stone = world(undefined, [{ key: 'stone', type: 'item/material/stone', x: 2, y: 1 }])
++    expect(stone.controls.plan('hands')?.unknown).toBe(true)
++    expect(act(stone)).toMatchObject({ key: 'take', target: { e: 'stone' } })
++  })
++
++  it('chooses as the base rules answer: a learned hand on a stone does not stop it picking stones up', () => {
++    const eng = world(undefined, [{ key: 'stone', type: 'item/material/stone', x: 2, y: 1 }])
++    // the hand on a stone is handed to it (impulse/handle), where the base leaves a hole: the modder answers it
++    const { res } = eng.preview(eng.actEvent('hands', 'actor', { e: 'stone' })).hole!
++    eng.lib.add({ id: 'patch/stone-turned', host: { type: 'item/material/stone' }, on: 'impulse/handle', hole: holeKey(res.hole!.rule.id, res.hole!.path), at: res.open!.path, label: { en: 'Turn {target} over', zh: '把{target}翻过来' }, tree: { do: [] }, source: { origin: 'patch' } })
++    // E does what the world learned; the right click still takes
++    expect(eng.controls.plan('hands')).toMatchObject({ learned: true })
++    expect(eng.controls.plan('hands')?.unknown).toBeFalsy()
++    expect(act(eng)).toMatchObject({ key: 'take', target: { e: 'stone' } })
++  })
++
++  it("never a theft: on what only F would take (another's), nothing", () => {
++    const eng = world(undefined, [{ key: 'loaf', type: 'item/food/bread', x: 2, y: 1, props: { owner: 'npc.oda' } }, { key: 'npc.oda', type: 'actor/person/merchant', x: 4, y: 4 }])
++    expect(eng.controls.plan('take')?.steal).toBe(true)
++    expect(act(eng)).toBeUndefined()
++  })
++
++  it('on the open ground: a bed in hand is set down, bread is eaten; with nothing to set down or use, nothing', () => {
++    expect(act(world('fixture/furniture/bed', []))).toMatchObject({ key: 'put', verb: 'put' })
++    expect(act(world('item/food/bread', []))).toMatchObject({ key: 'self', verb: 'use', target: { e: 'actor' } })
++    expect(act(world(undefined, []))).toBeUndefined()
++  })
++
++  it("on a thing the hands could try, the experiment, not the meal in hand; pointed at oneself, any use of what is held", () => {
++    const table = world('item/food/bread', [{ key: 'table', type: 'fixture/furniture/table', x: 2, y: 1 }])
++    expect(table.controls.plan('hands')?.unknown).toBe(true)
++    expect(act(table)).toMatchObject({ key: 'hands', target: { e: 'table' }, unknown: true })
++    const feather = world('item/material/feather', [])
++    // on the open ground a use the world has never seen is not offered; pointed at oneself, it is (the modder's)
++    expect(act(feather)).toBeUndefined()
++    expect(act(feather, { x: 2, y: 1, stack: [{ e: 'actor' }] })).toMatchObject({ key: 'self', unknown: true })
++  })
++
++  it('keeps to what a lesson lets work: the drill that teaches eating eats, the one that teaches taking takes', () => {
++    const meal = world('item/food/bread', [{ key: 'stone', type: 'item/material/stone', x: 2, y: 1 }])
++    drill(meal, ['move', 'select', 'self'])
++    expect(act(meal)).toMatchObject({ key: 'self' })
++    const pick = world(undefined, [{ key: 'chest', type: 'fixture/container/chest', x: 2, y: 1 }, { key: 'stick', type: 'item/material/stick', x: 2, y: 1 }])
++    drill(pick, ['move', 'take'])
++    expect(act(pick)).toMatchObject({ key: 'take', target: { e: 'stick' } })
++  })
++
++  it('a press of the left click with nothing in hand on the bare ground the world has never seen struck asks nothing; chosen, it strikes', () => {
++    const eng = world(undefined, [])
++    expect(eng.controls.plan('use', at)).toBeUndefined()
++    const chosen = eng.controls.plan('use', at, ground(eng))
++    expect(chosen).toMatchObject({ attack: true, unknown: true })
++    expect(eng.controls.choices('use', at).map((c) => c.layer)).toContain(ground(eng))
++  })
++
++  it("the '?' goes where the AI setting turns the kind of work off: the leaf's default comes, no one is asked", () => {
++    const eng = world(undefined, [{ key: 'stone', type: 'item/material/stone', x: 2, y: 1 }])
++    expect(eng.controls.plan('hands')).toMatchObject({ unknown: true })
++    expect(eng.controls.plan('hands')?.quiet).toBeFalsy()
++    eng.quality = { ...eng.quality, things: 'off' }
++    expect(eng.controls.plan('hands')).toMatchObject({ unknown: true, quiet: true })
++  })
++})
++
+ describe('slots and the magnet', () => {
+   it('new kinds take free slots; the hand holds the selected stack; a held item an outcome changed keeps its slot', () => {
+     const eng = world('item/vessel/bucket/water', [
+diff --git a/packages/runtime/test/action.test.ts b/packages/runtime/test/action.test.ts
+deleted file mode 100644
+index dc6def8..0000000
+--- a/packages/runtime/test/action.test.ts
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// The action (E, the right click) held to its table (src/action.ts, design.md §5.2): which act it is for what the
+-// keys would do at the spot, what is in hand, and the inputs a lesson lets work.
+-
+-import { describe, expect, it } from 'vitest'
+-import type { Frame, KeyView } from '@openworld/engine'
+-import { actionOf } from '../src/action.ts'
+-
+-type Keys = NonNullable<Frame['keys']>
+-const v = (o: Partial<KeyView> = {}): KeyView => ({ label: { en: 'x' }, x: 1, y: 0, ...o })
+-
+-describe('the action', () => {
+-  const rows: [string, Keys | undefined, string | undefined, readonly string[] | undefined, string | undefined][] = [
+-    // what it is aimed at, the keys there, what is held, a lesson's inputs, the act
+-    ['nothing to act on', undefined, undefined, undefined, undefined],
+-    ['someone: a word', { hands: v({ person: true }), put: v({ person: true }) }, undefined, undefined, 'hands'],
+-    ['someone, an axe in hand: still a word (handing over is G’s)', { hands: v({ person: true }), put: v({ person: true }) }, 'item/weapon/blade/axe', undefined, 'hands'],
+-    ['a chest: open it', { hands: v(), take: undefined }, undefined, undefined, 'hands'],
+-    ['a stone, its hands unknown: pick it up', { hands: v({ unknown: true }), take: v() }, undefined, undefined, 'take'],
+-    ['another’s loaf: never a theft (an experiment instead)', { hands: v({ unknown: true }), take: v({ steal: true }) }, undefined, undefined, 'hands'],
+-    ['the bare ground, nothing in hand: nothing', { hands: v({ ground: true }), use: v({ ground: true, unknown: true }) }, undefined, undefined, undefined],
+-    ['the open ground, a bed in hand: set it down', { hands: v({ ground: true }), put: v({ ground: true }) }, 'fixture/furniture/bed', undefined, 'put'],
+-    ['rock, a bed in hand: it cannot rest there, nothing', { hands: v({ ground: true }), use: v({ ground: true }) }, 'fixture/furniture/bed', undefined, undefined],
+-    ['a thing the hands could try, a bed in hand: the experiment, not the bed', { hands: v({ unknown: true }), put: v() }, 'fixture/furniture/bed', undefined, 'hands'],
+-    ['the open ground, bread in hand: eat it', { hands: v({ ground: true }), self: v() }, 'item/food/bread', undefined, 'self'],
+-    ['a carrot sprout (hands unknown), bread in hand: the experiment, not eating', { hands: v({ unknown: true }), self: v() }, 'item/food/bread', undefined, 'hands'],
+-    ['oneself, a feather in hand, its use unknown: the modder’s', { hands: v({ ground: true }), self: v({ unknown: true }) }, 'item/material/feather', undefined, 'self'],
+-    ['the tutorial’s meal (only move, select, self), no meal among the keys: nothing', { hands: v({ unknown: true }), take: v() }, 'item/food/berries', ['move', 'select', 'self'], undefined],
+-    ['the tutorial’s meal, with the meal among the keys', { hands: v({ unknown: true }), take: v(), self: v() }, 'item/food/berries', ['move', 'select', 'self'], 'self'],
+-    ['a lesson that only takes: the take, not the word', { hands: v({ unknown: true }), take: v() }, undefined, ['move', 'take'], 'take'],
+-  ]
+-  it.each(rows)('%s', (_, keys, held, allow, act) => {
+-    expect(actionOf(keys, held, allow)).toBe(act)
+-  })
+-})

@@ -1,0 +1,60 @@
+diff --git a/games/openworld/content/test/wards.test.ts b/games/openworld/content/test/wards.test.ts
+new file mode 100644
+index 0000000..bfa9da4
+--- /dev/null
++++ b/games/openworld/content/test/wards.test.ts
+@@ -0,0 +1,54 @@
++// A status's `wards` (types.ts `StatusDef.wards`): a status another holds keeps the ones it names
++// from taking hold at all — fire on one under the fireproof draught, as the field's own words say.
++
++import { describe, expect, it } from 'vitest'
++import { RuleLibrary, buildSandbox, type Engine } from '@openworld/engine'
++import { BASE_RULES, buildOntology } from '../src/index.ts'
++
++/** The player alone on grass; `author` is the hand that may set a status by fiat in a test. */
++function fresh(): Engine {
++  return buildSandbox(
++    { terrain: Array.from({ length: 3 }, () => Array(3).fill('grass')), entities: [{ key: 'actor', type: 'actor/person/player', x: 1, y: 1 }], event: {} },
++    buildOntology(),
++    new RuleLibrary(BASE_RULES),
++  )
++}
++
++const at = (eng: Engine, status: string) => eng.world.hasStatus({ e: eng.world.player.id }, status)
++const take = (eng: Engine, status: string) => eng.author(() => eng.applyStatus({ e: eng.world.player.id }, status))
++
++describe('wards', () => {
++  it('is declared by the draught: fireproof wards off burning', () => {
++    // if the content stops saying so, the cases below prove nothing
++    expect(fresh().world.onto.status('fireproof')?.wards).toContain('burning')
++  })
++
++  it('keeps a warded status from taking hold while the warding one lasts', () => {
++    const eng = fresh()
++    take(eng, 'fireproof')
++    expect(at(eng, 'fireproof'), 'the draught is in force').toBe(true)
++    take(eng, 'burning')
++    expect(at(eng, 'burning'), 'fire finds no hold').toBe(false)
++  })
++
++  it('lets it take hold once the warding status is gone', () => {
++    const eng = fresh()
++    take(eng, 'fireproof')
++    eng.author(() => eng.removeStatus({ e: eng.world.player.id }, 'fireproof'))
++    take(eng, 'burning')
++    expect(at(eng, 'burning')).toBe(true)
++  })
++
++  it('wards off only what it names: other statuses still take hold', () => {
++    const eng = fresh()
++    take(eng, 'fireproof')
++    take(eng, 'wet')
++    expect(at(eng, 'wet')).toBe(true)
++  })
++
++  it('without it, burning takes hold as it always did', () => {
++    const eng = fresh()
++    take(eng, 'burning')
++    expect(at(eng, 'burning')).toBe(true)
++  })
++})

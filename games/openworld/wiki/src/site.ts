@@ -246,7 +246,7 @@ export function buildSite(opts: { ref?: string } = {}): Built {
     if (p.ent && p.file && p.type === TYPE_OF_KIND[p.ent.kind]) {
       const need: Record<string, string[]> = {
         person: ['信息框', '日程表', '对话'], companion: ['信息框'], item: ['信息框', '来源', '用途'], fixture: ['信息框', '来源'], structure: ['信息框', '来源'],
-        creature: ['信息框', '出没', '掉落'], boss: ['信息框', '首领技能'], map: ['信息框', '地图', '相连地点'], quest: ['信息框', '任务目标', '任务奖励'],
+        creature: ['信息框', '出没', '掉落', '怪物技能'], boss: ['信息框', '首领技能'], map: ['信息框', '地图', '相连地点'], quest: ['信息框', '任务目标', '任务奖励'],
       }
       for (const t of need[p.ent.kind] ?? []) if (!new RegExp(`\\{\\{\\s*${t}\\s*[|}]`).test(scanText(p.body))) p.errors.push(`${p.file}：${TYPE_OF_KIND[p.ent.kind]}页面要包含 {{${t}}}`)
     }

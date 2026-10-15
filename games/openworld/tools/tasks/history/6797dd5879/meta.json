@@ -1,0 +1,29 @@
+{
+ "sha": "6797dd5879c5884fa773ed1be8c7dcc929fba084",
+ "parent": "e85e4fcdaffa7991efa39b2ae25568160846d078",
+ "date": "2026-10-10T06:32:43Z",
+ "rung": "R3",
+ "lock": "0926ddd8781596c4bb99411ad512b65810d659ef",
+ "tests": [
+  "packages/editor/test/logic.test.ts"
+ ],
+ "code": [
+  "packages/editor/src/app/context.ts",
+  "packages/editor/src/app/databaseMode.ts",
+  "packages/editor/src/app/main.ts",
+  "packages/editor/src/app/modes.ts",
+  "packages/editor/src/app/ontologyFiles.ts",
+  "packages/editor/src/app/rulesMode.ts",
+  "packages/editor/src/app/storyMode.ts"
+ ],
+ "lines": 622,
+ "areas": [
+  "editor"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/editor/test/logic.test.ts::a rule's tree in words says its branches, its leaves and its holes",
+  "packages/editor/test/logic.test.ts::the database writes a type where the project writes it, a new one beside its kind, a library one over the library's"
+ ],
+ "PASS_TO_PASS": [],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

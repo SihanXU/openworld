@@ -1,0 +1,45 @@
+{
+ "sha": "480347138ac3f8b1b58c0370ee0a5374c3f84bd5",
+ "parent": "4e2d7eb38c4d1f0e372c167e2f7ba548cb9b978f",
+ "date": "2026-10-06T19:03:54-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/tools/test/yield.test.ts"
+ ],
+ "code": [
+  "packages/engine/src/engine.ts",
+  "packages/engine/src/mod.ts",
+  "packages/engine/src/sandbox.ts",
+  "packages/engine/src/types.ts",
+  "packages/modder/src/library.ts"
+ ],
+ "lines": 185,
+ "areas": [
+  "engine",
+  "modder"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/tools/test/yield.test.ts::every chain ends (design.md A7), proven on the scene an answer that sets itself off again is refused before it ships, with the round",
+  "packages/tools/test/yield.test.ts::the repeat check, exact (world-model.md §8.4) a cycle is named: the replays that come back to where they began, and what they make each time round",
+  "packages/tools/test/yield.test.ts::the repeat check, exact (world-model.md §8.4) a store that runs out passes: twenty sticks and no more (it used to be refused after twelve)",
+  "packages/tools/test/yield.test.ts::the repeat check, exact (world-model.md §8.4) a store too big to give at once is refused: it must come back over time"
+ ],
+ "PASS_TO_PASS": [
+  "packages/tools/test/yield.test.ts::every chain ends (design.md A7), proven on the scene a chain that ends passes, and one gated by something that runs out ends",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) a new thing that can break says what it is made of and what it leaves",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) accepts exactly 64 safe assignments and skips unreachable chance sites",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) and accepts the same yield when it costs its host: a status that gates it and runs out",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) and refuses it when the stick comes only by chance: the check forces every chance",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) does not explore impossible outcomes of zero or certain chances",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) explores a failed chance emission as well as a successful one",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) explores independent chances across an emission and its receiver",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) explores the triggering chance before it can gate off the repeat check",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) honours both outcomes of a breakdown fraction",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) refuses a mixed nested chance yield",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) refuses a patch when chance exploration exceeds its assignment budget",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) the base library: every act any input makes, on anything the player can face, stops yielding when repeated",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) the validator refuses the stick farm: a blow, a stick, the host as it was"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

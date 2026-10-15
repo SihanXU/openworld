@@ -994,6 +994,42 @@ req('F9', 'the arrival opens the story: the scene, the loaf in the pack, and Hes
 
 // =================================================================== the proof
 
+// ------------------------------------------------------------------ K. the creatures' own skills (docs/creatures.md)
+
+/** The player in the open beside a creature of the kind on `map`: `d` cells off in a row or column, every cell between free. */
+function faceOff(f: Ford, type: string, map: string, d: number): Entity {
+  const w = W(f)
+  for (const c of Object.values(w.state.entities)) {
+    if (c.type !== type || c.place.on !== 'tile' || c.place.map !== map) continue
+    for (const [vx, vy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const cells = Array.from({ length: d }, (_, i) => [c.place.on === 'tile' ? c.place.x + vx * (i + 1) : 0, c.place.on === 'tile' ? c.place.y + vy * (i + 1) : 0])
+      if (!cells.every(([x, y]) => w.inBounds(map, x, y) && w.fits(w.player, map, x, y))) continue
+      const [x, y] = cells[d - 1]
+      stand(f, x, y, vx > 0 ? 'left' : vx < 0 ? 'right' : vy > 0 ? 'up' : 'down', map)
+      author(f, () => {
+        // it is not out to roam this moment, and nothing else of the map comes between
+        for (const o of w.entitiesOnMap(map)) if (o !== c && o !== w.player && w.isAgent(o) && o.place.on === 'tile') w.destroy(o)
+      })
+      return c
+    }
+  }
+  throw new Error(`no ${type} on ${map} with ${d} free cells beside it`)
+}
+
+req('K1', 'a creature has skills of its own (the kits module): it marks the cells, winds up, and its rule answers what lands — the Hollow\'s spider webs the player, its wolf lunges down the row and opens a bleed', ['actor/creature/spider', 'actor/creature/beast/wolf'], () => {
+  const f = fresh()
+  const spider = faceOff(f, 'actor/creature/spider', 'hollow', 3)
+  let marked = false
+  expect(ticks(f, 120, () => ((marked ||= !!snapshot(f.eng).telegraphs?.some((t) => t.who === spider.id)), !!W(f).player.statuses?.webbed))).toBe(true)
+  expect(marked).toBe(true)
+  const g = fresh()
+  const wolf = faceOff(g, 'actor/creature/beast/wolf', 'hollow', 3)
+  const from = W(g).posOf(wolf)!
+  expect(ticks(g, 120, () => !!W(g).player.statuses?.bleeding)).toBe(true)
+  const at = W(g).posOf(wolf)!
+  expect(Math.abs(at.x - from.x) + Math.abs(at.y - from.y)).toBeGreaterThan(0)
+}, 60000)
+
 // ------------------------------------------------------------------ W. the world model: breaking (world-model.md §10.3)
 
 /** A thing made the way a recipe makes it, in the player's bag (the test's own hand). */

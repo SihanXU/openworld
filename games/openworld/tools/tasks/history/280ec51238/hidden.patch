@@ -1,0 +1,389 @@
+diff --git a/packages/content/test/breaking.test.ts b/packages/content/test/breaking.test.ts
+new file mode 100644
+index 0000000..ab790d5
+--- /dev/null
++++ b/packages/content/test/breaking.test.ts
+@@ -0,0 +1,116 @@
++// Breaking (world-model.md §6.1–6.3, §10.2): every thing with durability (maxHp) loses it to every
++// damage channel that reaches it, and every one has an end when it breaks — what it is made of,
++// a rule of its own, or going down (the essential). Nothing breakable is left to the AI's guess.
++
++import { describe, expect, it } from 'vitest'
++import { OntologyIndex, RuleLibrary, buildSandbox, type Engine, type GameEvent } from '@lsw/engine'
++import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
++
++const onto = buildOntology()
++const index = new OntologyIndex(onto)
++const lib = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
++
++/** Every type a thing can be that has durability (the roots of a branch included only if instances can be them). */
++const BREAKABLE = Object.keys(onto.types).filter((id) => {
++  const r = index.resolve(id)
++  return typeof r.props.maxHp === 'number' && r.props.maxHp > 0 && !Object.keys(onto.types).some((o) => o.startsWith(id + '/'))
++})
++
++/** An instrument that works on a material category: its best tool, in iron. */
++const TOOL: Record<string, string> = {
++  wood: 'item/weapon/blade/axe',
++  plant: 'item/weapon/blade/axe',
++  flesh: 'item/weapon/blade/sword',
++  organic: 'item/weapon/blade/sword',
++  skin: 'item/weapon/blade/sword',
++  fibre: 'item/weapon/blade/sword',
++  stone: 'item/tool/pickaxe',
++  ore: 'item/tool/pickaxe',
++  metal: 'item/tool/pickaxe',
++  bone: 'item/tool/pickaxe',
++  crystal: 'item/tool/pickaxe',
++  soil: 'item/tool/shovel',
++}
++
++/** A sandbox with the thing at (2,1), whole, and the actor at (2,3) holding an iron `tool`. */
++function place(type: string, tool?: string): Engine {
++  const isTile = type.startsWith('tile/')
++  const terrain = Array.from({ length: 5 }, (_, y) => Array.from({ length: 5 }, (_, x) => (isTile && x === 2 && y === 1 ? type.slice(5) : 'grass')))
++  return buildSandbox(
++    {
++      terrain,
++      entities: [
++        { key: 'actor', type: 'actor/person/player', x: 2, y: 3, props: { atk: 4 } },
++        ...(tool ? [{ key: 'tool', type: tool, x: 2, y: 3, heldBy: 'actor', tags: ['material:iron'] }] : []),
++        ...(isTile ? [] : [{ key: 'thing', type, x: 2, y: 1 }]),
++      ],
++      event: {},
++    },
++    onto,
++    lib(),
++  )
++}
++const thingOf = (eng: Engine, type: string) => (type.startsWith('tile/') ? eng.world.cellTop('sandbox', 2, 1) : eng.world.get('thing'))
++/** Has it lost durability, or become something else, or gone (down, broken, transformed)? */
++function harmed(eng: Engine, type: string, id: string): boolean {
++  const e = eng.world.get(id)
++  if (!e || e.type !== type) return true
++  if (eng.world.hasStatus({ e: id }, 'down')) return true
++  return eng.world.num(e, 'hp', eng.world.num(e, 'maxHp')) < eng.world.num(e, 'maxHp')
++}
++
++describe('breaking (world-model.md §10.2)', () => {
++  it('there are breakable things of every kind the world has: trees, rock, walls, stumps, veins, boulders, bodies', () => {
++    for (const t of ['tile/tree', 'tile/rock', 'tile/wall', 'tile/woodwall', 'tile/stump', 'fixture/nature/vein/iron', 'fixture/nature/boulder', 'actor/creature/slime/green_slime']) expect(BREAKABLE).toContain(t)
++  })
++
++  it('every damage channel reaches every breakable type: a blow with a tool that works on it, and fire on what burns', () => {
++    const missed: string[] = []
++    for (const type of BREAKABLE) {
++      const material = index.resolve(type).props.material
++      const category = typeof material === 'string' ? onto.materials?.[material]?.category : undefined
++      const eng = place(type, TOOL[category ?? 'flesh'])
++      const e = thingOf(eng, type)!
++      const id = e.id
++      const strike: GameEvent = { kind: 'impulse/strike', host: { e: id }, roles: { actor: { e: 'actor' }, instrument: { e: 'tool' } }, params: { power: 6, edge: 'cut' }, cause: 'actor', origin: 'world' }
++      eng.author(() => eng.queue(strike))
++      eng.flush()
++      if (!harmed(eng, type, id)) missed.push(`${type}: a blow`)
++      if (!index.resolve(type).tags.includes('flammable')) continue
++      const lit = place(type)
++      const f = thingOf(lit, type)!
++      lit.author(() => lit.applyStatus({ e: f.id }, 'burning'))
++      for (let i = 0; i < 40; i++) lit.tick()
++      if (!harmed(lit, type, f.id)) missed.push(`${type}: fire`)
++    }
++    expect(missed).toEqual([])
++  })
++
++  it('every breakable type has an end: broken, it goes down, breaks into its makeup, or a rule of its own says — never a hole', () => {
++    const holes: string[] = []
++    for (const type of BREAKABLE) {
++      const eng = place(type)
++      const e = thingOf(eng, type)!
++      const res = eng.resolveEvent({ kind: 'threshold/cross', host: { e: e.id }, roles: {}, params: { name: 'broken', prop: 'hp' }, origin: 'world' })
++      if (!res.defined) holes.push(type)
++    }
++    expect(holes).toEqual([])
++  })
++
++  it('too hard: an instrument softer than what it strikes does nothing to it; nothing is asked', () => {
++    const eng = place('tile/rock')
++    eng.author(() => eng.world.add({ id: 'club', type: 'item/weapon/blunt/club', tags: ['material:wood'], place: { on: 'hand', holder: 'actor' } }))
++    const rock = eng.world.cellTop('sandbox', 2, 1)!
++    const res = eng.act('use', 'actor', { e: rock.id }, { params: { attack: true } })
++    expect(res.defined).toBe(true)
++    expect(eng.world.num(rock, 'hp')).toBe(eng.world.num(rock, 'maxHp'))
++    expect(eng.trace.some((t) => !t.defined)).toBe(false)
++  })
++
++  it('what has no durability cannot be harmed: a hurt on it changes nothing', () => {
++    const eng = place('fixture/sacred/statue')
++    const statue = eng.world.get('thing')!
++    eng.author(() => eng.hurt(statue, 99))
++    expect(statue.props?.hp).toBeUndefined()
++  })
++})
+diff --git a/packages/content/test/woodcutting.test.ts b/packages/content/test/woodcutting.test.ts
+index b455219..b94470d 100644
+--- a/packages/content/test/woodcutting.test.ts
++++ b/packages/content/test/woodcutting.test.ts
+@@ -10,14 +10,14 @@ const onto = buildOntology()
+ const TICKS_PER_DAY = 24 * 600
+ 
+ /** A row of terrain along y = 1 and the player at (2,2) facing up, holding `held`. */
+-function grove(row: string[], held: string): Engine {
++function grove(row: string[], held: string | undefined): Engine {
+   const rows = [Array(row.length).fill('grass'), row, Array(row.length).fill('grass')]
+   const eng = buildSandbox(
+     {
+       terrain: rows,
+       entities: [
+         { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+-        { key: 'held', type: held, x: 2, y: 2, heldBy: 'actor' },
++        ...(held ? [{ key: 'held', type: held, x: 2, y: 2, heldBy: 'actor' }] : []),
+       ],
+       event: {},
+     },
+@@ -58,7 +58,8 @@ function press(eng: Engine, key: Key, on?: string): string[] {
+ describe('woodcutting', () => {
+   it('turns one tree into four planks', () => {
+     const eng = grove(['grass', 'grass', 'tree', 'grass', 'grass'], 'item/weapon/blade/axe')
+-    expect(press(eng, 'use')).toEqual(expect.arrayContaining(['use/blade', 'wood/fell']))
++    // the first blow bites (durability, and a notch to show it); the second fells it
++    expect(press(eng, 'use')).toEqual(['use/blade', 'wood/notch'])
+     expect(terrain(eng, 2)).toBe('tree')
+     expect(eng.world.hasStatus(eng.world.cellRef('sandbox', 2, 1), 'notched')).toBe(true)
+     expect(press(eng, 'use')).toContain('wood/fell')
+@@ -82,7 +83,7 @@ describe('woodcutting', () => {
+     expect(eng.world.hasStatus(pine, 'notched')).toBe(true)
+     for (let i = 0; i < 101; i++) eng.tick()
+     expect(eng.world.hasStatus(pine, 'notched')).toBe(false)
+-    expect(press(eng, 'use')).toContain('wood/fell')
++    expect(press(eng, 'use')).toContain('wood/notch')
+     expect(terrain(eng, 2)).toBe('pine') // notched again, not felled
+     expect(eng.world.hasStatus(pine, 'notched')).toBe(true)
+   })
+@@ -133,12 +134,21 @@ describe('woodcutting', () => {
+     expect(itemsAt(eng, 2)).toEqual(['item/material/coal'])
+   })
+ 
+-  it('a plain axe blow on a stump is undefined: the AI answers, nothing happens meanwhile', () => {
++  it('a plain axe blow on a stump breaks it: what it is made of comes back, at the recovery rate (world-model.md §6.3)', () => {
+     const eng = grove(['grass', 'grass', 'stump', 'grass', 'grass'], 'item/weapon/blade/axe')
+     const plan = eng.controls.plan('use')!
+-    expect(plan.unknown).toBe(true)
+-    press(eng, 'use')
+-    expect(eng.trace.some((t) => !t.defined && t.rule === 'core/strike')).toBe(true)
+-    expect(terrain(eng, 2)).toBe('stump')
++    expect(plan.unknown).toBeFalsy()
++    expect(press(eng, 'use')).toEqual(expect.arrayContaining(['core/strike', 'core/break']))
++    expect(terrain(eng, 2)).toBe('grass')
++    expect(itemsAt(eng, 2)).toEqual(['item/material/log'])
++  })
++
++  it('bare hands on a tree: too hard, and nothing is asked', () => {
++    const eng = grove(['grass', 'grass', 'tree', 'grass', 'grass'], undefined)
++    eng.trace.length = 0
++    eng.act('use', 'actor', eng.world.cellRef('sandbox', 2, 1), { instrument: null, params: { attack: true } })
++    expect(eng.trace.filter((t) => !t.defined)).toEqual([])
++    expect(eng.world.fx.some((f) => f.t === 'log' && (f.text as { en: string }).en === 'Too hard.')).toBe(true)
++    expect(terrain(eng, 2)).toBe('tree')
+   })
+ })
+diff --git a/packages/content/test/world.test.ts b/packages/content/test/world.test.ts
+index 28dc65c..fc31347 100644
+--- a/packages/content/test/world.test.ts
++++ b/packages/content/test/world.test.ts
+@@ -261,7 +261,7 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
+   })
+ 
+   it('one question per hole and class: many things of one class reaching the same hole ask once', () => {
+-    const things = Array.from({ length: 4 }, (_, i) => ({ key: `b${i}`, type: 'fixture/nature/boulder', x: i * 2, y: 1 }))
++    const things = Array.from({ length: 4 }, (_, i) => ({ key: `b${i}`, type: 'fixture/sacred/statue', x: i * 2, y: 1 }))
+     const eng = place({}, [...things, { key: 'well', type: 'fixture/water/well', x: 1, y: 7 }])
+     const port = new ModPort(eng)
+     port.provider = working
+@@ -277,7 +277,7 @@ describe('the world\'s own events are events like any other (design.md §5.7–5
+ 
+ describe('the Mod port holds up', () => {
+   it('a question with no reply at all (the service down) is asked again, a few times, not given up at once', async () => {
+-    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
++    const eng = place({}, [{ key: 'b', type: 'fixture/sacred/statue', x: 2, y: 1 }])
+     const port = new ModPort(eng)
+     let asked = 0
+     port.provider = { resolve: () => (asked++, Promise.reject(new Error('fetch failed'))) }
+@@ -292,7 +292,7 @@ describe('the Mod port holds up', () => {
+   })
+ 
+   it('a request carries the lines said lately, after the frame drained them', () => {
+-    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
++    const eng = place({}, [{ key: 'b', type: 'fixture/sacred/statue', x: 2, y: 1 }])
+     const port = new ModPort(eng)
+     eng.world.fx.push({ t: 'log', text: { en: 'The ferry bell rings.', zh: '渡口的钟响了。' } })
+     eng.world.drainFx()
+@@ -319,7 +319,7 @@ describe('the Mod port holds up', () => {
+ 
+ describe('a request the modder is creating things for', () => {
+   it('waits past the time-out, holding who is in it, until the patch comes', () => {
+-    const eng = place({}, [{ key: 'b', type: 'fixture/nature/boulder', x: 2, y: 1 }])
++    const eng = place({}, [{ key: 'b', type: 'fixture/sacred/statue', x: 2, y: 1 }])
+     const port = new ModPort(eng)
+     port.provider = working
+     eng.queue({ kind: 'impulse/strike', host: { e: 'b' }, roles: {}, params: { power: 2, edge: 'blunt' }, origin: 'world' })
+diff --git a/packages/tools/test/demo.test.ts b/packages/tools/test/demo.test.ts
+index 3c3c4aa..91908c1 100644
+--- a/packages/tools/test/demo.test.ts
++++ b/packages/tools/test/demo.test.ts
+@@ -631,10 +631,11 @@ req('F11', 'a place, not a picture: all that is drawn or in the way is terrain o
+   expect(plan.target).toEqual({ e: stump.id })
+   // the long press reaches what lies under it: the ground
+   expect(f.eng.controls.choices('use', point).map((c) => c.plan?.target)).toEqual([{ e: stump.id }, W(f).cellRef('ford', x, y)])
++  // the blow is the axe's; the stump has durability and breaks into what it is made of (world-model.md §6.3)
++  expect(plan.unknown).toBeFalsy()
+   f.eng.controls.run(plan, true)
+-  expect(plan.unknown).toBe(true)
+-  // the blow is the axe's; what the stump does when struck is undefined, and asked of the stump
+-  expect(asked(f, 'impulse/strike', 'player').some((r) => hostIs(r.event, stump.id))).toBe(true)
++  expect(W(f).get(stump.id)).toBeUndefined()
++  expect(W(f).placedAt('ford', x, y).some((e) => e.type === 'item/material/log')).toBe(true)
+   // a thing drawn over the tile beside its own is met there too: the tent, pointed at its wall
+   const tent = ofType(f, 'fixture/tent')!
+   const t = tent.place as { x: number; y: number }
+@@ -738,14 +739,14 @@ req('F12', "the ground yields sticks, stones and grass (Don't Starve): taken by
+   run(f, 'use', ...tree!)
+   run(f, 'use', ...tree!)
+   expect(W(f).terrainAt('ford', ...tree!)).toBe('stump')
+-  // the stone pickaxe breaks a boulder in three blows
++  // the stone pickaxe breaks a boulder in two blows (its durability), into stones (its makeup)
+   hold(f, made('item/tool/pickaxe'))
+   const boulder = ofType(f, 'fixture/nature/boulder')!
+   const bp = W(f).posOf(boulder)!
+   const [sx, sy, dir] = beside(f, bp.x, bp.y)
+   stand(f, sx, sy, dir)
+   const stones = lying(f, 'item/material/stone').length
+-  for (let i = 0; i < 3; i++) run(f, 'use', bp.x, bp.y)
++  for (let i = 0; i < 2; i++) run(f, 'use', bp.x, bp.y)
+   expect(W(f).get(boulder.id)).toBeUndefined()
+   expect(lying(f, 'item/material/stone').length).toBeGreaterThan(stones)
+   // and the ground yields again over time, never more than a handful of each
+@@ -925,6 +926,91 @@ req('F9', 'the arrival opens the story: the scene, the loaf in the pack, and Hes
+ 
+ // =================================================================== the proof
+ 
++// ------------------------------------------------------------------ W. the world model: breaking (world-model.md §10.3)
++
++/** A thing made the way a recipe makes it, in the player's bag (the test's own hand). */
++function made(f: Ford, recipe: string): Entity {
++  const make = structuredClone(RECIPE_BY_ID[recipe].make)
++  const e = author(f, () => W(f).add({ id: `given.${recipe}`, ...make, place: { on: 'inside', holder: 'player' } }))
++  f.eng.controls.sync()
++  return e
++}
++/** A cell of `terrain` on a map with open ground beside it. */
++function cellOf(f: Ford, map: string, terrain: string): [number, number] {
++  const m = W(f).map(map)!
++  for (let y = 1; y < m.height - 1; y++)
++    for (let x = 1; x < m.width - 1; x++)
++      if (W(f).terrainAt(map, x, y) === terrain && [[-1, 0], [1, 0], [0, 1], [0, -1]].some(([dx, dy]) => W(f).walkable(map, x + dx, y + dy))) return [x, y]
++  throw new Error(`no ${terrain} on ${map}`)
++}
++
++req('W1', 'a stone axe fells a tree in two blows (its durability, as an axe works on wood): it becomes a stump and drops logs', [], () => {
++  const f = fresh()
++  hold(f, made(f, 'stone-axe'))
++  const [x, y] = cellOf(f, 'ford', 'tree')
++  const [sx, sy, d] = beside(f, x, y)
++  stand(f, sx, sy, d)
++  const tree = W(f).cellTop('ford', x, y)!
++  run(f, 'use', x, y)
++  expect(W(f).num(tree, 'hp')).toBeLessThan(W(f).num(tree, 'maxHp'))
++  expect(W(f).terrainAt('ford', x, y)).toBe('tree')
++  run(f, 'use', x, y)
++  expect(W(f).terrainAt('ford', x, y)).toBe('stump')
++  expect(W(f).placedAt('ford', x, y).filter((e) => e.type === 'item/material/log').length).toBeGreaterThanOrEqual(2)
++  expect(records(f)).toHaveLength(0)
++})
++
++req('W2', 'a wooden club on rock: too hard — the rock is untouched, it is said, and nothing is asked', [], () => {
++  const f = fresh()
++  const club = author(f, () => W(f).create('item/weapon/blunt/club', { on: 'inside', holder: 'player' }, { tags: ['material:wood', 'wooden', 'flammable'] }))
++  f.eng.controls.sync()
++  hold(f, club)
++  const [x, y] = cellOf(f, 'summit', 'rock')
++  const [sx, sy, d] = beside(f, x, y, 'summit')
++  stand(f, sx, sy, d, 'summit')
++  const rock = W(f).cellTop('summit', x, y)!
++  W(f).fx = []
++  const plan = run(f, 'use', x, y)
++  expect(plan.unknown).toBeFalsy()
++  expect(W(f).num(rock, 'hp')).toBe(W(f).num(rock, 'maxHp'))
++  expect(W(f).fx.some((x) => x.t === 'log' && (x.text as { en: string }).en === 'Too hard.')).toBe(true)
++  expect(records(f)).toHaveLength(0)
++})
++
++req('W3', 'a stone pickaxe breaks rock in two blows and gives back stone (its makeup, at the recovery rate); the ground under it shows', [], () => {
++  const f = fresh()
++  hold(f, made(f, 'stone-pickaxe'))
++  const [x, y] = cellOf(f, 'summit', 'rock')
++  const [sx, sy, d] = beside(f, x, y, 'summit')
++  stand(f, sx, sy, d, 'summit')
++  run(f, 'use', x, y)
++  expect(W(f).terrainAt('summit', x, y)).toBe('rock')
++  run(f, 'use', x, y)
++  expect(W(f).terrainAt('summit', x, y)).not.toBe('rock')
++  expect(W(f).walkable('summit', x, y)).toBe(true)
++  expect(W(f).placedAt('summit', x, y).some((e) => e.type === 'item/material/stone')).toBe(true)
++  expect(records(f)).toHaveLength(0)
++})
++
++req('W13', 'a burning wooden wall (the summit shelter) loses durability as it burns and leaves a burnt wall', [], () => {
++  const f = fresh()
++  // a dry hour: rain would put the fire out
++  while (['rain', 'storm'].includes(W(f).calendar().weather)) W(f).state.tick += TICKS_PER_HOUR
++  const [x, y] = cellOf(f, 'summit', 'woodwall')
++  stand(f, ...beside(f, x, y, 'summit'), 'summit')
++  const wall = W(f).cellTop('summit', x, y)!
++  author(f, () => f.eng.applyStatus({ e: wall.id }, 'burning'))
++  const full = W(f).num(wall, 'maxHp')
++  let least = full
++  ticks(f, 80, () => {
++    const now = W(f).cellTop('summit', x, y)
++    if (now?.type === 'tile/woodwall') least = Math.min(least, W(f).num(now, 'hp'))
++    return now?.type === 'tile/burnt_wall'
++  })
++  expect(least).toBeLessThan(full)
++  expect(W(f).terrainAt('summit', x, y)).toBe('burnt_wall')
++})
++
+ // ------------------------------------------------------------------ the village, the garden, the East Road
+ 
+ req('F16', 'an original vegetable garden and its usable construction/farming kit', [
+@@ -1144,7 +1230,7 @@ req('Q4', 'chapter 4, the old mine: a pickaxe breaks iron and coal from the vein
+   stand(f, px, py, pd, 'mine')
+   run(f, 'take', pp.x, pp.y)
+   hold(f, W(f).get(pick.id))
+-  // three blows break a vein; its ore pops out to the magnet
++  // two blows break a vein (its durability, as the pickaxe works on ore); its ore pops out to the magnet
+   const mineVein = (type: string) => {
+     const v = onMap(f, type, 'mine').find((e) => {
+       const p = W(f).posOf(e)!
+@@ -1158,7 +1244,7 @@ req('Q4', 'chapter 4, the old mine: a pickaxe breaks iron and coal from the vein
+     const vp = W(f).posOf(v)!
+     const [x, y, d] = beside(f, vp.x, vp.y, 'mine')
+     stand(f, x, y, d, 'mine')
+-    for (let i = 0; i < 3; i++) run(f, 'use', vp.x, vp.y)
++    for (let i = 0; i < 2; i++) run(f, 'use', vp.x, vp.y)
+     expect(W(f).get(v.id)).toBeUndefined()
+     ticks(f, 3)
+   }
+diff --git a/packages/tools/test/skills.test.ts b/packages/tools/test/skills.test.ts
+index c73cb23..bc099b0 100644
+--- a/packages/tools/test/skills.test.ts
++++ b/packages/tools/test/skills.test.ts
+@@ -183,7 +183,8 @@ describe('the skill tree', () => {
+       eng.world.author(() => eng.world.add({ id: 'axe', type: 'item/weapon/blade/axe', place: { on: 'hand', holder: 'actor' } }))
+       const map = eng.world.posOf(eng.world.get('actor')!)!.map
+       const tree = eng.world.cellRef(map, FRONT.x, FRONT.y)
+-      eng.world.author(() => eng.world.setStatus(tree, 'notched', -1))
++      // one blow from falling
++      eng.world.author(() => eng.world.setProp(eng.world.get(tree.e)!, 'hp', 1))
+       eng.interact('interact', 'actor', tree)
+       return eng.world.entitiesAt(map, FRONT.x, FRONT.y).filter((e) => e.type === 'item/material/log').length
+     }

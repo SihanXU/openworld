@@ -1,0 +1,29 @@
+{
+ "sha": "8a01f286e92b1821be79bf193f378fc9b65a4a15",
+ "parent": "447eae33d8bf4619c4f1b3fb917defe4828e16c6",
+ "date": "2026-10-04T13:04:15-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/agent/test/claude-code.test.ts"
+ ],
+ "code": [
+  "packages/agent/src/model.ts"
+ ],
+ "lines": 43,
+ "areas": [
+  "agent"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/agent/test/claude-code.test.ts::the Claude Code backend (claude -p) a failed session is an error (the modder falls back), not an answer",
+  "packages/agent/test/claude-code.test.ts::the Claude Code backend (claude -p) a session that exits before reading its input is an error, not a crash (EPIPE)",
+  "packages/agent/test/claude-code.test.ts::the Claude Code backend (claude -p) answers a JSON call with the configured model and effort, with no tools of its own",
+  "packages/agent/test/claude-code.test.ts::the Claude Code backend (claude -p) finds a .cmd on PATH by its name and passes its arguments whole (Windows)",
+  "packages/agent/test/claude-code.test.ts::the Claude Code backend (claude -p) keeps the system prompt byte for byte as given, whatever the call asks (the cached prefix), and passes it in a file",
+  "packages/agent/test/claude-code.test.ts::the Claude Code backend (claude -p) offers tools as a text protocol: a tool call comes back, and its result is read on the next turn"
+ ],
+ "PASS_TO_PASS": [
+  "packages/agent/test/claude-code.test.ts::the Claude Code backend (claude -p) is chosen by LSW_MODEL_BACKEND, Opus 5.5 at low effort by default"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

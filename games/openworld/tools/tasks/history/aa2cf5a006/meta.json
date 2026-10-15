@@ -1,0 +1,37 @@
+{
+ "sha": "aa2cf5a0068d15c2e685cad2b4e8e4b7bc091bbb",
+ "parent": "c3f609a0133d8b297df5a07aaa9d84fd3a3b23e0",
+ "date": "2026-10-04T00:32:13-04:00",
+ "rung": "R4",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/content/test/newtypes.test.ts"
+ ],
+ "code": [
+  ".claude/launch.json",
+  "package.json",
+  "packages/client/src/main.ts",
+  "packages/client/src/ui/dev.ts",
+  "packages/client/src/worker.ts",
+  "packages/engine/src/mod.ts",
+  "packages/tools/src/eval-objects.ts"
+ ],
+ "lines": 212,
+ "areas": [
+  "engine",
+  "other",
+  "runtime",
+  "tools"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing arrives in the hand that waited for it: the held ore becomes the ingot, in the same slot"
+ ],
+ "PASS_TO_PASS": [
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing draws a valid 16x16 picture",
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing is not another name for something the world has",
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing may define a new type with its own picture and make it",
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing names it by the world's conventions: new, under a parent that exists, snake_case, in both languages",
+  "packages/content/test/newtypes.test.ts::a patch that brings a new thing points at what exists when a patch names a type that does not"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

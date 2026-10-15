@@ -1,0 +1,44 @@
+{
+ "sha": "474c56246bc6cc0c9b87ff04516aa2cccb4fc2b0",
+ "parent": "37f8aec109b72b18eafb8571bc30f6281a95576e",
+ "date": "2026-10-04T21:34:44-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/tools/test/save.test.ts",
+  "packages/tools/test/storeys.test.ts",
+  "packages/tools/test/yield.test.ts"
+ ],
+ "code": [
+  "packages/engine/src/effects.ts",
+  "packages/engine/src/engine.ts",
+  "packages/engine/src/game.ts",
+  "packages/engine/src/mod.ts",
+  "packages/engine/src/rules.ts",
+  "packages/engine/src/sandbox.ts",
+  "packages/engine/src/types.ts",
+  "packages/engine/src/world.ts",
+  "packages/modder/src/derive.ts"
+ ],
+ "lines": 161,
+ "areas": [
+  "engine",
+  "modder"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/tools/test/save.test.ts::an older save (cells as tile overrides, before world-model.md §4.6) keeps the changed cells of a map not entered yet through the next save, and applies them when it is",
+  "packages/tools/test/storeys.test.ts::a request names the thing it is about, even under the top of its cell the floor under a tree replays as that floor, not as the tree",
+  "packages/tools/test/storeys.test.ts::a solid thing and a body never share a cell a floor that comes down drops whoever stood on it beside what is below, not into it",
+  "packages/tools/test/storeys.test.ts::a solid thing and a body never share a cell a wall is not set down on a hen, nor on the cell its builder stands in",
+  "packages/tools/test/storeys.test.ts::people make way for each other, and never share a cell two days in the village from a new game: no two bodies in one cell",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) and refuses it when the stick comes only by chance: the check forces every chance"
+ ],
+ "PASS_TO_PASS": [
+  "packages/tools/test/save.test.ts::a save taken while the modder works lets the held go on load: the request is not saved, so nobody would ever answer it",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) a new thing that can break says what it is made of and what it leaves",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) and accepts the same yield when it costs its host: a status that gates it and runs out",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) the base library: every act any input makes, on anything the player can face, stops yielding when repeated",
+  "packages/tools/test/yield.test.ts::no endless yield (world-model.md §8.4) the validator refuses the stick farm: a blow, a stick, the host as it was"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

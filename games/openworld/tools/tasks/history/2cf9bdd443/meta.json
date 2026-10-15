@@ -1,0 +1,36 @@
+{
+ "sha": "2cf9bdd4435871268713a61dcaca88da4f7dc57e",
+ "parent": "4db61d308574cc2f5cbbe4f8783b4013ef3bf873",
+ "date": "2026-10-04T22:44:42-04:00",
+ "rung": "R2",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/modder/test/economy.test.ts"
+ ],
+ "code": [
+  "packages/modder/src/economy.ts"
+ ],
+ "lines": 6,
+ "areas": [
+  "modder"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a thing that breaks into itself by chance, and a part named twice, both count"
+ ],
+ "PASS_TO_PASS": [
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a choice the state makes is the player's; a roll beside it is weighed in",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a count read from the kind of thing the host is counts",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a grind that gives the thing itself back one time in five: the LP sums the rounds (1 / (1 - 0.2) = 1.25)",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation a lottery that loses on average is no free lunch (3 stones three times in ten: 0.9 a stick)",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation nested rolls multiply, and an item taken in by chance is taken by its odds",
+  "packages/modder/test/economy.test.ts::chance, counted by expectation one that wins on average is (eight times in ten: 2.4 stones a stick, from 2)",
+  "packages/modder/test/economy.test.ts::the free lunch agrees with Bellman-Ford on 300 random markets (one thing in, one out: a positive cycle is arbitrage)",
+  "packages/modder/test/economy.test.ts::the free lunch finds what takes several things and gives several, which no single exchange shows",
+  "packages/modder/test/economy.test.ts::the free lunch prices: every thing worth at least 1, and no step gives more value than it takes",
+  "packages/modder/test/economy.test.ts::the simplex does not cycle on a degenerate vertex (Chvátal's example, where the largest coefficient rule cycles)",
+  "packages/modder/test/economy.test.ts::the simplex is optimal on 300 random programmes: x and y feasible, and c·x = b·y (strong duality)",
+  "packages/modder/test/economy.test.ts::the simplex says when a programme is unbounded, and refuses a start that is not a vertex",
+  "packages/modder/test/economy.test.ts::the simplex solves the textbook programme, with its shadow prices"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

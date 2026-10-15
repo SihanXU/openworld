@@ -1,0 +1,263 @@
+diff --git a/packages/agent/test/claude-code.test.ts b/packages/agent/test/claude-code.test.ts
+index 1171b4f..1369896 100644
+--- a/packages/agent/test/claude-code.test.ts
++++ b/packages/agent/test/claude-code.test.ts
+@@ -3,16 +3,23 @@ import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+ import { tmpdir } from 'node:os'
+ import { join } from 'node:path'
+ import { describe, expect, it } from 'vitest'
+-import { ClaudeCodeModel, commandFor, modelFromEnv } from '../src/index.ts'
++import { ClaudeCodeModel, commandFor, modelFromEnv, type ChatMessage } from '../src/index.ts'
++
++interface FakeCall {
++  args: string[]
++  stdin: string
++  system: string
++}
+ 
+ /**
+  * A stand-in for `claude -p`: it answers by what its system prompt and stdin say, as print mode's
+- * JSON, and logs the system prompt it was given (one line per call) beside itself.
++ * JSON (or, given stream-json input, as a stream ending in a result line, which needs --verbose as
++ * the real one does), and logs each call's arguments, stdin and system prompt beside itself.
+  */
+-function fakeClaude(): { bin: string; systems: () => string[] } {
++function fakeClaude(): { bin: string; calls: () => FakeCall[]; systems: () => string[] } {
+   const dir = mkdtempSync(join(tmpdir(), 'fake-claude-'))
+   const bin = join(dir, 'claude')
+-  const log = join(dir, 'systems.jsonl')
++  const log = join(dir, 'calls.jsonl')
+   writeFileSync(log, '')
+   writeFileSync(
+     bin,
+@@ -20,21 +27,38 @@ function fakeClaude(): { bin: string; systems: () => string[] } {
+ const fs = require('fs')
+ const args = process.argv.slice(2)
+ const arg = (k) => args[args.indexOf(k) + 1]
++const stream = arg('--input-format') === 'stream-json'
++if (stream && (arg('--output-format') !== 'stream-json' || !args.includes('--verbose'))) {
++  console.error('Error: --input-format=stream-json requires output-format=stream-json (and --verbose)')
++  process.exit(1)
++}
+ let stdin = ''
+ process.stdin.on('data', (c) => (stdin += c))
+ process.stdin.on('end', () => {
+   const system = fs.readFileSync(arg('--system-prompt-file'), 'utf8')
+-  fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(system) + '\\n')
++  fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ args, stdin, system }) + '\\n')
++  const text = stream ? stdin.trim().split('\\n').map((l) => JSON.parse(l).message.content.map((b) => b.text).join('\\n\\n')).join('\\n\\n') : stdin
++  const say = (o) => (stream ? console.log(JSON.stringify({ type: 'system', subtype: 'init' }) + '\\n' + JSON.stringify({ type: 'result', ...o })) : console.log(JSON.stringify(o)))
+   let result
+-  if (stdin.includes('FAIL')) return console.log(JSON.stringify({ is_error: true, result: 'Failed to authenticate' }))
+-  if (stdin.includes('## Tools') && !stdin.includes('[tool result: ')) result = JSON.stringify({ tool_calls: [{ name: 'get_rule', args: { id: 'core/use' } }] })
+-  else result = JSON.stringify({ model: arg('--model'), effort: arg('--effort'), tools: arg('--tools'), sawResult: stdin.includes('[tool result: get_rule'), json: stdin.includes('one JSON object') })
+-  console.log(JSON.stringify({ is_error: false, result, total_cost_usd: 0.01, usage: { input_tokens: 10, cache_read_input_tokens: 90, output_tokens: 5, output_tokens_details: { thinking_tokens: 2 } } }))
++  if (text.includes('FAIL')) return say({ is_error: true, result: 'Failed to authenticate' })
++  if (text.includes('## Tools') && !text.includes('[tool result: ')) result = JSON.stringify({ tool_calls: [{ name: 'get_rule', args: { id: 'core/use' } }] })
++  else result = JSON.stringify({ model: arg('--model'), effort: arg('--effort'), tools: arg('--tools'), sawResult: text.includes('[tool result: get_rule'), json: text.includes('one JSON object') })
++  say({ is_error: false, result, total_cost_usd: 0.01, usage: { input_tokens: 10, cache_read_input_tokens: 90, output_tokens: 5, output_tokens_details: { thinking_tokens: 2 } } })
+ })
+ `,
+   )
+   chmodSync(bin, 0o755)
+-  return { bin, systems: () => readFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as string) }
++  const calls = () => readFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as FakeCall)
++  return { bin, calls, systems: () => calls().map((c) => c.system) }
++}
++
++/** The blocks of a stream-json call's one user message. */
++function blocksOf(c: FakeCall): string[] {
++  const lines = c.stdin.trim().split('\n')
++  expect(lines).toHaveLength(1)
++  const m = JSON.parse(lines[0]) as { type: string; message: { role: string; content: { type: string; text: string }[] } }
++  expect(m).toMatchObject({ type: 'user', message: { role: 'user' } })
++  return m.message.content.map((b) => b.text)
+ }
+ 
+ const tools = [{ name: 'get_rule', description: 'a rule by id', parameters: { type: 'object', properties: { id: { type: 'string' } } } }]
+@@ -78,10 +102,48 @@ describe('the Claude Code backend (claude -p)', () => {
+     expect(systems()).toEqual([big, big, big])
+   })
+ 
++  it('a tool conversation goes as one message of one block per turn, the protocol first: each step only appends (the cached prefix)', async () => {
++    const { bin, calls } = fakeClaude()
++    const m = new ClaudeCodeModel({ model: 'claude-opus-5-5', bin })
++    const messages: ChatMessage[] = [{ role: 'system', content: 'ModSpec '.repeat(1000) }, { role: 'user', content: 'design' }]
++    // three steps of the agent loop: each answers with a tool call, whose result is appended
++    for (let step = 0; step < 3; step++) {
++      const r = await m.chat(messages, { tools })
++      const c = r.toolCalls[0] ?? { id: `c${step}`, name: 'get_rule', args: { id: 'core/use' } }
++      messages.push({ role: 'assistant', content: r.content, toolCalls: [c] }, { role: 'tool', toolCallId: c.id, name: c.name, content: `{"id":"core/use","step":${step}}` })
++    }
++    const steps = calls()
++    expect(steps).toHaveLength(3)
++    for (const c of steps) {
++      expect(c.args.join(' ')).toContain('--output-format stream-json')
++      expect(c.args.join(' ')).toContain('--input-format stream-json')
++      expect(c.args).toContain('--verbose')
++      expect(c.args).toContain('--no-session-persistence')
++      expect(c.system).toBe(steps[0].system)
++    }
++    const blocks = steps.map(blocksOf)
++    expect(blocks[0][0]).toMatch(/^\[instructions\]\n## Tools/)
++    expect(blocks[0]).toEqual([blocks[0][0], '[user]\ndesign'])
++    // each step is the last one's blocks and the new turns (the assistant's call, its result)
++    for (let i = 1; i < blocks.length; i++) {
++      expect(blocks[i].slice(0, blocks[i - 1].length)).toEqual(blocks[i - 1])
++      expect(blocks[i]).toHaveLength(blocks[i - 1].length + 2)
++      expect(blocks[i].at(-1)).toMatch(/^\[tool result: get_rule #/)
++    }
++    // a call without tools (the live design, a review, the last call of a tool budget) goes as before:
++    // plain text, "reply with JSON" last
++    await m.chat([{ role: 'system', content: 'sys' }, { role: 'user', content: 'design' }], { json: true })
++    const c = calls()[3]
++    expect(c.args).not.toContain('--input-format')
++    expect(c.args.join(' ')).toContain('--output-format json')
++    expect(c.stdin).toBe('[user]\ndesign\n\n[instructions]\nReply with one JSON object and nothing else.')
++  })
++
+   it('a failed session is an error (the modder falls back), not an answer', async () => {
+     const { bin } = fakeClaude()
+     const m = new ClaudeCodeModel({ model: 'claude-opus-5-5', bin })
+     await expect(m.chat([{ role: 'user', content: 'FAIL' }])).rejects.toThrow(/Failed to authenticate/)
++    await expect(m.chat([{ role: 'user', content: 'FAIL' }], { tools })).rejects.toThrow(/Failed to authenticate/)
+   })
+ 
+   it('a session that exits before reading its input is an error, not a crash (EPIPE)', async () => {
+diff --git a/packages/modder/test/audit.test.ts b/packages/modder/test/audit.test.ts
+index 2fb22d9..cad1e67 100644
+--- a/packages/modder/test/audit.test.ts
++++ b/packages/modder/test/audit.test.ts
+@@ -37,8 +37,10 @@ const onCreature = (id: string, effects: unknown[]): Patch => ({
+ })
+ /** Valid, one for one, and a cheap road to the rarest blade in the world. */
+ const bane = onCreature('patch/rope-bane', [{ op: 'transform', into: BANE }, { op: 'log', text: { en: 'The rope hardens into a blade.', zh: '绳子硬化成了一把剑。' } }])
+-/** The same act, harmless: the slime only sniffs it. */
++/** The same act, harmless: the slime only sniffs it (narration only: nothing for the auditor to break). */
+ const sniff = onCreature('patch/rope-sniff', [{ op: 'log', text: { en: '{target} sniffs {instrument}.', zh: '{target}嗅了嗅{instrument}。' } }])
++/** Harmless too, though it changes something: the slime slobbers on the rope. */
++const slobber = onCreature('patch/rope-slobber', [{ op: 'addStatus', status: 'wet', duration: 10 }, { op: 'log', text: { en: '{target} slobbers on {instrument}.', zh: '{target}把{instrument}弄湿了。' } }])
+ const becomesBane: Finding = { title: 'a rope becomes Dragonsbane', kind: 'value', steps: [{ act: 'use', target: 'target', instrument: 'instrument' }], expect: [{ is: { key: 'instrument', type: BANE } }] }
+ 
+ describe('confirm: the sandbox judges a finding', () => {
+@@ -97,7 +99,7 @@ function setup(model: ScriptedModel, profile: 'live' | 'offline') {
+   const state = SelfState.open(join(dir, 'modder-state'))
+   const h = state.harness()
+   state.setHarness({ ...h, audit: { ...auditOf(h), rounds: 2 }, review: { ...h.review, enabled: false }, reflect: { ...h.reflect, enabled: false }, escalate: false, revise: false, offline: { ...h.offline, design: { ...h.offline.design, mode: 'json' } } }, 'test: the auditor alone')
+-  return { library, modder: new Modder({ library, state, model, profile }) }
++  return { library, state, modder: new Modder({ library, state, model, profile }) }
+ }
+ 
+ describe('the auditor in the pipeline', () => {
+@@ -112,11 +114,23 @@ describe('the auditor in the pipeline', () => {
+   })
+ 
+   it('live: a claim the sandbox does not bear out changes nothing', async () => {
+-    const { model } = scripted([sniff], [becomesBane])
++    const { model, calls } = scripted([slobber], [becomesBane])
+     const { library, modder } = setup(model, 'live')
+     expect((await modder.resolve({ request: useRequest() })).outcome).toBe('accepted')
+     await modder.settled()
++    expect(calls.auditTools).toBe(1)
++    expect(library.lib.rules.has('patch/rope-slobber')).toBe(true)
++  })
++
++  it('live: a patch that only narrates is not audited (no call), and the journal says why', async () => {
++    const { model, calls } = scripted([sniff], [becomesBane])
++    const { library, state, modder } = setup(model, 'live')
++    const reply = await modder.resolve({ request: useRequest() })
++    expect(reply.outcome).toBe('accepted')
++    await modder.settled()
++    expect(calls.audit).toBe(0)
+     expect(library.lib.rules.has('patch/rope-sniff')).toBe(true)
++    expect(state.journalOf('audit')).toMatchObject([{ episode: reply.episode, rules: ['patch/rope-sniff'], skipped: 'narrates only', usage: { calls: 0 } }])
+   })
+ 
+   it('offline: a draft the auditor breaks goes back with the evidence; the next one ships', async () => {
+@@ -125,6 +139,8 @@ describe('the auditor in the pipeline', () => {
+     const reply = await modder.resolve({ request: useRequest() })
+     expect(reply.outcome).toBe('accepted')
+     expect(calls.design).toBe(2)
++    // the second draft only narrates: it is not audited again
++    expect(calls.auditTools).toBe(1)
+     expect(library.lib.rules.has('patch/rope-bane')).toBe(false)
+     expect(library.lib.rules.has('patch/rope-sniff')).toBe(true)
+   })
+diff --git a/packages/modder/test/modder.test.ts b/packages/modder/test/modder.test.ts
+index 211734e..1f7d506 100644
+--- a/packages/modder/test/modder.test.ts
++++ b/packages/modder/test/modder.test.ts
+@@ -191,6 +191,73 @@ describe('a backend out of quota', () => {
+   })
+ })
+ 
++describe('a backend that goes out while work is queued', () => {
++  it('work queued before it went out (an escalation, a reflection) is dropped, not run against it', async () => {
++    const QUOTA = "claude-code: You've hit your session limit · resets 12:30am"
++    let release!: () => void
++    const held = new Promise<void>((r) => (release = r))
++    let out = false
++    let designs = 0
++    let calls = 0
++    const model: Model = {
++      name: 'claude-code:quota-later',
++      chat: async (_messages, opts) => {
++        calls++
++        if (out) throw new Error(QUOTA)
++        // the first reflection is the one that finds the backend out, after the next request has queued its work
++        if (opts?.purpose === 'reflect') {
++          await held
++          out = true
++          throw new Error(QUOTA)
++        }
++        // the first request is answered; the second gets no patch (a failure that is not the backend's)
++        return designs++ === 0 ? { content: JSON.stringify({ patch: patchOf(bindRule()), summary: 'rope binds' }), toolCalls: [] } : { content: 'no idea', toolCalls: [] }
++      },
++    }
++    const { modder, state } = setup(model, undefined, 'live')
++    const h = state.harness()
++    state.setHarness({ ...h, review: { ...h.review, enabled: false }, reflect: { ...h.reflect, batch: 1 }, concurrency: { design: 4, background: 1 } }, 'test: one background job at a time')
++    expect((await modder.resolve({ request: request() })).outcome).toBe('accepted')
++    // its reflection runs (and waits on the backend); the next failure queues an escalation and a reflection behind it
++    expect((await modder.resolve({ request: useRequest() })).outcome).toBe('failed')
++    // (the reflection that finds it out is already counted)
++    const before = calls
++    release()
++    await modder.settled()
++    expect(calls).toBe(before)
++    // the two requests' episodes, and no escalation's
++    expect(state.episodes().map((e) => e.outcome)).toEqual(['accepted', 'failed'])
++    expect(state.journalOf('reflect')).toEqual([])
++    expect((await modder.resolve({ request: useRequest('actor/creature/beast/wolf') })).outcome).toBe('unavailable')
++    expect(calls).toBe(before)
++  })
++
++  it('a repo episode that fails on a quota error pauses the calls and is not reflected on', { timeout: 120_000 }, async () => {
++    let calls = 0
++    const model: Model = { name: 'claude-code:quota', chat: async () => (calls++, Promise.reject(new Error("claude-code: You've hit your session limit · resets 12:30am"))) }
++    const dir = mkdtempSync(join(tmpdir(), 'lsw-modder-'))
++    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
++    const state = SelfState.open(join(dir, 'modder-state'))
++    state.setHarness({ ...state.harness(), audit: { ...auditOf(state.harness()), enabled: false } }, 'test: the repo agent, no auditor')
++    expect(state.harness().offline.design?.mode).toBe('repo')
++    const modder = new Modder({ library, state, model, profile: 'offline' })
++    const saved = process.env.LSW_ISOLATION
++    process.env.LSW_ISOLATION = 'none'
++    try {
++      expect((await modder.resolve({ request: request() })).outcome).toBe('failed')
++      await modder.settled()
++      expect(calls).toBe(1)
++      expect(state.journalOf('reflect')).toEqual([])
++      expect((await modder.resolve({ request: request('actor/creature/beast/wolf') })).outcome).toBe('unavailable')
++      await modder.settled()
++      expect(calls).toBe(1)
++    } finally {
++      if (saved === undefined) delete process.env.LSW_ISOLATION
++      else process.env.LSW_ISOLATION = saved
++    }
++  })
++})
++
+ describe('the modder pipeline', () => {
+   it('designs with tools, validates, commits to the shared library and records the episode', async () => {
+     const { model, calls } = scripted([patchOf(bindRule())])

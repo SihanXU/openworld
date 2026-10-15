@@ -1,0 +1,57 @@
+{
+ "sha": "0cc4cc45bd0ff221e08bb33d5b1d5e775cb80bec",
+ "parent": "69bfe59c0fac5a18285a7dae85a37f2add5d6349",
+ "date": "2026-10-02T02:08:48-04:00",
+ "rung": "R2",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/tools/test/demo.test.ts"
+ ],
+ "code": [
+  "packages/client/src/assets/catalog.ts",
+  "packages/client/src/render/scene.ts",
+  "packages/tools/src/demo/world.ts"
+ ],
+ "lines": 282,
+ "areas": [
+  "runtime",
+  "tools"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/tools/test/demo.test.ts::the Ford is complete A: every event kind the engine has occurred on this map",
+  "packages/tools/test/demo.test.ts::the Ford is complete B10: a person is blocked: her fire soaked, she cannot tend it",
+  "packages/tools/test/demo.test.ts::the Ford is complete B11: a theft is witnessed: the owner objects (a rule); a bystander is asked about",
+  "packages/tools/test/demo.test.ts::the Ford is complete B12: content is broken by state: the rope burns; asked about, and kept playable by its fallback",
+  "packages/tools/test/demo.test.ts::the Ford is complete B1: the held thing applied to something no rule covers is asked about (player)",
+  "packages/tools/test/demo.test.ts::the Ford is complete B2: putting something where no rule covers it is asked about",
+  "packages/tools/test/demo.test.ts::the Ford is complete B3: a blow with no reaction is asked about (a frost cast on the winch)",
+  "packages/tools/test/demo.test.ts::the Ford is complete B4: a bare hand on something only a description covers is asked about (E on the raft)",
+  "packages/tools/test/demo.test.ts::the Ford is complete B5: stepping onto a tile in a state no rule covers is asked about (oil on the path)",
+  "packages/tools/test/demo.test.ts::the Ford is complete B8: a cascade meets an unmodelled pair: the storm strikes the dead tree",
+  "packages/tools/test/demo.test.ts::the Ford is complete B9: creatures meet things after dark: a fiery slime lights dry hay (a rule); other meetings are asked about",
+  "packages/tools/test/demo.test.ts::the Ford is complete D2: every layer a target can be: a person, a creature, a fixture, a loose item, a pile on a fixture, the ground, oneself — each reachable by every input",
+  "packages/tools/test/demo.test.ts::the Ford is complete E1: a patch answers a request: validated, applied, in the Threadbook as yours; the class never asks again",
+  "packages/tools/test/demo.test.ts::the Ford is complete E2: the world's own requests are learned as the world's: the Threadbook says who",
+  "packages/tools/test/demo.test.ts::the Ford is complete E3: a patch that breaks the rules is rejected and the safe default stands; the world's patches never harm a person",
+  "packages/tools/test/demo.test.ts::the Ford is complete E4: the library is shared and persistent: a save keeps it, a new game keeps it",
+  "packages/tools/test/demo.test.ts::the Ford is complete F10: the wild attacks folk by faction — the player and people alike, after dark or once struck; people run; a lit fire keeps the wild off",
+  "packages/tools/test/demo.test.ts::the Ford is complete F2a: the ferry: the rope from her chest, the winch mended, and she takes you over",
+  "packages/tools/test/demo.test.ts::the Ford is complete F2b: the dead tree: the axe, three blows from the west, and a walk across",
+  "packages/tools/test/demo.test.ts::the Ford is complete F2c: the ice: bread for the peddler's frost wand, then a path frozen across",
+  "packages/tools/test/demo.test.ts::the Ford is complete F4: risk, and recovery: anyone at no health — the player as any person — collapses for a while and comes to, the story intact",
+  "packages/tools/test/demo.test.ts::the Ford is complete F7: save and continue",
+  "packages/tools/test/demo.test.ts::the Ford is complete F8: legible: before a press, every input shows what it will do, and the unknown is marked"
+ ],
+ "PASS_TO_PASS": [
+  "packages/tools/test/demo.test.ts::the Ford is complete C1: every kind of thing: the player, people, creatures, items, fixtures, and tiles with statuses",
+  "packages/tools/test/demo.test.ts::the Ford is complete C2: every element of the reaction triangle has a source: fire, water, ice, lightning — and oil",
+  "packages/tools/test/demo.test.ts::the Ford is complete D1: every class of held thing is here: none, an object, food, a pure weapon, a tool-weapon",
+  "packages/tools/test/demo.test.ts::the Ford is complete F1: the goal is a state: the far bank ends the story, however the player got there",
+  "packages/tools/test/demo.test.ts::the Ford is complete F3: the place teaches, not text: ice shows by the frost slime, dry hay waits on the fire slime's path, water lies beyond the dead tree, the bucket by the river, the torch by the fire",
+  "packages/tools/test/demo.test.ts::the Ford is complete F5: the world acts alone: a storm strikes, the slimes come out at night, people keep their day",
+  "packages/tools/test/demo.test.ts::the Ford is complete F6: people with lives of their own: a tie to each other, a day of their own, words for the moment",
+  "packages/tools/test/demo.test.ts::the Ford is complete F9: the arrival opens the story: the scene, the loaf in the pack, the objective",
+  "packages/tools/test/demo.test.ts::the Ford is minimal every placed thing, person and fixed piece of the world witnesses some requirement"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

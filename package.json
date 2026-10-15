@@ -31,6 +31,8 @@
     "improve": "tsx games/openworld/tools/src/improve.ts",
     "engine-task": "tsx games/openworld/tools/src/engine-tasks.ts",
     "upstream": "tsx games/openworld/tools/src/upstream.ts",
+    "ladder": "tsx games/openworld/tools/src/ladder.ts",
+    "rsi": "tsx games/openworld/tools/src/rsi.ts",
     "latency": "tsx games/openworld/tools/src/latency.ts",
     "curriculum:report": "tsx games/openworld/tools/src/curriculum-report.ts",
     "ford-live": "tsx games/openworld/tools/src/ford-live.ts",

@@ -1,0 +1,50 @@
+{
+ "sha": "11b04f358eb838d5d14a7f1add7193020d6f26ac",
+ "parent": "1a1e5406591683e42b9d3d69742258e4bd921f5f",
+ "date": "2026-10-13T16:05:06Z",
+ "rung": "R4",
+ "lock": "c8aae8165c193e13e9cb62882998aceaf8916f35",
+ "tests": [
+  "packages/editor/test/events.test.ts"
+ ],
+ "code": [
+  "packages/editor/src/app/context.ts",
+  "packages/editor/src/app/events.ts",
+  "packages/editor/src/app/findMode.ts",
+  "packages/editor/src/app/form.ts",
+  "packages/editor/src/app/main.ts",
+  "packages/editor/src/app/mapMode.ts",
+  "packages/editor/src/app/modes.ts",
+  "packages/editor/src/app/quickEvents.ts",
+  "packages/editor/src/app/rulesMode.ts",
+  "packages/editor/src/app/sceneForms.ts",
+  "packages/editor/src/app/store.ts",
+  "packages/editor/src/app/storyMode.ts",
+  "packages/editor/src/app/triggers.ts",
+  "packages/editor/src/app/usage.ts",
+  "packages/engine/src/types.ts",
+  "packages/format/schema/learned.schema.json",
+  "packages/format/schema/ontology.schema.json",
+  "packages/runtime/src/main.ts",
+  "packages/runtime/src/protocol.ts",
+  "packages/runtime/src/worker.ts"
+ ],
+ "lines": 1586,
+ "areas": [
+  "editor",
+  "engine",
+  "format",
+  "runtime"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/editor/test/events.test.ts::on the starter a batch is undone and made again as one",
+  "packages/editor/test/events.test.ts::on the starter a story made of quick events alone plays to its end: a villager asks for two stones, they are brought, she rewards",
+  "packages/editor/test/events.test.ts::on the starter finds where each fact is set and read, and every place an id is named",
+  "packages/editor/test/events.test.ts::quick events a chest holds what it is given; a sign says its words in both languages",
+  "packages/editor/test/events.test.ts::quick events a door leads to a cell of another map, and its way back to the cell before it",
+  "packages/editor/test/events.test.ts::quick events a merchant carries their stock and a purse of the coin; a favour is a quest of the starter's shape",
+  "packages/editor/test/events.test.ts::quick events its own kind: a child type, free; a first rule for it on the hand"
+ ],
+ "PASS_TO_PASS": [],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}

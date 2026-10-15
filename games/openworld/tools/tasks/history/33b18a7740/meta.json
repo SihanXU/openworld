@@ -1,0 +1,41 @@
+{
+ "sha": "33b18a774020e537851b6ed929a4cb355b5e5932",
+ "parent": "55ef8cc6feff1246b8cd6e8198e8cf59301e4dae",
+ "date": "2026-10-06T22:10:16-04:00",
+ "rung": "R3",
+ "lock": "c654e8907c605d501110f6fad7750490df1a4bc8",
+ "tests": [
+  "packages/tools/test/play-session.test.ts"
+ ],
+ "code": [
+  "packages/client/src/main.ts",
+  "packages/client/src/protocol.ts",
+  "packages/client/src/ui/hud.ts",
+  "packages/client/src/worker.ts",
+  "packages/engine/src/controls.ts",
+  "packages/engine/src/engine.ts",
+  "packages/tools/src/demo/prologue.ts"
+ ],
+ "lines": 101,
+ "areas": [
+  "engine",
+  "runtime",
+  "tools"
+ ],
+ "FAIL_TO_PASS": [
+  "packages/tools/test/play-session.test.ts::the inputs what lies on a cart comes before the cart, however small it is drawn (F takes the wand, not nothing)",
+  "packages/tools/test/play-session.test.ts::the world a key acts on whom its label named: a merchant who stepped off the spot still gets the bread",
+  "packages/tools/test/play-session.test.ts::the world a thing that reaches the bag without an input (a scene gives bread) takes a slot",
+  "packages/tools/test/play-session.test.ts::the world health stops at nothing: a blow far past it fells, and leaves no debt"
+ ],
+ "PASS_TO_PASS": [
+  "packages/tools/test/play-session.test.ts::the frame a creature is hostile by what it would do, not by whether it is chasing this moment",
+  "packages/tools/test/play-session.test.ts::the frame a learned status may draw only what the world can draw",
+  "packages/tools/test/play-session.test.ts::the frame a status draws what its data names: a lit fire carries its flame",
+  "packages/tools/test/play-session.test.ts::the frame names the stations within reach: a workbench beside the player, none away from it",
+  "packages/tools/test/play-session.test.ts::the world a companion struck by the one it follows is hurt as by any blow, and says so: it is no silent target",
+  "packages/tools/test/play-session.test.ts::the world a made thing is not named twice by its material (a 木桶 of wood stays a 木桶)",
+  "packages/tools/test/play-session.test.ts::the world the player's own act waiting for its outcome is what the host stops the world for; the world's own questions are not"
+ ],
+ "writer": "claude-code:claude-sonnet-5-5@low"
+}
