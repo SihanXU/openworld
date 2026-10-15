@@ -2460,6 +2460,14 @@
                 },
                 "cmp": {
                   "$ref": "#/definitions/Bounds"
+                },
+                "stacks": {
+                  "type": "boolean",
+                  "description": "Count the slots they take rather than the things: a slot holds STACK_MAX of one stack key."
+                },
+                "adding": {
+                  "$ref": "#/definitions/RoleName",
+                  "description": "Count as if one more of this role's thing were among them (does the one at hand still fit)."
                 }
               },
               "required": [

@@ -371,7 +371,12 @@ export class Social {
     const defs = [...(w.onto.data.deeds ?? [])].sort((a, b) => a.rank - b.rank)
     if (!defs.length) return undefined
     const roles: Roles = { host: w.view(seen.host), actor: w.view(seen.roles.actor), target: w.view(seen.roles.target), instrument: w.view(seen.roles.instrument) }
-    return defs.find((d) => evalCond(d.when, roles, w, seen))
+    const deed = defs.find((d) => evalCond(d.when, roles, w, seen))
+    const actor = roles.actor?.entity, target = roles.target?.entity
+    // A responding person's explicit foes come from being struck or called to help. Counting
+    // that response as a fresh assault makes witnesses recruit everyone against the defenders.
+    if (deed?.violent && actor?.npc && target && actor.ai?.foes?.includes(target.id)) return undefined
+    return deed
   }
 
   /** A deed's key: the same deed known by many is one (the watch charges it once). */

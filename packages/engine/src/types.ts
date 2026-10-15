@@ -1473,7 +1473,11 @@ export type Cond =
   /** It is night (true) or day (false), however long the story's night has grown (World.isNight). */
   | { night: boolean }
   /** How many entities (matching `match`) are in a role's contents, or on its tile besides itself. */
-  | { count: { role: RoleName; in: 'contents' | 'tile' | 'map'; match?: Selector; cmp: Bounds } }
+  | { count: { role: RoleName; in: 'contents' | 'tile' | 'map'; match?: Selector; cmp: Bounds
+      /** Count the slots they take rather than the things: a slot holds STACK_MAX of one stack key. */
+      stacks?: boolean
+      /** Count as if one more of this role's thing were among them (does the one at hand still fit). */
+      adding?: RoleName } }
   /** Something that happened is still fresh. */
   | { topic: string }
   /** The weather now. */

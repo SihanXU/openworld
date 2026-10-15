@@ -146,7 +146,7 @@ export class Conduct {
       return true
     }
     rt.quiet ??= t
-    if (t - rt.quiet >= CALM_AFTER) {
+    if (keepsWatch || t - rt.quiet >= CALM_AFTER) {
       rt.quiet = undefined
       eng.queue({ kind: 'impulse/notify', host: { e: e.id }, roles: {}, params: { what: 'calm' }, origin: 'world' })
     }
@@ -158,7 +158,8 @@ export class Conduct {
   /** The social goal: fear, the law, a debt (docs/npc-sandbox.md §2.6–2.7). */
   social(e: Entity, sc: Scene): boolean {
     if (!e.npc || e.place.on !== 'tile' || e.ai) return false
-    return this.afraid(e, sc) || this.pursue(e, sc) || this.confront(e, sc)
+    // A guard who has stopped fighting resumes the arrest before a witness's fear takes it away.
+    return this.pursue(e, sc) || this.afraid(e, sc) || this.confront(e, sc)
   }
 
   /** One afraid of someone near keeps away from them. */

@@ -97,9 +97,10 @@ describe('surfaces', () => {
 })
 
 describe('containers', () => {
-  const chestOf = (n: number, statuses = ['open']) => [
+  // `distinct`: one kind per thing, so it takes n slots; without it they are all one kind, one slot (stacks.test.ts)
+  const chestOf = (n: number, statuses = ['open'], distinct = false) => [
     { key: 'chest', type: 'fixture/container/chest', statuses },
-    ...Array.from({ length: n }, (_, i) => ({ key: `i${i}`, type: 'item/material/stone', inside: 'chest' })),
+    ...Array.from({ length: n }, (_, i) => ({ key: `i${i}`, type: 'item/material/stone', ...(distinct && { tags: [`kind${i}`] }), inside: 'chest' })),
   ]
 
   it('takes any chosen item from a chest of twelve', () => {
@@ -148,7 +149,8 @@ describe('containers', () => {
   })
 
   it('refuses when full, and the item stays in hand', () => {
-    const eng = play(chestOf(12), 'item/food/apple')
+    // twelve kinds, one in each slot (twelve of one kind would be one slot: see stacks.test.ts)
+    const eng = play(chestOf(12, ['open'], true), 'item/food/apple')
     expect(press(eng, 'put')).toMatchObject({ rules: expect.arrayContaining(['core/receive-store']), holes: [], offered: false })
     expect(heldBy(eng)).toBe('held')
     expect(eng.world.get('chest')!.contents).toHaveLength(12)

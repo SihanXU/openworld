@@ -387,7 +387,7 @@ const GUARD_TREE: Tree = IF(
         all(says('bribe'), WANTED),
         IF(all(not({ unpardonable: 'actor' }), { canPay: { role: 'actor', mul: 1.5 } }), DO({ op: 'fine', mul: 1.5, keep: true }, say("I didn't see a thing. Neither did you.", '我什么也没看见。你也是。')), DO(say("That won't cover it.", '这点钱可不够。'))),
       ],
-      [says('resist'), DO(say('Then you pay in blood!', '那就拿血来偿！'), emote('angry'), { op: 'foe' }, emit('notify', { around: 10 }, { what: 'help' }, { filter: { tags: ['watchman'] } }))],
+      [says('resist'), DO(say('Then you pay in blood!', '那就拿血来偿！'), emote('angry'), emit('notify', 'actor', { what: 'resist' }), { op: 'foe' }, emit('notify', { around: 10 }, { what: 'help' }, { filter: { tags: ['watchman'] } }))],
       [says('turnin'), IF(WANTED, DO(emit('handle', 'actor', { say: 'arrest' })), DO(say('You owe the watch nothing.', '你不欠守卫队什么。')))],
     ],
     'inherit',
@@ -405,6 +405,8 @@ const MERCHANT_TREE: Tree = IF(
 
 /** What a person is told (impulse/notify), beside what body/stage keeps (rules.ts folds these in there). */
 export const PERSON_NEWS = (rest: Tree): Tree =>
+  // Choosing to fight the watch takes a fighting stance; putting it away again yields to arrest.
+  IF(what('resist'), DO(add('drawn')),
   IF(what('pay'), DO({ op: 'pay', amount: { param: 'amount' }, to: 'source' }),
   // a quest's reward (docs/quests.md): what one makes of the one who did it (the actor)
   IF(what('regard'), DO({ op: 'regard', delta: { param: 'delta' } }),
@@ -416,7 +418,7 @@ export const PERSON_NEWS = (rest: Tree): Tree =>
   IF(what('calm'), DO({ op: 'calm' }),
   // a cry for help: one who fights (a guard, the smith) takes the attacker as its foe; the rest keep away from them
   IF(what('help'), IF(any({ prop: { role: 'host', key: 'fights', cmp: true } }, tag('host', 'watchman')), DO({ op: 'foe' }), DO({ op: 'fear' })),
-  rest)))))))))
+  rest))))))))))
 
 export const SOCIAL_RULES: Rule[] = [
   rule({
