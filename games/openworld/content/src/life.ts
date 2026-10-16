@@ -12,6 +12,7 @@
 
 import type { Cond, Effect, Recipe, Rule, SkillDef, Text, Tree } from '@openworld/engine'
 import { FORM_BY_ID, MATERIALS } from './items.ts'
+import { waterCrop } from './farming.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
@@ -239,7 +240,7 @@ export const LIFE_RULES: Rule[] = [
     doc: 'A growing crop told it is watered (a sprinkler\'s watering beside it) is watered.',
     host: { type: 'fixture', tags: ['crop', 'growing'] },
     on: 'impulse/notify',
-    tree: IF({ all: [param('what', 'water'), { not: has('host', 'watered') }] }, DO({ op: 'addStatus', status: 'watered' }, vfx('splash')), 'inherit'),
+    tree: IF({ all: [param('what', 'water'), { not: has('host', 'watered') }] }, waterCrop(), 'inherit'),
   }),
 ]
 
@@ -278,7 +279,7 @@ export const LIFE_SKILLS: SkillDef[] = [
   S('perennial-keeper', 'agriculture', ['green-fingers'], 'Perennial Keeper', '多年生', 'A perennial you harvest keeps its fertilizer and its yield as it grows back.', '多年生作物收获后保留施肥效果和产量。'),
   S('fruit-farmer', 'agriculture', ['perennial-keeper'], 'Fruit Farmer', '果蔬农', 'Tomatoes, corn, peppers and eggplants give two more at harvest.', '番茄、玉米、辣椒、茄子收获时多得 2 份。', { grant: { 'harvest:fruit': 2 } }),
   S('berry-farmer', 'agriculture', ['perennial-keeper'], 'Berry Farmer', '浆果农', 'Berries, blueberries and strawberries give two more at harvest.', '浆果、蓝莓、草莓收获时多得 2 份。', { grant: { 'harvest:berry': 2 } }),
-  S('irrigation', 'agriculture', ['wide-hoe'], 'Irrigation', '引水', 'A crop you water stays watered twice as long.', '你浇过水的作物保湿时间翻倍。'),
+  S('irrigation', 'agriculture', ['wide-hoe'], 'Irrigation', '引水', 'One watering supplies two growth stages, at the crop\'s normal pace.', '浇一次水可供作物连续生长两个阶段，生长速度不变。'),
   S('sprinkler', 'agriculture', ['irrigation'], 'Sprinkler', '广域浇灌', 'Watering a crop waters the growing crops around it too.', '浇一株作物时，周围生长中的作物也一起浇上水。'),
   S('composter', 'agriculture', ['wide-hoe'], 'Composter', '堆肥', 'Make fertilizer from three grass and an ash, by hand.', '学会堆肥：用 3 把草和 1 份灰烬手工做出肥料。'),
   S('rich-soil', 'agriculture', ['composter'], 'Rich Soil', '沃土', 'Fertilizer or ash you work in gives one more at harvest again.', '施肥（或灰烬）让收成再多 1 份。', { grant: { fertilize: 1 } }),

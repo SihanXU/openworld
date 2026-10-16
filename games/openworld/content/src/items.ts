@@ -3,7 +3,7 @@
 // whole classes while the world still holds tens of thousands of distinct items.
 
 import { gearProps, rollAffixes, type Entity, type MaterialDef, type PropValue, type QualityDef, type Rng, type TypeDef } from '@openworld/engine'
-import { VEGETABLE_CROPS } from './crops.ts'
+import { VEGETABLE_CROPS, cropHours } from './crops.ts'
 import { GEAR_LEVELS } from './gear.ts'
 import { AFFIX_TABLE, TROPHIES } from './trophies.ts'
 
@@ -298,11 +298,11 @@ export const FORMS: Form[] = [
   W('item/material/wax', 'Wax', '蜂蜡', 'item:wax', { tags: ['wax', 'flammable'], where: { temple: 1, farm: 0.5 } }),
   W('item/material/salt', 'Salt', '盐', 'item:salt', { tags: ['mineral'], where: { inn: 1, shop: 1 } }),
   W('item/material/ash', 'Ash', '灰烬', 'item:ash', { tags: ['burnt', 'powder'], where: {} }),
-  W('item/seed/wheat', 'Wheat Seeds', '麦种', 'item:seed', { tags: ['plantable'], props: { cropType: 'fixture/crop/wheat/sprout' }, where: { farm: 3, shop: 0.5 } }),
-  W('item/seed/herb', 'Herb Seeds', '草药种子', 'item:seed', { tags: ['plantable'], props: { cropType: 'fixture/crop/herb/sprout' }, where: { farm: 1, temple: 0.3, shop: 0.3 } }),
-  W('item/seed/berry', 'Berry Seeds', '浆果种子', 'item:seed', { tags: ['plantable'], props: { cropType: 'fixture/crop/berry/sprout' }, where: { farm: 1, wild: 0.3 } }),
+  W('item/seed/wheat', 'Wheat Seeds', '麦种', 'item:seed', { tags: ['plantable'], props: { cropType: 'fixture/crop/wheat/sprout', growHours: cropHours('wheat') }, where: { farm: 3, shop: 0.5 } }),
+  W('item/seed/herb', 'Herb Seeds', '草药种子', 'item:seed', { tags: ['plantable'], props: { cropType: 'fixture/crop/herb/sprout', growHours: cropHours('herb') }, where: { farm: 1, temple: 0.3, shop: 0.3 } }),
+  W('item/seed/berry', 'Berry Seeds', '浆果种子', 'item:seed', { tags: ['plantable'], props: { cropType: 'fixture/crop/berry/sprout', growHours: cropHours('berry'), regrows: true }, where: { farm: 1, wild: 0.3 } }),
   ...VEGETABLE_CROPS.map((c) => W(`item/seed/${c.id}`, `${c.en} Seeds`, `${c.zh}种子`, `item:${c.id}_seed`, {
-    tags: ['plantable'], props: { cropType: `fixture/crop/${c.id}/sprout` }, where: { farm: 2, shop: 0.5 },
+    tags: ['plantable'], props: { cropType: `fixture/crop/${c.id}/sprout`, growHours: cropHours(c.id), ...(c.perennial && { regrows: true }) }, where: { farm: 2, shop: 0.5 },
   })),
   W('item/seed/acorn', 'Acorn', '橡子', 'item:acorn', { tags: ['acorn'], props: { cropType: 'fixture/crop/oak/sapling' }, where: { wild: 0.5 } }),
   // wheat is feed too (Minecraft's: a cow or a hen fed wheat, homestead.ts)

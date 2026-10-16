@@ -161,7 +161,7 @@ const farm: QuestDef = {
   id: 'guide_farm',
   kind: 'guide',
   title: L('A Lesson in the Garden', '菜圃的一课'),
-  summary: L('The kitchen garden of Firstlight Village has a supplies crate with a hoe, a sickle, a bucket of water and seeds. Harvest a ripe crop with the sickle, sow a seed on the bare row, water it: every watering moves a crop on a stage two hours later. A hoe turns grass into farmland for a garden of your own.', '初原村的菜圃旁有个工具箱，里面有锄头、镰刀、一桶水和种子。用镰刀收割一株熟了的作物，在空着的那一行播一粒种子，再浇上水：每浇一次水，两小时后作物长一个阶段。锄头能把草地翻成耕地，开一片自己的菜圃。'),
+  summary: L('The kitchen garden of Firstlight Village has a supplies crate with a hoe, a sickle, a bucket of water and seeds. Harvest a ripe crop with the sickle, sow a seed on the bare row, water it: each stage takes one to four hours depending on the crop, as its seed says. A hoe turns grass into farmland for a garden of your own.', '初原村的菜圃旁有个工具箱，里面有锄头、镰刀、一桶水和种子。用镰刀收割一株熟了的作物，在空着的那一行播一粒种子，再浇上水：每阶段要一到四游戏小时，看作物种类，种子说明里有。锄头能把草地翻成耕地，开一片自己的菜圃。'),
   aliases: { pip: { id: LUMI_ID }, garden: { place: GARDEN }, crate: { id: 'ford.garden.supplies' } },
   objectives: [
     { id: 'hoe', text: L('Take the hoe from the garden supplies (E on the crate)', '从菜圃工具箱里拿锄头（对箱子按 E）'), target: 'crate', on: { carry: { type: 'item/tool/hoe' } } },
@@ -185,7 +185,7 @@ const farm: QuestDef = {
       on: { objectives: ['hoe', 'sickle', 'seeds'] },
       done: ['hoe', 'sickle', 'seeds'],
       show: ['harvest', 'sow', 'water'],
-      say: L('Good. See the three rows? Sprouts, young plants, and the top row is ripe. Harvest one with the sickle — it gives the crop and seeds back. Then sow a seed on the bare bottom row, and water it with the bucket. Each watering, two hours later, it grows a stage.', '好。看见那三排了吗？嫩芽、小苗，最上面一排熟了。用镰刀收一株——能得到作物，种子也会回来。然后在最下面空着的那行播一粒种子，再用水桶浇上水。每浇一次，两小时后长一个阶段。'),
+      say: L('Good. See the three rows? Sprouts, young plants, and the top row is ripe. Harvest one with the sickle — it gives the crop and seeds back. Then sow a seed on the bare bottom row, and water it with the bucket. Each stage takes one to four hours: check the seed. Water each stage; Irrigation supplies two.', '好。看见那三排了吗？嫩芽、小苗，最上面一排熟了。用镰刀收一株——能得到作物，种子也会回来。然后在最下面空着的那行播一粒种子，再用水桶浇上水。每阶段要一到四游戏小时，看看种子说明。每阶段需浇水；学会引水后浇一次能长两阶段。'),
       by: 'pip',
       hint: L('Hold the sickle and left click a ripe plant to harvest it. Hold a seed and left click the bare farmland on the bottom row to sow it. Hold the bucket of water and left click a growing plant to water it (the well by the square fills an empty bucket). A hoe on grass makes new farmland.', '拿着镰刀左键点熟了的作物就能收割。拿着种子左键点最下面一行的空耕地就是播种。拿着水桶左键点正在长的作物就是浇水（广场边的井能装满空桶）。拿锄头点草地就能开出新的耕地。'),
       log: L('Hoe, sickle and seeds in hand. The top row is ripe; the bottom row is bare.', '锄头、镰刀和种子都拿了。最上面一排熟了；最下面一行空着。'),
