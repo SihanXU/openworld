@@ -42,6 +42,8 @@ export const ROW = 10
 export const SLOT_COUNT = 30
 /** Dropped items within this many tiles fly into the bag (Stardew: 128 px, two tiles). */
 export const MAGNET = 2
+/** The most the magnet pulls in one tick: a pile flies in over a few ticks, never in one long stall (each is an act of taking). */
+export const MAGNET_PER_TICK = 25
 
 /** Stardew's line between tools and objects: tools are used, objects are given, placed or eaten. */
 const TOOL_PREFIXES = ['item/weapon/', 'item/tool/', 'item/light/', 'item/vessel/bucket/', 'item/vessel/flask/', 'item/vessel/waterskin/']
@@ -959,8 +961,13 @@ export class Controls {
 
   /** How many of a type the player carries (bag and hand). */
   count(type: string): number {
+    // (straight through what is carried: no stack keys to make, the whole bag's, for one type)
+    const p = this.w.player
     let n = 0
-    for (const items of this.carried().values()) for (const e of items) if (e.type === type && !e.frozenBy) n++
+    for (const id of [...(p.contents ?? []), ...(p.held ? [p.held] : [])]) {
+      const e = this.w.get(id)
+      if (e && e.type === type && !e.frozenBy) n++
+    }
     return n
   }
 
@@ -984,9 +991,12 @@ export class Controls {
     this.stow()
     this.eng.recipes.set(r.id, r)
     this.eng.act('craft', p.id, { e: p.id }, { instrument: null, params: { recipe: r.id } })
-    this.sync()
+    if (!this.crafting) this.sync()
     return true
   }
+
+  /** Making one after another (craftAll): the bag's slots are set once, after the last. */
+  private crafting = false
 
   // ---------------------------------------------------------------- setting built things down (the build palette)
 
@@ -1078,7 +1088,13 @@ export class Controls {
   /** Make it again and again while what it needs is carried (the crafting panel's "all"): how many times. */
   craftAll(r: Recipe, most = 99): number {
     let n = 0
-    while (n < most && this.craft(r)) n++
+    this.crafting = true
+    try {
+      while (n < most && this.craft(r)) n++
+    } finally {
+      this.crafting = false
+      if (n) this.sync()
+    }
     return n
   }
 
@@ -1093,11 +1109,13 @@ export class Controls {
     const by = this.carried(true)
     let free = (p.slots ?? []).filter((s) => !s).length
     let took = false
+    let left = MAGNET_PER_TICK
     // a longer reach (the skill) adds `magnet` tiles
     const reach = MAGNET + w.num(p, 'magnet')
     for (let dy = -reach; dy <= reach; dy++)
       for (let dx = -reach; dx <= reach; dx++)
         for (const e of w.entitiesAt(here.map, here.x + dx, here.y + dy, here.z)) {
+          if (left <= 0) break
           if (!e.dropped || e.frozenBy || !w.isPortable(e) || this.eng.society.isAnothers(e, p)) continue
           const k = this.key(e)
           if (!by.has(k)) {
@@ -1109,6 +1127,7 @@ export class Controls {
           w.fx.push({ t: 'pickup', item: e.id, sprite: r.sprite ?? e.type, name: e.name ?? r.name ?? { en: e.type }, map: here.map, x: here.x + dx, y: here.y + dy })
           this.eng.act('take', p.id, { e: e.id }, { instrument: null, params: { quiet: true, into: 'contents' }, reach })
           took = true
+          left--
         }
     if (took) this.sync()
   }
