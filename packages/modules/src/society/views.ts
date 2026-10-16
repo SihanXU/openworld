@@ -40,14 +40,15 @@ export function peopleViews(eng: Engine, open: { talk?: { who: Id; arrest?: bool
 }
 
 /**
- * Things alike at one price as one row, with how many (a bag of two thousand stones is one row, not two thousand: the
+ * Things alike at one price and ownership warning as one row, with how many (a bag of two thousand stones is one row, not two thousand: the
  * panel's view goes to the page every tick). The first of them is the one bought or sold.
  */
 function rows(eng: Engine, things: Entity[], price: (e: Entity) => number): TradeView['offers'] {
   const by = new Map<string, TradeView['offers'][number]>()
   for (const e of things) {
     const p = price(e)
-    const k = `${stackKey(e)}|${p}`
+    const steal = eng.society.isAnothers(e, eng.world.player)
+    const k = `${stackKey(e)}|${p}|${steal}`
     const row = by.get(k)
     if (row) row.count = (row.count ?? 1) + 1
     else {

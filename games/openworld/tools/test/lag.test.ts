@@ -89,6 +89,24 @@ describe('a big bag in the frame', () => {
 })
 
 describe('a big bag in the trade panel', () => {
+  it('keeps owned and stolen goods separate even when their rounded prices match', () => {
+    const { eng, w } = ford()
+    const p = w.player
+    const { merchant, owned, stolen } = eng.author(() => ({
+      merchant: w.create('actor/person', { on: 'tile', map: 'ford', x: AT.spawn[0] + 1, y: AT.spawn[1] }, {
+        tags: ['merchant', 'fence'], npc: { role: 'merchant', schedule: [] }, props: { purse: 100 },
+      }),
+      owned: Array.from({ length: 2 }, () => w.create('item/material/stone', { on: 'inside', holder: p.id }, { props: { value: 1, owner: p.id } })),
+      stolen: Array.from({ length: 2 }, () => w.create('item/material/stone', { on: 'inside', holder: p.id }, { props: { value: 1, owner: 'someone.else' } })),
+    }))
+    const offers = peopleViews(eng, { trade: merchant.id }).trade!.offers.filter((o) => o.item.type === 'item/material/stone')
+    expect(offers).toHaveLength(2)
+    expect(offers.map((o) => ({ id: o.item.id, steal: !!o.item.steal, price: o.price, count: o.count }))).toEqual([
+      { id: owned[0].id, steal: false, price: 1, count: 2 },
+      { id: stolen[0].id, steal: true, price: 1, count: 2 },
+    ])
+  })
+
   it('offers things alike at one price as one row with how many, not a row each', () => {
     const { eng, w } = ford()
     const p = w.player
