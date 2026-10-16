@@ -25,6 +25,14 @@ function names(v: StackShape['tags']): string[] {
   return [...list].sort()
 }
 
+const plainKeys = new Map<string, string>()
+function empty(v: StackShape['tags']): boolean {
+  if (!v) return true
+  if (Array.isArray(v)) return v.length === 0
+  if (v instanceof Set) return v.size === 0
+  return Object.keys(v).length === 0
+}
+
 /**
  * What makes things one stack: the same kind, the same name, the same tags and the same statuses —
  * how the bag's rows are drawn and how a container's slots are counted (`count … stacks`).
@@ -34,7 +42,13 @@ function names(v: StackShape['tags']): string[] {
  */
 export function stackKey(e: StackShape): string {
   if (e.stackKey !== undefined) return e.stackKey
-  return JSON.stringify([e.type, (e.name ?? e.entity?.name) ?? null, names(e.tags), names(e.statuses)])
+  const name = (e.name ?? e.entity?.name) ?? null
+  if (name === null && empty(e.tags) && empty(e.statuses)) {
+    let key = plainKeys.get(e.type)
+    if (key === undefined) plainKeys.set(e.type, (key = JSON.stringify([e.type, null, [], []])))
+    return key
+  }
+  return JSON.stringify([e.type, name, names(e.tags), names(e.statuses)])
 }
 
 /** Stable groups for the container panel and the input that transfers one displayed slot. */
