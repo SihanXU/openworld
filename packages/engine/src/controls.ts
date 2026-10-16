@@ -817,6 +817,12 @@ export class Controls {
 
   /** The chest panel: move one or all of a stack between the bag and an open container — acts of taking and putting. */
   transfer(container: Id, from: 'chest' | 'bag', item: Id, all: boolean): void {
+    for (const _ of this.transferSteps(container, from, item, all)) { /* synchronous callers finish the same acts */ }
+  }
+
+  /** The same transfer, yielding between acts so a host can keep its interface responsive. Closing the
+   * iterator synchronizes the hand and leaves every unprocessed item at its current place. */
+  *transferSteps(container: Id, from: 'chest' | 'bag', item: Id, all: boolean): Generator<{ done: number; total: number }, void> {
     const w = this.w
     const eng = this.eng
     const p = w.player
@@ -829,11 +835,23 @@ export class Controls {
     // A panel may still name the representative just moved; the remaining first slot is then its kind.
     const slot = chunks.find((s) => s.some((e) => e.id === item)) ?? chunks[0] ?? []
     const one = slot.find((e) => e.id === item) ?? slot[0]
-    for (const e of all ? slot : one ? [one] : []) {
-      if (from === 'chest') eng.act('take', p.id, { e: e.id }, { instrument: null })
-      else eng.act('put', p.id, { e: box.id }, { instrument: { e: e.id } })
+    const items = all ? slot : one ? [one] : []
+    if (!items.length) return
+    try {
+      yield { done: 0, total: items.length }
+      for (const [i, e] of items.entries()) {
+        if (!w.hasStatus({ e: box.id }, 'open') || box.place.on === 'none' || eng.busy(p)) return
+        // Another input or a rule may have moved this item while the host yielded.
+        const place = e.place
+        if ((place.on === 'inside' || place.on === 'hand') && place.holder === (from === 'chest' ? box.id : p.id)) {
+          if (from === 'chest') eng.act('take', p.id, { e: e.id }, { instrument: null })
+          else eng.act('put', p.id, { e: box.id }, { instrument: { e: e.id } })
+        }
+        yield { done: i + 1, total: items.length }
+      }
+    } finally {
+      this.sync()
     }
-    this.sync()
   }
 
   /**
