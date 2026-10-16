@@ -1489,10 +1489,12 @@ req('W16', 'stages: a watered sprout out under the sky grows a stage, one in a r
   const sprout = (cx: number, cy: number) => author(f, () => W(f).create('fixture/crop/carrot/sprout', { on: 'tile', map: 'ford', x: cx, y: cy }))
   const inside = sprout(x, y)
   const outside = sprout(...out!)
-  // nothing starts a crop's stage but water: unwatered, it stays
-  expect(W(f).hasStatus({ e: outside.id }, 'stage')).toBe(false)
-  for (const s of [inside, outside]) author(f, () => W(f).setStatus({ e: s.id }, 'watered', W(f).state.tick + 2))
-  ticks(f, 5)
+  // The stage clock can wait while dry; water is required for actual growth.
+  expect(W(f).hasStatus({ e: outside.id }, 'watered')).toBe(false)
+  ticks(f, 1201)
+  expect(W(f).get(outside.id)?.type).toBe('fixture/crop/carrot/sprout')
+  for (const s of [inside, outside]) f.eng.dispatch({ kind: 'impulse/element', host: { e: s.id }, roles: { actor: { e: W(f).player.id } }, params: { element: 'water', power: 1 }, origin: 'world' })
+  ticks(f, 1201)
   expect(W(f).get(outside.id)?.type).toBe('fixture/crop/carrot/young')
   expect(W(f).get(inside.id)?.type).toBe('fixture/crop/carrot/sprout')
   // in the dark it waits, and looks again
@@ -3830,7 +3832,7 @@ req('H3', "the homestead, further: Stardew's crops (ten more, five bearing again
     for (const s of CROP_STAGES) expect([id, s, !!buildOntology().types[`fixture/crop/${id}/${s}`]]).toEqual([id, s, true])
   }
   expect(buildOntology().types['fixture/crop/blueberry'].tags).toContain('perennial')
-  // a melon sown on the Held Ground's earth, watered three times, ripens
+  // A melon sown on the Held Ground's earth, watered at both stages, ripens at its own pace.
   const [fx, fy] = [HAVEN.heart[0] - 5, HAVEN.heart[1] + 3]
   author(f, () => w.create('item/seed/melon', { on: 'inside', holder: 'player' }))
   c.sync()
@@ -3840,8 +3842,11 @@ req('H3', "the homestead, further: Stardew's crops (ten more, five bearing again
   for (let i = 0; i < 3; i++) {
     const crop = w.placedAt('haven', fx, fy).find((e) => e.type.startsWith('fixture/crop/melon'))!
     if (crop.type.endsWith('/ripe')) break
-    f.eng.author(() => f.eng.applyStatus({ e: crop.id }, 'watered', 1))
-    ticks(f, 5)
+    const bucket = author(f, () => w.create('item/vessel/bucket/water', { on: 'inside', holder: 'player' }))
+    c.sync()
+    c.select(w.player.slots!.indexOf(c.key(bucket)))
+    run(f, 'use', fx, fy)
+    ticks(f, Number(w.prop(crop, 'growHours')) * 600 + 1)
   }
   expect(w.placedAt('haven', fx, fy).find((e) => e.type.startsWith('fixture/crop/melon'))?.type).toBe('fixture/crop/melon/ripe')
   // fish by the hour and the water

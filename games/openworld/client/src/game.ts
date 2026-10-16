@@ -3,6 +3,7 @@
 // own panels (ui/panels.ts: the companion's, the Held Ground's).
 
 import type { ClientGame } from '@openworld/runtime/src/game.ts'
+import { describeItem } from './itemTips.ts'
 import {
   BOON_BY_ID,
   BOSS_LAYOUT,
@@ -66,6 +67,7 @@ import { CATALOG } from './catalog.ts'
 import { PANELS } from './ui/panels.ts'
 
 export const CLIENT_GAME: ClientGame = {
+  describeItem,
   ...GAME,
   catalog: CATALOG,
   // its saves and its library keep the names they had before there were other games on the page

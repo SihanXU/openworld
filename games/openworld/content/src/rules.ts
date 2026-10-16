@@ -7,6 +7,7 @@
 
 import { HOMESTEAD_RULES } from './homestead.ts'
 import { LIFE_RULES } from './life.ts'
+import { CROP_GROWTH_RULE, waterCrop } from './farming.ts'
 import { KIT_RULES } from './kits.ts'
 import { CH1 } from './chapter1.ts'
 import { VILLAGE_SHOP_RULES } from './village.ts'
@@ -517,6 +518,8 @@ const PEOPLE: Rule[] = [
 
 /** A person, with nothing drawn against them: what is in hand is not a blow on them (the AI says what it is). */
 const UNDRAWN_ON_PERSON: Cond = all(is('target', PERSON), not(has('actor', 'drawn')))
+// Putting a weapon on oneself is still dressing while drawn; an explicit attack remains a blow.
+const HANDLE_WEAPON: Cond = any(all({ same: ['actor', 'target'] }, not(param('attack', true))), UNDRAWN_ON_PERSON)
 
 const USE: Selector[] = []
 void USE
@@ -689,28 +692,28 @@ const INSTRUMENTS: Rule[] = [
     doc: 'A blade used on something strikes it with a cutting edge — on a person only with the blade drawn (X: a blow on a person is meant).',
     host: { type: 'item/weapon/blade' },
     on: 'act/use',
-    tree: IF(UNDRAWN_ON_PERSON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'cut', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'cut', ...WOUND }))),
   }),
   rule({
     id: 'use/polearm',
     doc: 'A spear or a halberd used on something strikes it with a point — on a person only with it drawn.',
     host: { type: 'item/weapon/polearm' },
     on: 'act/use',
-    tree: IF(UNDRAWN_ON_PERSON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'pierce', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'pierce', ...WOUND }))),
   }),
   rule({
     id: 'use/weapon',
     doc: 'A weapon used on something strikes it — on a person only with it drawn.',
     host: { type: 'item/weapon' },
     on: 'act/use',
-    tree: IF(UNDRAWN_ON_PERSON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND }))),
   }),
   rule({
     id: 'use/spell',
     doc: 'A wand cast at something strikes it with its element — at a person only with it drawn.',
     host: { type: 'item/weapon/magic' },
     on: 'act/use',
-    tree: IF(UNDRAWN_ON_PERSON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'magic', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'magic', ...WOUND }))),
   }),
   ...(
     [
@@ -817,7 +820,7 @@ const PLACING: Rule[] = [
   rule({
     id: 'core/receive-store',
     label: L('Put {instrument} in {target}', '把{instrument}放进{target}'),
-    doc: 'An open container takes what is put in it, up to its capacity; a closed one takes nothing.',
+    doc: 'An open container takes what is put in it, up to its capacity — the capacity is its slots, not its things: a slot holds a stack of one kind (what a kind already there takes no new slot, so a stack with room still takes one more); a closed one takes nothing.',
     host: CONTAINER,
     on: 'impulse/receive',
     tree: IF(
@@ -825,7 +828,12 @@ const PLACING: Rule[] = [
       'inherit',
       IF(
         has('host', 'open'),
-        IF({ count: { role: 'host', in: 'contents', cmp: { gte: { prop: 'capacity', of: 'host' } } } }, DO(say('It is full.', '已经装满了。', 'actor')), DO(taken('contents'), log('You put {item} into {host}.', '你把{item}放进了{host}。'))),
+        IF(
+          // the slots it would take with this one in, against the capacity it names: over it, there is no room
+          { count: { role: 'host', in: 'contents', stacks: true, adding: 'item', cmp: { gt: { prop: 'capacity', of: 'host' } } } },
+          DO(say('It is full.', '已经装满了。', 'actor')),
+          DO(taken('contents'), log('You put {item} into {host}.', '你把{item}放进了{host}。')),
+        ),
         DO(say('It is closed.', '它是关着的。', 'actor')),
       ),
     ),
@@ -1347,8 +1355,8 @@ const BUILD: Rule[] = [
 // ------------------------------------------------------------------ farming
 //
 // A crop is a fixture that names its next stage, yield, seed and yield count as props, so one
-// set of rules grows and harvests every plant. Watering starts a timer (`watered`); when it runs
-// out the crop moves on a stage. Ash fertilizes: one more of the crop at harvest.
+// set of rules grows and harvests every plant. Watering starts its stage clock; water is spent
+// as it grows, with Irrigation keeping some for the next stage. Ash adds one to the harvest.
 
 const CROP: Selector = { type: 'fixture', tags: ['crop'] }
 const GROWING: Selector = { type: 'fixture', tags: ['crop', 'growing'] }
@@ -1370,8 +1378,10 @@ function CATCH(baited: boolean): Tree {
   // Fisher finds pike in any water: life.ts)
   const caught = (type: string, en: string, zh: string): Tree => DO(add('stirred'), { op: 'spawn', type, at: 'actor', into: 'contents' }, { op: 'spawn', type: 'item/food/fish/raw', at: 'actor', into: 'contents', count: { prop: 'fishExtra', of: 'actor' } }, ...(baited ? [emit('notify', 'instrument', { what: 'cast' })] : []), vfx('splash'), log(en, zh))
   const lucky = (p: number): Cond => any({ chance: p }, all(tag('actor', 'skill:lucky-catch'), { chance: p }))
+  const deep: Cond = is('host', { type: 'tile/deepwater' })
+  const carp: Cond = any(all(deep, lucky(0.1)), all(not(deep), lucky(0.06)))
   return IF(all({ hour: { from: 5, to: 8 } }, lucky(0.03)), caught('item/food/fish/dawnscale', 'The line glows as it comes up — a Dawnscale, scales like the first morning!', '鱼线出水时在发光——是晨鳞鱼，鳞片像第一个清晨！'),
-    IF(lucky(0.06), caught('item/food/fish/carp', 'Gold flashes in the water — a golden carp!', '水里闪过一道金光——是金鳞鲤！'),
+    IF(carp, caught('item/food/fish/carp', 'Gold flashes in the water — a golden carp!', '水里闪过一道金光——是金鳞鲤！'),
       IF({ chance: 0.08 }, caught('item/misc/old_boot', 'Something heavy... an old boot.', '沉甸甸的……是一只旧靴子。'),
         IF(all({ weather: ['rain', 'storm'] }, { chance: 0.4 }), caught('item/food/fish/catfish', 'A whiskered head out of the rain — a catfish!', '雨里钻出一个长胡子的脑袋——是鲶鱼！'),
           IF(all({ hour: { from: 20, to: 5 } }, { chance: 0.45 }), caught('item/food/fish/eel', 'It writhes on the line in the dark — an eel!', '黑暗里它在鱼线上扭动——是鳗鱼！'),
@@ -1381,12 +1391,9 @@ function CATCH(baited: boolean): Tree {
                   caught('item/food/fish/raw', 'A tug — you reel in a fish!', '一沉——你拉上来一条鱼！')))))))))
 }
 
-/** A crop watered: its status (twice as long for Irrigation), and the crops around told (a Sprinkler's). */
+/** A crop watered, and the crops around told (a Sprinkler's). */
 function WATER(): Tree {
-  const around = emit('notify', { area: { radius: 1 } }, { what: 'water' }, { filter: { ...GROWING, notStatus: ['watered'] } })
-  const watered = (long: boolean, wide: boolean) => DO(add('watered', long ? 2400 : undefined), ...(wide ? [around] : []), vfx('splash'), log('You water {host}.', '你给{host}浇了水。'))
-  const wide = (long: boolean) => IF(tag('actor', 'skill:sprinkler'), watered(long, true), watered(long, false))
-  return IF(tag('actor', 'skill:irrigation'), wide(true), wide(false))
+  return IF(tag('actor', 'skill:sprinkler'), waterCrop(true), waterCrop())
 }
 
 /**
@@ -1425,6 +1432,7 @@ function PICK(): Tree {
 const CROP_KINDS = ['grain', 'herb', 'berry', 'root', 'gourd', 'fruit'] as const
 
 const FARM: Rule[] = [
+  CROP_GROWTH_RULE,
   ...useOrPut.map((on) =>
     rule({
       id: `farm/sow${on === 'act/put' ? '-put' : ''}`,
@@ -1448,10 +1456,10 @@ const FARM: Rule[] = [
   rule({
     id: 'farm/water',
     label: L('Water {target}', '给{target}浇水'),
-    doc: 'Water on a growing crop waters it (two hours later it grows a stage).',
+    doc: 'Water on a growing crop starts a full stage at its own pace; Irrigation supplies the next stage too.',
     host: GROWING,
     on: 'impulse/element',
-    // (Irrigation: the water stays twice as long; a Sprinkler waters the growing crops around too: life.ts farm/watered)
+    // A sprinkler's neighbours use the same clock and retained water (life.ts farm/watered).
     tree: IF(all(param('element', 'water'), not(has('host', 'watered'))), WATER(), 'inherit'),
   }),
   ...useOrPut.map((on) =>

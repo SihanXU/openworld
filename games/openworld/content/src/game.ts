@@ -16,6 +16,14 @@ const FORGED = new Set(SET_DEFS.map((s) => s.id))
 function upgradeSave(eng: Engine): void {
     const w = eng.world
     for (const e of Object.values(w.state.entities)) {
+      // Older crops used their finite watering deadline as the growth clock. Keep that deadline;
+      // the new water supply is spent by growth, rather than making Irrigation delay it.
+      const watered = e.statuses?.watered
+      if (typeof watered === 'number' && watered >= 0 && w.hasTag(e, 'crop') && w.hasTag(e, 'growing')) {
+        const by = w.statusBy({ e: e.id }, 'watered')
+        w.setStatus({ e: e.id }, 'stage', watered, by)
+        w.setStatus({ e: e.id }, 'watered', -1, by)
+      }
       // Early Iron Stomach saves used its delta as an absolute interval (faster, not slower).
       if (e.tags?.includes('skill:iron-stomach') && e.props?.hungerEvery === 150) w.setProp(e, 'hungerEvery', 450)
       // Hunger's base pace was a point every 300 ticks (now HUNGER_EVERY): a skill's kept interval on

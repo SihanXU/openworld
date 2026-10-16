@@ -41,7 +41,7 @@ export class SkillPanel {
     this.sig = sig
     const source = (k: KnownActive) => {
       if (k.source === 'gear') {
-        const item = f.player.inventory.find((i) => i.id === k.item)
+        const item = f.player.inventory.find((i) => i.ids.includes(k.item!))
         return `<span class="sp-src gear">${zh ? '装备' : 'Gear'}${item ? `：${esc(tx(item.name))}` : ''}</span>`
       }
       return k.source === 'book' ? `<span class="sp-src book">${zh ? '技能书' : 'Skill book'}</span>` : `<span class="sp-src tree">${zh ? '天赋树' : 'Skill tree'}</span>`
