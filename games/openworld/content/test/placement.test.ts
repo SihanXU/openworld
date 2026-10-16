@@ -134,10 +134,9 @@ describe('vegetable garden', () => {
       expect(place(e, 'water').ok).toBe(true)
       expect(place(e, 'water').ok).toBe(false)
       expect(e.world.hasStatus({ e: crop.id }, 'watered')).toBe(true)
-      // two hours on: the watering runs out (the clock), and the crop grows a stage
-      e.author(() => e.world.clearStatus({ e: crop.id }, 'watered'))
-      e.dispatch({ kind: 'time/timer', host: { e: crop.id }, roles: {}, params: { status: 'watered' }, origin: 'world' })
-      e.flush()
+      // Wait the crop's actual clock, preserving the real watering and harvest assertions.
+      const duration = Number(e.world.prop(crop, 'growHours')) * 600
+      for (let i = 0; i < duration; i++) e.tick()
     }
     grow()
     expect(crop.type).toBe(`fixture/crop/${c.id}/young`)

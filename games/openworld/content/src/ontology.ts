@@ -12,7 +12,7 @@ import { GEAR_SETS } from './sets.ts'
 import { AFFIX_TABLE, LOOT, TROPHY_OF, TROPHY_SETS } from './trophies.ts'
 import { PILGRIMAGE_TYPES } from './pilgrimage.ts'
 import { FAITH_STATUSES } from './faith.ts'
-import { VEGETABLE_CROPS } from './crops.ts'
+import { VEGETABLE_CROPS, cropHours } from './crops.ts'
 import { BOSSES, BOSS_ENCOUNTERS, BOSS_KITS, BOSS_TYPES } from './bosses.ts'
 import { KITS } from './kits.ts'
 import { SKILL_STATUSES } from './afflictions.ts'
@@ -207,7 +207,8 @@ export const STATUSES: StatusDef[] = [
   /** A waypoint stone touched: it glows, and the world map can take you to it (docs/prologue.md). */
   { id: 'attuned', name: { en: 'attuned', zh: '已共鸣' } },
   { id: 'notched', name: { en: 'notched', zh: '砍了一斧' }, duration: 100 },
-  { id: 'watered', name: { en: 'watered', zh: '浇过水' }, duration: 1200, overlay: 'wet' },
+  { id: 'watered', name: { en: 'watered', zh: '浇过水' }, overlay: 'wet' },
+  { id: 'irrigated', name: { en: 'water held for the next stage', zh: '已蓄水供下一阶段' } },
   { id: 'fertilized', name: { en: 'fertilized', zh: '施过肥' } },
   // a stage's clock (world-model.md §6.5): when it runs out, the thing becomes what its stage says next
   { id: 'stage', name: { en: 'growing', zh: '生长中' } },
@@ -370,10 +371,10 @@ const CROP_KIND: Record<string, string> = {
 function crop(id: string, en: string, zh: string, yieldType: string, young: [string, string], ripe: [string, string], ripeTags: string[] = [], tags: string[] = []): TypeDef[] {
   const base = `fixture/crop/${id}`
   return [
-    F(base, en, zh, tags, { props: { yieldType, seedType: `item/seed/${id}`, ...(tags.includes('perennial') && { regrowType: `${base}/young` }) } }),
-    // a stage a watering moves on when it has soaked in (two game hours), out under the sky
-    F(`${base}/sprout`, `${en} sprout`, `${zh}嫩芽`, ['growing'], { sprite: `fixture:${id}_sprout`, stage: { into: `${base}/young`, clock: 'watered', needs: LIGHT, wait: 600, fx: 'leaves' } }),
-    F(`${base}/young`, young[0], young[1], ['growing'], { sprite: `fixture:${id}_young`, stage: { into: `${base}/ripe`, clock: 'watered', needs: LIGHT, wait: 600, fx: 'leaves' } }),
+    F(base, en, zh, tags, { props: { yieldType, seedType: `item/seed/${id}`, growHours: cropHours(id), ...(tags.includes('perennial') && { regrowType: `${base}/young` }) } }),
+    // Water starts a full stage; a dry plant waits. Irrigation supplies another stage without slowing either one.
+    F(`${base}/sprout`, `${en} sprout`, `${zh}嫩芽`, ['growing'], { sprite: `fixture:${id}_sprout`, stage: { into: `${base}/young`, lasts: cropHours(id) * 600, needs: { all: [LIGHT, { has: { role: 'host', status: 'watered' } }] }, wait: 600, fx: 'leaves' } }),
+    F(`${base}/young`, young[0], young[1], ['growing', 'ripening'], { sprite: `fixture:${id}_young`, stage: { into: `${base}/ripe`, lasts: cropHours(id) * 600, needs: { all: [LIGHT, { has: { role: 'host', status: 'watered' } }] }, wait: 600, fx: 'leaves' } }),
     F(`${base}/ripe`, ripe[0], ripe[1], ['ripe', ...ripeTags], { sprite: `fixture:${id}_ripe` }),
   ]
 }

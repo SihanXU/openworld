@@ -1,6 +1,8 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
 import { untilUp } from './untilUp.ts'
+import { TransferQueue } from './transferQueue.ts'
+import { scheduleTransferTurn } from './transferScheduler.ts'
 import { artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeOf, shareKept, sharedPart, takeDefinitions, withKept } from './learned.ts'
 import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
@@ -9,6 +11,8 @@ import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary,
 
 const TICK_MS = 100
 const post = (m: FromWorker) => (self as unknown as Worker).postMessage(m)
+const transfers = new TransferQueue((err) => post({ t: 'error', message: (err as Error).stack ?? String(err) }), undefined, scheduleTransferTurn)
+let nextTransferFrame = 0
 
 let base = ''
 let index: WorldIndex
@@ -340,7 +344,7 @@ function keyViews(): Frame['keys'] {
 }
 
 /** Time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player). */
-const timeStopped = (g: Game) => paused || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets
+const timeStopped = (g: Game) => paused || transfers.busy || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets
 
 /** What the keys would do now, as a frame says it: nothing while time stands or the player cannot act. */
 const keysNow = (g: Game): Frame['keys'] => (timeStopped(g) || g.engine.busy(g.engine.world.player) ? undefined : keyViews())
@@ -469,6 +473,9 @@ function loop(): void {
   if (!asking) asked = undefined
   else if (t0 - asked!.since > (asking.deadline === Number.POSITIVE_INFINITY ? MAKE_MS : ASK_MS)) game.mods.fallback(asking.id)
   peopleOpened(eng)
+  // A paused world's full snapshot can itself cost more than a tick on large saves. Reserve
+  // most worker time for the transfer; ordinary messages and closing the panel still run.
+  if (transfers.busy && t0 < nextTransferFrame) return
   const stopped = timeStopped(game)
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
@@ -502,6 +509,8 @@ function loop(): void {
   if (w.fx.some((x) => x.t === 'quest')) saveEvery = 599
   // (what the tick itself opened: a guard stopping the one at the keys)
   peopleOpened(eng)
+  // Transfers pause ticks, but their progress frames still need new bag kinds and the hand.
+  if (transfers.busy) eng.controls.keep()
   const frame = snapshot(eng, { panel })
   if (panel && !frame.container) panel = undefined // closed by the world (it burned, a rule shut it)
   // the people's panels: closed when the one they are with is gone (dead, away)
@@ -513,10 +522,11 @@ function loop(): void {
   frame.keys = keysNow(game)
   maybePrefetch()
   lastTickMs = performance.now() - t0
+  nextTransferFrame = transfers.busy ? performance.now() + Math.max(TICK_MS, lastTickMs * 3) : 0
   // the codex: what the player carries and who and what is near (the reader's record, beside the state)
   if (w.state.tick % 5 === 0) game.codex.record(w)
   const learning = asking && asked ? { seconds: Math.floor((t0 - asked.since) / 1000), limit: (asking.deadline === Number.POSITIVE_INFINITY ? MAKE_MS : ASK_MS) / 1000 } : undefined
-  post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length }, codex: game.codex.version, learning })
+  post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length }, codex: game.codex.version, learning, transfer: transfers.progress })
   if (buildAim) post({ t: 'placement', preview: buildPreview(eng, buildAim.id, { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }, buildAim.up) })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {
     if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: sharedPart(eng.lib.toJSON(), kept), statuses: eng.lib.statuses }), sendArts(), sendRecipes())
@@ -536,6 +546,9 @@ function loop(): void {
 }
 
 async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Promise<void> {
+  transfers.cancel()
+  nextTransferFrame = 0
+  panel = undefined
   base = init.base
   if (init.prefetch !== undefined) prefetchAsked = init.prefetch
   if (init.quality) quality = qualityOf(init.quality)
@@ -754,7 +767,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (game) setSkill(game.engine, m.slot, m.id)
         break
       case 'transfer':
-        if (game && panel) game.engine.controls.transfer(panel, m.from, m.item, m.all)
+        if (game && panel) {
+          if (!transfers.busy) nextTransferFrame = 0
+          const owner = game, container = panel
+          transfers.enqueue(owner.engine.controls.transferSteps(container, m.from, m.item, m.all), m.from,
+            () => game === owner && panel === container && !owner.engine.world.state.question && !owner.mods.asking)
+        }
         break
       case 'toggle':
         game?.engine.controls.toggle(m.what)
@@ -791,6 +809,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         pockets = undefined
         break
       case 'closePanel': {
+        transfers.cancel()
         if (game && panel && game.engine.world.hasStatus({ e: panel }, 'open')) game.engine.interact('interact', game.engine.world.state.player, { e: panel }, { instrument: null })
         panel = undefined
         break

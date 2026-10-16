@@ -4,7 +4,7 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import type { ItemInfo, Ontology } from '@openworld/engine'
-import { useGame, type ClientGame } from '../src/game.ts'
+import { game, useGame, type ClientGame } from '../src/game.ts'
 import { tooltipHtml } from '../src/ui/tooltip.ts'
 
 // (the tooltip reaches the renderer's text helper; only Phaser's browser base is mocked)
@@ -19,6 +19,14 @@ const text = (html: string) => html.replace(/<[^>]+>/g, '\n').split('\n').map((s
 const times = (lines: string[], word: string) => lines.filter((l) => l.includes(word)).length
 
 describe('the item tooltip', () => {
+  it('renders the current game item descriptions as escaped text', () => {
+    play(onto())
+    Object.assign(game(), { describeItem: (it: ItemInfo) => [{ en: `Charges: ${it.props.charges} <safe>` }] })
+    const ctx = { atk: 1, nameOf: () => undefined }
+    const html = tooltipHtml(item('item/tool', { charges: 3 }), ctx)
+    expect(html).toContain('Charges: 3 &lt;safe&gt;')
+    expect(tooltipHtml(item('item/tool', { charges: 0 }), ctx)).toContain('Charges: 0')
+  })
   it("says a piece's critical chance once, in the off hand, on the body or in the main hand", () => {
     play(onto())
     const ctx = { atk: 1, nameOf: () => undefined }

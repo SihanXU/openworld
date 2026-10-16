@@ -31,3 +31,8 @@ export const VEGETABLE_CROPS: readonly VegetableCrop[] = [
 export const GARDEN_CROPS: readonly VegetableCrop[] = VEGETABLE_CROPS.slice(0, 4)
 
 export const CROP_STAGES = ['sprout', 'young', 'ripe'] as const
+
+/** Game hours per watered stage; other plants keep the two-hour pace. */
+export const cropHours = (id: string): number =>
+  ['turnip', 'parsnip', 'radish'].includes(id) ? 1 :
+  ['pumpkin', 'cauliflower', 'melon', 'corn', 'blueberry'].includes(id) ? 4 : 2

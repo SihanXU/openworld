@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { RuleLibrary, SANDBOX_MAP, buildSandbox, type Engine, type Key } from '@openworld/engine'
 import { BASE_RULES, buildOntology } from '../src/index.ts'
+import GAME from '../src/game.ts'
 
 const onto = buildOntology()
 const HOURS = 600
@@ -196,5 +197,97 @@ describe('fire and trees', () => {
     }
     expect(acorns).toBeGreaterThan(0)
     expect(acorns).toBeLessThan(20)
+  })
+})
+
+describe('crop timing and retained water', () => {
+  it.each([['turnip', 600], ['carrot', 1200], ['pumpkin', 2400]] as const)('%s takes its own full stage after watering', (id, duration) => {
+    const eng = farm(1, { 0: `fixture/crop/${id}/sprout` })
+    // A dry plant's time before watering does not count as growth.
+    wait(eng, 300)
+    press(eng, 'use', WATER)
+    stow(eng)
+    wait(eng, duration - 1)
+    expect(at(eng, 0)).toEqual([`fixture/crop/${id}/sprout`])
+    wait(eng, 2)
+    expect(at(eng, 0)).toEqual([`fixture/crop/${id}/young`])
+    wait(eng, duration + 1)
+    expect(at(eng, 0)).toEqual([`fixture/crop/${id}/young`])
+  })
+
+  it('irrigation saves a second watering without delaying either stage', () => {
+    for (const irrigated of [false, true]) {
+      const eng = farm(1, { 0: 'fixture/crop/carrot/sprout' })
+      if (irrigated) eng.author(() => eng.world.addTag(eng.world.player, 'skill:irrigation'))
+      press(eng, 'use', WATER)
+      stow(eng)
+      wait(eng, 1201)
+      expect(at(eng, 0), String(irrigated)).toEqual(['fixture/crop/carrot/young'])
+      wait(eng, 1200)
+      expect(at(eng, 0), String(irrigated)).toEqual([`fixture/crop/carrot/${irrigated ? 'ripe' : 'young'}`])
+    }
+  })
+
+  it('a sprinkler respects each neighbouring crop and shares irrigation', () => {
+    const eng = farm(3, { 0: 'fixture/crop/turnip/sprout', 1: 'fixture/crop/carrot/sprout', 2: 'fixture/crop/pumpkin/sprout' })
+    eng.author(() => {
+      eng.world.addTag(eng.world.player, 'skill:irrigation')
+      eng.world.addTag(eng.world.player, 'skill:sprinkler')
+    })
+    standAt(eng, 1)
+    press(eng, 'use', WATER)
+    stow(eng)
+    wait(eng, 1201)
+    expect(at(eng, 0)).toEqual(['fixture/crop/turnip/ripe'])
+    expect(at(eng, 1)).toEqual(['fixture/crop/carrot/young'])
+    expect(at(eng, 2)).toEqual(['fixture/crop/pumpkin/sprout'])
+    wait(eng, 3600)
+    expect(at(eng, 2)).toEqual(['fixture/crop/pumpkin/ripe'])
+  })
+
+  it('irrigating the last stage leaves no water to reuse after a perennial harvest', () => {
+    const eng = farm(1, { 0: 'fixture/crop/tomato/young' })
+    eng.author(() => eng.world.addTag(eng.world.player, 'skill:irrigation'))
+    press(eng, 'use', WATER)
+    stow(eng)
+    wait(eng, 1201)
+    expect(at(eng, 0)).toEqual(['fixture/crop/tomato/ripe'])
+    press(eng, 'take')
+    stow(eng)
+    wait(eng, 2401)
+    expect(at(eng, 0)).toContain('fixture/crop/tomato/young')
+  })
+
+  it('retained water catches up both elapsed stages on returning to a dormant crop', () => {
+    const eng = farm(1, { 0: 'fixture/crop/carrot/sprout' })
+    eng.author(() => eng.world.addTag(eng.world.player, 'skill:irrigation'))
+    press(eng, 'use', WATER)
+    stow(eng)
+    // A dormant map receives the elapsed world time on return; both deadlines have already passed.
+    eng.author(() => { eng.world.state.tick += 2405 })
+    wait(eng, 2)
+    expect(at(eng, 0)).toEqual(['fixture/crop/carrot/ripe'])
+    expect(eng.world.hasStatus({ e: 'c0' }, 'watered')).toBe(false)
+  })
+
+  it('upgrading a finite watering clock preserves its deadline and other saved progress', () => {
+    const eng = farm(1, { 0: 'fixture/crop/pumpkin/sprout' })
+    const w = eng.world
+    eng.author(() => {
+      w.setStatus({ e: 'c0' }, 'watered', 700)
+      w.clearStatus({ e: 'c0' }, 'stage')
+      w.create('item/tool/fishing_rod', { on: 'inside', holder: 'actor' }, { props: { bait: 3 } })
+      w.setFact('haven.zone.lake', 1)
+      GAME.upgradeSave!(eng)
+    })
+    expect(w.get('c0')?.statuses?.stage).toBe(700)
+    expect(w.get('c0')?.statuses?.watered).toBe(-1)
+    wait(eng, 701)
+    expect(at(eng, 0)).toEqual(['fixture/crop/pumpkin/young'])
+    expect(w.fact('haven.zone.lake')).toBe(1)
+    expect(Object.values(w.state.entities).find((e) => e.type === 'item/tool/fishing_rod')?.props?.bait).toBe(3)
+    const before = structuredClone(w.get('c0'))
+    eng.author(() => GAME.upgradeSave!(eng))
+    expect(w.get('c0')).toEqual(before)
   })
 })

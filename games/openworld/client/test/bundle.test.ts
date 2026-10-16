@@ -39,6 +39,8 @@ describe('OpenWorld from its bundle', () => {
     const more = plugin(g) as Partial<ClientGame>
     expect(Object.keys(more.panels ?? {})).toEqual(['companion', 'boons', 'haven'])
     expect(more.panels!.companion).toBe(more.panels!.boons)
+    expect(bundle.client.describeItem).toBeUndefined()
+    expect(more.describeItem).toBe(CLIENT_GAME.describeItem)
   })
 
   it('each of its panels loads when it is first opened, and makes a panel', async () => {

@@ -292,4 +292,15 @@ describe('detecting what a model carries', () => {
     expect(library.seq).toBe(0)
     expect(state.episodes()).toHaveLength(0)
   })
+
+  it('passes over a question its history keeps in an older shape (the Ford of 2026-10-02: a verb, no roles), not failing on it', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lsw-q-'))
+    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
+    const state = SelfState.open(join(dir, 'modder-state'))
+    const old = { id: 'req-old', summary: 'you use Stone on tree', origin: 'player', event: { kind: 'interaction', verb: 'use', actor: { id: 'player', type: 'actor/person/player' }, target: { id: 't', type: STONE } }, scenario: { entities: [], event: {} } }
+    state.recordEpisode({ id: state.newEpisodeId(), at: new Date().toISOString(), kind: 'world', summary: old.summary, request: old, key: 'old', terms: [], outcome: 'accepted', attempts: [], tools: [], rules: [], shown: { lessons: [], episodes: [], skills: [] }, skillsRead: [], harness: 1, profile: 'live', usage: { calls: 0, input: 0, output: 0 }, ms: 0 } as never)
+    const req = ask('medium').req
+    const modder = new Modder({ library, state, model: new ScriptedModel(() => ({})), probes: async () => [req] })
+    expect(gatherProbes(modder, [req]).map((p) => p.request.id)).toEqual([req.id])
+  })
 })

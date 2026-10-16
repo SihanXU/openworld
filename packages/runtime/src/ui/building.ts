@@ -69,6 +69,9 @@ export function setLearnedPlaceables(recipes: Recipe[]): void {
  * palette: unlike menus it never pauses the simulation. Hold the left button and drag to set a
  * row of them down.
  */
+/** How many one carried entry stands for: a stack of the bag its count, the thing in hand one. */
+const countOfItem = (it: object): number => ('count' in it && typeof it.count === 'number' ? it.count : 1)
+
 export class BuildingMode {
   open = false
   // (a game with nothing to build: the palette holds nothing, and nothing is set down from it)
@@ -329,9 +332,9 @@ export class BuildingMode {
     const carried = [...(this.frame?.player.inventory ?? []), ...(this.frame?.player.held ? [this.frame.player.held] : [])]
     const s = this.selected
     const countOf = (n: Entry['needs'][number]) =>
-      carried.filter((it) => (n.type ? it.type === n.type : (!n.match?.type || it.type === n.match.type || it.type.startsWith(n.match.type + '/')) && (n.match?.tags ?? []).every((tag) => it.tags.includes(tag)))).length
+      carried.filter((it) => (n.type ? it.type === n.type : (!n.match?.type || it.type === n.match.type || it.type.startsWith(n.match.type + '/')) && (n.match?.tags ?? []).every((tag) => it.tags.includes(tag)))).reduce((sum, it) => sum + countOfItem(it), 0)
     // a thing set down: how many are carried; what makes one (when none is)
-    const have = s.put ? carried.filter((it) => it.type === s.put).length : 0
+    const have = s.put ? carried.filter((it) => it.type === s.put).reduce((sum, it) => sum + countOfItem(it), 0) : 0
     const counts = !s.put && this.preview?.have ? this.preview.have : s.needs.map(countOf)
     const nameOf = (n: Entry['needs'][number]) => (n.type ? (carried.find((it) => it.type === n.type)?.name ?? n.name) : n.name)
     const turn = s.put === 'structure/stairs'

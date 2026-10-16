@@ -60,9 +60,13 @@ export function gatherProbes(modder: Modder, game: ModRequest[] = [], per = PER_
   const out: Probe[] = []
   const seen = new Set<string>()
   const room = (c: AiCategory) => out.filter((p) => p.category === c).length < per
+  // a question in the request's present shape: a history kept from an older service may hold others (the Ford's of
+  // 2026-10-02 named a verb and its actor and target, with no roles), which neither play nor sort by kind of work
+  const current = (req: ModRequest) => !!req?.scenario && !!req.event && typeof req.event.roles === 'object' && req.event.roles !== null
   const take = (req: ModRequest, from: Probe['from'], key: string) => {
+    if (seen.has(key) || !current(req)) return
     const category = categoryOfRequest(req)
-    if (seen.has(key) || !room(category) || !req.scenario || !base(req)) return
+    if (!room(category) || !base(req)) return
     seen.add(key)
     out.push({ request: req, category, from })
   }

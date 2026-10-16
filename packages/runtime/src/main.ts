@@ -325,6 +325,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
         break
       }
       hud.setLearning(m.learning)
+      menu.containerTransfer = m.transfer
       // the ceiling (R) is for a floor in hand: another thing taken in hand lays on one's storey again
       if (handUp && !laysInHand(m.frame)) setHandUp(false)
       if (building.open) m.frame.keys = undefined

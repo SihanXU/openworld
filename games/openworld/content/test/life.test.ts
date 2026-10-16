@@ -172,7 +172,7 @@ describe('agriculture', () => {
     expect(bag(hand, 'item/food/carrot')).toBe(2)
   })
 
-  it('a wide hoe tills the ground around; a sprinkler waters the crops around; irrigation keeps the water twice as long', () => {
+  it('a wide hoe tills the ground around; sprinkler irrigation supplies both growth stages', () => {
     const eng = patch()
     knows(eng, 'wide-hoe')
     press(eng, 'use', 'item/tool/hoe')
@@ -184,7 +184,11 @@ describe('agriculture', () => {
     const sprouts = Object.values(wet.world.state.entities).filter((e) => e.type === 'fixture/crop/carrot/sprout')
     expect(sprouts.every((e) => wet.world.hasStatus({ e: e.id }, 'watered'))).toBe(true)
     const front = sprouts.find((e) => e.place.on === 'tile' && e.place.x === 2)!
-    expect((front.statuses?.watered ?? 0) - wet.world.state.tick).toBeGreaterThan(1200)
+    expect((front.statuses?.stage ?? 0) - wet.world.state.tick).toBeGreaterThan(1190)
+    expect(wet.world.hasStatus({ e: front.id }, 'irrigated')).toBe(true)
+    for (let i = 0; i < 2400; i++) wet.tick()
+    expect(sprouts.every((e) => e.type === 'fixture/crop/carrot/ripe')).toBe(true)
+    expect(sprouts.every((e) => !wet.world.hasStatus({ e: e.id }, 'watered'))).toBe(true)
   })
 
   it('a seed saver digs up two seeds more; a market gardener sells for more, a seed merchant buys more', () => {

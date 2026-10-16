@@ -50,13 +50,14 @@ export class PeoplePanels {
   }
 
   /** Things alike (one kind, one name, one price) as one row: the first of them is the one bought or sold. */
-  private stacks<T extends { item: ItemInfo; price?: number }>(list: T[]): { first: T; count: number }[] {
+  private stacks<T extends { item: ItemInfo; price?: number; count?: number }>(list: T[]): { first: T; count: number }[] {
     const by = new Map<string, { first: T; count: number }>()
     for (const x of list) {
       const k = `${x.item.type}|${JSON.stringify(x.item.name)}|${x.price ?? ''}|${x.item.steal ? 1 : 0}`
       const s = by.get(k)
-      if (s) s.count++
-      else by.set(k, { first: x, count: 1 })
+      // (a row may stand for several already: the trade's view counts things alike)
+      if (s) s.count += x.count ?? 1
+      else by.set(k, { first: x, count: x.count ?? 1 })
     }
     return [...by.values()]
   }
@@ -90,7 +91,7 @@ export class PeoplePanels {
   private renderPockets(f: Frame): void {
     const p = f.pockets
     const mine = f.player.inventory.filter((i) => !i.tags.includes('important') && !i.tags.includes('bound'))
-    const sig = p ? `${locale.value}|${JSON.stringify(p)}|${mine.map((i) => i.id).join(',')}` : ''
+    const sig = p ? `${locale.value}|${JSON.stringify(p)}|${mine.map((i) => `${i.id}×${i.count}`).join(',')}` : ''
     if (sig === this.pocketsSig) return
     this.pocketsSig = sig
     $('#pocketsPanel').classList.toggle('hidden', !p)
@@ -98,7 +99,8 @@ export class PeoplePanels {
     const theirs = p.contents.length
       ? this.stacks(p.contents.map((item) => ({ item }))).map(({ first: { item: i }, count }) => this.row(i, (i as { worn?: boolean }).worn ? `<span class="pp-worn">${L('worn', '穿着')}</span>` : '', `<button data-take="${i.id}">${L('Take', '拿')}</button>`, (i as { worn?: boolean }).worn ? 'worn' : '', count)).join('')
       : `<div class="muted">${L('Empty pockets.', '口袋空空。')}</div>`
-    const yours = mine.length ? this.stacks(mine.map((item) => ({ item }))).map(({ first: { item: i }, count }) => this.row(i, '', `<button data-plant="${i.id}">${L('Slip in', '塞进去')}</button>`, '', count, true)).join('') : `<div class="muted">${L('You carry nothing to slip in.', '你没有可以塞的东西。')}</div>`
+    // (the bag comes as stacks already: one row each, the first of it the one slipped in)
+    const yours = mine.length ? mine.map((i) => this.row(i, '', `<button data-plant="${i.id}">${L('Slip in', '塞进去')}</button>`, '', i.count, true)).join('') : `<div class="muted">${L('You carry nothing to slip in.', '你没有可以塞的东西。')}</div>`
     $('#pocketsSheet').innerHTML = `
       <div class="pp-head"><b>${L(`${tx(p.name)}'s pockets`, `${tx(p.name)}的口袋`)}</b><span class="muted">${L('Every hand in a pocket may be felt — and seen.', '每次伸手都可能被察觉——也可能被看见。')}</span><button class="x" id="pocketsX">✕</button></div>
       <div class="pp-cols">

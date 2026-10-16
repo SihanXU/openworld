@@ -196,6 +196,7 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   if (eats && food > 0) out.push(line(`${'<i class="tdrum"></i>'.repeat(Math.ceil(food / 2))} +${food} ${L('Hunger', '饱食度')}`, '#ffaa00'))
   if (eats && heal > 0) out.push(line(`+${heal} ${L('Health', '生命')}`, '#ff5555'))
   for (const [, en, zh] of abilities) out.push(line(L(en, zh), '#5555ff'))
+  for (const text of game().describeItem?.(it) ?? []) out.push(line(esc(tx(text)), '#6cb6ff', 'lore'))
   // traits: the material and what it is like
   const material = it.tags.find((g) => g.startsWith('material:'))?.slice(9)
   const traits = [material && game().items.materials[material] ? L(game().items.materials[material].en, game().items.materials[material].zh) : '', ...it.tags.filter((g) => TRAIT[g]).map((g) => L(...TRAIT[g]))].filter(Boolean)

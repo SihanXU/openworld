@@ -22,16 +22,30 @@ How the ground grows (its steward's panel, the stock, the grounds, the buildings
 
 | Shelf | Offers (count for price) |
 |---|---|
-| Farming | wheat seeds 5/5, carrot 5/8, turnip 5/6, tomato 5/12, pumpkin 3/15, berry 3/10, herb 3/8, fertilizer 3/10, acorn 1/4 |
-| Ranching | feed 5/6, bucket 1/8, crated hen 1/40, crated calf 1/120 |
+| Farming | wheat seeds 5/5, carrot 5/8, turnip 5/6, tomato 5/12, pumpkin 3/15, berry 3/10, herb 3/8, fertilizer 3/10, acorn 1/4, hoe 1/12, sickle 1/10, bucket 1/8 |
+| Ranching | feed 5/6, bucket 1/8, crated hen 1/40, crated calf 1/120 (the same bucket is also on the farming shelf) |
 | Fishing | bait 5/5, fishing rod 1/25 |
 | Sell (one for) | wheat 3, carrot 5, turnip 4, tomato 6, pumpkin 14, berries 1, herb 3, egg 4, bucket of milk 12, fish 6, golden carp 30, old boot 1 |
 
 ## Farming (as before, Stardew/Minecraft)
 
-Seeds sown on tilled earth take root; watering starts a growth timer (two hours a stage); a sickle harvests a
+Seeds sown on tilled earth take root; watering starts a full growth stage at the plant's own pace; a sickle harvests a
 ripe crop (its yield and two seeds), a hand picks one; perennials grow back. **Fertilizer** (`item/material/
 fertilizer`) worked into a growing crop is as ash: one more at harvest (`farm/fertilizer`, `farm/fertilize`).
+
+Stages take **one hour** for turnip, parsnip and radish; **four hours** for pumpkin, cauliflower, melon, corn and
+blueberry; **two hours** for the rest. There are two stages from seed to first harvest; a perennial regrows one.
+Seeds and plants say these times in their tooltips. A dry crop waits, and watering starts its whole stage, however
+long it waited beforehand.
+
+**Irrigation** supplies two stages from one watering without slowing either stage; a sprinkler's neighbours get the
+same benefit at their own pace. The `stage` clock measures growth, `watered` supplies the current stage, and
+`irrigated` holds the next stage's water. The last stage spends all water before a perennial is harvested.
+Older saves' finite `watered` clocks become `stage` clocks with exactly the same deadline (`GameDef.upgradeSave`).
+
+With the thirty-coin welcome, five turnip seeds and an empty bucket cost fourteen. The pond fills the bucket;
+five turnips picked by hand sell for twenty, leaving thirty-six coins, the bucket, and five returned seeds.
+The fishing alternative is a rod (25) and five bait (5); one bait supplies five casts. Neither path needs extra funds.
 
 **The crops** (content `crops.ts` VEGETABLE_CROPS; 2026-10-07 the ten after carrot, turnip, tomato and pumpkin, after
 Stardew's fields): parsnip, potato, radish, cauliflower, melon, and five that **bear again** after the harvest —
@@ -67,6 +81,7 @@ illustrated crops' sprout and young plant of their habit (leafy, sprawling, clim
 - **The fish pond** lies north of the planted sword; any water fishes.
 - **A rod** is made at hand from two sticks and two grass (the crafting panel), or bought.
 - **Bait** used on a rod baits it: the rod keeps the casts (`bait` prop, five a bait; `home/bait`, `home/rod`).
+  The rod's tooltip shows the remaining baited casts, including zero.
 - A cast is a left click with the rod on water (it reaches three cells): a baited hook bites 70% of the time (a
   bite or not, a baited cast is spent), a bare one 35%; the water is stirred after, and nothing bites there until
   it settles.
@@ -75,7 +90,7 @@ illustrated crops' sprout and young plant of their habit (leafy, sprawling, clim
 | Fish | When / where | Sells for |
 |---|---|---|
 | Dawnscale (晨鳞鱼) | first light (05–08), 3% | 80 |
-| Golden carp | 6%, anywhere | 30 |
+| Golden carp | 6% in shallow water, 10% in deep water (after the Dawnscale branch) | 30 |
 | Soggy boot | 8% | 1 |
 | Catfish | in rain or storm | 20 |
 | Eel | at night (20–05) | 18 |
