@@ -69,6 +69,19 @@ describe('the magnet, on a big pile', () => {
 })
 
 describe('a big bag in the frame', () => {
+  it('preserves ownership warnings for the pocket panel when compressing the bag', () => {
+    const { eng, w } = ford()
+    const p = w.player
+    const stones = eng.author(() => [p.id, 'someone.else'].flatMap((owner) =>
+      Array.from({ length: 2 }, () => w.create('item/material/stone', { on: 'inside', holder: p.id }, { props: { owner } })),
+    ))
+    const rows = snapshot(eng).player.inventory.filter((i) => i.type === 'item/material/stone')
+    expect(rows.map((i) => ({ steal: !!i.steal, count: i.count, ids: i.ids }))).toEqual([
+      { steal: false, count: 2, ids: stones.slice(0, 2).map((s) => s.id) },
+      { steal: true, count: 2, ids: stones.slice(2).map((s) => s.id) },
+    ])
+  })
+
   it('goes to the page as stacks: two thousand coins are one entry with its count and its ids', () => {
     const { eng, w } = ford()
     const p = w.player

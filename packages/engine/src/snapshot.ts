@@ -302,7 +302,8 @@ function inventoryOf(eng: Engine, contents: Id[]): Frame['player']['inventory'] 
   for (const id of contents) {
     const e = eng.world.get(id)
     if (!e) continue
-    const k = stackKey(e)
+    const steal = eng.society.isAnothers(e, eng.world.player)
+    const k = `${stackKey(e)}|${steal}`
     const s = by.get(k)
     if (s) (s.count++, s.ids.push(id))
     else {
