@@ -450,7 +450,9 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     const e = w.get(id)
     if (!e || onBody.has(id)) continue
     const k = eng.controls.key(e)
-    carried.set(k, [...(carried.get(k) ?? []), id])
+    const ids = carried.get(k)
+    if (ids) ids.push(id)
+    else carried.set(k, [id])
   }
   const wearing = new Set(w.worn(p).map((e) => e.id))
   const slots = Array.from({ length: Math.max(SLOT_COUNT, p.slots?.length ?? 0) }, (_, i) => {
@@ -463,6 +465,10 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   })
   const fx = w.drainFx()
   const sc = w.scene
+  const questView = eng.quests.withReading(() => ({
+    quests: eng.quests.view(eng.quests.defs.length ? entities.filter((e) => e.tags.includes('person')).map((e) => e.id) : []),
+    lesson: lessonView(eng),
+  }))
   const frame: Frame = {
     tick: w.state.tick,
     hour: w.hour(),
@@ -511,10 +517,10 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       purse: 0,
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
-    quests: questsOf(eng, entities),
+    quests: questView.quests,
     ...(fallen(eng) && { fallen: fallen(eng) }),
     facts: { ...(w.story?.props ?? {}) },
-    ...((lesson) => lesson && { lesson })(lessonView(eng)),
+    ...(questView.lesson && { lesson: questView.lesson }),
     container: box && {
       id: box.id,
       name: box.name ?? w.onto.resolve(box.type).name ?? box.type.split('/').pop()!,
@@ -531,19 +537,6 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   return frame
 }
 
-
-/** The marks over the people in view, the journal, the tracked quest's markers, the notice board's offers. */
-function questsOf(eng: Engine, entities: EntitySnap[]): Frame['quests'] {
-  const marks: Record<Id, '!' | '?'> = {}
-  if (eng.quests.defs.length)
-    for (const e of entities) {
-      if (!e.tags.includes('person')) continue
-      const m = eng.quests.mark(e.id)
-      if (m) marks[e.id] = m
-    }
-  const tracked = eng.quests.tracked()?.id
-  return { marks, journal: eng.quests.journal(), ...(tracked && { tracked }), targets: eng.quests.targets(), board: eng.quests.board() }
-}
 
 /** The stats a character sheet shows, as the world reckons them (World.stat). */
 export const SHEET_STATS = ['atk', 'def', 'critChance', 'critDamage', 'dodge', 'lifesteal', 'cdr', 'xpRate', 'luck', 'moveHaste', 'attackHaste', 'karma', 'faith'] as const

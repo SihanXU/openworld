@@ -13,6 +13,7 @@
 // aliases fill. Nothing here polls.
 
 import type { Engine } from './engine.ts'
+import type { Frame } from './snapshot.ts'
 import { cmp, matchSelector } from './rules.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 import { regionId } from './world.ts'
@@ -245,6 +246,8 @@ export class Quests {
   /** News waiting to be heard (made by outcomes, heard after them). */
   private pending: News[] = []
   private flushing = false
+  /** Reused only while a read-only quest view is being assembled for one frame. */
+  private reading?: Entity[]
   /** The derived tags of what quests under way hold (essential people, kept things), by id. */
   private tagCache?: Map<Id, string[]>
   private lastHour = -1
@@ -269,7 +272,7 @@ export class Quests {
 
   /** Every quest thing in the world (offered, under way, over). */
   all(): Entity[] {
-    return Object.values(this.w.state.entities).filter((e) => e.type === QUEST_TYPE)
+    return this.reading ?? Object.values(this.w.state.entities).filter((e) => e.type === QUEST_TYPE)
   }
 
   /** The quests of a definition (the authored one's single thing first). */
@@ -1083,6 +1086,31 @@ export class Quests {
         if (o.talk && this.shown(q, o) && !this.objectiveDone(q, o) && q.props?.[`obj.${o.id}`] !== 'failed' && (typeof o.target === 'string' ? [o.target] : (o.target ?? [])).some((a) => this.alias(q, a) === person)) return '?'
     }
     return undefined
+  }
+
+  /** Reuse one quest list across the read-only pieces of a frame. Never survives the call. */
+  withReading<T>(read: () => T): T {
+    const previous = this.reading
+    if (!previous) this.reading = this.all()
+    try {
+      return read()
+    } finally {
+      this.reading = previous
+    }
+  }
+
+  /** The quests shown in one frame. The world scan is reused only for this read-only assembly. */
+  view(people: Iterable<Id>): Frame['quests'] {
+    return this.withReading(() => {
+      const marks: Frame['quests']['marks'] = {}
+      if (this.defs.length)
+        for (const person of people) {
+          const mark = this.mark(person)
+          if (mark) marks[person] = mark
+        }
+      const tracked = this.tracked()?.id
+      return { marks, journal: this.journal(), ...(tracked && { tracked }), targets: this.targets(), board: this.board() }
+    })
   }
 
   /** The tracked quest's objective, as the companion tells it: "Now: … (planks 1/3)". */
