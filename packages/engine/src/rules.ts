@@ -7,7 +7,7 @@
 
 import { isA, typeDepth } from './ontology.ts'
 import { ruleTier, tiersFrom } from './quality.ts'
-import { slotsOf, stackKey } from './stacks.ts'
+import { STACK_MAX, slotsOf, stackKey } from './stacks.ts'
 import { FIGHT_TICKS } from './types.ts'
 import type { Bounds, Cmp, Cond, GameEvent, Leaf, Operand, PropValue, Reader, RoleName, Rule, Selector, StatusDef, Tier, Tree, TypeDef } from './types.ts'
 import type { View, World } from './world.ts'
@@ -152,10 +152,38 @@ export function countAt(
     // its cell, or everything lying on its map (in the open: not what is carried or held)
     ids = !p ? [] : where === 'map' ? world.entitiesOnMap(p.map).filter((e) => e.place.on === 'tile').map((e) => e.id) : world.placedAt(p.map, p.x, p.y).map((e) => e.id)
   }
+  if (where === 'contents' && !match && opts?.stacks) {
+    const counts = new Map<string, number>()
+    let slots = 0
+    for (const id of ids) {
+      if (id === v.id) continue
+      const e = world.get(id)
+      if (!e || e.place.on === 'none') continue
+      const key = stackKey(e)
+      const count = counts.get(key) ?? 0
+      if (count % STACK_MAX === 0) slots++
+      counts.set(key, count + 1)
+    }
+    if (opts.adding) {
+      const key = stackKey(opts.adding.entity ?? opts.adding)
+      if ((counts.get(key) ?? 0) % STACK_MAX === 0) slots++
+    }
+    return slots
+  }
   const keys: string[] = []
   let n = 0
   for (const id of ids) {
     if (id === v.id) continue
+    // With no selector, an entity's identity is enough. A bulk deposit counts the growing
+    // contents once per item; rebuilding every full view here makes those inputs stall.
+    if (!match) {
+      const e = world.get(id)
+      if (e && e.place.on !== 'none') {
+        n++
+        if (opts?.stacks) keys.push(stackKey(e))
+        continue
+      }
+    }
     const w = world.view({ e: id })
     if (w && matchSelector(match, w)) {
       n++

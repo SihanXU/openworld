@@ -4,6 +4,7 @@ import { nightHours, type Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import type { BossState, Look, Dir, FxEvent, Id, LessonInput, PropValue, SceneState, Text } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
+import { stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
 import { OFFHAND, offhandOf, weaponOf } from './blows.ts'
@@ -136,7 +137,8 @@ export interface Frame {
     skillbar: ({ id: string; left: number; cooldown: number; /** one has it now (what lent it is still worn) */ usable: boolean } | null)[]
     /** Every active skill one has now, and where it comes from (the skill panel). */
     actives: KnownActive[]
-    inventory: ItemInfo[]
+    /** What is in the bag, a stack each (things alike as one, by their bag identity): how many, and which. */
+    inventory: (ItemInfo & { count: number; ids: Id[] })[]
     /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
     slots: ({ item: ItemInfo; count: number; worn?: boolean } | null)[]
     selected: number
@@ -220,10 +222,10 @@ export interface TalkView {
 export interface TradeView {
   who: Id
   name: Text
-  /** What it sells, and for how much to the one at the keys. */
-  goods: { item: ItemInfo; price: number }[]
-  /** What the one at the keys carries that it would buy, and for how much. */
-  offers: { item: ItemInfo; price: number }[]
+  /** What it sells, and for how much to the one at the keys: things alike at one price as one row, how many (`count`, default 1). */
+  goods: { item: ItemInfo; price: number; count?: number }[]
+  /** What the one at the keys carries that it would buy, and for how much (alike as one row, as the goods). */
+  offers: { item: ItemInfo; price: number; count?: number }[]
   /** The coin each side carries. */
   purse: number
   theirs: number
@@ -289,6 +291,27 @@ function lessonView(eng: Engine): LessonView | undefined {
 export function difficultyOf(eng: Engine): Difficulty {
   const d = eng.world.fact('game.difficulty')
   return d === 'easy' || d === 'hardcore' ? d : 'normal'
+}
+
+/**
+ * What is in the bag as stacks: a coin purse of two thousand is one entry, not two thousand of the same (the frame
+ * goes to the page ten times a second). Things alike by their bag identity (type, name, tags, statuses) are one.
+ */
+function inventoryOf(eng: Engine, contents: Id[]): Frame['player']['inventory'] {
+  const by = new Map<string, ItemInfo & { count: number; ids: Id[] }>()
+  for (const id of contents) {
+    const e = eng.world.get(id)
+    if (!e) continue
+    const steal = eng.society.isAnothers(e, eng.world.player)
+    const k = `${stackKey(e)}|${steal}`
+    const s = by.get(k)
+    if (s) (s.count++, s.ids.push(id))
+    else {
+      const info = itemInfo(eng, id)
+      if (info) by.set(k, { ...info, count: 1, ids: [id] })
+    }
+  }
+  return [...by.values()]
 }
 
 /** The one at the keys lies fallen: by whom (the last who struck them, or what they were), and what may follow. */
@@ -450,7 +473,9 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
     const e = w.get(id)
     if (!e || onBody.has(id)) continue
     const k = eng.controls.key(e)
-    carried.set(k, [...(carried.get(k) ?? []), id])
+    const ids = carried.get(k)
+    if (ids) ids.push(id)
+    else carried.set(k, [id])
   }
   const wearing = new Set(w.worn(p).map((e) => e.id))
   const slots = Array.from({ length: Math.max(SLOT_COUNT, p.slots?.length ?? 0) }, (_, i) => {
@@ -463,6 +488,10 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   })
   const fx = w.drainFx()
   const sc = w.scene
+  const questView = eng.quests.withReading(() => ({
+    quests: eng.quests.view(eng.quests.defs.length ? entities.filter((e) => e.tags.includes('person')).map((e) => e.id) : []),
+    lesson: lessonView(eng),
+  }))
   const frame: Frame = {
     tick: w.state.tick,
     hour: w.hour(),
@@ -490,7 +519,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       // the skill bar and the active skills one has: a module's (classes), none without one
       skillbar: [],
       actives: [],
-      inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
+      inventory: inventoryOf(eng, p.contents ?? []),
       slots,
       selected: p.selected ?? 0,
       offhand: (() => {
@@ -511,10 +540,10 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       purse: 0,
     },
     question: w.state.question ? { text: w.state.question.text } : undefined,
-    quests: questsOf(eng, entities),
+    quests: questView.quests,
     ...(fallen(eng) && { fallen: fallen(eng) }),
     facts: { ...(w.story?.props ?? {}) },
-    ...((lesson) => lesson && { lesson })(lessonView(eng)),
+    ...(questView.lesson && { lesson: questView.lesson }),
     container: box && {
       id: box.id,
       name: box.name ?? w.onto.resolve(box.type).name ?? box.type.split('/').pop()!,
@@ -531,19 +560,6 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
   return frame
 }
 
-
-/** The marks over the people in view, the journal, the tracked quest's markers, the notice board's offers. */
-function questsOf(eng: Engine, entities: EntitySnap[]): Frame['quests'] {
-  const marks: Record<Id, '!' | '?'> = {}
-  if (eng.quests.defs.length)
-    for (const e of entities) {
-      if (!e.tags.includes('person')) continue
-      const m = eng.quests.mark(e.id)
-      if (m) marks[e.id] = m
-    }
-  const tracked = eng.quests.tracked()?.id
-  return { marks, journal: eng.quests.journal(), ...(tracked && { tracked }), targets: eng.quests.targets(), board: eng.quests.board() }
-}
 
 /** The stats a character sheet shows, as the world reckons them (World.stat). */
 export const SHEET_STATS = ['atk', 'def', 'critChance', 'critDamage', 'dodge', 'lifesteal', 'cdr', 'xpRate', 'luck', 'moveHaste', 'attackHaste', 'karma', 'faith'] as const

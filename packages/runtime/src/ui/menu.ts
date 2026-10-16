@@ -11,6 +11,7 @@ import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
 import { artEpoch, assetUrl } from '../render/assets.ts'
 import { EQUIP_SLOT_FRAMES } from '../assets/types.ts'
 import type { LibraryView } from '../protocol.ts'
+import type { TransferProgress } from '../transferQueue.ts'
 import { SkillTree } from './skilltree.ts'
 import { WorldMap } from './worldmap.ts'
 import { ProfessionPanel } from './profession.ts'
@@ -190,6 +191,7 @@ export class Menu {
   /** The options' AI section: the AI setting, and what the connected model carries. */
   readonly ai: AiOptions
   library?: LibraryView
+  containerTransfer?: TransferProgress
   muted = false
   paintIcons?: (items: ItemInfo[]) => void
   /** Set by main.ts: an item the tooltip should know that is not in the frame (the crafting panel's). */
@@ -829,7 +831,8 @@ export class Menu {
   private renderChest(f: Frame): void {
     const c = f.container
     if (!c) return
-    const sig = `${locale.value}|${c.id}|${c.capacity}|${c.contents.map((i) => i.id + keyOf(i)).join(',')}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}`
+    const moving = this.containerTransfer
+    const sig = `${locale.value}|${c.id}|${c.capacity}|${c.contents.map((i) => i.id + keyOf(i)).join(',')}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${JSON.stringify(moving)}`
     if (sig === this.chestSig) return
     this.chestSig = sig
     const stacks = stackItems(c.contents)
@@ -840,10 +843,14 @@ export class Menu {
     })
     const bag = f.player.slots
     const zh = locale.value === 'zh'
+    const action = moving?.from === 'bag' ? (zh ? '正在存放' : 'Storing') : (zh ? '正在取出' : 'Taking')
+    const hint = moving
+      ? `${action}… ${moving.done} / ${moving.total} · ${zh ? '关闭箱子可停止' : 'Close to stop'}`
+      : (zh ? '点击：整堆移到另一边 · Shift+点击：移一个 · 右键：更多' : 'Click: the stack across · Shift+click: one · right click: more')
     $('#chestSheet').innerHTML = `
       <div class="jhead"><b>${esc(tx(c.name))}</b><span class="muted small">${stacks.length} / ${c.capacity ?? '∞'}</span><button class="x" id="cClose">✕</button></div>
       <div class="inv chest-grid">${chunk(chestCells, ROW).map((r) => `<div class="grid-row">${r.join('')}</div>`).join('')}</div>
-      <div class="inv-foot"><button id="cFill">⇣ ${t('fillStacks')}</button><button id="cOrg">⇅ ${t('organize')}</button><span class="muted small">${zh ? '点击：整堆移到另一边 · Shift+点击：移一个 · 右键：更多' : 'Click: the stack across · Shift+click: one · right click: more'}</span></div>
+      <div class="inv-foot"><button id="cFill" ${moving ? 'disabled' : ''}>⇣ ${t('fillStacks')}</button><button id="cOrg" ${moving ? 'disabled' : ''}>⇅ ${t('organize')}</button><span class="muted small" ${moving ? 'role="status"' : ''}>${hint}</span></div>
       <div class="inv bag-grid">${chunk(
         bag.map((s, j) => (s ? `<div class="slot" data-b="${s.item.id}" data-item="${s.item.id}"><div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}</div>` : `<div class="slot" data-i="${j}"></div>`)),
         ROW,
@@ -851,18 +858,21 @@ export class Menu {
         .map((r, k) => `<div class="grid-row${k === 0 ? ' toolbar-row' : ''}">${r.join('')}</div>`)
         .join('')}</div>`
     const sheet = $('#chestSheet')
+    sheet.setAttribute('aria-busy', String(!!moving))
     $('#cClose').onclick = () => this.close()
-    const move = (from: 'chest' | 'bag', id: string, all: boolean) => this.send.transfer(from, id, all)
+    const move = (from: 'chest' | 'bag', id: string, all: boolean) => {
+      if (!this.containerTransfer) this.send.transfer(from, id, all)
+    }
     // click: the stack across; Shift+click: one; right click: the context menu
     sheet.querySelectorAll<HTMLElement>('[data-c]').forEach((el) => {
       el.onclick = (e) => move('chest', el.dataset.c!, !e.shiftKey)
-      el.oncontextmenu = (e) => (e.preventDefault(), this.contextMenu(e.clientX, e.clientY, el.dataset.c!, [[t('moveOne'), () => move('chest', el.dataset.c!, false)]]))
+      el.oncontextmenu = (e) => (e.preventDefault(), !this.containerTransfer && this.contextMenu(e.clientX, e.clientY, el.dataset.c!, [[t('moveOne'), () => move('chest', el.dataset.c!, false)]]))
     })
     sheet.querySelectorAll<HTMLElement>('[data-b]').forEach((el) => {
       el.onclick = (e) => move('bag', el.dataset.b!, !e.shiftKey)
-      el.oncontextmenu = (e) => (e.preventDefault(), this.contextMenu(e.clientX, e.clientY, el.dataset.b!, [[t('moveOne'), () => move('bag', el.dataset.b!, false)]]))
+      el.oncontextmenu = (e) => (e.preventDefault(), !this.containerTransfer && this.contextMenu(e.clientX, e.clientY, el.dataset.b!, [[t('moveOne'), () => move('bag', el.dataset.b!, false)]]))
     })
-    $('#cOrg').onclick = () => this.send.organize()
+    $('#cOrg').onclick = () => { if (!this.containerTransfer) this.send.organize() }
     $('#cFill').onclick = () => {
       // every bag stack whose kind the chest already holds goes in
       const inChest = new Set(stacks.map((s) => keyOf(s[0])))

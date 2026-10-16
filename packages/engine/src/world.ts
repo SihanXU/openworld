@@ -186,6 +186,8 @@ export class World {
   statusful = new Set<string>()
   /** Things whose own companion prop names a leader, in the state's entity order. */
   companionIds = new Set<Id>()
+  /** The things on no map (the world, the story, the quests): read by kind without going through every thing. */
+  private residentIds = new Set<Id>()
 
   constructor(state: WorldState, onto: OntologyIndex) {
     this.state = state
@@ -194,6 +196,16 @@ export class World {
   }
 
   // ---------------------------------------------------------------- indices
+
+  /** The things on no map (the world, the story, the quests), in the order they came. */
+  residents(): Entity[] {
+    const out: Entity[] = []
+    for (const id of this.residentIds) {
+      const e = this.state.entities[id]
+      if (e) out.push(e)
+    }
+    return out
+  }
 
   /** The static cell things asked for so far (the ground, the air above it): kept for their ids, never saved. */
   staticThings(): IterableIterator<Entity> {
@@ -206,6 +218,7 @@ export class World {
     this.areas.clear()
     this.statusful.clear()
     this.companionIds.clear()
+    this.residentIds.clear()
     this.statics.clear()
     this.rooms.clear()
     this.cellsVersion.clear()
@@ -227,6 +240,7 @@ export class World {
 
   private indexAdd(e: Entity, geometry = true): void {
     if (geometry) this.geometry(e, 1)
+    if (e.place.on === 'resident') this.residentIds.add(e.id)
     if (e.place.on === 'area') {
       let a = this.areas.get(e.place.map)
       if (!a) this.areas.set(e.place.map, (a = new Set()))
@@ -248,6 +262,7 @@ export class World {
 
   private indexRemove(e: Entity): void {
     this.geometry(e, -1)
+    if (e.place.on === 'resident') this.residentIds.delete(e.id)
     if (e.place.on === 'area') this.areas.get(e.place.map)?.delete(e.id)
     if (e.place.on !== 'tile') return
     for (const [x, y] of this.occupiedCells(e)) this.onTile.get(cellKey(e.place.map, x, y, e.place.z))?.delete(e.id)
@@ -1160,7 +1175,7 @@ export class World {
     this.placeable(e, to)
     this.detach(e)
     e.place = to
-    if (to.on === 'tile') this.indexAdd(e)
+    if (to.on === 'tile' || to.on === 'resident') this.indexAdd(e)
     else this.attach(e)
   }
 

@@ -1,6 +1,6 @@
 // The people's panels (docs/npc-sandbox.md): a talk, a trade, a person's pockets, as the client draws them.
 
-import { itemInfo, type Engine, type Frame, type Id } from '@openworld/engine'
+import { itemInfo, stackKey, type Engine, type Entity, type Frame, type Id, type TradeView } from '@openworld/engine'
 import { socialOf } from './state.ts'
 
 /** The views of the people's panels the host has open (docs/npc-sandbox.md): a talk, a trade, a person's pockets. */
@@ -17,8 +17,8 @@ export function peopleViews(eng: Engine, open: { talk?: { who: Id; arrest?: bool
     out.trade = {
       who: m.id,
       name: m.name ?? w.onto.resolve(m.type).name ?? m.id,
-      goods: s.stock(m).map((e) => ({ item: itemInfo(eng, e.id)!, price: s.priceToBuy(e, m, p) })),
-      offers: carried.filter((e) => s.buys(m, e, p)).map((e) => ({ item: itemInfo(eng, e.id)!, price: s.priceToSell(e, p, m) })),
+      goods: rows(eng, s.stock(m), (e) => s.priceToBuy(e, m, p)),
+      offers: rows(eng, carried.filter((e) => s.buys(m, e, p)), (e) => s.priceToSell(e, p, m)),
       purse: s.purse(p),
       theirs: s.purse(m),
       discount: Math.round(s.regardDiscount(m, p.id) * 100) / 100,
@@ -37,4 +37,24 @@ export function peopleViews(eng: Engine, open: { talk?: { who: Id; arrest?: bool
     }
   }
   return out
+}
+
+/**
+ * Things alike at one price and ownership warning as one row, with how many (a bag of two thousand stones is one row, not two thousand: the
+ * panel's view goes to the page every tick). The first of them is the one bought or sold.
+ */
+function rows(eng: Engine, things: Entity[], price: (e: Entity) => number): TradeView['offers'] {
+  const by = new Map<string, TradeView['offers'][number]>()
+  for (const e of things) {
+    const p = price(e)
+    const steal = eng.society.isAnothers(e, eng.world.player)
+    const k = `${stackKey(e)}|${p}|${steal}`
+    const row = by.get(k)
+    if (row) row.count = (row.count ?? 1) + 1
+    else {
+      const item = itemInfo(eng, e.id)
+      if (item) by.set(k, { item, price: p, count: 1 })
+    }
+  }
+  return [...by.values()]
 }

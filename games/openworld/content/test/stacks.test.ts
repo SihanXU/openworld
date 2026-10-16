@@ -4,7 +4,7 @@
 // panel shows taken. Played through the same entry point as the player's keys (storage.test.ts).
 
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, buildSandbox, itemInfo, slotsOf, splitStacks, stackKey, type Engine, type Id, type Key, type Scenario, type ScenarioEntity } from '@openworld/engine'
+import { RuleLibrary, buildSandbox, countAt, itemInfo, slotsOf, snapshot, splitStacks, stackKey, type Engine, type Id, type Key, type Scenario, type ScenarioEntity } from '@openworld/engine'
 import { BASE_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -116,6 +116,16 @@ describe('a container counts its slots, not its things', () => {
     expect(eng.world.player.held).toBe('held')
   })
 
+  it('counts the added item as a new slot only at the 999-item boundary', () => {
+    const countWithAdding = (n: number) => {
+      const eng = play(chest(stones(n)), 'item/material/stone')
+      const w = eng.world
+      return countAt(w.view({ e: 'chest' })!, 'contents', undefined, w, { stacks: true, adding: w.view({ e: 'held' })! })
+    }
+    expect(countWithAdding(998)).toBe(1)
+    expect(countWithAdding(999)).toBe(2)
+  })
+
   it('clicking the second chest slot transfers only its one item, not all 1000', () => {
     const eng = play(chest(stones(1000)))
     eng.controls.transfer('chest', 'chest', 'i999', true)
@@ -129,11 +139,82 @@ describe('a container counts its slots, not its things', () => {
     expect(inside(eng)).toEqual(['i999'])
   })
 
+  it('deposits 1678 carried coins into two retrievable slots without rebuilding every prior item view', () => {
+    const n = 1678
+    const eng = play([
+      ...chest([]),
+      ...Array.from({ length: n }, (_, i) => ({ key: `coin${i}`, type: 'item/misc/thornmark', inside: 'actor' })),
+    ])
+    eng.controls.sync()
+    const w = eng.world
+    const view = w.view
+    let views = 0
+    w.view = (ref) => {
+      views++
+      return view.call(w, ref)
+    }
+    try {
+      eng.controls.transfer('chest', 'bag', 'coin0', true)
+    } finally {
+      w.view = view
+    }
+    expect(inside(eng)).toHaveLength(n)
+    expect(eng.controls.carried(true).size).toBe(0)
+    // Close and reopen the panel: use the frame's identity, just as the rendered cells do.
+    snapshot(eng)
+    const slots = splitStacks(snapshot(eng, { panel: 'chest' }).container!.contents)
+    expect(slots.map((s) => s.length)).toEqual([999, 679])
+    eng.controls.transfer('chest', 'chest', slots[1][0].id, true)
+    expect(inside(eng)).toHaveLength(999)
+    expect([...eng.controls.carried(true).values()].flat()).toHaveLength(679)
+    eng.controls.transfer('chest', 'chest', slots[0][0].id, true)
+    expect(inside(eng)).toHaveLength(0)
+    const carried = [...eng.controls.carried(true).values()].flat()
+    expect(carried).toHaveLength(n)
+    expect(new Set(carried.map((e) => e.id)).size).toBe(n)
+    // Work budget, not a machine-dependent time limit: unfiltered capacity counts must not
+    // build n*(n-1)/2 full views. Leave ample room for the per-item rules and their impulses.
+    expect(views).toBeLessThan(n * 128)
+  })
+
+  it('a stale contents reference to a removed item does not occupy a slot', () => {
+    const eng = play(chest(kinds(12)), 'item/food/apple')
+    eng.author(() => {
+      eng.world.get('i0')!.place = { on: 'none' }
+    })
+    expect(press(eng, 'put').rules).toContain('core/taken')
+    expect(eng.world.get('held')!.place).toEqual({ on: 'inside', holder: 'chest' })
+  })
+
+  it('recounts changed stack identities and appended contents', () => {
+    const eng = play(chest(stones(2)))
+    const w = eng.world
+    const chestView = w.view({ e: 'chest' })!
+    const count = () => countAt(chestView, 'contents', undefined, w, { stacks: true })
+    expect(count()).toBe(1)
+    eng.author(() => { w.get('i0')!.name = 'custom stone' })
+    expect(count()).toBe(2)
+    eng.author(() => {
+      w.addTag(w.get('i1')!, 'marked')
+      w.setStatus({ e: 'i0' }, 'marked', -1)
+      w.create('item/material/stone', { on: 'inside', holder: 'chest' })
+    })
+    expect(count()).toBe(3)
+  })
+
   it('the frame preserves the bag stack identity even when a custom name equals the default', () => {
     const eng = play(chest(stones(2)))
     eng.author(() => eng.world.get('i1')!.name = itemInfo(eng, 'i0')!.name)
     expect(eng.controls.key(eng.world.get('i0')!)).not.toBe(eng.controls.key(eng.world.get('i1')!))
     for (const id of ['i0', 'i1']) expect(stackKey(itemInfo(eng, id)!)).toBe(eng.controls.key(eng.world.get(id)!))
+  })
+
+  it('keeps empty identities fast while immediately separating added names, tags, and statuses', () => {
+    const plain = { type: 'item/material/stone' }
+    expect(stackKey(plain)).toBe(stackKey({ ...plain, tags: [], statuses: new Set() }))
+    expect(stackKey(plain)).not.toBe(stackKey({ ...plain, name: 'named' }))
+    expect(stackKey(plain)).not.toBe(stackKey({ ...plain, tags: ['marked'] }))
+    expect(stackKey(plain)).not.toBe(stackKey({ ...plain, statuses: ['marked'] }))
   })
 
   it('capacity uses the same instance tags as the bag, even when a tag is inherited too', () => {
