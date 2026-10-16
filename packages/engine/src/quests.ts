@@ -269,7 +269,7 @@ export class Quests {
 
   /** Every quest thing in the world (offered, under way, over). */
   all(): Entity[] {
-    return Object.values(this.w.state.entities).filter((e) => e.type === QUEST_TYPE)
+    return this.w.residents().filter((e) => e.type === QUEST_TYPE)
   }
 
   /** The quests of a definition (the authored one's single thing first). */

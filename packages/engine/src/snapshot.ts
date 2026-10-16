@@ -4,6 +4,7 @@ import { nightHours, type Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import type { BossState, Look, Dir, FxEvent, Id, LessonInput, PropValue, SceneState, Text } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
+import { stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
 import { skillsOf } from './progression.ts'
 import { OFFHAND, offhandOf, weaponOf } from './blows.ts'
@@ -136,7 +137,8 @@ export interface Frame {
     skillbar: ({ id: string; left: number; cooldown: number; /** one has it now (what lent it is still worn) */ usable: boolean } | null)[]
     /** Every active skill one has now, and where it comes from (the skill panel). */
     actives: KnownActive[]
-    inventory: ItemInfo[]
+    /** What is in the bag, a stack each (things alike as one, by their bag identity): how many, and which. */
+    inventory: (ItemInfo & { count: number; ids: Id[] })[]
     /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
     slots: ({ item: ItemInfo; count: number; worn?: boolean } | null)[]
     selected: number
@@ -220,10 +222,10 @@ export interface TalkView {
 export interface TradeView {
   who: Id
   name: Text
-  /** What it sells, and for how much to the one at the keys. */
-  goods: { item: ItemInfo; price: number }[]
-  /** What the one at the keys carries that it would buy, and for how much. */
-  offers: { item: ItemInfo; price: number }[]
+  /** What it sells, and for how much to the one at the keys: things alike at one price as one row, how many (`count`, default 1). */
+  goods: { item: ItemInfo; price: number; count?: number }[]
+  /** What the one at the keys carries that it would buy, and for how much (alike as one row, as the goods). */
+  offers: { item: ItemInfo; price: number; count?: number }[]
   /** The coin each side carries. */
   purse: number
   theirs: number
@@ -289,6 +291,26 @@ function lessonView(eng: Engine): LessonView | undefined {
 export function difficultyOf(eng: Engine): Difficulty {
   const d = eng.world.fact('game.difficulty')
   return d === 'easy' || d === 'hardcore' ? d : 'normal'
+}
+
+/**
+ * What is in the bag as stacks: a coin purse of two thousand is one entry, not two thousand of the same (the frame
+ * goes to the page ten times a second). Things alike by their bag identity (type, name, tags, statuses) are one.
+ */
+function inventoryOf(eng: Engine, contents: Id[]): Frame['player']['inventory'] {
+  const by = new Map<string, ItemInfo & { count: number; ids: Id[] }>()
+  for (const id of contents) {
+    const e = eng.world.get(id)
+    if (!e) continue
+    const k = stackKey(e)
+    const s = by.get(k)
+    if (s) (s.count++, s.ids.push(id))
+    else {
+      const info = itemInfo(eng, id)
+      if (info) by.set(k, { ...info, count: 1, ids: [id] })
+    }
+  }
+  return [...by.values()]
 }
 
 /** The one at the keys lies fallen: by whom (the last who struck them, or what they were), and what may follow. */
@@ -490,7 +512,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       // the skill bar and the active skills one has: a module's (classes), none without one
       skillbar: [],
       actives: [],
-      inventory: (p.contents ?? []).map((id) => itemInfo(eng, id)).filter((x): x is ItemInfo => !!x),
+      inventory: inventoryOf(eng, p.contents ?? []),
       slots,
       selected: p.selected ?? 0,
       offhand: (() => {
