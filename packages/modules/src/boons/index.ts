@@ -48,6 +48,12 @@ export const boonsModule: EngineModule = {
         if (had.includes(give)) return
         eng.setProp(host, 'boons', [...had, give].join(','), ev)
         if (!activeBoon(host)) carry(give)
+        // the moment, for the client: the power runs from where it broke loose (param from: the fallen bearer, the
+        // relic; else the leader) to the companion
+        const source = typeof ev.params?.from === 'string' ? w.get(ev.params.from) : undefined
+        const from = w.posOf(source ?? leaderOf(w, host) ?? host)
+        const seal = w.onto.status(BOON_PREFIX + give)?.props?.seal
+        w.fx.push({ t: 'boon', who: host.id, boon: give, ...(name(give) && { name: name(give) }), ...(typeof seal === 'number' && seal > 0 && { seal }), ...(from && { from: { map: from.map, x: from.x, y: from.y } }) })
         w.fx.push({ t: 'log', text: { en: `${eng.nameOf({ e: host.id }, 'en')} takes up a new power: ${said(name(give), 'en')}.`, zh: `${eng.nameOf({ e: host.id }, 'zh')}获得了新的力量：${said(name(give), 'zh')}。` }, tone: 'good' })
         return
       }
@@ -62,7 +68,7 @@ export const boonsModule: EngineModule = {
       return
     },
   },
-  spec: { primitives: { boon: 'boon — the host (a companion) is given a boon (param unlock: its id; carried at once if it carries none) or carries another it has (param boon), the latter only while its leader stands beside an attuned waypoint; a boon is its status boon_<id>, whose lead:<stat> props add to the leader\'s stats' } },
+  spec: { primitives: { boon: 'boon — the host (a companion) is given a boon (param unlock: its id; carried at once if it carries none; param from: whom the power leaves, for the client\'s light) or carries another it has (param boon), the latter only while its leader stands beside an attuned waypoint; a boon is its status boon_<id>, whose lead:<stat> props add to the leader\'s stats' } },
   install(eng) {
     const w = eng.world
     // the HUD's boons: those the companion following the player has, the one it carries, a waypoint near

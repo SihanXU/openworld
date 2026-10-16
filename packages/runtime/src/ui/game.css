@@ -115,6 +115,12 @@
 /* the map name as it fades in */
 .mapname { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); font: 600 30px var(--pixel); color: #fff8e6; text-shadow: 0 2px 0 #000, 0 0 12px rgba(0,0,0,0.6); opacity: 0; pointer-events: none !important; white-space: nowrap; }
 .mapname.show { animation: mapname 3s ease; }
+/* a power taken up by the companion (hud.ts boonBanner): its seal over its name, lit, briefly over the world */
+.boonbanner { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); text-align: center; opacity: 0; pointer-events: none !important; white-space: nowrap; z-index: 40; }
+.boonbanner small { display: block; margin-bottom: 8px; font: 600 14px var(--pixel); letter-spacing: 0.22em; color: #d9c8ff; text-shadow: 0 1px 0 #2a1848, 0 0 12px rgba(160, 130, 255, 0.8); }
+.boonbanner b { display: block; font: 700 36px var(--pixel); color: #fff8ff; letter-spacing: 0.08em; text-shadow: 0 2px 0 #3a2460, 0 0 18px #b89cff, 0 0 44px rgba(143, 111, 208, 0.9); }
+.boonbanner.show { animation: boonbanner 4s ease both; }
+@keyframes boonbanner { 0% { opacity: 0; transform: translate(-50%, 14px) scale(0.94); } 14% { opacity: 1; transform: translate(-50%, 0) scale(1); } 82% { opacity: 1; transform: translate(-50%, 0) scale(1); } 100% { opacity: 0; transform: translate(-50%, -10px) scale(1.02); } }
 .learning { position: absolute; left: 50%; top: 34%; transform: translateX(-50%); padding: 8px 16px; border-radius: 6px; background: rgba(20, 16, 40, 0.82); color: #f3e9ff; font: 600 16px var(--pixel); box-shadow: 0 0 0 2px #b9a4ff55; pointer-events: none; white-space: nowrap; animation: learnpulse 1.6s ease-in-out infinite; }
 @keyframes learnpulse { 50% { box-shadow: 0 0 0 2px #b9a4ffcc; } }
 @keyframes mapname { 0% { opacity: 0; } 15% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }

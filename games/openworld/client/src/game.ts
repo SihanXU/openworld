@@ -85,6 +85,7 @@ export const CLIENT_GAME: ClientGame = {
     boonTitle: { en: "Lumi's Powers", zh: '露米的力量' },
     boonSealedDoc: { en: "Lumi takes up part of a seal's power when its bearer falls.", zh: '击败持印者后，露米会接住其圣印的一部分力量。' },
     boonOne: { en: 'Lumi carries one power at a time.', zh: '露米一次只能携带一种力量。' },
+    boonGained: { en: "Lumi takes up the seal's power", zh: '露米接住了圣印之力' },
     // a monster's own piece of gear (content trophies.ts), and the two tiers the story names (content items.ts QUALITIES)
     tipTrophy: { en: 'Trophy', zh: '专属装备' },
     'tier:vowed': { en: 'Vowbound — left by one who swore a vow. It still remembers.', zh: '遗誓——立誓之人留下的东西。它还记得那个誓言。' },

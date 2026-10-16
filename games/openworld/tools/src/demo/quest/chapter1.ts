@@ -561,7 +561,9 @@ export const CHAPTER1_SCENES: StepDef[] = [
       say('player', '("Take it. It was never mine to hold.")', '（"拿去吧。它本就不该由我戴着。"）', 'sad'),
       { give: 'item/relic/crown_of_thorns' },
       say('player', '(Something comes loose from the crown — a cold light — and runs to Lumi like water finding an old riverbed.)', '（有什么东西从荆棘冠上散开——一道冷光——像水找到了旧河床一样，流向了露米。）'),
-      { tell: 'pip', params: { what: 'boon', unlock: 'xp' } },
+      // the power leaves the kneeling knight and runs to her (the client's light and her glow); the scene waits for it
+      { tell: 'pip', params: { what: 'boon', unlock: 'xp', from: ALBERIC_ID } },
+      { wait: 32 },
       say('pip', 'It came to me! It\'s warm — no, cold — no, it\'s mine? Is that allowed?', '它朝我来了！暖暖的——不对，凉凉的——不对，它是我的？可以这样吗？', 'surprised'),
       { place: 'npc.severin', map: 'eastroad', x: rd.severin[0], y: rd.severin[1] },
       say('npc.severin', '...So it has started.', '……原来已经开始了。'),

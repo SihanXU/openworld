@@ -1872,6 +1872,76 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * A companion takes up a power (the boons module): a cold light leaves where it broke loose (a fallen bearer, a
+   * relic in a hand) and runs to the companion along an arc, motes trailing it; arriving, it bursts — a ring, sparks,
+   * a flash over everything — and the companion glows and lifts for a moment. The HUD names what was taken up.
+   */
+  private boonLight(fx: Extract<FxEvent, { t: 'boon' }>): void {
+    const bird = this.views.get(fx.who)
+    if (!bird) return
+    const here = fx.from && fx.from.map === this.base?.id ? { x: fx.from.x * T + T / 2, y: fx.from.y * T + T / 2 - 6 } : { x: bird.root.x, y: bird.root.y - 40 }
+    const goal = () => ({ x: bird.root.x, y: bird.root.y - 10 })
+    const LIGHT = 0xdff3ff
+    const COLD = 0xa9c8ff
+    const orb = this.add.circle(here.x, here.y, 4.5, LIGHT, 0.95).setBlendMode(Phaser.BlendModes.ADD).setDepth(1e6 + 2)
+    const halo = this.add.circle(here.x, here.y, 11, COLD, 0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(1e6 + 1)
+    this.sfx('cast', 0.4)
+    // the arc: a bezier from the source over a point above the way's middle to the companion, who may be drifting
+    const start = { ...here }
+    const flight = { k: 0 }
+    let lastMote = 0
+    this.tweens.add({
+      targets: flight,
+      k: 1,
+      duration: 1150,
+      ease: 'Sine.easeInOut',
+      onUpdate: () => {
+        const g = goal()
+        const k = flight.k
+        const cx = (start.x + g.x) / 2
+        const cy = Math.min(start.y, g.y) - 48
+        const x = (1 - k) * (1 - k) * start.x + 2 * (1 - k) * k * cx + k * k * g.x
+        const y = (1 - k) * (1 - k) * start.y + 2 * (1 - k) * k * cy + k * k * g.y
+        orb.setPosition(x, y)
+        halo.setPosition(x, y).setScale(1 + 0.25 * Math.sin(this.time.now / 60))
+        if (this.time.now - lastMote > 36) {
+          lastMote = this.time.now
+          const m = this.add.circle(x + (Math.random() - 0.5) * 6, y + (Math.random() - 0.5) * 6, 1.5 + Math.random() * 1.5, LIGHT, 0.8).setBlendMode(Phaser.BlendModes.ADD).setDepth(1e6 + 1)
+          this.tweens.add({ targets: m, y: m.y - 6 - Math.random() * 8, alpha: 0, scale: 0.3, duration: 420 + Math.random() * 200, onComplete: () => m.destroy() })
+        }
+      },
+      onComplete: () => {
+        orb.destroy()
+        halo.destroy()
+        const g = goal()
+        this.sfx('heal', 0.5)
+        // the burst: a ring, sparks every way, a flash over everything
+        const ring = this.add.circle(g.x, g.y, 6, COLD, 0).setStrokeStyle(2, LIGHT, 0.95).setBlendMode(Phaser.BlendModes.ADD).setDepth(1e6 + 2)
+        this.tweens.add({ targets: ring, scale: 5.5, alpha: 0, duration: 620, ease: 'Cubic.easeOut', onComplete: () => ring.destroy() })
+        for (let i = 0; i < 14; i++) {
+          const a = (i / 14) * Math.PI * 2 + Math.random() * 0.3
+          const r = 22 + Math.random() * 18
+          const sp = this.add.circle(g.x, g.y, 1.5 + Math.random() * 1.5, LIGHT, 0.95).setBlendMode(Phaser.BlendModes.ADD).setDepth(1e6 + 2)
+          this.tweens.add({ targets: sp, x: g.x + Math.cos(a) * r, y: g.y + Math.sin(a) * r - 8, alpha: 0, duration: 520 + Math.random() * 260, ease: 'Quad.easeOut', onComplete: () => sp.destroy() })
+        }
+        this.flash?.setAlpha(0.5)
+        this.tweens.add({ targets: this.flash, alpha: 0, duration: 700, ease: 'Quad.easeOut' })
+        // she glows and lifts: her body lit cold-white, a halo breathing round her, a rise and a settle
+        const live = this.views.get(fx.who)
+        if (!live) return
+        live.body.setTint(LIGHT).setTintMode(Phaser.TintModes.FILL)
+        this.time.delayedCall(160, () => live.body.setTint(COLD).setTintMode(Phaser.TintModes.MULTIPLY))
+        this.time.delayedCall(1500, () => live.body.clearTint())
+        const aura = this.add.circle(0, -8, 14, COLD, 0.42).setBlendMode(Phaser.BlendModes.ADD)
+        live.root.addAt(aura, 0)
+        this.tweens.add({ targets: aura, scale: 1.6, alpha: 0.15, duration: 380, yoyo: true, repeat: 2, ease: 'Sine.easeInOut', onComplete: () => this.tweens.add({ targets: aura, alpha: 0, scale: 2.2, duration: 360, onComplete: () => aura.destroy() }) })
+        this.tweens.add({ targets: live.body, y: live.body.y - 7, duration: 520, yoyo: true, ease: 'Sine.easeInOut' })
+        this.tweens.add({ targets: live.body, scaleX: live.body.scaleX * 1.18, scaleY: live.body.scaleY * 1.18, duration: 260, yoyo: true, ease: 'Back.easeOut' })
+      },
+    })
+  }
+
   playFx(fx: FxEvent): void {
     if (fx.t === 'strike') {
       // lightning: a flash over everything, then the bolt where it lands
@@ -1919,6 +1989,7 @@ export class WorldScene extends Phaser.Scene {
       if (snd) this.sfx(snd, 0.4)
       return
     }
+    if (fx.t === 'boon') return this.boonLight(fx)
     if (fx.t === 'mapChanged') return this.sfx('door', 0.4)
     if (fx.t === 'damage' && fx.who === this.playerId && fx.amount > 0) return this.sfx('hurt', 0.5)
     if (fx.t === 'undefined') return this.sfx('undefined', 0.6)

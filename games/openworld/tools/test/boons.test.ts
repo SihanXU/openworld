@@ -56,6 +56,23 @@ describe('the companion\'s boons', () => {
     expect(snapshot(eng).player.boons).toMatchObject({ unlocked: ['xp'], active: 'xp' })
   })
 
+  it("the moment is told to the client: a light from whom the power leaves (the fallen bearer) to her, with the seal's number and the boon's name", () => {
+    const eng = world()
+    const w = eng.world
+    atStatue(eng, false)
+    const knight = w.get('npc.alberic')!
+    const at = w.posOf(knight)!
+    w.fx.length = 0
+    eng.queue({ kind: 'impulse/notify', host: { e: 'pip' }, roles: {}, params: { what: 'boon', unlock: 'xp', from: knight.id }, origin: 'world' })
+    eng.tick()
+    const fx = w.fx.find((x) => x.t === 'boon')
+    expect(fx).toMatchObject({ t: 'boon', who: 'pip', boon: 'xp', seal: 1, name: { zh: '荆冠之悟' }, from: { map: at.map, x: at.x, y: at.y } })
+    // given again, nothing new: no second light
+    w.fx.length = 0
+    give(eng, 'xp')
+    expect(w.fx.some((x) => x.t === 'boon')).toBe(false)
+  })
+
   it('another boon is chosen only beside a woken waypoint statue', () => {
     const eng = world(true)
     const w = eng.world

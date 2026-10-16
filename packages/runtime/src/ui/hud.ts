@@ -106,6 +106,7 @@ export class Hud {
       <div class="chooser hidden" id="chooser"></div>
       <div class="dialog hidden" id="dialog"><div class="face" id="dFace"></div><div class="dtext"><div class="dname" id="dName"></div><div class="dline" id="dLine"></div><div class="dchoices hidden" id="dChoices"></div></div><div class="dmore" id="dMore">▼</div></div>
       <div class="fade hidden" id="fade"><div id="fadeText"></div></div>
+      <div class="boonbanner hidden" id="boonBanner"><small id="boonKicker"></small><b id="boonName"></b></div>
       <div class="card hidden" id="card"><div class="card-text" id="cardText"></div><div class="dmore">▼</div></div>`
     $('#hotbar').style.setProperty('--heart', cssAssetUrl('Ui/Receptacle/Heart.png'))
     if (catalog().ui.drumstick) $('#hotbar').style.setProperty('--drum', cssAssetUrl(catalog().ui.drumstick.img))
@@ -650,6 +651,9 @@ export class Hud {
         return this.pickup(fx)
       case 'levelup':
         return void this.message(`★ ${t('levelUp').replace('{n}', String(fx.level))}`, 'good')
+      case 'boon':
+        // the light takes a moment to reach the companion (render/scene.ts boonLight): the banner comes as it arrives
+        return void setTimeout(() => this.boonBanner(fx.seal, fx.name ? tx(fx.name) : ''), 1150)
       case 'undefined':
         // the clean game: a light cue the first moments the valley works something out (design.md §5.11, legibility)
         if (fx.asked) return void this.message(`✦ ${t('learning')}`, 'ai')
@@ -688,6 +692,19 @@ export class Hud {
     }
     const msg = this.message(`+1 ${name}`, 'good')
     this.pickupSig.set(name, { el: msg, n: 1, at: performance.now() })
+  }
+
+  /** A power taken up by the companion: its seal and its name, large and brief over the world. */
+  private boonBanner(seal: number | undefined, name: string): void {
+    const ordinal = (n: number) => (locale.value === 'zh' ? ('一二三四五六七八九'[n - 1] ?? String(n)) : String(n))
+    const kicker = seal ? `${t('boonSealN').replace('{n}', ordinal(seal))} · ${t('boonGained')}` : t('boonGained')
+    $('#boonKicker').textContent = kicker
+    $('#boonName').textContent = name
+    const el = $('#boonBanner')
+    el.classList.remove('hidden', 'show')
+    void el.offsetWidth
+    el.classList.add('show')
+    setTimeout(() => el.classList.add('hidden'), 4200)
   }
 
   message(text: string, tone?: string): HTMLElement {
