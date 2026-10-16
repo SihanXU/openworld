@@ -126,21 +126,36 @@ export const LIFE_SELLS: Recipe[] = [
 
 const broken = param('name', 'broken')
 
+/** A vein mined: half its ore (two, and a prospector's more), dust, and its spent face standing whole where it was. */
+const MINED_OUT: Effect[] = [
+  { op: 'spawn', type: '@prop:host.ore', at: 'tileOf:host', count: more('mineOre', 2) },
+  vfx('dust', 'tileOf:host'),
+  { op: 'heal', amount: { prop: 'maxHp', of: 'host' } },
+  { op: 'transform', into: '@prop:spent' },
+]
+
 export const LIFE_RULES: Rule[] = [
   rule({
     id: 'mine/vein',
-    doc: 'An ore vein broken breaks down into its ore (as anything made of something); a prospector gets more of its ore (mineOre), a gem-finder now and then a gem.',
+    doc: 'An ore vein broken spills half the ore it holds (as anything broken does); a prospector gets more of its ore (mineOre), a gem-finder now and then a gem. What is left is its spent face (`spent`: bedrock, that no tool breaks), whole again, which grows back into the vein in a day (ontology.ts VEIN_REGROWS).',
     host: { type: 'fixture/nature/vein' },
     on: 'threshold/cross',
     tree: IF(
       broken,
       IF(
         { all: [tag('actor', 'skill:gem-finder'), { chance: 0.12 }] },
-        DO(vfx('sparkle', 'tileOf:host'), { op: 'spawn', type: 'item/gem', at: 'tileOf:host' }, log('Something glitters in the rubble — a gem!', '碎石里有东西在闪——是宝石！'), { op: 'spawn', type: '@prop:host.ore', at: 'tileOf:host', count: more('mineOre') }, vfx('dust', 'tileOf:host'), { op: 'breakdown' }),
-        DO({ op: 'spawn', type: '@prop:host.ore', at: 'tileOf:host', count: more('mineOre') }, vfx('dust', 'tileOf:host'), log('{host} breaks.', '{host}碎了。'), { op: 'breakdown' }),
+        DO(vfx('sparkle', 'tileOf:host'), { op: 'spawn', type: 'item/gem', at: 'tileOf:host' }, log('Something glitters in the rubble — a gem!', '碎石里有东西在闪——是宝石！'), ...MINED_OUT),
+        DO(...MINED_OUT, log('{host} breaks; the face is bare. It will show ore again in a day.', '{host}碎了，只剩光秃秃的岩面。一天后又会露出矿来。')),
       ),
       'inherit',
     ),
+  }),
+  rule({
+    id: 'mine/spent',
+    doc: 'A blow on a vein\'s spent face: bare rock, harder than any tool; nothing comes of it but dust, and a word that the vein shows again in a day.',
+    host: { type: 'fixture/nature/spentvein' },
+    on: 'impulse/strike',
+    tree: DO(vfx('dust', 'tileOf:host'), log('Bare rock. The vein will show again in a day.', '光秃秃的岩面。矿脉要一天后才会再露出来。')),
   }),
   rule({
     id: 'mine/stone',

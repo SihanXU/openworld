@@ -499,7 +499,8 @@ ticks and look again; met, it leaves its `yields` where it is (still, taken with
 things in a stage start their clocks when the map comes (`World.startStages`). On it now: stumps
 and saplings (into a tree in two game days, out under the sky, nobody on them), crops' sprouts
 and young plants (clock `watered`, out under the sky: a crop in a room waits, req 16), thin ice
-(clock `chilled`, into water), hens (an egg). Gone: `wood/regrow`, `farm/grow`, `farm/root`,
+(clock `chilled`, into water), hens (an egg), a vein's spent face (2026-10-14: into the vein again in a game day,
+content `VEIN_REGROWS`; bedrock meanwhile, that no tool breaks). Gone: `wood/regrow`, `farm/grow`, `farm/root`,
 `animal/lay-egg`, `frost/thaw` and the statuses `regrowing`, `rooting`, `laying` (an old save's
 become `stage`). Harvest stays the crop rules' (the plant's props name yield, seed and the stage it
 returns to). Not yet: food spoiling, iron rusting, a campfire burning out, eggs hatching (each is

@@ -76,6 +76,8 @@ const NATURAL: MaterialDef[] = [
   { id: 'earth', category: 'soil', hardness: 0 },
   { id: 'ice', category: 'crystal', hardness: 1 },
   { id: 'ore', category: 'ore', hardness: 2 },
+  // a mined-out rock face (ontology.ts spent veins): harder than any tool, so nothing breaks it while the vein grows back
+  { id: 'bedrock', category: 'stone', hardness: 9 },
 ]
 
 /** Every material, as the world reads it (world-model.md §4.5): its category and hardness. */
