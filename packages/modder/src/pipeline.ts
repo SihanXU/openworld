@@ -384,6 +384,12 @@ export class Modder {
     const router = h.design.toolRounds === 0
     let stage: 'local' | 'find' | 'create' = 'local'
     let creations: Creation[] = []
+    // the new things' pictures, begun as soon as they are named (the designer writes their rules meanwhile)
+    const drawing = new Map<string, Promise<PixelArt | undefined>>()
+    const draws = wl.create !== 'low' && wl.create !== 'off'
+    const begin = (cs: Creation[]) => {
+      if (draws) for (const c of cs) if (c?.id && !drawing.has(c.id)) drawing.set(c.id, this.drawOne(model, { id: c.id, name: c.name } as TypeDef, c.why, wl).catch(() => undefined))
+    }
     const at = (p: ModProgress) => this.progress.set(sig.key, p)
     at({ stage: 'local' })
     if (router) ep.route = ['local']
@@ -449,6 +455,7 @@ export class Modder {
           ep.route!.push('create')
           creations = ask.create
           at({ stage: 'create', creating: creations.map((c) => shownName(c.name)) })
+          begin(creations)
           ep.attempts.push({ phase, errors: [], warnings: [], raw: answer.slice(0, 2000) })
           retry(createUser(creations, Object.keys(ctx.ontology.materials ?? {})), 'create')
           continue
@@ -496,7 +503,7 @@ export class Modder {
         // (not at the low creation setting: a new kind shows its parent's picture)
         if (res.ok && wl.create !== 'low' && patch.artifacts.some((a) => a.kind === 'type' && !a.type.art)) {
           at({ stage: 'art', creating: patch.artifacts.flatMap((a) => (a.kind === 'type' ? [a.type.name as { en: string; zh: string }] : [])) })
-          const drawn = await this.drawAll(model, patch, creations, wl)
+          const drawn = await this.drawAll(model, patch, creations, wl, drawing)
           const again = validate(drawn)
           if (again.ok) ((patch = drawn), (res = again))
           else fixes.push(`pictures dropped: ${again.errors[0]}`)
@@ -521,6 +528,7 @@ export class Modder {
             ep.route!.push('create')
             creations = missing
             at({ stage: 'create', creating: creations.map((c) => shownName(c.name)) })
+            begin(creations)
             retry(createUser(creations, Object.keys(ctx.ontology.materials ?? {})), 'create')
             continue
           }
@@ -749,20 +757,27 @@ export class Modder {
 
   /** The design conversation: tool calls until the model answers, or the round budget runs out. */
   /** Each new type of the patch gets a picture (two tries each); one that cannot be drawn keeps its parent's. */
-  private async drawAll(model: Model, patch: Patch, creations: Creation[], wl?: Workload): Promise<Patch> {
-    const artifacts = []
-    for (const a of patch.artifacts) {
-      if (a.kind !== 'type' || a.type.art) {
-        artifacts.push(a)
-        continue
-      }
-      const why = creations.find((c) => c.id === a.type.id)?.why ?? `a new kind of ${a.type.id.split('/').slice(-2, -1)[0] ?? 'thing'}`
-      // high: drawn with more thought, and once more if the picture still has problems
-      const art = await this.draw(model, a.type, why, wl?.create === 'high' ? 3 : 2, wl?.create === 'high' ? 'high' : 'medium')
-      // drawn by its picture; an agent keeps its kind's animated sheet (the picture is kept with it)
-      artifacts.push(art ? { ...a, type: { ...a.type, art, ...(!a.type.id.startsWith('actor/') && { sprite: `art:${a.type.id}` }) } } : a)
-    }
+  /**
+   * The new things' pictures, all at once: a picture begun when the thing was named (`begun`, by its id) is waited
+   * for, the rest are drawn now.
+   */
+  private async drawAll(model: Model, patch: Patch, creations: Creation[], wl?: Workload, begun?: Map<string, Promise<PixelArt | undefined>>): Promise<Patch> {
+    const artifacts = await Promise.all(
+      patch.artifacts.map(async (a) => {
+        if (a.kind !== 'type' || a.type.art) return a
+        const why = creations.find((c) => c.id === a.type.id)?.why
+        const art = (await begun?.get(a.type.id)) ?? (await this.drawOne(model, a.type, why, wl))
+        // drawn by its picture; an agent keeps its kind's animated sheet (the picture is kept with it)
+        return art ? { ...a, type: { ...a.type, art, ...(!a.type.id.startsWith('actor/') && { sprite: `art:${a.type.id}` }) } } : a
+      }),
+    )
     return { ...patch, artifacts }
+  }
+
+  /** One new thing's picture, as the tier draws it (high: with more thought, and once more if it still has problems). */
+  private drawOne(model: Model, t: TypeDef, why: string | undefined, wl?: Workload): Promise<PixelArt | undefined> {
+    const what = why ?? `a new kind of ${t.id.split('/').slice(-2, -1)[0] ?? 'thing'}`
+    return this.draw(model, t, what, wl?.create === 'high' ? 3 : 2, wl?.create === 'high' ? 'high' : 'medium')
   }
 
   private async draw(model: Model, t: TypeDef, why: string, tries = 2, reasoning: ChatOptions['reasoning'] = 'medium'): Promise<PixelArt | undefined> {
