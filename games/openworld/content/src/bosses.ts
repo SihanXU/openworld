@@ -91,7 +91,7 @@ const DRAGON_SKILLS: KitSkill[] = [
   skill('bolt_two', 'Threefold Fire', '火弹三连', { ...BOLT, windup: 6, recovery: 0, then: 'bolt_three' }),
   skill('bolt_three', 'Threefold Fire', '火弹三连', { ...BOLT, windup: 6, recovery: 10 }),
   skill('tail', 'Tail Sweep', '甩尾', { shape: 'circle', aim: 'self', radius: 2, range: [1, 2], cooldown: 60, windup: 9, recovery: 8, action: 'attack', fx: 'dust', fxPlacement: 'pattern', color: HARM }),
-  skill('bite', 'Bite', '撕咬', { shape: 'cone', aim: 'self', radius: 1, range: [1, 1], aligned: true, cooldown: 40, windup: 7, recovery: 8, action: 'attack', fx: 'hit', color: HARM }),
+  skill('bite', 'Bite', '撕咬', { shape: 'cone', aim: 'self', radius: 1, range: [1, 1], aligned: true, cooldown: 40, windup: 8, recovery: 8, action: 'attack', fx: 'hit', color: HARM }),
   skill('brood', 'Call the Brood', '唤雏', { shape: 'circle', aim: 'self', radius: 0, windup: 15, recovery: 10, steady: true, action: 'cast', color: CALL }),
   skill('dive', 'Searing Dive', '焚翼俯冲', { shape: 'line', aim: 'target', radius: 10, width: 3, move: 'dash', windup: 18, recovery: 16, action: 'attack', fx: 'fire_burst', fxPlacement: 'pattern', color: HARM }),
   skill('ashfall', 'Ashfall', '烬落', { ...ASH, windup: 16, recovery: 0, then: 'ashfall_again' }),

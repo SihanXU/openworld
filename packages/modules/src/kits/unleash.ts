@@ -46,7 +46,11 @@ export function unleash(fx: EffectRunner, eff: UnleashArgs, ev: GameEvent): void
     for (let i = 0; i < skill.radius; i++) {
       const nx = x + vx, ny = y + vy
       if (!w.inBounds(at.map, nx, ny)) break
-      const cells = band(nx, ny).filter(([bx, by]) => w.inBounds(at.map, bx, by))
+      // the cells its body comes onto with the step (a large body's leading edge), as wide as the line
+      const body = new Set(w.occupiedCells(e, x, y).map(([cx, cy]) => `${cx},${cy}`))
+      const lead = w.occupiedCells(e, nx, ny).filter(([cx, cy]) => !body.has(`${cx},${cy}`))
+      const cells = [...new Map(lead.flatMap(([cx, cy]) => band(cx, cy)).map((c): [string, [number, number]] => [`${c[0]},${c[1]}`, c])).values()]
+        .filter(([bx, by]) => w.inBounds(at.map, bx, by))
       const foes = foesOn(cells)
       if (foes.length) {
         victims = foes

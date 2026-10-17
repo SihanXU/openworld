@@ -49,9 +49,16 @@ windupMul?, recoveryMul?, powerMul?}]`, `reactive`, `floors {windup, recovery}` 
 written). Its body is its
 type's (health, footprint). A type with an encounter is fought as a boss: the plate, the camera, the music.
 
+A large body (the dragon's 2x2, the knight's 3x2) strikes from its edge: a line, a cone or a dash is wound up from the
+cell of its body nearest the foe (`originOf`, `edgeOf` in pattern.ts), and its range and row are measured from there; a
+dash stops at the first foe its leading edge meets. A disk, a ring, a cross or spots round itself keep to where it
+stands (its anchor), and so does their range. One cell: the same cell either way.
+
 A wind-up is behaviour memory in the module (`World.ext('kits')`), never the world's state: a save taken mid wind-up
 loses only the wind-up (docs/creatures.md §4). A boss's place in its fight (phase, rotation step) is its saved memory,
-`Entity.boss`.
+`Entity.boss`; what a wind-up under way was taken up as (`winding`: a phase's opening or a rotation's step) is saved
+with it, and a director that finds it without a wind-up gives the opening or the step back: a save never skips the
+dragon's brood or the knight's hedge. Let go, or lost to a hold, the opening or the step is spent.
 
 ## 3. Archetypes: one move, two scales
 

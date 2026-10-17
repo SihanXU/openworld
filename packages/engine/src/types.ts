@@ -548,6 +548,11 @@ export interface BossState {
   opened?: number
   /** Its place in the phase's rotation. */
   step?: number
+  /**
+   * What the wind-up under way was taken up as: a phase's opening or a step of the rotation. A wind-up is behaviour
+   * memory and a save loses it; the director, finding this without one, gives the opening or the step back.
+   */
+  winding?: 'open' | 'step'
   /** Not before this tick does it take up the next. */
   nextAt?: number
   action?: 'idle' | 'walk' | 'attack' | 'cast' | 'hurt' | 'death'

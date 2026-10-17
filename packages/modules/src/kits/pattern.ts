@@ -1,13 +1,29 @@
 // The cells a kit skill marks (docs/skills.md): one geometry for the minor monsters and the bosses. What is marked
 // when the wind-up begins is what lands; the landing works the cells out again from the same locked origin and aim.
 
-import type { Engine, KitSkill, Pos } from '@openworld/engine'
+import type { Engine, Entity, KitSkill, Pos } from '@openworld/engine'
 
 /** The axis of a cell from another: one step along the greater axis (down when they are the same cell). */
 export function axis(from: Pos, to: Pos): [number, number] {
   const dx = to.x - from.x, dy = to.y - from.y
   if (Math.abs(dx) >= Math.abs(dy) && dx !== 0) return [Math.sign(dx), 0]
   return [0, Math.sign(dy) || 1]
+}
+
+/**
+ * The cell of a caster's body nearest a point: a large body (the dragon's 2x2, the knight's 3x2) reaches, aims and
+ * winds up from its edge facing its foe, never from a corner of itself. One cell: the caster's own.
+ */
+export function edgeOf(eng: Engine, e: Entity, pos: Pos, at: Pos): Pos {
+  const cells = eng.world.occupiedCells(e, pos.x, pos.y)
+  const xs = cells.map(([x]) => x), ys = cells.map(([, y]) => y)
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
+  return { ...pos, x: clamp(at.x, Math.min(...xs), Math.max(...xs)), y: clamp(at.y, Math.min(...ys), Math.max(...ys)) }
+}
+
+/** Where a skill is wound up from: a line, a cone or a dash from the body's edge facing its foe; a disk round the body's anchor. */
+export function originOf(eng: Engine, e: Entity, skill: KitSkill, pos: Pos, at: Pos): Pos {
+  return skill.shape === 'line' || skill.shape === 'cone' || skill.move === 'dash' ? edgeOf(eng, e, pos, at) : pos
 }
 
 /** A disk of cells round a centre (`r` 0: the centre alone; 1: the eight round it too). */

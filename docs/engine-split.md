@@ -196,7 +196,8 @@ P2 and P3 overlap where they do not touch (the catalogue as data needs no module
   `migrations` each module's `upgrade`. The effect and condition *types* (`types.ts`) still name the modules'
   primitives (`ModuleOp`), so every rule stays type-checked; only their work moved out.
 - **The modules**: `classes` (professions and their weapons, the combat talents, relics, the active skills
-  and the skill bar; it fills the combat slot), `bosses` (the encounter goal, `release`), `waypoints`,
+  and the skill bar; it fills the combat slot), `kits` (every monster's skills, the minor monsters' kit goal and a boss fight's encounter goal, `unleash`;
+  it took the former `bosses` module in, whose id it still answers to: `EngineModule.formerly`, docs/skills.md), `waypoints`,
   `boons` (needs waypoints), `needs` (hunger: `feed`, the woken-by-hunger word), `society` (the social life and
   conduct of docs/npc-sandbox.md: 24 primitives — `moveIn` the latest, 2026-10-12 —, 9 conditions, the goals
   social, follow and need, the watches as residents; it fills the society slot), `loot` (2026-10-12: a creature

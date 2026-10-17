@@ -5,7 +5,7 @@
 import '../../client/src/register.ts'
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, snapshot, type MapData } from '@openworld/engine'
-import { castNow, encounter, kitsOf } from '@openworld/modules'
+import { castNow, encounter, kitsOf, ready } from '@openworld/modules'
 import { BASE_RULES, BOSS_BY_ID, EMBERS, HEDGE, SPROUT, STORY_RULES, buildOntology, createBoss } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
@@ -31,7 +31,7 @@ function arena(id: string, playerAt = { x: 16, y: 21 }) {
   const land = () => { for (let i = 0; i < 200 && pending(); i++) eng.tick() }
   const place = (x: number, y: number) => w.author(() => w.place(player, { on: 'tile', map: 'arena', x, y }))
   const heal = () => w.author(() => w.setProp(player, 'hp', 1000))
-  return { game, eng, w, boss, player, ticks, pending, next, land, place, heal }
+  return { game, index, map, eng, w, boss, player, ticks, pending, next, land, place, heal }
 }
 const of = (w: ReturnType<typeof arena>['w'], type: string) => w.entitiesOnMap('arena').filter((e) => e.type === type)
 
@@ -170,6 +170,42 @@ describe('the dragon of Cinder Peak', () => {
     // what it flew over burns
     expect(of(w, EMBERS).length).toBeGreaterThan(0)
     ticks(1)
+  })
+
+  it('strikes from its body\'s edge on every side: the dive and the bite reach one to its right, above, left or below', () => {
+    // its 2x2 body stands on 16–17 × 15–16: no skill begins from a corner of itself
+    for (const [x, y] of [[23, 16], [16, 9], [10, 16], [16, 22]]) {
+      const { eng, w, boss, player, place, land } = arena('dragon')
+      place(x, y)
+      castNow(eng, boss, 'dive')
+      land()
+      expect(w.num(player, 'hp'), `the dive at ${x},${y}`).toBeLessThan(1000)
+      expect(boss.statuses?.stunned, `the dive at ${x},${y}`).toBeUndefined()
+    }
+    for (const [x, y] of [[18, 16], [16, 14], [15, 16], [16, 17]]) {
+      const { eng, w, boss, player, place, land } = arena('dragon')
+      place(x, y)
+      const bite = kitsOf(eng).skillOf(boss, 'bite')!
+      expect(ready(eng, boss, bite, w.posOf(boss)!, w.posOf(player)!), `the bite ready at ${x},${y}`).toBe(true)
+      castNow(eng, boss, 'bite')
+      land()
+      expect(w.num(player, 'hp'), `the bite at ${x},${y}`).toBeLessThan(1000)
+    }
+  })
+
+  it('calls its brood even when a save was taken while it called: a lost wind-up gives the opening back', () => {
+    const { game, index, map, w, boss, next, place } = arena('dragon')
+    place(16, 21)
+    w.author(() => w.setProp(boss, 'hp', BOSS_BY_ID.dragon.hp * 0.45))
+    expect(next()).toBe('brood')
+    const loaded = Game.load(structuredClone(game.save()), index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    loaded.loadMapData(map)
+    const eng = loaded.engine, again = eng.world.get(boss.id)!
+    expect(kitsOf(eng).pending.get(again.id)).toBeUndefined()
+    for (let i = 0; i < 200 && !kitsOf(eng).pending.get(again.id); i++) eng.tick()
+    expect(kitsOf(eng).pending.get(again.id)?.skill.id).toBe('brood')
+    for (let i = 0; i < 200 && kitsOf(eng).pending.get(again.id); i++) eng.tick()
+    expect(of(eng.world, 'actor/creature/whelp')).toHaveLength(3)
   })
 
   it('calls its brood once as its second phase opens, and never again in a world whose brood has come', () => {

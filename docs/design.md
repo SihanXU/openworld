@@ -899,7 +899,7 @@ opens) are its own: written only by its own behaviour and outcomes, never read b
 | the skill tree and the trainer wrote the player's tags and props | `act/learn` (param `skill` or `profession`), like `craft`: the actor's outcome (`learn`) |
 | talents healed the striker and bled the target from the striker's code; a clock hurt and healed | the act carries `bleed` and `drain`; the struck one's `hurt` opens `bleeding` and sends a `restore`; `adrenaline` is a status; recoveries on a defeat are the striker's rule (the defeat carries the last blow's instrument) |
 | the dash, waypoint travel moved by code | acts of moving |
-| a sin's release struck, stepped and statused its victims from code | the sin's act (`use`, its own body), answered by `release`: strikes, a push, a coat they answer |
+| a sin's release struck, stepped and statused its victims from code | the sin's act (`use`, its own body), answered by `release` (since 2026-10-16 `unleash`, docs/skills.md): strikes, a push, a coat they answer |
 | the night made and destroyed creatures from the clock's code | the world's `night` period → `appear` (world-only); the night-born's own `dawn` rule destroys them |
 
 **Two general refinements.** A status remembers who gave it (the outcome's actor): its time

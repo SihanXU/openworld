@@ -5,7 +5,7 @@
 // behaviour memory, kept here beside the state (docs/creatures.md §4): a save taken mid wind-up only loses the wind-up.
 
 import type { EncounterDef, Engine, Entity, Id, KitSkill, Pos } from '@openworld/engine'
-import { axis, cellsOf } from './pattern.ts'
+import { axis, cellsOf, originOf } from './pattern.ts'
 
 /** The warning red, for a skill that names no colour of its own. */
 export const TELEGRAPH_RED = 0xe0483c
@@ -81,10 +81,11 @@ export function beginCast(eng: Engine, e: Entity, skill: KitSkill, at: Pos, opts
   const w = eng.world, now = w.state.tick
   const pos = w.posOf(e)
   if (!pos) return undefined
-  faceToward(e, pos, at)
+  const origin = originOf(eng, e, skill, pos, at)
+  faceToward(e, origin, at)
   const p: Pending = {
-    skill, target: opts.target, origin: { ...pos }, aim: { map: pos.map, x: at.x, y: at.y, ...(pos.z && { z: pos.z }) },
-    tiles: cellsOf(eng, skill, pos, at), start: now, releaseAt: now + windupOf(skill, opts.boss), boss: opts.boss, chain: opts.chain ?? 0,
+    skill, target: opts.target, origin: { ...origin }, aim: { map: pos.map, x: at.x, y: at.y, ...(pos.z && { z: pos.z }) },
+    tiles: cellsOf(eng, skill, origin, at), start: now, releaseAt: now + windupOf(skill, opts.boss), boss: opts.boss, chain: opts.chain ?? 0,
   }
   // an encounter's phase scales its blow (unrounded: the rule's multiple is rounded where it lands)
   if (opts.boss) p.power = w.stat(e, 'atk', 1) * opts.boss.powerMul

@@ -3,7 +3,7 @@
 // together, resolves the people's anchors, lays the maps out by their edge links, counts what is where and
 // derives what the story protects, and reports every problem it finds (check.ts) instead of throwing.
 
-import { storyTopics, type Entity, type LibraryData, type MapMeta, type Ontology, type Pos, type RawChunk, type Rule, type ScheduleEntry, type WorldIndex } from '@openworld/engine'
+import { moduleIds, storyTopics, type Entity, type LibraryData, type MapMeta, type Ontology, type Pos, type RawChunk, type Rule, type ScheduleEntry, type WorldIndex } from '@openworld/engine'
 import { STDLIB_ONTOLOGY, STDLIB_RULES } from '@openworld/stdlib'
 import { checkProject } from './check.ts'
 import { applyLocales, languagesOf, localeProblems } from './texts.ts'
@@ -44,7 +44,8 @@ export function mergeOntology(parts: OntologyPart[], game: Pick<GameJson, 'stdli
       else out[k] = v
     }
   out.params = { ...(out.params as object), ...game.params }
-  out.modules = [...(game.modules ?? [])]
+  // a module's former id (one folded into another) compiles as the module it is now
+  out.modules = moduleIds(game.modules)
   return structuredClone(out) as unknown as Ontology
 }
 

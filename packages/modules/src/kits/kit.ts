@@ -5,18 +5,23 @@
 
 import type { Engine, Entity, KitSkill, Pos } from '@openworld/engine'
 import { beginCast, kitsOf, stepCast } from './cast.ts'
+import { originOf } from './pattern.ts'
 
 const dist = (a: Pos, b: Pos) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))
 
 /** The key of a skill's cooldown on a caster. */
 export const skillKey = (e: Entity, skill: KitSkill) => `kit:${e.id}:${skill.id}`
 
-/** May the caster at `pos` take this skill up against a foe at `at` now (its range, row, health, cooldown, chance)? */
+/**
+ * May the caster at `pos` take this skill up against a foe at `at` now (its range, row, health, cooldown, chance)? The
+ * range and the row are measured from where the skill would be wound up (a large body's line from its edge).
+ */
 export function ready(eng: Engine, e: Entity, skill: KitSkill, pos: Pos, at: Pos): boolean {
   const w = eng.world
-  const d = dist(pos, at)
+  const from = originOf(eng, e, skill, pos, at)
+  const d = dist(from, at)
   if (skill.range && (d < skill.range[0] || d > skill.range[1])) return false
-  if (skill.aligned && pos.x !== at.x && pos.y !== at.y) return false
+  if (skill.aligned && from.x !== at.x && from.y !== at.y) return false
   if (skill.below !== undefined && w.num(e, 'hp') > w.num(e, 'maxHp', 1) * skill.below) return false
   if (!eng.ready(skillKey(e, skill))) return false
   return w.rand() < (skill.chance ?? 1)

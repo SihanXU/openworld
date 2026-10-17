@@ -2623,6 +2623,14 @@
           "type": "number",
           "description": "Its place in the phase's rotation."
         },
+        "winding": {
+          "type": "string",
+          "enum": [
+            "open",
+            "step"
+          ],
+          "description": "What the wind-up under way was taken up as: a phase's opening or a step of the rotation. A wind-up is behaviour memory and a save loses it; the director, finding this without one, gives the opening or the step back."
+        },
         "nextAt": {
           "type": "number",
           "description": "Not before this tick does it take up the next."

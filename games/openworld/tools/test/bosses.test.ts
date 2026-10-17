@@ -2,7 +2,7 @@
 import '../../client/src/register.ts'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, snapshot, type Effect, type Engine, type MapData } from '@openworld/engine'
+import { Game, RuleLibrary, moduleIds, modulesOf, snapshot, type Effect, type Engine, type MapData } from '@openworld/engine'
 import { castNow, cellsOf, combatDelay, encounter, kitsOf } from '@openworld/modules'
 import { ALBERIC_CAMPAIGN, BASE_RULES, BOSSES, BOSS_BY_ID, BOSS_LAYOUT, STORY_RULES, buildOntology, createBoss, migrateBosses } from '@openworld-game/content'
 import { SIN_ACTORS, SIN_FX } from '@openworld/runtime/src/assets/bosses.ts'
@@ -160,10 +160,10 @@ describe('the boss fights', () => {
     loaded.loadMapData(map)
     const again = loaded.engine.world.get(boss.id)!
     expect(again.boss).toEqual(boss.boss)
-    // its wind-up was behaviour memory (docs/creatures.md §4): it begins the skill again, its step in the fight kept
+    // its wind-up was behaviour memory (docs/creatures.md §4): it begins the same skill again, its step in the fight kept
     expect(kitsOf(loaded.engine).pending.get(boss.id)).toBeUndefined()
     for (let i = 0; i < 40 && !kitsOf(loaded.engine).pending.get(boss.id); i++) loaded.engine.tick()
-    expect(kitsOf(loaded.engine).pending.get(boss.id)?.skill.id).toBe(BOSS_BY_ID.pride.encounter.phases[0].rotation[1])
+    expect(kitsOf(loaded.engine).pending.get(boss.id)?.skill.id).toBe(BOSS_BY_ID.pride.encounter.phases[0].rotation[0])
   })
 
   it('makes awakening hit harder and recover sooner, while retaining the locked warning', () => {
@@ -278,7 +278,9 @@ describe('Alberic visual timing and locked effects', () => {
     ticks(cast.releaseAt - w.state.tick)
     const effects = w.fx.filter((f) => f.t === 'vfx' && f.fx === 'sin:alberic:arrow')
     expect(effects).toHaveLength(1)
-    expect(effects[0]).toMatchObject({ angle, span: 8, x: origin.x + Math.sign(dx) * 4.5, y: origin.y + Math.sign(dy) * 4.5 })
+    // loosed from the edge of his 3x2 body facing the foe (x ±1, y 0 or −1 from where he stands)
+    const edge = { x: origin.x + Math.sign(dx), y: origin.y + Math.min(0, Math.sign(dy)) }
+    expect(effects[0]).toMatchObject({ angle, span: 8, x: edge.x + Math.sign(dx) * 4.5, y: edge.y + Math.sign(dy) * 4.5 })
     expect(w.num(player, 'hp')).toBe(1000)
     expect(snapshot(eng).entities.find((e) => e.id === boss.id)!.boss!.skill).toBe('arrow')
   })
@@ -354,6 +356,17 @@ describe('boss encounter assets and compatibility', () => {
     Object.assign(boss.boss!, { kit: 'pride', nextSkill: 2, pending: { skill: 1, releaseAt: 5 } })
     const loaded = Game.load(structuredClone(game.save()), index, onto, library())
     loaded.loadMapData(map)
-    expect(loaded.engine.world.get(boss.id)!.boss).toEqual({ phase: 1, action: 'idle' })
+    expect(loaded.engine.world.get(boss.id)!.boss).toEqual({ phase: 1, opened: 1, action: 'idle' })
+    // one saved in its second phase does not open it again as it loads
+    const later = arena()
+    Object.assign(later.boss.boss!, { kit: 'pride', phase: 2, nextSkill: 0 })
+    const again = Game.load(structuredClone(later.game.save()), later.index, onto, library())
+    again.loadMapData(later.map)
+    expect(again.engine.world.get(later.boss.id)!.boss).toEqual({ phase: 2, opened: 2, action: 'idle' })
+  })
+
+  it('takes a module\'s former id as the module it is now: a game that names the bosses module gets the kits', () => {
+    expect(modulesOf(['bosses', 'kits']).map((m) => m.id)).toEqual(['kits'])
+    expect(moduleIds(['bosses'])).toEqual(['kits'])
   })
 })

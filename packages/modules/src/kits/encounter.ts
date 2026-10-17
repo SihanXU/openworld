@@ -7,6 +7,7 @@
 import { astar, type Engine, type Entity, type Frame, type KitSkill, type Pos } from '@openworld/engine'
 import { TELEGRAPH_RED, beginCast, faceToward, kitsOf, scaled, stepCast } from './cast.ts'
 import { foeOf, ready, skillKey } from './kit.ts'
+import { edgeOf, originOf } from './pattern.ts'
 
 const DEFAULT_FLOORS = { windup: 8, recovery: 6 }
 const dist = (a: Pos, b: Pos) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))
@@ -62,16 +63,26 @@ export function encounter(eng: Engine, e: Entity, active: string): boolean {
   const pos = w.posOf(e)!, home = e.ai.home ?? pos
   const sight = def.sight ?? e.ai.sight, leash = def.leash ?? e.ai.leash ?? 12
   const p = kits.pending.get(e.id)
+  // a wind-up lost with a save (it is behaviour memory): the opening or the rotation's step it was is given back, so a
+  // phase's opening (the brood, the hedge) is never skipped by loading a game
+  if (!p && b.winding) {
+    if (b.winding === 'open') b.opened = Math.max(1, (b.opened ?? 1) - 1)
+    else b.step = Math.max(0, (b.step ?? 0) - 1)
+    delete b.winding
+  }
   if (p) {
     const seen = foeOf(eng, e, active, Infinity)
     // a foe gone from its arena: the skill is dropped (unless it is steady: a phase's opening skill)
     if (!p.skill.steady && (!seen || dist(pos, home) > leash || dist(seen.at, home) > leash + 3)) {
       kits.pending.delete(e.id)
+      delete b.winding
       b.action = 'idle'
       b.nextAt = now + 10
       return true
     }
     const r = stepCast(eng, e, active)
+    // let go or lost to a hold, the opening or the step is spent
+    if (r === 'lost' || r === 'released') delete b.winding
     if (r === 'lost') {
       b.action = eng.busy(e) ? 'hurt' : 'idle'
       return true
@@ -104,7 +115,7 @@ export function encounter(eng: Engine, e: Entity, active: string): boolean {
   if (now < (b.nextAt ?? 0)) return true
   const seen = foeOf(eng, e, active, Infinity)
   const inLeash = dist(pos, home) <= leash
-  if (!seen || !inLeash || dist(seen.at, pos) > sight) {
+  if (!seen || !inLeash || dist(seen.at, edgeOf(eng, e, pos, seen.at)) > sight) {
     b.action = 'idle'
     e.ai.state = 'idle'
     // back to its arena instead of camping the map's exit or chasing into a town
@@ -135,7 +146,7 @@ export function encounter(eng: Engine, e: Entity, active: string): boolean {
   if (!skill) return true
   // a rotation's skill wants its foe within its reach: it walks there first
   const reach = skill.range ? skill.range[1] : skill.aim === 'self' ? skill.radius : sight
-  if (!opening && dist(at, pos) > reach) {
+  if (!opening && dist(at, originOf(eng, e, skill, pos, at)) > reach) {
     if (eng.ready(e.id)) {
       b.action = moveToward(eng, e, at) ? 'walk' : 'idle'
       eng.setCooldown(e.id, eng.combat.delay(e, w.num(e, 'speed', 8), 'move'))
@@ -145,6 +156,8 @@ export function encounter(eng: Engine, e: Entity, active: string): boolean {
   if (step) b.step = (b.step ?? 0) + 1
   const cast = beginCast(eng, e, skill, at, { target: foe.id, boss: { windupMul: ph.windupMul ?? 1, powerMul: ph.powerMul ?? 1, floor: floors.windup } })
   if (!cast) return true
+  if (opening || step) b.winding = opening ? 'open' : 'step'
+  else delete b.winding
   eng.setCooldown(skillKey(e, skill), cast.releaseAt - now + (skill.cooldown ?? 0))
   b.action = poseOf(skill)
   b.skill = skill.id

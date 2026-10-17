@@ -18,6 +18,8 @@ export * from './unleash.ts'
 
 export const kitsModule: EngineModule = {
   id: 'kits',
+  // the bosses' skills were a module of their own until they became the kits' (docs/skills.md)
+  formerly: ['bosses'],
   goals: {
     encounter: { paced: false, run: (eng, e, sc) => encounter(eng, e, sc.active) },
     kit: { paced: false, urgent: true, run: (eng, e, sc) => kitGoal(eng, e, sc.active) },
@@ -36,10 +38,14 @@ export const kitsModule: EngineModule = {
     eng.hooks.frame.push((f) => kitFrame(eng, f))
   },
   upgrade(eng) {
-    // an older save's boss memory (the bosses module's: a kit by id, its skills by index, a wind-up) becomes the director's
+    // an older save's boss memory (the bosses module's: a kit by id, its skills by index, a wind-up) becomes the director's;
+    // the phases it came to are opened (their openings were the old kit's, or there were none)
     for (const e of Object.values(eng.world.state.entities)) {
       const b = e.boss as (typeof e.boss & { kit?: unknown; nextSkill?: unknown; pending?: unknown }) | undefined
-      if (b && (b.kit !== undefined || b.nextSkill !== undefined || b.pending !== undefined)) e.boss = { phase: typeof b.phase === 'number' ? b.phase : 1, action: 'idle' }
+      if (b && (b.kit !== undefined || b.nextSkill !== undefined || b.pending !== undefined)) {
+        const phase = typeof b.phase === 'number' ? b.phase : 1
+        e.boss = { phase, opened: phase, action: 'idle' }
+      }
     }
   },
 }
