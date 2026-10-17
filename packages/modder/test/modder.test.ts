@@ -999,6 +999,31 @@ describe('the router: local, then find, then create', () => {
     expect(drawn[1]).toMatchObject({ art: INGOT_ART, sprite: 'art:item/material/ash_fur' })
   })
 
+  it('draws a new thing while its rules are written: the picture is begun as soon as the thing is named', async () => {
+    const at: Record<string, number> = {}
+    const t0 = Date.now()
+    const slow = async <T,>(key: string, f: () => Promise<T>): Promise<T> => {
+      at[`${key}:start`] = Date.now() - t0
+      await new Promise((r) => setTimeout(r, 200))
+      const v = await f()
+      at[`${key}:end`] = Date.now() - t0
+      return v
+    }
+    const { model } = router({
+      local: { need: [{ name: 'steel ingot' }] },
+      find: { create: [{ id: 'item/material/steel_ingot', name: { en: 'Steel Ingot', zh: '钢锭' }, why: 'smelted steel' }] },
+      create: { patch: { artifacts: [{ kind: 'type', type: INGOT_TYPE }, { kind: 'rule', rule: leaves('item/material/steel_ingot') }] } },
+    })
+    const wrapped: Model = { name: model.name, chat: (m, o) => (o?.purpose === 'art' ? slow('art', () => model.chat(m, o)) : m[m.length - 1].content.startsWith('# Create') ? slow('create', () => model.chat(m, o)) : model.chat(m, o)) }
+    const { modder, library } = setup(wrapped, undefined, 'live')
+    const reply = await modder.resolve({ request: request() })
+    expect(reply.outcome).toBe('accepted')
+    // the picture was begun before the rules came back, and the two took the time of one
+    expect(at['art:start']).toBeLessThan(at['create:end'])
+    expect(at['art:end'] - at['create:start']).toBeLessThan(350)
+    expect(library.lib.types.find((x) => x.id === 'item/material/steel_ingot')).toMatchObject({ art: INGOT_ART, sprite: 'art:item/material/steel_ingot' })
+  })
+
   it('creates what the world does not have, with its picture, and says so while it works', async () => {
     let during: unknown
     const req = request()
@@ -1011,7 +1036,8 @@ describe('the router: local, then find, then create', () => {
     const { modder, state, library } = setup(model, undefined, 'live')
     const reply = await modder.resolve({ request: req })
     expect(reply.outcome).toBe('accepted')
-    expect(during).toEqual({ stage: 'art', creating: [{ en: 'Steel Ingot', zh: '钢锭' }] })
+    // the picture is begun as soon as the thing is named, while its rules are written
+    expect(during).toEqual({ stage: 'create', creating: [{ en: 'Steel Ingot', zh: '钢锭' }] })
     expect(modder.progressOf(req.id)).toBeUndefined()
     expect(state.episode(reply.episode!)).toMatchObject({ route: ['local', 'find', 'create'], created: ['item/material/steel_ingot'] })
     const t = library.lib.types.find((x) => x.id === 'item/material/steel_ingot')!
