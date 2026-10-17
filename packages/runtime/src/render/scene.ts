@@ -478,19 +478,18 @@ export class WorldScene extends Phaser.Scene {
     this.applyTiles(f)
     this.bossWarnings ??= this.add.graphics().setDepth(-20)
     this.bossWarnings.clear()
-    for (const e of f.entities) if (e.boss?.warning) {
-      const warning = e.boss.warning, color = e.boss.color
-      for (const [x, y] of warning.tiles) {
-        this.bossWarnings.fillStyle(color, 0.13 + warning.progress * 0.24).fillRect(x * T + 1, y * T + 1, T - 2, T - 2)
-        this.bossWarnings.lineStyle(1, color, 0.6 + warning.progress * 0.4).strokeRect(x * T + 1, y * T + 1, T - 2, T - 2)
-        this.bossWarnings.fillStyle(0xffeee0, warning.progress).fillRect(x * T + 7, y * T + 7, 2, 2)
-      }
-    }
-    // a creature's skill winding up (the kits module): the same marks, in the skill's colour, filling as it nears
+    // a skill winding up (the kits module): its cells marked in the skill's colour, filling as it nears; a boss's in its
+    // own manner (fainter, a spark in each cell), and its body never flashes
     this.windup.clear()
     for (const t of f.telegraphs ?? []) {
-      this.windup.set(t.who, t.progress)
+      if (!t.boss) this.windup.set(t.who, t.progress)
       for (const [x, y] of t.tiles) {
+        if (t.boss) {
+          this.bossWarnings.fillStyle(t.color, 0.13 + t.progress * 0.24).fillRect(x * T + 1, y * T + 1, T - 2, T - 2)
+          this.bossWarnings.lineStyle(1, t.color, 0.6 + t.progress * 0.4).strokeRect(x * T + 1, y * T + 1, T - 2, T - 2)
+          this.bossWarnings.fillStyle(0xffeee0, t.progress).fillRect(x * T + 7, y * T + 7, 2, 2)
+          continue
+        }
         this.bossWarnings.fillStyle(t.color, 0.22 + t.progress * 0.33).fillRect(x * T + 1, y * T + 1, T - 2, T - 2)
         this.bossWarnings.lineStyle(1.5, t.color, 0.75 + t.progress * 0.25).strokeRect(x * T + 1, y * T + 1, T - 2, T - 2)
       }
@@ -997,7 +996,7 @@ export class WorldScene extends Phaser.Scene {
       const a = this.actorDef(e)
       if (a) {
         const { img, fw, fh } = actorFrames(this, a.key, a.def)
-        const col = e.boss || a.def.rows === 1 ? 0 : (DIR_COL[e.facing] ?? 0)
+        const col = (e.boss && a.def.rows >= 5) || a.def.rows === 1 ? 0 : (DIR_COL[e.facing] ?? 0)
         return { img, frame: `${a.key}:${col},0`, ax: fw / 2, ay: a.def.anchorY ?? fh, actor: { key: a.key, rows: a.def.rows, cols: a.def.cols, tint: a.def.tint, scale: a.def.scale } }
       }
     }
@@ -1274,11 +1273,16 @@ export class WorldScene extends Phaser.Scene {
     return { wings, segments, trail: [] }
   }
 
-  /** Wings beat; the body follows the way the head has come, and curls behind it at rest. */
+  /**
+   * Wings beat; the body follows the way the head has come, and curls behind it at rest. Winding a skill up (a boss
+   * fight's warning), it rears: the wings flare and beat faster, the head draws back as the blow nears.
+   */
   private updateDragon(v: EView, time: number): void {
     const d = v.dragon!
-    const beat = Math.sin((time + v.phase) / 160)
-    d.wings.forEach((w, i) => w.setAngle((i ? 1 : -1) * (8 + beat * 14)).setScale(1, 0.9 + 0.1 * beat))
+    const warning = v.snap.boss?.warning
+    const beat = Math.sin((time + v.phase) / (warning ? 90 : 160))
+    d.wings.forEach((w, i) => w.setAngle((i ? 1 : -1) * ((warning ? 20 : 8) + beat * 14)).setScale(1, 0.9 + 0.1 * beat))
+    v.body.y = warning ? -4 * warning.progress : 0
     const head = { x: v.root.x, y: v.root.y - 6 }
     const last = d.trail[0]
     if (!last || Math.hypot(last.x - head.x, last.y - head.y) >= 2) d.trail.unshift(head)
@@ -1508,7 +1512,8 @@ export class WorldScene extends Phaser.Scene {
       v.head?.setPosition(v.root.x, v.root.y).setVisible(v.root.visible).setAlpha(v.root.alpha)
       // a body between two cells is ordered by where it is drawn now (depth.ts footOf)
       if (e.tags.includes('agent') && !e.boss) v.root.setDepth(this.depthOf(e, footOf(e.y, v.root.y + (e.z ?? 0) * STOREY_LIFT + this.liftOf(e))))
-      if (v.actor && e.boss) {
+      // a boss drawn on its own atlas (rows of poses); one drawn otherwise (the dragon in parts) moves as any creature
+      if (v.actor && e.boss && v.actor.rows >= 5) {
         let animated = e.boss
         // a preview plays on its own timeline (a loop starts at its first pose); the game on the screen's clock
         let clock = time, offset = v.phase

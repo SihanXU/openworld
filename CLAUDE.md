@@ -78,15 +78,19 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   kernel's slots (`eng.combat`, the kernel's plain one in `blows.ts`; `eng.society`) and hooks (`eng.hooks`).
 - `packages/modules` — the engine's official optional systems (S3), a folder each, registered as the package
   loads: `classes` (professions, combat talents, relics, active skills and the skill bar; the combat slot),
-  `bosses` (docs/bosses.md: the encounter goal, locked telegraphs, `release`), `waypoints`, `boons`, `needs`
+  `waypoints`, `boons`, `needs`
   (hunger), `society` (docs/npc-sandbox.md: `social.ts` whose things are, households, deeds seen and judged,
   recognition, memory and regard, gossip, the watches, prices, the talk panel; `conduct.ts` the goals social,
   need and follow; its state in `World.ext`, read with `socialOf(eng)`; the society slot), `loot` (a creature
   kind's own piece of gear, its `trophy` prop: by its chance or surely after `Ontology.loot.pity` fellings, the
   game's words `loot.found`; only a piece some kind of the game names is ever made, whatever a rule sends), `kits`
-  (docs/creatures.md: the minor monsters' own skills — a kind's kit, `Ontology.kits`, taken up by the `kit` goal before
-  `threat`: it marks the cells, `Frame.telegraphs`, and winds up; the act it ends in, `use` with the param `kit`, is the
-  creature's own rule's to answer, with the primitive `unleash`).
+  (docs/skills.md: every monster's skills, one system — a kind's kit, `Ontology.kits` (`KitSkill`: where it aims, how it
+  winds up, moves and chains, when it may be taken up); `pattern.ts` the cells, `cast.ts` a wind-up and its release (behaviour
+  memory, lost with a save), `unleash.ts` the one primitive that lands it (a strike, a coat, a push or pull, what it leaves);
+  two behaviours take skills up: `kit.ts` the minor monsters' `kit` goal before `threat` (docs/creatures.md), `encounter.ts`
+  a boss fight's director (`Ontology.encounters`: phases with a rotation, an opening skill, answering skills; its saved
+  memory `Entity.boss`; its plate in the frame, docs/bosses.md); `Frame.telegraphs` for every caster; the act a wind-up
+  ends in, `use` with the param `kit`, is the caster's own rule's to answer).
 - `packages/stdlib` — the standard library, data (`ontology.json`, `rules.json`): the types and statuses the
   kernel names, the roots of the rule library, the Story Manager's and a quest's rules. A project takes it
   unless its game.json says not.
@@ -140,7 +144,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   docs/main-quest.md), the quests (`quests/`: the main line, the people's errands through `errand()`, the radiant favours, the fairy's guides — teaching quests of the kind `guide` she begins herself on the story's beats, `guides.ts`; docs/quests.md),
   Chapter 1's facts and rules (`chapter1.ts`; its maps and scenes in
   `tools/src/demo/quest/chapter1.ts`, docs/chapter-1.md), the Pilgrim's Road's facts, wayside shrines and their rules
-  (`pilgrimage.ts`; its maps and scenes in `tools/src/demo/quest/pilgrimage.ts`, docs/chapter-1.md §14), the fairy's boons (`boons.ts`), the boss kits (four: the White Knight and three for later), defeat rules and compatibility migration (`bosses.ts`, `migrateBosses.ts`), the minor monsters' kits, their statuses and rules (`kits.ts`, docs/creatures.md), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules, prices, and `residence`: the Held Ground's beds for one asked at full regard, taken by the society module's `moveIn`), the Held Ground (`haven.ts`: its steward's panel — the land, its grounds, its buildings and the residents' tents, `HAVEN_UPGRADES` — and the ground's stock; `homestead.ts` its stall, crops, beasts and fish; docs/homestead.md), gear (docs/gear.md: `sets.ts` each profession's armour and trinket sets, forged at an anvil; `trophies.ts` each monster kind's own piece with its pity, the families' sets, the affix table), Firstlight's shops (`village.ts`), the migrations of older saves (`migrate*.ts`: among them `migrateHaven` the widening errands gone, `migrateTents` the tents' rooms, `migratePlots` the Held Ground's plots and the loom, `migrateStock` the merchants' goods, `migrateOverworld`, `migrateSmithy`), its map files' terrain characters (`chunk.ts`), and
+  (`pilgrimage.ts`; its maps and scenes in `tools/src/demo/quest/pilgrimage.ts`, docs/chapter-1.md §14), the fairy's boons (`boons.ts`), the bosses (docs/bosses.md, docs/skills.md: the White Knight and the dragon of Cinder Peak, and three for later — their kits, fights and `boss/<id>` rules, the briars and embers they leave, defeat rules and compatibility migration: `bosses.ts`, `migrateBosses.ts`), the minor monsters' kits and rules (`kits.ts`, docs/creatures.md), what both kits share — the helpers, the marks' colours, what clings and the one `body/afflict` rule (`afflictions.ts`), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules, prices, and `residence`: the Held Ground's beds for one asked at full regard, taken by the society module's `moveIn`), the Held Ground (`haven.ts`: its steward's panel — the land, its grounds, its buildings and the residents' tents, `HAVEN_UPGRADES` — and the ground's stock; `homestead.ts` its stall, crops, beasts and fish; docs/homestead.md), gear (docs/gear.md: `sets.ts` each profession's armour and trinket sets, forged at an anvil; `trophies.ts` each monster kind's own piece with its pity, the families' sets, the affix table), Firstlight's shops (`village.ts`), the migrations of older saves (`migrate*.ts`: among them `migrateHaven` the widening errands gone, `migrateTents` the tents' rooms, `migratePlots` the Held Ground's plots and the loom, `migrateStock` the merchants' goods, `migrateOverworld`, `migrateSmithy`), its map files' terrain characters (`chunk.ts`), and
   `game.ts`, the GameDef the engine side is handed.
 - `games/openworld/public` — what the game serves: `assets/na/` (the pack's subset), `assets/lsw/` (the project's
   own art), `world/` (generated by `gen:world`, not committed).

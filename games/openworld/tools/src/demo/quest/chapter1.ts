@@ -4,7 +4,7 @@
 // The quests and objectives are content (content/src/chapter1.ts).
 
 import type { Entity, StepDef } from '@openworld/engine'
-import { ALBERIC_ID, CH1, HAVEN, createBoss } from '@openworld-game/content'
+import { ALBERIC_CAMPAIGN, ALBERIC_ID, CH1, HAVEN, createBoss } from '@openworld-game/content'
 
 const HAVEN_MAP = HAVEN.map
 import { L } from '../kit.ts'
@@ -130,10 +130,10 @@ export function chapter1EastRoad(m: MapBuilder): void {
   // what he took: the bridge's ninth nail, a farmer's wedding band
   m.item({ form: 'item/misc/ninth_nail' }, ...spot(m, ...a.nail))
   m.item({ form: 'item/valuable/band', material: 'gold' }, ...spot(m, ...a.band))
-  // the First Seal-bearer: softer in his first chapter than in the Boss Challenge (skillScale, his health)
+  // the First Seal-bearer: softer in his first chapter than in the Boss Challenge (his health, and his attack, which
+  // every one of his skills' blows is a multiple of)
   const knight: Entity = createBoss('alberic', { map: m.id, x: a.knight[0], y: a.knight[1] }, ALBERIC_ID)
-  // his plain blow (when one stands close) is the kit's first skill's in the Boss Challenge: here a knight's, not a sin's
-  knight.props = { hp: 300, maxHp: 300, def: 1, atk: 5, skillScale: 0.4 }
+  knight.props = { ...ALBERIC_CAMPAIGN }
   m.entities.push(knight)
   // the road to Emberfall opens when he falls
   for (const p of m.portals) if (p.to === 'emberfall') p.opensWhen = CH1.knight

@@ -21,7 +21,7 @@ import { appearFromForage } from './appear.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
 import { DEFAULT_QUALITY, categoryOf, tierOfLevel, type AiQuality } from './quality.ts'
 import { modulesOf, noHooks, noSociety, type Combat, type Society, type EffectImpl, type EngineHooks, type EngineModule, type Goal } from './module.ts'
-import type { BossDef, Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Tier, Verb, WorldState } from './types.ts'
+import type { Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Tier, Verb, WorldState } from './types.ts'
 import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
 import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type Writer } from './world.ts'
 
@@ -124,8 +124,6 @@ export class Engine {
   quality: AiQuality = { ...DEFAULT_QUALITY }
   /** One tier for every event, over the setting: a sandbox replays a scene at the tier it was asked at. */
   tier?: Tier
-  /** Encounter mechanics supplied by the world, never imported from content (bosses.ts). */
-  bossKits: Record<string, BossDef> = {}
   /** Companions and the tutorial's beats (companion.ts), quests (quests.ts). */
   companions: Companions
   quests: Quests

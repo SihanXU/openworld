@@ -41,7 +41,7 @@ describe('the Ford baked into the format', () => {
     same(made.chunks, ford.chunks)
     same(made.index.npcs, ford.index.npcs)
     same(made.index.maps, ford.index.maps)
-    for (const k of ['quests', 'steps', 'invariants', 'weather', 'player', 'companions', 'start', 'starts', 'begin', 'startHour', 'seed', 'version', 'bosses', 'codex', 'waypoints'] as const) same(made.index[k], ford.index[k], k)
+    for (const k of ['quests', 'steps', 'invariants', 'weather', 'player', 'companions', 'start', 'starts', 'begin', 'startHour', 'seed', 'version', 'codex', 'waypoints'] as const) same(made.index[k], ford.index[k], k)
     expect(new Set(made.index.protectedFacts)).toEqual(new Set(ford.index.protectedFacts))
     // (the Ford counts what its builders placed; the compiler counts the overworld's map too)
     expect({ ...made.index.stats, maps: made.index.stats.maps - 1 }).toEqual(ford.index.stats)

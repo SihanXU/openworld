@@ -41,6 +41,8 @@ export interface ModuleSpec {
 
 export interface EngineModule {
   id: string
+  /** The ids it went by before (a module folded into it): a game or a save that names one gets this module. */
+  formerly?: string[]
   /** Modules that must be installed before it. */
   needs?: string[]
   effects?: Record<string, EffectImpl>
@@ -61,7 +63,12 @@ export function registerModule(m: EngineModule): void {
 }
 
 export function registeredModule(id: string): EngineModule | undefined {
-  return MODULES.get(id)
+  return MODULES.get(id) ?? [...MODULES.values()].find((m) => m.formerly?.includes(id))
+}
+
+/** The modules' ids as they are now: an id a module went by before is its own, each once, in their order. */
+export function moduleIds(names: string[] | undefined): string[] {
+  return [...new Set((names ?? []).map((id) => registeredModule(id)?.id ?? id))]
 }
 
 /** Every module registered (the ones a game may name), in the order they were. */
@@ -73,8 +80,8 @@ export function registeredModules(): EngineModule[] {
 export function modulesOf(names: string[] | undefined): EngineModule[] {
   const out: EngineModule[] = []
   const add = (id: string, why: string) => {
-    if (out.some((m) => m.id === id)) return
-    const m = MODULES.get(id)
+    const m = registeredModule(id)
+    if (m && out.includes(m)) return
     if (!m) throw new Error(`the module "${id}" (${why}) is not loaded: import its package before making the engine`)
     for (const n of m.needs ?? []) add(n, `needed by ${id}`)
     out.push(m)

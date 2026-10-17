@@ -73,10 +73,17 @@ attempt was made is for later chapters.)
 | Lore | The First Seal (the white rider of Revelation), bearer of the Crown of Thorns' share of Astra's burden (lore.md §6, §12). |
 | What the crown did | The crown's real work is to wear away the self's borders (§4). After centuries Alberic remembers only that he must *hold*: he took the far bank as his kingdom and tore down the bridge so that nothing crosses that does not kneel. He is not cruel; he no longer knows what he is holding back. |
 | In Chapter 1 | Seen first through others: Hesper saw a white rider in the rain pull the planks out with his hands and lay the nails in a row on the pier "like coins on a counter, like a toll"; thorns are driven into every stump. On the East Road he waits on a white horse gone pale and thin, his helm grown through with thorns. |
-| The fight | **Built** (2026-10-05): see *Alberic's kit* below. |
+| The fight | **Built** (2026-10-05), **redesigned** (2026-10-15) on the one skill system: two phases, the briars none cross that do not kneel, *Hold.* — docs/skills.md §6; the kit below is the first design. |
 | His end | Struck down, he lifts the crown off his own head for the first time and holds it out: "Take it. It was never mine to hold." He dies as a man, not a monster. The Crown of Thorns is the player's (the first of the five instruments, carried to the Holy City). |
 
-### Alberic's kit (built 2026-10-05)
+### Alberic's kit (built 2026-10-05; redesigned 2026-10-15, docs/skills.md §6)
+
+The redesign keeps his art and his three skills below, and adds: *None Cross Unkneeling* (a line of briars from him toward
+his foe: those on it kneel; the briar sprouts stay twelve seconds, kneeling whoever wades in — cut them, burn them, go
+round), *Hilt Rebuff* (answers one who stands too close), *Hold.* (at half health he plants the sword and a hedge closes
+round him six cells out), and in phase II a second arrow aimed afresh and the thorns' ring in then out. Struck by the
+thorns one kneels (`knelt`). In Chapter 1 his blows come from his attack (10, against 24 in the challenge); `skillScale`
+is gone.
 
 From the user's reference art (a great helm grown through with a crown of thorns; a torn white tabard
 with gold work and old blood; a longsword pointed at the ground; a bow and a quiver): the project's

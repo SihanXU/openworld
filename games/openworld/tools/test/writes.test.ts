@@ -55,7 +55,7 @@ const code = (l: string) => l.replace(/\/\/.*$/, '').trim()
 describe('the state changes only in outcomes, and an outcome only its host (design.md §5.13, A2–A3)', () => {
   it('no game code changes props, tags, statuses, places or the kept things behind the mutators', () => {
     // every module is scanned, the ones the game names and the rest
-    for (const m of ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society', 'loot']) expect(MODULE_DIRS).toContain(`packages/modules/src/${m}`)
+    for (const m of ['classes', 'waypoints', 'boons', 'needs', 'society', 'loot', 'kits']) expect(MODULE_DIRS).toContain(`packages/modules/src/${m}`)
     const found: string[] = []
     for (const { file, lines } of sources()) {
       if (MAY_WRITE.includes(file)) continue

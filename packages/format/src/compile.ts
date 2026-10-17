@@ -3,14 +3,14 @@
 // together, resolves the people's anchors, lays the maps out by their edge links, counts what is where and
 // derives what the story protects, and reports every problem it finds (check.ts) instead of throwing.
 
-import { storyTopics, type Entity, type LibraryData, type MapMeta, type Ontology, type Pos, type RawChunk, type Rule, type ScheduleEntry, type WorldIndex } from '@openworld/engine'
+import { moduleIds, storyTopics, type Entity, type LibraryData, type MapMeta, type Ontology, type Pos, type RawChunk, type Rule, type ScheduleEntry, type WorldIndex } from '@openworld/engine'
 import { STDLIB_ONTOLOGY, STDLIB_RULES } from '@openworld/stdlib'
 import { checkProject } from './check.ts'
 import { applyLocales, languagesOf, localeProblems } from './texts.ts'
 import { FORMAT, type Bundle, type Compiled, type GameJson, type LearnedFile, type OntologyPart, type PersonFile, type Problem, type Project } from './project.ts'
 
 /** Records merged by key (a later file's entry replaces an earlier one's). */
-const RECORDS = ['types', 'statuses', 'terrains', 'laws', 'professions', 'resistances', 'efficiency', 'materials', 'factions'] as const
+const RECORDS = ['types', 'statuses', 'terrains', 'laws', 'professions', 'resistances', 'efficiency', 'materials', 'factions', 'kits', 'encounters'] as const
 /** Lists of names: joined, each once. */
 const NAMES = ['elements', 'vfx', 'instanceTags'] as const
 /** Lists of things with a key: joined, a later file's of the same key replacing the earlier file's (within one file, all are kept: two talk verbs of one id for two persons). */
@@ -44,7 +44,8 @@ export function mergeOntology(parts: OntologyPart[], game: Pick<GameJson, 'stdli
       else out[k] = v
     }
   out.params = { ...(out.params as object), ...game.params }
-  out.modules = [...(game.modules ?? [])]
+  // a module's former id (one folded into another) compiles as the module it is now
+  out.modules = moduleIds(game.modules)
   return structuredClone(out) as unknown as Ontology
 }
 

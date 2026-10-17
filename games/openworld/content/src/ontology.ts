@@ -13,8 +13,9 @@ import { AFFIX_TABLE, LOOT, TROPHY_OF, TROPHY_SETS } from './trophies.ts'
 import { PILGRIMAGE_TYPES } from './pilgrimage.ts'
 import { FAITH_STATUSES } from './faith.ts'
 import { VEGETABLE_CROPS, cropHours } from './crops.ts'
-import { BOSSES, BOSS_STATUSES, BOSS_TYPES } from './bosses.ts'
-import { KITS, KIT_STATUSES } from './kits.ts'
+import { BOSSES, BOSS_ENCOUNTERS, BOSS_KITS, BOSS_TYPES } from './bosses.ts'
+import { KITS } from './kits.ts'
+import { SKILL_STATUSES } from './afflictions.ts'
 import { SKILL_PROFESSIONS } from './skills.ts'
 import { BOON_STATUSES } from './boons.ts'
 import { DEEDS, LAWS, SOCIAL, SOCIAL_STATUSES, SOCIAL_TYPES, TALK } from './social.ts'
@@ -355,7 +356,8 @@ const actorTypes: TypeDef[] = [
   P('actor/creature/spider', 'cave spider', '洞穴蜘蛛', { tags: ['spider', 'venomous'], sprite: 'creature:spider', props: { hp: 8, maxHp: 8, atk: 3, speed: 4 } }),
   P('actor/creature/cyclops', 'cyclops', '独眼巨人', { tags: ['boss', 'large'], sprite: 'boss:cyclops', props: { hp: 60, maxHp: 60, atk: 6, def: 2, speed: 9 } }),
   P('actor/creature/whelp', 'dragon whelp', '幼龙', { tags: ['fiery', 'dragon'], sprite: 'creature:whelp', props: { hp: 14, maxHp: 14, atk: 4, speed: 5, element: 'fire' } }),
-  P('actor/creature/dragon', 'the dragon of Cinder Peak', '烬峰魔龙', { tags: ['boss', 'large', 'fiery', 'dragon'], sprite: 'boss:dragon', props: { hp: 700, maxHp: 700, atk: 7, def: 3, speed: 8, element: 'fire', range: 4 } }),
+  // a boss fight (bosses.ts: its kit and its phases), two cells wide and deep; its body trails behind it
+  P('actor/creature/dragon', 'the dragon of Cinder Peak', '烬峰魔龙', { tags: ['boss', 'large', 'fiery', 'dragon'], sprite: 'boss:dragon', footprint: [2, 2], props: { hp: 700, maxHp: 700, atk: 7, def: 3, speed: 8, element: 'fire', range: 4 } }),
   P('actor/creature/crab', 'giant crab', '巨蟹', { tags: ['shelled', 'watery'], sprite: 'creature:crab', props: { hp: 20, maxHp: 20, atk: 4, def: 3, speed: 7 } }),
 ]
 
@@ -560,7 +562,7 @@ const fixtureTypes: TypeDef[] = [
 ]
 
 /** The engine's modules this game uses (docs/engine-split.md S3). */
-export const MODULES = ['classes', 'bosses', 'waypoints', 'boons', 'needs', 'society', 'loot', 'kits']
+export const MODULES = ['classes', 'waypoints', 'boons', 'needs', 'society', 'loot', 'kits']
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
@@ -571,9 +573,12 @@ export function buildOntology(): Ontology {
     // the systems this game takes from the engine's modules (module.ts), installed in this order
     modules: MODULES,
     types,
-    statuses: Object.fromEntries([...STATUSES, ...BOSS_STATUSES, ...BOON_STATUSES, ...SOCIAL_STATUSES, ...FAITH_STATUSES, ...KIT_STATUSES].map((s) => [s.id, s])),
+    statuses: Object.fromEntries([...STATUSES, ...BOON_STATUSES, ...SOCIAL_STATUSES, ...FAITH_STATUSES, ...SKILL_STATUSES].map((s) => [s.id, s])),
     // the creatures' own skills (kits.ts, docs/creatures.md), taken up by the kit goal before they fight as before
-    kits: KITS,
+    // every monster's skills, the minor monsters' (kits.ts) and the bosses' (bosses.ts), and the boss fights that take
+    // theirs up in turn (docs/skills.md)
+    kits: { ...KITS, ...BOSS_KITS },
+    encounters: BOSS_ENCOUNTERS,
     goals: ['encounter', 'kit', 'threat', 'social', 'follow', 'need', 'schedule', 'home', 'idle'],
     // the people's social life (docs/npc-sandbox.md): deeds and their fines, the watches, the numbers, the talk panel's verbs
     deeds: DEEDS,
@@ -652,7 +657,7 @@ export function buildOntology(): Ontology {
     elements: ELEMENTS,
     // each element's resistance: a stat in percent (a status or a worn thing may add to it), world-model.md §6.8
     resistances: { fire: 'resFire', water: 'resWater', ice: 'resIce', lightning: 'resLightning', wind: 'resWind', earth: 'resEarth' },
-    vfx: [...VFX, ...BOSSES.flatMap((b) => b.skills.map((s) => s.fx))],
+    vfx: [...new Set([...VFX, ...BOSSES.flatMap((b) => b.skills.flatMap((s) => s.fx ?? []))])],
     instanceTags: [
       ...new Set([
         ...Object.values(MATERIALS).flatMap((m) => [`material:${m.id}`, ...m.tags]),

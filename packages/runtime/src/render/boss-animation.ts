@@ -6,8 +6,10 @@ export function bossAnimationFrame(boss: NonNullable<EntitySnap['boss']>, time: 
   const { action } = boss
   const progress = Math.max(0, Math.min(1, Number.isFinite(boss.progress) ? boss.progress : 0))
   if (boss.kit === 'alberic') {
+    // a skill's own clip (its volley, its arrow, its thorns), else its pose
+    const clipRow = boss.clip === 'volley' ? 4 : boss.clip === 'arrow' ? 3 : boss.clip === 'thorns' ? 2 : undefined
     const row = action === 'idle' ? 0 : action === 'walk' ? 1 : action === 'hurt' ? 5 : action === 'death' ? 6
-      : boss.skill === 'volley' ? 4 : action === 'cast' ? 3 : 2
+      : clipRow ?? (boss.skill === 'volley' ? 4 : action === 'cast' ? 3 : 2)
     const id = action === 'idle' || action === 'walk' || action === 'hurt' || action === 'death'
       ? action : row === 4 ? 'volley' : row === 3 ? 'arrow' : 'thorns'
     const clip = ALBERIC_CLIPS[id]

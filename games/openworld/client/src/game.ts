@@ -6,6 +6,7 @@ import type { ClientGame } from '@openworld/runtime/src/game.ts'
 import { describeItem } from './itemTips.ts'
 import {
   BOON_BY_ID,
+  ALBERIC_CAMPAIGN,
   BOSS_LAYOUT,
   BUILDINGS,
   COIN,
@@ -151,7 +152,7 @@ export const CLIENT_GAME: ClientGame = {
   summon(kit, at, id) {
     const body = createBoss(kit, at, id)
     // the campaign's knight as Chapter 1 sets him (tools quest/chapter1.ts)
-    if (kit === 'alberic') body.props = { hp: 300, maxHp: 300, def: 1, atk: 5, skillScale: 0.4 }
+    if (kit === 'alberic') body.props = { ...ALBERIC_CAMPAIGN }
     return { body, say: { en: 'The White Knight stands in his field again.', zh: '白骑士再次站在了他的田野上。' } }
   },
   dev: {

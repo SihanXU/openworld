@@ -2,6 +2,7 @@
 import './register.ts'
 import Phaser from 'phaser'
 import { snapshot, type Game, type Dir, type Frame, type WorldIndex } from '@openworld/engine'
+import { castNow, kitsOf } from '@openworld/modules'
 import { BOSSES, BOSS_BY_ID, BOSS_ARENA, PROFESSION_BY_ID, SKILL_PROFESSIONS, type RawChunk } from '@openworld-game/content'
 import { WorldScene } from '@openworld/runtime/src/render/scene.ts'
 import { Hud } from '@openworld/runtime/src/ui/hud.ts'
@@ -62,10 +63,10 @@ function render(): void {
   // Clear combat warnings in the displayed snapshot. The scene advances the isolated clip.
   previewBoss(previewEntity, mode, 0)
   scene.applyFrame(currentFrame)
-  const b = bossEntity(), state = b?.boss
+  const b = bossEntity(), state = b?.boss, pending = b && kitsOf(game.engine).pending.get(b.id)
   $('studioStatus').textContent = mode !== 'live'
     ? `动作预览 · ${bossPreviewModes(select.value).find((m) => m.value === mode)!.label} · 战斗已暂停`
-    : b ? `${state?.pending ? tx(BOSS_BY_ID[select.value].skills[state.pending.skill].name) : state?.action} · Tick ${currentFrame.tick} · HP ${currentFrame.player.hp}` : '领主已击败 · 可重新开始'
+    : b ? `${pending ? tx(pending.skill.name) : state?.action} · 阶段 ${state?.phase ?? 1} · Tick ${currentFrame.tick} · HP ${currentFrame.player.hp}` : '领主已击败 · 可重新开始'
   $('studioStatus').dataset.ready = 'true'
 }
 
@@ -117,19 +118,20 @@ function reset(): void {
     button.onclick = () => {
       const e = bossEntity()
       if (!e || game.engine.world.num(e, 'hp') <= 0) return
-      delete e.boss!.pending; e.boss!.nextSkill = i; e.boss!.nextAt = 0
       const at = game.engine.world.posOf(e)!
-      game.engine.author(() => game.engine.teleport(game.engine.world.player, { ...at, y: at.y + Math.min(4, s.radius) }))
+      game.engine.author(() => game.engine.teleport(game.engine.world.player, { ...at, y: at.y + Math.min(4, Math.max(1, s.radius)) }))
+      kitsOf(game.engine).pending.delete(e.id)
+      castNow(game.engine, e, s.id)
       paused = false; $('pauseFight').textContent = '暂停'; chooseMode('live')
     }
     return button
   }))
   keys.clear(); attack = false
   if (!challenge && params.has('shot')) {
-    const e = bossEntity()!, b = e.boss!
-    b.nextSkill = Math.min(2, Math.max(0, Number(params.get('skill') ?? 0)))
-    for (let i = 0; i < 120 && !b.pending; i++) game.engine.tick()
-    const count = params.get('shot') === 'impact' ? b.pending!.releaseAt - game.engine.world.state.tick : 8
+    const e = bossEntity()!
+    castNow(game.engine, e, boss.skills[Math.min(boss.skills.length - 1, Math.max(0, Number(params.get('skill') ?? 0)))].id)
+    const cast = kitsOf(game.engine).pending.get(e.id)
+    const count = params.get('shot') === 'impact' && cast ? cast.releaseAt - game.engine.world.state.tick : 8
     for (let i = 0; i < count; i++) game.engine.tick()
     paused = true
   }
@@ -148,7 +150,14 @@ modeControls.onclick = (event) => {
 facing.onchange = () => { if (game) render() }
 $('resetFight').onclick = () => { reset(); $('resetFight').blur() }
 $('pauseFight').onclick = () => { if (choosing || finished || !game) return; clearInput(); paused = !paused; $('pauseFight').textContent = paused ? '继续' : '暂停'; $('pauseFight').blur() }
-$('enrageBoss').onclick = () => { const e = bossEntity(); if (e) { (e.props ??= {}).hp = Math.floor(BOSS_BY_ID[select.value].hp * 0.4); game.engine.tick(); render() } }
+// to the next phase: its health just under where the phase begins
+$('enrageBoss').onclick = () => {
+  const e = bossEntity(), boss = BOSS_BY_ID[select.value]
+  if (!e) return
+  const next = boss.encounter.phases[e.boss?.phase ?? 1]
+  ;(e.props ??= {}).hp = Math.floor(game.engine.world.num(e, 'maxHp', boss.hp) * (next ? next.at - 0.02 : 0.1))
+  game.engine.tick(); render()
+}
 window.addEventListener('keydown', (e) => {
   if (choosing || finished || !game) return
   if (e.target instanceof HTMLSelectElement || e.target instanceof HTMLButtonElement) return

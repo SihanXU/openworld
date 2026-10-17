@@ -57,7 +57,9 @@ describe('creature kits', () => {
         // a rule on the kind (or an ancestor) that names the skill's id
         const answered = BASE_RULES.some((r) => r.on === 'act/use' && r.host && 'type' in r.host && typeof r.host.type === 'string' && (type === r.host.type || type.startsWith(r.host.type + '/')) && JSON.stringify(r.tree).includes(`"cmp":"${s.id}"`))
         expect(answered, `${type} ${s.id}`).toBe(true)
-        expect(s.range[0]).toBeLessThanOrEqual(s.range[1])
+        // a minor monster's skill is taken up by its conditions: it names the range it may be
+        expect(s.range, `${type} ${s.id}`).toBeDefined()
+        expect(s.range![0]).toBeLessThanOrEqual(s.range![1])
         expect(s.windup).toBeGreaterThanOrEqual(4)
       }
     }

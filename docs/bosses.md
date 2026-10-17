@@ -1,5 +1,10 @@
 # Boss encounters
 
+Status (2026-10-15): the bosses' skills and the minor monsters' are **one system** (docs/skills.md): a boss is a kit and an
+encounter — phases that take its skills up in turn — on the kits module. Two bosses were redesigned on it: **the White
+Knight Alberic** and **the dragon of Cinder Peak** (now a boss fight; docs/skills.md §6). The rest of this section is the
+history.
+
 Status (2026-10-05): **the White Knight Alberic** (白骑士·阿尔贝里克), the First Seal-bearer and
 Chapter 1's boss, is built (docs/chapter-1.md §4: art, kit, effects; `docs/alberic-art.md`, 128x128
 overhead frames in three directions, a 3x2 body). Besides him, three authored encounters remain — **the Crown Without a King** (无王之冠),
@@ -28,6 +33,7 @@ yet; the story's bosses are being redesigned (docs/chapter-1.md). The internal i
 | Boss | Collision | HP / armor | Silhouette and palette |
 |---|---|---|---|
 | 白骑士·阿尔贝里克 / The White Knight Alberic (`alberic`) | 3 × 2 | 1200 / 2 | Great helm grown through with a crown of thorns, torn white tabard with a gold cross and old blood, longsword point down, bow and quiver; ivory / steel / gold / briar |
+| 烬峰魔龙 / The Dragon of Cinder Peak (`dragon`, type `actor/creature/dragon`) | 2 × 2 | 1600 / 3 (the lair: 700 / 3) | The pack's green dragon in parts — head, beating wings, a trail of body segments and a tail — composed in code; its wind-up rears it, the wings flared |
 | 绯愿兰后 / The Velvet Lure (`lust`) | 5 × 3 | 1600 / 2 | Orchid mantis with porcelain mask, petal mantle and thorn vows; wine / ivory |
 | 窃面者 / The Face Thief (`envy`) | **1 × 1** | 1000 / 1 | Small masked assassin, stolen mirror face and twin glass daggers; emerald / bone |
 | 无王之冠 / The Crown Without a King (`pride`) | 5 × 4 | 2600 / 3 | Peacock gargoyle, hollow crown head and floating mirror plates; lapis / ivory / gold |
@@ -38,48 +44,50 @@ armor and a blink, against two monumental bodies.
 
 ## Skill kits
 
-Seconds at 10 ticks/s; damage is raw, before armor and talents. Each boss cycles three skills in
-order; its colour marks the exact cells that will resolve. Ring interiors and the spaces between
-spot marks are safe.
+The White Knight's and the dragon's are in docs/skills.md §6 (and their wiki pages, generated from the kits). The three
+kept for later are as they were, ported to the one system unchanged: each blow its old damage (a multiple of an attack
+of 24), their skills in turn, phase II at half health with wind-ups ×0.8, recoveries ×0.65 and blows ×1.35.
+
+Seconds at 10 ticks/s; damage is raw, before armor and talents. Each cycles three skills in order; its colour marks the
+exact cells that will resolve. Ring interiors and the spaces between spot marks are safe.
 
 | Boss | Skill | Shape / radius | Wind-up / recovery | Damage and effect |
 |---|---|---|---|---|
-| White Knight | 征服之矢 / Arrow of Conquest | Three-wide line ahead, 8 | 1.8 / 1.4 | 30 |
-| | 白羽箭雨 / White-Feather Volley | Five target-centered spots, 4 | 2.0 / 1.4 | 24 |
-| | 荆冠·屈膝 / Thorns Bend the Knee | Self-centered ring, 4 | 2.2 / 1.4 | 34; kneel (immobilize 0.8 s) |
 | Velvet Lure | 绯瓣弧斩 / Velvet Crescent | Forward cone, 7 | 1.6 / 1.0 | 30 |
-| | 虚愿花印 / False Promise | Five target-centered spots, 4 | 1.8 / 1.0 | 24; pull, then immobilize 0.8 s |
+| | 虚愿花印 / False Promise | Five target-centered spots, 4 | 1.8 / 1.0 | 24; pull, then entranced 0.8 s |
 | | 荆棘誓约 / Thorn Covenant | Locked target cross, 6 | 2.0 / 1.2 | 32; mired 2.5 s |
 | Face Thief | 借影双刃 / Borrowed Blades | Forward cone, 3 | 1.0 / 0.8 | 24 |
 | | 碎面镜雨 / Shattered Faces | Five target-centered spots, 3 | 1.4 / 1.0 | 20 |
-| | 窃步瞬身 / Stolen Footstep | Locked target disk, 2 | 1.2 / 0.8 | 24; blink beside the target's old place |
+| | 窃步瞬身 / Stolen Footstep | Locked target disk, 1 (3×3) | 1.2 / 0.8 | 24; blink beside the target's old place |
 | Crown | 王翼斥退 / Royal Rebuff | Forward cone, 7 | 1.8 / 1.2 | 42; push one cell |
 | | 完美镜裁 / Perfect Reflection | Locked target cross, 7 | 2.2 / 1.4 | 36 |
 | | 万象俯首 / Kneel Before the Crown | Locked target ring, 5 | 2.4 / 1.6 | 44; stay in its centre or clear the rim |
 
-Phase II begins at 50% HP: wind-ups 20% shorter (never below 0.8 s), damage +35% (rounded),
-recovery 35% shorter (at least 0.6 s). The locked aim stays dodgeable in both phases. Mired
-multiplies movement delay by 1.7, not attack delay. Hits follow faction hostility, never "is it
-the player". Pushes and blinks never pass through occupied or solid tiles.
+The locked aim stays dodgeable in every phase. Mired multiplies movement delay by 1.7, not attack delay. Hits follow
+faction hostility, never "is it the player". Pushes and blinks never pass through occupied or solid tiles.
 
 ## Runtime and saves
 
-- `content/src/bosses.ts`: names, footprints, stats, kits, statuses and defeat rules (a fallen
-  boss goes down for two seconds, leaves four iron ore and whatever it held, tells the story
-  `sins.defeated.<id>`, and — for a feller with a profession — the next legendary of their
-  profession not yet seen). `WorldIndex.bosses` loads the kits into the encounter controller.
-- `engine/src/bosses.ts`: locked tile patterns, wind-up and recovery, phases (the encounter's
-  behaviour). A released skill is the boss's act (`use` with its own body), answered by
-  `sins/release`: a `strike` to each foe on the locked cells, a `push` and a `coat` (`sins/afflict`)
-  they answer themselves, its own heal or blink. One hit per victim however many cells it covers.
-- Bodies are indexed over their whole footprint; steps and teleports check the whole body;
-  weapon rays strike the near edge. `Entity.boss` is saved data (locked aim, cells, release
-  time), so a reload mid-cast keeps the warning and the result.
-- `content/src/migrateBosses.ts`: an older save's bodies of the removed kits (the East Road's
-  `eastroad.sin.greed`) are cleared on loading, once (`content.bosses-v3`); progress is untouched.
+- `content/src/bosses.ts`: each boss's `BossDef` (its type, its body in the Studio and the challenge, its kit, its
+  encounter), the `boss/<id>` rules that answer its skills, what its skills leave (the briar sprouts and the hedge, the
+  embers) and their rules, and the sins' defeat rules (a fallen sin goes down for two seconds, leaves four iron ore and
+  whatever it held, tells the story `sins.defeated.<id>`, and — for a feller with a profession — the next legendary of
+  their profession not yet seen). The dragon's end stays the main quest's (`content/src/quest.ts`). The ontology's
+  `kits` and `encounters` carry every boss's (`BOSS_KITS`, `BOSS_ENCOUNTERS`).
+- `packages/modules/src/kits/encounter.ts`: the director (docs/skills.md §2); `cast.ts` the wind-up, `pattern.ts` the
+  cells, `unleash.ts` the landing. A released skill is the boss's act (`use` with its own body, param `kit`), answered by
+  its `boss/<id>` rule with `unleash`. One hit per victim however many cells it covers.
+- Bodies are indexed over their whole footprint; steps and teleports check the whole body; weapon rays strike the near
+  edge. `Entity.boss` is the director's saved memory (phase, the opening skill taken, the rotation's step, the skill and
+  clip drawn); a wind-up is behaviour memory, lost with a save (the boss takes the skill up again).
+- `content/src/migrateBosses.ts` (`content.bosses-v4`): an older save's bodies of the removed kits are cleared, and its
+  White Knight, whose blows were `skillScale`d, takes Chapter 1's numbers keeping his share of health; the kits module's
+  `upgrade` turns an older boss memory (a kit id, skills by index, a wind-up) into the director's.
+- The health plate (crown, five seals — the one a Seal-bearer bears lit —, HP, a mark where each phase begins, a damage
+  trail, a cast meter) replaces the ordinary overhead bar for a type with an encounter. A boss drawn on a sheet of rows
+  (the sins') is posed by `render/boss-animation.ts` (Alberic by his skills' clips); the dragon, drawn in parts, rears in
+  code.
 - World-space scales: 1.25× (Alberic), 1.75× (Velvet Lure), 2× (Crown), 1.25× (Face Thief).
-  The health plate (crown, three seals, HP, the awakening mark, a damage trail, a cast meter)
-  replaces the ordinary overhead bar for these bosses.
 
 ## Art
 
@@ -104,10 +112,11 @@ crops and aligns them without repainting.
 
 ## Verification
 
-`tools/test/bosses.test.ts`: the four kits, all twelve skills, faction targeting, dodging,
-multi-cell collision and edge hits, save and reload, phase timing, one-time rewards, the removed
-kits' migration, and every runtime PNG. `boss-challenge.test.ts`: the four loadouts, each boss
+`tools/test/bosses.test.ts`: the five bosses, every skill landing on the cells it advertised as its rule says, faction
+targeting, dodging, multi-cell collision and edge hits, save and reload, phase timing (the three kept for later exactly
+as before), one-time rewards, the migrations, and every runtime PNG. `boss-fights.test.ts`: the White Knight's and the
+dragon's redesigned fights. `kit-contract.test.ts`: the contract both kits keep (docs/skills.md §4). `boss-challenge.test.ts`: the four loadouts, each boss
 alone, win, loss and retry. `boss-balance.test.ts`: with real movement and attacks, every
-profession loses to each boss when ignoring warnings, and a dodging warrior beats each.
+profession loses to each boss (the dragon among them) when ignoring warnings, and a dodging warrior beats each.
 `alberic-art.test.ts`: all 102 new runtime frames (real decoded alpha, unique pixels, unclipped
 borders), directional action selection, bow-release timing and unchanged legacy atlas selection.

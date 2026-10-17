@@ -2,7 +2,8 @@
 import '../../client/src/register.ts'
 import { describe, expect, it, vi } from 'vitest'
 import { snapshot, type EntitySnap } from '@openworld/engine'
-import { BOSSES, BOSS_ARENA } from '@openworld-game/content'
+import { castNow, kitsOf } from '@openworld/modules'
+import { BOSS_ARENA } from '@openworld-game/content'
 import { createBossStudio } from '../../client/src/boss-studio.ts'
 import { createBossChallenge } from '../../client/src/boss-challenge.ts'
 import { previewBoss } from '@openworld/runtime/src/boss-preview.ts'
@@ -37,19 +38,13 @@ function renderedFrame(entity: EntitySnap, time = 0, bossAnimation?: BossAnimati
   return renderedScene(entity, bossAnimation).frame(time)
 }
 
-describe.each(factories)('$name bootstrap with outdated generated world data', ({ create }) => {
-  it.each(['missing', 'old', 'outdated-skill'] as const)('loads current boss definitions when index.bosses is %s', (version) => {
-    const stale = structuredClone(index)
-    if (version === 'missing') delete stale.bosses
-    else if (version === 'old') stale.bosses = stale.bosses!.filter((b) => b.id !== 'alberic')
-    else stale.bosses!.find((b) => b.id === 'alberic')!.skills[0].id = 'obsolete'
-    const before = JSON.stringify({ stale, raw })
-    const game = create(stale, raw, 'alberic')
-    expect(game.engine.bossKits.alberic).toEqual(BOSSES.find((b) => b.id === 'alberic'))
+describe.each(factories)('$name bootstrap', ({ create }) => {
+  it('shows the boss as a boss before its first tick: its fight is its type\'s, whatever the world\'s index holds', () => {
+    const before = JSON.stringify({ index, raw })
+    const game = create(index, raw, 'alberic')
     const boss = snapshot(game.engine).entities.find((e) => e.id === BOSS_ARENA.id)!
-    expect(boss.boss).toMatchObject({ kit: 'alberic', action: 'idle' })
-    expect(JSON.stringify({ stale, raw })).toBe(before)
-    expect(game.engine.bossKits.alberic).not.toBe(BOSSES.find((b) => b.id === 'alberic'))
+    expect(boss.boss).toMatchObject({ kit: 'alberic', action: 'idle', seal: 1, phases: 2, thresholds: [0.5] })
+    expect(JSON.stringify({ index, raw })).toBe(before)
   })
 })
 
@@ -102,13 +97,12 @@ describe('Boss Studio actions reach the rendered sprite', () => {
     expect(frame(1250)).toBe('cre:boss:sin:alberic:10,15')
   })
 
-  it.each([[0, 'arrow', 3], [1, 'volley', 4], [2, 'thorns', 2]] as const)(
+  it.each([['arrow', 'arrow', 3], ['volley', 'volley', 4], ['thorns', 'thorns', 2]] as const)(
     'plays real skill %s at its pace, holds its tell, then restarts recovery at the hit', (skill, id, row) => {
       const game = createBossStudio(index, raw, 'alberic')
       const w = game.engine.world, boss = w.get(BOSS_ARENA.id)!
-      boss.boss!.nextSkill = skill
-      game.engine.tick()
-      const windup = boss.boss!.pending!.releaseAt - w.state.tick
+      castNow(game.engine, boss, skill)
+      const windup = kitsOf(game.engine).pending.get(boss.id)!.releaseAt - w.state.tick
       const clock = new BossAnimationClock(), clip = ALBERIC_CLIPS[id], ms = albericFrameMs(id)
       for (let tick = 0; tick < windup; tick++) {
         if (tick) game.engine.tick()
@@ -148,13 +142,11 @@ describe('Boss Studio actions reach the rendered sprite', () => {
     expect(e.boss!.progress).toBe(0.2)
   })
 
-  it('switches from a real pending cast to every selected action despite an old world index', () => {
-    const stale = structuredClone(index)
-    stale.bosses = stale.bosses!.filter((b) => b.id !== 'alberic')
-    const game = createBossStudio(stale, raw, 'alberic')
+  it('switches from a real pending cast to every selected action', () => {
+    const game = createBossStudio(index, raw, 'alberic')
     const w = game.engine.world, boss = w.get(BOSS_ARENA.id)!
     game.engine.tick()
-    expect(boss.boss!.pending).toBeDefined()
+    expect(kitsOf(game.engine).pending.get(boss.id)).toBeDefined()
     const engineState = JSON.stringify(boss), tick = w.state.tick
     for (const [mode, row] of [
       ['idle', 0], ['walk', 1], ['attack', 2], ['cast', 3], ['volley', 4], ['hurt', 5], ['death', 6],

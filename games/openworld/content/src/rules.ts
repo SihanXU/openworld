@@ -9,6 +9,8 @@ import { HOMESTEAD_RULES } from './homestead.ts'
 import { LIFE_RULES } from './life.ts'
 import { CROP_GROWTH_RULE, waterCrop } from './farming.ts'
 import { KIT_RULES } from './kits.ts'
+import { AFFLICTION_RULES } from './afflictions.ts'
+import { BOSS_KIT_RULES } from './bosses.ts'
 import { CH1 } from './chapter1.ts'
 import { VILLAGE_SHOP_RULES } from './village.ts'
 import { PERSON_NEWS, SOCIAL_RULES } from './social.ts'
@@ -1900,4 +1902,4 @@ const GENERAL: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...FAITH_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...TENTS, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...KIT_RULES, ...VILLAGE_SHOP_RULES]
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...FAITH_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...TENTS, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...AFFLICTION_RULES, ...KIT_RULES, ...BOSS_KIT_RULES, ...VILLAGE_SHOP_RULES]

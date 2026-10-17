@@ -1,8 +1,9 @@
 # Creature skills
 
 The minor monsters' own skills: what each kind does beyond its plain blow, how the player reads it coming, and how it
-is built. The bosses have their own system (docs/bosses.md); this one is separate by decision (2026-10-14) and lighter:
-one or two skills a kind, short wind-ups, no phases.
+is built. Since 2026-10-15 the minor monsters' skills and the bosses' are one system (docs/skills.md): one skill type,
+one pipeline, one primitive; the minor monsters differ in how a skill is taken up — one or two skills a kind, short
+wind-ups, no phases.
 
 Owner: Bao Zhuhan (minor monsters' looks and skills). Boss skills: Crepuscular.
 
@@ -60,8 +61,9 @@ New statuses (content `kits.ts` `KIT_STATUSES`): **poisoned** (3 s, 1 a second t
 **webbed** (2.5 s, steps take three times as long), **frenzied** (8 s, faster steps, attack +1), **shelled** (4 s,
 defence +4, slow). Skills also give the existing **bleeding**, **stunned** and the sins' **mired**.
 
-A body takes a coat as its own status through one rule, `sins/afflict` (content `bosses.ts`), over the list
-`AFFLICTIONS` both systems share; a second rule on `actor` × `impulse/coat` would tie.
+A body takes a coat as its own status through one rule, `body/afflict` (content `afflictions.ts`, shared with the bosses),
+over the list `AFFLICTIONS`; a second rule on `actor` × `impulse/coat` would tie. A hold (stunned, knelt, entranced)
+leaves the body `steadied` a while: no hold follows a hold.
 
 ### 3.3 Marks
 
@@ -72,10 +74,10 @@ cells fill as the wind-up runs; the creature flashes white over its last half.
 
 The event model holds (design.md §5.4–5.15): behaviour decides when; the act's outcome is a rule.
 
-- **Data**: `Ontology.kits` — by type, a list of `CreatureSkill` (engine `types.ts`): shape, aim, radius, how it moves
-  (`leap`, `dash`, `back`), when it may be taken up (`range`, `aligned`, `below`, `chance`, `cooldown`), the wind-up and
-  the marks' colour. A kind's kit is the nearest its type or an ancestor names.
-- **Behaviour**: the `kit` goal (module `packages/modules/src/kits/`), tried before `threat` (the game's
+- **Data**: `Ontology.kits` — by type, a list of `KitSkill` (engine `types.ts`; `CreatureSkill` is its other name): shape,
+  aim, radius, how it moves (`leap`, `dash`, `back`), when it may be taken up (`range`, `aligned`, `below`, `chance`,
+  `cooldown`), the wind-up and the marks' colour (docs/skills.md §1). A kind's kit is the nearest its type or an ancestor names.
+- **Behaviour**: the `kit` goal (module `packages/modules/src/kits/kit.ts`), tried before `threat` (the game's
   `Ontology.goals`). Once a second it looks whether a skill fits its foe; taking one up, it faces the foe, says the
   skill's name, locks the cells and stands. Held, stunned or frozen meanwhile, it loses the skill. Its memory (what it
   is winding up) is the module's, beside the state: a save mid wind-up only loses the wind-up.

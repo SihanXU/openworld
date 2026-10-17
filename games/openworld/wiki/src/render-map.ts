@@ -286,7 +286,7 @@ function snapOf(g: Game, model: Model, e: Entity): Snap | undefined {
   const spaces = r.occupies ?? (agent ? (tags.includes('airborne') ? [] : ['body']) : r.solid ? ['volume'] : [])
   const statuses = Object.keys(e.statuses ?? {})
   const held = e.held ? model.byId.get(e.held) : undefined
-  const kit = e.boss ? g.bosses.find((b) => b.def.id === e.boss!.kit)?.def : undefined
+  const kit = e.boss ? g.bosses.find((b) => b.def.type === e.type)?.def : undefined
   const element = e.props?.element ?? r.props.element
   return {
     id: e.id,
@@ -305,7 +305,7 @@ function snapOf(g: Game, model: Model, e: Entity): Snap | undefined {
     element: typeof element === 'string' ? element : undefined,
     open: !!e.statuses?.open,
     held: held ? (model.onto.resolve(held.type).sprite ?? held.type) : undefined,
-    boss: e.boss && kit ? { kit: e.boss.kit, footprint: kit.footprint, action: 'idle' } : undefined,
+    boss: e.boss && kit ? { kit: kit.id, footprint: kit.footprint, action: 'idle' } : undefined,
   }
 }
 
