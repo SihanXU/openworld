@@ -97,6 +97,8 @@ const CLEAR: Cond = { count: { role: 'host', in: 'tile', match: { type: 'actor' 
 /** Two game days for a felled tree's stump, or a sapling, to grow into a tree; an hour more while something stops it. */
 export const TREE_GROWS = 28800
 const GROWS_INTO_TREE: StageDef = { into: 'tile/tree', lasts: TREE_GROWS, needs: { all: [LIGHT, CLEAR] }, wait: 600, fx: 'leaves' }
+/** A vein mined out grows back in a game day (its spent face stands meanwhile: nothing breaks it). */
+export const VEIN_REGROWS = TICKS_PER_DAY
 /** A calf or a chick grows up in two game days. */
 const GROWS_UP = 2 * TICKS_PER_DAY
 /** A hen lays an egg every three game hours. */
@@ -500,13 +502,20 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/nature/mist', 'bank of mist', '雾墙', ['mist'], { solid: true }),
   F('fixture/nature/briar', 'briar', '荆棘丛', ['plant', 'sharp', 'thorny', 'flammable'], { props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/stick', count: 1 }] }),
   F('fixture/nature/boulder', 'boulder', '巨石', ['stone', 'rock', 'mineable'], { props: { material: 'stone', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 8 }] }),
-  // the old mine's veins: a pickaxe breaks them like a boulder, into the ore they hold
+  // the mines' veins: a pickaxe breaks them like a boulder, into the ore they hold (half of it, as anything broken); what
+  // is left is the spent face (`spent`), which grows back into the vein in a day (life.ts mine/vein, VEIN_REGROWS)
   F('fixture/nature/vein', 'ore vein', '矿脉', ['stone', 'rock', 'mineable', 'vein'], { props: { material: 'ore', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 2 }] }),
   // `ore`: what a prospector gets more of (life.ts mine/vein)
-  F('fixture/nature/vein/iron', 'iron vein', '铁矿脉', [], { sprite: 'fixture:vein_iron', props: { ore: 'item/material/iron_ore' }, makeup: [{ type: 'item/material/iron_ore', count: 4 }] }),
-  F('fixture/nature/vein/coal', 'coal seam', '煤层', [], { sprite: 'fixture:vein_coal', props: { ore: 'item/material/coal' }, makeup: [{ type: 'item/material/coal', count: 4 }] }),
+  F('fixture/nature/vein/iron', 'iron vein', '铁矿脉', [], { sprite: 'fixture:vein_iron', props: { ore: 'item/material/iron_ore', spent: 'fixture/nature/spentvein/iron' }, makeup: [{ type: 'item/material/iron_ore', count: 4 }] }),
+  F('fixture/nature/vein/coal', 'coal seam', '煤层', [], { sprite: 'fixture:vein_coal', props: { ore: 'item/material/coal', spent: 'fixture/nature/spentvein/coal' }, makeup: [{ type: 'item/material/coal', count: 4 }] }),
   // the deep chamber's gold (the Old Mine): what the Held Ground's boundary stones are paid in (haven.ts, widening III)
-  F('fixture/nature/vein/gold', 'gold vein', '金矿脉', [], { sprite: 'fixture:vein_gold', props: { ore: 'item/material/gold_ore' }, makeup: [{ type: 'item/material/gold_ore', count: 4 }] }),
+  F('fixture/nature/vein/gold', 'gold vein', '金矿脉', [], { sprite: 'fixture:vein_gold', props: { ore: 'item/material/gold_ore', spent: 'fixture/nature/spentvein/gold' }, makeup: [{ type: 'item/material/gold_ore', count: 4 }] }),
+  // a vein's spent face: bedrock, with no durability of its own (nothing harms it; a blow on it is life.ts mine/spent); in a
+  // day the vein is back where it was, whole (the rule heals it before it turns)
+  F('fixture/nature/spentvein', 'spent vein', '挖空的矿脉', ['stone', 'rock'], { sprite: 'fixture:spentvein', props: { material: 'bedrock' } }),
+  F('fixture/nature/spentvein/iron', 'spent iron vein', '挖空的铁矿脉', [], { sprite: 'fixture:spentvein', stage: { into: 'fixture/nature/vein/iron', lasts: VEIN_REGROWS, fx: 'dust' } }),
+  F('fixture/nature/spentvein/coal', 'spent coal seam', '挖空的煤层', [], { sprite: 'fixture:spentvein', stage: { into: 'fixture/nature/vein/coal', lasts: VEIN_REGROWS, fx: 'dust' } }),
+  F('fixture/nature/spentvein/gold', 'spent gold vein', '挖空的金矿脉', [], { sprite: 'fixture:spentvein', stage: { into: 'fixture/nature/vein/gold', lasts: VEIN_REGROWS, fx: 'dust' } }),
   F('fixture/nature/haystack', 'haystack', '干草垛', ['plant', 'flammable', 'dry']),
   F('fixture/nature/logpile', 'log pile', '柴堆', ['wooden', 'flammable']),
   F('fixture/nature/logpile/stack', 'firewood', '柴垛', [], { sprite: 'fixture:firewood' }),

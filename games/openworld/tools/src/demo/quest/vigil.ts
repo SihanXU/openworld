@@ -1,7 +1,8 @@
 // Firstlight's own country (docs/chapter-1.md §13): what the village's vigil asks for, after the rescue and before the
 // night of thanks — Millbrook to the west (the miller's press, its cellar, where the vigil oil is kept) and Dawn Hill to
 // the north (where the first dawn after the First Night was seen: dawnbloom on its slopes, the ruined Chapel of the
-// First Dawn on its top, and the bell that was rung that morning).
+// First Dawn on its top, and the bell that was rung that morning) — and, dug into the hill's western flank, the Dawn
+// Hill Mine: the first chapter's ore for the smithy, its veins growing back in a day where they were mined.
 
 import type { AiData } from '@openworld/engine'
 import { MapBuilder, rng } from '../builder.ts'
@@ -73,7 +74,7 @@ export function buildMillCellar(): MapBuilder {
 export function buildDawnHill(): MapBuilder {
   const m = new MapBuilder('dawnhill', L('Dawn Hill', '晨光丘'), 'wild', 40, 30, 'grass', 'field', 'outdoor', 'frostfang')
   m.gearLevel = 2
-  rim(m, (x, y) => y >= m.h - 3 && (VIGIL.hillSouth as readonly number[]).includes(x))
+  rim(m, (x, y) => (y >= m.h - 3 && (VIGIL.hillSouth as readonly number[]).includes(x)) || (x < 3 && (HILL_MINE.hillWest as readonly number[]).includes(y)))
   // the hill rises to the north: its top two levels up, a path winding to the chapel
   m.raise(10, 2, 20, 9, 2)
   for (let x = 10; x < 30; x++) if (x < 19 || x > 21) m.set(x, 11, 'rock')
@@ -86,9 +87,55 @@ export function buildDawnHill(): MapBuilder {
   for (const [x, y] of VIGIL.bloom) m.item({ form: 'item/material/herb', name: L('Dawnbloom', '晨光花') }, x, y)
   m.fixture('fixture/sacred/waypoint', 17, 9, { id: 'wp.dawnhill', name: L('Dawn Hill statue', '晨光丘传送雕像') })
   for (const [x, y] of [[8, 20], [32, 18]] as const) m.creature('beast/wolf', x, y, HUNT(5))
+  // west, into the hill's flank: the track to the mine's adit (buildHillMine), a sign where it leaves the path
+  m.path([[0, HILL_MINE.hillWest[0]], [8, HILL_MINE.hillWest[0]], [14, 19], [20, 20]], 'path', 2, { edge: 'dirt', edgeP: 0.25 })
+  m.fixture('fixture/sign', 5, 16, { props: { text: '← The mine', text_zh: '← 矿洞' } })
   m.appear = [...GROUND_YIELD, appears('item/material/herb', ['flowers', 'grass'], 3, 1200)]
   return m
 }
+
+// =================================================================== the Dawn Hill Mine
+
+/** The mine in Dawn Hill's west flank: its size, its adit's rows on its east edge, and the hill's west-edge rows it opens onto. */
+export const HILL_MINE = { w: 30, h: 22, east: [11, 12], hillWest: [18, 19] } as const
+
+/**
+ * The mine dug into Dawn Hill's western flank (docs/chapter-1.md §13), a field west of the village's smithy: the first
+ * chapter's ore. An adit from the east edge runs west into a hall; a gallery climbs north of it, another drops south. Iron in the hall and the north
+ * gallery, coal in the south, boulders by the adit; braziers along the way; a worn pickaxe left at the mouth. A vein
+ * mined grows back where it was in a day (content ontology.ts, spent veins). Bats roost here and come back; stone lies
+ * about and comes back. No gold: that is the Old Mine's and the quarry's.
+ */
+export function buildHillMine(): MapBuilder {
+  const m = new MapBuilder('hillmine', L('Dawn Hill Mine', '晨光丘矿洞'), 'dungeon', HILL_MINE.w, HILL_MINE.h, 'cave_wall', 'cave', 'dark', 'frostfang')
+  m.gearLevel = 2
+  const open = (t: string) => t === 'cave_wall'
+  const [ey] = HILL_MINE.east
+  // the adit, the hall, the galleries
+  m.path([[m.w - 1, ey + 1], [22, ey + 1], [15, 11], [8, 11]], 'cave_floor', 3)
+  m.path([[15, 11], [15, 5], [9, 4]], 'cave_floor', 2)
+  m.path([[15, 11], [16, 17], [22, 18]], 'cave_floor', 2)
+  for (const [cx, cy, rx, ry] of [[8, 11, 3.2, 2.4], [9, 4, 2.8, 2], [22, 18, 3, 2], [24, 12, 2.4, 2]] as const) m.organic(cx, cy, rx, ry, 'cave_floor', { only: open, rough: 0.2 })
+  /** A thing of the mine stands on its floor (the map is checked as it is built). */
+  const floor = (x: number, y: number): [number, number] => {
+    if (m.get(x, y) !== 'cave_floor') throw new Error(`hillmine: ${x},${y} is ${m.get(x, y)}, not cave floor`)
+    return [x, y]
+  }
+  // veins: iron in the hall and the north gallery, coal in the south gallery; boulders by the adit
+  for (const [x, y] of [[6, 10], [9, 9], [9, 2], [12, 5], [20, 19]] as const) m.fixture('fixture/nature/vein/iron', ...floor(x, y))
+  for (const [x, y] of [[22, 16], [24, 18], [6, 12], [7, 3]] as const) m.fixture('fixture/nature/vein/coal', ...floor(x, y))
+  for (const [x, y] of [[24, 10], [22, 13], [26, 13]] as const) m.fixture('fixture/nature/boulder', ...floor(x, y))
+  for (const [x, y] of [[26, 11], [16, 10], [15, 7]] as const) m.fixture('fixture/light/brazier', ...floor(x, y), { statuses: { lit: -1 } })
+  // a worn pickaxe at the mouth: whoever walks up from the village can dig at once (one is two stones, two sticks and grass by hand too)
+  m.item({ form: 'item/tool/pickaxe', material: 'stone', name: L('Worn Pickaxe', '磨损的镐') }, ...floor(27, ey + 1))
+  for (const [x, y] of [[9, 4], [22, 18]] as const) m.creature('beast/bat', ...floor(x, y), { sight: 5 })
+  m.appear = [
+    appears('item/material/stone', ['cave_floor'], 4),
+    appears('actor/creature/beast/bat', ['cave_floor'], 2, 1800, { ai: { behaviour: 'melee', temper: 'aggressive', sight: 5 } }),
+  ]
+  return m
+}
+
 
 /** The Chapel of the First Dawn: roofless, cold, its bell still hanging in the tower. */
 export function buildChapel(): MapBuilder {

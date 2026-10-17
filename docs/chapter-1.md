@@ -254,6 +254,11 @@ know that is what it is for).
   `lead:<stat>` props add to her leader's stats (`World.stat`); Crown's Insight is `lead:xpRate` 1.
   Given by the story (a notify she answers: `companion/boon`); chosen by an act of the hands on her
   (`companion/talk` → `boon`), refused unless a woken statue is within three tiles.
+- **The moment** (2026-10-14): taking up a power is an fx of its own (`boon`: who, the boon, its name, its seal —
+  the status's `seal` prop — and where it left, the scene's `tell` param `from`, the kneeling knight). The client
+  draws a cold light arcing from him to her with motes trailing, a burst and a flash as it arrives, her body lit
+  and lifted for a moment (`render/scene.ts` `boonLight`), and the HUD names it — "第一印 · 露米接住了圣印之力 /
+  荆冠之悟" (`hud.ts` `boonBanner`, the game's `boonGained` text). The scene waits 3.2 s for it before she speaks.
 - Tests: `tools/test/boons.test.ts`.
 - **[proposal]** The other four follow their sufferings: the scourge (enduring blows), the scales
   (hunger), the nails (holding fast), the spear (what passes through).
@@ -478,6 +483,13 @@ Four maps (`tools/src/demo/quest/vigil.ts`), through two new gaps in Firstlight'
 | **The Mill Cellar** (`millcellar`) | the mill's door | barrels and crates, the two flasks of vigil oil, slimes and a spider come in from the night |
 | **Dawn Hill** (晨光丘, `dawnhill`) | Firstlight's north edge | the hill two levels up, the Dawnstone ("HERE THE SUN ROSE AGAIN"), dawnbloom facing east, wolves, a waypoint statue |
 | **Chapel of the First Dawn** (初晓礼拜堂, `chapel`) | the temple's door on the hilltop | the cold first hearth where the Firstlight was kindled, the bell rope in the tower's corner (`chapel_bell`) |
+| **Dawn Hill Mine** (晨光丘矿洞, `hillmine`, 2026-10-14) | Dawn Hill's west edge (a track and a sign) | the first chapter's ore for the village's smithy: an adit, a hall, two galleries; five iron veins, four coal seams, three boulders, braziers, a worn stone pickaxe at the mouth, bats that come back; no gold (the Old Mine's and the quarry's) |
+
+**Veins grow back where they were** (2026-10-14, every mine's): a vein mined spills half its ore and leaves its
+spent face (`fixture/nature/spentvein/<ore>`, the vein's `spent` prop), bedrock harder than any tool (content
+`bedrock`, hardness 9; a blow on it is `mine/spent`: dust and a word, no question for the AI), whole again, whose
+stage turns it back into the vein in a game day (`VEIN_REGROWS`). The Old Mine's veins no longer appear elsewhere
+(its `appear` keeps its hunters only). Demo W21.
 
 Waypoint statues now also stand on Dawn Hill and by the barrow mouth in Thornwood Hollow (`wp.dawnhill`,
 `wp.hollow`). Fifteen maps led to the knight then; the Pilgrim's Road (§14) puts seven more on the main line (the Rest

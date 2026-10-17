@@ -1872,3 +1872,5 @@ export type FxEvent =
   | { t: 'lesson'; done?: string; blocked?: LessonInput }
   /** A quest reached a stage (docs/quests.md): its state after (the journal flashes; a save is made). */
   | { t: 'quest'; id: Id; stage: number; state: string }
+  /** A companion took up a power (the boons module): a light flies from where it broke loose (`from`, else the companion) to the companion, who glows; its name, and the seal it is of (its status's `seal` prop). */
+  | { t: 'boon'; who: Id; boon: string; name?: Text; seal?: number; from?: { map: string; x: number; y: number } }

@@ -155,6 +155,8 @@ export const STRINGS: Record<string, [string, string]> = {
   q_side: ['Side', '支线'],
   q_favor: ['Favour', '委托'],
   q_guide: ['Guide', '指引'],
+  boonGained: ['A new power taken up', '获得新的力量'],
+  boonSealN: ['Seal {n}', '第{n}印'],
   qTab_active: ['Under way', '进行中'],
   qTab_done: ['Done', '已完成'],
   qTab_failed: ['Failed', '失败'],

@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest'
 import { textOf, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
 import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf } from '@openworld/modules'
-import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP } from '@openworld-game/content'
+import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP } from '@openworld-game/content'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { CH1_AT } from '../src/demo/quest/chapter1.ts'
@@ -21,6 +21,7 @@ import { FAT, FLANKS } from '../src/demo/quest/flanks.ts'
 import { GARDEN } from '../src/demo/garden.ts'
 import { BARROW, HOLLOW, OSSUARY, UNDER_BARROW } from '../src/demo/hollow.ts'
 import { PAT, TUTORIAL } from '../src/demo/prologue.ts'
+import { HILL_MINE } from '../src/demo/quest/vigil.ts'
 
 const onto = buildOntology()
 /** Every event kind made in any of the worlds below: dispatched, or offered and passed over because nothing could answer it (no change). */
@@ -1165,6 +1166,53 @@ req('W20', "Firstlight's pond and its garden are where Lumi's guides begin (cont
   expect(qs(f, 'guide_profession')).toBeUndefined()
 })
 
+req('W21', "the Dawn Hill Mine, dug into the hill's western flank (docs/chapter-1.md §13): the first chapter's ore for the village's smithy — veins of iron and coal, boulders, a worn pickaxe at its mouth, bats; a vein mined spills half its ore and leaves its spent face, bedrock no tool breaks, and a day later the vein is back where it was, whole — every vein's way now, so the Old Mine's no longer appear elsewhere", ['fixture/nature/vein/iron', 'fixture/nature/vein/coal', 'fixture/nature/boulder', 'fixture/light/brazier', 'actor/creature/beast/bat', 'site/place/mine'], () => {
+  const f = fresh()
+  const w = W(f)
+  // out of Dawn Hill's west edge, into the adit; its cell on the world map lies west of the hill's
+  expect(cross(f, 'dawnhill', 1, HILL_MINE.hillWest[0], 'left')).toBe('hillmine')
+  expect(w.get('site.hillmine')?.type).toBe('site/place/mine')
+  const hill = w.get('site.dawnhill')!.place as { x: number; y: number }
+  expect(w.get('site.hillmine')!.place).toMatchObject({ x: hill.x - 1, y: hill.y })
+  const here = (type: string) => Object.values(w.state.entities).filter((e) => e.type === type && e.place.on === 'tile' && e.place.map === 'hillmine')
+  expect(here('fixture/nature/vein/iron').length).toBe(5)
+  expect(here('fixture/nature/vein/coal').length).toBe(4)
+  expect(here('fixture/nature/vein/gold')).toEqual([])
+  const pick = here('item/tool/pickaxe')[0]
+  expect(pick.name).toEqual({ en: 'Worn Pickaxe', zh: '磨损的镐' })
+  hold(f, pick)
+  // a vein mined: two blows of a stone pickaxe; the ore spilled (half of four), the face spent
+  const vein = here('fixture/nature/vein/iron')[0]
+  const at = vein.place as { x: number; y: number }
+  const [sx, sy, dir] = beside(f, at.x, at.y, 'hillmine')
+  stand(f, sx, sy, dir, 'hillmine')
+  const ore = () => Object.values(w.state.entities).filter((e) => e.type === 'item/material/iron_ore' && ((e.place.on === 'tile' && e.place.map === 'hillmine') || (e.place.on === 'inside' && e.place.holder === 'player'))).length
+  const before = ore()
+  for (let i = 0; i < 2; i++) run(f, 'use', at.x, at.y)
+  ticks(f, 2)
+  const spent = w.get(vein.id)!
+  expect(spent.type).toBe('fixture/nature/spentvein/iron')
+  expect(spent.place).toEqual(vein.place)
+  expect(ore() - before).toBe(2)
+  expect(w.num(spent, 'hp')).toBe(12)
+  // its clock: a day; no tool is harder than it (a blow does nothing, and is no question for the AI: mine/spent)
+  const clock = Number(w.statusesOf({ e: spent.id })?.stage)
+  expect(clock > w.state.tick + VEIN_REGROWS - 10 && clock <= w.state.tick + VEIN_REGROWS).toBe(true)
+  const mark = f.eng.traced
+  run(f, 'use', at.x, at.y)
+  ticks(f, 2)
+  expect([w.get(vein.id)?.type, w.num(w.get(vein.id)!, 'hp')]).toEqual(['fixture/nature/spentvein/iron', 12])
+  expect(f.eng.trace.slice(mark - f.eng.traced + f.eng.trace.length).filter((t) => 'e' in t.ev.host && t.ev.host.e === vein.id).map((t) => [t.ev.kind, t.rule, t.defined])).toEqual([['impulse/strike', 'mine/spent', true]])
+  // the day over: the vein again, where it was, whole
+  author(f, () => w.setStatus({ e: vein.id }, 'stage', w.state.tick + 1))
+  f.made.length = 0
+  ticks(f, 3)
+  expect([w.get(vein.id)?.type, w.num(w.get(vein.id)!, 'hp')]).toEqual(['fixture/nature/vein/iron', 12])
+  expect(w.get(vein.id)!.place).toEqual(vein.place)
+  // the Old Mine's veins come back the same way: nothing makes new ones appear
+  expect((w.map('mine')?.appear ?? []).some((a) => Object.keys(a.types).some((t) => t.includes('vein')))).toBe(false)
+})
+
 req('W8', "height: the high ground at the mountain's foot stands two levels above the land below its face of rock; down the ramp and back up unharmed; off the edge a drop of two levels hurts, and the face cannot be climbed", [], () => {
   const f = fresh()
   // the ramp where the trail comes down: each row half a level lower
@@ -1872,7 +1920,7 @@ req('Q4', 'chapter 4, the old mine: a pickaxe breaks iron and coal from the vein
   stand(f, px, py, pd, 'mine')
   run(f, 'take', pp.x, pp.y)
   hold(f, W(f).get(pick.id))
-  // two blows break a vein (its durability, as the pickaxe works on ore); its ore pops out to the magnet
+  // two blows break a vein (its durability, as the pickaxe works on ore); its ore pops out to the magnet, its spent face stays
   const mineVein = (type: string) => {
     const v = onMap(f, type, 'mine').find((e) => {
       const p = W(f).posOf(e)!
@@ -1887,7 +1935,8 @@ req('Q4', 'chapter 4, the old mine: a pickaxe breaks iron and coal from the vein
     const [x, y, d] = beside(f, vp.x, vp.y, 'mine')
     stand(f, x, y, d, 'mine')
     for (let i = 0; i < 2; i++) run(f, 'use', vp.x, vp.y)
-    expect(W(f).get(v.id)).toBeUndefined()
+    // mined: its spent face stands where it was (a day, and the vein is back: W21)
+    expect(W(f).get(v.id)?.type).toBe(type.replace('/vein/', '/spentvein/'))
     ticks(f, 3)
   }
   for (let i = 0; i < 3; i++) mineVein('fixture/nature/vein/iron')
@@ -1929,7 +1978,7 @@ req('Q4g', "the old mine's deep chamber holds gold (and, once the steward opens 
     const [x, y, d] = beside(f, vp.x, vp.y, 'mine')
     stand(f, x, y, d, 'mine')
     for (let i = 0; i < 2; i++) run(f, 'use', vp.x, vp.y)
-    expect(W(f).get(v.id)).toBeUndefined()
+    expect(W(f).get(v.id)?.type).toBe('fixture/nature/spentvein/gold')
     ticks(f, 3)
   }
   // two veins give what the widening asks (three); only the mine has them — and, once the steward opens it, the Held

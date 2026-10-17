@@ -47,6 +47,7 @@ const PLACES: Record<string, { ground: string; kind: string; opensWhen?: string 
   mill: { ground: 'ow_plain', kind: 'mill' },
   dawnhill: { ground: 'ow_plain', kind: 'shrine' },
   foot: { ground: 'ow_plain', kind: 'camp' },
+  hillmine: { ground: 'ow_hills', kind: 'mine' },
 }
 
 /**

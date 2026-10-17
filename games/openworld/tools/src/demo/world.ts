@@ -24,7 +24,7 @@ import { HOUSEHOLDS, PEOPLE, householdOf } from './people.ts'
 import { buildHaven, buildHavenGrounds } from './quest/haven.ts'
 import { villageInteriors, villageTown } from './village.ts'
 import { eastRoadRooms, emberfallRooms, tentRooms } from './interiors.ts'
-import { VIGIL, buildChapel, buildDawnHill, buildMillCellar, buildMillbrook } from './quest/vigil.ts'
+import { HILL_MINE, VIGIL, buildChapel, buildDawnHill, buildHillMine, buildMillCellar, buildMillbrook } from './quest/vigil.ts'
 import { PILGRIM, PILGRIMAGE_STORY, buildAbbey, buildAbbeyCrypt, buildAbbeyHall, buildField, buildHostel, buildRest, buildRestChapel, buildWay } from './quest/pilgrimage.ts'
 import { FLANKS, FLANKS_STORY, buildBend, buildBendCabin, buildDell, buildDellHut } from './quest/flanks.ts'
 import { CHAPTER1_SCENES, CHAPTER1_STORY, HAVEN_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Foot, chapter1Ford, chapter1Forest, chapter1Hollow, chapter1Pasture, chapter1Summit, chapter1Village } from './quest/chapter1.ts'
@@ -613,6 +613,10 @@ export function buildFord(): FordWorld {
   meadow.path([[25, 2], [24, 5], [21, 9]], 'path', 1)
   linkEdge(meadow, VIGIL.villageWest.map((y) => [0, y]), [1, 0], mill, VIGIL.millEast.map((y) => [mill.w - 1, y]), [-1, 0])
   linkEdge(meadow, VIGIL.villageNorth.map((x) => [x, 0]), [0, 1], dawnhill, VIGIL.hillSouth.map((x) => [x, dawnhill.h - 1]), [0, -1])
+  // the mine in Dawn Hill's western flank (quest/vigil.ts): the first chapter's ore
+  reseed(4253)
+  const hillmine = buildHillMine()
+  linkEdge(dawnhill, HILL_MINE.hillWest.map((y) => [0, y]), [1, 0], hillmine, HILL_MINE.east.map((y) => [hillmine.w - 1, y]), [-1, 0])
   // the forest south of the meadow
   // the grassland south of the village (its cows and hens), and the forest south of that
   reseed(4253)
@@ -712,7 +716,7 @@ export function buildFord(): FordWorld {
   const grounds = buildHavenGrounds()
   // every building walked into (interiors.ts): Emberfall's, the East Road farmhouse; the tents, gone into by hand
   const elsewhere = [...emberfallRooms().map((r) => (ember.linkInterior(r.door, r.map), r.map)), ...eastRoadRooms().map((r) => (road.linkInterior(r.door, r.map), r.map)), ...tentRooms(m, forest, haven)]
-  const builders = [m, meadow, ...rooms.map((r) => r.map), pasture, forest, hollow, barrow, ossuary, sanctum, ...flanks, mill, millcellar, dawnhill, chapel, ...pilgrimage, road, ember, mine, pass, lair, summit, foot, tutorial, offstage, haven, ...grounds, ...elsewhere]
+  const builders = [m, meadow, ...rooms.map((r) => r.map), pasture, forest, hollow, barrow, ossuary, sanctum, ...flanks, mill, millcellar, dawnhill, hillmine, chapel, ...pilgrimage, road, ember, mine, pass, lair, summit, foot, tutorial, offstage, haven, ...grounds, ...elsewhere]
   const at = placeMaps(builders, m)
   for (const b of builders)
     for (const [name, [x, y]] of Object.entries(b.anchors)) {

@@ -24,9 +24,9 @@ export const BOONS: BoonDef[] = [
 
 export const BOON_BY_ID: Record<string, BoonDef> = Object.fromEntries(BOONS.map((b) => [b.id, b]))
 
-/** The boons as the fairy's statuses: no expiry, what each gives the leader as `lead:<stat>`. */
+/** The boons as the fairy's statuses: no expiry, what each gives the leader as `lead:<stat>`, and the seal it is of (`seal`: the client's banner names it). */
 export const BOON_STATUSES: StatusDef[] = BOONS.map((b) => ({
   id: `boon_${b.id}`,
   name: b.name,
-  props: Object.fromEntries(Object.entries(b.lead).map(([k, v]) => [`lead:${k}`, v])),
+  props: { ...Object.fromEntries(Object.entries(b.lead).map(([k, v]) => [`lead:${k}`, v])), seal: b.seal },
 }))

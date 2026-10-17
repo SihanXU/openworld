@@ -140,11 +140,9 @@ export function buildMine(): MapBuilder {
   // it has hoarded ore from the vein: what it carries spills when it falls
   m.creature('cyclops', DEEP.x, DEEP.y, { id: 'mine.cyclops', sight: 5, leash: 6, loot: ['item/material/iron_ore', 'item/material/iron_ore'] })
   m.regions = { deep: [14, 1, 13, 7] }
-  // the mine gives back slowly: veins in the galleries, and what hunts there
+  // the mine gives back: a vein mined grows back where it was in a day (content ontology.ts, spent veins); what hunts
+  // there comes back on its own
   m.appear = [
-    appears('fixture/nature/vein/iron', ['cave_floor'], 4, 1800),
-    appears('fixture/nature/vein/coal', ['cave_floor'], 4, 1800),
-    appears('fixture/nature/vein/gold', ['cave_floor'], 2, 3600),
     hunters('actor/creature/spider', 3, 1500, ['cave_floor']),
     hunters('actor/creature/beast/bat', 2, 1800, ['cave_floor']),
   ]
