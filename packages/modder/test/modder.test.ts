@@ -743,6 +743,27 @@ describe('deterministic repairs', () => {
     expect(made({ ...onWorkbench, tree: { if: { is: { role: 'target', sel: { type: 'fixture/furniture/stall/trade' } } }, then: { do: [{ op: 'transform', into: strips.id }] }, else: { undefined: true } } }).fixes).toEqual([])
   })
 
+  it('a thing a rule makes only with a tool or at a place is not made by hand without them: the tool joins the recipe, a place drops it', () => {
+    const flour = { id: 'item/material/flour', name: { en: 'Flour', zh: '面粉' }, tags: ['powder'], props: { material: 'plant' }, makeup: [{ type: 'item/material/wheat', count: 1 }], station: 'hands' }
+    const on = (target: string): Rule => ({ id: 'patch/wheat-ground', host: { type: 'item/material/wheat' }, on: 'act/use', doc: 'd', tree: { if: { is: { role: 'target', sel: { type: target } } }, then: { do: [{ op: 'transform', into: flour.id }] }, else: { undefined: true } } })
+    const made = (rule: Rule) => stationFromRules({ artifacts: [{ kind: 'type', type: flour as never }, { kind: 'rule', rule }] }, onto)
+    const type = (r: ReturnType<typeof made>) => (r.patch.artifacts[0] as { type: { station?: string; tools?: string[] } }).type
+    // ground on a stone: by hand, with a stone carried
+    const stone = made(on('item/material/stone'))
+    expect(type(stone)).toMatchObject({ station: 'hands', tools: ['stone'] })
+    expect(stone.fixes.join()).toMatch(/stone/)
+    // cut with a knife: its tool tag
+    expect(type(made(on('item/tool/knife')))).toMatchObject({ station: 'hands', tools: ['tool:knife'] })
+    // stirred in a cauldron (a place, not carried): no recipe by hand
+    expect(type(made(on('fixture/craft/cauldron'))).station).toBeUndefined()
+    // made of what it is used on (a feather on a stick, both in its makeup): by hand as it says
+    const arrow = { ...flour, id: 'item/material/arrow', makeup: [{ type: 'item/material/stick', count: 1 }, { type: 'item/material/feather', count: 1 }] }
+    const fletch: Rule = { id: 'patch/fletch', host: { type: 'item/material/feather' }, on: 'act/use', doc: 'd', tree: { if: { is: { role: 'target', sel: { type: 'item/material/stick' } } }, then: { do: [{ op: 'transform', into: arrow.id }] }, else: { undefined: true } } }
+    const a = stationFromRules({ artifacts: [{ kind: 'type', type: arrow as never }, { kind: 'rule', rule: fletch }] }, onto)
+    expect((a.patch.artifacts[0] as { type: { station?: string; tools?: string[] } }).type).toMatchObject({ station: 'hands' })
+    expect((a.patch.artifacts[0] as { type: { tools?: string[] } }).type.tools).toBeUndefined()
+  })
+
   it('makes a fixture it gives a station portable: made into the hand, it can be set down', () => {
     const stool = { id: 'fixture/furniture/stool', name: { en: 'Stool', zh: '凳子' }, tags: ['wooden'], props: { material: 'wood' }, makeup: [{ type: 'item/material/plank', count: 1 }] }
     const rule: Rule = { id: 'patch/plank-stool', host: { type: 'item/material/plank' }, on: 'act/use', doc: 'd', tree: { if: { is: { role: 'target', sel: { type: 'fixture/craft/workbench' } } }, then: { do: [{ op: 'transform', into: stool.id }] }, else: { undefined: true } } }

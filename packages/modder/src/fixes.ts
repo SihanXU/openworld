@@ -120,7 +120,7 @@ export function qualifyTerrains(patch: Patch, onto: Ontology): { patch: Patch; f
  * so (`station`). The designer often leaves it out; the harness reads it off the branch that makes it.
  */
 export function stationFromRules(patch: Patch, onto: Ontology): { patch: Patch; fixes: string[] } {
-  const made = stationsOf(patch, onto)
+  const made = toolsOf(stationsOf(patch, onto), onto)
   // made at hand or a station, it comes into the maker's hand and has to leave it: a fixture is carried (as the world's workbench is)
   const fixes = [...made.fixes]
   const artifacts = made.patch.artifacts.map((a) => {
@@ -130,6 +130,63 @@ export function stationFromRules(patch: Patch, onto: Ontology): { patch: Patch; 
     return { ...a, type: { ...a.type, tags: [...(a.type.tags ?? []), 'portable'] } }
   })
   return fixes.length > made.fixes.length ? { patch: { ...made.patch, artifacts }, fixes } : made
+}
+
+/**
+ * A thing made by hand that its rule makes only with something else it is used on (wheat ground on a stone, cut with
+ * a knife), which is neither what it is made of nor a station: by hand, that something is carried (the recipe's
+ * tools, by the tag it is known by); one that cannot be carried (stirred in a cauldron) leaves no recipe by hand.
+ */
+function toolsOf(made: { patch: Patch; fixes: string[] }, onto: Ontology): { patch: Patch; fixes: string[] } {
+  const { patch } = made
+  const fixes = [...made.fixes]
+  const types = new Map(patch.artifacts.flatMap((a) => (a?.kind === 'type' && a.type?.id ? [[a.type.id, a.type]] : [])))
+  const needs = new Map<string, Set<string>>()
+  const targetOf = (c: Cond): string | undefined => (c && typeof c === 'object' && 'is' in c && c.is?.role === 'target' && typeof c.is.sel?.type === 'string' ? c.is.sel.type : undefined)
+  const walk = (t: Tree, path: Cond[]): void => {
+    if (!t || typeof t !== 'object') return
+    if ('if' in t) {
+      const c = t.if as Cond | null
+      const here = c && typeof c === 'object' && 'all' in c && Array.isArray(c.all) ? c.all : [c as Cond]
+      walk(t.then, [...path, ...here])
+      if (t.else !== undefined) walk(t.else, path)
+      return
+    }
+    if (!('do' in t) || !Array.isArray(t.do)) return
+    for (const e of t.do) {
+      if (!e || typeof e !== 'object') continue
+      const id = e.op === 'spawn' ? e.type : e.op === 'transform' ? e.into : undefined
+      const type = typeof id === 'string' ? types.get(id) : undefined
+      if (!type) continue
+      for (const target of path.map(targetOf)) {
+        if (!target || (type.makeup ?? []).some((m) => m?.type === target)) continue
+        if (onto.types[target]?.tags?.some((g) => g.startsWith('station:'))) continue
+        ;(needs.get(type.id) ?? needs.set(type.id, new Set()).get(type.id)!).add(target)
+      }
+    }
+  }
+  for (const a of patch.artifacts) if (a?.kind === 'rule' && a.rule?.tree) walk(a.rule.tree, [])
+  if (!needs.size) return made
+  const index = new OntologyIndex({ ...onto, types: { ...onto.types, ...Object.fromEntries(types) } })
+  const artifacts = patch.artifacts.map((a) => {
+    if (a?.kind !== 'type' || a.type.station !== 'hands' || !needs.has(a.type.id)) return a
+    const tools = new Set(a.type.tools ?? [])
+    for (const target of needs.get(a.type.id)!) {
+      const r = index.resolve(target)
+      const leaf = target.split('/').at(-1)!
+      const tag = r.tags.find((g) => g.startsWith('tool:')) ?? (r.tags.includes(leaf) ? leaf : undefined)
+      if (!r.tags.includes('portable') || !tag) {
+        fixes.push(`"${a.type.id}" is made only at ${target}, which cannot be carried: no recipe by hand (station left out)`)
+        const { station: _, ...rest } = a.type
+        return { ...a, type: rest }
+      }
+      tools.add(tag)
+    }
+    if (tools.size === (a.type.tools ?? []).length) return a
+    fixes.push(`"${a.type.id}" is made by hand only with ${[...tools].join(', ')} carried, as its rule uses it (tools)`)
+    return { ...a, type: { ...a.type, tools: [...tools] } }
+  })
+  return { patch: { ...patch, artifacts }, fixes }
 }
 
 function stationsOf(patch: Patch, onto: Ontology): { patch: Patch; fixes: string[] } {
