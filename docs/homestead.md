@@ -80,9 +80,10 @@ illustrated crops' sprout and young plant of their habit (leafy, sprawling, clim
 
 - **The fish pond** lies north of the planted sword; any water fishes.
 - **A rod** is made at hand from two sticks and two grass (the crafting panel), or bought.
-- **Bait** used on a rod baits it: the rod keeps the casts (`bait` prop, five a bait; `home/bait`, `home/rod`).
-  The rod's tooltip shows the remaining baited casts, including zero.
-- A cast is a left click with the rod on water (it reaches three cells): a baited hook bites 70% of the time (a
+- **Bait**: hold bait, right-click the fishing rod in the bag, then choose **Use Bait on it** (用鱼饵作用于它). Each bait is consumed
+  and adds five baited casts (`bait` prop; `home/bait`, `home/rod`). The rod's tooltip shows the remaining baited
+  casts, including zero, and repeats the baiting steps.
+- **Casting**: hold the rod and left-click water (it reaches three cells). A baited hook bites 70% of the time (a
   bite or not, a baited cast is spent), a bare one 35%; the water is stirred after, and nothing bites there until
   it settles.
 - What bites (`core/fish`, `CATCH`), after Stardew's waters, tried in order:
@@ -114,7 +115,8 @@ far the land goes and what was carried.
   itself used up; anything else handed to him is a gift. Every upgrade is built from the stock.
 - **Land** (`haven.size`, one after another): the Grove (10 logs, 10 stones), the Meadow (20 planks, 5 iron
   ore), the Old Bounds (30 planks, 30 stones, 3 gold ore). Each lifts a ring of mist round the planted sword
-  (`fixture/nature/mist`, its `ring`: `haven/mist-lifts`) and pays 20, 40, 60.
+  (`fixture/nature/mist`, its `ring`: `haven/mist-lifts`) and pays 20, 40, 60. Right-clicking a ring shows the
+  required Alberic route and its land level, materials and completion reward.
 - **Grounds** (`haven.zone.<id>`): places of their own, 32 × 24, peaceful, a way back at their south edge —
   the quarry (land 1: boulders, iron, coal and a gold vein, stone that comes back), the timberland (land 1:
   dense woods, mushrooms, berries), the lakeside (land 2: a deep lake with pike) and the hot springs (land 3:

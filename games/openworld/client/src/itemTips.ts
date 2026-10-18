@@ -11,8 +11,11 @@ export function describeItem(item: ItemInfo): Text[] {
   if (item.tags.includes('tool:fishing')) {
     const bait = Math.max(0, Math.floor(Number(item.props.bait) || 0))
     out.push({ en: `Bait remaining: ${bait} casts`, zh: `已挂鱼饵：还可甩 ${bait} 竿` })
+    out.push({ en: 'Hold the rod and left-click water to cast.', zh: '手持鱼竿，左键点击水面抛竿。' })
+    out.push({ en: 'Hold bait, right-click the fishing rod in your bag, then choose “Use Bait on it”; each bait adds 5 baited casts.', zh: '手持鱼饵，在背包里右键鱼竿，再选择“用鱼饵作用于它”；每份鱼饵增加5次挂饵抛竿。' })
     out.push({ en: 'Deep water: more golden carp, and pike. Eels at night; catfish in rain.', zh: '深水更容易出金鳞鲤，还能钓狗鱼；夜里有鳗鱼，雨天有鲶鱼。' })
   }
+  if (item.type === 'item/misc/bait') out.push({ en: 'Hold bait, right-click the fishing rod in your bag, then choose “Use Bait on it”; each bait adds 5 baited casts.', zh: '手持鱼饵，在背包里右键鱼竿，再选择“用鱼饵作用于它”；每份鱼饵增加5次挂饵抛竿。' })
   if (item.type === 'item/vessel/bucket/empty') out.push({ en: 'Fill at water to water crops, or milk a fed cow.', zh: '对水使用可装水浇地，也可给喂饱的牛挤奶。' })
   return out
 }

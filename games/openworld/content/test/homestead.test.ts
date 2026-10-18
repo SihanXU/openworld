@@ -37,6 +37,26 @@ describe('the homestead shelves', () => {
 })
 
 describe('fishing choices', () => {
+  it('uses one held bait on the fishing rod from the bag context action', () => {
+    const eng = buildSandbox({
+      terrain: [['grass', 'grass'], ['grass', 'grass']],
+      entities: [
+        { key: 'actor', type: 'actor/person/player', x: 0, y: 0 },
+        { key: 'bait', type: 'item/misc/bait', x: 0, y: 0, heldBy: 'actor' },
+        { key: 'rod', type: 'item/tool/fishing_rod', x: 0, y: 0, inside: 'actor' },
+      ],
+      event: {},
+    }, buildOntology(), new RuleLibrary(BASE_RULES))
+    eng.controls.sync()
+
+    const plan = eng.controls.planOnItem('use', 'rod')!
+    expect(plan).toMatchObject({ verb: 'use', target: { e: 'rod' }, instrument: { e: 'bait' } })
+    eng.controls.run(plan)
+
+    expect(eng.world.num(eng.world.get('rod')!, 'bait')).toBe(5)
+    expect(eng.controls.count('item/misc/bait')).toBe(0)
+  })
+
   it.each([
     ['dawnscale', 6, 'sun', false, 0.01],
     ['eel', 22, 'sun', false, 0.3],
