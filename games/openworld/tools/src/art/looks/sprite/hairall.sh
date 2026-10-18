@@ -10,3 +10,10 @@ $PY -I $T/nape.py short messy swept cropped
 $PY -I $T/nape.py wavy --to 12 --full --woman
 $PY -I $T/fixcropped.py
 $PY -I $T/fixbraid.py
+# the children's (drafted on the adults' heads: the child's head is the woman's)
+$PY -I $T/hairmake.py pigtails --back down:99,left:99,up:99 | tail -1
+$PY -I $T/hairmake.py tuft | tail -1
+$PY -I $T/hairmake.py childbob | tail -1
+$PY -I $T/nape.py pigtails --to 12 --woman
+$PY -I $T/nape.py tuft
+$PY -I $T/fixchildbob.py

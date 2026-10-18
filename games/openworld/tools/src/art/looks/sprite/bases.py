@@ -1,7 +1,8 @@
 """The bases between the runtime's module and grid files one edits (docs/looks.md §3.1).
 
     python -I bases.py out <dir>   # packages/runtime/src/assets/figure/bases.ts -> <dir>/<NAME>.txt
-    python -I bases.py in <dir>    # <dir>/<NAME>.txt -> the module's grids (its frames table is kept)
+    python -I bases.py in <dir>    # <dir>/<NAME>.txt -> the module's grids (its frames table is kept; a grid it does not
+                                   # have yet is added before the palette, for the table to name)
 
 A grid file is the rows of letters, a blank line, then 'L #rrggbb' per letter (the module's palette): what px.py,
 walk.py and the other tools here read and write.
@@ -32,16 +33,23 @@ def main():
             open(os.path.join(folder, name + '.txt'), 'w', encoding='utf-8', newline='\n').write('\n'.join(rows) + '\n\n' + tail)
             print(name)
     elif cmd == 'in':
+        def grid(name):
+            rows = open(os.path.join(folder, name + '.txt'), encoding='utf-8').read().replace('\r', '').split('\n\n')[0].split('\n')
+            assert len(rows) == 36 and all(len(r) == 24 for r in rows), name
+            assert set(''.join(rows)) - {'.'} <= set(pal), name
+            return f'const {name} = [\n' + ''.join(f"  '{r}',\n" for r in rows) + ']'
+
         def put(m):
-            path = os.path.join(folder, m.group(1) + '.txt')
-            if not os.path.exists(path):
-                return m.group(0)
-            rows = open(path, encoding='utf-8').read().replace('\r', '').split('\n\n')[0].split('\n')
-            assert len(rows) == 36 and all(len(r) == 24 for r in rows), path
-            assert set(''.join(rows)) - {'.'} <= set(pal), path
-            return f'const {m.group(1)} = [\n' + ''.join(f"  '{r}',\n" for r in rows) + ']'
-        open(MODULE, 'w', encoding='utf-8', newline='\n').write(GRID.sub(put, src))
-        print('written', MODULE)
+            return grid(m.group(1)) if os.path.exists(os.path.join(folder, m.group(1) + '.txt')) else m.group(0)
+
+        out = GRID.sub(put, src)
+        have = {name for name, _ in GRID.findall(src)}
+        new = [grid(f[:-4]) for f in sorted(os.listdir(folder)) if f.endswith('.txt') and f[:-4] not in have and re.fullmatch(r'[A-Z_]+', f[:-4])]
+        if new:
+            at = out.index('/** The authored colours')
+            out = out[:at] + '\n\n'.join(new) + '\n\n' + out[at:]
+        open(MODULE, 'w', encoding='utf-8', newline='\n').write(out)
+        print('written', MODULE, len(new), 'added')
 
 
 if __name__ == '__main__':

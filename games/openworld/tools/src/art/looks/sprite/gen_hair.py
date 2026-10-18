@@ -20,13 +20,17 @@ STYLES = {
     'wavy': 'long wavy, curly dark brown hair falling past the shoulders, with a soft fringe',
     'braid': 'long dark brown hair in a single thick braid that hangs over the front of one shoulder down to the chest, with a fringe',
     'bun': 'dark brown hair pulled back and up into a round bun at the back of the head, a few strands framing the face, no fringe',
+    # the children's: drawn on the adults' heads, which the child's shares
+    'pigtails': 'two dark brown pigtails tied at the sides of the head with small ribbons, hanging down to the shoulders, with a straight fringe across the forehead',
+    'tuft': 'short scruffy dark brown hair with a few tufts sticking up on top and a short messy fringe',
+    'childbob': 'a rounded dark brown bowl cut: a thick straight fringe across the forehead and the hair cut evenly all round at the level of the ears',
 }
 SRC = {
     'left': ('drafts/l-man-33.png', 'drafts/l-woman-33.png'),
     'down': ('drafts/front-man-e7.png', 'drafts/front-woman-e32.png'),
     'up': ('drafts/back-man-e32.png', 'drafts/back-woman-e32.png'),
 }
-WHO = {'short': 0, 'ponytail': 1, 'messy': 0, 'swept': 0, 'cropped': 0, 'thin': 0, 'tied': 1, 'bob': 1, 'long': 1, 'wavy': 1, 'braid': 1, 'bun': 1}
+WHO = {'short': 0, 'ponytail': 1, 'messy': 0, 'swept': 0, 'cropped': 0, 'thin': 0, 'tied': 1, 'bob': 1, 'long': 1, 'wavy': 1, 'braid': 1, 'bun': 1, 'pigtails': 1, 'tuft': 0, 'childbob': 1}
 for style in sys.argv[1:]:
     for facing, srcs in SRC.items():
         out = os.path.join(HERE, f'drafts/hair-{style}-{facing}.png')

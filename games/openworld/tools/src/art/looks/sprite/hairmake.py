@@ -14,7 +14,7 @@ sys.path.insert(0, HERE)
 from walk import read, write
 
 PY = sys.executable
-MAN = {'short', 'messy', 'swept', 'cropped', 'thin'}
+MAN = {'short', 'messy', 'swept', 'cropped', 'thin', 'tuft'}
 FIT = {
     ('left', 'man'): ('drafts/l-man-33.png', '-66:0,34:3,368:13,737:35', '33.4:0', 'MAN_LEFT.txt'),
     ('left', 'woman'): ('drafts/l-woman-33.png', '-62:0,34:3,355:13,739:35', '32.1:0', 'WOMAN_LEFT.txt'),

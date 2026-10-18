@@ -2,7 +2,7 @@
 
 Agreed with the user 2026-10-08/09: an anime (二次元) character creator from which every person — the hand-written
 people, the crowd, the player, one the modder brings — gets a matching map sprite, portrait (立绘) and tags.
-Defaults the user accepted: map figures 16x32, half-body portraits, every humanoid in the system, a `gender`
+Defaults the user accepted: map figures 16x32 (24x36 since 2026-10-17, §3), half-body portraits, every humanoid in the system, a `gender`
 on people, all 24 people converted, the player makes their own look; the portrait art is drawn by a model
 hosted locally.
 
@@ -41,27 +41,31 @@ interface Look {                       // engine/src/types.ts
 
 ## 3. Three outputs from one record
 
-1. **Map sprite** (`client/src/assets/figure/sprite.ts`): a 16x32 anime chibi, the sheet layout the renderer
-   reads (columns down, up, left, right; rows the walk). A body template draws the bald figure with region letters
-   (skin, torso, arms, hands, legs, feet) per facing and frame; an outfit paints the regions in its colour keys
-   and draws over them (skirts, aprons, stoles); head parts are drawn once per facing and follow the bob; left is
-   right mirrored; a dark outline goes round the figure last. Grids: `pixparts.ts`, `pixhair.ts`, `pixhead.ts`,
-   `pixoutfit.ts`. Composed on demand into a canvas texture named by the look's code (`figure/index.ts`).
-
-   **The new figures** (2026-10-17, shown with `?figures=new` until their parts are drawn): 24x36 frames at the
-   tiles' pixel scale (two tiles tall), the soles on row 34, in the style of the user's example (an FFBE-style Cloud:
-   its palette, its face moved up a row). `figure/bases.ts` holds the bald man and woman per facing — the front for
-   down, the back for up, a 3/4 view facing left (right is it mirrored) — and each facing's walk: passing, a step,
-   passing, the other step (a step carries the body a row lower, one foot planted on the soles), and an idle frame
-   the sheet keeps in a fifth row (`ActorDef.idleRow`): a figure stands in it and walks in the four above, so the
-   woman can stand with her weight on one leg and walk on both. The skin and the eyes are repainted from the look's
-   colours (`retone`: each authored tone keeps its step from the reference); the children are still the 16x32
-   figures, set on the new soles. How they were drawn: `games/openworld/tools/src/art/looks/sprite/README.md`.
-   The hair (`figure/basehair.ts`, all twelve adult styles): one grid per facing on the standing head, cut from
-   ComfyUI drafts of the bald bases wearing it, in five tones repainted from the look's hair; it follows the head
-   down on a step, and below a row (and in the 3/4 view past a column) it hangs behind the body, so a ponytail falls
-   down the back behind the near arm while long hair lies over the far shoulder. Next: the outfits, then hats,
-   beards, glasses, marks and what is worn, then the children; then the flag goes.
+1. **Map sprite** (`runtime/src/assets/figure/sprite.ts`, 2026-10-17): a 24x36 figure at the tiles' pixel scale
+   (two tiles tall), the soles on row 34, in the style of the user's example (an FFBE-style Cloud: its palette, its
+   face moved up a row). The sheet is four columns (down, up, left, right: the 3/4 view faces left, right is it
+   mirrored) by five rows: the walk (passing, a step, passing, the other step; a step carries the body a row lower,
+   one foot planted on the soles) and an idle frame (`ActorDef.idleRow`) a figure stands in, so the woman stands with
+   her weight on one leg and walks on both. Composed on demand into a canvas texture named by the look's code
+   (`figure/index.ts`), in this order, frame by frame:
+   - **The base** (`figure/bases.ts`): the bald man and woman per facing and frame, drawn over ComfyUI drafts; the
+     child (girl and boy alike) is the woman's frames with her head kept on a child's body (a torso row and five
+     leg rows out, the legs spread less, no bust), so every head part fits the children too. The skin and the eyes
+     are repainted from the look's colours (`retone`: each authored tone keeps its step from the reference).
+   - **The outfit, then what is worn over it** (`figure/baseoutfit.ts`: 16 outfits for the adults, 2 for the
+     children; the breastplate, the cloak, the pauldrons): a part per frame, so a sleeve swings with its arm and a
+     skirt walks. Each is read from drafts of the bald bases wearing it — which cloth lies on each body cell — and
+     laid on every frame by its body parts: a limb's cloth by how far along the limb (a sleeve's end, a boot's top),
+     the torso's by place, a skirt as one cloth from the hem down, and pieces laid by place on the hips (an apron, a
+     belt, a stole, a tabard). The tones are the base's own light and shade, so the cloth keeps the body's form. A
+     long skirt hides the 3/4 stride: the standing skirt is kept, a row shorter for the bob, the feet peeking out
+     ahead and behind (its cells may clear the stride's legs, `_`). Letters per slot: the outfit's keys
+     `outfit.1-3` and a colour of its own, the armour's `armour.1`, the cloak's `cloak.1`.
+   - **The head's parts** (`figure/basehead.ts`, `figure/basehair.ts`): one grid per facing on the standing head,
+     following it down on a step (and down to a child's head): the face's variants, a scar, freckles, age's lines
+     (drawn by hand), a beard, the hair (15 styles, cut from drafts; below a row, and in the 3/4 view past a
+     column, it hangs behind the body), glasses, a hat (which hides the hair above its brim).
+   How they were drawn: `games/openworld/tools/src/art/looks/sprite/README.md`.
 2. **Portrait** (`figure/portrait.ts`): a 768x768 half-body bust composed from layers in a fixed stack
    (`hairBack, body, outfit, armour, cloak, age, face, mark, beard, glasses, hair, hat`; the hair goes under a covering hat). A layer is its paint and its
    value map (value, zone, coverage); zone k is repainted through the gradient of its colour key. A face part has a
@@ -72,8 +76,8 @@ interface Look {                       // engine/src/types.ts
    by `World.view` and `hasTag`, so rules can address "the hooded"; `lookWords` (engine) gives the modder's
    `EntityInfo.look`; `describeLook` (content) the codex's, the wiki's and the creator's sentence in both languages.
 
-Colour: one colour per key gives both ramps (`figure/color.ts`): the sprite's three tones and the portrait's
-gradient (lines → shadow → the colour at value 180 → light → highlight), with painters' hue shift. The hair on
+Colour: one colour per key gives both ramps (`figure/color.ts`): the sprite's tones (an authored ramp moved onto
+it, or four steps of `shade`) and the portrait's gradient (lines → shadow → the colour at value 180 → light → highlight), with painters' hue shift. The hair on
 the map and in the portrait is the same colour by construction.
 
 ## 4. The art pipeline (`games/openworld/tools/src/art/looks/portrait/`)
@@ -120,6 +124,10 @@ The first library: 4 bodies, 6 faces x 6 moods, 15 hairstyles, 3 beards, age lin
 7 hats, 20 outfits (25 drawings over the bodies they fit), 3 worn pieces for both adult bodies — 98 pictures,
 cut into 18 MB of layers. `docs/figures/looks-review.png` is everyone as the game draws them,
 `looks-worn.png` what is worn, `looks-dialogue.jpg` the dialogue box in play.
+
+The map figures (2026-10-18): the man, the woman and the child, each facing's walk and idle frame; 16 adult outfits
+and 2 children's, 3 worn pieces, 15 hairstyles, 7 hats, 3 beards, the face's 5 variants, glasses, a scar, freckles and
+age's lines — `docs/figures/figures-map.png` (standing, the four facings) and `figures-walk.gif` (walking).
 
 ## 7. Not yet
 
