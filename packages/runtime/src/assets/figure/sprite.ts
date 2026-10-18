@@ -6,13 +6,15 @@
 // it, frame by frame: the outfit and what is worn over it (`baseoutfit.ts`, drawn for every frame, so the sleeves
 // swing with the arms and a skirt walks), then the head's parts, which follow the head as it bobs: the face's
 // variants, the marks of age and scars, a beard (`basehead.ts`), the hair (`basehair.ts`, its long part hanging
-// behind the body), glasses and a hat (which hides the hair it covers). Left is right mirrored.
+// behind the body), glasses and a hat (which hides the hair it covers); last the legs and the shoes, laid on as colour
+// (`basefeet.ts`). Left is right mirrored.
 
 import type { Look } from '@openworld/engine'
 import { BASES, BASE_H, BASE_PALETTE, BASE_W, type BaseBody, type BaseFacing } from './bases.ts'
 import { BASE_HAIRS, HAIR_PALETTE } from './basehair.ts'
 import { BASE_OUTFITS, PIECE_LETTERS, type BasePart } from './baseoutfit.ts'
 import { BASE_HEADS, HEAD_FIXED, HEAD_LETTERS } from './basehead.ts'
+import { BASE_FEET } from './basefeet.ts'
 import { hexRgb, keyRgb, retone, shade, type RGB } from './color.ts'
 
 /** A frame of the sheet. */
@@ -40,6 +42,7 @@ export function composeSprite(look: Look): Uint8Array {
   const hair = BASE_HAIRS[look.parts.hair ?? '']
   const glasses = BASE_HEADS[look.parts.glasses ?? '']
   const hat = BASE_HEADS[look.parts.hat ?? '']
+  const feet = feetOf(look, body)
   for (let col = 0; col < 4; col++) {
     const facing: BaseFacing = col === 0 ? 'down' : col === 1 ? 'up' : 'left'
     const frames = base[facing]
@@ -55,15 +58,57 @@ export function composeSprite(look: Look): Uint8Array {
       if (hair) wearHair(cells, hair.grids[facing], hair.back[facing], dy, hat?.hides?.[facing] ?? 0)
       if (glasses?.grids[facing]) wearPart(cells, glasses.grids[facing]!, dy)
       if (hat?.grids[facing]) wearPart(cells, hat.grids[facing]!, dy)
+      const over = feet.length ? layFeet(cells, feet) : undefined
       for (let y = 0; y < FH; y++)
         for (let x = 0; x < FW; x++) {
-          const c = color[cells[y][flip ? FW - 1 - x : x]]
+          const sx = flip ? FW - 1 - x : x
+          const c = over?.[y][sx] ?? color[cells[y][sx]]
           if (!c) continue
           out.set([c[0], c[1], c[2], 255], ((row * FH + y) * FW * 4 + col * FW + x) * 4)
         }
     }
   }
   return out
+}
+
+/** A letter's tone, light (0) to dark (3): the skin's, the plain underclothes', and each piece's by its letters. */
+const TONE: Record<string, number> = { O: 0, H: 0, J: 1, F: 2, Q: 3, V: 0, W: 1, T: 2, X: 3 }
+for (const letters of Object.values(PIECE_LETTERS)) for (const [letter, [, t]] of Object.entries(letters)) TONE[letter] ??= t
+const SKIN_LETTERS = new Set(['O', 'H', 'J', 'F', 'Q'])
+/** An outfit's main cloth (a coat's skirts, a dress): what even tall boots go under. */
+const MAIN_CLOTH = new Set(Object.entries(PIECE_LETTERS.outfit).filter(([, [k]]) => k === '1').map(([l]) => l))
+
+type Feet = { rows: number; over: 'feet' | 'skin'; ramp: RGB[]; legs: boolean }
+
+/** The look's legs and shoes on its body: the rows each covers and its colour's tones (shoes first). */
+function feetOf(look: Look, body: BaseBody): Feet[] {
+  const child = body === 'girl' || body === 'boy'
+  const out: Feet[] = []
+  for (const slot of ['shoes', 'legs'] as const) {
+    const def = BASE_FEET[look.parts[slot] ?? '']
+    if (!def) continue
+    const c = keyRgb(look, `${slot}.1`)
+    out.push({ rows: def.rows[child ? 1 : 0], over: def.over, ramp: [shade(c, 1), c, shade(c, -1), shade(c, -2)], legs: slot === 'legs' })
+  }
+  return out
+}
+
+/** The colours the legs and shoes lay on a frame's cells, counted up from its lowest row (the legs above the shoes). */
+function layFeet(cells: string[][], feet: Feet[]): (RGB | undefined)[][] {
+  const over: (RGB | undefined)[][] = cells.map((r) => r.map(() => undefined))
+  let bottom = cells.length - 1
+  while (bottom > 0 && cells[bottom].every((ch) => ch === '.')) bottom--
+  const shoeRows = feet.find((f) => !f.legs)?.rows ?? 1
+  for (const f of feet) {
+    const to = f.legs ? bottom - shoeRows : bottom
+    for (let y = Math.max(0, to - f.rows + 1); y <= to; y++)
+      cells[y].forEach((ch, x) => {
+        const t = TONE[ch]
+        if (t === undefined || (f.over === 'skin' && !SKIN_LETTERS.has(ch)) || (f.over === 'feet' && MAIN_CLOTH.has(ch))) return
+        over[y][x] = f.ramp[t]
+      })
+  }
+  return over
 }
 
 /** Every letter's colour for a look: the base's skin and eyes, the hair, each worn piece's and the head parts' keys. */

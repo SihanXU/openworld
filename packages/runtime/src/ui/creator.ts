@@ -1,5 +1,5 @@
 // The character creator (docs/looks.md §5): a look made by hand — the body, a part per slot, the colours — shown
-// as it will be in the game, the anime portrait and the map sprite walking round, with the words the world will
+// as it will be in the game, the standing portrait and the map sprite walking round, with the words the world will
 // use for it. The new-game panel makes the player's look with it; the dev page (looks.html) makes anyone's and
 // copies the record for a person's file.
 
@@ -10,7 +10,7 @@ import { portraitOf, preparePortrait } from '../assets/figure/index.ts'
 import { esc, locale, tx } from './common.ts'
 
 /** Slots a look may leave empty. */
-const OPTIONAL = new Set(['hat', 'beard', 'mark', 'glasses', 'age'])
+const OPTIONAL = new Set(['hat', 'beard', 'mark', 'glasses', 'age', 'legs', 'shoes'])
 /** The colour rows: a key, the families offered, and its label. */
 const COLOUR_ROWS: [string, string[], string, string][] = [
   ['hair', ['hair'], 'Hair colour', '发色'],
@@ -19,10 +19,13 @@ const COLOUR_ROWS: [string, string[], string, string][] = [
   ['outfit.1', ['cloth', 'leather'], 'Clothes', '衣服'],
   ['outfit.2', ['cloth'], 'Second colour', '配色'],
   ['hat.1', ['cloth', 'leather', 'metal'], 'Hat', '帽子'],
+  ['legs.1', ['cloth'], 'Stockings', '袜子'],
+  ['shoes.1', ['leather', 'cloth'], 'Shoes', '鞋子'],
 ]
 const SLOT_NAMES: Record<string, [string, string]> = {
   hair: ['Hair', '发型'], face: ['Face', '五官'], beard: ['Beard', '胡子'], age: ['Age', '年纪'], mark: ['Mark', '印记'],
   glasses: ['Glasses', '眼镜'], hat: ['Hat', '帽子'], cloak: ['Cloak', '披挂'], armour: ['Armour', '甲胄'], outfit: ['Outfit', '服装'],
+  legs: ['Legs', '腿'], shoes: ['Shoes', '鞋'],
 }
 const MOODS: Mood[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy']
 
@@ -142,14 +145,14 @@ export class Creator {
     const mood = this.mood
     const draw = () => {
       if (look !== this.look || mood !== this.mood) return
-      const src = portraitOf(look, mood)
+      const src = portraitOf(look, mood, [], 'full')
       const c = this.root.querySelector<HTMLCanvasElement>('.cr-bust')
       if (!src || !c) return
       c.width = src.width
       c.height = src.height
       c.getContext('2d')!.drawImage(src, 0, 0)
     }
-    if (portraitOf(look, mood)) draw()
+    if (portraitOf(look, mood, [], 'full')) draw()
     else void preparePortrait(look, mood).then(draw)
   }
 

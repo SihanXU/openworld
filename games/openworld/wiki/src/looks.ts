@@ -7,7 +7,7 @@ import type { Look } from '@openworld/engine'
 import { composePortrait } from '@openworld/runtime/src/assets/figure/portrait.ts'
 import { FH, FW, IDLE_ROW, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'
 import { figureId } from '@openworld/runtime/src/assets/figure/ids.ts'
-import { layerFromDisk, loadManifest } from '../../tools/src/art/looks/review.ts'
+import { bustOf, layerFromDisk, loadManifest } from '../../tools/src/art/looks/review.ts'
 import { encodePng, shrink } from './png.ts'
 
 /** The portrait's side on the wiki. */
@@ -27,8 +27,8 @@ export function lookPngs(look: Look): { face?: Buffer; body: Buffer } {
   const m = loadManifest()
   let face: Buffer | undefined
   if (m) {
-    const big = composePortrait(m, look, undefined, layerFromDisk)
-    const im = shrink({ w: m.size, h: m.size, rgba: new Uint8Array(big.buffer, big.byteOffset, big.length) }, FACE_PX)
+    const b = bustOf(m, look, composePortrait(m, look, undefined, layerFromDisk))
+    const im = shrink({ w: b.w, h: b.h, rgba: new Uint8Array(b.rgba.buffer, b.rgba.byteOffset, b.rgba.length) }, FACE_PX)
     face = encodePng(im.w, im.h, im.rgba)
   }
   return { face, body: encodePng(FW, FH, frame) }

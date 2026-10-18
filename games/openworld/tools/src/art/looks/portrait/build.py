@@ -2,9 +2,11 @@
 
     python -I build.py <work dir> <out dir>     (out: games/openworld/public/assets/lsw/Looks/portrait)
 
-Reads <work>/lib/base-<body>.png and <work>/parts/<part>[@<body>][~<mood>].png (parts.py), writes per layer a
-paint and a value map (extract.py) at the game's size, and manifest.json (client/src/assets/figure/portrait.ts).
-A part not drawn yet is left out of the manifest: the portrait shows the body without it.
+Reads <work>/lib/base-<body>.png and <work>/parts/<part>@<body>[~<mood>].png (parts.py), writes per layer a
+paint and a value map (extract.py) at the game's size, and manifest.json (runtime/src/assets/figure/portrait.ts):
+the canvas (a full figure, W x H), each body's layers and its bust (the square the dialogue box shows: the head
+and the shoulders), each part's layers per body. A part not drawn yet is left out of the manifest: the portrait
+shows the body without it.
 """
 
 from __future__ import annotations
@@ -19,11 +21,11 @@ from PIL import Image
 from scipy import ndimage as ndi
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from bases import neck_row  # noqa: E402
-from extract import SIZE, background, changed, figure, load, luminance, matte  # noqa: E402
+from bases import feet_row  # noqa: E402
+from extract import H, W, background, changed, figure, load, luminance, matte  # noqa: E402
+from parts import LONG  # noqa: E402
 
-OUT_SIZE = SIZE
-HEADS = {"man": "woman", "boy": "girl"}
+BODIES = ("woman", "man", "girl", "boy")
 MOODS = ["happy", "sad", "angry", "surprised", "shy"]
 # hats under which the hair goes: the hair shows only below their lower edge
 COVERING = {"hat.straw", "hat.kerchief", "hat.hood", "hat.helm", "hat.cap"}
@@ -67,12 +69,26 @@ class Normaliser:
         return np.clip(180.0 + np.where(d < 0, d * self.gs, d * self.gl), 0, 255)
 
 
-def skin_mask(rgb: np.ndarray, skin_ref: np.ndarray) -> np.ndarray:
-    """Pixels the colour of the base's skin (in its hue band, light enough), shaded or lit."""
+def skin_mask(rgb: np.ndarray, skin_ref: np.ndarray, lo: float = 0.7, vmin: float = 0.45) -> np.ndarray:
+    """Pixels the colour of the base's skin (in its hue band, light enough), shaded or lit: at least `lo` of the
+    skin's own saturation — the style's warm greys (hair, brows, the ink's hatching) are in the same hue band and
+    only less saturated; `vmin` how light it must be (the style's skin is light, its hair mid-grey)."""
     h, s, v = hsv(rgb)
     hr, sr, vr = hsv(skin_ref[None, None, :])
     dh = np.minimum(np.abs(h - hr[0, 0]), 360 - np.abs(h - hr[0, 0]))
-    return (dh < 22) & (s > 0.04) & (s < 0.6) & (v > 0.45)
+    return (dh < 22) & (s > lo * float(sr[0, 0])) & (s < 0.6) & (v > vmin)
+
+
+INK = np.array([46.0, 34.0, 28.0])  # the style's dark sepia ink (docs/looks.md §4)
+
+
+def inked(rgb: np.ndarray, lines: np.ndarray) -> np.ndarray:
+    """The lines kept as ink, whatever colour they were drawn beside: the style's lines are never repainted (a red
+    key cloth's outline is ink, not dark red). Their darkness is kept, their colour is the ink's."""
+    out = rgb.copy()
+    lum = luminance(rgb)[..., None]
+    out[lines] = (INK * np.clip(lum / 46.0, 0.0, 2.2))[lines]
+    return out
 
 
 def nearest_fill(zones: np.ndarray, holes: np.ndarray) -> np.ndarray:
@@ -91,9 +107,9 @@ def save(out_dir: str, rel: str, rgb: np.ndarray, alpha: np.ndarray, zones: np.n
     a8 = (np.clip(alpha, 0, 1) * 255).astype(np.uint8)
     # the paint is read only where no colour key repaints a pixel (zone 0): elsewhere it is left blank, which packs small
     rgb = np.where((zones > 0)[..., None], 0, rgb)
-    paint = Image.fromarray(np.dstack([np.clip(rgb, 0, 255).astype(np.uint8), a8]), "RGBA").resize((OUT_SIZE, OUT_SIZE), Image.LANCZOS)
-    va = Image.fromarray(np.dstack([np.clip(value, 0, 255).astype(np.uint8), a8]), "LA").resize((OUT_SIZE, OUT_SIZE), Image.LANCZOS)
-    zi = Image.fromarray((zones * 40).astype(np.uint8), "L").resize((OUT_SIZE, OUT_SIZE), Image.NEAREST)
+    paint = Image.fromarray(np.dstack([np.clip(rgb, 0, 255).astype(np.uint8), a8]), "RGBA")
+    va = Image.fromarray(np.dstack([np.clip(value, 0, 255).astype(np.uint8), a8]), "LA")
+    zi = Image.fromarray((zones * 40).astype(np.uint8), "L")
     P = np.asarray(paint)
     VA = np.asarray(va)
     Z = np.asarray(zi)
@@ -110,13 +126,45 @@ def save(out_dir: str, rel: str, rgb: np.ndarray, alpha: np.ndarray, zones: np.n
     return {"file": rel.replace(os.sep, "/"), "x": x0, "y": y0, "w": x1 - x0, "h": y1 - y0}
 
 
+class Frame:
+    """Where a body's parts are, read from its base: the head's top, the neck, the knees and the soles; the bust."""
+
+    def __init__(self, fig: np.ndarray, soles: int):
+        rows = np.nonzero(fig.any(axis=1))[0]
+        self.top = int(rows.min())
+        self.soles = soles
+        tall = self.soles - self.top
+        # the neck: the narrowest row between the head and the shoulders (a head is a seventh of an adult, a
+        # quarter of a child)
+        lo, hi = self.top + int(0.07 * tall), self.top + int(0.32 * tall)
+        widths = fig[lo:hi].sum(axis=1)
+        self.neck = lo + int(np.argmin(np.where(widths > 0, widths, 1 << 20)))
+        self.knees = self.top + int(0.68 * tall)
+        cols = np.nonzero(fig[self.top : self.neck].any(axis=0))[0]
+        self.cx = int((cols.min() + cols.max()) // 2) if len(cols) else W // 2
+        hh = self.neck - self.top
+        # the bust: a square from a little over the head to the chest, the head about two fifths of it (a child's
+        # head is bigger for its height: never more than half the figure)
+        side = min(int(hh * 2.7), tall // 2, W)
+        y0 = max(0, self.top - int(hh * 0.3))
+        x0 = int(np.clip(self.cx - side // 2, 0, W - side))
+        self.bust = {"x": x0, "y": y0, "w": side, "h": side}
+
+    def rows(self, a: int, b: int) -> np.ndarray:
+        """A mask of the rows from a to b (exclusive)."""
+        m = np.zeros((H, W), bool)
+        m[max(a, 0) : max(b, 0)] = True
+        return m
+
+
 class Builder:
     def __init__(self, work: str, out: str):
         self.work = work
         self.out = out
         self.bases: dict[str, np.ndarray] = {}
         self.figs: dict[str, np.ndarray] = {}
-        self.manifest: dict = {"size": OUT_SIZE, "bodies": {}, "parts": {}, "heads": HEADS}
+        self.frames: dict[str, Frame] = {}
+        self.manifest: dict = {"w": W, "h": H, "bodies": {}, "parts": {}}
         woman = load(os.path.join(work, "lib", "base-woman.png"))
         self.bg = background(woman)
         f = figure(woman, self.bg)
@@ -136,8 +184,12 @@ class Builder:
             p = os.path.join(self.work, "lib", f"base-{body}.png")
             if not os.path.exists(p):
                 return None
-            self.bases[body] = load(p)
-            self.figs[body] = figure(self.bases[body], self.bg)
+            img = load(p)
+            soles = feet_row(img, self.bg)
+            fig = figure(img, self.bg) & (np.arange(H)[:, None] <= soles + 2)
+            self.bases[body] = img
+            self.figs[body] = fig
+            self.frames[body] = Frame(fig, soles)
         return self.bases[body]
 
     def part_image(self, name: str) -> np.ndarray | None:
@@ -152,15 +204,20 @@ class Builder:
             return
         fig = self.figs[body]
         rgb, alpha = matte(img, self.bg, fig, fig)
-        sk = skin_mask(rgb, self.skin_ref) & fig
+        # the plain grey underclothes, with the hatching in their folds: never skin, though the ink's warm grey is
+        # in the skin's hue band
+        _, sat, val = hsv(rgb)
+        cloth = ndi.binary_fill_holes(ndi.binary_closing(fig & (sat < 0.07) & (val > 0.55), iterations=6)) & fig
+        cloth = ndi.binary_opening(cloth, iterations=3)
+        sk = skin_mask(rgb, self.skin_ref) & fig & ~cloth
         lines = fig & (luminance(rgb) < 90)
-        zones = np.where(sk, 1, 0)
-        zones = nearest_fill(zones, lines) * (alpha > 0)
-        # only lines that border the skin are skin's: the rest stay the paint's
+        zones = np.where(sk & ~lines, 1, 0) * (alpha > 0)
+        # the lines are the style's ink: kept, never repainted with the skin
+        rgb = inked(rgb, lines)
         value = np.where(zones == 1, self.skin(ndi.gaussian_filter(luminance(rgb), 0.8)), 0)
         e = save(self.out, f"body/{body}", rgb, alpha, zones, value)
         if e:
-            self.manifest["bodies"][body] = {"layers": [{**e, "z": "body", "zones": ["skin"]}]}
+            self.manifest["bodies"][body] = {"layers": [{**e, "z": "body", "zones": ["skin"]}], "bust": self.frames[body].bust}
 
     # -------------------------------------------------------------- the parts
 
@@ -170,7 +227,9 @@ class Builder:
         h, s, v = hsv(rgb)
         lum = ndi.gaussian_filter(luminance(rgb), 0.8)
         zones = np.zeros(rgb.shape[:2], np.int32)
-        for k, key in enumerate(keys, start=1):
+        # the irises and the brows first: a grey brow in the ink's warm grey is in the skin's hue band
+        order = sorted(enumerate(keys, start=1), key=lambda kk: {"eyes": 0, "hair": 1}.get(kk[1], 2))
+        for k, key in order:
             if key == ".1":
                 m = (s > 0.35) & ((h < 22) | (h > 330)) & (v > 0.2)
             elif key == ".2":
@@ -180,15 +239,17 @@ class Builder:
             elif key == "skin":
                 m = skin_mask(rgb, self.skin_ref)
             elif key == "eyes":
-                # the irises (drawn blue on the base): not the mouth's red, not the blush
-                m = (s > 0.25) & (v > 0.25) & (v < 0.97) & (h > 150) & (h < 300) & ~skin_mask(rgb, self.skin_ref)
+                # the irises: coloured or grey-blue, not the mouth's red, not the blush, not the skin
+                m = (s > 0.12) & (v > 0.2) & (v < 0.97) & (h > 150) & (h < 300) & ~skin_mask(rgb, self.skin_ref)
             elif key == "hair":
-                m = (s < 0.22) & (v > 0.18) & (v < 0.9)
+                # beside skin (a face's brows) only the darker greys: the skin's light is not hair
+                m = (s < 0.22) & (v > 0.18) & (v < (0.72 if "skin" in keys else 0.9))
             else:
                 continue
             zones[m & region & (zones == 0)] = k
         lines = region & (v < 0.3) & (zones == 0)
-        zones = nearest_fill(zones, lines) * region
+        # the lines stay ink (zone 0, their paint), so the figure keeps its drawn line whatever its colours
+        zones = zones * region
         value = np.zeros(lum.shape, np.float32)
         for k, key in enumerate(keys, start=1):
             m = zones == k
@@ -207,6 +268,8 @@ class Builder:
             value = np.where(reg, 150 + (self.skin(ndi.gaussian_filter(luminance(rgb), 0.8)) - 150) * 0.45, 0)
         else:
             zones, value = self.zones_of(rgb, region & (alpha > 0.01), keys)
+            _, _, v = hsv(rgb)
+            rgb = inked(rgb, region & (zones == 0) & (v < 0.38))
         tag = f".{mood}" if mood else ""
         e = save(self.out, f"{pid}/{body}.{z}{tag}", rgb, alpha, zones, value)
         return {**e, "z": z, "zones": keys} if e else None
@@ -217,19 +280,28 @@ class Builder:
         entry = self.manifest["parts"].setdefault(pid, {}).setdefault(body, {"layers": []})
         if pid in COVERING:
             entry["covers"] = True
+        if pid in LONG:
+            entry["above"] = ["shoes"]
         if mood:
             entry.setdefault("moods", {})[mood] = layers
         else:
             entry["layers"] = layers
 
-    def diff_part(self, pid: str, body: str, slot: str, img: np.ndarray, base: np.ndarray, fig: np.ndarray, mood: str | None = None) -> None:
+    def diff_part(self, pid: str, body: str, slot: str, img: np.ndarray, mood: str | None = None) -> None:
+        base, fig, fr = self.bases[body], self.figs[body], self.frames[body]
         ch = changed(base, img)
         reg = ndi.binary_dilation(ch, iterations=2) & (np.abs(img - base).max(axis=2) > 8)
-        neck = neck_row(fig)
+        # nothing below the soles is anyone's: the ground (a shadow the model drew) is left out
+        reg &= fr.rows(0, fr.soles + (8 if slot == "shoes" else 3))
         layers: list[dict] = []
         if slot in ("hair", "beard"):
-            # only what is hair: an edit that touched the face as well does not bring the face along
-            reg &= ~skin_mask(img, self.skin_ref)
+            # only what is hair: an edit that touched the face as well does not bring the face along (the skin
+            # judged strictly: warm grey hair, sometimes drawn brownish, is close to it in hue, never in lightness)
+            reg &= ~skin_mask(img, self.skin_ref, lo=0.85, vmin=0.78)
+        if slot == "beard":
+            # nor the teeth of a mouth the edit opened under the moustache: a beard is grey, never white
+            _, bs, bv = hsv(img)
+            reg &= ~((bv > 0.86) & (bs < 0.12))
         if slot == "hair":
             rgb, alpha = matte(img, self.bg, reg, fig)
             front = alpha * fig
@@ -238,19 +310,44 @@ class Builder:
                 e = self.emit(pid, body, mood, z, ["hair"], rgb, a, a > 0.01)
                 if e:
                     layers.append(e)
-        elif slot in ("outfit", "armour", "cloak"):
-            reg &= np.arange(SIZE)[:, None] > neck - 40
+        elif slot in ("outfit", "armour", "cloak", "legs", "shoes"):
+            if slot == "legs":
+                reg &= fr.rows(fr.neck + (fr.soles - fr.neck) // 3, H)
+            elif slot == "shoes":
+                reg &= fr.rows(fr.knees - (fr.soles - fr.knees) // 3, H)
+            else:
+                reg &= fr.rows(fr.neck - (fr.neck - fr.top) // 4, H)
+            keys = [".1", ".2", ".3", "skin"]
+            if slot in ("legs", "shoes"):
+                # stockings and shoes are cloth and leather only: the skin an edit redrew beside them (an ankle's
+                # hatching) is the body's, and over the stockings it would show as skin
+                reg &= ~skin_mask(img, self.skin_ref)
+                keys = [".1", ".2", ".3"]
+            else:
+                # below the knees the legs are the body's, the stockings' and the shoes': a skirt's edit that redrew
+                # the ankles' hatching does not bring skin over them
+                reg &= ~(skin_mask(img, self.skin_ref) & fr.rows(fr.knees, H))
             rgb, alpha = matte(img, self.bg, reg, fig)
-            e = self.emit(pid, body, mood, slot, [".1", ".2", ".3", "skin"], rgb, alpha, alpha > 0.01)
+            e = self.emit(pid, body, mood, slot, keys, rgb, alpha, alpha > 0.01)
             if e:
                 layers.append(e)
         else:
             z, keys = {"hat": ("hat", [".1", ".2"]), "beard": ("beard", ["hair"]), "age": ("age", ["skin"]), "mark": ("mark", ["skin"]), "glasses": ("glasses", [".1"])}[slot]
+            hh = fr.neck - fr.top
+            # on the head only (a hat's brim reaches out and a little down; a beard to the chest)
+            reg &= fr.rows(0, fr.neck + (hh // 2 if slot in ("hat", "beard") else 0))
+            if slot == "hat":
+                reg &= ~skin_mask(img, self.skin_ref)
             if slot in ("age", "mark"):
-                # on the head only; age's lines are what the edit darkened (the face's own shape stays the base's)
-                reg &= np.arange(SIZE)[:, None] < neck
+                # away from the eyes, the brows and the mouth, which are the face part's (an edit that added freckles
+                # may have recoloured the eyes too)
+                head = fig & fr.rows(0, fr.neck)
+                reg &= ~ndi.binary_dilation(ndi.binary_erosion(head, iterations=6) & ~skin_mask(base, self.skin_ref), iterations=7)
             if slot == "age":
-                reg &= luminance(img) < luminance(base) - 14
+                # age's lines are thin dark strokes the edit added (a black top-hat finds strokes, not the whole
+                # face the edit redrew)
+                lum = luminance(img)
+                reg &= (ndi.grey_closing(lum, size=7) - lum > 16) & (lum < luminance(base) - 10)
             rgb, alpha = matte(img, self.bg, reg, fig)
             if slot in ("age", "mark"):
                 # laid lightly: a line of age, an old scar, not paint
@@ -263,22 +360,21 @@ class Builder:
     def face_part(self, pid: str, body: str) -> None:
         """A face: what replaces the base's eyes, brows, nose and mouth, in every mood (the neutral and each)."""
         base = self.base(body)
-        neutral = self.part_image(pid)
+        neutral = self.part_image(f"{pid}@{body}")
         if base is None or neutral is None:
             return
-        fig = self.figs[body]
-        neck = neck_row(fig)
-        head = fig & (np.arange(SIZE)[:, None] < neck)
-        inner = ndi.binary_erosion(head, iterations=18)
+        fig, fr = self.figs[body], self.frames[body]
+        head = fig & fr.rows(0, fr.neck)
+        inner = ndi.binary_erosion(head, iterations=max(4, (fr.neck - fr.top) // 20))
         # the base's own features: what in the head is not plain skin
         feats = inner & ~skin_mask(base, self.skin_ref)
-        images = {None: neutral, **{m: self.part_image(f"{pid}~{m}") for m in MOODS}}
+        images = {None: neutral, **{m: self.part_image(f"{pid}@{body}~{m}") for m in MOODS}}
         union = feats.copy()
         for im in images.values():
             if im is not None:
                 union |= changed(base, im) & inner
-        mask = ndi.binary_dilation(ndi.binary_closing(union, iterations=5), iterations=8) & inner
-        soft = np.clip(ndi.gaussian_filter(mask.astype(np.float32), 3.0) * 1.6, 0, 1)
+        mask = ndi.binary_dilation(ndi.binary_closing(union, iterations=3), iterations=4) & inner
+        soft = np.clip(ndi.gaussian_filter(mask.astype(np.float32), 1.6) * 1.6, 0, 1)
         for mood, im in images.items():
             if im is None:
                 continue
@@ -287,23 +383,23 @@ class Builder:
                 self.put(pid, body, mood, [e])
 
     def run(self) -> dict:
-        for body in ("woman", "man", "girl", "boy"):
+        for body in BODIES:
             self.body(body)
         names = sorted(f[:-4] for f in os.listdir(os.path.join(self.work, "parts")) if f.endswith(".png"))
         for name in names:
-            if "~" in name:
+            if "~" in name or "@" not in name:
                 continue
             pid, _, body = name.partition("@")
             slot = pid.split(".")[0]
+            if self.base(body) is None:
+                continue
             if slot == "face":
-                self.face_part(pid, "girl" if pid == "face.child" else "woman")
-                continue
-            body = body or ("girl" if pid in ("hair.pigtails", "hair.tuft", "hair.childbob") else "man" if slot == "beard" else "woman")
-            base = self.base(body)
-            img = self.part_image(name)
-            if base is None or img is None:
-                continue
-            self.diff_part(pid, body, slot, img, base, self.figs[body])
+                self.face_part(pid, body)
+            else:
+                img = self.part_image(name)
+                if img is None:
+                    continue
+                self.diff_part(pid, body, slot, img)
             print("cut", name, flush=True)
         with open(os.path.join(self.out, "manifest.json"), "w", encoding="utf-8") as f:
             json.dump(self.manifest, f, indent=1)

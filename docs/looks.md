@@ -6,6 +6,12 @@ Defaults the user accepted: map figures 16x32 (24x36 since 2026-10-17, §3), hal
 on people, all 24 people converted, the player makes their own look; the portrait art is drawn by a model
 hosted locally.
 
+Redrawn 2026-10-18 at the user's asking ("按照 black souls 这种风格", the trial `docs/figures/looks-style-trial.png`
+accepted): full-body standing portraits in a dark-fairy-tale line style — crisp thin sepia ink lines, hatching in
+the folds, flat muted fills, about seven heads tall, on a flat pale cream ground — the dialogue box showing the
+bust cut from the figure; legs and shoes as slots of their own; every body with its own head and face (a man is
+not her head on his body). The style is held by the bases every part is edited from; no style LoRA yet (§7).
+
 ## 1. References (what we took)
 
 | Game | How | Taken |
@@ -24,7 +30,7 @@ class. So do we. No releasable anime part library exists (research 2026-10-08), 
 ```ts
 interface Look {                       // engine/src/types.ts
   body: string                         // woman | man | girl | boy
-  parts: Record<string, string>        // slot → part: hair, face, beard, age, mark, glasses, hat, outfit
+  parts: Record<string, string>        // slot → part: hair, face, beard, age, mark, glasses, hat, cloak, armour, outfit, legs, shoes
   colors: Record<string, string>       // skin, hair, eyes, and a part's own as '<slot>.<n>' → colour id or #rrggbb
   own?: boolean                        // changed in the world (restyle): the world's design no longer replaces it on load
 }
@@ -36,8 +42,12 @@ interface Look {                       // engine/src/types.ts
   default colours, tags, words in both languages, generator weights) and named colours (hex, names, the tags a
   colour gives the key it colours: silver on hair → `look:grey-haired`).
 - Expressions are not stored: a line's `mood` picks the portrait's face at render time.
-- The man's and the boy's bases are the woman's and the girl's heads on their own bodies, so every head part
-  (hair, faces, hats, beards, glasses, marks, age) is drawn once and fits both.
+- Every body has its own head and face: the man's is a young man's, the boy's a boy's. Every head part (hair, faces
+  and their moods, hats, beards, glasses, marks, age) is drawn on each body it is for (until 2026-10-18 the man and
+  the boy wore the woman's and the girl's heads, and the user rejected it: men and women are told apart at a glance).
+- Legs (stockings, hose, leg wraps) and shoes (ankle boots, shoes, buckled shoes, riding boots, sandals) are slots:
+  an outfit is drawn barefoot. The generator draws them from a stream of their own (`generateLook`), so adding them
+  changed nobody's other parts or colours.
 
 ## 3. Three outputs from one record
 
@@ -65,13 +75,20 @@ interface Look {                       // engine/src/types.ts
      following it down on a step (and down to a child's head): the face's variants, a scar, freckles, age's lines
      (drawn by hand), a beard, the hair (15 styles, cut from drafts; below a row, and in the 3/4 view past a
      column, it hangs behind the body), glasses, a hat (which hides the hair above its brim).
+   - **The legs and the shoes** (`figure/basefeet.ts`): at 24x36 a few cells, laid on as colour counted up from the
+     frame's lowest row — a shoe repaints the feet (the bare skin and an outfit's own boots), riding boots the shins
+     too, stockings the bare skin of the legs above the shoes; under a long skirt there is no skin to repaint.
    How they were drawn: `games/openworld/tools/src/art/looks/sprite/README.md`.
-2. **Portrait** (`figure/portrait.ts`): a 768x768 half-body bust composed from layers in a fixed stack
-   (`hairBack, body, outfit, armour, cloak, age, face, mark, beard, glasses, hair, hat`; the hair goes under a covering hat). A layer is its paint and its
-   value map (value, zone, coverage); zone k is repainted through the gradient of its colour key. A face part has a
-   layer per mood; what the speaker's statuses show on the map (wet, burning, frozen, oiled…) washes over it
-   (`figure/index.ts` WASH). The dialogue box shows it standing at its left (`ui/hud.ts`, `game.css .dialog.bust`); the
-   codex shows the sprite; the wiki both (`wiki/src/looks.ts`).
+2. **Portrait** (`figure/portrait.ts`, full-body since 2026-10-18): a 768x1536 standing figure composed from layers in
+   a fixed stack (`hairBack, body, legs, outfit, shoes, armour, cloak, age, face, mark, beard, glasses, hair, hat`;
+   the hair goes under a covering hat; a long skirt's part says `above: ['shoes']`, so it falls over the boots while
+   boots go over trousers). A layer is its paint and its value map (value, zone, coverage); zone k is repainted
+   through the gradient of its colour key. A face part has a layer per mood; what the speaker's statuses show on the
+   map (wet, burning, frozen, oiled…) washes over it (`figure/index.ts` WASH). Each body in the manifest has its
+   **bust**, the square of the head and shoulders: `portraitOf(look, mood)` is the bust — the dialogue box shows it
+   standing at its left (`ui/hud.ts`, `game.css .dialog.bust`), the character sheet, the companion's panel and the
+   editor's scene lines too — and `portraitOf(…, 'full')` the whole figure, which the creator shows. The codex shows
+   the sprite; the wiki the bust and the sprite (`wiki/src/looks.ts`).
 3. **Tags and words**: `lookTags` (engine) derives `look:*` tags from the parts and colours — never stored, read
    by `World.view` and `hasTag`, so rules can address "the hooded"; `lookWords` (engine) gives the modder's
    `EntityInfo.look`; `describeLook` (content) the codex's, the wiki's and the creator's sentence in both languages.
@@ -84,17 +101,28 @@ the map and in the portrait is the same colour by construction.
 
 - **Model**: Qwen-Image-Edit-2511 (Apache-2.0) in a local ComfyUI: GGUF Q4_K_M transformer, fp8 Qwen2.5-VL
   encoder, VAE, Lightning 4-step LoRA (`setup.md`, `download.sh`). `comfy_node.py` keeps the edit's reference at the
-  input's size, so a 768x768 edit leaves every pixel where it was. About 30–60 s a picture on an RTX 5080 laptop.
-- **Bases** (`parts.py`, `bases.py`): a bald woman in a plain tank top on flat grey, drawn once; the man's body
-  drawn by an edit and her head pasted back; the girl's base likewise, the boy's from it.
-- **Parts** (`parts.py`): one edit of a base per part, per mood for faces (from the face's neutral picture). Hair,
-  beards and brows are drawn grey (their value is their shading); garments in key hues (pure red: colour 1, green:
-  colour 2, blue: leather or metal, colour 3) so the cut can tell the zones apart.
-- **Cut** (`extract.py`, `build.py`): the part is what the edit changed (a colour distance over a tolerance,
-  cleaned); edges are unmixed from the known background; hair outside the base figure becomes the layer behind
-  the body; a face is what replaces the base's features (the same mask in every mood); zones by hue (key hues,
-  the skin's hue band, the iris, grey for hair); lines take their neighbour's zone (coloured lineart); values
-  anchored at the zone's median with a bounded gain (skin uses one mapping for every layer, so no seams).
+  input's size, so a 768x1536 edit leaves every pixel where it was. About 2–3 minutes a picture on an RTX 5080 laptop;
+  the library (184 pictures) is a night's run.
+- **The style** (2026-10-18): found by trial (`docs/figures/looks-style-trial.png`) with prompts alone — the
+  reference the user showed was never given to the model. The woman's base was drawn from words (thin uniform dark
+  sepia ink lines, hatching in the folds and shadows, flat muted fills without glossy highlights, refined anime eyes,
+  about six and a half heads tall, a flat pale cream ground); every other picture is an edit, which keeps the style
+  of what it edits. 8 steps were tried and drew no better than 4.
+- **Bases** (`parts.py` `base_jobs`, `bases.py`): four whole figures, each with its own head — the woman's, the
+  man's (her base with a man's body and then a young man's face in the same style, never her face: the first try
+  with "masculine" words drew a realistic hard face in another style), the girl's from hers, the boy's from the
+  girl's with a boy's face. `bases.py` clears the ground under each (the model likes to draw a shadow there).
+- **Parts** (`parts.py`): one edit of a base per part and body, per mood for faces (from the face's neutral picture).
+  Hair, beards and brows are drawn grey (their value is their shading); garments in key hues (pure red: colour 1,
+  green: colour 2, blue: leather or metal, colour 3) so the cut can tell the zones apart; an outfit leaves the feet
+  bare and the legs bare below it (stockings and shoes are their own parts).
+- **Cut** (`extract.py`, `build.py`): each body's frame is read from its base (the head's top, the neck, the knees,
+  the soles; the bust square). The part is what the edit changed (a colour distance over a tolerance, cleaned), only
+  in its region (a hat on the head, shoes at the feet, nothing below the soles); edges are unmixed from the known
+  background; hair outside the base figure becomes the layer behind the body; a face is what replaces the base's
+  features (the same mask in every mood); zones by hue (key hues, the skin's hue band, the iris, grey for hair);
+  lines take their neighbour's zone (coloured lineart); values anchored at the zone's median with a bounded gain
+  (skin uses one mapping for every layer, so no seams).
 - **Review**: `npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]` composes everyone with the client's
   own code. `batch.py` runs the jobs (resumable; a job waits for the picture it edits).
 - Outputs are CC0 with their prompts and workflow in the repository; the model's licence allows it.
@@ -118,9 +146,14 @@ the map and in the portrait is the same colour by construction.
 - Loading: a save's people take the world's look unless theirs is `own`; a player who made a look keeps it; a
   sheet's key from before looks gets the world's.
 
-## 6. Where it stands (2026-10-09)
+## 6. Where it stands
 
-The first library: 4 bodies, 6 faces x 6 moods, 15 hairstyles, 3 beards, age lines, 2 marks, round glasses,
+The full-body library (2026-10-18): 4 bodies, each its own head; 6 faces x 6 moods on every body they are for (72
+pictures), 15 hairstyles on each body (29), 3 beards, age lines, 2 marks, round glasses, 7 hats, 18 outfits (25 over
+the bodies they fit), 3 legwear and 5 shoes, 3 worn pieces — 184 pictures. `docs/figures/looks-review.png` is
+everyone as the game draws them.
+
+The first library (2026-10-09, half-body, replaced): 4 bodies, 6 faces x 6 moods, 15 hairstyles, 3 beards, age lines, 2 marks, round glasses,
 7 hats, 20 outfits (25 drawings over the bodies they fit), 3 worn pieces for both adult bodies — 98 pictures,
 cut into 18 MB of layers. `docs/figures/looks-review.png` is everyone as the game draws them,
 `looks-worn.png` what is worn, `looks-dialogue.jpg` the dialogue box in play.
@@ -133,4 +166,7 @@ age's lines — `docs/figures/figures-map.png` (standing, the four facings) and 
 
 - Unique figures: Lumi, the Seal-bearers' portraits.
 - A bigger library (more hair, outfits per role and region, more faces), kin resemblance, regional palettes.
-- A style LoRA for a house style, once the art direction settles.
+- A style LoRA for the house style (asked for 2026-10-18): musubi-tuner trains Qwen-Image-Edit only from the bf16
+  transformer (about 41 GB; neither the fp8 nor the GGUF files) and wants 64 GB of RAM with block swapping; this
+  machine has 32 GB and, that day, 18 GB of disk free. The edits hold the style without it; it matters most for
+  figures drawn from words alone (the Seal-bearers).

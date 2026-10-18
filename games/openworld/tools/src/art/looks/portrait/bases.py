@@ -1,5 +1,10 @@
-"""The bases every part is drawn on (docs/looks.md §4). A man's (a boy's) base is the woman's (the girl's) head on
-his own body: the edit draws the body, and the head is pasted back exactly, so one set of head parts fits both."""
+"""The bases every part is drawn on (docs/looks.md §4): four full figures — the woman, the man, the girl and the
+boy — each with its own head and face, bald, in a plain grey top and shorts, barefoot, standing on one line.
+
+A base is drawn whole by an edit (parts.py), never pasted from another's head: a man has his own face, so every
+head part (hair, faces, hats, beards, glasses, marks) is drawn on each body it is for. What lies below the soles
+is ground, never the figure: the model likes to draw a shadow there, and `ground` clears it.
+"""
 
 from __future__ import annotations
 
@@ -7,45 +12,52 @@ import os
 
 import numpy as np
 from PIL import Image
-from scipy import ndimage as ndi
 
 from extract import background, figure, load
 
-# whose head each raw body takes
-HEAD_OF = {"base-man": "base-woman", "base-boy": "base-girl"}
+
+def soles(fig: np.ndarray) -> int:
+    """The lowest row of a figure: where its feet stand."""
+    rows = np.nonzero(fig.any(axis=1))[0]
+    return int(rows.max()) if len(rows) else fig.shape[0] - 1
 
 
-def neck_row(fig: np.ndarray) -> int:
-    """The neck: the narrowest row of the figure between its head and its shoulders."""
-    widths = fig.sum(axis=1)
-    top = int(np.argmax(widths > 0))
-    lo, hi = top + int(0.25 * (1024 - top)), top + int(0.75 * (1024 - top))
-    band = widths[lo:hi]
-    return lo + int(np.argmin(np.where(band > 0, band, 9999)))
+def feet_row(img: np.ndarray, bg: np.ndarray) -> int:
+    """Where the feet stand, not counting a shadow: the lowest row with skin or a line narrower than the stance.
+
+    A shadow is wide and flat; the feet are two narrow shapes. Going up from the bottom, the first row whose
+    figure is no wider than the figure a tenth of the height above it is the soles' row."""
+    fig = figure(img, bg)
+    h = fig.shape[0]
+    rows = np.nonzero(fig.any(axis=1))[0]
+    if not len(rows):
+        return h - 1
+    top, bottom = int(rows.min()), int(rows.max())
+    probe = bottom - (bottom - top) // 12
+    ref = fig[probe].sum() * 1.6 + 6
+    y = bottom
+    while y > probe and fig[y].sum() > ref:
+        y -= 1
+    return y
 
 
-def composite(head_path: str, raw_path: str, out_path: str) -> None:
-    head = load(head_path)
-    raw = load(raw_path)
-    bg = background(head)
-    fig = figure(head, bg)
-    y = neck_row(fig)
-    # the head's own pixels above the neck (and the background round it), blended over twelve rows into the body
-    w = np.zeros(head.shape[:2], np.float32)
-    w[: y - 6] = 1.0
-    for k in range(12):
-        w[y - 6 + k] = 1.0 - (k + 1) / 13
-    w = ndi.gaussian_filter(w, 1.5)
-    out = head * w[..., None] + raw * (1 - w[..., None])
-    Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).save(out_path)
+def ground(img: np.ndarray, bg: np.ndarray, below: int, margin: int = 3) -> np.ndarray:
+    """The picture with everything below a row (and a margin) painted the background: no ground under anyone."""
+    out = img.copy()
+    out[below + margin + 1 :] = bg
+    return out
 
 
 def prepare(root: str) -> None:
-    """Make every composite base whose raw body is drawn and whose head exists."""
-    for name, head in HEAD_OF.items():
-        out = os.path.join(root, "lib", name + ".png")
-        raw = os.path.join(root, "lib", name + "-raw.png")
-        src = os.path.join(root, "lib", head + ".png")
-        if not os.path.exists(out) and os.path.exists(raw) and os.path.exists(src):
-            composite(src, raw, out)
-            print(f"composed {name}", flush=True)
+    """Clear the ground under every base drawn (once: the base is rewritten in place and marked done)."""
+    for body in ("woman", "man", "girl", "boy"):
+        p = os.path.join(root, "lib", f"base-{body}.png")
+        done = p + ".clean"
+        if not os.path.exists(p) or os.path.exists(done):
+            continue
+        img = load(p)
+        bg = background(img)
+        y = feet_row(img, bg)
+        Image.fromarray(np.clip(ground(img, bg, y), 0, 255).astype(np.uint8)).save(p)
+        open(done, "w").close()
+        print(f"cleared the ground under the {body} (soles at {y})", flush=True)

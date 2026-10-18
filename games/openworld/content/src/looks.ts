@@ -14,7 +14,9 @@ import { MATERIALS } from './items.ts'
 const T = (en: string, zh: string): Text => ({ en, zh })
 
 /** The slots of a look, in the order the words are said. */
-export const LOOK_SLOTS = ['hair', 'face', 'beard', 'age', 'mark', 'glasses', 'hat', 'cloak', 'armour', 'outfit'] as const
+export const LOOK_SLOTS = ['hair', 'face', 'beard', 'age', 'mark', 'glasses', 'hat', 'cloak', 'armour', 'outfit', 'legs', 'shoes'] as const
+/** Slots the generator draws from a stream of their own, so adding them changed no one's other parts or colours. */
+const OWN_STREAM = new Set(['legs', 'shoes'])
 /** Slots only what is worn fills (a breastplate, a cloak): the creator and the generator leave them to the things. */
 export const WORN_SLOTS = new Set(['armour', 'cloak'])
 export type LookSlot = (typeof LOOK_SLOTS)[number]
@@ -186,6 +188,16 @@ export const LOOK_PARTS: Record<string, LookPart> = {
   'outfit.adventurer': { slot: 'outfit', name: T("adventurer's gear", '冒险者装束'), bodies: ADULTS, colors: { 1: 'teal', 2: 'linen', 3: 'leather' }, say: T("{c} adventurer's gear", '{c}色冒险者装束'), gen: { w: 0, colors: { 1: [...CLOTH_PLAIN, ...CLOTH_DYED] } } },
   'outfit.smock': { slot: 'outfit', name: T("child's smock", '孩子的罩衫'), bodies: CHILDREN, colors: { 1: 'woad', 2: 'linen' }, say: T("a {c} child's smock", '{c}色罩衫'), gen: { colors: { 1: [...CLOTH_PLAIN, ...CLOTH_DYED] } } },
   'outfit.pinafore': { slot: 'outfit', name: T('pinafore dress', '背带裙'), bodies: ['girl'], colors: { 1: 'rose', 2: 'ivory' }, say: T('a {c} pinafore dress', '{c}色背带裙'), gen: { colors: { 1: ['rose', 'madder', 'woad', 'moss', 'mustard'] } } },
+
+  // ---------------------------------------------------------------- legs (seen under a skirt) and shoes
+  'legs.stockings': { slot: 'legs', name: T('stockings', '长筒袜'), bodies: ['woman', 'girl'], colors: { 1: 'charcoal' }, say: T('{c} stockings', '{c}色长筒袜'), gen: { sex: 'female', ages: [6, 60], colors: { 1: ['charcoal', 'black', 'ivory', 'umber', 'plum', 'indigo'] } } },
+  'legs.hose': { slot: 'legs', name: T('wool hose', '羊毛袜'), colors: { 1: 'undyed' }, say: T('{c} wool hose', '{c}色羊毛袜'), gen: { roles: ['farmer', 'herder', 'elder', 'miller'], colors: { 1: ['undyed', 'linen', 'umber', 'slate', 'moss'] } } },
+  'legs.wraps': { slot: 'legs', name: T('leg wraps', '绑腿'), bodies: ['man', 'boy'], colors: { 1: 'linen' }, say: T('{c} leg wraps', '{c}色绑腿'), gen: { sex: 'male', roles: ['traveler', 'hunter', 'herder', 'trainer'], colors: { 1: ['linen', 'undyed', 'umber', 'slate'] } } },
+  'shoes.boots': { slot: 'shoes', name: T('ankle boots', '短靴'), colors: { 1: 'leather', 2: 'umber' }, say: T('{c} ankle boots', '{c}短靴'), gen: { roles: ['farmer', 'herder', 'hunter', 'traveler', 'smith', 'miner', 'peddler'], colors: { 1: ['leather', 'darkleather', 'umber'] } } },
+  'shoes.shoes': { slot: 'shoes', name: T('leather shoes', '皮鞋'), colors: { 1: 'darkleather' }, say: T('{c} shoes', '{c}鞋'), gen: { colors: { 1: ['leather', 'darkleather', 'umber', 'black'] } } },
+  'shoes.buckled': { slot: 'shoes', name: T('buckled shoes', '搭扣鞋'), bodies: ['woman', 'girl'], colors: { 1: 'black', 3: 'iron' }, say: T('{c} buckled shoes', '{c}搭扣鞋'), gen: { sex: 'female', roles: ['noble', 'scholar', 'steward', 'innkeeper'], colors: { 1: ['black', 'darkleather', 'plum'] } } },
+  'shoes.tall': { slot: 'shoes', name: T('riding boots', '长靴'), bodies: ADULTS, colors: { 1: 'darkleather' }, say: T('tall {c} boots', '{c}长靴'), gen: { roles: ['guard', 'soldier', 'noble', 'hunter', 'stranger'], colors: { 1: ['darkleather', 'leather', 'black'] } } },
+  'shoes.sandals': { slot: 'shoes', name: T('sandals', '凉鞋'), bodies: ADULTS, colors: { 1: 'leather' }, say: T('{c} sandals', '{c}凉鞋'), gen: { w: 0.3, roles: ['priest', 'fisher'], colors: { 1: ['leather', 'umber'] } } },
 }
 
 export const LOOK_TABLE: LookTable = {
@@ -266,6 +278,8 @@ function chanceOf(slot: string, who: LookFor, body: string): number {
   if (slot === 'mark') return 0.18
   if (slot === 'glasses') return who.role === 'scholar' ? 0.7 : 0.04
   if (slot === 'hat') return ['guard', 'soldier', 'farmer', 'stranger'].includes(who.role ?? '') ? 0.75 : 0.15
+  if (slot === 'legs') return who.sex === 'female' || child ? 0.45 : 0.3
+  if (slot === 'shoes') return child ? 0.85 : 0.96
   return 1
 }
 
@@ -274,7 +288,8 @@ function chanceOf(slot: string, who: LookFor, body: string): number {
  * per slot by how it suits them, colours by age and part. `given` pins what the author chose; the rest is drawn.
  */
 export function generateLook(seed: string, who: LookFor, given: LookPins = {}): Look {
-  const r = rng(seed)
+  const rng0 = rng(seed)
+  const feet = rng(seed + '|feet')
   const body = given.body ?? bodyFor(who)
   const parts: Record<string, string> = {}
   for (const slot of LOOK_SLOTS) {
@@ -283,11 +298,13 @@ export function generateLook(seed: string, who: LookFor, given: LookPins = {}): 
       if (pinned) parts[slot] = pinned
       continue
     }
+    const r = OWN_STREAM.has(slot) ? feet : rng0
     const roll = r()
     if (roll >= chanceOf(slot, who, body)) continue
     const id = pick(r, Object.entries(LOOK_PARTS).filter(([, p]) => p.slot === slot).map(([id, p]) => [id, weightOf(p, body, who)] as [string, number]))
     if (id) parts[slot] = id
   }
+  const r = rng0
   const colors: Record<string, string> = {}
   colors.skin = given.colors?.skin ?? pick(r, SKIN)!
   colors.hair = given.colors?.hair ?? pick(r, who.age >= 62 ? HAIR_OLD : who.age >= 45 ? HAIR_GREYING : HAIR_YOUNG)!
@@ -295,7 +312,8 @@ export function generateLook(seed: string, who: LookFor, given: LookPins = {}): 
   for (const [slot, id] of Object.entries(parts))
     for (const [n, options] of Object.entries(LOOK_PARTS[id].gen?.colors ?? {})) {
       const key = `${slot}.${n}`
-      if (!given.colors?.[key]) colors[key] = options[Math.floor(r() * options.length)]
+      const rr = OWN_STREAM.has(slot) ? feet : r
+      if (!given.colors?.[key]) colors[key] = options[Math.floor(rr() * options.length)]
     }
   for (const [k, v] of Object.entries(given.colors ?? {})) colors[k] = v
   return { body, parts, colors }
@@ -303,7 +321,7 @@ export function generateLook(seed: string, who: LookFor, given: LookPins = {}): 
 
 /** The look a new game starts from, before the player makes their own (the new-game panel). */
 export const PLAYER_LOOK: Look = generateLook('player', { sex: 'female', age: 19, role: 'traveler' }, {
-  parts: { hair: 'hair.ponytail', face: 'face.bright', outfit: 'outfit.adventurer', hat: null, mark: null, glasses: null, beard: null },
+  parts: { hair: 'hair.ponytail', face: 'face.bright', outfit: 'outfit.adventurer', shoes: 'shoes.boots', legs: null, hat: null, mark: null, glasses: null, beard: null },
   colors: { hair: 'chestnut', eyes: 'amber', skin: 'light', 'outfit.1': 'teal', 'outfit.2': 'linen', 'outfit.3': 'leather' },
 })
 
