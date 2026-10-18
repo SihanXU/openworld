@@ -22,7 +22,7 @@ import { bossAnimationFrame } from '@openworld/runtime/src/render/boss-animation
 import { depthOf } from '@openworld/runtime/src/render/depth.ts'
 import type { Game } from './game.ts'
 import { decodePng, encodePng, type Image } from './png.ts'
-import { FH, FW, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'
+import { ANCHOR_Y, FH, FW, IDLE_ROW, ROWS, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'
 import { crowdLook, figureId } from '@openworld/runtime/src/assets/figure/ids.ts'
 
 // ------------------------------------------------------------------------------------------ images
@@ -336,14 +336,14 @@ interface Body {
 function figureImage(look: Look): Image {
   const key = `fig/${figureId(look)}`
   let img = images.get(key)
-  if (!img) images.set(key, (img = { w: FW * 4, h: FH * 4, rgba: composeSprite(look) }))
+  if (!img) images.set(key, (img = { w: FW * 4, h: FH * ROWS, rgba: composeSprite(look) }))
   return img
 }
 
 function bodyOf(e: Snap): Body | undefined {
   // a person drawn from a look (their own, or one drawn from their id): the sheet's standing frame facing their way
   const look = typeof e.look === 'object' ? e.look : !e.look && e.person ? crowdLook(e.id, e.type) : undefined
-  if (e.tags.includes('agent') && look) return { img: figureImage(look), rect: [(DIR_COL[e.facing] ?? 0) * FW, 0, FW, FH], ox: FW / 2, oy: 30 }
+  if (e.tags.includes('agent') && look) return { img: figureImage(look), rect: [(DIR_COL[e.facing] ?? 0) * FW, IDLE_ROW * FH, FW, FH], ox: FW / 2, oy: ANCHOR_Y }
   if (e.tags.includes('agent')) {
     const a = actorDef(e)
     const img = a && image(`${a.dir}/${a.sheet}`)

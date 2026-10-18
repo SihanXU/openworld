@@ -6,23 +6,23 @@ import type { Look, Mood } from '@openworld/engine'
 import { assetsBase, hasLooks } from '../../game.ts'
 import { figureId } from './ids.ts'
 import type { ActorDef } from '../types.ts'
-import { FH, FW, composeSprite } from './sprite.ts'
+import { ANCHOR_Y, FH, FW, IDLE_ROW, ROWS, composeSprite } from './sprite.ts'
 import { composePortrait, portraitFiles, type LayerPixels, type PortraitManifest } from './portrait.ts'
 
 export { crowdLook, figureId } from './ids.ts'
 
-/** The map sheet of a look: composed once into a canvas texture (`fig/<id>`), 4 facings by 4 walk frames of 16x32. */
+/** The map sheet of a look: composed once into a canvas texture (`fig/<id>`), 4 facings by ROWS frames of FW x FH. */
 export function figureDef(scene: Phaser.Scene, look: Look): { key: string; def: ActorDef } {
   const id = figureId(look)
   const img = `fig/${id}`
   if (!scene.textures.exists(img)) {
     const c = document.createElement('canvas')
     c.width = FW * 4
-    c.height = FH * 4
+    c.height = FH * ROWS
     c.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(composeSprite(look)), c.width, c.height), 0, 0)
     scene.textures.addCanvas(img, c)
   }
-  return { key: `fig:${id}`, def: { dir: 'fig', sheet: id, cols: 4, rows: 4, anchorY: 30 } }
+  return { key: `fig:${id}`, def: { dir: 'fig', sheet: id, cols: 4, rows: ROWS, anchorY: ANCHOR_Y, idleRow: IDLE_ROW } }
 }
 
 // ---------------------------------------------------------------- portraits
