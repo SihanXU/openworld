@@ -47,6 +47,18 @@ interface Look {                       // engine/src/types.ts
    and draws over them (skirts, aprons, stoles); head parts are drawn once per facing and follow the bob; left is
    right mirrored; a dark outline goes round the figure last. Grids: `pixparts.ts`, `pixhair.ts`, `pixhead.ts`,
    `pixoutfit.ts`. Composed on demand into a canvas texture named by the look's code (`figure/index.ts`).
+
+   **The new figures** (2026-10-17, shown with `?figures=new` until their parts are drawn): 24x36 frames at the
+   tiles' pixel scale (two tiles tall), the soles on row 34, in the style of the user's example (an FFBE-style Cloud:
+   its palette, its face moved up a row). `figure/bases.ts` holds the bald man and woman per facing — the front for
+   down, the back for up, a 3/4 view facing left (right is it mirrored) — and each facing's walk: passing, a step,
+   passing, the other step (a step carries the body a row lower, one foot planted on the soles), and an idle frame
+   the sheet keeps in a fifth row (`ActorDef.idleRow`): a figure stands in it and walks in the four above, so the
+   woman can stand with her weight on one leg and walk on both. The skin and the eyes are repainted from the look's
+   colours (`retone`: each authored tone keeps its step from the reference); the children are still the 16x32
+   figures, set on the new soles. How they were drawn: `games/openworld/tools/src/art/looks/sprite/README.md`.
+   Next: the parts (hair first, then the outfits, hats, beards, glasses, marks and what is worn), one grid per
+   facing following the head's bob, then the children; then the flag goes.
 2. **Portrait** (`figure/portrait.ts`): a 768x768 half-body bust composed from layers in a fixed stack
    (`hairBack, body, outfit, armour, cloak, age, face, mark, beard, glasses, hair, hat`; the hair goes under a covering hat). A layer is its paint and its
    value map (value, zone, coverage); zone k is repainted through the gradient of its colour key. A face part has a

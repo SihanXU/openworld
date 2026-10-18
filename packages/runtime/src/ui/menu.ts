@@ -7,7 +7,7 @@ import type { AiQuality, CodexEntry, CodexView, Frame, ItemInfo, Look, Plan, Rec
 import { splitStacks, stackKey } from '@openworld/engine'
 import { catalog, game, hasModule, ontology, professionById, type ShopDef } from '../game.ts'
 import { personLook } from '../assets/looks.ts'
-import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
+import { FH, FW, IDLE_ROW, composeSprite } from '../assets/figure/sprite.ts'
 import { artEpoch, assetUrl } from '../render/assets.ts'
 import { EQUIP_SLOT_FRAMES } from '../assets/types.ts'
 import type { LibraryView } from '../protocol.ts'
@@ -118,7 +118,10 @@ function paintCodex(root: HTMLElement): void {
     c.width = FW
     c.height = FH
     const img = new ImageData(FW, FH)
-    for (let y = 0; y < FH; y++) img.data.set(px.subarray(y * FW * 4 * 4, y * FW * 4 * 4 + FW * 4), y * FW * 4)
+    for (let y = 0; y < FH; y++) {
+      const from = (IDLE_ROW * FH + y) * FW * 4 * 4
+      img.data.set(px.subarray(from, from + FW * 4), y * FW * 4)
+    }
     c.getContext('2d')!.putImageData(img, 0, 0)
     c.classList.add('fig')
     el.replaceChildren(c)

@@ -64,6 +64,19 @@ export function shade(rgb: RGB, step: number): RGB {
   return fromHsl(towards(h, 55, 8 * step), s * (1 - 0.06 * step), l + (1 - l) * 0.3 * step)
 }
 
+/**
+ * An authored tone moved onto another colour: its hue, saturation and lightness taken relative to the authored
+ * reference (the skin's mid tone, the eyes' bright one), so the reference becomes the key and the ramp keeps its
+ * steps — darker tones by ratio, lighter ones toward white — for a pale skin and a deep one alike.
+ */
+export function retone(tone: RGB, ref: RGB, key: RGB): RGB {
+  const [ht, st, lt] = toHsl(tone)
+  const [hr, sr, lr] = toHsl(ref)
+  const [hk, sk, lk] = toHsl(key)
+  const l = lt <= lr ? (lr ? lk * (lt / lr) : lk) : lk + (1 - lk) * ((lt - lr) / (1 - lr || 1))
+  return fromHsl(hk + (ht - hr), sr ? sk * (st / sr) : st, l)
+}
+
 /** The map sprite's three tones: light, the colour, shadow. */
 export function ramp3(rgb: RGB): [RGB, RGB, RGB] {
   return [shade(rgb, 1), rgb, shade(rgb, -1)]

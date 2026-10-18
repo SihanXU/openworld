@@ -49,7 +49,7 @@ interface EView {
   walker?: { x: number; y: number; t: number }
   /** A flyer (a companion): where it heads; it is drawn gliding there, not stepped tile by tile. */
   flyer?: { x: number; y: number; t: number }
-  actor?: { key: string; rows: number; cols: number; tint?: number; scale?: number }
+  actor?: { key: string; rows: number; cols: number; tint?: number; scale?: number; idleRow?: number }
   /** The dragon's parts round its head: wings on the head's container, body and tail trailing it in the world. */
   dragon?: { wings: Phaser.GameObjects.Image[]; segments: Phaser.GameObjects.Image[]; trail: { x: number; y: number }[] }
   /** A built thing's second picture: a wall block's top (one storey up), a raised floor's edge. */
@@ -997,7 +997,7 @@ export class WorldScene extends Phaser.Scene {
       if (a) {
         const { img, fw, fh } = actorFrames(this, a.key, a.def)
         const col = (e.boss && a.def.rows >= 5) || a.def.rows === 1 ? 0 : (DIR_COL[e.facing] ?? 0)
-        return { img, frame: `${a.key}:${col},0`, ax: fw / 2, ay: a.def.anchorY ?? fh, actor: { key: a.key, rows: a.def.rows, cols: a.def.cols, tint: a.def.tint, scale: a.def.scale } }
+        return { img, frame: `${a.key}:${col},${a.def.idleRow ?? 0}`, ax: fw / 2, ay: a.def.anchorY ?? fh, actor: { key: a.key, rows: a.def.rows, cols: a.def.cols, tint: a.def.tint, scale: a.def.scale, idleRow: a.def.idleRow } }
       }
     }
     // a thing set in its cell (a built wall, a laid floor) is drawn as part of the place; a fixture
@@ -1540,7 +1540,7 @@ export class WorldScene extends Phaser.Scene {
         const walkRows = Math.min(4, v.actor.rows)
         // working something out (an act the world is learning): busy hands in place, a little bob
         const working = e.frozen && !e.statuses.includes('down')
-        const row = moving ? Math.floor((time + v.phase) / 130) % walkRows : working ? Math.floor(time / 110) % walkRows : e.look || e.tags.includes('person') ? 0 : Math.floor((time + v.phase) / 260) % walkRows
+        const row = moving ? Math.floor((time + v.phase) / 130) % walkRows : working ? Math.floor(time / 110) % walkRows : e.look || e.tags.includes('person') ? (v.actor.idleRow ?? 0) : Math.floor((time + v.phase) / 260) % walkRows
         v.body.setFrame(`${v.actor.key}:${col},${row}`)
         v.body.y = working ? -Math.abs(Math.sin(time / 95)) * 1.5 : 0
       }

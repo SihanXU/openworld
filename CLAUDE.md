@@ -170,7 +170,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   build (`?game=<url>`, `npm run play`, `npm run build:player`); `main.ts` the page and `worker.ts` the engine thread, each loaded by a game's entry;
   `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
   `render/scene.ts` renders snapshots with the Ninja Adventure pack (`render/depth.ts` the draw order); `assets/figure/` draws looks
-  (docs/looks.md): the 16x32 map sprite from code grids, the anime portrait from the cut layers in
+  (docs/looks.md): the 16x32 map sprite from code grids (with `?figures=new` the 24x36 bases and their walk in `bases.ts`, the parts still to draw), the anime portrait from the cut layers in
   `public/assets/lsw/Looks/portrait`, both repainted from the look's colours; `ui/creator.ts` the new game's character creator; `assets/types.ts` the catalogue's
   contract; `assets/ground.ts` autotiles (the blob layout); `ui/` the Stardew-style UI (`hud.ts` clock, bars,
   toolbar, key labels, dialogue; `menu.ts` menu tabs, the character sheet (the engine's numbers, `Frame.player.stats`),

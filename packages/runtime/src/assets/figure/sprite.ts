@@ -8,12 +8,23 @@
 // Left is right mirrored. A dark outline is drawn round the whole figure last, in the pack's manner.
 
 import type { Look } from '@openworld/engine'
-import { keyRgb, ramp3, type RGB } from './color.ts'
+import { BASES, BASE_H, BASE_PALETTE, BASE_W } from './bases.ts'
+import { hexRgb, keyRgb, ramp3, retone, type RGB } from './color.ts'
 import { BEARDS, FACES, GLASSES, HAIRS, HATS, MARKS, OUTFITS, type Facing, type Grid, type HeadPart, type OutfitPix } from './pixparts.ts'
 import { WEARS } from './pixwear.ts'
 
-export const FW = 16
-export const FH = 32
+/** The new figures (24x36 bases, `bases.ts`), shown with `?figures=new` until their walk and their parts are drawn. */
+export const NEW_FIGURES = typeof location !== 'undefined' && new URLSearchParams(location.search).get('figures') === 'new'
+/** The 16x32 figures' frame. */
+const OW = 16
+const OH = 32
+export const FW = NEW_FIGURES ? BASE_W : OW
+export const FH = NEW_FIGURES ? BASE_H : OH
+/** Where a frame's feet stand: the row the renderer puts on the bearer's place. */
+export const ANCHOR_Y = NEW_FIGURES ? 35 : 30
+/** The sheet's rows: the four of the walk, and (the new figures) the one a figure stands in when it is not walking. */
+export const ROWS = NEW_FIGURES ? 5 : 4
+export const IDLE_ROW = NEW_FIGURES ? 4 : 0
 
 /** The outline and the fixed inks. */
 const INK: Record<string, RGB> = { k: [26, 22, 30], w: [250, 250, 246], b: [236, 140, 132], p: [150, 62, 70] }
@@ -252,8 +263,65 @@ const PART_LETTERS: Record<string, [string, number]> = {
   c: ['.1', 0], C: ['.1', 1], x: ['.1', 2], d: ['.2', 0], D: ['.2', 1], y: ['.2', 2], m: ['.3', 0], M: ['.3', 1], z: ['.3', 2],
 }
 
-/** The 64x128 sheet of a look: four facings by four walk frames, each 16x32, outlined. */
+/** The sheet of a look: four facings (down, up, left, right) by ROWS frames (the walk, then idle), each FW x FH. */
 export function composeSprite(look: Look): Uint8Array {
+  return NEW_FIGURES ? composeBase(look) : composeOld(look)
+}
+
+/**
+ * The new figures: an adult is its base, the skin and the eyes repainted in the look's own colours (its parts are
+ * not drawn yet); a child is the 16x32 figure with its feet on the new soles, standing in its first frame.
+ */
+function composeBase(look: Look): Uint8Array {
+  const out = new Uint8Array(FW * 4 * FH * ROWS * 4)
+  const base = BASES[look.body as 'woman' | 'man']
+  if (!base) {
+    const old = composeOld(look)
+    // a child's soles' outline is the old frame's row 28; the bases' is row 34
+    const dx = (FW - OW) / 2
+    const dy = 34 - 28
+    for (let col = 0; col < 4; col++)
+      for (let row = 0; row < ROWS; row++) {
+        const from = row === IDLE_ROW ? 0 : row
+        for (let y = 0; y < OH && y + dy < FH; y++)
+          for (let x = 0; x < OW; x++) {
+            const i = ((from * OH + y) * OW * 4 + col * OW + x) * 4
+            if (old[i + 3]) out.set(old.subarray(i, i + 4), ((row * FH + y + dy) * FW * 4 + col * FW + x + dx) * 4)
+          }
+      }
+    return out
+  }
+  const skin = keyRgb(look, 'skin')
+  const eyes = keyRgb(look, 'eyes')
+  const J = hexRgb(BASE_PALETTE.J)
+  const P = hexRgb(BASE_PALETTE.P)
+  const color: Record<string, RGB> = {}
+  for (const [k, hex] of Object.entries(BASE_PALETTE)) {
+    const c = hexRgb(hex)
+    color[k] = 'OHJFQ'.includes(k) ? retone(c, J, skin) : 'MP'.includes(k) ? retone(c, P, eyes) : c
+  }
+  for (let col = 0; col < 4; col++) {
+    const frames = base[col === 0 ? 'down' : col === 1 ? 'up' : 'left']
+    // the 3/4 view faces left; right is it mirrored
+    const flip = col === 3
+    for (let row = 0; row < ROWS; row++) {
+      const grid = row === IDLE_ROW ? frames.idle : frames.walk[row]
+      for (let y = 0; y < FH; y++)
+        for (let x = 0; x < FW; x++) {
+          const ch = grid[y][flip ? FW - 1 - x : x]
+          if (ch === '.') continue
+          const c = color[ch]
+          out.set([c[0], c[1], c[2], 255], ((row * FH + y) * FW * 4 + col * FW + x) * 4)
+        }
+    }
+  }
+  return out
+}
+
+/** The 64x128 sheet of the 16x32 figures: four facings by four walk frames, outlined. */
+function composeOld(look: Look): Uint8Array {
+  const FW = OW
+  const FH = OH
   const tpl = TEMPLATES[look.body] ?? ADULT
   const out = new Uint8Array(FW * 4 * FH * 4 * 4)
   const ramps = new Map<string, [RGB, RGB, RGB]>()
