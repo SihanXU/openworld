@@ -896,6 +896,17 @@ const PLACING: Rule[] = [
 
 const LIVING_TREE: Selector = { type: 'tile', tags: ['tree', 'flammable'] }
 const STUMP: Selector = { type: 'tile/stump' }
+const FISH_DIFFICULTY: Record<string, number> = {
+  'item/food/fish/dawnscale': 0.95,
+  'item/food/fish/carp': 0.8,
+  'item/misc/old_boot': 0.2,
+  'item/food/fish/catfish': 0.6,
+  'item/food/fish/eel': 0.75,
+  'item/food/fish/pike': 0.7,
+  'item/food/fish/sunfish': 0.35,
+  'item/food/fish/perch': 0.45,
+  'item/food/fish/raw': 0.4,
+}
 // (two logs and a stick — more by what the feller's skills grant: Timber Master, Forester; content life.ts)
 const FELL: Effect[] = [remove('notched'), { op: 'transform', into: 'tile/stump' }, { op: 'spawn', type: 'item/material/log', at: 'host', count: { prop: 'fellLogs', of: 'actor', add: 2 } }, { op: 'spawn', type: 'item/material/stick', at: 'host', count: { prop: 'fellSticks', of: 'actor', add: 1 } }, { op: 'spawn', type: 'item/seed/acorn', at: 'host', count: { prop: 'fellAcorns', of: 'actor' } }, vfx('leaves'), log('Timber!', '树倒了！')]
 
@@ -973,27 +984,12 @@ const GROUND: Rule[] = [
     doc: 'A line cast into water: sometimes something bites — twice as often on a baited hook (a baited cast is spent: the rod is told); what bites is mostly a fish, now and then a golden carp, or an old boot. A cast stirs the water, and nothing bites there until it settles (a yield waits on time, world-model.md D23).',
     host: { type: 'tile', tags: ['water'] },
     on: 'impulse/handle',
-    tree: IF(
-      tag('instrument', 'tool:fishing'),
-      IF(
-        has('host', 'stirred'),
-        DO(vfx('splash'), log('The water is stirred up. Let it settle.', '水被搅浑了，等它静下来。')),
-        // (an Angler's bite more often; a Bait Saver keeps the bait half the times it is taken clean: life.ts)
-        IF(
-          { prop: { role: 'instrument', key: 'bait', cmp: { gt: 0 } } },
-          IF(
-            any({ chance: 0.7 }, all(tag('actor', 'skill:angler'), { chance: 0.5 })),
-            CATCH(true),
-            IF(
-              all(tag('actor', 'skill:bait-saver'), { chance: 0.5 }),
-              DO(add('stirred'), vfx('splash'), log('Nothing bites — but the bait is still on the hook.', '没有咬钩——但鱼饵还挂在钩上。')),
-              DO(add('stirred'), emit('notify', 'instrument', { what: 'cast' }), vfx('splash'), log('The bait is taken clean. Nothing.', '鱼饵被啃光了。什么也没钓到。')),
-            ),
-          ),
-          IF(any({ chance: 0.35 }, all(tag('actor', 'skill:angler'), { chance: 0.23 })), CATCH(false), DO(add('stirred'), vfx('splash'), log('The float bobs. Nothing bites — yet.', '浮漂晃了晃。还没咬钩。'))),
-        ),
-      ),
-    ),
+    tree: IF(tag('instrument', 'tool:fishing'), IF(
+      { fishingMap: 'host' },
+      IF({ fishingBusy: 'actor' }, DO(log('A line is already out.', '鱼线已经抛出去了。')),
+        IF({ fishingRoom: 'actor' }, FISHING_ROLLS(true), DO(log('Your pack is too full to fish.', '背包太满，无法钓鱼。')))),
+      FISHING_ROLLS(false),
+    ), 'inherit'),
   }),
   rule({
     id: 'element/freeze-water',
@@ -1375,10 +1371,12 @@ const regrow: Effect[] = [{ op: 'transform', into: '@prop:regrowType' }, remove(
  * soggy boot; in rain a catfish; at night an eel; in deep water a pike; by day a sunfish; else a perch or a fish.
  * A baited cast is spent (the rod is told).
  */
-function CATCH(baited: boolean): Tree {
+function CATCH(baited: boolean, fight: boolean): Tree {
   // (a Master Angler brings up a fish more with every catch; a Lucky Catch finds the rare ones twice as often; a Deep
   // Fisher finds pike in any water: life.ts)
-  const caught = (type: string, en: string, zh: string): Tree => DO(add('stirred'), { op: 'spawn', type, at: 'actor', into: 'contents' }, { op: 'spawn', type: 'item/food/fish/raw', at: 'actor', into: 'contents', count: { prop: 'fishExtra', of: 'actor' } }, ...(baited ? [emit('notify', 'instrument', { what: 'cast' })] : []), vfx('splash'), log(en, zh))
+  const caught = (type: string, en: string, zh: string): Tree => fight
+    ? DO(add('stirred'), emit('notify', 'actor', { what: 'fishing-cast', fish: type, extraType: 'item/food/fish/raw', difficulty: FISH_DIFFICULTY[type] ?? 0.45, message: en, messageZh: zh }), ...(baited ? [emit('notify', 'instrument', { what: 'cast' })] : []), vfx('splash'))
+    : DO(add('stirred'), { op: 'spawn', type, at: 'actor', into: 'contents' }, { op: 'spawn', type: 'item/food/fish/raw', at: 'actor', into: 'contents', count: { prop: 'fishExtra', of: 'actor' } }, ...(baited ? [emit('notify', 'instrument', { what: 'cast' })] : []), vfx('splash'), log(en, zh))
   const lucky = (p: number): Cond => any({ chance: p }, all(tag('actor', 'skill:lucky-catch'), { chance: p }))
   const deep: Cond = is('host', { type: 'tile/deepwater' })
   const carp: Cond = any(all(deep, lucky(0.1)), all(not(deep), lucky(0.06)))
@@ -1392,6 +1390,54 @@ function CATCH(baited: boolean): Tree {
                 IF({ chance: 0.45 }, caught('item/food/fish/perch', 'A striped perch!', '一条带条纹的河鲈！'),
                   caught('item/food/fish/raw', 'A tug — you reel in a fish!', '一沉——你拉上来一条鱼！')))))))))
 }
+
+/** A configured-map miss follows the same delayed line; classic maps keep their original immediate text. */
+function FISHING_ROLLS(fight: boolean): Tree {
+  const miss = (message: string, messageZh: string, consumeBait = false): Tree => fight
+    ? DO(add('stirred'), emit('notify', 'actor', { what: 'fishing-cast', fish: '', extraType: 'item/food/fish/raw', difficulty: 0, message, messageZh }), ...(consumeBait ? [emit('notify', 'instrument', { what: 'cast' })] : []), vfx('splash'))
+    : DO(add('stirred'), ...(consumeBait ? [emit('notify', 'instrument', { what: 'cast' })] : []), vfx('splash'), log(message, messageZh))
+  return IF(
+    has('host', 'stirred'),
+    DO(vfx('splash'), log('The water is stirred up. Let it settle.', '水被搅浑了，等它静下来。')),
+    IF(
+      { prop: { role: 'instrument', key: 'bait', cmp: { gt: 0 } } },
+      IF(
+        any({ chance: 0.7 }, all(tag('actor', 'skill:angler'), { chance: 0.5 })),
+        CATCH(true, fight),
+        IF(
+          all(tag('actor', 'skill:bait-saver'), { chance: 0.5 }),
+          miss('Nothing bites — but the bait is still on the hook.', '没有咬钩——但鱼饵还挂在钩上。'),
+          miss('The bait is taken clean. Nothing.', '鱼饵被啃光了。什么也没钓到。', true),
+        ),
+      ),
+      IF(any({ chance: 0.35 }, all(tag('actor', 'skill:angler'), { chance: 0.23 })), CATCH(false, fight), miss('The float bobs. Nothing bites — yet.', '浮漂晃了晃。还没咬钩。')),
+    ),
+  )
+}
+
+const FISHING_NEWS: Tree = IF(param('what', 'fishing-cast'), DO({ op: 'fishing/start' }),
+  IF(param('what', 'fishing-step'), DO({ op: 'fishing/step' }),
+    IF(param('what', 'fishing-input'), DO({ op: 'fishing/input' }),
+      IF(param('what', 'fishing-bite'), DO(log('A fish bites! Press and hold to keep it in the bar.', '有鱼咬钩了！按住鼠标让鱼留在控制条里。')),
+        IF(param('what', 'fishing-missed'), DO({ op: 'log', text: { en: '{param.message}', zh: '{param.messageZh}' } }),
+          IF(param('what', 'fishing-escaped'), DO(log('The fish got away.', '鱼挣脱了。')),
+            IF(param('what', 'fishing-land'), DO({ op: 'fishing/land' }),
+              IF(param('what', 'fishing-full'), DO(log('Your pack is too full; the fish got away.', '背包太满，鱼挣脱了。')), 'inherit'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  ),
+)
+
+const FISHING_RULES: Rule[] = [rule({
+  id: 'fishing/news',
+  doc: 'The optional fishing module owns a configured map\'s hidden cast, bite, fight and catch; only its actor outcome can grant the selected fish.',
+  host: { type: 'actor/person/player' },
+  on: 'impulse/notify',
+  tree: FISHING_NEWS,
+})]
 
 /** A crop watered, and the crops around told (a Sprinkler's). */
 function WATER(): Tree {
@@ -1902,4 +1948,4 @@ const GENERAL: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...FAITH_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...TENTS, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...AFFLICTION_RULES, ...KIT_RULES, ...BOSS_KIT_RULES, ...VILLAGE_SHOP_RULES]
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...FAITH_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...TENTS, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...AFFLICTION_RULES, ...KIT_RULES, ...BOSS_KIT_RULES, ...VILLAGE_SHOP_RULES, ...FISHING_RULES]

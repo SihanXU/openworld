@@ -1,0 +1,41 @@
+#hud > .fishing-hud {
+  position: fixed;
+  z-index: 30;
+  left: 50%;
+  bottom: clamp(104px, 17vh, 170px);
+  width: min(340px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  padding: 14px 16px 11px;
+  border: 1px solid rgba(197, 225, 214, .34);
+  border-radius: 13px;
+  background: rgba(13, 25, 28, .91);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, .38), inset 0 1px rgba(255, 255, 255, .07);
+  color: #f0f5ec;
+  font: 500 13px/1.35 system-ui, sans-serif;
+  pointer-events: none;
+  user-select: none;
+  backdrop-filter: blur(8px);
+}
+
+#hud > .fishing-hud[hidden] { display: none; }
+.fishing-hud [hidden] { display: none; }
+.fishing-hud__heading, .fishing-hud__footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.fishing-hud__heading strong { font-size: 15px; letter-spacing: .02em; }
+.fishing-hud__heading [data-time] { color: #c9d9d3; font-variant-numeric: tabular-nums; }
+.fishing-hud__hint { margin-top: 3px; color: #c4d0c8; }
+.fishing-hud__bobber { position: relative; height: 42px; margin: 10px auto 4px; width: 30px; }
+.fishing-hud__bobber i { position: absolute; left: 14px; top: 0; height: 22px; border-left: 1px solid rgba(214, 237, 228, .65); }
+.fishing-hud__bobber b { position: absolute; left: 8px; top: 17px; width: 13px; height: 18px; border: 2px solid #f2eee0; border-radius: 50% 50% 45% 45%; background: linear-gradient(#e87c58 0 47%, #f2eee0 48%); animation: fishing-float 1.2s ease-in-out infinite; }
+@keyframes fishing-float { 50% { transform: translateY(3px) rotate(4deg); } }
+.fishing-hud__track { position: relative; height: 92px; width: 38px; margin: 10px auto 11px; overflow: hidden; border: 1px solid rgba(205, 231, 217, .35); border-radius: 18px; background: rgba(102, 153, 147, .14); }
+.fishing-hud__zone { position: absolute; left: 3px; right: 3px; min-height: 4px; transform: translateY(-50%); border: 1px solid rgba(220, 248, 191, .9); border-radius: 12px; background: rgba(151, 198, 119, .42); }
+.fishing-hud__fish { position: absolute; left: 11px; width: 14px; height: 8px; transform: translateY(-50%); border-radius: 60% 45% 45% 60%; background: #f1b95f; box-shadow: 0 0 8px rgba(241, 185, 95, .6); }
+.fishing-hud__progress-wrap { display: flex; align-items: center; gap: 8px; color: #dce8d8; font-size: 11px; }
+.fishing-hud__progress { height: 7px; flex: 1; overflow: hidden; border-radius: 8px; background: rgba(255, 255, 255, .15); }
+.fishing-hud__progress i { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #90c78b, #d4d989); transition: width 80ms linear; }
+.fishing-hud__footer { margin-top: 8px; color: #aebeb6; font-size: 11px; }
+
+@media (max-width: 560px) {
+  #hud > .fishing-hud { bottom: 120px; padding: 11px 13px 9px; }
+  .fishing-hud__track { height: 76px; }
+}

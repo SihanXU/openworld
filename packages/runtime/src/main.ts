@@ -6,7 +6,7 @@
 import Phaser from 'phaser'
 import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@openworld/engine'
 import { catalog, hasModule, libraryKey, newWorker, savesKey, worldBase } from './game.ts'
-import type { FromWorker, Tile, ToWorker } from './protocol.ts'
+import { FishingInputLatch, routeFishingEscape, routeSpaceKeyDown, type FromWorker, type Tile, type ToWorker } from './protocol.ts'
 import { cssAssetUrl, registerArt } from './render/assets.ts'
 import { WorldScene } from './render/scene.ts'
 import { kvGet, kvSet } from './storage.ts'
@@ -17,6 +17,7 @@ import { locale, t, tx } from './ui/common.ts'
 import { Cursor } from './ui/cursor.ts'
 import { ModConsole } from './ui/dev.ts'
 import { Hud } from './ui/hud.ts'
+import { FishingHud } from './ui/fishing.ts'
 import { BuildingMode, setLearnedPlaceables } from './ui/building.ts'
 import { LessonGuide } from './ui/lesson.ts'
 import { Menu, setLearnedRecipes } from './ui/menu.ts'
@@ -28,6 +29,7 @@ import { AfterSave } from './afterSave.ts'
 import './styles.css'
 import './ui/game.css'
 import './ui/polish.css'
+import './ui/fishing.css'
 
 const PARAMS = new URLSearchParams(location.search)
 /** Where this game's saves are kept (its own, beside other games' on the same page). */
@@ -81,6 +83,7 @@ const menu = new Menu({
     locale.set(locale.value === 'en' ? 'zh' : 'en')
     hud.relabel()
     minimap.relabel()
+    fishingHud.relabel()
   },
   toggleSound: () => hud.toggleSound(),
   devConsole: () => dev.toggle(true),
@@ -109,6 +112,7 @@ const hud = new Hud(
   (id) => scene.screenOf(id),
   (x, y) => scene.screenOfTile(x, y),
 )
+const fishingHud = new FishingHud()
 menu.muted = hud.muted
 /** A merchant's trade and a person's pockets (docs/npc-sandbox.md §2.10). */
 const people = new PeoplePanels({
@@ -328,6 +332,18 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       menu.containerTransfer = m.transfer
       // the ceiling (R) is for a floor in hand: another thing taken in hand lays on one's storey again
       if (handUp && !laysInHand(m.frame)) setHandUp(false)
+      const fishing = m.frame.fishing
+      if (fishingWasActive && !fishing) {
+        clearFishingInputs()
+        setAttack(false)
+      }
+      fishingWasActive = !!fishing
+      fishingHud.render(fishing)
+      // The cast can start in the worker before its first fishing frame reaches a tab that just lost focus.
+      if (fishing && (!document.hasFocus() || document.visibilityState === 'hidden')) {
+        fishingBlurPaused = true
+        syncPause()
+      }
       if (building.open) m.frame.keys = undefined
       scene.applyFrame(m.frame)
       minimap.onFrame(m.frame)
@@ -462,6 +478,7 @@ const cover = new Cover(WORLD, {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
     hud.relabel()
     minimap.relabel()
+    fishingHud.relabel()
   },
 })
 /**
@@ -491,8 +508,10 @@ const death = new DeathScreen({
 // ------------------------------------------------------------------ time stops while something is open
 
 let pausedNow = false
+let fishingBlurPaused = false
+const pauseRequested = () => menu.anyOpen || hud.dialogOpen || hud.chooserOpen || dev.open || death.open || !document.getElementById('intro')!.classList.contains('hidden')
 function syncPause(): void {
-  const on = menu.anyOpen || hud.dialogOpen || hud.chooserOpen || dev.open || death.open || !document.getElementById('intro')!.classList.contains('hidden')
+  const on = fishingBlurPaused || pauseRequested()
   if (on && building.open) building.toggle(false)
   if (on !== pausedNow) {
     pausedNow = on
@@ -531,10 +550,30 @@ const setAttack = (on: boolean) => {
   attacking = on
   send({ t: 'attack', on })
 }
+const fishingInputs = new FishingInputLatch()
+let fishingWasActive = false
+let fishingEscapeHeld = false
+let suppressFishingSpace = false
+const fishingView = () => lastFrame?.fishing
+const fishingIsActive = () => !!fishingView()
+const fishingPress = (source: 'mouse' | 'space') => {
+  if (!fishingInputs.press(source)) return
+  setAttack(false)
+  send({ t: 'fishing', action: 'press' })
+}
+const fishingRelease = (source: 'mouse' | 'space') => {
+  const result = fishingInputs.release(source)
+  if (result === 'last') send({ t: 'fishing', action: 'release' })
+  return result !== 'none'
+}
+const clearFishingInputs = () => {
+  if (fishingInputs.clear().length) send({ t: 'fishing', action: 'release' })
+}
 const stopMoving = () => {
   held.length = 0
   syncMove()
   setAttack(false)
+  clearFishingInputs()
 }
 
 const typing = () => {
@@ -643,6 +682,13 @@ window.addEventListener('keydown', (e) => {
     if (building.open) return building.toggle(false)
     if (dev.open) return dev.toggle(false)
     if (menu.anyOpen) return menu.close()
+    if (routeFishingEscape(fishingIsActive()) === 'cancel') {
+      fishingEscapeHeld = true
+      clearFishingInputs()
+      e.preventDefault()
+      send({ t: 'fishing', action: 'cancel' })
+      return
+    }
     // a lesson at hand: held two seconds, Esc skips it; a short press still opens the menu (on release)
     if (lessons.active) {
       if (!e.repeat && !escHold) escHold = setTimeout(() => ((escHold = undefined), send({ t: 'lessonSkip' })), ESC_SKIP_MS)
@@ -693,7 +739,17 @@ window.addEventListener('keydown', (e) => {
   // R with a floor in hand: the left click lays it in the ceiling (as the palette's R), and back
   if (e.code === 'KeyR' && !e.repeat && laysInHand(lastFrame)) return void setHandUp(!handUp)
   // Space: the attack key, a blow ahead on the press and again while it is held
-  if (e.code === 'Space') return void (e.preventDefault(), setAttack(true))
+  if (e.code === 'Space') {
+    const route = routeSpaceKeyDown(fishingIsActive(), e.repeat, suppressFishingSpace)
+    e.preventDefault()
+    if (route === 'fishing-press') {
+      suppressFishingSpace = true
+      fishingPress('space')
+    } else if (route === 'ignore') {
+      if (fishingIsActive()) suppressFishingSpace = true
+    } else setAttack(true)
+    return
+  }
   if (e.repeat) return
   // Tab: the next row of the bag becomes the toolbar (Shift+Tab: the previous one)
   if (e.code === 'Tab') return void (e.preventDefault(), send({ t: 'row', dir: e.shiftKey ? -1 : 1 }))
@@ -703,12 +759,20 @@ window.addEventListener('keydown', (e) => {
   if (slot >= 0) send({ t: 'select', slot })
 })
 window.addEventListener('keyup', (e) => {
+  if (e.code === 'Escape' && fishingEscapeHeld) {
+    fishingEscapeHeld = false
+    return
+  }
   if (e.code === 'Escape') {
     // released before the lesson was skipped: a short press, the menu
     if (escHold) (clearTimeout(escHold), (escHold = undefined), menu.open('options'))
     return
   }
-  if (e.code === 'Space') return setAttack(false)
+  if (e.code === 'Space') {
+    suppressFishingSpace = false
+    if (!fishingRelease('space')) setAttack(false)
+    return
+  }
   if (KEY_OF[e.code]) return release(e.code)
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
     shift = false
@@ -721,10 +785,24 @@ window.addEventListener('keyup', (e) => {
   if (i >= 0) held.splice(i, 1)
   syncMove()
 })
-window.addEventListener('blur', () => stopMoving())
+window.addEventListener('blur', () => {
+  stopMoving()
+  if (fishingIsActive() && !pauseRequested()) {
+    fishingBlurPaused = true
+    syncPause()
+  }
+})
+const resumeFishingBlurPause = () => {
+  if (!fishingBlurPaused) return
+  if (!document.hasFocus() || document.visibilityState === 'hidden') return
+  fishingBlurPaused = false
+  syncPause()
+}
+window.addEventListener('focus', resumeFishingBlurPause)
 document.addEventListener('visibilitychange', () => {
   // the tab going to the background saves, said to no one (it comes and goes with every switch)
   if (document.visibilityState === 'hidden' && slot && !cover.open) (quietSave = true), send({ t: 'save' })
+  else resumeFishingBlurPause()
 })
 
 
@@ -794,6 +872,10 @@ gameEl.addEventListener('mousedown', (e) => {
   if (hud.questionShown) return
   if (hud.dialogOpen) return hud.advanceDialog()
   if (menu.anyOpen || dev.open) return
+  if (e.button === 0 && fishingIsActive()) {
+    fishingPress('mouse')
+    return
+  }
   // a click points, as a move of the pointer does
   if (pointerStill) ((pointerStill = false), reaim())
   const tile = scene.aimAtScreen(e.clientX, e.clientY)
@@ -813,7 +895,7 @@ gameEl.addEventListener('mousedown', (e) => {
 window.addEventListener('mouseup', (e) => {
   if (e.button === 0) building.release()
   if (e.button === 0) handDrag = undefined
-  if (e.button === 0) release('mouse0')
+  if (e.button === 0 && !fishingRelease('mouse')) release('mouse0')
   if (e.button === 2) release('mouse2')
 })
 window.addEventListener(

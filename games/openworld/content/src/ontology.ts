@@ -562,7 +562,7 @@ const fixtureTypes: TypeDef[] = [
 ]
 
 /** The engine's modules this game uses (docs/engine-split.md S3). */
-export const MODULES = ['classes', 'waypoints', 'boons', 'needs', 'society', 'loot', 'kits']
+export const MODULES = ['classes', 'waypoints', 'boons', 'needs', 'society', 'loot', 'kits', 'fishing']
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
@@ -572,6 +572,7 @@ export function buildOntology(): Ontology {
   return {
     // the systems this game takes from the engine's modules (module.ts), installed in this order
     modules: MODULES,
+    fishing: { maps: ['haven', 'haven.quarry', 'haven.timber', 'haven.lake', 'haven.springs'], extraType: 'item/food/fish/raw' },
     types,
     statuses: Object.fromEntries([...STATUSES, ...BOON_STATUSES, ...SOCIAL_STATUSES, ...FAITH_STATUSES, ...SKILL_STATUSES].map((s) => [s.id, s])),
     // the creatures' own skills (kits.ts, docs/creatures.md), taken up by the kit goal before they fight as before

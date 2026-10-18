@@ -61,6 +61,25 @@
           },
           "description": "The modules the game uses (module.ts, docs/engine-split.md §4), installed in this order with every engine made over it."
         },
+        "fishing": {
+          "type": "object",
+          "properties": {
+            "maps": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "extraType": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "maps"
+          ],
+          "additionalProperties": false,
+          "description": "Maps where the optional fishing fight replaces immediate fishing rewards; owned by the game, interpreted by the fishing module."
+        },
         "deeds": {
           "type": "array",
           "items": {
@@ -1126,6 +1145,45 @@
           },
           "required": [
             "unpardonable"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fishingMap": {
+              "type": "string",
+              "const": "host"
+            }
+          },
+          "required": [
+            "fishingMap"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fishingBusy": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "fishingBusy"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fishingRoom": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "fishingRoom"
           ],
           "additionalProperties": false
         }

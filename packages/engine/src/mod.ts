@@ -1092,9 +1092,13 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
 
 const OPS = new Set(Object.keys(PRIMITIVES))
 /** The primitives a world has: the kernel's and its modules' (module.ts); those only its residents may use. */
-function opsOf(onto: Ontology): { ops: Set<string>; residentOnly: Set<string> } {
+function opsOf(onto: Ontology): { ops: Set<string>; residentOnly: Set<string>; conditions: Set<string> } {
   const mods = modulesOf(onto.modules)
-  return { ops: new Set([...OPS, ...mods.flatMap((m) => Object.keys(m.effects ?? {}))]), residentOnly: new Set([...RESIDENT_ONLY, ...mods.flatMap((m) => m.spec?.residentOnly ?? [])]) }
+  return {
+    ops: new Set([...OPS, ...mods.flatMap((m) => Object.keys(m.effects ?? {}))]),
+    residentOnly: new Set([...RESIDENT_ONLY, ...mods.flatMap((m) => m.spec?.residentOnly ?? [])]),
+    conditions: new Set(mods.flatMap((m) => Object.keys(m.conds ?? {}))),
+  }
 }
 const IMPULSE_KINDS = new Set(['strike', 'element', 'coat', 'restore', 'push', 'taken', 'receive', 'offered', 'handle', 'notify'])
 /** The news a learned rule may send: a topic for people to talk about. The rest (quest, defeat, reward, status…) is the game's own. */
@@ -1102,6 +1106,7 @@ const NOTIFY_OPEN = new Set(['topic'])
 const KIND_PREFIXES = new Set<string>(EVENT_KINDS.flatMap((k) => k.split('/').map((_, i, a) => a.slice(0, i + 1).join('/'))))
 const BOUNDS = new Set(['eq', 'gt', 'gte', 'lt', 'lte'])
 const ROLE_NAMES = new Set(['host', 'actor', 'target', 'instrument', 'other', 'item', 'source'])
+const FISHING_CONDITION_ROLES = { fishingMap: 'host', fishingBusy: 'actor', fishingRoom: 'actor' } as const
 const ROLE_REFS = new Set([...ROLE_NAMES, ...[...ROLE_NAMES].map((r) => `tileOf:${r}`)])
 
 interface ValidateCtx {
@@ -1183,6 +1188,14 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   }
   const checkCond = (c: Cond | undefined, where: string): void => {
     if (!c || typeof c !== 'object') return void errors.push(`${where}: condition must be an object`)
+    const fishingCondition = (Object.keys(FISHING_CONDITION_ROLES) as (keyof typeof FISHING_CONDITION_ROLES)[]).find((key) => key in c)
+    if (fishingCondition) {
+      if (Object.keys(c).length !== 1) return void errors.push(`${where}: a fishing condition must be used alone`)
+      if (!worldOps.conditions.has(fishingCondition)) return void errors.push(`${where}.${fishingCondition}: unknown condition`)
+      const expected = FISHING_CONDITION_ROLES[fishingCondition]
+      if ((c as Record<string, unknown>)[fishingCondition] !== expected) errors.push(`${where}.${fishingCondition}: role must be "${expected}"`)
+      return
+    }
     if ('all' in c) return c.all.forEach((x, i) => checkCond(x, `${where}.all[${i}]`))
     if ('any' in c) return c.any.forEach((x, i) => checkCond(x, `${where}.any[${i}]`))
     if ('not' in c) return checkCond(c.not, `${where}.not`)

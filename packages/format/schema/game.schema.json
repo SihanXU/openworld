@@ -1479,6 +1479,45 @@
             "unpardonable"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fishingMap": {
+              "type": "string",
+              "const": "host"
+            }
+          },
+          "required": [
+            "fishingMap"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fishingBusy": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "fishingBusy"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fishingRoom": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "fishingRoom"
+          ],
+          "additionalProperties": false
         }
       ]
     },

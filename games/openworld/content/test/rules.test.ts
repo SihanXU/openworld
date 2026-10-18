@@ -68,6 +68,34 @@ describe('base library', () => {
     expect(res.errors.filter((e) => !placement.test(e))).toEqual([])
   })
 
+  it('validates fishing condition roles, keys and module availability', () => {
+    const patchFor = (condition: unknown): Patch => ({
+      artifacts: [{
+        kind: 'rule',
+        rule: {
+          id: 'test/fishing-condition',
+          host: { type: 'actor/person/player' },
+          on: 'act/use',
+          hole: 'test/hole',
+          tree: { if: condition as never, then: { do: [] }, else: { do: [] } },
+        } as Rule,
+      }],
+    })
+    const badRole = validatePatch(patchFor({ fishingMap: 'garbage' }), { ontology: onto, library: new RuleLibrary() })
+    expect(badRole.errors.some((e) => e.includes('fishingMap') && e.includes('host'))).toBe(true)
+
+    const multipleKeys = validatePatch(patchFor({ fishingMap: 'host', fishingBusy: 'actor' }), { ontology: onto, library: new RuleLibrary() })
+    expect(multipleKeys.errors.some((e) => e.includes('fishing condition') && e.includes('alone'))).toBe(true)
+
+    const mixedWithKnown = validatePatch(patchFor({ chance: 1, fishingMap: 'garbage' }), { ontology: onto, library: new RuleLibrary() })
+    expect(mixedWithKnown.errors.some((e) => e.includes('fishing condition') && e.includes('alone'))).toBe(true)
+
+    const withoutFishing = structuredClone(onto)
+    withoutFishing.modules = withoutFishing.modules?.filter((module) => module !== 'fishing')
+    const disabled = validatePatch(patchFor({ fishingMap: 'host' }), { ontology: withoutFishing, library: new RuleLibrary() })
+    expect(disabled.errors.some((e) => e.includes('fishingMap') && e.includes('unknown condition'))).toBe(true)
+  })
+
   it('the root is total: every kind reaches a root rule, and no root rule inherits', () => {
     const roots = BASE_RULES.filter(isRoot)
     for (const r of roots) expect(leaves(r.tree), r.id).not.toContain('inherit')

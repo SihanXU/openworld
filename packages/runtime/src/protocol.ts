@@ -6,6 +6,34 @@ import type { TransferProgress } from './transferQueue.ts'
 /** Where the mouse points: its tile, and what is drawn at the point, top first (the keys act there when it is next to the player). */
 export type Tile = Aim
 
+export type FishingAction = 'press' | 'release' | 'cancel'
+
+/** Runtime-only projection of the active fishing minigame. Coordinates are normalized. */
+export type FishingInputSource = 'mouse' | 'space'
+
+/** Tracks press edges so browser key repeat and duplicate button events do not advance fishing twice. */
+export class FishingInputLatch {
+  private held = new Set<FishingInputSource>()
+
+  press(source: FishingInputSource): boolean {
+    if (this.held.has(source)) return false
+    const first = this.held.size === 0
+    this.held.add(source)
+    return first
+  }
+
+  release(source: FishingInputSource): 'none' | 'held' | 'last' {
+    if (!this.held.delete(source)) return 'none'
+    return this.held.size === 0 ? 'last' : 'held'
+  }
+
+  clear(): FishingInputSource[] {
+    const held = [...this.held]
+    this.held.clear()
+    return held
+  }
+}
+
 export type ToWorker =
   | { t: 'skipLearning' }
   | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1: at least the medium setting's) */ prefetch?: boolean; /** the player's AI setting (the engine's quality.ts) */ quality?: AiQuality; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos; /** a step of the story begun at once in a new game (the editor's "play from this scene") */ scene?: string }
@@ -17,6 +45,8 @@ export type ToWorker =
   | { t: 'dash' }
   /** Space: strike ahead with the held weapon (or a fist), again and again while it is held. */
   | { t: 'attack'; on: boolean }
+  /** A fishing minigame button edge; release/cancel are accepted while paused to clear held input. */
+  | { t: 'fishing'; action: FishingAction }
   /** One of the four inputs (design.md §5.2): E hands, F take, left click use, right click put; on a chosen layer of the tile. */
   | { t: 'key'; key: Key; tile?: Tile; layer?: number; /** the left button dragged over a new cell: only if it sets something down */ drag?: boolean }
   | { t: 'handUp'; up: boolean }
@@ -100,6 +130,24 @@ export type ToWorker =
   /** Harm the one at the keys (as a blow nobody struck): to try a fall and the death screen. */
   | { t: 'debug'; op: 'hurt'; amount: number }
   | { t: 'debug'; op: 'god'; on?: boolean }
+
+/** Routes stale frame-driven attacks/use messages against the worker's authoritative fishing state. */
+export function routeFishingWorkerInput(
+  active: boolean,
+  input: { t: 'attack'; on: boolean } | { t: 'key'; key: Key },
+): { kind: 'fishing'; action: FishingAction } | { kind: 'ignore' } | { kind: 'game' } {
+  if (!active) return { kind: 'game' }
+  if (input.t === 'attack') return { kind: 'fishing', action: input.on ? 'press' : 'release' }
+  return input.key === 'use' ? { kind: 'ignore' } : { kind: 'game' }
+}
+
+/** A fishing Space press remains consumed through keyup, even if its session ends on a stale frame. */
+export function routeSpaceKeyDown(active: boolean, repeat: boolean, fishingSequence: boolean): 'fishing-press' | 'attack' | 'ignore' {
+  if (fishingSequence || (active && repeat)) return 'ignore'
+  return active ? 'fishing-press' : 'attack'
+}
+
+export const routeFishingEscape = (active: boolean): 'cancel' | 'menu' => active ? 'cancel' : 'menu'
 
 export interface RecordView {
   id: string
