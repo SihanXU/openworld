@@ -13,6 +13,10 @@ specks removed, the draft's shapes kept. Run everything in a work folder (`draft
 | Edit | `patch.py base out rows.txt` (rows replaced), `walk.py` (`step`, `stride`, `shift_block`: the front and back steps from a standing grid) |
 | Check | `gaps.py grid…` (fill touching the background: an outline gap), `px.py big`, `biggrid.py`, `present.py` (facings big and at game scale), `overlay.py` (a grid under strokes the user drew on a screenshot) |
 | Into the game | `bases.py out <dir>` writes the module's grids as files; `bases.py in <dir>` writes them back |
+| Hair | `gen_hair.py style…` (the bald drafts of each facing edited to wear it), `hairmake.py style [--back …]` (what the edit changed, cut out against the bald draft, set on our head; a speck dropped, the edge a dark line), `nape.py` (a back view's hair carried to the nape, in strands), `fixcropped.py`, `fixbraid.py`, `hairpreview.py` (every style on both bodies as the game layers it); `hairall.sh` is the whole recipe; `hairs.py <dir>` writes `basehair.ts` from the parts and `hairs.json` (where each hangs behind the body) |
 
 A grid file: 36 rows of 24 letters, a blank line, then `L #rrggbb` per letter. Letters: K L outline; O H J F Q skin (J
 the colour, repainted per look); M P the eyes (P the colour); N the eye's white; V W T X the grey underclothes.
+
+Hair letters: a (light) .. c (the colour, repainted from the look's hair) .. e (the hair's dark line). A style is one
+grid per facing on the standing head; it fits both bodies and moves with the head when a step lowers it.

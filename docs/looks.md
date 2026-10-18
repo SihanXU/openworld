@@ -57,8 +57,11 @@ interface Look {                       // engine/src/types.ts
    woman can stand with her weight on one leg and walk on both. The skin and the eyes are repainted from the look's
    colours (`retone`: each authored tone keeps its step from the reference); the children are still the 16x32
    figures, set on the new soles. How they were drawn: `games/openworld/tools/src/art/looks/sprite/README.md`.
-   Next: the parts (hair first, then the outfits, hats, beards, glasses, marks and what is worn), one grid per
-   facing following the head's bob, then the children; then the flag goes.
+   The hair (`figure/basehair.ts`, all twelve adult styles): one grid per facing on the standing head, cut from
+   ComfyUI drafts of the bald bases wearing it, in five tones repainted from the look's hair; it follows the head
+   down on a step, and below a row (and in the 3/4 view past a column) it hangs behind the body, so a ponytail falls
+   down the back behind the near arm while long hair lies over the far shoulder. Next: the outfits, then hats,
+   beards, glasses, marks and what is worn, then the children; then the flag goes.
 2. **Portrait** (`figure/portrait.ts`): a 768x768 half-body bust composed from layers in a fixed stack
    (`hairBack, body, outfit, armour, cloak, age, face, mark, beard, glasses, hair, hat`; the hair goes under a covering hat). A layer is its paint and its
    value map (value, zone, coverage); zone k is repainted through the gradient of its colour key. A face part has a

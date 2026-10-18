@@ -8,7 +8,8 @@
 // Left is right mirrored. A dark outline is drawn round the whole figure last, in the pack's manner.
 
 import type { Look } from '@openworld/engine'
-import { BASES, BASE_H, BASE_PALETTE, BASE_W } from './bases.ts'
+import { BASES, BASE_H, BASE_PALETTE, BASE_W, type BaseFacing } from './bases.ts'
+import { BASE_HAIRS, HAIR_PALETTE } from './basehair.ts'
 import { hexRgb, keyRgb, ramp3, retone, type RGB } from './color.ts'
 import { BEARDS, FACES, GLASSES, HAIRS, HATS, MARKS, OUTFITS, type Facing, type Grid, type HeadPart, type OutfitPix } from './pixparts.ts'
 import { WEARS } from './pixwear.ts'
@@ -269,8 +270,9 @@ export function composeSprite(look: Look): Uint8Array {
 }
 
 /**
- * The new figures: an adult is its base, the skin and the eyes repainted in the look's own colours (its parts are
- * not drawn yet); a child is the 16x32 figure with its feet on the new soles, standing in its first frame.
+ * The new figures: an adult is its base, the skin and the eyes repainted in the look's own colours, and its hair
+ * (`basehair.ts`) in the look's hair colour (the other parts are not drawn yet); a child is the 16x32 figure with its
+ * feet on the new soles, standing in its first frame.
  */
 function composeBase(look: Look): Uint8Array {
   const out = new Uint8Array(FW * 4 * FH * ROWS * 4)
@@ -300,15 +302,23 @@ function composeBase(look: Look): Uint8Array {
     const c = hexRgb(hex)
     color[k] = 'OHJFQ'.includes(k) ? retone(c, J, skin) : 'MP'.includes(k) ? retone(c, P, eyes) : c
   }
+  const hair = BASE_HAIRS[look.parts.hair ?? '']
+  if (hair) {
+    const ref = hexRgb(HAIR_PALETTE.c)
+    const key = keyRgb(look, 'hair')
+    for (const [k, hex] of Object.entries(HAIR_PALETTE)) color[k] = retone(hexRgb(hex), ref, key)
+  }
   for (let col = 0; col < 4; col++) {
-    const frames = base[col === 0 ? 'down' : col === 1 ? 'up' : 'left']
+    const facing: BaseFacing = col === 0 ? 'down' : col === 1 ? 'up' : 'left'
+    const frames = base[facing]
     // the 3/4 view faces left; right is it mirrored
     const flip = col === 3
     for (let row = 0; row < ROWS; row++) {
-      const grid = row === IDLE_ROW ? frames.idle : frames.walk[row]
+      const cells = (row === IDLE_ROW ? frames.idle : frames.walk[row]).map((r) => [...r])
+      if (hair) wearHair(cells, hair.grids[facing], hair.back[facing])
       for (let y = 0; y < FH; y++)
         for (let x = 0; x < FW; x++) {
-          const ch = grid[y][flip ? FW - 1 - x : x]
+          const ch = cells[y][flip ? FW - 1 - x : x]
           if (ch === '.') continue
           const c = color[ch]
           out.set([c[0], c[1], c[2], 255], ((row * FH + y) * FW * 4 + col * FW + x) * 4)
@@ -316,6 +326,20 @@ function composeBase(look: Look): Uint8Array {
     }
   }
   return out
+}
+
+/** A hairstyle on a frame: set on the head wherever this frame carries it; below and right of `back` it hangs behind the body. */
+function wearHair(cells: string[][], grid: string[], [backRow, backCol]: [number, number]): void {
+  // the head's top: row 3 standing, a row lower on a step
+  const dy = cells.findIndex((r) => r.some((ch) => ch !== '.')) - 3
+  grid.forEach((line, y) =>
+    [...line].forEach((ch, x) => {
+      const Y = y + dy
+      if (ch === '.' || Y < 0 || Y >= cells.length) return
+      if (y >= backRow && x >= backCol && cells[Y][x] !== '.') return
+      cells[Y][x] = ch
+    }),
+  )
 }
 
 /** The 64x128 sheet of the 16x32 figures: four facings by four walk frames, outlined. */

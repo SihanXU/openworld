@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { BASES, BASE_H, BASE_PALETTE, BASE_W } from '../src/assets/figure/bases.ts'
+import { BASE_HAIRS, HAIR_PALETTE } from '../src/assets/figure/basehair.ts'
 import { retone, hexRgb } from '../src/assets/figure/color.ts'
 
 const SOLE = 34
@@ -28,6 +29,30 @@ describe('the bases', () => {
         expect(f.walk.map(highest)).toEqual([3, 4, 3, 4])
       })
     }
+})
+
+describe('the hairstyles on the bases', () => {
+  for (const [id, hair] of Object.entries(BASE_HAIRS))
+    it(`${id}: a grid per facing in the hair's letters, on the head, and a row it hangs behind from`, () => {
+      for (const facing of ['down', 'up', 'left'] as const) {
+        const g = hair.grids[facing]
+        expect(g).toHaveLength(BASE_H)
+        for (const r of g) {
+          expect(r).toHaveLength(BASE_W)
+          expect(r).toMatch(/^[.abcde]*$/)
+        }
+        // it sits on the head (the head's top is row 3; thinning hair only rings it) and does not reach the feet
+        expect(highest(g)).toBeGreaterThanOrEqual(0)
+        expect(highest(g)).toBeLessThanOrEqual(8)
+        expect(lowest(g)).toBeLessThan(SOLE - 4)
+        expect(hair.back[facing][0]).toBeGreaterThanOrEqual(12)
+        expect(hair.back[facing][1]).toBeGreaterThanOrEqual(0)
+      }
+      for (const k of 'abcde') expect(HAIR_PALETTE[k]).toMatch(/^#[0-9a-f]{6}$/)
+    })
+  it('the look table names every hairstyle drawn here', () => {
+    for (const id of Object.keys(BASE_HAIRS)) expect(id).toMatch(/^hair\.[a-z]+$/)
+  })
 })
 
 describe('retone', () => {
