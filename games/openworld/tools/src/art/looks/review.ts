@@ -11,7 +11,7 @@ import { join } from 'node:path'
 import type { Look, Mood } from '@openworld/engine'
 import { PLAYER_LOOK, generateLook } from '@openworld-game/content'
 import { composePortrait, type LayerPixels, type PortraitManifest } from '@openworld/runtime/src/assets/figure/portrait.ts'
-import { FH, FW, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'
+import { FH, FW, IDLE_ROW, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'
 import { PEOPLE } from '../../demo/people.ts'
 import { OUT, png, readPng } from '../png.ts'
 
@@ -96,7 +96,7 @@ if (process.argv[1]?.endsWith('review.ts')) {
     }
     const s = composeSprite(look)
     for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
-      const i = (y * FW * 4 + x) * 4
+      const i = ((IDLE_ROW * FH + y) * FW * 4 + x) * 4
       if (!s[i + 3]) continue
       for (let dy = 0; dy < SP; dy++) for (let dx = 0; dx < SP; dx++) blend(ox + P + 8 + x * SP + dx, oy + P - FH * SP + y * SP + dy, s[i], s[i + 1], s[i + 2], 255)
     }
