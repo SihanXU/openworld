@@ -27,7 +27,21 @@ to a megapixel; this one keeps it at the input's size, so a 768x768 edit (`LSW_Q
 canvas) keeps every pixel where it was, which the layer cut needs, at half the cost of 1024.
 
 `comfy.py` talks to it (`LSW_COMFY`, default `http://127.0.0.1:8188`); `batch.py` runs `parts.py`'s jobs (a job
-waits for the picture it edits; the man's and the boy's bases are composed by `bases.py`); `build.py` cuts the
-pictures into the game's layers and writes the manifest; `npx tsx games/openworld/tools/src/art/looks/review.ts` composes
-everyone's portrait and sprite with the client's own code for review. On a laptop GPU a picture takes a few minutes
-(the driver slows a hot GPU down); the whole library is a night's run.
+waits for the picture it edits; `bases.py` clears the ground under each base); `build.py` cuts the pictures into the
+game's layers and writes the manifest; `npx tsx games/openworld/tools/src/art/looks/review.ts` composes everyone's
+portrait and sprite with the client's own code for review, `trial.ts` single looks full-size.
+
+## Where it runs
+
+Not on a laptop: a 768x1536 edit takes 4–5 minutes on a throttled laptop GPU, and a library run of hours cooks it
+(2026-10-18). The team's GPU server (`ssh lmmslab-03`, 3090s, shared — ask which card) does one in about 33 s:
+
+- ComfyUI at `/mnt/data2/lmmslab-03/sihan-video/ComfyUI` (with ComfyUI-GGUF and `lsw_nodes`), the model files above
+  fetched there from `hf-mirror.com` (an upload from the laptop runs at well under 1 MB/s);
+- the pipeline's scripts in `/mnt/data2/lmmslab-03/lsw-portraits/pipeline/`, the work dir (`lib/`, `parts/`,
+  `jobs.json`) in `.../work/`; `run_server.sh` as `.../lsw_run.sh`;
+- `nohup sh lsw_run.sh <gpu> > run.log 2>&1 &` starts one ComfyUI on that card, runs the batch and stops both when
+  it ends; `kill $(cat run.pid)` stops it early. Check `nvidia-smi` afterwards: nothing may keep holding the card;
+- the way back is slow too (about 0.2 MB/s), so the checking and the cut run there: `sheets.py work sheets` makes a
+  small JPEG of each kind of part to look at, `build.py work out` cuts them, and only `out/` (the layers and the
+  manifest, about 40 MB) comes back into `games/openworld/public/assets/lsw/Looks/portrait`.

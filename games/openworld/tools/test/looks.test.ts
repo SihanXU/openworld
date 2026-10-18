@@ -12,8 +12,10 @@ import { BASE_RULES, STORY_RULES, decodeChunk } from '@openworld-game/content'
 import { BASE_HAIRS } from '@openworld/runtime/src/assets/figure/basehair.ts'
 import { BASE_HEADS } from '@openworld/runtime/src/assets/figure/basehead.ts'
 import { BASE_OUTFITS } from '@openworld/runtime/src/assets/figure/baseoutfit.ts'
+import { BASE_FEET } from '@openworld/runtime/src/assets/figure/basefeet.ts'
 import { FH, FW, IDLE_ROW, ROWS, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'
 import { gradient, rgbOf } from '@openworld/runtime/src/assets/figure/color.ts'
+import { bustRect, composePortrait, type LayerPixels, type PortraitManifest } from '@openworld/runtime/src/assets/figure/portrait.ts'
 import { PEOPLE } from '../src/demo/people.ts'
 import { buildFord } from '../src/demo/world.ts'
 
@@ -43,10 +45,25 @@ describe('the look table', () => {
       if (p.slot === 'hair') expect(BASE_HAIRS[id], `${id} has no map grids`).toBeDefined()
       else if (['outfit', 'armour', 'cloak'].includes(p.slot))
         for (const b of p.bodies ?? Object.keys(LOOK_BODIES)) expect(BASE_OUTFITS[id]?.bodies[b as 'man'], `${id} is not drawn on the ${b}`).toBeDefined()
+      else if (['legs', 'shoes'].includes(p.slot)) expect(BASE_FEET[id], `${id} is not laid on the map`).toBeDefined()
       else expect(BASE_HEADS[id], `${id} has no map grids`).toBeDefined()
     }
     // and nothing is drawn that the table does not know
-    for (const t of [BASE_HAIRS, BASE_HEADS, BASE_OUTFITS]) for (const id of Object.keys(t)) expect(LOOK_PARTS[id], `${id} drawn but not in the table`).toBeDefined()
+    for (const t of [BASE_HAIRS, BASE_HEADS, BASE_OUTFITS, BASE_FEET]) for (const id of Object.keys(t)) expect(LOOK_PARTS[id], `${id} drawn but not in the table`).toBeDefined()
+  })
+
+  it('lays the shoes and the stockings on the map in their colour, at the feet', () => {
+    const look: Look = { body: 'woman', parts: { hair: 'hair.long', face: 'face.soft', outfit: 'outfit.adventurer', shoes: 'shoes.tall' }, colors: { 'shoes.1': 'madder' } }
+    const px = composeSprite(look)
+    const bare = composeSprite({ ...look, parts: { ...look.parts, shoes: undefined as never } })
+    let lowest = -1
+    for (let y = 0; y < FH; y++)
+      for (let x = 0; x < FW; x++) {
+        const i = ((IDLE_ROW * FH + y) * FW * 4 + x) * 4
+        if (px[i + 3] && [0, 1, 2].some((k) => px[i + k] !== bare[i + k])) lowest = Math.max(lowest, y)
+      }
+    // the boots changed the frame, and at its feet
+    expect(lowest).toBeGreaterThanOrEqual(32)
   })
 })
 
@@ -149,6 +166,38 @@ describe('the map sprite', () => {
     // the portrait's gradient puts the colour itself at the base value
     const g = gradient(mid)
     expect([g[180 * 3], g[180 * 3 + 1], g[180 * 3 + 2]]).toEqual(mid)
+  })
+})
+
+describe('the portrait', () => {
+  // a 4x8 canvas; every layer one opaque pixel at (1, 6), its paint a colour of its own (zone 0 keeps the paint)
+  const px = (r: number, g: number, b: number): LayerPixels => ({ paint: new Uint8Array([r, g, b, 255]), value: new Uint8Array([180, 0, 0, 255]) })
+  const at = (file: string, z: string) => ({ file, x: 1, y: 6, w: 1, h: 1, z, zones: [] })
+  const layers: Record<string, LayerPixels> = { body: px(250, 220, 200), trousers: px(0, 0, 255), skirt: px(255, 0, 0), boots: px(0, 255, 0) }
+  const m: PortraitManifest = {
+    w: 4,
+    h: 8,
+    bodies: { woman: { layers: [at('body', 'body')], bust: { x: 0, y: 0, w: 4, h: 4 } } },
+    parts: {
+      'outfit.travel': { woman: { layers: [at('trousers', 'outfit')] } },
+      'outfit.dress': { woman: { layers: [at('skirt', 'outfit')], above: ['shoes'] } },
+      'shoes.tall': { woman: { layers: [at('boots', 'shoes')] } },
+    },
+  }
+  const top = (look: Look) => [...composePortrait(m, look, undefined, (f) => layers[f]).subarray((6 * 4 + 1) * 4, (6 * 4 + 1) * 4 + 3)]
+
+  it('is the whole figure, the boots over the trousers and a long skirt over the boots', () => {
+    expect(composePortrait(m, { body: 'woman', parts: {}, colors: {} }, undefined, (f) => layers[f]).length).toBe(4 * 8 * 4)
+    expect(top({ body: 'woman', parts: { outfit: 'outfit.travel', shoes: 'shoes.tall' }, colors: {} })).toEqual([0, 255, 0])
+    expect(top({ body: 'woman', parts: { outfit: 'outfit.dress', shoes: 'shoes.tall' }, colors: {} })).toEqual([255, 0, 0])
+  })
+
+  it('has a bust per body: the square the dialogue box shows', () => {
+    expect(bustRect(m, { body: 'woman', parts: {}, colors: {} })).toEqual({ x: 0, y: 0, w: 4, h: 4 })
+  })
+
+  it('draws a part only on the body it was drawn for (a man has his own face, never hers)', () => {
+    expect(top({ body: 'man', parts: { outfit: 'outfit.travel' }, colors: {} })).toEqual([0, 0, 0])
   })
 })
 

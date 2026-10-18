@@ -622,8 +622,9 @@
 .cv-sub { font: 600 15px var(--pixel); margin: 6px 0 4px; }
 .creator { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 10px; }
 .cr-preview { flex: 0 0 220px; display: grid; grid-template-columns: 1fr; justify-items: center; gap: 4px; position: relative; }
-.cr-bust { width: 220px; height: 220px; border-radius: 8px; background: radial-gradient(circle at 50% 35%, #fff6e2, #e8d6b4); }
-.cr-sprite { position: absolute; right: 2px; top: 150px; width: 32px; height: 64px; image-rendering: pixelated; }
+/* the whole figure standing (docs/looks.md §3.2), on the portraits' own cream */
+.cr-bust { width: 170px; height: 340px; border-radius: 8px; background: radial-gradient(ellipse at 50% 40%, #fbf7e8, #e6dcc4); }
+.cr-sprite { position: absolute; right: 2px; top: 6px; width: 32px; height: 64px; image-rendering: pixelated; }
 .cr-moods { display: flex; gap: 2px; }
 .cr-mood { background: none; border: 1px solid transparent; border-radius: 4px; padding: 0 2px; font-size: 15px; cursor: pointer; }
 .cr-mood.on { border-color: var(--wood-dark); background: #ffd55a55; }
