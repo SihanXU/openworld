@@ -5,11 +5,14 @@ import { BASE_RULES, REGIONS, STORY_RULES, TERRAIN_CHARS, UNTOLD, WILD_GROUNDS, 
 import { buildFord } from '../src/demo/world.ts'
 import { OVERWORLD, handmadeGrounds, readContinent } from '../src/demo/overworld.ts'
 import { CONTINENT_FILE, FORD, continentJson, generateContinent, inPocket } from '../src/demo/continent/generate.ts'
+import { CATALOG } from '../../client/src/catalog.ts'
 
 // The continent's checks (docs/continent.md §6): the file is what the generator makes for the hand-made places as they
 // lie; every region of the lore is on it with its places; one walks everywhere from the far bank and the west bank
 // only through the Ford; every backdrop place has its map on its cell, named in both languages, never trapping who
-// comes in; the backdrop holds nothing of the story.
+// comes in, and every building's door leads into a room that leads back out; the backdrop holds nothing of the story;
+// its places differ by region and kind (the Holy City's quarters each their own, a fort its towers and gatehouse), and
+// each region but the played one has its own look.
 
 const world = buildFord()
 const c = readContinent()
@@ -21,6 +24,35 @@ function game() {
   for (const ch of [...world.chunks, ...world.backdrop]) g.loadChunk(decodeChunk(ch))
   return g
 }
+let loaded: ReturnType<typeof game> | undefined
+const shared = () => (loaded ??= game())
+type World = ReturnType<typeof game>['engine']['world']
+
+/** From `from` on `map`, can one walk to a cell `goal` says is the way out (over walkable cells, four ways)? */
+function walkTo(w: World, map: string, from: { x: number; y: number }, goal: (x: number, y: number) => boolean): boolean {
+  const seen = new Set([`${from.x},${from.y}`])
+  const queue = [from]
+  while (queue.length) {
+    const { x, y } = queue.pop()!
+    if (goal(x, y)) return true
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const k = `${x + dx},${y + dy}`
+      if (seen.has(k)) continue
+      seen.add(k)
+      if (goal(x + dx, y + dy)) return true
+      if (w.walkable(map, x + dx, y + dy)) queue.push({ x: x + dx, y: y + dy })
+    }
+  }
+  return false
+}
+/** From `from` (where one stands) one walks off the map by an edge. */
+function offTheMap(w: World, map: string, from: { x: number; y: number }): boolean {
+  const m = w.map(map)!
+  const edge = (x: number, y: number) => x === 0 || y === 0 || x === m.width - 1 || y === m.height - 1
+  return edge(from.x, from.y) || walkTo(w, map, from, (x, y) => edge(x, y) && w.walkable(map, x, y))
+}
+const rooms = world.backdrop.filter((ch) => ch.map.kind === 'interior')
+const byId = new Map(world.backdrop.map((ch) => [ch.map.id, ch]))
 
 describe('the continent (docs/continent.md)', () => {
   it('is made for the hand-made places as they lie now: the generator gives the kept file back (else: npm run continent)', () => {
@@ -107,25 +139,10 @@ describe('the continent (docs/continent.md)', () => {
   })
 
   it('a backdrop map traps no one: from whichever side one comes in, one can walk out by an edge; a cave\'s mouth leads down and its depths back up', () => {
-    const g = game()
+    const g = shared()
     const w = g.engine.world
     const trapped: string[] = []
-    const out = (map: string, from: { x: number; y: number }) => {
-      const m = w.map(map)!
-      const seen = new Set([`${from.x},${from.y}`])
-      const queue = [from]
-      while (queue.length) {
-        const { x, y } = queue.pop()!
-        if (x === 0 || y === 0 || x === m.width - 1 || y === m.height - 1) return true
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          const k = `${x + dx},${y + dy}`
-          if (seen.has(k) || !w.walkable(map, x + dx, y + dy)) continue
-          seen.add(k)
-          queue.push({ x: x + dx, y: y + dy })
-        }
-      }
-      return false
-    }
+    const out = (map: string, from: { x: number; y: number }) => offTheMap(w, map, from)
     for (const p of c.places) {
       const site = w.get(`site.${p.id}`)!
       for (const facing of ['up', 'down', 'left', 'right'] as const) {
@@ -145,6 +162,72 @@ describe('the continent (docs/continent.md)', () => {
     }
     expect(trapped).toEqual([])
   }, 150_000) // every place gone into from four sides: under a full parallel run it outlasts the default
+
+  it('every building\'s door on a backdrop map leads into a room, several hundred of them: in by the door, out by the room\'s own, and from its step outside one walks off the map', () => {
+    const w = shared().engine.world
+    expect(rooms.length).toBeGreaterThan(600)
+    // every door a building's prefab stamps has its room
+    const doorless: string[] = []
+    for (const ch of world.backdrop) {
+      if (ch.map.kind === 'interior') continue
+      for (const st of ch.map.stamps ?? [])
+        (CATALOG.prefabs[st.key]?.grid ?? []).forEach((row, j) =>
+          [...row].forEach((cell, i) => {
+            if (cell === 'D' && !ch.map.portals.some((q) => q.x === st.x + i && q.y === st.y + j)) doorless.push(`${ch.map.id} ${st.key} at ${st.x + i},${st.y + j}`)
+          }),
+        )
+    }
+    expect(doorless).toEqual([])
+    const trapped: string[] = []
+    for (const r of rooms) {
+      const id = r.map.id
+      expect([id, r.map.backdrop, r.map.light, r.map.portals.length]).toEqual([id, true, 'indoor', 1])
+      const back = r.map.portals[0]
+      const outer = byId.get(back.to)!
+      // the way in: the outer map's door into this room, landing a step inside the room's own door
+      const ins = outer.map.portals.filter((q) => q.to === id)
+      expect([id, ins.length, outer.map.region]).toEqual([id, 1, r.map.region])
+      const land = { x: ins[0].tx, y: ins[0].ty }
+      if (!w.walkable(id, land.x, land.y) || !walkTo(w, id, land, (x, y) => x === back.x && y === back.y)) trapped.push(`${id}: no way from ${land.x},${land.y} to its door`)
+      // the way out: in front of the door one came in by, and from there off the map
+      expect([id, back.tx, back.ty]).toEqual([id, ins[0].x, ins[0].y + 1])
+      if (!w.walkable(back.to, back.tx, back.ty) || !offTheMap(w, back.to, { x: back.tx, y: back.ty })) trapped.push(`${id}: shut in at ${back.to} ${back.tx},${back.ty}`)
+    }
+    expect(trapped).toEqual([])
+  }, 150_000)
+
+  it('the backdrop\'s places differ: the Holy City\'s eight quarters each laid out its own way, every fort walled with towers and a gatehouse, each region its own buildings', () => {
+    const signature = (id: string) => {
+      const ch = byId.get(id)!
+      const keys = new Set((ch.map.stamps ?? []).map((st) => st.key))
+      const things = new Set(ch.entities.filter((e) => e.type.startsWith('fixture/')).map((e) => e.type))
+      return JSON.stringify([[...keys].sort(), [...things].sort()])
+    }
+    expect(new Set(c.places.filter((p) => p.id.startsWith('holy.quarter-')).map((p) => signature(p.id))).size).toBe(8)
+    // a quarter's rooms are what its theme builds: the market's shops, the pilgrims' tents and inns, the cloister's chapel and cells
+    const roles = (id: string) => new Set(rooms.filter((r) => r.map.portals[0].to === id).map((r) => r.map.id.slice(id.length + 1).replace(/-\d+$/, '')))
+    expect(roles('holy.quarter-3').has('shop')).toBe(true)
+    expect([...roles('holy.quarter-6')].filter((r) => r === 'tent' || r === 'inn').sort()).toEqual(['inn', 'tent'])
+    expect([...roles('holy.quarter-8')].filter((r) => r === 'cell' || r === 'chapel').sort()).toEqual(['cell', 'chapel'])
+    for (const p of c.places.filter((q) => q.kind === 'fort')) {
+      expect([p.id, (byId.get(p.id)!.map.stamps ?? []).some((st) => st.key === 'arch')]).toEqual([p.id, true])
+      expect([p.id, [...roles(p.id)]]).toEqual([p.id, ['barracks']])
+    }
+    const prefabs = (region: string) => new Set(world.backdrop.filter((ch) => ch.map.region === region && ch.map.kind === 'village').flatMap((ch) => (ch.map.stamps ?? []).map((st) => st.key)))
+    expect(prefabs('palefen').has('house_plaster')).toBe(false)
+    expect(prefabs('altar').has('house_plaster')).toBe(true)
+  })
+
+  it('every region but the played one has its own look, sent with its maps: the Pale Fens the darkest and greyest; the Frostfang Coast keeps the game\'s own', () => {
+    const looks = new Map((world.index.regions ?? []).map((r) => [r.id, r.look]))
+    expect(looks.get('frostfang')).toBeUndefined()
+    for (const r of REGIONS.filter((q) => q.id !== 'frostfang')) expect([r.id, !!looks.get(r.id)?.tint]).toEqual([r.id, true])
+    const fen = looks.get('palefen')!
+    for (const r of REGIONS.filter((q) => q.id !== 'palefen')) {
+      expect([r.id, (looks.get(r.id)?.shade ?? 0) < (fen.shade ?? 0)]).toEqual([r.id, true])
+      expect([r.id, (looks.get(r.id)?.desat ?? 0) < (fen.desat ?? 0)]).toEqual([r.id, true])
+    }
+  })
 
   it('the backdrop holds nothing of the story: no one, no wayshrine of the Pilgrim\'s Road, no stone that seals, only kinds the game has', () => {
     const onto = buildOntology()

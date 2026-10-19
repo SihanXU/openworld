@@ -1,9 +1,10 @@
 # The continent: regions, places, the backdrop
 
-Status: **agreed 2026-10-18, phase A built.** The world grows from the Frostfang Coast to hundreds of maps, thousands of
+Status: **agreed 2026-10-18, phases A and B built.** The world grows from the Frostfang Coast to hundreds of maps, thousands of
 people and tens of thousands of things, most of them **backdrop** for now: the released demo is what is played today,
 with the rest of the continent walkable around it, filled in with played content later. This document is the plan for
-that growth (phases A–E) and the record of phase A, the continent itself.
+that growth (phases A–E) and the record of phases A (the continent itself) and B (its places: rooms, templates,
+each region's look, §10).
 
 The user's decisions (2026-10-18):
 
@@ -69,17 +70,17 @@ beside a mountain, a farm or a mill on fields and plains, a village near water).
 
 | Kind | Map | What its template builds (`tools/src/demo/continent/backdrop.ts`) |
 |---|---|---|
-| village, town, city | 40×30, 48×36 | lanes of houses (the region's buildings) along streets, a square with a well, lamps, barrels; a town's stalls and statue; a city's fountain |
+| village, town, city | 40×30, 48×36 | lanes of houses (the region's buildings) along streets, a square with a well, the region's lamps, barrels; a village's smithy or shop now and then; a town's store, smithy and inn or teahouse, its stalls, statue and banners; a city's fountain, banners and its quarter's theme (§10) |
 | farm, mill | 40×30 | a house, fenced fields, haystacks, a pen with a cow and hens; a mill's sacks and log pile |
 | camp | 32×24 | tents round a campfire, log benches |
 | ruin | 36×28 | broken walls, rubble, bones, a chest; what prowls there |
 | shrine, cathedral, seat | 30×24 – 44×32 | a court and a statue, candles; a cathedral's hall with an altar, cloister houses, graves; a seat's hall |
 | cave, mine | 36×28 + 40×30 below | a face of rock with a mouth, stairs down to its depths: a winding hollow with ore, bones, bats, spiders, skeletons |
-| tower, fort | 32×24, 44×32 | a stone tower; a walled yard with a gate, a keep, barracks, dummies, a rack |
+| tower, fort | 32×24, 44×32 | a stone tower; a walled yard with watchtowers in its corners and a gatehouse (an arch between stone posts, the region's banners), a keep, two barracks, dummies, a rack, a well |
 | graveyard, battlefield | 36×28, 44×32 | a walled yard of gravestones, dead trees; ash, the fallen, bones, what walks there |
 
 Every place's map is its ground's own wild (`wildChunk` at the map's size, without its beasts) cleared where the place
-is built. Settlements are peaceful; the rest are combat zones.
+is built. Settlements are peaceful; the rest are combat zones. Every building's door leads into a room (§10).
 
 ## 4. Names
 
@@ -124,8 +125,11 @@ writes them all; the bake (`npm run bake`) puts them all in the project.
 the lore with its places, capital and seat; every passable cell reached from the far bank and the west bank only
 through the Ford; every place on standable land, never beside another, its map on its cell, its site leading in (sealed
 ones by the untold gate); names in both languages, never twice; no backdrop map traps one coming in from any side, a
-cave's depths lead back up; the backdrop holds no person, no wayshrine, no seal stone, only kinds the game has; a
-region's wild is its own. The overworld's older checks (`overworld.test.ts`, `demo.test.ts` W4–W6, W18) hold on the
+cave's depths lead back up; every door a building stamps leads into a room, which one walks into a step inside its own
+door and out of in front of the door one came in by, and from there off the map (no room and no door shuts one in);
+the Holy City's eight quarters each laid out its own way, every fort with its gatehouse and only barracks inside, a
+region's buildings its own; every region but the played one with a look, the Pale Fens the darkest and greyest; the
+backdrop holds no person, no wayshrine, no seal stone, only kinds the game has; a region's wild is its own. The overworld's older checks (`overworld.test.ts`, `demo.test.ts` W4–W6, W18) hold on the
 continent too.
 
 ## 7. The world map, and older saves
@@ -141,20 +145,24 @@ nearest that is.
 
 ## 8. Numbers (phase A)
 
-| | Before | Now |
-|---|---|---|
-| world map | 16×12, ~150 sites | 64×48, 2,135 sites |
-| maps | 59 (+ the overworld) | 276: 59 played, 196 backdrop places, 21 depths |
-| regions | 1 | 6 |
-| world map grounds | 8 | 18 |
+| | Before | Phase A | Phase B |
+|---|---|---|---|
+| world map | 16×12, ~150 sites | 64×48, 2,135 sites | — |
+| maps | 59 (+ the overworld) | 276: 59 played, 196 backdrop places, 21 depths | 1,024: 59 played, 196 places, 21 depths, 748 rooms |
+| regions | 1 | 6 | 6, five with a look |
+| world map grounds | 8 | 18 | — |
+| fixtures in the world | | | 12,113 |
+| the world's files (`public/world/`) | | | 6.7 MB |
 
 ## 9. The phases
 
 - **A — the continent** (built): the regions, the world map grown, its grounds, rivers and roads, the gazetteer, the
   backdrop's maps by kind, the wild by region, the world map's continent, the migration, the checks.
-- **B — places** (next, in parallel with C and D: they share only the gazetteer): richer templates, interiors behind
-  the doors of towns and cities (a room per house: hundreds more maps), districts of a city as maps of their own, each
-  region's look (its world filter's grade, by region, and its night's length: the Fens darker), landmarks.
+- **B — places** (built, §10): a room behind every building's door (748 maps), templates by kind and region (the Holy
+  City's quarters each by its theme, forts with watchtowers and a gatehouse, each region's buildings, lamps, banners
+  and what stands about), each region's look (a grade for the world filter and a shade over its hours: the Fens
+  darker). Left for later: a city's districts as maps of their own beyond the Holy City's quarters, the night's
+  length by region (the shade darkens every hour alike), landmarks.
 - **C — people** and the engine's scale: people in bulk by household and role per settlement (`format/src/crowd.ts`
   grown: households, looks from `generateLook`, trades, a day within their own place); fidelity tiers (backdrop people
   stay in their place, out of the hourly routing); people made when their map is first entered, kept only when changed;
@@ -165,3 +173,57 @@ nearest that is.
   settlement and region: tens of thousands of things. The coverage sweep samples by class where every pair is too many.
 - **E — scale checks**: a world-scale test (load the world, walk into fifty maps, time a tick, size a save), the
   wiki's region pages, the backdrop's numbers in this document.
+
+## 10. Places (phase B)
+
+**Rooms** (`tools/src/demo/continent/rooms.ts`). Every building a backdrop map stamps goes through `building()`
+(`backdrop.ts`), which notes its door, its prefab and what it is (`Role`: home, farmhouse, mill, smithy, shop,
+teahouse, inn, chapel, tent, barracks, cloister cell — the prefab's own, `roleOf`, unless the place says: a farm's house
+is a farmhouse, a fort's houses barracks, a cathedral's cloister cells). After the place is built, the cell before each
+door is cleared, and `roomsBehind` makes a room for each, linked as the hand-made interiors are
+(`MapBuilder.linkInterior`): in by the door, a step inside the room's own door at its bottom; out by it, in front of the
+door outside. A room is `<place>.<role>-<n>` (`tithe.milletwick.home-3`), named for its place and what it is ("Mournwell
+— The Gravedigger's House", 哀泉村·掘墓人之家), backdrop, peaceful, indoor, its region's. Its size follows the building
+(a straw hut's 8×6, a cottage's 11×8, an inn's 14×10); its walls and floor are its region's (the Coast's wood, the
+March's stone, the Fens' moss, the Heights' and the Holy City's plaster over stone), a smithy's and a barracks' stone. It
+is furnished plainly by what it is — a home's beds, hearth, table and chairs, chest and barrel, and (six in ten) the
+things of the trade it is kept by, from its region's four (the Coast's woodcutter, fisher, trapper, weaver; the March's
+tanner, herder, fletcher, veteran; the Vale's reaper, weigher, baker, gleaner; the Fens' eel-catcher, reed-cutter,
+gravedigger, candlemaker; the Heights' stonemason, shepherd, acolyte, copyist; the Holy City's chandler, scribe,
+pilgrim-host, glazier); a smithy's forge, anvil and rack; a shop's shelves and counter; a chapel's altar, candles and
+benches; an inn's beds, counter and tables; a tent's bedroll, crate and lantern; a barracks' row of beds and racks; a
+cell's bed, books and candle. Nothing is put in the way in from the door. The containers are empty (phase D fills them).
+
+**Templates.** A settlement is laid out with a `Layout`: its first buildings on the main street (`civic`: a town's
+store, smithy and inn or teahouse; a village's smithy or shop now and then) and ground kept clear for its theme
+(`reserve`). Each region's look is laid over its settlements, farms, mills and camps (`DECOR`) besides its buildings,
+streets, walls and lamps (`STYLE`): the Coast's pines crowding in, woodpiles and washing lines; the March's red dirt,
+braziers along the streets, racks and old bones; the Vale's dry grass, little fields gone to dust with their haystacks,
+sacks, carts and scarecrows; the Fens' mud, black pools in reeds, dead trees, lanterns at the doors and mist; the
+Heights' gravel and boulders, statues over the streets, candles at the doors; the Holy City's cobbles, lamps, flower
+carts. Each region flies its own banner (`BANNER`) over its squares and forts. A city is built by its quarter's theme
+(`THEMES`): the Holy City's eight in the gazetteer's order — the North Gate (the city wall with round towers either side
+of the gate, the watch's barracks), the Bell Ward (a chapel and the clergy's house, candles and an altar on the
+square), the Market (shops, stalls along the square's rows, crates, carts), the Lamp Ward (teahouses, an inn, a lamp at
+every few steps), the Lower Town (huts on dirt lanes, mud, washing), the Pilgrims' Quarter (inns, a camp of tents on the
+green, a fire), the Old Wall (the first wall broken across the north, its columns standing), the Cloister (a walled
+garden with its chapel, a brothers' house and a fountain) — and every other city one of five of them by its seed. A fort
+has watchtowers in its corners and a gatehouse in its south wall: the arch between two stone posts, the region's
+banners. The towers, posts and banners are the pack's own pieces (catalogue `watchtower`, `tower_round`, `pillar`,
+`banner_*`).
+
+**A region's look** (`RegionDef.look` in content `regions.ts`, the engine's `RegionLook`, handed over as region data:
+`WorldIndex.regions[].look`). The worker sends a map's region's look with the map (`{ t: 'map', look }`); the scene
+eases from one look to the next (about a second) and the first map takes its look at once. A look is a tint the world
+filter tones the colour toward with the lightness kept (`uTint`, lighter at the player's light strength), more or less
+grey than the game's own grade (`desat`, added to the filter's), and a shade over the hours out of doors, by day as by
+night (`shade`; indoors two fifths of it), which darkens the light and so the filter's hatching too, and holds when the
+player turns the filter off. The Frostfang Coast has none: the played land keeps the game's own look.
+
+| Region | Tint | Grey | Shade |
+|---|---|---|---|
+| The Scarred March | red rock `#c86a48`, 0.22 | +0.05 | 0.04 |
+| The Vale of Scales | pale straw `#d8c08a`, 0.2 | +0.18 | — |
+| The Pale Fens | grey-green `#6f8a80`, 0.35 | +0.4 | 0.24 |
+| The White Altar Heights | cold white `#dfe4ee`, 0.2 | +0.12 | — |
+| The Holy City | gold `#f0cf7a`, 0.16 | −0.05 | — |

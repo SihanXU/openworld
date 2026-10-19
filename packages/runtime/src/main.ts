@@ -309,6 +309,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       break
     case 'map':
       hud.setMapName(m.map.name)
+      scene.setLook(m.look)
       scene.setMap(m.map)
       minimap.setMap(m.map)
       break
