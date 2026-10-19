@@ -23,6 +23,8 @@ export interface PersonDef {
   /** What the author chose of their look (docs/looks.md): a body, parts and colours; the rest is drawn from their id. */
   look?: LookPins
   age: number
+  /** The kind of thing they like best (an item type; docs/npc-sandbox.md §2.15). Unset: drawn from their id (content gifts.ts). */
+  favourite?: string
   temperament: { personality: string; manner: 'polite' | 'plain' | 'rough'; social: 'outgoing' | 'reserved'; outlook: 'hopeful' | 'wary' }
   /** npc id → relation, from this person's side. */
   ties: Record<string, string>

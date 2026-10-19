@@ -23,6 +23,9 @@ export const joss: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'Measure twice, cut once, and then measure again because the wood moved.', '量两次，切一次，然后再量一次，因为木头动了。'),
+    line('chat', 'Aldo could hold a plank level with one hand and argue with the other. I miss the arguing.', '阿尔多能一只手把木板端平，另一只手跟人吵架。我想念那些争吵。'),
     // the news the story spreads (its topics), said once while fresh
     line('topic:dragon_slain', "Dragon is dead, I hear. I hope it fell on something I did not build.", "听说龙死了。但愿它没砸在我造的东西上。"),
     line('greeting:first', 'Joss. I build things that stay built. Mostly.', '乔斯。我造的东西都结实。大部分是。'),

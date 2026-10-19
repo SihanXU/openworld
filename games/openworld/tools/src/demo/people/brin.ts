@@ -24,6 +24,9 @@ export const brin: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'A hen knows the weather before the sky does. Watch the hens, not the clouds.', '母鸡比天空先知道天气。看鸡，别看云。'),
+    line('chat', 'The calves like their ears scratched. Don\'t tell Holt I said anything that soft.', '小牛喜欢被挠耳朵。别告诉霍尔特我说过这么软的话。'),
     line('greeting:first', 'Mind the hens. And don\'t run — the cows spook. Brin. I keep the herd.', '小心鸡。也别跑——牛会受惊的。我叫布琳，管牛群的。'),
     line('default', 'Every dusk they go down on their knees, the whole herd, all facing east. My gran never saw a cow kneel in her life.', '每到黄昏，整群牛都会跪下来，全都朝着东边。我奶奶活了一辈子都没见过牛下跪。'),
     line('default', 'The grass is thin this year. Short days, short grass. That\'s all it is. That\'s what I tell them.', '今年的草很稀。白天短，草也短。就这么回事。我是这么跟它们说的。'),

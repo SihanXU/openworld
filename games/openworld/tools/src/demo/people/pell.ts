@@ -25,6 +25,9 @@ export const pell: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'I drew the grey man again. Aunt Marta says it looks like a chimney. It does not.', '我又画了灰衣人。玛尔塔姨妈说画得像个烟囱。才不像。'),
+    line('chat', 'If you hold the warm stone up to your ear it hums. Just a little. Try it. No — I\'m keeping it.', '把那块暖石头贴在耳朵上，它会嗡嗡响。一点点。你试试。不——我要自己留着。'),
     line('greeting:first', 'Are you a knight? You have a fairy! Can I draw her?', '你是骑士吗？你有个精灵！我能画她吗？'),
     line('default', 'I saw the grey man. Three times! Nobody believes me. He gave me a stone that is warm at night.', '我见过那个灰衣人。三次！没人信我。他给了我一块晚上会发热的石头。'),
     line('default', 'Since I got the stone, the night things don\'t come near my window. Auntie says that\'s nonsense.', '自从有了那块石头，夜里的东西就不靠近我的窗户了。姑姑说那是瞎说。'),

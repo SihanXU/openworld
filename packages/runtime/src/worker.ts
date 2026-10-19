@@ -30,6 +30,7 @@ let panel: string | undefined
 let talk: { who: string; arrest?: boolean } | undefined
 let trade: string | undefined
 let pockets: string | undefined
+let gift: string | undefined
 let paused = false
 let buildAim: { id: string; tile: Tile; up?: boolean } | undefined
 let lastMap = ''
@@ -344,7 +345,7 @@ function keyViews(): Frame['keys'] {
 }
 
 /** Time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player). */
-const timeStopped = (g: Game) => paused || transfers.busy || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets
+const timeStopped = (g: Game) => paused || transfers.busy || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets || !!gift
 
 /** What the keys would do now, as a frame says it: nothing while time stands or the player cannot act. */
 const keysNow = (g: Game): Frame['keys'] => (timeStopped(g) || g.engine.busy(g.engine.world.player) ? undefined : keyViews())
@@ -459,6 +460,7 @@ function peopleOpened(eng: Engine): void {
     if (x.t === 'talk') talk = { who: x.who, ...(x.arrest && { arrest: true }) }
     if (x.t === 'panel' && x.panel === 'trade' && x.by) (trade = x.by), (talk = undefined)
     if (x.t === 'panel' && x.panel === 'pockets' && x.by) pockets = x.by
+    if (x.t === 'panel' && x.panel === 'gift' && x.by) (gift = x.by), (talk = undefined)
   }
 }
 
@@ -514,10 +516,11 @@ function loop(): void {
   const frame = snapshot(eng, { panel })
   if (panel && !frame.container) panel = undefined // closed by the world (it burned, a rule shut it)
   // the people's panels: closed when the one they are with is gone (dead, away)
-  if (eng.modules.some((m) => m.id === 'society')) Object.assign(frame, peopleViews(eng, { talk, trade, pockets }))
+  if (eng.modules.some((m) => m.id === 'society')) Object.assign(frame, peopleViews(eng, { talk, trade, pockets, gift }))
   if (talk && !frame.talk) talk = undefined
   if (trade && !frame.trade) trade = undefined
   if (pockets && !frame.pockets) pockets = undefined
+  if (gift && !frame.gift) gift = undefined
   // nothing while the player cannot act (working out an act, down, in a scene)
   frame.keys = keysNow(game)
   maybePrefetch()
@@ -807,6 +810,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'closePockets':
         pockets = undefined
+        break
+      case 'gift':
+        if (game && gift) game.engine.controls.gift(gift, m.item)
+        break
+      case 'closeGift':
+        gift = undefined
         break
       case 'closePanel': {
         transfers.cancel()

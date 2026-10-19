@@ -43,6 +43,11 @@ export const hesper: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'The river is loud in spring and quiet in autumn. People are the other way round.', '河春天吵，秋天静。人正好反过来。'),
+    line('chat', 'Rope wants oiling. Hands too, past sixty. Nobody tells you that.', '绳子要上油。过了六十，手也要。没人告诉过你这个。'),
+    line('favourite', 'Aldo used to bring me {favourite} from the far bank. I have not had it since. I would not say no.', '阿尔多以前会从对岸给我带{favourite}。从那以后就没有过了。要是有，我不会拒绝。'),
+    line('given:favourite', '…{item}. Aldo used to— Thank you.', '……{item}。阿尔多以前——谢谢你。', { mood: 'happy' }),
     line('greeting:first', "Storm took the ferry rope in the night. Nobody crosses till it's mended. … There's a spare in my chest. My hands won't splice it any more — yours might.", '夜里的风暴把渡绳扯断了。不修好，谁也过不去。……我箱子里有根备用的。我这双手接不动绳子了——你的手也许行。', { mood: 'neutral', once: true }),
     line('default', 'The rope is in my chest. The winch is on the landing. The rest is hands.', '绳子在我箱子里，绞盘在码头上。剩下的就看手了。'),
     line('default', 'Thirty-one years I have kept this crossing. The river has never once asked my leave.', '我守这个渡口三十一年了。河水从来没问过我一声。'),

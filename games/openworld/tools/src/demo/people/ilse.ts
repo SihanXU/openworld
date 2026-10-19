@@ -30,6 +30,10 @@ export const ilse: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'A flame does not ask who feeds it. That is the one thing I envy it.', '火焰不问是谁喂它的。这是我唯一羡慕它的地方。'),
+    line('chat', 'Anselm reads aloud when he thinks the chapel is empty. It never is. I let him.', '安塞姆以为礼拜堂没人的时候就大声念书。从来没有真没人过。我随他。'),
+    line('favourite', 'Even a nun has a weakness. Mine is {favourite}. The flame does not judge.', '修女也有软肋。我的是{favourite}。火焰不会评判。'),
     // the news the story spreads (its topics), said once while fresh
     line('topic:crown', "We set the crown under the altar. Nessa says it hums at night. I tell her it is the wind.", "我们把荆棘冠放在祭坛底下了。奈莎说它夜里会嗡嗡响。我告诉她那是风。"),
     line('greeting:first', 'Welcome to Firstlight, traveller. The flame you see was lit from the first dawn after the First Night. We keep it company.', '欢迎来到初原村，旅人。你看到的这团火，取自初夜之后的第一道晨光。我们陪着它。'),

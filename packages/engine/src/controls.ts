@@ -944,6 +944,18 @@ export class Controls {
     this.sync()
   }
 
+  /** The gift panel (docs/npc-sandbox.md §2.15): a thing from one's bag handed to a person (an act of putting: the person answers it as `people/accept`). */
+  gift(who: Id, item: Id): void {
+    const p = this.w.player
+    if (this.eng.busy(p)) return
+    const it = this.w.get(item)
+    // (one's own, in the bag or in hand: a stack's next piece is in hand once its first is given)
+    if (!it || (it.place.on !== 'inside' && it.place.on !== 'hand') || it.place.holder !== p.id) return
+    this.stow()
+    this.eng.act('put', p.id, { e: who }, { instrument: { e: item } })
+    this.sync()
+  }
+
   /** The pockets panel: take a thing from a person's pockets, or slip one into them (acts of taking and putting, seen or not). */
   pocket(who: Id, item: Id, take: boolean): void {
     const p = this.w.player

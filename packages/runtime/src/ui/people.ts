@@ -1,16 +1,20 @@
-// The people's panels (docs/npc-sandbox.md §2.10): a merchant's trade — its goods at its prices, and what it
-// would pay for what one carries — and a person's pockets open to a sneaking hand — what they carry, to take,
-// and what one carries, to slip in. Each choice is an act the world answers (the worker's `trade` and
-// `pocket`); the panels show what the frame says now.
+// The people's panels (docs/npc-sandbox.md §2.10, §2.15): a merchant's trade — its goods at its prices, and what it
+// would pay for what one carries —, a person's pockets open to a sneaking hand — what they carry, to take,
+// and what one carries, to slip in —, and a gift for someone — what they like best, once they have said it, and
+// what one carries to give, each with how warmly it would be taken. Each choice is an act the world answers (the
+// worker's `trade`, `pocket` and `gift`); the panels show what the frame says now.
 
 import type { Frame, ItemInfo } from '@openworld/engine'
 import { $, esc, locale, tx } from './common.ts'
+import { heartsOf } from './hearts.ts'
 
 export interface PeopleSend {
   trade(item: string, buy: boolean): void
   closeTrade(): void
   pocket(item: string, take: boolean): void
   closePockets(): void
+  gift(item: string): void
+  closeGift(): void
 }
 
 const L = (en: string, zh: string) => (locale.value === 'zh' ? zh : en)
@@ -22,26 +26,68 @@ export class PeoplePanels {
   constructor(private send: PeopleSend) {
     const root = document.createElement('div')
     root.id = 'peoplePanels'
-    root.innerHTML = `<div class="overlay hidden" id="tradePanel"><div class="sheet wood people-sheet" id="tradeSheet"></div></div><div class="overlay hidden" id="pocketsPanel"><div class="sheet wood people-sheet" id="pocketsSheet"></div></div>`
+    root.innerHTML = `<div class="overlay hidden" id="tradePanel"><div class="sheet wood people-sheet" id="tradeSheet"></div></div><div class="overlay hidden" id="pocketsPanel"><div class="sheet wood people-sheet" id="pocketsSheet"></div></div><div class="overlay hidden" id="giftPanel"><div class="sheet wood people-sheet gift-sheet" id="giftSheet"></div></div>`
     document.body.appendChild(root)
   }
 
   get open(): boolean {
-    return !$('#tradePanel').classList.contains('hidden') || !$('#pocketsPanel').classList.contains('hidden')
+    return !$('#tradePanel').classList.contains('hidden') || !$('#pocketsPanel').classList.contains('hidden') || !$('#giftPanel').classList.contains('hidden')
   }
 
   /** Esc: the open panel closes. */
   close(): void {
     if (!$('#tradePanel').classList.contains('hidden')) this.send.closeTrade()
     if (!$('#pocketsPanel').classList.contains('hidden')) this.send.closePockets()
+    if (!$('#giftPanel').classList.contains('hidden')) this.send.closeGift()
   }
 
   private tradeSig = ''
   private pocketsSig = ''
+  private giftSig = ''
 
   onFrame(f: Frame): void {
     this.renderTrade(f)
     this.renderPockets(f)
+    this.renderGift(f)
+  }
+
+  /**
+   * The gift panel (docs/npc-sandbox.md §2.15): their regard as hearts, a card for what they like best — named once
+   * they have let it slip in a chat, else a riddle —, and what one carries to give, the warmest first, each with how
+   * warmly it would be taken (hearts; a star for the thing they like best).
+   */
+  private renderGift(f: Frame): void {
+    const g = f.gift
+    const sig = g ? `${locale.value}|${JSON.stringify(g)}` : ''
+    if (sig === this.giftSig) return
+    this.giftSig = sig
+    $('#giftPanel').classList.toggle('hidden', !g)
+    if (!g) return
+    const zh = locale.value === 'zh'
+    const name = esc(tx(g.name))
+    const hearts = `<span class="hearts" title="${zh ? '好感' : 'Regard'} ${Math.round(g.affection)}/100">${heartsOf(g.affection).map((h) => `<i class="${h}"></i>`).join('')}</span>`
+    const warmth = (n: number, fav?: boolean) => (fav ? `<span class="gf-warmth fav" title="${L('The thing they like best', '他最喜欢的东西')}">★</span>` : `<span class="gf-warmth w${n}" title="${[L('A trifle', '小意思'), L('A kindness', '一份心意'), L('A treasure', '厚礼')][n - 1] ?? ''}">${'♥'.repeat(Math.max(1, Math.min(3, n)))}</span>`)
+    const fav = g.favourite
+    const secret = fav
+      ? `<div class="gf-secret known"><div class="icon gf-favicon" data-icon="fav:${esc(fav.type)}"></div><div><div class="gf-secret-title">${L(`${name} likes best`, `${name}最喜欢`)}</div><div class="gf-secret-name">★ ${esc(tx(fav.name))}</div><div class="gf-secret-note">${g.cheered ? L('Already delighted today — tomorrow it will mean as much again.', '今天已经送过了——明天再送，一样欢喜。') : L('Give it, and watch their face.', '送出去，看他的表情。')}</div></div></div>`
+      : `<div class="gf-secret"><div class="gf-riddle">?</div><div><div class="gf-secret-title">${L(`What ${name} likes best`, `${name}最喜欢什么`)}</div><div class="gf-secret-name muted">${L('Unknown yet', '还不知道')}</div><div class="gf-secret-note">${L('Chat with them a while — people let these things slip.', '多和他聊聊天——人总会说漏嘴的。')}</div></div></div>`
+    const cards = g.items.length
+      ? g.items
+          .map(
+            (it) => `<div class="gf-card${it.favourite ? ' fav' : ''}"><div class="icon" data-icon="${esc(it.id)}"></div><div class="gf-name">${esc(tx(it.name))}${it.count > 1 ? ` <span class="gf-count">×${it.count}</span>` : ''}${it.steal ? ` <span class="pp-steal">${L('not yours', '非你所有')}</span>` : ''}</div>${warmth(it.warmth, it.favourite)}<button data-gift="${esc(it.id)}">${L('Give', '送出')}</button></div>`,
+          )
+          .join('')
+      : `<div class="muted gf-empty">${L('You carry nothing you could give.', '你身上没有能送的东西。')}</div>`
+    $('#giftSheet').innerHTML = `
+      <div class="pp-head"><b>${L(`A gift for ${name}`, `送礼物给${name}`)}</b>${hearts}<button class="x" id="giftX">✕</button></div>
+      ${secret}
+      <div class="pp-title">${L('What you carry', '你身上的东西')}</div>
+      <div class="gf-grid">${cards}</div>
+      <div class="gf-foot muted">${L('The dearer the gift, the warmer the thanks. The thing they like best delights them once a day.', '礼物越贵重，他越高兴。送他最喜欢的东西，好感大涨，每天一次。')}</div>`
+    $('#giftX').onclick = () => this.send.closeGift()
+    $('#giftSheet').querySelectorAll<HTMLButtonElement>('[data-gift]').forEach((b) => (b.onclick = () => this.send.gift(b.dataset.gift!)))
+    // (the favourite's picture: a thing of its kind, drawn by its type's sprite)
+    this.paintIcons?.([...g.items, ...(fav ? [{ id: `fav:${fav.type}`, type: fav.type, sprite: fav.sprite, name: fav.name, tags: [], statuses: [], props: {} } satisfies ItemInfo] : [])])
   }
 
   /** One row: a thing (and how many alike), what it costs or is, and what one can do with it. `stolen`: say it is not one's own. */

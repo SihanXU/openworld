@@ -116,6 +116,8 @@ export interface PersonEnt extends Ent {
   role: string
   roleZh: string
   age?: number
+  /** The kind of thing they like best (their `favourite` prop; docs/npc-sandbox.md §2.15). */
+  favourite?: string
   /** How they look (docs/looks.md): a look record (the game composes both pictures from it), or a drawn sheet's key. */
   look?: string | Look
   face?: Sprite
@@ -343,7 +345,7 @@ export function loadGame(): Game {
     const body = urls ? { url: urls.body, x: 0, y: 0, w: 16, h: 32, iw: 16, ih: 32 } : bodySprite(look as string | undefined)
     return {
       kind: 'person', id: e.id, zh: zh(e.name), en: (enOf(e.name) || e.id), title: zh(e.name), group: e.place.on === 'tile' ? e.place.map : 'offstage',
-      def, entity: e, role, roleZh: roleZh(role), age: def?.age ?? (Number(e.props?.age ?? 0) || undefined), look,
+      def, entity: e, role, roleZh: roleZh(role), age: def?.age ?? (Number(e.props?.age ?? 0) || undefined), favourite: typeof e.props?.favourite === 'string' ? e.props.favourite : undefined, look,
       face, body, sprite: face, home: e.place.on === 'tile' ? e.place.map : undefined,
     } satisfies PersonEnt
   })

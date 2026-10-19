@@ -178,6 +178,39 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
       handOver(fx, host, item, to)
       return
     }
+    case 'plunder': {
+      // robbed: a share of its coin, and some of what its bag holds (not what it wears or has in hand), to the robber
+      const to = role(eff.to, actor)
+      if (!host || !to || to.id === host.id) return
+      const share = Math.max(0, Math.min(1, eff.coins ?? 0))
+      const paid = share > 0 ? payCoins(fx, host, to, Math.ceil(s.purse(host) * share)) : 0
+      const worn = new Set(Object.entries(host.props ?? {}).filter(([k]) => k.startsWith('wear:')).map(([, v]) => v))
+      const loose = (host.contents ?? [])
+        .map((id) => w.get(id))
+        .filter((it): it is Entity => !!it && !it.frozenBy && !s.isCoin(it) && !worn.has(it.id) && w.hasTag(it, 'portable') && !w.hasTag(it, 'bound'))
+      // the dearest first: what a robber takes
+      loose.sort((a, b) => s.value(b) - s.value(a))
+      const taken = loose.slice(0, Math.max(0, Math.floor(eff.items ?? 0)))
+      for (const it of taken) handOver(fx, host, it, to)
+      if (to.id === w.state.player && (paid || taken.length)) {
+        const names = taken.map((it) => ({ en: eng.nameOf({ e: it.id }, 'en'), zh: eng.nameOf({ e: it.id }, 'zh') }))
+        const list = (l: 'en' | 'zh') => [...(paid ? [l === 'en' ? `${paid} coin` : `${paid} 枚钱币`] : []), ...names.map((n) => n[l])].join(l === 'en' ? ', ' : '、')
+        w.fx.push({ t: 'log', text: { en: `You take ${list('en')}.`, zh: `你拿走了${list('zh')}。` } })
+      }
+      return
+    }
+    case 'beaten': {
+      // a beating: its health falls to what is left it — never below one, never up; past defence and talents
+      if (!host || w.prop(host, 'maxHp') === undefined) return
+      const hp = w.num(host, 'hp', w.num(host, 'maxHp', 1))
+      let left = eff.share !== undefined ? Math.floor(hp * fx.amount(ev, eff.share)) : eff.left !== undefined ? Math.round(fx.amount(ev, eff.left)) : hp
+      left = Math.max(1, Math.min(hp, left))
+      if (left >= hp) return
+      eng.setProp(host, 'hp', left, ev)
+      w.fx.push({ t: 'damage', who: host.id, amount: hp - left })
+      if (host.id === w.state.player) w.fx.push({ t: 'log', text: { en: 'You are beaten.', zh: '你被打了一顿。' }, tone: 'warn' })
+      return
+    }
     case 'sell': {
       const item = w.get(String(ev.params?.item ?? ''))
       if (!host || !actor || !item) return

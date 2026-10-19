@@ -51,6 +51,12 @@ export const SOCIAL_CONDS: Record<string, CondImpl> = {
     const b = social && v ? social.bounty(lawFor(world, roles, v)?.id, v.ref.e) : 0
     return !!social && !!v?.entity && b > 0 && social.purse(v.entity) >= Math.round(b * (c.canPay.mul ?? 1))
   },
+  favourite: (c, roles, world) => {
+    const social = socialIn(world)
+    const of = roles[c.favourite.of as keyof Roles]?.entity
+    const item = roles[(c.favourite.item ?? 'item') as keyof Roles]?.entity
+    return !!social && !!of && !!item && social.isFavourite(of, item)
+  },
   unpardonable: (c, roles, world) => {
     const social = socialIn(world)
     const v = roles[c.unpardonable as keyof Roles]

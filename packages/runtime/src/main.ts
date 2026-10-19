@@ -116,6 +116,8 @@ const people = new PeoplePanels({
   closeTrade: () => send({ t: 'closeTrade' }),
   pocket: (item, take) => send({ t: 'pocket', item, take }),
   closePockets: () => send({ t: 'closePockets' }),
+  gift: (item) => send({ t: 'gift', item }),
+  closeGift: () => send({ t: 'closeGift' }),
 })
 /** The skill bar, bottom left (Shift+1–6). */
 const skillbar = new SkillBar({ cast: (slot) => send({ t: 'cast', slot }), set: (slot, id) => send({ t: 'setSkill', slot, id }) })

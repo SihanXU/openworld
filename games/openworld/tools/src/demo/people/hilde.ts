@@ -25,6 +25,9 @@ export const hilde: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'A fish takes the bait when it is hungry, not when you are patient. People get that backwards.', '鱼饿了才咬钩，不是你有耐心它就咬。人们总把这弄反。'),
+    line('chat', 'Fog on the bend means eels in the morning. Rolf taught me that. It is still true.', '河湾起雾，早上就有鳗鱼。罗尔夫教我的。到现在还是对的。'),
     line('greeting:first', 'Hilde. I fish. If it\'s fish you want, I have fish. If it\'s talk, the forest is full of trees.', '我叫希尔德，打鱼的。你要鱼，我有鱼。你要聊天，林子里有的是树。'),
     line('default', 'Forty years on this water and I never once saw a god in it. Saw a great many eels.', '在这条河上四十年，我一次也没在水里看见过神。倒是看见过数不清的鳗鱼。'),
     line('default', 'Eels bite after dark, pike in the deep, sunfish when the sun is on the water. A rod is two sticks and two handfuls of grass. Bait makes them bite twice as fast.', '鳗鱼天黑以后咬钩，狗鱼在深水里，太阳鱼要等太阳照在水面上。两根树枝加两把草就是一根鱼竿。上了饵它们咬得快一倍。'),

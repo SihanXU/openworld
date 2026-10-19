@@ -1073,7 +1073,9 @@
                   "type": "string",
                   "enum": [
                     "persuade",
-                    "intimidate"
+                    "intimidate",
+                    "rob",
+                    "steal"
                   ]
                 },
                 "bonus": {
@@ -1114,6 +1116,30 @@
           },
           "required": [
             "canPay"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "favourite": {
+              "type": "object",
+              "properties": {
+                "of": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "item": {
+                  "$ref": "#/definitions/RoleName"
+                }
+              },
+              "required": [
+                "of"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "favourite"
           ],
           "additionalProperties": false
         },
@@ -1551,6 +1577,10 @@
         "fearTicks": {
           "type": "number",
           "description": "How long one fears a violent doer, in ticks."
+        },
+        "robEdge": {
+          "type": "number",
+          "description": "By how much a robber's might must exceed the victim's for a robbery to succeed (the `sway` roll `rob`; default 2)."
         },
         "markup": {
           "type": "number",

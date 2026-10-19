@@ -28,6 +28,9 @@ export const garrick: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'A good weld is quiet. A bad one tells you about it later.', '好的焊口是安静的。坏的以后会告诉你。'),
+    line('chat', 'Twelve smiths before me kept that pattern. Not one had the ore. I did not expect to be the one.', '我之前十二代铁匠守着那张图样。没一个有矿石。我没想过轮到我。'),
     line('greeting:first', 'Smith. Garrick. If you are here about the dragon, everyone is. If you are here about a horseshoe, you are the first this month.', '铁匠，加里克。要是为了魔龙来的——大家都是。要是为了马掌来的，你是这个月头一个。', { once: true }),
     line('default', 'Five iron ore and three coal. The old mine north of the square has both, and things that bite.', '五块铁矿石，三块煤。广场北边的旧矿坑两样都有，还有会咬人的东西。'),
     line('default', 'A pickaxe breaks a vein in two blows. Do not let the cyclops see you do it.', '镐子敲两下就能敲开矿脉。别让独眼巨人看见你在敲。'),

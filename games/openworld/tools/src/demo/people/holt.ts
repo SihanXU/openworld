@@ -26,6 +26,9 @@ export const holt: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'A quiet night is a good night. I have stopped wishing for interesting ones.', '安静的夜就是好夜。我已经不盼着有意思的夜了。'),
+    line('chat', 'Fennick taught me to stand still. Harder than it sounds. Try it for an hour.', '芬尼克教我站着不动。比听起来难。你站一个钟头试试。'),
     line('default', 'Peace inside the fence. Past the grassland, keep your blade out — and after dark, keep it out everywhere.', '围栏里是太平的。过了草原就把刀拔出来——天黑以后，哪儿都得拔着。'),
     line('hour:night', 'Hear that shuffling? The dead walk the wild at night. Not here, though. Never here.', '听见那拖着脚的声音没？夜里荒野上有亡灵游荡。不过不会进村，从来不会。'),
     line('fact:ch1.flame_stolen', 'I had him. I had him at the length of my spear, and he looked at me like I was a child, and walked away on the water.', '我差点就抓住他了。他就在我长矛够得着的地方，他看我的眼神像在看个孩子，然后踩着水走了。', { mood: 'angry' }),

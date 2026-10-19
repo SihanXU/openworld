@@ -27,6 +27,9 @@ export const wren: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'Fireweed stings the fingers when it\'s fresh. That is how you know it\'s worth picking.', '火焰草新鲜时会蜇手。这就是它值得采的证明。'),
+    line('chat', 'The books say dragons are patient. I have never seen anything patient breathe fire.', '书上说龙有耐心。我从没见过有耐心的东西会喷火。'),
     line('greeting:first', 'Oh! A traveller. Wren — herbs, salves, the occasional explosion. Mind the cauldron.', '哦！一位旅人。我叫雷恩——草药、药膏，偶尔炸个锅。小心别碰到锅。', { once: true }),
     line('default', 'Fireweed grows in open meadow; frostcap in the shade of the forest. Three of each, and I can brew against fire.', '火焰草长在开阔的草原上，霜盖菇长在森林的阴凉处。各三份，我就能熬出防火的药。'),
     line('default', 'The books say dragons call their young when they are hurt. The books do not say what to do about it.', '书上说，龙受了伤会召唤幼龙。书上没说该怎么办。'),

@@ -25,6 +25,9 @@ export const ezra: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'The road teaches the feet before it teaches the heart. My feet have learnt a great deal.', '路先教会脚，再教会心。我的脚已经学了很多。'),
+    line('chat', 'At the Rest they give you bread. On the road you give it away. That is the whole pilgrimage, if you ask me.', '在驿站他们给你面包。在路上你把它送出去。要我说，这就是整个朝圣。'),
     line('greeting:first', 'Ezra. A penitent. I walk the road east a little further every year, and kneel at the shrines.', '我叫以斯拉，一个苦修者。我每年都往东多走一小段，在圣龛前跪拜。'),
     line('default', 'The shrines want what their suffering asks. The crown, something for the head. The scourge, a cord. I have given them all my cords.', '圣龛要的是它那一苦要的东西。荆冠要头上戴的东西，鞭刑要一根绳。我的绳子都已经给它们了。'),
     line('default', 'Every stroke I take is one Astra need not. That is what they taught me at the Rest. It helps, to think it helps.', '我每挨一下，阿斯特拉就少挨一下。驿站里是这么教我的。能让人觉得有用，本身就有用。'),
