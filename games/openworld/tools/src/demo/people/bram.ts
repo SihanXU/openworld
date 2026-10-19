@@ -27,6 +27,10 @@ export const bram: PersonDef = {
   },
   tags: ['stationary'],
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'I was quicker than you once. Then I was quicker than nobody. That is how it goes.', '我曾经比你快。后来谁都比我快。事情就是这样。'),
+    line('chat', 'Rest is a drill too. The young never believe me.', '休息也是一种训练。年轻人从来不信。'),
+    line('favourite', 'The one thing that still makes an old man smile is {favourite}. Tobin knows it. Tobin charges accordingly.', '还能让老头子笑的只有{favourite}一样东西。托宾知道。托宾收钱也按这个来。'),
     // said once, at whatever level one first comes by: the road opens at level five
     line('greeting:first', 'Off the mountain, are you. Once you have a few fights in you — level five — I set people on a road: dagger, sword and shield, bow or staff. Pick when you are ready.', '从山上下来的？打过几场像样的仗、到了五级，我就给人指条路：匕首、剑盾、弓，还是法杖。准备好了就选。', { once: true }),
     line('default', 'Pick a road and walk it. Change your mind if you must — but you start that road again from the first step.', '选一条路，就走下去。真要改也行——只是新路得从头走起。'),

@@ -26,6 +26,9 @@ export const cass: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'The loom talks if you listen. A dropped thread sounds different from a tight one.', '织机会说话，只要你听。断了的线和绷紧的线声音不一样。'),
+    line('chat', 'Gus snores like the kiln. Thirty years, and I still sleep through it. Mostly.', '格斯打呼像窑炉一样。三十年了，我照样睡得着。多半时候。'),
     line('greeting:first', "You're new. I'm Cass — Gus's wife, though most days I'd say he's the wood's husband.", '你是新来的吧。我叫卡丝——格斯的老婆，不过多数时候我觉得他是那片林子的丈夫。', { once: true }),
     line('default', 'Wool from the grassland, dye from the herbs, and a winter coming that wants every inch of it.', '羊毛来自草原，染料来自草药，冬天要来了，每一寸布都用得上。'),
     line('default', "Gus says the fire eats every day. So does Gus. So do I. Somebody has to keep the house while they're both eating.", '格斯说火天天都要吃。格斯也天天要吃。我也是。总得有人在他们吃的时候看着家。'),

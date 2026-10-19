@@ -67,6 +67,8 @@ export const SOCIAL: SocialParams = {
   gossipDays: 3,
   perceiveEvery: 10,
   fearTicks: 600,
+  // a robbery takes twice the victim's might (level, arms, defence, body): one overwhelmed gives up what it has
+  robEdge: 2,
   markup: 0.25,
   markdown: 0.5,
   fence: 0.5,
@@ -116,10 +118,15 @@ export const SOCIAL_STATUSES: StatusDef[] = [
   { id: 'warned', name: L('has warned', '警告过了'), duration: HOUR },
   { id: 'warned-blade', name: L('has warned of the blade', '提醒过收刀'), duration: 300 },
   { id: 'pursuing', name: L('pursuing', '追捕中'), duration: 300 },
-  // talked round once today
+  // talked round once today (a guard, stopped and asked to let one go)
   { id: 'persuaded', name: L('talked round', '已被说服过'), duration: TICKS_PER_DAY },
+  // robbed, or a hand tried in their pocket, once today
+  { id: 'robbed', name: L('robbed today', '今天被抢过'), duration: TICKS_PER_DAY },
+  { id: 'pilfered', name: L('a hand in the pocket today', '今天被摸过口袋'), duration: TICKS_PER_DAY },
   // told there are no gods, once today
   { id: 'doubted', name: L('heard the unbeliever', '听过无神论了'), duration: TICKS_PER_DAY },
+  // given the thing they like best today (its special warmth comes once a day)
+  { id: 'cheered', name: L('delighted', '欢喜'), duration: TICKS_PER_DAY },
   // in the cells
   { id: 'jailed', name: L('jailed', '关押中'), immobilize: true },
 ]
@@ -145,6 +152,8 @@ const FOLLOWS: Cond = { leads: ['actor', 'host'] }
 const GRUDGE: Cond = { grudge: { of: 'host', toward: 'actor' } }
 const WANTED: Cond = { bounty: { role: 'actor', cmp: { gt: 0 } } }
 const BRIBE = 10
+/** One grown: a child (under eighteen, the `minor` tag) is never robbed, stolen from or preached unbelief. */
+const GROWN: Cond = not(tag('host', 'minor'))
 /** The Held Ground, its residents' home (SOCIAL.residence). */
 const RESIDENCE = SOCIAL.residence!
 /** Asked to come and live in the Held Ground: what each part of it takes (the talk verb's condition is all of them). */
@@ -161,6 +170,9 @@ const INVITE = {
 
 export const TALK: TalkVerb[] = [
   { id: 'ask', label: L('What news?', '最近有什么事？') },
+  // a chat: one of their own lines for it, or what they like best let slip (people.ts chat); a gift: the panel (§2.15)
+  { id: 'chat', label: L("Let's talk a while.", '聊聊天吧。') },
+  { id: 'gift', label: L('I have something for you.', '送你一样东西。') },
   { id: 'trade', label: L("Let's trade.", '做点买卖吧。'), when: { is: { role: 'host', sel: MERCHANT } } },
   { id: 'profession', label: L('About professions…', '关于职业……'), when: { is: { role: 'host', sel: { type: 'actor/person/trainer' } } } },
   // the Held Ground's steward: its land, grounds and buildings (haven.ts)
@@ -174,11 +186,12 @@ export const TALK: TalkVerb[] = [
   { id: 'wait', label: L('Wait here.', '在这儿等着。'), when: all(FOLLOWS, not({ prop: { role: 'host', key: 'waiting', cmp: true } })) },
   { id: 'come', label: L("Let's go on.", '我们走吧。'), when: all(FOLLOWS, { prop: { role: 'host', key: 'waiting', cmp: true } }) },
   { id: 'dismiss', label: L('Go home.', '回家去吧。'), when: FOLLOWS },
-  { id: 'persuade', label: L('Persuade', '说服'), when: not(has('host', 'persuaded')) },
   { id: 'bribe', label: L(`Bribe (${BRIBE})`, `贿赂（${BRIBE}）`), when: COINS(BRIBE) },
-  { id: 'intimidate', label: L('Intimidate', '恐吓') },
-  // to speak against the gods (lowers one's faith; the devout take it ill): once a day to each
-  { id: 'unbelief', label: L('There are no gods watching, you know.', '散布无神论：其实根本没有神在看着。'), when: not(has('host', 'doubted')) },
+  // robbery (might against might: no roll) and theft (a roll of nimbleness): once a day to each, never a child
+  { id: 'rob', label: L('Your money or your life.', '抢劫：要钱还是要命。'), when: all(GROWN, not(has('host', 'robbed'))) },
+  { id: 'steal', label: L('(Slip a hand into their pocket.)', '偷窃：（悄悄把手伸进他的口袋。）'), when: all(GROWN, not(has('host', 'pilfered'))) },
+  // to speak against the gods (lowers one's faith; the devout take it ill): once a day to each, never to a child
+  { id: 'unbelief', label: L('There are no gods watching, you know.', '散布无神论：其实根本没有神在看着。'), when: all(GROWN, not(has('host', 'doubted'))) },
   // a guard who has stopped one the watch wants: these only
   { id: 'pay', arrest: true, label: L('Pay the fine ({bounty}).', '交罚金（{bounty}）。'), when: { canPay: { role: 'actor' } } },
   { id: 'jail', arrest: true, label: L('Go to jail.', '跟你去牢房。') },
@@ -269,6 +282,9 @@ const TALK_TREE: Tree = IF(
         // spoken to: what fits the moment (a quest, a line), and the talk opens
         [not(param('say', { ne: '' })), DO({ op: 'quest' }, { op: 'talk' })],
         [says('ask'), DO({ op: 'talk' }, { op: 'tell', to: 'actor' })],
+        // a chat: one of their chat lines, or — once — what they like best; a gift: the panel opens, the thing given is an act
+        [says('chat'), DO({ op: 'say', text: '@chat' })],
+        [says('gift'), DO({ op: 'panel', panel: 'gift' })],
         // a quest's verb (docs/quests.md §2.4): an offer taken on or turned down, a topic of a quest under way
         [says('quest'), DO({ op: 'quest' })],
         [
@@ -301,14 +317,6 @@ const TALK_TREE: Tree = IF(
         [says('come'), DO({ op: 'setProp', key: 'waiting', value: false }, say('Right behind you.', '我跟着你。'))],
         [says('dismiss'), DO({ op: 'follow' }, say("I'll head home, then.", '那我回家了。'))],
         [
-          says('persuade'),
-          IF(
-            { sway: { of: 'host', by: 'actor', how: 'persuade' } },
-            DO(add('persuaded'), regard(10), { op: 'settle' }, say('…You make a fair point.', '……你说得有道理。'), emote('happy')),
-            DO(add('persuaded'), regard(-3), say('Hm. No.', '嗯。不行。')),
-          ),
-        ],
-        [
           says('bribe'),
           IF(
             COINS(BRIBE),
@@ -316,16 +324,27 @@ const TALK_TREE: Tree = IF(
             DO(say('With what?', '拿什么给？')),
           ),
         ],
+        // a child is left alone: robbed, stolen from or preached at, nothing comes of it
+        [all(any(says('rob'), says('steal'), says('unbelief')), tag('host', 'minor')), DO(say("…I'm going to tell my mother.", '……我要去告诉妈妈。'), emote('surprised'))],
+        // robbed: might against might (the social numbers' robEdge) — overwhelmed, they hand over half their coin and their
+        // two dearest things and fear the robber; not, they beat the robber down to one point of health. Either way
+        // they think far less of them, and no second robbery today
         [
-          says('intimidate'),
+          says('rob'),
           IF(
-            { sway: { of: 'host', by: 'actor', how: 'intimidate' } },
-            DO({ op: 'fear' }, { op: 'settle' }, regard(-10), say('A-all right! I never saw a thing!', '好、好吧！我什么都没看见！'), emote('surprised')),
-            IF(
-              any({ prop: { role: 'host', key: 'fights', cmp: true } }, tag('host', 'watchman')),
-              DO(regard(-15), { op: 'foe' }, say('You picked the wrong one.', '你找错人了。'), emote('angry')),
-              DO(regard(-15), say("You don't scare me.", '你吓不倒我。'), emote('angry')),
-            ),
+            { sway: { of: 'host', by: 'actor', how: 'rob' } },
+            DO(add('robbed'), { op: 'plunder', coins: 0.5, items: 2 }, { op: 'fear' }, regard(-40), say("T-take it! Take it and go!", '拿、拿去！拿了就走！'), emote('surprised')),
+            DO(add('robbed'), emit('notify', 'actor', { what: 'beaten', left: 1 }), regard(-60), say('Your life, then. Lie there and think about it.', '那就要你的命好了。躺着好好想想吧。'), emote('angry')),
+          ),
+        ],
+        // a hand in their pocket: a roll of the thief's nimbleness against their perception — unnoticed, a third of their
+        // coin and their dearest thing are gone; caught, they beat the thief to half their health and think far less of them
+        [
+          says('steal'),
+          IF(
+            { sway: { of: 'host', by: 'actor', how: 'steal' } },
+            DO(add('pilfered'), { op: 'plunder', coins: 0.34, items: 1 }),
+            DO(add('pilfered'), emit('notify', 'actor', { what: 'beaten', share: 0.5 }), regard(-40), say('Hands off, thief!', '把手拿开，小偷！'), emote('angry')),
           ),
         ],
         [
@@ -412,13 +431,16 @@ export const PERSON_NEWS = (rest: Tree): Tree =>
   IF(what('regard'), DO({ op: 'regard', delta: { param: 'delta' } }),
   IF(what('give'), DO({ op: 'give', to: 'source' }),
   IF(what('surrender'), DO({ op: 'surrender' }),
+  // beaten by one robbed or caught with a hand in their pocket: down to a share of one's health, or to what is left
+  IF(all(what('beaten'), param('share', { gt: 0 })), DO({ op: 'beaten', share: { param: 'share' } }),
+  IF(what('beaten'), DO({ op: 'beaten', left: { param: 'left' } }),
   IF(what('jail'), DO({ op: 'jail' }),
   IF(what('chat'), DO({ op: 'tell', to: 'other' }),
   IF(what('news'), DO({ op: 'hear' }),
   IF(what('calm'), DO({ op: 'calm' }),
   // a cry for help: one who fights (a guard, the smith) takes the attacker as its foe; the rest keep away from them
   IF(what('help'), IF(any({ prop: { role: 'host', key: 'fights', cmp: true } }, tag('host', 'watchman')), DO({ op: 'foe' }), DO({ op: 'fear' })),
-  rest))))))))))
+  rest))))))))))))
 
 export const SOCIAL_RULES: Rule[] = [
   rule({
@@ -435,7 +457,7 @@ export const SOCIAL_RULES: Rule[] = [
   rule({
     id: 'people/talk',
     label: L('Talk to {target}', '和{target}说话'),
-    doc: 'A hand on a person: a quest they have for you, else what fits the moment, and their talk opens (§2.9). Asked (a talk verb): news, to follow, to wait, persuaded, bribed, threatened, an apology, what was taken given back, stopped by the watch; a word no rule knows is theirs to answer (the AI\'s).',
+    doc: 'A hand on a person: a quest they have for you, else what fits the moment, and their talk opens (§2.9). Asked (a talk verb): news, a chat (one of their chat lines, or once what they like best), a gift (the panel), to follow, to wait, bribed, robbed (might against might: overwhelmed they hand over coin and goods, else they beat the robber to a point of health), a hand in their pocket (a roll of nimbleness: unnoticed it takes coin and a thing, caught the thief is beaten to half), told there are no gods, an apology, what was taken given back, stopped by the watch; a child is never robbed, stolen from or preached at; a word no rule knows is theirs to answer (the AI\'s).',
     host: PERSON,
     on: 'impulse/handle',
     tree: TALK_TREE,

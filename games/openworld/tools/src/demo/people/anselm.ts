@@ -26,6 +26,9 @@ export const anselm: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'A book is only paper until a hand that can do the thing holds it. Mine cannot. Yours might.', '书只是纸，直到一双能做成那件事的手拿起它。我的手不行。你的也许行。'),
+    line('chat', 'The monastery over the pass copied by candlelight. You can tell the winter books by the wax drops.', '山口那边的修道院是点着蜡烛抄书的。冬天抄的书，从蜡滴就能认出来。'),
     line('greeting:first', 'Welcome to Firstlight\'s chapel. Sister Ilse keeps the flame; I keep the books. They teach what the hands can learn: a strike, a step, a word of fire. Take one to the light and read it — it will stay with you.', '欢迎来到初原村的礼拜堂。伊尔丝修女守着圣火，我守着这些书。书教的是手能学会的东西：一击、一步、一句火焰的咒语。拿一本到光下读，它就会留在你身上。', { once: true }),
     line('default', 'The common books are for anyone. The ones for a road — dagger, shield, bow or staff — are dearer, and teach only those who walk it.', '普通的书谁都能学。走某条路的书——匕首、盾、弓或法杖——贵一些，也只教走那条路的人。'),
     line('default', 'I have read every book on that stand. I cannot do a single thing in them. Reading is not the same as learning; remember that.', '那个书架上的书我每一本都读过。书里的东西我一样也做不到。读了不等于学会，记住这一点。'),

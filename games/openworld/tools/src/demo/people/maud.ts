@@ -23,6 +23,9 @@ export const maud: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'Wynn asks why the sun is tired. I tell her it is not. Then I lie awake wondering if I lied.', '温恩问我太阳为什么累了。我说它没有。然后我整夜睡不着，想我是不是撒了谎。'),
+    line('chat', 'Packing for a pilgrimage is easy. It is the unpacking you never plan for.', '为朝圣收拾行李很容易。从来没人计划过怎么拆开它。'),
     line('greeting:first', 'Another pilgrim? You\'re braver than me. We were meant to go on to the Holy City. Then we heard about the knight.', '又一个朝圣者？你比我勇敢。我们本来要去圣城的。后来听说了那个骑士的事。'),
     line('default', 'Wynn\'s grandmother taught her a rhyme about the White Knight. It used to be a nice rhyme.', '温的奶奶教过她一首关于白骑士的童谣。以前那是首好听的童谣。'),
     line('default', 'The hostel book has a page of names that went east. I read it every night. I shouldn\'t.', '客舍的名册里有一页，全是往东去了的人名。我每晚都翻。我不该翻的。', { mood: 'sad' }),

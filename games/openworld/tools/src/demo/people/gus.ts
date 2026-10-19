@@ -39,6 +39,9 @@ export const gus: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'Pine splits clean. Oak argues. Birch — birch just wants to be left alone.', '松木劈得干脆。橡木跟你较劲。桦木——桦木只想被放过。'),
+    line('chat', 'Cass says I talk to the trees. I say the trees started it.', '卡丝说我跟树说话。我说是树先开的口。'),
     // the news the story spreads (its topics), said once while fresh
     line('topic:flame_stolen', "The fire is out at the shrine. Mine is not. I will keep it so.", "神龛那边的火灭了。我这儿的没灭。我会让它一直烧着。"),
     line('default', 'Every day the fire eats. Every day I feed it. My back has opinions about this.', '火天天都要吃，我天天都得喂。我的腰对此很有意见。'),

@@ -28,6 +28,9 @@ export const haldor: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'Garrick\'s forge was always hotter than mine. He said that was the point. I think he just liked the sweat.', '加里克的炉子总比我的烫。他说这才是重点。我觉得他只是喜欢出汗。'),
+    line('chat', 'Shoeing a horse teaches you patience. The horse has none and you need enough for both.', '给马钉掌教人耐心。马一点也没有，你得够两个用。'),
     line('greeting:first', 'A new face! Haldor, the smith. The forge is lit and the anvil is free — bring ore and coal, carry a hammer, and you can make your own. I sell the hammer.', '新面孔！我是哈尔多，铁匠。炉子点着，铁砧空着——带上矿石和煤，手里拿着锻锤，你自己就能打。锻锤我这儿有卖。', { once: true }),
     line('default', 'Two ore and a lump of coal in the forge make two bars. Then the anvil: a dagger, a spear, a helmet — start small.', '两块矿石加一块煤，放进炉子能炼出两块锭。然后上铁砧：匕首、长矛、头盔——先从小的打起。'),
     line('default', 'The better you know the craft, the better what you make. Masterwork does not come on the first day.', '手艺越熟，打出来的东西越好。杰作可不是第一天就能出的。'),

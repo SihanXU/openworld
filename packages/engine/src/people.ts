@@ -6,8 +6,8 @@
 import type { Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import { isA } from './ontology.ts'
-import type { Entity, LineDef, Mood, NpcMemory, PropValue, ScheduleEntry, Text } from './types.ts'
-import { TOPIC_DAYS } from './world.ts'
+import type { Entity, Id, LineDef, Mood, NpcMemory, PropValue, ScheduleEntry, Text } from './types.ts'
+import { TOPIC_DAYS, type World } from './world.ts'
 
 /** What a person remembers of talking: their own record (world-model.md §3). */
 export function memoryOf(e: Entity): NpcMemory {
@@ -73,6 +73,11 @@ export interface LineContext {
   record?: boolean
   /** only a line on a fresh topic (the story's news), or none: what they tell when asked for news */
   topicOnly?: boolean
+  /**
+   * A chat (the talk's `chat` verb): one of their `chat` lines, or the one that tells what they like best (their
+   * `favourite` prop: their own `favourite` line, else FAVOURITE_LINE) — said until the listener has heard it.
+   */
+  chat?: boolean
 }
 
 export interface ChosenLine {
@@ -91,12 +96,20 @@ export function chooseLine(eng: Engine, e: Entity, ctx: LineContext = {}): Chose
   if (!lines?.length) return undefined
   const w = eng.world
   const cal = w.calendar()
+  // (the one listening: the one at the keys — the people talk among themselves by other means, gossip.ts)
+  const listener: Id | undefined = w.state.player
   // what they remember is theirs: only their own outcome records it (a line the story has them say is not)
   const mem = ctx.record === false ? { ...memoryOf(e) } : memoryOf(e)
   const said = new Set(mem.said ?? [])
+  const fav = favouriteOf(w, e)
+  const liked = !!ctx.given && !!fav && isA(ctx.given.type, fav)
   const rank = (l: LineDef): number => {
     const k = l.key
+    if (ctx.chat) return k === 'chat' ? 10 : k === 'favourite' && favouriteOf(w, e) && !toldFavourite(e, listener) ? 10 : -1
+    if (k === 'chat' || k === 'favourite') return -1
     if (ctx.given) {
+      // the kind they like best: their own word for it, else the world's (FAVOURITE_GIVEN_LINE), over any other
+      if (k === 'given:favourite') return liked ? 90 : -1
       if (k.startsWith('given:') && isA(ctx.given.type, k.slice(6))) return 50 + k.length
       if (k === 'given') return 10
       return -1
@@ -113,7 +126,11 @@ export function chooseLine(eng: Engine, e: Entity, ctx: LineContext = {}): Chose
   }
   let best = -1
   let pool: LineDef[] = []
-  for (const l of lines) {
+  // a chat: what they like best is one of the things to say, in their own words or the world's, until it is heard
+  const favourite: LineDef[] = ctx.chat && favouriteOf(w, e) && !toldFavourite(e, listener) && !lines.some((l) => l.key === 'favourite') ? [{ key: 'favourite', text: FAVOURITE_LINE }] : []
+  // handed the kind they like best with no word of their own for it: the world's
+  if (liked && !lines.some((l) => l.key === 'given:favourite')) favourite.push({ key: 'given:favourite', text: FAVOURITE_GIVEN_LINE, mood: 'happy' })
+  for (const l of [...lines, ...favourite]) {
     const onceKey = lineId(l)
     if ((l.once || l.key.startsWith('topic:') || l.key === 'greeting:first') && said.has(onceKey)) continue
     const r = rank(l)
@@ -128,6 +145,8 @@ export function chooseLine(eng: Engine, e: Entity, ctx: LineContext = {}): Chose
   const id = lineId(pick)
   mem.last = id
   if (pick.once || pick.key.startsWith('topic:') || pick.key === 'greeting:first') mem.said = [...(mem.said ?? []), id]
+  // told what they like best: the listener knows it now (the gift panel says so)
+  if (pick.key === 'favourite' && listener && !toldFavourite(e, listener)) mem.toldFavourite = [...(mem.toldFavourite ?? []), listener]
   // the person's own record (design.md §5.5): whom they have met is theirs, not the story's
   if (!ctx.given) mem.talked = cal.day
   return { text: fill(eng, e, pick.text, ctx), mood: pick.mood, key: pick.key }
@@ -135,13 +154,29 @@ export function chooseLine(eng: Engine, e: Entity, ctx: LineContext = {}): Chose
 
 const lineId = (l: LineDef) => `${l.key}|${typeof l.text === 'string' ? l.text : l.text.en}`.slice(0, 120)
 
-/** Fill the slots of a line: {player} {name} {friend:<id>} {fact:<key>} {item}. */
+/** The kind of thing a person likes best (its `favourite` prop: an item type of the world's), if any. */
+export function favouriteOf(w: World, e: Entity): string | undefined {
+  const f = w.prop(e, 'favourite')
+  return typeof f === 'string' && f && w.onto.hasType(f) ? f : undefined
+}
+
+/** Whether a person has told someone what they like best. */
+export function toldFavourite(e: Entity, who: Id | undefined): boolean {
+  return !!who && !!e.npc?.memory?.toldFavourite?.includes(who)
+}
+
+/** Fill the slots of a line: {player} {name} {friend:<id>} {fact:<key>} {item} {favourite}. */
 function fill(eng: Engine, e: Entity, t: Text, ctx: LineContext): Text {
   const one = (s: string, locale: 'en' | 'zh') =>
-    s.replace(/\{(player|name|item|friend:[^}]+|fact:[^}]+)\}/g, (_, slot: string) => {
+    s.replace(/\{(player|name|item|favourite|friend:[^}]+|fact:[^}]+)\}/g, (_, slot: string) => {
       if (slot === 'player') return eng.nameOf({ e: eng.world.state.player }, locale)
       if (slot === 'name') return eng.nameOf({ e: e.id }, locale)
       if (slot === 'item') return ctx.given ? eng.nameOf({ e: ctx.given.id }, locale) : ''
+      if (slot === 'favourite') {
+        const f = favouriteOf(eng.world, e)
+        const n = f ? eng.world.onto.resolve(f).name : undefined
+        return typeof n === 'string' ? n : (locale === 'zh' ? n?.zh : undefined) ?? n?.en ?? f ?? ''
+      }
       if (slot.startsWith('friend:')) return eng.nameOf({ e: slot.slice(7) }, locale)
       return String(eng.world.fact(slot.slice(5)) ?? '')
     })
@@ -150,3 +185,7 @@ function fill(eng: Engine, e: Entity, t: Text, ctx: LineContext): Text {
 
 /** The default when a person is handed something and has no line for it. */
 export const GIVEN_LINE: Text = { en: 'For me? … Thank you.', zh: '给我的？……谢谢。' }
+/** The default when a person is handed the kind of thing they like best and has no `given:favourite` line. */
+export const FAVOURITE_GIVEN_LINE: Text = { en: '{item}! You remembered. …Thank you. Truly.', zh: '{item}！你记住了。……谢谢你。真的。' }
+/** The default chat that tells what a person likes best, when they have no `favourite` line of their own. */
+export const FAVOURITE_LINE: Text = { en: "Between us — I've always had a soft spot for {favourite}. Don't tell anyone.", zh: '跟你说个小秘密——我一直很喜欢{favourite}。别告诉别人。' }

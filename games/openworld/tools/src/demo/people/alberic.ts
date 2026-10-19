@@ -28,6 +28,9 @@ export const alberic: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'The mist moves at night. I count the tent pegs each morning. Same number, so far.', '迷雾夜里会动。每天早上我都数一遍帐篷桩。到目前为止数目没变。'),
+    line('chat', 'You have a name. I asked it once. Forgive me if I ask it again — it does not stay.', '你有名字。我问过一次。要是再问，请原谅我——它留不住。'),
     line('greeting:first', 'You came back. Good. The ground is quiet while you are away; I keep it so.', '你回来了。很好。你不在的时候，这片土地很安静；我让它保持安静。'),
     line('default', 'I will hold until I am relieved. You relieved me — so now I hold for you. It is the same vow, turned round.', '我将坚守，直到有人来接替我。你接替了我——所以现在我为你坚守。还是同一个誓言，只是转了个方向。'),
     line('default', 'Plant what you like. Build what you like. Nothing here needs to kneel.', '想种什么就种什么。想建什么就建什么。这里没有什么需要下跪。'),

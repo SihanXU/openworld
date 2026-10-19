@@ -29,6 +29,9 @@ export const fennick: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'Armour is heavy the first year. After that you forget you wear it. Then one day you take it off, and fall over.', '盔甲第一年很沉。之后你就忘了身上穿着它。然后有一天你脱下来，人就倒了。'),
+    line('chat', 'He asked my name every morning for a month before I understood. I kept answering. What else do you do?', '他连着一个月每天早上问我的名字，我才明白过来。我一直回答。还能怎么办呢？'),
     line('greeting:first', 'Sit if you like. Don\'t ask about the armour.', '想坐就坐。别问盔甲的事。'),
     line('default', 'I carried a lance for the Seal-bearers once. Long time ago. Long enough.', '我曾经为持印者扛过长枪。很久以前了。久到够了。'),
     line('fact:ch1.letter', 'The White Knight. Alberic. He used to kneel to children. Now he makes the world kneel to him. That is what the crown does.', '白骑士。阿尔贝里克。他以前会对孩子单膝下跪。现在他要整个世界向他下跪。那顶冠冕就是这样改变人的。', { mood: 'sad' }),

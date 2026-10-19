@@ -673,6 +673,8 @@ export function buildOntology(): Ontology {
         'devout',
         // one the main story needs where they are: not asked to come and live on a home ground (social.ts residence)
         'storybound',
+        // a child, under eighteen by their record's age: never robbed, stolen from or preached unbelief (social.ts)
+        'minor',
       ]),
     ],
   }

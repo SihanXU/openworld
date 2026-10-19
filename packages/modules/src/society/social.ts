@@ -7,7 +7,7 @@
 //
 // Nothing here asks whether one is the player (CLAUDE.md): anyone can steal, see, tell, be wanted.
 
-import { DIRS, TICKS_PER_DAY, evalCond, levelFactor, type DeedDef, type DeedMemory, type Engine, type Entity, type GameEvent, type Id, type LawDef, type Look, type NpcMemory, type Pos, type PropValue, type Ref, type Roles, type SocialParams, type TalkOption, type TalkVerb, type Text } from '@openworld/engine'
+import { DIRS, TICKS_PER_DAY, evalCond, favouriteOf, isA, levelFactor, toldFavourite, weaponOf, type DeedDef, type DeedMemory, type Engine, type Entity, type GameEvent, type Id, type LawDef, type Look, type NpcMemory, type Pos, type PropValue, type Ref, type Roles, type SocialParams, type TalkOption, type TalkVerb, type Text } from '@openworld/engine'
 
 /** The social numbers when the world gives none (the content gives its own). */
 export const SOCIAL_DEFAULTS: SocialParams = {
@@ -227,6 +227,34 @@ export class Social {
     const victim = seen.roles.target ? this.w.get(seen.roles.target.e) : undefined
     if (def.violent && victim?.ai?.foes?.includes(e.id)) return 0
     return this.moral(e, 'karma', -Math.max(1, Math.round(def.weight / 4)))
+  }
+
+  // ---------------------------------------------------------------- gifts (§2.15)
+
+  /** The kind of thing one likes best (its `favourite` prop, an item type of the world's), if any. */
+  favourite(e: Entity): string | undefined {
+    return favouriteOf(this.w, e)
+  }
+
+  /** Whether one has told another what one likes best (said in a chat, people.ts). */
+  toldFavourite(e: Entity, who: Id): boolean {
+    return toldFavourite(e, who)
+  }
+
+  /** A thing is of the kind one likes best (the type, or a kind of it). */
+  isFavourite(e: Entity, thing: Entity): boolean {
+    const f = this.favourite(e)
+    return !!f && isA(thing.type, f)
+  }
+
+  /**
+   * How warmly one would take a thing as a gift (the gift panel's hearts): by its worth — 1 a trifle (under 5),
+   * 2 a kindness (under 20), 3 a treasure — and 4 the kind one likes best.
+   */
+  giftWarmth(e: Entity, thing: Entity): number {
+    if (this.isFavourite(e, thing)) return 4
+    const v = this.value(thing)
+    return v < 5 ? 1 : v < 20 ? 2 : 3
   }
 
   /** A word for a regard (the talk panel names it). */
@@ -661,12 +689,37 @@ export class Social {
     return w.rand() < Math.min(0.95, chance)
   }
 
-  /** A roll of one swaying another (the `sway` condition): persuading by regard and the speaker's level, cowing by levels and arms. */
-  sway(of: Entity, by: Entity, how: 'persuade' | 'intimidate', bonus = 0): boolean {
+  /**
+   * One's might in a scuffle (the `rob` roll): its level, its attack and the weapon it fights with, its defence and
+   * its body — the numbers a fight is reckoned by (engine.ts, World.stat), read as they stand now.
+   */
+  might(e: Entity): number {
+    const w = this.w
+    const weapon = weaponOf(w, e)
+    const attack = w.stat(e, 'atk', 1) + (weapon ? w.num(weapon, 'power', 0) : 0)
+    const base = w.num(e, 'level', 1) * 2 + attack * 2 + w.stat(e, 'def') + w.num(e, 'maxHp', 1) / 10
+    // one who fights (a guard, the smith) stands its ground: half again
+    return w.prop(e, 'fights') === true || !!w.prop(e, 'watch') ? base * 1.5 : base
+  }
+
+  /** One's nimbleness (the `steal` roll): its stealth, its dodge, how fast it moves, and what its levels taught it. */
+  nimbleness(e: Entity): number {
+    const w = this.w
+    return w.stat(e, 'stealth') + w.stat(e, 'dodge') + w.stat(e, 'moveHaste') / 2 + (w.num(e, 'level', 1) - 1) * 2
+  }
+
+  /**
+   * A roll of one prevailing over another (the `sway` condition): persuading by regard and the speaker's level, cowing
+   * by levels and arms; robbing by might alone — no roll: the robber's must be `robEdge` times the victim's (one who
+   * is overwhelmed gives up what it has) —; stealing by the thief's nimbleness against the victim's perception.
+   */
+  sway(of: Entity, by: Entity, how: 'persuade' | 'intimidate' | 'rob' | 'steal', bonus = 0): boolean {
     const w = this.w
     const lv = (e: Entity) => w.num(e, 'level', 1)
     let chance: number
+    if (how === 'rob') return this.might(by) >= this.might(of) * (this.params.robEdge ?? 2) + bonus
     if (how === 'persuade') chance = 0.3 + this.regard(of, by.id) / 200 + (lv(by) - 1) * 0.03 + w.stat(by, 'speech') / 100
+    else if (how === 'steal') chance = 0.2 + this.nimbleness(by) / 100 - (w.stat(of, 'perception', 10) - 10) / 100 + (w.hasStatus({ e: by.id }, 'sneaking') ? 0.1 : 0)
     else {
       const armed = w.hasStatus({ e: by.id }, 'drawn') ? 0.15 : 0
       const brave = w.prop(of, 'fights') === true || !!w.prop(of, 'watch') ? 0.3 : 0

@@ -50,6 +50,9 @@ export const tobin: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'Every charm on this cart has a story. Some of them are even true. I\'ll let you guess which.', '这车上每个护符都有一段故事。有些甚至是真的。哪些是真的，让你猜。'),
+    line('chat', 'Ask me where I\'m from and I\'ll tell you three places. One of them is right.', '问我从哪儿来，我会说三个地方。其中一个是对的。'),
     // the news the story spreads (its topics), said once while fresh
     line('topic:dragon_slain', "Emberfall is open again, they say, now the dragon is down. Good roads, good trade. I will drink to you, when someone else pays.", "听说龙一倒，余烬镇又通了。路好走，买卖就好做。我敬你一杯——等有人请客的时候。"),
     line('topic:crossed', "You crossed the Ford! Then the road east is yours to try. Bring me back something strange.", "你过了渡口！那东边的路就归你闯了。回来时给我带点稀奇东西。"),

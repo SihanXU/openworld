@@ -1814,7 +1814,9 @@
                   "type": "string",
                   "enum": [
                     "persuade",
-                    "intimidate"
+                    "intimidate",
+                    "rob",
+                    "steal"
                   ]
                 },
                 "bonus": {
@@ -1855,6 +1857,30 @@
           },
           "required": [
             "canPay"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "favourite": {
+              "type": "object",
+              "properties": {
+                "of": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "item": {
+                  "$ref": "#/definitions/RoleName"
+                }
+              },
+              "required": [
+                "of"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "favourite"
           ],
           "additionalProperties": false
         },
@@ -2121,6 +2147,13 @@
             "type": "number"
           },
           "description": "Whom they fear for now (they saw them do violence): run from them until the tick."
+        },
+        "toldFavourite": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Id"
+          },
+          "description": "Whom they have told what they like best (their `favourite` prop, said in a chat): the gift panel says it from then on."
         }
       },
       "additionalProperties": false,
