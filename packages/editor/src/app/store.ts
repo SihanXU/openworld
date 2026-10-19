@@ -3,7 +3,7 @@
 // Undo takes the last edit back and Redo makes it again (until another edit). The compiler runs here as it runs anywhere (it is pure): what the canvas draws
 // and what the validation panel lists are the project as it is now, saved or not.
 
-import { compile, type Compiled, type GameJson, type Project, type Sourced } from '@openworld/format'
+import { compile, compileMap, type Compiled, type GameJson, type Project, type Sourced } from '@openworld/format'
 import type { RawChunk } from '@openworld/engine'
 import { call } from './api.ts'
 
@@ -36,6 +36,12 @@ export class Store {
   private made?: Compiled
   private madeFor = -1
   private version = 0
+  /** The files changed since the project was compiled whole (`*`: several at once, unnamed). */
+  private changed = new Set<string>()
+  /** The whole compiled again once editing rests (after maps compiled alone). */
+  private whole?: ReturnType<typeof setTimeout>
+  /** How long editing rests before the whole is compiled again (ms). */
+  rest = 1200
 
   constructor(readonly id: string, p: Project) {
     this.docs.set('game.json', p.game)
@@ -54,6 +60,7 @@ export class Store {
   }
   private emit(why: string, file?: string): void {
     this.version++
+    this.changed.add(file ?? '*')
     // (inside a batch, said once when it ends: a change of many files draws the panels once)
     if (this.grouping !== undefined) return void (this.held = { why, file: this.held && this.held.file !== file ? undefined : file })
     for (const fn of this.listeners) fn(why, file)
@@ -221,12 +228,47 @@ export class Store {
     return p
   }
 
-  /** The project compiled as it is now (kept until the next edit). */
+  /**
+   * The project compiled as it is now (kept until the next edit). After edits to maps alone (a brush stroke), only those
+   * maps are compiled again and the rest is kept — a project of a thousand maps compiles in a second or more, too long
+   * for every stroke; the whole is compiled again once editing rests (its problems then; `compiled` said to listeners).
+   */
   compiled(): Compiled {
+    if (this.made && this.madeFor !== this.version && this.mapsAlone()) return this.made
     if (!this.made || this.madeFor !== this.version) {
+      clearTimeout(this.whole)
       this.made = compile(structuredClone(this.project()))
       this.madeFor = this.version
+      this.changed.clear()
     }
     return this.made
+  }
+
+  /** The changed maps compiled alone into the last compile, if only maps already in it changed; the whole after a rest. */
+  private mapsAlone(): boolean {
+    const files = [...this.changed]
+    if (!files.length || files.some((f) => !f.startsWith('maps/') || !this.docs.has(f))) return false
+    const made = this.made!
+    const project = this.project()
+    const chunks = [...made.chunks]
+    const maps = [...made.index.maps]
+    for (const f of files) {
+      const chunk = compileMap(project, f)
+      const i = chunks.findIndex((c) => c.map.id === chunk.map.id)
+      const j = maps.findIndex((m) => m.id === chunk.map.id)
+      if (i < 0 || j < 0) return false
+      chunks[i] = chunk
+      maps[j] = { ...maps[j], width: chunk.map.width, height: chunk.map.height, portals: chunk.map.portals }
+    }
+    this.made = { ...made, chunks, index: { ...made.index, maps } }
+    this.madeFor = this.version
+    this.changed.clear()
+    clearTimeout(this.whole)
+    this.whole = setTimeout(() => {
+      this.madeFor = -1
+      this.compiled()
+      for (const fn of this.listeners) fn('compiled')
+    }, this.rest)
+    return true
   }
 }

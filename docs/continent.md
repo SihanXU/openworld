@@ -1,10 +1,10 @@
 # The continent: regions, places, the backdrop
 
-Status: **agreed 2026-10-18, phases A–D built.** The world grows from the Frostfang Coast to hundreds of maps, thousands of
+Status: **agreed 2026-10-18, phases A–E built (2026-10-19).** The world grows from the Frostfang Coast to hundreds of maps, thousands of
 people and tens of thousands of things, most of them **backdrop** for now: the released demo is what is played today,
 with the rest of the continent walkable around it, filled in with played content later. This document is the plan for
-that growth (phases A–E) and the record of phases A (the continent itself) and B (its places: rooms, templates,
-each region's look, §10).
+that growth (phases A–E) and the record of each: A the continent itself (§1–§7), B its places (§10), D its goods
+(§11), C its people (§12) and the engine at this scale (§13), E the toolchain at this scale and the numbers (§8, §14).
 
 The user's decisions (2026-10-18):
 
@@ -143,19 +143,31 @@ The continent grew round the Frostfang Coast in the same cells: a save from befo
 `migrateOverworld` (v4) gives it the continent's sites; anything on a cell that is no longer open moves to the
 nearest that is.
 
-## 8. Numbers (phase A)
+## 8. Numbers
 
-| | Before | Phase A | Phase B |
-|---|---|---|---|
-| world map | 16×12, ~150 sites | 64×48, 2,135 sites | — |
-| maps | 59 (+ the overworld) | 276: 59 played, 196 backdrop places, 21 depths | 1,024: 59 played, 196 places, 21 depths, 748 rooms |
-| regions | 1 | 6 | 6, five with a look |
-| world map grounds | 8 | 18 | — |
-| fixtures in the world | | | 12,113 |
-| the world's files (`public/world/`) | | | 6.7 MB |
+The world as phases A–E leave it (2026-10-19; `npm run gen:world`, `npm run scale`, the wiki's `{{地区表}}`):
 
-Phase D added (§10): item kinds 216 → 1,013 (797 regional), things in the world 784 → 27,374 (27,200 of them in the
-backdrop, 2,080 kinds of thing by type and tags).
+| | Before (2026-10-17) | Now |
+|---|---|---|
+| the world map | 16×12, ~150 sites | 64×48, 2,135 sites; 18 grounds (8 before) |
+| regions | 1 | 6: the played one, and five of backdrop, each with its look |
+| maps | 59 played (+ the world map) | 1,024: 59 played; 965 backdrop — 196 places, 21 depths, 748 rooms |
+| people | 33 | 1,651: 33 who travel (the index), 1,618 of the backdrop in their households |
+| things placed | 784 | 40,932 (2,028 kinds of thing by type and tags), 12,179 fixtures |
+| item kinds | 216 | 1,013 (797 regional) |
+| the world's files (`public/world/`) | 2.8 MB | 16 MB (1.5 MB compressed); the index 0.93 MB (0.15 MB compressed), fetched at the start |
+| a save | 1.47 MB | 89 KB |
+
+By region (the backdrop: places, rooms, people, things):
+
+| Region | Places | Rooms | People | Things |
+|---|---|---|---|---|
+| Frostfang Coast (played, and its backdrop round it) | 22 | 44 | 100 | 2,455 |
+| The Scarred March | 40 | 127 | 288 | 6,298 |
+| The Vale of Scales | 37 | 160 | 337 | 10,979 |
+| The Pale Fens | 31 | 92 | 193 | 4,959 |
+| The White Altar Heights | 35 | 91 | 196 | 5,387 |
+| The Holy City | 31 | 234 | 502 | 10,680 |
 
 ## 9. The phases
 
@@ -175,8 +187,10 @@ backdrop, 2,080 kinds of thing by type and tags).
 - **D — goods** (built, §11): about a thousand kinds (regional forms, named pieces) and their stock in every shop, house
   and chest by settlement and region: tens of thousands of things. The coverage sweep samples by class where every
   pair is too many.
-- **E — scale checks**: a world-scale test (load the world, walk into fifty maps, time a tick, size a save), the
-  wiki's region pages, the backdrop's numbers in this document.
+- **E — scale checks** (built, §14): the world-scale run and its bounds (C's `npm run scale`, with the toolchain's
+  numbers beside it), the toolchain measured and made fit for the world (the compiler's rule checks, the editor's
+  compile after a stroke), the tests that failed only under a full run made steady, the wiki's region pages listing
+  each place with its rooms, people and things (`{{地区地点}}`, `{{地区表}}`), the numbers in one place (§8).
 
 ## 10. Places (phase B)
 
@@ -390,3 +404,33 @@ wilds, the overworld between — as the worker plays them; one machine, ms):
 
 The scale test (`continent.test.ts`, "the world at scale") holds these to bounds, and what is put away to coming back
 as it was.
+
+## 14. The toolchain at this scale (phase E)
+
+What the tools take over the world, measured on one machine (2026-10-19), and what was changed where it did not fit.
+
+| | Time | |
+|---|---|---|
+| `npm run gen:world` (every map made and written, the bundle) | 7 s | |
+| the project compiled whole (`compile`: the editor, the bake, `npm run game -- check`) | 1.2 s | was 4.4 s |
+| a map compiled alone (`compileMap`: the editor after a stroke) | 7 ms | was the whole compile, 4.4 s, every stroke |
+| `npm run wiki:check` (1,554 pages) / `wiki:build` | 1.7 s / 13 s | |
+| `npm test` (132 files, 1,527 tests, in parallel) | 275 s | |
+
+- **The compiler's rule checks** (`format/src/check.ts` `ruleProblems`) validate every rule as a patch
+  (`engine/src/mod.ts` `validatePatch`), which cloned the whole ontology and resolved every type's tags for each rule,
+  and the tie check made an ontology index afresh for every pair of hosts it compared. With 1,343 types (phase D) this was
+  most of a compile. The ontology is now taken as it is with what a patch adds beside it (never written), and its
+  index and its types' tags are kept for it while it holds as many types (`kept`, `allTypeTags`).
+- **The editor** compiled the whole project again on the frame after every edit, a brush stroke too
+  (`editor/src/app/store.ts`). After edits to maps alone it now compiles those maps alone into the last compile
+  (`compileMap`), and the whole once editing rests (`Store.rest`, 1.2 s), its problems with it (said as `compiled`).
+- **The files the game fetches** are held to bounds by the scale test (`continent.test.ts`, "the toolchain over the
+  world"): the index under 1.5 M characters, the largest map under 1 M, every map together under 25 M; a map compiled
+  alone is what the whole compile makes of it, in under a twentieth of the time.
+- **Steady under a full run**: two tests that talk to a mock model over HTTP (`modder.test.ts`, the OpenAI-compatible
+  adapter's; `agent.test.ts`, the frozen model's) failed now and then when every test ran at once — a kept connection
+  closed by the server as the client took it up again ("fetch failed"). Their mock servers close each connection after
+  its answer.
+
+`npm run scale` prints the toolchain's numbers after the engine's (`tools/src/demo/toolchain.ts`).

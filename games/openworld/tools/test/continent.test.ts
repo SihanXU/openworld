@@ -9,6 +9,9 @@ import { OVERWORLD, handmadeGrounds, readContinent } from '../src/demo/overworld
 import { CONTINENT_FILE, FORD, continentJson, generateContinent, inPocket } from '../src/demo/continent/generate.ts'
 import { CATALOG } from '../../client/src/catalog.ts'
 import { scaleRun } from '../src/demo/scale.ts'
+import { toolchainRun } from '../src/demo/toolchain.ts'
+import { compile, compileMap } from '@openworld/format'
+import { fordProject } from '../../client/scripts/bake.ts'
 
 // The continent's checks (docs/continent.md §6): the file is what the generator makes for the hand-made places as they
 // lie; every region of the lore is on it with its places; one walks everywhere from the far bank and the west bank
@@ -504,5 +507,22 @@ describe('the world at scale', () => {
     // what is sent is what is in view and what changed, not every place of the continent
     expect(r.overworldSentChars).toBeLessThan(r.overworldFrameChars / 10)
     expect(r.stateChars).toBeLessThan(150_000)
+  }, 300_000)
+
+  it('the toolchain over the world: the files it is fetched as stay small, a map compiles alone as the whole compiles it, in a sliver of the time', () => {
+    const t = toolchainRun()
+    // the index comes before anything is played; a map when it is entered (docs/continent.md §14)
+    expect(t.files).toBeGreaterThan(1000)
+    expect(t.indexChars).toBeLessThan(1_500_000)
+    expect(t.largestMapChars).toBeLessThan(1_000_000)
+    expect(t.worldChars).toBeLessThan(25_000_000)
+    // the editor compiles a map alone after a stroke, the whole once editing rests: the one must be a sliver of the other
+    expect(t.compileMapMs).toBeLessThan(t.compileMs / 20)
+    const project = fordProject()
+    const whole = compile(project)
+    for (const file of ['maps/meadow.json', 'maps/overworld.json', project.maps[project.maps.length - 1].file]) {
+      const one = compileMap(project, file)
+      expect([file, one]).toEqual([file, whole.chunks.find((c) => c.map.id === one.map.id)])
+    }
   }, 300_000)
 })

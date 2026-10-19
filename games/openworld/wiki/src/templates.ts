@@ -858,17 +858,20 @@ function lists(ctx: Ctx, name: string, args: string[]): string | undefined {
     // the continent's regions and the backdrop's places in one (docs/continent.md): no page each, a row each
     case '地区表': {
       const regions = (g.index.regions ?? []) as { id: string; name: { zh?: string; en: string }; backdrop?: boolean }[]
-      const count = (r: string) => g.index.maps.filter((m: any) => m.backdrop && m.region === r && !m.id.endsWith('.depths')).length
-      return table(['地区', 'English', '背景地点', '剧情'], regions.map((r) => [ctx.pages.has(zh(r.name)) ? ctx.link(zh(r.name)) : esc(zh(r.name)), esc(r.name.en), String(count(r.id)), r.backdrop ? '<span class="muted">尚未开放</span>' : '可玩']), 'wikitable')
+      const sum = (r: string, k: 'rooms' | 'people' | 'goods') => g.backdrop.filter((p) => p.region === r).reduce((n, p) => n + p[k], 0)
+      const n = (v: number) => v.toLocaleString('en')
+      return table(['地区', 'English', '背景地点', '房间', '居民', '货物', '剧情'], regions.map((r) => [ctx.pages.has(zh(r.name)) ? ctx.link(zh(r.name)) : esc(zh(r.name)), esc(r.name.en), n(g.backdrop.filter((p) => p.region === r.id).length), n(sum(r.id, 'rooms')), n(sum(r.id, 'people')), n(sum(r.id, 'goods')), r.backdrop ? '<span class="muted">尚未开放</span>' : '可玩']), 'wikitable')
     }
     case '地区地点': {
       const region = args[0] ?? ''
-      const sites = new Map<string, string>()
-      for (const c of g.chunks) for (const e of c.entities) if (typeof e.props?.map === 'string' && e.type.startsWith('site/place/')) sites.set(e.props.map, e.type.split('/').pop()!)
-      const KIND: Record<string, string> = { village: '村庄', town: '城镇', city: '城区', farm: '农庄', mill: '磨坊', camp: '营地', ruin: '遗迹', shrine: '神龛', cave: '洞窟', mine: '矿坑', tower: '塔', graveyard: '墓园', fort: '要塞', battlefield: '古战场', cathedral: '修道院', seat: '持印者之座' }
-      const all = g.index.maps.filter((m: any) => m.backdrop && m.region === region)
-      const rows = all.filter((m: any) => !m.id.endsWith('.depths')).map((m: any) => [esc(zh(m.name)), esc(m.name.en), esc(KIND[sites.get(m.id) ?? ''] ?? '—') + (all.some((d: any) => d.id === `${m.id}.depths`) ? '（下有深处）' : ''), `${m.width}×${m.height}`])
-      return rows.length ? table(['名称', 'English', '种类', '大小'], rows, 'wikitable sortable') : '<p class="muted">这个地区还没有背景地点。</p>'
+      const KIND: Record<string, string> = { village: '村庄', town: '城镇', city: '城市', farm: '农庄', mill: '磨坊', camp: '营地', ruin: '遗迹', shrine: '神龛', cave: '洞窟', mine: '矿坑', tower: '塔', graveyard: '墓园', fort: '要塞', battlefield: '古战场', cathedral: '修道院', seat: '持印者之座' }
+      const places = g.backdrop.filter((p) => p.region === region)
+      const n = (v: number) => (v ? v.toLocaleString('en') : '—')
+      const rows = places.map((p) => [esc(p.zh), esc(p.en), esc(KIND[p.kind] ?? p.kind) + (p.depths ? '（下有深处）' : ''), `${p.width}×${p.height}`, n(p.rooms), n(p.households), n(p.people), n(p.goods)])
+      const total = (k: 'rooms' | 'people' | 'goods') => places.reduce((s, p) => s + p[k], 0).toLocaleString('en')
+      return rows.length
+        ? `<p>${places.length} 个背景地点，${total('rooms')} 个房间，${total('people')} 位居民，${total('goods')} 件货物。</p>${table(['名称', 'English', '种类', '大小', '房间', '住户', '居民', '货物'], rows, 'wikitable sortable')}`
+        : '<p class="muted">这个地区还没有背景地点。</p>'
     }
     case '任务表': {
       const kind = ({ 主线: 'main', 支线: 'side', 委托: 'favor', 指引: 'guide' } as Record<string, string>)[args[0] ?? ''] ?? ''
