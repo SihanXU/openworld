@@ -70,6 +70,22 @@ leaves the body `steadied` a while: no hold follows a hold.
 Red: harm. Purple: what clings (web, grasp, wail). Amber: a call or a guard that marks no cells (howl, shell up). The
 cells fill as the wind-up runs; the creature flashes white over its last half.
 
+### 3.4 Where they are met (2026-10-19)
+
+Four kinds with a kit stood on no map: their skills were never fought. Each now stands where its element is, on a map
+of about its level (the map's `gearLevel`), witnessed by demo requirement K2:
+
+| Kind | Map | Where |
+|---|---|---|
+| Spark slime ×2 | Dawn Hill (2) | the open top, where the storms break first |
+| Giant crab | the Reed Bend (2) | the shore south of the spit |
+| Ice golem | the Cinder Pass (6) | the snow below, with the frost wolves |
+| Storm wisp | the Cinder Pass (6) | up the trail; and in a storm over the pass, up to two more (its own `appear` with `weather: ['storm']`) |
+
+The world's night walkers stay the dead and the bats: the night's table is every outdoor combat map's, and a ghost
+(level 4) or a wisp (level 5) there would meet a level-1 player in the Ford's meadow. A kind of a later place comes
+by that place's own appearances, as the wisp's storm does.
+
 ## 4. How it is built
 
 The event model holds (design.md §5.4–5.15): behaviour decides when; the act's outcome is a rule.

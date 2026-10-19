@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { textOf, isPatch, restoreLibrary, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
-import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf } from '@openworld/modules'
+import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf, kitsOf } from '@openworld/modules'
 import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP } from '@openworld-game/content'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
@@ -1034,6 +1034,27 @@ req('K1', 'a creature has skills of its own (the kits module): it marks the cell
   const at = W(g).posOf(wolf)!
   expect(Math.abs(at.x - from.x) + Math.abs(at.y - from.y)).toBeGreaterThan(0)
 }, 60000)
+
+req('K2', 'every kind with a kit is met somewhere, each where its element is: spark slimes on Dawn Hill\'s top, a giant crab on the Reed Bend\'s shore, an ice golem in the Cinder Pass\'s snow and a storm wisp up its trail — and more wisps when a storm breaks over the pass', ['actor/creature/slime/spark_slime', 'actor/creature/crab', 'actor/creature/golem/ice_golem', 'actor/creature/wisp/storm_wisp'], () => {
+  const f = fresh()
+  const w = W(f)
+  const on = (type: string) => Object.values(w.state.entities).filter((e) => e.type === type && e.place.on === 'tile').map((e) => (e.place.on === 'tile' ? e.place.map : ''))
+  expect(on('actor/creature/slime/spark_slime')).toEqual(['dawnhill', 'dawnhill'])
+  expect(on('actor/creature/crab')).toEqual(['reedbend'])
+  expect(on('actor/creature/golem/ice_golem')).toEqual(['pass'])
+  expect(on('actor/creature/wisp/storm_wisp')).toEqual(['pass'])
+  // where each stands is its element's ground, and it fights with its kit
+  const cell = (type: string) => {
+    const e = Object.values(w.state.entities).find((x) => x.type === type)!
+    return e.place.on === 'tile' ? w.cellTop(e.place.map, e.place.x, e.place.y)?.type : undefined
+  }
+  expect(cell('actor/creature/golem/ice_golem')).toBe('tile/snow')
+  for (const t of ['actor/creature/slime/spark_slime', 'actor/creature/crab', 'actor/creature/golem/ice_golem', 'actor/creature/wisp/storm_wisp'])
+    expect(kitsOf(f.eng).kitOf(Object.values(w.state.entities).find((e) => e.type === t)!)?.length, t).toBeGreaterThan(0)
+  // the pass's storms bring wisps: its own appearance, in a storm only
+  const storm = buildFord().chunks.find((c) => c.map.id === 'pass')?.map.appear?.find((a) => a.types['actor/creature/wisp/storm_wisp'])
+  expect(storm?.weather).toEqual(['storm'])
+})
 
 // ------------------------------------------------------------------ W. the world model: breaking (world-model.md §10.3)
 
