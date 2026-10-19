@@ -15,6 +15,7 @@ import { FAITH_STATUSES } from './faith.ts'
 import { VEGETABLE_CROPS, cropHours } from './crops.ts'
 import { BOSSES, BOSS_ENCOUNTERS, BOSS_KITS, BOSS_TYPES } from './bosses.ts'
 import { KITS } from './kits.ts'
+import { CREATURE_DROPS } from './drops.ts'
 import { SKILL_STATUSES } from './afflictions.ts'
 import { SKILL_PROFESSIONS } from './skills.ts'
 import { BOON_STATUSES } from './boons.ts'
@@ -569,6 +570,8 @@ export function buildOntology(): Ontology {
   for (const t of [...actorTypes, ...fixtureTypes, ...PILGRIMAGE_TYPES, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES, ...SOCIAL_TYPES]) types[t.id] = t
   // each kind of monster with its own piece (trophies.ts): what it is and how often a felling gives it (rules.ts combat/defeat)
   for (const [kind, t] of Object.entries(TROPHY_OF)) types[kind] = { ...types[kind], props: { ...types[kind].props, trophy: t.type, trophyChance: t.chance } }
+  // what each kind of monster is made of, so a felling leaves it (drops.ts; rules.ts combat/defeat breaks it down)
+  for (const [kind, makeup] of Object.entries(CREATURE_DROPS)) types[kind] = { ...types[kind], makeup }
   return {
     // the systems this game takes from the engine's modules (module.ts), installed in this order
     modules: MODULES,

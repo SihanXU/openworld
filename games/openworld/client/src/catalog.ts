@@ -625,6 +625,10 @@ export const CATALOG: Catalog = {
     'item:mushroom_blue': t('Actor/Monster/Mushroom2/mushroom2.png', 0, 0),
     'item:feather': icon('Items/Resource/feather.png', 16, 16),
     'item:bone': t(DETAIL, 14, 0),
+    // what only monsters leave (tools/src/art/drops.ts)
+    'item:slime_gel': icon('lsw/Items/SlimeGel.png', 16, 16),
+    'item:venom_sac': icon('lsw/Items/VenomSac.png', 16, 16),
+    'item:ectoplasm': icon('lsw/Items/Ectoplasm.png', 16, 16),
     'item:cloth': icon('Items/Scroll/Scroll.png', 14, 14),
     'item:leather': icon('Items/Object/Bag.png', 16, 16),
     'item:wool': t(NATURE, 10, 12),
