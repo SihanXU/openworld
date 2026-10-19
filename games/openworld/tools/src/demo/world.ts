@@ -804,7 +804,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
     // one comes round in the clearing early in the morning: a long day to get ready for the night
     starts: { tutorial: { at: { map: tutorial.id, x: TUTORIAL.spawn[0], y: TUTORIAL.spawn[1] }, hour: 7, statuses: { out_cold: 50 } } },
     startHour: START_HOUR,
-    maps: [...builders.map((b, i) => metaOf(b, chunks[i])), { id: overworld.map.id, name: overworld.map.name, kind: overworld.map.kind, region: overworld.map.region, width: overworld.map.width, height: overworld.map.height, portals: [], npcs: 0, items: 0 }, ...backdrop.map((c) => ({ ...backdropMeta(c), npcs: backdropPeople.get(c.map.id) ?? 0 }))],
+    maps: [...builders.map((b, i) => metaOf(b, chunks[i])), { id: overworld.map.id, name: overworld.map.name, kind: overworld.map.kind, region: overworld.map.region, width: overworld.map.width, height: overworld.map.height, portals: [], npcs: 0, items: 0 }, ...backdrop.map((c) => ({ ...backdropMeta(c), npcs: backdropPeople.get(c.map.id) ?? 0, ...(c.map.regions && Object.keys(c.map.regions).length && { regions: c.map.regions }) }))],
     // the continent's regions (docs/continent.md), as the world map draws them
     regions: REGIONS.map((r) => ({ id: r.id, name: r.name, color: r.color, ...(r.backdrop && { backdrop: true }), ...(r.look && { look: r.look }) })),
     npcs,

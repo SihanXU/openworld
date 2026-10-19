@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, lookProblems, scheduleAt, type Entity } from '@openworld/engine'
+import { socialOf } from '@openworld/modules'
 import { BASE_RULES, REGIONS, SOCIAL_COIN, STORY_RULES, TERRAIN_CHARS, UNTOLD, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 import { OVERWORLD, handmadeGrounds, readContinent } from '../src/demo/overworld.ts'
@@ -432,6 +433,50 @@ describe('the world at scale', () => {
     expect(bw.get('scale.stone')).toBeDefined()
     expect(townsfolk(bw, town.map.id).length).toBe(town.entities.filter((e) => e.npc).length)
   })
+
+  it("a room and all it keeps are its household's: taking from it is taking what is another's", () => {
+    const g = fresh()
+    enter(g, town)
+    const w = g.engine.world
+    const folk = town.entities.filter((e) => e.npc)
+    const rooms = world.backdrop.filter((r) => r.map.kind === 'interior' && r.map.id.startsWith(`${town.map.id}.`))
+    expect(rooms.length).toBeGreaterThan(5)
+    for (const r of rooms) {
+      g.loadChunk(decodeChunk(structuredClone(r)))
+      const home = folk.find((e) => e.npc!.schedule.some((s) => s.activity === 'sleep' && s.map === r.map.id))!
+      const owner = `household:${home.props!.household}`
+      expect([r.map.id, r.map.regionProps?.home?.owner]).toEqual([r.map.id, owner])
+      // what stands there and what is kept in it (phase D's stock): the household's
+      const kept = r.entities.filter((e) => e.place.on === 'inside' && r.entities.some((c) => c.id === (e.place as { holder: string }).holder && c.place.on === 'tile'))
+      for (const e of [...r.entities.filter((x) => x.place.on === 'tile'), ...kept]) expect([e.id, socialOf(g.engine).ownerOf(w.get(e.id)!)]).toEqual([e.id, owner])
+      expect([r.map.id, socialOf(g.engine).isAnothers(w.get(r.entities[0].id)!, w.player)]).toEqual([r.map.id, true])
+    }
+  })
+
+  it('loaded inside a house, the place it lies in comes with it: its people come home as their day says', () => {
+    const g = fresh()
+    const eng = g.engine
+    enter(g, town)
+    const room = world.backdrop.find((r) => r.map.id === town.entities.find((e) => e.npc)!.npc!.schedule.find((s) => s.activity === 'sleep')!.map)!
+    g.loadChunk(decodeChunk(structuredClone(room)))
+    eng.author(() => eng.teleport(eng.world.player, { map: room.map.id, x: Math.floor(room.map.width / 2), y: room.map.height - 3 }))
+    g.trim()
+    const back = Game.load(structuredClone(g.save()), world.index, buildOntology(), lib())
+    back.keepMaps = 1
+    back.loadChunk(decodeChunk(structuredClone(room)))
+    // the house's place was put away by the save: it is needed, and comes
+    expect(back.neededMaps()).toContain(town.map.id)
+    for (const id of back.neededMaps()) back.loadChunk(decodeChunk(structuredClone(world.backdrop.find((c) => c.map.id === id)!)))
+    back.trim()
+    expect(back.engine.world.map(town.map.id)).toBeDefined()
+    expect(townsfolk(back.engine.world, town.map.id).length).toBe(town.entities.filter((e) => e.npc).length)
+    // night comes: those who sleep in this house are in it
+    const w = back.engine.world
+    const sleepers = townsfolk(w, town.map.id).filter((e) => e.npc!.schedule.some((s) => s.activity === 'sleep' && s.map === room.map.id))
+    for (let i = 0; i < 20 * 600 && Math.floor(w.hour()) !== 23; i++) back.engine.tick()
+    for (let i = 0; i < 600; i++) back.engine.tick()
+    expect(sleepers.filter((e) => w.posOf(e)?.map !== room.map.id).map((e) => e.id)).toEqual([])
+  }, 120_000)
 
   it('the people who travel stay in memory wherever they are, and a save keeps them as what differs from the index', () => {
     const g = fresh()

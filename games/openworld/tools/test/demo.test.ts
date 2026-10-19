@@ -8,7 +8,7 @@
 // converse: every placed thing witnesses some requirement.
 
 import { describe, expect, it } from 'vitest'
-import { textOf, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
+import { textOf, isPatch, restoreLibrary, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
 import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf } from '@openworld/modules'
 import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP } from '@openworld-game/content'
 import { OVERWORLD } from '../src/demo/overworld.ts'
@@ -439,8 +439,12 @@ req('E4', 'the library is shared and persistent: a save keeps it, a new game kee
   expect(f.game.mods.submit(rec.id, raftPatch('patch/raft')).ok).toBe(true)
   const save = f.game.save()
   const { index } = buildFord()
-  const loaded = Game.load(JSON.parse(JSON.stringify(save)), index, onto)
+  // (a save keeps what was learned; the game's rules are laid under it on loading)
+  expect(save.library.rules.some((r) => r.id === 'patch/raft')).toBe(true)
+  expect(save.library.rules.some((r) => !isPatch(r))).toBe(false)
+  const loaded = Game.load(JSON.parse(JSON.stringify(save)), index, onto, restoreLibrary([...BASE_RULES, ...STORY_RULES], save.library, onto))
   expect(loaded.engine.lib.rules.has('patch/raft')).toBe(true)
+  expect(loaded.engine.lib.rules.size).toBe(f.eng.lib.rules.size)
   const next = Game.create(index, onto, f.eng.lib)
   expect(next.engine.lib.rules.has('patch/raft')).toBe(true)
 })
@@ -719,7 +723,7 @@ req('F7', 'save and continue', [], () => {
   author(f, () => W(f).setFact('ford.tree', 1))
   const save = JSON.parse(JSON.stringify(f.game.save()))
   const { index, chunks } = buildFord()
-  const g = Game.load(save, index, onto)
+  const g = Game.load(save, index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
   g.loadMapData(decodeChunk(chunks[0]).map)
   expect(g.engine.world.posOf(g.engine.world.player)).toMatchObject({ x: STAND.road[0], y: STAND.road[1] })
   expect(g.engine.world.fact('ford.tree')).toBe(1)

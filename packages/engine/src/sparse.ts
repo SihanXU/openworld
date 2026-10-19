@@ -76,6 +76,20 @@ function existsSelectors(x: unknown, out: Selector[] = []): Selector[] {
   return out
 }
 
+/**
+ * Every thing a state holds, wherever it is kept: among its things, and put away with a map — whole, or as what differs
+ * from its file (a patch: its own type and statuses, when they changed). What asks whether any thing is of a kind
+ * (a learned kind forgotten, a save's own kinds) reads this, not the things in memory alone.
+ */
+export function everyThing(state: WorldState): Pick<Entity, 'type' | 'statuses'>[] {
+  const out: Pick<Entity, 'type' | 'statuses'>[] = Object.values(state.entities)
+  for (const c of Object.values(state.chunks ?? {})) {
+    out.push(...(c.things ?? []))
+    for (const p of Object.values(c.changed ?? {})) if (typeof p.type === 'string' || isObject(p.statuses)) out.push({ type: typeof p.type === 'string' ? p.type : '', statuses: isObject(p.statuses) ? (p.statuses as Record<string, number>) : undefined })
+  }
+  return out
+}
+
 export class Chunks {
   /** Each file thing kept in memory as its file made it (its JSON), by id: what a save tells its changes from. */
   private made = new Map<Id, string>()
@@ -117,8 +131,18 @@ export class Chunks {
     const cs: ChunkState = ((s.chunks ??= {})[id] ??= {})
     let came = false
     const gone = new Set(cs.gone ?? [])
+    // (a record as it is once made: what its file puts in it in its own list, as being put inside it gives it)
+    const inside = new Map<Id, Id[]>()
+    const inHand = new Map<Id, Id>()
+    for (const raw of chunk.entities) {
+      if (raw.place.on === 'inside') (inside.get(raw.place.holder) ?? inside.set(raw.place.holder, []).get(raw.place.holder)!).push(raw.id)
+      if (raw.place.on === 'hand') inHand.set(raw.place.holder, raw.id)
+    }
     for (const raw of chunk.entities) {
       const rec: Entity = { ...structuredClone(raw), from: id }
+      const kids = inside.get(raw.id)?.filter((k) => !rec.contents?.includes(k))
+      if (kids?.length) rec.contents = [...(rec.contents ?? []), ...kids]
+      if (inHand.has(raw.id) && !rec.held) rec.held = inHand.get(raw.id)
       const json = JSON.stringify(rec)
       const kept = s.entities[raw.id]
       if (kept) {

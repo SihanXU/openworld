@@ -741,6 +741,11 @@ export class RuleLibrary {
     return { rules: [...this.rules.values()], types: this.types, statuses: this.statuses, log: this.log, version: this.version }
   }
 
+  /** What was learned (the patches, the kinds and statuses they brought, the log): what a save keeps — the base is the game's, fresh from content on every load. */
+  learnedJSON(): LibraryData {
+    return { rules: this.patches(), types: this.types, statuses: this.statuses, log: this.log, version: this.version }
+  }
+
   static fromJSON(d: LibraryData): RuleLibrary {
     const lib = new RuleLibrary(d.rules)
     lib.types = d.types ?? []

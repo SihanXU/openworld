@@ -14,6 +14,7 @@ import { MapBuilder, reseed, rng, type Cell } from '../builder.ts'
 import { OVERWORLD } from '../overworld.ts'
 import type { Continent, Place } from './generate.ts'
 import { roleOf, roomsBehind, type DoorNote, type Role } from './rooms.ts'
+import { stockPlace, stockRoom } from './stock.ts'
 
 /** A kind's map size. */
 const SIZE: Record<string, [number, number]> = {
@@ -79,6 +80,10 @@ function placeMaps(p: Place, ground: string): MapBuilder[] {
   // every building's door: the cell before it clear, a room behind it
   for (const d of doors) front(b, b.doors[d.door], style)
   out.push(...roomsBehind(b, p, doors))
+  // what is kept there (stock.ts): the households', the shops', the dark's — a room's by what it is
+  for (const m of out) if (m === b) stockPlace(m, p)
+  else if (m.kind === 'interior') stockRoom(m, p)
+  else stockPlace(m, p, true)
   return out
 }
 

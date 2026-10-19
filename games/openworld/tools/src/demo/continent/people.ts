@@ -336,6 +336,11 @@ export function peoplePlace(chunk: RawChunk, rooms: RawChunk[], p: Place, onto: 
   rs.forEach((room, i) => {
     const house = { id: `${map}.h${i}`, family: familyName(p.region, (xs) => rng.pick(xs), families), room, names: new Set<string>() }
     for (const role of household(room.role, p)) make(role, house)
+    // the room is theirs, and so is what it keeps (phase D's stock): taking from it is taking what is another's, as at
+    // the Ford's doorsteps (docs/npc-sandbox.md §2.1)
+    const m = room.g.chunk.map
+    m.regions = { ...m.regions, home: [0, 0, m.width, m.height] }
+    m.regionProps = { ...m.regionProps, home: { owner: `household:${house.id}` } }
   })
   // a shrine keeps its keeper and the pilgrims who sleep by it (no roof over them)
   if (!rs.length && p.kind === 'shrine') {

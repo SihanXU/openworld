@@ -168,6 +168,10 @@ export class Game {
   }
 
   /** A save loaded (upgradeSave: the game's own save history, GameDef.upgradeSave). */
+  /**
+   * A save loaded. `library`: the game's rules with what the save learned laid over them (restoreLibrary: a save keeps
+   * only what was learned, the base is the game's); without it, the save's own (only its learned rules).
+   */
   static load(save: SaveData, index: WorldIndex, ontology: Ontology, library?: RuleLibrary, upgradeSave?: (eng: Engine) => void): Game {
     const lib = library ?? RuleLibrary.fromJSON(save.library)
     const eng = new Engine(save.state, ontology, lib)
@@ -194,7 +198,8 @@ export class Game {
    */
   save(opts: { whole?: boolean } = {}): SaveData {
     const state = opts.whole ? { ...this.engine.world.state, maps: {} } : this.engine.chunks.packed()
-    return { version: 1, world: this.worldVersion, state, library: this.engine.lib.toJSON(), savedAt: new Date().toISOString(), codex: this.codex.toJSON() }
+    // (what was learned only: the base rules are the game's, fresh from content on every load)
+    return { version: 1, world: this.worldVersion, state, library: opts.whole ? this.engine.lib.toJSON() : this.engine.lib.learnedJSON(), savedAt: new Date().toISOString(), codex: this.codex.toJSON() }
   }
 
   /**
@@ -206,10 +211,12 @@ export class Game {
     const s = eng.world.state
     if (keep === undefined) return []
     const here = eng.activeMap
-    // in memory: the maps whose things are among the state's, by when each went dormant (the latest kept)
-    const inMemory = Object.entries(s.chunks ?? {}).filter(([m, c]) => m !== ROSTER && !c.away && m !== here && m !== eng.pendingTransition?.map).map(([m]) => m)
-    // (one loaded and not entered yet is about to be: it is kept before any left behind)
-    const since = (m: string) => s.dormant?.[m]?.since ?? Infinity
+    // never the player's, the one a step waits for, nor those a step from the player's (whose people come and go)
+    const kept = new Set([here, ...this.next(here), ...(eng.pendingTransition ? [eng.pendingTransition.map] : [])])
+    // in memory: the maps whose things are among the state's, by when each went dormant (the latest kept; one never
+    // entered, loaded as a neighbour once, first to go)
+    const inMemory = Object.entries(s.chunks ?? {}).filter(([m, c]) => m !== ROSTER && !c.away && !kept.has(m)).map(([m]) => m)
+    const since = (m: string) => s.dormant?.[m]?.since ?? -1
     inMemory.sort((a, b) => since(b) - since(a))
     const out: string[] = []
     for (const m of inMemory.slice(Math.max(0, keep - 1))) if (eng.author(() => eng.chunks.putAway(m))) out.push(m)
@@ -217,7 +224,16 @@ export class Game {
     return out
   }
 
-  /** Needed chunk ids: the start map on a new game, or the map a pending transition waits for. */
+  /** The maps a step from a map: where its portals lead (a place and the rooms behind its doors, the maps beside it). */
+  private next(map: string): string[] {
+    return [...new Set((this.engine.graph[map] ?? []).map((p) => p.to))]
+  }
+
+  /**
+   * Needed chunk ids: the start map on a new game, or the map a pending transition waits for; and the maps a step from
+   * the player's that were put away (docs/continent.md §13): their people come and go from there (a household out in
+   * the street, one at home), so they come back with it.
+   */
   neededMaps(): string[] {
     const s = this.engine.world.state
     const need: string[] = []
@@ -225,6 +241,7 @@ export class Game {
     if (!s.maps[pm]) need.push(pm)
     const t = this.engine.pendingTransition?.map
     if (t && !s.maps[t]) need.push(t)
+    if (s.maps[pm]) for (const m of this.next(pm)) if (s.chunks?.[m]?.away) need.push(m)
     return need
   }
 
