@@ -132,7 +132,7 @@ describe('after the story playthrough', () => {
   })
 
   it('a wet thing struck by ice again and again freezes once, then fights back (it is thawing)', () => {
-    const eng = sand([{ key: 'm', type: 'actor/creature/undead/warden', x: 4, y: 3 }, { key: 'wand', type: 'item/weapon/magic/wand', x: 4, y: 4, props: { element: 'ice' } }])
+    const eng = sand([{ key: 'm', type: 'actor/creature/undead/warden', x: 4, y: 3, props: { hp: 45, maxHp: 45 } }, { key: 'wand', type: 'item/weapon/magic/wand', x: 4, y: 4, props: { element: 'ice' } }])
     const w = eng.world
     eng.author(() => {
       w.place(w.get('wand')!, { on: 'hand', holder: 'actor' })

@@ -28,6 +28,8 @@ import { ties } from '@openworld/format'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
+/** A green slime's full health (content levels.ts): what an unhurt one has. */
+const SLIME_HP = Number(onto.types['actor/creature/slime/green_slime'].props!.maxHp)
 const lib = () => new RuleLibrary(BASE_RULES)
 /** A provider still at work: the request stays pending until a patch or the time-out. */
 const working = { resolve: () => new Promise<null>(() => {}) }
@@ -240,7 +242,7 @@ describe('fire and elements', () => {
   it('vaporize: fire on a wet creature dries it (and hurts) and does not set it burning', () => {
     const rp = replay(fire('slime', 'fire', 3, [{ key: 'actor', type: 'actor/person/player', x: 2, y: 3 }, { key: 'slime', type: 'actor/creature/slime/green_slime', x: 2, y: 2, statuses: ['wet'] }]), onto, lib())
     expect(rp.resolution.rule?.id).toBe('element/actor')
-    expect(checkExpectations(rp.engine, [{ key: 'slime', lacksStatus: 'wet' }, { key: 'slime', lacksStatus: 'burning' }, { key: 'slime', propLt: ['hp', 9] }])).toEqual([])
+    expect(checkExpectations(rp.engine, [{ key: 'slime', lacksStatus: 'wet' }, { key: 'slime', lacksStatus: 'burning' }, { key: 'slime', propLt: ['hp', SLIME_HP] }])).toEqual([])
   })
 
   it('freeze: ice on a wet creature immobilizes it (the body inherits physics)', () => {
@@ -271,8 +273,8 @@ describe('fire and elements', () => {
     const w = rp.engine.world
     for (const k of ['a', 'b', 'c']) expect(w.hasStatus({ e: k }, 'wet'), k).toBe(false)
     const c = w.get('c')
-    expect(!c || w.num(c, 'hp') < 9).toBe(true) // reached by the arc (possibly killed)
-    expect(w.num(w.get('dry')!, 'hp')).toBe(9)
+    expect(!c || w.num(c, 'hp') < SLIME_HP).toBe(true) // reached by the arc (possibly killed)
+    expect(w.num(w.get('dry')!, 'hp')).toBe(SLIME_HP)
     expect(rp.errors).toEqual([])
   })
 
@@ -337,7 +339,7 @@ describe('fire and elements', () => {
     expect(w.get('bomb')).toBeUndefined()
     expect(w.fx.some((f) => f.t === 'vfx' && f.fx === 'explosion')).toBe(true)
     const slime = w.get('slime')
-    expect(!slime || w.num(slime, 'hp') < 9).toBe(true)
+    expect(!slime || w.num(slime, 'hp') < SLIME_HP).toBe(true)
   })
 
   it('a lit lantern post takes more fire as its flame and does not catch; a cauldron gone out is lit again', () => {

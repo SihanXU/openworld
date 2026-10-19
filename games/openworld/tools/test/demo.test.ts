@@ -814,9 +814,12 @@ req('F13', 'a defeated foe teaches whoever struck it: experience, levels, a skil
     run(f, 'use', 16, 18)
     expect(W(f).get(id)).toBeUndefined()
   }
-  // each slime is worth its full health (11); twenty make the second level
+  // each slime is worth its full health (content levels.ts); twenty make the second level, the rest is carried on
+  const worth = ['ford.fire_slime', 'ford.frost_slime'].reduce((n, id) => n + Number(onto.types[id === 'ford.fire_slime' ? 'actor/creature/slime/fire_slime' : 'actor/creature/slime/frost_slime'].props!.maxHp), 0)
   expect(xpToNext(1)).toBe(20)
-  expect(p.props).toMatchObject({ level: 2, xp: 2, skillPoints: 1 })
+  expect(worth).toBeGreaterThanOrEqual(20)
+  expect(worth).toBeLessThan(20 + xpToNext(2))
+  expect(p.props).toMatchObject({ level: 2, xp: worth - 20, skillPoints: 1 })
 })
 
 const COW = 'actor/creature/animal/cow'
@@ -2935,12 +2938,14 @@ req('P3', "the main line never breaks: Rowan's rescue begins by itself at the we
   fell(f, w.get('barrow.warden')!)
   ticks(f, 2)
   expect(markOf(f, 'npc.rowan')).toBe('?')
-  const xp = w.num(w.player, 'xp') + 20 * (w.num(w.player, 'level', 1) - 1)
+  // all the experience one has had: what each level took (20, 40, 60 …) and what is carried toward the next
+  const total = () => w.num(w.player, 'xp') + Array.from({ length: w.num(w.player, 'level', 1) - 1 }, (_, i) => xpToNext(i + 1)).reduce((a, b) => a + b, 0)
+  const xp = total()
   expect(talkTo(f, 'npc.rowan')).toContain('在圣火前感恩')
   ticks(f, 2)
   expect(qs(f, 'rescue')).toBe('done')
   expect(w.fact('rescue.lina')).toBe(1)
-  expect(w.num(w.player, 'xp') + 20 * (w.num(w.player, 'level', 1) - 1)).toBeGreaterThan(xp)
+  expect(total()).toBeGreaterThan(xp)
   // and the main line carries straight on: the vigil (the village's own country), then the First Seal, the White Knight at its end
   ticks(f, 20)
   expect(underWay(f)).toEqual([['vigil', 'main']])
