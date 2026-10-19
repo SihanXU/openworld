@@ -79,6 +79,10 @@ the list prices. The RSI experiments (§8) still name Kimi K3 (docs/rsi-experime
 - **The model judge cannot tell the ablations apart** (all rated 5.6–6.2 of 7, none chosen over A more often than
   chance), and prefers the modder's own answers to the authors' (it is the same model). The human study is to come.
 
+- **The high tier is late for the player who asked** (latency.ts, 20 uses a tier): low 18/20 held (no repair round),
+  median 7.4 s, $0.045; medium 20/20, 8.6 s, $0.055; high 20/20, all valid at the first answer, but 27.3 s and $0.108,
+  15 of 20 after `AI_WAIT_MS` (20 s): the blocking review and medium effort.
+
 ## Spend
 
 What the runs recorded at the list prices, 2026-10-19: the controlled conditions $142 (the answers $23, the reviews
