@@ -35,6 +35,22 @@ export interface RegionMeta {
   color?: string
   /** Nothing of the story is played there yet: the world map says so. */
   backdrop?: boolean
+  /** How its maps look (a map's `region` names it): the client's world filter and its light there. */
+  look?: RegionLook
+}
+
+/**
+ * A region's own look (docs/continent.md §9 B): the grade the client's world filter gives its maps, over the game's
+ * own, and how dim its light is. A map takes its region's; the client eases from one to the next.
+ */
+export interface RegionLook {
+  /** The colour its light is toned toward (a hex), and how far (0…1). */
+  tint?: string
+  tintAmount?: number
+  /** Greyer (or, below 0, more colourful) than the game's grade: added to the filter's desaturation. */
+  desat?: number
+  /** A shade over its hours out of doors, by day as by night (0…0.5): a dusk that hardly lifts. */
+  shade?: number
 }
 
 /** A place a new game may begin, and what the player is there (the story's stage they begin at). */

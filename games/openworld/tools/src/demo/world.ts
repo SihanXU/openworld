@@ -798,7 +798,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
     startHour: START_HOUR,
     maps: [...builders.map((b, i) => metaOf(b, chunks[i])), { id: overworld.map.id, name: overworld.map.name, kind: overworld.map.kind, region: overworld.map.region, width: overworld.map.width, height: overworld.map.height, portals: [], npcs: 0, items: 0 }, ...backdrop.map(backdropMeta)],
     // the continent's regions (docs/continent.md), as the world map draws them
-    regions: REGIONS.map((r) => ({ id: r.id, name: r.name, color: r.color, ...(r.backdrop && { backdrop: true }) })),
+    regions: REGIONS.map((r) => ({ id: r.id, name: r.name, color: r.color, ...(r.backdrop && { backdrop: true }), ...(r.look && { look: r.look }) })),
     npcs,
     codex: codexEntries(),
     player: {

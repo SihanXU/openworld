@@ -347,6 +347,18 @@ export const CATALOG: Catalog = {
     tent: pf(CAMP, 4, 0, ['###', '###', '#D#']),
     tent_patched: pf(CAMP, 7, 0, ['###', '###', '#D#']),
     tent_torn: pf(CAMP, 10, 0, ['###', '###', '#D#']),
+    // A wooden watchtower on legs, its ladder in front (3x5), and a round log tower (3x6): a fort's towers.
+    watchtower: pf(HOUSE, 16, 6, ['###', '###', '###', '###', '###'], 'woodwall'),
+    tower_round: pf(HOUSE, 19, 3, ['###', '###', '###', '###', '###', '###'], 'woodwall'),
+    // A stone pillar (1x3): its cap overhead, its shaft and base in the way — a gate's posts, an old wall's columns.
+    pillar: pf(HOUSE, 0, 19, ['.', '#', '#']),
+    // Banners on a pole (1x2), a colour each: a region's colours over its forts and squares (backdrop.ts BANNER).
+    banner_cream: pf(HOUSE, 22, 20, ['.', '#']),
+    banner_red: pf(HOUSE, 23, 20, ['.', '#']),
+    banner_grey: pf(HOUSE, 24, 20, ['.', '#']),
+    banner_green: pf(HOUSE, 25, 20, ['.', '#']),
+    banner_purple: pf(HOUSE, 27, 20, ['.', '#']),
+    banner_yellow: pf(HOUSE, 28, 20, ['.', '#']),
     // Torii gate: beam overhead (walkable), pillars on the bottom row at cols 0 and 2.
     gate: pf(HOUSE, 0, 5, ['...', '#.#']),
     // Stone arch / portal ring: legs on cols 0 and 2.

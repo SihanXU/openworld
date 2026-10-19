@@ -572,7 +572,9 @@ function loop(): void {
   if (pos.map !== lastMap) {
     const first = !lastMap
     lastMap = pos.map
-    post({ t: 'map', map: w.state.maps[pos.map] })
+    const map = w.state.maps[pos.map]
+    const look = index.regions?.find((r) => r.id === map.region)?.look
+    post({ t: 'map', map, ...(look && { look }) })
     if (!first) saveEvery = 599 // save right after arriving somewhere new
   }
   // save as soon as the story moves on (a quest reached a stage)

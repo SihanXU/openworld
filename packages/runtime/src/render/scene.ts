@@ -3,9 +3,9 @@
 // status overlays, VFX and day/night. It only renders engine snapshots.
 
 import Phaser from 'phaser'
-import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type Look, type MapData, type Mood, type Ref, type Text } from '@openworld/engine'
+import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type Look, type MapData, type Mood, type Ref, type RegionLook, type Text } from '@openworld/engine'
 import { catalog, game, hasLooks } from '../game.ts'
-import { installWorldFilter, signalCamera } from './worldfilter.ts'
+import { hexRgb, installWorldFilter, signalCamera } from './worldfilter.ts'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
 import { faceFrame, personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
@@ -156,6 +156,9 @@ export class WorldScene extends Phaser.Scene {
   private windup = new Map<string, number>()
   private bossPreview?: { id: string; mode: Exclude<BossPreviewMode, 'live'>; startedAt?: number }
   private darkness = 0
+  /** The look of the region the map lies in (RegionMeta.look), and the look shown, eased toward it as one goes from region to region. */
+  private regionLook?: RegionLook
+  private shownLook = { tint: [1, 1, 1] as [number, number, number], amount: 0, desat: 0, shade: 0 }
   /** The editor's view (docs/engine-split.md P4): the camera is the author's to move, never the player's to follow; no music. */
   private free = false
   private editorLayer?: Phaser.GameObjects.Graphics
@@ -268,6 +271,27 @@ export class WorldScene extends Phaser.Scene {
       return this.overrides.get(`${cx},${cy}`) ?? m.terrain[cy * m.width + cx]
     }
     return this.overrides.get(`${x},${y}`) ?? m.terrain[y * m.width + x]
+  }
+
+  /** The look of the region the next map lies in (before `setMap`): the first map takes it at once, the rest ease to it. */
+  setLook(look?: RegionLook): void {
+    this.regionLook = look
+    if (!this.base) this.easeLook(1)
+  }
+
+  /** The shown look a step `k` (0…1) toward the region's. */
+  private easeLook(k: number): void {
+    const t = this.regionLook
+    const s = this.shownLook
+    const amount = t?.tint ? (t.tintAmount ?? 0.2) : 0
+    if (t?.tint) {
+      const c = hexRgb(t.tint)
+      // a fresh tint takes its colour at once when none was showing; otherwise the colour eases too
+      for (let i = 0; i < 3; i++) s.tint[i] = s.amount < 0.01 ? c[i] : s.tint[i] + (c[i] - s.tint[i]) * k
+    }
+    s.amount += (amount - s.amount) * k
+    s.desat += ((t?.desat ?? 0) - s.desat) * k
+    s.shade += ((t?.shade ?? 0) - s.shade) * k
   }
 
   setMap(map: MapData): void {
@@ -1659,6 +1683,11 @@ export class WorldScene extends Phaser.Scene {
       f.view.x = cam.worldView.x
       f.view.y = cam.worldView.y
       f.dark = Math.min(1, this.darkness / 0.6)
+      // the region's grade, lighter at the light strength
+      const r = this.shownLook
+      const scale = s === 'light' ? 0.6 : 1
+      f.tint = [r.tint[0], r.tint[1], r.tint[2], r.amount * scale]
+      f.desat = r.desat * scale
     })
   }
 
@@ -1676,6 +1705,10 @@ export class WorldScene extends Phaser.Scene {
     // a grey day is a little darker
     const dim: Record<string, number> = { cloud: 0.1, rain: 0.16, storm: 0.26, fog: 0.06 }
     if (light === 'outdoor') d = Math.min(0.7, d + (dim[this.weather] ?? 0))
+    // the region's own shade (a dusk that hardly lifts): over its hours out of doors, a little of it indoors
+    this.easeLook(0.2)
+    if (light === 'outdoor') d = Math.min(0.78, d + this.shownLook.shade)
+    else if (light === 'indoor') d = Math.min(0.5, d + this.shownLook.shade * 0.4)
     this.darkness = d
     this.night.setFillStyle(light === 'dark' ? 0x05060c : 0x0a1030, d)
   }
