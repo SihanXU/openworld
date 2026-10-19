@@ -1,7 +1,8 @@
 // The world at scale (docs/continent.md §12): load the world, walk into fifty maps — played ones, the backdrop's
 // towns and wilds, the overworld between —, as the worker plays it (the maps far behind put away, frames carrying what
 // is in view and what changed), and time a tick, a frame on the world map and a save. `npm run scale` prints the
-// numbers; the scale test (continent.test.ts) holds them to their bounds.
+// numbers, and the toolchain's over the same world (toolchain.ts); the scale test (continent.test.ts) holds them to
+// their bounds.
 
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
@@ -149,4 +150,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url).toLowerCase() === resolve(
   const r = scaleRun({ keep })
   const f = (x: number) => (Number.isInteger(x) ? String(x) : x.toFixed(2))
   for (const [k, v] of Object.entries(r)) console.log(`${k.padEnd(20)} ${f(v)}`)
+  // and the toolchain over the same world (toolchain.ts)
+  const { toolchainRun } = await import('./toolchain.ts')
+  for (const [k, v] of Object.entries(toolchainRun())) console.log(`${k.padEnd(20)} ${f(v)}`)
 }

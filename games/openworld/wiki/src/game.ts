@@ -2,7 +2,7 @@
 // world the game runs (never from the design notes). One model, normalized for the templates: items,
 // fixtures and structures, people, creatures, bosses, maps, quests, recipes, skills, statuses…
 
-import { APPEAR_EVERY, CODEX_SIGHT, MAGNET, ROW, SLOT_COUNT, TICKS_PER_HOUR, TICKS_PER_MINUTE, nightHours, type Entity, type Look, type PlacementRecipe, type QuestDef, type Recipe, type SkillDef, type StatusDef, type TerrainDef, type Text, type TypeDef } from '@openworld/engine'
+import { APPEAR_EVERY, CODEX_SIGHT, MAGNET, ROW, SLOT_COUNT, TICKS_PER_HOUR, TICKS_PER_MINUTE, nightHours, type Entity, type Look, type RawChunk, type PlacementRecipe, type QuestDef, type Recipe, type SkillDef, type StatusDef, type TerrainDef, type Text, type TypeDef } from '@openworld/engine'
 import { BOON_REACH, HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE, PROFESSION_LEVEL } from '@openworld/modules'
 import {
   BOONS, BOSSES, COIN, EFFICIENCY, ELEMENT_NAMES, ELEMENTS, FALL_DAMAGE, FED_FOR, FORMS, LAYS_EVERY, LEGENDARY_ARMS, MATERIALS, NIGHT_CAP, NIGHT_EVERY, PLACEMENTS,
@@ -152,6 +152,24 @@ export interface QuestEnt extends Ent {
   def: QuestDef
 }
 
+/** A place of the backdrop as its region's page lists it. */
+export interface BackdropPlace {
+  id: string
+  zh: string
+  en: string
+  region: string
+  /** Its kind (its site's: village, fort, cave …). */
+  kind: string
+  width: number
+  height: number
+  /** Depths below it (a cave's, a mine's). */
+  depths: boolean
+  rooms: number
+  households: number
+  people: number
+  goods: number
+}
+
 export interface Game {
   version: string
   ontology: ReturnType<typeof buildOntology>
@@ -163,6 +181,8 @@ export interface Game {
   creatures: CreatureEnt[]
   bosses: BossEnt[]
   maps: MapEnt[]
+  /** The backdrop's places (docs/continent.md): no page each, a row on their region's page. */
+  backdrop: BackdropPlace[]
   quests: QuestEnt[]
   /** What is made (the crafting panel, a workbench): not the stall's trade. */
   recipes: Recipe[]
@@ -400,6 +420,28 @@ export function loadGame(): Game {
   })
   ents.push(...maps)
 
+  // ---- the backdrop's places: a row each on their region's page — its kind, its rooms, its households and people, its goods
+  const siteKind = new Map<string, string>()
+  for (const c of chunks) for (const e of c.entities) if (typeof e.props?.map === 'string' && e.type.startsWith('site/place/')) siteKind.set(e.props.map, e.type.split('/').pop()!)
+  const backdropChunks = new Map<string, RawChunk[]>()
+  for (const c of WORLD.backdrop) {
+    const place = siteKind.has(c.map.id) ? c.map.id : c.map.id.slice(0, c.map.id.lastIndexOf('.'))
+    if (siteKind.has(place)) backdropChunks.set(place, [...(backdropChunks.get(place) ?? []), c])
+  }
+  const backdrop: BackdropPlace[] = index.maps.filter((m: any) => m.backdrop && siteKind.has(m.id)).map((m: any) => {
+    const own = backdropChunks.get(m.id) ?? []
+    const things = own.flatMap((c) => c.entities)
+    const people = things.filter((e) => e.type.startsWith('actor/person'))
+    return {
+      id: m.id, zh: zh(m.name), en: enOf(m.name) || m.id, region: m.region ?? '', kind: siteKind.get(m.id)!, width: m.width, height: m.height,
+      depths: own.some((c) => c.map.id === `${m.id}.depths`),
+      rooms: own.filter((c) => c.map.kind === 'interior').length,
+      households: new Set(people.map((p) => p.props?.household).filter(Boolean)).size,
+      people: people.length,
+      goods: things.filter((e) => e.type.startsWith('item/')).length,
+    }
+  })
+
   // ---- quests
   const quests: QuestEnt[] = (index.quests ?? []).map((q: QuestDef) => ({
     kind: 'quest', id: q.id, zh: zh(q.title), en: enOf(q.title), title: zh(q.title), group: q.kind, def: q,
@@ -492,7 +534,7 @@ export function loadGame(): Game {
     version: index.version, ontology, types, items, fixtures, structures, people, creatures, bosses, maps, quests,
     recipes: MADE, shop: SHOP, coin: COIN, placements: PLACEMENTS, skills: SKILLS, branches: SKILL_BRANCHES, directions: SKILL_DIRECTIONS, professions: SKILL_PROFESSIONS,
     boons: BOONS, statuses: Object.values(ontology.statuses), terrains: TERRAINS, waypoints: index.waypoints ?? [],
-    byId, byTitle, byName, values, index, chunks, placed,
+    byId, byTitle, byName, values, index, chunks, placed, backdrop,
     mapOf: (id) => maps.find((m) => m.id === id),
     lookParts: Object.entries(LOOK_PARTS).map(([id, p]) => {
       const sample = sampleLook(id)

@@ -353,6 +353,8 @@ describe('a frozen model', () => {
       req.on('end', () => {
         bodies.push(JSON.parse(b))
         res.setHeader('Content-Type', 'application/json')
+        // (a connection a call, never kept: under a full parallel run a kept one can be closed as it is taken up again)
+        res.setHeader('Connection', 'close')
         res.end(JSON.stringify({ provider: served.shift(), choices: [{ message: { content: 'ok' } }], usage: { prompt_tokens: 3, completion_tokens: 1 } }))
       })
     })
