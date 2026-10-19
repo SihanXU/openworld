@@ -63,7 +63,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   active/dormant maps and the writer (`World.grant`: the mutators throw outside an outcome, the
   clock, loading, the input's posture and the author, and in an outcome beyond its host —
   design.md §5.15; `games/openworld/tools/test/writes.test.ts` scans for writes behind them) in `engine.ts`/`world.ts`; the request, one question per hole and class, the
-  validator (host-only writes, the rule's place, replay) and the boundaries in `mod.ts` (design.md §5.4–5.16);
+  validator (host-only writes, never what the economy reads, the rule's place, replay) and the boundaries in `mod.ts` (design.md §5.4–5.16);
   the player's
   inputs (E hands, F take, G put, left click use — a bare one is a blow —, and over them the right click, the
   action: the act the thing aimed at calls for, chosen as the base rules answer so learning never changes it;
