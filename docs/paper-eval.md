@@ -68,10 +68,16 @@ the list prices. The RSI experiments (§8) still name Kimi K3 (docs/rsi-experime
   own pace (hunger, slower asleep or hungry) was the engine's memory, so a load set it back to the clock's beat and
   hunger fell a tick off. It is kept with the state now (`WorldState.paces`).
 - **A rule may raise its host's worth** (attack.ts): `addProp value` on every use is coin from nothing once sold; the
-  economy check counts conversions between things, not a thing's worth. Open: the validator could refuse a learned
-  rule that writes a prop the economy reads.
-- **A fire on a dormant map** burns out to ash on return, where a map in play breaks the woodpile into logs first: a
-  status that acts every step is summed up when its map catches up. Open.
+  economy check counts conversions between things, not a thing's worth. Fixed after world-v0 (PR #112,
+  `fix/learned-worth`): the validator refuses a learned rule that writes what the economy reads; with it all 39 attacks
+  are stopped, 27 by the validator and 12 at run time.
+- **A fire on a dormant map** burnt out to ash on return, where a map in play breaks the woodpile into logs first: a
+  status that acts every step was summed up when its map caught up (only its end ran). Fixed after world-v0 (PR #113,
+  `fix/dormant-pulses`): entering a map runs its statuses' clocks tick by tick where something comes due, as a tick in
+  play does — each pulse of a status that ends, then its end, at the tick it falls on, with dice of its own (the world's
+  seed, the thing, the status, the tick), so a pulse rolls the same in play and caught up. With it, all five probes come
+  back the same at every absence (a minute to seven days) and after a save, and the three seeded sessions replay
+  identically, across a save too (persistence.ts on this branch with #113 merged).
 
 ## What the runs found in the modder
 
