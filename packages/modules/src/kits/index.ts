@@ -8,12 +8,14 @@ import { registerModule, type EngineModule } from '@openworld/engine'
 import { Kits } from './cast.ts'
 import { encounter, kitFrame } from './encounter.ts'
 import { kitGoal } from './kit.ts'
+import { tacticsGoal } from './tactics.ts'
 import { unleash } from './unleash.ts'
 
 export * from './cast.ts'
 export * from './encounter.ts'
 export * from './kit.ts'
 export * from './pattern.ts'
+export * from './tactics.ts'
 export * from './unleash.ts'
 
 export const kitsModule: EngineModule = {
@@ -23,6 +25,9 @@ export const kitsModule: EngineModule = {
   goals: {
     encounter: { paced: false, run: (eng, e, sc) => encounter(eng, e, sc.active) },
     kit: { paced: false, urgent: true, run: (eng, e, sc) => kitGoal(eng, e, sc.active) },
+    // how a minor monster moves in a fight (tactics.ts): keeping away, fleeing hurt, flanking with its pack
+    rout: { paced: true, urgent: true, run: (eng, e, sc) => tacticsGoal(eng, e, sc.active, 'rout') },
+    tactics: { paced: true, urgent: true, run: (eng, e, sc) => tacticsGoal(eng, e, sc.active, 'place') },
   },
   effects: { unleash },
   spec: {
