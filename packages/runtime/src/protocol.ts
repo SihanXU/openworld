@@ -52,6 +52,8 @@ export type ToWorker =
   | { t: 'handUp'; up: boolean }
   /** The same on an item in the bag or in the open chest (the inventory's context menu). */
   | { t: 'keyOnItem'; key: Plan['key']; item: string }
+  /** A game's explicit chooser uses one carried item on another (the worker checks both identities at confirmation). */
+  | { t: 'useItemOnHeldItem'; instrument: string; target: string }
   /** The layer chooser (a long press): what each layer of the tile would give. */
   | { t: 'choices'; key: Key; tile?: Tile }
   /** Where the mouse points (for the key labels). */

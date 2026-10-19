@@ -13,6 +13,7 @@ import { appear } from './appear.ts'
 import { WriteError } from './world.ts'
 import { gearLevel, madeOf, qualityFor } from './recipes.ts'
 import { restyled } from './looks.ts'
+import { stackKey } from './stacks.ts'
 
 /** How many things one effect makes at once at most, unless the world says (`params.spawnMax`). */
 const SPAWN_MAX = 64
@@ -866,11 +867,16 @@ export class EffectRunner {
   }
 
   /** An emitted param: a value, an Amount, a param passed on as it is (`{param}` alone: a string goes through), or what kind of thing a role is. */
-  param(ev: GameEvent, v: PropValue | Amount | { typeOf: RoleName } | { idOf: RoleName }): PropValue | undefined {
+  param(ev: GameEvent, v: PropValue | Amount | { typeOf: RoleName } | { idOf: RoleName } | { stackKeyOf: RoleName }): PropValue | undefined {
     if (typeof v !== 'object' || v === null) return v
     if ('typeOf' in v) return this.eng.world.view(this.roleRef(ev, v.typeOf))?.type
     // which thing a role is (a bed: the place one sleeps is one's home)
     if ('idOf' in v) return this.roleRef(ev, v.idOf)?.e
+    if ('stackKeyOf' in v) {
+      const ref = this.roleRef(ev, v.stackKeyOf)
+      const entity = ref && 'e' in ref ? this.eng.world.get(ref.e) : undefined
+      return entity && stackKey(entity)
+    }
     if ('param' in v && v.mul === undefined && v.add === undefined) return ev.params?.[v.param]
     // a role's prop passed on as it is (a word too: a site's map)
     if ('prop' in v && v.mul === undefined && v.add === undefined) return this.eng.world.view(this.roleRef(ev, v.of))?.props[v.prop]

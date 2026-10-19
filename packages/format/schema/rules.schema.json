@@ -1106,6 +1106,18 @@
                       "idOf"
                     ],
                     "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "stackKeyOf": {
+                        "$ref": "#/definitions/RoleName"
+                      }
+                    },
+                    "required": [
+                      "stackKeyOf"
+                    ],
+                    "additionalProperties": false
                   }
                 ]
               }
@@ -2415,6 +2427,35 @@
           },
           "required": [
             "param"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "propEqualsParam": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/Reader"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "param": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "key",
+                "param"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "propEqualsParam"
           ],
           "additionalProperties": false
         },

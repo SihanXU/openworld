@@ -1511,6 +1511,8 @@ export type Cond =
   | { prop: { role: Reader; key: string; cmp?: Cmp; bounds?: Bounds; default?: PropValue } }
   /** An event parameter compared to a value (a missing parameter is false). */
   | { param: { key: string; cmp: Cmp } }
+  /** A role's property equals an event parameter (both must be present). */
+  | { propEqualsParam: { role: Reader; key: string; param: string } }
   | { chance: number }
   | { hour: { from: number; to: number } }
   /** It is night (true) or day (false), however long the story's night has grown (World.isNight). */
@@ -1678,7 +1680,7 @@ export type Effect =
   | { op: 'craft' }
   | { op: 'lightning'; power: number }
   /** Send an impulse: `item` names the thing it carries (given, put, taken), `other` the role it names as the other side. */
-  | { op: 'emit'; impulse: Impulse; to: EmitTo; params?: Record<string, PropValue | Amount | { typeOf: RoleName } | { idOf: RoleName }>; item?: RoleName; other?: RoleName; chance?: number; filter?: Selector }
+  | { op: 'emit'; impulse: Impulse; to: EmitTo; params?: Record<string, PropValue | Amount | { typeOf: RoleName } | { idOf: RoleName } | { stackKeyOf: RoleName }>; item?: RoleName; other?: RoleName; chance?: number; filter?: Selector }
   /** Get out of where one cannot be (water closing over the ice): to the nearest free tile. */
   | { op: 'ashore' }
   /** The story's: an invariant's authored fallback (the default of a `broken` outcome). */

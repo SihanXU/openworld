@@ -1186,6 +1186,15 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   const role = (r: unknown, where: string) => {
     if (typeof r !== 'string' || !ROLE_NAMES.has(r)) errors.push(`${where}: role must be one of ${[...ROLE_NAMES].join('|')}`)
   }
+  const exactObject = (value: unknown, keys: readonly string[], where: string): Record<string, unknown> | undefined => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      errors.push(`${where} must be an object`)
+      return undefined
+    }
+    const object = value as Record<string, unknown>
+    for (const key of Object.keys(object)) if (!keys.includes(key)) errors.push(`${where}.${key}: unknown key`)
+    return object
+  }
   const checkCond = (c: Cond | undefined, where: string): void => {
     if (!c || typeof c !== 'object') return void errors.push(`${where}: condition must be an object`)
     const fishingCondition = (Object.keys(FISHING_CONDITION_ROLES) as (keyof typeof FISHING_CONDITION_ROLES)[]).find((key) => key in c)
@@ -1230,6 +1239,16 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('prop' in c) {
       for (const b of Object.keys(c.prop.bounds ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.prop.bounds.${b}: a bound is eq|gt|gte|lt|lte`)
       return c.prop.role === 'story' || c.prop.role === 'world' ? undefined : role(c.prop.role, `${where}.prop.role`)
+    }
+    if ('propEqualsParam' in c) {
+      if (Object.keys(c).length !== 1) errors.push(`${where}: propEqualsParam must be used alone`)
+      const match = exactObject(c.propEqualsParam, ['role', 'key', 'param'], `${where}.propEqualsParam`)
+      if (!match) return
+      const { role: reader, key, param } = match
+      if (typeof reader !== 'string' || (!ROLE_NAMES.has(reader) && reader !== 'story' && reader !== 'world')) errors.push(`${where}.propEqualsParam.role must be a role, story or world`)
+      if (typeof key !== 'string' || !key) errors.push(`${where}.propEqualsParam.key must be a non-empty property name`)
+      if (typeof param !== 'string' || !param) errors.push(`${where}.propEqualsParam.param must be a non-empty event parameter name`)
+      return
     }
     if ('count' in c) {
       const k = c.count
@@ -1307,6 +1326,12 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if (e.other) role(e.other, `${where}.other`)
       const el = e.params?.element
       if (typeof el === 'string' && !ctx.ontology.elements.includes(el)) errors.push(`${where}: unknown element "${el}"`)
+      for (const [key, value] of Object.entries(e.params ?? {})) {
+        if (value && typeof value === 'object' && 'stackKeyOf' in value) {
+          const derived = exactObject(value, ['stackKeyOf'], `${where}.params.${key}`)
+          if (derived) role(derived.stackKeyOf, `${where}.params.${key}.stackKeyOf`)
+        }
+      }
       if (typeof e.to === 'object' && ('area' in e.to || 'map' in e.to) && (e.chance === undefined || e.chance >= 1)) warnings.push(`${where}: an emission to an area with chance 1 can cascade`)
       checkSel(e.filter, `${where}.filter`)
     }

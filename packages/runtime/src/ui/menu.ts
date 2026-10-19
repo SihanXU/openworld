@@ -5,7 +5,7 @@
 
 import type { AiQuality, CodexEntry, CodexView, Frame, ItemInfo, Look, Plan, Recipe, Rule, Text, Tree } from '@openworld/engine'
 import { splitStacks, stackKey } from '@openworld/engine'
-import { catalog, game, hasModule, ontology, professionById, type ShopDef } from '../game.ts'
+import { catalog, game, hasModule, itemIconSignature, ontology, professionById, type ShopDef } from '../game.ts'
 import { personLook } from '../assets/looks.ts'
 import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
 import { artEpoch, assetUrl } from '../render/assets.ts'
@@ -178,6 +178,8 @@ export interface MenuSend {
   devConsole?(): void
   /** One of the inputs on an item in the bag or the open chest (the context menu). */
   keyOnItem(key: Plan['key'], item: string): void
+  /** A game's explicit chooser uses one carried item on another after confirmation. */
+  useItemOnHeldItem(instrument: string, target: string): void
   /** The journal: the quest followed (none: the latest main quest). */
   track(id: string | undefined): void
   /** The commission board: a favour on it taken on. */
@@ -310,7 +312,7 @@ export class Menu {
     const s = this.picked !== undefined ? this.frame?.player.slots[this.picked] : undefined
     this.carried.classList.toggle('hidden', !s)
     if (!s) return void delete this.carried.dataset.item
-    const sig = `${s.item.id}|${s.count}`
+    const sig = `${s.item.id}|${s.count}|${itemIconSignature([s.item])}`
     if (this.carried.dataset.item === sig) return
     this.carried.dataset.item = sig
     this.carried.innerHTML = `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}`
@@ -507,7 +509,8 @@ export class Menu {
   }
 
   private sigOf(f: Frame): string {
-    return `${this.tab}|${locale.value}|${f.player.hp}/${f.player.maxHp}|${f.player.hunger}|${f.player.purse}|${JSON.stringify(f.player.stats)}|${String(f.player.props.level)}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${f.player.stations.join()}|${this.picked}|${artEpoch}`
+    const icons = [...f.player.slots.filter(Boolean).map((s) => s!.item), ...Object.values(f.player.worn ?? {}), ...(f.player.offhand ? [f.player.offhand] : [])]
+    return `${this.tab}|${locale.value}|${f.player.hp}/${f.player.maxHp}|${f.player.hunger}|${f.player.purse}|${JSON.stringify(f.player.stats)}|${String(f.player.props.level)}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${itemIconSignature(icons)}|${f.player.stations.join()}|${this.picked}|${artEpoch}`
   }
 
   // ---------------------------------------------------------------- inventory
@@ -661,11 +664,14 @@ export class Menu {
   private contextMenu(x: number, y: number, item: string, extra: [string, () => void][] = []): void {
     document.querySelector('.ctx')?.remove()
     const held = this.frame?.player.held
+    const target = this.frame && [this.frame.player.held, ...this.frame.player.slots.map((s) => s?.item), ...Object.values(this.frame.player.worn ?? {}), ...(this.frame.container?.contents ?? [])].find((it) => it?.id === item)
     const heldName = held ? tx(held.name) : ''
     const rows: [string, () => void][] = []
     if (held && held.id !== item) {
-      rows.push([t('useOn').replace('{held}', heldName), () => this.send.keyOnItem('use', item)])
-      rows.push([t('putIn').replace('{held}', heldName), () => this.send.keyOnItem('put', item)])
+      const use = target && game().itemContextAction?.('use', held, target)
+      if (use !== false) rows.push([use ? tx(use) : t('useOn').replace('{held}', heldName), () => this.send.keyOnItem('use', item)])
+      const put = target && game().itemContextAction?.('put', held, target)
+      if (put !== false) rows.push([put ? tx(put) : t('putIn').replace('{held}', heldName), () => this.send.keyOnItem('put', item)])
     }
     rows.push([t('handsOn'), () => this.send.keyOnItem('hands', item)], ...extra)
     const el = document.createElement('div')

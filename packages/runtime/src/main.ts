@@ -5,7 +5,7 @@
 
 import Phaser from 'phaser'
 import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@openworld/engine'
-import { catalog, hasModule, libraryKey, newWorker, savesKey, worldBase } from './game.ts'
+import { catalog, game, hasModule, libraryKey, newWorker, savesKey, worldBase } from './game.ts'
 import { FishingInputLatch, routeFishingEscape, routeSpaceKeyDown, type FromWorker, type Tile, type ToWorker } from './protocol.ts'
 import { cssAssetUrl, registerArt } from './render/assets.ts'
 import { WorldScene } from './render/scene.ts'
@@ -88,6 +88,7 @@ const menu = new Menu({
   toggleSound: () => hud.toggleSound(),
   devConsole: () => dev.toggle(true),
   keyOnItem: (key, item) => send({ t: 'keyOnItem', key, item }),
+  useItemOnHeldItem: (instrument, target) => send({ t: 'useItemOnHeldItem', instrument, target }),
   setQuality: (quality) => send({ t: 'quality', quality }),
 })
 // (dev: the panels, for checking them by hand)
@@ -165,6 +166,7 @@ const tooltip = new Tooltip(() => ({
     const e = lastFrame?.entities.find((x) => x.id === id)
     return e ? tx(e.name) : undefined
   },
+  paintIcon: (item) => paintIcons([item]),
 }))
 menu.registerTip = (key, info) => tooltip.register(key, info)
 if (catalog().ui.drumstick) document.documentElement.style.setProperty('--drum-icon', cssAssetUrl(catalog().ui.drumstick.img))
@@ -249,11 +251,20 @@ const paintIcons = (items: ItemInfo[]) => {
     if (!d) continue
     const c = crop(d.img, d.x, d.y, d.w, d.h)
     if (!c) continue
+    const decoration = game().itemIconDecoration?.(it)
+    const decoDef = decoration && catalog().items[decoration.sprite]
+    const deco = decoDef && crop(decoDef.img, decoDef.x, decoDef.y, decoDef.w, decoDef.h)
     document.querySelectorAll<HTMLElement>(`[data-icon="${CSS.escape(it.id)}"]`).forEach((slot) => {
       const copy = document.createElement('canvas')
       copy.width = c.width
       copy.height = c.height
-      copy.getContext('2d')!.drawImage(c, 0, 0)
+      const context = copy.getContext('2d')!
+      context.imageSmoothingEnabled = false
+      context.drawImage(c, 0, 0)
+      if (deco && decoration) {
+        const size = decoration.size * Math.min(c.width, c.height)
+        context.drawImage(deco, decoration.x * c.width, decoration.y * c.height, size, size)
+      }
       slot.replaceChildren(copy)
     })
   }

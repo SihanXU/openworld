@@ -709,6 +709,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (plan) game.engine.controls.run(plan)
         break
       }
+      case 'useItemOnHeldItem':
+        if (game && !game.engine.world.state.question) game.engine.controls.useItemOnHeldItem(m.instrument, m.target)
+        break
       case 'choices': {
         if (!game) break
         const list = game.engine.controls.choices(m.key, m.tile).map((ch) => ({ layer: ch.layer, name: ch.name, label: ch.plan?.label, unknown: (ch.plan?.unknown && !ch.plan.quiet) || undefined }))

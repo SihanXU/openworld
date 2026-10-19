@@ -1752,6 +1752,18 @@
                       "idOf"
                     ],
                     "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "stackKeyOf": {
+                        "$ref": "#/definitions/RoleName"
+                      }
+                    },
+                    "required": [
+                      "stackKeyOf"
+                    ],
+                    "additionalProperties": false
                   }
                 ]
               }
