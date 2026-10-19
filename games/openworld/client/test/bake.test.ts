@@ -38,7 +38,8 @@ describe('the Ford baked into the format', () => {
   })
 
   it('is the same world: every map with its ids, every person, quest, step and invariant', () => {
-    same(made.chunks, ford.chunks)
+    // the played maps and the backdrop's (docs/continent.md): the project is the whole world
+    same(made.chunks, [...ford.chunks, ...ford.backdrop])
     same(made.index.npcs, ford.index.npcs)
     same(made.index.maps, ford.index.maps)
     for (const k of ['quests', 'steps', 'invariants', 'weather', 'player', 'companions', 'start', 'starts', 'begin', 'startHour', 'seed', 'version', 'codex', 'waypoints'] as const) same(made.index[k], ford.index[k], k)

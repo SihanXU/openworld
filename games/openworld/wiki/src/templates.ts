@@ -810,6 +810,21 @@ function lists(ctx: Ctx, name: string, args: string[]): string | undefined {
     case '怪物表': return table(['', '名字', '类别', '生命', '攻击', '防御', '元素', '出没'], g.creatures.map((c) => [fit(c.sprite, 32), ctx.link(c.title, c.zh), esc(c.group), String(c.props.maxHp ?? '—'), String(c.props.atk ?? '—'), String(c.props.def ?? 0), c.props.element ? T(ctx, '元素', String(c.props.element)) : '—', join([...whereCreature(ctx, c.id).map((m) => mapLink(ctx, m)), ...bornOf(ctx, c.id).short]) === '—' ? '<span class="muted">游戏里目前不会出现</span>' : join([...whereCreature(ctx, c.id).map((m) => mapLink(ctx, m)), ...bornOf(ctx, c.id).short])]), 'wikitable sortable')
     case '首领表': return table(['', '名字', '印', '生命（挑战）', '技能', '在哪里打'], g.bosses.map((b) => { const c = campaign(ctx, b); return [fit(b.sprite, 48), ctx.link(b.title, b.zh), esc(b.seal ?? ''), String(b.def.hp), b.def.skills.map((s) => esc(zh(s.name))).join('、'), c ? `${mapLink(ctx, c.map)}、${ctx.link('首领挑战')}` : ctx.link('首领挑战')] }))
     case '地点表': return table(['名称', '类型', '大小', '区域', '相连'], g.maps.map((m) => [ctx.link(m.title, m.zh), esc(T(ctx, '地图类型', m.map.kind)), `${m.map.width}×${m.map.height}`, m.map.zone ? esc(T(ctx, '区域', m.map.zone)) : '战斗区域', join([...new Set((m.map.portals ?? []).map((p: any) => p.to))].map((t) => mapLink(ctx, t as string)))]), 'wikitable sortable')
+    // the continent's regions and the backdrop's places in one (docs/continent.md): no page each, a row each
+    case '地区表': {
+      const regions = (g.index.regions ?? []) as { id: string; name: { zh?: string; en: string }; backdrop?: boolean }[]
+      const count = (r: string) => g.index.maps.filter((m: any) => m.backdrop && m.region === r && !m.id.endsWith('.depths')).length
+      return table(['地区', 'English', '背景地点', '剧情'], regions.map((r) => [ctx.pages.has(zh(r.name)) ? ctx.link(zh(r.name)) : esc(zh(r.name)), esc(r.name.en), String(count(r.id)), r.backdrop ? '<span class="muted">尚未开放</span>' : '可玩']), 'wikitable')
+    }
+    case '地区地点': {
+      const region = args[0] ?? ''
+      const sites = new Map<string, string>()
+      for (const c of g.chunks) for (const e of c.entities) if (typeof e.props?.map === 'string' && e.type.startsWith('site/place/')) sites.set(e.props.map, e.type.split('/').pop()!)
+      const KIND: Record<string, string> = { village: '村庄', town: '城镇', city: '城区', farm: '农庄', mill: '磨坊', camp: '营地', ruin: '遗迹', shrine: '神龛', cave: '洞窟', mine: '矿坑', tower: '塔', graveyard: '墓园', fort: '要塞', battlefield: '古战场', cathedral: '修道院', seat: '持印者之座' }
+      const all = g.index.maps.filter((m: any) => m.backdrop && m.region === region)
+      const rows = all.filter((m: any) => !m.id.endsWith('.depths')).map((m: any) => [esc(zh(m.name)), esc(m.name.en), esc(KIND[sites.get(m.id) ?? ''] ?? '—') + (all.some((d: any) => d.id === `${m.id}.depths`) ? '（下有深处）' : ''), `${m.width}×${m.height}`])
+      return rows.length ? table(['名称', 'English', '种类', '大小'], rows, 'wikitable sortable') : '<p class="muted">这个地区还没有背景地点。</p>'
+    }
     case '任务表': {
       const kind = ({ 主线: 'main', 支线: 'side', 委托: 'favor', 指引: 'guide' } as Record<string, string>)[args[0] ?? ''] ?? ''
       const qs = g.quests.filter((q) => !kind || q.def.kind === kind)
@@ -940,7 +955,7 @@ export function navbox(ctx: Ctx, name: string): string {
 
 const BLOCK = new Set([
   '信息框', '引言', '小作品', '规划中', '待设计', '开发者', '主条目', '另见', '导航框', '日程表', '对话', '人际关系', '相关任务', '肖像', '来源', '用途', '配方', '变体',
-  '出没', '掉落', '首领技能', '怪物技能', '地图', '相连地点', '居民', '生物', '物品分布', '任务目标', '任务奖励', '任务对话', '任务阶段', '物品表', '居民表', '怪物表', '首领表', '地点表', '任务表',
+  '出没', '掉落', '首领技能', '怪物技能', '地图', '相连地点', '居民', '生物', '物品分布', '任务目标', '任务奖励', '任务对话', '任务阶段', '物品表', '居民表', '怪物表', '首领表', '地点表', '任务表', '地区表', '地区地点',
   '配方表', '建造表', '技能树', '职业表', '恩赐表', '状态表', '元素表', '地形表', '材质表', '品质表', '装备栏表', '作物表', '食物表', '传送雕像表', '配乐表', '效率表',
   '房间用途表', '夜行生物表', '传说武器表', '圣痕之力表', '誓言表', '货摊表', '版本历史', '数值表', '门户', '原文', '图', '剧透',
 ])

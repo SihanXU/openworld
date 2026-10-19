@@ -4188,7 +4188,8 @@ describe('the event model is complete (design.md §5.13)', () => {
 describe('the Ford is minimal', () => {
   it('every placed thing, person and fixed piece of the world witnesses some requirement', () => {
     const { index, chunks } = buildFord()
-    const placed = new Set<string>([...chunks.flatMap((c) => c.entities.map((e) => e.type)), ...index.npcs.map((n) => n.id), 'weather:storm', 'region:far_bank', 'region:kingdom', 'region:spring', 'region:pond', 'region:garden'])
+    // (the backdrop's places on the world map are none of the Ford's: their own checks are tools/test/continent.test.ts)
+    const placed = new Set<string>([...chunks.flatMap((c) => c.entities.filter((e) => e.props?.backdrop !== true).map((e) => e.type)), ...index.npcs.map((n) => n.id), 'weather:storm', 'region:far_bank', 'region:kingdom', 'region:spring', 'region:pond', 'region:garden'])
     const witnessed = new Set(R.flatMap((r) => r.by))
     const idle = [...placed].filter((p) => !witnessed.has(p))
     expect(idle).toEqual([])

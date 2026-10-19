@@ -4,10 +4,10 @@ import { untilUp } from './untilUp.ts'
 import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
 import { artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeOf, shareKept, sharedPart, takeDefinitions, withKept } from './learned.ts'
-import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
+import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
-import type { Atlas, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
+import type { Atlas, AtlasContinent, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
 const post = (m: FromWorker) => (self as unknown as Worker).postMessage(m)
@@ -356,6 +356,73 @@ const shownTarget: Partial<Record<Key, Ref>> = {}
 /** Terrain of maps no longer in memory (the world map draws every visited one), fetched once. */
 const terrainCache = new Map<string, string[]>()
 
+/** The overworld's chunk as the world map reads it (its grounds and its sites never move), fetched once. */
+let continentChunk: { id: string; terrain: string[]; width: number; height: number; sites: { id: string; type: string; x: number; y: number; name?: Text; props: Record<string, unknown> }[] } | undefined
+
+/** The continent for the world map: the overworld's grounds, regions and places, and where one is on it. */
+async function continent(): Promise<{ continent: AtlasContinent; cells: Record<string, { x: number; y: number }> } | undefined> {
+  const w = game!.engine.world
+  const meta = index.maps.find((m) => m.kind === 'overworld')
+  if (!meta) return undefined
+  if (!continentChunk) {
+    try {
+      const raw = await fetchJson<RawChunk>(`maps/${meta.id}.json`)
+      const terrain = decodeRawMap(raw.map, played().terrainChars).terrain
+      const sites = raw.entities.filter((e) => e.type.startsWith('site') && e.place.on === 'tile').map((e) => ({ id: e.id, type: e.type, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: e.name, props: (e.props ?? {}) as Record<string, unknown> }))
+      continentChunk = { id: meta.id, terrain, width: raw.map.width, height: raw.map.height, sites }
+    } catch {
+      return undefined
+    }
+  }
+  const c = continentChunk
+  const regions = index.regions ?? []
+  const regionIndex = new Map(regions.map((r, i) => [r.id, i]))
+  const regionOf = new Array<number>(c.width * c.height).fill(-1)
+  const cellOfMap = new Map<string, { x: number; y: number }>()
+  const places: AtlasContinent['places'] = []
+  for (const s of c.sites) {
+    const r = typeof s.props.region === 'string' ? regionIndex.get(s.props.region) : undefined
+    if (r !== undefined) regionOf[s.y * c.width + s.x] = r
+    if (typeof s.props.map === 'string') cellOfMap.set(s.props.map, { x: s.x, y: s.y })
+    if (!s.type.startsWith('site/place') || typeof s.props.map !== 'string') continue
+    const opens = typeof s.props.opensWhen === 'string' ? s.props.opensWhen : undefined
+    places.push({
+      x: s.x,
+      y: s.y,
+      name: s.name ?? { en: s.props.map, zh: s.props.map },
+      kind: s.type.split('/').pop()!,
+      map: s.props.map,
+      ...(opens && !w.fact(opens) && { sealed: true }),
+      ...(s.props.backdrop === true && { backdrop: true }),
+      ...(w.prop(w.player, `visited.${s.props.map}`) !== undefined && { visited: true }),
+      // a region's chief place, or a town of the played land
+      ...((s.props.capital === true || (s.props.backdrop !== true && s.type.endsWith('/town'))) && { capital: true }),
+    })
+  }
+  // where a map lies: its own site's cell, or (a room, a cave's depths) the cell of the map it is reached from
+  const graph = new Map(index.maps.map((m) => [m.id, m.portals.map((p) => p.to)]))
+  const cellOf = (id: string): { x: number; y: number } | undefined => {
+    const seen = new Set([id])
+    let frontier = [id]
+    for (let hop = 0; hop < 4 && frontier.length; hop++) {
+      for (const m of frontier) {
+        const at = cellOfMap.get(m)
+        if (at) return at
+      }
+      frontier = frontier.flatMap((m) => graph.get(m) ?? []).filter((m) => !seen.has(m) && (seen.add(m), true))
+    }
+    return undefined
+  }
+  const pos = w.posOf(w.player)!
+  const cell = pos.map === c.id ? { x: pos.x, y: pos.y } : cellOf(pos.map)
+  const cells: Record<string, { x: number; y: number }> = {}
+  for (const m of index.maps) {
+    const at = cellOf(m.id)
+    if (at) cells[m.id] = at
+  }
+  return { continent: { width: c.width, height: c.height, terrain: c.terrain, regionOf, regions, places, ...(cell && { cell }) }, cells }
+}
+
 async function atlas(): Promise<Atlas | undefined> {
   if (!game) return undefined
   const w = game.engine.world
@@ -381,7 +448,8 @@ async function atlas(): Promise<Atlas | undefined> {
   // a place off the world's layout (the tutorial's clearing) with nothing else seen yet: it is the map, alone
   const here = index.maps.find((m) => m.id === pos.map)
   if (!maps.length && here && w.state.maps[here.id]) maps.push({ id: here.id, name: here.name, at: { x: 0, y: 0 }, width: here.width, height: here.height, terrain: w.state.maps[here.id]!.terrain })
-  return { targets, maps, waypoints: stones, here: { map: pos.map, x: pos.x, y: pos.y } }
+  const world = await continent()
+  return { targets, maps, waypoints: stones, here: { map: pos.map, x: pos.x, y: pos.y }, ...(world && { continent: world.continent, cells: world.cells }) }
 }
 
 function libraryView(): LibraryView {

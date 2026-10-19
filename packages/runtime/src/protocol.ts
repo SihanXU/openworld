@@ -163,8 +163,28 @@ export interface AtlasMap {
   terrain: string[]
 }
 
+/**
+ * The continent (the overworld, world-model.md §5.1) as the world map draws it: its grounds a cell each, the region each
+ * cell is in, the named places, and the cell one is at (on the overworld, or the place one is in).
+ */
+export interface AtlasContinent {
+  width: number
+  height: number
+  terrain: string[]
+  /** Each cell's region, an index into `regions` (-1: none, the sea). */
+  regionOf: number[]
+  regions: { id: string; name: Text; color?: string; backdrop?: boolean }[]
+  places: { x: number; y: number; name: Text; kind: string; map: string; sealed?: boolean; backdrop?: boolean; visited?: boolean; capital?: boolean }[]
+  /** The cell one is at, where the world map can tell. */
+  cell?: { x: number; y: number }
+}
+
 export interface Atlas {
   maps: AtlasMap[]
+  /** The whole world map, when the world has one (an overworld). */
+  continent?: AtlasContinent
+  /** The cell each map with a waypoint or a quest's target lies at on the continent (its own, or the map it hangs below). */
+  cells?: Record<string, { x: number; y: number }>
   waypoints: { id: string; map: string; x: number; y: number; name: Text; attuned: boolean }[]
   here: { map: string; x: number; y: number }
   /** Where the tracked quest's open objectives point (docs/quests.md §2.5): its markers on the world map. */
