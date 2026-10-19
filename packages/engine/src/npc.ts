@@ -8,7 +8,8 @@
 // whose schedule leads to the active map walks in on the hour, from the edge or portal they would
 // come by (D21). A person whose day cannot go on — the thing their activity needs is gone or not as
 // it must be, or the anchor cannot be reached — is `stuck`, an event whose outcome may change
-// their script.
+// their script. The backdrop's people (`npc.fidelity: 'local'`, docs/continent.md §9) keep to their own map: they
+// are left out of the hourly routing, and are placed by their days when their map is entered.
 
 import type { Engine } from './engine.ts'
 import { astar } from './path.ts'
@@ -62,15 +63,20 @@ export class NpcSim {
   private lastHour = -1
   /** npc|activity → the tick after which they may be blocked about it again */
   private blockedUntil = new Map<string, number>()
-  /** All NPC ids (the global roster); maintained lazily. */
+  /** The people who travel (their days may lead off their map): the hourly routing's, read from the world's people. */
   private roster?: Id[]
+  private rosterOf = -1
   /** Path searches left this tick. */
   private budget = PATH_BUDGET_PER_TICK
 
   constructor(private eng: Engine) {}
 
   private ids(): Id[] {
-    if (!this.roster) this.roster = Object.values(this.eng.world.state.entities).filter((e) => e.npc).map((e) => e.id)
+    const w = this.eng.world
+    if (!this.roster || this.rosterOf !== w.peopleVersion) {
+      this.roster = w.people().filter((e) => e.npc?.fidelity !== 'local').map((e) => e.id)
+      this.rosterOf = w.peopleVersion
+    }
     return this.roster
   }
 
@@ -144,19 +150,29 @@ export class NpcSim {
     return prev.has(to) && to !== from ? prev.get(to) : undefined
   }
 
-  /** When the player enters a map, reconcile NPCs whose anchors are here. */
+  /**
+   * When the player enters a map, reconcile NPCs whose anchors are here: those who travel come in from where they are;
+   * the map's own people (the backdrop's, who keep to it) have gone on with their days while it slept, and are where
+   * their days have them now (a few steps off is close enough).
+   */
   onEnterMap(map: string, _from?: string): void {
     const w = this.eng.world
     const h = w.hour()
+    const place = (e: Entity, s: ScheduleEntry) => {
+      const at = { map, x: s.x, y: s.y }
+      const free = w.walkable(map, s.x, s.y, e.id) ? at : this.eng.nearestFree(at)
+      if (free) this.eng.relocate(e, free)
+    }
     for (const id of this.ids()) {
       const e = w.get(id)
       if (!e?.npc || e.place.on !== 'tile' || e.place.map === map) continue
       const s = scheduleAt(scheduleFor(this.eng, e), h)
-      if (s?.map === map) {
-        const at = { map, x: s.x, y: s.y }
-        const free = w.walkable(map, s.x, s.y, e.id) ? at : this.eng.nearestFree(at)
-        if (free) this.eng.relocate(e, free)
-      }
+      if (s?.map === map) place(e, s)
+    }
+    for (const e of w.entitiesOnMap(map)) {
+      if (e.npc?.fidelity !== 'local' || e.place.on !== 'tile' || e.props?.follow !== undefined) continue
+      const s = scheduleAt(scheduleFor(this.eng, e), h)
+      if (s?.map === map && Math.abs(e.place.x - s.x) + Math.abs(e.place.y - s.y) > 3) place(e, s)
     }
     this.rt.clear()
   }

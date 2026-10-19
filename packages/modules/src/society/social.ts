@@ -39,6 +39,14 @@ export type Relation = 'mine' | 'ours' | 'another' | 'nobody'
 export type Victim = 'me' | 'ours' | 'kin' | 'other' | 'none'
 
 
+/**
+ * People of one place know each other by sight: the backdrop's people (`npc.fidelity: 'local'`, docs/continent.md §9),
+ * made with their map by its file, are its neighbours — what they need not come to know, nor keep a record of.
+ */
+function neighbours(a: Entity, b: Entity | undefined): boolean {
+  return !!b && a.npc?.fidelity === 'local' && b.npc?.fidelity === 'local' && !!a.from && a.from === b.from
+}
+
 export class Social {
   constructor(private eng: Engine) {}
 
@@ -110,7 +118,8 @@ export class Social {
       return e && w.isAgent(e) ? [e] : []
     }
     const h = owner.slice('household:'.length)
-    return Object.values(w.state.entities).filter((e) => e.npc && e.place.on !== 'none' && w.prop(e, 'household') === h)
+    // (by the household's own index, not every thing in the world)
+    return w.withProp('household', h).filter((e) => e.npc && e.place.on !== 'none')
   }
 
   /** An owner's name: a person's, or a household's. */
@@ -272,13 +281,13 @@ export class Social {
     if (seer.id === who) return true
     const other = this.w.get(who)
     const mine = this.householdOf(seer)
-    return !!seer.npc?.memory?.met?.includes(who) || !!seer.npc?.person?.ties?.[who] || (!!other && !!mine && mine === this.householdOf(other))
+    return !!seer.npc?.memory?.met?.includes(who) || !!seer.npc?.person?.ties?.[who] || (!!other && !!mine && mine === this.householdOf(other)) || neighbours(seer, other)
   }
 
   /** One comes to know another by sight (an outcome of theirs). */
   meet(seer: Entity, who: Id): void {
     const m = this.record(seer)
-    if (!m || seer.id === who) return
+    if (!m || seer.id === who || neighbours(seer, this.w.get(who))) return
     const met = (m.met ??= [])
     if (!met.includes(who)) met.push(who)
   }

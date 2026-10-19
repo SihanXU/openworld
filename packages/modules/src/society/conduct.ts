@@ -351,8 +351,8 @@ export class Conduct {
     const p = w.player
     const at = w.posOf(p)
     if (!at || at.map !== map) return
-    for (const e of Object.values(w.state.entities)) {
-      if (!e.npc || e.props?.follow !== p.id || e.props?.waiting === true || e.place.on !== 'tile' || e.place.map === map) continue
+    for (const e of w.withProp('follow', p.id)) {
+      if (!e.npc || e.props?.waiting === true || e.place.on !== 'tile' || e.place.map === map) continue
       const free = eng.nearestFree(at, e)
       if (free) eng.relocate(e, free)
     }

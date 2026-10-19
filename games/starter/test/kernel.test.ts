@@ -166,6 +166,8 @@ describe('the starter, on the kernel alone', () => {
     ticks(eng, 30)
     const save = game.save()
     const back = Game.load(structuredClone(save), index, structuredClone(bundle.ontology))
+    // the maps the save put away come back as their files come (docs/continent.md §9)
+    for (const c of compiled.chunks) back.loadChunk(decodeRawChunk(c, bundle.terrainChars))
     expect(back.engine.world.state.tick).toBe(eng.world.state.tick)
     expect(back.engine.world.posOf(back.engine.world.player)).toEqual(eng.world.posOf(eng.world.player))
     expect(Object.keys(back.engine.world.state.entities).sort()).toEqual(Object.keys(eng.world.state.entities).sort())

@@ -1,6 +1,6 @@
 # The continent: regions, places, the backdrop
 
-Status: **agreed 2026-10-18, phases A and B built.** The world grows from the Frostfang Coast to hundreds of maps, thousands of
+Status: **agreed 2026-10-18, phases A, B and C built.** The world grows from the Frostfang Coast to hundreds of maps, thousands of
 people and tens of thousands of things, most of them **backdrop** for now: the released demo is what is played today,
 with the rest of the continent walkable around it, filled in with played content later. This document is the plan for
 that growth (phases A–E) and the record of phases A (the continent itself) and B (its places: rooms, templates,
@@ -163,7 +163,7 @@ nearest that is.
   and what stands about), each region's look (a grade for the world filter and a shade over its hours: the Fens
   darker). Left for later: a city's districts as maps of their own beyond the Holy City's quarters, the night's
   length by region (the shade darkens every hour alike), landmarks.
-- **C — people** and the engine's scale: people in bulk by household and role per settlement (`format/src/crowd.ts`
+- **C — people** and the engine's scale (built, §11–§12): people in bulk by household and role per settlement (`format/src/crowd.ts`
   grown: households, looks from `generateLook`, trades, a day within their own place); fidelity tiers (backdrop people
   stay in their place, out of the hourly routing); people made when their map is first entered, kept only when changed;
   dormant maps' things out of memory; indices by map, type and household in place of the scans over all things;
@@ -227,3 +227,77 @@ player turns the filter off. The Frostfang Coast has none: the played land keeps
 | The Pale Fens | grey-green `#6f8a80`, 0.35 | +0.4 | 0.24 |
 | The White Altar Heights | cold white `#dfe4ee`, 0.2 | +0.12 | — |
 | The Holy City | gold `#f0cf7a`, 0.16 | −0.05 | — |
+## 11. The backdrop's people (phase C)
+
+About three thousand people live in the backdrop's settlements (`tools/src/demo/continent/people.ts`, words in
+`folk.ts`): a pass over the built maps, so the templates (`backdrop.ts`) change freely under it.
+
+- **Households and roles** by the place's kind and region: a house's door is a household's (`household`
+  `<map>.h<n>`), its family name theirs; each kind has the roles every such place has and the rest by weight
+  (a town's merchants, guards, smith, innkeeper, priest; a farm's family; a fort's garrison; a cathedral's priests); a
+  camp's people by region (the coast's hunters, the March's sellswords, the plains' traders, the fens' reed-cutters, the
+  Altar's and the City's pilgrims); a capital a quarter more. Ruins, caves, graves, towers, battlefields and the sealed
+  seats have no one.
+- **Names** in both languages: a given name by region and sex (the coast's Nordic, the March's harsh, the plains'
+  plain, the fens' soft, the Altar's and the City's Latin), transliterated as the Ford's people are; a family name made
+  as the places' are (a region's first half and a root, meaning the same in both: Pinebrook 松溪). Never twice in a place.
+- **A look** from their id (content `generateLook`), **a favourite** (`favouriteFor`), **lines** by their work and their
+  land (a greeting, two of their work's, one of their land's: the regions' sufferings are in the weather and the
+  prices, never in a quest).
+- **A day within their own map**: asleep at their door, at work where their role has them (the fields, a stall, the
+  altar, the gate, the shore, the drill yard), a meal at home, the evening at the well, the fountain or the fire; one
+  guard in three keeps a town's streets at night.
+- **A trade where it fits**: a merchant, a smith, an innkeeper, a herbalist, a peddler, a fisher, a shrine's priest
+  carry their stock (`stock`, the morning's restock keeps it) and every one their coin (`purse`), as the Ford's do.
+- **The backdrop's own** (`npc.fidelity: 'local'`): in their map's file, never in the index; not essential; named by
+  no quest, step or invariant; no page of the wiki. People of one place know each other by sight (the society module's
+  `neighbours`: no record of their meeting is kept).
+
+| | Before | Now |
+|---|---|---|
+| people | 33 (all in the index) | 33 who travel (the index) + 3,029 of the backdrop (their maps' files) |
+| things in the world | 2,135 places + the played maps' | + 17,609 items (the people's goods and coin among them) |
+| the largest map file | — | 250 KB (a capital, a hundred people) |
+
+## 12. The engine at this scale (phase C)
+
+What grew with the world, and what it is now.
+
+- **A map's things are kept as what differs from its file** (`engine/src/sparse.ts`). A chunk's things are made the
+  first time the map loads, marked `from` it; from then on the file is their record. A save keeps what differs (a merge
+  patch: a person moved and hungrier is a few props; what was made or brought there, whole); what is as the file has it
+  is left out; what is gone stays gone (`ChunkState.gone`). A backdrop person is made when their map is first entered
+  and saved only once changed. The index is the file of the people who travel (`ROSTER`): a save keeps them as what
+  differs from it. An older save's maps are kept whole until their files come again, and then told from them (what the
+  file has and the save had not is gone).
+- **Dormant maps put away**: the host (`Game.keepMaps`, the worker's 8) puts the maps far behind away (`Game.trim`, the
+  longest dormant first): their data and their things leave memory, to come back as they were when the map's file comes
+  again (`Engine.loadChunk`). What the world needs wherever it is stays: the player, companions, the people who travel,
+  what a quest names, what an invariant looks for, what waits for an outcome. An event for a thing put away waits in its
+  map's inbox, as a dormant map's does. A save puts away every map but the player's, whose unchanged things it leaves
+  out (`lean`): a save loads onto its map with the map's data alone, and its file brings the rest.
+- **Fidelity**: the backdrop's people keep to their map — out of the hourly routing of the people who travel (`npc.ts`,
+  its roster read from the people index), placed by their days when their map is entered.
+- **Indices** in place of the scans over every thing (`world.ts`): by type (`ofType`: the codex's kinds, waypoints, an
+  invariant's `exists`, a quest's finder), the people (`people`), props by value (`withProp`: a household's members, the
+  site that stands for a map, followers), the kept cells by map (`keptCells`), the agents by map (`agentsOnMap`), the
+  statuses by map (`statusfulOn`: `statusTick`, `catchUp`, `fires`), relations read the other way (`settle`); what
+  companions lend read from their index (`World.stat`); a thing no rule could answer by its type and tags is passed over
+  before its view is made (`RuleLibrary.mayAnswer`: the overworld's places' lasting contact, the periods' hosts).
+- **Frames**: a frame carries what the camera shows and a margin round it (`snapshot`'s `view`, the page says what it
+  shows), and the worker sends a thing only when it changed (`runtime/src/frameDelta.ts`; the page puts the frame back
+  together; a key frame on a new map and every hundred frames).
+
+Measured with `npm run scale` (`tools/src/demo/scale.ts`: fifty maps walked into — played, the backdrop's towns and
+wilds, the overworld between — as the worker plays them; one machine, ms):
+
+| | Before (33 people) | Now (3,062 people) |
+|---|---|---|
+| things in memory after fifty maps | 4,356 (every map seen) | 5,032 (8 maps; 8,630 with every map kept) |
+| a tick on the overworld | 5.8 | 1.1 |
+| a tick in the backdrop's largest town (100 people) | — | 0.6 |
+| a frame on the world map: made, sent | 11 + 7 to copy, 460 KB | 3.2, 6 KB (in view, what changed) |
+| a save | 1.47 MB | 410 KB, of it 72 KB the state (the rest the rule library, the same in every world) |
+
+The scale test (`continent.test.ts`, "the world at scale") holds these to bounds, and what is put away to coming back
+as it was.

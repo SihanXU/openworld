@@ -16,8 +16,9 @@ import { Companions } from './companion.ts'
 import { Quests } from './quests.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
 import { scheduleFor } from './people.ts'
-import { OntologyIndex } from './ontology.ts'
+import { OntologyIndex, isA } from './ontology.ts'
 import { appearFromForage } from './appear.ts'
+import { Chunks } from './sparse.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
 import { DEFAULT_QUALITY, categoryOf, tierOfLevel, type AiQuality } from './quality.ts'
 import { modulesOf, noHooks, noSociety, type Combat, type Society, type EffectImpl, type EngineHooks, type EngineModule, type Goal } from './module.ts'
@@ -96,6 +97,8 @@ export class Engine {
   private readonly write: Writer
   effects: EffectRunner
   npcs: NpcSim
+  /** The maps' things kept as what differs from their files, and the maps put away (sparse.ts, docs/continent.md §9). */
+  chunks: Chunks
   /** Everyone's goals (behaviour.ts). */
   behaviour: Behaviour
   /** Told when a learned rule is set aside at run time (the client reports it to the service). */
@@ -169,6 +172,8 @@ export class Engine {
   private flushing = false
   /** What outcomes touched since the last settle: ref key → ref. */
   private touched = new Map<string, Ref>()
+  /** Who keeps a relation to a thing (the relations read the other way), for the state's relations as they are now. */
+  private relBy?: { of: Record<string, string[]>; by: Map<Id, Set<string>> }
 
   constructor(state: WorldState, ontology: Ontology, lib: RuleLibrary) {
     // this game's own definitions: what it learns is its own, the world's are left for the next game (another save)
@@ -181,6 +186,7 @@ export class Engine {
     this.lib = lib
     this.effects = new EffectRunner(this)
     this.npcs = new NpcSim(this)
+    this.chunks = new Chunks(this)
     this.behaviour = new Behaviour(this)
     this.story = new Story(this)
     this.companions = new Companions(this)
@@ -289,6 +295,10 @@ export class Engine {
 
   /** Make an event only if its host could do anything with it (no-change roots make none). */
   offer(ev: GameEvent): void {
+    // (a thing no rule could answer by its type is passed over before its view is made: the overworld's places)
+    const w = this.world
+    const e = w.get(ev.host.e)
+    if (e && !this.lib.mayAnswer(ev.kind, e.type, w.isStatic(e) ? w.onto.resolve(e.type).tags : undefined)) return
     if (this.lib.answers(ev.kind, this.world.view(ev.host))) this.queue(ev)
   }
 
@@ -366,6 +376,12 @@ export class Engine {
     if (!this.within(ev)) return { defined: false }
     this.onDispatch?.(ev)
     const host = 'e' in ev.host ? w.get(ev.host.e) : undefined
+    // a thing put away with its map (docs/continent.md §9) receives it when the map comes again, as a dormant one does
+    const away = !host && 'e' in ev.host ? this.chunks.awayAt(ev.host.e) : undefined
+    if (away !== undefined) {
+      ;((w.state.dormant ??= {})[away] ??= { since: w.state.tick, inbox: [] }).inbox.push(ev)
+      return { defined: false }
+    }
     if ('e' in ev.host && (!host || host.place.on === 'none')) return { defined: false }
     // a thing on a dormant map receives it when the player comes (design.md §5.12); people and residents at once
     const at = w.posOf(host)
@@ -823,7 +839,7 @@ export class Engine {
   fires(map: string): Pos[] {
     const w = this.world
     const out: Pos[] = []
-    for (const key of w.statusful) {
+    for (const key of w.statusfulOn(map)) {
       const ref = w.keyRef(key)
       if (!w.hasStatus(ref, 'lit') && !w.hasStatus(ref, 'burning')) continue
       const p = w.refPos(ref)
@@ -977,7 +993,7 @@ export class Engine {
       // a thing with a reach, or one that supports, changed, moved or gone)
       for (const k of rel[r.e] ?? []) if (k.startsWith('on|')) addTile(w.posOf(w.get(w.keyRef(k.slice(3)).e)))
       if (!e || w.reachOf(e).length || w.prop(e, 'supports') !== undefined)
-        for (const [h, ks] of Object.entries(rel)) if (ks.some((k) => w.keyRef(k.slice(k.indexOf('|') + 1)).e === r.e)) hosts.add(h)
+        for (const h of this.relatedTo(r.e)) if (rel[h]?.some((k) => w.keyRef(k.slice(k.indexOf('|') + 1)).e === r.e)) hosts.add(h)
     }
     const storeys = w.onto.data.params?.storeys ?? 4
     for (const t of tiles) {
@@ -985,6 +1001,24 @@ export class Engine {
       for (let z = 0; z <= storeys; z++) for (const o of w.entitiesAt(map, +x, +y, z)) hosts.add(o.id)
     }
     for (const h of hosts) this.diff(h)
+  }
+
+  /** The hosts that may keep a relation to a thing (read the other way; the caller checks each). */
+  private relatedTo(id: Id): Iterable<string> {
+    const rel = (this.world.state.relations ??= {})
+    if (this.relBy?.of !== rel) {
+      const by = new Map<Id, Set<string>>()
+      for (const [h, ks] of Object.entries(rel)) for (const k of ks) this.relAdd(by, h, k)
+      this.relBy = { of: rel, by }
+    }
+    return this.relBy.by.get(id) ?? []
+  }
+
+  private relAdd(by: Map<Id, Set<string>>, host: string, k: string): void {
+    const to = this.world.keyRef(k.slice(k.indexOf('|') + 1)).e
+    let s = by.get(to)
+    if (!s) by.set(to, (s = new Set()))
+    s.add(host)
   }
 
   /** One host's relations against what was kept: the differences become contact events. */
@@ -996,6 +1030,13 @@ export class Engine {
     const was = rel[key] ?? []
     if (now.length) rel[key] = now
     else delete rel[key]
+    // (the other way round, kept as they change)
+    if (this.relBy?.of === rel) {
+      const to = (k: string) => w.keyRef(k.slice(k.indexOf('|') + 1)).e
+      const still = new Set(now.map(to))
+      for (const k of was) if (!still.has(to(k))) this.relBy.by.get(to(k))?.delete(key)
+      for (const k of now) this.relAdd(this.relBy.by, key, k)
+    }
     if (quiet) return
     for (const k of was) if (!now.includes(k)) this.contact('contact/end', key, k)
     for (const k of now) if (!was.includes(k)) this.contact('contact/begin', key, k)
@@ -1365,7 +1406,7 @@ export class Engine {
   private mapKnown(map: string): void {
     const w = this.world
     if (w.map(map) || map in this.graph) return
-    if (Object.values(w.state.entities).some((e) => e.type.startsWith('site') && e.props?.map === map)) return
+    if (w.withProp('map', map).some((e) => e.type.startsWith('site'))) return
     throw new Error(`there is no map "${map}"`)
   }
 
@@ -1427,7 +1468,7 @@ export class Engine {
     const now = w.state.tick
     for (let n = 0; n < EVENT_BUDGET; n++) {
       let due: { ref: Ref; status: string; at: number } | undefined
-      for (const key of w.statusful) {
+      for (const key of w.statusfulOn(map)) {
         const ref = w.keyRef(key)
         if (w.refPos(ref)?.map !== map) continue
         for (const [status, exp] of Object.entries(w.statusesOf(ref) ?? {}))
@@ -1629,7 +1670,7 @@ export class Engine {
   private statusTick(active: string): void {
     const w = this.world
     const t = w.state.tick
-    for (const key of [...w.statusful]) {
+    for (const key of w.statusfulOn(active)) {
       const ref = w.keyRef(key)
       const pos = w.refPos(ref)
       // a resident's clock runs wherever the one at the keys is (a quest's deadline, docs/quests.md)
@@ -1679,7 +1720,7 @@ export class Engine {
           ? [{ e: p.host }]
           : w
               .entitiesOnMap(active)
-              .filter((e) => e.place.on === 'tile' && matchSelector(p.host as import('./types.ts').Selector, w.view({ e: e.id })))
+              .filter((e) => e.place.on === 'tile' && (!(p.host as import('./types.ts').Selector).type || isA(e.type, (p.host as import('./types.ts').Selector).type!)) && matchSelector(p.host as import('./types.ts').Selector, w.view({ e: e.id })))
               .filter((e) => (own ? comes(e) : true))
               .map((e) => ({ e: e.id }))
       for (const h of hosts) this.offer({ kind: 'time/period', host: h, roles: {}, params: { name: p.name }, origin: 'world' })
@@ -1699,12 +1740,23 @@ export class Engine {
     if (w.state.tick % STAY_EVERY !== 0) return
     const rel = w.state.relations ?? {}
     for (const e of w.entitiesOnMap(active)) {
-      for (const k of rel[e.id] ?? []) {
+      const ks = rel[e.id]
+      if (!ks) continue
+      const mine = this.lib.mayAnswer('contact/stay', e.type)
+      for (const k of ks) {
         const i = k.indexOf('|')
         const how = k.slice(0, i)
-        const other = w.keyRef(k.slice(i + 1))
-        this.offer({ kind: 'contact/stay', host: { e: e.id }, roles: { other }, params: { how }, origin: 'world' })
-        if (w.view(other)) this.offer({ kind: 'contact/stay', host: other, roles: { other: { e: e.id } }, params: { how: REVERSE[how] ?? how }, origin: 'world' })
+        const to = k.slice(i + 1)
+        const other = w.keyRef(to)
+        if (mine) this.offer({ kind: 'contact/stay', host: { e: e.id }, roles: { other }, params: { how }, origin: 'world' })
+        // (a floor's key names its type: a cell of the map's data no rule could answer, by its type and its tags, is passed over unread)
+        const h = to.indexOf('#')
+        if (h >= 0 && !w.state.entities[other.e]) {
+          const type = to.slice(h + 1)
+          if (!this.lib.mayAnswer('contact/stay', type, w.onto.resolve(type).tags)) continue
+        }
+        const o = w.get(other.e)
+        if (o && o.place.on !== 'none') this.offer({ kind: 'contact/stay', host: other, roles: { other: { e: e.id } }, params: { how: REVERSE[how] ?? how }, origin: 'world' })
       }
     }
   }
@@ -1729,18 +1781,17 @@ export class Engine {
 
   // ---------------------------------------------------------------- chunks
 
+  /**
+   * A map's file has come: its data, and its things — made the first time, brought back as they were when the map was
+   * put away (sparse.ts) — before what the data starts (its areas, the clocks of what is in a stage).
+   */
   loadChunk(chunk: MapChunk): void {
     const s = this.world.state
     s.maps[chunk.map.id] = chunk.map
+    this.write(() => this.chunks.arrive(chunk))
     this.mapArrived(chunk.map.id)
-    if (!s.loadedMaps.includes(chunk.map.id)) {
-      s.loadedMaps.push(chunk.map.id)
-      this.write(() => {
-        for (const e of chunk.entities) if (!s.entities[e.id]) this.world.add(structuredClone(e))
-      })
-      // a map as it was made: its relations are where it starts, not events
-      this.diffMap(chunk.map.id, true)
-    }
+    // a map as it was made, or as it was put away (a save leaves its relations out): where it starts, not events
+    this.diffMap(chunk.map.id, true)
     // the step through a portal that waited for this map ends here (its outcome, finished on loading)
     if (this.pendingTransition?.map === chunk.map.id) {
       const to = this.pendingTransition

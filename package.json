@@ -20,6 +20,7 @@
     "bake": "tsx games/openworld/client/scripts/bake.ts",
     "build": "npm run gen:world && npm run build -w @openworld-game/client",
     "continent": "tsx games/openworld/tools/src/demo/continent/main.ts",
+    "scale": "tsx games/openworld/tools/src/demo/scale.ts",
     "gen:world": "tsx games/openworld/tools/src/demo/world.ts && tsx games/openworld/client/scripts/bundle.ts",
     "check:world": "tsx games/openworld/tools/src/demo/check.ts",
     "assets": "tsx games/openworld/tools/src/copyAssets.ts",

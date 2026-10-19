@@ -46,7 +46,7 @@ const WRITES: RegExp[] = [
  * outcome) write; loading and building write as the author (Game, the sandbox) and so do the
  * content's migrations of older saves.
  */
-const MAY_WRITE = ['packages/engine/src/world.ts', 'packages/engine/src/effects.ts', 'packages/engine/src/game.ts', 'packages/engine/src/sandbox.ts', 'games/openworld/content/src/migrateFirstlight.ts', 'games/openworld/content/src/migrateBosses.ts']
+const MAY_WRITE = ['packages/engine/src/world.ts', 'packages/engine/src/effects.ts', 'packages/engine/src/game.ts', 'packages/engine/src/sandbox.ts', 'packages/engine/src/sparse.ts', 'games/openworld/content/src/migrateFirstlight.ts', 'games/openworld/content/src/migrateBosses.ts']
 const MAY_AUTHOR = ['packages/engine/src/engine.ts', 'packages/engine/src/game.ts', 'packages/engine/src/sandbox.ts']
 const MAY_GRANT = ['packages/engine/src/engine.ts', 'packages/engine/src/world.ts']
 
@@ -174,7 +174,7 @@ describe('the state is things and the clock (world-model.md §3)', () => {
     // the clock and the generator; the things; the maps' base data and what changed on their cells;
     // and the engine's own records (what is loaded, asked, frozen, related, reported) — no facts,
     // topics, scenes, weather or memories beside the things they belong to
-    const ALLOWED = ['tick', 'seed', 'rng', 'counter', 'player', 'spawn', 'entities', 'maps', 'tiles', 'loadedMaps', 'question', 'dormant', 'relations', 'reported']
+    const ALLOWED = ['tick', 'seed', 'rng', 'counter', 'player', 'spawn', 'entities', 'maps', 'tiles', 'loadedMaps', 'question', 'dormant', 'relations', 'reported', 'chunks']
     expect(Object.keys(state).filter((k) => !ALLOWED.includes(k))).toEqual([])
     // the story and the world are things, and so are the maps' named areas
     const w = game.engine.world

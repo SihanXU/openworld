@@ -839,6 +839,12 @@ export class WorldScene extends Phaser.Scene {
   get zoom(): number {
     return this.cameras.main.zoom
   }
+  /** What the camera shows now, in cells, and on which map (the worker's frames carry what lies there, docs/continent.md §9). */
+  viewCells(): { map: string; x: number; y: number; w: number; h: number } | undefined {
+    const v = this.cameras?.main?.worldView
+    if (!this.base || !v || !v.width) return undefined
+    return { map: this.base.id, x: Math.floor(v.x / T), y: Math.floor(v.y / T), w: Math.ceil(v.width / T) + 1, h: Math.ceil(v.height / T) + 1 }
+  }
   /** Centre the camera on a cell. */
   lookAt(x: number, y: number): void {
     this.cameras.main.centerOn(x * T + T / 2, y * T + T / 2)

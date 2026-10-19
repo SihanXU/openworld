@@ -489,6 +489,17 @@ export class Quests {
     this.pending.push(n)
   }
 
+  /** Every thing a quest under way (or offered) names (its aliases). */
+  aliasedIds(): Set<Id> {
+    const out = new Set<Id>()
+    for (const q of this.all()) {
+      const s = this.stateOf(q)
+      if (s !== 'active' && s !== 'offered') continue
+      for (const [k, v] of Object.entries(q.props ?? {})) if (k.startsWith('alias.') && typeof v === 'string') out.add(v)
+    }
+    return out
+  }
+
   /** Is this thing one a quest under way names (an alias)? */
   aliased(id: Id): boolean {
     for (const q of this.all()) {
@@ -858,7 +869,9 @@ export class Quests {
     const near = f.near ? w.get(f.near === 'player' ? by : fills[f.near]) : w.get(by)
     const at = w.posOf(near)
     const out: { e: Entity; d: number }[] = []
-    for (const e of Object.values(w.state.entities)) {
+    // (read by kind where the finder names one: the people, or a type and those under it)
+    const pool = f.person ? w.people() : typeof f.type === 'string' ? w.ofType(f.type) : Object.values(w.state.entities)
+    for (const e of pool) {
       if (taken.has(e.id) || e.id === by || e.place.on === 'none' || e.type === QUEST_TYPE) continue
       if (f.person && !e.npc) continue
       const p = w.posOf(e)
