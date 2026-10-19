@@ -29,6 +29,17 @@ export interface AnthropicConfig {
 type Block = Anthropic.Beta.BetaContentBlockParam
 type Turn = Anthropic.Beta.BetaMessageParam
 
+/** The turns with a cache breakpoint on the last block of the last one (when `on`). */
+function cachedTo(turns: Turn[], on: boolean): Turn[] {
+  const last = turns.at(-1)
+  if (!on || !last) return turns
+  const blocks: Block[] = typeof last.content === 'string' ? [{ type: 'text', text: last.content }] : [...last.content]
+  const end = blocks.length - 1
+  if (end < 0 || blocks[end].type === 'thinking' || blocks[end].type === 'redacted_thinking') return turns
+  blocks[end] = { ...blocks[end], cache_control: { type: 'ephemeral' } } as Block
+  return [...turns.slice(0, -1), { ...last, content: blocks }]
+}
+
 export class AnthropicModel implements Model {
   readonly name: string
   private client: Anthropic
@@ -51,7 +62,8 @@ export class AnthropicModel implements Model {
       model: this.cfg.model,
       max_tokens: this.cfg.maxTokens ?? 16_000,
       ...(system ? { system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] } : {}),
-      messages: this.turns(messages.filter((m) => m.role !== 'system'), !!opts.json && !tools),
+      // a tool conversation goes on: its history is cached up to the last turn, so the next step reads it, not pays it again
+      messages: cachedTo(this.turns(messages.filter((m) => m.role !== 'system'), !!opts.json && !tools), !!tools),
       output_config: { effort: effortOf(this.cfg.effort, opts.reasoning) as 'low' },
       ...(tools
         ? {

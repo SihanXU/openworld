@@ -24,7 +24,7 @@ the list prices. The RSI experiments (§8) still name Kimi K3 (docs/rsi-experime
 | Cost over play | `npx tsx games/openworld/tools/src/eval/play.ts --players 8 --hours 20` | yes |
 | Persistence and consistency | `npx tsx games/openworld/tools/src/eval/persistence.ts --days 1,7` | yes |
 | The trust boundary under attack | `npx tsx games/openworld/tools/src/eval/attack.ts` | yes |
-| Live answers by tier (Valid, Wait, Cost) | `npm run latency -- --n 20 --tier low\|medium\|high` | no |
+| Live answers by tier (Valid, Wait, Cost) | `npm run latency -- --n 20 --tier low\|medium\|high` (the tier set on the request's scenario, which the request's own defers to) | no |
 | The router | `npm run eval:objects` | no |
 | Table 1, controlled | `npx tsx games/openworld/tools/src/eval/controlled.ts items \| answer <cond> \| repeat \| judge \| report` | C, items: yes |
 
@@ -61,3 +61,26 @@ the list prices. The RSI experiments (§8) still name Kimi K3 (docs/rsi-experime
   rule that writes a prop the economy reads.
 - **A fire on a dormant map** burns out to ash on return, where a map in play breaks the woodpile into logs first: a
   status that acts every step is summed up when its map catches up. Open.
+
+## What the runs found in the modder
+
+- **Every first answer writes its rule bare** (controlled.ts, `no-fixes`): Opus 5.5 puts the rule's fields straight in
+  the patch's `artifacts` instead of `{kind: 'rule', rule}`; `normalizePatch` wraps it silently. Without the repairs
+  no first answer is valid and 52 of 60 are accepted after a repair round. The prompt never shows an artifact's shape.
+- **A revision costs some 25 answers**: the review and the audit run after an answer ships and cost little themselves;
+  the revisions they ask for are worked offline by the repository agent (tools, medium reasoning), whose history the
+  `anthropic` backend does not cache: a median of $1.23 each against $0.05 for the answer. In condition A, 9 revisions
+  for 60 answers made an answer cost $0.27 in all. Caching the agent loop's history (a breakpoint on its last message)
+  would cut most of that.
+- **A quarter of the reviewer's requests are false alarms**: of 49 requests for revision, 12 say a rule written for a
+  plain blow swallows blows that carry an element; replayed, such a blow never reaches it (core/strike's element branch
+  answers, and a learned rule is consulted only at the hole). The review prompt does not say where the rule sits. Open:
+  tell the reviewer the rule's place (the path to its hole).
+- **The model judge cannot tell the ablations apart** (all rated 5.6–6.2 of 7, none chosen over A more often than
+  chance), and prefers the modder's own answers to the authors' (it is the same model). The human study is to come.
+
+## Spend
+
+What the runs recorded at the list prices, 2026-10-19: the controlled conditions $142 (the answers $23, the reviews
+and audits $6, the offline revisions they asked for $113), the curriculum $12, the live bench (twice, the first at one tier by mistake) about $8, the router $2,
+the judge and the narrator about $6 — some $170.

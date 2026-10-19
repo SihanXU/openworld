@@ -74,7 +74,8 @@ async function main(): Promise<void> {
   for (const cell of cells) {
     const req = cellRequest(cell, library.fullOntology(), library.lib)
     if (!req) continue
-    if (a.tier) req.tier = a.tier
+    // the tier the event was asked at is the scenario's (the engine's setting), which the request's own defers to
+    if (a.tier) ((req.tier = a.tier), (req.scenario.tier = a.tier))
     const reply = await modder.resolve({ request: req }, 'live')
     const ep = state.episode(reply.episode!)! as WorldEpisode
     eps.push(ep)
