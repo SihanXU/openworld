@@ -27,6 +27,8 @@ the list prices. The RSI experiments (§8) still name Kimi K3 (docs/rsi-experime
 | Live answers by tier (Valid, Wait, Cost) | `npm run latency -- --n 20 --tier low\|medium\|high` (the tier set on the request's scenario, which the request's own defers to) | no |
 | The router | `npm run eval:objects` | no |
 | Table 1, controlled | `npx tsx games/openworld/tools/src/eval/controlled.ts items \| answer <cond> \| repeat \| judge \| report` | C, items: yes |
+| Table 1, the human study (Appendix D) | `npx tsx games/openworld/tools/src/eval/study.ts build \| serve <results dir> [--port 8080] \| score <results dir>` | yes |
+| The running world | `npx tsx games/openworld/tools/src/eval/running.ts --players 3 --hours 24 --budget 15` | no |
 
 - **persistence.ts** walks the world as the worker does (maps made or read when needed, the far ones put away, read
   again on the way back). Five probes — a thing placed, a fixture set burning, a creature felled, an item given to a
@@ -50,6 +52,15 @@ the list prices. The RSI experiments (§8) still name Kimi K3 (docs/rsi-experime
   replay changed. `repeat` asks the narrator each undefined situation five times. `judge` has the model rate each
   sentence (sense, fit: 1–7) and choose between conditions two at a time; `report` writes the table (TrueSkill over the
   choices).
+- **study.ts**: `build` draws each situation's frame with the game's renderer (the one acting facing what they act on,
+  what they hold from the catalogue) and writes one page (`var/eval/study/index.html`) with the outcomes of A, B and C
+  and twelve lists (30 ratings and 15 choices each, three attention checks). The page takes `?list=`, `PROLIFIC_PID`,
+  `?submit=` and `?cc=` (Prolific's return); `serve` hosts it and writes one file a participant; `score` excludes those
+  who fail two checks or rate faster than 2.5 s at the median, and gives the table and the model judge's agreement.
+- **running.ts**: explorers as play.ts's, each in a world of its own, and one modder (the default tier, revisions off)
+  answering into one shared library every world syncs from; a player's act that waits pauses its world for 20 s at
+  most. It reads the answers learned and where they were used, the chains a learned rule's outcome led into the base
+  rules, the deeds remembered and the bounties, the quests' stages. `--budget` stops asking once the spend reaches it.
 
 ## What the runs found in the game
 
