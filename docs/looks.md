@@ -183,6 +183,28 @@ strength taken.
   (`light`, `full`; OpenWorld's in `client/src/game.ts`); the options choose off, light or full (`prefs.filter()`,
   full by default). A game with none (the starter) shows its art as it is; a canvas renderer too.
 
+## 9. The interface (2026-10-18)
+
+The HUD and the menus in the same style, after the portraits and the filter (the Stardew wood and brass clashed with
+them): `docs/figures/hud-ink-and-paper.jpg` (before and after: the dialogue and toolbar, the bag, crafting, the
+options). Two tones were shown, ink on paper and paper on ink; ink on paper was taken.
+
+- **Ink on paper**: a panel is the paper in a 2px ink rule with a faint second rule inside it and a printed shadow
+  (flat, offset, in the ink); a sheet's margin is hatched round its clean page, with an engraver's corner marks; a
+  slot is a lighter square ruled in 1px ink; a button is paper with an offset ink shadow it presses into; what is
+  chosen (a tab, a setting, the answer) is filled with the ink; a title is a label printed in the ink, a speaker's in
+  the accent. Hatching marks what is set back: a disabled button, a locked skill, an unknown codex entry, an empty
+  skill slot, the world behind an open sheet. The item tooltip, the skill bar and words over the world stay dark
+  whatever the tone. The pixel fonts are kept.
+- **The palette is the game's**: every colour is a variable (`runtime/src/ui/game.css` `:root`): `--look-ink`,
+  `--look-paper`, and the muted colours that mean something — accent (names, the selection), gold (ready), good,
+  bad, cool, experience; the panels draw from `--ui-*` roles derived from them (`color-mix`). A game sets them with
+  `ClientGame.palette` (`ui/palette.ts` puts them on the page's root); OpenWorld gives its world filter's ink and paper
+  and the red of the sisters' stoles as the accent. `tone: 'ink'` flips the panels to paper on ink. A game with
+  none gets the runtime's sepia on cream.
+- **The game's own panels** (the companion's, the Held Ground's) use the same variables; Lumi keeps her night sky and
+  her violet, framed in the ink. The skill tree is drawn on a ruled page, the world map is an atlas on paper.
+
 ## 7. Not yet
 
 - Unique figures: Lumi, the Seal-bearers' portraits.

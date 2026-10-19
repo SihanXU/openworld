@@ -24,6 +24,7 @@ import { PeoplePanels } from './ui/people.ts'
 import { SkillBar } from './ui/skillbar.ts'
 import { Tooltip, setLearnedStatuses } from './ui/tooltip.ts'
 import { Minimap } from './ui/worldmap.ts'
+import { applyPalette } from './ui/palette.ts'
 import { AfterSave } from './afterSave.ts'
 import './styles.css'
 import './ui/game.css'
@@ -41,6 +42,8 @@ const send = (m: ToWorker) => worker.postMessage(m)
 // development: lsw.god() toggles the player's invulnerability (lsw.god(true) / lsw.god(false)); ?god=1 turns it on at start
 if (import.meta.env.DEV) (window as unknown as { lsw: unknown }).lsw = { send, scene, god: (on?: boolean) => send({ t: 'debug', op: 'god', on }) }
 document.documentElement.lang = locale.value === 'zh' ? 'zh-CN' : 'en'
+// the interface in the game's own ink and paper
+applyPalette()
 
 const dev = new ModConsole({
   patch: (id, patch) => send({ t: 'patch', id, patch }),

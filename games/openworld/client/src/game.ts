@@ -67,6 +67,10 @@ import {
 import { CATALOG } from './catalog.ts'
 import { PANELS } from './ui/panels.ts'
 
+/** The portraits' sepia ink and cream paper (docs/looks.md §8): the world filter's and the interface's. */
+const INK = '#281d18'
+const PAPER = '#f3ecd8'
+
 export const CLIENT_GAME: ClientGame = {
   describeItem,
   ...GAME,
@@ -76,11 +80,13 @@ export const CLIENT_GAME: ClientGame = {
   // the world in the portraits' style (docs/looks.md §8; the trial docs/figures/world-filter-trial.png): their sepia
   // ink and cream paper, the pack's bright greens taken toward a sage, hatching in the dark
   worldFilter: {
-    ink: '#281d18',
-    paper: '#f3ecd8',
+    ink: INK,
+    paper: PAPER,
     light: { desat: 0.22, sage: 0.15, tone: 0.25, warm: 0.5, contrast: 0.15, ink: 0.6, paper: 0.5, vignette: 0.1, hatch: 0 },
     full: { desat: 0.35, sage: 0.25, tone: 0.45, warm: 0.8, contrast: 0.25, ink: 1, paper: 1, vignette: 0.18, hatch: 1 },
   },
+  // the interface in the same ink and paper (docs/looks.md §9), its accent the red of the sisters' stoles
+  palette: { ink: INK, paper: PAPER, accent: '#7a2c22' },
   cover: {
     title: 'OpenWorld',
     kicker: { en: 'A world whose rules are code', zh: '一个规则即代码的世界' },

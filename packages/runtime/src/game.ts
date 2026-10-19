@@ -111,6 +111,21 @@ export interface WorldFilterDef {
   full: WorldFilterParams
 }
 
+/** A game's interface colours (ui/palette.ts, docs/looks.md §9): its ink and paper (as a rule the world filter's), the
+ *  muted colours that mean something — the accent (names, what is chosen), gold (what is ready), good, bad, cool —,
+ *  experience's, and the tone: the panels drawn ink on paper, or (`ink`) paper on ink. Each left out is the runtime's. */
+export interface UiPalette {
+  ink?: string
+  paper?: string
+  accent?: string
+  gold?: string
+  good?: string
+  bad?: string
+  cool?: string
+  xp?: string
+  tone?: 'paper' | 'ink'
+}
+
 export interface ClientGame extends GameDef {
   /** Extra tooltip lines supplied by the game, including the item's current state. Code belongs in its plugin. */
   describeItem?(item: ItemInfo): Text[]
@@ -124,6 +139,8 @@ export interface ClientGame extends GameDef {
   cover?: CoverDef
   /** The filter over the world (render/worldfilter.ts, docs/looks.md §8): the game's look; none, the art as it is. */
   worldFilter?: WorldFilterDef
+  /** The interface's colours (ui/palette.ts); none, the runtime's sepia on cream. */
+  palette?: UiPalette
   /** A place made by seed rather than read from a map file (the wilderness); none: every map is a file. */
   wild?(w: World, id: string): MapChunk | undefined
   /** A save made before the world last changed, brought up to it on loading (as the author). */
