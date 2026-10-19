@@ -114,6 +114,9 @@ export interface TalkOption {
   choices?: { id: string; label: Text }[]
 }
 
+/** How a minor monster's body winds up a skill (Frame.telegraphs). */
+export type WindupPose = 'leap' | 'dash' | 'slam' | 'cast' | 'call'
+
 export interface Frame {
   tick: number
   hour: number
@@ -183,7 +186,12 @@ export interface Frame {
    * The cells creatures are winding up their skills on (the kits module): who, where, how far along (0–1), in what colour;
    * `boss`: an encounter's (drawn as a boss's warning, its body never flashing).
    */
-  telegraphs?: { who: Id; tiles: [number, number][]; progress: number; color: number; boss?: boolean }[]
+  /**
+   * The cells casters on the map are winding up on (the kits module): who, where, how far along (0–1), in what colour; a
+   * boss's are drawn in its own manner. `pose` is how a minor monster's body winds up: it crouches to leap, draws back to
+   * dash, gathers itself for a blow round itself, sways to cast, rears to call.
+   */
+  telegraphs?: { who: Id; tiles: [number, number][]; progress: number; color: number; boss?: boolean; pose?: WindupPose }[]
   /** What each input would do right now, the action (the right click) among them (filled by the host, not by snapshot()). */
   keys?: { hands?: KeyView; take?: KeyView; put?: KeyView; use?: KeyView; self?: KeyView; action?: KeyView }
   /** The open container panel (the host names it): its contents. */

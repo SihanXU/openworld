@@ -4,7 +4,7 @@
 // walks to its foe, keeps to its arena and goes home when the foe is gone. Its place in the fight is its saved memory
 // (`Entity.boss`); a wind-up is the kits' (cast.ts), lost with a save as a minor monster's is.
 
-import { astar, type Engine, type Entity, type Frame, type KitSkill, type Pos } from '@openworld/engine'
+import { astar, type Engine, type Entity, type Frame, type KitSkill, type Pos, type WindupPose } from '@openworld/engine'
 import { TELEGRAPH_RED, beginCast, faceToward, kitsOf, scaled, stepCast } from './cast.ts'
 import { foeOf, ready, skillKey } from './kit.ts'
 import { edgeOf, originOf } from './pattern.ts'
@@ -43,6 +43,14 @@ function phaseNow(eng: Engine, e: Entity, phases: { at: number }[], reached: num
   let phase = Math.max(1, reached)
   while (phase < phases.length && share <= phases[phase].at) phase++
   return phase
+}
+
+/** How a minor monster's body winds a skill up (the client draws it): by how it moves, else where it lands. */
+export function windupPose(skill: KitSkill): WindupPose {
+  if (skill.move === 'leap') return 'leap'
+  if (skill.move === 'dash') return 'dash'
+  if (skill.aim === 'self') return skill.radius > 0 ? 'slam' : 'call'
+  return 'cast'
 }
 
 /** The pose a skill's body takes: its own, else a blow round itself or a cast at its foe. */
@@ -197,7 +205,7 @@ export function kitFrame(eng: Engine, f: Frame): void {
     const e = w.get(who)
     if (!e || e.place.on !== 'tile' || e.place.map !== f.map) continue
     const enc = p.boss && kits.encounterOf(e)
-    marks.push({ who, tiles: p.tiles, progress: Math.min(1, (now - p.start) / Math.max(1, p.releaseAt - p.start)), color: p.skill.color ?? enc?.def.plate.color ?? TELEGRAPH_RED, ...(p.boss && { boss: true }) })
+    marks.push({ who, tiles: p.tiles, progress: Math.min(1, (now - p.start) / Math.max(1, p.releaseAt - p.start)), color: p.skill.color ?? enc?.def.plate.color ?? TELEGRAPH_RED, ...(p.boss ? { boss: true } : { pose: windupPose(p.skill) }) })
   }
   if (marks.length) f.telegraphs = marks
   for (const snap of f.entities) {

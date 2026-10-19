@@ -88,7 +88,12 @@ The event model holds (design.md §5.4–5.15): behaviour decides when; the act'
   howl emits a coat to the beasts around; shell up sets the crab's own status.
 - **The client**: the frame's `telegraphs` (the module's frame hook) are drawn like the bosses' warnings
   (`render/scene.ts`); a creature whose leap or dash moves it several cells is tweened there; the new statuses tint
-  the body.
+  the body. Each mark carries the wind-up's **pose** (`Frame.telegraphs[].pose`, from `windupPose` in the kits module:
+  by how the skill moves, else where it lands), and the body takes it as the blow nears (`windupPose` in scene.ts): it
+  crouches to leap (wider, lower), draws back from its foe to dash, gathers itself up for a blow round itself, sways
+  to cast, rears and trembles to call. A cast and a call are heard as they begin, a leap, a dash and a slam as they
+  land (`hop`, `wind`, `impact` in the catalogue's sounds); a felled monster sounds a blow (`fell`), no longer the
+  game-over jingle; one sound asked twice in a moment (a burst on nine cells) is heard once.
 - **The AI**: the module's `unleash` is in the ModSpec. A learned rule on a creature kind may answer `act/use` with a
   `kit` param like the base ones; a new kind's kit is data a later step may let the modder write.
 
