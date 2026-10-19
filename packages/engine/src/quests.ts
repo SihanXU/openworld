@@ -653,7 +653,8 @@ export class Quests {
       const to = this.alias(q, t.to ?? this.giverAlias(d))
       const from = t.from ? this.aliasEntity(q, t.from) : taker
       const items = this.carried(from).filter((e) => (typeof t.match === 'string' ? e.id === this.alias(q, t.match) : matchSelector(t.match, w.view({ e: e.id }))))
-      if (to && from) for (const e of items.slice(0, t.count)) send('impulse/taken', e.id, { into: 'contents', quiet: true }, { other: { e: to }, actor: { e: to } })
+      if (to && from) for (const e of items.slice(0, t.count))
+        send('impulse/taken', e.id, { into: 'contents', quiet: true }, { other: { e: to }, actor: { e: eng.isProtected(from) ? from.id : to } })
     }
     const r = s.reward
     if (r && taker) {

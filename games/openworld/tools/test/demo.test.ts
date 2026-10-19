@@ -22,6 +22,7 @@ import { GARDEN } from '../src/demo/garden.ts'
 import { BARROW, HOLLOW, OSSUARY, UNDER_BARROW } from '../src/demo/hollow.ts'
 import { PAT, TUTORIAL } from '../src/demo/prologue.ts'
 import { HILL_MINE } from '../src/demo/quest/vigil.ts'
+import { completeFishing } from './fishing-helper.ts'
 
 const onto = buildOntology()
 /** Every event kind made in any of the worlds below: dispatched, or offered and passed over because nothing could answer it (no change). */
@@ -3827,6 +3828,7 @@ req('H2', "the homestead: Alberic's stall sells seeds, fertilizer, feed, beasts 
     const tile = w.cellTop('haven', pond[0], pond[1])!
     author(f, () => { delete tile.statuses?.stirred })
     f.eng.act('hands', 'player', { e: tile.id }, { instrument: { e: rod.id } })
+    completeFishing(f.eng, { tick: () => ticks(f, 1) })
     caught = c.count('item/food/fish/raw') + c.count('item/food/fish/carp') + c.count('item/misc/old_boot')
   }
   expect(caught).toBeGreaterThan(0)
@@ -3864,29 +3866,29 @@ req('H3', "the homestead, further: Stardew's crops (ten more, five bearing again
   const rod = author(f, () => w.create('item/tool/fishing_rod', { on: 'inside', holder: 'player' }))
   c.sync()
   c.select(w.player.slots!.indexOf(c.key(rod)))
-  const catches = (x: number, y: number, hour: number, n: number) => {
+  const catches = (x: number, y: number, hour: number, n: number, wanted: string) => {
     const got = new Set<string>()
-    for (let i = 0; i < n; i++) {
+    for (let i = 0; i < n && !got.has(wanted); i++) {
       setHour(f, w.calendar().day, hour)
       const tile = w.cellTop('haven', x, y)!
       author(f, () => { delete tile.statuses?.stirred })
-      const before = new Set(Object.keys(w.state.entities))
       // a cast: the rod used on the water (left click), as far as the rod reaches
       f.eng.act('use', 'player', { e: tile.id }, { instrument: { e: rod.id } })
-      for (const id of Object.keys(w.state.entities)) if (!before.has(id)) got.add(w.state.entities[id].type)
+      const outcome = completeFishing(f.eng, { tick: () => ticks(f, 1) })
+      if (outcome.status === 'caught') got.add(outcome.fishType)
     }
     return got
   }
   const water = (t: string) => { for (let y = 0; y < 40; y++) for (let x = 0; x < 48; x++) if (w.terrainAt('haven', x, y) === t) return [x, y] as const }
   const [px, py] = water('water')!
   stand(f, px, py + 1, 'up', 'haven')
-  expect(catches(px, py, 22, 80).has('item/food/fish/eel')).toBe(true)
-  expect(catches(px, py, 12, 80).has('item/food/fish/sunfish')).toBe(true)
+  expect(catches(px, py, 22, 80, 'item/food/fish/eel').has('item/food/fish/eel')).toBe(true)
+  expect(catches(px, py, 12, 80, 'item/food/fish/sunfish').has('item/food/fish/sunfish')).toBe(true)
   const [dx, dy] = water('deepwater')!
   // on the bank, as near the deep middle as one can stand (a rod casts three cells)
   const bank = (() => { for (let r = 1; r <= 3; r++) for (let y = dy - r; y <= dy + r; y++) for (let x = dx - r; x <= dx + r; x++) if (w.walkable('haven', x, y)) return [x, y] as const })()!
   stand(f, bank[0], bank[1], 'up', 'haven')
-  expect(catches(dx, dy, 12, 80).has('item/food/fish/pike')).toBe(true)
+  expect(catches(dx, dy, 12, 80, 'item/food/fish/pike').has('item/food/fish/pike')).toBe(true)
   // breeding: two cows fed side by side; a calf; it grows into a cow; the parents rest
   const cows = () => Object.values(w.state.entities).filter((e) => e.type === 'actor/creature/animal/cow' && w.posOf(e)?.map === 'haven')
   const calves = () => Object.values(w.state.entities).filter((e) => e.type === 'actor/creature/animal/calf' && w.posOf(e)?.map === 'haven')

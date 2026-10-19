@@ -80,6 +80,11 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
     if (c.prop.bounds && !(typeof v === 'number' && within(v, c.prop.bounds, roles, ev))) return false
     return true
   }
+  if ('propEqualsParam' in c) {
+    const prop = roles[c.propEqualsParam.role]?.props[c.propEqualsParam.key]
+    const param = ev?.params?.[c.propEqualsParam.param]
+    return prop !== undefined && param !== undefined && prop === param
+  }
   if ('param' in c) {
     const v = ev?.params?.[c.param.key]
     return v !== undefined && cmp(v, c.param.cmp)

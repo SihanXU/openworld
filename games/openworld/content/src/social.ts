@@ -6,6 +6,7 @@
 
 import { TICKS_PER_DAY, type Cond, type DeedDef, type Effect, type EmitTo, type LawDef, type PropValue, type Rule, type Selector, type SocialParams, type StatusDef, type TalkVerb, type Text, type Tree, type TypeDef } from '@openworld/engine'
 import { COIN } from './homestead.ts'
+import { MINOR } from './protection.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
@@ -152,8 +153,8 @@ const FOLLOWS: Cond = { leads: ['actor', 'host'] }
 const GRUDGE: Cond = { grudge: { of: 'host', toward: 'actor' } }
 const WANTED: Cond = { bounty: { role: 'actor', cmp: { gt: 0 } } }
 const BRIBE = 10
-/** One grown: a child (under eighteen, the `minor` tag) is never robbed, stolen from or preached unbelief. */
-const GROWN: Cond = not(tag('host', 'minor'))
+/** One not protected as a minor by their explicit tag or recorded age. */
+const GROWN: Cond = not(MINOR)
 /** The Held Ground, its residents' home (SOCIAL.residence). */
 const RESIDENCE = SOCIAL.residence!
 /** Asked to come and live in the Held Ground: what each part of it takes (the talk verb's condition is all of them). */
@@ -324,8 +325,8 @@ const TALK_TREE: Tree = IF(
             DO(say('With what?', '拿什么给？')),
           ),
         ],
-        // a child is left alone: robbed, stolen from or preached at, nothing comes of it
-        [all(any(says('rob'), says('steal'), says('unbelief')), tag('host', 'minor')), DO(say("…I'm going to tell my mother.", '……我要去告诉妈妈。'), emote('surprised'))],
+        // A minor-specific refusal also handles legacy words sent directly, including intimidation.
+        [all(any(says('rob'), says('steal'), says('unbelief'), says('intimidate')), MINOR), DO(say("…I'm going to tell my mother.", '……我要去告诉妈妈。'), emote('surprised'))],
         // robbed: might against might (the social numbers' robEdge) — overwhelmed, they hand over half their coin and their
         // two dearest things and fear the robber; not, they beat the robber down to one point of health. Either way
         // they think far less of them, and no second robbery today
@@ -457,7 +458,7 @@ export const SOCIAL_RULES: Rule[] = [
   rule({
     id: 'people/talk',
     label: L('Talk to {target}', '和{target}说话'),
-    doc: 'A hand on a person: a quest they have for you, else what fits the moment, and their talk opens (§2.9). Asked (a talk verb): news, a chat (one of their chat lines, or once what they like best), a gift (the panel), to follow, to wait, bribed, robbed (might against might: overwhelmed they hand over coin and goods, else they beat the robber to a point of health), a hand in their pocket (a roll of nimbleness: unnoticed it takes coin and a thing, caught the thief is beaten to half), told there are no gods, an apology, what was taken given back, stopped by the watch; a child is never robbed, stolen from or preached at; a word no rule knows is theirs to answer (the AI\'s).',
+    doc: 'A hand on a person: a quest they have for you, else what fits the moment, and their talk opens (§2.9). Asked (a talk verb): news, a chat (one of their chat lines, or once what they like best), a gift (the panel), to follow, to wait, bribed, robbed (might against might: overwhelmed they hand over coin and goods, else they beat the robber to a point of health), a hand in their pocket (a roll of nimbleness: unnoticed it takes coin and a thing, caught the thief is beaten to half), told there are no gods, an apology, what was taken given back, stopped by the watch; a minor by tag or recorded age is explicitly refused robbery, theft, unbelief and intimidation; a word no rule knows is theirs to answer (the AI\'s).',
     host: PERSON,
     on: 'impulse/handle',
     tree: TALK_TREE,

@@ -627,6 +627,20 @@ export class Controls {
     return this.planOn(key, pos, { e: item }, true)
   }
 
+  /** Use one specifically chosen carried item on the exact thing still held (a game's explicit inventory chooser). */
+  useItemOnHeldItem(instrument: Id, target: Id): boolean {
+    const w = this.w
+    const p = w.player
+    if (instrument === target || this.eng.busy(p) || !this.permits('use')) return false
+    const carried = new Set([...(p.contents ?? []), ...(p.held ? [p.held] : [])])
+    const tool = w.get(instrument)
+    const onto = w.get(target)
+    if (!tool || !onto || p.held !== target || !carried.has(instrument) || !carried.has(target) || tool.frozenBy || onto.frozenBy || !this.allows('use', { type: tool.type })) return false
+    this.eng.act('use', p.id, { e: target }, { instrument: { e: instrument } })
+    this.sync()
+    return true
+  }
+
   // ---------------------------------------------------------------- inventory slots
 
   /** What makes items the same stack: type, name, tags, statuses (stacks.ts — a chest counts its slots by the same). */

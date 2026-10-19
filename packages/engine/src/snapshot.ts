@@ -123,6 +123,8 @@ export interface Frame {
   /** A scene is playing: the player watches; `advance` moves past what is said. */
   scene?: { id: string; waiting?: 'advance' | 'move'; line?: SceneState['line'] }
   map: string
+  /** A fishing line's fight, when the game's fishing module has an active session. */
+  fishing?: FishingView
   player: {
     id: Id
     x: number
@@ -215,6 +217,19 @@ export interface Frame {
   quests: { marks: Record<Id, '!' | '?'>; journal: JournalQuest[]; tracked?: Id; targets: QuestTarget[]; board: QuestOffer[] }
   /** The lesson at hand (docs/prologue.md, the drills): what to spotlight, the key to draw, what the keys may do. */
   lesson?: LessonView
+}
+
+/** Render-only fishing state; the client sends input edges and never submits progress or a catch. */
+export interface FishingView {
+  phase: 'waiting' | 'bite' | 'fight'
+  fish: number
+  bar: number
+  barSize: number
+  progress: number
+  remaining: number
+  bait: number
+  /** The actual main candidate's item projection, shown only after the fight begins. */
+  fishItem?: ItemInfo
 }
 
 /** A talk with a person, as the panel shows it. */

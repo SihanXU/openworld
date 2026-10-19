@@ -6,9 +6,9 @@ import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
 import { artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeOf, shareKept, sharedPart, takeDefinitions, withKept } from './learned.ts'
 import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
-import { peopleViews, travelToWaypoint, waypoints, cast, dash, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
+import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
-import type { Atlas, AtlasContinent, AtlasMap, FromWorker, LibraryView, RecordView, SaveSummary, Tile, ToWorker } from './protocol.ts'
+import { routeFishingWorkerInput, type Atlas, type AtlasContinent, type AtlasMap, type FromWorker, type LibraryView, type RecordView, type SaveSummary, type Tile, type ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
 /**
@@ -369,6 +369,13 @@ function keyViews(): Frame['keys'] {
 /** Time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player). */
 const timeStopped = (g: Game) => paused || transfers.busy || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets || !!gift
 
+function cancelFishing(g: Game | undefined): void {
+  if (g && fishingActive(g.engine)) {
+    fishingInput(g.engine, 'cancel')
+    attacking = false
+  }
+}
+
 /** What the keys would do now, as a frame says it: nothing while time stands or the player cannot act. */
 const keysNow = (g: Game): Frame['keys'] => (timeStopped(g) || g.engine.busy(g.engine.world.player) ? undefined : keyViews())
 
@@ -571,7 +578,8 @@ function loop(): void {
   const stopped = timeStopped(game)
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
-    if (attacking) eng.controls.strike()
+    if (fishingActive(eng)) attacking = false
+    else if (attacking) eng.controls.strike()
     eng.tick()
   }
   if (game.neededMaps().length) void ensureMaps()
@@ -725,17 +733,34 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (game && !paused && !panel && !game.engine.world.state.question) dash(game.engine, game.engine.world.player)
         break
       case 'attack':
-        attacking = m.on
-        // the first blow lands on the press, not on the next tick
-        if (m.on && !paused && !panel && !game?.engine.world.state.question) game?.engine.controls.strike()
+        {
+          const route = routeFishingWorkerInput(!!game && fishingActive(game.engine), m)
+          if (route.kind === 'fishing') {
+            attacking = false
+            if (route.action !== 'press' || (game && !timeStopped(game))) game && fishingInput(game.engine, route.action)
+            break
+          }
+          attacking = m.on
+          // the first blow lands on the press, not on the next tick
+          if (m.on && !paused && !panel && !game?.engine.world.state.question) game?.engine.controls.strike()
+        }
+        break
+      case 'fishing':
+        if (!game) break
+        if (m.action === 'press' && timeStopped(game)) break
+        if (m.action === 'cancel') attacking = false
+        fishingInput(game.engine, m.action)
         break
       case 'move':
         moveDir = m.dir
         walk = !!m.walk
+        if (m.dir && game && !timeStopped(game)) cancelFishing(game)
         if (m.dir && !paused && !panel && !game?.engine.world.state.question) game?.engine.movePlayer(m.dir, walk) // a quick tap still moves one tile
         break
       case 'key': {
-        if (!game || paused || panel || game.engine.world.state.question) break
+        if (!game) break
+        if (routeFishingWorkerInput(fishingActive(game.engine), m).kind === 'ignore') break
+        if (paused || panel || game.engine.world.state.question) break
         const c = game.engine.controls
         // the target the key's label named (one who walked a step off since stays it); a layer chosen is that layer
         const plan = c.planFor(m.key, m.tile, m.layer, m.layer !== undefined ? undefined : shownTarget[m.key])
@@ -780,6 +805,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (plan) game.engine.controls.run(plan)
         break
       }
+      case 'useItemOnHeldItem':
+        if (game && !game.engine.world.state.question) game.engine.controls.useItemOnHeldItem(m.instrument, m.target)
+        break
       case 'choices': {
         if (!game) break
         const list = game.engine.controls.choices(m.key, m.tile).map((ch) => ({ layer: ch.layer, name: ch.name, label: ch.plan?.label, unknown: (ch.plan?.unknown && !ch.plan.quiet) || undefined }))
@@ -802,9 +830,11 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         game?.engine.controls.answer(m.yes)
         break
       case 'select':
+        cancelFishing(game)
         game?.engine.controls.select(m.slot)
         break
       case 'cycle':
+        cancelFishing(game)
         game?.engine.controls.cycle(m.dir)
         break
       case 'row':
@@ -817,6 +847,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         game?.engine.controls.quickMove(m.slot)
         break
       case 'drop':
+        cancelFishing(game)
         game?.engine.controls.drop(m.slot, m.all)
         break
       case 'organize':
