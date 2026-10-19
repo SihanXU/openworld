@@ -246,6 +246,25 @@ export class Chunks {
         }
       }
     }
+    // its own people who went where nothing is in memory (into a house not entered since): they go with their place
+    const st = w.state
+    for (const e of w.people()) {
+      if (e.npc?.fidelity !== 'local' || e.from !== map || e.place.on !== 'tile' || e.place.map === map || taken.has(e)) continue
+      const there = st.chunks?.[e.place.map]
+      if (w.map(e.place.map) || (there && !there.away)) continue
+      const tree = this.tree(e)
+      if (tree.some(keeps)) continue
+      for (const t of tree) {
+        out.push(t)
+        taken.add(t)
+        const made = t.from === map ? this.made.get(t.id) : undefined
+        if (!made) things.push(t)
+        else {
+          const d = diffPatch(JSON.parse(made), JSON.parse(JSON.stringify(t)))
+          if (d) changed[t.id] = d
+        }
+      }
+    }
     // its changed cells (a felled tree, a laid floor, a destroyed one's record): whole
     for (const c of w.keptCells(map)) if (!taken.has(c)) (out.push(c), things.push(c))
     return { out, changed, things }

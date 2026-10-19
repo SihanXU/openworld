@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, lookProblems, type Entity } from '@openworld/engine'
+import { Game, RuleLibrary, lookProblems, scheduleAt, type Entity } from '@openworld/engine'
 import { BASE_RULES, REGIONS, SOCIAL_COIN, STORY_RULES, TERRAIN_CHARS, UNTOLD, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 import { OVERWORLD, handmadeGrounds, readContinent } from '../src/demo/overworld.ts'
@@ -42,7 +42,8 @@ function walkTo(w: World, map: string, from: { x: number; y: number }, goal: (x:
       if (seen.has(k)) continue
       seen.add(k)
       if (goal(x + dx, y + dy)) return true
-      if (w.walkable(map, x + dx, y + dy)) queue.push({ x: x + dx, y: y + dy })
+      // (the people of a place step aside: a way is a way when only they stand in it)
+      if (w.walkable(map, x + dx, y + dy, undefined, true)) queue.push({ x: x + dx, y: y + dy })
     }
   }
   return false
@@ -51,7 +52,7 @@ function walkTo(w: World, map: string, from: { x: number; y: number }, goal: (x:
 function offTheMap(w: World, map: string, from: { x: number; y: number }): boolean {
   const m = w.map(map)!
   const edge = (x: number, y: number) => x === 0 || y === 0 || x === m.width - 1 || y === m.height - 1
-  return edge(from.x, from.y) || walkTo(w, map, from, (x, y) => edge(x, y) && w.walkable(map, x, y))
+  return edge(from.x, from.y) || walkTo(w, map, from, (x, y) => edge(x, y) && w.walkable(map, x, y, undefined, true))
 }
 const rooms = world.backdrop.filter((ch) => ch.map.kind === 'interior')
 const byId = new Map(world.backdrop.map((ch) => [ch.map.id, ch]))
@@ -190,10 +191,10 @@ describe('the continent (docs/continent.md)', () => {
       const ins = outer.map.portals.filter((q) => q.to === id)
       expect([id, ins.length, outer.map.region]).toEqual([id, 1, r.map.region])
       const land = { x: ins[0].tx, y: ins[0].ty }
-      if (!w.walkable(id, land.x, land.y) || !walkTo(w, id, land, (x, y) => x === back.x && y === back.y)) trapped.push(`${id}: no way from ${land.x},${land.y} to its door`)
+      if (!w.walkable(id, land.x, land.y, undefined, true) || !walkTo(w, id, land, (x, y) => x === back.x && y === back.y)) trapped.push(`${id}: no way from ${land.x},${land.y} to its door`)
       // the way out: in front of the door one came in by, and from there off the map
       expect([id, back.tx, back.ty]).toEqual([id, ins[0].x, ins[0].y + 1])
-      if (!w.walkable(back.to, back.tx, back.ty) || !offTheMap(w, back.to, { x: back.tx, y: back.ty })) trapped.push(`${id}: shut in at ${back.to} ${back.tx},${back.ty}`)
+      if (!w.walkable(back.to, back.tx, back.ty, undefined, true) || !offTheMap(w, back.to, { x: back.tx, y: back.ty })) trapped.push(`${id}: shut in at ${back.to} ${back.tx},${back.ty}`)
     }
     expect(trapped).toEqual([])
   }, 150_000)
@@ -253,33 +254,39 @@ describe('the continent (docs/continent.md)', () => {
   })
 })
 
-// The backdrop's people (docs/continent.md §9 C): some three thousand by settlement, the backdrop's own — made with
-// their maps, keeping to them, never of the story.
+// The backdrop's people (docs/continent.md §11): households in the rooms behind their place's doors, the backdrop's own —
+// made with their place, keeping to it, never of the story.
 describe("the backdrop's people", () => {
   const people = world.backdrop.flatMap((ch) => ch.entities.filter((e) => e.npc).map((e) => ({ map: ch.map.id, e })))
   const placeOf = new Map(c.places.map((p) => [p.id, p]))
   const surname = (e: Entity) => (e.name as { en: string }).en.split(' ').slice(1).join(' ')
+  /** A place's rooms (rooms.ts: `<place>.<role>-<n>`), and all its maps. */
+  const roomsOf = (id: string) => world.backdrop.filter((r) => r.map.kind === 'interior' && r.map.id.startsWith(`${id}.`))
+  const mapsOf = (id: string) => new Set([id, ...roomsOf(id).map((r) => r.map.id)])
 
-  it("number some three thousand, in households by settlement, with roles by the place's kind and region: every one the backdrop's own", () => {
-    expect(people.length).toBeGreaterThan(2800)
-    expect(people.length).toBeLessThan(3400)
+  it("live in households, a household to every room behind their place's doors, with roles by the place's kind and region: every one the backdrop's own", () => {
+    expect(people.length).toBeGreaterThan(1400)
     const onto = buildOntology()
     const byKind = new Map<string, Set<string>>()
     for (const { map, e } of people) {
       const p = placeOf.get(map)!
-      expect([e.id, e.npc!.fidelity, e.type.startsWith('actor/person/'), !!onto.types[e.type], e.place.on === 'tile' && e.place.map === map]).toEqual([e.id, 'local', true, true, true])
+      expect([e.id, e.npc!.fidelity, e.type.startsWith('actor/person/'), !!onto.types[e.type], e.place.on === 'tile' && mapsOf(map).has(e.place.map)]).toEqual([e.id, 'local', true, true, true])
       expect([e.id, String(e.props?.household).startsWith(`${map}.h`)]).toEqual([e.id, true])
       if (!byKind.has(p.kind)) byKind.set(p.kind, new Set())
       byKind.get(p.kind)!.add(e.npc!.role)
     }
-    // where people live, and no one where no one does (the wild's places: ruins, caves, graves; the sealed seats)
+    // where people live, and no one where no one does (the wild's places: ruins, caves, graves; the sealed seats); every
+    // room of a place lived in is someone's to sleep in
     for (const p of c.places) {
-      const n = people.filter((x) => x.map === p.id).length
-      const peopled = ['village', 'town', 'city', 'farm', 'mill', 'camp', 'shrine', 'cathedral', 'fort'].includes(p.kind) && !p.sealed
-      expect([p.id, n > 0]).toEqual([p.id, peopled])
+      const mine = people.filter((x) => x.map === p.id)
+      const peopled = !p.sealed && (roomsOf(p.id).length > 0 || p.kind === 'shrine')
+      expect([p.id, mine.length > 0]).toEqual([p.id, peopled])
+      if (!peopled) continue
+      const beds = new Set(mine.map(({ e }) => e.npc!.schedule.find((s) => s.activity === 'sleep')!.map))
+      for (const r of roomsOf(p.id)) expect([r.map.id, beds.has(r.map.id)]).toEqual([r.map.id, true])
     }
     // a town keeps a watch and a market, a farm its farmers, a fort its garrison
-    expect([...byKind.get('town')!]).toEqual(expect.arrayContaining(['merchant', 'guard', 'smith', 'priest', 'child']))
+    expect([...byKind.get('town')!]).toEqual(expect.arrayContaining(['merchant', 'guard', 'smith', 'innkeeper', 'child']))
     expect([...byKind.get('farm')!]).toContain('farmer')
     expect([...byKind.get('fort')!]).toEqual(expect.arrayContaining(['soldier', 'guard']))
     // a household is a house's: its members share its family name
@@ -292,17 +299,31 @@ describe("the backdrop's people", () => {
     for (const [h, names] of households) expect([h, names.size]).toEqual([h, 1])
   })
 
-  it('keep a day within their own map: every hour of it covered, every anchor a cell of their map one can stand in', () => {
+  it('keep a day within their own place: every hour covered, every anchor a cell of its map or its rooms one can stand in, and the street never crowded', () => {
     const g = Game.create(world.index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
-    for (const ch of world.backdrop) if (people.some((x) => x.map === ch.map.id)) g.loadChunk(decodeChunk(ch))
+    const lived = new Set(people.map((x) => x.map))
+    for (const ch of world.backdrop) if (lived.has(ch.map.id) || (ch.map.kind === 'interior' && lived.has(ch.map.id.replace(/\.[^.]+$/, '')))) g.loadChunk(decodeChunk(ch))
     const w = g.engine.world
     const bad: string[] = []
     for (const { map, e } of people) {
       const s = e.npc!.schedule
       for (let h = 0; h < 24; h++) if (!s.some((x) => (x.from <= x.to ? h >= x.from && h < x.to : h >= x.from || h < x.to))) bad.push(`${e.id} ${h}h`)
-      for (const x of s) if (x.map !== map || !w.passable(map, x.x, x.y)) bad.push(`${e.id} ${x.activity} ${x.map}:${x.x},${x.y}`)
+      for (const x of s) if (!mapsOf(map).has(x.map) || !w.passable(x.map, x.x, x.y)) bad.push(`${e.id} ${x.activity} ${x.map}:${x.x},${x.y}`)
     }
     expect(bad).toEqual([])
+    // at any hour, those out of doors are few for the place's ground: at most one to every 25 cells one can stand on
+    const crowded: string[] = []
+    for (const m of lived) {
+      const data = w.map(m)!
+      let open = 0
+      for (let y = 0; y < data.height; y++) for (let x = 0; x < data.width; x++) if (w.passable(m, x, y)) open++
+      const mine = people.filter((x) => x.map === m)
+      for (let h = 0; h < 24; h++) {
+        const out = mine.filter(({ e }) => scheduleAt(e.npc!.schedule, h + 0.5)?.map === m).length
+        if (out > open / 25) crowded.push(`${m} ${h}h: ${out} out on ${open} cells`)
+      }
+    }
+    expect(crowded).toEqual([])
   }, 120_000)
 
   it("look as the world's table has it, are named in both languages (never twice in a place), and trade where it fits", () => {
@@ -323,7 +344,7 @@ describe("the backdrop's people", () => {
       }
       expect([e.id, carried.filter((o) => o!.type === SOCIAL_COIN).length]).toEqual([e.id, e.props!.purse])
     }
-    expect(people.filter(({ e }) => e.props?.stock).length).toBeGreaterThan(300)
+    expect(people.filter(({ e }) => e.props?.stock).length).toBeGreaterThan(120)
   })
 
   it('are none of the story: not in the index, never essential, named by no quest, step or invariant, and on no page of the wiki', () => {
@@ -337,7 +358,7 @@ describe("the backdrop's people", () => {
   })
 })
 
-// The engine at the continent's scale (docs/continent.md §9 C, E): a map's things kept as what differs from its file,
+// The engine at the continent's scale (docs/continent.md §12): a map's things kept as what differs from its file,
 // the maps far behind put away, the scans over every thing gone.
 describe('the world at scale', () => {
   const town = world.backdrop.find((ch) => ch.map.kind === 'town' && ch.entities.some((e) => e.npc))!
@@ -351,10 +372,11 @@ describe('the world at scale', () => {
   const enter = (g: Game, ch: (typeof world.backdrop)[number]) => {
     const w = g.engine.world
     if (!w.map(ch.map.id)) g.loadChunk(decodeChunk(structuredClone(ch)))
-    const at = ch.entities.find((e) => e.npc)!.npc!.schedule[0]
-    g.engine.author(() => g.engine.teleport(w.player, { map: ch.map.id, x: at.x, y: at.y }))
+    g.engine.author(() => g.engine.teleport(w.player, { map: ch.map.id, x: Math.floor(ch.map.width / 2), y: Math.floor(ch.map.height / 2) }))
     g.trim()
   }
+  /** The people of a place in memory, wherever in it they are (its street, its rooms). */
+  const townsfolk = (w: Game['engine']['world'], id: string) => w.people().filter((e) => e.from === id)
 
   it('a map put away takes its things along and brings them back as they were: the changed changed, the made made, the gone gone', () => {
     const g = fresh()
@@ -408,7 +430,7 @@ describe('the world at scale', () => {
     expect(bw.get(a.id)?.props?.met).toBe(1)
     expect(bw.get(coin.id)).toBeUndefined()
     expect(bw.get('scale.stone')).toBeDefined()
-    expect(bw.people().filter((e) => e.place.on === 'tile' && e.place.map === town.map.id).length).toBe(town.entities.filter((e) => e.npc).length)
+    expect(townsfolk(bw, town.map.id).length).toBe(town.entities.filter((e) => e.npc).length)
   })
 
   it('the people who travel stay in memory wherever they are, and a save keeps them as what differs from the index', () => {
@@ -429,7 +451,7 @@ describe('the world at scale', () => {
     expect(r.inMemory).toBeLessThanOrEqual(8)
     expect(r.people).toBeLessThan(600)
     expect(r.entities).toBeLessThan(9000)
-    expect(r.townPeople).toBeGreaterThan(50)
+    expect(r.townPeople).toBeGreaterThan(30)
     // (ten ticks a second: what a tick and a frame may take, with room for a busy machine)
     expect(r.townTickMs).toBeLessThan(25)
     expect(r.overworldTickMs).toBeLessThan(25)

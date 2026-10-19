@@ -163,7 +163,7 @@ nearest that is.
   and what stands about), each region's look (a grade for the world filter and a shade over its hours: the Fens
   darker). Left for later: a city's districts as maps of their own beyond the Holy City's quarters, the night's
   length by region (the shade darkens every hour alike), landmarks.
-- **C — people** and the engine's scale (built, §11–§12): people in bulk by household and role per settlement (`format/src/crowd.ts`
+- **C — people** and the engine's scale (built, §11–§12; the people live in B's rooms): people in bulk by household and role per settlement (`format/src/crowd.ts`
   grown: households, looks from `generateLook`, trades, a day within their own place); fidelity tiers (backdrop people
   stay in their place, out of the hourly routing); people made when their map is first entered, kept only when changed;
   dormant maps' things out of memory; indices by map, type and household in place of the scans over all things;
@@ -229,35 +229,42 @@ player turns the filter off. The Frostfang Coast has none: the played land keeps
 | The Holy City | gold `#f0cf7a`, 0.16 | −0.05 | — |
 ## 11. The backdrop's people (phase C)
 
-About three thousand people live in the backdrop's settlements (`tools/src/demo/continent/people.ts`, words in
-`folk.ts`): a pass over the built maps, so the templates (`backdrop.ts`) change freely under it.
+The backdrop's people live in the rooms behind their place's doors (§10): a household to a room, as many as the room
+is for (`tools/src/demo/continent/people.ts`, their words in `folk.ts`) — a pass over the built maps, so the templates
+change freely under it. How many a place has is how many its houses hold, and the street holds those whose day has
+them out: a first try that gave each kind of place a number (a city's quarter eighty) filled the squares wall to wall,
+and the user ruled it out (2026-10-18): the number follows from the houses.
 
-- **Households and roles** by the place's kind and region: a house's door is a household's (`household`
-  `<map>.h<n>`), its family name theirs; each kind has the roles every such place has and the rest by weight
-  (a town's merchants, guards, smith, innkeeper, priest; a farm's family; a fort's garrison; a cathedral's priests); a
-  camp's people by region (the coast's hunters, the March's sellswords, the plains' traders, the fens' reed-cutters, the
-  Altar's and the City's pilgrims); a capital a quarter more. Ruins, caves, graves, towers, battlefields and the sealed
-  seats have no one.
-- **Names** in both languages: a given name by region and sex (the coast's Nordic, the March's harsh, the plains'
-  plain, the fens' soft, the Altar's and the City's Latin), transliterated as the Ford's people are; a family name made
-  as the places' are (a region's first half and a root, meaning the same in both: Pinebrook 松溪). Never twice in a place.
-- **A look** from their id (content `generateLook`), **a favourite** (`favouriteFor`), **lines** by their work and their
-  land (a greeting, two of their work's, one of their land's: the regions' sufferings are in the weather and the
-  prices, never in a quest).
-- **A day within their own map**: asleep at their door, at work where their role has them (the fields, a stall, the
-  altar, the gate, the shore, the drill yard), a meal at home, the evening at the well, the fountain or the fire; one
-  guard in three keeps a town's streets at night.
-- **A trade where it fits**: a merchant, a smith, an innkeeper, a herbalist, a peddler, a fisher, a shrine's priest
-  carry their stock (`stock`, the morning's restock keeps it) and every one their coin (`purse`), as the Ford's do.
-- **The backdrop's own** (`npc.fidelity: 'local'`): in their map's file, never in the index; not essential; named by
-  no quest, step or invariant; no page of the wiki. People of one place know each other by sight (the society module's
-  `neighbours`: no record of their meeting is kept).
+- **Households by room**: a home's family (one or two grown-ups, children in half the houses), a farmhouse's farmers,
+  a mill's miller, a smithy's smith, a shop's keeper, a teahouse's or an inn's keeper (and an inn's lodgers), a
+  chapel's priests, a cloister cell's brother, a tent's hunters, sellswords, traders, reed-cutters or pilgrims by
+  region, a barracks' garrison (a fort's soldiers and their captain, a town's watch). A home's grown-ups by the place's
+  kind and region (a village's farmers and fishers, the coast's hunters, a town's and a city's watch, scholars,
+  nobles). A shrine, which has no roof, keeps its keeper and the pilgrims who sleep by it. Ruins, caves, graves, towers,
+  battlefields and the sealed seats have no one. The household (`household` `<place>.h<n>`) shares a family name.
+- **A day within their place** (its map and its rooms): asleep beside a bed of their room, a meal at its table at noon,
+  at work where their trade has them — indoors the smith at the anvil, the keeper at the counter, the priest at the
+  altar, the scholar at the books, half the grown-ups and the old at the hearth, the loom or the bench; out of doors
+  the farmer in the fields, the guard at the gate or the square, the soldier in the drill yard, the fisher on the shore,
+  the children in the street —, the evening out at the well, the fountain, the fire or along the street, or at home.
+  One guard in three keeps a town's streets at night. At no hour are more out of doors than one to every 25 cells one
+  can stand on (a check).
+- **Names** in both languages: a given name by region and sex, transliterated as the Ford's people are, and a family
+  name made as the places' are (a region's first half and a root, meaning the same in both: Pinebrook 松溪). **A look**
+  from their id (`generateLook`), **a favourite** (`favouriteFor`), **lines** by their work and their land (a
+  greeting, two of their work's, one of their land's: the regions' sufferings are in the weather and the prices, never
+  in a quest). **A trade where it fits**: the keepers, smiths, herbalists, peddlers, fishers and chapel priests carry
+  their stock (`stock`, the morning's restock keeps it), every one their coin (`purse`).
+- **The backdrop's own** (`npc.fidelity: 'local'`): their records are their place's file (each begins where six
+  o'clock has them — most abed in their rooms), never the index's; not essential; named by no quest, step or invariant;
+  no page of the wiki. People of one place know each other by sight (the society module's `neighbours`: no record of
+  their meeting is kept).
 
 | | Before | Now |
 |---|---|---|
-| people | 33 (all in the index) | 33 who travel (the index) + 3,029 of the backdrop (their maps' files) |
-| things in the world | 2,135 places + the played maps' | + 17,609 items (the people's goods and coin among them) |
-| the largest map file | — | 250 KB (a capital, a hundred people) |
+| people | 33 (all in the index) | 33 who travel (the index) + 1,616 of the backdrop (their places' files) |
+| rooms lived in | — | 746 of the 748 behind the backdrop's doors (not the sealed Hall's) |
+| the busiest street (a Holy City quarter), by day / at night | — | about 30 / 3 |
 
 ## 12. The engine at this scale (phase C)
 
@@ -276,8 +283,11 @@ What grew with the world, and what it is now.
   what a quest names, what an invariant looks for, what waits for an outcome. An event for a thing put away waits in its
   map's inbox, as a dormant map's does. A save puts away every map but the player's, whose unchanged things it leaves
   out (`lean`): a save loads onto its map with the map's data alone, and its file brings the rest.
-- **Fidelity**: the backdrop's people keep to their map — out of the hourly routing of the people who travel (`npc.ts`,
-  its roster read from the people index), placed by their days when their map is entered.
+- **Fidelity**: the backdrop's people keep to their place — its map and the rooms behind its doors — out of the hourly
+  routing of the people who travel (`npc.ts`, its roster read from the people index): they come and go only between
+  maps a step apart (on the hour, those next door whose day brings them in; entering a map, those whose day has them
+  next door are there, those next door whose day has them here come), placed by their days. One who is in a room not
+  loaded is put away with their place (`sparse.ts`).
 - **Indices** in place of the scans over every thing (`world.ts`): by type (`ofType`: the codex's kinds, waypoints, an
   invariant's `exists`, a quest's finder), the people (`people`), props by value (`withProp`: a household's members, the
   site that stands for a map, followers), the kept cells by map (`keptCells`), the agents by map (`agentsOnMap`), the
@@ -293,11 +303,11 @@ wilds, the overworld between — as the worker plays them; one machine, ms):
 
 | | Before (33 people) | Now (3,062 people) |
 |---|---|---|
-| things in memory after fifty maps | 4,356 (every map seen) | 5,032 (8 maps; 8,630 with every map kept) |
+| things in memory after fifty maps | 4,356 (every map seen) | 4,462 (8 maps; 6,417 with every map kept) |
 | a tick on the overworld | 5.8 | 1.1 |
-| a tick in the backdrop's largest town (100 people) | — | 0.6 |
+| a tick in the backdrop's largest place (52 people) | — | 0.5 |
 | a frame on the world map: made, sent | 11 + 7 to copy, 460 KB | 3.2, 6 KB (in view, what changed) |
-| a save | 1.47 MB | 410 KB, of it 72 KB the state (the rest the rule library, the same in every world) |
+| a save | 1.47 MB | 390 KB, of it 51 KB the state (the rest the rule library, the same in every world) |
 
 The scale test (`continent.test.ts`, "the world at scale") holds these to bounds, and what is put away to coming back
 as it was.

@@ -776,7 +776,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   if (!backdropMaps) {
     const continent = readContinent()
     backdropMaps = buildBackdrop(continent)
-    // the backdrop's people, made into its maps (docs/continent.md §9 C): their records are their maps', never the index's
+    // the backdrop's people, made into its places' files (docs/continent.md §11): their records are their places', never the index's
     backdropPeople = peopleBackdrop(backdropMaps, continent)
   }
   const backdrop = backdropMaps

@@ -1,4 +1,4 @@
-// The backdrop's people, in words (docs/continent.md §9 C): their names in both languages, by region; what they say,
+// The backdrop's people, in words (docs/continent.md §11): their names in both languages, by region; what they say,
 // by what they do and where they live. No tale is told in what they say — the regions' sufferings are in the weather,
 // the work and the prices, never in a quest or a secret.
 

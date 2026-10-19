@@ -8,8 +8,9 @@
 // whose schedule leads to the active map walks in on the hour, from the edge or portal they would
 // come by (D21). A person whose day cannot go on — the thing their activity needs is gone or not as
 // it must be, or the anchor cannot be reached — is `stuck`, an event whose outcome may change
-// their script. The backdrop's people (`npc.fidelity: 'local'`, docs/continent.md §9) keep to their own map: they
-// are left out of the hourly routing, and are placed by their days when their map is entered.
+// their script. The backdrop's people (`npc.fidelity: 'local'`, docs/continent.md §12) keep to their own place — its
+// map and the rooms behind its doors, the maps a step from one another —: they are left out of the routing of the
+// people who travel, and come and go only between neighbouring maps, placed by their days when one is entered.
 
 import type { Engine } from './engine.ts'
 import { astar } from './path.ts'
@@ -121,6 +122,20 @@ export class NpcSim {
       const s = scheduleAt(scheduleFor(this.eng, e), h)
       if (s?.map === active) this.arrive(e, s, active)
     }
+    // the place's own people next door (in their houses, out in the street) whose day brings them here
+    for (const e of this.localsNear(active)) {
+      const s = scheduleAt(scheduleFor(this.eng, e), h)
+      if (s?.map === active) this.arrive(e, s, active)
+    }
+  }
+
+  /** The backdrop's people on the maps a step from this one (a place and the rooms behind its doors): those who keep to their place. */
+  private localsNear(map: string): Entity[] {
+    const w = this.eng.world
+    const out: Entity[] = []
+    for (const next of new Set((this.eng.graph[map] ?? []).map((p) => p.to)))
+      for (const e of w.entitiesOnMap(next)) if (e.npc?.fidelity === 'local' && e.place.on === 'tile' && e.props?.follow === undefined) out.push(e)
+    return out
   }
 
   /**
@@ -169,10 +184,18 @@ export class NpcSim {
       const s = scheduleAt(scheduleFor(this.eng, e), h)
       if (s?.map === map) place(e, s)
     }
+    // the place's own people: those next door whose day has them here come in; those here whose day has them next door
+    // (asleep in their house) are there; the rest are where their day has them now (a few steps off is close enough)
+    for (const e of this.localsNear(map)) {
+      const s = scheduleAt(scheduleFor(this.eng, e), h)
+      if (s?.map === map) place(e, s)
+    }
+    const next = new Set((this.eng.graph[map] ?? []).map((p) => p.to))
     for (const e of w.entitiesOnMap(map)) {
       if (e.npc?.fidelity !== 'local' || e.place.on !== 'tile' || e.props?.follow !== undefined) continue
       const s = scheduleAt(scheduleFor(this.eng, e), h)
-      if (s?.map === map && Math.abs(e.place.x - s.x) + Math.abs(e.place.y - s.y) > 3) place(e, s)
+      if (s && s.map !== map && next.has(s.map)) this.eng.relocate(e, { map: s.map, x: s.x, y: s.y })
+      else if (s?.map === map && Math.abs(e.place.x - s.x) + Math.abs(e.place.y - s.y) > 3) place(e, s)
     }
     this.rt.clear()
   }

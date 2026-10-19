@@ -1,4 +1,4 @@
-// The world at scale (docs/continent.md §9 C, E): load the world, walk into fifty maps — played ones, the backdrop's
+// The world at scale (docs/continent.md §12): load the world, walk into fifty maps — played ones, the backdrop's
 // towns and wilds, the overworld between —, as the worker plays it (the maps far behind put away, frames carrying what
 // is in view and what changed), and time a tick, a frame on the world map and a save. `npm run scale` prints the
 // numbers; the scale test (continent.test.ts) holds them to their bounds.
@@ -98,7 +98,8 @@ export function scaleRun(opts: { maps?: number; ticks?: number; keep?: number } 
   go(town)
   for (let t = 0; t < 60; t++) eng.tick()
   const townTickMs = time(() => eng.tick(), 100)
-  const townPeople = w.people().filter((e) => e.place.on === 'tile' && e.place.map === town).length
+  // (its people wherever in it they are now: the street, their rooms)
+  const townPeople = w.people().filter((e) => e.from === town).length
   go('meadow')
   for (let t = 0; t < 20; t++) eng.tick()
   const playedTickMs = time(() => eng.tick(), 100)
