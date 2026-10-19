@@ -28,14 +28,18 @@ const PEACEFUL = new Set(['village', 'town', 'city', 'farm', 'mill', 'camp', 'sh
 /** The kinds a region's look is laid over (its lamps and what stands about its doors and streets). */
 const SETTLED = new Set(['village', 'town', 'city', 'farm', 'mill', 'camp'])
 
-/** Each region's buildings, streets, walls and lamps (what else stands about its settlements: `DECOR`). */
-const STYLE: Record<string, { houses: string[]; street: string; wall: string; yard: 'rail' | 'fence' | 'stonewall'; lamp: string }> = {
-  frostfang: { houses: ['house_wood', 'cabin', 'house_thatch'], street: 'path', wall: 'woodwall', yard: 'fence', lamp: 'fixture/light/lamppost' },
-  redmarch: { houses: ['house_red', 'house_orange', 'house_red', 'house_wood'], street: 'dirt', wall: 'burnt_wall', yard: 'stonewall', lamp: 'fixture/light/brazier' },
-  tithe: { houses: ['house_thatch', 'hut_straw', 'house_thatch', 'house_orange'], street: 'dirt', wall: 'woodwall', yard: 'rail', lamp: 'fixture/light/lamppost' },
-  palefen: { houses: ['hut_straw', 'house_wood', 'cabin'], street: 'path', wall: 'woodwall', yard: 'fence', lamp: 'fixture/light/lantern' },
-  altar: { houses: ['house_plaster', 'house_plaster', 'house_orange'], street: 'cobble', wall: 'wall', yard: 'stonewall', lamp: 'fixture/light/brazier' },
-  holy: { houses: ['house_plaster', 'house_orange', 'house_plaster', 'house_thatch'], street: 'cobble', wall: 'wall', yard: 'stonewall', lamp: 'fixture/light/lamppost' },
+/**
+ * Each region's buildings, streets, walls and lamps (what else stands about its settlements: `DECOR`), the ground its
+ * settlements stand on (`ground`: the March's red dirt, the Vale's dry grass, the Fens' mud, the Heights' snow, the Holy
+ * City's paving), its squares', and its farms' and mills' (`field`).
+ */
+const STYLE: Record<string, { houses: string[]; street: string; wall: string; yard: 'rail' | 'fence' | 'stonewall'; lamp: string; ground: string; square: string; field: string }> = {
+  frostfang: { houses: ['house_wood', 'cabin', 'house_thatch'], street: 'path', wall: 'woodwall', yard: 'fence', lamp: 'fixture/light/lamppost', ground: 'grass', square: 'dirt', field: 'grass' },
+  redmarch: { houses: ['house_red', 'house_orange', 'house_red', 'house_wood'], street: 'gravel', wall: 'burnt_wall', yard: 'stonewall', lamp: 'fixture/light/brazier', ground: 'dirt', square: 'gravel', field: 'dirt' },
+  tithe: { houses: ['house_thatch', 'hut_straw', 'house_thatch', 'house_orange'], street: 'dirt', wall: 'woodwall', yard: 'rail', lamp: 'fixture/light/lamppost', ground: 'drygrass', square: 'dirt', field: 'drygrass' },
+  palefen: { houses: ['hut_straw', 'house_wood', 'cabin'], street: 'path', wall: 'woodwall', yard: 'fence', lamp: 'fixture/light/lantern', ground: 'mud', square: 'path', field: 'grass' },
+  altar: { houses: ['house_plaster', 'house_plaster', 'house_orange'], street: 'cobble', wall: 'wall', yard: 'stonewall', lamp: 'fixture/light/brazier', ground: 'snow', square: 'cobble', field: 'grass' },
+  holy: { houses: ['house_plaster', 'house_orange', 'house_plaster', 'house_thatch'], street: 'gravel', wall: 'wall', yard: 'stonewall', lamp: 'fixture/light/lamppost', ground: 'cobble', square: 'gravel', field: 'grass' },
 }
 /** Each region's banner (a catalogue prefab): over its forts' keeps and gates, its towns' and cities' squares. */
 const BANNER: Record<string, string> = { frostfang: 'banner_green', redmarch: 'banner_red', tithe: 'banner_yellow', palefen: 'banner_grey', altar: 'banner_cream', holy: 'banner_purple' }
@@ -77,6 +81,7 @@ function placeMaps(p: Place, ground: string): MapBuilder[] {
   const build = KINDS[p.kind] ?? KINDS.ruin
   build(b, p, style, out)
   if (SETTLED.has(p.kind)) DECOR[p.region]?.(b, style)
+  if (MAP_KIND[p.kind]) feather(b, style)
   // every building's door: the cell before it clear, a room behind it
   for (const d of doors) front(b, b.doors[d.door], style)
   out.push(...roomsBehind(b, p, doors))
@@ -152,9 +157,9 @@ function row(b: MapBuilder, s: Style, x0: number, x1: number, street: number, fi
   }
 }
 
-/** A settlement: a cleared green, its lanes across it a house deep apart, a street down its middle, a square with a well. */
+/** A settlement: its region's ground cleared, its lanes across it a house deep apart, a street down its middle, a square with a well. */
 function settlement(b: MapBuilder, s: Style, lanes: number, square: string, layout: Layout = {}): void {
-  clear(b, 2, 2, b.w - 4, b.h - 4, 'grass')
+  clear(b, 2, 2, b.w - 4, b.h - 4, s.ground)
   const mid = Math.floor(b.h / 2)
   const cx = Math.floor(b.w / 2)
   // the lanes: the main street through the square, the others seven rows apart, above and below it in turn
@@ -171,9 +176,55 @@ function settlement(b: MapBuilder, s: Style, lanes: number, square: string, layo
   b.fixture('fixture/water/well', cx, mid + 1)
   b.fixture(s.lamp, sq.x, sq.y)
   b.fixture(s.lamp, sq.x + 7, sq.y + 4)
-  b.sprinkle('fixture/container/barrel', 0.03, (x, y, t) => t === 'grass' && b.near(x, y, (n) => n === 'door', 1), [2, 2, b.w - 4, b.h - 4])
-  b.sprinkle('fixture/container/crate', 0.02, (x, y, t) => t === 'grass' && b.near(x, y, (n) => n === 'door', 2), [2, 2, b.w - 4, b.h - 4])
+  b.sprinkle('fixture/container/barrel', 0.03, (x, y, t) => bare(s)(t) && b.near(x, y, (n) => n === 'door', 1), [2, 2, b.w - 4, b.h - 4])
+  b.sprinkle('fixture/container/crate', 0.02, (x, y, t) => bare(s)(t) && b.near(x, y, (n) => n === 'door', 2), [2, 2, b.w - 4, b.h - 4])
   b.sprinkle('fixture/nature/flowers', 0.02, (_x, _y, t) => t === 'grass', [2, 2, b.w - 4, b.h - 4])
+}
+
+/** The open ground of a region's settlements and fields (and the green between): where what stands about may stand. */
+const bare = (s: Style) => (t: string) => t === s.ground || t === s.field || t === 'grass'
+/**
+ * A settlement's ground giving way to the wild round it: within a few cells of the cleared rect's edge its ground turns to
+ * the wild's (the commonest open ground of the map's rim) along a wavering line, so the place ends as a place does, not
+ * as a rectangle.
+ */
+function feather(b: MapBuilder, s: Style): void {
+  const rim = new Map<string, number>()
+  for (let y = 0; y < b.h; y++)
+    for (let x = 0; x < b.w; x++) {
+      if (x >= 2 && y >= 2 && x < b.w - 2 && y < b.h - 2) continue
+      const t = b.get(x, y)
+      if (!SOLID.has(t) && t !== 'water' && t !== s.street) rim.set(t, (rim.get(t) ?? 0) + 1)
+    }
+  const wild = [...rim].sort((a, c) => c[1] - a[1])[0]?.[0] ?? 'grass'
+  if (wild === s.ground) return
+  const ph = [rng.next() * 6.28, rng.next() * 6.28, rng.next() * 6.28]
+  for (let y = 2; y < b.h - 2; y++)
+    for (let x = 2; x < b.w - 2; x++) {
+      if (b.get(x, y) !== s.ground) continue
+      const d = Math.min(x - 2, y - 2, b.w - 3 - x, b.h - 3 - y)
+      const reach = 2.2 + 1.4 * Math.sin(x * 0.55 + ph[0]) + 1.1 * Math.sin(y * 0.7 + ph[1]) + 0.7 * Math.sin((x + y) * 0.31 + ph[2])
+      if (d < reach) b.set(x, y, wild)
+    }
+}
+
+/** A town's or a city's paving: cobbles, or where the ground is already paved (the Holy City), dark stone. */
+const paved = (s: Style) => (s.ground === 'cobble' ? 'gravel' : 'cobble')
+
+/**
+ * Patches of `t` over about `share` of the ground `on` within the map's inner rect: organic shapes a few cells across
+ * (`r`, their radius), so a region's ground lies as ground does, in drifts and islands, never as a speckle of cells.
+ */
+function patches(b: MapBuilder, t: string, share: number, on: (cur: string) => boolean, [rmin, rmax]: [number, number] = [2, 4]): void {
+  const [x0, y0, w, h] = inner(b)
+  let room = 0
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) if (on(b.get(x, y)) && b.free(x, y)) room++
+  const r = (rmin + rmax) / 2
+  const n = Math.round((room * share) / (Math.PI * r * r * 0.8))
+  for (let k = 0; k < n; k++) {
+    const rx = rng.int(rmin, rmax)
+    b.organic(rng.int(x0, x0 + w - 1), rng.int(y0, y0 + h - 1), rx, Math.max(1, rx - rng.int(0, 1)), t, { only: on, rough: 0.35 })
+  }
 }
 
 /** A wall ring of `t` with a door in its south side and `floor` inside: a tower, a keep, a hall. */
@@ -238,13 +289,13 @@ function haunt(b: MapBuilder, p: Place, n: number): void {
  */
 const shrineOf = (_region: string) => 'fixture/sacred/statue'
 
-/** A spot of `w`×`h` where all is open grass with nothing on it and a step of grass round it (for a pool, a plot). */
-function openSpot(b: MapBuilder, w: number, h: number, tries = 40): Cell | undefined {
+/** A spot of `w`×`h` where all is open ground (`open`) with nothing on it and a step of it round it (for a pool, a plot). */
+function openSpot(b: MapBuilder, w: number, h: number, open: (t: string) => boolean = (t) => t === 'grass', tries = 40): Cell | undefined {
   for (let t = 0; t < tries; t++) {
     const x = rng.int(3, b.w - w - 3)
     const y = rng.int(3, b.h - h - 3)
     let ok = true
-    for (let j = y - 1; ok && j <= y + h; j++) for (let i = x - 1; ok && i <= x + w; i++) ok = b.get(i, j) === 'grass' && b.free(i, j)
+    for (let j = y - 1; ok && j <= y + h; j++) for (let i = x - 1; ok && i <= x + w; i++) ok = open(b.get(i, j)) && b.free(i, j)
     if (ok) return [x, y]
   }
   return undefined
@@ -258,58 +309,62 @@ const inner = (b: MapBuilder): Rect => [2, 2, b.w - 4, b.h - 4]
 
 /** Each region's look laid over its settlements, farms, mills and camps. */
 const DECOR: Record<string, (b: MapBuilder, s: Style) => void> = {
-  // the Coast: pines crowding in at the edges, woodpiles by the doors, washing strung out
-  frostfang: (b) => {
-    b.scatter(2, 2, b.w - 4, b.h - 4, 'pine', 0.035, (c) => c === 'grass')
+  // the Coast: pines crowding in at the edges, meadows of flowers, woodpiles by the doors, washing strung out
+  frostfang: (b, s) => {
+    patches(b, 'flowers', 0.05, (c) => c === 'grass', [1, 3])
+    b.scatter(2, 2, b.w - 4, b.h - 4, 'pine', 0.03, (c) => c === 'grass')
     b.sprinkle('fixture/container/woodpile', 0.06, byDoor(b, 2), inner(b))
-    b.sprinkle('fixture/furniture/washing_line', 0.006, (_x, _y, t) => t === 'grass', inner(b))
+    b.sprinkle('fixture/furniture/washing_line', 0.006, (_x, _y, t) => bare(s)(t), inner(b))
   },
-  // the March: red dirt underfoot, braziers along the streets, racks of spears by the doors, old bones
+  // the March: red dirt underfoot with scrub in islands, braziers along the streets, racks of spears by the doors, old bones
   redmarch: (b, s) => {
-    b.scatter(2, 2, b.w - 4, b.h - 4, 'dirt', 0.4, (c) => c === 'grass')
+    patches(b, 'grass', 0.16, (c) => c === 'dirt', [2, 4])
+    b.sprinkle('fixture/nature/tuft', 0.06, (_x, _y, t) => t === 'grass', inner(b))
     b.sprinkle(s.lamp, 0.02, byStreet(b, s), inner(b))
     b.sprinkle('fixture/furniture/rack', 0.05, byDoor(b, 2), inner(b))
-    b.sprinkle('fixture/remains/bones', 0.004, (_x, _y, t) => t === 'dirt', inner(b))
+    b.sprinkle('fixture/remains/bones', 0.006, (_x, _y, t) => t === 'dirt', inner(b))
   },
-  // the Vale: dry grass, little fields gone to dust round the houses, sacks and carts waiting for the weighing
-  tithe: (b) => {
-    for (let k = 0; k < 3; k++) {
-      const at = openSpot(b, 6, 3)
+  // the Vale: dry grass, fields gone to dust round the houses with their haystacks, sacks and carts waiting for the weighing
+  tithe: (b, s) => {
+    for (let k = 0; k < 6; k++) {
+      const [w, h] = [rng.int(5, 9), rng.int(3, 4)]
+      const at = openSpot(b, w + 1, h, bare(s))
       if (!at) break
-      b.rect(at[0], at[1], 6, 3, 'farmland')
-      b.fixture('fixture/nature/haystack', at[0] + 6, at[1] + 1)
+      b.rect(at[0], at[1], w, h, 'farmland')
+      b.fixture('fixture/nature/haystack', at[0] + w, at[1] + rng.int(0, h - 1))
     }
-    b.scatter(2, 2, b.w - 4, b.h - 4, 'drygrass', 0.35, (c) => c === 'grass')
+    patches(b, 'grass', 0.08, (c) => c === 'drygrass', [1, 3])
     b.sprinkle('fixture/container/sack', 0.06, byDoor(b, 2), inner(b))
-    b.sprinkle('fixture/furniture/cart', 0.004, (_x, _y, t) => t === 'grass' || t === 'drygrass', inner(b))
-    b.sprinkle('fixture/scarecrow', 0.003, (_x, _y, t) => t === 'drygrass', inner(b))
+    b.sprinkle('fixture/furniture/cart', 0.005, (_x, _y, t) => bare(s)(t), inner(b))
+    b.sprinkle('fixture/scarecrow', 0.25, (x, y, t) => t === 'drygrass' && b.near(x, y, (n) => n === 'farmland', 1), inner(b))
   },
-  // the Fens: mud, black pools with reeds, dead trees, lanterns at the doors and the mist that never quite lifts
+  // the Fens: mud, islands of rank grass, black pools with reeds, dead trees, lanterns at the doors and the mist that never quite lifts
   palefen: (b, s) => {
-    for (let k = 0; k < 3; k++) {
-      const at = openSpot(b, 4, 3)
+    patches(b, 'grass', 0.24, (c) => c === 'mud', [2, 4])
+    for (let k = 0; k < 6; k++) {
+      const at = openSpot(b, 5, 4, bare(s))
       if (!at) break
-      b.organic(at[0] + 2, at[1] + 1, 2, 1, 'water', { only: (t) => t === 'grass' })
-      b.sprinkle('fixture/nature/reeds', 0.4, (x, y, t) => t === 'grass' && b.near(x, y, (n) => n === 'water', 1), [at[0] - 1, at[1] - 1, 6, 5])
+      b.organic(at[0] + 2.5, at[1] + 2, rng.int(2, 3), 2, 'water', { only: bare(s) })
+      b.sprinkle('fixture/nature/reeds', 0.5, (x, y, t) => bare(s)(t) && b.near(x, y, (n) => n === 'water', 1), [at[0] - 2, at[1] - 2, 9, 8])
     }
-    b.scatter(2, 2, b.w - 4, b.h - 4, 'mud', 0.3, (c) => c === 'grass')
     b.sprinkle(s.lamp, 0.05, byDoor(b, 1), inner(b))
-    b.sprinkle('fixture/nature/dead_tree', 0.01, (_x, _y, t) => t === 'grass' || t === 'mud', inner(b))
-    b.sprinkle('fixture/nature/mist', 0.012, (_x, _y, t) => t === 'grass' || t === 'mud', inner(b))
+    b.sprinkle('fixture/nature/dead_tree', 0.012, (_x, _y, t) => bare(s)(t), inner(b))
+    b.sprinkle('fixture/nature/mist', 0.012, (_x, _y, t) => bare(s)(t), inner(b))
   },
-  // the Heights: white stone — gravel and boulders, statues over the streets, candles at the doors
+  // the Heights: snow, the white stone showing through it, boulders, statues over the streets, candles at the doors
   altar: (b, s) => {
-    b.scatter(2, 2, b.w - 4, b.h - 4, 'gravel', 0.15, (c) => c === 'grass')
-    b.sprinkle('fixture/nature/boulder', 0.006, (_x, _y, t) => t === 'grass' || t === 'gravel', inner(b))
+    patches(b, 'gravel', 0.06, (c) => c === 'snow', [1, 2])
+    patches(b, 'grass', 0.06, (c) => c === 'snow', [1, 3])
+    b.sprinkle('fixture/nature/boulder', 0.01, (_x, _y, t) => bare(s)(t) || t === 'gravel', inner(b))
     b.sprinkle('fixture/sacred/statue', 0.006, byStreet(b, s), inner(b))
     b.sprinkle('fixture/light/candles', 0.03, byDoor(b, 1), inner(b))
   },
-  // the Holy City: cobbles everywhere, lamps along the streets, flower carts
+  // the Holy City: paved everywhere, gardens of grass and flowers between, lamps along the streets, flower carts
   holy: (b, s) => {
-    b.scatter(2, 2, b.w - 4, b.h - 4, 'cobble', 0.2, (c) => c === 'grass')
-    b.sprinkle(s.lamp, 0.015, byStreet(b, s), inner(b))
-    b.sprinkle('fixture/furniture/cart/flowers', 0.004, (_x, _y, t) => t === 'grass' || t === 'cobble', inner(b))
-    b.sprinkle('fixture/nature/flowers', 0.03, (_x, _y, t) => t === 'grass', inner(b))
+    patches(b, 'grass', 0.1, (c) => c === 'cobble', [2, 3])
+    b.sprinkle('fixture/nature/flowers', 0.25, (_x, _y, t) => t === 'grass', inner(b))
+    b.sprinkle(s.lamp, 0.03, byStreet(b, s), inner(b))
+    b.sprinkle('fixture/furniture/cart/flowers', 0.004, (_x, _y, t) => bare(s)(t), inner(b))
   },
 }
 
@@ -369,9 +424,9 @@ const THEMES: Record<string, Theme> = {
   lower: {
     layout: () => ({}),
     style: (s) => ({ ...s, street: 'dirt', houses: ['hut_straw', 'cabin', 'house_wood', 'hut_straw'] }),
-    build: (b) => {
-      b.scatter(2, 2, b.w - 4, b.h - 4, 'mud', 0.2, (c) => c === 'grass')
-      b.sprinkle('fixture/furniture/washing_line', 0.02, (_x, _y, t) => t === 'grass' || t === 'mud', inner(b))
+    build: (b, s) => {
+      patches(b, 'mud', 0.18, bare(s), [1, 3])
+      b.sprinkle('fixture/furniture/washing_line', 0.02, (_x, _y, t) => bare(s)(t) || t === 'mud', inner(b))
       b.sprinkle('fixture/container/barrel', 0.05, byDoor(b, 1), inner(b))
     },
   },
@@ -388,11 +443,12 @@ const THEMES: Record<string, Theme> = {
   // the old wall: the first city's wall, broken, across the north, its stones lying about
   oldwall: {
     layout: () => ({ reserve: [[0, 1, 999, 6]] }),
-    build: (b) => {
-      for (let x = 2; x < b.w - 2; x++) if (b.get(x, 4) === 'grass' && rng.chance(0.7)) b.set(x, 4, 'wall')
-      for (let x = 3; x < b.w - 4; x += rng.int(4, 7)) if (b.get(x, 3) === 'grass' && b.get(x, 2) === 'grass' && b.free(x, 3)) stand(b, 'pillar', x, 3)
-      b.sprinkle('fixture/nature/pebbles', 0.08, (_x, y, t) => t === 'grass' && y < 8, inner(b))
-      b.sprinkle('fixture/nature/boulder', 0.02, (_x, y, t) => t === 'grass' && y < 8, inner(b))
+    build: (b, s) => {
+      const open = bare(s)
+      for (let x = 2; x < b.w - 2; x++) if (open(b.get(x, 4)) && rng.chance(0.7)) b.set(x, 4, 'wall')
+      for (let x = 3; x < b.w - 4; x += rng.int(4, 7)) if (open(b.get(x, 3)) && open(b.get(x, 2)) && b.free(x, 3)) stand(b, 'pillar', x, 3)
+      b.sprinkle('fixture/nature/pebbles', 0.08, (_x, y, t) => open(t) && y < 8, inner(b))
+      b.sprinkle('fixture/nature/boulder', 0.02, (_x, y, t) => open(t) && y < 8, inner(b))
     },
   },
   // the cloister: a walled garden behind the main street, its chapel and a brothers' house in it, a fountain
@@ -458,9 +514,9 @@ function cave(b: MapBuilder, p: Place, out: MapBuilder[], veins: number): void {
 }
 
 const KINDS: Record<string, Build> = {
-  village: (b, _p, s) => settlement(b, s, 2, s.street === 'cobble' ? 'cobble' : 'dirt', { civic: rng.chance(0.5) ? [{ prefab: rng.pick(['smithy', 'shop']) }] : [] }),
+  village: (b, _p, s) => settlement(b, s, 2, s.square, { civic: rng.chance(0.5) ? [{ prefab: rng.pick(['smithy', 'shop']) }] : [] }),
   town: (b, p, s) => {
-    settlement(b, s, 3, 'cobble', { civic: [{ prefab: 'store' }, { prefab: 'smithy' }, { prefab: rng.pick(['inn', 'teahouse']) }] })
+    settlement(b, s, 3, paved(s), { civic: [{ prefab: 'store' }, { prefab: 'smithy' }, { prefab: rng.pick(['inn', 'teahouse']) }] })
     const mid = Math.floor(b.h / 2)
     b.fixture('fixture/furniture/stall', Math.floor(b.w / 2) - 5, mid + 1)
     b.fixture('fixture/furniture/stall', Math.floor(b.w / 2) + 5, mid + 1)
@@ -470,17 +526,17 @@ const KINDS: Record<string, Build> = {
   },
   city: (b, p, s) => {
     const theme = themeOf(p)
-    const style = theme.style?.({ ...s, street: 'cobble' }) ?? { ...s, street: 'cobble' }
-    settlement(b, style, 4, 'cobble', theme.layout(b))
+    const style = theme.style?.({ ...s, street: paved(s) }) ?? { ...s, street: paved(s) }
+    settlement(b, style, 4, paved(s), theme.layout(b))
     b.fixture('fixture/water/fountain', Math.floor(b.w / 2) - 1, Math.floor(b.h / 2) - 1)
     b.fixture(shrineOf(p.region), Math.floor(b.w / 2) + 2, Math.floor(b.h / 2) - 2)
-    b.sprinkle(s.lamp, 0.012, (_x, _y, t) => t === 'cobble')
+    b.sprinkle(s.lamp, 0.04, byStreet(b, style), inner(b))
     banner(b, p.region, Math.floor(b.w / 2) - 4, Math.floor(b.h / 2) - 2)
     banner(b, p.region, Math.floor(b.w / 2) + 5, Math.floor(b.h / 2) - 2)
     theme.build?.(b, style)
   },
   farm: (b, _p, s) => {
-    clear(b, 4, 4, b.w - 8, b.h - 8, 'grass')
+    clear(b, 4, 4, b.w - 8, b.h - 8, s.field)
     const door = building(b, rng.pick(low(s)), 8, 7, 'farmhouse')
     b.road(door[0], door[1] + 1, door[0], Math.floor(b.h / 2), s.street === 'cobble' ? 'path' : s.street)
     b.path([[0, Math.floor(b.h / 2)], [b.w - 1, Math.floor(b.h / 2)]], 'path', 2)
@@ -495,7 +551,7 @@ const KINDS: Record<string, Build> = {
     b.creature('animal/chicken', 26, 21, { temper: 'wary', behaviour: 'melee' })
   },
   mill: (b, _p, s) => {
-    clear(b, 4, 4, b.w - 8, b.h - 8, 'grass')
+    clear(b, 4, 4, b.w - 8, b.h - 8, s.field)
     b.path([[0, Math.floor(b.h / 2)], [b.w - 1, Math.floor(b.h / 2)]], 'path', 2)
     const door = building(b, rng.pick(low(s)), 16, 8, 'mill')
     b.road(door[0], door[1] + 1, door[0], Math.floor(b.h / 2), 'path')
