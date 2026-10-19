@@ -393,7 +393,8 @@ export function loadGame(): Game {
   ents.push(...bosses)
 
   // ---- maps
-  const maps: MapEnt[] = index.maps.filter((m: any) => m.id !== 'offstage').map((m: any) => {
+  // (the backdrop's places are no pages of their own: their regions' pages tell of them, docs/continent.md §1)
+  const maps: MapEnt[] = index.maps.filter((m: any) => m.id !== 'offstage' && !m.backdrop).map((m: any) => {
     const c = chunks.find((x: any) => x.map.id === m.id)
     return { kind: 'map', id: m.id, zh: zh(m.name), en: (enOf(m.name) || m.id), title: zh(m.name), group: m.kind, map: c?.map ?? m, entities: c?.entities ?? [] } satisfies MapEnt
   })

@@ -1153,6 +1153,11 @@ export interface MapData {
   forage?: Forage[]
   /** Peaceful (towns, camps: nothing comes out at night) or combat (default: zombies and bats come out after dark, nightspawn.ts). */
   zone?: 'peaceful' | 'combat'
+  /**
+   * Background: a place made to fill the world, not played yet (no story, no one's errand) — held to the checks every
+   * map is, but none of a played map's (the engine ignores it).
+   */
+  backdrop?: boolean
 }
 
 /** An older chunk's appearance (MapData.forage): one type. */

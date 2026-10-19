@@ -23,6 +23,18 @@ export interface MapMeta {
   at?: { x: number; y: number }
   /** Its named areas (x, y, w, h): a quest points at one while the map is not loaded. */
   regions?: Record<string, [number, number, number, number]>
+  /** Background, not played yet (MapData.backdrop). */
+  backdrop?: boolean
+}
+
+/** A region of the world (MapData.region names one): what the world map draws it as. */
+export interface RegionMeta {
+  id: string
+  name: Text
+  /** Its border and name on the world map. */
+  color?: string
+  /** Nothing of the story is played there yet: the world map says so. */
+  backdrop?: boolean
 }
 
 /** A place a new game may begin, and what the player is there (the story's stage they begin at). */
@@ -49,6 +61,8 @@ export interface WorldIndex {
   /** The hour of day 1 a new game begins at (default 06:00). */
   startHour?: number
   maps: MapMeta[]
+  /** The world's regions, by the id a map's `region` names (the world map draws them). */
+  regions?: RegionMeta[]
   /** NPCs are global (they travel between maps); their inventories ride along. */
   npcs: Entity[]
   player: Entity

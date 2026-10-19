@@ -149,6 +149,7 @@ export function compile(project: Project): Compiled {
     ...(at.has(c.map.id) && { at: at.get(c.map.id) }),
     // its named areas: a quest points at one while the map is not loaded
     ...(c.map.regions && Object.keys(c.map.regions).length && { regions: c.map.regions }),
+    ...(c.map.backdrop && { backdrop: true }),
   }))
   const placed = chunks.flatMap((c) => c.entities)
   const kinds = new Set(placed.filter((e) => e.type.startsWith('item/')).map((e) => `${e.type}|${(e.tags ?? []).join(',')}`))

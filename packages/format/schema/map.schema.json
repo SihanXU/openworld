@@ -222,6 +222,10 @@
           "additionalProperties": false,
           "description": "Where the map lies on the overworld: the top left of its cell's block there (world-model.md §5.1). Its open edges lead to it."
         },
+        "backdrop": {
+          "type": "boolean",
+          "description": "Background: a place made to fill the world, not played yet (no story, no one's errand) — held to the checks every map is, but none of a played map's (the engine ignores it)."
+        },
         "strokes": {
           "type": "array",
           "items": {

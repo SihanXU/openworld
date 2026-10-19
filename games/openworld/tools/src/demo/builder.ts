@@ -86,6 +86,8 @@ export class MapBuilder {
   site?: MapData['site']
   /** Ground heights in half levels (MapData.heights): a level is two, a ramp is a column between. */
   heights: number[][] = []
+  /** Background, not played yet (MapData.backdrop, docs/continent.md §1). */
+  backdrop = false
 
   constructor(
     public id: string,
@@ -458,6 +460,7 @@ export class MapBuilder {
         fish: this.fish || undefined,
         zone: this.zone,
         site: this.site,
+        ...(this.backdrop && { backdrop: true }),
       },
       entities: this.entities,
     }

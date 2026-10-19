@@ -379,6 +379,20 @@
 .quest-arrows .qa { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; display: flex; align-items: center; justify-content: center; }
 .quest-arrows .qa i { display: block; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 14px solid #ffd23f; filter: drop-shadow(0 0 1px #3a2414) drop-shadow(0 1px 0 #3a2414); }
 .quest-arrows .qa.on i { border: 0; width: 10px; height: 10px; background: #ffd23f; transform: rotate(45deg); box-shadow: 0 0 0 2px #3a2414; }
+.wm-continent { position: absolute; left: 0; top: 0; image-rendering: pixelated; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5), 0 6px 18px rgba(0, 0, 0, 0.5); }
+.wm-region { position: absolute; transform: translate(-50%, -50%); font: 700 20px var(--pixel); color: #fff8e6; text-shadow: 0 0 3px var(--rc), 0 1px 0 #000, 0 0 8px #000; white-space: nowrap; pointer-events: none; text-align: center; letter-spacing: 1px; opacity: 0.92; }
+.wm-region small { display: block; font: 600 11px var(--pixel); color: #e8dcc0; letter-spacing: 0; }
+.wm-region.untold { color: #d8d0c0; }
+.wm-place { position: absolute; width: 0; height: 0; pointer-events: auto; }
+.wm-place i { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; background: #fff3d0; border: 1px solid #3a2414; transform: rotate(45deg); }
+.wm-place.major i { left: -5px; top: -5px; width: 10px; height: 10px; background: #f2c14e; }
+.wm-place.backdrop i { background: #c8c0b0; }
+.wm-place.backdrop.major i { background: #d8c890; }
+.wm-place.sealed i { background: #3a3440; border-color: #c8a0ff; }
+.wm-place.visited i { box-shadow: 0 0 4px #fff; }
+.wm-place span { position: absolute; left: 0; top: 6px; transform: translateX(-50%); font: 600 9px var(--pixel); color: #fff8e6; text-shadow: 0 1px 0 #000, 0 0 3px #000; white-space: nowrap; pointer-events: none; display: none; }
+.wm-place.major span, .near .wm-place span, .wm-place.visited span { display: block; }
+.wm-stone.small { width: 10px; height: 10px; margin: -5px 0 0 -5px; border-width: 2px; }
 .wm-you { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff; border: 3px solid #e04848; animation: skReady 1.4s infinite; pointer-events: none; }
 /* the minimap, under the clock */
 .minimap { position: absolute; left: 14px; top: 14px; padding: 4px; line-height: 0; cursor: pointer; }
