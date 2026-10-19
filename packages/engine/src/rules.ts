@@ -99,7 +99,9 @@ export function evalCond(c: Cond | undefined, roles: Roles, world: World, ev?: G
   if ('topic' in c) return world.topicFresh(c.topic)
   if ('weather' in c) return c.weather.includes(world.calendar().weather)
   if ('exists' in c) {
-    for (const e of Object.values(world.state.entities)) if (e.place.on !== 'none' && matchSelector(c.exists, world.view({ e: e.id }))) return true
+    // (read by kind where it names one)
+    const pool = c.exists.type ? world.ofType(c.exists.type) : Object.values(world.state.entities)
+    for (const e of pool) if (e.place.on !== 'none' && matchSelector(c.exists, world.view({ e: e.id }))) return true
     return false
   }
   if ('rel' in c) {
@@ -694,6 +696,26 @@ export class RuleLibrary {
    * Could this host's event of this kind do anything? False when every rule that could answer it
    * is a root rule whose only outcome is no change — then the engine need not make the event.
    */
+  /**
+   * Whether, by its type alone, some rule could answer a kind for a thing (a cheap test before its view is made): never
+   * a no that a rule would answer. `tags`: all the tags the thing has, when they are its type's alone (a cell of a map's
+   * data, not kept: nothing of its own) — a rule for other tags is passed over too.
+   */
+  mayAnswer(kind: string, type: string, tags?: readonly string[]): boolean {
+    if (this.may?.version !== this.version) this.may = { version: this.version, by: new Map() }
+    const k = `${kind}|${type}${tags ? '|t' : ''}`
+    let v = this.may.by.get(k)
+    if (v === undefined) {
+      const list = this.base.get(kind.split('/')[0]) ?? []
+      v =
+        list.some((r) => kindCovers(r.on, kind) && (!isRoot(r) || leaves(r.tree).some((l) => l !== 'inherit' && !(isDo(l) && l.do.length === 0))) && (!r.host?.type || isA(type, r.host.type) || isA(r.host.type, type)) && (!tags || !r.host?.tags || r.host.tags.every((t) => tags.includes(t)))) ||
+        this.learned(type, kind).length > 0
+      this.may.by.set(k, v)
+    }
+    return v
+  }
+  private may?: { version: number; by: Map<string, boolean> }
+
   answers(kind: string, host: View | undefined): boolean {
     for (const r of this.candidates(kind, host)) {
       if (!isRoot(r)) return true
@@ -717,6 +739,11 @@ export class RuleLibrary {
 
   toJSON(): LibraryData {
     return { rules: [...this.rules.values()], types: this.types, statuses: this.statuses, log: this.log, version: this.version }
+  }
+
+  /** What was learned (the patches, the kinds and statuses they brought, the log): what a save keeps — the base is the game's, fresh from content on every load. */
+  learnedJSON(): LibraryData {
+    return { rules: this.patches(), types: this.types, statuses: this.statuses, log: this.log, version: this.version }
   }
 
   static fromJSON(d: LibraryData): RuleLibrary {

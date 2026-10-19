@@ -354,9 +354,18 @@ export class MapBuilder {
     this.doors.out = [dx, this.h - 1]
   }
 
+  /**
+   * A new id on the map. A prefixed one ('i' an item, 'c' a creature) can spell what a plain one spells later (the
+   * 680th thing's "iw" is the 32nd item's): an id already given is passed over, so no id changes until a map is that full.
+   */
   newId(prefix = '') {
-    return `${this.id}~${prefix}${(++this.seq).toString(36)}`
+    let id: string
+    do id = `${this.id}~${prefix}${(++this.seq).toString(36)}`
+    while (this.given.has(id))
+    this.given.add(id)
+    return id
   }
+  private given = new Set<string>()
 
   fixture(type: string, x: number, y: number, extra: Partial<Entity> = {}, contents: ItemSpec[] = []): Entity {
     const e: Entity = { id: extra.id ?? this.newId(), type, place: { on: 'tile', map: this.id, x, y }, ...extra }

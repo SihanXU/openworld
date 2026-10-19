@@ -25,6 +25,7 @@ import { SkillBar } from './ui/skillbar.ts'
 import { Tooltip, setLearnedStatuses } from './ui/tooltip.ts'
 import { Minimap } from './ui/worldmap.ts'
 import { AfterSave } from './afterSave.ts'
+import { FrameDecoder } from './frameDelta.ts'
 import './styles.css'
 import './ui/game.css'
 import './ui/polish.css'
@@ -291,6 +292,10 @@ new Phaser.Game({
 let fps = 0
 let frames = 0
 let last = performance.now()
+/** The frames' things, put back together from what changed (frameDelta.ts). */
+const frameThings = new FrameDecoder()
+/** What the camera showed when the worker was last told (it sends what lies there). */
+let viewSent = ''
 
 worker.onmessage = (ev: MessageEvent<FromWorker>) => {
   const m = ev.data
@@ -320,6 +325,12 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       menu.onCodex(m.codex)
       break
     case 'frame':
+      m.frame = frameThings.decode(m.frame, m.gone)
+      {
+        const v = scene.viewCells()
+        const k = v && `${v.map}:${v.x}:${v.y}:${v.w}:${v.h}`
+        if (v && k !== viewSent) (viewSent = k!), send({ t: 'view', ...v })
+      }
       // the tutorial on its own ends where its way out leads: back to the title
       if (tutorialRun && m.frame.map !== 'tutorial' && !cover.open) {
         tutorialRun = false

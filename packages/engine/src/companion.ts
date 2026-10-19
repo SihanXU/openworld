@@ -30,7 +30,8 @@ export class Companions {
 
   /** The companions following an actor. */
   of(leader: Id): Entity[] {
-    return Object.values(this.eng.world.state.entities).filter((e) => e.props?.companion === leader && e.place.on === 'tile')
+    const w = this.eng.world
+    return [...w.companionIds].map((id) => w.state.entities[id]).filter((e) => e && e.props?.companion === leader && e.place.on === 'tile')
   }
 
   /**

@@ -23,7 +23,7 @@ export function wildCell(id: string): { cx: number; cy: number } | undefined {
  */
 export function wildChunkFor(w: World, id: string): MapChunk | undefined {
   const cell = wildCell(id)
-  const site = cell && Object.values(w.state.entities).find((e) => e.type.startsWith('site') && e.props?.map === id)
+  const site = cell && w.withProp('map', id).find((e) => e.type.startsWith('site'))
   if (!cell || !site || site.place.on !== 'tile') return undefined
   const size = w.onto.resolve(site.type).footprint[0]
   const ground = String(site.props?.ground ?? 'ow_plain')

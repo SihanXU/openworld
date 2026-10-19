@@ -444,6 +444,26 @@ export interface Entity {
    * a whole drawn sheet in the client's catalogue (a figure no parts make: a skeleton, a statue).
    */
   look?: string | Look
+  /**
+   * The map whose file made it (a thing of that map's chunk, docs/continent.md §9): while it is as the file has it, the
+   * file is its record — a save keeps what differs, a map put away takes it along —, and once gone it stays gone.
+   */
+  from?: string
+}
+
+/**
+ * A map whose things are kept as what differs from its file (docs/continent.md §9): what of its file is gone, and, while
+ * the map is out of memory (put away), its things — its file's as what differs from the file (merge patches, by id; none:
+ * as the file has it), the rest whole (made or brought there, its changed cells).
+ */
+export interface ChunkState {
+  gone?: Id[]
+  /** Out of memory: its things are here, not among the state's. */
+  away?: boolean
+  /** Its file's things that are as the file has them are left out (a save's, of the map the player is on): its file brings them. */
+  lean?: boolean
+  changed?: Record<Id, Record<string, unknown>>
+  things?: Entity[]
 }
 
 /**
@@ -670,6 +690,12 @@ export interface NpcData {
   resident?: { map: string; slot: string; schedule: ScheduleEntry[] }
   /** What the person remembers of talking: the lines said, the last one, the day last talked to (their own record). */
   memory?: NpcMemory
+  /**
+   * How much of the world's attention they have (docs/continent.md §9): `local` — one of the backdrop's people, who keeps
+   * to their own map (their days never leave it), is made with it and put away with it, and is left out of the hourly
+   * routing of the people who travel. Unset: a person of the story, kept and routed wherever they are.
+   */
+  fidelity?: 'local'
 }
 
 // ------------------------------------------------------------------ people (data)
@@ -1336,6 +1362,11 @@ export interface WorldState {
   legacyTiles?: Record<string, LegacyTile[]>
   /** Maps whose relations an older save kept in another form, not entered since: they start again from where things stand. */
   reseed?: string[]
+  /**
+   * The maps whose things are kept as what differs from their files (docs/continent.md §9), by id: every map loaded since
+   * (an older save's maps once their files come again). A map not here keeps all its things among `entities`.
+   */
+  chunks?: Record<string, ChunkState>
 }
 
 // ------------------------------------------------------------------ the player's inputs

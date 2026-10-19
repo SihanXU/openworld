@@ -1,5 +1,6 @@
 export * from './ontology.ts'
 export * from './items.ts'
+export * from './goods.ts'
 export * from './gear.ts'
 export * from './recipes.ts'
 export * from './rules.ts'

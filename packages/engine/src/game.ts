@@ -4,6 +4,7 @@ import { START_HOUR, TICKS_PER_HOUR, type WeatherSpan } from './calendar.ts'
 import { Engine, type MapChunk } from './engine.ts'
 import { ModPort } from './mod.ts'
 import { Codex, type CodexData } from './codex.ts'
+import { ROSTER } from './sparse.ts'
 import { RuleLibrary, type LibraryData } from './rules.ts'
 import type { QuestDef } from './quests.ts'
 import type { Entity, Id, Invariant, MapData, NpcMemory, Ontology, Pos, Portal, PropValue, SceneState, StepDef, Text, WorldState } from './types.ts'
@@ -116,6 +117,12 @@ export class Game {
   mods: ModPort
   worldVersion?: string
   codex = new Codex()
+  /**
+   * How many maps keep their things in memory, the player's among them (docs/continent.md §9): the rest are put away,
+   * the longest dormant first, to come back as they were when their files come again (`trim`). Unset: every map
+   * loaded stays (a host that cannot fetch a map's file again).
+   */
+  keepMaps?: number
 
   constructor(engine: Engine) {
     this.engine = engine
@@ -149,7 +156,8 @@ export class Game {
       if (from.props) player.props = { ...player.props, ...structuredClone(from.props) }
       for (const [s, ticks] of Object.entries(from.statuses ?? {})) (player.statuses ??= {})[s] = tick + ticks
       eng.world.add(player)
-      for (const n of index.npcs) addTree(eng, n)
+      // the people who travel: the index is their file (sparse.ts), a save keeps what differs from it
+      eng.chunks.makeRoster(index.npcs)
       // companions start beside the start, following the player (companion.ts)
       for (const c of index.companions ?? []) eng.world.add({ ...structuredClone(c), place: { on: 'tile', map: at.map, x: at.x - 1, y: at.y }, props: { ...c.props, companion: index.player.id } })
     })
@@ -160,11 +168,17 @@ export class Game {
   }
 
   /** A save loaded (upgradeSave: the game's own save history, GameDef.upgradeSave). */
+  /**
+   * A save loaded. `library`: the game's rules with what the save learned laid over them (restoreLibrary: a save keeps
+   * only what was learned, the base is the game's); without it, the save's own (only its learned rules).
+   */
   static load(save: SaveData, index: WorldIndex, ontology: Ontology, library?: RuleLibrary, upgradeSave?: (eng: Engine) => void): Game {
     const lib = library ?? RuleLibrary.fromJSON(save.library)
     const eng = new Engine(save.state, ontology, lib)
     for (const m of index.maps) (eng.graph[m.id] = m.portals), (eng.maps[m.id] = { name: m.name, width: m.width, height: m.height, ...(m.regions && { regions: m.regions }) })
     eng.ensureResidents()
+    // the people who travel, as the save left them (what differs from the index)
+    eng.author(() => eng.chunks.loadRoster(index.npcs))
     loadContent(eng, index)
     // loading is the author's: an older save is brought up to the world as it is now, and to its modules
     eng.author(() => {
@@ -177,13 +191,49 @@ export class Game {
     return game
   }
 
-  /** Map terrain is static content and is re-fetched on load, so it is left out of saves. */
-  save(): SaveData {
-    const state = { ...this.engine.world.state, maps: {} }
-    return { version: 1, world: this.worldVersion, state, library: this.engine.lib.toJSON(), savedAt: new Date().toISOString(), codex: this.codex.toJSON() }
+  /**
+   * Map terrain is static content and is re-fetched on load, so it is left out of saves; so are the things of a map as
+   * its file has them (sparse.ts): a save keeps what differs, every map but the player's put away. `whole`: every thing
+   * kept in memory is kept whole, as a save before maps were put away (a test making an older save, a debugger).
+   */
+  save(opts: { whole?: boolean } = {}): SaveData {
+    const state = opts.whole ? { ...this.engine.world.state, maps: {} } : this.engine.chunks.packed()
+    // (what was learned only: the base rules are the game's, fresh from content on every load)
+    return { version: 1, world: this.worldVersion, state, library: opts.whole ? this.engine.lib.toJSON() : this.engine.lib.learnedJSON(), savedAt: new Date().toISOString(), codex: this.codex.toJSON() }
   }
 
-  /** Needed chunk ids: the start map on a new game, or the map a pending transition waits for. */
+  /**
+   * Put away the maps beyond `keepMaps` (sparse.ts): the longest dormant first, never the player's or the one a step is
+   * waiting for. The host calls it once a map has come (its file can be fetched again). The maps put away.
+   */
+  trim(keep = this.keepMaps): string[] {
+    const eng = this.engine
+    const s = eng.world.state
+    if (keep === undefined) return []
+    const here = eng.activeMap
+    // never the player's, the one a step waits for, nor those a step from the player's (whose people come and go)
+    const kept = new Set([here, ...this.next(here), ...(eng.pendingTransition ? [eng.pendingTransition.map] : [])])
+    // in memory: the maps whose things are among the state's, by when each went dormant (the latest kept; one never
+    // entered, loaded as a neighbour once, first to go)
+    const inMemory = Object.entries(s.chunks ?? {}).filter(([m, c]) => m !== ROSTER && !c.away && !kept.has(m)).map(([m]) => m)
+    const since = (m: string) => s.dormant?.[m]?.since ?? -1
+    inMemory.sort((a, b) => since(b) - since(a))
+    const out: string[] = []
+    for (const m of inMemory.slice(Math.max(0, keep - 1))) if (eng.author(() => eng.chunks.putAway(m))) out.push(m)
+    if (out.length) eng.npcs.invalidate()
+    return out
+  }
+
+  /** The maps a step from a map: where its portals lead (a place and the rooms behind its doors, the maps beside it). */
+  private next(map: string): string[] {
+    return [...new Set((this.engine.graph[map] ?? []).map((p) => p.to))]
+  }
+
+  /**
+   * Needed chunk ids: the start map on a new game, or the map a pending transition waits for; and the maps a step from
+   * the player's that were put away (docs/continent.md §13): their people come and go from there (a household out in
+   * the street, one at home), so they come back with it.
+   */
   neededMaps(): string[] {
     const s = this.engine.world.state
     const need: string[] = []
@@ -191,6 +241,7 @@ export class Game {
     if (!s.maps[pm]) need.push(pm)
     const t = this.engine.pendingTransition?.map
     if (t && !s.maps[t]) need.push(t)
+    if (s.maps[pm]) for (const m of this.next(pm)) if (s.chunks?.[m]?.away) need.push(m)
     return need
   }
 
@@ -203,7 +254,10 @@ export class Game {
     }
   }
 
-  /** Base terrain for a revisit after load (entities come from the save). */
+  /**
+   * Base terrain for a revisit after load, its things kept whole in the save. A map the save put away (sparse.ts) needs
+   * its file's things too: loadChunk, which does both.
+   */
   loadMapData(map: MapData): void {
     this.engine.world.state.maps[map.id] = map
     this.engine.mapArrived(map.id)
@@ -240,7 +294,8 @@ function upgrade(eng: Engine, index: WorldIndex): void {
   for (const n of index.npcs) {
     const e = w.get(n.id)
     if (!e) {
-      addTree(eng, n)
+      // (one gone from the world for good stays gone)
+      if (!eng.chunks.rosterGone(n.id)) addTree(eng, n)
       continue
     }
     // how they look is the world's to say, unless the world changed it (a restyle: `own`); a sheet's key kept
