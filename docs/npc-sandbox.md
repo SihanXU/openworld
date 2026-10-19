@@ -130,9 +130,12 @@ robber, regard −40; not, they beat the robber down to one point of health (`be
 each, the `robbed` status), **steal** (a roll of the thief's nimbleness — stealth, dodge, haste, levels, sneaking
 — against the victim's perception: unnoticed, a third of their coin and their dearest thing, no word said; caught,
 beaten to half one's health, regard −40; once a day to each, `pilfered`), **unbelief** (words against the gods, §2.13),
-**invite** (at full regard: §2.14), goodbye. A **child** (under eighteen: the `minor` tag the world builder gives
-a person by their record's `age`) is never robbed, stolen from or preached unbelief: the verbs are not offered, and
-said anyway nothing comes of it. (Persuading and intimidating people were talk verbs until 2026-10-18; persuading
+**invite** (at full regard: §2.14), goodbye. A **child** (under eighteen) is protected by an explicit `minor` tag
+or by a recorded age from 0 through 17. The age check also covers older saves whose people
+have an age but lack the derived tag; a person with no age needs the explicit tag, and an 18-year-old without an
+explicit `minor` tag is grown. An explicit tag remains protective at any age. Those verbs
+are not offered, and direct calls to them (including the old `intimidate` word) receive an explicit refusal.
+(Persuading and intimidating people were talk verbs until 2026-10-18; persuading
 remains the guard's, when they have stopped one the watch wants, §2.7, and the roll an apology is.) Each is an act
 on them (`hands` with `say`), answered by `people/talk` (merchants' and guards' rules over it); a word no rule
 knows is a hole (the AI's). The panel names their regard (a word and ten hearts), a grudge in red, and the bounty
