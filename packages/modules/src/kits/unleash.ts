@@ -23,7 +23,7 @@ export function unleash(fx: EffectRunner, eff: UnleashArgs, ev: GameEvent): void
   if (!e || !skill || !at || typeof q.ox !== 'number' || typeof q.oy !== 'number' || typeof q.ax !== 'number' || typeof q.ay !== 'number') return
   const origin: Pos = { map: at.map, x: q.ox, y: q.oy, z: at.z }
   const aim: Pos = { map: at.map, x: q.ax, y: q.ay, z: at.z }
-  const alive = (o: Entity) => o.id !== e.id && o.place.on === 'tile' && (o.place.z ?? 0) === (at.z ?? 0) && w.isAgent(o) && eng.hostileTo(e, o) && w.num(o, 'hp') > 0
+  const alive = (o: Entity) => o.id !== e.id && !eng.isProtected(o) && o.place.on === 'tile' && (o.place.z ?? 0) === (at.z ?? 0) && w.isAgent(o) && eng.hostileTo(e, o) && w.num(o, 'hp') > 0
   const foesOn = (cells: [number, number][]) => {
     const marked = new Set(cells.map(([x, y]) => `${x},${y}`))
     return w.entitiesOnMap(at.map).filter((o) => alive(o) && w.occupiedCells(o).some(([x, y]) => marked.has(`${x},${y}`)))

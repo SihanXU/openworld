@@ -234,6 +234,7 @@ export class EffectRunner {
       }
       case 'destroy': {
         if (!host) return
+        if (eng.isProtected(host)) return
         // the essential (people, the player) are never removed: they go down and come to
         if (w.hasTag(host, 'essential')) return
         eng.touch({ e: host.id }, true)
@@ -287,6 +288,11 @@ export class EffectRunner {
       }
       case 'move': {
         if (!host) return
+        const protectedHolder = eng.protectedHolder(host)
+        if (protectedHolder && !eng.allowsProtectedTransfer(ev, protectedHolder)) {
+          eng.refuseProtection(ev.roles.actor?.e ?? ev.cause)
+          return
+        }
         // a floor above the ground that something rests on stays (a wall on it, a bed, someone
         // standing): what is on it is taken first (docs/building.md R5)
         if (w.bears(host)) return
@@ -428,6 +434,7 @@ export class EffectRunner {
       }
       case 'breakdown': {
         if (!host) return
+        if (eng.isProtected(host)) return
         if (w.hasTag(host, 'essential')) return
         const at = w.posOf(host)
         const rate = w.onto.data.params?.recovery ?? 1
@@ -495,7 +502,7 @@ export class EffectRunner {
       }
       case 'foe': {
         const by = ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : ev.cause
-        if (!host || !by || by === host.id || !w.get(by)) return
+        if (!host || eng.isProtected(host) || !by || by === host.id || !w.get(by)) return
         // a person struck takes up a fight if it is one who fights (a guard, the smith: `fights`); else it fears the one who struck
         if (!host.ai && host.npc) {
           const at = w.posOf(host)

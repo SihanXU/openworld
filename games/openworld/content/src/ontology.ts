@@ -19,6 +19,7 @@ import { SKILL_STATUSES } from './afflictions.ts'
 import { SKILL_PROFESSIONS } from './skills.ts'
 import { BOON_STATUSES } from './boons.ts'
 import { DEEDS, LAWS, SOCIAL, SOCIAL_STATUSES, SOCIAL_TYPES, TALK } from './social.ts'
+import { MINOR_SUBJECTS } from './protection.ts'
 
 /** One char per terrain: maps are stored as strings. */
 export const TERRAIN_CHARS: Record<string, string> = {
@@ -572,6 +573,11 @@ export function buildOntology(): Ontology {
   return {
     // the systems this game takes from the engine's modules (module.ts), installed in this order
     modules: MODULES,
+    protection: {
+      subjects: MINOR_SUBJECTS,
+      statuses: ['burning', 'electrified', 'frozen', 'bleeding', 'poisoned', 'stunned', 'knelt', 'entranced', 'mired', 'webbed', 'down', 'out_cold', 'jailed', 'doubted', 'robbed', 'pilfered'],
+      refusal: { en: 'I will not harm a child.', zh: '我不会伤害孩子。' },
+    },
     types,
     statuses: Object.fromEntries([...STATUSES, ...BOON_STATUSES, ...SOCIAL_STATUSES, ...FAITH_STATUSES, ...SKILL_STATUSES].map((s) => [s.id, s])),
     // the creatures' own skills (kits.ts, docs/creatures.md), taken up by the kit goal before they fight as before

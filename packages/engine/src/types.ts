@@ -230,6 +230,8 @@ export interface Ontology {
   deeds?: DeedDef[]
   laws?: Record<string, LawDef>
   social?: SocialParams
+  /** Data-driven subjects and harmful statuses the game protects from direct harm. */
+  protection?: ProtectionDef
   /** What a felled creature's kind leaves its feller beyond the rules' spoils: its own piece's pity and words (the loot module). */
   loot?: LootParams
   /** The verbs of the talk panel (docs/npc-sandbox.md §2.9): each offered when its condition holds (host: the one spoken to; actor: the speaker). */
@@ -292,6 +294,13 @@ export interface Ontology {
   goals?: string[]
   /** The looks bodies are drawn from (docs/looks.md): bodies, parts, colours. */
   looks?: LookTable
+}
+
+/** A game's subject selector and the statuses it treats as harmful; the engine knows no subject-specific rules. */
+export interface ProtectionDef {
+  subjects: Selector[]
+  statuses?: string[]
+  refusal?: Text
 }
 
 /**

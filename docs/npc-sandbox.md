@@ -133,13 +133,23 @@ beaten to half one's health, regard −40; once a day to each, `pilfered`), **un
 **invite** (at full regard: §2.14), goodbye. A **child** (under eighteen) is protected by an explicit `minor` tag
 or by a recorded age from 0 through 17. The age check also covers older saves whose people
 have an age but lack the derived tag; a person with no age needs the explicit tag, and an 18-year-old without an
-explicit `minor` tag is grown. An explicit tag remains protective at any age. Those verbs
-are not offered, and direct calls to them (including the old `intimidate` word) receive an explicit refusal.
+explicit `minor` tag is grown. An explicit tag remains protective at any age. The `rob`, `steal` and `unbelief`
+verbs are not offered to them, and direct calls to those verbs (including the old `intimidate` word) receive an
+explicit refusal.
 (Persuading and intimidating people were talk verbs until 2026-10-18; persuading
 remains the guard's, when they have stopped one the watch wants, §2.7, and the roll an apology is.) Each is an act
 on them (`hands` with `say`), answered by `people/talk` (merchants' and guards' rules over it); a word no rule
 knows is a hole (the AI's). The panel names their regard (a word and ten hearts), a grudge in red, and the bounty
 here. Number keys choose.
+
+The OpenWorld ontology also declares these subjects to the engine's optional `protection` policy. Its selectors
+protect against direct and combat/elemental health loss, configured harmful or immobilising statuses, fear/foe
+outcomes, robbery and beating, death or destruction, and jail outcomes. The same policy checks the original holder
+chain before a `take` or move can remove an item from a protected person's carried belongings. A person's own act
+may move their belongings, and ordinary gifts, merchant purchases and sales, completed quest hand-ins, rewards,
+and taking an item already on the ground keep their usual behavior. This is a data-driven engine seam: games without
+the policy retain their existing behavior. It covers these engine and content entry points, not every bespoke
+story effect a game author could write around them.
 
 ### 2.10 Hands in pockets, and trade
 - F on a person **while sneaking** (`people/pockets` on `impulse/taken`) opens their **pockets**: each take is an
