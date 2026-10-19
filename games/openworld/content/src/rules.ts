@@ -1418,7 +1418,7 @@ function FISHING_ROLLS(fight: boolean): Tree {
 const FISHING_NEWS: Tree = IF(param('what', 'fishing-cast'), DO({ op: 'fishing/start' }),
   IF(param('what', 'fishing-step'), DO({ op: 'fishing/step' }),
     IF(param('what', 'fishing-input'), DO({ op: 'fishing/input' }),
-      IF(param('what', 'fishing-bite'), DO(log('A fish bites! Press and hold to keep it in the bar.', '有鱼咬钩了！按住鼠标让鱼留在控制条里。')),
+      IF(param('what', 'fishing-bite'), DO(log('A fish bites! Hold to raise the zone; release to lower it.', '有鱼咬钩了！按住抬高控制区，松开让它下降。')),
         IF(param('what', 'fishing-missed'), DO({ op: 'log', text: { en: '{param.message}', zh: '{param.messageZh}' } }),
           IF(param('what', 'fishing-escaped'), DO(log('The fish got away.', '鱼挣脱了。')),
             IF(param('what', 'fishing-land'), DO({ op: 'fishing/land' }),

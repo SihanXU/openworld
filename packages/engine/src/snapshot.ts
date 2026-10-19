@@ -226,6 +226,8 @@ export interface FishingView {
   progress: number
   remaining: number
   bait: number
+  /** The actual main candidate's item projection, shown only after the fight begins. */
+  fishItem?: ItemInfo
 }
 
 /** A talk with a person, as the panel shows it. */

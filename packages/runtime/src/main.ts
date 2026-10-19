@@ -279,6 +279,7 @@ const paintIcons = (items: ItemInfo[]) => {
   })
 }
 hud.paintIcons = paintIcons
+fishingHud.paintIcon = (item) => paintIcons([item])
 menu.paintIcons = paintIcons
 people.paintIcons = paintIcons
 building.paint = (sprite, across) => {
@@ -571,6 +572,10 @@ const fishingPress = (source: 'mouse' | 'space') => {
   if (!fishingInputs.press(source)) return
   setAttack(false)
   send({ t: 'fishing', action: 'press' })
+}
+fishingHud.onPress = () => {
+  if (!fishingIsActive() || pausedNow || pauseRequested() || hud.questionShown) return
+  fishingPress('mouse')
 }
 const fishingRelease = (source: 'mouse' | 'space') => {
   const result = fishingInputs.release(source)

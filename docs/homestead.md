@@ -86,10 +86,11 @@ illustrated crops' sprout and young plant of their habit (leafy, sprawling, clim
   bite or not, a baited cast is spent), a bare one 35%; the water is stirred after, and nothing bites there until
   it settles.
 - **The Held Ground fishing fight**: on the Held Ground and its grounds, a cast waits one to three seconds; a bite
-  lasts 1.2 seconds. Hold the left mouse button or Space to raise the control bar, and release to lower it; keep the
-  moving fish inside the bar to fill the catch meter. Esc cancels without a catch or bait refund. A pause or lost
-  window focus freezes the fight and clears the held input. Loading a save ends an unfinished line; bait already spent
-  and stirred water remain, and no fish is awarded.
+  lasts two seconds. The wooden fishing panel shows a 40% control zone for ordinary catches and 34% for rare ones.
+  Hold the left mouse button or Space to raise the zone, and release to lower it; keep the swimming fish inside to
+  fill the catch meter. Fish slow near the ends and make short pauses and bursts. Esc cancels without a catch or bait
+  refund. A pause or lost window focus freezes the fight and clears the held input. Loading a save ends an unfinished
+  line; bait already spent and stirred water remain, and no fish is awarded.
 - What bites (`core/fish`, `CATCH`), after Stardew's waters, tried in order:
 
 | Fish | When / where | Sells for |

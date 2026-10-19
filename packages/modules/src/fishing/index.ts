@@ -1,7 +1,9 @@
 // An optional, game-configured fishing fight. Candidate selection and words stay in game content;
 // this module owns only the deterministic session, input edges and render projection.
 
-import { registerModule, stackKey, type Engine, type EngineModule, type EffectRunner, type Entity, type FishingView, type GameEvent, type Ref, type Text, type World } from '@openworld/engine'
+import { registerModule, stackKey, type Engine, type EngineModule, type EffectRunner, type Entity, type FishingView, type GameEvent, type ItemInfo, type Ref, type Text, type World } from '@openworld/engine'
+
+type FishMotion = 'cruise' | 'pause' | 'burst'
 
 interface Session {
   actor: string
@@ -22,7 +24,11 @@ interface Session {
   phase: FishingView['phase'] | 'settling'
   remaining: number
   fish: number
+  fishTarget: number
+  fishVelocity: number
   fishDirection: number
+  fishMotion: FishMotion
+  fishMotionTicks: number
   bar: number
   progress: number
   pressing: boolean
@@ -30,7 +36,12 @@ interface Session {
 }
 
 const KEY = 'module:fishing.session'
-const BAR_SIZE = 0.24
+const FISH_MIN = 0.04
+const FISH_MAX = 0.96
+const NORMAL_BAR_SIZE = 0.4
+const RARE_BAR_SIZE = 0.34
+const PROGRESS_GAIN = 0.035
+const PROGRESS_LOSS = 0.028
 const engines = new WeakMap<World, Engine>()
 const states = (eng: Engine): { session?: Session } => {
   let s = eng.world.ext.get(KEY) as { session?: Session } | undefined
@@ -40,6 +51,80 @@ const states = (eng: Engine): { session?: Session } => {
 
 function activeMaps(eng: Engine): string[] {
   return eng.world.onto.data.fishing?.maps ?? []
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+function barSize(s: Session): number {
+  return s.difficulty >= 0.7 ? RARE_BAR_SIZE : NORMAL_BAR_SIZE
+}
+
+function nextFishMotion(eng: Engine, s: Session): void {
+  const rare = s.difficulty >= 0.7
+  const choice = eng.world.rand()
+  if (choice < 0.2) {
+    s.fishMotion = 'pause'
+    s.fishMotionTicks = 2 + Math.floor(eng.world.rand() * 3)
+    return
+  }
+  const burstChance = rare ? 0.42 : 0.24
+  s.fishMotion = choice < 0.2 + burstChance ? 'burst' : 'cruise'
+  s.fishMotionTicks = s.fishMotion === 'burst'
+    ? 3 + Math.floor(eng.world.rand() * 3)
+    : 8 + Math.floor(eng.world.rand() * 7)
+  const reverse = eng.world.rand() < (rare ? 0.36 : 0.44)
+  if (reverse) s.fishDirection *= -1
+  const distance = 0.18 + eng.world.rand() * 0.34
+  s.fishTarget = clamp(s.fish + s.fishDirection * distance, FISH_MIN + 0.02, FISH_MAX - 0.02)
+}
+
+/** Advance the catch on engine ticks only; frame reads never change this state. */
+function advanceFish(eng: Engine, s: Session): void {
+  if (s.fishMotionTicks <= 0) nextFishMotion(eng, s)
+  s.fishMotionTicks -= 1
+
+  if (s.fish > 0.88 && s.fishVelocity > 0 && s.fishTarget > s.fish) {
+    s.fishDirection = -1
+    s.fishTarget = clamp(s.fish - 0.18, FISH_MIN + 0.02, FISH_MAX - 0.02)
+    s.fishMotion = 'pause'
+    s.fishMotionTicks = Math.max(2, s.fishMotionTicks)
+  } else if (s.fish < 0.12 && s.fishVelocity < 0 && s.fishTarget < s.fish) {
+    s.fishDirection = 1
+    s.fishTarget = clamp(s.fish + 0.18, FISH_MIN + 0.02, FISH_MAX - 0.02)
+    s.fishMotion = 'pause'
+    s.fishMotionTicks = Math.max(2, s.fishMotionTicks)
+  }
+
+  const targetDelta = s.fishTarget - s.fish
+  const direction = Math.sign(targetDelta) || s.fishDirection
+  s.fishDirection = direction
+  const rare = s.difficulty >= 0.7
+  const cruiseSpeed = 0.022 + clamp(s.difficulty, 0, 1) * 0.012
+  const modeSpeed = s.fishMotion === 'burst' ? cruiseSpeed * (rare ? 1.8 : 1.65) : cruiseSpeed
+  const targetBrake = clamp(Math.abs(targetDelta) / 0.16, 0.12, 1)
+  const edgeDistance = direction > 0 ? FISH_MAX - s.fish : s.fish - FISH_MIN
+  const edgeBrake = clamp(edgeDistance / 0.2, 0.15, 1)
+  const desiredVelocity = s.fishMotion === 'pause' ? 0 : direction * modeSpeed * Math.min(targetBrake, edgeBrake)
+  const acceleration = 0.0045 + clamp(s.difficulty, 0, 1) * 0.0015
+  s.fishVelocity += clamp(desiredVelocity - s.fishVelocity, -acceleration, acceleration)
+  s.fish = clamp(s.fish + s.fishVelocity, FISH_MIN, FISH_MAX)
+  if ((s.fish === FISH_MIN && s.fishVelocity < 0) || (s.fish === FISH_MAX && s.fishVelocity > 0)) s.fishVelocity = 0
+}
+
+function projectedFish(eng: Engine, type: string): ItemInfo | undefined {
+  if (!type) return undefined
+  const def = eng.world.onto.resolve(type)
+  return {
+    id: 'fishing-catch-preview',
+    type,
+    sprite: def.sprite ?? type,
+    name: def.name ?? type.slice(type.lastIndexOf('/') + 1),
+    tags: [...(def.tags ?? [])],
+    statuses: [],
+    props: { ...(def.props ?? {}) },
+  }
 }
 
 function hasRoom(eng: Engine, actor: Entity, resultTypes?: string[]): boolean {
@@ -80,6 +165,9 @@ function start(eng: Engine, ev: GameEvent): void {
   const rod = actor && w.get(actor.held)
   if (!actor || actor.id !== w.player.id || !p || !at || !source || !rod || !w.hasTag(rod, 'tool:fishing') || !w.hasTag(source, 'water') ||
     !activeMaps(eng).includes(at.map) || states(eng).session || !hasRoom(eng, actor)) return
+  const difficulty = clamp(typeof ev.params?.difficulty === 'number' ? ev.params.difficulty : 0.5, 0, 1)
+  const fish = 0.2 + w.rand() * 0.6
+  const fishDirection = w.rand() < 0.5 ? -1 : 1
   const s: Session = {
     actor: actor.id,
     rod: rod.id,
@@ -94,12 +182,16 @@ function start(eng: Engine, ev: GameEvent): void {
     hp: w.num(actor, 'hp'),
     fishType: typeof ev.params?.fish === 'string' ? ev.params.fish : '',
     extraType: typeof ev.params?.extraType === 'string' ? ev.params.extraType : '',
-    difficulty: typeof ev.params?.difficulty === 'number' ? ev.params.difficulty : 0.5,
+    difficulty,
     message: typeof ev.params?.message === 'string' ? { en: ev.params.message, zh: String(ev.params.messageZh ?? ev.params.message) } : '',
     phase: 'waiting',
     remaining: 10 + Math.floor(w.rand() * 21),
-    fish: 0.2 + w.rand() * 0.6,
-    fishDirection: w.rand() < 0.5 ? -1 : 1,
+    fish,
+    fishTarget: clamp(fish + fishDirection * (0.24 + w.rand() * 0.3), FISH_MIN + 0.02, FISH_MAX - 0.02),
+    fishVelocity: 0,
+    fishDirection,
+    fishMotion: 'cruise',
+    fishMotionTicks: 10 + Math.floor(w.rand() * 6),
     bar: 0.5,
     progress: 0.45,
     pressing: false,
@@ -143,7 +235,7 @@ function step(eng: Engine, ev: GameEvent): void {
       return
     }
     s.phase = 'bite'
-    s.remaining = 12
+    s.remaining = 20
     tell(eng, s.actor, 'fishing-bite')
     return
   }
@@ -155,14 +247,11 @@ function step(eng: Engine, ev: GameEvent): void {
     return
   }
   if (s.phase !== 'fight') return
-  s.bar = Math.max(BAR_SIZE / 2, Math.min(1 - BAR_SIZE / 2, s.bar + (s.pressing ? 0.045 : -0.035)))
-  if (eng.world.state.tick % 3 === 0) {
-    const movement = (0.025 + eng.world.rand() * 0.045 + s.difficulty * 0.1) * s.fishDirection
-    if (s.fish + movement < 0.04 || s.fish + movement > 0.96) s.fishDirection *= -1
-    s.fish = Math.max(0.04, Math.min(0.96, s.fish + movement))
-  }
-  const inBar = Math.abs(s.fish - s.bar) <= BAR_SIZE / 2
-  s.progress = Math.max(0, Math.min(1, s.progress + (inBar ? 0.035 : -0.035)))
+  const zoneSize = barSize(s)
+  s.bar = clamp(s.bar + (s.pressing ? 0.045 : -0.035), zoneSize / 2, 1 - zoneSize / 2)
+  advanceFish(eng, s)
+  const inBar = Math.abs(s.fish - s.bar) <= zoneSize / 2
+  s.progress = clamp(s.progress + (inBar ? PROGRESS_GAIN : -PROGRESS_LOSS), 0, 1)
   if (s.progress >= 1) {
     s.phase = 'settling'
     s.pressing = false
@@ -202,10 +291,11 @@ function view(eng: Engine): FishingView | undefined {
     phase: s.phase,
     fish: s.fish,
     bar: s.bar,
-    barSize: BAR_SIZE,
+    barSize: barSize(s),
     progress: s.progress,
     remaining: s.phase === 'fight' ? 0 : Math.max(0, s.remaining / 10),
     bait: eng.world.get(s.rod) ? eng.world.num(eng.world.get(s.rod)!, 'bait') : 0,
+    ...(s.phase === 'fight' ? { fishItem: projectedFish(eng, s.fishType) } : {}),
   }
 }
 
@@ -255,7 +345,7 @@ export const fishingModule: EngineModule = {
   },
   spec: {
     primitives: {
-      'fishing/start': 'fishing/start {} — begin a game-configured line session from the actor notification, keeping the candidate fish hidden until it is landed',
+      'fishing/start': 'fishing/start {} — begin a game-configured line session from the actor notification, keeping the candidate fish hidden until the fight begins',
       'fishing/step': 'fishing/step {} — advance the session by one deterministic engine tick within the player actor\'s outcome',
       'fishing/input': 'fishing/input {} — handle an input edge within the player actor\'s outcome; only a fresh press edge during a bite starts the fight',
       'fishing/land': 'fishing/land {} — atomically grant the session catch once, from the actor notification that ends a successful fight',

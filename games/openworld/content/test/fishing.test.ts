@@ -3,7 +3,7 @@ import { Engine, RuleLibrary, buildSandbox, snapshot, tickAt } from '@openworld/
 import { BASE_RULES, buildOntology } from '../src/index.ts'
 import { fishingActive, fishingInput } from '@openworld/modules'
 
-function fishingPond(enabled = true) {
+function fishingPond(enabled = true, random = 0) {
   const ontology = buildOntology() as ReturnType<typeof buildOntology> & { fishing?: { maps: string[] } }
   ontology.fishing = { maps: enabled ? ['sandbox'] : [], extraType: 'item/food/fish/raw' }
   const eng = buildSandbox({
@@ -16,8 +16,21 @@ function fishingPond(enabled = true) {
   }, ontology, new RuleLibrary(BASE_RULES))
   eng.author(() => { eng.world.state.tick = tickAt(1, 12) })
   eng.controls.sync()
-  vi.spyOn(eng.world, 'rand').mockReturnValue(0)
+  vi.spyOn(eng.world, 'rand').mockReturnValue(random)
   return eng
+}
+
+type ProjectedFishingView = NonNullable<ReturnType<typeof snapshot>['fishing']> & {
+  fishItem?: { id: string; type: string; sprite: string; name: unknown }
+}
+
+function fishingView(eng: ReturnType<typeof fishingPond>): ProjectedFishingView | undefined {
+  return snapshot(eng).fishing as ProjectedFishingView | undefined
+}
+
+function cast(eng: ReturnType<typeof fishingPond>): void {
+  const plan = eng.controls.plan('use', { x: 1, y: 0 })!
+  eng.controls.run(plan, true)
 }
 
 describe('the Held Ground fishing fight', () => {
@@ -31,6 +44,118 @@ describe('the Held Ground fishing fight', () => {
     expect(eng.controls.count('item/food/fish/raw')).toBe(0)
     expect(eng.controls.count('item/food/fish/carp')).toBe(0)
     expect(eng.world.get('rod')?.props?.bait).toBe(0)
+  })
+
+  it('gives an ordinary catch a two-second bite window and shows its real item only in the fight', () => {
+    const eng = fishingPond(true, 0.5)
+    cast(eng)
+    expect(fishingView(eng)?.phase).toBe('waiting')
+    expect(fishingView(eng)?.fishItem).toBeUndefined()
+
+    for (let i = 0; i < 30 && fishingView(eng)?.phase === 'waiting'; i++) eng.tick()
+    expect(fishingView(eng)?.phase).toBe('bite')
+    expect(fishingView(eng)?.remaining).toBe(2)
+    expect(fishingView(eng)?.fishItem).toBeUndefined()
+
+    fishingInput(eng, 'press')
+    const fight = fishingView(eng)
+    expect(fight?.phase).toBe('fight')
+    expect(fight?.barSize).toBeCloseTo(0.4)
+    expect(fight?.fishItem).toMatchObject({ type: 'item/food/fish/raw' })
+    const caughtType = fight!.fishItem!.type
+    expect(fight!.fishItem!.sprite).toBe(eng.world.onto.resolve(caughtType).sprite ?? caughtType)
+
+    for (let i = 0; i < 300 && fishingActive(eng); i++) {
+      const view = fishingView(eng)
+      if (view?.phase !== 'fight') continue
+      fishingInput(eng, view.bar < view.fish ? 'press' : 'release')
+      eng.tick()
+    }
+
+    expect(fishingActive(eng)).toBe(false)
+    expect(eng.controls.count(caughtType)).toBe(caughtType === 'item/food/fish/raw' ? 3 : 1)
+  })
+
+  it('gives a rare candidate the narrower 34 percent control zone', () => {
+    const eng = fishingPond(true, 0)
+    cast(eng)
+    for (let i = 0; i < 30 && fishingView(eng)?.phase === 'waiting'; i++) eng.tick()
+    expect(fishingView(eng)?.phase).toBe('bite')
+    fishingInput(eng, 'press')
+
+    const fight = fishingView(eng)
+    expect(fight?.fishItem?.type).toBe('item/food/fish/carp')
+    expect(fight?.fishItem?.type).not.toBe('item/food/fish/raw')
+    expect(fight?.barSize).toBeCloseTo(0.34)
+  })
+
+  it('moves the fish in bounded smooth increments instead of three-tick jumps', () => {
+    const eng = fishingPond(true, 0.5)
+    cast(eng)
+    for (let i = 0; i < 30 && fishingView(eng)?.phase === 'waiting'; i++) eng.tick()
+    fishingInput(eng, 'press')
+    fishingInput(eng, 'release')
+
+    const positions = [fishingView(eng)!.fish]
+    for (let i = 0; i < 12 && fishingActive(eng); i++) {
+      eng.tick()
+      const view = fishingView(eng)
+      if (view?.phase === 'fight') positions.push(view.fish)
+    }
+    const deltas = positions.slice(1).map((position, i) => Math.abs(position - positions[i]!))
+    let movingRun = 0
+    let longestMovingRun = 0
+    for (const delta of deltas) {
+      movingRun = delta > 0.00001 ? movingRun + 1 : 0
+      longestMovingRun = Math.max(longestMovingRun, movingRun)
+    }
+
+    expect(positions.every((position) => position >= 0.04 && position <= 0.96)).toBe(true)
+    expect(Math.max(...deltas)).toBeLessThanOrEqual(0.05)
+    expect(longestMovingRun).toBeGreaterThanOrEqual(4)
+  })
+
+  it('loses less progress on a miss than it gains on a controlled tick', () => {
+    const eng = fishingPond(true, 0.5)
+    cast(eng)
+    for (let i = 0; i < 30 && fishingView(eng)?.phase === 'waiting'; i++) eng.tick()
+    fishingInput(eng, 'press')
+
+    const startingProgress = fishingView(eng)!.progress
+    eng.tick()
+    const successDelta = fishingView(eng)!.progress - startingProgress
+    expect(successDelta).toBeGreaterThan(0)
+
+    let failedDelta = 0
+    for (let i = 0; i < 20 && fishingActive(eng); i++) {
+      fishingInput(eng, 'release')
+      const before = fishingView(eng)?.progress
+      eng.tick()
+      const after = fishingView(eng)?.progress
+      if (before !== undefined && after !== undefined && after < before) {
+        failedDelta = after - before
+        break
+      }
+    }
+    expect(failedDelta).toBeLessThan(0)
+    expect(successDelta).toBeGreaterThan(Math.abs(failedDelta))
+  })
+
+  it('lets an unattended fish escape without awarding the chosen fish or extra fish', () => {
+    const eng = fishingPond(true, 0.5)
+    cast(eng)
+    for (let i = 0; i < 30 && fishingView(eng)?.phase === 'waiting'; i++) eng.tick()
+    expect(fishingView(eng)?.phase).toBe('bite')
+    fishingInput(eng, 'press')
+    fishingInput(eng, 'release')
+
+    for (let i = 0; i < 500 && fishingActive(eng); i++) {
+      fishingInput(eng, 'release')
+      eng.tick()
+    }
+
+    expect(fishingActive(eng)).toBe(false)
+    expect(eng.controls.count('item/food/fish/raw')).toBe(0)
   })
 
   it('lands a hidden candidate once after the bite and a player-controlled fight', () => {
