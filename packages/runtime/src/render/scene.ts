@@ -4,7 +4,8 @@
 
 import Phaser from 'phaser'
 import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type Look, type MapData, type Mood, type Ref, type Text } from '@openworld/engine'
-import { catalog, hasLooks } from '../game.ts'
+import { catalog, game, hasLooks } from '../game.ts'
+import { installWorldFilter, signalCamera } from './worldfilter.ts'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
 import { faceFrame, personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
@@ -199,6 +200,7 @@ export class WorldScene extends Phaser.Scene {
     this.fogR = this.add.rectangle(-4000, -4000, 8000, 8000, 0xd8e2ea, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(1e7 - 2)
     this.rainG = this.add.graphics().setScrollFactor(0).setDepth(1e7 - 1)
     this.flash = this.add.rectangle(-4000, -4000, 8000, 8000, 0xf4f8ff, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(1e7 + 1)
+    this.lookFilter()
     this.ready = true
     this.hooks.onReady?.()
     if (this.pending.map) this.setMap(this.pending.map)
@@ -476,7 +478,11 @@ export class WorldScene extends Phaser.Scene {
     this.findSeeThrough(f)
     this.drawCeilings()
     this.applyTiles(f)
-    this.bossWarnings ??= this.add.graphics().setDepth(-20)
+    if (!this.bossWarnings) {
+      this.bossWarnings = this.add.graphics().setDepth(-20)
+      // the cells a blow will fall on stay legible: drawn above the world filter
+      this.signals?.mark(this.bossWarnings)
+    }
     this.bossWarnings.clear()
     // a skill winding up (the kits module): its cells marked in the skill's colour, filling as it nears; a boss's in its
     // own manner (fainter, a spark in each cell), and its body never flashes
@@ -1636,6 +1642,25 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------- light & sound
+
+  /** The game's world filter (render/worldfilter.ts), as strong as the player chose, told each frame where the camera is and how dark the hour. */
+  private signals?: ReturnType<typeof signalCamera>
+  private lookFilter(): void {
+    const look = game().worldFilter
+    if (!look) return
+    const strength = prefs.filter()
+    const f = installWorldFilter(this, look, strength === 'light' ? look.light : look.full)
+    if (!f) return
+    this.signals = signalCamera(this, (cam) => {
+      const s = prefs.filter()
+      f.active = s !== 'off'
+      f.params = s === 'light' ? look.light : look.full
+      f.zoom = cam.zoom
+      f.view.x = cam.worldView.x
+      f.view.y = cam.worldView.y
+      f.dark = Math.min(1, this.darkness / 0.6)
+    })
+  }
 
   private updateNight(f: Frame): void {
     const light = this.base?.light ?? 'outdoor'
