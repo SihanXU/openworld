@@ -9,6 +9,7 @@ import { CATALOG } from '../../../../client/src/catalog.ts'
 import { MapBuilder, reseed, rng, type Cell } from '../builder.ts'
 import { OVERWORLD } from '../overworld.ts'
 import type { Continent, Place } from './generate.ts'
+import { stockPlace } from './stock.ts'
 
 /** A kind's map size. */
 const SIZE: Record<string, [number, number]> = {
@@ -58,6 +59,8 @@ function placeMaps(p: Place, ground: string): MapBuilder[] {
   const out = [b]
   const build = KINDS[p.kind] ?? KINDS.ruin
   build(b, p, style, out)
+  // what is kept there (stock.ts): the households', the shops', the dark's
+  for (const m of out) stockPlace(m, p, m !== b)
   return out
 }
 

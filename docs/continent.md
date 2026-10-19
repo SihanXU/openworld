@@ -1,6 +1,6 @@
 # The continent: regions, places, the backdrop
 
-Status: **agreed 2026-10-18, phase A built.** The world grows from the Frostfang Coast to hundreds of maps, thousands of
+Status: **agreed 2026-10-18, phases A and D built.** The world grows from the Frostfang Coast to hundreds of maps, thousands of
 people and tens of thousands of things, most of them **backdrop** for now: the released demo is what is played today,
 with the rest of the continent walkable around it, filled in with played content later. This document is the plan for
 that growth (phases A–E) and the record of phase A, the continent itself.
@@ -148,6 +148,9 @@ nearest that is.
 | regions | 1 | 6 |
 | world map grounds | 8 | 18 |
 
+Phase D added (§10): item kinds 216 → 1,013 (797 regional), things in the world 784 → 27,374 (27,200 of them in the
+backdrop, 2,080 kinds of thing by type and tags).
+
 ## 9. The phases
 
 - **A — the continent** (built): the regions, the world map grown, its grounds, rivers and roads, the gazetteer, the
@@ -161,7 +164,75 @@ nearest that is.
   dormant maps' things out of memory; indices by map, type and household in place of the scans over all things;
   `catchUp` and `statusTick` kept to the map. On the world map a frame now snaps every site (about 11 ms to make and
   7 ms to copy, ten times a second): frames that send what changed, or what is in view.
-- **D — goods**: about a thousand kinds (regional forms, named pieces) and their stock in every shop, house and chest by
-  settlement and region: tens of thousands of things. The coverage sweep samples by class where every pair is too many.
+- **D — goods** (built, §10): about a thousand kinds (regional forms, named pieces) and their stock in every shop, house
+  and chest by settlement and region: tens of thousands of things. The coverage sweep samples by class where every
+  pair is too many.
 - **E — scale checks**: a world-scale test (load the world, walk into fifty maps, time a tick, size a save), the
   wiki's region pages, the backdrop's numbers in this document.
+
+## 10. Goods (phase D)
+
+Tens of thousands of things in the world, from about a thousand kinds (the user's decision, 2026-10-18).
+
+**The kinds** (`games/openworld/content/src/goods.ts`). A region's goods are **variants of the base forms**
+(items.ts): a variant's type lies under its base's (`item/weapon/blade/sword/palefen_fenland_sword`), so it is its
+base to every rule — a Fenland Sword strikes as a sword, a Smoked Herring is eaten as grilled fish, an errand that asks
+for bread takes a Barley Loaf — and differs in its name, picture, worth, the materials it comes in and where it is
+kept. This is how the reference games grow their catalogues without new behaviour: Skyrim's cultures each make a full
+line of the same arms (Nordic, Imperial, Elven) that fight alike; Elin's things name an origin they take their trait
+from. Three sorts, in both languages, every region its own words (§4):
+
+- a region's **line**: its makers' own of every piece of gear and tool and jewellery, 33 bases ("Fenland Sword"
+  苍沼剑), in the materials the region works (the March iron, steel and obsidian; the Vale bronze and gold; the Heights
+  steel, silver and mithril) of those its base can be made of;
+- its **local kinds**: what is made or found only there (a Whaling Harpoon, Chaff Bread, Loaded Dice, a Mourning
+  Veil, a Psalter, a Votive Candle) — a kind whose name says its material (a Pine Longbow) is of that alone and is
+  not named for it again;
+- its **named pieces**: the makes it is known for (Icebreaker, Hawkwing, the Ledger of Weights, the Abbot's Crozier,
+  the Sword of the Five), three times their base's worth, their gear always fine, a quarter as often stocked.
+
+Each carries `origin:<region>` among its tags, for rules and the modder to read. 797 regional forms (Frostfang 146,
+the March 139, the Vale 132, the Fens 134, the Heights 125, the Holy City 121) with the 216 base forms: 1,013. Their
+pictures are the catalogue's (`client/src/catalog.ts`): a variant takes its base's unless it names another. None is
+laid on a played map: their `where` is empty, so the Ford's rolls are what they were; their weights are `stock`.
+
+**The stock** (`games/openworld/tools/src/demo/continent/stock.ts`), made with each backdrop map after its
+template: every container on the map is filled, and every building stamped on it gets its stores beside its door
+(a door that leads somewhere keeps them in the room behind it — phase B):
+
+| What | Stores | What they keep |
+|---|---|---|
+| a house, a cabin, a hut | a chest, the region's larder (a barrel on the coast and in the Fens, a crate in the March and the Heights, a sack in the Vale) | clothes, tools, lights, valuables, papers; food and goods |
+| a shop, a store | a shelf, a crate | a shop's wares; its larder |
+| a smithy, a fort's barracks | a chest, a crate | arms and armour; bars, coal, ore |
+| an inn (the teahouse) | a barrel, a crate, a shelf | ale and wine, bread and cheese; cups and plates |
+| a temple, a cathedral's cloister | a chest, a bookshelf | candles, holy water, amulets; books, scrolls, ink |
+| a tent | a crate | what travellers carry |
+| a market stall | — | a trade's wares |
+| a ruin, a cave's depths, a tower, a graveyard, a battlefield | a chest (one is put where there is none) | the dark's: finer, now and then of an element |
+
+A store draws on the catalogue's contexts (`stockFor(region, context)`: home, shop, smithy, inn, temple, library,
+farm, dungeon, npc): the region's own goods twice as often as the base forms kept there everywhere; the Holy City,
+where the pilgrims come from every road, keeps the other regions' goods too. A container is filled to most of its
+slots and never past them (a slot a kind of thing: content `capacity`); a piece of gear is one, food a few of a kind.
+Qualities by use (a household's plainest, the dark's finest, now and then Vowbound); a region's gear is of its level
+(`REGION_LEVEL`: the Coast 2, the March 5, the Vale 8, the Fens 11, the Heights 14, the Holy City 16 — provisional,
+until each chapter's maps set theirs). Nobody owns any of it yet: the people come in phase C.
+
+**Coverage** (`tools/src/coverage.ts`): every form × every target is 4.6 times what it was. The sweep takes every
+base form and, of each class's regional forms, one (a different region's from class to class): 302 forms and the
+empty hand × 227 targets, 137,485 combinations. What holds the sample for the rest (`coverage.test.ts`): a sampled
+form answers every combination as its base does, no rule names a regional form, and a regional form lies under its
+base with its base's tags. The checks that act on every form (nothing put down is lost; the yield of a repeated act)
+take the swept forms, or the base forms.
+
+**The wiki**: every kind has its page (generated; its infobox names its region and its base, its sources the
+region's stock); a base's page lists its variants by region; [[地区物产]] lists every region's goods. The navbox and
+the category tables keep to the base forms (a thousand links on every page would bury them). The placed stock has no
+pages, as the backdrop's places have none.
+
+Checks: `games/openworld/tools/test/goods.test.ts` — about a thousand kinds, every region its own, each named once
+in both languages, every picture the client's, worth as said, a material its name says kept alone, none on a played
+map; the backdrop holds over twenty thousand things, each region its own goods (only the Holy City others'), every
+settlement's houses their stores, no container past its slots, larders food and bookshelves books, the dark finer
+than a village.

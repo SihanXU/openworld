@@ -6,7 +6,7 @@ Story and world: [docs/lore.md](docs/lore.md) (the user's canonical setting: the
 First Night, the five Seal-bearers; every chapter follows it) and [docs/chapter-1.md](docs/chapter-1.md).
 Design: [docs/design.md](docs/design.md); the agreed world model and base gameplay (not yet built,
 steps W1–W10): [docs/world-model.md](docs/world-model.md); the continent — six regions round the Holy City, the backdrop
-that fills them, the phases of scaling A–E (A built 2026-10-18): [docs/continent.md](docs/continent.md). Paper draft lives in Notion ("Large Symbolic World").
+that fills them, the phases of scaling A–E (A and D built 2026-10-18): [docs/continent.md](docs/continent.md). Paper draft lives in Notion ("Large Symbolic World").
 OpenWorld is the engine and, for now, also the name of its first game: the engine side lives in `packages/`,
 each game in `games/<id>/` (this one `games/openworld/`), and the OpenWorld Editor, a game-making program in the
 manner of RPG Maker (a local server and page, or a desktop application, over projects in any folder) —
@@ -140,7 +140,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - `games/starter` — the minimal game, data only (S6), with its own catalogue and assets (a subset of the CC0
   pack): the kernel with no module plays it (`test/kernel.test.ts`); the editor's new project.
 - `games/openworld/content` — ontology (terrains, statuses, elements, types), item catalogue
-  (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
+  (forms × materials × qualities × elements; the continent's goods, `goods.ts`: each region's line, local kinds and named
+  pieces as variants of the base forms, and `stockFor` what a place of a region keeps — docs/continent.md §10), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
   story rules and invariants (`ford.ts`), the prologue's beats and lessons (`prologue.ts`), the main quest's rules (`quest.ts`,
   docs/main-quest.md), the quests (`quests/`: the main line, the people's errands through `errand()`, the radiant favours, the fairy's guides — teaching quests of the kind `guide` she begins herself on the story's beats, `guides.ts`; docs/quests.md),
   Chapter 1's facts and rules (`chapter1.ts`; its maps and scenes in
@@ -157,7 +158,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   cells; `continent/` the continent (docs/continent.md): `generate.ts` its generator (land, the Ford's barrier, regions,
   grounds, rivers, the gazetteer, roads, reach → `continent.json`, `npm run continent`), `names.ts` places named in both
   languages, `backdrop.ts` a map for every place by its kind (the backdrop: `MapData.backdrop`, no story, its own checks
-  `test/continent.test.ts`, not the demo's minimality); `interiors.ts` the rooms behind the other doors and the tents (Emberfall's houses, the East Road
+  `test/continent.test.ts`, not the demo's minimality), `stock.ts` what every backdrop place keeps — its houses',
+  shops', smithies', inns', temples' stores and the dark's chests, by region and use, within capacity (`test/goods.test.ts`); `interiors.ts` the rooms behind the other doors and the tents (Emberfall's houses, the East Road
   farmhouse, the ferry camp's tent, the rotted one, Alberic's); `quest/haven.ts` the Held Ground, its plots and its four
   grounds;
   `people/*.ts` one record per person (`person.ts`: a gender and the look pins the author chose; whether they fight, keep a watch, what they trade — every person does, what fits who they are —, their purse and honesty), `people.ts` `HOUSEHOLDS`; `check.ts` a headless two-day playtest;

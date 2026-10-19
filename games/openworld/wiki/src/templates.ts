@@ -2,7 +2,7 @@
 // a table here is the game's own numbers, never a copy that can go stale.
 
 import { gearProps, type CreatureSkill, type Effect, type Entity, type QuestDef, type QuestReward, type QuestTrigger, type Text } from '@openworld/engine'
-import { BASE_RULES } from '@openworld-game/content'
+import { BASE_RULES, REGION_BY_ID, REGIONS } from '@openworld-game/content'
 import {
   EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, VOWS, isAccessory, zh,
   type BossEnt, type CreatureEnt, type Ent, type Game, type ItemEnt, type MapEnt, type PersonEnt, type QuestEnt, type Sprite,
@@ -266,6 +266,10 @@ function infobox(ctx: Ctx, title: string, image: string, rows: [string, string][
 function itemInfobox(ctx: Ctx, e: ItemEnt): string {
   const rows: [string, string][] = [['类别', ctx.link(groupPage(e), e.group)], ...itemStats(ctx, e)]
   if (e.quality) rows.push(['品质', ctx.link('品质', qualityName(e.quality))])
+  if (e.form?.origin) {
+    rows.push(['产地', regionLink(ctx, e.form.origin)])
+    rows.push(['类属', `${typeLink(ctx, e.form.base!)}的一种${e.form.named ? `（${ctx.link('地区物产', '名品')}）` : ''}`])
+  }
   if (e.relic) rows.push(['圣痕之力', `<b>${esc(e.relic.zh)}</b>：${esc(e.relic.text)}`])
   if (e.vow) rows.push(['誓言', `<b>${esc(e.vow.zh)}</b>：${esc(e.vow.text)}`])
   const make = e.recipe ? `${e.recipe.station === 'hands' || !e.recipe.station ? '手工' : `${STATION_PAGE[e.recipe.station] ?? e.recipe.station}旁`}（${ctx.link('制作')}）` : e.placement ? ctx.link('建造', '建造模式') : ''
@@ -517,8 +521,36 @@ function sources(ctx: Ctx, e: ItemEnt): string {
   for (const id of I.ruleMade.get(e.id) ?? []) if (RULE_WAYS[id]) out.push(`<li>${ctx.link(RULE_WAYS[id].page, RULE_WAYS[id].way)}：${esc(RULE_WAYS[id].text)}</li>`)
   for (const r of offersOf(ctx.g, e.id)) out.push(`<li>在${ctx.link('货摊')}买（${SHELF[r.group ?? ''] ?? r.group}）：${coins(ctx, priceOf(r))}买 ${r.count ?? 1} 个</li>`)
   if (e.id === ctx.g.coin) out.push(`<li>把东西卖给${ctx.link('货摊')}：${ctx.g.shop.filter((r) => r.group === 'sell').map((r) => typeLink(ctx, r.needs[0].type)).join('、')}（见${ctx.link('金钱')}）</li>`)
+  if (e.form?.origin) out.push(`<li>${regionLink(ctx, e.form.origin)}${e.form.origin === 'holy' ? '' : `和${regionLink(ctx, 'holy')}`}的背景地点里有存货：人家、店铺、铁匠铺、旅店、神殿和箱子（${ctx.link('地区物产')}）</li>`)
   if (!out.length) out.push(`<li>游戏里目前没有固定的获得方式。</li>`)
   return `<ul class="facts">${out.join('')}</ul>`
+}
+
+/** A region by its id: its page, or its name. */
+function regionLink(ctx: Ctx, id: string): string {
+  const name = zh(REGION_BY_ID[id]?.name) || id
+  return ctx.pages.has(name) ? ctx.link(name) : esc(name)
+}
+
+/** The regional forms (content goods.ts) of a base form, by region: the line's piece, the local kinds, the named. */
+function regionalOf(ctx: Ctx, base: string): string {
+  const of = ctx.g.items.filter((x) => x.form?.base === base)
+  if (!of.length) return ''
+  const rows = REGIONS.map((r) => [regionLink(ctx, r.id), of.filter((x) => x.form!.origin === r.id).map((x) => `${ctx.link(x.title, x.zh)}${x.form!.named ? '（名品）' : ''}`).join('、') || '—'])
+  return `<p>各地的做法（${ctx.link('地区物产')}）：和它一样用，名字、材质、身价和出处不同。</p>` + table(['地区', '变体'], rows)
+}
+
+/** Every region's goods (content goods.ts): its line, its local kinds, its named pieces. */
+function regionalGoods(ctx: Ctx, region?: string): string {
+  const items = ctx.g.items.filter((x) => x.form?.origin)
+  return REGIONS.filter((r) => !region || r.id === region || zh(r.name) === region).map((r) => {
+    const own = items.filter((x) => x.form!.origin === r.id)
+    const line = own.filter((x) => x.form!.line)
+    const named = own.filter((x) => x.form!.named)
+    const local = own.filter((x) => !named.includes(x) && !line.includes(x))
+    const links = (xs: ItemEnt[]) => xs.map((x) => ctx.link(x.title, x.zh)).join('、') || '—'
+    return `<h3>${regionLink(ctx, r.id)}（${own.length} 种）</h3>` + table(['', ''], [['名品', links(named)], ['地方物产', links(local)], ['本地做的装备与工具', links(line)]])
+  }).join('')
 }
 
 function uses(ctx: Ctx, e: ItemEnt): string {
@@ -542,6 +574,8 @@ function uses(ctx: Ctx, e: ItemEnt): string {
   const back = buysBack(ctx.g, e.id)
   if (back) out.push(`<li>卖给${ctx.link('货摊')}：每个 ${coins(ctx, back.count ?? 1)}</li>`)
   if (e.id === ctx.g.coin) out.push(`<li>在${ctx.link('货摊')}买东西：${ctx.g.shop.filter((r) => r.group !== 'sell').map((r) => typeLink(ctx, String((r.make as any).type))).join('、')}（见${ctx.link('金钱')}）</li>`)
+  // a region's make is its base to every rule (content goods.ts): what its base is for, it is for
+  if (e.form?.base) out.unshift(`<li>和${typeLink(ctx, e.form.base)}一样：世界对它的规则就是对${esc(ctx.g.typeName(e.form.base))}的规则。</li>`)
   if (!out.length) return `<p class="empty">游戏数据里没有记录它的固定用途。拿着它对别的东西按左键，世界可能会学会新的用法（见[[世界会学]]）。</p>`.replace('[[世界会学]]', ctx.link('世界会学'))
   return `<ul class="facts">${out.join('')}</ul>`
 }
@@ -575,8 +609,14 @@ const stationCell = (ctx: Ctx, station: string | undefined) => (!station || stat
 const toolName = (t: string) => ({ 'tool:axe': '斧头', 'tool:pickaxe': '镐', 'tool:hammer': '锤子', 'tool:hoe': '锄头', 'tool:sickle': '镰刀', 'tool:shovel': '铲子' } as Record<string, string>)[t] ?? t
 
 function variants(ctx: Ctx, e: ItemEnt): string {
+  const regional = regionalOf(ctx, e.id)
+  const own = materialVariants(ctx, e)
+  return own || regional ? own + regional : `<p class="empty">只有一种。</p>`
+}
+
+function materialVariants(ctx: Ctx, e: ItemEnt): string {
   const f = e.form
-  if (!f?.materials?.length || (typeof e.props.power !== 'number' && typeof e.props.def !== 'number')) return `<p class="empty">只有一种。</p>`
+  if (!f?.materials?.length || (typeof e.props.power !== 'number' && typeof e.props.def !== 'number')) return ''
   const qs = QUALITIES.filter((q) => ['crude', 'common', 'fine', 'masterwork', 'vowed'].includes(q.id))
   const key = typeof e.props.power === 'number' ? 'power' : 'def'
   const rows = f.materials.map((m) => [
@@ -782,8 +822,12 @@ function itemTable(ctx: Ctx, cat: string): string {
     default: list = [...g.items, ...g.fixtures].filter((e) => e.group === cat)
   }
   if (!list.length) { ctx.error(`{{物品表|${cat}}}：没有这一类`); return '' }
+  // (the regions' goods are the base forms' variants: listed on their bases' pages and on 地区物产, not here)
+  const regional = list.filter((e) => (e as ItemEnt).form?.origin).length
+  list = list.filter((e) => !(e as ItemEnt).form?.origin)
+  const note = regional ? `<p>另有 ${regional} 种各地的变体，列在各自的原型页面和${ctx.link('地区物产')}里。</p>` : ''
   const rows = list.map((e) => [fit(e.sprite, 32), ctx.link(e.title, e.zh), esc(e.group), itemStats(ctx, e).filter(([k]) => !['可能的材质', '可带元素'].includes(k)).map(([k, v]) => `${k} ${v}`).join('，') || '—', howToGet(ctx, e)])
-  return table(['', '名称', '类别', '属性', '获得'], rows, 'wikitable sortable')
+  return table(['', '名称', '类别', '属性', '获得'], rows, 'wikitable sortable') + note
 }
 
 function howToGet(ctx: Ctx, e: ItemEnt): string {
@@ -806,6 +850,7 @@ function lists(ctx: Ctx, name: string, args: string[]): string | undefined {
   const g = ctx.g
   switch (name) {
     case '物品表': return itemTable(ctx, args[0] ?? '全部')
+    case '地区物产': return regionalGoods(ctx, args[0])
     case '居民表': return table(['', '名字', '身份', '年龄', '住在', '任务'], g.people.map((p) => [fit(p.face, 40, 'face'), ctx.link(p.title, p.zh), esc(p.roleZh), p.age ? String(p.age) : '—', p.home ? mapLink(ctx, p.home) : p.kind === 'companion' ? '跟着玩家' : '只在剧情中', String((idx(g).personQuests.get(p.id) ?? []).length || '—')]), 'wikitable sortable')
     case '怪物表': return table(['', '名字', '类别', '生命', '攻击', '防御', '元素', '出没'], g.creatures.map((c) => [fit(c.sprite, 32), ctx.link(c.title, c.zh), esc(c.group), String(c.props.maxHp ?? '—'), String(c.props.atk ?? '—'), String(c.props.def ?? 0), c.props.element ? T(ctx, '元素', String(c.props.element)) : '—', join([...whereCreature(ctx, c.id).map((m) => mapLink(ctx, m)), ...bornOf(ctx, c.id).short]) === '—' ? '<span class="muted">游戏里目前不会出现</span>' : join([...whereCreature(ctx, c.id).map((m) => mapLink(ctx, m)), ...bornOf(ctx, c.id).short])]), 'wikitable sortable')
     case '首领表': return table(['', '名字', '印', '生命（挑战）', '技能', '在哪里打'], g.bosses.map((b) => { const c = campaign(ctx, b); return [fit(b.sprite, 48), ctx.link(b.title, b.zh), esc(b.seal ?? ''), String(b.def.hp), b.def.skills.map((s) => esc(zh(s.name))).join('、'), c ? `${mapLink(ctx, c.map)}、${ctx.link('首领挑战')}` : ctx.link('首领挑战')] }))
@@ -910,9 +955,11 @@ export function navbox(ctx: Ctx, name: string): string {
     }
     case '物品': {
       const by = new Map<string, Ent[]>()
-      for (const e of [...g.items]) { if (!by.has(e.group)) by.set(e.group, []); by.get(e.group)!.push(e) }
+      // (the regions' goods by their regions, not one by one: they are a thousand)
+      for (const e of g.items.filter((x) => !x.form?.origin)) { if (!by.has(e.group)) by.set(e.group, []); by.get(e.group)!.push(e) }
       for (const [k, es] of by) rows.push([esc(k), links(es)])
       rows.push(['建筑件', links(g.structures)])
+      if (ctx.pages.has('地区物产')) rows.push([ctx.link('地区物产'), REGIONS.map((r) => regionLink(ctx, r.id)).join(' • ')])
       rows.push(['分类', titled(['物品', '武器', '工具', '防具', '饰品', '食物', '材料', '种子', '建筑件', '家具与设施', '剧情物品', '文书', '材质', '品质', '遗誓', '圣痕', '传说武器'].filter((t) => ctx.pages.has(t)))])
       break
     }
@@ -957,7 +1004,7 @@ const BLOCK = new Set([
   '信息框', '引言', '小作品', '规划中', '待设计', '开发者', '主条目', '另见', '导航框', '日程表', '对话', '人际关系', '相关任务', '肖像', '来源', '用途', '配方', '变体',
   '出没', '掉落', '首领技能', '怪物技能', '地图', '相连地点', '居民', '生物', '物品分布', '任务目标', '任务奖励', '任务对话', '任务阶段', '物品表', '居民表', '怪物表', '首领表', '地点表', '任务表', '地区表', '地区地点',
   '配方表', '建造表', '技能树', '职业表', '恩赐表', '状态表', '元素表', '地形表', '材质表', '品质表', '装备栏表', '作物表', '食物表', '传送雕像表', '配乐表', '效率表',
-  '房间用途表', '夜行生物表', '传说武器表', '圣痕之力表', '誓言表', '货摊表', '版本历史', '数值表', '门户', '原文', '图', '剧透',
+  '房间用途表', '夜行生物表', '传说武器表', '圣痕之力表', '誓言表', '货摊表', '地区物产', '版本历史', '数值表', '门户', '原文', '图', '剧透',
 ])
 
 export function runTemplate(ctx: Ctx, call: TemplateCall): { html: string; block: boolean } {
