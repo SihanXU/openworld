@@ -162,6 +162,27 @@ The map figures (2026-10-18): the man, the woman and the child, each facing's wa
 and 2 children's, 3 worn pieces, 15 hairstyles, 7 hats, 3 beards, the face's 5 variants, glasses, a scar, freckles and
 age's lines — `docs/figures/figures-map.png` (standing, the four facings) and `figures-walk.gif` (walking).
 
+## 8. The world filter (2026-10-18)
+
+The map in the portraits' style, asked for after them ("基于相同的风格给游戏加一层滤镜"): the trial
+`docs/figures/world-filter-trial.png` (four scenes captured from the game, filtered offline), the recommended
+strength taken.
+
+- **One shader pass** over the world camera (`runtime/src/render/worldfilter.ts`, a Phaser 4 filter on the main
+  camera's internal list): the colours graded — desaturated, the bright yellow-greens further toward a sage, a little
+  warmer, toned toward the duotone (the ink in the shadows, the paper in the lights, the colour only), an S-curve so it
+  stays crisp, nothing darker than the ink; the art's own dark outlines turned to the ink; a paper's grain and a
+  vignette; hatching where it is dark, more at night (the scene's darkness of the hour).
+- **The world's own pixels**: the pass runs at the screen's pixels, but the outlines are judged against the world
+  pixels round them and the hatching lies on every third world pixel (the camera's zoom), and the paper and the
+  hatching are anchored to the world (the camera's view), so they move with it and never swim.
+- **What must be read stays out of it**: the cells a blow is about to fall on are drawn by a second camera above the
+  pass (`signalCamera`: it ignores everything the scene adds unless marked, and copies the main camera after it has
+  moved each frame). Quest markers and the interface are the page's, never under it.
+- **The game's look, the player's strength**: `ClientGame.worldFilter` gives the ink, the paper and two strengths
+  (`light`, `full`; OpenWorld's in `client/src/game.ts`); the options choose off, light or full (`prefs.filter()`,
+  full by default). A game with none (the starter) shows its art as it is; a canvas renderer too.
+
 ## 7. Not yet
 
 - Unique figures: Lumi, the Seal-bearers' portraits.

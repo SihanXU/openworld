@@ -749,6 +749,7 @@ export class Menu {
       <div class="opt"><span>${t('sound')}</span><button id="oSound">${this.muted ? t('off') : t('on')}</button></div>
       <div class="opt"><span>${t('optTracker')}</span><button id="oTracker">${prefs.get('tracker') ? t('on') : t('off')}</button></div>
       <div class="opt"><span>${t('optMarkers')}</span><button id="oMarkers">${prefs.get('markers') ? t('on') : t('off')}</button></div>
+      ${game().worldFilter ? `<div class="opt"><span>${t('optFilter')}</span><button id="oFilter">${t({ off: 'filterOff', light: 'filterLight', full: 'filterFull' }[prefs.filter()])}</button></div>` : ''}
       <div class="opt"><button id="oSave">${t('save')}</button><button id="oNew">${t('toTitle')}</button>${import.meta.env.DEV ? `<button id="oDev">${t('devConsole')}</button>` : ''}</div>
       ${this.ai.html()}
       <h4>${t('controls')}</h4>${controlsTable(import.meta.env.DEV)}
@@ -760,6 +761,11 @@ export class Menu {
     $('#oSound').onclick = () => (this.send.toggleSound(), (this.muted = !this.muted), this.render())
     $('#oTracker').onclick = () => (prefs.set('tracker', !prefs.get('tracker')), this.render())
     $('#oMarkers').onclick = () => (prefs.set('markers', !prefs.get('markers')), this.render())
+    document.querySelector<HTMLButtonElement>('#oFilter')?.addEventListener('click', () => {
+      const next = { off: 'light', light: 'full', full: 'off' } as const
+      prefs.setFilter(next[prefs.filter()])
+      this.render()
+    })
     $('#oSave').onclick = () => this.send.save()
     // back to the cover (saved first): new games and other slots start there
     $('#oNew').onclick = () => (this.close(), this.send.newGame())

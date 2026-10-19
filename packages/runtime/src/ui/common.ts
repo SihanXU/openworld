@@ -170,6 +170,10 @@ export const STRINGS: Record<string, [string, string]> = {
   qBoardEmpty: ['Nobody wants anything done just now. Come back later.', '眼下没人有事相托。过些时候再来看看。'],
   qTake: ['Take it on', '接下'],
   optMarkers: ['Quest markers (map and screen edge)', '任务标记（地图和屏幕边缘）'],
+  optFilter: ['World filter', '画面滤镜'],
+  filterOff: ['Off', '关'],
+  filterLight: ['Light', '轻'],
+  filterFull: ['Full', '完整'],
   optTracker: ['Quest tracker', '任务追踪栏'],
   qNone: ['None', '暂无'],
   qEmpty: ['No quests taken on. Look for a yellow "!" over someone\'s head, and press E.', '还没有接任务。找头顶有黄色"！"的人，按 E 接受。'],
@@ -292,7 +296,27 @@ export const prefs = {
       /* a blocked store: the choice lasts this page only */
     }
   },
+  /** How strong the world filter is (render/worldfilter.ts): full unless the player chose otherwise. */
+  filter(): FilterStrength {
+    try {
+      const v = localStorage.getItem('lsw.filter')
+      return v === 'off' || v === 'light' ? v : 'full'
+    } catch {
+      return filterHere
+    }
+  },
+  setFilter(v: FilterStrength): void {
+    filterHere = v
+    try {
+      localStorage.setItem('lsw.filter', v)
+    } catch {
+      /* a blocked store: the choice lasts this page only */
+    }
+  },
 }
+
+export type FilterStrength = 'off' | 'light' | 'full'
+let filterHere: FilterStrength = 'full'
 
 export function t(k: string): string {
   const own = gameText(k)
