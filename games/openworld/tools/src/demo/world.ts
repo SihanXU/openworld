@@ -10,7 +10,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@openworld/engine'
-import { QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, GUIDE_BEATS, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, generateLook, type RawChunk } from '@openworld-game/content'
+import { QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, GUIDE_BEATS, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, favouriteFor, generateLook, type RawChunk } from '@openworld-game/content'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
@@ -460,7 +460,8 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
   const household = householdOf(p.id)
   const purse = p.purse ?? (p.role === 'child' ? 2 : 10)
   const stock = p.trade?.stock ?? []
-  const tags = [...(p.tags ?? []), ...(p.watch ? ['watchman'] : []), ...(p.trade ? ['merchant'] : []), ...(p.trade?.fence ? ['fence'] : []), ...(p.hireling ? ['hireling'] : []), ...(p.essential ? ['essential'] : [])]
+  // (their age's tag: a child under eighteen is `minor` — never robbed, stolen from or preached unbelief, social.ts)
+  const tags = [...(p.tags ?? []), ...(p.age < 18 ? ['minor'] : []), ...(p.watch ? ['watchman'] : []), ...(p.trade ? ['merchant'] : []), ...(p.trade?.fence ? ['fence'] : []), ...(p.hireling ? ['hireling'] : []), ...(p.essential ? ['essential'] : [])]
   const carried = [
     ...(p.items ?? []).map((spec, i) => ({ id: `${p.id}.item${i}`, ...itemOf(spec, `${p.id}.item${i}`) })),
     // (their gear at their level: world-model.md §6.8)
@@ -475,6 +476,8 @@ function person(p: PersonDef, at: (name: string) => Pos): Entity {
     facing: 'down',
     props: {
       age: p.age,
+      // what they like best: pinned by their record, else drawn from their id (content gifts.ts)
+      favourite: p.favourite ?? favouriteFor(p.id, p.age),
       purse,
       ...(household && { household }),
       ...(p.fights && { fights: true }),

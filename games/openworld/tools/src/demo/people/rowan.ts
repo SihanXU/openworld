@@ -25,6 +25,9 @@ export const rowan: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'An elder is just the one who has made the most mistakes and is still around to list them.', '所谓长老，就是犯错最多、还活着能一条条数出来的那个人。'),
+    line('chat', 'Firstlight was a hundred souls when I was a boy. We are fewer. We are still here.', '我小时候初原村有一百口人。现在少了。我们还在这儿。'),
     // the news the story spreads (its topics), said once while fresh
     line('topic:dragon_slain', "Word came up the east road: the dragon of Emberfall is dead, and you were the one. The Five teach us to endure. Today we may also be glad.", "东边的路上传来消息：余烬镇的龙死了，杀它的是你。五苦教我们忍耐。今天，我们也可以高兴一回。"),
     line('default', 'A rider took the bridge and the storm took the rest. Two of ours went into the barrow and the dead keep them there — the dead do not lie down any more.', '骑手拆了桥，风暴带走了其余的。我们有两个人躲进了古墓，被那里的亡灵困住了——死人如今都不肯安息了。'),

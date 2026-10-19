@@ -232,6 +232,8 @@ export interface Ontology {
   deeds?: DeedDef[]
   laws?: Record<string, LawDef>
   social?: SocialParams
+  /** Data-driven subjects and harmful statuses the game protects from direct harm. */
+  protection?: ProtectionDef
   /** What a felled creature's kind leaves its feller beyond the rules' spoils: its own piece's pity and words (the loot module). */
   loot?: LootParams
   /** The verbs of the talk panel (docs/npc-sandbox.md §2.9): each offered when its condition holds (host: the one spoken to; actor: the speaker). */
@@ -294,6 +296,13 @@ export interface Ontology {
   goals?: string[]
   /** The looks bodies are drawn from (docs/looks.md): bodies, parts, colours. */
   looks?: LookTable
+}
+
+/** A game's subject selector and the statuses it treats as harmful; the engine knows no subject-specific rules. */
+export interface ProtectionDef {
+  subjects: Selector[]
+  statuses?: string[]
+  refusal?: Text
 }
 
 /**
@@ -726,6 +735,8 @@ export interface NpcMemory {
   chatted?: Record<Id, number>
   /** Whom they fear for now (they saw them do violence): run from them until the tick. */
   afraid?: Record<Id, number>
+  /** Whom they have told what they like best (their `favourite` prop, said in a chat): the gift panel says it from then on. */
+  toldFavourite?: Id[]
 }
 
 /** A deed a person knows of: what was done, by whom (or how they looked), to whom, and how they know. */
@@ -830,6 +841,8 @@ export interface SocialParams {
   perceiveEvery: number
   /** How long one fears a violent doer, in ticks. */
   fearTicks: number
+  /** By how much a robber's might must exceed the victim's for a robbery to succeed (the `sway` roll `rob`; default 2). */
+  robEdge?: number
   /** How much a merchant asks over a thing's value, and pays under it; and a fence's share for what is not yours. */
   markup: number
   markdown: number
@@ -1554,12 +1567,17 @@ export type Cond =
   /** The seen event holds a deed (docs/npc-sandbox.md §2.2): any (true), or the one named. */
   | { deed: string | true }
   /**
-   * A roll of one role swaying another (docs/npc-sandbox.md §2.9): `persuade` (its regard, the speaker's level),
-   * `intimidate` (their levels and the speaker's arms), as the social numbers say; `bonus` adds to the chance.
+   * A roll of one role prevailing over another (docs/npc-sandbox.md §2.9): `persuade` (its regard, the speaker's
+   * level), `intimidate` (their levels and the speaker's arms), `rob` (no roll: the robber's might against the
+   * victim's — level, attack and weapon, defence, body — must overwhelm it, as the social numbers' `robEdge` says),
+   * `steal` (the thief's nimbleness — stealth, dodge, haste, level — against the victim's perception); `bonus` adds
+   * to a chance.
    */
-  | { sway: { of: RoleName; by: RoleName; how: 'persuade' | 'intimidate'; bonus?: number } }
+  | { sway: { of: RoleName; by: RoleName; how: 'persuade' | 'intimidate' | 'rob' | 'steal'; bonus?: number } }
   /** A role carries coin enough for its bounty with the watch of the host's map, times `mul`. */
   | { canPay: { role: RoleName; mul?: number } }
+  /** The thing a role holds (`item`, by default the event's item) is of the kind another role likes best (its `favourite` prop). */
+  | { favourite: { of: RoleName; item?: RoleName } }
   /** A role's bounty with the watch of the host's map is past what that watch pardons (a murderer's). */
   | { unpardonable: RoleName }
   /** The optional fishing module: these conditions are evaluated by a game that loads that module. */
@@ -1592,7 +1610,7 @@ export type EmitTo =
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
 /** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
-export type ModuleOp = 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy' | 'fishing/start' | 'fishing/step' | 'fishing/input' | 'fishing/land'
+export type ModuleOp = 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'plunder' | 'beaten' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy' | 'fishing/start' | 'fishing/step' | 'fishing/input' | 'fishing/land'
 
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
@@ -1718,6 +1736,16 @@ export type Effect =
   | { op: 'pay'; amount: Amount; to: RoleName }
   /** The host gives a role the event's item (from its bag): the role's now. */
   | { op: 'give'; to: RoleName }
+  /**
+   * The host is robbed by a role (default: the actor): a share of its coin (`coins`, 0..1) and up to `items` of the
+   * portable things in its bag (not what it wears or holds) are the role's now.
+   */
+  | { op: 'plunder'; to?: RoleName; coins?: number; items?: number }
+  /**
+   * The host is beaten: its health falls to `left` (an amount), or to a `share` of what it has (0..1) — never below
+   * one, never up. Harm that passes defence and talents (a lesson, not a blow).
+   */
+  | { op: 'beaten'; left?: Amount; share?: Amount }
   /** The host (a merchant) sells the actor what it asks (param item) for its price: it hands it over, the buyer is told to pay. */
   | { op: 'sell' }
   | { op: 'moveIn' }

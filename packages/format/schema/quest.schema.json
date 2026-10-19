@@ -2131,6 +2131,47 @@
           "properties": {
             "op": {
               "type": "string",
+              "const": "plunder"
+            },
+            "to": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "coins": {
+              "type": "number"
+            },
+            "items": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "beaten"
+            },
+            "left": {
+              "$ref": "#/definitions/Amount"
+            },
+            "share": {
+              "$ref": "#/definitions/Amount"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
               "const": "sell"
             }
           },

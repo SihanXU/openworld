@@ -21,6 +21,9 @@ export const wynn: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'I\'m eight and a quarter. The quarter matters.', '我八岁零一个季度。那个季度很重要。'),
+    line('chat', 'Mama counts the names in the book every night. I count the stars. I win.', '妈妈每晚数名册上的名字。我数星星。我赢。'),
     line('greeting:first', 'Is that a FAIRY? Can she do magic? Can she do the White Knight\'s rhyme? I can.', '那是精灵吗？她会魔法吗？她会唱白骑士的童谣吗？我会。'),
     line('default', '"The White Knight rides, the White Knight bends, / he mends your kite and he minds your friends, / he kneels to the small and he stands for the weak—" ...Gran never finished it. She said the end went wrong.', '"白骑士骑马来，白骑士弯下腰，/ 帮你补风筝，替你看朋友，/ 他向小孩子下跪，替弱者站着——"……奶奶从来没唱完。她说结尾变了。'),
     line('default', 'Mama says we\'re not going east. I think the knight just forgot the end of his rhyme.', '妈妈说我们不往东走了。我觉得那个骑士只是忘了他那首童谣的结尾。'),

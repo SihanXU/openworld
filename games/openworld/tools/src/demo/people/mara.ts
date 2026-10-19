@@ -25,6 +25,9 @@ export const mara: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'Two husbands, one harvest, and a dragon. I am too old to be impressed by anything smaller.', '两个丈夫，一季收成，一条龙。比这小的事已经吓不到我这把年纪了。'),
+    line('chat', 'The well is forty-one buckets deep. I know because I counted the year it nearly ran dry.', '井深四十一桶。我知道，是因为它差点干掉的那年我数过。'),
     line('default', 'Keep the buckets full. That is all the advice I have, and it is not enough.', '把水桶都装满。我能给的忠告就这一句，而且远远不够。'),
     line('default', 'Cinder Peak used to be a name for a mountain. Now it is a name for a fear.', '烬峰以前只是座山的名字。现在成了害怕的代名词。'),
     line('fact:mq.blade', 'Garrick has forged it, then. I heard the hammer all night.', '加里克锻好了。我听了一夜的锤子声。', { once: true }),

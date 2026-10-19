@@ -96,6 +96,10 @@
         "social": {
           "$ref": "#/definitions/SocialParams"
         },
+        "protection": {
+          "$ref": "#/definitions/ProtectionDef",
+          "description": "Data-driven subjects and harmful statuses the game protects from direct harm."
+        },
         "loot": {
           "$ref": "#/definitions/LootParams",
           "description": "What a felled creature's kind leaves its feller beyond the rules' spoils: its own piece's pity and words (the loot module)."
@@ -1121,7 +1125,9 @@
                   "type": "string",
                   "enum": [
                     "persuade",
-                    "intimidate"
+                    "intimidate",
+                    "rob",
+                    "steal"
                   ]
                 },
                 "bonus": {
@@ -1162,6 +1168,30 @@
           },
           "required": [
             "canPay"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "favourite": {
+              "type": "object",
+              "properties": {
+                "of": {
+                  "$ref": "#/definitions/RoleName"
+                },
+                "item": {
+                  "$ref": "#/definitions/RoleName"
+                }
+              },
+              "required": [
+                "of"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "favourite"
           ],
           "additionalProperties": false
         },
@@ -1639,6 +1669,10 @@
           "type": "number",
           "description": "How long one fears a violent doer, in ticks."
         },
+        "robEdge": {
+          "type": "number",
+          "description": "By how much a robber's might must exceed the victim's for a robbery to succeed (the `sway` roll `rob`; default 2)."
+        },
         "markup": {
           "type": "number",
           "description": "How much a merchant asks over a thing's value, and pays under it; and a fence's share for what is not yours."
@@ -1756,6 +1790,31 @@
       ],
       "additionalProperties": false,
       "description": "A home ground's room for people (the society module's `moveIn`): its map and the beds it has, each an anchor there (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; a resident's day there; what the one asked says, moved in or with no bed free."
+    },
+    "ProtectionDef": {
+      "type": "object",
+      "properties": {
+        "subjects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Selector"
+          }
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "refusal": {
+          "$ref": "#/definitions/Text"
+        }
+      },
+      "required": [
+        "subjects"
+      ],
+      "additionalProperties": false,
+      "description": "A game's subject selector and the statuses it treats as harmful; the engine knows no subject-specific rules."
     },
     "LootParams": {
       "type": "object",

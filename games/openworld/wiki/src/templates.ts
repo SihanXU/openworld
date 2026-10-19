@@ -286,6 +286,7 @@ function personInfobox(ctx: Ctx, p: PersonEnt): string {
     ['身份', esc(p.roleZh)],
     ['年龄', p.age ? `${p.age} 岁` : ''],
     ['住在', p.home ? mapLink(ctx, p.home) : p.kind === 'companion' ? '跟着玩家' : '只在剧情中出场'],
+    ['喜爱礼物', p.favourite ? `${typeLink(ctx, p.favourite, { icon: 16 })}（${ctx.link('友谊', '送礼')}）` : ''],
   ]
   if (d) rows.push(['性格', Object.values(d.temperament).map((v) => esc(T(ctx, '性格', v))).join('、')])
   const qs = idx(ctx.g).personQuests.get(p.id) ?? []

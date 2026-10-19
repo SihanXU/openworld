@@ -1,0 +1,85 @@
+{
+ "face.bright": {},
+ "face.soft": {
+  "grid": "details/face.soft-{f}.txt"
+ },
+ "face.keen": {
+  "grid": "details/face.keen-{f}.txt"
+ },
+ "face.stern": {
+  "grid": "details/face.stern-{f}.txt"
+ },
+ "face.weary": {
+  "grid": "details/face.weary-{f}.txt"
+ },
+ "face.child": {
+  "grid": "details/face.child-{f}.txt"
+ },
+ "age.lined": {
+  "grid": "details/age.lined-{f}.txt"
+ },
+ "mark.scar": {
+  "grid": "details/mark.scar-{f}.txt"
+ },
+ "mark.freckles": {
+  "grid": "details/mark.freckles-{f}.txt"
+ },
+ "glasses.round": {
+  "grid": "details/glasses.round-{f}.txt"
+ },
+ "hat.straw": {
+  "grid": "hat-straw-{f}.txt",
+  "hides": {
+   "down": 7,
+   "left": 7,
+   "up": 7
+  }
+ },
+ "hat.kerchief": {
+  "grid": "hat-kerchief-{f}.txt",
+  "hides": {
+   "down": 99,
+   "left": 99,
+   "up": 99
+  }
+ },
+ "hat.hood": {
+  "grid": "hat-hood-{f}.txt",
+  "hides": {
+   "down": 99,
+   "left": 99,
+   "up": 99
+  }
+ },
+ "hat.helm": {
+  "grid": "hat-helm-{f}.txt",
+  "hides": {
+   "down": 8,
+   "left": 8,
+   "up": 9
+  }
+ },
+ "hat.cap": {
+  "grid": "hat-cap-{f}.txt",
+  "hides": {
+   "down": 7,
+   "left": 7,
+   "up": 8
+  }
+ },
+ "hat.circlet": {
+  "grid": "hat-circlet-{f}.txt"
+ },
+ "hat.thorns": {
+  "grid": "hat-thorns-{f}.txt"
+ },
+ "beard.full": {
+  "grid": "beard-full-{f}.txt"
+ },
+ "beard.moustache": {
+  "grid": "beard-moustache-{f}.txt"
+ },
+ "beard.stubble": {
+  "grid": "beard-stubble-{f}.txt"
+ }
+}

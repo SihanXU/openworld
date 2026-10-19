@@ -24,6 +24,9 @@ export const greta: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'Rope, lamps, bread. People think a store is about what you sell. It is about what you remember they ran out of.', '绳子、灯、面包。人们以为开店是卖东西。其实是记住谁家缺了什么。'),
+    line('chat', 'The drovers used to bring news with the cattle. Now the news walks in on two legs, and wants a discount.', '从前赶牲口的人连消息一起带来。现在消息自己走进来，两条腿，还想要折扣。'),
     line('greeting:first', "Come in out of the wind. Lamps, rope, bread, a potion for the road — it is all on the shelves; the counter does the reckoning. And bring me herbs and hides, I pay fair.", '进来避避风。灯、绳子、面包、路上用的药水——都在架子上，到柜台结账。草药和皮子也拿来，我给公道价。', { once: true }),
     line('default', 'A torch before you go into the woods. Two, if you go to the barrow.', '进林子之前带支火把。要去古墓的话，带两支。'),
     line('default', 'Marta bakes, I sell. She says I sell it too cheap. I say she bakes it too well.', '玛尔塔烤，我卖。她说我卖得太便宜。我说是她烤得太好。'),

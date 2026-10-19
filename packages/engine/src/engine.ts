@@ -367,6 +367,12 @@ export class Engine {
     this.onDispatch?.(ev)
     const host = 'e' in ev.host ? w.get(ev.host.e) : undefined
     if ('e' in ev.host && (!host || host.place.on === 'none')) return { defined: false }
+    if ((ev.kind === 'impulse/strike' || ev.kind === 'impulse/element') && host && this.isProtected(host)) {
+      if (this.trace.length > 300) this.trace.shift()
+      this.trace.push({ ev, defined: true })
+      this.traced++
+      return { defined: true }
+    }
     // a thing on a dormant map receives it when the player comes (design.md §5.12); people and residents at once
     const at = w.posOf(host)
     // (an act is made by one who acts now — a companion following its leader off a map — and resolves at once)
@@ -605,6 +611,14 @@ export class Engine {
       w.fx.push({ t: 'say', who: actorId, text: '…' })
       return { defined: false }
     }
+    if (verb === 'take') {
+      const thing = w.get(target.e)
+      const holder = thing && this.protectedHolder(thing)
+      if (holder && holder.id !== actor.id) {
+        this.refuseProtection(actor.id)
+        return { defined: true }
+      }
+    }
     const ev = this.actEvent(verb, actorId, target, instrument, opts.params)
     // what the act is, before it is resolved (a thing taken from her chest is hers until it is taken)
     const before = this.before(ev)
@@ -837,11 +851,46 @@ export class Engine {
     return !!e.ai && !this.world.hasTag(e, 'fiery')
   }
 
+  /** Whether an entity matches this game's read-only protection selectors. */
+  isProtected(e: Entity | Ref): boolean {
+    const def = this.world.onto.data.protection
+    if (!def?.subjects.length) return false
+    const ref = 'e' in e ? e : { e: e.id }
+    const view = this.world.view(ref)
+    return !!view && def.subjects.some((sel) => matchSelector(sel, view))
+  }
+
+  /** The first protected person in the original holder chain of a carried thing. */
+  protectedHolder(e: Entity): Entity | undefined {
+    if (!this.world.onto.data.protection?.subjects.length) return undefined
+    let held: Entity | undefined = e
+    const seen = new Set<Id>()
+    while (held && !seen.has(held.id)) {
+      seen.add(held.id)
+      if (held.id !== e.id && this.isProtected(held)) return held
+      held = held.place.on === 'inside' || held.place.on === 'hand' ? this.world.get(held.place.holder) : undefined
+    }
+    return undefined
+  }
+
+  /** A held thing may leave a protected person's custody only through that person's own act. */
+  allowsProtectedTransfer(ev: GameEvent, from: Entity): boolean {
+    return ev.roles.actor?.e === from.id
+  }
+
+  /** Tell the player why an attempted act was refused, using the game's own wording. */
+  refuseProtection(actor?: Id): void {
+    if (actor !== this.world.state.player) return
+    const text = this.world.onto.data.protection?.refusal ?? { en: 'This person is protected.', zh: '此人受到保护。' }
+    this.world.fx.push({ t: 'say', who: actor, text })
+  }
+
   // ---------------------------------------------------------------- statuses, props, health
 
   /** A status taken on (from `by`, if someone gave it): its `clears` are lost, and a fresh one is a threshold/gain event. */
   applyStatus(ref: Ref, status: string, duration?: number, by?: Id): void {
     const w = this.world
+    if (w.onto.data.protection?.statuses?.includes(status) && this.isProtected(ref)) return
     const def = w.onto.status(status)
     // a status that wards this one off (fireproof against burning) keeps it from taking hold
     for (const held of Object.keys(w.statusesOf(ref) ?? {})) if (w.onto.status(held)?.wards?.includes(status)) return
@@ -864,6 +913,8 @@ export class Engine {
   setProp(e: Entity, key: string, value: PropValue, by?: GameEvent): void {
     const w = this.world
     const before = w.num(e, key, Number.NaN)
+    const currentHp = Number.isFinite(before) ? before : w.num(e, 'maxHp', Number.NaN)
+    if (key === 'hp' && typeof value === 'number' && Number.isFinite(currentHp) && value < currentHp && this.isProtected(e)) return
     w.setProp(e, key, value)
     if (typeof value !== 'number') return
     for (const t of w.onto.data.thresholds ?? []) {
@@ -896,6 +947,7 @@ export class Engine {
   /** The host loses health; its defence applies unless pierce. One who is down takes no more. */
   hurt(e: Entity, amount: number, element?: string, pierce?: boolean, by?: GameEvent, blow = false): void {
     const w = this.world
+    if (this.isProtected(e)) return
     if (w.hasStatus({ e: e.id }, 'down')) return
     // what is invulnerable takes no harm (a development switch any actor may carry: `invulnerable`)
     if (w.prop(e, 'invulnerable') === true) return
@@ -1503,6 +1555,11 @@ export class Engine {
       else if (onRay && last && d <= Math.abs(last.x - start.x) + Math.abs(last.y - start.y)) (target = chosen), (last = cp)
       else return true
     }
+    const victim = target && 'e' in target ? w.get(target.e) : undefined
+    if (victim && this.isProtected(victim)) {
+      this.refuseProtection(a.id)
+      return true
+    }
     const base = w.stat(a, 'atk', 1) + (weapon ? w.num(weapon, 'power', 0) : 0)
     if (!target) {
       this.combat.struck(a, undefined, { power: base }, 0, range, true)
@@ -1513,13 +1570,13 @@ export class Engine {
     if (range > 1 && last && (last.x !== start.x || last.y !== start.y)) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}${typeof missile === 'string' ? `:${missile}` : ''}`, map: start.map, x: start.x, y: start.y, who: a.id })
     else w.fx.push({ t: 'vfx', fx: `swing:${a.facing}`, map: start.map, x: start.x, y: start.y, who: a.id })
     // the attacker's talents shape the blow (combat.ts): its power, a critical; the act carries it
-    const victim = 'e' in target ? w.get(target.e) : undefined
     const before = victim ? w.num(victim, 'hp') : 0
     const strike = this.combat.strike(a, victim, base, range, weapon, true)
     this.act('use', a.id, target, { instrument: weapon ? { e: weapon.id } : null, params: { attack: true, ...strike.params, power: strike.power } })
     this.combat.struck(a, victim, strike, before, range, true)
     // what else the blow lands on (a sweep's sides): each its own blow, of its power alone
     for (const side of this.combat.besides(a, victim, range)) {
+      if (this.isProtected(side)) continue
       const sideHp = w.num(side, 'hp')
       const sideStrike = this.combat.strike(a, side, base, range, weapon, false)
       this.act('use', a.id, { e: side.id }, { instrument: weapon ? { e: weapon.id } : null, params: { attack: true, power: sideStrike.power } })

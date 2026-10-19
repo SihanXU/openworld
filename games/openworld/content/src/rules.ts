@@ -494,7 +494,7 @@ const PEOPLE: Rule[] = [
   rule({
     id: 'people/accept',
     label: L('Give {instrument} to {target}', '把{instrument}送给{target}'),
-    doc: 'A person handed a thing takes it: their own brought back, they let go what they held against the one who took it; a gift, they warm to the giver as its worth says, and say what they make of it (one put on them is theirs to wear).',
+    doc: 'A person handed a thing takes it: their own brought back, they let go what they held against the one who took it; a gift, they warm to the giver as its worth says — the kind they like best (their favourite, docs/npc-sandbox.md §2.15) delights them, +30 once a day — and say what they make of it (one put on them is theirs to wear).',
     host: PERSON,
     on: 'impulse/offered',
     tree: IF(
@@ -503,7 +503,16 @@ const PEOPLE: Rule[] = [
       IF(
         { owns: ['host', 'item'] },
         AS(L('Give {instrument} back to {target}', '把{instrument}还给{target}'), DO(taken('contents'), { op: 'settle' }, { op: 'regard', delta: 5 }, say('…Thank you for bringing it back.', '……谢谢你把它还回来。'), { op: 'news', kind: 'give' })),
-        DO(taken('contents'), { op: 'regard', delta: { prop: 'value', of: 'item', mul: 0.3, add: 2 } }, { op: 'say', text: '@given' }, { op: 'news', kind: 'give' }),
+        IF(
+          { favourite: { of: 'host' } },
+          IF(
+            not(has('host', 'cheered')),
+            DO(taken('contents'), add('cheered'), { op: 'regard', delta: 30 }, { op: 'say', text: '@given' }, { op: 'emote', mood: 'happy' }, { op: 'news', kind: 'give' }),
+            // the same again today: taken as any gift of its worth
+            DO(taken('contents'), { op: 'regard', delta: { prop: 'value', of: 'item', mul: 0.3, add: 2 } }, say('Again? …You are too kind. Thank you.', '又送？……你太客气了。谢谢。'), { op: 'news', kind: 'give' }),
+          ),
+          DO(taken('contents'), { op: 'regard', delta: { prop: 'value', of: 'item', mul: 0.3, add: 2 } }, { op: 'say', text: '@given' }, { op: 'news', kind: 'give' }),
+        ),
       ),
     ),
   }),

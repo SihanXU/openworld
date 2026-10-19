@@ -23,6 +23,9 @@ export const marta: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'Salt last, never first. Half the cooks in the world have it backwards.', '盐最后放，别一开始就放。世上一半的厨子都弄反了。'),
+    line('chat', 'Mia eats the crust and leaves the middle. Her father did the same. I never told her that.', '米娅只吃面包皮，不吃芯。她爸爸也这样。我从没告诉过她。'),
     // the news the story spreads (its topics), said once while fresh
     line('topic:dragon_slain', "A dragon! And you still come back for my stew. Sit. You have earned a second bowl.", "一条龙！你倒还记得回来喝我的汤。坐吧，你配得上第二碗。"),
     line('topic:crossed', "Across the river already? Eat first. The far bank has no kitchens.", "已经过河了？先吃饭。对岸可没有厨房。"),

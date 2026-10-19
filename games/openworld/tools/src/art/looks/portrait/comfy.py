@@ -2,7 +2,7 @@
 
 The art pipeline's only contact with the model: `edit(image, prompt, seed)` returns the edited picture,
 `draw(prompt, seed)` draws one from nothing. Models (see setup.md): the GGUF transformer, the fp8 Qwen2.5-VL
-text encoder, the VAE and the Lightning 8-step LoRA, in ComfyUI's models folders.
+text encoder, the VAE and the Lightning 4-step LoRA (8 with `LSW_QWEN_STEPS=8`), in ComfyUI's models folders.
 
     python -I comfy.py --draw "prompt" out.png
     python -I comfy.py --edit in.png "prompt" out.png
@@ -26,8 +26,11 @@ CLIP = "qwen_2.5_vl_7b_fp8_scaled.safetensors"
 VAE = "qwen_image_vae.safetensors"
 STEPS = int(os.environ.get("LSW_QWEN_STEPS", "4"))
 LORA = f"Qwen-Image-Edit-2511-Lightning-{STEPS}steps-V1.0-bf16.safetensors"
-# square, and the reference latent at the same size (comfy_node.py), so an edit keeps every pixel in its place
-SIZE = int(os.environ.get("LSW_QWEN_SIZE", "768"))
+# the full-body canvas (docs/looks.md §4), and the reference latent at the same size (comfy_node.py), so an edit
+# keeps every pixel in its place
+W = int(os.environ.get("LSW_QWEN_W", "768"))
+H = int(os.environ.get("LSW_QWEN_H", "1536"))
+NEGATIVE = "blurry, soft gradient shading, glossy, 3d render, photo, thick outline, chibi, big head, cropped, out of frame, text, watermark, shadow on the ground"
 
 
 def _post(path: str, body: bytes, ctype: str) -> dict:
@@ -75,13 +78,13 @@ def _graph(prompt: str, seed: int, image: str | None, negative: str) -> dict:
             g[k] = {"class_type": "TextEncodeQwenImageEditPlusSized", "inputs": {**g[k]["inputs"], "image1": ["6", 0]}}
         g["9"] = {"class_type": "VAEEncode", "inputs": {"pixels": ["6", 0], "vae": ["5", 0]}}
     else:
-        g["9"] = {"class_type": "EmptySD3LatentImage", "inputs": {"width": SIZE, "height": SIZE, "batch_size": 1}}
+        g["9"] = {"class_type": "EmptySD3LatentImage", "inputs": {"width": W, "height": H, "batch_size": 1}}
     return g
 
 
-def run(prompt: str, seed: int = 0, image: Image.Image | None = None, negative: str = "") -> Image.Image:
+def run(prompt: str, seed: int = 0, image: Image.Image | None = None, negative: str = NEGATIVE) -> Image.Image:
     """Queue one generation and wait for its picture."""
-    name = upload(image.resize((SIZE, SIZE), Image.LANCZOS) if image.size != (SIZE, SIZE) else image) if image is not None else None
+    name = upload(image.resize((W, H), Image.LANCZOS) if image.size != (W, H) else image) if image is not None else None
     client = uuid.uuid4().hex
     pid = _post("/prompt", json.dumps({"prompt": _graph(prompt, seed, name, negative), "client_id": client}).encode(), "application/json")["prompt_id"]
     t0 = time.time()

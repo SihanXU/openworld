@@ -22,6 +22,9 @@ export const tam: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'A mill is a slow clock. You learn to hear the hour by the wheel. Lately the hours are long.', '磨坊是一口慢钟。你学会从水轮听钟点。最近钟点变长了。'),
+    line('chat', 'Flour gets into everything. I have not had a black coat in twenty years.', '面粉无孔不入。我二十年没穿过一件黑外套了。'),
     line('greeting:first', 'Tam. I grind for Firstlight and press its lamp oil. Mind the brook, it bites in the cold.', '我叫塔姆。给初原村磨面、榨灯油。小心那条溪，天冷的时候它咬人。'),
     line('default', 'The wheel turns slower every week. The brook comes off the hills, and the hills get less sun. That is all it is.', '水车一周比一周转得慢。溪水是从山上下来的，山上晒的太阳越来越少。就这么回事。'),
     line('default', 'Something got into the cellar after dark. Slimes, and worse. The vigil oil is down there. I am not going down.', '天黑以后有东西钻进了地窖。史莱姆，还有更糟的。守夜用的灯油就在下面。我可不下去。'),

@@ -4,7 +4,8 @@
 
 import Phaser from 'phaser'
 import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type Look, type MapData, type Mood, type Ref, type Text } from '@openworld/engine'
-import { catalog, hasLooks } from '../game.ts'
+import { catalog, game, hasLooks } from '../game.ts'
+import { installWorldFilter, signalCamera } from './worldfilter.ts'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
 import { faceFrame, personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
@@ -49,7 +50,7 @@ interface EView {
   walker?: { x: number; y: number; t: number }
   /** A flyer (a companion): where it heads; it is drawn gliding there, not stepped tile by tile. */
   flyer?: { x: number; y: number; t: number }
-  actor?: { key: string; rows: number; cols: number; tint?: number; scale?: number }
+  actor?: { key: string; rows: number; cols: number; tint?: number; scale?: number; idleRow?: number }
   /** The dragon's parts round its head: wings on the head's container, body and tail trailing it in the world. */
   dragon?: { wings: Phaser.GameObjects.Image[]; segments: Phaser.GameObjects.Image[]; trail: { x: number; y: number }[] }
   /** A built thing's second picture: a wall block's top (one storey up), a raised floor's edge. */
@@ -199,6 +200,7 @@ export class WorldScene extends Phaser.Scene {
     this.fogR = this.add.rectangle(-4000, -4000, 8000, 8000, 0xd8e2ea, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(1e7 - 2)
     this.rainG = this.add.graphics().setScrollFactor(0).setDepth(1e7 - 1)
     this.flash = this.add.rectangle(-4000, -4000, 8000, 8000, 0xf4f8ff, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(1e7 + 1)
+    this.lookFilter()
     this.ready = true
     this.hooks.onReady?.()
     if (this.pending.map) this.setMap(this.pending.map)
@@ -476,7 +478,11 @@ export class WorldScene extends Phaser.Scene {
     this.findSeeThrough(f)
     this.drawCeilings()
     this.applyTiles(f)
-    this.bossWarnings ??= this.add.graphics().setDepth(-20)
+    if (!this.bossWarnings) {
+      this.bossWarnings = this.add.graphics().setDepth(-20)
+      // the cells a blow will fall on stay legible: drawn above the world filter
+      this.signals?.mark(this.bossWarnings)
+    }
     this.bossWarnings.clear()
     // a skill winding up (the kits module): its cells marked in the skill's colour, filling as it nears; a boss's in its
     // own manner (fainter, a spark in each cell), and its body never flashes
@@ -997,7 +1003,7 @@ export class WorldScene extends Phaser.Scene {
       if (a) {
         const { img, fw, fh } = actorFrames(this, a.key, a.def)
         const col = (e.boss && a.def.rows >= 5) || a.def.rows === 1 ? 0 : (DIR_COL[e.facing] ?? 0)
-        return { img, frame: `${a.key}:${col},0`, ax: fw / 2, ay: a.def.anchorY ?? fh, actor: { key: a.key, rows: a.def.rows, cols: a.def.cols, tint: a.def.tint, scale: a.def.scale } }
+        return { img, frame: `${a.key}:${col},${a.def.idleRow ?? 0}`, ax: fw / 2, ay: a.def.anchorY ?? fh, actor: { key: a.key, rows: a.def.rows, cols: a.def.cols, tint: a.def.tint, scale: a.def.scale, idleRow: a.def.idleRow } }
       }
     }
     // a thing set in its cell (a built wall, a laid floor) is drawn as part of the place; a fixture
@@ -1540,7 +1546,7 @@ export class WorldScene extends Phaser.Scene {
         const walkRows = Math.min(4, v.actor.rows)
         // working something out (an act the world is learning): busy hands in place, a little bob
         const working = e.frozen && !e.statuses.includes('down')
-        const row = moving ? Math.floor((time + v.phase) / 130) % walkRows : working ? Math.floor(time / 110) % walkRows : e.look || e.tags.includes('person') ? 0 : Math.floor((time + v.phase) / 260) % walkRows
+        const row = moving ? Math.floor((time + v.phase) / 130) % walkRows : working ? Math.floor(time / 110) % walkRows : e.look || e.tags.includes('person') ? (v.actor.idleRow ?? 0) : Math.floor((time + v.phase) / 260) % walkRows
         v.body.setFrame(`${v.actor.key}:${col},${row}`)
         v.body.y = working ? -Math.abs(Math.sin(time / 95)) * 1.5 : 0
       }
@@ -1636,6 +1642,25 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------- light & sound
+
+  /** The game's world filter (render/worldfilter.ts), as strong as the player chose, told each frame where the camera is and how dark the hour. */
+  private signals?: ReturnType<typeof signalCamera>
+  private lookFilter(): void {
+    const look = game().worldFilter
+    if (!look) return
+    const strength = prefs.filter()
+    const f = installWorldFilter(this, look, strength === 'light' ? look.light : look.full)
+    if (!f) return
+    this.signals = signalCamera(this, (cam) => {
+      const s = prefs.filter()
+      f.active = s !== 'off'
+      f.params = s === 'light' ? look.light : look.full
+      f.zoom = cam.zoom
+      f.view.x = cam.worldView.x
+      f.view.y = cam.worldView.y
+      f.dark = Math.min(1, this.darkness / 0.6)
+    })
+  }
 
   private updateNight(f: Frame): void {
     const light = this.base?.light ?? 'outdoor'

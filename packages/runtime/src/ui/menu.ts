@@ -7,7 +7,7 @@ import type { AiQuality, CodexEntry, CodexView, Frame, ItemInfo, Look, Plan, Rec
 import { splitStacks, stackKey } from '@openworld/engine'
 import { catalog, game, hasModule, itemIconSignature, ontology, professionById, type ShopDef } from '../game.ts'
 import { personLook } from '../assets/looks.ts'
-import { FH, FW, composeSprite } from '../assets/figure/sprite.ts'
+import { FH, FW, IDLE_ROW, composeSprite } from '../assets/figure/sprite.ts'
 import { artEpoch, assetUrl } from '../render/assets.ts'
 import { EQUIP_SLOT_FRAMES } from '../assets/types.ts'
 import type { LibraryView } from '../protocol.ts'
@@ -118,7 +118,10 @@ function paintCodex(root: HTMLElement): void {
     c.width = FW
     c.height = FH
     const img = new ImageData(FW, FH)
-    for (let y = 0; y < FH; y++) img.data.set(px.subarray(y * FW * 4 * 4, y * FW * 4 * 4 + FW * 4), y * FW * 4)
+    for (let y = 0; y < FH; y++) {
+      const from = (IDLE_ROW * FH + y) * FW * 4 * 4
+      img.data.set(px.subarray(from, from + FW * 4), y * FW * 4)
+    }
     c.getContext('2d')!.putImageData(img, 0, 0)
     c.classList.add('fig')
     el.replaceChildren(c)
@@ -752,6 +755,7 @@ export class Menu {
       <div class="opt"><span>${t('sound')}</span><button id="oSound">${this.muted ? t('off') : t('on')}</button></div>
       <div class="opt"><span>${t('optTracker')}</span><button id="oTracker">${prefs.get('tracker') ? t('on') : t('off')}</button></div>
       <div class="opt"><span>${t('optMarkers')}</span><button id="oMarkers">${prefs.get('markers') ? t('on') : t('off')}</button></div>
+      ${game().worldFilter ? `<div class="opt"><span>${t('optFilter')}</span><button id="oFilter">${t({ off: 'filterOff', light: 'filterLight', full: 'filterFull' }[prefs.filter()])}</button></div>` : ''}
       <div class="opt"><button id="oSave">${t('save')}</button><button id="oNew">${t('toTitle')}</button>${import.meta.env.DEV ? `<button id="oDev">${t('devConsole')}</button>` : ''}</div>
       ${this.ai.html()}
       <h4>${t('controls')}</h4>${controlsTable(import.meta.env.DEV)}
@@ -763,6 +767,11 @@ export class Menu {
     $('#oSound').onclick = () => (this.send.toggleSound(), (this.muted = !this.muted), this.render())
     $('#oTracker').onclick = () => (prefs.set('tracker', !prefs.get('tracker')), this.render())
     $('#oMarkers').onclick = () => (prefs.set('markers', !prefs.get('markers')), this.render())
+    document.querySelector<HTMLButtonElement>('#oFilter')?.addEventListener('click', () => {
+      const next = { off: 'light', light: 'full', full: 'off' } as const
+      prefs.setFilter(next[prefs.filter()])
+      this.render()
+    })
     $('#oSave').onclick = () => this.send.save()
     // back to the cover (saved first): new games and other slots start there
     $('#oNew').onclick = () => (this.close(), this.send.newGame())

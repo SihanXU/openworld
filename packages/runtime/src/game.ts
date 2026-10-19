@@ -85,6 +85,32 @@ export interface CoverDef {
   credit?: Text | false
 }
 
+/** How strong each part of the world filter is (0 none … 1 full; `hatch` scales the hatching in the dark). */
+export interface WorldFilterParams {
+  /** Desaturation, and how much further the yellow-greens go toward a sage. */
+  desat: number
+  sage: number
+  /** How far the colour is toned toward the duotone (the ink in the shadows, the paper in the lights). */
+  tone: number
+  /** Warmth: a touch of red and yellow, less blue. */
+  warm: number
+  /** The S-curve that keeps it crisp. */
+  contrast: number
+  /** How far the art's dark outlines become the ink. */
+  ink: number
+  paper: number
+  vignette: number
+  hatch: number
+}
+
+/** A game's world filter: its ink and its paper (the portraits' own), and the player's two strengths. */
+export interface WorldFilterDef {
+  ink: string
+  paper: string
+  light: WorldFilterParams
+  full: WorldFilterParams
+}
+
 export interface ClientGame extends GameDef {
   /** Extra tooltip lines supplied by the game, including the item's current state. Code belongs in its plugin. */
   describeItem?(item: ItemInfo): Text[]
@@ -100,6 +126,8 @@ export interface ClientGame extends GameDef {
   /** Where its saves and its learned library are kept in the browser (default: its id). */
   saves?: string
   cover?: CoverDef
+  /** The filter over the world (render/worldfilter.ts, docs/looks.md §8): the game's look; none, the art as it is. */
+  worldFilter?: WorldFilterDef
   /** A place made by seed rather than read from a map file (the wilderness); none: every map is a file. */
   wild?(w: World, id: string): MapChunk | undefined
   /** A save made before the world last changed, brought up to it on loading (as the author). */

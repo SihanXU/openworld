@@ -29,6 +29,9 @@ export const edda: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'I still wake at the hour the rooster used to crow. There is no rooster. I wake anyway.', '我还是在公鸡以前打鸣的那个钟点醒来。鸡没了。我照样醒。'),
+    line('chat', 'A house is just walls until you\'ve lost one. Then it is everything.', '房子只是几面墙，直到你失去过一座。然后它就是一切。'),
     // the news the story spreads (its topics), said once while fresh
     line('topic:crown', "The crown is in the village now. I went to look at it. Only thorns. I thought it would look like more.", "荆棘冠现在在村里了。我去看过。就是一圈荆棘。我还以为它会更像样些。"),
     line('greeting:first', 'Stay back! ...You\'re not one of them. Sorry. I don\'t see many living faces out here any more.', '别过来！……你不是那些东西。抱歉。这一带我很久没见过活人的脸了。'),

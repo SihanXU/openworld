@@ -1,0 +1,17 @@
+{
+  "short": {"down": 13, "left": 13, "up": 99},
+  "messy": {"down": 13, "left": 13, "up": 99},
+  "swept": {"down": 13, "left": 13, "up": 99},
+  "cropped": {"down": 13, "left": 13, "up": 99},
+  "thin": {"down": 13, "left": 13, "up": 99},
+  "tied": {"down": 13, "left": 13, "up": 99},
+  "bob": {"down": 13, "left": 13, "up": 99},
+  "long": {"down": 99, "left": "13@12", "up": 99},
+  "wavy": {"down": 99, "left": "13@12", "up": 99},
+  "braid": {"down": 99, "left": 99, "up": 99},
+  "bun": {"down": 13, "left": 13, "up": 99},
+  "ponytail": {"down": 13, "left": 13, "up": 99},
+  "pigtails": {"down": 99, "left": 99, "up": 99},
+  "tuft": {"down": 13, "left": 13, "up": 99},
+  "childbob": {"down": 13, "left": 13, "up": 99}
+}

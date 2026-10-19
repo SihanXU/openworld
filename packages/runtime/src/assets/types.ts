@@ -76,6 +76,8 @@ export interface ActorDef {
   rows: number
   /** Nonstandard action atlases may keep transparent space below their feet. */
   anchorY?: number
+  /** The row a person stands in when not walking (a figure's sheet: the walk's four rows, then this one); default 0. */
+  idleRow?: number
   /** World-space scale of the original pixel atlas, independent of camera zoom. */
   scale?: number
   /** Optional tint (0xRRGGBB) to recolour a monster for an element variant. */

@@ -1,6 +1,7 @@
-// The colours a look paints with (docs/looks.md §3): one colour per key, and from it the two ramps the two
-// pictures need — three tones for the map sprite's pixels, and a gradient for the portrait's shaded layers. Both
-// come from the same colour, so the hair on the map and in the portrait cannot disagree. Pure: Node and browser.
+// The colours a look paints with (docs/looks.md §3): one colour per key, and from it the ramps the two pictures
+// need — the map sprite's tones (an authored ramp moved onto it, or four steps of `shade`), and a gradient for the
+// portrait's shaded layers. Both come from the same colour, so the hair on the map and in the portrait cannot
+// disagree. Pure: Node and browser.
 
 import { game } from '../../game.ts'
 import { lookColor, type Look } from '@openworld/engine'
@@ -64,9 +65,17 @@ export function shade(rgb: RGB, step: number): RGB {
   return fromHsl(towards(h, 55, 8 * step), s * (1 - 0.06 * step), l + (1 - l) * 0.3 * step)
 }
 
-/** The map sprite's three tones: light, the colour, shadow. */
-export function ramp3(rgb: RGB): [RGB, RGB, RGB] {
-  return [shade(rgb, 1), rgb, shade(rgb, -1)]
+/**
+ * An authored tone moved onto another colour: its hue, saturation and lightness taken relative to the authored
+ * reference (the skin's mid tone, the eyes' bright one), so the reference becomes the key and the ramp keeps its
+ * steps — darker tones by ratio, lighter ones toward white — for a pale skin and a deep one alike.
+ */
+export function retone(tone: RGB, ref: RGB, key: RGB): RGB {
+  const [ht, st, lt] = toHsl(tone)
+  const [hr, sr, lr] = toHsl(ref)
+  const [hk, sk, lk] = toHsl(key)
+  const l = lt <= lr ? (lr ? lk * (lt / lr) : lk) : lk + (1 - lk) * ((lt - lr) / (1 - lr || 1))
+  return fromHsl(hk + (ht - hr), sr ? sk * (st / sr) : st, l)
 }
 
 /**

@@ -68,7 +68,7 @@ watch 0.5, anyone else 0.25; heard second-hand, half again.
 - `deeds`: what they know — the deed, by whom (an id, or the description), against whom, where, when,
   first-hand or heard, settled or not.
 - `regard`: per pair (−100..100), starting at 0, or 30 toward kin and household. Talking (+2, once a day), gifts
-  (value × 0.3 + 2), things given back (+5, +8 by the talk), persuasion (+10), a bribe (+12) raise it, gains
+  (value × 0.3 + 2; the kind they like best +30, once a day: §2.15), things given back (+5, +8 by the talk), a bribe (+12) raise it, gains
   harder as it rises (×100/(100+2r), Elin); deeds lower it in full. It fades back toward its start, a grudge
   faster than a liking: a grudge a tenth of the way a day (`fade` 0.1), a liking a hundredth (`fadeUp` 0.01,
   since 2026-10-12: a friend made stays one). It names a word in the talk panel (hostile ≤ −60, cold ≤ −20,
@@ -76,7 +76,7 @@ watch 0.5, anyone else 0.25; heard second-hand, half again.
   every ten, a half for five; the number on hover). It moves prices, persuasion, whether one follows (≥ 25),
   and, at full regard, whether one may be asked to come and live in the Held Ground (§2.14).
 - `met`: whom they know by sight (talked to, or a face learnt close).
-- `afraid`: whom they fear and until when (an intimidation that worked, a cry for help they did not answer).
+- `afraid`: whom they fear and until when (a robbery they gave in to, a cry for help they did not answer).
 
 ### 2.5 Gossip
 Every 150 ticks (15 game minutes), on the active map, of two people awake within 3 cells, the one with a fresh
@@ -123,11 +123,33 @@ Lines name who did what ("Did you hear? Vigo picked Marta's pocket (bread).").
 E speaks to a person (a quest they have, else their line) and opens the panel of verbs that fit (content
 `TALK`, each with a condition): **ask** (news: what they know, "I know what you did"), **trade** (a merchant),
 **profession** (the trainer), **giveback** and **apologise** (for what they hold against you), **turnin** (a
-guard, when wanted), **follow / wait / come / dismiss**, **persuade** (once a day), **bribe** (10 coin),
-**intimidate** (levels, a drawn blade, the other's bravery, fear), **invite** (at full regard: §2.14), goodbye. Each is an act on them (`hands` with
-`say`), answered by `people/talk` (merchants' and guards' rules over it); a word no rule knows is a hole (the
-AI's). The panel names their regard (a word and ten hearts), a grudge in red, and the bounty here. Number keys
-choose.
+guard, when wanted), **follow / wait / come / dismiss**, **bribe** (10 coin), **rob** (no roll: the robber's
+might — level, attack and weapon, defence, body; one who fights counts half again — must be `robEdge` (2) times
+the victim's: overwhelmed, they hand over half their coin and their two dearest things (`plunder`) and fear the
+robber, regard −40; not, they beat the robber down to one point of health (`beaten`), regard −60; once a day to
+each, the `robbed` status), **steal** (a roll of the thief's nimbleness — stealth, dodge, haste, levels, sneaking
+— against the victim's perception: unnoticed, a third of their coin and their dearest thing, no word said; caught,
+beaten to half one's health, regard −40; once a day to each, `pilfered`), **unbelief** (words against the gods, §2.13),
+**invite** (at full regard: §2.14), goodbye. A **child** (under eighteen) is protected by an explicit `minor` tag
+or by a recorded age from 0 through 17. The age check also covers older saves whose people
+have an age but lack the derived tag; a person with no age needs the explicit tag, and an 18-year-old without an
+explicit `minor` tag is grown. An explicit tag remains protective at any age. The `rob`, `steal` and `unbelief`
+verbs are not offered to them, and direct calls to those verbs (including the old `intimidate` word) receive an
+explicit refusal.
+(Persuading and intimidating people were talk verbs until 2026-10-18; persuading
+remains the guard's, when they have stopped one the watch wants, §2.7, and the roll an apology is.) Each is an act
+on them (`hands` with `say`), answered by `people/talk` (merchants' and guards' rules over it); a word no rule
+knows is a hole (the AI's). The panel names their regard (a word and ten hearts), a grudge in red, and the bounty
+here. Number keys choose.
+
+The OpenWorld ontology also declares these subjects to the engine's optional `protection` policy. Its selectors
+protect against direct and combat/elemental health loss, configured harmful or immobilising statuses, fear/foe
+outcomes, robbery and beating, death or destruction, and jail outcomes. The same policy checks the original holder
+chain before a `take` or move can remove an item from a protected person's carried belongings. A person's own act
+may move their belongings, and ordinary gifts, merchant purchases and sales, completed quest hand-ins, rewards,
+and taking an item already on the ground keep their usual behavior. This is a data-driven engine seam: games without
+the policy retain their existing behavior. It covers these engine and content entry points, not every bespoke
+story effect a game author could write around them.
 
 ### 2.10 Hands in pockets, and trade
 - F on a person **while sneaking** (`people/pockets` on `impulse/taken`) opens their **pockets**: each take is an
@@ -172,13 +194,32 @@ the map, the bed, its days there — asleep at the bed 21–7, about it 7–21 �
 variants: `people.ts`), makes the ground its home, says yes, and travels there at once; with none free it says
 so. Its trade goes on as before. Tests: `tools/test/residence.test.ts`.
 
+### 2.15 Chats and gifts
+- Every person **likes one kind of thing best** (their `favourite` prop, an item type): the record may pin it
+  (`PersonDef.favourite`), else it is drawn from their id (content `gifts.ts`: `GIFT_POOL`, a child's from
+  `CHILD_GIFT_POOL`) — the same person, the same favourite, in every game.
+- The talk's **chat** verb (`say @chat`, `chooseLine` with `chat`) says one of their `chat` lines — every record has
+  two or more, in their own voice — or, until the one at the keys has heard it, the line that tells what they like
+  best: their own `favourite` line (the slot `{favourite}`), else the world's `FAVOURITE_LINE`. Saying it is theirs
+  to remember (`NpcMemory.toldFavourite`).
+- The talk's **gift** verb opens the **gift panel** (`panel: 'gift'`; the view `giftView`, `Frame.gift`): their
+  regard as hearts, a card for what they like best — a riddle until they have said it, then named and drawn —, and
+  the bag as cards, the warmest first, each with how warmly it would be taken (`Social.giftWarmth`: a trifle under
+  5 in worth, a kindness under 20, a treasure, and a star for the favourite once known). Giving is the input
+  `controls.gift` — an act of putting, answered by `people/accept` as G's hand-over always was.
+- `people/accept`: the favourite (`{favourite: {of: 'host'}}`) delights them — regard +30, the `cheered` status for
+  the day, their `given:favourite` line or the world's `FAVOURITE_GIVEN_LINE` — once a day; after that, and for
+  anything else, value × 0.3 + 2 and their `given` line.
+
 ## 3. Where it lives
 - engine: `social.ts` (`Social`: ownership, households, deeds, recognition, descriptions, memory, regard, gossip,
   perception, the law, prices, the talk panel's view); `conduct.ts` (`Conduct`: the goals `social` — the guard's
   pursuit, the owner's demand, fear, calming —, `need`, `follow` for people, `bringFollowers`); primitives in
   `effects.ts` (`own`, `witness`, `tell`, `hear`, `regard`, `settle`, `fear`, `report`, `charge`, `surrender`,
-  `die`, `pay`, `give`, `sell`, `buy`, `follow`, `talk`, `fine`, `imprison`, `jail`, `arrest`, `restock`,
-  `calm`, `moveIn`); conditions (`rules.ts`) `regard`, `bounty`, `grudge`, `owns`, `knows`, `remembers`, `deed`, `sway`,
+  `die`, `pay`, `give`, `plunder`, `beaten`, `sell`, `buy`, `follow`, `talk`, `fine`, `imprison`, `jail`, `arrest`, `restock`,
+  `calm`, `moveIn`); conditions (`rules.ts`) `regard`, `bounty`, `grudge`, `owns`, `knows`, `remembers`, `deed`, `sway`
+  (persuade, intimidate, rob, steal: `Social.might`, `Social.nimbleness`), `favourite` (`Social.isFavourite`; the gift panel's
+  view `views.ts` `giftView`),
   `canPay`, `unpardonable`; `see` with sneaking and the deed's facts (`engine.ts`); the inputs X and V and the
   talk, trade and pocket verbs (`controls.ts`).
 - content: `social.ts` (deeds, laws, numbers, statuses, the watch and remains types, talk verbs, the people's

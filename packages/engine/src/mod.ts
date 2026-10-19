@@ -241,7 +241,7 @@ const IMPULSES: Record<string, string> = {
   taken: 'the host (a thing) is being taken: other = the taker (or receiver); param into (hand | contents | tile). Its root moves it there.',
   receive: 'something is put on or into the host: item = the thing. The host decides: take it (emit taken to the item with into) or refuse.',
   offered: 'the host (an actor) is handed a thing: item = the thing; accept (emit taken with into contents) or decline.',
-  handle: 'a bare hand on the host: open, read, talk, push, shake — the host says; param say (a talk verb: ask, trade, follow, persuade, bribe, intimidate, apologise, pay, jail, resist, buy with param item …) when one speaks to it, and a say no rule knows is the host\'s to answer',
+  handle: 'a bare hand on the host: open, read, talk, push, shake — the host says; param say (a talk verb: ask, chat, gift, trade, follow, bribe, rob, steal, unbelief, apologise, pay, jail, persuade, resist, buy with param item …) when one speaks to it, and a say no rule knows is the host\'s to answer',
   notify: 'news for the host: params what (a key) and value — a topic for the story, the player\'s stage, a defeat for the one who struck; for people: pay (amount, to the source), give (the item, to the source), surrender, jail (map, x, y, hours), news (deeds), chat, calm; for a watch: report (actor, amount, key), pardon.',
 }
 
@@ -1223,9 +1223,10 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('owns' in c) return c.owns.forEach((r, i) => role(r, `${where}.owns[${i}]`))
     if ('knows' in c) return c.knows.forEach((r, i) => role(r, `${where}.knows[${i}]`))
     if ('remembers' in c) return role(c.remembers, `${where}.remembers`)
-    if ('sway' in c) return (role(c.sway.of, `${where}.sway.of`), role(c.sway.by, `${where}.sway.by`), c.sway.how !== 'persuade' && c.sway.how !== 'intimidate' ? void errors.push(`${where}.sway.how must be persuade|intimidate`) : undefined)
+    if ('sway' in c) return (role(c.sway.of, `${where}.sway.of`), role(c.sway.by, `${where}.sway.by`), !['persuade', 'intimidate', 'rob', 'steal'].includes(c.sway.how) ? void errors.push(`${where}.sway.how must be persuade|intimidate|rob|steal`) : undefined)
     if ('bounty' in c) return role(c.bounty.role, `${where}.bounty.role`)
     if ('canPay' in c) return role(c.canPay.role, `${where}.canPay.role`)
+    if ('favourite' in c) return (role(c.favourite.of, `${where}.favourite.of`), c.favourite.item !== undefined ? role(c.favourite.item, `${where}.favourite.item`) : undefined)
     if ('unpardonable' in c) return role(c.unpardonable, `${where}.unpardonable`)
     if ('deed' in c) return c.deed === true || ctx.ontology.deeds?.some((d) => d.id === c.deed) ? undefined : void errors.push(`${where}: unknown deed "${String(c.deed)}"`)
     if ('same' in c) return c.same.forEach((r, i) => role(r, `${where}.same[${i}]`))

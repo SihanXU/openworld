@@ -113,6 +113,9 @@ export type ToWorker =
   /** A person's pockets: a thing taken from them, or one slipped in; the panel closed. */
   | { t: 'pocket'; item: string; take: boolean }
   | { t: 'closePockets' }
+  /** The gift panel (docs/npc-sandbox.md §2.15): a thing of one's own handed to the person it is open with. */
+  | { t: 'gift'; item: string }
+  | { t: 'closeGift' }
   /** Time stops while a menu, a dialogue or a question is open. */
   | { t: 'pause'; on: boolean }
   /** The player changed the AI setting (the options' AI section): it holds from the next event. */

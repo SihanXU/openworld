@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, TICKS_PER_HOUR, buildRequest, tickAt, type Engine, type Entity, type FxEvent, type Look } from '@openworld/engine'
-import { bountyKey, lawId, socialOf } from '@openworld/modules'
+import { bountyKey, giftView, lawId, socialOf } from '@openworld/modules'
 import { BASE_RULES, STORY_RULES, SOCIAL_COIN, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
@@ -363,7 +363,9 @@ describe('talk, regard, trade, followers (§2.4, §2.9, §2.10)', () => {
     expect(socialOf(s.eng).regard(get(s, 'npc.cass'), 'player')).toBe(r1)
     expect(socialOf(s.eng).knows(get(s, 'npc.cass'), 'player')).toBe(true)
     const verbs = socialOf(s.eng).verbs(get(s, 'npc.cass'), P(s)).map((v) => v.id)
-    expect(verbs).toEqual(expect.arrayContaining(['ask', 'follow', 'persuade', 'intimidate']))
+    expect(verbs).toEqual(expect.arrayContaining(['ask', 'follow', 'rob', 'steal', 'unbelief']))
+    expect(verbs).not.toContain('persuade')
+    expect(verbs).not.toContain('intimidate')
     // (everyone sells something that fits who they are: the weaver her cloth)
     expect(verbs).toContain('trade')
     s.eng.controls.talk('npc.cass', 'ask')
@@ -477,22 +479,186 @@ describe('talk, regard, trade, followers (§2.4, §2.9, §2.10)', () => {
     expect(W(s).prop(get(s, 'npc.vigo'), 'follow')).toBeUndefined()
   })
 
-  it('intimidated, a witness lets it go (and will not tell the watch)', () => {
+  it('a robbery: overwhelmed (twice her might), she hands over half her coin and her two dearest things, fears the robber and thinks far less of them; not today again', () => {
     const s = fresh()
     clear(s, ['npc.cass'])
     put(s, 'npc.cass', 20, 14, 'down')
     put(s, 'player', 20, 15, 'up')
-    const cup = make(s, 'item/vessel/cup', { on: 'tile', map: MAP, x: 21, y: 15 }, { owner: 'npc.joss' })
-    take(s, cup.id)
-    expect(deeds(s, 'npc.cass')[0].by).toBe('player')
-    // a strong traveller with a blade out cows her (the roll: levels, arms)
+    const so = socialOf(s.eng)
+    const cass = get(s, 'npc.cass')
+    const coin0 = purse(s, 'npc.cass')
+    const held0 = (cass.contents ?? []).length
+    const r0 = so.regard(cass, 'player')
+    // a strong traveller (might: level, attack and weapon, defence, body) against a villager
+    author(s, () => W(s).setProp(P(s), 'level', 6))
+    expect(so.might(P(s))).toBeGreaterThanOrEqual(so.might(cass) * 2)
+    s.eng.controls.talk('npc.cass', 'rob')
+    expect(purse(s, 'npc.cass')).toBe(coin0 - Math.ceil(coin0 / 2))
+    expect(purse(s, 'player')).toBe(Math.ceil(coin0 / 2))
+    // two things beside the coin, hers no more
+    expect((cass.contents ?? []).length).toBe(held0 - Math.ceil(coin0 / 2) - 2)
+    const loot = (P(s).contents ?? []).map((id) => get(s, id)).filter((e) => !so.isCoin(e))
+    expect(loot.length).toBe(2)
+    for (const it of loot) expect(W(s).prop(it, 'owner')).toBe('player')
+    expect(so.fears(cass, 'player')).toBe(true)
+    expect(so.regard(cass, 'player')).toBeLessThanOrEqual(r0 - 40)
+    expect(W(s).hasStatus({ e: 'npc.cass' }, 'robbed')).toBe(true)
+    expect(so.verbs(cass, P(s)).map((v) => v.id)).not.toContain('rob')
+    // the traveller is whole
+    expect(W(s).num(P(s), 'hp')).toBe(W(s).num(P(s), 'maxHp'))
+  })
+
+  it('a robbery that fails: the robber is beaten down to one point of health, and thought far less of', () => {
+    const s = fresh()
+    clear(s, ['npc.cass'])
+    put(s, 'npc.cass', 20, 14, 'down')
+    put(s, 'player', 20, 15, 'up')
+    const so = socialOf(s.eng)
+    const cass = get(s, 'npc.cass')
+    const coin0 = purse(s, 'npc.cass')
+    const r0 = so.regard(cass, 'player')
+    expect(so.might(P(s))).toBeLessThan(so.might(cass) * 2)
+    s.eng.controls.talk('npc.cass', 'rob')
+    expect(W(s).num(P(s), 'hp')).toBe(1)
+    expect(purse(s, 'npc.cass')).toBe(coin0)
+    expect(purse(s, 'player')).toBe(0)
+    expect(so.regard(cass, 'player')).toBeLessThanOrEqual(r0 - 60)
+    expect(fxOf(s).some((f) => f.t === 'log' && typeof f.text === 'object' && f.text.en === 'You are beaten.')).toBe(true)
+    // nobody dies of a lesson: the traveller stands
+    expect(W(s).hasStatus({ e: 'player' }, 'down')).toBe(false)
+  })
+
+  it('a hand in the pocket: a nimble thief takes a third of the coin and the dearest thing unnoticed; a clumsy one is beaten to half their health', () => {
+    const s = fresh()
+    clear(s, ['npc.cass'])
+    put(s, 'npc.cass', 20, 14, 'down')
+    put(s, 'player', 20, 15, 'up')
+    const so = socialOf(s.eng)
+    const cass = get(s, 'npc.cass')
+    const coin0 = purse(s, 'npc.cass')
+    const r0 = so.regard(cass, 'player')
+    // nimble (stealth, dodge, haste, levels): the roll all but sure
+    author(s, () => W(s).setProp(P(s), 'stealth', 200))
+    s.eng.controls.talk('npc.cass', 'steal')
+    expect(purse(s, 'player')).toBe(Math.ceil(coin0 * 0.34))
+    expect((P(s).contents ?? []).map((id) => get(s, id)).filter((e) => !so.isCoin(e)).length).toBe(1)
+    // she noticed nothing: no word, no grudge
+    expect(so.regard(cass, 'player')).toBe(r0)
+    expect(fxOf(s).some((f) => f.t === 'say' && f.who === 'npc.cass')).toBe(false)
+    expect(W(s).hasStatus({ e: 'npc.cass' }, 'pilfered')).toBe(true)
+    expect(so.verbs(cass, P(s)).map((v) => v.id)).not.toContain('steal')
+    // the next day, against one who sees everything: caught, beaten to half, and thought far less of
+    author(s, () => {
+      W(s).clearStatus({ e: 'npc.cass' }, 'pilfered')
+      W(s).setProp(P(s), 'stealth', 0)
+      W(s).setProp(cass, 'perception', 200)
+    })
+    const hp0 = W(s).num(P(s), 'hp')
+    s.eng.controls.talk('npc.cass', 'steal')
+    expect(W(s).num(P(s), 'hp')).toBe(Math.floor(hp0 / 2))
+    expect(so.regard(cass, 'player')).toBeLessThanOrEqual(r0 - 40)
+    expect(fxOf(s).some((f) => f.t === 'say' && f.who === 'npc.cass')).toBe(true)
+  })
+
+  it('a chat: three things or more to say, one of them what they like best — said once, then known to the gift panel', () => {
+    const s = fresh()
+    clear(s, ['npc.cass'])
+    put(s, 'npc.cass', 20, 14, 'down')
+    put(s, 'player', 20, 15, 'up')
+    const so = socialOf(s.eng)
+    const cass = get(s, 'npc.cass')
+    const fav = so.favourite(cass)!
+    expect(W(s).onto.hasType(fav)).toBe(true)
+    expect(so.verbs(cass, P(s)).map((v) => v.id)).toEqual(expect.arrayContaining(['chat', 'gift']))
+    // the gift panel before: a riddle
+    expect(so.toldFavourite(cass, 'player')).toBe(false)
+    expect(giftView(s.eng, cass)).toMatchObject({ who: 'npc.cass', told: false })
+    expect(giftView(s.eng, cass).favourite).toBeUndefined()
+    const said = new Set<string>()
+    for (let i = 0; i < 40; i++) {
+      s.eng.controls.talk('npc.cass', 'chat')
+      const last = fxOf(s).filter((f): f is Extract<FxEvent, { t: 'say' }> => f.t === 'say' && f.who === 'npc.cass').pop()!
+      said.add(typeof last.text === 'string' ? last.text : last.text.en)
+    }
+    expect(said.size).toBeGreaterThanOrEqual(3)
+    // what she likes best was among them, by name, and she remembers having said it
+    const name = W(s).onto.resolve(fav).name
+    const favName = typeof name === 'string' ? name : name!.en
+    expect([...said].some((t) => t.includes(favName))).toBe(true)
+    expect(so.toldFavourite(cass, 'player')).toBe(true)
+    // the gift panel after: her favourite named, drawn by its kind
+    const view = giftView(s.eng, cass)
+    expect(view.told).toBe(true)
+    expect(view.favourite).toMatchObject({ type: fav })
+  })
+
+  it('a gift from the panel: the thing they like best delights them (+30, once a day), the rest by its worth; the bag is shown the warmest first', () => {
+    const s = fresh()
+    clear(s, ['npc.cass'])
+    put(s, 'npc.cass', 20, 14, 'down')
+    put(s, 'player', 20, 15, 'up')
+    const so = socialOf(s.eng)
+    const cass = get(s, 'npc.cass')
+    const fav = so.favourite(cass)!
+    author(s, () => cass.npc!.memory = { ...(cass.npc!.memory ?? {}), toldFavourite: ['player'] })
+    const a = make(s, fav, { on: 'inside', holder: 'player' })
+    const b = make(s, fav, { on: 'inside', holder: 'player' })
+    const stick = make(s, 'item/material/stick', { on: 'inside', holder: 'player' })
+    const view = giftView(s.eng, cass)
+    expect(view.items[0]).toMatchObject({ warmth: 4, favourite: true, count: 2 })
+    expect(view.items.find((i) => i.id === stick.id)!.warmth).toBeLessThan(4)
+    const r0 = so.regard(cass, 'player')
+    s.eng.controls.gift('npc.cass', a.id)
+    expect(a.place).toEqual({ on: 'inside', holder: 'npc.cass' })
+    expect(W(s).hasStatus({ e: 'npc.cass' }, 'cheered')).toBe(true)
+    const r1 = so.regard(cass, 'player')
+    // +30 (harder as regard rises: at least the plain gift's worth and well over it)
+    expect(r1 - r0).toBeGreaterThanOrEqual(20)
+    expect(fxOf(s).some((f) => f.t === 'say' && f.who === 'npc.cass')).toBe(true)
+    expect(giftView(s.eng, cass).cheered).toBe(true)
+    // the second today: as any gift of its worth
+    s.eng.controls.gift('npc.cass', b.id)
+    expect(b.place).toEqual({ on: 'inside', holder: 'npc.cass' })
+    expect(so.regard(cass, 'player') - r1).toBeLessThan(10)
+    // a stick: a trifle, taken as any gift
+    s.eng.controls.gift('npc.cass', stick.id)
+    expect(stick.place).toEqual({ on: 'inside', holder: 'npc.cass' })
+    expect(so.regard(cass, 'player')).toBeGreaterThan(r1)
+  })
+
+  it('every person has a favourite of a kind the world holds and at least two chat lines of their own (three things to say with it)', () => {
+    const { index } = buildFord()
+    const people = index.npcs.filter((n) => n.npc?.person)
+    expect(people.length).toBeGreaterThan(30)
+    const w = W(fresh())
+    for (const n of people) {
+      const fav = n.props?.favourite
+      expect(typeof fav === 'string' && w.onto.hasType(fav), `${n.id}: favourite ${String(fav)}`).toBe(true)
+      expect((n.npc!.person!.lines ?? []).filter((l) => l.key === 'chat').length, `${n.id}: chat lines`).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('a child (under eighteen: the minor tag) is never robbed, stolen from or preached unbelief', () => {
+    const s = fresh()
+    clear(s, ['npc.mia'])
+    put(s, 'npc.mia', 20, 14, 'down')
+    put(s, 'player', 20, 15, 'up')
+    const so = socialOf(s.eng)
+    const mia = get(s, 'npc.mia')
+    expect(W(s).num(mia, 'age')).toBeLessThan(18)
+    expect(W(s).hasTag(mia, 'minor')).toBe(true)
+    const verbs = so.verbs(mia, P(s)).map((v) => v.id)
+    expect(verbs).not.toContain('rob')
+    expect(verbs).not.toContain('steal')
+    expect(verbs).not.toContain('unbelief')
+    // said anyway (no verb offered): nothing comes of it
+    const coin0 = purse(s, 'npc.mia')
     author(s, () => W(s).setProp(P(s), 'level', 12))
-    s.eng.controls.toggle('drawn', true)
-    s.eng.controls.talk('npc.cass', 'intimidate')
-    expect(socialOf(s.eng).fears(get(s, 'npc.cass'), 'player')).toBe(true)
-    expect(deeds(s, 'npc.cass')[0].settled).toBe(true)
-    ticks(s, 400)
-    expect(bounty(s)).toBe(0)
+    s.eng.controls.talk('npc.mia', 'rob')
+    expect(purse(s, 'npc.mia')).toBe(coin0)
+    expect(W(s).num(P(s), 'hp')).toBe(W(s).num(P(s), 'maxHp'))
+    // a grown villager carries no such tag
+    expect(W(s).hasTag(get(s, 'npc.cass'), 'minor')).toBe(false)
   })
 
   it('the modder sees a person: their role, ties, what they think of the one who acted and what they know of them', () => {

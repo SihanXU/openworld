@@ -101,7 +101,7 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
     }
     case 'fear': {
       const of = role(eff.of, actor)
-      if (host?.npc && of) s.frighten(host, of.id)
+      if (host?.npc && !eng.isProtected(host) && of) s.frighten(host, of.id)
       return
     }
     case 'report': {
@@ -142,7 +142,7 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
       if (host) giveBack(fx, host, ev.roles.source ? w.get(ev.roles.source.e) : undefined)
       return
     case 'die': {
-      if (!host?.npc || w.hasTag(host, 'essential')) return
+      if (!host?.npc || eng.isProtected(host) || w.hasTag(host, 'essential')) return
       const into = w.prop(host, 'bodyType')
       if (typeof into !== 'string' || !w.onto.hasType(into)) throw new Error(`${host.id} has no body to become (bodyType)`)
       const name = (l: 'en' | 'zh') => eng.nameOf({ e: host.id }, l)
@@ -176,6 +176,39 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
       if (!host || !to || !item || item.id === host.id || to.id === host.id) return
       if (!((item.place.on === 'inside' || item.place.on === 'hand') && item.place.holder === host.id)) return
       handOver(fx, host, item, to)
+      return
+    }
+    case 'plunder': {
+      // robbed: a share of its coin, and some of what its bag holds (not what it wears or has in hand), to the robber
+      const to = role(eff.to, actor)
+      if (!host || eng.isProtected(host) || !to || to.id === host.id) return
+      const share = Math.max(0, Math.min(1, eff.coins ?? 0))
+      const paid = share > 0 ? payCoins(fx, host, to, Math.ceil(s.purse(host) * share)) : 0
+      const worn = new Set(Object.entries(host.props ?? {}).filter(([k]) => k.startsWith('wear:')).map(([, v]) => v))
+      const loose = (host.contents ?? [])
+        .map((id) => w.get(id))
+        .filter((it): it is Entity => !!it && !it.frozenBy && !s.isCoin(it) && !worn.has(it.id) && w.hasTag(it, 'portable') && !w.hasTag(it, 'bound'))
+      // the dearest first: what a robber takes
+      loose.sort((a, b) => s.value(b) - s.value(a))
+      const taken = loose.slice(0, Math.max(0, Math.floor(eff.items ?? 0)))
+      for (const it of taken) handOver(fx, host, it, to)
+      if (to.id === w.state.player && (paid || taken.length)) {
+        const names = taken.map((it) => ({ en: eng.nameOf({ e: it.id }, 'en'), zh: eng.nameOf({ e: it.id }, 'zh') }))
+        const list = (l: 'en' | 'zh') => [...(paid ? [l === 'en' ? `${paid} coin` : `${paid} 枚钱币`] : []), ...names.map((n) => n[l])].join(l === 'en' ? ', ' : '、')
+        w.fx.push({ t: 'log', text: { en: `You take ${list('en')}.`, zh: `你拿走了${list('zh')}。` } })
+      }
+      return
+    }
+    case 'beaten': {
+      // a beating: its health falls to what is left it — never below one, never up; past defence and talents
+      if (!host || eng.isProtected(host) || w.prop(host, 'maxHp') === undefined) return
+      const hp = w.num(host, 'hp', w.num(host, 'maxHp', 1))
+      let left = eff.share !== undefined ? Math.floor(hp * fx.amount(ev, eff.share)) : eff.left !== undefined ? Math.round(fx.amount(ev, eff.left)) : hp
+      left = Math.max(1, Math.min(hp, left))
+      if (left >= hp) return
+      eng.setProp(host, 'hp', left, ev)
+      w.fx.push({ t: 'damage', who: host.id, amount: hp - left })
+      if (host.id === w.state.player) w.fx.push({ t: 'log', text: { en: 'You are beaten.', zh: '你被打了一顿。' }, tone: 'warn' })
       return
     }
     case 'sell': {
@@ -234,6 +267,7 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
       return
     }
     case 'imprison': {
+      if (actor && eng.isProtected(actor)) return
       const law = s.lawHere(host)
       const bounty = law && actor ? s.bounty(law.id, actor.id) : 0
       const jail = s.jailOf(law) ?? w.posOf(host)
@@ -246,11 +280,12 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
     }
     case 'jail': {
       const p = ev.params
-      if (!host || typeof p?.map !== 'string' || typeof p.x !== 'number' || typeof p.y !== 'number') return
+      if (!host || eng.isProtected(host) || typeof p?.map !== 'string' || typeof p.x !== 'number' || typeof p.y !== 'number') return
       toJail(fx, host, ev, { map: p.map, x: p.x, y: p.y }, typeof p.hours === 'number' ? p.hours : 1)
       return
     }
     case 'arrest': {
+      if (host && eng.isProtected(host)) return
       const law = s.lawHere(actor)
       const bounty = law && host ? s.bounty(law.id, host.id) : 0
       if (!host || !actor || !law || bounty <= 0 || w.prop(actor, 'watch') !== law.id) return

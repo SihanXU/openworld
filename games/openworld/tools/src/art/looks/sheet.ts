@@ -7,19 +7,19 @@
 import '../../../../client/src/register.ts'
 import { readFileSync, writeFileSync } from 'node:fs'
 import type { Look } from '@openworld/engine'
-import { FH, FW, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'
+import { FH, FW, ROWS, composeSprite } from '@openworld/runtime/src/assets/figure/sprite.ts'
 import { png } from '../png.ts'
 
 export function spriteSheet(looks: Look[], scale = 6): { w: number; h: number; rgba: Uint8Array } {
   const cw = FW * 4 * scale + 12
-  const ch = FH * 4 * scale + 12
+  const ch = FH * ROWS * scale + 12
   const w = cw * looks.length + 12
   const h = ch + 12
   const rgba = new Uint8Array(w * h * 4)
   for (let i = 0; i < w * h; i++) rgba.set([86, 120, 76, 255], i * 4)
   looks.forEach((look, n) => {
     const s = composeSprite(look)
-    for (let y = 0; y < FH * 4; y++)
+    for (let y = 0; y < FH * ROWS; y++)
       for (let x = 0; x < FW * 4; x++) {
         const k = (y * FW * 4 + x) * 4
         if (!s[k + 3]) continue

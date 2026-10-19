@@ -25,6 +25,9 @@ export const orrin: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'A kiln is like a sleeping dog. Leave it be, and check it every hour anyway.', '炭窑像一条睡着的狗。别去打扰它，但每个钟头还是要看一眼。'),
+    line('chat', 'Forty years of smoke. My wife said I smelt of autumn. She was being kind.', '四十年的烟。我妻子说我身上是秋天的味道。她是在客气。'),
     line('greeting:first', 'Orrin. I burn charcoal. A clamp takes four days and you sleep next to it or you lose it, so I sleep next to it. You want coal, I have coal.', '我叫奥林，烧炭的。一窑炭要烧四天，不睡在旁边就得废掉，所以我就睡在旁边。你要炭，我这儿有炭。'),
     line('default', 'Gus brings me logs when his back lets him. His back lets him less and less. Mine too.', '格斯腰还行的时候会给我送木头来。他的腰越来越不行了。我的也是。'),
     line('default', 'The birds came the night the bridge went. Every one in the forest, into my oak, and not a note out of them since. I cut a notch for every day. The board is getting full.', '桥没了的那天晚上，鸟就来了。整座林子的鸟，全落在我那棵橡树上，从那以后一声都没叫过。我每天刻一道痕。板子快刻满了。'),

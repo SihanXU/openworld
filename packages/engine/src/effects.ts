@@ -52,7 +52,7 @@ export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
   fallback: 'fallback {} — the story\'s: run the broken invariant\'s authored fallback',
   emit: 'emit {impulse, to, params?, item?, other?, chance?, filter?} — send an impulse (strike, element, coat, restore, push, taken, receive, offered, handle, notify) to a role, "story", "world", {named: id}, {area: {at?, radius}}, {line: {from?, away, length, over?}} or {map: true}; params are values, Amounts, {typeOf: role} (what kind of thing a role is, kept even after it is gone) or {idOf: role} (which thing it is); filter and chance pick who receives it; the receiver answers for itself',
   vfx: 'vfx {at?, fx} — play a visual effect (at the host unless at names a role)',
-  say: 'say {text, who?} — the host says a line ("@line": one of its own lines for the moment; "@given": its line for the item it was given); text fills {host} {actor} {target} {instrument} {other} {item} and {role.key}',
+  say: 'say {text, who?} — the host says a line ("@line": one of its own lines for the moment; "@given": its line for the item it was given; "@chat": one of its chat lines, or what it likes best); text fills {host} {actor} {target} {instrument} {other} {item} and {role.key}',
   log: 'log {text} — a message line ({role} = names, {role.key} = that role\'s prop, {param.key} = an event param; "@line": what the host has written on it, its text and text_zh)',
   emote: 'emote {mood: neutral|happy|sad|angry|surprised|shy} — an emote bubble over the host',
   restyle: 'restyle {parts?, colors?} — the host\'s look changes (docs/looks.md): a part per slot of the world\'s look table (hair: "hair.bob"; null empties the slot), a colour per key (hair, skin, eyes, <slot>.<n>; a colour id or #rrggbb); its map sprite, its portrait and its look:* tags follow, and the change is its own from then on',
@@ -235,6 +235,7 @@ export class EffectRunner {
       }
       case 'destroy': {
         if (!host) return
+        if (eng.isProtected(host)) return
         // the essential (people, the player) are never removed: they go down and come to
         if (w.hasTag(host, 'essential')) return
         eng.touch({ e: host.id }, true)
@@ -288,6 +289,11 @@ export class EffectRunner {
       }
       case 'move': {
         if (!host) return
+        const protectedHolder = eng.protectedHolder(host)
+        if (protectedHolder && !eng.allowsProtectedTransfer(ev, protectedHolder)) {
+          eng.refuseProtection(ev.roles.actor?.e ?? ev.cause)
+          return
+        }
         // a floor above the ground that something rests on stays (a wall on it, a bed, someone
         // standing): what is on it is taken first (docs/building.md R5)
         if (w.bears(host)) return
@@ -429,6 +435,7 @@ export class EffectRunner {
       }
       case 'breakdown': {
         if (!host) return
+        if (eng.isProtected(host)) return
         if (w.hasTag(host, 'essential')) return
         const at = w.posOf(host)
         const rate = w.onto.data.params?.recovery ?? 1
@@ -496,7 +503,7 @@ export class EffectRunner {
       }
       case 'foe': {
         const by = ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : ev.cause
-        if (!host || !by || by === host.id || !w.get(by)) return
+        if (!host || eng.isProtected(host) || !by || by === host.id || !w.get(by)) return
         // a person struck takes up a fight if it is one who fights (a guard, the smith: `fights`); else it fears the one who struck
         if (!host.ai && host.npc) {
           const at = w.posOf(host)
@@ -805,8 +812,8 @@ export class EffectRunner {
           w.fx.push({ t: 'say', who: who.id, text: line?.text ?? GIVEN_LINE, mood: line?.mood })
           return
         }
-        // a person with a line book says the line for this moment (people.ts)
-        const line = eff.text === '@line' && who.npc?.person?.lines?.length ? chooseLine(eng, who, { record: who.id === host?.id }) : undefined
+        // a person with a line book says the line for this moment (people.ts); a chat: one of its chat lines
+        const line = (eff.text === '@line' || eff.text === '@chat') && who.npc?.person?.lines?.length ? chooseLine(eng, who, { record: who.id === host?.id, ...(eff.text === '@chat' && { chat: true }) }) : undefined
         if (line) w.fx.push({ t: 'say', who: who.id, text: line.text, mood: line.mood })
         else w.fx.push({ t: 'say', who: who.id, text: this.text(ev, who, eff.text) })
         return

@@ -201,6 +201,8 @@ export interface Frame {
   trade?: TradeView
   /** A person's pockets open to a sneaking hand (§2.10): what they carry. */
   pockets?: { id: Id; name: Text; contents: (ItemInfo & { worn?: boolean })[] }
+  /** The gift panel open with a person (§2.15): what they like best (once told), and what one carries to give. */
+  gift?: GiftView
   entities: EntitySnap[]
   tiles: TileSnap[]
   fx: FxEvent[]
@@ -245,6 +247,25 @@ export interface TalkView {
   /** A guard has stopped them: only the watch's choices. */
   arrest?: boolean
   verbs: TalkOption[]
+}
+
+/**
+ * The gift panel (docs/npc-sandbox.md §2.15): the one given to, their regard, what they like best — named only once they
+ * have said it in a chat (`told`) — and what the one at the keys carries that may be given, each with how warmly it
+ * would be taken (`warmth`: 1 a trifle, 2 a kindness, 3 a treasure, 4 the thing they like best).
+ */
+export interface GiftView {
+  who: Id
+  name: Text
+  /** Their regard for the one at the keys (−100..100). */
+  affection: number
+  /** They have said what they like best. */
+  told: boolean
+  /** The kind of thing they like best, as the panel can draw it (only once told). */
+  favourite?: { type: string; name: Text; sprite: string }
+  /** They were given their favourite today already (the special warmth comes once a day). */
+  cheered?: boolean
+  items: (ItemInfo & { count: number; warmth: number; favourite?: boolean })[]
 }
 
 /** A merchant's goods and offers, as the trade panel shows them. */

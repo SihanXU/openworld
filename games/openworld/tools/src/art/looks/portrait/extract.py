@@ -18,13 +18,13 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 
-SIZE = 768  # the generation's size (comfy.py) and the game's portrait canvas
+W, H = 768, 1536  # the generation's size (comfy.py) and the game's portrait canvas: a full figure
 
 
 def load(path: str) -> np.ndarray:
     im = Image.open(path).convert("RGB")
-    if im.size != (SIZE, SIZE):
-        im = im.resize((SIZE, SIZE), Image.LANCZOS)
+    if im.size != (W, H):
+        im = im.resize((W, H), Image.LANCZOS)
     return np.asarray(im).astype(np.float32)
 
 

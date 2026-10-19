@@ -31,6 +31,9 @@ export const vigo: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'A warm fire and a cold look. I have had worse welcomes. I have had better, too.', '一堆暖火，一张冷脸。我受过更差的招待。也受过更好的。'),
+    line('chat', 'Everyone has a trade. Mine is being where the trouble isn\'t. I am out of practice.', '人人都有一门手艺。我的是待在没麻烦的地方。最近荒废了。'),
     line('greeting:first', "Don't look at me like that. The storm took my road, not my manners. Most of them.", '别那样看着我。风暴冲走的是我的路，不是我的规矩。大部分规矩。', { once: true }),
     line('default', "I'll carry a pack and swing a club for whoever feeds me. Today, that's nobody.", '谁管我饭，我就给谁背包、替谁抡棍子。今天，没人管。'),
     line('default', 'A village fire, a village well, and a village watch that looks at me twice. I know how this goes.', '村里的火，村里的井，还有一个多看我两眼的村卫兵。这套我熟。'),

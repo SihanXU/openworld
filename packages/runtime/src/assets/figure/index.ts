@@ -6,23 +6,23 @@ import type { Look, Mood } from '@openworld/engine'
 import { assetsBase, hasLooks } from '../../game.ts'
 import { figureId } from './ids.ts'
 import type { ActorDef } from '../types.ts'
-import { FH, FW, composeSprite } from './sprite.ts'
-import { composePortrait, portraitFiles, type LayerPixels, type PortraitManifest } from './portrait.ts'
+import { ANCHOR_Y, FH, FW, IDLE_ROW, ROWS, composeSprite } from './sprite.ts'
+import { bustRect, composePortrait, portraitFiles, type LayerPixels, type PortraitManifest } from './portrait.ts'
 
 export { crowdLook, figureId } from './ids.ts'
 
-/** The map sheet of a look: composed once into a canvas texture (`fig/<id>`), 4 facings by 4 walk frames of 16x32. */
+/** The map sheet of a look: composed once into a canvas texture (`fig/<id>`), 4 facings by ROWS frames of FW x FH. */
 export function figureDef(scene: Phaser.Scene, look: Look): { key: string; def: ActorDef } {
   const id = figureId(look)
   const img = `fig/${id}`
   if (!scene.textures.exists(img)) {
     const c = document.createElement('canvas')
     c.width = FW * 4
-    c.height = FH * 4
+    c.height = FH * ROWS
     c.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(composeSprite(look)), c.width, c.height), 0, 0)
     scene.textures.addCanvas(img, c)
   }
-  return { key: `fig:${id}`, def: { dir: 'fig', sheet: id, cols: 4, rows: 4, anchorY: 30 } }
+  return { key: `fig:${id}`, def: { dir: 'fig', sheet: id, cols: 4, rows: ROWS, anchorY: ANCHOR_Y, idleRow: IDLE_ROW } }
 }
 
 // ---------------------------------------------------------------- portraits
@@ -33,7 +33,7 @@ let manifest: PortraitManifest | undefined
 let manifestLoading: Promise<PortraitManifest | undefined> | undefined
 const layers = new Map<string, LayerPixels>()
 const loading = new Map<string, Promise<void>>()
-const busts = new Map<string, HTMLCanvasElement>()
+const figures = new Map<string, HTMLCanvasElement>()
 
 function loadManifest(): Promise<PortraitManifest | undefined> {
   // (a game without looks has no portraits to cut)
@@ -117,15 +117,34 @@ function washed(bust: HTMLCanvasElement, overlays: string[]): HTMLCanvasElement 
   return c
 }
 
-/** The portrait of a look in a mood (with what its statuses show), if its layers are here (else undefined, and they are fetched for next time). */
-export function portraitOf(look: Look, mood?: Mood, overlays: string[] = []): HTMLCanvasElement | undefined {
-  const bust = bustOf(look, mood)
-  return bust && overlays.some((o) => WASH[o]) ? washed(bust, overlays) : bust
+/**
+ * The portrait of a look in a mood (with what its statuses show), if its layers are here (else undefined, and they
+ * are fetched for next time): its bust (the head and shoulders, for the dialogue box and the sheet) or its whole
+ * standing figure (the creator).
+ */
+export function portraitOf(look: Look, mood?: Mood, overlays: string[] = [], frame: 'bust' | 'full' = 'bust'): HTMLCanvasElement | undefined {
+  const pic = frame === 'full' ? figureOf(look, mood) : bustOf(look, mood)
+  return pic && overlays.some((o) => WASH[o]) ? washed(pic, overlays) : pic
 }
 
 function bustOf(look: Look, mood?: Mood): HTMLCanvasElement | undefined {
+  const key = `${figureId(look)}|${mood ?? 'neutral'}|bust`
+  const done = figures.get(key)
+  if (done) return done
+  const full = figureOf(look, mood)
+  if (!full || !manifest) return undefined
+  const r = bustRect(manifest, look)
+  const c = document.createElement('canvas')
+  c.width = r.w
+  c.height = r.h
+  c.getContext('2d')!.drawImage(full, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h)
+  figures.set(key, c)
+  return c
+}
+
+function figureOf(look: Look, mood?: Mood): HTMLCanvasElement | undefined {
   const key = `${figureId(look)}|${mood ?? 'neutral'}`
-  const done = busts.get(key)
+  const done = figures.get(key)
   if (done) return done
   const m = manifest
   if (!m) {
@@ -138,9 +157,9 @@ function bustOf(look: Look, mood?: Mood): HTMLCanvasElement | undefined {
     return undefined
   }
   const c = document.createElement('canvas')
-  c.width = m.size
-  c.height = m.size
-  c.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(composePortrait(m, look, mood, (f) => layers.get(f))), m.size, m.size), 0, 0)
-  busts.set(key, c)
+  c.width = m.w
+  c.height = m.h
+  c.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(composePortrait(m, look, mood, (f) => layers.get(f))), m.w, m.h), 0, 0)
+  figures.set(key, c)
   return c
 }

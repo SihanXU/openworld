@@ -26,6 +26,9 @@ export const caius: PersonDef = {
     ],
   },
   lines: [
+    // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
+    line('chat', 'I was a pilgrim once myself. I got as far as here, and stayed. Someone had to hold the door.', '我自己也当过朝圣者。走到这里就留下了。总得有人守着门。'),
+    line('chat', 'Tea, if you have the time. The water here is good. It is the one thing nobody argues about.', '有空的话喝杯茶吧。这里的水好。这是唯一没人争论的事。'),
     // (a first meeting may come before the knight falls or after: it says nothing of him either way — `rest_after` and
     // his line on the knight's fall are what he says once the road is open)
     line('greeting:first', 'Peace on your road, pilgrim. I am Father Caius; the Holy See keeps me at this Rest to bless the pilgrims it sends east, and to keep the five wounds.', '愿你一路平安，朝圣者。我是凯乌斯司铎；圣座派我驻守这座驿站，为它派往东边的朝圣者祝福，也守着五道圣伤。'),
