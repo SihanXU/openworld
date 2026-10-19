@@ -159,3 +159,29 @@ both ways, it costs something, a swarm lasts at least a second and anything else
 does, for every kind with a kit but the elites), and what standing costs stays within its role's bound (12 for a swarm
 or a fighter, 20 a brute, 30 an elite). Measured standing at gear of its level: swarms 1.3–2 s and 3–4 health,
 fighters and casters 2–3 s and 3–8, brutes 5–7 s and 9–16, elites 9 s and 15–20.
+
+## 10. The elites (2026-10-19)
+
+The minor monsters' gatekeepers — the barrow warden (the sanctum, the barrow's deepest floor), the cyclops (the old
+mine's deep end) and the Slime King — had no kit (the King only its kin's Hop). They stay minor monsters: they take
+their skills up as any does (the kit goal, when a skill's conditions hold), never by a boss's director, with no plate,
+camera or phases. What makes each a fight of its own is a kit of two to four, a chain and a guard (`ELITE_KITS`,
+`ELITE_RULES` in kits.ts; the contract's elite tier: two to four skills, a wind-up of at least 0.8 s, 0.6 s for the next
+of a chain, no encounter).
+
+| Elite | Skill | When | Lands |
+|---|---|---|---|
+| Barrow warden | Vigil Sweep 守夜横扫 | 1–2 cells | a cone of 2: atk × 1.4, cut, pushed 1 |
+| | Shield Charge 盾冲 | in a row, 2–4 | a dash: atk × 1.6, stunned; then the Vigil Sweep at once |
+| | Hold the Post 坚守岗位 | under half health, steady | the ring 3 out: atk × 1, mired |
+| Cyclops | Boulder Toss 掷石 | 3–6 cells | 3×3 at the foe: atk × 1.6, earth |
+| | Stomp 跺地 | 1–2 cells | a disk of 2: atk × 1.5, earth, pushed 1; then the Aftershock: the ring 3 out, atk × 1 |
+| | Baleful Glare 独眼凝视 | in a row, 2–6 | a line of 6: atk × 0.8, stunned |
+| Slime King | Royal Bounce 王之弹跳 | 2–4 cells | a leap; a disk of 2 at the foe: atk × 1.5, its element |
+| | Split 分裂 | under half health | two green slimes come off it, once (its prop `split`) |
+
+A skill that is only ever the next of a chain (the Aftershock) has the range [0, 0], which the kit goal never meets.
+Measured with gear of their level (minor-balance.test.ts): the warden 10 s and 24 health standing, 11 s and 6 dodging;
+the cyclops 10 s and 19, 14 s and 16; the King 8 s and 15 either way. Checks: kits.test.ts (the King splits once; the
+charge is followed by the sweep; the aftershock comes only after the stomp), kit-contract.test.ts (the elite tier).
+

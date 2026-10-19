@@ -653,9 +653,15 @@ function creatureSkills(ctx: Ctx, c: CreatureEnt): string {
   for (let t = c.id; t && !kit; t = t.includes('/') ? t.slice(0, t.lastIndexOf('/')) : '') kit = kits[t]
   if (!kit?.length) return `<p class="empty">没有自己的技能：只会普通攻击。</p>`
   const move = (k: CreatureSkill) => join([k.move === 'leap' ? '跳到目标处' : k.move === 'dash' ? '沿直线冲过去' : k.move === 'blink' ? '瞬移到目标旁' : '原地', k.back ? `命中后后跳 ${k.back} 格` : ''])
-  const when = (k: CreatureSkill) => join([!k.range ? '首领战轮到它时' : k.range[0] === k.range[1] ? `相距 ${k.range[0]} 格` : `相距 ${k.range[0]}–${k.range[1]} 格`, k.aligned ? '同一行或同一列' : '', k.below !== undefined ? `生命低于 ${Math.round(k.below * 100)}%` : '', k.chance !== undefined && k.chance < 1 ? `每秒 ${Math.round(k.chance * 100)}% 几率` : ''])
+  const before = (k: CreatureSkill) => kit!.find((o) => o.then === k.id)
+  const when = (k: CreatureSkill) => {
+    // a skill whose range never holds is only ever the next of a chain (the cyclops's aftershock)
+    if (k.range && k.range[1] === 0) return before(k) ? `只接在「${esc(zh(before(k)!.name))}」后面` : '—'
+    return join([!k.range ? '首领战轮到它时' : k.range[0] === k.range[1] ? `相距 ${k.range[0]} 格` : `相距 ${k.range[0]}–${k.range[1]} 格`, k.aligned ? '同一行或同一列' : '', k.below !== undefined ? `生命低于 ${Math.round(k.below * 100)}%` : '', k.chance !== undefined && k.chance < 1 ? `每秒 ${Math.round(k.chance * 100)}% 几率` : '', k.steady ? '被控制也不会打断' : ''])
+  }
   const marks = (k: CreatureSkill) => (k.radius ? `${esc(T(ctx, '形状', k.shape))}，${k.radius} 格，${esc(T(ctx, '瞄准', k.aim))}` : '不标格子')
-  const rows = kit.map((k) => [`<b>${esc(zh(k.name))}</b>`, when(k), marks(k), move(k), secs(k.windup), k.cooldown ? secs(k.cooldown) : '—'])
+  const next = (k: CreatureSkill) => (k.then ? `，接着放「${esc(zh(kit!.find((o) => o.id === k.then)?.name ?? k.then))}」` : '')
+  const rows = kit.map((k) => [`<b>${esc(zh(k.name))}</b>`, when(k), marks(k), move(k) + next(k), secs(k.windup), k.cooldown ? secs(k.cooldown) : '—'])
   return table(['技能', '什么时候用', '标记的格子', '怎么过去', '前摇', '冷却'], rows)
 }
 

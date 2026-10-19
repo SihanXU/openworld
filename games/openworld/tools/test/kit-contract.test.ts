@@ -4,7 +4,7 @@ import '../../client/src/register.ts'
 import { describe, expect, it } from 'vitest'
 import type { Effect, KitSkill, Rule } from '@openworld/engine'
 import { CHAIN_MAX } from '@openworld/modules'
-import { AFFLICTIONS, BASE_RULES, BOSSES, HOLDS, KITS, buildOntology } from '@openworld-game/content'
+import { AFFLICTIONS, BASE_RULES, BOSSES, HOLDS, KITS, buildOntology, ELITE_KITS } from '@openworld-game/content'
 
 const onto = buildOntology()
 const BOSS_TYPES = new Set(BOSSES.map((b) => b.type))
@@ -105,5 +105,17 @@ describe('one skill system, two kits', () => {
   it('keeps the minor monsters\' kits Bao\'s own: the fourteen families, one or two skills each', () => {
     expect(Object.keys(KITS)).toHaveLength(14)
     for (const [type, kit] of Object.entries(KITS)) expect(kit.length, type).toBeLessThanOrEqual(2)
+  })
+
+  it('gives the minor monsters\' elites (the warden, the cyclops, the Slime King) two to four skills, taken up as a minor monster\'s are, never a boss\'s', () => {
+    expect(Object.keys(ELITE_KITS).sort()).toEqual(['actor/creature/cyclops', 'actor/creature/slime/king_slime', 'actor/creature/undead/warden'])
+    for (const [type, kit] of Object.entries(ELITE_KITS)) {
+      expect(kit.length, type).toBeGreaterThanOrEqual(2)
+      expect(kit.length, type).toBeLessThanOrEqual(4)
+      expect(onto.encounters?.[type], `${type} has no director`).toBeUndefined()
+      // a skill that marks cells winds up at least 0.8 s, unless it is the next of a chain (0.6 s, as the bosses')
+      const chained = new Set(kit.flatMap((s) => (s.then ? [s.then] : [])))
+      for (const s of kit) if (s.radius > 0) expect(s.windup, `${type} ${s.id}`).toBeGreaterThanOrEqual(chained.has(s.id) ? 6 : 8)
+    }
   })
 })
