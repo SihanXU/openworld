@@ -172,9 +172,9 @@ describe('the state is things and the clock (world-model.md §3)', () => {
     for (let i = 0; i < 600; i++) game.engine.tick()
     const state = game.save().state as unknown as Record<string, unknown>
     // the clock and the generator; the things; the maps' base data and what changed on their cells;
-    // and the engine's own records (what is loaded, asked, frozen, related, reported) — no facts,
-    // topics, scenes, weather or memories beside the things they belong to
-    const ALLOWED = ['tick', 'seed', 'rng', 'counter', 'player', 'spawn', 'entities', 'maps', 'tiles', 'loadedMaps', 'question', 'dormant', 'relations', 'reported', 'chunks']
+    // and the engine's own records (what is loaded, asked, frozen, related, reported), the clock's phase on each host
+    // that keeps its own pace (paces) — no facts, topics, scenes, weather or memories beside the things they belong to
+    const ALLOWED = ['tick', 'seed', 'rng', 'counter', 'player', 'spawn', 'entities', 'maps', 'tiles', 'loadedMaps', 'question', 'dormant', 'relations', 'reported', 'chunks', 'paces']
     expect(Object.keys(state).filter((k) => !ALLOWED.includes(k))).toEqual([])
     // the story and the world are things, and so are the maps' named areas
     const w = game.engine.world

@@ -1362,6 +1362,12 @@ export interface WorldState {
   quarantine?: Record<string, { tick: number; reason: string }>
   /** A yes/no question waiting for the player (Action: "Eat the apple?"); time stops while it is open. */
   question?: { text: Text; plan: Plan }
+  /**
+   * How far each period on a host's own pace (hunger, asleep or hungry slower) has come toward its next, as of a tick:
+   * `period|id` → done (0..1) and at. Kept with the state so a loaded save keeps each clock's phase (it was the
+   * engine's own memory once, and a load set every phase back to the clock's beat).
+   */
+  paces?: Record<string, { done: number; at: number }>
   /** Maps the player is not on: frozen since a tick, with the events addressed to them (design.md §5.12). */
   dormant?: Record<string, { since: number; inbox: GameEvent[] }>
   /** Each host's relations (contact and containment) when last computed: `how|ref` keys. */

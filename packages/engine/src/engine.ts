@@ -164,11 +164,6 @@ export class Engine {
   /** Who each mover has been pushing into, since when (a swap once it has lasted): by the mover's id. */
   private bumps = new Map<Id, { id: Id; since: number; last: number }>()
   private cooldowns = new Map<Id, number>()
-  /**
-   * How far a period on a host's own pace has come toward its next (`period|id` → done, 0..1, as of
-   * tick `at`): the ticks gone by since, over its interval as its pace is now.
-   */
-  private progress = new Map<string, { done: number; at: number }>()
   private flushing = false
   /** What outcomes touched since the last settle: ref key → ref. */
   private touched = new Map<string, Ref>()
@@ -1766,10 +1761,13 @@ export class Engine {
         const k = `${p.name}|${e.id}`
         // first seen: as far as the clock's own beat has come; then the ticks gone by (a jump of the
         // clock, a step on the overworld, counts too: one a tick until it has caught up)
-        const was = this.progress.get(k) ?? { done: (((t - 1) % every) + every) % every / every, at: t - 1 }
+        // how far it has come toward its next: the ticks gone by since, over its interval as its pace is now (kept
+        // with the state, `paces`, so a loaded save keeps its phase)
+        const paces = (w.state.paces ??= {})
+        const was = paces[k] ?? { done: (((t - 1) % every) + every) % every / every, at: t - 1 }
         const done = was.done + (t - was.at) / every
-        if (done < 1 - 1e-9) return (this.progress.set(k, { done, at: t }), false)
-        this.progress.set(k, { done: Math.max(0, done - 1), at: t })
+        if (done < 1 - 1e-9) return ((paces[k] = { done, at: t }), false)
+        paces[k] = { done: Math.max(0, done - 1), at: t }
         return true
       }
       const hosts: Ref[] =
