@@ -102,8 +102,8 @@ describe('one skill system, two kits', () => {
     }
   })
 
-  it('keeps the minor monsters\' kits Bao\'s own: the fourteen families, one or two skills each', () => {
-    expect(Object.keys(KITS)).toHaveLength(14)
+  it('keeps the minor monsters\' kits Bao\'s own: the fifteen families (the sporecap the fifteenth), one or two skills each', () => {
+    expect(Object.keys(KITS)).toHaveLength(15)
     for (const [type, kit] of Object.entries(KITS)) expect(kit.length, type).toBeLessThanOrEqual(2)
   })
 

@@ -4,7 +4,7 @@
 // The skills come from the setting (docs/lore.md §2): the First Night seeping in — beasts gone strange, the dead that
 // do not rest, things of the night that do not belong to the world.
 
-import type { CreatureSkill, Effect, Rule } from '@openworld/engine'
+import type { CreatureSkill, Effect, Rule, TypeDef } from '@openworld/engine'
 import { CALL, CLING, DO, ELEMENT, HARM, POWER, kitRule, skill, unleash } from './afflictions.ts'
 
 // ------------------------------------------------------------------ the skills
@@ -21,10 +21,16 @@ const SLAM = skill('slam', 'Ground Slam', '震地', { shape: 'circle', aim: 'sel
 const FIREBALL = skill('fireball', 'Fireball', '火球', { shape: 'circle', aim: 'target', radius: 1, range: [2, 5], windup: 10, cooldown: 50, color: HARM })
 const DISCHARGE = skill('discharge', 'Discharge', '放电', { shape: 'cross', aim: 'target', radius: 2, range: [2, 4], windup: 10, cooldown: 50, color: HARM })
 const WEB = skill('web', 'Web Spit', '吐丝', { shape: 'circle', aim: 'target', radius: 1, range: [2, 4], windup: 8, cooldown: 60, color: CLING })
+// a sporecap's breath: a disk of poison round it (docs/creatures.md §12)
+const SPORES = skill('spores', 'Spore Cloud', '孢子云', { shape: 'circle', aim: 'self', radius: 2, range: [1, 2], windup: 12, cooldown: 60, color: CLING })
 const BREATH = skill('breath', 'Ember Breath', '余烬吐息', { shape: 'cone', aim: 'self', radius: 3, aligned: true, range: [1, 3], windup: 10, cooldown: 50, color: HARM })
 const SHELL = skill('shell', 'Shell Up', '缩壳', { shape: 'circle', aim: 'self', radius: 0, range: [1, 4], windup: 4, cooldown: 150, below: 0.5, color: CALL })
 
 const C = 'actor/creature'
+/** A spider's web left on the ground: it holds who wades in, a blow or a flame tears it, it sags away in twelve seconds. */
+export const COBWEB = 'fixture/nature/web'
+const L = (en: string, zh: string) => ({ en, zh })
+const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
 
 /** Each kind's kit, by type (a kind's is the nearest its type or an ancestor names). */
 export const KITS: Record<string, CreatureSkill[]> = {
@@ -42,6 +48,7 @@ export const KITS: Record<string, CreatureSkill[]> = {
   [`${C}/spider`]: [WEB],
   [`${C}/whelp`]: [BREATH],
   [`${C}/crab`]: [SHELL],
+  [`${C}/fungus`]: [SPORES],
 }
 
 // ------------------------------------------------------------------ the rules
@@ -80,7 +87,8 @@ export const KIT_RULES: Rule[] = [
   ]),
   // its plain bite poisons, a third of the time (the bite is the bare body's blow, core/use, with a coat beside it)
   ...kitRule('kit/spider', `${C}/spider`, 'A spider\'s Web Spit: what stands on the cells it spits on is webbed, wading at a third of the pace. Its bite is venomous: one bite in four poisons.', [
-    ['web', DO(unleash({ coat: 'webbed' }))],
+    // and the web stays: a cobweb on each cell it fell on that no one stands on (the trap, WEB_RULES)
+    ['web', DO(unleash({ coat: 'webbed', leave: COBWEB }))],
   ], {
     if: { all: [{ none: 'instrument' }, { param: { key: 'attack', cmp: true } }] },
     then: DO(
@@ -89,6 +97,9 @@ export const KIT_RULES: Rule[] = [
     ),
     else: 'inherit',
   }),
+  ...kitRule('kit/fungus', `${C}/fungus`, 'A sporecap\'s Spore Cloud: it puffs its spores out two cells round it; those in it are struck a little and poisoned.', [
+    ['spores', DO(unleash({ power: POWER(0.8), edge: 'magic', coat: 'poisoned' }), { op: 'vfx', fx: 'smoke' })],
+  ]),
   ...kitRule('kit/whelp', `${C}/whelp`, 'A whelp\'s Ember Breath: a cone of fire before it.', [
     ['breath', DO(unleash({ power: POWER(1.2), element: 'fire', edge: 'magic' }))],
   ]),
@@ -163,3 +174,41 @@ export const CREATURE_TACTICS: Record<string, { keepAway?: number; fleeBelow?: n
   [`${C}/beast/wolf`]: { fleeBelow: 0.2, pack: true },
   [`${C}/beast/frost_wolf`]: { fleeBelow: 0.2, pack: true },
 }
+
+// ------------------------------------------------------------------ what the kits leave, and the new kinds (docs/creatures.md §12)
+
+
+export const KIT_TYPES: TypeDef[] = [
+  { id: COBWEB, name: L('cobweb', '蛛网'), tags: ['web', 'sticky', 'flammable'], sprite: 'fixture:web', solid: false, props: { maxHp: 2, hp: 2 }, makeup: [], stage: { lasts: 120 } },
+  // the First Night's mark on the woods: mushrooms grown into things that walk (docs/lore.md §2)
+  { id: `${C}/fungus`, name: L('fungus', '菌怪'), tags: ['fungus', 'plant', 'flammable'], sprite: 'creature:fungus' },
+  { id: `${C}/fungus/sporecap`, name: L('sporecap', '孢子菇'), props: { speed: 9 } },
+]
+
+export const WEB_RULES: Rule[] = [
+  rule({
+    id: 'web/snare',
+    doc: 'A cobweb holds who wades into it: webbed, at a third of the pace (a spider walks its own; a flyer never touches it).',
+    host: { type: COBWEB },
+    on: 'contact/begin',
+    tree: {
+      if: { all: [{ param: { key: 'how', cmp: 'under' } }, { is: { role: 'other', sel: { type: 'actor', notTags: ['spider'] } } }] },
+      then: DO({ op: 'emit', impulse: 'coat', to: 'other', params: { substance: 'webbed' } }),
+      else: 'inherit',
+    },
+  }),
+  rule({
+    id: 'web/torn',
+    doc: 'A cobweb torn by a blow or burnt through is gone.',
+    host: { type: COBWEB },
+    on: 'threshold/cross',
+    tree: { if: { param: { key: 'name', cmp: 'broken' } }, then: DO({ op: 'vfx', fx: 'dust', at: 'tileOf:host' }, { op: 'destroy' }), else: 'inherit' },
+  }),
+  rule({
+    id: 'web/sags',
+    doc: 'A cobweb sags away when its while is out.',
+    host: { type: COBWEB },
+    on: 'time/timer',
+    tree: { if: { param: { key: 'status', cmp: 'stage' } }, then: DO({ op: 'destroy' }), else: 'inherit' },
+  }),
+]
