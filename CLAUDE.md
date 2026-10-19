@@ -294,8 +294,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
     putting are physics (never asked), using one thing on another is where the AI answers.
   - Behaviour (schedules, temper, behaviour trees) is the game's own logic, not the AI
     interface. An outcome may change its host's script.
-  - The player's map is active. Dormant maps are frozen and catch up timers and their inbox
-    when entered. The world, the story and people's records are resident. Events cross maps
+  - The player's map is active. Dormant maps are frozen and catch up timers (a status's pulses
+    on the way to its end too, each with its own dice) and their inbox when entered. The world, the story and people's records are resident. Events cross maps
     only by address.
   - **Even with no model connected, design every feature for one.** New behaviour goes
     through events and rules, never around them in engine code. A deliberate act on

@@ -7,6 +7,20 @@ export function nextRandom(state: { rng: number }): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296
 }
 
+/**
+ * A generator's state of its own for one occasion, from what names it (FNV-1a over the parts): the same parts, the
+ * same dice, whatever was drawn before (a thing's clock, engine.clockEvent).
+ */
+export function seedOf(...parts: (string | number)[]): number {
+  let h = 0x811c9dc5
+  for (const p of parts) {
+    const s = String(p)
+    for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193)
+    h = Math.imul(h ^ 0x1f, 0x01000193)
+  }
+  return h | 0
+}
+
 /** A standalone generator for offline content generation. */
 export class Rng {
   private s: { rng: number }
