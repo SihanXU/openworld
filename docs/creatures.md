@@ -103,8 +103,11 @@ The event model holds (design.md §5.4–5.15): behaviour decides when; the act'
 
 ## 6. Next
 
-- **Looks.** The borrowed sprites that fit worst: the zombie (the pack's caveman tinted green) and the golems (the
-  statue). The pack's two mushroom monsters are unused. Candidates: a new night-born mushroom kind (spore cloud:
+- **Looks.** Done for the five that fit worst (2026-10-19): the zombie, the stone and the ice golem, the giant crab
+  and the storm wisp are the project's own sheets (`tools/src/art/creatures.ts`: each part drawn on its own, lit from
+  the top left, outlined in the pack's line, laid over the parts before it; `lsw/Creature/<kind>/`, mapped by `own()`
+  in the client's catalogue; before and after: `docs/figures/creature-looks.png`). Still the pack's: the slimes, the
+  wolves, the boar, the bat, the skeleton, the ghost, the imp, the spider, the whelp. The pack's two mushroom monsters are unused. Candidates: a new night-born mushroom kind (spore cloud:
   poison in a disk) for the forest — it needs a trophy, a codex entry, a wiki page and a place on a map (a demo
   requirement), so it is its own step. Own art goes through `tools/src/art/` like the animals.
 - **Balance** wants a play-through at level 1–5: the spider and the boar are the first that can kill a careless player.
