@@ -1,15 +1,24 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
 import { untilUp } from './untilUp.ts'
+import { FrameEncoder } from './frameDelta.ts'
 import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
 import { artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeOf, shareKept, sharedPart, takeDefinitions, withKept } from './learned.ts'
-import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
+import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
-import { routeFishingWorkerInput, type Atlas, type AtlasMap, type FromWorker, type LibraryView, type RecordView, type SaveSummary, type Tile, type ToWorker } from './protocol.ts'
+import { routeFishingWorkerInput, type Atlas, type AtlasContinent, type AtlasMap, type FromWorker, type LibraryView, type RecordView, type SaveSummary, type Tile, type ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
+/**
+ * How many maps keep their things in memory (docs/continent.md §9): the player's and the last ones left; the rest are put
+ * away, to come back as they were when one goes there again (its file is fetched again).
+ */
+const KEEP_MAPS = 8
+/** What the camera shows (the page says): frames carry what lies there; and what each thing was when last sent. */
+let view: FrameView | undefined
+const frames = new FrameEncoder()
 const post = (m: FromWorker) => (self as unknown as Worker).postMessage(m)
 const transfers = new TransferQueue((err) => post({ t: 'error', message: (err as Error).stack ?? String(err) }), undefined, scheduleTransferTurn)
 let nextTransferFrame = 0
@@ -44,6 +53,20 @@ let summon: { kit: string; map: string; x: number; y: number } | undefined
 
 /** A map file of the game's, read through its terrain characters. */
 const chunkOf = async (id: string) => decodeRawChunk(await fetchJson<RawChunk>(`maps/${id}.json`), played().terrainChars)
+
+/**
+ * A map's chunk: a wilderness made from the world's seed and its cell (world-model.md §5.7) — from its site on the
+ * overworld, which comes first when a save put it away (docs/continent.md §9) —, else its file.
+ */
+async function chunkFor(id: string): Promise<MapChunk> {
+  const w = game!.engine.world
+  let made = played().wild?.(w, id)
+  if (!made && played().wild && !index.maps.some((m) => m.id === id)) {
+    for (const m of index.maps.filter((x) => x.kind === 'overworld')) if (!w.state.maps[m.id]) game!.loadChunk(await chunkOf(m.id))
+    made = played().wild?.(w, id)
+  }
+  return made ?? (await chunkOf(id))
+}
 
 /** The build palette's entries that set a thing down (`put:<type>`), beside the placement recipes. */
 const PUT = 'put:'
@@ -288,10 +311,9 @@ async function ensureMaps(): Promise<void> {
     post({ t: 'loading', what: id })
     try {
       // a wilderness is made here, from the world's seed and its cell (world-model.md §5.7); the rest is fetched
-      const made = played().wild?.(game.engine.world, id)
-      const chunk = made ?? (await chunkOf(id))
-      if (game.engine.world.state.loadedMaps.includes(id)) game.loadMapData(chunk.map)
-      game.loadChunk(chunk)
+      game.loadChunk(await chunkFor(id))
+      // the maps far behind are put away (their files can be fetched again)
+      game.trim()
     } catch (err) {
       post({ t: 'error', message: `could not load map ${id}: ${(err as Error).message}` })
     } finally {
@@ -363,6 +385,73 @@ const shownTarget: Partial<Record<Key, Ref>> = {}
 /** Terrain of maps no longer in memory (the world map draws every visited one), fetched once. */
 const terrainCache = new Map<string, string[]>()
 
+/** The overworld's chunk as the world map reads it (its grounds and its sites never move), fetched once. */
+let continentChunk: { id: string; terrain: string[]; width: number; height: number; sites: { id: string; type: string; x: number; y: number; name?: Text; props: Record<string, unknown> }[] } | undefined
+
+/** The continent for the world map: the overworld's grounds, regions and places, and where one is on it. */
+async function continent(): Promise<{ continent: AtlasContinent; cells: Record<string, { x: number; y: number }> } | undefined> {
+  const w = game!.engine.world
+  const meta = index.maps.find((m) => m.kind === 'overworld')
+  if (!meta) return undefined
+  if (!continentChunk) {
+    try {
+      const raw = await fetchJson<RawChunk>(`maps/${meta.id}.json`)
+      const terrain = decodeRawMap(raw.map, played().terrainChars).terrain
+      const sites = raw.entities.filter((e) => e.type.startsWith('site') && e.place.on === 'tile').map((e) => ({ id: e.id, type: e.type, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: e.name, props: (e.props ?? {}) as Record<string, unknown> }))
+      continentChunk = { id: meta.id, terrain, width: raw.map.width, height: raw.map.height, sites }
+    } catch {
+      return undefined
+    }
+  }
+  const c = continentChunk
+  const regions = index.regions ?? []
+  const regionIndex = new Map(regions.map((r, i) => [r.id, i]))
+  const regionOf = new Array<number>(c.width * c.height).fill(-1)
+  const cellOfMap = new Map<string, { x: number; y: number }>()
+  const places: AtlasContinent['places'] = []
+  for (const s of c.sites) {
+    const r = typeof s.props.region === 'string' ? regionIndex.get(s.props.region) : undefined
+    if (r !== undefined) regionOf[s.y * c.width + s.x] = r
+    if (typeof s.props.map === 'string') cellOfMap.set(s.props.map, { x: s.x, y: s.y })
+    if (!s.type.startsWith('site/place') || typeof s.props.map !== 'string') continue
+    const opens = typeof s.props.opensWhen === 'string' ? s.props.opensWhen : undefined
+    places.push({
+      x: s.x,
+      y: s.y,
+      name: s.name ?? { en: s.props.map, zh: s.props.map },
+      kind: s.type.split('/').pop()!,
+      map: s.props.map,
+      ...(opens && !w.fact(opens) && { sealed: true }),
+      ...(s.props.backdrop === true && { backdrop: true }),
+      ...(w.prop(w.player, `visited.${s.props.map}`) !== undefined && { visited: true }),
+      // a region's chief place, or a town of the played land
+      ...((s.props.capital === true || (s.props.backdrop !== true && s.type.endsWith('/town'))) && { capital: true }),
+    })
+  }
+  // where a map lies: its own site's cell, or (a room, a cave's depths) the cell of the map it is reached from
+  const graph = new Map(index.maps.map((m) => [m.id, m.portals.map((p) => p.to)]))
+  const cellOf = (id: string): { x: number; y: number } | undefined => {
+    const seen = new Set([id])
+    let frontier = [id]
+    for (let hop = 0; hop < 4 && frontier.length; hop++) {
+      for (const m of frontier) {
+        const at = cellOfMap.get(m)
+        if (at) return at
+      }
+      frontier = frontier.flatMap((m) => graph.get(m) ?? []).filter((m) => !seen.has(m) && (seen.add(m), true))
+    }
+    return undefined
+  }
+  const pos = w.posOf(w.player)!
+  const cell = pos.map === c.id ? { x: pos.x, y: pos.y } : cellOf(pos.map)
+  const cells: Record<string, { x: number; y: number }> = {}
+  for (const m of index.maps) {
+    const at = cellOf(m.id)
+    if (at) cells[m.id] = at
+  }
+  return { continent: { width: c.width, height: c.height, terrain: c.terrain, regionOf, regions, places, ...(cell && { cell }) }, cells }
+}
+
 async function atlas(): Promise<Atlas | undefined> {
   if (!game) return undefined
   const w = game.engine.world
@@ -388,7 +477,8 @@ async function atlas(): Promise<Atlas | undefined> {
   // a place off the world's layout (the tutorial's clearing) with nothing else seen yet: it is the map, alone
   const here = index.maps.find((m) => m.id === pos.map)
   if (!maps.length && here && w.state.maps[here.id]) maps.push({ id: here.id, name: here.name, at: { x: 0, y: 0 }, width: here.width, height: here.height, terrain: w.state.maps[here.id]!.terrain })
-  return { targets, maps, waypoints: stones, here: { map: pos.map, x: pos.x, y: pos.y } }
+  const world = await continent()
+  return { targets, maps, waypoints: stones, here: { map: pos.map, x: pos.x, y: pos.y }, ...(world && { continent: world.continent, cells: world.cells }) }
 }
 
 function libraryView(): LibraryView {
@@ -512,7 +602,9 @@ function loop(): void {
   if (pos.map !== lastMap) {
     const first = !lastMap
     lastMap = pos.map
-    post({ t: 'map', map: w.state.maps[pos.map] })
+    const map = w.state.maps[pos.map]
+    const look = index.regions?.find((r) => r.id === map.region)?.look
+    post({ t: 'map', map, ...(look && { look }) })
     if (!first) saveEvery = 599 // save right after arriving somewhere new
   }
   // save as soon as the story moves on (a quest reached a stage)
@@ -521,7 +613,7 @@ function loop(): void {
   peopleOpened(eng)
   // Transfers pause ticks, but their progress frames still need new bag kinds and the hand.
   if (transfers.busy) eng.controls.keep()
-  const frame = snapshot(eng, { panel })
+  const frame = snapshot(eng, { panel, view })
   if (panel && !frame.container) panel = undefined // closed by the world (it burned, a rule shut it)
   // the people's panels: closed when the one they are with is gone (dead, away)
   if (eng.modules.some((m) => m.id === 'society')) Object.assign(frame, peopleViews(eng, { talk, trade, pockets, gift }))
@@ -537,7 +629,8 @@ function loop(): void {
   // the codex: what the player carries and who and what is near (the reader's record, beside the state)
   if (w.state.tick % 5 === 0) game.codex.record(w)
   const learning = asking && asked ? { seconds: Math.floor((t0 - asked.since) / 1000), limit: (asking.deadline === Number.POSITIVE_INFINITY ? MAKE_MS : ASK_MS) / 1000 } : undefined
-  post({ t: 'frame', frame, perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length }, codex: game.codex.version, learning, transfer: transfers.progress })
+  const sent = frames.encode(frame)
+  post({ t: 'frame', frame: sent.frame, ...(sent.gone && { gone: sent.gone }), perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length }, codex: game.codex.version, learning, transfer: transfers.progress })
   if (buildAim) post({ t: 'placement', preview: buildPreview(eng, buildAim.id, { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }, buildAim.up) })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {
     if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: sharedPart(eng.lib.toJSON(), kept), statuses: eng.lib.statuses }), sendArts(), sendRecipes())
@@ -573,12 +666,9 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     game = Game.load(init.save, index, ontology(), lib, played().upgradeSave)
     // an older save brought up to the world as it is now: the game's own upgrades, the author's, on loading
     await played().upgrade?.(game, { index, chunk: chunkOf })
-    // re-fetch base terrain for the map we are standing on
+    // re-fetch the map we are standing on: its data, and its things as its file has them (the save kept what differs)
     const here = game.engine.world.posOf(game.engine.world.player)?.map
-    if (here) {
-      const made = played().wild?.(game.engine.world, here)
-      game.loadMapData(made?.map ?? (await chunkOf(here)).map)
-    }
+    if (here) game.loadChunk(await chunkFor(here))
     for (const id of game.engine.world.state.loadedMaps) if (id !== here) delete game.engine.world.state.maps[id]
   } else {
     game = Game.create(index, ontology(), lib, init.at ? { at: init.at } : init.start)
@@ -593,6 +683,9 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     if (init.scene && !game.engine.story.start(init.scene)) post({ t: 'error', message: `the story has no step ${init.scene} to begin` })
   }
   game.worldVersion = index.version
+  game.keepMaps = KEEP_MAPS
+  frames.reset()
+  view = undefined
   // the player's AI setting: which tier each kind of event is asked at, and takes learned answers from
   game.engine.quality = quality
   // what was learned past the checks of its time (an older client's copy) and nothing here needs is forgotten
@@ -723,6 +816,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       case 'handUp':
         handUp = m.up
+        break
+      case 'view':
+        view = { map: m.map, x: m.x, y: m.y, w: m.w, h: m.h }
         break
       case 'aim':
         aimTile = m.tile

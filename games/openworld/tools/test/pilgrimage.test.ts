@@ -221,7 +221,8 @@ describe("Firstlight's chapel", () => {
 
   it('an older save keeps its sign where the church stood: on loading it stands by the chapel and says whose it is', () => {
     const f = fresh()
-    const old = structuredClone(f.game.save())
+    // (an older save keeps every thing whole: docs/continent.md §9)
+    const old = structuredClone(f.game.save({ whole: true }))
     const sign = old.state.entities[CHAPEL_SIGN.id]
     sign.place = { on: 'tile', map: 'meadow', x: CHAPEL_SIGN.was[0], y: CHAPEL_SIGN.was[1] }
     sign.props = { ...sign.props, text: 'CHURCH OF THE FIRST DAWN — skill books at the stand inside, from Brother Anselm.', text_zh: '初晓教堂——里面的书架上有技能书，找安塞姆修士。' }

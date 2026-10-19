@@ -1,6 +1,6 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, Rule, SaveData, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
+import type { AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SaveData, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
 import type { TransferProgress } from './transferQueue.ts'
 
 /** Where the mouse points: its tile, and what is drawn at the point, top first (the keys act there when it is next to the player). */
@@ -58,6 +58,8 @@ export type ToWorker =
   | { t: 'choices'; key: Key; tile?: Tile }
   /** Where the mouse points (for the key labels). */
   | { t: 'aim'; tile?: Tile; /** its number, answered with the keys for it */ n?: number }
+  /** What the camera shows (cells, on a map): frames carry what lies there and round it (docs/continent.md §9). */
+  | { t: 'view'; map: string; x: number; y: number; w: number; h: number }
   /** A panel opened (the bag, crafting, the build palette, the map) or a choice made from the chooser: the story notes it, for a lesson that waits on it. */
   | { t: 'ui'; what: string }
   /** Esc held: the lesson at hand is skipped. */
@@ -177,8 +179,8 @@ export type FromWorker =
   | { t: 'synced'; url: string; seq: number; /** the library changed: the position is stored with it, not before it */ changed: boolean }
   | { t: 'placement'; preview: PlacementPreview }
   | { t: 'ready'; stats: WorldIndex['stats']; name: WorldIndex['name']; resumed: boolean }
-  | { t: 'map'; map: MapData }
-  | { t: 'frame'; frame: Frame; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number }; transfer?: TransferProgress }
+  | { t: 'map'; map: MapData; /** the look of the region it lies in (RegionMeta.look) */ look?: RegionLook }
+  | { t: 'frame'; frame: Frame; /** the frame's things are only those that changed; these left it (frameDelta.ts) */ gone?: string[]; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number }; transfer?: TransferProgress }
   /** What the keys would do now, sent as soon as the pointer aims somewhere else (between frames). */
   | { t: 'keys'; keys: Frame['keys']; /** the aim they answer */ n?: number }
   | { t: 'records'; records: RecordView[]; library: LibraryView }
@@ -213,8 +215,28 @@ export interface AtlasMap {
   terrain: string[]
 }
 
+/**
+ * The continent (the overworld, world-model.md §5.1) as the world map draws it: its grounds a cell each, the region each
+ * cell is in, the named places, and the cell one is at (on the overworld, or the place one is in).
+ */
+export interface AtlasContinent {
+  width: number
+  height: number
+  terrain: string[]
+  /** Each cell's region, an index into `regions` (-1: none, the sea). */
+  regionOf: number[]
+  regions: { id: string; name: Text; color?: string; backdrop?: boolean }[]
+  places: { x: number; y: number; name: Text; kind: string; map: string; sealed?: boolean; backdrop?: boolean; visited?: boolean; capital?: boolean }[]
+  /** The cell one is at, where the world map can tell. */
+  cell?: { x: number; y: number }
+}
+
 export interface Atlas {
   maps: AtlasMap[]
+  /** The whole world map, when the world has one (an overworld). */
+  continent?: AtlasContinent
+  /** The cell each map with a waypoint or a quest's target lies at on the continent (its own, or the map it hangs below). */
+  cells?: Record<string, { x: number; y: number }>
   waypoints: { id: string; map: string; x: number; y: number; name: Text; attuned: boolean }[]
   here: { map: string; x: number; y: number }
   /** Where the tracked quest's open objectives point (docs/quests.md §2.5): its markers on the world map. */

@@ -45,6 +45,11 @@ describe('learned recipes', () => {
     eng2.author(() => eng2.world.create('item/material/twine', { on: 'inside', holder: 'actor' }))
     expect(forgetType(eng2, 'item/material/twine')).toBe(false)
     expect(eng2.world.onto.hasType('item/material/twine')).toBe(true)
+    // and so does one put away with its map (docs/continent.md §13): it is the world's, though not in memory
+    const eng3 = fresh()
+    new ModPort(eng3).submit(undefined, twine('hands'))
+    eng3.world.state.chunks = { far: { away: true, things: [{ id: 'far.twine', type: 'item/material/twine', place: { on: 'tile', map: 'far', x: 1, y: 1 } }] } }
+    expect(forgetType(eng3, 'item/material/twine')).toBe(false)
   })
 
   it('a synced definition of a learned thing replaces the one kept here, and what was made of it becomes the new kind', () => {

@@ -445,17 +445,47 @@ function roomCells(eng: Engine, pos: { map: string; x: number; y: number; z?: nu
   return out
 }
 
-export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
+/** Cells round the view a frame still carries (the camera moves before the next frame comes). */
+export const VIEW_MARGIN = 4
+
+/** What the view shows (the camera's rect, in cells, on a map): a frame carries what lies within it and its margin. */
+export interface FrameView {
+  map: string
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {}): Frame {
   const w = eng.world
   const p = w.player
   const pos = w.posOf(p)!
   const map = pos.map
   const entities: EntitySnap[] = []
+  // the view (docs/continent.md §9): a big map's things beyond it are left out — but the one at the keys, their
+  // companions, and anyone who speaks or is spoken to now are always there
+  const v = opts.view?.map === map ? opts.view : undefined
+  const named = new Set<Id>([p.id])
+  if (v) {
+    for (const f of w.fx) if ('who' in f && typeof f.who === 'string') named.add(f.who)
+    const line = w.scene?.line as { who?: Id } | undefined
+    if (line?.who) named.add(line.who)
+  }
+  const shown = (e: import('./types.ts').Entity & { place: { on: 'tile'; x: number; y: number } }): boolean => {
+    if (!v || named.has(e.id) || e.props?.companion !== undefined) return true
+    const [fw, fd] = w.onto.resolve(e.type).footprint
+    const x0 = e.place.x - Math.floor((fw - 1) / 2)
+    const y0 = e.place.y - fd + 1
+    return x0 + fw > v.x - VIEW_MARGIN && x0 < v.x + v.w + VIEW_MARGIN && y0 + fd > v.y - VIEW_MARGIN && y0 < v.y + v.h + VIEW_MARGIN
+  }
   for (const e of w.entitiesOnMap(map)) {
-    if (e.place.on !== 'tile') continue
+    if (e.place.on !== 'tile' || !shown(e as Parameters<typeof shown>[0])) continue
     const r = w.onto.resolve(e.type)
-    // in the hand: what it holds, else the weapon it keeps in the main hand
-    const held = e.held ? w.get(e.held) : weaponOf(w, e)
+    // in the hand: what it holds, else the weapon it keeps in the main hand (only what acts wields one)
+    const held = e.held ? w.get(e.held) : w.isAgent(e) ? weaponOf(w, e) : undefined
+    const spaces = w.spacesOf(e)
+    const hasHp = w.prop(e, 'maxHp') !== undefined
     entities.push({
       id: e.id,
       type: e.type,
@@ -463,14 +493,14 @@ export function snapshot(eng: Engine, opts: { panel?: Id } = {}): Frame {
       x: e.place.x,
       y: e.place.y,
       ...(e.place.z && { z: e.place.z }),
-      ...(w.spacesOf(e).some((s) => s !== 'body') && { spaces: w.spacesOf(e) }),
+      ...(spaces.some((s) => s !== 'body') && { spaces }),
       facing: e.facing ?? 'down',
       statuses: Object.keys(e.statuses ?? {}),
       ...((o) => o.length && { overlays: o })(Object.keys(e.statuses ?? {}).flatMap((s) => w.onto.status(s)?.overlay ?? [])),
       tags: [...r.tags, ...(e.tags ?? [])],
       name: e.name ?? r.name ?? e.type.split('/').pop()!,
-      hp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'hp') : undefined,
-      maxHp: w.prop(e, 'maxHp') !== undefined ? w.num(e, 'maxHp', 1) : undefined,
+      hp: hasHp ? w.num(e, 'hp') : undefined,
+      maxHp: hasHp ? w.num(e, 'maxHp', 1) : undefined,
       // as it is seen: its own look with what it wears on it (docs/looks.md)
       look: w.seenLook(e),
       // whether it would set on the one at the keys (its factions, temper, foes): not whether it is chasing

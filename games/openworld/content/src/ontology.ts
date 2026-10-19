@@ -62,6 +62,17 @@ export const TERRAIN_CHARS: Record<string, string> = {
   '5': 'ow_snow',
   '6': 'ow_road',
   '7': 'ow_river',
+  // the other regions' grounds (docs/continent.md §2)
+  '8': 'ow_steppe',
+  '9': 'ow_badlands',
+  A: 'ow_fields',
+  C: 'ow_dust',
+  E: 'ow_salt',
+  G: 'ow_marsh',
+  I: 'ow_deadwood',
+  J: 'ow_highland',
+  N: 'ow_city',
+  Q: 'ow_bridge',
   u: 'stump',
   g: 'gravel',
   B: 'bridge',
@@ -188,6 +199,19 @@ export const TERRAINS: TerrainDef[] = [
   T('ow_snow', '雪原', 'snowfield', ['ground', 'overworld', 'cold'], { props: { cost: 1.5 }, color: '#eef3f6' }),
   T('ow_road', '大道', 'road', ['ground', 'overworld', 'road'], { props: { cost: 0.5 }, color: '#c9a86a' }),
   T('ow_river', '河流', 'river', ['water', 'overworld'], { solid: true, liquid: true, color: '#3d7fd6' }),
+  // the other regions' grounds (docs/continent.md §2): the March's steppe and red badlands, the Vale's fields, dust
+  // and salt, the Fens' marsh and dead wood, the Heights' white stone, the Holy City's streets; a bridge where a road
+  // crosses a river (the river's cell, gone over)
+  T('ow_steppe', '草原', 'steppe', ['ground', 'overworld'], { props: { cost: 1 }, color: '#b4a868' }),
+  T('ow_badlands', '赤岩荒原', 'badlands', ['ground', 'overworld', 'rough'], { props: { cost: 1.5 }, color: '#b0583c' }),
+  T('ow_fields', '田野', 'fields', ['ground', 'overworld'], { props: { cost: 1 }, color: '#c8b070' }),
+  T('ow_dust', '尘原', 'dust plain', ['ground', 'overworld', 'rough'], { props: { cost: 1.5 }, color: '#d8c49a' }),
+  T('ow_salt', '盐滩', 'salt flat', ['ground', 'overworld'], { props: { cost: 1 }, color: '#ece6d8' }),
+  T('ow_marsh', '沼泽', 'marsh', ['ground', 'overworld', 'wet'], { props: { cost: 2 }, color: '#56705a' }),
+  T('ow_deadwood', '死林', 'dead wood', ['ground', 'overworld', 'wooded'], { props: { cost: 1.5 }, color: '#6a6252' }),
+  T('ow_highland', '白石高原', 'white highland', ['ground', 'overworld', 'rough'], { props: { cost: 1.5 }, color: '#d4cfc0' }),
+  T('ow_city', '城郊', 'city ground', ['ground', 'overworld', 'road'], { props: { cost: 0.5 }, color: '#b8a48a' }),
+  T('ow_bridge', '桥', 'bridge', ['ground', 'overworld', 'road'], { props: { cost: 0.5 }, color: '#a07a4a' }),
 ]
 
 export const STATUSES: StatusDef[] = [
@@ -400,6 +424,9 @@ const RESIDENTS: TypeDef[] = [
   { id: 'site/place', name: { en: 'a place', zh: '地点' }, sprite: 'site:place' },
   // a hand-made place is drawn as what it is on the world map: its kind is its icon
   ...(['village', 'town', 'farm', 'mill', 'woods', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone'] as const).map((k) => ({ id: `site/place/${k}`, name: { en: 'a place', zh: '地点' }, sprite: `site:${k}` })),
+  // and the kinds the other regions' places are (docs/continent.md §3): a fort, a ruin, a graveyard, a cathedral, a
+  // city's quarter, a tower, a battlefield, a cave, a Seal-bearer's seat
+  ...(['fort', 'ruin', 'graveyard', 'cathedral', 'city', 'tower', 'battlefield', 'cave', 'seat'] as const).map((k) => ({ id: `site/place/${k}`, name: { en: 'a place', zh: '地点' }, sprite: `site:${k}` })),
   // a place a barrier runs through (the Ford: the river): its cell is the barrier's on the world map, so one
   // goes in from the cell beside it, on the side one stands — and only through it from bank to bank
   { id: 'site/place/crossing', name: { en: 'a crossing', zh: '渡口' }, sprite: 'site:ford', props: { handsRange: 1 } },

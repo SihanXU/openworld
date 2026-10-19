@@ -12,6 +12,7 @@ import { KIT_RULES } from './kits.ts'
 import { AFFLICTION_RULES } from './afflictions.ts'
 import { BOSS_KIT_RULES } from './bosses.ts'
 import { CH1 } from './chapter1.ts'
+import { UNTOLD } from './regions.ts'
 import { VILLAGE_SHOP_RULES } from './village.ts'
 import { PERSON_NEWS, SOCIAL_RULES } from './social.ts'
 import { FAITH_RULES } from './faith.ts'
@@ -1830,6 +1831,8 @@ const BUILDING: Rule[] = [
  */
 export const SITE_GATES: { fact: string; say: { en: string; zh: string } }[] = [
   { fact: CH1.knight, say: L('The White Knight still holds the East Road. There is no way past him yet.', '白骑士还守在东大路上，暂时过不去。') },
+  // a place whose tale is not told yet (regions.ts UNTOLD): a Seal-bearer's seat beyond the first, the Most Holy Hall
+  { fact: UNTOLD, say: L('The way in is shut. Its tale is not yet told.', '入口紧闭。此地的故事尚未开放。') },
 ]
 
 /** A tent with a room behind its flap (its `interior`, `interiorX`, `interiorY`): a hand on it, and in one goes. */

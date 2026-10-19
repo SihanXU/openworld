@@ -37,7 +37,8 @@ describe('professions', () => {
     const lib = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
     const game = Game.create(index, onto, lib())
     for (const c of chunks) game.loadChunk(decodeChunk(c))
-    const saved = structuredClone(game.save())
+    // (a save from before keeps every thing whole: docs/continent.md §9)
+    const saved = structuredClone(game.save({ whole: true }))
     // as a save from before: no tag, a night in bed
     const old = saved.state.entities['npc.bram']
     old.tags = (old.tags ?? []).filter((t) => t !== 'stationary')

@@ -86,8 +86,11 @@ export function checkProject(p: Project, made: Made): Problem[] {
       typed(e.id, e.type, file, e.id)
       const pl = e.place
       if (pl.on === 'tile') {
-        if (pl.map !== m.id) err('place', `${e.id} is on ${pl.map}, but in the file of ${m.id}`, file, e.id)
-        else if (!inBounds(m.id, pl.x, pl.y)) err('place', `${e.id} at ${pl.x},${pl.y} is off the map`, file, e.id)
+        // (one of a place's own people, `npc.fidelity: 'local'`, is its file's wherever in the place they begin: on its map,
+        // or in a room a step through its doors — docs/continent.md §11)
+        const home = pl.map === m.id || (e.npc?.fidelity === 'local' && m.portals.some((pt) => pt.to === pl.map))
+        if (!home) err('place', `${e.id} is on ${pl.map}, but in the file of ${m.id}`, file, e.id)
+        else if (!inBounds(pl.map, pl.x, pl.y)) err('place', `${e.id} at ${pl.x},${pl.y} is off the map`, file, e.id)
       } else if ((pl.on === 'inside' || pl.on === 'hand') && !holders.has(pl.holder)) err('reference', `${e.id} is in "${pl.holder}", which is nothing`, file, e.id)
     }
   }
