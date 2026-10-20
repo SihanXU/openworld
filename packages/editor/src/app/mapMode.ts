@@ -212,19 +212,14 @@ export class MapMode implements Mode {
   private heightPanel(): string {
     const ticks = Array.from({ length: MAX_HEIGHT + 1 }, (_, h) => h)
     return `<h3>${t('Height')}</h3>
-      <ol class="howto">
-        <li>${t('Choose the brush and <b>Raise ½</b> (above the map), and paint where the ground should rise: once is half a level, twice a whole level.')}</li>
-        <li>${t('Half a level between neighbours is a slope one walks up; a whole level or more is a cliff (a red line on the map): no one climbs it, and a fall from it can hurt.')}</li>
-        <li>${t('In the game higher ground is drawn lighter, a cliff with its rock face and shadow; it also hides what is behind it.')}</li>
-        <li>${t('<b>Lower ½</b> takes it down again; to paint one exact height, choose it below (Set to).')}</li>
-      </ol>
+      <p class="howto">${t('Raise ½ (above the map) lifts what you paint by half a level; neighbours a whole level apart make a cliff, drawn red, that no one climbs.')}</p>
       <div class="hgt">
         <div class="hgt-now"><b id="hNum">${this.height}</b><span id="hWords">${esc(heightWords(this.height))}</span></div>
         <input id="hRange" type="range" min="0" max="${MAX_HEIGHT}" step="1" value="${this.height}" title="${t('[ lower, ] higher')}">
         <div class="hgt-ticks">${ticks.map((h) => `<span class="${h % 2 ? '' : 'lv'}" style="--c:${heightCss(h)}">${h === 0 ? t('horizon') : h}</span>`).join('')}</div>
         <canvas id="hSide" width="220" height="86"></canvas>
       </div>
-      <p class="muted">${t('0 is the horizon, the ground every map stands on; 2 is a whole level.')}</p>`
+`
   }
 
   /** The side view: a step for each height, the horizon's line, the one chosen lit. */

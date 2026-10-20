@@ -1171,16 +1171,12 @@ export const ZH: Record<string, string> = {
   'one picture with {n} others': '和另外 {n} 种同图',
   'A fact is a word the story remembers (a bell rung, a crown found): where each is set and read.': '事实是剧情记住的一件事（敲响了钟、找到了王冠）：这里列出每个在哪里设置、在哪里读取。',
   // the height brush (heights.ts sculpt)
+  'Raise ½ (above the map) lifts what you paint by half a level; neighbours a whole level apart make a cliff, drawn red, that no one climbs.': '在地图上方选「抬高 ½」，涂一遍高半层；相邻两格差一层就是崖（红线），走不上去。',
   'raise the ground': '抬高地面',
   'lower the ground': '降低地面',
   'Raise ½': '抬高 ½',
   'Lower ½': '降低 ½',
   'Set to {h}': '设为 {h}',
-  'Choose the brush and <b>Raise ½</b> (above the map), and paint where the ground should rise: once is half a level, twice a whole level.': '选画笔，在地图上方点 <b>抬高 ½</b>，然后在想变高的地方涂：涂一遍高半层，涂两遍高一层。',
-  'Half a level between neighbours is a slope one walks up; a whole level or more is a cliff (a red line on the map): no one climbs it, and a fall from it can hurt.': '相邻格子差半层是能走上去的坡；差一层或更多就是崖（地图上的红线）：谁也爬不上去，从上面摔下来还会受伤。',
-  'In the game higher ground is drawn lighter, a cliff with its rock face and shadow; it also hides what is behind it.': '游戏里，越高的地面画得越亮，崖会画出岩壁和阴影；崖也会挡住后面的东西。',
-  '<b>Lower ½</b> takes it down again; to paint one exact height, choose it below (Set to).': '<b>降低 ½</b> 可以再降回去；想涂成某个确定的高度，就在下面选（设为）。',
-  '0 is the horizon, the ground every map stands on; 2 is a whole level.': '0 是地平线，也就是每张地图本来的地面；2 是整整一层。',
   'find someone by name, role or id': '按名字、身份或 id 找人',
   // a rule's conditions and effects in words (ruleWords.ts)
   '(empty)': '（空）',
