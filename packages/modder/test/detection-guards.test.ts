@@ -185,3 +185,35 @@ describe('a blocking review ships only what it let through', () => {
     expect(library.lib.rules.has('patch/stone-sapped')).toBe(false)
   })
 })
+
+describe('the review after the fact', () => {
+  /** The live profile's own harness (review after shipping, only flagged rules), no auditor; counts the reviews. */
+  const live = (patch: Patch) => {
+    const calls = { review: 0 }
+    const model = new ScriptedModel((_m: ChatMessage[], opts: ChatOptions) => {
+      if (opts.purpose === 'review') return calls.review++, { verdict: 'ship', notes: [] }
+      return { patch: { ...patch, artifacts: patch.artifacts.map((a) => (a.kind === 'rule' ? { ...a, rule: { ...a.rule, tests: undefined } } : a)) }, summary: 's' }
+    })
+    return { model, calls }
+  }
+  const noAudit = (h: Harness): Partial<Harness> => ({ audit: { ...auditOf(h), enabled: false } })
+
+  it('reviews a world-changing rule whose effects the harness\'s test cannot see (D9)', async () => {
+    const req = useRequest()
+    // a tag on the stone: it changes the world, and the derived test sees no tag (it checks only that the rule answers)
+    const { model, calls } = live(onDeadTree(req, 'patch/stone-scored', [{ op: 'addTag', tag: 'flammable' }]))
+    const { state, modder } = modderWith(model, 'live', noAudit)
+    expect(state.harness().review).toMatchObject({ enabled: true, blocking: false, unflagged: false })
+    const reply = await modder.resolve({ request: req })
+    expect(reply.outcome).toBe('accepted')
+    expect(state.episode(reply.episode!)!.attempts.at(-1)!.derived?.join()).toMatch(/checks only that the rule answers/)
+    await modder.settled()
+    expect(calls.review).toBe(1)
+    // one whose test holds it to what it does is not flagged (review.unflagged is off): no review after the fact
+    const wet = live(sapped(req))
+    const second = modderWith(wet.model, 'live', noAudit)
+    expect((await second.modder.resolve({ request: req })).outcome).toBe('accepted')
+    await second.modder.settled()
+    expect(wet.calls.review).toBe(0)
+  })
+})

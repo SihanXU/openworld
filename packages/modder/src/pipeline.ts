@@ -761,8 +761,8 @@ export class Modder {
     const shipped = ep.attempts.at(-1)
     const flags = ep.patch ? flagsOf(ep.patch, shipped?.derived) : []
     if (reviewLater) flags.push('the reviewer before shipping gave no verdict: look at everything')
-    // a review after the fact: for a rule that narrates only or did not generalize (and for every
-    // live rule when the harness says review.unflagged)
+    // a review after the fact: for a rule that narrates only or that the harness's test could not check (and
+    // for every live rule when the harness says review.unflagged)
     if (ep.outcome === 'accepted' && !eo.revise && h.review.enabled && (flags.length || (h.review.blocking === false && h.review.unflagged)) && (!shipped?.review || reviewLater))
       this.later(`review ${ep.id}`, async () => {
         const model = new Meter(this.backend!)
@@ -975,13 +975,24 @@ function narratesOnly(patch: Patch, req: ModRequest): boolean {
   return patch.artifacts.every((a) => a.kind === 'rule' && changesNothing(a.rule, req.hole?.default))
 }
 
-/** What the reviewer should look at first: rules that change nothing, rules that did not generalize. */
+/**
+ * What the harness's own test could not hold a rule to (derive.ts, and the derived test the validator dropped):
+ * since a learned rule has no siblings (§5.16) this is what "did not generalize" was, a rule the harness
+ * could not check.
+ */
+const UNTESTED = /could not derive a test|derived test dropped|checks only that the rule answers/
+
+/** What the reviewer should look at first: rules that change nothing, rules the harness's test could not check. */
 function flagsOf(patch: Patch, derived?: string[]): string[] {
   const flags: string[] = []
+  const quiet = new Set<string>()
   for (const a of patch.artifacts)
-    if (a.kind === 'rule' && changesNothing(a.rule))
+    if (a.kind === 'rule' && changesNothing(a.rule)) {
+      quiet.add(a.rule.id)
       flags.push(`"${a.rule.id}" changes nothing in the world (it only narrates). Revise unless doing nothing is clearly the most plausible and interesting outcome — and then its class must be narrow.`)
-  for (const d of derived ?? []) if (d.includes('did not generalize')) flags.push(d)
+    }
+  for (const d of derived ?? [])
+    if (UNTESTED.test(d) && ![...quiet].some((id) => d.startsWith(`${id}:`))) flags.push(`the harness could not test what it does (${d}): look at the whole outcome`)
   return flags
 }
 
