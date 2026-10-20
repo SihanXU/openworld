@@ -2,9 +2,9 @@
 // kept as an append-only log (one JSON line per patch or removal) so the library at any point
 // can be rebuilt, rolled back or ablated. Clients pull the log; the modder validates against it.
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, truncateSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { connected, economySteps, freeLunch } from './economy.ts'
 import {
   RuleLibrary,
@@ -50,15 +50,43 @@ export class WorldLibrary {
   /** The scene each live patch answered, by its first rule (for the audit sweep and the outer loop). */
   readonly asked: { scenario: Scenario; rule: string }[] = []
   private proofs = new Map<string, { tests: string[][]; result: ValidationResult }>()
+  /**
+   * The log's identity, made when its file is (kept beside it, `<file>.id`): a log begun anew has another, so
+   * a client that holds patches up to some seq of the old one knows to sync from the start.
+   */
+  readonly logId: string
+  /**
+   * The story's protected fact prefixes (the game's world index: `protectedFacts`, design.md §5.11): a commit is
+   * judged with them as a client judges the patch it syncs, so the log holds nothing every client would refuse.
+   */
+  protectedFacts: string[]
 
   constructor(
     readonly ontology: Ontology,
     readonly base: Rule[],
     private file?: string,
+    opts: { protectedFacts?: string[] } = {},
   ) {
     this.lib = new RuleLibrary(base)
+    this.protectedFacts = opts.protectedFacts ?? []
+    this.logId = file ? logIdentity(file) : randomUUID()
     if (file && existsSync(file)) {
-      for (const line of readFileSync(file, 'utf8').split('\n')) {
+      const text = readFileSync(file, 'utf8')
+      // a last line cut short (the service stopped mid-write): cut back to the last whole line, so the next
+      // entry starts a line of its own (appended onto the torn one, it would be lost on the next start, and its seq used again)
+      if (text && !text.endsWith('\n')) {
+        const cut = text.lastIndexOf('\n') + 1
+        let whole = false
+        try {
+          JSON.parse(text.slice(cut))
+          whole = true
+        } catch {
+          /* torn */
+        }
+        if (whole) appendFileSync(file, '\n')
+        else truncateSync(file, Buffer.byteLength(text.slice(0, cut)))
+      }
+      for (const line of text.split('\n')) {
         if (!line.trim()) continue
         try {
           this.apply(JSON.parse(line) as PatchLogEntry)
@@ -138,12 +166,25 @@ export class WorldLibrary {
     // (design.md §5.16; §13, the AI setting), no replay needed
     if (!this.lib.grown(req.event.host?.type ?? '-', req.event.kind, holeKey(req.hole.rule, req.hole.path), tiersFrom(tierOfRequest(req)))) return undefined
     const rule = this.answering(req)
-    if (!rule) return undefined
+    const seq = rule ? this.seqOf(rule) : undefined
+    const e = seq !== undefined ? this.log.find((x) => x.seq === seq) : undefined
+    if (!rule || !e || !('patch' in e)) return undefined // answered by a base rule the client lacks: see answeredByBase
+    // the patch as the library still holds it: a rule of it rolled back since (or replaced by a later version) is
+    // not shipped again, nor a type or status it brought that the library has forgotten
+    const held = e.patch.artifacts.filter((a) =>
+      a?.kind === 'rule' ? this.seqOf(a.rule?.id) === e.seq : a?.kind === 'type' ? this.lib.types.some((t) => t.id === a.type?.id) : a?.kind === 'status' ? this.lib.statuses.some((s) => s.id === a.status?.id) : true,
+    )
+    return { rule, patch: held.length === e.patch.artifacts.length ? e.patch : { ...e.patch, artifacts: held } }
+  }
+
+  /** The seq of the log entry that added the version of a patch rule now in force (undefined: no patch rule by that id is). */
+  seqOf(ruleId: string): number | undefined {
+    if (this.lib.rules.get(ruleId)?.source?.origin !== 'patch') return undefined
     for (let i = this.log.length - 1; i >= 0; i--) {
       const e = this.log[i]
-      if ('patch' in e && e.rules.includes(rule)) return { rule, patch: e.patch }
+      if ('patch' in e && e.rules.includes(ruleId)) return e.seq
     }
-    return undefined // answered by a base rule the client lacks: see answeredByBase
+    return undefined
   }
 
   /**
@@ -171,7 +212,9 @@ export class WorldLibrary {
     // Public ontology and workspace data can change without a mutator or sequence bump.
     const artifacts = patch?.artifacts?.map((a) => a?.kind === 'rule' && a.rule ? { ...a, rule: { ...a.rule, tests: undefined } } : a)
     // (the library's version moves with every add and removal, so its rules need not be hashed)
-    const key = createHash('sha256').update(JSON.stringify([this.lib.version, this.lib.types, this.lib.statuses, this.ontology, ws, req?.scenario, replaces, artifacts])).digest('hex')
+    // judged as the client judges it: a world event's answer within the world's boundaries, the story's facts its own
+    const world = (req?.origin ?? patch?.trigger) === 'world'
+    const key = createHash('sha256').update(JSON.stringify([this.lib.version, this.lib.types, this.lib.statuses, this.ontology, ws, req?.scenario, replaces, artifacts, world, this.protectedFacts])).digest('hex')
     const rules = patch?.artifacts?.flatMap((a) => a?.kind === 'rule' && a.rule ? [a.rule] : []) ?? []
     const tests = rules.map((r) => (r.tests ?? []).map((t) => JSON.stringify(t)))
     const proof = this.proofs.get(key)
@@ -182,7 +225,7 @@ export class WorldLibrary {
       if (result.ok) this.proofs.set(key, { tests, result: structuredClone(result) })
       return result
     }
-    const result = validatePatch(patch, { ontology: this.ontology, library: lib, scenario: req?.scenario })
+    const result = validatePatch(patch, { ontology: this.ontology, library: lib, scenario: req?.scenario, world, protectedFacts: this.protectedFacts })
     if (!result.ok) return result
     // what the patch costs the world (a free lunch refused): its warnings are part of the proof
     const economy = this.economy(patch, lib)
@@ -278,7 +321,7 @@ export class WorldLibrary {
    * loop replays a recorded request against the world as it was before the request was answered.
    */
   fork(keep: (e: PatchLogEntry) => boolean = () => true): WorldLibrary {
-    const w = new WorldLibrary(this.ontology, this.base)
+    const w = new WorldLibrary(this.ontology, this.base, undefined, { protectedFacts: this.protectedFacts })
     for (const e of this.log) if (keep(e)) w.apply(e)
     return w
   }
@@ -441,6 +484,20 @@ export class WorldLibrary {
     mkdirSync(dirname(this.file), { recursive: true })
     appendFileSync(this.file, JSON.stringify(e) + '\n')
   }
+}
+
+/** The identity of the log in `file`: read from beside it, or made with the file (a log with no identity of its own gets one). */
+function logIdentity(file: string): string {
+  const side = `${file}.id`
+  if (existsSync(file) && existsSync(side)) {
+    const id = readFileSync(side, 'utf8').trim()
+    if (id) return id
+  }
+  const id = randomUUID()
+  mkdirSync(dirname(file), { recursive: true })
+  appendFileSync(file, '')
+  writeFileSync(side, `${id}\n`)
+  return id
 }
 
 function firstTestScenario(p: Patch): Scenario | undefined {

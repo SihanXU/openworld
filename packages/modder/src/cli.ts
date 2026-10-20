@@ -1,5 +1,6 @@
 // npm run modder -- <command>
-//   serve [port]              run the modder service (default 8787)
+//   serve [port]              run the modder service (default 8787) on --host <addr> / $LSW_HOST (default 127.0.0.1:
+//                             this machine only; a deployment for players elsewhere passes 0.0.0.0)
 //   stats                     self-state and shared-library numbers
 //   snapshot <label>          freeze the self-state (benchmark checkpoints, ablations)
 //   export [label]            print the self-state as one document (now, or a snapshot)
@@ -10,9 +11,14 @@
 // game.json), or a module whose default export is its GameDef (the root script passes games/openworld's). Data: --data <dir> or $LSW_DATA (default <repo>/var). Model: LSW_MODEL_URL + LSW_MODEL_KEY +
 // LSW_MODEL (OpenAI-compatible), --backend claude-code (claude -p; LSW_CLAUDE_MODEL, LSW_CLAUDE_EFFORT;
 // --fast for fast mode), --backend none, or --script <file> / LSW_MODEL_SCRIPT (scripted, no network). See modelFromEnv.
+// The story's protected facts (a commit is judged with them, as every client judges what it syncs): a project's
+// folder or a bundle's own world index, or --world <index.json> / $LSW_WORLD (a game given as a module has none).
 
-import { existsSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { existsSync, readFileSync, statSync } from 'node:fs'
+import type { AddressInfo } from 'node:net'
+import { dirname, join, resolve } from 'node:path'
+import type { GameDef, WorldIndex } from '@openworld/engine'
+import { compileProject } from '@openworld/format/src/node.ts'
 import { scriptFromFile } from '@openworld/agent'
 import { REPO, loadGame, openModder } from './open.ts'
 import { createModderServer } from './server.ts'
@@ -27,9 +33,11 @@ const backend = flag('backend')
 if (backend) process.env.LSW_MODEL_BACKEND = backend
 if (argv.includes('--fast')) (argv.splice(argv.indexOf('--fast'), 1), (process.env.LSW_CLAUDE_FAST = '1'))
 const data = flag('data')
+const host = flag('host') ?? process.env.LSW_HOST ?? '127.0.0.1'
 const gameModule = flag('game') ?? process.env.OPENWORLD_GAME
 if (!gameModule) throw new Error('which game? --game <game> (or OPENWORLD_GAME): a bundle, a project\'s folder, or a module whose default export is the GameDef')
 const game = await loadGame(gameModule)
+const world = flag('world') ?? process.env.LSW_WORLD
 const [cmd = 'serve', ...args] = argv
 const stamp = () => new Date().toISOString().slice(11, 19)
 const modder = openModder({
@@ -39,16 +47,32 @@ const modder = openModder({
   log: (l) => console.log(`[${stamp()}] ${l}`),
 })
 const { library, state } = modder.opts
+library.protectedFacts = protectedFactsOf(gameModule, game, world)
+
+/** The story's protected fact prefixes: from the world index given, the project's, the bundle's, or the game's own. */
+function protectedFactsOf(module: string, g: GameDef, index?: string): string[] {
+  const read = (file: string) => (JSON.parse(readFileSync(file, 'utf8')) as Partial<WorldIndex>).protectedFacts ?? []
+  if (index) return read(resolve(REPO, index))
+  const at = resolve(REPO, module)
+  const dir = existsSync(at) && statSync(at).isDirectory()
+  if (dir && existsSync(join(at, 'game.json')) && !existsSync(join(at, 'bundle.json'))) return compileProject(at).index.protectedFacts ?? []
+  const beside = join(at.endsWith('.json') ? dirname(at) : at, 'world', 'index.json')
+  if ((at.endsWith('.json') || dir) && existsSync(beside)) return read(beside)
+  return (g as GameDef & { protectedFacts?: string[] }).protectedFacts ?? []
+}
 
 switch (cmd) {
   case 'serve': {
     const port = Number(args[0] ?? process.env.LSW_PORT ?? 8787)
     // what the validator no longer takes leaves the library before any client can sync it
     const pruned = library.prune()
-    createModderServer(modder, { game: game.id }).listen(port, () => {
-      console.log(`modder on http://localhost:${port}  model: ${modder.model?.name ?? '(none: answers from the shared library only)'}`)
+    const server = createModderServer(modder, { game: game.id })
+    server.listen(port, host, () => {
+      const at = server.address() as AddressInfo
+      console.log(`modder on http://${at.family === 'IPv6' ? `[${at.address}]` : at.address}:${at.port}  model: ${modder.model?.name ?? '(none: answers from the shared library only)'}`)
       for (const p of pruned) console.log(`library: rolled back ${p.rules.join(', ')}: ${p.reason}`)
-      console.log(`library: ${library.patchRules().length} patch rules (seq ${library.seq}) · self-state: ${state.dir}`)
+      console.log(`library: ${library.patchRules().length} patch rules (seq ${library.seq}, log ${library.logId}) · self-state: ${state.dir}`)
+      console.log(library.protectedFacts.length ? `library: ${library.protectedFacts.length} protected fact prefixes` : 'library: no protected facts known (--world <index.json>): commits are not checked against the story\'s facts')
     })
     break
   }
