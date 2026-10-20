@@ -8,7 +8,7 @@
 // (dragged: a block to stamp); things are dragged to move and nudged with the arrows. Every stroke is the format's
 // data: a map file's rows, heights, stamps, rooms, portals, anchors, regions and entities (mapEdit.ts).
 
-import type { Entity, Portal, RawChunk, Rule } from '@openworld/engine'
+import type { Entity, Ontology, Portal, RawChunk, Rule } from '@openworld/engine'
 import { paintOrganic, paintPath, scatter, yard, type PersonFile } from '@openworld/format'
 import type { Catalog } from '@openworld/runtime/src/assets/types.ts'
 import type { CellEvent } from './canvas.ts'
@@ -19,7 +19,7 @@ import { mapSettings, wireMapSettings } from './mapForms.ts'
 import { rulesMode } from './modes.ts'
 import { setEntry } from './ontologyFiles.ts'
 import { QuickEvents, type QuickKind } from './quickEvents.ts'
-import { mapTree, overview, paintMinis } from './mapTree.ts'
+import { mountTree, overview } from './mapTree.ts'
 import {
   EditError,
   boxOf,
@@ -56,7 +56,7 @@ import {
 import { paintPics, prefabPic, terrainPic, typePic, type Pic } from './thumbs.ts'
 import { icon } from './icons.ts'
 import { LAYERS, groupOf, layerOf, terrainPalette, toolDef, toolForKey, type LayerId, type Tool, type TerrainGroup } from './mapTools.ts'
-import { phrase } from './lang.ts'
+import { phrase, uiLang } from './lang.ts'
 import { esc, parseValue, t, textField, toast, tx } from './ui.ts'
 import { adoptTexts, shown, together, written } from './words.ts'
 import { modal } from './dialogs.ts'
@@ -69,6 +69,9 @@ const SIZED = new Set<Tool>(['pencil', 'erase'])
 
 /** What was copied last (any map's): a block, or a thing alone. */
 let clipboard: Block | undefined
+/** Each compiled ontology seen, numbered (a new one means the project was compiled whole: the palettes read it). */
+const ontoSeen = new WeakMap<Ontology, number>()
+let ontoCount = 0
 
 export class MapMode implements Mode {
   id = 'map'
@@ -163,6 +166,35 @@ export class MapMode implements Mode {
     if (!this.prefab || !cat.prefabs[this.prefab]) this.prefab = Object.keys(cat.prefabs)[0] ?? ''
     if (!this.style || !cat.rooms[this.style]) this.style = Object.keys(cat.rooms)[0] ?? ''
     if (!this.floor || !chars.some(([c]) => c === this.floor)) this.floor = charOf(ctx.store.game.terrainChars, 'floor') ?? this.char
+    // the left panel is drawn again only when what it shows has changed: a stroke draws the panels at every cell, and
+    // the palettes and the tree of a thousand maps are as they were (the tree's marks and minis are brought up to date)
+    const key = this.leftKey(ctx, onto)
+    const open = (id: string) => ((this.main = undefined), (this.selBox = undefined), ctx.showMap(id))
+    if (key !== this.shownLeft || !left.querySelector('.lp-tree')) {
+      this.shownLeft = key
+      this.leftPanel(ctx, left, onto, cat, chars)
+    }
+    mountTree(ctx, left.querySelector('.lp-tree')!, open)
+    this.inspector(ctx, right)
+    ctx.canvas.dim(this.layer === 'things' ? { ground: 0.55 } : this.layer === 'marks' ? { ground: 0.8, things: 0.6 } : { things: 0.45 })
+  }
+
+  /** What the left panel showed last (`leftKey`). */
+  private shownLeft = ''
+  /**
+   * Everything the left panel is drawn from: the tool and what is chosen, the map's kind and the ground it uses
+   * (which choose the terrain groups; not the map itself: the tree marks the map shown), the game's characters, the
+   * catalogue, the ontology (a new one after every whole compile), the editor's language, how many maps there are.
+   * The quick events' panel is a form of its own state: drawn again at every change.
+   */
+  private leftKey(ctx: Ctx, onto: Ontology): string {
+    const m = this.chunk(ctx)?.map
+    const quick = this.layer === 'things' && this.tool === 'quick' ? ctx.store.revision : 0
+    ontoSeen.has(onto) || ontoSeen.set(onto, ++ontoCount)
+    return [this.layer, this.tool, this.char, this.height, this.thing, this.filter, this.paste ? `${this.paste.w}x${this.paste.h}` : '', this.prefab, this.style, this.floor, this.markName, this.terrainGroup ?? '', m?.kind ?? '', [...new Set((m?.rows ?? []).join(''))].sort().join(''), ctx.store.maps().length, ctx.store.revisionOf('game.json'), ctx.store.revisionOf('catalog.json'), ontoSeen.get(onto)!, uiLang(), quick].join('\0')
+  }
+
+  private leftPanel(ctx: Ctx, left: HTMLElement, onto: Ontology, cat: Catalog, chars: [string, string][]): void {
     const pics = new Map<string, Pic | undefined>()
     const parts: string[] = []
     // what is laid, by kind, above; the maps below (each part scrolls by itself)
@@ -183,7 +215,7 @@ export class MapMode implements Mode {
     if (this.layer === 'marks') parts.push(`<p class="muted">${t('Portals, anchors and areas are drawn over the map; choose one with Select to change it on the right.')}</p>`)
     parts.push(`</div><div class="lp-maps"><h3>${t('Maps')} <small class="muted">${ctx.store.maps().length}</small> <a id="mOverview" class="x" title="${t('every map, laid out by its edges, its portals\' lines')}">${t('world ▸')}</a></h3>
       <input id="mapFilter" placeholder="${t('find a map by its name or id')}" value="${esc(this.mapFilter)}">
-      <div class="lp-tree">${mapTree(ctx)}</div>
+      <div class="lp-tree"></div>
       <details><summary>${t('New map')}</summary>
         <label>${t('id')} <input id="nmId" placeholder="meadow"></label>
         <label>${t('name')} <input id="nmName"></label>
@@ -197,11 +229,8 @@ export class MapMode implements Mode {
       left.querySelectorAll<HTMLElement>('[data-quick]').forEach((b) => (b.onclick = () => ((this.quick.kind = b.dataset.quick as QuickKind), ctx.refresh())))
     }
     paintPics(left, ctx.store.id, pics)
-    paintMinis(ctx, left)
     this.wireLeft(ctx, left)
     this.filterMaps(left)
-    this.inspector(ctx, right)
-    ctx.canvas.dim(this.layer === 'things' ? { ground: 0.55 } : this.layer === 'marks' ? { ground: 0.8, things: 0.6 } : { things: 0.45 })
   }
 
   /** The ground's terrains in their groups, one group shown at a time (the chosen ground's, until another is opened). */
@@ -287,7 +316,6 @@ export class MapMode implements Mode {
     on('[data-height]', (b) => ((this.height = Number(b.dataset.height)), !PAINTS.has(this.tool) && this.setTool(ctx, this.last['height:brush'] ?? 'pencil'), ctx.refresh()))
     on('[data-thing]', (b) => ((this.thing = b.dataset.thing!), ['pick', 'erase', 'eyedrop'].includes(this.tool) && this.setTool(ctx, this.last['things:brush'] ?? 'put'), ctx.refresh()))
     on('[data-prefab]', (b) => ((this.prefab = b.dataset.prefab!), ctx.refresh()))
-    on('[data-map]', (b) => ((this.main = undefined), (this.selBox = undefined), ctx.showMap(b.dataset.map!)))
     on('#pasteOff', () => ((this.paste = undefined), ctx.refresh()))
     on('#mOverview', () => this.showOverview(ctx))
     const sel = (id: string, f: (v: string) => void) => { const el = left.querySelector<HTMLSelectElement | HTMLInputElement>(id); if (el) el.onchange = () => f(el.value) }
