@@ -106,6 +106,7 @@ export class Drafter {
         <div class="seg">${KINDS.map(([k, n]) => `<button data-kind="${k}" class="${k === this.kind ? 'on' : ''}" ${busy ? 'disabled' : ''}>${t(n)}</button>`).join('')}</div>
         <textarea id="drIntent" rows="3" placeholder="${esc(t(example))}" ${busy ? 'disabled' : ''}>${esc(this.intent[this.kind] ?? '')}</textarea>
         <div class="row"><button id="drGo" class="on" ${busy ? 'disabled' : ''}>${busy ? t('Drafting…') : t('Draft it')}</button><span class="muted">${esc(t('From what this game has; checked before you take it in.'))}</span></div>
+        ${this.kind === 'person' && personContext(ctx).anchors.filter((a) => a.startsWith(`${ctx.map}:`)).length < 2 ? `<p class="warn">${t('This map has few named spots for a day: add some on the Marks layer first.')}</p>` : ''}
         <div id="drOut">${this.result(ctx)}</div>
       </div>`
     const area = this.drawer.querySelector<HTMLTextAreaElement>('#drIntent')!
@@ -163,7 +164,8 @@ export class Drafter {
       const made = ty.makeup?.length ? `${ty.station === 'hands' || !ty.station ? t('by hand') : t('at a {station}', { station: esc(ty.station) })}: ${ty.makeup.map((m) => `${m.count} × <code>${esc(m.type)}</code>`).join(' + ')}` : t('not made by anyone')
       return `<div class="box thing-card"><div class="thing-head">${ty.art ? `<img class="px big" src="${artUrl(ty.art)}" alt="">` : `<div class="px big none">${t('no icon')}</div>`}
           <div><h3>${Object.values(name).map(esc).join(' · ')}</h3><p><code>${esc(ty.id)}</code></p>
-          <p>${(ty.tags ?? []).map((g) => `<span class="chip">${esc(g)}</span>`).join(' ')}</p><p>${t('Made {how}', { how: made })}</p></div></div>
+          <p>${(ty.tags ?? []).map((g) => `<span class="chip">${esc(g)}</span>`).join(' ')}</p><p>${t('Made {how}', { how: made })}</p>
+          ${ty.props && Object.keys(ty.props).length ? `<p class="muted">${Object.entries(ty.props).map(([k, v]) => `${esc(k)} ${esc(typeof v === 'string' ? v : JSON.stringify(v))}`).join(' · ')}</p>` : ''}</div></div>
         ${r ? `<table class="sched">${r.checks.map((c) => `<tr><td>${c.ok ? '<span class="ok">✓</span>' : '<span class="warn">✗</span>'}</td><td><b>${t(CHECK_NAMES[c.id])}</b></td><td><small>${c.detail.map(esc).join('<br>')}</small></td></tr>`).join('')}</table>` : ''}</div>`
     }).join('')
   }

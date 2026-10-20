@@ -1547,8 +1547,10 @@ describe('a person or a map an author asks for (the editor\'s drafter)', () => {
 
   it('drafts a person, mends what does not hold yet, and writes nothing', async () => {
     const asked: string[] = []
-    const model = new ScriptedModel((messages) => {
+    const waits: number[] = []
+    const model = new ScriptedModel((messages, opts) => {
       asked.push(messages[messages.length - 1].content)
+      waits.push(opts.deadlineMs ?? 0)
       return asked.length === 1 ? { ...PERSON, id: 'npc.mira' } : PERSON
     })
     const { modder, library } = setup(model)
@@ -1557,5 +1559,7 @@ describe('a person or a map an author asks for (the editor\'s drafter)', () => {
     expect(asked[1]).toContain('id "npc.mira" is taken')
     expect(reply.draft).toEqual(PERSON)
     expect(library.seq).toBe(0)
+    // an author waits on purpose for a draft (a map is many cells): longer than a player's minute
+    expect(Math.min(...waits)).toBeGreaterThanOrEqual(180_000)
   })
 })

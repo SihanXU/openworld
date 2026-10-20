@@ -341,7 +341,7 @@ export interface Had {
  * already have, at a place a player can have (the engine checks both, and that its numbers sit among its kind's).
  * What it does with other things is not written here: those are holes, answered act by act.
  */
-export function thingUser(intent: string, o: { catalogue: string; materials: string[]; had: Had[]; stations: string[] }): string {
+export function thingUser(intent: string, o: { catalogue: string; materials: string[]; had: Had[]; stations: string[]; elements?: string[] }): string {
   return [
     '# A new thing',
     `The game's author wants a new thing in it: "${intent}"`,
@@ -351,6 +351,7 @@ export function thingUser(intent: string, o: { catalogue: string; materials: str
     '- tags: give the ones the things beside it have for the same use (a tool\'s "tool:<kind>", food\'s "edible"); a thing one carries is "portable".',
     '- Something worn (under item/clothing or item/armor) names where in props.slot (head, body, shoulders, waist, feet, hands, ring, neck, ear, arm), as the things of its kind do: without it, it cannot be worn.',
     o.materials.length ? `- props.material: what it is made of, one of: ${o.materials.join(', ')}.` : '- This world has no materials: leave props.material out.',
+    ...(o.elements?.length ? [`- props.element: if what it is asked to be is of an element (it burns, freezes, sparks …), that element, one of: ${o.elements.join(', ')}; otherwise leave it out.`] : []),
     '- props: the numbers its kind uses (see the things a player can have, below), at a level that fits what it is: neither far above nor far below its kind.',
     '- makeup: what it is made of, from the things a player can have (below), by type and count, so a player can make it; it is also what it leaves when broken.',
     `- station: where a player makes it: "hands"${o.stations.length ? `, or one of the stations a player can have: ${o.stations.join(', ')}` : ' (this world has no station a player can have)'}.`,

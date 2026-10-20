@@ -274,12 +274,12 @@ export class Modder {
     const model = new Meter(this.backend)
     const messages: ChatMessage[] = [
       { role: 'system', content: THING_SYSTEM },
-      { role: 'user', content: thingUser(intent, { catalogue: catalogueOf(Object.values(onto.types)), materials: Object.keys(onto.materials ?? {}), had: body.had ?? [], stations: body.stations ?? [] }) },
+      { role: 'user', content: thingUser(intent, { catalogue: catalogueOf(Object.values(onto.types)), materials: Object.keys(onto.materials ?? {}), had: body.had ?? [], stations: body.stations ?? [], elements: onto.elements ?? [] }) },
     ]
     const diagnostics: string[] = []
     try {
       for (let round = 0; round < 3; round++) {
-        const answer = (await model.chat(messages, { json: true, temperature: 0.6, purpose: 'create', reasoning: 'medium', deadlineMs: SLOW_MS })).content
+        const answer = (await model.chat(messages, { json: true, temperature: 0.6, purpose: 'create', reasoning: 'medium', deadlineMs: DRAFT_MS })).content
         const j = parseJson(answer) as { patch?: Patch; looks?: Record<string, string>; look?: string } | undefined
         // a new thing is types alone: what it does is asked act by act, as holes
         const patch: Patch = { artifacts: (j?.patch?.artifacts ?? []).filter((a) => a?.kind === 'type'), ...(j?.patch?.note && { note: j.patch.note }) }
@@ -326,7 +326,7 @@ export class Modder {
     const usage = () => ({ calls: model.calls, input: model.input, output: model.output, cost: model.cost })
     try {
       for (let round = 0; round < 3; round++) {
-        const answer = (await model.chat(messages, { json: true, temperature: 0.7, purpose: 'create', reasoning: 'medium', deadlineMs: SLOW_MS })).content
+        const answer = (await model.chat(messages, { json: true, temperature: 0.7, purpose: 'create', reasoning: 'medium', deadlineMs: DRAFT_MS })).content
         const j = parseJson(answer) as Record<string, unknown> | undefined
         const problems = kind === 'person' ? personProblems(j, ctx) : mapProblems(j, ctx)
         if (!problems.length) return { draft: kind === 'map' ? settleMap(j!) : j!, diagnostics: [], usage: usage() }
@@ -1123,6 +1123,8 @@ const shownName = (n: { en: string; zh: string }) => ({ en: n.en, zh: n.zh || n.
 
 /** Finding and creating take longer than a design (a long catalogue, a picture): their calls may. */
 const SLOW_MS = 60_000
+/** An author drafting (a thing, a person, a map) waits on purpose, and a map is many cells: longer than a player's. */
+const DRAFT_MS = 180_000
 
 /**
  * The things a draft makes that the world has no type for and the patch does not define: spawned, or

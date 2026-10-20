@@ -1244,6 +1244,7 @@ export const ZH: Record<string, string> = {
   'set down {kind} by the start': '在起点旁放下 {kind}',
   'Set down by the start: it lies one step to the right.': '已放在起点旁：就在右边一格。',
   // the AI drafter (drafter.ts)
+  'This map has few named spots for a day: add some on the Marks layer first.': '这张地图上能安排日程的地点太少：先在「标记」层加几个。',
   'A thing': '物品',
   'A person': '人物',
   'a gardener who worries about her beans, up at dawn': '一个天不亮就起床、总担心豆子长不好的园丁',

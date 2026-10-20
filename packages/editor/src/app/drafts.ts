@@ -11,7 +11,10 @@ export function personContext(ctx: Ctx) {
   const maps = ctx.store.maps().map((m) => m.data)
   const here = maps.find((m) => m.map.id === ctx.map)
   const joined = new Set([ctx.map, ...(here?.map.portals ?? []).map((p) => p.to), ...maps.filter((m) => m.map.portals.some((p) => p.to === ctx.map)).map((m) => m.map.id)])
-  const anchors = maps.filter((m) => joined.has(m.map.id)).flatMap((m) => Object.keys(m.map.anchors ?? {}).map((a) => `${m.map.id}:${a}`))
+  // (never a cell one arrives on: the game's start, a portal's landing; someone standing there stands in the player's way)
+  const start = ctx.store.game.start
+  const landings = new Set([`${start.map}:${start.x},${start.y}`, ...maps.flatMap((m) => m.map.portals.map((p) => `${p.to}:${p.tx},${p.ty}`))])
+  const anchors = maps.filter((m) => joined.has(m.map.id)).flatMap((m) => Object.entries(m.map.anchors ?? {}).filter(([, [x, y]]) => !landings.has(`${m.map.id}:${x},${y}`)).map(([a]) => `${m.map.id}:${a}`))
   const onto = ctx.onto()
   const people = ctx.store.list<PersonFile>('people')
   const sample = (people.find((p) => p.data.place.on === 'tile' && p.data.place.map === ctx.map) ?? people[0])?.data

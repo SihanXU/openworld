@@ -26,6 +26,19 @@ describe('the AI drafter', () => {
     expect(c.taken).toEqual(['npc.mira'])
   })
 
+  it('never offers a person a cell one arrives on: the game\'s start, a portal\'s landing', () => {
+    const ctx = ctxOf()
+    const { map, x, y } = ctx.store.game.start
+    ctx.store.change<{ map: { anchors: Record<string, [number, number]> } }>(ctx.store.mapFile(map)!, 'a spot on the start', (c) => (c.map.anchors.spawn = [x, y]))
+    expect(personContext(ctx).anchors).not.toContain(`${map}:spawn`)
+    expect(personContext(ctx).anchors).toContain(`${map}:garden`)
+    // the cottage's door is where one lands coming in from the glade
+    const glade = ctx.store.get<{ map: { portals: { to: string; tx: number; ty: number }[] } }>(ctx.store.mapFile('glade')!)!
+    const into = glade.map.portals.find((p) => p.to === 'cottage')!
+    ctx.store.change<{ map: { anchors: Record<string, [number, number]> } }>(ctx.store.mapFile('cottage')!, 'a spot at the door', (c) => (c.map.anchors.inside = [into.tx, into.ty]))
+    expect(personContext(ctx).anchors).not.toContain('cottage:inside')
+  })
+
   it('tells it a map\'s ground by character, the kinds of things the maps hold, the ids taken', () => {
     const c = mapContext(ctxOf())
     expect(c.chars).toEqual(expect.arrayContaining([expect.objectContaining({ char: '.', terrain: 'grass' })]))
