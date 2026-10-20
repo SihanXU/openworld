@@ -3,7 +3,7 @@
 // the validator refuses (design.md §5.11, §5.16).
 
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, holeKey, placePatch, restoreLibrary, type Cond, type Ontology, type Patch, type Rule, type Scenario } from '@openworld/engine'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, placePatch, restoreLibrary, validatePatch, type Cond, type Effect, type Ontology, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { STDLIB_ONTOLOGY, STDLIB_RULES } from '@openworld/stdlib'
 
 const STD = STDLIB_ONTOLOGY as Ontology
@@ -134,5 +134,27 @@ describe('a rule set aside at run time is not served again (C1)', () => {
     // and the question is not asked again this session
     eng.act('use', 'actor', { e: 'it' })
     expect(port.records.length).toBe(2)
+  })
+})
+
+describe("only the story's own rules write its protected facts, whoever started the chain (V1)", () => {
+  const PROTECTED = ['ford.']
+  /** A learned rule on the story at its handle hole (a player's chain handing the story something). */
+  const onStory = (effects: Effect[]): Patch => ({ artifacts: [{ kind: 'rule', rule: { id: 'patch/story', host: { type: 'resident/story' }, on: 'impulse/handle', hole: 'core/handle', at: [], tree: { do: effects } } }] })
+  const check = (p: Patch, world?: boolean) => validatePatch(p, { ontology: onto, library: new RuleLibrary(BASE), protectedFacts: PROTECTED, world })
+
+  it('a player-started chain may not set or raise a protected fact', () => {
+    for (const world of [false, true]) {
+      expect(check(onStory([{ op: 'setProp', key: 'ford.crossed', value: 1 }]), world).errors.join()).toMatch(/ford\.crossed/)
+      expect(check(onStory([{ op: 'addProp', key: 'ford.crossed', delta: 1 }]), world).errors.join()).toMatch(/ford\.crossed/)
+    }
+    // nor keep the facts an event carries, nor hand the story one to keep
+    expect(check(onStory([{ op: 'facts' }])).errors.join()).toMatch(/facts/)
+    const handing: Patch = { artifacts: [{ kind: 'rule', rule: { id: 'patch/hand', host: { type: STONE }, on: 'act/use', hole: holeKey(ask().req.hole.rule, ask().req.hole.path), at: [], tree: { do: [{ op: 'emit', impulse: 'handle', to: 'story', params: { 'fact.ford.crossed': 1 } }] } } }] }
+    expect(check(handing).errors.join()).toMatch(/ford\.crossed/)
+  })
+
+  it('a fact of its own is still the patch\'s to keep', () => {
+    expect(check(onStory([{ op: 'setProp', key: 'stones.used', value: 1 }])).errors).toEqual([])
   })
 })

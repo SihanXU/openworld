@@ -1381,12 +1381,13 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     // (a notice to the story, or the story's own `topic`), never one the story raises (its protected `topic.<id>`)
     const raised = e.op === 'topic' ? e.id : e.op === 'emit' && e.impulse === 'notify' && e.params?.what === 'topic' ? e.params?.value : undefined
     if (typeof raised === 'string' && isProtected(`topic.${raised}`, ctx.protectedFacts)) errors.push(`${where}: the story raises the topic "${raised}" itself when it happens; a patch may raise a topic of its own (a new id)`)
-    // the boundaries of what the world does by itself
-    if (ctx.world) {
-      // the story's facts are its props: a world event's patch on the story may not change its protected ones
-      const fact = (e.op === 'setProp' || e.op === 'addProp') && resident ? e.key : undefined
-      if (fact && isProtected(fact, ctx.protectedFacts)) errors.push(`${where}: a world event may not change the story's fact "${fact}"`)
-    }
+    // only the story's own rules write its protected facts (design.md §5.11, the boundaries), whoever started
+    // the chain: the story's facts are its props, kept by setProp, addProp and the facts it is told (`facts`)
+    const fact = (e.op === 'setProp' || e.op === 'addProp') && resident ? e.key : undefined
+    if (typeof fact === 'string' && isProtected(fact, ctx.protectedFacts)) errors.push(`${where}: only the story's own rules change its fact "${fact}"`)
+    if (e.op === 'facts' && ctx.protectedFacts?.length) errors.push(`${where}: facts keeps whatever facts the event carries, the story's protected ones among them; only the story's own rules keep facts (set one of the rule's own with setProp)`)
+    if (e.op === 'emit')
+      for (const k of Object.keys(e.params ?? {})) if (k.startsWith('fact.') && isProtected(k.slice(5), ctx.protectedFacts)) errors.push(`${where}.params.${k}: only the story's own rules change its fact "${k.slice(5)}"`)
   }
   /** A label is Text naming only the roles an input has: {target}, {instrument}, {actor}. */
   const checkLabel = (l: unknown, where: string) => {
