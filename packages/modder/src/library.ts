@@ -2,9 +2,9 @@
 // kept as an append-only log (one JSON line per patch or removal) so the library at any point
 // can be rebuilt, rolled back or ablated. Clients pull the log; the modder validates against it.
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, truncateSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, truncateSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { connected, economySteps, freeLunch } from './economy.ts'
 import {
   RuleLibrary,
@@ -50,6 +50,11 @@ export class WorldLibrary {
   /** The scene each live patch answered, by its first rule (for the audit sweep and the outer loop). */
   readonly asked: { scenario: Scenario; rule: string }[] = []
   private proofs = new Map<string, { tests: string[][]; result: ValidationResult }>()
+  /**
+   * The log's identity, made when its file is (kept beside it, `<file>.id`): a log begun anew has another, so
+   * a client that holds patches up to some seq of the old one knows to sync from the start.
+   */
+  readonly logId: string
 
   constructor(
     readonly ontology: Ontology,
@@ -57,6 +62,7 @@ export class WorldLibrary {
     private file?: string,
   ) {
     this.lib = new RuleLibrary(base)
+    this.logId = file ? logIdentity(file) : randomUUID()
     if (file && existsSync(file)) {
       const text = readFileSync(file, 'utf8')
       // a last line cut short (the service stopped mid-write): cut back to the last whole line, so the next
@@ -456,6 +462,20 @@ export class WorldLibrary {
     mkdirSync(dirname(this.file), { recursive: true })
     appendFileSync(this.file, JSON.stringify(e) + '\n')
   }
+}
+
+/** The identity of the log in `file`: read from beside it, or made with the file (a log with no identity of its own gets one). */
+function logIdentity(file: string): string {
+  const side = `${file}.id`
+  if (existsSync(file) && existsSync(side)) {
+    const id = readFileSync(side, 'utf8').trim()
+    if (id) return id
+  }
+  const id = randomUUID()
+  mkdirSync(dirname(file), { recursive: true })
+  appendFileSync(file, '')
+  writeFileSync(side, `${id}\n`)
+  return id
 }
 
 function firstTestScenario(p: Patch): Scenario | undefined {

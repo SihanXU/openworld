@@ -1,7 +1,8 @@
 // The modder service: one small HTTP API next to the static game (design.md §11).
 //   GET  /health          model, library and self-state at a glance
 //   POST /resolve         ResolveBody → ResolveReply (a validated patch, or why not); `profile: offline` from the editor
-//   GET  /patches?since=n the shared library's patch log after seq n (clients sync from it)
+//   GET  /patches?since=n the shared library's patch log after seq n (clients sync from it): {seq, log, entries};
+//                         `log` is the log's identity (another one: the log was begun anew, sync from 0)
 //   GET  /stats           the numbers the paper reports
 //   GET  /progress?id=r   where request r is (queued, local, find, create, art; {} when not here)
 //   POST /create          {intent, had?, stations?} → a new thing's draft (types and icons), not committed (this host only)
@@ -26,7 +27,7 @@ export interface ServerOptions {
 
 export function createModderServer(modder: Modder, opts: ServerOptions = {}): Server {
   const { library, state } = modder.opts
-  const libraryInfo = () => ({ seq: library.seq, patches: library.patchRules().length, rules: library.lib.rules.size })
+  const libraryInfo = () => ({ seq: library.seq, log: library.logId, patches: library.patchRules().length, rules: library.lib.rules.size })
   const detector = new Detector(modder, { file: modder.opts.data ? join(modder.opts.data, 'quality.json') : undefined, probes: modder.opts.probes, log: modder.opts.log })
   // a detection is model calls on this service's account: asked for from this machine only
   const local = (req: IncomingMessage) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '')
@@ -50,7 +51,7 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
       }
       if (req.method === 'GET' && url.pathname === '/patches') {
         const since = Number(url.searchParams.get('since') ?? 0) || 0
-        return send(200, { seq: library.seq, entries: library.since(since) })
+        return send(200, { seq: library.seq, log: library.logId, entries: library.since(since) })
       }
       if (req.method === 'GET' && url.pathname === '/progress') return send(200, modder.progressOf(url.searchParams.get('id') ?? '') ?? {})
       if (req.method === 'GET' && url.pathname === '/stats') return send(200, { library: libraryInfo(), state: state.stats(), snapshots: state.snapshots() })
