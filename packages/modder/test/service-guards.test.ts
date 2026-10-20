@@ -135,3 +135,37 @@ describe('a page on another site', () => {
     expect((await call(server, { path: '/health', headers: { origin: 'https://example.com' } })).status).toBe(200)
   })
 })
+
+describe('the address the service is bound to', () => {
+  /** `npm run modder -- serve 0` on a fresh data directory: the address it says it is on (and answers on), then stopped. */
+  async function serve(args: string[], env: Record<string, string> = {}): Promise<string> {
+    const { spawn } = await import('node:child_process')
+    const { fileURLToPath } = await import('node:url')
+    const repo = fileURLToPath(new URL('../../..', import.meta.url))
+    const data = mkdtempSync(join(tmpdir(), 'lsw-serve-'))
+    const { LSW_HOST: _, ...rest } = process.env
+    const child = spawn(join(repo, 'node_modules/.bin/tsx'), ['packages/modder/src/cli.ts', '--game', 'games/starter', '--data', data, '--backend', 'none', ...args, 'serve', '0'], { cwd: repo, env: { ...rest, LSW_MODEL_BACKEND: 'none', ...env } })
+    try {
+      const line = await new Promise<string>((resolve, reject) => {
+        let out = ''
+        child.stdout.on('data', (c: Buffer) => {
+          out += c.toString()
+          const m = /modder on (http:\/\/\S+)/.exec(out)
+          if (m) resolve(m[1])
+        })
+        child.stderr.on('data', (c: Buffer) => (out += c.toString()))
+        child.on('exit', (code) => reject(new Error(`exited ${code}: ${out}`)))
+      })
+      expect((await fetch(`${line}/health`)).ok).toBe(true)
+      return line
+    } finally {
+      child.kill()
+    }
+  }
+
+  it('is this machine only by default; --host or LSW_HOST chooses another, and the one bound is said', SLOW, async () => {
+    expect(await serve([])).toMatch(/^http:\/\/127\.0\.0\.1:[1-9]\d*$/)
+    expect(await serve([], { LSW_HOST: '::1' })).toMatch(/^http:\/\/\[::1\]:[1-9]\d*$/)
+    expect(await serve(['--host', '127.0.0.1'], { LSW_HOST: '::1' })).toMatch(/^http:\/\/127\.0\.0\.1:/)
+  })
+})
