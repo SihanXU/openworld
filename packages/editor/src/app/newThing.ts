@@ -10,7 +10,8 @@ import { adoptTexts } from './words.ts'
 
 export function takeThing(store: Store, types: TypeDef[]): { file: string; sent: Patch } {
   const sent: Patch = { artifacts: structuredClone(types).map((type) => ({ kind: 'type' as const, type })) }
-  const name = `thing-${types.at(-1)!.id.split('/').pop()}`.replace(/[^A-Za-z0-9._-]+/g, '-')
+  // named by the whole id: item/tool/maul and item/weapon/maul are two things, never one file
+  const name = `thing-${types.at(-1)!.id.split('/').slice(1).join('-')}`.replace(/[^A-Za-z0-9._-]+/g, '-')
   const file = `learned/${name}.json`
   const data: LearnedFile = { rules: [], types: structuredClone(types) }
   store.batch(t('take {name} into the game', { name }), () => {

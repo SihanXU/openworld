@@ -1483,6 +1483,15 @@ describe('a new thing an author asks for (the editor, M1)', () => {
     expect(modder.adopt({ artifacts: [{ kind: 'type', type: BLADE }] })).toEqual({ ok: true, errors: [] })
     expect(library.seq).toBe(seq)
   })
+
+  it('takes in types alone: a rule sent with them passes by nothing (it would skip the audit and the review)', async () => {
+    const { modder, library } = setup(new ScriptedModel(() => ({})))
+    const rules = library.patchRules().length
+    const rule = { id: 'learned/sneaked', host: { type: BLADE.id }, on: 'act/use', tree: { do: [] }, source: { origin: 'patch' } }
+    expect(modder.adopt({ artifacts: [{ kind: 'type', type: BLADE }, { kind: 'rule', rule } as never] }).ok).toBe(true)
+    expect(library.fullOntology().types[BLADE.id]).toBeDefined()
+    expect(library.patchRules()).toHaveLength(rules)
+  })
 })
 
 describe('the service, an author\'s new thing', () => {
@@ -1500,6 +1509,12 @@ describe('the service, an author\'s new thing', () => {
       expect(library.seq).toBe(0)
       expect(await (await fetch(`${base}/adopt`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ patch: draft.patch }) })).json()).toEqual({ ok: true, errors: [] })
       expect((await (await fetch(`${base}/patches?since=0`)).json()).entries[0].patch.artifacts[0].type.id).toBe(INGOT.id)
+      // a page of another site open in the author's browser connects from this machine too: its Origin is refused
+      for (const path of ['/create', '/adopt']) {
+        const r = await fetch(`${base}${path}`, { method: 'POST', headers: { origin: 'https://elsewhere.example', 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'x', patch: draft.patch }) })
+        expect(r.status, path).toBe(403)
+      }
+      expect((await fetch(`${base}/adopt`, { method: 'POST', headers: { origin: 'http://localhost:5175', 'content-type': 'application/json' }, body: JSON.stringify({ patch: draft.patch }) })).status).toBe(200)
     } finally {
       server.close()
     }

@@ -306,7 +306,8 @@ export class Modder {
   /** The author took a new thing into the game: the library has it, so its holes can be asked (a thing it has is kept). */
   adopt(patch: Patch): { ok: boolean; errors: string[] } {
     const { library } = this.opts
-    const fresh: Patch = { ...patch, artifacts: (patch?.artifacts ?? []).filter((a) => a?.kind !== 'type' || !library.lib.types.some((t) => t.id === a.type.id)) }
+    // types alone, as createThing drafts them: a rule taken in here would pass by the pipeline's audit and review
+    const fresh: Patch = { ...patch, artifacts: (patch?.artifacts ?? []).filter((a) => a?.kind === 'type' && !library.lib.types.some((t) => t.id === a.type.id)) }
     if (!fresh.artifacts.length) return { ok: true, errors: [] }
     const r = library.commit(fresh, undefined, this.now())
     return { ok: r.ok, errors: r.result.errors }
