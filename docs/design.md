@@ -169,10 +169,12 @@ there was unreachable. Checked against the engine's event space, it had five hol
 a bare-hand interaction on the same fixture; a tool on the ground versus using it on oneself;
 layers under a pile; items in the bag as targets; an axe that both chops and strikes).
 
-**The attack key.** Besides the five, **Space** strikes straight ahead with the held weapon (or
-a fist): on the press, and again while held, paced by the attack cooldown. It adds no event the
-five cannot make (left click with a weapon makes the same blow, aimed at a spot); it is there
-for feel, because a fight should not wait for a mouse release or depend on where the cursor is.
+**The attack key.** Besides the five, **Space** strikes straight ahead with the held weapon (else
+the one in the main hand, else a tool in hand — a torch swung —, else a fist; never an object that
+happens to be held, `weaponOf`): on the press, and again while held, paced by the attack cooldown.
+It adds no event the five cannot make (left click with a weapon makes the same blow, aimed at a
+spot); it is there for feel, because a fight should not wait for a mouse release or depend on
+where the cursor is.
 
 **Completeness**, the criterion every input design here must meet:
 
@@ -250,7 +252,9 @@ and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or 
   `opensWhen` unset), and that answer reaches the one standing on it rather than the ground's
   "touched" in front (`Controls.plan`, 2026-10-11). The ground underfoot never takes E from
   anything in front. The Ford's cell is the river's (`site/place/crossing`, hands' reach 1): one
-  goes in with E from the cell beside it.
+  goes in with E from the cell beside it. A press of E that only touches the ground (the floor
+  brushed, said by `tile/handle`) does nothing: it would say so at every step; the chooser still
+  touches it (`Controls.planFor`, 2026-10-20).
 - **Oneself is never E's, F's or G's target**: on one's own place they meet what is there (the
   floor, what lies at one's feet, the bed one stands on). The left click on one's own place is on
   oneself.
@@ -315,7 +319,9 @@ was cut).
   - 30 slots in three rows of ten; the first row is the toolbar (keys 1–0), and the selected
     slot is what the player holds; there is no separate hand slot.
   - Tab brings the next row to the toolbar (Shift+Tab the previous one); a new kind takes the
-    first free slot, the toolbar's first; with the bag full it stays on the ground.
+    first free slot, the toolbar's first; with the bag full it stays on the ground. What the magnet
+    pulls in never takes the selected slot while another is free (2026-10-20: the drops of a fight
+    flew into the empty hand and the fist held them); a take (F) lands in the hand, as it means to.
   - Equal items stack.
   - In the menu: drag to move, right-click takes one, Shift+right-click takes half, Shift+click
     moves a stack between the toolbar and the rest of the bag, dragging an item out of the menu

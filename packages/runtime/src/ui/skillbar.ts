@@ -1,7 +1,7 @@
 // The skill bar (bottom left): the six slots of active skills (engine actives.ts), cast with Shift+1–6 or a
 // click. Each slot is a square, bevelled frame round the skill's picture, its key in the corner; while a skill
 // rests, a dark sweep runs round it with the seconds left, and it flashes when it is ready again (after the
-// skill bars of action games: Dungeon Fighter's). A learned active skill goes in the first empty slot by itself;
+// skill bars of action games: Dungeon Fighter's). Hidden until an active skill is learned. A learned active skill goes in the first empty slot by itself;
 // one is moved by dragging it to another slot, set from the skill tree (hovering it, Shift+1–6), and taken out
 // with a right click; all of it is managed in the skill panel (U, ui/skillpanel.ts).
 
@@ -41,6 +41,8 @@ export class SkillBar {
   onFrame(f: Frame): void {
     const bar = f.player.skillbar ?? []
     const zh = locale.value === 'zh'
+    // six empty slots say nothing to one who has learned no active skill yet: the bar comes with the first
+    if (hasModule('classes')) $('#skillbar').classList.toggle('hidden', !bar.some(Boolean) && !f.player.actives?.length)
     // what is set where: redrawn only when it changes
     const sig = bar.map((s) => s?.id ?? '').join('|') + locale.value
     const slots = [...document.querySelectorAll<HTMLElement>('#skillbar .sb-slot')]

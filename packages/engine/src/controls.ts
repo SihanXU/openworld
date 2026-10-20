@@ -32,7 +32,7 @@ import type { Engine } from './engine.ts'
 import { NO_EXPIRY, type Writer } from './world.ts'
 import type { Aim, Dir, Entity, Id, LessonInput, Place, Plan, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
 import { cannotLearn, skillsOf } from './progression.ts'
-import { OFFHAND, weaponOf } from './blows.ts'
+import { OFFHAND, isTool, weaponOf } from './blows.ts'
 
 /** The inputs (design.md §5.2): the acts' own (a plan's key) and the action, which makes one of them. */
 export type Key = Plan['key'] | 'action'
@@ -45,9 +45,6 @@ export const MAGNET = 2
 /** The most the magnet pulls in one tick: a pile flies in over a few ticks, never in one long stall (each is an act of taking). */
 export const MAGNET_PER_TICK = 25
 
-/** Stardew's line between tools and objects: tools are used, objects are given, placed or eaten. */
-const TOOL_PREFIXES = ['item/weapon/', 'item/tool/', 'item/light/', 'item/vessel/bucket/', 'item/vessel/flask/', 'item/vessel/waterskin/']
-export const isTool = (type: string) => TOOL_PREFIXES.some((p) => type.startsWith(p))
 const isWeapon = (type: string) => type.startsWith('item/weapon/')
 
 /**
@@ -437,9 +434,12 @@ export class Controls {
    * The plan for a key pressed while its label named `shown`: one who walked off the spot since (a
    * person on their round, a creature) stays the target while the key still reaches them. What the
    * label said is what happens; a bread offered to the merchant is not set down where he stood.
+   * A press of the bare hand that only touches the ground (E in front of nothing) does nothing: it
+   * would say so at every step. The tip leaves it unsaid as well (ui/cursor.ts); the chooser still touches it.
    */
   planFor(key: Key, aim: Aim | undefined, layer?: number, shown?: Ref): Plan | undefined {
-    const p = this.plan(key, aim, layer)
+    const made = this.plan(key, aim, layer)
+    const p = layer === undefined && made?.key === 'hands' && !made.unknown && !made.changes && this.ground(made.target) ? undefined : made
     if (!shown || !('e' in shown) || (p && 'e' in p.target && p.target.e === shown.e)) return p
     const e = this.w.get(shown.e)
     const at = e && this.w.isAgent(e) && e.id !== this.w.state.player ? this.w.posOf(e) : undefined
@@ -678,9 +678,11 @@ export class Controls {
    * Keep the slots true to what is carried: a new kind takes the first free slot (none free:
    * it drops at the player's feet), a kind that is gone frees its slot, and the hand holds one
    * of the selected slot's stack. A held item a rule changed (a bucket emptied) keeps its slot.
+   * `spare` (the magnet's): the selected slot only when no other is free, so what flies in mid-fight
+   * never lands in an empty hand (a take, F's, lands in the hand itself: it is meant).
    */
-  sync(): void {
-    this.hand(() => this.syncSlots())
+  sync(spare = false): void {
+    this.hand(() => this.syncSlots(spare))
     this.eng.settle()
     this.bagSig = this.bagNow()
   }
@@ -697,7 +699,7 @@ export class Controls {
     if (now && now !== this.bagSig) this.sync()
   }
 
-  private syncSlots(): void {
+  private syncSlots(spare: boolean): void {
     const w = this.w
     const p = w.player
     const slots = (p.slots ??= Array(this.slotCount()).fill(null))
@@ -724,7 +726,8 @@ export class Controls {
     const here = w.posOf(p)
     for (const [k, items] of by) {
       if (slots.includes(k)) continue
-      const free = slots.indexOf(null)
+      const other = spare ? slots.findIndex((s, i) => s === null && i !== p.selected) : -1
+      const free = other >= 0 ? other : slots.indexOf(null)
       if (free >= 0) slots[free] = k
       else if (here) for (const e of items) this.posture(e, { on: 'tile', ...here })
     }
@@ -1173,6 +1176,7 @@ export class Controls {
           took = true
           left--
         }
-    if (took) this.sync()
+    // what flies in leaves an empty hand empty: the fist is still there mid-fight
+    if (took) this.sync(true)
   }
 }

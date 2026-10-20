@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, holeKey, textOf, type Engine, type Key, type Plan, type PropValue, type Ref, type ScenarioEntity, type Verb } from '@openworld/engine'
 import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_PACE } from '@openworld/modules'
-import { cellId, madeOf } from '@openworld/engine'
+import { cellId, madeOf, weaponOf } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -492,6 +492,18 @@ describe('the action (the right click): what the thing aimed at calls for', () =
     expect(eng.controls.choices('use', at).map((c) => c.layer)).toContain(ground(eng))
   })
 
+  it('a press of E that only touches the ground does nothing (no line at every step); the label and the chooser keep the touch', () => {
+    const eng = world(undefined, [])
+    const touch = eng.controls.plan('hands', at)
+    expect(touch).toMatchObject({ key: 'hands', rule: 'tile/handle' })
+    expect(touch!.changes).toBeFalsy()
+    expect(eng.controls.planFor('hands', at)).toBeUndefined()
+    expect(eng.controls.planFor('hands', at, ground(eng))).toMatchObject({ key: 'hands', rule: 'tile/handle' })
+    // what does something is still pressed: a chest opens
+    const chest = world(undefined, [{ key: 'chest', type: 'fixture/container/chest', x: 2, y: 1 }])
+    expect(chest.controls.planFor('hands', at)).toMatchObject({ rule: 'core/open-close' })
+  })
+
   it("the '?' goes where the AI setting turns the kind of work off: the leaf's default comes, no one is asked", () => {
     const eng = world(undefined, [{ key: 'stone', type: 'item/material/stone', x: 2, y: 1 }])
     expect(eng.controls.plan('hands')).toMatchObject({ unknown: true })
@@ -524,6 +536,37 @@ describe('slots and the magnet', () => {
     expect(p.slots![bucketSlot]).toBeTruthy()
     eng.controls.select(bucketSlot)
     expect(eng.world.get(p.held)!.type).toBe('item/vessel/bucket/empty')
+  })
+
+  it('what the magnet pulls in takes a free slot but the selected one: an empty hand stays empty (the fist), unless no other slot is free', () => {
+    const eng = world(undefined, [{ key: 'log', type: 'item/material/log', x: 4, y: 2 }])
+    const p = eng.world.player
+    expect(p.slots![p.selected!]).toBeNull()
+    expect(p.held).toBeUndefined()
+    // what flies in mid-fight
+    eng.world.get('log')!.dropped = true
+    eng.controls.magnetic = true
+    eng.tick()
+    expect(eng.world.get('log')!.place).toMatchObject({ on: 'inside', holder: 'actor' })
+    expect(p.held).toBeUndefined()
+    expect(p.slots![p.selected!]).toBeNull()
+    // a take (F) is meant: it lands in the hand, as before
+    const take = world(undefined, [{ key: 'stone', type: 'item/material/stone', x: 2, y: 1 }])
+    take.controls.run(take.controls.plan('take')!)
+    expect(take.world.player.held).toBe('stone')
+    // every other slot taken: the selected one takes it rather than the ground
+    const kinds = Object.keys(onto.types).filter((t) => t.startsWith('item/material/') && !Object.keys(onto.types).some((u) => u.startsWith(`${t}/`)))
+    expect(kinds.length).toBeGreaterThanOrEqual(30)
+    const full = world(undefined, [...kinds.slice(0, 29).map((type, i) => ({ key: `k${i}`, type, x: 0, y: 0, inside: 'actor' })), { key: 'last', type: kinds[29], x: 3, y: 2 }])
+    const q = full.world.player
+    full.controls.quickMove(q.selected!)
+    expect(q.slots!.filter(Boolean)).toHaveLength(29)
+    expect(q.slots![q.selected!]).toBeNull()
+    full.world.get('last')!.dropped = true
+    full.controls.magnetic = true
+    full.tick()
+    expect(q.slots!.filter(Boolean)).toHaveLength(30)
+    expect(q.held).toBe('last')
   })
 
   it('the bag holds three rows; Tab brings the next row to the toolbar, Shift+click moves a stack across', () => {
@@ -672,5 +715,18 @@ describe('the attack key', () => {
     // held down: blows keep landing as the cooldown allows
     for (let i = 0; i < 20; i++) (eng.controls.strike(), eng.tick())
     expect(eng.world.num(slime, 'hp')).toBeLessThan(after1)
+  })
+
+  it('never swings an object that happens to be held (a stone picked up): the fist; a tool in hand is swung (a torch)', () => {
+    const stone = world('item/material/stone', [{ key: 'slime', type: 'actor/creature/slime/green_slime', x: 2, y: 1, props: { hp: 50, maxHp: 50 } }])
+    expect(weaponOf(stone.world, stone.world.player)).toBeUndefined()
+    stone.trace = []
+    stone.controls.strike()
+    const blow = stone.trace.find((t) => t.ev.kind === 'act/use' && t.ev.params?.attack)
+    expect(blow).toBeDefined()
+    expect(blow!.ev.roles.instrument).toBeFalsy()
+    expect(stone.world.get('held')!.place).toMatchObject({ on: 'hand', holder: 'actor' })
+    const torch = world('item/light/torch', [])
+    expect(weaponOf(torch.world, torch.world.player)?.id).toBe('held')
   })
 })

@@ -355,29 +355,30 @@ export function controlsTable(dev: boolean): string {
   const zh = locale.value === 'zh'
   // the keys of a module's panels show only where the game uses it (before a game: all of them)
   const skills = gameIfAny() ? hasModule('classes') : true
-  const rows: [string, string, string][] = [
+  // a key's own name, or its name in each language (a mouse button, the wheel)
+  const rows: [string | [string, string], string, string][] = [
     ['WASD · ↑↓←→', 'move (Shift: walk)', '移动（Shift：慢走）'],
     ['B', 'build / farm mode; left click or E places, Esc / RMB exits', '建筑 / 种植模式；左键或 E 放置，Esc / 右键退出'],
     ['E', 'hands: talk, open, read, push', '空手：说话、打开、阅读、推'],
     ['F', 'take: pick up, take down, take out', '拿：捡起、取下、取出'],
     ['G', 'put the held thing there: set down, put in, hand it over', '放：把手上的东西放下、放进去、交给别人'],
-    ['left click', 'use the held thing on it; with empty hands, a blow (never on yourself, nor a fist on the bare ground the world has never seen struck: hold to choose it); weapons strike; a wall, a floor or a bed in hand is set down there (hold and drag for a row)', '用手上的东西作用于它；空手就是一拳（不会打自己，也不会对世界没见过的空地挥拳：要的话长按选择）；武器就是攻击；拿着墙、地板、床这类东西就放在那里（按住拖动放一排）'],
-    ['right click', 'the action, as the cursor shows: talk, open, read, pick up, set down a bed; on the ground, eat, drink or put on what you hold (pointed at yourself, any use of it)', '行动，光标显示要做什么：说话、打开、阅读、捡起、放下床这类东西；对着地面时，吃、喝、穿戴手上的东西（指着自己时，任何用法都行）'],
+    [['left click', '左键'], 'use the held thing on it; with empty hands, a blow (never on yourself, nor a fist on the bare ground the world has never seen struck: hold to choose it); weapons strike; a wall, a floor or a bed in hand is set down there (hold and drag for a row)', '用手上的东西作用于它；空手就是一拳（不会打自己，也不会对世界没见过的空地挥拳：要的话长按选择）；武器就是攻击；拿着墙、地板、床这类东西就放在那里（按住拖动放一排）'],
+    [['right click', '右键'], 'the action, as the cursor shows: talk, open, read, pick up, set down a bed; on the ground, eat, drink or put on what you hold (pointed at yourself, any use of it)', '行动，光标显示要做什么：说话、打开、阅读、捡起、放下床这类东西；对着地面时，吃、喝、穿戴手上的东西（指着自己时，任何用法都行）'],
     ['R', 'a floor in hand: the left click lays it in the ceiling (and back)', '手上拿着地板：左键改为铺天花板（再按切回）'],
-    ['Space', 'attack: strike ahead (hold to keep striking)', '攻击：朝面前挥击（按住连续攻击）'],
+    [['Space', '空格'], 'attack: strike ahead (hold to keep striking)', '攻击：朝面前挥击（按住连续攻击）'],
     ...(skills ? [['Q', 'dash, once learned (swiftness)', '冲刺（学会迅捷分支的冲刺后）'] as [string, string, string]] : []),
     ['X', 'draw your weapon or put it away: drawn, a blow on a person is meant', '拔出或收起武器：拔出时，对人挥击才算真的动手'],
     ['V', 'sneak: slower, seen only up close and from the front; F on a person picks their pocket', '潜行：走得慢，只有近处、正面的人才看得见你；潜行时对人按 F 是扒窃'],
     ...(skills ? [['Shift+1–6', 'cast the skill in that slot of the skill bar (over the skill tree: put the skill there)', '施放技能栏那一格的技能（在技能树上：把指着的技能放进那一格）'] as [string, string, string]] : []),
-    ['hold any of these', 'choose which of the things drawn there', '长按以上任一：选那个位置叠着的哪一样'],
-    ['1–0 · wheel', 'choose what to hold', '选择拿在手里的东西'],
+    [['hold any of these', '长按以上任一'], 'choose which of the things drawn there', '选那个位置叠着的哪一样'],
+    [['1–0 · wheel', '1–0 · 滚轮'], 'choose what to hold', '选择拿在手里的东西'],
     ['Tab · Shift+Tab', 'the next (previous) row of the bag becomes the toolbar', '把背包的下一行（上一行）换到快捷栏'],
     skills
       ? ['Esc · I · C · K · U · M · L · J', 'menu · inventory · craft · skill tree · skills · map · quests · codex', '菜单 · 背包 · 制作 · 技能树 · 技能面板 · 地图 · 任务 · 图鉴']
       : ['Esc · I · C · M · L · J', 'menu · inventory · craft · map · quests · codex', '菜单 · 背包 · 制作 · 地图 · 任务 · 图鉴'],
   ]
   if (dev) rows.push(['`', 'Mod Console (dev)', '模组控制台（开发）'])
-  return `<table>${rows.map(([k, en, z]) => `<tr><td><kbd>${k}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`
+  return `<table>${rows.map(([k, en, z]) => `<tr><td><kbd>${typeof k === 'string' ? k : k[zh ? 1 : 0]}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`
 }
 
 /**
