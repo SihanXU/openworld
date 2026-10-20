@@ -144,7 +144,8 @@ describe('the address the service is bound to', () => {
     const repo = fileURLToPath(new URL('../../../..', import.meta.url))
     const data = mkdtempSync(join(tmpdir(), 'lsw-serve-'))
     const { LSW_HOST: _, ...rest } = process.env
-    const child = spawn(join(repo, 'node_modules/.bin/tsx'), ['packages/modder/src/cli.ts', '--game', 'games/starter', '--data', data, '--backend', 'none', ...args, 'serve', '0'], { cwd: repo, env: { ...rest, LSW_MODEL_BACKEND: 'none', ...env } })
+    // tsx's own entry under this node (node_modules/.bin/tsx is a shell script, which Windows cannot spawn)
+    const child = spawn(process.execPath, [join(repo, 'node_modules/tsx/dist/cli.mjs'), 'packages/modder/src/cli.ts', '--game', 'games/starter', '--data', data, '--backend', 'none', ...args, 'serve', '0'], { cwd: repo, env: { ...rest, LSW_MODEL_BACKEND: 'none', ...env } })
     try {
       const line = await new Promise<string>((resolve, reject) => {
         let out = ''
@@ -155,6 +156,7 @@ describe('the address the service is bound to', () => {
         })
         child.stderr.on('data', (c: Buffer) => (out += c.toString()))
         child.on('exit', (code) => reject(new Error(`exited ${code}: ${out}`)))
+        child.on('error', reject)
       })
       expect((await fetch(`${line}/health`)).ok).toBe(true)
       return line
