@@ -4,14 +4,16 @@
 //   GET  /patches?since=n the shared library's patch log after seq n (clients sync from it)
 //   GET  /stats           the numbers the paper reports
 //   GET  /progress?id=r   where request r is (queued, local, find, create, art; {} when not here)
+//   POST /create          {intent, had?, stations?} → a new thing's draft (types and icons), not committed (this host only)
+//   POST /adopt           {patch}: the author took the new thing into the game; the library has it (this host only)
 //   POST /fault           {rule, reason, client?}: a client set a learned rule aside at run time
 //   GET  /quality         what the model carries (design.md §13, the AI setting): the last detection, one running; ?plan=1 what one would play
 //   POST /quality/detect  start a detection (this host only: it costs model calls)
 
 import { createServer, type IncomingMessage, type Server } from 'node:http'
 import { join } from 'node:path'
-import { AI_WAIT_MS, type ResolveBody } from '@openworld/engine'
-import type { Modder } from './pipeline.ts'
+import { AI_WAIT_MS, type Patch, type ResolveBody } from '@openworld/engine'
+import type { Modder, ThingBody } from './pipeline.ts'
 import { Detector } from './detect.ts'
 
 export interface ServerOptions {
@@ -56,6 +58,14 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
         const body = (await readJson(req, 64_000)) as { rule?: unknown; reason?: unknown; client?: unknown }
         if (typeof body?.rule !== 'string') return send(400, { error: 'rule required' })
         return send(200, modder.fault(body.rule, String(body.reason ?? ''), typeof body.client === 'string' ? body.client : (req.socket.remoteAddress ?? 'anon')))
+      }
+      // an author's new thing: drafted on this service's account, and taken into the shared library without the AI (this host only)
+      if (req.method === 'POST' && (url.pathname === '/create' || url.pathname === '/adopt') && !local(req)) return send(403, { error: 'a new thing is asked for and taken in from the machine the service runs on' })
+      if (req.method === 'POST' && url.pathname === '/create') return send(200, await modder.createThing((await readJson(req, opts.maxBody ?? 4_000_000)) as ThingBody))
+      if (req.method === 'POST' && url.pathname === '/adopt') {
+        const body = (await readJson(req, opts.maxBody ?? 4_000_000)) as { patch?: Patch }
+        if (!body?.patch) return send(400, { error: 'patch required' })
+        return send(200, modder.adopt(body.patch))
       }
       if (req.method === 'POST' && url.pathname === '/resolve') {
         const body = (await readJson(req, opts.maxBody ?? 4_000_000)) as ResolveBody

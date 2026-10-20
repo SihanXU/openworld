@@ -21,7 +21,7 @@ import { normalizePatch, placePatch, qualifyTerrains, stationFromRules } from '.
 import type { CommitResult, WorldLibrary } from './library.ts'
 import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@openworld/agent'
 import { materializeWorld } from './repo.ts'
-import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, type Creation, type Need } from './prompts.ts'
+import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, THING_SYSTEM, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
 import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@openworld/agent'
 
@@ -227,6 +227,60 @@ export class Modder {
       this.later(`revise ${ruleId} after a fault`, () => this.episode(req, undefined, signatureOf(req), { profile: 'offline', revise: { episode: { id: `fault-${ruleId}`, rules: [ruleId], patch: { artifacts: [{ kind: 'rule', rule }] } } as never, notes: [`a client set this rule aside at run time: ${reason}`] } }).then(() => undefined))
     }
     return { rule: ruleId, counted: set.size, removed: true }
+  }
+
+  /**
+   * A new thing the game's author asks for in a sentence (the editor's AI plan, M1): its type, made of what a player
+   * can have (`had`, as the editor counts it in the author's game), with its icon. Nothing is committed: the author
+   * reviews the draft with the engine's checks, and `adopt`s it.
+   */
+  async createThing(body: ThingBody): Promise<ThingReply> {
+    const why = this.down()
+    if (why || !this.backend) return { patch: null, diagnostics: [why ? `model unavailable: ${why}` : 'no model'] }
+    const intent = String(body?.intent ?? '').trim().slice(0, 500)
+    if (!intent) return { patch: null, diagnostics: ['say what the new thing is'] }
+    const { library } = this.opts
+    const onto = library.fullOntology()
+    const model = new Meter(this.backend)
+    const messages: ChatMessage[] = [
+      { role: 'system', content: THING_SYSTEM },
+      { role: 'user', content: thingUser(intent, { catalogue: catalogueOf(Object.values(onto.types)), materials: Object.keys(onto.materials ?? {}), had: body.had ?? [], stations: body.stations ?? [] }) },
+    ]
+    const diagnostics: string[] = []
+    try {
+      for (let round = 0; round < 3; round++) {
+        const answer = (await model.chat(messages, { json: true, temperature: 0.6, purpose: 'create', reasoning: 'medium', deadlineMs: SLOW_MS })).content
+        const j = parseJson(answer) as { patch?: Patch; looks?: Record<string, string>; look?: string } | undefined
+        // a new thing is types alone: what it does is asked act by act, as holes
+        const patch: Patch = { artifacts: (j?.patch?.artifacts ?? []).filter((a) => a?.kind === 'type'), ...(j?.patch?.note && { note: j.patch.note }) }
+        const res = patch.artifacts.length ? library.validate(patch) : { ok: false, errors: ['no type artifact'], warnings: [] }
+        if (!res.ok) {
+          diagnostics.push(...res.errors)
+          messages.push({ role: 'assistant', content: answer }, { role: 'user', content: repairUser(res.errors, res.warnings) })
+          continue
+        }
+        // each new thing drawn by its own look (a pelt is not drawn as the cloak made of it)
+        const types = patch.artifacts.flatMap((a) => (a.kind === 'type' ? [a.type] : []))
+        const lookOf = (t: TypeDef) => (typeof j?.looks?.[t.id] === 'string' ? j.looks[t.id] : types.length === 1 ? (j?.look ?? patch.note ?? intent) : `${(t.name as { en?: string })?.en ?? t.id}, ${t.id.split('/').slice(0, -1).join(' ')}`)
+        const look = types.length ? lookOf(types[types.length - 1]) : undefined
+        const drawn = await this.drawAll(model, patch, types.map((t) => ({ id: t.id, name: t.name as { en: string; zh: string }, why: lookOf(t) })))
+        const shown = library.validate(drawn).ok ? drawn : patch
+        return { patch: shown, diagnostics: [], ...(look && { look }), usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } }
+      }
+      return { patch: null, diagnostics }
+    } catch (err) {
+      this.pause((err as Error).message)
+      return { patch: null, diagnostics: [...diagnostics, (err as Error).message] }
+    }
+  }
+
+  /** The author took a new thing into the game: the library has it, so its holes can be asked (a thing it has is kept). */
+  adopt(patch: Patch): { ok: boolean; errors: string[] } {
+    const { library } = this.opts
+    const fresh: Patch = { ...patch, artifacts: (patch?.artifacts ?? []).filter((a) => a?.kind !== 'type' || !library.lib.types.some((t) => t.id === a.type.id)) }
+    if (!fresh.artifacts.length) return { ok: true, errors: [] }
+    const r = library.commit(fresh, undefined, this.now())
+    return { ok: r.ok, errors: r.result.errors }
   }
 
   /** Where a request is: waiting its turn, designing, finding, creating (undefined: not here, or done). */
@@ -977,6 +1031,21 @@ export function unknownMade(patch: Patch, onto: Ontology): Creation[] {
   }
   const title = (s: string) => s.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
   return [...ids].map((id) => ({ id, name: { en: title(id.split('/').at(-1)!), zh: '' } }))
+}
+
+/** An author's new thing (POST /create): what it is, and what a player can have in their game. */
+export interface ThingBody {
+  intent: string
+  had?: Had[]
+  stations?: string[]
+}
+
+export interface ThingReply {
+  patch: Patch | null
+  diagnostics: string[]
+  /** What it looks like, as its icon was drawn. */
+  look?: string
+  usage?: { calls: number; input: number; output: number; cost: number }
 }
 
 /** The router's two answers besides a patch: things needed beyond the request, or things to create. */

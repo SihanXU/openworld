@@ -318,6 +318,48 @@ export function createUser(creations: Creation[], materials: string[] = []): str
   ].join('\n')
 }
 
+// ---------------------------------------------------------------- a new thing, asked by an author
+
+export const THING_SYSTEM = 'You design new things for a 2D JRPG world whose mechanics are data, at the request of the game\'s author. You answer with JSON only.'
+
+/** A thing a player can have: its id, name and own numbers, so a new thing is made of them and sits among them. */
+export interface Had {
+  id: string
+  name?: string
+  props?: Record<string, unknown>
+}
+
+/**
+ * The author asks for a new thing in a sentence (the editor's AI plan, M1): its type, made of what a player can
+ * already have, at a place a player can have (the engine checks both, and that its numbers sit among its kind's).
+ * What it does with other things is not written here: those are holes, answered act by act.
+ */
+export function thingUser(intent: string, o: { catalogue: string; materials: string[]; had: Had[]; stations: string[] }): string {
+  return [
+    '# A new thing',
+    `The game's author wants a new thing in it: "${intent}"`,
+    'Design it as a type artifact (and, only if it cannot be made otherwise, one more new type it is made of):',
+    '{"kind": "type", "type": {"id": "<parent>/<snake_case>", "name": {"en": "...", "zh": "..."}, "tags": ["what the world uses it by"], "props": {...}, "makeup": [{"type": "<a type>", "count": 1}], "station": "hands | <a station>"}}',
+    '- The parent must exist; the new type inherits its rules and tags, so choose the parent whose behaviour fits (a blade under item/weapon if there is one, a tool under item/tool, a dish under item/food).',
+    '- tags: give the ones the things beside it have for the same use (a tool\'s "tool:<kind>", food\'s "edible"); a thing one carries is "portable".',
+    '- Something worn (under item/clothing or item/armor) names where in props.slot (head, body, shoulders, waist, feet, hands, ring, neck, ear, arm), as the things of its kind do: without it, it cannot be worn.',
+    o.materials.length ? `- props.material: what it is made of, one of: ${o.materials.join(', ')}.` : '- This world has no materials: leave props.material out.',
+    '- props: the numbers its kind uses (see the things a player can have, below), at a level that fits what it is: neither far above nor far below its kind.',
+    '- makeup: what it is made of, from the things a player can have (below), by type and count, so a player can make it; it is also what it leaves when broken.',
+    `- station: where a player makes it: "hands"${o.stations.length ? `, or one of the stations a player can have: ${o.stations.join(', ')}` : ' (this world has no station a player can have)'}.`,
+    '- Its name is what a player would call it, in both languages, and not another name for a thing the world has.',
+    '- Write no rules: what it does with other things is asked act by act later. Do not draw it: an artist draws its icon next.',
+    '',
+    'Things a player can have (id, name, own numbers):',
+    ...o.had.slice(0, 120).map((h) => `- ${h.id}${h.name ? ` (${h.name})` : ''}${h.props && Object.keys(h.props).length ? ` ${JSON.stringify(h.props)}` : ''}`),
+    '',
+    'The catalogue (every kind the world has, by parent):',
+    o.catalogue,
+    '',
+    'Answer with ONLY the JSON object {"patch": {"artifacts": [...], "note": "<what it is, one line>"}, "looks": {"<each new type id>": "<what it looks like, one line, for its icon>"}}.',
+  ].join('\n')
+}
+
 // ---------------------------------------------------------------- the artist
 
 export const ART_SYSTEM = 'You are a pixel artist for the 16x16 icon pack of a JRPG. You answer with JSON only.'

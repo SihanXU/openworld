@@ -1768,9 +1768,11 @@ export function newTypeProblems(t: TypeDef, onto: Ontology, patch: Patch): strin
   const index = new OntologyIndex({ ...onto, types: { ...onto.types, ...Object.fromEntries(patch.artifacts.flatMap((a) => (a?.kind === 'type' && a.type?.id ? [[a.type.id, a.type]] : []))) } })
   const r = index.resolve(t.id)
   const material = r.props.material
-  if (material !== undefined && (typeof material !== 'string' || !onto.materials?.[material])) out.push(`props.material "${String(material)}" is not a material: one of ${Object.keys(onto.materials ?? {}).join(', ')}`)
+  // (a world with no materials, the starter's kernel, names none: its things are made of their makeup alone)
+  const materials = Object.keys(onto.materials ?? {})
+  if (materials.length && material !== undefined && (typeof material !== 'string' || !onto.materials?.[material])) out.push(`props.material "${String(material)}" is not a material: one of ${materials.join(', ')}`)
   // every thing the AI makes is made of something, so it can be crafted, broken and recovered like the world's own (§8.3)
-  if (material === undefined) out.push(`a new thing names what it is made of: props.material (one of ${Object.keys(onto.materials ?? {}).join(', ')})`)
+  if (materials.length && material === undefined) out.push(`a new thing names what it is made of: props.material (one of ${materials.join(', ')})`)
   const ownRule = patch.artifacts.some((a) => a?.kind === 'rule' && a.rule?.host?.type === t.id && a.rule.on === 'threshold/cross')
   if (!r.makeup?.length && !(typeof r.props.maxHp === 'number' && ownRule))
     out.push('a new thing says what it is made of, which is also what it leaves when it breaks: makeup [{type, count, chance?}] of types the world has (or the patch defines)')

@@ -63,6 +63,18 @@ export class HolesMode implements Mode {
     ctx.refresh()
   }
 
+  /** Open at one kind's holes, counted for it alone: a new thing taken in, whose acts are asked here. */
+  focus(ctx: Ctx, type: string): void {
+    const c = ctx.store.compiled()
+    const on = holesFor(c.bundle.ontology, c.bundle.rules, { targets: [type], learned: c.bundle.learned })
+    const held = holesFor(c.bundle.ontology, c.bundle.rules, { hands: [type], verbs: ['use', 'self'], learned: c.bundle.learned })
+    this.report = { cells: [...on.cells, ...held.cells], checked: on.checked + held.checked }
+    this.countedAt = c
+    this.sel = type
+    this.asked = undefined
+    ctx.open('holes')
+  }
+
   render(ctx: Ctx, left: HTMLElement, right: HTMLElement): void {
     const r = this.report
     const by = r ? [...holesByType(r)].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])) : []

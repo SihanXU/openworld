@@ -231,3 +231,14 @@ table.facts td { padding: 2px 4px; }
 .chip.missing { color: var(--ed-warn); }
 .chip.review { color: #6fb3ff; }
 .chip.done { color: #7ee08a; }
+
+/* a new thing (thingsMode.ts): its icon drawn large, crisp */
+img.px { image-rendering: pixelated; vertical-align: middle; width: 32px; height: 32px; }
+.px.big { width: 128px; height: 128px; flex: none; background: var(--ed-bg, #111) repeating-conic-gradient(#ffffff10 0 25%, transparent 0 50%) 0 0 / 16px 16px; border: 1px solid var(--ed-line); border-radius: 4px; }
+div.px.big.none { display: grid; place-items: center; color: var(--ed-muted, #888); font-size: 12px; }
+.thing-head { display: flex; gap: 16px; align-items: flex-start; }
+.thing-head h3 { margin: 0 0 4px; }
+.thing-head p { margin: 2px 0; }
+span.chip { display: inline-block; padding: 0 6px; border: 1px solid var(--ed-line); border-radius: 999px; font-size: 12px; }
+.thing-card table.sched td { vertical-align: top; }
+#nIntent { width: 100%; box-sizing: border-box; resize: vertical; }
