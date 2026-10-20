@@ -160,6 +160,12 @@ export function holds(eng: Engine, c: Claim): boolean {
   return false
 }
 
+/** A line that says something went wrong: a warning, or an effect the engine refused (its dev line names the rule). */
+function refused(f: Engine['world']['fx'][number]): boolean {
+  if (f.t !== 'log') return false
+  return f.tone === 'warn' || (f.tone === 'dev' && typeof f.text === 'string' && f.text.startsWith('rule '))
+}
+
 /** What changed in the sandbox: things by type (made, gone), the actors' numbers, what was said wrong. */
 function summary(r: Run, sc: Scenario): string {
   const w = r.eng.world
@@ -175,7 +181,7 @@ function summary(r: Run, sc: Scenario): string {
     const statuses = Object.keys(a.statuses ?? {})
     return `${e.key} (${a.type}): ${nums.map(([k, v]) => `${k} ${v}`).join(', ')}${statuses.length ? `; statuses ${statuses.join(', ')}` : ''}`
   })
-  const warned = w.fx.filter((f) => f.t === 'log' && f.tone === 'warn').map((f) => textOf((f as { text: Parameters<typeof textOf>[0] }).text)).slice(-5)
+  const warned = w.fx.filter(refused).map((f) => textOf((f as { text: Parameters<typeof textOf>[0] }).text)).slice(-5)
   return [
     ...r.lines.map((l) => `  ${l}`),
     `things: ${delta.length ? delta.map(([t, d]) => `${t} ${d > 0 ? '+' : ''}${d}`).join(', ') : 'no change'}`,

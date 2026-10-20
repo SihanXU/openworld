@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { probe, stationFromRules, withPatch } from '../src/index.ts'
+import { auditTools, probe, stationFromRules, withPatch } from '../src/index.ts'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -70,5 +70,16 @@ describe('the probe: a number that rises on every use is a farm, whoever holds i
     // a number that rises once and stops (capped) is no farm
     const capped = onDeadTree(req, 'patch/stone-hones-once', [{ op: 'addProp', key: 'power', delta: 2, max: 2 }])
     expect(probe(req, onto, base, withPatch(base, capped))).toEqual([])
+  })
+})
+
+describe('the auditor sees what the engine refused', () => {
+  it('lists a refused effect among the warnings of a run (its dev line, "rule …")', () => {
+    const req = useRequest()
+    const base = new RuleLibrary(BASE)
+    const bad = onDeadTree(req, 'patch/stone-unheals', [{ op: 'heal', amount: -5 }])
+    const tool = auditTools(req.scenario, onto, base, withPatch(base, bad)).find((t) => t.name === 'run')!
+    const out = tool.run({ steps: [{ act: 'use', target: req.scenario.event.target, instrument: req.scenario.event.instrument }] })
+    expect(out).toMatch(/warnings: rule patch\/stone-unheals: a heal of -5/)
   })
 })
