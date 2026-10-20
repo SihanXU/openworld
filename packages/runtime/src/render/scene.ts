@@ -3,7 +3,7 @@
 // status overlays, VFX and day/night. It only renders engine snapshots.
 
 import Phaser from 'phaser'
-import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type Look, type MapData, type Mood, type Ref, type RegionLook, type Text } from '@openworld/engine'
+import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type Look, type MapData, type Mood, type Ref, type RegionLook, type Text, type WindupPose } from '@openworld/engine'
 import { catalog, game, hasLooks } from '../game.ts'
 import { hexRgb, installWorldFilter, signalCamera } from './worldfilter.ts'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
@@ -41,6 +41,8 @@ interface EView {
   key: string
   movingUntil: number
   phase: number
+  /** Drawn in a wind-up's pose this moment (windupPose): set back when it ends. */
+  posed?: boolean
   bossAnimation?: BossAnimationClock
   /** The quest mark over a person ('!' a quest to give, '?' one to take back). */
   quest?: { mark: string; text: Phaser.GameObjects.Text }
@@ -153,7 +155,7 @@ export class WorldScene extends Phaser.Scene {
   private marks?: Phaser.GameObjects.Graphics
   private bossWarnings?: Phaser.GameObjects.Graphics
   /** The creatures winding up a skill this frame (the kits module), and how far along: they flash white near its end. */
-  private windup = new Map<string, number>()
+  private windup = new Map<string, { progress: number; pose?: WindupPose }>()
   private bossPreview?: { id: string; mode: Exclude<BossPreviewMode, 'live'>; startedAt?: number }
   private darkness = 0
   /** The look of the region the map lies in (RegionMeta.look), and the look shown, eased toward it as one goes from region to region. */
@@ -510,9 +512,10 @@ export class WorldScene extends Phaser.Scene {
     this.bossWarnings.clear()
     // a skill winding up (the kits module): its cells marked in the skill's colour, filling as it nears; a boss's in its
     // own manner (fainter, a spark in each cell), and its body never flashes
+    const was = new Map(this.windup)
     this.windup.clear()
     for (const t of f.telegraphs ?? []) {
-      if (!t.boss) this.windup.set(t.who, t.progress)
+      if (!t.boss) this.windup.set(t.who, { progress: t.progress, pose: t.pose })
       for (const [x, y] of t.tiles) {
         if (t.boss) {
           this.bossWarnings.fillStyle(t.color, 0.13 + t.progress * 0.24).fillRect(x * T + 1, y * T + 1, T - 2, T - 2)
@@ -523,6 +526,20 @@ export class WorldScene extends Phaser.Scene {
         this.bossWarnings.fillStyle(t.color, 0.22 + t.progress * 0.33).fillRect(x * T + 1, y * T + 1, T - 2, T - 2)
         this.bossWarnings.lineStyle(1.5, t.color, 0.75 + t.progress * 0.25).strokeRect(x * T + 1, y * T + 1, T - 2, T - 2)
       }
+    }
+    // what a minor monster's wind-up sounds like: a cast or a call as it begins, a leap, a dash or a blow as it lands
+    for (const [who, w] of this.windup) if (!was.has(who)) {
+      if (w.pose === 'cast') this.sfx('cast', 0.25)
+      if (w.pose === 'call') this.sfx('howl', 0.35, 0.6)
+    }
+    // a landing only for a wind-up let go: one lost (its caster felled, held or stunned before the end) makes no sound
+    const standing = new Map(f.entities.map((e) => [e.id, e]))
+    for (const [who, w] of was) if (!this.windup.has(who) && this.views.has(who)) {
+      const e = standing.get(who)
+      if (!e || (e.hp !== undefined && e.hp <= 0) || w.progress < 0.6) continue
+      if (w.pose === 'leap') this.sfx('hop', 0.35)
+      if (w.pose === 'dash') this.sfx('wind', 0.35)
+      if (w.pose === 'slam') this.sfx('impact', 0.4, 0.8)
     }
     const seen = new Set<string>()
     for (const e of f.entities) {
@@ -1422,7 +1439,7 @@ export class WorldScene extends Phaser.Scene {
     else if (v.actor?.tint) v.body.setTint(v.actor.tint).setTintMode(Phaser.TintModes.OVERLAY)
     else v.body.clearTint()
     // winding up a skill, it flashes white as the blow nears
-    const wound = this.windup.get(e.id)
+    const wound = this.windup.get(e.id)?.progress
     if (wound !== undefined && wound > 0.5 && Math.floor(wound * 10) % 2 === 0) v.body.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL)
     // a thing an act waits on shimmers; one who is down lies on the ground
     v.body.setAlpha(this.alphaOf(v))
@@ -1581,6 +1598,7 @@ export class WorldScene extends Phaser.Scene {
         v.body.y = working ? -Math.abs(Math.sin(time / 95)) * 1.5 : 0
       }
       if (v.dragon) this.updateDragon(v, time)
+      if (!e.boss) this.windupPose(v, time)
       if (v.glow) v.glow.setPosition(v.root.x, v.root.y - 8).setAlpha(this.darkness * 1.4 * (0.85 + 0.15 * Math.sin((time + v.phase) / 120)))
     }
     for (const t of this.tileFx.values())
@@ -1777,19 +1795,55 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private sfxLoading = new Set<string>()
-  sfx(name: string, volume = 0.5): void {
+  /**
+   * A minor monster winding a skill up, drawn on its body as it nears (Frame.telegraphs' pose): it crouches to leap, draws
+   * back from its foe to dash, gathers itself up for a blow round itself, sways to cast, rears to call. Let go, it is
+   * drawn as it was.
+   */
+  private windupPose(v: EView, time: number): void {
+    const w = this.windup.get(v.snap.id)
+    const base = v.actor?.scale ?? 1
+    if (!w?.pose) {
+      if (v.posed) {
+        v.body.setScale(base)
+        v.body.x = 0
+        v.posed = false
+      }
+      return
+    }
+    v.posed = true
+    const p = w.progress
+    const [fx, fy] = STEP[v.snap.facing] ?? [0, 1]
+    let sx = 1, sy = 1, dx = 0, dy = 0
+    if (w.pose === 'leap') (sx = 1 + 0.18 * p), (sy = 1 - 0.28 * p)
+    else if (w.pose === 'dash') (dx = -fx * 3 * p), (dy = -fy * 3 * p), (sx = 1 + 0.08 * p)
+    else if (w.pose === 'slam') (sx = 1 - 0.06 * p), (sy = 1 + 0.16 * p), (dy = -3 * p)
+    else if (w.pose === 'cast') (dx = Math.sin(time / 45) * 1.2 * p), (sy = 1 + 0.05 * Math.sin(time / 90))
+    else (sy = 1 + 0.18 * p), (dy = -2 * p), (dx = Math.sin(time / 30) * 0.8 * p)
+    v.body.setScale(base * sx, base * sy)
+    v.body.x = dx
+    v.body.y += dy
+  }
+
+  /** When each sound last began: one heard twice in the same moment (a burst on nine cells) is heard once. */
+  private sfxAt = new Map<string, number>()
+  sfx(name: string, volume = 0.5, rate = 1): void {
     if (this.muted) return
     const key = `sfx:${name}`
-    if (this.cache.audio.exists(key)) return void this.sound.play(key, { volume })
+    const last = this.sfxAt.get(key)
+    if (last !== undefined && this.time.now - last < 70) return
+    this.sfxAt.set(key, this.time.now)
+    if (this.cache.audio.exists(key)) return void this.sound.play(key, { volume, rate })
     // first use: fetch it in the background; this one plays when it arrives (if still recent)
-    const path = catalog().sfx[name]
+    // a game whose catalogue has no felling of its own hears its death instead
+    const path = catalog().sfx[name] ?? (name === 'fell' ? catalog().sfx.death : undefined)
     if (!path || this.sfxLoading.has(key)) return
     this.sfxLoading.add(key)
     const asked = this.time.now
     this.load.audio(key, assetUrl(path))
     this.load.once(`filecomplete-audio-${key}`, () => {
       this.sfxLoading.delete(key)
-      if (!this.muted && this.time.now - asked < 600) this.sound.play(key, { volume })
+      if (!this.muted && this.time.now - asked < 600) this.sound.play(key, { volume, rate })
     })
     this.load.start()
   }
@@ -1872,7 +1926,7 @@ export class WorldScene extends Phaser.Scene {
     explosion: 'explosion',
     heal: 'heal',
     hit: 'hit',
-    poof: 'death',
+    poof: 'fell',
     gust: 'wind',
     shatter: 'ice',
     sparkle: 'coin',

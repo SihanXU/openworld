@@ -946,6 +946,11 @@ export const CATALOG: Catalog = {
     patched: 'Audio/Jingles/Success1.wav',
     error: SND + 'Menu/Cancel.wav',
     death: 'Audio/Jingles/GameOver2.wav',
+    // a monster's wind-up and its fall (the kits module's poses, render/scene.ts)
+    hop: SND + 'Jump & Bounce/Bounce4.wav',
+    howl: SND + 'Voice/Voice4.wav',
+    impact: SND + 'Hit & Impact/Impact.wav',
+    fell: SND + 'Hit & Impact/Hit1.wav',
   },
 }
 
