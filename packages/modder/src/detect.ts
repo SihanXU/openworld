@@ -10,7 +10,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { AI_WAIT_MS, TIERS, categoryOfRequest, type AiCategory, type AiLevel, type AiQuality, type ModRequest, type Tier } from '@openworld/engine'
 import { WorldLibrary } from './library.ts'
-import { Modder } from './pipeline.ts'
+import { BACKEND_DOWN, Modder } from './pipeline.ts'
 
 /** Questions played per kind of work. */
 export const PER_CATEGORY = 4
@@ -19,6 +19,8 @@ export const PASS = 0.75
 const CATEGORIES: AiCategory[] = ['things', 'people', 'world']
 /** How far back the history is read for questions. */
 const HISTORY = 400
+/** Runs played at once: a burst of every question at every tier is what a provider throttles (HTTP 429). */
+export const DETECT_AT_ONCE = 2
 
 export interface Probe {
   request: ModRequest
@@ -168,24 +170,36 @@ export class Detector {
     // the base game alone, and a modder that keeps nothing
     const dry = new Modder({ library: new WorldLibrary(library.ontology, library.base), state, model: this.modder.model, dry: true, log: this.opts.log })
     const runs: DetectRun[] = []
+    // a run the backend refused (throttled, out of quota, signed out: the service then pauses its calls) says
+    // nothing about the model: the detection stops, and gives no verdict, rather than counting it a failed answer
+    let down: string | undefined
+    const play = async (p: Probe, i: number, tier: Tier): Promise<void> => {
+      const id = `detect-${i}-${tier}-${Date.now().toString(36)}`
+      const request: ModRequest = { ...p.request, id, tier, create: tier, scenario: { ...p.request.scenario, tier } }
+      let error: string | undefined
+      let outcome: string | undefined
+      try {
+        outcome = (await dry.resolve({ request }, 'live')).outcome
+      } catch (err) {
+        error = (err as Error).message
+      }
+      const ep = dry.trials.get(id)
+      const why = outcome === 'unavailable' ? 'model unavailable' : BACKEND_DOWN.test(error ?? ep?.error ?? '') ? (error ?? ep?.error) : undefined
+      if (why) {
+        down ??= why
+        return
+      }
+      const ms = ep?.ms ?? 0
+      runs.push({ probe: p.request.id, summary: p.request.summary, category: p.category, tier, ok: ep?.outcome === 'accepted' && ms <= AI_WAIT_MS, outcome: ep?.outcome ?? 'failed', ms, cost: ep?.usage.cost ?? 0, calls: ep?.usage.calls ?? 0, ...((error ?? ep?.error) && { error: error ?? ep?.error }) })
+      if (this.running) this.running.done++
+    }
+    const queue = probes.flatMap((p, i) => TIERS.map((tier) => () => play(p, i, tier)))
     await Promise.all(
-      probes.flatMap((p, i) =>
-        TIERS.map(async (tier) => {
-          const id = `detect-${i}-${tier}-${Date.now().toString(36)}`
-          const request: ModRequest = { ...p.request, id, tier, create: tier, scenario: { ...p.request.scenario, tier } }
-          let error: string | undefined
-          try {
-            await dry.resolve({ request }, 'live')
-          } catch (err) {
-            error = (err as Error).message
-          }
-          const ep = dry.trials.get(id)
-          const ms = ep?.ms ?? 0
-          runs.push({ probe: p.request.id, summary: p.request.summary, category: p.category, tier, ok: ep?.outcome === 'accepted' && ms <= AI_WAIT_MS, outcome: ep?.outcome ?? 'failed', ms, cost: ep?.usage.cost ?? 0, calls: ep?.usage.calls ?? 0, ...((error ?? ep?.error) && { error: error ?? ep?.error }) })
-          if (this.running) this.running.done++
-        }),
-      ),
+      Array.from({ length: Math.min(DETECT_AT_ONCE, queue.length) }, async () => {
+        for (let job = queue.shift(); job && !down; job = queue.shift()) await job()
+      }),
     )
+    if (down) throw new Error(`the model was unavailable during the detection (${down}): no verdict`)
     const detection: Detection = { model: modelName, at: new Date().toISOString(), waitMs: AI_WAIT_MS, runs, table: tableOf(runs), recommend: recommendOf(runs) }
     this.last = detection
     if (this.opts.file) writeFileSync(this.opts.file, JSON.stringify(detection, null, 1))

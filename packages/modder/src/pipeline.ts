@@ -29,7 +29,7 @@ import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episod
  * A backend that cannot answer says so in its error: out of quota or throttling (claude-code's session
  * limit, an HTTP 429, a provider's quota), or not signed in (an expired OAuth session, a 401/403, a bad key).
  */
-const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota|authenticat|oauth|unauthori[sz]ed|\b401\b|\b403\b|invalid.?api.?key|not logged in/i
+export const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota|authenticat|oauth|unauthori[sz]ed|\b401\b|\b403\b|invalid.?api.?key|not logged in/i
 /** How long the service makes no calls after the backend said it is out (a request meanwhile gets `unavailable`). */
 const BACKEND_PAUSE_MS = 5 * 60_000
 
@@ -489,7 +489,6 @@ export class Modder {
     let reviews = 0
     let reviewLater = false
     let phase: Attempt['phase'] = 'design'
-    let reviewed: Patch | undefined // a valid draft a reviewer sent back: shipped if the revision never validates
     let lastRaw = '' // the last answer, kept for an attempt the program failed on before it was recorded
     const retry = (content: string, next: Attempt['phase']) => {
       messages.push({ role: 'user', content })
@@ -623,9 +622,16 @@ export class Modder {
           continue
         }
         // the auditor, before shipping: what it breaks in the sandbox goes back to the designer
-        if (auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch)) {
-          const found = await this.audit(model, req, patch, ctx, h)
+        if (auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch, req)) {
+          let found = await this.audit(model, req, patch, ctx, h)
+          // a failed audit is never counted as a clean one (design.md §13): asked once more, then not shipped unaudited
+          if (found.error) found = await this.audit(model, req, patch, ctx, h)
           attempt.audit = { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length }
+          if (found.error) {
+            attempt.errors = [`the audit failed (${found.error}): not shipped unaudited`]
+            ep.error = attempt.errors[0]
+            break
+          }
           if (found.confirmed.length) {
             attempt.errors = auditNotes(found.confirmed)
             if (repairs++ >= h.repair.maxRounds) break
@@ -633,11 +639,15 @@ export class Modder {
             continue
           }
         }
-        if (h.review.enabled && h.review.blocking !== false && reviews < h.review.maxRounds) {
+        // reviewed before it ships: every draft that would ship, a revision too; one the reviewer sent back never
+        // ships (after maxRounds revisions sent back, the episode fails)
+        if (h.review.enabled && h.review.blocking !== false) {
           attempt.review = await this.review(model, req, patch, ctx, h, flagsOf(patch, derived), eo.profile === 'live')
-          if (attempt.review.verdict === 'revise' && attempt.review.notes.length) {
-            reviews++
-            reviewed = patch
+          if (attempt.review.verdict === 'revise') {
+            if (reviews++ >= h.review.maxRounds) {
+              attempt.errors = [`the reviewer sent the draft back after ${h.review.maxRounds} revision(s): not shipped`, ...attempt.review.notes]
+              break
+            }
             retry(reviseUser(attempt.review.notes), 'review')
             continue
           }
@@ -656,14 +666,12 @@ export class Modder {
         if (repairs++ >= h.repair.maxRounds) break
         retry(repairUser(ep.attempts.at(-1)!.errors, [], true), 'repair')
       }
-      if (ep.outcome === 'failed' && reviewed && this.commit(ep, reviewed, req, replaces)) ep.error = 'the revision never validated; shipped the reviewed draft'
     } catch (err) {
       ep.error = (err as Error).message
       // the program's own failure (a stack overflow, a crash in a fix): where it came from, kept with the episode
       const stack = (err as Error).stack?.split('\n').slice(1, 12).map((l) => l.trim()).join('\n')
       if (stack) ep.stack = stack
       if (lastRaw && !ep.attempts.some((x) => x.raw === lastRaw.slice(0, 2000))) ep.attempts.push({ phase, errors: [`the harness failed on this answer: ${(err as Error).message}`], warnings: [], raw: lastRaw.slice(0, 4000) })
-      if (reviewed && ep.outcome === 'failed' && this.commit(ep, reviewed, req, replaces)) ep.error += '; shipped the reviewed draft'
     }
 
     // pictures begun for new things the episode did not ship (it failed, was covered, or found them after all):
@@ -726,7 +734,7 @@ export class Modder {
       // could not audit because the backend went out)
       let found: AuditResult | undefined
       let unaudited = false
-      if (run.submitted && patch && !problems.length && auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch))
+      if (run.submitted && patch && !problems.length && auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch, req))
         found = await this.audit(new Meter(this.backend!), req, patch, { library: lib, ontology: library.fullOntology(lib) }, h).catch((err: Error) => ((ep.error = err.message), (unaudited = true), undefined))
       if (found?.confirmed.length) {
         ep.attempts.push({ phase: 'audit', patch, errors: auditNotes(found.confirmed), warnings: [], audit: { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length } })
@@ -788,8 +796,8 @@ export class Modder {
     const shipped = ep.attempts.at(-1)
     const flags = ep.patch ? flagsOf(ep.patch, shipped?.derived) : []
     if (reviewLater) flags.push('the reviewer before shipping gave no verdict: look at everything')
-    // a review after the fact: for a rule that narrates only or did not generalize (and for every
-    // live rule when the harness says review.unflagged)
+    // a review after the fact: for a rule that narrates only or that the harness's test could not check (and
+    // for every live rule when the harness says review.unflagged)
     if (ep.outcome === 'accepted' && !eo.revise && h.review.enabled && (flags.length || (h.review.blocking === false && h.review.unflagged)) && (!shipped?.review || reviewLater))
       this.later(`review ${ep.id}`, async () => {
         const model = new Meter(this.backend!)
@@ -801,7 +809,7 @@ export class Modder {
     // it on their next sync), and goes back for a revision. A patch that only narrates has nothing to
     // break: no call, and the journal says why
     const auditing = ep.outcome === 'accepted' && !eo.revise && auditOf(h).enabled && !auditOf(h).blocking && ep.patch
-    if (auditing && narratesOnly(ep.patch!)) this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, skipped: NARRATES_ONLY, confirmed: [], unconfirmed: [], usage: { calls: 0, input: 0, output: 0, cost: 0 } })
+    if (auditing && narratesOnly(ep.patch!, req)) this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, skipped: NARRATES_ONLY, confirmed: [], unconfirmed: [], usage: { calls: 0, input: 0, output: 0, cost: 0 } })
     else if (auditing)
       this.later(`audit ${ep.id}`, async () => {
         const model = new Meter(this.backend!)
@@ -1000,18 +1008,32 @@ export class Modder {
 
 const NARRATES_ONLY = 'narrates only'
 
-/** A patch of rules that only narrate (changesNothing) has nothing the auditor could break: it adds no thing and changes none. */
-function narratesOnly(patch: Patch): boolean {
-  return patch.artifacts.every((a) => a.kind === 'rule' && changesNothing(a.rule))
+/**
+ * A patch of rules that only narrate (changesNothing) has nothing the auditor could break: it adds no thing and
+ * changes none, nor cancels a default of the hole it answers that does something.
+ */
+function narratesOnly(patch: Patch, req: ModRequest): boolean {
+  return patch.artifacts.every((a) => a.kind === 'rule' && changesNothing(a.rule, req.hole?.default))
 }
 
-/** What the reviewer should look at first: rules that change nothing, rules that did not generalize. */
+/**
+ * What the harness's own test could not hold a rule to (derive.ts, and the derived test the validator dropped):
+ * since a learned rule has no siblings (§5.16) this is what "did not generalize" was, a rule the harness
+ * could not check.
+ */
+const UNTESTED = /could not derive a test|derived test dropped|checks only that the rule answers/
+
+/** What the reviewer should look at first: rules that change nothing, rules the harness's test could not check. */
 function flagsOf(patch: Patch, derived?: string[]): string[] {
   const flags: string[] = []
+  const quiet = new Set<string>()
   for (const a of patch.artifacts)
-    if (a.kind === 'rule' && changesNothing(a.rule))
+    if (a.kind === 'rule' && changesNothing(a.rule)) {
+      quiet.add(a.rule.id)
       flags.push(`"${a.rule.id}" changes nothing in the world (it only narrates). Revise unless doing nothing is clearly the most plausible and interesting outcome — and then its class must be narrow.`)
-  for (const d of derived ?? []) if (d.includes('did not generalize')) flags.push(d)
+    }
+  for (const d of derived ?? [])
+    if (UNTESTED.test(d) && ![...quiet].some((id) => d.startsWith(`${id}:`))) flags.push(`the harness could not test what it does (${d}): look at the whole outcome`)
   return flags
 }
 
