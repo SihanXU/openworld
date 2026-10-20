@@ -22,6 +22,20 @@ describe.skipIf(!existsSync(STARTER))('the editor\'s store', () => {
     expect(s.compiled().chunks.find((c) => c.map.id === 'glade')?.map.rows[2].startsWith('T~')).toBe(true)
   })
 
+  it('an edit made while its file is being saved stays unsaved (the next save writes it)', async () => {
+    const s = fresh()
+    s.change<RawChunk>('maps/glade.json', 'paint', (c) => (c.map.rows[2] = 'T~' + c.map.rows[2].slice(2)))
+    let land!: () => void
+    ;(globalThis as { fetch?: unknown }).fetch = () => new Promise<Response>((r) => (land = () => r(new Response('{}', { headers: { 'content-type': 'application/json' } }))))
+    const saving = s.save()
+    await new Promise((r) => setTimeout(r, 0))
+    // the author paints on while the file is on its way
+    s.change<RawChunk>('maps/glade.json', 'paint', (c) => (c.map.rows[3] = 'T~' + c.map.rows[3].slice(2)))
+    land()
+    await saving
+    expect(s.unsaved()).toBe(1)
+  })
+
   it('undoes a stroke, however many cells it painted, at once; and a change that changes nothing is no edit', () => {
     const s = fresh()
     const before = JSON.stringify(s.get('maps/glade.json'))

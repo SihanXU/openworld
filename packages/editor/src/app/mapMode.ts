@@ -1032,7 +1032,7 @@ export class MapMode implements Mode {
       ctx.showMap(id)
     })
     click('#delMap', () => {
-      if (!confirm(t('Delete the map {id}? (Undo brings it back; Save deletes its file.)', { id: m.id }))) return
+      if (!confirm(t('Delete the map {id}? (Its file is deleted as the project saves; Undo brings it back.)', { id: m.id }))) return
       const f = this.file(ctx)!
       this.props?.close()
       ctx.store.remove(f, t('delete {id}', { id: m.id }))

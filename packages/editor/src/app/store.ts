@@ -240,8 +240,10 @@ export class Store {
     const base = `/api/projects/${encodeURIComponent(this.id)}/files/`
     const said = (file: string) => (e: Error) => { throw new Error(`${file}: ${e.message}`) }
     for (const file of [...this.dirty]) {
+      // what was sent: an edit made to the file while it is on its way leaves it unsaved (written by the next save)
+      const sent = this.text(file)
       await call(base + file, { method: 'PUT', body: this.docs.get(file) }).catch(said(file))
-      this.dirty.delete(file)
+      if (this.text(file) === sent) this.dirty.delete(file)
     }
     for (const file of [...this.deleted]) {
       await call(base + file, { method: 'DELETE' }).catch(said(file))

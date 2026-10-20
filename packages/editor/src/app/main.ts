@@ -241,7 +241,7 @@ async function openProject(id: string): Promise<void> {
   })
   $<HTMLButtonElement>('#undo').onclick = () => store.undo() ?? toast(t('Nothing to undo.'), 'warn')
   $<HTMLButtonElement>('#redo').onclick = () => store.redo() ?? toast(t('Nothing to redo.'), 'warn')
-  $<HTMLButtonElement>('#save').onclick = () => void save().then(() => toast(t('Saved.')))
+  $<HTMLButtonElement>('#save').onclick = () => void save().then(() => ((autosaved = false), refresh(), toast(t('Saved.'))))
   $<HTMLButtonElement>('#settings').onclick = () => settingsDialog()
   $<HTMLButtonElement>('#play').onclick = () => void ctx.playtest()
   $<HTMLButtonElement>('#export').onclick = () => void save().then(() => exportDialog(id, store))
@@ -249,7 +249,7 @@ async function openProject(id: string): Promise<void> {
   window.addEventListener('keydown', (e) => {
     const mod = e.ctrlKey || e.metaKey
     const k = e.key.toLowerCase()
-    if (mod && k === 's') return (e.preventDefault(), void save().then(() => toast(t('Saved.'))))
+    if (mod && k === 's') return (e.preventDefault(), void save().then(() => ((autosaved = false), refresh(), toast(t('Saved.')))))
     const el = e.target as HTMLElement
     if (picking && e.key === 'Escape') return endPick(undefined)
     if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || el.isContentEditable) return
