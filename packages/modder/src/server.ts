@@ -5,6 +5,7 @@
 //   GET  /stats           the numbers the paper reports
 //   GET  /progress?id=r   where request r is (queued, local, find, create, art; {} when not here)
 //   POST /create          {intent, had?, stations?} → a new thing's draft (types and icons), not committed (this host only)
+//                         (this host only: from this machine, and from no page of another site, by its Origin)
 //   POST /adopt           {patch}: the author took the new thing into the game; the library has it (this host only)
 //   POST /fault           {rule, reason, client?}: a client set a learned rule aside at run time
 //   GET  /quality         what the model carries (design.md §13, the AI setting): the last detection, one running; ?plan=1 what one would play
@@ -29,7 +30,9 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
   const libraryInfo = () => ({ seq: library.seq, patches: library.patchRules().length, rules: library.lib.rules.size })
   const detector = new Detector(modder, { file: modder.opts.data ? join(modder.opts.data, 'quality.json') : undefined, probes: modder.opts.probes, log: modder.opts.log })
   // a detection is model calls on this service's account: asked for from this machine only
-  const local = (req: IncomingMessage) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '')
+  // (and from a page of this machine: any page open in the author's browser connects from this machine too, so one sent
+  // by a page of another site — its Origin, which a browser always sends on such a request — is refused)
+  const local = (req: IncomingMessage) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '') && localOrigin(req.headers.origin)
   return createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', opts.origin ?? '*')
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -77,6 +80,17 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
       send(500, { error: (err as Error).message })
     }
   })
+}
+
+/** A request from no page (a command line), or from a page served by this machine. */
+function localOrigin(origin: string | undefined): boolean {
+  if (!origin) return true
+  try {
+    const host = new URL(origin).hostname
+    return host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host.endsWith('.localhost')
+  } catch {
+    return false
+  }
 }
 
 function readJson(req: IncomingMessage, max: number): Promise<unknown> {

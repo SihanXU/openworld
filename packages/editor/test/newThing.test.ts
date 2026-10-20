@@ -19,7 +19,7 @@ describe('a new thing taken into the game', () => {
     const lamp: TypeDef = { id: 'fixture/furniture/gel_lamp', name: { en: 'Gel Lamp', zh: '凝胶灯' }, tags: ['portable'], makeup: [{ type: 'item/material/gel', count: 2 }], station: 'hands' }
     const draft = [structuredClone(lamp)]
     const { file, sent } = takeThing(s, draft)
-    expect(file).toBe('learned/thing-gel_lamp.json')
+    expect(file).toBe('learned/thing-furniture-gel_lamp.json')
     expect(s.get<LearnedFile>(file)!.types![0].name).toBe('Gel Lamp')
     expect(s.get<LocaleFile>('locales/zh.json')!.entries['Gel Lamp']).toBe('凝胶灯')
     expect(sent.artifacts).toEqual([{ kind: 'type', type: lamp }])
