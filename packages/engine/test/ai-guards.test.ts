@@ -196,15 +196,17 @@ describe("a save's learned kinds and statuses are checked as they come back (V4)
     expect(eng.world.onto.resolve(STONE).tags).not.toContain('edible')
   })
 
-  it('one that fails the checks is left out; one that holds comes back, and may stand on another that came back', () => {
+  it('one learned under older checks comes back as it was (a save keeps its things); one with no place in the tree is left out', () => {
     const dropped: string[] = []
-    const nameless: TypeDef = { id: 'item/odd', name: 'odd' }
+    const plain: TypeDef = { id: 'item/odd', name: 'odd' }
     const pebble: TypeDef = { id: 'item/pebble', name: { en: 'pebble', zh: '卵石' }, makeup: [{ type: STONE, count: 1 }] }
     const small: TypeDef = { id: 'item/pebble/small', name: { en: 'small pebble', zh: '小卵石' } }
+    const stray: TypeDef = { id: 'item/nowhere/thing', name: { en: 'thing', zh: '东西' } }
     const fixed: StatusDef = { id: 'pinned', name: { en: 'pinned', zh: '钉住' }, immobilize: true }
-    const lib = restoreLibrary(BASE, save([small, nameless, pebble], [fixed]), onto, [], (id, why) => dropped.push(`${id}: ${why}`))
-    expect(lib.types.map((t) => t.id).sort()).toEqual(['item/pebble', 'item/pebble/small'])
-    expect(dropped.map((d) => d.split(':')[0]).sort()).toEqual(['item/odd', 'pinned'])
+    const lib = restoreLibrary(BASE, save([small, plain, pebble, stray], [fixed]), onto, [], (id, why) => dropped.push(`${id}: ${why}`))
+    expect(lib.types.map((t) => t.id).sort()).toEqual(['item/odd', 'item/pebble', 'item/pebble/small'])
+    expect(lib.statuses.map((s) => s.id)).toEqual(['pinned'])
+    expect(dropped).toEqual(['item/nowhere/thing: its parent "item/nowhere" is no type'])
   })
 })
 
