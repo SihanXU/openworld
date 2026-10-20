@@ -153,12 +153,40 @@ export function clone(map: Keymap): Keymap {
   return Object.fromEntries(ACTIONS.map((a) => [a, map[a].map((b) => ({ ...b }))])) as Keymap
 }
 
+/** One action's keys alike in two maps, slot for slot. */
+const alike = (a: Binding[], b: Binding[]) => a.length === b.length && a.every((x, i) => same(x, b[i]))
+
+/** Two maps alike, key for key. */
+export function equal(a: Keymap, b: Keymap): boolean {
+  return ACTIONS.every((x) => alike(a[x], b[x]))
+}
+
 /** Which preset a map is, if it is one unchanged. */
 export function presetOf(map: Keymap): Preset | undefined {
-  return (Object.keys(PRESETS) as Preset[]).find((p) => {
-    const d = PRESETS[p]()
-    return ACTIONS.every((a) => d[a].length === map[a].length && d[a].every((b, i) => same(b, map[a][i])))
-  })
+  return (Object.keys(PRESETS) as Preset[]).find((p) => equal(PRESETS[p](), map))
+}
+
+/** Are an action's keys other than the default's (preset A's)? */
+export function changed(map: Keymap, action: Action): boolean {
+  return !alike(presetA()[action], map[action])
+}
+
+/**
+ * An action back to its default keys: one another action holds now is taken from it, and that one gets back its own
+ * default where that key is free now (a trade undone from either side). `took`: the actions whose keys changed too.
+ */
+export function reset(map: Keymap, action: Action): { map: Keymap; took: Action[] } {
+  const d = presetA()
+  const next = clone(map)
+  next[action] = []
+  const took: Action[] = []
+  for (const b of d[action]) {
+    const h = holder(next, b, action)
+    if (h) (next[h] = next[h].filter((x) => !same(x, b))), took.push(h)
+    next[action].push({ ...b })
+  }
+  for (const h of took) for (const b of d[h]) if (next[h].length < PER_ACTION && !holder(next, b)) next[h].push({ ...b })
+  return { map: next, took }
 }
 
 /** A stored map, read back: every action the stored one names well, the rest the default's; never two actions on one key. */

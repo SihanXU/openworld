@@ -261,8 +261,8 @@ left click to the ceiling instead of using it (docs/building.md).
 
 **The keys are the player's** (2026-10-20, `runtime/src/keymap.ts`): every key the page answers to is an
 action's — the four inputs, the action on the keys, the attack, the steps, the panels, the toolbar, the skill
-bar —, two keys each at most, rebound in Options → Keys (a key another action holds trades places with it) or
-taken from a preset: A, the left hand on the keys and the right on the mouse (the default, the keys this
+bar —, a key and a spare each, rebound in Options → Keys (a draft until saved, or given up; a key another action
+holds asks first, then the two trade; a row set back to its default, or all of them) or taken from a preset: A, the left hand on the keys and the right on the mouse (the default, the keys this
 section names), or B, both hands on the keys (J strikes, K is the action on the cell in front, L dashes). Esc,
 the developer's ` and the browser's own keys (Ctrl, Alt, F5, F11, F12) are never bound; the mouse's buttons
 are not keys. The map is the browser's, never the save's: the world never knows which keys move it, and the

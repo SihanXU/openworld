@@ -733,9 +733,19 @@ body.looks-page { background: #2b3550; color: var(--ink-warm); overflow: auto; }
 .keys-page .kp-note { font-size: 12px; margin: 4px 0; opacity: 0.85; }
 .keys-page .kp-said { min-height: 1.2em; font-size: 12px; color: #8a3b12; }
 .keys-page h4 { margin: 8px 0 2px; }
-.keys-page .kp-row { display: grid; grid-template-columns: 1fr 96px 96px; gap: 6px; align-items: center; font-size: 13px; }
+.keys-page .kp-row { display: grid; grid-template-columns: 1fr 96px 96px 132px; gap: 6px; align-items: center; font-size: 13px; padding: 1px 4px; border-radius: 4px; }
+.keys-page .kp-row.changed { background: rgba(255, 200, 90, 0.25); }
+.keys-page .kp-head { position: sticky; top: 44px; z-index: 1; background: var(--paper); font-size: 12px; font-weight: 700; border-bottom: 1px solid var(--wood-dark); }
+.keys-page .kp-head span:nth-child(2), .keys-page .kp-head span:nth-child(3) { text-align: center; }
+.keys-page .kp-bar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 0; background: var(--paper); border-bottom: 2px solid var(--wood-dark); }
+.keys-page .kp-state { flex: 1; font-size: 12px; text-align: right; }
+.keys-page .kp-save:not([disabled]) { background: #6aa84f; color: #fff; border-color: #2f5d1e; font-weight: 700; }
+.keys-page button[disabled] { opacity: 0.45; cursor: default; }
+.keys-page .kp-ask { padding: 6px 8px; background: #fff0c2; border: 2px solid #c98a16; border-radius: 5px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.keys-page .kp-key.new { box-shadow: inset 0 0 0 2px #c98a16; }
+.keys-page .kp-reset { font-size: 11px; padding: 2px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .keys-page .kp-key { font: 12px var(--mono); min-height: 26px; padding: 2px 6px; color: var(--ink-warm); background: var(--paper); border: 2px solid var(--wood-dark); border-radius: 4px; cursor: pointer; }
 .keys-page .kp-key.empty { opacity: 0.55; }
 .keys-page .kp-key.asking { background: #ffe08a; animation: kp-blink 0.8s ease-in-out infinite; }
 @keyframes kp-blink { 50% { box-shadow: 0 0 0 3px #ffbf3c; } }
-@media (max-width: 520px) { .keys-page .kp-row { grid-template-columns: 1fr 72px 72px; } }
+@media (max-width: 620px) { .keys-page .kp-row { grid-template-columns: 1fr 64px 64px 92px; } }

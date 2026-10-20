@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ACTIONS, PRESETS, actionOf, bind, fillKeys, holder, lessonKey, parse, presetOf, serialize, unbind, type Keymap } from '../src/keymap.ts'
+import { ACTIONS, PRESETS, actionOf, bind, changed, equal, fillKeys, holder, lessonKey, parse, presetOf, reset, serialize, unbind, type Keymap } from '../src/keymap.ts'
 
 const A = () => PRESETS.a()
 
@@ -63,6 +63,28 @@ describe('the keyboard map', () => {
     expect(bind(A(), 'hands', 0, { code: 'Escape' }).map.hands).toEqual(A().hands)
     expect(bind(A(), 'hands', 0, { code: 'ShiftLeft', shift: true }).map.hands).toEqual(A().hands)
     expect(unbind(A(), 'bag', 1).bag).toEqual([{ code: 'Tab' }])
+  })
+
+  it('an action back to its default: its keys again, taken from whoever holds one now; changed says which differ', () => {
+    let m = bind(A(), 'take', 0, { code: 'KeyT' }).map
+    expect(changed(m, 'take')).toBe(true)
+    expect(changed(m, 'hands')).toBe(false)
+    // F went to the hands meanwhile
+    m = bind(m, 'hands', 1, { code: 'KeyF' }).map
+    const back = reset(m, 'take')
+    expect(back.took).toEqual(['hands'])
+    expect(back.map.take).toEqual([{ code: 'KeyF' }])
+    expect(back.map.hands).toEqual([{ code: 'KeyE' }])
+    expect(changed(back.map, 'take')).toBe(false)
+    expect(equal(back.map, A())).toBe(true)
+    expect(equal(m, A())).toBe(false)
+    // a trade undone from either side: the hands took G (put got E); the hands set back, put has G again
+    const traded = bind(A(), 'hands', 0, { code: 'KeyG' }).map
+    expect(traded.put).toEqual([{ code: 'KeyE' }])
+    const undone = reset(traded, 'hands')
+    expect(undone.map.hands).toEqual([{ code: 'KeyE' }])
+    expect(undone.map.put).toEqual([{ code: 'KeyG' }])
+    expect(equal(undone.map, A())).toBe(true)
   })
 
   it('read back from storage: what it names well, the default for the rest, never one key twice; nonsense is the default', () => {
