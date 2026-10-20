@@ -86,3 +86,21 @@ describe("the log's identity", () => {
     }
   })
 })
+
+describe('a covered reply', () => {
+  it('ships only what the library still holds of the patch that answers', () => {
+    const library = new WorldLibrary(onto, BASE, join(dir(), 'library.jsonl'))
+    const slime = request()
+    const wolf = request('actor/creature/beast/wolf')
+    // one patch, two rules (one each)
+    const both: Patch = { note: 'stones weigh creatures down', artifacts: [...bind('patch/slime', slime).artifacts, ...bind('patch/wolf', wolf).artifacts] }
+    expect(library.commit(both).ok).toBe(true)
+    expect(library.covering(slime)?.patch.artifacts.map((a) => (a.kind === 'rule' ? a.rule.id : a.kind))).toEqual(['patch/slime', 'patch/wolf'])
+    // the wolf's rule rolled back: a covered reply must not bring it back to the client
+    expect(library.remove('patch/wolf')).toBe(true)
+    const c = library.covering(slime)
+    expect(c?.rule).toBe('patch/slime')
+    expect(c?.patch.artifacts.map((a) => (a.kind === 'rule' ? a.rule.id : a.kind))).toEqual(['patch/slime'])
+    expect(c?.patch.note).toBe('stones weigh creatures down')
+  })
+})

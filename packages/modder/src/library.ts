@@ -159,12 +159,25 @@ export class WorldLibrary {
     // (design.md §5.16; §13, the AI setting), no replay needed
     if (!this.lib.grown(req.event.host?.type ?? '-', req.event.kind, holeKey(req.hole.rule, req.hole.path), tiersFrom(tierOfRequest(req)))) return undefined
     const rule = this.answering(req)
-    if (!rule) return undefined
+    const seq = rule ? this.seqOf(rule) : undefined
+    const e = seq !== undefined ? this.log.find((x) => x.seq === seq) : undefined
+    if (!rule || !e || !('patch' in e)) return undefined // answered by a base rule the client lacks: see answeredByBase
+    // the patch as the library still holds it: a rule of it rolled back since (or replaced by a later version) is
+    // not shipped again, nor a type or status it brought that the library has forgotten
+    const held = e.patch.artifacts.filter((a) =>
+      a?.kind === 'rule' ? this.seqOf(a.rule?.id) === e.seq : a?.kind === 'type' ? this.lib.types.some((t) => t.id === a.type?.id) : a?.kind === 'status' ? this.lib.statuses.some((s) => s.id === a.status?.id) : true,
+    )
+    return { rule, patch: held.length === e.patch.artifacts.length ? e.patch : { ...e.patch, artifacts: held } }
+  }
+
+  /** The seq of the log entry that added the version of a patch rule now in force (undefined: no patch rule by that id is). */
+  seqOf(ruleId: string): number | undefined {
+    if (this.lib.rules.get(ruleId)?.source?.origin !== 'patch') return undefined
     for (let i = this.log.length - 1; i >= 0; i--) {
       const e = this.log[i]
-      if ('patch' in e && e.rules.includes(rule)) return { rule, patch: e.patch }
+      if ('patch' in e && e.rules.includes(ruleId)) return e.seq
     }
-    return undefined // answered by a base rule the client lacks: see answeredByBase
+    return undefined
   }
 
   /**
