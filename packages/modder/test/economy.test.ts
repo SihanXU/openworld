@@ -391,3 +391,26 @@ describe('chance, counted by expectation', () => {
     expect(freeLunch([craft, ...ruleSteps(rule, withYield)])).toBeDefined()
   })
 })
+
+describe('a recipe that makes several at once (yields)', () => {
+  const onto = buildOntology()
+  const base = [...BASE_RULES, ...STORY_RULES]
+  const STONE = 'item/material/stone'
+  const chip = (yields: number) => ({ id: 'item/material/chip', name: { en: 'Chip', zh: '石片' }, props: { material: 'stone', maxHp: 1, hp: 1 }, makeup: [{ type: STONE, count: 4 }], station: 'hands', yields })
+  const back: Rule = { id: 'test/chip-back', host: { type: 'item/material/chip' }, on: 'act/use', tree: { do: [{ op: 'transform', into: STONE }] }, source: { origin: 'patch' } }
+
+  it('makes as many as it yields: four stones into eight chips, each turned back into a stone, doubles the stone', () => {
+    const t = chip(8)
+    const steps = economySteps({ ...onto, types: { ...onto.types, [t.id]: t } }, [...base, back], 0.5)
+    expect(steps.find((s) => s.name === `recipe ${t.id}`)?.gives.get(t.id)).toBe(8)
+    expect(freeLunch(steps)?.makes.length).toBeGreaterThan(0)
+  })
+
+  it('one of them breaks into its share of the makeup, so a fair way to one is no free lunch', () => {
+    const t = chip(4)
+    const steps = economySteps({ ...onto, types: { ...onto.types, [t.id]: t } }, base, 0.5)
+    expect(steps.find((s) => s.takes.get(t.id) === 1 && s.gives.has(STONE))?.gives.get(STONE)).toBeCloseTo((4 * 0.5) / 4, 9)
+    const toChip: Rule = { id: 'test/stone-chip', host: { type: STONE }, on: 'act/use', tree: { do: [{ op: 'transform', into: t.id }] }, source: { origin: 'patch' } }
+    expect(freeLunch(economySteps({ ...onto, types: { ...onto.types, [t.id]: t } }, [...base, toChip], 0.5))).toBeUndefined()
+  })
+})

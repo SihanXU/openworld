@@ -9,6 +9,8 @@ button:hover { background: #303850; }
 button.on { background: var(--ed-accent); color: #1a1408; border-color: transparent; }
 button:disabled { opacity: 0.45; cursor: default; }
 button.danger { border-color: #6b2b2b; color: #ffb3b3; margin-top: 10px; }
+/* (beside other buttons in a row it sits level with them) */
+.row > button.danger, .row button.danger, .db-head button.danger { margin-top: 0; }
 input, select, textarea { font: inherit; color: var(--ed-ink); background: #0f121a; border: 1px solid var(--ed-line); border-radius: 4px; padding: 3px 6px; }
 input[type=number] { width: 64px; }
 textarea { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; }
@@ -16,7 +18,7 @@ label { display: block; margin: 6px 0; color: var(--ed-muted); }
 label.inline { display: inline; }
 label input:not([type=checkbox]), label select { color: var(--ed-ink); }
 h1 { font-family: 'Pixelify Sans', sans-serif; font-weight: 600; }
-h3 { margin: 14px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ed-accent); }
+h3 { margin: 14px 0 6px; font-size: 13px; letter-spacing: 0.02em; color: var(--ed-accent); }
 code { background: #0f121a; padding: 1px 4px; border-radius: 3px; }
 .muted { color: var(--ed-muted); }
 .warn { color: var(--ed-warn); }
@@ -231,3 +233,132 @@ table.facts td { padding: 2px 4px; }
 .chip.missing { color: var(--ed-warn); }
 .chip.review { color: #6fb3ff; }
 .chip.done { color: #7ee08a; }
+
+/* the editor's pixel icons (icons.ts): a mask in the colour of the text */
+.px-ic { display: inline-block; vertical-align: middle; flex: none; background: currentColor; -webkit-mask: var(--ic) center / 100% 100% no-repeat; mask: var(--ic) center / 100% 100% no-repeat; }
+button.ic { padding: 4px 6px; display: inline-grid; place-items: center; }
+.editor header button { white-space: nowrap; }
+.editor header #play { display: inline-flex; align-items: center; gap: 4px; }
+
+/* the header's groups of modes, and More */
+.editor header nav { gap: 6px; align-items: center; }
+.ngrp { display: inline-flex; gap: 1px; padding: 2px; background: #10131b; border: 1px solid var(--ed-line); border-radius: 6px; }
+.ngrp button, .more > button { border: none; background: transparent; padding: 3px 9px; }
+.ngrp button:hover, .more > button:hover { background: #262c3d; }
+.ngrp button.on, .more > button.on { background: var(--ed-accent); color: #1a1408; }
+.more { position: relative; }
+.more .menu { position: absolute; top: calc(100% + 4px); left: 0; display: flex; flex-direction: column; gap: 2px; min-width: 150px; padding: 4px; background: var(--ed-panel); border: 1px solid var(--ed-line); border-radius: 6px; box-shadow: 0 8px 24px #0008; z-index: 30; }
+.more .menu[hidden] { display: none; }
+.more .menu button { text-align: left; border: none; background: transparent; }
+.more .menu button:hover { background: #262c3d; }
+.more .menu button.on { background: var(--ed-accent); color: #1a1408; }
+
+/* the map's tools: a strip of icons beside the map, the chosen tool's choices in a bar above it (mapTools.ts) */
+#toolbar { grid-area: canvas; align-self: start; z-index: 4; display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 4px 10px 4px 52px; background: #1c2130ee; border-bottom: 1px solid var(--ed-line); overflow: hidden; }
+#toolstrip { grid-area: canvas; justify-self: start; align-self: start; z-index: 5; margin-top: 46px; display: flex; flex-direction: column; gap: 4px; padding: 6px 5px; background: #1c2130ee; border: 1px solid var(--ed-line); border-left: none; border-radius: 0 8px 8px 0; }
+.ib { position: relative; width: 36px; height: 36px; padding: 0; display: grid; place-items: center; }
+.ib small { position: absolute; right: 2px; bottom: 0; font-size: 9px; color: var(--ed-muted); }
+.ib.on small { color: #3a2a08; }
+.seg { display: inline-flex; gap: 2px; padding: 2px; background: #0f121a; border: 1px solid var(--ed-line); border-radius: 6px; flex: none; }
+.seg button { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border: none; background: transparent; white-space: nowrap; }
+.seg button:hover { background: #262c3d; }
+.seg button.on { background: var(--ed-accent); color: #1a1408; }
+#toolbar .lab { color: var(--ed-muted); font-size: 11px; }
+#toolbar .hint { flex: 1; min-width: 0; color: var(--ed-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#toolbar label { display: inline-flex; align-items: center; gap: 4px; margin: 0; white-space: nowrap; }
+#toolbar p.muted { margin: 0; white-space: nowrap; }
+
+/* the map's left panel: what is laid, by kind, above; the maps, with a search, below — each scrolls by itself */
+#left:has(> .lp-maps) { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.lp-top { flex: 1 1 58%; min-height: 0; overflow: auto; padding: 8px 10px; }
+.lp-maps { flex: 1 1 42%; min-height: 0; overflow: auto; padding: 6px 10px 8px; border-top: 1px solid var(--ed-line); background: #181c29; }
+.lp-maps h3 { margin-top: 4px; }
+#mapFilter { width: 100%; margin-bottom: 4px; }
+.lp-tree .palette.list { max-height: none; }
+.cats { display: flex; flex-wrap: wrap; gap: 3px; margin: 2px 0 6px; }
+.cats button { padding: 2px 8px; font-size: 12px; }
+.cats button small { color: var(--ed-muted); font-size: 10px; }
+.cats button.on small { color: #3a2a08; }
+
+/* the map's inspector: the map itself on top (its properties in a dialog), then the cell and what is selected */
+.map-head { display: grid; gap: 2px; padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--ed-line); }
+.map-head b { font-size: 14px; }
+.map-head small { color: var(--ed-muted); }
+.map-head button { justify-self: start; margin-top: 4px; }
+
+/* the Height layer (heights.ts): the height chosen in words, a slider over the levels with the horizon marked, a side view */
+.hgt { display: grid; gap: 6px; margin: 4px 0 8px; }
+.hgt-now { display: flex; align-items: baseline; gap: 8px; }
+.hgt-now b { font-size: 22px; color: var(--ed-accent); min-width: 18px; }
+.hgt input[type=range] { width: 100%; accent-color: var(--ed-accent); }
+.hgt-ticks { display: grid; grid-template-columns: repeat(10, 1fr); font-size: 10px; color: var(--ed-muted); text-align: center; }
+.hgt-ticks span { border-top: 3px solid var(--c); padding-top: 2px; }
+.hgt-ticks span:first-child { color: #8cc4ff; border-top-color: #8cc4ff; white-space: nowrap; text-align: left; }
+.hgt-ticks span.lv { color: var(--ed-ink); }
+#hSide { width: 100%; height: auto; background: #0f121a; border: 1px solid var(--ed-line); border-radius: 4px; }
+
+/* the Things layer's kinds as rows: a picture, the name in full, its kind and whether its picture is shared */
+.palette.rows { display: flex; flex-direction: column; gap: 2px; }
+.palette.rows button.pic-row { display: flex; align-items: center; gap: 8px; padding: 3px 6px; text-align: left; }
+.palette.rows button.pic-row canvas { flex: none; image-rendering: pixelated; border-radius: 3px; }
+.palette.rows button.pic-row span { display: flex; flex-direction: column; min-width: 0; margin: 0; }
+.palette.rows button.pic-row small { margin: 0; color: var(--ed-muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette.rows button.pic-row.on small { color: #3a2a08; }
+
+/* the database: the entry's picture and name on top; its fields as forms; JSON under Advanced */
+.db-head { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+.db-head canvas { image-rendering: pixelated; background: #0f121a; border-radius: 4px; }
+.db-head h2 { margin: 0; font-size: 18px; }
+.db-head p { margin: 2px 0 0; }
+.sw.big { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 6px; }
+.db-form label, .db-field { display: block; margin: 8px 0; }
+.db-label { display: block; color: var(--ed-muted); font-size: 12px; margin-bottom: 3px; }
+.db-form label > input:not([type=checkbox]), .db-form label > select { width: 100%; }
+label.db-bool { display: flex; gap: 6px; }
+.db-field .chips input { width: 120px; }
+.chips .chip { background: #262c3d; border-radius: 999px; padding: 1px 8px; }
+table.kv { width: 100%; border-collapse: collapse; }
+table.kv td { padding: 2px 3px; }
+table.kv td:first-child { width: 45%; }
+table.kv input { width: 100%; }
+table.kv input[type=number] { width: 70px; }
+table.kv tr.add input { opacity: 0.7; }
+details.db-adv summary { color: var(--ed-muted); }
+ul.things.rules li, ul.things.facts li { display: flex; flex-direction: column; padding: 3px 0; border-bottom: 1px solid #262c3d; }
+ul.things.rules small, ul.things.facts small { color: var(--ed-muted); font-size: 11px; }
+.tree-row.step { flex-direction: column; align-items: flex-start; gap: 0; }
+.tree-row.step span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+p.howto { margin: 2px 0 8px; font-size: 12px; line-height: 1.45; color: var(--ed-muted); }
+
+/* the People mode: a search, and the list as tall as the panel allows */
+#pplFilter { width: 100%; margin-bottom: 4px; }
+.palette.list.people { max-height: 62vh; }
+.palette.list.people button span { display: flex; flex-direction: column; text-align: left; min-width: 0; }
+.palette.list.people button small { margin-left: 0; }
+/* a new thing (drafter.ts): its icon drawn large, crisp */
+img.px { image-rendering: pixelated; vertical-align: middle; width: 32px; height: 32px; }
+.px.big { width: 128px; height: 128px; flex: none; background: var(--ed-bg, #111) repeating-conic-gradient(#ffffff10 0 25%, transparent 0 50%) 0 0 / 16px 16px; border: 1px solid var(--ed-line); border-radius: 4px; }
+div.px.big.none { display: grid; place-items: center; color: var(--ed-muted, #888); font-size: 12px; }
+.thing-head { display: flex; gap: 16px; align-items: flex-start; }
+.thing-head h3 { margin: 0 0 4px; }
+.thing-head p { margin: 2px 0; }
+span.chip { display: inline-block; padding: 0 6px; border: 1px solid var(--ed-line); border-radius: 999px; font-size: 12px; }
+.thing-card table.sched td { vertical-align: top; }
+#nIntent { width: 100%; box-sizing: border-box; resize: vertical; }
+
+/* the AI drafter (drafter.ts): a button at the bottom right of every page, a drawer above it */
+.ai-fab { position: fixed; right: 20px; bottom: 44px; z-index: 40; display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; border: none; background: var(--ed-accent); color: #1a1408; font-weight: 600; box-shadow: 0 6px 20px #000a; }
+.ai-fab:hover { background: #f5c877; }
+.ai-fab.on { background: #f5c877; }
+.drawer { position: fixed; right: 20px; bottom: 96px; z-index: 41; width: min(440px, 92vw); max-height: 72vh; display: flex; flex-direction: column; background: var(--ed-panel); border: 1px solid var(--ed-line); border-radius: 10px; box-shadow: 0 16px 48px #000c; }
+.drawer[hidden] { display: none; }
+.drawer header { display: flex; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--ed-line); }
+.drawer header button { background: none; border: none; font-size: 18px; padding: 0 6px; }
+.dr-body { padding: 10px 12px 12px; overflow: auto; display: grid; gap: 8px; }
+.dr-body textarea { width: 100%; font-family: inherit; font-size: 13px; resize: vertical; }
+.dr-body .row { flex-wrap: wrap; }
+.dr-body .row .muted { font-size: 11px; }
+#drMap { display: block; max-width: 100%; image-rendering: pixelated; border: 1px solid var(--ed-line); border-radius: 4px; }
+ul.dr-problems { margin: 0; padding-left: 18px; }
+ul.dr-problems li.error { color: var(--ed-err); }
+ul.dr-problems li.warning { color: var(--ed-warn); }

@@ -3,7 +3,7 @@
 // Undo takes the last edit back and Redo makes it again (until another edit). The compiler runs here as it runs anywhere (it is pure): what the canvas draws
 // and what the validation panel lists are the project as it is now, saved or not.
 
-import { compile, compileMap, type Compiled, type GameJson, type Project, type Sourced } from '@openworld/format'
+import { compile, compileMap, type Compiled, type CompileCache, type GameJson, type Project, type Sourced } from '@openworld/format'
 import type { RawChunk } from '@openworld/engine'
 import { call } from './api.ts'
 
@@ -36,8 +36,12 @@ export class Store {
   private made?: Compiled
   private madeFor = -1
   private version = 0
-  /** The files changed since the project was compiled whole (`*`: several at once, unnamed). */
+  /** The files changed since the project was last compiled (`*`: several at once, unnamed). */
   private changed = new Set<string>()
+  /** The files changed since the project was compiled whole: what the compiler's cache may not use again. */
+  private stale = new Set<string>()
+  /** What the last whole compile keeps for the next (the files as the tables were applied, the ontology, the rules' problems). */
+  private cache: CompileCache = { files: new Map() }
   /** The whole compiled again once editing rests (after maps compiled alone). */
   private whole?: ReturnType<typeof setTimeout>
   /** How long editing rests before the whole is compiled again (ms). */
@@ -61,6 +65,8 @@ export class Store {
   private emit(why: string, file?: string): void {
     this.version++
     this.changed.add(file ?? '*')
+    this.stale.add(file ?? '*')
+    this.touched.set(file ?? '*', this.version)
     // (inside a batch, said once when it ends: a change of many files draws the panels once)
     if (this.grouping !== undefined) return void (this.held = { why, file: this.held && this.held.file !== file ? undefined : file })
     for (const fn of this.listeners) fn(why, file)
@@ -71,21 +77,37 @@ export class Store {
     return this.docs.get('game.json') as GameJson
   }
 
+  /** A count that grows with every change (what is derived from the files can be kept while it stands still). */
+  get revision(): number {
+    return this.version
+  }
+  /** The revision at which a file last changed (0: not since the project was opened). */
+  revisionOf(file: string): number {
+    return Math.max(this.touched.get(file) ?? 0, this.touched.get('*') ?? 0)
+  }
+  private touched = new Map<string, number>()
+
   get<T>(file: string): T | undefined {
     return this.docs.get(file) as T | undefined
   }
 
-  /** The files of a folder, in name order. */
+  /** The files of a folder, in name order (a new list each time; the lists kept while the project stands still: a panel asks hundreds of times). */
   list<T>(folder: Folder): Sourced<T>[] {
-    return [...this.docs.keys()].filter((f) => f.startsWith(`${folder}/`)).sort().map((file) => ({ file, data: this.docs.get(file) as T }))
+    if (this.listed.revision !== this.version) this.listed = { revision: this.version, lists: new Map() }
+    let out = this.listed.lists.get(folder)
+    if (!out) this.listed.lists.set(folder, (out = [...this.docs.keys()].filter((f) => f.startsWith(`${folder}/`)).sort().map((file) => ({ file, data: this.docs.get(file) }))))
+    return [...out] as Sourced<T>[]
   }
+  private listed: { revision: number; lists: Map<Folder, Sourced<unknown>[]> } = { revision: -1, lists: new Map() }
 
   maps(): Sourced<RawChunk>[] {
     return this.list<RawChunk>('maps')
   }
   mapFile(id: string): string | undefined {
-    return this.maps().find((m) => m.data.map.id === id)?.file
+    if (this.mapFiles.revision !== this.version) this.mapFiles = { revision: this.version, files: new Map(this.maps().map((m) => [m.data.map.id, m.file])) }
+    return this.mapFiles.files.get(id)
   }
+  private mapFiles: { revision: number; files: Map<string, string> } = { revision: -1, files: new Map() }
 
   /**
    * Change a file: its data, changed in place by `edit`, is unsaved until Save; Undo takes it back. Changes of one
@@ -94,15 +116,22 @@ export class Store {
   change<T>(file: string, why: string, edit: (data: T) => void, stroke?: number): void {
     const data = this.docs.get(file) as T
     if (data === undefined) throw new Error(`no file ${file}`)
-    const before = JSON.stringify(data)
-    edit(data)
-    if (JSON.stringify(data) === before) return
     const last = this.undos[this.undos.length - 1]
-    if (!(stroke !== undefined && last?.stroke === stroke && last.file === file)) this.undos.push({ file, before, why, stroke, group: this.grouping })
+    const going = stroke !== undefined && last?.stroke === stroke && last.file === file
+    // (within a stroke, the file's text is as the last cell left it: written once a cell, not twice — a map of two
+    // thousand things takes a while to write)
+    const before = (going && this.wrote?.file === file ? this.wrote.text : undefined) ?? JSON.stringify(data)
+    edit(data)
+    const after = JSON.stringify(data)
+    if (after === before) return
+    this.wrote = { file, text: after }
+    if (!going) this.undos.push({ file, before, why, stroke, group: this.grouping })
     this.redos = []
     this.dirty.add(file)
     this.emit(why, file)
   }
+  /** The last file changed and its text as the change left it. */
+  private wrote?: { file: string; text: string }
 
   /** A new file (a map, a person, a quest). */
   add(file: string, data: unknown, why: string): void {
@@ -136,6 +165,7 @@ export class Store {
 
   /** A file set to a value (none: removed), as unsaved. */
   private put(file: string, data: unknown): void {
+    if (this.wrote?.file === file) this.wrote = undefined
     if (data === undefined) {
       this.docs.delete(file)
       this.dirty.delete(file)
@@ -210,14 +240,17 @@ export class Store {
     const base = `/api/projects/${encodeURIComponent(this.id)}/files/`
     const said = (file: string) => (e: Error) => { throw new Error(`${file}: ${e.message}`) }
     for (const file of [...this.dirty]) {
+      // what was sent: an edit made to the file while it is on its way leaves it unsaved (written by the next save)
+      const sent = this.text(file)
       await call(base + file, { method: 'PUT', body: this.docs.get(file) }).catch(said(file))
-      this.dirty.delete(file)
+      if (this.text(file) === sent) this.dirty.delete(file)
     }
     for (const file of [...this.deleted]) {
       await call(base + file, { method: 'DELETE' }).catch(said(file))
       this.deleted.delete(file)
     }
-    this.emit('saved')
+    // (said, not emitted: nothing of the project changed, so what was compiled of it stands)
+    for (const fn of this.listeners) fn('saved')
   }
 
   /** The project as the compiler takes it. */
@@ -237,9 +270,12 @@ export class Store {
     if (this.made && this.madeFor !== this.version && this.mapsAlone()) return this.made
     if (!this.made || this.madeFor !== this.version) {
       clearTimeout(this.whole)
-      this.made = compile(structuredClone(this.project()))
+      // (the compiler writes nothing into the project; what it made last time of the files that stand is used again)
+      const stale = this.stale
+      this.made = compile(this.project(), { cache: this.cache, same: (f) => !stale.has('*') && !stale.has(f) })
       this.madeFor = this.version
       this.changed.clear()
+      this.stale = new Set()
     }
     return this.made
   }

@@ -5,6 +5,12 @@
 import { EVENT_KINDS, RuleLibrary, registeredModule, restoreLibrary, compareSpec, hostsOverlap, isRoot, kindCovers, leaves, specOf, validatePatch, type Cond, type Entity, type Ontology, type RawChunk, type Rule, type Selector, type Tree, type WorldIndex } from '@openworld/engine'
 import { learnedOf } from './compile.ts'
 import type { Problem, Project } from './project.ts'
+import { filesSame, type Keep } from './texts.ts'
+
+/** What the checks keep from one compile to the next: the rules' problems, for the rules and the ontology as they were. */
+export interface CheckCache {
+  rules?: { files: string[]; problems: Problem[] }
+}
 
 interface Made {
   ontology: Ontology
@@ -17,7 +23,7 @@ interface Made {
 /** What the validator says of base rules that only a learned rule must be (design.md §5.16): a base rule is none of it. */
 const PLACEMENT = /host must be exactly|hole required|exact event kind|never inherits|no leaf answers|no default of its own|a quest is the content|may notify only a topic/
 
-export function checkProject(p: Project, made: Made): Problem[] {
+export function checkProject(p: Project, made: Made, keep?: Keep<CheckCache>): Problem[] {
   const out: Problem[] = []
   const err = (code: string, message: string, file?: string, at?: string) => out.push({ level: 'error', code, message, ...(file && { file }), ...(at && { at }) })
   const warn = (code: string, message: string, file?: string, at?: string) => out.push({ level: 'warning', code, message, ...(file && { file }), ...(at && { at }) })
@@ -67,7 +73,7 @@ export function checkProject(p: Project, made: Made): Problem[] {
     if (m.rows.length !== m.height) err('size', `${m.id} is ${m.height} high but has ${m.rows.length} rows`, file)
     m.rows.forEach((row, y) => {
       if (row.length !== m.width) err('size', `${m.id}: row ${y} is ${row.length} wide, not ${m.width}`, file, `rows[${y}]`)
-      for (const [x, ch] of [...row].entries()) if (!(ch in p.game.terrainChars)) { err('reference', `${m.id}: "${ch}" at ${x},${y} stands for no terrain`, file, `rows[${y}]`); break }
+      for (let x = 0; x < row.length; x++) if (!(row[x] in p.game.terrainChars)) { err('reference', `${m.id}: "${row[x]}" at ${x},${y} stands for no terrain`, file, `rows[${y}]`); break }
     })
     if (m.heights && (m.heights.length !== m.height || m.heights.some((r) => r.length !== m.width || /[^0-9]/.test(r)))) err('size', `${m.id}: its heights are not one digit a cell, ${m.width} × ${m.height}`, file, 'heights')
     for (const [i, pt] of m.portals.entries()) {
@@ -139,7 +145,11 @@ export function checkProject(p: Project, made: Made): Problem[] {
   const missing = (p.game.modules ?? []).filter((m) => !registeredModule(m))
   for (const m of missing) err('module', `the module "${m}" is not loaded here: import its package (the engine's official ones: @openworld/modules)`, 'game.json', 'modules')
   if (missing.length) return out
-  out.push(...ruleProblems(made.rules, onto, new Set(p.rules.flatMap((f) => f.data.map((r) => r.id)))))
+  // (the rules' problems as they were found, while the rules, the ontology's parts and game.json are as they were)
+  const ruleFiles = ['game.json', ...p.ontology.map((f) => f.file), ...p.rules.map((f) => f.file)]
+  const ofRules = keep?.cache.rules && filesSame(ruleFiles, keep.cache.rules.files, keep.same) ? keep.cache.rules.problems : ruleProblems(made.rules, onto, new Set(p.rules.flatMap((f) => f.data.map((r) => r.id))))
+  if (keep) keep.cache.rules = { files: ruleFiles, problems: ofRules }
+  out.push(...ofRules)
   // the patches it ships with: each must have its place in this library still (a hole that is still one)
   restoreLibrary(made.rules, learnedOf((p.learned ?? []).map((f) => f.data)), onto, [], (id, why) => err('learned', `the learned rule ${id} has no place here any more: ${why}`, p.learned?.find((f) => f.data.rules?.some((r) => r.id === id))?.file, id))
   const seen = new Map<string, string>()

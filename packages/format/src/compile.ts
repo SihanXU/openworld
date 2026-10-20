@@ -5,9 +5,19 @@
 
 import { moduleIds, storyTopics, type Entity, type LibraryData, type MapMeta, type Ontology, type Pos, type RawChunk, type Rule, type ScheduleEntry, type WorldIndex } from '@openworld/engine'
 import { STDLIB_ONTOLOGY, STDLIB_RULES } from '@openworld/stdlib'
-import { checkProject } from './check.ts'
-import { applyLocales, languagesOf, localeProblems } from './texts.ts'
+import { checkProject, type CheckCache } from './check.ts'
+import { applyLocales, filesSame, languagesOf, localeProblems, type Keep, type LocaleCache } from './texts.ts'
 import { FORMAT, type Bundle, type Compiled, type GameJson, type LearnedFile, type OntologyPart, type PersonFile, type Problem, type Project } from './project.ts'
+
+/**
+ * What one compile keeps for the next (the editor's: a stroke changes one map of a thousand, and the whole is
+ * compiled again once editing rests): each file as the tables were applied to it, the ontology as merged, the
+ * rules' problems — each valid while the files it was made from are as they were (`Keep.same`). A fresh `{ files:
+ * new Map() }` to begin; `compile` reads and fills it.
+ */
+export interface CompileCache extends LocaleCache, CheckCache {
+  ontology?: { files: string[]; made: Ontology }
+}
 
 /** Records merged by key (a later file's entry replaces an earlier one's). */
 const RECORDS = ['types', 'statuses', 'terrains', 'laws', 'professions', 'resistances', 'efficiency', 'materials', 'factions', 'kits', 'encounters'] as const
@@ -118,24 +128,35 @@ export function learnedOf(files: LearnedFile[]): LibraryData {
 export function compileMap(project: Project, file: string): RawChunk {
   const f = project.maps.find((m) => m.file === file)
   if (!f) throw new Error(`no map file ${file}`)
-  const p = applyLocales({ ...project, ontology: [], rules: [], people: [], quests: [], story: [], client: [], learned: [], maps: [f] })
-  return structuredClone(p.maps[0].data)
+  const one = { ...project, ontology: [], rules: [], people: [], quests: [], story: [], client: [], learned: [], maps: [f] }
+  const p = applyLocales(one)
+  return p === one ? structuredClone(f.data) : p.maps[0].data
 }
 
-/** A project → its bundle, its world, and what is wrong with it. */
-export function compile(project: Project): Compiled {
-  const problems: Problem[] = [...localeProblems(project)]
-  // every text in all its languages, as the engine and the runtime read it (texts.ts: the tables applied)
-  const p = applyLocales(project)
-  const g = p.game
-  const ontology = mergeOntology(p.ontology.map((f) => f.data), g)
+/**
+ * A project → its bundle, its world, and what is wrong with it. The project given is never written to, and what is
+ * made shares nothing with it; with `keep`, what the last compile made of the files that are as they were is used
+ * again (the compiled is then read-only: its parts are shared with the next compile's).
+ */
+export function compile(project: Project, keep?: Keep<CompileCache>): Compiled {
+  const problems: Problem[] = [...localeProblems(project, keep)]
+  // every text in all its languages, as the engine and the runtime read it (texts.ts: the tables applied); a project
+  // of no translations is read as it is, and what the world takes from it whole is copied below
+  const p = applyLocales(project, keep)
+  const own = <T>(x: T): T => (p === project ? structuredClone(x) : x)
+  const g = own(p.game)
+  // the ontology as it was merged, while the parts and game.json are as they were (a copy: the runtime takes it)
+  const ontoFiles = ['game.json', ...p.ontology.map((f) => f.file)]
+  const merged = keep?.cache.ontology && filesSame(ontoFiles, keep.cache.ontology.files, keep.same) ? keep.cache.ontology.made : mergeOntology(p.ontology.map((f) => f.data), g)
+  if (keep) keep.cache.ontology = { files: ontoFiles, made: merged }
+  const ontology = structuredClone(merged)
   const rules = mergeRules(p.rules.map((f) => f.data), g)
   // the maps, people and quests in the game's order (game.json `order`), the rest after them by file
   const ordered = <T>(xs: T[], ids: string[] | undefined, id: (x: T) => string): T[] => {
     const at = new Map((ids ?? []).map((k, i) => [k, i]))
     return [...xs].sort((a, b) => (at.get(id(a)) ?? Infinity) - (at.get(id(b)) ?? Infinity))
   }
-  const chunks = ordered(p.maps.map((f) => structuredClone(f.data)), g.order?.maps, (c) => c.map.id)
+  const chunks = ordered(p.maps.map((f) => own(f.data)), g.order?.maps, (c) => c.map.id)
   const anchor = (name: string): Pos | undefined => {
     const [mapId, key] = name.split(':')
     const m = chunks.find((c) => c.map.id === mapId)?.map
@@ -143,8 +164,9 @@ export function compile(project: Project): Compiled {
     return m && a ? { map: m.id, x: a[0], y: a[1] } : undefined
   }
   const npcs = ordered(p.people, g.order?.people, (f) => f.data.id).map((f) => resolvePerson(f.data, anchor, problems, f.file))
-  const steps = p.story.flatMap((f) => f.data.steps ?? [])
-  const quests = ordered(p.quests, g.order?.quests, (f) => f.data.id).map((f) => structuredClone(f.data))
+  const story = p.story.map((f) => own(f.data))
+  const steps = story.flatMap((s) => s.steps ?? [])
+  const quests = ordered(p.quests, g.order?.quests, (f) => f.data.id).map((f) => own(f.data))
   const at = placeMaps(chunks, g.origin ?? g.start.map)
   const onMap = (e: Entity, id: string) => e.place.on === 'tile' && e.place.map === id
   const maps: MapMeta[] = chunks.map((c) => ({
@@ -186,14 +208,14 @@ export function compile(project: Project): Compiled {
       fixtures: placed.filter((e) => e.type.startsWith('fixture/')).length,
     },
     steps,
-    invariants: p.story.flatMap((f) => f.data.invariants ?? []),
+    invariants: story.flatMap((s) => s.invariants ?? []),
     // the story's facts, and the topics it raises itself (its news: no patch raises one)
-    protectedFacts: [...new Set([...p.story.flatMap((f) => f.data.protectedFacts ?? []), ...storyTopics(steps, rules).map((t) => `topic.${t}`)])],
-    weather: p.story.flatMap((f) => f.data.weather ?? []),
+    protectedFacts: [...new Set([...story.flatMap((s) => s.protectedFacts ?? []), ...storyTopics(steps, rules).map((t) => `topic.${t}`)])],
+    weather: story.flatMap((s) => s.weather ?? []),
     quests,
-    ...p.extra,
+    ...structuredClone(p.extra),
   }
-  const client = p.client?.length ? Object.assign({}, ...p.client.map((f) => f.data)) : undefined
+  const client = p.client?.length ? Object.assign({}, ...p.client.map((f) => own(f.data))) : undefined
   const learned = p.learned?.length ? learnedOf(p.learned.map((f) => f.data)) : undefined
   const bundle: Bundle = {
     format: FORMAT,
@@ -201,11 +223,11 @@ export function compile(project: Project): Compiled {
     ontology,
     rules,
     terrainChars: g.terrainChars,
-    ...(p.catalog !== undefined && { catalog: p.catalog }),
+    ...(p.catalog !== undefined && { catalog: structuredClone(p.catalog) }),
     ...(client && { client }),
     ...(learned && { learned }),
   }
   // (on a copy: the checks see the cells' types as things, and the bundle stays as it was made)
-  problems.push(...checkProject(p, { ontology: structuredClone(ontology), rules, chunks, npcs, index }))
+  problems.push(...checkProject(p, { ontology: structuredClone(ontology), rules, chunks, npcs, index }, keep))
   return { bundle, index, chunks, problems }
 }

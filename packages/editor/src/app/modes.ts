@@ -1,6 +1,6 @@
 // The modes beyond the map and the people: the database, the rules, the story and the quests (P5), the holes
 // with the AI as co-author (P6), (§15) the game's settings, pictures and sounds, (§16 E2) the event searcher, and
-// (§19) the game's languages and their translations.
+// (§19) the game's languages and their translations, and a new thing asked for in a sentence (the AI plan, M1).
 
 import { AssetsMode } from './assetsMode.ts'
 import type { Mode } from './context.ts'
@@ -14,4 +14,6 @@ import { QuestsMode, StoryMode } from './storyMode.ts'
 
 /** The rules' mode, which others begin a rule in (the holes' answer by hand, a thing's own kind). */
 export const rulesMode = new RulesMode()
-export const MODES: Mode[] = [new GameMode(), new DatabaseMode(), new AssetsMode(), rulesMode, new StoryMode(), new QuestsMode(), new LocaleMode(), new FindMode(), new HolesMode(() => rulesMode)]
+/** The holes' mode, which a new thing taken in opens at its own holes. */
+export const holesMode = new HolesMode(() => rulesMode)
+export const MODES: Mode[] = [new GameMode(), new DatabaseMode(), new AssetsMode(), rulesMode, new StoryMode(), new QuestsMode(), new LocaleMode(), new FindMode(), holesMode]

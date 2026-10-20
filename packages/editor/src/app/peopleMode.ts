@@ -7,9 +7,10 @@ import { generateCrowd, type PersonFile, type ScheduleFileEntry } from '@openwor
 import { Creator } from '@openworld/runtime/src/ui/creator.ts'
 import { game, hasLooks } from '@openworld/runtime/src/game.ts'
 import type { Ctx, Mode } from './context.ts'
+import { dayHours } from './schedule.ts'
 import { phrase } from './lang.ts'
 import { esc, t, textField, toast, tx } from './ui.ts'
-import { adopt, sourceLang, together, written } from './words.ts'
+import { adopt, shown, sourceLang, together, written } from './words.ts'
 
 const MOODS: Mood[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy']
 /** The keys a line may be for (people.ts resolves them, most specific first). */
@@ -34,7 +35,8 @@ export class PeopleMode implements Mode {
   render(ctx: Ctx, left: HTMLElement, right: HTMLElement): void {
     const people = ctx.store.list<PersonFile>('people')
     left.innerHTML = `<h3>${t('People')}</h3>
-      <div class="palette list">${people.map((p) => `<button data-person="${esc(p.data.id)}" class="${p.data.id === ctx.sel.person ? 'on' : ''}">${esc(tx(p.data.name) || p.data.id)}<small>${esc(p.data.id)} · ${esc(p.data.type)}</small></button>`).join('') || `<p class="muted">${t('Nobody yet.')}</p>`}</div>
+      <input id="pplFilter" placeholder="${t('find someone by name, role or id')}">
+      <div class="palette list people">${people.map((p) => `<button data-person="${esc(p.data.id)}" class="${p.data.id === ctx.sel.person ? 'on' : ''}"><span>${esc(shown(p.data.name) || p.data.id)}<small>${esc(shown(ctx.onto().types[p.data.type]?.name) || p.data.type.split('/').pop())} · ${esc(p.data.id)}</small></span></button>`).join('') || `<p class="muted">${t('Nobody yet.')}</p>`}</div>
       <details ${people.length ? '' : 'open'}><summary>${t('New person')}</summary>
         <label>${t('id')} <input id="npId" placeholder="npc.ada"></label>
         <label>${t('name')} <input id="npName"></label>
@@ -42,12 +44,15 @@ export class PeopleMode implements Mode {
         <button id="npMake">${t('Make them (on this map)')}</button>
       </details>
       <details><summary>${t('Many people')}</summary>
-        <p class="muted">${t('A crowd from a seed (format/src/crowd.ts): names, a day over this map\'s anchors, a line or two — each a person file to change afterwards.')}</p>
+        <p class="muted">${t('A crowd from a seed: names, a day over this map\'s anchors, a line or two — each a person to change afterwards.')}</p>
         <label>${t('how many')} <input id="crN" type="number" min="1" max="200" value="6"></label>
         <label>${t('kind')} <input id="crType" value="actor/person"></label>
         <label>${t('seed')} <input id="crSeed" type="number" value="${Math.floor(Math.random() * 1e5)}"></label>
         <button id="crMake">${t('Make them')}</button>
       </details>`
+    // the list narrowed as one types, without drawing it again (the field keeps its place)
+    const pf = left.querySelector<HTMLInputElement>('#pplFilter')!
+    pf.oninput = () => { const q = pf.value.trim().toLowerCase(); left.querySelectorAll<HTMLElement>('[data-person]').forEach((b) => (b.hidden = !!q && !(b.textContent ?? '').toLowerCase().includes(q))) }
     left.querySelectorAll<HTMLButtonElement>('[data-person]').forEach((b) => (b.onclick = () => {
       ctx.sel = { person: b.dataset.person }
       const p = people.find((x) => x.data.id === b.dataset.person)?.data
@@ -96,9 +101,9 @@ export class PeopleMode implements Mode {
     const place = p.place.on === 'tile' ? p.place : undefined
     const sched = p.npc?.schedule ?? []
     const lines = p.npc?.person?.lines ?? []
-    right.innerHTML = `<h3>${esc(p.id)}</h3>
+    right.innerHTML = `<div class="db-head"><div><h2>${esc(shown(p.name) || p.id)}</h2><p class="muted"><code>${esc(p.id)}</code></p></div></div>
       <label>${t('name')} ${textField('data-f="name"', p.name)}</label>
-      <label>${t('kind')} <select data-f="type">${[...new Set([p.type, ...types])].map((k) => `<option ${k === p.type ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select></label>
+      <label>${t('kind')} <select data-f="type">${[...new Set([p.type, ...types])].map((k) => `<option value="${esc(k)}" ${k === p.type ? 'selected' : ''}>${esc(shown(ctx.onto().types[k]?.name) || k.split('/').pop())} · ${esc(k.split('/').pop())}</option>`).join('')}</select></label>
       <label>${t('role')} <input data-f="role" value="${esc(p.npc?.role ?? '')}"></label>
       <label>${t('stands at')} <code>${esc(place ? `${place.map} ${place.x},${place.y}` : p.place.on)}</code> <button id="pPlace" class="${this.placing ? 'on' : ''}">${this.placing ? t('Click a cell…') : t('Place on the map')}</button></label>
       <label>${t('tags')} <input data-f="tags" value="${esc((p.tags ?? []).join(', '))}"></label>
@@ -201,10 +206,7 @@ export class PeopleMode implements Mode {
 /** A day that leaves hours empty or covers one twice says so (a person with nothing to do stands where they are). */
 function dayProblems(s: ScheduleFileEntry[]): string {
   if (!s.length) return `<p class="muted">${t('No day yet: they stand where they are.')}</p>`
-  const hours = new Array(24).fill(0)
-  for (const e of s) for (let i = 0, h = Math.floor(e.from) % 24; i < 24 && h !== Math.floor(e.to) % 24; i++, h = (h + 1) % 24) hours[h]++
-  const empty = hours.map((n, h) => (n === 0 ? h : -1)).filter((h) => h >= 0)
-  const twice = hours.map((n, h) => (n > 1 ? h : -1)).filter((h) => h >= 0)
+  const { empty, twice } = dayHours(s)
   return [empty.length ? `<p class="warn">${t('Nothing to do at {hours}h.', { hours: empty.join(', ') })}</p>` : '', twice.length ? `<p class="warn">${t('Two things at once at {hours}h.', { hours: twice.join(', ') })}</p>` : ''].join('')
 }
 

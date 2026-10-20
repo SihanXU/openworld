@@ -4,13 +4,23 @@
 // rule and guards it from then on (a learned rule is one type's, placed at one leaf: there is no
 // other instance of a class to try it on, design.md §5.16).
 
-import { RuleLibrary, buildSandbox, isDo, isHole, leaves, replay, type Expectation, type ModRequest, type Ontology, type Patch, type Rule, type Scenario } from '@openworld/engine'
+import { RuleLibrary, buildSandbox, isDo, isHole, leaves, replay, type Effect, type Expectation, type ModRequest, type Ontology, type Patch, type Rule, type Scenario } from '@openworld/engine'
 
 const NARRATION = new Set(['vfx', 'say', 'log', 'emote'])
 
-/** A rule that only narrates (log, say, vfx, emote) and changes nothing in the world (a hole's default included). */
-export function changesNothing(r: Rule): boolean {
-  return leaves(r.tree).every((l) => (isDo(l) ? l.do : isHole(l) ? (l.default ?? []) : []).every((e) => NARRATION.has(e.op)))
+const narrates = (effects: Effect[]) => effects.every((e) => NARRATION.has(e.op))
+
+/**
+ * A rule that only narrates (log, say, vfx, emote) and changes nothing in the world (a hole's default
+ * included). Given the default of the hole it answers (`ModRequest.hole.default`), it changes nothing
+ * only if that default changes nothing either: an answer replaces the default where it answers, so
+ * words in place of a default that does something (a thing that breaks and is gone, a story's
+ * fallback) cancel what the world would have done.
+ */
+export function changesNothing(r: Rule, holeDefault: Effect[] = []): boolean {
+  const ls = leaves(r.tree)
+  if (!ls.every((l) => narrates(isDo(l) ? l.do : isHole(l) ? (l.default ?? []) : []))) return false
+  return narrates(holeDefault) || !ls.some(isDo)
 }
 
 function candidate(patch: Patch, lib: RuleLibrary, onto: Ontology): { lib: RuleLibrary; onto: Ontology } {

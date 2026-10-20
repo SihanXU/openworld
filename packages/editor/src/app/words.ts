@@ -6,6 +6,7 @@
 
 import type { Text } from '@openworld/engine'
 import { languagesOf, sourceOf, textsOf, translated, wordsIn, type LocaleFile, type Languages } from '@openworld/format'
+import { uiLang } from './lang.ts'
 import type { Store } from './store.ts'
 
 let store: Store | undefined
@@ -30,10 +31,12 @@ export const langName = (code: string): string => LANG_NAMES[code] ?? code
 /** A game's text as the editor shows it: as written, in the source language. */
 export const tx = (t: Text | undefined): string => sourceOf(t, sourceLang())
 
-/** The tables of the project, by language. */
+/** The tables of the project, by language (kept while the project stands still: a list of a thousand names asks a thousand times). */
 export function tables(): Map<string, { file: string; data: LocaleFile }> {
-  return new Map((store?.list<LocaleFile>('locales') ?? []).map((f) => [f.data.language, f]))
+  if (!kept || kept.store !== store || kept.revision !== store?.revision) kept = { store, revision: store?.revision, tables: new Map((store?.list<LocaleFile>('locales') ?? []).map((f) => [f.data.language, f])) }
+  return kept.tables
 }
+let kept: { store?: Store; revision?: number; tables: Map<string, { file: string; data: LocaleFile }> } | undefined
 
 /** A game's text as a language says it (the preview): its table's translation, a place's own where given; else as written. */
 export function inLang(t: Text | undefined, lang: string = previewLang(), place?: string): string {
@@ -41,6 +44,9 @@ export function inLang(t: Text | undefined, lang: string = previewLang(), place?
   if (lang === sourceLang()) return src
   return wordsIn(t, lang, sourceLang()) || translated(tables().get(lang)?.data, src, place) || src
 }
+
+/** A game text as the editor shows it in its lists and palettes: in the editor's language when the game has it, else as written. */
+export const shown = (t: Text | undefined): string => inLang(t, gameLangs().includes(uiLang()) ? uiLang() : sourceLang())
 
 /**
  * A text's source words written (one field's change): a plain string — or, for an older project's text that keeps

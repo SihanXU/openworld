@@ -5,7 +5,9 @@
 import type { RawChunk } from '@openworld/engine'
 import type { Sourced } from '@openworld/format'
 import type { Ctx } from './context.ts'
-import { esc, t, tx } from './ui.ts'
+import { esc, t } from './ui.ts'
+import { shown } from './words.ts'
+import { whenInView } from './thumbs.ts'
 
 /** The colour a map's character is drawn in: its terrain's. */
 function colours(ctx: Ctx): (c: string) => [number, number, number] {
@@ -39,18 +41,26 @@ function groundOf(ctx: Ctx, ch: RawChunk): ImageData {
   return data
 }
 
-/** Draw every `<canvas data-mini="<map id>">` under an element. */
+/** A mini's picture drawn into it (as its map's ground is now). */
+function paintMini(ctx: Ctx, cv: HTMLCanvasElement, ch: RawChunk): void {
+  const img = groundOf(ctx, ch)
+  if (cv.width !== img.width) cv.width = img.width
+  if (cv.height !== img.height) cv.height = img.height
+  cv.getContext('2d')!.putImageData(img, 0, 0)
+}
+
+/**
+ * Draw every `<canvas data-mini="<map id>">` under an element — each as it scrolls into view, not before: a project
+ * of a thousand maps shows twenty of them at a time, and drawing them all took longer than everything else in a
+ * panel. One in view is drawn again when this is called again (its map may have changed).
+ */
 export function paintMinis(ctx: Ctx, root: HTMLElement): void {
   const maps = new Map(ctx.store.maps().map((m) => [m.data.map.id, m.data]))
-  for (const cv of root.querySelectorAll<HTMLCanvasElement>('canvas[data-mini]')) {
-    const ch = maps.get(cv.dataset.mini!)
-    if (!ch) continue
-    const img = groundOf(ctx, ch)
-    cv.width = img.width
-    cv.height = img.height
-    cv.getContext('2d')!.putImageData(img, 0, 0)
-  }
+  whenInView(root, [...root.querySelectorAll<HTMLCanvasElement>('canvas[data-mini]')], (cv) => { const ch = maps.get(cv.dataset.mini!); if (ch) paintMini(ctx, cv, ch) })
 }
+
+/** A row of the tree: its name first (as the editor's language has it), its id and size beneath. */
+const row = (ctx: Ctx, m: Sourced<RawChunk>) => `<button data-map="${esc(m.data.map.id)}" class="maprow ${m.data.map.id === ctx.map ? 'on' : ''}"><canvas data-mini="${esc(m.data.map.id)}" class="mini"></canvas><span>${esc(shown(m.data.map.name) || m.data.map.id)}<small>${esc(m.data.map.id)} · ${m.data.map.width}×${m.data.map.height}${m.data.map.id === ctx.store.game.start.map ? ` · ${t('start')}` : ''}</small></span></button>`
 
 /** The maps' list as a tree by group. */
 export function mapTree(ctx: Ctx): string {
@@ -60,14 +70,43 @@ export function mapTree(ctx: Ctx): string {
     groups.set(g, [...(groups.get(g) ?? []), m])
   }
   const order = [...groups.keys()].sort((a, b) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b)))
-  const row = (m: Sourced<RawChunk>) => `<button data-map="${esc(m.data.map.id)}" class="maprow ${m.data.map.id === ctx.map ? 'on' : ''}"><canvas data-mini="${esc(m.data.map.id)}" class="mini"></canvas><span>${esc(m.data.map.id)}<small>${esc(tx(m.data.map.name))} · ${m.data.map.width}×${m.data.map.height}${m.data.map.id === ctx.store.game.start.map ? ` · ${t('start')}` : ''}</small></span></button>`
   return order
     .map((g) => {
       const list = groups.get(g)!
-      const body = `<div class="palette list maps">${list.map(row).join('')}</div>`
+      const body = `<div class="palette list maps">${list.map((m) => row(ctx, m)).join('')}</div>`
       return order.length === 1 && g === '' ? body : `<details open class="group"><summary>${esc(g || t('(no group)'))} <small class="muted">${list.length}</small></summary>${body}</details>`
     })
     .join('')
+}
+
+/** What the tree shows of the maps: while it is the same, the tree built last time is the tree. */
+function treeKey(ctx: Ctx): string {
+  const parts = [ctx.store.id, ctx.store.game.start.map]
+  for (const m of ctx.store.maps()) parts.push(m.data.map.id, shown(m.data.map.name) ?? '', String(m.data.map.width), String(m.data.map.height), m.data.map.region ?? '')
+  return parts.join('\0')
+}
+let kept: { key: string; el: HTMLElement; open: (id: string) => void } | undefined
+
+/**
+ * The tree put into a slot of a panel drawn anew — the one built last time, moved there, while the maps are as they
+ * were (a brush stroke draws the panel again at every cell: the tree of a thousand rows is built once), its rows'
+ * marks and minis brought up to date; `open` is what a click on a map does.
+ */
+export function mountTree(ctx: Ctx, slot: HTMLElement, open: (id: string) => void): void {
+  const key = treeKey(ctx)
+  if (kept?.key !== key) {
+    const el = document.createElement('div')
+    el.className = 'tree'
+    el.innerHTML = mapTree(ctx)
+    el.addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-map]'); if (b) kept?.open(b.dataset.map!) })
+    kept = { key, el, open }
+  } else {
+    kept.open = open
+    for (const b of kept.el.querySelectorAll<HTMLElement>('.maprow.on')) b.classList.toggle('on', b.dataset.map === ctx.map)
+    kept.el.querySelector<HTMLElement>(`[data-map="${CSS.escape(ctx.map)}"]`)?.classList.add('on')
+  }
+  slot.replaceChildren(kept.el)
+  paintMinis(ctx, kept.el)
 }
 
 /** The world overview: each map where the world lays it, the others in a row below; click one to open it. */

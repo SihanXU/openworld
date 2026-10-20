@@ -4,6 +4,7 @@
 // the model can use: the brief replaces the rules the request carries, and the scenario (the
 // harness replays it) is left out.
 
+import type { DraftContext } from './drafts.ts'
 import type { ModRequest, ModSpec, Patch, Rule, StatusDef, TypeDef } from '@openworld/engine'
 import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '@openworld/agent'
 
@@ -151,7 +152,13 @@ What the patch is plainly meant to do is not a finding; nor is anything the worl
 You have tools: look (the scene) and run (play steps in a copy of the scene, with the patch and without it). Prove each finding: run it, then report it with the setup, the steps and the claims that must hold at the end.
 Answer with JSON only: {"findings": [{"title": "...", "kind": "farm|value|softlock|harm|runaway|other", "setup": [...], "steps": [...], "expect": [claims]}]}; {"findings": []} when you found nothing.
 Claims: {"count": {"type", "in"?: key, "atLeast": n}}, {"prop": {"key", "name", "atLeast"?: n, "atMost"?: n}}, {"status": {"key", "has"}}, {"gone": key}, {"is": {"key", "type"}}, {"events": {"atLeast": n}}.
-A finding counts only if the sandbox shows it with the patch and not without it.`
+A finding counts only if the sandbox shows it with the patch and not without it, and the code then sees one of these harms in it (your "kind" is a guess; the code judges):
+- farm: what a claim measures (a count, a number) grows further when your repeats are doubled: show a farm with a {repeat} step;
+- value: the things made are worth over three times what was used up (by the things' own value);
+- harm: an essential thing (the player, a companion, someone the story needs) or a resident is gone or down;
+- softlock: the actor still cannot act a minute after your steps;
+- runaway: more than 50 events for each act.
+Anything else you reproduce is not removed; it goes to a reviewer to read.`
 
 export function auditUser(req: ModRequest, patch: Patch, outcome: string): string {
   return [
@@ -316,6 +323,92 @@ export function createUser(creations: Creation[], materials: string[] = []): str
     '- Do not draw it: an artist draws its icon next.',
     'Answer with ONLY the JSON object {"patch": {"artifacts": [...]}}.',
   ].join('\n')
+}
+
+// ---------------------------------------------------------------- a new thing, asked by an author
+
+export const THING_SYSTEM = 'You design new things for a 2D JRPG world whose mechanics are data, at the request of the game\'s author. You answer with JSON only.'
+
+/** A thing a player can have: its id, name and own numbers, so a new thing is made of them and sits among them. */
+export interface Had {
+  id: string
+  name?: string
+  props?: Record<string, unknown>
+}
+
+/**
+ * The author asks for a new thing in a sentence (the editor's AI plan, M1): its type, made of what a player can
+ * already have, at a place a player can have (the engine checks both, and that its numbers sit among its kind's).
+ * What it does with other things is not written here: those are holes, answered act by act.
+ */
+export function thingUser(intent: string, o: { catalogue: string; materials: string[]; had: Had[]; stations: string[]; elements?: string[] }): string {
+  return [
+    '# A new thing',
+    `The game's author wants a new thing in it: "${intent}"`,
+    'Design it as a type artifact (and, only if it cannot be made otherwise, one more new type it is made of):',
+    '{"kind": "type", "type": {"id": "<parent>/<snake_case>", "name": {"en": "...", "zh": "..."}, "tags": ["what the world uses it by"], "props": {...}, "makeup": [{"type": "<a type>", "count": 1}], "station": "hands | <a station>"}}',
+    '- The parent must exist; the new type inherits its rules and tags, so choose the parent whose behaviour fits (a blade under item/weapon if there is one, a tool under item/tool, a dish under item/food).',
+    '- tags: give the ones the things beside it have for the same use (a tool\'s "tool:<kind>", food\'s "edible"); a thing one carries is "portable".',
+    '- Something worn (under item/clothing or item/armor) names where in props.slot (head, body, shoulders, waist, feet, hands, ring, neck, ear, arm), as the things of its kind do: without it, it cannot be worn.',
+    o.materials.length ? `- props.material: what it is made of, one of: ${o.materials.join(', ')}.` : '- This world has no materials: leave props.material out.',
+    ...(o.elements?.length ? [`- props.element: if what it is asked to be is of an element (it burns, freezes, sparks …), that element, one of: ${o.elements.join(', ')}; otherwise leave it out.`] : []),
+    '- props: the numbers its kind uses (see the things a player can have, below), at a level that fits what it is: neither far above nor far below its kind.',
+    '- makeup: what it is made of, from the things a player can have (below), by type and count, so a player can make it; it is also what it leaves when broken.',
+    `- station: where a player makes it: "hands"${o.stations.length ? `, or one of the stations a player can have: ${o.stations.join(', ')}` : ' (this world has no station a player can have)'}.`,
+    '- Its name is what a player would call it, in both languages, and not another name for a thing the world has.',
+    '- Write no rules: what it does with other things is asked act by act later. Do not draw it: an artist draws its icon next.',
+    '',
+    'Things a player can have (id, name, own numbers):',
+    ...o.had.slice(0, 120).map((h) => `- ${h.id}${h.name ? ` (${h.name})` : ''}${h.props && Object.keys(h.props).length ? ` ${JSON.stringify(h.props)}` : ''}`),
+    '',
+    'The catalogue (every kind the world has, by parent):',
+    o.catalogue,
+    '',
+    'Answer with ONLY the JSON object {"patch": {"artifacts": [...], "note": "<what it is, one line>"}, "looks": {"<each new type id>": "<what it looks like, one line, for its icon>"}}.',
+  ].join('\n')
+}
+
+// ---------------------------------------------------------------- a person or a map, asked by an author
+
+export const DRAFT_SYSTEM = 'You draft content for a 2D JRPG world whose state is data, at the request of the game\'s author: one file of the game, in its exact form. You answer with JSON only.'
+
+/** The author asks for a person or a map in a sentence: one file of the game, in the form of the sample, made of what the game has. */
+export function draftUser(kind: 'person' | 'map', intent: string, ctx: DraftContext): string {
+  const lang = ctx.lang ? `Write its words (names, lines) in ${ctx.lang}.` : ''
+  if (kind === 'person')
+    return [
+      '# A new person',
+      `The game's author wants a new person on the map "${ctx.map ?? ''}": "${intent}"`,
+      'Write one person file, in the form of the sample: {"id": "npc.<lower_case>", "type", "name", "place": {"on": "tile", "map", "x", "y"}, "facing", "npc": {"role", "schedule": [{"from", "to", "at", "activity"}], "person": {"temperament", "lines": [{"key", "text"}]}}}.',
+      '- type: one of the kinds of people below.',
+      '- schedule: their whole day, hour by hour (0 to 24, a night may run from 21 to 6), each entry at one of the named spots below ("map:anchor"), what they do there in a few words.',
+      '- lines: four to six things they say, in their own voice: one "greeting:first" (once), the rest "default", and one for an hour ("hour:evening") if it fits.',
+      `- place: a cell of "${ctx.map ?? ''}" near the first spot of their day.`,
+      lang,
+      `Kinds of people: ${(ctx.kinds ?? []).map((k) => `${k.id}${k.name ? ` (${k.name})` : ''}`).join(', ')}`,
+      `Named spots: ${(ctx.anchors ?? []).slice(0, 80).join(', ')}`,
+      `Ids taken: ${(ctx.taken ?? []).slice(0, 200).join(', ')}`,
+      'The sample:',
+      JSON.stringify(ctx.sample ?? {}),
+      'Answer with ONLY the person file\'s JSON object.',
+    ].filter(Boolean).join('\n')
+  const [w, h] = ctx.maxSize ?? [40, 30]
+  return [
+    '# A new map',
+    `The game's author wants a new map: "${intent}"`,
+    'Write one map file: {"map": {"id", "name", "kind", "width", "height", "rows": [...], "anchors": {"<name>": [x, y]}, "light", "zone"}, "entities": [{"id", "type", "place": {"on": "tile", "map", "x", "y"}}]}.',
+    `- width and height: what the place needs, at most ${w} by ${h}; "rows" is height strings of width characters each, one character a cell, from the ground's characters below only.`,
+    '- Shape it as the place it is: paths that lead somewhere, water and trees in natural shapes (not noise), an edge of trees or rock around a wild place.',
+    '- anchors: a few named spots people and scenes can use (a well, a door, a field), on walkable ground.',
+    '- entities: the things set down on it (a chest, a sign, a bed, creatures …), of the kinds below, each on a walkable cell; ids "<map id>.<what>N".',
+    '- kind: village, town, wild, forest, dungeon, cave or interior; light: outdoor, indoor or dark; zone: peaceful or combat.',
+    lang,
+    'The ground\'s characters:',
+    ...(ctx.chars ?? []).map((c) => `${JSON.stringify(c.char)} ${c.terrain}${c.name ? ` (${c.name})` : ''}`),
+    `Kinds of things: ${(ctx.things ?? []).slice(0, 160).map((x) => `${x.id}${x.name ? ` (${x.name})` : ''}`).join(', ')}`,
+    `Map ids taken: ${(ctx.taken ?? []).slice(0, 300).join(', ')}`,
+    'Answer with ONLY the map file\'s JSON object.',
+  ].filter(Boolean).join('\n')
 }
 
 // ---------------------------------------------------------------- the artist

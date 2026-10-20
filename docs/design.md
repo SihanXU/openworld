@@ -1010,8 +1010,10 @@ but never consulted; `library prune` lists and rolls back what the validator no 
   question was asked: another answer may have grown the tree since (the open leaf moved) or taken
   the case (then nothing is placed, and the request is covered). `placePatch` does this in the
   pipeline, the repo mode and the port, so a stale request is still answered.
-- A learned rule set aside at run time (`fault`, `quarantine`) leaves the library: its leaf is open
-  again for the validator's replays as for the game.
+- A learned rule set aside at run time (`fault`, `quarantine`) answers no more: its own leaves are open
+  again for the validator's replays as for the game, while its tree keeps its place, so the answers
+  grown below it keep answering (`RuleLibrary.setAside`, kept in saves as `aside`). The same answer
+  sent again is refused, and the hole's default runs (the port).
 - A rule's `hole` must be an open leaf of a base rule that exists. So a base rule whose branches
   change makes the learned rules below it fail validation on restore, sync and prune, with the
   reason, instead of silently never being consulted; what grew below a rule that is not restored

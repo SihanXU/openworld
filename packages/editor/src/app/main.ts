@@ -23,9 +23,15 @@ import { gameLangs, langName, previewLang, setPreviewLang, useProject } from './
 import { home } from './home.ts'
 import { exportDialog } from './exportDialog.ts'
 import { MODES as MORE } from './modes.ts'
+import { icon } from './icons.ts'
+import { navGroups } from './nav.ts'
+import { keepScroll } from './scroll.ts'
+import { Drafter } from './drafter.ts'
 import './editor.css'
 
 const PARAMS = new URLSearchParams(location.search)
+/** How long after the last edit the project saves itself. */
+const AUTOSAVE_MS = 1500
 const project = PARAMS.get('project')
 
 // the editor's own language first (its settings): every panel is drawn in it
@@ -46,13 +52,17 @@ async function openProject(id: string): Promise<void> {
   document.body.innerHTML = `<div class="editor">
     <header><a href="./" class="home-link">${t('OpenWorld Editor')}</a> <b id="gameName"></b> <nav id="modes"></nav>
       <span class="grow"></span><span id="status" class="muted"></span>
-      <button id="undo"></button><button id="redo"></button><button id="save" title="Ctrl+S">${t('Save')}</button><span id="previewLang"></span><button id="play" title="${t('Save, and play from the start (or the selected cell)')}">▶ ${t('Playtest')}</button><button id="export" title="${t('Save, and make the game a folder anyone can play')}">${t('Export…')}</button><button id="settings" title="${t('The editor\'s settings: its own language')}">⚙</button></header>
+      <button id="undo" class="ic"></button><button id="redo" class="ic"></button><button id="save" title="Ctrl+S">${t('Save')}</button><span id="previewLang"></span><button id="play" title="${t('Save, and play from the start (or the selected cell)')}">${icon('play', 16)} ${t('Playtest')}</button><button id="export" title="${t('Save, and make the game a folder anyone can play')}">${t('Export…')}</button><button id="settings" title="${t('The editor\'s settings: its own language')}">⚙</button></header>
     <aside id="left"></aside><main id="canvas"><div id="statusbar"><span id="sbCell" class="muted"></span><span class="grow"></span><button id="sbGrid" title="${t('the grid (G)')}">${t('Grid')}</button><span class="sep"></span><button id="sbOut" title="${t('zoom out (-)')}">−</button>${ZOOMS.map((z) => `<button data-zoom="${z}">${z * 100}%</button>`).join('')}<button id="sbIn" title="${t('zoom in (+)')}">+</button><button id="sbFit" title="${t('the whole map (0)')}">${t('Fit')}</button></div></main><main id="center" class="hidden"></main><aside id="right"></aside>
+    <div id="toolbar" class="hidden"></div><div id="toolstrip" class="hidden"></div>
+    <button id="aiFab" class="ai-fab"></button><aside id="drawer" class="drawer" hidden></aside>
     <footer id="problems"></footer><div id="toasts"></div></div>`
   const canvas = new Canvas($('#canvas'))
   const modes: Mode[] = [new MapMode(), new PeopleMode(), ...MORE]
   let mode = modes[0]
   const problems = new ProblemsPanel($('#problems'), () => ctx)
+  // the AI drafter, at the bottom right of every page
+  new Drafter(() => ctx, $('#aiFab'), $('#drawer'), () => mode.id)
   const ctx: Ctx = {
     store,
     canvas,
@@ -114,7 +124,13 @@ async function openProject(id: string): Promise<void> {
   let pictures = false
   function refresh(): void {
     $('#gameName').textContent = tx(store.game.name)
-    $('#modes').innerHTML = modes.map((m) => `<button data-mode="${m.id}" class="${m === mode ? 'on' : ''}">${esc(t(m.label))}</button>`).join('')
+    // the modes in the groups an author works in; the rest under More
+    const nav = navGroups(modes.map((m) => m.id))
+    const btn = (id: string) => { const m = modes.find((x) => x.id === id)!; return `<button data-mode="${m.id}" class="${m === mode ? 'on' : ''}">${esc(t(m.label))}</button>` }
+    const inMore = nav.more.includes(mode.id)
+    $('#modes').innerHTML = `${nav.groups.map((g) => `<span class="ngrp">${g.map(btn).join('')}</span>`).join('')}${nav.more.length ? `<span class="more"><button id="moreBtn" class="${inMore ? 'on' : ''}">${inMore ? esc(t(mode.label)) : t('More')} ▾</button><span class="menu" hidden>${nav.more.map(btn).join('')}</span></span>` : ''}`
+    const menu = document.querySelector<HTMLElement>('#modes .menu')
+    document.querySelector<HTMLButtonElement>('#moreBtn')?.addEventListener('click', (e) => { e.stopPropagation(); if (menu) menu.hidden = !menu.hidden })
     // the preview language: what a line's preview and a playtest say (the game's languages; not the editor's own)
     const langs = gameLangs()
     $('#previewLang').innerHTML = langs.length > 1 ? `<select id="pvLang" title="${t('The language the game is previewed and playtested in (its words as translated); the editor\'s own language is in its settings')}">${langs.map((l) => `<option value="${esc(l)}" ${l === previewLang() ? 'selected' : ''}>${esc(t('play in {lang}', { lang: langName(l) }))}</option>`).join('')}</select>` : ''
@@ -127,25 +143,33 @@ async function openProject(id: string): Promise<void> {
     $('#canvas').classList.toggle('hidden', !!main)
     center.classList.toggle('hidden', !main)
     if (picking) pickPanel()
-    else if (main) main.call(mode, ctx, center)
+    else if (main) keepScroll(mode.id, [center], () => main.call(mode, ctx, center))
     else if (pictures) {
       pictures = false
       useGame(clientGameOf(store.compiled().bundle, `/games/${encodeURIComponent(id)}/bundle.json`))
       canvas.reset()
     }
     if (!picking) {
-      mode.render(ctx, $('#left'), $('#right'))
+      // (drawn again whole: each list keeps where it was scrolled to, as long as it is the same mode's)
+      keepScroll(mode.id, [$('#left'), $('#right'), center], () => mode.render(ctx, $('#left'), $('#right')))
       canvas.setOverlay(mode.overlay?.(ctx))
     }
+    // the strip of tools and their bar: over the canvas, while a mode on it has them
+    const tools = !picking && !main && mode.toolbar
+    $('#toolstrip').classList.toggle('hidden', !tools)
+    $('#toolbar').classList.toggle('hidden', !tools)
+    if (tools) mode.toolbar!(ctx, $('#toolstrip'), $('#toolbar'))
     const n = store.unsaved()
-    $('#status').textContent = n ? t('{n} unsaved', { n }) : t('saved')
-    $<HTMLButtonElement>('#save').disabled = !n
+    $('#status').textContent = n ? t('{n} unsaved', { n }) : autosaved ? t('saved automatically') : t('saved')
+    $<HTMLButtonElement>('#save').classList.toggle('hidden', !n)
     const next = store.next()
     $<HTMLButtonElement>('#undo').disabled = !next.undo
-    $<HTMLButtonElement>('#undo').textContent = t('Undo')
+    $<HTMLButtonElement>('#undo').innerHTML = icon('undo', 16)
+    $<HTMLButtonElement>('#undo').setAttribute('aria-label', t('Undo'))
     $<HTMLButtonElement>('#undo').title = next.undo ? t('Undo: {what} (Ctrl+Z)', { what: next.undo }) : t('Nothing to undo')
     $<HTMLButtonElement>('#redo').disabled = !next.redo
-    $<HTMLButtonElement>('#redo').textContent = t('Redo')
+    $<HTMLButtonElement>('#redo').innerHTML = icon('redo', 16)
+    $<HTMLButtonElement>('#redo').setAttribute('aria-label', t('Redo'))
     $<HTMLButtonElement>('#redo').title = next.redo ? t('Redo: {what} (Ctrl+Y)', { what: next.redo }) : t('Nothing to redo')
   }
   // the status bar: the cell under the pointer (its ground, height and things), the zoom, the grid
@@ -173,13 +197,27 @@ async function openProject(id: string): Promise<void> {
   $<HTMLButtonElement>('#sbOut').onclick = () => step(-1)
   $<HTMLButtonElement>('#sbFit').onclick = () => canvas.fit()
   $<HTMLButtonElement>('#sbGrid').onclick = grid
+  // one save at a time: an autosave, Ctrl+S and a playtest's never write the files at once
+  let saving: Promise<void> | undefined
   async function save(): Promise<void> {
+    while (saving) await saving.catch(() => undefined)
+    if (!store.unsaved()) return
+    saving = store.save()
     try {
-      if (store.unsaved()) await store.save()
+      await saving
     } catch (e) {
       toast((e as Error).message, 'error')
       throw e
+    } finally {
+      saving = undefined
     }
+  }
+  // the project saved by itself a moment after the author stops editing (a page closed or reloaded loses nothing)
+  let autosaved = false
+  let autosave = 0
+  const soon = () => {
+    clearTimeout(autosave)
+    autosave = window.setTimeout(() => void save().then(() => ((autosaved = true), refresh())).catch(() => undefined), AUTOSAVE_MS)
   }
   canvas.onCell = (c, ev) => {
     if (ev === 'hover' || ev === 'drag' || ev === 'rdrag' || ev === 'leave') $('#sbCell').innerHTML = cellInfo(c)
@@ -193,6 +231,7 @@ async function openProject(id: string): Promise<void> {
   // the canvas follows the project: drawn again a frame after an edit (a stroke is many)
   let redraw = 0
   store.on((why, file) => {
+    if (why !== 'saved' && store.unsaved()) soon()
     // (`compiled`: the whole project compiled again once editing rested, its problems with it)
     if (why !== 'saved' && (!file || file === store.mapFile(ctx.map) || file.startsWith('people/') || file === 'game.json' || file.startsWith('ontology/'))) {
       cancelAnimationFrame(redraw)
@@ -206,7 +245,7 @@ async function openProject(id: string): Promise<void> {
   })
   $<HTMLButtonElement>('#undo').onclick = () => store.undo() ?? toast(t('Nothing to undo.'), 'warn')
   $<HTMLButtonElement>('#redo').onclick = () => store.redo() ?? toast(t('Nothing to redo.'), 'warn')
-  $<HTMLButtonElement>('#save').onclick = () => void save().then(() => toast(t('Saved.')))
+  $<HTMLButtonElement>('#save').onclick = () => void save().then(() => ((autosaved = false), refresh(), toast(t('Saved.'))))
   $<HTMLButtonElement>('#settings').onclick = () => settingsDialog()
   $<HTMLButtonElement>('#play').onclick = () => void ctx.playtest()
   $<HTMLButtonElement>('#export').onclick = () => void save().then(() => exportDialog(id, store))
@@ -214,7 +253,7 @@ async function openProject(id: string): Promise<void> {
   window.addEventListener('keydown', (e) => {
     const mod = e.ctrlKey || e.metaKey
     const k = e.key.toLowerCase()
-    if (mod && k === 's') return (e.preventDefault(), void save().then(() => toast(t('Saved.'))))
+    if (mod && k === 's') return (e.preventDefault(), void save().then(() => ((autosaved = false), refresh(), toast(t('Saved.')))))
     const el = e.target as HTMLElement
     if (picking && e.key === 'Escape') return endPick(undefined)
     if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement || el.isContentEditable) return
@@ -227,6 +266,7 @@ async function openProject(id: string): Promise<void> {
     else if (k === '-') step(-1)
     else if (k === '0') canvas.fit()
   })
+  document.addEventListener('click', () => { const m = document.querySelector<HTMLElement>('#modes .menu'); if (m) m.hidden = true })
   window.addEventListener('beforeunload', (e) => { if (store.unsaved()) e.preventDefault() })
   ctx.showMap(ctx.map)
   problems.update()

@@ -197,16 +197,28 @@ function setAt(o: unknown, p: Path, value: unknown): void {
  * reader's fallback —; a thing's written words get their `text_<code>` props. Words a file already holds in
  * another language (an older project's) are kept where no table says otherwise. A new project; the given is untouched.
  */
-export function applyLocales(p: Project): Project {
+export function applyLocales(p: Project, keep?: Keep): Project {
   const langs = languagesOf(p.game)
   const tables = new Map((p.locales ?? []).map((f) => [f.data.language, f.data]))
   if (!langs.translations.some((l) => tables.has(l))) return p
-  const out = structuredClone(p)
-  const put = (file: string, data: unknown) => {
+  // (a file as the tables were applied to it last time, where the file, game.json and the tables are as they were)
+  const kept = keep && tablesSame(p, keep) ? keep.cache.files : undefined
+  const files = new Map<string, Localized>()
+  const localize = <T>(file: string, data: T): T => {
+    const had = kept?.get(file)
+    if (had && had.data !== undefined && keep!.same(file)) return void files.set(file, had), had.data as T
+    const out = structuredClone(data)
+    const sources: [string, string][] = []
+    put(file, out, sources)
+    files.set(file, { data: out, sources })
+    return out
+  }
+  const put = (file: string, data: unknown, sources: [string, string][]) => {
     for (const at of textsOf(file, data)) {
       const src = sourceOf(at.text, langs.source)
-      if (!src) continue
       const place = placeOf(file, at.path)
+      sources.push([place, src])
+      if (!src) continue
       if (at.prop) {
         // the engine reads `text` as the English (every reader's fallback) and `text_<code>` beside it
         const props = getAt(data, at.path.slice(0, -1)) as Record<string, unknown>
@@ -229,10 +241,42 @@ export function applyLocales(p: Project): Project {
       setAt(data, at.path, keys.length === 1 ? words.en : words)
     }
   }
-  put('game.json', out.game)
-  for (const f of filesOf(out).slice(1)) put(f.file, f.data)
+  const each = <T>(fs: Sourced<T>[] | undefined) => fs?.map((f) => ({ ...f, data: localize(f.file, f.data) }))
+  const out: Project = { ...p, game: localize('game.json', p.game), ontology: each(p.ontology)!, rules: each(p.rules)!, maps: each(p.maps)!, people: each(p.people)!, quests: each(p.quests)!, story: each(p.story)! }
+  if (p.learned) out.learned = each(p.learned)
+  if (p.client) out.client = each(p.client)
+  // (the tables and the files of no words — the catalogue, the extras — as given: nothing of them is written to)
+  if (keep) (keep.cache.files = files), (keep.cache.tables = (p.locales ?? []).map((f) => f.file))
   return out
 }
+
+/** A file as the tables were applied to it, and its texts' places and source words (`data` none: the places alone). */
+interface Localized {
+  data?: unknown
+  sources: [string, string][]
+}
+
+/**
+ * What applying the tables keeps from one time to the next (the editor's: a stroke changes one map of a thousand):
+ * each file as the tables were applied to it. Valid for a file while the file, game.json and the tables are as they
+ * were — `same(file)` says so of a file; the tables and game.json it checks itself.
+ */
+export interface LocaleCache {
+  files: Map<string, Localized>
+  /** The table files it was filled with. */
+  tables?: string[]
+}
+/** A cache to read and fill, and which files are as they were when it was filled. */
+export interface Keep<C = LocaleCache> {
+  cache: C
+  same: (file: string) => boolean
+}
+/** The languages (game.json) and the tables, each and as a set, as they were. */
+function tablesSame(p: Project, keep: Keep): boolean {
+  return keep.same('game.json') && filesSame((p.locales ?? []).map((f) => f.file), keep.cache.tables, keep.same)
+}
+/** The same files, each as it was: no file added or removed, none changed. */
+export const filesSame = (now: string[], then: string[] | undefined, same: (file: string) => boolean = () => true): boolean => !!then && now.length === then.length && now.every((f, i) => f === then[i] && same(f))
 
 /**
  * Translations kept inside the texts (`{ en, zh }`, a thing's `text_zh`: an older project's) moved into the tables:
@@ -303,12 +347,17 @@ export function extractLocales(p: Project, tables: LocaleFile[] = (p.locales ?? 
 }
 
 /** What is amiss in the tables: one for a language the game does not name, a place's translation whose place no longer says its source. */
-export function localeProblems(p: Project): { level: 'warning'; code: string; message: string; file?: string; at?: string }[] {
+export function localeProblems(p: Project, keep?: Keep): { level: 'warning'; code: string; message: string; file?: string; at?: string }[] {
   const langs = languagesOf(p.game)
   const out: ReturnType<typeof localeProblems> = []
   const sources = new Map<string, string>()
   if ((p.locales ?? []).some((f) => f.data.at && Object.keys(f.data.at).length))
-    for (const f of filesOf(p)) for (const t of textsOf(f.file, f.data)) sources.set(placeOf(f.file, t.path), sourceOf(t.text, langs.source))
+    for (const f of filesOf(p)) {
+      // (the places as `applyLocales` found them, for a file as it was; else walked here)
+      const kept = keep?.cache.files.get(f.file)
+      const places = kept && keep!.same(f.file) ? kept.sources : textsOf(f.file, f.data).map((t): [string, string] => [placeOf(f.file, t.path), sourceOf(t.text, langs.source)])
+      for (const [place, src] of places) sources.set(place, src)
+    }
   for (const f of p.locales ?? []) {
     const l = f.data.language
     if (l === langs.source || !langs.translations.includes(l)) out.push({ level: 'warning', code: 'locale', message: `${f.file}: the game is not translated into ${l} (game.json languages)`, file: f.file })
