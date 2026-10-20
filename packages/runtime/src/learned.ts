@@ -1,7 +1,7 @@
 // What the world learned that the main thread shows: the recipes of learned things (a patch's type
 // with a station and a makeup is crafted like the content's own, world-model.md §6.4).
 
-import { deriveRecipes, everyThing, namesClash, newStatusProblems, newTypeProblems, type Engine, type Entity, type LibraryData, type Patch, type Recipe, type SaveData, type StatusDef, type TypeDef } from '@openworld/engine'
+import { deriveRecipes, everyThing, namesClash, newStatusProblems, newTypeProblems, type Engine, type Entity, type LibraryData, type ModPort, type Patch, type PatchLogEntry, type Recipe, type SaveData, type StatusDef, type TypeDef, type ValidationResult } from '@openworld/engine'
 import { recipeById } from './game.ts'
 
 /** The recipes whose result is a type a patch brought (the engine derives them when the patch lands). */
@@ -202,4 +202,104 @@ function makes(t: unknown): string[] {
   return effects.flatMap((e: { op?: string; type?: unknown; into?: unknown; bundle?: unknown }) =>
     e?.op === 'spawn' && typeof e.type === 'string' ? [e.type] : e?.op === 'transform' && typeof e.into === 'string' ? [e.into] : e?.op === 'dropContents' && typeof e.bundle === 'string' ? [e.bundle] : [],
   )
+}
+
+/** What only one save keeps of the learned kinds (`withKept`). */
+export type Kept = { types: Set<string>; statuses: Set<string> }
+
+/** Take a learned definition an answer brings anew, and make what it brings shared; both undone should the answer be refused. */
+export function adoptDefinitions(eng: Engine, kept: Kept, patch: Patch): { restore: () => void; done: () => void } {
+  const took = takeDefinitions(eng, patch)
+  const unshare = shareKept(kept, patch)
+  return {
+    restore: () => (took.restore(), unshare()),
+    // a kind kept beside the library's new one, for what is made of it here, is this save's alone
+    done: () => took.done().forEach((id) => kept.types.add(id)),
+  }
+}
+
+const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+
+/**
+ * What is wrong with the shape of a patch that came from elsewhere (the shared log, the service's answer, the
+ * console), before anything is set aside for it: the engine's validator judges the rest, and never sees one that
+ * would make it throw at its first step.
+ */
+export function patchProblem(p: unknown): string | undefined {
+  if (!isObject(p)) return 'a patch is an object'
+  if (!Array.isArray(p.artifacts)) return 'a patch has a list of artifacts'
+  for (const a of p.artifacts) {
+    if (!isObject(a)) return 'an artifact is an object'
+    if (a.kind === 'type' || a.kind === 'status') {
+      const d = a[a.kind]
+      if (!isObject(d) || typeof d.id !== 'string') return `a ${a.kind} artifact has a ${a.kind} with an id`
+    } else if (a.kind === 'rule') {
+      const r = a.rule
+      if (!isObject(r) || typeof r.id !== 'string') return 'a rule artifact has a rule with an id'
+      if (!isObject(r.tree) && r.tree !== 'inherit') return `the rule ${r.id} has a tree`
+    } else return `an artifact of no kind the engine knows: ${String(a.kind)}`
+  }
+  return undefined
+}
+
+/** What is wrong with the shape of an entry of the shared log (an older or a newer service may send one this client cannot read). */
+export function logEntryProblem(e: unknown): string | undefined {
+  if (!isObject(e)) return 'an entry is an object'
+  if ('patch' in e) {
+    if (e.scenario !== undefined && !isObject(e.scenario)) return 'an entry\'s scenario is an object'
+    if (e.replaces !== undefined && !(Array.isArray(e.replaces) && e.replaces.every((x) => typeof x === 'string'))) return 'an entry replaces a list of rule ids'
+    if (e.request !== undefined && typeof e.request !== 'string') return 'an entry\'s request is an id'
+    return patchProblem(e.patch)
+  }
+  for (const k of ['remove', 'removeType', 'removeStatus']) if (k in e) return typeof e[k] === 'string' ? undefined : `an entry's ${k} is an id`
+  return `an entry of no kind this client knows (${Object.keys(e).join(', ')})`
+}
+
+/**
+ * Take a patch from elsewhere with what it brings: the learned definitions it brings anew replace the ones kept
+ * here while it is judged, and come back if it is refused, or if judging it throws.
+ */
+export function takePatch(eng: Engine, kept: Kept, patch: Patch, submit: (patch: Patch) => ValidationResult): ValidationResult {
+  const problem = patchProblem(patch)
+  if (problem) return { ok: false, errors: [problem], warnings: [] }
+  const took = adoptDefinitions(eng, kept, patch)
+  let ok = false
+  try {
+    const res = submit(patch)
+    ok = res.ok
+    return res
+  } finally {
+    if (ok) took.done()
+    else took.restore()
+  }
+}
+
+/**
+ * The entries of the shared log, each taken on its own: what the library forgot, what it took. An entry this
+ * client cannot read or take is passed over (and said), never stopping the ones after it, so the sync's position
+ * moves past it.
+ */
+export function takeLogEntries(eng: Engine, mods: Pick<ModPort, 'submit'>, kept: Kept, entries: unknown[], warn: (msg: string) => void = (m) => console.warn(m)): void {
+  const lib = eng.lib
+  for (const raw of entries) {
+    const problem = logEntryProblem(raw)
+    const seq = isObject(raw) ? raw.seq : undefined
+    if (problem) {
+      warn(`[library] a shared log entry is passed over (${String(seq)}): ${problem}`)
+      continue
+    }
+    const e = raw as PatchLogEntry
+    try {
+      // what the library forgot but a thing here needs is this save's from now on: not written back to the shared store
+      if ('removeType' in e) forgetType(eng, e.removeType) || (lib.types.some((t) => t.id === e.removeType) && kept.types.add(e.removeType))
+      else if ('removeStatus' in e) forgetStatus(eng, e.removeStatus) || (lib.statuses.some((s) => s.id === e.removeStatus) && kept.statuses.add(e.removeStatus))
+      else if ('remove' in e) {
+        if (lib.rules.get(e.remove)?.source?.origin === 'patch') lib.remove(e.remove)
+      }
+      // the library's definition of a learned thing wins over one kept here (put back if the patch is not taken)
+      else takePatch(eng, kept, e.patch, (p) => mods.submit(undefined, p, e.scenario, e.replaces, e.request))
+    } catch (err) {
+      warn(`[library] a shared log entry is passed over (${String(seq)}): ${(err as Error).message}`)
+    }
+  }
 }

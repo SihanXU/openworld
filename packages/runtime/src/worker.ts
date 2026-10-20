@@ -4,7 +4,7 @@ import { untilUp } from './untilUp.ts'
 import { FrameEncoder } from './frameDelta.ts'
 import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
-import { artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeOf, shareKept, sharedPart, takeDefinitions, withKept } from './learned.ts'
+import { adoptDefinitions, artsToSend, forgetInvalid, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, type Kept } from './learned.ts'
 import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
@@ -193,18 +193,10 @@ function watchProgress(id: string): { stop: () => void } {
 }
 
 /** What only the save loaded keeps (learned kinds its things are of that the shared library forgot): never written back to it. */
-let kept: { types: Set<string>; statuses: Set<string> } = { types: new Set(), statuses: new Set() }
+let kept: Kept = { types: new Set(), statuses: new Set() }
 
 /** Take a learned definition an answer brings anew, and make what it brings shared; both undone should the answer be refused. */
-function adoptAnswer(patch: Patch): { restore: () => void; done: () => void } {
-  const took = takeDefinitions(game!.engine, patch)
-  const unshare = shareKept(kept, patch)
-  return {
-    restore: () => (took.restore(), unshare()),
-    // a kind kept beside the library's new one, for what is made of it here, is this save's alone
-    done: () => took.done().forEach((id) => kept.types.add(id)),
-  }
-}
+const adoptAnswer = (patch: Patch): { restore: () => void; done: () => void } => adoptDefinitions(game!.engine, kept, patch)
 
 /** The recipes of learned things (derived from their makeup when a patch brings a type with a station), sent when they change. */
 let recipesSent = ''
@@ -247,9 +239,8 @@ function maybePrefetch(): void {
     .then((patch) => {
       if (patch && game) {
         // as any answer: a learned definition it brings anew replaces the one kept here
-        const took = adoptAnswer(patch)
-        if (!game.mods.submit(undefined, patch, request.scenario).ok) took.restore()
-        else took.done()
+        const mods = game.mods
+        takePatch(game.engine, kept, patch, (p) => mods.submit(undefined, p, request.scenario))
       }
     })
     .catch(() => undefined)
@@ -261,6 +252,8 @@ async function syncLibrary(): Promise<void> {
   if (!game || !modderUrl) return
   try {
     const log = (await (await fetch(`${modderUrl}/patches?since=${modderSeq}`, { signal: AbortSignal.timeout(5000) })).json()) as { seq: number; entries: PatchLogEntry[] }
+    // (a reply this client cannot read at all is as no reply: the next sync asks again)
+    if (typeof log?.seq !== 'number' || !Array.isArray(log.entries)) throw new Error('not a patch log')
     // a log shorter than where we were is another log (the service started anew): sync it from the start
     if (log.seq < modderSeq) {
       modderSeq = 0
@@ -268,19 +261,8 @@ async function syncLibrary(): Promise<void> {
     }
     const lib = game.engine.lib
     const before = lib.version
-    for (const e of log.entries) {
-      // what the library forgot but a thing here needs is this save's from now on: not written back to the shared store
-      if ('removeType' in e) forgetType(game.engine, e.removeType) || (game.engine.lib.types.some((t) => t.id === e.removeType) && kept.types.add(e.removeType))
-      else if ('removeStatus' in e) forgetStatus(game.engine, e.removeStatus) || (game.engine.lib.statuses.some((s) => s.id === e.removeStatus) && kept.statuses.add(e.removeStatus))
-      else if ('remove' in e) {
-        if (lib.rules.get(e.remove)?.source?.origin === 'patch') lib.remove(e.remove)
-      } else {
-        // the library's definition of a learned thing wins over one kept here (put back if the patch is not taken)
-        const took = adoptAnswer(e.patch)
-        if (!game.mods.submit(undefined, e.patch, e.scenario, e.replaces, e.request).ok) took.restore()
-        else took.done()
-      }
-    }
+    // each entry on its own: one this client cannot read or take is passed over, and the position moves past it
+    takeLogEntries(game.engine, game.mods, kept, log.entries)
     if (log.seq !== modderSeq) post({ t: 'synced', url: modderUrl, seq: log.seq, changed: lib.version !== before })
     modderSeq = log.seq
     if (lib.version !== before) sendRecords()
@@ -960,10 +942,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'patch': {
         if (!game) break
-        const took = adoptAnswer(m.patch)
-        const result = game.mods.submit(m.id, m.patch)
-        if (!result.ok) took.restore()
-        else took.done()
+        const mods = game.mods
+        const result = takePatch(game.engine, kept, m.patch, (p) => mods.submit(m.id, p))
         post({ t: 'validation', id: m.id, result })
         sendRecords()
         break
