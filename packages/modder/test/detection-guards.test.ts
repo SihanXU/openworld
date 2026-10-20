@@ -151,3 +151,37 @@ describe('a blocking audit that fails is no audit', () => {
     expect(library.lib.rules.has('patch/stone-sapped')).toBe(true)
   })
 })
+
+describe('a blocking review ships only what it let through', () => {
+  /** A modder whose designer answers with the drafts in turn and whose reviewer gives the verdicts in turn. */
+  const scriptedReview = (drafts: Patch[], verdicts: string[]) => {
+    const calls = { design: 0, review: 0 }
+    const model = new ScriptedModel((_m: ChatMessage[], opts: ChatOptions) => {
+      if (opts.purpose === 'review') return { verdict: verdicts[Math.min(calls.review++, verdicts.length - 1)], notes: ['The sap should not reach a dry stone.'] }
+      if (opts.purpose === 'design') return { patch: drafts[Math.min(calls.design++, drafts.length - 1)], summary: 'sap' }
+      return {}
+    })
+    return { model, calls }
+  }
+  const noAudit = (h: Harness): Partial<Harness> => ({ audit: { ...auditOf(h), enabled: false } })
+
+  it('a revision is reviewed too, and one sent back again does not ship (D6)', async () => {
+    const req = useRequest()
+    const { model, calls } = scriptedReview([sapped(req)], ['revise'])
+    const { library, modder } = modderWith(model, 'offline', noAudit)
+    const reply = await modder.resolve({ request: req })
+    expect(calls.review).toBe(2) // the draft, and its one revision (review.maxRounds 1)
+    expect(reply.outcome).toBe('failed')
+    expect(library.lib.rules.has('patch/stone-sapped')).toBe(false)
+  })
+
+  it('the draft the reviewer sent back does not ship when its revision never validates (D6)', async () => {
+    const req = useRequest()
+    const broken = onDeadTree(req, 'patch/stone-sapped', [{ op: 'no-such-effect' }])
+    const { model } = scriptedReview([sapped(req), broken], ['revise'])
+    const { library, modder } = modderWith(model, 'offline', noAudit)
+    const reply = await modder.resolve({ request: req })
+    expect(reply.outcome).toBe('failed')
+    expect(library.lib.rules.has('patch/stone-sapped')).toBe(false)
+  })
+})

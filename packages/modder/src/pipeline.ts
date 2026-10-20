@@ -457,7 +457,6 @@ export class Modder {
     let reviews = 0
     let reviewLater = false
     let phase: Attempt['phase'] = 'design'
-    let reviewed: Patch | undefined // a valid draft a reviewer sent back: shipped if the revision never validates
     let lastRaw = '' // the last answer, kept for an attempt the program failed on before it was recorded
     const retry = (content: string, next: Attempt['phase']) => {
       messages.push({ role: 'user', content })
@@ -608,11 +607,15 @@ export class Modder {
             continue
           }
         }
-        if (h.review.enabled && h.review.blocking !== false && reviews < h.review.maxRounds) {
+        // reviewed before it ships: every draft that would ship, a revision too; one the reviewer sent back never
+        // ships (after maxRounds revisions sent back, the episode fails)
+        if (h.review.enabled && h.review.blocking !== false) {
           attempt.review = await this.review(model, req, patch, ctx, h, flagsOf(patch, derived), eo.profile === 'live')
-          if (attempt.review.verdict === 'revise' && attempt.review.notes.length) {
-            reviews++
-            reviewed = patch
+          if (attempt.review.verdict === 'revise') {
+            if (reviews++ >= h.review.maxRounds) {
+              attempt.errors = [`the reviewer sent the draft back after ${h.review.maxRounds} revision(s): not shipped`, ...attempt.review.notes]
+              break
+            }
             retry(reviseUser(attempt.review.notes), 'review')
             continue
           }
@@ -631,14 +634,12 @@ export class Modder {
         if (repairs++ >= h.repair.maxRounds) break
         retry(repairUser(ep.attempts.at(-1)!.errors, [], true), 'repair')
       }
-      if (ep.outcome === 'failed' && reviewed && this.commit(ep, reviewed, req, replaces)) ep.error = 'the revision never validated; shipped the reviewed draft'
     } catch (err) {
       ep.error = (err as Error).message
       // the program's own failure (a stack overflow, a crash in a fix): where it came from, kept with the episode
       const stack = (err as Error).stack?.split('\n').slice(1, 12).map((l) => l.trim()).join('\n')
       if (stack) ep.stack = stack
       if (lastRaw && !ep.attempts.some((x) => x.raw === lastRaw.slice(0, 2000))) ep.attempts.push({ phase, errors: [`the harness failed on this answer: ${(err as Error).message}`], warnings: [], raw: lastRaw.slice(0, 4000) })
-      if (reviewed && ep.outcome === 'failed' && this.commit(ep, reviewed, req, replaces)) ep.error += '; shipped the reviewed draft'
     }
 
     ep.usage = { calls: model.calls, input: model.input, output: model.output, cost: model.cost }

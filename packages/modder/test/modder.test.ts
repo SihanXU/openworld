@@ -374,9 +374,9 @@ describe('the modder pipeline', () => {
     const ep = state.episode(reply.episode!)!
     expect(ep.attempts.map((a) => [a.phase, a.review?.verdict])).toEqual([
       ['design', 'revise'],
-      ['review', undefined],
+      ['review', 'ship'],
     ])
-    expect(calls.review).toBe(1) // the harness allows one review round: the revision ships unreviewed
+    expect(calls.review).toBe(2) // the harness allows one revision; the revision is reviewed before it ships
     expect(library.lib.rules.has('patch/stone-stills-creature')).toBe(true)
     expect(library.lib.rules.has('patch/stone-stills-slime')).toBe(false)
   })
