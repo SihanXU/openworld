@@ -87,8 +87,9 @@ export function buildDawnHill(): MapBuilder {
   for (const [x, y] of VIGIL.bloom) m.item({ form: 'item/material/herb', name: L('Dawnbloom', '晨光花') }, x, y)
   m.fixture('fixture/sacred/waypoint', 17, 9, { id: 'wp.dawnhill', name: L('Dawn Hill statue', '晨光丘传送雕像') })
   for (const [x, y] of [[8, 20], [32, 18]] as const) m.creature('beast/wolf', x, y, HUNT(5))
-  // up on the open top, where the storms break first: spark slimes, charged by them (docs/creatures.md §3.4)
-  for (const [x, y] of [[13, 6], [26, 7]] as const) m.creature('slime/spark_slime', x, y, HUNT(4))
+  // up on the open top, where the storms break first: spark slimes, charged by them (docs/creatures.md §3.4); out at its
+  // ends, beyond sight of the statue and the Dawnstone, so one who travels here or keeps the vigil is not set on at once
+  for (const [x, y] of [[5, 8], [33, 4]] as const) m.creature('slime/spark_slime', x, y, HUNT(4))
   // west, into the hill's flank: the track to the mine's adit (buildHillMine), a sign where it leaves the path
   m.path([[0, HILL_MINE.hillWest[0]], [8, HILL_MINE.hillWest[0]], [14, 19], [20, 20]], 'path', 2, { edge: 'dirt', edgeP: 0.25 })
   m.fixture('fixture/sign', 5, 16, { props: { text: '← The mine', text_zh: '← 矿洞' } })

@@ -1039,19 +1039,23 @@ req('K1', 'a creature has skills of its own (the kits module): it marks the cell
 req('K2', 'every kind with a kit is met somewhere, each where its element is: spark slimes on Dawn Hill\'s top, a giant crab on the Reed Bend\'s shore, an ice golem in the Cinder Pass\'s snow and a storm wisp up its trail — and more wisps when a storm breaks over the pass', ['actor/creature/slime/spark_slime', 'actor/creature/crab', 'actor/creature/golem/ice_golem', 'actor/creature/wisp/storm_wisp'], () => {
   const f = fresh()
   const w = W(f)
-  const on = (type: string) => Object.values(w.state.entities).filter((e) => e.type === type && e.place.on === 'tile').map((e) => (e.place.on === 'tile' ? e.place.map : ''))
+  const on = (type: string) => w.ofType(type).filter((e) => e.place.on === 'tile').map((e) => (e.place.on === 'tile' ? e.place.map : ''))
   expect(on('actor/creature/slime/spark_slime')).toEqual(['dawnhill', 'dawnhill'])
   expect(on('actor/creature/crab')).toEqual(['reedbend'])
   expect(on('actor/creature/golem/ice_golem')).toEqual(['pass'])
   expect(on('actor/creature/wisp/storm_wisp')).toEqual(['pass'])
   // where each stands is its element's ground, and it fights with its kit
   const cell = (type: string) => {
-    const e = Object.values(w.state.entities).find((x) => x.type === type)!
+    const e = w.ofType(type)[0]!
     return e.place.on === 'tile' ? w.cellTop(e.place.map, e.place.x, e.place.y)?.type : undefined
   }
   expect(cell('actor/creature/golem/ice_golem')).toBe('tile/snow')
+  // the spark slimes stand beyond their sight of Dawn Hill's statue: one who travels there is not set on as they arrive
+  const statue = w.get('wp.dawnhill')!.place
+  for (const s of w.ofType('actor/creature/slime/spark_slime')) if (s.place.on === 'tile' && statue.on === 'tile')
+    expect(Math.max(Math.abs(s.place.x - statue.x), Math.abs(s.place.y - statue.y))).toBeGreaterThan(s.ai?.sight ?? 0)
   for (const t of ['actor/creature/slime/spark_slime', 'actor/creature/crab', 'actor/creature/golem/ice_golem', 'actor/creature/wisp/storm_wisp'])
-    expect(kitsOf(f.eng).kitOf(Object.values(w.state.entities).find((e) => e.type === t)!)?.length, t).toBeGreaterThan(0)
+    expect(kitsOf(f.eng).kitOf(w.ofType(t)[0]!)?.length, t).toBeGreaterThan(0)
   // the pass's storms bring wisps: its own appearance, in a storm only
   const storm = buildFord().chunks.find((c) => c.map.id === 'pass')?.map.appear?.find((a) => a.types['actor/creature/wisp/storm_wisp'])
   expect(storm?.weather).toEqual(['storm'])
