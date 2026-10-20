@@ -4,7 +4,7 @@
 // inventory, J journal, M map.
 
 import Phaser from 'phaser'
-import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@openworld/engine'
+import { CEILING, Controls, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, libraryKey, newWorker, savesKey, worldBase } from './game.ts'
 import { FishingInputLatch, routeFishingEscape, routeSpaceKeyDown, type FromWorker, type Tile, type ToWorker } from './protocol.ts'
 import { cssAssetUrl, registerArt } from './render/assets.ts'
@@ -576,6 +576,13 @@ const setAttack = (on: boolean) => {
   attacking = on
   send({ t: 'attack', on })
 }
+/** The left button is down on the world for its primary act (a blow, a tool's work): held, the act goes on. */
+let swingingNow = false
+const setSwing = (on: boolean, tile?: Tile) => {
+  if (on === swingingNow) return
+  swingingNow = on
+  send({ t: 'primary', on, tile })
+}
 const fishingInputs = new FishingInputLatch()
 let fishingWasActive = false
 let fishingEscapeHeld = false
@@ -603,6 +610,7 @@ const stopMoving = () => {
   held.length = 0
   syncMove()
   setAttack(false)
+  setSwing(false)
   clearFishingInputs()
 }
 
@@ -611,14 +619,17 @@ const typing = () => {
   return !!a && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT')
 }
 
-// The inputs (design.md §5.2): E a hand, F takes, G puts or hands over, the left click uses the held thing (or a
-// bare blow), and the right click is the action, as Stardew's action button: what the thing aimed at calls for
-// (talk, open, pick up, set down a bed, eat — the engine's Controls chooses it from the others, the cursor shows
-// it). A short press acts on the top of what is drawn where the pointer is; a long press opens the chooser of all
-// of it the input reaches (people, things, items, the ground, oneself), so every event is reachable.
+// The inputs (design.md §5.2): E a hand, F takes, G puts or hands over, R uses the held thing (or a bare blow); the
+// left click swings — a tool's work or a weapon's blow, with anything else in hand the main hand's weapon or the
+// fist, a built thing in hand set down (it builds) —, and the right click is the action, as Stardew's action
+// button: what the thing aimed at calls for (talk, open, pick up, unlock, cook, set down a bed, eat — the engine's Controls
+// chooses both from the others, the cursor shows them). A short press acts on the top of what is drawn where the
+// pointer is; a long press of E, F, G, R or the right click opens the chooser of all of it the input reaches
+// (people, things, items, the ground, oneself), so every event is reachable. The left click acts on the press
+// and goes on while held (no chooser: R's).
 const LONG_MS = 380
-const KEY_OF: Record<string, Key> = { KeyE: 'hands', KeyF: 'take', KeyG: 'put' }
-const KEY_NAME: Record<Key, string> = { hands: 'E', take: 'F', put: 'G', use: 'L', self: 'R', action: 'R' }
+const KEY_OF: Record<string, Key> = { KeyE: 'hands', KeyF: 'take', KeyG: 'put', KeyR: 'use' }
+const KEY_NAME: Record<Key, string> = { hands: 'E', take: 'F', put: 'G', use: 'R', self: 'R', action: 'R', primary: 'L' }
 /** A press under way: what made it (a key's code, or `mouse0`/`mouse2`), the key it is, where the pointer aimed. */
 let pressing: { by: string; key: Key; tile?: Tile; timer: ReturnType<typeof setTimeout>; long: boolean } | undefined
 /** What opened the chooser (its title). */
@@ -836,7 +847,7 @@ document.addEventListener('visibilitychange', () => {
 })
 
 
-// ------------------------------------------------------------------ mouse: aim at the pointed tile (as far as an input reaches); left = use, right = the action
+// ------------------------------------------------------------------ mouse: aim at the pointed tile (as far as an input reaches); left = the primary act, right = the action
 
 let mouseTile: Tile | undefined
 /** The pointer's screen point while it is over the world. */
@@ -919,12 +930,16 @@ gameEl.addEventListener('mousedown', (e) => {
     handDrag = handCell(tile)
     return send({ t: 'key', key: 'use', tile, ...(handUp && { layer: CEILING }) })
   }
-  if (e.button === 0) press('mouse0', 'use', tile)
+  // a built thing in hand elsewhere: the left click is still its use (an experiment), the chooser on a long press
+  const held = lastFrame?.player.held
+  if (e.button === 0 && held && Controls.placeable(held.type)) press('mouse0', 'use', tile)
+  else if (e.button === 0) setSwing(true, tile)
   if (e.button === 2) press('mouse2', 'action', tile)
 })
 window.addEventListener('mouseup', (e) => {
   if (e.button === 0) building.release()
   if (e.button === 0) handDrag = undefined
+  if (e.button === 0) setSwing(false)
   if (e.button === 0 && !fishingRelease('mouse')) release('mouse0')
   if (e.button === 2) release('mouse2')
 })

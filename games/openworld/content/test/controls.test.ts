@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, holeKey, textOf, type Engine, type Key, type Plan, type PropValue, type Ref, type ScenarioEntity, type Verb } from '@openworld/engine'
 import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_PACE } from '@openworld/modules'
-import { cellId, madeOf, weaponOf } from '@openworld/engine'
+import { NO_EXPIRY, cellId, madeOf, weaponOf } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -22,7 +22,7 @@ const npc = (key = 'npc.hollis'): ScenarioEntity => ({ key, type: 'actor/person/
 const ground = (eng: Engine, x = 2, y = 1) => eng.controls.layers({ map: 'sandbox', x, y }).findIndex((r) => eng.world.cellRank(eng.world.get(r.e)!) >= 0)
 const label = (p: Plan | undefined) => textOf(p?.label)
 
-describe('the five inputs: one act each', () => {
+describe('the inputs: one act each', () => {
   it('E talks to a person whatever is held; G gives the held thing', () => {
     const eng = world('item/food/apple', [npc()])
     const talk = eng.controls.plan('hands')
@@ -56,7 +56,7 @@ describe('the five inputs: one act each', () => {
     expect(eng.world.get('stone')!.type).toBe('fixture/build/ring')
   })
 
-  it('asks before eating (left click on oneself), and eats on yes', () => {
+  it('asks before eating (R on oneself), and eats on yes', () => {
     const meal = world('item/food/bread', [])
     const eat = meal.controls.plan('use', { x: 2, y: 2 })!
     expect(eat).toMatchObject({ verb: 'use', target: { e: 'actor' }, rule: 'use/eat' })
@@ -90,16 +90,17 @@ describe('the five inputs: one act each', () => {
     expect(eng.controls.plan('use', { x: 2, y: 1 })).toMatchObject({ verb: 'use', target: eng.world.cellRef('sandbox', 2, 1), unknown: true })
   })
 
-  it('left click works the ground with a tool: the hoe strikes, the ground answers', () => {
+  it('a tool works the ground (R, and the left click alike): the hoe strikes, the ground answers', () => {
     const eng = world('item/tool/hoe', [])
     const plan = eng.controls.plan('use')!
     expect(plan.rule).toBe('farm/till')
     expect(label(plan)).toBe('Till grass')
+    expect(eng.controls.plan('primary')).toEqual(plan)
     eng.controls.run(plan)
     expect(eng.world.terrainAt('sandbox', 2, 1)).toBe('farmland')
   })
 
-  it('experiments go to the Mod port: an object on a thing (left click), a bare hand (E)', () => {
+  it('experiments go to the Mod port: an object on a thing (R), a bare hand (E)', () => {
     const apple = world('item/food/apple', [{ key: 'well', type: 'fixture/water/well', x: 2, y: 1 }])
     const port = new ModPort(apple)
     const plan = apple.controls.plan('use')!
@@ -116,7 +117,7 @@ describe('the five inputs: one act each', () => {
     expect(p2.records[0]).toMatchObject({ origin: 'player', request: { event: { kind: 'impulse/handle' }, hole: { rule: 'core/handle' } } })
   })
 
-  it('weapons strike (but on a person a blade is not a blow); a bare left click is a blow on anything (Minecraft)', () => {
+  it('weapons strike (but on a person a blade is not a blow); a bare R is a blow on anything (Minecraft)', () => {
     const well = world('item/weapon/blade/sword', [{ key: 'well', type: 'fixture/water/well', x: 2, y: 1 }])
     well.world.player.props!.profession = 'warrior' // the sword is the warrior's
     const port = new ModPort(well)
@@ -129,7 +130,7 @@ describe('the five inputs: one act each', () => {
     expect(person.controls.plan('use')!.attack).toBeUndefined()
     const slime = world(undefined, [{ key: 's', type: 'actor/creature/slime/green_slime', x: 2, y: 1 }])
     expect(slime.controls.plan('use')).toMatchObject({ verb: 'use', attack: true, rule: 'combat/struck' })
-    // with nothing held the left click is the body's own blow, whatever it meets: never E's hand
+    // with nothing held R is the body's own blow, whatever it meets: never E's hand
     const rock = world(undefined, [{ key: 'rock', type: 'fixture/nature/boulder', x: 2, y: 1 }])
     const punch = rock.controls.plan('use')!
     expect(punch).toMatchObject({ verb: 'use', attack: true, instrument: undefined })
@@ -138,7 +139,7 @@ describe('the five inputs: one act each', () => {
     expect(rock.world.fx.some((f) => f.t === 'log' && textOf(f.text) === 'Too hard.')).toBe(true)
   })
 
-  it('reach: E as far as the thing lets a hand (a bed only from on it), F and G the cells round, the left click as far as the held thing carries', () => {
+  it('reach: E as far as the thing lets a hand (a bed only from on it), F and G the cells round, R as far as the held thing carries', () => {
     const far = world(undefined, [{ key: 'stone', type: 'item/material/stone', x: 2, y: 0 }, npc()])
     // two cells off: nothing reaches the stone; a pointer there aims at the farthest spot toward it that is reached
     expect(far.controls.reachable({ x: 2, y: 0 })).toBe(false)
@@ -147,7 +148,7 @@ describe('the five inputs: one act each', () => {
     // the engine itself holds every act to its reach, for anyone
     expect(far.act('take', 'actor', { e: 'stone' }, { instrument: null }).defined).toBe(false)
     expect(far.world.get('stone')!.place.on).toBe('tile')
-    // a bow carries: the far tile in line is within the left click's reach, one off the line is not
+    // a bow carries: the far tile in line is within R's reach, one off the line is not
     const bow = world('item/weapon/ranged/bow', [{ key: 's', type: 'actor/creature/slime/green_slime', x: 2, y: 0 }, { key: 't', type: 'actor/creature/slime/green_slime', x: 4, y: 1 }])
     expect(bow.controls.plan('use', { x: 2, y: 0 })).toMatchObject({ attack: true, target: { e: 's' } })
     expect(bow.controls.plan('use', { x: 4, y: 1 })?.target).not.toEqual({ e: 't' })
@@ -167,7 +168,7 @@ describe('the five inputs: one act each', () => {
     expect(eng.controls.plan('take', { x: 2, y: 2 })?.target).toEqual({ e: 'stick' })
     const self = eng.controls.plan('self')!
     expect(self).toMatchObject({ key: 'self', verb: 'use', target: { e: 'actor' }, rule: 'use/eat' })
-    // a left click on one's own place is the same act
+    // R on one's own place is the same act
     expect(eng.controls.plan('use', { x: 2, y: 2 })).toMatchObject({ verb: 'use', target: { e: 'actor' }, rule: 'use/eat' })
   })
 
@@ -194,13 +195,13 @@ describe('the five inputs: one act each', () => {
     expect(c.plan('hands', { x: 2, y: 2, stack: [{ e: 'actor' }, { e: cellId('sandbox', 2, 2, 'volume') }] })?.target).toEqual({ e: 'berries' })
   })
 
-  it('E meets a person, then a companion, before what is drawn over them; F and the left click keep the layers\' order', () => {
+  it('E meets a person, then a companion, before what is drawn over them; F and R keep the layers\' order', () => {
     const eng = world(undefined, [npc(), { key: 'stick', type: 'item/material/stick', x: 2, y: 1 }])
     const c = eng.controls
     // the view draws the stick over the farmer
     const aim = { x: 2, y: 1, stack: [{ e: 'stick' }, { e: 'npc.hollis' }] }
     expect(c.plan('hands', aim)?.target).toEqual({ e: 'npc.hollis' })
-    // F takes the stick, and a bare left click strikes it, not the farmer behind it (the order 33b18a7 and cad30b9 settled)
+    // F takes the stick, and a bare R strikes it, not the farmer behind it (the order 33b18a7 and cad30b9 settled)
     expect(c.plan('take', aim)?.target).toEqual({ e: 'stick' })
     expect(c.choices('take', aim)[0]?.plan?.target).toEqual({ e: 'stick' })
     expect(c.plan('use', aim)?.target).toEqual({ e: 'stick' })
@@ -337,7 +338,7 @@ describe('completeness of the inputs', () => {
       { key: 'apple', type: 'item/food/apple', x: 0, y: 0, inside: 'actor' },
       { key: 'npc.oda', type: 'actor/person/merchant', x: 3, y: 1 },
     ])
-  const KEYS: Key[] = ['hands', 'take', 'put', 'use', 'self', 'action']
+  const KEYS: Key[] = ['hands', 'take', 'put', 'use', 'self', 'action', 'primary']
   const TILES = [{ x: 2, y: 1 }, { x: 1, y: 2 }, { x: 3, y: 1 }, { x: 2, y: 2 }] // a pile on a table, a stick on grass, a person, the own tile
   const sig = (verb: string, inst: string, target: Ref) => JSON.stringify([verb, inst, target])
 
@@ -388,7 +389,7 @@ describe('completeness of the inputs', () => {
     expect(pressed.has(sig('attack', 'none', { e: p.id }))).toBe(false)
   })
 
-  it('each input makes exactly one act, of its own verb (use on oneself and the left click use, a bare one is a blow; the action makes one of the others)', () => {
+  it('each input makes exactly one act, of its own verb (use on oneself and R use, a bare one is a blow; the action and the left click make one of the others)', () => {
     const eng = scene()
     const c = eng.controls
     for (const slot of [eng.world.player.selected!, eng.world.player.slots!.findIndex((k, i) => !k && i < 10)]) {
@@ -401,8 +402,11 @@ describe('completeness of the inputs', () => {
             const b = c.plan(key, tile, layer)
             expect(JSON.stringify(a)).toBe(JSON.stringify(b))
             if (!a) continue
-            const own = key === 'action' ? a.key : key
-            if (key !== 'action') expect(a.key).toBe(key === 'use' && a.key === 'self' ? 'self' : key)
+            const made = key === 'action' || key === 'primary'
+            const own = made ? a.key : key
+            if (!made) expect(a.key).toBe(key === 'use' && a.key === 'self' ? 'self' : key)
+            // the left click is a use: a tool's work or a weapon's blow, else a blow with no object held
+            if (key === 'primary') expect(a.key).toBe('use')
             if (!a.instrument && (own === 'use' || own === 'self')) expect(a.attack).toBe(true)
             expect(a.verb).toBe(own === 'self' ? 'use' : own)
           }
@@ -430,9 +434,50 @@ describe('the action (the right click): what the thing aimed at calls for', () =
   /** A lesson at hand that lets only these inputs work (docs/prologue.md, the drills). */
   const drill = (eng: Engine, allow: string[]) => vi.spyOn(eng.story, 'lesson').mockReturnValue({ def: { id: 'drill', allow }, index: 0, total: 1 } as unknown as ReturnType<Engine['story']['lesson']>)
 
-  it('a word to someone, whatever is held (handing it over is G alone)', () => {
+  it('a word to someone, whatever is held (handing it over is G alone, using it on them R)', () => {
     expect(act(world(undefined, [npc()]))).toMatchObject({ key: 'hands', rule: 'people/talk', instrument: undefined })
     expect(act(world('item/weapon/blade/axe', [npc()]))).toMatchObject({ key: 'hands', rule: 'people/talk', instrument: undefined })
+    const bread = world('item/food/bread', [npc()])
+    expect(act(bread)).toMatchObject({ key: 'hands', rule: 'people/talk' })
+    expect(bread.controls.plan('use')).toMatchObject({ key: 'use', verb: 'use', instrument: { e: 'held' } })
+  })
+
+  it('what an object in hand does to the thing, where the bare hands change nothing there: raw meat cooks over a lit fire (the hands only warm)', () => {
+    const fire = (held?: string) => {
+      const eng = world(held, [{ key: 'fire', type: 'fixture/light/campfire', x: 2, y: 1 }])
+      eng.author(() => eng.applyStatus({ e: 'fire' }, 'lit', 999))
+      return eng
+    }
+    expect(act(fire())).toMatchObject({ key: 'hands', target: { e: 'fire' } })
+    expect(act(fire())?.changes).toBeFalsy()
+    const meat = fire('item/food/meat/raw')
+    expect(act(meat)).toMatchObject({ key: 'use', rule: 'use/cook', instrument: { e: 'held' } })
+    meat.controls.run(act(meat)!)
+    expect(meat.world.get('held')!.type).toBe('item/food/meat/cooked')
+    // a tool's work is the left click's, never the right click's: a hoe at the fire is the hands' warmth
+    expect(act(fire('item/tool/hoe'))).toMatchObject({ key: 'hands', target: { e: 'fire' } })
+  })
+
+  it('a key on a locked chest turns in its lock: the bare hands only find it locked, so the object in hand answers', () => {
+    const keyType = Object.keys(onto.types).find((t) => t.startsWith('item/key'))!
+    const chest = (held?: string) => world(held, [{ key: 'chest', type: 'fixture/container/chest', x: 2, y: 1, tags: ['locked'] }])
+    const bare = chest()
+    expect(act(bare)).toMatchObject({ key: 'hands', target: { e: 'chest' } })
+    expect(act(bare)?.changes).toBeFalsy()
+    const key = chest(keyType)
+    expect(act(key)).toMatchObject({ key: 'use', target: { e: 'chest' }, instrument: { e: 'held' } })
+    key.controls.run(act(key)!)
+    expect(key.world.hasTag(key.world.get('chest')!, 'locked')).toBe(false)
+    expect(key.world.hasStatus({ e: 'chest' }, 'open')).toBe(true)
+  })
+
+  it('a creature: what is held used on it where it does something (wheat fed to a cow), before the bare hands', () => {
+    const cow = world('item/material/wheat', [{ key: 'cow', type: 'actor/creature/animal/cow', x: 2, y: 1 }])
+    expect(act(cow)).toMatchObject({ key: 'use', target: { e: 'cow' }, instrument: { e: 'held' } })
+    expect(label(act(cow))).toBe('Feed Wheat to cow')
+    // nothing it knows to do with a stone: the hands, as before
+    const stone = world('item/material/stone', [{ key: 'cow', type: 'actor/creature/animal/cow', x: 2, y: 1 }])
+    expect(act(stone)?.key).toBe('hands')
   })
 
   it('a hand where the bare hands do something (a chest opens); a take where they do not (a stone)', () => {
@@ -484,7 +529,7 @@ describe('the action (the right click): what the thing aimed at calls for', () =
     expect(act(pick)).toMatchObject({ key: 'take', target: { e: 'stick' } })
   })
 
-  it('a press of the left click with nothing in hand on the bare ground the world has never seen struck asks nothing; chosen, it strikes', () => {
+  it('a press of R with nothing in hand on the bare ground the world has never seen struck asks nothing; chosen, it strikes', () => {
     const eng = world(undefined, [])
     expect(eng.controls.plan('use', at)).toBeUndefined()
     const chosen = eng.controls.plan('use', at, ground(eng))
@@ -510,6 +555,92 @@ describe('the action (the right click): what the thing aimed at calls for', () =
     expect(eng.controls.plan('hands')?.quiet).toBeFalsy()
     eng.quality = { ...eng.quality, things: 'off' }
     expect(eng.controls.plan('hands')).toMatchObject({ unknown: true, quiet: true })
+  })
+})
+
+describe('the left click: a swing', () => {
+  const at = { x: 2, y: 1 }
+  const slime = (props: Record<string, PropValue> = {}): ScenarioEntity => ({ key: 's', type: 'actor/creature/slime/green_slime', x: 2, y: 1, props: { hp: 50, maxHp: 50, ...props } })
+
+  it('what is held works as it is meant to: a weapon strikes, a tool works, a built thing is set down (R\'s own act)', () => {
+    const sword = world('item/weapon/blade/sword', [slime()])
+    sword.world.player.props!.profession = 'warrior'
+    expect(sword.controls.plan('primary', at)).toEqual(sword.controls.plan('use', at))
+    expect(sword.controls.plan('primary', at)).toMatchObject({ attack: true, instrument: { e: 'held' } })
+    const wall = world('structure/wall', [])
+    expect(wall.controls.plan('primary', at)).toMatchObject({ sets: true })
+  })
+
+  it('with an object in hand, or nothing, a blow with the main hand\'s weapon, else the fist: never the thing held', () => {
+    const stone = world('item/material/stone', [slime()])
+    const punch = stone.controls.plan('primary', at)!
+    expect(punch).toMatchObject({ key: 'use', verb: 'use', attack: true, instrument: undefined, target: { e: 's' } })
+    expect(label(punch)).toBe('Punch green slime')
+    stone.controls.swing(punch)
+    stone.tick()
+    expect(stone.world.num(stone.world.get('s')!, 'hp')).toBeLessThan(50)
+    expect(stone.world.player.held).toBe('held')
+    // the sword kept in the main hand strikes, the bread in hand stays
+    const kept = world('item/weapon/blade/sword', [slime(), { key: 'bread', type: 'item/food/bread', x: 0, y: 0, inside: 'actor' }])
+    kept.world.player.props!.profession = 'warrior'
+    kept.controls.run(kept.controls.plan('self')!)
+    kept.controls.select(kept.world.player.slots!.indexOf(kept.world.player.slots!.find((k) => k && k.includes('bread'))!))
+    expect(kept.world.player.held).toBe('bread')
+    expect(kept.controls.plan('primary', at)).toMatchObject({ attack: true, instrument: { e: 'held' } })
+  })
+
+  it('the blow lands on someone, then what cannot be carried, never a loose thing; on a person only with the blade drawn', () => {
+    // a stick on the grass: not struck (F takes it), and the grass the world has never seen struck asks nothing
+    expect(world(undefined, [{ key: 'stick', type: 'item/material/stick', x: 2, y: 1 }]).controls.plan('primary', at)).toBeUndefined()
+    // a boulder: struck
+    expect(world('item/food/bread', [{ key: 'rock', type: 'fixture/nature/boulder', x: 2, y: 1 }]).controls.plan('primary', at)).toMatchObject({ attack: true, target: { e: 'rock' } })
+    // the slime under a stick drawn over it: the slime
+    expect(world(undefined, [slime(), { key: 'stick', type: 'item/material/stick', x: 2, y: 1 }]).controls.plan('primary', { ...at, stack: [{ e: 'stick' }, { e: 's' }] })).toMatchObject({ target: { e: 's' } })
+    // the farmer with bread in hand: nothing (no villager is hurt by accident); drawn (X), a blow
+    const eng = world('item/food/bread', [npc()])
+    expect(eng.controls.plan('primary', at)).toBeUndefined()
+    eng.author(() => eng.applyStatus({ e: 'actor' }, 'drawn', NO_EXPIRY))
+    expect(eng.controls.plan('primary', at)).toMatchObject({ attack: true, target: { e: 'npc.hollis' } })
+    // a companion is not struck either
+    const fairy = world(undefined, [{ key: 'fairy', type: 'actor/companion', x: 2, y: 1, props: { companion: 'actor' } }])
+    expect(fairy.controls.plan('primary', at)?.target).not.toEqual({ e: 'fairy' })
+  })
+
+  it('never on oneself, and no chooser (R chooses)', () => {
+    const eng = world('item/food/bread', [])
+    expect(eng.controls.plan('primary', { x: 2, y: 2 })).toBeUndefined()
+    expect(eng.controls.choices('primary', at)).toEqual([])
+    expect(eng.controls.plan('primary', at, 0)).toBeUndefined()
+  })
+
+  it('held, it goes on at a swing\'s pace: blows wherever the aim meets one, the same work cell after cell, never what the world has not seen nor what undoes it', () => {
+    // a row of soil tilled: the first cell at once, the next once the swing's beat allows
+    const hoe = world('item/tool/hoe', [])
+    const c = hoe.controls
+    const first = c.plan('primary', at)!
+    c.swing(first)
+    expect(hoe.world.terrainAt('sandbox', 2, 1)).toBe('farmland')
+    c.again(first, { x: 1, y: 2 })
+    expect(hoe.world.terrainAt('sandbox', 1, 2)).toBe('grass')
+    for (let i = 0; i < 10; i++) (hoe.tick(), c.again(first, { x: 1, y: 2 }))
+    expect(hoe.world.terrainAt('sandbox', 1, 2)).toBe('farmland')
+    // a bucket filled at the water is not poured back while the button stays down
+    const water = Array.from({ length: 5 }, (_, y) => Array.from({ length: 5 }, (_, x) => (y === 1 && x === 2 ? 'water' : 'grass')))
+    const bucket = world('item/vessel/bucket/empty', [], water)
+    const fill = bucket.controls.plan('primary', at)!
+    bucket.controls.swing(fill)
+    const full = bucket.world.get('held')!.type
+    expect(full).not.toBe('item/vessel/bucket/empty')
+    for (let i = 0; i < 20; i++) (bucket.tick(), bucket.controls.again(fill, at))
+    expect(bucket.world.get('held')!.type).toBe(full)
+    // blows: the slime is struck again as the cooldown allows
+    const fist = world(undefined, [slime({ hp: 500, maxHp: 500 })])
+    const blow = fist.controls.plan('primary', at)!
+    fist.controls.swing(blow)
+    fist.tick()
+    const after = fist.world.num(fist.world.get('s')!, 'hp')
+    for (let i = 0; i < 20; i++) (fist.controls.again(blow, at), fist.tick())
+    expect(fist.world.num(fist.world.get('s')!, 'hp')).toBeLessThan(after)
   })
 })
 

@@ -6,8 +6,8 @@
 // within reach (the act goes to the spot the scene frames instead). The pictures are the game's own (its
 // catalogue's `ui.cursorHand` and `ui.emoteDots`): without them, the arrow.
 // The tip says what each input would do at the framed spot, in the answering rules' own labels (foreseeable,
-// design.md §5.2): with the pointer, the action, the left click and E, F, G where they do something else; without it
-// (the keys walked last), E, F and G in front. It stands over the frame (render/scene.ts focusRect) once the player
+// design.md §5.2): with the pointer, the action, the left click and E, F, G, R where they do something else; without
+// it (the keys walked last), E, F, G and R in front. It stands over the frame (render/scene.ts focusRect) once the player
 // has stopped and the frame has rested a moment, so it never lurches with the steps nor flickers as the pointer sweeps.
 
 import type { Frame, KeyView } from '@openworld/engine'
@@ -103,7 +103,7 @@ async function picture(d: SpriteDef | undefined): Promise<HTMLCanvasElement | un
 
 /** The keys' spot: where the act would be done. */
 function spotOf(k: Keys): { x: number; y: number } | undefined {
-  const v = k && (k.hands ?? k.take ?? k.put ?? k.use ?? k.action)
+  const v = k && (k.hands ?? k.take ?? k.put ?? k.use ?? k.primary ?? k.action)
   return v && { x: v.x, y: v.y }
 }
 
@@ -119,8 +119,8 @@ function lookOf(k: Keys): Look {
 const same = (a: KeyView, b: KeyView | undefined) => !!b && a.x === b.x && a.y === b.y && JSON.stringify(a.label) === JSON.stringify(b.label)
 
 /**
- * The tip's lines: what each input would do. With the pointer, the action and the left click, then E, F and G
- * where each does something the action does not (and F where only it would take: a theft); without it, E, F and G
+ * The tip's lines: what each input would do. With the pointer, the action and the left click, then E, F, G and R
+ * where each does something the clicks do not (and F where only it would take: a theft); without it, E, F, G and R
  * in front. A bare hand on the bare ground goes unsaid unless it does something there (touching the floor, or a
  * touch the world has never seen, would be said at every step: the frame's faint corners and amber say it).
  */
@@ -131,7 +131,9 @@ function linesOf(k: Keys, pointer: boolean): string {
   const hands = k.hands?.ground && (k.hands.unknown || k.hands.idle) ? undefined : k.hands
   const act = k.action
   const other = (v: KeyView | undefined) => (pointer && act && v && same(act, v) ? undefined : v)
-  return (pointer ? line(t('rmb'), act) + line(t('lmb'), k.use) : '') + line('E', other(hands)) + line('F', other(k.take)) + line('G', other(k.put))
+  // R where it is not what the left click already does (a tool's work, a weapon's blow)
+  const use = pointer && k.use && same(k.use, k.primary) ? undefined : other(k.use)
+  return (pointer ? line(t('rmb'), act) + line(t('lmb'), k.primary) : '') + line('E', other(hands)) + line('F', other(k.take)) + line('G', other(k.put)) + line('R', use)
 }
 
 export class Cursor {

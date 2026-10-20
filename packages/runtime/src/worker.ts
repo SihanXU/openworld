@@ -31,6 +31,8 @@ let moveDir: Dir | null = null
 let walk = false
 /** Space is held: the player strikes whenever the last blow's cooldown allows. */
 let attacking = false
+/** The left button is held: the act its press made, made again at the aim as a swing's pace allows (Controls.again). */
+let swinging: Plan | undefined
 /** Where the mouse points, the open chest panel, and whether time is stopped (a menu or a dialogue is open). */
 let aimTile: Tile | undefined
 /** The left click lays what is held in the ceiling (R with a floor in hand), not on one's storey. */
@@ -304,7 +306,7 @@ async function ensureMaps(): Promise<void> {
 }
 
 /**
- * What each input would do now, foreseeable (design.md §5.2; the page's tip says it): E, F, G and the left
+ * What each input would do now, foreseeable (design.md §5.2; the page's tip says it): E, F, G, R and the left
  * click at the aim (or in front); the action (the right click) there; the held thing used on oneself when it is
  * something to do, or the player points at themself. An experiment with something in hand starts a prefetch.
  */
@@ -328,8 +330,8 @@ function keyViews(): Frame['keys'] {
   const stand = w.posOf(w.player)
   if (!moveDir && stand && aimTile && Math.abs(aimTile.x - stand.x) + Math.abs(aimTile.y - stand.y) === 1) c.face({ ...stand, x: aimTile.x, y: aimTile.y })
   const out: NonNullable<Frame['keys']> = {}
-  // E, F, G, the left click (a press: no layer chosen) and the action (the right click), which makes one of the others' acts
-  for (const k of ['hands', 'take', 'put', 'use', 'action'] as Key[]) {
+  // E, F, G, R (a press: no layer chosen), the left click and the action (the right click), which make one of the others' acts
+  for (const k of ['hands', 'take', 'put', 'use', 'primary', 'action'] as Key[]) {
     const pl = c.plan(k, aimTile, k === 'use' && handUp ? CEILING : undefined)
     shownTarget[k] = pl?.target
     const v = view(pl)
@@ -563,8 +565,12 @@ function loop(): void {
   const stopped = timeStopped(game)
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
-    if (fishingActive(eng)) attacking = false
-    else if (attacking) eng.controls.strike()
+    if (fishingActive(eng)) (attacking = false), (swinging = undefined)
+    else {
+      if (attacking) eng.controls.strike()
+      // the left button held: its act again at the aim, as a swing's pace allows
+      if (swinging) eng.controls.again(swinging, aimTile)
+    }
     eng.tick()
   }
   if (game.neededMaps().length) void ensureMaps()
@@ -744,6 +750,22 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (m.dir && game && !timeStopped(game)) cancelFishing(game)
         if (m.dir && !paused && !panel && !game?.engine.world.state.question) game?.engine.movePlayer(m.dir, walk) // a quick tap still moves one tile
         break
+      case 'primary': {
+        if (!m.on) {
+          swinging = undefined
+          break
+        }
+        if (!game || routeFishingWorkerInput(fishingActive(game.engine), { t: 'key', key: 'primary' }).kind === 'ignore') break
+        if (paused || panel || game.engine.world.state.question) break
+        const c = game.engine.controls
+        // the target the left click's label named (one who walked a step off since stays it)
+        const plan = c.planFor('primary', m.tile, undefined, shownTarget.primary)
+        swinging = plan
+        if (!plan) break
+        const out = c.swing(plan)
+        if (out.panel) panel = out.panel
+        break
+      }
       case 'key': {
         if (!game) break
         if (routeFishingWorkerInput(fishingActive(game.engine), m).kind === 'ignore') break

@@ -54,8 +54,10 @@ export type ToWorker =
   | { t: 'attack'; on: boolean }
   /** A fishing minigame button edge; release/cancel are accepted while paused to clear held input. */
   | { t: 'fishing'; action: FishingAction }
-  /** One of the four inputs (design.md §5.2): E hands, F take, left click use, right click put; on a chosen layer of the tile. */
+  /** One of the inputs (design.md §5.2): E hands, F take, G put, R use, the right click's action; on a chosen layer of the tile. */
   | { t: 'key'; key: Key; tile?: Tile; layer?: number; /** the left button dragged over a new cell: only if it sets something down */ drag?: boolean }
+  /** The left button pressed (its act at once) or let go; held, its act again at the aim as a swing's pace allows (Controls.again). */
+  | { t: 'primary'; on: boolean; tile?: Tile }
   | { t: 'handUp'; up: boolean }
   /** The same on an item in the bag or in the open chest (the inventory's context menu). */
   | { t: 'keyOnItem'; key: Plan['key']; item: string }
@@ -152,7 +154,7 @@ export function routeFishingWorkerInput(
 ): { kind: 'fishing'; action: FishingAction } | { kind: 'ignore' } | { kind: 'game' } {
   if (!active) return { kind: 'game' }
   if (input.t === 'attack') return { kind: 'fishing', action: input.on ? 'press' : 'release' }
-  return input.key === 'use' ? { kind: 'ignore' } : { kind: 'game' }
+  return input.key === 'use' || input.key === 'primary' ? { kind: 'ignore' } : { kind: 'game' }
 }
 
 /** A fishing Space press remains consumed through keyup, even if its session ends on a stale frame. */

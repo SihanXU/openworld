@@ -686,7 +686,7 @@ export class WorldScene extends Phaser.Scene {
   focusOn(f: Frame): void {
     // a frame made before the worker saw the latest aim tells the old spot: the frame waits for the new
     if (!this.keysFresh()) return
-    const k = f.keys?.hands ?? f.keys?.take ?? f.keys?.put ?? f.keys?.use ?? f.keys?.self ?? f.keys?.action
+    const k = f.keys?.hands ?? f.keys?.take ?? f.keys?.put ?? f.keys?.use ?? f.keys?.primary ?? f.keys?.self ?? f.keys?.action
     const [dx, dy] = STEP[f.player.facing]
     const tx = k ? k.x : f.player.x + dx
     const ty = k ? k.y : f.player.y + dy

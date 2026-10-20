@@ -266,7 +266,9 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
     left button then acts on the press (no chooser on a long press) and, held and dragged, in each new
     cell, only where it sets (the worker's `drag`).
   - R with a floor in hand lays it in the ceiling (`CEILING` for the use, the reach over one's head
-    as G's); the view shows one's storey and the ceilings while it is on, as the palette does.
+    as G's); the view shows one's storey and the ceilings while it is on, as the palette does. (R is
+    otherwise the exact use, design.md §5.2; a built thing in hand keeps the left click as that use,
+    with its chooser, where any other object's left click is the swing's blow.)
   - The thing in hand has its ghost where it will be drawn (`BuildingMode.hand`).
   - A lesson's `only` and `cells` narrow it as they narrow G.
 - **The build palette's buildings** (a chest, a campfire, a crate, a fence, a sign: `placement.ts`) go up

@@ -195,7 +195,7 @@ export interface Frame {
    */
   telegraphs?: { who: Id; tiles: [number, number][]; progress: number; color: number; boss?: boolean; pose?: WindupPose }[]
   /** What each input would do right now, the action (the right click) among them (filled by the host, not by snapshot()). */
-  keys?: { hands?: KeyView; take?: KeyView; put?: KeyView; use?: KeyView; self?: KeyView; action?: KeyView }
+  keys?: { hands?: KeyView; take?: KeyView; put?: KeyView; use?: KeyView; self?: KeyView; action?: KeyView; primary?: KeyView }
   /** The open container panel (the host names it): its contents. */
   container?: {
     id: Id
