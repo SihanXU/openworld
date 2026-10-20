@@ -340,33 +340,34 @@ const actorTypes: TypeDef[] = [
   ...PERSON_ROLES.map(([id, en, zh]) => P(`actor/person/${id}`, en, zh)),
   // the profession trainer (engine/src/profession.ts): a profession is chosen within reach of one
   P('actor/person/trainer', 'profession trainer', '职业导师', { tags: ['trainer'] }),
+  // a minor kind's health, attack and defence are not set here: they come from one curve through its role (levels.ts)
   P('actor/creature', 'creature', '怪物', { tags: ['creature', 'living', 'faction:wild'], props: { hp: 10, maxHp: 10, atk: 2, def: 0, speed: 6 } }),
   P('actor/creature/slime', 'slime', '史莱姆', { tags: ['slime', 'gelatinous'], sprite: 'creature:slime', props: { hp: 9, maxHp: 9, atk: 2, speed: 7 } }),
   P('actor/creature/slime/green_slime', 'green slime', '绿史莱姆', {}),
-  P('actor/creature/slime/fire_slime', 'fire slime', '火焰史莱姆', { tags: ['fiery'], props: { element: 'fire', hp: 11, maxHp: 11 } }),
-  P('actor/creature/slime/frost_slime', 'frost slime', '冰霜史莱姆', { tags: ['icy'], props: { element: 'ice', hp: 11, maxHp: 11 } }),
-  P('actor/creature/slime/spark_slime', 'spark slime', '雷电史莱姆', { tags: ['charged'], props: { element: 'lightning', hp: 10, maxHp: 10 } }),
-  P('actor/creature/slime/water_slime', 'water slime', '水史莱姆', { tags: ['watery'], props: { element: 'water', hp: 12, maxHp: 12 } }),
-  P('actor/creature/slime/king_slime', 'Slime King', '史莱姆王', { tags: ['boss', 'large'], sprite: 'boss:slime', props: { hp: 50, maxHp: 50, atk: 4, def: 1, speed: 9 } }),
+  P('actor/creature/slime/fire_slime', 'fire slime', '火焰史莱姆', { tags: ['fiery'], props: { element: 'fire' } }),
+  P('actor/creature/slime/frost_slime', 'frost slime', '冰霜史莱姆', { tags: ['icy'], props: { element: 'ice' } }),
+  P('actor/creature/slime/spark_slime', 'spark slime', '雷电史莱姆', { tags: ['charged'], props: { element: 'lightning' } }),
+  P('actor/creature/slime/water_slime', 'water slime', '水史莱姆', { tags: ['watery'], props: { element: 'water' } }),
+  P('actor/creature/slime/king_slime', 'Slime King', '史莱姆王', { tags: ['boss', 'large'], sprite: 'boss:slime', props: { speed: 9 } }),
   P('actor/creature/beast', 'beast', '野兽', { tags: ['beast', 'furry', 'flammable'], sprite: 'creature:wolf' }),
-  P('actor/creature/beast/wolf', 'wolf', '狼', { props: { hp: 14, maxHp: 14, atk: 3, speed: 4 } }),
-  P('actor/creature/beast/frost_wolf', 'frost wolf', '霜狼', { tags: ['icy'], props: { element: 'ice', hp: 18, maxHp: 18, atk: 4, speed: 4 } }),
-  P('actor/creature/beast/boar', 'boar', '野猪', { sprite: 'creature:boar', props: { hp: 18, maxHp: 18, atk: 4, def: 1, speed: 5 } }),
-  P('actor/creature/beast/bat', 'bat', '蝙蝠', { sprite: 'creature:bat', tags: ['flying'], props: { hp: 6, maxHp: 6, atk: 2, speed: 3, stance: 'air' } }),
+  P('actor/creature/beast/wolf', 'wolf', '狼', { props: { speed: 4 } }),
+  P('actor/creature/beast/frost_wolf', 'frost wolf', '霜狼', { tags: ['icy'], props: { element: 'ice', speed: 4 } }),
+  P('actor/creature/beast/boar', 'boar', '野猪', { sprite: 'creature:boar', props: { speed: 5 } }),
+  P('actor/creature/beast/bat', 'bat', '蝙蝠', { sprite: 'creature:bat', tags: ['flying'], props: { speed: 3, stance: 'air' } }),
   P('actor/creature/undead', 'undead', '亡灵', { tags: ['undead'], sprite: 'creature:skeleton' }),
   // the night's walkers (engine/src/nightspawn.ts): slow, and gone at dawn
-  P('actor/creature/undead/zombie', 'zombie', '僵尸', { tags: ['rotting'], sprite: 'creature:zombie', props: { hp: 14, maxHp: 14, atk: 3, def: 0, speed: 10 } }),
+  P('actor/creature/undead/zombie', 'zombie', '僵尸', { tags: ['rotting'], sprite: 'creature:zombie', props: { speed: 10 } }),
   // the Old Barrow's keeper (docs/quests.md)
-  P('actor/creature/undead/warden', 'barrow warden', '古墓守卫', { tags: ['bone', 'boss'], props: { hp: 45, maxHp: 45, atk: 5, def: 1, speed: 8 } }),
-  P('actor/creature/undead/skeleton', 'skeleton', '骷髅', { tags: ['bone'], props: { hp: 16, maxHp: 16, atk: 4, def: 1, speed: 6 } }),
-  P('actor/creature/undead/ghost', 'ghost', '幽灵', { sprite: 'creature:ghost', tags: ['spectral'], props: { hp: 12, maxHp: 12, atk: 3, speed: 5, element: 'ice', stance: 'air', range: 4 } }),
+  P('actor/creature/undead/warden', 'barrow warden', '古墓守卫', { tags: ['bone', 'boss'], props: { speed: 8 } }),
+  P('actor/creature/undead/skeleton', 'skeleton', '骷髅', { tags: ['bone'], props: { speed: 6 } }),
+  P('actor/creature/undead/ghost', 'ghost', '幽灵', { sprite: 'creature:ghost', tags: ['spectral'], props: { speed: 5, element: 'ice', stance: 'air', range: 4 } }),
   P('actor/creature/golem', 'golem', '魔像', { tags: ['construct'], sprite: 'creature:golem' }),
-  P('actor/creature/golem/stone_golem', 'stone golem', '石魔像', { tags: ['stone'], props: { hp: 30, maxHp: 30, atk: 6, def: 3, speed: 9, element: 'earth' } }),
-  P('actor/creature/golem/ice_golem', 'ice golem', '冰魔像', { tags: ['icy'], props: { hp: 28, maxHp: 28, atk: 5, def: 2, speed: 9, element: 'ice' } }),
+  P('actor/creature/golem/stone_golem', 'stone golem', '石魔像', { tags: ['stone'], props: { speed: 9, element: 'earth' } }),
+  P('actor/creature/golem/ice_golem', 'ice golem', '冰魔像', { tags: ['icy'], props: { speed: 9, element: 'ice' } }),
   P('actor/creature/imp', 'imp', '小恶魔', { tags: ['demon', 'fiery'], sprite: 'creature:imp' }),
-  P('actor/creature/imp/fire_imp', 'fire imp', '火焰小鬼', { props: { hp: 12, maxHp: 12, atk: 3, speed: 5, element: 'fire', range: 4 } }),
+  P('actor/creature/imp/fire_imp', 'fire imp', '火焰小鬼', { props: { speed: 5, element: 'fire', range: 4 } }),
   P('actor/creature/wisp', 'wisp', '鬼火', { tags: ['spectral', 'charged'], sprite: 'creature:wisp', props: { stance: 'air' } }),
-  P('actor/creature/wisp/storm_wisp', 'storm wisp', '风暴鬼火', { props: { hp: 9, maxHp: 9, atk: 3, speed: 4, element: 'lightning', range: 4 } }),
+  P('actor/creature/wisp/storm_wisp', 'storm wisp', '风暴鬼火', { props: { speed: 4, element: 'lightning', range: 4 } }),
   // companions (docs/prologue.md): they follow a leader (props.companion), fly, never block nor fight
   // (it keeps two tiles off its leader, engine companion.ts, and is spoken to from as far)
   P('actor/companion', 'companion', '同伴', { tags: ['companion', 'living', 'airborne', 'essential'], props: { hp: 10, maxHp: 10, atk: 0, def: 0, speed: 2, sight: 8, handsRange: 2 } }),
@@ -380,12 +381,12 @@ const actorTypes: TypeDef[] = [
   P('actor/creature/animal/calf', 'calf', '小牛', { tags: ['livestock', 'furry', 'young'], sprite: 'creature:calf', stage: { lasts: GROWS_UP, into: 'actor/creature/animal/cow' }, props: { hp: 5, maxHp: 5, atk: 0, speed: 6 }, makeup: [{ type: 'item/food/meat/raw', count: 1 }] }),
   P('actor/creature/animal/chick', 'chick', '小鸡', { tags: ['bird', 'feathered', 'young'], sprite: 'creature:chick', stage: { lasts: GROWS_UP, into: 'actor/creature/animal/chicken' }, props: { hp: 2, maxHp: 2, atk: 0, speed: 4 }, makeup: [{ type: 'item/material/feather', count: 1 }] }),
   // the main quest's monsters (docs/main-quest.md)
-  P('actor/creature/spider', 'cave spider', '洞穴蜘蛛', { tags: ['spider', 'venomous'], sprite: 'creature:spider', props: { hp: 8, maxHp: 8, atk: 3, speed: 4 } }),
-  P('actor/creature/cyclops', 'cyclops', '独眼巨人', { tags: ['boss', 'large'], sprite: 'boss:cyclops', props: { hp: 60, maxHp: 60, atk: 6, def: 2, speed: 9 } }),
-  P('actor/creature/whelp', 'dragon whelp', '幼龙', { tags: ['fiery', 'dragon'], sprite: 'creature:whelp', props: { hp: 14, maxHp: 14, atk: 4, speed: 5, element: 'fire' } }),
+  P('actor/creature/spider', 'cave spider', '洞穴蜘蛛', { tags: ['spider', 'venomous'], sprite: 'creature:spider', props: { speed: 4 } }),
+  P('actor/creature/cyclops', 'cyclops', '独眼巨人', { tags: ['boss', 'large'], sprite: 'boss:cyclops', props: { speed: 9 } }),
+  P('actor/creature/whelp', 'dragon whelp', '幼龙', { tags: ['fiery', 'dragon'], sprite: 'creature:whelp', props: { speed: 5, element: 'fire' } }),
   // a boss fight (bosses.ts: its kit and its phases), two cells wide and deep; its body trails behind it
   P('actor/creature/dragon', 'the dragon of Cinder Peak', '烬峰魔龙', { tags: ['boss', 'large', 'fiery', 'dragon'], sprite: 'boss:dragon', footprint: [2, 2], props: { hp: 700, maxHp: 700, atk: 7, def: 3, speed: 8, element: 'fire', range: 4 } }),
-  P('actor/creature/crab', 'giant crab', '巨蟹', { tags: ['shelled', 'watery'], sprite: 'creature:crab', props: { hp: 20, maxHp: 20, atk: 4, def: 3, speed: 7 } }),
+  P('actor/creature/crab', 'giant crab', '巨蟹', { tags: ['shelled', 'watery'], sprite: 'creature:crab', props: { speed: 7 } }),
 ]
 
 /** What kind of crop each vegetable is (a farmer's specialty: life.ts). */
