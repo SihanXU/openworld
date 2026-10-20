@@ -404,6 +404,8 @@ export class Engine {
       return { defined: false }
     }
     const res = this.resolveEvent(ev)
+    // a learned rule whose condition could not be read is set aside at once (its case is open: the hole's default)
+    if (res.fault) this.fault(res.fault.rule, res.fault.reason, true)
     if (this.trace.length > 300) this.trace.shift()
     this.trace.push({ ev, rule: res.rule?.id, defined: res.defined })
     this.traced++

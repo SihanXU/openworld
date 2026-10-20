@@ -385,7 +385,7 @@ export function restoreLibrary(base: Rule[], saved: LibraryData | undefined, ont
   // (a rule set aside at run time comes back set aside, in its place: what grew below it keeps answering)
   const { rules, aside } = withAside(saved)
   for (const r of rules) {
-    if (r.source?.origin !== 'patch' || lib.rules.has(r.id)) continue
+    if (!r || typeof r !== 'object' || r.source?.origin !== 'patch' || lib.rules.has(r.id)) continue
     const res = validatePatch({ artifacts: [{ kind: 'rule', rule: r }] }, { ontology, library: lib, world: r.source.trigger === 'world', protectedFacts })
     if (res.ok) {
       lib.add(r, r.source.at ?? 'restored')
@@ -1175,7 +1175,19 @@ function allTypeTags(onto: Ontology): Set<string> {
   return k.all
 }
 
+/**
+ * Check a patch (design.md §5.11, §5.16). Total: whatever is sent (a save, a reply, a file), the answer is a
+ * result, never a throw.
+ */
 export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult {
+  try {
+    return check(patch, ctx)
+  } catch (err) {
+    return { ok: false, errors: [`the patch could not be checked: ${(err as Error)?.message ?? String(err)}`], warnings: [] }
+  }
+}
+
+function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
   withTerrainTypes(ctx.ontology)
   const worldOps = opsOf(ctx.ontology)
   const errors: string[] = []
@@ -1234,8 +1246,14 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if (!tags.has(t) && !OPEN_TAGS.test(t)) errors.push(`${where}: no thing in the world carries the tag "${t}"`)
   }
   const checkSel = (s: Selector | undefined, where: string) => {
-    if (!s) return
-    if (typeof s !== 'object') return errors.push(`${where}: selector must be an object`)
+    if (s === undefined) return
+    if (!s || typeof s !== 'object' || Array.isArray(s)) return errors.push(`${where}: selector must be an object`)
+    // (the shapes matchSelector reads, or it throws when the rule runs)
+    if (s.type !== undefined && typeof s.type !== 'string') errors.push(`${where}.type must be a type id`)
+    if (s.id !== undefined && typeof s.id !== 'string') errors.push(`${where}.id must be a string`)
+    for (const k of ['tags', 'notTags', 'status', 'notStatus'] as const)
+      if (s[k] !== undefined && !(Array.isArray(s[k]) && s[k]!.every((x) => typeof x === 'string'))) return errors.push(`${where}.${k} must be a list of strings`)
+    if (s.props !== undefined && (!s.props || typeof s.props !== 'object' || Array.isArray(s.props))) errors.push(`${where}.props must be an object`)
     for (const t of [...(s.tags ?? []), ...(s.notTags ?? [])]) checkTag(t, where)
     if (s.type && s.type !== 'tile' && !s.type.startsWith('tile/') && !known(s.type)) errors.push(`${where}.type: unknown type "${s.type}"${s.type in onto.terrains ? ` — a terrain is named "tile/${s.type}"` : closest(s.type, onto)}`)
     if (s.type?.startsWith('tile/') && !(s.type.slice(5) in onto.terrains)) errors.push(`${where}.type: unknown terrain "${s.type}"`)
@@ -1255,8 +1273,33 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     for (const key of Object.keys(object)) if (!keys.includes(key)) errors.push(`${where}.${key}: unknown key`)
     return object
   }
+  /** A plain object, or an error at where. */
+  const isObj = (v: unknown, where: string): v is Record<string, unknown> => {
+    if (v && typeof v === 'object' && !Array.isArray(v)) return true
+    errors.push(`${where} must be an object`)
+    return false
+  }
+  /** A list, or an error at where. */
+  const isList = (v: unknown, where: string, n?: number): v is unknown[] => {
+    if (Array.isArray(v) && (n === undefined || v.length === n)) return true
+    errors.push(`${where} must be a list${n !== undefined ? ` of ${n}` : ''}`)
+    return false
+  }
+  /** A bound's limit: a number, or a number read from a role's prop or the event's params. */
+  const checkOperand = (o: unknown, where: string) => {
+    if (typeof o === 'number') return void (Number.isFinite(o) ? undefined : errors.push(`${where} must be a finite number`))
+    if (!isObj(o, where)) return
+    if (o.mul !== undefined && !(typeof o.mul === 'number' && Number.isFinite(o.mul))) errors.push(`${where}.mul must be a finite number`)
+    if ('param' in o) return void (typeof o.param === 'string' ? undefined : errors.push(`${where}.param must be a param name`))
+    if (typeof o.prop !== 'string') return void errors.push(`${where}: a limit is a number, {prop, of, mul?} or {param, mul?}`)
+    role(o.of, `${where}.of`)
+  }
+  const checkBounds = (b: unknown, where: string) => {
+    if (!isObj(b, where)) return
+    for (const [k, o] of Object.entries(b)) BOUNDS.has(k) ? checkOperand(o, `${where}.${k}`) : errors.push(`${where}.${k}: a bound is eq|gt|gte|lt|lte`)
+  }
   const checkCond = (c: Cond | undefined, where: string): void => {
-    if (!c || typeof c !== 'object') return void errors.push(`${where}: condition must be an object`)
+    if (!c || typeof c !== 'object' || Array.isArray(c)) return void errors.push(`${where}: condition must be an object`)
     const fishingCondition = (Object.keys(FISHING_CONDITION_ROLES) as (keyof typeof FISHING_CONDITION_ROLES)[]).find((key) => key in c)
     if (fishingCondition) {
       if (Object.keys(c).length !== 1) return void errors.push(`${where}: a fishing condition must be used alone`)
@@ -1265,8 +1308,11 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if ((c as Record<string, unknown>)[fishingCondition] !== expected) errors.push(`${where}.${fishingCondition}: role must be "${expected}"`)
       return
     }
-    if ('all' in c) return c.all.forEach((x, i) => checkCond(x, `${where}.all[${i}]`))
-    if ('any' in c) return c.any.forEach((x, i) => checkCond(x, `${where}.any[${i}]`))
+    // (each value in the shape evalCond reads: a value of another shape passes the keys and throws when the rule runs)
+    const objectValued = ['is', 'rel', 'regard', 'grudge', 'sway', 'bounty', 'canPay', 'favourite', 'has', 'prop', 'count', 'param', 'hour', 'exists'] as const
+    for (const k of objectValued) if (k in c && !isObj((c as Record<string, unknown>)[k], `${where}.${k}`)) return
+    if ('all' in c) return void (isList(c.all, `${where}.all`) && c.all.forEach((x, i) => checkCond(x, `${where}.all[${i}]`)))
+    if ('any' in c) return void (isList(c.any, `${where}.any`) && c.any.forEach((x, i) => checkCond(x, `${where}.any[${i}]`)))
     if ('not' in c) return checkCond(c.not, `${where}.not`)
     if ('is' in c) {
       role(c.is.role, `${where}.is.role`)
@@ -1276,12 +1322,12 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('none' in c) return role(c.none, `${where}.none`)
     if ('makeup' in c) return role(c.makeup, `${where}.makeup`)
     if ('worn' in c) return role(c.worn, `${where}.worn`)
-    if ('rel' in c) return role(c.rel.role, `${where}.rel.role`)
+    if ('rel' in c) return (role(c.rel.role, `${where}.rel.role`), typeof c.rel.how !== 'string' ? void errors.push(`${where}.rel.how must be a relation`) : undefined)
     if ('fighting' in c) return role(c.fighting, `${where}.fighting`)
     if ('regard' in c) return (role(c.regard.of, `${where}.regard.of`), role(c.regard.toward, `${where}.regard.toward`))
     if ('grudge' in c) return (role(c.grudge.of, `${where}.grudge.of`), role(c.grudge.toward, `${where}.grudge.toward`))
-    if ('owns' in c) return c.owns.forEach((r, i) => role(r, `${where}.owns[${i}]`))
-    if ('knows' in c) return c.knows.forEach((r, i) => role(r, `${where}.knows[${i}]`))
+    if ('owns' in c) return void (isList(c.owns, `${where}.owns`, 2) && c.owns.forEach((r, i) => role(r, `${where}.owns[${i}]`)))
+    if ('knows' in c) return void (isList(c.knows, `${where}.knows`, 2) && c.knows.forEach((r, i) => role(r, `${where}.knows[${i}]`)))
     if ('remembers' in c) return role(c.remembers, `${where}.remembers`)
     if ('sway' in c) return (role(c.sway.of, `${where}.sway.of`), role(c.sway.by, `${where}.sway.by`), !['persuade', 'intimidate', 'rob', 'steal'].includes(c.sway.how) ? void errors.push(`${where}.sway.how must be persuade|intimidate|rob|steal`) : undefined)
     if ('bounty' in c) return role(c.bounty.role, `${where}.bounty.role`)
@@ -1289,16 +1335,19 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('favourite' in c) return (role(c.favourite.of, `${where}.favourite.of`), c.favourite.item !== undefined ? role(c.favourite.item, `${where}.favourite.item`) : undefined)
     if ('unpardonable' in c) return role(c.unpardonable, `${where}.unpardonable`)
     if ('deed' in c) return c.deed === true || ctx.ontology.deeds?.some((d) => d.id === c.deed) ? undefined : void errors.push(`${where}: unknown deed "${String(c.deed)}"`)
-    if ('same' in c) return c.same.forEach((r, i) => role(r, `${where}.same[${i}]`))
-    if ('leads' in c) return c.leads.forEach((r, i) => role(r, `${where}.leads[${i}]`))
+    if ('same' in c) return void (isList(c.same, `${where}.same`, 2) && c.same.forEach((r, i) => role(r, `${where}.same[${i}]`)))
+    if ('leads' in c) return void (isList(c.leads, `${where}.leads`, 2) && c.leads.forEach((r, i) => role(r, `${where}.leads[${i}]`)))
     if ('has' in c) {
       role(c.has.role, `${where}.has.role`)
-      if (c.has.status && !(c.has.status in onto.statuses)) errors.push(`${where}: unknown status "${c.has.status}"`)
-      if (c.has.tag) checkTag(c.has.tag, where)
+      if (c.has.status !== undefined && typeof c.has.status !== 'string') errors.push(`${where}.has.status must be a status id`)
+      else if (c.has.status && !(c.has.status in onto.statuses)) errors.push(`${where}: unknown status "${c.has.status}"`)
+      if (c.has.tag !== undefined && typeof c.has.tag !== 'string') errors.push(`${where}.has.tag must be a tag`)
+      else if (c.has.tag) checkTag(c.has.tag, where)
       return
     }
     if ('prop' in c) {
-      for (const b of Object.keys(c.prop.bounds ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.prop.bounds.${b}: a bound is eq|gt|gte|lt|lte`)
+      if (typeof c.prop.key !== 'string' || !c.prop.key) errors.push(`${where}.prop.key must be a non-empty property name`)
+      if (c.prop.bounds !== undefined) checkBounds(c.prop.bounds, `${where}.prop.bounds`)
       return c.prop.role === 'story' || c.prop.role === 'world' ? undefined : role(c.prop.role, `${where}.prop.role`)
     }
     if ('propEqualsParam' in c) {
@@ -1320,11 +1369,17 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
         role(k.adding, `${where}.count.adding`)
         if (!k.stacks) errors.push(`${where}.count.adding needs stacks: it counts the one at hand into the slots`)
       }
-      if (!Object.keys(k.cmp ?? {}).length) errors.push(`${where}.count.cmp needs a bound`)
-      for (const b of Object.keys(k.cmp ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.count.cmp.${b}: a bound is eq|gt|gte|lt|lte`)
+      if (k.cmp === undefined || k.cmp === null || (typeof k.cmp === 'object' && !Object.keys(k.cmp).length)) errors.push(`${where}.count.cmp needs a bound`)
+      else checkBounds(k.cmp, `${where}.count.cmp`)
       return
     }
-    if ('param' in c || 'chance' in c || 'hour' in c || 'night' in c || 'topic' in c || 'weather' in c || 'outdoors' in c) return
+    if ('param' in c) return void (typeof c.param.key !== 'string' || !c.param.key ? errors.push(`${where}.param.key must be a param name`) : undefined)
+    if ('chance' in c) return void (typeof c.chance === 'number' && c.chance >= 0 && c.chance <= 1 ? undefined : errors.push(`${where}.chance must be a number in [0, 1]`))
+    if ('hour' in c) return void (['from', 'to'].every((k) => typeof (c.hour as Record<string, unknown>)[k] === 'number' && Number.isFinite((c.hour as Record<string, number>)[k])) ? undefined : errors.push(`${where}.hour must be {from, to}, hours`))
+    if ('night' in c) return void (typeof c.night === 'boolean' ? undefined : errors.push(`${where}.night must be true or false`))
+    if ('topic' in c) return void (typeof c.topic === 'string' ? undefined : errors.push(`${where}.topic must be a topic id`))
+    if ('weather' in c) return void (Array.isArray(c.weather) && c.weather.every((x) => typeof x === 'string') ? undefined : errors.push(`${where}.weather must be a list of weathers`))
+    if ('outdoors' in c) return void (c.outdoors === true ? undefined : errors.push(`${where}.outdoors must be true`))
     if ('exists' in c) return void checkSel(c.exists, `${where}.exists`)
     errors.push(`${where}: unknown condition`)
   }

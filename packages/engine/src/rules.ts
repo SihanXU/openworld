@@ -250,6 +250,27 @@ export function walk(tree: Tree, roles: Roles, world: World, ev: GameEvent): { l
   return { leaf: 'inherit', path }
 }
 
+/**
+ * Walk a learned tree to its leaf, as `walk`: a condition that cannot be read (a malformed one, which throws)
+ * ends the walk at an open leaf there and says which condition it was.
+ */
+function walkLearned(tree: Tree, roles: Roles, world: World, ev: GameEvent): { leaf: Leaf; path: string[]; broken?: { cond: Cond; why: string } } {
+  const path: string[] = []
+  let t: Tree = tree
+  for (let guard = 0; guard < 64; guard++) {
+    if (typeof t === 'string' || !('if' in t)) return { leaf: t, path }
+    let yes: boolean
+    try {
+      yes = evalCond(t.if, roles, world, ev)
+    } catch (err) {
+      return { leaf: { undefined: true }, path, broken: { cond: t.if, why: (err as Error)?.message ?? String(err) } }
+    }
+    path.push(`${yes ? '' : '!'}${JSON.stringify(t.if)}`)
+    t = yes ? t.then : (t.else ?? 'inherit')
+  }
+  return { leaf: 'inherit', path }
+}
+
 /** Every leaf of a tree. */
 export function leaves(tree: Tree): Leaf[] {
   if (typeof tree === 'string' || !('if' in tree)) return [tree]
@@ -405,6 +426,8 @@ export interface Resolution {
    * into (empty: no tree yet). A learned answer is placed there.
    */
   open?: { key: string; tier: Tier; path: string[] }
+  /** A learned rule whose condition could not be read here (it threw): a fault of that rule, its case open. */
+  fault?: { rule: string; reason: string }
 }
 
 // ---------------------------------------------------------------- learned trees
@@ -459,6 +482,8 @@ interface Composed {
   tree: Tree
   /** Each leaf (by reference) to the learned rule it belongs to. */
   owner: WeakMap<object, string>
+  /** Each condition (by reference) to the learned rule it belongs to. */
+  conds: WeakMap<object, string>
   /** Answers that could not be placed: their leaf is gone or already answered. */
   stale: { id: string; why: string }[]
 }
@@ -470,9 +495,17 @@ interface Composed {
  */
 export function compose(answers: Rule[], aside?: ReadonlySet<string>): Composed {
   const owner = new WeakMap<object, string>()
+  const conds = new WeakMap<object, string>()
   const stale: Composed['stale'] = []
   let tree: Tree | undefined
+  const condsOf = (t: Tree, id: string): void => {
+    if (typeof t === 'string' || !t || typeof t !== 'object' || !('if' in t)) return
+    if (t.if && typeof t.if === 'object') conds.set(t.if, id)
+    condsOf(t.then, id)
+    if (t.else !== undefined) condsOf(t.else, id)
+  }
   for (const r of answers) {
+    condsOf(r.tree, r.id)
     // (a rule set aside keeps its place, with its leaves open: what grew below it keeps answering)
     const own = aside?.has(r.id) ? openedTree(r.tree) : r.tree
     for (const l of leaves(own)) if (typeof l === 'object') owner.set(l, r.id)
@@ -487,7 +520,7 @@ export function compose(answers: Rule[], aside?: ReadonlySet<string>): Composed 
     else if (!isHole(spot.leaf)) stale.push({ id: r.id, why: `its leaf is already answered by "${owner.get(spot.leaf as object) ?? '?'}"` })
     else tree = spot.set(copyTree(own))
   }
-  return { tree: tree ?? { undefined: true }, owner, stale }
+  return { tree: tree ?? { undefined: true }, owner, conds, stale }
 }
 
 // ---------------------------------------------------------------- library
@@ -746,18 +779,22 @@ export class RuleLibrary {
     const hole = { rule: base.rule, path: base.path, default: base.leaf.default ?? [] }
     const place = placeKey(roles.host?.type ?? '-', ev.kind, holeKey(base.rule.id, base.path))
     let open = { key: place, tier, path: [] as string[] }
+    let fault: Resolution['fault']
     for (const t of tiersFrom(tier)) {
       const composed = this.trees.get(`${place}|${t}`)
       if (!composed) continue
-      const { leaf, path } = walk(composed.tree, roles, world, ev)
+      // (a learned tree is the AI's: a condition of it that throws is that rule's fault, never resolution's)
+      const { leaf, path, broken } = walkLearned(composed.tree, roles, world, ev)
+      const by = broken && composed.conds.get(broken.cond)
+      if (broken && by && this.rules.has(by)) fault ??= { rule: by, reason: `a condition that cannot be read: ${broken.why}` }
       const id = typeof leaf === 'object' ? composed.owner.get(leaf) : undefined
       const rule = id ? this.rules.get(id) : undefined
       // (a leaf that says undefined is open, whatever else it carries; a learned answer set aside at
       // runtime answers no more: its leaf is open again)
-      if (rule && isDo(leaf) && !isHole(leaf) && !world.state.quarantine?.[rule.id]) return { defined: true, rule, leaf, hole }
+      if (rule && isDo(leaf) && !isHole(leaf) && !world.state.quarantine?.[rule.id]) return { defined: true, rule, leaf, hole, ...(fault && { fault }) }
       if (t === tier) open = { key: place, tier, path }
     }
-    return { defined: false, rule: base.rule, leaf: base.leaf, hole, open }
+    return { defined: false, rule: base.rule, leaf: base.leaf, hole, open, ...(fault && { fault }) }
   }
 
   /** Is there a learned tree for this hole at any of these tiers? */

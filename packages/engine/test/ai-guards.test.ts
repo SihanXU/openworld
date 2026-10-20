@@ -43,6 +43,7 @@ function ask(target = TREE, lib = new RuleLibrary(BASE)) {
 const is = (type: string): Cond => ({ is: { role: 'target', sel: { type } } })
 /** A draft as the model writes it: the harness places it (placePatch). */
 const draft = (id: string, tree: Rule['tree']): Patch => ({ artifacts: [{ kind: 'rule', rule: { id, host: { type: 'x' }, on: 'x', label: 'Use {instrument} on {target}', tree } }] })
+const ruleOf = (p: Patch): Rule => (p.artifacts[0] as { rule: Rule }).rule
 
 describe('a revision keeps what grew below it through a copy and a save (V3)', () => {
   it('the child stays placed live, in a clone, and in a restored save', () => {
@@ -204,5 +205,34 @@ describe("a save's learned kinds and statuses are checked as they come back (V4)
     const lib = restoreLibrary(BASE, save([small, nameless, pebble], [fixed]), onto, [], (id, why) => dropped.push(`${id}: ${why}`))
     expect(lib.types.map((t) => t.id).sort()).toEqual(['item/pebble', 'item/pebble/small'])
     expect(dropped.map((d) => d.split(':')[0]).sort()).toEqual(['item/odd', 'pinned'])
+  })
+})
+
+describe('the validator is total over malformed conditions, and a learned tree never throws out of resolution (V5)', () => {
+  const malformed = [{ all: { is: { role: 'target', sel: { type: TREE } } } }, { any: 'x' }, { weather: null }, { param: null }, { hour: null }, { exists: null }, { same: 'actor' }, { prop: { role: 'host', key: 'hp', bounds: { gt: null } } }, { is: { role: 'target', sel: { tags: 7 } } }] as unknown as Cond[]
+  it('a condition of the wrong shape is refused, never thrown, in a patch and in a save', () => {
+    const { req } = ask()
+    for (const c of malformed) {
+      const p = placePatch(draft('patch/odd', { if: c, then: { do: [{ op: 'log', text: 'x' }] }, else: { undefined: true } }), req).patch
+      let res: ReturnType<typeof validatePatch> | undefined
+      expect(() => (res = validatePatch(p, { ontology: onto, library: new RuleLibrary(BASE), scenario: req.scenario }))).not.toThrow()
+      expect(res!.ok, JSON.stringify(c)).toBe(false)
+      const dropped: string[] = []
+      const back = restoreLibrary(BASE, { rules: [{ ...ruleOf(p), source: { origin: 'patch' } }], types: [], statuses: [], log: [], version: 1 }, onto, [], (id) => dropped.push(id))
+      expect(back.rules.has('patch/odd')).toBe(false)
+      expect(dropped).toEqual(['patch/odd'])
+    }
+  })
+
+  it('a learned rule whose condition throws as it runs is set aside, and the hole\'s default runs', () => {
+    const { req } = ask()
+    const lib = new RuleLibrary(BASE)
+    lib.add({ ...ruleOf(placePatch(draft('patch/odd', { if: { hour: null } as unknown as Cond, then: { do: [{ op: 'log', text: 'x' }] }, else: { undefined: true } }), req).patch), source: { origin: 'patch' } })
+    const eng = buildSandbox(scene(TREE), onto, lib)
+    new ModPort(eng)
+    expect(() => eng.act('use', 'actor', { e: 'it' })).not.toThrow()
+    expect(eng.world.state.quarantine?.['patch/odd']?.reason).toMatch(/condition/)
+    expect(eng.world.fx.some((f) => f.t === 'log' && JSON.stringify(f.text).includes('Nothing happens'))).toBe(true)
+    expect(() => eng.act('use', 'actor', { e: 'it' })).not.toThrow()
   })
 })
