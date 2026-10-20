@@ -8,7 +8,8 @@ import type { World } from './world.ts'
 import { cellId, parseCellId, type CellSpace } from './cells.ts'
 import type { Verb } from './types.ts'
 import type { RuleLibrary } from './rules.ts'
-import type { Entity, Expectation, GameEvent, MapData, Ontology, Ref, Scenario, Space, WorldState } from './types.ts'
+import type { Entity, Expectation, FxEvent, GameEvent, MapData, Ontology, Ref, Scenario, Space, WorldState } from './types.ts'
+import { REFUSAL } from './effects.ts'
 
 export const SANDBOX_MAP = 'sandbox'
 
@@ -133,31 +134,56 @@ export function scenarioEvent(sc: Scenario, eng: Engine): GameEvent {
 /**
  * What one event makes, replayed again and again with no time between (world-model.md §8.4):
  * the things each replay made (cell things changing are not things made), while its host stands.
+ * The actor's experience and fullness going up count as things made.
  */
-/** The actor's numbers an outcome may raise for nothing: experience and fullness (a farm of either is a yield too). */
+/** The actor's numbers an outcome may raise for nothing, read even before the actor has them: experience and fullness. */
 const GAINS = ['xp', 'hunger'] as const
+/** The roles whose numbers the repeat check watches (besides the host). */
+const WATCHED = ['actor', 'target', 'instrument'] as const
 
 export function repeatYields(eng: Engine, ev: GameEvent, times = 12): number[] {
-  const w = eng.world
   const out: number[] = []
-  const actor = ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : undefined
-  const nums = () => {
-    const a = actor ? w.get(actor) : undefined
-    return a ? GAINS.map((k) => w.num(a, k)) : []
-  }
-  for (let i = 0; i < times && w.get(ev.host.e); i++) {
-    const before = new Set(Object.keys(w.state.entities))
-    const had = nums()
-    eng.queue({ ...structuredClone(ev), depth: 0 })
-    eng.flush()
-    let made = 0
-    for (const id of Object.keys(w.state.entities)) if (!before.has(id) && !parseCellId(id) && w.get(id)) made++
-    // a number that went up with nothing between is a yield as much as a thing made
-    const has = nums()
-    for (const [k, v] of has.entries()) if (v > (had[k] ?? v)) made++
-    out.push(made)
-  }
+  for (let i = 0; i < times && eng.world.get(ev.host.e); i++) out.push(replayOnce(eng, ev).made)
   return out
+}
+
+/**
+ * One replay of the event: the things it made (and the actor's gains), and the numbers of its participants
+ * (the host, the actor, the target, the instrument) it raised, by `id.key` (one it did not have before is
+ * set, not raised).
+ */
+function replayOnce(eng: Engine, ev: GameEvent): { made: number; raised: string[] } {
+  const w = eng.world
+  const ids = [...new Set([ev.host, ...WATCHED.map((r) => ev.roles[r])].flatMap((r) => (r && 'e' in r ? [r.e] : [])))]
+  const actor = ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : undefined
+  const gain = (k: string) => !!actor && GAINS.some((g) => k === `${actor}.${g}`)
+  const nums = () => {
+    const m = new Map<string, number>()
+    for (const id of ids) {
+      const e = w.get(id)
+      if (!e) continue
+      for (const k of new Set([...Object.keys(e.props ?? {}), ...Object.keys(w.onto.resolve(e.type).props)])) {
+        const v = w.prop(e, k)
+        if (typeof v === 'number') m.set(`${id}.${k}`, v)
+      }
+      if (id === actor) for (const k of GAINS) m.set(`${id}.${k}`, w.num(e, k))
+    }
+    return m
+  }
+  const before = new Set(Object.keys(w.state.entities))
+  const had = nums()
+  eng.queue({ ...structuredClone(ev), depth: 0 })
+  eng.flush()
+  let made = 0
+  for (const id of Object.keys(w.state.entities)) if (!before.has(id) && !parseCellId(id) && w.get(id)) made++
+  const raised: string[] = []
+  for (const [k, v] of nums())
+    if (v > (had.get(k) ?? v)) {
+      // the actor's gains are yields like things made
+      if (gain(k)) made++
+      else raised.push(k)
+    }
+  return { made, raised }
 }
 
 /** How often the repeat check replays an event before it gives its verdict (it ends sooner when the scene comes back to a state it was in). */
@@ -203,6 +229,7 @@ function participants(eng: Engine, ev: GameEvent): string {
 export function yieldCycle(eng: Engine, ev: GameEvent): string | undefined {
   const seen = new Map<string, number>()
   const made: number[] = []
+  const raised: string[][] = []
   let total = 0
   for (let i = 0; i <= REPEAT_TIMES; i++) {
     if (!eng.world.get(ev.host.e)) return undefined
@@ -214,13 +241,20 @@ export function yieldCycle(eng: Engine, ev: GameEvent): string | undefined {
     }
     seen.set(k, i)
     if (i === REPEAT_TIMES) break
-    const n = repeatYields(eng, ev, 1)[0] ?? 0
+    const once = replayOnce(eng, ev)
+    const n = once.made
     made.push(n)
+    raised.push(once.raised)
     total += n
     if (total > YIELD_MOST) return `${total} things from ${i + 1} replays with no time between (at most ${YIELD_MOST}: a bigger store must come back over time)`
   }
   // (no state came back: it ends if it has stopped making things)
-  return made.slice(-4).some((n) => n > 0) ? `still making things after ${REPEAT_TIMES} replays` : undefined
+  if (made.slice(-4).some((n) => n > 0)) return `still making things after ${REPEAT_TIMES} replays`
+  // a number raised on every replay to the end is a yield that never stops (a power, a charge that only grows); one
+  // that tops out, a count that gates the outcome, a flag that goes up and down, is not
+  const late = raised.slice(-4)
+  const rising = late.length === 4 ? late[0].filter((k) => late.every((r) => r.includes(k))) : []
+  return rising.length ? `still raising ${rising.map((k) => k.slice(k.indexOf('.') + 1)).join(', ')} on every replay after ${REPEAT_TIMES} replays` : undefined
 }
 
 /**
@@ -362,8 +396,15 @@ export function replay(sc: Scenario, ontology: Ontology, lib: RuleLibrary): Repl
   } catch (err) {
     errors.push('runtime error: ' + (err as Error).message)
   }
-  for (const f of eng.world.fx) if (f.t === 'log' && f.tone === 'warn') errors.push(String(f.text))
+  // a warning, and an effect the outcome was refused (a spawn past the most, an amount that is no number):
+  // the player is not shown the refusal (a developer's line), but a patch that makes one does not hold
+  for (const f of eng.world.fx) if (f.t === 'log' && (f.tone === 'warn' || isRefusal(f))) errors.push(String(f.text))
   return { resolution, engine: eng, errors, hpBefore }
+}
+
+/** Is this the line of an effect a rule's outcome was refused (EffectRunner, `refusalLine`)? */
+export function isRefusal(f: FxEvent): boolean {
+  return f.t === 'log' && f.tone === 'dev' && typeof f.text === 'string' && f.text.startsWith(REFUSAL)
 }
 
 export function checkExpectations(eng: Engine, exps: Expectation[], res?: Resolution): string[] {
