@@ -1039,10 +1039,10 @@ req('K1', 'a creature has skills of its own (the kits module): it marks the cell
   expect(Math.abs(at.x - from.x) + Math.abs(at.y - from.y)).toBeGreaterThan(0)
 }, 60000)
 
-req('K3', 'a kind of the First Night\'s own: sporecaps, mushrooms grown into things that walk, where the Hollow\'s thorns are thickest; their Spore Cloud poisons, and fire takes them', ['actor/creature/fungus/sporecap'], () => {
+req('K3', 'a kind of the First Night\'s own: sporecaps, mushrooms grown into things that walk, where the Hollow\'s thorns are thickest — a kit of their own (its poison held by kits.test.ts), flammable, a piece of their own', ['actor/creature/fungus/sporecap'], () => {
   const f = fresh()
   const w = W(f)
-  const caps = Object.values(w.state.entities).filter((e) => e.type === 'actor/creature/fungus/sporecap' && e.place.on === 'tile')
+  const caps = w.ofType('actor/creature/fungus/sporecap').filter((e) => e.place.on === 'tile')
   expect(caps.map((e) => (e.place.on === 'tile' ? e.place.map : ''))).toEqual(['hollow', 'hollow'])
   expect(kitsOf(f.eng).kitOf(caps[0])?.map((s) => s.id)).toEqual(['spores'])
   expect(w.hasTag(caps[0], 'flammable')).toBe(true)

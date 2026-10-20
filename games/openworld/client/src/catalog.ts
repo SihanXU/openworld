@@ -793,9 +793,10 @@ export const CATALOG: Catalog = {
     'creature:crab': mon('Mollusc', 'Mollusc.png'),
     // the main quest's monsters
     'creature:spider': mon('SpiderRed'),
-    // the sporecap: the pack's mushroom monster, unused until now
-    'creature:fungus': { dir: 'Actor/Monster/Mushroom', sheet: 'mushroom.png', cols: 4, rows: 4 },
-    'creature:fungus:sporecap': { dir: 'Actor/Monster/Mushroom', sheet: 'mushroom.png', cols: 4, rows: 4 },
+    // the sporecap: the pack's mushroom monster, whose first frame is also the mushroom and the fairy ring: tinted a
+    // sickly violet, so a sporecap among the Hollow's mushrooms is not taken for one of them
+    'creature:fungus': { dir: 'Actor/Monster/Mushroom', sheet: 'mushroom.png', cols: 4, rows: 4, tint: 0xc9a6e8 },
+    'creature:fungus:sporecap': { dir: 'Actor/Monster/Mushroom', sheet: 'mushroom.png', cols: 4, rows: 4, tint: 0xc9a6e8 },
     'creature:whelp': mon('Dragon'),
     // the meadow's animals: the project's own art (tools/src/art/animals.ts), not the pack's
     'creature:cow': { dir: 'lsw/Animal/Cow', sheet: 'SpriteSheet.png', cols: 4, rows: 4 },
