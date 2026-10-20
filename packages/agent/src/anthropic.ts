@@ -75,7 +75,8 @@ export class AnthropicModel implements Model {
       fallbacks: 'default',
     }
     const t0 = Date.now()
-    const r = await this.client.beta.messages.create(params, { timeout: opts.deadlineMs ?? this.cfg.timeoutMs ?? 180_000, maxRetries: opts.retries ?? 2 })
+    // (a deadline of 0 is the harness's "off", as the API backend reads it)
+    const r = await this.client.beta.messages.create(params, { timeout: opts.deadlineMs || this.cfg.timeoutMs || 180_000, maxRetries: opts.retries ?? 2 })
     if (r.stop_reason === 'refusal') throw new Error(`anthropic: declined (${r.stop_details?.category ?? 'no category'})`)
     const text = r.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('')
     const calls: ToolCall[] = r.content.flatMap((b) => (b.type === 'tool_use' ? [{ id: b.id, name: b.name, args: b.input }] : []))
