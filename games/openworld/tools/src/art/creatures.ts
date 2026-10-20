@@ -7,6 +7,7 @@
 //
 //   npx tsx games/openworld/tools/src/art/creatures.ts
 
+import { fileURLToPath } from 'node:url'
 import { Raster, writeAtlas, type Palette, type RGBA } from './raster.ts'
 
 type View = 'down' | 'up' | 'side'
@@ -247,5 +248,6 @@ export const CREATURE_SHEETS: [string, (v: View, s: number) => Raster, Palette][
   ['Creature/StormWisp/SpriteSheet.png', wisp, WISP],
 ]
 
-for (const [path, draw, pal] of CREATURE_SHEETS) writeAtlas(path, sheetOf(draw), pal)
+// written only when run, never when imported
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) for (const [path, draw, pal] of CREATURE_SHEETS) writeAtlas(path, sheetOf(draw), pal)
 console.log(`creature sheets written: ${CREATURE_SHEETS.length}`)
