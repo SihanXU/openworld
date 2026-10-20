@@ -8,6 +8,7 @@ import { adoptDefinitions, artsToSend, forgetInvalid, learnedRecipes, recipeOf, 
 import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
+import { settleOpenQuestions, withOpenQuestions } from './saves.ts'
 import { routeFishingWorkerInput, type StoredLibrary, type Atlas, type AtlasContinent, type AtlasMap, type FromWorker, type LibraryView, type RecordView, type SaveSummary, type Tile, type ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
@@ -509,7 +510,8 @@ function doSave(auto = false): void {
   const fallen = w.hasStatus({ e: p.id }, 'down')
   const difficulty = difficultyOf(game.engine)
   if (fallen && difficulty !== 'hardcore') return
-  const save = game.save()
+  // (a question open now is not saved: loaded, its hole's default runs, as after a time-out)
+  const save = withOpenQuestions(game.save(), game.mods)
   const cal = w.calendar()
   const here = w.posOf(p)?.map
   const summary: SaveSummary = {
@@ -652,6 +654,8 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     const here = game.engine.world.posOf(game.engine.world.player)?.map
     if (here) game.loadChunk(await chunkFor(here))
     for (const id of game.engine.world.state.loadedMaps) if (id !== here) delete game.engine.world.state.maps[id]
+    // the questions open when it was saved are answered by no one: their defaults run, as after a time-out
+    settleOpenQuestions(game.engine, init.save)
   } else {
     game = Game.create(index, ontology(), lib, init.at ? { at: init.at } : init.start)
     // a new game is already the world as it is now: no upgrade is due (the game's, the author's, on creating it)
