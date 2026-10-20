@@ -250,6 +250,27 @@ export function walk(tree: Tree, roles: Roles, world: World, ev: GameEvent): { l
   return { leaf: 'inherit', path }
 }
 
+/**
+ * Walk a learned tree to its leaf, as `walk`: a condition that cannot be read (a malformed one, which throws)
+ * ends the walk at an open leaf there and says which condition it was.
+ */
+function walkLearned(tree: Tree, roles: Roles, world: World, ev: GameEvent): { leaf: Leaf; path: string[]; broken?: { cond: Cond; why: string } } {
+  const path: string[] = []
+  let t: Tree = tree
+  for (let guard = 0; guard < 64; guard++) {
+    if (typeof t === 'string' || !('if' in t)) return { leaf: t, path }
+    let yes: boolean
+    try {
+      yes = evalCond(t.if, roles, world, ev)
+    } catch (err) {
+      return { leaf: { undefined: true }, path, broken: { cond: t.if, why: (err as Error)?.message ?? String(err) } }
+    }
+    path.push(`${yes ? '' : '!'}${JSON.stringify(t.if)}`)
+    t = yes ? t.then : (t.else ?? 'inherit')
+  }
+  return { leaf: 'inherit', path }
+}
+
 /** Every leaf of a tree. */
 export function leaves(tree: Tree): Leaf[] {
   if (typeof tree === 'string' || !('if' in tree)) return [tree]
@@ -405,6 +426,8 @@ export interface Resolution {
    * into (empty: no tree yet). A learned answer is placed there.
    */
   open?: { key: string; tier: Tier; path: string[] }
+  /** A learned rule whose condition could not be read here (it threw): a fault of that rule, its case open. */
+  fault?: { rule: string; reason: string }
 }
 
 // ---------------------------------------------------------------- learned trees
@@ -430,6 +453,13 @@ function copyTree(t: Tree): Tree {
   return { if: t.if, then: copyTree(t.then), ...(t.else !== undefined ? { else: copyTree(t.else) } : {}) }
 }
 
+/** A copy of a tree with every answer open: the place a rule set aside keeps, its branches standing for what grew below it. */
+function openedTree(t: Tree): Tree {
+  if (typeof t === 'string') return t
+  if ('if' in t) return { if: t.if, then: openedTree(t.then), ...(t.else !== undefined ? { else: openedTree(t.else) } : {}) }
+  return isDo(t) && !isHole(t) ? { undefined: true } : t
+}
+
 /** The branch a path element names at an if-node: the condition, taken (`...`) or not (`!...`). */
 const branchKey = (c: Cond, yes: boolean): string => `${yes ? '' : '!'}${JSON.stringify(c)}`
 
@@ -452,6 +482,8 @@ interface Composed {
   tree: Tree
   /** Each leaf (by reference) to the learned rule it belongs to. */
   owner: WeakMap<object, string>
+  /** Each condition (by reference) to the learned rule it belongs to. */
+  conds: WeakMap<object, string>
   /** Answers that could not be placed: their leaf is gone or already answered. */
   stale: { id: string; why: string }[]
 }
@@ -461,27 +493,53 @@ interface Composed {
  * each later one replaces the undefined leaf at its `at`. A leaf keeps its answer, so the rule that
  * decided an event is known, and an answer set aside at runtime leaves its leaves open.
  */
-export function compose(answers: Rule[]): Composed {
+export function compose(answers: Rule[], aside?: ReadonlySet<string>): Composed {
   const owner = new WeakMap<object, string>()
+  const conds = new WeakMap<object, string>()
   const stale: Composed['stale'] = []
   let tree: Tree | undefined
+  const condsOf = (t: Tree, id: string): void => {
+    if (typeof t === 'string' || !t || typeof t !== 'object' || !('if' in t)) return
+    if (t.if && typeof t.if === 'object') conds.set(t.if, id)
+    condsOf(t.then, id)
+    if (t.else !== undefined) condsOf(t.else, id)
+  }
   for (const r of answers) {
-    for (const l of leaves(r.tree)) if (typeof l === 'object') owner.set(l, r.id)
+    condsOf(r.tree, r.id)
+    // (a rule set aside keeps its place, with its leaves open: what grew below it keeps answering)
+    const own = aside?.has(r.id) ? openedTree(r.tree) : r.tree
+    for (const l of leaves(own)) if (typeof l === 'object') owner.set(l, r.id)
     const at = r.at ?? []
     if (tree === undefined) {
       if (at.length) stale.push({ id: r.id, why: 'placed below a leaf, but no answer holds the tree yet' })
-      else tree = copyTree(r.tree)
+      else tree = copyTree(own)
       continue
     }
     const spot = locate(tree, at)
     if (!spot) stale.push({ id: r.id, why: 'its place is gone: the path no longer leads to a leaf' })
     else if (!isHole(spot.leaf)) stale.push({ id: r.id, why: `its leaf is already answered by "${owner.get(spot.leaf as object) ?? '?'}"` })
-    else tree = spot.set(copyTree(r.tree))
+    else tree = spot.set(copyTree(own))
   }
-  return { tree: tree ?? { undefined: true }, owner, stale }
+  return { tree: tree ?? { undefined: true }, owner, conds, stale }
 }
 
 // ---------------------------------------------------------------- library
+
+/**
+ * A saved library's rules in their order, the ones set aside among them (each after the rule it stood
+ * after; one whose anchor is gone, last), and which those are.
+ */
+export function withAside(d: Pick<LibraryData, 'rules' | 'aside'>): { rules: Rule[]; aside: Set<string> } {
+  const rules = [...(d.rules ?? [])]
+  const aside = new Set<string>()
+  for (const a of d.aside ?? []) {
+    if (!a?.rule?.id || aside.has(a.rule.id) || rules.some((r) => r.id === a.rule.id)) continue
+    const i = a.after === undefined ? -1 : rules.findIndex((r) => r.id === a.after)
+    rules.splice(i < 0 && a.after !== undefined ? rules.length : i + 1, 0, a.rule)
+    aside.add(a.rule.id)
+  }
+  return { rules, aside }
+}
 
 export interface LibraryEntry {
   version: number
@@ -497,6 +555,11 @@ export interface LibraryEntry {
 
 export interface LibraryData {
   rules: Rule[]
+  /**
+   * Learned rules set aside at run time (design.md §5.16): out of `rules`, kept for their place in their tree
+   * (their leaves open), each after the learned rule that stood before it (none: the first).
+   */
+  aside?: { rule: Rule; after?: string }[]
   types: TypeDef[]
   statuses: StatusDef[]
   log: LibraryEntry[]
@@ -518,6 +581,11 @@ export class RuleLibrary {
   private order = new Map<string, number>()
   /** Where removed learned rules stood (a revision takes its predecessor's place, so what grew below it stays). */
   private retired = new Map<string, { order: number; key: string | undefined }>()
+  /**
+   * Learned rules set aside at run time (`Engine.fault`): out of the library (they answer nothing), but their
+   * trees keep their place with every leaf open, so the answers that grew below them still stand.
+   */
+  private aside = new Map<string, Rule>()
   private added = 0
   readonly rules = new Map<string, Rule>()
   /** Types and statuses introduced by patches (base ontology lives in content). */
@@ -544,7 +612,9 @@ export class RuleLibrary {
     this.rules.set(r.id, r)
     this.specs.set(r.id, specOf(r))
     const old = inPlaceOf ? this.retired.get(inPlaceOf) : undefined
-    this.order.set(r.id, old && old.key === keyOf(r) ? old.order : this.added++)
+    // (one set aside and taken back by an author is where it stood)
+    const back = this.aside.delete(r.id) ? this.order.get(r.id) : undefined
+    this.order.set(r.id, back ?? (old && old.key === keyOf(r) ? old.order : this.added++))
     if (later) return
     if (isPatch(r)) this.rebuildTree(keyOf(r))
     else this.rebuild(r.on.split('/')[0])
@@ -559,14 +629,13 @@ export class RuleLibrary {
   /** The tree of a key from its answers, oldest first (a learned rule with no place is kept, never consulted). */
   private rebuildTree(key: string | undefined): void {
     if (!key) return
-    const list = [...this.rules.values()].filter((r) => keyOf(r) === key).sort((a, b) => this.order.get(a.id)! - this.order.get(b.id)!)
-    if (!list.length) {
-      this.byKey.delete(key)
-      this.trees.delete(key)
-      return
-    }
-    this.byKey.set(key, list)
-    this.trees.set(key, compose(list))
+    const byOrder = (a: Rule, b: Rule) => this.order.get(a.id)! - this.order.get(b.id)!
+    const list = [...this.rules.values()].filter((r) => keyOf(r) === key).sort(byOrder)
+    const aside = [...this.aside.values()].filter((r) => keyOf(r) === key)
+    if (list.length) this.byKey.set(key, list)
+    else this.byKey.delete(key)
+    if (!list.length && !aside.length) this.trees.delete(key)
+    else this.trees.set(key, compose([...list, ...aside].sort(byOrder), new Set(aside.map((r) => r.id))))
   }
 
   spec(id: string): Spec | undefined {
@@ -611,6 +680,16 @@ export class RuleLibrary {
   }
 
   remove(id: string, now = new Date().toISOString()): boolean {
+    const set = this.aside.get(id)
+    if (set) {
+      // one set aside goes for good: its place goes with it
+      this.aside.delete(id)
+      this.retired.set(id, { order: this.order.get(id)!, key: keyOf(set) })
+      this.order.delete(id)
+      this.rebuildTree(keyOf(set))
+      this.version += 1
+      return true
+    }
     const r = this.rules.get(id)
     if (!r) return false
     this.rules.delete(id)
@@ -622,6 +701,28 @@ export class RuleLibrary {
     this.version += 1
     this.log.push({ version: this.version, action: 'remove', ruleId: id, at: now })
     return true
+  }
+
+  /**
+   * A learned rule set aside at run time (design.md §5.16): it leaves the library and answers nothing, but its
+   * tree keeps its place with every leaf open, so the answers that grew below it keep theirs and its own
+   * cases are open again (the hole's default; a new answer may take them). Logged as a removal.
+   */
+  setAside(id: string, now = new Date().toISOString()): boolean {
+    const r = this.rules.get(id)
+    if (!r || !isPatch(r)) return false
+    this.rules.delete(id)
+    this.specs.delete(id)
+    this.aside.set(id, r)
+    this.rebuildTree(keyOf(r))
+    this.version += 1
+    this.log.push({ version: this.version, action: 'remove', ruleId: id, at: now })
+    return true
+  }
+
+  /** Is this learned rule set aside (kept only for its place)? */
+  isAside(id: string): boolean {
+    return this.aside.has(id)
   }
 
   /** The base rules whose kind covers this one and whose host fits, most specific first. */
@@ -678,18 +779,22 @@ export class RuleLibrary {
     const hole = { rule: base.rule, path: base.path, default: base.leaf.default ?? [] }
     const place = placeKey(roles.host?.type ?? '-', ev.kind, holeKey(base.rule.id, base.path))
     let open = { key: place, tier, path: [] as string[] }
+    let fault: Resolution['fault']
     for (const t of tiersFrom(tier)) {
       const composed = this.trees.get(`${place}|${t}`)
       if (!composed) continue
-      const { leaf, path } = walk(composed.tree, roles, world, ev)
+      // (a learned tree is the AI's: a condition of it that throws is that rule's fault, never resolution's)
+      const { leaf, path, broken } = walkLearned(composed.tree, roles, world, ev)
+      const by = broken && composed.conds.get(broken.cond)
+      if (broken && by && this.rules.has(by)) fault ??= { rule: by, reason: `a condition that cannot be read: ${broken.why}` }
       const id = typeof leaf === 'object' ? composed.owner.get(leaf) : undefined
       const rule = id ? this.rules.get(id) : undefined
       // (a leaf that says undefined is open, whatever else it carries; a learned answer set aside at
       // runtime answers no more: its leaf is open again)
-      if (rule && isDo(leaf) && !isHole(leaf) && !world.state.quarantine?.[rule.id]) return { defined: true, rule, leaf, hole }
+      if (rule && isDo(leaf) && !isHole(leaf) && !world.state.quarantine?.[rule.id]) return { defined: true, rule, leaf, hole, ...(fault && { fault }) }
       if (t === tier) open = { key: place, tier, path }
     }
-    return { defined: false, rule: base.rule, leaf: base.leaf, hole, open }
+    return { defined: false, rule: base.rule, leaf: base.leaf, hole, open, ...(fault && { fault }) }
   }
 
   /** Is there a learned tree for this hole at any of these tiers? */
@@ -730,29 +835,55 @@ export class RuleLibrary {
     return false
   }
 
+  /** The learned rules, in the order they hold their places (a revision where its predecessor stood). */
   patches(): Rule[] {
-    return [...this.rules.values()].filter(isPatch)
+    return this.inOrder().filter(isPatch)
+  }
+
+  /**
+   * Every rule in its order: a revision takes its predecessor's place, so it can stand before rules
+   * added earlier (the answers that grew below it). A copy or a save keeps that order, or what grew
+   * below a revision would come before it and lose its place.
+   */
+  private inOrder(): Rule[] {
+    return [...this.rules.values()].sort((a, b) => this.order.get(a.id)! - this.order.get(b.id)!)
   }
 
   clone(): RuleLibrary {
-    const lib = new RuleLibrary([...this.rules.values()])
+    const lib = new RuleLibrary(this.inOrder())
+    lib.order = new Map(this.order)
+    lib.retired = new Map(this.retired)
+    lib.added = this.added
+    if (this.aside.size) {
+      lib.aside = new Map(this.aside)
+      for (const key of new Set([...this.aside.values()].map(keyOf))) lib.rebuildTree(key)
+    }
     lib.types = [...this.types]
     lib.statuses = [...this.statuses]
     lib.version = this.version
     return lib
   }
 
+  /** The rules set aside, each after the learned rule that stood before it (what a save keeps of them). */
+  private asideJSON(): Pick<LibraryData, 'aside'> {
+    if (!this.aside.size) return {}
+    const all = [...this.patches(), ...this.aside.values()].sort((a, b) => this.order.get(a.id)! - this.order.get(b.id)!)
+    return { aside: all.flatMap((r, i) => (this.aside.has(r.id) ? [{ rule: r, ...(i ? { after: all[i - 1].id } : {}) }] : [])) }
+  }
+
   toJSON(): LibraryData {
-    return { rules: [...this.rules.values()], types: this.types, statuses: this.statuses, log: this.log, version: this.version }
+    return { rules: this.inOrder(), ...this.asideJSON(), types: this.types, statuses: this.statuses, log: this.log, version: this.version }
   }
 
   /** What was learned (the patches, the kinds and statuses they brought, the log): what a save keeps — the base is the game's, fresh from content on every load. */
   learnedJSON(): LibraryData {
-    return { rules: this.patches(), types: this.types, statuses: this.statuses, log: this.log, version: this.version }
+    return { rules: this.patches(), ...this.asideJSON(), types: this.types, statuses: this.statuses, log: this.log, version: this.version }
   }
 
   static fromJSON(d: LibraryData): RuleLibrary {
-    const lib = new RuleLibrary(d.rules)
+    const { rules, aside } = withAside(d)
+    const lib = new RuleLibrary(rules)
+    for (const id of aside) lib.setAside(id)
     lib.types = d.types ?? []
     lib.statuses = d.statuses ?? []
     lib.log = d.log ?? []

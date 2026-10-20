@@ -5,8 +5,8 @@
 // ships with, every new game and save beginning from them) or left. "Written large offline and patched free
 // online by one mechanism" (design.md §10).
 
-import { buildRequest, buildSandbox, restoreLibrary, scenarioEvent, validatePatch, type ModProgress, type Patch, type ResolveReply, type Rule } from '@openworld/engine'
-import { holeScenario, holesByType, holesFor, targetsOf, type HoleCell, type HoleReport, type LearnedFile } from '@openworld/format'
+import { buildRequest, buildSandbox, restoreLibrary, scenarioEvent, validatePatch, type ModProgress, type Patch, type ResolveReply, type Rule, type Scenario, type ValidationResult } from '@openworld/engine'
+import { holeScenario, holesByType, holesFor, targetsOf, type Compiled, type HoleCell, type HoleReport, type LearnedFile } from '@openworld/format'
 import type { Ctx, Mode } from './context.ts'
 import { outline, replayed, type RulesMode } from './rulesMode.ts'
 import { phrase } from './lang.ts'
@@ -17,11 +17,29 @@ const MODDER = 'openworld.editor.modder'
 
 interface Asked {
   cell: HoleCell
+  /** The scene the question was asked in (the request's): its answer is judged and replayed in it, as the game would. */
+  scenario: Scenario
   state: 'asking' | 'answered' | 'failed'
   stage?: string
   reply?: ResolveReply
+  /** Whether the answer holds where it was asked (validated in its scene). */
+  holds?: ValidationResult
   replay?: string
   error?: string
+}
+
+/**
+ * Does an answer hold where it was asked, as the game would judge it: validated in the request's scene (the
+ * triggering event replayed: it is undefined without the patch, and resolves to it with it), against the game's
+ * library with the patches it ships with.
+ */
+export function answerHolds(c: Compiled, scenario: Scenario, patch: Patch): ValidationResult {
+  try {
+    const lib = restoreLibrary(c.bundle.rules, c.bundle.learned, structuredClone(c.bundle.ontology))
+    return validatePatch(patch, { ontology: structuredClone(c.bundle.ontology), library: lib, scenario })
+  } catch (e) {
+    return { ok: false, errors: [(e as Error).message], warnings: [] }
+  }
 }
 
 export class HolesMode implements Mode {
@@ -61,6 +79,18 @@ export class HolesMode implements Mode {
     this.countedAt = c
     this.counting = undefined
     ctx.refresh()
+  }
+
+  /** Open at one kind's holes, counted for it alone: a new thing taken in, whose acts are asked here. */
+  focus(ctx: Ctx, type: string): void {
+    const c = ctx.store.compiled()
+    const on = holesFor(c.bundle.ontology, c.bundle.rules, { targets: [type], learned: c.bundle.learned })
+    const held = holesFor(c.bundle.ontology, c.bundle.rules, { hands: [type], verbs: ['use', 'self'], learned: c.bundle.learned })
+    this.report = { cells: [...on.cells, ...held.cells], checked: on.checked + held.checked }
+    this.countedAt = c
+    this.sel = type
+    this.asked = undefined
+    ctx.open('holes')
   }
 
   render(ctx: Ctx, left: HTMLElement, right: HTMLElement): void {
@@ -112,7 +142,7 @@ export class HolesMode implements Mode {
       ${a ? this.review(a) : ''}`
     el.querySelectorAll<HTMLButtonElement>('[data-ask]').forEach((b) => (b.onclick = () => void this.ask(ctx, cells[Number(b.dataset.ask)])))
     el.querySelectorAll<HTMLButtonElement>('[data-hand]').forEach((b) => (b.onclick = () => this.byHand(ctx, cells[Number(b.dataset.hand)])))
-    el.querySelector<HTMLButtonElement>('#pReplay')?.addEventListener('click', () => { if (this.asked?.reply?.patch) (this.asked.replay = this.replayWith(ctx, this.asked.cell, this.asked.reply.patch)), ctx.refresh() })
+    el.querySelector<HTMLButtonElement>('#pReplay')?.addEventListener('click', () => { if (this.asked?.reply?.patch) (this.asked.replay = this.replayWith(ctx, this.asked, this.asked.reply.patch)), ctx.refresh() })
     el.querySelector<HTMLButtonElement>('#pTake')?.addEventListener('click', () => this.take(ctx))
     el.querySelector<HTMLButtonElement>('#pLeave')?.addEventListener('click', () => ((this.asked = undefined), ctx.refresh()))
   }
@@ -129,7 +159,8 @@ export class HolesMode implements Mode {
     return `${head}<p class="muted">${esc(a.reply.outcome)}${a.reply.episode ? ` · ${t('episode {id}', { id: esc(a.reply.episode) })}` : ''}${p.note ? ` · ${esc(p.note)}` : ''}</p>
       ${rules.map((r) => `<p>${t('{rule} on {kind} for {host}', { rule: `<b>${esc(r.id)}</b>`, kind: `<code>${esc(r.on)}</code>`, host: `<code>${esc(JSON.stringify(r.host ?? {}))}</code>` })}${r.doc ? ` — ${esc(r.doc)}` : ''}</p><div class="outline">${outline(r.tree)}</div>`).join('')}
       ${others.length ? `<p class="muted">${t('and {list}', { list: others.map((x) => esc(x.kind === 'type' ? t('the type {id}', { id: x.type.id }) : x.kind === 'status' ? t('the status {id}', { id: x.status.id }) : '')).join(', ') })}</p>` : ''}
-      <button id="pReplay">${t('Replay it in the sandbox')}</button> <button id="pTake" class="on">${t('Take it into the game')}</button> <button id="pLeave">${t('Leave it')}</button>
+      ${a.holds && !a.holds.ok ? `<p class="warn">${esc(t('The patch does not hold here: {why}', { why: a.holds.errors.join('; ') }))}</p>` : ''}
+      <button id="pReplay">${t('Replay it in the sandbox')}</button> <button id="pTake" class="on" ${a.holds?.ok ? '' : 'disabled'}>${t('Take it into the game')}</button> <button id="pLeave">${t('Leave it')}</button>
       ${a.replay ? `<div class="outline">${a.replay}</div>` : ''}</div>`
   }
 
@@ -143,7 +174,7 @@ export class HolesMode implements Mode {
     if (!p.hole) return toast(t('That is no hole any more (count again).'), 'warn')
     const id = `editor-${Date.now().toString(36)}`
     const request = buildRequest(eng, p.hole.ev, p.hole.res, id)
-    this.asked = { cell, state: 'asking' }
+    this.asked = { cell, scenario: request.scenario, state: 'asking' }
     ctx.refresh()
     const poll = setInterval(async () => {
       try {
@@ -154,34 +185,40 @@ export class HolesMode implements Mode {
     try {
       const r = await fetch(`${this.modder}/resolve`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ request, profile: this.profile }) })
       const reply = (await r.json()) as ResolveReply & { error?: string }
-      this.asked = { cell, state: reply.patch ? 'answered' : 'failed', reply, error: reply.error }
-      if (reply.patch) this.asked.replay = this.replayWith(ctx, cell, reply.patch)
+      this.asked = { cell, scenario: request.scenario, state: reply.patch ? 'answered' : 'failed', reply, error: reply.error }
+      if (reply.patch) this.asked.replay = this.replayWith(ctx, this.asked, reply.patch)
     } catch (e) {
-      this.asked = { cell, state: 'failed', error: t('No modder at {url} ({why}).', { url: this.modder, why: (e as Error).message }) }
+      this.asked = { cell, scenario: request.scenario, state: 'failed', error: t('No modder at {url} ({why}).', { url: this.modder, why: (e as Error).message }) }
     } finally {
       clearInterval(poll)
     }
     ctx.refresh()
   }
 
-  /** The hole's act replayed with the patch in the library (as the game would have it, taken in). */
-  private replayWith(ctx: Ctx, cell: HoleCell, patch: Patch): string {
+  /** The hole's act replayed with the patch in the library (as the game would have it, taken in), once it holds in the scene it was asked in. */
+  private replayWith(ctx: Ctx, a: Asked, patch: Patch): string {
     const c = ctx.store.compiled()
-    const lib = restoreLibrary(c.bundle.rules, c.bundle.learned, structuredClone(c.bundle.ontology))
-    const res = validatePatch(patch, { ontology: structuredClone(c.bundle.ontology), library: lib })
+    const res = (a.holds = answerHolds(c, a.scenario, patch))
     if (!res.ok) return `<span class="h">${esc(t('The patch does not hold here: {why}', { why: res.errors.join('; ') }))}</span>`
+    const lib = restoreLibrary(c.bundle.rules, c.bundle.learned, structuredClone(c.bundle.ontology))
     for (const x of patch.artifacts) {
       if (x.kind === 'type') lib.addType(x.type)
       else if (x.kind === 'status') lib.addStatus(x.status)
       else if (x.kind === 'rule') lib.add(x.rule)
     }
-    return replayed(ctx, holeScenario(cell), lib)
+    return replayed(ctx, a.scenario, lib)
   }
 
-  /** Take the patch into the game: a learned/ file of the project, which the game ships with. */
+  /** Take the patch into the game: a learned/ file of the project, which the game ships with. Only one that holds where it was asked (judged again: the project may have changed since). */
   private take(ctx: Ctx): void {
-    const p = this.asked?.reply?.patch
-    if (!p) return
+    const a = this.asked
+    const p = a?.reply?.patch
+    if (!a || !p) return
+    const holds = (a.holds = answerHolds(ctx.store.compiled(), a.scenario, p))
+    if (!holds.ok) {
+      ctx.refresh()
+      return toast(t('The patch does not hold here: {why}', { why: holds.errors.join('; ') }), 'warn')
+    }
     // a patch, taken in by its author: its source says so
     const rules = p.artifacts.flatMap((x) => (x.kind === 'rule' ? [{ ...x.rule, source: { ...x.rule.source, origin: 'patch' as const, at: x.rule.source?.at ?? new Date().toISOString(), note: x.rule.source?.note ?? `taken in the editor${this.asked?.reply?.episode ? ` (episode ${this.asked.reply.episode})` : ''}` } }] : []))
     const data: LearnedFile = {

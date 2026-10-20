@@ -52,12 +52,19 @@ export interface Finding {
 export interface Confirmed extends Finding {
   /** What the sandbox showed, with the patch and without it. */
   evidence: string
+  /** What makes it harm by construction, as the code judged it (not the finding's own `kind`). */
+  proven?: HarmClass
 }
+
+/** The harms the code recognizes (design.md §13, the auditor): what a finding must be shown to be. */
+export type HarmClass = 'farm' | 'value' | 'harm' | 'softlock' | 'runaway'
 
 export interface AuditResult {
   confirmed: Confirmed[]
   /** Findings the sandbox did not bear out (kept for the record, never acted on). */
   unconfirmed: { finding: Finding; why: string }[]
+  /** Of those, the ones the sandbox did reproduce but that are no harm the code recognizes: a reviewer's to read. */
+  reproduced?: { finding: Finding; why: string }[]
   /** Set when the auditor itself failed (a time-out, a bad reply): nothing was looked at, which is not "nothing found". */
   error?: string
 }
@@ -87,13 +94,16 @@ interface Run {
   eng: Engine
   /** One line per act: what answered it. */
   lines: string[]
+  /** How many acts the steps made. */
+  acts: number
   error?: string
 }
 
-/** The request's scene with the setup added, then the steps; bounded. */
-export function run(sc: Scenario, onto: Ontology, lib: RuleLibrary, setup: ScenarioEntity[] = [], steps: AuditStep[] = []): Run {
+/** The request's scene with the setup added, then the steps; bounded. `watch` sees the scene before the steps and after each act. */
+export function run(sc: Scenario, onto: Ontology, lib: RuleLibrary, setup: ScenarioEntity[] = [], steps: AuditStep[] = [], watch?: (eng: Engine) => void): Run {
   const scene: Scenario = { ...structuredClone(sc), entities: [...structuredClone(sc.entities), ...structuredClone(setup)] }
   const eng = buildSandbox(scene, onto, lib)
+  watch?.(eng)
   const lines: string[] = []
   let acts = 0
   let ticks = 0
@@ -112,15 +122,16 @@ export function run(sc: Scenario, onto: Ontology, lib: RuleLibrary, setup: Scena
         // (as the validator's replay: the act reaches what it reached when it happened, wherever the setup put things)
         const res = eng.act(s.act, s.actor ?? actor, refOf(eng, s.target ?? s.actor ?? actor), { ...(s.instrument !== undefined && { instrument: s.instrument ? refOf(eng, s.instrument) : null }), ...(s.params && { params: s.params }), reach: Infinity })
         if (lines.length < 40) lines.push(`${s.act} ${s.target ?? ''}${s.instrument ? ` with ${s.instrument}` : ''} → ${res.defined ? res.rule?.id : res.hole ? 'undefined' : 'nothing'}`)
+        watch?.(eng)
       }
     }
   }
   try {
     go(steps)
   } catch (err) {
-    return { eng, lines, error: (err as Error).message }
+    return { eng, lines, acts, error: (err as Error).message }
   }
-  return { eng, lines }
+  return { eng, lines, acts }
 }
 
 /** How many things of a type there are (in a holder, at any depth, when `in` is given). */
@@ -158,6 +169,12 @@ export function holds(eng: Engine, c: Claim): boolean {
   return false
 }
 
+/** A line that says something went wrong: a warning, or an effect the engine refused (its dev line names the rule). */
+function refused(f: Engine['world']['fx'][number]): boolean {
+  if (f.t !== 'log') return false
+  return f.tone === 'warn' || (f.tone === 'dev' && typeof f.text === 'string' && f.text.startsWith('rule '))
+}
+
 /** What changed in the sandbox: things by type (made, gone), the actors' numbers, what was said wrong. */
 function summary(r: Run, sc: Scenario): string {
   const w = r.eng.world
@@ -173,7 +190,7 @@ function summary(r: Run, sc: Scenario): string {
     const statuses = Object.keys(a.statuses ?? {})
     return `${e.key} (${a.type}): ${nums.map(([k, v]) => `${k} ${v}`).join(', ')}${statuses.length ? `; statuses ${statuses.join(', ')}` : ''}`
   })
-  const warned = w.fx.filter((f) => f.t === 'log' && f.tone === 'warn').map((f) => textOf((f as { text: Parameters<typeof textOf>[0] }).text)).slice(-5)
+  const warned = w.fx.filter(refused).map((f) => textOf((f as { text: Parameters<typeof textOf>[0] }).text)).slice(-5)
   return [
     ...r.lines.map((l) => `  ${l}`),
     `things: ${delta.length ? delta.map(([t, d]) => `${t} ${d > 0 ? '+' : ''}${d}`).join(', ') : 'no change'}`,
@@ -188,7 +205,7 @@ function summary(r: Run, sc: Scenario): string {
  * A finding counts when its claims all hold after its steps with the patch, and not all of them
  * without it (what the world already did is not the patch's doing).
  */
-export function confirm(f: Finding, sc: Scenario, onto: Ontology, base: RuleLibrary, patched: RuleLibrary): Confirmed | { why: string } {
+export function confirm(f: Finding, sc: Scenario, onto: Ontology, base: RuleLibrary, patched: RuleLibrary): Confirmed | { why: string; reproduced?: boolean } {
   if (!Array.isArray(f.steps) || !Array.isArray(f.expect) || !f.expect.length) return { why: 'no steps or no claims' }
   let withIt: Run
   try {
@@ -205,7 +222,121 @@ export function confirm(f: Finding, sc: Scenario, onto: Ontology, base: RuleLibr
     // (a scene that cannot even be built without the patch's types is the patch's doing)
   }
   if (without && f.expect.every((c) => holds(without!.eng, c))) return { why: 'it holds without the patch too: the world already did this' }
-  return { ...f, evidence: `with the patch:\n${summary(withIt, sc)}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` }
+  // the patch did it; whether it is harm is the code's to say, not the finding's label (a stone made wet is
+  // what a rule that wets stones is for): it must be one of the harms below, shown in the sandbox
+  const harm = harmOf(f, sc, onto, base, patched, withIt, without)
+  if (!harm) return { why: 'it happens with the patch and not without it, but it is no harm by construction (no farm, value, harm to what the story needs, softlock or runaway)', reproduced: true }
+  return { ...f, proven: harm.kind, evidence: `harm by construction, ${harm.kind}: ${harm.why}\nwith the patch:\n${summary(withIt, sc)}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` }
+}
+
+/** A finding's steps with every repeat done twice as often (the steps twice over when they repeat nothing). */
+function doubled(steps: AuditStep[]): AuditStep[] {
+  const has = (list: AuditStep[]): boolean => list.some((x) => 'repeat' in x || false)
+  const twice = (list: AuditStep[]): AuditStep[] => list.map((x) => ('repeat' in x ? { repeat: x.repeat * 2, steps: x.steps } : x))
+  return has(steps) ? twice(steps) : [{ repeat: 2, steps }]
+}
+
+/** What a claim measures: how many things, or a number (undefined for a claim that measures nothing). */
+function measure(eng: Engine, c: Claim): number | undefined {
+  if ('count' in c) return countOf(eng, c.count.type, c.count.in)
+  if ('prop' in c) {
+    const e = eng.world.get(c.prop.key)
+    const v = e && eng.world.prop(e, c.prop.name)
+    return typeof v === 'number' ? v : undefined
+  }
+  return undefined
+}
+
+/** Things by type, as they lie in the sandbox (the ground and the residents left out). */
+function things(eng: Engine): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const e of Object.values(eng.world.state.entities)) if (e.place.on !== 'none' && !e.type.startsWith('tile/') && !e.type.startsWith('resident')) out.set(e.type, (out.get(e.type) ?? 0) + 1)
+  return out
+}
+
+/** Events per act past which a chain is a runaway (the validator's chain bound is 1,500 events in all). */
+const RUNAWAY_PER_ACT = 50
+/** How much more what is made must be worth than what is used up to be a cheap road to it. */
+const VALUE_FACTOR = 3
+/** How long a stop must last to be a softlock: a minute of the world's time (10 ticks a second). */
+const SOFTLOCK_TICKS = 600
+
+/**
+ * Whether a finding the sandbox reproduced is harm by construction, and which (the code judges; the finding's
+ * `kind` is only the auditor's guess):
+ * - runaway: the events per act run past RUNAWAY_PER_ACT with the patch, as they do not without it;
+ * - harm: something the story needs (an essential thing, a resident) is gone or down with the patch, not without;
+ * - softlock: the actor still cannot act a minute after the steps (gone, or a status that holds it), not without;
+ * - farm: what a claim measures grows further when the steps repeat twice as often, more than without the patch;
+ * - value: what the steps made is worth over VALUE_FACTOR times what they used up (the things' own `value`, else 1).
+ */
+export function harmOf(f: Finding, sc: Scenario, onto: Ontology, base: RuleLibrary, patched: RuleLibrary, withIt: Run, without?: Run): { kind: HarmClass; why: string } | undefined {
+  const per = (r: Run) => r.eng.traced / Math.max(1, r.acts)
+  if (per(withIt) > RUNAWAY_PER_ACT && (!without || per(without) <= RUNAWAY_PER_ACT)) return { kind: 'runaway', why: `${Math.round(per(withIt))} events an act` }
+  // what the story needs: essential things and residents of the scene and the setup
+  const keys = [...sc.entities, ...(f.setup ?? [])].map((e) => e.key)
+  const lost = (r: Run | undefined, key: string) => {
+    if (!r) return false
+    const e = r.eng.world.get(key)
+    return !e || e.place.on === 'none' || r.eng.world.hasStatus({ e: key }, 'down')
+  }
+  const fresh = buildSandbox({ ...structuredClone(sc), entities: [...structuredClone(sc.entities), ...structuredClone(f.setup ?? [])] }, onto, base)
+  for (const key of keys) {
+    const at = fresh.world.get(key)
+    if (!at || !(at.type.startsWith('resident') || fresh.world.hasTag(at, 'essential'))) continue
+    if (lost(withIt, key) && !lost(without, key)) return { kind: 'harm', why: `${key} (${at.type}), which the story needs, is gone or down` }
+  }
+  // the actor, a minute on: still unable to act
+  const actor = sc.event.actor ?? 'actor'
+  const stopped = (r: Run | undefined): boolean => {
+    if (!r) return false
+    for (let i = 0; i < SOFTLOCK_TICKS; i++) r.eng.tick()
+    const w = r.eng.world
+    const a = w.get(actor)
+    if (!a || a.place.on === 'none') return true
+    return Object.keys(a.statuses ?? {}).some((st) => (w.onto.status(st) as { immobilize?: boolean } | undefined)?.immobilize)
+  }
+  // (on copies: the runs are kept as they ended, for the evidence)
+  const again = (lib: RuleLibrary) => run(sc, onto, lib, f.setup, f.steps)
+  if (stopped(again(patched)) && !(without && stopped(again(base)))) return { kind: 'softlock', why: `${actor} still cannot act a minute after the steps` }
+  // farm: more for more repeats, beyond what the world gives the same steps
+  const twice = doubled(f.steps)
+  const w2 = run(sc, onto, patched, f.setup, twice)
+  let b2: Run | undefined
+  try {
+    b2 = without ? run(sc, onto, base, f.setup, twice) : undefined
+  } catch {
+    b2 = undefined
+  }
+  for (const c of f.expect) {
+    const one = measure(withIt.eng, c)
+    const two = measure(w2.eng, c)
+    if (one === undefined || two === undefined) continue
+    const base1 = without ? (measure(without.eng, c) ?? 0) : 0
+    const base2 = b2 ? (measure(b2.eng, c) ?? 0) : 0
+    if (two - base2 > one - base1 && one - base1 > 0) return { kind: 'farm', why: `${JSON.stringify(c)} measures ${one} for the steps and ${two} for them twice over (${base1} and ${base2} without the patch)` }
+  }
+  // value: what was made against what was used up, by the things' own worth (beyond what the steps do without the patch)
+  const worth = (type: string): number => {
+    const v = withIt.eng.world.onto.resolve(type).props.value
+    return typeof v === 'number' && v > 0 ? v : 1
+  }
+  const start = things(fresh)
+  const delta = (r: Run | undefined): Map<string, number> => {
+    const now = r ? things(r.eng) : start
+    return new Map([...new Set([...now.keys(), ...start.keys()])].map((t) => [t, (now.get(t) ?? 0) - (start.get(t) ?? 0)]))
+  }
+  const dw = delta(withIt)
+  const db = delta(without)
+  let made = 0
+  let used = 0
+  for (const t of new Set([...dw.keys(), ...db.keys()])) {
+    const d = (dw.get(t) ?? 0) - (db.get(t) ?? 0)
+    if (d > 0) made += d * worth(t)
+    else used -= d * worth(t)
+  }
+  if (made > VALUE_FACTOR * Math.max(1, used)) return { kind: 'value', why: `made ${made} in worth for ${used} used up` }
+  return undefined
 }
 
 /** The auditor's tools: look at the scene, and play steps in it (with the patch and without it). */
@@ -266,10 +397,53 @@ function gains(r: Run, sc: Scenario, actorKey: string): { things: number; nums: 
   return { things: things - sc.entities.filter((e) => !e.type.startsWith('tile/')).length, nums: a ? PROBE_GAINS.map((k) => w.num(a, k)) : [] }
 }
 
+/** The keys of the things the scene's event names (its host and roles): the act's participants. */
+function participantsOf(sc: Scenario): string[] {
+  const keys = new Set(sc.entities.map((e) => e.key))
+  return [...new Set(Object.values(sc.event).filter((v): v is string => typeof v === 'string' && keys.has(v)))]
+}
+
+/**
+ * A watch on the participants' numbers over a run: `rising()` gives those the steps raised on every act,
+ * by `key\u0000prop`, with how much they rose in all (a number the thing does not have counts from 0,
+ * as addProp counts it).
+ */
+function numbersWatch(sc: Scenario): { watch: (eng: Engine) => void; rising: () => Map<string, number> } {
+  const parts = participantsOf(sc)
+  const numbers = (eng: Engine): Map<string, number> => {
+    const w = eng.world
+    const out = new Map<string, number>()
+    for (const key of parts) {
+      const props = w.view({ e: key })?.props ?? {}
+      for (const [k, v] of Object.entries(props)) if (typeof v === 'number') out.set(`${key}\u0000${k}`, v)
+    }
+    return out
+  }
+  let last: Map<string, number> | undefined
+  let acts = 0
+  const rose = new Map<string, { times: number; by: number }>()
+  const watch = (eng: Engine): void => {
+    const now = numbers(eng)
+    if (last) {
+      acts++
+      for (const [k, v] of now) {
+        const was = last.get(k) ?? 0
+        if (v <= was) continue
+        const r = rose.get(k) ?? { times: 0, by: 0 }
+        rose.set(k, { times: r.times + 1, by: r.by + v - was })
+      }
+    }
+    last = now
+  }
+  return { watch, rising: () => new Map([...rose].filter(([, r]) => acts > 0 && r.times === acts).map(([k, r]) => [k, r.by])) }
+}
+
 /**
  * The deterministic probe (no model): the scene's act repeated with the patch and without it. A
  * farm is what the patch lets the actor gain again and again that the world did not: things made,
- * or experience and fullness, beyond what the same steps gain without the patch.
+ * or experience and fullness, beyond what the same steps gain without the patch; or any number of
+ * the act's participants (a tool's power, a creature's store) that rises on every act with the patch
+ * and not without it.
  */
 export function probe(req: ModRequest, onto: Ontology, base: RuleLibrary, patched: RuleLibrary): Confirmed[] {
   const sc = req.scenario
@@ -277,10 +451,12 @@ export function probe(req: ModRequest, onto: Ontology, base: RuleLibrary, patche
   if (!ev.actor || !(ev.kind ?? 'act/use').startsWith('act/')) return []
   const step: AuditStep = { act: (ev.kind ?? 'act/use').slice(4) as Verb, actor: ev.actor, target: ev.target ?? ev.actor, ...(ev.instrument && { instrument: ev.instrument }), ...(ev.params && { params: ev.params }) }
   const steps: AuditStep[] = [{ repeat: PROBE_REPEATS, steps: [step] }]
-  const withIt = run(sc, onto, patched, [], steps)
+  const watched = numbersWatch(sc)
+  const withIt = run(sc, onto, patched, [], steps, watched.watch)
+  const watchedWithout = numbersWatch(sc)
   let without: Run | undefined
   try {
-    without = run(sc, onto, base, [], steps)
+    without = run(sc, onto, base, [], steps, watchedWithout.watch)
   } catch {
     without = undefined
   }
@@ -295,15 +471,25 @@ export function probe(req: ModRequest, onto: Ontology, base: RuleLibrary, patche
   // things: more than one per repeat is a faucet pressed PROBE_REPEATS times (one made, consumed, is a trade)
   if (a.things - b.things >= PROBE_REPEATS) {
     const f: Finding = { title: `the act done ${PROBE_REPEATS} times leaves ${a.things - b.things} more things than without the patch`, kind: 'farm', steps, expect: [{ events: { atLeast: 1 } }] }
-    out.push({ ...f, evidence: `with the patch:\n${summary(withIt, sc)}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` })
+    out.push({ ...f, proven: 'farm', evidence: `with the patch:\n${summary(withIt, sc)}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` })
   }
   for (const [i, k] of PROBE_GAINS.entries()) {
     const gained = (a.nums[i] ?? 0) - (start[i] ?? 0)
     const gainedWithout = (b.nums[i] ?? 0) - (start[i] ?? 0)
     if (gained - gainedWithout >= PROBE_REPEATS) {
       const f: Finding = { title: `the act done ${PROBE_REPEATS} times gains ${gained - gainedWithout} ${k} for nothing`, kind: 'farm', steps, expect: [{ prop: { key: ev.actor, name: k, atLeast: (start[i] ?? 0) + gained } }] }
-      out.push({ ...f, evidence: `with the patch:\n${summary(withIt, sc)}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` })
+      out.push({ ...f, proven: 'farm', evidence: `with the patch:\n${summary(withIt, sc)}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` })
     }
+  }
+  // any participant's number that goes up every time the act is done again, as it did not without the patch
+  const before = watchedWithout.rising()
+  for (const [k, by] of watched.rising()) {
+    const [key, name] = k.split('\u0000')
+    if (before.has(k) || (key === ev.actor && (PROBE_GAINS as readonly string[]).includes(name) && out.some((f) => f.title.endsWith(`${name} for nothing`)))) continue
+    const end = withIt.eng.world.get(key)
+    const now = end ? withIt.eng.world.num(end, name) : by
+    const f: Finding = { title: `the act done ${PROBE_REPEATS} times raises ${key}'s ${name} every time (+${by})`, kind: 'farm', steps, expect: [{ prop: { key, name, atLeast: now } }] }
+    out.push({ ...f, proven: 'farm', evidence: `with the patch:\n${summary(withIt, sc)}\n  ${key} ${name} ${now}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` })
   }
   return out
 }
@@ -345,7 +531,10 @@ export async function audit(model: Model, system: string, user: string, req: Mod
   for (const f of findings) {
     const c = confirm(f, req.scenario, onto, base, patched)
     if ('evidence' in c) out.confirmed.push(c)
-    else out.unconfirmed.push({ finding: f, why: c.why })
+    else {
+      out.unconfirmed.push({ finding: f, why: c.why })
+      if (c.reproduced) (out.reproduced ??= []).push({ finding: f, why: c.why })
+    }
   }
   return out
 }

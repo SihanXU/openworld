@@ -4,11 +4,12 @@ import { untilUp } from './untilUp.ts'
 import { FrameEncoder } from './frameDelta.ts'
 import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
-import { artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeOf, shareKept, sharedPart, takeDefinitions, withKept } from './learned.ts'
+import { adoptDefinitions, artsToSend, forgetInvalid, holdForMaking, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, LogPosition, type Kept } from './learned.ts'
 import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
-import { routeFishingWorkerInput, type Atlas, type AtlasContinent, type AtlasMap, type FromWorker, type LibraryView, type RecordView, type SaveSummary, type Tile, type ToWorker } from './protocol.ts'
+import { settleOpenQuestions, withOpenQuestions } from './saves.ts'
+import { routeFishingWorkerInput, type StoredLibrary, type Atlas, type AtlasContinent, type AtlasMap, type FromWorker, type LibraryView, type RecordView, type SaveSummary, type Tile, type ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
 /**
@@ -86,7 +87,8 @@ const SYNC_MS = 15_000
 /** How soon a service not up yet is asked again (twice as long after each failure, up to a minute). */
 const RETRY_MS = 5_000
 let modderUrl = ''
-let modderSeq = 0
+/** How far the shared log is synced, and the log it counts in (the service names it). */
+const synced = new LogPosition()
 let syncTimer: ReturnType<typeof setInterval> | undefined
 /** The probes of a service not up yet (connectModder). */
 let connecting: { stop: () => void } | undefined
@@ -111,12 +113,12 @@ const prefetched = new Set<string>()
 let prefetching = false
 
 /** Probe the service; if it answers, undefined interactions go to it and the shared library syncs from it. */
-async function connectModder(url: string, since = 0): Promise<void> {
+async function connectModder(url: string, since?: number, stored?: StoredLibrary): Promise<void> {
   if (syncTimer) clearInterval(syncTimer)
   connecting?.stop()
   modderUrl = url.replace(/\/+$/, '')
-  // the library restored has the log up to `since` in it already: only what came after is new
-  modderSeq = since
+  // the library restored has the log up to `since` in it already: only what came after is new (in the same log)
+  synced.begin(modderUrl, since, stored)
   if (!modderUrl || !game) return
   // a service not up yet (started after the page, or starting again) is asked again until it answers
   connecting = untilUp(probeModder, RETRY_MS, 60_000)
@@ -175,7 +177,7 @@ async function resolveRemote(request: ModRequest): Promise<Patch | null> {
 
 /**
  * While a request waits, ask the modder where it is. Once it is making things the world does not
- * have yet, the act waits for them past the time-out (the player is told), until the patch comes.
+ * have yet, the player's own act waits for them past the time-out (the player is told), until the patch comes.
  */
 function watchProgress(id: string): { stop: () => void } {
   let told = false
@@ -184,7 +186,8 @@ function watchProgress(id: string): { stop: () => void } {
       const p = (await (await fetch(`${modderUrl}/progress?id=${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(2000) })).json()) as ModProgress
       if (told || !game || (p.stage !== 'create' && p.stage !== 'art')) return
       told = true
-      if (game.mods.hold(id)) post({ t: 'creating', names: p.creating ?? [] })
+      // (the player's own act only: a question of the world's keeps its time-out)
+      if (holdForMaking(game.mods, id)) post({ t: 'creating', names: p.creating ?? [] })
     } catch {
       /* the reply still comes, or the request fails: either ends the wait */
     }
@@ -193,18 +196,10 @@ function watchProgress(id: string): { stop: () => void } {
 }
 
 /** What only the save loaded keeps (learned kinds its things are of that the shared library forgot): never written back to it. */
-let kept: { types: Set<string>; statuses: Set<string> } = { types: new Set(), statuses: new Set() }
+let kept: Kept = { types: new Set(), statuses: new Set() }
 
 /** Take a learned definition an answer brings anew, and make what it brings shared; both undone should the answer be refused. */
-function adoptAnswer(patch: Patch): { restore: () => void; done: () => void } {
-  const took = takeDefinitions(game!.engine, patch)
-  const unshare = shareKept(kept, patch)
-  return {
-    restore: () => (took.restore(), unshare()),
-    // a kind kept beside the library's new one, for what is made of it here, is this save's alone
-    done: () => took.done().forEach((id) => kept.types.add(id)),
-  }
-}
+const adoptAnswer = (patch: Patch): { restore: () => void; done: () => void } => adoptDefinitions(game!.engine, kept, patch)
 
 /** The recipes of learned things (derived from their makeup when a patch brings a type with a station), sent when they change. */
 let recipesSent = ''
@@ -247,9 +242,8 @@ function maybePrefetch(): void {
     .then((patch) => {
       if (patch && game) {
         // as any answer: a learned definition it brings anew replaces the one kept here
-        const took = adoptAnswer(patch)
-        if (!game.mods.submit(undefined, patch, request.scenario).ok) took.restore()
-        else took.done()
+        const mods = game.mods
+        takePatch(game.engine, kept, patch, (p) => mods.submit(undefined, p, request.scenario))
       }
     })
     .catch(() => undefined)
@@ -260,29 +254,18 @@ function maybePrefetch(): void {
 async function syncLibrary(): Promise<void> {
   if (!game || !modderUrl) return
   try {
-    const log = (await (await fetch(`${modderUrl}/patches?since=${modderSeq}`, { signal: AbortSignal.timeout(5000) })).json()) as { seq: number; entries: PatchLogEntry[] }
-    // a log shorter than where we were is another log (the service started anew): sync it from the start
-    if (log.seq < modderSeq) {
-      modderSeq = 0
-      return syncLibrary()
-    }
+    const log = (await (await fetch(`${modderUrl}/patches?since=${synced.seq}`, { signal: AbortSignal.timeout(5000) })).json()) as { seq: number; log?: string; entries: PatchLogEntry[] }
+    // (a reply this client cannot read at all is as no reply: the next sync asks again)
+    if (typeof log?.seq !== 'number' || !Array.isArray(log.entries)) throw new Error('not a patch log')
+    // another log than the one we were in (the service started anew: it names another, or it is shorter than where we were): sync it from the start
+    if (synced.restarts(log)) return syncLibrary()
     const lib = game.engine.lib
     const before = lib.version
-    for (const e of log.entries) {
-      // what the library forgot but a thing here needs is this save's from now on: not written back to the shared store
-      if ('removeType' in e) forgetType(game.engine, e.removeType) || (game.engine.lib.types.some((t) => t.id === e.removeType) && kept.types.add(e.removeType))
-      else if ('removeStatus' in e) forgetStatus(game.engine, e.removeStatus) || (game.engine.lib.statuses.some((s) => s.id === e.removeStatus) && kept.statuses.add(e.removeStatus))
-      else if ('remove' in e) {
-        if (lib.rules.get(e.remove)?.source?.origin === 'patch') lib.remove(e.remove)
-      } else {
-        // the library's definition of a learned thing wins over one kept here (put back if the patch is not taken)
-        const took = adoptAnswer(e.patch)
-        if (!game.mods.submit(undefined, e.patch, e.scenario, e.replaces, e.request).ok) took.restore()
-        else took.done()
-      }
-    }
-    if (log.seq !== modderSeq) post({ t: 'synced', url: modderUrl, seq: log.seq, changed: lib.version !== before })
-    modderSeq = log.seq
+    // each entry on its own: one this client cannot read or take is passed over, and the position moves past it
+    takeLogEntries(game.engine, game.mods, kept, log.entries)
+    if (log.seq !== synced.seq) post({ t: 'synced', url: modderUrl, seq: log.seq, changed: lib.version !== before })
+    // a log named anew: the library is stored again, with it
+    if (synced.advance(log)) post({ t: 'library', library: storedLibrary(), statuses: lib.statuses })
     if (lib.version !== before) sendRecords()
   } catch {
     /* offline for now: the next sync catches up */
@@ -291,10 +274,8 @@ async function syncLibrary(): Promise<void> {
 
 /** Base rules are always fresh from content; patches (and their types/statuses) persist, each validated again (engine `restoreLibrary`). */
 function libraryFrom(saved: LibraryData | undefined, protectedFacts: string[] = []): RuleLibrary {
-  // the patches the game ships with first (GameDef.learned), the saved and the synced ones over them
-  const base = played().learned
-  const all = base && saved ? { ...saved, rules: [...base.rules, ...saved.rules], types: [...base.types, ...saved.types], statuses: [...base.statuses, ...saved.statuses] } : (saved ?? base)
-  return restoreLibrary(played().rules, all, ontology(), protectedFacts, (id, why) => console.warn(`[library] a saved patch rule is not restored: ${id}: ${why}`))
+  // the patches the game ships with first (GameDef.learned), the saved and the synced ones over them; a shipped kind wins over its stored copy
+  return restoreLibrary(played().rules, withShipped(played().learned, saved), ontology(), protectedFacts, (id, why) => console.warn(`[library] a saved patch rule is not restored: ${id}: ${why}`))
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -481,6 +462,9 @@ async function atlas(): Promise<Atlas | undefined> {
   return { targets, maps, waypoints: stones, here: { map: pos.map, x: pos.x, y: pos.y }, ...(world && { continent: world.continent, cells: world.cells }) }
 }
 
+/** The shared library as the browser stores it: without what only this save keeps, stamped with the log it is synced to. */
+const storedLibrary = (): StoredLibrary => synced.stamp(sharedPart(game!.engine.lib.toJSON(), kept))
+
 function libraryView(): LibraryView {
   const lib = game!.engine.lib
   const counts: Record<string, number> = {}
@@ -527,7 +511,8 @@ function doSave(auto = false): void {
   const fallen = w.hasStatus({ e: p.id }, 'down')
   const difficulty = difficultyOf(game.engine)
   if (fallen && difficulty !== 'hardcore') return
-  const save = game.save()
+  // (a question open now is not saved: loaded, its hole's default runs, as after a time-out)
+  const save = withOpenQuestions(game.save(), game.mods)
   const cal = w.calendar()
   const here = w.posOf(p)?.map
   const summary: SaveSummary = {
@@ -543,7 +528,7 @@ function doSave(auto = false): void {
     difficulty,
     ...(fallen && { ended: true }),
   }
-  post({ t: 'saved', save, library: sharedPart(game.engine.lib.toJSON(), kept), summary, auto })
+  post({ t: 'saved', save, library: storedLibrary(), summary, auto })
 }
 
 /** How long the world stands still for the player's own question, in real seconds: an answer (the same at every AI setting), a thing being made. */
@@ -633,7 +618,7 @@ function loop(): void {
   post({ t: 'frame', frame: sent.frame, ...(sent.gone && { gone: sent.gone }), perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length }, codex: game.codex.version, learning, transfer: transfers.progress })
   if (buildAim) post({ t: 'placement', preview: buildPreview(eng, buildAim.id, { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }, buildAim.up) })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {
-    if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: sharedPart(eng.lib.toJSON(), kept), statuses: eng.lib.statuses }), sendArts(), sendRecipes())
+    if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: storedLibrary(), statuses: eng.lib.statuses }), sendArts(), sendRecipes())
     lastRecordsVersion = eng.lib.version
     sendRecords()
   }
@@ -670,6 +655,8 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
     const here = game.engine.world.posOf(game.engine.world.player)?.map
     if (here) game.loadChunk(await chunkFor(here))
     for (const id of game.engine.world.state.loadedMaps) if (id !== here) delete game.engine.world.state.maps[id]
+    // the questions open when it was saved are answered by no one: their defaults run, as after a time-out
+    settleOpenQuestions(game.engine, init.save)
   } else {
     game = Game.create(index, ontology(), lib, init.at ? { at: init.at } : init.start)
     // a new game is already the world as it is now: no upgrade is due (the game's, the author's, on creating it)
@@ -706,7 +693,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   recipesSent = '\0'
   sendRecipes()
   sendRecords()
-  void connectModder(init.modder ?? modderUrl, init.library ? init.librarySeq : 0)
+  void connectModder(init.modder ?? modderUrl, init.library ? init.librarySeq : 0, init.library)
   if (timer) clearInterval(timer)
   timer = setInterval(() => {
     try {
@@ -725,7 +712,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         await start(m)
         break
       case 'newGame': {
-        const library = game && sharedPart(game.engine.lib.toJSON(), kept)
+        const library = game && storedLibrary()
         await start({ t: 'init', base, library }, true)
         break
       }
@@ -960,10 +947,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'patch': {
         if (!game) break
-        const took = adoptAnswer(m.patch)
-        const result = game.mods.submit(m.id, m.patch)
-        if (!result.ok) took.restore()
-        else took.done()
+        const mods = game.mods
+        const result = takePatch(game.engine, kept, m.patch, (p) => mods.submit(m.id, p))
         post({ t: 'validation', id: m.id, result })
         sendRecords()
         break
