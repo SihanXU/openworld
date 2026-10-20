@@ -4,11 +4,11 @@ import { untilUp } from './untilUp.ts'
 import { FrameEncoder } from './frameDelta.ts'
 import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
-import { adoptDefinitions, artsToSend, forgetInvalid, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, type Kept } from './learned.ts'
+import { adoptDefinitions, artsToSend, forgetInvalid, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, LogPosition, type Kept } from './learned.ts'
 import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
-import { routeFishingWorkerInput, type Atlas, type AtlasContinent, type AtlasMap, type FromWorker, type LibraryView, type RecordView, type SaveSummary, type Tile, type ToWorker } from './protocol.ts'
+import { routeFishingWorkerInput, type StoredLibrary, type Atlas, type AtlasContinent, type AtlasMap, type FromWorker, type LibraryView, type RecordView, type SaveSummary, type Tile, type ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
 /**
@@ -86,7 +86,8 @@ const SYNC_MS = 15_000
 /** How soon a service not up yet is asked again (twice as long after each failure, up to a minute). */
 const RETRY_MS = 5_000
 let modderUrl = ''
-let modderSeq = 0
+/** How far the shared log is synced, and the log it counts in (the service names it). */
+const synced = new LogPosition()
 let syncTimer: ReturnType<typeof setInterval> | undefined
 /** The probes of a service not up yet (connectModder). */
 let connecting: { stop: () => void } | undefined
@@ -111,12 +112,12 @@ const prefetched = new Set<string>()
 let prefetching = false
 
 /** Probe the service; if it answers, undefined interactions go to it and the shared library syncs from it. */
-async function connectModder(url: string, since = 0): Promise<void> {
+async function connectModder(url: string, since?: number, stored?: StoredLibrary): Promise<void> {
   if (syncTimer) clearInterval(syncTimer)
   connecting?.stop()
   modderUrl = url.replace(/\/+$/, '')
-  // the library restored has the log up to `since` in it already: only what came after is new
-  modderSeq = since
+  // the library restored has the log up to `since` in it already: only what came after is new (in the same log)
+  synced.begin(modderUrl, since, stored)
   if (!modderUrl || !game) return
   // a service not up yet (started after the page, or starting again) is asked again until it answers
   connecting = untilUp(probeModder, RETRY_MS, 60_000)
@@ -251,20 +252,18 @@ function maybePrefetch(): void {
 async function syncLibrary(): Promise<void> {
   if (!game || !modderUrl) return
   try {
-    const log = (await (await fetch(`${modderUrl}/patches?since=${modderSeq}`, { signal: AbortSignal.timeout(5000) })).json()) as { seq: number; entries: PatchLogEntry[] }
+    const log = (await (await fetch(`${modderUrl}/patches?since=${synced.seq}`, { signal: AbortSignal.timeout(5000) })).json()) as { seq: number; log?: string; entries: PatchLogEntry[] }
     // (a reply this client cannot read at all is as no reply: the next sync asks again)
     if (typeof log?.seq !== 'number' || !Array.isArray(log.entries)) throw new Error('not a patch log')
-    // a log shorter than where we were is another log (the service started anew): sync it from the start
-    if (log.seq < modderSeq) {
-      modderSeq = 0
-      return syncLibrary()
-    }
+    // another log than the one we were in (the service started anew: it names another, or it is shorter than where we were): sync it from the start
+    if (synced.restarts(log)) return syncLibrary()
     const lib = game.engine.lib
     const before = lib.version
     // each entry on its own: one this client cannot read or take is passed over, and the position moves past it
     takeLogEntries(game.engine, game.mods, kept, log.entries)
-    if (log.seq !== modderSeq) post({ t: 'synced', url: modderUrl, seq: log.seq, changed: lib.version !== before })
-    modderSeq = log.seq
+    if (log.seq !== synced.seq) post({ t: 'synced', url: modderUrl, seq: log.seq, changed: lib.version !== before })
+    // a log named anew: the library is stored again, with it
+    if (synced.advance(log)) post({ t: 'library', library: storedLibrary(), statuses: lib.statuses })
     if (lib.version !== before) sendRecords()
   } catch {
     /* offline for now: the next sync catches up */
@@ -461,6 +460,9 @@ async function atlas(): Promise<Atlas | undefined> {
   return { targets, maps, waypoints: stones, here: { map: pos.map, x: pos.x, y: pos.y }, ...(world && { continent: world.continent, cells: world.cells }) }
 }
 
+/** The shared library as the browser stores it: without what only this save keeps, stamped with the log it is synced to. */
+const storedLibrary = (): StoredLibrary => synced.stamp(sharedPart(game!.engine.lib.toJSON(), kept))
+
 function libraryView(): LibraryView {
   const lib = game!.engine.lib
   const counts: Record<string, number> = {}
@@ -523,7 +525,7 @@ function doSave(auto = false): void {
     difficulty,
     ...(fallen && { ended: true }),
   }
-  post({ t: 'saved', save, library: sharedPart(game.engine.lib.toJSON(), kept), summary, auto })
+  post({ t: 'saved', save, library: storedLibrary(), summary, auto })
 }
 
 /** How long the world stands still for the player's own question, in real seconds: an answer (the same at every AI setting), a thing being made. */
@@ -613,7 +615,7 @@ function loop(): void {
   post({ t: 'frame', frame: sent.frame, ...(sent.gone && { gone: sent.gone }), perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length }, codex: game.codex.version, learning, transfer: transfers.progress })
   if (buildAim) post({ t: 'placement', preview: buildPreview(eng, buildAim.id, { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }, buildAim.up) })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {
-    if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: sharedPart(eng.lib.toJSON(), kept), statuses: eng.lib.statuses }), sendArts(), sendRecipes())
+    if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: storedLibrary(), statuses: eng.lib.statuses }), sendArts(), sendRecipes())
     lastRecordsVersion = eng.lib.version
     sendRecords()
   }
@@ -686,7 +688,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   recipesSent = '\0'
   sendRecipes()
   sendRecords()
-  void connectModder(init.modder ?? modderUrl, init.library ? init.librarySeq : 0)
+  void connectModder(init.modder ?? modderUrl, init.library ? init.librarySeq : 0, init.library)
   if (timer) clearInterval(timer)
   timer = setInterval(() => {
     try {
@@ -705,7 +707,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         await start(m)
         break
       case 'newGame': {
-        const library = game && sharedPart(game.engine.lib.toJSON(), kept)
+        const library = game && storedLibrary()
         await start({ t: 'init', base, library }, true)
         break
       }

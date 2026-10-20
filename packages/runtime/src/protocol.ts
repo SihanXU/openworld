@@ -6,6 +6,12 @@ import type { TransferProgress } from './transferQueue.ts'
 /** Where the mouse points: its tile, and what is drawn at the point, top first (the keys act there when it is next to the player). */
 export type Tile = Aim
 
+/**
+ * The shared library as the browser stores it: with the service's log it was synced from and how far (GET /patches
+ * `log`, the id of that log), so that a service whose log was made anew is synced again from its start.
+ */
+export type StoredLibrary = LibraryData & { syncedLog?: { url: string; log: string; seq: number } }
+
 export type FishingAction = 'press' | 'release' | 'cancel'
 
 /** Runtime-only projection of the active fishing minigame. Coordinates are normalized. */
@@ -36,7 +42,7 @@ export class FishingInputLatch {
 
 export type ToWorker =
   | { t: 'skipLearning' }
-  | { t: 'init'; base: string; save?: SaveData; library?: LibraryData; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1: at least the medium setting's) */ prefetch?: boolean; /** the player's AI setting (the engine's quality.ts) */ quality?: AiQuality; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos; /** a step of the story begun at once in a new game (the editor's "play from this scene") */ scene?: string }
+  | { t: 'init'; base: string; save?: SaveData; library?: StoredLibrary; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1: at least the medium setting's) */ prefetch?: boolean; /** the player's AI setting (the engine's quality.ts) */ quality?: AiQuality; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos; /** a step of the story begun at once in a new game (the editor's "play from this scene") */ scene?: string }
   /** The one at the keys, fallen, rises again: where they fell, or at home (the death screen). */
   | { t: 'respawn'; home: boolean }
   /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */
@@ -186,9 +192,9 @@ export type FromWorker =
   | { t: 'records'; records: RecordView[]; library: LibraryView }
   | { t: 'spec'; spec: ModSpec }
   | { t: 'validation'; id?: string; result: ValidationResult }
-  | { t: 'saved'; save: SaveData; library: LibraryData; summary: SaveSummary; /** the world's own save (no toast: on the overworld one comes with every block) */ auto?: boolean }
+  | { t: 'saved'; save: SaveData; library: StoredLibrary; summary: SaveSummary; /** the world's own save (no toast: on the overworld one comes with every block) */ auto?: boolean }
   /** The library changed (a patch was accepted or removed): keep it at once, not at the next save. */
-  | { t: 'library'; library: LibraryData; /** every learned status, this save's kept ones too: what the tooltips name */ statuses: StatusDef[] }
+  | { t: 'library'; library: StoredLibrary; /** every learned status, this save's kept ones too: what the tooltips name */ statuses: StatusDef[] }
   | { t: 'loading'; what: string }
   /** The layer chooser's list for a key at a tile. */
   | { t: 'choices'; key: Key; tile?: Tile; list: { layer: number; name: Text; label?: Text; unknown?: boolean }[] }

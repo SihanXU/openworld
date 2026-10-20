@@ -3,6 +3,7 @@
 
 import { deriveRecipes, everyThing, namesClash, newStatusProblems, newTypeProblems, type Engine, type Entity, type LibraryData, type ModPort, type Patch, type PatchLogEntry, type Recipe, type SaveData, type StatusDef, type TypeDef, type ValidationResult } from '@openworld/engine'
 import { recipeById } from './game.ts'
+import type { StoredLibrary } from './protocol.ts'
 
 /** The recipes whose result is a type a patch brought (the engine derives them when the patch lands). */
 export function learnedRecipes(eng: Engine): Recipe[] {
@@ -319,5 +320,53 @@ export function withShipped(shipped: LibraryData | undefined, saved: LibraryData
     rules: [...(shipped.rules ?? []), ...(saved.rules ?? [])],
     types: [...(shipped.types ?? []), ...(saved.types ?? []).filter((t) => !types.has(t.id))],
     statuses: [...(shipped.statuses ?? []), ...(saved.statuses ?? []).filter((s) => !statuses.has(s.id))],
+  }
+}
+
+/** A reply of the service's shared log, as far as where it stands goes: its last entry, and the id of the log (an older service sends none). */
+type LogReply = { seq: number; log?: unknown }
+
+/**
+ * Where the sync of a service's shared log stands, and the log the position counts in: the service names its log
+ * (GET /patches `log`), and a log made anew (the service started again on fresh data) is another one, whose
+ * entries after the old position are not the ones already taken. With a service that names none, a log shorter
+ * than the position is the only sign.
+ */
+export class LogPosition {
+  url = ''
+  seq = 0
+  log?: string
+
+  /**
+   * At a service, from where the stored library has synced it (`seq`, the main thread's position) and the log the
+   * library was stamped with: never past the position the library itself was stamped at, both stored apart.
+   */
+  begin(url: string, seq: number | undefined, stored?: StoredLibrary): void {
+    this.url = url
+    const s = stored?.syncedLog
+    const same = !!s && s.url === url && typeof s.log === 'string' && typeof s.seq === 'number'
+    this.seq = same ? Math.min(seq ?? 0, s.seq) : (seq ?? 0)
+    this.log = same ? s.log : undefined
+  }
+
+  /** Is a reply of another log than the one the position counts in? Then the position goes back to its start. */
+  restarts(reply: LogReply): boolean {
+    const other = reply.seq < this.seq || (typeof reply.log === 'string' && this.log !== undefined && reply.log !== this.log)
+    if (other) (this.seq = 0), (this.log = undefined)
+    return other
+  }
+
+  /** A reply's entries taken: the position moves to its end. Returns whether the log it counts in is named anew (the library is stored again, stamped with it). */
+  advance(reply: LogReply): boolean {
+    this.seq = reply.seq
+    const log = typeof reply.log === 'string' ? reply.log : this.log
+    const named = log !== this.log
+    this.log = log
+    return named
+  }
+
+  /** The library as the browser stores it: stamped with the log and the position it was synced to. */
+  stamp(lib: LibraryData): StoredLibrary {
+    return this.log && this.url ? { ...lib, syncedLog: { url: this.url, log: this.log, seq: this.seq } } : lib
   }
 }
