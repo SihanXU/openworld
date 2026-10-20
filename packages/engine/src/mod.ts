@@ -604,24 +604,29 @@ export class ModPort implements UndefinedSink {
     const eng = this.eng
     const w = eng.world
     const rec = id ? this.get(id) : undefined
+    // a rule this world set aside at run time is not taken again (the service may still hold it, and
+    // answer the question its open leaves raise with it): a refusal, and the hole's default runs
+    const aside = (Array.isArray(patch.artifacts) ? patch.artifacts : []).flatMap((a) => (a?.kind === 'rule' && typeof a.rule?.id === 'string' && (w.state.quarantine?.[a.rule.id] || eng.lib.isAside(a.rule.id)) ? [a.rule.id] : []))
     // Idempotent: artifacts the library already holds verbatim (the same shared patch arriving
     // twice, e.g. by sync and by reply) are skipped; the rest is validated as usual.
     const fresh = patch.artifacts?.filter((a) => !alreadyHeld(eng.lib, a)) ?? []
-    if (Array.isArray(patch.artifacts) && patch.artifacts.length && !fresh.length) {
+    if (Array.isArray(patch.artifacts) && patch.artifacts.length && !fresh.length && !aside.length) {
       const res: ValidationResult = { ok: true, errors: [], warnings: ['already in the library'] }
       if (rec && rec.status !== 'patched') this.settled(rec, patch, patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : [])))
       return res
     }
     if (fresh.length !== patch.artifacts.length) patch = { ...patch, artifacts: fresh }
     // an answer to this port's own question is placed where the question was asked (design.md §5.16)
-    if (rec) patch = placePatch(patch, rec.request, { ontology: w.onto.data, library: eng.lib }).patch
-    const res = validatePatch(patch, {
-      ontology: w.onto.data,
-      library: eng.lib,
-      scenario: rec?.request.scenario ?? scenario,
-      world: (rec?.origin ?? patch.trigger) === 'world',
-      protectedFacts: eng.protectedFacts,
-    })
+    if (rec && !aside.length) patch = placePatch(patch, rec.request, { ontology: w.onto.data, library: eng.lib }).patch
+    const res: ValidationResult = aside.length
+      ? { ok: false, errors: aside.map((id) => `rule "${id}" was set aside at run time (${w.state.quarantine?.[id]?.reason ?? 'it failed'}): it is not taken again`), warnings: [] }
+      : validatePatch(patch, {
+          ontology: w.onto.data,
+          library: eng.lib,
+          scenario: rec?.request.scenario ?? scenario,
+          world: (rec?.origin ?? patch.trigger) === 'world',
+          protectedFacts: eng.protectedFacts,
+        })
     if (rec) {
       rec.patch = patch
       rec.diagnostics = [...res.errors, ...res.warnings]

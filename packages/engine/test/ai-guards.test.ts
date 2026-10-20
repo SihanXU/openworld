@@ -3,7 +3,7 @@
 // the validator refuses (design.md §5.11, §5.16).
 
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, holeKey, restoreLibrary, type Cond, type Ontology, type Rule, type Scenario } from '@openworld/engine'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, placePatch, restoreLibrary, type Cond, type Ontology, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { STDLIB_ONTOLOGY, STDLIB_RULES } from '@openworld/stdlib'
 
 const STD = STDLIB_ONTOLOGY as Ontology
@@ -41,6 +41,8 @@ function ask(target = TREE, lib = new RuleLibrary(BASE)) {
 }
 
 const is = (type: string): Cond => ({ is: { role: 'target', sel: { type } } })
+/** A draft as the model writes it: the harness places it (placePatch). */
+const draft = (id: string, tree: Rule['tree']): Patch => ({ artifacts: [{ kind: 'rule', rule: { id, host: { type: 'x' }, on: 'x', label: 'Use {instrument} on {target}', tree } }] })
 
 describe('a revision keeps what grew below it through a copy and a save (V3)', () => {
   it('the child stays placed live, in a clone, and in a restored save', () => {
@@ -105,5 +107,32 @@ describe('a rule set aside at run time keeps its place (V6)', () => {
     expect(answerOf(HIVE, back).rule?.id).toBe('s')
     expect(answerOf(TREE, back).defined).toBe(false)
     expect(answerOf(HIVE, RuleLibrary.fromJSON(lib.toJSON())).rule?.id).toBe('s')
+  })
+})
+
+describe('a rule set aside at run time is not served again (C1)', () => {
+  it('the same answer to the question its open leaf raises is refused: the default runs, the question is not asked again', () => {
+    const { eng, port, req } = ask()
+    const answer = placePatch(draft('patch/a', { do: [{ op: 'log', text: 'a' }] }), req).patch
+    expect(port.submit(req.id, answer).ok).toBe(true)
+    expect(eng.fault('patch/a', 'it ran away', true)).toBe(true)
+    // the leaf is open again: the act asks again
+    port.provider = { resolve: () => new Promise(() => {}) }
+    eng.act('use', 'actor', { e: 'it' })
+    const again = port.records[1]
+    expect(again?.status).toBe('pending')
+    // the service still holds the rule, and answers with it
+    eng.world.fx.length = 0
+    const res = port.submit(again.id, answer)
+    expect(res.ok).toBe(false)
+    expect(res.errors.join()).toMatch(/set aside/)
+    expect(again.status).toBe('rejected')
+    expect(eng.lib.rules.has('patch/a')).toBe(false)
+    expect(eng.lib.isAside('patch/a')).toBe(true)
+    // the hole's default ran
+    expect(eng.world.fx.some((f) => f.t === 'log' && JSON.stringify(f.text).includes('Nothing happens'))).toBe(true)
+    // and the question is not asked again this session
+    eng.act('use', 'actor', { e: 'it' })
+    expect(port.records.length).toBe(2)
   })
 })
