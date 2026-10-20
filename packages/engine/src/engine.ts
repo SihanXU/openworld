@@ -24,7 +24,8 @@ import { DEFAULT_QUALITY, categoryOf, tierOfLevel, type AiQuality } from './qual
 import { modulesOf, noHooks, noSociety, type Combat, type Society, type EffectImpl, type EngineHooks, type EngineModule, type Goal } from './module.ts'
 import type { Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Tier, Verb, WorldState } from './types.ts'
 import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
-import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type Writer } from './world.ts'
+import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type View, type Writer } from './world.ts'
+import { seedOf } from './rng.ts'
 
 export type { Resolution } from './rules.ts'
 
@@ -47,6 +48,10 @@ const STATUS_TICK_EVERY = 5
 const STAY_EVERY = 5
 /** Events handled in one flush; the rest wait for the next tick. */
 const EVENT_BUDGET = 600
+/** The clock events a map catches up on entering at most (engine.catchUp): past them, what is left is summed up. */
+const CATCH_UP_BUDGET = 4 * EVENT_BUDGET
+/** What is shown or said where it happens: made while a map catches up, it was not seen. */
+const UNSEEN = new Set<string>(['vfx', 'say', 'emote', 'damage', 'strike'])
 /** How deep a chain runs within one tick before the rest is deferred to the next (design.md §5.10). */
 const MAX_DEPTH = 12
 /** Events one chain may still run once it has had to wait for a later tick (design.md A7: every chain ends). */
@@ -164,11 +169,6 @@ export class Engine {
   /** Who each mover has been pushing into, since when (a swap once it has lasted): by the mover's id. */
   private bumps = new Map<Id, { id: Id; since: number; last: number }>()
   private cooldowns = new Map<Id, number>()
-  /**
-   * How far a period on a host's own pace has come toward its next (`period|id` → done, 0..1, as of
-   * tick `at`): the ticks gone by since, over its interval as its pace is now.
-   */
-  private progress = new Map<string, { done: number; at: number }>()
   private flushing = false
   /** What outcomes touched since the last settle: ref key → ref. */
   private touched = new Map<string, Ref>()
@@ -1491,9 +1491,9 @@ export class Engine {
 
   /**
    * The player comes to a map. The map they left goes dormant (frozen from now); the one they
-   * enter catches up: the timers that fell due while it slept, in time order; the events
-   * addressed to it, in time order; its people, by their schedules; and the relation difference
-   * over the whole map against what was kept.
+   * enter catches up: its statuses' clocks as they would have run while it slept (catchUp); the
+   * events addressed to it, in time order; its people, by their schedules; and the relation
+   * difference over the whole map against what was kept.
    */
   enterMap(map: string, from?: string): void {
     const w = this.world
@@ -1504,7 +1504,10 @@ export class Engine {
     w.fx.push({ t: 'mapChanged', map })
     this.quests.news({ kind: 'enter', actor: w.state.player, key: map })
     if (rec) {
-      this.catchUp(map)
+      // (what the map's clock did while it slept was not seen: its smoke and its words are not shown now)
+      const heard = w.fx.length
+      this.catchUp(map, rec.since)
+      w.fx = [...w.fx.slice(0, heard), ...w.fx.slice(heard).filter((f) => !UNSEEN.has(f.t))]
       for (const ev of rec.inbox.sort((a, b) => (a.tick ?? 0) - (b.tick ?? 0))) this.queue({ ...ev, depth: 0 })
     }
     this.npcs.onEnterMap(map, from)
@@ -1514,22 +1517,86 @@ export class Engine {
     this.flush()
   }
 
-  /** The one-shot timers that ran out on a map while it slept, in the order they ran out. */
-  private catchUp(map: string): void {
+  /**
+   * A map's statuses' clocks from the tick it went dormant (`since`) to now, run as they would have run in play
+   * (design.md §5.12): tick by tick where something comes due, the same pass as a tick in play makes (statusesOn) —
+   * every status that ends goes its way to its end, each pulse of it (a burning woodpile wears, breaks and leaves its
+   * logs; a bleed bleeds), then its end (what burnt out is ash) — the clock set back to that tick and each event with
+   * its own dice (clockEvent), so it rolls as it would have in play; what one starts (a fire caught next door, a crop's
+   * next stage) runs from then and is caught up in turn. A status without an end is a state, not a process: it waits
+   * with its map, as a period does. Left out: the one at the keys and what they carry (their clock ran where they
+   * were). The cost is the ticks at which a pulse could act or a status ends (a pulse no rule acts on brings no tick,
+   * `RuleLibrary.mayDo`), at most CATCH_UP_BUDGET of them: past it the rest is summed up (the ends still due run at
+   * the next tick).
+   */
+  private catchUp(map: string, since: number): void {
     const w = this.world
     const now = w.state.tick
-    for (let n = 0; n < EVENT_BUDGET; n++) {
-      let due: { ref: Ref; status: string; at: number } | undefined
-      for (const key of w.statusfulOn(map)) {
-        const ref = w.keyRef(key)
-        if (w.refPos(ref)?.map !== map) continue
-        for (const [status, exp] of Object.entries(w.statusesOf(ref) ?? {}))
-          if (exp !== NO_EXPIRY && exp <= now && (!due || exp < due.at)) due = { ref, status, at: exp }
+    // what slept with the map: all but the one at the keys and what they carry
+    const slept = (e: Entity): boolean => {
+      for (let x: Entity | undefined = e, i = 0; x && i < 32; i++) {
+        if (x.id === w.state.player) return false
+        x = x.place.on === 'inside' || x.place.on === 'hand' ? w.get(x.place.holder) : undefined
       }
-      if (!due) break
-      this.expire(due.ref, due.status)
-      // Entry may be inside an outcome: finish the timer's chain before looking for its next clock.
-      this.drain()
+      return true
+    }
+    try {
+      for (let n = 0, t = since; n < CATCH_UP_BUDGET; n++) {
+        t = this.nextDue(map, t, slept)
+        if (t > now) break
+        w.state.tick = t
+        this.statusesOn(map, slept)
+      }
+    } finally {
+      w.state.tick = now
+    }
+  }
+
+  /** The first tick after `after` at which a status on a map ends or pulses with something to do (Infinity: none). */
+  private nextDue(map: string, after: number, slept: (e: Entity) => boolean): number {
+    const w = this.world
+    let due = Infinity
+    for (const key of w.statusfulOn(map)) {
+      const ref = w.keyRef(key)
+      const e = w.get(ref.e)
+      if (!e?.statuses || w.refPos(ref)?.map !== map || !slept(e)) continue
+      const names = Object.keys(e.statuses)
+      const may = this.lib.mayAnswerHaving('time/period', e.type, names)
+      let view: View | undefined
+      for (const status of names) {
+        const exp = e.statuses[status]
+        if (exp === NO_EXPIRY) continue
+        // (one that fell due as the last tick ran, set then, ends at the next, as in play)
+        due = Math.min(due, Math.max(exp, after + 1))
+        if (!may) continue
+        // with a pace of its own: every `every` ticks counted back from its end, the last as it ends; else on the clock's beat, until it ends
+        const every = w.onto.status(status)?.every
+        const at = every ? exp - every * Math.floor((exp - after - 1) / every) : (Math.floor(after / STATUS_TICK_EVERY) + 1) * STATUS_TICK_EVERY
+        if (at > after && at < due && (every ? at <= exp : at < exp) && this.lib.mayDo('time/period', (view ??= w.view(ref)), { status })) due = at
+      }
+    }
+    return due
+  }
+
+  /**
+   * One event of a thing's own clock — a status's pulse or its end — run through with its chain before anything else
+   * is: with dice of its own (the world's seed, the thing, the status, the tick), so it rolls the same whether its map
+   * was in play or catches up when entered, whatever the world drew in between. On entering inside an outcome (a
+   * portal's step), what that outcome has set off waits until it is done.
+   */
+  private clockEvent(ref: Ref, status: string, what: 'pulse' | 'end', f: () => void): void {
+    const w = this.world
+    const rng = w.state.rng
+    const queued = this.q.splice(0)
+    const outcomes = this.outcomes.splice(0)
+    w.state.rng = seedOf(w.state.seed, ref.e, status, what, w.state.tick)
+    try {
+      f()
+      if (this.flushing) this.drain()
+    } finally {
+      w.state.rng = rng
+      this.q.unshift(...queued)
+      this.outcomes.push(...outcomes)
     }
   }
 
@@ -1709,6 +1776,12 @@ export class Engine {
     }
   }
 
+  /** A status's pulse: a time/period event (its actor: who gave it). */
+  private pulse(ref: Ref, status: string): void {
+    const roles = this.givenBy(ref, status)
+    this.offer({ kind: 'time/period', host: ref, roles, params: { status }, cause: roles.actor && 'e' in roles.actor ? roles.actor.e : undefined, origin: 'world' })
+  }
+
   /** A status runs out (the clock clears it): a time/timer event (its actor: who gave it). */
   private expire(ref: Ref, status: string): void {
     const w = this.world
@@ -1725,28 +1798,37 @@ export class Engine {
   }
 
   private statusTick(active: string): void {
+    this.statusesOn(active)
+  }
+
+  /**
+   * A map's statuses at this tick, thing by thing as they stand when it begins: each pulses as its pace says (a
+   * time/period event) and ends when its time has come (a time/timer); the resident hosts' too (their clock runs
+   * wherever the one at the keys is). `slept`: the map is catching up (catchUp) — only what slept with it, and only
+   * the statuses that end (one without an end waits).
+   */
+  private statusesOn(map: string, slept?: (e: Entity) => boolean): void {
     const w = this.world
     const t = w.state.tick
-    for (const key of w.statusfulOn(active)) {
+    for (const key of w.statusfulOn(map)) {
       const ref = w.keyRef(key)
       const pos = w.refPos(ref)
       // a resident's clock runs wherever the one at the keys is (a quest's deadline, docs/quests.md)
       const host = 'e' in ref ? w.get(ref.e) : undefined
-      const resident = !pos && !!host && w.isPlaceless(host)
-      if (!resident && (!pos || pos.map !== active)) continue
+      const resident = !slept && !pos && !!host && w.isPlaceless(host)
+      if (!resident && (!pos || pos.map !== map)) continue
+      if (slept && host && !slept(host)) continue
       const bag = w.statusesOf(ref)
       if (!bag) continue
       for (const [status, exp] of Object.entries(bag)) {
+        if (slept && exp === NO_EXPIRY) continue
         // a status with a pace of its own pulses every `every` ticks counted back from its end, the
         // last pulse as it ends (a four-second bleed bleeds four times); the rest every half second
         const every = w.onto.status(status)?.every
         const ends = exp !== NO_EXPIRY && exp <= t
         const pulse = every && exp !== NO_EXPIRY ? exp >= t && (exp - t) % every === 0 : !ends && t % (every ?? STATUS_TICK_EVERY) === 0
-        if (pulse) {
-          const roles = this.givenBy(ref, status)
-          this.offer({ kind: 'time/period', host: ref, roles, params: { status }, cause: roles.actor && 'e' in roles.actor ? roles.actor.e : undefined, origin: 'world' })
-        }
-        if (ends) this.expire(ref, status)
+        if (pulse) this.clockEvent(ref, status, 'pulse', () => this.pulse(ref, status))
+        if (ends) this.clockEvent(ref, status, 'end', () => this.expire(ref, status))
       }
     }
   }
@@ -1766,10 +1848,13 @@ export class Engine {
         const k = `${p.name}|${e.id}`
         // first seen: as far as the clock's own beat has come; then the ticks gone by (a jump of the
         // clock, a step on the overworld, counts too: one a tick until it has caught up)
-        const was = this.progress.get(k) ?? { done: (((t - 1) % every) + every) % every / every, at: t - 1 }
+        // how far it has come toward its next: the ticks gone by since, over its interval as its pace is now (kept
+        // with the state, `paces`, so a loaded save keeps its phase)
+        const paces = (w.state.paces ??= {})
+        const was = paces[k] ?? { done: (((t - 1) % every) + every) % every / every, at: t - 1 }
         const done = was.done + (t - was.at) / every
-        if (done < 1 - 1e-9) return (this.progress.set(k, { done, at: t }), false)
-        this.progress.set(k, { done: Math.max(0, done - 1), at: t })
+        if (done < 1 - 1e-9) return ((paces[k] = { done, at: t }), false)
+        paces[k] = { done: Math.max(0, done - 1), at: t }
         return true
       }
       const hosts: Ref[] =

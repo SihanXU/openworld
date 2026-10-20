@@ -104,6 +104,10 @@ characters.AlbericHuman = { dir: 'lsw/Characters/Alberic', sheet: 'SpriteSheet.p
 function mon(folder: string, sheet = 'SpriteSheet.png', tint?: number): ActorDef {
   return { dir: 'Actor/Monster/' + folder, sheet, faceset: 'Faceset.png', cols: 4, rows: 4, ...(tint !== undefined ? { tint } : {}) }
 }
+/** One of the project's own creature sheets (tools/src/art/creatures.ts): the pack's monster layout, 4 directions x 4 steps. */
+function own(name: string): ActorDef {
+  return { dir: 'lsw/Creature/' + name, sheet: 'SpriteSheet.png', cols: 4, rows: 4 }
+}
 /** A character-layout sheet used as a creature (cols = directions, rows 0-3 walk, 4-6 extras). */
 function charCreature(name: string, tint?: number): ActorDef {
   return { ...charDef(name), ...(tint !== undefined ? { tint } : {}) }
@@ -499,6 +503,8 @@ export const CATALOG: Catalog = {
     'fixture:chalk_bridge': { base: px('lsw/Fixtures/Chalk.png', 32, 0, 16, 16, 8, 15), ground: true },
     'fixture:chalk_man': { base: px('lsw/Fixtures/Chalk.png', 48, 0, 16, 16, 8, 15), ground: true },
     'fixture:briar': { base: px('lsw/Fixtures/Briar.png', 0, 0, 16, 16, 8, 15) },
+    // a spider's web left on the ground (tools/src/art/drops.ts)
+    'fixture:web': { base: px('lsw/Fixtures/Web.png', 0, 0, 16, 16, 8, 15), ground: true },
     // what the dragon's fire leaves on the ground: a scorch of ash, its flames the burning overlay
     'fixture:embers': { base: t(NATURE, 8, 13), ground: true },
     // the Held Ground's edge (tools/src/art/haven.ts)
@@ -656,6 +662,10 @@ export const CATALOG: Catalog = {
     'item:mushroom_blue': t('Actor/Monster/Mushroom2/mushroom2.png', 0, 0),
     'item:feather': icon('Items/Resource/feather.png', 16, 16),
     'item:bone': t(DETAIL, 14, 0),
+    // what only monsters leave (tools/src/art/drops.ts)
+    'item:slime_gel': icon('lsw/Items/SlimeGel.png', 16, 16),
+    'item:venom_sac': icon('lsw/Items/VenomSac.png', 16, 16),
+    'item:ectoplasm': icon('lsw/Items/Ectoplasm.png', 16, 16),
     'item:cloth': icon('Items/Scroll/Scroll.png', 14, 14),
     'item:leather': icon('Items/Object/Bag.png', 16, 16),
     'item:wool': t(NATURE, 10, 12),
@@ -773,20 +783,24 @@ export const CATALOG: Catalog = {
     'creature:bat': mon('BlueBat'),
     'creature:skeleton': charCreature('Skeleton'),
     // a zombie: the caveman, tinted the green of the grave
-    'creature:zombie': charCreature('Caveman2', 0x9fcf8a),
+    'creature:zombie': own('Zombie'),
     'creature:ghost': mon('Spirit'),
-    'creature:golem': charCreature('Statue'),
-    'creature:golem:stone_golem': charCreature('Statue'),
-    'creature:golem:earth': charCreature('Statue'),
-    'creature:golem:ice_golem': charCreature('Statue', 0xb0dcff),
-    'creature:golem:ice': charCreature('Statue', 0xb0dcff),
+    'creature:golem': own('StoneGolem'),
+    'creature:golem:stone_golem': own('StoneGolem'),
+    'creature:golem:earth': own('StoneGolem'),
+    'creature:golem:ice_golem': own('IceGolem'),
+    'creature:golem:ice': own('IceGolem'),
     'creature:imp': charCreature('DemonRed'),
     'creature:imp:fire_imp': charCreature('DemonRed'),
-    'creature:wisp': mon('Flam2'),
-    'creature:wisp:storm_wisp': mon('Flam2', 'SpriteSheet.png', 0xfff6a0),
-    'creature:crab': mon('Mollusc', 'Mollusc.png'),
+    'creature:wisp': own('StormWisp'),
+    'creature:wisp:storm_wisp': own('StormWisp'),
+    'creature:crab': own('Crab'),
     // the main quest's monsters
     'creature:spider': mon('SpiderRed'),
+    // the sporecap: the pack's mushroom monster, whose first frame is also the mushroom and the fairy ring: tinted a
+    // sickly violet, so a sporecap among the Hollow's mushrooms is not taken for one of them
+    'creature:fungus': { dir: 'Actor/Monster/Mushroom', sheet: 'mushroom.png', cols: 4, rows: 4, tint: 0xc9a6e8 },
+    'creature:fungus:sporecap': { dir: 'Actor/Monster/Mushroom', sheet: 'mushroom.png', cols: 4, rows: 4, tint: 0xc9a6e8 },
     'creature:whelp': mon('Dragon'),
     // the meadow's animals: the project's own art (tools/src/art/animals.ts), not the pack's
     'creature:cow': { dir: 'lsw/Animal/Cow', sheet: 'SpriteSheet.png', cols: 4, rows: 4 },
@@ -936,6 +950,11 @@ export const CATALOG: Catalog = {
     patched: 'Audio/Jingles/Success1.wav',
     error: SND + 'Menu/Cancel.wav',
     death: 'Audio/Jingles/GameOver2.wav',
+    // a monster's wind-up and its fall (the kits module's poses, render/scene.ts)
+    hop: SND + 'Jump & Bounce/Bounce4.wav',
+    howl: SND + 'Voice/Voice4.wav',
+    impact: SND + 'Hit & Impact/Impact.wav',
+    fell: SND + 'Hit & Impact/Hit1.wav',
   },
 }
 

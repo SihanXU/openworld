@@ -819,9 +819,12 @@ req('F13', 'a defeated foe teaches whoever struck it: experience, levels, a skil
     run(f, 'use', 16, 18)
     expect(W(f).get(id)).toBeUndefined()
   }
-  // each slime is worth its full health (11); twenty make the second level
+  // each slime is worth its full health (content levels.ts); twenty make the second level, the rest is carried on
+  const worth = ['ford.fire_slime', 'ford.frost_slime'].reduce((n, id) => n + Number(onto.types[id === 'ford.fire_slime' ? 'actor/creature/slime/fire_slime' : 'actor/creature/slime/frost_slime'].props!.maxHp), 0)
   expect(xpToNext(1)).toBe(20)
-  expect(p.props).toMatchObject({ level: 2, xp: 2, skillPoints: 1 })
+  expect(worth).toBeGreaterThanOrEqual(20)
+  expect(worth).toBeLessThan(20 + xpToNext(2))
+  expect(p.props).toMatchObject({ level: 2, xp: worth - 20, skillPoints: 1 })
 })
 
 const COW = 'actor/creature/animal/cow'
@@ -1059,6 +1062,17 @@ req('K2', 'every kind with a kit is met somewhere, each where its element is: sp
   // the pass's storms bring wisps: its own appearance, in a storm only
   const storm = buildFord().chunks.find((c) => c.map.id === 'pass')?.map.appear?.find((a) => a.types['actor/creature/wisp/storm_wisp'])
   expect(storm?.weather).toEqual(['storm'])
+})
+
+req('K3', 'a kind of the First Night\'s own: sporecaps, mushrooms grown into things that walk, where the Hollow\'s thorns are thickest — a kit of their own (its poison held by kits.test.ts), flammable, a piece of their own', ['actor/creature/fungus/sporecap'], () => {
+  const f = fresh()
+  const w = W(f)
+  const caps = w.ofType('actor/creature/fungus/sporecap').filter((e) => e.place.on === 'tile')
+  expect(caps.map((e) => (e.place.on === 'tile' ? e.place.map : ''))).toEqual(['hollow', 'hollow'])
+  expect(kitsOf(f.eng).kitOf(caps[0])?.map((s) => s.id)).toEqual(['spores'])
+  expect(w.hasTag(caps[0], 'flammable')).toBe(true)
+  // it leaves a herb, and its kind keeps a piece of its own
+  expect(onto.types['actor/creature/fungus/sporecap'].props?.trophy).toBe('item/clothing/hat/sporecap')
 })
 
 // ------------------------------------------------------------------ W. the world model: breaking (world-model.md §10.3)
@@ -2967,12 +2981,14 @@ req('P3', "the main line never breaks: Rowan's rescue begins by itself at the we
   fell(f, w.get('barrow.warden')!)
   ticks(f, 2)
   expect(markOf(f, 'npc.rowan')).toBe('?')
-  const xp = w.num(w.player, 'xp') + 20 * (w.num(w.player, 'level', 1) - 1)
+  // all the experience one has had: what each level took (20, 40, 60 …) and what is carried toward the next
+  const total = () => w.num(w.player, 'xp') + Array.from({ length: w.num(w.player, 'level', 1) - 1 }, (_, i) => xpToNext(i + 1)).reduce((a, b) => a + b, 0)
+  const xp = total()
   expect(talkTo(f, 'npc.rowan')).toContain('在圣火前感恩')
   ticks(f, 2)
   expect(qs(f, 'rescue')).toBe('done')
   expect(w.fact('rescue.lina')).toBe(1)
-  expect(w.num(w.player, 'xp') + 20 * (w.num(w.player, 'level', 1) - 1)).toBeGreaterThan(xp)
+  expect(total()).toBeGreaterThan(xp)
   // and the main line carries straight on: the vigil (the village's own country), then the First Seal, the White Knight at its end
   ticks(f, 20)
   expect(underWay(f)).toEqual([['vigil', 'main']])

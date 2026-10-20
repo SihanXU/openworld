@@ -2,7 +2,8 @@
 // model and one harness configuration. Reports what the player waits for (the reply), where it
 // goes (calls, output and reasoning tokens), how often the first answer is already valid, and cost.
 //
-//   npm run latency -- [--n 5] [--seed 1] [--model <id>] [--providers together,parasail]
+//   npm run latency -- [--n 5] [--seed 1] [--model <id>] [--providers together,parasail] [--tier low|medium|high]
+//   (--tier: the AI setting's tier every request is asked at; medium, the harness as it is, by default)
 //   (the live profile as the harness defines it; --rounds, --reasoning, --no-brief, --model-tests,
 //   --no-hedge override it, to compare configurations)
 //
@@ -33,6 +34,7 @@ function args(argv: string[]) {
     reasoning: get('reasoning') as ChatOptions['reasoning'],
     sort: get('sort'),
     providers: get('providers'),
+    tier: get('tier') as 'low' | 'medium' | 'high' | undefined,
   }
 }
 
@@ -65,13 +67,15 @@ async function main(): Promise<void> {
     'latency bench',
   )
   const d = state.harness().design
-  const label = `${model.name} rounds=${d.toolRounds}${d.brief ? ' brief' : ''} reasoning=${d.reasoning ?? 'default'} tests=${d.tests}${d.hedgeMs ? ` hedge=${d.hedgeMs}` : ''}${a.sort ? ` sort=${a.sort}` : ''}${a.providers ? ` providers=${a.providers}` : ''}`
+  const label = `${model.name}${a.tier ? ` tier=${a.tier}` : ''} rounds=${d.toolRounds}${d.brief ? ' brief' : ''} reasoning=${d.reasoning ?? 'default'} tests=${d.tests}${d.hedgeMs ? ` hedge=${d.hedgeMs}` : ''}${a.sort ? ` sort=${a.sort}` : ''}${a.providers ? ` providers=${a.providers}` : ''}`
   console.log(`# ${label}`)
   const cells = pick(sweep(library.fullOntology(), [...library.lib.rules.values()]).cells.filter((c) => c.outcome === 'undefined'), a.n, a.seed)
   const eps: WorldEpisode[] = []
   for (const cell of cells) {
     const req = cellRequest(cell, library.fullOntology(), library.lib)
     if (!req) continue
+    // the tier the event was asked at is the scenario's (the engine's setting), which the request's own defers to
+    if (a.tier) ((req.tier = a.tier), (req.scenario.tier = a.tier))
     const reply = await modder.resolve({ request: req }, 'live')
     const ep = state.episode(reply.episode!)! as WorldEpisode
     eps.push(ep)

@@ -104,7 +104,12 @@ The event model holds (design.md §5.4–5.15): behaviour decides when; the act'
   howl emits a coat to the beasts around; shell up sets the crab's own status.
 - **The client**: the frame's `telegraphs` (the module's frame hook) are drawn like the bosses' warnings
   (`render/scene.ts`); a creature whose leap or dash moves it several cells is tweened there; the new statuses tint
-  the body.
+  the body. Each mark carries the wind-up's **pose** (`Frame.telegraphs[].pose`, from `windupPose` in the kits module:
+  by how the skill moves, else where it lands), and the body takes it as the blow nears (`windupPose` in scene.ts): it
+  crouches to leap (wider, lower), draws back from its foe to dash, gathers itself up for a blow round itself, sways
+  to cast, rears and trembles to call. A cast and a call are heard as they begin, a leap, a dash and a slam as they
+  land (`hop`, `wind`, `impact` in the catalogue's sounds); a felled monster sounds a blow (`fell`), no longer the
+  game-over jingle; one sound asked twice in a moment (a burst on nine cells) is heard once.
 - **The AI**: the module's `unleash` is in the ModSpec. A learned rule on a creature kind may answer `act/use` with a
   `kit` param like the base ones; a new kind's kit is data a later step may let the modder write.
 
@@ -119,9 +124,132 @@ The event model holds (design.md §5.4–5.15): behaviour decides when; the act'
 
 ## 6. Next
 
-- **Looks.** The borrowed sprites that fit worst: the zombie (the pack's caveman tinted green) and the golems (the
-  statue). The pack's two mushroom monsters are unused. Candidates: a new night-born mushroom kind (spore cloud:
+- **Looks.** Done for the five that fit worst (2026-10-19): the zombie, the stone and the ice golem, the giant crab
+  and the storm wisp are the project's own sheets (`tools/src/art/creatures.ts`: each part drawn on its own, lit from
+  the top left, outlined in the pack's line, laid over the parts before it; `lsw/Creature/<kind>/`, mapped by `own()`
+  in the client's catalogue; before and after: `docs/figures/creature-looks.png`). Still the pack's: the slimes, the
+  wolves, the boar, the bat, the skeleton, the ghost, the imp, the spider, the whelp. The pack's two mushroom monsters are unused. Candidates: a new night-born mushroom kind (spore cloud:
   poison in a disk) for the forest — it needs a trophy, a codex entry, a wiki page and a place on a map (a demo
   requirement), so it is its own step. Own art goes through `tools/src/art/` like the animals.
+- **Drops**: done (§7).
+- **Levels and numbers**: done (§8); a play-through at level 1–5 should still confirm them.
 - **Balance** wants a play-through at level 1–5: the spider and the boar are the first that can kill a careless player.
 - **Variants per place**: a kit is per type; a stronger version for a later chapter is a subtype with its own kit.
+
+## 7. Drops (2026-10-19)
+
+Before this, a hostile monster had no makeup: felled, it left nothing but, rarely, its trophy (docs/gear.md). Now every
+kind is made of something (content `drops.ts`, `CREATURE_DROPS`, applied to the types in `buildOntology`), and the base
+rule `combat/defeat` breaks it down as it does anything with a makeup: half of each part (the world's recovery rate, at
+least one), lying still where it fell, taken with F. No engine change.
+
+- Mostly what the world already has: hides and meat (wolves, the boar, the whelp, the cyclops), bone and rags (the
+  dead), stone, ore and frostcap (the golems), coal and fireweed (the imp), raw fish (the crab), and a bat's guano as
+  fertilizer.
+- Three things only monsters give: **slime gel** (every slime; the Slime King a heap), the **venom sac** (the cave
+  spider) and **ectoplasm** (the ghost, the storm wisp). Each sells at one's stall (`DROP_SELLS`).
+- **The antidote** is made at hand of a venom sac and a herb; drunk (`use/drink-antidote`, `body/antidote`) it clears
+  the spider's poison and mends 4. The spider's threat and its cure come from the same body.
+- Icons: `tools/src/art/drops.ts`. The full table: the wiki's 战斗/怪物掉落, and each monster's `{{掉落}}`.
+
+Checks: `tools/test/drops.test.ts` (every hostile minor kind has a makeup the world knows; a felled skeleton leaves two
+bones lying still; the three new things each have a use; the antidote clears poison), `npm run coverage` (no form
+without a purpose).
+
+## 8. Levels and numbers (2026-10-19)
+
+Before this every monster was level 1 with hand-set numbers, and a level-1 player with a stone axe felled almost any of
+them in under two seconds: the skills of §3 seldom had time to wind up. Now (content `levels.ts`) a kind's **level** is
+its place in the world — the level its own trophy is made at (trophies.ts, 1–7), or, for a kind met before that, the
+level of where it is met (`MET_AT`: the barrow warden, a gate of chapter 1, at its floor's 4) — and its numbers come from
+one curve read through its **role** (the ontology sets none of them by hand):
+
+- health = 30 × role.hp × (1 + 0.25 × (level − 1)): it grows as gear does (`GEAR_LEVELS.perLevel`), so a monster met
+  with gear of its own level takes as long to fell at level 7 as at level 1;
+- attack = (2.5 + 0.5 × (level − 1)) × role.atk; defence = role.def + ⌊level / 4⌋.
+
+| Role | hp | atk | def | Kinds |
+|---|---|---|---|---|
+| swarm | ×0.6 | ×0.8 | +0 | the slimes, the bat |
+| fighter | ×1 | ×1 | +0 | wolves, the zombie, the skeleton, the spider |
+| caster | ×0.7 | ×1 | +0 | the ghost, the imp, the wisp, the whelp |
+| brute | ×1.6 | ×1.1 | +2 | the boar, the golems, the crab |
+| elite | ×3 | ×1.2 | +1 | the Slime King, the barrow warden, the cyclops |
+
+Experience stays the full health: the fights are longer, so what a minute of fighting gives is about what it was. Over the
+kinds placed on the demo's maps that is about three times the experience of before (each kill is worth more, and there
+are as many kills): levels and what they open (a profession at 5) come sooner on the main line. (Open, 2026-10-20.)
+
+Checks: `tools/test/minor-balance.test.ts` duels every kind against a player with gear of its level (a stone axe's blow
+grown a quarter a level, a point of defence every two), standing and striking and stepping off the marks: it is won
+both ways, it costs something, a swarm lasts at least a second and anything else long enough to wind a skill up (it
+does, for every kind with a kit but the elites), and what standing costs stays within its role's bound (12 for a swarm
+or a fighter, 20 a brute, 30 an elite). Measured standing at gear of its level: swarms 1.3–2 s and 3–4 health,
+fighters and casters 2–3 s and 3–8, brutes 5–7 s and 9–16, elites 9 s and 15–20.
+
+## 10. The elites (2026-10-19)
+
+The minor monsters' gatekeepers — the barrow warden (the sanctum, the barrow's deepest floor), the cyclops (the old
+mine's deep end) and the Slime King — had no kit (the King only its kin's Hop). They stay minor monsters: they take
+their skills up as any does (the kit goal, when a skill's conditions hold), never by a boss's director, with no plate,
+camera or phases. What makes each a fight of its own is a kit of two to four, a chain and a guard (`ELITE_KITS`,
+`ELITE_RULES` in kits.ts; the contract's elite tier: two to four skills, a wind-up of at least 0.8 s, 0.6 s for the next
+of a chain, no encounter).
+
+| Elite | Skill | When | Lands |
+|---|---|---|---|
+| Barrow warden | Vigil Sweep 守夜横扫 | 1–2 cells | a cone of 2: atk × 1.4, cut, pushed 1 |
+| | Shield Charge 盾冲 | in a row, 2–4 | a dash: atk × 1.6, stunned; then the Vigil Sweep at once |
+| | Hold the Post 坚守岗位 | under half health, steady | the ring 3 out: atk × 1, mired |
+| Cyclops | Boulder Toss 掷石 | 3–6 cells | 3×3 at the foe: atk × 1.6, earth |
+| | Stomp 跺地 | 1–2 cells | a disk of 2: atk × 1.5, earth, pushed 1; then the Aftershock: the ring 3 out, atk × 1 |
+| | Baleful Glare 独眼凝视 | in a row, 2–6 | a line of 6: atk × 0.8, stunned |
+| Slime King | Royal Bounce 王之弹跳 | 2–4 cells | a leap; a disk of 2 at the foe: atk × 1.5, its element |
+| | Split 分裂 | under half health, not spent | two green slimes come off it, once (its prop `split`, which the skill's `spent` names: never wound up again) |
+
+A skill that is only ever the next of a chain (the Aftershock) has the range [0, 0], which the kit goal never meets.
+The warden's charge is meant to be dodged: one it catches is stunned for 1.5 s, longer than the 0.6 s the sweep winds
+up, so the sweep always lands after it (about atk × 3 and a push in all).
+Measured with gear of their level (minor-balance.test.ts): the warden 10 s and 24 health standing, 11 s and 6 dodging;
+the cyclops 10 s and 19, 14 s and 16; the King 8 s and 15 either way. Checks: kits.test.ts (the King splits once; the
+charge is followed by the sweep; the aftershock comes only after the stomp), kit-contract.test.ts (the elite tier).
+
+
+## 11. Tactics (2026-10-19)
+
+A minor monster walked up and struck, or stood and cast; none kept its distance, ran or worked with another. Two goals
+of the kits module (`tactics.ts`) now move it in a fight, as behaviour (design.md §5.4), each read from its type's data
+(content `CREATURE_TACTICS` in kits.ts, applied in `buildOntology`):
+
+- **rout** (before the kit goal): hurt past `fleeBelow` of its health, it runs, each step as far from its foe as it can
+  within its leash and, if it fears fire, out of a fire's reach (the bounds the threat goal keeps, after dark from where
+  it roams). Cornered, it turns and fights; a skill it is winding up it sees through. The wolves and the frost wolves, at
+  a fifth.
+- **tactics** (after the kit goal: a skill it can take up comes first):
+  - `keepAway`: one that fights from afar steps back from a foe come closer than that, keeping it in its row where it
+    can (its lines aim there). The fire imp and the storm wisp at 3, the ghost at 2; cornered, it fights where it stands.
+  - the tag `pack`: one of a pack goes round to its foe's far side from a packmate already beside it (a short search
+    for the way round, out of a fire's reach), past the foe's other sides; the mate it goes by is the first of the pack
+    (by id) beside the foe, so two never circle each other, and one across from a mate stays. The wolves.
+
+The order matters: with keeping away before the kit, an imp spent every turn stepping back and never cast; after it,
+an imp too close casts when it can and steps back when it cannot. Goals: `encounter, rout, kit, tactics, threat, …`.
+
+Checks: kits.test.ts (an imp come too close steps back; a wolf badly hurt runs, and cornered by its leash fights; two
+wolves come at their foe from opposite sides), minor-balance.test.ts unchanged in its bounds (the imp now 1.8 s and 5 health standing, 3.6 s and none dodging).
+
+## 12. Traps and a new kind (2026-10-19)
+
+- **The cobweb.** A spider's Web Spit leaves a cobweb (`fixture/nature/web`, content `COBWEB`) on each cell it fell on
+  that no one stands on (`unleash`'s `leave`). Who wades into one is webbed (`web/snare`: contact, a spider walks its
+  own, a flyer never touches it); a blow or a flame tears it (2 durability, flammable; `web/torn`); it sags away in
+  twelve seconds (`web/sags`, its stage). The briars' pattern (bosses.ts), on a minor monster.
+- **The sporecap** (`actor/creature/fungus/sporecap`, a new family `fungus`): a mushroom the First Night has woken
+  into a thing that walks (docs/lore.md §2: beasts and plants turn strange), drawn with the pack's mushroom monster,
+  unused until now. Level 2, a fighter; slow; flammable. Its kit: **Spore Cloud** 孢子云, a disk of 2 round itself,
+  1.2 s: atk × 0.8, poisoned. It leaves a herb; its own piece is the Sporecap Hat (a piece of its own, outside the
+  families' sets, which were full). Two stand in Thornwood Hollow, where the thorns grow thickest (demo K3).
+- The contract's families are fifteen now.
+
+Checks: kits.test.ts (the web left round the player, who wades in is webbed, a blow tears one, the rest sag away; the
+Spore Cloud poisons), demo.test.ts K3, trophies.test.ts (the sporecap's piece stands alone).
