@@ -3,7 +3,7 @@
 // the validator refuses (design.md §5.11, §5.16).
 
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, holeKey, placePatch, restoreLibrary, validatePatch, type Cond, type Effect, type Ontology, type Patch, type Rule, type Scenario } from '@openworld/engine'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, isRefusal, replay, placePatch, restoreLibrary, validatePatch, type Cond, type Effect, type Ontology, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { STDLIB_ONTOLOGY, STDLIB_RULES } from '@openworld/stdlib'
 
 const STD = STDLIB_ONTOLOGY as Ontology
@@ -156,5 +156,25 @@ describe("only the story's own rules write its protected facts, whoever started 
 
   it('a fact of its own is still the patch\'s to keep', () => {
     expect(check(onStory([{ op: 'setProp', key: 'stones.used', value: 1 }])).errors).toEqual([])
+  })
+})
+
+describe('an effect refused in the replay fails validation (V2)', () => {
+  it('a spawn past the most, or an amount past what a number holds, is a replay error; the line stays a developer\'s', () => {
+    for (const eff of [{ op: 'spawn', type: STONE, at: 'actor', into: 'tile', count: 1000 }, { op: 'addProp', key: 'charge', delta: { prop: 'hp', of: 'actor', mul: 1e308 } }] as Effect[]) {
+      const { eng, req } = ask()
+      const res = validatePatch(placePatch(draft('patch/many', { do: [eff] }), req).patch, { ontology: onto, library: eng.lib, scenario: req.scenario })
+      expect(res.ok).toBe(false)
+      expect(res.errors.join()).toMatch(/replay: rule patch\/many: /)
+    }
+    // the line a refusal leaves is the developer's, and the sandbox tells it by isRefusal
+    const { eng, req } = ask()
+    const p = placePatch(draft('patch/many', { do: [{ op: 'spawn', type: STONE, at: 'actor', count: 1000 }] }), req).patch
+    eng.lib.add({ ...(p.artifacts[0] as { rule: Rule }).rule, source: { origin: 'patch' } })
+    const rp = replay(req.scenario, onto, eng.lib)
+    const refused = rp.engine.world.fx.filter(isRefusal)
+    expect(refused.length).toBe(1)
+    expect(refused[0]).toMatchObject({ t: 'log', tone: 'dev' })
+    expect(isRefusal({ t: 'log', text: 'patch rejected: x', tone: 'dev' })).toBe(false)
   })
 })

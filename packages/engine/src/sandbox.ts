@@ -8,7 +8,8 @@ import type { World } from './world.ts'
 import { cellId, parseCellId, type CellSpace } from './cells.ts'
 import type { Verb } from './types.ts'
 import type { RuleLibrary } from './rules.ts'
-import type { Entity, Expectation, GameEvent, MapData, Ontology, Ref, Scenario, Space, WorldState } from './types.ts'
+import type { Entity, Expectation, FxEvent, GameEvent, MapData, Ontology, Ref, Scenario, Space, WorldState } from './types.ts'
+import { REFUSAL } from './effects.ts'
 
 export const SANDBOX_MAP = 'sandbox'
 
@@ -362,8 +363,15 @@ export function replay(sc: Scenario, ontology: Ontology, lib: RuleLibrary): Repl
   } catch (err) {
     errors.push('runtime error: ' + (err as Error).message)
   }
-  for (const f of eng.world.fx) if (f.t === 'log' && f.tone === 'warn') errors.push(String(f.text))
+  // a warning, and an effect the outcome was refused (a spawn past the most, an amount that is no number):
+  // the player is not shown the refusal (a developer's line), but a patch that makes one does not hold
+  for (const f of eng.world.fx) if (f.t === 'log' && (f.tone === 'warn' || isRefusal(f))) errors.push(String(f.text))
   return { resolution, engine: eng, errors, hpBefore }
+}
+
+/** Is this the line of an effect a rule's outcome was refused (EffectRunner, `refusalLine`)? */
+export function isRefusal(f: FxEvent): boolean {
+  return f.t === 'log' && f.tone === 'dev' && typeof f.text === 'string' && f.text.startsWith(REFUSAL)
 }
 
 export function checkExpectations(eng: Engine, exps: Expectation[], res?: Resolution): string[] {
