@@ -57,6 +57,8 @@ export function buildHollow(): MapBuilder {
   for (const [x, y] of [[18, 7], [24, 12], [11, 18]] as const) m.creature('slime/green_slime', x, y, HUNT(4))
   for (const [x, y] of [[8, 9], [31, 11], [21, 19]] as const) m.creature('spider', x, y, HUNT(4))
   for (const [x, y] of [[33, 20], [6, 22]] as const) m.creature('beast/wolf', x, y, HUNT(5))
+  // where the thorns grow thickest, mushrooms the First Night has woken: sporecaps (docs/creatures.md §12)
+  for (const [x, y] of [[15, 23], [28, 6]] as const) m.creature('fungus/sporecap', x, y, HUNT(3))
   lay(m, 'item/material/stick', 2, [15, 3, 8, 5])
   m.appear = [
     ...GROUND_YIELD,

@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { textOf, isPatch, restoreLibrary, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
-import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf } from '@openworld/modules'
+import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf, kitsOf } from '@openworld/modules'
 import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP } from '@openworld-game/content'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
@@ -819,9 +819,12 @@ req('F13', 'a defeated foe teaches whoever struck it: experience, levels, a skil
     run(f, 'use', 16, 18)
     expect(W(f).get(id)).toBeUndefined()
   }
-  // each slime is worth its full health (11); twenty make the second level
+  // each slime is worth its full health (content levels.ts); twenty make the second level, the rest is carried on
+  const worth = ['ford.fire_slime', 'ford.frost_slime'].reduce((n, id) => n + Number(onto.types[id === 'ford.fire_slime' ? 'actor/creature/slime/fire_slime' : 'actor/creature/slime/frost_slime'].props!.maxHp), 0)
   expect(xpToNext(1)).toBe(20)
-  expect(p.props).toMatchObject({ level: 2, xp: 2, skillPoints: 1 })
+  expect(worth).toBeGreaterThanOrEqual(20)
+  expect(worth).toBeLessThan(20 + xpToNext(2))
+  expect(p.props).toMatchObject({ level: 2, xp: worth - 20, skillPoints: 1 })
 })
 
 const COW = 'actor/creature/animal/cow'
@@ -1035,6 +1038,42 @@ req('K1', 'a creature has skills of its own (the kits module): it marks the cell
   const at = W(g).posOf(wolf)!
   expect(Math.abs(at.x - from.x) + Math.abs(at.y - from.y)).toBeGreaterThan(0)
 }, 60000)
+
+req('K2', 'every kind with a kit is met somewhere, each where its element is: spark slimes on Dawn Hill\'s top, a giant crab on the Reed Bend\'s shore, an ice golem in the Cinder Pass\'s snow and a storm wisp up its trail — and more wisps when a storm breaks over the pass', ['actor/creature/slime/spark_slime', 'actor/creature/crab', 'actor/creature/golem/ice_golem', 'actor/creature/wisp/storm_wisp'], () => {
+  const f = fresh()
+  const w = W(f)
+  const on = (type: string) => w.ofType(type).filter((e) => e.place.on === 'tile').map((e) => (e.place.on === 'tile' ? e.place.map : ''))
+  expect(on('actor/creature/slime/spark_slime')).toEqual(['dawnhill', 'dawnhill'])
+  expect(on('actor/creature/crab')).toEqual(['reedbend'])
+  expect(on('actor/creature/golem/ice_golem')).toEqual(['pass'])
+  expect(on('actor/creature/wisp/storm_wisp')).toEqual(['pass'])
+  // where each stands is its element's ground, and it fights with its kit
+  const cell = (type: string) => {
+    const e = w.ofType(type)[0]!
+    return e.place.on === 'tile' ? w.cellTop(e.place.map, e.place.x, e.place.y)?.type : undefined
+  }
+  expect(cell('actor/creature/golem/ice_golem')).toBe('tile/snow')
+  // the spark slimes stand beyond their sight of Dawn Hill's statue: one who travels there is not set on as they arrive
+  const statue = w.get('wp.dawnhill')!.place
+  for (const s of w.ofType('actor/creature/slime/spark_slime')) if (s.place.on === 'tile' && statue.on === 'tile')
+    expect(Math.max(Math.abs(s.place.x - statue.x), Math.abs(s.place.y - statue.y))).toBeGreaterThan(s.ai?.sight ?? 0)
+  for (const t of ['actor/creature/slime/spark_slime', 'actor/creature/crab', 'actor/creature/golem/ice_golem', 'actor/creature/wisp/storm_wisp'])
+    expect(kitsOf(f.eng).kitOf(w.ofType(t)[0]!)?.length, t).toBeGreaterThan(0)
+  // the pass's storms bring wisps: its own appearance, in a storm only
+  const storm = buildFord().chunks.find((c) => c.map.id === 'pass')?.map.appear?.find((a) => a.types['actor/creature/wisp/storm_wisp'])
+  expect(storm?.weather).toEqual(['storm'])
+})
+
+req('K3', 'a kind of the First Night\'s own: sporecaps, mushrooms grown into things that walk, where the Hollow\'s thorns are thickest — a kit of their own (its poison held by kits.test.ts), flammable, a piece of their own', ['actor/creature/fungus/sporecap'], () => {
+  const f = fresh()
+  const w = W(f)
+  const caps = w.ofType('actor/creature/fungus/sporecap').filter((e) => e.place.on === 'tile')
+  expect(caps.map((e) => (e.place.on === 'tile' ? e.place.map : ''))).toEqual(['hollow', 'hollow'])
+  expect(kitsOf(f.eng).kitOf(caps[0])?.map((s) => s.id)).toEqual(['spores'])
+  expect(w.hasTag(caps[0], 'flammable')).toBe(true)
+  // it leaves a herb, and its kind keeps a piece of its own
+  expect(onto.types['actor/creature/fungus/sporecap'].props?.trophy).toBe('item/clothing/hat/sporecap')
+})
 
 // ------------------------------------------------------------------ W. the world model: breaking (world-model.md §10.3)
 
@@ -2942,12 +2981,14 @@ req('P3', "the main line never breaks: Rowan's rescue begins by itself at the we
   fell(f, w.get('barrow.warden')!)
   ticks(f, 2)
   expect(markOf(f, 'npc.rowan')).toBe('?')
-  const xp = w.num(w.player, 'xp') + 20 * (w.num(w.player, 'level', 1) - 1)
+  // all the experience one has had: what each level took (20, 40, 60 …) and what is carried toward the next
+  const total = () => w.num(w.player, 'xp') + Array.from({ length: w.num(w.player, 'level', 1) - 1 }, (_, i) => xpToNext(i + 1)).reduce((a, b) => a + b, 0)
+  const xp = total()
   expect(talkTo(f, 'npc.rowan')).toContain('在圣火前感恩')
   ticks(f, 2)
   expect(qs(f, 'rescue')).toBe('done')
   expect(w.fact('rescue.lina')).toBe(1)
-  expect(w.num(w.player, 'xp') + 20 * (w.num(w.player, 'level', 1) - 1)).toBeGreaterThan(xp)
+  expect(total()).toBeGreaterThan(xp)
   // and the main line carries straight on: the vigil (the village's own country), then the First Seal, the White Knight at its end
   ticks(f, 20)
   expect(underWay(f)).toEqual([['vigil', 'main']])

@@ -176,8 +176,14 @@ export function buildPass(): MapBuilder {
   m.creature('imp/fire_imp', 9, 15, { sight: 6 })
   m.creature('imp/fire_imp', 20, 9, { sight: 6 })
   m.creature('golem/stone_golem', 14, 4, { sight: 4, leash: 5 })
+  // below, in the snow, its kin of ice; and up the open trail a storm wisp, with more when a storm breaks over the pass
+  m.creature('golem/ice_golem', 7, 30, { sight: 4, leash: 5 })
+  m.creature('wisp/storm_wisp', 13, 19, { behaviour: 'ranged', sight: 6 })
   lay(m, 'item/material/stone', 2, [10, 28, 10, 6])
-  m.appear = [hunters('actor/creature/imp/fire_imp', 2, 2400, ['ash'], { behaviour: 'ranged', sight: 6 })]
+  m.appear = [
+    hunters('actor/creature/imp/fire_imp', 2, 2400, ['ash'], { behaviour: 'ranged', sight: 6 }),
+    { ...hunters('actor/creature/wisp/storm_wisp', 2, 600, ['snow', 'path'], { behaviour: 'ranged', sight: 6 }), weather: ['storm'], tag: 'stormborn' },
+  ]
   return m
 }
 

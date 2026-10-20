@@ -146,6 +146,13 @@ export interface DesignConfig {
   reasoning?: Reasoning
   /** who writes the generalization test: the model, or the harness (derive.ts) */
   tests?: 'model' | 'harness'
+  /**
+   * The deterministic repairs of an answer's mechanical slips (fixes.ts: its shape, bare terrains, a recipe's station;
+   * brackets): on unless false. Off (an ablation, paper §7.1), an answer that needed one is an invalid attempt.
+   */
+  fixes?: boolean
+  /** The router (one call: the catalogue found, a new kind made, on request): on unless false. Off (an ablation), local only. */
+  router?: boolean
   /** tail guard per call (ms; 0 = off): second request after hedgeMs, give up a try after deadlineMs */
   hedgeMs?: number
   deadlineMs?: number

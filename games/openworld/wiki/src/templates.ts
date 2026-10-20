@@ -2,7 +2,7 @@
 // a table here is the game's own numbers, never a copy that can go stale.
 
 import { gearProps, type CreatureSkill, type Effect, type Entity, type QuestDef, type QuestReward, type QuestTrigger, type Text } from '@openworld/engine'
-import { BASE_RULES, REGION_BY_ID, REGIONS } from '@openworld-game/content'
+import { BASE_RULES, CREATURE_ROLES, REGION_BY_ID, REGIONS } from '@openworld-game/content'
 import {
   EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, VOWS, isAccessory, zh,
   type BossEnt, type CreatureEnt, type Ent, type Game, type ItemEnt, type MapEnt, type PersonEnt, type QuestEnt, type Sprite,
@@ -300,10 +300,14 @@ function personInfobox(ctx: Ctx, p: PersonEnt): string {
   return infobox(ctx, p.zh, fit(p.face, 96, 'face'), rows)
 }
 
+/** A minor monster's role, as the infobox says it (content levels.ts). */
+const ROLE_ZH: Record<string, string> = { swarm: '群怪', fighter: '战士', caster: '法术', brute: '肉盾', elite: '精英' }
+
 function creatureInfobox(ctx: Ctx, c: CreatureEnt): string {
   const p = c.props
   const rows: [string, string][] = [
     ['类别', esc(c.group)],
+    ['等级', p.level && CREATURE_ROLES[c.id] ? `${p.level} 级 · ${ROLE_ZH[CREATURE_ROLES[c.id]]}` : ''],
     ['生命', String(p.maxHp ?? p.hp ?? '—')],
     ['攻击', String(p.atk ?? '—')],
     ['防御', String(p.def ?? 0)],
@@ -689,9 +693,15 @@ function creatureSkills(ctx: Ctx, c: CreatureEnt): string {
   for (let t = c.id; t && !kit; t = t.includes('/') ? t.slice(0, t.lastIndexOf('/')) : '') kit = kits[t]
   if (!kit?.length) return `<p class="empty">没有自己的技能：只会普通攻击。</p>`
   const move = (k: CreatureSkill) => join([k.move === 'leap' ? '跳到目标处' : k.move === 'dash' ? '沿直线冲过去' : k.move === 'blink' ? '瞬移到目标旁' : '原地', k.back ? `命中后后跳 ${k.back} 格` : ''])
-  const when = (k: CreatureSkill) => join([!k.range ? '首领战轮到它时' : k.range[0] === k.range[1] ? `相距 ${k.range[0]} 格` : `相距 ${k.range[0]}–${k.range[1]} 格`, k.aligned ? '同一行或同一列' : '', k.below !== undefined ? `生命低于 ${Math.round(k.below * 100)}%` : '', k.chance !== undefined && k.chance < 1 ? `每秒 ${Math.round(k.chance * 100)}% 几率` : ''])
+  const before = (k: CreatureSkill) => kit!.find((o) => o.then === k.id)
+  const when = (k: CreatureSkill) => {
+    // a skill whose range never holds is only ever the next of a chain (the cyclops's aftershock)
+    if (k.range && k.range[1] === 0) return before(k) ? `只接在「${esc(zh(before(k)!.name))}」后面` : '—'
+    return join([!k.range ? '首领战轮到它时' : k.range[0] === k.range[1] ? `相距 ${k.range[0]} 格` : `相距 ${k.range[0]}–${k.range[1]} 格`, k.aligned ? '同一行或同一列' : '', k.below !== undefined ? `生命低于 ${Math.round(k.below * 100)}%` : '', k.chance !== undefined && k.chance < 1 ? `每秒 ${Math.round(k.chance * 100)}% 几率` : '', k.steady ? '被控制也不会打断' : ''])
+  }
   const marks = (k: CreatureSkill) => (k.radius ? `${esc(T(ctx, '形状', k.shape))}，${k.radius} 格，${esc(T(ctx, '瞄准', k.aim))}` : '不标格子')
-  const rows = kit.map((k) => [`<b>${esc(zh(k.name))}</b>`, when(k), marks(k), move(k), secs(k.windup), k.cooldown ? secs(k.cooldown) : '—'])
+  const next = (k: CreatureSkill) => (k.then ? `，接着放「${esc(zh(kit!.find((o) => o.id === k.then)?.name ?? k.then))}」` : '')
+  const rows = kit.map((k) => [`<b>${esc(zh(k.name))}</b>`, when(k), marks(k), move(k) + next(k), secs(k.windup), k.cooldown ? secs(k.cooldown) : '—'])
   return table(['技能', '什么时候用', '标记的格子', '怎么过去', '前摇', '冷却'], rows)
 }
 
@@ -853,6 +863,11 @@ function lists(ctx: Ctx, name: string, args: string[]): string | undefined {
     case '地区物产': return regionalGoods(ctx, args[0])
     case '居民表': return table(['', '名字', '身份', '年龄', '住在', '任务'], g.people.map((p) => [fit(p.face, 40, 'face'), ctx.link(p.title, p.zh), esc(p.roleZh), p.age ? String(p.age) : '—', p.home ? mapLink(ctx, p.home) : p.kind === 'companion' ? '跟着玩家' : '只在剧情中', String((idx(g).personQuests.get(p.id) ?? []).length || '—')]), 'wikitable sortable')
     case '怪物表': return table(['', '名字', '类别', '生命', '攻击', '防御', '元素', '出没'], g.creatures.map((c) => [fit(c.sprite, 32), ctx.link(c.title, c.zh), esc(c.group), String(c.props.maxHp ?? '—'), String(c.props.atk ?? '—'), String(c.props.def ?? 0), c.props.element ? T(ctx, '元素', String(c.props.element)) : '—', join([...whereCreature(ctx, c.id).map((m) => mapLink(ctx, m)), ...bornOf(ctx, c.id).short]) === '—' ? '<span class="muted">游戏里目前不会出现</span>' : join([...whereCreature(ctx, c.id).map((m) => mapLink(ctx, m)), ...bornOf(ctx, c.id).short])]), 'wikitable sortable')
+    // what every kind leaves, from its makeup at the world's recovery rate (the game's own numbers, never a copy)
+    case '掉落表': {
+      const r = g.ontology.params?.recovery ?? 0.5
+      return table(['', '怪物', '留下'], g.creatures.filter((c) => c.makeup.length).map((c) => [fit(c.sprite, 32), ctx.link(c.title, c.zh), c.makeup.map((m) => typeLink(ctx, m.type, { count: Math.max(1, Math.floor(m.count * r)) })).join('、')]), 'wikitable sortable')
+    }
     case '首领表': return table(['', '名字', '印', '生命（挑战）', '技能', '在哪里打'], g.bosses.map((b) => { const c = campaign(ctx, b); return [fit(b.sprite, 48), ctx.link(b.title, b.zh), esc(b.seal ?? ''), String(b.def.hp), b.def.skills.map((s) => esc(zh(s.name))).join('、'), c ? `${mapLink(ctx, c.map)}、${ctx.link('首领挑战')}` : ctx.link('首领挑战')] }))
     case '地点表': return table(['名称', '类型', '大小', '区域', '相连'], g.maps.map((m) => [ctx.link(m.title, m.zh), esc(T(ctx, '地图类型', m.map.kind)), `${m.map.width}×${m.map.height}`, m.map.zone ? esc(T(ctx, '区域', m.map.zone)) : '战斗区域', join([...new Set((m.map.portals ?? []).map((p: any) => p.to))].map((t) => mapLink(ctx, t as string)))]), 'wikitable sortable')
     // the continent's regions and the backdrop's places in one (docs/continent.md): no page each, a row each
@@ -1005,7 +1020,7 @@ export function navbox(ctx: Ctx, name: string): string {
 
 const BLOCK = new Set([
   '信息框', '引言', '小作品', '规划中', '待设计', '开发者', '主条目', '另见', '导航框', '日程表', '对话', '人际关系', '相关任务', '肖像', '来源', '用途', '配方', '变体',
-  '出没', '掉落', '首领技能', '怪物技能', '地图', '相连地点', '居民', '生物', '物品分布', '任务目标', '任务奖励', '任务对话', '任务阶段', '物品表', '居民表', '怪物表', '首领表', '地点表', '任务表', '地区表', '地区地点',
+  '出没', '掉落', '首领技能', '怪物技能', '地图', '相连地点', '居民', '生物', '物品分布', '任务目标', '任务奖励', '任务对话', '任务阶段', '物品表', '居民表', '怪物表', '掉落表', '首领表', '地点表', '任务表', '地区表', '地区地点',
   '配方表', '建造表', '技能树', '职业表', '恩赐表', '状态表', '元素表', '地形表', '材质表', '品质表', '装备栏表', '作物表', '食物表', '传送雕像表', '配乐表', '效率表',
   '房间用途表', '夜行生物表', '传说武器表', '圣痕之力表', '誓言表', '货摊表', '地区物产', '版本历史', '数值表', '门户', '原文', '图', '剧透',
 ])

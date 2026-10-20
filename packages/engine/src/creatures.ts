@@ -32,14 +32,14 @@ export function sceneOf(eng: Engine, active: string): Scene {
 }
 
 /** Where a thing that fears fire may not go (a fire's reach). */
-function safety(eng: Engine, e: Entity, sc: Scene): (x: number, y: number) => boolean {
+export function fireSafety(eng: Engine, e: Entity, sc: Scene): (x: number, y: number) => boolean {
   if (!eng.fearsFire(e)) return () => true
   const fires = (sc.fires ??= eng.fires(sc.active))
   return (px, py) => !fires.some((f) => Math.max(Math.abs(f.x - px), Math.abs(f.y - py)) <= FIRE_RADIUS)
 }
 
 /** Where it lives now: after dark, the place it roams. */
-function homeOf(e: Entity, sc: Scene): Pos {
+export function homeNow(e: Entity, sc: Scene): Pos {
   const ai = e.ai!
   return sc.night && ai.night ? ai.night : ai.home
 }
@@ -51,9 +51,9 @@ export function fight(eng: Engine, e: Entity, sc: Scene): boolean {
   if (!ai || e.place.on !== 'tile') return false
   const { x, y } = e.place
   const speed = eng.combat.delay(e, w.num(e, 'speed', 6), 'move')
-  const safe = safety(eng, e, sc)
+  const safe = fireSafety(eng, e, sc)
   // it chases no farther than its leash from where it lives
-  const home = homeOf(e, sc)
+  const home = homeNow(e, sc)
   if (Math.abs(home.x - x) + Math.abs(home.y - y) > (ai.leash ?? LEASH)) return false
   let target: Entity | undefined
   let best = Infinity
@@ -96,10 +96,10 @@ export function fight(eng: Engine, e: Entity, sc: Scene): boolean {
 export function home(eng: Engine, e: Entity, sc: Scene): boolean {
   const w = eng.world
   if (!e.ai || e.place.on !== 'tile') return false
-  const h = homeOf(e, sc)
+  const h = homeNow(e, sc)
   if (Math.abs(h.x - e.place.x) + Math.abs(h.y - e.place.y) <= HOME_NEAR) return false
   e.ai.state = 'return'
-  go(eng, e, h.x, h.y, safety(eng, e, sc))
+  go(eng, e, h.x, h.y, fireSafety(eng, e, sc))
   eng.setCooldown(e.id, eng.combat.delay(e, w.num(e, 'speed', 6), 'move') * 2)
   return true
 }
@@ -109,7 +109,7 @@ export function idle(eng: Engine, e: Entity, sc: Scene): boolean {
   const w = eng.world
   if (!e.ai || e.place.on !== 'tile') return false
   e.ai.state = 'idle'
-  if (w.rand() < 0.3) wander(eng, e, safety(eng, e, sc))
+  if (w.rand() < 0.3) wander(eng, e, fireSafety(eng, e, sc))
   eng.setCooldown(e.id, eng.combat.delay(e, w.num(e, 'speed', 6), 'move') * 2)
   return true
 }
