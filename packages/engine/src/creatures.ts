@@ -28,7 +28,7 @@ export interface Scene {
 
 export function sceneOf(eng: Engine, active: string): Scene {
   const w = eng.world
-  return { active, actors: w.entitiesOnMap(active).filter((e) => e.place.on === 'tile' && w.isAgent(e)), night: w.isNight() }
+  return { active, actors: w.agentsOnMap(active).filter((e) => e.place.on === 'tile'), night: w.isNight() }
 }
 
 /** Where a thing that fears fire may not go (a fire's reach). */

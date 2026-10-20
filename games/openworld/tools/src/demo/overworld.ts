@@ -1,22 +1,25 @@
-// The overworld (world-model.md §5.1): a continent ringed by sea, every cell of it a local map —
-// the hand-made ones where their edge links put them, the wild everywhere else. One cell, one tile:
-// the world map is a map of places, drawn in its own inked style (tools/src/art/worldmap.ts), never
-// another stretch of ground. The river and a mountain range carry the Ford's barrier across the
-// continent, and the Ford's own cell is the river's (a crossing one goes into from either bank), so
+// The overworld (world-model.md §5.1, docs/continent.md): the continent, every cell of it a local map — the
+// hand-made ones where their edge links put them, the backdrop's places where the gazetteer puts them, the wild
+// everywhere else. One cell, one tile: the world map is a map of places, drawn in its own inked style
+// (tools/src/art/worldmap.ts), never another stretch of ground. The continent itself is data (continent/continent.json,
+// made by continent/generate.ts): its grounds, its regions and its places. The river and a mountain range carry the
+// Ford's barrier to the sea, and the Ford's own cell is the river's (a crossing one goes into from either bank), so
 // only the Ford crosses it (D22).
 
+import { readFileSync } from 'node:fs'
 import type { Entity, Text } from '@openworld/engine'
-import { CH1, TERRAINS, wildId, type RawChunk } from '@openworld-game/content'
-import { MapBuilder, rng } from './builder.ts'
+import { CH1, TERRAINS, TERRAIN_CHARS, UNTOLD, wildId, type RawChunk } from '@openworld-game/content'
+import { MapBuilder } from './builder.ts'
 import { L } from './kit.ts'
+import { CONTINENT_FILE, FORD, HEIGHT, WIDTH, type Continent } from './continent/generate.ts'
 
 export const OVERWORLD = 'overworld'
 /** Tiles to a side of a cell: one, a place to a tile. */
 export const BLOCK = 1
 /** Cells across and down the continent and its sea. */
-export const CELLS = { w: 16, h: 12 }
+export const CELLS = { w: WIDTH, h: HEIGHT }
 /** The Ford's cell. */
-export const FORD_CELL = { x: 7, y: 5 }
+export const FORD_CELL = FORD
 /** Minutes an overworld step lasts on plain ground (world-model.md §5.6): a cell crossed. */
 export const OVERWORLD_STEP = 30
 
@@ -80,52 +83,65 @@ const wildName = (ground: string): Text => {
   return { en: `The wild ${n.en}`, zh: `${n.zh ?? n.en}荒野` }
 }
 
+
 /** Where a hand-made map lies on the overworld: its cell. */
 export const siteOf = (cell: { x: number; y: number }) => ({ map: OVERWORLD, x: (FORD_CELL.x + cell.x) * BLOCK, y: (FORD_CELL.y + cell.y) * BLOCK, size: BLOCK })
 
+let continent: Continent | undefined
+/** The continent as kept (continent/continent.json). */
+export function readContinent(): Continent {
+  return (continent ??= JSON.parse(readFileSync(CONTINENT_FILE, 'utf8')) as Continent)
+}
+
 /**
- * The overworld map, with a site on each cell of land. `chunks` are the hand-made maps (their
- * `site` set), `cells` where each lies (relative to the Ford's cell).
+ * The hand-made places' cells and grounds, for the continent's generator (`fixed`: "x,y" → ground), and the cell
+ * the pilgrims' road goes on east from (the pass beyond Emberfall).
+ */
+export function handmadeGrounds(cells: Map<string, { x: number; y: number }>): { fixed: Map<string, string>; east: [number, number] } {
+  const fixed = new Map<string, string>()
+  for (const [id, c] of cells) fixed.set(`${FORD_CELL.x + c.x},${FORD_CELL.y + c.y}`, PLACES[id]?.ground ?? 'ow_plain')
+  const pass = cells.get('pass') ?? { x: 0, y: 0 }
+  return { fixed, east: [FORD_CELL.x + pass.x, FORD_CELL.y + pass.y] }
+}
+
+const SOLID = new Set(['ow_sea', 'ow_mountain', 'ow_river'])
+
+/**
+ * The overworld map, with a site on each cell of land: the hand-made maps' (`chunks`, lying at `cells`, relative to the
+ * Ford's), the gazetteer's places, the wild. The continent must have been made for these cells (`npm run continent`).
  */
 export function buildOverworld(chunks: RawChunk[], cells: Map<string, { x: number; y: number }>): RawChunk {
-  const m = new MapBuilder(OVERWORLD, L('The Frostfang Coast', '霜牙海岸'), 'overworld', CELLS.w * BLOCK, CELLS.h * BLOCK, 'ow_sea', 'field', 'outdoor', 'frostfang')
+  const c = readContinent()
+  const m = new MapBuilder(OVERWORLD, L('The Lands of the Five Seals', '五印之地'), 'overworld', c.width * BLOCK, c.height * BLOCK, 'ow_sea', 'field', 'outdoor', 'world')
   m.zone = 'peaceful'
+  const ground = (x: number, y: number) => TERRAIN_CHARS[c.rows[y][x]]
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) m.set(x, y, ground(x, y))
+  const regionOf = (x: number, y: number): string | undefined => c.keys[c.regions[y][x]]
   const handmade = new Map<string, string>()
-  for (const [id, c] of cells) handmade.set(`${FORD_CELL.x + c.x},${FORD_CELL.y + c.y}`, id)
-  // the barrier the Ford crosses: a mountain range north of it, the river south of it, sea to sea
-  const barrier = new Map<string, string>()
-  for (let y = 1; y < FORD_CELL.y; y++) barrier.set(`${FORD_CELL.x + 1},${y}`, 'ow_mountain')
-  for (let y = FORD_CELL.y + 1; y < CELLS.h - 1; y++) barrier.set(`${FORD_CELL.x},${y}`, 'ow_river')
-  // the land: an island of the cells round the middle, roughly round, with every hand-made cell on it
-  const land = (cx: number, cy: number) => {
-    if (handmade.has(`${cx},${cy}`)) return true
-    if (cx < 1 || cy < 1 || cx >= CELLS.w - 1 || cy >= CELLS.h - 1) return false
-    const d = Math.hypot((cx - (CELLS.w - 1) / 2) / 7, (cy - (CELLS.h - 1) / 2) / 5)
-    return d < 0.95 + (rng.next() - 0.5) * 0.25
+  const stale: string[] = []
+  for (const [id, cell] of cells) {
+    const [x, y] = [FORD_CELL.x + cell.x, FORD_CELL.y + cell.y]
+    handmade.set(`${x},${y}`, id)
+    if (ground(x, y) !== (PLACES[id]?.ground ?? 'ow_plain')) stale.push(`${id} at ${x},${y}`)
   }
-  const grounds = ['ow_plain', 'ow_plain', 'ow_forest', 'ow_forest', 'ow_hills']
-  const kept: { cx: number; cy: number; ground: string; map?: string }[] = []
-  for (let cy = 0; cy < CELLS.h; cy++)
-    for (let cx = 0; cx < CELLS.w; cx++) {
-      const k = `${cx},${cy}`
-      const id = handmade.get(k)
-      if (!id && barrier.has(k) && land(cx, cy)) {
-        m.set(cx, cy, barrier.get(k)!)
-        continue
-      }
-      if (!land(cx, cy)) continue
-      const ground = id ? (PLACES[id]?.ground ?? 'ow_plain') : cy <= 2 ? (rng.chance(0.6) ? 'ow_snow' : 'ow_hills') : rng.pick(grounds)
-      m.set(cx, cy, ground)
-      kept.push({ cx, cy, ground, map: id })
-    }
-  // a site on each cell of land: the place it stands for
-  const names = new Map(chunks.map((c) => [c.map.id, c.map.name]))
+  const places = new Map(c.places.map((p) => [`${p.x},${p.y}`, p]))
+  for (const p of c.places) if (handmade.has(`${p.x},${p.y}`)) stale.push(`${p.id} on ${handmade.get(`${p.x},${p.y}`)}'s cell`)
+  if (stale.length) throw new Error(`the continent is not made for the hand-made places (npm run continent): ${stale.join('; ')}`)
+  // a site on each cell of land one can stand on, and on the Ford's (the crossing): the place it stands for
+  const names = new Map(chunks.map((ch) => [ch.map.id, ch.map.name]))
   const entities: Entity[] = []
-  for (const k of kept) {
-    const place = { on: 'tile' as const, map: OVERWORLD, x: k.cx, y: k.cy }
-    if (k.map) entities.push({ id: `site.${k.map}`, type: `site/place/${PLACES[k.map]?.kind ?? 'village'}`, name: names.get(k.map), place, props: { map: k.map, ...(PLACES[k.map]?.opensWhen && { opensWhen: PLACES[k.map].opensWhen! }) } })
-    else entities.push({ id: `site.${k.cx}.${k.cy}`, type: 'site/wild', name: wildName(k.ground), place, props: { map: wildId(k.cx, k.cy), ground: k.ground } })
-  }
+  for (let y = 0; y < c.height; y++)
+    for (let x = 0; x < c.width; x++) {
+      const g = ground(x, y)
+      const id = handmade.get(`${x},${y}`)
+      const p = places.get(`${x},${y}`)
+      if (SOLID.has(g) && !id) continue
+      const place = { on: 'tile' as const, map: OVERWORLD, x, y }
+      const region = regionOf(x, y)
+      if (id) entities.push({ id: `site.${id}`, type: `site/place/${PLACES[id]?.kind ?? 'village'}`, name: names.get(id), place, props: { map: id, ...(region && { region }), ...(PLACES[id]?.opensWhen && { opensWhen: PLACES[id].opensWhen! }) } })
+      else if (p) entities.push({ id: `site.${p.id}`, type: `site/place/${p.kind}`, name: p.name, place, props: { map: p.id, region: p.region, ground: g, backdrop: true, ...(p.capital && { capital: true }), ...(p.sealed && { opensWhen: UNTOLD }) } })
+      else entities.push({ id: `site.${x}.${y}`, type: 'site/wild', name: wildName(g), place, props: { map: wildId(x, y), ground: g, ...(region && { region }) } })
+    }
   const chunk = m.chunk()
   chunk.map.scale = OVERWORLD_STEP
   chunk.entities.push(...entities)

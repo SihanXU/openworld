@@ -31,6 +31,7 @@ export interface RawMap {
   zone?: MapData['zone']
   scale?: MapData['scale']
   site?: MapData['site']
+  backdrop?: MapData['backdrop']
   /** The editor's brush strokes that drew it, with their seeds (the engine ignores them: the rows are the map). */
   strokes?: { brush: string; seed: number; at: [number, number, number, number]; params?: Record<string, PropValue> }[]
 }
@@ -67,6 +68,7 @@ export function decodeRawMap(m: RawMap, chars: Record<string, string>): MapData 
     zone: m.zone,
     scale: m.scale,
     site: m.site,
+    ...(m.backdrop && { backdrop: true }),
   }
 }
 

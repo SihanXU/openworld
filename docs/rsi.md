@@ -157,7 +157,8 @@ Skills are booked against outcomes and retired when they keep doing worse than a
 4. **Keep** only if, on both sets:
    - the pass rate does not drop;
    - cost, steps or time improve by at least 10 % (strictly);
-   - none of them gets more than 10 % worse.
+   - none of them gets more than 10 % worse (time may be given a wider margin of its own, `timeMargin`, where the
+     clock is noise beside what is judged: the tests on a busy machine; the default is the same 10 %).
 
    A kept change is written to the real self-state with its evidence (`harness/CHANGELOG.md`).
    Every proposal, kept or not, is journaled with its numbers.

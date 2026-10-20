@@ -193,6 +193,7 @@ async function openProject(id: string): Promise<void> {
   // the canvas follows the project: drawn again a frame after an edit (a stroke is many)
   let redraw = 0
   store.on((why, file) => {
+    // (`compiled`: the whole project compiled again once editing rested, its problems with it)
     if (why !== 'saved' && (!file || file === store.mapFile(ctx.map) || file.startsWith('people/') || file === 'game.json' || file.startsWith('ontology/'))) {
       cancelAnimationFrame(redraw)
       redraw = requestAnimationFrame(() => canvas.show(store.compiled(), ctx.map))

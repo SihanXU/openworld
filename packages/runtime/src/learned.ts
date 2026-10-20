@@ -1,7 +1,7 @@
 // What the world learned that the main thread shows: the recipes of learned things (a patch's type
 // with a station and a makeup is crafted like the content's own, world-model.md §6.4).
 
-import { deriveRecipes, namesClash, newStatusProblems, newTypeProblems, type Engine, type Entity, type LibraryData, type Patch, type Recipe, type SaveData, type StatusDef, type TypeDef } from '@openworld/engine'
+import { deriveRecipes, everyThing, namesClash, newStatusProblems, newTypeProblems, type Engine, type Entity, type LibraryData, type Patch, type Recipe, type SaveData, type StatusDef, type TypeDef } from '@openworld/engine'
 import { recipeById } from './game.ts'
 
 /** The recipes whose result is a type a patch brought (the engine derives them when the patch lands). */
@@ -27,7 +27,7 @@ const named = (t: TypeDef): string[] => [
 const kinds = (id: string): string[] => id.split('/').map((_, i, parts) => parts.slice(0, i + 1).join('/'))
 
 /** Is a learned type still wanted here: a thing is of it or of a kind of it, or another learned type is a kind of it or names it. */
-function wanted(id: string, entities: Entity[], learned: TypeDef[]): boolean {
+function wanted(id: string, entities: Pick<Entity, 'type'>[], learned: TypeDef[]): boolean {
   const under = (t: string) => t === id || t.startsWith(`${id}/`)
   return entities.some((e) => under(e.type)) || learned.some((t) => t.id !== id && (under(t.id) || named(t).includes(id)))
 }
@@ -39,7 +39,8 @@ function wanted(id: string, entities: Entity[], learned: TypeDef[]): boolean {
 export function forgetType(eng: Engine, id: string): boolean {
   const w = eng.world
   if (!eng.lib.types.some((t) => t.id === id)) return false
-  if (wanted(id, Object.values(w.state.entities), eng.lib.types)) return false
+  // (what is put away with a map is the world's too: docs/continent.md §13)
+  if (wanted(id, everyThing(w.state), eng.lib.types)) return false
   eng.lib.removeType(id)
   w.onto.removeType(id)
   for (const [rid, r] of eng.recipes) if (r.make.type === id) eng.recipes.delete(rid)
@@ -91,7 +92,7 @@ export function takeDefinitions(eng: Engine, patch: Patch): { replaced: string[]
   }
   // the patch taken: what stepped aside comes back only for what is made of it
   const done = () => {
-    const back = aside.filter((t) => wanted(t.id, Object.values(w.state.entities), eng.lib.types))
+    const back = aside.filter((t) => wanted(t.id, everyThing(w.state), eng.lib.types))
     putBack(back)
     return back.map((t) => t.id)
   }
@@ -102,7 +103,7 @@ export function takeDefinitions(eng: Engine, patch: Patch): { replaced: string[]
 export function forgetStatus(eng: Engine, id: string): boolean {
   const w = eng.world
   if (!eng.lib.statuses.some((s) => s.id === id)) return false
-  if (Object.values(w.state.entities).some((e) => e.statuses?.[id] !== undefined)) return false
+  if (everyThing(w.state).some((e) => e.statuses?.[id] !== undefined)) return false
   eng.lib.removeStatus(id)
   w.onto.removeStatus(id)
   return true
@@ -119,7 +120,7 @@ export function withKept(shared: LibraryData | undefined, save: SaveData | undef
   const own = save?.library
   const none = { types: [], statuses: [] }
   if (!shared || !own) return { library: shared ?? own, kept: none }
-  const entities = Object.values(save.state.entities)
+  const entities = everyThing(save.state)
   const missing = (own.types ?? []).filter((t) => !shared.types.some((x) => x.id === t.id))
   const want = new Set(entities.flatMap((e) => kinds(e.type)))
   for (let grew = true; grew; ) {
