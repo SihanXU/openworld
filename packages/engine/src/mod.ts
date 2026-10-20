@@ -13,7 +13,7 @@ import type { Engine, Resolution, UndefinedSink } from './engine.ts'
 import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { deriveRecipes } from './recipes.ts'
-import { RuleLibrary, cmp, compareSpec, holeKey, isDo, isHole, leaves, locate, patchKey, rolesOf, specOf, type LibraryData } from './rules.ts'
+import { RuleLibrary, cmp, compareSpec, holeKey, isDo, isHole, leaves, locate, patchKey, rolesOf, specOf, withAside, type LibraryData } from './rules.ts'
 import { TIERS, categoryOf, isTier, ruleTier, tierOfRequest, type AiLevel } from './quality.ts'
 import { buildSandbox, chainLoop, checkExpectations, replay, scenarioEvent, whyEndless } from './sandbox.ts'
 import type { Cmp, Cond, Effect, EmitTo, GameEvent, Look, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tier, Tree, TypeDef } from './types.ts'
@@ -363,11 +363,15 @@ export function restoreLibrary(base: Rule[], saved: LibraryData | undefined, ont
   if (!saved) return lib
   for (const t of saved.types ?? []) lib.addType(t, 'restored')
   for (const s of saved.statuses ?? []) lib.addStatus(s, 'restored')
-  for (const r of saved.rules ?? []) {
+  // (a rule set aside at run time comes back set aside, in its place: what grew below it keeps answering)
+  const { rules, aside } = withAside(saved)
+  for (const r of rules) {
     if (r.source?.origin !== 'patch' || lib.rules.has(r.id)) continue
     const res = validatePatch({ artifacts: [{ kind: 'rule', rule: r }] }, { ontology, library: lib, world: r.source.trigger === 'world', protectedFacts })
-    if (res.ok) lib.add(r, r.source.at ?? 'restored')
-    else dropped?.(r.id, res.errors[0])
+    if (res.ok) {
+      lib.add(r, r.source.at ?? 'restored')
+      if (aside.has(r.id)) lib.setAside(r.id, 'restored')
+    } else dropped?.(r.id, res.errors[0])
   }
   // what grew below a rule that was not restored has no place either
   for (const s of lib.stale()) {

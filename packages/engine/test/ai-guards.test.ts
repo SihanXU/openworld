@@ -63,3 +63,47 @@ describe('a revision keeps what grew below it through a copy and a save (V3)', (
     expect(back.rules.has('r2')).toBe(true)
   })
 })
+
+/** The stone's tree at its hole: a root that answers the tree and leaves the rest open, and a child that answers the hive. */
+function grown() {
+  const { req } = ask()
+  const h = holeKey(req.hole.rule, req.hole.path)
+  const lib = new RuleLibrary(BASE)
+  lib.add({ id: 'r1', host: { type: STONE }, on: 'act/use', hole: h, at: [], tree: { if: is(TREE), then: { do: [{ op: 'log', text: 'r1' }] }, else: { undefined: true } }, source: { origin: 'patch' } })
+  lib.add({ id: 's', host: { type: STONE }, on: 'act/use', hole: h, at: ['!' + JSON.stringify(is(TREE))], tree: { do: [{ op: 'log', text: 's' }] }, source: { origin: 'patch' } })
+  return lib
+}
+/** Who answers the stone used on a thing, under a library. */
+const answerOf = (target: string, lib: RuleLibrary) => {
+  const eng = buildSandbox(scene(target), onto, lib)
+  return eng.resolveEvent(eng.actEvent('use', 'actor', { e: 'it' }, { e: 'held' }))
+}
+
+describe('a rule set aside at run time keeps its place (V6)', () => {
+  it('its own cases are open again, and the answer below it keeps answering, live, in a copy and after a save', () => {
+    const lib = grown()
+    const eng = buildSandbox(scene(TREE), onto, lib)
+    expect(eng.fault('r1', 'it ran away', true)).toBe(true)
+    expect(eng.world.state.quarantine?.r1).toBeDefined()
+    expect(lib.rules.has('r1')).toBe(false)
+    expect(lib.stale()).toEqual([])
+    // the tree's case is open again: where a new answer would go is r1's old leaf
+    const tree = answerOf(TREE, lib)
+    expect(tree.defined).toBe(false)
+    expect(tree.open?.path).toEqual([JSON.stringify(is(TREE))])
+    // the hive's answer, below r1, still answers
+    expect(answerOf(HIVE, lib).rule?.id).toBe('s')
+    expect(lib.clone().stale()).toEqual([])
+    expect(answerOf(HIVE, lib.clone()).rule?.id).toBe('s')
+    expect(answerOf(TREE, lib.clone()).defined).toBe(false)
+    // a save keeps it set aside, in its place
+    const dropped: string[] = []
+    const back = restoreLibrary(BASE, lib.learnedJSON(), onto, [], (id, why) => dropped.push(`${id}: ${why}`))
+    expect(dropped).toEqual([])
+    expect(back.rules.has('r1')).toBe(false)
+    expect(back.rules.has('s')).toBe(true)
+    expect(answerOf(HIVE, back).rule?.id).toBe('s')
+    expect(answerOf(TREE, back).defined).toBe(false)
+    expect(answerOf(HIVE, RuleLibrary.fromJSON(lib.toJSON())).rule?.id).toBe('s')
+  })
+})
