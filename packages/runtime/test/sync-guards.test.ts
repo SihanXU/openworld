@@ -45,9 +45,11 @@ describe.skipIf(!here)('the shared library sync', () => {
     expect(mods.submit(undefined, typePatch(twine)).errors).toEqual([])
     eng.author(() => eng.world.create(twine.id, { on: 'inside', holder: 'actor' }))
     // another kind by the same name steps the twine aside while it is judged, and judging it throws
-    const cord = { ...twine, id: 'item/material/cord', makeup: {} } as unknown as TypeDef
+    // (the judge throws itself: the validator refuses a malformed kind without throwing now)
+    const cord = { ...twine, id: 'item/material/cord' } as TypeDef
+    const throwing = { submit: () => { throw new Error('judging failed') } } as unknown as Pick<typeof mods, 'submit'>
     const said: string[] = []
-    takeLogEntries(eng, mods, kept, [{ seq: 1, at: '', patch: typePatch(cord), rules: [] }], (m) => said.push(m))
+    takeLogEntries(eng, throwing, kept, [{ seq: 1, at: '', patch: typePatch(cord), rules: [] }], (m) => said.push(m))
     expect(said).toHaveLength(1)
     expect(eng.lib.types.map((t) => t.id)).toEqual(['item/material/twine'])
     expect(eng.world.onto.hasType(twine.id)).toBe(true)

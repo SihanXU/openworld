@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type ResolveBody, type ResolveReply, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { SelfState } from '@openworld/agent'
-import { Modder, WorldLibrary, createModderServer } from '../src/index.ts'
+import { Modder, WorldLibrary, createModderServer } from '@openworld/modder'
 
 /** These commit and replay in the sandbox: under a full parallel run, slow. */
 const SLOW = { timeout: 120_000 }
@@ -141,7 +141,7 @@ describe('the address the service is bound to', () => {
   async function serve(args: string[], env: Record<string, string> = {}): Promise<string> {
     const { spawn } = await import('node:child_process')
     const { fileURLToPath } = await import('node:url')
-    const repo = fileURLToPath(new URL('../../..', import.meta.url))
+    const repo = fileURLToPath(new URL('../../../..', import.meta.url))
     const data = mkdtempSync(join(tmpdir(), 'lsw-serve-'))
     const { LSW_HOST: _, ...rest } = process.env
     const child = spawn(join(repo, 'node_modules/.bin/tsx'), ['packages/modder/src/cli.ts', '--game', 'games/starter', '--data', data, '--backend', 'none', ...args, 'serve', '0'], { cwd: repo, env: { ...rest, LSW_MODEL_BACKEND: 'none', ...env } })

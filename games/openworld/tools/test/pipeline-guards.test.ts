@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, type ChatMessage, type ChatOptions, type Finding, type Model } from '../src/index.ts'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, type ChatMessage, type ChatOptions, type Finding, type Model } from '@openworld/modder'
 
 /** These commit and replay in the sandbox: under a full parallel run, slow. */
 const SLOW = { timeout: 120_000 }
