@@ -104,3 +104,48 @@ describe('a covered reply', () => {
     expect(c?.patch.note).toBe('stones weigh creatures down')
   })
 })
+
+describe('the commit barrier', () => {
+  /** A stone held out to a creature by one of the world's people (the player did not act): a world event's question. */
+  function worldRequest(): ModRequest {
+    const sc: Scenario = {
+      entities: [
+        { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+        { key: 'held', type: STONE, x: 2, y: 2, heldBy: 'actor' },
+        { key: 'it', type: SLIME, x: 2, y: 1 },
+        { key: 'trainer', type: 'actor/person/trainer', x: 3, y: 1 },
+      ],
+      event: {},
+    }
+    const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
+    const port = new ModPort(eng)
+    eng.queue({ kind: 'impulse/offered', host: { e: 'it' }, roles: { actor: { e: 'trainer' }, item: { e: 'held' }, source: { e: 'held' } }, params: {}, cause: 'trainer', origin: 'world' })
+    eng.flush()
+    expect(port.records[0].request.origin).toBe('world')
+    return port.records[0].request
+  }
+
+  it("refuses a topic the story raises itself, as every client does (the game's protected facts)", () => {
+    const slime = request()
+    const story = bind('patch/news', slime, [{ op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'topic', value: 'first_seal' } }])
+    const free = new WorldLibrary(onto, BASE, join(dir(), 'library.jsonl'))
+    expect(free.validate(story, slime).ok).toBe(true)
+    const library = new WorldLibrary(onto, BASE, join(dir(), 'library.jsonl'), { protectedFacts: ['topic.first_seal'] })
+    const c = library.commit(story, slime)
+    expect(c.ok).toBe(false)
+    expect(c.result.errors.join()).toMatch(/the story raises the topic "first_seal" itself/)
+    expect(library.seq).toBe(0)
+  })
+
+  it("holds a world event's answer to the world's boundaries: it may not hurt a person", () => {
+    const req = worldRequest()
+    const harm = bind('patch/slime-lashes', req, [{ op: 'emit', impulse: 'strike', to: 'actor', params: { power: 5 } }])
+    const library = new WorldLibrary(onto, BASE, join(dir(), 'library.jsonl'))
+    // the same answer to a player's offer is the player's own doing
+    const player = request()
+    expect(library.validate(bind('patch/slime-lashes', player, [{ op: 'emit', impulse: 'strike', to: 'actor', params: { power: 5 } }]), player).ok).toBe(true)
+    const c = library.commit(harm, req)
+    expect(c.ok).toBe(false)
+    expect(c.result.errors.join()).toMatch(/a world event may not hurt a person/)
+  })
+})

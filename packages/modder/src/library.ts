@@ -55,13 +55,20 @@ export class WorldLibrary {
    * a client that holds patches up to some seq of the old one knows to sync from the start.
    */
   readonly logId: string
+  /**
+   * The story's protected fact prefixes (the game's world index: `protectedFacts`, design.md §5.11): a commit is
+   * judged with them as a client judges the patch it syncs, so the log holds nothing every client would refuse.
+   */
+  protectedFacts: string[]
 
   constructor(
     readonly ontology: Ontology,
     readonly base: Rule[],
     private file?: string,
+    opts: { protectedFacts?: string[] } = {},
   ) {
     this.lib = new RuleLibrary(base)
+    this.protectedFacts = opts.protectedFacts ?? []
     this.logId = file ? logIdentity(file) : randomUUID()
     if (file && existsSync(file)) {
       const text = readFileSync(file, 'utf8')
@@ -205,7 +212,9 @@ export class WorldLibrary {
     // Public ontology and workspace data can change without a mutator or sequence bump.
     const artifacts = patch?.artifacts?.map((a) => a?.kind === 'rule' && a.rule ? { ...a, rule: { ...a.rule, tests: undefined } } : a)
     // (the library's version moves with every add and removal, so its rules need not be hashed)
-    const key = createHash('sha256').update(JSON.stringify([this.lib.version, this.lib.types, this.lib.statuses, this.ontology, ws, req?.scenario, replaces, artifacts])).digest('hex')
+    // judged as the client judges it: a world event's answer within the world's boundaries, the story's facts its own
+    const world = (req?.origin ?? patch?.trigger) === 'world'
+    const key = createHash('sha256').update(JSON.stringify([this.lib.version, this.lib.types, this.lib.statuses, this.ontology, ws, req?.scenario, replaces, artifacts, world, this.protectedFacts])).digest('hex')
     const rules = patch?.artifacts?.flatMap((a) => a?.kind === 'rule' && a.rule ? [a.rule] : []) ?? []
     const tests = rules.map((r) => (r.tests ?? []).map((t) => JSON.stringify(t)))
     const proof = this.proofs.get(key)
@@ -216,7 +225,7 @@ export class WorldLibrary {
       if (result.ok) this.proofs.set(key, { tests, result: structuredClone(result) })
       return result
     }
-    const result = validatePatch(patch, { ontology: this.ontology, library: lib, scenario: req?.scenario })
+    const result = validatePatch(patch, { ontology: this.ontology, library: lib, scenario: req?.scenario, world, protectedFacts: this.protectedFacts })
     if (!result.ok) return result
     // what the patch costs the world (a free lunch refused): its warnings are part of the proof
     const economy = this.economy(patch, lib)
@@ -312,7 +321,7 @@ export class WorldLibrary {
    * loop replays a recorded request against the world as it was before the request was answered.
    */
   fork(keep: (e: PatchLogEntry) => boolean = () => true): WorldLibrary {
-    const w = new WorldLibrary(this.ontology, this.base)
+    const w = new WorldLibrary(this.ontology, this.base, undefined, { protectedFacts: this.protectedFacts })
     for (const e of this.log) if (keep(e)) w.apply(e)
     return w
   }
