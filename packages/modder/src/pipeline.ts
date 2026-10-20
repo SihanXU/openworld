@@ -199,8 +199,13 @@ export class Modder {
     if (!this.running && !this.jobs.length) for (const done of this.idle.splice(0)) done()
   }
 
-  /** Faults clients reported per learned rule, by client (a rule set aside by this many clients leaves the library). */
-  private faults = new Map<string, Set<string>>()
+  /**
+   * Faults clients reported per learned rule, by client (a rule set aside by this many clients leaves the library),
+   * for the version of it in force (the log seq that added it): a rule removed, or replaced under its id, starts again from none.
+   */
+  private faults = new Map<string, { seq: number; clients: Set<string> }>()
+  /** The log seq each shipped episode's patch was committed at: what is removed later is that version, not one that replaced it. */
+  private shipped = new WeakMap<Episode, number>()
 
   /**
    * A client set a learned rule aside at run time (a chain that would not end, an effect refused):
@@ -210,10 +215,14 @@ export class Modder {
   fault(ruleId: string, reason: string, client = 'anon'): { rule: string; counted: number; removed: boolean } {
     const { library, state } = this.opts
     const rule = library.lib.rules.get(ruleId)
-    if (!rule || rule.source?.origin !== 'patch') return { rule: ruleId, counted: 0, removed: false }
-    const set = this.faults.get(ruleId) ?? new Set<string>()
+    const seq = library.seqOf(ruleId)
+    // the counts of versions no longer in force (removed, or replaced under their id) are forgotten
+    for (const [id, f] of this.faults) if (library.seqOf(id) !== f.seq) this.faults.delete(id)
+    if (!rule || rule.source?.origin !== 'patch' || seq === undefined) return { rule: ruleId, counted: 0, removed: false }
+    const counted = this.faults.get(ruleId) ?? { seq, clients: new Set<string>() }
+    const set = counted.clients
     set.add(client)
-    this.faults.set(ruleId, set)
+    this.faults.set(ruleId, counted)
     const bound = state.harness().faults?.remove ?? 2
     state.note('fault', { rule: ruleId, reason, client, counted: set.size })
     if (set.size < bound) return { rule: ruleId, counted: set.size, removed: false }
@@ -773,9 +782,13 @@ export class Modder {
         const found = await this.audit(model, req, ep.patch!, ctx, h)
         this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, confirmed: found.confirmed.map(({ evidence: _, ...f }) => f), unconfirmed: found.unconfirmed.map((u) => `${u.finding.title}: ${u.why}`), ...(found.error && { error: found.error }), usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
         if (!found.confirmed.length) return
-        for (const id of ep.rules) this.opts.library.remove(id, this.now())
-        this.log(`${ep.id} audit: ${found.confirmed.map((f) => `${f.kind}: ${f.title}`).join('; ')} → removed ${ep.rules.join(', ')}`)
-        if (h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: ep, notes: auditNotes(found.confirmed) } })
+        // only the version audited leaves: one that replaced it under its id meanwhile (a revision) was not audited here
+        const shipped = this.shipped.get(ep)
+        const held = ep.rules.filter((id) => shipped !== undefined && this.opts.library.seqOf(id) === shipped)
+        if (!held.length) return void this.log(`${ep.id} audit: ${found.confirmed.map((f) => `${f.kind}: ${f.title}`).join('; ')}, but ${ep.rules.join(', ')} left or was replaced meanwhile`)
+        for (const id of held) this.opts.library.remove(id, this.now())
+        this.log(`${ep.id} audit: ${found.confirmed.map((f) => `${f.kind}: ${f.title}`).join('; ')} → removed ${held.join(', ')}`)
+        if (h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: { ...ep, rules: held }, notes: auditNotes(found.confirmed) } })
       })
     // a live request that failed is worked again with the offline profile: the world still learns it
     if (ep.outcome === 'failed' && eo.profile === 'live' && h.escalate && !this.inflight.has(`${sig.key}#offline`))
@@ -806,6 +819,7 @@ export class Modder {
     ep.outcome = 'accepted'
     ep.patch = patch
     ep.rules = c.rules
+    if (c.seq !== undefined) this.shipped.set(ep, c.seq)
     return true
   }
 
