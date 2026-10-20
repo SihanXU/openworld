@@ -73,3 +73,25 @@ writeIcon('Items/SlimeGel.png', GEL, GEL_PAL)
 writeIcon('Items/VenomSac.png', SAC, SAC_PAL)
 writeIcon('Items/Ectoplasm.png', ECTO, ECTO_PAL)
 console.log('drop icons written')
+
+// ---------------------------------------------------------------- a cobweb: the spider's spit left on the ground (content kits.ts COBWEB)
+const WEB_GRID = [
+  'w......w......w.',
+  '.w.....w.....w..',
+  '..w....w....w...',
+  '...wwwwwwwww....',
+  '...w.w..w.w.w...',
+  '...w..w.w.w..w..',
+  'wwwwwwwgwwwwwwww',
+  '...w..w.w.w..w..',
+  '...w.w..w..w.w..',
+  '...wwwwwwwwwww..',
+  '..w....w....w...',
+  '.w.....w.....w..',
+  'w......w......w.',
+  '................',
+  '................',
+  '................',
+]
+writeIcon('Fixtures/Web.png', WEB_GRID, { w: '#e8e8f0', g: '#ffffff' })
+console.log('cobweb written')

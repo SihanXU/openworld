@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { textOf, isPatch, restoreLibrary, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
-import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf } from '@openworld/modules'
+import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf, kitsOf } from '@openworld/modules'
 import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP } from '@openworld-game/content'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
@@ -1038,6 +1038,17 @@ req('K1', 'a creature has skills of its own (the kits module): it marks the cell
   const at = W(g).posOf(wolf)!
   expect(Math.abs(at.x - from.x) + Math.abs(at.y - from.y)).toBeGreaterThan(0)
 }, 60000)
+
+req('K3', 'a kind of the First Night\'s own: sporecaps, mushrooms grown into things that walk, where the Hollow\'s thorns are thickest — a kit of their own (its poison held by kits.test.ts), flammable, a piece of their own', ['actor/creature/fungus/sporecap'], () => {
+  const f = fresh()
+  const w = W(f)
+  const caps = w.ofType('actor/creature/fungus/sporecap').filter((e) => e.place.on === 'tile')
+  expect(caps.map((e) => (e.place.on === 'tile' ? e.place.map : ''))).toEqual(['hollow', 'hollow'])
+  expect(kitsOf(f.eng).kitOf(caps[0])?.map((s) => s.id)).toEqual(['spores'])
+  expect(w.hasTag(caps[0], 'flammable')).toBe(true)
+  // it leaves a herb, and its kind keeps a piece of its own
+  expect(onto.types['actor/creature/fungus/sporecap'].props?.trophy).toBe('item/clothing/hat/sporecap')
+})
 
 // ------------------------------------------------------------------ W. the world model: breaking (world-model.md §10.3)
 

@@ -14,7 +14,7 @@ import { PILGRIMAGE_TYPES } from './pilgrimage.ts'
 import { FAITH_STATUSES } from './faith.ts'
 import { VEGETABLE_CROPS, cropHours } from './crops.ts'
 import { BOSSES, BOSS_ENCOUNTERS, BOSS_KITS, BOSS_TYPES } from './bosses.ts'
-import { CREATURE_TACTICS, ELITE_KITS, KITS } from './kits.ts'
+import { CREATURE_TACTICS, ELITE_KITS, KIT_TYPES, KITS } from './kits.ts'
 import { CREATURE_DROPS } from './drops.ts'
 import { CREATURE_STATS } from './levels.ts'
 import { SKILL_STATUSES } from './afflictions.ts'
@@ -597,7 +597,7 @@ export const MODULES = ['classes', 'waypoints', 'boons', 'needs', 'society', 'lo
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
-  for (const t of [...actorTypes, ...fixtureTypes, ...PILGRIMAGE_TYPES, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES, ...SOCIAL_TYPES]) types[t.id] = t
+  for (const t of [...actorTypes, ...fixtureTypes, ...PILGRIMAGE_TYPES, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES, ...SOCIAL_TYPES, ...KIT_TYPES]) types[t.id] = t
   // each kind of monster with its own piece (trophies.ts): what it is and how often a felling gives it (rules.ts combat/defeat)
   for (const [kind, t] of Object.entries(TROPHY_OF)) types[kind] = { ...types[kind], props: { ...types[kind].props, trophy: t.type, trophyChance: t.chance } }
   // what each kind of monster is made of, so a felling leaves it (drops.ts; rules.ts combat/defeat breaks it down)

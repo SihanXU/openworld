@@ -56,6 +56,7 @@ export const CREATURE_DROPS: Record<string, { type: string; count: number }[]> =
   [`${C}/wisp/storm_wisp`]: of([ECTO, 2]),
   // the rest
   [`${C}/spider`]: of([VENOM, 2]),
+  [`${C}/fungus/sporecap`]: of(['item/material/herb', 2]),
   [`${C}/whelp`]: of([M.leather, 2], [M.coal, 2]),
   [`${C}/crab`]: of([M.fish, 4]),
   [`${C}/cyclops`]: of([M.leather, 6], [M.meat, 6]),

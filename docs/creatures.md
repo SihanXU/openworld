@@ -213,3 +213,19 @@ an imp too close casts when it can and steps back when it cannot. Goals: `encoun
 
 Checks: kits.test.ts (an imp come too close steps back; a wolf badly hurt runs, and cornered by its leash fights; two
 wolves come at their foe from opposite sides), minor-balance.test.ts unchanged in its bounds (the imp now 1.8 s and 5 health standing, 3.6 s and none dodging).
+
+## 12. Traps and a new kind (2026-10-19)
+
+- **The cobweb.** A spider's Web Spit leaves a cobweb (`fixture/nature/web`, content `COBWEB`) on each cell it fell on
+  that no one stands on (`unleash`'s `leave`). Who wades into one is webbed (`web/snare`: contact, a spider walks its
+  own, a flyer never touches it); a blow or a flame tears it (2 durability, flammable; `web/torn`); it sags away in
+  twelve seconds (`web/sags`, its stage). The briars' pattern (bosses.ts), on a minor monster.
+- **The sporecap** (`actor/creature/fungus/sporecap`, a new family `fungus`): a mushroom the First Night has woken
+  into a thing that walks (docs/lore.md §2: beasts and plants turn strange), drawn with the pack's mushroom monster,
+  unused until now. Level 2, a fighter; slow; flammable. Its kit: **Spore Cloud** 孢子云, a disk of 2 round itself,
+  1.2 s: atk × 0.8, poisoned. It leaves a herb; its own piece is the Sporecap Hat (a piece of its own, outside the
+  families' sets, which were full). Two stand in Thornwood Hollow, where the thorns grow thickest (demo K3).
+- The contract's families are fifteen now.
+
+Checks: kits.test.ts (the web left round the player, who wades in is webbed, a blow tears one, the rest sag away; the
+Spore Cloud poisons), demo.test.ts K3, trophies.test.ts (the sporecap's piece stands alone).

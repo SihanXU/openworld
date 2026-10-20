@@ -234,4 +234,39 @@ describe('creature kits', () => {
     // on opposite sides: the plain threat goal brings the second to any free side, the pack goal to the far one
     expect(run(200, () => beside(a) && beside(b) && side(b) === -side(a))).toBe(true)
   })
+
+  it('a spider\'s web stays on the ground: who wades into a cobweb is webbed; a blow tears it; it sags away in its while', () => {
+    const { eng, w, p, map, row, spawn, run } = arena()
+    spawn('actor/creature/spider', 3)
+    const webs = () => w.entitiesOnMap(map).filter((e) => e.type === 'fixture/nature/web')
+    expect(run(80, () => webs().length > 0)).toBe(true)
+    // the cell one stood on gets none; the cells round it do
+    expect(webs().every((e) => !(e.place.on === 'tile' && e.place.x === w.posOf(p)!.x && e.place.y === w.posOf(p)!.y))).toBe(true)
+    const web = webs()[0]
+    eng.author(() => {
+      delete p.statuses?.webbed
+      for (const e of w.entitiesOnMap(map)) if (w.isAgent(e) && e !== p && e.place.on === 'tile') w.destroy(e)
+    })
+    // wade in: from the cell beside it
+    const at = web.place.on === 'tile' ? web.place : { x: 0, y: 0 }
+    eng.author(() => w.place(p, { on: 'tile', map, x: at.x - 1, y: at.y }))
+    eng.setCooldown(p.id, 0)
+    eng.movePlayer('right')
+    run(2)
+    expect(p.statuses?.webbed).toBeDefined()
+    // a blow tears it
+    eng.queue({ kind: 'impulse/strike', host: { e: web.id }, roles: { actor: { e: p.id } }, params: { power: 3, edge: 'cut' } })
+    run(2)
+    expect(w.get(web.id)).toBeUndefined()
+    // the rest sag away in twelve seconds
+    run(130)
+    expect(webs()).toHaveLength(0)
+    void row
+  })
+
+  it('a sporecap\'s Spore Cloud poisons those round it', () => {
+    const { p, spawn, run } = arena()
+    spawn('actor/creature/fungus/sporecap', 1)
+    expect(run(80, () => !!p.statuses?.poisoned)).toBe(true)
+  })
 })

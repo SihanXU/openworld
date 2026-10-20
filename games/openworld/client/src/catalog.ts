@@ -499,6 +499,8 @@ export const CATALOG: Catalog = {
     'fixture:chalk_bridge': { base: px('lsw/Fixtures/Chalk.png', 32, 0, 16, 16, 8, 15), ground: true },
     'fixture:chalk_man': { base: px('lsw/Fixtures/Chalk.png', 48, 0, 16, 16, 8, 15), ground: true },
     'fixture:briar': { base: px('lsw/Fixtures/Briar.png', 0, 0, 16, 16, 8, 15) },
+    // a spider's web left on the ground (tools/src/art/drops.ts)
+    'fixture:web': { base: px('lsw/Fixtures/Web.png', 0, 0, 16, 16, 8, 15), ground: true },
     // what the dragon's fire leaves on the ground: a scorch of ash, its flames the burning overlay
     'fixture:embers': { base: t(NATURE, 8, 13), ground: true },
     // the Held Ground's edge (tools/src/art/haven.ts)
@@ -791,6 +793,10 @@ export const CATALOG: Catalog = {
     'creature:crab': mon('Mollusc', 'Mollusc.png'),
     // the main quest's monsters
     'creature:spider': mon('SpiderRed'),
+    // the sporecap: the pack's mushroom monster, whose first frame is also the mushroom and the fairy ring: tinted a
+    // sickly violet, so a sporecap among the Hollow's mushrooms is not taken for one of them
+    'creature:fungus': { dir: 'Actor/Monster/Mushroom', sheet: 'mushroom.png', cols: 4, rows: 4, tint: 0xc9a6e8 },
+    'creature:fungus:sporecap': { dir: 'Actor/Monster/Mushroom', sheet: 'mushroom.png', cols: 4, rows: 4, tint: 0xc9a6e8 },
     'creature:whelp': mon('Dragon'),
     // the meadow's animals: the project's own art (tools/src/art/animals.ts), not the pack's
     'creature:cow': { dir: 'lsw/Animal/Cow', sheet: 'SpriteSheet.png', cols: 4, rows: 4 },
