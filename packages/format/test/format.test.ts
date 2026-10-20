@@ -73,6 +73,47 @@ describe.skipIf(!here)('the compiler', () => {
     const onto = mergeOntology([{ sets: [set('wolf', 1), set('bear', 2)] }, { sets: [set('wolf', 5), set('owl', 3)] }], {})
     expect(onto.sets?.map((s) => [s.id, s.bonuses[0].props.atk])).toEqual([['wolf', 5], ['bear', 2], ['owl', 3]])
   })
+
+  it('with a cache, uses what it made last time of the files that are as they were, and makes anew what changed', () => {
+    const p = fresh()
+    expect(p.locales?.some((f) => f.data.language === 'zh')).toBe(true)
+    const plain = compile(p)
+    const cache = { files: new Map() }
+    const same = (...stale: string[]) => ({ cache, same: (f: string) => !stale.includes(f) })
+    const first = compile(p, same())
+    expect(first).toEqual(plain)
+    expect(cache.files.size).toBeGreaterThan(5)
+    // nothing changed: the same world, its maps the cached objects themselves
+    const again = compile(p, same())
+    expect(again).toEqual(plain)
+    expect(again.chunks[0]).toBe(first.chunks[0])
+    expect(again.bundle.ontology).toEqual(first.bundle.ontology)
+    // a map changed: that map anew (and only it), the rest as kept
+    const glade = p.maps.find((m) => m.data.map.id === 'glade')!
+    glade.data.map.rows[2] = 'T~' + glade.data.map.rows[2].slice(2)
+    glade.data.map.name = 'The Changed Glade'
+    const edited = compile(p, same(glade.file))
+    expect(edited).toEqual(compile(p))
+    expect(edited.chunks.find((c) => c.map.id === 'glade')?.map.rows[2].startsWith('T~')).toBe(true)
+    expect(edited.chunks.find((c) => c.map.id === 'cottage')).toBe(first.chunks.find((c) => c.map.id === 'cottage'))
+    // a table changed: every file's words anew
+    const zh = p.locales!.find((f) => f.data.language === 'zh')!
+    zh.data.entries['The Changed Glade'] = '变了的空地'
+    const translated = compile(p, same(zh.file))
+    expect(translated).toEqual(compile(p))
+    expect(translated.chunks.find((c) => c.map.id === 'glade')?.map.name).toEqual({ en: 'The Changed Glade', zh: '变了的空地' })
+    // a rule changed: its problems anew; the ontology as kept
+    const rules = p.rules[0]
+    rules.data.push({ id: 'glade/bad', host: { type: 'no/such/type' }, on: 'act/use', tree: { do: [{ op: 'nothing' }] } } as never)
+    const broken = compile(p, same(rules.file))
+    expect(broken.problems.map((x) => x.code)).toContain('rule')
+    expect(broken).toEqual(compile(p))
+    // an ontology part changed: the ontology anew
+    p.ontology[0].data.types = { ...(p.ontology[0].data.types as object), 'fixture/newkind': { id: 'fixture/newkind', name: 'A new kind' } } as never
+    const grown = compile(p, same(p.ontology[0].file))
+    expect(grown.bundle.ontology.types['fixture/newkind']).toBeDefined()
+    expect(grown).toEqual(compile(p))
+  })
 })
 
 describe.skipIf(!here)('the files', () => {

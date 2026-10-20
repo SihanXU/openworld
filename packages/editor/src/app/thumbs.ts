@@ -68,9 +68,9 @@ export const picUrl = (project: string, img: string) => encodeURI(`/games/${enco
  * canvas whole, kept sharp, and centred; one that cannot be loaded leaves the canvas empty.
  */
 export function paintPics(root: HTMLElement, project: string, pics: Map<string, Pic | undefined>): void {
-  for (const cv of root.querySelectorAll<HTMLCanvasElement>('canvas[data-pic]')) {
+  whenInView(root, [...root.querySelectorAll<HTMLCanvasElement>('canvas[data-pic]')], (cv) => {
     const p = pics.get(cv.dataset.pic!)
-    if (!p) continue
+    if (!p) return
     void image(picUrl(project, p.img)).then(
       (img) => {
         const r = 'cols' in p ? { x: 0, y: 0, w: Math.floor(img.width / p.cols), h: Math.floor(img.height / p.rows) } : p
@@ -83,5 +83,33 @@ export function paintPics(root: HTMLElement, project: string, pics: Map<string, 
       },
       () => {},
     )
-  }
+  })
 }
+
+/**
+ * Canvases under an element painted as each scrolls into view, not before (a palette of four hundred kinds, a tree
+ * of a thousand maps: twenty are in view). Called again over the same canvases, it paints those in view again (what
+ * they show may have changed) and goes on watching; over new ones, it watches those instead.
+ */
+export function whenInView(root: HTMLElement, canvases: HTMLCanvasElement[], paint: (cv: HTMLCanvasElement) => void): void {
+  if (typeof IntersectionObserver === 'undefined') return canvases.forEach(paint)
+  const had = watching.get(root)
+  if (had) {
+    const n = canvases.length
+    if (had.canvases.length === n && had.canvases[0] === canvases[0] && had.canvases[n - 1] === canvases[n - 1]) return had.inView.forEach(paint)
+    had.observer.disconnect()
+  }
+  // (the first rows at once, so a panel is whole as it appears; the observer tells of the rest as they come)
+  canvases.slice(0, 24).forEach(paint)
+  const inView = new Set<HTMLCanvasElement>()
+  const observer = new IntersectionObserver((es) => {
+    for (const e of es) {
+      const cv = e.target as HTMLCanvasElement
+      if (e.isIntersecting) inView.add(cv), paint(cv)
+      else inView.delete(cv)
+    }
+  })
+  for (const cv of canvases) observer.observe(cv)
+  watching.set(root, { observer, inView, canvases })
+}
+const watching = new WeakMap<HTMLElement, { observer: IntersectionObserver; inView: Set<HTMLCanvasElement>; canvases: HTMLCanvasElement[] }>()

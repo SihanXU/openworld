@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { existsSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import type { RawChunk } from '@openworld/engine'
+import { compile } from '@openworld/format'
 import { readProject } from '@openworld/format/src/node.ts'
 import { Store } from '../src/app/store.ts'
 
@@ -90,5 +91,34 @@ describe.skipIf(!existsSync(STARTER))('the editor\'s store', () => {
     // anything but maps changed: the whole at once
     s.remove('people/mira.json', 'remove Mira')
     expect(s.compiled().index.npcs).toEqual([])
+  })
+
+  it('keeps the compiled project while nothing changed (a save changes nothing), and compiles what changed again', async () => {
+    const s = fresh()
+    s.rest = 20
+    const first = s.compiled()
+    expect(s.compiled()).toBe(first)
+    // saving: the listeners told, the compiled kept (the files are as they were)
+    const said: string[] = []
+    s.on((why) => said.push(why))
+    s.change<RawChunk>('maps/glade.json', 'paint', (c) => (c.map.rows[2] = 'T~' + c.map.rows[2].slice(2)))
+    await new Promise((r) => setTimeout(r, 60))
+    const whole = s.compiled()
+    expect(whole).not.toBe(first)
+    ;(globalThis as { fetch?: unknown }).fetch = async () => new Response('{}', { headers: { 'content-type': 'application/json' } })
+    await s.save()
+    expect(said).toContain('saved')
+    expect(s.unsaved()).toBe(0)
+    expect(s.compiled()).toBe(whole)
+    // the maps compiled whole again are the kept objects where the map is as it was, new where it changed
+    expect(whole.chunks.find((c) => c.map.id === 'cottage')).toBe(first.chunks.find((c) => c.map.id === 'cottage'))
+    expect(whole.chunks.find((c) => c.map.id === 'glade')).not.toBe(first.chunks.find((c) => c.map.id === 'glade'))
+    expect(whole.chunks.find((c) => c.map.id === 'glade')?.map.rows[2].startsWith('T~')).toBe(true)
+    // a person changed: the world anew, as a fresh compile has it
+    s.change<{ place: { x: number } }>('people/mira.json', 'move', (p) => (p.place.x += 1))
+    const moved = s.compiled()
+    expect(moved).not.toBe(whole)
+    expect(moved.index.npcs[0].place).toMatchObject({ x: (first.index.npcs[0].place as { x: number }).x + 1 })
+    expect(moved).toEqual(compile(s.project()))
   })
 })
