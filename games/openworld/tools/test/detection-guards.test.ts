@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { Detector, Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, auditTools, changesNothing, probe, stationFromRules, withPatch, type ChatMessage, type ChatOptions, type Harness, type Model } from '../src/index.ts'
+import { Detector, Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, auditTools, changesNothing, probe, stationFromRules, withPatch, type ChatMessage, type ChatOptions, type Harness, type Model } from '@openworld/modder'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
