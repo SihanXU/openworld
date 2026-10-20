@@ -26,8 +26,8 @@ export const kitsModule: EngineModule = {
     encounter: { paced: false, run: (eng, e, sc) => encounter(eng, e, sc.active) },
     kit: { paced: false, urgent: true, run: (eng, e, sc) => kitGoal(eng, e, sc.active) },
     // how a minor monster moves in a fight (tactics.ts): keeping away, fleeing hurt, flanking with its pack
-    rout: { paced: true, urgent: true, run: (eng, e, sc) => tacticsGoal(eng, e, sc.active, 'rout') },
-    tactics: { paced: true, urgent: true, run: (eng, e, sc) => tacticsGoal(eng, e, sc.active, 'place') },
+    rout: { paced: true, urgent: true, run: (eng, e, sc) => tacticsGoal(eng, e, sc, 'rout') },
+    tactics: { paced: true, urgent: true, run: (eng, e, sc) => tacticsGoal(eng, e, sc, 'place') },
   },
   effects: { unleash },
   spec: {

@@ -209,10 +209,20 @@ describe('creature kits', () => {
   it('tactics: a wolf badly hurt runs from its foe', () => {
     const { w, p, spawn, run } = arena()
     const wolf = spawn('actor/creature/beast/wolf', 2, { hp: 5 })
-    const d0 = Math.abs(w.posOf(wolf)!.x - w.posOf(p)!.x)
-    run(30)
-    expect(wolf.ai?.state).toBe('flee')
-    expect(Math.abs(w.posOf(wolf)!.x - w.posOf(p)!.x)).toBeGreaterThan(d0)
+    const d0 = Math.abs(w.posOf(wolf)!.x - w.posOf(p)!.x) + Math.abs(w.posOf(wolf)!.y - w.posOf(p)!.y)
+    const away = () => Math.abs(w.posOf(wolf)!.x - w.posOf(p)!.x) + Math.abs(w.posOf(wolf)!.y - w.posOf(p)!.y)
+    expect(run(30, () => wolf.ai?.state === 'flee' && away() > d0)).toBe(true)
+  })
+
+  it('tactics: a wolf badly hurt with nowhere to run (its leash) turns and fights', () => {
+    const { eng, w, p, map, row, run } = arena()
+    const at = { map, x: row.x + 1, y: row.y }
+    const wolf = eng.author(() => w.create('actor/creature/beast/wolf', { on: 'tile', ...at }, { props: { hp: 5 }, ai: { behaviour: 'melee', temper: 'aggressive', sight: 8, leash: 0, home: at } }))
+    const hp0 = w.num(p, 'hp')
+    let fled = false
+    run(60, () => ((fled ||= wolf.ai?.state === 'flee'), false))
+    expect(fled).toBe(false)
+    expect(w.num(p, 'hp')).toBeLessThan(hp0)
   })
 
   it('tactics: two wolves of a pack come at their foe from both sides', () => {
@@ -221,6 +231,7 @@ describe('creature kits', () => {
     const b = spawn('actor/creature/beast/wolf', 4)
     const side = (e: typeof a) => Math.sign(w.posOf(e)!.x - w.posOf(p)!.x) || Math.sign(w.posOf(e)!.y - w.posOf(p)!.y) * 10
     const beside = (e: typeof a) => Math.abs(w.posOf(e)!.x - w.posOf(p)!.x) + Math.abs(w.posOf(e)!.y - w.posOf(p)!.y) === 1
-    expect(run(200, () => beside(a) && beside(b) && side(a) !== side(b))).toBe(true)
+    // on opposite sides: the plain threat goal brings the second to any free side, the pack goal to the far one
+    expect(run(200, () => beside(a) && beside(b) && side(b) === -side(a))).toBe(true)
   })
 })
