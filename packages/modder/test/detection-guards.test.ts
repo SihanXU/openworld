@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { auditTools, probe, stationFromRules, withPatch } from '../src/index.ts'
+import { auditTools, changesNothing, probe, stationFromRules, withPatch } from '../src/index.ts'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -81,5 +81,19 @@ describe('the auditor sees what the engine refused', () => {
     const tool = auditTools(req.scenario, onto, base, withPatch(base, bad)).find((t) => t.name === 'run')!
     const out = tool.run({ steps: [{ act: 'use', target: req.scenario.event.target, instrument: req.scenario.event.instrument }] })
     expect(out).toMatch(/warnings: rule patch\/stone-unheals: a heal of -5/)
+  })
+})
+
+describe('narration in place of a default that does something is a change', () => {
+  it('a log-only answer to core/break, whose default drops and destroys, changes something (D10)', () => {
+    const words: Rule = { id: 'patch/pot-creaks', host: { type: 'item/container/pot' }, on: 'threshold/cross', doc: 'd', tree: { do: [{ op: 'log', text: { en: '{host} creaks.', zh: '{host}吱呀作响。' } }] } }
+    // nothing it says changes the world by itself...
+    expect(changesNothing(words)).toBe(true)
+    expect(changesNothing(words, [{ op: 'log', text: 'Nothing happens.' }])).toBe(true)
+    // ...but in place of the thing breaking (core/break) or the story's fallback (core/broken), it keeps them from happening
+    expect(changesNothing(words, [{ op: 'dropContents' }, { op: 'destroy' }] as never)).toBe(false)
+    expect(changesNothing(words, [{ op: 'fallback' }] as never)).toBe(false)
+    // a tree that leaves every case open replaces nothing: the default still runs
+    expect(changesNothing({ ...words, tree: { undefined: true } }, [{ op: 'destroy' }] as never)).toBe(true)
   })
 })

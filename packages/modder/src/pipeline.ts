@@ -591,7 +591,7 @@ export class Modder {
           continue
         }
         // the auditor, before shipping: what it breaks in the sandbox goes back to the designer
-        if (auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch)) {
+        if (auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch, req)) {
           const found = await this.audit(model, req, patch, ctx, h)
           attempt.audit = { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length }
           if (found.confirmed.length) {
@@ -691,7 +691,7 @@ export class Modder {
       // could not audit because the backend went out)
       let found: AuditResult | undefined
       let unaudited = false
-      if (run.submitted && patch && !problems.length && auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch))
+      if (run.submitted && patch && !problems.length && auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch, req))
         found = await this.audit(new Meter(this.backend!), req, patch, { library: lib, ontology: library.fullOntology(lib) }, h).catch((err: Error) => ((ep.error = err.message), (unaudited = true), undefined))
       if (found?.confirmed.length) {
         ep.attempts.push({ phase: 'audit', patch, errors: auditNotes(found.confirmed), warnings: [], audit: { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length } })
@@ -766,7 +766,7 @@ export class Modder {
     // it on their next sync), and goes back for a revision. A patch that only narrates has nothing to
     // break: no call, and the journal says why
     const auditing = ep.outcome === 'accepted' && !eo.revise && auditOf(h).enabled && !auditOf(h).blocking && ep.patch
-    if (auditing && narratesOnly(ep.patch!)) this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, skipped: NARRATES_ONLY, confirmed: [], unconfirmed: [], usage: { calls: 0, input: 0, output: 0, cost: 0 } })
+    if (auditing && narratesOnly(ep.patch!, req)) this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, skipped: NARRATES_ONLY, confirmed: [], unconfirmed: [], usage: { calls: 0, input: 0, output: 0, cost: 0 } })
     else if (auditing)
       this.later(`audit ${ep.id}`, async () => {
         const model = new Meter(this.backend!)
@@ -959,9 +959,12 @@ export class Modder {
 
 const NARRATES_ONLY = 'narrates only'
 
-/** A patch of rules that only narrate (changesNothing) has nothing the auditor could break: it adds no thing and changes none. */
-function narratesOnly(patch: Patch): boolean {
-  return patch.artifacts.every((a) => a.kind === 'rule' && changesNothing(a.rule))
+/**
+ * A patch of rules that only narrate (changesNothing) has nothing the auditor could break: it adds no thing and
+ * changes none, nor cancels a default of the hole it answers that does something.
+ */
+function narratesOnly(patch: Patch, req: ModRequest): boolean {
+  return patch.artifacts.every((a) => a.kind === 'rule' && changesNothing(a.rule, req.hole?.default))
 }
 
 /** What the reviewer should look at first: rules that change nothing, rules that did not generalize. */
