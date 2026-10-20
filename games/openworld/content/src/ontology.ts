@@ -14,7 +14,7 @@ import { PILGRIMAGE_TYPES } from './pilgrimage.ts'
 import { FAITH_STATUSES } from './faith.ts'
 import { VEGETABLE_CROPS, cropHours } from './crops.ts'
 import { BOSSES, BOSS_ENCOUNTERS, BOSS_KITS, BOSS_TYPES } from './bosses.ts'
-import { ELITE_KITS, KITS } from './kits.ts'
+import { CREATURE_TACTICS, ELITE_KITS, KITS } from './kits.ts'
 import { CREATURE_DROPS } from './drops.ts'
 import { CREATURE_STATS } from './levels.ts'
 import { SKILL_STATUSES } from './afflictions.ts'
@@ -604,6 +604,9 @@ export function buildOntology(): Ontology {
   for (const [kind, makeup] of Object.entries(CREATURE_DROPS)) types[kind] = { ...types[kind], makeup }
   // each minor kind's level and numbers, from one curve through its role (levels.ts)
   for (const [kind, stats] of Object.entries(CREATURE_STATS)) types[kind] = { ...types[kind], props: { ...types[kind].props, ...stats } }
+  // how each moves in a fight: keeping back, fleeing hurt, a pack's flank (kits.ts CREATURE_TACTICS)
+  for (const [kind, t] of Object.entries(CREATURE_TACTICS))
+    types[kind] = { ...types[kind], ...(t.pack && { tags: [...(types[kind].tags ?? []), 'pack'] }), props: { ...types[kind].props, ...(t.keepAway && { keepAway: t.keepAway }), ...(t.fleeBelow && { fleeBelow: t.fleeBelow }) } }
   return {
     // the systems this game takes from the engine's modules (module.ts), installed in this order
     modules: MODULES,
@@ -620,7 +623,7 @@ export function buildOntology(): Ontology {
     // theirs up in turn (docs/skills.md)
     kits: { ...KITS, ...ELITE_KITS, ...BOSS_KITS },
     encounters: BOSS_ENCOUNTERS,
-    goals: ['encounter', 'kit', 'threat', 'social', 'follow', 'need', 'schedule', 'home', 'idle'],
+    goals: ['encounter', 'rout', 'kit', 'tactics', 'threat', 'social', 'follow', 'need', 'schedule', 'home', 'idle'],
     // the people's social life (docs/npc-sandbox.md): deeds and their fines, the watches, the numbers, the talk panel's verbs
     deeds: DEEDS,
     laws: LAWS,

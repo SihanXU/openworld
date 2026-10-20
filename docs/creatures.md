@@ -190,3 +190,26 @@ Measured with gear of their level (minor-balance.test.ts): the warden 10 s and 2
 the cyclops 10 s and 19, 14 s and 16; the King 8 s and 15 either way. Checks: kits.test.ts (the King splits once; the
 charge is followed by the sweep; the aftershock comes only after the stomp), kit-contract.test.ts (the elite tier).
 
+
+## 11. Tactics (2026-10-19)
+
+A minor monster walked up and struck, or stood and cast; none kept its distance, ran or worked with another. Two goals
+of the kits module (`tactics.ts`) now move it in a fight, as behaviour (design.md §5.4), each read from its type's data
+(content `CREATURE_TACTICS` in kits.ts, applied in `buildOntology`):
+
+- **rout** (before the kit goal): hurt past `fleeBelow` of its health, it runs, each step as far from its foe as it can
+  within its leash and, if it fears fire, out of a fire's reach (the bounds the threat goal keeps, after dark from where
+  it roams). Cornered, it turns and fights; a skill it is winding up it sees through. The wolves and the frost wolves, at
+  a fifth.
+- **tactics** (after the kit goal: a skill it can take up comes first):
+  - `keepAway`: one that fights from afar steps back from a foe come closer than that, keeping it in its row where it
+    can (its lines aim there). The fire imp and the storm wisp at 3, the ghost at 2; cornered, it fights where it stands.
+  - the tag `pack`: one of a pack goes round to its foe's far side from a packmate already beside it (a short search
+    for the way round, out of a fire's reach), past the foe's other sides; the mate it goes by is the first of the pack
+    (by id) beside the foe, so two never circle each other, and one across from a mate stays. The wolves.
+
+The order matters: with keeping away before the kit, an imp spent every turn stepping back and never cast; after it,
+an imp too close casts when it can and steps back when it cannot. Goals: `encounter, rout, kit, tactics, threat, …`.
+
+Checks: kits.test.ts (an imp come too close steps back; a wolf badly hurt runs, and cornered by its leash fights; two
+wolves come at their foe from opposite sides), minor-balance.test.ts unchanged in its bounds (the imp now 1.8 s and 5 health standing, 3.6 s and none dodging).

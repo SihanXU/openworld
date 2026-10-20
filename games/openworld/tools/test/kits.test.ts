@@ -147,7 +147,7 @@ describe('creature kits', () => {
 
   it('a hurt wolf howls: the beasts near are frenzied, itself too', () => {
     const { w, spawn, run } = arena()
-    const wolf = spawn('actor/creature/beast/wolf', 5, { hp: 5 })
+    const wolf = spawn('actor/creature/beast/wolf', 5, { hp: 15 })
     const boar = spawn('actor/creature/beast/boar', 7)
     expect(run(40, () => !!wolf.statuses?.frenzied)).toBe(true)
     expect(boar.statuses?.frenzied).toBeDefined()
@@ -197,5 +197,41 @@ describe('creature kits', () => {
     const i = seen.indexOf('aftershock')
     expect(i).toBeGreaterThan(0)
     expect(seen[i - 1]).toBe('stomp')
+  })
+
+  it('tactics: an imp come too close steps back to where its fire reaches', () => {
+    const { w, p, spawn, run } = arena()
+    const imp = spawn('actor/creature/imp/fire_imp', 1)
+    const dist = () => Math.abs(w.posOf(imp)!.x - w.posOf(p)!.x) + Math.abs(w.posOf(imp)!.y - w.posOf(p)!.y)
+    expect(run(40, () => dist() >= 2)).toBe(true)
+  })
+
+  it('tactics: a wolf badly hurt runs from its foe', () => {
+    const { w, p, spawn, run } = arena()
+    const wolf = spawn('actor/creature/beast/wolf', 2, { hp: 5 })
+    const d0 = Math.abs(w.posOf(wolf)!.x - w.posOf(p)!.x) + Math.abs(w.posOf(wolf)!.y - w.posOf(p)!.y)
+    const away = () => Math.abs(w.posOf(wolf)!.x - w.posOf(p)!.x) + Math.abs(w.posOf(wolf)!.y - w.posOf(p)!.y)
+    expect(run(30, () => wolf.ai?.state === 'flee' && away() > d0)).toBe(true)
+  })
+
+  it('tactics: a wolf badly hurt with nowhere to run (its leash) turns and fights', () => {
+    const { eng, w, p, map, row, run } = arena()
+    const at = { map, x: row.x + 1, y: row.y }
+    const wolf = eng.author(() => w.create('actor/creature/beast/wolf', { on: 'tile', ...at }, { props: { hp: 5 }, ai: { behaviour: 'melee', temper: 'aggressive', sight: 8, leash: 0, home: at } }))
+    const hp0 = w.num(p, 'hp')
+    let fled = false
+    run(60, () => ((fled ||= wolf.ai?.state === 'flee'), false))
+    expect(fled).toBe(false)
+    expect(w.num(p, 'hp')).toBeLessThan(hp0)
+  })
+
+  it('tactics: two wolves of a pack come at their foe from both sides', () => {
+    const { w, p, spawn, run } = arena()
+    const a = spawn('actor/creature/beast/wolf', 1)
+    const b = spawn('actor/creature/beast/wolf', 4)
+    const side = (e: typeof a) => Math.sign(w.posOf(e)!.x - w.posOf(p)!.x) || Math.sign(w.posOf(e)!.y - w.posOf(p)!.y) * 10
+    const beside = (e: typeof a) => Math.abs(w.posOf(e)!.x - w.posOf(p)!.x) + Math.abs(w.posOf(e)!.y - w.posOf(p)!.y) === 1
+    // on opposite sides: the plain threat goal brings the second to any free side, the pack goal to the far one
+    expect(run(200, () => beside(a) && beside(b) && side(b) === -side(a))).toBe(true)
   })
 })

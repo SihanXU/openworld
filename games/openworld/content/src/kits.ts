@@ -149,3 +149,17 @@ export const ELITE_RULES: Rule[] = [
     ['split', { if: { prop: { role: 'host', key: 'split', cmp: 1 } }, then: DO(), else: DO(...SPLIT_OFF) }],
   ]),
 ]
+
+// ------------------------------------------------------------------ tactics (docs/creatures.md §11)
+
+/**
+ * How each kind moves in a fight (the kits module's rout goal before its kit, tactics after): those that fight from afar keep back
+ * (`keepAway` cells), the wolves run when badly hurt (`fleeBelow`) and go round as a pack (`pack`).
+ */
+export const CREATURE_TACTICS: Record<string, { keepAway?: number; fleeBelow?: number; pack?: boolean }> = {
+  [`${C}/imp/fire_imp`]: { keepAway: 3 },
+  [`${C}/wisp/storm_wisp`]: { keepAway: 3 },
+  [`${C}/undead/ghost`]: { keepAway: 2 },
+  [`${C}/beast/wolf`]: { fleeBelow: 0.2, pack: true },
+  [`${C}/beast/frost_wolf`]: { fleeBelow: 0.2, pack: true },
+}
