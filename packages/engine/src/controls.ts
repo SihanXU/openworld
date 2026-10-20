@@ -553,9 +553,9 @@ export class Controls {
    * - a thing whose answer to the bare hands changes nothing: that hand (it is locked, it says why);
    * - a thing that can be taken: taken — never what is another's (F's alone: there the action does nothing);
    * - the ground: a hand where it does something there, else the held object's use there where it does
-   *   something (seeds sown on farmland), else a built thing or a fixture in hand set down (G's act, where it would rest), else the
-   *   held thing used on oneself where it does something (eat, drink, put on); pointed at oneself, any use
-   *   of it (the modder's where it is unknown);
+   *   something (seeds sown on farmland), else a built thing or a fixture in hand set down (G's act, where it
+   *   would rest), else the held object used on oneself where it does something (eat, drink, put on: never a
+   *   tool or a weapon, but a vessel's drink); pointed at oneself, any use of it (the modder's where it is unknown);
    * - any other thing: the bare hands try it (an experiment, the modder's where the world has never seen it);
    * - the bare ground with nothing to set down or use: nothing.
    * A lesson that lets only some inputs work is kept: the action is the first of them that answers.
@@ -595,8 +595,11 @@ export class Controls {
     const held = w.get(me.held)
     // as the base rules answer: a learned answer is as none (it filled a hole the base leaves)
     const known = (p: Plan | undefined): p is Plan => !!p && !p.unknown && !p.learned
+    // the held thing used on oneself: pointed at oneself, any use of it; else (the ground) only what is eaten, drunk
+    // or worn — never a tool's or a weapon's (the axe in hand is not wielded at a tree it points at, the torch not
+    // put to oneself), though a vessel's drink is drunk
     const self = (any: boolean) => {
-      const s = held && pos && this.permits('self') ? this.planOn('self', pos, { e: me.id }, chosen) : undefined
+      const s = held && pos && this.permits('self') && (any || !isTool(held.type) || held.type.startsWith('item/vessel/')) ? this.planOn('self', pos, { e: me.id }, chosen) : undefined
       return s && (any || known(s)) ? s : undefined
     }
     if (ref.e === me.id) return self(pointed)

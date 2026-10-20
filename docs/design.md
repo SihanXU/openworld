@@ -234,8 +234,9 @@ thing aimed at comes first, then what is held (2026-10-20: the held object's use
   nothing there, and the cursor shows a `!`);
 - the ground: a hand where it does something there; else the held object's use there where it changes
   something (seeds sown on farmland); else a built thing or a fixture in hand set down, `put(held, target)` (a bed, a workbench, where it
-  would rest); else `use(held, self)` where it does something (eat, drink, put on); pointed at oneself, any use of
-  what is held (the modder's where the world has never seen it);
+  would rest); else `use(held, self)` where it does something (eat, drink, put on) — never a tool's or a weapon's
+  (an axe pointed at a tree is not wielded: the swing chops it), but a vessel's drink; pointed at oneself, any use
+  of what is held (the modder's where the world has never seen it);
 - any other thing: `hands(target)`, the bare hands' experiment;
 - the bare ground with nothing to set down or use: nothing.
 

@@ -458,6 +458,18 @@ describe('the action (the right click): what the thing aimed at calls for', () =
     expect(act(fire('item/tool/hoe'))).toMatchObject({ key: 'hands', target: { e: 'fire' } })
   })
 
+  it('a tool or a weapon stays out of it: an axe at a tree or the grass is not wielded (the left click chops); pointed at oneself it is; a vessel\'s drink is still drunk', () => {
+    const trees = Array.from({ length: 5 }, (_, y) => Array.from({ length: 5 }, (_, x) => (y === 1 && x === 2 ? 'tree' : 'grass')))
+    const axe = world('item/weapon/blade/axe', [], trees)
+    expect(act(axe)).toBeUndefined()
+    expect(axe.controls.plan('primary', at)?.label).toEqual(axe.controls.plan('use', at)?.label)
+    expect(act(world('item/weapon/blade/axe', []))).toBeUndefined()
+    expect(act(world('item/light/torch', []))).toBeUndefined()
+    expect(act(axe, { x: 2, y: 1, stack: [{ e: 'actor' }] })).toMatchObject({ key: 'self', target: { e: 'actor' } })
+    expect(label(act(axe, { x: 2, y: 1, stack: [{ e: 'actor' }] }))).toBe('Wield Axe')
+    expect(label(act(world('item/vessel/flask/water', [])))).toBe('Drink Flask of Water')
+  })
+
   it('on the ground, after the hands: what the held object does there (seeds sown on farmland)', () => {
     const field = Array.from({ length: 5 }, (_, y) => Array.from({ length: 5 }, (_, x) => (y === 1 && x === 2 ? 'farmland' : 'grass')))
     const eng = world('item/seed/carrot', [], field)
