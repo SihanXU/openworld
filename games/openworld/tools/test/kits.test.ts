@@ -159,4 +159,43 @@ describe('creature kits', () => {
     const crab = spawn('actor/creature/crab', 2, { hp: 5 })
     expect(run(40, () => !!crab.statuses?.shelled)).toBe(true)
   })
+
+  it('the elites: the Slime King, hurt, splits off two green slimes, once', () => {
+    const { eng, w, map, spawn, run } = arena()
+    const king = spawn('actor/creature/slime/king_slime', 3, { hp: 40 })
+    const greens = () => w.entitiesOnMap(map).filter((e) => e.type === 'actor/creature/slime/green_slime').length
+    expect(run(60, () => greens() === 2)).toBe(true)
+    expect(w.prop(king, 'split')).toBe(1)
+    // spent, it is never wound up again (its `spent` prop), and no more come off it
+    let again = false
+    run(1200, () => ((again ||= kitsOf(eng).pending.get(king.id)?.skill.id === 'split'), false))
+    expect(again).toBe(false)
+    expect(w.entitiesOnMap(map).filter((e) => e.type === 'actor/creature/slime/green_slime').length).toBeLessThanOrEqual(2)
+  })
+
+  it('the elites: the barrow warden\'s Shield Charge is followed at once by its Vigil Sweep', () => {
+    const { eng, spawn, run } = arena()
+    const warden = spawn('actor/creature/undead/warden', 4)
+    const seen: string[] = []
+    run(120, () => {
+      const p = kitsOf(eng).pending.get(warden.id)
+      if (p && seen[seen.length - 1] !== p.skill.id) seen.push(p.skill.id)
+      return seen.includes('vigil_sweep') && seen.includes('shield_charge')
+    })
+    expect(seen.slice(0, 2)).toEqual(['shield_charge', 'vigil_sweep'])
+  })
+
+  it('the elites: the cyclops\'s aftershock comes only after its stomp', () => {
+    const { eng, spawn, run } = arena()
+    const cyclops = spawn('actor/creature/cyclops', 1)
+    const seen: string[] = []
+    run(200, () => {
+      const p = kitsOf(eng).pending.get(cyclops.id)
+      if (p && seen[seen.length - 1] !== p.skill.id) seen.push(p.skill.id)
+      return seen.includes('aftershock')
+    })
+    const i = seen.indexOf('aftershock')
+    expect(i).toBeGreaterThan(0)
+    expect(seen[i - 1]).toBe('stomp')
+  })
 })

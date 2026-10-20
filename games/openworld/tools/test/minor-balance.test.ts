@@ -92,7 +92,7 @@ describe('minor monsters\' balance', () => {
     expect(stand.lost, 'it costs something').toBeGreaterThan(0)
     // a swarm falls in a few blows; anything else lasts long enough to wind a skill up
     expect(stand.secs).toBeGreaterThanOrEqual(role === 'swarm' ? 1 : role === 'elite' ? 6 : 1.5)
-    if (hasKit(type) && role !== 'elite') expect(stand.casts, 'it takes a skill up').toBeGreaterThan(0)
+    if (hasKit(type)) expect(stand.casts, 'it takes a skill up').toBeGreaterThan(0)
     // what one loses standing: a swarm or a fighter a little, a wall more, a gatekeeper a good part of one's health
     expect(stand.lost).toBeLessThanOrEqual(role === 'elite' ? 30 : role === 'brute' ? 20 : 12)
     const dodge = duel(type, true)

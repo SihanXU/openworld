@@ -14,7 +14,7 @@ import { PILGRIMAGE_TYPES } from './pilgrimage.ts'
 import { FAITH_STATUSES } from './faith.ts'
 import { VEGETABLE_CROPS, cropHours } from './crops.ts'
 import { BOSSES, BOSS_ENCOUNTERS, BOSS_KITS, BOSS_TYPES } from './bosses.ts'
-import { KITS } from './kits.ts'
+import { ELITE_KITS, KITS } from './kits.ts'
 import { CREATURE_DROPS } from './drops.ts'
 import { CREATURE_STATS } from './levels.ts'
 import { SKILL_STATUSES } from './afflictions.ts'
@@ -618,7 +618,7 @@ export function buildOntology(): Ontology {
     // the creatures' own skills (kits.ts, docs/creatures.md), taken up by the kit goal before they fight as before
     // every monster's skills, the minor monsters' (kits.ts) and the bosses' (bosses.ts), and the boss fights that take
     // theirs up in turn (docs/skills.md)
-    kits: { ...KITS, ...BOSS_KITS },
+    kits: { ...KITS, ...ELITE_KITS, ...BOSS_KITS },
     encounters: BOSS_ENCOUNTERS,
     goals: ['encounter', 'kit', 'threat', 'social', 'follow', 'need', 'schedule', 'home', 'idle'],
     // the people's social life (docs/npc-sandbox.md): deeds and their fines, the watches, the numbers, the talk panel's verbs

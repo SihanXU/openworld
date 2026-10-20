@@ -13,7 +13,8 @@ const dist = (a: Pos, b: Pos) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.
 export const skillKey = (e: Entity, skill: KitSkill) => `kit:${e.id}:${skill.id}`
 
 /**
- * May the caster at `pos` take this skill up against a foe at `at` now (its range, row, health, cooldown, chance)? The
+ * May the caster at `pos` take this skill up against a foe at `at` now (its range, row, health, whether it is spent,
+ * cooldown, chance)? The
  * range and the row are measured from where the skill would be wound up (a large body's line from its edge).
  */
 export function ready(eng: Engine, e: Entity, skill: KitSkill, pos: Pos, at: Pos): boolean {
@@ -23,6 +24,7 @@ export function ready(eng: Engine, e: Entity, skill: KitSkill, pos: Pos, at: Pos
   if (skill.range && (d < skill.range[0] || d > skill.range[1])) return false
   if (skill.aligned && from.x !== at.x && from.y !== at.y) return false
   if (skill.below !== undefined && w.num(e, 'hp') > w.num(e, 'maxHp', 1) * skill.below) return false
+  if (skill.spent !== undefined && e.props?.[skill.spent] !== undefined) return false
   if (!eng.ready(skillKey(e, skill))) return false
   return w.rand() < (skill.chance ?? 1)
 }

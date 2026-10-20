@@ -4,7 +4,7 @@
 // The skills come from the setting (docs/lore.md §2): the First Night seeping in — beasts gone strange, the dead that
 // do not rest, things of the night that do not belong to the world.
 
-import type { CreatureSkill, Rule } from '@openworld/engine'
+import type { CreatureSkill, Effect, Rule } from '@openworld/engine'
 import { CALL, CLING, DO, ELEMENT, HARM, POWER, kitRule, skill, unleash } from './afflictions.ts'
 
 // ------------------------------------------------------------------ the skills
@@ -94,5 +94,58 @@ export const KIT_RULES: Rule[] = [
   ]),
   ...kitRule('kit/crab', `${C}/crab`, 'A crab\'s Shell Up, hurt: it draws into its shell, hard to hurt and slow a while.', [
     ['shell', DO({ op: 'addStatus', status: 'shelled' }, { op: 'vfx', fx: 'dust' })],
+  ]),
+]
+
+// ------------------------------------------------------------------ the elites (docs/creatures.md §10)
+// The gatekeepers of the minor monsters: the barrow warden, the cyclops, the Slime King. They take their skills up as any
+// minor monster does (the kit goal: when a skill's conditions hold), never by a boss's director; what makes them a fight of
+// their own is a kit of two to four, a chain (`then`) and a guard that waits out a hold (`steady`).
+
+// the barrow warden: Tomas, the Order's sworn brother, who still holds his post before the altar (docs/chapter-1.md §11)
+const VIGIL_SWEEP = skill('vigil_sweep', 'Vigil Sweep', '守夜横扫', { shape: 'cone', aim: 'self', radius: 2, range: [1, 2], windup: 10, cooldown: 40, color: HARM })
+const SHIELD_CHARGE = skill('shield_charge', 'Shield Charge', '盾冲', { shape: 'line', aim: 'target', radius: 4, move: 'dash', aligned: true, range: [2, 4], windup: 12, cooldown: 70, then: 'vigil_sweep', color: HARM })
+const HOLD_POST = skill('hold_post', 'Hold the Post', '坚守岗位', { shape: 'ring', aim: 'self', radius: 3, range: [1, 5], windup: 14, cooldown: 240, below: 0.5, steady: true, color: CLING })
+
+// the cyclops of the old mine, on the ore it has hoarded
+const BOULDER = skill('boulder', 'Boulder Toss', '掷石', { shape: 'circle', aim: 'target', radius: 1, range: [3, 6], windup: 14, cooldown: 50, color: HARM })
+const STOMP = skill('stomp', 'Stomp', '跺地', { shape: 'circle', aim: 'self', radius: 2, range: [1, 2], windup: 16, cooldown: 50, then: 'aftershock', color: HARM })
+// (only ever the stomp's chain: no foe stands on its own cell, so its range [0, 0] never holds for the kit goal)
+const AFTERSHOCK = skill('aftershock', 'Aftershock', '余震', { shape: 'ring', aim: 'self', radius: 3, range: [0, 0], windup: 8, cooldown: 0, color: HARM })
+const GLARE = skill('glare', 'Baleful Glare', '独眼凝视', { shape: 'line', aim: 'target', radius: 6, aligned: true, range: [2, 6], windup: 12, cooldown: 90, color: CLING })
+
+// the Slime King: a heap of slime with a crown in it
+const ROYAL_HOP = skill('royal_hop', 'Royal Bounce', '王之弹跳', { shape: 'circle', aim: 'target', radius: 2, move: 'leap', range: [2, 4], windup: 12, cooldown: 40, color: HARM })
+const SPLIT = skill('split', 'Split', '分裂', { shape: 'circle', aim: 'self', radius: 0, range: [1, 8], windup: 10, cooldown: 600, below: 0.5, spent: 'split', color: CALL })
+
+/** The elites' kits, by type: two to four skills, a chain, a guard (kit-contract.test.ts, the elite tier). */
+export const ELITE_KITS: Record<string, CreatureSkill[]> = {
+  [`${C}/undead/warden`]: [HOLD_POST, SHIELD_CHARGE, VIGIL_SWEEP],
+  [`${C}/cyclops`]: [GLARE, BOULDER, STOMP, AFTERSHOCK],
+  [`${C}/slime/king_slime`]: [SPLIT, ROYAL_HOP],
+}
+
+/** Its brood splits off once in a fight's life: the king keeps that it has (its own prop `split`). */
+const SPLIT_OFF: Effect[] = [
+  { op: 'spawn', type: `${C}/slime/green_slime`, at: 'host', count: 2 },
+  { op: 'setProp', key: 'split', value: 1 },
+  { op: 'vfx', fx: 'splash' },
+]
+
+export const ELITE_RULES: Rule[] = [
+  ...kitRule('kit/warden', `${C}/undead/warden`, 'The barrow warden\'s skills: his Vigil Sweep cuts the cone before him and drives back a cell; his Shield Charge runs down the row to the first foe, stuns it and sweeps at once; hurt, he Holds the Post: the ring three cells out is struck and mired, and no hold breaks his wind-up.', [
+    ['vigil_sweep', DO(unleash({ power: POWER(1.4), edge: 'cut', push: 1 }))],
+    ['shield_charge', DO(unleash({ power: POWER(1.6), edge: 'blunt', coat: 'stunned' }))],
+    ['hold_post', DO(unleash({ power: POWER(1), edge: 'cut', coat: 'mired' }))],
+  ]),
+  ...kitRule('kit/cyclops', `${C}/cyclops`, 'The cyclops\'s skills: it throws a boulder onto the foe\'s cell and those round it; it stomps, striking all round it and driving them back, and the aftershock runs out to the ring beyond; its Baleful Glare down the row stuns whoever meets its eye.', [
+    ['boulder', DO(unleash({ power: POWER(1.6), element: 'earth', edge: 'blunt' }), { op: 'vfx', fx: 'dust' })],
+    ['stomp', DO(unleash({ power: POWER(1.5), element: 'earth', edge: 'blunt', push: 1 }))],
+    ['aftershock', DO(unleash({ power: POWER(1), element: 'earth', edge: 'blunt' }))],
+    ['glare', DO(unleash({ power: POWER(0.8), edge: 'magic', coat: 'stunned' }))],
+  ]),
+  ...kitRule('kit/king_slime', `${C}/slime/king_slime`, 'The Slime King\'s skills: its Royal Bounce lands on the foe and splashes two cells round it; hurt, it Splits: two green slimes come off it, once.', [
+    ['royal_hop', DO(unleash({ power: POWER(1.5), element: ELEMENT, edge: 'blunt' }), { op: 'vfx', fx: 'splash' })],
+    ['split', { if: { prop: { role: 'host', key: 'split', cmp: 1 } }, then: DO(), else: DO(...SPLIT_OFF) }],
   ]),
 ]
