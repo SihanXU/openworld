@@ -730,12 +730,25 @@ export class RuleLibrary {
     return false
   }
 
+  /** The learned rules, in the order they hold their places (a revision where its predecessor stood). */
   patches(): Rule[] {
-    return [...this.rules.values()].filter(isPatch)
+    return this.inOrder().filter(isPatch)
+  }
+
+  /**
+   * Every rule in its order: a revision takes its predecessor's place, so it can stand before rules
+   * added earlier (the answers that grew below it). A copy or a save keeps that order, or what grew
+   * below a revision would come before it and lose its place.
+   */
+  private inOrder(): Rule[] {
+    return [...this.rules.values()].sort((a, b) => this.order.get(a.id)! - this.order.get(b.id)!)
   }
 
   clone(): RuleLibrary {
-    const lib = new RuleLibrary([...this.rules.values()])
+    const lib = new RuleLibrary(this.inOrder())
+    lib.order = new Map(this.order)
+    lib.retired = new Map(this.retired)
+    lib.added = this.added
     lib.types = [...this.types]
     lib.statuses = [...this.statuses]
     lib.version = this.version
@@ -743,7 +756,7 @@ export class RuleLibrary {
   }
 
   toJSON(): LibraryData {
-    return { rules: [...this.rules.values()], types: this.types, statuses: this.statuses, log: this.log, version: this.version }
+    return { rules: this.inOrder(), types: this.types, statuses: this.statuses, log: this.log, version: this.version }
   }
 
   /** What was learned (the patches, the kinds and statuses they brought, the log): what a save keeps — the base is the game's, fresh from content on every load. */
