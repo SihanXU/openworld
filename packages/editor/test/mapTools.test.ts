@@ -92,3 +92,19 @@ describe('the ground\'s height', () => {
     expect(cliffs(undefined)).toEqual([])
   })
 })
+
+describe('the height brush', () => {
+  it('raises a cell half a level a stroke, once however often the stroke passes it; lowers it again; a map at the horizon writes none', async () => {
+    const { sculpt } = await import('../src/app/heights.ts')
+    const ch = { map: { rows: ['....', '....'], width: 4, height: 2 } as { rows: string[]; heights?: string[]; width: number; height: number } }
+    const stroke = new Set<string>()
+    sculpt(ch, [{ x: 1, y: 0 }, { x: 2, y: 0 }], 'raise', stroke)
+    sculpt(ch, [{ x: 1, y: 0 }], 'raise', stroke)
+    expect(ch.map.heights).toEqual(['0110', '0000'])
+    sculpt(ch, [{ x: 1, y: 0 }], 'raise')
+    expect(ch.map.heights).toEqual(['0210', '0000'])
+    sculpt(ch, [{ x: 1, y: 0 }, { x: 2, y: 0 }], 'lower')
+    sculpt(ch, [{ x: 1, y: 0 }, { x: 9, y: 9 }], 'lower')
+    expect(ch.map.heights).toBeUndefined()
+  })
+})

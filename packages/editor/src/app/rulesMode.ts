@@ -4,6 +4,7 @@
 // in a sandbox — who does it, to what, with what in hand — and says which rule decides, where in its tree, and
 // what the chain did; the sandbox replays any scenario.
 
+import { condWords, effectWords } from './ruleWords.ts'
 import { RuleLibrary, buildModSpec, buildSandbox, scenarioEvent, type Cond, type Effect, type Rule, type Scenario, type Tree } from '@openworld/engine'
 import { ruleProblems } from '@openworld/format'
 import { STDLIB_RULES } from '@openworld/stdlib'
@@ -181,8 +182,9 @@ export class RulesMode implements Mode {
 
 // ---------------------------------------------------------------- a tree in words
 
-const cond = (c: Cond): string => `<span class="c">${esc(JSON.stringify(c))}</span>`
-const effect = (e: Effect): string => { const { op, ...rest } = e as Effect & Record<string, unknown>; return `<span class="e">${esc(op)}</span> ${esc(Object.keys(rest).length ? JSON.stringify(rest) : '')}` }
+// a condition and an effect said in words, their JSON as their title (ruleWords.ts)
+const cond = (c: Cond): string => condWords(c)
+const effect = (e: Effect): string => effectWords(e)
 
 /** A rule's tree, indented: IF / THEN / ELSE, the effects of each leaf, the holes the AI answers. */
 export function outline(tr: Tree, depth = 0): string {

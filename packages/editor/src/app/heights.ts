@@ -40,3 +40,26 @@ export function cliffs(heights: string[] | undefined): { x: number; y: number; s
     }
   return out
 }
+
+/** How the height brush paints: a half level up, a half level down, or every cell to one height. */
+export type HeightMode = 'raise' | 'lower' | 'set'
+
+/**
+ * Raise or lower cells by a half level (within 0 and the highest), each once a stroke: `done` keeps the cells the
+ * stroke has touched, so a brush dragged back over them does not raise them again. A map left all at the horizon
+ * writes no heights.
+ */
+export function sculpt(ch: { map: { rows: string[]; heights?: string[]; width: number; height: number } }, cells: { x: number; y: number }[], mode: 'raise' | 'lower', done: Set<string> = new Set()): void {
+  const m = ch.map
+  m.heights ??= m.rows.map((r) => '0'.repeat(r.length))
+  const rows = m.heights
+  for (const c of cells) {
+    const key = `${c.x},${c.y}`
+    if (c.x < 0 || c.y < 0 || c.x >= m.width || c.y >= m.height || done.has(key)) continue
+    done.add(key)
+    const h = Number(rows[c.y][c.x] ?? 0) || 0
+    const next = Math.max(0, Math.min(MAX_HEIGHT, h + (mode === 'raise' ? 1 : -1)))
+    rows[c.y] = rows[c.y].slice(0, c.x) + String(next) + rows[c.y].slice(c.x + 1)
+  }
+  if (rows.every((r) => /^0*$/.test(r))) delete m.heights
+}

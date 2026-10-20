@@ -33,10 +33,12 @@ describe.skipIf(!existsSync(STARTER))('the database', () => {
 })
 
 describe('a rule\'s tree in words', () => {
-  it('says its branches, its leaves and its holes', () => {
+  it('says its branches, its leaves and its holes, each condition and effect in words', () => {
     const text = outline({ if: { same: ['actor', 'target'] }, then: { do: [{ op: 'log', text: 'Crunch.' }], label: 'Eat' }, else: { undefined: true, default: [{ op: 'destroy' }] } }).replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"')
-    expect(text).toContain('IF {"same":["actor","target"]}')
-    expect(text).toContain('DO “Eat” log')
-    expect(text).toContain('UNDEFINED — the AI answers; meanwhile destroy')
+    expect(text).toContain('IF the one who acts and the target are one')
+    expect(text).toContain('DO “Eat” tells: Crunch.')
+    expect(text).toContain('UNDEFINED — the AI answers; meanwhile is gone')
+    // a kind not said keeps its JSON
+    expect(outline({ if: { leads: ['actor', 'target'] }, then: { do: [] } }).replace(/<[^>]+>/g, '').replace(/&quot;/g, '"')).toContain('{"leads":["actor","target"]}')
   })
 })

@@ -55,7 +55,7 @@ import {
 } from './mapEdit.ts'
 import { paintPics, prefabPic, terrainPic, typePic, type Pic } from './thumbs.ts'
 import { icon } from './icons.ts'
-import { MAX_HEIGHT, cliffs, heightCss, heightHex, heightWords } from './heights.ts'
+import { MAX_HEIGHT, cliffs, heightCss, heightHex, heightWords, sculpt, type HeightMode } from './heights.ts'
 import { LAYERS, groupOf, layerOf, terrainPalette, toolDef, toolForKey, type LayerId, type Tool, type TerrainGroup } from './mapTools.ts'
 import { phrase } from './lang.ts'
 import { esc, parseValue, t, textField, toast, tx } from './ui.ts'
@@ -80,6 +80,9 @@ export class MapMode implements Mode {
   private height = 0
   private thing = ''
   private filter = ''
+  /** How the height brush paints (raising and lowering by default: the way terrain is shaped), and the cells a stroke raised. */
+  private heightMode: HeightMode = 'raise'
+  private sculpted = new Set<string>()
   /** The map's properties dialog, while it is open. */
   private props?: { el: HTMLElement; close(): void }
   private mapFilter = ''
@@ -209,13 +212,19 @@ export class MapMode implements Mode {
   private heightPanel(): string {
     const ticks = Array.from({ length: MAX_HEIGHT + 1 }, (_, h) => h)
     return `<h3>${t('Height')}</h3>
+      <ol class="howto">
+        <li>${t('Choose the brush and <b>Raise ½</b> (above the map), and paint where the ground should rise: once is half a level, twice a whole level.')}</li>
+        <li>${t('Half a level between neighbours is a slope one walks up; a whole level or more is a cliff (a red line on the map): no one climbs it, and a fall from it can hurt.')}</li>
+        <li>${t('In the game higher ground is drawn lighter, a cliff with its rock face and shadow; it also hides what is behind it.')}</li>
+        <li>${t('<b>Lower ½</b> takes it down again; to paint one exact height, choose it below (Set to).')}</li>
+      </ol>
       <div class="hgt">
         <div class="hgt-now"><b id="hNum">${this.height}</b><span id="hWords">${esc(heightWords(this.height))}</span></div>
         <input id="hRange" type="range" min="0" max="${MAX_HEIGHT}" step="1" value="${this.height}" title="${t('[ lower, ] higher')}">
         <div class="hgt-ticks">${ticks.map((h) => `<span class="${h % 2 ? '' : 'lv'}" style="--c:${heightCss(h)}">${h === 0 ? t('horizon') : h}</span>`).join('')}</div>
         <canvas id="hSide" width="220" height="86"></canvas>
       </div>
-      <p class="muted">${t('Counted in half levels from the horizon, the ground every map stands on (0). 2 is a whole level. A neighbour half a level up or down can be walked to; a whole level or more is a cliff, drawn red on the map.')}</p>`
+      <p class="muted">${t('0 is the horizon, the ground every map stands on; 2 is a whole level.')}</p>`
   }
 
   /** The side view: a step for each height, the horizon's line, the one chosen lit. */
@@ -251,6 +260,7 @@ export class MapMode implements Mode {
 
   private setHeight(ctx: Ctx, h: number): void {
     this.height = Math.max(0, Math.min(MAX_HEIGHT, h))
+    this.heightMode = 'set'
     if (!PAINTS.has(this.tool)) return this.setTool(ctx, this.last['height:brush'] ?? 'pencil')
     ctx.refresh()
   }
@@ -274,6 +284,7 @@ export class MapMode implements Mode {
     const g = groupOf(this.layer, this.tool)
     strip.innerHTML = L.groups.map((x) => `<button data-group="${x.id}" class="ib ${x === g ? 'on' : ''}" title="${esc(t(x.label))} (${x.key}): ${esc(t(x.tip))}" aria-label="${esc(t(x.label))}">${icon(x.icon)}<small>${x.key}</small></button>`).join('')
     const parts: string[] = []
+    if (this.layer === 'height' && g.id === 'brush') parts.push(`<div class="seg">${([['raise', t('Raise ½')], ['lower', t('Lower ½')], ['set', t('Set to {h}', { h: this.height })]] as [HeightMode, string][]).map(([m, n]) => `<button data-hmode="${m}" class="${m === this.heightMode ? 'on' : ''}">${n}</button>`).join('')}</div>`)
     if (g.tools.length > 1) parts.push(`<div class="seg">${g.tools.map((x) => `<button data-tool="${x.id}" class="${x.id === this.tool ? 'on' : ''}" title="${esc(t(x.tip))}${x.key ? ` (${x.key})` : ''}">${x.icon ? icon(x.icon, 16) : ''}${t(x.label)}</button>`).join('')}</div>`)
     if (SIZED.has(this.tool)) parts.push(`<span class="lab">${t('size')}</span><div class="seg">${[1, 2, 3, 4, 5].map((n) => `<button data-size="${n}" class="${n === this.size ? 'on' : ''}">${n}</button>`).join('')}</div>`)
     parts.push(this.brushOptions(Object.entries(ctx.store.game.terrainChars)))
@@ -283,6 +294,7 @@ export class MapMode implements Mode {
     on(strip, '[data-group]', (b) => { const x = L.groups.find((y) => y.id === b.dataset.group)!; this.setTool(ctx, this.last[`${this.layer}:${x.id}`] ?? x.tools[0].id) })
     on(bar, '[data-tool]', (b) => this.setTool(ctx, b.dataset.tool as Tool))
     on(bar, '[data-size]', (b) => ((this.size = Number(b.dataset.size)), ctx.refresh()))
+    on(bar, '[data-hmode]', (b) => ((this.heightMode = b.dataset.hmode as HeightMode), ctx.refresh()))
     this.wireBrush(ctx, bar)
   }
 
@@ -437,6 +449,14 @@ export class MapMode implements Mode {
     const ground = this.layer === 'ground'
     const layer = ground ? 'ground' : 'height'
     const value = ground ? this.char : String(this.height)
+    // the height brush raising or lowering: each cell once a stroke, by half a level
+    const shape = !ground && this.layer === 'height' && this.heightMode !== 'set' ? (this.heightMode as 'raise' | 'lower') : undefined
+    if (shape && (this.tool === 'pencil' || this.tool === 'fill')) {
+      if (ev === 'down') this.sculpted = new Set()
+      if (ev === 'up' || (this.tool === 'fill' && ev !== 'down')) return
+      const why = shape === 'raise' ? t('raise the ground') : t('lower the ground')
+      return this.edit(ctx, why, (ch) => sculpt(ch, this.tool === 'fill' ? floodCells(ch, 'height', c) : brushCells(c, this.size), shape, this.sculpted), s)
+    }
     switch (this.tool) {
       case 'pencil':
         return this.edit(ctx, t('paint {value}', { value }), (ch) => paint(ch, layer, brushCells(c, this.size), value), s)
@@ -531,9 +551,11 @@ export class MapMode implements Mode {
     const chars = ctx.store.game.terrainChars
     switch (this.tool) {
       case 'rect':
-        return this.edit(ctx, t('a rectangle of {value}', { value }), (ch) => paint(ch, layer, rectCells(from, to), value))
-      case 'ellipse':
-        return this.edit(ctx, t('an ellipse of {value}', { value }), (ch) => paint(ch, layer, ellipseCells(from, to), value))
+      case 'ellipse': {
+        const cells = this.tool === 'rect' ? rectCells(from, to) : ellipseCells(from, to)
+        if (layer === 'height' && this.heightMode !== 'set') return this.edit(ctx, this.heightMode === 'raise' ? t('raise the ground') : t('lower the ground'), (ch) => sculpt(ch, cells, this.heightMode as 'raise' | 'lower'))
+        return this.edit(ctx, this.tool === 'rect' ? t('a rectangle of {value}', { value }) : t('an ellipse of {value}', { value }), (ch) => paint(ch, layer, cells, value))
+      }
       case 'putRect':
         if (!this.thing) return toast(t('Choose a kind of thing first.'), 'warn')
         return this.edit(ctx, `${b.w * b.h} × ${this.thing}`, (ch) => rectCells(from, to).forEach((c) => this.setDown(ctx, ch, c)))

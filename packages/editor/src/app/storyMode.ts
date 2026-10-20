@@ -179,7 +179,7 @@ export class QuestsMode implements Mode {
         ctx.store.add(`quests/${id}.json`, q, t('a new quest {id}', { id }))
       })
     }
-    right.innerHTML = `<h3>${t('Quests')}</h3><p class="muted">${esc(t('A quest under way is a thing whose props are its state: its aliases filled as it begins, its objectives counted, its stages reached by their triggers (docs/quests.md). {alias} names an alias in its words.', { alias: '{alias}' }))}</p>`
+    right.innerHTML = `<h3>${t('Quests')}</h3><p class="muted">${esc(t('A quest under way keeps its own progress: the people and things it is about are filled in as it begins, its objectives count themselves, and each stage comes when its trigger holds. In its words, {alias} names one of the people or things it is about.', { alias: '{alias}' }))}</p>`
   }
 
   main(ctx: Ctx, el: HTMLElement): void {

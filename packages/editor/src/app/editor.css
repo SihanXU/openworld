@@ -16,7 +16,7 @@ label { display: block; margin: 6px 0; color: var(--ed-muted); }
 label.inline { display: inline; }
 label input:not([type=checkbox]), label select { color: var(--ed-ink); }
 h1 { font-family: 'Pixelify Sans', sans-serif; font-weight: 600; }
-h3 { margin: 14px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ed-accent); }
+h3 { margin: 14px 0 6px; font-size: 13px; letter-spacing: 0.02em; color: var(--ed-accent); }
 code { background: #0f121a; padding: 1px 4px; border-radius: 3px; }
 .muted { color: var(--ed-muted); }
 .warn { color: var(--ed-warn); }
@@ -326,3 +326,11 @@ ul.things.rules li, ul.things.facts li { display: flex; flex-direction: column; 
 ul.things.rules small, ul.things.facts small { color: var(--ed-muted); font-size: 11px; }
 .tree-row.step { flex-direction: column; align-items: flex-start; gap: 0; }
 .tree-row.step span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+ol.howto { margin: 4px 0 10px; padding-left: 18px; display: grid; gap: 5px; font-size: 12px; line-height: 1.45; }
+ol.howto b { color: var(--ed-accent); font-weight: 600; }
+
+/* the People mode: a search, and the list as tall as the panel allows */
+#pplFilter { width: 100%; margin-bottom: 4px; }
+.palette.list.people { max-height: 62vh; }
+.palette.list.people button span { display: flex; flex-direction: column; text-align: left; min-width: 0; }
+.palette.list.people button small { margin-left: 0; }
