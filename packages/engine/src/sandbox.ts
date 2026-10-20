@@ -203,12 +203,16 @@ function stable(v: unknown): string {
   return JSON.stringify(v) ?? 'null'
 }
 
+/** The event's participants: its host and the things in its roles. */
+function participantIds(ev: GameEvent): string[] {
+  return [...new Set([ev.host, ...Object.values(ev.roles)].flatMap((r) => (r && 'e' in r ? [r.e] : [])))]
+}
+
 /** The state of the event's participants (host and roles; what they hold aside): where the repeat check looks for a cycle. */
 function participants(eng: Engine, ev: GameEvent): string {
   const w = eng.world
-  const ids = [...new Set([ev.host, ...Object.values(ev.roles)].flatMap((r) => (r && 'e' in r ? [r.e] : [])))]
   return stable(
-    ids.map((id) => {
+    participantIds(ev).map((id) => {
       const e = w.get(id)
       if (!e) return [id, 'gone']
       const p = e.place
@@ -223,13 +227,31 @@ function participants(eng: Engine, ev: GameEvent): string {
  * replayed with no time between, and the state of its participants is kept after each replay.
  * When a state comes back, the replays between are a cycle that can go round for ever: endless if
  * it made anything. When the host is used up, or the replays make nothing more, it ends. A store
- * that keeps giving without coming back (charges counting down) may give at most YIELD_MOST.
+ * that keeps giving without coming back (charges counting down) may give at most YIELD_MOST. A
+ * participant whose worth (the society slot's reading) keeps passing its highest is a yield too: sold,
+ * it is coin from nothing (a cycle comes back to the worth it began with, so only one that never does).
  * Returns why it is endless (the certificate), or nothing.
  */
 export function yieldCycle(eng: Engine, ev: GameEvent): string | undefined {
   const seen = new Map<string, number>()
   const made: number[] = []
   const raised: string[][] = []
+  const most = new Map<string, number>()
+  /** The participants whose worth passed its highest since the last look. */
+  const richer = (): string[] => {
+    const up: string[] = []
+    for (const id of participantIds(ev)) {
+      const e = eng.world.get(id)
+      if (!e) continue
+      const v = eng.society.value(e)
+      const was = most.get(id)
+      if (was !== undefined && v > was) up.push(e.type)
+      if (was === undefined || v > was) most.set(id, v)
+    }
+    return up
+  }
+  richer()
+  const rose: string[][] = []
   let total = 0
   for (let i = 0; i <= REPEAT_TIMES; i++) {
     if (!eng.world.get(ev.host.e)) return undefined
@@ -245,11 +267,15 @@ export function yieldCycle(eng: Engine, ev: GameEvent): string | undefined {
     const n = once.made
     made.push(n)
     raised.push(once.raised)
+    rose.push(richer())
     total += n
     if (total > YIELD_MOST) return `${total} things from ${i + 1} replays with no time between (at most ${YIELD_MOST}: a bigger store must come back over time)`
   }
-  // (no state came back: it ends if it has stopped making things)
+  // (no state came back: it ends if it has stopped making things, what it acts on stopped growing dearer, and no
+  // number of it keeps rising)
   if (made.slice(-4).some((n) => n > 0)) return `still making things after ${REPEAT_TIMES} replays`
+  const dearer = [...new Set(rose.slice(-4).flat())]
+  if (dearer.length) return `the worth of the ${dearer.join(', ')} still rising after ${REPEAT_TIMES} replays: sold, it is coin from nothing`
   // a number raised on every replay to the end is a yield that never stops (a power, a charge that only grows); one
   // that tops out, a count that gates the outcome, a flag that goes up and down, is not
   const late = raised.slice(-4)

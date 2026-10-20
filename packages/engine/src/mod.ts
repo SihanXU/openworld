@@ -328,7 +328,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
       factions: onto.factions ?? {},
     },
     assets: { vfx: onto.vfx },
-    authoringRules: [...AUTHORING_RULES, ...mods.flatMap((m) => m.spec?.rules ?? [])],
+    authoringRules: [...AUTHORING_RULES, economyRule(onto), ...mods.flatMap((m) => m.spec?.rules ?? [])],
   }
 }
 
@@ -1124,6 +1124,33 @@ function opsOf(onto: Ontology): { ops: Set<string>; residentOnly: Set<string>; c
     conditions: new Set(mods.flatMap((m) => Object.keys(m.conds ?? {}))),
   }
 }
+
+/** The props of a thing's worth the kernel knows (types.ts: a material's and a quality's `value` are factors of it). */
+const WORTH: Record<string, string> = { value: 'what a thing of its kind is worth', material: 'what it is made of, a factor of its worth' }
+/** What to do instead, for the diagnostic and the ModSpec. */
+const WORTH_WAY = 'to make the host worth more, make it another thing ({op: "transform", into: <a type worth more>}); to give something, make it ({op: "spawn"}: the yield check counts what is made)'
+/**
+ * What a world's economy reads of a thing beside the things themselves (a coin is a thing: the yield check counts it):
+ * its worth — its `value`, its material (the `material` prop, a `material:` tag), its quality (the ontology's quality
+ * tags) — and the props its modules' economy names (`ModuleSpec.economy`: a piece of gear's level, what a merchant has
+ * each morning). A learned rule writes none of them on its host: one an answer raises on every use is coin from
+ * nothing once sold. A thing is worth more by becoming another thing, which the economy prices as its kind.
+ */
+function economyOf(onto: Ontology): { props: Map<string, string>; tag(t: string): string | undefined } {
+  const props = new Map(Object.entries(WORTH))
+  for (const m of modulesOf(onto.modules)) for (const [k, why] of Object.entries(m.spec?.economy ?? {})) if (!props.has(k)) props.set(k, why)
+  const qualities = new Set((onto.qualities ?? []).flatMap((q) => (q.tag ? [q.tag] : [])))
+  return {
+    props,
+    tag: (t) => (t.startsWith('material:') ? WORTH.material : qualities.has(t) || t.startsWith('quality:') ? 'its quality, a factor of its worth' : undefined),
+  }
+}
+/** The ModSpec's word on it: what the economy reads, by the world's modules. */
+function economyRule(onto: Ontology): string {
+  const { props } = economyOf(onto)
+  return `What a thing is worth comes from what it is — its kind, its material, its quality — and the economy reads it to price things: a learned rule never writes, on its host, ${[...props].map(([k, why]) => `\`${k}\` (${why})`).join(', ')}, nor adds or removes a \`material:\` or quality tag. Raised by an answer on every use, worth is coin from nothing once sold: ${WORTH_WAY}.`
+}
+
 const IMPULSE_KINDS = new Set(['strike', 'element', 'coat', 'restore', 'push', 'taken', 'receive', 'offered', 'handle', 'notify'])
 /** The news a learned rule may send: a topic for people to talk about. The rest (quest, defeat, reward, status…) is the game's own. */
 const NOTIFY_OPEN = new Set(['topic'])
@@ -1186,6 +1213,7 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
 function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
   withTerrainTypes(ctx.ontology)
   const worldOps = opsOf(ctx.ontology)
+  const economy = economyOf(ctx.ontology)
   const errors: string[] = []
   const warnings: string[] = []
   if (!patch || !Array.isArray(patch.artifacts) || !patch.artifacts.length) {
@@ -1451,6 +1479,16 @@ function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
     // (a notice to the story, or the story's own `topic`), never one the story raises (its protected `topic.<id>`)
     const raised = e.op === 'topic' ? e.id : e.op === 'emit' && e.impulse === 'notify' && e.params?.what === 'topic' ? e.params?.value : undefined
     if (typeof raised === 'string' && isProtected(`topic.${raised}`, ctx.protectedFacts)) errors.push(`${where}: the story raises the topic "${raised}" itself when it happens; a patch may raise a topic of its own (a new id)`)
+    // what the economy reads of a thing (its worth, what a merchant has each morning) comes from what it is: an answer
+    // that raises it makes coin from nothing (a resident is never sold: its props are the story's and the world's facts)
+    if (!resident) {
+      const key = e.op === 'setProp' || e.op === 'addProp' ? e.key : undefined
+      const why = typeof key === 'string' ? economy.props.get(key) : undefined
+      if (why) errors.push(`${where}: a learned rule never writes "${key}" (${why}): the economy reads it, and an answer that raises it makes something from nothing (coin, once sold) — ${WORTH_WAY}`)
+      const tag = e.op === 'addTag' || e.op === 'removeTag' ? e.tag : undefined
+      const of = typeof tag === 'string' ? economy.tag(tag) : undefined
+      if (of) errors.push(`${where}: a learned rule never ${e.op === 'addTag' ? 'adds' : 'removes'} the tag "${tag}" (${of}): the economy reads it, and an answer that raises it makes something from nothing (coin, once sold) — ${WORTH_WAY}`)
+    }
     // only the story's own rules write its protected facts (design.md §5.11, the boundaries), whoever started
     // the chain: the story's facts are its props, kept by setProp, addProp and the facts it is told (`facts`)
     const fact = (e.op === 'setProp' || e.op === 'addProp') && resident ? e.key : undefined

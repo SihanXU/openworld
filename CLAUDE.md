@@ -63,7 +63,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   active/dormant maps and the writer (`World.grant`: the mutators throw outside an outcome, the
   clock, loading, the input's posture and the author, and in an outcome beyond its host —
   design.md §5.15; `games/openworld/tools/test/writes.test.ts` scans for writes behind them) in `engine.ts`/`world.ts`; the request, one question per hole and class, the
-  validator (host-only writes, the rule's place, replay) and the boundaries in `mod.ts` (design.md §5.4–5.16);
+  validator (host-only writes, never what the economy reads, the rule's place, replay) and the boundaries in `mod.ts` (design.md §5.4–5.16);
   the player's
   inputs (E hands, F take, G put, left click use — a bare one is a blow —, and over them the right click, the
   action: the act the thing aimed at calls for, chosen as the base rules answer so learning never changes it;
@@ -149,6 +149,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   docs/main-quest.md), the quests (`quests/`: the main line, the people's errands through `errand()`, the radiant favours, the fairy's guides — teaching quests of the kind `guide` she begins herself on the story's beats, `guides.ts`; docs/quests.md),
   Chapter 1's facts and rules (`chapter1.ts`; its maps and scenes in
   `tools/src/demo/quest/chapter1.ts`, docs/chapter-1.md), the Pilgrim's Road's facts, wayside shrines and their rules
+  (`pilgrimage.ts`; its maps and scenes in `tools/src/demo/quest/pilgrimage.ts`, docs/chapter-1.md §14), the fairy's boons (`boons.ts`), the bosses (docs/bosses.md, docs/skills.md: the White Knight and the dragon of Cinder Peak, and three for later — their kits, fights and `boss/<id>` rules, the briars and embers they leave, defeat rules and compatibility migration: `bosses.ts`, `migrateBosses.ts`), the minor monsters' kits and rules (`kits.ts`, docs/creatures.md), what they leave when felled (`drops.ts`: each kind's makeup, the gel, venom sac and ectoplasm only monsters give, the antidote's rules), their levels and numbers (`levels.ts`: one curve read through each kind's role), what both kits share — the helpers, the marks' colours, what clings and the one `body/afflict` rule (`afflictions.ts`), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules, prices, and `residence`: the Held Ground's beds for one asked at full regard, taken by the society module's `moveIn`), the Held Ground (`haven.ts`: its steward's panel — the land, its grounds, its buildings and the residents' tents, `HAVEN_UPGRADES` — and the ground's stock; `homestead.ts` its stall, crops, beasts and fish; docs/homestead.md), gear (docs/gear.md: `sets.ts` each profession's armour and trinket sets, forged at an anvil; `trophies.ts` each monster kind's own piece with its pity, the families' sets, the affix table), Firstlight's shops (`village.ts`), the migrations of older saves (`migrate*.ts`: among them `migrateHaven` the widening errands gone, `migrateTents` the tents' rooms, `migratePlots` the Held Ground's plots and the loom, `migrateStock` the merchants' goods, `migrateOverworld`, `migrateSmithy`), its map files' terrain characters (`chunk.ts`), and
+  (`pilgrimage.ts`; its maps and scenes in `tools/src/demo/quest/pilgrimage.ts`, docs/chapter-1.md §14), the fairy's boons (`boons.ts`), the bosses (docs/bosses.md, docs/skills.md: the White Knight and the dragon of Cinder Peak, and three for later — their kits, fights and `boss/<id>` rules, the briars and embers they leave, defeat rules and compatibility migration: `bosses.ts`, `migrateBosses.ts`), the minor monsters' kits and rules (`kits.ts`, docs/creatures.md), what they leave when felled (`drops.ts`: each kind's makeup, the gel, venom sac and ectoplasm only monsters give, the antidote's rules), what both kits share — the helpers, the marks' colours, what clings and the one `body/afflict` rule (`afflictions.ts`), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules, prices, and `residence`: the Held Ground's beds for one asked at full regard, taken by the society module's `moveIn`), the Held Ground (`haven.ts`: its steward's panel — the land, its grounds, its buildings and the residents' tents, `HAVEN_UPGRADES` — and the ground's stock; `homestead.ts` its stall, crops, beasts and fish; docs/homestead.md), gear (docs/gear.md: `sets.ts` each profession's armour and trinket sets, forged at an anvil; `trophies.ts` each monster kind's own piece with its pity, the families' sets, the affix table), Firstlight's shops (`village.ts`), the migrations of older saves (`migrate*.ts`: among them `migrateHaven` the widening errands gone, `migrateTents` the tents' rooms, `migratePlots` the Held Ground's plots and the loom, `migrateStock` the merchants' goods, `migrateOverworld`, `migrateSmithy`), its map files' terrain characters (`chunk.ts`), and
   (`pilgrimage.ts`; its maps and scenes in `tools/src/demo/quest/pilgrimage.ts`, docs/chapter-1.md §14), the fairy's boons (`boons.ts`), the bosses (docs/bosses.md, docs/skills.md: the White Knight and the dragon of Cinder Peak, and three for later — their kits, fights and `boss/<id>` rules, the briars and embers they leave, defeat rules and compatibility migration: `bosses.ts`, `migrateBosses.ts`), the minor monsters' kits and rules (`kits.ts`, docs/creatures.md), what both kits share — the helpers, the marks' colours, what clings and the one `body/afflict` rule (`afflictions.ts`), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules, prices, and `residence`: the Held Ground's beds for one asked at full regard, taken by the society module's `moveIn`), the Held Ground (`haven.ts`: its steward's panel — the land, its grounds, its buildings and the residents' tents, `HAVEN_UPGRADES` — and the ground's stock; `homestead.ts` its stall, crops, beasts and fish; docs/homestead.md), gear (docs/gear.md: `sets.ts` each profession's armour and trinket sets, forged at an anvil; `trophies.ts` each monster kind's own piece with its pity, the families' sets, the affix table), Firstlight's shops (`village.ts`), the migrations of older saves (`migrate*.ts`: among them `migrateHaven` the widening errands gone, `migrateTents` the tents' rooms, `migratePlots` the Held Ground's plots and the loom, `migrateStock` the merchants' goods, `migrateOverworld`, `migrateSmithy`), its map files' terrain characters (`chunk.ts`), and
   the continent's regions (`regions.ts`: one per seal round the Holy City, which are backdrop, the untold gate), and
   `game.ts`, the GameDef the engine side is handed.
@@ -213,7 +215,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   and quest gets a page; `npm run wiki:check` fails on broken links/templates or a thing/system without a page (CI
   `.github/workflows/wiki.yml`). A change to game content that adds a thing or system needs its wiki page.
 - `packages/agent` — the SWE-style agent and its self-state, task-agnostic (no engine, no content):
-  `model.ts` (OpenAI-compatible / scripted; `LSW_MODEL_PIN` freezes the provider for an experiment; `LSW_NO_ANTHROPIC=1`
+  `model.ts` (OpenAI-compatible / scripted / `anthropic.ts` Anthropic's API; `LSW_MODEL_PIN` freezes the provider for an experiment; `LSW_NO_ANTHROPIC=1`
   makes the claude-code backend and `anthropic/*` models refuse on a machine),
   `state.ts` (memory, skills + scripts, harness, hooks, journal, snapshots, ablations), `env.ts` (local /
   docker: a benchmark image's `/testbed` copied out and mounted back, a node mounted for the hooks),
@@ -260,7 +262,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   return 403 from here. Never hard-code a provider; tests use `ScriptedModel`. A second backend,
   `claude-code`, calls `claude -p` signed in as the user (Opus 5.5, effort low by default — the least: a call asking for
   more reasoning, the high AI setting's or the offline profile's, gets medium or high; `ClaudeCodeModel`, `effortOf`).
-  `npm run dev` asks which backend to use (or `--backend openrouter|claude-code|none`, `LSW_MODEL_BACKEND`).
+  A third, `anthropic`, calls Anthropic's API with `ANTHROPIC_API_KEY` from `.env` (`anthropic.ts`: the system prompt cached,
+  tools as tools, effort per call, the default fallback; the paper's world-side experiments, docs/paper-eval.md).
+  `npm run dev` asks which backend to use (or `--backend openrouter|claude-code|anthropic|none`, `LSW_MODEL_BACKEND`).
 - Two harness profiles: **live** (a player waits: brief, one call, low reasoning, deterministic fixes,
   derived tests, hedged calls, review after shipping) and **offline** (curriculum, escalations,
   revisions: tools, more reasoning, blocking review). Measure live changes with `npm run latency`.
@@ -294,8 +298,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
     putting are physics (never asked), using one thing on another is where the AI answers.
   - Behaviour (schedules, temper, behaviour trees) is the game's own logic, not the AI
     interface. An outcome may change its host's script.
-  - The player's map is active. Dormant maps are frozen and catch up timers and their inbox
-    when entered. The world, the story and people's records are resident. Events cross maps
+  - The player's map is active. Dormant maps are frozen and catch up timers (a status's pulses
+    on the way to its end too, each with its own dice) and their inbox when entered. The world, the story and people's records are resident. Events cross maps
     only by address.
   - **Even with no model connected, design every feature for one.** New behaviour goes
     through events and rules, never around them in engine code. A deliberate act on
@@ -359,6 +363,8 @@ npm run curriculum:report -- var/<run>   # summarise a run: steps, reviews, revi
 npm run ford-live        # the six kinds of hole on the Ford, live (costs model calls)
 npm run probes           # the game's probes for the AI setting's detection → games/openworld/content/src/probes.json
 npm run eval:objects     # five acts to find a known thing, five to create a new one, live (costs model calls)
+npx tsx games/openworld/tools/src/eval/persistence.ts | attack.ts   # the paper's persistence and trust-boundary runs (no model; docs/paper-eval.md)
+npx tsx games/openworld/tools/src/eval/controlled.ts items | answer <cond> | judge | report   # the paper's Table 1 (costs model calls)
 npm run latency -- --n 20 # live-profile latency bench (fresh library each run; costs model calls)
 npm run improve -- --select 8 --confirm 8   # one outer-loop turn (costs model calls)
 npm run engine-task -- toggle-status --state <dir>

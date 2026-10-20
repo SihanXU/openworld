@@ -279,7 +279,8 @@ const BASE_FORMS: Form[] = [
   W('item/food/ale', 'Mug of Ale', '一杯麦酒', 'item:ale', { tags: ['drinkable', 'liquid', 'alcohol'], props: { heal: 2 }, where: { inn: 3 } }),
   // potions
   W('item/potion/healing', 'Healing Potion', '治疗药水', 'item:potion_red', { tags: ['drinkable', 'glass', 'fragile', 'magical'], props: { heal: 15 }, where: { temple: 1, shop: 1, dungeon: 1.5 } }),
-  W('item/potion/antidote', 'Antidote', '解毒剂', 'item:potion_green', { tags: ['drinkable', 'glass', 'fragile', 'magical'], props: { heal: 4 }, where: { temple: 1, shop: 0.5 } }),
+  // made at hand from a spider's venom sac and a herb (drops.ts): it clears poison (use/drink-antidote)
+  W('item/potion/antidote', 'Antidote', '解毒剂', 'item:potion_green', { tags: ['drinkable', 'glass', 'fragile', 'magical'], props: { heal: 4 }, where: { temple: 1, shop: 0.5 }, makeup: [{ type: 'item/material/venom_sac', count: 1 }, { type: 'item/material/herb', count: 1 }], station: 'hands' }),
   W('item/potion/fire_resist', 'Fireproof Draught', '防火药剂', 'item:potion_orange', { tags: ['drinkable', 'glass', 'fragile', 'magical'], where: { library: 0.5, shop: 0.3 } }),
   W('item/potion/mystery', 'Murky Potion', '浑浊药水', 'item:potion_purple', { tags: ['drinkable', 'glass', 'fragile', 'magical', 'unknown'], where: { dungeon: 1, library: 0.5 } }),
   // materials
@@ -302,6 +303,10 @@ const BASE_FORMS: Form[] = [
   W('item/material/frostcap', 'Frostcap', '霜盖菇', 'item:mushroom_blue', { tags: ['fungus', 'icy', 'reagent'], where: { wild: 0.8, dungeon: 0.5 } }),
   W('item/material/feather', 'Feather', '羽毛', 'item:feather', { tags: ['lightweight', 'flammable'], where: { wild: 1, farm: 1 } }),
   W('item/material/bone', 'Bone', '骨头', 'item:bone', { tags: ['bone'], where: { dungeon: 3, wild: 0.5 } }),
+  // what only monsters give (drops.ts): a slime's gel, a spider's venom sac, a spectre's ectoplasm
+  W('item/material/slime_gel', 'Slime Gel', '史莱姆凝胶', 'item:slime_gel', { tags: ['gelatinous', 'sticky'], where: {} }),
+  W('item/material/venom_sac', 'Venom Sac', '毒囊', 'item:venom_sac', { tags: ['venomous', 'reagent'], where: {} }),
+  W('item/material/ectoplasm', 'Ectoplasm', '灵质', 'item:ectoplasm', { tags: ['spectral', 'reagent'], where: {} }),
   W('item/material/cloth', 'Bolt of Cloth', '布匹', 'item:cloth', { tags: ['cloth', 'flammable'], props: { material: 'cloth' }, where: { shop: 2, home: 0.5 } }),
   W('item/material/leather', 'Leather Hide', '皮革', 'item:leather', { tags: ['leather', 'flammable'], props: { material: 'leather' }, where: { shop: 1, farm: 0.5 } }),
   W('item/material/wool', 'Wool', '羊毛', 'item:wool', { tags: ['cloth', 'flammable', 'soft'], where: { farm: 1.5 } }),
@@ -587,6 +592,9 @@ const VALUES: [string, number][] = [
   ['item/material/fertilizer', 3],
   ['item/material/salt', 3],
   ['item/material/plank', 3],
+  ['item/material/ectoplasm', 12],
+  ['item/material/venom_sac', 8],
+  ['item/material/slime_gel', 4],
   ['item/material/bone', 2],
   ['item/material/feather', 2],
   ['item/material/log', 2],

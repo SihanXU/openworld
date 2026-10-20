@@ -811,7 +811,11 @@ companion tells the tracked quest's objectives.
      neither changes nor is used up and the expected yield is above zero (chances count), the
      patch is refused as an endless yield;
    - **the economy check**: a new type's recipes, makeup and yields join the consumption graph
-     (§10), and a cycle with a net gain that takes no time is refused.
+     (§10), and a cycle with a net gain that takes no time is refused;
+   - **worth** (2026-10-19): what the economy reads of a thing (its `value`, material and quality,
+     and a module's `economy` props) is never a learned rule's to write, and the repeat check
+     counts a participant's worth that keeps rising as a yield: sold, it is coin from nothing.
+     A thing is worth more by becoming another thing.
 5. **The ModSpec** documents spaces, z, height, cover, regions and rooms (read-only),
    materials and the efficiency table, instruments, durability, `broken`/`breakdown`, makeup
    and recovery, stages, support, `fall`, `rel`, conditions on named things, the story's props

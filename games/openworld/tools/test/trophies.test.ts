@@ -210,13 +210,13 @@ describe('rolled extras', () => {
 })
 
 describe('the families\' sets', () => {
-  it('as in Dungeon Fighter, a family\'s set is armour (head, shoulders, body, hands, waist, feet) or trinkets (neck, ear, ring), a piece per slot; a few bosses\' pieces stand alone', () => {
+  it('as in Dungeon Fighter, a family\'s set is armour (head, shoulders, body, hands, waist, feet) or trinkets (neck, ear, ring), a piece per slot; a few bosses\' pieces, and the sporecap\'s (a kind come after the sets were drawn), stand alone', () => {
     for (const s of TROPHY_SETS) {
       const slots = TROPHIES.filter((t) => t.set === s.id).map((t) => String(t.props.slot)).sort()
       expect([s.id, slots]).toEqual([s.id, slots.length === 6 ? ['body', 'feet', 'hands', 'head', 'shoulders', 'waist'] : ['ear', 'neck', 'ring']])
       expect(s.bonuses.at(-1)!.pieces).toBe(slots.length)
     }
-    expect(TROPHIES.filter((t) => !t.set).map((t) => t.kind).sort()).toEqual(['actor/creature/golem/stone_golem', 'actor/creature/undead/warden'])
+    expect(TROPHIES.filter((t) => !t.set).map((t) => t.kind).sort()).toEqual(['actor/creature/fungus/sporecap', 'actor/creature/golem/stone_golem', 'actor/creature/undead/warden'])
   })
 
   it('a set\'s ring worn on both hands counts once', () => {

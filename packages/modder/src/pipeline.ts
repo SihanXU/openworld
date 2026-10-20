@@ -503,7 +503,9 @@ export class Modder {
         const parsed = parseJson(answer, () => (bracketsRepaired = true))
         const ask = router ? routeOf(parsed) : undefined
         // what the setting does not carry (quality.ts): the catalogue at low, making new kinds when it is off
-        const barred = ask && ((ask.create && wl.create === 'off') || (ask.need && !wl.find && !ask.create))
+        // (and with the router off, an ablation: the request's own things only)
+        const local = h.design.router === false
+        const barred = ask && ((ask.create && (wl.create === 'off' || local)) || (ask.need && (!wl.find || local) && !ask.create))
         if (ask && barred) {
           ep.attempts.push({ phase, errors: [ask.create ? 'asked to create a new kind: off at this setting' : 'asked for the catalogue: not at this setting'], warnings: [], raw: answer.slice(0, 2000) })
           if (repairs++ >= h.repair.maxRounds) break
@@ -571,6 +573,13 @@ export class Modder {
         if (qualified.fixes.length) ((patch = qualified.patch), fixes.push(...qualified.fixes))
         const crafted = stationFromRules(patch, ctx.ontology)
         if (crafted.fixes.length) ((patch = crafted.patch), fixes.push(...crafted.fixes))
+        // the deterministic repairs off (an ablation): an answer that needed one is an invalid attempt
+        if (h.design.fixes === false && fixes.length) {
+          ep.attempts.push({ phase, errors: fixes.map((f) => `needed a mechanical repair: ${f}`), warnings: [], raw: answer.slice(0, 2000) })
+          if (repairs++ >= h.repair.maxRounds) break
+          retry(`Your answer needed these repairs: ${fixes.join('; ')}. Answer now with ONLY the corrected JSON object {"patch": {"artifacts": [...]}}.`, 'repair')
+          continue
+        }
         // the rule's place is the request's, never the model's (design.md §5.16)
         const put = placePatch(patch, req, { ontology: ctx.ontology, library: lib })
         patch = put.patch

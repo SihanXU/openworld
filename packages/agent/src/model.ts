@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, isAbsolute, join } from 'node:path'
+import { AnthropicModel } from './anthropic.ts'
 
 export interface ToolSpec {
   name: string
@@ -645,6 +646,8 @@ export class Meter implements Model {
  * - `claude-code`: `claude -p`, signed in as the user. LSW_CLAUDE_MODEL (default claude-opus-5-5),
  *   LSW_CLAUDE_EFFORT (default low), LSW_CLAUDE_BIN (default `claude`). LSW_CLAUDE_FAST=1 (`--fast`)
  *   asks for fast mode; it applies to this backend only.
+ * - `anthropic`: Anthropic's API with ANTHROPIC_API_KEY (anthropic.ts). LSW_CLAUDE_MODEL (default claude-opus-5-5) and
+ *   LSW_CLAUDE_EFFORT (default low), as for claude-code.
  * - `none`: no model; the modder answers from the shared library only.
  */
 /**
@@ -658,15 +661,19 @@ export function noAnthropicHere(env: Record<string, string | undefined> = proces
 export function modelFromEnv(env: Record<string, string | undefined> = process.env): Model | undefined {
   if (env.LSW_MODEL_SCRIPT) return scriptFromFile(env.LSW_MODEL_SCRIPT)
   const backend = env.LSW_MODEL_BACKEND || 'openrouter'
-  noAnthropicHere(env, backend === 'claude-code' ? 'the claude-code backend' : /^anthropic\//.test(env.LSW_MODEL ?? '') ? env.LSW_MODEL : undefined)
+  noAnthropicHere(env, backend === 'claude-code' || backend === 'anthropic' ? `the ${backend} backend` : /^anthropic\//.test(env.LSW_MODEL ?? '') ? env.LSW_MODEL : undefined)
   const fast = env.LSW_CLAUDE_FAST === '1'
-  if (!['openrouter', 'claude-code', 'none'].includes(backend)) throw new Error(`LSW_MODEL_BACKEND: unknown backend "${backend}" (openrouter | claude-code | none)`)
+  if (!['openrouter', 'claude-code', 'anthropic', 'none'].includes(backend)) throw new Error(`LSW_MODEL_BACKEND: unknown backend "${backend}" (openrouter | claude-code | anthropic | none)`)
   if (fast && backend !== 'claude-code') throw new Error(`--fast (LSW_CLAUDE_FAST=1) applies to the claude-code backend only, not "${backend}"`)
   const pin = pinFromEnv(env)
   if (pin && backend !== 'openrouter') throw new Error(`LSW_MODEL_PIN applies to the openrouter backend only, not "${backend}"`)
   if (backend === 'none') return undefined
   if (backend === 'claude-code')
     return new ClaudeCodeModel({ model: env.LSW_CLAUDE_MODEL || 'claude-opus-5-5', effort: env.LSW_CLAUDE_EFFORT || 'low', fast, bin: env.LSW_CLAUDE_BIN })
+  if (backend === 'anthropic') {
+    if (!env.ANTHROPIC_API_KEY) throw new Error('the anthropic backend needs ANTHROPIC_API_KEY')
+    return new AnthropicModel({ model: env.LSW_CLAUDE_MODEL || 'claude-opus-5-5', effort: env.LSW_CLAUDE_EFFORT || 'low', apiKey: env.ANTHROPIC_API_KEY })
+  }
   if (!env.LSW_MODEL_KEY || !env.LSW_MODEL) return undefined
   if (pin && (env.LSW_MODEL_SORT || env.LSW_MODEL_PROVIDERS)) throw new Error('LSW_MODEL_PIN freezes the provider: LSW_MODEL_SORT and LSW_MODEL_PROVIDERS cannot be set with it')
   const extra: Record<string, unknown> = env.LSW_MODEL_EXTRA ? JSON.parse(env.LSW_MODEL_EXTRA) : {}
