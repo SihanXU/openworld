@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, auditTools, changesNothing, probe, stationFromRules, withPatch, type ChatMessage, type ChatOptions, type Harness, type Model } from '../src/index.ts'
+import { Detector, Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, auditTools, changesNothing, probe, stationFromRules, withPatch, type ChatMessage, type ChatOptions, type Harness, type Model } from '../src/index.ts'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -16,12 +16,12 @@ const STONE = 'item/material/stone'
 const TREE = 'fixture/nature/dead_tree'
 
 /** The stone used on a dead tree: a hole in the stone's own nature (`core/use`), the stone the host. */
-function useRequest(): ModRequest {
+function useRequest(target = TREE): ModRequest {
   const sc: Scenario = {
     entities: [
       { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
       { key: 'held', type: STONE, x: 2, y: 2, heldBy: 'actor' },
-      { key: 'it', type: TREE, x: 2, y: 1 },
+      { key: 'it', type: target, x: 2, y: 1 },
     ],
     event: {},
   }
@@ -215,5 +215,41 @@ describe('the review after the fact', () => {
     expect((await second.modder.resolve({ request: req })).outcome).toBe('accepted')
     await second.modder.settled()
     expect(wet.calls.review).toBe(0)
+  })
+})
+
+describe('detecting what a model carries, while the backend throttles', () => {
+  const detect = async (model: Model, reqs = [useRequest()]) => {
+    const { modder } = modderWith(model, 'live')
+    const detector = new Detector(modder, { probes: async () => reqs })
+    expect(await detector.start()).toMatchObject({ started: true, total: 3 * reqs.length })
+    while (detector.running) await new Promise((r) => setTimeout(r, 20))
+    return detector
+  }
+
+  it('a rate limit gives no verdict, not the model "off" (D7)', async () => {
+    const detector = await detect({ name: 'throttled', chat: async () => Promise.reject(new Error('HTTP 429: rate limit exceeded')) })
+    expect(detector.error).toMatch(/unavailable during the detection/)
+    expect(detector.last).toBeUndefined()
+  })
+
+  it('plays a few runs at once, not every question at every tier (D7)', async () => {
+    let now = 0
+    let most = 0
+    const inner = new ScriptedModel((_m: ChatMessage[], opts: ChatOptions) => (opts.purpose === 'review' ? { verdict: 'ship', notes: [] } : { patch: sapped(useRequest()), summary: 's' }))
+    const model: Model = {
+      name: 'slow',
+      chat: async (m, o) => {
+        most = Math.max(most, ++now)
+        await new Promise((r) => setTimeout(r, 30))
+        now--
+        return inner.chat(m, o)
+      },
+    }
+    // three questions of three classes (a class asked at once waits for the first): nine runs
+    const detector = await detect(model, [TREE, 'fixture/nature/beehive', 'fixture/nature/haystack'].map((t, i) => ({ ...useRequest(t), id: `q${i}` })))
+    expect(detector.error).toBeUndefined()
+    expect(detector.last?.runs).toHaveLength(9)
+    expect(most).toBeLessThanOrEqual(2) // DETECT_AT_ONCE (the service's own gate lets 4 designs in at once)
   })
 })

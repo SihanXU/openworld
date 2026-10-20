@@ -29,7 +29,7 @@ import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episod
  * A backend that cannot answer says so in its error: out of quota or throttling (claude-code's session
  * limit, an HTTP 429, a provider's quota), or not signed in (an expired OAuth session, a 401/403, a bad key).
  */
-const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota|authenticat|oauth|unauthori[sz]ed|\b401\b|\b403\b|invalid.?api.?key|not logged in/i
+export const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota|authenticat|oauth|unauthori[sz]ed|\b401\b|\b403\b|invalid.?api.?key|not logged in/i
 /** How long the service makes no calls after the backend said it is out (a request meanwhile gets `unavailable`). */
 const BACKEND_PAUSE_MS = 5 * 60_000
 
