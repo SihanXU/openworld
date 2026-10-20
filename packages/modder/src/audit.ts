@@ -90,10 +90,11 @@ interface Run {
   error?: string
 }
 
-/** The request's scene with the setup added, then the steps; bounded. */
-export function run(sc: Scenario, onto: Ontology, lib: RuleLibrary, setup: ScenarioEntity[] = [], steps: AuditStep[] = []): Run {
+/** The request's scene with the setup added, then the steps; bounded. `watch` sees the scene before the steps and after each act. */
+export function run(sc: Scenario, onto: Ontology, lib: RuleLibrary, setup: ScenarioEntity[] = [], steps: AuditStep[] = [], watch?: (eng: Engine) => void): Run {
   const scene: Scenario = { ...structuredClone(sc), entities: [...structuredClone(sc.entities), ...structuredClone(setup)] }
   const eng = buildSandbox(scene, onto, lib)
+  watch?.(eng)
   const lines: string[] = []
   let acts = 0
   let ticks = 0
@@ -112,6 +113,7 @@ export function run(sc: Scenario, onto: Ontology, lib: RuleLibrary, setup: Scena
         // (as the validator's replay: the act reaches what it reached when it happened, wherever the setup put things)
         const res = eng.act(s.act, s.actor ?? actor, refOf(eng, s.target ?? s.actor ?? actor), { ...(s.instrument !== undefined && { instrument: s.instrument ? refOf(eng, s.instrument) : null }), ...(s.params && { params: s.params }), reach: Infinity })
         if (lines.length < 40) lines.push(`${s.act} ${s.target ?? ''}${s.instrument ? ` with ${s.instrument}` : ''} → ${res.defined ? res.rule?.id : res.hole ? 'undefined' : 'nothing'}`)
+        watch?.(eng)
       }
     }
   }
@@ -158,6 +160,12 @@ export function holds(eng: Engine, c: Claim): boolean {
   return false
 }
 
+/** A line that says something went wrong: a warning, or an effect the engine refused (its dev line names the rule). */
+function refused(f: Engine['world']['fx'][number]): boolean {
+  if (f.t !== 'log') return false
+  return f.tone === 'warn' || (f.tone === 'dev' && typeof f.text === 'string' && f.text.startsWith('rule '))
+}
+
 /** What changed in the sandbox: things by type (made, gone), the actors' numbers, what was said wrong. */
 function summary(r: Run, sc: Scenario): string {
   const w = r.eng.world
@@ -173,7 +181,7 @@ function summary(r: Run, sc: Scenario): string {
     const statuses = Object.keys(a.statuses ?? {})
     return `${e.key} (${a.type}): ${nums.map(([k, v]) => `${k} ${v}`).join(', ')}${statuses.length ? `; statuses ${statuses.join(', ')}` : ''}`
   })
-  const warned = w.fx.filter((f) => f.t === 'log' && f.tone === 'warn').map((f) => textOf((f as { text: Parameters<typeof textOf>[0] }).text)).slice(-5)
+  const warned = w.fx.filter(refused).map((f) => textOf((f as { text: Parameters<typeof textOf>[0] }).text)).slice(-5)
   return [
     ...r.lines.map((l) => `  ${l}`),
     `things: ${delta.length ? delta.map(([t, d]) => `${t} ${d > 0 ? '+' : ''}${d}`).join(', ') : 'no change'}`,
@@ -266,10 +274,53 @@ function gains(r: Run, sc: Scenario, actorKey: string): { things: number; nums: 
   return { things: things - sc.entities.filter((e) => !e.type.startsWith('tile/')).length, nums: a ? PROBE_GAINS.map((k) => w.num(a, k)) : [] }
 }
 
+/** The keys of the things the scene's event names (its host and roles): the act's participants. */
+function participantsOf(sc: Scenario): string[] {
+  const keys = new Set(sc.entities.map((e) => e.key))
+  return [...new Set(Object.values(sc.event).filter((v): v is string => typeof v === 'string' && keys.has(v)))]
+}
+
+/**
+ * A watch on the participants' numbers over a run: `rising()` gives those the steps raised on every act,
+ * by `key\u0000prop`, with how much they rose in all (a number the thing does not have counts from 0,
+ * as addProp counts it).
+ */
+function numbersWatch(sc: Scenario): { watch: (eng: Engine) => void; rising: () => Map<string, number> } {
+  const parts = participantsOf(sc)
+  const numbers = (eng: Engine): Map<string, number> => {
+    const w = eng.world
+    const out = new Map<string, number>()
+    for (const key of parts) {
+      const props = w.view({ e: key })?.props ?? {}
+      for (const [k, v] of Object.entries(props)) if (typeof v === 'number') out.set(`${key}\u0000${k}`, v)
+    }
+    return out
+  }
+  let last: Map<string, number> | undefined
+  let acts = 0
+  const rose = new Map<string, { times: number; by: number }>()
+  const watch = (eng: Engine): void => {
+    const now = numbers(eng)
+    if (last) {
+      acts++
+      for (const [k, v] of now) {
+        const was = last.get(k) ?? 0
+        if (v <= was) continue
+        const r = rose.get(k) ?? { times: 0, by: 0 }
+        rose.set(k, { times: r.times + 1, by: r.by + v - was })
+      }
+    }
+    last = now
+  }
+  return { watch, rising: () => new Map([...rose].filter(([, r]) => acts > 0 && r.times === acts).map(([k, r]) => [k, r.by])) }
+}
+
 /**
  * The deterministic probe (no model): the scene's act repeated with the patch and without it. A
  * farm is what the patch lets the actor gain again and again that the world did not: things made,
- * or experience and fullness, beyond what the same steps gain without the patch.
+ * or experience and fullness, beyond what the same steps gain without the patch; or any number of
+ * the act's participants (a tool's power, a creature's store) that rises on every act with the patch
+ * and not without it.
  */
 export function probe(req: ModRequest, onto: Ontology, base: RuleLibrary, patched: RuleLibrary): Confirmed[] {
   const sc = req.scenario
@@ -277,10 +328,12 @@ export function probe(req: ModRequest, onto: Ontology, base: RuleLibrary, patche
   if (!ev.actor || !(ev.kind ?? 'act/use').startsWith('act/')) return []
   const step: AuditStep = { act: (ev.kind ?? 'act/use').slice(4) as Verb, actor: ev.actor, target: ev.target ?? ev.actor, ...(ev.instrument && { instrument: ev.instrument }), ...(ev.params && { params: ev.params }) }
   const steps: AuditStep[] = [{ repeat: PROBE_REPEATS, steps: [step] }]
-  const withIt = run(sc, onto, patched, [], steps)
+  const watched = numbersWatch(sc)
+  const withIt = run(sc, onto, patched, [], steps, watched.watch)
+  const watchedWithout = numbersWatch(sc)
   let without: Run | undefined
   try {
-    without = run(sc, onto, base, [], steps)
+    without = run(sc, onto, base, [], steps, watchedWithout.watch)
   } catch {
     without = undefined
   }
@@ -304,6 +357,16 @@ export function probe(req: ModRequest, onto: Ontology, base: RuleLibrary, patche
       const f: Finding = { title: `the act done ${PROBE_REPEATS} times gains ${gained - gainedWithout} ${k} for nothing`, kind: 'farm', steps, expect: [{ prop: { key: ev.actor, name: k, atLeast: (start[i] ?? 0) + gained } }] }
       out.push({ ...f, evidence: `with the patch:\n${summary(withIt, sc)}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` })
     }
+  }
+  // any participant's number that goes up every time the act is done again, as it did not without the patch
+  const before = watchedWithout.rising()
+  for (const [k, by] of watched.rising()) {
+    const [key, name] = k.split('\u0000')
+    if (before.has(k) || (key === ev.actor && (PROBE_GAINS as readonly string[]).includes(name) && out.some((f) => f.title.endsWith(`${name} for nothing`)))) continue
+    const end = withIt.eng.world.get(key)
+    const now = end ? withIt.eng.world.num(end, name) : by
+    const f: Finding = { title: `the act done ${PROBE_REPEATS} times raises ${key}'s ${name} every time (+${by})`, kind: 'farm', steps, expect: [{ prop: { key, name, atLeast: now } }] }
+    out.push({ ...f, evidence: `with the patch:\n${summary(withIt, sc)}\n  ${key} ${name} ${now}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` })
   }
   return out
 }

@@ -189,6 +189,16 @@ function toolsOf(made: { patch: Patch; fixes: string[] }, onto: Ontology): { pat
   return { patch: { ...patch, artifacts }, fixes }
 }
 
+/** A condition that holds only by chance (at any depth). */
+function byChance(c: Cond): boolean {
+  if (!c || typeof c !== 'object') return false
+  if ('chance' in c) return true
+  if ('all' in c && Array.isArray(c.all)) return c.all.some(byChance)
+  if ('any' in c && Array.isArray(c.any)) return c.any.some(byChance)
+  if ('not' in c) return byChance(c.not)
+  return false
+}
+
 function stationsOf(patch: Patch, onto: Ontology): { patch: Patch; fixes: string[] } {
   const fixes: string[] = []
   const open = new Map(patch.artifacts.flatMap((a) => (a.kind === 'type' && a.type?.id && (!a.type.station || !a.type.yields) ? [[a.type.id, a.type]] : [])))
@@ -212,7 +222,8 @@ function stationsOf(patch: Patch, onto: Ontology): { patch: Patch; fixes: string
     }
     if (!('do' in t) || !Array.isArray(t.do)) return
     const station = path.map(stationOf).find(Boolean)
-    if (!station) return
+    // a branch taken only by chance (one strike in ten at the anvil) is no craft: a recipe never fails
+    if (!station || path.some(byChance)) return
     for (const e of t.do) {
       if (!e || typeof e !== 'object') continue
       const id = e.op === 'spawn' ? e.type : e.op === 'transform' ? e.into : undefined
@@ -228,7 +239,9 @@ function stationsOf(patch: Patch, onto: Ontology): { patch: Patch; fixes: string
   const artifacts = patch.artifacts.map((a) => {
     if (a?.kind !== 'type' || !a.type?.id || !found.has(a.type.id)) return a
     const station = a.type.station ? undefined : found.get(a.type.id)
-    const n = a.type.yields ? undefined : counts.get(a.type.id)
+    // as many at a time only where the rule makes them so: at the station the recipe is made at (a type
+    // the designer made by hand keeps its own recipe, one for one)
+    const n = a.type.yields || (a.type.station ?? station) !== found.get(a.type.id) ? undefined : counts.get(a.type.id)
     if (!station && !n) return a
     fixes.push(`"${a.type.id}" is made at a ${found.get(a.type.id)}: it is that station's craft too${station ? ` (station "${station}")` : ''}${n ? `, ${n} at a time as the rule makes it (yields ${n})` : ''}`)
     return { ...a, type: { ...a.type, ...(station && { station }), ...(n && { yields: n }) } }

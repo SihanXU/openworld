@@ -27,7 +27,8 @@ if (patch) {
   const lib = RuleLibrary.fromJSON(state.library)
   for (const id of state.replaces) lib.remove(id)
   const ontology = state.ontology
-  const res = validatePatch(patch, { ontology, library: lib, scenario: state.request.scenario })
+  // a world event's answer is held to the world's boundaries, as the commit and every client hold it
+  const res = validatePatch(patch, { ontology, library: lib, scenario: state.request.scenario, world: (state.request.origin ?? patch.trigger) === 'world' })
   for (const e of res.errors) out.push(`FAIL: ${e}`)
   for (const w of res.warnings) out.push(`warning: ${w}`)
   if (!res.errors.length) {

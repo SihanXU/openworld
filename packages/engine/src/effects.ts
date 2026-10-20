@@ -76,6 +76,10 @@ export const RESIDENT_ONLY = new Set<Effect['op']>(['topic', 'scene', 'lightning
 /** Primitives only a quest's own rules may use (docs/quests.md: a quest writes only itself). */
 export const QUEST_ONLY = new Set<Effect['op']>(['advance', 'stage', 'accept', 'decline', 'failQuest'])
 
+/** The developer's line for an effect a rule's outcome was refused: `rule <id>: <why>` (sandbox.ts `isRefusal` knows it). */
+export const REFUSAL = 'rule '
+export const refusalLine = (ruleId: string, why: string): string => `${REFUSAL}${ruleId}: ${why}`
+
 export class EffectRunner {
   constructor(readonly eng: Engine) {}
 
@@ -184,7 +188,7 @@ export class EffectRunner {
         } catch (err) {
           // a write outside an outcome or beyond its host is the engine's bug, not the rule's: it is not swallowed
           if (err instanceof WriteError) throw err
-          this.eng.world.fx.push({ t: 'log', text: `rule ${ruleId}: ${(err as Error).message}`, tone: 'dev' })
+          this.eng.world.fx.push({ t: 'log', text: refusalLine(ruleId, (err as Error).message), tone: 'dev' })
           // a learned rule's outcome stops at its first refused effect, and the rule is charged for it;
           // a base rule refused what a learned rule sent it (a push to nowhere): the sender is charged
           if (this.eng.fault(ruleId, (err as Error).message)) return

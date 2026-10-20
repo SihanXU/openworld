@@ -1,8 +1,9 @@
 // What the world learned that the main thread shows: the recipes of learned things (a patch's type
 // with a station and a makeup is crafted like the content's own, world-model.md §6.4).
 
-import { deriveRecipes, everyThing, namesClash, newStatusProblems, newTypeProblems, type Engine, type Entity, type LibraryData, type Patch, type Recipe, type SaveData, type StatusDef, type TypeDef } from '@openworld/engine'
+import { deriveRecipes, everyThing, namesClash, newStatusProblems, newTypeProblems, type Engine, type Entity, type LibraryData, type ModPort, type Patch, type PatchLogEntry, type Recipe, type SaveData, type StatusDef, type TypeDef, type ValidationResult } from '@openworld/engine'
 import { recipeById } from './game.ts'
+import type { StoredLibrary } from './protocol.ts'
 
 /** The recipes whose result is a type a patch brought (the engine derives them when the patch lands). */
 export function learnedRecipes(eng: Engine): Recipe[] {
@@ -202,4 +203,180 @@ function makes(t: unknown): string[] {
   return effects.flatMap((e: { op?: string; type?: unknown; into?: unknown; bundle?: unknown }) =>
     e?.op === 'spawn' && typeof e.type === 'string' ? [e.type] : e?.op === 'transform' && typeof e.into === 'string' ? [e.into] : e?.op === 'dropContents' && typeof e.bundle === 'string' ? [e.bundle] : [],
   )
+}
+
+/** What only one save keeps of the learned kinds (`withKept`). */
+export type Kept = { types: Set<string>; statuses: Set<string> }
+
+/** Take a learned definition an answer brings anew, and make what it brings shared; both undone should the answer be refused. */
+export function adoptDefinitions(eng: Engine, kept: Kept, patch: Patch): { restore: () => void; done: () => void } {
+  const took = takeDefinitions(eng, patch)
+  const unshare = shareKept(kept, patch)
+  return {
+    restore: () => (took.restore(), unshare()),
+    // a kind kept beside the library's new one, for what is made of it here, is this save's alone
+    done: () => took.done().forEach((id) => kept.types.add(id)),
+  }
+}
+
+const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
+
+/**
+ * What is wrong with the shape of a patch that came from elsewhere (the shared log, the service's answer, the
+ * console), before anything is set aside for it: the engine's validator judges the rest, and never sees one that
+ * would make it throw at its first step.
+ */
+export function patchProblem(p: unknown): string | undefined {
+  if (!isObject(p)) return 'a patch is an object'
+  if (!Array.isArray(p.artifacts)) return 'a patch has a list of artifacts'
+  for (const a of p.artifacts) {
+    if (!isObject(a)) return 'an artifact is an object'
+    if (a.kind === 'type' || a.kind === 'status') {
+      const d = a[a.kind]
+      if (!isObject(d) || typeof d.id !== 'string') return `a ${a.kind} artifact has a ${a.kind} with an id`
+    } else if (a.kind === 'rule') {
+      const r = a.rule
+      if (!isObject(r) || typeof r.id !== 'string') return 'a rule artifact has a rule with an id'
+      if (!isObject(r.tree) && r.tree !== 'inherit') return `the rule ${r.id} has a tree`
+    } else return `an artifact of no kind the engine knows: ${String(a.kind)}`
+  }
+  return undefined
+}
+
+/** What is wrong with the shape of an entry of the shared log (an older or a newer service may send one this client cannot read). */
+export function logEntryProblem(e: unknown): string | undefined {
+  if (!isObject(e)) return 'an entry is an object'
+  if ('patch' in e) {
+    if (e.scenario !== undefined && !isObject(e.scenario)) return 'an entry\'s scenario is an object'
+    if (e.replaces !== undefined && !(Array.isArray(e.replaces) && e.replaces.every((x) => typeof x === 'string'))) return 'an entry replaces a list of rule ids'
+    if (e.request !== undefined && typeof e.request !== 'string') return 'an entry\'s request is an id'
+    return patchProblem(e.patch)
+  }
+  for (const k of ['remove', 'removeType', 'removeStatus']) if (k in e) return typeof e[k] === 'string' ? undefined : `an entry's ${k} is an id`
+  return `an entry of no kind this client knows (${Object.keys(e).join(', ')})`
+}
+
+/**
+ * Take a patch from elsewhere with what it brings: the learned definitions it brings anew replace the ones kept
+ * here while it is judged, and come back if it is refused, or if judging it throws.
+ */
+export function takePatch(eng: Engine, kept: Kept, patch: Patch, submit: (patch: Patch) => ValidationResult): ValidationResult {
+  const problem = patchProblem(patch)
+  if (problem) return { ok: false, errors: [problem], warnings: [] }
+  const took = adoptDefinitions(eng, kept, patch)
+  let ok = false
+  try {
+    const res = submit(patch)
+    ok = res.ok
+    return res
+  } finally {
+    if (ok) took.done()
+    else took.restore()
+  }
+}
+
+/**
+ * The entries of the shared log, each taken on its own: what the library forgot, what it took. An entry this
+ * client cannot read or take is passed over (and said), never stopping the ones after it, so the sync's position
+ * moves past it.
+ */
+export function takeLogEntries(eng: Engine, mods: Pick<ModPort, 'submit'>, kept: Kept, entries: unknown[], warn: (msg: string) => void = (m) => console.warn(m)): void {
+  const lib = eng.lib
+  for (const raw of entries) {
+    const problem = logEntryProblem(raw)
+    const seq = isObject(raw) ? raw.seq : undefined
+    if (problem) {
+      warn(`[library] a shared log entry is passed over (${String(seq)}): ${problem}`)
+      continue
+    }
+    const e = raw as PatchLogEntry
+    try {
+      // what the library forgot but a thing here needs is this save's from now on: not written back to the shared store
+      if ('removeType' in e) forgetType(eng, e.removeType) || (lib.types.some((t) => t.id === e.removeType) && kept.types.add(e.removeType))
+      else if ('removeStatus' in e) forgetStatus(eng, e.removeStatus) || (lib.statuses.some((s) => s.id === e.removeStatus) && kept.statuses.add(e.removeStatus))
+      else if ('remove' in e) {
+        if (lib.rules.get(e.remove)?.source?.origin === 'patch') lib.remove(e.remove)
+      }
+      // the library's definition of a learned thing wins over one kept here (put back if the patch is not taken)
+      else takePatch(eng, kept, e.patch, (p) => mods.submit(undefined, p, e.scenario, e.replaces, e.request))
+    } catch (err) {
+      warn(`[library] a shared log entry is passed over (${String(seq)}): ${(err as Error).message}`)
+    }
+  }
+}
+
+/**
+ * The library a game starts from: the patches it ships with (GameDef.learned) first, the stored and synced ones
+ * over them. A shipped rule comes first, so it wins over a stored one by its id (the library keeps the first); a
+ * learned kind or status is kept by its last definition, so a stored copy of a shipped one is left out: the
+ * author's correction reaches a returning player (the stored shared library always holds the shipped ones too).
+ */
+export function withShipped(shipped: LibraryData | undefined, saved: LibraryData | undefined): LibraryData | undefined {
+  if (!shipped || !saved) return saved ?? shipped
+  const types = new Set((shipped.types ?? []).map((t) => t.id))
+  const statuses = new Set((shipped.statuses ?? []).map((s) => s.id))
+  return {
+    ...saved,
+    rules: [...(shipped.rules ?? []), ...(saved.rules ?? [])],
+    types: [...(shipped.types ?? []), ...(saved.types ?? []).filter((t) => !types.has(t.id))],
+    statuses: [...(shipped.statuses ?? []), ...(saved.statuses ?? []).filter((s) => !statuses.has(s.id))],
+  }
+}
+
+/** A reply of the service's shared log, as far as where it stands goes: its last entry, and the id of the log (an older service sends none). */
+type LogReply = { seq: number; log?: unknown }
+
+/**
+ * Where the sync of a service's shared log stands, and the log the position counts in: the service names its log
+ * (GET /patches `log`), and a log made anew (the service started again on fresh data) is another one, whose
+ * entries after the old position are not the ones already taken. With a service that names none, a log shorter
+ * than the position is the only sign.
+ */
+export class LogPosition {
+  url = ''
+  seq = 0
+  log?: string
+
+  /**
+   * At a service, from where the stored library has synced it (`seq`, the main thread's position) and the log the
+   * library was stamped with: never past the position the library itself was stamped at, both stored apart.
+   */
+  begin(url: string, seq: number | undefined, stored?: StoredLibrary): void {
+    this.url = url
+    const s = stored?.syncedLog
+    const same = !!s && s.url === url && typeof s.log === 'string' && typeof s.seq === 'number'
+    this.seq = same ? Math.min(seq ?? 0, s.seq) : (seq ?? 0)
+    this.log = same ? s.log : undefined
+  }
+
+  /** Is a reply of another log than the one the position counts in? Then the position goes back to its start. */
+  restarts(reply: LogReply): boolean {
+    const other = reply.seq < this.seq || (typeof reply.log === 'string' && this.log !== undefined && reply.log !== this.log)
+    if (other) (this.seq = 0), (this.log = undefined)
+    return other
+  }
+
+  /** A reply's entries taken: the position moves to its end. Returns whether the log it counts in is named anew (the library is stored again, stamped with it). */
+  advance(reply: LogReply): boolean {
+    this.seq = reply.seq
+    const log = typeof reply.log === 'string' ? reply.log : this.log
+    const named = log !== this.log
+    this.log = log
+    return named
+  }
+
+  /** The library as the browser stores it: stamped with the log and the position it was synced to. */
+  stamp(lib: LibraryData): StoredLibrary {
+    return this.log && this.url ? { ...lib, syncedLog: { url: this.url, log: this.log, seq: this.seq } } : lib
+  }
+}
+
+/**
+ * The modder is making things the world does not have yet for a question: the player's own act waits for them past
+ * its time-out (the world stands still for it, and the host bounds that wait). A question of the world's own is not
+ * held: its holders wait out its time-out as ever, then its default runs, and the patch, when it comes, still
+ * teaches the world. Returns whether the question is held (the player is told what is being made).
+ */
+export function holdForMaking(mods: Pick<ModPort, 'get' | 'hold'>, id: string): boolean {
+  return mods.get(id)?.origin === 'player' && mods.hold(id)
 }

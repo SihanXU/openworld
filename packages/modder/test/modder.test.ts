@@ -374,9 +374,9 @@ describe('the modder pipeline', () => {
     const ep = state.episode(reply.episode!)!
     expect(ep.attempts.map((a) => [a.phase, a.review?.verdict])).toEqual([
       ['design', 'revise'],
-      ['review', undefined],
+      ['review', 'ship'],
     ])
-    expect(calls.review).toBe(1) // the harness allows one review round: the revision ships unreviewed
+    expect(calls.review).toBe(2) // the harness allows one revision; the revision is reviewed before it ships
     expect(library.lib.rules.has('patch/stone-stills-creature')).toBe(true)
     expect(library.lib.rules.has('patch/stone-stills-slime')).toBe(false)
   })
@@ -1504,17 +1504,17 @@ describe('the service, an author\'s new thing', () => {
     await listening(server)
     const base = `http://localhost:${(server.address() as AddressInfo).port}`
     try {
-      const draft = await (await fetch(`${base}/create`, { method: 'POST', body: JSON.stringify({ intent: 'a cold ingot' }) })).json()
+      const draft = await (await fetch(`${base}/create`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'a cold ingot' }) })).json()
       expect(draft.patch.artifacts[0].type).toMatchObject({ id: INGOT.id, art: ART })
       expect(library.seq).toBe(0)
-      expect(await (await fetch(`${base}/adopt`, { method: 'POST', body: JSON.stringify({ patch: draft.patch }) })).json()).toEqual({ ok: true, errors: [] })
+      expect(await (await fetch(`${base}/adopt`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ patch: draft.patch }) })).json()).toEqual({ ok: true, errors: [] })
       expect((await (await fetch(`${base}/patches?since=0`)).json()).entries[0].patch.artifacts[0].type.id).toBe(INGOT.id)
       // a page of another site open in the author's browser connects from this machine too: its Origin is refused
       for (const path of ['/create', '/adopt']) {
-        const r = await fetch(`${base}${path}`, { method: 'POST', headers: { origin: 'https://elsewhere.example' }, body: JSON.stringify({ intent: 'x', patch: draft.patch }) })
+        const r = await fetch(`${base}${path}`, { method: 'POST', headers: { origin: 'https://elsewhere.example', 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'x', patch: draft.patch }) })
         expect(r.status, path).toBe(403)
       }
-      expect((await fetch(`${base}/adopt`, { method: 'POST', headers: { origin: 'http://localhost:5175' }, body: JSON.stringify({ patch: draft.patch }) })).status).toBe(200)
+      expect((await fetch(`${base}/adopt`, { method: 'POST', headers: { origin: 'http://localhost:5175', 'content-type': 'application/json' }, body: JSON.stringify({ patch: draft.patch }) })).status).toBe(200)
     } finally {
       server.close()
     }

@@ -14,7 +14,7 @@
 // Two profiles of one harness (state.ts): LIVE while a player waits, OFFLINE for everything
 // nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
-import { artProblems, buildModSpec, closestTypes, holeKey, isDo, isHole, leaves, patchKey, tierOfRequest, type ModProgress, type Ontology, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef, type ValidationResult } from '@openworld/engine'
+import { artProblems, buildModSpec, buildRequest, buildSandbox, closestTypes, holeKey, isDo, isHole, leaves, patchKey, scenarioEvent, tierOfRequest, tiersFrom, type ModProgress, type Ontology, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type Scenario, type Tier, type TypeDef, type ValidationResult } from '@openworld/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
 import { normalizePatch, placePatch, qualifyTerrains, stationFromRules } from './fixes.ts'
@@ -29,7 +29,7 @@ import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episod
  * A backend that cannot answer says so in its error: out of quota or throttling (claude-code's session
  * limit, an HTTP 429, a provider's quota), or not signed in (an expired OAuth session, a 401/403, a bad key).
  */
-const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota|authenticat|oauth|unauthori[sz]ed|\b401\b|\b403\b|invalid.?api.?key|not logged in/i
+export const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota|authenticat|oauth|unauthori[sz]ed|\b401\b|\b403\b|invalid.?api.?key|not logged in/i
 /** How long the service makes no calls after the backend said it is out (a request meanwhile gets `unavailable`). */
 const BACKEND_PAUSE_MS = 5 * 60_000
 
@@ -199,8 +199,13 @@ export class Modder {
     if (!this.running && !this.jobs.length) for (const done of this.idle.splice(0)) done()
   }
 
-  /** Faults clients reported per learned rule, by client (a rule set aside by this many clients leaves the library). */
-  private faults = new Map<string, Set<string>>()
+  /**
+   * Faults clients reported per learned rule, by client (a rule set aside by this many clients leaves the library),
+   * for the version of it in force (the log seq that added it): a rule removed, or replaced under its id, starts again from none.
+   */
+  private faults = new Map<string, { seq: number; clients: Set<string> }>()
+  /** The log seq each shipped episode's patch was committed at: what is removed later is that version, not one that replaced it. */
+  private shipped = new WeakMap<Episode, number>()
 
   /**
    * A client set a learned rule aside at run time (a chain that would not end, an effect refused):
@@ -210,10 +215,14 @@ export class Modder {
   fault(ruleId: string, reason: string, client = 'anon'): { rule: string; counted: number; removed: boolean } {
     const { library, state } = this.opts
     const rule = library.lib.rules.get(ruleId)
-    if (!rule || rule.source?.origin !== 'patch') return { rule: ruleId, counted: 0, removed: false }
-    const set = this.faults.get(ruleId) ?? new Set<string>()
+    const seq = library.seqOf(ruleId)
+    // the counts of versions no longer in force (removed, or replaced under their id) are forgotten
+    for (const [id, f] of this.faults) if (library.seqOf(id) !== f.seq) this.faults.delete(id)
+    if (!rule || rule.source?.origin !== 'patch' || seq === undefined) return { rule: ruleId, counted: 0, removed: false }
+    const counted = this.faults.get(ruleId) ?? { seq, clients: new Set<string>() }
+    const set = counted.clients
     set.add(client)
-    this.faults.set(ruleId, set)
+    this.faults.set(ruleId, counted)
     const bound = state.harness().faults?.remove ?? 2
     state.note('fault', { rule: ruleId, reason, client, counted: set.size })
     if (set.size < bound) return { rule: ruleId, counted: set.size, removed: false }
@@ -222,11 +231,31 @@ export class Modder {
     this.faults.delete(ruleId)
     this.log(`${ruleId} set aside by ${set.size} client(s): ${reason} → removed`)
     if (asked && state.harness().revise && this.backend) {
-      // the request as the scene that asked gives it: the revision is placed where the event falls undefined now
-      const req: ModRequest = { id: `fault-${ruleId}`, summary: `revision of ${ruleId} after a fault: ${reason}`, origin: rule.source?.trigger ?? 'player', event: { kind: rule.on, params: {}, roles: {} }, hole: { rule: rule.hole?.split('#')[0] ?? '', path: [], default: [], at: rule.at ?? [] }, context: { map: { id: '', name: '', kind: '' }, anchors: [], hour: 0, nearby: [], tiles: [], tileStatuses: [], recent: [], rules: [] }, scenario: asked.scenario }
-      this.later(`revise ${ruleId} after a fault`, () => this.episode(req, undefined, signatureOf(req), { profile: 'offline', revise: { episode: { id: `fault-${ruleId}`, rules: [ruleId], patch: { artifacts: [{ kind: 'rule', rule }] } } as never, notes: [`a client set this rule aside at run time: ${reason}`] } }).then(() => undefined))
+      // the request as the scene that asked gives it, built the way the port builds it: the revision is placed where
+      // the event falls undefined now (its host, hole and context from the scene, the library as it is without the rule)
+      const req = this.askedAgain(`fault-${ruleId}`, asked.scenario, rule.source?.trigger)
+      if (typeof req === 'string') this.log(`${ruleId}: no revision after the fault: ${req}`)
+      else this.later(`revise ${ruleId} after a fault`, () => this.episode(req, undefined, signatureOf(req), { profile: 'offline', revise: { episode: { id: `fault-${ruleId}`, rules: [ruleId], patch: { artifacts: [{ kind: 'rule', rule }] } } as never, notes: [`a client set this rule aside at run time: ${reason}`] } }).then(() => undefined))
     }
     return { rule: ruleId, counted: set.size, removed: true }
+  }
+
+  /**
+   * The request a scene asks of the shared library as it is now, as the port builds it (buildRequest); a string says why
+   * there is none (the scene no longer builds, or something answers it now).
+   */
+  private askedAgain(id: string, scenario: Scenario, origin?: 'player' | 'world'): ModRequest | string {
+    const { library } = this.opts
+    try {
+      const eng = buildSandbox(scenario, library.fullOntology(), library.lib)
+      const ev = scenarioEvent(scenario, eng)
+      const res = eng.resolveEvent(ev)
+      if (res.defined) return `"${res.rule?.id}" answers its scene now`
+      const req = buildRequest(eng, ev, res, id)
+      return { ...req, origin: origin ?? req.origin }
+    } catch (err) {
+      return `its scene does not build: ${(err as Error).message}`
+    }
   }
 
   /**
@@ -305,8 +334,10 @@ export class Modder {
   private async resolveClass(req: ModRequest, body: ResolveBody, sig: Signature, profile: Profile): Promise<ResolveReply> {
     const hit = this.cover(req, sig)
     if (hit) return hit
-    // the same class already being worked on: wait for it, then see whether it answers this one too
-    const running = this.inflight.get(sig.key)
+    // the same class already being worked on at this tier or a higher one: wait for it, then see whether it answers
+    // this one too (an answer at a lower tier never does: the tier is part of what is in flight)
+    const tier = tierOfRequest(req)
+    const running = tiersFrom(tier).map((t) => this.inflight.get(inFlight(sig.key, t))).find((p) => !!p)
     if (running) {
       await running.catch(() => undefined)
       const again = this.cover(req, sig)
@@ -323,7 +354,7 @@ export class Modder {
     // the backend said it is out (of quota, or signed out): no calls until the pause is over
     const why = this.down()
     if (why) return { patch: null, outcome: 'unavailable', diagnostics: [`model unavailable: ${why}`] }
-    return this.track(sig.key, this.episode(req, body.workspace, sig, { profile }))
+    return this.track(inFlight(sig.key, tier), this.episode(req, body.workspace, sig, { profile }))
   }
 
   private async track(key: string, p: Promise<ResolveReply>): Promise<ResolveReply> {
@@ -374,9 +405,10 @@ export class Modder {
   /** A design in its lane, then in a slot (live first); one that waited is answered by what was committed meanwhile, if it can be. */
   private async episode(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions): Promise<ResolveReply> {
     if (!this.progress.has(sig.key)) this.progress.set(sig.key, { stage: 'queued' })
-    // a revision is background work on a patch already shipped: it takes no lane, so a player's request
-    // never waits behind it (its commit is validated against the library as it is then, like any other)
-    const leave = eo.revise ? () => {} : await this.enterLane(laneOf(req))
+    // a revision or an escalation is background work nobody waits on: it takes no lane, so a player's request
+    // never waits behind it (its commit is validated against the library as it is then, like any other, so a
+    // second answer at the same place is refused)
+    const leave = eo.revise || eo.escalatedFrom ? () => {} : await this.enterLane(laneOf(req))
     const release = await this.design.acquire(eo.profile === 'live' ? 0 : 1)
     try {
       if (!eo.revise) {
@@ -458,7 +490,6 @@ export class Modder {
     let reviews = 0
     let reviewLater = false
     let phase: Attempt['phase'] = 'design'
-    let reviewed: Patch | undefined // a valid draft a reviewer sent back: shipped if the revision never validates
     let lastRaw = '' // the last answer, kept for an attempt the program failed on before it was recorded
     const retry = (content: string, next: Attempt['phase']) => {
       messages.push({ role: 'user', content })
@@ -592,9 +623,16 @@ export class Modder {
           continue
         }
         // the auditor, before shipping: what it breaks in the sandbox goes back to the designer
-        if (auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch)) {
-          const found = await this.audit(model, req, patch, ctx, h)
+        if (auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch, req)) {
+          let found = await this.audit(model, req, patch, ctx, h)
+          // a failed audit is never counted as a clean one (design.md §13): asked once more, then not shipped unaudited
+          if (found.error) found = await this.audit(model, req, patch, ctx, h)
           attempt.audit = { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length }
+          if (found.error) {
+            attempt.errors = [`the audit failed (${found.error}): not shipped unaudited`]
+            ep.error = attempt.errors[0]
+            break
+          }
           if (found.confirmed.length) {
             attempt.errors = auditNotes(found.confirmed)
             if (repairs++ >= h.repair.maxRounds) break
@@ -602,11 +640,15 @@ export class Modder {
             continue
           }
         }
-        if (h.review.enabled && h.review.blocking !== false && reviews < h.review.maxRounds) {
+        // reviewed before it ships: every draft that would ship, a revision too; one the reviewer sent back never
+        // ships (after maxRounds revisions sent back, the episode fails)
+        if (h.review.enabled && h.review.blocking !== false) {
           attempt.review = await this.review(model, req, patch, ctx, h, flagsOf(patch, derived), eo.profile === 'live')
-          if (attempt.review.verdict === 'revise' && attempt.review.notes.length) {
-            reviews++
-            reviewed = patch
+          if (attempt.review.verdict === 'revise') {
+            if (reviews++ >= h.review.maxRounds) {
+              attempt.errors = [`the reviewer sent the draft back after ${h.review.maxRounds} revision(s): not shipped`, ...attempt.review.notes]
+              break
+            }
             retry(reviseUser(attempt.review.notes), 'review')
             continue
           }
@@ -625,16 +667,17 @@ export class Modder {
         if (repairs++ >= h.repair.maxRounds) break
         retry(repairUser(ep.attempts.at(-1)!.errors, [], true), 'repair')
       }
-      if (ep.outcome === 'failed' && reviewed && this.commit(ep, reviewed, req, replaces)) ep.error = 'the revision never validated; shipped the reviewed draft'
     } catch (err) {
       ep.error = (err as Error).message
       // the program's own failure (a stack overflow, a crash in a fix): where it came from, kept with the episode
       const stack = (err as Error).stack?.split('\n').slice(1, 12).map((l) => l.trim()).join('\n')
       if (stack) ep.stack = stack
       if (lastRaw && !ep.attempts.some((x) => x.raw === lastRaw.slice(0, 2000))) ep.attempts.push({ phase, errors: [`the harness failed on this answer: ${(err as Error).message}`], warnings: [], raw: lastRaw.slice(0, 4000) })
-      if (reviewed && ep.outcome === 'failed' && this.commit(ep, reviewed, req, replaces)) ep.error += '; shipped the reviewed draft'
     }
 
+    // pictures begun for new things the episode did not ship (it failed, was covered, or found them after all):
+    // still the episode's calls, waited for so their usage is counted and nothing runs on after it
+    if (drawing.size) await Promise.allSettled(drawing.values())
     ep.usage = { calls: model.calls, input: model.input, output: model.output, cost: model.cost }
     ep.calls = model.log
     ep.ms = Date.now() - t0
@@ -692,7 +735,7 @@ export class Modder {
       // could not audit because the backend went out)
       let found: AuditResult | undefined
       let unaudited = false
-      if (run.submitted && patch && !problems.length && auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch))
+      if (run.submitted && patch && !problems.length && auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch, req))
         found = await this.audit(new Meter(this.backend!), req, patch, { library: lib, ontology: library.fullOntology(lib) }, h).catch((err: Error) => ((ep.error = err.message), (unaudited = true), undefined))
       if (found?.confirmed.length) {
         ep.attempts.push({ phase: 'audit', patch, errors: auditNotes(found.confirmed), warnings: [], audit: { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length } })
@@ -754,8 +797,8 @@ export class Modder {
     const shipped = ep.attempts.at(-1)
     const flags = ep.patch ? flagsOf(ep.patch, shipped?.derived) : []
     if (reviewLater) flags.push('the reviewer before shipping gave no verdict: look at everything')
-    // a review after the fact: for a rule that narrates only or did not generalize (and for every
-    // live rule when the harness says review.unflagged)
+    // a review after the fact: for a rule that narrates only or that the harness's test could not check (and
+    // for every live rule when the harness says review.unflagged)
     if (ep.outcome === 'accepted' && !eo.revise && h.review.enabled && (flags.length || (h.review.blocking === false && h.review.unflagged)) && (!shipped?.review || reviewLater))
       this.later(`review ${ep.id}`, async () => {
         const model = new Meter(this.backend!)
@@ -767,22 +810,27 @@ export class Modder {
     // it on their next sync), and goes back for a revision. A patch that only narrates has nothing to
     // break: no call, and the journal says why
     const auditing = ep.outcome === 'accepted' && !eo.revise && auditOf(h).enabled && !auditOf(h).blocking && ep.patch
-    if (auditing && narratesOnly(ep.patch!)) this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, skipped: NARRATES_ONLY, confirmed: [], unconfirmed: [], usage: { calls: 0, input: 0, output: 0, cost: 0 } })
+    if (auditing && narratesOnly(ep.patch!, req)) this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, skipped: NARRATES_ONLY, confirmed: [], unconfirmed: [], usage: { calls: 0, input: 0, output: 0, cost: 0 } })
     else if (auditing)
       this.later(`audit ${ep.id}`, async () => {
         const model = new Meter(this.backend!)
         const found = await this.audit(model, req, ep.patch!, ctx, h)
         this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, confirmed: found.confirmed.map(({ evidence: _, ...f }) => f), unconfirmed: found.unconfirmed.map((u) => `${u.finding.title}: ${u.why}`), ...(found.error && { error: found.error }), usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
         if (!found.confirmed.length) return
-        for (const id of ep.rules) this.opts.library.remove(id, this.now())
-        this.log(`${ep.id} audit: ${found.confirmed.map((f) => `${f.kind}: ${f.title}`).join('; ')} → removed ${ep.rules.join(', ')}`)
-        if (h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: ep, notes: auditNotes(found.confirmed) } })
+        // only the version audited leaves: one that replaced it under its id meanwhile (a revision) was not audited here
+        const shipped = this.shipped.get(ep)
+        const held = ep.rules.filter((id) => shipped !== undefined && this.opts.library.seqOf(id) === shipped)
+        if (!held.length) return void this.log(`${ep.id} audit: ${found.confirmed.map((f) => `${f.kind}: ${f.title}`).join('; ')}, but ${ep.rules.join(', ')} left or was replaced meanwhile`)
+        for (const id of held) this.opts.library.remove(id, this.now())
+        this.log(`${ep.id} audit: ${found.confirmed.map((f) => `${f.kind}: ${f.title}`).join('; ')} → removed ${held.join(', ')}`)
+        if (h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: { ...ep, rules: held }, notes: auditNotes(found.confirmed) } })
       })
     // a live request that failed is worked again with the offline profile: the world still learns it
-    if (ep.outcome === 'failed' && eo.profile === 'live' && h.escalate && !this.inflight.has(`${sig.key}#offline`))
+    const offline = `${inFlight(sig.key, tierOfRequest(req))}#offline`
+    if (ep.outcome === 'failed' && eo.profile === 'live' && h.escalate && !this.inflight.has(offline))
       this.later(`escalate ${ep.id}`, async () => {
         if (this.opts.library.covering(req)) return
-        await this.track(`${sig.key}#offline`, this.episode(req, ws, sig, { profile: 'offline', escalatedFrom: ep.id }))
+        await this.track(offline, this.episode(req, ws, sig, { profile: 'offline', escalatedFrom: ep.id }))
       })
     // what went wrong is reflected on at once; live episodes that went cleanly, a batch at a time
     const clean = eo.profile === 'live' && !eo.revise && !eo.escalatedFrom && ep.outcome === 'accepted' && !flags.length && ep.attempts.every((a) => !a.errors.length && !a.fixes?.length && !a.review && ['design', 'find', 'create'].includes(a.phase))
@@ -807,6 +855,7 @@ export class Modder {
     ep.outcome = 'accepted'
     ep.patch = patch
     ep.rules = c.rules
+    if (c.seq !== undefined) this.shipped.set(ep, c.seq)
     return true
   }
 
@@ -960,18 +1009,32 @@ export class Modder {
 
 const NARRATES_ONLY = 'narrates only'
 
-/** A patch of rules that only narrate (changesNothing) has nothing the auditor could break: it adds no thing and changes none. */
-function narratesOnly(patch: Patch): boolean {
-  return patch.artifacts.every((a) => a.kind === 'rule' && changesNothing(a.rule))
+/**
+ * A patch of rules that only narrate (changesNothing) has nothing the auditor could break: it adds no thing and
+ * changes none, nor cancels a default of the hole it answers that does something.
+ */
+function narratesOnly(patch: Patch, req: ModRequest): boolean {
+  return patch.artifacts.every((a) => a.kind === 'rule' && changesNothing(a.rule, req.hole?.default))
 }
 
-/** What the reviewer should look at first: rules that change nothing, rules that did not generalize. */
+/**
+ * What the harness's own test could not hold a rule to (derive.ts, and the derived test the validator dropped):
+ * since a learned rule has no siblings (§5.16) this is what "did not generalize" was, a rule the harness
+ * could not check.
+ */
+const UNTESTED = /could not derive a test|derived test dropped|checks only that the rule answers/
+
+/** What the reviewer should look at first: rules that change nothing, rules the harness's test could not check. */
 function flagsOf(patch: Patch, derived?: string[]): string[] {
   const flags: string[] = []
+  const quiet = new Set<string>()
   for (const a of patch.artifacts)
-    if (a.kind === 'rule' && changesNothing(a.rule))
+    if (a.kind === 'rule' && changesNothing(a.rule)) {
+      quiet.add(a.rule.id)
       flags.push(`"${a.rule.id}" changes nothing in the world (it only narrates). Revise unless doing nothing is clearly the most plausible and interesting outcome — and then its class must be narrow.`)
-  for (const d of derived ?? []) if (d.includes('did not generalize')) flags.push(d)
+    }
+  for (const d of derived ?? [])
+    if (UNTESTED.test(d) && ![...quiet].some((id) => d.startsWith(`${id}:`))) flags.push(`the harness could not test what it does (${d}): look at the whole outcome`)
   return flags
 }
 
@@ -1069,6 +1132,9 @@ function routeOf(j: unknown): { need?: Need[]; create?: Creation[] } | undefined
 export function laneOf(req: ModRequest): string {
   return patchKey(req.event.host?.type ?? '-', req.event.kind, holeKey(req.hole.rule, req.hole.path), tierOfRequest(req))
 }
+
+/** What is in flight for a class of request: its answer serves its tier and the lower ones (covering, tiersFrom). */
+const inFlight = (key: string, tier: Tier): string => `${key}@${tier}`
 
 /** A validation as a commit reports it (a trial run keeps nothing). */
 function judged(result: ValidationResult, patch: Patch): CommitResult {
