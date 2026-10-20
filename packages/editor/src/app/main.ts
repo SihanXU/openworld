@@ -26,6 +26,7 @@ import { MODES as MORE } from './modes.ts'
 import { icon } from './icons.ts'
 import { navGroups } from './nav.ts'
 import { keepScroll } from './scroll.ts'
+import { Drafter } from './drafter.ts'
 import './editor.css'
 
 const PARAMS = new URLSearchParams(location.search)
@@ -54,11 +55,14 @@ async function openProject(id: string): Promise<void> {
       <button id="undo" class="ic"></button><button id="redo" class="ic"></button><button id="save" title="Ctrl+S">${t('Save')}</button><span id="previewLang"></span><button id="play" title="${t('Save, and play from the start (or the selected cell)')}">${icon('play', 16)} ${t('Playtest')}</button><button id="export" title="${t('Save, and make the game a folder anyone can play')}">${t('Export…')}</button><button id="settings" title="${t('The editor\'s settings: its own language')}">⚙</button></header>
     <aside id="left"></aside><main id="canvas"><div id="statusbar"><span id="sbCell" class="muted"></span><span class="grow"></span><button id="sbGrid" title="${t('the grid (G)')}">${t('Grid')}</button><span class="sep"></span><button id="sbOut" title="${t('zoom out (-)')}">−</button>${ZOOMS.map((z) => `<button data-zoom="${z}">${z * 100}%</button>`).join('')}<button id="sbIn" title="${t('zoom in (+)')}">+</button><button id="sbFit" title="${t('the whole map (0)')}">${t('Fit')}</button></div></main><main id="center" class="hidden"></main><aside id="right"></aside>
     <div id="toolbar" class="hidden"></div><div id="toolstrip" class="hidden"></div>
+    <button id="aiFab" class="ai-fab"></button><aside id="drawer" class="drawer" hidden></aside>
     <footer id="problems"></footer><div id="toasts"></div></div>`
   const canvas = new Canvas($('#canvas'))
   const modes: Mode[] = [new MapMode(), new PeopleMode(), ...MORE]
   let mode = modes[0]
   const problems = new ProblemsPanel($('#problems'), () => ctx)
+  // the AI drafter, at the bottom right of every page
+  new Drafter(() => ctx, $('#aiFab'), $('#drawer'), () => mode.id)
   const ctx: Ctx = {
     store,
     canvas,

@@ -1520,3 +1520,42 @@ describe('the service, an author\'s new thing', () => {
     }
   })
 })
+
+describe('a person or a map an author asks for (the editor\'s drafter)', () => {
+  const PERSON = { id: 'npc.tova', type: 'actor/person/villager', name: 'Tova', place: { on: 'tile', map: 'glade', x: 5, y: 5 }, npc: { role: 'villager', schedule: [{ from: 6, to: 20, at: 'glade:garden', activity: 'weed the beds' }, { from: 20, to: 6, at: 'cottage:bed', activity: 'sleep' }], person: { lines: [{ key: 'greeting:first', text: 'Oh! Hello.' }, { key: 'default', text: 'The beans are late.' }] } } }
+  const ctx = { map: 'glade', anchors: ['glade:garden', 'cottage:bed'], kinds: [{ id: 'actor/person/villager' }], taken: ['npc.mira'] }
+
+  it('holds a person to the game\'s shape: a kind it has, a day at its named spots, lines to say', async () => {
+    const { personProblems } = await import('../src/drafts.ts')
+    expect(personProblems(PERSON, ctx)).toEqual([])
+    expect(personProblems({ ...PERSON, id: 'npc.mira', type: 'actor/person/wizard' }, ctx)).toEqual(['id "npc.mira" is taken: choose another', 'type "actor/person/wizard" is not a kind of person here: one of actor/person/villager'])
+    expect(personProblems({ ...PERSON, npc: { ...PERSON.npc, schedule: [{ from: 6, to: 30, at: 'glade:well', activity: 'x' }] } }, ctx)).toEqual(['npc.schedule[0]: from and to are hours, 0 to 24', 'npc.schedule[0].at "glade:well" is no named spot: one of glade:garden, cottage:bed'])
+  })
+
+  it('holds a map to its size and its ground\'s characters, its things on it; settled, it has no portals and its things are on it', async () => {
+    const { mapProblems, settleMap } = await import('../src/drafts.ts')
+    const chars = [{ char: '.', terrain: 'grass' }, { char: 'T', terrain: 'tree' }]
+    const map = { map: { id: 'clearing', name: 'Clearing', width: 8, height: 8, rows: Array.from({ length: 8 }, (_, y) => (y === 0 || y === 7 ? 'TTTTTTTT' : 'T......T')), anchors: { well: [3, 3] } }, entities: [{ id: 'clearing.chest1', type: 'fixture/container/chest', place: { on: 'tile', x: 2, y: 2 } }] }
+    const mctx = { chars, things: [{ id: 'fixture/container/chest' }], taken: ['glade'] }
+    expect(mapProblems(map, mctx)).toEqual([])
+    const bad = { ...map, map: { ...map.map, rows: [...map.map.rows.slice(0, 7), 'T..~...'] } }
+    expect(mapProblems(bad, mctx)).toEqual(['map.rows[7]: 8 characters, not 7', 'map.rows: characters the ground has none for: "~" (use only .T)'])
+    const settled = settleMap(map) as { map: { portals: unknown[] }; entities: { place: { map: string } }[] }
+    expect(settled.map.portals).toEqual([])
+    expect(settled.entities[0].place.map).toBe('clearing')
+  })
+
+  it('drafts a person, mends what does not hold yet, and writes nothing', async () => {
+    const asked: string[] = []
+    const model = new ScriptedModel((messages) => {
+      asked.push(messages[messages.length - 1].content)
+      return asked.length === 1 ? { ...PERSON, id: 'npc.mira' } : PERSON
+    })
+    const { modder, library } = setup(model)
+    const reply = await modder.draft({ kind: 'person', intent: 'a gardener who worries about her beans', context: ctx })
+    expect(asked[0]).toContain('"a gardener who worries about her beans"')
+    expect(asked[1]).toContain('id "npc.mira" is taken')
+    expect(reply.draft).toEqual(PERSON)
+    expect(library.seq).toBe(0)
+  })
+})

@@ -6,7 +6,7 @@ const GROUPS: string[][] = [
   ['map', 'people'],
   ['database', 'assets', 'rules'],
   ['story', 'quests'],
-  ['holes', 'things'],
+  ['holes'],
 ]
 
 /** The modes in their groups (each in the order given, the ones there are), and the rest. */

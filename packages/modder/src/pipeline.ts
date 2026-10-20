@@ -21,7 +21,8 @@ import { normalizePatch, placePatch, qualifyTerrains, stationFromRules } from '.
 import type { CommitResult, WorldLibrary } from './library.ts'
 import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@openworld/agent'
 import { materializeWorld } from './repo.ts'
-import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, THING_SYSTEM, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
+import { mapProblems, personProblems, settleMap, type DraftContext, type DraftKind } from './drafts.ts'
+import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
 import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@openworld/agent'
 
@@ -300,6 +301,42 @@ export class Modder {
     } catch (err) {
       this.pause((err as Error).message)
       return { patch: null, diagnostics: [...diagnostics, (err as Error).message] }
+    }
+  }
+
+  /**
+   * A person or a map the game's author asks for in a sentence (the editor's AI drafter): one file of the game, made of
+   * what the editor says the game has (`context`), held to its shape and mended until it is (drafts.ts). Nothing is
+   * written: the editor compiles it with the project, and the author takes it in.
+   */
+  async draft(body: DraftBody): Promise<DraftReply> {
+    const why = this.down()
+    if (why || !this.backend) return { draft: null, diagnostics: [why ? `model unavailable: ${why}` : 'no model'] }
+    const kind = body?.kind
+    if (kind !== 'person' && kind !== 'map') return { draft: null, diagnostics: ['kind: person or map'] }
+    const intent = String(body?.intent ?? '').trim().slice(0, 500)
+    if (!intent) return { draft: null, diagnostics: [`say what the ${kind} is`] }
+    const ctx = body.context ?? {}
+    const model = new Meter(this.backend)
+    const messages: ChatMessage[] = [
+      { role: 'system', content: DRAFT_SYSTEM },
+      { role: 'user', content: draftUser(kind, intent, ctx) },
+    ]
+    const diagnostics: string[] = []
+    const usage = () => ({ calls: model.calls, input: model.input, output: model.output, cost: model.cost })
+    try {
+      for (let round = 0; round < 3; round++) {
+        const answer = (await model.chat(messages, { json: true, temperature: 0.7, purpose: 'create', reasoning: 'medium', deadlineMs: SLOW_MS })).content
+        const j = parseJson(answer) as Record<string, unknown> | undefined
+        const problems = kind === 'person' ? personProblems(j, ctx) : mapProblems(j, ctx)
+        if (!problems.length) return { draft: kind === 'map' ? settleMap(j!) : j!, diagnostics: [], usage: usage() }
+        diagnostics.push(...problems)
+        messages.push({ role: 'assistant', content: answer }, { role: 'user', content: `The file is not yet right:\n${problems.map((p) => `- ${p}`).join('\n')}\nFix it and answer with the whole JSON object again.` })
+      }
+      return { draft: null, diagnostics, usage: usage() }
+    } catch (err) {
+      this.pause((err as Error).message)
+      return { draft: null, diagnostics: [...diagnostics, (err as Error).message] }
     }
   }
 
@@ -1121,6 +1158,19 @@ export interface ThingBody {
   intent: string
   had?: Had[]
   stations?: string[]
+}
+
+/** An author's person or map (POST /draft): what it is, and what the game has to make it of. */
+export interface DraftBody {
+  kind: DraftKind
+  intent: string
+  context?: DraftContext
+}
+
+export interface DraftReply {
+  draft: Record<string, unknown> | null
+  diagnostics: string[]
+  usage?: { calls: number; input: number; output: number; cost: number }
 }
 
 export interface ThingReply {

@@ -7,6 +7,7 @@
 //   GET  /stats           the numbers the paper reports
 //   GET  /progress?id=r   where request r is (queued, local, find, create, art; {} when not here)
 //   POST /create          {intent, had?, stations?} → a new thing's draft (types and icons), not committed (this host only)
+//   POST /draft           {kind: person | map, intent, context} → one file of the game, drafted, not written (this host only)
 //   POST /adopt           {patch}: the author took the new thing into the game; the library has it (this host only)
 //   POST /fault           {rule, reason, client?}: a client set a learned rule aside at run time (counted by the caller's
 //                         address; `client` tells apart only the clients of a caller on this machine)
@@ -17,7 +18,7 @@
 import { createServer, type IncomingMessage, type Server } from 'node:http'
 import { join } from 'node:path'
 import { AI_WAIT_MS, type Patch, type ResolveBody } from '@openworld/engine'
-import type { Modder, ThingBody } from './pipeline.ts'
+import type { DraftBody, Modder, ThingBody } from './pipeline.ts'
 import { Detector } from './detect.ts'
 
 export interface ServerOptions {
@@ -87,8 +88,9 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
         return send(200, modder.fault(body.rule, String(body.reason ?? ''), client))
       }
       // an author's new thing: drafted on this service's account, and taken into the shared library without the AI (this host only)
-      const refused = req.method === 'POST' && (url.pathname === '/create' || url.pathname === '/adopt') ? hostOnly(req) : undefined
+      const refused = req.method === 'POST' && (url.pathname === '/create' || url.pathname === '/adopt' || url.pathname === '/draft') ? hostOnly(req) : undefined
       if (refused) return send(refused[0], { error: `a new thing is asked for and taken in from the machine the service runs on: ${refused[1]}` })
+      if (req.method === 'POST' && url.pathname === '/draft') return send(200, await modder.draft((await readJson(req, opts.maxBody ?? 4_000_000)) as DraftBody))
       if (req.method === 'POST' && url.pathname === '/create') return send(200, await modder.createThing((await readJson(req, opts.maxBody ?? 4_000_000)) as ThingBody))
       if (req.method === 'POST' && url.pathname === '/adopt') {
         const body = (await readJson(req, opts.maxBody ?? 4_000_000)) as { patch?: Patch }

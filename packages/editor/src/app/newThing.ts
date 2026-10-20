@@ -1,4 +1,4 @@
-// A new thing taken into the game (thingsMode.ts, the AI plan's M1), as data: the learned/ file the game ships with
+// A new thing taken into the game (drafter.ts, the AI plan's M1), as data: the learned/ file the game ships with
 // (its words in the game's language, the other languages into the tables) and the patch the modder is told of,
 // which keeps every name the draft had (the modder's library asks a new type for its name in both languages).
 

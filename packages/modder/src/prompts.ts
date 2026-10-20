@@ -4,6 +4,7 @@
 // the model can use: the brief replaces the rules the request carries, and the scenario (the
 // harness replays it) is left out.
 
+import type { DraftContext } from './drafts.ts'
 import type { ModRequest, ModSpec, Patch, Rule, StatusDef, TypeDef } from '@openworld/engine'
 import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '@openworld/agent'
 
@@ -364,6 +365,49 @@ export function thingUser(intent: string, o: { catalogue: string; materials: str
     '',
     'Answer with ONLY the JSON object {"patch": {"artifacts": [...], "note": "<what it is, one line>"}, "looks": {"<each new type id>": "<what it looks like, one line, for its icon>"}}.',
   ].join('\n')
+}
+
+// ---------------------------------------------------------------- a person or a map, asked by an author
+
+export const DRAFT_SYSTEM = 'You draft content for a 2D JRPG world whose state is data, at the request of the game\'s author: one file of the game, in its exact form. You answer with JSON only.'
+
+/** The author asks for a person or a map in a sentence: one file of the game, in the form of the sample, made of what the game has. */
+export function draftUser(kind: 'person' | 'map', intent: string, ctx: DraftContext): string {
+  const lang = ctx.lang ? `Write its words (names, lines) in ${ctx.lang}.` : ''
+  if (kind === 'person')
+    return [
+      '# A new person',
+      `The game's author wants a new person on the map "${ctx.map ?? ''}": "${intent}"`,
+      'Write one person file, in the form of the sample: {"id": "npc.<lower_case>", "type", "name", "place": {"on": "tile", "map", "x", "y"}, "facing", "npc": {"role", "schedule": [{"from", "to", "at", "activity"}], "person": {"temperament", "lines": [{"key", "text"}]}}}.',
+      '- type: one of the kinds of people below.',
+      '- schedule: their whole day, hour by hour (0 to 24, a night may run from 21 to 6), each entry at one of the named spots below ("map:anchor"), what they do there in a few words.',
+      '- lines: four to six things they say, in their own voice: one "greeting:first" (once), the rest "default", and one for an hour ("hour:evening") if it fits.',
+      `- place: a cell of "${ctx.map ?? ''}" near the first spot of their day.`,
+      lang,
+      `Kinds of people: ${(ctx.kinds ?? []).map((k) => `${k.id}${k.name ? ` (${k.name})` : ''}`).join(', ')}`,
+      `Named spots: ${(ctx.anchors ?? []).slice(0, 80).join(', ')}`,
+      `Ids taken: ${(ctx.taken ?? []).slice(0, 200).join(', ')}`,
+      'The sample:',
+      JSON.stringify(ctx.sample ?? {}),
+      'Answer with ONLY the person file\'s JSON object.',
+    ].filter(Boolean).join('\n')
+  const [w, h] = ctx.maxSize ?? [40, 30]
+  return [
+    '# A new map',
+    `The game's author wants a new map: "${intent}"`,
+    'Write one map file: {"map": {"id", "name", "kind", "width", "height", "rows": [...], "anchors": {"<name>": [x, y]}, "light", "zone"}, "entities": [{"id", "type", "place": {"on": "tile", "map", "x", "y"}}]}.',
+    `- width and height: what the place needs, at most ${w} by ${h}; "rows" is height strings of width characters each, one character a cell, from the ground's characters below only.`,
+    '- Shape it as the place it is: paths that lead somewhere, water and trees in natural shapes (not noise), an edge of trees or rock around a wild place.',
+    '- anchors: a few named spots people and scenes can use (a well, a door, a field), on walkable ground.',
+    '- entities: the things set down on it (a chest, a sign, a bed, creatures …), of the kinds below, each on a walkable cell; ids "<map id>.<what>N".',
+    '- kind: village, town, wild, forest, dungeon, cave or interior; light: outdoor, indoor or dark; zone: peaceful or combat.',
+    lang,
+    'The ground\'s characters:',
+    ...(ctx.chars ?? []).map((c) => `${JSON.stringify(c.char)} ${c.terrain}${c.name ? ` (${c.name})` : ''}`),
+    `Kinds of things: ${(ctx.things ?? []).slice(0, 160).map((x) => `${x.id}${x.name ? ` (${x.name})` : ''}`).join(', ')}`,
+    `Map ids taken: ${(ctx.taken ?? []).slice(0, 300).join(', ')}`,
+    'Answer with ONLY the map file\'s JSON object.',
+  ].filter(Boolean).join('\n')
 }
 
 // ---------------------------------------------------------------- the artist

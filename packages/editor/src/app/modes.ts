@@ -10,11 +10,10 @@ import { GameMode } from './gameMode.ts'
 import { HolesMode } from './holesMode.ts'
 import { LocaleMode } from './localeMode.ts'
 import { RulesMode } from './rulesMode.ts'
-import { ThingsMode } from './thingsMode.ts'
 import { QuestsMode, StoryMode } from './storyMode.ts'
 
 /** The rules' mode, which others begin a rule in (the holes' answer by hand, a thing's own kind). */
 export const rulesMode = new RulesMode()
 /** The holes' mode, which a new thing taken in opens at its own holes. */
 export const holesMode = new HolesMode(() => rulesMode)
-export const MODES: Mode[] = [new GameMode(), new DatabaseMode(), new AssetsMode(), rulesMode, new StoryMode(), new QuestsMode(), new LocaleMode(), new FindMode(), holesMode, new ThingsMode(() => holesMode)]
+export const MODES: Mode[] = [new GameMode(), new DatabaseMode(), new AssetsMode(), rulesMode, new StoryMode(), new QuestsMode(), new LocaleMode(), new FindMode(), holesMode]
