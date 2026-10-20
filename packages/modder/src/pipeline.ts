@@ -592,8 +592,15 @@ export class Modder {
         }
         // the auditor, before shipping: what it breaks in the sandbox goes back to the designer
         if (auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch, req)) {
-          const found = await this.audit(model, req, patch, ctx, h)
+          let found = await this.audit(model, req, patch, ctx, h)
+          // a failed audit is never counted as a clean one (design.md §13): asked once more, then not shipped unaudited
+          if (found.error) found = await this.audit(model, req, patch, ctx, h)
           attempt.audit = { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length }
+          if (found.error) {
+            attempt.errors = [`the audit failed (${found.error}): not shipped unaudited`]
+            ep.error = attempt.errors[0]
+            break
+          }
           if (found.confirmed.length) {
             attempt.errors = auditNotes(found.confirmed)
             if (repairs++ >= h.repair.maxRounds) break

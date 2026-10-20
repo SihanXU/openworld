@@ -2,10 +2,13 @@
 // auditor's probe and its evidence, the blocking audit and review, the review after the fact, and the
 // detection of what a model carries. Each test names the defect it holds shut.
 
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { auditTools, changesNothing, probe, stationFromRules, withPatch } from '../src/index.ts'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, auditTools, changesNothing, probe, stationFromRules, withPatch, type ChatMessage, type ChatOptions, type Harness, type Model } from '../src/index.ts'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -95,5 +98,56 @@ describe('narration in place of a default that does something is a change', () =
     expect(changesNothing(words, [{ op: 'fallback' }] as never)).toBe(false)
     // a tree that leaves every case open replaces nothing: the default still runs
     expect(changesNothing({ ...words, tree: { undefined: true } }, [{ op: 'destroy' }] as never)).toBe(true)
+  })
+})
+
+/** A modder over the base game; the harness as the test says (no reflection, escalation or revision unless it says). */
+function modderWith(model: Model, profile: 'live' | 'offline', over: (h: Harness) => Partial<Harness> = () => ({})) {
+  const dir = mkdtempSync(join(tmpdir(), 'lsw-guards-'))
+  const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
+  const state = SelfState.open(join(dir, 'modder-state'))
+  const h = state.harness()
+  state.setHarness({ ...h, reflect: { ...h.reflect, enabled: false }, escalate: false, revise: false, offline: { ...h.offline, design: { ...h.offline.design, mode: 'json' } }, ...over(h) }, 'test: detection guards')
+  return { library, state, modder: new Modder({ library, state, model, profile }) }
+}
+
+/** Harmless, though it changes something (the probe finds nothing in it): the dead tree's sap wets the stone. */
+const sapped = (req: ModRequest) => onDeadTree(req, 'patch/stone-sapped', [{ op: 'addStatus', status: 'wet', duration: 10 }, { op: 'log', text: { en: '{target} drips sap on {instrument}.', zh: '{target}的树液把{instrument}弄湿了。' } }])
+
+describe('a blocking audit that fails is no audit', () => {
+  it('offline: the auditor times out twice, and the patch is not committed unaudited (D5)', async () => {
+    const req = useRequest()
+    let audits = 0
+    const model = new ScriptedModel((_m: ChatMessage[], opts: ChatOptions) => {
+      if (opts.purpose === 'audit') {
+        audits++
+        throw new Error('model: no answer within 180000 ms')
+      }
+      if (opts.purpose === 'design') return { patch: sapped(req), summary: 'sap wets the stone' }
+      return { verdict: 'ship', notes: [] }
+    })
+    const { library, state, modder } = modderWith(model, 'offline', (h) => ({ audit: { ...auditOf(h), rounds: 1 }, review: { ...h.review, enabled: false } }))
+    const reply = await modder.resolve({ request: req })
+    await modder.settled()
+    expect(reply.outcome).toBe('failed')
+    expect(audits).toBe(2) // asked once more
+    expect(library.lib.rules.has('patch/stone-sapped')).toBe(false)
+    expect(state.episode(reply.episode!)!.attempts.at(-1)!.errors.join()).toMatch(/the audit failed \(model: no answer within 180000 ms\)/)
+  })
+
+  it('offline: an auditor that fails once and then answers lets a clean patch ship', async () => {
+    const req = useRequest()
+    let audits = 0
+    const model = new ScriptedModel((_m: ChatMessage[], opts: ChatOptions) => {
+      if (opts.purpose === 'audit') {
+        if (audits++ === 0) throw new Error('model: no answer within 180000 ms')
+        return { findings: [] }
+      }
+      if (opts.purpose === 'design') return { patch: sapped(req), summary: 'sap wets the stone' }
+      return { verdict: 'ship', notes: [] }
+    })
+    const { library, modder } = modderWith(model, 'offline', (h) => ({ audit: { ...auditOf(h), rounds: 0 }, review: { ...h.review, enabled: false } }))
+    expect((await modder.resolve({ request: req })).outcome).toBe('accepted')
+    expect(library.lib.rules.has('patch/stone-sapped')).toBe(true)
   })
 })
