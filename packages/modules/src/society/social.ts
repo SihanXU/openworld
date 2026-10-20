@@ -321,6 +321,7 @@ export class Social {
 
   /** One fears another for a while (an outcome of theirs). */
   frighten(e: Entity, of: Id): void {
+    if (this.eng.isProtected(e)) return
     const m = this.record(e)
     if (!m || e.id === of) return
     ;(m.afraid ??= {})[of] = this.w.state.tick + this.params.fearTicks

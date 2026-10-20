@@ -152,8 +152,8 @@ The world as phases A–E leave it (2026-10-19; `npm run gen:world`, `npm run sc
 | the world map | 16×12, ~150 sites | 64×48, 2,135 sites; 18 grounds (8 before) |
 | regions | 1 | 6: the played one, and five of backdrop, each with its look |
 | maps | 59 played (+ the world map) | 1,024: 59 played; 965 backdrop — 196 places, 21 depths, 748 rooms |
-| people | 33 | 1,651: 33 who travel (the index), 1,618 of the backdrop in their households |
-| things placed | 784 | 40,932 (2,028 kinds of thing by type and tags), 12,179 fixtures |
+| people | 33 | 1,654: 35 in the index, 1,619 of the backdrop in their households |
+| things placed | 784 | 40,562 (2,029 kinds of thing by type and tags), 12,995 fixtures |
 | item kinds | 216 | 1,013 (797 regional) |
 | the world's files (`public/world/`) | 2.8 MB | 16 MB (1.5 MB compressed); the index 0.93 MB (0.15 MB compressed), fetched at the start |
 | a save | 1.47 MB | 89 KB |
@@ -214,12 +214,18 @@ cell's bed, books and candle. Nothing is put in the way in from the door. The co
 
 **Templates.** A settlement is laid out with a `Layout`: its first buildings on the main street (`civic`: a town's
 store, smithy and inn or teahouse; a village's smithy or shop now and then) and ground kept clear for its theme
-(`reserve`). Each region's look is laid over its settlements, farms, mills and camps (`DECOR`) besides its buildings,
-streets, walls and lamps (`STYLE`): the Coast's pines crowding in, woodpiles and washing lines; the March's red dirt,
-braziers along the streets, racks and old bones; the Vale's dry grass, little fields gone to dust with their haystacks,
-sacks, carts and scarecrows; the Fens' mud, black pools in reeds, dead trees, lanterns at the doors and mist; the
-Heights' gravel and boulders, statues over the streets, candles at the doors; the Holy City's cobbles, lamps, flower
-carts. Each region flies its own banner (`BANNER`) over its squares and forts. A city is built by its quarter's theme
+(`reserve`). A settlement stands on its region's ground (`STYLE.ground`; its squares' `square`, its farms' and mills'
+`field`): the Coast's grass, the March's red dirt with dark stone streets, the Vale's dry grass, the Fens' mud, the
+Heights' snow with cobbled streets, the Holy City's paving with dark stone streets; and gives way to the wild round it
+along a wavering line (`feather`: within a few cells of its edge its ground turns to the commonest open ground of the
+map's rim), never as a rectangle. Each region's look is laid over its settlements, farms, mills and camps (`DECOR`)
+besides its buildings, streets, walls and lamps (`STYLE`), what lies on its ground in patches a few cells across
+(`patches`: organic shapes, never a speckle of cells): the Coast's flower meadows and pines crowding in, woodpiles and
+washing lines; the March's islands of scrub on the red dirt, braziers along the streets, racks and old bones; the
+Vale's fields gone to dust with their haystacks and scarecrows, sacks and carts; the Fens' islands of rank grass in the
+mud, black pools in reeds, dead trees, lanterns at the doors and mist; the Heights' white stone and grass showing
+through the snow, boulders, statues over the streets, candles at the doors; the Holy City's gardens of grass and flowers
+between the paving, lamps, flower carts. Each region flies its own banner (`BANNER`) over its squares and forts. A city is built by its quarter's theme
 (`THEMES`): the Holy City's eight in the gazetteer's order — the North Gate (the city wall with round towers either side
 of the gate, the watch's barracks), the Bell Ward (a chapel and the clergy's house, candles and an altar on the
 square), the Market (shops, stalls along the square's rows, crates, carts), the Lamp Ward (teahouses, an inn, a lamp at

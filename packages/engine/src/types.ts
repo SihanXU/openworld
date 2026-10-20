@@ -225,11 +225,15 @@ export interface TerrainDef {
 export interface Ontology {
   /** The modules the game uses (module.ts, docs/engine-split.md §4), installed in this order with every engine made over it. */
   modules?: string[]
+  /** Maps where the optional fishing fight replaces immediate fishing rewards; owned by the game, interpreted by the fishing module. */
+  fishing?: { maps: string[]; extraType?: string }
   types: Record<string, TypeDef>
   /** What people take as deeds (docs/npc-sandbox.md §2.2), the watches, the numbers of their social life. */
   deeds?: DeedDef[]
   laws?: Record<string, LawDef>
   social?: SocialParams
+  /** Data-driven subjects and harmful statuses the game protects from direct harm. */
+  protection?: ProtectionDef
   /** What a felled creature's kind leaves its feller beyond the rules' spoils: its own piece's pity and words (the loot module). */
   loot?: LootParams
   /** The verbs of the talk panel (docs/npc-sandbox.md §2.9): each offered when its condition holds (host: the one spoken to; actor: the speaker). */
@@ -292,6 +296,13 @@ export interface Ontology {
   goals?: string[]
   /** The looks bodies are drawn from (docs/looks.md): bodies, parts, colours. */
   looks?: LookTable
+}
+
+/** A game's subject selector and the statuses it treats as harmful; the engine knows no subject-specific rules. */
+export interface ProtectionDef {
+  subjects: Selector[]
+  statuses?: string[]
+  refusal?: Text
 }
 
 /**
@@ -1549,6 +1560,8 @@ export type Cond =
   | { prop: { role: Reader; key: string; cmp?: Cmp; bounds?: Bounds; default?: PropValue } }
   /** An event parameter compared to a value (a missing parameter is false). */
   | { param: { key: string; cmp: Cmp } }
+  /** A role's property equals an event parameter (both must be present). */
+  | { propEqualsParam: { role: Reader; key: string; param: string } }
   | { chance: number }
   | { hour: { from: number; to: number } }
   /** It is night (true) or day (false), however long the story's night has grown (World.isNight). */
@@ -1603,6 +1616,10 @@ export type Cond =
   | { favourite: { of: RoleName; item?: RoleName } }
   /** A role's bounty with the watch of the host's map is past what that watch pardons (a murderer's). */
   | { unpardonable: RoleName }
+  /** The optional fishing module: these conditions are evaluated by a game that loads that module. */
+  | { fishingMap: 'host' }
+  | { fishingBusy: 'actor' }
+  | { fishingRoom: 'actor' }
 
 /** A role, or the cell under it (`tileOf:`: the thing that makes up that cell on top — what fills it, roots in it, or the floor). */
 export type RoleRef = RoleName | 'tileOf:host' | 'tileOf:actor' | 'tileOf:target' | 'tileOf:instrument' | 'tileOf:other' | 'tileOf:item' | 'tileOf:source'
@@ -1629,7 +1646,7 @@ export type EmitTo =
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
 /** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
-export type ModuleOp = 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'plunder' | 'beaten' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy'
+export type ModuleOp = 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'plunder' | 'beaten' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy' | 'fishing/start' | 'fishing/step' | 'fishing/input' | 'fishing/land'
 
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
@@ -1717,7 +1734,7 @@ export type Effect =
   | { op: 'craft' }
   | { op: 'lightning'; power: number }
   /** Send an impulse: `item` names the thing it carries (given, put, taken), `other` the role it names as the other side. */
-  | { op: 'emit'; impulse: Impulse; to: EmitTo; params?: Record<string, PropValue | Amount | { typeOf: RoleName } | { idOf: RoleName }>; item?: RoleName; other?: RoleName; chance?: number; filter?: Selector }
+  | { op: 'emit'; impulse: Impulse; to: EmitTo; params?: Record<string, PropValue | Amount | { typeOf: RoleName } | { idOf: RoleName } | { stackKeyOf: RoleName }>; item?: RoleName; other?: RoleName; chance?: number; filter?: Selector }
   /** Get out of where one cannot be (water closing over the ice): to the nearest free tile. */
   | { op: 'ashore' }
   /** The story's: an invariant's authored fallback (the default of a `broken` outcome). */
@@ -1790,6 +1807,11 @@ export type Effect =
   | { op: 'restock' }
   /** The host forgets its foes and puts its weapon away (a fight over). */
   | { op: 'calm' }
+  /** The optional fishing module's actor-owned session primitives. */
+  | { op: 'fishing/start' }
+  | { op: 'fishing/step' }
+  | { op: 'fishing/input' }
+  | { op: 'fishing/land' }
 
 /**
  * A rule's outcome: a condition tree whose leaves are effects (an empty list: no change),

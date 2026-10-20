@@ -101,7 +101,7 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
     }
     case 'fear': {
       const of = role(eff.of, actor)
-      if (host?.npc && of) s.frighten(host, of.id)
+      if (host?.npc && !eng.isProtected(host) && of) s.frighten(host, of.id)
       return
     }
     case 'report': {
@@ -142,7 +142,7 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
       if (host) giveBack(fx, host, ev.roles.source ? w.get(ev.roles.source.e) : undefined)
       return
     case 'die': {
-      if (!host?.npc || w.hasTag(host, 'essential')) return
+      if (!host?.npc || eng.isProtected(host) || w.hasTag(host, 'essential')) return
       const into = w.prop(host, 'bodyType')
       if (typeof into !== 'string' || !w.onto.hasType(into)) throw new Error(`${host.id} has no body to become (bodyType)`)
       const name = (l: 'en' | 'zh') => eng.nameOf({ e: host.id }, l)
@@ -181,7 +181,7 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
     case 'plunder': {
       // robbed: a share of its coin, and some of what its bag holds (not what it wears or has in hand), to the robber
       const to = role(eff.to, actor)
-      if (!host || !to || to.id === host.id) return
+      if (!host || eng.isProtected(host) || !to || to.id === host.id) return
       const share = Math.max(0, Math.min(1, eff.coins ?? 0))
       const paid = share > 0 ? payCoins(fx, host, to, Math.ceil(s.purse(host) * share)) : 0
       const worn = new Set(Object.entries(host.props ?? {}).filter(([k]) => k.startsWith('wear:')).map(([, v]) => v))
@@ -201,7 +201,7 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
     }
     case 'beaten': {
       // a beating: its health falls to what is left it — never below one, never up; past defence and talents
-      if (!host || w.prop(host, 'maxHp') === undefined) return
+      if (!host || eng.isProtected(host) || w.prop(host, 'maxHp') === undefined) return
       const hp = w.num(host, 'hp', w.num(host, 'maxHp', 1))
       let left = eff.share !== undefined ? Math.floor(hp * fx.amount(ev, eff.share)) : eff.left !== undefined ? Math.round(fx.amount(ev, eff.left)) : hp
       left = Math.max(1, Math.min(hp, left))
@@ -267,6 +267,7 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
       return
     }
     case 'imprison': {
+      if (actor && eng.isProtected(actor)) return
       const law = s.lawHere(host)
       const bounty = law && actor ? s.bounty(law.id, actor.id) : 0
       const jail = s.jailOf(law) ?? w.posOf(host)
@@ -279,11 +280,12 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
     }
     case 'jail': {
       const p = ev.params
-      if (!host || typeof p?.map !== 'string' || typeof p.x !== 'number' || typeof p.y !== 'number') return
+      if (!host || eng.isProtected(host) || typeof p?.map !== 'string' || typeof p.x !== 'number' || typeof p.y !== 'number') return
       toJail(fx, host, ev, { map: p.map, x: p.x, y: p.y }, typeof p.hours === 'number' ? p.hours : 1)
       return
     }
     case 'arrest': {
+      if (host && eng.isProtected(host)) return
       const law = s.lawHere(actor)
       const bounty = law && host ? s.bounty(law.id, host.id) : 0
       if (!host || !actor || !law || bounty <= 0 || w.prop(actor, 'watch') !== law.id) return
