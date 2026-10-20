@@ -548,12 +548,12 @@ export class Controls {
    * - a creature: what is held used on it where it does something (fed, tied), else as any other thing;
    * - a thing the bare hands change something of: that (open, read, sleep, pick);
    * - a thing the held object does something to: that use (a key turned in its lock, raw meat cooked over a
-   *   lit fire, ore smelted in a lit forge);
+   *   lit fire);
    *   only an object's — never a tool's or a weapon's (the left click's), nor a built thing's;
    * - a thing whose answer to the bare hands changes nothing: that hand (it is locked, it says why);
    * - a thing that can be taken: taken — never what is another's (F's alone: there the action does nothing);
    * - the ground: a hand where it does something there, else the held object's use there where it does
-   *   something, else a built thing or a fixture in hand set down (G's act, where it would rest), else the
+   *   something (seeds sown on farmland), else a built thing or a fixture in hand set down (G's act, where it would rest), else the
    *   held thing used on oneself where it does something (eat, drink, put on); pointed at oneself, any use
    *   of it (the modder's where it is unknown);
    * - any other thing: the bare hands try it (an experiment, the modder's where the world has never seen it);

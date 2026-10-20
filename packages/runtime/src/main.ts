@@ -622,7 +622,7 @@ const typing = () => {
 // The inputs (design.md §5.2): E a hand, F takes, G puts or hands over, R uses the held thing (or a bare blow); the
 // left click swings — a tool's work or a weapon's blow, with anything else in hand the main hand's weapon or the
 // fist, a built thing in hand set down (it builds) —, and the right click is the action, as Stardew's action
-// button: what the thing aimed at calls for (talk, open, pick up, unlock, cook, set down a bed, eat — the engine's Controls
+// button: what the thing aimed at calls for (talk, open, pick up, sow, unlock, cook, set down a bed, eat — the engine's Controls
 // chooses both from the others, the cursor shows them). A short press acts on the top of what is drawn where the
 // pointer is; a long press of E, F, G, R or the right click opens the chooser of all of it the input reaches
 // (people, things, items, the ground, oneself), so every event is reachable. The left click acts on the press

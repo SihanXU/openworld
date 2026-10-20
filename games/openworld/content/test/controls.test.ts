@@ -458,6 +458,15 @@ describe('the action (the right click): what the thing aimed at calls for', () =
     expect(act(fire('item/tool/hoe'))).toMatchObject({ key: 'hands', target: { e: 'fire' } })
   })
 
+  it('on the ground, after the hands: what the held object does there (seeds sown on farmland)', () => {
+    const field = Array.from({ length: 5 }, (_, y) => Array.from({ length: 5 }, (_, x) => (y === 1 && x === 2 ? 'farmland' : 'grass')))
+    const eng = world('item/seed/carrot', [], field)
+    const sow = act(eng)
+    expect(sow).toMatchObject({ key: 'use', rule: 'farm/sow', instrument: { e: 'held' } })
+    eng.controls.run(sow!)
+    expect(eng.world.entitiesAt('sandbox', 2, 1).some((e) => e.type.startsWith('fixture/crop/carrot'))).toBe(true)
+  })
+
   it('a key on a locked chest turns in its lock: the bare hands only find it locked, so the object in hand answers', () => {
     const keyType = Object.keys(onto.types).find((t) => t.startsWith('item/key'))!
     const chest = (held?: string) => world(held, [{ key: 'chest', type: 'fixture/container/chest', x: 2, y: 1, tags: ['locked'] }])
