@@ -14,7 +14,7 @@
 // Two profiles of one harness (state.ts): LIVE while a player waits, OFFLINE for everything
 // nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
-import { artProblems, buildModSpec, closestTypes, holeKey, isDo, isHole, leaves, patchKey, tierOfRequest, type ModProgress, type Ontology, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type TypeDef, type ValidationResult } from '@openworld/engine'
+import { artProblems, buildModSpec, buildRequest, buildSandbox, closestTypes, holeKey, isDo, isHole, leaves, patchKey, scenarioEvent, tierOfRequest, type ModProgress, type Ontology, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type Scenario, type TypeDef, type ValidationResult } from '@openworld/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
 import { normalizePatch, placePatch, qualifyTerrains, stationFromRules } from './fixes.ts'
@@ -231,11 +231,31 @@ export class Modder {
     this.faults.delete(ruleId)
     this.log(`${ruleId} set aside by ${set.size} client(s): ${reason} → removed`)
     if (asked && state.harness().revise && this.backend) {
-      // the request as the scene that asked gives it: the revision is placed where the event falls undefined now
-      const req: ModRequest = { id: `fault-${ruleId}`, summary: `revision of ${ruleId} after a fault: ${reason}`, origin: rule.source?.trigger ?? 'player', event: { kind: rule.on, params: {}, roles: {} }, hole: { rule: rule.hole?.split('#')[0] ?? '', path: [], default: [], at: rule.at ?? [] }, context: { map: { id: '', name: '', kind: '' }, anchors: [], hour: 0, nearby: [], tiles: [], tileStatuses: [], recent: [], rules: [] }, scenario: asked.scenario }
-      this.later(`revise ${ruleId} after a fault`, () => this.episode(req, undefined, signatureOf(req), { profile: 'offline', revise: { episode: { id: `fault-${ruleId}`, rules: [ruleId], patch: { artifacts: [{ kind: 'rule', rule }] } } as never, notes: [`a client set this rule aside at run time: ${reason}`] } }).then(() => undefined))
+      // the request as the scene that asked gives it, built the way the port builds it: the revision is placed where
+      // the event falls undefined now (its host, hole and context from the scene, the library as it is without the rule)
+      const req = this.askedAgain(`fault-${ruleId}`, asked.scenario, rule.source?.trigger)
+      if (typeof req === 'string') this.log(`${ruleId}: no revision after the fault: ${req}`)
+      else this.later(`revise ${ruleId} after a fault`, () => this.episode(req, undefined, signatureOf(req), { profile: 'offline', revise: { episode: { id: `fault-${ruleId}`, rules: [ruleId], patch: { artifacts: [{ kind: 'rule', rule }] } } as never, notes: [`a client set this rule aside at run time: ${reason}`] } }).then(() => undefined))
     }
     return { rule: ruleId, counted: set.size, removed: true }
+  }
+
+  /**
+   * The request a scene asks of the shared library as it is now, as the port builds it (buildRequest); a string says why
+   * there is none (the scene no longer builds, or something answers it now).
+   */
+  private askedAgain(id: string, scenario: Scenario, origin?: 'player' | 'world'): ModRequest | string {
+    const { library } = this.opts
+    try {
+      const eng = buildSandbox(scenario, library.fullOntology(), library.lib)
+      const ev = scenarioEvent(scenario, eng)
+      const res = eng.resolveEvent(ev)
+      if (res.defined) return `"${res.rule?.id}" answers its scene now`
+      const req = buildRequest(eng, ev, res, id)
+      return { ...req, origin: origin ?? req.origin }
+    } catch (err) {
+      return `its scene does not build: ${(err as Error).message}`
+    }
   }
 
   /**

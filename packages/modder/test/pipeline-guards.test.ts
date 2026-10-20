@@ -102,3 +102,30 @@ describe('a rule id is not one version', () => {
     expect(library.lib.rules.has('patch/sap')).toBe(false)
   })
 })
+
+describe('the revision after a fault', () => {
+  it('is asked where the scene falls undefined now (host, hole and context rebuilt), and its answer is committed', async () => {
+    const req = useRequest()
+    const designs: ChatMessage[][] = []
+    // the offline design: a look at the rules first, then the revised rule, written (as drafts often are) on the
+    // wrong host: its place is the request's to set, never the model's (design.md §5.16)
+    const revised = onDeadTree('patch/sap', [{ op: 'addStatus', status: 'wet', duration: 5 }, { op: 'log', text: { en: '{target} weeps a little sap.', zh: '{target}渗出一点树液。' } }])
+    const draft: Patch = { artifacts: revised.artifacts.map((a) => (a.kind === 'rule' ? { ...a, rule: { ...a.rule, host: { type: 'fixture/nature/dead_tree' } } } : a)) }
+    const model = new ScriptedModel((messages: ChatMessage[], opts: ChatOptions) => {
+      if (opts.purpose !== 'design') return {}
+      designs.push(messages)
+      if (messages.at(-1)!.role === 'user') return { content: '', toolCalls: [{ id: `c${designs.length}`, name: 'search_rules', args: { on: 'act/use' } }] }
+      return { patch: draft, summary: 'the revision' }
+    })
+    const { library, state, modder } = setup(model, 'live', { revise: true, faults: { remove: 1 } })
+    const first = library.commit(placePatch(sapped('patch/sap'), req).patch, req)
+    expect(first.ok).toBe(true)
+    expect(modder.fault('patch/sap', 'an effect refused', 'client-a')).toMatchObject({ removed: true })
+    await modder.settled()
+    const revision = state.episodes().map((e) => state.episode(e.id)!).find((e) => e.revises === 'fault-patch/sap')
+    expect(revision?.outcome).toBe('accepted')
+    expect(revision?.request).toMatchObject({ event: { kind: 'act/use', host: { type: STONE } }, hole: { rule: req.hole.rule } })
+    expect(library.seqOf('patch/sap')).toBeGreaterThan(first.seq!)
+    expect(JSON.stringify(library.lib.rules.get('patch/sap')?.tree)).toContain('weeps')
+  })
+})
