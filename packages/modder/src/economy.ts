@@ -229,7 +229,7 @@ class Conversions {
           this.warn(path, 'an emit queued after its host changes')
           continue
         }
-        const params = Object.fromEntries(Object.entries(e.params ?? {}).map(([k, v]) => [k, typeof v !== 'object' || v === null ? v : 'typeOf' in v ? ctx.roles[v.typeOf]?.type : 'idOf' in v ? undefined : this.amount(v, ctx)]))
+        const params = Object.fromEntries(Object.entries(e.params ?? {}).map(([k, v]) => [k, typeof v !== 'object' || v === null ? v : 'typeOf' in v ? ctx.roles[v.typeOf]?.type : 'idOf' in v || 'stackKeyOf' in v ? undefined : this.amount(v, ctx)]))
         const receivers = this.types(sel).filter((id) => this.matches(id, e.filter))
         if (!receivers.length) this.warn(path, 'an emitted class with no statically matching type')
         const choices = this.unique(receivers.flatMap((host) => this.resolve(`impulse/${e.impulse}`, { host, roles: { host: { ...sel, type: host }, source: ctx.roles.host, actor: ctx.roles.actor, instrument: ctx.roles.instrument, item: e.item ? ctx.roles[e.item] : undefined, other: e.other ? ctx.roles[e.other] : undefined }, params, complete: true }, path, stack)), path)

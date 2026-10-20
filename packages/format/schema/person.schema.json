@@ -91,6 +91,11 @@
             "memory": {
               "$ref": "#/definitions/NpcMemory",
               "description": "What the person remembers of talking: the lines said, the last one, the day last talked to (their own record)."
+            },
+            "fidelity": {
+              "type": "string",
+              "const": "local",
+              "description": "How much of the world's attention they have (docs/continent.md §9): `local` — one of the backdrop's people, who keeps to their own map (their days never leave it), is made with it and put away with it, and is left out of the hourly routing of the people who travel. Unset: a person of the story, kept and routed wherever they are."
             }
           },
           "required": [
@@ -215,6 +220,10 @@
             }
           ],
           "description": "How an actor looks: a look record (its body, a part per slot and a colour per colour key; the map sprite, the portrait and the look's tags and words are all drawn from it, docs/looks.md), or the key of a whole drawn sheet in the client's catalogue (a figure no parts make: a skeleton, a statue)."
+        },
+        "from": {
+          "type": "string",
+          "description": "The map whose file made it (a thing of that map's chunk, docs/continent.md §9): while it is as the file has it, the file is its record — a save keeps what differs, a map put away takes it along —, and once gone it stays gone."
         }
       },
       "required": [
@@ -659,6 +668,35 @@
           },
           "required": [
             "param"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "propEqualsParam": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/Reader"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "param": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "key",
+                "param"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "propEqualsParam"
           ],
           "additionalProperties": false
         },
@@ -1112,6 +1150,45 @@
           },
           "required": [
             "unpardonable"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fishingMap": {
+              "type": "string",
+              "const": "host"
+            }
+          },
+          "required": [
+            "fishingMap"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fishingBusy": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "fishingBusy"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fishingRoom": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "fishingRoom"
           ],
           "additionalProperties": false
         }
@@ -1702,6 +1779,10 @@
             }
           ],
           "description": "How an actor looks: a look record (its body, a part per slot and a colour per colour key; the map sprite, the portrait and the look's tags and words are all drawn from it, docs/looks.md), or the key of a whole drawn sheet in the client's catalogue (a figure no parts make: a skeleton, a statue)."
+        },
+        "from": {
+          "type": "string",
+          "description": "The map whose file made it (a thing of that map's chunk, docs/continent.md §9): while it is as the file has it, the file is its record — a save keeps what differs, a map put away takes it along —, and once gone it stays gone."
         }
       },
       "required": [
@@ -1929,6 +2010,11 @@
         "memory": {
           "$ref": "#/definitions/NpcMemory",
           "description": "What the person remembers of talking: the lines said, the last one, the day last talked to (their own record)."
+        },
+        "fidelity": {
+          "type": "string",
+          "const": "local",
+          "description": "How much of the world's attention they have (docs/continent.md §9): `local` — one of the backdrop's people, who keeps to their own map (their days never leave it), is made with it and put away with it, and is left out of the hourly routing of the people who travel. Unset: a person of the story, kept and routed wherever they are."
         }
       },
       "required": [

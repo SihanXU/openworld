@@ -8,6 +8,7 @@
 import { TICKS_PER_DAY, type Cond, type Effect, type Recipe, type Rule, type Text, type Tree } from '@openworld/engine'
 import { FORM_BY_ID } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
+import { stackKey } from '@openworld/engine'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 
@@ -15,6 +16,8 @@ const L = (en: string, zh: string): Text => ({ en, zh })
 export const COIN = 'item/misc/thornmark'
 /** How long a beast fed stays fed, and a cow milked stays milked (a game day). */
 export const FED_FOR = TICKS_PER_DAY
+/** The only bait before bait identity was saved: a plain stack of the ordinary bait form. */
+const PLAIN_BAIT_KEY = stackKey({ type: 'item/misc/bait' })
 
 /** Base rules (content rules.ts BASE_RULES): what the things are, wherever they are. */
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
@@ -86,6 +89,8 @@ const ANIMAL = { type: 'actor/creature/animal' }
 /** What a beast fed does: fed for a day (two, fed by a Herdsman: life.ts), and glad of it. */
 const fedFor = (days: number): Effect[] => [{ op: 'addStatus', status: 'fed', duration: FED_FOR * days }, { op: 'emote', mood: 'happy' }, { op: 'log', text: L('{host} eats happily.', '{host}吃得很开心。') }]
 const FED = fedFor(1)
+const BAIT_MISMATCH: Tree = { do: [{ op: 'log', text: L('Use up the bait already on this rod before changing bait.', '先用完鱼竿上现有的鱼饵，才能更换。') }] }
+const APPLY_BAIT: Tree = { do: [{ op: 'emit', impulse: 'notify', to: 'item', params: { what: 'bait', casts: { param: 'casts' }, baitKey: { param: 'baitKey' } } }, { op: 'destroy' }] }
 const tagged = (id: string): Cond => ({ has: { role: 'actor', tag: `skill:${id}` } })
 /** Fed: for a day, or two for a Herdsman; with what else the feeding brings (a hen's egg, the call to a mate). */
 const fed = (...extra: Effect[]): Tree => ({ if: tagged('herdsman'), then: { do: [...fedFor(2), ...extra] }, else: { do: [...FED, ...extra] } })
@@ -191,10 +196,41 @@ export const HOMESTEAD_RULES: Rule[] = [
   story({
     id: 'home/bait',
     label: L('Bait {target}', '给{target}挂饵'),
-    doc: 'Bait used on a fishing rod: the rod is told, and keeps the casts it is good for; the bait is used up.',
+    doc: 'Bait used on a fishing rod: matching bait adds its own casts to the rod; different bait cannot be mixed until the current bait is spent. The bait is used up only when accepted.',
     host: { tags: ['bait'] },
     on: 'act/use',
-    tree: { if: { is: { role: 'target', sel: { tags: ['tool:fishing'] } } }, then: { do: [{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'bait', casts: { prop: 'casts', of: 'host' } } }, { op: 'destroy' }] }, else: 'inherit' },
+    tree: { if: { is: { role: 'target', sel: { tags: ['tool:fishing'] } } }, then: { do: [{ op: 'emit', impulse: 'notify', to: 'host', item: 'target', params: { what: 'bait-check', casts: { prop: 'casts', of: 'host' }, baitKey: { stackKeyOf: 'host' } } }] }, else: 'inherit' },
+  }),
+  story({
+    id: 'home/bait-check',
+    doc: 'The bait host checks the rod it was actually used on before it destroys itself. Its own stack identity is derived by the engine and carried to the rod only after a match; stale or different bait leaves the bait untouched.',
+    host: { tags: ['bait'] },
+    on: 'impulse/notify',
+    tree: {
+      if: { param: { key: 'what', cmp: 'bait-check' } },
+      then: {
+        if: { all: [{ same: ['host', 'instrument'] }, { is: { role: 'item', sel: { tags: ['tool:fishing'] } } }] },
+        then: {
+          if: { prop: { role: 'item', key: 'bait', cmp: { gt: 0 } } },
+          then: {
+            if: { prop: { role: 'item', key: 'baitKey' } },
+            then: { if: { propEqualsParam: { role: 'item', key: 'baitKey', param: 'baitKey' } }, then: APPLY_BAIT, else: BAIT_MISMATCH },
+            else: { if: { param: { key: 'baitKey', cmp: PLAIN_BAIT_KEY } }, then: APPLY_BAIT, else: BAIT_MISMATCH },
+          },
+          else: APPLY_BAIT,
+        },
+        else: 'inherit',
+      },
+      else: 'inherit',
+    },
+  }),
+  story({
+    id: 'home/rod-panel',
+    label: L('Choose bait for {instrument}', '给{instrument}装饵'),
+    doc: 'Right-clicking open ground or yourself with a fishing rod opens its bait chooser; other targets keep their own action.',
+    host: { type: 'item/tool/fishing_rod' },
+    on: 'act/use',
+    tree: { if: { same: ['actor', 'target'] }, then: { do: [{ op: 'panel', panel: 'bait' }] }, else: 'inherit' },
   }),
   story({
     id: 'home/rod',
@@ -203,7 +239,7 @@ export const HOMESTEAD_RULES: Rule[] = [
     on: 'impulse/notify',
     tree: {
       if: { param: { key: 'what', cmp: 'bait' } },
-      then: { do: [{ op: 'addProp', key: 'bait', delta: { param: 'casts' } }, { op: 'log', text: L('You bait the hook.', '你挂好了鱼饵。') }] },
+      then: { do: [{ op: 'addProp', key: 'bait', delta: { param: 'casts' } }, { op: 'setProp', key: 'baitKey', value: { param: 'baitKey' } }, { op: 'log', text: L('You bait the hook.', '你挂好了鱼饵。') }] },
       else: { if: { param: { key: 'what', cmp: 'cast' } }, then: { do: [{ op: 'addProp', key: 'bait', delta: -1, min: 0 }] }, else: 'inherit' },
     },
   }),

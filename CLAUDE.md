@@ -5,7 +5,8 @@ patches undefined interactions at runtime. Successor to BardOS (`C:\Users\chica\
 Story and world: [docs/lore.md](docs/lore.md) (the user's canonical setting: the Five Sufferings, the
 First Night, the five Seal-bearers; every chapter follows it) and [docs/chapter-1.md](docs/chapter-1.md).
 Design: [docs/design.md](docs/design.md); the agreed world model and base gameplay (not yet built,
-steps W1–W10): [docs/world-model.md](docs/world-model.md). Paper draft lives in Notion ("Large Symbolic World").
+steps W1–W10): [docs/world-model.md](docs/world-model.md); the continent — six regions round the Holy City, the backdrop
+that fills them, the phases of scaling A–E (A–D built 2026-10-18): [docs/continent.md](docs/continent.md). Paper draft lives in Notion ("Large Symbolic World").
 OpenWorld is the engine and, for now, also the name of its first game: the engine side lives in `packages/`,
 each game in `games/<id>/` (this one `games/openworld/`), and the OpenWorld Editor, a game-making program in the
 manner of RPG Maker (a local server and page, or a desktop application, over projects in any folder) —
@@ -44,7 +45,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   dispatch + tick + movement + combat (`engine.ts`), one goal system for every actor (`behaviour.ts`:
   goals in each type's order — encounter, threat, follow, schedule, home, idle; the people's goals and
   their real work in `npc.ts`, the creatures' in `creatures.ts`; a module's goals join them), Mod port: ModSpec / ModRequest / validatePatch / records
-  (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`),
+  (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`: what the view shows and round it),
+  a map's things kept as what differs from its file and the maps far behind put away (`sparse.ts`, docs/continent.md §13:
+  `from`, `state.chunks`, `Game.keepMaps`/`trim`, the index as the file of the people who travel), the world's indices by
+  type, person, prop, kept cell, agent and status by map (`world.ts`: `ofType`, `people`, `withProp` — never a scan over every thing),
   new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), the story's one
   script (`story.ts`, world-model.md §6.12: steps with triggers — a scene takes control, a beat does
@@ -122,7 +126,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `gameMode.ts` (the game's settings, modules, parameters, cover, interface words, factions, the rest of the
   ontology and the player's tables), `assetsMode.ts` + `sheet.ts` (the catalogue cut from pictures, the files,
   the pack, what needs a picture), `exportDialog.ts`, `store.ts`
-  the project in memory (edits, undo and redo, save, compiled as it is now), `canvas.ts` the runtime's WorldScene with a
+  the project in memory (edits, undo and redo, save, compiled as it is now: after a stroke the maps alone, the whole once editing rests), `canvas.ts` the runtime's WorldScene with a
   free camera (the right button picks, the middle pans, Ctrl+wheel zooms), `mapMode.ts` (four layers and their tools; `mapEdit.ts`
   the edits — shapes, fill, blocks copied, pasted and moved, buildings, rooms, the interior behind a door —, `mapForms.ts` a map's
   settings, `mapTree.ts` the maps' tree and the world overview, `thumbs.ts` the palettes' pictures; `quickEvents.ts` + `events.ts` the quick events — a door, a chest, a sign, a bed, a person,
@@ -139,19 +143,32 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - `games/starter` — the minimal game, data only (S6), with its own catalogue and assets (a subset of the CC0
   pack): the kernel with no module plays it (`test/kernel.test.ts`); the editor's new project.
 - `games/openworld/content` — ontology (terrains, statuses, elements, types), item catalogue
-  (forms × materials × qualities × elements), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
+  (forms × materials × qualities × elements; the continent's goods, `goods.ts`: each region's line, local kinds and named
+  pieces as variants of the base forms, and `stockFor` what a place of a region keeps — docs/continent.md §11), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
   story rules and invariants (`ford.ts`), the prologue's beats and lessons (`prologue.ts`), the main quest's rules (`quest.ts`,
   docs/main-quest.md), the quests (`quests/`: the main line, the people's errands through `errand()`, the radiant favours, the fairy's guides — teaching quests of the kind `guide` she begins herself on the story's beats, `guides.ts`; docs/quests.md),
   Chapter 1's facts and rules (`chapter1.ts`; its maps and scenes in
   `tools/src/demo/quest/chapter1.ts`, docs/chapter-1.md), the Pilgrim's Road's facts, wayside shrines and their rules
   (`pilgrimage.ts`; its maps and scenes in `tools/src/demo/quest/pilgrimage.ts`, docs/chapter-1.md §14), the fairy's boons (`boons.ts`), the bosses (docs/bosses.md, docs/skills.md: the White Knight and the dragon of Cinder Peak, and three for later — their kits, fights and `boss/<id>` rules, the briars and embers they leave, defeat rules and compatibility migration: `bosses.ts`, `migrateBosses.ts`), the minor monsters' kits and rules (`kits.ts`, docs/creatures.md), what they leave when felled (`drops.ts`: each kind's makeup, the gel, venom sac and ectoplasm only monsters give, the antidote's rules), their levels and numbers (`levels.ts`: one curve read through each kind's role), what both kits share — the helpers, the marks' colours, what clings and the one `body/afflict` rule (`afflictions.ts`), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules, prices, and `residence`: the Held Ground's beds for one asked at full regard, taken by the society module's `moveIn`), the Held Ground (`haven.ts`: its steward's panel — the land, its grounds, its buildings and the residents' tents, `HAVEN_UPGRADES` — and the ground's stock; `homestead.ts` its stall, crops, beasts and fish; docs/homestead.md), gear (docs/gear.md: `sets.ts` each profession's armour and trinket sets, forged at an anvil; `trophies.ts` each monster kind's own piece with its pity, the families' sets, the affix table), Firstlight's shops (`village.ts`), the migrations of older saves (`migrate*.ts`: among them `migrateHaven` the widening errands gone, `migrateTents` the tents' rooms, `migratePlots` the Held Ground's plots and the loom, `migrateStock` the merchants' goods, `migrateOverworld`, `migrateSmithy`), its map files' terrain characters (`chunk.ts`), and
+  (`pilgrimage.ts`; its maps and scenes in `tools/src/demo/quest/pilgrimage.ts`, docs/chapter-1.md §14), the fairy's boons (`boons.ts`), the bosses (docs/bosses.md, docs/skills.md: the White Knight and the dragon of Cinder Peak, and three for later — their kits, fights and `boss/<id>` rules, the briars and embers they leave, defeat rules and compatibility migration: `bosses.ts`, `migrateBosses.ts`), the minor monsters' kits and rules (`kits.ts`, docs/creatures.md), what they leave when felled (`drops.ts`: each kind's makeup, the gel, venom sac and ectoplasm only monsters give, the antidote's rules), what both kits share — the helpers, the marks' colours, what clings and the one `body/afflict` rule (`afflictions.ts`), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules, prices, and `residence`: the Held Ground's beds for one asked at full regard, taken by the society module's `moveIn`), the Held Ground (`haven.ts`: its steward's panel — the land, its grounds, its buildings and the residents' tents, `HAVEN_UPGRADES` — and the ground's stock; `homestead.ts` its stall, crops, beasts and fish; docs/homestead.md), gear (docs/gear.md: `sets.ts` each profession's armour and trinket sets, forged at an anvil; `trophies.ts` each monster kind's own piece with its pity, the families' sets, the affix table), Firstlight's shops (`village.ts`), the migrations of older saves (`migrate*.ts`: among them `migrateHaven` the widening errands gone, `migrateTents` the tents' rooms, `migratePlots` the Held Ground's plots and the loom, `migrateStock` the merchants' goods, `migrateOverworld`, `migrateSmithy`), its map files' terrain characters (`chunk.ts`), and
+  (`pilgrimage.ts`; its maps and scenes in `tools/src/demo/quest/pilgrimage.ts`, docs/chapter-1.md §14), the fairy's boons (`boons.ts`), the bosses (docs/bosses.md, docs/skills.md: the White Knight and the dragon of Cinder Peak, and three for later — their kits, fights and `boss/<id>` rules, the briars and embers they leave, defeat rules and compatibility migration: `bosses.ts`, `migrateBosses.ts`), the minor monsters' kits and rules (`kits.ts`, docs/creatures.md), what both kits share — the helpers, the marks' colours, what clings and the one `body/afflict` rule (`afflictions.ts`), the look table and its generator (`looks.ts`: bodies, parts, colours, `generateLook` seeded by a person's id, `describeLook`), the people's social rules and numbers (`social.ts`: deeds and fines, the watches, talk verbs, the people's rules, prices, and `residence`: the Held Ground's beds for one asked at full regard, taken by the society module's `moveIn`), the Held Ground (`haven.ts`: its steward's panel — the land, its grounds, its buildings and the residents' tents, `HAVEN_UPGRADES` — and the ground's stock; `homestead.ts` its stall, crops, beasts and fish; docs/homestead.md), gear (docs/gear.md: `sets.ts` each profession's armour and trinket sets, forged at an anvil; `trophies.ts` each monster kind's own piece with its pity, the families' sets, the affix table), Firstlight's shops (`village.ts`), the migrations of older saves (`migrate*.ts`: among them `migrateHaven` the widening errands gone, `migrateTents` the tents' rooms, `migratePlots` the Held Ground's plots and the loom, `migrateStock` the merchants' goods, `migrateOverworld`, `migrateSmithy`), its map files' terrain characters (`chunk.ts`), and
+  the continent's regions (`regions.ts`: one per seal round the Holy City, which are backdrop, the untold gate), and
   `game.ts`, the GameDef the engine side is handed.
 - `games/openworld/public` — what the game serves: `assets/na/` (the pack's subset), `assets/lsw/` (the project's
   own art), `world/` (generated by `gen:world`, not committed).
-- `games/openworld/tools` — `art/animals.ts` (the project's own sprites → `public/assets/lsw/`), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` (the Pilgrim's Road before the knight in `quest/pilgrimage.ts`) → `public/world/`, each map from its own seed: `builder.ts` the map DSL
+- `games/openworld/tools` — `demo/continent/people.ts` + `folk.ts` (the backdrop's people: a household to every room behind
+  its places' doors, `npc.fidelity: 'local'`, laid into its places' files; docs/continent.md §12), `demo/scale.ts` (`npm run scale`: fifty maps, a tick, a frame, a save; and `demo/toolchain.ts`, the world's files and the compile, whole and a map alone), `art/animals.ts` (the project's own sprites → `public/assets/lsw/`), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` (the Pilgrim's Road before the knight in `quest/pilgrimage.ts`) → `public/world/`, each map from its own seed: `builder.ts` the map DSL
   with the tools of composition — curved paths, organic shapes, fences and yards, small things by masks,
   anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants; `village.ts` Firstlight's houses and the rooms
-  behind their doors; `interiors.ts` the rooms behind the other doors and the tents (Emberfall's houses, the East Road
+  behind their doors; `overworld.ts` the world map from `continent/continent.json` with the hand-made maps on their
+  cells; `continent/` the continent (docs/continent.md): `generate.ts` its generator (land, the Ford's barrier, regions,
+  grounds, rivers, the gazetteer, roads, reach → `continent.json`, `npm run continent`), `names.ts` places named in both
+  languages, `backdrop.ts` a map for every place by its kind and region (the backdrop: `MapData.backdrop`, no story, its own checks
+  `test/continent.test.ts`, not the demo's minimality; a city by its quarter's theme), `rooms.ts` a room behind every
+  building's door there, furnished by what the building is; a region's look is `RegionDef.look` (the world filter's
+  grade and a shade, sent with the map); `stock.ts` what every backdrop place and room keeps — its houses',
+  shops', smithies', inns', temples' stores and the dark's chests, by region and use, within capacity, a room's its
+  household's (`test/goods.test.ts`); `interiors.ts` the rooms behind the other doors and the tents (Emberfall's houses, the East Road
   farmhouse, the ferry camp's tent, the rotted one, Alberic's); `quest/haven.ts` the Held Ground, its plots and its four
   grounds;
   `people/*.ts` one record per person (`person.ts`: a gender and the look pins the author chose; whether they fight, keep a watch, what they trade — every person does, what fits who they are —, their purse and honesty), `people.ts` `HOUSEHOLDS`; `check.ts` a headless two-day playtest;
@@ -169,7 +186,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   uses it); `bundle.ts` a bundle by URL → the game, and its plugins; `play/` the engine's player, no game in its
   build (`?game=<url>`, `npm run play`, `npm run build:player`); `main.ts` the page and `worker.ts` the engine thread, each loaded by a game's entry;
   `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
-  `render/scene.ts` renders snapshots with the Ninja Adventure pack (`render/depth.ts` the draw order; `render/worldfilter.ts` the world filter a game's `worldFilter` asks for — its grade, ink, paper and hatching — the options' strength, and the signal camera that keeps telegraphs above it); `assets/figure/` draws looks
+  `frameDelta.ts` frames as what changed (the page puts them back together), `render/scene.ts` renders snapshots with the Ninja Adventure pack (`render/depth.ts` the draw order; `render/worldfilter.ts` the world filter a game's `worldFilter` asks for — its grade, ink, paper and hatching — the options' strength, and the signal camera that keeps telegraphs above it); `assets/figure/` draws looks
   (docs/looks.md): the 24x36 map sprite: the bases and their walk (`bases.ts`: the man, the woman, the child), and frame by frame the outfit and what is worn (`baseoutfit.ts`), the head's parts (`basehead.ts`) and the hair (`basehair.ts`), drawn over ComfyUI drafts (`tools/src/art/looks/sprite/`), the legs and shoes laid on as colour (`basefeet.ts`); the full-body portrait (a dark-fairy-tale line style, every body its own face; its bust in the dialogue box, the whole figure in the creator) from the cut layers in
   `public/assets/lsw/Looks/portrait`, both repainted from the look's colours; `ui/creator.ts` the new game's character creator; `assets/types.ts` the catalogue's
   contract; `assets/ground.ts` autotiles (the blob layout); `ui/` the Stardew-style UI (`hud.ts` clock, bars,
@@ -310,8 +327,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 
 ```bash
 npm install
-npm run gen:world        # the Ford (default world)
+npm run gen:world        # the Ford (default world), the continent's backdrop with it
+npm run continent        # the continent made again for the hand-made places (only after one moves) → continent.json
 npm run check:world      # headless playtest of it: days kept over two game days, what the world asked
+npm run scale            # the world at scale: fifty maps walked into, a tick, a frame on the world map, a save
 npm run assets           # copy the catalogue's subset of the asset pack into public/assets/na
 npm run dev              # client at http://localhost:5173 + the modder on :8787 (asks for its model; dev:client for the client alone)
 npm run dev -- --backend claude-code   # the modder through claude -p (Opus 5.5, effort low)

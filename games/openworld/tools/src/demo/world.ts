@@ -10,7 +10,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@openworld/engine'
-import { QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, GUIDE_BEATS, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, favouriteFor, generateLook, type RawChunk } from '@openworld-game/content'
+import { REGIONS, QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, GUIDE_BEATS, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, favouriteFor, generateLook, type RawChunk } from '@openworld-game/content'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
@@ -19,7 +19,9 @@ import { QUEST_SCENES } from './quest/scenes.ts'
 import { PAT, PROLOGUE, TUTORIAL, buildFoot, buildSummit, buildTutorial } from './prologue.ts'
 import { BARROW, HOLLOW, buildBarrow, buildHollow, buildOssuary, buildSanctum } from './hollow.ts'
 import type { PersonDef, Slot } from './person.ts'
-import { buildOverworld, placeCells, siteOf } from './overworld.ts'
+import { buildOverworld, placeCells, readContinent, siteOf } from './overworld.ts'
+import { backdropMeta, buildBackdrop } from './continent/backdrop.ts'
+import { peopleBackdrop } from './continent/people.ts'
 import { HOUSEHOLDS, PEOPLE, householdOf } from './people.ts'
 import { buildHaven, buildHavenGrounds } from './quest/haven.ts'
 import { villageInteriors, villageTown } from './village.ts'
@@ -586,10 +588,23 @@ const scenes: StepDef[] = [
 
 export interface FordWorld {
   index: WorldIndex
+  /** The played maps and the overworld. */
   chunks: RawChunk[]
+  /** The backdrop's maps (docs/continent.md): in the index, written with the world, loaded by no test of the played maps. */
+  backdrop: RawChunk[]
+  /** Where each hand-made map lies on the overworld, from the Ford's cell. */
+  cells: Map<string, { x: number; y: number }>
 }
 
-export function buildFord(): FordWorld {
+/** The backdrop's maps, made once (the continent is data: they come out the same on every build), and their people by map. */
+let backdropMaps: RawChunk[] | undefined
+let backdropPeople = new Map<string, number>()
+
+/**
+ * The world: the Ford and every hand-made map round it, the overworld, the backdrop. `overworld: false` leaves the
+ * overworld and the backdrop out (the continent's generator asks only where the hand-made maps lie).
+ */
+export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   // each map from its own seed: the same world on every build, and one map's draws never move another's
   reseed(4242)
   const m = buildMap()
@@ -756,13 +771,21 @@ export function buildFord(): FordWorld {
     if (c) b.site = siteOf(c)
   }
   const chunks = builders.map((b) => b.chunk())
-  reseed(4260)
+  if (opts.overworld === false) return { index: undefined as unknown as WorldIndex, chunks, backdrop: [], cells }
   const overworld = buildOverworld(chunks, cells)
+  if (!backdropMaps) {
+    const continent = readContinent()
+    backdropMaps = buildBackdrop(continent)
+    // the backdrop's people, made into its places' files (docs/continent.md §11): their records are their places', never the index's
+    backdropPeople = peopleBackdrop(backdropMaps, continent)
+  }
+  const backdrop = backdropMaps
   let items = 0
   let fixtures = 0
   let creatures = 0
   const kinds = new Set<string>()
-  for (const e of chunks.flatMap((c) => c.entities)) {
+  // what the world holds: the played maps and the backdrop's
+  for (const e of [...chunks, ...backdrop].flatMap((c) => c.entities)) {
     if (e.type.startsWith('item/')) (items++, kinds.add(`${e.type}|${(e.tags ?? []).join(',')}`))
     else if (e.type.startsWith('fixture/')) fixtures++
     else if (e.type.startsWith('actor/creature')) creatures++
@@ -781,7 +804,9 @@ export function buildFord(): FordWorld {
     // one comes round in the clearing early in the morning: a long day to get ready for the night
     starts: { tutorial: { at: { map: tutorial.id, x: TUTORIAL.spawn[0], y: TUTORIAL.spawn[1] }, hour: 7, statuses: { out_cold: 50 } } },
     startHour: START_HOUR,
-    maps: [...builders.map((b, i) => metaOf(b, chunks[i])), { id: overworld.map.id, name: overworld.map.name, kind: overworld.map.kind, region: overworld.map.region, width: overworld.map.width, height: overworld.map.height, portals: [], npcs: 0, items: 0 }],
+    maps: [...builders.map((b, i) => metaOf(b, chunks[i])), { id: overworld.map.id, name: overworld.map.name, kind: overworld.map.kind, region: overworld.map.region, width: overworld.map.width, height: overworld.map.height, portals: [], npcs: 0, items: 0 }, ...backdrop.map((c) => ({ ...backdropMeta(c), npcs: backdropPeople.get(c.map.id) ?? 0, ...(c.map.regions && Object.keys(c.map.regions).length && { regions: c.map.regions }) }))],
+    // the continent's regions (docs/continent.md), as the world map draws them
+    regions: REGIONS.map((r) => ({ id: r.id, name: r.name, color: r.color, ...(r.backdrop && { backdrop: true }), ...(r.look && { look: r.look }) })),
     npcs,
     codex: codexEntries(),
     player: {
@@ -799,7 +824,7 @@ export function buildFord(): FordWorld {
     // the quests (docs/quests.md): the main line, what the people ask, the radiant favours
     quests: QUESTS,
     waypoints: chunks.flatMap((c) => c.entities.filter((e) => e.type === 'fixture/sacred/waypoint').map((e) => ({ id: e.id, map: c.map.id, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: e.name ?? L('Waypoint', '传送雕像') }))),
-    stats: { maps: builders.length, npcs: npcs.length, creatures, items, itemKinds: kinds.size, fixtures },
+    stats: { maps: builders.length + backdrop.length, npcs: npcs.length + [...backdropPeople.values()].reduce((a, b) => a + b, 0), creatures, items, itemKinds: kinds.size, fixtures },
     steps,
     invariants: INVARIANTS,
     // the story's facts, and the topics it raises itself (its news: no patch raises one)
@@ -812,7 +837,7 @@ export function buildFord(): FordWorld {
       { day: 2, from: 8, to: 24, weather: 'sun' },
     ],
   }
-  return { index, chunks: [...chunks, overworld] }
+  return { index, chunks: [...chunks, overworld], backdrop, cells }
 }
 
 /**
@@ -846,12 +871,12 @@ function placeMaps(builders: MapBuilder[], origin: MapBuilder): Map<string, { x:
 // =================================================================== write
 
 if (process.argv[1] && fileURLToPath(import.meta.url).toLowerCase() === resolve(process.argv[1]).toLowerCase()) {
-  const { index, chunks } = buildFord()
+  const { index, chunks, backdrop } = buildFord()
   rmSync(OUT, { recursive: true, force: true })
   mkdirSync(join(OUT, 'maps'), { recursive: true })
-  for (const c of chunks) writeFileSync(join(OUT, 'maps', `${c.map.id}.json`), JSON.stringify(c))
+  for (const c of [...chunks, ...backdrop]) writeFileSync(join(OUT, 'maps', `${c.map.id}.json`), JSON.stringify(c))
   writeFileSync(join(OUT, 'index.json'), JSON.stringify(index))
   const lines = PEOPLE.reduce((n, p) => n + p.lines.length, 0)
   const s = index.stats
-  console.log(`The Ford: ${s.maps} maps, ${s.npcs} people (${lines} lines), ${s.creatures} creatures, ${s.items} items (${s.itemKinds} kinds), ${s.fixtures} fixtures → ${OUT}`)
+  console.log(`The Ford: ${s.maps} maps (${backdrop.length} of them backdrop), ${s.npcs} people (${lines} lines), ${s.creatures} creatures, ${s.items} items (${s.itemKinds} kinds), ${s.fixtures} fixtures → ${OUT}`)
 }

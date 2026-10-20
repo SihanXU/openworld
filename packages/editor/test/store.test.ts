@@ -68,4 +68,27 @@ describe.skipIf(!existsSync(STARTER))('the editor\'s store', () => {
     s.undo()
     expect(s.list('people').map((p) => p.file)).toEqual(['people/mira.json'])
   })
+
+  it('after a stroke on a map, compiles that map alone and keeps the rest; the whole once editing rests, and says so', async () => {
+    const s = fresh()
+    s.rest = 20
+    const said: string[] = []
+    s.on((why) => said.push(why))
+    const first = s.compiled()
+    s.change<RawChunk>('maps/glade.json', 'paint', (c) => (c.map.rows[2] = 'T~' + c.map.rows[2].slice(2)))
+    const quick = s.compiled()
+    // the map as it is now; the bundle and the problems as the last whole compile had them (a new compile, all the same)
+    expect(quick).not.toBe(first)
+    expect(quick.chunks.find((c) => c.map.id === 'glade')?.map.rows[2].startsWith('T~')).toBe(true)
+    expect(quick.bundle).toBe(first.bundle)
+    expect(s.compiled()).toBe(quick)
+    await new Promise((r) => setTimeout(r, 60))
+    expect(said).toContain('compiled')
+    const whole = s.compiled()
+    expect(whole.bundle).not.toBe(first.bundle)
+    expect(whole.chunks.find((c) => c.map.id === 'glade')?.map.rows[2].startsWith('T~')).toBe(true)
+    // anything but maps changed: the whole at once
+    s.remove('people/mira.json', 'remove Mira')
+    expect(s.compiled().index.npcs).toEqual([])
+  })
 })

@@ -90,7 +90,11 @@ describe('cells are things (world-model.md §4.6)', () => {
 
   it('a save keeps only the cells that changed', () => {
     const { game, eng, w } = ford()
-    const kept = () => Object.keys(game.save().state.entities).filter((id) => parseCellId(id))
+    // (among the things, or put away with their map: docs/continent.md §9)
+    const kept = () => {
+      const s = game.save().state
+      return [...Object.keys(s.entities), ...Object.values(s.chunks ?? {}).flatMap((c) => (c.things ?? []).map((t) => t.id))].filter((id) => parseCellId(id))
+    }
     expect(kept()).toEqual([])
     const map = w.map('ford')!
     const i = map.terrain.findIndex((t) => t === 'grass')
