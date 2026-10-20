@@ -520,6 +520,8 @@ export interface KitSkill {
   chance?: number
   /** Taken up only under this share of its full health (a crab that shells up when hurt). */
   below?: number
+  /** Never taken up once the caster carries this prop (a skill it uses once, its own rule setting the prop as it lands). */
+  spent?: string
   /** Held, stunned or frozen, it keeps the skill and its wind-up waits (otherwise the skill is lost). */
   steady?: boolean
   /** Another skill of the same kit it winds up as soon as this one lands, aimed afresh (a second arrow, a second wave). */

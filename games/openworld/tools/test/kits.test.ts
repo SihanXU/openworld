@@ -161,13 +161,15 @@ describe('creature kits', () => {
   })
 
   it('the elites: the Slime King, hurt, splits off two green slimes, once', () => {
-    const { w, map, spawn, run } = arena()
+    const { eng, w, map, spawn, run } = arena()
     const king = spawn('actor/creature/slime/king_slime', 3, { hp: 40 })
     const greens = () => w.entitiesOnMap(map).filter((e) => e.type === 'actor/creature/slime/green_slime').length
     expect(run(60, () => greens() === 2)).toBe(true)
     expect(w.prop(king, 'split')).toBe(1)
-    // another split later gives no more
-    run(700)
+    // spent, it is never wound up again (its `spent` prop), and no more come off it
+    let again = false
+    run(1200, () => ((again ||= kitsOf(eng).pending.get(king.id)?.skill.id === 'split'), false))
+    expect(again).toBe(false)
     expect(w.entitiesOnMap(map).filter((e) => e.type === 'actor/creature/slime/green_slime').length).toBeLessThanOrEqual(2)
   })
 

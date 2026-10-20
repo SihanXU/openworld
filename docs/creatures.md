@@ -181,9 +181,11 @@ of a chain, no encounter).
 | | Stomp 跺地 | 1–2 cells | a disk of 2: atk × 1.5, earth, pushed 1; then the Aftershock: the ring 3 out, atk × 1 |
 | | Baleful Glare 独眼凝视 | in a row, 2–6 | a line of 6: atk × 0.8, stunned |
 | Slime King | Royal Bounce 王之弹跳 | 2–4 cells | a leap; a disk of 2 at the foe: atk × 1.5, its element |
-| | Split 分裂 | under half health | two green slimes come off it, once (its prop `split`) |
+| | Split 分裂 | under half health, not spent | two green slimes come off it, once (its prop `split`, which the skill's `spent` names: never wound up again) |
 
 A skill that is only ever the next of a chain (the Aftershock) has the range [0, 0], which the kit goal never meets.
+The warden's charge is meant to be dodged: one it catches is stunned for 1.5 s, longer than the 0.6 s the sweep winds
+up, so the sweep always lands after it (about atk × 3 and a push in all).
 Measured with gear of their level (minor-balance.test.ts): the warden 10 s and 24 health standing, 11 s and 6 dodging;
 the cyclops 10 s and 19, 14 s and 16; the King 8 s and 15 either way. Checks: kits.test.ts (the King splits once; the
 charge is followed by the sweep; the aftershock comes only after the stomp), kit-contract.test.ts (the elite tier).

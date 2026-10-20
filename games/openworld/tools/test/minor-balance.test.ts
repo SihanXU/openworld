@@ -88,7 +88,6 @@ describe('minor monsters\' balance', () => {
   })
   it.each(kinds)('%s: a fight long enough for its skill, won with gear of its level, never free', (type, role) => {
     const stand = duel(type, false)
-    if (process.env.DUEL_LOG) console.log(type, role, JSON.stringify(stand), JSON.stringify(duel(type, true)))
     expect(stand.won, 'won standing').toBe(true)
     expect(stand.lost, 'it costs something').toBeGreaterThan(0)
     // a swarm falls in a few blows; anything else lasts long enough to wind a skill up
