@@ -104,6 +104,10 @@ characters.AlbericHuman = { dir: 'lsw/Characters/Alberic', sheet: 'SpriteSheet.p
 function mon(folder: string, sheet = 'SpriteSheet.png', tint?: number): ActorDef {
   return { dir: 'Actor/Monster/' + folder, sheet, faceset: 'Faceset.png', cols: 4, rows: 4, ...(tint !== undefined ? { tint } : {}) }
 }
+/** One of the project's own creature sheets (tools/src/art/creatures.ts): the pack's monster layout, 4 directions x 4 steps. */
+function own(name: string): ActorDef {
+  return { dir: 'lsw/Creature/' + name, sheet: 'SpriteSheet.png', cols: 4, rows: 4 }
+}
 /** A character-layout sheet used as a creature (cols = directions, rows 0-3 walk, 4-6 extras). */
 function charCreature(name: string, tint?: number): ActorDef {
   return { ...charDef(name), ...(tint !== undefined ? { tint } : {}) }
@@ -779,18 +783,18 @@ export const CATALOG: Catalog = {
     'creature:bat': mon('BlueBat'),
     'creature:skeleton': charCreature('Skeleton'),
     // a zombie: the caveman, tinted the green of the grave
-    'creature:zombie': charCreature('Caveman2', 0x9fcf8a),
+    'creature:zombie': own('Zombie'),
     'creature:ghost': mon('Spirit'),
-    'creature:golem': charCreature('Statue'),
-    'creature:golem:stone_golem': charCreature('Statue'),
-    'creature:golem:earth': charCreature('Statue'),
-    'creature:golem:ice_golem': charCreature('Statue', 0xb0dcff),
-    'creature:golem:ice': charCreature('Statue', 0xb0dcff),
+    'creature:golem': own('StoneGolem'),
+    'creature:golem:stone_golem': own('StoneGolem'),
+    'creature:golem:earth': own('StoneGolem'),
+    'creature:golem:ice_golem': own('IceGolem'),
+    'creature:golem:ice': own('IceGolem'),
     'creature:imp': charCreature('DemonRed'),
     'creature:imp:fire_imp': charCreature('DemonRed'),
-    'creature:wisp': mon('Flam2'),
-    'creature:wisp:storm_wisp': mon('Flam2', 'SpriteSheet.png', 0xfff6a0),
-    'creature:crab': mon('Mollusc', 'Mollusc.png'),
+    'creature:wisp': own('StormWisp'),
+    'creature:wisp:storm_wisp': own('StormWisp'),
+    'creature:crab': own('Crab'),
     // the main quest's monsters
     'creature:spider': mon('SpiderRed'),
     // the sporecap: the pack's mushroom monster, whose first frame is also the mushroom and the fairy ring: tinted a
