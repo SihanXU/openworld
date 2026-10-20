@@ -744,6 +744,7 @@ undefined behaviour is exactly reaching an undefined leaf.
 | write only yourself | in an outcome the mutators throw unless what they change is its host, held by it, or made by it, and a fact unless the host is a resident (§5.15); the validator for patches; a lint over the base rules |
 | the root is total | the root has a rule for every kind and no `inherit` leaf |
 | no ties | the validator |
+| worth comes from what a thing is | the validator: a learned rule never writes what the economy reads — a thing's `value`, its material (the prop, a `material:` tag) and quality (its tag), and what its modules' economy names (`ModuleSpec.economy`: a piece of gear's level, what a merchant has each morning); the diagnostic says to make the host another thing (`transform`) or make what it gives (`spawn`). The repeat check counts a participant's worth that keeps rising as a yield (`yieldCycle`), whatever raised it. Found by the paper's attack set (2026-10-19) |
 | the kinds are closed | the engine emits only kinds of the tree |
 | relation difference | after every outcome and on entering a map |
 | playable without an AI | the story's critical path has no undefined leaf: the three routes, dry-run with the AI off |

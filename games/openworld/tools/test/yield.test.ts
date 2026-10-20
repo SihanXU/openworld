@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { Engine, ModPort, RuleLibrary, SANDBOX_MAP, buildSandbox, endlessYield, holeKey, repeatYields, scenarioEvent, validatePatch, type ModRequest, type Patch, type Ref, type Rule, type Scenario } from '@openworld/engine'
+import { Engine, ModPort, RuleLibrary, SANDBOX_MAP, buildModSpec, buildSandbox, buildScenario, endlessYield, holeKey, repeatYields, scenarioEvent, validatePatch, whyEndless, type GameEvent, type ModRequest, type Patch, type Ref, type Rule, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { FRONT, ORIGIN, SWEPT, targets, verbsFor } from '../src/coverage.ts'
 
@@ -245,5 +245,104 @@ describe('every chain ends (design.md A7), proven on the scene', () => {
       { ontology: onto, library: lib(), scenario: blowOnStatue() },
     )
     expect(gated.errors.join('\n')).not.toMatch(/chain:/)
+  })
+})
+
+// Worth from nothing (the paper's attack set, §7.3): a learned rule that raised its own host's `value` on every use
+// passed every check — the yield check counted things made, not what a thing is worth — and a seller turned it into
+// coin. What the economy reads of a thing comes from what it is: an answer never writes it, and the repeat check
+// counts a worth that keeps rising as a yield.
+describe('worth from nothing: what the economy reads is never an answer\'s to raise', () => {
+  const FEATHER = 'item/material/feather'
+  /** Someone holding a feather before a pot: a use no rule answers (an open leaf). */
+  const featherScene = (library = lib()) =>
+    buildSandbox(
+      {
+        entities: [
+          { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+          { key: 'feather', type: FEATHER, x: 2, y: 2, heldBy: 'actor' },
+          { key: 'pot', type: 'fixture/container/pot', x: 2, y: 1 },
+        ],
+        event: {},
+      } as unknown as Scenario,
+      onto,
+      library,
+    )
+  const use: GameEvent = { kind: 'act/use', host: { e: 'feather' }, roles: { actor: { e: 'actor' }, instrument: { e: 'feather' }, target: { e: 'pot' } }, params: {} }
+  const asked = (() => {
+    const eng = featherScene()
+    const res = eng.resolveEvent(use)
+    if (!res.hole || !res.open) throw new Error('the feather on the pot is not an open leaf any more: choose another scene')
+    return { scenario: buildScenario(eng, use), hole: holeKey(res.hole.rule.id, res.hole.path), at: res.open.path }
+  })()
+  const answer = (...effects: unknown[]): Patch => ({
+    artifacts: [{ kind: 'rule', rule: { id: 'patch/feather-on-pot', host: { type: FEATHER }, on: 'act/use', hole: asked.hole, at: asked.at, tree: { do: [{ op: 'log', text: 'The feather brushes the pot.' }, ...effects] }, label: 'Brush' } as unknown as Rule }],
+  })
+  const validate = (p: Patch, ontology = onto) => validatePatch(p, { ontology, library: lib(), scenario: asked.scenario })
+
+  it('refuses the coin farm the attack set found: the host\'s own value raised on every use', () => {
+    const res = validate(answer({ op: 'addProp', key: 'value', delta: 50 }))
+    expect(res.ok).toBe(false)
+    // the diagnostic says what the prop is, why it is refused, and what to write instead
+    expect(res.errors.join('\n')).toMatch(/never writes "value" \(what a thing of its kind is worth\): the economy reads it, and an answer that raises it makes something from nothing \(coin, once sold\) — to make the host worth more, make it another thing \(\{op: "transform"/)
+  })
+
+  it('refuses every write of what a price reads: its worth, its material, its quality, a piece of gear\'s level', () => {
+    for (const [effect, says] of [
+      [{ op: 'setProp', key: 'value', value: 999 }, /never writes "value"/],
+      [{ op: 'setProp', key: 'material', value: 'gold' }, /never writes "material" \(what it is made of/],
+      [{ op: 'addProp', key: 'level', delta: 1 }, /never writes "level" \(a piece of gear's level/],
+      [{ op: 'setProp', key: 'slot', value: 'hand' }, /never writes "slot"/],
+      [{ op: 'addTag', tag: 'material:gold' }, /never adds the tag "material:gold"/],
+      [{ op: 'addTag', tag: 'quality:masterwork' }, /never adds the tag "quality:masterwork" \(its quality/],
+      [{ op: 'removeTag', tag: 'quality:crude' }, /never removes the tag "quality:crude"/],
+      // and what a merchant has again each morning (the society module's economy): coin and goods to be had
+      [{ op: 'setProp', key: 'purse', value: 500 }, /never writes "purse" \(the coin a merchant has again each morning\)/],
+      [{ op: 'setProp', key: 'stock', value: 'item/material/gold_ore*99' }, /never writes "stock"/],
+      [{ op: 'setProp', key: 'restocked', value: -1 }, /never writes "restocked"/],
+    ] as const) {
+      const res = validate(answer(effect))
+      expect(res.ok, JSON.stringify(effect)).toBe(false)
+      expect(res.errors.join('\n'), JSON.stringify(effect)).toMatch(says)
+    }
+  })
+
+  it('takes the conversion the economy counts, and a prop of the host\'s own that no price reads', () => {
+    // the feather becomes gold ore (worth twelve times as much): one thing became another, priced as its kind
+    expect(validate(answer({ op: 'transform', into: 'item/material/gold_ore' })).errors).toEqual([])
+    expect(validate(answer({ op: 'setProp', key: 'ruffled', value: true })).errors).toEqual([])
+  })
+
+  it('the ModSpec says so, with the props the world\'s modules add', () => {
+    const rule = buildModSpec(onto).authoringRules.find((r) => /What a thing is worth/.test(r))
+    expect(rule).toMatch(/`value` \(what a thing of its kind is worth\)/)
+    expect(rule).toMatch(/`purse` \(the coin a merchant has again each morning\)/)
+    expect(rule).toMatch(/transform/)
+  })
+
+  it('a world without the society module keeps its kernel worth, and its own props are free', () => {
+    const kernel = { ...onto, modules: [] }
+    expect(buildModSpec(kernel).authoringRules.find((r) => /What a thing is worth/.test(r))).not.toMatch(/purse/)
+    expect(validatePatch(answer({ op: 'setProp', key: 'value', value: 999 }), { ontology: kernel, library: lib() }).errors.join('\n')).toMatch(/never writes "value"/)
+    expect(validatePatch(answer({ op: 'setProp', key: 'purse', value: 500 }), { ontology: kernel, library: lib() }).errors.join('\n')).not.toMatch(/never writes/)
+  })
+
+  describe('the repeat check counts a worth that keeps rising as a yield, whatever raised it', () => {
+    // rules put straight in a library (as content would be): past the validator's own reading of the effects
+    const at = (...rules: Omit<Rule, 'source'>[]) => whyEndless(featherScene(new RuleLibrary(rules as Rule[])), use, true)
+    const onFeather = (tree: Rule['tree']): Omit<Rule, 'source'> => ({ id: 'test/feather', host: { type: FEATHER }, on: 'act/use', tree })
+
+    it('a host dearer on every use is endless', () => {
+      expect(at(onFeather({ do: [{ op: 'addProp', key: 'value', delta: 50 }] }))).toMatch(/the worth of the item\/material\/feather still rising after \d+ replays: sold, it is coin from nothing/)
+    })
+
+    it('a worth that comes to an end, or goes round, is not', () => {
+      // raised to a ceiling and no further
+      expect(at(onFeather({ do: [{ op: 'addProp', key: 'value', delta: 50, max: 500 }] }))).toBeUndefined()
+      // one thing become another, once
+      expect(at(onFeather({ do: [{ op: 'transform', into: 'item/material/gold_ore' }] }))).toBeUndefined()
+      // and back again: dearer, then cheaper, the same round for ever (no worth gained by going round)
+      expect(at(onFeather({ do: [{ op: 'transform', into: 'item/material/gold_ore' }] }), { id: 'test/ore', host: { type: 'item/material/gold_ore' }, on: 'act/use', tree: { do: [{ op: 'transform', into: FEATHER }] } })).toBeUndefined()
+    })
   })
 })

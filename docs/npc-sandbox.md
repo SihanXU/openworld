@@ -165,6 +165,11 @@ story effect a game author could write around them.
   asked, a fifth more paid) —, r/250 below 0, r held between −50 and 100 (a fifth dearer at −50 and under).
   A fence (Tobin) buys what is not the seller's at half that (`fence` 0.5). A merchant does not buy back its own
   goods.
+- What prices and the morning read is never a learned rule's to write (2026-10-19, the paper's attack set: a rule
+  raising its own host's `value` on every use was coin once sold): a thing's `value`, its material and quality (the
+  kernel's), and the module's `economy` — a piece of gear's `level` and `slot`, a merchant's `purse`, `stock`,
+  `gearLevel` and `restocked`. The validator refuses an answer that writes one; the repeat check counts a worth that
+  keeps rising as a yield (design.md §5.13).
 
 ### 2.11 Needs (M3)
 People grow hungry (`maxHunger`, at half the player's pace). Hungry, the `need` goal: eat what they carry; buy a

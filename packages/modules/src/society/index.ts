@@ -57,8 +57,17 @@ export const societyModule: EngineModule = {
     need: { paced: true, run: (eng, e, sc) => conductOf(eng).need(e, sc) },
   },
   spec: {
+    // what its prices (social.ts `value`, `priceToBuy`, `priceToSell`) and a merchant's morning (`restock`) read
+    economy: {
+      level: "a piece of gear's level, a factor of its price",
+      slot: 'what makes a thing gear, whose level then counts in its price',
+      purse: 'the coin a merchant has again each morning',
+      stock: 'what a merchant has to sell again each morning',
+      gearLevel: 'the level of the gear a merchant stocks',
+      restocked: 'the day a merchant last had its stock again',
+    },
     primitives: {
-      own: 'own {to?} — the host is a role\'s now (its owner prop; no role: nobody\'s). A thing moved by one who is not its owner keeps whose it was (stolen is a thing held by one who does not own it)',
+      own:'own {to?} — the host is a role\'s now (its owner prop; no role: nobody\'s). A thing moved by one who is not its owner keeps whose it was (stolen is a thing held by one who does not own it)',
       witness: 'witness {} — the host (a seer) takes in what it saw (a seen event): the deed in it remembered (who did it if it knew them, else how they looked), its regard toward the doer lowered by the deed\'s weight, fear of the violent; on a presence: a face learnt, a stranger it remembered known again (docs/npc-sandbox.md)',
       tell: 'tell {to} — the host tells a role its fresh news (the deeds it knows of, not yet told it): it says the newest, and the role is told (notify what = news, param deeds)',
       hear: 'hear {} — the host takes in the news it is told (params deeds, from the source): second-hand, its regard toward the doers lowered by half the weight',

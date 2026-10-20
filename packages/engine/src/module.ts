@@ -37,6 +37,11 @@ export interface ModuleSpec {
   conditions?: string[]
   /** What an author must know of it. */
   rules?: string[]
+  /**
+   * The props its economy reads beyond a thing's kind, its material and its quality (the kernel's: mod.ts `economyOf`),
+   * each with what it is to that economy: a learned rule never writes them, since one an answer raises is coin from nothing.
+   */
+  economy?: Record<string, string>
 }
 
 export interface EngineModule {
