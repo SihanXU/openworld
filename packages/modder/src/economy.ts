@@ -38,7 +38,8 @@ const EPS = 1e-9
 export function economySteps(onto: Ontology, rules: Rule[], recovery: number, warnings: string[] = []): Step[] {
   const conversions = new Conversions(onto, rules, recovery, warnings)
   const out: Step[] = []
-  for (const r of deriveRecipes(conversions.index)) out.push({ name: `recipe ${r.id}`, takes: sum(r.needs.map((n) => [n.type, n.count])), gives: new Map([[r.make.type, 1]]) })
+  // a recipe makes as many as its type yields at once (a log into two planks), as the engine makes them
+  for (const r of deriveRecipes(conversions.index)) out.push({ name: `recipe ${r.id}`, takes: sum(r.needs.map((n) => [n.type, n.count])), gives: new Map([[r.make.type, r.count ?? 1]]) })
   for (const id of Object.keys(onto.types)) {
     const r = conversions.index.resolve(id)
     if (typeof r.props.maxHp === 'number') out.push(...conversions.broken(id))
@@ -207,8 +208,10 @@ class Conversions {
         if (type && n !== undefined && Number.isFinite(n)) for (const a of out) add(a.gives, type, Math.max(0, Math.floor(n)))
         else this.warn(path, 'dynamic type or output count')
       } else if (e.op === 'breakdown') {
+        // one of a thing made several at once leaves its share of the makeup (the engine divides by its yields)
         const r = this.index.resolve(ctx.host)
-        for (const m of r.makeup ?? []) for (const a of out) add(a.gives, m.type, m.count * (m.chance ?? 1) * this.recovery)
+        const share = 1 / Math.max(1, r.yields ?? 1)
+        for (const m of r.makeup ?? []) for (const a of out) add(a.gives, m.type, m.count * (m.chance ?? 1) * this.recovery * share)
       } else if (e.op === 'emit') {
         const item = ctx.roles.item?.type
         if (item && e.impulse === 'taken' && e.to === 'item' && e.params?.into === 'contents') {
