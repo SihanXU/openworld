@@ -815,7 +815,17 @@ export class Modder {
         const model = new Meter(this.backend!)
         const found = await this.audit(model, req, ep.patch!, ctx, h)
         this.opts.state.note('audit', { episode: ep.id, rules: ep.rules, confirmed: found.confirmed.map(({ evidence: _, ...f }) => f), unconfirmed: found.unconfirmed.map((u) => `${u.finding.title}: ${u.why}`), ...(found.error && { error: found.error }), usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
-        if (!found.confirmed.length) return
+        if (!found.confirmed.length) {
+          // what the sandbox reproduced but is no harm the code recognizes is not removed: a reviewer reads it
+          const odd = found.reproduced ?? []
+          if (!odd.length || !h.review.enabled) return
+          const flags = odd.map((u) => `the auditor showed, but the code does not count as harm: ${u.finding.kind}: ${u.finding.title}`)
+          const rm = new Meter(this.backend!)
+          const v = await this.review(rm, req, ep.patch!, ctx, h, flags)
+          this.opts.state.note('review', { episode: ep.id, rules: ep.rules, flags, ...v, usage: { calls: rm.calls, input: rm.input, output: rm.output, cost: rm.cost } })
+          if (v.verdict === 'revise' && v.notes.length && h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: ep, notes: v.notes } })
+          return
+        }
         // only the version audited leaves: one that replaced it under its id meanwhile (a revision) was not audited here
         const shipped = this.shipped.get(ep)
         const held = ep.rules.filter((id) => shipped !== undefined && this.opts.library.seqOf(id) === shipped)

@@ -151,7 +151,13 @@ What the patch is plainly meant to do is not a finding; nor is anything the worl
 You have tools: look (the scene) and run (play steps in a copy of the scene, with the patch and without it). Prove each finding: run it, then report it with the setup, the steps and the claims that must hold at the end.
 Answer with JSON only: {"findings": [{"title": "...", "kind": "farm|value|softlock|harm|runaway|other", "setup": [...], "steps": [...], "expect": [claims]}]}; {"findings": []} when you found nothing.
 Claims: {"count": {"type", "in"?: key, "atLeast": n}}, {"prop": {"key", "name", "atLeast"?: n, "atMost"?: n}}, {"status": {"key", "has"}}, {"gone": key}, {"is": {"key", "type"}}, {"events": {"atLeast": n}}.
-A finding counts only if the sandbox shows it with the patch and not without it.`
+A finding counts only if the sandbox shows it with the patch and not without it, and the code then sees one of these harms in it (your "kind" is a guess; the code judges):
+- farm: what a claim measures (a count, a number) grows further when your repeats are doubled: show a farm with a {repeat} step;
+- value: the things made are worth over three times what was used up (by the things' own value);
+- harm: an essential thing (the player, a companion, someone the story needs) or a resident is gone or down;
+- softlock: the actor still cannot act a minute after your steps;
+- runaway: more than 50 events for each act.
+Anything else you reproduce is not removed; it goes to a reviewer to read.`
 
 export function auditUser(req: ModRequest, patch: Patch, outcome: string): string {
   return [
