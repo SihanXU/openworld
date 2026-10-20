@@ -9,6 +9,8 @@ button:hover { background: #303850; }
 button.on { background: var(--ed-accent); color: #1a1408; border-color: transparent; }
 button:disabled { opacity: 0.45; cursor: default; }
 button.danger { border-color: #6b2b2b; color: #ffb3b3; margin-top: 10px; }
+/* (beside other buttons in a row it sits level with them) */
+.row > button.danger, .row button.danger, .db-head button.danger { margin-top: 0; }
 input, select, textarea { font: inherit; color: var(--ed-ink); background: #0f121a; border: 1px solid var(--ed-line); border-radius: 4px; padding: 3px 6px; }
 input[type=number] { width: 64px; }
 textarea { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; }
