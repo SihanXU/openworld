@@ -1,7 +1,7 @@
 import { Controls, type Dir, type Frame, type PlacementPreview, type PlacementRecipe, type Recipe, type Text } from '@openworld/engine'
 import { game, ontology, perGame } from '../game.ts'
 import type { Tile, ToWorker } from '../protocol.ts'
-import { esc, locale, tx } from './common.ts'
+import { esc, kbd, locale, tx } from './common.ts'
 import { artEpoch } from '../render/assets.ts'
 
 /** What the palette offers: a placement recipe (a campfire, a chest, sowing), or setting a built thing down (`put:<type>`). */
@@ -313,10 +313,10 @@ export class BuildingMode {
     const entries = this.entries()
     this.listSignature = `${entries.map((e) => e.id).join('|')}|${artEpoch}`
     if (!entries.some((e) => e.id === this.selected.id)) this.selected = entries[0] ?? NOTHING
-    this.panel.innerHTML = `<header><strong>${zh ? '建筑模式' : 'BUILD MODE'}</strong><button data-close="1" title="B / Esc">×</button></header>
+    this.panel.innerHTML = `<header><strong>${zh ? '建筑模式' : 'BUILD MODE'}</strong><button data-close="1" title="${esc([kbd('build'), 'Esc'].filter(Boolean).join(' / '))}">×</button></header>
       <nav><button data-category="building" class="${this.category === 'building' ? 'chosen' : ''}">${zh ? '建筑' : 'Structures'}</button><button data-category="farming" class="${this.category === 'farming' ? 'chosen' : ''}">${zh ? '种植' : 'Farming'}</button></nav>
       <div class="build-recipes">${entries.map((r) => `<button data-recipe="${r.id}" class="${r.id === this.selected.id ? 'chosen' : ''}"><span class="build-art" data-sprite="${r.sprite}"></span><span>${esc(tx(r.name))}</span></button>`).join('')}</div>
-      <div class="build-details"></div><footer>${zh ? '左键 / E 放置 · 按住左键拖动连续放置 · B / Esc / 右键退出<br>WASD 移动 · 世界时间继续' : 'Left click / E place · hold and drag to place a row · B / Esc / RMB exit<br>WASD move · Time keeps moving'}</footer>`
+      <div class="build-details"></div><footer>${esc(tx({ en: 'Left click / {key:hands} place · hold and drag to place a row · {key:use} turn · {key:build} / Esc / RMB exit', zh: '左键 / {key:hands} 放置 · 按住左键拖动连续放置 · {key:use} 转向 · {key:build} / Esc / 右键退出' }))}<br>${esc(tx({ en: '{key:move} move · Time keeps moving', zh: '{key:move} 移动 · 世界时间继续' }))}</footer>`
     this.panel.querySelectorAll<HTMLElement>('[data-sprite]').forEach((el) => {
       const c = this.paint?.(el.dataset.sprite!)
       if (c) el.append(c)
@@ -338,7 +338,7 @@ export class BuildingMode {
     const counts = !s.put && this.preview?.have ? this.preview.have : s.needs.map(countOf)
     const nameOf = (n: Entry['needs'][number]) => (n.type ? (carried.find((it) => it.type === n.type)?.name ?? n.name) : n.name)
     const turn = s.put === 'structure/stairs'
-      ? `<p>${zh ? 'R 旋转：楼梯朝箭头方向往上' : 'R turns it: the stairs go up the way the arrow points'}</p>`
+      ? `<p>${esc(tx({ en: '{key:use} turns it: the stairs go up the way the arrow points', zh: '{key:use} 旋转：楼梯朝箭头方向往上' }))}</p>`
       : lays(s.put)
         ? `<p>${zh ? `R 切换：铺在本层 / 铺成天花板（现在：${this.up ? '天花板' : '本层'}）` : `R switches: on this storey / as the ceiling (now: ${this.up ? 'the ceiling' : 'this storey'})`}</p>`
         : ''

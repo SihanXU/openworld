@@ -55,7 +55,7 @@ const spread = (chance: number): Effect => emit('element', { area: { radius: 1 }
 
 /** A place of the overworld (world-model.md §5.6): what is done to it from there is out of reach. */
 const SITE: Selector = { type: 'site' }
-const TOO_FAR = log('Too far to reach: go in first (E).', '够不着：先进去（E）。')
+const TOO_FAR = log('Too far to reach: go in first ({key:hands}).', '够不着：先进去（{key:hands}）。')
 
 const ROOTS: Rule[] = [
   rule({
@@ -67,7 +67,7 @@ const ROOTS: Rule[] = [
       DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND })),
       IF(
         is('target', SITE),
-        AS(L('Out of reach — go in first (E)', '够不着——先进去（E）'), DO(TOO_FAR)),
+        AS(L('Out of reach — go in first ({key:hands})', '够不着——先进去（{key:hands}）'), DO(TOO_FAR)),
         IF(
           param('attack', true),
           AS(L('Strike {target} with {instrument}', '用{instrument}打{target}'), DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND }))),
@@ -1734,8 +1734,8 @@ const JOURNEY: Rule[] = [
     on: 'impulse/handle',
     tree: IF(
       has('host', 'attuned'),
-      AS(L('Listen to {target}', '倾听{target}'), DO(log('The statue hums. Open the map (M) to travel to another one.', '雕像嗡嗡作响。打开地图（M）就能传送到别的传送雕像。'), { op: 'panel', panel: 'boons' })),
-      AS(L('Wake {target}', '唤醒{target}'), DO(add('attuned'), emit('notify', 'story', { what: 'waypoint' }), emit('notify', 'actor', { what: 'home', value: { idOf: 'host' } }), vfx('heal'), log('The statue wakes under your hand. (M: the map — travel to any statue you have woken.)', '雕像在你手下亮了起来。（M：地图——可以传送到任何唤醒过的传送雕像。）'))),
+      AS(L('Listen to {target}', '倾听{target}'), DO(log('The statue hums. Open the map ({key:map}) to travel to another one.', '雕像嗡嗡作响。打开地图（{key:map}）就能传送到别的传送雕像。'), { op: 'panel', panel: 'boons' })),
+      AS(L('Wake {target}', '唤醒{target}'), DO(add('attuned'), emit('notify', 'story', { what: 'waypoint' }), emit('notify', 'actor', { what: 'home', value: { idOf: 'host' } }), vfx('heal'), log('The statue wakes under your hand. ({key:map}: the map — travel to any statue you have woken.)', '雕像在你手下亮了起来。（{key:map}：地图——可以传送到任何唤醒过的传送雕像。）'))),
     ),
   }),
   rule({
@@ -1866,7 +1866,7 @@ const SITES: Rule[] = [
   }),
   rule({
     id: 'site/far',
-    label: L('Out of reach — go in first (E)', '够不着——先进去（E）'),
+    label: L('Out of reach — go in first ({key:hands})', '够不着——先进去（{key:hands}）'),
     doc: 'Anything else done to a place of the overworld (a blow, something put, taken) is out of reach: defined, nothing changes (the question would mix scales).',
     host: SITE,
     on: 'impulse',

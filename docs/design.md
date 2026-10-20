@@ -254,9 +254,23 @@ is where the AI answers ("put places; use applies").
 A creature does not take what is put on it; a rope *used* on it holds the rope out to it, and what
 it makes of that is its own nature, undefined until the AI says.
 
-Other keys: Esc (menu, and closes anything open), I (inventory), J (journal), M (map), 1–0, -, =
-and the wheel (toolbar), Shift (walk), WASD (move). Dialogue moves on with E or a click. R with a floor in
-hand turns the left click to the ceiling instead of using it (docs/building.md).
+Other keys: Esc (menu, and closes anything open), Tab (the bag, with tabs over it to the other panels;
+I too), J (journal), M (map), 1–0 and the wheel (toolbar), Shift+Tab and Shift+wheel (the next row to the
+toolbar), Shift (walk), WASD (move). Dialogue moves on with E or a click. R with a floor in hand turns the
+left click to the ceiling instead of using it (docs/building.md).
+
+**The keys are the player's** (2026-10-20, `runtime/src/keymap.ts`): every key the page answers to is an
+action's — the four inputs, the action on the keys, the attack, the steps, the panels, the toolbar, the skill
+bar —, two keys each at most, rebound in Options → Keys (a key another action holds trades places with it) or
+taken from a preset: A, the left hand on the keys and the right on the mouse (the default, the keys this
+section names), or B, both hands on the keys (J strikes, K is the action on the cell in front, L dashes). Esc,
+the developer's ` and the browser's own keys (Ctrl, Alt, F5, F11, F12) are never bound; the mouse's buttons
+are not keys. The map is the browser's, never the save's: the world never knows which keys move it, and the
+engine's inputs (and a lesson's locks) are the same whatever the keys. What the page says of a key follows
+the map: the tip, the key table, the corner buttons and slots, a lesson's glyph (its `key`, written as the
+default map has it), and any text's `{key:<action>}` — a game's words (a lesson, a quest's hint, a rule's
+line) and the interface's own name the action, never the letter (`{key:move}`, `{key:slots}`, `{key:casts}`
+for the groups; an aside naming a key the map leaves unbound goes). The wiki fills them with the default map.
 
 - **The instrument** is the selected toolbar slot: any carried thing, or an empty slot (none).
 - **The aim**: the point the mouse is on, when some input reaches it (so how far the pointer
@@ -341,7 +355,7 @@ was cut).
 - **Inventory**
   - 30 slots in three rows of ten; the first row is the toolbar (keys 1–0), and the selected
     slot is what the player holds; there is no separate hand slot.
-  - Tab brings the next row to the toolbar (Shift+Tab the previous one); a new kind takes the
+  - Shift+Tab (or Shift and the wheel, either way) brings the next row to the toolbar; a new kind takes the
     first free slot, the toolbar's first; with the bag full it stays on the ground. What the magnet
     pulls in never takes the selected slot while another is free (2026-10-20: the drops of a fight
     flew into the empty hand and the fist held them); a take (F) lands in the hand, as it means to.

@@ -115,7 +115,7 @@ or choosing from the chooser is told to the story (`ui` → `ui.<what>`), so a l
 | Stage | Lessons (locked ones marked *) |
 |---|---|
 | 1 | walk to the spot (WASD)*, F the berries*, their slot in hand*, right click eats* |
-| 2 | I opens the bag*, a stick, a stone, grass (F) |
+| 2 | Tab opens the bag* (I too), a stick, a stone, grass (F) |
 | 3 | C, the stone axe (only it can be made)* |
 | 4 | the axe in hand*, a tree in the grove (left click)*, C splits the logs into planks (only planks)* |
 | 5 | B, the campfire (only it; gathering allowed)*, C a torch, the fire lit (left click) |

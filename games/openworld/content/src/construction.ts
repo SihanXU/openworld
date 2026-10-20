@@ -20,7 +20,7 @@ export const BUILDINGS: PlacementRecipe[] = [
   building('campfire', 'Campfire', '营火', 'Light with a torch; warmth, cooking and a safe night.', '建好后用火把点燃，可取暖、烹饪、照亮夜晚。', 'fixture/light/campfire',
     [material('stone', 'Stone', '石头', 2), material('stick', 'Stick', '树枝', 2)],
     [put(0, SET_DOWN, 'tile'), put(0, 'build/'), put(1, 'build/'), put(1, 'build/')]),
-  building('crate', 'Crate', '板条箱', 'Compact storage. Leave build mode and press E to open.', '小型储物空间。退出建筑模式后按 E 打开。', 'fixture/container/crate',
+  building('crate', 'Crate', '板条箱', 'Compact storage. Leave build mode and press {key:hands} to open.', '小型储物空间。退出建筑模式后按 {key:hands} 打开。', 'fixture/container/crate',
     [material('plank', 'Plank', '木板', 2), hammer], [put(0, SET_DOWN, 'tile'), put(0, 'build/'), hit(1, 'build/')]),
   building('chest', 'Wooden Chest', '箱子', 'Larger storage for a growing camp.', '更大的储物空间，适合营地物资。', 'fixture/container/chest',
     [material('plank', 'Plank', '木板', 4), hammer], [put(0, SET_DOWN, 'tile'), put(0, 'build/'), put(0, 'build/'), put(0, 'build/'), hit(1, 'build/')]),

@@ -14,9 +14,12 @@ import type { PersonDef } from '../../tools/src/demo/person.ts'
 import { BUNDLE, CATALOG, WORLD } from './bundle.ts'
 import { pngSize } from './png.ts'
 import { FACE_PX, lookUrls } from './looks.ts'
+import { PRESETS, fillKeys } from '@openworld/runtime/src/keymap.ts'
 
-export const zh = (t?: Text | string): string => (t == null ? '' : typeof t === 'string' ? t : t.zh || t.en)
-export const enOf = (t?: Text | string): string => (t == null ? '' : typeof t === 'string' ? t : t.en)
+/** The keys a game's words name (`{key:take}`, runtime keymap.ts), as the default map has them: the wiki writes for any player. */
+const DEFAULT_KEYS = PRESETS.a()
+export const zh = (t?: Text | string): string => (t == null ? '' : fillKeys(typeof t === 'string' ? t : t.zh || t.en, DEFAULT_KEYS, 'zh'))
+export const enOf = (t?: Text | string): string => (t == null ? '' : fillKeys(typeof t === 'string' ? t : t.en, DEFAULT_KEYS, 'en'))
 
 // ------------------------------------------------------------------------------------------ sprites
 

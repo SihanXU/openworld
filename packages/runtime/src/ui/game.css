@@ -718,3 +718,24 @@ body.looks-page { background: #2b3550; color: var(--ink-warm); overflow: auto; }
 .gf-empty { padding: 14px 0; text-align: center; }
 .gf-foot { font-size: 11px; margin-top: 10px; text-align: center; }
 @media (max-width: 720px) { .gf-grid { grid-template-columns: 1fr 1fr; } }
+
+/* Tab's tabs (ui/paneltabs.ts): over whichever panel is open, a row of the others, each with its key */
+.panel-tabs { position: fixed; z-index: 42; left: 50%; top: 8px; transform: translateX(-50%); display: flex; gap: 4px; padding: 4px; max-width: calc(100vw - 32px); overflow-x: auto; background: linear-gradient(#e9b56c, #d39a52); border: 3px solid var(--wood-dark); border-radius: 8px; box-shadow: 0 0 0 2px var(--wood-edge), 0 4px 12px rgba(0, 0, 0, 0.4); }
+.panel-tabs .pt-tab { font: 13px var(--text); color: var(--ink-warm); background: var(--paper); border: 2px solid var(--wood-dark); border-radius: 5px; padding: 3px 8px; white-space: nowrap; cursor: pointer; }
+.panel-tabs .pt-tab.on { background: #fff3d0; box-shadow: inset 0 -3px 0 var(--wood-dark); font-weight: 700; }
+.panel-tabs .pt-tab kbd { font-size: 10px; color: var(--ink-warm); background: var(--paper-dark); border-color: var(--wood-dark); margin-left: 3px; }
+
+/* Options → Keys (ui/keyspage.ts) */
+.keys-page { display: flex; flex-direction: column; gap: 4px; font-family: var(--text); }
+.keys-page .kp-top { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.keys-page button { color: var(--ink-warm); background: var(--paper-dark); border: 2px solid var(--wood-dark); text-shadow: none; }
+.keys-page .kp-top button.on { background: var(--wood-dark); color: var(--paper); font-weight: 700; }
+.keys-page .kp-note { font-size: 12px; margin: 4px 0; opacity: 0.85; }
+.keys-page .kp-said { min-height: 1.2em; font-size: 12px; color: #8a3b12; }
+.keys-page h4 { margin: 8px 0 2px; }
+.keys-page .kp-row { display: grid; grid-template-columns: 1fr 96px 96px; gap: 6px; align-items: center; font-size: 13px; }
+.keys-page .kp-key { font: 12px var(--mono); min-height: 26px; padding: 2px 6px; color: var(--ink-warm); background: var(--paper); border: 2px solid var(--wood-dark); border-radius: 4px; cursor: pointer; }
+.keys-page .kp-key.empty { opacity: 0.55; }
+.keys-page .kp-key.asking { background: #ffe08a; animation: kp-blink 0.8s ease-in-out infinite; }
+@keyframes kp-blink { 50% { box-shadow: 0 0 0 3px #ffbf3c; } }
+@media (max-width: 520px) { .keys-page .kp-row { grid-template-columns: 1fr 72px 72px; } }
