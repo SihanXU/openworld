@@ -15,7 +15,7 @@ describe('OpenWorld from its bundle', () => {
   const bundle = JSON.parse(JSON.stringify(openworldBundle({ name: { en: 'OpenWorld', zh: 'OpenWorld' }, version: 'test' })))
   const g = clientGameOf(bundle, 'https://example.org/games/openworld/bundle.json')
 
-  it('has its tables as its app has them', () => {
+  it('has its tables and engine modules as its app has them', () => {
     expect(g.items).toEqual(CLIENT_GAME.items)
     expect(g.skills.all).toEqual(CLIENT_GAME.skills.all)
     expect(g.skills.professions).toEqual(CLIENT_GAME.skills.professions)
@@ -25,7 +25,7 @@ describe('OpenWorld from its bundle', () => {
     expect(g.looks.player).toEqual(CLIENT_GAME.looks.player)
     expect([...g.looks.worn].sort()).toEqual([...CLIENT_GAME.looks.worn].sort())
     expect(g.ontology()).toEqual(CLIENT_GAME.ontology())
-    expect(bundle.game.modules).toEqual(['classes', 'waypoints', 'boons', 'needs', 'society', 'loot', 'kits'])
+    expect(bundle.game.modules).toEqual(['classes', 'waypoints', 'boons', 'needs', 'society', 'loot', 'kits', 'fishing'])
   })
 
   it('has its shops, each shelf saying whether it buys from one', () => {
@@ -34,10 +34,10 @@ describe('OpenWorld from its bundle', () => {
     expect(g.crafting.shops!.flatMap((s) => s.shelves.filter((x) => x.sell).map((x) => x.group))).toEqual(['sell', 'store-sell'])
   })
 
-  it('its plugin brings its own panels (code, not data): the companion under two keys, the Held Ground', () => {
+  it('its plugin brings its own panels (code, not data): companion, boons, the Held Ground and bait', () => {
     expect(bundle.client.panels).toBeUndefined()
     const more = plugin(g) as Partial<ClientGame>
-    expect(Object.keys(more.panels ?? {})).toEqual(['companion', 'boons', 'haven'])
+    expect(Object.keys(more.panels ?? {})).toEqual(['companion', 'boons', 'haven', 'bait'])
     expect(more.panels!.companion).toBe(more.panels!.boons)
     expect(bundle.client.describeItem).toBeUndefined()
     expect(more.describeItem).toBe(CLIENT_GAME.describeItem)
