@@ -236,3 +236,12 @@ describe('the validator is total over malformed conditions, and a learned tree n
     expect(() => eng.act('use', 'actor', { e: 'it' })).not.toThrow()
   })
 })
+
+describe("the repeat check counts any participant's number that rises (D4e)", () => {
+  it('a stone used on a tree that grows its own power every time is an endless yield; one that tops out is not', () => {
+    const { req } = ask()
+    const check = (eff: Effect) => validatePatch(placePatch(draft('patch/power', { do: [eff] }), req).patch, { ontology: onto, library: new RuleLibrary(BASE), scenario: req.scenario })
+    expect(check({ op: 'addProp', key: 'power', delta: 2 }).errors.join()).toMatch(/endless yield/)
+    expect(check({ op: 'addProp', key: 'power', delta: 2, max: 10 }).errors).toEqual([])
+  })
+})
