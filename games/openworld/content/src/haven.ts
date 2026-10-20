@@ -192,6 +192,28 @@ const GO: Tree = HAVEN_UPGRADES.filter((u) => u.map).reduceRight<Tree>(
 
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base', note: 'story' } })
 
+/** A bare hand at a bank of mist points to its data-defined land upgrade. */
+const mistText = (text: Text, language: 'en' | 'zh') => typeof text === 'string' ? text : text[language] ?? text.en
+const MIST_GUIDANCE: Tree = HAVEN_UPGRADES.filter((u) => u.track === 'land').reduceRight<Tree>((rest, u) => {
+  const materialsEn = u.needs.map((x) => `${x.count} ${mistText(x.text, 'en')}`).join(', ')
+  const materialsZh = u.needs.map((x) => `${x.count}${mistText(x.text, 'zh')}`).join('、')
+  const prerequisiteEn = u.land ? `Land level ≥ ${u.land}` : 'none'
+  const prerequisiteZh = u.land ? `先完成第${u.land}圈扩建` : '无'
+  return {
+    if: { prop: { role: 'host', key: 'ring', cmp: u.value } },
+    then: { do: [logLine(
+      `Ring ${u.value} of mist. Find Alberic → The Held Ground… → Land → ${mistText(u.name, 'en')}. Prerequisite: ${prerequisiteEn}; materials: ${materialsEn}; completion reward: ${u.coins} Dawnmarks.`,
+      `第${u.value}圈迷雾。找阿尔贝里克 → 领地扩建…… → 土地 → ${mistText(u.name, 'zh')}。前置：${prerequisiteZh}；材料：${materialsZh}；建成奖励：${u.coins}晨辉币。`,
+    )] },
+    else: rest,
+  }
+}, 'inherit')
+
+const MIST_HANDS_ONLY: Cond[] = [
+  { none: 'instrument' },
+  ...['boon', 'say', 'choice', 'item', 'quest', 'topic'].map((key): Cond => ({ not: { param: { key, cmp: { ne: '' } } } })),
+]
+
 export const HAVEN_RULES: Rule[] = [
   story({
     id: 'haven/oath-thorn',
@@ -230,6 +252,13 @@ export const HAVEN_RULES: Rule[] = [
     host: { type: 'item' },
     on: 'impulse/notify',
     tree: { if: param('what', 'consumed'), then: { do: [{ op: 'destroy' }] }, else: 'inherit' },
+  }),
+  story({
+    id: 'haven/mist-guidance',
+    doc: 'A bare hand on a ring of the Held Ground\'s mist points to its land upgrade in the steward\'s panel. Other handles, including uses of tools, remain unanswered.',
+    host: { type: 'fixture/nature/mist' },
+    on: 'impulse/handle',
+    tree: { if: { all: MIST_HANDS_ONLY }, then: MIST_GUIDANCE, else: 'inherit' },
   }),
   // a building's plot at the heart: once built, it is what it was staked out for
   ...HAVEN_UPGRADES.filter((u) => u.plot).map((u) =>

@@ -82,7 +82,8 @@ export const DROP_RULES: Rule[] = [
     on: 'act/use',
     tree: {
       if: { same: ['actor', 'target'] },
-      then: { label: L('Drink {instrument}', '喝掉{instrument}'), do: [{ op: 'emit', impulse: 'coat', to: 'actor', params: { substance: 'antidote' } }, { op: 'destroy' }] },
+      // asked first and told after, as every drink is (use/drink, use/drink-fireproof)
+      then: { label: L('Drink {instrument}', '喝掉{instrument}'), confirm: L('Drink {instrument}?', '要喝掉{instrument}吗？'), do: [{ op: 'emit', impulse: 'coat', to: 'actor', params: { substance: 'antidote' } }, { op: 'log', text: L('You drink {host}.', '你喝下了{host}。') }, { op: 'destroy' }] },
       else: {
         if: { is: { role: 'target', sel: { type: 'actor' } } },
         then: { label: L('Give {instrument} to {target} to drink', '给{target}喝{instrument}'), do: [{ op: 'emit', impulse: 'coat', to: 'target', params: { substance: 'antidote' } }, { op: 'log', text: L('You give {target} {host}.', '你给{target}喝下了{host}。') }, { op: 'destroy' }] },

@@ -8,5 +8,6 @@ import type { PanelFactory } from '@openworld/runtime/src/ui/panels.ts'
 
 const companion: PanelFactory = async (ctx) => (await import('./companion.ts')).companionPanel(ctx)
 const homestead: PanelFactory = async (ctx) => (await import('./homestead.ts')).homesteadPanel(ctx)
+const bait: PanelFactory = async (ctx) => (await import('./bait.ts')).baitPanel(ctx)
 
-export const PANELS: Record<string, PanelFactory> = { companion, boons: companion, haven: homestead }
+export const PANELS: Record<string, PanelFactory> = { companion, boons: companion, haven: homestead, bait }

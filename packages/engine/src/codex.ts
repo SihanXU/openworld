@@ -71,15 +71,17 @@ export class Codex {
     const pos = p && w.posOf(p)
     if (!pos) return
     // carried: the bag and the hands, and whatever is inside those
-    const carried = (holder: Id, depth: number): void => {
+    // (each holder's own record of what it holds: never every thing in the world)
+    const carried = (holder: Entity, depth: number): void => {
       if (depth > 3) return
-      for (const e of Object.values(w.state.entities)) {
-        if ((e.place.on !== 'inside' && e.place.on !== 'hand') || e.place.holder !== holder) continue
+      for (const id of [...(holder.held ? [holder.held] : []), ...(holder.contents ?? [])]) {
+        const e = w.get(id)
+        if (!e || (e.place.on !== 'inside' && e.place.on !== 'hand') || e.place.holder !== holder.id) continue
         if (e.type.startsWith('item/')) this.add(this.items, e.type)
-        if (e.contents?.length) carried(e.id, depth + 1)
+        if (e.contents?.length) carried(e, depth + 1)
       }
     }
-    carried(p.id, 0)
+    carried(p, 0)
     for (const e of w.entitiesOnMap(pos.map)) {
       if (e.id === p.id || !e.type.startsWith('actor/')) continue
       const q = w.posOf(e)

@@ -29,7 +29,8 @@ describe('creature drops', () => {
       expect(makeup.length, t).toBeGreaterThan(0)
       for (const m of makeup) expect(onto.types[m.type], `${t}: ${m.type}`).toBeDefined()
     }
-    for (const t of Object.keys(CREATURE_DROPS)) expect(onto.types[t], t).toBeDefined()
+    // a misspelled key would make a type of its own with a makeup and nothing else: every key names a kind
+    for (const t of Object.keys(CREATURE_DROPS)) expect(onto.types[t]?.name, t).toBeDefined()
   })
 
   it('a felled monster leaves its makeup at the recovery rate, lying still', () => {

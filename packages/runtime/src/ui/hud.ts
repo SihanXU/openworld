@@ -4,7 +4,7 @@
 // over the framed spot: ui/cursor.ts), the dialogue box and the yes/no question, speech bubbles and floating numbers.
 
 import { xpToNext, type Frame, type FxEvent, type ItemInfo, type Mood, type Text } from '@openworld/engine'
-import { catalog, game, hasModule, ontology } from '../game.ts'
+import { catalog, game, hasModule, itemIconSignature, ontology } from '../game.ts'
 import { artEpoch, assetUrl, cssAssetUrl } from '../render/assets.ts'
 import { $, MOOD_GLYPH, SLOT_KEYS, esc, locale, prefs, t, tx, gearFrame } from './common.ts'
 import { skillPng } from './skillIcons.ts'
@@ -272,7 +272,8 @@ export class Hud {
     const top = !!me && me.y > window.innerHeight * 0.78 && $('#sinBoss').classList.contains('hidden')
     $('#hotbar').classList.toggle('top', top)
     const off = f.player.offhand
-    const sig = `${f.player.selected}|${row.map((s) => (s ? `${s.item.id}:${s.count}${s.worn ? 'w' : ''}` : '')).join(',')}|${off?.id}:${off?.works}|${artEpoch}`
+    const icons = [...row.filter(Boolean).map((s) => s!.item), ...(off ? [off] : [])]
+    const sig = `${f.player.selected}|${row.map((s) => (s ? `${s.item.id}:${s.count}${s.worn ? 'w' : ''}` : '')).join(',')}|${off?.id}:${off?.works}|${itemIconSignature(icons)}|${artEpoch}`
     if (sig === this.barSig) return
     this.barSig = sig
     $('#toolbar').innerHTML = row
@@ -287,7 +288,7 @@ export class Hud {
       .forEach((el) => (el.onclick = () => this.send.select(Number(el.dataset.slot))))
     // the off hand beside the toolbar (a shield worn there), greyed while it does not work
     $('#offhandBar').innerHTML = `<div class="slot${off && !off.works ? ' off' : ''}${gearFrame(off)}" title="${locale.value === 'zh' ? '副手' : 'Off hand'}"${off ? ` data-item="${off.id}"` : ''}>${off ? `<div class="icon" data-icon="${off.id}"></div>` : '<span class="ghost">🛡</span>'}</div>`
-    this.paintIcons?.([...row.filter(Boolean).map((s) => s!.item), ...(off ? [off] : [])])
+    this.paintIcons?.(icons)
   }
 
   private obSig = ''

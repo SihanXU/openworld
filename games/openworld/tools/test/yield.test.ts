@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Engine, ModPort, RuleLibrary, SANDBOX_MAP, buildSandbox, endlessYield, holeKey, repeatYields, scenarioEvent, validatePatch, type ModRequest, type Patch, type Ref, type Rule, type Scenario } from '@openworld/engine'
-import { BASE_RULES, FORMS, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { FRONT, HANDS, ORIGIN, targets, verbsFor } from '../src/coverage.ts'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
+import { FRONT, ORIGIN, SWEPT, targets, verbsFor } from '../src/coverage.ts'
+
+// the base forms: a regional one is its base to every rule (coverage.test.ts holds it), so it yields as its base does
+const HELD = SWEPT.filter((f) => !f.base)
+const HANDS = ['', ...HELD.map((f) => f.id)]
 
 // No endless yield (world-model.md §8.4, §10.2, D23): an event repeated with no time between, on a
 // host that is not used up, must stop making things. The stick farm — a stump struck, a stick, the
@@ -168,7 +172,7 @@ describe('no endless yield (world-model.md §8.4)', () => {
     for (const target of targets(onto)) {
       const sc: Scenario = {
         terrain: Array.from({ length: 3 }, () => Array(3).fill('grass')),
-        entities: [{ key: 'actor', type: 'actor/person/player', ...ORIGIN }, ...FORMS.map((f, i) => ({ key: `hand${i}`, type: f.id, ...ORIGIN, inside: 'actor' }))],
+        entities: [{ key: 'actor', type: 'actor/person/player', ...ORIGIN }, ...HELD.map((f, i) => ({ key: `hand${i}`, type: f.id, ...ORIGIN, inside: 'actor' }))],
         event: {},
       }
       const key = target.scenario(sc)

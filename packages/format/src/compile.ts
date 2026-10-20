@@ -111,6 +111,17 @@ export function learnedOf(files: LearnedFile[]): LibraryData {
   return { rules: by(rules), types: by(files.flatMap((f) => f.types ?? [])), statuses: by(files.flatMap((f) => f.statuses ?? [])), log: [], version: 1 }
 }
 
+/**
+ * One map file as the compiled world has it (its words in every language, the tables applied): what an editor draws
+ * again after an edit to that map alone, without compiling the whole project (docs/continent.md §14).
+ */
+export function compileMap(project: Project, file: string): RawChunk {
+  const f = project.maps.find((m) => m.file === file)
+  if (!f) throw new Error(`no map file ${file}`)
+  const p = applyLocales({ ...project, ontology: [], rules: [], people: [], quests: [], story: [], client: [], learned: [], maps: [f] })
+  return structuredClone(p.maps[0].data)
+}
+
 /** A project → its bundle, its world, and what is wrong with it. */
 export function compile(project: Project): Compiled {
   const problems: Problem[] = [...localeProblems(project)]
@@ -144,11 +155,13 @@ export function compile(project: Project): Compiled {
     width: c.map.width,
     height: c.map.height,
     portals: c.map.portals,
-    npcs: npcs.filter((n) => onMap(n, c.map.id)).length,
+    // its people: the ones who travel who begin there, and those its file holds (the backdrop's, docs/continent.md §9)
+    npcs: npcs.filter((n) => onMap(n, c.map.id)).length + c.entities.filter((e) => e.npc).length,
     items: c.entities.filter((e) => e.type.startsWith('item/')).length,
     ...(at.has(c.map.id) && { at: at.get(c.map.id) }),
     // its named areas: a quest points at one while the map is not loaded
     ...(c.map.regions && Object.keys(c.map.regions).length && { regions: c.map.regions }),
+    ...(c.map.backdrop && { backdrop: true }),
   }))
   const placed = chunks.flatMap((c) => c.entities)
   const kinds = new Set(placed.filter((e) => e.type.startsWith('item/')).map((e) => `${e.type}|${(e.tags ?? []).join(',')}`))
@@ -166,7 +179,7 @@ export function compile(project: Project): Compiled {
     ...(g.companions && { companions: structuredClone(g.companions) }),
     stats: {
       maps: chunks.length,
-      npcs: npcs.length,
+      npcs: npcs.length + placed.filter((e) => e.npc).length,
       creatures: placed.filter((e) => e.type.startsWith('actor/creature')).length,
       items: placed.filter((e) => e.type.startsWith('item/')).length,
       itemKinds: kinds.size,

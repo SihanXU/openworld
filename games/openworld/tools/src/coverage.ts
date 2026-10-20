@@ -11,7 +11,7 @@
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { OntologyIndex, RuleLibrary, SANDBOX_MAP, buildSandbox, isRoot, matchSelector, textOf, type Cond, type Ontology, type Ref, type Rule, type Scenario, type Selector, type Tree, type Verb, type View } from '@openworld/engine'
-import { BASE_RULES, FORMS, MATERIALS, RECIPES, TERRAINS, buildOntology } from '@openworld-game/content'
+import { BASE_RULES, FORMS, MATERIALS, RECIPES, TERRAINS, buildOntology, type Form } from '@openworld-game/content'
 
 // ------------------------------------------------------------------ definitions
 
@@ -127,8 +127,23 @@ export function targets(onto: Ontology): Target[] {
   return out
 }
 
+/** A form's class: the base form a regional one varies (content goods.ts), else itself. */
+export const classOf = (f: Form): string => f.base ?? f.id
+
+/**
+ * The forms swept, sampled by class (docs/continent.md §10): every base form, and of each class's regional forms one
+ * — a different region's from class to class, so every region is held in hand somewhere. A regional form is its base
+ * to every rule (its type lies under the base's, and no rule names it), so one of a class answers for all of them;
+ * the coverage test holds the sampled to their base's answers and every rule to naming no regional form.
+ */
+export const SWEPT: Form[] = (() => {
+  const variants = new Map<string, Form[]>()
+  for (const f of FORMS) if (f.base) variants.set(f.base, [...(variants.get(f.base) ?? []), f])
+  return [...FORMS.filter((f) => !f.base), ...[...variants.values()].map((vs, i) => vs[i % vs.length])]
+})()
+
 /** Held forms are swept as their bare type: material, quality and element vary per instance. */
-export const HANDS: string[] = ['', ...FORMS.map((f) => f.id)]
+export const HANDS: string[] = ['', ...SWEPT.map((f) => f.id)]
 
 /** The acts the player's inputs make: left click uses, right click puts, F takes, E handles bare-handed. */
 export function verbsFor(hand: string, target: string): Verb[] {
@@ -152,7 +167,7 @@ export function sweep(onto: Ontology = buildOntology(), rules: Rule[] = BASE_RUL
       terrain: Array.from({ length: 3 }, () => Array(3).fill('grass')),
       entities: [
         { key: 'actor', type: 'actor/person/player', ...ORIGIN },
-        ...FORMS.map((f, i) => ({ key: `hand${i}`, type: f.id, ...ORIGIN, inside: 'actor' })),
+        ...SWEPT.map((f, i) => ({ key: `hand${i}`, type: f.id, ...ORIGIN, inside: 'actor' })),
       ],
       event: {},
     }
@@ -280,7 +295,7 @@ export function report(cov: Coverage, onto: Ontology = buildOntology()): string 
   const row = (o: Outcome) => `${o.padEnd(9)} ${String(cov.totals[o]).padStart(6)}  ${pct(cov.totals[o], n).padStart(6)}`
   const holes = Object.entries(cov.byHole).sort((a, b) => b[1] - a[1])
   return [
-    `${n} combinations (${HANDS.length - 1} forms + the empty hand × ${Object.keys(cov.byTarget).length} targets × the acts each input makes)`,
+    `${n} combinations (${HANDS.length - 1} forms + the empty hand × ${Object.keys(cov.byTarget).length} targets × the acts each input makes; of ${FORMS.length} forms, the regional ones sampled one a class)`,
     ...OUTCOMES.map(row),
     `undefined at: ${holes.map(([id, k]) => `${id} ${k}`).join(', ')}`,
     '',

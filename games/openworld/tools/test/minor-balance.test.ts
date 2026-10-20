@@ -83,6 +83,9 @@ const hasKit = (type: string) => {
 }
 
 describe('minor monsters\' balance', () => {
+  it('every kind on the curve is a kind of the game (a misspelled key would make a nameless type of its own)', () => {
+    for (const type of Object.keys(CREATURE_ROLES)) expect(onto.types[type]?.name, type).toBeDefined()
+  })
   it.each(kinds)('%s: a fight long enough for its skill, won with gear of its level, never free', (type, role) => {
     const stand = duel(type, false)
     if (process.env.DUEL_LOG) console.log(type, role, JSON.stringify(stand), JSON.stringify(duel(type, true)))
