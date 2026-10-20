@@ -139,8 +139,8 @@ let IDX: Indices | undefined
 const RULE_WAYS: Record<string, { way: string; page: string; text: string }> = {
   'core/fish': { way: '钓鱼', page: '钓鱼', text: '用鱼竿在水里钓到' },
   'home/milk': { way: '挤奶', page: '动物', text: '拿空木桶给吃饱的牛挤奶' },
-  'smelt/ore': { way: '熔炼', page: '熔炉', text: '拿着矿石对点着的熔炉按左键，熔成锭' },
-  'use/cook': { way: '烹饪', page: '烹饪', text: '拿着生的东西对点着的营火、火盆等炊具按左键，烤熟' },
+  'smelt/ore': { way: '熔炼', page: '熔炉', text: '拿着矿石对点着的熔炉按右键（或 R），熔成锭' },
+  'use/cook': { way: '烹饪', page: '烹饪', text: '拿着生的东西对点着的营火、火盆等炊具按右键（或 R），烤熟' },
   'element/cook': { way: '烹饪', page: '烹饪', text: '被火烧到（放进点着的炊具、被火焰打中）也会熟' },
 }
 let IDX_FOR: Game | undefined
@@ -580,7 +580,7 @@ function uses(ctx: Ctx, e: ItemEnt): string {
   if (e.id === ctx.g.coin) out.push(`<li>在${ctx.link('货摊')}买东西：${ctx.g.shop.filter((r) => r.group !== 'sell').map((r) => typeLink(ctx, String((r.make as any).type))).join('、')}（见${ctx.link('金钱')}）</li>`)
   // a region's make is its base to every rule (content goods.ts): what its base is for, it is for
   if (e.form?.base) out.unshift(`<li>和${typeLink(ctx, e.form.base)}一样：世界对它的规则就是对${esc(ctx.g.typeName(e.form.base))}的规则。</li>`)
-  if (!out.length) return `<p class="empty">游戏数据里没有记录它的固定用途。拿着它对别的东西按左键，世界可能会学会新的用法（见[[世界会学]]）。</p>`.replace('[[世界会学]]', ctx.link('世界会学'))
+  if (!out.length) return `<p class="empty">游戏数据里没有记录它的固定用途。拿着它对别的东西按 R，世界可能会学会新的用法（见[[世界会学]]）。</p>`.replace('[[世界会学]]', ctx.link('世界会学'))
   return `<ul class="facts">${out.join('')}</ul>`
 }
 

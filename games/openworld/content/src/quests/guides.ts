@@ -168,7 +168,7 @@ const farm: QuestDef = {
     { id: 'sickle', text: L('Take the sickle', '拿镰刀'), target: 'crate', on: { carry: { type: 'item/tool/sickle' } } },
     { id: 'seeds', text: L('Take some seeds', '拿一些种子'), target: 'crate', on: { carry: { type: 'item/seed' } } },
     { id: 'harvest', text: L('Harvest a ripe crop with the sickle (hold it, left click the crop)', '用镰刀收割一株成熟的作物（拿着镰刀，左键点作物）'), target: 'garden', on: { carry: { tags: ['vegetable'] } } },
-    { id: 'sow', text: L('Sow a seed on the bare row of the garden (hold the seed, left click the farmland)', '在菜圃空着的那一行播一粒种子（拿着种子，左键点耕地）'), target: 'garden', on: { step: 'guide_sowed' } },
+    { id: 'sow', text: L('Sow a seed on the bare row of the garden (hold the seed, right click the farmland)', '在菜圃空着的那一行播一粒种子（拿着种子，右键点耕地）'), target: 'garden', on: { step: 'guide_sowed' } },
     { id: 'water', text: L('Water a crop (hold the bucket of water, left click the crop)', '给一株作物浇水（拿着水桶，左键点作物）'), target: 'garden', on: { step: 'guide_watered' } },
   ],
   stages: [
@@ -187,7 +187,7 @@ const farm: QuestDef = {
       show: ['harvest', 'sow', 'water'],
       say: L('Good. See the three rows? Sprouts, young plants, and the top row is ripe. Harvest one with the sickle — it gives the crop and seeds back. Then sow a seed on the bare bottom row, and water it with the bucket. Each stage takes one to four hours: check the seed. Water each stage; Irrigation supplies two.', '好。看见那三排了吗？嫩芽、小苗，最上面一排熟了。用镰刀收一株——能得到作物，种子也会回来。然后在最下面空着的那行播一粒种子，再用水桶浇上水。每阶段要一到四游戏小时，看看种子说明。每阶段需浇水；学会引水后浇一次能长两阶段。'),
       by: 'pip',
-      hint: L('Hold the sickle and left click a ripe plant to harvest it. Hold a seed and left click the bare farmland on the bottom row to sow it. Hold the bucket of water and left click a growing plant to water it (the well by the square fills an empty bucket). A hoe on grass makes new farmland.', '拿着镰刀左键点熟了的作物就能收割。拿着种子左键点最下面一行的空耕地就是播种。拿着水桶左键点正在长的作物就是浇水（广场边的井能装满空桶）。拿锄头点草地就能开出新的耕地。'),
+      hint: L('Hold the sickle and left click a ripe plant to harvest it. Hold a seed and right click the bare farmland on the bottom row to sow it. Hold the bucket of water and left click a growing plant to water it (the well by the square fills an empty bucket). A hoe on grass makes new farmland.', '拿着镰刀左键点熟了的作物就能收割。拿着种子右键点最下面一行的空耕地就是播种。拿着水桶左键点正在长的作物就是浇水（广场边的井能装满空桶）。拿锄头点草地就能开出新的耕地。'),
       log: L('Hoe, sickle and seeds in hand. The top row is ripe; the bottom row is bare.', '锄头、镰刀和种子都拿了。最上面一排熟了；最下面一行空着。'),
     },
     {
