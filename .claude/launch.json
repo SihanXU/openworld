@@ -92,6 +92,19 @@
         "wiki"
       ],
       "port": 5180
+    },
+    {
+      "name": "study",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "tsx",
+        "games/openworld/tools/src/eval/study.ts",
+        "serve",
+        "var/eval/study/results",
+        "--port",
+        "5191"
+      ],
+      "port": 5191
     }
   ]
 }

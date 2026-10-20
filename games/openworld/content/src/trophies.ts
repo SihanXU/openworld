@@ -71,6 +71,7 @@ export const TROPHIES: Trophy[] = [
   T('beast/frost_wolf', 'item/clothing/hood/frostfang', 'item:cloak', 'head', 'Frostfang Hood', '霜牙兜帽', 'wildhunt', ELITE, 5, 45, { def: 1, critChance: 0.03 }),
   T('beast/wolf', 'item/clothing/cloak/wolfpelt', 'item:cloak', 'shoulders', 'Wolfpelt Mantle', '狼皮披肩', 'wildhunt', COMMON, 2, 30, { def: 1, attackHaste: 0.05 }),
   T('crab', 'item/armor/breastplate/carapace', 'item:armor', 'body', 'Carapace Plate', '巨蟹甲壳', 'wildhunt', ELITE, 4, 60, { def: 3 }),
+  T('fungus/sporecap', 'item/clothing/hat/sporecap', 'item:hat', 'head', 'Sporecap Hat', '孢子菇帽', undefined, COMMON, 2, 30, { def: 1, luck: 0.03 }),
   T('spider', 'item/clothing/gloves/silkspinner', 'item:gloves', 'hands', 'Silkspinner Gloves', '织丝手套', 'wildhunt', COMMON, 2, 35, { critChance: 0.03, luck: 0.05 }),
   T('beast/boar', 'item/clothing/belt/tuskbelt', 'item:belt', 'waist', 'Tusked Belt', '獠牙腰带', 'wildhunt', COMMON, 3, 35, { def: 1, luck: 0.05 }),
   T('beast/bat', 'item/clothing/boots/batwing', 'item:boots', 'feet', 'Batwing Slippers', '蝠影软靴', 'wildhunt', COMMON, 1, 30, { dodge: 0.03, luck: 0.05 }),

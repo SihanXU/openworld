@@ -520,6 +520,8 @@ export interface KitSkill {
   chance?: number
   /** Taken up only under this share of its full health (a crab that shells up when hurt). */
   below?: number
+  /** Never taken up once the caster carries this prop (a skill it uses once, its own rule setting the prop as it lands). */
+  spent?: string
   /** Held, stunned or frozen, it keeps the skill and its wind-up waits (otherwise the skill is lost). */
   steady?: boolean
   /** Another skill of the same kit it winds up as soon as this one lands, aimed afresh (a second arrow, a second wave). */
@@ -1362,6 +1364,12 @@ export interface WorldState {
   quarantine?: Record<string, { tick: number; reason: string }>
   /** A yes/no question waiting for the player (Action: "Eat the apple?"); time stops while it is open. */
   question?: { text: Text; plan: Plan }
+  /**
+   * How far each period on a host's own pace (hunger, asleep or hungry slower) has come toward its next, as of a tick:
+   * `period|id` → done (0..1) and at. Kept with the state so a loaded save keeps each clock's phase (it was the
+   * engine's own memory once, and a load set every phase back to the clock's beat).
+   */
+  paces?: Record<string, { done: number; at: number }>
   /** Maps the player is not on: frozen since a tick, with the events addressed to them (design.md §5.12). */
   dormant?: Record<string, { since: number; inbox: GameEvent[] }>
   /** Each host's relations (contact and containment) when last computed: `how|ref` keys. */

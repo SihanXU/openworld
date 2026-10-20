@@ -152,6 +152,8 @@ export function buildBend(): MapBuilder {
   for (const [dy, len] of [[-1, 3], [0, 6], [1, 4]] as const) for (let x = bankAt(sy + dy) - 1; x < bankAt(sy + dy) - 1 + len; x++) m.set(x, sy + dy, 'sand')
   m.item({ form: 'item/misc/bell', name: L("Rolf's Boat Bell", '罗尔夫的船铃'), tags: ['keepsake'] }, sx, sy).id = 'quest.hilde.bell'
   for (const [x, y] of [[sx - 2, sy], [sx - 1, sy - 1], [sx, sy + 1]] as const) m.creature('slime/water_slime', x, y, HUNT(4))
+  // down the shore to the south: a giant crab keeps it (docs/creatures.md §3.4)
+  m.creature('crab', bankAt(25) - 1, 25, HUNT(3))
   m.regions.spit = [bankAt(sy) - 2, sy - 2, 9, 5]
   // the pier, three planks out from the bank; her cabin up the bank from it (its room: buildBendCabin)
   const [px, py] = FAT.pier

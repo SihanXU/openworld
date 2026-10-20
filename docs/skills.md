@@ -19,7 +19,7 @@ answers it, normally with the one primitive `unleash`.
 |---|---|
 | Cells | `shape` (circle, ring, line, cone, cross, spots), `aim` (self, target), `radius`, `width` (a line's), `spot` (each spot's radius), `occlude` (cells the caster cannot see from where it winds up — behind a rock, a wall — and cells nothing can stand on are spared) |
 | Timing | `windup`, `recovery`, `cooldown`, `steady` (held, stunned or frozen, the wind-up waits instead of being lost), `then` (another skill of the kit, wound up as soon as this one lands, aimed afresh: a second arrow, a second wave) |
-| When | `range` [near, far], `aligned` (a row or a column), `below` (a share of its health), `chance` |
+| When | `range` [near, far], `aligned` (a row or a column), `below` (a share of its health), `spent` (a prop that, once the caster has it, keeps it from the skill: one used once), `chance` |
 | Moving | `move` (leap, dash, blink), `back` (springs back after the blow); a dash that meets only a wall stuns the dasher |
 | Looks | `color` (the marks), `action` (a boss's pose: attack, cast), `clip` (a drawn clip of its own), `fx`, `fxPlacement` |
 
@@ -86,7 +86,7 @@ Both kits draw from one table. A new archetype is an engine change, reviewed by 
 | Wind-up, a skill that marks cells | ≥ 0.6 s | ≥ 1.0 s; ≥ 0.6 s for the next of a chain and for an answering skill; never under 0.8 s however a phase scales it |
 | Blow (`power` multiple of its attack) | ×0.8–2.0 | ×0.6–2.0 each |
 | Holding a body (immobilize) | ≤ 1.5 s, then `steadied` | the same |
-| Skills | 1–2 a kind | a rotation of 3–5 a phase, 0–2 answering, one opening skill a phase |
+| Skills | 1–2 a kind; an elite of the minor monsters (the warden, the cyclops, the Slime King) 2–4, a chain and a guard allowed, wind-ups ≥ 0.8 s (≥ 0.6 s for the next of a chain), never a director (docs/creatures.md §10) | a rotation of 3–5 a phase, 0–2 answering, one opening skill a phase |
 | Interrupted | held, stunned or frozen: lost | rotation and answering skills: lost; opening skills are steady (the wind-up waits) |
 
 - **No hold follows a hold.** A body coated with a hold (entranced, knelt, stunned) is `steadied` for 4.5 s after: those

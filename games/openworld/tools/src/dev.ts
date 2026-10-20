@@ -16,6 +16,7 @@ const kids: ChildProcess[] = []
 const BACKENDS = [
   ['openrouter', 'OpenRouter (LSW_MODEL from .env)'],
   ['claude-code', 'Claude Code: claude -p, Opus 5.5, effort low (signed in as you; no API key)'],
+  ['anthropic', "Anthropic's API: Opus 5.5, effort low (ANTHROPIC_API_KEY from .env)"],
   ['none', 'none: answer from the shared library only'],
 ] as const
 

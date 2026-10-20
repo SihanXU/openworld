@@ -2215,6 +2215,10 @@
           "type": "number",
           "description": "Taken up only under this share of its full health (a crab that shells up when hurt)."
         },
+        "spent": {
+          "type": "string",
+          "description": "Never taken up once the caster carries this prop (a skill it uses once, its own rule setting the prop as it lands)."
+        },
         "steady": {
           "type": "boolean",
           "description": "Held, stunned or frozen, it keeps the skill and its wind-up waits (otherwise the skill is lost)."

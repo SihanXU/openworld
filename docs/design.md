@@ -691,22 +691,33 @@ is never the fight that was lost.
     saved with the game.
   - Area, line and direction emissions stay on their own map.
 - **Entering a map**:
-  1. **catch up the timers**: every one-shot timer that fell due while it slept runs in time
-     order (a burning thing burns out to ash, things grow a stage, the map resets);
+  1. **catch up the timers**: its statuses' clocks run as they would have in play, tick by tick
+     where something comes due: every status that ends goes its way to its end — each pulse of
+     it (a burning woodpile wears, breaks into its logs and sets the dry grass by it alight; a
+     bleed bleeds), then its end (what burnt out is ash, things grow a stage, the map resets) —
+     in time order, the clock set back to each tick, each event with dice of its own (the
+     world's seed, the thing, the status, the tick; in play too), so it rolls as it would have
+     in play. What one starts runs from then and is caught up in turn. A status without an end
+     is a state, not a process: it waits, as a period does. The one at the keys and what they
+     carry are left out (their clock ran where they were);
   2. **the inbox**, in time order;
   3. **people** whose schedule puts them here now are placed;
   4. **the relation difference over the whole map**, against the relations saved when it
      went dormant;
   5. then the map runs.
 - **For authors**: whatever must progress while the player is away is a timer (Stardew's
-  nights, Skyrim's cell reset). A continuous process (fire spreading, creatures roaming) is a
+  nights, Skyrim's cell reset), and so is a process that ends (a status's pulses: a fire that
+  burns down, a bleed). A continuous process (creatures roaming, the ground's yield) is a
   period, and it freezes (Minecraft).
 - **People**:
   - a person's record is resident, and their body is on a map;
   - on a dormant map the body does not move: entering the map places it by the schedule;
   - a person whose schedule leads to the active map walks in through the portal.
 - **Cost**: a tick costs the active map plus the resident hosts that events reach. Entering a
-  map costs its inbox plus the timers that fell due. The number of maps appears in neither.
+  map costs its inbox plus the ticks at which one of its statuses ended or had a pulse some
+  rule acts on (a pulse no rule acts on, by the status it names, brings none:
+  `RuleLibrary.mayDo`), at most `CATCH_UP_BUDGET` of them; past that the rest is summed up.
+  The number of maps appears in neither.
 
 ### 5.13 Completeness
 
@@ -744,6 +755,7 @@ undefined behaviour is exactly reaching an undefined leaf.
 | write only yourself | in an outcome the mutators throw unless what they change is its host, held by it, or made by it, and a fact unless the host is a resident (§5.15); the validator for patches; a lint over the base rules |
 | the root is total | the root has a rule for every kind and no `inherit` leaf |
 | no ties | the validator |
+| worth comes from what a thing is | the validator: a learned rule never writes what the economy reads — a thing's `value`, its material (the prop, a `material:` tag) and quality (its tag), and what its modules' economy names (`ModuleSpec.economy`: a piece of gear's level, what a merchant has each morning); the diagnostic says to make the host another thing (`transform`) or make what it gives (`spawn`). The repeat check counts a participant's worth that keeps rising as a yield (`yieldCycle`), whatever raised it. Found by the paper's attack set (2026-10-19) |
 | the kinds are closed | the engine emits only kinds of the tree |
 | relation difference | after every outcome and on entering a map |
 | playable without an AI | the story's critical path has no undefined leaf: the three routes, dry-run with the AI off |

@@ -8,7 +8,8 @@
 import { HOMESTEAD_RULES } from './homestead.ts'
 import { LIFE_RULES } from './life.ts'
 import { CROP_GROWTH_RULE, waterCrop } from './farming.ts'
-import { KIT_RULES } from './kits.ts'
+import { ELITE_RULES, KIT_RULES, WEB_RULES } from './kits.ts'
+import { DROP_RULES } from './drops.ts'
 import { AFFLICTION_RULES } from './afflictions.ts'
 import { BOSS_KIT_RULES } from './bosses.ts'
 import { CH1 } from './chapter1.ts'
@@ -1960,4 +1961,4 @@ const GENERAL: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...FAITH_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...TENTS, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...AFFLICTION_RULES, ...KIT_RULES, ...BOSS_KIT_RULES, ...VILLAGE_SHOP_RULES, ...FISHING_RULES]
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...FAITH_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...TENTS, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...AFFLICTION_RULES, ...KIT_RULES, ...ELITE_RULES, ...WEB_RULES, ...DROP_RULES, ...BOSS_KIT_RULES, ...VILLAGE_SHOP_RULES, ...FISHING_RULES]

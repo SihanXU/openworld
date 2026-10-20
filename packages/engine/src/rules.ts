@@ -277,6 +277,45 @@ export function leaves(tree: Tree): Leaf[] {
   return [...leaves(tree.then), ...leaves(tree.else ?? 'inherit')]
 }
 
+/** A condition as far as an event's params decide it: true, false, or undefined (it reads more than the params). */
+function byParams(c: Cond | undefined, params: Record<string, unknown>): boolean | undefined {
+  if (!c) return true
+  if ('all' in c) {
+    let out: boolean | undefined = true
+    for (const x of c.all) {
+      const v = byParams(x, params)
+      if (v === false) return false
+      if (v === undefined) out = undefined
+    }
+    return out
+  }
+  if ('any' in c) {
+    let out: boolean | undefined = false
+    for (const x of c.any) {
+      const v = byParams(x, params)
+      if (v === true) return true
+      if (v === undefined) out = undefined
+    }
+    return out
+  }
+  if ('not' in c) {
+    const v = byParams(c.not, params)
+    return v === undefined ? undefined : !v
+  }
+  if ('param' in c) {
+    const v = params[c.param.key] as PropValue | undefined
+    return v !== undefined && cmp(v, c.param.cmp)
+  }
+  return undefined
+}
+
+/** The leaves an event with these params could reach: every branch its params do not rule out. */
+export function reachable(tree: Tree, params: Record<string, unknown>): Leaf[] {
+  if (typeof tree === 'string' || !('if' in tree)) return [tree]
+  const v = byParams(tree.if, params)
+  return [...(v !== false ? reachable(tree.then, params) : []), ...(v !== true ? reachable(tree.else ?? 'inherit', params) : [])]
+}
+
 export const isDo = (l: Leaf): l is { do: import('./types.ts').Effect[] } => typeof l === 'object' && 'do' in l
 export const isHole = (l: Leaf): l is { undefined: true; default?: import('./types.ts').Effect[] } => typeof l === 'object' && 'undefined' in l
 
@@ -825,6 +864,40 @@ export class RuleLibrary {
     return v
   }
   private may?: { version: number; by: Map<string, boolean> }
+
+  /**
+   * As mayAnswer, also by the statuses the thing has now (a rule for what burns passes over what does not), before its
+   * view is made: never a no that a rule would answer.
+   */
+  mayAnswerHaving(kind: string, type: string, statuses: readonly string[]): boolean {
+    if (this.may?.version !== this.version) this.may = { version: this.version, by: new Map() }
+    const k = `${kind}|${type}|s|${[...statuses].sort().join(',')}`
+    let v = this.may.by.get(k)
+    if (v === undefined) {
+      const has = new Set(statuses)
+      const list = this.base.get(kind.split('/')[0]) ?? []
+      v =
+        list.some((r) => kindCovers(r.on, kind) && (!isRoot(r) || leaves(r.tree).some((l) => l !== 'inherit' && !(isDo(l) && l.do.length === 0))) && (!r.host?.type || isA(type, r.host.type) || isA(r.host.type, type)) && (r.host?.status ?? []).every((s) => has.has(s)) && !(r.host?.notStatus ?? []).some((s) => has.has(s))) ||
+        this.learned(type, kind).length > 0
+      this.may.by.set(k, v)
+    }
+    return v
+  }
+
+  /**
+   * Could an event of this kind and these params do anything to this host? As `answers`, with each tree read as far as
+   * the params decide it (`reachable`): a rule that answers every clock of its host but acts on another (a person's
+   * morning, for the pulse of a status of theirs) is passed over. The test a map's catch-up makes of a status's pulse.
+   */
+  mayDo(kind: string, host: View | undefined, params: Record<string, unknown>): boolean {
+    for (const r of this.candidates(kind, host)) {
+      const reach = reachable(r.tree, params)
+      if (reach.some((l) => l !== 'inherit' && !(isDo(l) && l.do.length === 0))) return true
+      // every way it can go stops here, changing nothing (a learned answer is consulted only at a hole)
+      if (!reach.includes('inherit')) return false
+    }
+    return this.learned(host?.type, kind).some((r) => leaves(r.tree).some((l) => isDo(l) && l.do.length > 0))
+  }
 
   answers(kind: string, host: View | undefined): boolean {
     for (const r of this.candidates(kind, host)) {
