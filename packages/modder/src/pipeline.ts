@@ -402,9 +402,10 @@ export class Modder {
   /** A design in its lane, then in a slot (live first); one that waited is answered by what was committed meanwhile, if it can be. */
   private async episode(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions): Promise<ResolveReply> {
     if (!this.progress.has(sig.key)) this.progress.set(sig.key, { stage: 'queued' })
-    // a revision is background work on a patch already shipped: it takes no lane, so a player's request
-    // never waits behind it (its commit is validated against the library as it is then, like any other)
-    const leave = eo.revise ? () => {} : await this.enterLane(laneOf(req))
+    // a revision or an escalation is background work nobody waits on: it takes no lane, so a player's request
+    // never waits behind it (its commit is validated against the library as it is then, like any other, so a
+    // second answer at the same place is refused)
+    const leave = eo.revise || eo.escalatedFrom ? () => {} : await this.enterLane(laneOf(req))
     const release = await this.design.acquire(eo.profile === 'live' ? 0 : 1)
     try {
       if (!eo.revise) {

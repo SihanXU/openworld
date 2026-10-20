@@ -11,6 +11,9 @@ import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { SelfState } from '@openworld/agent'
 import { Modder, WorldLibrary, createModderServer } from '../src/index.ts'
 
+/** These commit and replay in the sandbox: under a full parallel run, slow. */
+const SLOW = { timeout: 120_000 }
+
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
 const SLIME = 'actor/creature/slime/green_slime'
@@ -41,7 +44,7 @@ function bind(id: string, req: ModRequest, effects: unknown[] = [{ op: 'addStatu
 const dir = () => mkdtempSync(join(tmpdir(), 'lsw-library-'))
 
 describe('the log after a restart', () => {
-  it('a torn last line does not swallow the next commit, and no seq is used twice', () => {
+  it('a torn last line does not swallow the next commit, and no seq is used twice', SLOW, () => {
     const file = join(dir(), 'library.jsonl')
     const slime = request()
     const first = new WorldLibrary(onto, BASE, file)
@@ -60,7 +63,7 @@ describe('the log after a restart', () => {
 })
 
 describe("the log's identity", () => {
-  it('is kept across restarts, is another when the log is begun anew, and is said in /patches and /health', async () => {
+  it('is kept across restarts, is another when the log is begun anew, and is said in /patches and /health', SLOW, async () => {
     const d = dir()
     const file = join(d, 'library.jsonl')
     const slime = request()
@@ -88,7 +91,7 @@ describe("the log's identity", () => {
 })
 
 describe('a covered reply', () => {
-  it('ships only what the library still holds of the patch that answers', () => {
+  it('ships only what the library still holds of the patch that answers', SLOW, () => {
     const library = new WorldLibrary(onto, BASE, join(dir(), 'library.jsonl'))
     const slime = request()
     const wolf = request('actor/creature/beast/wolf')
@@ -125,7 +128,7 @@ describe('the commit barrier', () => {
     return port.records[0].request
   }
 
-  it("refuses a topic the story raises itself, as every client does (the game's protected facts)", () => {
+  it("refuses a topic the story raises itself, as every client does (the game's protected facts)", SLOW, () => {
     const slime = request()
     const story = bind('patch/news', slime, [{ op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'topic', value: 'first_seal' } }])
     const free = new WorldLibrary(onto, BASE, join(dir(), 'library.jsonl'))
@@ -137,7 +140,7 @@ describe('the commit barrier', () => {
     expect(library.seq).toBe(0)
   })
 
-  it("holds a world event's answer to the world's boundaries: it may not hurt a person", () => {
+  it("holds a world event's answer to the world's boundaries: it may not hurt a person", SLOW, () => {
     const req = worldRequest()
     const harm = bind('patch/slime-lashes', req, [{ op: 'emit', impulse: 'strike', to: 'actor', params: { power: 5 } }])
     const library = new WorldLibrary(onto, BASE, join(dir(), 'library.jsonl'))

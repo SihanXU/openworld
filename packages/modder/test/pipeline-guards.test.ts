@@ -9,6 +9,9 @@ import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type P
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, type ChatMessage, type ChatOptions, type Finding, type Model } from '../src/index.ts'
 
+/** These commit and replay in the sandbox: under a full parallel run, slow. */
+const SLOW = { timeout: 120_000 }
+
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
 const STONE = 'item/material/stone'
@@ -56,7 +59,7 @@ function gate<T = void>() {
 }
 
 describe('a rule id is not one version', () => {
-  it('the audit after shipping removes the version it audited, not a revision committed under its id meanwhile', async () => {
+  it('the audit after shipping removes the version it audited, not a revision committed under its id meanwhile', SLOW, async () => {
     const req = useRequest()
     const auditing = gate()
     const release = gate()
@@ -84,7 +87,7 @@ describe('a rule id is not one version', () => {
     expect(JSON.stringify(library.lib.rules.get('patch/stone-bane')?.tree)).toContain('wet')
   })
 
-  it('a fault counted against a rule is forgotten when the rule is replaced, or removed and added again', () => {
+  it('a fault counted against a rule is forgotten when the rule is replaced, or removed and added again', SLOW, () => {
     const req = useRequest()
     const { library, state, modder } = setup(undefined, 'live')
     state.setHarness({ ...state.harness(), faults: { remove: 2 } }, 'test: two faults remove')
@@ -104,7 +107,7 @@ describe('a rule id is not one version', () => {
 })
 
 describe('the revision after a fault', () => {
-  it('is asked where the scene falls undefined now (host, hole and context rebuilt), and its answer is committed', async () => {
+  it('is asked where the scene falls undefined now (host, hole and context rebuilt), and its answer is committed', SLOW, async () => {
     const req = useRequest()
     const designs: ChatMessage[][] = []
     // the offline design: a look at the rules first, then the revised rule, written (as drafts often are) on the
@@ -127,5 +130,38 @@ describe('the revision after a fault', () => {
     expect(revision?.request).toMatchObject({ event: { kind: 'act/use', host: { type: STONE } }, hole: { rule: req.hole.rule } })
     expect(library.seqOf('patch/sap')).toBeGreaterThan(first.seq!)
     expect(JSON.stringify(library.lib.rules.get('patch/sap')?.tree)).toContain('weeps')
+  })
+})
+
+describe('lanes', () => {
+  it("a player's request does not wait behind an escalation of the same hole", SLOW, async () => {
+    const escalating = gate()
+    const release = gate()
+    const designing = gate()
+    let failing = true
+    const model = new ScriptedModel(async (_messages: ChatMessage[], opts: ChatOptions) => {
+      if (opts.purpose !== 'design') return {}
+      // the escalation (the offline profile designs with tools): held until the test lets it go
+      if (opts.tools) {
+        escalating.open()
+        await release.p
+        return 'no idea'
+      }
+      if (failing) return 'no idea'
+      designing.open()
+      return { patch: sapped('patch/sap'), summary: 'sap' }
+    })
+    const { modder } = setup(model, 'live', { escalate: true })
+    expect((await modder.resolve({ request: useRequest() })).outcome).toBe('failed')
+    await escalating.p
+    failing = false
+    // the same hole asked again by a player while the escalation works on it
+    const second = modder.resolve({ request: useRequest() })
+    // it is designed while the escalation still holds its call (behind it in a lane, it would not be)
+    const waited = await Promise.race([designing.p.then(() => 'designing'), new Promise((r) => setTimeout(() => r('still waiting'), 15_000))])
+    release.open()
+    expect(waited).toBe('designing')
+    expect((await second).outcome).toBe('accepted')
+    await modder.settled()
   })
 })
