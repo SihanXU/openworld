@@ -1495,10 +1495,10 @@ describe('the service, an author\'s new thing', () => {
     await listening(server)
     const base = `http://localhost:${(server.address() as AddressInfo).port}`
     try {
-      const draft = await (await fetch(`${base}/create`, { method: 'POST', body: JSON.stringify({ intent: 'a cold ingot' }) })).json()
+      const draft = await (await fetch(`${base}/create`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'a cold ingot' }) })).json()
       expect(draft.patch.artifacts[0].type).toMatchObject({ id: INGOT.id, art: ART })
       expect(library.seq).toBe(0)
-      expect(await (await fetch(`${base}/adopt`, { method: 'POST', body: JSON.stringify({ patch: draft.patch }) })).json()).toEqual({ ok: true, errors: [] })
+      expect(await (await fetch(`${base}/adopt`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ patch: draft.patch }) })).json()).toEqual({ ok: true, errors: [] })
       expect((await (await fetch(`${base}/patches?since=0`)).json()).entries[0].patch.artifacts[0].type.id).toBe(INGOT.id)
     } finally {
       server.close()
