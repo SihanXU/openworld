@@ -8,7 +8,7 @@
 // (dragged: a block to stamp); things are dragged to move and nudged with the arrows. Every stroke is the format's
 // data: a map file's rows, heights, stamps, rooms, portals, anchors, regions and entities (mapEdit.ts).
 
-import type { Entity, Portal, RawChunk, Rule } from '@openworld/engine'
+import { OntologyIndex, type Entity, type Portal, type RawChunk, type Rule } from '@openworld/engine'
 import { paintOrganic, paintPath, scatter, yard, type PersonFile } from '@openworld/format'
 import type { Catalog } from '@openworld/runtime/src/assets/types.ts'
 import type { CellEvent } from './canvas.ts'
@@ -55,6 +55,7 @@ import {
 } from './mapEdit.ts'
 import { paintPics, prefabPic, terrainPic, typePic, type Pic } from './thumbs.ts'
 import { icon } from './icons.ts'
+import { MAX_HEIGHT, cliffs, heightCss, heightHex, heightWords } from './heights.ts'
 import { LAYERS, groupOf, layerOf, terrainPalette, toolDef, toolForKey, type LayerId, type Tool, type TerrainGroup } from './mapTools.ts'
 import { phrase } from './lang.ts'
 import { esc, parseValue, t, textField, toast, tx } from './ui.ts'
@@ -175,7 +176,7 @@ export class MapMode implements Mode {
     } else if (this.layer === 'ground' && this.tool === 'room') {
       parts.push(`<h3>${t('Room')}</h3>${Object.keys(cat.rooms).length ? `<label>${t('walls')} <select id="roomStyle">${Object.keys(cat.rooms).map((s) => `<option ${s === this.style ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></label>` : `<p class="muted">${t('The catalogue has no room walls (Assets mode, Rooms): the walls are drawn as their terrain.')}</p>`}<label>${t('floor')} <select id="roomFloor">${chars.map(([c, id]) => `<option value="${esc(c)}" ${c === this.floor ? 'selected' : ''}>${esc(shown(onto.terrains[id]?.name) || id)}</option>`).join('')}</select></label>`)
     } else if (this.layer === 'ground') parts.push(this.groundPalette(ctx, chars, pics))
-    if (this.layer === 'height') parts.push(`<h3>${t('Height')}</h3><div class="palette row">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((h) => `<button data-height="${h}" class="${h === this.height ? 'on' : ''}">${h}</button>`).join('')}</div><p class="muted">${t('Half levels: 2 is a level. One walks at most half a level up or down.')}</p>`)
+    if (this.layer === 'height') parts.push(this.heightPanel())
     const quick = this.layer === 'things' && this.tool === 'quick' ? new Form() : undefined
     if (quick) parts.push(this.quick.panel(ctx, quick, () => ctx.refresh()))
     else if (this.layer === 'things') parts.push(this.thingPalette(ctx, pics))
@@ -202,6 +203,56 @@ export class MapMode implements Mode {
     this.filterMaps(left)
     this.inspector(ctx, right)
     ctx.canvas.dim(this.layer === 'things' ? { ground: 0.55 } : this.layer === 'marks' ? { ground: 0.8, things: 0.6 } : { things: 0.45 })
+  }
+
+  /** The height to paint: a slider over the levels, the horizon marked, a side view of where it stands, its colour on the map. */
+  private heightPanel(): string {
+    const ticks = Array.from({ length: MAX_HEIGHT + 1 }, (_, h) => h)
+    return `<h3>${t('Height')}</h3>
+      <div class="hgt">
+        <div class="hgt-now"><b id="hNum">${this.height}</b><span id="hWords">${esc(heightWords(this.height))}</span></div>
+        <input id="hRange" type="range" min="0" max="${MAX_HEIGHT}" step="1" value="${this.height}" title="${t('[ lower, ] higher')}">
+        <div class="hgt-ticks">${ticks.map((h) => `<span class="${h % 2 ? '' : 'lv'}" style="--c:${heightCss(h)}">${h === 0 ? t('horizon') : h}</span>`).join('')}</div>
+        <canvas id="hSide" width="220" height="86"></canvas>
+      </div>
+      <p class="muted">${t('Counted in half levels from the horizon, the ground every map stands on (0). 2 is a whole level. A neighbour half a level up or down can be walked to; a whole level or more is a cliff, drawn red on the map.')}</p>`
+  }
+
+  /** The side view: a step for each height, the horizon's line, the one chosen lit. */
+  private drawSide(left: HTMLElement): void {
+    const cv = left.querySelector<HTMLCanvasElement>('#hSide')
+    const g = cv?.getContext('2d')
+    if (!cv || !g) return
+    const n = MAX_HEIGHT + 1
+    const w = cv.width / n
+    const unit = 6
+    const base = cv.height - 16
+    g.clearRect(0, 0, cv.width, cv.height)
+    for (let h = 0; h < n; h++) {
+      g.fillStyle = h === this.height ? '#f0b85a' : h ? heightCss(h) : '#3a4256'
+      g.globalAlpha = h === this.height ? 1 : 0.55
+      g.fillRect(h * w + 1, base - h * unit, w - 2, h * unit + 6)
+    }
+    g.globalAlpha = 1
+    // the horizon, and each whole level above it
+    for (let lv = 0; lv <= MAX_HEIGHT; lv += 2) {
+      g.strokeStyle = lv ? '#ffffff22' : '#8cc4ff'
+      g.setLineDash(lv ? [2, 3] : [])
+      g.beginPath()
+      g.moveTo(0, base - lv * unit + 0.5)
+      g.lineTo(cv.width, base - lv * unit + 0.5)
+      g.stroke()
+    }
+    g.setLineDash([])
+    g.fillStyle = '#8cc4ff'
+    g.font = '11px sans-serif'
+    g.fillText(t('horizon'), 2, base + 14)
+  }
+
+  private setHeight(ctx: Ctx, h: number): void {
+    this.height = Math.max(0, Math.min(MAX_HEIGHT, h))
+    if (!PAINTS.has(this.tool)) return this.setTool(ctx, this.last['height:brush'] ?? 'pencil')
+    ctx.refresh()
   }
 
   /** The ground's terrains in their groups, one group shown at a time (the chosen ground's, until another is opened). */
@@ -265,8 +316,14 @@ export class MapMode implements Mode {
       groups.set(g, [...(groups.get(g) ?? []), t])
     }
     for (const t of things) pics.set(`ty:${t}`, typePic(cat, onto, t))
+    // kinds drawn by one picture (the pack has fewer pictures than the world has kinds): told apart by their names, and said
+    const idx = new OntologyIndex(onto)
+    const spriteOf = (k: string) => idx.resolve(k).sprite ?? ''
+    const bySprite = new Map<string, number>()
+    for (const k of things) bySprite.set(spriteOf(k), (bySprite.get(spriteOf(k)) ?? 0) + 1)
+    const name = (k: string) => shown(onto.types[k]?.name) || k.split('/').pop()!
     return `<h3>${t('Kinds of things')}</h3><input id="thingFilter" placeholder="${t('filter kinds')}" value="${esc(this.filter)}">
-      <div class="palette list things-pal">${[...groups].map(([g, ts]) => `<details ${f || ts.includes(this.thing) || things.length <= 40 ? 'open' : ''}><summary>${esc(g)} <small class="muted">${ts.length}</small></summary><div class="palette grid">${ts.map((t) => `<button data-thing="${esc(t)}" class="pic ${t === this.thing ? 'on' : ''}" title="${esc(t)}"><canvas data-pic="ty:${esc(t)}" width="32" height="32"></canvas><small>${esc(tx(onto.types[t]?.name) || t.split('/').pop())}</small></button>`).join('')}</div></details>`).join('')}</div>`
+      <div class="palette list things-pal">${[...groups].map(([g, ts]) => `<details ${f || ts.includes(this.thing) || things.length <= 40 ? 'open' : ''}><summary>${esc(shown(onto.types[g]?.name) || g)} <small class="muted">${ts.length}</small></summary><div class="palette rows">${ts.map((k) => { const same = (bySprite.get(spriteOf(k)) ?? 1) - 1; return `<button data-thing="${esc(k)}" class="pic-row ${k === this.thing ? 'on' : ''}" title="${esc(k)}"><canvas data-pic="ty:${esc(k)}" width="32" height="32"></canvas><span>${esc(name(k))}<small>${esc(k.split('/').slice(2).join('/') || k)}${same ? ` · ${t('one picture with {n} others', { n: same })}` : ''}</small></span></button>` }).join('')}</div></details>`).join('')}</div>`
   }
 
   private brushOptions(chars: [string, string][]): string {
@@ -284,7 +341,18 @@ export class MapMode implements Mode {
     on('[data-tgroup]', (b) => ((this.terrainGroup = b.dataset.tgroup as TerrainGroup), ctx.refresh()))
     // a ground or a kind chosen: the brush paints it (unless a tool that uses it is in hand)
     on('[data-char]', (b) => ((this.char = b.dataset.char!), !PAINTS.has(this.tool) && this.setTool(ctx, this.last['ground:brush'] ?? 'pencil'), ctx.refresh()))
-    on('[data-height]', (b) => ((this.height = Number(b.dataset.height)), !PAINTS.has(this.tool) && this.setTool(ctx, this.last['height:brush'] ?? 'pencil'), ctx.refresh()))
+    // the height slider: its words and side view follow as it is dragged; let go, the brush is in hand
+    const range = left.querySelector<HTMLInputElement>('#hRange')
+    if (range) {
+      this.drawSide(left)
+      range.oninput = () => {
+        this.height = Number(range.value)
+        left.querySelector('#hNum')!.textContent = String(this.height)
+        left.querySelector('#hWords')!.textContent = heightWords(this.height)
+        this.drawSide(left)
+      }
+      range.onchange = () => this.setHeight(ctx, Number(range.value))
+    }
     on('[data-thing]', (b) => ((this.thing = b.dataset.thing!), ['pick', 'erase', 'eyedrop'].includes(this.tool) && this.setTool(ctx, this.last['things:brush'] ?? 'put'), ctx.refresh()))
     on('[data-prefab]', (b) => ((this.prefab = b.dataset.prefab!), ctx.refresh()))
     on('[data-map]', (b) => ((this.main = undefined), (this.selBox = undefined), ctx.showMap(b.dataset.map!)))
@@ -727,6 +795,7 @@ export class MapMode implements Mode {
       return false
     }
     if (mod || e.altKey) return false
+    if (this.layer === 'height' && (e.key === '[' || e.key === ']')) return this.setHeight(ctx, this.height + (e.key === ']' ? 1 : -1)), true
     const tool = toolForKey(this.layer, k, this.last)
     if (tool) return this.setTool(ctx, tool), true
     return false
@@ -771,8 +840,12 @@ export class MapMode implements Mode {
         g.lineStyle(this.layer === 'marks' ? 2 : 1, colour, alpha)
         g.strokeRect(b.x * T, b.y * T, b.w * T, b.h * T)
       }
-      if (this.layer === 'height' && ch.map.heights)
-        ch.map.heights.forEach((row, y) => [...row].forEach((h, x) => h !== '0' && (g.fillStyle(0xffffff, Math.min(0.6, Number(h) * 0.07)), g.fillRect(x * T, y * T, T, T))))
+      // the heights as their colours (the horizon bare), and the cliffs between cells red
+      if (this.layer === 'height' && ch.map.heights) {
+        ch.map.heights.forEach((row, y) => [...row].forEach((h, x) => { const c = heightHex(Number(h)); if (c !== undefined) (g.fillStyle(c, 0.42), g.fillRect(x * T, y * T, T, T)) }))
+        g.lineStyle(2, 0xff4d4d, 0.95)
+        for (const e of cliffs(ch.map.heights)) e.side === 'right' ? g.lineBetween((e.x + 1) * T, e.y * T, (e.x + 1) * T, (e.y + 1) * T) : g.lineBetween(e.x * T, (e.y + 1) * T, (e.x + 1) * T, (e.y + 1) * T)
+      }
       for (const [, [x, y, w, h]] of Object.entries(ch.map.regions ?? {})) box({ x, y, w, h }, 0x4aa3ff, 0.8 * marks, 0.12 * marks)
       for (const [, [x, y]] of Object.entries(ch.map.anchors ?? {})) (g.fillStyle(0x3ff0e0, 0.9 * marks), g.fillCircle(x * T + T / 2, y * T + T / 2, 3))
       for (const p of ch.map.portals) (g.lineStyle(2, 0xff4fd8, 0.9 * marks), g.strokeRect(p.x * T + 1, p.y * T + 1, T - 2, T - 2))

@@ -14,7 +14,7 @@ import { factUses } from './usage.ts'
 import { placeOf } from '@openworld/format'
 import { phrase } from './lang.ts'
 import { esc, t, toast, tx } from './ui.ts'
-import { adopt, langName, previewLang } from './words.ts'
+import { adopt, langName, previewLang, shown } from './words.ts'
 
 const ID = /^[a-z0-9_]+$/
 
@@ -35,6 +35,21 @@ function whereOf(ctx: Ctx, s: StepDef): { map: string; x: number; y: number } | 
   return st.map === m.id ? st : { map: m.id, x: Math.floor(m.width / 2), y: Math.floor(m.height / 2) }
 }
 
+/** What a step says first (its line, its hint, its scene's first words), as the editor's language has it: the step's name in the list. */
+function stepWords(s: StepDef): string {
+  const first = (v: unknown): Text | undefined => {
+    if (Array.isArray(v)) for (const x of v) { const f = first(x); if (f) return f }
+    else if (v && typeof v === 'object') {
+      const o = v as Record<string, unknown>
+      for (const k of ['text', 'line', 'say']) if (typeof o[k] === 'string' || (o[k] && typeof o[k] === 'object' && !Array.isArray(o[k]) && typeof (o[k] as Record<string, unknown>).en === 'string')) return o[k] as Text
+      for (const x of Object.values(o)) if (x && typeof x === 'object') { const f = first(x); if (f) return f }
+    }
+    return undefined
+  }
+  const w = shown(s.say ?? s.hint ?? first(s.script))
+  return w.length > 60 ? `${w.slice(0, 58)}…` : w
+}
+
 export class StoryMode implements Mode {
   id = 'story'
   label = phrase('Story')
@@ -52,7 +67,7 @@ export class StoryMode implements Mode {
     const f = new Form()
     const summary = (s: StepDef) => [s.script ? t('scene, {n}', { n: s.script.length }) : t('beat'), s.when?.map, s.when?.after && t('after {step}', { step: s.when.after }), s.manual && t('started by an effect')].filter(Boolean).join(' · ')
     left.innerHTML = `<h3>${t('The story\'s steps')}</h3>
-      <div class="palette list" style="max-height:60vh">${steps.map(({ step }) => `<div class="tree-row ${step.id === this.sel ? 'on' : ''}" data-step="${esc(step.id)}">${esc(step.id)}<small>${esc(summary(step))}</small></div>`).join('') || `<p class="muted">${t('No steps yet.')}</p>`}</div>
+      <div class="palette list" style="max-height:60vh">${steps.map(({ step }) => `<div class="tree-row step ${step.id === this.sel ? 'on' : ''}" data-step="${esc(step.id)}" role="button" tabindex="0"><span>${esc(stepWords(step) || step.id)}</span><small>${esc(step.id)} · ${esc(summary(step))}</small></div>`).join('') || `<p class="muted">${t('No steps yet.')}</p>`}</div>
       <details ${steps.length ? '' : 'open'}><summary>${t('New step')}</summary><label>${t('id')} <input id="stNewId" placeholder="meet_mira"></label>
         <div class="row">${f.button(t('A scene'), () => this.make(ctx, left, true), { title: t('it takes control and plays its commands') })}${f.button(t('A beat'), () => this.make(ctx, left, false), { title: t('it only says, sets facts and waits on its trigger') })}</div></details>`
     left.querySelectorAll<HTMLElement>('[data-step]').forEach((r) => (r.onclick = () => ((this.sel = r.dataset.step), ctx.refresh())))
@@ -63,7 +78,8 @@ export class StoryMode implements Mode {
     const g = new Form()
     const set = (k: keyof StoryFile, v: unknown) => sf && ctx.store.change<StoryFile>(sf.file, t('the story\'s {key}', { key: k }), (x) => (v === undefined ? delete x[k] : ((x as Record<string, unknown>)[k] = v)))
     right.innerHTML = `<h3>${t('The story\'s facts')}</h3>
-      <table class="facts">${facts.map(([k, us]) => `<tr><td><a data-fact="${esc(k)}">${esc(k)}</a></td><td class="muted">${t('{set} set · {read} read', { set: us.filter((u) => u.how === 'set').length, read: us.filter((u) => u.how === 'read').length })}</td></tr>`).join('') || `<tr><td class="muted">${t('none yet')}</td></tr>`}</table>
+      <p class="muted">${t('A fact is a word the story remembers (a bell rung, a crown found): where each is set and read.')}</p>
+      <ul class="things facts">${facts.map(([k, us]) => `<li><a data-fact="${esc(k)}">${esc(k)}</a><small>${t('{set} set · {read} read', { set: us.filter((u) => u.how === 'set').length, read: us.filter((u) => u.how === 'read').length })}</small></li>`).join('') || `<li class="muted">${t('none yet')}</li>`}</ul>
       <h3>${t('The story as a whole')}</h3>
       ${sf ? `<label>${t('facts only the story changes (their prefixes)')} ${g.text((sf.data.protectedFacts ?? []).join(', '), (v) => set('protectedFacts', v.split(',').map((x) => x.trim()).filter(Boolean).length ? v.split(',').map((x) => x.trim()).filter(Boolean) : undefined), { placeholder: 'glade.' })}</label>
         <details><summary>${t('What it keeps true (invariants, {n})', { n: sf.data.invariants?.length ?? 0 })}</summary>${g.json(sf.data.invariants, (v) => set('invariants', v), (m) => toast(m, 'error'), 6)}</details>

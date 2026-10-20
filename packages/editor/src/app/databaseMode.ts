@@ -8,17 +8,22 @@ import type { Ctx, Mode } from './context.ts'
 import { entryFile, removeEntry, setEntry, type Section } from './ontologyFiles.ts'
 import { phrase } from './lang.ts'
 import { esc, parseValue, t, textField, toast, tx } from './ui.ts'
-import { together, written } from './words.ts'
+import { shown, together, written } from './words.ts'
+import { paintPics, typePic, type Pic } from './thumbs.ts'
+import type { Catalog } from '@openworld/runtime/src/assets/types.ts'
 
 type Tab = 'types' | 'statuses' | 'terrains' | 'recipes'
 
-/** The fields each kind of entry is edited by (the rest in its JSON). */
-const FIELDS: Record<Section, [key: string, hint: string][]> = {
-  types: [['tags', phrase('tags, comma separated')], ['props', phrase('props (JSON: {"hp": 10})')], ['sprite', phrase('sprite key (item:axe)')], ['solid', phrase('solid (true/false)')], ['makeup', phrase('makeup (JSON: [{"type": "item/material/log", "count": 2}])')], ['station', phrase('made at (hands, or a station)')], ['tools', phrase('tools its making needs (comma separated)')], ['yields', phrase('how many one making gives')], ['stage', phrase('stage (JSON: {"into": "…", "lasts": 9600})')]],
-  statuses: [['duration', phrase('ticks (none: until removed)')], ['clears', phrase('statuses it clears (comma separated)')], ['wards', phrase('statuses it wards off')], ['immobilize', phrase('holds still (true/false)')], ['moveDelay', phrase('step slower by (×)')], ['every', phrase('ticks between its periods')], ['overlay', phrase('picture drawn over it (fire, wet, ice …)')], ['props', phrase('what it adds to its holder (JSON)')]],
-  terrains: [['tags', phrase('tags, comma separated')], ['solid', phrase('solid (true/false)')], ['liquid', phrase('liquid (true/false)')], ['space', phrase('its space (floor, soil, volume)')], ['color', phrase('colour (#rrggbb)')], ['props', phrase('props (JSON)')], ['makeup', phrase('makeup (JSON)')], ['stage', phrase('stage (JSON)')]],
+/** How a field is edited: words in a list, a yes or no, a number, words, a colour, one of some, a table of numbers and words, what it is made of, or (advanced) JSON. */
+type Kind = 'list' | 'bool' | 'number' | 'text' | 'color' | 'props' | 'makeup' | 'json' | `choice:${string}`
+
+/** The fields each kind of entry is edited by, as forms (the whole entry is in its JSON too, under Advanced). */
+const FIELDS: Record<Section, [key: string, label: string, kind: Kind][]> = {
+  types: [['tags', phrase('Tags'), 'list'], ['props', phrase('Properties'), 'props'], ['sprite', phrase('Picture (sprite key)'), 'text'], ['solid', phrase('Solid: nothing walks through it'), 'bool'], ['makeup', phrase('Made of'), 'makeup'], ['station', phrase('Made at (hands, or a station)'), 'text'], ['tools', phrase('Tools its making needs'), 'list'], ['yields', phrase('How many one making gives'), 'number'], ['stage', phrase('Becomes in time (JSON)'), 'json']],
+  statuses: [['duration', phrase('Lasts (ticks; empty: until removed)'), 'number'], ['clears', phrase('Statuses it clears'), 'list'], ['wards', phrase('Statuses it wards off'), 'list'], ['immobilize', phrase('Holds its holder still'), 'bool'], ['moveDelay', phrase('Steps slower by (×)'), 'number'], ['every', phrase('Ticks between its periods'), 'number'], ['overlay', phrase('Picture drawn over it (fire, wet, ice …)'), 'text'], ['props', phrase('What it adds to its holder'), 'props']],
+  terrains: [['tags', phrase('Tags'), 'list'], ['solid', phrase('Solid: nothing walks through it'), 'bool'], ['liquid', phrase('Liquid'), 'bool'], ['space', phrase('The space it takes'), 'choice:floor,soil,volume'], ['color', phrase('Colour'), 'color'], ['props', phrase('Properties'), 'props'], ['makeup', phrase('Made of'), 'makeup'], ['stage', phrase('Becomes in time (JSON)'), 'json']],
 }
-const LISTS = new Set(['tags', 'clears', 'wards', 'tools'])
+const SPACES: Record<string, string> = { floor: phrase('a floor (walked on)'), soil: phrase('rooted in the soil'), volume: phrase('fills its cell') }
 
 export class DatabaseMode implements Mode {
   id = 'database'
@@ -44,37 +49,50 @@ export class DatabaseMode implements Mode {
     const own = { ...def } as Record<string, unknown>
     const resolved = section === 'types' ? new OntologyIndex(onto).resolve(def.id) : undefined
     const chars = Object.entries(ctx.store.game.terrainChars).filter(([, t]) => t === def.id).map(([c]) => c)
-    el.innerHTML = `<h3>${esc(def.id)}</h3>
-      <p class="muted">${file ? t('written in {file}', { file: `<code>${esc(file)}</code>` }) : t('the standard library\'s: a change writes the project\'s own over it')}</p>
-      <div class="cols"><div>
+    const rules = ctx.store.compiled().bundle.rules.filter((r) => r.host?.type && (r.host.type === def.id || def.id.startsWith(r.host.type + '/')))
+    const pics = new Map<string, Pic | undefined>()
+    if (section === 'types') pics.set(`ty:${def.id}`, typePic(this.catalog(ctx), onto, def.id))
+    el.innerHTML = `<div class="db-head">${section === 'types' ? `<canvas data-pic="ty:${esc(def.id)}" width="48" height="48"></canvas>` : section === 'terrains' ? `<span class="sw big" style="background:${esc((def as TerrainDef).color ?? '#555')}"></span>` : ''}
+        <div><h2>${esc(shown(def.name) || def.id.split('/').pop())}</h2><p class="muted"><code>${esc(def.id)}</code> · ${file ? t('written in {file}', { file: `<code>${esc(file)}</code>` }) : t('the standard library\'s: a change writes the project\'s own over it')}</p></div></div>
+      <div class="cols"><div class="db-form">
         <label>${t('name')} ${textField('data-f="name"', def.name)}</label>
-        ${FIELDS[section].map(([k, hint]) => `<label>${esc(t(hint))} <input data-f="${k}" value="${esc(fieldText(own[k], LISTS.has(k)))}"></label>`).join('')}
         ${section === 'terrains' ? `<label>${t('map character')} <input data-f="char" maxlength="1" value="${esc(chars[0] ?? '')}"></label>` : ''}
+        ${FIELDS[section].filter(([, , kind]) => kind !== 'json').map(([k, label, kind]) => this.field(ctx, k, t(label), kind, own[k])).join('')}
         ${section === 'types' && (def as TypeDef).sprite ? `<p><a id="dbPic">${t('The picture of {sprite} →', { sprite: esc((def as TypeDef).sprite) })}</a></p>` : ''}
+        <details class="db-adv"><summary>${t('Advanced: the entry as JSON')}</summary>
+          ${FIELDS[section].filter(([, , kind]) => kind === 'json').map(([k, label]) => `<label>${esc(t(label))} <textarea data-json="${k}" rows="3">${esc(own[k] === undefined ? '' : JSON.stringify(own[k]))}</textarea></label>`).join('')}
+          <textarea id="dbJson" rows="14">${esc(JSON.stringify(def, null, 2))}</textarea><button id="dbApply">${t('Apply the JSON')}</button></details>
         <button id="dbDel" class="danger" ${file ? '' : 'disabled'}>${t('Remove {id}', { id: esc(def.id) })}${file ? '' : ` ${t('(the library\'s)')}`}</button>
       </div><div>
-        <h3>JSON</h3><textarea id="dbJson" rows="16">${esc(JSON.stringify(def, null, 2))}</textarea><button id="dbApply">${t('Apply the JSON')}</button>
-        ${resolved ? `<h3>${t('As the world sees it')}</h3><p class="muted">${t('tags')}</p><p>${esc([...resolved.tags].join(', ') || '—')}</p><p class="muted">${t('props')}</p><p><code>${esc(JSON.stringify(resolved.props))}</code></p>` : ''}
-        <h3>${t('Rules on it')}</h3><ul class="things">${ctx.store.compiled().bundle.rules.filter((r) => r.host?.type && (r.host.type === def.id || def.id.startsWith(r.host.type + '/'))).map((r) => `<li><a data-rule="${esc(r.id)}">${esc(r.id)}</a> <small>${esc(r.on)}${r.host?.type === def.id ? '' : ` · ${t('{type}\'s', { type: esc(r.host?.type) })}`}</small></li>`).join('') || `<li class="muted">${t('none of its own')}</li>`}</ul>
-      </div></div>`
+        ${resolved ? `<h3>${t('As the world sees it')}</h3><p class="muted">${t('Its own and what it inherits from its kinds above it.')}</p>
+          <div class="chips">${[...resolved.tags].map((g) => `<span class="chip">${esc(g)}</span>`).join('') || '—'}</div>
+          <table class="kv">${Object.entries(resolved.props).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(typeof v === 'string' ? v : JSON.stringify(v))}</td></tr>`).join('')}</table>` : ''}
+        <h3>${t('Rules on it')}</h3><ul class="things rules">${rules.map((r) => `<li><a data-rule="${esc(r.id)}">${esc(shown(r.label) || r.doc || r.id)}</a><small>${esc(r.id)} · ${esc(r.on)}${r.host?.type === def.id ? '' : ` · ${t('{type}\'s', { type: esc(r.host?.type) })}`}</small></li>`).join('') || `<li class="muted">${t('none of its own')}</li>`}</ul>
+      </div></div>
+      <datalist id="dbTypes">${Object.keys(onto.types).map((x) => `<option value="${esc(x)}">`).join('')}</datalist>
+      <datalist id="dbTags">${[...new Set(Object.values(onto.types).flatMap((x) => x.tags ?? []))].sort().map((x) => `<option value="${esc(x)}">`).join('')}</datalist>`
+    paintPics(el, ctx.store.id, pics)
     const write = (d: Record<string, unknown>, why: string) => setEntry(ctx.store, section, d as never, why)
+    const edit = (k: string, v: unknown) => together(() => {
+      const d = structuredClone(def) as unknown as Record<string, unknown>
+      if (v === undefined || v === '' || (Array.isArray(v) && !v.length) || (v && typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length)) delete d[k]
+      else d[k] = v
+      write(d, `${def.id}: ${k}`)
+    })
     el.querySelectorAll<HTMLInputElement>('[data-f]').forEach((inp) => (inp.onchange = () => together(() => {
       const k = inp.dataset.f!
-      const d = structuredClone(def) as unknown as Record<string, unknown>
-      if (k === 'name') d.name = written(def.name, inp.value) ?? def.id.split('/').pop()
-      else if (k === 'char') {
-        const c = inp.value
-        if (c.length !== 1) return toast(t('A map writes a terrain by one character.'), 'warn')
-        const taken = ctx.store.game.terrainChars[c]
-        if (taken && taken !== def.id) return toast(t('"{c}" is {taken}\'s already.', { c, taken }), 'warn')
-        return ctx.store.change('game.json', t('{id} is "{c}"', { id: def.id, c }), (g: { terrainChars: Record<string, string> }) => { for (const [x, y] of Object.entries(g.terrainChars)) if (y === def.id) delete g.terrainChars[x]; g.terrainChars[c] = def.id })
-      } else {
-        const v = LISTS.has(k) ? inp.value.split(',').map((x) => x.trim()).filter(Boolean) : parseValue(inp.value)
-        if (v === undefined || (Array.isArray(v) && !v.length)) delete d[k]
-        else d[k] = v
+      if (k === 'name') {
+        const d = structuredClone(def) as unknown as Record<string, unknown>
+        d.name = written(def.name, inp.value) ?? def.id.split('/').pop()
+        return write(d, `${def.id}: ${k}`)
       }
-      write(d, `${def.id}: ${k}`)
+      const c = inp.value
+      if (c.length !== 1) return toast(t('A map writes a terrain by one character.'), 'warn')
+      const taken = ctx.store.game.terrainChars[c]
+      if (taken && taken !== def.id) return toast(t('"{c}" is {taken}\'s already.', { c, taken }), 'warn')
+      ctx.store.change('game.json', t('{id} is "{c}"', { id: def.id, c }), (g: { terrainChars: Record<string, string> }) => { for (const [x, y] of Object.entries(g.terrainChars)) if (y === def.id) delete g.terrainChars[x]; g.terrainChars[c] = def.id })
     })))
+    this.wireFields(el, own, edit)
     el.querySelector<HTMLElement>('#dbPic')?.addEventListener('click', () => {
       const sp = (def as TypeDef).sprite!
       ctx.open('assets', 'catalog.json', `${sp.startsWith('fixture:') ? 'fixtures' : sp.startsWith('creature:') ? 'creatures' : 'items'}:${sp}`)
@@ -92,15 +110,57 @@ export class DatabaseMode implements Mode {
     el.querySelectorAll<HTMLElement>('[data-rule]').forEach((a) => (a.onclick = () => ctx.open('rules', undefined, a.dataset.rule)))
   }
 
+  /** One field as a form: chips, a box to tick, a number, words, a colour, a choice, a table, or the rows of a makeup. */
+  private field(ctx: Ctx, k: string, label: string, kind: Kind, v: unknown): string {
+    const head = `<span class="db-label">${esc(label)}</span>`
+    if (kind === 'bool') return `<label class="chip db-bool"><input type="checkbox" data-bool="${k}" ${v ? 'checked' : ''}> ${esc(label)}</label>`
+    if (kind === 'number') return `<label>${head}<input type="number" data-num="${k}" value="${esc(v ?? '')}"></label>`
+    if (kind === 'text') return `<label>${head}<input data-text="${k}" value="${esc(v ?? '')}"></label>`
+    if (kind === 'color') return `<label>${head}<input type="color" data-text="${k}" value="${esc(typeof v === 'string' ? v : '#888888')}"></label>`
+    if (kind.startsWith('choice:')) return `<label>${head}<select data-text="${k}"><option value="">${t('(as its kind)')}</option>${kind.slice(7).split(',').map((o) => `<option value="${o}" ${o === v ? 'selected' : ''}>${esc(t(SPACES[o] ?? o))}</option>`).join('')}</select></label>`
+    if (kind === 'list') {
+      const xs = Array.isArray(v) ? (v as string[]) : []
+      return `<div class="db-field">${head}<div class="chips">${xs.map((x, i) => `<span class="chip">${esc(x)} <a class="x" data-chip-del="${k}" data-i="${i}">×</a></span>`).join('')}<input data-chip-add="${k}" placeholder="${t('+ add')}" list="dbTags"></div></div>`
+    }
+    if (kind === 'props') {
+      const rows = v && typeof v === 'object' ? Object.entries(v as Record<string, unknown>) : []
+      return `<div class="db-field">${head}<table class="kv" data-props="${k}">${rows.map(([pk, pv]) => `<tr><td><input data-pk value="${esc(pk)}"></td><td><input data-pv value="${esc(typeof pv === 'string' ? pv : JSON.stringify(pv))}"></td><td><a class="x" data-row-del>×</a></td></tr>`).join('')}<tr class="add"><td><input data-pk placeholder="${t('name')}"></td><td><input data-pv placeholder="${t('value')}"></td><td></td></tr></table></div>`
+    }
+    // makeup: a row a part — its kind and how many
+    const parts = Array.isArray(v) ? (v as { type: string; count: number }[]) : []
+    return `<div class="db-field">${head}<table class="kv" data-makeup="${k}">${parts.map((p) => `<tr><td><input data-mt value="${esc(p.type)}" list="dbTypes"></td><td><input type="number" data-mc min="1" value="${p.count}"></td><td><a class="x" data-row-del>×</a></td></tr>`).join('')}<tr class="add"><td><input data-mt placeholder="${t('+ a part (a kind)')}" list="dbTypes"></td><td><input type="number" data-mc min="1" value="1"></td><td></td></tr></table></div>`
+  }
+
+  private wireFields(el: HTMLElement, own: Record<string, unknown>, edit: (k: string, v: unknown) => void): void {
+    el.querySelectorAll<HTMLInputElement>('[data-bool]').forEach((b) => (b.onchange = () => edit(b.dataset.bool!, b.checked || undefined)))
+    el.querySelectorAll<HTMLInputElement>('[data-num]').forEach((b) => (b.onchange = () => edit(b.dataset.num!, b.value === '' ? undefined : Number(b.value))))
+    el.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-text]').forEach((b) => (b.onchange = () => edit(b.dataset.text!, b.value.trim() || undefined)))
+    el.querySelectorAll<HTMLInputElement>('[data-chip-add]').forEach((b) => (b.onchange = () => { const k = b.dataset.chipAdd!; const xs = Array.isArray(own[k]) ? [...(own[k] as string[])] : []; const add = b.value.split(',').map((x) => x.trim()).filter((x) => x && !xs.includes(x)); if (add.length) edit(k, [...xs, ...add]) }))
+    el.querySelectorAll<HTMLElement>('[data-chip-del]').forEach((a) => (a.onclick = () => { const k = a.dataset.chipDel!; edit(k, (own[k] as string[]).filter((_, i) => i !== Number(a.dataset.i))) }))
+    el.querySelectorAll<HTMLTextAreaElement>('[data-json]').forEach((b) => (b.onchange = () => { try { edit(b.dataset.json!, b.value.trim() ? JSON.parse(b.value) : undefined) } catch (e) { toast(t('not JSON: {why}', { why: (e as Error).message }), 'error') } }))
+    // a table read back whole on any change: its rows (a row's ×: without it)
+    const table = (sel: string, read: (tb: HTMLElement) => unknown) => el.querySelectorAll<HTMLElement>(sel).forEach((tb) => {
+      const k = tb.dataset.props ?? tb.dataset.makeup!
+      tb.querySelectorAll<HTMLInputElement>('input').forEach((i) => (i.onchange = () => edit(k, read(tb))))
+      tb.querySelectorAll<HTMLElement>('[data-row-del]').forEach((a) => (a.onclick = () => { a.closest('tr')!.remove(); edit(k, read(tb)) }))
+    })
+    table('[data-props]', (tb) => Object.fromEntries([...tb.querySelectorAll('tr')].map((r) => [r.querySelector<HTMLInputElement>('[data-pk]')!.value.trim(), r.querySelector<HTMLInputElement>('[data-pv]')!.value]).filter(([pk]) => pk).map(([pk, pv]) => [pk, parseValue(pv) ?? pv])))
+    table('[data-makeup]', (tb) => [...tb.querySelectorAll('tr')].map((r) => ({ type: r.querySelector<HTMLInputElement>('[data-mt]')!.value.trim(), count: Math.max(1, Number(r.querySelector<HTMLInputElement>('[data-mc]')!.value) || 1) })).filter((p) => p.type))
+  }
+
+  private catalog(ctx: Ctx): Catalog {
+    return { prefabs: {}, rooms: {}, blobs: {}, plain: {}, terrainObjects: {}, fixtures: {}, items: {}, creatures: {}, music: {}, ...(ctx.store.get<Catalog>('catalog.json') ?? {}) } as Catalog
+  }
+
   render(ctx: Ctx, left: HTMLElement, right: HTMLElement): void {
     const onto = ctx.onto()
     const tabs: [Tab, string][] = [['types', t('Types')], ['statuses', t('Statuses')], ['terrains', t('Terrains')], ['recipes', t('Recipes')]]
     const ids = this.tab === 'recipes' ? [] : Object.keys(onto[this.tab]).sort()
-    const shown = ids.filter((id) => !this.filter || id.includes(this.filter) || tx((onto[this.tab as Section] as Record<string, { name?: never }>)[id]?.name).toLowerCase().includes(this.filter.toLowerCase()))
+    const listed = ids.filter((id) => !this.filter || id.includes(this.filter) || tx((onto[this.tab as Section] as Record<string, { name?: never }>)[id]?.name).toLowerCase().includes(this.filter.toLowerCase()))
     const depth = (id: string) => (this.tab === 'types' ? id.split('/').length - 1 : 0)
     left.innerHTML = `<div class="tools">${tabs.map(([k, n]) => `<button data-tab="${k}" class="${k === this.tab ? 'on' : ''}">${n}</button>`).join('')}</div>
       ${this.tab === 'recipes' ? '' : `<input id="dbFilter" placeholder="${t('filter')}" value="${esc(this.filter)}">
-      <div class="palette list" style="max-height:60vh">${shown.map((id) => `<div class="tree-row ${id === this.sel ? 'on' : ''}" data-id="${esc(id)}" style="padding-left:${depth(id) * 10 + 3}px">${esc(this.tab === 'types' ? id.split('/').pop() : id)}<small>${esc(tx((onto[this.tab as Section] as Record<string, { name?: never }>)[id]?.name))}${entryFile(ctx.store, this.tab as Section, id) ? '' : ` · ${t('library')}`}</small></div>`).join('')}</div>
+      <div class="palette list" style="max-height:60vh">${listed.map((id) => `<div class="tree-row ${id === this.sel ? 'on' : ''}" data-id="${esc(id)}" role="button" tabindex="0" style="padding-left:${depth(id) * 10 + 3}px">${esc(shown((onto[this.tab as Section] as Record<string, { name?: never }>)[id]?.name) || id.split('/').pop())}<small>${esc(this.tab === 'types' ? id.split('/').pop() : id)}${entryFile(ctx.store, this.tab as Section, id) ? '' : ` · ${t('library')}`}</small></div>`).join('')}</div>
       <details><summary>${this.tab === 'types' ? t('New type') : this.tab === 'statuses' ? t('New status') : t('New terrain')}</summary>
         <label>${t('id')} <input id="dbNewId" value="${esc(this.tab === 'types' && this.sel ? this.sel + '/' : '')}"></label>
         <label>${t('name')} <input id="dbNewName"></label>
@@ -126,5 +186,3 @@ export class DatabaseMode implements Mode {
     if (at) this.sel = at
   }
 }
-
-const fieldText = (v: unknown, list: boolean): string => (v === undefined ? '' : list && Array.isArray(v) ? v.join(', ') : typeof v === 'string' ? v : JSON.stringify(v))

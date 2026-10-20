@@ -283,3 +283,46 @@ button.ic { padding: 4px 6px; display: inline-grid; place-items: center; }
 .map-head b { font-size: 14px; }
 .map-head small { color: var(--ed-muted); }
 .map-head button { justify-self: start; margin-top: 4px; }
+
+/* the Height layer (heights.ts): the height chosen in words, a slider over the levels with the horizon marked, a side view */
+.hgt { display: grid; gap: 6px; margin: 4px 0 8px; }
+.hgt-now { display: flex; align-items: baseline; gap: 8px; }
+.hgt-now b { font-size: 22px; color: var(--ed-accent); min-width: 18px; }
+.hgt input[type=range] { width: 100%; accent-color: var(--ed-accent); }
+.hgt-ticks { display: grid; grid-template-columns: repeat(10, 1fr); font-size: 10px; color: var(--ed-muted); text-align: center; }
+.hgt-ticks span { border-top: 3px solid var(--c); padding-top: 2px; }
+.hgt-ticks span:first-child { color: #8cc4ff; border-top-color: #8cc4ff; white-space: nowrap; text-align: left; }
+.hgt-ticks span.lv { color: var(--ed-ink); }
+#hSide { width: 100%; height: auto; background: #0f121a; border: 1px solid var(--ed-line); border-radius: 4px; }
+
+/* the Things layer's kinds as rows: a picture, the name in full, its kind and whether its picture is shared */
+.palette.rows { display: flex; flex-direction: column; gap: 2px; }
+.palette.rows button.pic-row { display: flex; align-items: center; gap: 8px; padding: 3px 6px; text-align: left; }
+.palette.rows button.pic-row canvas { flex: none; image-rendering: pixelated; border-radius: 3px; }
+.palette.rows button.pic-row span { display: flex; flex-direction: column; min-width: 0; margin: 0; }
+.palette.rows button.pic-row small { margin: 0; color: var(--ed-muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette.rows button.pic-row.on small { color: #3a2a08; }
+
+/* the database: the entry's picture and name on top; its fields as forms; JSON under Advanced */
+.db-head { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+.db-head canvas { image-rendering: pixelated; background: #0f121a; border-radius: 4px; }
+.db-head h2 { margin: 0; font-size: 18px; }
+.db-head p { margin: 2px 0 0; }
+.sw.big { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 6px; }
+.db-form label, .db-field { display: block; margin: 8px 0; }
+.db-label { display: block; color: var(--ed-muted); font-size: 12px; margin-bottom: 3px; }
+.db-form label > input:not([type=checkbox]), .db-form label > select { width: 100%; }
+label.db-bool { display: flex; gap: 6px; }
+.db-field .chips input { width: 120px; }
+.chips .chip { background: #262c3d; border-radius: 999px; padding: 1px 8px; }
+table.kv { width: 100%; border-collapse: collapse; }
+table.kv td { padding: 2px 3px; }
+table.kv td:first-child { width: 45%; }
+table.kv input { width: 100%; }
+table.kv input[type=number] { width: 70px; }
+table.kv tr.add input { opacity: 0.7; }
+details.db-adv summary { color: var(--ed-muted); }
+ul.things.rules li, ul.things.facts li { display: flex; flex-direction: column; padding: 3px 0; border-bottom: 1px solid #262c3d; }
+ul.things.rules small, ul.things.facts small { color: var(--ed-muted); font-size: 11px; }
+.tree-row.step { flex-direction: column; align-items: flex-start; gap: 0; }
+.tree-row.step span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }

@@ -25,6 +25,7 @@ import { exportDialog } from './exportDialog.ts'
 import { MODES as MORE } from './modes.ts'
 import { icon } from './icons.ts'
 import { navGroups } from './nav.ts'
+import { keepScroll } from './scroll.ts'
 import './editor.css'
 
 const PARAMS = new URLSearchParams(location.search)
@@ -138,14 +139,15 @@ async function openProject(id: string): Promise<void> {
     $('#canvas').classList.toggle('hidden', !!main)
     center.classList.toggle('hidden', !main)
     if (picking) pickPanel()
-    else if (main) main.call(mode, ctx, center)
+    else if (main) keepScroll(mode.id, [center], () => main.call(mode, ctx, center))
     else if (pictures) {
       pictures = false
       useGame(clientGameOf(store.compiled().bundle, `/games/${encodeURIComponent(id)}/bundle.json`))
       canvas.reset()
     }
     if (!picking) {
-      mode.render(ctx, $('#left'), $('#right'))
+      // (drawn again whole: each list keeps where it was scrolled to, as long as it is the same mode's)
+      keepScroll(mode.id, [$('#left'), $('#right'), center], () => mode.render(ctx, $('#left'), $('#right')))
       canvas.setOverlay(mode.overlay?.(ctx))
     }
     // the strip of tools and their bar: over the canvas, while a mode on it has them

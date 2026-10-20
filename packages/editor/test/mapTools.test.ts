@@ -73,3 +73,22 @@ describe('the header', () => {
     expect(navGroups(ids)).toEqual({ groups: [['map', 'people'], ['database', 'assets', 'rules'], ['story', 'quests'], ['holes']], more: ['game', 'locales', 'find'] })
   })
 })
+
+describe('the ground\'s height', () => {
+  it('says each height from the horizon in half levels, coloured low to high, the horizon bare', async () => {
+    const { heightWords, heightRgb, MAX_HEIGHT } = await import('../src/app/heights.ts')
+    expect([0, 1, 2, 3, 4].map(heightWords)).toEqual(['the horizon (the ground)', 'half a level up', 'a level up', '1 and a half levels up', '2 levels up'])
+    expect(heightRgb(0)).toBeUndefined()
+    // green at the first step, red at the top
+    const [lo, hi] = [heightRgb(1)!, heightRgb(MAX_HEIGHT)!]
+    expect(lo[1]).toBeGreaterThan(lo[0])
+    expect(hi[0]).toBeGreaterThan(hi[1])
+  })
+
+  it('finds the cliffs: neighbours a whole level apart, each edge once; half a level is a step', async () => {
+    const { cliffs } = await import('../src/app/heights.ts')
+    expect(cliffs(['0002', '0000'])).toEqual([{ x: 2, y: 0, side: 'right' }, { x: 3, y: 0, side: 'down' }])
+    expect(cliffs(['01', '12'])).toEqual([])
+    expect(cliffs(undefined)).toEqual([])
+  })
+})
