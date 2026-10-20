@@ -532,7 +532,11 @@ export class WorldScene extends Phaser.Scene {
       if (w.pose === 'cast') this.sfx('cast', 0.25)
       if (w.pose === 'call') this.sfx('howl', 0.35, 0.6)
     }
+    // a landing only for a wind-up let go: one lost (its caster felled, held or stunned before the end) makes no sound
+    const standing = new Map(f.entities.map((e) => [e.id, e]))
     for (const [who, w] of was) if (!this.windup.has(who) && this.views.has(who)) {
+      const e = standing.get(who)
+      if (!e || (e.hp !== undefined && e.hp <= 0) || w.progress < 0.6) continue
       if (w.pose === 'leap') this.sfx('hop', 0.35)
       if (w.pose === 'dash') this.sfx('wind', 0.35)
       if (w.pose === 'slam') this.sfx('impact', 0.4, 0.8)
@@ -1831,7 +1835,8 @@ export class WorldScene extends Phaser.Scene {
     this.sfxAt.set(key, this.time.now)
     if (this.cache.audio.exists(key)) return void this.sound.play(key, { volume, rate })
     // first use: fetch it in the background; this one plays when it arrives (if still recent)
-    const path = catalog().sfx[name]
+    // a game whose catalogue has no felling of its own hears its death instead
+    const path = catalog().sfx[name] ?? (name === 'fell' ? catalog().sfx.death : undefined)
     if (!path || this.sfxLoading.has(key)) return
     this.sfxLoading.add(key)
     const asked = this.time.now
