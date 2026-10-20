@@ -1,13 +1,15 @@
 // The modder service: one small HTTP API next to the static game (design.md §11).
 //   GET  /health          model, library and self-state at a glance
 //   POST /resolve         ResolveBody → ResolveReply (a validated patch, or why not); `profile: offline` from the editor
+//                         (this host only: from elsewhere it is answered live)
 //   GET  /patches?since=n the shared library's patch log after seq n (clients sync from it): {seq, log, entries};
 //                         `log` is the log's identity (another one: the log was begun anew, sync from 0)
 //   GET  /stats           the numbers the paper reports
 //   GET  /progress?id=r   where request r is (queued, local, find, create, art; {} when not here)
 //   POST /create          {intent, had?, stations?} → a new thing's draft (types and icons), not committed (this host only)
 //   POST /adopt           {patch}: the author took the new thing into the game; the library has it (this host only)
-//   POST /fault           {rule, reason, client?}: a client set a learned rule aside at run time
+//   POST /fault           {rule, reason, client?}: a client set a learned rule aside at run time (counted by the caller's
+//                         address; `client` tells apart only the clients of a caller on this machine)
 //   GET  /quality         what the model carries (design.md §13, the AI setting): the last detection, one running; ?plan=1 what one would play
 //   POST /quality/detect  start a detection (this host only: it costs model calls)
 
@@ -31,6 +33,12 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
   const detector = new Detector(modder, { file: modder.opts.data ? join(modder.opts.data, 'quality.json') : undefined, probes: modder.opts.probes, log: modder.opts.log })
   // a detection is model calls on this service's account: asked for from this machine only
   const local = (req: IncomingMessage) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '')
+  // a page on any site can reach this machine's service through the browser of the one who opened it: its Origin
+  // says where it came from (absent: not a page; a page served from this machine: the editor, the game in development)
+  const ownOrigin = (req: IncomingMessage) => {
+    const o = req.headers.origin
+    return o === undefined || /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(o)
+  }
   return createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', opts.origin ?? '*')
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -58,7 +66,12 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
       if (req.method === 'POST' && url.pathname === '/fault') {
         const body = (await readJson(req, 64_000)) as { rule?: unknown; reason?: unknown; client?: unknown }
         if (typeof body?.rule !== 'string') return send(400, { error: 'rule required' })
-        return send(200, modder.fault(body.rule, String(body.reason ?? ''), typeof body.client === 'string' ? body.client : (req.socket.remoteAddress ?? 'anon')))
+        // a fault is counted by where it came from: a caller elsewhere is one client whatever it says it is (else one
+        // caller could claim to be enough clients to remove a learned rule); only a caller on this machine (a tool,
+        // a test) may tell its clients apart
+        const from = req.socket.remoteAddress ?? 'anon'
+        const client = local(req) && typeof body.client === 'string' && body.client ? `${from}#${body.client}` : from
+        return send(200, modder.fault(body.rule, String(body.reason ?? ''), client))
       }
       // an author's new thing: drafted on this service's account, and taken into the shared library without the AI (this host only)
       if (req.method === 'POST' && (url.pathname === '/create' || url.pathname === '/adopt') && !local(req)) return send(403, { error: 'a new thing is asked for and taken in from the machine the service runs on' })
@@ -70,8 +83,10 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
       }
       if (req.method === 'POST' && url.pathname === '/resolve') {
         const body = (await readJson(req, opts.maxBody ?? 4_000_000)) as ResolveBody
-        // an author asking from the editor asks with the offline profile (more care: tools, review before shipping)
-        return send(200, await modder.resolve(body, body.profile === 'offline' || body.profile === 'live' ? body.profile : undefined))
+        // an author asking from the editor asks with the offline profile (more care: tools, review before shipping); it
+        // costs the service far more, so only a caller on this machine may (anyone else is answered live)
+        const profile = body?.profile === 'offline' ? (local(req) && ownOrigin(req) ? 'offline' : 'live') : body?.profile === 'live' ? 'live' : undefined
+        return send(200, await modder.resolve(body, profile))
       }
       send(404, { error: 'not found' })
     } catch (err) {
