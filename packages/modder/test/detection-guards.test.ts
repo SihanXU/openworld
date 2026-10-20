@@ -3,11 +3,34 @@
 // detection of what a model carries. Each test names the defect it holds shut.
 
 import { describe, expect, it } from 'vitest'
-import { type Rule } from '@openworld/engine'
-import { buildOntology } from '@openworld-game/content'
-import { stationFromRules } from '../src/index.ts'
+import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Rule, type Scenario } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
+import { probe, stationFromRules, withPatch } from '../src/index.ts'
 
 const onto = buildOntology()
+const BASE = [...BASE_RULES, ...STORY_RULES]
+const STONE = 'item/material/stone'
+const TREE = 'fixture/nature/dead_tree'
+
+/** The stone used on a dead tree: a hole in the stone's own nature (`core/use`), the stone the host. */
+function useRequest(): ModRequest {
+  const sc: Scenario = {
+    entities: [
+      { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+      { key: 'held', type: STONE, x: 2, y: 2, heldBy: 'actor' },
+      { key: 'it', type: TREE, x: 2, y: 1 },
+    ],
+    event: {},
+  }
+  const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
+  const port = new ModPort(eng)
+  expect(eng.act('use', 'actor', { e: 'it' }).defined).toBe(false)
+  return port.records[0].request
+}
+
+/** A learned rule for the stone on the dead tree, placed where the request fell undefined. */
+const onDeadTree = (req: ModRequest, id: string, effects: unknown[]): Patch =>
+  placePatch({ artifacts: [{ kind: 'rule', rule: { id, host: { type: STONE }, on: 'act/use', label: { en: 'Use {instrument} on {target}', zh: '对{target}使用{instrument}' }, doc: 'd', tree: { if: { is: { role: 'target', sel: { type: TREE } } }, then: { do: effects as never }, else: { undefined: true } } } }] }, req).patch
 
 describe('stationFromRules: yields only where the rule makes them so', () => {
   const STICK = 'item/material/stick'
@@ -33,5 +56,19 @@ describe('stationFromRules: yields only where the rule makes them so', () => {
     expect(t.yields).toBeUndefined()
     // the same branch with no chance in it is the anvil's craft, five at a time
     expect(typeOf(atAnvil(), bits)).toMatchObject({ station: 'anvil', yields: 5 })
+  })
+})
+
+describe('the probe: a number that rises on every use is a farm, whoever holds it', () => {
+  it('finds a stone whose power grows by two with every use, with no model (D4a)', () => {
+    const req = useRequest()
+    const base = new RuleLibrary(BASE)
+    const farm = onDeadTree(req, 'patch/stone-hones', [{ op: 'addProp', key: 'power', delta: 2 }])
+    const found = probe(req, onto, base, withPatch(base, farm))
+    expect(found.map((f) => f.kind)).toEqual(['farm'])
+    expect(found[0].title).toMatch(/power every time/)
+    // a number that rises once and stops (capped) is no farm
+    const capped = onDeadTree(req, 'patch/stone-hones-once', [{ op: 'addProp', key: 'power', delta: 2, max: 2 }])
+    expect(probe(req, onto, base, withPatch(base, capped))).toEqual([])
   })
 })
