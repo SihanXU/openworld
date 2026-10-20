@@ -3,7 +3,7 @@
 // the validator refuses (design.md §5.11, §5.16).
 
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, holeKey, isRefusal, replay, placePatch, restoreLibrary, validatePatch, type Cond, type Effect, type Ontology, type Patch, type Rule, type Scenario } from '@openworld/engine'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, isRefusal, replay, placePatch, restoreLibrary, validatePatch, type Cond, type Effect, type Ontology, type Patch, type Rule, type Scenario, type StatusDef, type TypeDef } from '@openworld/engine'
 import { STDLIB_ONTOLOGY, STDLIB_RULES } from '@openworld/stdlib'
 
 const STD = STDLIB_ONTOLOGY as Ontology
@@ -176,5 +176,33 @@ describe('an effect refused in the replay fails validation (V2)', () => {
     expect(refused.length).toBe(1)
     expect(refused[0]).toMatchObject({ t: 'log', tone: 'dev' })
     expect(isRefusal({ t: 'log', text: 'patch rejected: x', tone: 'dev' })).toBe(false)
+  })
+})
+
+describe("a save's learned kinds and statuses are checked as they come back (V4)", () => {
+  const save = (types: TypeDef[], statuses: StatusDef[] = []) => ({ rules: [], types, statuses, log: [], version: 1 })
+  it("one with a game's own id is left out and reported: it never changes what the game defines", () => {
+    const dropped: string[] = []
+    const edible: TypeDef = { id: STONE, name: { en: 'stone', zh: '石头' }, tags: ['edible'], props: { food: 5 } }
+    const lit: StatusDef = { id: 'burning', name: { en: 'burning', zh: '燃烧' } }
+    const lib = restoreLibrary(BASE, save([edible], [lit]), onto, [], (id, why) => dropped.push(`${id}: ${why}`))
+    expect(lib.types).toEqual([])
+    expect(lib.statuses).toEqual([])
+    expect(dropped.join('\n')).toMatch(new RegExp(`^${STONE}: .*game's own`, 'm'))
+    expect(dropped.join('\n')).toMatch(/^burning: .*game's own/m)
+    // and the engine over that library keeps the game's stone
+    const eng = buildSandbox(scene(TREE), onto, lib)
+    expect(eng.world.onto.resolve(STONE).tags).not.toContain('edible')
+  })
+
+  it('one that fails the checks is left out; one that holds comes back, and may stand on another that came back', () => {
+    const dropped: string[] = []
+    const nameless: TypeDef = { id: 'item/odd', name: 'odd' }
+    const pebble: TypeDef = { id: 'item/pebble', name: { en: 'pebble', zh: '卵石' }, makeup: [{ type: STONE, count: 1 }] }
+    const small: TypeDef = { id: 'item/pebble/small', name: { en: 'small pebble', zh: '小卵石' } }
+    const fixed: StatusDef = { id: 'pinned', name: { en: 'pinned', zh: '钉住' }, immobilize: true }
+    const lib = restoreLibrary(BASE, save([small, nameless, pebble], [fixed]), onto, [], (id, why) => dropped.push(`${id}: ${why}`))
+    expect(lib.types.map((t) => t.id).sort()).toEqual(['item/pebble', 'item/pebble/small'])
+    expect(dropped.map((d) => d.split(':')[0]).sort()).toEqual(['item/odd', 'pinned'])
   })
 })

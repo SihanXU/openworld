@@ -361,8 +361,27 @@ function isProtected(key: string, list: string[] = []): boolean {
 export function restoreLibrary(base: Rule[], saved: LibraryData | undefined, ontology: Ontology, protectedFacts: string[] = [], dropped?: (id: string, why: string) => void): RuleLibrary {
   const lib = new RuleLibrary(base)
   if (!saved) return lib
-  for (const t of saved.types ?? []) lib.addType(t, 'restored')
-  for (const s of saved.statuses ?? []) lib.addStatus(s, 'restored')
+  // the kinds and statuses it learned, checked as a patch's are: never one of the game's own (laid over the
+  // ontology, it would change what the game defines), and each one whole (against the game's and what came
+  // back before it); one that does not hold is left out and reported, and the rules that use it with it
+  const types = (saved.types ?? []).filter((t) => t && typeof t === 'object')
+  const all: Patch = { artifacts: types.map((t) => ({ kind: 'type' as const, type: t })) }
+  for (const t of types) {
+    if (typeof t.id !== 'string' || !t.id) { dropped?.(String(t.id), 'a learned type needs an id'); continue }
+    if (t.id in ontology.types) { dropped?.(t.id, `a learned type may not replace the game's own "${t.id}"`); continue }
+    // (a later definition of one restored already replaces it, as addType does)
+    const others = Object.fromEntries(lib.types.filter((x) => x.id !== t.id).map((x) => [x.id, x]))
+    const problems = newTypeProblems(t, { ...ontology, types: { ...ontology.types, ...others } }, all)
+    if (problems.length) dropped?.(t.id, problems[0])
+    else lib.addType(t, 'restored')
+  }
+  for (const st of saved.statuses ?? []) {
+    if (!st || typeof st !== 'object' || typeof st.id !== 'string' || !st.id) { dropped?.(String(st?.id), 'a learned status needs an id'); continue }
+    if (st.id in ontology.statuses) { dropped?.(st.id, `a learned status may not replace the game's own "${st.id}"`); continue }
+    const problems = newStatusProblems(st)
+    if (problems.length) dropped?.(st.id, problems[0])
+    else lib.addStatus(st, 'restored')
+  }
   // (a rule set aside at run time comes back set aside, in its place: what grew below it keeps answering)
   const { rules, aside } = withAside(saved)
   for (const r of rules) {
