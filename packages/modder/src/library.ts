@@ -2,7 +2,7 @@
 // kept as an append-only log (one JSON line per patch or removal) so the library at any point
 // can be rebuilt, rolled back or ablated. Clients pull the log; the modder validates against it.
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, truncateSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { createHash } from 'node:crypto'
 import { connected, economySteps, freeLunch } from './economy.ts'
@@ -58,7 +58,22 @@ export class WorldLibrary {
   ) {
     this.lib = new RuleLibrary(base)
     if (file && existsSync(file)) {
-      for (const line of readFileSync(file, 'utf8').split('\n')) {
+      const text = readFileSync(file, 'utf8')
+      // a last line cut short (the service stopped mid-write): cut back to the last whole line, so the next
+      // entry starts a line of its own (appended onto the torn one, it would be lost on the next start, and its seq used again)
+      if (text && !text.endsWith('\n')) {
+        const cut = text.lastIndexOf('\n') + 1
+        let whole = false
+        try {
+          JSON.parse(text.slice(cut))
+          whole = true
+        } catch {
+          /* torn */
+        }
+        if (whole) appendFileSync(file, '\n')
+        else truncateSync(file, Buffer.byteLength(text.slice(0, cut)))
+      }
+      for (const line of text.split('\n')) {
         if (!line.trim()) continue
         try {
           this.apply(JSON.parse(line) as PatchLogEntry)
