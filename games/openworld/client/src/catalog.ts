@@ -38,7 +38,7 @@ const WALLS = TS + 'Interior/TilesetWallSimple.png'
 // the world map's own inked tiles and marks (tools/src/art/worldmap.ts)
 const WM_TILES = 'lsw/WorldMap/tiles.png'
 const WM_MARKS = 'lsw/WorldMap/marks.png'
-const WM_MARK = ['woods', 'woods2', 'mountains', 'mountains2', 'hills', 'hills2', 'village', 'town', 'ford', 'farm', 'mill', 'woods-place', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'none']
+const WM_MARK = ['woods', 'woods2', 'mountains', 'mountains2', 'hills', 'hills2', 'village', 'town', 'ford', 'farm', 'mill', 'woods-place', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'none', 'deadwood', 'deadwood2', 'reeds', 'mesa', 'mesa2', 'fort', 'ruin', 'graveyard', 'cathedral', 'city', 'tower', 'battlefield', 'cave', 'seat', 'bridge']
 /** A mark of the world map (16x20, its foot on the cell's bottom). */
 const wm = (key: string) => px(WM_MARKS, WM_MARK.indexOf(key) * 16, 0, 16, 20)
 // the project's own pixel art for what one builds
@@ -173,6 +173,10 @@ export const CATALOG: Catalog = {
     // the world map: the sea with its beach and inked coast, the river with its banks
     ow_sea: { img: WM_TILES, col: 0, row: 0 },
     ow_river: { img: WM_TILES, col: 0, row: 5 },
+    // a bridge is the river's cell gone over: drawn as the river (it joins its banks), the planks a mark on it
+    ow_bridge: { img: WM_TILES, col: 0, row: 5 },
+    // the roads, joined where they meet (the continent's turn every way)
+    ow_road: { img: WM_TILES, col: 0, row: 12 },
   },
 
   // -------------------------------------------------------------------------------------------
@@ -185,7 +189,16 @@ export const CATALOG: Catalog = {
     ow_hills: [[WM_TILES, 2, 10], [WM_TILES, 1, 10]],
     ow_mountain: [[WM_TILES, 0, 10]],
     ow_snow: [[WM_TILES, 3, 10], [WM_TILES, 4, 10]],
-    ow_road: [[WM_TILES, 5, 10]],
+    // the other regions' grounds (docs/continent.md §2): the March's, the Vale's, the Fens', the Heights', the Holy City's
+    ow_steppe: [[WM_TILES, 6, 10], [WM_TILES, 10, 11]],
+    ow_badlands: [[WM_TILES, 7, 10], [WM_TILES, 7, 11]],
+    ow_fields: [[WM_TILES, 8, 10], [WM_TILES, 6, 11]],
+    ow_dust: [[WM_TILES, 9, 10], [WM_TILES, 8, 11]],
+    ow_salt: [[WM_TILES, 10, 10], [WM_TILES, 9, 11]],
+    ow_marsh: [[WM_TILES, 0, 11], [WM_TILES, 1, 11]],
+    ow_highland: [[WM_TILES, 2, 11], [WM_TILES, 3, 11]],
+    ow_city: [[WM_TILES, 4, 11]],
+    ow_deadwood: [[WM_TILES, 5, 11]],
     // The yellow-green grass that is the "outside" of path/water: col 0 plain, 1-4 with tufts.
     grass: [[FLOOR, 0, 12], [FLOOR, 0, 12], [FLOOR, 1, 12], [FLOOR, 2, 12], [FLOOR, 3, 12], [FLOOR, 4, 12]],
     drygrass: [[FLOOR, 0, 12], [FLOOR, 2, 12], [FLOOR, 3, 12]],
@@ -276,6 +289,10 @@ export const CATALOG: Catalog = {
     ow_forest: [wm('woods'), wm('woods2')],
     ow_mountain: [wm('mountains'), wm('mountains2')],
     ow_hills: [wm('hills'), wm('hills2')],
+    ow_deadwood: [wm('deadwood'), wm('deadwood2')],
+    ow_marsh: [wm('reeds')],
+    ow_badlands: [wm('mesa'), wm('mesa2')],
+    ow_bridge: [wm('bridge')],
     // Bare dead trees (the pack has no burnt trees; these read as charred).
     charred_tree: [px(NATURE, 64, 0, 32, 32, 16, 31), t(NATURE, 4, 9)],
     // Tall grass tufts. The pack's tufts are green: tint them golden (e.g. 0xe0c060) for dry
@@ -330,6 +347,18 @@ export const CATALOG: Catalog = {
     tent: pf(CAMP, 4, 0, ['###', '###', '#D#']),
     tent_patched: pf(CAMP, 7, 0, ['###', '###', '#D#']),
     tent_torn: pf(CAMP, 10, 0, ['###', '###', '#D#']),
+    // A wooden watchtower on legs, its ladder in front (3x5), and a round log tower (3x6): a fort's towers.
+    watchtower: pf(HOUSE, 16, 6, ['###', '###', '###', '###', '###'], 'woodwall'),
+    tower_round: pf(HOUSE, 19, 3, ['###', '###', '###', '###', '###', '###'], 'woodwall'),
+    // A stone pillar (1x3): its cap overhead, its shaft and base in the way — a gate's posts, an old wall's columns.
+    pillar: pf(HOUSE, 0, 19, ['.', '#', '#']),
+    // Banners on a pole (1x2), a colour each: a region's colours over its forts and squares (backdrop.ts BANNER).
+    banner_cream: pf(HOUSE, 22, 20, ['.', '#']),
+    banner_red: pf(HOUSE, 23, 20, ['.', '#']),
+    banner_grey: pf(HOUSE, 24, 20, ['.', '#']),
+    banner_green: pf(HOUSE, 25, 20, ['.', '#']),
+    banner_purple: pf(HOUSE, 27, 20, ['.', '#']),
+    banner_yellow: pf(HOUSE, 28, 20, ['.', '#']),
     // Torii gate: beam overhead (walkable), pillars on the bottom row at cols 0 and 2.
     gate: pf(HOUSE, 0, 5, ['...', '#.#']),
     // Stone arch / portal ring: legs on cols 0 and 2.
@@ -430,6 +459,8 @@ export const CATALOG: Catalog = {
     'site:place': { base: wm('waystone') },
     // the hand-made places, each by its kind; the Ford is its crossing
     ...Object.fromEntries(['village', 'town', 'farm', 'mill', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'ford'].map((k) => [`site:${k}`, { base: wm(k) }])),
+    // the backdrop's places, by their kinds (docs/continent.md §3)
+    ...Object.fromEntries(['fort', 'ruin', 'graveyard', 'cathedral', 'city', 'tower', 'battlefield', 'cave', 'seat'].map((k) => [`site:${k}`, { base: wm(k) }])),
     'site:woods': { base: wm('woods-place') },
     // what one builds, set in its cell: drawn as the wall, the floor, the stairs of the place
     // the project's own (tools/src/art/structures.ts): a wall block (its fronts and tops, by

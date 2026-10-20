@@ -80,6 +80,8 @@ export interface TipContext {
   profession?: string
   /** How many pieces of each set the player wears (a set's bonuses lit as they are reached). */
   sets?: Record<string, number>
+  /** Paint the title's item icon, including any game-owned decoration. */
+  paintIcon?: (item: ItemInfo) => void
 }
 
 /** The tooltip's lines for an item. */
@@ -90,7 +92,7 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
   const out: string[] = []
   // the name, in its rarity's colour
   const quality = it.tags.find((g) => g.startsWith('quality:'))?.slice(8)
-  out.push(line(esc(tx(it.name)), QUALITY_COLOR[quality ?? ''] ?? '#ffffff', 'name'))
+  out.push(line(`<span class="tl-icon" data-icon="${esc(it.id)}"></span>${esc(tx(it.name))}`, QUALITY_COLOR[quality ?? ''] ?? '#ffffff', 'name'))
   // a piece of gear's level (world-model.md §6.8): its main stats grow with it, as with its quality
   if (typeof p.level === 'number' && typeof p.slot === 'string') out.push(line(L(`Level ${p.level}`, `等级 ${p.level}`), '#aaaaaa'))
   // what a tier is, in the game's words (its texts' `tier:<quality>`: OpenWorld's Vowbound and Stigmatic)
@@ -286,6 +288,7 @@ export class Tooltip {
     if (sig !== this.sig) {
       this.sig = sig
       this.el.innerHTML = tooltipHtml(it, this.ctx())
+      this.ctx().paintIcon?.(it)
     }
     this.el.classList.remove('hidden')
     // Minecraft's place: up and to the right of the cursor, kept on screen

@@ -61,6 +61,25 @@
           },
           "description": "The modules the game uses (module.ts, docs/engine-split.md §4), installed in this order with every engine made over it."
         },
+        "fishing": {
+          "type": "object",
+          "properties": {
+            "maps": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "extraType": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "maps"
+          ],
+          "additionalProperties": false,
+          "description": "Maps where the optional fishing fight replaces immediate fishing rewards; owned by the game, interpreted by the fishing module."
+        },
         "deeds": {
           "type": "array",
           "items": {
@@ -76,6 +95,10 @@
         },
         "social": {
           "$ref": "#/definitions/SocialParams"
+        },
+        "protection": {
+          "$ref": "#/definitions/ProtectionDef",
+          "description": "Data-driven subjects and harmful statuses the game protects from direct harm."
         },
         "loot": {
           "$ref": "#/definitions/LootParams",
@@ -705,6 +728,35 @@
         {
           "type": "object",
           "properties": {
+            "propEqualsParam": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "$ref": "#/definitions/Reader"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "param": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "key",
+                "param"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "propEqualsParam"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
             "chance": {
               "type": "number"
             }
@@ -1152,6 +1204,45 @@
           },
           "required": [
             "unpardonable"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fishingMap": {
+              "type": "string",
+              "const": "host"
+            }
+          },
+          "required": [
+            "fishingMap"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fishingBusy": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "fishingBusy"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fishingRoom": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "fishingRoom"
           ],
           "additionalProperties": false
         }
@@ -1699,6 +1790,31 @@
       ],
       "additionalProperties": false,
       "description": "A home ground's room for people (the society module's `moveIn`): its map and the beds it has, each an anchor there (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; a resident's day there; what the one asked says, moved in or with no bed free."
+    },
+    "ProtectionDef": {
+      "type": "object",
+      "properties": {
+        "subjects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Selector"
+          }
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "refusal": {
+          "$ref": "#/definitions/Text"
+        }
+      },
+      "required": [
+        "subjects"
+      ],
+      "additionalProperties": false,
+      "description": "A game's subject selector and the statuses it treats as harmful; the engine knows no subject-specific rules."
     },
     "LootParams": {
       "type": "object",

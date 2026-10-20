@@ -54,6 +54,11 @@ export interface ImproveOptions {
   confirm?: number
   /** relative tolerance and required gain (0.1 = 10 %) */
   margin?: number
+  /**
+   * how much worse the wall-clock time per task may be (default: `margin`): wider where the clock is noise beside what
+   * is judged (a busy test machine, whose processes start slowly); a gain in time still needs `margin`
+   */
+  timeMargin?: number
   log?: (line: string) => void
 }
 
@@ -218,12 +223,12 @@ async function arm(ids: string[], state: SelfState, o: ImproveOptions, harness: 
 }
 
 /** Keep the candidate? The pass rate may not drop; something must improve, nothing may get much worse. */
-export function better(base: ArmStats, cand: ArmStats, margin: number): { ok: boolean; why: string } {
+export function better(base: ArmStats, cand: ArmStats, margin: number, timeMargin = margin): { ok: boolean; why: string } {
   if (!base.tasks || !cand.tasks) return { ok: false, why: 'no replayable tasks' }
   const per = (s: ArmStats, k: 'cost' | 'calls' | 'ms') => s[k] / s.tasks
   const rate = (s: ArmStats) => s.accepted / s.tasks
   if (rate(cand) < rate(base)) return { ok: false, why: `pass rate ${rate(cand).toFixed(2)} < ${rate(base).toFixed(2)}` }
-  const worse = (['cost', 'calls', 'ms'] as const).filter((k) => per(cand, k) > per(base, k) * (1 + margin))
+  const worse = (['cost', 'calls', 'ms'] as const).filter((k) => per(cand, k) > per(base, k) * (1 + (k === 'ms' ? timeMargin : margin)))
   if (worse.length) return { ok: false, why: `${worse.join(', ')} worse by more than ${margin * 100} %` }
   const gains = [
     rate(cand) > rate(base) ? 'pass rate' : '',
@@ -265,11 +270,11 @@ export async function improve(o: ImproveOptions): Promise<ImproveResult> {
   }
   const selection = await trial(sets.select)
   let spent = selection.base.cost + selection.cand.cost
-  const s = better(selection.base, selection.cand, margin)
+  const s = better(selection.base, selection.cand, margin, o.timeMargin)
   if (!s.ok) return done(false, `selection: ${s.why}`, { selection, cost: spent })
   const confirmation = await trial(sets.confirm)
   spent += confirmation.base.cost + confirmation.cand.cost
-  const c = better(confirmation.base, confirmation.cand, margin)
+  const c = better(confirmation.base, confirmation.cand, margin, o.timeMargin)
   if (!c.ok) return done(false, `confirmation: ${c.why}`, { selection, confirmation, cost: spent })
   const reason = `selection ${s.why}; confirmation ${c.why} (${selection.cand.accepted}/${selection.cand.tasks} + ${confirmation.cand.accepted}/${confirmation.cand.tasks} passed). ${clip(proposal.rationale ?? '', 300)}`
   applyProposal(proposal, state, reason)

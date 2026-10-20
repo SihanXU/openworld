@@ -2,7 +2,8 @@
 // portraits' style — the colours graded toward the game's duotone (its ink in the shadows, its paper in the lights,
 // the bright greens taken toward a sage), the art's own dark outlines turned to the ink, a paper's grain and a
 // vignette, and hatching where it is dark (stronger at night). What a game's look is comes from the game
-// (`ClientGame.worldFilter`); how strong is the player's (the options: off, light, full).
+// (`ClientGame.worldFilter`); how strong is the player's (the options: off, light, full); a region's own grade over it
+// (`RegionMeta.look`: a tint and more or less grey, docs/continent.md §9 B) is the world's, sent with the map.
 //
 // The pass runs at the screen's pixels, but the outlines and the hatching are judged at the world's own pixels (the
 // camera's zoom), and the paper and the hatching are anchored to the world, so they move with it and never swim.
@@ -29,6 +30,7 @@ uniform vec3 uCream;
 uniform vec4 uGrade;
 uniform vec4 uLook;
 uniform vec2 uDark;
+uniform vec4 uTint;
 varying vec2 outTexCoord;
 
 float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
@@ -52,6 +54,8 @@ void main() {
   g *= 1.0 + uGrade.w * vec3(0.02, 0.0, -0.05);
   vec3 duo = mix(uInk, uCream, clamp(l, 0.0, 1.0));
   g *= mix(vec3(1.0), duo / max(luma(duo), 1.0 / 255.0), uGrade.z);
+  // the region's grade (RegionLook): the colour toned toward its tint, the lightness kept
+  g *= mix(vec3(1.0), uTint.rgb / max(luma(uTint.rgb), 1.0 / 255.0), uTint.a);
   g = clamp(g, 0.0, 1.0);
   g = mix(g, g * g * (3.0 - 2.0 * g), uLook.x);
   g = max(g, uInk * 0.7);
@@ -87,7 +91,7 @@ void main() {
 }
 `
 
-const rgb = (hex: string): [number, number, number] => {
+export const hexRgb = (hex: string): [number, number, number] => {
   const n = parseInt(hex.replace('#', ''), 16)
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
 }
@@ -101,6 +105,9 @@ export interface WorldFilter extends Phaser.Filters.Controller {
   view: { x: number; y: number }
   /** How dark the hour is (0 day, 1 deep night): the hatching grows with it. */
   dark: number
+  /** The region's grade (RegionLook): its tint (rgb and how far) and its desaturation over the game's. */
+  tint: [number, number, number, number]
+  desat: number
 }
 
 // the controller and its render node, made the first time a filter is installed (a page with no WebGL, and the
@@ -115,11 +122,13 @@ function classes(): NonNullable<typeof made> {
     zoom = 1
     view = { x: 0, y: 0 }
     dark = 0
+    tint: [number, number, number, number] = [1, 1, 1, 0]
+    desat = 0
     constructor(camera: Phaser.Cameras.Scene2D.Camera, def: WorldFilterDef, params: WorldFilterParams) {
       super(camera, NODE)
       this.params = params
-      this.ink = rgb(def.ink)
-      this.cream = rgb(def.paper)
+      this.ink = hexRgb(def.ink)
+      this.cream = hexRgb(def.paper)
     }
   }
   class Node extends Phaser.Renderer.WebGL.RenderNodes.BaseFilterShader {
@@ -136,9 +145,10 @@ function classes(): NonNullable<typeof made> {
       pm.setUniform('uView', [f.view.x, f.view.y])
       pm.setUniform('uInk', f.ink)
       pm.setUniform('uCream', f.cream)
-      pm.setUniform('uGrade', [p.desat, p.sage, p.tone, p.warm])
+      pm.setUniform('uGrade', [Math.max(-1, Math.min(1, p.desat + f.desat)), p.sage, p.tone, p.warm])
       pm.setUniform('uLook', [p.contrast, p.ink, p.paper, p.vignette])
       pm.setUniform('uDark', [p.hatch, f.dark])
+      pm.setUniform('uTint', f.tint)
     }
   }
   made = { Controller, Node }

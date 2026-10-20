@@ -285,7 +285,9 @@ The Ford is the first place of a world built to grow; the generated 460-map worl
 before it is gone (2026-10-02), and scale is built out from the Ford. What carries over unchanged: people as keyed data (heroes hand-written,
 the crowd from templates with slots), schedules with fidelity tiers, invariants per piece of
 content, the world's own events with salience and budgets, and the shared library. The road
-east of the far bank is where the next place begins.
+east of the far bank is where the next place begins. Since 2026-10-18 the Ford lies on a continent of six regions whose other places are backdrop, walked
+through and filled in with played content later ([continent.md](continent.md)); the demo's completeness (§9) is still
+the played part's.
 
 ## References
 

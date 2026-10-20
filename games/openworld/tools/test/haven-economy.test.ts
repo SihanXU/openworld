@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, astar, type Dir, type Key } from '@openworld/engine'
 import { BASE_RULES, GAME, HAVEN, RECIPE_BY_ID, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
+import { completeFishing } from './fishing-helper.ts'
 
 function homestead() {
   const { index, chunks } = buildFord()
@@ -164,6 +165,7 @@ describe('the Held Ground production cycle', () => {
     while (!catches().length && casts < 20) {
       act('use', bank.x, bank.y)
       casts++
+      completeFishing(f.eng, { tick: () => tick(1) })
       if (!catches().length) tick(101)
     }
     const fish = catches()[0]
