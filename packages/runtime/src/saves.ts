@@ -2,9 +2,43 @@
 // cover without loading it; any slot can be written out to a file on the player's computer
 // and read back into a slot. The rule library the world has learned is shared by all slots.
 
-import type { SaveData } from '@openworld/engine'
+import type { Effect, Engine, GameEvent, ModPort, SaveData } from '@openworld/engine'
 import type { SaveSummary } from './protocol.ts'
 import { kvDel, kvGet, kvSet } from './storage.ts'
+
+/** A question open when the game was saved: its event and its hole's default (the question itself is not saved). */
+export interface OpenQuestion {
+  event: GameEvent
+  default: Effect[]
+  rule: string
+}
+
+/** A save, with the questions that were open when it was made. */
+export type SaveWithQuestions = SaveData & { open?: OpenQuestion[] }
+
+/** The save with the questions open as it is made: loaded, nobody will answer them. */
+export function withOpenQuestions(save: SaveData, mods: Pick<ModPort, 'records'>): SaveWithQuestions {
+  const open = mods.records.filter((r) => r.status === 'pending').map((r) => ({ event: r.event, default: r.request.hole.default, rule: r.request.hole.rule }))
+  return open.length ? { ...save, open: structuredClone(open) } : save
+}
+
+/**
+ * A save loaded: the questions open when it was made will never be answered (their holders were let go as the
+ * save came up), so each hole's default runs, as after a time-out, where its event's things are still there.
+ */
+export function settleOpenQuestions(eng: Engine, save: SaveWithQuestions): void {
+  const w = eng.world
+  const here = (r: unknown) => !r || typeof r !== 'object' || !('e' in r) || !!w.get((r as { e: string }).e)
+  for (const q of save.open ?? []) {
+    if (!q?.event?.host || !Array.isArray(q.default) || !here(q.event.host) || !Object.values(q.event.roles ?? {}).every(here)) continue
+    try {
+      eng.run(q.default, q.event, q.rule)
+    } catch (err) {
+      console.warn(`[save] the default of a question open when the game was saved did not run: ${q.rule}: ${(err as Error).message}`)
+    }
+  }
+  if (save.open?.length && w.state.player && w.get(w.state.player)) eng.controls.sync()
+}
 
 export const SLOTS = [1, 2, 3] as const
 export type Slot = (typeof SLOTS)[number]

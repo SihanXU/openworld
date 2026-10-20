@@ -4,7 +4,7 @@
 // learned/ file, and the modder's library, so its holes can be asked next), sets one down by the start, and plays.
 
 import type { Patch, PixelArt, TypeDef } from '@openworld/engine'
-import { checkThings, obtainable, type LearnedFile, type ThingReport } from '@openworld/format'
+import { checkThings, makingStock, type LearnedFile, type ThingReport } from '@openworld/format'
 import type { Ctx, Mode } from './context.ts'
 import type { HolesMode } from './holesMode.ts'
 import { setDown } from './events.ts'
@@ -124,14 +124,12 @@ export class ThingsMode implements Mode {
     </div>`
   }
 
-  /** What a player of this game can have, as the modder is told it: id, name and own numbers. */
+  /** What a player of this game can make things of, as the modder is told it: the things one can carry (id, name and own numbers), and the stations one can have. */
   private had(ctx: Ctx): { had: { id: string; name?: string; props?: Record<string, unknown> }[]; stations: string[] } {
-    const c = ctx.store.compiled()
-    const have = obtainable(c)
+    // (a fixture one has, a table or a chest, is a station at most: the engine crafts only from what one carries)
+    const { had, stations } = makingStock(ctx.store.compiled())
     const onto = ctx.onto()
-    const ids = [...have.keys()].filter((id) => !id.startsWith('tile/') && !id.startsWith('actor/'))
-    const stations = [...new Set(ids.flatMap((id) => (onto.types[id]?.tags ?? []).filter((g) => g.startsWith('station:')).map((g) => g.slice(8))))]
-    return { had: ids.map((id) => ({ id, name: tx(onto.types[id]?.name ?? id), props: onto.types[id]?.props })), stations }
+    return { had: had.map((id) => ({ id, name: tx(onto.types[id]?.name ?? id), props: onto.types[id]?.props })), stations }
   }
 
   private async ask(ctx: Ctx): Promise<void> {

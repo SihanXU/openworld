@@ -69,10 +69,15 @@ function gameRecipes(c: Compiled): Recipe[] {
   return Array.isArray(r) ? (r as Recipe[]).filter((x) => typeof x?.make?.type === 'string' && Array.isArray(x.needs)) : []
 }
 
+/** Can a thing of a type be carried (the `portable` tag, the engine's World.isPortable): only such a thing is in a bag or a hand. */
+const carriable = (idx: OntologyIndex, t: string) => idx.resolve(t).tags.includes('portable')
+
 /**
  * What a player can have in this game, and how: the things the maps and the people hold at the start, then (until
  * nothing more is found) what the rules of things one has make, and what the recipes make of things one has (at a
- * station one has, with the tools one carries). A thing is "had" by its type; the first way found is kept.
+ * station one has, with the tools one carries). A thing is "had" by its type; the first way found is kept. A fixture
+ * had (a table, a chest, a workbench) is a station or a rule's host, never a recipe's part or tool: the engine
+ * crafts only from what one carries.
  */
 export function obtainable(c: Compiled, extra: TypeDef[] = []): Map<string, string> {
   const onto = withTypes(c.bundle.ontology, [...(c.bundle.learned?.types ?? []), ...extra])
@@ -100,11 +105,11 @@ export function obtainable(c: Compiled, extra: TypeDef[] = []): Map<string, stri
     const before = have.size
     for (const r of rules) if (hosts(r.host)) for (const t of madeBy(r.tree)) if (known.has(t)) add(t, `made by the rule ${r.id}`)
     const at = stations()
-    const carried = new Set([...have.keys()].flatMap(tagsOf))
+    const carried = new Set([...have.keys()].filter((t) => carriable(idx, t)).flatMap(tagsOf))
     for (const r of recipes) {
       if (have.has(r.make.type ?? '')) continue
       const placeOk = !r.station || r.station === 'hands' || at.has(r.station)
-      if (placeOk && r.needs.every((n) => have.has(n.type)) && (r.tools ?? []).every((g) => carried.has(g)))
+      if (placeOk && r.needs.every((n) => have.has(n.type) && carriable(idx, n.type)) && (r.tools ?? []).every((g) => carried.has(g)))
         add(r.make.type!, `made ${!r.station || r.station === 'hands' ? 'by hand' : `at a ${r.station}`} from ${r.needs.map((n) => `${n.count} ${n.type}`).join(' + ')}`)
     }
     grew = have.size > before
@@ -112,10 +117,24 @@ export function obtainable(c: Compiled, extra: TypeDef[] = []): Map<string, stri
   return have
 }
 
+/**
+ * What a player of a game has to make new things of, as the modder is told it: the things one can have and carry
+ * (a recipe's parts and tools), and the stations one can have (fixtures had count only as these).
+ */
+export function makingStock(c: Compiled): { had: string[]; stations: string[] } {
+  const have = obtainable(c)
+  const idx = new OntologyIndex(withTypes(c.bundle.ontology, c.bundle.learned?.types ?? []))
+  const ids = [...have.keys()].filter((id) => !id.startsWith('tile/') && !id.startsWith('actor/'))
+  const stations = [...new Set(ids.flatMap((id) => idx.resolve(id).tags.filter((g) => g.startsWith('station:')).map((g) => g.slice(8))))]
+  return { had: ids.filter((id) => carriable(idx, id)), stations }
+}
+
 /** Why a type cannot be had: its recipe's parts, station and tools that cannot. */
 function whyNot(t: TypeDef, have: Map<string, string>, idx: OntologyIndex): string[] {
   if (!t.makeup?.length || !t.station) return ['no recipe makes it, no rule makes it, and no map holds it']
-  const out = t.makeup.filter((m) => !have.has(m.type)).map((m) => `its part ${m.type} cannot be had`)
+  const out = t.makeup.flatMap((m) =>
+    !have.has(m.type) ? [`its part ${m.type} cannot be had`] : !carriable(idx, m.type) ? [`its part ${m.type} cannot be carried (only what one carries is made into things; a fixture is a station)`] : [],
+  )
   const at = new Set([...have.keys()].flatMap((x) => idx.resolve(x).tags.filter((g) => g.startsWith('station:')).map((g) => g.slice(8))))
   if (t.station !== 'hands' && !at.has(t.station)) out.push(`no ${t.station} can be had to make it at`)
   return out.length ? out : ['it is not reached from the start']
