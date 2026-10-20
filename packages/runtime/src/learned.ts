@@ -303,3 +303,21 @@ export function takeLogEntries(eng: Engine, mods: Pick<ModPort, 'submit'>, kept:
     }
   }
 }
+
+/**
+ * The library a game starts from: the patches it ships with (GameDef.learned) first, the stored and synced ones
+ * over them. A shipped rule comes first, so it wins over a stored one by its id (the library keeps the first); a
+ * learned kind or status is kept by its last definition, so a stored copy of a shipped one is left out: the
+ * author's correction reaches a returning player (the stored shared library always holds the shipped ones too).
+ */
+export function withShipped(shipped: LibraryData | undefined, saved: LibraryData | undefined): LibraryData | undefined {
+  if (!shipped || !saved) return saved ?? shipped
+  const types = new Set((shipped.types ?? []).map((t) => t.id))
+  const statuses = new Set((shipped.statuses ?? []).map((s) => s.id))
+  return {
+    ...saved,
+    rules: [...(shipped.rules ?? []), ...(saved.rules ?? [])],
+    types: [...(shipped.types ?? []), ...(saved.types ?? []).filter((t) => !types.has(t.id))],
+    statuses: [...(shipped.statuses ?? []), ...(saved.statuses ?? []).filter((s) => !statuses.has(s.id))],
+  }
+}
