@@ -12,6 +12,7 @@
 //                         address; `client` tells apart only the clients of a caller on this machine)
 //   GET  /quality         what the model carries (design.md §13, the AI setting): the last detection, one running; ?plan=1 what one would play
 //   POST /quality/detect  start a detection (this host only: it costs model calls)
+// "This host only": from a loopback address, with no Origin or a localhost one (not a page on another site), as JSON.
 
 import { createServer, type IncomingMessage, type Server } from 'node:http'
 import { join } from 'node:path'
@@ -39,6 +40,17 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
     const o = req.headers.origin
     return o === undefined || /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(o)
   }
+  // what only this host may ask (it costs the service model calls, or writes its library without the AI): from this
+  // machine, not from a page on another site (a page's simple POST needs no preflight, so CORS * does not stop it),
+  // and as JSON (which a page elsewhere cannot send without a preflight). A detection has no body: none, or JSON
+  const hostOnly = (req: IncomingMessage, bodyless = false): [number, string] | undefined => {
+    if (!local(req)) return [403, 'only from the machine the service runs on']
+    if (!ownOrigin(req)) return [403, `not from a page on ${req.headers.origin}: only from the machine the service runs on`]
+    const type = req.headers['content-type']
+    const empty = type === undefined && (req.headers['content-length'] === undefined || req.headers['content-length'] === '0') && req.headers['transfer-encoding'] === undefined
+    if (!/^application\/json\s*(;|$)/i.test(type ?? '') && !(bodyless && empty)) return [415, 'send JSON (Content-Type: application/json)']
+    return undefined
+  }
   return createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', opts.origin ?? '*')
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -54,7 +66,8 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
       if (req.method === 'GET' && url.pathname === '/quality')
         return send(200, { model: modder.model?.name ?? null, waitMs: AI_WAIT_MS, detection: detector.last ?? null, running: detector.running ?? null, error: detector.error ?? null, ...(url.searchParams.get('plan') && { plan: await detector.plan() }) })
       if (req.method === 'POST' && url.pathname === '/quality/detect') {
-        if (!local(req)) return send(403, { error: 'a detection is started from the machine the service runs on' })
+        const refused = hostOnly(req, true)
+        if (refused) return send(refused[0], { error: `a detection is started from the machine the service runs on: ${refused[1]}` })
         return send(200, await detector.start())
       }
       if (req.method === 'GET' && url.pathname === '/patches') {
@@ -74,7 +87,8 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
         return send(200, modder.fault(body.rule, String(body.reason ?? ''), client))
       }
       // an author's new thing: drafted on this service's account, and taken into the shared library without the AI (this host only)
-      if (req.method === 'POST' && (url.pathname === '/create' || url.pathname === '/adopt') && !local(req)) return send(403, { error: 'a new thing is asked for and taken in from the machine the service runs on' })
+      const refused = req.method === 'POST' && (url.pathname === '/create' || url.pathname === '/adopt') ? hostOnly(req) : undefined
+      if (refused) return send(refused[0], { error: `a new thing is asked for and taken in from the machine the service runs on: ${refused[1]}` })
       if (req.method === 'POST' && url.pathname === '/create') return send(200, await modder.createThing((await readJson(req, opts.maxBody ?? 4_000_000)) as ThingBody))
       if (req.method === 'POST' && url.pathname === '/adopt') {
         const body = (await readJson(req, opts.maxBody ?? 4_000_000)) as { patch?: Patch }

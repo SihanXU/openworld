@@ -113,3 +113,25 @@ describe('a caller elsewhere', () => {
     expect(asked).toEqual(['live', 'offline', 'offline', 'live'])
   })
 })
+
+describe('a page on another site', () => {
+  it('cannot start what only this host may (/quality/detect, /create, /adopt), nor post them as anything but JSON', async () => {
+    const { server } = setup()
+    const post = (path: string, headers: Record<string, string>, body?: unknown) => call(server, { method: 'POST', path, headers, body })
+    const EVIL = { origin: 'https://example.com', 'content-type': 'text/plain' }
+    // a page elsewhere, through the browser of someone on this machine: a simple POST, no preflight
+    for (const path of ['/quality/detect', '/create', '/adopt']) expect((await post(path, EVIL, { patch: { artifacts: [] }, intent: 'a thing' })).status).toBe(403)
+    expect((await post('/adopt', { ...EVIL, 'content-type': 'application/json' }, { patch: { artifacts: [] } })).status).toBe(403)
+    // no Origin, but not JSON (a page whose browser leaves the Origin out sends the same)
+    expect((await post('/adopt', { 'content-type': 'text/plain' }, { patch: { artifacts: [] } })).status).toBe(415)
+    expect((await post('/quality/detect', { 'content-type': 'text/plain', 'content-length': '2' }, '{}')).status).toBe(415)
+    // the editor on this machine
+    expect(await post('/adopt', { origin: 'http://localhost:5173', 'content-type': 'application/json' }, { patch: { artifacts: [] } })).toEqual({ status: 200, body: { ok: true, errors: [] } })
+    expect(await post('/adopt', { origin: 'http://127.0.0.1:8080', 'content-type': 'application/json; charset=utf-8' }, { patch: { artifacts: [] } })).toEqual({ status: 200, body: { ok: true, errors: [] } })
+    // a detection asked with no body at all (the game's own button), or as JSON: let through (no model here: not started)
+    expect(await post('/quality/detect', { origin: 'http://localhost:5173' })).toEqual({ status: 200, body: { started: false, why: 'no model' } })
+    expect((await post('/quality/detect', JSON_HEADERS, {})).status).toBe(200)
+    // what anyone may call stays open to a page anywhere (the game is a static page on another origin)
+    expect((await call(server, { path: '/health', headers: { origin: 'https://example.com' } })).status).toBe(200)
+  })
+})
