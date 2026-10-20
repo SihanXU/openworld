@@ -2,7 +2,7 @@
 // a table here is the game's own numbers, never a copy that can go stale.
 
 import { gearProps, type CreatureSkill, type Effect, type Entity, type QuestDef, type QuestReward, type QuestTrigger, type Text } from '@openworld/engine'
-import { BASE_RULES, REGION_BY_ID, REGIONS } from '@openworld-game/content'
+import { BASE_RULES, CREATURE_ROLES, REGION_BY_ID, REGIONS } from '@openworld-game/content'
 import {
   EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, VOWS, isAccessory, zh,
   type BossEnt, type CreatureEnt, type Ent, type Game, type ItemEnt, type MapEnt, type PersonEnt, type QuestEnt, type Sprite,
@@ -300,10 +300,14 @@ function personInfobox(ctx: Ctx, p: PersonEnt): string {
   return infobox(ctx, p.zh, fit(p.face, 96, 'face'), rows)
 }
 
+/** A minor monster's role, as the infobox says it (content levels.ts). */
+const ROLE_ZH: Record<string, string> = { swarm: '群怪', fighter: '战士', caster: '法术', brute: '肉盾', elite: '精英' }
+
 function creatureInfobox(ctx: Ctx, c: CreatureEnt): string {
   const p = c.props
   const rows: [string, string][] = [
     ['类别', esc(c.group)],
+    ['等级', p.level && CREATURE_ROLES[c.id] ? `${p.level} 级 · ${ROLE_ZH[CREATURE_ROLES[c.id]]}` : ''],
     ['生命', String(p.maxHp ?? p.hp ?? '—')],
     ['攻击', String(p.atk ?? '—')],
     ['防御', String(p.def ?? 0)],

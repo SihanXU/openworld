@@ -108,6 +108,7 @@ The event model holds (design.md §5.4–5.15): behaviour decides when; the act'
   poison in a disk) for the forest — it needs a trophy, a codex entry, a wiki page and a place on a map (a demo
   requirement), so it is its own step. Own art goes through `tools/src/art/` like the animals.
 - **Drops**: done (§7).
+- **Levels and numbers**: done (§8); a play-through at level 1–5 should still confirm them.
 - **Balance** wants a play-through at level 1–5: the spider and the boar are the first that can kill a careless player.
 - **Variants per place**: a kit is per type; a stronger version for a later chapter is a subtype with its own kit.
 
@@ -130,3 +131,34 @@ least one), lying still where it fell, taken with F. No engine change.
 Checks: `tools/test/drops.test.ts` (every hostile minor kind has a makeup the world knows; a felled skeleton leaves two
 bones lying still; the three new things each have a use; the antidote clears poison), `npm run coverage` (no form
 without a purpose).
+
+## 8. Levels and numbers (2026-10-19)
+
+Before this every monster was level 1 with hand-set numbers, and a level-1 player with a stone axe felled almost any of
+them in under two seconds: the skills of §3 seldom had time to wind up. Now (content `levels.ts`) a kind's **level** is
+its place in the world — the level its own trophy is made at (trophies.ts, 1–7), or, for a kind met before that, the
+level of where it is met (`MET_AT`: the barrow warden, a gate of chapter 1, at its floor's 4) — and its numbers come from
+one curve read through its **role** (the ontology sets none of them by hand):
+
+- health = 30 × role.hp × (1 + 0.25 × (level − 1)): it grows as gear does (`GEAR_LEVELS.perLevel`), so a monster met
+  with gear of its own level takes as long to fell at level 7 as at level 1;
+- attack = (2.5 + 0.5 × (level − 1)) × role.atk; defence = role.def + ⌊level / 4⌋.
+
+| Role | hp | atk | def | Kinds |
+|---|---|---|---|---|
+| swarm | ×0.6 | ×0.8 | +0 | the slimes, the bat |
+| fighter | ×1 | ×1 | +0 | wolves, the zombie, the skeleton, the spider |
+| caster | ×0.7 | ×1 | +0 | the ghost, the imp, the wisp, the whelp |
+| brute | ×1.6 | ×1.1 | +2 | the boar, the golems, the crab |
+| elite | ×3 | ×1.2 | +1 | the Slime King, the barrow warden, the cyclops |
+
+Experience stays the full health: the fights are longer, so what a minute of fighting gives is about what it was. Over the
+kinds placed on the demo's maps that is about three times the experience of before (each kill is worth more, and there
+are as many kills): levels and what they open (a profession at 5) come sooner on the main line. (Open, 2026-10-20.)
+
+Checks: `tools/test/minor-balance.test.ts` duels every kind against a player with gear of its level (a stone axe's blow
+grown a quarter a level, a point of defence every two), standing and striking and stepping off the marks: it is won
+both ways, it costs something, a swarm lasts at least a second and anything else long enough to wind a skill up (it
+does, for every kind with a kit but the elites), and what standing costs stays within its role's bound (12 for a swarm
+or a fighter, 20 a brute, 30 an elite). Measured standing at gear of its level: swarms 1.3–2 s and 3–4 health,
+fighters and casters 2–3 s and 3–8, brutes 5–7 s and 9–16, elites 9 s and 15–20.
