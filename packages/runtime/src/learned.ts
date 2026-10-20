@@ -370,3 +370,13 @@ export class LogPosition {
     return this.log && this.url ? { ...lib, syncedLog: { url: this.url, log: this.log, seq: this.seq } } : lib
   }
 }
+
+/**
+ * The modder is making things the world does not have yet for a question: the player's own act waits for them past
+ * its time-out (the world stands still for it, and the host bounds that wait). A question of the world's own is not
+ * held: its holders wait out its time-out as ever, then its default runs, and the patch, when it comes, still
+ * teaches the world. Returns whether the question is held (the player is told what is being made).
+ */
+export function holdForMaking(mods: Pick<ModPort, 'get' | 'hold'>, id: string): boolean {
+  return mods.get(id)?.origin === 'player' && mods.hold(id)
+}

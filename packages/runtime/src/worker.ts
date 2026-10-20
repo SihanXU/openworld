@@ -4,7 +4,7 @@ import { untilUp } from './untilUp.ts'
 import { FrameEncoder } from './frameDelta.ts'
 import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
-import { adoptDefinitions, artsToSend, forgetInvalid, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, LogPosition, type Kept } from './learned.ts'
+import { adoptDefinitions, artsToSend, forgetInvalid, holdForMaking, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, LogPosition, type Kept } from './learned.ts'
 import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
@@ -177,7 +177,7 @@ async function resolveRemote(request: ModRequest): Promise<Patch | null> {
 
 /**
  * While a request waits, ask the modder where it is. Once it is making things the world does not
- * have yet, the act waits for them past the time-out (the player is told), until the patch comes.
+ * have yet, the player's own act waits for them past the time-out (the player is told), until the patch comes.
  */
 function watchProgress(id: string): { stop: () => void } {
   let told = false
@@ -186,7 +186,8 @@ function watchProgress(id: string): { stop: () => void } {
       const p = (await (await fetch(`${modderUrl}/progress?id=${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(2000) })).json()) as ModProgress
       if (told || !game || (p.stage !== 'create' && p.stage !== 'art')) return
       told = true
-      if (game.mods.hold(id)) post({ t: 'creating', names: p.creating ?? [] })
+      // (the player's own act only: a question of the world's keeps its time-out)
+      if (holdForMaking(game.mods, id)) post({ t: 'creating', names: p.creating ?? [] })
     } catch {
       /* the reply still comes, or the request fails: either ends the wait */
     }
