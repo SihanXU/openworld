@@ -127,7 +127,7 @@ const GLARE = skill('glare', 'Baleful Glare', '独眼凝视', { shape: 'line', a
 
 // the Slime King: a heap of slime with a crown in it
 const ROYAL_HOP = skill('royal_hop', 'Royal Bounce', '王之弹跳', { shape: 'circle', aim: 'target', radius: 2, move: 'leap', range: [2, 4], windup: 12, cooldown: 40, color: HARM })
-const SPLIT = skill('split', 'Split', '分裂', { shape: 'circle', aim: 'self', radius: 0, range: [1, 8], windup: 10, cooldown: 600, below: 0.5, color: CALL })
+const SPLIT = skill('split', 'Split', '分裂', { shape: 'circle', aim: 'self', radius: 0, range: [1, 8], windup: 10, cooldown: 600, below: 0.5, spent: 'split', color: CALL })
 
 /** The elites' kits, by type: two to four skills, a chain, a guard (kit-contract.test.ts, the elite tier). */
 export const ELITE_KITS: Record<string, CreatureSkill[]> = {

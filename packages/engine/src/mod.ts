@@ -1092,9 +1092,13 @@ export function buildScenario(eng: Engine, ev: GameEvent): Scenario {
 
 const OPS = new Set(Object.keys(PRIMITIVES))
 /** The primitives a world has: the kernel's and its modules' (module.ts); those only its residents may use. */
-function opsOf(onto: Ontology): { ops: Set<string>; residentOnly: Set<string> } {
+function opsOf(onto: Ontology): { ops: Set<string>; residentOnly: Set<string>; conditions: Set<string> } {
   const mods = modulesOf(onto.modules)
-  return { ops: new Set([...OPS, ...mods.flatMap((m) => Object.keys(m.effects ?? {}))]), residentOnly: new Set([...RESIDENT_ONLY, ...mods.flatMap((m) => m.spec?.residentOnly ?? [])]) }
+  return {
+    ops: new Set([...OPS, ...mods.flatMap((m) => Object.keys(m.effects ?? {}))]),
+    residentOnly: new Set([...RESIDENT_ONLY, ...mods.flatMap((m) => m.spec?.residentOnly ?? [])]),
+    conditions: new Set(mods.flatMap((m) => Object.keys(m.conds ?? {}))),
+  }
 }
 const IMPULSE_KINDS = new Set(['strike', 'element', 'coat', 'restore', 'push', 'taken', 'receive', 'offered', 'handle', 'notify'])
 /** The news a learned rule may send: a topic for people to talk about. The rest (quest, defeat, reward, status…) is the game's own. */
@@ -1102,6 +1106,7 @@ const NOTIFY_OPEN = new Set(['topic'])
 const KIND_PREFIXES = new Set<string>(EVENT_KINDS.flatMap((k) => k.split('/').map((_, i, a) => a.slice(0, i + 1).join('/'))))
 const BOUNDS = new Set(['eq', 'gt', 'gte', 'lt', 'lte'])
 const ROLE_NAMES = new Set(['host', 'actor', 'target', 'instrument', 'other', 'item', 'source'])
+const FISHING_CONDITION_ROLES = { fishingMap: 'host', fishingBusy: 'actor', fishingRoom: 'actor' } as const
 const ROLE_REFS = new Set([...ROLE_NAMES, ...[...ROLE_NAMES].map((r) => `tileOf:${r}`)])
 
 interface ValidateCtx {
@@ -1115,6 +1120,33 @@ interface ValidateCtx {
   protectedFacts?: string[]
 }
 
+/**
+ * An ontology's index and the tags its types carry, kept while it holds as many types (an ontology is built once and
+ * grows only by adding): validating rule after rule against one ontology resolves its types once, not once a rule.
+ */
+const indexed = new WeakMap<Ontology, { n: number; index: OntologyIndex; all?: Set<string>; of: Map<string, Set<string>> }>()
+function kept(onto: Ontology) {
+  const n = Object.keys(onto.types).length
+  let k = indexed.get(onto)
+  if (!k || k.n !== n) indexed.set(onto, (k = { n, index: new OntologyIndex(onto), of: new Map() }))
+  return k
+}
+/** A type's tags, its own and inherited (`k`: the ontology's kept index). */
+function tagsOfType(k: ReturnType<typeof kept>, id: string): Set<string> {
+  let t = k.of.get(id)
+  if (!t) k.of.set(id, (t = new Set(k.index.resolve(id).tags)))
+  return t
+}
+/** Every tag a type of the ontology carries. */
+function allTypeTags(onto: Ontology): Set<string> {
+  const k = kept(onto)
+  if (!k.all) {
+    k.all = new Set()
+    for (const id of Object.keys(onto.types)) for (const t of tagsOfType(k, id)) k.all.add(t)
+  }
+  return k.all
+}
+
 export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult {
   withTerrainTypes(ctx.ontology)
   const worldOps = opsOf(ctx.ontology)
@@ -1123,8 +1155,9 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   if (!patch || !Array.isArray(patch.artifacts) || !patch.artifacts.length) {
     return { ok: false, errors: ['patch.artifacts must be a non-empty array'], warnings }
   }
-  // candidate ontology (+ patch types/statuses)
-  const onto: Ontology = structuredClone(ctx.ontology)
+  // candidate ontology (+ patch types/statuses): the world's, with what the patch and the library add beside it (only
+  // added to: the world's own definitions are never written)
+  const onto: Ontology = { ...ctx.ontology, types: { ...ctx.ontology.types }, statuses: { ...ctx.ontology.statuses } }
   for (const t of ctx.library.types) onto.types[t.id] = t
   for (const s of ctx.library.statuses) onto.statuses[s.id] = s
   const statuses = [...Object.values(ctx.ontology.statuses), ...ctx.library.statuses]
@@ -1158,8 +1191,12 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   // every tag the world has: the types' (inherited), the terrains', the instances' (materials, qualities, elements…)
   const tags = new Set<string>(onto.instanceTags ?? [])
   {
-    const index = new OntologyIndex(onto)
-    for (const id of Object.keys(onto.types)) for (const t of index.resolve(id).tags) tags.add(t)
+    for (const t of allTypeTags(ctx.ontology)) tags.add(t)
+    const added = Object.keys(onto.types).filter((id) => onto.types[id] !== ctx.ontology.types[id])
+    if (added.length) {
+      const index = new OntologyIndex(onto)
+      for (const id of added) for (const t of index.resolve(id).tags) tags.add(t)
+    }
     for (const t of Object.values(onto.terrains)) for (const x of t.tags ?? []) tags.add(x)
     for (const r of ctx.library.rules.values()) for (const t of [...(r.host?.tags ?? []), ...(r.host?.notTags ?? [])]) tags.add(t)
   }
@@ -1181,8 +1218,25 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
   const role = (r: unknown, where: string) => {
     if (typeof r !== 'string' || !ROLE_NAMES.has(r)) errors.push(`${where}: role must be one of ${[...ROLE_NAMES].join('|')}`)
   }
+  const exactObject = (value: unknown, keys: readonly string[], where: string): Record<string, unknown> | undefined => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      errors.push(`${where} must be an object`)
+      return undefined
+    }
+    const object = value as Record<string, unknown>
+    for (const key of Object.keys(object)) if (!keys.includes(key)) errors.push(`${where}.${key}: unknown key`)
+    return object
+  }
   const checkCond = (c: Cond | undefined, where: string): void => {
     if (!c || typeof c !== 'object') return void errors.push(`${where}: condition must be an object`)
+    const fishingCondition = (Object.keys(FISHING_CONDITION_ROLES) as (keyof typeof FISHING_CONDITION_ROLES)[]).find((key) => key in c)
+    if (fishingCondition) {
+      if (Object.keys(c).length !== 1) return void errors.push(`${where}: a fishing condition must be used alone`)
+      if (!worldOps.conditions.has(fishingCondition)) return void errors.push(`${where}.${fishingCondition}: unknown condition`)
+      const expected = FISHING_CONDITION_ROLES[fishingCondition]
+      if ((c as Record<string, unknown>)[fishingCondition] !== expected) errors.push(`${where}.${fishingCondition}: role must be "${expected}"`)
+      return
+    }
     if ('all' in c) return c.all.forEach((x, i) => checkCond(x, `${where}.all[${i}]`))
     if ('any' in c) return c.any.forEach((x, i) => checkCond(x, `${where}.any[${i}]`))
     if ('not' in c) return checkCond(c.not, `${where}.not`)
@@ -1218,6 +1272,16 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
     if ('prop' in c) {
       for (const b of Object.keys(c.prop.bounds ?? {})) if (!BOUNDS.has(b)) errors.push(`${where}.prop.bounds.${b}: a bound is eq|gt|gte|lt|lte`)
       return c.prop.role === 'story' || c.prop.role === 'world' ? undefined : role(c.prop.role, `${where}.prop.role`)
+    }
+    if ('propEqualsParam' in c) {
+      if (Object.keys(c).length !== 1) errors.push(`${where}: propEqualsParam must be used alone`)
+      const match = exactObject(c.propEqualsParam, ['role', 'key', 'param'], `${where}.propEqualsParam`)
+      if (!match) return
+      const { role: reader, key, param } = match
+      if (typeof reader !== 'string' || (!ROLE_NAMES.has(reader) && reader !== 'story' && reader !== 'world')) errors.push(`${where}.propEqualsParam.role must be a role, story or world`)
+      if (typeof key !== 'string' || !key) errors.push(`${where}.propEqualsParam.key must be a non-empty property name`)
+      if (typeof param !== 'string' || !param) errors.push(`${where}.propEqualsParam.param must be a non-empty event parameter name`)
+      return
     }
     if ('count' in c) {
       const k = c.count
@@ -1295,6 +1359,12 @@ export function validatePatch(patch: Patch, ctx: ValidateCtx): ValidationResult 
       if (e.other) role(e.other, `${where}.other`)
       const el = e.params?.element
       if (typeof el === 'string' && !ctx.ontology.elements.includes(el)) errors.push(`${where}: unknown element "${el}"`)
+      for (const [key, value] of Object.entries(e.params ?? {})) {
+        if (value && typeof value === 'object' && 'stackKeyOf' in value) {
+          const derived = exactObject(value, ['stackKeyOf'], `${where}.params.${key}`)
+          if (derived) role(derived.stackKeyOf, `${where}.params.${key}.stackKeyOf`)
+        }
+      }
       if (typeof e.to === 'object' && ('area' in e.to || 'map' in e.to) && (e.chance === undefined || e.chance >= 1)) warnings.push(`${where}: an emission to an area with chance 1 can cascade`)
       checkSel(e.filter, `${where}.filter`)
     }
@@ -1525,11 +1595,10 @@ function satisfiable(x: Selector, y: Selector, onto: Ontology): boolean {
   const free = new Set(onto.instanceTags ?? [])
   const type = [x.type, y.type].filter(Boolean).sort((p, q) => q!.length - p!.length)[0]
   const ok = (tags: Set<string>) => need.every((t) => tags.has(t) || free.has(t)) && !forbid.some((t) => tags.has(t))
-  const index = new OntologyIndex(onto)
+  const k = kept(onto)
   for (const id of Object.keys(onto.types)) {
     if (type && !isA(id, type)) continue
-    const r = index.resolve(id)
-    if (ok(new Set(r.tags))) return true
+    if (ok(tagsOfType(k, id))) return true
   }
   if (!type) return Object.values(onto.terrains).some((t) => ok(new Set(t.tags ?? [])))
   return false

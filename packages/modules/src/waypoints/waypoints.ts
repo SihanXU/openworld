@@ -12,7 +12,8 @@ export const waypointType = (w: World): string => (w.onto.data.params as { waypo
 /** Every waypoint stone the world has loaded, and whether it is attuned. */
 export function waypoints(eng: Engine): { e: Entity; attuned: boolean }[] {
   const w = eng.world
-  return Object.values(w.state.entities)
+  return w
+    .ofType(waypointType(w))
     .filter((e) => e.type === waypointType(w) && e.place.on === 'tile')
     .map((e) => ({ e, attuned: w.hasStatus({ e: e.id }, 'attuned') }))
 }

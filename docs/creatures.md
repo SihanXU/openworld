@@ -136,8 +136,9 @@ without a purpose).
 
 Before this every monster was level 1 with hand-set numbers, and a level-1 player with a stone axe felled almost any of
 them in under two seconds: the skills of §3 seldom had time to wind up. Now (content `levels.ts`) a kind's **level** is
-its place in the world — the level its own trophy is made at (trophies.ts, 1–7) — and its numbers come from one curve
-read through its **role**:
+its place in the world — the level its own trophy is made at (trophies.ts, 1–7), or, for a kind met before that, the
+level of where it is met (`MET_AT`: the barrow warden, a gate of chapter 1, at its floor's 4) — and its numbers come from
+one curve read through its **role** (the ontology sets none of them by hand):
 
 - health = 30 × role.hp × (1 + 0.25 × (level − 1)): it grows as gear does (`GEAR_LEVELS.perLevel`), so a monster met
   with gear of its own level takes as long to fell at level 7 as at level 1;
@@ -151,7 +152,9 @@ read through its **role**:
 | brute | ×1.6 | ×1.1 | +2 | the boar, the golems, the crab |
 | elite | ×3 | ×1.2 | +1 | the Slime King, the barrow warden, the cyclops |
 
-Experience stays the full health: the fights are longer, so what a minute of fighting gives is about what it was.
+Experience stays the full health: the fights are longer, so what a minute of fighting gives is about what it was. Over the
+kinds placed on the demo's maps that is about three times the experience of before (each kill is worth more, and there
+are as many kills): levels and what they open (a profession at 5) come sooner on the main line. (Open, 2026-10-20.)
 
 Checks: `tools/test/minor-balance.test.ts` duels every kind against a player with gear of its level (a stone axe's blow
 grown a quarter a level, a point of defence every two), standing and striking and stepping off the marks: it is won
@@ -178,9 +181,11 @@ of a chain, no encounter).
 | | Stomp 跺地 | 1–2 cells | a disk of 2: atk × 1.5, earth, pushed 1; then the Aftershock: the ring 3 out, atk × 1 |
 | | Baleful Glare 独眼凝视 | in a row, 2–6 | a line of 6: atk × 0.8, stunned |
 | Slime King | Royal Bounce 王之弹跳 | 2–4 cells | a leap; a disk of 2 at the foe: atk × 1.5, its element |
-| | Split 分裂 | under half health | two green slimes come off it, once (its prop `split`) |
+| | Split 分裂 | under half health, not spent | two green slimes come off it, once (its prop `split`, which the skill's `spent` names: never wound up again) |
 
 A skill that is only ever the next of a chain (the Aftershock) has the range [0, 0], which the kit goal never meets.
+The warden's charge is meant to be dodged: one it catches is stunned for 1.5 s, longer than the 0.6 s the sweep winds
+up, so the sweep always lands after it (about atk × 3 and a push in all).
 Measured with gear of their level (minor-balance.test.ts): the warden 10 s and 24 health standing, 11 s and 6 dodging;
 the cyclops 10 s and 19, 14 s and 16; the King 8 s and 15 either way. Checks: kits.test.ts (the King splits once; the
 charge is followed by the sweep; the aftershock comes only after the stomp), kit-contract.test.ts (the elite tier).
@@ -193,18 +198,21 @@ of the kits module (`tactics.ts`) now move it in a fight, as behaviour (design.m
 (content `CREATURE_TACTICS` in kits.ts, applied in `buildOntology`):
 
 - **rout** (before the kit goal): hurt past `fleeBelow` of its health, it runs, each step as far from its foe as it can
-  within its leash. The wolves and the frost wolves, at a fifth.
+  within its leash and, if it fears fire, out of a fire's reach (the bounds the threat goal keeps, after dark from where
+  it roams). Cornered, it turns and fights; a skill it is winding up it sees through. The wolves and the frost wolves, at
+  a fifth.
 - **tactics** (after the kit goal: a skill it can take up comes first):
   - `keepAway`: one that fights from afar steps back from a foe come closer than that, keeping it in its row where it
     can (its lines aim there). The fire imp and the storm wisp at 3, the ghost at 2; cornered, it fights where it stands.
   - the tag `pack`: one of a pack goes round to its foe's far side from a packmate already beside it (a short search
-    for the way round). The wolves.
+    for the way round, out of a fire's reach), past the foe's other sides; the mate it goes by is the first of the pack
+    (by id) beside the foe, so two never circle each other, and one across from a mate stays. The wolves.
 
 The order matters: with keeping away before the kit, an imp spent every turn stepping back and never cast; after it,
 an imp too close casts when it can and steps back when it cannot. Goals: `encounter, rout, kit, tactics, threat, …`.
 
-Checks: kits.test.ts (an imp come too close steps back; a wolf badly hurt runs; two wolves come at their foe from both
-sides), minor-balance.test.ts unchanged in its bounds (the imp now 1.8 s and 5 health standing, 3.6 s and none dodging).
+Checks: kits.test.ts (an imp come too close steps back; a wolf badly hurt runs, and cornered by its leash fights; two
+wolves come at their foe from opposite sides), minor-balance.test.ts unchanged in its bounds (the imp now 1.8 s and 5 health standing, 3.6 s and none dodging).
 
 ## 12. Traps and a new kind (2026-10-19)
 

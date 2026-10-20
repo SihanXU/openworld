@@ -1,10 +1,38 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, Rule, SaveData, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
+import type { AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SaveData, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
 import type { TransferProgress } from './transferQueue.ts'
 
 /** Where the mouse points: its tile, and what is drawn at the point, top first (the keys act there when it is next to the player). */
 export type Tile = Aim
+
+export type FishingAction = 'press' | 'release' | 'cancel'
+
+/** Runtime-only projection of the active fishing minigame. Coordinates are normalized. */
+export type FishingInputSource = 'mouse' | 'space'
+
+/** Tracks press edges so browser key repeat and duplicate button events do not advance fishing twice. */
+export class FishingInputLatch {
+  private held = new Set<FishingInputSource>()
+
+  press(source: FishingInputSource): boolean {
+    if (this.held.has(source)) return false
+    const first = this.held.size === 0
+    this.held.add(source)
+    return first
+  }
+
+  release(source: FishingInputSource): 'none' | 'held' | 'last' {
+    if (!this.held.delete(source)) return 'none'
+    return this.held.size === 0 ? 'last' : 'held'
+  }
+
+  clear(): FishingInputSource[] {
+    const held = [...this.held]
+    this.held.clear()
+    return held
+  }
+}
 
 export type ToWorker =
   | { t: 'skipLearning' }
@@ -17,15 +45,21 @@ export type ToWorker =
   | { t: 'dash' }
   /** Space: strike ahead with the held weapon (or a fist), again and again while it is held. */
   | { t: 'attack'; on: boolean }
+  /** A fishing minigame button edge; release/cancel are accepted while paused to clear held input. */
+  | { t: 'fishing'; action: FishingAction }
   /** One of the four inputs (design.md §5.2): E hands, F take, left click use, right click put; on a chosen layer of the tile. */
   | { t: 'key'; key: Key; tile?: Tile; layer?: number; /** the left button dragged over a new cell: only if it sets something down */ drag?: boolean }
   | { t: 'handUp'; up: boolean }
   /** The same on an item in the bag or in the open chest (the inventory's context menu). */
   | { t: 'keyOnItem'; key: Plan['key']; item: string }
+  /** A game's explicit chooser uses one carried item on another (the worker checks both identities at confirmation). */
+  | { t: 'useItemOnHeldItem'; instrument: string; target: string }
   /** The layer chooser (a long press): what each layer of the tile would give. */
   | { t: 'choices'; key: Key; tile?: Tile }
   /** Where the mouse points (for the key labels). */
   | { t: 'aim'; tile?: Tile; /** its number, answered with the keys for it */ n?: number }
+  /** What the camera shows (cells, on a map): frames carry what lies there and round it (docs/continent.md §9). */
+  | { t: 'view'; map: string; x: number; y: number; w: number; h: number }
   /** A panel opened (the bag, crafting, the build palette, the map) or a choice made from the chooser: the story notes it, for a lesson that waits on it. */
   | { t: 'ui'; what: string }
   /** Esc held: the lesson at hand is skipped. */
@@ -104,6 +138,24 @@ export type ToWorker =
   | { t: 'debug'; op: 'hurt'; amount: number }
   | { t: 'debug'; op: 'god'; on?: boolean }
 
+/** Routes stale frame-driven attacks/use messages against the worker's authoritative fishing state. */
+export function routeFishingWorkerInput(
+  active: boolean,
+  input: { t: 'attack'; on: boolean } | { t: 'key'; key: Key },
+): { kind: 'fishing'; action: FishingAction } | { kind: 'ignore' } | { kind: 'game' } {
+  if (!active) return { kind: 'game' }
+  if (input.t === 'attack') return { kind: 'fishing', action: input.on ? 'press' : 'release' }
+  return input.key === 'use' ? { kind: 'ignore' } : { kind: 'game' }
+}
+
+/** A fishing Space press remains consumed through keyup, even if its session ends on a stale frame. */
+export function routeSpaceKeyDown(active: boolean, repeat: boolean, fishingSequence: boolean): 'fishing-press' | 'attack' | 'ignore' {
+  if (fishingSequence || (active && repeat)) return 'ignore'
+  return active ? 'fishing-press' : 'attack'
+}
+
+export const routeFishingEscape = (active: boolean): 'cancel' | 'menu' => active ? 'cancel' : 'menu'
+
 export interface RecordView {
   id: string
   tick: number
@@ -127,8 +179,8 @@ export type FromWorker =
   | { t: 'synced'; url: string; seq: number; /** the library changed: the position is stored with it, not before it */ changed: boolean }
   | { t: 'placement'; preview: PlacementPreview }
   | { t: 'ready'; stats: WorldIndex['stats']; name: WorldIndex['name']; resumed: boolean }
-  | { t: 'map'; map: MapData }
-  | { t: 'frame'; frame: Frame; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number }; transfer?: TransferProgress }
+  | { t: 'map'; map: MapData; /** the look of the region it lies in (RegionMeta.look) */ look?: RegionLook }
+  | { t: 'frame'; frame: Frame; /** the frame's things are only those that changed; these left it (frameDelta.ts) */ gone?: string[]; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number }; transfer?: TransferProgress }
   /** What the keys would do now, sent as soon as the pointer aims somewhere else (between frames). */
   | { t: 'keys'; keys: Frame['keys']; /** the aim they answer */ n?: number }
   | { t: 'records'; records: RecordView[]; library: LibraryView }
@@ -163,8 +215,28 @@ export interface AtlasMap {
   terrain: string[]
 }
 
+/**
+ * The continent (the overworld, world-model.md §5.1) as the world map draws it: its grounds a cell each, the region each
+ * cell is in, the named places, and the cell one is at (on the overworld, or the place one is in).
+ */
+export interface AtlasContinent {
+  width: number
+  height: number
+  terrain: string[]
+  /** Each cell's region, an index into `regions` (-1: none, the sea). */
+  regionOf: number[]
+  regions: { id: string; name: Text; color?: string; backdrop?: boolean }[]
+  places: { x: number; y: number; name: Text; kind: string; map: string; sealed?: boolean; backdrop?: boolean; visited?: boolean; capital?: boolean }[]
+  /** The cell one is at, where the world map can tell. */
+  cell?: { x: number; y: number }
+}
+
 export interface Atlas {
   maps: AtlasMap[]
+  /** The whole world map, when the world has one (an overworld). */
+  continent?: AtlasContinent
+  /** The cell each map with a waypoint or a quest's target lies at on the continent (its own, or the map it hangs below). */
+  cells?: Record<string, { x: number; y: number }>
   waypoints: { id: string; map: string; x: number; y: number; name: Text; attuned: boolean }[]
   here: { map: string; x: number; y: number }
   /** Where the tracked quest's open objectives point (docs/quests.md §2.5): its markers on the world map. */

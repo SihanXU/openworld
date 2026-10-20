@@ -28,7 +28,7 @@ export const ROLES = {
 
 const C = 'actor/creature'
 
-/** Each minor kind's role (its level is its trophy's). */
+/** Each minor kind's role (its level is its trophy's, or where it is met: MET_AT). */
 export const CREATURE_ROLES: Record<string, keyof typeof ROLES> = {
   [`${C}/slime/green_slime`]: 'swarm',
   [`${C}/slime/fire_slime`]: 'swarm',
@@ -55,6 +55,14 @@ export const CREATURE_ROLES: Record<string, keyof typeof ROLES> = {
   [`${C}/cyclops`]: 'elite',
 }
 
+/**
+ * A kind met before its trophy's level is fought at the level of where it is met: the barrow warden, a gate of chapter
+ * 1's main line, keeps the Old Barrow's deepest floor (its gear level 4), though its helm is made at 5.
+ */
+export const MET_AT: Record<string, number> = {
+  [`${C}/undead/warden`]: 4,
+}
+
 /** A level-1 fighter's health and attack: five or six blows of a stone axe; a quarter of one's health in a short fight. */
 export const BASE = { hp: 30, atk: 2.5 }
 /** What each level adds to the attack (the health grows as gear does). */
@@ -68,5 +76,5 @@ export function creatureStats(level: number, role: Role): { level: number; hp: n
 
 /** Each minor kind's level and numbers, by type. */
 export const CREATURE_STATS = Object.fromEntries(
-  Object.entries(CREATURE_ROLES).map(([type, role]) => [type, creatureStats(TROPHY_OF[type]?.level ?? 1, ROLES[role])]),
+  Object.entries(CREATURE_ROLES).map(([type, role]) => [type, creatureStats(MET_AT[type] ?? TROPHY_OF[type]?.level ?? 1, ROLES[role])]),
 )

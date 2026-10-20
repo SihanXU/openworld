@@ -19,7 +19,7 @@ answers it, normally with the one primitive `unleash`.
 |---|---|
 | Cells | `shape` (circle, ring, line, cone, cross, spots), `aim` (self, target), `radius`, `width` (a line's), `spot` (each spot's radius), `occlude` (cells the caster cannot see from where it winds up — behind a rock, a wall — and cells nothing can stand on are spared) |
 | Timing | `windup`, `recovery`, `cooldown`, `steady` (held, stunned or frozen, the wind-up waits instead of being lost), `then` (another skill of the kit, wound up as soon as this one lands, aimed afresh: a second arrow, a second wave) |
-| When | `range` [near, far], `aligned` (a row or a column), `below` (a share of its health), `chance` |
+| When | `range` [near, far], `aligned` (a row or a column), `below` (a share of its health), `spent` (a prop that, once the caster has it, keeps it from the skill: one used once), `chance` |
 | Moving | `move` (leap, dash, blink), `back` (springs back after the blow); a dash that meets only a wall stuns the dasher |
 | Looks | `color` (the marks), `action` (a boss's pose: attack, cast), `clip` (a drawn clip of its own), `fx`, `fxPlacement` |
 

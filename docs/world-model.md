@@ -242,7 +242,9 @@ on entering a library; the map builder clears the volume under a solid fixture s
   edges into parts that do not reach each other, the overworld's links between neighbouring
   cells match them (checked, §10).
 
-As built (W3; one tile to a cell since 2026-10-11): the overworld is the map `overworld`, 16 × 12 cells of
+As built (W3; one tile to a cell since 2026-10-11; the continent since 2026-10-18, [continent.md](continent.md):
+64 × 48 cells, six regions, a gazetteer of backdrop places, more grounds, rivers and roads, kept as data in
+`tools/src/demo/continent/continent.json`): the overworld is the map `overworld`, cells of
 one tile each, with `scale` 30 (a step lasts 30 minutes × its ground's `cost` × rain's), its grounds the
 `ow_*` terrains, drawn in its own inked style (`tools/src/art/worldmap.ts`: a coast, woods, hills and
 mountains as marks, each hand-made place by an icon of its kind) so it never reads as another local map.

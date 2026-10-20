@@ -70,6 +70,34 @@ describe('base library', () => {
     expect(res.errors.filter((e) => !placement.test(e))).toEqual([])
   })
 
+  it('validates fishing condition roles, keys and module availability', () => {
+    const patchFor = (condition: unknown): Patch => ({
+      artifacts: [{
+        kind: 'rule',
+        rule: {
+          id: 'test/fishing-condition',
+          host: { type: 'actor/person/player' },
+          on: 'act/use',
+          hole: 'test/hole',
+          tree: { if: condition as never, then: { do: [] }, else: { do: [] } },
+        } as Rule,
+      }],
+    })
+    const badRole = validatePatch(patchFor({ fishingMap: 'garbage' }), { ontology: onto, library: new RuleLibrary() })
+    expect(badRole.errors.some((e) => e.includes('fishingMap') && e.includes('host'))).toBe(true)
+
+    const multipleKeys = validatePatch(patchFor({ fishingMap: 'host', fishingBusy: 'actor' }), { ontology: onto, library: new RuleLibrary() })
+    expect(multipleKeys.errors.some((e) => e.includes('fishing condition') && e.includes('alone'))).toBe(true)
+
+    const mixedWithKnown = validatePatch(patchFor({ chance: 1, fishingMap: 'garbage' }), { ontology: onto, library: new RuleLibrary() })
+    expect(mixedWithKnown.errors.some((e) => e.includes('fishing condition') && e.includes('alone'))).toBe(true)
+
+    const withoutFishing = structuredClone(onto)
+    withoutFishing.modules = withoutFishing.modules?.filter((module) => module !== 'fishing')
+    const disabled = validatePatch(patchFor({ fishingMap: 'host' }), { ontology: withoutFishing, library: new RuleLibrary() })
+    expect(disabled.errors.some((e) => e.includes('fishingMap') && e.includes('unknown condition'))).toBe(true)
+  })
+
   it('the root is total: every kind reaches a root rule, and no root rule inherits', () => {
     const roots = BASE_RULES.filter(isRoot)
     for (const r of roots) expect(leaves(r.tree), r.id).not.toContain('inherit')
@@ -420,6 +448,20 @@ describe('the Mod port', () => {
     const eng = sandbox(stoneScenario())
     return holeOf(eng, eng.actEvent('use', 'actor', { e: 'tree' }, { e: 'stone' }))
   })()
+  it('validates property-to-event comparisons and engine-derived stack identities', () => {
+    const probe = (condition: unknown, key: unknown) => validatePatch({ artifacts: [{ kind: 'rule', rule: {
+      id: 'patch/bait-identity-probe', host: { type: 'item/material/stone' }, on: 'act/use', hole: USE_HOLE,
+      tree: { if: condition as never, then: { do: [{ op: 'emit', impulse: 'push', to: 'target', params: { identity: key as never } }] }, else: { do: [] } },
+    } as Rule }] }, { ontology: onto, library: lib() })
+
+    expect(probe({ propEqualsParam: { role: 'target', key: 'baitKey', param: 'baitKey' } }, { stackKeyOf: 'host' }).ok).toBe(true)
+    expect(probe({ propEqualsParam: { role: 'unknown', key: 'baitKey', param: 'baitKey' } }, { stackKeyOf: 'host' }).errors.join()).toMatch(/propEqualsParam\.role/)
+    expect(probe({ propEqualsParam: { role: 'target', key: '', param: '' } }, { stackKeyOf: 'host' }).errors.join()).toMatch(/non-empty/)
+    expect(probe({ propEqualsParam: { role: 'target', key: 'baitKey', param: 'baitKey' } }, { stackKeyOf: 'unknown' }).errors.join()).toMatch(/params\.identity\.stackKeyOf/)
+    expect(probe({ propEqualsParam: null }, { stackKeyOf: 'host' }).errors.join()).toMatch(/propEqualsParam.*object/)
+    expect(probe({ propEqualsParam: { role: 'target', key: 'baitKey', param: 'baitKey', extra: true } }, { stackKeyOf: 'host' }).errors.join()).toMatch(/propEqualsParam\.extra/)
+    expect(probe({ propEqualsParam: { role: 'target', key: 'baitKey', param: 'baitKey' } }, { stackKeyOf: 'host', add: 1 }).errors.join()).toMatch(/params\.identity\.add.*unknown key/)
+  })
   /**
    * The stone's nature (driven into dead wood, it wedges and is spent) and the dead tree's (wedged, it
    * is notched): each writes only itself, and each is one type's own answer at one hole (design.md §5.16).
