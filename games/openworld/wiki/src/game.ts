@@ -390,15 +390,18 @@ export function loadGame(): Game {
       const props: Record<string, any> = {}
       const tags: string[] = []
       let sprite = t
+      let makeup: unknown[] = []
       for (const x of chain) {
         Object.assign(props, types[x].props ?? {})
+        // a kind's makeup is its own, else its family's (as the ontology resolves it)
+        if (types[x].makeup?.length) makeup = types[x].makeup
         tags.push(...(types[x].tags ?? []))
         if (types[x].sprite) sprite = { ...types[x], id }
       }
       const family = types[chain[2]] ?? t
       return {
         kind: 'creature', id, zh: zh(t.name), en: (enOf(t.name) || id), title: zh(t.name), group: zh(family.name), type: t, props, tags: [...new Set(tags)],
-        makeup: (t.makeup ?? []) as any, sprite: creatureSprite(sprite, props.element),
+        makeup: makeup as any, sprite: creatureSprite(sprite, props.element),
       } satisfies CreatureEnt
     })
   ents.push(...creatures)

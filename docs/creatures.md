@@ -107,5 +107,26 @@ The event model holds (design.md §5.4–5.15): behaviour decides when; the act'
   statue). The pack's two mushroom monsters are unused. Candidates: a new night-born mushroom kind (spore cloud:
   poison in a disk) for the forest — it needs a trophy, a codex entry, a wiki page and a place on a map (a demo
   requirement), so it is its own step. Own art goes through `tools/src/art/` like the animals.
+- **Drops**: done (§7).
 - **Balance** wants a play-through at level 1–5: the spider and the boar are the first that can kill a careless player.
 - **Variants per place**: a kit is per type; a stronger version for a later chapter is a subtype with its own kit.
+
+## 7. Drops (2026-10-19)
+
+Before this, a hostile monster had no makeup: felled, it left nothing but, rarely, its trophy (docs/gear.md). Now every
+kind is made of something (content `drops.ts`, `CREATURE_DROPS`, applied to the types in `buildOntology`), and the base
+rule `combat/defeat` breaks it down as it does anything with a makeup: half of each part (the world's recovery rate, at
+least one), lying still where it fell, taken with F. No engine change.
+
+- Mostly what the world already has: hides and meat (wolves, the boar, the whelp, the cyclops), bone and rags (the
+  dead), stone, ore and frostcap (the golems), coal and fireweed (the imp), raw fish (the crab), and a bat's guano as
+  fertilizer.
+- Three things only monsters give: **slime gel** (every slime; the Slime King a heap), the **venom sac** (the cave
+  spider) and **ectoplasm** (the ghost, the storm wisp). Each sells at one's stall (`DROP_SELLS`).
+- **The antidote** is made at hand of a venom sac and a herb; drunk (`use/drink-antidote`, `body/antidote`) it clears
+  the spider's poison and mends 4. The spider's threat and its cure come from the same body.
+- Icons: `tools/src/art/drops.ts`. The full table: the wiki's 战斗/怪物掉落, and each monster's `{{掉落}}`.
+
+Checks: `tools/test/drops.test.ts` (every hostile minor kind has a makeup the world knows; a felled skeleton leaves two
+bones lying still; the three new things each have a use; the antidote clears poison), `npm run coverage` (no form
+without a purpose).
