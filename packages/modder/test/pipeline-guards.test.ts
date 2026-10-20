@@ -165,3 +165,58 @@ describe('lanes', () => {
     await modder.settled()
   })
 })
+
+describe('what is in flight', () => {
+  it('a request at a higher tier does not wait for one of its class at a lower tier (whose answer cannot serve it)', SLOW, async () => {
+    const first = gate()
+    const release = gate()
+    const designing = gate()
+    let designs = 0
+    const model = new ScriptedModel(async (_messages: ChatMessage[], opts: ChatOptions) => {
+      if (opts.purpose === 'review') return { verdict: 'ship', notes: [] }
+      if (opts.purpose !== 'design') return {}
+      if (designs++ === 0) {
+        first.open()
+        await release.p
+        return 'no idea'
+      }
+      designing.open()
+      return { patch: sapped('patch/sap'), summary: 'sap' }
+    })
+    const { modder } = setup(model, 'live')
+    const req = useRequest()
+    const at = (tier: 'low' | 'high'): ModRequest => ({ ...req, id: `${req.id}-${tier}`, tier, scenario: { ...req.scenario, tier } })
+    const low = modder.resolve({ request: at('low') })
+    await first.p
+    const high = modder.resolve({ request: at('high') })
+    const waited = await Promise.race([designing.p.then(() => 'designing'), new Promise((r) => setTimeout(() => r('still waiting'), 15_000))])
+    release.open()
+    expect(waited).toBe('designing')
+    expect((await high).outcome).toBe('accepted')
+    await low
+    await modder.settled()
+  })
+
+  it("pictures begun for a new thing are waited for when the request fails, and their calls are the episode's", SLOW, async () => {
+    let drawn = 0
+    const model = new ScriptedModel(async (_messages: ChatMessage[], opts: ChatOptions, call: number) => {
+      if (opts.purpose === 'art') {
+        await new Promise((r) => setTimeout(r, 300))
+        drawn++
+        return { content: '{}', toolCalls: [], usage: { input: 1000, output: 50 } }
+      }
+      if (opts.purpose !== 'design') return {}
+      // a draft that makes a thing the world has no kind of (a creation, and its picture begun), then nothing usable
+      return call === 0 ? { patch: onDeadTree('patch/glimmer', [{ op: 'spawn', type: 'item/material/glimmerdust', at: 'actor', into: 'contents' }, { op: 'destroy' }]), summary: 'glimmer' } : 'no idea'
+    })
+    const { state, modder } = setup(model, 'live')
+    const reply = await modder.resolve({ request: useRequest() })
+    expect(reply.outcome).toBe('failed')
+    // the picture's two tries ran before the reply, and are counted with the episode
+    expect(drawn).toBe(2)
+    const ep = state.episode(reply.episode!)!
+    expect(ep.route).toContain('create')
+    expect(ep.usage).toMatchObject({ input: 2000, output: 100 })
+    await modder.settled()
+  })
+})

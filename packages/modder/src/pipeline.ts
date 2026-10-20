@@ -14,7 +14,7 @@
 // Two profiles of one harness (state.ts): LIVE while a player waits, OFFLINE for everything
 // nobody waits on — curriculum, a failed live request worked again, a revision after review.
 
-import { artProblems, buildModSpec, buildRequest, buildSandbox, closestTypes, holeKey, isDo, isHole, leaves, patchKey, scenarioEvent, tierOfRequest, type ModProgress, type Ontology, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type Scenario, type TypeDef, type ValidationResult } from '@openworld/engine'
+import { artProblems, buildModSpec, buildRequest, buildSandbox, closestTypes, holeKey, isDo, isHole, leaves, patchKey, scenarioEvent, tierOfRequest, tiersFrom, type ModProgress, type Ontology, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type Scenario, type Tier, type TypeDef, type ValidationResult } from '@openworld/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
 import { normalizePatch, placePatch, qualifyTerrains, stationFromRules } from './fixes.ts'
@@ -333,8 +333,10 @@ export class Modder {
   private async resolveClass(req: ModRequest, body: ResolveBody, sig: Signature, profile: Profile): Promise<ResolveReply> {
     const hit = this.cover(req, sig)
     if (hit) return hit
-    // the same class already being worked on: wait for it, then see whether it answers this one too
-    const running = this.inflight.get(sig.key)
+    // the same class already being worked on at this tier or a higher one: wait for it, then see whether it answers
+    // this one too (an answer at a lower tier never does: the tier is part of what is in flight)
+    const tier = tierOfRequest(req)
+    const running = tiersFrom(tier).map((t) => this.inflight.get(inFlight(sig.key, t))).find((p) => !!p)
     if (running) {
       await running.catch(() => undefined)
       const again = this.cover(req, sig)
@@ -351,7 +353,7 @@ export class Modder {
     // the backend said it is out (of quota, or signed out): no calls until the pause is over
     const why = this.down()
     if (why) return { patch: null, outcome: 'unavailable', diagnostics: [`model unavailable: ${why}`] }
-    return this.track(sig.key, this.episode(req, body.workspace, sig, { profile }))
+    return this.track(inFlight(sig.key, tier), this.episode(req, body.workspace, sig, { profile }))
   }
 
   private async track(key: string, p: Promise<ResolveReply>): Promise<ResolveReply> {
@@ -664,6 +666,9 @@ export class Modder {
       if (reviewed && ep.outcome === 'failed' && this.commit(ep, reviewed, req, replaces)) ep.error += '; shipped the reviewed draft'
     }
 
+    // pictures begun for new things the episode did not ship (it failed, was covered, or found them after all):
+    // still the episode's calls, waited for so their usage is counted and nothing runs on after it
+    if (drawing.size) await Promise.allSettled(drawing.values())
     ep.usage = { calls: model.calls, input: model.input, output: model.output, cost: model.cost }
     ep.calls = model.log
     ep.ms = Date.now() - t0
@@ -812,10 +817,11 @@ export class Modder {
         if (h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: { ...ep, rules: held }, notes: auditNotes(found.confirmed) } })
       })
     // a live request that failed is worked again with the offline profile: the world still learns it
-    if (ep.outcome === 'failed' && eo.profile === 'live' && h.escalate && !this.inflight.has(`${sig.key}#offline`))
+    const offline = `${inFlight(sig.key, tierOfRequest(req))}#offline`
+    if (ep.outcome === 'failed' && eo.profile === 'live' && h.escalate && !this.inflight.has(offline))
       this.later(`escalate ${ep.id}`, async () => {
         if (this.opts.library.covering(req)) return
-        await this.track(`${sig.key}#offline`, this.episode(req, ws, sig, { profile: 'offline', escalatedFrom: ep.id }))
+        await this.track(offline, this.episode(req, ws, sig, { profile: 'offline', escalatedFrom: ep.id }))
       })
     // what went wrong is reflected on at once; live episodes that went cleanly, a batch at a time
     const clean = eo.profile === 'live' && !eo.revise && !eo.escalatedFrom && ep.outcome === 'accepted' && !flags.length && ep.attempts.every((a) => !a.errors.length && !a.fixes?.length && !a.review && ['design', 'find', 'create'].includes(a.phase))
@@ -1103,6 +1109,9 @@ function routeOf(j: unknown): { need?: Need[]; create?: Creation[] } | undefined
 export function laneOf(req: ModRequest): string {
   return patchKey(req.event.host?.type ?? '-', req.event.kind, holeKey(req.hole.rule, req.hole.path), tierOfRequest(req))
 }
+
+/** What is in flight for a class of request: its answer serves its tier and the lower ones (covering, tiersFrom). */
+const inFlight = (key: string, tier: Tier): string => `${key}@${tier}`
 
 /** A validation as a commit reports it (a trial run keeps nothing). */
 function judged(result: ValidationResult, patch: Patch): CommitResult {
