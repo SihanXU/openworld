@@ -231,3 +231,55 @@ table.facts td { padding: 2px 4px; }
 .chip.missing { color: var(--ed-warn); }
 .chip.review { color: #6fb3ff; }
 .chip.done { color: #7ee08a; }
+
+/* the editor's pixel icons (icons.ts): a mask in the colour of the text */
+.px-ic { display: inline-block; vertical-align: middle; flex: none; background: currentColor; -webkit-mask: var(--ic) center / 100% 100% no-repeat; mask: var(--ic) center / 100% 100% no-repeat; }
+button.ic { padding: 4px 6px; display: inline-grid; place-items: center; }
+.editor header button { white-space: nowrap; }
+.editor header #play { display: inline-flex; align-items: center; gap: 4px; }
+
+/* the header's groups of modes, and More */
+.editor header nav { gap: 6px; align-items: center; }
+.ngrp { display: inline-flex; gap: 1px; padding: 2px; background: #10131b; border: 1px solid var(--ed-line); border-radius: 6px; }
+.ngrp button, .more > button { border: none; background: transparent; padding: 3px 9px; }
+.ngrp button:hover, .more > button:hover { background: #262c3d; }
+.ngrp button.on, .more > button.on { background: var(--ed-accent); color: #1a1408; }
+.more { position: relative; }
+.more .menu { position: absolute; top: calc(100% + 4px); left: 0; display: flex; flex-direction: column; gap: 2px; min-width: 150px; padding: 4px; background: var(--ed-panel); border: 1px solid var(--ed-line); border-radius: 6px; box-shadow: 0 8px 24px #0008; z-index: 30; }
+.more .menu[hidden] { display: none; }
+.more .menu button { text-align: left; border: none; background: transparent; }
+.more .menu button:hover { background: #262c3d; }
+.more .menu button.on { background: var(--ed-accent); color: #1a1408; }
+
+/* the map's tools: a strip of icons beside the map, the chosen tool's choices in a bar above it (mapTools.ts) */
+#toolbar { grid-area: canvas; align-self: start; z-index: 4; display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 4px 10px 4px 52px; background: #1c2130ee; border-bottom: 1px solid var(--ed-line); overflow: hidden; }
+#toolstrip { grid-area: canvas; justify-self: start; align-self: start; z-index: 5; margin-top: 46px; display: flex; flex-direction: column; gap: 4px; padding: 6px 5px; background: #1c2130ee; border: 1px solid var(--ed-line); border-left: none; border-radius: 0 8px 8px 0; }
+.ib { position: relative; width: 36px; height: 36px; padding: 0; display: grid; place-items: center; }
+.ib small { position: absolute; right: 2px; bottom: 0; font-size: 9px; color: var(--ed-muted); }
+.ib.on small { color: #3a2a08; }
+.seg { display: inline-flex; gap: 2px; padding: 2px; background: #0f121a; border: 1px solid var(--ed-line); border-radius: 6px; flex: none; }
+.seg button { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border: none; background: transparent; white-space: nowrap; }
+.seg button:hover { background: #262c3d; }
+.seg button.on { background: var(--ed-accent); color: #1a1408; }
+#toolbar .lab { color: var(--ed-muted); font-size: 11px; }
+#toolbar .hint { flex: 1; min-width: 0; color: var(--ed-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#toolbar label { display: inline-flex; align-items: center; gap: 4px; margin: 0; white-space: nowrap; }
+#toolbar p.muted { margin: 0; white-space: nowrap; }
+
+/* the map's left panel: what is laid, by kind, above; the maps, with a search, below — each scrolls by itself */
+#left:has(> .lp-maps) { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+.lp-top { flex: 1 1 58%; min-height: 0; overflow: auto; padding: 8px 10px; }
+.lp-maps { flex: 1 1 42%; min-height: 0; overflow: auto; padding: 6px 10px 8px; border-top: 1px solid var(--ed-line); background: #181c29; }
+.lp-maps h3 { margin-top: 4px; }
+#mapFilter { width: 100%; margin-bottom: 4px; }
+.lp-tree .palette.list { max-height: none; }
+.cats { display: flex; flex-wrap: wrap; gap: 3px; margin: 2px 0 6px; }
+.cats button { padding: 2px 8px; font-size: 12px; }
+.cats button small { color: var(--ed-muted); font-size: 10px; }
+.cats button.on small { color: #3a2a08; }
+
+/* the map's inspector: the map itself on top (its properties in a dialog), then the cell and what is selected */
+.map-head { display: grid; gap: 2px; padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--ed-line); }
+.map-head b { font-size: 14px; }
+.map-head small { color: var(--ed-muted); }
+.map-head button { justify-self: start; margin-top: 4px; }

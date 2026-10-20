@@ -1,10 +1,12 @@
 // The map (docs/engine-split.md §6, §16 E1; RPG Maker's map and tiles, used as RPG Maker is used). Four layers —
-// the ground, its height, the things on it, and the marks (portals, anchors, areas, the start) — each with its
-// tools: a pencil with a brush size, a rectangle, an ellipse, a flood fill, a selection to copy, cut, paste, clear
-// and drag; buildings from the catalogue and rooms' walls, an interior made behind a door; the builder's brushes
-// (a path, a patch, things scattered, a yard). The right button picks what is under it (dragged: a block to stamp);
-// things are dragged to move and nudged with the arrows. Every stroke is the format's data: a map file's rows,
-// heights, stamps, rooms, portals, anchors, regions and entities with ids of their own (mapEdit.ts).
+// the ground, its height, the things on it, and the marks (portals, anchors, areas, the start). Each layer's tools
+// are a strip of icons beside the map (mapTools.ts): select, a brush whose shape (free, a rectangle, an ellipse, a
+// fill) and size are chosen in the bar above the map, an eraser, an eyedropper, and the templates that lay a whole
+// piece (a building from the catalogue, a room's walls, the builder's path and patch, quick events, things
+// scattered, a yard). What is laid is chosen on the left, by kind, above the maps; the right shows the cell and
+// what is selected, and the map's own settings open in a dialog. The right button picks what is under it
+// (dragged: a block to stamp); things are dragged to move and nudged with the arrows. Every stroke is the format's
+// data: a map file's rows, heights, stamps, rooms, portals, anchors, regions and entities (mapEdit.ts).
 
 import type { Entity, Portal, RawChunk, Rule } from '@openworld/engine'
 import { paintOrganic, paintPath, scatter, yard, type PersonFile } from '@openworld/format'
@@ -52,66 +54,13 @@ import {
   type Prefab,
 } from './mapEdit.ts'
 import { paintPics, prefabPic, terrainPic, typePic, type Pic } from './thumbs.ts'
+import { icon } from './icons.ts'
+import { LAYERS, groupOf, layerOf, terrainPalette, toolDef, toolForKey, type LayerId, type Tool, type TerrainGroup } from './mapTools.ts'
 import { phrase } from './lang.ts'
 import { esc, parseValue, t, textField, toast, tx } from './ui.ts'
-import { adoptTexts, together, written } from './words.ts'
+import { adoptTexts, shown, together, written } from './words.ts'
+import { modal } from './dialogs.ts'
 
-type LayerId = 'ground' | 'height' | 'things' | 'marks'
-type Tool =
-  | 'pencil' | 'rect' | 'ellipse' | 'fill' | 'select' | 'building' | 'room' | 'path' | 'organic'
-  | 'pick' | 'put' | 'putRect' | 'erase' | 'scatter' | 'yard' | 'quick'
-  | 'mark' | 'portal' | 'anchor' | 'region' | 'start'
-
-/** A layer's tools: the tool, its name, what it does, its key. */
-const LAYERS: { id: LayerId; label: string; tip: string; tools: [Tool, string, string, string?][] }[] = [
-  {
-    id: 'ground', label: phrase('Ground'), tip: phrase('the ground: terrain, buildings, rooms'),
-    tools: [
-      ['pencil', phrase('Pencil'), phrase('paint cells (drag); the brush size below'), 'P'],
-      ['rect', phrase('Rectangle'), phrase('drag a box: painted whole'), 'R'],
-      ['ellipse', phrase('Ellipse'), phrase('drag a box: the ellipse in it'), 'E'],
-      ['fill', phrase('Fill'), phrase('the cells joined to this one by the same ground'), 'F'],
-      ['select', phrase('Select'), phrase('drag a box: Ctrl+C copy, Ctrl+X cut, Ctrl+V paste, Delete takes its things away; drag it (or the arrows) to move it'), 'S'],
-      ['building', phrase('Building'), phrase('a building from the catalogue: click where its top left goes; then make the room behind its door'), 'B'],
-      ['room', phrase('Room'), phrase('drag a box: walls round a floor; click one of its walls for a doorway'), 'O'],
-      ['path', phrase('Path'), phrase('a curved path through the points you click')],
-      ['organic', phrase('Patch'), phrase('an organic patch of ground (drag its box): a pond, a clearing')],
-    ],
-  },
-  {
-    id: 'height', label: phrase('Height'), tip: phrase('the ground\'s height in half levels'),
-    tools: [
-      ['pencil', phrase('Pencil'), phrase('paint heights (drag); the brush size below'), 'P'],
-      ['rect', phrase('Rectangle'), phrase('drag a box'), 'R'],
-      ['ellipse', phrase('Ellipse'), phrase('drag a box: the ellipse in it'), 'E'],
-      ['fill', phrase('Fill'), phrase('the cells joined to this one at the same height'), 'F'],
-      ['select', phrase('Select'), phrase('drag a box: copy, cut, paste, move (as on the ground)'), 'S'],
-    ],
-  },
-  {
-    id: 'things', label: phrase('Things'), tip: phrase('the things on the map, and the people standing there'),
-    tools: [
-      ['pick', phrase('Select'), phrase('click a thing or a person: drag to move, the arrows nudge, Delete removes, Ctrl+C / Ctrl+V copy; a double click opens it'), 'S'],
-      ['quick', phrase('Quick'), phrase('a door, a chest, a sign, a bed, a person, a merchant or a quest giver: choose it, fill it in, click where it goes'), 'Q'],
-      ['put', phrase('Set down'), phrase('the kind chosen, in each cell clicked or dragged over'), 'P'],
-      ['putRect', phrase('Rectangle'), phrase('one in every cell of a box'), 'R'],
-      ['erase', phrase('Erase'), phrase('take away the things in the cells (drag; the brush size)'), 'X'],
-      ['scatter', phrase('Scatter'), phrase('small things by a mask (drag a box): on the ground you name')],
-      ['yard', phrase('Yard'), phrase('a fenced yard of the kind chosen (drag its box), a gate at its foot')],
-    ],
-  },
-  {
-    id: 'marks', label: phrase('Marks'), tip: phrase('portals, anchors, areas and where the game begins'),
-    tools: [
-      ['mark', phrase('Select'), phrase('click a portal, an anchor or the start: drag one to move it, the arrows nudge'), 'S'],
-      ['portal', phrase('Portal'), phrase('a way to another map'), 'T'],
-      ['anchor', phrase('Anchor'), phrase('a named spot (people\'s days, scenes)'), 'A'],
-      ['region', phrase('Area'), phrase('a named area (drag a rectangle)'), 'R'],
-      ['start', phrase('Start'), phrase('where a new game begins')],
-    ],
-  },
-]
-const layerOf = (id: LayerId) => LAYERS.find((l) => l.id === id)!
 /** What can be set down: the kinds of things the inputs and the world handle. */
 const PLACEABLE = /^(fixture|item|actor\/creature|structure)\//
 /** Tools that paint the chosen ground (the eyedropper leaves them as they are). */
@@ -130,6 +79,13 @@ export class MapMode implements Mode {
   private height = 0
   private thing = ''
   private filter = ''
+  /** The map's properties dialog, while it is open. */
+  private props?: { el: HTMLElement; close(): void }
+  private mapFilter = ''
+  /** The ground palette's group opened (else the chosen ground's). */
+  private terrainGroup?: TerrainGroup
+  /** Each group's tool last used (a group's icon gives it back). */
+  private last: Partial<Record<string, Tool>> = {}
   private size = 1
   private prefab = ''
   private style = ''
@@ -208,37 +164,33 @@ export class MapMode implements Mode {
     if (!this.style || !cat.rooms[this.style]) this.style = Object.keys(cat.rooms)[0] ?? ''
     if (!this.floor || !chars.some(([c]) => c === this.floor)) this.floor = charOf(ctx.store.game.terrainChars, 'floor') ?? this.char
     const pics = new Map<string, Pic | undefined>()
-    const L = layerOf(this.layer)
     const parts: string[] = []
-    parts.push(`<div class="layers">${LAYERS.map((l) => `<button data-layer="${l.id}" class="${l.id === this.layer ? 'on' : ''}" title="${esc(t(l.tip))}">${t(l.label)}</button>`).join('')}</div>`)
-    parts.push(`<div class="tools">${L.tools.map(([k, name, tip, key]) => `<button data-tool="${k}" class="${k === this.tool ? 'on' : ''}" title="${esc(t(tip))}${key ? ` (${key})` : ''}">${t(name)}</button>`).join('')}</div>`)
-    parts.push(`<p class="muted hint">${esc(t(L.tools.find(([k]) => k === this.tool)?.[2] ?? ''))}</p>`)
+    // what is laid, by kind, above; the maps below (each part scrolls by itself)
+    parts.push(`<div class="lp-top"><div class="layers">${LAYERS.map((l) => `<button data-layer="${l.id}" class="${l.id === this.layer ? 'on' : ''}" title="${esc(t(l.tip))}">${t(l.label)}</button>`).join('')}</div>`)
     if (this.paste) parts.push(`<p class="pasting">${t('Pasting a block {w}×{h}: click where its top left goes.', { w: this.paste.w, h: this.paste.h })} <a id="pasteOff">${t('Done (Esc)')}</a></p>`)
-    if (SIZED.has(this.tool)) parts.push(`<label>${t('brush')} <span class="palette row inline">${[1, 2, 3, 4, 5].map((n) => `<button data-size="${n}" class="${n === this.size ? 'on' : ''}">${n}</button>`).join('')}</span></label>`)
-    parts.push(this.brushOptions(chars))
     if (this.layer === 'ground' && this.tool === 'building') {
       const keys = Object.keys(cat.prefabs).sort()
       for (const k of keys) pics.set(`pf:${k}`, prefabPic(cat, k))
       parts.push(`<h3>${t('Buildings')}</h3>${keys.length ? `<div class="palette grid">${keys.map((k) => `<button data-prefab="${esc(k)}" class="pic ${k === this.prefab ? 'on' : ''}" title="${esc(k)}"><canvas data-pic="pf:${esc(k)}" width="48" height="48"></canvas><small>${esc(k)}</small></button>`).join('')}</div>` : `<p class="muted">${t('The catalogue has no buildings: cut one from a picture in the Assets mode (Buildings).')}</p>`}`)
     } else if (this.layer === 'ground' && this.tool === 'room') {
-      parts.push(`<h3>${t('Room')}</h3>${Object.keys(cat.rooms).length ? `<label>${t('walls')} <select id="roomStyle">${Object.keys(cat.rooms).map((s) => `<option ${s === this.style ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></label>` : `<p class="muted">${t('The catalogue has no room walls (Assets mode, Rooms): the walls are drawn as their terrain.')}</p>`}<label>${t('floor')} <select id="roomFloor">${chars.map(([c, id]) => `<option value="${esc(c)}" ${c === this.floor ? 'selected' : ''}>${esc(tx(onto.terrains[id]?.name) || id)}</option>`).join('')}</select></label>`)
-    } else if (this.layer === 'ground' && PAINTS.has(this.tool)) {
-      for (const [, id] of chars) pics.set(`t:${id}`, terrainPic(cat, id))
-      parts.push(`<h3>${t('Ground')}</h3><div class="palette grid">${chars.map(([c, id]) => `<button data-char="${esc(c)}" class="pic ${c === this.char ? 'on' : ''}" title="${esc(id)} (${esc(c)}); ${t('right-click on the map picks one')}"><canvas data-pic="t:${esc(id)}" width="32" height="32" style="background:${esc(onto.terrains[id]?.color ?? '#555')}"></canvas><small>${esc(tx(onto.terrains[id]?.name) || id)}</small></button>`).join('')}</div>`)
-    }
-    if (this.layer === 'height' && this.tool !== 'select') parts.push(`<h3>${t('Height')}</h3><div class="palette row">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((h) => `<button data-height="${h}" class="${h === this.height ? 'on' : ''}">${h}</button>`).join('')}</div><p class="muted">${t('Half levels: 2 is a level. One walks at most half a level up or down.')}</p>`)
+      parts.push(`<h3>${t('Room')}</h3>${Object.keys(cat.rooms).length ? `<label>${t('walls')} <select id="roomStyle">${Object.keys(cat.rooms).map((s) => `<option ${s === this.style ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></label>` : `<p class="muted">${t('The catalogue has no room walls (Assets mode, Rooms): the walls are drawn as their terrain.')}</p>`}<label>${t('floor')} <select id="roomFloor">${chars.map(([c, id]) => `<option value="${esc(c)}" ${c === this.floor ? 'selected' : ''}>${esc(shown(onto.terrains[id]?.name) || id)}</option>`).join('')}</select></label>`)
+    } else if (this.layer === 'ground') parts.push(this.groundPalette(ctx, chars, pics))
+    if (this.layer === 'height') parts.push(`<h3>${t('Height')}</h3><div class="palette row">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((h) => `<button data-height="${h}" class="${h === this.height ? 'on' : ''}">${h}</button>`).join('')}</div><p class="muted">${t('Half levels: 2 is a level. One walks at most half a level up or down.')}</p>`)
     const quick = this.layer === 'things' && this.tool === 'quick' ? new Form() : undefined
     if (quick) parts.push(this.quick.panel(ctx, quick, () => ctx.refresh()))
-    else if (this.layer === 'things' && this.tool !== 'pick' && this.tool !== 'erase') parts.push(this.thingPalette(ctx, pics))
+    else if (this.layer === 'things') parts.push(this.thingPalette(ctx, pics))
     if (this.layer === 'marks' && (this.tool === 'anchor' || this.tool === 'region')) parts.push(`<label>${t('its name')} <input id="markName" value="${esc(this.markName)}" placeholder="${this.tool === 'anchor' ? t('well (or the next spot)') : t('square (or the next area)')}"></label>`)
-    parts.push(`<h3>${t('Maps')} <a id="mOverview" class="x" title="${t('every map, laid out by its edges, its portals\' lines')}">${t('world ▸')}</a></h3>${mapTree(ctx)}`)
-    parts.push(`<details><summary>${t('New map')}</summary>
+    if (this.layer === 'marks') parts.push(`<p class="muted">${t('Portals, anchors and areas are drawn over the map; choose one with Select to change it on the right.')}</p>`)
+    parts.push(`</div><div class="lp-maps"><h3>${t('Maps')} <small class="muted">${ctx.store.maps().length}</small> <a id="mOverview" class="x" title="${t('every map, laid out by its edges, its portals\' lines')}">${t('world ▸')}</a></h3>
+      <input id="mapFilter" placeholder="${t('find a map by its name or id')}" value="${esc(this.mapFilter)}">
+      <div class="lp-tree">${mapTree(ctx)}</div>
+      <details><summary>${t('New map')}</summary>
         <label>${t('id')} <input id="nmId" placeholder="meadow"></label>
         <label>${t('name')} <input id="nmName"></label>
         <label>${t('size')} <input id="nmW" type="number" value="24" min="4" max="200"> × <input id="nmH" type="number" value="16" min="4" max="200"></label>
-        <label>${t('ground')} <select id="nmFill">${chars.map(([c, id]) => `<option value="${esc(c)}">${esc(id)}</option>`).join('')}</select></label>
+        <label>${t('ground')} <select id="nmFill">${chars.map(([c, id]) => `<option value="${esc(c)}">${esc(shown(onto.terrains[id]?.name) || id)}</option>`).join('')}</select></label>
         <button id="nmMake">${t('Make the map')}</button>
-      </details>`)
+      </details></div>`)
     left.innerHTML = parts.join('')
     if (quick) {
       quick.wire(left)
@@ -247,8 +199,58 @@ export class MapMode implements Mode {
     paintPics(left, ctx.store.id, pics)
     paintMinis(ctx, left)
     this.wireLeft(ctx, left)
+    this.filterMaps(left)
     this.inspector(ctx, right)
     ctx.canvas.dim(this.layer === 'things' ? { ground: 0.55 } : this.layer === 'marks' ? { ground: 0.8, things: 0.6 } : { things: 0.45 })
+  }
+
+  /** The ground's terrains in their groups, one group shown at a time (the chosen ground's, until another is opened). */
+  private groundPalette(ctx: Ctx, chars: [string, string][], pics: Map<string, Pic | undefined>): string {
+    const onto = ctx.onto()
+    const cat = this.catalog(ctx)
+    const groups = terrainPalette(chars, onto.terrains, this.chunk(ctx)?.map ?? {})
+    if (!groups.length) return ''
+    const mine = groups.find((g) => g.chars.some(([c]) => c === this.char))?.group
+    const open = groups.find((g) => g.group === this.terrainGroup) ?? groups.find((g) => g.group === mine) ?? groups[0]
+    for (const [, id] of open.chars) pics.set(`t:${id}`, terrainPic(cat, id))
+    return `<div class="cats">${groups.map((g) => `<button data-tgroup="${g.group}" class="${g === open ? 'on' : ''}">${t(g.label)} <small>${g.chars.length}</small></button>`).join('')}</div>
+      <div class="palette grid">${open.chars.map(([c, id]) => `<button data-char="${esc(c)}" class="pic ${c === this.char ? 'on' : ''}" title="${esc(shown(onto.terrains[id]?.name) || id)} (${esc(c)}) · ${t('right-click on the map picks one')}"><canvas data-pic="t:${esc(id)}" width="32" height="32" style="background:${esc(onto.terrains[id]?.color ?? '#555')}"></canvas><small>${esc(shown(onto.terrains[id]?.name) || id)}</small></button>`).join('')}</div>`
+  }
+
+  /** The strip of tools beside the map, and the chosen tool's choices in the bar above it. */
+  toolbar(ctx: Ctx, strip: HTMLElement, bar: HTMLElement): void {
+    const L = layerOf(this.layer)
+    const g = groupOf(this.layer, this.tool)
+    strip.innerHTML = L.groups.map((x) => `<button data-group="${x.id}" class="ib ${x === g ? 'on' : ''}" title="${esc(t(x.label))} (${x.key}): ${esc(t(x.tip))}" aria-label="${esc(t(x.label))}">${icon(x.icon)}<small>${x.key}</small></button>`).join('')
+    const parts: string[] = []
+    if (g.tools.length > 1) parts.push(`<div class="seg">${g.tools.map((x) => `<button data-tool="${x.id}" class="${x.id === this.tool ? 'on' : ''}" title="${esc(t(x.tip))}${x.key ? ` (${x.key})` : ''}">${x.icon ? icon(x.icon, 16) : ''}${t(x.label)}</button>`).join('')}</div>`)
+    if (SIZED.has(this.tool)) parts.push(`<span class="lab">${t('size')}</span><div class="seg">${[1, 2, 3, 4, 5].map((n) => `<button data-size="${n}" class="${n === this.size ? 'on' : ''}">${n}</button>`).join('')}</div>`)
+    parts.push(this.brushOptions(Object.entries(ctx.store.game.terrainChars)))
+    parts.push(`<span class="hint">${esc(t(toolDef(this.layer, this.tool)?.tip ?? ''))}</span>`)
+    bar.innerHTML = parts.join('')
+    const on = (root: HTMLElement, sel: string, f: (b: HTMLElement) => void) => root.querySelectorAll<HTMLElement>(sel).forEach((b) => (b.onclick = () => f(b)))
+    on(strip, '[data-group]', (b) => { const x = L.groups.find((y) => y.id === b.dataset.group)!; this.setTool(ctx, this.last[`${this.layer}:${x.id}`] ?? x.tools[0].id) })
+    on(bar, '[data-tool]', (b) => this.setTool(ctx, b.dataset.tool as Tool))
+    on(bar, '[data-size]', (b) => ((this.size = Number(b.dataset.size)), ctx.refresh()))
+    this.wireBrush(ctx, bar)
+  }
+
+  /** The maps' list narrowed as one types (no drawing again: the field keeps its place). */
+  private filterMaps(left: HTMLElement): void {
+    const f = left.querySelector<HTMLInputElement>('#mapFilter')
+    if (!f) return
+    const apply = () => {
+      const q = f.value.trim().toLowerCase()
+      this.mapFilter = f.value
+      left.querySelectorAll<HTMLElement>('[data-map]').forEach((b) => (b.hidden = !!q && !(b.dataset.map!.toLowerCase().includes(q) || (b.textContent ?? '').toLowerCase().includes(q))))
+      left.querySelectorAll<HTMLDetailsElement>('details.group').forEach((d) => {
+        const any = [...d.querySelectorAll<HTMLElement>('[data-map]')].some((b) => !b.hidden)
+        d.hidden = !any
+        if (q && any) d.open = true
+      })
+    }
+    f.oninput = apply
+    apply()
   }
 
   private thingPalette(ctx: Ctx, pics: Map<string, Pic | undefined>): string {
@@ -279,11 +281,11 @@ export class MapMode implements Mode {
   private wireLeft(ctx: Ctx, left: HTMLElement): void {
     const on = (sel: string, f: (b: HTMLElement) => void) => left.querySelectorAll<HTMLElement>(sel).forEach((b) => (b.onclick = () => f(b)))
     on('[data-layer]', (b) => this.setLayer(ctx, b.dataset.layer as LayerId))
-    on('[data-tool]', (b) => this.setTool(ctx, b.dataset.tool as Tool))
-    on('[data-char]', (b) => ((this.char = b.dataset.char!), ctx.refresh()))
-    on('[data-height]', (b) => ((this.height = Number(b.dataset.height)), ctx.refresh()))
-    on('[data-thing]', (b) => ((this.thing = b.dataset.thing!), this.tool === 'pick' && (this.tool = 'put'), ctx.refresh()))
-    on('[data-size]', (b) => ((this.size = Number(b.dataset.size)), ctx.refresh()))
+    on('[data-tgroup]', (b) => ((this.terrainGroup = b.dataset.tgroup as TerrainGroup), ctx.refresh()))
+    // a ground or a kind chosen: the brush paints it (unless a tool that uses it is in hand)
+    on('[data-char]', (b) => ((this.char = b.dataset.char!), !PAINTS.has(this.tool) && this.setTool(ctx, this.last['ground:brush'] ?? 'pencil'), ctx.refresh()))
+    on('[data-height]', (b) => ((this.height = Number(b.dataset.height)), !PAINTS.has(this.tool) && this.setTool(ctx, this.last['height:brush'] ?? 'pencil'), ctx.refresh()))
+    on('[data-thing]', (b) => ((this.thing = b.dataset.thing!), ['pick', 'erase', 'eyedrop'].includes(this.tool) && this.setTool(ctx, this.last['things:brush'] ?? 'put'), ctx.refresh()))
     on('[data-prefab]', (b) => ((this.prefab = b.dataset.prefab!), ctx.refresh()))
     on('[data-map]', (b) => ((this.main = undefined), (this.selBox = undefined), ctx.showMap(b.dataset.map!)))
     on('#pasteOff', () => ((this.paste = undefined), ctx.refresh()))
@@ -295,14 +297,19 @@ export class MapMode implements Mode {
     const filter = left.querySelector<HTMLInputElement>('#thingFilter')
     if (filter) filter.oninput = () => { this.filter = filter.value; const at = filter.selectionStart; ctx.refresh(); const f = document.querySelector<HTMLInputElement>('#thingFilter'); f?.focus(); f?.setSelectionRange(at, at) }
     left.querySelector<HTMLButtonElement>('#nmMake')!.onclick = () => this.newMap(ctx, left)
-    const num = (id: string, f: (v: number) => void) => { const el = left.querySelector<HTMLInputElement>(id); if (el) el.onchange = () => f(Number(el.value)) }
+  }
+
+  /** A template's own choices, in the bar: a path's width and edge, a patch's roughness, scattering's chance. */
+  private wireBrush(ctx: Ctx, bar: HTMLElement): void {
+    const sel = (id: string, f: (v: string) => void) => { const el = bar.querySelector<HTMLSelectElement | HTMLInputElement>(id); if (el) el.onchange = () => f(el.value) }
+    const num = (id: string, f: (v: number) => void) => { const el = bar.querySelector<HTMLInputElement>(id); if (el) el.onchange = () => f(Number(el.value)) }
     num('#bWidth', (v) => (this.width = Math.max(1, Math.min(6, v || 2))))
     num('#bRough', (v) => (this.rough = Math.max(0, Math.min(0.6, v))))
     num('#bDensity', (v) => (this.density = Math.max(0.01, Math.min(1, v || 0.15))))
     sel('#bEdge', (v) => (this.edge = v))
     sel('#bOnly', (v) => (this.only = v))
-    left.querySelector<HTMLButtonElement>('#bClear')?.addEventListener('click', () => ((this.points = []), ctx.refresh()))
-    left.querySelector<HTMLButtonElement>('#bLay')?.addEventListener('click', () => {
+    bar.querySelector<HTMLButtonElement>('#bClear')?.addEventListener('click', () => ((this.points = []), ctx.refresh()))
+    bar.querySelector<HTMLButtonElement>('#bLay')?.addEventListener('click', () => {
       const seed = newSeed()
       this.edit(ctx, t('a path (seed {seed})', { seed }), (ch) => paintPath(ch, this.points, this.char, seed, { width: this.width, ...(this.edge && { edge: this.edge }) }))
       this.points = []
@@ -318,6 +325,7 @@ export class MapMode implements Mode {
   }
   private setTool(ctx: Ctx, t: Tool): void {
     this.tool = t
+    this.last[`${this.layer}:${groupOf(this.layer, t).id}`] = t
     this.drag = this.moving = undefined
     if (t !== 'select') this.selBox = undefined
     ctx.refresh()
@@ -392,6 +400,9 @@ export class MapMode implements Mode {
         return
       case 'pick':
         return this.pick(ctx, c, ev)
+      case 'eyedrop':
+        if (ev === 'down') this.pickAt(ctx, c)
+        return
       case 'quick':
         if (ev === 'down') void this.quick.place(ctx, c).then((sel) => sel && ((ctx.sel = { cell: c, ...sel }), ctx.refresh()))
         return
@@ -638,18 +649,26 @@ export class MapMode implements Mode {
       toast(t('Picked {w}×{h}: click to lay it, Esc when done.', { w: this.paste.w, h: this.paste.h }))
       return ctx.refresh()
     }
+    this.pickAt(ctx, r.from)
+  }
+
+  /** What is in a cell chosen (the eyedropper, a right click): its ground, its height, its top thing; the brush in hand. */
+  private pickAt(ctx: Ctx, c: Cell): void {
+    const ch = this.chunk(ctx)
+    if (!ch) return
     if (this.layer === 'ground') {
       this.char = valueAt(ch, 'ground', c) ?? this.char
-      if (!PAINTS.has(this.tool)) this.tool = 'pencil'
+      this.terrainGroup = undefined
+      if (!PAINTS.has(this.tool)) this.setTool(ctx, this.last['ground:brush'] ?? 'pencil')
     } else if (this.layer === 'height') {
       this.height = Number(valueAt(ch, 'height', c) ?? 0)
-      if (this.tool === 'select') this.tool = 'pencil'
+      if (!PAINTS.has(this.tool)) this.setTool(ctx, this.last['height:brush'] ?? 'pencil')
     } else if (this.layer === 'things') {
       const top = this.topAt(ctx, c)
       const e = top?.kind === 'entity' ? ch.entities.find((x) => x.id === top.id) : undefined
       if (!e) return toast(t('No thing there to pick.'), 'warn')
       this.thing = e.type
-      if (this.tool === 'pick' || this.tool === 'erase') this.tool = 'put'
+      if (['pick', 'erase', 'eyedrop'].includes(this.tool)) this.setTool(ctx, this.last['things:brush'] ?? 'put')
     }
     ctx.refresh()
   }
@@ -708,8 +727,8 @@ export class MapMode implements Mode {
       return false
     }
     if (mod || e.altKey) return false
-    const tool = layerOf(this.layer).tools.find(([, , , key]) => key?.toLowerCase() === k)
-    if (tool) return this.setTool(ctx, tool[0]), true
+    const tool = toolForKey(this.layer, k, this.last)
+    if (tool) return this.setTool(ctx, tool), true
     return false
   }
 
@@ -849,14 +868,57 @@ export class MapMode implements Mode {
       <label>${t('lands at')} <input data-p="tx" type="number" value="${p.tx}"> <input data-p="ty" type="number" value="${p.ty}"></label>
       <label>${t('label')} ${textField('data-p="label"', p.label)}</label>
       <button id="pDel" class="danger">${t('Remove the portal')}</button>`)
-    parts.push(`<h3>${t('Anchors')}</h3><ul class="things">${Object.entries(m.anchors ?? {}).map(([n, [x, y]]) => `<li><a data-anchor-go="${esc(n)}">${esc(n)}</a> <small>${x}, ${y}</small> <a data-anchor-del="${esc(n)}" class="x">✕</a></li>`).join('') || `<li class="muted">${t('none')}</li>`}</ul>`)
-    parts.push(`<h3>${t('Areas')}</h3><ul class="things">${Object.entries(m.regions ?? {}).map(([n, [x, y, w, h]]) => `<li><a data-region-go="${esc(n)}">${esc(n)}</a> <small>${x}, ${y} · ${w}×${h}</small> <a data-region-del="${esc(n)}" class="x">✕</a></li>`).join('') || `<li class="muted">${t('none')}</li>`}</ul>`)
-    parts.push(mapSettings(ctx, ch))
-    parts.push(`<details><summary>${t('Size')}</summary><label><input id="rsW" type="number" value="${m.width}"> × <input id="rsH" type="number" value="${m.height}"></label><button id="rsGo">${t('Resize (new cells: the first terrain)')}</button></details>`)
-    parts.push(`<details><summary>${t('Duplicate')}</summary><label>${t('as')} <input id="dupId" value="${esc(nextName(ctx.store.maps().map((x) => x.data.map.id), `${m.id}_`))}"></label><button id="dupGo">${t('Duplicate this map')}</button></details>`)
-    parts.push(`<button id="delMap" class="danger">${t('Delete this map')}</button>`)
+    if (this.layer === 'marks') {
+      parts.push(`<h3>${t('Anchors')}</h3><ul class="things">${Object.entries(m.anchors ?? {}).map(([n, [x, y]]) => `<li><a data-anchor-go="${esc(n)}">${esc(n)}</a> <small>${x}, ${y}</small> <a data-anchor-del="${esc(n)}" class="x">✕</a></li>`).join('') || `<li class="muted">${t('none')}</li>`}</ul>`)
+      parts.push(`<h3>${t('Areas')}</h3><ul class="things">${Object.entries(m.regions ?? {}).map(([n, [x, y, w, h]]) => `<li><a data-region-go="${esc(n)}">${esc(n)}</a> <small>${x}, ${y} · ${w}×${h}</small> <a data-region-del="${esc(n)}" class="x">✕</a></li>`).join('') || `<li class="muted">${t('none')}</li>`}</ul>`)
+    }
+    if (!c && !this.selBox && !p) parts.push(`<p class="muted">${t('Click a cell on the map: what is there, and what you select, show here.')}</p>`)
+    // the map itself: its name, and its settings in a dialog of their own
+    parts.unshift(`<div class="map-head"><b>${esc(shown(m.name) || m.id)}</b><small>${esc(m.id)} · ${m.width}×${m.height} · ${esc(m.kind)}</small><button id="mProps">${t('Map properties…')}</button></div>`)
     right.innerHTML = parts.join('')
     this.wireInspector(ctx, right, ch)
+    if (this.props) this.fillProps(ctx, ch)
+  }
+
+  /** The map's settings, its size, a copy of it and its removal: a dialog kept up to date while it is open. */
+  private openProps(ctx: Ctx): void {
+    const ch = this.chunk(ctx)
+    if (!ch) return
+    const m = modal(t('Map properties'), '', { wide: true })
+    this.props = m
+    void m.closed.then(() => this.props === m && (this.props = undefined))
+    this.fillProps(ctx, ch)
+  }
+
+  private fillProps(ctx: Ctx, ch: RawChunk): void {
+    const el = this.props!.el
+    const m = ch.map
+    const keep = el.scrollTop
+    el.innerHTML = `${mapSettings(ctx, ch)}
+      <details><summary>${t('Size')}</summary><label><input id="rsW" type="number" value="${m.width}"> × <input id="rsH" type="number" value="${m.height}"></label><button id="rsGo">${t('Resize (new cells: the first terrain)')}</button></details>
+      <details><summary>${t('Duplicate')}</summary><label>${t('as')} <input id="dupId" value="${esc(nextName(ctx.store.maps().map((x) => x.data.map.id), `${m.id}_`))}"></label><button id="dupGo">${t('Duplicate this map')}</button></details>
+      <button id="delMap" class="danger">${t('Delete this map')}</button>`
+    el.scrollTop = keep
+    wireMapSettings(ctx, el, (why, fn) => this.edit(ctx, why, fn))
+    const click = (sel: string, f: () => void) => el.querySelector<HTMLElement>(sel)?.addEventListener('click', f)
+    click('#rsGo', () => this.resize(ctx, Number(el.querySelector<HTMLInputElement>('#rsW')!.value), Number(el.querySelector<HTMLInputElement>('#rsH')!.value)))
+    click('#dupGo', () => {
+      const id = el.querySelector<HTMLInputElement>('#dupId')!.value.trim()
+      if (!validId(id)) return toast(t('A map\'s id: lower case letters, digits, - and _.'), 'warn')
+      if (ctx.store.mapFile(id)) return toast(t('There is a map {id} already.', { id }), 'warn')
+      // (its name as it is, in the game's language: the author renames it)
+      ctx.store.add(`maps/${id}.json`, duplicateMap(ch, id, m.name, this.taken(ctx)), t('duplicate {map} as {id}', { map: m.id, id }))
+      this.props?.close()
+      ctx.showMap(id)
+    })
+    click('#delMap', () => {
+      if (!confirm(t('Delete the map {id}? (Undo brings it back; Save deletes its file.)', { id: m.id }))) return
+      const f = this.file(ctx)!
+      this.props?.close()
+      ctx.store.remove(f, t('delete {id}', { id: m.id }))
+      const next = ctx.store.maps()[0]?.data.map.id
+      if (next) ctx.showMap(next)
+    })
   }
 
   private wireInspector(ctx: Ctx, right: HTMLElement, ch: RawChunk): void {
@@ -865,7 +927,7 @@ export class MapMode implements Mode {
     const pi = ctx.sel.portal
     const click = (sel: string, f: (el: HTMLElement) => void) => right.querySelectorAll<HTMLElement>(sel).forEach((a) => (a.onclick = () => f(a)))
     const prefabs = this.prefabs(ctx)
-    wireMapSettings(ctx, right, (why, fn) => this.edit(ctx, why, fn))
+    click('#mProps', () => this.openProps(ctx))
     click('[data-entity]', (a) => ((ctx.sel = { ...ctx.sel, entity: a.dataset.entity, person: undefined }), ctx.refresh()))
     click('[data-person]', (a) => ((ctx.sel = { ...ctx.sel, person: a.dataset.person, entity: undefined }), ctx.refresh()))
     click('[data-person-open]', (a) => { const f = ctx.store.list<PersonFile>('people').find((p) => p.data.id === a.dataset.personOpen)?.file; ctx.sel = { person: a.dataset.personOpen }; ctx.open('people', f) })
@@ -897,22 +959,6 @@ export class MapMode implements Mode {
     click('[data-region-go]', (a) => { const r = m.regions?.[a.dataset.regionGo!]; if (r) (ctx.canvas.scene.lookAt(r[0] + Math.floor(r[2] / 2), r[1] + Math.floor(r[3] / 2)), ctx.canvas.redraw()) })
     click('[data-anchor-del]', (a) => this.edit(ctx, t('remove an anchor'), (x) => delete x.map.anchors?.[a.dataset.anchorDel!]))
     click('[data-region-del]', (a) => this.edit(ctx, t('remove an area'), (x) => delete x.map.regions?.[a.dataset.regionDel!]))
-    click('#rsGo', () => this.resize(ctx, Number(right.querySelector<HTMLInputElement>('#rsW')!.value), Number(right.querySelector<HTMLInputElement>('#rsH')!.value)))
-    click('#dupGo', () => {
-      const id = right.querySelector<HTMLInputElement>('#dupId')!.value.trim()
-      if (!validId(id)) return toast(t('A map\'s id: lower case letters, digits, - and _.'), 'warn')
-      if (ctx.store.mapFile(id)) return toast(t('There is a map {id} already.', { id }), 'warn')
-      // (its name as it is, in the game's language: the author renames it)
-      ctx.store.add(`maps/${id}.json`, duplicateMap(ch, id, m.name, this.taken(ctx)), t('duplicate {map} as {id}', { map: m.id, id }))
-      ctx.showMap(id)
-    })
-    click('#delMap', () => {
-      if (!confirm(t('Delete the map {id}? (Undo brings it back; Save deletes its file.)', { id: m.id }))) return
-      const f = this.file(ctx)!
-      ctx.store.remove(f, t('delete {id}', { id: m.id }))
-      const next = ctx.store.maps()[0]?.data.map.id
-      if (next) ctx.showMap(next)
-    })
   }
 
   /** The interior behind the selected door: a new map, a portal each way; then the new map shown. */

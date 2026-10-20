@@ -5,7 +5,8 @@
 import type { RawChunk } from '@openworld/engine'
 import type { Sourced } from '@openworld/format'
 import type { Ctx } from './context.ts'
-import { esc, t, tx } from './ui.ts'
+import { esc, t } from './ui.ts'
+import { shown } from './words.ts'
 
 /** The colour a map's character is drawn in: its terrain's. */
 function colours(ctx: Ctx): (c: string) => [number, number, number] {
@@ -60,7 +61,8 @@ export function mapTree(ctx: Ctx): string {
     groups.set(g, [...(groups.get(g) ?? []), m])
   }
   const order = [...groups.keys()].sort((a, b) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b)))
-  const row = (m: Sourced<RawChunk>) => `<button data-map="${esc(m.data.map.id)}" class="maprow ${m.data.map.id === ctx.map ? 'on' : ''}"><canvas data-mini="${esc(m.data.map.id)}" class="mini"></canvas><span>${esc(m.data.map.id)}<small>${esc(tx(m.data.map.name))} · ${m.data.map.width}×${m.data.map.height}${m.data.map.id === ctx.store.game.start.map ? ` · ${t('start')}` : ''}</small></span></button>`
+  // its name first (as the editor's language has it), its id and size beneath
+  const row = (m: Sourced<RawChunk>) => `<button data-map="${esc(m.data.map.id)}" class="maprow ${m.data.map.id === ctx.map ? 'on' : ''}"><canvas data-mini="${esc(m.data.map.id)}" class="mini"></canvas><span>${esc(shown(m.data.map.name) || m.data.map.id)}<small>${esc(m.data.map.id)} · ${m.data.map.width}×${m.data.map.height}${m.data.map.id === ctx.store.game.start.map ? ` · ${t('start')}` : ''}</small></span></button>`
   return order
     .map((g) => {
       const list = groups.get(g)!

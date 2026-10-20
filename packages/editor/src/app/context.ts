@@ -36,6 +36,8 @@ export interface Mode {
   label: string
   /** Draw its tools (left) and its inspector (right). */
   render(ctx: Ctx, left: HTMLElement, right: HTMLElement): void
+  /** A mode on the canvas may draw a strip of tools beside it and its tool's choices in a bar above it. */
+  toolbar?(ctx: Ctx, strip: HTMLElement, bar: HTMLElement): void
   /** A mode that needs the middle of the window (the rules, the story, the quests) draws there instead of the canvas. */
   main?(ctx: Ctx, el: HTMLElement): void
   /** The canvas's cell under the tool (or the picker, the right button). */

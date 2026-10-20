@@ -6,6 +6,7 @@
 
 import type { Text } from '@openworld/engine'
 import { languagesOf, sourceOf, textsOf, translated, wordsIn, type LocaleFile, type Languages } from '@openworld/format'
+import { uiLang } from './lang.ts'
 import type { Store } from './store.ts'
 
 let store: Store | undefined
@@ -41,6 +42,9 @@ export function inLang(t: Text | undefined, lang: string = previewLang(), place?
   if (lang === sourceLang()) return src
   return wordsIn(t, lang, sourceLang()) || translated(tables().get(lang)?.data, src, place) || src
 }
+
+/** A game text as the editor shows it in its lists and palettes: in the editor's language when the game has it, else as written. */
+export const shown = (t: Text | undefined): string => inLang(t, gameLangs().includes(uiLang()) ? uiLang() : sourceLang())
 
 /**
  * A text's source words written (one field's change): a plain string — or, for an older project's text that keeps
