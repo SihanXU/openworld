@@ -700,7 +700,7 @@ export const ZH: Record<string, string> = {
   'remove an anchor': '移除锚点',
   'remove an area': '移除区域',
   'duplicate {map} as {id}': '把 {map} 复制为 {id}',
-  'Delete the map {id}? (Undo brings it back; Save deletes its file.)': '删除地图 {id}？（撤销可以找回；保存后删除它的文件。）',
+  'Delete the map {id}? (Its file is deleted as the project saves; Undo brings it back.)': '删除地图 {id}？（项目保存时会删除它的文件；撤销可以找回。）',
   'delete {id}': '删除 {id}',
   'the room behind {x}, {y}': '{x}, {y} 后面的房间',
   'a new interior {id}': '新室内 {id}',
