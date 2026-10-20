@@ -533,7 +533,9 @@ describe('the OpenAI-compatible adapter', () => {
         if (!body.tools) message = { content: text(body.messages[0]).includes('review') ? '{"verdict":"ship"}' : '{"lessons":{}}' }
         else if (last.role === 'user') message = { content: null, tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'get_type', arguments: '{"id":"item/material/stone"}' } }] }
         else message = { content: '```json\n' + JSON.stringify({ patch: patchOf(bindRule()) }) + '\n```' }
-        res.writeHead(200, { 'Content-Type': 'application/json' })
+        // (a connection a call, never kept: under a full parallel run a kept one can be closed by the server as the
+        // client takes it up again, and the call fails for nothing the test is about)
+        res.writeHead(200, { 'Content-Type': 'application/json', Connection: 'close' })
         res.end(JSON.stringify({ choices: [{ message }], usage: { prompt_tokens: 100, completion_tokens: 20, cost: 0.0005 } }))
       })
     }).listen(0)
@@ -839,6 +841,8 @@ describe('the tail guard', () => {
       req.on('end', () => {
         const body = JSON.parse(raw)
         bodies.push(body)
+        // (a connection a call: see the adapter's test above)
+        res.setHeader('Connection', 'close')
         handler(n++, body, res)
       })
     }).listen(0)

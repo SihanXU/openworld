@@ -114,6 +114,10 @@ export interface WorldFilterDef {
 export interface ClientGame extends GameDef {
   /** Extra tooltip lines supplied by the game, including the item's current state. Code belongs in its plugin. */
   describeItem?(item: ItemInfo): Text[]
+  /** A small game-owned sprite drawn over an item icon; x, y and size are fractions of that icon's dimensions. */
+  itemIconDecoration?(item: ItemInfo): { sprite: string; x: number; y: number; size: number } | undefined
+  /** A game's wording or suppression for a held item used/put on a carried context-menu target. */
+  itemContextAction?(key: 'use' | 'put', instrument: ItemInfo, target: ItemInfo): Text | false | undefined
   /** Sprites, sounds and music by the content's keys. */
   catalog: Catalog
   /** Where its pictures and sounds are (default: the page's `assets/`), and its world files (default: the page's `world/`). */
@@ -202,6 +206,11 @@ export const gameIfAny = (): ClientGame | undefined => current
 export function game(): ClientGame {
   if (!current) throw new Error('no game: a game\'s entry hands its definition over with useGame() before the runtime starts')
   return current
+}
+
+/** The cache key for item icons: changes only when an item's game-owned overlay changes. */
+export function itemIconSignature(items: readonly ItemInfo[]): string {
+  return JSON.stringify(items.map((item) => [item.id, game().itemIconDecoration?.(item) ?? null]))
 }
 
 /** The game's worker entry, which hands the game over in the worker too: the page that plays the game sets it. */

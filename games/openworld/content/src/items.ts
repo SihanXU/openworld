@@ -5,6 +5,7 @@
 import { gearProps, rollAffixes, type Entity, type MaterialDef, type PropValue, type QualityDef, type Rng, type TypeDef } from '@openworld/engine'
 import { VEGETABLE_CROPS, cropHours } from './crops.ts'
 import { GEAR_LEVELS } from './gear.ts'
+import { regionalForms } from './goods.ts'
 import { AFFIX_TABLE, TROPHIES } from './trophies.ts'
 
 export interface Form {
@@ -27,6 +28,12 @@ export interface Form {
   /** Tools its making needs carried, not used up; how many one making gives. */
   tools?: string[]
   yields?: number
+  /** A regional form's (goods.ts): the base form it varies, the region it is made in, whether it is of the region's line or a named piece, where it is stocked. */
+  base?: string
+  origin?: string
+  line?: boolean
+  named?: boolean
+  stock?: Partial<Record<Context, number>>
 }
 
 export type Context = 'home' | 'shop' | 'smithy' | 'inn' | 'temple' | 'library' | 'wild' | 'dungeon' | 'farm' | 'npc'
@@ -167,7 +174,8 @@ const WEAPON_METALS = ['bronze', 'iron', 'steel', 'silver', 'obsidian', 'mithril
 const TOOL_METALS = ['bronze', 'iron', 'steel']
 const W = (id: string, en: string, zh: string, sprite: string, rest: Partial<Form> = {}): Form => ({ id, en, zh, sprite, ...rest })
 
-export const FORMS: Form[] = [
+/** The base forms: every kind the played world lays, and what the regions' goods vary (goods.ts). */
+const BASE_FORMS: Form[] = [
   // weapons
   // profession weapons (`profession:<id>`, engine/src/profession.ts) fight only for their own:
   // the assassin's dagger, the warrior's sword and shield, the ranger's bow, the mage's staff
@@ -442,8 +450,6 @@ export function itemTypes(): TypeDef[] {
   ]
 }
 
-export const FORM_BY_ID: Record<string, Form> = Object.fromEntries(FORMS.map((f) => [f.id, f]))
-
 /** What a kind of thing is worth before its material and quality (the longest prefix that names it). */
 const VALUES: [string, number][] = [
   // What a kind of thing is worth (2026-10-11): a day's work is a few dozen Dawnmarks (a villager's purse, a quest's
@@ -616,6 +622,11 @@ export function baseValue(type: string): number {
   return VALUES.find(([p]) => type === p || type.startsWith(p + '/'))?.[1] ?? 2
 }
 
+/** Every item form: the base forms, then the continent's goods made from them (goods.ts). */
+export const FORMS: Form[] = [...BASE_FORMS, ...regionalForms(BASE_FORMS, baseValue)]
+
+export const FORM_BY_ID: Record<string, Form> = Object.fromEntries(FORMS.map((f) => [f.id, f]))
+
 /** Each profession's legendary arms, in the order a fallen sin hands them over (bosses.ts). */
 export const LEGENDARY_ARMS: Record<string, string[]> = {
   assassin: ['item/weapon/blade/dagger/nightfang', 'item/weapon/blade/dagger/mirrorshard'],
@@ -641,8 +652,11 @@ export function makeItem(rng: Rng, form: Form, opts: { material?: string; qualit
   if (matId) {
     const m = MATERIALS[matId]
     tags.push(`material:${m.id}`, ...m.tags)
-    en = `${m.en} ${en}`
-    zh = `${m.zh}${zh}`
+    // (a form of one material its name already says — a Pine Longbow — is not named for it again)
+    if (form.props?.material !== matId) {
+      en = `${m.en} ${en}`
+      zh = `${m.zh}${zh}`
+    }
   }
   let quality: string | undefined
   // gear has a tier: what is wielded, worn (armour and clothing alike) or treasured

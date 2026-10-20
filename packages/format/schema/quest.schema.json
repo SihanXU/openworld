@@ -1752,6 +1752,18 @@
                       "idOf"
                     ],
                     "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "stackKeyOf": {
+                        "$ref": "#/definitions/RoleName"
+                      }
+                    },
+                    "required": [
+                      "stackKeyOf"
+                    ],
+                    "additionalProperties": false
                   }
                 ]
               }
@@ -2338,6 +2350,58 @@
             "op": {
               "type": "string",
               "const": "calm"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "fishing/start"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "fishing/step"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "fishing/input"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "fishing/land"
             }
           },
           "required": [

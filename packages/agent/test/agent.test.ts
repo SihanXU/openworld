@@ -188,7 +188,9 @@ describe('the outer loop', () => {
     const proposal = { kind: 'hook', stage: 'start', name: 'related-code', code: RELATED_CODE_HOOK, rationale: 'every task starts with three list_dir calls' }
     const work = engineer({ wander: 3, latencyMs: 300 })
     const model = new ScriptedModel((messages, opts) => (opts.purpose === 'propose' ? proposal : work.chat(messages, opts)))
-    const r = await improve({ model, state, sources: [source], select: 2, confirm: 2 })
+    // (the clock is noise here, beside the calls judged: under a full parallel run the start hook's process may start
+    // slowly; time may be worse by as much again)
+    const r = await improve({ model, state, sources: [source], select: 2, confirm: 2, timeMargin: 1 })
     expect(r.accepted).toBe(true)
     expect(r.reason).toMatch(/better: calls/)
     expect(r.selection!.cand.calls).toBeLessThan(r.selection!.base.calls)
@@ -219,6 +221,11 @@ describe('the outer loop', () => {
     const s = (tasks: number, accepted: number, calls: number) => ({ tasks, accepted, cost: 0, calls, ms: 1000 })
     expect(better(s(4, 3, 40), s(4, 3, 30), 0.1)).toMatchObject({ ok: true })
     expect(better(s(4, 3, 40), s(4, 3, 39), 0.1)).toMatchObject({ ok: false, why: 'no gain beyond noise' })
+    // the clock judged with its own margin: worse time within it is no reason to refuse; a gain in it still needs the margin
+    const t = (calls: number, ms: number) => ({ tasks: 4, accepted: 3, cost: 0, calls, ms })
+    expect(better(t(40, 1000), t(30, 1500), 0.1)).toMatchObject({ ok: false, why: 'ms worse by more than 10 %' })
+    expect(better(t(40, 1000), t(30, 1500), 0.1, 1)).toMatchObject({ ok: true, why: 'better: calls' })
+    expect(better(t(40, 1000), t(40, 950), 0.1, 1)).toMatchObject({ ok: false, why: 'no gain beyond noise' })
   })
 
   it('leaves out ablated parts of the self-state', async () => {
@@ -353,6 +360,8 @@ describe('a frozen model', () => {
       req.on('end', () => {
         bodies.push(JSON.parse(b))
         res.setHeader('Content-Type', 'application/json')
+        // (a connection a call, never kept: under a full parallel run a kept one can be closed as it is taken up again)
+        res.setHeader('Connection', 'close')
         res.end(JSON.stringify({ provider: served.shift(), choices: [{ message: { content: 'ok' } }], usage: { prompt_tokens: 3, completion_tokens: 1 } }))
       })
     })

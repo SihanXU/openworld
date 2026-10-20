@@ -18,7 +18,9 @@ import { openworldBundle } from '../src/bundle.ts'
 
 /** The Ford as a project, in memory: the same files bake() writes. */
 export function fordProject(): Project {
-  const { index, chunks } = buildFord()
+  const { index, chunks: played, backdrop } = buildFord()
+  // the played maps and the backdrop's (docs/continent.md): the project is the whole world
+  const chunks = [...played, ...backdrop]
   const bundle = openworldBundle(index)
   const { modules, params, types, statuses, terrains, ...world } = bundle.ontology
   const game: GameJson = {

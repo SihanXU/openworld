@@ -37,7 +37,8 @@ function legacy(visited = true, fordVisited = true) {
   Object.assign(w.player.props!, { quest: 4, xp: 42 })
   w.author(() => w.setFact('seen.arrival', true))
   w.author(() => w.setFact('mq.smith', 3))
-  const resume = () => Game.load(structuredClone(game.save()), index, buildOntology(), lib())
+  // (a save from before keeps every thing whole: docs/continent.md §9)
+  const resume = () => Game.load(structuredClone(game.save({ whole: true })), index, buildOntology(), lib())
   const migrate = (saved: Game) => saved.engine.author(() => migrateFirstlight(saved, index, ford, village))
   return { game, w, resume, migrate, ford, village }
 }

@@ -167,6 +167,7 @@ export class World {
 
   private onTile = new Map<string, Set<Id>>() // tileKey -> ids of the kept things on that tile
   private onMap = new Map<string, Set<Id>>() // map -> ids of the kept things on its tiles, but its cell things
+  private agents = new Map<string, Set<Id>>() // map -> ids of the agents on its tiles
   private areas = new Map<string, Set<Id>>() // map -> its regions' ids
   /** Each map's static cell things (from its data, recomputed when the data is replaced). */
   private layers = new Map<string, { data: MapData; layers: Layers }>()
@@ -188,6 +189,20 @@ export class World {
   companionIds = new Set<Id>()
   /** The things on no map (the world, the story, the quests): read by kind without going through every thing. */
   private residentIds = new Set<Id>()
+  /** The kept things by type (docs/continent.md §9): read by kind without going through every thing. */
+  private byType = new Map<string, Set<Id>>()
+  /** The people (things with a record of their days, `npc`). */
+  private peopleIds = new Set<Id>()
+  /** Things by the value of a prop asked for by key (a household, the map a place stands for): built when first asked. */
+  private propIdx = new Map<string, Map<PropValue, Set<Id>>>()
+  /** The kept cell things of each map (changed, made there, or gone). */
+  private cellIds = new Map<string, Set<Id>>()
+  /** The things that carry statuses on each map's tiles; the rest (held, inside, on no map) are loose. */
+  private statusOn = new Map<string, Set<Id>>()
+  private statusAt = new Map<Id, string>()
+  private statusLoose = new Set<Id>()
+  /** How many times the people have come or gone (a roster read from them is made again after). */
+  peopleVersion = 0
 
   constructor(state: WorldState, onto: OntologyIndex) {
     this.state = state
@@ -215,19 +230,142 @@ export class World {
   reindex(): void {
     this.onTile.clear()
     this.onMap.clear()
+    this.agents.clear()
     this.areas.clear()
     this.statusful.clear()
+    this.statusOn.clear()
+    this.statusAt.clear()
+    this.statusLoose.clear()
     this.companionIds.clear()
     this.residentIds.clear()
     this.statics.clear()
     this.rooms.clear()
     this.cellsVersion.clear()
     this.upperCover.clear()
+    this.byType.clear()
+    this.peopleIds.clear()
+    this.propIdx.clear()
+    this.cellIds.clear()
+    this.peopleVersion++
     for (const e of Object.values(this.state.entities)) {
       this.indexAdd(e)
+      this.track(e)
       if (e.statuses && Object.keys(e.statuses).length) this.statusful.add(e.id)
+      this.statusIndex(e.id)
       if (typeof e.props?.companion === 'string') this.companionIds.add(e.id)
     }
+  }
+
+  /** A thing comes into the state's record: the indices by kind, person, prop and kept cell. */
+  private track(e: Entity): void {
+    const cell = parseCellId(e.id)
+    if (cell) {
+      let s = this.cellIds.get(cell.map)
+      if (!s) this.cellIds.set(cell.map, (s = new Set()))
+      s.add(e.id)
+      if (e.place.on === 'none') return
+    }
+    let t = this.byType.get(e.type)
+    if (!t) this.byType.set(e.type, (t = new Set()))
+    t.add(e.id)
+    if (e.npc) (this.peopleIds.add(e.id), this.peopleVersion++)
+    for (const [key, idx] of this.propIdx) {
+      const v = e.props?.[key]
+      if (v === undefined) continue
+      let s = idx.get(v)
+      if (!s) idx.set(v, (s = new Set()))
+      s.add(e.id)
+    }
+  }
+
+  /** A thing leaves the state's record (gone, or put away with its map). */
+  private untrack(e: Entity): void {
+    this.byType.get(e.type)?.delete(e.id)
+    if (this.peopleIds.delete(e.id)) this.peopleVersion++
+    for (const [key, idx] of this.propIdx) {
+      const v = e.props?.[key]
+      if (v !== undefined) idx.get(v)?.delete(e.id)
+    }
+  }
+
+  /** Where a thing's statuses are read from: its map's tiles, or loose (held, inside, on no map). */
+  private statusIndex(id: Id): void {
+    const was = this.statusAt.get(id)
+    const e = this.statusful.has(id) ? this.state.entities[id] : undefined
+    const map = e?.place.on === 'tile' ? e.place.map : undefined
+    if (was !== undefined && was !== map) {
+      this.statusOn.get(was)?.delete(id)
+      this.statusAt.delete(id)
+    }
+    if (!e) return void this.statusLoose.delete(id)
+    if (map === undefined) return void this.statusLoose.add(id)
+    this.statusLoose.delete(id)
+    if (was === map) return
+    let s = this.statusOn.get(map)
+    if (!s) this.statusOn.set(map, (s = new Set()))
+    s.add(id)
+    this.statusAt.set(id, map)
+  }
+
+  /** The things whose statuses may run on a map: those on its tiles, and the loose ones (what is held or inside, what is on no map) — the caller reads where each is. */
+  statusfulOn(map: string): Id[] {
+    return [...(this.statusOn.get(map) ?? []), ...this.statusLoose]
+  }
+
+  /** The kept things of a type and the types under it (`item/food`: every food). */
+  ofType(type: string): Entity[] {
+    const out: Entity[] = []
+    for (const [t, ids] of this.byType) {
+      if (t !== type && !t.startsWith(type + '/')) continue
+      for (const id of ids) {
+        const e = this.state.entities[id]
+        if (e && e.place.on !== 'none') out.push(e)
+      }
+    }
+    return out
+  }
+
+  /** The people kept in the state (things with a record of their days). */
+  people(): Entity[] {
+    const out: Entity[] = []
+    for (const id of this.peopleIds) {
+      const e = this.state.entities[id]
+      if (e) out.push(e)
+    }
+    return out
+  }
+
+  /** The kept things whose own prop `key` is `value` (a household's members, the place that stands for a map). */
+  withProp(key: string, value: PropValue): Entity[] {
+    let idx = this.propIdx.get(key)
+    if (!idx) {
+      this.propIdx.set(key, (idx = new Map()))
+      for (const e of Object.values(this.state.entities)) {
+        const v = e.props?.[key]
+        if (v === undefined || (parseCellId(e.id) && e.place.on === 'none')) continue
+        let s = idx.get(v)
+        if (!s) idx.set(v, (s = new Set()))
+        s.add(e.id)
+      }
+    }
+    const out: Entity[] = []
+    for (const id of idx.get(value) ?? []) {
+      const e = this.state.entities[id]
+      if (e && e.place.on !== 'none') out.push(e)
+    }
+    return out
+  }
+
+  /** A prop changed: the index by its value follows. */
+  private reprop(e: Entity, key: string, was: PropValue | undefined): void {
+    const idx = this.propIdx.get(key)
+    if (!idx || !this.state.entities[e.id]) return
+    if (was !== undefined) idx.get(was)?.delete(e.id)
+    const v = e.props?.[key]
+    if (v === undefined) return
+    let s = idx.get(v)
+    if (!s) idx.set(v, (s = new Set()))
+    s.add(e.id)
   }
 
   private geometry(e: Entity, delta: number): void {
@@ -258,6 +396,11 @@ export class World {
     let m = this.onMap.get(e.place.map)
     if (!m) this.onMap.set(e.place.map, (m = new Set()))
     m.add(e.id)
+    if (this.isAgent(e)) {
+      let a = this.agents.get(e.place.map)
+      if (!a) this.agents.set(e.place.map, (a = new Set()))
+      a.add(e.id)
+    }
   }
 
   private indexRemove(e: Entity): void {
@@ -267,6 +410,7 @@ export class World {
     if (e.place.on !== 'tile') return
     for (const [x, y] of this.occupiedCells(e)) this.onTile.get(cellKey(e.place.map, x, y, e.place.z))?.delete(e.id)
     this.onMap.get(e.place.map)?.delete(e.id)
+    this.agents.get(e.place.map)?.delete(e.id)
   }
 
   /** Agents occupy every base cell; other things keep their anchor tile (solidAt reads their footprint). */
@@ -341,6 +485,7 @@ export class World {
     if (!e || !this.isStatic(e) || !parseCellId(e.id)) return
     this.statics.delete(e.id)
     this.state.entities[e.id] = e
+    this.track(e)
     this.indexAdd(e, false)
   }
 
@@ -457,7 +602,10 @@ export class World {
   /** The things of a map's cells that the state keeps (changed, made there, or gone): what differs from its data. */
   keptCells(map: string): Entity[] {
     const out: Entity[] = []
-    for (const e of Object.values(this.state.entities)) if (parseCellId(e.id)?.map === map) out.push(e)
+    for (const id of this.cellIds.get(map) ?? []) {
+      const e = this.state.entities[id]
+      if (e) out.push(e)
+    }
     return out
   }
 
@@ -563,6 +711,15 @@ export class World {
   within(e: Entity | undefined, region: Id): boolean {
     const p = e && this.posOf(e)
     return !!p && this.regionsAt(p.map, p.x, p.y).some((r) => r.id === region)
+  }
+
+  /** The agents on a map's tiles (what acts by itself: people, creatures, companions). */
+  agentsOnMap(map: string): Entity[] {
+    const s = this.agents.get(map)
+    if (!s) return []
+    const out: Entity[] = []
+    for (const id of s) out.push(this.state.entities[id])
+    return out
   }
 
   entitiesOnMap(map: string): Entity[] {
@@ -994,10 +1151,12 @@ export class World {
       for (const [id, n] of slots) for (const b of sets.find((s) => s.id === id)?.bonuses ?? []) if (n.size >= b.pieces) v += b.props[key] ?? 0
     }
     // what the companions following it give their leader (boons.ts): their statuses' `lead:<key>`
+    // (read from the companions' own index: never every thing on the map)
     const at = this.posOf(e)
     if (at && e.place.on === 'tile')
-      for (const c of this.entitiesOnMap(at.map)) {
-        if (c.id === e.id || c.props?.companion !== e.id) continue
+      for (const cid of this.companionIds) {
+        const c = this.state.entities[cid]
+        if (!c || c.id === e.id || c.props?.companion !== e.id || c.place.on !== 'tile' || c.place.map !== at.map) continue
         for (const id of Object.keys(c.statuses ?? {})) v += this.onto.status(id)?.props?.[`lead:${key}`] ?? 0
       }
     return v
@@ -1074,9 +1233,11 @@ export class World {
     this.guard('setProp', e)
     // a number the world can hold: NaN would make a thing that cannot be felled, Infinity one that cannot be counted
     if (typeof value === 'number' && !Number.isFinite(value)) throw new Error(`${e.id}.${key}: ${value} is not a finite number`)
+    const was = e.props?.[key]
     if (value === undefined) {
       if (e.props) delete e.props[key]
     } else (e.props ??= {})[key] = value
+    if (was !== value) this.reprop(e, key, was)
     if (key === 'companion') this.indexCompanion(e)
     // the story's facts are news for the quests (docs/quests.md §2.3)
     if (e.id === STORY_ID) this.watch?.fact(key)
@@ -1094,25 +1255,42 @@ export class World {
   addTag(e: Entity, tag: string): void {
     this.guard('addTag', e)
     if (!e.tags?.includes(tag)) (e.tags ??= []).push(tag)
+    if (tag === 'agent') this.reagent(e)
   }
 
   removeTag(e: Entity, tag: string): void {
     this.guard('removeTag', e)
     if (e.tags?.includes(tag)) e.tags = e.tags.filter((t) => t !== tag)
+    if (tag === 'agent') this.reagent(e)
+  }
+
+  /** Whether a thing acts by itself changed: the map's agents follow. */
+  private reagent(e: Entity): void {
+    if (e.place.on !== 'tile' || this.state.entities[e.id] !== e || parseCellId(e.id)) return
+    if (this.isAgent(e)) {
+      let a = this.agents.get(e.place.map)
+      if (!a) this.agents.set(e.place.map, (a = new Set()))
+      a.add(e.id)
+    } else this.agents.get(e.place.map)?.delete(e.id)
   }
 
   // ---------------------------------------------------------------- entity lifecycle
 
-  add(e: Entity): Entity {
+  add(e: Entity, opts: { again?: boolean } = {}): Entity {
     this.guard('add')
     // what an outcome makes is its own to shape
     this.scope?.made.add(e.id)
+    const before = this.state.entities[e.id]
+    if (before) this.untrack(before)
     this.state.entities[e.id] = e
+    this.track(e)
     this.indexCompanion(e)
     this.indexAdd(e)
     if (e.place.on === 'inside' || e.place.on === 'hand') this.attach(e)
     if (e.statuses && Object.keys(e.statuses).length) this.statusful.add(e.id)
-    this.startStage(e)
+    this.statusIndex(e.id)
+    // (a thing brought back with its map, as it was put away, keeps its clocks as they were)
+    if (!opts.again) this.startStage(e)
     return e
   }
 
@@ -1177,6 +1355,7 @@ export class World {
     e.place = to
     if (to.on === 'tile' || to.on === 'resident') this.indexAdd(e)
     else this.attach(e)
+    if (this.statusful.has(e.id)) this.statusIndex(e.id)
   }
 
   /**
@@ -1223,7 +1402,9 @@ export class World {
     this.guard('transform', e)
     if (e.place.on === 'tile') this.cellsVersion.set(e.place.map, (this.cellsVersion.get(e.place.map) ?? 0) + 1)
     this.indexRemove(e)
+    this.untrack(e)
     e.type = type
+    this.track(e)
     this.indexAdd(e)
     // what it was, it no longer is: a stage begins again from the start (or none)
     if (e.statuses?.stage !== undefined) this.clearStatus({ e: e.id }, 'stage')
@@ -1251,10 +1432,17 @@ export class World {
     this.detach(e)
     e.place = { on: 'none' }
     this.statusful.delete(e.id)
+    this.statusIndex(e.id)
     this.companionIds.delete(e.id)
+    this.untrack(e)
     // a cell thing of the map's data stays gone: its record keeps the static one from coming back
-    if (parseCellId(e.id)) this.state.entities[e.id] = { id: e.id, type: e.type, place: { on: 'none' } }
+    if (parseCellId(e.id)) this.track((this.state.entities[e.id] = { id: e.id, type: e.type, place: { on: 'none' } }))
     else delete this.state.entities[e.id]
+    // a thing its map's file made stays gone too: when the map comes again, it does not (docs/continent.md §9)
+    if (e.from) {
+      const c = this.state.chunks?.[e.from]
+      if (c && !c.gone?.includes(e.id)) (c.gone ??= []).push(e.id)
+    }
   }
 
   /** The author's: a cell thing as the map's data has it again (what the state kept of it is forgotten). */
@@ -1263,8 +1451,36 @@ export class World {
     if (!parseCellId(e.id)) throw new Error(`${e.id} is not a cell thing of a map's data`)
     this.detach(e)
     this.statusful.delete(e.id)
+    this.statusIndex(e.id)
     this.companionIds.delete(e.id)
+    this.untrack(e)
+    this.cellIds.get(parseCellId(e.id)!.map)?.delete(e.id)
     delete this.state.entities[e.id]
+  }
+
+  /**
+   * The author's (loading): a thing out of the state's record as it is — put away with its map (docs/continent.md
+   * §9), its holder and what it holds going with it — nothing else touched, no event, nothing gone.
+   */
+  takeOut(e: Entity): void {
+    this.guard('takeOut')
+    if (this.state.entities[e.id] !== e) return
+    if (e.place.on === 'tile' || e.place.on === 'resident' || e.place.on === 'area') this.indexRemove(e)
+    this.statusful.delete(e.id)
+    this.statusIndex(e.id)
+    this.companionIds.delete(e.id)
+    this.untrack(e)
+    const cell = parseCellId(e.id)
+    if (cell) this.cellIds.get(cell.map)?.delete(e.id)
+    delete this.state.entities[e.id]
+  }
+
+  /** A map's data is gone from memory (docs/continent.md §9): what was read from it is forgotten with it. */
+  forgetMap(map: string): void {
+    this.layers.delete(map)
+    this.parts.delete(map)
+    this.rooms.delete(map)
+    for (const id of [...this.statics.keys()]) if (parseCellId(id)?.map === map) this.statics.delete(id)
   }
 
   // ---------------------------------------------------------------- statuses
@@ -1299,7 +1515,7 @@ export class World {
       delete holder.statusBy[status]
       if (!Object.keys(holder.statusBy).length) delete holder.statusBy
     }
-    this.statusful.add(key)
+    if (!this.statusful.has(key)) (this.statusful.add(key), this.statusIndex(key))
     return fresh
   }
 
@@ -1315,6 +1531,7 @@ export class World {
     }
     if (!Object.keys(bag).length) {
       this.statusful.delete(ref.e)
+      this.statusIndex(ref.e)
       if (holder) delete holder.statuses
     }
     return true
