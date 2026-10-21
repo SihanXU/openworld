@@ -1,12 +1,11 @@
 // Options → Keys (2026-10-20): every action with its key and a spare one, rebound by a click and the new key.
 // What is changed is a draft until it is saved (the game keeps the keys it has meanwhile); it may be given up,
 // one action set back to its default (the row says what that was), or all of them. A key another action has
-// asks first: the two trade, or nothing changes. The presets: A, the left hand on the keys and the right on
-// the mouse (the default), and B, both hands on the keys. The mouse's buttons, Esc and ` are not keys here.
+// asks first: the two trade, or nothing changes. The mouse's buttons (the two clicks), Esc and ` are not keys here.
 // Kept in this browser (keymap.ts).
 
 import { hasModule } from '../game.ts'
-import { ACTION_NAME, GROUPS, PRESETS, bind, bindable, bindingLabel, changed, clone, codeLabel, equal, holder, keys, presetOf, reset, unbind, type Action, type Binding, type Keymap, type Preset } from '../keymap.ts'
+import { ACTION_NAME, GROUPS, bind, bindable, bindingLabel, changed, clone, codeLabel, defaultKeys, equal, holder, keys, reset, unbind, type Action, type Binding, type Keymap } from '../keymap.ts'
 import { esc, locale } from './common.ts'
 
 /** The actions only the classes module's games have (the skill bar, the skill tree and panel, the dash). */
@@ -58,9 +57,8 @@ export class KeysPage {
     const m = this.draft
     if (!host || !m) return
     const L = locale.value
-    const preset = presetOf(m)
+    const asDefault = equal(defaultKeys(), m)
     const classes = hasModule('classes')
-    const presetBtn = (p: Preset, label: string) => `<button data-preset="${p}" class="${preset === p ? 'on' : ''}">${esc(label)}</button>`
     const slotBtn = (a: Action, i: number) => {
       const b = m[a][i]
       const asking = this.asking?.action === a && this.asking.slot === i
@@ -70,7 +68,7 @@ export class KeysPage {
     // a row changed from the default: what the default was, and a click to set it back
     const resetBtn = (a: Action) => {
       if (!changed(m, a)) return '<span></span>'
-      const d = PRESETS.a()[a].map((b) => bindingLabel(b, L)).join(' / ') || W('none', '无')
+      const d = defaultKeys()[a].map((b) => bindingLabel(b, L)).join(' / ') || W('none', '无')
       return `<button class="kp-reset" data-reset="${a}" title="${esc(W('Set this action back to its default key', '把这个动作恢复成默认键'))}">↺ ${esc(W('default', '默认'))} ${esc(d)}</button>`
     }
     const groups = GROUPS.map((g) => {
@@ -94,12 +92,10 @@ export class KeysPage {
         <button id="kpDrop"${this.dirty ? '' : ' disabled'}>${W('Give up the changes', '放弃改动')}</button>
       </div>
       ${prompt}
-      <div class="kp-top"><span>${W('Presets:', '预设：')}</span>
-        ${presetBtn('a', W('A: keys left, mouse right', '方案 A：左手键盘、右手鼠标'))}
-        ${presetBtn('b', W('B: both hands on the keys', '方案 B：双手键盘'))}
-        <button id="kpDefaults"${preset === 'a' ? ' disabled' : ''}>${W('All back to default', '全部恢复默认')}</button>
-        <span class="kp-mine">${preset ? '' : W('(your own)', '（自定义）')}</span></div>
-      <p class="kp-note">${W('Each action has a key and a spare one: click either, then press the new key (Esc gives up, Backspace takes it off). Changes count once saved. The mouse buttons, Esc and ` stay as they are.', '每个动作有一个按键和一个备用键，两个都能用。点其中一个，再按新键（Esc 取消，Backspace 清除）。改完点“保存”才生效。鼠标左右键、Esc 和 ` 不能改。')}</p>
+      <div class="kp-top">
+        <button id="kpDefaults"${asDefault ? ' disabled' : ''}>${W('All back to default', '全部恢复默认')}</button>
+        <span class="kp-mine">${asDefault ? '' : W('(your own)', '（自定义）')}</span></div>
+      <p class="kp-note">${W('Each action has a key and a spare one: click either, then press the new key (Esc gives up, Backspace takes it off). Changes count once saved. The mouse buttons (left: what you hold, used as it is meant; right: used on what you point at), Esc and ` stay as they are.', '每个动作有一个按键和一个备用键，两个都能用。点其中一个，再按新键（Esc 取消，Backspace 清除）。改完点“保存”才生效。鼠标左右键（左键：手上东西本身的用法；右键：对指着的东西用）、Esc 和 ` 不能改。')}</p>
       <div class="kp-row kp-head"><span>${W('Action', '动作')}</span><span>${W('Key', '按键')}</span><span>${W('Spare key', '备用键')}</span><span></span></div>
       ${groups}
     </div>`
@@ -121,15 +117,7 @@ export class KeysPage {
       this.render()
     })
     on('kpKeep', () => ((this.trading = undefined), (this.said = ''), this.render()))
-    on('kpDefaults', () => ((this.draft = PRESETS.a()), (this.said = W('All the default keys (not saved yet).', '已全部恢复默认（还没保存）。')), this.render()))
-    host.querySelectorAll<HTMLButtonElement>('[data-preset]').forEach((b) => {
-      b.onclick = () => {
-        this.stopAsking()
-        this.draft = PRESETS[b.dataset.preset as Preset]()
-        this.said = b.dataset.preset === 'b' ? W('Preset B: J strikes, K acts on what is in front, L dashes (not saved yet).', '方案 B：J 攻击，K 对面前那一格行动，L 冲刺（还没保存）。') : W('Preset A: the default keys (not saved yet).', '方案 A：默认键位（还没保存）。')
-        this.render()
-      }
-    })
+    on('kpDefaults', () => (this.stopAsking(), (this.draft = defaultKeys()), (this.said = W('All the default keys (not saved yet).', '已全部恢复默认（还没保存）。')), this.render()))
     host.querySelectorAll<HTMLButtonElement>('[data-reset]').forEach((b) => {
       b.onclick = () => {
         const a = b.dataset.reset as Action

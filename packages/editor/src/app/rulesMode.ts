@@ -13,7 +13,7 @@ import { phrase } from './lang.ts'
 import { esc, t, toast, tx } from './ui.ts'
 import { adoptTexts } from './words.ts'
 
-const VERBS: [string, string][] = [['use', phrase('use (left click)')], ['hands', phrase('hands (E)')], ['take', phrase('take (F)')], ['put', phrase('put (G)')], ['self', phrase('use on oneself (right click)')]]
+const VERBS: [string, string][] = [['use', phrase('use (right click; a tool or a weapon: left click)')], ['hands', phrase('hands (E)')], ['take', phrase('take (E on what lies loose)')], ['put', phrase('put (G)')], ['self', phrase('use on oneself (left click with an object; right click on oneself)')]]
 
 export class RulesMode implements Mode {
   /** Begin a rule here (the holes' "answer by hand"): written into the project's first rules file, and chosen. */

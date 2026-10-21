@@ -35,7 +35,7 @@ let attacking = false
 let swinging: Plan | undefined
 /** Where the mouse points, the open chest panel, and whether time is stopped (a menu or a dialogue is open). */
 let aimTile: Tile | undefined
-/** The left click lays what is held in the ceiling (R with a floor in hand), not on one's storey. */
+/** The right click lays what is held in the ceiling (the turn key with a floor in hand), not on one's storey. */
 let handUp = false
 let panel: string | undefined
 /** The people's panels open (docs/npc-sandbox.md): the talk with someone (a guard's arrest), a merchant's trade, a person's pockets. */
@@ -306,9 +306,9 @@ async function ensureMaps(): Promise<void> {
 }
 
 /**
- * What each input would do now, foreseeable (design.md §5.2; the page's tip says it): E, F, G, R and the left
- * click at the aim (or in front); the action (the right click) there; the held thing used on oneself when it is
- * something to do, or the player points at themself. An experiment with something in hand starts a prefetch.
+ * What each input would do now, foreseeable (design.md §5.2; the page's tip says it): E and G at the aim (or in
+ * front), the left click (the held thing's own use) and the right click (its use on what is aimed at). An
+ * experiment with something in hand starts a prefetch.
  */
 function keyViews(): Frame['keys'] {
   const eng = game!.engine
@@ -330,20 +330,15 @@ function keyViews(): Frame['keys'] {
   const stand = w.posOf(w.player)
   if (!moveDir && stand && aimTile && Math.abs(aimTile.x - stand.x) + Math.abs(aimTile.y - stand.y) === 1) c.face({ ...stand, x: aimTile.x, y: aimTile.y })
   const out: NonNullable<Frame['keys']> = {}
-  // E, F, G, R (a press: no layer chosen), the left click and the action (the right click), which make one of the others' acts
-  for (const k of ['hands', 'take', 'put', 'use', 'primary', 'action'] as Key[]) {
-    const pl = c.plan(k, aimTile, k === 'use' && handUp ? CEILING : undefined)
+  // E and G (a press: no layer chosen), the left click and the right click (a floor in hand: in the ceiling, as chosen)
+  for (const k of ['hands', 'put', 'primary', 'secondary'] as const) {
+    const pl = c.plan(k, aimTile, k === 'secondary' && handUp ? CEILING : undefined)
     shownTarget[k] = pl?.target
     const v = view(pl)
-    out[k] = v && k === 'action' ? { ...v, act: pl!.key } : v
+    out[k] = v && pl!.key !== k ? { ...v, act: pl!.key } : v
   }
   const p = eng.world.player
-  const here = eng.world.posOf(p)
-  const self = c.plan('self')
-  const aimed = aimTile && c.aim(aimTile)?.at
-  const atSelf = !!aimed && !!here && aimed.x === here.x && aimed.y === here.y
-  if (self && (atSelf || (p.held && !self.unknown))) out.self = view(self)
-  const use = c.plan('use', aimTile)
+  const use = c.plan('secondary', aimTile)
   // an experiment with something in hand: where its chain reaches an undefined outcome
   noteProbe(use?.unknown && use.instrument && use.verb ? eng.preview(eng.actEvent(use.verb, p.id, use.target, use.instrument)).hole : undefined, use ? `${use.at.x},${use.at.y}` : '')
   return out

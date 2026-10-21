@@ -1,14 +1,13 @@
-// The pointer and the tip, as in Stardew Valley. The right click is the action: one input that does what the
-// thing it is aimed at calls for (the engine's Controls chooses it: the frame's keys.action), and the cursor shows
-// it at once: a glove over what it opens, reads or picks up (or where what is held is set down: a bed, a
-// workbench), a speech bubble over someone to talk to, a "?" where the world has never seen the act (the modder
-// will be asked), a "!" where only F would take it (a theft), and a faded arrow where nothing under the pointer is
-// within reach (the act goes to the spot the scene frames instead). The pictures are the game's own (its
-// catalogue's `ui.cursorHand` and `ui.emoteDots`): without them, the arrow.
+// The pointer and the tip, as in Stardew Valley. The cursor shows at once what the hand (E) would do where it points
+// — a glove over what it picks up, opens or reads, a speech bubble over someone to talk to — or, with nothing for the
+// hand there, where the right click sets up what is held (a bed, a wall); a "?" where the right click's use is one the
+// world has never seen (the modder will be asked), a "!" where the hand would take what is another's (a theft), and a
+// faded arrow where nothing under the pointer is within reach (the act goes to the spot the scene frames instead).
+// The pictures are the game's own (its catalogue's `ui.cursorHand` and `ui.emoteDots`): without them, the arrow.
 // The tip says what each input would do at the framed spot, in the answering rules' own labels (foreseeable,
-// design.md §5.2): with the pointer, the action, the left click and E, F, G, R where they do something else; without
-// it (the keys walked last), E, F, G and R in front. It stands over the frame (render/scene.ts focusRect) once the player
-// has stopped and the frame has rested a moment, so it never lurches with the steps nor flickers as the pointer sweeps.
+// design.md §5.2): with the pointer, the left click and the right click, then E and G; without it (the keys walked
+// last), E and G in front. It stands over the frame (render/scene.ts focusRect) once the player has stopped and the
+// frame has rested a moment, so it never lurches with the steps nor flickers as the pointer sweeps.
 
 import type { Frame, KeyView } from '@openworld/engine'
 import type { SpriteDef } from '../assets/types.ts'
@@ -103,26 +102,26 @@ async function picture(d: SpriteDef | undefined): Promise<HTMLCanvasElement | un
 
 /** The keys' spot: where the act would be done. */
 function spotOf(k: Keys): { x: number; y: number } | undefined {
-  const v = k && (k.hands ?? k.take ?? k.put ?? k.use ?? k.primary ?? k.action)
+  const v = k && (k.hands ?? k.put ?? k.primary ?? k.secondary)
   return v && { x: v.x, y: v.y }
 }
 
-/** The mark for the action (eating and drinking keep the arrow, as in Stardew; where only F would take it, a "!"). */
+/** The mark: the hand's (a word, a glove), else a glove where the right click sets up what is held; a "?" over a use the world has never seen, a "!" over a theft. */
 function lookOf(k: Keys): Look {
-  const v = k?.action
-  if (!v) return { mark: 'arrow', badge: k?.take?.steal ? '!' : undefined }
-  const badge: Badge | undefined = v.unknown ? '?' : undefined
-  if (v.act === 'self') return { mark: 'arrow', badge }
-  return { mark: v.person ? 'talk' : 'hand', badge }
+  const h = k?.hands && !k.hands.idle && !k.hands.ground ? k.hands : undefined
+  const r = k?.secondary
+  const badge: Badge | undefined = h?.steal ? '!' : r?.unknown && r.act !== 'self' ? '?' : undefined
+  if (h) return { mark: h.person ? 'talk' : 'hand', badge }
+  return { mark: r?.sets ? 'hand' : 'arrow', badge }
 }
 
 const same = (a: KeyView, b: KeyView | undefined) => !!b && a.x === b.x && a.y === b.y && JSON.stringify(a.label) === JSON.stringify(b.label)
 
 /**
- * The tip's lines: what each input would do. With the pointer, the action and the left click, then E, F, G and R
- * where each does something the clicks do not (and F where only it would take: a theft); without it, E, F, G and R
- * in front. A bare hand on the bare ground goes unsaid unless it does something there (touching the floor, or a
- * touch the world has never seen, would be said at every step: the frame's faint corners and amber say it).
+ * The tip's lines: what each input would do. With the pointer, the left click and the right click (where it does
+ * something else), then E and G; without it, E and G in front. A bare hand on the bare ground goes unsaid unless it
+ * does something there (touching the floor, or a touch the world has never seen, would be said at every step: the
+ * frame's faint corners and amber say it).
  */
 function linesOf(k: Keys, pointer: boolean): string {
   if (!k) return ''
@@ -130,11 +129,9 @@ function linesOf(k: Keys, pointer: boolean): string {
   const line = (key: string, v: KeyView | undefined) =>
     v && key ? `<div class="kl${v.unknown ? ' unknown' : ''}${v.steal ? ' steal' : ''}"><kbd>${esc(key)}</kbd> ${esc(tx(v.label))}${v.unknown ? ' <span class="q">?</span>' : ''}</div>` : ''
   const hands = k.hands?.ground && (k.hands.unknown || k.hands.idle) ? undefined : k.hands
-  const act = k.action
-  const other = (v: KeyView | undefined) => (pointer && act && v && same(act, v) ? undefined : v)
-  // R where it is not what the left click already does (a tool's work, a weapon's blow)
-  const use = pointer && k.use && same(k.use, k.primary) ? undefined : other(k.use)
-  return (pointer ? line(t('rmb'), act) + line(t('lmb'), k.primary) : '') + line(kbd('hands'), other(hands)) + line(kbd('take'), other(k.take)) + line(kbd('put'), other(k.put)) + line(kbd('use'), use)
+  // the right click where it is not what the left click already does (an axe at a tree chops either way)
+  const right = k.secondary && same(k.secondary, k.primary) ? undefined : k.secondary
+  return (pointer ? line(t('lmb'), k.primary) + line(t('rmb'), right) : '') + line(kbd('hands'), hands) + line(kbd('put'), k.put)
 }
 
 export class Cursor {

@@ -1,6 +1,6 @@
 // The keyboard's map (2026-10-20, design.md §5.2): every key the page answers to is an action's, and the player
-// rebinds them (Options → Keys) or takes a preset — A, the left hand on the keys and the right on the mouse (the
-// default), or B, both hands on the keys (the right hand strikes, acts and dashes, aiming at the cell in front).
+// rebinds them (Options → Keys). The left hand is on the keys and the right on the mouse: the two clicks are the
+// mouse's alone (the held thing's own use, and its use on what is aimed at), never a key's.
 // What the page says of a key is read from here: the tip, the key table, the lessons' glyphs, the corner buttons,
 // and any text's `{key:<action>}` (a game's words, the interface's own), filled with the key that does it now.
 // Kept in the browser (localStorage), never in a save: the world never knows which keys move it. Esc, the
@@ -10,7 +10,7 @@
 /** What a key may do. */
 export const ACTIONS = [
   'up', 'down', 'left', 'right', 'walk',
-  'hands', 'take', 'put', 'use', 'action',
+  'hands', 'put', 'rotate',
   'attack', 'dash', 'draw', 'sneak',
   'cast1', 'cast2', 'cast3', 'cast4', 'cast5', 'cast6',
   'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot10', 'row',
@@ -24,7 +24,6 @@ export interface Binding {
   shift?: boolean
 }
 export type Keymap = Record<Action, Binding[]>
-export type Preset = 'a' | 'b'
 type Lang = 'en' | 'zh'
 
 /** The most keys one action takes. */
@@ -36,7 +35,8 @@ export const RESERVED = new Set(['Escape', 'Backquote', 'ControlLeft', 'ControlR
 const k = (code: string, shift = false): Binding => (shift ? { code, shift } : { code })
 const digit = (n: number) => `Digit${n % 10}`
 
-function presetA(): Keymap {
+/** The default keys. */
+export function defaultKeys(): Keymap {
   const m = {
     up: [k('KeyW'), k('ArrowUp')],
     down: [k('KeyS'), k('ArrowDown')],
@@ -44,10 +44,8 @@ function presetA(): Keymap {
     right: [k('KeyD'), k('ArrowRight')],
     walk: [k('ShiftLeft'), k('ShiftRight')],
     hands: [k('KeyE')],
-    take: [k('KeyF')],
     put: [k('KeyG')],
-    use: [k('KeyR')],
-    action: [],
+    rotate: [k('KeyR')],
     attack: [k('Space')],
     dash: [k('KeyQ')],
     draw: [k('KeyX')],
@@ -66,20 +64,6 @@ function presetA(): Keymap {
   for (let n = 1; n <= 10; n++) m[`slot${n}` as Action] = [k(digit(n))]
   return m as Keymap
 }
-
-/** Both hands on the keys: the right one strikes (J), acts on what is in front (K: the right click's action) and dashes (L); the panels those keys opened are on Tab's tabs and the corner buttons. */
-function presetB(): Keymap {
-  const m = presetA()
-  m.attack = [k('KeyJ'), k('Space')]
-  m.action = [k('KeyK')]
-  m.dash = [k('KeyL'), k('KeyQ')]
-  m.skills = []
-  m.quests = []
-  m.journal = []
-  return m
-}
-
-export const PRESETS: Record<Preset, () => Keymap> = { a: presetA, b: presetB }
 
 export const same = (a: Binding, b: Binding) => a.code === b.code && !!a.shift === !!b.shift
 
@@ -161,14 +145,9 @@ export function equal(a: Keymap, b: Keymap): boolean {
   return ACTIONS.every((x) => alike(a[x], b[x]))
 }
 
-/** Which preset a map is, if it is one unchanged. */
-export function presetOf(map: Keymap): Preset | undefined {
-  return (Object.keys(PRESETS) as Preset[]).find((p) => equal(PRESETS[p](), map))
-}
-
-/** Are an action's keys other than the default's (preset A's)? */
+/** Are an action's keys other than the default's? */
 export function changed(map: Keymap, action: Action): boolean {
-  return !alike(presetA()[action], map[action])
+  return !alike(defaultKeys()[action], map[action])
 }
 
 /**
@@ -176,7 +155,7 @@ export function changed(map: Keymap, action: Action): boolean {
  * default where that key is free now (a trade undone from either side). `took`: the actions whose keys changed too.
  */
 export function reset(map: Keymap, action: Action): { map: Keymap; took: Action[] } {
-  const d = presetA()
+  const d = defaultKeys()
   const next = clone(map)
   next[action] = []
   const took: Action[] = []
@@ -191,7 +170,7 @@ export function reset(map: Keymap, action: Action): { map: Keymap; took: Action[
 
 /** A stored map, read back: every action the stored one names well, the rest the default's; never two actions on one key. */
 export function parse(raw: unknown): Keymap {
-  const base = presetA()
+  const base = defaultKeys()
   const keys = raw && typeof raw === 'object' && 'keys' in raw ? (raw as { keys: unknown }).keys : undefined
   if (!keys || typeof keys !== 'object') return base
   const out = clone(base)
@@ -275,11 +254,9 @@ export const ACTION_NAME: Record<Action, [string, string]> = {
   left: ['Move left', '向左走'],
   right: ['Move right', '向右走'],
   walk: ['Walk (hold)', '慢走（按住）'],
-  hands: ['Hands: talk, open, read', '空手：说话、打开、阅读'],
-  take: ['Take', '拿'],
-  put: ['Put, hand over', '放下、交给别人'],
-  use: ['Use what you hold on it', '把手上的东西用在它上面'],
-  action: ['The action (as the right click), on what is in front', '行动（同右键，对着面前）'],
+  hands: ['The hand: pick up what lies loose; talk, open, read', '手：拿起散落的东西；说话、打开、阅读'],
+  put: ['Put down, put in, hand over', '放下、放进、交给别人'],
+  rotate: ['Turn what you build; with a floor in hand, the ceiling', '旋转要建的东西；手持地板时切换天花板'],
   attack: ['Attack ahead', '朝面前攻击'],
   dash: ['Dash', '冲刺'],
   draw: ['Draw or sheathe your weapon', '拔刀 / 收刀'],
@@ -314,7 +291,7 @@ export const ACTION_NAME: Record<Action, [string, string]> = {
 /** The actions in their groups, as the keys page lists them. */
 export const GROUPS: { name: [string, string]; actions: Action[] }[] = [
   { name: ['Moving', '移动'], actions: ['up', 'down', 'left', 'right', 'walk'] },
-  { name: ['Acting', '交互'], actions: ['hands', 'take', 'put', 'use', 'action'] },
+  { name: ['Acting', '交互'], actions: ['hands', 'put', 'rotate'] },
   { name: ['Fighting', '战斗'], actions: ['attack', 'dash', 'draw', 'sneak', 'cast1', 'cast2', 'cast3', 'cast4', 'cast5', 'cast6'] },
   { name: ['Toolbar', '快捷栏'], actions: ['slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot10', 'row'] },
   { name: ['Panels', '面板'], actions: ['bag', 'craft', 'skills', 'skillPanel', 'quests', 'journal', 'map', 'build'] },
@@ -338,7 +315,7 @@ export function slotKeys(map: Keymap, lang: Lang): string {
 }
 
 /**
- * A text's keys filled in: `{key:take}` is the key that takes; `{key:move}` the four steps, `{key:slots}` the toolbar's,
+ * A text's keys filled in: `{key:hands}` is the key of the hand; `{key:move}` the four steps, `{key:slots}` the toolbar's,
  * `{key:casts}` the skill bar's. A name no action has is left as it is; a key in parentheses that has none now goes with them.
  */
 export function fillKeys(text: string, map: Keymap, lang: Lang): string {
@@ -355,14 +332,14 @@ export function fillKeys(text: string, map: Keymap, lang: Lang): string {
 
 /**
  * The key a lesson draws (its `key`, written as the default keys are): what that key does in the default map, shown
- * as the key that does it now ("F" → whatever takes; "WASD" → the steps; "1–0" → the toolbar).
+ * as the key that does it now ("E" → whatever is the hand; "WASD" → the steps; "1–0" → the toolbar).
  */
 export function lessonKey(key: string, map: Keymap, lang: Lang): string {
   if (key === 'WASD') return moveKeys(map, lang)
   if (key === '1–0') return slotKeys(map, lang)
   const hold = /^hold (.+)$/.exec(key)
   if (hold) return `${lang === 'zh' ? '长按' : 'Hold'} ${lessonKey(hold[1], map, lang)}`
-  const d = presetA()
+  const d = defaultKeys()
   const code = key.length === 1 ? (/[0-9]/.test(key) ? `Digit${key}` : `Key${key}`) : key
   const a = ACTIONS.find((x) => d[x][0] && !d[x][0].shift && d[x][0].code === code) ?? ACTIONS.find((x) => d[x].some((b) => !b.shift && b.code === code))
   return a ? keyOf(map, a, lang) : key
@@ -376,9 +353,9 @@ const STORE = 'openworld.keys'
 export function loadKeys(): Keymap {
   try {
     const raw = globalThis.localStorage?.getItem(STORE)
-    return raw ? parse(JSON.parse(raw)) : presetA()
+    return raw ? parse(JSON.parse(raw)) : defaultKeys()
   } catch {
-    return presetA()
+    return defaultKeys()
   }
 }
 

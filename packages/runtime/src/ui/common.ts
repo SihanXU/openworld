@@ -104,7 +104,7 @@ export const STRINGS: Record<string, [string, string]> = {
   'slot:feet': ['Feet', '脚'],
   'slot:arm': ['Off hand', '副手'],
   invHelp: [
-    'Click to pick up, again to swap · Shift+click: toolbar ↔ bag · {key:row}: next row to the toolbar · pick up something wearable and click its slot on the left to put it on (or right click), click a worn piece to take it off · right click: use or put the held thing on it, or handle it',
+    'Click to pick up, again to swap · Shift+click: toolbar ↔ bag · {key:row}: next row to the toolbar · pick up something wearable and click its slot on the left to put it on (or right click), click a worn piece to take it off · right click: use or put the held thing on it, or use it',
     '点击拿起、再点击交换 · Shift+点击：快捷栏↔背包 · {key:row}：换一行到快捷栏 · 拿起装备点左边的装备栏穿上（右键也可以），点装备栏卸下 · 右键：对它用手上的东西、放进去、空手摆弄',
   ],
   // the tooltip: a creature's own piece (its kind's `trophy`), and whose
@@ -384,23 +384,20 @@ export function controlsTable(dev: boolean): string {
   const first = (a: Action) => (m[a][0] ? bindingLabel(m[a][0], L) : '')
   const steps = [moveKeys(m, L), (['up', 'left', 'down', 'right'] as const).map((a) => (m[a][1] ? bindingLabel(m[a][1], L) : '')).join('')].filter(Boolean).join(' · ')
   const wheel = zh ? '滚轮' : 'wheel'
-  const hold = (['hands', 'take', 'put', 'use', 'action'] as Action[]).map(first).filter(Boolean)
+  const hold = (['hands', 'put'] as Action[]).map(first).filter(Boolean)
   const rows: [string, string, string][] = [
     [steps, `move (${first('walk')}: walk)`, `移动（${first('walk')}：慢走）`],
-    [of('build'), `build / farm mode; left click or ${first('hands')} places, Esc / RMB exits`, `建筑 / 种植模式；左键或 ${first('hands')} 放置，Esc / 右键退出`],
-    [of('hands'), 'hands: talk, open, read, push', '空手：说话、打开、阅读、推'],
-    [of('take'), 'take: pick up, take down, take out', '拿：捡起、取下、取出'],
-    [of('put'), 'put the held thing there: set down, put in, hand it over', '放：把手上的东西放下、放进去、交给别人'],
-    [of('use'), `use the held thing on it, exactly (feed or dress a person, any experiment; with empty hands, a blow); a floor in hand: the left click lays it in the ceiling (and back)`, '把手上的东西用在它上面，不做别的判断（喂人、给人穿上、任何试验；空手就是一拳）；手上拿着地板时：左键改为铺天花板（再按切回）'],
-    ...(m.action.length ? [[of('action'), 'the action, as the right click, on what is in front', '行动：和右键一样，对着面前那一格'] as [string, string, string]] : []),
-    [zh ? '左键' : 'left click', 'swing: a weapon strikes, a tool works (chop, till, fill); with anything else in hand, or nothing, the weapon in your main hand or a fist — never what you picked up, never a loose thing lying there, and a person only with your weapon drawn; hold to keep going; a wall, a floor or a bed in hand is set down there (hold and drag for a row)', '挥：武器就是攻击，工具就是干活（砍、锄、舀水）；拿着别的东西或者空手，用主手武器或拳头打——不会拿捡来的东西打，不打地上散落的东西，打人要先拔出武器；按住连续；拿着墙、地板、床这类东西就放在那里（按住拖动放一排）'],
-    [zh ? '右键' : 'right click', 'the action, as the cursor shows: talk, open, read, pick up; what you hold where it does something (sow seeds, turn a key, cook over a fire, feed a beast, set down a bed); on the ground, eat, drink or put on what you hold (pointed at yourself, any use of it)', '行动，光标显示要做什么：说话、打开、阅读、捡起；手上的东西能派上用场就用它（播种、用钥匙开锁、在火上烤肉、喂牲口、放下床这类东西）；对着地面时，吃、喝、穿戴手上的东西（指着自己时，任何用法都行）'],
+    [of('build'), `build / farm mode; left click or ${first('hands')} places, ${first('rotate')} turns, Esc / RMB exits`, `建筑 / 种植模式；左键或 ${first('hands')} 放置，${first('rotate')} 旋转，Esc / 右键退出`],
+    [zh ? '左键' : 'left click', 'what you hold, used as it is meant: a weapon strikes, a tool works (chop, mine, till, fill; a tool knocks a bed, a workbench or a wall loose, to pick up); nothing in hand, the weapon in your main hand or a fist; anything else is used on yourself (eat, drink, put on; asked first where the world has never seen it); a person only with your weapon drawn; hold to keep going', '手上东西本身的用法：武器就是攻击，工具就是干活（砍、挖、锄、打水；工具敲床、工作台、墙这类东西，它们会完整掉下来，可以捡起）；空手用主手武器或拳头；拿着别的东西就是对自己用（吃、喝、穿戴；世界没见过的用法会先问）；打人要先拔出武器；按住连续'],
+    [zh ? '右键' : 'right click', 'use what you hold on what you point at: sow seeds, turn a key, cook over a fire, feed a beast — and any experiment the world has never seen; on yourself, on yourself; a wall, a floor or a bed in hand is set up there (hold and drag for a row; with a floor in hand, ' + first('rotate') + ' turns to the ceiling); with nothing in hand, nothing', '把手上的东西用在指着的东西上：播种、用钥匙开锁、在火上烤肉、喂牲口——以及世界没见过的任何试验；指着自己就是对自己用；拿着墙、地板、床这类东西就把它建在那里（按住拖动建一排；拿着地板时按 ' + first('rotate') + ' 改为铺天花板）；空手什么都不做'],
+    [of('hands'), 'the hand: pick up what lies loose; talk, open, read, sleep, pick a ripe crop (sneaking, on a person: pick their pocket)', '手：拿起地上散落的东西；说话、打开、阅读、睡觉、摘成熟的作物（潜行时对人：扒窃）'],
+    [of('put'), 'put the held thing there: set it down (it lies loose: a bed is not built so), put it in, hand it over', '放：把手上的东西放下（放下的东西是散落的，床这类东西不会因此建起来）、放进去、交给别人'],
     [of('attack'), 'attack: strike ahead (hold to keep striking)', '攻击：朝面前挥击（按住连续攻击）'],
     ...(skills && m.dash.length ? [[of('dash'), 'dash, once learned (swiftness)', '冲刺（学会迅捷分支的冲刺后）'] as [string, string, string]] : []),
     [of('draw'), 'draw your weapon or put it away: drawn, a blow on a person is meant', '拔出或收起武器：拔出时，对人挥击才算真的动手'],
-    [of('sneak'), `sneak: slower, seen only up close and from the front; ${first('take')} on a person picks their pocket`, `潜行：走得慢，只有近处、正面的人才看得见你；潜行时对人按 ${first('take')} 是扒窃`],
+    [of('sneak'), `sneak: slower, seen only up close and from the front; ${first('hands')} on a person picks their pocket`, `潜行：走得慢，只有近处、正面的人才看得见你；潜行时对人按 ${first('hands')} 是扒窃`],
     ...(skills ? [[fillKeys('{key:casts}', m, L), 'cast the skill in that slot of the skill bar (over the skill tree: put the skill there)', '施放技能栏那一格的技能（在技能树上：把指着的技能放进那一格）'] as [string, string, string]] : []),
-    [`${zh ? '长按' : 'hold'} ${[...hold, zh ? '右键' : 'right click'].join(' · ')}`, 'choose which of the things drawn there', '选那个位置叠着的哪一样'],
+    [`${zh ? '长按' : 'hold'} ${hold.join(' · ')} · Alt+${zh ? '点击' : 'click'}`, 'choose which of the things drawn there (the ceiling among them)', '选那个位置叠着的哪一样（包括天花板）'],
     [`${slotKeys(m, L)} · ${wheel}`, 'choose what to hold', '选择拿在手里的东西'],
     [[of('row'), `Shift+${wheel}`].filter(Boolean).join(' · '), 'the next row of the bag becomes the toolbar', '把背包的下一行换到快捷栏'],
     [of('bag'), 'the bag; its tabs go to the other panels', '背包；上面的页签切到其他面板'],
@@ -409,7 +406,7 @@ export function controlsTable(dev: boolean): string {
       `menu · ${(['craft', ...(skills ? ['skills', 'skillPanel'] : []), 'map', 'quests', 'journal'] as Action[]).filter((a) => m[a].length).map((a) => ({ craft: 'craft', skills: 'skill tree', skillPanel: 'skills', map: 'map', quests: 'quests', journal: 'codex' })[a as string]).join(' · ')}`,
       `菜单 · ${(['craft', ...(skills ? ['skills', 'skillPanel'] : []), 'map', 'quests', 'journal'] as Action[]).filter((a) => m[a].length).map((a) => ({ craft: '制作', skills: '技能树', skillPanel: '技能面板', map: '地图', quests: '任务', journal: '图鉴' })[a as string]).join(' · ')}`,
     ],
-    [zh ? '选项 → 按键' : 'Options → Keys', 'change any of these keys, or take preset B (both hands on the keys)', '改任何一个键，或换成方案 B（双手都在键盘上）'],
+    [zh ? '选项 → 按键' : 'Options → Keys', 'change any of these keys (the mouse buttons stay)', '改任何一个键（鼠标左右键不能改）'],
   ]
   if (dev) rows.push(['`', 'Mod Console (dev)', '模组控制台（开发）'])
   return `<table>${rows.filter(([k]) => k).map(([k, en, z]) => `<tr><td><kbd>${esc(k)}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`

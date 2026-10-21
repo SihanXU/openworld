@@ -4,7 +4,7 @@
 // inventory, J journal, M map.
 
 import Phaser from 'phaser'
-import { CEILING, Controls, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@openworld/engine'
+import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, libraryKey, newWorker, savesKey, worldBase } from './game.ts'
 import { FishingInputLatch, routeFishingEscape, routeSpaceKeyDown, type FromWorker, type Tile, type ToWorker } from './protocol.ts'
 import { cssAssetUrl, registerArt } from './render/assets.ts'
@@ -608,8 +608,8 @@ function syncPause(): void {
 /** The action a key does now. */
 const actOf = (e: KeyboardEvent): Action | undefined => actionOf(keys.map, e.code, e.shiftKey)
 const DIR_OF: Partial<Record<Action, Dir>> = { up: 'up', down: 'down', left: 'left', right: 'right' }
-/** The inputs a key makes (design.md §5.2): E, F, G, R and, on the keys, the right click's action (preset B's K). */
-const INPUT_OF: Partial<Record<Action, Key>> = { hands: 'hands', take: 'take', put: 'put', use: 'use', action: 'action' }
+/** The inputs a key makes (design.md §5.2): E the hand, G put (the clicks are the mouse's alone). */
+const INPUT_OF: Partial<Record<Action, Key>> = { hands: 'hands', put: 'put' }
 /** The toolbar slot (0–9) or the skill bar's (0–5) an action is, else -1. */
 const slotOf = (a?: Action) => (a?.startsWith('slot') ? Number(a.slice(4)) - 1 : -1)
 const castOf = (a?: Action) => (a?.startsWith('cast') ? Number(a.slice(4)) - 1 : -1)
@@ -631,7 +631,7 @@ const setAttack = (on: boolean) => {
   attacking = on
   send({ t: 'attack', on })
 }
-/** The left button is down on the world for its primary act (a blow, a tool's work): held, the act goes on. */
+/** The left button is down on the world for its act (a blow, a tool's work; an object used on oneself): held, a swing goes on. */
 let swingingNow = false
 const setSwing = (on: boolean, tile?: Tile) => {
   if (on === swingingNow) return
@@ -674,16 +674,15 @@ const typing = () => {
   return !!a && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT')
 }
 
-// The inputs (design.md §5.2): E a hand, F takes, G puts or hands over, R uses the held thing (or a bare blow); the
-// left click swings — a tool's work or a weapon's blow, with anything else in hand the main hand's weapon or the
-// fist, a built thing in hand set down (it builds) —, and the right click is the action, as Stardew's action
-// button: what the thing aimed at calls for (talk, open, pick up, sow, unlock, cook, set down a bed, eat — the engine's Controls
-// chooses both from the others, the cursor shows them). A short press acts on the top of what is drawn where the
-// pointer is; a long press of E, F, G, R or the right click opens the chooser of all of it the input reaches
-// (people, things, items, the ground, oneself), so every event is reachable. The left click acts on the press
-// and goes on while held (no chooser: R's).
+// The inputs (design.md §5.2): E the hand (what lies loose is picked up, anything else handled: talk, open, read),
+// G puts down, in or on, or hands over; the left click is the held thing's own use — a tool's work or a weapon's
+// blow (nothing held: the main hand's weapon or the fist), anything else used on oneself (eat, drink, put on) —
+// acting on the press and going on while held; the right click uses the held thing on what is aimed at (sow, feed,
+// unlock, cook, the experiments; a built thing in hand is set up there, and dragged, a row). A press acts on the top
+// of what is drawn where the pointer is; a long press of E or G, or Alt with a click, opens the chooser of all of it
+// the input reaches (people, things, items, the ground, oneself, the ceiling), so every event is reachable.
 const LONG_MS = 380
-/** A press under way: what made it (a key's code, or `mouse0`/`mouse2`), the key it is, where the pointer aimed. */
+/** A key's press under way: its code, the input it is, where the pointer aimed. */
 let pressing: { by: string; key: Key; tile?: Tile; timer: ReturnType<typeof setTimeout>; long: boolean } | undefined
 /** What opened the chooser (its title). */
 let chooserBy = ''
@@ -747,11 +746,11 @@ window.addEventListener('keydown', (e) => {
     if (n >= 1 && n <= 9) return hud.chooseNth(n)
     return
   }
-  // a yes/no question: the steps choose, the hands (or take) confirm, Esc says no
+  // a yes/no question: the steps choose, the hand confirms, Esc says no
   if (hud.questionShown) {
     e.preventDefault()
     if (a && DIR_OF[a]) return hud.moveChoice()
-    if (a === 'hands' || a === 'take') return hud.confirmChoice()
+    if (a === 'hands') return hud.confirmChoice()
     if (e.code === 'Escape') return hud.answer(false)
     return
   }
@@ -764,8 +763,8 @@ window.addEventListener('keydown', (e) => {
   // a merchant's trade or a person's pockets: Esc closes it
   if (people.open && e.code === 'Escape') return void (e.preventDefault(), people.close())
   if (people.open) return
-  // a person's line open: take and put put it away and act (a turn-in's thanks does not hold up the next one)
-  if (hud.dialogOpen && !menu.anyOpen && (a === 'take' || a === 'put') && hud.dismissLine()) syncPause()
+  // a person's line open: put puts it away and acts (a turn-in's thanks does not hold up the next one)
+  if (hud.dialogOpen && !menu.anyOpen && a === 'put' && hud.dismissLine()) syncPause()
   // an open dialogue: the hands (or Esc) move it on — unless a menu lies over it (Esc closes that first)
   if (hud.dialogOpen && !menu.anyOpen && (a === 'hands' || e.code === 'Escape')) {
     e.preventDefault()
@@ -823,13 +822,13 @@ window.addEventListener('keydown', (e) => {
   }
   if (building.open) {
     if (a === 'hands' && !e.repeat) building.place()
-    // the use key: turn what is set down (stairs go up the way it points)
-    if (a === 'use' && !e.repeat) building.rotate()
-    if (a === 'hands' || a === 'take' || a === 'put' || a === 'attack' || a === 'row' || a === 'action') e.preventDefault()
+    // the turn key: turn what is set up (stairs go up the way it points)
+    if (a === 'rotate' && !e.repeat) building.rotate()
+    if (a === 'hands' || a === 'put' || a === 'attack' || a === 'row' || a === 'rotate') e.preventDefault()
     return
   }
-  // the use key with a floor in hand: the left click lays it in the ceiling (as the palette's R), and back
-  if (a === 'use' && !e.repeat && laysInHand(lastFrame)) return void setHandUp(!handUp)
+  // the turn key with a floor in hand: the right click lays it in the ceiling (as the palette's), and back
+  if (a === 'rotate' && !e.repeat && laysInHand(lastFrame)) return void setHandUp(!handUp)
   // the attack key: a blow ahead on the press and again while it is held
   if (a === 'attack') {
     const route = routeSpaceKeyDown(fishingIsActive(), e.repeat, suppressFishingSpace)
@@ -919,20 +918,20 @@ function reaim(): void {
   if (aimSig(a) === aimSig(mouseTile)) return
   mouseTile = a
   send({ t: 'aim', tile: a, n: ++aimsSent })
-  // building by hand, the left button held: each new cell the pointer enters gets one too
+  // building by hand, the right button held: each new cell the pointer enters gets one too
   if (handDrag && a) {
     const cell = handCell(a)
-    if (cell !== handDrag) ((handDrag = cell), send({ t: 'key', key: 'use', tile: a, drag: true, ...(handUp && { layer: CEILING }) }))
+    if (cell !== handDrag) ((handDrag = cell), send({ t: 'key', key: 'secondary', tile: a, drag: true, ...(handUp && { layer: CEILING }) }))
   }
 }
 
-// ------------------------------------------------------------------ building by hand: the left click sets a built thing down (docs/building.md)
+// ------------------------------------------------------------------ building by hand: the right click sets a built thing up (docs/building.md)
 
-/** The left button is down on a cell where what is held is set down: the cell last built (`x,y`), so a drag builds a row. */
+/** The right button is down on a cell where what is held is set up: the cell last built (`x,y`), so a drag builds a row. */
 let handDrag: string | undefined
-/** The left click lays the floor in hand in the ceiling (R), not on one's storey. */
+/** The right click lays the floor in hand in the ceiling (the turn key), not on one's storey. */
 let handUp = false
-/** A floor is in hand (R lays it in the ceiling instead). */
+/** A floor is in hand (the turn key lays it in the ceiling instead). */
 const laysInHand = (f?: Frame) => f?.player.held?.type === 'structure/floor'
 /** The cell a click builds in: laying the ceiling, the one whose ceiling is drawn at the pointer. */
 const handCell = (a: Tile) => (handUp ? `${a.over?.x ?? a.x},${a.over?.y ?? a.y + 1}` : `${a.x},${a.y}`)
@@ -978,23 +977,24 @@ gameEl.addEventListener('mousedown', (e) => {
     if (e.button === 2) building.toggle(false)
     return
   }
-  // what is held sets down here (it builds): at once, and again in each cell dragged over (no chooser on a long press)
-  if (e.button === 0 && tile && lastFrame?.keys?.use?.sets) {
-    handDrag = handCell(tile)
-    return send({ t: 'key', key: 'use', tile, ...(handUp && { layer: CEILING }) })
+  // Alt with a click: the chooser of every layer there the click reaches (the ceiling among them)
+  if (e.altKey && (e.button === 0 || e.button === 2)) {
+    chooserBy = `mouse${e.button}`
+    return send({ t: 'choices', key: e.button === 0 ? 'primary' : 'secondary', ...(tile && { tile }) })
   }
-  // a built thing in hand elsewhere: the left click is still its use (an experiment), the chooser on a long press
-  const held = lastFrame?.player.held
-  if (e.button === 0 && held && Controls.placeable(held.type)) press('mouse0', 'use', tile)
-  else if (e.button === 0) setSwing(true, tile)
-  if (e.button === 2) press('mouse2', 'action', tile)
+  // the left click: the held thing's own use, at once, and while held a swing again at the pace of one
+  if (e.button === 0) return setSwing(true, tile)
+  if (e.button !== 2) return
+  // the right click: what is held used there; a built thing set up — at once, and again in each cell dragged over
+  const sets = !!tile && !!lastFrame?.keys?.secondary?.sets
+  if (sets) handDrag = handCell(tile!)
+  send({ t: 'key', key: 'secondary', ...(tile && { tile }), ...(sets && handUp && { layer: CEILING }) })
 })
 window.addEventListener('mouseup', (e) => {
   if (e.button === 0) building.release()
-  if (e.button === 0) handDrag = undefined
+  if (e.button === 2) handDrag = undefined
   if (e.button === 0) setSwing(false)
-  if (e.button === 0 && !fishingRelease('mouse')) release('mouse0')
-  if (e.button === 2) release('mouse2')
+  if (e.button === 0) fishingRelease('mouse')
 })
 window.addEventListener(
   'wheel',

@@ -251,10 +251,10 @@ export class BuildingMode {
     this.ghost.classList.toggle('invalid', !this.preview?.ok)
   }
 
-  /** The thing in hand the left click sets down (it builds, outside the palette): its ghost where it will be drawn. */
+  /** The thing in hand the right click sets up (it builds, outside the palette): its ghost where it will be drawn. */
   hand(up: boolean): void {
     if (this.open) return
-    const k = this.frame?.keys?.use
+    const k = this.frame?.keys?.secondary
     const held = this.frame?.player.held
     const on = !!k?.sets && !!held && placeable(held.type)
     this.ghost.classList.toggle('hidden', !on)
@@ -316,7 +316,7 @@ export class BuildingMode {
     this.panel.innerHTML = `<header><strong>${zh ? '建筑模式' : 'BUILD MODE'}</strong><button data-close="1" title="${esc([kbd('build'), 'Esc'].filter(Boolean).join(' / '))}">×</button></header>
       <nav><button data-category="building" class="${this.category === 'building' ? 'chosen' : ''}">${zh ? '建筑' : 'Structures'}</button><button data-category="farming" class="${this.category === 'farming' ? 'chosen' : ''}">${zh ? '种植' : 'Farming'}</button></nav>
       <div class="build-recipes">${entries.map((r) => `<button data-recipe="${r.id}" class="${r.id === this.selected.id ? 'chosen' : ''}"><span class="build-art" data-sprite="${r.sprite}"></span><span>${esc(tx(r.name))}</span></button>`).join('')}</div>
-      <div class="build-details"></div><footer>${esc(tx({ en: 'Left click / {key:hands} place · hold and drag to place a row · {key:use} turn · {key:build} / Esc / RMB exit', zh: '左键 / {key:hands} 放置 · 按住左键拖动连续放置 · {key:use} 转向 · {key:build} / Esc / 右键退出' }))}<br>${esc(tx({ en: '{key:move} move · Time keeps moving', zh: '{key:move} 移动 · 世界时间继续' }))}</footer>`
+      <div class="build-details"></div><footer>${esc(tx({ en: 'Left click / {key:hands} place · hold and drag to place a row · {key:rotate} turn · {key:build} / Esc / RMB exit', zh: '左键 / {key:hands} 放置 · 按住左键拖动连续放置 · {key:rotate} 转向 · {key:build} / Esc / 右键退出' }))}<br>${esc(tx({ en: '{key:move} move · Time keeps moving', zh: '{key:move} 移动 · 世界时间继续' }))}</footer>`
     this.panel.querySelectorAll<HTMLElement>('[data-sprite]').forEach((el) => {
       const c = this.paint?.(el.dataset.sprite!)
       if (c) el.append(c)
@@ -338,7 +338,7 @@ export class BuildingMode {
     const counts = !s.put && this.preview?.have ? this.preview.have : s.needs.map(countOf)
     const nameOf = (n: Entry['needs'][number]) => (n.type ? (carried.find((it) => it.type === n.type)?.name ?? n.name) : n.name)
     const turn = s.put === 'structure/stairs'
-      ? `<p>${esc(tx({ en: '{key:use} turns it: the stairs go up the way the arrow points', zh: '{key:use} 旋转：楼梯朝箭头方向往上' }))}</p>`
+      ? `<p>${esc(tx({ en: '{key:rotate} turns it: the stairs go up the way the arrow points', zh: '{key:rotate} 旋转：楼梯朝箭头方向往上' }))}</p>`
       : lays(s.put)
         ? `<p>${zh ? `R 切换：铺在本层 / 铺成天花板（现在：${this.up ? '天花板' : '本层'}）` : `R switches: on this storey / as the ceiling (now: ${this.up ? 'the ceiling' : 'this storey'})`}</p>`
         : ''
