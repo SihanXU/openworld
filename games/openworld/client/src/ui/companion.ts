@@ -11,7 +11,9 @@ import type { Frame, JournalQuest, Mood, Text } from '@openworld/engine'
 import { BOON_BY_ID, COMPANION_LOOK } from '@openworld-game/content'
 import { portraitOf, preparePortrait } from '@openworld/runtime/src/assets/figure/index.ts'
 import { esc, locale, t, tx } from '@openworld/runtime/src/ui/common.ts'
+import { keys } from '@openworld/runtime/src/keymap.ts'
 import type { GamePanel, PanelContext } from '@openworld/runtime/src/ui/panels.ts'
+import { KNOWLEDGE, KNOWLEDGE_GROUPS } from './knowledge.ts'
 import css from './companion.css?inline'
 import { useStyle } from './style.ts'
 
@@ -31,15 +33,21 @@ const SEAL_MOOD: Mood[] = ['neutral', 'sad', 'shy', 'angry', 'surprised']
 /** The word under her name. */
 const EPITHET = { en: 'your little fairy', zh: '随行的小精灵' }
 
-export type CompanionTab = 'guide' | 'powers'
+export type CompanionTab = 'guide' | 'powers' | 'knowledge'
 
 class CompanionPanel implements GamePanel {
   private sig = ''
   private tab: CompanionTab = 'guide'
+  private knowledge = 'waypoints'
   private frame?: Frame
+  private keymap = JSON.stringify(keys.map)
 
   constructor(private ctx: PanelContext) {
     useStyle('companion', css)
+    keys.onChange(() => {
+      this.keymap = JSON.stringify(keys.map)
+      this.sig = ''
+    })
   }
 
   private get host(): HTMLElement {
@@ -62,7 +70,7 @@ class CompanionPanel implements GamePanel {
     this.frame = f
     const b = f.player.boons
     const road = roadOf(f)
-    const sig = `${locale.value}|${this.tab}|${b?.unlocked.join()}|${b?.active}|${b?.atWaypoint}|${JSON.stringify(road)}`
+    const sig = `${locale.value}|${this.keymap}|${this.tab}|${this.knowledge}|${b?.unlocked.join()}|${b?.active}|${b?.atWaypoint}|${JSON.stringify(road)}`
     if (sig === this.sig) return
     this.sig = sig
     const zh = locale.value === 'zh'
@@ -70,7 +78,7 @@ class CompanionPanel implements GamePanel {
     const name = me?.name ? tx(me.name) : zh ? '露米' : 'Lumi'
     const epithet = tx(EPITHET)
     const tab = (id: CompanionTab, icon: string, en: string, zh2: string) =>
-      `<button class="lm-tab${this.tab === id ? ' on' : ''}" data-tab="${id}"><i>${icon}</i>${zh ? zh2 : en}</button>`
+      `<button class="lm-tab${this.tab === id ? ' on' : ''}" data-tab="${id}" aria-pressed="${this.tab === id}"><i>${icon}</i>${zh ? zh2 : en}</button>`
     this.host.innerHTML = `<div class="sheet wood lm-sheet">
       <aside class="lm-stage">
         <div class="lm-sky"></div>
@@ -81,22 +89,51 @@ class CompanionPanel implements GamePanel {
       </aside>
       <section class="lm-main">
         <div class="lm-head">
-          <div class="lm-tabs">${tab('guide', '✦', 'The Road', '主线指引')}${tab('powers', '✧', "The Seals' Powers", '印之力量')}</div>
+          <div class="lm-tabs">${tab('guide', '✦', 'The Road', '主线指引')}${tab('powers', '✧', "The Seals' Powers", '印之力量')}${tab('knowledge', '▤', 'Knowledge', '知识')}</div>
           <button class="lm-x" data-close title="${zh ? '关闭' : 'Close'}">✕</button>
         </div>
-        <div class="lm-body">${this.tab === 'guide' ? this.guide(road, name) : this.powers(f)}</div>
+        <div class="lm-body">${this.tab === 'guide' ? this.guide(road, name) : this.tab === 'powers' ? this.powers(f) : this.readKnowledge()}</div>
       </section>
     </div>`
     // her face: on the road, glad when nothing presses; on the powers, as the seal she carries stirs her
     const seal = b?.active ? BOON_BY_ID[b.active]?.seal : undefined
     const carried = seal ? seal - 1 : b?.active ? (b.unlocked ?? []).indexOf(b.active) : -1
-    const rest = this.tab === 'guide' ? (road.main || road.guides.length ? undefined : 'happy') : carried >= 0 ? SEAL_MOOD[carried] : undefined
+    const rest = this.tab === 'guide' ? (road.main || road.guides.length ? undefined : 'happy') : this.tab === 'powers' && carried >= 0 ? SEAL_MOOD[carried] : undefined
     this.drawBust(rest)
     if (this.tab === 'powers') this.stirred(rest, epithet)
     this.host.querySelector<HTMLButtonElement>('[data-close]')!.onclick = () => this.ctx.close()
     this.host.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((el) => (el.onclick = () => ((this.tab = el.dataset.tab as CompanionTab), (this.sig = ''), this.render(f))))
+    this.host.querySelectorAll<HTMLButtonElement>('[data-knowledge]').forEach((el) => (el.onclick = () => {
+      this.knowledge = el.dataset.knowledge!
+      this.sig = ''
+      this.render(f)
+      this.host.querySelector('.lm-body')?.scrollTo(0, 0)
+      this.host.querySelector<HTMLButtonElement>(`[data-knowledge="${CSS.escape(this.knowledge)}"]`)?.focus({ preventScroll: true })
+    }))
     this.host.querySelectorAll<HTMLButtonElement>('[data-boon]').forEach((el) => (el.onclick = () => this.ctx.send.boon(el.dataset.boon!)))
     this.host.querySelectorAll<HTMLButtonElement>('[data-log]').forEach((el) => (el.onclick = () => this.ctx.openQuests()))
+  }
+
+  /** Quick answers she has learned along the way, in three small reference shelves. */
+  private readKnowledge(): string {
+    const zh = locale.value === 'zh'
+    const current = KNOWLEDGE.find((entry) => entry.id === this.knowledge) ?? KNOWLEDGE[0]
+    const shelves = KNOWLEDGE_GROUPS.map((group) => {
+      const entries = KNOWLEDGE.filter((entry) => entry.group === group.id)
+      if (!entries.length) return ''
+      return `<section class="lm-kb-shelf"><h4>${esc(tx(group.title))}</h4>${entries.map((entry) =>
+        `<button class="lm-kb-link${entry.id === current.id ? ' on' : ''}" data-knowledge="${entry.id}" aria-pressed="${entry.id === current.id}"${entry.id === current.id ? ' aria-current="page"' : ''}><span>${esc(tx(entry.title))}</span><small>${esc(tx(entry.summary))}</small></button>`,
+      ).join('')}</section>`
+    }).join('')
+    const sections = current.sections.map((section) => `<section class="lm-kb-section"><h4>${esc(tx(section.title))}</h4><p>${esc(tx(section.body))}</p></section>`).join('')
+    return `<div class="lm-knowledge">
+      <nav class="lm-kb-nav" aria-label="${zh ? '知识分类' : 'Knowledge topics'}">${shelves}</nav>
+      <article class="lm-kb-article" aria-labelledby="lm-kb-title">
+        <header class="lm-kb-heading"><span>${esc(tx(KNOWLEDGE_GROUPS.find((g) => g.id === current.group)!.title))}</span><h3 id="lm-kb-title">${esc(tx(current.title))}</h3><p>${esc(tx(current.summary))}</p></header>
+        ${sections}
+        <aside class="lm-kb-tip"><b>${zh ? '露米的小建议' : 'A little tip from Lumi'}</b><p>${esc(tx(current.tip))}</p></aside>
+      </article>
+    </div>`
   }
 
   /** On the powers page: a seal pointed at shows on her face, and its name under hers; away, the carried one's. */
