@@ -686,7 +686,7 @@ export class WorldScene extends Phaser.Scene {
   focusOn(f: Frame): void {
     // a frame made before the worker saw the latest aim tells the old spot: the frame waits for the new
     if (!this.keysFresh()) return
-    const k = f.keys?.hands ?? f.keys?.take ?? f.keys?.put ?? f.keys?.use ?? f.keys?.self ?? f.keys?.action
+    const k = f.keys?.hands ?? f.keys?.put ?? f.keys?.primary ?? f.keys?.secondary
     const [dx, dy] = STEP[f.player.facing]
     const tx = k ? k.x : f.player.x + dx
     const ty = k ? k.y : f.player.y + dy
@@ -1296,6 +1296,8 @@ export class WorldScene extends Phaser.Scene {
     body.setOrigin(t.ax / body.width, t.ay / body.height)
     if (t.actor?.scale) body.setScale(t.actor.scale)
     if (e.type.startsWith('item/') && !e.spaces) body.setScale(0.8)
+    // a built thing come loose lies as a thing does: its own picture, as small as an item's
+    if (e.loose) body.setScale(Math.min(0.8, 14 / Math.max(body.width, body.height)))
     // small growth and litter sit a little off the grid, never in rows
     if ((!e.tags.includes('agent') && !e.tags.includes('portable')) && this.fixtureDef(e)?.loose) body.setPosition((hashStr(e.id, 23) % 9) - 4, (hashStr(e.id, 29) % 5) - 2)
     const hp = this.add.graphics()

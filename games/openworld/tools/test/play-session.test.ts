@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { ModPort, OVERLAYS, OntologyIndex, RuleLibrary, buildSandbox, madeOf, snapshot, validatePatch, type Engine } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
-import { CEILING, Game, DIRS, tickAt, type Dir } from '@openworld/engine'
+import { CEILING, Game, DIRS, LOOSE, tickAt, type Dir } from '@openworld/engine'
 import { buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()
@@ -115,19 +115,29 @@ describe('after the story playthrough', () => {
     return eng
   }
 
-  it('a ceiling taken down comes into the hand whole: carried off is not a floor that lost its footing', () => {
+  it('a ceiling knocked loose comes down whole, to be picked up: knocked loose is not a floor that lost its footing', () => {
     // as built in the tutorial: three walls and a door round one, the ceiling (by the pointer) over the door
-    const eng = sand([{ key: 'w1', type: 'structure/wall', x: 3, y: 4 }, { key: 'w2', type: 'structure/wall', x: 5, y: 4 }, { key: 'w3', type: 'structure/wall', x: 4, y: 3 }, { key: 'door', type: 'structure/door', x: 4, y: 5 }, { key: 'fl', type: 'structure/floor', x: 4, y: 5 }])
+    const eng = sand([{ key: 'w1', type: 'structure/wall', x: 3, y: 4 }, { key: 'w2', type: 'structure/wall', x: 5, y: 4 }, { key: 'w3', type: 'structure/wall', x: 4, y: 3 }, { key: 'door', type: 'structure/door', x: 4, y: 5 }, { key: 'fl', type: 'structure/floor', x: 4, y: 5 }, { key: 'pick', type: 'item/tool/pickaxe', x: 4, y: 4 }])
     const w = eng.world
-    // laid as the player lays it: held, G, the ceiling
+    // laid as the player lays it: held, the right click, the ceiling
     eng.author(() => w.place(w.get('fl')!, { on: 'hand', holder: 'actor' }))
     eng.controls.sync()
-    eng.controls.run(eng.controls.plan('put', { x: 4, y: 5 }, CEILING)!, true)
+    eng.controls.run(eng.controls.plan('secondary', { x: 4, y: 5 }, CEILING)!, true)
     for (let i = 0; i < 3; i++) eng.tick()
     expect(w.get('fl')?.place).toMatchObject({ on: 'tile', z: 1 })
-    eng.controls.run(eng.controls.plan('take', { x: 4, y: 5 }, CEILING)!, true)
+    // a pickaxe in hand, the left click on the ceiling chosen: it comes loose whole and down, packed beside the door
+    eng.author(() => w.place(w.get('pick')!, { on: 'hand', holder: 'actor' }))
+    eng.controls.sync()
+    eng.controls.run(eng.controls.plan('primary', { x: 4, y: 5 }, CEILING)!, true)
     for (let i = 0; i < 5; i++) eng.tick()
-    expect(w.get('fl')?.place).toMatchObject({ on: 'hand', holder: 'actor' })
+    const pack = w.get((w.get('fl')!.place as { holder: string }).holder)!
+    expect(pack.type).toBe(LOOSE)
+    expect(pack.place).toMatchObject({ on: 'tile', x: 4, y: 5 })
+    expect((pack.place as { z?: number }).z ?? 0).toBe(0)
+    // the magnet brings it back whole
+    eng.controls.magnetic = true
+    eng.controls.magnet()
+    expect(w.get('fl')?.place).toMatchObject({ on: 'inside', holder: 'actor' })
     // (a floor whose wall is broken under it still comes down: demo.test W12)
   })
 

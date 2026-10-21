@@ -394,7 +394,8 @@ cooldown table (`skill:<id>:<actor>`), as the Dash's do.
 
 **The skill bar** (client `ui/skillbar.ts`, bottom left): six slots, `Entity.skillbar`, cast with **Shift+1–6**
 or a click, after Dungeon Fighter's — square bevelled frames, the key in the corner, a dark sweep and the
-seconds while a skill rests, a flash when it is ready. A learned active skill goes in the first empty slot;
+seconds while a skill rests, a flash when it is ready. It shows once an active skill is learned (2026-10-20: six
+empty slots said nothing before). A learned active skill goes in the first empty slot;
 over the skill tree, hovering a learned one and pressing Shift+1–6 sets it there; slots are dragged to swap
 and right-clicked to empty. The twenty icons are drawn by code (`tools/src/art/skill-actives.ts`), not by the
 image generator the other icons came from. Proved by `tools/test/actives.test.ts`.

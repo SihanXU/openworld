@@ -37,7 +37,7 @@ describe('the homestead shelves', () => {
 })
 
 describe('fishing choices', () => {
-  it('right-clicking open ground with the held rod opens bait choices without spending bait', () => {
+  it('right-clicking oneself with the held rod opens bait choices without spending bait', () => {
     const eng = buildSandbox({
       terrain: [['grass', 'grass'], ['grass', 'grass']],
       entities: [
@@ -49,7 +49,7 @@ describe('fishing choices', () => {
     }, buildOntology(), new RuleLibrary(BASE_RULES))
     eng.controls.sync()
 
-    const plan = eng.controls.plan('action', { x: 0, y: 0 })
+    const plan = eng.controls.plan('secondary', { x: 0, y: 0 })
     expect(plan).toMatchObject({ key: 'self', verb: 'use', target: { e: 'actor' }, instrument: { e: 'rod' }, rule: 'home/rod-panel' })
     eng.controls.run(plan!)
 

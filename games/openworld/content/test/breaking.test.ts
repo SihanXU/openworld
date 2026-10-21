@@ -51,10 +51,13 @@ function place(type: string, tool?: string): Engine {
   )
 }
 const thingOf = (eng: Engine, type: string) => (type.startsWith('tile/') ? eng.world.cellTop('sandbox', 2, 1) : eng.world.get('thing'))
-/** Has it lost durability, or become something else, or gone (down, broken, transformed)? */
+/** A built thing that can be carried (a wall, a door): a tool knocks it loose rather than wearing it down. */
+const built = (type: string) => (type.startsWith('structure/') || type.startsWith('fixture/')) && index.resolve(type).tags.includes('portable')
+/** Has it lost durability, or become something else, or gone (down, broken, transformed, knocked loose)? */
 function harmed(eng: Engine, type: string, id: string): boolean {
   const e = eng.world.get(id)
   if (!e || e.type !== type) return true
+  if (built(type) && e.place.on !== 'tile') return true
   if (eng.world.hasStatus({ e: id }, 'down')) return true
   return eng.world.num(e, 'hp', eng.world.num(e, 'maxHp')) < eng.world.num(e, 'maxHp')
 }
@@ -76,6 +79,15 @@ describe('breaking (world-model.md §10.2)', () => {
       eng.author(() => eng.queue(strike))
       eng.flush()
       if (!harmed(eng, type, id)) missed.push(`${type}: a blow`)
+      // a built thing that can be carried comes loose whole under a tool (design.md §5.2); a weapon's blow wears it down
+      if (built(type)) {
+        const worn = place(type, 'item/weapon/blade/sword')
+        const t = thingOf(worn, type)!
+        worn.author(() => worn.queue({ ...strike, host: { e: t.id } }))
+        worn.flush()
+        // (worn down, or broken outright — a crate has one point — but never knocked loose)
+        if (!harmed(worn, type, t.id) || worn.world.get(t.id)?.place.on === 'inside') missed.push(`${type}: a weapon's blow`)
+      }
       if (!index.resolve(type).tags.includes('flammable')) continue
       const lit = place(type)
       const f = thingOf(lit, type)!

@@ -6,7 +6,7 @@
 import type { EntitySnap, Frame, MapData } from '@openworld/engine'
 import { ontology } from '../game.ts'
 import type { Atlas, AtlasContinent } from '../protocol.ts'
-import { $, esc, prefs, t, tx } from './common.ts'
+import { $, esc, kbd, prefs, t, tx } from './common.ts'
 
 const colorOf = (id: string) => ontology().terrains[id]?.color ?? '#000'
 /** World map pixels per tile at zoom 1. */
@@ -283,7 +283,7 @@ export class Minimap {
   private n = 0
 
   constructor(onClick: () => void) {
-    $('#hud').insertAdjacentHTML('beforeend', `<div class="minimap wood" id="minimap" title="M"><canvas id="mmCanvas"></canvas><kbd>M</kbd><span class="mm-zone" id="mmZone"></span></div>`)
+    $('#hud').insertAdjacentHTML('beforeend', `<div class="minimap wood" id="minimap" data-kbd-title="map" title="${kbd('map')}"><canvas id="mmCanvas"></canvas><kbd data-kbd="map">${kbd('map')}</kbd><span class="mm-zone" id="mmZone"></span></div>`)
     $('#minimap').onclick = onClick
   }
 

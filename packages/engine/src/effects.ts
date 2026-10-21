@@ -10,7 +10,7 @@ import { GIVEN_LINE, chooseLine, memoryOf, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 import { cannotRead, gainXp, learnSkill, readSkill, skillsOf } from './progression.ts'
 import { appear } from './appear.ts'
-import { WriteError } from './world.ts'
+import { LOOSE, WriteError, isBuilt } from './world.ts'
 import { gearLevel, madeOf, qualityFor } from './recipes.ts'
 import { restyled } from './looks.ts'
 import { stackKey } from './stacks.ts'
@@ -20,10 +20,11 @@ const SPAWN_MAX = 64
 
 /** The kernel's primitives, and what each does (the modules' are their own: module.ts). */
 export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
-  spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?} — create new things at a role\'s place (its tile, contents or hand); type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are taken with F); what cannot be carried (not portable) is made on the holder\'s tile, never in a hand or bag',
+  spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?} — create new things at a role\'s place (its tile, contents or hand); type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are picked up with E); what cannot be carried (not portable) is made on the holder\'s tile, never in a hand or bag',
   destroy: 'destroy {} — the host is gone (with what it holds); the essential (people) never are: they go down instead',
   transform: 'transform {into} — the host becomes another type ("@prop:key" reads the type from its own prop, e.g. emptyType). A cell is made of things (tile/<terrain>: the floor, what roots in the soil, what fills the volume): water becoming ice is the water transforming; becoming a type whose space in its cell another thing holds (rock into gravel, where a floor is), the host is gone instead; a carried host become a thing that cannot be carried is set down at its holder\'s feet',
-  move: 'move {to: role ref, into?: tile|contents|hand} — the host moves itself to a role\'s tile, contents or hand',
+  move: 'move {to: role ref, into?: tile|contents|hand} — the host moves itself to a role\'s tile, contents or hand; a built thing (a fixture, a structure) that comes to rest on a tile lies loose there (packed as item/misc/bundle/loose, which a hand picks up) unless the event says it is set up (param build: the right click\'s, the build palette\'s)',
+  loosen: 'loosen {} — the host, a built thing that can be carried standing on its cell (a bed, a wall), comes loose there whole (a tool knocking it loose): what it holds spills out, and it lies packed as an item for the magnet and the hand; a floor that bears something stays',
   step: 'step {dir?} — the host steps one tile (dir, or the act\'s `dir` param): walls and the solid stop it (a bump), portals carry it',
   addStatus: 'addStatus {status, duration?} — the host gains a status (a threshold/gain event follows)',
   removeStatus: 'removeStatus {status} — the host loses a status (threshold/lose)',
@@ -310,11 +311,30 @@ export class EffectRunner {
         eng.touch({ e: host.id })
         w.place(host, place)
         delete host.dropped
+        // a built thing come to rest on a tile any way but being set up (G, a fall, a spill) lies loose there
+        if (place.on === 'tile' && ev.params?.build !== true && this.packLoose(host)) return
         // a thing that turns (stairs, a fence) set down faces the way the one who set it faced: its
         // front toward them (stairs go up away from them; a fence runs across their way)
         const setter = ev.cause ? w.get(ev.cause) : undefined
         if (place.on === 'tile' && w.hasTag(host, 'turns') && setter?.facing) host.facing = setter.facing
         eng.touch({ e: host.id })
+        return
+      }
+      case 'loosen': {
+        if (!host || host.place.on !== 'tile' || !w.isPortable(host) || !isBuilt(host.type) || w.bears(host)) return
+        if (eng.isProtected(host)) return
+        // what it holds spills out first: a chest knocked loose is not a bag of its own
+        const p = host.place
+        for (const id of [...(host.contents ?? []), ...(host.held ? [host.held] : [])]) {
+          const c = w.get(id)
+          if (!c) continue
+          eng.touch({ e: c.id })
+          w.place(c, { on: 'tile', map: p.map, x: p.x, y: p.y, ...(p.z && { z: p.z }) })
+          c.dropped = true
+          eng.touch({ e: c.id })
+        }
+        const pack = this.packLoose(host)
+        if (pack) pack.dropped = true
         return
       }
       case 'step': {
@@ -966,6 +986,33 @@ export class EffectRunner {
     if (!m) return type
     const v = this.eng.world.view(this.roleRef(ev, m[1] as RoleName))?.props[m[2]]
     return typeof v === 'string' && this.eng.world.onto.hasType(v) ? v : undefined
+  }
+
+  /**
+   * A built thing that can be carried, on its tile and not set up, comes to lie loose there (design.md §5.2): it is
+   * packed into a new `LOOSE` thing on that tile, named as it is (a hand picks the pack up and the thing comes out
+   * into the hand; whose it was stays whose it is). Nothing where the world has no such type (a game without it) or
+   * the thing is no built thing that can be carried. Returns the pack.
+   */
+  private packLoose(host: Entity): Entity | undefined {
+    const w = this.eng.world
+    const p = host.place
+    if (p.on !== 'tile' || !isBuilt(host.type) || !w.isPortable(host) || !w.onto.hasType(LOOSE)) return undefined
+    const pack = w.create(LOOSE, { on: 'tile', map: p.map, x: p.x, y: p.y, ...(p.z && { z: p.z }) })
+    pack.name = host.name ?? w.onto.resolve(host.type).name ?? host.type
+    const owner = w.prop(host, 'owner')
+    // (a thing made in this outcome is the outcome's to fill, as a spawn's)
+    if (owner !== undefined) pack.props = { ...pack.props, owner }
+    this.eng.touch({ e: pack.id })
+    this.eng.touch({ e: host.id })
+    w.place(host, { on: 'inside', holder: pack.id })
+    delete host.dropped
+    this.eng.touch({ e: host.id })
+    // it lies where a thing lying there comes to rest: a ceiling knocked loose comes down to the floor below
+    let z = p.z ?? 0
+    while (z > 0 && w.settleZ(pack, p.map, p.x, p.y, z) === undefined) z--
+    if (z !== (p.z ?? 0)) w.place(pack, { on: 'tile', map: p.map, x: p.x, y: p.y, ...(z && { z }) })
+    return pack
   }
 
   /** Where `into` lands relative to a role: its tile, its contents, or its hand. */

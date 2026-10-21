@@ -59,6 +59,11 @@
       "name": { "en": "Lost Belongings", "zh": "遗落的包裹" },
       "tags": ["belongings", "container"],
       "sprite": "item:bundle"
+    },
+    "item/misc/bundle/loose": {
+      "id": "item/misc/bundle/loose",
+      "name": { "en": "Loose Thing", "zh": "散落的物件" },
+      "tags": []
     }
   },
   "statuses": {

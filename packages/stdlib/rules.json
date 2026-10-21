@@ -181,8 +181,30 @@
     }
   },
   {
+    "id": "body/loose-taken",
+    "label": { "en": "Take {target}", "zh": "拿起{target}" },
+    "doc": "A built thing lying loose (the engine's LOOSE: packed where it came loose, or where it was put down), picked up: the thing itself comes out to the taker; the pack is gone (an empty one is taken as anything is).",
+    "host": { "type": "item/misc/bundle/loose" },
+    "on": "impulse/taken",
+    "tree": {
+      "if": { "count": { "role": "host", "in": "contents", "cmp": { "gt": 0 } } },
+      "then": {
+        "if": { "param": { "key": "quiet", "cmp": true } },
+        "then": { "do": [{ "op": "dropContents", "to": "other" }, { "op": "destroy" }] },
+        "else": {
+          "do": [
+            { "op": "dropContents", "to": "other" },
+            { "op": "log", "text": { "en": "You take {host}.", "zh": "你拿起了{host}。" } },
+            { "op": "destroy" }
+          ]
+        }
+      },
+      "else": "inherit"
+    }
+  },
+  {
     "id": "body/belongings-taken",
-    "doc": "One's belongings, bundled where one fell, taken (F): opened as by a hand — all of it comes back to the taker; the bundle is gone. An empty one is taken as anything is.",
+    "doc": "One's belongings, bundled where one fell, picked up (E): opened as by a hand — all of it comes back to the taker; the bundle is gone. An empty one is taken as anything is.",
     "host": { "type": "item/misc/bundle" },
     "on": "impulse/taken",
     "tree": {

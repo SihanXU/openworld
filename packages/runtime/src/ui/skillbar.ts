@@ -1,13 +1,14 @@
 // The skill bar (bottom left): the six slots of active skills (engine actives.ts), cast with Shift+1–6 or a
 // click. Each slot is a square, bevelled frame round the skill's picture, its key in the corner; while a skill
 // rests, a dark sweep runs round it with the seconds left, and it flashes when it is ready again (after the
-// skill bars of action games: Dungeon Fighter's). A learned active skill goes in the first empty slot by itself;
+// skill bars of action games: Dungeon Fighter's). Hidden until an active skill is learned. A learned active skill goes in the first empty slot by itself;
 // one is moved by dragging it to another slot, set from the skill tree (hovering it, Shift+1–6), and taken out
 // with a right click; all of it is managed in the skill panel (U, ui/skillpanel.ts).
 
 import type { Frame } from '@openworld/engine'
 import { hasModule, skillById } from '../game.ts'
-import { $, esc, locale, tx } from './common.ts'
+import { $, esc, kbd, locale, relabelKeys, t, tx } from './common.ts'
+import type { Action } from '../keymap.ts'
 import { skillPng } from './skillIcons.ts'
 
 export const SKILLBAR_KEYS = ['1', '2', '3', '4', '5', '6']
@@ -20,7 +21,7 @@ export class SkillBar {
     const bar = document.createElement('div')
     bar.className = 'skillbar'
     bar.id = 'skillbar'
-    bar.innerHTML = SKILLBAR_KEYS.map((k, i) => `<div class="sb-slot empty" data-slot="${i}"><img class="sb-icon" alt="" draggable="false"><div class="sb-cd"></div><span class="sb-sec"></span><kbd>⇧${k}</kbd></div>`).join('')
+    bar.innerHTML = SKILLBAR_KEYS.map((_, i) => `<div class="sb-slot empty" data-slot="${i}"><img class="sb-icon" alt="" draggable="false"><div class="sb-cd"></div><span class="sb-sec"></span><kbd data-kbd="cast${i + 1}">${esc(kbd(`cast${i + 1}` as Action))}</kbd></div>`).join('')
     $('#hud').appendChild(bar)
     // the classes module's: a game without it has no skills to cast
     if (!hasModule('classes')) bar.classList.add('hidden')
@@ -38,9 +39,17 @@ export class SkillBar {
     })
   }
 
+  /** The keys drawn on the slots, drawn again (the keys or the language changed). */
+  relabel(): void {
+    relabelKeys($('#skillbar'))
+    this.shown = ''
+  }
+
   onFrame(f: Frame): void {
     const bar = f.player.skillbar ?? []
     const zh = locale.value === 'zh'
+    // six empty slots say nothing to one who has learned no active skill yet: the bar comes with the first
+    if (hasModule('classes')) $('#skillbar').classList.toggle('hidden', !bar.some(Boolean) && !f.player.actives?.length)
     // what is set where: redrawn only when it changes
     const sig = bar.map((s) => s?.id ?? '').join('|') + locale.value
     const slots = [...document.querySelectorAll<HTMLElement>('#skillbar .sb-slot')]
@@ -55,7 +64,7 @@ export class SkillBar {
         const img = el.querySelector<HTMLImageElement>('.sb-icon')!
         if (def) img.src = skillPng(def.icon ?? def.id)
         img.hidden = !def
-        el.title = def ? `${tx(def.name)} — ${zh ? '冷却' : 'cooldown'} ${(def.active?.cooldown ?? 0) / 10}${zh ? ' 秒' : ' s'}\n${tx(def.doc)}\n${zh ? '右键移出技能栏' : 'Right click: take it out'}` : zh ? '空技能槽：学会主动技能后自动放入，或在技能树中悬停技能按 Shift+数字' : 'Empty: learned active skills go here; or hover one in the skill tree and press Shift+number'
+        el.title = def ? `${tx(def.name)} — ${zh ? '冷却' : 'cooldown'} ${(def.active?.cooldown ?? 0) / 10}${zh ? ' 秒' : ' s'}\n${tx(def.doc)}\n${zh ? '右键移出技能栏' : 'Right click: take it out'}` : t('skillSlotEmpty')
       })
     }
     // the cooldowns: a dark sweep and the seconds left; a flash when it is ready again
@@ -86,4 +95,4 @@ export class SkillBar {
 }
 
 /** A hint for the skill tree's hover card: how an active skill gets into the bar. */
-export const skillbarHint = (zh: boolean) => esc(zh ? '主动技能：悬停时按 Shift+1~6 放入技能栏' : 'Active: hover and press Shift+1–6 to set it in the skill bar')
+export const skillbarHint = (_zh: boolean) => esc(t('skillbarHint'))

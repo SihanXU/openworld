@@ -32,44 +32,44 @@ const cells = (xs: readonly (readonly [number, number])[]): [number, number][] =
  */
 export const TUTORIAL_LESSONS: Record<number, Lesson[]> = {
   1: [
-    { id: 'move', say: L('Over here — WASD walks.', '到这儿来——WASD 走路。'), key: 'WASD', focus: { spot: [...FIRST_SPOT] }, allow: ['move'], done: { spot: { x: FIRST_SPOT[0], y: FIRST_SPOT[1], r: 0 } } },
-    { id: 'take', say: L('Berries! Stand by them and press F.', '浆果！站到旁边按 F 捡起来。'), key: 'F', focus: { type: 'item/food/berries' }, allow: ['move', 'take'], done: { carrying: 'item/food/berries' } },
+    { id: 'move', say: L('Over here — {key:move} walks.', '到这儿来——{key:move} 走路。'), key: 'WASD', focus: { spot: [...FIRST_SPOT] }, allow: ['move'], done: { spot: { x: FIRST_SPOT[0], y: FIRST_SPOT[1], r: 0 } } },
+    { id: 'take', say: L('Berries! Stand by them and press {key:hands}.', '浆果！站到旁边按 {key:hands} 捡起来。'), key: 'E', focus: { type: 'item/food/berries' }, allow: ['move', 'take'], done: { carrying: 'item/food/berries' } },
     { id: 'hold', say: L('Take them in hand: their number on the toolbar.', '拿到手上：按快捷栏上它们那一格的数字。'), key: '1–0', focus: { ui: 'slot:item/food/berries' }, allow: ['move', 'select'], done: { holding: 'item/food/berries' } },
-    { id: 'eat', say: L('A right click eats what you hold.', '右键吃掉手里的东西。'), key: 'RMB', focus: { self: true }, allow: ['move', 'select', 'self'], done: { facts: { 'prologue.meals': { gte: 1 } } } },
+    { id: 'eat', say: L('A left click eats what you hold.', '左键吃掉手里的东西。'), key: 'LMB', focus: { self: true }, allow: ['move', 'select', 'self'], done: { facts: { 'prologue.meals': { gte: 1 } } } },
   ],
   2: [
-    { id: 'bag', say: L('I opens your bag: everything you carry.', '按 I 打开背包：身上的东西都在里面。'), key: 'I', focus: { ui: 'bag' }, allow: ['move', 'bag'], done: { facts: { 'ui.bag': { gte: 1 } } } },
-    { id: 'stick', say: L('A stick — F.', '一根树枝——按 F。'), key: 'F', focus: { type: 'item/material/stick' }, done: { carrying: 'item/material/stick' } },
-    { id: 'stone', say: L('A stone.', '一块石头。'), key: 'F', focus: { type: 'item/material/stone' }, done: { carrying: 'item/material/stone' } },
-    { id: 'grass', say: L('And a tuft of grass.', '再来一把草。'), key: 'F', focus: { type: 'item/material/grass' }, done: { carrying: 'item/material/grass' } },
+    { id: 'bag', say: L('{key:bag} opens your bag: everything you carry.', '按 {key:bag} 打开背包：身上的东西都在里面。'), key: 'I', focus: { ui: 'bag' }, allow: ['move', 'bag'], done: { facts: { 'ui.bag': { gte: 1 } } } },
+    { id: 'stick', say: L('A stick — {key:hands}.', '一根树枝——按 {key:hands}。'), key: 'E', focus: { type: 'item/material/stick' }, done: { carrying: 'item/material/stick' } },
+    { id: 'stone', say: L('A stone.', '一块石头。'), key: 'E', focus: { type: 'item/material/stone' }, done: { carrying: 'item/material/stone' } },
+    { id: 'grass', say: L('And a tuft of grass.', '再来一把草。'), key: 'E', focus: { type: 'item/material/grass' }, done: { carrying: 'item/material/grass' } },
   ],
   3: [
-    { id: 'craft', say: L('C opens crafting. Make the stone axe.', '按 C 打开制作，做一把石斧。'), key: 'C', focus: { ui: 'craft:item/weapon/blade/axe' }, allow: ['move', 'craft'], only: ['item/weapon/blade/axe'], done: { carrying: 'item/weapon/blade/axe' } },
+    { id: 'craft', say: L('{key:craft} opens crafting. Make the stone axe.', '按 {key:craft} 打开制作，做一把石斧。'), key: 'C', focus: { ui: 'craft:item/weapon/blade/axe' }, allow: ['move', 'craft'], only: ['item/weapon/blade/axe'], done: { carrying: 'item/weapon/blade/axe' } },
   ],
   4: [
     { id: 'hold-axe', say: L('The axe in hand.', '把斧头拿到手上。'), key: '1–0', focus: { ui: 'slot:item/weapon/blade/axe' }, allow: ['move', 'select'], done: { holding: 'item/weapon/blade/axe' } },
     { id: 'chop', say: L('A tree in the grove: left click, again and again.', '东边林子里的树：左键，一下一下砍。'), key: 'LMB', focus: { terrain: 'tree', from: [27, 12] }, allow: ['move', 'select', 'use'], done: { carrying: 'item/material/log' } },
-    { id: 'split', say: L('C: the logs into planks — the axe at hand does it.', '按 C：把原木做成木板——身上有斧头就行。'), key: 'C', focus: { ui: 'craft:item/material/plank' }, allow: ['move', 'select', 'use', 'craft'], only: ['item/material/plank'], done: { carrying: 'item/material/plank' } },
+    { id: 'split', say: L('{key:craft}: the logs into planks — the axe at hand does it.', '按 {key:craft}：把原木做成木板——身上有斧头就行。'), key: 'C', focus: { ui: 'craft:item/material/plank' }, allow: ['move', 'select', 'use', 'craft'], only: ['item/material/plank'], done: { carrying: 'item/material/plank' } },
   ],
   5: [
-    { id: 'campfire', say: L('B opens building: set a campfire down.', '按 B 打开建造：放一堆营火。'), key: 'B', focus: { ui: 'build:campfire' }, allow: ['move', 'build', 'take'], only: ['campfire'], done: { near: { type: 'fixture/light/campfire', r: 12 } } },
-    { id: 'torch', say: L('C: a torch — a stick and grass.', '按 C 做一支火把：树枝加草。'), key: 'C', focus: { ui: 'craft:item/light/torch' }, done: { carrying: 'item/light/torch' } },
+    { id: 'campfire', say: L('{key:build} opens building: set a campfire down.', '按 {key:build} 打开建造：放一堆营火。'), key: 'B', focus: { ui: 'build:campfire' }, allow: ['move', 'build', 'take'], only: ['campfire'], done: { near: { type: 'fixture/light/campfire', r: 12 } } },
+    { id: 'torch', say: L('{key:craft}: a torch — a stick and grass.', '按 {key:craft} 做一支火把：树枝加草。'), key: 'C', focus: { ui: 'craft:item/light/torch' }, done: { carrying: 'item/light/torch' } },
     { id: 'light', say: L('Torch in hand, left click the fire.', '拿着火把，左键点营火。'), key: 'LMB', focus: { type: 'fixture/light/campfire' }, done: { near: { type: 'fixture/light/campfire', r: 12, status: 'lit' } } },
   ],
   6: [
-    { id: 'wall', say: L('B: a wall — the first one on the outline.', '按 B 选墙——第一面放在画好的轮廓上。'), key: 'B', focus: { cells: cells(TUTORIAL_HOUSE.walls), ui: 'build:put:structure/wall' }, allow: ['move', 'build', 'put', 'select', 'craft', 'use', 'take'], only: ['structure/wall'], cells: cells(TUTORIAL_HOUSE.walls), done: { on: { type: 'structure/wall', cells: cells(TUTORIAL_HOUSE.walls) } } },
+    { id: 'wall', say: L('{key:build}: a wall — the first one on the outline.', '按 {key:build} 选墙——第一面放在画好的轮廓上。'), key: 'B', focus: { cells: cells(TUTORIAL_HOUSE.walls), ui: 'build:put:structure/wall' }, allow: ['move', 'build', 'put', 'select', 'craft', 'use', 'take'], only: ['structure/wall'], cells: cells(TUTORIAL_HOUSE.walls), done: { on: { type: 'structure/wall', cells: cells(TUTORIAL_HOUSE.walls) } } },
     { id: 'door', say: L('Walls round, and a door.', '把墙围起来，再装一扇门。'), key: 'B', focus: { cells: cells([TUTORIAL_HOUSE.door]), ui: 'build:put:structure/door' }, done: { near: { type: 'structure/door', r: 10 } } },
     { id: 'bed', say: L('A bed inside.', '屋里放一张床。'), key: 'B', focus: { cells: cells([TUTORIAL_HOUSE.bed]), ui: 'build:put:fixture/furniture/bed' }, done: { near: { type: 'fixture/furniture/bed', r: 10 } } },
-    { id: 'ceiling', say: L('Now a ceiling: in B choose the floor, and R makes it the ceiling.', '最后是天花板：在 B 里选地板，按 R 切成天花板。'), key: 'R', focus: { ui: 'build:put:structure/floor' }, done: { room: 'bedroom' } },
+    { id: 'ceiling', say: L('Now a ceiling: in {key:build} choose the floor, and {key:rotate} makes it the ceiling.', '最后是天花板：在 {key:build} 里选地板，按 {key:rotate} 切成天花板。'), key: 'R', focus: { ui: 'build:put:structure/floor' }, done: { room: 'bedroom' } },
   ],
   7: [
-    { id: 'chooser', say: L('Hold E on the bed: every layer of a cell, to choose from.', '对着床长按 E：一格里的每一层都列出来，任你选。'), key: 'hold E', focus: { type: 'fixture/furniture/bed' }, done: { facts: { 'ui.chooser': { gte: 1 } } } },
+    { id: 'chooser', say: L('Hold {key:hands} on the bed: every layer of a cell, to choose from.', '对着床长按 {key:hands}：一格里的每一层都列出来，任你选。'), key: 'hold E', focus: { type: 'fixture/furniture/bed' }, done: { facts: { 'ui.chooser': { gte: 1 } } } },
     { id: 'dummy', say: L('A dummy by the house: left click until it topples.', '屋旁有个假人：左键打，直到把它打倒。'), key: 'LMB', focus: { type: 'fixture/dummy' }, allow: ['move', 'select', 'use'], done: { facts: { 'tutorial.dummy': { gte: 1 } } } },
-    { id: 'shut', say: L('Before dark, shut the door: E.', '天黑前关上门：按 E。'), key: 'E', focus: { type: 'structure/door' }, done: { near: { type: 'structure/door', r: 10, exact: true } } },
-    { id: 'sleep', say: L('Then sleep in your bed: E.', '然后上床睡觉：按 E。'), key: 'E', focus: { type: 'fixture/furniture/bed' }, done: { statuses: { asleep: true } } },
+    { id: 'shut', say: L('Before dark, shut the door: {key:hands}.', '天黑前关上门：按 {key:hands}。'), key: 'E', focus: { type: 'structure/door' }, done: { near: { type: 'structure/door', r: 10, exact: true } } },
+    { id: 'sleep', say: L('Then sleep in your bed: {key:hands}.', '然后上床睡觉：按 {key:hands}。'), key: 'E', focus: { type: 'fixture/furniture/bed' }, done: { statuses: { asleep: true } } },
   ],
   [TUTORIAL_DONE]: [
-    { id: 'map', say: L('M: the world map — every place you have been.', '按 M 打开世界地图：去过的地方都在上面。'), key: 'M', focus: { ui: 'map' }, done: { facts: { 'ui.map': { gte: 1 } } } },
+    { id: 'map', say: L('{key:map}: the world map — every place you have been.', '按 {key:map} 打开世界地图：去过的地方都在上面。'), key: 'M', focus: { ui: 'map' }, done: { facts: { 'ui.map': { gte: 1 } } } },
   ],
 }
 
@@ -140,7 +140,7 @@ export const PROLOGUE_BEATS: StepDef[] = [
     // the first waypoint statue in view, whenever that is
     id: 'see_waypoint',
     when: { near: { type: 'fixture/sacred/waypoint', r: 6 }, statuses: { out_cold: false } },
-    say: L('Look — a waypoint statue! Walk up and press E to wake it; then the map (M) can take you back to it from anywhere.', '看——是传送雕像！走过去按 E 唤醒它，以后在地图（M）上就能从任何地方传送回来。'),
+    say: L('Look — a waypoint statue! Walk up and press {key:hands} to wake it; then the map ({key:map}) can take you back to it from anywhere.', '看——是传送雕像！走过去按 {key:hands} 唤醒它，以后在地图（{key:map}）上就能从任何地方传送回来。'),
   },
   {
     id: 'relic',
@@ -151,7 +151,7 @@ export const PROLOGUE_BEATS: StepDef[] = [
     id: 'tried',
     // after the stone was seen: an experiment anywhere before it is not the stone's lesson
     when: { after: 'relic', facts: { 'world.experiments': { gte: 1 } }, quest: { descent: { lt: 30 } } },
-    say: L('Did you see? The world answers what it has never seen. What it learns is kept in the Threadbook — J. Now, down to the Ford!', '看到了吗？世界会回应它从没见过的事。它学会的都记在织线簿里——按 J。走吧，下山去渡口！'),
+    say: L('Did you see? The world answers what it has never seen. What it learns is kept in the Threadbook — {key:journal}. Now, down to the Ford!', '看到了吗？世界会回应它从没见过的事。它学会的都记在织线簿里——按 {key:journal}。走吧，下山去渡口！'),
   },
   {
     // however they got here, the Ford ends the prologue

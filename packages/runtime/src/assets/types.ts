@@ -146,7 +146,7 @@ export interface Catalog {
    * UI: dialogue box, faceset box, etc. Some keys the runtime looks for: `<tag>Mark`, a sign drawn over the head of
    * anyone with that tag (a trainer's crossed blades: `trainerMark`); `equipSlots`, a strip of the empty body slots'
    * silhouettes, a frame each (every `step` px, default `w`) in the order of EQUIP_SLOT_FRAMES (none: a glyph each);
-   * `cursorHand` and `emoteDots`, the pointer over what the action (the right click) handles and over someone to talk
+   * `cursorHand` and `emoteDots`, the pointer over what the hand (E) picks up or handles and over someone to talk
    * to (none: the arrow).
    */
   ui: Record<string, SpriteDef>

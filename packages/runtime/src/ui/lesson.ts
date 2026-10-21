@@ -6,14 +6,13 @@
 // so it asks the lesson here and tells the story when one is opened (a lesson may wait on it).
 
 import type { Frame, FxEvent, LessonInput, LessonView } from '@openworld/engine'
+import { lessonKey, keys } from '../keymap.ts'
 import { locale } from './common.ts'
 
-/** How a key is named on screen. */
+/** How a mouse button is named on screen (a key, written as the default map has it, is the key that does that now: keymap.ts). */
 const KEY_TEXT: Record<string, { en: string; zh: string }> = {
   LMB: { en: 'Left click', zh: '左键' },
   RMB: { en: 'Right click', zh: '右键' },
-  'hold E': { en: 'Hold E', zh: '长按 E' },
-  'hold G': { en: 'Hold G', zh: '长按 G' },
 }
 
 export class LessonGuide {
@@ -133,7 +132,7 @@ export class LessonGuide {
     if (hide || !l) return
     const t = this.target(l)
     const zh = locale.value === 'zh'
-    const key = l.key ? (KEY_TEXT[l.key]?.[zh ? 'zh' : 'en'] ?? l.key) : ''
+    const key = l.key ? (KEY_TEXT[l.key]?.[zh ? 'zh' : 'en'] ?? lessonKey(l.key, keys.map, locale.value)) : ''
     const text = `<b>${key}</b><span>${l.index + 1}/${l.total}</span>`
     if (this.glyph.innerHTML !== text) this.glyph.innerHTML = text
     this.glyph.style.left = `${t.x}px`
