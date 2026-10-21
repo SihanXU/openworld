@@ -1,6 +1,7 @@
 // npm run wiki:build -- [--out <dir>] [--ref <branch>] [--strict]
-// Builds the whole wiki into a directory served at /wiki (default games/openworld/wiki/out). With --strict a
-// build with errors writes nothing and exits 1, so a server keeps the last good version.
+// Builds the whole wiki, both editions, into a directory served at /wiki (default games/openworld/wiki/out): the
+// Chinese at /wiki/, the English at /wiki/en/. With --strict a build with errors writes nothing and exits 1, so a
+// server keeps the last good version.
 
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -11,7 +12,8 @@ import { lookPngs, lookUrls } from './looks.ts'
 import { pageHtml } from './layout.ts'
 import { renderMap } from './render-map.ts'
 import { plain } from './markup.ts'
-import { ROOT, WIKI, buildSite, pageSummary, type Built } from './site.ts'
+import { L, setLang, titlePath } from './lang.ts'
+import { ROOT, TYPE_EN, WIKI, buildSite, pageSummary, pairEditions, type Built } from './site.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 
@@ -41,17 +43,27 @@ function mapPng(b: Built, map: any): Buffer {
   return encodePng(W, H, rgba)
 }
 
-export function writeSite(b: Built, out: string): void {
+/** Both editions into one directory: the Chinese at its root, the English under en/, the pictures and scripts shared. */
+export function writeSite(editions: Built[], out: string): void {
   rmSync(out, { recursive: true, force: true })
   mkdirSync(join(out, '_', 'maps'), { recursive: true })
-  const fileOf = (title: string) => join(out, title.replace(/\//g, '／'), 'index.html')
-  for (const p of b.pages.values()) {
-    const f = fileOf(p.title)
-    mkdirSync(dirname(f), { recursive: true })
-    writeFileSync(f, pageHtml(b, p))
+  for (const b of editions) {
+    setLang(b.lang)
+    const root = b.lang === 'zh' ? out : join(out, 'en')
+    for (const p of b.pages.values()) {
+      const f = join(root, ...titlePath(p.title).split('/'), 'index.html')
+      mkdirSync(dirname(f), { recursive: true })
+      writeFileSync(f, pageHtml(b, p))
+    }
+    const home = b.byKey.get('p:首页')
+    if (home) writeFileSync(join(root, 'index.html'), pageHtml(b, home))
+    const index = [...b.pages.values()].filter((p) => !p.key.startsWith('c:') && p.key !== 's:随机页面' && p.key !== 's:搜索').map((p) => ({
+      t: p.title, a: p.aliases, k: p.special ? L('特殊', 'Special') : b.lang === 'en' ? TYPE_EN[p.type] ?? p.type : p.type, s: pageSummary(p).slice(0, 100), x: plain(p.html).slice(0, 1600), st: p.stub ? 1 : 0,
+    }))
+    writeFileSync(join(out, '_', b.lang === 'zh' ? 'search.json' : `search.${b.lang}.json`), JSON.stringify(index))
   }
-  const home = b.pages.get('首页')
-  if (home) writeFileSync(join(out, 'index.html'), pageHtml(b, home))
+  setLang('zh')
+  const b = editions[0]
   // each map as the game draws it; its ground colours if that fails
   for (const m of b.game.maps) {
     let png: Buffer
@@ -81,10 +93,15 @@ export function writeSite(b: Built, out: string): void {
     } catch { cpSync(join(CONCEPT, f), target) }
   }
   for (const f of ['wiki.css', 'wiki.js']) cpSync(join(HERE, '..', 'assets', f), join(out, '_', f))
-  const index = [...b.pages.values()].filter((p) => !p.title.startsWith('分类：') && p.title !== '特殊：随机页面' && p.title !== '特殊：搜索').map((p) => ({
-    t: p.title, a: p.aliases, k: p.special ? '特殊' : p.type, s: pageSummary(p).slice(0, 100), x: plain(p.html).slice(0, 1600), st: p.stub ? 1 : 0,
-  }))
-  writeFileSync(join(out, '_', 'search.json'), JSON.stringify(index))
+}
+
+/** Both editions, the English after the Chinese it translates, each told where its pages are in the other. */
+export function buildBoth(opts: { ref?: string } = {}): [Built, Built] {
+  const zh = buildSite({ ...opts, lang: 'zh' })
+  const en = buildSite({ ...opts, lang: 'en', zh })
+  pairEditions(zh, en)
+  setLang('zh')
+  return [zh, en]
 }
 
 function main(): void {
@@ -94,17 +111,24 @@ function main(): void {
   const strict = args.includes('--strict')
   const check = args.includes('--check')
   const t0 = Date.now()
-  const b = buildSite({ ref: opt('--ref') })
-  const n = b.pages.size
-  for (const w of b.warnings) console.warn(`提醒：${w}`)
-  for (const e of b.errors) console.error(`错误：${e}`)
-  if (b.missingTr.size) console.warn(`缺译名：${[...b.missingTr].map(([s, k]) => `${s}(${[...k].join(', ')})`).join('; ')}`)
-  console.log(`${n} 页，${b.errors.length} 个错误，${b.warnings.length} 个提醒，${b.redLinks.size} 个红链（${Date.now() - t0} ms）`)
-  if (check) { process.exitCode = b.errors.length ? 1 : 0; return }
-  const hard = b.errors.filter((e) => !e.startsWith('完备性：'))
+  const editions = buildBoth({ ref: opt('--ref') })
+  const errors: string[] = []
+  for (const b of editions) {
+    const tag = b.lang === 'zh' ? '中文' : 'English'
+    for (const w of b.warnings) console.warn(`提醒（${tag}）：${w}`)
+    for (const e of b.errors) console.error(`错误（${tag}）：${e}`)
+    if (b.missingTr.size) console.warn(`缺译名（${tag}）：${[...b.missingTr].map(([s, k]) => `${s}(${[...k].join(', ')})`).join('; ')}`)
+    const tr = b.lang === 'en' ? [...b.pages.values()].filter((p) => p.source) : []
+    const count = (s: string) => tr.filter((p) => p.translation === s).length
+    console.log(`${tag}：${b.pages.size} 页，${b.errors.length} 个错误，${b.warnings.length} 个提醒，${b.redLinks.size} 个红链${b.lang === 'en' ? `；译文 ${count('current')} 篇最新、${count('outdated')} 篇过时、${count('missing')} 篇未译` : ''}`)
+    errors.push(...b.errors)
+  }
+  console.log(`（${Date.now() - t0} ms）`)
+  if (check) { process.exitCode = errors.length ? 1 : 0; return }
+  const hard = errors.filter((e) => !e.startsWith('完备性：'))
   if (strict && hard.length) { console.error(`有 ${hard.length} 个错误，没有写出网站（完备性缺口不挡发布，只挡 CI）。`); process.exitCode = 1; return }
   const tmp = out + '.tmp'
-  writeSite(b, tmp)
+  writeSite(editions, tmp)
   rmSync(out + '.old', { recursive: true, force: true })
   if (existsSync(out)) renameSync(out, out + '.old')
   renameSync(tmp, out)

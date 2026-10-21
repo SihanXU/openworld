@@ -220,6 +220,12 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (the live site and the team's editing use that path). Every item, fixture, person, creature, boss, map
   and quest gets a page; `npm run wiki:check` fails on broken links/templates or a thing/system without a page (CI
   `.github/workflows/wiki.yml`). A change to game content that adds a thing or system needs its wiki page.
+  Two editions (`lang.ts`: one build each, every word through `L(zh, en)` or the game's own `say`): Chinese is the source;
+  English is its translation at `/wiki/en/`, a page `wiki/en/pages/<the Chinese page's path>.md` whose `source:` is the
+  hash of the Chinese text it translates (`npm run wiki:translate -- status | stamp | relink`; untranslated and out-of-date
+  pages are shown with a banner, never fail the check), `wiki/en/site.json` the navigation's headings, `wiki/en/terms.json`
+  the term table. A link or template argument may name a page in Chinese in an English page: it resolves to the English page
+  (`relink` rewrites it); templates have English names too (`TEMPLATE_EN`).
 - `packages/agent` — the SWE-style agent and its self-state, task-agnostic (no engine, no content):
   `model.ts` (OpenAI-compatible / scripted / `anthropic.ts` Anthropic's API; `LSW_MODEL_PIN` freezes the provider for an experiment; `LSW_NO_ANTHROPIC=1`
   makes the claude-code backend and `anthropic/*` models refuse on a machine),
@@ -357,7 +363,8 @@ npm run build:player     # the player alone → packages/runtime/dist, the start
 npm run game -- check games/starter   # a project's problems (build <project> --out <dir>: a bundle)
 npm run bake             # OpenWorld as a project in the format → games/openworld/project/
 npm run schema           # the project's JSON Schemas from the engine's types
-npm run wiki             # the wiki on http://localhost:5180/wiki/ (wiki:check, wiki:build)
+npm run wiki             # the wiki on http://localhost:5180/wiki/, English at /wiki/en/ (wiki:check, wiki:build)
+npm run wiki:translate -- status | stamp [file…] | relink [file…]   # the English edition's upkeep
 npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]   # everyone's portrait and sprite (docs/looks.md)
 # portrait parts: a local ComfyUI with Qwen-Image-Edit (tools/src/art/looks/portrait/setup.md), then
 #   python -I parts.py <work> && python -I batch.py <work>/jobs.json && python -I build.py <work> games/openworld/public/assets/lsw/Looks/portrait
