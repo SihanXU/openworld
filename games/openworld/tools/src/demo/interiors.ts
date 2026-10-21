@@ -26,7 +26,7 @@ export function emberfallRooms(): Room[] {
   elder.fixture('fixture/container/chest', 10, 6)
   const smithy = room('emberfall.smithy', "Garrick's Smithy", '加里克的铁匠铺', 12, 9, 'stone', 'floor_stone')
   smithy.fixture('fixture/furniture/rack', 2, 1, { name: L('Tool rack', '工具架') })
-  smithy.fixture('fixture/furniture/rack', 3, 1, { name: L('Weapon rack', '兵器架') })
+  smithy.fixture('fixture/furniture/rack/arms', 3, 1)
   smithy.fixture('fixture/furniture/table', 6, 3, { name: L('The dragon-blade pattern', '屠龙剑图样'), tags: ['readable'], props: { text: 'A pattern for a blade, inked and re-inked by twelve smiths. In the margin, in a newer hand: "Five iron ore. Three coal. Then we will see."', text_zh: '一张剑的图样，十二代铁匠一遍遍描过。页边是较新的字迹：“五块铁矿石，三块煤。到时候再说。”' } })
   smithy.fixture('fixture/container/barrel', 1, 5, { name: L('Quench barrel', '淬火桶') })
   smithy.fixture('fixture/container/crate', 10, 5, { name: L('Coal crate', '煤箱') })

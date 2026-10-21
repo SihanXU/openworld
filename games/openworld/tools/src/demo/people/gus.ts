@@ -33,7 +33,7 @@ export const gus: PersonDef = {
   purse: 20,
   schedules: {
     default: [
-      [21, 6, 'meadow:wood.home', 'sleep'],
+      [21, 6, 'meadow.woodhouse:bed.0', 'sleep'],
       [6, 12, 'forest:woods.clearing', 'fell trees', { work: FELL }],
       [12, 21, 'meadow:wood.pile', 'stack the wood', { work: STACK }],
     ],

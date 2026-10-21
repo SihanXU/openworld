@@ -15,7 +15,7 @@ import { OntologyIndex, type Dir, type Entity, type Look } from '@openworld/engi
 import { TERRAIN_CHARS } from '@openworld-game/content'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '@openworld/runtime/src/assets/types.ts'
 import { CATALOG } from './bundle.ts'
-import { T, groundTile, hash2, type GroundAtlas } from '@openworld/runtime/src/assets/ground.ts'
+import { T, groundBeneath, groundTile, hash2, type GroundAtlas } from '@openworld/runtime/src/assets/ground.ts'
 import { personLook } from '@openworld/runtime/src/assets/looks.ts'
 import type { ActorDef, SpriteDef } from '@openworld/runtime/src/assets/types.ts'
 import { bossAnimationFrame } from '@openworld/runtime/src/render/boss-animation.ts'
@@ -170,7 +170,7 @@ class Picture {
 
 // ------------------------------------------------------------------------------------------ the ground atlas
 
-/** The ground's tiles as the client's GroundAtlas composes them (a tile over the one `under` it, then its tint), by index. */
+/** The ground's tiles as the client's GroundAtlas composes them (a tile, its tint, over the one `under` it), by index. */
 const tiles: Image[] = []
 const tileIndex = new Map<string, number>()
 
@@ -196,16 +196,29 @@ const atlas = {
     const key = `${img}|${col}|${row}|${tint ?? ''}|${under?.join(',') ?? ''}`
     const hit = tileIndex.get(key)
     if (hit !== undefined) return hit
+    // the tile, tinted (canvas source-atop: its colour at its strength over the tile's own pixels), then what lies
+    // under it behind (the client's order: the tint never colours the underlay)
     const px = new Uint8Array(T * T * 4)
-    const below = under && image(under[0])
-    if (below) over(px, below, under![1], under![2])
     const src = image(img)
     if (src) over(px, src, col, row)
-    // a tint over what is drawn (canvas source-atop): its colour at its strength, the tile's alpha kept
     const m = tint && /rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/.exec(tint)
     if (m) {
       const tc = [Number(m[1]), Number(m[2]), Number(m[3])], ta = m[4] === undefined ? 1 : Number(m[4])
       for (let o = 0; o < px.length; o += 4) if (px[o + 3]) for (let c = 0; c < 3; c++) px[o + c] = px[o + c] * (1 - ta) + tc[c] * ta
+    }
+    const below = under && image(under[0])
+    if (below) {
+      const back = new Uint8Array(T * T * 4)
+      over(back, below, under![1], under![2])
+      for (let o = 0; o < px.length; o += 4) {
+        const sa = px[o + 3] / 255
+        const da = back[o + 3] / 255
+        const oa = sa + da * (1 - sa)
+        if (!oa) continue
+        for (let c = 0; c < 3; c++) back[o + c] = (px[o + c] * sa + back[o + c] * da * (1 - sa)) / oa
+        back[o + 3] = oa * 255
+      }
+      px.set(back)
     }
     tiles.push({ w: T, h: T, rgba: px })
     tileIndex.set(key, tiles.length - 1)
@@ -401,6 +414,8 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
   const heights: number[] | undefined = raw.heights?.flatMap((row: string) => [...row].map(Number))
   // outside the map the edge continues, so autotiles draw no border there
   const terrainAt = (x: number, y: number): string => terrain[Math.min(H - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x))]
+  // the ground under buildings and fences is the ground round them, as the client draws it (ground.ts groundBeneath)
+  const groundAt = groundBeneath(CATALOG, raw.stamps, terrainAt)
   const pic = new Picture(W * T, H * T, scale, BACKGROUND)
   // what is drawn, by depth; two at one depth in the order the client adds them (the sort is stable)
   const ops: { depth: number; draw: () => void }[] = []
@@ -415,7 +430,7 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
   at(-100, () => {
     for (let y = 0; y < H; y++)
       for (let x = 0; x < W; x++) {
-        const t = tiles[groundTile(atlas, CATALOG, terrainAt, x, y, raw.light === 'dark')] ?? tiles[0]
+        const t = tiles[groundTile(atlas, CATALOG, groundAt, x, y, raw.light === 'dark')] ?? tiles[0]
         if (t) pic.blit({ img: t, rect: [0, 0, T, T], x: x * T, y: y * T, ox: 0, oy: 0 })
       }
   })
@@ -468,7 +483,8 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
     for (let dx = 0; dx < r.w; dx++)
       for (let dy = 0; dy < r.h; dy++) {
         const left = dx === 0, right = dx === r.w - 1, top = dy === 0, bottom = dy === r.h - 1
-        if (!(left || right || top || bottom) || terrainAt(r.x + dx, r.y + dy) === 'door') continue
+        // a door, or a doorway between two rooms of a house (its floor runs through the wall): no wall drawn there
+        if (!(left || right || top || bottom) || !['wall', 'woodwall', 'void'].includes(terrainAt(r.x + dx, r.y + dy))) continue
         const sc = left ? 0 : right ? size - 1 : mid(dx)
         const sr = top ? 0 : bottom ? size - 1 : mid(dy)
         at(bottom ? (r.y + dy + 1) * T + 1 : -40, () => pic.blit({ img, rect: [(def.col + sc) * T, (def.row + sr) * T, T, T], x: (r.x + dx) * T, y: (r.y + dy) * T, ox: 0, oy: 0 }))

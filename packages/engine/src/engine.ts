@@ -1180,8 +1180,10 @@ export class Engine {
     const portalHere = w.map(map)?.portals.find((p) => p.x === nx && p.y === ny && (!p.opensWhen || !!w.fact(p.opensWhen)))
     // only the player uses portals by stepping on them; NPCs transfer from the tile beside
     if (portalHere && !isPlayer) return false
-    // off the edge of a map that lies on the overworld: out onto its cell there (world-model.md §5.1)
-    if (!w.inBounds(map, nx, ny) && isPlayer && w.map(map)?.site) {
+    // off the edge of a map that lies on the overworld: out onto its cell there (world-model.md §5.1) — but never
+    // from a way the story has not opened yet (one stands on it, so it is sealed): it leads nowhere until it opens
+    const sealedHere = !!w.map(map)?.portals.some((p) => p.x === x && p.y === y)
+    if (!w.inBounds(map, nx, ny) && isPlayer && w.map(map)?.site && !sealedHere) {
       this.leaveByEdge(e, x, y, dir)
       return true
     }

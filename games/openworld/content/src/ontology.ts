@@ -467,6 +467,11 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/container/sack', 'sack', '麻袋', ['cloth', 'flammable'], { solid: false, props: { capacity: 4, material: 'cloth', maxHp: 3, hp: 3 }, makeup: [{ type: 'item/material/cloth', count: 1 }] }),
   F('fixture/furniture', 'furniture', '家具', ['wooden', 'flammable'], { solid: true }),
   F('fixture/furniture/table', 'table', '桌子', ['surface']),
+  // what a household lives with (docs/release-1.md): a family's long table, a chest of drawers, a cupboard, a plant on the sill
+  F('fixture/furniture/table/long', 'long table', '长餐桌', ['surface'], { solid: true, footprint: [3, 1], sprite: 'fixture:long_table' }),
+  F('fixture/container/drawers', 'chest of drawers', '五斗柜', ['wooden', 'flammable'], { solid: true, props: { capacity: 8, material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
+  F('fixture/container/cupboard', 'cupboard', '橱柜', ['wooden', 'flammable'], { solid: true, footprint: [2, 1], props: { capacity: 12, material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/plank', count: 4 }] }),
+  F('fixture/nature/plant', 'potted plant', '盆栽', ['plant', 'clay', 'fragile', 'breakable'], { solid: true, props: { material: 'clay', maxHp: 1, hp: 1 } }),
   F('fixture/furniture/chair', 'chair', '椅子', [], { solid: false }),
   // one lies on a bed: a hand on it reaches only from on it
   // a bed is made by hand (planks and a mattress of grass), carried, and set down where one sleeps
@@ -474,6 +479,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/bench', 'bench', '长椅', ['surface'], { solid: false }),
   F('fixture/furniture/bench/log', 'log bench', '原木长凳', [], { solid: true, footprint: [3, 1], sprite: 'fixture:log_bench' }),
   F('fixture/furniture/rack', 'cooking rack', '炊架', ['surface']),
+  // the watch's and the smith's: spears, a sword and a shield stood in a wooden rack (docs/release-1.md)
+  F('fixture/furniture/rack/arms', 'weapon rack', '兵器架', ['wooden', 'flammable'], { solid: true, sprite: 'fixture:arms_rack' }),
   F('fixture/furniture/counter', 'counter', '柜台', ['surface']),
   // the general store's counter, the church's bookstand: shops whose offers are recipes (village.ts)
   F('fixture/furniture/counter/store', 'general store counter', '杂货铺柜台', ['shop', 'station:store'], { sprite: 'fixture:counter' }),

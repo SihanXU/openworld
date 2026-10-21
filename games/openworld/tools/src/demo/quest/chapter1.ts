@@ -14,7 +14,7 @@ const say = (who: string, en: string, zh: string, mood?: 'neutral' | 'happy' | '
 
 /** Where the chapter puts things (map coordinates). */
 export const CH1_AT = {
-  village: { shrine: [23, 16] as const, statue: [24, 14] as const, drawing: [20, 16] as const, statueStone: [14, 13] as const, severin: [26, 17] as const, courier: [24, 18] as const },
+  village: { shrine: [23, 16] as const, statue: [24, 14] as const, drawing: [20, 16] as const, statueStone: [30, 19] as const, severin: [26, 17] as const, courier: [24, 18] as const },
   ford: { stone: [17, 13] as const, drawing: [27, 21] as const, briars: [[29, 21], [35, 21]] as const },
   foot: { drawing: [22, 13] as const },
   summit: { log: [13, 4] as const },
@@ -66,14 +66,12 @@ export function chapter1Village(m: MapBuilder): void {
   statue(m, 'wp.village', ...a.statueStone, 'Firstlight', '初原村')
   drawing(m, 'man', ...a.drawing, 'A hooded man with a lantern, beside a fire. Underneath, in a child\'s letters: HE WAS HERE FIRST.', '一个提着灯、戴兜帽的人，站在火堆旁。下面是孩子的字迹：他先来的。')
   anchor(m, 'shrine.tend', ...a.shrine)
-  anchor(m, 'ilse.home', 10, 14)
+  // (Ilse, Joss and Edda sleep in their own beds: the chapel, the house in the lane, the little cabin — village.ts)
   anchor(m, 'joss.bench', 12, 19)
-  anchor(m, 'joss.home', 9, 14)
   anchor(m, 'pell.play', 18, 13)
   anchor(m, 'nessa.desk', 27, 16)
   anchor(m, 'nessa.watch', 34, 17)
   anchor(m, 'fennick.bench', 21, 19)
-  anchor(m, 'edda.home', 13, 14)
   anchor(m, 'edda.garden', 25, 21)
   anchor(m, 'severin.stand', ...a.severin)
   anchor(m, 'courier.stand', ...a.courier)

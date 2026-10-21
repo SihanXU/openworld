@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest'
 import { textOf, isPatch, restoreLibrary, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
 import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf, kitsOf } from '@openworld/modules'
-import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP } from '@openworld-game/content'
+import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, PART_TWO, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP } from '@openworld-game/content'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { CH1_AT } from '../src/demo/quest/chapter1.ts'
@@ -506,23 +506,35 @@ req('D2', 'every layer a target can be: a person, a creature, a fixture, a loose
 
 // ------------------------------------------------------------------ F. what a game needs at the least
 
-req('F1', 'the goal is a state: the far bank ends the bridge stage, however the player got there', ['region:far_bank'], () => {
-  const f = fresh()
-  // set down on the landing, then a step on it: arriving is an outcome (the author's hand makes no contact)
-  stand(f, ...AT.farLanding, 'right')
-  walk(f, 'right')
-  W(f).fx = []
-  const cards: unknown[] = []
-  expect(
-    ticks(f, 400, () => {
-      cards.push(...W(f).fx.filter((x) => x.t === 'card'))
+req('F1', 'the goal is a state: the far bank ends the bridge stage, however the player got there — and release 1 with it (Part One, docs/release-1.md): its card, the road east sealed', ['region:far_bank'], () => {
+  /** Across onto the far bank with the pilgrimage called; the cards shown until the story rests. */
+  const across = (part2: boolean) => {
+    const f = fresh()
+    if (part2) author(f, () => W(f).setFact(PART_TWO, 1))
+    // set down on the landing, then a step on it: arriving is an outcome (the author's hand makes no contact)
+    stand(f, ...AT.farLanding, 'right')
+    walk(f, 'right')
+    W(f).fx = []
+    const cards: { text: { en: string } }[] = []
+    const rest = (n: number) => ticks(f, n, () => {
+      cards.push(...(W(f).fx.filter((x) => x.t === 'card') as unknown as { text: { en: string } }[]))
       W(f).fx = []
-      return f.eng.quests.stage('first_seal') === 40 && !W(f).scene
-    }),
-  ).toBe(true)
-  expect(far(f)).toBe(true)
-  // the chapter goes on past the bridge (docs/chapter-1.md): no card here
-  expect(cards.length).toBe(0)
+      return false
+    })
+    expect(ticks(f, 400, () => f.eng.quests.stage('first_seal') === 40 && !W(f).scene)).toBe(true)
+    rest(300)
+    expect(far(f)).toBe(true)
+    return { f, cards }
+  }
+  // release 1: Part One ends on the far bank, once
+  const one = across(false)
+  expect(one.cards.map((c) => c.text.en.split('\n')[0])).toEqual(['PART ONE · THE FORD'])
+  // the road east is sealed: off the Ford's east edge one stays on the Ford, and the Rest's place on the world map is shut
+  expect(cross(one.f, 'ford', W(one.f).map('ford')!.width - 1, EAST_ROAD.fordEast[1], 'right')).toBe('ford')
+  expect(W(one.f).posOf(W(one.f).player)!.x).toBe(W(one.f).map('ford')!.width - 1)
+  expect(W(one.f).get('site.waystation')?.props?.opensWhen).toBe(PART_TWO)
+  // with Part Two open the chapter goes on past the bridge (docs/chapter-1.md): no card here
+  expect(across(true).cards).toEqual([])
 })
 
 req('F1b', 'a story step begins on entering an authored region: the far bank is a thing, entering it is contact (in-region), and its scene starts on the next tick, not at a poll', ['region:far_bank'], () => {
@@ -1456,8 +1468,9 @@ req('W9', 'a recipe derived from what a thing is made of, made at the village wo
   c.craft(recipe)
   expect(shields()).toHaveLength(0)
   expect(c.count('item/material/plank')).toBe(3)
-  // beside the village's
-  stand(f, 11, 19, 'up', FIRSTLIGHT.map)
+  // beside the village's, in the woodcutter's yard
+  const bench = W(f).get('village.workbench')!.place as { x: number; y: number }
+  stand(f, bench.x, bench.y + 1, 'up', FIRSTLIGHT.map)
   expect(c.craft(recipe)).toBe(true)
   const plain = shields()[0]
   expect(plain.name).toEqual({ en: 'Wooden Shield', zh: '木盾牌' })
@@ -1800,7 +1813,9 @@ req('F17', 'Firstlight Village is the former meadow: homes, a well, a lit square
   const ford = w.map('ford')!
   expect(village.name).toEqual(FIRSTLIGHT.name)
   expect(village.kind).toBe('village')
-  expect(village.stamps?.filter((s) => s.key.startsWith('house_'))).toHaveLength(5)
+  // the four cottages (Marta's, the elder's, the watch house, the woodcutter's), the lane's cabin and Edda's hut beside them
+  expect(village.stamps?.filter((s) => s.key.startsWith('house_'))).toHaveLength(4)
+  expect(village.stamps?.filter((s) => s.key === 'cabin' || s.key === 'hut_straw')).toHaveLength(2)
   expect(Object.values(w.state.entities).filter((e) => e.npc && e.place.on === 'tile' && e.place.map === 'ford').map((e) => e.id)).toEqual(['npc.hesper'])
   expect(w.posOf(w.get('npc.tobin'))?.map).toBe(FIRSTLIGHT.map)
   expect(w.posOf(w.get('ford.cart'))).toEqual({ map: FIRSTLIGHT.map, x: FIRSTLIGHT.cart[0], y: FIRSTLIGHT.cart[1] })
@@ -1828,6 +1843,40 @@ req('F17', 'Firstlight Village is the former meadow: homes, a well, a lit square
   expect(w.hasStatus({ e: 'village.campfire' }, 'lit')).toBe(true)
   expect(w.hasStatus({ e: 'village.lamp.25' }, 'lit')).toBe(true)
   expect(w.get('village.notice')?.props?.text).toContain('FIRSTLIGHT VILLAGE')
+})
+
+/** What a household lives with and the village keeps in its yards (docs/release-1.md): F18's. */
+const LIVED = ['fixture/furniture/table/long', 'fixture/container/drawers', 'fixture/container/cupboard', 'fixture/nature/plant', 'fixture/furniture/rack/arms', 'fixture/furniture/washing_line', 'fixture/water/trough']
+req('F18', "Firstlight is lived in (release 1, docs/release-1.md): every household sleeps in its own beds behind its own door, in a house of rooms joined by doorways, and what is in its house is its own; the houses and yards hold what a household uses — a long table, a chest of drawers, a cupboard, a plant, a weapon rack, a washing line, a trough — each a thing an input reaches", LIVED, () => {
+  const f = fresh()
+  const w = W(f)
+  const household: Record<string, string[]> = { cook: ['npc.marta', 'npc.mia', 'npc.pell', 'npc.lina'], watch: ['npc.holt', 'npc.fennick', 'npc.oskar'], elder: ['npc.rowan'], wood: ['npc.gus', 'npc.cass'], joss: ['npc.joss'], edda: ['npc.edda'] }
+  for (const [h, ids] of Object.entries(household)) {
+    const beds = ids.map((id) => w.get(id)!.npc!.person!.schedules!.flatMap((v) => v.entries).find((s) => s.activity === 'sleep')!)
+    // each in a bed of their own, all of them in one house (a room of the village's), its region the household's
+    const map = beds[0].map
+    expect([h, w.map(map)?.kind, new Set(beds.map((b) => b.map)).size, new Set(beds.map((b) => `${b.x},${b.y}`)).size]).toEqual([h, 'interior', 1, ids.length])
+    expect(w.map(FIRSTLIGHT.map)!.portals.some((p) => p.to === map)).toBe(true)
+    expect(w.regionsAt(map, beds[0].x, beds[0].y, 0).map((r) => w.prop(r, 'owner'))).toContain(`household:${h}`)
+    // every bed reached from the door, through the doorways between the rooms
+    const m = w.map(map)!
+    const door = m.portals.find((p) => p.to === FIRSTLIGHT.map)!
+    for (const b of beds) expect([h, b.x, b.y, !!astar(m.width, m.height, (x, y) => !w.blocked(map, x, y), door.x, door.y - 1, b.x, b.y)]).toEqual([h, b.x, b.y, true])
+    // a house of more than one room
+    expect(m.rooms!.length).toBeGreaterThan(1)
+  }
+  // what stands in a home is the household's: Marta's cupboard
+  const cupboard = Object.values(w.state.entities).find((e) => e.type === 'fixture/container/cupboard' && e.place.on === 'tile' && e.place.map === 'meadow.cook')!
+  expect(socialOf(f.eng).ownerOf(cupboard)).toBe('household:cook')
+  // each a thing in the village, the hand reaching it from beside it
+  for (const type of LIVED) {
+    const e = Object.values(w.state.entities).find((x) => x.type === type && x.place.on === 'tile' && String(x.place.map).startsWith(FIRSTLIGHT.map))!
+    expect([type, !!e]).toEqual([type, true])
+    const { map, x, y } = e.place as { map: string; x: number; y: number }
+    const beside = ([[0, 1], [-1, 0], [1, 0], [0, -1]] as const).find(([dx, dy]) => w.walkable(map, x + dx, y + dy))!
+    stand(f, x + beside[0], y + beside[1], beside[1] === 1 ? 'up' : beside[1] === -1 ? 'down' : beside[0] === 1 ? 'left' : 'right', map)
+    expect([type, f.eng.controls.plan('hands', { x, y, stack: [{ e: e.id }] })?.target]).toEqual([type, { e: e.id }])
+  }
 })
 
 // ------------------------------------------------------------------ Q. the main quest (docs/main-quest.md)
@@ -1918,6 +1967,8 @@ const give = (f: Ford, type: string, n: number) => {
 
 req('Q2', 'the road east: past the far bank the Pilgrim\'s Road, and past the Kneeling Field the East Road; the burned farm shows the dragon\'s mark; wolves and a boar on the road; it ends at Emberfall, once the White Knight has fallen', ['actor/creature/beast/wolf', 'actor/creature/beast/boar'], () => {
   const f = fresh()
+  // Part Two's road (release 1 ends at the river: docs/release-1.md), opened
+  author(f, () => W(f).setFact(PART_TWO, 1))
   // past the far bank, the Pilgrim's Road (docs/chapter-1.md §14) first: the Rest; the Kneeling Field gives onto the road
   expect(cross(f, 'ford', W(f).map('ford')!.width - 2, EAST_ROAD.fordEast[1], 'right')).toBe('waystation')
   expect(cross(f, 'kneelfield', PILGRIM.field.w - 2, PILGRIM.field.east[1], 'right')).toBe('eastroad')
@@ -2242,8 +2293,8 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   author(f, () => { f.eng.quests.put('rescue', 'done'); f.eng.quests.put('vigil', 'done'); w.setFact('village.rescued', 1); w.setFact('ch1.vigil', 1); w.setFact('ch1.flame_stolen', 1); w.setFact('ch1.letter', 1); w.player.props!.hp = 10_000; w.player.props!.maxHp = 10_000 })
   setHour(f, 2, 9)
   ticks(f, 3)
-  // over the river (Q1's): the far bank — and past it, through the Ford's east edge, the Rest
-  author(f, () => w.setFact('ford.crossed', 1))
+  // over the river (Q1's): the far bank — and past it, through the Ford's east edge, the Rest (Part Two's: opened)
+  author(f, () => (w.setFact('ford.crossed', 1), w.setFact(PART_TWO, 1)))
   ticks(f, 3)
   expect(stage()).toBe(40)
   expect(cross(f, 'ford', w.map('ford')!.width - 2, EAST_ROAD.fordEast[1], 'right')).toBe('waystation')

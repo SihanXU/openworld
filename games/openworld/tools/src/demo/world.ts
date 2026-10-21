@@ -10,7 +10,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@openworld/engine'
-import { REGIONS, QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, GUIDE_BEATS, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, favouriteFor, generateLook, type RawChunk } from '@openworld-game/content'
+import { PART_TWO, REGIONS, QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, GUIDE_BEATS, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, favouriteFor, generateLook, type RawChunk } from '@openworld-game/content'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
@@ -24,7 +24,7 @@ import { backdropMeta, buildBackdrop } from './continent/backdrop.ts'
 import { peopleBackdrop } from './continent/people.ts'
 import { HOUSEHOLDS, PEOPLE, householdOf } from './people.ts'
 import { buildHaven, buildHavenGrounds } from './quest/haven.ts'
-import { villageInteriors, villageTown } from './village.ts'
+import { villageInteriors, villageLife, villageTown } from './village.ts'
 import { eastRoadRooms, emberfallRooms, tentRooms } from './interiors.ts'
 import { HILL_MINE, VIGIL, buildChapel, buildDawnHill, buildHillMine, buildMillCellar, buildMillbrook } from './quest/vigil.ts'
 import { PILGRIM, PILGRIMAGE_STORY, buildAbbey, buildAbbeyCrypt, buildAbbeyHall, buildField, buildHostel, buildRest, buildRestChapel, buildWay } from './quest/pilgrimage.ts'
@@ -105,8 +105,11 @@ function buildMap(): MapBuilder {
   // ------------------------------------------------------------ the river: a pool at the landing, narrows at the dead tree
   for (let y = 0; y < m.h; y++) for (let x = NEAR[y]; x <= FAR[y]; x++) m.set(x, y, 'water')
   // the frost slime keeps its corner of the bank in rime and the river's edge frozen (the ice route, shown before it is taught)
-  m.organic(24.5, 4, 2.4, 1.6, 'snow', { only: (t) => t === 'grass' })
-  for (const [x, y] of [[27, 3], [27, 4], [28, 4], [27, 5]] as const) m.set(x, y, 'ice')
+  // (the rime runs down to the water and the ice lies along the bank under it, one frozen margin, never a white blob
+  // on the grass: docs/release-1.md)
+  m.organic(25.6, 4, 1.4, 2.4, 'snow', { only: (t) => t === 'grass' })
+  for (let y = 2; y <= 6; y++) m.set(NEAR[y], y, 'ice')
+  for (const [x, y] of [[28, 3], [28, 4], [28, 5]] as const) m.set(x, y, 'ice')
   // the spit the dead tree stands on: rock either side, so it can only be felled from the west, across the water
   m.set(28, 9, 'rock')
   m.set(28, 11, 'rock')
@@ -129,10 +132,16 @@ function buildMap(): MapBuilder {
   for (let y = 3; y < m.h; y++) for (let x = 0; x < 3; x++) if (!(y >= 18 && y <= 20) && (x < 2 || rng.chance(0.55))) m.set(x, y, rng.chance(0.25) ? 'pine' : 'tree')
   for (const [cx, cy, r, p] of [[2.5, 7, 2.4, 0.7], [3, 13, 2, 0.55], [8.5, 26, 3, 0.75], [3, 25, 3, 0.8], [14, 28.5, 2.2, 0.8], [21, 29, 2, 0.75], [26, 28, 1.4, 0.6], [17.5, 4, 1.4, 0.5]] as const) clump(m, cx, cy, r, p)
   for (let x = 0; x < 27; x++) for (let y = 28; y < m.h; y++) if (grass(m.get(x, y))) m.set(x, y, rng.chance(0.2) ? 'pine' : 'tree')
-  // the far bank: trees frame the road east, which leaves the map into the unwritten
+  // the far bank: trees frame the road east, which leaves the map into the unwritten; they close its north, south and
+  // east edges but for the road, so the far bank leads on only by the road (sealed in release 1: docs/release-1.md)
   clump(m, 44, 4, 3.2, 0.8)
   clump(m, 44.5, 24.5, 3.5, 0.8)
   clump(m, 41.5, 9.5, 1.3, 0.5)
+  for (let x = FAR_BANK; x < m.w; x++)
+    for (let y = 0; y < m.h; y++) {
+      const edge = y < 2 || y > m.h - 3 || (x > m.w - 3 && (y < 11 || y > 15))
+      if (edge && grass(m.get(x, y))) m.set(x, y, rng.chance(0.3) ? 'pine' : 'tree')
+    }
   // ------------------------------------------------------------ the dry meadow (fire runs here)
   m.organic(11, 7.8, 5.6, 2.4, 'drygrass', { only: grass, rough: 0.3 })
   // ------------------------------------------------------------ the marsh (lightning runs here): small ponds among reeds
@@ -166,8 +175,10 @@ function buildMap(): MapBuilder {
   // the open slope between the meadow and the river: a few boulders and bushes to break it up
   for (const [x, y] of [[20, 5], [21, 4], [17, 9]] as const) m.fixture('fixture/nature/boulder', x, y)
   clump(m, 22, 8, 1.2, 0.7)
-  // where the road east leaves the far bank, a signpost to nowhere yet
-  m.fixture('fixture/sign', 40, 14, { props: { text: '→ Emberfall', text_zh: '→ 余烬镇' } })
+  // where the road east leaves the far bank, a signpost; past it the rider's thorns grown across the road (the way the
+  // story opens in its second part: release 1 ends here, docs/release-1.md)
+  m.fixture('fixture/sign', 40, 14, { props: { text: "EAST — the Pilgrims' Rest, and the Pilgrim's Road beyond it. Thorns have grown across the way since the rider passed.", text_zh: '往东——朝圣者驿站，再往前是朝圣者之路。那个骑手走过以后，路上长满了荆棘。' } })
+  for (const [x, y] of [[45, 12], [45, 13], [44, 14], [43, 12]] as const) m.fixture('fixture/nature/briar', x, y, { name: L("The rider's thorns", '骑手留下的荆棘') })
   m.fixture('fixture/nature/haystack', ...AT.haystack)
   // the landing: the post the ferry line ran from, the boat on the water, a bucket, a coil of old line
   m.fixture('fixture/ferry/winch', ...AT.winch, { id: 'ford.winch', statuses: { broken: -1 } })
@@ -237,100 +248,70 @@ const GRAZER: Omit<AiData, 'home'> = { behaviour: 'passive', temper: 'wary', sig
 
 /** A starting village in a ring of woods, with homes, a shared square, pasture and a garden. */
 function buildMeadow(): MapBuilder {
-  // (60 x 40 since 2026-10-11: it grew east along the road and south down the trail, so what stood keeps its cell)
+  // (60 x 40 since 2026-10-11; drawn by hand since 2026-10-21, docs/release-1.md: the layout file is the ground — the
+  // woods round it, the square before the chapel, the east road from the Ford and the lanes north, west and south, the
+  // pond, the gardens, the fields, the hay meadow and the orchard. What stands on it is placed here and in village.ts.)
   const m = new MapBuilder(FIRSTLIGHT.map, FIRSTLIGHT.name, 'village', 60, 40, 'grass', 'village', 'outdoor', 'frostfang')
-  const open = (y: number) => WEST_GAP.includes(y)
-  // the woods all round, two to four deep, the east side open where the road comes in
-  for (let y = 0; y < m.h; y++)
-    for (let x = 0; x < m.w; x++) {
-      const edge = Math.min(x, y, m.w - 1 - x, m.h - 1 - y)
-      if (x >= m.w - 4 && open(y)) continue
-      if (y >= m.h - 4 && SOUTH_GAP.includes(x)) continue
-      if (edge < 2 || (edge < 4 && rng.chance(0.45 - edge * 0.1))) m.set(x, y, rng.chance(0.25) ? 'pine' : 'tree')
-    }
-  for (const [cx, cy, r, p] of [[4, 4, 3, 0.7], [35, 4, 2.6, 0.7], [4, 26, 3, 0.75], [33, 26, 2.4, 0.7], [20, 2.5, 2, 0.6], [2.5, 15, 2, 0.6], [56, 4, 2.6, 0.7], [56, 36, 2.6, 0.7], [4, 36, 3, 0.7], [44, 33, 2.4, 0.6]] as const) clump(m, cx, cy, r, p)
-  // The east gate leads to a village square, then homes and the forest trail.
-  m.path([[59, 19], [39, 19], [34, 19], [29, 17], [23, 16], [18, 17], [11, 16]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
-  // and a trail south, into the forest
-  m.path([[23, 17], [24, 20], [23, 25], [23, 32], [23, 39]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
-  m.organic(21, 16, 4.6, 3, 'cobble', { only: (t) => t === 'grass' || t === 'path' })
-  // Four modest homes, paths to each door, a communal well and an evening fire.
-  // (every house has a door and a room behind it: village.ts)
+  m.paint('meadow')
+  // the houses with their doors (every one has a room behind it: village.ts), their yards and what the village uses
   villageTown(m)
-  m.path([[9, 8], [12, 11], [18, 16]], 'path', 1)
-  m.path([[20, 8], [20, 11], [20, 13]], 'path', 1)
-  m.path([[29, 8], [28, 11], [26, 15]], 'path', 1)
-  m.path([[8, 16], [12, 17], [17, 17]], 'path', 1)
   m.fixture('fixture/water/well', ...FIRSTLIGHT.well, { id: 'village.well' })
   m.fixture('fixture/light/campfire', ...FIRSTLIGHT.fire, { id: 'village.campfire', statuses: { lit: -1 } })
   m.fixture('fixture/furniture/bench/log', 20, 19, { id: 'village.bench' })
-  // the woodworker's bench by the wood pile: what is made at a workbench is made here (world-model.md §6.4)
-  m.fixture('fixture/craft/workbench', 11, 18, { id: 'village.workbench' })
-  m.fixture('fixture/sign/noticeboard', 17, 14, { id: 'village.notice', props: { text: 'FIRSTLIGHT VILLAGE — Every journey begins with a first step. East: The Ford. West: Millbrook. North: Dawn Hill. South: the grassland, and the forest beyond.', text_zh: '初原村——每段旅程都从第一步开始。东：渡口。西：水车磨坊。北：晨光丘。南：草原，再往南是森林。' } })
-  // the commission board beside it (docs/quests.md §3): the favours people want done, to take on
-  m.fixture('fixture/sign/questboard', 16, 14, { id: 'village.board' })
+  // the woodworker's bench in the woodcutter's yard, by the wood pile: what is made at a workbench is made here (world-model.md §6.4)
+  m.fixture('fixture/craft/workbench', 12, 14, { id: 'village.workbench' })
+  // the boards at the square's north-west corner, under the chapel: the village's notices, and the favours people want done (docs/quests.md §3)
+  m.fixture('fixture/sign/noticeboard', 19, 13, { id: 'village.notice', props: { text: 'FIRSTLIGHT VILLAGE — Every journey begins with a first step. East: The Ford. West: Millbrook. North: Dawn Hill. South: the grassland, and the forest beyond.', text_zh: '初原村——每段旅程都从第一步开始。东：渡口。西：水车磨坊。北：晨光丘。南：草原，再往南是森林。' } })
+  m.fixture('fixture/sign/questboard', 20, 13, { id: 'village.board' })
   for (const [x, y] of [[25, 13], [12, 16]] as const) m.fixture('fixture/light/lamppost', x, y, { id: `village.lamp.${x}`, statuses: { lit: -1 } })
-  // Tobin and his stock move together. Stable IDs keep saved trades and inventories intact.
+  // Tobin and his stock move together, at the square's market corner where the road comes in. Stable IDs keep saved trades and inventories intact.
   m.fixture('fixture/furniture/cart', ...FIRSTLIGHT.cart, { id: 'ford.cart', props: { owner: 'npc.tobin' } })
   m.item({ form: 'item/weapon/magic/wand', material: 'wood', element: 'ice', name: L('Frost Wand', '寒霜魔杖'), props: { owner: 'npc.tobin' } }, ...FIRSTLIGHT.cart).id = 'tobin.wand'
   m.item({ form: 'item/vessel/flask/oil', props: { owner: 'npc.tobin' } }, ...FIRSTLIGHT.cart).id = 'tobin.oil'
   m.anchor('cart', 30, 16)
   m.anchor('cart.bed', 31, 16)
-  // each household its own cell (people of one home share it; two homes on one cell crowded a lawn at night)
+  // where travellers sleep: the market shelter by the north lane (the households sleep in their own beds: village.ts)
   m.anchor('market.shelter', 29, 9)
   m.anchor('square.well', 20, 14)
   m.anchor('square.warm', 23, 17)
-  // the drill yard by the north-east cottage: Bram, the profession trainer (docs/skill-tree.md)
-  m.anchor('drill.yard', 33, 11)
-  m.anchor('drill.bed', 33, 10)
-  // the villagers who give quests (docs/quests.md), and where the rescued foragers live
+  // the drill yard by the watch house: Bram, the profession trainer (docs/skill-tree.md)
+  m.anchor('drill.yard', 34, 10)
+  m.anchor('drill.bed', 33, 9)
   m.anchor('elder.porch', 20, 9)
-  m.anchor('elder.home', 20, 8)
   m.anchor('cook.fire', 21, 18)
-  m.anchor('cook.home', 9, 9)
   m.anchor('pond.edge', 19, 21)
   m.anchor('guard.post', 25, 25)
-  m.anchor('guard.home', 27, 9)
-  m.anchor('wood.pile', 9, 18)
+  m.anchor('wood.pile', 13, 16)
   // the wood pile Gus stacks his logs on (world-model.md §6.10: work is real)
-  m.fixture('fixture/container/woodpile', 9, 19, { id: 'village.woodpile', statuses: { open: -1 } })
-  m.anchor('wood.home', 8, 16)
+  m.fixture('fixture/container/woodpile', 13, 15, { id: 'village.woodpile', statuses: { open: -1 } })
   m.anchor('lina.garden', 13, 18)
-  m.anchor('lina.home', 12, 9)
   m.anchor('oskar.bench', 17, 19)
-  m.anchor('oskar.home', 31, 9)
-  // the village keeps the law (docs/npc-sandbox.md §2.7): its watch, and the cells behind the watch house
+  // the village keeps the law (docs/npc-sandbox.md §2.7): its watch, and the cells beside the watch house
   m.law = 'firstlight'
-  m.anchor('cells', 30, 4)
-  // Cass's loom by the square; where Vigo sleeps rough
-  m.anchor('cass.loom', 15, 14)
-  // her loom, by the square: anyone may weave cloth at it from grass fibre (life.ts weave/cloth)
-  m.fixture('fixture/craft/loom', 14, 13, { id: 'village.loom', props: { owner: 'npc.cass' } })
+  m.anchor('cells', 33, 6)
+  // Cass's loom west of the square: anyone may weave cloth at it from grass fibre (life.ts weave/cloth)
+  m.fixture('fixture/craft/loom', 16, 13, { id: 'village.loom', props: { owner: 'npc.cass' } })
+  m.anchor('cass.loom', 16, 14)
+  // where Vigo sleeps rough, at the square's east edge by the road
   m.anchor('vigo.camp', 34, 15)
-  // a pond where the animals drink
-  m.organic(16, 22, 2.6, 1.7, 'water', { only: (t) => t === 'grass' })
-  // the warm spring west of it (its pool drawn over grass): sit in it and it mends you
+  // the warm spring in its clearing west of the pond: sit in it and it mends you
   const [sx, sy] = FIRSTLIGHT.spring
-  for (let y = sy - 2; y <= sy + 2; y++) for (let x = sx - 2; x <= sx + 2; x++) if (m.get(x, y) === 'tree' || m.get(x, y) === 'pine') m.set(x, y, 'grass')
   m.scenery('spring', sx - 1, sy - 1)
   // the ground round it, where Lumi points it out
   m.regions.spring = [sx - 4, sy - 3, 9, 7]
   // the pond's banks and the garden's ground: where the fairy's guides begin (content quests/guides.ts)
   m.regions.pond = [...FIRSTLIGHT.regions.pond]
   m.regions.garden = [...FIRSTLIGHT.regions.garden]
-  m.fixture('fixture/sign', sx - 2, sy - 2, { props: { text: 'Warm spring — sit a while, and it mends you.', text_zh: '温泉——泡一会儿，伤就好了。' } })
-  // small things: flowers and tufts in the open, leaves under the trees
-  const tree = (t: string) => t === 'tree' || t === 'pine'
-  m.sprinkle('fixture/nature/flowers', 0.06, (x, y, t) => t === 'grass' && !m.near(x, y, tree, 2))
-  m.sprinkle('fixture/nature/tuft', 0.08, (x, y, t) => t === 'grass' && !m.near(x, y, tree, 1))
-  m.sprinkle('fixture/nature/leaves', 0.14, (x, y, t) => t === 'grass' && m.near(x, y, tree))
+  m.fixture('fixture/sign', sx + 2, sy - 2, { props: { text: 'Warm spring — sit a while, and it mends you.', text_zh: '温泉——泡一会儿，伤就好了。' } })
+  // what the village keeps in its yards, fields and orchard, and the small things on the ground: village.ts
+  villageLife(m)
   // the village keeps no herd: the cows and hens graze the grassland south of it (buildPasture)
   // sticks under the woods, stones and grass in the open, as on the Ford
-  lay(m, 'item/material/stick', 3, [5, 5, 8, 6])
-  lay(m, 'item/material/stone', 3, [20, 15, 8, 6])
-  lay(m, 'item/material/grass', 3, [26, 6, 8, 6])
+  lay(m, 'item/material/stick', 3, [3, 21, 6, 8])
+  lay(m, 'item/material/stone', 3, [30, 20, 8, 5])
+  lay(m, 'item/material/grass', 3, [34, 4, 10, 6])
   // fireweed in the open grass, for the herbalist of Emberfall (main quest)
-  lay(m, 'item/material/fireweed', 3, [10, 8, 10, 6])
+  lay(m, 'item/material/fireweed', 3, [4, 4, 12, 4])
   m.appear = [...GROUND_YIELD, appears('item/material/fireweed', ['grass'], 3, 900)]
   plantGarden(m)
   return m
@@ -582,6 +563,22 @@ const scenes: StepDef[] = [
     when: { map: 'ford', region: 'far_bank', quest: { first_seal: { gte: 40 } } },
     facts: { 'ford.crossed': 1 },
   },
+  {
+    // Release 1 is Part One, the west bank (docs/release-1.md): across the river with the pilgrimage called, it ends
+    // on the far bank. The road east stays sealed (PART_TWO) and the west bank stays the player's.
+    id: 'part_one',
+    when: { map: 'ford', region: 'far_bank', quest: { first_seal: { gte: 40 } }, facts: { [PART_TWO]: 0 } },
+    script: [
+      { wait: 8 },
+      say('pip', 'The road goes on east from here, all the way to the Rest, and the rider, and wherever the grey man took our flame.', '路从这里一直往东，通到驿站，通到那个骑手，通到灰衣人带走圣火的地方。'),
+      {
+        card: L(
+          "PART ONE · THE FORD\n\nThe barrow is quiet, and the vigil was kept.\nThe flame went east in a grey man's lantern,\nand you stand on the far bank.\n\nThe road east opens in Part Two.\nUntil then, Firstlight and its country are yours.",
+          '第一部 · 渡口\n\n古墓安静了，守夜之备也做完了。\n圣火装在灰衣人的提灯里往东去了，\n而你站在了河的对岸。\n\n往东的路，在第二部开放。\n在那之前，初原村和它的山野都是你的。',
+        ),
+      },
+    ],
+  },
 ]
 
 // =================================================================== the world
@@ -613,7 +610,8 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   const meadow = buildMeadow()
   // the rooms behind the village's doors: homes, the store, the smithy, the church
   const rooms = villageInteriors()
-  for (const r of rooms) meadow.linkInterior(r.door, r.map)
+  // its houses are as peaceful as the village (nothing comes out of the dark in someone's kitchen), and under its watch
+  for (const r of rooms) (meadow.linkInterior(r.door, r.map), (r.map.zone = 'peaceful'), (r.map.law = 'firstlight'))
   linkEdge(m, WEST_GAP.map((y) => [0, y]), [1, 0], meadow, WEST_GAP.map((y) => [meadow.w - 1, y]), [-1, 0])
   // Firstlight's own country (docs/chapter-1.md §13): Millbrook west of it, Dawn Hill north; their cellar and chapel
   reseed(4270)
@@ -624,11 +622,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   const dawnhill = buildDawnHill()
   const chapel = buildChapel()
   dawnhill.linkInterior('chapel', chapel)
-  // the village's woods opened where the new ways go, a path to each
-  for (const y of VIGIL.villageWest) for (let x = 0; x < 4; x++) meadow.set(x, y, 'path')
-  for (const x of VIGIL.villageNorth) for (let y = 0; y < 3; y++) meadow.set(x, y, 'path')
-  meadow.path([[3, 18], [7, 18], [11, 17]], 'path', 1)
-  meadow.path([[25, 2], [24, 5], [21, 9]], 'path', 1)
+  // (the village's ways west and north are in its layout: maps/meadow.txt)
   linkEdge(meadow, VIGIL.villageWest.map((y) => [0, y]), [1, 0], mill, VIGIL.millEast.map((y) => [mill.w - 1, y]), [-1, 0])
   linkEdge(meadow, VIGIL.villageNorth.map((x) => [x, 0]), [0, 1], dawnhill, VIGIL.hillSouth.map((x) => [x, dawnhill.h - 1]), [0, -1])
   // the mine in Dawn Hill's western flank (quest/vigil.ts): the first chapter's ore
@@ -696,6 +690,8 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   reseed(4283)
   const field = buildField()
   linkEdge(m, col(m, m.w - 1, EAST_ROAD.fordEast), [-1, 0], rest, col(rest, 0, PILGRIM.rest.west), [1, 0])
+  // release 1 is Part One (docs/release-1.md): the road east stays sealed until the story's second part
+  for (const p of m.portals) if (p.to === rest.id) p.opensWhen = PART_TWO
   linkEdge(rest, col(rest, rest.w - 1, PILGRIM.rest.east), [-1, 0], way, col(way, 0, PILGRIM.way.west), [1, 0])
   linkEdge(way, row(way, 0, PILGRIM.way.north), [0, 1], abbey, row(abbey, abbey.h - 1, PILGRIM.abbey.south), [0, -1])
   linkEdge(way, col(way, way.w - 1, PILGRIM.way.east), [-1, 0], field, col(field, 0, PILGRIM.field.west), [1, 0])
@@ -750,18 +746,20 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
     return { map: b.id, x: a[0], y: a[1] }
   }
   const npcs = PEOPLE.map((p) => person(p, anchorAt))
-  // a household's doorstep is theirs (docs/npc-sandbox.md §2.1): found where its first sleeps — unless others
-  // sleep there too (a door that is a shelter as well is nobody's)
-  const bedOf = (p: PersonDef) => p.schedules.default.find((s) => s[3] === 'sleep')?.[2]
+  // a household's home is theirs (docs/npc-sandbox.md §2.1): found where its first sleeps — the room behind its door,
+  // or a doorstep outdoors — unless others sleep there too (a room or a door that is a shelter as well is nobody's)
+  // (where one sleeps in any of one's days: Edda's cabin is hers from the day she comes)
+  const bedOf = (p: PersonDef) => Object.values(p.schedules).flat().find((s) => s[3] === 'sleep')?.[2]
   for (const [h, ids] of Object.entries(HOUSEHOLDS)) {
     const p = PEOPLE.find((x) => x.id === ids[0])
     const bed = p && bedOf(p)
     if (!bed) continue
     const a = anchorAt(bed)
-    const shared = PEOPLE.some((o) => !ids.includes(o.id) && bedOf(o) && ((b) => b.map === a.map && b.y === a.y && Math.abs(b.x - a.x) <= 1)(anchorAt(bedOf(o)!)))
-    if (shared) continue
     const b = builders.find((x) => x.id === a.map)!
-    b.regions[`home.${h}`] = [a.x - 1, a.y, 3, 1]
+    const indoors = b.kind === 'interior'
+    const near = (o: Pos) => o.map === a.map && (indoors || (o.y === a.y && Math.abs(o.x - a.x) <= 1))
+    if (PEOPLE.some((o) => !ids.includes(o.id) && bedOf(o) && near(anchorAt(bedOf(o)!)))) continue
+    b.regions[`home.${h}`] = indoors ? [0, 0, b.w, b.h] : [a.x - 1, a.y, 3, 1]
     b.regionProps[`home.${h}`] = { owner: `household:${h}` }
   }
   // the overworld (world-model.md §5.1): each map on its cell, the rest of the continent wild

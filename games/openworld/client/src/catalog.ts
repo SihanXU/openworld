@@ -137,6 +137,25 @@ function pf(img: string, c: number, r: number, grid: string[], terrain?: string)
   return { img, x: c * 16, y: r * 16, tw: grid[0].length, th: grid.length, grid, ...(terrain ? { terrain } : {}) }
 }
 
+/**
+ * The joining pieces of the house sheet's three fences (the low rail, the pointed palisade, the stone wall), each laid
+ * out alike from column 8 of its two rows: the corners, the ends, the straight runs, the T-joints and the cross. A
+ * fence cell is stamped as `<kind>_<piece>`, the piece chosen by which of its four sides another cell of the same
+ * fence touches (the map builder's `joinFences`): N, E, S, W.
+ */
+export const FENCE_PIECES: Record<string, [number, number]> = {
+  es: [0, 0], ws: [1, 0], e: [2, 0], v: [3, 0], nes: [4, 0], wes: [5, 0], s: [6, 0],
+  ne: [0, 1], nw: [1, 1], w: [2, 1], h: [3, 1], new: [4, 1], nsw: [5, 1], x: [6, 1],
+}
+/** Each fence's rows in the house sheet and the terrain its cells are (what blocks). */
+export const FENCES: Record<string, { row: number; terrain?: string }> = { fence: { row: 4, terrain: 'woodwall' }, rail: { row: 6, terrain: 'woodwall' }, stonewall: { row: 8 } }
+
+function fencePieces(): Record<string, PrefabDef> {
+  const out: Record<string, PrefabDef> = {}
+  for (const [kind, f] of Object.entries(FENCES)) for (const [piece, [c, r]] of Object.entries(FENCE_PIECES)) out[`${kind}_${piece}`] = pf(HOUSE, 8 + c, f.row + r, ['#'], f.terrain)
+  return out
+}
+
 const SND = 'Audio/Sounds/'
 const MUS = 'Audio/Musics/'
 
@@ -374,6 +393,8 @@ export const CATALOG: Catalog = {
     rail_v: pf(HOUSE, 11, 6, ['#'], 'woodwall'),
     stonewall_h: pf(HOUSE, 11, 9, ['#']),
     stonewall_v: pf(HOUSE, 11, 8, ['#']),
+    // every joining piece of the three fences (FENCE_PIECES): rail_es, fence_nsw, stonewall_x …
+    ...fencePieces(),
     // Bridges run north-south (planks across, rails on the east/west sides). 4 wide x 3 long.
     bridge_ns: pf(HOUSE, 9, 15, ['....', '....', '....'], 'bridge'),
     bridge_stone_ns: pf(HOUSE, 9, 19, ['....', '....', '....'], 'bridge'),
@@ -418,7 +439,8 @@ export const CATALOG: Catalog = {
     'fixture:fixture': { base: t(DUNGEON, 2, 1), open: t(DUNGEON, 3, 1) },
     'fixture:container': { base: px('Items/Treasure/BigTreasureChest.png', 0, 0, 16, 14), open: px('Items/Treasure/BigTreasureChest.png', 16, 0, 16, 14) },
     'fixture:chest': { base: px('Items/Treasure/BigTreasureChest.png', 0, 0, 16, 14), open: px('Items/Treasure/BigTreasureChest.png', 16, 0, 16, 14) },
-    'fixture:barrel': { base: t(HOUSE, 16, 15), open: t(HOUSE, 17, 15) },
+    // a barrel is 22px tall in the house sheet, its lid in the row above (cut a tile high it lost its top)
+    'fixture:barrel': { base: px(HOUSE, 256, 234, 16, 22, 8, 22), open: px(HOUSE, 272, 234, 16, 22, 8, 22) },
     'fixture:crate': { base: t(DUNGEON, 2, 1), open: t(DUNGEON, 3, 1) },
     'fixture:pot': { base: t(ELEM, 2, 9) },
     'fixture:wardrobe': { base: t(ELEM, 2, 7, 1, 2) },
@@ -427,14 +449,24 @@ export const CATALOG: Catalog = {
     'fixture:sack': { base: t(ELEM, 1, 1) },
     'fixture:furniture': { base: t(ELEM, 5, 7) },
     'fixture:table': { base: t(ELEM, 5, 7) },
+    // a household's furniture (docs/release-1.md): the long table (3x1, centred on its cell like its footprint), the
+    // round-topped chest of drawers, the dark two-door cupboard (its footprint is its cell and the one east: drawn from
+    // the cell's left edge), the plant in its pot
+    'fixture:long_table': { base: t(ELEM, 2, 10, 3, 1) },
+    'fixture:drawers': { base: t(ELEM, 1, 7, 1, 2) },
+    'fixture:cupboard': { base: t(ELEM, 6, 7, 2, 2, 8, 32) },
+    'fixture:plant': { base: t(ELEM, 0, 7, 1, 2) },
     'fixture:chair': { base: t(ELEM, 0, 9) },
     'fixture:bed': { base: t(BED, 5, 3, 1, 2) },
     'fixture:bench': { base: t(CAMP, 3, 7) },
     // the camp's things: a log bench three wide, a cooking rack, the chopping stump, firewood, a lantern post, the tent
     'fixture:log_bench': { base: t(CAMP, 0, 7, 3, 1) },
     'fixture:rack': { base: t(CAMP, 8, 3, 2, 2) },
+    // the project's own (tools/src/art/arms-rack.ts): the camp's rack is a cooking rack, its pot hung over the fire
+    'fixture:arms_rack': { base: px('lsw/Fixtures/ArmsRack.png', 0, 0, 32, 32, 16, 31) },
     'fixture:stump': { base: t(CAMP, 1, 5, 2, 2) },
-    'fixture:firewood': { base: t(CAMP, 0, 1, 1, 2) },
+    // the camp sheet's stack of split logs, their ends out (2x1)
+    'fixture:firewood': { base: t(CAMP, 0, 0, 2, 1) },
     'fixture:lantern': { base: t(CAMP, 6, 5, 1, 2) },
     'fixture:tent': { base: t(CAMP, 7, 0, 3, 3) },
     // small things of the ground, scattered by mask: each a thing (pick a flower, burn the reeds)
@@ -485,7 +517,8 @@ export const CATALOG: Catalog = {
     'fixture:forge': { base: px(HOUSE, 496, 192, 32, 48, 16, 46) },
     'fixture:cauldron': { base: t(HOUSE, 32, 10), lit: t(HOUSE, 31, 10) },
     // No loom in the pack: a wooden frame with a strung rope (TilesetElement (11..13, 2..3)).
-    'fixture:loom': { base: px(ELEM, 176, 32, 48, 32, 24, 29) },
+    // the project's own (tools/src/art/loom.ts): the pack's frame drawn for it before was its washing line's posts
+    'fixture:loom': { base: px('lsw/Fixtures/Loom.png', 0, 0, 32, 32, 16, 31) },
     // the slender statue (7, 15) is the waypoint's alone: nothing else may look like one
     'fixture:sacred': { base: t(HOUSE, 5, 15, 2, 2) },
     'fixture:altar': { base: px(HOUSE, 48, 240, 32, 32, 16, 32) },
@@ -536,13 +569,14 @@ export const CATALOG: Catalog = {
     'fixture:fence': { base: t(HOUSE, 11, 7), across: t(HOUSE, 11, 6) },
     'fixture:dummy': { base: t(ELEM, 15, 0) },
     // Crops (farming). The pack has no crop sheet: sprouts are ground details, young plants are
-    // small nature tufts/bushes, ripe wheat is the camp tileset's golden sheaf, ripe berries the
+    // small nature tufts/bushes, wheat the project's own (tools/src/art/wheat.ts: the camp sheet's 'sheaf' was
+    // kindling), ripe berries the
     // fruiting bush, the oak sapling the bare twig tree.
-    'fixture:crop': { base: t(CAMP, 13, 1) },
-    'fixture:wheat': { base: t(CAMP, 13, 0) },
-    'fixture:wheat_sprout': { base: t(DETAIL, 1, 2) },
-    'fixture:wheat_young': { base: t(CAMP, 13, 1) },
-    'fixture:wheat_ripe': { base: t(CAMP, 13, 0) },
+    'fixture:crop': { base: px('lsw/Crops/wheat/young.png', 0, 0, 16, 24, 8, 24) },
+    'fixture:wheat': { base: px('lsw/Crops/wheat/ripe.png', 0, 0, 16, 24, 8, 24) },
+    'fixture:wheat_sprout': { base: px('lsw/Crops/wheat/sprout.png', 0, 0, 16, 24, 8, 24) },
+    'fixture:wheat_young': { base: px('lsw/Crops/wheat/young.png', 0, 0, 16, 24, 8, 24) },
+    'fixture:wheat_ripe': { base: px('lsw/Crops/wheat/ripe.png', 0, 0, 16, 24, 8, 24) },
     'fixture:herb': { base: t(NATURE, 5, 11) },
     'fixture:herb_sprout': { base: t(DETAIL, 2, 2) },
     'fixture:herb_young': { base: t(NATURE, 8, 10) },
@@ -562,8 +596,10 @@ export const CATALOG: Catalog = {
     'fixture:ring': { base: px(CAMP, 160, 48, 32, 32, 16, 28) },
     // The Great Hearth: a wide ring of stones around old ash; lit, the embers glow.
     'fixture:hearth': { base: t(CAMP, 12, 5, 2, 2, 16, 24), lit: t(CAMP, 12, 3, 2, 2, 16, 24) },
-    'fixture:scarecrow': { base: t(ELEM, 15, 0) },
-    'fixture:washing_line': { base: t(ELEM, 11, 2, 5, 1, 40, 16) },
+    // the project's own (tools/src/art/scarecrow.ts): the training dummy is the pack's straw man
+    'fixture:scarecrow': { base: px('lsw/Fixtures/Scarecrow.png', 0, 0, 16, 32, 8, 31) },
+    // the pack's line on its posts with its laundry pegged on it, put together (tools/src/art/washing-line.ts)
+    'fixture:washing_line': { base: px('lsw/Fixtures/WashingLine.png', 0, 0, 64, 32, 32, 31) },
     'fixture:cart': { base: t(ELEM, 0, 3, 2, 2, 16, 30) },
     'fixture:flower_cart': { base: t(ELEM, 2, 3, 2, 2, 16, 30) },
     'fixture:workbench': { base: t(HOUSE, 29, 8, 2, 1, 16, 16) },

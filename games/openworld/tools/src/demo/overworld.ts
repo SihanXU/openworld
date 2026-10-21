@@ -8,7 +8,7 @@
 
 import { readFileSync } from 'node:fs'
 import type { Entity, Text } from '@openworld/engine'
-import { CH1, TERRAINS, TERRAIN_CHARS, UNTOLD, wildId, type RawChunk } from '@openworld-game/content'
+import { CH1, PART_TWO, TERRAINS, TERRAIN_CHARS, UNTOLD, wildId, type RawChunk } from '@openworld-game/content'
 import { MapBuilder } from './builder.ts'
 import { L } from './kit.ts'
 import { CONTINENT_FILE, FORD, HEIGHT, WIDTH, type Continent } from './continent/generate.ts'
@@ -37,11 +37,12 @@ const PLACES: Record<string, { ground: string; kind: string; opensWhen?: string 
   // the river's own cell (the barrier's, D22): a camp on the near bank, reached through the forest alone
   reedbend: { ground: 'ow_river', kind: 'camp' },
   barrow: { ground: 'ow_plain', kind: 'barrow' },
-  waystation: { ground: 'ow_road', kind: 'camp' },
-  pilgrimway: { ground: 'ow_road', kind: 'waystone' },
-  abbey: { ground: 'ow_forest', kind: 'shrine' },
-  kneelfield: { ground: 'ow_plain', kind: 'barrow' },
-  eastroad: { ground: 'ow_road', kind: 'waystone' },
+  // east of the Ford: Part Two's (release 1 is Part One, the west bank: docs/release-1.md)
+  waystation: { ground: 'ow_road', kind: 'camp', opensWhen: PART_TWO },
+  pilgrimway: { ground: 'ow_road', kind: 'waystone', opensWhen: PART_TWO },
+  abbey: { ground: 'ow_forest', kind: 'shrine', opensWhen: PART_TWO },
+  kneelfield: { ground: 'ow_plain', kind: 'barrow', opensWhen: PART_TWO },
+  eastroad: { ground: 'ow_road', kind: 'waystone', opensWhen: PART_TWO },
   emberfall: { ground: 'ow_plain', kind: 'town', opensWhen: CH1.knight },
   mine: { ground: 'ow_plain', kind: 'mine', opensWhen: CH1.knight },
   pass: { ground: 'ow_plain', kind: 'pass', opensWhen: CH1.knight },

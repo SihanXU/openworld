@@ -1,13 +1,17 @@
 // Authored-content migration for the world map. It was a block of 3 x 3 tiles to a place and is one tile to a place
 // (2026-10-11); the Pilgrim's Road put four places between the Ford and the East Road and moved the east along
-// (2026-10-12); the continent grew round the Frostfang Coast, its cells where they were (2026-10-18). An older save's places on it are the map's as it is now, and whatever stood on it stands on the cell its
+// (2026-10-12); the continent grew round the Frostfang Coast, its cells where they were (2026-10-18); the west bank was
+// drawn by hand as a narrow valley, peaks and a bay where wild cells were (2026-10-21, docs/release-1.md). An older
+// save's places on it are the map's as it is now, and whatever stood on it stands on the cell its
 // old block was (or the nearest open one) — and so does where one will come back to out of the Held Ground (the
 // Oath-Thorn's `pocket.return`, kept as "map,x,y"). It is the author's, run on loading (the caller holds the author's
 // hand: `engine.author`), never game code.
 import type { Game, MapChunk } from '@openworld/engine'
 
-/** Saves marked with it lay the world map out a place to a tile, its places as the map has them now (v4: the continent). */
-export const OVERWORLD_LAYOUT = 'content.overworld-cells-v4'
+/** Saves marked with it lay the world map out a place to a tile, its places as the map has them now (v5: the west bank drawn by hand). */
+export const OVERWORLD_LAYOUT = 'content.overworld-cells-v5'
+/** The continent before the west bank was drawn: the cells are the same, only the places are made again and what stood on a cell now closed moves. */
+const CELLS_V4 = 'content.overworld-cells-v4'
 /** A place to a tile, with the Pilgrim's Road, before the continent: the cells are the same, only the places are made again. */
 const CELLS_V3 = 'content.overworld-cells-v3'
 /** A place to a tile before the Pilgrim's Road: the scale is the same, only the places are made again. */
@@ -39,7 +43,7 @@ export function migrateOverworld(game: Game, overworld: MapChunk): void {
     return best && { x: best.x, y: best.y }
   }
   // a save laid out a place to a tile already kept its cells; one of 3 x 3 tiles to a place scales them down
-  const blocks = !w.fact(CELLS_V2) && !w.fact(CELLS_V3)
+  const blocks = !w.fact(CELLS_V2) && !w.fact(CELLS_V3) && !w.fact(CELLS_V4)
   for (const e of on) {
     if (e.type.startsWith('site') || e.place.on !== 'tile') continue
     const c = cellOf(e.place.x, e.place.y, blocks)
@@ -56,6 +60,6 @@ export function migrateOverworld(game: Game, overworld: MapChunk): void {
     const c = cellOf(x, y, blocks || x >= OLD_CELLS.w || y >= OLD_CELLS.h)
     if (c) w.setProp(e, 'pocket.return', `${m},${c.x},${c.y}`)
   }
-  if (w.story) (w.setProp(w.story, CELLS_V2, undefined), w.setProp(w.story, CELLS_V3, undefined))
+  if (w.story) for (const k of [CELLS_V2, CELLS_V3, CELLS_V4]) w.setProp(w.story, k, undefined)
   w.setFact(OVERWORLD_LAYOUT, true)
 }

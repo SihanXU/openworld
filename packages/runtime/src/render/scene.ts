@@ -9,7 +9,9 @@ import { hexRgb, installWorldFilter, signalCamera } from './worldfilter.ts'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
 import { faceFrame, personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
-import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
+import { GroundAtlas, T, groundBeneath, groundTile, hash2 } from '../assets/ground.ts'
+/** What a room's frame is drawn over: its walls (a door or a doorway through them is left open). */
+const ROOM_WALL = new Set(['wall', 'woodwall', 'void'])
 import { depthOf, footOf } from './depth.ts'
 import { prefs } from '../ui/common.ts'
 
@@ -264,6 +266,9 @@ export class WorldScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- map
 
+  /** The terrain the ground layer draws: the map's, under a building or a fence the ground round it (set as a map loads). */
+  private groundAt = (x: number, y: number): string => this.terrainAt(x, y)
+
   private terrainAt = (x: number, y: number): string => {
     const m = this.base!
     if (x < 0 || y < 0 || x >= m.width || y >= m.height) {
@@ -339,10 +344,12 @@ export class WorldScene extends Phaser.Scene {
       if (!cells.length) for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) if (water(x, y)) cells.push([x, y, false])
       this.fishWater = cells
     }
+    // the ground layer reads the ground under buildings and fences as the ground round them (ground.ts groundBeneath)
+    this.groundAt = groundBeneath(catalog(), map.stamps, this.terrainAt)
     const data: number[][] = []
     for (let y = 0; y < map.height; y++) {
       const row: number[] = []
-      for (let x = 0; x < map.width; x++) row.push(groundTile(this.atlas, catalog(), this.terrainAt, x, y, this.base?.light === 'dark'))
+      for (let x = 0; x < map.width; x++) row.push(groundTile(this.atlas, catalog(), this.groundAt, x, y, this.base?.light === 'dark'))
       data.push(row)
     }
     this.refreshGround()
@@ -453,7 +460,8 @@ export class WorldScene extends Phaser.Scene {
         const top = dy === 0
         const bottom = dy === h - 1
         if (!(left || right || top || bottom)) continue
-        if (this.terrainAt(x + dx, y + dy) === 'door') continue
+        // a door, or a doorway between two rooms of a house (its floor runs through the wall): no wall drawn there
+        if (!ROOM_WALL.has(this.terrainAt(x + dx, y + dy))) continue
         const sc = left ? 0 : right ? s - 1 : mid(dx, w)
         const sr = top ? 0 : bottom ? s - 1 : mid(dy, h)
         piece(sc, sr, dx, dy)
@@ -929,7 +937,7 @@ export class WorldScene extends Phaser.Scene {
       for (const k of redo) {
         const [x, y] = k.split(',').map(Number)
         if (x < 0 || y < 0 || x >= this.base!.width || y >= this.base!.height) continue
-        this.layer!.putTileAt(groundTile(this.atlas, catalog(), this.terrainAt, x, y, this.base?.light === 'dark'), x, y)
+        this.layer!.putTileAt(groundTile(this.atlas, catalog(), this.groundAt, x, y, this.base?.light === 'dark'), x, y)
       }
       this.refreshGround()
     }

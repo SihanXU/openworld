@@ -89,3 +89,11 @@ export const REGION_BY_ID: Record<string, RegionDef> = Object.fromEntries(REGION
  * a Seal-bearer's seat beyond the first, the Most Holy Hall — stays sealed and says so.
  */
 export const UNTOLD = 'world.untold'
+
+/**
+ * The fact the story's second part waits for (release 1, docs/release-1.md): the road east of the Ford — the
+ * Pilgrim's Road, the abbey, the Kneeling Field, the East Road — and all beyond it. Release 1 is Part One, the
+ * west bank: no rule sets it there, so the Ford's road east and the places beyond stay sealed (SITE_GATES, a
+ * portal's `opensWhen`) after Part One's ending on the far bank. The dev console sets it to play on.
+ */
+export const PART_TWO = 'world.part2'

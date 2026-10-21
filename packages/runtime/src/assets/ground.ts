@@ -172,7 +172,7 @@ export class GroundAtlas {
     const src = this.images[img]
     const x = (i % this.cols) * T
     const y = Math.floor(i / this.cols) * T
-    if (under && this.images[under[0]]) this.g.drawImage(this.images[under[0]], under[1] * T, under[2] * T, T, T, x, y, T, T)
+    // the tile, tinted (only its own pixels), then what lies under it drawn behind
     if (src) this.g.drawImage(src, col * T, row * T, T, T, x, y, T, T)
     if (tint) {
       this.g.save()
@@ -181,27 +181,36 @@ export class GroundAtlas {
       this.g.fillRect(x, y, T, T)
       this.g.restore()
     }
+    if (under && this.images[under[0]]) {
+      this.g.save()
+      this.g.globalCompositeOperation = 'destination-over'
+      this.g.drawImage(this.images[under[0]], under[1] * T, under[2] * T, T, T, x, y, T, T)
+      this.g.restore()
+    }
     this.index.set(key, i)
     return i
   }
 }
 
 /**
- * Terrains drawn with another terrain's tiles (ice = frozen-looking water) — the overworld's grounds as the
+ * Terrains drawn with another terrain's tiles (ice = the snow's sheet over water) — the overworld's grounds as the
  * local ones they stand for, unless the catalogue draws them itself (a world map of its own: `ow_*` with tiles of their own).
  */
-const ALIAS: Record<string, string> = { ice: 'water', spring: 'grass', dirt: 'path', ow_sea: 'deepwater', ow_river: 'water', ow_road: 'path', ow_plain: 'grass', ow_forest: 'grass', ow_hills: 'drygrass', ow_mountain: 'grass', ow_snow: 'snow' }
+// ice is drawn as the snow's sheet, its soft edges over open water (UNDER), icy blue: it joins the rime on the bank,
+// and open water draws no shore against it (groundTile)
+const ALIAS: Record<string, string> = { ice: 'snow', spring: 'grass', dirt: 'path', ow_sea: 'deepwater', ow_river: 'water', ow_road: 'path', ow_plain: 'grass', ow_forest: 'grass', ow_hills: 'drygrass', ow_mountain: 'grass', ow_snow: 'snow' }
 /** Tints composited over a terrain's tiles. */
+// (dry grass is not tinted: a tinted ground tile is a hard square, and its tall clumps are tinted gold already — scene.ts)
 const TINT: Record<string, string> = {
-  drygrass: 'rgba(214,190,90,0.30)',
   ash: 'rgba(45,40,38,0.62)',
   charred_tree: 'rgba(40,34,30,0.45)',
   burnt_wall: 'rgba(30,24,20,0.6)',
-  ice: 'rgba(225,245,255,0.72)',
+  ice: 'rgba(150,205,240,0.45)',
 }
 /** Tiles with transparent parts are drawn over a full tile of this terrain. */
 const UNDER: Record<string, string> = {
   bridge: 'water',
+  ice: 'water',
   door: 'floor_wood',
   stairs_down: 'cave_floor',
   stairs_up: 'cave_floor',
@@ -242,7 +251,9 @@ export function groundTile(atlas: GroundAtlas, catalog: Catalog, terrainAt: (x: 
   if (b) {
     const g = groupOf(catalog, t)
     // underground pools have no grassy shore: draw water as the full inner tile
-    const sig = shoreless && g === groupOf(catalog, 'water') ? 255 : wantSig((dx, dy) => groupOf(catalog, terrainAt(x + dx, y + dy)) === g)
+    // (water meets ice as more of itself: the river under it, no shore)
+    const water = g === groupOf(catalog, 'water')
+    const sig = shoreless && water ? 255 : wantSig((dx, dy) => ((n) => groupOf(catalog, n) === g || (water && n === 'ice'))(terrainAt(x + dx, y + dy)))
     const [dc, dr] = BLOB47[sig] ?? nearestBlob(sig)
     return atlas.tile(b.img, b.col + dc, b.row + dr, tint, under)
   }
@@ -265,4 +276,47 @@ function nearestBlob(sig: number): [number, number] {
     if (d < bestD) (bestD = d), (best = off)
   }
   return best
+}
+
+/** What stands, rather than lies: a cell of these is never the ground drawn under a building. */
+const STANDING = new Set(['wall', 'woodwall', 'door', 'roof', 'tree', 'pine', 'bush', 'rock', 'cave_wall', 'burnt_wall', 'charred_tree', 'void', 'stump'])
+
+/**
+ * The ground under a map's buildings and fences (its prefab stamps): a stamp's solid cells are wall terrain, so the
+ * map knows they block, but they are drawn as the ground round them — grass, cobble, sand — never as a wall tile
+ * showing through wherever the building's picture is open (a roof's rounded corners, between a fence's rails). Returns
+ * a terrain reader for the ground layer: the ground beneath a stamped cell, else the terrain itself. A stamp drawn as
+ * ground (the spring) keeps its own.
+ */
+export function groundBeneath(catalog: Catalog, stamps: { key: string; x: number; y: number }[] | undefined, terrainAt: (x: number, y: number) => string): (x: number, y: number) => string {
+  const covered = new Set<string>()
+  for (const s of stamps ?? []) {
+    const p = catalog.prefabs[s.key]
+    if (!p || p.ground) continue
+    p.grid.forEach((row, j) => [...row].forEach((c, i) => (c === '#' || c === 'D') && covered.add(`${s.x + i},${s.y + j}`)))
+  }
+  if (!covered.size) return terrainAt
+  const beneath = new Map<string, string>()
+  const under = (x: number, y: number): string => {
+    const k = `${x},${y}`
+    const known = beneath.get(k)
+    if (known) return known
+    // the nearest ring of open ground round it, by what most of that ring is (grass where it ties)
+    let found = 'grass'
+    for (let r = 1; r <= 8; r++) {
+      const count = new Map<string, number>()
+      for (let dy = -r; dy <= r; dy++)
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || covered.has(`${x + dx},${y + dy}`)) continue
+          const t = terrainAt(x + dx, y + dy)
+          if (!STANDING.has(t)) count.set(t, (count.get(t) ?? 0) + 1)
+        }
+      if (!count.size) continue
+      found = [...count].sort((a, b) => b[1] - a[1] || (a[0] === 'grass' ? -1 : b[0] === 'grass' ? 1 : 0))[0][0]
+      break
+    }
+    beneath.set(k, found)
+    return found
+  }
+  return (x, y) => (covered.has(`${x},${y}`) ? under(x, y) : terrainAt(x, y))
 }

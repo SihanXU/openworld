@@ -18,7 +18,7 @@ export const joss: PersonDef = {
   purse: 25,
   schedules: {
     default: [
-      [21, 6, 'meadow:joss.home', 'sleep'],
+      [21, 6, 'meadow.lane:bed.0', 'sleep'],
       [6, 21, 'meadow:joss.bench', 'plane boards at the workbench'],
     ],
   },
