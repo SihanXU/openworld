@@ -1,15 +1,17 @@
-// npm run wiki — the wiki on http://localhost:5180/wiki/, rebuilt when a page, the site file or the
-// translations change. The game's pictures come from games/openworld/public/assets, as on the server.
+// npm run wiki — the wiki on http://localhost:5180/wiki/ (the English edition at /wiki/en/), rebuilt when a page,
+// the site file or the translations change. The game's pictures come from games/openworld/public/assets, as on the server.
 
 import { createReadStream, existsSync, statSync, watch } from 'node:fs'
 import { createServer } from 'node:http'
 import { extname, join, normalize, sep } from 'node:path'
 import { tmpdir } from 'node:os'
-import { ROOT, WIKI, buildSite } from './site.ts'
-import { writeSite } from './build.ts'
+import { ROOT, WIKI } from './site.ts'
+import { buildBoth, writeSite } from './build.ts'
 
-const PORT = Number(process.env.WIKI_PORT ?? 5180)
-const OUT = join(tmpdir(), 'openworld-wiki')
+const portArg = process.argv.indexOf('--port')
+const PORT = Number(portArg >= 0 ? process.argv[portArg + 1] : process.env.WIKI_PORT ?? 5180)
+// (one directory per port: two checkouts can serve their wikis side by side)
+const OUT = join(tmpdir(), PORT === 5180 ? 'openworld-wiki' : `openworld-wiki-${PORT}`)
 const ASSETS = join(ROOT, 'games', 'openworld', 'public', 'assets')
 const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml' }
 
@@ -20,11 +22,12 @@ function rebuild(): void {
   building = true
   const t0 = Date.now()
   try {
-    const b = buildSite()
-    writeSite(b, OUT)
-    console.log(`${new Date().toLocaleTimeString()} 重建：${b.pages.size} 页，${b.errors.length} 个错误，${b.redLinks.size} 个红链（${Date.now() - t0} ms）`)
-    for (const e of b.errors.slice(0, 30)) console.log(`  错误：${e}`)
-    if (b.errors.length > 30) console.log(`  ……还有 ${b.errors.length - 30} 个，见 特殊：完备性`)
+    const editions = buildBoth()
+    writeSite(editions, OUT)
+    const errors = editions.flatMap((b) => b.errors)
+    console.log(`${new Date().toLocaleTimeString()} 重建：${editions.map((b) => `${b.lang} ${b.pages.size} 页`).join('，')}，${errors.length} 个错误（${Date.now() - t0} ms）`)
+    for (const e of errors.slice(0, 30)) console.log(`  错误：${e}`)
+    if (errors.length > 30) console.log(`  ……还有 ${errors.length - 30} 个，见 特殊：完备性 和 Special:Completeness`)
   } catch (e) {
     console.error('构建失败：', e)
   }

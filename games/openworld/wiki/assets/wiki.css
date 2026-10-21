@@ -1,4 +1,4 @@
-/* OpenWorld 中文维基 — a MediaWiki-shaped page in the game's colours: parchment by day, night by night. */
+/* OpenWorld wiki, both editions — a MediaWiki-shaped page in the game's colours: parchment by day, night by night. */
 :root {
   --bg: #efe6d2;
   --bg-deep: #e3d6b8;
@@ -85,6 +85,7 @@ kbd {
 }
 .tab.sel { color: var(--ink); background: var(--panel); font-weight: 700; }
 .tab.theme { font: inherit; font-size: 14px; color: var(--ink-soft); }
+.tab.lang { font-weight: 700; color: var(--accent); }
 .search { position: relative; margin-left: auto; margin-bottom: 4px; }
 .search input {
   width: 260px; max-width: 46vw; padding: 7px 12px; font: inherit; font-size: 14px; color: var(--ink); background: var(--panel);
@@ -162,6 +163,8 @@ kbd {
 .banner.tbd { background: var(--banner-tbd); border-left-color: #8a5ad0; }
 .banner.dev { background: var(--banner-dev); border-left-color: #4f9a6a; }
 .banner.gen { background: var(--panel-2); border-left-color: var(--line-strong); color: var(--ink-soft); }
+.banner.untranslated { background: var(--banner-planned); border-left-color: #4a7bd0; }
+.banner.outdated { background: var(--banner-stub); border-left-color: var(--part); }
 .hatnote { font-style: italic; color: var(--ink-soft); padding-left: 1.6em; margin: -4px 0 8px; font-size: 14px; }
 .quote { border: 0 !important; background: none !important; text-align: center; font-size: 16px; color: var(--ink) !important; margin: 4px 0 14px !important; }
 .quote p { font-family: "Noto Serif SC", serif; }

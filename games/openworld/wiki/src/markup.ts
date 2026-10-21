@@ -3,6 +3,7 @@
 // infobox) never ends up inside a paragraph.
 
 import { marked } from 'marked'
+import { L } from './lang.ts'
 
 export interface Front {
   标题?: string
@@ -12,11 +13,13 @@ export interface Front {
   状态?: string
   别名: string[]
   摘要?: string
+  /** An English page: the hash of the Chinese page it was translated from (site.ts sourceHash). */
+  source?: string
 }
 
 const KEYS: Record<string, keyof Front> = {
   标题: '标题', title: '标题', 类型: '类型', type: '类型', 对象: '对象', game: '对象', object: '对象', 分类: '分类', categories: '分类',
-  状态: '状态', status: '状态', 别名: '别名', aliases: '别名', 摘要: '摘要', summary: '摘要',
+  状态: '状态', status: '状态', 别名: '别名', aliases: '别名', 摘要: '摘要', summary: '摘要', source: 'source', 原文: 'source',
 }
 
 export function parseFront(src: string): { front: Front; body: string; errors: string[] } {
@@ -25,13 +28,13 @@ export function parseFront(src: string): { front: Front; body: string; errors: s
   const text = src.replace(/^﻿/, '').replace(/\r\n/g, '\n')
   if (!text.startsWith('---\n')) return { front, body: text, errors }
   const end = text.indexOf('\n---', 4)
-  if (end < 0) return { front, body: text, errors: ['开头的 --- 没有结束'] }
+  if (end < 0) return { front, body: text, errors: [L('开头的 --- 没有结束', 'the opening --- is never closed')] }
   for (const line of text.slice(4, end).split('\n')) {
     if (!line.trim()) continue
     const m = line.match(/^\s*([^:：]+?)\s*[:：]\s*(.*)$/)
-    if (!m) { errors.push(`看不懂开头这一行：${line}`); continue }
+    if (!m) { errors.push(L(`看不懂开头这一行：${line}`, `cannot read this line of the front matter: ${line}`)); continue }
     const key = KEYS[m[1].trim()]
-    if (!key) { errors.push(`开头的键「${m[1]}」不认识`); continue }
+    if (!key) { errors.push(L(`开头的键「${m[1]}」不认识`, `unknown front-matter key “${m[1]}”`)); continue }
     const value = m[2].trim()
     if (key === '分类' || key === '别名') (front[key] as string[]).push(...value.split(/[,，、]/).map((s) => s.trim()).filter(Boolean))
     else (front as any)[key] = value
@@ -114,9 +117,9 @@ export function render(body: string, hooks: RenderHooks): Rendered {
   s = s.replace(/^```[^\n]*\n[\s\S]*?\n```\s*$/gm, (m) => put(marked.parse(m) as string, true))
   s = s.replace(/`[^`\n]+`/g, (m) => put(marked.parseInline(m) as string, false))
   // spoiler blocks
-  s = s.replace(/^\s*\{\{\s*剧透\s*(?:\|([^}]*))?\}\}\s*$/gm, (_, title) =>
-    `\n${put(`<details class="spoiler"><summary>${escapeHtml((title ?? '').trim() || '剧透')}<span class="spoiler-hint">（点开查看）</span></summary><div class="spoiler-body">`, true)}\n`)
-  s = s.replace(/^\s*\{\{\s*\/\s*剧透\s*\}\}\s*$/gm, () => `\n${put('</div></details>', true)}\n`)
+  s = s.replace(/^\s*\{\{\s*(?:剧透|[Ss]poiler)\s*(?:\|([^}]*))?\}\}\s*$/gm, (_, title) =>
+    `\n${put(`<details class="spoiler"><summary>${escapeHtml((title ?? '').trim() || L('剧透', 'Spoiler'))}<span class="spoiler-hint">${L('（点开查看）', ' (click to show)')}</span></summary><div class="spoiler-body">`, true)}\n`)
+  s = s.replace(/^\s*\{\{\s*\/\s*(?:剧透|[Ss]poiler)\s*\}\}\s*$/gm, () => `\n${put('</div></details>', true)}\n`)
   // templates, innermost text first: a template's arguments are rendered inline by the template
   let found = findTemplates(s)
   while (found.length) {
@@ -143,7 +146,8 @@ export function render(body: string, hooks: RenderHooks): Rendered {
   // headings get ids for [[页面#小节]]
   const headings: Rendered['headings'] = []
   html = html.replace(/<h([2-4])>([\s\S]*?)<\/h\1>/g, (_, level: string, inner: string) => {
-    const text = inner.replace(/<[^>]+>/g, '').trim()
+    // (its words as written: the entities Markdown made of an apostrophe or an ampersand read as themselves)
+    const text = inner.replace(/<[^>]+>/g, '').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').trim()
     const id = slug(text)
     headings.push({ level: Number(level), text, id })
     return `<h${level} id="${escapeAttr(id)}"><span class="mw-headline">${inner}</span></h${level}>`
@@ -161,4 +165,4 @@ export const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, 
 export const escapeAttr = (s: string) => escapeHtml(s).replace(/"/g, '&quot;')
 
 /** The plain text of some HTML (search). */
-export const plain = (html: string) => html.replace(/<(script|style)[\s\S]*?<\/\1>/g, '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim()
+export const plain = (html: string) => html.replace(/<(script|style)[\s\S]*?<\/\1>/g, '').replace(/<[^>]+>/g, ' ').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&[a-z]+;|&#\d+;/g, ' ').replace(/\s+/g, ' ').trim()

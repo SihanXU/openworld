@@ -1,0 +1,19 @@
+{
+  "说明": "The English edition's own words for the navigation. The sidebar's and the main page's links are wiki/site.json's (Chinese titles, each shown as its English page); only the wiki's name and the headings are written here.",
+  "name": "OpenWorld Wiki",
+  "headings": {
+    "导航": "Navigation",
+    "参与编辑": "Contributing",
+    "企划": "Design",
+    "基本": "Basics",
+    "世界": "The world",
+    "生活": "Life",
+    "战斗与成长": "Combat and growth",
+    "玩法": "Play",
+    "人们": "People",
+    "物品": "Items",
+    "地点": "Places",
+    "剧情与世界观": "Story and lore",
+    "企划与开发": "Design and development"
+  }
+}

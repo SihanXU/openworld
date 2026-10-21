@@ -1,12 +1,22 @@
-// OpenWorld 中文维基: search (suggestions and results), random page, sortable tables, theme, spoilers.
+// The OpenWorld wiki, either edition: search (suggestions and results), random page, sortable tables, theme, spoilers.
 (function () {
   'use strict'
   var INDEX = null
+  var EN = document.documentElement.lang === 'en'
+  var BASE = document.documentElement.dataset.base || '/wiki/'
   function load(cb) {
     if (INDEX) return cb(INDEX)
-    fetch('/wiki/_/search.json').then(function (r) { return r.json() }).then(function (d) { INDEX = d; cb(d) }).catch(function () { cb([]) })
+    fetch(EN ? '/wiki/_/search.en.json' : '/wiki/_/search.json').then(function (r) { return r.json() }).then(function (d) { INDEX = d; cb(d) }).catch(function () { cb([]) })
   }
-  var href = function (t) { return '/wiki/' + encodeURIComponent(t.replace(/\//g, '／')) }
+  // a title's path, as lang.ts titlePath makes it
+  var href = function (t) {
+    t = t.replace(/\//g, '／')
+    if (!EN) return BASE + encodeURIComponent(t)
+    var full = { ':': '：', '?': '？', '*': '＊', '"': '＂', '<': '＜', '>': '＞', '|': '｜', '\\': '＼', ' ': '_' }
+    var clean = function (s) { return s.replace(/[:?*"<>|\\ ]/g, function (c) { return full[c] }) }
+    var m = t.match(/^(Special|Category):(.*)$/)
+    return BASE + (m ? m[1] + '/' + encodeURIComponent(clean(m[2])) : encodeURIComponent(clean(t)))
+  }
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] }) }
 
   function score(p, q) {
@@ -58,7 +68,7 @@
       var exact = INDEX.filter(function (p) { return p.t === q || (p.a || []).indexOf(q) >= 0 })[0]
       if (exact && !new URLSearchParams(location.search).get('all')) { location.replace(href(exact.t)); return }
       var r = search(q, 60)
-      results.innerHTML = '<p>搜索「' + esc(q) + '」：找到 ' + r.length + ' 页。</p><ol class="search-list">' + r.map(function (p) {
+      results.innerHTML = (EN ? '<p>Search for “' + esc(q) + '”: ' + r.length + ' pages.</p>' : '<p>搜索「' + esc(q) + '」：找到 ' + r.length + ' 页。</p>') + '<ol class="search-list">' + r.map(function (p) {
         var i = p.x.toLowerCase().indexOf(q.toLowerCase()), snip = i >= 0 ? p.x.slice(Math.max(0, i - 40), i + 80) : p.s
         return '<li><a href="' + href(p.t) + '"><b>' + esc(p.t) + '</b></a> <small class="muted">' + esc(p.k) + '</small><br><span class="muted">' + esc(snip) + '</span></li>'
       }).join('') + '</ol>'
@@ -66,7 +76,7 @@
   }
 
   // random page
-  if (document.getElementById('random-go')) load(function (d) { var ps = d.filter(function (p) { return p.k !== '特殊' }); location.replace(href(ps[Math.floor(Math.random() * ps.length)].t)) })
+  if (document.getElementById('random-go')) load(function (d) { var ps = d.filter(function (p) { return p.k !== '特殊' && p.k !== 'Special' }); location.replace(href(ps[Math.floor(Math.random() * ps.length)].t)) })
 
   // sortable tables
   document.querySelectorAll('table.sortable').forEach(function (t) {
@@ -80,7 +90,7 @@
         rows.sort(function (a, b) {
           var x = a.cells[col] ? a.cells[col].textContent.trim() : '', y = b.cells[col] ? b.cells[col].textContent.trim() : ''
           var nx = parseFloat(x.replace(/[^\d.\-]/g, '')), ny = parseFloat(y.replace(/[^\d.\-]/g, ''))
-          var c = !isNaN(nx) && !isNaN(ny) ? nx - ny : x.localeCompare(y, 'zh')
+          var c = !isNaN(nx) && !isNaN(ny) ? nx - ny : x.localeCompare(y, EN ? 'en' : 'zh')
           return asc ? c : -c
         })
         rows.forEach(function (r) { body.appendChild(r) })
