@@ -81,14 +81,15 @@ E, use. It is a rule of where one stands, not of who one is.
 - The ceiling over stairs cannot be laid: stairs keep the storey over them open, since one climbs
   through it. The roof over a stairwell is laid from upstairs, as that storey's own ceiling F(z + 2).
 
-**R5 Taking is the mirror of putting.**
-- By default F takes what one storey's layers put on top, as now: bodies, loose items, fixtures,
-  structures, then the laid floor.
-- The ceiling is taken only when chosen explicitly (§5).
-- A slab (F(z > 0)) or a ceiling that something rests on directly cannot be taken until that is
+**R5 Taking down is the mirror of building** (since 2026-10-21 a tool's: design.md §5.2).
+- A tool (an axe, a pickaxe, a hammer) swung at what is built knocks it loose whole (`loosen`): it lies packed
+  where it stood, to be picked up (E, or the magnet). The swing meets the top of one storey's layers, as now:
+  fixtures, structures, then the laid floor (the chooser for what is under).
+- The ceiling is knocked loose only when chosen explicitly (§5); it comes down whole to the storey below.
+- A slab (F(z > 0)) or a ceiling that something rests on directly cannot be knocked loose until that is
   taken first (a wall on it, a bed, an item, someone standing). A floor on the ground can: what
   stood on it stays, on the terrain.
-- Taking a wall that holds slabs up still brings down the slabs that lose all support (the
+- Knocking loose a wall that holds slabs up still brings down the slabs that lose all support (the
   existing collapse, W12).
 - Laying is the gentler side: a floor may be laid under what stands in the cell (it now stands on it).
 
@@ -110,11 +111,11 @@ E, use. It is a rule of where one stands, not of who one is.
   pointer.
 - **Choosing the ceiling:**
   - In the build palette, R toggles a floor entry between *floor* and *ceiling*, as it turns
-    stairs, and dragging lays a row of either.
-  - A long press on a cell, carrying a floor, lists *lay a ceiling*.
-  - G alone lays a floor in F(z).
-  - Taking the ceiling is in the long-press list only (*take down the ceiling*). It is never the
-    default of F.
+    stairs, and dragging lays a row of either; with a floor in hand, R turns the right click to the ceiling.
+  - The chooser on a cell (Alt with the right click), carrying a floor, lists *lay a ceiling*.
+  - The right click alone lays a floor in F(z); G puts a floor down loose, never laying it.
+  - Knocking the ceiling loose is in the chooser only (Alt with the left click, a tool in hand). It is never a
+    swing's default.
 - **The preview** shows the thing where it will be drawn:
   - a block as its front and top (two tiles high) at its cell;
   - a floor flat on its cell;
@@ -124,7 +125,7 @@ E, use. It is a rule of where one stands, not of who one is.
   - The ceiling was taken over the cell pointed at, and drawn a row up from it: one clicked a cell and
     the ceiling appeared over the one behind it.
   - The preview was then drawn on the cell pointed at while the ceiling still appeared a row up.
-- **The labels** say which: "Place wall", "Lay floor", "Lay ceiling", "Take down ceiling".
+- **The labels** say which: "Set Wall down", "Lay floor", "Lay ceiling".
 - **The palette shows one's own storey.** While the palette is open, nothing above one's storey is
   drawn (The Sims' build mode: one edits one level). While one lays ceilings, those over one's storey
   are tinted, translucent, where they are drawn (RimWorld's roof overlay), so they never hide what is
@@ -152,9 +153,11 @@ Rows: where one stands, the slot, the act. "ok" means it happens; otherwise, why
 | on stairs (storey z) | any | as "standing on" storey z | as storey z: the landing above is laid this way |
 | any | out of reach | cannot | cannot |
 
-### 6.2 Putting a wall, door, stairs or furniture (V(z) only)
+### 6.2 Setting up a wall, door, stairs or furniture (V(z) only)
 
-| Target | Wall / door | Stairs | Bed, chest, workbench | Loose item (G) |
+Set up with the right click or the palette; anything put down with G lies loose (the last column).
+
+| Target | Wall / door | Stairs | Bed, chest, workbench | Loose (G) |
 |---|---|---|---|---|
 | F(z) present, V(z) free | ok | ok, facing chosen (R) | ok | ok |
 | F(z) empty, wall/door in V(z−1) | ok (taller wall) | cannot | cannot | cannot |
@@ -163,21 +166,22 @@ Rows: where one stands, the slot, the act. "ok" means it happens; otherwise, why
 | a body in the cell | cannot | cannot | cannot | ok |
 | the cell one stands in | cannot (solid) | cannot | cannot | ok |
 
-### 6.3 Taking (F)
+### 6.3 Knocking loose (a tool's left click; what lies loose E picks up)
 
-| Target | Default F | Long press |
+| Target | A press | The chooser (Alt) |
 |---|---|---|
-| an item, a body, a fixture, a structure in V(z) | top first, as now | each listed |
+| a fixture or a structure that can be carried, in V(z) | top first | each listed |
 | a laid floor in F(z), nothing on it | when nothing else is there | listed |
 | a floor on the ground, something on it (oneself too) | after what is on it | listed: what was on it stays, on the terrain |
-| a slab (z>0), something on it (oneself too) | not offered: "take what is on it first" | not offered |
-| the ceiling F(z+1), nothing on it | never | *take down the ceiling* |
-| the ceiling, something on it (a wall, a bed, someone upstairs) | never | not offered: "something rests on it" |
+| a slab (z>0), something on it (oneself too) | not offered | not offered |
+| the ceiling F(z+1), nothing on it | never | *the ceiling*: it comes down whole |
+| the ceiling, something on it (a wall, a bed, someone upstairs) | never | not offered |
 | a wall holding slabs | ok; the slabs left without support come down (W12) | listed |
 
 ### 6.4 E and use
 
-They meet only V(z) and F(z) of one's storey, as now. The ceiling and other storeys are never met.
+They meet only V(z) and F(z) of one's storey, as now. The ceiling and other storeys are never met, but by the
+chooser's ceiling (a floor laid, or knocked loose).
 
 ### 6.5 A two-storey house, start to finish (every step uses R1)
 
@@ -188,7 +192,7 @@ They meet only V(z) and F(z) of one's storey, as now. The ceiling and other stor
 5. Upstairs: a ring of walls on the slab.
 6. Upstairs: lay the ceiling (the roof), and over the stairwell too.
 
-Taking it down is the reverse, step by step. Every step is reachable, and nothing is guessed.
+Taking it down is the reverse, step by step, with a tool. Every step is reachable, and nothing is guessed.
 
 ## 7. What changes against what is built
 
@@ -232,22 +236,22 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
   ground to it when no floor is laid there (`World.airAt`). It is never among a cell's things: it takes
   no space, holds nothing, and is not drawn.
   - `Controls.layers` adds it as the make-up of such a cell.
-  - Only F and G meet it (`targets`).
+  - Only G and the right click with a built thing in hand meet it (`targets`).
   - Its rule is `core/receive-air`: it takes what is set in it, and where that rests is physics.
   - The coverage table leaves it out (it is never faced on a map).
 - **Where a thing rests.** `World.settleZ(e, map, x, y, z)` checks one storey; `World.settleWhy` says why not:
   `taken`, `ground`, `stairs`, `unheld`. The palette's refusals are `REFUSAL` in `controls.ts`.
-- **Reach.** `Engine.inReach` lets a put or a take reach the floor slot of the storey above: a laid floor
-  or the open air.
+- **Reach.** `Engine.inReach` lets a put, a take or a use reach the floor slot of the storey above: a laid
+  floor or the open air.
 - **Choosing the ceiling.** The ceiling is `CEILING` (layer −1) of `Controls.plan` and `choices`: the
   chooser's last entry, never a default. It is the ceiling of `Aim.over` (the cell whose ceiling is
   drawn at the pointer, from `WorldScene.aimAtScreen`), else of the cell aimed at. The build palette's
   `up`, carried by the `build` and `buildAim` messages, toggles with R for a floor; it sends the
   `over` cell as the tile.
 - **The dry run is structural.** A move counts as a change whether or not the thing could rest there, so
-  `Controls.planOn` checks a put on a cell or a built thing against `settleWhy`, and a take against
-  `World.bears`: a floor above the ground that something rests on. The `move` primitive refuses to move
-  a floor that bears anything.
+  `Controls.planOn` checks a put, or a use that sets a thing up, on a cell or a built thing against `settleWhy`,
+  and a ceiling knocked loose against `World.bears`: a floor above the ground that something rests on. The `move`
+  and `loosen` primitives refuse to move a floor that bears anything.
 - **What turns** (2026-10-08): the tag `turns` (stairs, stakes, a fence). Set down (the `move` effect)
   or become (the `transform` effect) where it lies, it faces the way the one who made it faced: its front
   toward them (stairs go up away from them, a fence runs across their way). By hand one faces the cell
@@ -256,21 +260,28 @@ Taking it down is the reverse, step by step. Every step is reachable, and nothin
 - **The back of stairs** (2026-10-08) is their high end, a storey of block: on their storey one bumps
   into it from the cell behind and does not walk off their top into that cell (`Engine.stepSelf`).
   Stairs that hide the player fade, as a statue does (`WorldScene.fadeOver`).
-- **The left click builds** (2026-10-08, after the user: G is the put that drops a thing, building
-  belongs on the mouse as in every building game). A built thing or a fixture in hand, used on open
-  ground, a floor or what is built there, is set down there: the rules `use/set-structure` and
-  `use/set-fixture` (hosted by what is held) hand it to the cell, which takes it as it takes G's put
-  (`core/receive-ground`, `build/stack`, `core/receive-air`), so the physics is the same. Anywhere else
-  (the water, a tree, a person), or swung as a blow, it stays what its nature says: an experiment.
-  - The plan says it sets (`Plan.sets`, the frame's `KeyView.sets`: the answer is a cell taking it). The
-    left button then acts on the press (no chooser on a long press) and, held and dragged, in each new
-    cell, only where it sets (the worker's `drag`).
+- **The right click builds** (2026-10-08 the left click, after the user: G is the put that drops a thing, building
+  belongs on the mouse as in every building game; 2026-10-21 the right click, the held thing's use on the aim,
+  design.md §5.2). A built thing or a fixture in hand, used on open ground, a floor or what is built there, is set
+  up there: the rules `use/set-structure` and `use/set-fixture` (hosted by what is held) hand it to the cell with
+  `build`, which takes it as it takes G's put (`core/receive-ground`, `build/stack`, `core/receive-air`), so the
+  physics is the same — but it stands, where what G puts lies loose. Anywhere else (the water, a tree, a person),
+  or swung as a blow, it stays what its nature says: an experiment. On one's own place it is set up under one
+  where it can stand with one (a bed).
+  - The plan says it sets (`Plan.sets`, the frame's `KeyView.sets`: the answer is a cell taking it), and is
+    offered only where it changes something and the thing could rest there. The right button acts on the press
+    and, held and dragged, in each new cell, only where it sets (the worker's `drag`).
   - R with a floor in hand lays it in the ceiling (`CEILING` for the use, the reach over one's head
-    as G's); the view shows one's storey and the ceilings while it is on, as the palette does. (R is
-    otherwise the exact use, design.md §5.2; a built thing in hand keeps the left click as that use,
-    with its chooser, where any other object's left click is the swing's blow.)
+    as G's); the view shows one's storey and the ceilings while it is on, as the palette does.
+  - The build palette sets up through the same use (`Controls.place` → `planSet`), never G.
   - The thing in hand has its ghost where it will be drawn (`BuildingMode.hand`).
   - A lesson's `only` and `cells` narrow it as they narrow G.
+- **Two forms** (2026-10-21, design.md §5.2): a built thing that can be carried either stands (set up) or lies
+  loose, packed as `LOOSE` (`item/misc/bundle/loose`, drawn as the small picture of what it holds): put down with
+  G, spilled, or knocked loose by a tool (`core/strike` → `loosen`, what it holds spilling first; a packed ceiling
+  comes down to the storey that holds it). E or the magnet picks the pack up, and the thing comes out whole
+  (`body/loose-taken`). Set up again, it stands. The world's maps and the palette's work stand from the start;
+  no save changes.
 - **The build palette's buildings** (a chest, a campfire, a crate, a fence, a sign: `placement.ts`) go up
   on one's own storey, on open ground or on a floor laid there (the first material stacks on it,
   `build/stack`), where the result could rest (`settleWhy`). A laid floor and a flyer over the cell are

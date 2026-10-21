@@ -52,7 +52,7 @@ contract. We keep that contract and its three-layer discipline. What changes:
 | D5 | Maps | **Tiled JSON**, whether hand-made or generated |
 | D6 | Art | **16×16**, **Ninja Adventure** (CC0) as the base pack; layered character composition + palette swaps for variety |
 | D7 | Setting | our own world, grown out from the Ford (game-design.md) to hundreds of maps; the generated Saenvar world was removed on 2026-10-02 |
-| D8 | Player input | four inputs, one verb each (§5.2): **E** interact bare-handed, **F** take, **G** put, **R** use the held thing (or strike); made of them, the **left click**, the swing (a tool's or a weapon's use, else the main hand's weapon or the fist), and the **right click**, the action (Stardew's: the act the thing calls for, then what the held object does to it, chosen as the base rules answer); a long press chooses the layer; proven complete over the engine's event space |
+| D8 | Player input | four inputs, each one meaning (§5.2, agreed 2026-10-21): the **left click**, the held thing's own use (a tool or a weapon swung, the fist, anything else used on oneself); the **right click**, the held thing used on what is aimed at (and building); **E**, the hand (what lies loose picked up, anything else handled); **G**, put (never builds); a long press of E or G, or Alt with a click, chooses the layer; proven complete over the engine's event space |
 | D9 | Free-text input | **deferred**; reserved in the ModSpec as the `intent` and `ask` event kinds (§5.4) |
 | D10 | Combat | **on-map, real-time** (Zelda / Stardew-like), elemental reactions interacting with the environment |
 | D11 | Rule system | **one** rule engine for world interactions, elemental reactions and combat |
@@ -155,9 +155,9 @@ action becomes an event:
 Interaction = { verb, actor, target, instrument?, at, time }
 ```
 
-The player never chooses among the verbs. The two keys below do, using the rule library.
+The player never chooses among the verbs: each input below makes its own.
 
-### 5.2 Player input: four inputs, one act each, and the two clicks over them
+### 5.2 Player input: four inputs, each one meaning
 
 **Why not Stardew's contextual Action key.** Stardew's interaction space is closed: each pair
 of (held thing, target) means one thing, a tile holds one thing, and items in the bag do not
@@ -167,13 +167,56 @@ onto Y, or do Y's own thing with a bare hand — and a contextual key always hid
 The first build (two Stardew keys) failed exactly so: where using X on Y was defined, putting X
 there was unreachable. Checked against the engine's event space, it had five holes (a take and
 a bare-hand interaction on the same fixture; a tool on the ground versus using it on oneself;
-layers under a pile; items in the bag as targets; an axe that both chops and strikes).
+layers under a pile; items in the bag as targets; an axe that both chops and strikes). A second
+contextual click over exact keys (2026-10-14 to 10-20: a right click choosing among E, F, G and R as the
+base rules answered) hid nothing, but could not be taught: its rules were long, and the left click's
+meaning changed with every thing picked up (a stone in hand turned a punch on a slime into "use the stone
+on the slime").
+
+**The standard** (agreed 2026-10-21): four inputs, each with one meaning a player can say in a sentence. What
+is held decides only *what* is used, never *which* act; what is aimed at decides only, for the hand, whether it
+lies loose or stands.
+
+| Input | Act | Reach | For |
+|---|---|---|---|
+| **Left click** (`primary`) | the held thing's **own use**: a tool or a weapon (`isTool`, Stardew's line) swung, `use(held, target)` at the aim; nothing held, the blow of the main hand's weapon, else the fist, `use(none, target)`; anything else held, `use(held, self)` wherever one points | the held thing's `range` (1 by default; a spear 2, a bow 6) | weapons, tools (chop, mine, till, harvest, fill, water, light, cast), the fist; eat, drink, put on, read |
+| **Right click** (`secondary`) | `use(held, target)`: the held thing on what is aimed at; on oneself, `use(held, self)`; a built thing in hand set up there (it builds: `use/set-structure`, `use/set-fixture`); nothing held, nothing | the held thing's `range` | sow, fertilize, feed, unlock, cook, smelt, write, bait; feeding or dressing someone; every experiment the world has never seen; building by hand |
+| **E** (the hand) | what lies loose (`World.isLoose`: an item; a built thing come loose) `take(target)`; anything else `hands(target)`; sneaking, on a person, `take(person)` (their pockets) | `carry` for a take; the target's `handsRange` for a hand (0: standing on it, a bed; 1 by default; a sign 2) | pick up, steal (asked first); talk, open, read, wake, sleep, enter, pick a ripe crop |
+| **G** | `put(held, target)` | the world's `carry` (1: the cells round, one's own included) | set down, put in or on, set on a fire, hand to a person; a built thing put down lies loose (G never builds) |
+
+**The left click** is `Controls.plan('primary')`. A swing lands on what is struck — with nothing in hand someone
+first, then what cannot be carried, never a loose thing lying there; with a tool, the top layer —, on someone one
+talks to (a person, a companion) only with the weapon drawn (X: the blow is meant, docs/npc-sandbox.md; a torch is
+not put to a villager by a slip either), never on oneself, and a press at the bare ground the world has never seen
+struck makes nothing (the right click is the experiment). It acts on the press; held, it goes on
+(`Controls.again`) at a swing's pace — the attack's cooldown, the same beat for a tool's work — making again only
+the act the press made (a blow, or the same rule's work: one tree after another, a row tilled) where the base
+rules or a learned answer know it and it changes something, never one that asks first, and never one that undoes
+the last (a bucket filled is not poured back). An object used on oneself is made once a press, and where the world
+has never seen it, asked first (`Use {instrument} on yourself?`): a stone clicked on by a slip of the finger is no
+question for the modder.
+
+**The right click** is `Controls.plan('secondary')`, the exact use: it chooses nothing. Every "use X on Y" the
+player makes is a right click, so the experiments — the world's one AI interface reached by hand (§5.11) — are a
+deliberate act. A built thing in hand is set up where the cell takes it (the settle check of docs/building.md), on
+one's own place too where it can stand with one (a bed under one); held and dragged, a row; a floor in hand, R
+turns the click to the ceiling.
+
+**E, by the form of what it meets** (Minecraft's dropped item and block): a thing is either **loose** — an item,
+or a built thing come loose, packed where it lies (`LOOSE`, the kernel's `item/misc/bundle/loose`, drawn as what
+it holds) — or **set up**. The hand picks up what is loose and handles what is set up. A built thing comes loose
+when it comes to rest on a cell by any way but being set up (G, a spill; the `move` primitive without `build`),
+and when a tool knocks it (`core/strike`: an axe, a pickaxe or a hammer on a built thing that can be carried —
+the `loosen` primitive, what it holds spilling out first); it is set up again by the right click or the build
+palette. What F did is so spread: picking up is E, a ripe crop is picked with the hand (`farm/pick` on
+`impulse/handle`), taking down is a tool's, a theft is E asked first (`Steal {target}?`), and a pocket picked is E
+sneaking.
 
 **The attack key.** Besides these, **Space** strikes straight ahead with the held weapon (else
 the one in the main hand, else a tool in hand — a torch swung —, else a fist; never an object that
 happens to be held, `weaponOf`): on the press, and again while held, paced by the attack cooldown.
 It adds no event the others cannot make (the left click makes the same blow, aimed at a spot); it
-is there for feel, because a fight should not depend on where the cursor is.
+is there for feel, because a fight should not depend on where the cursor is, nor on what is held.
 
 **Completeness**, the criterion every input design here must meet:
 
@@ -189,92 +232,42 @@ is there for feel, because a fight should not depend on where the cursor is.
    kind of work off, §13). A patch carries its own label, so a hole the AI filled says what it now does
    (the validator warns when an input-reached rule has none). The tip over the framed spot says it (§5.3).
 
-**The player's event space** (from the engine and the rules): `hands(target)` — a hand on it;
-`take(target)` — picking crops is a take; `put(held, target)` — sowing, storing and giving are
-puts; `use(held, target)` — eating is a use on oneself; `use(none, target)` — the bare body's
-blow; `enter(tile)`. Targets: every layer of a tile within the act's reach (people and creatures,
-fixtures, the items of a pile, the ground), the player (for use only), and items in the bag or an
-open chest.
+**The player's event space** (from the engine and the rules): `hands(target)` — a hand on what stands;
+`take(target)` — what lies loose; `put(held, target)` — storing and giving are puts; `use(held, target)` —
+sowing, feeding, cooking, a tool's work, building by hand; `use(held, self)` — eating is a use on oneself;
+`use(none, target)` — the bare body's blow; `enter(tile)`. Targets: every layer of a tile within the act's reach
+(people and creatures, fixtures, the items of a pile, the ground, the ceiling), the player (for use only), and items
+in the bag or an open chest. A hand on what lies loose is a take (by design: the hand picks it up).
 
-**The inputs**, one act each (Stardew's and Minecraft's split of hands, items and the world), and the two clicks over them:
-
-| Input | Act | Reach | For |
-|---|---|---|---|
-| **E** | `hands(target)` | the target's `handsRange` (0: standing on it, a bed; 1, beside it, by default; a sign 2) | talk, open, read, wake, sleep (whatever is held) |
-| **F** | `take(target)` | the world's `carry` (1: the cells round, one's own included) | pick up, pick a crop, take from a table |
-| **G** | `put(held, target)` | `carry` | place, store, set on a table or fire, sow, hand to a person |
-| **R** | `use(held, target)`; with nothing held, a blow | the held thing's `range` (1 by default; a spear 2, a bow 6) | tools, weapons, feeding someone, putting armour on someone, the player's experiments (on one's own place, the held thing used on oneself); a bare fist hits anything (Minecraft) — a press never strikes oneself, nor the bare ground the world has never seen struck (a click in passing asks nothing): the chooser does |
-| **Left click** (the swing) | R's act with a tool or a weapon in hand (or a built thing: it builds); with anything else in hand, or nothing, the blow of the main hand's weapon, else the fist (below) | R's | weapons, tools, the fist; a built thing or a fixture in hand on open ground, a floor or what is built is set down there (it builds, Terraria: the rules `use/set-structure`, `use/set-fixture` hand it to the cell as G does; held and dragged, a row; R with a floor in hand, the ceiling) |
-| **Right click** (the action) | one of the acts above, as the thing aimed at calls for, then what the held object does to it (below) | that act's | talk, open, read, pick up, cook over a fire, feed a beast, set down a bed, eat, drink, put on |
-
-**The swing** (2026-10-20: the left click had been R's act, whose meaning changed with every thing picked up —
-a drop the magnet pulled into the hand turned the fist into an offering) is `Controls.plan('primary')`: what the
-hand holds decides only between a thing's own work and the body's blow. A tool or a weapon (`isTool`: Stardew's
-line) does what R does with it; anything else held, or nothing, and the blow is the main hand's weapon's, else the
-fist's (never what is held). The blow lands on someone first, then on what cannot be carried, never on a loose
-thing lying there (F's, or the action's); on someone one talks to (a person, a companion) only drawn (X); never on
-oneself; no chooser (R's chooses). It acts on the press; held, it goes on (`Controls.again`) at a swing's pace —
-the attack's cooldown, the same beat for a tool's work — making again only the act the press made (a blow, or the
-same rule's work: one tree after another, a row tilled) where the base rules or a learned answer know it and it
-changes something, never one that asks first, and never one that undoes the last (a bucket filled is not poured
-back). A built thing in hand keeps the left click as R's act (the chooser on a long press), as docs/building.md says.
-
-**The action** (2026-10-14) is Stardew's contextual key, over the four exact inputs and never instead of them:
-every act it makes stays its own input's, so it hides none (the failure above was a contextual key that
-replaced the exact ones). It is the engine's (`Controls.plan('action')`, held by the completeness tests). The
-thing aimed at comes first, then what is held (2026-10-20: the held object's use moved here from the left click):
-- someone to talk to: a word, `hands(target)` (what is held is handed over with G alone: an axe in hand is not
-  given away; used on them, fed or dressed, with R);
-- a creature: `use(held, target)` where it changes something (wheat fed to a cow), else as any other thing;
-- a thing the bare hands change something of: `hands(target)` (open, sleep, pick);
-- a thing the held object changes something of: `use(held, target)` (a key turns in a locked chest, raw meat over
-  a lit fire cooks) — only an object's: never a tool's or a weapon's (the swing's), nor a built thing's;
-- a thing whose answer to the bare hands changes nothing: `hands(target)` (read, warm one's hands, it is locked);
-- a thing that can be taken: `take(target)` — never what is another's (a theft is F's alone: the action does
-  nothing there, and the cursor shows a `!`);
-- the ground: a hand where it does something there; else the held object's use there where it changes
-  something (seeds sown on farmland); else a built thing or a fixture in hand set down, `put(held, target)` (a bed, a workbench, where it
-  would rest); else `use(held, self)` where it does something (eat, drink, put on) — never a tool's or a weapon's
-  (an axe pointed at a tree is not wielded: the swing chops it), but a vessel's drink; pointed at oneself, any use
-  of what is held (the modder's where the world has never seen it);
-- any other thing: `hands(target)`, the bare hands' experiment;
-- the bare ground with nothing to set down or use: nothing.
-
-It chooses as the **base rules** answer: a learned answer counts as none for the choice (only an undefined leaf
-consults one), so the world learning never changes which act the click makes — the modder answering a hand on a
-stone makes E turn stones over, and the right click still picks them up. A lesson's locked inputs are passed
-over (the drill that teaches eating eats on a right click wherever the pointer is). Held long, it chooses: the
-action on each layer at the spot, oneself first on one's own place.
-
-**Taking and putting are the world's physics, never asked**: what can be taken is taken, what has
-room takes what is put on it, a person takes what is handed to them; anything else refuses, and F
-and G are offered only where they would change something. What a thing makes of another is R's
-(and the swing's with a tool, the action's where the base rules know it): using something on something
-is where the AI answers ("put places; use applies").
-A creature does not take what is put on it; a rope *used* on it holds the rope out to it, and what
-it makes of that is its own nature, undefined until the AI says.
+**Taking and putting are the world's physics, never asked**: what can be taken is taken, what has room takes what
+is put on it, a person takes what is handed to them; anything else refuses, and E's take and G are offered only
+where they would change something. What a thing makes of another is a use's ("put places; use applies"): G never
+sows, fills or fertilizes (the rules that answered a put so, `farm/sow-put` and its kin, are gone: a seed put on
+farmland lies there). A creature does not take what is put on it; a rope *used* on it holds the rope out to it,
+and what it makes of that is its own nature, undefined until the AI says.
 
 Other keys: Esc (menu, and closes anything open), Tab (the bag, with tabs over it to the other panels;
 I too), J (journal), M (map), 1–0 and the wheel (toolbar), Shift+Tab and Shift+wheel (the next row to the
-toolbar), Shift (walk), WASD (move). Dialogue moves on with E or a click. R with a floor in hand turns the
-left click to the ceiling instead of using it (docs/building.md).
+toolbar), Shift (walk), WASD (move), X (draw), V (sneak), Q (dash), Shift+1–6 (the skill bar), B (build mode),
+R (in build mode, turn; with a floor in hand, the right click to the ceiling). Dialogue moves on with E or a
+click; a yes/no question is answered with E.
 
 **The keys are the player's** (2026-10-20, `runtime/src/keymap.ts`): every key the page answers to is an
-action's — the four inputs, the action on the keys, the attack, the steps, the panels, the toolbar, the skill
-bar —, a key and a spare each, rebound in Options → Keys (a draft until saved, or given up; a key another action
-holds asks first, then the two trade; a row set back to its default, or all of them) or taken from a preset: A, the left hand on the keys and the right on the mouse (the default, the keys this
-section names), or B, both hands on the keys (J strikes, K is the action on the cell in front, L dashes). Esc,
-the developer's ` and the browser's own keys (Ctrl, Alt, F5, F11, F12) are never bound; the mouse's buttons
-are not keys. The map is the browser's, never the save's: the world never knows which keys move it, and the
-engine's inputs (and a lesson's locks) are the same whatever the keys. What the page says of a key follows
-the map: the tip, the key table, the corner buttons and slots, a lesson's glyph (its `key`, written as the
-default map has it), and any text's `{key:<action>}` — a game's words (a lesson, a quest's hint, a rule's
-line) and the interface's own name the action, never the letter (`{key:move}`, `{key:slots}`, `{key:casts}`
-for the groups; an aside naming a key the map leaves unbound goes). The wiki fills them with the default map.
+action's — the hand and put, the turn, the attack, the steps, the panels, the toolbar, the skill bar —, a key and
+a spare each, rebound in Options → Keys (a draft until saved, or given up; a key another action holds asks first,
+then the two trade; a row set back to its default, or all of them). The left hand is on the keys and the right on
+the mouse: the two clicks are the mouse's alone, with no key standing in for them (2026-10-21: the keyboard's
+F and R and the both-hands preset are gone). Esc, the developer's ` and the browser's own keys (Ctrl, Alt, F5, F11,
+F12) are never bound. The map is the browser's, never the save's: the world never knows which keys move it, and
+the engine's inputs (and a lesson's locks) are the same whatever the keys. What the page says of a key follows the
+map: the tip, the key table, the corner buttons and slots, a lesson's glyph (its `key`, written as the default map
+has it), and any text's `{key:<action>}` — a game's words (a lesson, a quest's hint, a rule's line) and the
+interface's own name the action, never the letter (`{key:move}`, `{key:slots}`, `{key:casts}` for the groups; an
+aside naming a key the map leaves unbound goes). The wiki fills them with the default map.
 
 - **The instrument** is the selected toolbar slot: any carried thing, or an empty slot (none).
 - **The aim**: the point the mouse is on, when some input reaches it (so how far the pointer
-  reaches is the farthest of them, with what is held and what is there); else, for E, F, G and R, the
+  reaches is the farthest of them, with what is held and what is there); else, for E and G, the
   tile in front. A spot shows only the inputs that reach it: far off, perhaps just the bow's shot.
 - **Reach is the engine's**, for every actor: an act whose target lies beyond its reach is not done
   (`Engine.inReach`; Gus works from beside the tree as the player does). A system that pulls from
@@ -291,16 +284,18 @@ for the groups; an aside naming a key the map leaves unbound goes). The wiki fil
   goes in with E from the cell beside it. A press of E that only touches the ground (the floor
   brushed, said by `tile/handle`) does nothing: it would say so at every step; the chooser still
   touches it (`Controls.planFor`, 2026-10-20).
-- **Oneself is never E's, F's or G's target**: on one's own place they meet what is there (the
-  floor, what lies at one's feet, the bed one stands on). R on one's own place is on oneself; the
-  left click never is.
+- **Oneself is never E's or G's target**: on one's own place they meet what is there (the
+  floor, what lies at one's feet, the bed one stands on). The right click on one's own place is on oneself (or
+  sets up the built thing in hand there); the left click's swing never is.
 - **The layer**: whatever is drawn at that point, top first — a person, the things lying on a
   table, the table, the canopy of a tree reaching over from behind, the ground last. The view
   alone knows what is drawn where (it tests the pictures' own pixels), so it hands the stack to
   the engine with the aim; with the keyboard the stack is what stands on the front tile, in
   drawing order. A press acts on the **top** layer; what the rule library does not define there
-  is an experiment and goes to the Mod port. A **long press** of E, F, G, R or the right click opens the
-  chooser: every layer at the point, each with what the input would do. So nothing drawn is out of reach.
+  is an experiment and goes to the Mod port. The **chooser** — a long press of E or G, or Alt with a click (the
+  left one where it swings: a tool, a weapon, the bare body) — lists every layer at the point, each with what the
+  input would do, the ceiling last (a floor laid in it with a floor in hand; knocked loose with a tool). So nothing
+  drawn is out of reach. A plain click never opens it (2026-10-21: a long left press stopped the world mid-fight).
 - **Nothing is only a picture**: a map is terrain and things. There is no decoration layer —
   the bench, the stump, a tuft of grass, fallen leaves are entities of their types, so any input
   reaches them and the rules (or the modder) answer for them.
@@ -310,20 +305,20 @@ for the groups; an aside naming a key the map leaves unbound goes). The wiki fil
   whatever they are used on except people; tools that are also weapons (the axe) strike living
   things and work everything else; the bare body strikes whatever it is used on (a fist wears down
   plants and wood, slowly; stone is too hard). A weapon used on a person is a use, never a blow — no
-  villager is hurt by accident; the swing's blow with an object in hand or nothing strikes a person or a
-  companion only drawn. A blow from afar flies along a row or a column. A press never aims a blow at
-  oneself: R on one's own place with nothing to use there does nothing (the chooser still strikes).
-- Eating and drinking oneself ask first (yes / no); so does any rule with `confirm`. Food, a
-  draught or armour used on another feeds them, doses them, dresses them.
+  villager is hurt by accident; the swing strikes a person or a companion only drawn. A blow from afar flies along
+  a row or a column. A press never aims a blow at oneself (the chooser still strikes).
+- Eating and drinking oneself ask first (yes / no); so does any rule with `confirm`, a theft, and a use on oneself
+  the world has never seen. Food, a draught or armour used on another feeds them, doses them, dresses them.
 
-**Proof sketch.** An event is (verb, instrument, target). The key fixes the verb (E, F, G, R; the two
-clicks make one of their acts, so they add none and hide none); the slot fixes the instrument, and every carried thing (or none) can be selected; the aim, the chooser and the
-context menu reach every target within the act's reach (one's own place for use: the right
-click). The three are independent, so their product — the event space within reach, less the
-stated conventions and the takes and puts that would change nothing — is reachable; and a given
-input state is one dry run, shown by the label. `games/openworld/content/test/controls.test.ts` checks it
-by enumeration on a scene with the hard cases (a pile on a table, a stick on the ground, a person,
-the own tile, a second thing in the bag).
+**Proof sketch.** An event is (verb, instrument, target). The input fixes the meaning (E: a hand, or a take of
+what lies loose; G: a put; the left click: the held thing's own use — a swing, the bare body's blow, or a use on
+oneself; the right click: the use on the aim); the slot fixes the instrument, and every carried thing (or none) can
+be selected; the aim, the chooser and the context menu reach every target within the act's reach (one's own place
+for a use: the right click, or the left with an object). The three are independent, so their product — the event
+space within reach, less the stated conventions (a hand on what lies loose is a take) and the takes and puts that
+would change nothing — is reachable; and a given input state is one dry run, shown by the label.
+`games/openworld/content/test/controls.test.ts` checks it by enumeration on a scene with the hard cases (a pile on
+a table, a stick on the ground, a person, the own tile, a second thing in the bag).
 
 **Undefined behaviour from the inputs**: every input makes an act (§5.7). Where its outcome,
 or that of an impulse it emits, reaches an undefined leaf, the AI is asked (§5.11).
@@ -358,7 +353,7 @@ was cut).
   - Shift+Tab (or Shift and the wheel, either way) brings the next row to the toolbar; a new kind takes the
     first free slot, the toolbar's first; with the bag full it stays on the ground. What the magnet
     pulls in never takes the selected slot while another is free (2026-10-20: the drops of a fight
-    flew into the empty hand and the fist held them); a take (F) lands in the hand, as it means to.
+    flew into the empty hand and the fist held them); a take (E) lands in the hand, as it means to.
   - Equal items stack.
   - In the menu: drag to move, right-click takes one, Shift+right-click takes half, Shift+click
     moves a stack between the toolbar and the rest of the bag, dragging an item out of the menu
@@ -384,13 +379,13 @@ was cut).
   - Items that rules spawn (a harvest, logs, stones) pop out, and fly into the bag within 2
     tiles (Stardew's default magnetic radius is 128 px). What a creature leaves when it falls
     (its meat, its loot) and a hen's eggs lie still instead (`spawn`/`dropContents` with
-    `still`): they are taken with F.
-  - Items placed in the world are taken with F. Walking through town never vacuums it.
+    `still`): they are picked up with E. A built thing a tool knocks loose pops out as a harvest does.
+  - Items placed in the world are picked up with E. Walking through town never vacuums it.
 - **Foraging** (Don't Starve's twigs, flint and grass): a map names what appears on it by itself
   (`MapData.appear`: weighted types, the terrains, a cap, a pace). While the player is on the
   map, one more of each below its cap appears on a free tile at its pace (150 ticks for the
   ground's yield), never right beside the player (`engine/src/appear.ts`, world-model.md §6.9).
-  These are taken with F like any placed item.
+  These are picked up with E like any placed item.
 - **Crafting** (C, or the menu's Craft tab): recipes are content (`content/src/recipes.ts`);
   each lists what it uses up from the bag and the item it makes. The first tools are the
   catalogue's axe and pickaxe in stone (stone axe: stick, stone, grass; stone pickaxe: two
@@ -419,11 +414,12 @@ was cut).
   - Bottom left: messages such as "+1 log" or "The world pauses…".
   - The interaction (§5.2, foreseeable; 2026-10-14, after the labels' row shook with every step): the spot the
     inputs act on is framed by four small corners that glide to the next spot, faint over the bare ground and
-    amber where the world has never seen the act; the pointer is the action's mark (a glove, a speech bubble
-    over someone, a `?` where the modder will be asked, a `!` where only F would take it, faded out of reach);
+    amber where the world has never seen the act; the pointer is the hand's mark (a glove over what E picks up
+    or handles, or where the right click sets up what is held; a speech bubble over someone), with a `?` where
+    the right click's use will ask the modder, a `!` where E would take what is another's, faded out of reach;
     and a small tip over the frame says what each input would do there, in the rules' labels — with the
-    pointer the right and the left click, then E, F, G and R where they do something else; without it (the keys
-    walked last) E, F, G and R in front. The tip waits until the player stands and the frame has rested a moment,
+    pointer the left and the right click (where it differs), then E and G; without it (the keys walked last) E
+    and G in front. The tip waits until the player stands and the frame has rested a moment,
     so it never lurches with the steps nor flickers as the pointer sweeps.
   - What is held is not drawn in the hand. A sword, a bow and a staff are seen for the moment of a
     blow — swept, drawn and loosed, raised and brought down to point —, following the one who
