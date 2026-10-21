@@ -411,6 +411,11 @@ export function draftUser(kind: 'person' | 'map', intent: string, ctx: DraftCont
   ].filter(Boolean).join('\n')
 }
 
+/** A revision the author asks for in the chat: the draft before, and what to change; the rest kept. */
+export function reviseDraftUser(previous: unknown, feedback: string): string {
+  return ['# A revision', 'Your draft before:', JSON.stringify(previous), `The author asks: "${feedback.slice(0, 500)}"`, 'Change what they ask, keep the rest as it was, and answer with the whole JSON object again, in the same form.'].join('\n')
+}
+
 // ---------------------------------------------------------------- the artist
 
 export const ART_SYSTEM = 'You are a pixel artist for the 16x16 icon pack of a JRPG. You answer with JSON only.'

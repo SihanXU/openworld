@@ -1562,4 +1562,52 @@ describe('a person or a map an author asks for (the editor\'s drafter)', () => {
     // an author waits on purpose for a draft (a map is many cells): longer than a player's minute
     expect(Math.min(...waits)).toBeGreaterThanOrEqual(180_000)
   })
+
+  it('keeps each step for the author\'s chat: the AI\'s answers summed up, what the engine sent back; never the model\'s thinking', async () => {
+    let n = 0
+    // a model that thinks inline before it answers (some do, through the API): the thinking is never shown nor parsed
+    const model = new ScriptedModel(() => `<think>Maybe {"id": "npc.secret"} would do; the author wants beans.</think>\n${JSON.stringify(n++ === 0 ? { ...PERSON, id: 'npc.mira' } : PERSON)}`)
+    const { modder } = setup(model)
+    const reply = await modder.draft({ kind: 'person', intent: 'a gardener', context: ctx, id: 'd1' })
+    expect(reply.draft).toEqual(PERSON)
+    const { steps, done } = modder.traceOf('d1')
+    expect(done).toBe(true)
+    expect(steps.map((s) => s.who)).toEqual(['ai', 'engine', 'ai', 'engine'])
+    expect(steps[0].text).toBe('Tova (villager): 2 parts of a day, 2 lines')
+    expect(steps[1].problems).toEqual(['id "npc.mira" is taken: choose another'])
+    expect(steps[2].data).toEqual(PERSON)
+    expect(JSON.stringify(steps)).not.toMatch(/secret|beans\./)
+    expect(modder.traceOf('nothing')).toEqual({ steps: [], done: false })
+  })
+
+  it('revises a draft in the chat: the draft before and what the author asks go to the AI', async () => {
+    const asked: string[] = []
+    const { modder } = setup(new ScriptedModel((messages) => (asked.push(messages.map((m) => m.content).join('\n')), { ...PERSON, name: 'Tova the Elder' })))
+    const reply = await modder.draft({ kind: 'person', intent: 'a gardener', context: ctx, previous: PERSON, feedback: 'make her old' })
+    expect(asked[0]).toContain('"make her old"')
+    expect(asked[0]).toContain(JSON.stringify(PERSON))
+    expect(reply.draft).toMatchObject({ name: 'Tova the Elder' })
+  })
+
+  it('traces a new thing too: the AI\'s type, the engine\'s refusal, the picture drawn; read over HTTP from this machine only', async () => {
+    const ART = { grid: Array.from({ length: 16 }, (_, y) => (y > 3 && y < 12 ? '....kkkkkkkk....' : '................')), palette: { k: '#3e464e' } }
+    const INGOT = { id: 'item/material/frost_ingot', name: { en: 'Frost Ingot', zh: '霜铁锭' }, tags: ['metal'], props: { material: 'iron' }, makeup: [{ type: 'item/material/iron_ore', count: 2 }], station: 'hands' }
+    let n = 0
+    const model = new ScriptedModel((_m, opts) => (opts.purpose === 'art' ? ART : { patch: { artifacts: [{ kind: 'type', type: n++ === 0 ? { ...INGOT, id: 'item/nowhere/frost_ingot' } : INGOT }] }, look: 'a pale ingot' }))
+    const { modder } = setup(model)
+    const server = createModderServer(modder).listen(0)
+    await listening(server)
+    const base = `http://localhost:${(server.address() as AddressInfo).port}`
+    try {
+      await (await fetch(`${base}/create`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ intent: 'a cold ingot', id: 't1' }) })).json()
+      const { steps } = await (await fetch(`${base}/trace?id=t1`)).json()
+      expect(steps.map((s: { who: string }) => s.who)).toEqual(['ai', 'engine', 'ai', 'engine', 'artist', 'artist'])
+      expect(steps[2].text).toBe('Frost Ingot (item/material/frost_ingot): hands, of 2 iron_ore')
+      expect(steps[1].problems.length).toBeGreaterThan(0)
+      expect(steps[5].text).toBe('drawn')
+      expect((await fetch(`${base}/trace?id=t1`, { headers: { origin: 'https://elsewhere.example' } })).status).toBe(403)
+    } finally {
+      server.close()
+    }
+  })
 })

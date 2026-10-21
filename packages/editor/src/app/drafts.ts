@@ -1,7 +1,7 @@
 // What the AI drafter (drafter.ts) tells the modder the game has for a person or a map, where a drafted file goes in
 // the project, and its problems compiled with the project before it is taken in. Pure of the page.
 
-import type { RawChunk } from '@openworld/engine'
+import type { Patch, RawChunk } from '@openworld/engine'
 import { compile, type PersonFile, type Problem } from '@openworld/format'
 import type { Ctx } from './context.ts'
 import { langName, sourceLang, tx } from './words.ts'
@@ -56,3 +56,23 @@ export function problemsWith(ctx: Ctx, kind: 'person' | 'map', file: string, dat
   return compile(p).problems.filter((x) => x.file === file)
 }
 
+
+/** A step of a draft as the modder keeps it (GET /trace): the AI's answer summed up and its JSON, what the engine sent back, a picture drawn. */
+export interface Step {
+  at: number
+  who: 'ai' | 'engine' | 'artist'
+  text: string
+  data?: unknown
+  problems?: string[]
+}
+
+/**
+ * What a message in the drafter's chat asks the modder. With no draft held yet it is a draft of what the author said;
+ * with one, a revision of it: the conversation's first ask stays the intent, the message is what to change, and the draft
+ * goes back as it was (a thing's pictures left out: they are drawn again from its look).
+ */
+export function draftRequest(kind: 'thing' | 'person' | 'map', said: string, id: string, held?: { intent: string; patch?: Patch; data?: unknown }): { path: '/create' | '/draft'; body: Record<string, unknown> } {
+  const previous = !held ? undefined : kind === 'thing' ? { artifacts: (held.patch?.artifacts ?? []).map((a) => (a.kind === 'type' ? { ...a, type: { ...a.type, art: undefined, sprite: undefined } } : a)) } : held.data
+  const ask = held ? { intent: held.intent, previous, feedback: said } : { intent: said }
+  return kind === 'thing' ? { path: '/create', body: { ...ask, id } } : { path: '/draft', body: { kind, ...ask, id } }
+}

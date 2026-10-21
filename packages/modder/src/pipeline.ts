@@ -21,8 +21,8 @@ import { normalizePatch, placePatch, qualifyTerrains, stationFromRules } from '.
 import type { CommitResult, WorldLibrary } from './library.ts'
 import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@openworld/agent'
 import { materializeWorld } from './repo.ts'
-import { mapProblems, personProblems, settleMap, type DraftContext, type DraftKind } from './drafts.ts'
-import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
+import { mapProblems, personProblems, settleMap, summary, withoutThinking, type DraftContext, type DraftKind, type TraceStep } from './drafts.ts'
+import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, reviseDraftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
 import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@openworld/agent'
 
@@ -111,6 +111,22 @@ export class Modder {
   private idle: (() => void)[] = []
   /** Where each class of request is (GET /progress), and the class of each request id. */
   private progress = new Map<string, ModProgress>()
+  /** An author's draft as it goes (GET /trace?id=): kept a while after it ends, for the chat to read. */
+  private traces = new Map<string, { steps: TraceStep[]; done: boolean }>()
+
+  /** The steps of an author's draft so far (empty: no such draft here). */
+  traceOf(id: string): { steps: TraceStep[]; done: boolean } {
+    return this.traces.get(id) ?? { steps: [], done: false }
+  }
+
+  /** A draft's step writer: steps under its id, timed from now; `end` marks it done and forgets it in ten minutes. */
+  private tracer(id: string | undefined): { step: (s: Omit<TraceStep, 'at'>) => void; end: () => void } {
+    const t0 = Date.now()
+    if (!id) return { step: () => undefined, end: () => undefined }
+    const tr = { steps: [] as TraceStep[], done: false }
+    this.traces.set(id, tr)
+    return { step: (s) => void tr.steps.push({ at: Date.now() - t0, ...s }), end: () => ((tr.done = true), void setTimeout(() => this.traces.get(id) === tr && this.traces.delete(id), 600_000).unref?.()) }
+  }
   private requestKey = new Map<string, string>()
   /** Live episodes that went cleanly, waiting to be reflected on together (harness reflect.batch). */
   private clean: { ep: Episode; sig: Signature }[] = []
@@ -276,31 +292,43 @@ export class Modder {
       { role: 'system', content: THING_SYSTEM },
       { role: 'user', content: thingUser(intent, { catalogue: catalogueOf(Object.values(onto.types)), materials: Object.keys(onto.materials ?? {}), had: body.had ?? [], stations: body.stations ?? [], elements: onto.elements ?? [] }) },
     ]
+    if (body.previous) messages.push({ role: 'user', content: reviseDraftUser(body.previous, body.feedback ?? '') })
     const diagnostics: string[] = []
+    const { step, end } = this.tracer(body.id)
     try {
       for (let round = 0; round < 3; round++) {
-        const answer = (await model.chat(messages, { json: true, temperature: 0.6, purpose: 'create', reasoning: 'medium', deadlineMs: DRAFT_MS })).content
+        const answer = withoutThinking((await model.chat(messages, { json: true, temperature: 0.6, purpose: 'create', reasoning: 'medium', deadlineMs: DRAFT_MS })).content)
         const j = parseJson(answer) as { patch?: Patch; looks?: Record<string, string>; look?: string } | undefined
         // a new thing is types alone: what it does is asked act by act, as holes
         const patch: Patch = { artifacts: (j?.patch?.artifacts ?? []).filter((a) => a?.kind === 'type'), ...(j?.patch?.note && { note: j.patch.note }) }
+        step({ who: 'ai', text: [patch.note, ...patch.artifacts.flatMap((a) => (a.kind === 'type' ? [`${(a.type.name as { en?: string })?.en ?? a.type.id} (${a.type.id})${a.type.makeup?.length ? `: ${a.type.station ?? 'hands'}, of ${a.type.makeup.map((m) => `${m.count} ${m.type.split('/').pop()}`).join(' + ')}` : ''}`] : []))].filter(Boolean).join('\n') || 'no type in the answer', data: j })
         const res = patch.artifacts.length ? library.validate(patch) : { ok: false, errors: ['no type artifact'], warnings: [] }
         if (!res.ok) {
           diagnostics.push(...res.errors)
+          step({ who: 'engine', text: 'sent back to the AI', problems: res.errors })
           messages.push({ role: 'assistant', content: answer }, { role: 'user', content: repairUser(res.errors, res.warnings) })
           continue
         }
+        step({ who: 'engine', text: 'the engine takes it' })
         // each new thing drawn by its own look (a pelt is not drawn as the cloak made of it)
         const types = patch.artifacts.flatMap((a) => (a.kind === 'type' ? [a.type] : []))
         const lookOf = (t: TypeDef) => (typeof j?.looks?.[t.id] === 'string' ? j.looks[t.id] : types.length === 1 ? (j?.look ?? patch.note ?? intent) : `${(t.name as { en?: string })?.en ?? t.id}, ${t.id.split('/').slice(0, -1).join(' ')}`)
         const look = types.length ? lookOf(types[types.length - 1]) : undefined
+        for (const t of types) step({ who: 'artist', text: `drawing ${(t.name as { en?: string })?.en ?? t.id}: ${lookOf(t)}` })
         const drawn = await this.drawAll(model, patch, types.map((t) => ({ id: t.id, name: t.name as { en: string; zh: string }, why: lookOf(t) })))
         const shown = library.validate(drawn).ok ? drawn : patch
+        const pictured = shown.artifacts.filter((a) => a.kind === 'type' && a.type.art).length
+        step({ who: 'artist', text: pictured === types.length ? 'drawn' : `${pictured} of ${types.length} drawn (the rest show their kind's picture)` })
         return { patch: shown, diagnostics: [], ...(look && { look }), usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } }
       }
+      step({ who: 'engine', text: 'no draft held after three tries', problems: diagnostics.slice(-5) })
       return { patch: null, diagnostics }
     } catch (err) {
       this.pause((err as Error).message)
+      step({ who: 'engine', text: (err as Error).message })
       return { patch: null, diagnostics: [...diagnostics, (err as Error).message] }
+    } finally {
+      end()
     }
   }
 
@@ -322,21 +350,32 @@ export class Modder {
       { role: 'system', content: DRAFT_SYSTEM },
       { role: 'user', content: draftUser(kind, intent, ctx) },
     ]
+    if (body.previous) messages.push({ role: 'user', content: reviseDraftUser(body.previous, body.feedback ?? '') })
     const diagnostics: string[] = []
     const usage = () => ({ calls: model.calls, input: model.input, output: model.output, cost: model.cost })
+    const { step, end } = this.tracer(body.id)
     try {
       for (let round = 0; round < 3; round++) {
-        const answer = (await model.chat(messages, { json: true, temperature: 0.7, purpose: 'create', reasoning: 'medium', deadlineMs: DRAFT_MS })).content
+        const answer = withoutThinking((await model.chat(messages, { json: true, temperature: 0.7, purpose: 'create', reasoning: 'medium', deadlineMs: DRAFT_MS })).content)
         const j = parseJson(answer) as Record<string, unknown> | undefined
+        step({ who: 'ai', text: j ? summary(kind, j) : 'no JSON in the answer', data: j })
         const problems = kind === 'person' ? personProblems(j, ctx) : mapProblems(j, ctx)
-        if (!problems.length) return { draft: kind === 'map' ? settleMap(j!) : j!, diagnostics: [], usage: usage() }
+        if (!problems.length) {
+          step({ who: 'engine', text: 'its shape holds' })
+          return { draft: kind === 'map' ? settleMap(j!) : j!, diagnostics: [], usage: usage() }
+        }
         diagnostics.push(...problems)
+        step({ who: 'engine', text: 'sent back to the AI', problems })
         messages.push({ role: 'assistant', content: answer }, { role: 'user', content: `The file is not yet right:\n${problems.map((p) => `- ${p}`).join('\n')}\nFix it and answer with the whole JSON object again.` })
       }
+      step({ who: 'engine', text: 'no draft held after three tries', problems: diagnostics.slice(-5) })
       return { draft: null, diagnostics, usage: usage() }
     } catch (err) {
       this.pause((err as Error).message)
+      step({ who: 'engine', text: (err as Error).message })
       return { draft: null, diagnostics: [...diagnostics, (err as Error).message] }
+    } finally {
+      end()
     }
   }
 
@@ -1158,6 +1197,11 @@ export function unknownMade(patch: Patch, onto: Ontology): Creation[] {
 /** An author's new thing (POST /create): what it is, and what a player can have in their game. */
 export interface ThingBody {
   intent: string
+  /** The draft's id, for its steps (GET /trace). */
+  id?: string
+  /** The draft before (its patch), and what the author asked to change in it. */
+  previous?: unknown
+  feedback?: string
   had?: Had[]
   stations?: string[]
 }
@@ -1167,6 +1211,11 @@ export interface DraftBody {
   kind: DraftKind
   intent: string
   context?: DraftContext
+  /** The draft's id, for its steps (GET /trace). */
+  id?: string
+  /** The draft before, and what the author asked to change in it: a revision, not a new draft. */
+  previous?: unknown
+  feedback?: string
 }
 
 export interface DraftReply {

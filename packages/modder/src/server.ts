@@ -8,6 +8,7 @@
 //   GET  /progress?id=r   where request r is (queued, local, find, create, art; {} when not here)
 //   POST /create          {intent, had?, stations?} → a new thing's draft (types and icons), not committed (this host only)
 //   POST /draft           {kind: person | map, intent, context} → one file of the game, drafted, not written (this host only)
+//   GET  /trace?id=d      an author's draft d as it goes: the AI's answers summed up (no reasoning), what the engine sent back, pictures
 //   POST /adopt           {patch}: the author took the new thing into the game; the library has it (this host only)
 //   POST /fault           {rule, reason, client?}: a client set a learned rule aside at run time (counted by the caller's
 //                         address; `client` tells apart only the clients of a caller on this machine)
@@ -74,6 +75,12 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
       if (req.method === 'GET' && url.pathname === '/patches') {
         const since = Number(url.searchParams.get('since') ?? 0) || 0
         return send(200, { seq: library.seq, log: library.logId, entries: library.since(since) })
+      }
+      if (req.method === 'GET' && url.pathname === '/trace') {
+        // an author's draft is this host's own, as its asking is
+        const refused = hostOnly(req, true)
+        if (refused) return send(refused[0], { error: `a draft is read from the machine the service runs on: ${refused[1]}` })
+        return send(200, modder.traceOf(url.searchParams.get('id') ?? ''))
       }
       if (req.method === 'GET' && url.pathname === '/progress') return send(200, modder.progressOf(url.searchParams.get('id') ?? '') ?? {})
       if (req.method === 'GET' && url.pathname === '/stats') return send(200, { library: libraryInfo(), state: state.stats(), snapshots: state.snapshots() })
