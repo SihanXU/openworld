@@ -108,10 +108,10 @@ const ROOTS: Rule[] = [
   rule({ id: 'core/impulse', doc: 'What is done to a thing is undefined unless its nature says (the AI answers).', on: 'impulse', tree: HOLE() }),
   rule({
     id: 'core/strike',
-    doc: 'A blow on something with no answer of its own: a built thing that can be carried (a bed, a workbench, a wall) struck with a tool (an axe, a pickaxe, a hammer) comes loose whole, to be picked up (design.md §5.2: what F took down); else what has durability loses it (as well as the instrument works on what it is made of; nothing if the instrument is softer — too hard), and the element the blow carries reaches it; a plain blow on what cannot break is undefined.',
+    doc: 'A blow on something with no answer of its own: a built thing that can be carried (a bed, a workbench, a chest, a wall) struck with a tool (an axe, a pickaxe, a hammer) comes loose whole, what it holds spilling, to be picked up (design.md §5.2: what F took down) — not a locked one, which is only worn; else what has durability loses it (as well as the instrument works on what it is made of; nothing if the instrument is softer — too hard), and the element the blow carries reaches it; a plain blow on what cannot break is undefined.',
     on: 'impulse/strike',
     tree: IF(
-      all(any(is('host', { type: 'structure' }), is('host', { type: 'fixture', tags: ['portable'] })), any(...KNOCKS_LOOSE.map((t) => tag('instrument', t)))),
+      all(any(is('host', { type: 'structure', notTags: ['locked'] }), is('host', { type: 'fixture', tags: ['portable'], notTags: ['locked'] })), any(...KNOCKS_LOOSE.map((t) => tag('instrument', t)))),
       AS(L('Knock {target} loose', '把{target}整个敲下来'), DO({ op: 'loosen' }, vfx('dust', 'tileOf:host'))),
       IF(
         { prop: { role: 'host', key: 'maxHp', cmp: { gt: 0 } } },
@@ -1301,20 +1301,7 @@ const BUILD: Rule[] = [
     ),
   }),
   undo('build/unframe', FRAME, 'tool:axe', [[PLANK, { prop: 'planks', of: 'host' }]]),
-  ...(
-    [
-      ['fixture/container/crate', 1],
-      ['fixture/container/chest', 2],
-    ] as const
-  ).map(([type, planks]) =>
-    rule({
-      id: `build/dismantle-${type.split('/').pop()}`,
-      doc: 'An axe breaks up an unlocked crate or chest: its contents spill and half its planks come back.',
-      host: { type, notTags: ['locked'] },
-      on: 'impulse/strike',
-      tree: IF(tag('instrument', 'tool:axe'), DO({ op: 'dropContents' }, { op: 'spawn', type: PLANK, at: 'tileOf:host', count: planks }, vfx('dust'), log('You break up {host}.', '你拆掉了{host}。'), { op: 'destroy' })),
-    }),
-  ),
+  // (a crate or a chest is knocked loose whole by a tool, its contents spilling: core/strike; locked, only worn)
   // a fence from stakes
   give('build/stick-to-stick', STICK, { type: STICK }),
   become('build/stakes', STICK, 'stick', 'fixture/build/stakes', 'Two sticks make stakes.', '两根树枝立成了木桩。', {}, L('Set stakes', '立木桩')),

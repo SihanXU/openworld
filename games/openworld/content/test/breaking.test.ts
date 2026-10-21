@@ -85,7 +85,8 @@ describe('breaking (world-model.md §10.2)', () => {
         const t = thingOf(worn, type)!
         worn.author(() => worn.queue({ ...strike, host: { e: t.id } }))
         worn.flush()
-        if (!harmed(worn, type, t.id) || worn.world.get(t.id)?.place.on !== 'tile') missed.push(`${type}: a weapon's blow`)
+        // (worn down, or broken outright — a crate has one point — but never knocked loose)
+        if (!harmed(worn, type, t.id) || worn.world.get(t.id)?.place.on === 'inside') missed.push(`${type}: a weapon's blow`)
       }
       if (!index.resolve(type).tags.includes('flammable')) continue
       const lit = place(type)

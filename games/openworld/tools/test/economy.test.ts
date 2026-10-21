@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { OntologyIndex, RuleLibrary, buildSandbox, performPlacement, type Effect, type Rule, type Tree } from '@openworld/engine'
+import { LOOSE, OntologyIndex, RuleLibrary, buildSandbox, performPlacement, type Effect, type Rule, type Tree } from '@openworld/engine'
 import { BASE_RULES, BUILDINGS, RECIPES, RECOVERY, STORY_RULES, TERRAINS, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@openworld-game/content'
 import { economySteps, freeLunch, prices } from '@openworld/modder'
 import { buildFord } from '../src/demo/world.ts'
@@ -111,10 +111,12 @@ describe('the economy (world-model.md §10.2)', () => {
       // broken by blows (fire would do as well): with what works best on what it is made of
       const tool = index.resolve(made!.type).props.material === 'stone' ? 'item/tool/pickaxe' : 'item/tool/smith_hammer'
       eng.author(() => eng.world.add({ id: 'breaker', type: tool, tags: ['material:iron'], place: { on: 'hand', holder: 'actor' } }))
-      for (let i = 0; i < 20 && eng.world.get(made!.id); i++) eng.act('use', 'actor', { e: made!.id }, { params: { attack: true } })
-      expect([b.id, eng.world.get(made!.id)]).toEqual([b.id, undefined])
+      // (a tool knocks what can be carried loose whole: the thing itself comes back, packed, and nothing more)
+      const standing = () => eng.world.get(made!.id)?.place.on === 'tile'
+      for (let i = 0; i < 20 && standing(); i++) eng.act('use', 'actor', { e: made!.id }, { params: { attack: true } })
+      expect([b.id, standing()]).toEqual([b.id, false])
       const back = new Map<string, number>()
-      for (const e of eng.world.placedAt('sandbox', 2, 2)) back.set(e.type, (back.get(e.type) ?? 0) + 1)
+      for (const e of eng.world.placedAt('sandbox', 2, 2)) if (e.type !== LOOSE) back.set(e.type, (back.get(e.type) ?? 0) + 1)
       for (const n of consumed) {
         const t = n.match.type!
         if ((back.get(t) ?? 0) > n.count) over.push(`${b.id}: ${t} ${n.count} in, ${back.get(t)} back`)

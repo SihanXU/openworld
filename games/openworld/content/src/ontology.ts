@@ -452,11 +452,12 @@ const fixtureTypes: TypeDef[] = [
   // what stands in a cell can be stood or set on, by what walks (its reach)
   F('fixture', 'thing', '物件', [], { reach: ['ground'] }),
   F('fixture/container', 'container', '容器', ['container'], { solid: true }),
-  F('fixture/container/chest', 'chest', '箱子', ['wooden', 'flammable'], { solid: true, props: { capacity: 12, material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 4 }] }),
+  // a chest and a crate a tool knocks loose whole, as a bed (design.md §5.2): what is in them spills first
+  F('fixture/container/chest', 'chest', '箱子', ['wooden', 'flammable', 'portable'], { solid: true, props: { capacity: 12, material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 4 }] }),
   F('fixture/container/barrel', 'barrel', '木桶', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 4, material: 'wood', maxHp: 1, hp: 1 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
   // the village's wood pile: the woodcutter stacks his logs on it, anyone may take them (world-model.md §6.10)
   F('fixture/container/woodpile', 'wood pile', '柴堆', ['wooden', 'flammable'], { sprite: 'fixture:firewood', solid: true, props: { capacity: 12, material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/log', count: 2 }] }),
-  F('fixture/container/crate', 'crate', '板条箱', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 6, material: 'wood', maxHp: 1, hp: 1 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
+  F('fixture/container/crate', 'crate', '板条箱', ['wooden', 'flammable', 'breakable', 'portable'], { solid: true, props: { capacity: 6, material: 'wood', maxHp: 1, hp: 1 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
   F('fixture/container/pot', 'clay pot', '陶罐', ['clay', 'fragile', 'breakable'], { solid: true, props: { capacity: 2, material: 'clay', maxHp: 1, hp: 1 } }),
   F('fixture/container/wardrobe', 'wardrobe', '衣柜', ['wooden', 'flammable'], { solid: true, props: { capacity: 12, material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/plank', count: 4 }] }),
   // the Held Ground's storehouse (built by its steward): forty places

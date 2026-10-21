@@ -3,7 +3,7 @@
 // answers for itself; a tool's blow (`strike`) finishes it or takes it apart.
 
 import { describe, expect, it } from 'vitest'
-import { CEILING, RuleLibrary, SANDBOX_MAP, buildSandbox, textOf, type Engine, type Key } from '@openworld/engine'
+import { CEILING, LOOSE, RuleLibrary, SANDBOX_MAP, buildSandbox, textOf, type Engine, type Key } from '@openworld/engine'
 import { BASE_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -71,7 +71,8 @@ function press(eng: Engine, key: Key, type?: string): Pressed {
 }
 
 const here = (eng: Engine) => eng.world.placedAt(FRONT.map, FRONT.x, FRONT.y)
-const fixture = (eng: Engine) => here(eng).find((e) => !eng.world.isAgent(e) && !eng.world.isPortable(e))
+/** What stands built there (a chest can be carried, but stands until a tool knocks it loose). */
+const fixture = (eng: Engine) => here(eng).find((e) => !eng.world.isAgent(e) && !eng.world.isLoose(e))
 const count = (eng: Engine, type: string) => here(eng).filter((e) => e.type === type).length
 const said = (eng: Engine) => eng.world.fx.flatMap((f) => (f.t === 'say' || f.t === 'log' ? [textOf(f.text)] : []))
 const heldType = (eng: Engine) => eng.world.get(eng.world.player.held)?.type
@@ -128,7 +129,7 @@ describe('a chest from a frame', () => {
     expect(count(eng, PLANK)).toBe(3)
   })
 
-  it('an axe breaks up a chest: its contents spill and two planks come back; a locked one is not taken apart, only worn', () => {
+  it('an axe knocks a chest loose whole: its contents spill, the chest lies packed to be picked up; a locked one is not knocked loose, only worn', () => {
     const eng = site([PLANK])
     press(eng, 'put', PLANK)
     press(eng, 'put', PLANK)
@@ -136,10 +137,16 @@ describe('a chest from a frame', () => {
     press(eng, 'use', HAMMER)
     press(eng, 'hands') // open
     press(eng, 'put', 'item/food/apple')
-    expect(press(eng, 'use', AXE).rules).toContain('build/dismantle-chest')
+    const chestId = fixture(eng)!.id
+    expect(press(eng, 'use', AXE).rules).toContain('core/strike')
     expect(fixture(eng)).toBeUndefined()
-    expect(count(eng, PLANK)).toBe(2)
+    expect(count(eng, PLANK)).toBe(0)
     expect(count(eng, 'item/food/apple')).toBe(1)
+    const pack = here(eng).find((e) => e.type === LOOSE)!
+    expect(eng.world.get(chestId)!.place).toMatchObject({ on: 'inside', holder: pack.id })
+    expect(eng.world.get(chestId)!.contents ?? []).toEqual([])
+    // E picks it up whole, and the right click sets it up again
+    expect(eng.controls.plan('hands')).toMatchObject({ key: 'take', target: { e: pack.id } })
 
     const locked = buildSandbox(
       {
@@ -155,8 +162,8 @@ describe('a chest from a frame', () => {
     locked.world.get('actor')!.facing = 'up'
     // a locked chest is not taken apart: a blow on it only wears it (its durability, world-model.md §6.3)
     const r = press(locked, 'use', AXE)
-    expect(r.rules).not.toContain('build/dismantle-chest')
     expect(r.rules).toContain('core/strike')
+    expect(locked.world.get('chest')!.place.on).toBe('tile')
     expect(r.holes).toEqual([])
     const chest = locked.world.get('chest')!
     expect(locked.world.num(chest, 'hp')).toBeLessThan(locked.world.num(chest, 'maxHp'))
