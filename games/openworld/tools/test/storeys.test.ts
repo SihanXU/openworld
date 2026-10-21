@@ -29,12 +29,12 @@ const stand = (f: F, x: number, y: number, z?: number) =>
     f.w.player.facing = 'up'
   })
 
-/** Set a structure down on a cell, as the player does (building is putting it there). */
+/** Set a structure up on a cell, as the player does (the right click: building is using it there, design.md §5.2). */
 function build(f: F, type: string, x: number, y: number, id: string, ceiling = false): Entity {
   const thing = f.eng.author(() => f.w.add({ ...madeOf(f.w.onto.data, f.w.onto, type, 'wood'), id, place: { on: 'inside', holder: 'player' } }))
   // in the ceiling: the open air a storey up (docs/building.md)
   const target = ceiling ? f.w.get(f.w.cellRef('ford', x, y, 1).e)! : f.w.placedAt('ford', x, y).find((e) => e.type.startsWith('structure')) ?? f.w.cellTop('ford', x, y)!
-  f.eng.act('put', 'player', { e: target.id }, { instrument: { e: thing.id } })
+  f.eng.act('use', 'player', { e: target.id }, { instrument: { e: thing.id } })
   return f.w.get(thing.id)!
 }
 

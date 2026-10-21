@@ -1630,6 +1630,19 @@
           "properties": {
             "op": {
               "type": "string",
+              "const": "loosen"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
               "const": "step"
             },
             "dir": {

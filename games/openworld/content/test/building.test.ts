@@ -231,10 +231,11 @@ describe('a house', () => {
     eng.world.get('actor')!.facing = 'up'
     return eng
   }
+  /** Set up by the right click (design.md §5.2: G puts a built thing down loose, never builds). */
   const put = (eng: Engine, type: string, x: number, y: number, layer = 0) => {
     hold(eng, type)
-    const plan = eng.controls.plan('put', { x, y }, layer)
-    expect(plan, `put ${type} at ${x},${y}`).toBeDefined()
+    const plan = eng.controls.plan('secondary', { x, y }, layer)
+    expect(plan, `set up ${type} at ${x},${y}`).toBeDefined()
     eng.controls.run(plan!)
     eng.tick()
   }
@@ -283,7 +284,7 @@ describe('the build palette (B): setting things down', () => {
   const give = (eng: Engine, type: string, n = 1) => eng.author(() => { for (let i = 0; i < n; i++) eng.world.create(type, { on: 'inside', holder: 'actor' }) })
   const at = (eng: Engine, x: number, y: number) => eng.world.placedAt(SANDBOX_MAP, x, y).map((e) => e.type)
 
-  it('a wall carried is set down as G sets it; with none carried, one is made from planks first; out of reach, nothing', () => {
+  it('a wall carried is set up as the right click sets it; with none carried, one is made from planks first; out of reach, nothing', () => {
     const eng = meadow()
     const c = eng.controls
     give(eng, 'structure/wall')
@@ -340,8 +341,10 @@ describe('storeys: what one reaches, and where a thing goes (docs/building.md §
     for (let i = 0; i < 8; i++) eng.tick()
     return eng.world.posOf(eng.world.player)!
   }
+  /** A tool knocks a built thing loose (design.md §5.2: what F took down): the left click with a pickaxe, on the layer chosen. */
   const take = (eng: Engine, x: number, y: number, layer = 0) => {
-    const plan = eng.controls.plan('take', { x, y }, layer)
+    hold(eng, 'item/tool/pickaxe')
+    const plan = eng.controls.plan('primary', { x, y }, layer)
     if (plan) eng.controls.run(plan)
     eng.tick()
     return plan
@@ -368,10 +371,11 @@ describe('storeys: what one reaches, and where a thing goes (docs/building.md §
     expect(eng.controls.place('fixture/furniture/bed', { x: 4, y: 3 })).toBe(true)
     expect(eng.controls.place('structure/floor', { x: 4, y: 3 })).toBe(true)
     expect(storeys(eng, 4, 3)[0].sort()).toEqual(['floor', 'furniture/bed'])
-    // taken: F meets the bed first; the floor under it is the chooser's; taken, the bed stays
+    // knocked loose: the swing meets the bed first; the floor under it is the chooser's; knocked loose, the bed stays
     const bed = w.placedAt(SANDBOX_MAP, 4, 3).find((e) => e.type === 'fixture/furniture/bed')!
-    expect(eng.controls.plan('take', { x: 4, y: 3 })?.target.e).toBe(bed.id)
-    const layer = eng.controls.choices('take', { x: 4, y: 3 }).find((c) => w.get(c.plan!.target.e)?.type === 'structure/floor')!.layer
+    hold(eng, 'item/tool/pickaxe')
+    expect(eng.controls.plan('primary', { x: 4, y: 3 })?.target.e).toBe(bed.id)
+    const layer = eng.controls.choices('primary', { x: 4, y: 3 }).find((c) => w.get(c.plan!.target.e)?.type === 'structure/floor')!.layer
     take(eng, 4, 3, layer)
     expect(storeys(eng, 4, 3)).toEqual([['furniture/bed'], [], [], []])
     // and the floor on the grass taken: the grass again
@@ -406,17 +410,18 @@ describe('storeys: what one reaches, and where a thing goes (docs/building.md §
     const st = build(eng, 'structure/stairs', 6, 5)
     st.facing = 'up'
     expect(why(eng, 'structure/floor', 6, 5, true)).toBe('Stairs keep the storey over them open.')
-    // the long press offers the ceiling, last; never a default
+    // the chooser (Alt with the right click) offers the ceiling, last; never a default; G never reaches it
     hold(eng, 'structure/floor')
-    const list = eng.controls.choices('put', { x: 7, y: 6 })
+    const list = eng.controls.choices('secondary', { x: 7, y: 6 })
     expect(list.at(-1)).toMatchObject({ layer: CEILING, name: { en: 'The ceiling' } })
-    expect(eng.controls.plan('put', { x: 7, y: 6 })?.target.e).not.toBe(list.at(-1)!.plan!.target.e)
+    expect(eng.controls.plan('secondary', { x: 7, y: 6 })?.target.e).not.toBe(list.at(-1)!.plan!.target.e)
+    expect(eng.controls.choices('put', { x: 7, y: 6 }).some((c) => c.layer === CEILING)).toBe(false)
   })
 
-  it('the left click builds: a built thing or a fixture in hand used on open ground, a floor, what is built or the ceiling is set down there as G sets it; elsewhere it stays an experiment', () => {
+  it('the right click builds: a built thing or a fixture in hand used on open ground, a floor, what is built or the ceiling is set up there; elsewhere it stays an experiment', () => {
     const eng = meadow()
     const use = (x: number, y: number, layer = 0) => {
-      const plan = eng.controls.plan('use', { x, y }, layer)
+      const plan = eng.controls.plan('secondary', { x, y }, layer)
       if (plan) eng.controls.run(plan)
       eng.tick()
       return plan
@@ -432,7 +437,7 @@ describe('storeys: what one reaches, and where a thing goes (docs/building.md §
     expect(eng.controls.plan('use', { x: 2, y: 3 })?.sets).toBe(true)
     use(2, 3)
     expect(storeys(eng, 2, 3)[0].sort()).toEqual(['floor', 'furniture/bed'])
-    // the ceiling (R, or the chooser's last): a floor laid over the wall, held by it
+    // the ceiling (the turn key, or the chooser's last): a floor laid over the wall, held by it
     hold(eng, 'structure/floor')
     expect(eng.controls.choices('use', { x: 3, y: 3 }).at(-1)).toMatchObject({ layer: CEILING })
     use(3, 3, CEILING)
@@ -458,29 +463,30 @@ describe('storeys: what one reaches, and where a thing goes (docs/building.md §
     hold(eng, 'structure/floor')
     // the pointer on the row above the player's cell: the ceiling drawn there is the one over (3,4)
     const aim = { x: 3, y: 3, over: { x: 3, y: 4 } }
-    expect(eng.controls.choices('put', aim).at(-1)).toMatchObject({ layer: CEILING })
-    eng.controls.run(eng.controls.plan('put', aim, CEILING)!)
+    expect(eng.controls.choices('secondary', aim).at(-1)).toMatchObject({ layer: CEILING })
+    eng.controls.run(eng.controls.plan('secondary', aim, CEILING)!)
     eng.tick()
     expect(storeys(eng, 3, 4)).toEqual([[], ['floor'], [], []])
     expect(storeys(eng, 3, 3)).toEqual([[], [], [], []])
     take(eng, 3, 3, CEILING)
     expect(storeys(eng, 3, 4)).toEqual([[], ['floor'], [], []])
-    eng.controls.run(eng.controls.plan('take', aim, CEILING)!)
+    eng.controls.run(eng.controls.plan('primary', aim, CEILING)!)
     eng.tick()
     expect(storeys(eng, 3, 4)).toEqual([[], [], [], []])
   })
 
-  it('6.3 the ceiling is taken down from below only when chosen, and not while something rests on it', () => {
+  it('6.3 the ceiling is knocked loose from below only when chosen, and not while something rests on it', () => {
     const eng = meadow()
     const w = eng.world
     build(eng, 'structure/wall', 3, 3)
     build(eng, 'structure/floor', 3, 3, 1)
-    // F meets the wall; the ceiling is the chooser's, last
-    expect(w.get(eng.controls.plan('take', { x: 3, y: 3 })!.target.e)?.type).toBe('structure/wall')
-    expect(eng.controls.choices('take', { x: 3, y: 3 }).at(-1)).toMatchObject({ layer: CEILING })
+    // the swing meets the wall; the ceiling is the chooser's, last
+    hold(eng, 'item/tool/pickaxe')
+    expect(w.get(eng.controls.plan('primary', { x: 3, y: 3 })!.target.e)?.type).toBe('structure/wall')
+    expect(eng.controls.choices('primary', { x: 3, y: 3 }).at(-1)).toMatchObject({ layer: CEILING })
     // something on it upstairs (a bed): not offered
     const bed = build(eng, 'fixture/furniture/bed', 3, 3, 1)
-    expect(eng.controls.plan('take', { x: 3, y: 3 }, CEILING)).toBeUndefined()
+    expect(eng.controls.plan('primary', { x: 3, y: 3 }, CEILING)).toBeUndefined()
     eng.author(() => w.destroy(bed))
     take(eng, 3, 3, CEILING)
     expect(storeys(eng, 3, 3)).toEqual([['wall'], [], [], []])
@@ -513,8 +519,9 @@ describe('storeys: what one reaches, and where a thing goes (docs/building.md §
     build(eng, 'structure/floor', 3, 1, 1)
     stand(eng, 3, 1, 1)
     expect(why(eng, 'structure/floor', 3, 0)).toBe('Nothing would hold it up.')
-    // the slab one stands on is not taken (something rests on it: oneself)
-    expect(eng.controls.choices('take', { x: 3, y: 1 }).some((c) => w.get(c.plan!.target.e)?.type === 'structure/floor')).toBe(false)
+    // the slab one stands on is not knocked loose (something rests on it: oneself)
+    hold(eng, 'item/tool/pickaxe')
+    expect(eng.controls.choices('primary', { x: 3, y: 1 }).some((c) => w.get(c.plan!.target.e)?.type === 'structure/floor')).toBe(false)
   })
 
   it('a taller wall is built from the storey above, never set on a wall from below', () => {

@@ -1482,7 +1482,8 @@ function buildRoom(f: Ford): [number, number] {
     const thing = author(f, () => W(f).add({ ...madeOf(W(f).onto.data, W(f).onto, type, 'wood'), id: `room.${type}.${cx}.${cy}`, place: { on: 'inside', holder: 'player' } }))
     // in the ceiling: the open air a storey up (docs/building.md)
     const target = ceiling ? W(f).get(W(f).cellRef('ford', cx, cy, 1).e)! : W(f).placedAt('ford', cx, cy).find((e) => e.type.startsWith('structure')) ?? W(f).cellTop('ford', cx, cy)!
-    f.eng.act('put', 'player', { e: target.id }, { instrument: { e: thing.id } })
+    // set up as the right click sets it (design.md §5.2: G puts a built thing down loose)
+    f.eng.act('use', 'player', { e: target.id }, { instrument: { e: thing.id } })
   }
   stand(f, x, y, 'up')
   for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) put('structure/wall', x + dx, y + dy)
@@ -1695,11 +1696,11 @@ req('W12', 'a second storey: walls, the ceiling laid over them from below (held 
   for (let y = 3; y < 27 && !at; y++) for (let x = 3; x < 40 && !at; x++) if ([0, 1, 2, 3, 4].every((d) => W(f).walkable('ford', x + d, y) && !W(f).placedAt('ford', x + d, y).length && W(f).heightAt('ford', x + d, y) === 0)) at = [x, y]
   const [x, y] = at!
   const build = (type: string, cx: number, ceiling = false) => {
-    // one sets a thing down within reach: beside the cell — on one's storey, or in its ceiling (the open air a storey up)
+    // one sets a thing up within reach (the right click): beside the cell — on one's storey, or in its ceiling (the open air a storey up)
     stand(f, cx + 1, y, 'left')
     const thing = author(f, () => W(f).add({ ...madeOf(W(f).onto.data, W(f).onto, type, 'wood'), id: `w12.${type}.${cx}`, place: { on: 'inside', holder: 'player' } }))
     const target = ceiling ? W(f).get(W(f).cellRef('ford', cx, y, 1).e)! : W(f).placedAt('ford', cx, y).find((e) => e.type.startsWith('structure')) ?? W(f).cellTop('ford', cx, y)!
-    f.eng.act('put', 'player', { e: target.id }, { instrument: { e: thing.id } })
+    f.eng.act('use', 'player', { e: target.id }, { instrument: { e: thing.id } })
     return W(f).get(thing.id)!
   }
   stand(f, x + 4, y + 1, 'up')
@@ -2382,12 +2383,12 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by
     act()
     expect(w.fx.some((x) => x.t === 'lesson' && !!x.blocked), 'the lesson refuses it').toBe(true)
   }
-  /** F on whatever lies at a spot, from beside it, until nothing more is taken there. */
+  /** E on whatever lies loose at a spot, from beside it, until nothing more is picked up there. */
   const takeAll = (x: number, y: number) => {
     stand(f, x, y + 1, 'up', T)
     for (let i = 0; i < 12; i++) {
-      const plan = c.plan('take', at(x, y))
-      if (!plan) return
+      const plan = c.plan('hands', at(x, y))
+      if (plan?.key !== 'take') return
       c.run(plan, true)
       f.eng.tick()
     }
@@ -2398,8 +2399,9 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by
     expect(w.get(p.held)?.type).toBe(type)
   }
   const craft = (type: string, n = 1) => { for (let i = 0; i < n; i++) expect(c.craft(RECIPE_BY_ID[type]), `craft ${type}`).toBe(true) }
+  /** The left click with food in hand: eaten (asked first). */
   const eat = () => {
-    c.run(c.plan('self')!, true)
+    c.run(c.plan('primary')!, true)
     if (w.state.question) c.answer(true)
     f.eng.tick()
   }
@@ -2410,11 +2412,11 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by
   expect(w.hasStatus({ e: p.id }, 'out_cold')).toBe(true)
   expect(stage()).toBe(0)
   until(1, 80)
-  // the first lesson: walking, and nothing else (F does nothing)
+  // the first lesson: walking, and nothing else (E picks nothing up)
   now('move')
   const [bx, by] = TUTORIAL.berries[0]
   stand(f, bx, by + 1, 'up', T)
-  refused(() => c.run(c.plan('take', at(bx, by))!, true))
+  refused(() => c.run(c.plan('hands', at(bx, by))!, true))
   expect(carried('item/food/berries')).toBeUndefined()
   // the way out is shut: down the path to the edge, one only stands on it (and Lumi says not yet)
   const [ex] = TUTORIAL.exit
@@ -2427,7 +2429,7 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by
   stand(f, 14, 12, 'right', T)
   walk(f, 'right')
   done('move')
-  // F: the berries
+  // E: the berries
   now('take')
   takeAll(bx, by)
   done('take')
@@ -2435,7 +2437,7 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by
   now('hold')
   grab('item/food/berries')
   done('hold')
-  // a right click: eaten
+  // a left click: eaten
   now('eat')
   eat()
   until(2)
@@ -2444,7 +2446,7 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by
   now('bag')
   const [kx, ky] = TUTORIAL.sticks[0]
   stand(f, kx, ky + 1, 'up', T)
-  refused(() => c.run(c.plan('take', at(kx, ky))!, true))
+  refused(() => c.run(c.plan('hands', at(kx, ky))!, true))
   story.ui('bag')
   done('bag')
   for (const [x, y] of [...TUTORIAL.sticks, ...TUTORIAL.stones, ...TUTORIAL.grass]) takeAll(x, y)
@@ -2465,7 +2467,7 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by
   for (const [x, y] of TUTORIAL.grove.slice(0, 3)) {
     const [sx, sy, d] = beside(f, x, y, T)
     stand(f, sx, sy, d, T)
-    for (let i = 0; i < 4 && w.terrainAt(T, x, y) === 'tree'; i++) run(f, 'use', x, y)
+    for (let i = 0; i < 4 && w.terrainAt(T, x, y) === 'tree'; i++) run(f, 'primary', x, y)
     expect(w.terrainAt(T, x, y)).not.toBe('tree')
     ticks(f, 6)
   }
@@ -2489,7 +2491,7 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by
   craft('item/light/torch')
   hold(f, carried('item/light/torch'))
   stand(f, fire.x, fire.y - 1, 'down', T)
-  run(f, 'use', fire.x, fire.y)
+  run(f, 'primary', fire.x, fire.y)
   until(6)
 
   // ---- stage 6: the house. The first wall on the outline (off it, refused), then the rest round,
@@ -2498,13 +2500,14 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by
   const [hx, hy] = TUTORIAL_HOUSE.bed
   stand(f, hx, hy, 'down', T)
   craft('structure/wall', 3)
+  /** Set up with the right click (G puts a built thing down loose). */
   const put = (type: string, x: number, y: number, layer = 0) => {
     grab(type)
-    run(f, 'put', x, y, layer)
+    run(f, 'secondary', x, y, layer)
     f.eng.tick()
   }
   grab('structure/wall')
-  refused(() => c.run(c.plan('put', at(hx + 1, hy + 1))!))
+  refused(() => c.run(c.plan('secondary', at(hx + 1, hy + 1))!))
   expect(w.placedAt(T, hx + 1, hy + 1).some((e) => e.type === 'structure/wall')).toBe(false)
   for (const [x, y] of TUTORIAL_HOUSE.walls) put('structure/wall', x, y)
   done('wall')
@@ -2528,10 +2531,10 @@ req('T1', 'the tutorial, offline and through the player\'s own inputs, lesson by
   const dummy = w.entitiesOnMap(T).find((e) => e.type === 'fixture/dummy')!
   expect(w.posOf(dummy)).toMatchObject({ x: TUTORIAL_DUMMY[0], y: TUTORIAL_DUMMY[1] })
   stand(f, TUTORIAL_DUMMY[0] - 1, TUTORIAL_DUMMY[1], 'right', T)
-  refused(() => c.run(c.plan('take', at(TUTORIAL_DUMMY[0], TUTORIAL_DUMMY[1] - 1)) ?? c.plan('hands', at(TUTORIAL_DUMMY[0], TUTORIAL_DUMMY[1]))!))
+  refused(() => c.run(c.plan('hands', at(TUTORIAL_DUMMY[0], TUTORIAL_DUMMY[1]))!))
   grab('item/weapon/blade/axe')
   for (let i = 0; i < 12 && !w.fact('tutorial.dummy'); i++) {
-    run(f, 'use', TUTORIAL_DUMMY[0], TUTORIAL_DUMMY[1])
+    run(f, 'primary', TUTORIAL_DUMMY[0], TUTORIAL_DUMMY[1])
     ticks(f, 8)
   }
   done('dummy')
@@ -2599,7 +2602,7 @@ req('T3', 'a lesson of the tutorial can be skipped (Esc held): it is done, and w
   expect(f.eng.controls.allows('take')).toBe(true)
   // the view sees the lesson at hand: its key, what works, and its focus (the nearest berries)
   const view = snapshot(f.eng).lesson!
-  expect(view).toMatchObject({ id: 'take', key: 'F', allow: ['move', 'take'], index: 1 })
+  expect(view).toMatchObject({ id: 'take', key: 'E', allow: ['move', 'take'], index: 1 })
   expect(w.get(view.focus!.id!)?.type).toBe('item/food/berries')
   // no tutorial, no lessons
   const plain = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))

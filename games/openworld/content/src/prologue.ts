@@ -33,15 +33,15 @@ const cells = (xs: readonly (readonly [number, number])[]): [number, number][] =
 export const TUTORIAL_LESSONS: Record<number, Lesson[]> = {
   1: [
     { id: 'move', say: L('Over here — {key:move} walks.', '到这儿来——{key:move} 走路。'), key: 'WASD', focus: { spot: [...FIRST_SPOT] }, allow: ['move'], done: { spot: { x: FIRST_SPOT[0], y: FIRST_SPOT[1], r: 0 } } },
-    { id: 'take', say: L('Berries! Stand by them and press {key:take}.', '浆果！站到旁边按 {key:take} 捡起来。'), key: 'F', focus: { type: 'item/food/berries' }, allow: ['move', 'take'], done: { carrying: 'item/food/berries' } },
+    { id: 'take', say: L('Berries! Stand by them and press {key:hands}.', '浆果！站到旁边按 {key:hands} 捡起来。'), key: 'E', focus: { type: 'item/food/berries' }, allow: ['move', 'take'], done: { carrying: 'item/food/berries' } },
     { id: 'hold', say: L('Take them in hand: their number on the toolbar.', '拿到手上：按快捷栏上它们那一格的数字。'), key: '1–0', focus: { ui: 'slot:item/food/berries' }, allow: ['move', 'select'], done: { holding: 'item/food/berries' } },
-    { id: 'eat', say: L('A right click eats what you hold.', '右键吃掉手里的东西。'), key: 'RMB', focus: { self: true }, allow: ['move', 'select', 'self'], done: { facts: { 'prologue.meals': { gte: 1 } } } },
+    { id: 'eat', say: L('A left click eats what you hold.', '左键吃掉手里的东西。'), key: 'LMB', focus: { self: true }, allow: ['move', 'select', 'self'], done: { facts: { 'prologue.meals': { gte: 1 } } } },
   ],
   2: [
     { id: 'bag', say: L('{key:bag} opens your bag: everything you carry.', '按 {key:bag} 打开背包：身上的东西都在里面。'), key: 'I', focus: { ui: 'bag' }, allow: ['move', 'bag'], done: { facts: { 'ui.bag': { gte: 1 } } } },
-    { id: 'stick', say: L('A stick — {key:take}.', '一根树枝——按 {key:take}。'), key: 'F', focus: { type: 'item/material/stick' }, done: { carrying: 'item/material/stick' } },
-    { id: 'stone', say: L('A stone.', '一块石头。'), key: 'F', focus: { type: 'item/material/stone' }, done: { carrying: 'item/material/stone' } },
-    { id: 'grass', say: L('And a tuft of grass.', '再来一把草。'), key: 'F', focus: { type: 'item/material/grass' }, done: { carrying: 'item/material/grass' } },
+    { id: 'stick', say: L('A stick — {key:hands}.', '一根树枝——按 {key:hands}。'), key: 'E', focus: { type: 'item/material/stick' }, done: { carrying: 'item/material/stick' } },
+    { id: 'stone', say: L('A stone.', '一块石头。'), key: 'E', focus: { type: 'item/material/stone' }, done: { carrying: 'item/material/stone' } },
+    { id: 'grass', say: L('And a tuft of grass.', '再来一把草。'), key: 'E', focus: { type: 'item/material/grass' }, done: { carrying: 'item/material/grass' } },
   ],
   3: [
     { id: 'craft', say: L('{key:craft} opens crafting. Make the stone axe.', '按 {key:craft} 打开制作，做一把石斧。'), key: 'C', focus: { ui: 'craft:item/weapon/blade/axe' }, allow: ['move', 'craft'], only: ['item/weapon/blade/axe'], done: { carrying: 'item/weapon/blade/axe' } },
@@ -60,7 +60,7 @@ export const TUTORIAL_LESSONS: Record<number, Lesson[]> = {
     { id: 'wall', say: L('{key:build}: a wall — the first one on the outline.', '按 {key:build} 选墙——第一面放在画好的轮廓上。'), key: 'B', focus: { cells: cells(TUTORIAL_HOUSE.walls), ui: 'build:put:structure/wall' }, allow: ['move', 'build', 'put', 'select', 'craft', 'use', 'take'], only: ['structure/wall'], cells: cells(TUTORIAL_HOUSE.walls), done: { on: { type: 'structure/wall', cells: cells(TUTORIAL_HOUSE.walls) } } },
     { id: 'door', say: L('Walls round, and a door.', '把墙围起来，再装一扇门。'), key: 'B', focus: { cells: cells([TUTORIAL_HOUSE.door]), ui: 'build:put:structure/door' }, done: { near: { type: 'structure/door', r: 10 } } },
     { id: 'bed', say: L('A bed inside.', '屋里放一张床。'), key: 'B', focus: { cells: cells([TUTORIAL_HOUSE.bed]), ui: 'build:put:fixture/furniture/bed' }, done: { near: { type: 'fixture/furniture/bed', r: 10 } } },
-    { id: 'ceiling', say: L('Now a ceiling: in {key:build} choose the floor, and {key:use} makes it the ceiling.', '最后是天花板：在 {key:build} 里选地板，按 {key:use} 切成天花板。'), key: 'R', focus: { ui: 'build:put:structure/floor' }, done: { room: 'bedroom' } },
+    { id: 'ceiling', say: L('Now a ceiling: in {key:build} choose the floor, and {key:rotate} makes it the ceiling.', '最后是天花板：在 {key:build} 里选地板，按 {key:rotate} 切成天花板。'), key: 'R', focus: { ui: 'build:put:structure/floor' }, done: { room: 'bedroom' } },
   ],
   7: [
     { id: 'chooser', say: L('Hold {key:hands} on the bed: every layer of a cell, to choose from.', '对着床长按 {key:hands}：一格里的每一层都列出来，任你选。'), key: 'hold E', focus: { type: 'fixture/furniture/bed' }, done: { facts: { 'ui.chooser': { gte: 1 } } } },

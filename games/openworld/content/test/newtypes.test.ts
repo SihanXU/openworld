@@ -134,7 +134,9 @@ describe('a patch that brings a new thing', () => {
     for (let i = 0; i < 5; i++) eng.tick()
     const made = Object.values(eng.world.state.entities).find((e) => e.type === t.id)!
     eng.controls.sync()
-    eng.controls.run(eng.controls.plan('use', { x: 3, y: 2 })!)
+    // the right click would set it up there: it changes nothing, so it is not even offered
+    const set = eng.controls.plan('use', { x: 3, y: 2 })
+    if (set) eng.controls.run(set)
     for (let i = 0; i < 5; i++) eng.tick()
     expect(eng.world.get(made.id)?.place).toMatchObject({ on: 'hand' })
   })

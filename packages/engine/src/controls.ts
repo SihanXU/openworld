@@ -1,23 +1,24 @@
-// The player's controls (design.md §5.2–5.3): five inputs, one act each, so every act the rule
+// The player's controls (design.md §5.2–5.3): four inputs, each one meaning, so every act the rule
 // library can answer is reachable (completeness):
-// - E, **hands**: a hand on the target (talk, open, read, wake, sleep) — as far as the target lets
-//   a hand reach it (its `handsRange`: 0, standing on it, a bed; 1, beside it, by default);
-// - F, **take** and G, **put**: take a thing, put the held thing down, in or on a thing, or hand it
-//   to someone — within the world's `carry` (the cells round); they are the world's physics, never
-//   asked, and offered only where they would change something;
-// - left click, **use**: the held thing on the target — as far as it carries (its `range`); with
-//   nothing held, the bare body: a blow (Minecraft's fist), on anything but oneself; a press on the bare
-//   ground the world has never seen struck makes none (a click in passing asks nothing: the chooser does);
-// - right click, **the action** (Stardew's action button): the act the thing aimed at calls for — a word,
-//   a hand, a take, setting down a bed, eating — chosen from the four above as the base rules answer
-//   them, so the world learning never changes which act it is (`action`);
-// - **self**: the held thing used on oneself — the action pointed at oneself, or a left click on one's own place.
-// E, F and G never take oneself for their target: on one's own place they meet what is there.
+// - E, **the hand**: what lies loose (an item; a built thing come loose, `World.isLoose`) is picked up,
+//   `take`; anything else is handled, `hands` (talk, open, read, wake, sleep, pick a ripe crop) — as far as
+//   the target lets a hand reach it (its `handsRange`: 0, standing on it, a bed; 1, beside it, by default);
+//   what is another's is taken only once asked (a theft);
+// - G, **put**: the held thing put down, in or on a thing, or handed to someone — within the world's
+//   `carry` (the cells round); physics, never asked, offered only where it would change something; a built
+//   thing put down lies loose: G never builds;
+// - left click, **the held thing's own use** (`primary`): a tool or a weapon swung at what the pointer is on
+//   (a blow, a tool's work: chop, mine, till — and a tool knocks a built thing loose); nothing held, the
+//   main hand's weapon or the fist; anything else held is used on oneself (eat, drink, put on);
+// - right click, **use on what is aimed at** (`secondary`): the held thing used on the target, `use` (sow,
+//   feed, unlock, cook, and the experiments the world has never seen); on oneself, used on oneself; a built
+//   thing in hand is set up there (it builds); nothing held, nothing.
+// E and G never take oneself for their target: on one's own place they meet what is there.
 // An input points at a spot on the map. Whatever is drawn there is a layer of it, top first (a
 // person, a thing on a table, the table, the canopy of a tree behind them, the ground): a press
-// acts on the top one, a long press (the chooser) on any of them. A spot is within reach when any
-// input can act there; where none can, the keys act on the place in front (the keyboard alone
-// plays). Only the view knows what is drawn where, so it hands the stack over with the aim. Each
+// acts on the top one, the chooser (Alt with a click, a long press of a key) on any of them. A spot is
+// within reach when any input can act there; where none can, the keys act on the place in front.
+// Only the view knows what is drawn where, so it hands the stack over with the aim. Each
 // input makes an act (design.md §5.7) the engine itself holds to its reach, for anyone; its label
 // is a dry run of the chain the act starts, marked unknown where that chain reaches an undefined
 // outcome. Also here: the inventory's slots (row 1 is the toolbar, the selected slot is what is
@@ -29,13 +30,13 @@ import { categoryOf } from './quality.ts'
 import { splitStacks, stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
 import type { Engine } from './engine.ts'
-import { NO_EXPIRY, type Writer } from './world.ts'
+import { NO_EXPIRY, isBuilt, type Writer } from './world.ts'
 import type { Aim, Dir, Entity, Id, LessonInput, Place, Plan, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
 import { cannotLearn, skillsOf } from './progression.ts'
 import { OFFHAND, isTool, weaponOf } from './blows.ts'
 
-/** The inputs (design.md §5.2): the acts' own (a plan's key) and the two that make one of them, the action (the right click) and the left click's `primary`. */
-export type Key = Plan['key'] | 'action' | 'primary'
+/** The inputs (design.md §5.2): the acts' own (a plan's key), and the two clicks that make one of them: the left's `primary`, the right's `secondary`. */
+export type Key = Plan['key'] | 'primary' | 'secondary'
 
 /** Slots per row (the toolbar is row 1) and in all: three rows, Stardew's bag. */
 export const ROW = 10
@@ -54,6 +55,10 @@ const isWeapon = (type: string) => type.startsWith('item/weapon/')
 const GENERIC: Record<string, Text> = {
   use: { en: 'Use {instrument} on {target}', zh: '把{instrument}用在{target}上' },
   self: { en: 'Use {instrument} on yourself', zh: '对自己用{instrument}' },
+  selfAsk: { en: 'Use {instrument} on yourself?', zh: '对自己用{instrument}？' },
+  build: { en: 'Build {instrument} here', zh: '把{instrument}建在这里' },
+  putLoose: { en: 'Put {instrument} down loose', zh: '把{instrument}散放在这里' },
+  stealAsk: { en: 'Steal {target}?', zh: '偷走{target}？' },
   hands: { en: 'Interact with {target}', zh: '与{target}互动' },
   put: { en: 'Put {instrument} on {target}', zh: '把{instrument}放到{target}上' },
   take: { en: 'Take {target}', zh: '拿起{target}' },
@@ -298,7 +303,13 @@ export class Controls {
     // the thing in hand — or the one the build palette sets down from the bag; none for the left click's blow (`bare`)
     const held = this.bare ? undefined : this.using ? { e: this.using } : p.held ? { e: p.held } : undefined
     const heldE = this.entity(held)
-    if (key === 'hands') return this.reaches('hands', target) ? this.make(key, at, 'hands', target, undefined) : undefined
+    // the hand (E) on what lies loose picks it up, and on someone, sneaking, takes hold of them (their pockets, as
+    // Skyrim's sneak and activate); on anything else it handles it
+    if (key === 'hands') {
+      const sneaking = this.talksTo(target) && w.hasStatus({ e: p.id }, 'sneaking')
+      if (this.isLoose(target) || sneaking) return this.planOn('take', at, target, chosen)
+      return this.reaches('hands', target) ? this.make(key, at, 'hands', target, undefined) : undefined
+    }
     if (key === 'take' || key === 'put') {
       if (key === 'put' && !held) return undefined
       if (!this.reaches(key, target, held)) return undefined
@@ -309,6 +320,8 @@ export class Controls {
       if (key === 'put' && heldE && t && there && (w.isTerrain(t) || w.hasTag(t, 'structure')) && w.settleWhy(heldE, there.map, there.x, there.y, there.z ?? 0)) return undefined
       if (key === 'take' && t && w.bears(t)) return undefined
       const plan = this.make(key, at, key, target, key === 'put' ? held : undefined)
+      // a built thing put down on a cell lies loose (it is not built so): the label says which
+      if (key === 'put' && plan.sets && heldE && isBuilt(heldE.type) && w.isPortable(heldE)) plan.label = this.label(GENERIC.putLoose, target, held)
       return plan.changes ? plan : undefined
     }
     // use (and self: use on oneself): the held thing — a blow for weapons on creatures (and pure
@@ -330,6 +343,15 @@ export class Controls {
       const blow = isWeapon(heldE.type) && (this.isPerson(target) ? drawn : pure || this.isCreature(target))
       if (blow && (pressedOnSelf || (reach > 1 && !aligned))) return undefined
       const plan = this.make(key, at, 'use', target, held, blow, blow ? (heldE.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack) : undefined)
+      // a built thing set up is checked against where it would rest, as G's put is (docs/building.md R2–R5): set up
+      // on a cell or a built thing, it stands on that storey or nowhere; where nothing would change, it is not offered
+      if (plan.sets) {
+        const t = this.entity(target)
+        const there = t && w.posOf(t)
+        if (!plan.changes || (t && there && (w.isTerrain(t) || w.hasTag(t, 'structure')) && w.settleWhy(heldE, there.map, there.x, there.y, there.z ?? 0))) return undefined
+        // (laid in the ceiling, the floor's own label says so)
+        if ((there?.z ?? 0) <= (w.posOf(p)?.z ?? 0)) plan.label = this.label(GENERIC.build, target, held)
+      }
       // a weapon that is not one's to fight with (another profession's): its blow is refused, and the label says so
       const why = blow ? this.eng.combat.refuses(p, heldE, 'aim') : undefined
       if (why) plan.label = why
@@ -366,11 +388,19 @@ export class Controls {
     const e = this.entity(target)
     if (e && this.w.hasTag(e, 'container') && (r.rules.includes('core/open-close') || this.w.hasTag(e, 'remains'))) plan.panel = e.id
     // taking what is another's (docs/npc-sandbox.md §2.1): the label says it is a theft
+    // taking what is another's (docs/npc-sandbox.md §2.1): the label says it is a theft, and it is asked first
     if (verb === 'take' && e && !this.w.isAgent(e) && !r.unknown && this.eng.society.isAnothers(e, this.w.player)) {
       plan.steal = true
       plan.label = this.label(GENERIC.steal, target)
+      plan.confirm = this.label(GENERIC.stealAsk, target)
     }
     return plan
+  }
+
+  /** A thing lying loose on its cell (World.isLoose): what the hand picks up rather than handles. */
+  private isLoose(r: Ref): boolean {
+    const e = this.entity(r)
+    return !!e && e.place.on === 'tile' && this.w.isLoose(e)
   }
 
   /**
@@ -382,10 +412,20 @@ export class Controls {
     const me = w.player
     const pos = w.posOf(me)
     const chosen = layer !== undefined
+    // a built thing in hand used on one's own place is set up there, where it would stand with one (a bed under one)
+    if (key === 'use' && pos && at.x === pos.x && at.y === pos.y && this.buildsInHand()) {
+      const set = this.planOn('use', pos, this.w.cellRef(pos.map, pos.x, pos.y, pos.z ?? 0), chosen)
+      if (set?.sets) return set
+    }
     if (key === 'self' || (key === 'use' && pos && at.x === pos.x && at.y === pos.y)) return pos ? this.planOn(key === 'use' ? 'self' : key, pos, { e: me.id }, chosen) : undefined
     const list = this.targets(at, stack, key)
     const top = layer ?? 0
     const ref = list[top]
+    // a built thing in hand pressed on what lies loose there is set up in that cell (a loose thing takes no room)
+    if (key === 'use' && !chosen && ref && this.buildsInHand() && this.isLoose(ref)) {
+      const set = this.planOn('use', at, w.cellRef(at.map, at.x, at.y, at.z ?? 0), chosen)
+      if (set?.sets) return set
+    }
     const plan = ref ? this.planOn(key, at, ref, chosen) : undefined
     // a flyer over the spot the key has nothing to do with is not in the way: the key goes on to
     // what is under it (G sets the wall down where the fairy hovers; E still talks to the fairy)
@@ -405,17 +445,23 @@ export class Controls {
    * over what only a choice makes (a blow on oneself, a fist on the bare ground the world has never seen struck).
    */
   plan(key: Key, aim?: Aim, layer?: number): Plan | undefined {
-    if (key === 'action') return this.action(aim, layer)
-    // the left click has no chooser: R's is the exact use's
-    if (key === 'primary') return layer === undefined ? this.primary(aim) : undefined
+    // the right click: the held thing used on what is aimed at (nothing held, nothing)
+    if (key === 'secondary') return this.w.player.held ? this.plan('use', aim, layer) : undefined
+    // the left click: a press swings (or uses an object on oneself); a layer chosen is the swing's on that layer
+    if (key === 'primary') return layer === undefined ? this.primary(aim) : this.swings() ? this.plan('use', aim, layer) : undefined
     const a = this.aim(aim, key)
     if (!a) return undefined
-    // the ceiling, chosen (never a default): a floor laid in it, or taken down — the one drawn at the
-    // point (the view's `over`), else over the spot aimed at itself (what is on one's own storey there
+    // the ceiling, chosen (never a default): a floor laid in it, or a tool knocking it loose — the one drawn
+    // at the point (the view's `over`), else over the spot aimed at itself (what is on one's own storey there
     // does not matter; the act's reach is the engine's)
     if (layer === CEILING) {
       const at = this.spot(aim && (aim.over ?? aim)) ?? a.at
-      return key === 'put' || key === 'take' || (key === 'use' && this.buildsInHand()) ? this.planOn(key, at, this.ceilingOf(at), true) : undefined
+      if (key !== 'use') return undefined
+      if (this.buildsInHand()) return this.planOn(key, at, this.ceilingOf(at), true)
+      // a tool knocks loose a ceiling laid there (never the open air), where it can come loose (nothing rests on it)
+      const laid = this.w.get(this.ceilingOf(at).e)
+      const knock = this.toolInHand() && laid && !this.w.isAir(laid) && !this.w.bears(laid) ? this.planOn(key, at, { e: laid.id }, true) : undefined
+      return knock?.changes ? knock : undefined
     }
     const p = this.planAt(key, a.at, a.stack, layer)
     // E with no spot pointed at (or the pointer beyond reach): the spot in front or toward the
@@ -446,7 +492,7 @@ export class Controls {
     const e = this.w.get(shown.e)
     const at = e && this.w.isAgent(e) && e.id !== this.w.state.player ? this.w.posOf(e) : undefined
     if (!at) return p
-    if (key === 'action') return this.actionOn(at, shown, false) || p
+    if (key === 'secondary') return (this.w.player.held && this.planOn('use', at, shown)) || p
     if (key === 'primary') {
       const q = this.primary({ x: at.x, y: at.y, stack: [shown] })
       return q && 'e' in q.target && q.target.e === shown.e ? q : p
@@ -456,54 +502,76 @@ export class Controls {
 
   /** The chooser's list: every layer at the aim the key reaches, with what it would do there. */
   choices(key: Key, aim?: Aim): { layer: number; name: Text; plan?: Plan }[] {
-    if (key === 'primary') return []
+    // the clicks choose as the use they make: the right one with anything held, the left one where it swings
+    if (key === 'secondary') return this.w.player.held ? this.choices('use', aim) : []
+    if (key === 'primary') return this.swings() ? this.choices('use', aim) : []
     const a = this.aim(aim, key)
     if (!a) return []
     const me = this.w.state.player
     const pos = this.w.posOf(this.w.player)
     const own = !!pos && a.at.x === pos.x && a.at.y === pos.y
     const named = (ref: Ref, layer: number, plan: Plan | undefined) => ({ layer, name: this.label('{target}', ref), plan })
-    if (key === 'action') return this.actionTargets(a.at, a.stack, own).map((ref, layer) => named(ref, layer, this.actionOn(a.at, ref, true))).filter((c) => c.plan)
     // use on one's own place is use on oneself (planAt): the one layer there, the blow too when nothing is held
     const list = key === 'self' || (key === 'use' && own) ? [named({ e: me }, 0, this.planAt(key, a.at, a.stack, 0))] : this.targets(a.at, a.stack, key).map((ref, layer) => named(ref, layer, this.planOn(key, a.at, ref, true)))
-    // last, the ceiling over the spot: a floor laid in it, or taken down (docs/building.md §5)
-    if (key === 'put' || key === 'take' || (key === 'use' && this.buildsInHand())) list.push({ layer: CEILING, name: CEILING_NAME, plan: this.plan(key, aim, CEILING) })
+    // last, the ceiling over the spot: a floor laid in it, or knocked loose with a tool (docs/building.md §5)
+    if (key === 'use' && (this.buildsInHand() || this.toolInHand())) list.push({ layer: CEILING, name: CEILING_NAME, plan: this.plan(key, aim, CEILING) })
     return list.filter((c) => c.plan)
   }
 
   // ---------------------------------------------------------------- the left click
 
-  /** Planning the left click's blow: the hand is as empty, whatever it holds (the main hand's weapon, else the fist, strikes). */
+  /** Planning the left click's blow with nothing in hand: the main hand's weapon, else the fist, strikes. */
   private bare = false
 
+  /** A tool or a weapon in hand (`isTool`, Stardew's line). */
+  private toolInHand(): boolean {
+    const held = this.w.get(this.w.player.held)
+    return !!held && isTool(held.type)
+  }
+
+  /** The left click swings: a tool or a weapon in hand, or nothing (the main hand's weapon, the fist); an object is used on oneself instead. */
+  private swings(): boolean {
+    return !this.w.player.held || this.toolInHand()
+  }
+
   /**
-   * The left click (design.md §5.2): what is held works as it is meant to — a tool its work, a weapon its
-   * blow (the exact use, R's), a built thing is set down (it builds) —; with anything else in hand, or
-   * nothing, a blow with the weapon kept in the main hand, else the fist: what was picked up is never
-   * what the click uses (it is the right click's, or R's). The blow lands on what is struck — someone
-   * first, then what cannot be carried, never a loose thing lying there (F's, or the right click's) —,
-   * and on someone one talks to (a person, a companion) only with the blade drawn (X: the blow is
-   * meant, docs/npc-sandbox.md). Never on oneself, never a chooser: R chooses.
+   * The left click (design.md §5.2): the held thing's own use. A tool or a weapon is swung at what the pointer
+   * is on — a blow, a tool's work (chop, mine, till; a tool knocks a built thing loose) —; with nothing held,
+   * the main hand's weapon or the fist strikes; anything else held is used on oneself, wherever one points (eat,
+   * drink, put on), asked first where the world has never seen it (a stone used on oneself is an experiment,
+   * not a slip of the finger). A swing lands on what is struck, top first — someone first with nothing in
+   * hand, never a loose thing lying there then —, on someone one talks to (a person, a companion) only with
+   * the blade drawn (X: the blow is meant, docs/npc-sandbox.md), never on oneself, and a press on the bare
+   * ground the world has never seen struck makes none (the right click is the experiment). No chooser: Alt
+   * chooses.
    */
   private primary(aim?: Aim): Plan | undefined {
     const w = this.w
-    const a = this.aim(aim, 'primary')
     const pos = w.posOf(w.player)
-    // one's own place: what is held used on oneself is the right click's (and R's), never a swing's
-    if (!a || !pos || (a.at.x === pos.x && a.at.y === pos.y)) return undefined
     const held = w.get(w.player.held)
-    if (held && (isTool(held.type) || Controls.placeable(held.type))) return this.plan('use', aim)
+    if (!pos) return undefined
+    if (held && !isTool(held.type)) {
+      const s = this.planOn('self', pos, { e: w.state.player })
+      if (s?.unknown && !s.confirm) s.confirm = this.label(GENERIC.selfAsk, s.target, s.instrument)
+      return s
+    }
+    const a = this.aim(aim, 'primary')
+    if (!a || (a.at.x === pos.x && a.at.y === pos.y)) return undefined
     const drawn = w.hasStatus({ e: w.state.player }, 'drawn')
-    this.bare = true
+    this.bare = !held
     try {
       const struck = this.targets(a.at, a.stack, 'use').filter((r) => {
         const e = w.get(r.e)
-        return !e || (w.isAgent(e) ? drawn || !this.talksTo(r) : !w.isPortable(e))
+        if (!e) return true
+        if (w.isAgent(e)) return drawn || !this.talksTo(r)
+        // the fist strikes bodies and what stands; a tool works on anything, a loose log split as a tree felled
+        return !!held || !w.isPortable(e)
       })
-      const bodies = struck.filter((r) => { const e = w.get(r.e); return !!e && w.isAgent(e) })
+      const bodies = held ? [] : struck.filter((r) => { const e = w.get(r.e); return !!e && w.isAgent(e) })
       for (const r of [...bodies, ...struck.filter((r) => !bodies.includes(r))]) {
         const plan = this.planOn('use', a.at, r)
-        if (plan) return plan
+        if (plan && !(plan.unknown && this.ground(r))) return plan
+        if (plan) return undefined
       }
       return undefined
     } finally {
@@ -513,11 +581,12 @@ export class Controls {
 
   /**
    * The left click's plan made at the pace of a swing: a blow at the attack's (Engine.playerAttack), a
-   * tool's work at the same beat — so the button held works on as a held Space strikes.
+   * tool's work at the same beat — so the button held works on as a held Space strikes. A use on oneself
+   * is made at once.
    */
   swing(plan: Plan): { panel?: Id } {
     const p = this.w.player
-    if (plan.attack) return this.run(plan)
+    if (plan.attack || plan.key === 'self') return this.run(plan)
     if (!this.eng.ready('atk:' + p.id)) return {}
     const out = this.run(plan)
     this.eng.setCooldown('atk:' + p.id, this.eng.combat.delay(p, 5, 'attack'))
@@ -525,105 +594,21 @@ export class Controls {
   }
 
   /**
-   * The left click held: the act it began again at the aim, as the swing's pace allows — a blow wherever
+   * The left click held: the swing it began again at the aim, as the swing's pace allows — a blow wherever
    * the aim meets one, or the same work (the rule that answered: one tree after another, a row of soil
    * tilled) — and only what the world knows and what changes something: holding the button never asks the
    * world anything, never asks first, and never undoes what it did (a bucket filled is not poured back).
+   * A use on oneself is made once a press (one apple, not the bag's).
    */
   again(first: Plan, aim?: Aim): void {
+    if (first.key === 'self') return
     const plan = this.plan('primary', aim)
-    if (!plan || plan.unknown || plan.confirm || !plan.changes || !!plan.attack !== !!first.attack) return
+    if (!plan || plan.key === 'self' || plan.unknown || plan.confirm || !plan.changes || !!plan.attack !== !!first.attack) return
     if (!plan.attack && plan.rule !== first.rule) return
     this.swing(plan)
   }
 
-  // ---------------------------------------------------------------- the action (the right click)
-
-  /**
-   * The action (the right click), as Stardew's action button: the act the thing aimed at calls for, made
-   * by one of the other inputs (design.md §5.2): the thing aimed at first, then what is held. It chooses as
-   * the base rules answer — a learned answer counts as none here — so the world learning never changes
-   * which act it is (a hand on a stone that the modder answered does not stop the click picking stones up):
-   * - someone to talk to: a word (a hand; what is held is handed over with G, used on them with R);
-   * - a creature: what is held used on it where it does something (fed, tied), else as any other thing;
-   * - a thing the bare hands change something of: that (open, read, sleep, pick);
-   * - a thing the held object does something to: that use (a key turned in its lock, raw meat cooked over a
-   *   lit fire);
-   *   only an object's — never a tool's or a weapon's (the left click's), nor a built thing's;
-   * - a thing whose answer to the bare hands changes nothing: that hand (it is locked, it says why);
-   * - a thing that can be taken: taken — never what is another's (F's alone: there the action does nothing);
-   * - the ground: a hand where it does something there, else the held object's use there where it does
-   *   something (seeds sown on farmland), else a built thing or a fixture in hand set down (G's act, where it
-   *   would rest), else the held object used on oneself where it does something (eat, drink, put on: never a
-   *   tool or a weapon, but a vessel's drink); pointed at oneself, any use of it (the modder's where it is unknown);
-   * - any other thing: the bare hands try it (an experiment, the modder's where the world has never seen it);
-   * - the bare ground with nothing to set down or use: nothing.
-   * A lesson that lets only some inputs work is kept: the action is the first of them that answers.
-   */
-  private action(aim: Aim | undefined, layer?: number): Plan | undefined {
-    const a = this.aim(aim, 'action')
-    if (!a) return undefined
-    const pos = this.w.posOf(this.w.player)
-    const own = !!pos && a.at.x === pos.x && a.at.y === pos.y
-    const list = this.actionTargets(a.at, a.stack, own)
-    if (layer !== undefined) {
-      const ref = list[layer]
-      return ref && this.actionOn(a.at, ref, true)
-    }
-    // one's own place: oneself (pointed at, any use of what is held), else what one stands on (the bed: sleep)
-    if (own) return this.actionOn(a.at, list[0]!, false, !!a.pointed) ?? (list[1] && this.actionOn(a.at, list[1], false))
-    // the top, past a flyer the action has nothing sure to do with (a butterfly over the berries)
-    for (const ref of list) {
-      const plan = this.actionOn(a.at, ref, false)
-      const e = this.w.get(ref.e)
-      if (!e || !this.w.hasTag(e, 'airborne') || this.talksTo(ref) || (plan && !(plan.key === 'hands' && (plan.unknown || plan.learned)))) return plan
-    }
-    return undefined
-  }
-
-  /** The action's layers at a spot: the hands' (someone first), and on one's own place oneself before them. */
-  private actionTargets(at: Pos, stack: Ref[] | undefined, own: boolean): Ref[] {
-    const layers = this.targets(at, stack, 'hands')
-    return own ? [{ e: this.w.state.player }, ...layers] : layers
-  }
-
-  /** The action on one layer (see action); `pointed`: oneself is pointed at (any use of what is held). */
-  private actionOn(at: Pos, ref: Ref, chosen: boolean, pointed = true): Plan | undefined {
-    const w = this.w
-    const me = w.player
-    const pos = w.posOf(me)
-    const held = w.get(me.held)
-    // as the base rules answer: a learned answer is as none (it filled a hole the base leaves)
-    const known = (p: Plan | undefined): p is Plan => !!p && !p.unknown && !p.learned
-    // the held thing used on oneself: pointed at oneself, any use of it; else (the ground) only what is eaten, drunk
-    // or worn — never a tool's or a weapon's (the axe in hand is not wielded at a tree it points at, the torch not
-    // put to oneself), though a vessel's drink is drunk
-    const self = (any: boolean) => {
-      const s = held && pos && this.permits('self') && (any || !isTool(held.type) || held.type.startsWith('item/vessel/')) ? this.planOn('self', pos, { e: me.id }, chosen) : undefined
-      return s && (any || known(s)) ? s : undefined
-    }
-    if (ref.e === me.id) return self(pointed)
-    const ground = this.ground(ref)
-    const hands = this.permits('hands') ? this.planOn('hands', at, ref, chosen) : undefined
-    if (hands && this.talksTo(ref)) return hands
-    // what an object in hand does to it (never a tool's work or a weapon's blow: the left click's; nor a built thing set down)
-    const object = held && !isTool(held.type) && !Controls.placeable(held.type) && this.permits('use') && !this.talksTo(ref) ? this.planOn('use', at, ref, chosen) : undefined
-    const use = known(object) && object.changes && !object.attack ? object : undefined
-    if (use && this.isCreature(ref)) return use
-    if (known(hands) && hands.changes) return hands
-    if (use) return use
-    if (!ground && known(hands)) return hands
-    const take = !ground && this.permits('take') ? this.planOn('take', at, ref, chosen) : undefined
-    if (take) return take.steal ? undefined : take
-    if (ground || !this.permits('hands')) {
-      const put = held && ground && Controls.placeable(held.type) && this.permits('put') ? this.planOn('put', at, ref, chosen) : undefined
-      return known(put) ? put : self(false)
-    }
-    // an experiment (none where the hands do not reach)
-    return hands
-  }
-
-  /** May the keys make this act now? A lesson's gate asked without a refusal shown: the action passes over what it locks. */
+  /** May the keys make this act now? A lesson's gate asked without a refusal shown. */
   private permits(key: Plan['key']): boolean {
     const allow = this.eng.story.lesson()?.def.allow
     return !allow || allow.includes(key)
@@ -1143,13 +1128,13 @@ export class Controls {
 
   /** What one sets down in a cell as part of a place: a built thing or a fixture (a wall, a door, a bed, a workbench). */
   static placeable(type: string): boolean {
-    return type.startsWith('structure/') || type.startsWith('fixture/')
+    return isBuilt(type)
   }
 
-  /** What is in hand is set down by the left click (it builds): it meets the open air and the ceiling, as G does. */
+  /** What is in hand (or what the build palette sets up) is set up by the right click (it builds): it meets the open air and the ceiling, as G does. */
   private buildsInHand(): boolean {
     if (this.bare) return false
-    const held = this.w.get(this.w.player.held)
+    const held = this.w.get(this.using ?? this.w.player.held)
     return !!held && Controls.placeable(held.type)
   }
 
@@ -1165,19 +1150,21 @@ export class Controls {
     return [...this.eng.recipes.values()].find((r) => r.make.type === type)
   }
 
-  /** G with this thing held, at the aim (or in the ceiling over it): the put it would be. */
-  private planPut(thing: Id, aim: Aim, up = false): Plan | undefined {
+  /** This thing set up at the aim (or in the ceiling over it), as the right click sets up what is held: the use it would be. */
+  private planSet(thing: Id, aim: Aim, up = false): Plan | undefined {
+    const at = this.spot(aim)
+    if (!at) return undefined
     this.using = thing
     try {
-      return this.plan('put', aim, up ? CEILING : 0)
+      return this.planOn('use', at, up ? this.ceilingOf(at) : this.w.cellRef(at.map, at.x, at.y, at.z ?? 0), true)
     } finally {
       this.using = undefined
     }
   }
 
   /**
-   * The build palette's preview of setting a type down at the aim — on one's own storey, or (`up`) in
-   * the ceiling over it: one carried is set down (G's own act); with none, one is made from what is
+   * The build palette's preview of setting a type up at the aim — on one's own storey, or (`up`) in
+   * the ceiling over it: one carried is set up (the right click's own act); with none, one is made from what is
    * carried first, if it can be. Never asked: putting is physics. Why not, when it cannot (docs/building.md).
    */
   previewPlace(type: string, aim: Aim, up = false): { ok: boolean; reason: Text; carried: number } {
@@ -1194,8 +1181,8 @@ export class Controls {
     }
     if (thing) {
       // the palette sets it down where it is aimed, or not at all (a pointer beyond reach is not moved nearer)
-      const plan = this.planPut(thing.id, aim, up)
-      return plan && plan.at.x === aim.x && plan.at.y === aim.y ? { ok: true, reason: up ? LAY_CEILING : plan.label, carried } : { ok: false, reason: why(), carried }
+      const plan = this.planSet(thing.id, aim, up)
+      return plan && plan.sets && plan.at.x === aim.x && plan.at.y === aim.y ? { ok: true, reason: up ? LAY_CEILING : plan.label, carried } : { ok: false, reason: why(), carried }
     }
     const r = this.recipeFor(type)
     if (!r) return { ok: false, reason: { en: 'You carry none.', zh: '身上没有。' }, carried }
@@ -1218,8 +1205,8 @@ export class Controls {
       if (!r || !this.makeOne(r)) return false
     }
     const thing = this.carriedOf(type)
-    const plan = thing && this.planPut(thing.id, aim, up)
-    if (!plan || plan.at.x !== aim.x || plan.at.y !== aim.y) return false
+    const plan = thing && this.planSet(thing.id, aim, up)
+    if (!plan || !plan.sets || plan.at.x !== aim.x || plan.at.y !== aim.y) return false
     this.run(plan, false, facing)
     return true
   }

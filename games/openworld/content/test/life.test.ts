@@ -168,7 +168,7 @@ describe('agriculture', () => {
     expect([count(rich, 'item/food/carrot'), count(rich, 'item/seed/carrot')]).toEqual([2 + 1 + 2, 3])
     const hand = patch([{ type: 'fixture/crop/carrot/ripe', x: 2, y: 1 }], 'grass', 'farmland')
     knows(hand, 'green-fingers')
-    press(hand, 'take')
+    press(hand, 'hands')
     expect(bag(hand, 'item/food/carrot')).toBe(2)
   })
 

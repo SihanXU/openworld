@@ -22,7 +22,7 @@ describe('the Held Ground mist', () => {
     }, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
     eng.controls.sync()
 
-    const plan = eng.controls.plan('action', { x: 2, y: 1 })!
+    const plan = eng.controls.plan('hands', { x: 2, y: 1 })!
     expect(plan).toMatchObject({ key: 'hands', verb: 'hands', target: { e: 'mist' } })
     expect(plan.instrument).toBeUndefined()
     const event = eng.actEvent(plan.verb!, 'actor', plan.target, plan.instrument)

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { Engine, RuleLibrary, SANDBOX_MAP, buildSandbox, isDo, leaves, type Ref, type Scenario } from '@openworld/engine'
+import { Engine, LOOSE, RuleLibrary, SANDBOX_MAP, buildSandbox, isDo, leaves, type Ref, type Scenario } from '@openworld/engine'
 import { BASE_RULES, FORMS, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { BASELINE, FRONT, GENERIC_RULES, ORIGIN, OUTCOMES, SWEPT, sweep, targets, type Baseline, type Tally } from '../src/coverage.ts'
 
@@ -98,7 +98,10 @@ describe('nothing put down is lost', () => {
         // something explosive put into a fire goes off (fire/explode): used up by its nature
         if (eng.trace.some((t) => t.rule === 'fire/explode')) continue
         if (actor.held === 'held') continue
-        eng.act('take', 'actor', { e: 'held' }, { instrument: null })
+        // a built thing put down lies loose, packed (design.md §5.2): the hand takes the pack, and the thing comes out
+        const back = eng.world.get('held')
+        const pack = back?.place.on === 'inside' ? eng.world.get(back.place.holder) : undefined
+        eng.act('take', 'actor', { e: pack?.type === LOOSE ? pack.id : 'held' }, { instrument: null })
         if (actor.held !== 'held' && !actor.contents?.includes('held')) lost.push(`${form.id} → ${target.id} (${put.rule?.id ?? 'undefined'})`)
       }
     }

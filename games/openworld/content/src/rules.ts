@@ -17,7 +17,7 @@ import { UNTOLD } from './regions.ts'
 import { VILLAGE_SHOP_RULES } from './village.ts'
 import { PERSON_NEWS, SOCIAL_RULES } from './social.ts'
 import { FAITH_RULES } from './faith.ts'
-import { type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@openworld/engine'
+import { LOOSE, type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@openworld/engine'
 import { HUNGRY_BELOW } from '@openworld/modules'
 
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
@@ -42,8 +42,11 @@ const tag = (role: RoleName, t: string): Cond => ({ has: { role, tag: t } })
 const not = (c: Cond): Cond => ({ not: c })
 const all = (...c: Cond[]): Cond => ({ all: c })
 const any = (...c: Cond[]): Cond => ({ any: c })
-const taken = (into: 'hand' | 'contents' | 'tile'): Effect => emit('taken', 'item', { into }, { other: 'host' })
+/** What a cell or a thing takes is taken into it; set up there (the right click's `build`), a built thing stands, else it lies loose (design.md §5.2). */
+const taken = (into: 'hand' | 'contents' | 'tile'): Effect => emit('taken', 'item', { into, build: { param: 'build' } }, { other: 'host' })
 const POWER: Amount = { param: 'power' }
+/** The tools that knock a built thing loose whole (core/strike): it can be picked up and set up again elsewhere. */
+const KNOCKS_LOOSE = ['tool:axe', 'tool:pickaxe', 'tool:hammer']
 const ELEMENT = { param: 'element' }
 /** What a blow carries beyond its power, passed on to the strike (combat.ts): a bleed it opens, health it draws back, a relic's affliction. */
 const WOUND = { bleed: { param: 'bleed' }, drain: { param: 'drain' }, afflict: { param: 'afflict' }, afflictFor: { param: 'afflictFor' } }
@@ -105,12 +108,16 @@ const ROOTS: Rule[] = [
   rule({ id: 'core/impulse', doc: 'What is done to a thing is undefined unless its nature says (the AI answers).', on: 'impulse', tree: HOLE() }),
   rule({
     id: 'core/strike',
-    doc: 'A blow on something with no answer of its own: what has durability loses it (as well as the instrument works on what it is made of; nothing if the instrument is softer — too hard), and the element the blow carries reaches it; a plain blow on what cannot break is undefined.',
+    doc: 'A blow on something with no answer of its own: a built thing that can be carried (a bed, a workbench, a wall) struck with a tool (an axe, a pickaxe, a hammer) comes loose whole, to be picked up (design.md §5.2: what F took down); else what has durability loses it (as well as the instrument works on what it is made of; nothing if the instrument is softer — too hard), and the element the blow carries reaches it; a plain blow on what cannot break is undefined.',
     on: 'impulse/strike',
     tree: IF(
-      { prop: { role: 'host', key: 'maxHp', cmp: { gt: 0 } } },
-      IF({ param: { key: 'element', cmp: { ne: '' } } }, DO({ op: 'hurt', amount: POWER, blow: true }, emit('element', 'host', { element: ELEMENT, power: POWER })), DO({ op: 'hurt', amount: POWER, blow: true })),
-      IF({ param: { key: 'element', cmp: { ne: '' } } }, DO(emit('element', 'host', { element: ELEMENT, power: POWER })), HOLE()),
+      all(any(is('host', { type: 'structure' }), is('host', { type: 'fixture', tags: ['portable'] })), any(...KNOCKS_LOOSE.map((t) => tag('instrument', t)))),
+      AS(L('Knock {target} loose', '把{target}整个敲下来'), DO({ op: 'loosen' }, vfx('dust', 'tileOf:host'))),
+      IF(
+        { prop: { role: 'host', key: 'maxHp', cmp: { gt: 0 } } },
+        IF({ param: { key: 'element', cmp: { ne: '' } } }, DO({ op: 'hurt', amount: POWER, blow: true }, emit('element', 'host', { element: ELEMENT, power: POWER })), DO({ op: 'hurt', amount: POWER, blow: true })),
+        IF({ param: { key: 'element', cmp: { ne: '' } } }, DO(emit('element', 'host', { element: ELEMENT, power: POWER })), HOLE()),
+      ),
     ),
   }),
   rule({
@@ -290,10 +297,22 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'body/belongings-taken',
-    doc: 'One\'s belongings, bundled where one fell, taken (F): opened as by a hand — all of it comes back to the taker; the bundle is gone. An empty one is taken as anything is.',
+    doc: 'One\'s belongings, bundled where one fell, picked up (E): opened as by a hand — all of it comes back to the taker; the bundle is gone. An empty one is taken as anything is.',
     host: { type: BUNDLE },
     on: 'impulse/taken',
     tree: IF({ count: { role: 'host', in: 'contents', cmp: { gt: 0 } } }, DO({ op: 'dropContents', to: 'other' }, log('You gather up your belongings.', '你收回了自己的东西。'), { op: 'destroy' }), 'inherit'),
+  }),
+  rule({
+    id: 'body/loose-taken',
+    label: L('Take {target}', '拿起{target}'),
+    doc: 'A built thing lying loose (design.md §5.2: packed where it came loose, or where G put it down), picked up: the thing itself comes out to the taker; the pack is gone (an empty one is taken as anything is).',
+    host: { type: LOOSE },
+    on: 'impulse/taken',
+    tree: IF(
+      { count: { role: 'host', in: 'contents', cmp: { gt: 0 } } },
+      IF(param('quiet', true), DO({ op: 'dropContents', to: 'other' }, { op: 'destroy' }), DO({ op: 'dropContents', to: 'other' }, log('You take {host}.', '你拿起了{host}。'), { op: 'destroy' })),
+      'inherit',
+    ),
   }),
   rule({
     id: 'body/wear',
@@ -536,7 +555,6 @@ const HANDLE_WEAPON: Cond = any(all({ same: ['actor', 'target'] }, not(param('at
 
 const USE: Selector[] = []
 void USE
-const useOrPut = ['act/use', 'act/put'] as const
 
 /** Who gets hungry, and so can be fed. */
 const FEEDS: Selector = { type: 'actor', props: { maxHunger: { gt: 0 } } }
@@ -561,15 +579,15 @@ const TOOL_LABELS: Record<string, Text> = {
 const SET_ON: Cond = any(is('target', { type: 'tile', notTags: ['solid', 'liquid'] }), is('target', { type: 'structure' }))
 
 const INSTRUMENTS: Rule[] = [
-  // the left click builds (Terraria, Minecraft's place): a built thing or a fixture used on where it can go is set down there
+  // the right click builds (Minecraft's place): a built thing or a fixture used on where it can go is set up there
   ...(['structure', 'fixture'] as const).map((type) =>
     rule({
       id: `use/set-${type}`,
       label: L('Set {instrument} down', '放下{instrument}'),
-      doc: `A ${type === 'structure' ? 'built thing (a wall, a floor, a door, stairs)' : 'fixture (a bed, a workbench)'} used on open ground, a floor or what is built there is set down there, as G sets it (the cell answers: it takes it or refuses). Used on anything else, or swung as a blow, it is what its nature says.`,
+      doc: `A ${type === 'structure' ? 'built thing (a wall, a floor, a door, stairs)' : 'fixture (a bed, a workbench)'} used on open ground, a floor or what is built there (the right click, the build palette) is set up there: the cell takes it as it takes what G puts, but it stands (param build) where what G puts lies loose. Used on anything else, or swung as a blow, it is what its nature says.`,
       host: { type },
       on: 'act/use',
-      tree: IF(all(not(param('attack', true)), SET_ON), DO(emit('receive', 'target', undefined, { item: 'host' })), 'inherit'),
+      tree: IF(all(not(param('attack', true)), SET_ON), DO(emit('receive', 'target', { build: true }, { item: 'host' })), 'inherit'),
     }),
   ),
   rule({
@@ -674,16 +692,14 @@ const INSTRUMENTS: Rule[] = [
     on: 'act/use',
     tree: IF(any({ same: ['actor', 'target'] }, is('target', { tags: ['water'] })), 'inherit', DO(emit('coat', 'target', { substance: 'oil' }), { op: 'transform', into: '@prop:emptyType' }, log('Slick oil coats {target}.', '{target}被泼上了一层滑腻的油。'))),
   }),
-  ...useOrPut.map((on) =>
-    rule({
-      id: `use/fill${on === 'act/put' ? '-put' : ''}`,
-      label: L('Fill {instrument}', '装满{instrument}'),
-      doc: 'An empty vessel at water (a well, a fountain, a lake) fills.',
-      host: { tags: ['empty-vessel'] },
-      on,
-      tree: IF(is('target', { tags: ['water-source'] }), DO({ op: 'transform', into: '@prop:waterType' }, vfx('splash', 'target'), log('Filled with water.', '你装满了水。'))),
-    }),
-  ),
+  rule({
+    id: 'use/fill',
+    label: L('Fill {instrument}', '装满{instrument}'),
+    doc: 'An empty vessel at water (a well, a fountain, a lake) fills.',
+    host: { tags: ['empty-vessel'] },
+    on: 'act/use',
+    tree: IF(is('target', { tags: ['water-source'] }), DO({ op: 'transform', into: '@prop:waterType' }, vfx('splash', 'target'), log('Filled with water.', '你装满了水。'))),
+  }),
   rule({
     id: 'use/fire',
     label: L('Set fire to {target}', '点燃{target}'),
@@ -1371,7 +1387,7 @@ const CROP: Selector = { type: 'fixture', tags: ['crop'] }
 const GROWING: Selector = { type: 'fixture', tags: ['crop', 'growing'] }
 const NOTHING_GROWS: Cond = { count: { role: 'target', in: 'tile', match: { tags: ['crop'] }, cmp: { eq: 0 } } }
 const picked: Effect[] = [
-  { op: 'spawn', type: '@prop:host.yieldType', at: 'other', into: 'hand', count: { prop: 'pick', of: 'actor', add: 1 } },
+  { op: 'spawn', type: '@prop:host.yieldType', at: 'actor', into: 'hand', count: { prop: 'pick', of: 'actor', add: 1 } },
   { op: 'spawn', type: '@prop:host.seedType', at: 'tileOf:host' },
 ]
 /** A perennial goes back to its young stage, its fertilizer spent. */
@@ -1492,26 +1508,22 @@ const CROP_KINDS = ['grain', 'herb', 'berry', 'root', 'gourd', 'fruit'] as const
 
 const FARM: Rule[] = [
   CROP_GROWTH_RULE,
-  ...useOrPut.map((on) =>
-    rule({
-      id: `farm/sow${on === 'act/put' ? '-put' : ''}`,
-      label: L('Sow {instrument}', '播下{instrument}'),
-      doc: 'A seed put on bare farmland takes root as its crop.',
-      host: { tags: ['plantable'] },
-      on,
-      tree: IF(all(is('target', { type: 'tile/farmland' }), NOTHING_GROWS), DO(log('You sow {host}.', '你播下了{host}。'), { op: 'move', to: 'target' }, { op: 'transform', into: '@prop:cropType' }, vfx('dust'))),
-    }),
-  ),
-  ...useOrPut.map((on) =>
-    rule({
-      id: `farm/plant-acorn${on === 'act/put' ? '-put' : ''}`,
-      label: L('Plant {instrument}', '种下{instrument}'),
-      doc: 'An acorn takes root in any diggable ground and becomes a tree in two game days.',
-      host: { tags: ['acorn'] },
-      on,
-      tree: IF(all(is('target', { type: 'tile', tags: ['diggable'] }), NOTHING_GROWS), DO(log('You plant an acorn.', '你种下了一颗橡子。'), { op: 'move', to: 'target' }, { op: 'transform', into: '@prop:cropType' }, vfx('dust'))),
-    }),
-  ),
+  rule({
+    id: 'farm/sow',
+    label: L('Sow {instrument}', '播下{instrument}'),
+    doc: 'A seed put on bare farmland takes root as its crop.',
+    host: { tags: ['plantable'] },
+    on: 'act/use',
+    tree: IF(all(is('target', { type: 'tile/farmland' }), NOTHING_GROWS), DO(log('You sow {host}.', '你播下了{host}。'), { op: 'move', to: 'target' }, { op: 'transform', into: '@prop:cropType' }, vfx('dust'))),
+  }),
+  rule({
+    id: 'farm/plant-acorn',
+    label: L('Plant {instrument}', '种下{instrument}'),
+    doc: 'An acorn takes root in any diggable ground and becomes a tree in two game days.',
+    host: { tags: ['acorn'] },
+    on: 'act/use',
+    tree: IF(all(is('target', { type: 'tile', tags: ['diggable'] }), NOTHING_GROWS), DO(log('You plant an acorn.', '你种下了一颗橡子。'), { op: 'move', to: 'target' }, { op: 'transform', into: '@prop:cropType' }, vfx('dust'))),
+  }),
   rule({
     id: 'farm/water',
     label: L('Water {target}', '给{target}浇水'),
@@ -1521,26 +1533,22 @@ const FARM: Rule[] = [
     // A sprinkler's neighbours use the same clock and retained water (life.ts farm/watered).
     tree: IF(all(param('element', 'water'), not(has('host', 'watered'))), WATER(), 'inherit'),
   }),
-  ...useOrPut.map((on) =>
-    rule({
-      id: `farm/ash${on === 'act/put' ? '-put' : ''}`,
-      label: L('Work {instrument} into {target}', '把{instrument}翻进{target}的土里'),
-      doc: 'Ash worked into a growing crop\'s soil is used up.',
-      host: { type: 'item/material/ash' },
-      on,
-      tree: IF(is('target', { ...GROWING, notStatus: ['fertilized'] }), DO(emit('coat', 'target', { substance: 'ash' }), { op: 'destroy' })),
-    }),
-  ),
-  ...useOrPut.map((on) =>
-    rule({
-      id: `farm/fertilizer${on === 'act/put' ? '-put' : ''}`,
-      label: L('Fertilize {target}', '给{target}施肥'),
-      doc: 'Fertilizer (the stall\'s) worked into a growing crop\'s soil is used up.',
-      host: { type: 'item/material/fertilizer' },
-      on,
-      tree: IF(is('target', { ...GROWING, notStatus: ['fertilized'] }), DO(emit('coat', 'target', { substance: 'fertilizer' }), { op: 'destroy' })),
-    }),
-  ),
+  rule({
+    id: 'farm/ash',
+    label: L('Work {instrument} into {target}', '把{instrument}翻进{target}的土里'),
+    doc: 'Ash worked into a growing crop\'s soil is used up.',
+    host: { type: 'item/material/ash' },
+    on: 'act/use',
+    tree: IF(is('target', { ...GROWING, notStatus: ['fertilized'] }), DO(emit('coat', 'target', { substance: 'ash' }), { op: 'destroy' })),
+  }),
+  rule({
+    id: 'farm/fertilizer',
+    label: L('Fertilize {target}', '给{target}施肥'),
+    doc: 'Fertilizer (the stall\'s) worked into a growing crop\'s soil is used up.',
+    host: { type: 'item/material/fertilizer' },
+    on: 'act/use',
+    tree: IF(is('target', { ...GROWING, notStatus: ['fertilized'] }), DO(emit('coat', 'target', { substance: 'fertilizer' }), { op: 'destroy' })),
+  }),
   rule({
     id: 'farm/fertilize',
     label: L('Fertilize {target}', '给{target}施肥'),
@@ -1569,9 +1577,9 @@ const FARM: Rule[] = [
   rule({
     id: 'farm/pick',
     label: L('Pick {target}', '采摘{target}'),
-    doc: 'Picking a ripe crop by hand: one of the crop and one seed (a perennial grows back).',
+    doc: 'Picking a ripe crop by hand (E: a crop is handled, not taken — it stands in its soil): one of the crop and one seed (a perennial grows back).',
     host: { type: 'fixture', tags: ['crop', 'ripe'] },
-    on: 'impulse/taken',
+    on: 'impulse/handle',
     tree: PICK(),
   }),
   rule({

@@ -177,12 +177,12 @@ describe('containers', () => {
 })
 
 describe('the ground', () => {
-  it('water refuses what is put in it, but still fills an empty vessel', () => {
+  it('water refuses what is put in it; an empty vessel used on it fills (the right click: G only puts)', () => {
     const eng = play([], 'item/food/apple', 'water')
     expect(press(eng, 'put')).toMatchObject({ rules: expect.arrayContaining(['core/receive-water']), offered: false })
     expect(heldBy(eng)).toBe('held')
     const bucket = play([], 'item/vessel/bucket/empty', 'water')
-    expect(press(bucket, 'put').rules).toContain('use/fill-put')
+    expect(press(bucket, 'use').rules).toContain('use/fill')
     expect(bucket.world.get('held')!.type).toBe('item/vessel/bucket/water')
   })
 

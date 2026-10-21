@@ -134,7 +134,7 @@ describe('the Held Ground production cycle', () => {
     c.select(w.player.slots!.findIndex((key) => !key))
     for (const x of plots) {
       walk(x, 22)
-      act('take', x, 21)
+      act('hands', x, 21)
     }
     expect(c.count('item/food/turnip')).toBe(5)
     expect(c.count('item/seed/turnip')).toBe(5)
