@@ -8,6 +8,7 @@
 // Nothing here asks whether one is the player (CLAUDE.md): anyone can steal, see, tell, be wanted.
 
 import { DIRS, TICKS_PER_DAY, evalCond, favouriteOf, isA, levelFactor, toldFavourite, weaponOf, type DeedDef, type DeedMemory, type Engine, type Entity, type GameEvent, type Id, type LawDef, type Look, type NpcMemory, type Pos, type PropValue, type Ref, type Roles, type SocialParams, type TalkOption, type TalkVerb, type Text } from '@openworld/engine'
+import { authorizedResidentWorkTake } from './resident-work.ts'
 
 /** The social numbers when the world gives none (the content gives its own). */
 export const SOCIAL_DEFAULTS: SocialParams = {
@@ -406,6 +407,7 @@ export class Social {
   /** The deed a seen event holds, as the world's deeds say: the worst (lowest rank) whose condition fits. */
   deedIn(seen: GameEvent): DeedDef | undefined {
     const w = this.w
+    if (authorizedResidentWorkTake(this.eng, seen)) return undefined
     const defs = [...(w.onto.data.deeds ?? [])].sort((a, b) => a.rank - b.rank)
     if (!defs.length) return undefined
     const roles: Roles = { host: w.view(seen.host), actor: w.view(seen.roles.actor), target: w.view(seen.roles.target), instrument: w.view(seen.roles.instrument) }

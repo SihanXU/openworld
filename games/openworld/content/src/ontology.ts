@@ -623,7 +623,7 @@ export function buildOntology(): Ontology {
     // theirs up in turn (docs/skills.md)
     kits: { ...KITS, ...ELITE_KITS, ...BOSS_KITS },
     encounters: BOSS_ENCOUNTERS,
-    goals: ['encounter', 'rout', 'kit', 'tactics', 'threat', 'social', 'follow', 'need', 'schedule', 'home', 'idle'],
+    goals: ['encounter', 'rout', 'kit', 'tactics', 'threat', 'social', 'follow', 'need', 'residentWork', 'schedule', 'home', 'idle'],
     // the people's social life (docs/npc-sandbox.md): deeds and their fines, the watches, the numbers, the talk panel's verbs
     deeds: DEEDS,
     laws: LAWS,

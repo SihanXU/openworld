@@ -246,7 +246,7 @@ export const HAVEN_RULES: Rule[] = [
     doc: 'The steward spoken to about the ground (his talk\'s "The Held Ground…"): its panel (the land, its grounds, its buildings, the stock); asked to build one (choice build:<id>), he builds it from the stock if the land is ready for it and the stock holds all it asks; asked to go to a ground (choice go:<id>), he sends one there once it is opened.',
     host: STEWARD,
     on: 'impulse/handle',
-    tree: { if: param('say', 'haven'), then: { if: { param: { key: 'choice', cmp: { ne: '' } } }, then: { if: { any: [...HAVEN_UPGRADES.map((u) => param('choice', `build:${u.id}`))] }, then: BUILD, else: GO }, else: { do: [{ op: 'panel', panel: 'haven' }] } }, else: 'inherit' },
+    tree: { if: param('say', 'resident-work'), then: { do: [{ op: 'residentWork/order' }] }, else: { if: param('say', 'haven'), then: { if: { param: { key: 'choice', cmp: { ne: '' } } }, then: { if: { any: [...HAVEN_UPGRADES.map((u) => param('choice', `build:${u.id}`))] }, then: BUILD, else: GO }, else: { do: [{ op: 'panel', panel: 'haven' }] } }, else: 'inherit' } },
   }),
   story({
     id: 'haven/stock',

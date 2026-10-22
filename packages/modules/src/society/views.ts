@@ -2,6 +2,7 @@
 
 import { itemInfo, matchSelector, splitStacks, stackKey, type Engine, type Entity, type Frame, type GiftView, type Id, type ResidenceView, type ResidenceWorkDef, type ResidenceWorkView, type Selector, type TradeView } from '@openworld/engine'
 import { socialOf } from './state.ts'
+import { residentWorkEligibility, residentWorkOrderView, residentWorkView } from './resident-work.ts'
 
 /** The views of the people's panels the host has open (docs/npc-sandbox.md): a talk, a trade, a person's pockets. */
 export function peopleViews(eng: Engine, open: { talk?: { who: Id; arrest?: boolean }; trade?: Id; pockets?: Id; gift?: Id }): Pick<Frame, 'talk' | 'trade' | 'pockets' | 'gift'> {
@@ -50,9 +51,23 @@ export function residenceView(eng: Engine): Pick<Frame, 'residence'> {
   const residents = w.people()
     .filter((e) => e.npc?.resident?.map === home.map)
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map((e) => ({ id: e.id, name: e.name ?? w.onto.resolve(e.type).name ?? e.type, slot: e.npc!.resident!.slot }))
+    .map((e) => {
+      const eligibility = residentWorkEligibility(eng, e)
+      return { id: e.id, name: e.name ?? w.onto.resolve(e.type).name ?? e.type, slot: e.npc!.resident!.slot, eligible: eligibility.eligible, ...(eligibility.reason && { eligibilityReason: eligibility.reason }), ...(residentWorkOrderView(eng, e) && { order: residentWorkOrderView(eng, e) }) }
+    })
   const playerMap = w.posOf(w.player)?.map
   const view: ResidenceView = { map: home.map, active: eng.activeMap === home.map, onMap: playerMap === home.map, residents }
+
+  view.recoveries = [...w.withProp('residentWorkMap', home.map)]
+    .filter((e) => !e.npc?.resident || !w.isAgent(e))
+    .flatMap((e) => {
+      const order = e.residentWork
+      const p = w.posOf(e)
+      const isRemains = !w.isAgent(e)
+      if (!order || !p || p.map !== home.map || !order.cargoIds.length || (!isRemains && !['revoked', 'recovery', 'paused'].includes(order.status))) return []
+      const cargo = order.cargoIds.flatMap((id) => { const info = itemInfo(eng, id); return info ? [info] : [] })
+      return cargo.length ? [{ id: e.id, name: e.name ?? w.onto.resolve(e.type).name ?? e.type, x: p.x, y: p.y, cargo, status: isRemains ? 'recovery' as const : order.status as 'paused' | 'revoked' | 'recovery', ...(order.blockedReason && { blockedReason: order.blockedReason }) }] : []
+    })
 
   if (w.map(home.map)?.anchors) {
     const beds = socialOf(eng).residenceBeds()
@@ -65,7 +80,10 @@ export function residenceView(eng: Engine): Pick<Frame, 'residence'> {
   }
 
   const def = home.work
-  if (def && view.active && view.onMap) view.work = residenceWork(eng, home.map, def)
+  if (def && view.active && view.onMap) {
+    const counts = residenceWork(eng, home.map, def)
+    view.work = { ...counts, crops: { ...counts.crops, ...residentWorkView(eng, def) } }
+  }
   return { residence: view }
 }
 
@@ -104,10 +122,17 @@ function residenceWork(eng: Engine, map: string, def: ResidenceWorkDef): Residen
       }
     }
     const capacity = w.prop(box, 'capacity')
+    const p = w.posOf(box)!
+    const owner = eng.society.relation(eng.society.ownerOf(box), w.player)
+    const locked = !!box.frozenBy || w.hasTag(box, 'locked') || w.hasStatus({ e: box.id }, 'locked')
     return {
       id: box.id,
       type: box.type,
       name: box.name ?? w.onto.resolve(box.type).name ?? box.type,
+      x: p.x,
+      y: p.y,
+      selectable: owner !== 'another' && !locked,
+      ...((owner === 'another' || locked) && { unavailableReason: owner === 'another' ? { en: 'Owned by someone else', zh: '属于他人' } : { en: 'Locked or unavailable', zh: '已上锁或暂不可用' } }),
       ...(typeof capacity === 'number' && { capacity }),
       usedSlots: splitStacks(contents).length,
       contents: [...rows.values()],

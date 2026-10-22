@@ -124,14 +124,31 @@ export interface ResidenceView {
   active: boolean
   /** The player is physically on this map. */
   onMap: boolean
-  residents: { id: Id; name: Text; slot: string }[]
+  residents: ResidenceResidentView[]
+  /** Dead workers retain the same order on their body so the steward can expose task cargo for recovery. */
+  recoveries?: { id: Id; name: Text; x: number; y: number; cargo: ItemInfo[]; status: 'paused' | 'revoked' | 'recovery'; blockedReason?: Text }[]
   beds?: { total: number; occupied: number; empty: number; slots: { anchor: string; resident?: Id }[] }
   work?: ResidenceWorkView
 }
 
+export interface ResidenceResidentView {
+  id: Id
+  name: Text
+  slot: string
+  eligible?: boolean
+  eligibilityReason?: Text
+  order?: {
+    status: 'working' | 'paused' | 'revoked' | 'recovery'
+    warehouse: Id
+    cells: { x: number; y: number }[]
+    cargo: ItemInfo[]
+    blockedReason?: Text
+  }
+}
+
 /** A whole-map view, supplied by the optional society module when the game configures residence work. */
 export interface ResidenceWorkView {
-  crops?: { total?: number; ripe?: number; needsWater?: number }
+  crops?: { total?: number; ripe?: number; needsWater?: number; targets?: { id: Id; x: number; y: number; name: Text; ripe: boolean }[] }
   livestock?: { total?: number; unfed?: number; milkable?: number }
   groundEggs?: number
   warehouses?: ResidenceWarehouseView[]
@@ -141,6 +158,10 @@ export interface ResidenceWarehouseView {
   id: Id
   type: string
   name: Text
+  x: number
+  y: number
+  selectable: boolean
+  unavailableReason?: Text
   capacity?: number
   usedSlots: number
   contents: (ItemInfo & { count: number })[]

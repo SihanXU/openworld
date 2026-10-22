@@ -3068,6 +3068,32 @@
             "op"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "residentWork/order"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "residentWork/update"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
         }
       ]
     },

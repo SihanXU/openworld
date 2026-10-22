@@ -427,6 +427,8 @@ export interface Entity {
   held?: Id
   /** NPCs: schedule + role. */
   npc?: NpcData
+  /** A residence work order survives death when the actor becomes a body; its cargo stays physical. */
+  residentWork?: ResidentWorkOrder
   /** Creatures: combat behaviour. */
   ai?: AiData
   /**
@@ -903,6 +905,8 @@ export interface ResidenceDef {
 
 /** Game-authored selectors for a home ground's work objects; the society module names no game's maps or types. */
 export interface ResidenceWorkDef {
+  /** People permitted to give work orders at this residence's steward/controller. */
+  controller?: Selector
   /** Any crop grown here; later work may choose an authorized crop from this set. */
   crop?: Selector
   /** Crops whose current type is ready for harvest. */
@@ -921,6 +925,26 @@ export interface ResidenceWorkDef {
   warehouse?: Selector
   /** The real feed item a future feeding job will draw from storage. */
   feed?: Selector
+  /** Crop props that name the hand-pick products; the society module reads these names, never game type ids. */
+  yieldTypeProp?: string
+  seedTypeProp?: string
+  /** The worker's numeric stat added to yieldBase for the original hand-pick count. */
+  pickBonusProp?: string
+  yieldBase?: number
+  seedCount?: number
+}
+
+/** A saved, explicitly authorized residence task and its still-recoverable physical cargo. */
+export interface ResidentWorkOrder {
+  kind: 'harvest'
+  controller: Id
+  map: string
+  warehouse: Id
+  /** Authorized planted cells; a replacement crop at the same cell remains within the order. */
+  cells: { x: number; y: number }[]
+  status: 'working' | 'paused' | 'revoked' | 'recovery'
+  cargoIds: Id[]
+  blockedReason?: Text
 }
 
 /** Something that happened, which people may talk about while it is fresh. */
@@ -1678,7 +1702,7 @@ export type EmitTo =
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
 /** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
-export type ModuleOp = 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'plunder' | 'beaten' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy' | 'fishing/start' | 'fishing/step' | 'fishing/input' | 'fishing/land'
+export type ModuleOp = 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'plunder' | 'beaten' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy' | 'fishing/start' | 'fishing/step' | 'fishing/input' | 'fishing/land' | 'residentWork/order' | 'residentWork/update'
 
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
@@ -1844,6 +1868,10 @@ export type Effect =
   | { op: 'fishing/step' }
   | { op: 'fishing/input' }
   | { op: 'fishing/land' }
+  /** A configured residence controller validates a work choice and sends it to the selected resident. */
+  | { op: 'residentWork/order' }
+  /** The selected resident/body changes only its own persisted order or moves only its tracked cargo. */
+  | { op: 'residentWork/update' }
 
 /**
  * A rule's outcome: a condition tree whose leaves are effects (an empty list: no change),

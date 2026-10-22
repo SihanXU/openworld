@@ -138,3 +138,25 @@ far the land goes and what was carried.
   Asked with a bed free, they go at once and keep the ground's days from then on (`NpcData.resident`: asleep
   at their bed 21–7, about it 7–21); with none free they say so. Older saves get the tents' plots
   (`migratePlots`, with the Held Ground's other plots and Cass's loom).
+
+### Resident work orders (2026-10-22)
+
+On the steward panel's **Residents** page, assign at most one job to each actual resident who is an adult, has an
+open bed here, and is not protected or bound to another duty. A harvest order names a real, available warehouse
+and the exact crop cells the resident may work; no cell is selected automatically. A new crop planted in an
+authorized cell later is included, while crops on other cells remain untouched.
+
+The first job is a **hand harvester**. It uses the existing hand-pick rule: one crop plus the resident's own `pick`
+bonus, and one returned seed. It does not use sickles, sow, water, fertilize, milk, or sell. Its output goes into the
+resident's physical cargo and then the selected physical warehouse; it does not spend the Held Ground's upgrade
+stock or take anything from a private bag. Full storage stops the next harvest, including at the 999-item stack
+limit.
+
+Work advances only while the player is on the Held Ground and the clock is running. The resident keeps the current
+day schedule and rests from 21:00 to 07:00; leaving the map, a paused order, an ineligible worker, a blocked route,
+or an unavailable warehouse pauses the job with a status message. Close the steward panel to let time pass.
+
+Task cargo remains a physical, saved item. If the warehouse disappears or the job is revoked while cargo is in
+transit, use **Put task cargo down for recovery**. The resident (or retained body) leaves only tracked job cargo at
+their feet; the panel reports the map and coordinates. Pick it up from that ground tile. Private items are left alone,
+and cargo already moved out of the resident's custody is never moved remotely.

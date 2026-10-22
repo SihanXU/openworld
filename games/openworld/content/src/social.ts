@@ -84,6 +84,7 @@ export const SOCIAL: SocialParams = {
     map: 'haven',
     at: 95,
     work: {
+      controller: { type: 'actor/person/steward', tags: ['haven-steward'] },
       crop: { type: 'fixture/crop', tags: ['crop'] },
       ripe: { type: 'fixture/crop', tags: ['ripe'] },
       growing: { type: 'fixture/crop', tags: ['growing'], notStatus: ['watered'] },
@@ -93,6 +94,11 @@ export const SOCIAL: SocialParams = {
       egg: { type: 'item/food/egg/raw' },
       warehouse: { type: 'fixture/container', props: { capacity: { gt: 0 } } },
       feed: { type: 'item/material/feed' },
+      yieldTypeProp: 'yieldType',
+      seedTypeProp: 'seedType',
+      pickBonusProp: 'pick',
+      yieldBase: 1,
+      seedCount: 1,
     },
     slots: [
       { anchor: 'home.camp' },
@@ -561,4 +567,11 @@ export const SOCIAL_RULES: Rule[] = [
     on: 'impulse/notify',
     tree: IF(what('report'), DO({ op: 'charge' }), IF(what('pardon'), DO({ op: 'charge', clear: true }), 'inherit')),
   }),
+  ...([PERSON, { type: 'fixture/remains/body' } as Selector].map((host, i) => rule({
+    id: i ? 'resident-work/body-command' : 'resident-work/person-command',
+    doc: 'Only a resident work order or its own transient work step is handled by the resident work module; worker-side authorization is checked again by its own-host primitive.',
+    host,
+    on: 'impulse/notify',
+    tree: IF(any(what('resident-work-command'), what('resident-work-internal')), DO({ op: 'residentWork/update' }), 'inherit'),
+  }))),
 ]

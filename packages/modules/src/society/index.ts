@@ -10,11 +10,13 @@ import { socialEffect } from './effects.ts'
 import { Social, lawId } from './social.ts'
 import { conductOf } from './state.ts'
 import { residenceView } from './views.ts'
+import { residentWorkEffect, residentWorkGoal, resetResidentWorkRuntime } from './resident-work.ts'
 
 export * from './conduct.ts'
 export * from './social.ts'
 export * from './state.ts'
 export * from './views.ts'
+export * from './resident-work.ts'
 
 export const societyModule: EngineModule = {
   id: 'society',
@@ -47,6 +49,8 @@ export const societyModule: EngineModule = {
     arrest: socialEffect,
     restock: socialEffect,
     calm: socialEffect,
+    'residentWork/order': residentWorkEffect,
+    'residentWork/update': residentWorkEffect,
   },
   conds: SOCIAL_CONDS,
   goals: {
@@ -56,6 +60,7 @@ export const societyModule: EngineModule = {
     follow: { paced: false, run: (eng, e, sc) => conductOf(eng).follow(e, sc) },
     // a hungry person eats, buys a meal, or takes one
     need: { paced: true, run: (eng, e, sc) => conductOf(eng).need(e, sc) },
+    residentWork: residentWorkGoal,
   },
   spec: {
     // what its prices (social.ts `value`, `priceToBuy`, `priceToSell`) and a merchant's morning (`restock`) read
@@ -96,6 +101,8 @@ export const societyModule: EngineModule = {
       arrest: "arrest {} — the host (wanted where the actor keeps the watch) is stopped: the one at the keys chooses (the guard's talk opens: pay, jail, persuade, bribe, resist); anyone else yields — pays if it can, else goes to the cells; one down is taken to the cells",
       restock: 'restock {} — the host has its stock again once a day: its stock prop (types, `type*count` by `|`) made up, its coin up to its purse prop',
       calm: 'calm {} — the host (a person who fought) forgets its foes and puts its weapon away',
+      'residentWork/order': 'residentWork/order {} — the configured residence controller validates and dispatches a bounded player work choice',
+      'residentWork/update': 'residentWork/update {} — a resident or retained body changes only its own saved work order and tracked cargo',
     },
     conditions: [
       '{regard: {of: role, toward: role, cmp}} — what one person thinks of another (−100..100, its regard: talk, gifts and help raise it, deeds lower it)',
@@ -155,6 +162,9 @@ export const societyModule: EngineModule = {
       f.player.purse = social.purse(p)
       Object.assign(f, residenceView(eng))
     })
+  },
+  upgrade(eng) {
+    resetResidentWorkRuntime(eng)
   },
 }
 

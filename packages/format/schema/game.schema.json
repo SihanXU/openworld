@@ -386,6 +386,10 @@
           "$ref": "#/definitions/NpcData",
           "description": "NPCs: schedule + role."
         },
+        "residentWork": {
+          "$ref": "#/definitions/ResidentWorkOrder",
+          "description": "A residence work order survives death when the actor becomes a body; its cargo stays physical."
+        },
         "ai": {
           "$ref": "#/definitions/AiData",
           "description": "Creatures: combat behaviour."
@@ -1957,6 +1961,73 @@
       ],
       "additionalProperties": false,
       "description": "A look (docs/looks.md): what a body is drawn from — the one record its map sprite, its portrait and its look's tags and words all come from, so they cannot disagree. Parts and colours are the ontology's (`Ontology.looks`); their pictures are the client's."
+    },
+    "ResidentWorkOrder": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "const": "harvest"
+        },
+        "controller": {
+          "$ref": "#/definitions/Id"
+        },
+        "map": {
+          "type": "string"
+        },
+        "warehouse": {
+          "$ref": "#/definitions/Id"
+        },
+        "cells": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "additionalProperties": false
+          },
+          "description": "Authorized planted cells; a replacement crop at the same cell remains within the order."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "working",
+            "paused",
+            "revoked",
+            "recovery"
+          ]
+        },
+        "cargoIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Id"
+          }
+        },
+        "blockedReason": {
+          "$ref": "#/definitions/Text"
+        }
+      },
+      "required": [
+        "kind",
+        "controller",
+        "map",
+        "warehouse",
+        "cells",
+        "status",
+        "cargoIds"
+      ],
+      "additionalProperties": false,
+      "description": "A saved, explicitly authorized residence task and its still-recoverable physical cargo."
     },
     "AiData": {
       "type": "object",

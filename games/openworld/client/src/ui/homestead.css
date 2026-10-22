@@ -124,5 +124,14 @@
 .hs-list li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 6px 8px; border-radius: 6px; background: rgba(220, 189, 131, 0.24); font: 12px var(--text); color: var(--ink-warm); }
 .hs-list li span { color: var(--ink-soft); text-align: right; overflow-wrap: anywhere; }
 .hs-residents .hs-note { margin: 0; text-align: left; }
+.hs-work-orders { display: flex; flex-direction: column; gap: 8px; }
+.hs-list li.hs-resident-work { align-items: flex-start; flex-wrap: wrap; gap: 8px; padding: 10px; }
+.hs-resident-work > div { display: flex; flex: 1 1 220px; flex-direction: column; gap: 4px; min-width: 0; }
+.hs-work-select, .hs-work-current { display: flex; flex: 1 1 100%; flex-direction: column; gap: 8px; min-width: 0; }
+.hs-work-select select { max-width: 100%; margin-left: 8px; }
+.hs-work-plots { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.hs-work-plots label { white-space: nowrap; }
+.hs-work-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.hs-work-select small { color: var(--ink-soft); }
 @media (max-width: 700px) { .hs-pages { order: 3; flex-basis: 100%; justify-content: center; } .hs-overview-grid { grid-template-columns: 1fr; } .hs-overview { padding: 10px; } }
 

@@ -18,6 +18,7 @@ import type { GamePanel, PanelContext } from '@openworld/runtime/src/ui/panels.t
 import css from './homestead.css?inline'
 import { stockView, type StockView, type WideningState } from './stock.ts'
 import { useStyle } from './style.ts'
+import { reconcileResidentWorkDraft, type ResidentWorkDraft } from './workDraft.ts'
 
 type Upgrade = (typeof HAVEN_UPGRADES)[number]
 type Track = Upgrade['track']
@@ -40,6 +41,7 @@ class HomesteadPanel implements GamePanel {
   /** Who opened the panel (its steward): what is handed and asked goes to them. */
   private steward?: string
   private last?: Frame
+  private workDrafts = new Map<string, ResidentWorkDraft>()
 
   constructor(private ctx: PanelContext) {
     useStyle('homestead', css)
@@ -54,6 +56,7 @@ class HomesteadPanel implements GamePanel {
     this.steward = opened.by
     this.page = 'today'
     this.sig = ''
+    this.workDrafts.clear()
     this.render(f)
   }
 
@@ -168,7 +171,7 @@ class HomesteadPanel implements GamePanel {
             ? (zh ? '此领地尚未配置实时经营数据。' : 'Live work data is not configured for this residence.')
             : ''
       const metrics = ready ? [
-        work.crops && `<section class="hs-overview-card"><h3>${zh ? '作物' : 'Crops'}</h3><div class="hs-stats">${stat(zh ? '在地作物' : 'Growing', work.crops.total)}${stat(zh ? '成熟可收' : 'Ready', work.crops.ripe)}${stat(zh ? '待浇水' : 'Needs water', work.crops.needsWater)}</div></section>`,
+        work.crops && `<section class="hs-overview-card"><h3>${zh ? '作物' : 'Crops'}</h3><div class="hs-stats">${stat(zh ? '在地作物' : 'Planted', work.crops.total)}${stat(zh ? '成熟可收' : 'Ready', work.crops.ripe)}${stat(zh ? '待浇水' : 'Needs water', work.crops.needsWater)}</div></section>`,
         work.livestock && `<section class="hs-overview-card"><h3>${zh ? '牲畜' : 'Livestock'}</h3><div class="hs-stats">${stat(zh ? '在地牲畜' : 'Kept', work.livestock.total)}${stat(zh ? '待喂养' : 'Needs feed', work.livestock.unfed)}${stat(zh ? '可挤奶' : 'Ready to milk', work.livestock.milkable)}</div></section>`,
         `<section class="hs-overview-card"><h3>${zh ? '地面收集物' : 'Loose goods'}</h3><div class="hs-stats">${stat(zh ? '待拾鸡蛋' : 'Eggs to gather', work.groundEggs)}</div></section>`,
       ].filter((html): html is string => !!html).join('') : ''
@@ -204,8 +207,66 @@ class HomesteadPanel implements GamePanel {
       const schedule = !residence
         ? (zh ? '领地居民与床位信息不可用。' : 'Residence data is unavailable.')
         : zh
-          ? '居民按现有昼夜作息生活：21:00–07:00休息，白天活动。离开领地图期间，经营总览暂停；返回后重新读取。岗位委任功能将在后续开放。'
-          : 'Residents follow their current day and night routine: rest from 21:00 to 07:00 and remain active by day. The work overview pauses while you are away and refreshes when you return. Work assignments will be available in a later update.'
+          ? '居民按现有昼夜作息生活：21:00–07:00休息，白天活动。只有你在领地且时钟运行时岗位才会推进；关闭此面板才能继续时间。离开领地期间岗位暂停。'
+          : 'Residents keep their current routine and sleep from 21:00 to 07:00. Work advances only while you are on the Held Ground and the clock runs; close this panel to let time pass. Orders pause while you are away.'
+      const work = residence?.work
+      const targetList = work?.crops?.targets ?? []
+      const warehouses = work?.warehouses ?? []
+      const groundVisible = !!residence?.active && !!residence.onMap && !!work
+      const status = (value: string) => ({ working: zh ? '工作中' : 'Working', paused: zh ? '已暂停' : 'Paused', revoked: zh ? '已撤销' : 'Revoked', recovery: zh ? '待取回' : 'Recovery needed' }[value] ?? value)
+      const workRows = residents.map((person) => {
+        let draft = this.workDrafts.get(person.id)
+        if (!draft) {
+          draft = { warehouse: person.order?.warehouse ?? '', cells: new Set((person.order?.cells ?? []).map((c) => `${c.x},${c.y}`)), editing: false }
+          this.workDrafts.set(person.id, draft)
+        }
+        const order = person.order
+        const targetKeys = new Set(targetList.map((target) => `${target.x},${target.y}`))
+        const orderKeys = new Set((order?.cells ?? []).map((cell) => `${cell.x},${cell.y}`))
+        const { unavailableWarehouse, removedDraftCell } = reconcileResidentWorkDraft(draft, {
+          groundVisible,
+          targetKeys,
+          previouslyAuthorizedKeys: orderKeys,
+          selectableWarehouses: new Set(warehouses.filter((box) => box.selectable).map((box) => box.id)),
+        })
+        const cargo = new Map<string, { name: ItemInfo['name']; count: number }>()
+        for (const item of order?.cargo ?? []) {
+          const row = cargo.get(item.type)
+          if (row) row.count++
+          else cargo.set(item.type, { name: item.name, count: 1 })
+        }
+        const cargoLabel = [...cargo.values()].map((item) => `${esc(tx(item.name))} ×${item.count}`).join(' · ')
+        const assignedCells = order?.cells.map((cell) => {
+          const key = `${cell.x},${cell.y}`
+          return groundVisible && !targetKeys.has(key)
+            ? `${zh ? '已授权田块' : 'Authorized plot'} (${cell.x}, ${cell.y})${zh ? '，当前空田' : ' · currently empty'}`
+            : `(${cell.x}, ${cell.y})`
+        }).join(' · ')
+        const assignedWarehouse = warehouses.find((box) => box.id === order?.warehouse)
+        const editable = !!person.eligible && !!residence?.active && !!residence.onMap && (!order || (!!draft.editing && !['revoked', 'recovery'].includes(order.status)))
+        const plotOptions = [
+          ...targetList.map((target) => `<label><input type="checkbox" data-work-cell="${esc(person.id)}" value="${target.x},${target.y}" ${draft!.cells.has(`${target.x},${target.y}`) ? 'checked' : ''}> (${target.x}, ${target.y}) · ${esc(tx(target.name))}${target.ripe ? (zh ? ' · 成熟' : ' · ripe') : ''}</label>`),
+          ...(order?.cells ?? []).filter((cell) => !targetKeys.has(`${cell.x},${cell.y}`)).map((cell) => `<label class="muted"><input type="checkbox" data-work-cell="${esc(person.id)}" value="${cell.x},${cell.y}" ${draft!.cells.has(`${cell.x},${cell.y}`) ? 'checked' : ''}> ${zh ? `已授权田块 (${cell.x}, ${cell.y})，当前空田` : `Authorized plot (${cell.x}, ${cell.y}) · currently empty`}</label>`),
+        ].join('')
+        const validWarehouse = warehouses.some((box) => box.id === draft!.warehouse && box.selectable)
+        const validCells = [...draft.cells].some((key) => targetKeys.has(key) || orderKeys.has(key))
+        const editWarning = `${unavailableWarehouse ? `<p class="hs-alert">${zh ? '所选仓库已消失、上锁或不可用；请重新选择仓库。' : 'The selected warehouse is missing, locked, or unavailable. Choose another.'}</p>` : ''}${removedDraftCell ? `<p class="hs-alert">${zh ? '有未确认的田块已不再可授权，已从草稿移除。' : 'A draft plot is no longer available and was removed.'}</p>` : ''}`
+        const selectors = editable ? `<div class="hs-work-select">${editWarning}<label>${zh ? '实体仓库' : 'Real warehouse'} <select data-work-warehouse="${esc(person.id)}"><option value="">${zh ? '请选择仓库' : 'Choose a warehouse'}</option>${warehouses.map((box) => `<option value="${esc(box.id)}" ${box.id === draft!.warehouse ? 'selected' : ''} ${box.selectable ? '' : 'disabled'}>${esc(tx(box.name))} · (${box.x}, ${box.y})${box.selectable ? '' : ` — ${esc(tx(box.unavailableReason!))}`}</option>`).join('')}</select></label>
+          <div class="hs-work-plots"><b>${zh ? '授权田块（按格子）' : 'Authorized plots (by cell)'}</b>${plotOptions || `<span class="muted">${zh ? (order ? '原授权田块已空；新种下作物后也可再授权。' : '当前没有可授权作物；种下作物后再委派。') : (order ? 'Existing plots are empty; authorize newly planted crops here.' : 'No crops to authorize yet; plant crops before assigning.')}</span>`}</div>
+          <button class="hs-btn go" data-work-assign="${esc(person.id)}" ${!validWarehouse || !validCells ? 'disabled' : ''}>${zh ? (order ? '保存岗位配置' : '委派手工采收') : (order ? 'Save work assignment' : 'Assign hand harvester')}</button><small>${zh ? '按原手采规则：基础 1 份作物，居民自身的采收特长可增加产量，另返 1 粒种子；不使用镰刀，不播种、浇水或施肥。' : 'Original hand-pick yield: base 1 crop; the resident’s own harvest skill may add yield, plus 1 returned seed. No sickle, sowing, watering, or fertilizing.'}</small>${order ? `<button class="hs-btn" data-work-edit="${esc(person.id)}" data-edit="cancel">${zh ? '取消修改' : 'Cancel changes'}</button>` : ''}</div>` : ''
+        const controls = order ? `<div class="hs-work-current"><b>${esc(status(order.status))}</b>${assignedWarehouse ? `<span>${esc(tx(assignedWarehouse.name))} · (${assignedWarehouse.x}, ${assignedWarehouse.y})</span>` : `<span>${zh ? '指定仓库当前不可用' : 'Selected warehouse is unavailable'}</span>`}<span>${zh ? '授权田块' : 'Authorized cells'}: ${esc(assignedCells || '—')}</span>${order.blockedReason ? `<p class="hs-alert">${esc(tx(order.blockedReason))}</p>` : ''}${cargoLabel ? `<p>${zh ? '在途任务物资' : 'Task cargo'}: ${cargoLabel}</p>` : ''}<div class="hs-work-buttons">${order.status === 'working' ? `<button class="hs-btn" data-work-op="pause" data-worker="${esc(person.id)}">${zh ? '暂停' : 'Pause'}</button>` : order.status === 'paused' ? `<button class="hs-btn go" data-work-op="resume" data-worker="${esc(person.id)}">${zh ? '继续' : 'Resume'}</button>` : ''}${!draft.editing && person.eligible && !['revoked', 'recovery'].includes(order.status) ? `<button class="hs-btn" data-work-edit="${esc(person.id)}" data-edit="start">${zh ? '修改配置' : 'Change assignment'}</button>` : ''}<button class="hs-btn" data-work-op="revoke" data-worker="${esc(person.id)}">${zh ? '撤销岗位' : 'Revoke'}</button>${order.cargo.length ? `<button class="hs-btn" data-work-op="drop" data-worker="${esc(person.id)}">${zh ? '放下任务物资供取回' : 'Put task cargo down for recovery'}</button>` : ''}</div>${draft.editing ? selectors : ''}</div>` : person.eligible ? selectors : `<p class="muted">${esc(tx(person.eligibilityReason ?? { en: 'Not eligible for a work order.', zh: '目前不符合岗位条件。' }))}</p>`
+        return `<li class="hs-resident-work"><div><b>${esc(tx(person.name))}</b><span>${zh ? `床位 ${bedNumbers.get(person.slot) ?? '—'}` : `Bed ${bedNumbers.get(person.slot) ?? '—'}`}</span></div>${controls}</li>`
+      }).join('')
+      const recoveries = (residence?.recoveries ?? []).map((recovery) => {
+        const items = new Map<string, { name: ItemInfo['name']; count: number }>()
+        for (const item of recovery.cargo) {
+          const row = items.get(item.type)
+          if (row) row.count++
+          else items.set(item.type, { name: item.name, count: 1 })
+        }
+        const list = [...items.values()].map((item) => `${esc(tx(item.name))} ×${item.count}`).join(' · ')
+        return `<li class="hs-resident-work"><div><b>${esc(tx(recovery.name))}</b><span>${status(recovery.status)} · (${recovery.x}, ${recovery.y})</span><small>${zh ? '物资将放在该居民/遗体脚边' : 'Cargo will be placed at this resident/body’s feet'}</small><span>${list}</span>${recovery.blockedReason ? `<p>${esc(tx(recovery.blockedReason))}</p>` : ''}</div><button class="hs-btn" data-work-op="drop" data-worker="${esc(recovery.id)}">${zh ? '放下任务物资供取回' : 'Put task cargo down for recovery'}</button></li>`
+      }).join('')
       body = `<div class="hs-overview hs-residents">
         ${residence ? '' : `<p class="hs-alert">${zh ? '领地居民数据尚未配置。' : 'Residence data is not configured.'}</p>`}
         <div class="hs-overview-grid">
@@ -213,6 +274,8 @@ class HomesteadPanel implements GamePanel {
           <section class="hs-overview-card"><h3>${zh ? '床位' : 'Beds'}</h3><div class="hs-stats">${stat(zh ? '总数' : 'Total', beds?.total)}${stat(zh ? '已入住' : 'Occupied', beds?.occupied)}${stat(zh ? '空床' : 'Available', beds?.empty)}</div><ul class="hs-list">${bedRows}</ul></section>
         </div>
         <p class="hs-note">${esc(schedule)}</p>
+        <section class="hs-overview-card hs-work-orders"><h3>${zh ? '手工采收员' : 'Hand harvesters'}</h3>${!residence?.active || !residence.onMap ? `<p class="hs-alert">${zh ? '你不在领地；岗位暂停。' : 'You are away; work orders are paused.'}</p>` : ''}<ul class="hs-list">${workRows || `<li class="muted">${zh ? '暂无已入住居民。' : 'No residents have moved in.'}</li>`}</ul></section>
+        ${recoveries ? `<section class="hs-overview-card hs-work-orders"><h3>${zh ? '遗体上的岗位物资' : 'Work cargo on remains'}</h3><ul class="hs-list">${recoveries}</ul></section>` : ''}
       </div>`
     }
     this.host.innerHTML = `<div class="sheet wood hs-sheet">
@@ -220,6 +283,52 @@ class HomesteadPanel implements GamePanel {
       <div class="tab-body">${body}</div></div>`
     this.wirePages()
     this.host.querySelector<HTMLElement>('[data-close]')!.onclick = () => this.ctx.close()
+    this.wireWork()
+  }
+
+  private wireWork(): void {
+    const steward = this.steward
+    if (!steward) return
+    const send = (choice: Record<string, unknown>) => this.ctx.send.speak(steward, 'resident-work', JSON.stringify({ v: 1, ...choice }))
+    this.host.querySelectorAll<HTMLSelectElement>('[data-work-warehouse]').forEach((select) => select.onchange = () => {
+      const draft = this.workDrafts.get(select.dataset.workWarehouse!)
+      if (draft) draft.warehouse = select.value
+      this.sig = ''
+      this.render(this.last!)
+    })
+    this.host.querySelectorAll<HTMLInputElement>('[data-work-cell]').forEach((input) => input.onchange = () => {
+      const cells = this.workDrafts.get(input.dataset.workCell!)?.cells
+      if (cells) input.checked ? cells.add(input.value) : cells.delete(input.value)
+      this.sig = ''
+      this.render(this.last!)
+    })
+    this.host.querySelectorAll<HTMLButtonElement>('[data-work-assign]').forEach((button) => button.onclick = () => {
+      const worker = button.dataset.workAssign!
+      const draft = this.workDrafts.get(worker)
+      if (!draft) return
+      send({ op: 'assign', worker, warehouse: draft.warehouse, cells: [...draft.cells].map((key) => { const [x, y] = key.split(',').map(Number); return { x, y } }) })
+      draft.editing = false
+      this.sig = ''
+      this.render(this.last!)
+    })
+    this.host.querySelectorAll<HTMLButtonElement>('[data-work-edit]').forEach((button) => button.onclick = () => {
+      const worker = button.dataset.workEdit!
+      const draft = this.workDrafts.get(worker)
+      const person = this.last?.residence?.residents.find((row) => row.id === worker)
+      if (!draft || !person) return
+      if (button.dataset.edit === 'cancel') {
+        draft.warehouse = person.order?.warehouse ?? ''
+        draft.cells = new Set((person.order?.cells ?? []).map((cell) => `${cell.x},${cell.y}`))
+        draft.editing = false
+      } else draft.editing = true
+      this.sig = ''
+      this.render(this.last!)
+    })
+    this.host.querySelectorAll<HTMLButtonElement>('[data-work-op]').forEach((button) => button.onclick = () => {
+      send({ op: button.dataset.workOp, worker: button.dataset.worker })
+      this.sig = ''
+      this.render(this.last!)
+    })
   }
 
   private wirePages(): void {

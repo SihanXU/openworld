@@ -1798,6 +1798,10 @@
     "ResidenceWorkDef": {
       "type": "object",
       "properties": {
+        "controller": {
+          "$ref": "#/definitions/Selector",
+          "description": "People permitted to give work orders at this residence's steward/controller."
+        },
         "crop": {
           "$ref": "#/definitions/Selector",
           "description": "Any crop grown here; later work may choose an authorized crop from this set."
@@ -1833,6 +1837,23 @@
         "feed": {
           "$ref": "#/definitions/Selector",
           "description": "The real feed item a future feeding job will draw from storage."
+        },
+        "yieldTypeProp": {
+          "type": "string",
+          "description": "Crop props that name the hand-pick products; the society module reads these names, never game type ids."
+        },
+        "seedTypeProp": {
+          "type": "string"
+        },
+        "pickBonusProp": {
+          "type": "string",
+          "description": "The worker's numeric stat added to yieldBase for the original hand-pick count."
+        },
+        "yieldBase": {
+          "type": "number"
+        },
+        "seedCount": {
+          "type": "number"
         }
       },
       "additionalProperties": false,
