@@ -1829,7 +1829,7 @@
         },
         "livestock": {
           "$ref": "#/definitions/Selector",
-          "description": "All kept livestock on the home ground."
+          "description": "Livestock shown on this ground; eligible unowned members may be claimed one at a time through its configured controller."
         },
         "unfed": {
           "$ref": "#/definitions/Selector",
@@ -1870,7 +1870,7 @@
         }
       },
       "additionalProperties": false,
-      "description": "Game-authored selectors for a home ground's work objects; the society module names no game's maps or types."
+      "description": "Game-authored selectors for a home ground's overview, claim eligibility, and work targets; the society module names no game's maps or types."
     },
     "ProtectionDef": {
       "type": "object",

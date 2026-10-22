@@ -136,13 +136,17 @@ export const HOMESTEAD_RULES: Rule[] = [
   })),
   story({
     id: 'home/fed',
-    doc: 'A beast fed is fed for a day (Stardew\'s hay, Minecraft\'s wheat): content, and a fed cow can be milked; told it is milked, it is milked for the day.',
+    doc: 'A beast fed is fed for a day (Stardew\'s hay, Minecraft\'s wheat): content; a configured steward may ask this animal to confirm a one-animal legacy ownership claim in its own outcome; a fed cow can be milked, and told it is milked, it is milked for the day.',
     host: ANIMAL,
     on: 'impulse/notify',
     tree: {
-      if: { param: { key: 'what', cmp: 'fed' } },
-      then: fed(),
-      else: { if: { param: { key: 'what', cmp: 'milked' } }, then: MILKED, else: 'inherit' },
+      if: { param: { key: 'what', cmp: 'resident-work-claim' } },
+      then: { do: [{ op: 'residentWork/update' }] },
+      else: {
+        if: { param: { key: 'what', cmp: 'fed' } },
+        then: fed(),
+        else: { if: { param: { key: 'what', cmp: 'milked' } }, then: MILKED, else: 'inherit' },
+      },
     },
   }),
   // breeding (Minecraft's): a cow or a hen fed calls to the fed of its kind close by; one not resting from young answers

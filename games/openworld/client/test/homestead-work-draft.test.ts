@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { reconcileResidentWorkDraft, residentWorkAssignment, residentWorkDraftDiffersFromOrder, residentWorkDraftForOrder, type ResidentWorkDraft } from '../src/ui/workDraft.ts'
+import { reconcileResidentWorkDraft, residentWorkAssignment, residentWorkDraftDiffersFromOrder, residentWorkDraftForOrder, transitionResidentAnimalClaim, type ResidentWorkDraft } from '../src/ui/workDraft.ts'
 
 describe('homestead resident-work draft reconciliation', () => {
   it('clears deleted or unavailable selections while retaining an existing order’s empty authorized plot', () => {
@@ -71,5 +71,34 @@ describe('homestead resident-work draft reconciliation', () => {
     expect(residentWorkDraftForOrder(harvestOrder)).toEqual({ kind: 'harvest', warehouse: 'store', cells: new Set(['2,3']), animalIds: new Set(), editing: false })
     expect(residentWorkDraftDiffersFromOrder(draft, harvestOrder)).toBe(true)
     expect(residentWorkDraftDiffersFromOrder(residentWorkDraftForOrder(harvestOrder), harvestOrder)).toBe(false)
+  })
+})
+
+describe('homestead individual animal claim draft', () => {
+  it('keeps the selected animal id through an authoritative refresh', () => {
+    const begun = transitionResidentAnimalClaim(undefined, { type: 'begin', animalId: 'cow-1', claimableIds: new Set(['cow-1']) })
+    const refreshed = transitionResidentAnimalClaim(begun.selectedAnimalId, { type: 'refresh', authoritative: true, claimableIds: new Set(['cow-1']) })
+    const confirmed = transitionResidentAnimalClaim(refreshed.selectedAnimalId, { type: 'confirm', claimableIds: new Set(['cow-1']) })
+
+    expect(refreshed.selectedAnimalId).toBe('cow-1')
+    expect(confirmed).toEqual({ selectedAnimalId: undefined, command: { op: 'claim', animal: 'cow-1' } })
+  })
+
+  it('clears a claim when the target disappears or becomes owned before confirmation', () => {
+    const begun = transitionResidentAnimalClaim(undefined, { type: 'begin', animalId: 'cow-1', claimableIds: new Set(['cow-1']) })
+    const disappeared = transitionResidentAnimalClaim(begun.selectedAnimalId, { type: 'refresh', authoritative: true, claimableIds: new Set() })
+    const command = transitionResidentAnimalClaim(disappeared.selectedAnimalId, { type: 'confirm', claimableIds: new Set() })
+
+    expect(disappeared.selectedAnimalId).toBeUndefined()
+    expect(command.command).toBeUndefined()
+  })
+
+  it('cancels without a claim command and rejects confirmation with no selected animal', () => {
+    const begun = transitionResidentAnimalClaim(undefined, { type: 'begin', animalId: 'cow-1', claimableIds: new Set(['cow-1']) })
+    const cancelled = transitionResidentAnimalClaim(begun.selectedAnimalId, { type: 'cancel' })
+    const emptyConfirm = transitionResidentAnimalClaim(cancelled.selectedAnimalId, { type: 'confirm', claimableIds: new Set(['cow-1']) })
+
+    expect(cancelled).toEqual({ selectedAnimalId: undefined })
+    expect(emptyConfirm).toEqual({ selectedAnimalId: undefined })
   })
 })

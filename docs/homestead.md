@@ -161,6 +161,8 @@ that dies, leaves the ground, or gets fed by someone else is returned as that sa
 if the selected warehouse cannot take it, it remains tracked for recovery. Existing livestock without provable
 ownership cannot be assigned, and animals owned by another person are unavailable.
 
+Older saves may contain livestock with no recorded owner. While beside the steward, the player can claim one eligible animal at a time through the Residents page after confirming that animal. Claiming checks the animal again on its own event, does not infer ownership from its home or birth location, and does not assign a job. Once claimed, the player can explicitly select it for feeding. Other unowned animals remain unchanged until individually claimed.
+
 Work advances only while the player is on the Held Ground and the clock is running. The resident keeps the current
 day schedule and rests from 21:00 to 07:00; leaving the map, a paused order, an ineligible worker, a blocked route,
 or an unavailable warehouse pauses the job with a status message. Close the steward panel to let time pass.

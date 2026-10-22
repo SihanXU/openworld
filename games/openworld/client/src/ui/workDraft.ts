@@ -7,6 +7,27 @@ export interface ResidentWorkDraft {
   editing?: boolean
 }
 
+/** A single pending animal claim, independent of any resident's work assignment. */
+export function transitionResidentAnimalClaim(
+  selectedAnimalId: string | undefined,
+  action:
+    | { type: 'begin'; animalId: string; claimableIds: Set<string> }
+    | { type: 'refresh'; authoritative: boolean; claimableIds: Set<string> }
+    | { type: 'confirm'; claimableIds: Set<string> }
+    | { type: 'cancel' },
+): { selectedAnimalId: string | undefined; command?: { op: 'claim'; animal: string } } {
+  if (action.type === 'begin') return {
+    selectedAnimalId: action.claimableIds.has(action.animalId) ? action.animalId : undefined,
+  }
+  if (action.type === 'cancel') return { selectedAnimalId: undefined }
+  if (action.type === 'refresh') return {
+    selectedAnimalId: !action.authoritative || !selectedAnimalId || action.claimableIds.has(selectedAnimalId) ? selectedAnimalId : undefined,
+  }
+  return selectedAnimalId && action.claimableIds.has(selectedAnimalId)
+    ? { selectedAnimalId: undefined, command: { op: 'claim', animal: selectedAnimalId } }
+    : { selectedAnimalId: undefined }
+}
+
 /** Copy the active order into a draft, so canceling an edit restores its exact job kind and targets. */
 export function residentWorkDraftForOrder(order: {
   kind: 'harvest' | 'feed'

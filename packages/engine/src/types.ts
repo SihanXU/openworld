@@ -903,7 +903,7 @@ export interface ResidenceDef {
   full: Text
 }
 
-/** Game-authored selectors for a home ground's work objects; the society module names no game's maps or types. */
+/** Game-authored selectors for a home ground's overview, claim eligibility, and work targets; the society module names no game's maps or types. */
 export interface ResidenceWorkDef {
   /** People permitted to give work orders at this residence's steward/controller. */
   controller?: Selector
@@ -913,7 +913,7 @@ export interface ResidenceWorkDef {
   ripe?: Selector
   /** Crops waiting for water (the selector can require `growing` and exclude `watered`). */
   growing?: Selector
-  /** All kept livestock on the home ground. */
+  /** Livestock shown on this ground; eligible unowned members may be claimed one at a time through its configured controller. */
   livestock?: Selector
   /** Livestock that still needs feeding. */
   unfed?: Selector

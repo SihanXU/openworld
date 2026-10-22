@@ -1,6 +1,6 @@
 // Explicit, saved residence work orders. Physical items stay real entities; the order stores only their ids.
 
-import { astar, hoursAt, itemInfo, matchSelector, slotsOf, stackKey, type Engine, type Entity, type GameEvent, type Id, type Pos, type Ref, type ResidentWorkOrder, type ResidenceWorkDef, type Roles, type Scene, type Text, type World } from '@openworld/engine'
+import { astar, hoursAt, itemInfo, matchSelector, slotsOf, stackKey, type Engine, type Entity, type GameEvent, type Id, type Pos, type Ref, type ResidentWorkOrder, type ResidenceWorkDef, type Roles, type Scene, type Text, type View, type World } from '@openworld/engine'
 import type { EffectRunner } from '@openworld/engine'
 import { socialOf } from './state.ts'
 
@@ -39,6 +39,15 @@ interface FeedPermit {
   tick: number
 }
 
+interface ClaimPermit {
+  actor: Id
+  animal: Id
+  controller: Id
+  map: string
+  token: number
+  tick: number
+}
+
 interface InternalPermit {
   actor: Id
   action: string
@@ -51,18 +60,22 @@ interface Runtime {
   routes: Map<Id, Route>
   permits: TakePermit[]
   feedPermits: FeedPermit[]
+  claims: ClaimPermit[]
   internal: InternalPermit[]
   nextToken: number
 }
 
 type WorkCommand =
+  | { v: 1; op: 'claim'; animal: string }
   | { v: 1; op: 'assign'; kind: 'harvest'; worker: string; warehouse: string; cells: { x: number; y: number }[] }
   | { v: 1; op: 'assign'; kind: 'feed'; worker: string; warehouse: string; animalIds: string[] }
   | { v: 1; op: 'pause' | 'resume' | 'revoke' | 'drop'; worker: string }
 
 function runtime(eng: Engine): Runtime {
   let rt = eng.world.ext.get(EXT) as Runtime | undefined
-  if (!rt) eng.world.ext.set(EXT, (rt = { routes: new Map(), permits: [], feedPermits: [], internal: [], nextToken: 1 }))
+  if (!rt) eng.world.ext.set(EXT, (rt = { routes: new Map(), permits: [], feedPermits: [], claims: [], internal: [], nextToken: 1 }))
+  rt.claims ??= []
+  rt.claims = rt.claims.filter((permit) => permit.tick === eng.world.state.tick)
   return rt
 }
 
@@ -90,7 +103,12 @@ function parseCommand(raw: unknown): WorkCommand | undefined {
   if (typeof raw !== 'string' || raw.length > MAX_COMMAND) return undefined
   let value: unknown
   try { value = JSON.parse(raw) } catch { return undefined }
-  if (!isRecord(value) || value.v !== 1 || typeof value.op !== 'string' || typeof value.worker !== 'string' || !value.worker || value.worker.length > 128) return undefined
+  if (!isRecord(value) || value.v !== 1 || typeof value.op !== 'string') return undefined
+  if (value.op === 'claim') {
+    if (!exactKeys(value, ['v', 'op', 'animal']) || typeof value.animal !== 'string' || !value.animal || value.animal.length > 128) return undefined
+    return { v: 1, op: 'claim', animal: value.animal }
+  }
+  if (typeof value.worker !== 'string' || !value.worker || value.worker.length > 128) return undefined
   if (value.op === 'assign') {
     if (typeof value.warehouse !== 'string' || !value.warehouse || value.warehouse.length > 128) return undefined
     const kind = value.kind ?? 'harvest'
@@ -121,6 +139,17 @@ function configController(eng: Engine, manager: Entity): boolean {
   const sel = workDef(eng)?.controller
   const view = eng.world.view({ e: manager.id })
   return !!sel && !!view && matchSelector(sel, view)
+}
+
+function claimableAnimal(eng: Engine, animal: Entity, player: Entity, view?: View): boolean {
+  const w = eng.world
+  const home = residence(eng)
+  const selector = workDef(eng)?.livestock
+  const pos = w.posOf(animal)
+  const animalView = view ?? w.view({ e: animal.id })
+  return !!home && !!selector && animal.place.on === 'tile' && animal.place.map === home.map && pos?.map === home.map &&
+    w.isAgent(animal) && w.num(animal, 'hp', 0) > 0 && !animal.frozenBy && !!animalView && matchSelector(selector, animalView) &&
+    eng.society.relation(eng.society.ownerOf(animal), player) === 'nobody'
 }
 
 function commandAuthority(eng: Engine, ev: GameEvent, manager: Entity | undefined): boolean {
@@ -263,12 +292,26 @@ function queueWorker(eng: Engine, worker: Entity, what: string, params: Record<s
 }
 
 function queueManager(eng: Engine, manager: Entity, player: Entity, raw: string): void {
-  const worker = eng.world.get(parseCommand(raw)?.worker ?? '')
+  const command = parseCommand(raw)
+  const worker = command && 'worker' in command ? eng.world.get(command.worker) : undefined
   if (!worker) return
   eng.queue({
     kind: 'impulse/notify', host: { e: worker.id },
     roles: { source: { e: manager.id }, actor: { e: player.id } },
     params: { what: 'resident-work-command', command: raw }, cause: player.id, origin: 'player',
+  })
+}
+
+function queueClaim(eng: Engine, manager: Entity, player: Entity, animal: Entity): void {
+  const rt = runtime(eng)
+  const token = rt.nextToken++
+  const map = residence(eng)?.map
+  if (!map) return
+  rt.claims.push({ actor: player.id, animal: animal.id, controller: manager.id, map, token, tick: eng.world.state.tick })
+  eng.queue({
+    kind: 'impulse/notify', host: { e: animal.id },
+    roles: { source: { e: manager.id }, actor: { e: player.id } },
+    params: { what: 'resident-work-claim', residentWorkClaimToken: token }, cause: player.id, origin: 'player',
   })
 }
 
@@ -364,6 +407,16 @@ export function residentWorkEffect(fx: EffectRunner, eff: any, ev: GameEvent): v
     const command = parseCommand(raw)
     const player = ev.roles.actor && w.get(ev.roles.actor.e)
     if (!command || !player || player.id !== w.state.player || !orderAuthority(eng, ev, host)) return
+    if (command.op === 'claim') {
+      if (ev.origin !== 'player' || ev.cause !== player.id) return
+      const animal = w.get(command.animal)
+      if (!animal || !claimableAnimal(eng, animal, player)) {
+        logToPlayer(eng, L('That animal is no longer eligible to claim.', '这只牲畜目前不能认领。'))
+        return
+      }
+      queueClaim(eng, host, player, animal)
+      return
+    }
     if (command.op === 'assign' && !validateAssignment(eng, host, player, command)) {
       logToPlayer(eng, L('That resident, field, or warehouse cannot be assigned now.', '该居民、田块或仓库目前不能用于此岗位。'))
       return
@@ -378,7 +431,7 @@ export function residentWorkEffect(fx: EffectRunner, eff: any, ev: GameEvent): v
     const manager = sourceId(ev.roles.source) && w.get(sourceId(ev.roles.source)!)
     const command = parseCommand(ev.params?.command)
     const player = ev.roles.actor && w.get(ev.roles.actor.e)
-    if (!command || command.worker !== host.id || !player || player.id !== w.state.player || !manager || !commandAuthority(eng, ev, manager)) return
+    if (!command || !('worker' in command) || command.worker !== host.id || !player || player.id !== w.state.player || !manager || !commandAuthority(eng, ev, manager)) return
     const home = residence(eng)
     if (!home || !workDef(eng)) return
     const existing = host.residentWork
@@ -474,6 +527,23 @@ export function residentWorkEffect(fx: EffectRunner, eff: any, ev: GameEvent): v
       if (noLongerHeld) logToPlayer(eng, L(`${noLongerHeld} task item(s) were no longer in the resident’s custody and were left where they are.`, `${noLongerHeld} 件岗位物资已不在居民保管中，留在原处。`))
       return
     }
+    return
+  }
+
+  if (what === 'resident-work-claim') {
+    const token = ev.params?.residentWorkClaimToken
+    const rt = runtime(eng)
+    const permitIndex = rt.claims.findIndex((permit) => permit.animal === host.id && permit.token === token && permit.tick === w.state.tick)
+    if (permitIndex < 0) return
+    const [permit] = rt.claims.splice(permitIndex, 1)
+    const manager = sourceId(ev.roles.source) && w.get(sourceId(ev.roles.source)!)
+    const player = ev.roles.actor && w.get(ev.roles.actor.e)
+    const home = residence(eng)
+    if (!permit || !manager || !player || player.id !== w.state.player || permit.actor !== player.id || permit.controller !== manager.id ||
+      ev.origin !== 'player' || ev.cause !== player.id || !home || permit.map !== home.map || !commandAuthority(eng, ev, manager) ||
+      !claimableAnimal(eng, host, player)) return
+    w.setProp(host, 'owner', player.id)
+    logToPlayer(eng, L('This animal now belongs to you.', '这只牲畜现在归你所有。'))
     return
   }
 
@@ -1048,6 +1118,7 @@ export function residentWorkView(eng: Engine, def: ResidenceWorkDef): { targets:
       fed: w.hasStatus({ e: entity.id }, 'fed'),
       owner,
       selectable: (owner === 'mine' || owner === 'ours') && !!def.unfed && !!def.feed,
+      claimable: owner === 'nobody' && claimableAnimal(eng, entity, w.player, view),
     }]
   }).sort((a, b) => a.id.localeCompare(b.id))
   return { targets, animals }

@@ -101,8 +101,8 @@ export const societyModule: EngineModule = {
       arrest: "arrest {} — the host (wanted where the actor keeps the watch) is stopped: the one at the keys chooses (the guard's talk opens: pay, jail, persuade, bribe, resist); anyone else yields — pays if it can, else goes to the cells; one down is taken to the cells",
       restock: 'restock {} — the host has its stock again once a day: its stock prop (types, `type*count` by `|`) made up, its coin up to its purse prop',
       calm: 'calm {} — the host (a person who fought) forgets its foes and puts its weapon away',
-      'residentWork/order': 'residentWork/order {} — the configured residence controller validates and dispatches a bounded player work choice',
-      'residentWork/update': 'residentWork/update {} — a resident or retained body changes only its own saved work order and tracked cargo',
+      'residentWork/order': 'residentWork/order {} — the configured residence controller validates and dispatches a bounded player work choice or a confirmed single-animal ownership claim',
+      'residentWork/update': 'residentWork/update {} — a resident or retained body changes only its own saved work order and tracked cargo; a livestock host may record its own owner only after its own-host claim notification is revalidated',
     },
     conditions: [
       '{residentWorkFeed: actor} — true only for the configured resident feeding job’s exact actor, instrument, authorized animal, warehouse, map, tick and active daylight step; ordinary or client-supplied Stockman parameters cannot grant this permit',

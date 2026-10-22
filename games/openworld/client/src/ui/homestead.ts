@@ -18,7 +18,7 @@ import type { GamePanel, PanelContext } from '@openworld/runtime/src/ui/panels.t
 import css from './homestead.css?inline'
 import { stockView, type StockView, type WideningState } from './stock.ts'
 import { useStyle } from './style.ts'
-import { reconcileResidentWorkDraft, residentWorkAssignment, residentWorkDraftDiffersFromOrder, residentWorkDraftForOrder, type ResidentWorkDraft } from './workDraft.ts'
+import { reconcileResidentWorkDraft, residentWorkAssignment, residentWorkDraftDiffersFromOrder, residentWorkDraftForOrder, transitionResidentAnimalClaim, type ResidentWorkDraft } from './workDraft.ts'
 
 type Upgrade = (typeof HAVEN_UPGRADES)[number]
 type Track = Upgrade['track']
@@ -42,6 +42,7 @@ class HomesteadPanel implements GamePanel {
   private steward?: string
   private last?: Frame
   private workDrafts = new Map<string, ResidentWorkDraft>()
+  private pendingAnimalClaimId?: string
 
   constructor(private ctx: PanelContext) {
     useStyle('homestead', css)
@@ -57,6 +58,7 @@ class HomesteadPanel implements GamePanel {
     this.page = 'today'
     this.sig = ''
     this.workDrafts.clear()
+    this.pendingAnimalClaimId = undefined
     this.render(f)
   }
 
@@ -214,6 +216,13 @@ class HomesteadPanel implements GamePanel {
       const animals = work?.livestock?.animals ?? []
       const warehouses = work?.warehouses ?? []
       const groundVisible = !!residence?.active && !!residence.onMap && !!work
+      const claimListAuthoritative = groundVisible && Array.isArray(work?.livestock?.animals)
+      const claimableAnimals = animals.filter((animal) => animal.claimable)
+      this.pendingAnimalClaimId = transitionResidentAnimalClaim(this.pendingAnimalClaimId, {
+        type: 'refresh',
+        authoritative: claimListAuthoritative,
+        claimableIds: new Set(claimableAnimals.map((animal) => animal.id)),
+      }).selectedAnimalId
       const status = (value: string) => ({ working: zh ? '工作中' : 'Working', paused: zh ? '已暂停' : 'Paused', revoked: zh ? '已撤销' : 'Revoked', recovery: zh ? '待取回' : 'Recovery needed' }[value] ?? value)
       const workKind = (value: 'harvest' | 'feed') => value === 'feed' ? (zh ? '喂养员' : 'Feeder') : (zh ? '手工采收员' : 'Hand harvester')
       const workRows = residents.map((person) => {
@@ -300,6 +309,16 @@ class HomesteadPanel implements GamePanel {
         const list = [...items.values()].map((item) => `${esc(tx(item.name))} ×${item.count}`).join(' · ')
         return `<li class="hs-resident-work"><div><b>${esc(tx(recovery.name))}</b><span>${status(recovery.status)} · (${recovery.x}, ${recovery.y})</span><small>${zh ? '物资将放在该居民/遗体脚边' : 'Cargo will be placed at this resident/body’s feet'}</small><span>${list}</span>${recovery.blockedReason ? `<p>${esc(tx(recovery.blockedReason))}</p>` : ''}</div><button class="hs-btn" data-work-op="drop" data-worker="${esc(recovery.id)}">${zh ? '放下任务物资供取回' : 'Put task cargo down for recovery'}</button></li>`
       }).join('')
+      const claimRows = claimListAuthoritative
+        ? claimableAnimals.map((animal) => {
+          const selected = this.pendingAnimalClaimId === animal.id
+          const control = selected
+            ? `<span>${zh ? `确定认领“${esc(tx(animal.name))}”吗？之后可在喂养岗位中手动授权。` : `Claim “${esc(tx(animal.name))}”? You can authorize it for feeding manually afterward.`}</span><div class="hs-work-buttons"><button class="hs-btn go" data-animal-claim-confirm="${esc(animal.id)}">${zh ? '确认认领' : 'Confirm claim'}</button><button class="hs-btn" data-animal-claim-cancel>${zh ? '取消' : 'Cancel'}</button></div>`
+            : `<button class="hs-btn" data-animal-claim="${esc(animal.id)}">${zh ? '认领…' : 'Claim…'}</button>`
+          return `<li class="hs-resident-work"><div><b>${esc(tx(animal.name))}</b><span>(${animal.x}, ${animal.y}) · ${animal.fed ? (zh ? '已饱食' : 'Fed') : (zh ? '待喂养' : 'Needs feed')}</span></div>${control}</li>`
+        }).join('')
+        : `<li class="muted">${zh ? (!residence?.onMap ? '在领地地图上时才能查看可认领动物。' : '领地牲畜列表当前不可用。') : (!residence?.onMap ? 'Claimable animals are listed while you are on the residence map.' : 'The residence livestock list is unavailable.')}</li>`
+      const claimSection = residence ? `<section class="hs-overview-card hs-work-orders"><h3>${zh ? '无主家畜认领' : 'Claim unowned livestock'}</h3><p class="hs-note">${zh ? '逐只认领；认领不会自动授权给喂养员，请之后在居民岗位中手动选择。' : 'Claim animals individually. Claiming does not authorize a feeder; select the animal in a resident work order afterward.'}</p><ul class="hs-list">${claimRows || `<li class="muted">${zh ? '当前没有可认领的无主家畜。' : 'No unowned livestock is currently available to claim.'}</li>`}</ul></section>` : ''
       body = `<div class="hs-overview hs-residents">
         ${residence ? '' : `<p class="hs-alert">${zh ? '领地居民数据尚未配置。' : 'Residence data is not configured.'}</p>`}
         <div class="hs-overview-grid">
@@ -308,6 +327,7 @@ class HomesteadPanel implements GamePanel {
         </div>
         <p class="hs-note">${esc(schedule)}</p>
         <section class="hs-overview-card hs-work-orders"><h3>${zh ? '居民岗位' : 'Resident work assignments'}</h3>${!residence?.active || !residence.onMap ? `<p class="hs-alert">${zh ? '你不在领地；岗位暂停。' : 'You are away; work orders are paused.'}</p>` : ''}<ul class="hs-list">${workRows || `<li class="muted">${zh ? '暂无已入住居民。' : 'No residents have moved in.'}</li>`}</ul></section>
+        ${claimSection}
         ${recoveries ? `<section class="hs-overview-card hs-work-orders"><h3>${zh ? '待取回的岗位物资' : 'Recoverable work cargo'}</h3><ul class="hs-list">${recoveries}</ul></section>` : ''}
       </div>`
     }
@@ -323,6 +343,7 @@ class HomesteadPanel implements GamePanel {
     const steward = this.steward
     if (!steward) return
     const send = (choice: Record<string, unknown>) => this.ctx.send.speak(steward, 'resident-work', JSON.stringify({ v: 1, ...choice }))
+    const claimableAnimalIds = () => new Set((this.last?.residence?.work?.livestock?.animals ?? []).filter((animal) => animal.claimable).map((animal) => animal.id))
     this.host.querySelectorAll<HTMLSelectElement>('[data-work-warehouse]').forEach((select) => select.onchange = () => {
       const draft = this.workDrafts.get(select.dataset.workWarehouse!)
       if (draft) draft.warehouse = select.value
@@ -344,6 +365,25 @@ class HomesteadPanel implements GamePanel {
     this.host.querySelectorAll<HTMLInputElement>('[data-work-animal]').forEach((input) => input.onchange = () => {
       const animalIds = this.workDrafts.get(input.dataset.workAnimal!)?.animalIds
       if (animalIds) input.checked ? animalIds.add(input.value) : animalIds.delete(input.value)
+      this.sig = ''
+      this.render(this.last!)
+    })
+    this.host.querySelectorAll<HTMLButtonElement>('[data-animal-claim]').forEach((button) => button.onclick = () => {
+      const result = transitionResidentAnimalClaim(this.pendingAnimalClaimId, { type: 'begin', animalId: button.dataset.animalClaim!, claimableIds: claimableAnimalIds() })
+      this.pendingAnimalClaimId = result.selectedAnimalId
+      this.sig = ''
+      this.render(this.last!)
+    })
+    this.host.querySelectorAll<HTMLButtonElement>('[data-animal-claim-confirm]').forEach((button) => button.onclick = () => {
+      if (button.dataset.animalClaimConfirm !== this.pendingAnimalClaimId) return
+      const result = transitionResidentAnimalClaim(this.pendingAnimalClaimId, { type: 'confirm', claimableIds: claimableAnimalIds() })
+      this.pendingAnimalClaimId = result.selectedAnimalId
+      if (result.command) send(result.command)
+      this.sig = ''
+      this.render(this.last!)
+    })
+    this.host.querySelectorAll<HTMLButtonElement>('[data-animal-claim-cancel]').forEach((button) => button.onclick = () => {
+      this.pendingAnimalClaimId = transitionResidentAnimalClaim(this.pendingAnimalClaimId, { type: 'cancel' }).selectedAnimalId
       this.sig = ''
       this.render(this.last!)
     })

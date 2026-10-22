@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Engine as FreshEngine, RuleLibrary, SANDBOX_MAP, buildSandbox, type Engine, type Rule, type Text } from '@openworld/engine'
+import { Engine as FreshEngine, Game, RuleLibrary, SANDBOX_MAP, buildSandbox, type Engine, type Place, type PropValue, type Rule, type Text, type WorldIndex } from '@openworld/engine'
 import { residentWorkOrderView, residenceView } from '@openworld/modules'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
@@ -77,6 +77,171 @@ function putInside(eng: Engine, id: string, type: string, holder = 'store'): voi
 function locale(text: Text | undefined, language: 'en' | 'zh'): string {
   return typeof text === 'string' ? text : text?.[language] ?? ''
 }
+
+function packedRoundTrip(eng: Engine): Engine {
+  const w = eng.world
+  const map = structuredClone(w.map(SANDBOX_MAP)!)
+  const save = JSON.parse(JSON.stringify(new Game(eng).save()))
+  const index: WorldIndex = {
+    name: 'claim-test', version: 'claim-test', seed: w.state.seed,
+    start: { map: SANDBOX_MAP, x: 0, y: 0 },
+    maps: [{ id: SANDBOX_MAP, name: map.name, kind: map.kind, width: map.width, height: map.height, portals: map.portals, npcs: 0, items: 0 }],
+    npcs: [], player: structuredClone(w.player),
+    stats: { maps: 1, npcs: 0, creatures: 0, items: 0, itemKinds: 0, fixtures: 0 },
+  }
+  const ontology = buildOntology()
+  ontology.social!.residence = {
+    ...ontology.social!.residence!, map: SANDBOX_MAP,
+    work: { ...ontology.social!.residence!.work!, controller: { type: 'actor/person/steward', tags: ['haven-steward'] } },
+  }
+  const loaded = Game.load(save, index, ontology, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+  loaded.loadChunk({ map, entities: [] })
+  return loaded.engine
+}
+
+describe('resident animal claiming', () => {
+  it('claims exactly one eligible old animal through the steward even when nobody has a work order', () => {
+    const eng = farm()
+    const w = eng.world
+    eng.author(() => {
+      w.add({ id: 'legacy-cow', type: 'actor/creature/animal/cow', place: { on: 'tile', map: SANDBOX_MAP, x: 5, y: 2 } })
+      w.add({ id: 'legacy-hen', type: 'actor/creature/animal/chicken', place: { on: 'tile', map: SANDBOX_MAP, x: 6, y: 2 } })
+      w.destroy(w.get('worker')!)
+    })
+
+    order(eng, { v: 1, op: 'claim', animal: 'legacy-cow' })
+
+    expect(eng.society.ownerOf(w.get('legacy-cow')!)).toBe('actor')
+    expect(eng.society.ownerOf(w.get('legacy-hen')!)).toBeUndefined()
+    expect(w.get('legacy-cow')?.residentWork).toBeUndefined()
+  })
+
+  it('shows old unowned livestock as individually claimable, then as owned and feed-selectable', () => {
+    const eng = farm()
+    const w = eng.world
+    eng.author(() => w.add({ id: 'legacy-cow', type: 'actor/creature/animal/cow', place: { on: 'tile', map: SANDBOX_MAP, x: 5, y: 2 } }))
+
+    const before = residenceView(eng).residence?.work?.livestock?.animals?.find(({ id }) => id === 'legacy-cow')
+    expect(before).toMatchObject({ owner: 'nobody', selectable: false, claimable: true })
+
+    order(eng, { v: 1, op: 'claim', animal: 'legacy-cow' })
+
+    const after = residenceView(eng).residence?.work?.livestock?.animals?.find(({ id }) => id === 'legacy-cow')
+    expect(after).toMatchObject({ owner: 'mine', selectable: true, claimable: false })
+  })
+
+  it('allows calves and chicks to inherit the claim notification', () => {
+    for (const [id, type] of [
+      ['legacy-calf', 'actor/creature/animal/calf'],
+      ['legacy-chick', 'actor/creature/animal/chick'],
+    ]) {
+      const eng = farm()
+      eng.author(() => eng.world.add({ id, type, place: { on: 'tile', map: SANDBOX_MAP, x: 5, y: 2 } }))
+
+      order(eng, { v: 1, op: 'claim', animal: id })
+
+      expect(eng.society.ownerOf(eng.world.get(id)!)).toBe('actor')
+    }
+  })
+
+  it('rejects extra, batched, and non-scalar claim commands', () => {
+    for (const choice of [
+      { v: 1, op: 'claim', animal: 'legacy-cow', owner: 'actor' },
+      { v: 1, op: 'claim', animal: 'legacy-cow', extra: true },
+      { v: 1, op: 'claim', animals: ['legacy-cow'] },
+      { v: 1, op: 'claim', animal: ['legacy-cow'] },
+      { v: 1, op: 'claim', animal: 'legacy-cow', worker: 'worker' },
+    ]) {
+      const eng = farm()
+      eng.author(() => eng.world.add({ id: 'legacy-cow', type: 'actor/creature/animal/cow', place: { on: 'tile', map: SANDBOX_MAP, x: 5, y: 2 } }))
+
+      order(eng, choice)
+
+      expect(eng.society.ownerOf(eng.world.get('legacy-cow')!)).toBeUndefined()
+    }
+  })
+
+  it('revalidates ownership, selector, ground location, life, freeze and player-to-steward distance', () => {
+    const cases: { name: string; type?: string; place?: Place; props?: Record<string, PropValue>; frozen?: boolean; expectedOwner?: string }[] = [
+      { name: 'other-owned', props: { owner: 'someone-else' }, expectedOwner: 'someone-else' },
+      { name: 'not-livestock', type: 'actor/creature/animal/rat' },
+      { name: 'inside', place: { on: 'inside', holder: 'store' }, expectedOwner: 'actor' },
+      { name: 'dead', props: { hp: 0 } },
+      { name: 'frozen', frozen: true },
+      { name: 'other-map', place: { on: 'tile', map: 'elsewhere', x: 5, y: 2 } },
+    ]
+    for (const scenario of cases) {
+      const eng = farm()
+      eng.author(() => {
+        const place = scenario.place ?? { on: 'tile', map: SANDBOX_MAP, x: 5, y: 2 }
+        eng.world.add({ id: 'candidate', type: scenario.type ?? 'actor/creature/animal/cow', place, props: scenario.props })
+        if (scenario.frozen) eng.world.get('candidate')!.frozenBy = 'test'
+      })
+
+      order(eng, { v: 1, op: 'claim', animal: 'candidate' })
+
+      expect(eng.society.ownerOf(eng.world.get('candidate')!)).toBe(scenario.expectedOwner)
+    }
+
+    const distant = farm()
+    distant.author(() => distant.world.place(distant.world.get('actor')!, { on: 'tile', map: SANDBOX_MAP, x: 4, y: 0 }))
+    distant.author(() => distant.world.add({ id: 'candidate', type: 'actor/creature/animal/cow', place: { on: 'tile', map: SANDBOX_MAP, x: 5, y: 2 } }))
+    order(distant, { v: 1, op: 'claim', animal: 'candidate' })
+    expect(distant.society.ownerOf(distant.world.get('candidate')!)).toBeUndefined()
+  })
+
+  it('does not accept a forged animal claim notification or overwrite an owner on replay', () => {
+    const eng = farm()
+    const w = eng.world
+    eng.author(() => w.add({ id: 'legacy-cow', type: 'actor/creature/animal/cow', place: { on: 'tile', map: SANDBOX_MAP, x: 5, y: 2 } }))
+
+    eng.queue({
+      kind: 'impulse/notify', host: { e: 'legacy-cow' }, roles: { source: { e: 'steward' }, actor: { e: 'actor' } },
+      params: { what: 'resident-work-claim', residentWorkClaimToken: 1 }, cause: 'actor', origin: 'player',
+    })
+    expect(eng.society.ownerOf(w.get('legacy-cow')!)).toBeUndefined()
+
+    order(eng, { v: 1, op: 'claim', animal: 'legacy-cow' })
+    eng.author(() => w.setProp(w.get('legacy-cow')!, 'owner', 'someone-else'))
+    order(eng, { v: 1, op: 'claim', animal: 'legacy-cow' })
+    expect(eng.society.ownerOf(w.get('legacy-cow')!)).toBe('someone-else')
+  })
+
+  it('requires the real player as actor and source at the configured steward', () => {
+    const attempts = [
+      { roles: { actor: { e: 'actor' }, source: { e: 'steward' } }, cause: 'actor', origin: 'player' as const },
+      { roles: { actor: { e: 'steward' }, source: { e: 'actor' } }, cause: 'actor', origin: 'player' as const },
+      { roles: { actor: { e: 'actor' }, source: { e: 'actor' } }, cause: 'steward', origin: 'world' as const },
+    ]
+    for (const attempt of attempts) {
+      const eng = farm()
+      eng.author(() => eng.world.add({ id: 'legacy-cow', type: 'actor/creature/animal/cow', place: { on: 'tile', map: SANDBOX_MAP, x: 5, y: 2 } }))
+      eng.queue({
+        kind: 'impulse/handle', host: { e: 'steward' }, roles: attempt.roles,
+        params: { say: 'resident-work', choice: JSON.stringify({ v: 1, op: 'claim', animal: 'legacy-cow' }) },
+        cause: attempt.cause, origin: attempt.origin,
+      })
+      expect(eng.society.ownerOf(eng.world.get('legacy-cow')!)).toBeUndefined()
+    }
+  })
+
+  it('keeps a claimed animal owned and feed-selectable through packed save, JSON load, and map arrival', () => {
+    const eng = farm()
+    const w = eng.world
+    eng.author(() => w.add({ id: 'legacy-cow', type: 'actor/creature/animal/cow', place: { on: 'tile', map: SANDBOX_MAP, x: 5, y: 2 } }))
+    const oldSave = packedRoundTrip(eng)
+    expect(oldSave.society.ownerOf(oldSave.world.get('legacy-cow')!)).toBeUndefined()
+    expect(residenceView(oldSave).residence?.work?.livestock?.animals?.find(({ id }) => id === 'legacy-cow')).toMatchObject({ owner: 'nobody', selectable: false, claimable: true })
+
+    order(eng, { v: 1, op: 'claim', animal: 'legacy-cow' })
+    const restored = packedRoundTrip(eng)
+
+    expect(restored.society.ownerOf(restored.world.get('legacy-cow')!)).toBe('actor')
+    expect(residenceView(restored).residence?.work?.livestock?.animals?.find(({ id }) => id === 'legacy-cow')).toMatchObject({ owner: 'mine', selectable: true, claimable: false })
+    order(restored, { v: 1, op: 'assign', kind: 'feed', worker: 'worker', warehouse: 'store', animalIds: ['legacy-cow'] })
+    expect(restored.world.get('worker')?.residentWork).toMatchObject({ kind: 'feed', animalIds: ['legacy-cow'], status: 'working' })
+  })
+})
 
 describe('resident harvest work', () => {
   it('accepts a bounded harvest order through the configured steward', () => {
