@@ -734,9 +734,18 @@ export class EffectRunner {
           w.fx.push({ t: 'log', text: { en: 'You need the right tool for that.', zh: '缺少需要的工具。' } })
           return
         }
-        // a station's recipe is made beside one (a workbench within reach); the hands' anywhere
+        // what a building raised on one's ground unlocks is made only once it stands (the story's fact)
+        if (r.unlockedBy && (!w.story || w.num(w.story, r.unlockedBy.fact, 0) < (r.unlockedBy.level ?? 1))) {
+          const name = r.unlockedBy.name
+          w.fx.push({ t: 'log', text: { en: `That is made once the ${typeof name === 'string' ? name : name.en} stands.`, zh: `要先建好${typeof name === 'string' ? name : (name.zh ?? name.en)}。` } })
+          return
+        }
+        // a station's recipe is made at one: the station the act names (its panel open, within the hand's reach) or one
+        // beside the maker; the hands' anywhere
         if (r.station && r.station !== 'hands') {
-          if (!w.stationsNear(host).has(r.station)) {
+          const at = typeof ev.params?.at === 'string' ? w.get(ev.params.at) : undefined
+          const opened = !!at && w.isStation(at, r.station) && eng.inReach('hands', host, { e: at.id }, undefined)
+          if (!opened && !w.stationsNear(host).has(r.station)) {
             // named as the world names it: the first kind of thing that is such a station (a stall's: "trading stall")
             const named = Object.values(w.onto.data.types).find((t) => t.tags?.includes(`station:${r.station}`))?.name
             const en = (typeof named === 'string' ? named : named?.en) ?? r.station

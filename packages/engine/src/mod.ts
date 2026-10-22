@@ -218,7 +218,7 @@ const EVENTS: Record<string, string> = {
   'act/take': 'an actor takes the target with their hands (host: the actor). The root emits `taken` to the target.',
   'act/hands': 'an actor touches, opens, talks to the target bare-handed (host: the actor). The root emits `handle` to the target.',
   'act/move': 'an actor steps (param dir) or goes to a place (params map, x, y); the root moves it.',
-  'act/craft': 'an actor crafts the recipe of param recipe from what it carries.',
+  'act/craft': 'an actor crafts the recipe of param recipe from what it carries (param at: the station it is made at, the thing whose panel is open).',
   'act/learn': 'an actor learns what it names: param skill (spending skill points) or param profession (at a trainer).',
   'impulse/*': 'something was done to the host by another (source = the emitter; actor = whose act started it; instrument; item). See `impulses` for each kind and its params.',
   'contact/begin|stay|end': 'the host and other start, keep, or stop touching. Param how, from the host\'s side: on (I stand on other), under (other stands on me), in (I am inside other), contains (other is inside me), held (I am in other\'s hand), holds (other is in my hand), in-region (I stand in the region other: a named area of a map, type region, or a room, region/room, found where cells are walled round and covered), encloses (other stands in me, a region). Only where a stance (ground, air, water) meets a reach: a flyer never touches lava.',

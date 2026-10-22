@@ -863,7 +863,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'craft': {
         // the game's recipes, and those of things the world learned (the engine derives them from a patch's type)
         const r = recipeOf(game?.engine, m.id)
-        if (r) m.all ? game?.engine.controls.craftAll(r) : game?.engine.controls.craft(r)
+        if (r) m.all ? game?.engine.controls.craftAll(r, undefined, m.at) : game?.engine.controls.craft(r, m.at)
         break
       }
       case 'atlas': {

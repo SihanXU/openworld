@@ -1393,7 +1393,13 @@ export class World {
     }
   }
 
-  /** The stations within reach of a thing (the cells round it): what its station recipes can be made at. */
+  /** Whether a thing is such a station (its own or its type's `station:<x>` tag). */
+  isStation(e: Entity, station: string): boolean {
+    const tag = `station:${station}`
+    return (e.tags ?? []).includes(tag) || this.onto.resolve(e.type).tags.includes(tag)
+  }
+
+  /** The stations within reach of a thing (the cells round it): what its station recipes can be made at (a shop's stall beside one). */
   stationsNear(e: Entity): Set<string> {
     const out = new Set<string>()
     const p = this.posOf(e)
