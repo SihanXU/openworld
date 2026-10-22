@@ -8,8 +8,8 @@ Alberic and the dragon are Part Two, already built and played by the team behind
 
 The user's decisions (2026-10-21): the release ends at the river; the walkable west bank shrinks to a valley of places
 with a reason to walk between them; the maps are polished one by one from Firstlight and the Ford, their ground drawn by
-hand; every picture the game shows there is cut and drawn right. Still open: whether the Held Ground (now reached only
-past the knight) comes into Part One, and how (§6).
+hand; every picture the game shows there is cut and drawn right. The Held Ground stays Part Two's: it opens with the
+Oath-Thorn from the fallen knight (chapter-1.md §12), so release 1 never reaches it, and its homestead with it.
 
 ## 1. The ending and the sealed road
 
@@ -136,8 +136,6 @@ potted plant (`content/src/ontology.ts`), with the pack's own pictures.
 
 ## 6. Open
 
-- **The Held Ground in Part One.** It opens with the Oath-Thorn, from the fallen knight (chapter-1.md §12), so release 1
-  never reaches it. Bringing it in needs the story to give it another way in and another steward before the knight.
 - **Pictures still borrowed**: Garrick's tool rack (Emberfall, Part Two) is the camp's cooking rack; a bedroll is drawn
   as a framed bed; the pack has neither. Millbrook's wheel does not turn.
 - **The editor and the layout files**: `maps/*.txt` are the map format's rows, but OpenWorld's maps are still built by
