@@ -187,8 +187,9 @@ lies loose or stands.
 **The left click** is `Controls.plan('primary')`. A swing lands on what is struck — with nothing in hand someone
 first, then what cannot be carried, never a loose thing lying there; with a tool, the top layer —, on someone one
 talks to (a person, a companion) only with the weapon drawn (X: the blow is meant, docs/npc-sandbox.md; a torch is
-not put to a villager by a slip either), never on oneself, and a press at the bare ground the world has never seen
-struck makes nothing (the right click is the experiment). It acts on the press; held, it goes on
+not put to a villager by a slip either), never on oneself. A tool swung where the world has never seen it is an
+experiment, as any use is (a pickaxe at the grass asks the world); only the bare fist at the bare ground the world
+has never seen struck makes nothing. It acts on the press; held, it goes on
 (`Controls.again`) at a swing's pace — the attack's cooldown, the same beat for a tool's work — making again only
 the act the press made (a blow, or the same rule's work: one tree after another, a row tilled) where the base
 rules or a learned answer know it and it changes something, never one that asks first, and never one that undoes

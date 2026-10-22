@@ -604,10 +604,12 @@ describe('the left click: the held thing as it is meant to be used', () => {
     expect(torch.controls.plan('primary', at)).toMatchObject({ target: { e: 'npc.hollis' } })
   })
 
-  it('a swing never on oneself nor at the bare ground the world has never seen struck (the right click experiments); the chooser only where it swings', () => {
+  it('a swing never on oneself; a tool at the bare ground the world has never seen is an experiment, the bare fist there nothing; the chooser only where it swings', () => {
     const axe = world('item/weapon/blade/axe', [])
     expect(axe.controls.plan('primary', { x: 2, y: 2 })).toBeUndefined()
-    expect(axe.controls.plan('primary', at)).toBeUndefined()
+    const pick = world('item/tool/pickaxe', [])
+    expect(pick.controls.plan('primary', at)).toMatchObject({ key: 'use', instrument: { e: 'held' }, target: pick.world.cellRef('sandbox', 2, 1), unknown: true })
+    expect(world(undefined, []).controls.plan('primary', at)).toBeUndefined()
     expect(axe.controls.choices('primary', at).length).toBeGreaterThan(0)
     expect(world('item/food/bread', []).controls.choices('primary', at)).toEqual([])
   })
