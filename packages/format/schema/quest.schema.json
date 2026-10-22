@@ -901,6 +901,12 @@
             },
             "still": {
               "type": "boolean"
+            },
+            "owner": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "ownerFrom": {
+              "$ref": "#/definitions/RoleName"
             }
           },
           "required": [

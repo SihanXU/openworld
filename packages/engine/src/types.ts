@@ -935,17 +935,20 @@ export interface ResidenceWorkDef {
 }
 
 /** A saved, explicitly authorized residence task and its still-recoverable physical cargo. */
-export interface ResidentWorkOrder {
-  kind: 'harvest'
+interface ResidentWorkOrderBase {
   controller: Id
   map: string
   warehouse: Id
-  /** Authorized planted cells; a replacement crop at the same cell remains within the order. */
-  cells: { x: number; y: number }[]
   status: 'working' | 'paused' | 'revoked' | 'recovery'
   cargoIds: Id[]
   blockedReason?: Text
 }
+
+/** A saved, explicitly authorized residence task and its still-recoverable physical cargo. */
+export type ResidentWorkOrder = ResidentWorkOrderBase & (
+  | { kind: 'harvest'; /** Authorized planted cells; a replacement crop at the same cell remains within the order. */ cells: { x: number; y: number }[] }
+  | { kind: 'feed'; /** Explicitly authorized livestock; newly born animals are never added automatically. */ animalIds: Id[]; /** The animal this exact carried feed item is reserved for until use or return. */ pendingAnimalId?: Id }
+)
 
 /** Something that happened, which people may talk about while it is fresh. */
 export interface Topic {
@@ -1618,6 +1621,8 @@ export type Cond =
   | { param: { key: string; cmp: Cmp } }
   /** A role's property equals an event parameter (both must be present). */
   | { propEqualsParam: { role: Reader; key: string; param: string } }
+  /** A one-use society permit scoped to this exact resident feeding action. */
+  | { residentWorkFeed: 'actor' }
   | { chance: number }
   | { hour: { from: number; to: number } }
   /** It is night (true) or day (false), however long the story's night has grown (World.isNight). */
@@ -1705,7 +1710,7 @@ export type EmitTo =
 export type ModuleOp = 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'plunder' | 'beaten' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy' | 'fishing/start' | 'fishing/step' | 'fishing/input' | 'fishing/land' | 'residentWork/order' | 'residentWork/update'
 
 export type Effect =
-  | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
+  | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean; owner?: RoleName; ownerFrom?: RoleName }
   | { op: 'destroy' }
   | { op: 'transform'; into: string }
   | { op: 'move'; to: RoleRef; into?: 'tile' | 'contents' | 'hand' }

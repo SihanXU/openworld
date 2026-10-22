@@ -274,6 +274,12 @@
             },
             "still": {
               "type": "boolean"
+            },
+            "owner": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "ownerFrom": {
+              "$ref": "#/definitions/RoleName"
             }
           },
           "required": [
@@ -2542,6 +2548,19 @@
           },
           "required": [
             "propEqualsParam"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "residentWorkFeed": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "residentWorkFeed"
           ],
           "additionalProperties": false
         },

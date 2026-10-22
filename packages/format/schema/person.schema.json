@@ -707,6 +707,19 @@
         {
           "type": "object",
           "properties": {
+            "residentWorkFeed": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "residentWorkFeed"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
             "chance": {
               "type": "number"
             }
@@ -2032,70 +2045,128 @@
       "additionalProperties": false
     },
     "ResidentWorkOrder": {
-      "type": "object",
-      "properties": {
-        "kind": {
-          "type": "string",
-          "const": "harvest"
-        },
-        "controller": {
-          "$ref": "#/definitions/Id"
-        },
-        "map": {
-          "type": "string"
-        },
-        "warehouse": {
-          "$ref": "#/definitions/Id"
-        },
-        "cells": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "x": {
-                "type": "number"
-              },
-              "y": {
-                "type": "number"
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "harvest"
+            },
+            "cells": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false
               }
             },
-            "required": [
-              "x",
-              "y"
-            ],
-            "additionalProperties": false
+            "controller": {
+              "$ref": "#/definitions/Id"
+            },
+            "map": {
+              "type": "string"
+            },
+            "warehouse": {
+              "$ref": "#/definitions/Id"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "working",
+                "paused",
+                "revoked",
+                "recovery"
+              ]
+            },
+            "cargoIds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Id"
+              }
+            },
+            "blockedReason": {
+              "$ref": "#/definitions/Text"
+            }
           },
-          "description": "Authorized planted cells; a replacement crop at the same cell remains within the order."
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "working",
-            "paused",
-            "revoked",
-            "recovery"
+          "required": [
+            "cargoIds",
+            "cells",
+            "controller",
+            "kind",
+            "map",
+            "status",
+            "warehouse"
           ]
         },
-        "cargoIds": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Id"
-          }
-        },
-        "blockedReason": {
-          "$ref": "#/definitions/Text"
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "feed"
+            },
+            "animalIds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Id"
+              }
+            },
+            "pendingAnimalId": {
+              "$ref": "#/definitions/Id"
+            },
+            "controller": {
+              "$ref": "#/definitions/Id"
+            },
+            "map": {
+              "type": "string"
+            },
+            "warehouse": {
+              "$ref": "#/definitions/Id"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "working",
+                "paused",
+                "revoked",
+                "recovery"
+              ]
+            },
+            "cargoIds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Id"
+              }
+            },
+            "blockedReason": {
+              "$ref": "#/definitions/Text"
+            }
+          },
+          "required": [
+            "animalIds",
+            "cargoIds",
+            "controller",
+            "kind",
+            "map",
+            "status",
+            "warehouse"
+          ]
         }
-      },
-      "required": [
-        "kind",
-        "controller",
-        "map",
-        "warehouse",
-        "cells",
-        "status",
-        "cargoIds"
       ],
-      "additionalProperties": false,
       "description": "A saved, explicitly authorized residence task and its still-recoverable physical cargo."
     },
     "AiData": {

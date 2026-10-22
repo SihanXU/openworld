@@ -1,6 +1,6 @@
 // Explicit, saved residence work orders. Physical items stay real entities; the order stores only their ids.
 
-import { astar, hoursAt, itemInfo, matchSelector, slotsOf, stackKey, type Engine, type Entity, type GameEvent, type Id, type Pos, type Ref, type ResidentWorkOrder, type ResidenceWorkDef, type Scene, type Text } from '@openworld/engine'
+import { astar, hoursAt, itemInfo, matchSelector, slotsOf, stackKey, type Engine, type Entity, type GameEvent, type Id, type Pos, type Ref, type ResidentWorkOrder, type ResidenceWorkDef, type Roles, type Scene, type Text, type World } from '@openworld/engine'
 import type { EffectRunner } from '@openworld/engine'
 import { socialOf } from './state.ts'
 
@@ -28,6 +28,17 @@ interface TakePermit {
   tick: number
 }
 
+interface FeedPermit {
+  actor: Id
+  feed: Id
+  target: Id
+  controller: Id
+  warehouse: Id
+  map: string
+  activeMap: string
+  tick: number
+}
+
 interface InternalPermit {
   actor: Id
   action: string
@@ -39,21 +50,19 @@ interface InternalPermit {
 interface Runtime {
   routes: Map<Id, Route>
   permits: TakePermit[]
+  feedPermits: FeedPermit[]
   internal: InternalPermit[]
   nextToken: number
 }
 
-interface WorkCommand {
-  v: 1
-  op: 'assign' | 'pause' | 'resume' | 'revoke' | 'drop'
-  worker: string
-  warehouse?: string
-  cells?: { x: number; y: number }[]
-}
+type WorkCommand =
+  | { v: 1; op: 'assign'; kind: 'harvest'; worker: string; warehouse: string; cells: { x: number; y: number }[] }
+  | { v: 1; op: 'assign'; kind: 'feed'; worker: string; warehouse: string; animalIds: string[] }
+  | { v: 1; op: 'pause' | 'resume' | 'revoke' | 'drop'; worker: string }
 
 function runtime(eng: Engine): Runtime {
   let rt = eng.world.ext.get(EXT) as Runtime | undefined
-  if (!rt) eng.world.ext.set(EXT, (rt = { routes: new Map(), permits: [], internal: [], nextToken: 1 }))
+  if (!rt) eng.world.ext.set(EXT, (rt = { routes: new Map(), permits: [], feedPermits: [], internal: [], nextToken: 1 }))
   return rt
 }
 
@@ -83,7 +92,15 @@ function parseCommand(raw: unknown): WorkCommand | undefined {
   try { value = JSON.parse(raw) } catch { return undefined }
   if (!isRecord(value) || value.v !== 1 || typeof value.op !== 'string' || typeof value.worker !== 'string' || !value.worker || value.worker.length > 128) return undefined
   if (value.op === 'assign') {
-    if (!exactKeys(value, ['v', 'op', 'worker', 'warehouse', 'cells']) || typeof value.warehouse !== 'string' || !value.warehouse || value.warehouse.length > 128 || !Array.isArray(value.cells) || value.cells.length < 1 || value.cells.length > MAX_CELLS) return undefined
+    if (typeof value.warehouse !== 'string' || !value.warehouse || value.warehouse.length > 128) return undefined
+    const kind = value.kind ?? 'harvest'
+    if (kind === 'feed') {
+      if (!exactKeys(value, ['v', 'op', 'kind', 'worker', 'warehouse', 'animalIds']) || !Array.isArray(value.animalIds) || value.animalIds.length < 1 || value.animalIds.length > MAX_CELLS) return undefined
+      const animalIds = value.animalIds
+      if (animalIds.some((id) => typeof id !== 'string' || !id || id.length > 128) || new Set(animalIds).size !== animalIds.length) return undefined
+      return { v: 1, op: 'assign', kind, worker: value.worker, warehouse: value.warehouse, animalIds: animalIds as string[] }
+    }
+    if (kind !== 'harvest' || !exactKeys(value, Object.hasOwn(value, 'kind') ? ['v', 'op', 'kind', 'worker', 'warehouse', 'cells'] : ['v', 'op', 'worker', 'warehouse', 'cells']) || !Array.isArray(value.cells) || value.cells.length < 1 || value.cells.length > MAX_CELLS) return undefined
     const cells: { x: number; y: number }[] = []
     const seen = new Set<string>()
     for (const item of value.cells) {
@@ -93,10 +110,10 @@ function parseCommand(raw: unknown): WorkCommand | undefined {
       seen.add(key)
       cells.push({ x, y })
     }
-    return { v: 1, op: 'assign', worker: value.worker, warehouse: value.warehouse, cells }
+    return { v: 1, op: 'assign', kind, worker: value.worker, warehouse: value.warehouse, cells }
   }
   if (['pause', 'resume', 'revoke', 'drop'].includes(value.op) && exactKeys(value, ['v', 'op', 'worker']))
-    return { v: 1, op: value.op as WorkCommand['op'], worker: value.worker }
+    return { v: 1, op: value.op as Extract<WorkCommand, { op: 'pause' | 'resume' | 'revoke' | 'drop' }>['op'], worker: value.worker }
   return undefined
 }
 
@@ -259,15 +276,32 @@ function logToPlayer(eng: Engine, text: Text): void {
   eng.world.fx.push({ t: 'log', text })
 }
 
-function validateAssignment(eng: Engine, manager: Entity, player: Entity, command: WorkCommand): { worker: Entity; box: Entity; cells: { x: number; y: number }[] } | undefined {
+type ValidAssignment =
+  | { kind: 'harvest'; worker: Entity; box: Entity; cells: { x: number; y: number }[] }
+  | { kind: 'feed'; worker: Entity; box: Entity; animalIds: Id[] }
+
+function validateAssignment(eng: Engine, manager: Entity, player: Entity, command: Extract<WorkCommand, { op: 'assign' }>): ValidAssignment | undefined {
   const worker = eng.world.get(command.worker)
   const box = typeof command.warehouse === 'string' ? warehouse(eng, command.warehouse) : undefined
-  const existing = worker?.residentWork
-  const retainableCells = existing?.controller === manager.id && existing.map === residence(eng)?.map ? existing.cells : []
-  if (!worker || !warehouseUsable(eng, box) || command.op !== 'assign' || !command.cells || !cellsValid(eng, command.cells, true, retainableCells) || !isWorkerEligible(eng, worker)) return undefined
+  if (!worker || !warehouseUsable(eng, box) || !isWorkerEligible(eng, worker)) return undefined
   const pp = eng.world.posOf(player), wp = eng.world.posOf(worker)
   if (!pp || !wp || pp.map !== residence(eng)?.map || wp.map !== residence(eng)?.map || worker.place.on !== 'tile') return undefined
-  return { worker, box, cells: command.cells }
+  if (command.kind === 'harvest') {
+    const existing = worker.residentWork
+    const retainableCells = existing?.kind === 'harvest' && existing.controller === manager.id && existing.map === residence(eng)?.map ? existing.cells : []
+    if (!cellsValid(eng, command.cells, true, retainableCells)) return undefined
+    return { kind: 'harvest', worker, box, cells: command.cells }
+  }
+  const def = workDef(eng)
+  if (!def?.livestock || !def.unfed || !def.feed) return undefined
+  const animals = command.animalIds.map((id) => eng.world.get(id))
+  if (animals.some((animal) => {
+    const p = animal && eng.world.posOf(animal)
+    const view = animal && eng.world.view({ e: animal.id })
+    const owner = animal && eng.society.relation(eng.society.ownerOf(animal), player)
+    return !animal || animal.place.on !== 'tile' || p?.map !== residence(eng)?.map || !view || !matchSelector(def.livestock!, view) || (owner !== 'mine' && owner !== 'ours')
+  })) return undefined
+  return { kind: 'feed', worker, box, animalIds: [...command.animalIds] }
 }
 
 function clearOrder(host: Entity, fx: EffectRunner): void {
@@ -291,9 +325,16 @@ function localizedReason(reason: string): Text {
     'worker-ineligible': L('This resident is no longer eligible; task cargo remains recoverable.', '该居民目前不符合岗位条件；岗位物资仍可取回。'),
     'warehouse-full': L('The selected warehouse has no room for this harvest.', '指定仓库已满，暂不能采收。'),
     'no-target': L('No authorized crop is ripe yet.', '授权田块中还没有成熟作物。'),
+    'no-animal': L('No authorized, owned animal needs feed right now.', '当前没有已授权且仍需喂养的自有牲畜。'),
+    'feed-unavailable': L('No eligible feed is available in the selected warehouse.', '指定仓库中没有可用饲料。'),
+    'feed-return': L('The pending animal is no longer eligible; the same feed is being returned to its warehouse.', '指定牲畜已不可喂养；原饲料正在送回指定仓库。'),
+    'feed-use-failed': L('The exact pending feed was not consumed; it remains tracked for recovery.', '指定饲料未能被消耗；仍已登记，可恢复取回。'),
+    'work-kind-change': L('Return or drop the in-flight task item before changing work type or warehouse.', '更换岗位类型或仓库前，请先把在途物资送回或放下取回。'),
+    'feed-target-change': L('Return the in-flight feed before removing its pending animal from this order.', '取消当前待喂牲畜授权前，请先将这份在途饲料送回仓库。'),
     'route-blocked': L('The route is blocked; clear a path or choose another field.', '道路受阻；请清出通路或改选田块。'),
     'harvest-failed': L('Harvest output differed from the expected hand-pick result. Check task cargo and the authorized plot before resuming.', '手工采收结果与预期不同；请检查在途物资和授权田块后再继续。'),
     'recovery': L('The order was revoked. Task cargo is ready to be put down for recovery.', '岗位已撤销，可放下任务物资供取回。'),
+    'recovery-away': L('The worker is away from the residence. Task cargo can only be put down when the worker is back on this ground.', '居民已离开领地；须待其回到此处后才能放下岗位物资。'),
   }
   return reasons[reason] ?? L(reason, reason)
 }
@@ -339,19 +380,34 @@ export function residentWorkEffect(fx: EffectRunner, eff: any, ev: GameEvent): v
     const player = ev.roles.actor && w.get(ev.roles.actor.e)
     if (!command || command.worker !== host.id || !player || player.id !== w.state.player || !manager || !commandAuthority(eng, ev, manager)) return
     const home = residence(eng)
-    if (!home || !workDef(eng)?.yieldTypeProp || !workDef(eng)?.seedTypeProp || !workDef(eng)?.pickBonusProp) return
+    if (!home || !workDef(eng)) return
     const existing = host.residentWork
     if (command.op === 'assign') {
       const selected = validateAssignment(eng, manager, player, command)
       if (!selected) return
+      if (selected.kind === 'harvest' && (!workDef(eng)?.yieldTypeProp || !workDef(eng)?.seedTypeProp || !workDef(eng)?.pickBonusProp)) return
       if (existing && ['revoked', 'recovery'].includes(existing.status)) {
         logToPlayer(eng, L('Recover the revoked order’s cargo before assigning another job.', '请先取回已撤销岗位的物资，再委派新岗位。'))
         return
       }
-      updateOrder(host, w, {
+      const carried = descendantsForCargo(eng, host).map((item) => item.id)
+      if (existing && carried.length && (existing.kind !== selected.kind || existing.warehouse !== selected.box.id)) {
+        logToPlayer(eng, localizedReason('work-kind-change'))
+        return
+      }
+      if (selected.kind === 'feed' && existing?.kind === 'feed' && existing.pendingAnimalId && carried.length && !selected.animalIds.includes(existing.pendingAnimalId)) {
+        logToPlayer(eng, localizedReason('feed-target-change'))
+        return
+      }
+      const cargoIds = existing?.kind === selected.kind ? [...(existing.cargoIds ?? [])] : []
+      if (selected.kind === 'harvest') updateOrder(host, w, {
         kind: 'harvest', controller: manager.id, map: home.map, warehouse: selected.box.id,
-        cells: selected.cells.map(({ x, y }) => ({ x, y })), status: 'working',
-        cargoIds: [...(existing?.cargoIds ?? [])],
+        cells: selected.cells.map(({ x, y }) => ({ x, y })), status: 'working', cargoIds,
+      })
+      else updateOrder(host, w, {
+        kind: 'feed', controller: manager.id, map: home.map, warehouse: selected.box.id,
+        animalIds: [...selected.animalIds], pendingAnimalId: existing?.kind === 'feed' ? existing.pendingAnimalId : undefined,
+        status: 'working', cargoIds,
       })
       runtime(eng).routes.delete(host.id)
       return
@@ -363,7 +419,13 @@ export function residentWorkEffect(fx: EffectRunner, eff: any, ev: GameEvent): v
       return
     }
     if (command.op === 'resume') {
-      if (!isWorkerEligible(eng, host) || !warehouseUsable(eng, warehouse(eng, existing.warehouse)) || !cellsValid(eng, existing.cells, false)) {
+      const assignmentStillValid = existing.kind === 'harvest'
+        ? !!workDef(eng)?.yieldTypeProp && !!workDef(eng)?.seedTypeProp && !!workDef(eng)?.pickBonusProp && cellsValid(eng, existing.cells, false)
+        // Saved feed authorizations remain editable/recoverable even when a selected animal died or left the map.
+        // runFeed revalidates each one before use and returns any in-flight item to this same warehouse.
+        : !!workDef(eng)?.livestock && !!workDef(eng)?.unfed && !!workDef(eng)?.feed && existing.animalIds.length > 0 &&
+          existing.animalIds.every((id) => typeof id === 'string' && !!id) && new Set(existing.animalIds).size === existing.animalIds.length
+      if (!isWorkerEligible(eng, host) || !warehouseUsable(eng, warehouse(eng, existing.warehouse)) || !assignmentStillValid) {
         logToPlayer(eng, L('This worker or warehouse is no longer eligible; task cargo remains recoverable.', '居民或仓库目前不符合条件；岗位物资仍可取回。'))
         return
       }
@@ -386,7 +448,15 @@ export function residentWorkEffect(fx: EffectRunner, eff: any, ev: GameEvent): v
     if (command.op === 'drop') {
       const at = w.posOf(host)
       const pp = w.posOf(player)
-      if (!at || !pp || at.map !== home.map || pp.map !== home.map || host.place.on !== 'tile' || !existing.cargoIds.length) return
+      if (!existing.cargoIds.length) return
+      if (!pp || pp.map !== home.map) {
+        logToPlayer(eng, L('Return to the residence before recovering task cargo.', '请先回到领地，再取回岗位物资。'))
+        return
+      }
+      if (!at || at.map !== home.map || host.place.on !== 'tile') {
+        logToPlayer(eng, localizedReason('recovery-away'))
+        return
+      }
       let alreadyDropped = 0
       let noLongerHeld = 0
       for (const id of existing.cargoIds) {
@@ -425,12 +495,51 @@ export function residentWorkEffect(fx: EffectRunner, eff: any, ev: GameEvent): v
     const cropId = typeof ev.params?.crop === 'string' ? ev.params.crop : ''
     const crop = w.get(cropId)
     const p = crop && w.posOf(crop)
-    if (order.status !== 'working' || !crop || !p || p.map !== order.map || !order.cells.some((c) => c.x === p.x && c.y === p.y) || !isWorkerEligible(eng, host)) return
+    if (order.kind !== 'harvest' || order.status !== 'working' || !crop || !p || p.map !== order.map || !order.cells.some((c) => c.x === p.x && c.y === p.y) || !isWorkerEligible(eng, host)) return
     w.addTag(host, HARVEST_TAG)
     return
   }
   if (action === 'finish') {
     w.removeTag(host, HARVEST_TAG)
+    return
+  }
+  if (action === 'prepareFeed') {
+    const feedId = typeof ev.params?.feed === 'string' ? ev.params.feed : ''
+    const animalId = typeof ev.params?.animal === 'string' ? ev.params.animal : ''
+    const box = order.kind === 'feed' ? warehouse(eng, order.warehouse) : undefined
+    const feed = w.get(feedId)
+    const player = w.player
+    const def = workDef(eng)
+    const view = feed && w.view({ e: feed.id })
+    if (order.kind !== 'feed' || order.status !== 'working' || order.cargoIds.length || !box || !warehouseUsable(eng, box) || !feed || feed.place.on !== 'inside' || feed.place.holder !== box.id || feed.frozenBy || !def?.feed || !view || !matchSelector(def.feed, view) || eng.society.relation(eng.society.ownerOf(feed), player) === 'another' || !authorizedAnimal(eng, order, animalId, true)) return
+    updateOrder(host, w, { ...order, pendingAnimalId: animalId, blockedReason: undefined })
+    return
+  }
+  if (action === 'recordFeed') {
+    const feedId = typeof ev.params?.feed === 'string' ? ev.params.feed : ''
+    const animalId = typeof ev.params?.animal === 'string' ? ev.params.animal : ''
+    const feed = w.get(feedId)
+    const def = workDef(eng)
+    const view = feed && w.view({ e: feed.id })
+    if (order.kind !== 'feed' || order.status !== 'working' || order.pendingAnimalId !== animalId || !feed || !directOrNestedIn(w, feed.id, host.id) || !def?.feed || !view || !matchSelector(def.feed, view) || order.cargoIds.some((id) => id !== feedId)) return
+    const player = w.player
+    w.setProp(feed, 'owner', player.id)
+    updateOrder(host, w, { ...order, cargoIds: [feed.id], blockedReason: undefined })
+    return
+  }
+  if (action === 'consumeFeed') {
+    const feedId = typeof ev.params?.feed === 'string' ? ev.params.feed : ''
+    const animalId = typeof ev.params?.animal === 'string' ? ev.params.animal : ''
+    if (order.kind !== 'feed' || order.pendingAnimalId !== animalId || !order.cargoIds.includes(feedId)) return
+    updateOrder(host, w, { ...order, cargoIds: order.cargoIds.filter((id) => id !== feedId), pendingAnimalId: undefined, blockedReason: undefined })
+    return
+  }
+  if (action === 'clearFeedTarget') {
+    const animalId = typeof ev.params?.animal === 'string' ? ev.params.animal : ''
+    if (order.kind === 'feed' && order.pendingAnimalId === animalId && !order.cargoIds.some((id) => {
+      const item = w.get(id)
+      return !!item && directOrNestedIn(w, item.id, host.id)
+    })) updateOrder(host, w, { ...order, pendingAnimalId: undefined })
     return
   }
   if (action === 'record') {
@@ -469,7 +578,7 @@ export function residentWorkEffect(fx: EffectRunner, eff: any, ev: GameEvent): v
       return
     }
     for (const item of cargo) w.place(item, { on: 'inside', holder: box.id })
-    host.residentWork = { ...order, cargoIds: [], blockedReason: undefined }
+    host.residentWork = { ...order, cargoIds: [], ...(order.kind === 'feed' && { pendingAnimalId: undefined }), blockedReason: undefined }
     w.setProp(host, 'residentWorkMap', order.map)
     return
   }
@@ -491,6 +600,39 @@ export function authorizedResidentWorkTake(eng: Engine, ev: GameEvent): boolean 
   const target = sourceId(ev.roles.target)
   if (!actor?.residentWork || !target) return false
   return runtime(eng).permits.some((permit) => permit.actor === actor.id && permit.target === target && permit.controller === actor.residentWork!.controller && permit.tick === eng.world.state.tick)
+}
+
+/** A Stockman's area-feed exception exists only during the resident order's exact, prevalidated act/use. */
+export function residentWorkFeedCondition(_c: unknown, roles: Roles, world: World, ev?: GameEvent): boolean {
+  if (!ev || ev.kind !== 'act/use') return false
+  const actor = ev.roles.actor?.e
+  const feed = ev.roles.instrument?.e
+  const target = ev.roles.target?.e
+  const host = 'e' in ev.host ? ev.host.e : undefined
+  if (!actor || !feed || !target || feed !== host || roles.actor?.ref.e !== actor) return false
+  const rt = world.ext.get(EXT) as Runtime | undefined
+  const permit = rt?.feedPermits.find((p) => p.actor === actor && p.feed === feed && p.target === target && p.tick === world.state.tick)
+  if (!permit) return false
+  const worker = world.get(actor)
+  const item = world.get(feed)
+  const animal = world.get(target)
+  const player = world.get(world.state.player)
+  const order = worker?.residentWork
+  const home = world.onto.data.social?.residence
+  const def = home?.work
+  const itemView = item && world.view({ e: item.id })
+  const animalView = animal && world.view({ e: animal.id })
+  const playerPos = world.posOf(player)
+  const workerPos = world.posOf(worker)
+  const animalPos = world.posOf(animal)
+  const hour = hoursAt(world.state.tick) % 24
+  return !!worker && !!item && !!animal && !!playerPos && !!workerPos && !!animalPos && !!home && !!def?.feed && !!def.livestock && !!def.unfed &&
+    order?.kind === 'feed' && order.status === 'working' && order.controller === permit.controller && order.warehouse === permit.warehouse &&
+    order.map === permit.map && order.map === home.map && permit.activeMap === permit.map && playerPos.map === permit.map &&
+    workerPos.map === permit.map && animalPos.map === permit.map && hour >= 7 && hour < 21 &&
+    order.pendingAnimalId === target && order.animalIds.includes(target) && order.cargoIds.includes(feed) &&
+    !!itemView && matchSelector(def.feed, itemView) && directOrNestedIn(world, feed, actor) &&
+    !!animalView && matchSelector(def.livestock, animalView) && matchSelector(def.unfed, animalView)
 }
 
 function expectedOutput(eng: Engine, worker: Entity, crop: Entity): { yieldType: string; seedType: string; yieldCount: number; seedCount: number } | undefined {
@@ -636,7 +778,7 @@ function deposit(eng: Engine, worker: Entity, order: ResidentWorkOrder, box: Ent
   void order
 }
 
-function authorizedRipe(eng: Engine, order: ResidentWorkOrder): Entity[] {
+function authorizedRipe(eng: Engine, order: Extract<ResidentWorkOrder, { kind: 'harvest' }>): Entity[] {
   const crops: Entity[] = []
   for (const cell of order.cells) {
     const crop = cropAt(eng, order.map, cell.x, cell.y, true)
@@ -646,6 +788,133 @@ function authorizedRipe(eng: Engine, order: ResidentWorkOrder): Entity[] {
     const pa = eng.world.posOf(a)!, pb = eng.world.posOf(b)!
     return pa.y - pb.y || pa.x - pb.x || a.id.localeCompare(b.id)
   })
+}
+
+function authorizedAnimal(eng: Engine, order: ResidentWorkOrder, id: Id, needsFeed: boolean): Entity | undefined {
+  if (order.kind !== 'feed' || !order.animalIds.includes(id)) return undefined
+  const w = eng.world
+  const animal = w.get(id)
+  const at = animal && w.posOf(animal)
+  const view = animal && w.view({ e: animal.id })
+  const def = workDef(eng)
+  const relation = animal && eng.society.relation(eng.society.ownerOf(animal), w.player)
+  if (!animal || animal.place.on !== 'tile' || !at || at.map !== order.map || !view || !def?.livestock || !matchSelector(def.livestock, view) ||
+    (needsFeed && (!def.unfed || !matchSelector(def.unfed, view))) || (relation !== 'mine' && relation !== 'ours')) return undefined
+  return animal
+}
+
+function eligibleAnimals(eng: Engine, order: Extract<ResidentWorkOrder, { kind: 'feed' }>): Entity[] {
+  return order.animalIds.map((id) => authorizedAnimal(eng, order, id, true)).filter((e): e is Entity => !!e)
+}
+
+function chooseAnimal(eng: Engine, worker: Entity, animals: Entity[]): Entity | undefined {
+  const p = eng.world.posOf(worker)
+  if (!p) return undefined
+  return [...animals].sort((a, b) => {
+    const pa = eng.world.posOf(a)!, pb = eng.world.posOf(b)!
+    return Math.max(Math.abs(pa.x - p.x), Math.abs(pa.y - p.y)) - Math.max(Math.abs(pb.x - p.x), Math.abs(pb.y - p.y)) || a.id.localeCompare(b.id)
+  })[0]
+}
+
+function feedInWarehouse(eng: Engine, box: Entity): Entity[] {
+  const w = eng.world
+  const selector = workDef(eng)?.feed
+  if (!selector) return []
+  return (box.contents ?? []).map((id) => w.get(id)).filter((item): item is Entity => {
+    if (!item || item.place.on !== 'inside' || item.place.holder !== box.id || item.frozenBy) return false
+    const view = w.view({ e: item.id })
+    return !!view && matchSelector(selector, view) && eng.society.relation(eng.society.ownerOf(item), w.player) !== 'another'
+  }).sort((a, b) => a.id.localeCompare(b.id))
+}
+
+function pickFeed(eng: Engine, worker: Entity, order: Extract<ResidentWorkOrder, { kind: 'feed' }>, box: Entity, animal: Entity): boolean {
+  const feed = feedInWarehouse(eng, box)[0]
+  if (!feed) {
+    setReason(eng, worker, 'feed-unavailable')
+    return false
+  }
+  queueWorker(eng, worker, 'resident-work-internal', { action: 'prepareFeed', feed: feed.id, animal: animal.id })
+  if (worker.residentWork?.kind !== 'feed' || worker.residentWork.pendingAnimalId !== animal.id) return false
+  reserve(eng, worker, feed, () => eng.act('take', worker.id, { e: feed.id }, { instrument: null, params: { into: 'contents' } }))
+  if (directOrNestedIn(eng.world, feed.id, worker.id)) {
+    queueWorker(eng, worker, 'resident-work-internal', { action: 'recordFeed', feed: feed.id, animal: animal.id })
+    if (worker.residentWork?.kind === 'feed' && worker.residentWork.cargoIds.includes(feed.id)) {
+      setReason(eng, worker)
+      eng.setCooldown(worker.id, TICK_STEP * 2)
+      return true
+    }
+  }
+  queueWorker(eng, worker, 'resident-work-internal', { action: 'clearFeedTarget', animal: animal.id })
+  setReason(eng, worker, 'feed-use-failed')
+  return false
+}
+
+function deliverFeed(eng: Engine, worker: Entity, order: Extract<ResidentWorkOrder, { kind: 'feed' }>, box: Entity, animal: Entity, feed: Entity): boolean {
+  const w = eng.world
+  const animalPos = w.posOf(animal)
+  const view = feed && w.view({ e: feed.id })
+  const def = workDef(eng)
+  if (!animalPos || !view || !def?.feed || !matchSelector(def.feed, view) || !directOrNestedIn(w, feed.id, worker.id)) {
+    setReason(eng, worker, 'feed-use-failed')
+    return false
+  }
+  const at = w.posOf(worker)
+  if (!at || Math.max(Math.abs(at.x - animalPos.x), Math.abs(at.y - animalPos.y)) > 1) {
+    routeAdjacent(eng, worker, animalPos, `animal:${animal.id}`)
+    return true
+  }
+  if (!eng.ready(worker.id) || eng.busy(worker)) return true
+  const permit: FeedPermit = { actor: worker.id, feed: feed.id, target: animal.id, controller: order.controller, warehouse: box.id, map: order.map, activeMap: eng.activeMap, tick: w.state.tick }
+  runtime(eng).feedPermits.push(permit)
+  try {
+    eng.act('use', worker.id, { e: animal.id }, { instrument: { e: feed.id } })
+  } finally {
+    const permits = runtime(eng).feedPermits
+    const index = permits.indexOf(permit)
+    if (index >= 0) permits.splice(index, 1)
+  }
+  const used = (!w.get(feed.id) || w.get(feed.id)?.place.on === 'none') && w.hasStatus({ e: animal.id }, 'fed')
+  if (used) queueWorker(eng, worker, 'resident-work-internal', { action: 'consumeFeed', feed: feed.id, animal: animal.id })
+  else if (w.hasStatus({ e: animal.id }, 'fed')) {
+    setReason(eng, worker, 'feed-return')
+    deposit(eng, worker, worker.residentWork as Extract<ResidentWorkOrder, { kind: 'feed' }>, box)
+  } else setReason(eng, worker, 'feed-use-failed')
+  eng.setCooldown(worker.id, TICK_STEP * 2)
+  return true
+}
+
+function runFeed(eng: Engine, worker: Entity, order: Extract<ResidentWorkOrder, { kind: 'feed' }>, box: Entity): boolean {
+  const w = eng.world
+  const cargo = workCargo(eng, worker)
+  if (order.cargoIds.length) {
+    if (cargo.length !== 1 || order.cargoIds.length !== 1) {
+      setReason(eng, worker, 'feed-use-failed')
+      return false
+    }
+    const feed = cargo[0]!
+    const animal = order.pendingAnimalId ? authorizedAnimal(eng, order, order.pendingAnimalId, true) : undefined
+    if (!animal) {
+      setReason(eng, worker, 'feed-return')
+      deposit(eng, worker, order, box)
+      return true
+    }
+    return deliverFeed(eng, worker, order, box, animal, feed)
+  }
+  const animal = chooseAnimal(eng, worker, eligibleAnimals(eng, order))
+  if (!animal) {
+    setReason(eng, worker, 'no-animal')
+    return false
+  }
+  const at = w.posOf(worker)!, bp = w.posOf(box)!
+  if (Math.max(Math.abs(at.x - bp.x), Math.abs(at.y - bp.y)) > 1) {
+    routeAdjacent(eng, worker, bp, `warehouse:${box.id}`)
+    return true
+  }
+  if (!openWarehouse(eng, worker, box)) {
+    setReason(eng, worker, 'warehouse-closed')
+    return false
+  }
+  return pickFeed(eng, worker, order, box, animal)
 }
 
 function pick(eng: Engine, worker: Entity, order: ResidentWorkOrder, box: Entity, crop: Entity): boolean {
@@ -701,7 +970,7 @@ function runWork(eng: Engine, worker: Entity, _scene: Scene): boolean {
   const w = eng.world
   const order = worker.residentWork
   const home = residence(eng)
-  if (!order || order.kind !== 'harvest' || order.status !== 'working' || !home || order.map !== home.map) return false
+  if (!order || order.status !== 'working' || !home || order.map !== home.map) return false
   const playerPos = w.posOf(w.player), at = w.posOf(worker)
   if (!playerPos || playerPos.map !== order.map || !at || at.map !== order.map || worker.place.on !== 'tile') return false
   if (eligibleReason(eng, worker)) {
@@ -711,6 +980,8 @@ function runWork(eng: Engine, worker: Entity, _scene: Scene): boolean {
   if (eng.asleep(worker) || hoursAt(w.state.tick) % 24 < 7 || hoursAt(w.state.tick) % 24 >= 21) return false
   const box = workWarehouse(eng, worker, order)
   if (!box) return false
+
+  if (order.kind === 'feed') return runFeed(eng, worker, order, box)
 
   if (order.cargoIds.length) {
     deposit(eng, worker, order, box)
@@ -750,21 +1021,36 @@ export function resetResidentWorkRuntime(eng: Engine): void {
   for (const e of Object.values(eng.world.state.entities)) if (e.tags?.includes(HARVEST_TAG)) eng.world.removeTag(e, HARVEST_TAG)
 }
 
-export function residentWorkView(eng: Engine, def: ResidenceWorkDef): { targets: { id: Id; x: number; y: number; name: Text; ripe: boolean }[] } {
+export function residentWorkView(eng: Engine, def: ResidenceWorkDef): { targets: { id: Id; x: number; y: number; name: Text; ripe: boolean }[]; animals: NonNullable<import('@openworld/engine').ResidenceWorkView['livestock']>['animals'] } {
   const w = eng.world
   const map = residence(eng)?.map
-  if (!map) return { targets: [] }
-  const targets = w.entitiesOnMap(map)
-    .filter((e) => e.place.on === 'tile' && !!def.crop && !!w.view({ e: e.id }) && matchSelector(def.crop, w.view({ e: e.id })!))
-    .sort((a, b) => (a.place.on === 'tile' && b.place.on === 'tile' ? a.place.y - b.place.y || a.place.x - b.place.x : a.id.localeCompare(b.id)))
-    .map((e) => ({
-      id: e.id,
-      x: e.place.on === 'tile' ? e.place.x : 0,
-      y: e.place.on === 'tile' ? e.place.y : 0,
-      name: e.name ?? w.onto.resolve(e.type).name ?? e.type,
-      ripe: !!def.ripe && !!w.view({ e: e.id }) && matchSelector(def.ripe, w.view({ e: e.id })!),
+  if (!map) return { targets: [], animals: [] }
+  const onGround = w.entitiesOnMap(map).filter((e) => e.place.on === 'tile').map((entity) => ({ entity, view: w.view({ e: entity.id }) }))
+  const targets = onGround
+    .filter(({ view }) => !!def.crop && !!view && matchSelector(def.crop, view))
+    .sort((a, b) => (a.entity.place.on === 'tile' && b.entity.place.on === 'tile' ? a.entity.place.y - b.entity.place.y || a.entity.place.x - b.entity.place.x : a.entity.id.localeCompare(b.entity.id)))
+    .map(({ entity, view }) => ({
+      id: entity.id,
+      x: entity.place.on === 'tile' ? entity.place.x : 0,
+      y: entity.place.on === 'tile' ? entity.place.y : 0,
+      name: entity.name ?? w.onto.resolve(entity.type).name ?? entity.type,
+      ripe: !!def.ripe && !!view && matchSelector(def.ripe, view),
     }))
-  return { targets }
+  const animals = onGround.flatMap(({ entity, view }) => {
+    if (entity.place.on !== 'tile' || !def.livestock || !view || !matchSelector(def.livestock, view)) return []
+    const owner = eng.society.relation(eng.society.ownerOf(entity), w.player)
+    return [{
+      id: entity.id,
+      name: entity.name ?? w.onto.resolve(entity.type).name ?? entity.type,
+      type: entity.type,
+      x: entity.place.x,
+      y: entity.place.y,
+      fed: w.hasStatus({ e: entity.id }, 'fed'),
+      owner,
+      selectable: (owner === 'mine' || owner === 'ours') && !!def.unfed && !!def.feed,
+    }]
+  }).sort((a, b) => a.id.localeCompare(b.id))
+  return { targets, animals }
 }
 
 export function residentWorkOrderView(eng: Engine, e: Entity): NonNullable<import('@openworld/engine').ResidenceResidentView['order']> | undefined {
@@ -774,17 +1060,23 @@ export function residentWorkOrderView(eng: Engine, e: Entity): NonNullable<impor
   if (order.status === 'working') {
     const home = residence(eng)
     const playerMap = eng.world.posOf(eng.world.player)?.map
+    const workerMap = eng.world.posOf(e)?.map
     const hour = hoursAt(eng.world.state.tick) % 24
-    if (!home || eng.activeMap !== order.map || playerMap !== order.map) blockedReason = L('Work pauses while you are away from the residence.', '离开领地期间岗位暂停。')
+    if (!home || eng.activeMap !== order.map || playerMap !== order.map || workerMap !== order.map) blockedReason = order.cargoIds.length
+      ? L('Work pauses while you or the resident is away. Task cargo stays with the resident and can only be recovered when they are back on this ground.', '你或居民离开领地期间岗位暂停。物资仍由居民携带，须待其回到此处后才能取回。')
+      : L('Work pauses while you are away from the residence.', '离开领地期间岗位暂停。')
     else if (hour < 7 || hour >= 21 || eng.asleep(e)) blockedReason = L('The resident is resting; work resumes during the day.', '居民正在休息，白天会继续工作。')
     else if (eligibleReason(eng, e)) blockedReason = eligibleReason(eng, e)
     else if (!warehouse(eng, order.warehouse)) blockedReason = L('The selected warehouse is missing or unavailable.', '指定仓库已消失或不可用。')
     else if (!warehouseUsable(eng, warehouse(eng, order.warehouse))) blockedReason = localizedReason('warehouse-locked')
   }
   return {
+    kind: order.kind,
     status: order.status,
     warehouse: order.warehouse,
-    cells: order.cells.map((c) => ({ ...c })),
+    cells: order.kind === 'harvest' ? order.cells.map((c) => ({ ...c })) : [],
+    animalIds: order.kind === 'feed' ? [...order.animalIds] : [],
+    ...(order.kind === 'feed' && order.pendingAnimalId && { pendingAnimalId: order.pendingAnimalId }),
     cargo: order.cargoIds.flatMap((id) => {
       const item = wItemInfo(eng, id)
       return item ? [item] : []

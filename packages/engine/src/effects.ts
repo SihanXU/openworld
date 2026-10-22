@@ -20,7 +20,7 @@ const SPAWN_MAX = 64
 
 /** The kernel's primitives, and what each does (the modules' are their own: module.ts). */
 export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
-  spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?} — create new things at a role\'s place (its tile, contents or hand); type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are taken with F); what cannot be carried (not portable) is made on the holder\'s tile, never in a hand or bag',
+  spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?, owner?: role, ownerFrom?: role} — create new things at a role\'s place (its tile, contents or hand); owner makes the spawned thing belong to that role, while ownerFrom copies only an existing string owner prop from that role; type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are taken with F); what cannot be carried (not portable) is made on the holder\'s tile, never in a hand or bag',
   destroy: 'destroy {} — the host is gone (with what it holds); the essential (people) never are: they go down instead',
   transform: 'transform {into} — the host becomes another type ("@prop:key" reads the type from its own prop, e.g. emptyType). A cell is made of things (tile/<terrain>: the floor, what roots in the soil, what fills the volume): water becoming ice is the water transforming; becoming a type whose space in its cell another thing holds (rock into gravel, where a floor is), the host is gone instead; a carried host become a thing that cannot be carried is set down at its holder\'s feet',
   move: 'move {to: role ref, into?: tile|contents|hand} — the host moves itself to a role\'s tile, contents or hand',
@@ -213,12 +213,18 @@ export class EffectRunner {
         const at = this.ref(ev, eff.at)
         const into = eff.into ?? 'tile'
         const n = this.most(eff.count === undefined ? 1 : Math.max(0, Math.floor(this.amount(ev, eff.count))), 'a spawn')
+        const ownerRef = eff.owner ? this.ref(ev, eff.owner) : undefined
+        const ownerId = ownerRef && 'e' in ownerRef ? ownerRef.e : undefined
+        const ownerSource = eff.ownerFrom ? this.ref(ev, eff.ownerFrom) : undefined
+        const ownerEntity = ownerSource && 'e' in ownerSource ? w.get(ownerSource.e) : undefined
+        const inheritedOwner = ownerEntity ? w.prop(ownerEntity, 'owner') : undefined
+        const owner = typeof inheritedOwner === 'string' && inheritedOwner ? inheritedOwner : ownerId
         // what cannot be carried is not made into a hand or a bag: it is set down where its holder is
         const carried = into === 'tile' || w.onto.resolve(type).tags.includes('portable') ? into : 'tile'
         for (let i = 0; i < n; i++) {
           let place = this.placeFor(at, carried)
           if (!place) continue
-          const made = w.create(type, place)
+          const made = w.create(type, place, owner ? { props: { owner } } : {})
           // an actor never appears on top of another, or in a wall: it takes the nearest free tile
           if (place.on === 'tile' && w.isAgent(made) && !w.walkable(place.map, place.x, place.y, made.id)) {
             const free = eng.nearestFree({ map: place.map, x: place.x, y: place.y })

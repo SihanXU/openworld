@@ -394,7 +394,7 @@ describe('resident harvest work', () => {
     expect(eng.world.get(ids[0])?.place).toEqual({ on: 'inside', holder: 'actor' })
     expect(eng.world.get(ids[1])?.place.on).toBe('tile')
     order(eng, { v: 1, op: 'assign', worker: 'worker', warehouse: 'store', cells: [{ x: 6, y: 2 }] })
-    expect(worker.residentWork?.cells).toEqual([{ x: 6, y: 2 }])
+    expect(worker.residentWork).toMatchObject({ kind: 'harvest', cells: [{ x: 6, y: 2 }] })
   })
 
   it('keeps cargo after its warehouse disappears and allows a physical recovery drop', () => {

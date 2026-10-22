@@ -97,7 +97,7 @@ const fed = (...extra: Effect[]): Tree => ({ if: tagged('herdsman'), then: { do:
 /** A hen fed by an Egg Collector lays at once (feedEggs); a Hen Whisperer's now and then hatches a chick. */
 const henFed = (...extra: Effect[]): Tree => {
   const eggs: Effect = { op: 'spawn', type: 'item/food/egg/raw', at: 'tileOf:host', count: { prop: 'feedEggs', of: 'actor' }, still: true }
-  return { if: { all: [tagged('hen-whisperer'), { chance: 0.15 }] }, then: fed(eggs, { op: 'spawn', type: '@prop:host.babyType', at: 'tileOf:host' }, ...extra), else: fed(eggs, ...extra) }
+  return { if: { all: [tagged('hen-whisperer'), { chance: 0.15 }] }, then: fed(eggs, { op: 'spawn', type: '@prop:host.babyType', at: 'tileOf:host', ownerFrom: 'host' }, ...extra), else: fed(eggs, ...extra) }
 }
 /** Milked: for a day, half a day for a Milker's cow. */
 const MILKED: Tree = { if: tagged('milker'), then: { do: [{ op: 'addStatus', status: 'milked', duration: FED_FOR / 2 }] }, else: { do: [{ op: 'addStatus', status: 'milked', duration: FED_FOR }] } }
@@ -124,7 +124,11 @@ export const HOMESTEAD_RULES: Rule[] = [
       if: { is: { role: 'target', sel: ANIMAL } },
       then: {
         if: tagged('stockman'),
-        then: { do: [{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'fed' } }, { op: 'emit', impulse: 'notify', to: { area: { radius: 2 } }, params: { what: 'fed' }, filter: { ...ANIMAL, notStatus: ['fed'] } }, { op: 'destroy' }] },
+        then: {
+          if: { residentWorkFeed: 'actor' },
+          then: { do: [{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'fed' } }, { op: 'destroy' }] },
+          else: { do: [{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'fed' } }, { op: 'emit', impulse: 'notify', to: { area: { radius: 2 } }, params: { what: 'fed' }, filter: { ...ANIMAL, notStatus: ['fed'] } }, { op: 'destroy' }] },
+        },
         else: { do: [{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'fed' } }, { op: 'destroy' }] },
       },
       else: 'inherit',
@@ -158,7 +162,7 @@ export const HOMESTEAD_RULES: Rule[] = [
         // the call heard: the young born beside it (twins, now and then, for a Breeder), and the caller told so (both rest)
         if: { all: [{ param: { key: 'what', cmp: 'mate' } }, { has: { role: 'host', status: 'fed' } }, { not: { has: { role: 'host', status: 'bred' } } }] },
         then: (() => {
-          const born = (n: number): Tree => rest({ op: 'spawn', type: '@prop:host.babyType', at: 'tileOf:host', count: n }, { op: 'emit', impulse: 'notify', to: 'source', params: { what: 'rested' } }, { op: 'emote', mood: 'happy' }, { op: 'vfx', fx: 'sparkle' }, { op: 'log', text: n > 1 ? L(kind === 'cow' ? 'Twin calves are born!' : 'Two chicks hatch!', kind === 'cow' ? '一对双胞胎小牛出生了！' : '孵出了两只小鸡！') : L(kind === 'cow' ? 'A calf is born!' : 'A chick hatches!', kind === 'cow' ? '一头小牛出生了！' : '一只小鸡孵出来了！') })
+          const born = (n: number): Tree => rest({ op: 'spawn', type: '@prop:host.babyType', at: 'tileOf:host', count: n, ownerFrom: 'host' }, { op: 'emit', impulse: 'notify', to: 'source', params: { what: 'rested' } }, { op: 'emote', mood: 'happy' }, { op: 'vfx', fx: 'sparkle' }, { op: 'log', text: n > 1 ? L(kind === 'cow' ? 'Twin calves are born!' : 'Two chicks hatch!', kind === 'cow' ? '一对双胞胎小牛出生了！' : '孵出了两只小鸡！') : L(kind === 'cow' ? 'A calf is born!' : 'A chick hatches!', kind === 'cow' ? '一头小牛出生了！' : '一只小鸡孵出来了！') })
           return { if: { all: [tagged('breeder'), { chance: 0.3 }] }, then: born(2), else: born(1) } as Tree
         })(),
         else: {
@@ -191,7 +195,7 @@ export const HOMESTEAD_RULES: Rule[] = [
     doc: 'A crated beast set down: the beast walks out where it is set, the crate is gone.',
     host: { tags: ['animal-crate'] },
     on: 'act/put',
-    tree: { do: [{ op: 'spawn', type: '@prop:host.animalType', at: 'target' }, { op: 'vfx', fx: 'dust', at: 'target' }, { op: 'log', text: L('The crate opens, and out it comes.', '箱子打开，里面的动物走了出来。') }, { op: 'destroy' }] },
+    tree: { do: [{ op: 'spawn', type: '@prop:host.animalType', at: 'target', owner: 'actor' }, { op: 'vfx', fx: 'dust', at: 'target' }, { op: 'log', text: L('The crate opens, and out it comes.', '箱子打开，里面的动物走了出来。') }, { op: 'destroy' }] },
   }),
   story({
     id: 'home/bait',

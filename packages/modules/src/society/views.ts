@@ -59,14 +59,18 @@ export function residenceView(eng: Engine): Pick<Frame, 'residence'> {
   const view: ResidenceView = { map: home.map, active: eng.activeMap === home.map, onMap: playerMap === home.map, residents }
 
   view.recoveries = [...w.withProp('residentWorkMap', home.map)]
-    .filter((e) => !e.npc?.resident || !w.isAgent(e))
+    .filter((e) => e.npc?.resident?.map !== home.map || !w.isAgent(e))
     .flatMap((e) => {
       const order = e.residentWork
       const p = w.posOf(e)
       const isRemains = !w.isAgent(e)
-      if (!order || !p || p.map !== home.map || !order.cargoIds.length || (!isRemains && !['revoked', 'recovery', 'paused'].includes(order.status))) return []
+      const displaced = !isRemains && e.npc?.resident?.map !== home.map
+      if (!order || !p || p.map !== home.map || !order.cargoIds.length || (!isRemains && !displaced && !['revoked', 'recovery', 'paused'].includes(order.status))) return []
       const cargo = order.cargoIds.flatMap((id) => { const info = itemInfo(eng, id); return info ? [info] : [] })
-      return cargo.length ? [{ id: e.id, name: e.name ?? w.onto.resolve(e.type).name ?? e.type, x: p.x, y: p.y, cargo, status: isRemains ? 'recovery' as const : order.status as 'paused' | 'revoked' | 'recovery', ...(order.blockedReason && { blockedReason: order.blockedReason }) }] : []
+      const blockedReason = displaced
+        ? { en: 'This former resident is carrying task cargo here; recover it at their current location.', zh: '该前居民在此携带岗位物资，请在其当前位置取回。' }
+        : order.blockedReason
+      return cargo.length ? [{ id: e.id, name: e.name ?? w.onto.resolve(e.type).name ?? e.type, x: p.x, y: p.y, cargo, status: isRemains || displaced ? 'recovery' as const : order.status as 'paused' | 'revoked' | 'recovery', ...(blockedReason && { blockedReason }) }] : []
     })
 
   if (w.map(home.map)?.anchors) {
@@ -82,7 +86,12 @@ export function residenceView(eng: Engine): Pick<Frame, 'residence'> {
   const def = home.work
   if (def && view.active && view.onMap) {
     const counts = residenceWork(eng, home.map, def)
-    view.work = { ...counts, crops: { ...counts.crops, ...residentWorkView(eng, def) } }
+    const targets = residentWorkView(eng, def)
+    view.work = {
+      ...counts,
+      ...(counts.crops && { crops: { ...counts.crops, targets: targets.targets } }),
+      ...(counts.livestock && { livestock: { ...counts.livestock, animals: targets.animals } }),
+    }
   }
   return { residence: view }
 }

@@ -24,6 +24,8 @@ function haven({ residenceMap = SANDBOX_MAP, includeWork = true, unlockLodge = t
       { key: 'cow-milked', type: 'actor/creature/animal/cow', x: 9, y: 9, statuses: ['fed', 'milked'] },
       { key: 'calf', type: 'actor/creature/animal/calf', x: 8, y: 9, statuses: ['fed'] },
       { key: 'cow-unfed', type: 'actor/creature/animal/cow', x: 7, y: 9 },
+      { key: 'chicken-fed', type: 'actor/creature/animal/chicken', x: 2, y: 5, statuses: ['fed'], props: { owner: 'actor' } },
+      { key: 'chick-unfed', type: 'actor/creature/animal/chick', x: 3, y: 5, props: { owner: 'actor' } },
       { key: 'ground-egg', type: 'item/food/egg/raw', x: 10, y: 8 },
       { key: 'boiled-egg', type: 'item/food/egg/boiled', x: 9, y: 8 },
       { key: 'storehouse', type: 'fixture/container/storehouse', x: 11, y: 10 },
@@ -60,7 +62,11 @@ describe('the residence work overview', () => {
     expect(view).toMatchObject({ active: true, onMap: true, beds: { total: 2, occupied: 1, empty: 1 }, residents: [{ id: 'resident' }] })
     expect(frame.entities.some((e) => e.id === 'ripe-turnip')).toBe(false)
     expect(view!.work?.crops).toMatchObject({ total: 4, ripe: 2, needsWater: 1 })
-    expect(view!.work?.livestock).toMatchObject({ total: 4, unfed: 1, milkable: 1 })
+    expect(view!.work?.livestock).toMatchObject({ total: 6, unfed: 2, milkable: 1 })
+    expect(view!.work?.livestock?.animals).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'chicken-fed', x: 2, y: 5, fed: true, owner: 'mine', selectable: true }),
+      expect.objectContaining({ id: 'chick-unfed', x: 3, y: 5, fed: false, owner: 'mine', selectable: true }),
+    ]))
     expect(view!.work?.groundEggs).toBe(1)
     expect(view!.work?.warehouses).toEqual([
       expect.objectContaining({

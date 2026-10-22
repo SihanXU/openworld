@@ -105,6 +105,7 @@ export const societyModule: EngineModule = {
       'residentWork/update': 'residentWork/update {} — a resident or retained body changes only its own saved work order and tracked cargo',
     },
     conditions: [
+      '{residentWorkFeed: actor} — true only for the configured resident feeding job’s exact actor, instrument, authorized animal, warehouse, map, tick and active daylight step; ordinary or client-supplied Stockman parameters cannot grant this permit',
       '{regard: {of: role, toward: role, cmp}} — what one person thinks of another (−100..100, its regard: talk, gifts and help raise it, deeds lower it)',
       '{grudge: {of: role, toward: role, deed?}} — one holds an unsettled deed against another (done to them, their household or kin): any, or one kind (theft, assault …)',
       '{owns: [roleA, roleB]} — roleA owns roleB (its own or its household\'s)',

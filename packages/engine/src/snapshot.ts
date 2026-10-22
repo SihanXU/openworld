@@ -138,9 +138,12 @@ export interface ResidenceResidentView {
   eligible?: boolean
   eligibilityReason?: Text
   order?: {
+    kind: 'harvest' | 'feed'
     status: 'working' | 'paused' | 'revoked' | 'recovery'
     warehouse: Id
     cells: { x: number; y: number }[]
+    animalIds: Id[]
+    pendingAnimalId?: Id
     cargo: ItemInfo[]
     blockedReason?: Text
   }
@@ -149,7 +152,7 @@ export interface ResidenceResidentView {
 /** A whole-map view, supplied by the optional society module when the game configures residence work. */
 export interface ResidenceWorkView {
   crops?: { total?: number; ripe?: number; needsWater?: number; targets?: { id: Id; x: number; y: number; name: Text; ripe: boolean }[] }
-  livestock?: { total?: number; unfed?: number; milkable?: number }
+  livestock?: { total?: number; unfed?: number; milkable?: number; animals?: { id: Id; name: Text; type: string; x: number; y: number; fed: boolean; owner: 'mine' | 'ours' | 'nobody' | 'another'; selectable: boolean }[] }
   groundEggs?: number
   warehouses?: ResidenceWarehouseView[]
 }

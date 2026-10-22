@@ -152,6 +152,15 @@ resident's physical cargo and then the selected physical warehouse; it does not 
 stock or take anything from a private bag. Full storage stops the next harvest, including at the 999-item stack
 limit.
 
+The second job is a **feeder**. The player explicitly selects a real available warehouse and owned animals; the
+list starts empty, stays tied to those animal IDs, and does not add newborns. An owned animal may remain selected
+while already fed, but the resident fetches exactly one real feed item only when that animal needs it. The resident
+uses the same feeding rule as a person, so eggs and breeding keep their usual effects; the job never milks or sells
+anything. The manual Stockman action keeps its normal nearby herd behavior. A feed already carried for an animal
+that dies, leaves the ground, or gets fed by someone else is returned as that same item when it is safe to do so;
+if the selected warehouse cannot take it, it remains tracked for recovery. Existing livestock without provable
+ownership cannot be assigned, and animals owned by another person are unavailable.
+
 Work advances only while the player is on the Held Ground and the clock is running. The resident keeps the current
 day schedule and rests from 21:00 to 07:00; leaving the map, a paused order, an ineligible worker, a blocked route,
 or an unavailable warehouse pauses the job with a status message. Close the steward panel to let time pass.

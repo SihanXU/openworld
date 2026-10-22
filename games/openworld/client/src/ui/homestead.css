@@ -131,6 +131,9 @@
 .hs-work-select select { max-width: 100%; margin-left: 8px; }
 .hs-work-plots { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
 .hs-work-plots label { white-space: nowrap; }
+.hs-work-select > label { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.hs-work-select > label select { flex: 1 1 220px; min-width: 160px; }
+.hs-work-animals label { white-space: normal; line-height: 1.5; }
 .hs-work-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
 .hs-work-select small { color: var(--ink-soft); }
 @media (max-width: 700px) { .hs-pages { order: 3; flex-basis: 100%; justify-content: center; } .hs-overview-grid { grid-template-columns: 1fr; } .hs-overview { padding: 10px; } }
