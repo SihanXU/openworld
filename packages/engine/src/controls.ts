@@ -541,9 +541,9 @@ export class Controls {
    * drink, put on), asked first where the world has never seen it (a stone used on oneself is an experiment,
    * not a slip of the finger). A swing lands on what is struck, top first — someone first with nothing in
    * hand, never a loose thing lying there then —, on someone one talks to (a person, a companion) only with
-   * the blade drawn (X: the blow is meant, docs/npc-sandbox.md), never on oneself, and a press on the bare
-   * ground the world has never seen struck makes none (the right click is the experiment). No chooser: Alt
-   * chooses.
+   * the blade drawn (X: the blow is meant, docs/npc-sandbox.md), never on oneself. A tool swung where the world
+   * has never seen it is an experiment, as any use is (a pickaxe at the grass asks the world); only the bare fist
+   * on bare ground the world has never seen struck makes nothing (planOn). No chooser: Alt chooses.
    */
   private primary(aim?: Aim): Plan | undefined {
     const w = this.w
@@ -570,8 +570,7 @@ export class Controls {
       const bodies = held ? [] : struck.filter((r) => { const e = w.get(r.e); return !!e && w.isAgent(e) })
       for (const r of [...bodies, ...struck.filter((r) => !bodies.includes(r))]) {
         const plan = this.planOn('use', a.at, r)
-        if (plan && !(plan.unknown && this.ground(r))) return plan
-        if (plan) return undefined
+        if (plan) return plan
       }
       return undefined
     } finally {
