@@ -12,7 +12,7 @@
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { Rng } from '@openworld/engine'
-import { CHAR_OF, REGIONS, TERRAINS } from '@openworld-game/content'
+import { CHAR_OF, REGIONS, TERRAINS, TERRAIN_CHARS } from '@openworld-game/content'
 import { Namer, placeId, type Name } from './names.ts'
 
 export const CONTINENT_FILE = fileURLToPath(new URL('./continent.json', import.meta.url))
@@ -139,6 +139,28 @@ export function barrierAt(x: number, y: number): string | undefined {
   return undefined
 }
 
+/**
+ * The west bank as drawn by hand (release 1, docs/release-1.md): a narrow valley rather than a field of filler. Peaks
+ * close the north and west, snow above Cloudtop; a bay takes the south-west; what is left to walk between the
+ * hand-made places is a few cells each with a reason to be there — the high snow over Cloudtop, Dawn Hill's crag,
+ * Millbrook's fields, the wayside between the mill, the grassland and the dell, the Westwood behind the dell and the
+ * hollow, the river meadow below the barrow. A character a cell (the map format's), x from 0 and y from 0; the
+ * hand-made places' own cells are theirs (`fixed`), whatever is drawn under them.
+ */
+export const POCKET = [
+  '00000000',
+  '04444444',
+  '04444445',
+  '04444431',
+  '04444111',
+  '04441111',
+  '04442111',
+  '00442111',
+  '00002211',
+  '00000211',
+  '00000011',
+]
+
 // ---------------------------------------------------------------- the generator
 
 const SOLID = new Set(['ow_sea', 'ow_mountain', 'ow_river'])
@@ -227,7 +249,7 @@ export function generateContinent(seed: number, fixed: Map<string, string>, east
       const r = region[i]
       let g = 'ow_plain'
       if (r === 'frostfang') {
-        if (inPocket(x, y)) g = y <= 2 ? 'ow_snow' : m > 0.6 ? 'ow_forest' : e > 0.7 ? 'ow_hills' : 'ow_plain'
+        if (inPocket(x, y)) g = TERRAIN_CHARS[POCKET[y][x]]
         else if (e > 0.86) g = 'ow_mountain'
         else if (y <= 3 + Math.round((fbm(x, y, salt + 3) - 0.5) * 4)) g = 'ow_snow'
         else g = e > 0.68 ? 'ow_hills' : m > 0.58 ? 'ow_forest' : 'ow_plain'

@@ -20,7 +20,7 @@ export const rowan: PersonDef = {
   purse: 40,
   schedules: {
     default: [
-      [21, 7, 'meadow:elder.home', 'sleep'],
+      [21, 7, 'meadow.elder:bed.0', 'sleep'],
       [7, 21, 'meadow:elder.porch', 'keep watch over the square'],
     ],
   },

@@ -9,7 +9,7 @@ export function migrateTents(game: Game, chunks: MapChunk[]): void {
     for (const t of c.entities) {
       if (t.type !== 'fixture/tent' || typeof t.props?.interior !== 'string' || t.place.on !== 'tile') continue
       const { x, y } = t.place
-      const saved = Object.values(w.state.entities).find((e) => e.type === 'fixture/tent' && e.place.on === 'tile' && e.place.map === c.map.id && e.place.x === x && e.place.y === y)
+      const saved = Object.values(w.state.entities).find((e) => e.type.startsWith('fixture/tent') && e.place.on === 'tile' && e.place.map === c.map.id && e.place.x === x && e.place.y === y)
       if (!saved || saved.props?.interior) continue
       for (const k of ['interior', 'interiorX', 'interiorY']) w.setProp(saved, k, t.props[k])
     }

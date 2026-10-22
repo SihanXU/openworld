@@ -24,7 +24,7 @@ export const fennick: PersonDef = {
   trade: { level: 2, stock: [['item/armor/helmet', 1], ['item/armor/shield', 1], ['item/clothing/boots', 1], ['item/weapon/polearm/spear', 1]] },
   schedules: {
     default: [
-      [22, 7, 'meadow:guard.home', 'sleep'],
+      [22, 7, 'meadow.guards:bed.1', 'sleep'],
       [7, 22, 'meadow:fennick.bench', 'mend harness on the bench'],
     ],
   },

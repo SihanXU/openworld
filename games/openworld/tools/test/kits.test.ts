@@ -16,10 +16,11 @@ function arena() {
   for (const c of chunks) g.loadChunk(decodeChunk(c))
   g.mods.provider = { resolve: () => new Promise<null>(() => {}) }
   const eng = g.engine, w = eng.world, p = w.player
-  const map = w.posOf(p)!.map
+  // the grassland: open, level, grass (not the start's snow under Cloudtop's crags, docs/release-1.md)
+  const map = 'pasture'
   // a row of eight cells open to walk (and the rows beside it), nothing standing on it
   const m = w.map(map)!
-  const open = (x: number, y: number) => w.passable(map, x, y) && w.entitiesAt(map, x, y).every((e) => w.isTerrain(e))
+  const open = (x: number, y: number) => w.passable(map, x, y) && w.heightAt(map, x, y) === 0 && w.entitiesAt(map, x, y).every((e) => w.isTerrain(e))
   let row: { x: number; y: number } | undefined
   for (let y = 2; y < m.height - 2 && !row; y++)
     for (let x = 2; x < m.width - 9 && !row; x++)

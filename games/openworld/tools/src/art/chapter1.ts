@@ -71,16 +71,15 @@ const man = chalk((r) => {
 })
 writeAtlas('Fixtures/Chalk.png', [[stone, door, bridge, man]], PAL)
 
-// a hedge of thorns: stems, hooked spines, a few dark leaves
+// a bramble of thorns: a dark tangle, its canes arching over it, spines out of its edge, a few leaves and hips (stems
+// a pixel apart would be all outline — a dark block, which it was until 2026-10-21: docs/release-1.md)
 const briar = new Raster(16, 16)
-for (const [x0, lean] of [[3, -1], [7, 0], [11, 1], [14, 0], [5, 1], [9, -1]] as const)
-  for (let y = 15; y > 3 + (x0 % 3); y--) {
-    const x = Math.round(x0 + lean * (15 - y) * 0.15)
-    briar.set(x, y, y % 4 === 0 ? 'T1' : 'T2')
-    if (y % 3 === 0) briar.set(x + (y % 2 ? 1 : -1), y - 1, 'T2')
-  }
-for (const [x, y] of [[4, 9], [10, 7], [13, 11], [6, 12]] as const) briar.set(x, y, 'G')
-briar.set(8, 5, 'R')
+briar.ellipse(8, 11, 6.5, 4, 'T2')
+for (const [x0, y0, x1, y1] of [[2, 13, 7, 6], [7, 6, 13, 12], [4, 14, 10, 8], [10, 8, 14, 14], [5, 10, 11, 11]] as const) briar.line(x0, y0, x1, y1, 'T1')
+// spines out of its edge, outlined each, so they show
+for (const [x, y] of [[1, 9], [3, 6], [6, 5], [9, 5], [12, 6], [14, 8], [15, 11], [1, 12]] as const) briar.set(x, y, 'T1')
+for (const [x, y] of [[4, 9], [11, 9], [8, 13], [13, 12]] as const) briar.set(x, y, 'G')
+for (const [x, y] of [[6, 8], [10, 11]] as const) briar.set(x, y, 'R')
 briar.outline('k')
 writeAtlas('Fixtures/Briar.png', [[briar]], PAL)
 

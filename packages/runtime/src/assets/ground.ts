@@ -172,7 +172,7 @@ export class GroundAtlas {
     const src = this.images[img]
     const x = (i % this.cols) * T
     const y = Math.floor(i / this.cols) * T
-    if (under && this.images[under[0]]) this.g.drawImage(this.images[under[0]], under[1] * T, under[2] * T, T, T, x, y, T, T)
+    // the tile, tinted (only its own pixels), then what lies under it drawn behind
     if (src) this.g.drawImage(src, col * T, row * T, T, T, x, y, T, T)
     if (tint) {
       this.g.save()
@@ -181,27 +181,36 @@ export class GroundAtlas {
       this.g.fillRect(x, y, T, T)
       this.g.restore()
     }
+    if (under && this.images[under[0]]) {
+      this.g.save()
+      this.g.globalCompositeOperation = 'destination-over'
+      this.g.drawImage(this.images[under[0]], under[1] * T, under[2] * T, T, T, x, y, T, T)
+      this.g.restore()
+    }
     this.index.set(key, i)
     return i
   }
 }
 
 /**
- * Terrains drawn with another terrain's tiles (ice = frozen-looking water) — the overworld's grounds as the
+ * Terrains drawn with another terrain's tiles (ice = the snow's sheet over water) — the overworld's grounds as the
  * local ones they stand for, unless the catalogue draws them itself (a world map of its own: `ow_*` with tiles of their own).
  */
-const ALIAS: Record<string, string> = { ice: 'water', spring: 'grass', dirt: 'path', ow_sea: 'deepwater', ow_river: 'water', ow_road: 'path', ow_plain: 'grass', ow_forest: 'grass', ow_hills: 'drygrass', ow_mountain: 'grass', ow_snow: 'snow' }
+// ice is drawn as the snow's sheet, its soft edges over open water (UNDER), icy blue: it joins the rime on the bank,
+// and open water draws no shore against it (groundTile)
+const ALIAS: Record<string, string> = { ice: 'snow', spring: 'grass', dirt: 'path', ow_sea: 'deepwater', ow_river: 'water', ow_road: 'path', ow_plain: 'grass', ow_forest: 'grass', ow_hills: 'drygrass', ow_mountain: 'grass', ow_snow: 'snow' }
 /** Tints composited over a terrain's tiles. */
+// (dry grass is not tinted: a tinted ground tile is a hard square, and its tall clumps are tinted gold already — scene.ts)
 const TINT: Record<string, string> = {
-  drygrass: 'rgba(214,190,90,0.30)',
   ash: 'rgba(45,40,38,0.62)',
   charred_tree: 'rgba(40,34,30,0.45)',
   burnt_wall: 'rgba(30,24,20,0.6)',
-  ice: 'rgba(225,245,255,0.72)',
+  ice: 'rgba(150,205,240,0.45)',
 }
 /** Tiles with transparent parts are drawn over a full tile of this terrain. */
 const UNDER: Record<string, string> = {
   bridge: 'water',
+  ice: 'water',
   door: 'floor_wood',
   stairs_down: 'cave_floor',
   stairs_up: 'cave_floor',
@@ -229,6 +238,44 @@ function fullTile(atlasTiles: (img: string, c: number, r: number) => void, catal
   return p ? [p[0], p[1], p[2]] : undefined
 }
 
+/** What the snow lies up against without a drift's rim: a hut's walls, a cliff, a floor with its own edge. */
+const SNOW_BANKS = new Set(['wall', 'woodwall', 'burnt_wall', 'cave_wall', 'floor_wood', 'floor_stone', 'cobble', 'carpet'])
+
+/** Open ground that is not snow: what a snowfield gives way to (a floor, a road and what stands are neither). */
+const BARE = new Set(['grass', 'drygrass', 'flowers', 'dirt', 'sand', 'mud', 'gravel', 'ash', 'farmland'])
+
+/**
+ * Of the nearest ring round (x, y) that holds snow or bare ground (out to `reach`, the cells `skip` says passed over),
+ * is most of it snow?
+ */
+function snowRing(terrainAt: (x: number, y: number) => string, x: number, y: number, reach: number, skip: (n: string, x: number, y: number) => boolean): boolean {
+  for (let r = 1; r <= reach; r++) {
+    let snow = 0
+    let bare = 0
+    for (let dy = -r; dy <= r; dy++)
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+        const n = terrainAt(x + dx, y + dy)
+        if (skip(n, x + dx, y + dy)) continue
+        if (n === 'snow') snow++
+        else if (BARE.has(n)) bare++
+      }
+    if (snow || bare) return snow > bare
+  }
+  return false
+}
+
+/**
+ * Is a way (a path or dirt) trodden through snow: is most of the open ground round it (not the way itself) snow? Then
+ * it is drawn in the snow's own set (catalog `path_snow`: trodden snow, a grey rim on the snow), not as a dirt road
+ * with a grass verge, and the snow runs on under it.
+ */
+function inSnow(catalog: Catalog, terrainAt: (x: number, y: number) => string, x: number, y: number): boolean {
+  if (!catalog.blobs.path_snow) return false
+  const way = groupOf(catalog, 'path')
+  return snowRing(terrainAt, x, y, 3, (n) => groupOf(catalog, n) === way)
+}
+
 /** Resolve the atlas tile index for a cell. `terrainAt` returns the terrain at map coords. */
 export function groundTile(atlas: GroundAtlas, catalog: Catalog, terrainAt: (x: number, y: number) => string, x: number, y: number, shoreless = false): number {
   const t = terrainAt(x, y)
@@ -238,11 +285,21 @@ export function groundTile(atlas: GroundAtlas, catalog: Catalog, terrainAt: (x: 
   const below = UNDER[t] ?? UNDER[key]
   const under = below ? fullTile(() => {}, catalog, below) : undefined
   const h = hash2(x, y)
-  const b = catalog.blobs[key]
+  const way = groupOf(catalog, 'path')
+  // a way trodden through snow: the snow's own path, its edges by the way's own cells as ever
+  const b = key === 'path' && inSnow(catalog, terrainAt, x, y) ? catalog.blobs.path_snow : catalog.blobs[key]
   if (b) {
     const g = groupOf(catalog, t)
     // underground pools have no grassy shore: draw water as the full inner tile
-    const sig = shoreless && g === groupOf(catalog, 'water') ? 255 : wantSig((dx, dy) => groupOf(catalog, terrainAt(x + dx, y + dy)) === g)
+    // (water meets ice as more of itself: the river under it, no shore)
+    const water = g === groupOf(catalog, 'water')
+    // snow runs on under a way trodden through it and up against a wall standing in it: no drift's rim there
+    const snow = t === 'snow'
+    // a block whose edges show grass (sand, mud: `edgeOn`) has an edge only against grass; beside water or a road it runs on
+    const apart = (n: string) => !b.edgeOn || b.edgeOn.includes(n)
+    const joins = (n: string, nx: number, ny: number) =>
+      groupOf(catalog, n) === g || (water && n === 'ice') || !apart(n) || (snow && (SNOW_BANKS.has(n) || (groupOf(catalog, n) === way && inSnow(catalog, terrainAt, nx, ny))))
+    const sig = shoreless && water ? 255 : wantSig((dx, dy) => joins(terrainAt(x + dx, y + dy), x + dx, y + dy))
     const [dc, dr] = BLOB47[sig] ?? nearestBlob(sig)
     return atlas.tile(b.img, b.col + dc, b.row + dr, tint, under)
   }
@@ -265,4 +322,132 @@ function nearestBlob(sig: number): [number, number] {
     if (d < bestD) (bestD = d), (best = off)
   }
   return best
+}
+
+/** What stands, rather than lies: a cell of these is never the ground drawn under a building. */
+const STANDING = new Set(['wall', 'woodwall', 'door', 'roof', 'tree', 'pine', 'bush', 'rock', 'cave_wall', 'burnt_wall', 'charred_tree', 'void', 'stump'])
+
+/**
+ * The ground under a map's buildings and fences (its prefab stamps): a stamp's solid cells are wall terrain, so the
+ * map knows they block, but they are drawn as the ground round them — grass, cobble, sand — never as a wall tile
+ * showing through wherever the building's picture is open (a roof's rounded corners, between a fence's rails). Returns
+ * a terrain reader for the ground layer: the ground beneath a stamped cell, else the terrain itself. A stamp drawn as
+ * ground (the spring) keeps its own.
+ */
+export function groundBeneath(catalog: Catalog, stamps: { key: string; x: number; y: number }[] | undefined, terrainAt: (x: number, y: number) => string): (x: number, y: number) => string {
+  const covered = new Set<string>()
+  for (const s of stamps ?? []) {
+    const p = catalog.prefabs[s.key]
+    if (!p || p.ground) continue
+    p.grid.forEach((row, j) => [...row].forEach((c, i) => (c === '#' || c === 'D') && covered.add(`${s.x + i},${s.y + j}`)))
+  }
+  // what stands in the snow (a pine, a rock) stands in snow, not on a square of grass: its own ground is drawn as grass
+  // (catalog plain), so where the open ground round it is mostly snow the snow is drawn under it (read live: a pine felled
+  // or a rock broken changes it)
+  const way = groupOf(catalog, 'path')
+  const passed = (n: string, x: number, y: number) => covered.has(`${x},${y}`) || groupOf(catalog, n) === way
+  const ground = (x: number, y: number): string => {
+    const t = terrainAt(x, y)
+    return OBJECTS.has(t) && snowRing(terrainAt, x, y, 4, passed) ? 'snow' : t
+  }
+  if (!covered.size) return ground
+  const beneath = new Map<string, string>()
+  const under = (x: number, y: number): string => {
+    const k = `${x},${y}`
+    const known = beneath.get(k)
+    if (known) return known
+    // the nearest ring of open ground round it, by what most of that ring is (grass where it ties)
+    let found = 'grass'
+    for (let r = 1; r <= 8; r++) {
+      const count = new Map<string, number>()
+      for (let dy = -r; dy <= r; dy++)
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || covered.has(`${x + dx},${y + dy}`)) continue
+          const t = terrainAt(x + dx, y + dy)
+          if (!STANDING.has(t)) count.set(t, (count.get(t) ?? 0) + 1)
+        }
+      if (!count.size) continue
+      found = [...count].sort((a, b) => b[1] - a[1] || (a[0] === 'grass' ? -1 : b[0] === 'grass' ? 1 : 0))[0][0]
+      break
+    }
+    beneath.set(k, found)
+    return found
+  }
+  return (x, y) => (covered.has(`${x},${y}`) ? under(x, y) : ground(x, y))
+}
+
+/** Terrains drawn as a thing standing on the ground (scene.ts placeObject): a tree, a pine, a bush, a rock, a stump. */
+const OBJECTS = new Set(['tree', 'pine', 'bush', 'rock', 'stump', 'charred_tree'])
+
+/**
+ * The look a terrain's standing thing takes from the ground it stands in: in snow, its winter one where the catalogue
+ * has it (`pine_snow`, `rock_snow`), else its own. Both renderers ask (scene.ts placeObject, the wiki's render-map).
+ */
+export function objectLook(catalog: Catalog, t: string, ground: string): string {
+  return ground === 'snow' && catalog.terrainObjects[`${t}_snow`]?.length ? `${t}_snow` : t
+}
+
+/** A piece of high ground's edge (Catalog.terrace): the sheet's tile (col, row), drawn on cell (x, y). */
+export interface TerracePiece {
+  x: number
+  y: number
+  col: number
+  row: number
+}
+
+/**
+ * The edges of a map's high ground (MapData.heights, in half levels), as pieces of the terrace sheet (Catalog.terrace,
+ * laid out as the pack's relief): a rim round each cell a level or more above a neighbour — its top where the ground
+ * drops north, its sides where it drops west or east, a notch where it turns in — and the rock face where it drops
+ * south, drawn on the lower ground below it, a cell a level (so one standing at its foot stands before it and one on
+ * the edge above stands on its rim): one level the plateau's face, its left end, middle or right end as the face runs
+ * on; more, the tall face. A ramp (an odd height between) cuts the face, its ends drawn either side.
+ */
+export function terracePieces(w: number, h: number, heights: number[]): TerracePiece[] {
+  const at = (x: number, y: number) => (x < 0 || y < 0 || x >= w || y >= h ? undefined : heights[y * w + x] ?? 0)
+  /** The neighbour (dx, dy) of (x, y) is a level or more below it (off the map: never). */
+  const low = (x: number, y: number, dx: number, dy: number) => {
+    const a = at(x, y)
+    const b = at(x + dx, y + dy)
+    return a !== undefined && b !== undefined && a - b >= 2
+  }
+  const out: TerracePiece[] = []
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const n = low(x, y, 0, -1)
+      const wl = low(x, y, -1, 0)
+      const e = low(x, y, 1, 0)
+      const s = low(x, y, 0, 1)
+      // the rim on the high cell itself
+      const col = wl && e ? 0 : wl ? 1 : e ? 3 : n ? 2 : -1
+      if (col >= 0) out.push({ x, y, col, row: n ? 0 : 1 })
+      // the inner corners' notches: the edge turns in at a corner of this cell
+      if (!n && !wl && low(x, y, -1, -1)) out.push({ x, y, col: 0, row: 3 })
+      if (!n && !e && low(x, y, 1, -1)) out.push({ x, y, col: 1, row: 3 })
+      if (!s && !wl && low(x, y, -1, 1)) out.push({ x, y, col: 0, row: 4 })
+      if (!s && !e && low(x, y, 1, 1)) out.push({ x, y, col: 1, row: 4 })
+      if (!s) continue
+      // the face below it: does it run on west and east (the cells beside drop south as far)?
+      const levels = Math.floor((at(x, y)! - at(x, y + 1)!) / 2)
+      const runs = (dx: number) => low(x + dx, y, 0, 1) && !low(x, y, dx, 0)
+      const cw = runs(-1)
+      const ce = runs(1)
+      if (levels === 1) out.push({ x, y: y + 1, col: !cw && !ce ? 0 : !cw ? 1 : !ce ? 3 : 2, row: 2 })
+      else {
+        const c = !cw ? 4 : !ce ? 6 : 5
+        for (let k = 0; k < levels && y + 1 + k < h; k++) out.push({ x, y: y + 1 + k, col: c, row: k === 0 ? 0 : k === levels - 1 ? 2 : 1 })
+      }
+    }
+  return out
+}
+
+/**
+ * Is a cell a step of a stair (MapData.heights, half levels): a ramp's odd height, or a level's height inside a flight
+ * that climbs on through it — half a level up to the north and half down to the south (a face two levels tall is
+ * climbed by three steps, the middle one even). Its steps are drawn across it (scene.ts drawHeights, render-map.ts).
+ */
+export function stairAt(w: number, h: number, heights: number[], x: number, y: number): boolean {
+  const at = (x: number, y: number) => (x < 0 || y < 0 || x >= w || y >= h ? undefined : heights[y * w + x] ?? 0)
+  const here = at(x, y) ?? 0
+  return here % 2 === 1 || (at(x, y - 1) === here + 1 && at(x, y + 1) === here - 1)
 }

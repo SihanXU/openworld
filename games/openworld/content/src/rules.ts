@@ -13,7 +13,7 @@ import { DROP_RULES } from './drops.ts'
 import { AFFLICTION_RULES } from './afflictions.ts'
 import { BOSS_KIT_RULES } from './bosses.ts'
 import { CH1 } from './chapter1.ts'
-import { UNTOLD } from './regions.ts'
+import { PART_TWO, UNTOLD } from './regions.ts'
 import { VILLAGE_SHOP_RULES } from './village.ts'
 import { PERSON_NEWS, SOCIAL_RULES } from './social.ts'
 import { FAITH_RULES } from './faith.ts'
@@ -1822,10 +1822,12 @@ const BUILDING: Rule[] = [
 
 /**
  * The ways the story opens on the world map: a place whose `opensWhen` is the fact is sealed until the story
- * sets it (as a portal's `opensWhen`), and says why. Beyond the White Knight on the East Road: Emberfall and
- * all east of it.
+ * sets it (as a portal's `opensWhen`), and says why. East of the Ford: Part Two's (release 1 ends at the river);
+ * beyond the White Knight on the East Road: Emberfall and all east of it.
  */
 export const SITE_GATES: { fact: string; say: { en: string; zh: string } }[] = [
+  // release 1 is Part One (regions.ts PART_TWO): the road east of the Ford and all beyond it, until the story's second part
+  { fact: PART_TWO, say: L('The road east of the Ford is not open yet: its tale is told in Part Two.', '渡口以东的路还没有开放：那里的故事在第二部。') },
   { fact: CH1.knight, say: L('The White Knight still holds the East Road. There is no way past him yet.', '白骑士还守在东大路上，暂时过不去。') },
   // a place whose tale is not told yet (regions.ts UNTOLD): a Seal-bearer's seat beyond the first, the Most Holy Hall
   { fact: UNTOLD, say: L('The way in is shut. Its tale is not yet told.', '入口紧闭。此地的故事尚未开放。') },

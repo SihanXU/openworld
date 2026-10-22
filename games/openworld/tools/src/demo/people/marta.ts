@@ -18,7 +18,7 @@ export const marta: PersonDef = {
   purse: 30,
   schedules: {
     default: [
-      [22, 6, 'meadow:cook.home', 'sleep'],
+      [22, 6, 'meadow.cook:bed.0', 'sleep'],
       [6, 22, 'meadow:cook.fire', 'mind the pot'],
     ],
   },
