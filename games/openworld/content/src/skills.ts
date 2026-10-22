@@ -235,7 +235,7 @@ SKILLS.push(...ACTIVE_SKILLS, ...PROFESSION_DEEPER, ...LIFE_SKILLS)
 
 /** A skill book that teaches one active skill (read: used on oneself), named for it: for loot, shops and quests to hand out. */
 export const skillBook = (id: string): Omit<Entity, 'id' | 'place'> => {
-  const def = ACTIVE_SKILLS.find((s) => s.id === id)!
+  const def = SKILLS.find((s) => s.id === id && s.active)!
   const n = typeof def.name === 'string' ? { en: def.name, zh: def.name } : def.name
   return { type: 'item/document/skillbook', name: { en: `Skill Book: ${n.en}`, zh: `技能书·${n.zh ?? n.en}` }, props: { teaches: id } }
 }

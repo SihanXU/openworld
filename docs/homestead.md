@@ -130,7 +130,17 @@ far the land goes and what was carried.
 - **Buildings** (`haven.build.<id>`): a plot staked out at the heart for each (`fixture/build/plot/<id>`) looks
   every few seconds whether it is built (`haven/plot-<id>`) and becomes it: the workshop (a workbench), the
   kitchen hearth (a campfire, lit), the storehouse (`fixture/container/storehouse`, forty places, open), the
-  weaving shed (a loom), the apothecary (a cauldron), and three residents' tents (2026-10-12).
+  weaving shed (a loom), the apothecary (a cauldron), and three residents' tents (2026-10-12). A building
+  **unlocks recipes** (2026-10-21, `HavenUpgrade.recipes` → `Recipe.unlockedBy`, the fact it sets): the
+  workshop the club, the shield and the bow (and an Apiarist's bee box), the weaving shed cloth and a
+  Leatherworker's gear; unlocked, they are made anywhere from the bag — no workbench or loom is stood beside
+  (world-model.md §6.4). A building has **levels** (the same fact at 2, 3…; `HavenUpgrade.value`, each after the one
+  before): Workshop II (candles, lanterns, a Forge Builder's forge, an Apiarist's bee box); the smithy's two upgrades,
+  which stake no plot — a bellows (`haven.build.smithy` 1: a skilled smith's heavy arms, plate, tools and jewellery at
+  any anvil) and a hardened anvil (2: the professions' sets); and the **arcane workshop** (`haven.build.arcane`, a plot
+  east-south of the sword that becomes `fixture/craft/arcane`, a station opened by a hand: content `arcane.ts` — wands,
+  staves (a mage's), healing and fireproof draughts, spell books of the mage's spells; raised again, staves of fire and
+  frost and the deeper spells' books).
 - **The residents** (content `social.ts` `SOCIAL.residence`; the society module's `moveIn`): one held in full
   regard who is not bound to the main story (tag `storybound`) may be asked, once Alberic has fallen, to come
   and live in the Held Ground. A bed by the camp is there from the first (`home.camp`); each residents' tent

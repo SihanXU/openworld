@@ -502,16 +502,21 @@ const fixtureTypes: TypeDef[] = [
   // the village's board of favours (docs/quests.md §3): what people want done, to take on
   F('fixture/sign/questboard', 'commission board', '委托板', ['paper']),
   F('fixture/craft', 'workstation', '工作台', [], { solid: true }),
-  // the smith's stations (content life.ts): ore smelted at a forge, ingots worked on an anvil; a smith who has learned to
-  // build them (Forge Builder) can raise the portable kind at home
+  // the smith's stations (content life.ts): ore smelted at a forge, ingots worked on an anvil — each opened by a hand on it
+  // (its panel: `station/<x>` rules), nothing made beside it; a smith who has learned to build them (Forge Builder) can
+  // raise the portable kind at home
   F('fixture/craft/anvil', 'anvil', '铁砧', ['metal', 'conductive', 'surface', 'station:anvil']),
   F('fixture/craft/anvil/smith', 'smith\'s anvil', '铁匠砧', ['portable'], { sprite: 'fixture:anvil' }),
   F('fixture/craft/forge', 'forge', '熔炉', ['stone', 'lightable', 'cookware', 'station:forge']),
   F('fixture/craft/forge/smith', 'smith\'s forge', '铁匠炉', ['portable'], { sprite: 'fixture:forge' }),
   F('fixture/craft/cauldron', 'cauldron', '坩埚', ['metal', 'conductive', 'lightable', 'cookware']),
   F('fixture/craft/loom', 'loom', '织布机', ['wooden', 'flammable', 'station:loom']),
-  // a station (world-model.md §6.4): what is made at a workbench is made beside one
-  // made by hand from planks, carried, and set down where one works (as a bed is)
+  // the arcane workbench (the Held Ground's arcane workshop, haven.ts): wands, staves, draughts and spell books are made at
+  // it (life.ts ARCANE_RECIPES), opened by a hand on it
+  F('fixture/craft/arcane', 'arcane workbench', '魔法工作台', ['wooden', 'flammable', 'surface', 'arcane', 'station:arcane'], { sprite: 'fixture:altar' }),
+  // a bench (world-model.md §6.4): made by hand from planks, carried, and set down where one works (as a bed is). The
+  // game's own recipes are no longer its (a club, a shield, a bow are made anywhere once the Held Ground's workshop
+  // stands); it stays a station for what the world learns to make at one (a hand on it opens its panel)
   F('fixture/craft/workbench', 'workbench', '工作台', ['wooden', 'flammable', 'surface', 'station:workbench', 'portable'], { makeup: [{ type: 'item/material/plank', count: 4 }], station: 'hands' }),
   F('fixture/sacred', 'sacred place', '圣所', ['stone'], { solid: true }),
   F('fixture/sacred/altar', 'altar', '祭坛', ['holy', 'surface']),
@@ -587,7 +592,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/build/ring', 'stone ring', '石圈', ['stone']),
   // a plot staked out at the Held Ground's heart for a building the steward will build there (haven.ts HAVEN_UPGRADES)
   F('fixture/build/plot', 'staked plot', '地基', ['wooden', 'flammable'], { solid: false, sprite: 'fixture:stakes' }),
-  ...([['workshop', 'workshop', '工坊'], ['kitchen', 'kitchen hearth', '厨房灶台'], ['storehouse', 'storehouse', '储物棚'], ['loom', 'weaving shed', '织坊'], ['apothecary', 'apothecary', '药房'], ['lodge1', "residents' tent", '居民营帐'], ['lodge2', "second residents' tent", '第二座居民营帐'], ['lodge3', "third residents' tent", '第三座居民营帐']] as const).map(([id, en, zh]) => F(`fixture/build/plot/${id}`, `plot for a ${en}`, `${zh}地基`, [])),
+  ...([['workshop', 'workshop', '工坊'], ['kitchen', 'kitchen hearth', '厨房灶台'], ['storehouse', 'storehouse', '储物棚'], ['loom', 'weaving shed', '织坊'], ['apothecary', 'apothecary', '药房'], ['arcane', 'arcane workshop', '魔法工坊'], ['lodge1', "residents' tent", '居民营帐'], ['lodge2', "second residents' tent", '第二座居民营帐'], ['lodge3', "third residents' tent", '第三座居民营帐']] as const).map(([id, en, zh]) => F(`fixture/build/plot/${id}`, `plot for a ${en}`, `${zh}地基`, [])),
   // a training dummy: knocked down it stands up again (train/dummy), for practising blows (the tutorial's)
   F('fixture/dummy', 'training dummy', '训练假人', ['wooden', 'flammable', 'straw'], { solid: true, props: { material: 'wood', maxHp: 12, hp: 12 } }),
   F('fixture/scarecrow', 'scarecrow', '稻草人', ['straw', 'cloth', 'wooden', 'flammable'], { solid: true }),

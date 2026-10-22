@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { LOOSE, OntologyIndex, RuleLibrary, buildSandbox, performPlacement, type Effect, type Rule, type Tree } from '@openworld/engine'
-import { BASE_RULES, BUILDINGS, RECIPES, RECOVERY, STORY_RULES, TERRAINS, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@openworld-game/content'
+import { BASE_RULES, BUILDINGS, HAVEN_UPGRADES, RECIPES, RECOVERY, STORY_RULES, TERRAINS, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@openworld-game/content'
 import { economySteps, freeLunch, prices } from '@openworld/modder'
 import { buildFord } from '../src/demo/world.ts'
 
@@ -136,6 +136,8 @@ describe('the economy (world-model.md §10.2)', () => {
       for (const a of [...(c.map.appear ?? []), ...(onto.appear ?? [])]) for (const t of Object.keys(a.types)) (t.startsWith('item/') ? have : present).add(t)
     }
     for (const n of world.npcs) for (const it of (n as { _items?: { type: string }[] })._items ?? []) have.add(it.type)
+    // what the Held Ground's plots become once the steward builds them (haven.ts, a story rule): the arcane workbench among them
+    for (const u of HAVEN_UPGRADES) if (u.becomes) present.add(u.becomes)
     const stations = new Set([...present].flatMap((t) => index.resolve(t).tags.filter((x) => x.startsWith('station:')).map((x) => x.slice(8))))
     stations.add('hands')
     // what breaks gives its makeup; what a rule on a present thing spawns, it gives

@@ -1098,22 +1098,26 @@ export class Controls {
     const p = this.w.player
     const carried = [p.held, ...(p.contents ?? [])].map((id) => this.w.get(id)).filter((e): e is Entity => !!e && !e.frozenBy)
     if (r.skill && !this.w.hasTag(p, `skill:${r.skill}`)) return false
+    if (r.unlockedBy && (!this.w.story || this.w.num(this.w.story, r.unlockedBy.fact, 0) < (r.unlockedBy.level ?? 1))) return false
     return r.needs.every((n) => this.count(n.type) >= n.count) && (r.tools ?? []).every((tag) => carried.some((e) => this.w.hasTag(e, tag)))
   }
 
-  /** The crafting panel: an act of crafting (the recipe's needs are used up, what it makes goes into the bag). */
-  craft(r: Recipe): boolean {
+  /**
+   * The crafting panel: an act of crafting (the recipe's needs are used up, what it makes goes into the bag). A station's
+   * recipe names the station it is made at (`at`: the one whose panel is open), which the outcome holds within reach.
+   */
+  craft(r: Recipe, at?: Id): boolean {
     // the crafting panel (C): a lesson at hand may let it make only what it teaches
-    return this.allows('craft', { type: r.make.type }) && this.makeOne(r)
+    return this.allows('craft', { type: r.make.type }) && this.makeOne(r, at)
   }
 
   /** Make it from what is carried (the panel's, and the palette's when none is carried). */
-  private makeOne(r: Recipe): boolean {
+  private makeOne(r: Recipe, at?: Id): boolean {
     const p = this.w.player
     if (this.eng.busy(p) || !this.canCraft(r)) return false
     this.stow()
     this.eng.recipes.set(r.id, r)
-    this.eng.act('craft', p.id, { e: p.id }, { instrument: null, params: { recipe: r.id } })
+    this.eng.act('craft', p.id, { e: p.id }, { instrument: null, params: { recipe: r.id, ...(at && { at }) } })
     if (!this.crafting) this.sync()
     return true
   }
@@ -1212,11 +1216,11 @@ export class Controls {
   }
 
   /** Make it again and again while what it needs is carried (the crafting panel's "all"): how many times. */
-  craftAll(r: Recipe, most = 99): number {
+  craftAll(r: Recipe, most = 99, at?: Id): number {
     let n = 0
     this.crafting = true
     try {
-      while (n < most && this.craft(r)) n++
+      while (n < most && this.craft(r, at)) n++
     } finally {
       this.crafting = false
       if (n) this.sync()

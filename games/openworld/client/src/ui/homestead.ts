@@ -20,6 +20,7 @@ import { useStyle } from './style.ts'
 
 type Upgrade = (typeof HAVEN_UPGRADES)[number]
 type Track = Upgrade['track']
+const num = (v: unknown) => (typeof v === 'number' ? v : Number(v) || 0)
 
 /** The panel's title, and the story's facts it reads: how far the land goes, and the stock's (`<STOCK><type>`). */
 const TITLE = { en: 'The Held Ground', zh: '誓守之地 · 领地经营' }
@@ -88,7 +89,7 @@ class HomesteadPanel implements GamePanel {
           <div class="hs-need-mid"><span class="hs-need-name">${esc(tx(n.text))}${live && !full ? `<small>${zh ? '身上' : 'carried'} ${have}</small>` : ''}</span><span class="hs-bar"><i style="width:${pct}%"></i></span></div>
           <b title="${zh ? '库存 / 所需' : 'in stock / needed'}">${n.stock}/${n.count}</b></div>`
       }).join('')
-      const req = r.state === 'locked' ? `<span class="hs-req">${r.u.track === 'land' ? (zh ? '先完成上一级' : 'The one before first') : zh ? `需要土地 ${ROMAN[r.u.land - 1] ?? r.u.land} 级` : `Needs land ${r.u.land}`}</span>` : ''
+      const req = r.state === 'locked' ? `<span class="hs-req">${r.u.value > 1 && num(f.facts[r.u.fact]) < r.u.value - 1 ? (zh ? '先完成上一级' : 'The one before first') : zh ? `需要土地 ${ROMAN[r.u.land - 1] ?? r.u.land} 级` : `Needs land ${r.u.land}`}</span>` : ''
       const act = r.buildable
         ? `<button class="hs-btn go" data-build="${esc(r.u.id)}">${verb[r.u.track]}</button>`
         : live
