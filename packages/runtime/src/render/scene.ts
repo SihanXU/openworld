@@ -9,7 +9,9 @@ import { hexRgb, installWorldFilter, signalCamera } from './worldfilter.ts'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
 import { faceFrame, personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
-import { GroundAtlas, T, groundTile, hash2 } from '../assets/ground.ts'
+import { GroundAtlas, T, groundBeneath, groundTile, hash2, objectLook, stairAt, terracePieces } from '../assets/ground.ts'
+/** What a room's frame is drawn over: its walls (a door or a doorway through them is left open). */
+const ROOM_WALL = new Set(['wall', 'woodwall', 'void'])
 import { depthOf, footOf } from './depth.ts'
 import { prefs } from '../ui/common.ts'
 
@@ -264,6 +266,9 @@ export class WorldScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- map
 
+  /** The terrain the ground layer draws: the map's, under a building or a fence the ground round it (set as a map loads). */
+  private groundAt = (x: number, y: number): string => this.terrainAt(x, y)
+
   private terrainAt = (x: number, y: number): string => {
     const m = this.base!
     if (x < 0 || y < 0 || x >= m.width || y >= m.height) {
@@ -339,10 +344,12 @@ export class WorldScene extends Phaser.Scene {
       if (!cells.length) for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) if (water(x, y)) cells.push([x, y, false])
       this.fishWater = cells
     }
+    // the ground layer reads the ground under buildings and fences as the ground round them (ground.ts groundBeneath)
+    this.groundAt = groundBeneath(catalog(), map.stamps, this.terrainAt)
     const data: number[][] = []
     for (let y = 0; y < map.height; y++) {
       const row: number[] = []
-      for (let x = 0; x < map.width; x++) row.push(groundTile(this.atlas, catalog(), this.terrainAt, x, y, this.base?.light === 'dark'))
+      for (let x = 0; x < map.width; x++) row.push(groundTile(this.atlas, catalog(), this.groundAt, x, y, this.base?.light === 'dark'))
       data.push(row)
     }
     this.refreshGround()
@@ -355,7 +362,8 @@ export class WorldScene extends Phaser.Scene {
       for (let x = 0; x < map.width; x++) {
         this.placeObject(x, y)
         const t = map.terrain[y * map.width + x]
-        if ((t === 'grass' || t === 'flowers') && hash2(x, y, 7) % 100 < (t === 'flowers' ? 70 : 9)) this.decal(x, y, t)
+        // (snow too: frost-bitten tufts, so a snowfield is not a blank sheet)
+        if ((t === 'grass' || t === 'flowers' || t === 'snow') && hash2(x, y, 7) % 100 < (t === 'flowers' ? 70 : 9)) this.decal(x, y, t)
         // a warm spring steams: a wisp over most of its cells, always rising
         if (t === 'spring' && hash2(x, y, 11) % 3 !== 0) {
           const s = this.overlaySprite('ovl:steam', x * T + 4 + (hash2(x, y, 12) % 8), (y + 1) * T - 2)
@@ -377,7 +385,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private decal(x: number, y: number, t: string): void {
-    const list = catalog().decals[t === 'flowers' ? 'flowers' : 'grass'] ?? catalog().decals.grass
+    const list = catalog().decals[t === 'flowers' || t === 'snow' ? t : 'grass'] ?? catalog().decals.grass
     if (!list?.length) return
     const d = list[hash2(x, y, 3) % list.length]
     const img = this.addSprite(`decal:${t}:${list.indexOf(d)}`, d, x, y)
@@ -396,12 +404,14 @@ export class WorldScene extends Phaser.Scene {
     this.objects.get(k)?.destroy()
     this.objects.delete(k)
     const t = this.terrainAt(x, y)
-    const list = catalog().terrainObjects[t]
+    // a pine or a rock in the snow takes its winter look (ground.ts objectLook)
+    const look = objectLook(catalog(), t, this.groundAt(x, y))
+    const list = catalog().terrainObjects[look]
     if (!list?.length) return
     // tall grass is a meadow, not a crop: a third of its tiles stay bare
     if (t === 'drygrass' && hash2(x, y, 13) % 100 < 35) return
     const i = hash2(x, y, 11) % list.length
-    const img = this.addSprite(`tobj:${t}:${i}`, list[i], x, y)
+    const img = this.addSprite(`tobj:${look}:${i}`, list[i], x, y)
     img.setDepth((y + 1) * T - 1)
     if (t === 'drygrass') img.setTint(0xe8cf7a)
     // loose growth (tall grass, flowers, bushes) sits a little off the grid, never in rows
@@ -453,7 +463,8 @@ export class WorldScene extends Phaser.Scene {
         const top = dy === 0
         const bottom = dy === h - 1
         if (!(left || right || top || bottom)) continue
-        if (this.terrainAt(x + dx, y + dy) === 'door') continue
+        // a door, or a doorway between two rooms of a house (its floor runs through the wall): no wall drawn there
+        if (!ROOM_WALL.has(this.terrainAt(x + dx, y + dy))) continue
         const sc = left ? 0 : right ? s - 1 : mid(dx, w)
         const sr = top ? 0 : bottom ? s - 1 : mid(dy, h)
         piece(sc, sr, dx, dy)
@@ -929,7 +940,7 @@ export class WorldScene extends Phaser.Scene {
       for (const k of redo) {
         const [x, y] = k.split(',').map(Number)
         if (x < 0 || y < 0 || x >= this.base!.width || y >= this.base!.height) continue
-        this.layer!.putTileAt(groundTile(this.atlas, catalog(), this.terrainAt, x, y, this.base?.light === 'dark'), x, y)
+        this.layer!.putTileAt(groundTile(this.atlas, catalog(), this.groundAt, x, y, this.base?.light === 'dark'), x, y)
       }
       this.refreshGround()
     }
@@ -968,22 +979,29 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * The ground's height (world-model.md §5.2): higher ground a little lighter, a cliff where it
-   * drops a level or more (a dark lip on every side, a rock face and its shadow below it), and a
-   * ramp's steps. Heights are half levels.
+   * The ground's height (world-model.md §5.2): higher ground a little lighter, its edges where it
+   * drops a level or more — the catalogue's terrace: a rim round it, a rock face below it on the
+   * lower ground (ground.ts terracePieces); with none, a dark lip and a short face —, and a ramp's
+   * steps. Heights are half levels. The wiki draws them alike (render-map.ts).
    */
   private drawHeights(map: MapData): void {
     const hs = map.heights
     if (!hs?.some((h) => h)) return
     const g = this.add.graphics().setDepth(-90)
     this.statics.push(g)
+    const terrace = catalog().terrace
     const at = (x: number, y: number) => (x < 0 || y < 0 || x >= map.width || y >= map.height ? undefined : hs[y * map.width + x] ?? 0)
     for (let y = 0; y < map.height; y++)
       for (let x = 0; x < map.width; x++) {
         const h = at(x, y)!
         if (h >= 2) g.fillStyle(0xffffff, Math.min(0.12, 0.03 * Math.floor(h / 2))).fillRect(x * T, y * T, T, T)
-        // a ramp: the steps across it
-        if (h % 2) for (let i = 3; i < T; i += 5) g.fillStyle(0x000000, 0.12).fillRect(x * T + 1, y * T + i, T - 2, 1)
+        // a stair: the steps across it, each lit on its tread and shadowed under its nose
+        if (stairAt(map.width, map.height, hs, x, y))
+          for (let i = 4; i < T; i += 5) {
+            g.fillStyle(0xfff2d8, 0.3).fillRect(x * T + 1, y * T + i - 1, T - 2, 1)
+            g.fillStyle(0x000000, 0.2).fillRect(x * T + 1, y * T + i, T - 2, 1)
+          }
+        if (terrace) continue
         const drop = (dx: number, dy: number) => h - (at(x + dx, y + dy) ?? h) >= 2
         g.fillStyle(0x2a2018, 0.55)
         if (drop(0, -1)) g.fillRect(x * T, y * T, T, 1)
@@ -997,6 +1015,14 @@ export class WorldScene extends Phaser.Scene {
           g.fillStyle(0xfff2d8, 0.35).fillRect(x * T, (y + 1) * T - 1, T, 1)
         }
       }
+    if (!terrace) return
+    // the terrace's rims and faces: over the ground and its specks, under all that stands
+    const tex = this.textures.get(terrace.img)
+    for (const p of terracePieces(map.width, map.height, hs)) {
+      const name = `terrace:${p.col},${p.row}`
+      if (!tex.has(name)) tex.add(name, 0, p.col * T, p.row * T, T, T)
+      this.statics.push(this.add.image(p.x * T, p.y * T, terrace.img, name).setOrigin(0, 0).setDepth(-45))
+    }
   }
 
   private overlaySprite(name: string, x: number, y: number): Phaser.GameObjects.Sprite | undefined {

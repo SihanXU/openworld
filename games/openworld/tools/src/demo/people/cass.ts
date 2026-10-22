@@ -19,7 +19,7 @@ export const cass: PersonDef = {
   trade: { stock: [['item/material/cloth', 4], ['item/clothing/cloak', 1], ['item/clothing/gloves', 1], ['item/clothing/hat', 1]] },
   schedules: {
     default: [
-      [21, 6, 'meadow:wood.home', 'sleep'],
+      [21, 6, 'meadow.woodhouse:bed.1', 'sleep'],
       [6, 9, 'meadow:square.well', 'fetch water'],
       [9, 17, 'meadow:cass.loom', 'weave'],
       [17, 21, 'meadow:square.warm', 'sit by the fire'],

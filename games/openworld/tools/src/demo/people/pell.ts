@@ -20,7 +20,7 @@ export const pell: PersonDef = {
   purse: 5,
   schedules: {
     default: [
-      [20, 7, 'meadow:cook.home', 'sleep'],
+      [20, 7, 'meadow.cook:bed.2', 'sleep'],
       [7, 20, 'meadow:pell.play', 'draw on the walls in chalk'],
     ],
   },

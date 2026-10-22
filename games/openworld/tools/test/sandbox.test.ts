@@ -11,6 +11,8 @@ import { buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()
 const MAP = 'meadow'
+/** Marta's house: her household's home (village.ts). */
+const HOME = 'meadow.cook'
 
 interface S {
   game: Game
@@ -87,15 +89,15 @@ describe('whose things are (docs/npc-sandbox.md §2.1)', () => {
     clear(s, [])
     const so = socialOf(s.eng)
     const marta = get(s, 'npc.marta')
-    // what a person carries is theirs; a household's doorstep makes what lies on it the household's
+    // what a person carries is theirs; a household's house makes what lies in it the household's (Marta's kitchen floor)
     const loaf = make(s, 'item/food/bread', { on: 'inside', holder: marta.id })
     expect(so.ownerOf(loaf)).toBe('npc.marta')
-    const step = make(s, 'item/food/bread', { on: 'tile', map: MAP, x: 9, y: 9 })
+    const step = make(s, 'item/food/bread', { on: 'tile', map: HOME, x: 8, y: 7 })
     expect(so.ownerOf(step)).toBe('household:cook')
     expect(so.relation(so.ownerOf(step), get(s, 'npc.mia'))).toBe('ours')
     // the F label says so
-    put(s, 'player', 9, 10, 'up')
-    const plan = s.eng.controls.plan('take', { x: 9, y: 9 })
+    put(s, 'player', 8, 8, 'up', HOME)
+    const plan = s.eng.controls.plan('take', { x: 8, y: 7 })
     expect(plan?.steal).toBe(true)
     expect(plan?.label).toEqual({ en: 'Steal Bread', zh: '偷走面包' })
     // taken by the traveller, it is still the household's (stolen: held by one who does not own it)
@@ -674,20 +676,18 @@ describe('talk, regard, trade, followers (§2.4, §2.9, §2.10)', () => {
 })
 
 describe('the night and the law of places (§2.6)', () => {
-  it('on a household\'s doorstep at night, one awake there warns you off, then calls the watch', () => {
+  it('in a household\'s house at night, one awake there warns you off, then calls the watch', () => {
     const s = fresh()
     clear(s, ['npc.marta'])
-    // Marta's doorstep (her household's); she is up until ten, by a fire's light (she sees who it is)
+    // Marta's kitchen (her household's house); she is up until ten, by her hearth's light (she sees who it is)
     author(s, () => (W(s).state.tick = tickAt(1, 21)))
-    make(s, 'fixture/light/campfire', { on: 'tile', map: MAP, x: 11, y: 10 })
-    author(s, () => W(s).setStatus({ e: W(s).entitiesAt(MAP, 11, 10).find((e) => e.type === 'fixture/light/campfire')!.id }, 'lit', -1))
-    put(s, 'npc.marta', 9, 10, 'up')
-    put(s, 'player', 9, 9, 'down')
+    put(s, 'npc.marta', 3, 8, 'up', HOME)
+    put(s, 'player', 3, 7, 'down', HOME)
     ticks(s, 12)
     expect(fxOf(s).some((f) => f.t === 'say' && f.who === 'npc.marta' && JSON.stringify(f.text).includes('at this hour'))).toBe(true)
     // she stays at her door (the test keeps her there), the stranger stays on it
     for (let i = 0; i < 30 && !bounty(s); i++) {
-      put(s, 'npc.marta', 9, 10, 'up')
+      put(s, 'npc.marta', 3, 8, 'up', HOME)
       ticks(s, 10)
     }
     expect(deeds(s, 'npc.marta').filter((d) => d.deed === 'trespass' && d.by === 'player')).toHaveLength(1)

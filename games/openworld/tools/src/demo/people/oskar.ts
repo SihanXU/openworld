@@ -23,7 +23,7 @@ export const oskar: PersonDef = {
       [0, 24, 'ossuary:cell.oskar', 'wait to be found'],
     ],
     'fact:rescue.oskar': [
-      [21, 7, 'meadow:oskar.home', 'sleep'],
+      [21, 7, 'meadow.guards:bed.2', 'sleep'],
       [7, 21, 'meadow:oskar.bench', 'mend baskets'],
     ],
   },

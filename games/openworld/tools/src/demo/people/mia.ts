@@ -18,7 +18,7 @@ export const mia: PersonDef = {
   purse: 5,
   schedules: {
     default: [
-      [20, 7, 'meadow:cook.home', 'sleep'],
+      [20, 7, 'meadow.cook:bed.1', 'sleep'],
       [7, 20, 'meadow:pond.edge', 'skip stones'],
     ],
   },

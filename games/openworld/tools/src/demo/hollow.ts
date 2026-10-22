@@ -4,7 +4,7 @@
 // Order of the Thorn (Oskar's cell, the Order's roll), and the Warden's Sanctum (the warden, Alberic's vow).
 // All are combat zones; the barrow's floors are dark.
 
-import type { AiData, AppearDef } from '@openworld/engine'
+import type { AiData, AppearDef, Entity } from '@openworld/engine'
 import { MapBuilder, rng } from './builder.ts'
 import { L, GROUND_YIELD, appears, lay } from './kit.ts'
 
@@ -20,7 +20,7 @@ export const UNDER_BARROW = ['ossuary', 'sanctum'] as const
 
 /** Where things are (the quest test reads these). */
 export const HAT = {
-  ring: [31, 9],
+  ring: [31, 12],
   warden: [12, 11],
   lina: [6, 19],
   oskar: [27, 19],
@@ -33,33 +33,47 @@ const hunters = (type: string, max: number, every: number, on: string[]): Appear
 
 // =================================================================== Thornwood Hollow
 
+/**
+ * Set dressing with ids of its own (`<map>.<what>.<n>`): placed after a map's other things, it leaves the ids those are
+ * given as they were.
+ */
+function dresser(m: MapBuilder) {
+  const n: Record<string, number> = {}
+  const put = (type: string, x: number, y: number, extra: Partial<Entity> = {}): Entity => {
+    const k = type.split('/').pop()!
+    n[k] = (n[k] ?? 0) + 1
+    return m.fixture(type, x, y, { id: `${m.id}.${k}.${n[k]}`, ...extra })
+  }
+  /** Small things by mask, as MapBuilder.sprinkle, under ids of their own. */
+  const strew = (type: string, p: number, where: (x: number, y: number, t: string) => boolean, [rx, ry, rw, rh]: [number, number, number, number] = [0, 0, m.w, m.h]) => {
+    for (let y = ry; y < ry + rh; y++) for (let x = rx; x < rx + rw; x++) if (m.free(x, y) && where(x, y, m.get(x, y)) && rng.chance(p)) put(type, x, y)
+  }
+  return { put, strew }
+}
+
+/**
+ * Thornwood Hollow, drawn by hand (release 1, docs/release-1.md): its ground `maps/hollow.txt`, its heights
+ * `maps/hollow.heights.txt`. A dell sunk a level below the forest: the forest's footpath comes in along the ledge under
+ * the trees and goes down a ramp into the bottom, between the thorn thickets, past the bog, to the barrow at the far
+ * end — a mound of brambles ringed with kerb stones, an arch of grey stone over the passage cut into it, two carved
+ * stones before it on the trodden earth.
+ */
 export function buildHollow(): MapBuilder {
   const m = new MapBuilder('hollow', L('Thornwood Hollow', '荆棘谷'), 'wild', 40, 30, 'grass', 'field', 'outdoor', 'frostfang')
   m.gearLevel = 2
-  const gap = (xs: readonly number[], x: number) => xs.includes(x)
-  // thick woods and thorn bushes round the dell, open north (the forest) and south (the barrow's mouth)
-  for (let y = 0; y < m.h; y++)
-    for (let x = 0; x < m.w; x++) {
-      if ((y < 4 && gap(HOLLOW.north, x)) || (y >= m.h - 4 && gap(HOLLOW.south, x))) continue
-      const edge = Math.min(x, y, m.w - 1 - x, m.h - 1 - y)
-      if (edge < 2 || (edge < 4 && rng.chance(0.5))) m.set(x, y, rng.chance(0.35) ? 'bush' : rng.chance(0.4) ? 'pine' : 'tree')
-    }
-  // thorn thickets inside, dry grass where the sun gets in, a muddy bottom
-  for (const [cx, cy, rx, ry] of [[9, 12, 3, 2], [30, 14, 3.4, 2.2], [19, 21, 2.6, 1.8]] as const) m.organic(cx, cy, rx, ry, 'bush', { only: (t) => t === 'grass', rough: 0.35 })
-  m.organic(22, 9, 5, 3, 'drygrass', { only: (t) => t === 'grass', rough: 0.3 })
-  m.organic(14, 24, 3, 1.8, 'mud', { only: (t) => t === 'grass' })
-  m.path([[13, 0], [14, 6], [20, 10], [25, 16], [27, 22], [27, 29]], 'path', 1, { edge: 'dirt', edgeP: 0.25 })
-  // the barrow's mouth at the bottom: standing stones either side
-  for (const [x, y] of [[25, 26], [29, 26]] as const) m.set(x, y, 'rock')
+  m.paint('hollow')
+  m.stumpsAsThings()
+  m.lift('hollow.heights')
   // a child's ring, lost where the thorns are thickest (Mia's errand)
   m.item({ form: 'item/valuable/ring', material: 'silver', name: L("Mia's Ring", '米娅的戒指'), tags: ['keepsake'] }, ...HAT.ring).id = 'quest.mia.ring'
-  // what lives here: slimes in the open, spiders in the thorns, wolves on the far side
-  for (const [x, y] of [[18, 7], [24, 12], [11, 18]] as const) m.creature('slime/green_slime', x, y, HUNT(4))
-  for (const [x, y] of [[8, 9], [31, 11], [21, 19]] as const) m.creature('spider', x, y, HUNT(4))
-  for (const [x, y] of [[33, 20], [6, 22]] as const) m.creature('beast/wolf', x, y, HUNT(5))
+  // what lives here: slimes in the open bottom, spiders at the thickets, wolves on the ledge
+  for (const [x, y] of [[18, 16], [15, 11], [28, 19]] as const) m.creature('slime/green_slime', x, y, HUNT(4))
+  for (const [x, y] of [[12, 13], [28, 13], [19, 20]] as const) m.creature('spider', x, y, HUNT(4))
+  for (const [x, y] of [[30, 7], [7, 9]] as const) m.creature('beast/wolf', x, y, HUNT(5))
   // where the thorns grow thickest, mushrooms the First Night has woken: sporecaps (docs/creatures.md §12)
-  for (const [x, y] of [[15, 23], [28, 6]] as const) m.creature('fungus/sporecap', x, y, HUNT(3))
+  for (const [x, y] of [[15, 21], [30, 15]] as const) m.creature('fungus/sporecap', x, y, HUNT(3))
   lay(m, 'item/material/stick', 2, [15, 3, 8, 5])
+  hollowDressing(m)
   m.appear = [
     ...GROUND_YIELD,
     hunters('actor/creature/slime/green_slime', 3, 900, ['grass', 'drygrass']),
@@ -68,30 +82,68 @@ export function buildHollow(): MapBuilder {
   return m
 }
 
+/** What the hollow's ground holds besides its creatures: the barrow's stones, the thorns, what lies about. */
+function hollowDressing(m: MapBuilder): void {
+  const { put, strew } = dresser(m)
+  const is = (...ts: string[]) => (t: string) => ts.includes(t)
+  const wood = is('tree', 'pine')
+  const low = (x: number, y: number) => m.heights[y]?.[x] === 0
+  // the barrow's mouth: an arch of the Order's grey stone over its passage
+  m.scenery('arch', 26, 25)
+  // briars: grown over the mound, round the thickets, along the lip of the ledge
+  strew('fixture/nature/briar', 0.3, (x, y, t) => is('grass', 'drygrass')(t) && !low(x, y) && y >= 26)
+  const ring = (x: number, y: number) => x === HAT.ring[0] && y > HAT.ring[1] && y <= HAT.ring[1] + 2
+  strew('fixture/nature/briar', 0.35, (x, y, t) => is('grass', 'drygrass')(t) && low(x, y) && m.near(x, y, is('bush')) && !m.near(x, y, is('path', 'dirt'), 1) && !ring(x, y))
+  strew('fixture/nature/briar', 0.25, (x, y, t) => is('grass', 'drygrass')(t) && !low(x, y) && y > 8 && y < 26 && m.near(x, y, is('bush'), 1) && !m.near(x, y, wood, 1))
+  // what lies about the bottom: stones under the rocks, leaves and ferns where the woods hang over
+  strew('fixture/nature/pebbles', 0.5, (x, y, t) => is('grass', 'drygrass', 'dirt')(t) && m.near(x, y, is('rock')))
+  strew('fixture/nature/reeds', 0.6, (x, y, t) => t === 'grass' && m.near(x, y, is('water')))
+  strew('fixture/nature/leaves', 0.25, (x, y, t) => is('grass', 'drygrass')(t) && m.near(x, y, wood))
+  strew('fixture/nature/ferns', 0.12, (x, y, t) => t === 'grass' && m.near(x, y, wood) && !low(x, y))
+  put('fixture/nature/mushroom_ring', 22, 19)
+  // what the wolves and the thorns have left at the thickets' feet
+  for (const [x, y] of [[10, 14], [29, 14], [15, 20], [8, 15]] as const) if (m.free(x, y)) put('fixture/remains/bones', x, y)
+}
+
 // =================================================================== the Old Barrow
 
+/** A lit brazier. */
+const brazier = (m: MapBuilder, x: number, y: number) => m.fixture('fixture/light/brazier', x, y, { statuses: { lit: -1 } })
+
+/**
+ * The Old Barrow, the first floor, drawn by hand (`maps/barrow.txt`): the passage down from the arch into an antechamber
+ * of dressed stone and its columns; the gallery south, the barrow's spine; off it the west chamber, where the barrow's own
+ * dead lie in niches round the walls, and the east passage, fallen in; at its end the inner hall and the Order's knight in
+ * stone, and the two cells either side — Lina's, rough-cut (west), and the one with the stair cut down (east).
+ */
 export function buildBarrow(): MapBuilder {
   const m = new MapBuilder('barrow', L('The Old Barrow', '古墓'), 'dungeon', BARROW.w, BARROW.h, 'cave_wall', 'cave', 'dark', 'frostfang')
   m.gearLevel = 2
-  const open = (t: string) => t === 'cave_wall'
-  // the stair down from the hollow (north), a long hall, two side cells: Lina's (west), the stair further down (east)
-  m.path([[14, 0], [14, 6], [15, 11], [15, 16]], 'floor_stone', 3)
-  m.organic(15, 17, 5, 2.6, 'floor_stone', { only: open, rough: 0.15 })
-  m.path([[15, 16], [9, 18], [6, 19]], 'floor_stone', 2)
-  m.path([[15, 16], [21, 18], [24, 19]], 'floor_stone', 2)
-  for (const [cx, cy] of [[6, 20], [24, 20]] as const) m.organic(cx, cy, 2.2, 1.6, 'floor_stone', { only: open })
-  for (const [x, y] of [[13, 3], [16, 9], [12, 15], [18, 15]] as const) m.fixture('fixture/light/brazier', x, y, { statuses: { lit: -1 } })
+  m.paint('barrow')
+  for (const [x, y] of [[9, 4], [20, 4], [11, 16], [18, 16]] as const) brazier(m, x, y)
   // the dead that keep the barrow
-  for (const [x, y] of [[14, 5], [16, 12], [21, 18]] as const) m.creature('undead/skeleton', x, y, HUNT(4))
-  m.creature('beast/bat', 9, 18, HUNT(5))
+  for (const [x, y] of [[14, 6], [15, 12], [23, 19]] as const) m.creature('undead/skeleton', x, y, HUNT(4))
+  m.creature('beast/bat', 21, 12, HUNT(5))
   m.anchor('cell.lina', ...HAT.lina)
   // by Lina's cell, a helm of the Order rusted through: what lies below begins here
-  m.item({ form: 'item/armor/helmet', material: 'iron', quality: 'crude', name: L('Rusted Helm of the Thorn', '生锈的荆棘骑士团头盔') }, 9, 20)
+  m.item({ form: 'item/armor/helmet', material: 'iron', quality: 'crude', name: L('Rusted Helm of the Thorn', '生锈的荆棘骑士团头盔') }, 8, 21)
   // the east cell: a stair cut down into the rock, to the Order's ossuary
   const [dx, dy] = BARROW.down
   m.set(dx, dy, 'stairs_down')
   m.portal(dx, dy, 'ossuary', OSSUARY.up[0], OSSUARY.up[1] + 1, L('The Ossuary of the Thorn', '荆棘骸骨堂'))
   m.appear = [hunters('actor/creature/undead/skeleton', 2, 2400, ['floor_stone'])]
+  const { put, strew } = dresser(m)
+  // the antechamber's columns, and the gallery's
+  for (const [x, y] of [[11, 4], [18, 4], [11, 6], [18, 6], [12, 9], [17, 9], [12, 13], [17, 13]] as const) m.scenery('pillar', x, y)
+  // the barrow's own dead, in the niches cut round the antechamber and the west chamber
+  for (const [x, y] of [[7, 5], [7, 7], [22, 5], [22, 7], [2, 11], [2, 13], [4, 9], [6, 9], [4, 15], [6, 15], [8, 15]] as const) put('fixture/remains/bones', x, y)
+  // the inner hall: a knight of the Order in stone at its end, his back to the wall; more light
+  m.scenery('statue_knight', 14, 19)
+  brazier(m, 26, 18)
+  put('fixture/light/candles', 3, 17, { statuses: { lit: -1 } })
+  // the east passage, where the roof came down: the boulders it dropped, and the stones
+  for (const [x, y] of [[25, 11], [26, 12], [27, 12], [24, 10], [22, 13]] as const) put('fixture/nature/boulder', x, y)
+  strew('fixture/nature/pebbles', 0.55, (x, y, t) => (t === 'cave_floor' || t === 'gravel') && m.near(x, y, (_, i, j) => m.entities.some((e) => e.type === 'fixture/nature/boulder' && e.place.on === 'tile' && e.place.x === i && e.place.y === j)), [18, 9, 10, 7])
   return m
 }
 
@@ -105,22 +157,23 @@ const NICHES: [number, number, string, string][] = [
   [20, 16, 'Carved, and left empty: FENNICK, SQUIRE TO THE COMMANDER. The stone is clean. Someone keeps it swept.', '刻好了字，却空着：芬尼克，骑士长的侍从。石头很干净。有人一直在打扫。'],
 ]
 
+/**
+ * The Ossuary of the Thorn, the second floor, drawn by hand (`maps/ossuary.txt`): from the stair a passage down past the
+ * charnel room, where the bones of the unnamed were stacked, to the hall of niches — the Order's dead in the walls, a niche
+ * every other stone, columns down the hall and the roll on its altar in the middle; a gallery north-east to the stair
+ * further down, Oskar's cell south-east, and a passage south that has fallen in.
+ */
 export function buildOssuary(): MapBuilder {
   const m = new MapBuilder('ossuary', L('The Ossuary of the Thorn', '荆棘骸骨堂'), 'dungeon', OSSUARY.w, OSSUARY.h, 'cave_wall', 'cave', 'dark', 'frostfang')
   m.gearLevel = 3
-  const open = (t: string) => t === 'cave_wall'
+  m.paint('ossuary')
   const [ux, uy] = OSSUARY.up
   const [dx, dy] = OSSUARY.down
-  // from the stair down a passage to the hall of niches; a gallery north-east to the stair further down; Oskar's cell south-east
-  m.path([[ux, uy], [ux, 8], [15, 8], [15, 16], [26, 18]], 'floor_stone', 3)
-  m.organic(15, 12, 7, 4, 'floor_stone', { only: open, rough: 0.1 })
-  m.path([[15, 8], [22, 5], [dx, dy + 1]], 'floor_stone', 2)
-  m.organic(27, 19, 2.6, 2, 'floor_stone', { only: open })
   m.set(ux, uy, 'stairs_up')
   m.portal(ux, uy, 'barrow', BARROW.down[0], BARROW.down[1] - 1, L('The Old Barrow', '古墓'))
   m.set(dx, dy, 'stairs_down')
   m.portal(dx, dy, 'sanctum', SANCTUM.up[0], SANCTUM.up[1] + 1, L("The Warden's Sanctum", '守墓者圣所'))
-  for (const [x, y] of [[ux + 1, 6], [11, 10], [19, 10], [15, 17], [25, 17]] as const) m.fixture('fixture/light/brazier', x, y, { statuses: { lit: -1 } })
+  for (const [x, y] of [[4, 4], [13, 11], [17, 11], [24, 5], [29, 18]] as const) brazier(m, x, y)
   // the niches of the Order's dead, and the roll of the Order on its altar
   for (const [x, y, en, zh] of NICHES) m.fixture('fixture/sacred/gravestone', x, y, { name: L('A niche of the Order', '骑士团的墓龛'), props: { text: en, text_zh: zh } })
   m.fixture('fixture/sacred/altar', ...HAT.roll, {
@@ -140,26 +193,44 @@ export function buildOssuary(): MapBuilder {
   m.regions.niches = [8, 6, 15, 12]
   m.anchor('cell.oskar', ...HAT.oskar)
   // the Order's dead do not lie still
-  for (const [x, y] of [[ux, 7], [13, 12], [18, 13], [22, 5]] as const) m.creature('undead/skeleton', x, y, HUNT(4))
-  m.creature('undead/ghost', 15, 15, HUNT(5))
-  m.creature('beast/bat', 24, 18, HUNT(5))
+  for (const [x, y] of [[ux, 7], [12, 10], [18, 13], [26, 7]] as const) m.creature('undead/skeleton', x, y, HUNT(4))
+  m.creature('undead/ghost', 15, 14, HUNT(5))
+  m.creature('beast/bat', 25, 20, HUNT(5))
   m.appear = [hunters('actor/creature/undead/skeleton', 3, 2400, ['floor_stone'])]
+  const { put, strew } = dresser(m)
+  // the hall's columns, two rows of them either side of the roll
+  for (const [x, y] of [[11, 8], [19, 8], [11, 13], [19, 13]] as const) m.scenery('pillar', x, y)
+  // in every niche but the named ones, the Order's dead; Fennick's, empty, has a candle someone keeps lit
+  const named = new Set(NICHES.map(([x, y]) => `${x},${y}`))
+  for (let x = 9; x <= 21; x += 2) if (!named.has(`${x},7`)) put('fixture/remains/bones', x, 7)
+  for (let x = 14; x <= 18; x += 2) put('fixture/remains/bones', x, 16)
+  put('fixture/remains/bones', 22, 11)
+  put('fixture/light/candles', 20, 15, { statuses: { lit: -1 } })
+  // the charnel room: bones heaped along its walls, in its alcoves
+  for (const [x, y] of [[1, 12], [1, 14], [1, 16], [3, 18], [5, 18], [2, 11], [6, 12], [6, 15], [2, 17], [5, 11]] as const) put('fixture/remains/bones', x, y)
+  // the gallery to the stair down: two of the Order in stone, keeping it
+  for (const x of [23, 28]) m.scenery('statue_knight', x, 7)
+  // the fallen passage: the boulders that came down, and the stones
+  for (const [x, y] of [[8, 19], [8, 20], [9, 21]] as const) put('fixture/nature/boulder', x, y)
+  strew('fixture/nature/pebbles', 0.55, (x, y, t) => (t === 'cave_floor' || t === 'gravel') && m.near(x, y, (_, i, j) => m.entities.some((e) => e.type === 'fixture/nature/boulder' && e.place.on === 'tile' && e.place.x === i && e.place.y === j)), [8, 16, 7, 6])
   return m
 }
 
 // =================================================================== the Warden's Sanctum
 
+/**
+ * The Warden's Sanctum, the bottom, drawn by hand (`maps/sanctum.txt`): the stair down into one chamber, an octagon round
+ * the floor where the warden keeps its post — room to keep out of the ring it strikes when it holds — two knights of the
+ * Order in stone in its side bays, and in the apse at its south end the altar of the Commander's vow.
+ */
 export function buildSanctum(): MapBuilder {
   const m = new MapBuilder('sanctum', L("The Warden's Sanctum", '守墓者圣所'), 'dungeon', SANCTUM.w, SANCTUM.h, 'cave_wall', 'cave', 'dark', 'frostfang')
   m.gearLevel = 4
-  const open = (t: string) => t === 'cave_wall'
+  m.paint('sanctum')
   const [ux, uy] = SANCTUM.up
-  // a stair down into one round chamber: the warden before the altar of the Commander's vow
-  m.path([[ux, uy], [ux, 6]], 'floor_stone', 3)
-  m.organic(12, 11, 7.5, 5, 'floor_stone', { only: open, rough: 0.08 })
   m.set(ux, uy, 'stairs_up')
   m.portal(ux, uy, 'ossuary', OSSUARY.down[0] - 1, OSSUARY.down[1] + 1, L('The Ossuary of the Thorn', '荆棘骸骨堂'))
-  for (const [x, y] of [[6, 8], [18, 8], [6, 14], [18, 14]] as const) m.fixture('fixture/light/brazier', x, y, { statuses: { lit: -1 } })
+  for (const [x, y] of [[6, 6], [17, 6], [6, 13], [17, 13]] as const) brazier(m, x, y)
   m.fixture('fixture/sacred/altar', ...HAT.vow, {
     id: 'sanctum.vow',
     name: L("The Commander's vow", '骑士长的誓言'),
@@ -174,5 +245,10 @@ export function buildSanctum(): MapBuilder {
   const warden = m.creature('undead/warden', ...HAT.warden, { id: 'barrow.warden', ...HUNT(6), leash: 6 })
   m.item({ form: 'item/clothing/belt', material: 'leather', quality: 'vowed', name: L("Tomas's Belt of Vigil", '托马斯的守夜腰带'), vow: 'vigil', props: { 'night:def': 2 } }, ...HAT.warden).place = { on: 'inside', holder: warden.id }
   for (const [x, y] of [[8, 10], [16, 10]] as const) m.creature('undead/skeleton', x, y, HUNT(4))
+  const { put } = dresser(m)
+  // the Order's knights in stone in the side bays; candles either side of the vow; the columns by the way in
+  for (const x of [2, 20]) m.scenery('statue_knight', x, 9)
+  for (const x of [10, 14]) put('fixture/light/candles', x, 15, { statuses: { lit: -1 } })
+  for (const x of [9, 15]) m.scenery('pillar', x, 4)
   return m
 }
