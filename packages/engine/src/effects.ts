@@ -800,7 +800,11 @@ export class EffectRunner {
         eng.touch({ e: made.id })
         for (let i = 1; i < count; i++) (made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(look))), eng.touch({ e: made.id })
         const p = w.posOf(host)
-        if (p) w.fx.push({ t: 'pickup', item: made.id, sprite: r.sprite, name: r.name, map: p.map, x: p.x, y: p.y })
+        if (p) {
+          // A shop's recipe names its offer; the pickup names what actually reached the bag (coins when selling).
+          const form = w.onto.resolve(made.type)
+          w.fx.push({ t: 'pickup', item: made.id, sprite: form.sprite ?? made.type, name: made.name ?? form.name ?? made.type.split('/').pop()!, count, map: p.map, x: p.x, y: p.y })
+        }
         return
       }
       case 'grow': {

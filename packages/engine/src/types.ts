@@ -2008,8 +2008,8 @@ export type FxEvent =
   | { t: 'undefined'; request: string; summary: string; /** someone (a provider) is working it out */ asked?: boolean }
   | { t: 'patched'; request: string; rule: string }
   | { t: 'mapChanged'; map: string }
-  /** The magnet pulled a dropped item into the player's bag (from its tile). */
-  | { t: 'pickup'; item: Id; sprite: string; name: Text; map: string; x: number; y: number }
+  /** An item or crafted batch reached a bag; count defaults to one for single-piece pickups. */
+  | { t: 'pickup'; item: Id; sprite: string; name: Text; count?: number; map: string; x: number; y: number }
   /** An actor the player controls reached a new level. */
   | { t: 'levelup'; level: number }
   /** A rule opened one of the player's panels ('profession'). */

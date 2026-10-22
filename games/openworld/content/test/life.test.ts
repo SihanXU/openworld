@@ -2,7 +2,7 @@
 // point as the player's keys (controls.plan + run) or the crafting panel (controls.craft), in a sandbox.
 
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, SANDBOX_MAP, buildSandbox, type Engine, type Key, type ScenarioEntity } from '@openworld/engine'
+import { OntologyIndex, RuleLibrary, SANDBOX_MAP, buildSandbox, type Engine, type Key, type ScenarioEntity } from '@openworld/engine'
 import { BASE_RULES, LIFE_SKILLS, RECIPE_BY_ID, SKILLS, buildOntology } from '../src/index.ts'
 import GAME from '../src/game.ts'
 
@@ -53,6 +53,62 @@ const press = (eng: Engine, key: Key, type?: string) => {
 }
 const count = (eng: Engine, type: string) => Object.values(eng.world.state.entities).filter((e) => e.type === type).length
 const bag = (eng: Engine, type: string) => eng.controls.count(type)
+
+describe('crafting and stall pickup feedback', () => {
+  const forms = new OntologyIndex(onto)
+  const shop = () => patch([{ type: 'fixture/furniture/stall/trade', x: 1, y: 2 }])
+  const pickups = (eng: Engine) => eng.world.fx.filter((fx) => fx.t === 'pickup')
+  const output = (type: string, count: number) => ({ name: forms.resolve(type).name, sprite: forms.resolve(type).sprite, count })
+
+  it('buying a five-piece pack announces all five of the purchased item', () => {
+    const eng = shop()
+    carry(eng, 'item/misc/thornmark', 5)
+    expect(eng.controls.craft(RECIPE_BY_ID['shop/buy/misc-bait'])).toBe(true)
+    expect(bag(eng, 'item/misc/bait')).toBe(5)
+    expect(bag(eng, 'item/misc/thornmark')).toBe(0)
+    expect(pickups(eng)).toEqual([expect.objectContaining(output('item/misc/bait', 5))])
+  })
+
+  it('selling a sunfish announces six coins, while the shelf still names the fish', () => {
+    const eng = shop()
+    carry(eng, 'item/food/fish/sunfish')
+    const sale = RECIPE_BY_ID['shop/sell/food-fish-sunfish']
+    expect(sale.name).toEqual(forms.resolve('item/food/fish/sunfish').name)
+    expect(eng.controls.craft(sale)).toBe(true)
+    expect(bag(eng, 'item/food/fish/sunfish')).toBe(0)
+    expect(bag(eng, 'item/misc/thornmark')).toBe(6)
+    expect(pickups(eng)).toEqual([expect.objectContaining(output('item/misc/thornmark', 6))])
+    expect(eng.world.get(pickups(eng)[0].item)?.type).toBe('item/misc/thornmark')
+  })
+
+  it('selling all three fish reports each real payout without duplicating coins', () => {
+    const eng = shop()
+    carry(eng, 'item/food/fish/sunfish', 3)
+    expect(eng.controls.craftAll(RECIPE_BY_ID['shop/sell/food-fish-sunfish'])).toBe(3)
+    expect(bag(eng, 'item/food/fish/sunfish')).toBe(0)
+    expect(bag(eng, 'item/misc/thornmark')).toBe(18)
+    expect(pickups(eng)).toEqual(Array.from({ length: 3 }, () => expect.objectContaining(output('item/misc/thornmark', 6))))
+  })
+
+  it('buying with the seed merchant skill reports the final eight-piece output', () => {
+    const eng = shop()
+    knows(eng, 'seed-merchant')
+    carry(eng, 'item/misc/thornmark', 5)
+    expect(eng.controls.craft(RECIPE_BY_ID['shop/buy/seed-wheat'])).toBe(true)
+    expect(bag(eng, 'item/seed/wheat')).toBe(8)
+    expect(pickups(eng)).toEqual([expect.objectContaining(output('item/seed/wheat', 8))])
+  })
+
+  it('ordinary crafting reports its real quantity and the resulting custom name', () => {
+    const eng = patch()
+    carry(eng, 'item/material/wheat', 2)
+    const name = { en: 'Prepared Feed', zh: '配好的饲料' }
+    const recipe = { ...RECIPE_BY_ID['ranch/feed'], name: 'A feed order', make: { type: 'item/material/feed', name } }
+    expect(eng.controls.craft(recipe)).toBe(true)
+    expect(bag(eng, 'item/material/feed')).toBe(3)
+    expect(pickups(eng)).toEqual([expect.objectContaining({ ...output('item/material/feed', 3), name })])
+  })
+})
 
 describe('the life branches have twenty nodes each', () => {
   it('gathering, agriculture, husbandry and smithing: twenty each, a capstone (two points) to each', () => {

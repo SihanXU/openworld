@@ -694,15 +694,16 @@ export class Hud {
     this.flyers.push({ el, born: performance.now(), from })
     this.paintIcons?.([{ id: fx.item, type: '', sprite: fx.sprite, name: fx.name, tags: [], statuses: [], props: {} }])
     const name = tx(fx.name)
+    const count = fx.count ?? 1
     const prev = this.pickupSig.get(name)
     if (prev && performance.now() - prev.at < 2500) {
-      prev.n++
+      prev.n += count
       prev.at = performance.now()
       prev.el.textContent = `+${prev.n} ${name}`
       return
     }
-    const msg = this.message(`+1 ${name}`, 'good')
-    this.pickupSig.set(name, { el: msg, n: 1, at: performance.now() })
+    const msg = this.message(`+${count} ${name}`, 'good')
+    this.pickupSig.set(name, { el: msg, n: count, at: performance.now() })
   }
 
   /** A power taken up by the companion: its seal and its name, large and brief over the world. */
