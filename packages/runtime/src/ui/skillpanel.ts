@@ -66,7 +66,7 @@ export class SkillPanel {
       <div class="tab-body">
         <div class="sp-bar">${slots}</div>
         <div class="sp-hint">${hint}</div>
-        <div class="sp-list">${cards || `<div class="ql-none">${zh ? '还没有主动技能。在技能树（K）里学习、阅读技能书，或穿上带技能的装备。' : 'No active skills yet: learn them in the skill tree (K), read a skill book, or wear a piece that lends one.'}</div>`}</div>
+        <div class="sp-list">${cards || `<div class="ql-none">${esc(tx({ en: 'No active skills yet: learn them in the skill tree ({key:skills}), read a skill book, or wear a piece that lends one.', zh: '还没有主动技能。在技能树（{key:skills}）里学习、阅读技能书，或穿上带技能的装备。' }))}</div>`}</div>
       </div></div>`
     $('#spClose').onclick = () => this.close()
     this.host.querySelectorAll<HTMLElement>('.sp-card').forEach((c) => {

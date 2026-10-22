@@ -1714,6 +1714,7 @@ export type Effect =
   | { op: 'destroy' }
   | { op: 'transform'; into: string }
   | { op: 'move'; to: RoleRef; into?: 'tile' | 'contents' | 'hand' }
+  | { op: 'loosen' }
   | { op: 'step'; dir?: Dir; away?: RoleRef; tiles?: number }
   | { op: 'addStatus'; status: string; duration?: number }
   | { op: 'removeStatus'; status: string }

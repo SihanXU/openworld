@@ -18,7 +18,7 @@ const L = (en: string, zh: string): Text => ({ en, zh })
 
 
 /** Fact prefixes only the story's rules and scenes may change. */
-export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'sins.', 'game.', 'ch1.', 'night.', 'legend.', 'rescue.', 'village.', 'haven.', 'waypoints.', 'lesson.', 'step.']
+export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'sins.', 'game.', 'ch1.', 'night.', 'legend.', 'rescue.', 'village.', 'haven.', 'waypoints.', 'lesson.', 'step.', 'world.']
 
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base', note: 'story' } })
 const log = (en: string, zh: string): Effect => ({ op: 'log', text: { en, zh } })

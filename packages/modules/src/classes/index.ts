@@ -164,7 +164,7 @@ export function takeProfession(eng: Engine, def: ProfessionDef | undefined, skil
   const back = w.num(p, 'skillPoints') - points
   const name = words(def.name)
   w.fx.push({ t: 'log', text: { en: `You are now a${/^[aeiou]/i.test(name.en) ? 'n' : ''} ${name.en}.${back ? ` ${back} skill points given back.` : ''}`, zh: `你成为了${name.zh}。${back ? `返还了 ${back} 技能点。` : ''}` }, tone: 'good' })
-  if (had) w.fx.push({ t: 'log', text: { en: 'Your old profession\'s skills are unlearned: spend the points again in the skill tree (K).', zh: '原职业的技能已重置：在技能树（K）里重新加点吧。' } })
+  if (had) w.fx.push({ t: 'log', text: { en: 'Your old profession\'s skills are unlearned: spend the points again in the skill tree ({key:skills}).', zh: '原职业的技能已重置：在技能树（{key:skills}）里重新加点吧。' } })
   eng.controls.sync()
   return undefined
 }

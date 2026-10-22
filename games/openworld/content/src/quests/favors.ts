@@ -14,7 +14,7 @@ export const FAVORS: QuestDef[] = [
     id: 'meal',
     kind: 'favor',
     title: L('A Bite to Eat', '一口吃的'),
-    summary: L('{hungry} has not eaten all day and has no coin for a meal. Bring them something to eat (G hands it over).', '{hungry}一整天没吃东西了，身上也没钱买。给{hungry}带点吃的（G 交给对方）。'),
+    summary: L('{hungry} has not eaten all day and has no coin for a meal. Bring them something to eat ({key:put} hands it over).', '{hungry}一整天没吃东西了，身上也没钱买。给{hungry}带点吃的（{key:put} 交给对方）。'),
     aliases: { hungry: { from: 'target' } },
     objectives: [{ id: 'feed', text: L('Something to eat for {hungry}', '给{hungry}的吃的'), target: 'hungry', on: { give: { tags: ['edible'] }, to: 'hungry' } }],
     stages: [
@@ -57,7 +57,7 @@ export const FAVORS: QuestDef[] = [
     id: 'parcel',
     kind: 'favor',
     title: L('A Letter to Carry', '捎封信'),
-    summary: L('{sender} has a letter for {recipient}. Carry it over (G hands it to them).', '{sender}有一封信要给{recipient}。帮忙送过去（G 交给对方）。'),
+    summary: L('{sender} has a letter for {recipient}. Carry it over ({key:put} hands it to them).', '{sender}有一封信要给{recipient}。帮忙送过去（{key:put} 交给对方）。'),
     aliases: {
       sender: { find: { ...PERSON, map: 'meadow', person: true, pick: 'random', notTags: ['merchant', 'watchman'] } },
       recipient: { find: { ...PERSON, map: 'meadow', person: true, pick: 'random' } },

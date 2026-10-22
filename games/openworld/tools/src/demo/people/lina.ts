@@ -23,7 +23,7 @@ export const lina: PersonDef = {
       [0, 24, 'barrow:cell.lina', 'wait to be found'],
     ],
     'fact:rescue.lina': [
-      [22, 7, 'meadow:lina.home', 'sleep'],
+      [22, 7, 'meadow.cook:bed.3', 'sleep'],
       [7, 22, 'meadow:lina.garden', 'tend the herbs'],
     ],
   },

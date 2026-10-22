@@ -14,9 +14,15 @@ import type { PersonDef } from '../../tools/src/demo/person.ts'
 import { BUNDLE, CATALOG, WORLD } from './bundle.ts'
 import { pngSize } from './png.ts'
 import { FACE_PX, lookUrls } from './looks.ts'
+import { defaultKeys, fillKeys } from '@openworld/runtime/src/keymap.ts'
+import { L, lang } from './lang.ts'
 
-export const zh = (t?: Text | string): string => (t == null ? '' : typeof t === 'string' ? t : t.zh || t.en)
-export const enOf = (t?: Text | string): string => (t == null ? '' : typeof t === 'string' ? t : t.en)
+/** The keys a game's words name (`{key:hands}`, runtime keymap.ts), as the default map has them: the wiki writes for any player. */
+const DEFAULT_KEYS = defaultKeys()
+export const zh = (t?: Text | string): string => (t == null ? '' : fillKeys(typeof t === 'string' ? t : t.zh || t.en, DEFAULT_KEYS, 'zh'))
+export const enOf = (t?: Text | string): string => (t == null ? '' : fillKeys(typeof t === 'string' ? t : t.en, DEFAULT_KEYS, 'en'))
+/** A name or a text the game holds in both languages, in the edition's (lang.ts). */
+export const say = (t?: Text | string): string => (lang() === 'en' ? enOf(t) || zh(t) : zh(t))
 
 // ------------------------------------------------------------------------------------------ sprites
 
@@ -79,6 +85,11 @@ export type Kind = 'item' | 'fixture' | 'structure' | 'person' | 'companion' | '
 export const KIND_ZH: Record<Kind, string> = {
   item: '物品', fixture: '设施', structure: '建筑件', person: '人物', companion: '人物', creature: '怪物', boss: '首领', map: '地点', quest: '任务',
 }
+export const KIND_EN: Record<Kind, string> = {
+  item: 'item', fixture: 'fixture', structure: 'structure', person: 'person', companion: 'person', creature: 'monster', boss: 'boss', map: 'location', quest: 'quest',
+}
+/** A kind of thing, in the edition's language. */
+export const kindName = (k: Kind): string => L(KIND_ZH[k], KIND_EN[k])
 
 /** Something the game holds that gets a page of its own. */
 export interface Ent {
@@ -86,11 +97,15 @@ export interface Ent {
   id: string
   zh: string
   en: string
-  /** The page title (its zh name; disambiguated when two things share one). */
+  /** Its name in the edition's language (zh or en). */
+  name: string
+  /** The page title (its name; disambiguated when two things share one). */
   title: string
   sprite?: Sprite
-  /** The category it is listed under (an item's codex group, a creature's family, a quest's kind…). */
+  /** The category it is listed under (an item's codex group, a creature's family, a quest's kind…): a stable key, in Chinese. */
   group: string
+  /** That category as the edition names it. */
+  groupName: string
 }
 
 export interface ItemEnt extends Ent {
@@ -103,9 +118,9 @@ export interface ItemEnt extends Ent {
   makeup: { type: string; count: number }[]
   recipe?: Recipe
   placement?: PlacementRecipe
-  relic?: { zh: string; text: string }
+  relic?: { name: string; text: string }
   /** A Vowbound form's own vow (the scallop's). */
-  vow?: { zh: string; text: string }
+  vow?: { name: string; text: string }
   quality?: string
 }
 
@@ -114,7 +129,8 @@ export interface PersonEnt extends Ent {
   def?: PersonDef
   entity: Entity
   role: string
-  roleZh: string
+  /** Their role as the edition names it. */
+  roleName: string
   age?: number
   /** The kind of thing they like best (their `favourite` prop; docs/npc-sandbox.md §2.15). */
   favourite?: string
@@ -157,6 +173,7 @@ export interface BackdropPlace {
   id: string
   zh: string
   en: string
+  name: string
   region: string
   /** Its kind (its site's: village, fort, cave …). */
   kind: string
@@ -250,6 +267,16 @@ export const ITEM_GROUPS: Record<string, string> = {
   weapon: '武器', armor: '护甲', clothing: '衣物', tool: '工具', light: '照明', vessel: '容器', food: '食物', potion: '药水', material: '材料',
   seed: '种子', gem: '宝石', valuable: '珍宝', relic: '圣物', document: '文书', key: '钥匙', misc: '杂物',
 }
+/** The groups' English names (the keys stay Chinese: pages and tables name them). */
+const GROUP_EN: Record<string, string> = {
+  武器: 'Weapons', 护甲: 'Armour', 衣物: 'Clothing', 工具: 'Tools', 照明: 'Lighting', 容器: 'Containers', 食物: 'Food', 药水: 'Potions', 材料: 'Materials',
+  种子: 'Seeds', 宝石: 'Gems', 珍宝: 'Valuables', 圣物: 'Relics', 文书: 'Documents', 钥匙: 'Keys', 杂物: 'Miscellany',
+  家具: 'Furniture', 光源: 'Light sources', 水源: 'Water sources', 工作站: 'Workstations', 圣所: 'Shrines', 粉笔画: 'Chalk drawings', 自然物: 'Nature',
+  作物: 'Crops', 半成品: 'Unfinished builds', 渡口设施: 'Ferry fixtures', 告示: 'Notices', 围栏: 'Fences', 设施: 'Fixtures', 建筑件: 'Structures', 首领: 'Bosses',
+}
+/** A group's name in the edition's language. */
+export const groupName = (g: string): string => L(g, GROUP_EN[g] ?? g)
+
 const FIXTURE_GROUPS: [string, string][] = [
   ['fixture/container', '容器'], ['fixture/furniture', '家具'], ['fixture/light', '光源'], ['fixture/water', '水源'], ['fixture/craft', '工作站'],
   ['fixture/sacred', '圣所'], ['fixture/chalk', '粉笔画'], ['fixture/nature', '自然物'], ['fixture/crop', '作物'], ['fixture/build', '半成品'],
@@ -307,11 +334,12 @@ export function loadGame(): Game {
     const relicId = props.relic as string | undefined
     const vowId = props.vow as string | undefined
     const q = tags.find((g) => g.startsWith('quality:'))?.slice(8)
+    const name = L(f.zh, f.en)
     return {
-      kind: 'item', id: f.id, zh: f.zh, en: f.en, title: f.zh, group, type: t, form: f, tags, props,
+      kind: 'item', id: f.id, zh: f.zh, en: f.en, name, title: name, group, groupName: groupName(group), type: t, form: f, tags, props,
       makeup: (f.makeup ?? []) as any, recipe: recipeOf.get(f.id), sprite: itemSprite(f.sprite),
-      relic: relicId && RELICS[relicId] ? { zh: RELICS[relicId].zh, text: RELICS[relicId].text.zh } : undefined,
-      vow: vowId && VOWS[vowId] ? { zh: VOWS[vowId].zh, text: VOWS[vowId].text.zh } : undefined,
+      relic: relicId && RELICS[relicId] ? { name: say(RELICS[relicId]), text: say(RELICS[relicId].text) } : undefined,
+      vow: vowId && VOWS[vowId] ? { name: say(VOWS[vowId]), text: say(VOWS[vowId].text) } : undefined,
       quality: q,
     } satisfies ItemEnt
   })
@@ -332,7 +360,7 @@ export function loadGame(): Game {
     const group = FIXTURE_GROUPS.find(([p]) => id === p || id.startsWith(p + '/'))?.[1] ?? '设施'
     const ripe = id.startsWith('fixture/crop/') ? types[`${id}/ripe`] : undefined
     return {
-      kind: 'fixture', id, zh: zh(t.name), en: (enOf(t.name) || id), title: zh(t.name), group, type: t, tags: t.tags ?? [], props: { ...(t.props ?? {}) },
+      kind: 'fixture', id, zh: zh(t.name), en: (enOf(t.name) || id), name: say(t.name), title: say(t.name), group, groupName: groupName(group), type: t, tags: t.tags ?? [], props: { ...(t.props ?? {}) },
       makeup: (t.makeup ?? []) as any, recipe: recipeOf.get(id), placement: placementOf.get(id),
       sprite: fixtureSprite(ripe?.sprite ?? t.sprite) ?? fixtureSprite(`fixture:${id.split('/').pop()}`),
     } satisfies ItemEnt
@@ -342,7 +370,7 @@ export function loadGame(): Game {
   const structures: ItemEnt[] = ids.filter((id) => id.startsWith('structure/') && id !== 'structure/door/open').map((id) => {
     const t = types[id]
     return {
-      kind: 'structure', id, zh: zh(t.name), en: (enOf(t.name) || id), title: zh(t.name), group: '建筑件', type: t, tags: t.tags ?? [], props: { ...(t.props ?? {}) },
+      kind: 'structure', id, zh: zh(t.name), en: (enOf(t.name) || id), name: say(t.name), title: say(t.name), group: '建筑件', groupName: groupName('建筑件'), type: t, tags: t.tags ?? [], props: { ...(t.props ?? {}) },
       makeup: (t.makeup ?? []) as any, recipe: recipeOf.get(id),
       sprite: itemSprite(t.sprite) ?? fixtureSprite(t.sprite),
     } satisfies ItemEnt
@@ -351,9 +379,11 @@ export function loadGame(): Game {
 
   // ---- people and the companion
   const defOf = new Map(PEOPLE.map((p) => [p.id, p]))
-  const roleZh = (role: string) => {
+  const roleName = (role: string) => {
     const t = types[`actor/person/${role}`]
-    return t ? zh(t.name) : ({ herder: '牧人', miller: '磨坊主', steward: '守地人', stranger: '陌生人', host: '旅店老板', trainer: '职业导师' } as Record<string, string>)[role] ?? role
+    if (t) return say(t.name)
+    const other: Record<string, [string, string]> = { herder: ['牧人', 'herder'], miller: ['磨坊主', 'miller'], steward: ['守地人', 'steward'], stranger: ['陌生人', 'stranger'], host: ['旅店老板', 'innkeeper'], trainer: ['职业导师', 'profession trainer'] }
+    return other[role] ? L(...other[role]) : role
   }
   const people: PersonEnt[] = index.npcs.map((e: Entity) => {
     const def = defOf.get(e.id)
@@ -364,8 +394,8 @@ export function loadGame(): Game {
     const face = urls ? { url: urls.face, x: 0, y: 0, w: FACE_PX, h: FACE_PX, iw: FACE_PX, ih: FACE_PX, smooth: true } : faceSprite(look as string | undefined)
     const body = urls ? { url: urls.body, x: 0, y: 0, w: 16, h: 32, iw: 16, ih: 32 } : bodySprite(look as string | undefined)
     return {
-      kind: 'person', id: e.id, zh: zh(e.name), en: (enOf(e.name) || e.id), title: zh(e.name), group: e.place.on === 'tile' ? e.place.map : 'offstage',
-      def, entity: e, role, roleZh: roleZh(role), age: def?.age ?? (Number(e.props?.age ?? 0) || undefined), favourite: typeof e.props?.favourite === 'string' ? e.props.favourite : undefined, look,
+      kind: 'person', id: e.id, zh: zh(e.name), en: (enOf(e.name) || e.id), name: say(e.name), title: say(e.name), group: e.place.on === 'tile' ? e.place.map : 'offstage', groupName: '',
+      def, entity: e, role, roleName: roleName(role), age: def?.age ?? (Number(e.props?.age ?? 0) || undefined), favourite: typeof e.props?.favourite === 'string' ? e.props.favourite : undefined, look,
       face, body, sprite: face, home: e.place.on === 'tile' ? e.place.map : undefined,
     } satisfies PersonEnt
   })
@@ -373,7 +403,7 @@ export function loadGame(): Game {
     const t = types[c.type]
     const fairy = CATALOG.creatures['creature:fairy']
     people.push({
-      kind: 'companion', id: c.id, zh: zh(c.name), en: (enOf(c.name) || c.id), title: zh(c.name), group: 'companion', entity: c, role: 'companion', roleZh: zh(t?.name) || '同伴',
+      kind: 'companion', id: c.id, zh: zh(c.name), en: (enOf(c.name) || c.id), name: say(c.name), title: say(c.name), group: 'companion', groupName: L('同伴', 'Companion'), entity: c, role: 'companion', roleName: say(t?.name) || L('同伴', 'companion'),
       look: undefined, face: fairy?.faceset ? whole(`${fairy.dir}/${fairy.faceset}`) : actorSprite(fairy), body: actorSprite(fairy),
       sprite: fairy?.faceset ? whole(`${fairy.dir}/${fairy.faceset}`) : actorSprite(fairy),
     })
@@ -400,7 +430,7 @@ export function loadGame(): Game {
       }
       const family = types[chain[2]] ?? t
       return {
-        kind: 'creature', id, zh: zh(t.name), en: (enOf(t.name) || id), title: zh(t.name), group: zh(family.name), type: t, props, tags: [...new Set(tags)],
+        kind: 'creature', id, zh: zh(t.name), en: (enOf(t.name) || id), name: say(t.name), title: say(t.name), group: zh(family.name), groupName: say(family.name), type: t, props, tags: [...new Set(tags)],
         makeup: makeup as any, sprite: creatureSprite(sprite, props.element),
       } satisfies CreatureEnt
     })
@@ -409,9 +439,9 @@ export function loadGame(): Game {
   // ---- bosses (their kits; the campaign's own numbers are in the world)
   // (the dragon of Cinder Peak is fought as a boss too, but it is a creature of the world: its page is a creature's)
   const bosses: BossEnt[] = BOSSES.filter((b) => b.type.startsWith('actor/creature/sin/')).map((b) => {
-    const [name, seal] = zh(b.name).split(' · ')
+    const [name, seal] = say(b.name).split(' · ')
     const t = types[b.type]
-    return { kind: 'boss', id: b.id, zh: name, en: enOf(b.name).split(' · ')[0], title: name, group: '首领', def: b, type: t, seal, sprite: bossSprite(b.id) } satisfies BossEnt
+    return { kind: 'boss', id: b.id, zh: zh(b.name).split(' · ')[0], en: enOf(b.name).split(' · ')[0], name, title: name, group: '首领', groupName: groupName('首领'), def: b, type: t, seal, sprite: bossSprite(b.id) } satisfies BossEnt
   })
   ents.push(...bosses)
 
@@ -419,7 +449,7 @@ export function loadGame(): Game {
   // (the backdrop's places are no pages of their own: their regions' pages tell of them, docs/continent.md §1)
   const maps: MapEnt[] = index.maps.filter((m: any) => m.id !== 'offstage' && !m.backdrop).map((m: any) => {
     const c = chunks.find((x: any) => x.map.id === m.id)
-    return { kind: 'map', id: m.id, zh: zh(m.name), en: (enOf(m.name) || m.id), title: zh(m.name), group: m.kind, map: c?.map ?? m, entities: c?.entities ?? [] } satisfies MapEnt
+    return { kind: 'map', id: m.id, zh: zh(m.name), en: (enOf(m.name) || m.id), name: say(m.name), title: say(m.name), group: m.kind, groupName: m.kind, map: c?.map ?? m, entities: c?.entities ?? [] } satisfies MapEnt
   })
   ents.push(...maps)
 
@@ -436,7 +466,7 @@ export function loadGame(): Game {
     const things = own.flatMap((c) => c.entities)
     const people = things.filter((e) => e.type.startsWith('actor/person'))
     return {
-      id: m.id, zh: zh(m.name), en: enOf(m.name) || m.id, region: m.region ?? '', kind: siteKind.get(m.id)!, width: m.width, height: m.height,
+      id: m.id, zh: zh(m.name), en: enOf(m.name) || m.id, name: say(m.name), region: m.region ?? '', kind: siteKind.get(m.id)!, width: m.width, height: m.height,
       depths: own.some((c) => c.map.id === `${m.id}.depths`),
       rooms: own.filter((c) => c.map.kind === 'interior').length,
       households: new Set(people.map((p) => p.props?.household).filter(Boolean)).size,
@@ -447,26 +477,39 @@ export function loadGame(): Game {
 
   // ---- quests
   const quests: QuestEnt[] = (index.quests ?? []).map((q: QuestDef) => ({
-    kind: 'quest', id: q.id, zh: zh(q.title), en: enOf(q.title), title: zh(q.title), group: q.kind, def: q,
+    kind: 'quest', id: q.id, zh: zh(q.title), en: enOf(q.title), name: say(q.title), title: say(q.title), group: q.kind, groupName: q.kind, def: q,
   }) satisfies QuestEnt)
   ents.push(...quests)
 
   // ---- titles: one per thing; a shared name goes to the first kind in KIND_ORDER, the rest say what they are
-  const byName = new Map<string, Ent[]>()
+  // (an English title begins with a capital, as a wiki's do, though the game may name a thing in lower case: "campfire";
+  // English titles are told apart without regard to case: a file system may not tell them apart)
+  if (lang() === 'en') for (const e of ents) e.title = e.title.charAt(0).toUpperCase() + e.title.slice(1)
+  const fold = (s: string) => (lang() === 'en' ? s.toLowerCase() : s)
+  const sameName = new Map<string, Ent[]>()
   for (const e of ents) {
-    if (!byName.has(e.zh)) byName.set(e.zh, [])
-    byName.get(e.zh)!.push(e)
+    if (!sameName.has(fold(e.name))) sameName.set(fold(e.name), [])
+    sameName.get(fold(e.name))!.push(e)
   }
-  for (const [name, list] of byName) {
+  const [open, close, dot] = lang() === 'en' ? [' (', ')', ', '] : ['（', '）', '·']
+  for (const [, list] of sameName) {
     if (list.length < 2) continue
     list.sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind))
-    const used = new Set([name])
+    const used = new Set([fold(list[0].name)])
     for (const e of list.slice(1)) {
-      let t = `${name}（${e.kind === 'fixture' ? e.group : KIND_ZH[e.kind]}）`
-      if (used.has(t)) t = `${name}（${KIND_ZH[e.kind]}·${e.id.split('/').pop()}）`
-      used.add(t)
+      let t = `${e.title}${open}${e.kind === 'fixture' ? L(e.group, e.groupName.toLowerCase()) : kindName(e.kind)}${close}`
+      if (used.has(fold(t))) t = `${e.title}${open}${kindName(e.kind)}${dot}${e.id.split('/').pop()}${close}`
+      used.add(fold(t))
       e.title = t
     }
+  }
+  // by a name in either language (a page's {{物品|…}} may give either), the edition's first
+  const byName = new Map<string, Ent[]>()
+  for (const key of ['name', 'zh', 'en'] as const) for (const e of ents) {
+    const n = e[key]
+    if (!n) continue
+    if (!byName.has(n)) byName.set(n, [])
+    if (!byName.get(n)!.includes(e)) byName.get(n)!.push(e)
   }
   const byId = new Map(ents.map((e) => [e.id, e]))
   for (const b of bosses) if (b.type) byId.set(b.type.id, b)
@@ -474,9 +517,9 @@ export function loadGame(): Game {
 
   const typeName = (type: string): string => {
     const e = byId.get(type)
-    if (e) return e.zh
+    if (e) return e.name
     const t = types[type]
-    return t ? zh(t.name) : type.split('/').pop() ?? type
+    return t ? say(t.name) : type.split('/').pop() ?? type
   }
   const entOfType = (type: string): Ent | undefined => {
     let id = type
@@ -490,47 +533,48 @@ export function loadGame(): Game {
 
   const player = types['actor/person/player']
   const hours = nightHours(0)
-  const v = (value: unknown, note: string, source: string) => ({ value: String(value), note, source })
+  // (named in Chinese in both editions: pages call them by these names, {{数值|…}})
+  const v = (value: unknown, note: string, en: string, source: string) => ({ value: String(value), note: L(note, en), source })
   const values: Game['values'] = {
-    玩家生命上限: v(player.props?.maxHp ?? 40, '玩家的最大生命值', 'content/src/ontology.ts'),
-    玩家攻击: v(player.props?.atk ?? 2, '玩家空手的基础攻击', 'content/src/ontology.ts'),
-    饱食度上限: v(player.props?.maxHunger ?? 20, '饱食度满值', 'content/src/ontology.ts'),
-    初始饱食度: v(index.player?.props?.hunger ?? 12, '新游戏开始时的饱食度', 'tools/src/demo/world.ts'),
-    饱食度下降间隔: v(HUNGER_EVERY / TICKS_PER_MINUTE, '吃饱时每隔多少游戏分钟饱食度 −1', 'engine/src/hunger.ts HUNGER_EVERY'),
-    饿了阈值: v(`${Math.round(HUNGRY_BELOW * 100)}%`, '饱食度低于满值的这个比例时变为「饿了」', 'engine/src/hunger.ts HUNGRY_BELOW'),
-    饿了减速: v(HUNGRY_PACE, '「饿了」之后饱食度下降慢多少倍', 'engine/src/hunger.ts HUNGRY_PACE'),
-    睡眠减速: v((ontology.periods ?? []).find((p: any) => p.name === 'hunger')?.paceBy?.asleep ?? 4, '睡着时饱食度下降慢多少倍', 'content/src/ontology.ts periods'),
-    回血间隔: v(HUNGER_EFFECT_EVERY / TICKS_PER_MINUTE, '每隔多少现实秒（游戏分钟）结算一次回血或饥饿伤害', 'engine/src/hunger.ts HUNGER_EFFECT_EVERY'),
-    背包格数: v(SLOT_COUNT, '背包的格数', 'engine/src/controls.ts SLOT_COUNT'),
-    快捷栏格数: v(ROW, '快捷栏（背包第一行）的格数', 'engine/src/controls.ts ROW'),
-    磁吸距离: v(MAGNET, '掉落物自动飞进背包的距离（格）', 'engine/src/controls.ts MAGNET'),
-    每游戏分钟tick: v(TICKS_PER_MINUTE, '1 游戏分钟 = 多少 tick（1 现实秒）', 'engine/src/calendar.ts'),
-    一天现实分钟: v(24 * TICKS_PER_HOUR / TICKS_PER_MINUTE / 60, '一个游戏日相当于多少现实分钟', 'engine/src/calendar.ts'),
-    入夜: v(`${hours.dusk}:00`, '夜晚开始（故事推进后会提前）', 'engine/src/calendar.ts nightHours'),
-    天亮: v(`0${hours.dawn}:00`, '夜晚结束', 'engine/src/calendar.ts nightHours'),
-    新游戏时刻: v(`${index.startHour ?? 13}:00`, '新游戏开始的时刻', 'tools/src/demo/world.ts START_HOUR'),
-    回收比例: v(`${RECOVERY * 100}%`, '东西被打坏时，构成它的材料留下的比例', 'content/src/ontology.ts RECOVERY'),
-    安全落差: v(SAFE_FALL, '掉下这么多层不受伤', 'content/src/ontology.ts SAFE_FALL'),
-    坠落伤害: v(FALL_DAMAGE, '超过安全落差后每多一层的伤害', 'content/src/ontology.ts FALL_DAMAGE'),
-    楼层上限: v(STOREYS, '地面以上最多能建几层', 'content/src/ontology.ts STOREYS'),
-    房间最大格数: v(ROOM_SIZE, '超过这么多格就不算房间（算屋外）', 'content/src/ontology.ts ROOM_SIZE'),
-    夜行生物上限: v(NIGHT_CAP, '一张地图同时游荡的夜行生物上限', 'content/src/ontology.ts NIGHT_CAP'),
-    夜行生物间隔: v(NIGHT_EVERY / TICKS_PER_MINUTE, '每隔多少现实秒可能再出现一只夜行生物', 'content/src/ontology.ts NIGHT_EVERY'),
-    树木再生: v(TREE_GROWS / (TICKS_PER_HOUR * 24), '树墩或树苗长成树要几个游戏日', 'content/src/ontology.ts TREE_GROWS'),
-    下蛋间隔: v(LAYS_EVERY / TICKS_PER_HOUR, '母鸡每隔几个游戏小时下一个蛋', 'content/src/ontology.ts LAYS_EVERY'),
-    地面产出间隔: v(APPEAR_EVERY / TICKS_PER_MINUTE, '树枝、石头、草这类地面产出每隔多少现实秒长出一份', 'engine/src/appear.ts APPEAR_EVERY'),
-    职业等级: v(PROFESSION_LEVEL, '可以选择职业的等级', 'engine/src/profession.ts PROFESSION_LEVEL'),
-    升级经验系数: v(20, '升到下一级需要 这个数 × 当前等级 的经验', 'engine/src/progression.ts xpToNext'),
-    恩赐切换距离: v(BOON_REACH, '在已唤醒的传送雕像多少格内可以更换露米的恩赐', 'engine/src/boons.ts BOON_REACH'),
-    图鉴视距: v(CODEX_SIGHT, '人物或生物来到多少格内就算「见过」', 'engine/src/codex.ts CODEX_SIGHT'),
-    交互距离: v(ontology.params?.reach ?? 1, '默认的 E 交互距离（格）', 'content/src/ontology.ts params.reach'),
-    拿放距离: v(ontology.params?.carry ?? 1, 'F 拿、G 放的距离（格）', 'content/src/ontology.ts params.carry'),
-    休息系数: v(ontology.params?.rest ?? 0.5, '不在卧室睡觉时恢复损失生命的比例', 'content/src/ontology.ts params.rest'),
-    喂饱时长: v(FED_FOR / TICKS_PER_HOUR, '喂过饲料的动物「吃饱了」持续几个游戏小时；「挤过奶」「刚生过崽」也持续这么久', 'content/src/homestead.ts FED_FOR'),
-    幼崽长大: v(Number((types['actor/creature/animal/calf']?.stage as any)?.lasts ?? 0) / TICKS_PER_HOUR, '小牛、小鸡长成牛、鸡要几个游戏小时', 'content/src/ontology.ts GROWS_UP'),
-    鱼饵次数: v(FORMS.find((f) => f.id === 'item/misc/bait')?.props?.casts ?? 5, '一份鱼饵挂到鱼竿上能用几竿', 'content/src/items.ts item/misc/bait'),
-    鱼竿距离: v(FORMS.find((f) => f.id === 'item/tool/fishing_rod')?.props?.range ?? 1, '鱼竿能甩到几格远（格）', 'content/src/items.ts item/tool/fishing_rod'),
-    首领二阶段: v(`${Math.round((BOSSES[0]?.encounter.phases[1]?.at ?? 0.5) * 100)}%`, '首领生命降到这个比例进入第二阶段', 'content/src/bosses.ts encounter.phases'),
+    玩家生命上限: v(player.props?.maxHp ?? 40, '玩家的最大生命值', "the player's maximum health", 'content/src/ontology.ts'),
+    玩家攻击: v(player.props?.atk ?? 2, '玩家空手的基础攻击', "the player's base attack bare-handed", 'content/src/ontology.ts'),
+    饱食度上限: v(player.props?.maxHunger ?? 20, '饱食度满值', 'full satiety', 'content/src/ontology.ts'),
+    初始饱食度: v(index.player?.props?.hunger ?? 12, '新游戏开始时的饱食度', 'satiety when a new game begins', 'tools/src/demo/world.ts'),
+    饱食度下降间隔: v(HUNGER_EVERY / TICKS_PER_MINUTE, '吃饱时每隔多少游戏分钟饱食度 −1', 'game minutes between each −1 satiety while fed', 'engine/src/hunger.ts HUNGER_EVERY'),
+    饿了阈值: v(`${Math.round(HUNGRY_BELOW * 100)}%`, '饱食度低于满值的这个比例时变为「饿了」', 'below this share of full satiety you are “hungry”', 'engine/src/hunger.ts HUNGRY_BELOW'),
+    饿了减速: v(HUNGRY_PACE, '「饿了」之后饱食度下降慢多少倍', 'how many times slower satiety falls once “hungry”', 'engine/src/hunger.ts HUNGRY_PACE'),
+    睡眠减速: v((ontology.periods ?? []).find((p: any) => p.name === 'hunger')?.paceBy?.asleep ?? 4, '睡着时饱食度下降慢多少倍', 'how many times slower satiety falls while asleep', 'content/src/ontology.ts periods'),
+    回血间隔: v(HUNGER_EFFECT_EVERY / TICKS_PER_MINUTE, '每隔多少现实秒（游戏分钟）结算一次回血或饥饿伤害', 'real seconds (game minutes) between each healing or hunger damage', 'engine/src/hunger.ts HUNGER_EFFECT_EVERY'),
+    背包格数: v(SLOT_COUNT, '背包的格数', 'slots in the inventory', 'engine/src/controls.ts SLOT_COUNT'),
+    快捷栏格数: v(ROW, '快捷栏（背包第一行）的格数', 'slots in the toolbar (the inventory’s first row)', 'engine/src/controls.ts ROW'),
+    磁吸距离: v(MAGNET, '掉落物自动飞进背包的距离（格）', 'distance (cells) at which dropped things fly into the inventory', 'engine/src/controls.ts MAGNET'),
+    每游戏分钟tick: v(TICKS_PER_MINUTE, '1 游戏分钟 = 多少 tick（1 现实秒）', 'ticks in one game minute (one real second)', 'engine/src/calendar.ts'),
+    一天现实分钟: v(24 * TICKS_PER_HOUR / TICKS_PER_MINUTE / 60, '一个游戏日相当于多少现实分钟', 'real minutes in one game day', 'engine/src/calendar.ts'),
+    入夜: v(`${hours.dusk}:00`, '夜晚开始（故事推进后会提前）', 'night begins (earlier as the story goes on)', 'engine/src/calendar.ts nightHours'),
+    天亮: v(`0${hours.dawn}:00`, '夜晚结束', 'night ends', 'engine/src/calendar.ts nightHours'),
+    新游戏时刻: v(`${index.startHour ?? 13}:00`, '新游戏开始的时刻', 'the hour a new game begins', 'tools/src/demo/world.ts START_HOUR'),
+    回收比例: v(`${RECOVERY * 100}%`, '东西被打坏时，构成它的材料留下的比例', 'share of its materials a thing leaves when broken', 'content/src/ontology.ts RECOVERY'),
+    安全落差: v(SAFE_FALL, '掉下这么多层不受伤', 'storeys you can fall without harm', 'content/src/ontology.ts SAFE_FALL'),
+    坠落伤害: v(FALL_DAMAGE, '超过安全落差后每多一层的伤害', 'damage for each storey beyond a safe fall', 'content/src/ontology.ts FALL_DAMAGE'),
+    楼层上限: v(STOREYS, '地面以上最多能建几层', 'most storeys you can build above the ground', 'content/src/ontology.ts STOREYS'),
+    房间最大格数: v(ROOM_SIZE, '超过这么多格就不算房间（算屋外）', 'more cells than this is no room (it is outdoors)', 'content/src/ontology.ts ROOM_SIZE'),
+    夜行生物上限: v(NIGHT_CAP, '一张地图同时游荡的夜行生物上限', 'most night creatures roaming one map at once', 'content/src/ontology.ts NIGHT_CAP'),
+    夜行生物间隔: v(NIGHT_EVERY / TICKS_PER_MINUTE, '每隔多少现实秒可能再出现一只夜行生物', 'real seconds between chances of another night creature', 'content/src/ontology.ts NIGHT_EVERY'),
+    树木再生: v(TREE_GROWS / (TICKS_PER_HOUR * 24), '树墩或树苗长成树要几个游戏日', 'game days for a stump or sapling to grow into a tree', 'content/src/ontology.ts TREE_GROWS'),
+    下蛋间隔: v(LAYS_EVERY / TICKS_PER_HOUR, '母鸡每隔几个游戏小时下一个蛋', 'game hours between a hen’s eggs', 'content/src/ontology.ts LAYS_EVERY'),
+    地面产出间隔: v(APPEAR_EVERY / TICKS_PER_MINUTE, '树枝、石头、草这类地面产出每隔多少现实秒长出一份', 'real seconds between each new branch, stone or tuft of grass on the ground', 'engine/src/appear.ts APPEAR_EVERY'),
+    职业等级: v(PROFESSION_LEVEL, '可以选择职业的等级', 'the level at which you may choose a profession', 'engine/src/profession.ts PROFESSION_LEVEL'),
+    升级经验系数: v(20, '升到下一级需要 这个数 × 当前等级 的经验', 'the next level takes this × your level in experience', 'engine/src/progression.ts xpToNext'),
+    恩赐切换距离: v(BOON_REACH, '在已唤醒的传送雕像多少格内可以更换露米的恩赐', 'cells from an awakened waypoint statue within which you may change Lumi’s boon', 'engine/src/boons.ts BOON_REACH'),
+    图鉴视距: v(CODEX_SIGHT, '人物或生物来到多少格内就算「见过」', 'cells within which a person or creature counts as “seen”', 'engine/src/codex.ts CODEX_SIGHT'),
+    交互距离: v(ontology.params?.reach ?? 1, '默认的 E 交互距离（格）', 'the default reach of E (cells)', 'content/src/ontology.ts params.reach'),
+    拿放距离: v(ontology.params?.carry ?? 1, 'F 拿、G 放的距离（格）', 'the reach of taking and putting (cells)', 'content/src/ontology.ts params.carry'),
+    休息系数: v(ontology.params?.rest ?? 0.5, '不在卧室睡觉时恢复损失生命的比例', 'share of lost health restored by sleeping outside a bedroom', 'content/src/ontology.ts params.rest'),
+    喂饱时长: v(FED_FOR / TICKS_PER_HOUR, '喂过饲料的动物「吃饱了」持续几个游戏小时；「挤过奶」「刚生过崽」也持续这么久', 'game hours a fed animal stays “fed”; “milked” and “just bred” last as long', 'content/src/homestead.ts FED_FOR'),
+    幼崽长大: v(Number((types['actor/creature/animal/calf']?.stage as any)?.lasts ?? 0) / TICKS_PER_HOUR, '小牛、小鸡长成牛、鸡要几个游戏小时', 'game hours for a calf or chick to grow up', 'content/src/ontology.ts GROWS_UP'),
+    鱼饵次数: v(FORMS.find((f) => f.id === 'item/misc/bait')?.props?.casts ?? 5, '一份鱼饵挂到鱼竿上能用几竿', 'casts one bait lasts on a rod', 'content/src/items.ts item/misc/bait'),
+    鱼竿距离: v(FORMS.find((f) => f.id === 'item/tool/fishing_rod')?.props?.range ?? 1, '鱼竿能甩到几格远（格）', 'how far a rod casts (cells)', 'content/src/items.ts item/tool/fishing_rod'),
+    首领二阶段: v(`${Math.round((BOSSES[0]?.encounter.phases[1]?.at ?? 0.5) * 100)}%`, '首领生命降到这个比例进入第二阶段', 'a boss enters its second phase below this share of health', 'content/src/bosses.ts encounter.phases'),
   }
 
   const g: Game = {

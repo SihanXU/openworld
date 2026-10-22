@@ -6,7 +6,8 @@ Story and world: [docs/lore.md](docs/lore.md) (the user's canonical setting: the
 First Night, the five Seal-bearers; every chapter follows it) and [docs/chapter-1.md](docs/chapter-1.md).
 Design: [docs/design.md](docs/design.md); the agreed world model and base gameplay (not yet built,
 steps W1–W10): [docs/world-model.md](docs/world-model.md); the continent — six regions round the Holy City, the backdrop
-that fills them, the phases of scaling A–E (A–D built 2026-10-18): [docs/continent.md](docs/continent.md). Paper draft lives in Notion ("Large Symbolic World").
+that fills them, the phases of scaling A–E (A–D built 2026-10-18): [docs/continent.md](docs/continent.md). Release 1 is
+Part One, the west bank — its ending at the Ford, the valley, the polished maps, the pictures fixed: [docs/release-1.md](docs/release-1.md). Paper draft lives in Notion ("Large Symbolic World").
 OpenWorld is the engine and, for now, also the name of its first game: the engine side lives in `packages/`,
 each game in `games/<id>/` (this one `games/openworld/`), and the OpenWorld Editor, a game-making program in the
 manner of RPG Maker (a local server and page, or a desktop application, over projects in any folder) —
@@ -65,8 +66,12 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   design.md §5.15; `games/openworld/tools/test/writes.test.ts` scans for writes behind them) in `engine.ts`/`world.ts`; the request, one question per hole and class, the
   validator (host-only writes, never what the economy reads, the rule's place, replay) and the boundaries in `mod.ts` (design.md §5.4–5.16);
   the player's
-  inputs (E hands, F take, G put, left click use — a bare one is a blow —, and over them the right click, the
-  action: the act the thing aimed at calls for, chosen as the base rules answer so learning never changes it;
+  inputs (design.md §5.2, the standard of 2026-10-21: four inputs, each one meaning — the left click `primary`,
+  the held thing's own use: a tool or a weapon swung, the main hand's weapon or the fist, anything else used on
+  oneself; held, a swing goes on, `Controls.again` —; the right click `secondary`, the held thing used on what is
+  aimed at, a built thing set up there; E the hand, by the form of what it meets: what lies loose (`World.isLoose`)
+  taken, anything else handled; G put, never building: a built thing put down lies loose, packed as `LOOSE`, and a
+  tool knocks one set up loose, the `loosen` primitive;
   each as far as its reach: the target's `handsRange`, the world's `carry`, the held thing's `range`,
   held to by the engine for every actor), layers, slots and magnet
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
@@ -193,7 +198,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   toolbar, key labels, dialogue; `menu.ts` menu tabs, the character sheet (the engine's numbers, `Frame.player.stats`),
   journal, chest panel, the shops a game lists (`crafting.shops`: shelves with names and `sell`); `panels.ts` a game's own panels
   (`ClientGame.panels`: by the key a rule's `panel` effect opens, told the fx's `by`, loaded when first opened);
-  `boons.ts` the boons module's panel for a game with none of its own; `people.ts` the trade and pockets panels (the talk panel is the dialogue's, `hud.ts`); `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only; `quality.ts` the options' AI section: presets, a level per kind of work, the detection); the worker uses the modder service when one answers
+  `boons.ts` the boons module's panel for a game with none of its own; `people.ts` the trade and pockets panels (the talk panel is the dialogue's, `hud.ts`); `worldmap.ts` the world map (M) and the minimap; `dev.ts` the Mod Console, dev only; `quality.ts` the options' AI section: presets, a level per kind of work, the detection; `paneltabs.ts` Tab's tabs over an open panel; `keyspage.ts` Options → Keys); `keymap.ts` the keys
+  (design.md §5.2: every key an action's, rebound by the player, kept in the browser; the two clicks are the mouse's
+  alone; a text's `{key:<action>}` filled with the key now — a game's words name actions, never letters); the worker uses the modder service when one answers
   (`?modder=<url>`, default `localhost:8787` in dev) and syncs the shared library from it. It says no one game's
   words (docs/engine-split.md §15; `test/words.test.ts`): a game's words are its `texts` (over `ui/common.ts`
   STRINGS), its catalogue (`<tag>Mark`, `equipSlots`, a weapon's `swing`), its tables and its panels. Still this
@@ -214,6 +221,12 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (the live site and the team's editing use that path). Every item, fixture, person, creature, boss, map
   and quest gets a page; `npm run wiki:check` fails on broken links/templates or a thing/system without a page (CI
   `.github/workflows/wiki.yml`). A change to game content that adds a thing or system needs its wiki page.
+  Two editions (`lang.ts`: one build each, every word through `L(zh, en)` or the game's own `say`): Chinese is the source;
+  English is its translation at `/wiki/en/`, a page `wiki/en/pages/<the Chinese page's path>.md` whose `source:` is the
+  hash of the Chinese text it translates (`npm run wiki:translate -- status | stamp | relink`; untranslated and out-of-date
+  pages are shown with a banner, never fail the check), `wiki/en/site.json` the navigation's headings, `wiki/en/terms.json`
+  the term table. A link or template argument may name a page in Chinese in an English page: it resolves to the English page
+  (`relink` rewrites it); templates have English names too (`TEMPLATE_EN`).
 - `packages/agent` — the SWE-style agent and its self-state, task-agnostic (no engine, no content):
   `model.ts` (OpenAI-compatible / scripted / `anthropic.ts` Anthropic's API; `LSW_MODEL_PIN` freezes the provider for an experiment; `LSW_NO_ANTHROPIC=1`
   makes the claude-code backend and `anthropic/*` models refuse on a machine),
@@ -351,7 +364,8 @@ npm run build:player     # the player alone → packages/runtime/dist, the start
 npm run game -- check games/starter   # a project's problems (build <project> --out <dir>: a bundle)
 npm run bake             # OpenWorld as a project in the format → games/openworld/project/
 npm run schema           # the project's JSON Schemas from the engine's types
-npm run wiki             # the wiki on http://localhost:5180/wiki/ (wiki:check, wiki:build)
+npm run wiki             # the wiki on http://localhost:5180/wiki/, English at /wiki/en/ (wiki:check, wiki:build)
+npm run wiki:translate -- status | stamp [file…] | relink [file…]   # the English edition's upkeep
 npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]   # everyone's portrait and sprite (docs/looks.md)
 # portrait parts: a local ComfyUI with Qwen-Image-Edit (tools/src/art/looks/portrait/setup.md), then
 #   python -I parts.py <work> && python -I batch.py <work>/jobs.json && python -I build.py <work> games/openworld/public/assets/lsw/Looks/portrait

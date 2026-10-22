@@ -24,7 +24,7 @@ export const edda: PersonDef = {
       [0, 24, 'eastroad:edda.barn', 'hide in the barn'],
     ],
     'fact:sins.defeated.alberic': [
-      [21, 7, 'meadow:edda.home', 'sleep'],
+      [21, 7, 'meadow.cabin:bed.0', 'sleep'],
       [7, 21, 'meadow:edda.garden', 'work the village garden'],
     ],
   },

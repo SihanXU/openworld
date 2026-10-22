@@ -1,0 +1,48 @@
+// Tab's tabs (2026-10-20, design.md §5.3): over whichever panel is open — the bag, crafting, the skill tree and
+// the skill panel (the classes module's), the quests, the codex, the world map — a row of tabs, each with the key
+// that opens it, to go to another panel without that key (Tab opens the bag; the panels stay each its own).
+
+import type { Action } from '../keymap.ts'
+import { esc, kbd } from './common.ts'
+
+export type Panel = 'bag' | 'craft' | 'skills' | 'skillPanel' | 'quests' | 'journal' | 'map'
+
+export class PanelTabs {
+  private el = document.createElement('div')
+  private shown = ''
+
+  constructor(
+    /** The tabs this game has, in order: each its name and the action whose key opens it. */
+    private tabs: () => { id: Panel; name: string; action: Action }[],
+    /** The panel open now, if one of these. */
+    private current: () => Panel | undefined,
+    /** Go to that panel. */
+    private go: (p: Panel) => void,
+  ) {
+    this.el.className = 'panel-tabs hidden'
+    this.el.id = 'paneltabs'
+    document.body.appendChild(this.el)
+    this.el.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-panel]')
+      if (b) this.go(b.dataset.panel as Panel)
+    })
+  }
+
+  /** Shown over an open panel, the open one marked (each animation frame: redrawn only when it changes). */
+  sync(): void {
+    const now = this.current()
+    const tabs = now ? this.tabs() : []
+    const sig = now ? `${now}|${tabs.map((t) => `${t.id}:${t.name}:${kbd(t.action)}`).join(',')}` : ''
+    if (sig === this.shown) return
+    this.shown = sig
+    this.el.classList.toggle('hidden', !now)
+    if (!now) return
+    this.el.innerHTML = tabs.map((t) => `<button class="pt-tab${t.id === now ? ' on' : ''}" data-panel="${t.id}">${esc(t.name)} <kbd>${esc(kbd(t.action))}</kbd></button>`).join('')
+  }
+
+  /** Redrawn at once (the keys or the language changed). */
+  relabel(): void {
+    this.shown = ''
+    this.sync()
+  }
+}

@@ -33,6 +33,14 @@ export const cellKey = (map: string, x: number, y: number, z = 0) => (z ? `${til
 /** The storey a place is on (0: the ground's). */
 export const storeyOf = (p: Place): number => (p.on === 'tile' ? (p.z ?? 0) : 0)
 export const NO_EXPIRY = -1
+
+/** What is set up in a cell as part of a place: a built thing or a fixture (a wall, a door, a bed, a workbench). */
+export const isBuilt = (type: string): boolean => type.startsWith('structure/') || type.startsWith('fixture/')
+/**
+ * A built thing come loose (design.md §5.2): it lies packed as an item on its cell, the thing itself inside it,
+ * until a hand picks it up (the thing comes out into the hand) — the kernel's type (stdlib), a kind of bundle.
+ */
+export const LOOSE = 'item/misc/bundle/loose'
 /** A ref's key in the statusful set and the relation index: the thing's id. */
 export const refKey = (r: Ref): string => r.e
 /** The other side's view of a relation (design.md §5.10). */
@@ -920,6 +928,15 @@ export class World {
   /** Can it be carried? (the `portable` tag) */
   isPortable(e: Entity): boolean {
     return this.hasTag(e, 'portable')
+  }
+
+  /**
+   * Does it lie loose, to be picked up (design.md §5.2, Minecraft's dropped item): a thing that can be
+   * carried and is not set up — an item, or a built thing come loose (packed as `LOOSE`). A built thing
+   * standing (a bed, a wall) is handled, not picked up; it comes loose under a tool.
+   */
+  isLoose(e: Entity): boolean {
+    return !this.isAgent(e) && this.isPortable(e) && !isBuilt(e.type)
   }
 
   /** Does it keep no place on any map (the story, the world)? */

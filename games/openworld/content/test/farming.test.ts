@@ -1,6 +1,6 @@
 // M4: farming, played through the same entry point as the player's keys (controls.plan + run).
 // A seed's own act sows it; water reaches a crop as an element; a sickle's blow (`strike`) is
-// answered by the ripe crop; a hand takes (`taken`) what it picks.
+// answered by the ripe crop; E handles (`handle`) a crop that stays rooted in its soil.
 
 import { describe, expect, it } from 'vitest'
 import { RuleLibrary, SANDBOX_MAP, buildSandbox, type Engine, type Key } from '@openworld/engine'
@@ -75,7 +75,7 @@ describe('a season', () => {
     const eng = farm(4)
     for (let x = 0; x < 4; x++) {
       standAt(eng, x)
-      expect(press(eng, 'put', SEED)).toContain('farm/sow-put')
+      expect(press(eng, 'use', SEED)).toContain('farm/sow')
     }
     expect(at(eng, 2)).toEqual(['fixture/crop/wheat/sprout'])
     for (const stage of ['young', 'ripe']) {
@@ -112,12 +112,12 @@ describe('a season', () => {
 
   it('picking by hand gives one of each; ash adds one to a sickle harvest', () => {
     const picked = farm(1, { 0: 'fixture/crop/wheat/ripe' })
-    expect(press(picked, 'take')).toEqual(expect.arrayContaining(['core/take', 'farm/pick']))
+    expect(press(picked, 'hands')).toEqual(expect.arrayContaining(['core/hands', 'farm/pick']))
     expect(picked.world.get(picked.world.get('actor')!.held)?.type).toBe('item/material/wheat')
     expect(at(picked, 0)).toEqual([SEED])
 
     const rich = farm(1, { 0: 'fixture/crop/wheat/young' })
-    expect(press(rich, 'put', 'item/material/ash')).toEqual(expect.arrayContaining(['farm/ash-put', 'farm/fertilize']))
+    expect(press(rich, 'use', 'item/material/ash')).toEqual(expect.arrayContaining(['farm/ash', 'farm/fertilize']))
     expect(rich.world.hasStatus({ e: 'c0' }, 'fertilized')).toBe(true)
     press(rich, 'use', WATER)
     stow(rich)
@@ -128,7 +128,7 @@ describe('a season', () => {
 
   it('a berry bush bears again after picking', () => {
     const eng = farm(1, { 0: 'fixture/crop/berry/ripe' })
-    expect(press(eng, 'take')).toContain('farm/pick')
+    expect(press(eng, 'hands')).toContain('farm/pick')
     expect(eng.world.get(eng.world.get('actor')!.held)?.type).toBe('item/food/berries')
     expect(at(eng, 0)).toContain('fixture/crop/berry/young')
   })
@@ -177,7 +177,7 @@ describe('fire and trees', () => {
   it('an acorn grows into a tree in two game days', () => {
     const eng = farm(3, {}, 'grass')
     standAt(eng, 1)
-    expect(press(eng, 'put', 'item/seed/acorn')).toContain('farm/plant-acorn-put')
+    expect(press(eng, 'use', 'item/seed/acorn')).toContain('farm/plant-acorn')
     expect(at(eng, 1)).toEqual(['fixture/crop/oak/sapling'])
     stow(eng)
     wait(eng, 48 * HOURS + 1)
@@ -252,7 +252,7 @@ describe('crop timing and retained water', () => {
     stow(eng)
     wait(eng, 1201)
     expect(at(eng, 0)).toEqual(['fixture/crop/tomato/ripe'])
-    press(eng, 'take')
+    press(eng, 'hands')
     stow(eng)
     wait(eng, 2401)
     expect(at(eng, 0)).toContain('fixture/crop/tomato/young')

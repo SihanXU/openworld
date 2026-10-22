@@ -378,6 +378,8 @@ const BASE_FORMS: Form[] = [
   W('item/relic/oath_thorn', 'The Oath-Thorn', '誓约之棘', 'item:oath_thorn', { tags: ['holy', 'relic', 'keepsake', 'bound', 'important', 'quality:vowed'], where: {} }),
   // what one carried, left where one fell (rules.ts body/rise): opened (a hand on it, or taken), all of it comes back
   W('item/misc/bundle', 'Lost Belongings', '遗落的包裹', 'item:bundle', { tags: ['belongings'], where: {} }),
+  // a built thing come loose (design.md §5.2, the engine's LOOSE): packed where it lies, the thing inside it, out into the hand that picks it up
+  W('item/misc/bundle/loose', 'Loose Thing', '散落的物件', 'item:bundle', { where: {} }),
   // the Pilgrim's Road (pilgrimage.ts): the Order of the Thorn's seal, kept in its abbey's crypt by its last keeper
   // (the thorns of the knight's kingdom know it); the writ that should have relieved the First Seal-bearer
   W('item/valuable/order_seal', "The Order's Seal", '荆棘骑士团印章', 'item:amulet', { tags: ['holy', 'metal', 'wearable', 'important', 'quality:vowed'], props: { slot: 'neck', def: 4, vow: 'thorn', value: 80, text: 'A bronze seal on a chain: a ring of thorns, and in it a knight kneeling — not before a lord, before a child. Around the rim: WE HOLD, THAT OTHERS NEED NOT.', text_zh: '链子上挂着一枚青铜印章：一圈荆棘，圈里一个骑士单膝跪下——跪的不是领主，而是一个孩子。边缘刻着：我们坚守，好让别人不必。' }, where: {} }),

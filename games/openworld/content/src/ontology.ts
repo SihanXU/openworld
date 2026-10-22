@@ -426,7 +426,7 @@ const RESIDENTS: TypeDef[] = [
   { id: 'site/wild', name: { en: 'the wild', zh: '荒野' }, sprite: 'site:wild' },
   { id: 'site/place', name: { en: 'a place', zh: '地点' }, sprite: 'site:place' },
   // a hand-made place is drawn as what it is on the world map: its kind is its icon
-  ...(['village', 'town', 'farm', 'mill', 'woods', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone'] as const).map((k) => ({ id: `site/place/${k}`, name: { en: 'a place', zh: '地点' }, sprite: `site:${k}` })),
+  ...(['village', 'town', 'farm', 'mill', 'watermill', 'woods', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone'] as const).map((k) => ({ id: `site/place/${k}`, name: { en: 'a place', zh: '地点' }, sprite: `site:${k}` })),
   // and the kinds the other regions' places are (docs/continent.md §3): a fort, a ruin, a graveyard, a cathedral, a
   // city's quarter, a tower, a battlefield, a cave, a Seal-bearer's seat
   ...(['fort', 'ruin', 'graveyard', 'cathedral', 'city', 'tower', 'battlefield', 'cave', 'seat'] as const).map((k) => ({ id: `site/place/${k}`, name: { en: 'a place', zh: '地点' }, sprite: `site:${k}` })),
@@ -452,11 +452,12 @@ const fixtureTypes: TypeDef[] = [
   // what stands in a cell can be stood or set on, by what walks (its reach)
   F('fixture', 'thing', '物件', [], { reach: ['ground'] }),
   F('fixture/container', 'container', '容器', ['container'], { solid: true }),
-  F('fixture/container/chest', 'chest', '箱子', ['wooden', 'flammable'], { solid: true, props: { capacity: 12, material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 4 }] }),
+  // a chest and a crate a tool knocks loose whole, as a bed (design.md §5.2): what is in them spills first
+  F('fixture/container/chest', 'chest', '箱子', ['wooden', 'flammable', 'portable'], { solid: true, props: { capacity: 12, material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 4 }] }),
   F('fixture/container/barrel', 'barrel', '木桶', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 4, material: 'wood', maxHp: 1, hp: 1 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
   // the village's wood pile: the woodcutter stacks his logs on it, anyone may take them (world-model.md §6.10)
   F('fixture/container/woodpile', 'wood pile', '柴堆', ['wooden', 'flammable'], { sprite: 'fixture:firewood', solid: true, props: { capacity: 12, material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/log', count: 2 }] }),
-  F('fixture/container/crate', 'crate', '板条箱', ['wooden', 'flammable', 'breakable'], { solid: true, props: { capacity: 6, material: 'wood', maxHp: 1, hp: 1 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
+  F('fixture/container/crate', 'crate', '板条箱', ['wooden', 'flammable', 'breakable', 'portable'], { solid: true, props: { capacity: 6, material: 'wood', maxHp: 1, hp: 1 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
   F('fixture/container/pot', 'clay pot', '陶罐', ['clay', 'fragile', 'breakable'], { solid: true, props: { capacity: 2, material: 'clay', maxHp: 1, hp: 1 } }),
   F('fixture/container/wardrobe', 'wardrobe', '衣柜', ['wooden', 'flammable'], { solid: true, props: { capacity: 12, material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/plank', count: 4 }] }),
   // the Held Ground's storehouse (built by its steward): forty places
@@ -466,6 +467,11 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/container/sack', 'sack', '麻袋', ['cloth', 'flammable'], { solid: false, props: { capacity: 4, material: 'cloth', maxHp: 3, hp: 3 }, makeup: [{ type: 'item/material/cloth', count: 1 }] }),
   F('fixture/furniture', 'furniture', '家具', ['wooden', 'flammable'], { solid: true }),
   F('fixture/furniture/table', 'table', '桌子', ['surface']),
+  // what a household lives with (docs/release-1.md): a family's long table, a chest of drawers, a cupboard, a plant on the sill
+  F('fixture/furniture/table/long', 'long table', '长餐桌', ['surface'], { solid: true, footprint: [3, 1], sprite: 'fixture:long_table' }),
+  F('fixture/container/drawers', 'chest of drawers', '五斗柜', ['wooden', 'flammable'], { solid: true, props: { capacity: 8, material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
+  F('fixture/container/cupboard', 'cupboard', '橱柜', ['wooden', 'flammable'], { solid: true, footprint: [2, 1], props: { capacity: 12, material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/plank', count: 4 }] }),
+  F('fixture/nature/plant', 'potted plant', '盆栽', ['plant', 'clay', 'fragile', 'breakable'], { solid: true, props: { material: 'clay', maxHp: 1, hp: 1 } }),
   F('fixture/furniture/chair', 'chair', '椅子', [], { solid: false }),
   // one lies on a bed: a hand on it reaches only from on it
   // a bed is made by hand (planks and a mattress of grass), carried, and set down where one sleeps
@@ -473,6 +479,11 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/bench', 'bench', '长椅', ['surface'], { solid: false }),
   F('fixture/furniture/bench/log', 'log bench', '原木长凳', [], { solid: true, footprint: [3, 1], sprite: 'fixture:log_bench' }),
   F('fixture/furniture/rack', 'cooking rack', '炊架', ['surface']),
+  // the watch's and the smith's: spears, a sword and a shield stood in a wooden rack (docs/release-1.md)
+  F('fixture/furniture/rack/arms', 'weapon rack', '兵器架', ['wooden', 'flammable'], { solid: true, sprite: 'fixture:arms_rack' }),
+  // the Reed Bend's fisher's (docs/chapter-1.md §15): her nets hung on a pole to dry, her fish drying on a rack
+  F('fixture/furniture/rack/nets', 'drying nets', '晾网架', ['wooden', 'flammable'], { solid: true }),
+  F('fixture/furniture/rack/fish', 'fish-drying rack', '晾鱼架', ['wooden', 'flammable'], { solid: true, sprite: 'fixture:fish_rack' }),
   F('fixture/furniture/counter', 'counter', '柜台', ['surface']),
   // the general store's counter, the church's bookstand: shops whose offers are recipes (village.ts)
   F('fixture/furniture/counter/store', 'general store counter', '杂货铺柜台', ['shop', 'station:store'], { sprite: 'fixture:counter' }),
@@ -497,6 +508,8 @@ const fixtureTypes: TypeDef[] = [
   // a sign is read from a step or two off
   F('fixture/sign', 'sign', '告示牌', ['wooden', 'flammable', 'readable'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4, handsRange: 2 }, makeup: [{ type: 'item/material/stick', count: 1 }, { type: 'item/material/plank', count: 1 }] }),
   F('fixture/tent', 'tent', '帐篷', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3] }),
+  // a tent left to rot, drawn torn (the forest's pilgrims' camp: docs/release-1.md)
+  F('fixture/tent/torn', 'torn tent', '破帐篷', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3], sprite: 'fixture:tent_torn' }),
   F('fixture/sign/noticeboard', 'notice board', '布告栏', ['paper']),
   // the village's board of favours (docs/quests.md §3): what people want done, to take on
   F('fixture/sign/questboard', 'commission board', '委托板', ['paper']),
@@ -559,6 +572,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/nature/leaves', 'fallen leaves', '落叶', ['plant', 'dry', 'flammable'], { solid: false }),
   F('fixture/nature/pebbles', 'pebbles', '卵石', ['stone'], { solid: false }),
   F('fixture/nature/moss', 'moss', '苔藓', ['plant'], { solid: false }),
+  // the soot a charcoal kiln breathes onto the ground before its mouth (the Charcoal Dell)
+  F('fixture/nature/soot', 'soot', '炭灰', [], { solid: false }),
   F('fixture/nature/mushroom_ring', 'mushroom ring', '蘑菇圈', ['plant', 'fungus'], { solid: false }),
   F('fixture/nature/beehive', 'beehive', '蜂巢', ['wooden', 'flammable', 'bees']),
   // a bee box one builds (Apiarist, life.ts): honey as a wild hive gives it
@@ -568,6 +583,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/ferry', 'ferry', '渡船', ['wooden', 'flammable'], { solid: true }),
   F('fixture/ferry/winch', 'ferry winch', '渡口绞盘', ['mechanism']),
   F('fixture/ferry/raft', 'ferry raft', '渡筏', ['surface']),
+  // a rowboat moored at a jetty (the Reed Bend's: the boat that came home without him)
+  F('fixture/boat', 'rowboat', '小船', ['wooden', 'flammable', 'surface'], { solid: true }),
   F('fixture/fence', 'fence', '栅栏', ['wooden', 'flammable', 'turns'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 2 }] }),
   F('fixture/crop', 'crop', '作物', ['crop', 'plant'], { solid: false, props: { yield: 2 } }),
   // each crop is of a kind (`crop:<kind>`): what a farmer who knows that kind gets more of (content life.ts)

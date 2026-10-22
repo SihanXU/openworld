@@ -21,10 +21,13 @@ import { QuestLog } from './questlog.ts'
 import { SkillPanel } from './skillpanel.ts'
 import { AiOptions } from './quality.ts'
 import { ContextMenu } from './context-menu.ts'
-import { $, SLOT_KEYS, controlsTable, esc, locale, prefs, t, tx, gearFrame } from './common.ts'
+import { $, SLOT_KEYS, controlsTable, esc, kbd, locale, prefs, t, tx, gearFrame } from './common.ts'
+import type { Panel } from './paneltabs.ts'
+import { KeysPage } from './keyspage.ts'
+import type { Action } from '../keymap.ts'
 
-export type Tab = 'inventory' | 'craft' | 'options' | 'shop'
-const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙', shop: '🏪' }
+export type Tab = 'inventory' | 'craft' | 'options' | 'shop' | 'keys'
+const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙', shop: '🏪', keys: '⌨' }
 /** The game's shops (a station each, its shelves); none, no shop panel. */
 const shops = (): ShopDef[] => game().crafting.shops ?? []
 const shopStations = () => new Set(shops().map((s) => s.station))
@@ -194,6 +197,8 @@ export interface MenuSend {
 
 export class Menu {
   tab: Tab = 'inventory'
+  /** Options → Keys (keyspage.ts): back to the options when done. */
+  private keysPage = new KeysPage(() => this.open('options'))
   /** The options' AI section: the AI setting, and what the connected model carries. */
   readonly ai: AiOptions
   library?: LibraryView
@@ -342,6 +347,17 @@ export class Menu {
   get skillsOpen(): boolean {
     return !$('#skills').classList.contains('hidden')
   }
+  /** Which of the panels Tab's tabs go between is open, if one is (ui/paneltabs.ts). */
+  get page(): Panel | undefined {
+    if (this.menuOpen && this.tab === 'inventory') return 'bag'
+    if (this.menuOpen && this.tab === 'craft') return 'craft'
+    if (this.skillsOpen) return 'skills'
+    if (this.skillPanel.open) return 'skillPanel'
+    if (this.quests.open) return 'quests'
+    if (this.journalOpen) return 'journal'
+    if (this.worldmap.open) return 'map'
+    return undefined
+  }
   get anyOpen(): boolean {
     return this.menuOpen || this.journalOpen || this.chestOpen || this.skillsOpen || this.worldmap.open || this.profession.open || this.panels.anyOpen || this.quests.open || this.skillPanel.open
   }
@@ -403,6 +419,7 @@ export class Menu {
 
   close(): void {
     this.contextPopup.close()
+    this.keysPage.hide()
     if (this.chestOpen) this.send.closePanel()
     for (const id of ['#menu', '#journal', '#chest', '#skills', '#worldmap', '#profession', '#questlog', '#skillpanel']) $(id).classList.add('hidden')
     this.panels.close()
@@ -489,10 +506,13 @@ export class Menu {
     if (this.tab === 'craft') body = this.craftHtml(f)
     if (this.tab === 'shop') body = this.shopHtml(f)
     if (this.tab === 'options') body = this.optionsHtml()
+    if (this.tab === 'keys') body = '<div id="keysHost"></div>'
+    if (this.tab !== 'keys') this.keysPage.hide()
     $('#menuSheet').innerHTML = head + `<div class="tab-body">${body}</div>`
     $('#menuClose').onclick = () => this.close()
     if (this.tab === 'inventory') this.wireInventory(f)
     if (this.tab === 'options') this.wireOptions()
+    if (this.tab === 'keys') this.keysPage.show($('#keysHost'))
     if (this.tab === 'craft' || this.tab === 'shop') this.wireCraft()
     if (this.tab === 'shop') $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-shelf]').forEach((b) => (b.onclick = () => ((this.shelf = b.dataset.shelf!), this.render())))
     if (f) {
@@ -528,7 +548,7 @@ export class Menu {
   // ---------------------------------------------------------------- inventory
 
   private slotHtml(s: Frame['player']['slots'][number], i: number, extra = ''): string {
-    const key = i < ROW ? `<span class="key">${SLOT_KEYS[i]}</span>` : ''
+    const key = i < ROW ? `<span class="key" data-kbd="slot${i + 1}">${kbd(`slot${i + 1}` as Action)}</span>` : ''
     return `<div class="slot${extra}${gearFrame(s?.item)}" data-i="${i}" ${s ? `data-item="${s.item.id}"` : ''}>${key}${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}</div>`
   }
 
@@ -759,7 +779,7 @@ export class Menu {
       ${game().worldFilter ? `<div class="opt"><span>${t('optFilter')}</span><button id="oFilter">${t({ off: 'filterOff', light: 'filterLight', full: 'filterFull' }[prefs.filter()])}</button></div>` : ''}
       <div class="opt"><button id="oSave">${t('save')}</button><button id="oNew">${t('toTitle')}</button>${import.meta.env.DEV ? `<button id="oDev">${t('devConsole')}</button>` : ''}</div>
       ${this.ai.html()}
-      <h4>${t('controls')}</h4>${controlsTable(import.meta.env.DEV)}
+      <h4>${t('controls')} <button id="oKeys">${t('keysSet')}</button></h4>${controlsTable(import.meta.env.DEV)}
     </div>`
   }
 
@@ -773,6 +793,7 @@ export class Menu {
       prefs.setFilter(next[prefs.filter()])
       this.render()
     })
+    $('#oKeys').onclick = () => this.open('keys')
     $('#oSave').onclick = () => this.send.save()
     // back to the cover (saved first): new games and other slots start there
     $('#oNew').onclick = () => (this.close(), this.send.newGame())

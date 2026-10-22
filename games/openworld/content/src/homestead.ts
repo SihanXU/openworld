@@ -235,7 +235,7 @@ export const HOMESTEAD_RULES: Rule[] = [
   story({
     id: 'home/rod-panel',
     label: L('Choose bait for {instrument}', '给{instrument}装饵'),
-    doc: 'Right-clicking open ground or yourself with a fishing rod opens its bait chooser; other targets keep their own action.',
+    doc: 'Right-clicking yourself with a fishing rod opens its bait chooser; other targets keep their own action.',
     host: { type: 'item/tool/fishing_rod' },
     on: 'act/use',
     tree: { if: { same: ['actor', 'target'] }, then: { do: [{ op: 'panel', panel: 'bait' }] }, else: 'inherit' },

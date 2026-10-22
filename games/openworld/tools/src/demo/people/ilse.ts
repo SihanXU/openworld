@@ -21,11 +21,11 @@ export const ilse: PersonDef = {
   purse: 15,
   schedules: {
     default: [
-      [22, 6, 'meadow:ilse.home', 'sleep'],
+      [22, 6, 'meadow.church:bed.1', 'sleep'],
       [6, 22, 'meadow:shrine.tend', 'tend the Firstlight'],
     ],
     'fact:ch1.flame_stolen': [
-      [22, 6, 'meadow:ilse.home', 'sleep'],
+      [22, 6, 'meadow.church:bed.1', 'sleep'],
       [6, 22, 'meadow:shrine.tend', 'sweep the cold altar'],
     ],
   },

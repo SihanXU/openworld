@@ -14,12 +14,12 @@ const say = (who: string, en: string, zh: string, mood?: 'neutral' | 'happy' | '
 
 /** Where the chapter puts things (map coordinates). */
 export const CH1_AT = {
-  village: { shrine: [23, 16] as const, statue: [24, 14] as const, drawing: [20, 16] as const, statueStone: [14, 13] as const, severin: [26, 17] as const, courier: [24, 18] as const },
+  village: { shrine: [23, 16] as const, statue: [24, 14] as const, drawing: [20, 16] as const, statueStone: [30, 19] as const, severin: [26, 17] as const, courier: [24, 18] as const },
   ford: { stone: [17, 13] as const, drawing: [27, 21] as const, briars: [[29, 21], [35, 21]] as const },
   foot: { drawing: [22, 13] as const },
   summit: { log: [13, 4] as const },
   pasture: { watch: [20, 12] as const },
-  forest: { camp: [31, 25] as const },
+  forest: { camp: [31, 24] as const },
   hollow: { stones: [[24, 25], [30, 25]] as const },
   barrow: { drawing: [14, 2] as const, loaf: [7, 20] as const },
   road: {
@@ -66,14 +66,12 @@ export function chapter1Village(m: MapBuilder): void {
   statue(m, 'wp.village', ...a.statueStone, 'Firstlight', '初原村')
   drawing(m, 'man', ...a.drawing, 'A hooded man with a lantern, beside a fire. Underneath, in a child\'s letters: HE WAS HERE FIRST.', '一个提着灯、戴兜帽的人，站在火堆旁。下面是孩子的字迹：他先来的。')
   anchor(m, 'shrine.tend', ...a.shrine)
-  anchor(m, 'ilse.home', 10, 14)
+  // (Ilse, Joss and Edda sleep in their own beds: the chapel, the house in the lane, the little cabin — village.ts)
   anchor(m, 'joss.bench', 12, 19)
-  anchor(m, 'joss.home', 9, 14)
   anchor(m, 'pell.play', 18, 13)
   anchor(m, 'nessa.desk', 27, 16)
   anchor(m, 'nessa.watch', 34, 17)
   anchor(m, 'fennick.bench', 21, 19)
-  anchor(m, 'edda.home', 13, 14)
   anchor(m, 'edda.garden', 25, 21)
   anchor(m, 'severin.stand', ...a.severin)
   anchor(m, 'courier.stand', ...a.courier)
@@ -89,8 +87,8 @@ export function chapter1Ford(m: MapBuilder): void {
 
 /** The Mountain Foot: Pell's drawing beside the shrine stone. */
 export function chapter1Foot(m: MapBuilder): void {
-  // the hunter's hut, long left: his gloves still on the floor
-  m.item({ form: 'item/clothing/gloves', material: 'leather', name: L("Hunter's Gloves", '猎人的手套') }, ...spot(m, 6, 14))
+  // the hunter's cabin, long left: his gloves still by the block in its yard, where he took them off to split wood
+  m.item({ form: 'item/clothing/gloves', material: 'leather', name: L("Hunter's Gloves", '猎人的手套') }, ...spot(m, 9, 16))
   drawing(m, 'stone', ...CH1_AT.foot.drawing, 'The shrine stone, five marks on it, the first scribbled over in black. A grey figure with its hand on it.', '那块路碑，上面五道痕，第一道被涂成了黑色。一个灰色的人把手按在上面。')
 }
 
@@ -155,30 +153,35 @@ export function chapter1Summit(m: MapBuilder): void {
   m.item({ form: 'item/clothing/cloak', material: 'cloth', quality: 'fine', name: L("Watchman's Cloak", '守夜人的斗篷'), props: {} }, ...spot(m, 8, 5))
 }
 
-/** The grassland: Brin's place by the herd, and the ground where the herd kneels at dusk. */
+/** The grassland: Brin's place by the herd (at her post by the fold's gate), and the ground where the herd kneels at dusk. */
 export function chapter1Pasture(m: MapBuilder): void {
   const a = CH1_AT.pasture
-  m.fixture('fixture/furniture/bench/log', ...spot(m, a.watch[0] + 1, a.watch[1]), { name: L("Brin's bench", '布琳的长凳') })
+  m.fixture('fixture/furniture/bench/log', ...spot(m, a.watch[0] - 1, a.watch[1] + 1), { name: L("Brin's bench", '布琳的长凳') })
   anchor(m, 'herd.watch', ...a.watch)
   m.regions.herd = [6, 6, 28, 18]
 }
 
-/** The forest: the cold camp of the pilgrim before you, deep in the south-east clearing. */
+/**
+ * The forest: the cold camp of the pilgrim before you, deep in the south-east clearing by the brook, the old footpath to
+ * it half grown over: his rotted tent, the ring of his fire, his crate split open, the proclamation nailed to a tree at
+ * the clearing's edge, and the cairn over him with his scallop beside it.
+ */
 export function chapter1Forest(m: MapBuilder): void {
   const [cx, cy] = CH1_AT.forest.camp
   m.regions.camp = [cx - 4, cy - 3, 8, 6]
-  m.fixture('fixture/tent', ...spot(m, cx + 1, cy - 1), { name: L('A rotted tent', '朽烂的帐篷') })
+  m.fixture('fixture/tent/torn', ...spot(m, cx + 1, cy - 1), { name: L('A rotted tent', '朽烂的帐篷') })
   m.fixture('fixture/light/campfire', ...spot(m, cx - 1, cy), { name: L('A cold fire ring', '冷掉的火圈') })
-  m.fixture('fixture/sign/noticeboard', ...spot(m, cx - 2, cy - 1), {
+  m.fixture('fixture/container/crate', ...spot(m, cx - 3, cy - 1), { name: L('A split crate', '裂开的木箱') })
+  m.fixture('fixture/sign/noticeboard', ...spot(m, cx - 4, cy - 3), {
     name: L('A proclamation nailed to a tree', '钉在树上的朝圣令'),
     props: {
       text: 'BY ORDER OF THE HOLY CITY. The Seal-bearers weaken. Let the pilgrimage be called. Brother Cassian of Firstlight is named pilgrim. — In the 380th year of the Five. (The paper is grey with age. The words are the ones the courier read to you.)',
       text_zh: '奉圣城之命：持印者渐衰，当发朝圣令。初原村卡西安修士被点名为朝圣者。——五苦纪元第380年。（纸已经旧得发灰。上面的话，和信使给你念的一模一样。）',
     },
   })
-  m.fixture('fixture/sacred/gravestone', ...spot(m, cx + 2, cy + 1), {
+  m.fixture('fixture/sacred/gravestone', ...spot(m, cx + 1, cy + 1), {
     name: L('A cairn of stones', '一堆石冢'),
-    props: { text: 'Stones piled over something long. A pilgrim\'s staff leans on it, its tip worn flat by many miles. No name.', text_zh: '石头堆在一个长长的东西上。一根朝圣杖靠在上面，杖尖被许多里路磨平了。没有名字。' },
+    props: { text: "Stones piled over something long. A pilgrim's staff leans on it, its tip worn flat by many miles. No name.", text_zh: '石头堆在一个长长的东西上。一根朝圣杖靠在上面，杖尖被许多里路磨平了。没有名字。' },
   })
   m.item({ form: 'item/valuable/scallop' }, ...spot(m, cx, cy + 1))
 }
@@ -188,8 +191,8 @@ export function chapter1Hollow(m: MapBuilder): void {
   m.regions.mouth = [22, 22, 11, 6]
   // a waypoint statue by the barrow mouth: the far end of the rescue's road, and of the barrow's three floors
   statue(m, 'wp.hollow', 23, 21, 'Thornwood Hollow', '荆棘谷')
-  // in the thickest thorns, boots someone gave up on
-  m.item({ form: 'item/clothing/boots', material: 'leather', quality: 'fine', name: L('Thornproof Boots', '防刺长靴'), props: {} }, ...spot(m, 22, 9))
+  // under the west thicket's thorns, boots someone gave up on
+  m.item({ form: 'item/clothing/boots', material: 'leather', quality: 'fine', name: L('Thornproof Boots', '防刺长靴'), props: {} }, ...spot(m, 8, 14))
   for (const [x, y] of CH1_AT.hollow.stones)
     m.fixture('fixture/sacred/gravestone', ...spot(m, x, y), {
       name: L('A carved standing stone', '刻纹立石'),

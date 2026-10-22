@@ -6,6 +6,7 @@ import type { BossState, Look, Dir, FxEvent, Id, LessonInput, PropValue, SceneSt
 import { SLOT_COUNT } from './controls.ts'
 import { stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
+import { LOOSE } from './world.ts'
 import { skillsOf } from './progression.ts'
 import { OFFHAND, offhandOf, weaponOf } from './blows.ts'
 import type { JournalQuest, QuestOffer, QuestTarget } from './quests.ts'
@@ -37,6 +38,8 @@ export interface EntitySnap {
   z?: number
   /** The spaces it takes in its cell, if any (a built wall, a floor laid): drawn as part of the place, not as a thing lying there. */
   spaces?: string[]
+  /** A built thing come loose (World.isLoose: packed as `LOOSE`): drawn as a thing lying there, small, by the picture of what it is. */
+  loose?: boolean
   facing: Dir
   statuses: string[]
   /** What its statuses draw over it (their `overlay`, OVERLAYS), in the order it has them. */
@@ -249,8 +252,8 @@ export interface Frame {
    * dash, gathers itself for a blow round itself, sways to cast, rears to call.
    */
   telegraphs?: { who: Id; tiles: [number, number][]; progress: number; color: number; boss?: boolean; pose?: WindupPose }[]
-  /** What each input would do right now, the action (the right click) among them (filled by the host, not by snapshot()). */
-  keys?: { hands?: KeyView; take?: KeyView; put?: KeyView; use?: KeyView; self?: KeyView; action?: KeyView }
+  /** What each input would do right now: E, G, the left click and the right click (filled by the host, not by snapshot()). */
+  keys?: { hands?: KeyView; put?: KeyView; primary?: KeyView; secondary?: KeyView }
   /** The open container panel (the host names it): its contents. */
   container?: {
     id: Id
@@ -460,7 +463,7 @@ export interface KeyView {
   ground?: boolean
   /** Its target is someone to talk to: a person, a companion. */
   person?: boolean
-  /** The action's view: the act it makes (a word or a hand, a take, setting down, a use on oneself). */
+  /** The act it makes, where an input makes more than one (E: a hand or a take; a click: a use, or a use on oneself). */
   act?: 'hands' | 'take' | 'put' | 'use' | 'self'
   x: number
   y: number
@@ -545,6 +548,8 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
   for (const e of w.entitiesOnMap(map)) {
     if (e.place.on !== 'tile' || !shown(e as Parameters<typeof shown>[0])) continue
     const r = w.onto.resolve(e.type)
+    // a built thing come loose is drawn as what it is (a bed lying packed), small, as a thing lying there
+    const inner = e.type === LOOSE ? w.get(e.contents?.[0]) : undefined
     // in the hand: what it holds, else the weapon it keeps in the main hand (only what acts wields one)
     const held = e.held ? w.get(e.held) : w.isAgent(e) ? weaponOf(w, e) : undefined
     const spaces = w.spacesOf(e)
@@ -552,7 +557,8 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
     entities.push({
       id: e.id,
       type: e.type,
-      sprite: r.sprite ?? e.type,
+      sprite: inner ? (w.onto.resolve(inner.type).sprite ?? inner.type) : (r.sprite ?? e.type),
+      ...(inner && { loose: true }),
       x: e.place.x,
       y: e.place.y,
       ...(e.place.z && { z: e.place.z }),

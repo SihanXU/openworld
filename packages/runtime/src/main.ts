@@ -13,7 +13,9 @@ import { kvGet, kvSet } from './storage.ts'
 import { writeSlot, type Slot } from './saves.ts'
 import { Cover } from './ui/cover.ts'
 import { DeathScreen } from './ui/death.ts'
-import { locale, t, tx } from './ui/common.ts'
+import { locale, relabelKeys, t, tx } from './ui/common.ts'
+import { actionOf, codeLabel, keys, setLayout, type Action } from './keymap.ts'
+import { PanelTabs, type Panel } from './ui/paneltabs.ts'
 import { Cursor } from './ui/cursor.ts'
 import { ModConsole } from './ui/dev.ts'
 import { Hud } from './ui/hud.ts'
@@ -85,6 +87,7 @@ const menu = new Menu({
     hud.relabel()
     minimap.relabel()
     fishingHud.relabel()
+    relabelAll()
   },
   toggleSound: () => hud.toggleSound(),
   devConsole: () => dev.toggle(true),
@@ -140,6 +143,59 @@ function openPanel(what: 'bag' | 'craft' | 'map', open: () => void): void {
   open()
   if (!was && menu.anyOpen) send({ t: 'ui', what })
 }
+/** The panels a key opens (Tab's bag, whose tabs are the others; each its own key too: keymap.ts). */
+const PANEL_OF: Partial<Record<Action, Panel>> = { bag: 'bag', craft: 'craft', skills: 'skills', skillPanel: 'skillPanel', quests: 'quests', journal: 'journal', map: 'map' }
+/** A panel's key pressed: it opens, or shuts if it is the one open. */
+function openTab(p: Panel): void {
+  if (p === 'bag') return openPanel('bag', () => menu.toggle('inventory'))
+  if (p === 'craft') return openPanel('craft', () => menu.toggle('craft'))
+  if (p === 'skills') return hasModule('classes') ? menu.toggleSkills() : undefined
+  if (p === 'map') return openPanel('map', () => menu.toggleMap())
+  if (p === 'quests') return void (menu.toggleQuests(), document.getElementById('questBtn')?.classList.remove('flash'))
+  if (p === 'skillPanel') return hasModule('classes') ? menu.toggleSkillPanel() : undefined
+  if (menu.journalOpen) return menu.close()
+  menu.openJournal()
+  hud.seenJournal()
+  codexSeen = -1
+}
+/** Tab's tabs over the open panel: one clicked, that panel instead. */
+const panelTabs = new PanelTabs(
+  () =>
+    (
+      [
+        { id: 'bag', name: t('inventory'), action: 'bag' },
+        { id: 'craft', name: t('craft'), action: 'craft' },
+        ...(hasModule('classes')
+          ? [
+              { id: 'skills', name: locale.value === 'zh' ? '技能树' : 'Skill tree', action: 'skills' },
+              { id: 'skillPanel', name: t('skills'), action: 'skillPanel' },
+            ]
+          : []),
+        { id: 'quests', name: locale.value === 'zh' ? '任务' : 'Quests', action: 'quests' },
+        { id: 'journal', name: t('codex'), action: 'journal' },
+        { id: 'map', name: t('worldMap'), action: 'map' },
+      ] as { id: Panel; name: string; action: Action }[]
+    ),
+  () => menu.page,
+  (p) => {
+    if (menu.page === p) return
+    menu.close()
+    openTab(p)
+  },
+)
+/** Every key drawn on the screen, drawn again (the map changed, or the language). */
+function relabelAll(): void {
+  relabelKeys()
+  panelTabs.relabel()
+  skillbar.relabel()
+}
+keys.onChange(relabelAll)
+relabelAll()
+// the characters this keyboard's layout prints, where the browser tells (an AZERTY's A where QWERTY's Q is)
+void (navigator as Navigator & { keyboard?: { getLayoutMap?: () => Promise<Map<string, string>> } }).keyboard
+  ?.getLayoutMap?.()
+  .then((m) => (setLayout(m), relabelAll()))
+  .catch(() => undefined)
 const building = new BuildingMode(send, (x, y) => ({ ...scene.screenOfTile(x, y), scale: scene.cameras.main.zoom }))
 // the palette opened or shut: the left click's ceiling (R by hand) is let go, the palette has its own
 building.onView = (open, ceilings) => {
@@ -505,6 +561,7 @@ const cover = new Cover(WORLD, {
     hud.relabel()
     minimap.relabel()
     fishingHud.relabel()
+    relabelAll()
   },
 })
 /**
@@ -546,28 +603,26 @@ function syncPause(): void {
   }
 }
 
-// ------------------------------------------------------------------ keyboard
+// ------------------------------------------------------------------ keyboard: every key is an action's (keymap.ts: the player's map, rebound in Options → Keys)
 
-const KEY_DIR: Record<string, Dir> = {
-  ArrowUp: 'up',
-  KeyW: 'up',
-  ArrowDown: 'down',
-  KeyS: 'down',
-  ArrowLeft: 'left',
-  KeyA: 'left',
-  ArrowRight: 'right',
-  KeyD: 'right',
-}
-const SLOT_CODES = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0']
+/** The action a key does now. */
+const actOf = (e: KeyboardEvent): Action | undefined => actionOf(keys.map, e.code, e.shiftKey)
+const DIR_OF: Partial<Record<Action, Dir>> = { up: 'up', down: 'down', left: 'left', right: 'right' }
+/** The inputs a key makes (design.md §5.2): E the hand, G put (the clicks are the mouse's alone). */
+const INPUT_OF: Partial<Record<Action, Key>> = { hands: 'hands', put: 'put' }
+/** The toolbar slot (0–9) or the skill bar's (0–5) an action is, else -1. */
+const slotOf = (a?: Action) => (a?.startsWith('slot') ? Number(a.slice(4)) - 1 : -1)
+const castOf = (a?: Action) => (a?.startsWith('cast') ? Number(a.slice(4)) - 1 : -1)
 const held: Dir[] = []
 scene.walking = () => held.length > 0
 let sentDir: Dir | null = null
-let shift = false
+/** The walk key is held (Shift by default): the steps go slower. */
+let walkHeld = false
 const syncMove = () => {
   const d = held.length ? held[held.length - 1] : null
   if (d !== sentDir) {
     sentDir = d
-    send({ t: 'move', dir: d, walk: shift })
+    send({ t: 'move', dir: d, walk: walkHeld })
   }
 }
 let attacking = false
@@ -575,6 +630,13 @@ const setAttack = (on: boolean) => {
   if (on === attacking) return
   attacking = on
   send({ t: 'attack', on })
+}
+/** The left button is down on the world for its act (a blow, a tool's work; an object used on oneself): held, a swing goes on. */
+let swingingNow = false
+const setSwing = (on: boolean, tile?: Tile) => {
+  if (on === swingingNow) return
+  swingingNow = on
+  send({ t: 'primary', on, tile })
 }
 const fishingInputs = new FishingInputLatch()
 let fishingWasActive = false
@@ -603,6 +665,7 @@ const stopMoving = () => {
   held.length = 0
   syncMove()
   setAttack(false)
+  setSwing(false)
   clearFishingInputs()
 }
 
@@ -611,15 +674,15 @@ const typing = () => {
   return !!a && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT')
 }
 
-// The inputs (design.md §5.2): E a hand, F takes, G puts or hands over, the left click uses the held thing (or a
-// bare blow), and the right click is the action, as Stardew's action button: what the thing aimed at calls for
-// (talk, open, pick up, set down a bed, eat — the engine's Controls chooses it from the others, the cursor shows
-// it). A short press acts on the top of what is drawn where the pointer is; a long press opens the chooser of all
-// of it the input reaches (people, things, items, the ground, oneself), so every event is reachable.
+// The inputs (design.md §5.2): E the hand (what lies loose is picked up, anything else handled: talk, open, read),
+// G puts down, in or on, or hands over; the left click is the held thing's own use — a tool's work or a weapon's
+// blow (nothing held: the main hand's weapon or the fist), anything else used on oneself (eat, drink, put on) —
+// acting on the press and going on while held; the right click uses the held thing on what is aimed at (sow, feed,
+// unlock, cook, the experiments; a built thing in hand is set up there, and dragged, a row). A press acts on the top
+// of what is drawn where the pointer is; a long press of E or G, or Alt with a click, opens the chooser of all of it
+// the input reaches (people, things, items, the ground, oneself, the ceiling), so every event is reachable.
 const LONG_MS = 380
-const KEY_OF: Record<string, Key> = { KeyE: 'hands', KeyF: 'take', KeyG: 'put' }
-const KEY_NAME: Record<Key, string> = { hands: 'E', take: 'F', put: 'G', use: 'L', self: 'R', action: 'R' }
-/** A press under way: what made it (a key's code, or `mouse0`/`mouse2`), the key it is, where the pointer aimed. */
+/** A key's press under way: its code, the input it is, where the pointer aimed. */
 let pressing: { by: string; key: Key; tile?: Tile; timer: ReturnType<typeof setTimeout>; long: boolean } | undefined
 /** What opened the chooser (its title). */
 let chooserBy = ''
@@ -643,7 +706,7 @@ function release(by: string): void {
 onChoices = (key, tile, list) =>
   // nothing the input reaches there (F held on a person): no list to choose from, and time does not stop for one
   list.length &&
-  hud.showChooser(chooserBy === 'mouse0' ? t('lmb') : chooserBy === 'mouse2' ? t('rmb') : KEY_NAME[key], tile ?? aimFront(), list, (layer) => (syncPause(), send({ t: 'ui', what: 'chooser' }), send({ t: 'key', key, tile, layer })))
+  hud.showChooser(chooserBy === 'mouse0' ? t('lmb') : chooserBy === 'mouse2' ? t('rmb') : codeLabel(chooserBy, locale.value), tile ?? aimFront(), list, (layer) => (syncPause(), send({ t: 'ui', what: 'chooser' }), send({ t: 'key', key, tile, layer })))
 
 /** Aims sent to the worker, and the last whose keys it has answered: until then, what the keys would do there is not known (the cursor and the frame wait). */
 let aimsSent = 0
@@ -671,7 +734,10 @@ window.addEventListener('keydown', (e) => {
   if (death.open || cover.open) return
   // the world waits on the player's act: Esc does not wait (the act's default now)
   if (hud.learning && e.code === 'Escape') return void (e.preventDefault(), send({ t: 'skipLearning' }))
-  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') shift = true
+  const a = actOf(e)
+  // the page's own use of these (focus, scrolling) never takes the game's keys
+  if (e.code === 'Tab' || e.code === 'Space') e.preventDefault()
+  if (a === 'walk') walkHeld = true
   // the layer chooser: a number picks, Esc closes
   if (hud.chooserOpen) {
     e.preventDefault()
@@ -680,11 +746,11 @@ window.addEventListener('keydown', (e) => {
     if (n >= 1 && n <= 9) return hud.chooseNth(n)
     return
   }
-  // a yes/no question: arrows choose, E confirms, Esc says no
+  // a yes/no question: the steps choose, the hand confirms, Esc says no
   if (hud.questionShown) {
     e.preventDefault()
-    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS'].includes(e.code)) return hud.moveChoice()
-    if (e.code === 'KeyE' || e.code === 'KeyF') return hud.confirmChoice()
+    if (a && DIR_OF[a]) return hud.moveChoice()
+    if (a === 'hands') return hud.confirmChoice()
     if (e.code === 'Escape') return hud.answer(false)
     return
   }
@@ -697,16 +763,16 @@ window.addEventListener('keydown', (e) => {
   // a merchant's trade or a person's pockets: Esc closes it
   if (people.open && e.code === 'Escape') return void (e.preventDefault(), people.close())
   if (people.open) return
-  // a person's line open: F and G put it away and act (a turn-in's thanks does not hold up the next one)
-  if (hud.dialogOpen && !menu.anyOpen && (e.code === 'KeyF' || e.code === 'KeyG') && hud.dismissLine()) syncPause()
-  // an open dialogue: E (or Esc) moves it on — unless a menu lies over it (Esc closes that first)
-  if (hud.dialogOpen && !menu.anyOpen && (e.code === 'KeyE' || e.code === 'Escape')) {
+  // a person's line open: put puts it away and acts (a turn-in's thanks does not hold up the next one)
+  if (hud.dialogOpen && !menu.anyOpen && a === 'put' && hud.dismissLine()) syncPause()
+  // an open dialogue: the hands (or Esc) move it on — unless a menu lies over it (Esc closes that first)
+  if (hud.dialogOpen && !menu.anyOpen && (a === 'hands' || e.code === 'Escape')) {
     e.preventDefault()
     return hud.advanceDialog()
   }
   if (e.code === 'Backquote') return dev.toggle()
-  if (e.code === 'KeyB' && !e.repeat) return void (e.preventDefault(), toggleBuilding())
-  // Esc closes what is open, else opens the menu; I the inventory, K the skill tree, J the journal (and the Threadbook)
+  if (a === 'build' && !e.repeat) return void (e.preventDefault(), toggleBuilding())
+  // Esc closes what is open, else opens the menu
   if (e.code === 'Escape') {
     e.preventDefault()
     if (building.open) return building.toggle(false)
@@ -726,20 +792,15 @@ window.addEventListener('keydown', (e) => {
     }
     return menu.open('options')
   }
-  if (e.code === 'KeyI') return openPanel('bag', () => menu.toggle('inventory'))
-  if (e.code === 'KeyC') return openPanel('craft', () => menu.toggle('craft'))
-  if (e.code === 'KeyK') return hasModule('classes') ? menu.toggleSkills() : undefined
-  if (e.code === 'KeyM') return openPanel('map', () => menu.toggleMap())
-  if (e.code === 'KeyL') return void (menu.toggleQuests(), document.getElementById('questBtn')?.classList.remove('flash'))
-  if (e.code === 'KeyU') return hasModule('classes') ? menu.toggleSkillPanel() : undefined
-  if (e.code === 'KeyQ' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'dash' })
-  // X: draw one's weapon (a blow on a person is meant), or put it away; V: walk soft (docs/npc-sandbox.md)
-  if (e.code === 'KeyX' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'toggle', what: 'drawn' })
-  if (e.code === 'KeyV' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'toggle', what: 'sneaking' })
-  if (e.code === 'KeyJ') return menu.journalOpen ? menu.close() : (menu.openJournal(), hud.seenJournal(), (codexSeen = -1))
-  // Shift+1–6: the skill bar — over the skill tree, set the active skill under the pointer in that slot; else cast it
-  const bar = e.shiftKey && !e.repeat ? SLOT_CODES.indexOf(e.code) : -1
-  if (bar >= 0 && bar < 6) {
+  // the panels (Tab's bag, whose tabs are the others; each its own key too)
+  if (a && PANEL_OF[a] && !e.repeat) return openTab(PANEL_OF[a]!)
+  if (a === 'dash' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'dash' })
+  // draw one's weapon (a blow on a person is meant), or put it away; walk soft (docs/npc-sandbox.md)
+  if (a === 'draw' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'toggle', what: 'drawn' })
+  if (a === 'sneak' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'toggle', what: 'sneaking' })
+  // the skill bar — over the skill tree, set the active skill under the pointer in that slot; else cast it
+  const bar = e.repeat ? -1 : castOf(a)
+  if (bar >= 0) {
     e.preventDefault()
     if (menu.skillsOpen) {
       const id = menu.hoveredSkill()
@@ -749,7 +810,7 @@ window.addEventListener('keydown', (e) => {
     if (!menu.anyOpen && !dev.open) return send({ t: 'cast', slot: bar })
   }
   if (menu.anyOpen || dev.open) return
-  const dir = KEY_DIR[e.code]
+  const dir = a && DIR_OF[a]
   if (dir) {
     if (!held.length) pointerStill = true
     if (!held.includes(dir)) held.push(dir)
@@ -760,16 +821,16 @@ window.addEventListener('keydown', (e) => {
     return
   }
   if (building.open) {
-    if (e.code === 'KeyE' && !e.repeat) building.place()
-    // R: turn what is set down (stairs go up the way it points)
-    if (e.code === 'KeyR' && !e.repeat) building.rotate()
-    if (['KeyE', 'KeyF', 'KeyG', 'Space', 'Tab'].includes(e.code)) e.preventDefault()
+    if (a === 'hands' && !e.repeat) building.place()
+    // the turn key: turn what is set up (stairs go up the way it points)
+    if (a === 'rotate' && !e.repeat) building.rotate()
+    if (a === 'hands' || a === 'put' || a === 'attack' || a === 'row' || a === 'rotate') e.preventDefault()
     return
   }
-  // R with a floor in hand: the left click lays it in the ceiling (as the palette's R), and back
-  if (e.code === 'KeyR' && !e.repeat && laysInHand(lastFrame)) return void setHandUp(!handUp)
-  // Space: the attack key, a blow ahead on the press and again while it is held
-  if (e.code === 'Space') {
+  // the turn key with a floor in hand: the right click lays it in the ceiling (as the palette's), and back
+  if (a === 'rotate' && !e.repeat && laysInHand(lastFrame)) return void setHandUp(!handUp)
+  // the attack key: a blow ahead on the press and again while it is held
+  if (a === 'attack') {
     const route = routeSpaceKeyDown(fishingIsActive(), e.repeat, suppressFishingSpace)
     e.preventDefault()
     if (route === 'fishing-press') {
@@ -781,11 +842,11 @@ window.addEventListener('keydown', (e) => {
     return
   }
   if (e.repeat) return
-  // Tab: the next row of the bag becomes the toolbar (Shift+Tab: the previous one)
-  if (e.code === 'Tab') return void (e.preventDefault(), send({ t: 'row', dir: e.shiftKey ? -1 : 1 }))
-  const key = KEY_OF[e.code]
-  if (key) return press(e.code, key, mouseTile)
-  const slot = SLOT_CODES.indexOf(e.code)
+  // the next row of the bag becomes the toolbar
+  if (a === 'row') return void (e.preventDefault(), send({ t: 'row', dir: 1 }))
+  const input = a && INPUT_OF[a]
+  if (input) return press(e.code, input, mouseTile)
+  const slot = slotOf(a)
   if (slot >= 0) send({ t: 'select', slot })
 })
 window.addEventListener('keyup', (e) => {
@@ -798,18 +859,20 @@ window.addEventListener('keyup', (e) => {
     if (escHold) (clearTimeout(escHold), (escHold = undefined), menu.open('options'))
     return
   }
-  if (e.code === 'Space') {
+  const a = actOf(e)
+  if (a === 'attack') {
     suppressFishingSpace = false
     if (!fishingRelease('space')) setAttack(false)
     return
   }
-  if (KEY_OF[e.code]) return release(e.code)
-  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
-    shift = false
+  // a press under way ends on its own key's release (whatever the map says of it now)
+  if (pressing?.by === e.code) return release(e.code)
+  if (a === 'walk') {
+    walkHeld = false
     sentDir = null
     syncMove()
   }
-  const dir = KEY_DIR[e.code]
+  const dir = a && DIR_OF[a]
   if (!dir) return
   const i = held.indexOf(dir)
   if (i >= 0) held.splice(i, 1)
@@ -836,7 +899,7 @@ document.addEventListener('visibilitychange', () => {
 })
 
 
-// ------------------------------------------------------------------ mouse: aim at the pointed tile (as far as an input reaches); left = use, right = the action
+// ------------------------------------------------------------------ mouse: aim at the pointed tile (as far as an input reaches); left = the primary act, right = the action
 
 let mouseTile: Tile | undefined
 /** The pointer's screen point while it is over the world. */
@@ -855,20 +918,20 @@ function reaim(): void {
   if (aimSig(a) === aimSig(mouseTile)) return
   mouseTile = a
   send({ t: 'aim', tile: a, n: ++aimsSent })
-  // building by hand, the left button held: each new cell the pointer enters gets one too
+  // building by hand, the right button held: each new cell the pointer enters gets one too
   if (handDrag && a) {
     const cell = handCell(a)
-    if (cell !== handDrag) ((handDrag = cell), send({ t: 'key', key: 'use', tile: a, drag: true, ...(handUp && { layer: CEILING }) }))
+    if (cell !== handDrag) ((handDrag = cell), send({ t: 'key', key: 'secondary', tile: a, drag: true, ...(handUp && { layer: CEILING }) }))
   }
 }
 
-// ------------------------------------------------------------------ building by hand: the left click sets a built thing down (docs/building.md)
+// ------------------------------------------------------------------ building by hand: the right click sets a built thing up (docs/building.md)
 
-/** The left button is down on a cell where what is held is set down: the cell last built (`x,y`), so a drag builds a row. */
+/** The right button is down on a cell where what is held is set up: the cell last built (`x,y`), so a drag builds a row. */
 let handDrag: string | undefined
-/** The left click lays the floor in hand in the ceiling (R), not on one's storey. */
+/** The right click lays the floor in hand in the ceiling (the turn key), not on one's storey. */
 let handUp = false
-/** A floor is in hand (R lays it in the ceiling instead). */
+/** A floor is in hand (the turn key lays it in the ceiling instead). */
 const laysInHand = (f?: Frame) => f?.player.held?.type === 'structure/floor'
 /** The cell a click builds in: laying the ceiling, the one whose ceiling is drawn at the pointer. */
 const handCell = (a: Tile) => (handUp ? `${a.over?.x ?? a.x},${a.over?.y ?? a.y + 1}` : `${a.x},${a.y}`)
@@ -914,26 +977,35 @@ gameEl.addEventListener('mousedown', (e) => {
     if (e.button === 2) building.toggle(false)
     return
   }
-  // what is held sets down here (it builds): at once, and again in each cell dragged over (no chooser on a long press)
-  if (e.button === 0 && tile && lastFrame?.keys?.use?.sets) {
-    handDrag = handCell(tile)
-    return send({ t: 'key', key: 'use', tile, ...(handUp && { layer: CEILING }) })
+  // Alt with a click: the chooser of every layer there the click reaches (the ceiling among them)
+  if (e.altKey && (e.button === 0 || e.button === 2)) {
+    chooserBy = `mouse${e.button}`
+    return send({ t: 'choices', key: e.button === 0 ? 'primary' : 'secondary', ...(tile && { tile }) })
   }
-  if (e.button === 0) press('mouse0', 'use', tile)
-  if (e.button === 2) press('mouse2', 'action', tile)
+  // the left click: the held thing's own use, at once, and while held a swing again at the pace of one
+  if (e.button === 0) return setSwing(true, tile)
+  if (e.button !== 2) return
+  // the right click: what is held used there; a built thing set up — at once, and again in each cell dragged over
+  const sets = !!tile && !!lastFrame?.keys?.secondary?.sets
+  if (sets) handDrag = handCell(tile!)
+  send({ t: 'key', key: 'secondary', ...(tile && { tile }), ...(sets && handUp && { layer: CEILING }) })
 })
 window.addEventListener('mouseup', (e) => {
   if (e.button === 0) building.release()
-  if (e.button === 0) handDrag = undefined
-  if (e.button === 0 && !fishingRelease('mouse')) release('mouse0')
-  if (e.button === 2) release('mouse2')
+  if (e.button === 2) handDrag = undefined
+  if (e.button === 0) setSwing(false)
+  if (e.button === 0) fishingRelease('mouse')
 })
 window.addEventListener(
   'wheel',
   (e) => {
     if (menu.anyOpen || dev.open || hud.dialogOpen || building.open) return
     if ((e.target as HTMLElement).closest('.overlay, .panel')) return
-    send({ t: 'cycle', dir: e.deltaY > 0 ? 1 : -1 })
+    // Shift: the bag's next (or last) row to the toolbar (a browser may turn a Shift wheel sideways)
+    const d = e.deltaY || e.deltaX
+    if (!d) return
+    if (e.shiftKey) return send({ t: 'row', dir: d > 0 ? 1 : -1 })
+    send({ t: 'cycle', dir: d > 0 ? 1 : -1 })
   },
   { passive: true },
 )
@@ -948,6 +1020,7 @@ function raf(now: number) {
     last = now
   }
   hud.tickLabels()
+  panelTabs.sync()
   cursor.tick()
   building.tick()
   building.hand(handUp)

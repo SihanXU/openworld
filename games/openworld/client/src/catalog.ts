@@ -38,7 +38,7 @@ const WALLS = TS + 'Interior/TilesetWallSimple.png'
 // the world map's own inked tiles and marks (tools/src/art/worldmap.ts)
 const WM_TILES = 'lsw/WorldMap/tiles.png'
 const WM_MARKS = 'lsw/WorldMap/marks.png'
-const WM_MARK = ['woods', 'woods2', 'mountains', 'mountains2', 'hills', 'hills2', 'village', 'town', 'ford', 'farm', 'mill', 'woods-place', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'none', 'deadwood', 'deadwood2', 'reeds', 'mesa', 'mesa2', 'fort', 'ruin', 'graveyard', 'cathedral', 'city', 'tower', 'battlefield', 'cave', 'seat', 'bridge']
+const WM_MARK = ['woods', 'woods2', 'mountains', 'mountains2', 'hills', 'hills2', 'village', 'town', 'ford', 'farm', 'mill', 'woods-place', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'none', 'deadwood', 'deadwood2', 'reeds', 'mesa', 'mesa2', 'fort', 'ruin', 'graveyard', 'cathedral', 'city', 'tower', 'battlefield', 'cave', 'seat', 'bridge', 'snowpines', 'snowpines2', 'watermill']
 /** A mark of the world map (16x20, its foot on the cell's bottom). */
 const wm = (key: string) => px(WM_MARKS, WM_MARK.indexOf(key) * 16, 0, 16, 20)
 // the project's own pixel art for what one builds
@@ -137,6 +137,28 @@ function pf(img: string, c: number, r: number, grid: string[], terrain?: string)
   return { img, x: c * 16, y: r * 16, tw: grid[0].length, th: grid.length, grid, ...(terrain ? { terrain } : {}) }
 }
 
+/**
+ * The joining pieces of the house sheet's three fences (the low rail, the pointed palisade, the stone wall), each laid
+ * out alike from column 8 of its two rows: the corners, the ends, the straight runs, the T-joints and the cross. A
+ * fence cell is stamped as `<kind>_<piece>`, the piece chosen by which of its four sides another cell of the same
+ * fence touches (the map builder's `joinFences`): N, E, S, W.
+ */
+export const FENCE_PIECES: Record<string, [number, number]> = {
+  es: [0, 0], ws: [1, 0], e: [2, 0], v: [3, 0], nes: [4, 0], wes: [5, 0], s: [6, 0],
+  ne: [0, 1], nw: [1, 1], w: [2, 1], h: [3, 1], new: [4, 1], nsw: [5, 1], x: [6, 1],
+}
+/** Each fence's rows in the house sheet and the terrain its cells are (what blocks). */
+export const FENCES: Record<string, { row: number; terrain?: string }> = { fence: { row: 4, terrain: 'woodwall' }, rail: { row: 6, terrain: 'woodwall' }, stonewall: { row: 8 } }
+
+function fencePieces(): Record<string, PrefabDef> {
+  const out: Record<string, PrefabDef> = {}
+  for (const [kind, f] of Object.entries(FENCES)) for (const [piece, [c, r]] of Object.entries(FENCE_PIECES)) out[`${kind}_${piece}`] = pf(HOUSE, 8 + c, f.row + r, ['#'], f.terrain)
+  return out
+}
+
+/** The grounds drawn on the yellow-green grass (and what stands on it): where a block on grass shows its edge. */
+const ON_GRASS = ['grass', 'flowers', 'drygrass', 'tree', 'pine', 'bush', 'rock', 'stump', 'spring']
+
 const SND = 'Audio/Sounds/'
 const MUS = 'Audio/Musics/'
 
@@ -150,6 +172,9 @@ export const CATALOG: Catalog = {
   blobs: {
     // Dirt road on the yellow-green grass. Outside: grass (TilesetFloor row 12).
     path: { img: FLOOR, col: 0, row: 7 },
+    // A way trodden through snow (ground.ts inSnow): the snow block's own path, white with a grey rim. Outside: the
+    // lavender of the snow's drifts, so the snow runs on round it without a seam.
+    path_snow: { img: FLOOR, col: 0, row: 14 },
     // Water with a brown bank + white foam, on the same yellow-green grass. Outside: grass.
     water: { img: WATER, col: 0, row: 6 },
     // Same block as water (the pack has no darker water on grass). Outside: grass.
@@ -157,6 +182,11 @@ export const CATALOG: Catalog = {
     // Darker furrowed soil. Outside: the DARK green grass of TilesetFloor (11,12) — on the
     // yellow-green grass this shows as a thin darker-green hedge ring around the field.
     farmland: { img: FLOOR, col: 11, row: 7 },
+    // Sand and mud as the dirt road is drawn on grass (the project's own: tools/src/art/flanks.ts recolours the road's
+    // block): soft edges against the grass round a beach or a mud flat, none beside water, a road or other ground —
+    // there it runs on as itself. (Both were plain tiles, a hard square on the grass, until 2026-10-21.)
+    sand: { img: 'lsw/Tiles/Sand.png', col: 0, row: 0, edgeOn: ON_GRASS },
+    mud: { img: 'lsw/Tiles/Mud.png', col: 0, row: 0, edgeOn: ON_GRASS },
     // Warm sandstone cobbles (town square). Self-bordered: the block draws its own darker rim
     // inside each edge tile and has no outside pixels, so any neighbour works.
     cobble: { img: IFLOOR, col: 0, row: 12 },
@@ -288,6 +318,17 @@ export const CATALOG: Catalog = {
       px(NATURE, 208, 128, 32, 32, 16, 31), // big brown rock
       px(NATURE, 256, 128, 32, 32, 16, 31), // big grey rock
     ],
+    // a rock in the snow (ground.ts objectLook): the slate boulders under their caps of snow, and the small ones
+    rock_snow: [
+      px(NATURE, 32, 192, 32, 32, 16, 31), // big boulder capped with snow
+      px(NATURE, 0, 192, 32, 32, 16, 31), // big slate boulder
+      t(NATURE, 4, 12), // small rock, snow on its shoulder
+      t(NATURE, 9, 12), // two small crags under snow
+      t(NATURE, 6, 12), // two slate stones
+      t(NATURE, 7, 12), // a slate stone
+      t(NATURE, 4, 12),
+      t(NATURE, 9, 12),
+    ],
     stump: [t(NATURE, 4, 8), t(NATURE, 14, 18), t(NATURE, 12, 13), px(NATURE, 0, 128, 32, 32, 16, 29), px(NATURE, 32, 128, 32, 32, 16, 29)],
     // the world map: woods, mountains and hills as inked marks, one to a cell
     ow_forest: [wm('woods'), wm('woods2')],
@@ -297,6 +338,8 @@ export const CATALOG: Catalog = {
     ow_marsh: [wm('reeds')],
     ow_badlands: [wm('mesa'), wm('mesa2')],
     ow_bridge: [wm('bridge')],
+    // a snowfield's pines under snow (a snow cell was a blank white square)
+    ow_snow: [wm('snowpines'), wm('snowpines2')],
     // Bare dead trees (the pack has no burnt trees; these read as charred).
     charred_tree: [px(NATURE, 64, 0, 32, 32, 16, 31), t(NATURE, 4, 9)],
     // Tall grass tufts. The pack's tufts are green: tint them golden (e.g. 0xe0c060) for dry
@@ -354,8 +397,11 @@ export const CATALOG: Catalog = {
     // A wooden watchtower on legs, its ladder in front (3x5), and a round log tower (3x6): a fort's towers.
     watchtower: pf(HOUSE, 16, 6, ['###', '###', '###', '###', '###'], 'woodwall'),
     tower_round: pf(HOUSE, 19, 3, ['###', '###', '###', '###', '###', '###'], 'woodwall'),
-    // A stone pillar (1x3): its cap overhead, its shaft and base in the way — a gate's posts, an old wall's columns.
-    pillar: pf(HOUSE, 0, 19, ['.', '#', '#']),
+    // A stone pillar (1x2): its cap overhead, its base in the way — a gate's posts, an old wall's columns. (The sheet's
+    // pillar is two tiles tall: a third row under it was a cell in the way with nothing drawn on it.)
+    pillar: pf(HOUSE, 0, 19, ['.', '#']),
+    // A knight of grey stone (2x2), his shield before him and his sword over his shoulder: the Order of the Thorn's effigies.
+    statue_knight: pf(HOUSE, 5, 21, ['##', '##']),
     // Banners on a pole (1x2), a colour each: a region's colours over its forts and squares (backdrop.ts BANNER).
     banner_cream: pf(HOUSE, 22, 20, ['.', '#']),
     banner_red: pf(HOUSE, 23, 20, ['.', '#']),
@@ -374,6 +420,8 @@ export const CATALOG: Catalog = {
     rail_v: pf(HOUSE, 11, 6, ['#'], 'woodwall'),
     stonewall_h: pf(HOUSE, 11, 9, ['#']),
     stonewall_v: pf(HOUSE, 11, 8, ['#']),
+    // every joining piece of the three fences (FENCE_PIECES): rail_es, fence_nsw, stonewall_x …
+    ...fencePieces(),
     // Bridges run north-south (planks across, rails on the east/west sides). 4 wide x 3 long.
     bridge_ns: pf(HOUSE, 9, 15, ['....', '....', '....'], 'bridge'),
     bridge_stone_ns: pf(HOUSE, 9, 19, ['....', '....', '....'], 'bridge'),
@@ -388,6 +436,16 @@ export const CATALOG: Catalog = {
     cliff_r: pf(RELIEF, 6, 0, ['#', '#', '#']),
     cliff_wall: pf(RELIEF, 4, 0, ['###', '###', '###'], 'cave_wall'),
     cliff_wall_sand: pf(RELIEF, 4, 5, ['###', '###', '###'], 'cave_wall'),
+    // a mine's mouth at a cliff's foot (3x3): the mossy rock, its timbered lintel, the dark way in at the bottom of the
+    // middle column, open beside it to the west (where a track runs on into the rock at a map's edge)
+    adit: pf(RELIEF_DETAIL, 0, 7, ['###', '###', '..#'], 'cave_wall'),
+    // the project's own (tools/src/art/mill.ts): a mill's wheel stood in its race against the mill's wall (3x3, its
+    // cells the race's water, laid as ground: the race runs on under it), and the millstones under their hopper on the
+    // mill's floor (2x2)
+    waterwheel: { ...pf('lsw/Fixtures/WaterWheel.png', 0, 0, ['###', '###', '###'], 'water'), ground: true },
+    millstones: pf('lsw/Fixtures/Millstones.png', 0, 0, ['##', '##'], 'woodwall'),
+    // a bell's rope come down a tower's wall, its grip in reach of the floor (tools/src/art/bell-rope.ts; 1x2, walkable)
+    bell_rope: pf('lsw/Fixtures/BellRope.png', 0, 0, ['.', '.']),
     // Desert lion-head wall fountain (2x3) and a square water basin (2x2).
     fountain_lion: pf(DESERT, 0, 6, ['##', '##', '##']),
     pool: pf(DESERT, 8, 7, ['##', '##'], 'water'),
@@ -411,6 +469,10 @@ export const CATALOG: Catalog = {
     moss: { img: WALLS, col: 5, row: 6, size: 5 },
   },
 
+  // the edges of high ground: the relief sheet's rims and faces with its plateau's white top cleared
+  // (tools/src/art/terrace.ts), laid over the ground of any map with heights
+  terrace: { img: 'lsw/Relief/Terrace.png' },
+
   // -------------------------------------------------------------------------------------------
   // Fixtures. base = normal state; open / lit only where the pack draws that state.
   // -------------------------------------------------------------------------------------------
@@ -418,7 +480,8 @@ export const CATALOG: Catalog = {
     'fixture:fixture': { base: t(DUNGEON, 2, 1), open: t(DUNGEON, 3, 1) },
     'fixture:container': { base: px('Items/Treasure/BigTreasureChest.png', 0, 0, 16, 14), open: px('Items/Treasure/BigTreasureChest.png', 16, 0, 16, 14) },
     'fixture:chest': { base: px('Items/Treasure/BigTreasureChest.png', 0, 0, 16, 14), open: px('Items/Treasure/BigTreasureChest.png', 16, 0, 16, 14) },
-    'fixture:barrel': { base: t(HOUSE, 16, 15), open: t(HOUSE, 17, 15) },
+    // a barrel is 22px tall in the house sheet, its lid in the row above (cut a tile high it lost its top)
+    'fixture:barrel': { base: px(HOUSE, 256, 234, 16, 22, 8, 22), open: px(HOUSE, 272, 234, 16, 22, 8, 22) },
     'fixture:crate': { base: t(DUNGEON, 2, 1), open: t(DUNGEON, 3, 1) },
     'fixture:pot': { base: t(ELEM, 2, 9) },
     'fixture:wardrobe': { base: t(ELEM, 2, 7, 1, 2) },
@@ -427,19 +490,38 @@ export const CATALOG: Catalog = {
     'fixture:sack': { base: t(ELEM, 1, 1) },
     'fixture:furniture': { base: t(ELEM, 5, 7) },
     'fixture:table': { base: t(ELEM, 5, 7) },
+    // a household's furniture (docs/release-1.md): the long table (3x1, centred on its cell like its footprint), the
+    // round-topped chest of drawers, the dark two-door cupboard (its footprint is its cell and the one east: drawn from
+    // the cell's left edge), the plant in its pot
+    'fixture:long_table': { base: t(ELEM, 2, 10, 3, 1) },
+    'fixture:drawers': { base: t(ELEM, 1, 7, 1, 2) },
+    'fixture:cupboard': { base: t(ELEM, 6, 7, 2, 2, 8, 32) },
+    'fixture:plant': { base: t(ELEM, 0, 7, 1, 2) },
     'fixture:chair': { base: t(ELEM, 0, 9) },
     'fixture:bed': { base: t(BED, 5, 3, 1, 2) },
     'fixture:bench': { base: t(CAMP, 3, 7) },
     // the camp's things: a log bench three wide, a cooking rack, the chopping stump, firewood, a lantern post, the tent
     'fixture:log_bench': { base: t(CAMP, 0, 7, 3, 1) },
     'fixture:rack': { base: t(CAMP, 8, 3, 2, 2) },
+    // the project's own (tools/src/art/arms-rack.ts): the camp's rack is a cooking rack, its pot hung over the fire
+    'fixture:arms_rack': { base: px('lsw/Fixtures/ArmsRack.png', 0, 0, 32, 32, 16, 31) },
+    // the Reed Bend's (tools/src/art/flanks.ts): the fisher's nets hung to dry on their pole, her rack of fish drying;
+    // her rowboat is the pack's (the Ford's ferry raft is the same boat)
+    'fixture:nets': { base: px('lsw/Fixtures/Nets.png', 0, 0, 32, 32, 16, 31) },
+    'fixture:fish_rack': { base: px('lsw/Fixtures/FishRack.png', 0, 0, 32, 32, 16, 31) },
+    'fixture:boat': { base: px(WATER, 416, 0, 32, 16, 16, 13) },
+    // the Charcoal Dell's (tools/src/art/flanks.ts): the soot a kiln breathes onto the ground before its mouth
+    'fixture:soot': { base: px('lsw/Fixtures/Soot.png', 0, 0, 48, 32, 24, 22), ground: true },
     'fixture:stump': { base: t(CAMP, 1, 5, 2, 2) },
-    'fixture:firewood': { base: t(CAMP, 0, 1, 1, 2) },
+    // the camp sheet's stack of split logs, their ends out (2x1)
+    'fixture:firewood': { base: t(CAMP, 0, 0, 2, 1) },
     'fixture:lantern': { base: t(CAMP, 6, 5, 1, 2) },
     'fixture:tent': { base: t(CAMP, 7, 0, 3, 3) },
+    'fixture:tent_torn': { base: t(CAMP, 10, 0, 3, 3) },
     // small things of the ground, scattered by mask: each a thing (pick a flower, burn the reeds)
     'fixture:flowers': { base: t(DETAIL, 5, 2), variants: [t(DETAIL, 5, 2), t(NATURE, 6, 11), t(NATURE, 3, 11), t(DETAIL, 2, 0)], ground: true, loose: true },
-    'fixture:reeds': { base: t(NATURE, 7, 10), variants: [t(NATURE, 7, 10), t(NATURE, 4, 10), t(NATURE, 9, 10), t(NATURE, 8, 11)], loose: true },
+    // reeds as reeds, clumps of cattails (tools/src/art/flanks.ts): the pack's grass tufts stood in for them until 2026-10-21
+    'fixture:reeds': { base: px('lsw/Fixtures/Reeds.png', 0, 0, 16, 24, 8, 23), variants: [0, 1, 2, 3].map((i) => px('lsw/Fixtures/Reeds.png', i * 16, 0, 16, 24, 8, 23)), loose: true },
     'fixture:ferns': { base: t(NATURE, 4, 11), variants: [t(NATURE, 4, 11), t(NATURE, 5, 11), t(NATURE, 8, 11), t(NATURE, 9, 11)], loose: true },
     'fixture:leaves': { base: t(DETAIL, 0, 0), variants: [t(DETAIL, 0, 0), t(DETAIL, 1, 0), t(NATURE, 12, 11), t(NATURE, 13, 12)], ground: true, loose: true },
     'fixture:pebbles': { base: t(NATURE, 15, 18), variants: [t(NATURE, 15, 18), t(NATURE, 16, 18), t(NATURE, 17, 18), t(DETAIL, 9, 0)], ground: true, loose: true },
@@ -462,7 +544,7 @@ export const CATALOG: Catalog = {
     // a place on the overworld: a signpost where it is; the wild shows no mark of its own
     'site:place': { base: wm('waystone') },
     // the hand-made places, each by its kind; the Ford is its crossing
-    ...Object.fromEntries(['village', 'town', 'farm', 'mill', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'ford'].map((k) => [`site:${k}`, { base: wm(k) }])),
+    ...Object.fromEntries(['village', 'town', 'farm', 'mill', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'ford', 'watermill'].map((k) => [`site:${k}`, { base: wm(k) }])),
     // the backdrop's places, by their kinds (docs/continent.md §3)
     ...Object.fromEntries(['fort', 'ruin', 'graveyard', 'cathedral', 'city', 'tower', 'battlefield', 'cave', 'seat'].map((k) => [`site:${k}`, { base: wm(k) }])),
     'site:woods': { base: wm('woods-place') },
@@ -485,7 +567,8 @@ export const CATALOG: Catalog = {
     'fixture:forge': { base: px(HOUSE, 496, 192, 32, 48, 16, 46) },
     'fixture:cauldron': { base: t(HOUSE, 32, 10), lit: t(HOUSE, 31, 10) },
     // No loom in the pack: a wooden frame with a strung rope (TilesetElement (11..13, 2..3)).
-    'fixture:loom': { base: px(ELEM, 176, 32, 48, 32, 24, 29) },
+    // the project's own (tools/src/art/loom.ts): the pack's frame drawn for it before was its washing line's posts
+    'fixture:loom': { base: px('lsw/Fixtures/Loom.png', 0, 0, 32, 32, 16, 31) },
     // the slender statue (7, 15) is the waypoint's alone: nothing else may look like one
     'fixture:sacred': { base: t(HOUSE, 5, 15, 2, 2) },
     'fixture:altar': { base: px(HOUSE, 48, 240, 32, 32, 16, 32) },
@@ -521,7 +604,8 @@ export const CATALOG: Catalog = {
     // a vein's spent face: a plain rock face, no ore showing
     'fixture:spentvein': { base: t(NATURE, 6, 16) },
     'fixture:haystack': { base: px(ELEM, 192, 64, 16, 32, 8, 31) },
-    'fixture:logpile': { base: px(HOUSE, 496, 256, 32, 16, 16, 16) },
+    // a felled log lying (the camp sheet's): the house sheet's plank drawn for it read as a bench
+    'fixture:logpile': { base: px(CAMP, 16, 29, 32, 18, 16, 18) },
     // No static mushroom art: first frame of the (red-capped) Mushroom monster.
     'fixture:mushroom_ring': { base: t('Actor/Monster/Mushroom/mushroom.png', 0, 0) },
     'fixture:beehive': { base: t(ELEM, 12, 0) },
@@ -536,13 +620,14 @@ export const CATALOG: Catalog = {
     'fixture:fence': { base: t(HOUSE, 11, 7), across: t(HOUSE, 11, 6) },
     'fixture:dummy': { base: t(ELEM, 15, 0) },
     // Crops (farming). The pack has no crop sheet: sprouts are ground details, young plants are
-    // small nature tufts/bushes, ripe wheat is the camp tileset's golden sheaf, ripe berries the
+    // small nature tufts/bushes, wheat the project's own (tools/src/art/wheat.ts: the camp sheet's 'sheaf' was
+    // kindling), ripe berries the
     // fruiting bush, the oak sapling the bare twig tree.
-    'fixture:crop': { base: t(CAMP, 13, 1) },
-    'fixture:wheat': { base: t(CAMP, 13, 0) },
-    'fixture:wheat_sprout': { base: t(DETAIL, 1, 2) },
-    'fixture:wheat_young': { base: t(CAMP, 13, 1) },
-    'fixture:wheat_ripe': { base: t(CAMP, 13, 0) },
+    'fixture:crop': { base: px('lsw/Crops/wheat/young.png', 0, 0, 16, 24, 8, 24) },
+    'fixture:wheat': { base: px('lsw/Crops/wheat/ripe.png', 0, 0, 16, 24, 8, 24) },
+    'fixture:wheat_sprout': { base: px('lsw/Crops/wheat/sprout.png', 0, 0, 16, 24, 8, 24) },
+    'fixture:wheat_young': { base: px('lsw/Crops/wheat/young.png', 0, 0, 16, 24, 8, 24) },
+    'fixture:wheat_ripe': { base: px('lsw/Crops/wheat/ripe.png', 0, 0, 16, 24, 8, 24) },
     'fixture:herb': { base: t(NATURE, 5, 11) },
     'fixture:herb_sprout': { base: t(DETAIL, 2, 2) },
     'fixture:herb_young': { base: t(NATURE, 8, 10) },
@@ -562,8 +647,10 @@ export const CATALOG: Catalog = {
     'fixture:ring': { base: px(CAMP, 160, 48, 32, 32, 16, 28) },
     // The Great Hearth: a wide ring of stones around old ash; lit, the embers glow.
     'fixture:hearth': { base: t(CAMP, 12, 5, 2, 2, 16, 24), lit: t(CAMP, 12, 3, 2, 2, 16, 24) },
-    'fixture:scarecrow': { base: t(ELEM, 15, 0) },
-    'fixture:washing_line': { base: t(ELEM, 11, 2, 5, 1, 40, 16) },
+    // the project's own (tools/src/art/scarecrow.ts): the training dummy is the pack's straw man
+    'fixture:scarecrow': { base: px('lsw/Fixtures/Scarecrow.png', 0, 0, 16, 32, 8, 31) },
+    // the pack's line on its posts with its laundry pegged on it, put together (tools/src/art/washing-line.ts)
+    'fixture:washing_line': { base: px('lsw/Fixtures/WashingLine.png', 0, 0, 64, 32, 32, 31) },
     'fixture:cart': { base: t(ELEM, 0, 3, 2, 2, 16, 30) },
     'fixture:flower_cart': { base: t(ELEM, 2, 3, 2, 2, 16, 30) },
     'fixture:workbench': { base: t(HOUSE, 29, 8, 2, 1, 16, 16) },

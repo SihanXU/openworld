@@ -322,9 +322,9 @@ describe('resident harvest work', () => {
     const partialPick: Rule = {
       id: 'test/resident-work-partial-pick',
       host: { type: 'fixture/crop/turnip/ripe' },
-      on: 'impulse/taken',
+      on: 'impulse/handle',
       tree: { do: [
-        { op: 'spawn', type: '@prop:host.yieldType', at: 'other', into: 'contents', count: 1 },
+        { op: 'spawn', type: '@prop:host.yieldType', at: 'actor', into: 'contents', count: 1 },
         { op: 'spawn', type: '@prop:host.seedType', at: 'tileOf:host', still: true },
         { op: 'destroy' },
       ] },

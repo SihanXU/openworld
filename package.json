@@ -45,7 +45,8 @@
     "check": "npm run typecheck && npm test",
     "wiki": "tsx games/openworld/wiki/src/serve.ts",
     "wiki:build": "tsx games/openworld/wiki/src/build.ts",
-    "wiki:check": "tsx games/openworld/wiki/src/build.ts --check"
+    "wiki:check": "tsx games/openworld/wiki/src/build.ts --check",
+    "wiki:translate": "tsx games/openworld/wiki/src/translate.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",

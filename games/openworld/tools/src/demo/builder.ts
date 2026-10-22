@@ -6,10 +6,11 @@
 // terrain or entities (a big thing blocks its type's footprint, and only while it stands).
 
 import type { AiData, Entity, AppearDef, MapData, Portal, PropValue, Text } from '@openworld/engine'
-import { CHAR_OF, FORM_BY_ID, buildOntology, makeItem, type RawChunk } from '@openworld-game/content'
+import { readFileSync } from 'node:fs'
+import { CHAR_OF, FORM_BY_ID, TERRAIN_CHARS, buildOntology, makeItem, type RawChunk } from '@openworld-game/content'
 import { OntologyIndex, Rng, baseCovers, splitLayers } from '@openworld/engine'
 import type { PrefabDef } from '@openworld/runtime/src/assets/types.ts'
-import { CATALOG } from '../../../client/src/catalog.ts'
+import { CATALOG, FENCES, FENCE_PIECES } from '../../../client/src/catalog.ts'
 
 /** The builders' randomness. Re-seeded for each map (`reseed`), so a map comes out the same however many were built before it. */
 export let rng = new Rng(4242)
@@ -102,6 +103,47 @@ export class MapBuilder {
   ) {
     this.cells = Array.from({ length: h }, () => Array(w).fill(fill))
     this.heights = Array.from({ length: h }, () => Array(w).fill(0))
+  }
+
+  /**
+   * The terrain as drawn by hand (release 1, docs/release-1.md): a map's layout file, `maps/<name>.txt` beside the
+   * builders, a line to a row and a character to a cell in the map format's own characters (content TERRAIN_CHARS).
+   * What is stamped and placed afterwards goes over it; a layout of the wrong size, or a character no terrain has,
+   * throws.
+   */
+  paint(name: string) {
+    const rows = readFileSync(new URL(`./maps/${name}.txt`, import.meta.url), 'utf8').split(/\r?\n/).filter((r) => r.length)
+    if (rows.length !== this.h || rows.some((r) => r.length !== this.w)) throw new Error(`layout ${name}: ${rows.length} rows of ${rows.map((r) => r.length).join('/')}, the map is ${this.w}x${this.h}`)
+    rows.forEach((row, y) => [...row].forEach((c, x) => {
+      const t = TERRAIN_CHARS[c]
+      if (!t) throw new Error(`layout ${name}: no terrain for '${c}' at ${x},${y}`)
+      this.set(x, y, t)
+    }))
+  }
+
+  /**
+   * The ground's heights as drawn by hand: `maps/<name>.txt` beside the layout, a digit a cell in half levels (a level
+   * is 2; an odd height is a ramp between two). A layout of the wrong size, or a character not a digit, throws.
+   */
+  lift(name: string) {
+    const rows = readFileSync(new URL(`./maps/${name}.txt`, import.meta.url), 'utf8').split(/\r?\n/).filter((r) => r.length)
+    if (rows.length !== this.h || rows.some((r) => r.length !== this.w)) throw new Error(`heights ${name}: ${rows.length} rows of ${rows.map((r) => r.length).join('/')}, the map is ${this.w}x${this.h}`)
+    rows.forEach((row, y) => [...row].forEach((c, x) => {
+      if (!/[0-9]/.test(c)) throw new Error(`heights ${name}: '${c}' at ${x},${y} is not a digit`)
+      this.heights[y][x] = Number(c)
+    }))
+  }
+
+  /**
+   * A layout's old stumps ('u') as stump things on grass: the ground's stump grows back into a tree (its clock running
+   * from the first tick, so every save would carry it), a stump thing stays one. Ids of their own (`<map>.stump.<n>`),
+   * so no other thing's id moves.
+   */
+  stumpsAsThings() {
+    let n = 0
+    for (let y = 0; y < this.h; y++)
+      for (let x = 0; x < this.w; x++)
+        if (this.get(x, y) === 'stump') (this.set(x, y, 'grass'), this.fixture('fixture/nature/stump', x, y, { id: `${this.id}.stump.${n++}` }))
   }
 
   /** Raise ground to `half` half levels (a level is 2; an odd height is a ramp between two levels). */
@@ -435,8 +477,31 @@ export class MapBuilder {
     }
   }
 
+  /**
+   * Each fence cell its joining piece (catalog FENCE_PIECES): by which of its four sides another cell of the same fence
+   * touches — a corner where a run turns, an end beside a gate, a T where a run meets another, a cross. Run as the map
+   * is written, so every fence the builder stamped (a yard, a run, two yards side by side) joins as one.
+   */
+  joinFences() {
+    const PIECE: Record<number, string> = { 0: 's', 1: 'v', 4: 's', 5: 'v', 2: 'e', 8: 'w', 10: 'h', 6: 'es', 12: 'ws', 3: 'ne', 9: 'nw', 7: 'nes', 14: 'wes', 11: 'new', 13: 'nsw', 15: 'x' }
+    const kindOf = (key: string) => Object.keys(FENCES).find((k) => key.startsWith(`${k}_`) && FENCE_PIECES[key.slice(k.length + 1)])
+    const at = new Map<string, string>()
+    for (const st of this.stamps) {
+      const k = kindOf(st.key)
+      if (k) at.set(`${st.x},${st.y}`, k)
+    }
+    for (const st of this.stamps) {
+      const k = kindOf(st.key)
+      if (!k) continue
+      const same = (dx: number, dy: number) => at.get(`${st.x + dx},${st.y + dy}`) === k
+      const mask = (same(0, -1) ? 1 : 0) | (same(1, 0) ? 2 : 0) | (same(0, 1) ? 4 : 0) | (same(-1, 0) ? 8 : 0)
+      st.key = `${k}_${PIECE[mask]}`
+    }
+  }
+
   chunk(): RawChunk {
     this.clearVolumes()
+    this.joinFences()
     const rows = this.cells.map((r) =>
       r
         .map((t) => {

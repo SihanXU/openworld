@@ -21,7 +21,7 @@ export const holt: PersonDef = {
   trade: { stock: [['item/light/torch', 3], ['item/weapon/polearm/spear', 1], ['item/potion/healing', 1]] },
   schedules: {
     default: [
-      [23, 6, 'meadow:guard.home', 'sleep'],
+      [23, 6, 'meadow.guards:bed.0', 'sleep'],
       [6, 23, 'meadow:guard.post', 'watch the south trail'],
     ],
   },

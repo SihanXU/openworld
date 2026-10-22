@@ -105,9 +105,11 @@ export interface Catalog {
   /**
    * Ground terrains drawn by the renderer's blob autotiler: the top-left tile (col,row)
    * of a 47-tile blob block laid out like TilesetFloor.png cols 0-9 rows 7-11
-   * (10x4 block + a 5-tile 5th row). `img` is the tileset file.
+   * (10x4 block + a 5-tile 5th row). `img` is the tileset file. `edgeOn`: the terrains its
+   * edge pieces are drawn against (what their outside pixels show, grass for a block on grass);
+   * beside anything else the block runs on as itself. Without it, an edge against every other ground.
    */
-  blobs: Record<string, { img: string; col: number; row: number; w?: number; h?: number }>
+  blobs: Record<string, { img: string; col: number; row: number; w?: number; h?: number; edgeOn?: string[] }>
   /** Plain ground tiles (variants chosen per position): terrain -> list of [img, col, row]. */
   plain: Record<string, [string, number, number][]>
   /** Small decals scattered on plain ground for variety (flowers, pebbles, leaves). */
@@ -126,6 +128,12 @@ export interface Catalog {
    * their middle tile(s)); the inside is transparent (floor shows through).
    */
   rooms: Record<string, { img: string; col: number; row: number; size: number }>
+  /**
+   * The edges of high ground (MapData.heights), laid over the ground (ground.ts terracePieces): a sheet laid out as the
+   * pack's relief, TilesetRelief.png columns 0-6 and rows 0-4, with its plateau's top clear. None: the heights are
+   * drawn as plain lines.
+   */
+  terrace?: { img: string }
   /** Fixture sprite keys used by the ontology ('fixture:chest', …) -> states. */
   /**
    * Fixtures by sprite key. `variants`: looks picked per thing (by its id); `ground`: drawn flat
@@ -146,7 +154,7 @@ export interface Catalog {
    * UI: dialogue box, faceset box, etc. Some keys the runtime looks for: `<tag>Mark`, a sign drawn over the head of
    * anyone with that tag (a trainer's crossed blades: `trainerMark`); `equipSlots`, a strip of the empty body slots'
    * silhouettes, a frame each (every `step` px, default `w`) in the order of EQUIP_SLOT_FRAMES (none: a glyph each);
-   * `cursorHand` and `emoteDots`, the pointer over what the action (the right click) handles and over someone to talk
+   * `cursorHand` and `emoteDots`, the pointer over what the hand (E) picks up or handles and over someone to talk
    * to (none: the arrow).
    */
   ui: Record<string, SpriteDef>

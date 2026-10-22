@@ -4,6 +4,7 @@
 // one walks out, one is back on the overworld (§5.1).
 
 import { APPEAR_EVERY, Rng, type AiData, type Entity, type MapChunk, type MapData, type Text, type World } from '@openworld/engine'
+import { VALLEY, layValley } from './valley.ts'
 
 export const WILD_W = 40
 export const WILD_H = 30
@@ -200,7 +201,10 @@ export const WILD_GROUNDS = Object.keys(RECIPES)
  */
 export function wildChunk(seed: number, cx: number, cy: number, ground: string, site: MapData['site'], region?: string, size: { w: number; h: number } = { w: WILD_W, h: WILD_H }): MapChunk {
   const { w: W, h: H } = size
-  const r: Recipe = { ...(RECIPES[ground] ?? RECIPES.ow_plain), ...(region ? REGIONAL[`${region}:${ground}`] : undefined) }
+  // the valley's own wild cells (valley.ts): a place laid over the wild, its name and a quieter ground round its scene
+  const place = VALLEY[`${cx},${cy}`]
+  const base: Recipe = { ...(RECIPES[ground] ?? RECIPES.ow_plain), ...(region ? REGIONAL[`${region}:${ground}`] : undefined) }
+  const r: Recipe = place ? { ...base, name: place.name, growth: place.growth ?? base.growth, patches: place.patches ?? base.patches } : base
   const rng = new Rng(cellSeed(seed, cx, cy))
   const id = wildId(cx, cy)
   const terrain: string[] = new Array(W * H).fill(r.ground)
@@ -254,6 +258,7 @@ export function wildChunk(seed: number, cx: number, cy: number, ground: string, 
       const ai = type.includes('/animal/') ? SHY : SLIME
       entities.push({ id: `${id}~${n++}`, type, facing: 'down', place: { on: 'tile', map: id, x: s[0], y: s[1] }, ai: { ...structuredClone(ai), home: { map: id, x: s[0], y: s[1] } } })
     }
+  if (place) layValley(place, id, W, H, terrain, entities)
   const map: MapData = {
     id,
     name: r.name,

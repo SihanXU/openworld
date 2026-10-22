@@ -2,6 +2,7 @@
 
 import type { Text } from '@openworld/engine'
 import { gameIfAny, hasModule } from '../game.ts'
+import { bindingLabel, fillKeys, keys, moveKeys, slotKeys, type Action } from '../keymap.ts'
 import { textOf } from '../render/scene.ts'
 
 export type Locale = 'en' | 'zh'
@@ -32,7 +33,24 @@ export const locale = {
   },
 }
 
-export const tx = (t: Text | undefined) => textOf(t, locale.value)
+/** A text in the player's language, its `{key:…}` the keys that do it now (keymap.ts). */
+export const tx = (t: Text | undefined) => fillKeys(textOf(t, locale.value), keys.map, locale.value)
+
+/** The key an action has now, as a button, a slot or a tip draws it (Shift as ⇧; '' when it has none). */
+export function kbd(a: Action): string {
+  const b = keys.map[a][0]
+  return b ? bindingLabel(b, locale.value).replace(/^Shift\+/, '⇧') : ''
+}
+
+/** What was drawn once with a key on it (`data-kbd` on a kbd, `data-kbd-title` on a button: never `data-key`, which the bag's paper doll uses): drawn again with the keys now. */
+export function relabelKeys(root: ParentNode = document): void {
+  root.querySelectorAll<HTMLElement>('[data-kbd]').forEach((el) => {
+    const s = kbd(el.dataset.kbd as Action)
+    el.textContent = s
+    el.classList.toggle('hidden', !s)
+  })
+  root.querySelectorAll<HTMLElement>('[data-kbd-title]').forEach((el) => (el.title = kbd(el.dataset.kbdTitle as Action)))
+}
 
 /** The interface's words by key (English, Chinese): what a game may say its own way (ClientGame.texts). */
 export const STRINGS: Record<string, [string, string]> = {
@@ -86,8 +104,8 @@ export const STRINGS: Record<string, [string, string]> = {
   'slot:feet': ['Feet', '脚'],
   'slot:arm': ['Off hand', '副手'],
   invHelp: [
-    'Click to pick up, again to swap · Shift+click: toolbar ↔ bag · Tab: next row to the toolbar · pick up something wearable and click its slot on the left to put it on (or right click), click a worn piece to take it off · right click: use or put the held thing on it, or handle it',
-    '点击拿起、再点击交换 · Shift+点击：快捷栏↔背包 · Tab：换一行到快捷栏 · 拿起装备点左边的装备栏穿上（右键也可以），点装备栏卸下 · 右键：对它用手上的东西、放进去、空手摆弄',
+    'Click to pick up, again to swap · Shift+click: toolbar ↔ bag · {key:row}: next row to the toolbar · pick up something wearable and click its slot on the left to put it on (or right click), click a worn piece to take it off · right click: use or put the held thing on it, or use it',
+    '点击拿起、再点击交换 · Shift+点击：快捷栏↔背包 · {key:row}：换一行到快捷栏 · 拿起装备点左边的装备栏穿上（右键也可以），点装备栏卸下 · 右键：对它用手上的东西、放进去、空手摆弄',
   ],
   // the tooltip: a creature's own piece (its kind's `trophy`), and whose
   tipTrophy: ['Trophy', '战利品'],
@@ -146,7 +164,7 @@ export const STRINGS: Record<string, [string, string]> = {
   profSwitch: ['Change to this', '转为此职业'],
   profKit: ['Starts with', '起始武器'],
   profNodes: ['skills', '个技能'],
-  profReady: ['Choose the road you will walk. Its branch opens in your skill tree (K), and you are handed its weapon.', '选一条你要走的路。它的技能分支会出现在技能树（K）里，并会发给你一把对应的武器。'],
+  profReady: ['Choose the road you will walk. Its branch opens in your skill tree ({key:skills}), and you are handed its weapon.', '选一条你要走的路。它的技能分支会出现在技能树（{key:skills}）里，并会发给你一把对应的武器。'],
   profLevel: ['Come back at level {n} (you are level {l}). Until then, look over the roads.', '{n} 级才能选择职业（你现在 {l} 级）。先看看各条路吧。'],
   profSwitchNote: ['Changing gives back the {n} points spent in your profession branch: you spend them again in the new one. Other branches are kept.', '转职会返还职业分支上已加的 {n} 点技能点，需要在新职业里重新加点；其他分支保留。'],
   profConfirm: ['Change profession? The {n} points of your profession branch come back, and its skills are unlearned.', '确定转职吗？职业分支的 {n} 点技能点会返还，原职业技能会被重置。'],
@@ -176,7 +194,9 @@ export const STRINGS: Record<string, [string, string]> = {
   filterFull: ['Full', '完整'],
   optTracker: ['Quest tracker', '任务追踪栏'],
   qNone: ['None', '暂无'],
-  qEmpty: ['No quests taken on. Look for a yellow "!" over someone\'s head, and press E.', '还没有接任务。找头顶有黄色"！"的人，按 E 接受。'],
+  skillSlotEmpty: ['Empty: learned active skills go here; or hover one in the skill tree and press {key:casts}', '空技能槽：学会主动技能后自动放入，或在技能树中悬停技能按 {key:casts}'],
+  skillbarHint: ['Active: hover and press {key:casts} to set it in the skill bar', '主动技能：悬停时按 {key:casts} 放入技能栏'],
+  qEmpty: ['No quests taken on. Look for a yellow "!" over someone\'s head, and press {key:hands}.', '还没有接任务。找头顶有黄色"！"的人，按 {key:hands} 接受。'],
   qIdle: ['Nothing under way. Look for a yellow "!" over someone\'s head for more.', '没有进行中的任务。头顶有黄色"！"的人还有事相托。'],
   qDone: ['Done', '已完成'],
   zonePeaceful: ['Peaceful zone', '和平区域'],
@@ -263,6 +283,8 @@ export const STRINGS: Record<string, [string, string]> = {
   save: ['Save', '保存'],
   newGame: ['New game', '新游戏'],
   controls: ['Controls', '操作'],
+  keys: ['Keys', '按键'],
+  keysSet: ['Change keys…', '改键…'],
   devConsole: ['Mod Console (dev)', '模组控制台（开发）'],
   you: ['you', '你'],
   world: ['the world', '世界'],
@@ -271,7 +293,7 @@ export const STRINGS: Record<string, [string, string]> = {
   roleTarget: ['it', '对象'],
   wovenBy: ['woven by', '织者'],
   objective: ['Objective', '目标'],
-  questsActive: ['Under way (L)', '进行中的任务（L）'],
+  questsActive: ['Under way ({key:quests})', '进行中的任务（{key:quests}）'],
   done: ['Done', '已完成'],
   lmb: ['L-click', '左键'],
   rmb: ['R-click', '右键'],
@@ -282,7 +304,7 @@ export const STRINGS: Record<string, [string, string]> = {
   fishingWaitingTitle: ['Fishing', '钓鱼'],
   fishingWaitingHint: ['Wait for a bite.', '等待鱼咬钩。'],
   fishingBiteTitle: ['A bite!', '咬钩了！'],
-  fishingBiteHint: ['Click or press Space to start reeling.', '点击左键或按空格开始收线。'],
+  fishingBiteHint: ['Click or press {key:attack} to start reeling.', '点击左键或按 {key:attack} 开始收线。'],
   fishingFightTitle: ['Keep the fish in the zone', '让鱼留在控制区内'],
   fishingFightHint: ['Hold to raise the zone; release to lower it. Keep the fish inside.', '按住抬高控制区，松开让它下降；把鱼留在区内。'],
   fishingCatch: ['Catch on the line', '上钩的鱼'],
@@ -334,9 +356,9 @@ let filterHere: FilterStrength = 'full'
 
 export function t(k: string): string {
   const own = gameText(k)
-  if (own !== undefined) return own
+  if (own !== undefined) return fillKeys(own, keys.map, locale.value)
   const v = STRINGS[k]
-  return v ? (locale.value === 'zh' ? v[1] : v[0]) : k
+  return v ? fillKeys(locale.value === 'zh' ? v[1] : v[0], keys.map, locale.value) : k
 }
 
 /** What the game itself says for a key (ClientGame.texts), if it says anything: words only a game has (a tier's lore). */
@@ -350,34 +372,44 @@ export const MOOD_GLYPH: Record<string, string> = { happy: '♥', sad: '…', an
 /** The toolbar (the bag's first row): ten slots, keys 1–0. */
 export const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
-/** The controls, as shown in the intro and the Options tab. */
+/** The controls, as shown in the intro and the Options tab: the keys as the player has them now (keymap.ts). */
 export function controlsTable(dev: boolean): string {
   const zh = locale.value === 'zh'
+  const L = locale.value
   // the keys of a module's panels show only where the game uses it (before a game: all of them)
   const skills = gameIfAny() ? hasModule('classes') : true
+  const m = keys.map
+  /** An action's keys, each, dotted ('' when it has none). */
+  const of = (...as: Action[]) => as.flatMap((a) => m[a]).map((b) => bindingLabel(b, L)).join(' · ')
+  const first = (a: Action) => (m[a][0] ? bindingLabel(m[a][0], L) : '')
+  const steps = [moveKeys(m, L), (['up', 'left', 'down', 'right'] as const).map((a) => (m[a][1] ? bindingLabel(m[a][1], L) : '')).join('')].filter(Boolean).join(' · ')
+  const wheel = zh ? '滚轮' : 'wheel'
+  const hold = (['hands', 'put'] as Action[]).map(first).filter(Boolean)
   const rows: [string, string, string][] = [
-    ['WASD · ↑↓←→', 'move (Shift: walk)', '移动（Shift：慢走）'],
-    ['B', 'build / farm mode; left click or E places, Esc / RMB exits', '建筑 / 种植模式；左键或 E 放置，Esc / 右键退出'],
-    ['E', 'hands: talk, open, read, push', '空手：说话、打开、阅读、推'],
-    ['F', 'take: pick up, take down, take out', '拿：捡起、取下、取出'],
-    ['G', 'put the held thing there: set down, put in, hand it over', '放：把手上的东西放下、放进去、交给别人'],
-    ['left click', 'use the held thing on it; with empty hands, a blow (never on yourself, nor a fist on the bare ground the world has never seen struck: hold to choose it); weapons strike; a wall, a floor or a bed in hand is set down there (hold and drag for a row)', '用手上的东西作用于它；空手就是一拳（不会打自己，也不会对世界没见过的空地挥拳：要的话长按选择）；武器就是攻击；拿着墙、地板、床这类东西就放在那里（按住拖动放一排）'],
-    ['right click', 'the action, as the cursor shows: talk, open, read, pick up, set down a bed; on the ground, eat, drink or put on what you hold (pointed at yourself, any use of it)', '行动，光标显示要做什么：说话、打开、阅读、捡起、放下床这类东西；对着地面时，吃、喝、穿戴手上的东西（指着自己时，任何用法都行）'],
-    ['R', 'a floor in hand: the left click lays it in the ceiling (and back)', '手上拿着地板：左键改为铺天花板（再按切回）'],
-    ['Space', 'attack: strike ahead (hold to keep striking)', '攻击：朝面前挥击（按住连续攻击）'],
-    ...(skills ? [['Q', 'dash, once learned (swiftness)', '冲刺（学会迅捷分支的冲刺后）'] as [string, string, string]] : []),
-    ['X', 'draw your weapon or put it away: drawn, a blow on a person is meant', '拔出或收起武器：拔出时，对人挥击才算真的动手'],
-    ['V', 'sneak: slower, seen only up close and from the front; F on a person picks their pocket', '潜行：走得慢，只有近处、正面的人才看得见你；潜行时对人按 F 是扒窃'],
-    ...(skills ? [['Shift+1–6', 'cast the skill in that slot of the skill bar (over the skill tree: put the skill there)', '施放技能栏那一格的技能（在技能树上：把指着的技能放进那一格）'] as [string, string, string]] : []),
-    ['hold any of these', 'choose which of the things drawn there', '长按以上任一：选那个位置叠着的哪一样'],
-    ['1–0 · wheel', 'choose what to hold', '选择拿在手里的东西'],
-    ['Tab · Shift+Tab', 'the next (previous) row of the bag becomes the toolbar', '把背包的下一行（上一行）换到快捷栏'],
-    skills
-      ? ['Esc · I · C · K · U · M · L · J', 'menu · inventory · craft · skill tree · skills · map · quests · codex', '菜单 · 背包 · 制作 · 技能树 · 技能面板 · 地图 · 任务 · 图鉴']
-      : ['Esc · I · C · M · L · J', 'menu · inventory · craft · map · quests · codex', '菜单 · 背包 · 制作 · 地图 · 任务 · 图鉴'],
+    [steps, `move (${first('walk')}: walk)`, `移动（${first('walk')}：慢走）`],
+    [of('build'), `build / farm mode; left click or ${first('hands')} places, ${first('rotate')} turns, Esc / RMB exits`, `建筑 / 种植模式；左键或 ${first('hands')} 放置，${first('rotate')} 旋转，Esc / 右键退出`],
+    [zh ? '左键' : 'left click', 'what you hold, used as it is meant: a weapon strikes, a tool works (chop, mine, till, fill; a tool knocks a bed, a workbench or a wall loose, to pick up); nothing in hand, the weapon in your main hand or a fist; anything else is used on yourself (eat, drink, put on; asked first where the world has never seen it); a person only with your weapon drawn; hold to keep going', '手上东西本身的用法：武器就是攻击，工具就是干活（砍、挖、锄、打水；工具敲床、工作台、墙这类东西，它们会完整掉下来，可以捡起）；空手用主手武器或拳头；拿着别的东西就是对自己用（吃、喝、穿戴；世界没见过的用法会先问）；打人要先拔出武器；按住连续'],
+    [zh ? '右键' : 'right click', 'use what you hold on what you point at: sow seeds, turn a key, cook over a fire, feed a beast — and any experiment the world has never seen; on yourself, on yourself; a wall, a floor or a bed in hand is set up there (hold and drag for a row; with a floor in hand, ' + first('rotate') + ' turns to the ceiling); with nothing in hand, nothing', '把手上的东西用在指着的东西上：播种、用钥匙开锁、在火上烤肉、喂牲口——以及世界没见过的任何试验；指着自己就是对自己用；拿着墙、地板、床这类东西就把它建在那里（按住拖动建一排；拿着地板时按 ' + first('rotate') + ' 改为铺天花板）；空手什么都不做'],
+    [of('hands'), 'the hand: pick up what lies loose; talk, open, read, sleep, pick a ripe crop (sneaking, on a person: pick their pocket)', '手：拿起地上散落的东西；说话、打开、阅读、睡觉、摘成熟的作物（潜行时对人：扒窃）'],
+    [of('put'), 'put the held thing there: set it down (it lies loose: a bed is not built so), put it in, hand it over', '放：把手上的东西放下（放下的东西是散落的，床这类东西不会因此建起来）、放进去、交给别人'],
+    [of('attack'), 'attack: strike ahead (hold to keep striking)', '攻击：朝面前挥击（按住连续攻击）'],
+    ...(skills && m.dash.length ? [[of('dash'), 'dash, once learned (swiftness)', '冲刺（学会迅捷分支的冲刺后）'] as [string, string, string]] : []),
+    [of('draw'), 'draw your weapon or put it away: drawn, a blow on a person is meant', '拔出或收起武器：拔出时，对人挥击才算真的动手'],
+    [of('sneak'), `sneak: slower, seen only up close and from the front; ${first('hands')} on a person picks their pocket`, `潜行：走得慢，只有近处、正面的人才看得见你；潜行时对人按 ${first('hands')} 是扒窃`],
+    ...(skills ? [[fillKeys('{key:casts}', m, L), 'cast the skill in that slot of the skill bar (over the skill tree: put the skill there)', '施放技能栏那一格的技能（在技能树上：把指着的技能放进那一格）'] as [string, string, string]] : []),
+    [`${zh ? '长按' : 'hold'} ${hold.join(' · ')} · Alt+${zh ? '点击' : 'click'}`, 'choose which of the things drawn there (the ceiling among them)', '选那个位置叠着的哪一样（包括天花板）'],
+    [`${slotKeys(m, L)} · ${wheel}`, 'choose what to hold', '选择拿在手里的东西'],
+    [[of('row'), `Shift+${wheel}`].filter(Boolean).join(' · '), 'the next row of the bag becomes the toolbar', '把背包的下一行换到快捷栏'],
+    [of('bag'), 'the bag; its tabs go to the other panels', '背包；上面的页签切到其他面板'],
+    [
+      ['Esc', ...(['craft', ...(skills ? ['skills', 'skillPanel'] : []), 'map', 'quests', 'journal'] as Action[]).map(first)].filter(Boolean).join(' · '),
+      `menu · ${(['craft', ...(skills ? ['skills', 'skillPanel'] : []), 'map', 'quests', 'journal'] as Action[]).filter((a) => m[a].length).map((a) => ({ craft: 'craft', skills: 'skill tree', skillPanel: 'skills', map: 'map', quests: 'quests', journal: 'codex' })[a as string]).join(' · ')}`,
+      `菜单 · ${(['craft', ...(skills ? ['skills', 'skillPanel'] : []), 'map', 'quests', 'journal'] as Action[]).filter((a) => m[a].length).map((a) => ({ craft: '制作', skills: '技能树', skillPanel: '技能面板', map: '地图', quests: '任务', journal: '图鉴' })[a as string]).join(' · ')}`,
+    ],
+    [zh ? '选项 → 按键' : 'Options → Keys', 'change any of these keys (the mouse buttons stay)', '改任何一个键（鼠标左右键不能改）'],
   ]
   if (dev) rows.push(['`', 'Mod Console (dev)', '模组控制台（开发）'])
-  return `<table>${rows.map(([k, en, z]) => `<tr><td><kbd>${k}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`
+  return `<table>${rows.filter(([k]) => k).map(([k, en, z]) => `<tr><td><kbd>${esc(k)}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`
 }
 
 /**

@@ -114,8 +114,8 @@ or choosing from the chooser is told to the story (`ui` → `ui.<what>`), so a l
 
 | Stage | Lessons (locked ones marked *) |
 |---|---|
-| 1 | walk to the spot (WASD)*, F the berries*, their slot in hand*, right click eats* |
-| 2 | I opens the bag*, a stick, a stone, grass (F) |
+| 1 | walk to the spot (WASD)*, E the berries*, their slot in hand*, left click eats* |
+| 2 | Tab opens the bag* (I too), a stick, a stone, grass (E) |
 | 3 | C, the stone axe (only it can be made)* |
 | 4 | the axe in hand*, a tree in the grove (left click)*, C splits the logs into planks (only planks)* |
 | 5 | B, the campfire (only it; gathering allowed)*, C a torch, the fire lit (left click) |
@@ -132,11 +132,18 @@ again (`train/dummy`). The story counts it (`tutorial.dummy`).
 
 ## The Mountain Foot (`foot`, 40 × 30)
 
-The game proper begins here. The trail comes down off high ground two levels up (its face of
-rock; a ramp where the trail runs, W8), passes a hunter's old wooden hut (W13) and levels out at
-an old rune-cut seal stone in a ring of flowers that nothing in the world defines: try anything
+The game proper begins here. The trail comes down a cleft in the mountain off a ledge two levels up
+(its face of rock; a ramp where the trail runs, W8), passes the hunter's cabin, long left — a wooden
+cabin that burns (W13), its yard and its room (`foot.hut`) — and levels out at an old rune-cut seal
+stone on a round of worn paving gone to flowers, that nothing in the world defines: try anything
 on it — the world learns (J: the Threadbook). A waypoint statue stands below it; the trail runs out
 of the map's south edge onto the top of the Ford's cliff.
+
+The ground of Cloudtop, the foot and the Clearing is drawn by hand (`tools/src/demo/maps/summit.txt`,
+`foot.txt`, `tutorial.txt`, and the heights beside the first two; docs/release-1.md): Cloudtop a
+snowfield under its crags, the shelter of dry stone built against them, wind-bent pines, the rim
+of rock with the cut through it and the face below; the foot the mountain over its north; the
+Clearing a hollow of grass in old woods with a spring, berry bushes, someone's cold fire ring.
 
 ## The fairy
 

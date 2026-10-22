@@ -12,7 +12,7 @@ export function describeItem(item: ItemInfo): Text[] {
     const bait = Math.max(0, Math.floor(Number(item.props.bait) || 0))
     out.push({ en: `Bait remaining: ${bait} casts`, zh: `已挂鱼饵：还可甩 ${bait} 竿` })
     out.push({ en: 'Hold the rod and left-click water to cast.', zh: '手持鱼竿，左键点击水面抛竿。' })
-    out.push({ en: 'Right-click open ground or yourself while holding the rod to choose and confirm bait. You can also hold bait and right-click the rod in your bag; each bait adds its listed number of casts.', zh: '手持鱼竿时右键空地或自身即可选择并确认鱼饵。也可手持鱼饵，在背包里右键鱼竿；每份鱼饵会增加其标注的抛竿次数。' })
+    out.push({ en: 'Right-click yourself while holding the rod to choose and confirm bait. You can also hold bait and right-click the rod in your bag; each bait adds its listed number of casts.', zh: '手持鱼竿时右键点自己即可选择并确认鱼饵。也可手持鱼饵，在背包里右键鱼竿；每份鱼饵会增加其标注的抛竿次数。' })
     out.push({ en: 'Deep water: more golden carp, and pike. Eels at night; catfish in rain.', zh: '深水更容易出金鳞鲤，还能钓狗鱼；夜里有鳗鱼，雨天有鲶鱼。' })
   }
   if (item.tags.includes('bait')) out.push({ en: `Adds ${Math.max(0, Math.floor(Number(item.props.casts) || 0))} baited casts. Bait of a different name or quality can only be used after the rod's current bait is spent.`, zh: `增加 ${Math.max(0, Math.floor(Number(item.props.casts) || 0))} 次挂饵抛竿。名称或品质不同的鱼饵，要等鱼竿上现有鱼饵用完后才能更换。` })

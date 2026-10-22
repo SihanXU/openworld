@@ -541,7 +541,7 @@ export const SOCIAL_RULES: Rule[] = [
   rule({
     id: 'people/pockets',
     label: L("Pick {target}'s pocket", '扒{target}的口袋'),
-    doc: 'Taken hold of by one sneaking (F): a person\'s pockets are open to the hand — each thing taken from them is an act, seen or not (§2.10).',
+    doc: 'Taken hold of by one sneaking (E, sneaking): a person\'s pockets are open to the hand — each thing taken from them is an act, seen or not (§2.10).',
     host: PERSON,
     on: 'impulse/taken',
     tree: IF(all(has('actor', 'sneaking'), not({ same: ['host', 'actor'] })), DO({ op: 'panel', panel: 'pockets' }), 'inherit'),

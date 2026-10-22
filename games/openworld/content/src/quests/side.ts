@@ -82,7 +82,7 @@ export const SIDE_QUESTS: QuestDef[] = [
   errand({
     id: 'drawings',
     title: L("Pell's Drawings", '佩尔的涂鸦'),
-    summary: L('Pell draws the grey man wherever he has seen him: by the shrine stone at the Mountain Foot, at the barrow door, by the footbridge, and here by the flame. Find all four drawings (E reads one).', '佩尔在每个见过灰衣人的地方都画了画：山脚的路碑旁、古墓门口、小桥边，还有村里的圣火旁。找到全部四幅画（按 E 查看）。'),
+    summary: L('Pell draws the grey man wherever he has seen him: by the shrine stone at the Mountain Foot, at the barrow door, by the footbridge, and here by the flame. Find all four drawings ({key:hands} reads one).', '佩尔在每个见过灰衣人的地方都画了画：山脚的路碑旁、古墓门口、小桥边，还有村里的圣火旁。找到全部四幅画（按 {key:hands} 查看）。'),
     giver: 'npc.pell',
     offer: L('Nobody believes me. So I drew him everywhere I saw him. Four places! If you find them all, you\'ll see. Then you\'ll believe me.', '没人信我。所以我在每个见过他的地方都画了下来。四个地方！你要是都找到了，就明白了。然后你就会信我了。'),
     waiting: L('The shrine stone up the mountain, the barrow door, the little bridge, and here by the fire. I draw small, look down.', '山上的路碑、古墓的门、小桥，还有这边火堆旁。我画得小，要往地上看。'),
@@ -98,7 +98,7 @@ export const SIDE_QUESTS: QuestDef[] = [
   errand({
     id: 'measure',
     title: L('The Measure of Days', '日之度量'),
-    summary: L('Nessa needs readings of the sky from the waypoint statues. Wake three of them (E on each): the Mountain Foot\'s, the village\'s, the Ford\'s, or the one on the East Road.', '奈莎需要在传送雕像上读取天象数据。唤醒其中三座（对每座按 E）：山脚的、村里的、渡口的，或者东大路上的那座。'),
+    summary: L('Nessa needs readings of the sky from the waypoint statues. Wake three of them ({key:hands} on each): the Mountain Foot\'s, the village\'s, the Ford\'s, or the one on the East Road.', '奈莎需要在传送雕像上读取天象数据。唤醒其中三座（对每座按 {key:hands}）：山脚的、村里的、渡口的，或者东大路上的那座。'),
     giver: 'npc.nessa',
     offer: L('The statues are older than the Church. They hum at the hour of sunset — if I can read three of them, I can tell how fast the days are going. Wake three for me?', '那些雕像比教会还古老。日落时分它们会嗡嗡作响——只要能读到三座，我就能算出白天缩短得有多快。帮我唤醒三座？'),
     waiting: L('Three statues. The one at the Mountain Foot, ours by the square, the Ford\'s... they are all humming the same note, lower every week.', '三座雕像。山脚那座、我们广场边这座、渡口那座……它们哼的都是同一个音，一周比一周低。'),
@@ -133,7 +133,7 @@ export const SIDE_QUESTS: QuestDef[] = [
   errand({
     id: 'watch',
     title: L("The Watchman's Log", '守夜人的日志'),
-    summary: L('The Church kept a watch on Cloudtop, at the top of the mountain, to time the sunset. Nessa wants to know what its log says. Find the logbook in the ruined shelter there and read it (E).', '教会曾在山顶的云顶台地设过观日哨，专门记录日落时间。奈莎想知道哨所的日志里写了什么。到那里的破旧小屋找到日志，读一读（按 E）。'),
+    summary: L('The Church kept a watch on Cloudtop, at the top of the mountain, to time the sunset. Nessa wants to know what its log says. Find the logbook in the ruined shelter there and read it ({key:hands}).', '教会曾在山顶的云顶台地设过观日哨，专门记录日落时间。奈莎想知道哨所的日志里写了什么。到那里的破旧小屋找到日志，读一读（按 {key:hands}）。'),
     giver: 'npc.nessa',
     offer: L('There was a Church watch on Cloudtop — one man, timing every sunset for the almanacs. His reports stopped coming years ago. If his log is still up there, I need to know what it says.', '云顶台地以前有个教会的观日哨——就一个人，给历书记下每一次日落。他的报告好几年前就断了。要是他的日志还在山上，我得知道上面写了什么。'),
     waiting: L('Cloudtop, above the Mountain Foot. A shelter on the snow. He kept his log on the table, if I know watchmen.', '云顶台地，在山脚上面。雪地上有间小屋。要是我没猜错，守夜人会把日志放在桌上。'),

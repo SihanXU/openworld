@@ -13,14 +13,19 @@ export const MAINHAND = 'wear:weapon'
 /** The off hand: the `arm` slot of what is worn (world-model.md §6.8), where a shield goes. */
 export const OFFHAND = 'wear:arm'
 
+/** Stardew's line between tools and objects: tools are used (and swung), objects are given, placed or eaten. */
+const TOOL_PREFIXES = ['item/weapon/', 'item/tool/', 'item/light/', 'item/vessel/bucket/', 'item/vessel/flask/', 'item/vessel/waterskin/']
+export const isTool = (type: string) => TOOL_PREFIXES.some((p) => type.startsWith(p))
+
 /**
  * What one fights with: a weapon in one's hand, else the one worn in the main hand (`World.worn`: still carried, one's
- * own to wield), else whatever the hand holds (a torch swung).
+ * own to wield), else a tool the hand holds (a torch swung) — never an object it happens to hold (what was just picked
+ * up is not swung: the bare body strikes).
  */
 export function weaponOf(w: World, e: Entity): Entity | undefined {
   const held = w.get(e.held)
   if (held && w.hasTag(held, 'weapon')) return held
-  return w.worn(e).find((it) => w.prop(it, 'slot') === 'weapon') ?? held
+  return w.worn(e).find((it) => w.prop(it, 'slot') === 'weapon') ?? (held && isTool(held.type) ? held : undefined)
 }
 
 /** What is worn in the off hand and works there (`World.worn`: still carried, and the wearer's to wield). */

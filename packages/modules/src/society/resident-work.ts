@@ -1003,7 +1003,7 @@ function pick(eng: Engine, worker: Entity, order: ResidentWorkOrder, box: Entity
     return false
   }
   try {
-    reserve(eng, worker, crop, () => eng.act('take', worker.id, { e: crop.id }, { instrument: null, params: { into: 'contents' } }))
+    reserve(eng, worker, crop, () => eng.act('hands', worker.id, { e: crop.id }, { instrument: null }))
   } finally {
     queueWorker(eng, worker, 'resident-work-internal', { action: 'finish' })
   }

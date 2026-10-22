@@ -80,8 +80,8 @@ illustrated crops' sprout and young plant of their habit (leafy, sprawling, clim
 
 - **The fish pond** lies north of the planted sword; any water fishes.
 - **A rod** is made at hand from two sticks and two grass (the crafting panel), or bought.
-- **Bait / 鱼饵**: while holding a fishing rod, right-click open ground or yourself to choose a bait stack and confirm it. One bait is consumed and the number of casts shown for it is added (`home/bait`, `home/rod`). While casts remain, only bait with the same name and quality can be added; spend the current bait before changing it. The original inventory route still works: hold bait and right-click the rod in the bag, then choose **Apply bait (+N casts) / 装上鱼饵（+N次）**. The rod's icon shows its loaded bait, and its tooltip shows the remaining casts, including zero.
-- **鱼饵**：手持鱼竿时右键空地或自身，选择一种鱼饵并确认；确认后消耗一份，并增加该鱼饵标注的抛竿次数（`home/bait`、`home/rod`）。鱼竿还有抛竿次数时，只能追加同名、同品质的鱼饵；用完后才能换饵。原背包操作仍可使用：手持鱼饵，在背包里右键鱼竿并选择**装上鱼饵（+N次）**。鱼竿图标会显示已挂鱼饵，提示框会显示剩余次数，耗尽时显示 0。
+- **Bait / 鱼饵**: while holding a fishing rod, right-click yourself to choose a bait stack and confirm it. One bait is consumed and the number of casts shown for it is added (`home/bait`, `home/rod`). While casts remain, only bait with the same name and quality can be added; spend the current bait before changing it. The original inventory route still works: hold bait and right-click the rod in the bag, then choose **Apply bait (+N casts) / 装上鱼饵（+N次）**. The rod's icon shows its loaded bait, and its tooltip shows the remaining casts, including zero.
+- **鱼饵**：手持鱼竿时右键自己，选择一种鱼饵并确认；确认后消耗一份，并增加该鱼饵标注的抛竿次数（`home/bait`、`home/rod`）。鱼竿还有抛竿次数时，只能追加同名、同品质的鱼饵；用完后才能换饵。原背包操作仍可使用：手持鱼饵，在背包里右键鱼竿并选择**装上鱼饵（+N次）**。鱼竿图标会显示已挂鱼饵，提示框会显示剩余次数，耗尽时显示 0。
 - **Casting**: hold the rod and left-click water (it reaches three cells). A baited hook bites 70% of the time (a
   bite or not, a baited cast is spent), a bare one 35%; the water is stirred after, and nothing bites there until
   it settles.

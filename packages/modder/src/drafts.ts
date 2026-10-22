@@ -102,3 +102,30 @@ export function settleMap(c: Record<string, unknown>): Record<string, unknown> {
     entities: ((c.entities as Record<string, unknown>[] | undefined) ?? []).map((e) => ({ ...e, place: { ...(e.place as object), on: 'tile', map: id } })),
   }
 }
+
+// ---------------------------------------------------------------- what the author is shown as it works
+
+/** A step of a draft, as the author's chat shows it: what the AI answered (summed up, its JSON beside), what the engine sent back, a picture drawn. No reasoning: the model's answer only. */
+export interface TraceStep {
+  /** Milliseconds since the draft began. */
+  at: number
+  who: 'ai' | 'engine' | 'artist'
+  text: string
+  /** The answer as JSON (parsed: never the model's raw text, so nothing of its thinking). */
+  data?: unknown
+  /** Problems the engine found, sent back to the AI. */
+  problems?: string[]
+}
+
+const said = (v: unknown): string => (typeof v === 'string' ? v : v && typeof v === 'object' ? String((v as Record<string, unknown>).en ?? Object.values(v)[0] ?? '') : '')
+
+/** What a drafted file is, in a line: a person's name, kind, day and lines; a map's name, size, things and spots. */
+export function summary(kind: DraftKind, d: unknown): string {
+  const o = (d && typeof d === 'object' ? d : {}) as Record<string, any>
+  if (kind === 'person') return `${said(o.name) || o.id} (${String(o.type ?? '').split('/').pop()}): ${o.npc?.schedule?.length ?? 0} parts of a day, ${o.npc?.person?.lines?.length ?? 0} lines`
+  const m = o.map ?? {}
+  return `${said(m.name) || m.id}: ${m.width}×${m.height}, ${Array.isArray(o.entities) ? o.entities.length : 0} things, spots ${Object.keys(m.anchors ?? {}).join(', ') || 'none'}`
+}
+
+/** A model's answer with any thinking it wrote inline (<think>…</think>) taken out. */
+export const withoutThinking = (s: string): string => s.replace(/<think>[\s\S]*?<\/think>/g, '').trim()

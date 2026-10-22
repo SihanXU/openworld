@@ -121,7 +121,10 @@ function domHarness() {
   return { document, window }
 }
 
-type MenuInternals = { contextMenu(x: number, y: number, item: string, extra?: [string, () => void][]): void }
+type MenuInternals = {
+  contextMenu(x: number, y: number, item: string, extra?: [string, () => void][]): void
+  keysPage: { hide: ReturnType<typeof vi.fn> }
+}
 
 function bareMenu(): Menu {
   const menu = Object.create(Menu.prototype) as Menu
@@ -130,6 +133,7 @@ function bareMenu(): Menu {
     panels: { close: vi.fn(), onFrame: vi.fn() },
     ai: { stop: vi.fn() },
     contextPopup: new ContextMenu(),
+    keysPage: { hide: vi.fn() },
     quests: { open: false },
     skillPanel: { open: false },
     profession: { open: false },
@@ -162,6 +166,7 @@ describe('inventory context menu lifecycle', () => {
     menu.close()
     expect(dom.document.querySelector('.ctx')).toBeNull()
     expect(dom.window.listenerCount).toBe(0)
+    expect((menu as unknown as MenuInternals).keysPage.hide).toHaveBeenCalledOnce()
 
     staleRow.click()
     expect(action).not.toHaveBeenCalled()

@@ -6,7 +6,8 @@
 import { xpToNext, type Frame, type FxEvent, type ItemInfo, type Mood, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, itemIconSignature, ontology } from '../game.ts'
 import { artEpoch, assetUrl, cssAssetUrl } from '../render/assets.ts'
-import { $, MOOD_GLYPH, SLOT_KEYS, esc, locale, prefs, t, tx, gearFrame } from './common.ts'
+import { $, MOOD_GLYPH, SLOT_KEYS, esc, kbd, locale, prefs, t, tx, gearFrame } from './common.ts'
+import type { Action } from '../keymap.ts'
 import { skillPng } from './skillIcons.ts'
 import { heartsOf } from './hearts.ts'
 
@@ -91,13 +92,13 @@ export class Hud {
         <div class="barrow"><div class="toolbar wood" id="toolbar"></div><div class="toolbar wood offhand-bar" id="offhandBar"></div></div>
       </div>
       <div class="corner" id="corner">
-        <button class="cbtn wood" id="questBtn" title="L"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerQuests.img)}" alt=""><kbd>L</kbd><span class="badge hidden" id="questBadge"></span></button>
-        <button class="cbtn wood" id="buildBtn" title="B"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerBuild.img)}" alt=""><kbd>B</kbd></button>
-        <button class="cbtn wood" id="bagBtn" title="I"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerBag.img)}" alt=""><kbd>I</kbd></button>
-        <button class="cbtn wood${hasModule('classes') ? '' : ' hidden'}" id="skillBtn" title="K"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerSkills.img)}" alt=""><kbd>K</kbd><span class="badge hidden" id="skillBadge"></span></button>
-        <button class="cbtn wood" id="jbtn" title="J"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerJournal.img)}" alt=""><kbd>J</kbd></button>
-        <button class="cbtn wood" id="craftBtn" title="C"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerCraft.img)}" alt=""><kbd>C</kbd></button>
-        <button class="cbtn wood${hasModule('classes') ? '' : ' hidden'}" id="skPanelBtn" title="U">${hasModule('classes') ? `<img class="cb-icon" src="${skillPng('whirlwind')}" alt="">` : ''}<kbd>U</kbd></button>
+        <button class="cbtn wood" id="questBtn" data-kbd-title="quests" title="${kbd('quests')}"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerQuests.img)}" alt=""><kbd data-kbd="quests">${kbd('quests')}</kbd><span class="badge hidden" id="questBadge"></span></button>
+        <button class="cbtn wood" id="buildBtn" data-kbd-title="build" title="${kbd('build')}"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerBuild.img)}" alt=""><kbd data-kbd="build">${kbd('build')}</kbd></button>
+        <button class="cbtn wood" id="bagBtn" data-kbd-title="bag" title="${kbd('bag')}"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerBag.img)}" alt=""><kbd data-kbd="bag">${kbd('bag')}</kbd></button>
+        <button class="cbtn wood${hasModule('classes') ? '' : ' hidden'}" id="skillBtn" data-kbd-title="skills" title="${kbd('skills')}"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerSkills.img)}" alt=""><kbd data-kbd="skills">${kbd('skills')}</kbd><span class="badge hidden" id="skillBadge"></span></button>
+        <button class="cbtn wood" id="jbtn" data-kbd-title="journal" title="${kbd('journal')}"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerJournal.img)}" alt=""><kbd data-kbd="journal">${kbd('journal')}</kbd></button>
+        <button class="cbtn wood" id="craftBtn" data-kbd-title="craft" title="${kbd('craft')}"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerCraft.img)}" alt=""><kbd data-kbd="craft">${kbd('craft')}</kbd></button>
+        <button class="cbtn wood${hasModule('classes') ? '' : ' hidden'}" id="skPanelBtn" data-kbd-title="skillPanel" title="${kbd('skillPanel')}">${hasModule('classes') ? `<img class="cb-icon" src="${skillPng('whirlwind')}" alt="">` : ''}<kbd data-kbd="skillPanel">${kbd('skillPanel')}</kbd></button>
         <button class="cbtn wood" id="optionsBtn" title="Esc"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerOptions.img)}" alt=""><kbd>Esc</kbd></button>
       </div>
       <div class="msgs" id="msgs"></div>
@@ -216,11 +217,13 @@ export class Hud {
     // unspent skill points: a badge on the skill tree's button
     $('#skillBadge').textContent = String(points)
     $('#skillBadge').classList.toggle('hidden', points <= 0)
-    $('#bagBtn').title = `${t('inventory')} (I)`
-    $('#craftBtn').title = `${t('craft')} (C)`
+    // each button's key as the player has it now (none: no key said)
+    const key = (a: Action) => (kbd(a) ? ` (${kbd(a)})` : '')
+    $('#bagBtn').title = `${t('inventory')}${key('bag')}`
+    $('#craftBtn').title = `${t('craft')}${key('craft')}`
     $('#optionsBtn').title = `${t('options')} (Esc)`
-    $('#jbtn').title = `${t('codex')} (J)`
-    $('#skillBtn').title = `${t('skills')} (K)${points ? ` · ${t('skillPoints')} ${points}` : ''}`
+    $('#jbtn').title = `${t('codex')}${key('journal')}`
+    $('#skillBtn').title = `${t('skills')}${key('skills')}${points ? ` · ${t('skillPoints')} ${points}` : ''}`
     $('#xpBar').title = `${t('level')} ${level} · ${t('xp')} ${xp} / ${need}${points ? ` · ${t('skillPoints')} ${points}` : ''}`
   }
 
@@ -280,7 +283,7 @@ export class Hud {
       .map(
         (s, i) =>
           `<div class="slot${i === f.player.selected ? ' sel' : ''}${gearFrame(s?.item)}" data-slot="${i}"${s ? ` data-item="${s.item.id}"` : ''}>` +
-          `<span class="key">${SLOT_KEYS[i]}</span>${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}</div>`,
+          `<span class="key" data-kbd="slot${i + 1}">${kbd(`slot${i + 1}` as Action)}</span>${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}</div>`,
       )
       .join('')
     $('#toolbar')

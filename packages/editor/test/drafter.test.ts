@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 import { readProject } from '@openworld/format/src/node.ts'
 import { Store } from '../src/app/store.ts'
 import { useProject } from '../src/app/words.ts'
-import { fileOf, mapContext, personContext, problemsWith } from '../src/app/drafts.ts'
+import { draftRequest, fileOf, mapContext, personContext, problemsWith } from '../src/app/drafts.ts'
 import type { Ctx } from '../src/app/context.ts'
 
 const STARTER = fileURLToPath(new URL('../../../games/starter', import.meta.url))
@@ -56,5 +56,18 @@ describe('the AI drafter', () => {
     expect(problemsWith(ctx, 'person', 'people/tova.json', { ...tova, type: 'actor/person/wizard' }).length).toBeGreaterThan(0)
     // nothing was written
     expect(ctx.store.get('people/tova.json')).toBeUndefined()
+  })
+
+  it('asks a draft first; a later message in the chat revises the draft held: the first ask kept, the draft sent back without its pictures', () => {
+    expect(draftRequest('person', 'a gardener', 'd1')).toEqual({ path: '/draft', body: { kind: 'person', intent: 'a gardener', id: 'd1' } })
+    const tova = { id: 'npc.tova', name: 'Tova' }
+    expect(draftRequest('person', 'make her old', 'd2', { intent: 'a gardener', data: tova })).toEqual({ path: '/draft', body: { kind: 'person', intent: 'a gardener', previous: tova, feedback: 'make her old', id: 'd2' } })
+    const art = { grid: ['k'], palette: { k: '#000' } }
+    const patch = { artifacts: [{ kind: 'type' as const, type: { id: 'item/material/frost_ingot', art, sprite: 'art:item/material/frost_ingot' } }] }
+    const r = draftRequest('thing', 'make it blue', 'd3', { intent: 'a cold ingot', patch: patch as never })
+    expect(r.path).toBe('/create')
+    expect(r.body).toMatchObject({ intent: 'a cold ingot', feedback: 'make it blue', id: 'd3' })
+    expect(JSON.stringify(r.body.previous)).not.toContain('#000')
+    expect(JSON.stringify(r.body.previous)).toContain('item/material/frost_ingot')
   })
 })

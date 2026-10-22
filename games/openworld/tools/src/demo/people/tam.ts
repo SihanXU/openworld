@@ -17,7 +17,7 @@ export const tam: PersonDef = {
   purse: 30,
   schedules: {
     default: [
-      [21, 6, 'mill:mill.bed', 'sleep'],
+      [21, 6, 'millhouse:bed', 'sleep'],
       [6, 21, 'mill:mill.yard', 'mind the wheel'],
     ],
   },

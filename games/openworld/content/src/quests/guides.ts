@@ -49,17 +49,17 @@ const skill: QuestDef = {
   id: 'guide_skill',
   kind: 'guide',
   title: L('The First Skill Point', '第一个技能点'),
-  summary: L('Every level brings a skill point. The skill tree (K) spends them: the general skills are open to anyone — gathering, crafting, a steadier hand in a fight.', '每升一级都有一个技能点。技能树（K）用来花它们：通用技能谁都能学——采集、制作，还有打起来更稳的手。'),
+  summary: L('Every level brings a skill point. The skill tree ({key:skills}) spends them: the general skills are open to anyone — gathering, crafting, a steadier hand in a fight.', '每升一级都有一个技能点。技能树（{key:skills}）用来花它们：通用技能谁都能学——采集、制作，还有打起来更稳的手。'),
   aliases: { pip: { id: LUMI_ID } },
-  objectives: [{ id: 'learn', text: L('Open the skill tree (K) and learn a skill', '打开技能树（K），学一个技能'), on: { step: 'guide_skill_learned' } }],
+  objectives: [{ id: 'learn', text: L('Open the skill tree ({key:skills}) and learn a skill', '打开技能树（{key:skills}），学一个技能'), on: { step: 'guide_skill_learned' } }],
   stages: [
     {
       n: 10,
       show: ['learn'],
-      say: L('You went up a level! Every level gives you a skill point — press K and spend it on something. The general skills are for everyone; the profession ones wait until you have a profession.', '你升级啦！每升一级都有一个技能点——按 K 打开技能树，先学一个你喜欢的。通用技能谁都能学，职业技能要等有了职业才行。'),
+      say: L('You went up a level! Every level gives you a skill point — press {key:skills} and spend it on something. The general skills are for everyone; the profession ones wait until you have a profession.', '你升级啦！每升一级都有一个技能点——按 {key:skills} 打开技能树，先学一个你喜欢的。通用技能谁都能学，职业技能要等有了职业才行。'),
       by: 'pip',
-      hint: L('K opens the skill tree. A skill you can learn now is lit; click it to learn it. Hunting, gathering, crafting, fighting — pick what you do most.', 'K 打开技能树。现在能学的技能是亮着的，点一下就学会了。打猎、采集、制作、战斗——挑你最常做的那一类。'),
-      log: L('A level up, and a skill point to spend. Lumi says: K.', '升级了，有一个技能点可以花。露米说：按 K。'),
+      hint: L('{key:skills} opens the skill tree. A skill you can learn now is lit; click it to learn it. Hunting, gathering, crafting, fighting — pick what you do most.', '{key:skills} 打开技能树。现在能学的技能是亮着的，点一下就学会了。打猎、采集、制作、战斗——挑你最常做的那一类。'),
+      log: L('A level up, and a skill point to spend. Lumi says: {key:skills}.', '升级了，有一个技能点可以花。露米说：按 {key:skills}。'),
     },
     {
       n: 100,
@@ -91,7 +91,7 @@ const profession: QuestDef = {
       show: ['trainer', 'choose'],
       say: L('Level five! You know what that means — Bram said he sets people on a road at five. He keeps the drill yard in Firstlight, by the north-east cottage, with crossed blades over his head. Let us go and pick one!', '五级了！你还记得吧——布拉姆说过，到五级他就给人指路。他在初原村的操练场，东北角那间小屋旁边，头顶有交叉双剑的标记。我们去选一条路吧！'),
       by: 'pip',
-      hint: L('Bram keeps the drill yard of Firstlight Village day and night (crossed blades over his head). E opens his panel: four roads, each with its weapon. A dagger from behind, a sword and shield from the front, a bow from afar, a staff from wherever you stand.', '布拉姆日夜都在初原村的操练场（头顶有交叉双剑）。对他按 E 打开面板：四条路，各有自己的武器。匕首从背后，剑盾从正面，弓从远处，法杖从你站着的地方。'),
+      hint: L('Bram keeps the drill yard of Firstlight Village day and night (crossed blades over his head). {key:hands} opens his panel: four roads, each with its weapon. A dagger from behind, a sword and shield from the front, a bow from afar, a staff from wherever you stand.', '布拉姆日夜都在初原村的操练场（头顶有交叉双剑）。对他按 {key:hands} 打开面板：四条路，各有自己的武器。匕首从背后，剑盾从正面，弓从远处，法杖从你站着的地方。'),
       log: L('Level five. Lumi says Bram will set me on a road now.', '五级了。露米说布拉姆现在会给我指一条路。'),
     },
     {
@@ -106,7 +106,7 @@ const profession: QuestDef = {
       on: { step: 'guide_profession_chosen' },
       done: ['trainer', 'choose'],
       complete: true,
-      say: L('A road of your own! Your profession\'s branch is open in the skill tree now (K), and its weapon is yours to fight with. Bram sells the first one if you have none.', '你有自己的路了！技能树（K）里职业的分支现在开了，它的武器也归你用了。手上没有的话，布拉姆那里有卖。'),
+      say: L('A road of your own! Your profession\'s branch is open in the skill tree now ({key:skills}), and its weapon is yours to fight with. Bram sells the first one if you have none.', '你有自己的路了！技能树（{key:skills}）里职业的分支现在开了，它的武器也归你用了。手上没有的话，布拉姆那里有卖。'),
       by: 'pip',
       reward: { xp: 20 },
       log: L('I chose. The profession\'s branch is open in the tree.', '我选好了。技能树里职业的分支开了。'),
@@ -119,19 +119,19 @@ const fish: QuestDef = {
   id: 'guide_fish',
   kind: 'guide',
   title: L('The First Cast', '第一竿'),
-  summary: L('Any water with fish in it will do — the pond south of the square in Firstlight is the nearest. A fishing rod is two sticks and two tufts of grass in your hands (C), or a few coins at the general store. Stand on the bank, hold the rod and left click the water; bait on the hook makes them bite twice as often.', '只要是有鱼的水都行——初原村广场南边的池塘最近。鱼竿用两根树枝和两把草徒手就能做（C），杂货店也有卖。站在岸边，拿着鱼竿左键点水；钩上挂了鱼饵，咬钩的机会翻倍。'),
+  summary: L('Any water with fish in it will do — the pond south of the square in Firstlight is the nearest. A fishing rod is two sticks and two tufts of grass in your hands ({key:craft}), or a few coins at the general store. Stand on the bank, hold the rod and left click the water; bait on the hook makes them bite twice as often.', '只要是有鱼的水都行——初原村广场南边的池塘最近。鱼竿用两根树枝和两把草徒手就能做（{key:craft}），杂货店也有卖。站在岸边，拿着鱼竿左键点水；钩上挂了鱼饵，咬钩的机会翻倍。'),
   aliases: { pip: { id: LUMI_ID }, pond: { place: POND } },
   objectives: [
-    { id: 'rod', text: L('Get a fishing rod (C: two sticks and two tufts of grass; or the general store)', '弄一根鱼竿（C 制作：两根树枝、两把草；或在杂货店买）'), on: { carry: ROD } },
+    { id: 'rod', text: L('Get a fishing rod ({key:craft}: two sticks and two tufts of grass; or the general store)', '弄一根鱼竿（{key:craft} 制作：两根树枝、两把草；或在杂货店买）'), on: { carry: ROD } },
     { id: 'fish', text: L('Catch a fish in the pond (hold the rod, left click the water)', '在池塘里钓起一条鱼（拿着鱼竿，左键点水）'), target: 'pond', on: { carry: FISH } },
   ],
   stages: [
     {
       n: 10,
       show: ['rod', 'fish'],
-      say: L('Look, a pond — and something just jumped! Fish are food that comes back every day. Make a rod: two sticks and two tufts of grass, in your hands (C). Then stand on the bank, hold it and left click the water.', '看，一个池塘——刚才有东西跳起来了！鱼是天天都有的吃的。做根鱼竿吧：两根树枝、两把草，徒手就能做（C）。然后站到岸边，拿着它左键点水。'),
+      say: L('Look, a pond — and something just jumped! Fish are food that comes back every day. Make a rod: two sticks and two tufts of grass, in your hands ({key:craft}). Then stand on the bank, hold it and left click the water.', '看，一个池塘——刚才有东西跳起来了！鱼是天天都有的吃的。做根鱼竿吧：两根树枝、两把草，徒手就能做（{key:craft}）。然后站到岸边，拿着它左键点水。'),
       by: 'pip',
-      hint: L('A rod is two sticks and two tufts of grass (C, by hand); the general store sells one too. On the bank, hold it and left click the water: sometimes something bites. A cast stirs the water — wait a moment before the next.', '鱼竿是两根树枝加两把草（C，徒手做）；杂货店也有卖。在岸边拿着它左键点水：有时候会咬钩。甩一竿会把水搅浑——等一会儿再甩下一竿。'),
+      hint: L('A rod is two sticks and two tufts of grass ({key:craft}, by hand); the general store sells one too. On the bank, hold it and left click the water: sometimes something bites. A cast stirs the water — wait a moment before the next.', '鱼竿是两根树枝加两把草（{key:craft}，徒手做）；杂货店也有卖。在岸边拿着它左键点水：有时候会咬钩。甩一竿会把水搅浑——等一会儿再甩下一竿。'),
       log: L('A pond in the village. Lumi wants to see me fish.', '村里有个池塘。露米想看我钓鱼。'),
     },
     {
@@ -164,20 +164,20 @@ const farm: QuestDef = {
   summary: L('The kitchen garden of Firstlight Village has a supplies crate with a hoe, a sickle, a bucket of water and seeds. Harvest a ripe crop with the sickle, sow a seed on the bare row, water it: each stage takes one to four hours depending on the crop, as its seed says. A hoe turns grass into farmland for a garden of your own.', '初原村的菜圃旁有个工具箱，里面有锄头、镰刀、一桶水和种子。用镰刀收割一株熟了的作物，在空着的那一行播一粒种子，再浇上水：每阶段要一到四游戏小时，看作物种类，种子说明里有。锄头能把草地翻成耕地，开一片自己的菜圃。'),
   aliases: { pip: { id: LUMI_ID }, garden: { place: GARDEN }, crate: { id: 'ford.garden.supplies' } },
   objectives: [
-    { id: 'hoe', text: L('Take the hoe from the garden supplies (E on the crate)', '从菜圃工具箱里拿锄头（对箱子按 E）'), target: 'crate', on: { carry: { type: 'item/tool/hoe' } } },
+    { id: 'hoe', text: L('Take the hoe from the garden supplies ({key:hands} on the crate)', '从菜圃工具箱里拿锄头（对箱子按 {key:hands}）'), target: 'crate', on: { carry: { type: 'item/tool/hoe' } } },
     { id: 'sickle', text: L('Take the sickle', '拿镰刀'), target: 'crate', on: { carry: { type: 'item/tool/sickle' } } },
     { id: 'seeds', text: L('Take some seeds', '拿一些种子'), target: 'crate', on: { carry: { type: 'item/seed' } } },
     { id: 'harvest', text: L('Harvest a ripe crop with the sickle (hold it, left click the crop)', '用镰刀收割一株成熟的作物（拿着镰刀，左键点作物）'), target: 'garden', on: { carry: { tags: ['vegetable'] } } },
-    { id: 'sow', text: L('Sow a seed on the bare row of the garden (hold the seed, left click the farmland)', '在菜圃空着的那一行播一粒种子（拿着种子，左键点耕地）'), target: 'garden', on: { step: 'guide_sowed' } },
+    { id: 'sow', text: L('Sow a seed on the bare row of the garden (hold the seed, right click the farmland)', '在菜圃空着的那一行播一粒种子（拿着种子，右键点耕地）'), target: 'garden', on: { step: 'guide_sowed' } },
     { id: 'water', text: L('Water a crop (hold the bucket of water, left click the crop)', '给一株作物浇水（拿着水桶，左键点作物）'), target: 'garden', on: { step: 'guide_watered' } },
   ],
   stages: [
     {
       n: 10,
       show: ['hoe', 'sickle', 'seeds'],
-      say: L('This is the village garden! The crate at its corner has everything — a hoe, a sickle, a bucket of water and seeds. Open it (E) and take the hoe, the sickle and some seeds. We can borrow them.', '这是村里的菜圃！角上那个箱子里什么都有——锄头、镰刀、一桶水，还有种子。打开它（E），拿上锄头、镰刀和一些种子。借来用用没关系。'),
+      say: L('This is the village garden! The crate at its corner has everything — a hoe, a sickle, a bucket of water and seeds. Open it ({key:hands}) and take the hoe, the sickle and some seeds. We can borrow them.', '这是村里的菜圃！角上那个箱子里什么都有——锄头、镰刀、一桶水，还有种子。打开它（{key:hands}），拿上锄头、镰刀和一些种子。借来用用没关系。'),
       by: 'pip',
-      hint: L('The supplies crate stands at the garden\'s east corner. E opens it; take the hoe, the sickle and some seeds (and the bucket of water, for later).', '工具箱在菜圃东边的角上。按 E 打开，拿锄头、镰刀和一些种子（水桶也拿上，待会儿用）。'),
+      hint: L('The supplies crate stands at the garden\'s east corner. {key:hands} opens it; take the hoe, the sickle and some seeds (and the bucket of water, for later).', '工具箱在菜圃东边的角上。按 {key:hands} 打开，拿锄头、镰刀和一些种子（水桶也拿上，待会儿用）。'),
       log: L('The village garden, and a crate of tools beside it. Lumi wants to teach me to grow things.', '村里的菜圃，旁边有一箱工具。露米想教我种东西。'),
     },
     {
@@ -187,7 +187,7 @@ const farm: QuestDef = {
       show: ['harvest', 'sow', 'water'],
       say: L('Good. See the three rows? Sprouts, young plants, and the top row is ripe. Harvest one with the sickle — it gives the crop and seeds back. Then sow a seed on the bare bottom row, and water it with the bucket. Each stage takes one to four hours: check the seed. Water each stage; Irrigation supplies two.', '好。看见那三排了吗？嫩芽、小苗，最上面一排熟了。用镰刀收一株——能得到作物，种子也会回来。然后在最下面空着的那行播一粒种子，再用水桶浇上水。每阶段要一到四游戏小时，看看种子说明。每阶段需浇水；学会引水后浇一次能长两阶段。'),
       by: 'pip',
-      hint: L('Hold the sickle and left click a ripe plant to harvest it. Hold a seed and left click the bare farmland on the bottom row to sow it. Hold the bucket of water and left click a growing plant to water it (the well by the square fills an empty bucket). A hoe on grass makes new farmland.', '拿着镰刀左键点熟了的作物就能收割。拿着种子左键点最下面一行的空耕地就是播种。拿着水桶左键点正在长的作物就是浇水（广场边的井能装满空桶）。拿锄头点草地就能开出新的耕地。'),
+      hint: L('Hold the sickle and left click a ripe plant to harvest it. Hold a seed and right click the bare farmland on the bottom row to sow it. Hold the bucket of water and left click a growing plant to water it (the well by the square fills an empty bucket). A hoe on grass makes new farmland.', '拿着镰刀左键点熟了的作物就能收割。拿着种子右键点最下面一行的空耕地就是播种。拿着水桶左键点正在长的作物就是浇水（广场边的井能装满空桶）。拿锄头点草地就能开出新的耕地。'),
       log: L('Hoe, sickle and seeds in hand. The top row is ripe; the bottom row is bare.', '锄头、镰刀和种子都拿了。最上面一排熟了；最下面一行空着。'),
     },
     {
