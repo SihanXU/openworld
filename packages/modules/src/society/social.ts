@@ -867,7 +867,7 @@ export class Social {
     const anchors = r && this.w.map(r.map)?.anchors
     if (!r || !anchors) return []
     const taken = new Map<string, Id>()
-    for (const e of Object.values(this.w.state.entities)) if (e.npc?.resident?.map === r.map) taken.set(e.npc.resident.slot, e.id)
+    for (const e of this.w.people()) if (e.npc?.resident?.map === r.map) taken.set(e.npc.resident.slot, e.id)
     return r.slots
       .filter((b) => anchors[b.anchor] && (!b.when || !!this.w.fact(b.when)))
       .map((b) => ({ anchor: b.anchor, at: anchors[b.anchor], day: anchors[`${b.anchor}.day`] ?? anchors[b.anchor], ...(taken.has(b.anchor) && { who: taken.get(b.anchor) }) }))

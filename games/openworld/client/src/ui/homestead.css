@@ -103,4 +103,26 @@
 .hs-body { grid-template-columns: 260px 1fr; }
 .hs-left { gap: 6px; padding: 10px 8px 12px; }
 .hs-note { font-size: 11px; line-height: 1.5; }
+.hs-pages { display: flex; align-items: center; gap: 4px; margin: 0 auto; }
+.hs-page { white-space: nowrap; }
+.hs-overview { display: flex; flex-direction: column; gap: 12px; padding: 14px; max-height: min(68vh, 620px); overflow-y: auto; }
+.hs-overview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.hs-overview-card { min-width: 0; padding: 12px 14px; border-radius: 10px; background: var(--grain), linear-gradient(180deg, #fffaf0, var(--parch)); border: 2px solid #a87a46; box-shadow: 0 3px 0 rgba(74, 42, 20, 0.2); }
+.hs-overview-card h3 { margin: 0 0 10px; font: 700 16px var(--pixel); color: #5a2a10; }
+.hs-stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.hs-stat { min-width: 104px; flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 8px; background: rgba(220, 189, 131, 0.35); box-shadow: inset 0 1px 3px rgba(90, 50, 15, 0.13); }
+.hs-stat span { font: 12px var(--text); color: var(--ink-soft); }
+.hs-stat b { font: 700 23px var(--pixel); color: #4f7d22; }
+.hs-storage { display: flex; flex-direction: column; gap: 8px; }
+.hs-warehouse { padding: 8px 10px; border-radius: 8px; background: rgba(220, 189, 131, 0.28); }
+.hs-warehouse-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; color: var(--ink-warm); }
+.hs-warehouse-head b { font: 700 14px var(--pixel); }
+.hs-warehouse-head span, .hs-warehouse p { font: 12px/1.6 var(--text); }
+.hs-warehouse p { margin: 4px 0 0; color: var(--ink-soft); overflow-wrap: anywhere; }
+.hs-alert { margin: 0; padding: 10px 12px; border-radius: 8px; font: 13px/1.5 var(--text); color: #713c19; background: rgba(196, 85, 59, 0.12); border: 1px dashed rgba(196, 85, 59, 0.5); }
+.hs-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.hs-list li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 6px 8px; border-radius: 6px; background: rgba(220, 189, 131, 0.24); font: 12px var(--text); color: var(--ink-warm); }
+.hs-list li span { color: var(--ink-soft); text-align: right; overflow-wrap: anywhere; }
+.hs-residents .hs-note { margin: 0; text-align: left; }
+@media (max-width: 700px) { .hs-pages { order: 3; flex-basis: 100%; justify-content: center; } .hs-overview-grid { grid-template-columns: 1fr; } .hs-overview { padding: 10px; } }
 

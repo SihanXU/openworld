@@ -895,8 +895,32 @@ export interface ResidenceDef {
   slots: { anchor: string; when?: string }[]
   /** A resident's day there, hour by hour: each span spent at its bed (`bed`) or its bed's day place (`day`), and doing what. */
   days: { from: number; to: number; at: 'bed' | 'day'; activity: string }[]
+  /** The kinds and states this home ground chooses to expose as its work overview and future work targets. */
+  work?: ResidenceWorkDef
   yes: Text
   full: Text
+}
+
+/** Game-authored selectors for a home ground's work objects; the society module names no game's maps or types. */
+export interface ResidenceWorkDef {
+  /** Any crop grown here; later work may choose an authorized crop from this set. */
+  crop?: Selector
+  /** Crops whose current type is ready for harvest. */
+  ripe?: Selector
+  /** Crops waiting for water (the selector can require `growing` and exclude `watered`). */
+  growing?: Selector
+  /** All kept livestock on the home ground. */
+  livestock?: Selector
+  /** Livestock that still needs feeding. */
+  unfed?: Selector
+  /** Animals that can be milked now, including maturity and daily state. */
+  milkable?: Selector
+  /** Loose gatherable eggs on the home ground. */
+  egg?: Selector
+  /** Real storage entities eligible to hold work supplies. */
+  warehouse?: Selector
+  /** The real feed item a future feeding job will draw from storage. */
+  feed?: Selector
 }
 
 /** Something that happened, which people may talk about while it is fresh. */

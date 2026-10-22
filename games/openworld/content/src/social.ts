@@ -83,6 +83,17 @@ export const SOCIAL: SocialParams = {
   residence: {
     map: 'haven',
     at: 95,
+    work: {
+      crop: { type: 'fixture/crop', tags: ['crop'] },
+      ripe: { type: 'fixture/crop', tags: ['ripe'] },
+      growing: { type: 'fixture/crop', tags: ['growing'], notStatus: ['watered'] },
+      livestock: { type: 'actor/creature/animal', tags: ['livestock'] },
+      unfed: { type: 'actor/creature/animal', tags: ['livestock'], notStatus: ['fed'] },
+      milkable: { type: 'actor/creature/animal/cow', status: ['fed'], notStatus: ['milked'] },
+      egg: { type: 'item/food/egg/raw' },
+      warehouse: { type: 'fixture/container', props: { capacity: { gt: 0 } } },
+      feed: { type: 'item/material/feed' },
+    },
     slots: [
       { anchor: 'home.camp' },
       { anchor: 'home.lodge1.a', when: 'haven.build.lodge1' },

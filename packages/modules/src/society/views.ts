@@ -1,6 +1,6 @@
 // The people's panels (docs/npc-sandbox.md): a talk, a trade, a person's pockets, as the client draws them.
 
-import { itemInfo, stackKey, type Engine, type Entity, type Frame, type GiftView, type Id, type TradeView } from '@openworld/engine'
+import { itemInfo, matchSelector, splitStacks, stackKey, type Engine, type Entity, type Frame, type GiftView, type Id, type ResidenceView, type ResidenceWorkDef, type ResidenceWorkView, type Selector, type TradeView } from '@openworld/engine'
 import { socialOf } from './state.ts'
 
 /** The views of the people's panels the host has open (docs/npc-sandbox.md): a talk, a trade, a person's pockets. */
@@ -38,6 +38,81 @@ export function peopleViews(eng: Engine, open: { talk?: { who: Id; arrest?: bool
   }
   const to = open.gift ? w.get(open.gift) : undefined
   if (to?.npc) out.gift = giftView(eng, to)
+  return out
+}
+
+/** The configured home ground's beds and whole-map work counts. Work is shown only while its map is live and observed. */
+export function residenceView(eng: Engine): Pick<Frame, 'residence'> {
+  const w = eng.world
+  const home = w.onto.data.social?.residence
+  if (!home) return {}
+
+  const residents = w.people()
+    .filter((e) => e.npc?.resident?.map === home.map)
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((e) => ({ id: e.id, name: e.name ?? w.onto.resolve(e.type).name ?? e.type, slot: e.npc!.resident!.slot }))
+  const playerMap = w.posOf(w.player)?.map
+  const view: ResidenceView = { map: home.map, active: eng.activeMap === home.map, onMap: playerMap === home.map, residents }
+
+  if (w.map(home.map)?.anchors) {
+    const beds = socialOf(eng).residenceBeds()
+    view.beds = {
+      total: beds.length,
+      occupied: beds.filter((bed) => bed.who).length,
+      empty: beds.filter((bed) => !bed.who).length,
+      slots: beds.map((bed) => ({ anchor: bed.anchor, ...(bed.who && { resident: bed.who }) })),
+    }
+  }
+
+  const def = home.work
+  if (def && view.active && view.onMap) view.work = residenceWork(eng, home.map, def)
+  return { residence: view }
+}
+
+function residenceWork(eng: Engine, map: string, def: ResidenceWorkDef): ResidenceWorkView {
+  const w = eng.world
+  const onGround = w.entitiesOnMap(map)
+    .filter((e) => e.place.on === 'tile')
+    .map((entity) => ({ entity, view: w.view({ e: entity.id }) }))
+  const matches = (candidate: (typeof onGround)[number], selector: Selector | undefined) => !!selector && matchSelector(selector, candidate.view)
+  const count = (selector: Selector | undefined, within?: Selector) => selector
+    ? onGround.filter((candidate) => matches(candidate, selector) && (!within || matches(candidate, within))).length
+    : undefined
+  const out: ResidenceWorkView = {}
+
+  if (def.crop || def.ripe || def.growing) out.crops = {
+    ...(def.crop && { total: count(def.crop) }),
+    ...(def.ripe && { ripe: count(def.ripe, def.crop) }),
+    ...(def.growing && { needsWater: count(def.growing, def.crop) }),
+  }
+  if (def.livestock || def.unfed || def.milkable) out.livestock = {
+    ...(def.livestock && { total: count(def.livestock) }),
+    ...(def.unfed && { unfed: count(def.unfed, def.livestock) }),
+    ...(def.milkable && { milkable: count(def.milkable, def.livestock) }),
+  }
+  if (def.egg) out.groundEggs = count(def.egg) ?? 0
+  if (def.warehouse) out.warehouses = onGround.filter((candidate) => matches(candidate, def.warehouse)).map(({ entity: box }) => {
+    const contents = (box.contents ?? []).map((id) => w.get(id)).filter((e): e is Entity => !!e && e.place.on === 'inside' && e.place.holder === box.id)
+    const rows = new Map<string, NonNullable<ReturnType<typeof itemInfo>> & { count: number }>()
+    for (const item of contents) {
+      const key = stackKey(item)
+      const row = rows.get(key)
+      if (row) row.count++
+      else {
+        const info = itemInfo(eng, item.id)
+        if (info) rows.set(key, { ...info, count: 1 })
+      }
+    }
+    const capacity = w.prop(box, 'capacity')
+    return {
+      id: box.id,
+      type: box.type,
+      name: box.name ?? w.onto.resolve(box.type).name ?? box.type,
+      ...(typeof capacity === 'number' && { capacity }),
+      usedSlots: splitStacks(contents).length,
+      contents: [...rows.values()],
+    }
+  })
   return out
 }
 

@@ -9,6 +9,7 @@ import { SOCIAL_CONDS } from './conds.ts'
 import { socialEffect } from './effects.ts'
 import { Social, lawId } from './social.ts'
 import { conductOf } from './state.ts'
+import { residenceView } from './views.ts'
 
 export * from './conduct.ts'
 export * from './social.ts'
@@ -152,6 +153,7 @@ export const societyModule: EngineModule = {
       const bounty = law ? social.bounty(law.id, p.id) : 0
       if (bounty > 0 && law) f.player.wanted = { bounty, by: law.name }
       f.player.purse = social.purse(p)
+      Object.assign(f, residenceView(eng))
     })
   },
 }

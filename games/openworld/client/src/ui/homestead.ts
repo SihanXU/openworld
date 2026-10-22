@@ -8,7 +8,8 @@
 // onto a card's slot (as many as that widening still lacks), or click a stack (all that the open widenings lack of it,
 // together). The stock is one pile every card draws on (ui/stock.ts): a card shows it beside what it needs, and one whose
 // land is reached and whose needs the stock holds is built with its button; an opened ground can be gone to from its card.
-// OpenWorld's own panel (ui/panels.ts), drawn into the host the runtime gives it.
+// Its opening page is today's residence overview; Residents shows beds and the existing routine, while Upgrades keeps the
+// land, grounds and building tracks. OpenWorld's own panel (ui/panels.ts), drawn into the host the runtime gives it.
 
 import type { Frame, ItemInfo } from '@openworld/engine'
 import { COIN, HAVEN_UPGRADES } from '@openworld-game/content'
@@ -20,6 +21,7 @@ import { useStyle } from './style.ts'
 
 type Upgrade = (typeof HAVEN_UPGRADES)[number]
 type Track = Upgrade['track']
+type Page = 'today' | 'residents' | 'upgrades'
 
 /** The panel's title, and the story's facts it reads: how far the land goes, and the stock's (`<STOCK><type>`). */
 const TITLE = { en: 'The Held Ground', zh: '誓守之地 · 领地经营' }
@@ -34,6 +36,7 @@ const TRACKS: [Track, string, string, string][] = [['land', 'Land', '土地', '�
 class HomesteadPanel implements GamePanel {
   private sig = ''
   private track: Track = 'land'
+  private page: Page = 'today'
   /** Who opened the panel (its steward): what is handed and asked goes to them. */
   private steward?: string
   private last?: Frame
@@ -49,6 +52,7 @@ class HomesteadPanel implements GamePanel {
   show(f: Frame | undefined, opened: { by?: string }): void | false {
     if (!f || !opened.by) return false
     this.steward = opened.by
+    this.page = 'today'
     this.sig = ''
     this.render(f)
   }
@@ -68,9 +72,13 @@ class HomesteadPanel implements GamePanel {
     }
     const materials = new Set(HAVEN_UPGRADES.flatMap((u) => u.needs.map((n) => n.type)))
     const names = new Map(HAVEN_UPGRADES.flatMap((u) => u.needs.map((n) => [n.type, n.text] as const)))
-    const sig = JSON.stringify([locale.value, this.track, size, rows.map((r) => [r.state, r.buildable, r.needs.map((n) => n.stock)]), [...carried].map(([t, c]) => t + c.count)])
+    const sig = JSON.stringify([locale.value, this.page, this.track, f.residence, size, rows.map((r) => [r.state, r.buildable, r.needs.map((n) => n.stock)]), [...carried].map(([t, c]) => t + c.count)])
     if (sig === this.sig) return
     this.sig = sig
+    if (this.page !== 'upgrades') {
+      this.renderOverview(f, zh)
+      return
+    }
     const label: Record<WideningState, string> = zh ? { done: '已完成', open: '可扩建', locked: '未解锁' } : { done: 'Done', open: 'Open', locked: 'Locked' }
     const verb: Record<Track, string> = zh ? { land: '扩建！', zone: '开辟！', building: '建造！' } : { land: 'Widen!', zone: 'Open!', building: 'Build!' }
     const list = rows.filter((r) => r.u.track === this.track)
@@ -118,7 +126,7 @@ class HomesteadPanel implements GamePanel {
       .join('')
     const lands = rows.filter((r) => r.u.track === 'land').length
     this.host.innerHTML = `<div class="sheet wood hs-sheet">
-      <div class="tabs-row"><b class="sheet-title">⚑ ${esc(tx(TITLE))}</b><button class="x" data-close>✕</button></div>
+      <div class="tabs-row"><b class="sheet-title">⚑ ${esc(tx(TITLE))}</b>${this.pageTabs(zh)}<button class="x" data-close>✕</button></div>
       <div class="tab-body hs-body">
         <div class="hs-left">
           <canvas class="hs-chart" width="220" height="220"></canvas>
@@ -134,8 +142,92 @@ class HomesteadPanel implements GamePanel {
         </div>
       </div></div>`
     this.chart(this.host.querySelector<HTMLCanvasElement>('.hs-chart')!, size, lands)
+    this.wirePages()
     this.wire(view, carried, materials)
     this.ctx.paint([...carried.values()].map((c) => c.item))
+  }
+
+  private pageTabs(zh: boolean): string {
+    const pages: [Page, string, string][] = [['today', 'Today', '今日经营'], ['residents', 'Residents', '居民与床位'], ['upgrades', 'Upgrades', '扩建']]
+    return `<nav class="hs-pages">${pages.map(([page, en, zh2]) => `<button class="cx-tab hs-page${this.page === page ? ' on' : ''}" data-page="${page}">${zh ? zh2 : en}</button>`).join('')}</nav>`
+  }
+
+  private renderOverview(f: Frame, zh: boolean): void {
+    const residence = f.residence
+    const n = (value: number | undefined) => value === undefined ? '—' : String(value)
+    const stat = (label: string, value: number | undefined) => `<div class="hs-stat"><span>${label}</span><b>${n(value)}</b></div>`
+    let body: string
+    if (this.page === 'today') {
+      const work = residence?.work
+      const ready = !!residence?.active && !!residence?.onMap && !!work
+      const notice = !residence
+        ? (zh ? '领地经营数据尚未配置。' : 'Residence work data is not configured.')
+        : !residence.active || !residence.onMap
+          ? (zh ? '你已离开领地；工作总览暂停，返回后重新读取。' : 'Away from the Held Ground. The work overview is paused and will refresh when you return.')
+          : !work
+            ? (zh ? '此领地尚未配置实时经营数据。' : 'Live work data is not configured for this residence.')
+            : ''
+      const metrics = ready ? [
+        work.crops && `<section class="hs-overview-card"><h3>${zh ? '作物' : 'Crops'}</h3><div class="hs-stats">${stat(zh ? '在地作物' : 'Growing', work.crops.total)}${stat(zh ? '成熟可收' : 'Ready', work.crops.ripe)}${stat(zh ? '待浇水' : 'Needs water', work.crops.needsWater)}</div></section>`,
+        work.livestock && `<section class="hs-overview-card"><h3>${zh ? '牲畜' : 'Livestock'}</h3><div class="hs-stats">${stat(zh ? '在地牲畜' : 'Kept', work.livestock.total)}${stat(zh ? '待喂养' : 'Needs feed', work.livestock.unfed)}${stat(zh ? '可挤奶' : 'Ready to milk', work.livestock.milkable)}</div></section>`,
+        `<section class="hs-overview-card"><h3>${zh ? '地面收集物' : 'Loose goods'}</h3><div class="hs-stats">${stat(zh ? '待拾鸡蛋' : 'Eggs to gather', work.groundEggs)}</div></section>`,
+      ].filter((html): html is string => !!html).join('') : ''
+      const warehouses = ready ? (work.warehouses ?? []).map((box) => `<article class="hs-warehouse">
+        <div class="hs-warehouse-head"><b>${esc(tx(box.name))}</b><span>${box.usedSlots}/${box.capacity ?? '—'} ${zh ? '格' : 'slots'}</span></div>
+        <p>${box.contents.length ? box.contents.map((item) => `${esc(tx(item.name))} ×${item.count}`).join(' · ') : (zh ? '空' : 'Empty')}</p>
+      </article>`).join('') : ''
+      body = `<div class="hs-overview">
+        ${notice ? `<p class="hs-alert">${esc(notice)}</p>` : ''}
+        ${metrics ? `<div class="hs-overview-grid">${metrics}</div>` : ''}
+        ${ready ? `<section class="hs-overview-card hs-storage"><h3>${zh ? '实体仓库与箱子' : 'Actual storage containers'}</h3>${warehouses || `<p class="muted">${zh ? '没有可用容器。' : 'No eligible containers.'}</p>`}</section>` : ''}
+        ${ready ? `<p class="hs-note">${zh ? '领地库存账仅用于扩建材料；上方容器显示的是实体物资。作物、牲畜与鸡蛋只统计地面对象，不含箱内物品。' : 'The building stock ledger is for upgrade materials. Containers above show real contents. Crop, livestock and egg counts include only objects on the ground, never contents inside a container.'}</p>` : ''}
+      </div>`
+    } else {
+      const residents = residence?.residents ?? []
+      const names = new Map(residents.map((person) => [person.id, tx(person.name)]))
+      const beds = residence?.beds
+      const bedNumbers = new Map((beds?.slots ?? []).map((bed, i) => [bed.anchor, i + 1]))
+      const residentRows = !residence
+        ? `<li class="muted">${zh ? '居民数据尚未配置。' : 'Resident data is not configured.'}</li>`
+        : residents.length
+        ? residents.map((person) => {
+          const bed = bedNumbers.get(person.slot)
+          const location = bed ? (zh ? `床位 ${bed}` : `Bed ${bed}`) : (zh ? '床位信息暂缺' : 'Bed not listed')
+          return `<li><b>${esc(tx(person.name))}</b><span>${location}</span></li>`
+        }).join('')
+        : `<li class="muted">${zh ? '暂无已入住居民。' : 'No residents have moved in.'}</li>`
+      const bedRows = !residence
+        ? `<li class="muted">${zh ? '床位数据尚未配置。' : 'Bed data is not configured.'}</li>`
+        : beds?.slots.length
+        ? beds.slots.map((bed, i) => `<li><b>${zh ? `床位 ${i + 1}` : `Bed ${i + 1}`}</b><span>${bed.resident ? esc(names.get(bed.resident) ?? bed.resident) : (zh ? '空床' : 'Available')}</span></li>`).join('')
+        : `<li class="muted">${zh ? '暂无开放床位。' : 'No open beds yet.'}</li>`
+      const schedule = !residence
+        ? (zh ? '领地居民与床位信息不可用。' : 'Residence data is unavailable.')
+        : zh
+          ? '居民按现有昼夜作息生活：21:00–07:00休息，白天活动。离开领地图期间，经营总览暂停；返回后重新读取。岗位委任功能将在后续开放。'
+          : 'Residents follow their current day and night routine: rest from 21:00 to 07:00 and remain active by day. The work overview pauses while you are away and refreshes when you return. Work assignments will be available in a later update.'
+      body = `<div class="hs-overview hs-residents">
+        ${residence ? '' : `<p class="hs-alert">${zh ? '领地居民数据尚未配置。' : 'Residence data is not configured.'}</p>`}
+        <div class="hs-overview-grid">
+          <section class="hs-overview-card"><h3>${zh ? (residence ? `居民 · ${residents.length}` : '居民') : (residence ? `Residents · ${residents.length}` : 'Residents')}</h3><ul class="hs-list">${residentRows}</ul></section>
+          <section class="hs-overview-card"><h3>${zh ? '床位' : 'Beds'}</h3><div class="hs-stats">${stat(zh ? '总数' : 'Total', beds?.total)}${stat(zh ? '已入住' : 'Occupied', beds?.occupied)}${stat(zh ? '空床' : 'Available', beds?.empty)}</div><ul class="hs-list">${bedRows}</ul></section>
+        </div>
+        <p class="hs-note">${esc(schedule)}</p>
+      </div>`
+    }
+    this.host.innerHTML = `<div class="sheet wood hs-sheet">
+      <div class="tabs-row"><b class="sheet-title">⚑ ${esc(tx(TITLE))}</b>${this.pageTabs(zh)}<button class="x" data-close>✕</button></div>
+      <div class="tab-body">${body}</div></div>`
+    this.wirePages()
+    this.host.querySelector<HTMLElement>('[data-close]')!.onclick = () => this.ctx.close()
+  }
+
+  private wirePages(): void {
+    this.host.querySelectorAll<HTMLButtonElement>('[data-page]').forEach((b) => (b.onclick = () => {
+      this.page = b.dataset.page as Page
+      this.sig = ''
+      this.render(this.last!)
+    }))
   }
 
   private wire(view: StockView<Upgrade>, carried: Map<string, { item: ItemInfo; count: number }>, materials: Set<string>): void {

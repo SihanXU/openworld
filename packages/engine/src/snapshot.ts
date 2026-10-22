@@ -117,6 +117,35 @@ export interface TalkOption {
 /** How a minor monster's body winds up a skill (Frame.telegraphs). */
 export type WindupPose = 'leap' | 'dash' | 'slam' | 'cast' | 'call'
 
+/** The part of a configured home ground that its steward's panel can read. */
+export interface ResidenceView {
+  map: string
+  /** The simulation is currently running this map. Work counts are present only while true. */
+  active: boolean
+  /** The player is physically on this map. */
+  onMap: boolean
+  residents: { id: Id; name: Text; slot: string }[]
+  beds?: { total: number; occupied: number; empty: number; slots: { anchor: string; resident?: Id }[] }
+  work?: ResidenceWorkView
+}
+
+/** A whole-map view, supplied by the optional society module when the game configures residence work. */
+export interface ResidenceWorkView {
+  crops?: { total?: number; ripe?: number; needsWater?: number }
+  livestock?: { total?: number; unfed?: number; milkable?: number }
+  groundEggs?: number
+  warehouses?: ResidenceWarehouseView[]
+}
+
+export interface ResidenceWarehouseView {
+  id: Id
+  type: string
+  name: Text
+  capacity?: number
+  usedSlots: number
+  contents: (ItemInfo & { count: number })[]
+}
+
 export interface Frame {
   tick: number
   hour: number
@@ -128,6 +157,8 @@ export interface Frame {
   map: string
   /** A fishing line's fight, when the game's fishing module has an active session. */
   fishing?: FishingView
+  /** The configured home ground's resident beds and, while on its active map, its live work overview. */
+  residence?: ResidenceView
   player: {
     id: Id
     x: number
