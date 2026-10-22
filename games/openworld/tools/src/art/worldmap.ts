@@ -189,6 +189,20 @@ function woods(seed: number): Raster {
   r.outline('k')
   return r
 }
+/** A pine under snow: its dark cone, the snow lying on its upper boughs. */
+function pine(r: Raster, x: number, y: number, s = 1): void {
+  r.rect(x, y - 2, 1, 2, 'b')
+  r.poly([[x - 3 * s, y - 2], [x, y - 10 * s], [x + 3 * s, y - 2]], 'T')
+  r.poly([[x - 1.8 * s, y - 6 * s], [x, y - 10 * s], [x + 1.8 * s, y - 6 * s]], 'W')
+}
+/** A snowfield's mark (docs/release-1.md): a few pines under snow, so a snow cell is never a blank white square. */
+function snowpines(seed: number): Raster {
+  const r = frame()
+  const spots: [number, number, number][] = seed === 0 ? [[5, 14, 0.9], [11, 16, 1.1], [7, 20, 0.8]] : [[10, 13, 0.9], [4, 17, 1], [12, 20, 0.8]]
+  for (const [x, y, s] of spots.sort((a, b) => a[1] - b[1])) pine(r, x, y, s)
+  r.outline('k')
+  return r
+}
 /** A peak: lit face, shaded face, a cap of snow. */
 function peak(r: Raster, x: number, base: number, h: number, half: number): void {
   r.poly([[x - half, base], [x, base - h], [x + half, base]], 'm')
@@ -286,6 +300,20 @@ const mill = (): Raster => {
   r.line(3, 3, 13, 13, 'o')
   r.line(13, 3, 3, 13, 'o')
   r.rect(7, 7, 2, 2, 'b')
+  r.outline('k')
+  return r
+}
+/** A watermill (Millbrook's): the mill house, its wheel turning in the brook at its side. */
+const watermill = (): Raster => {
+  const r = frame()
+  r.rect(0, 18, 16, 2, 'h')
+  r.rect(2, 11, 8, 7, 'v')
+  r.poly([[1, 11], [6, 6], [11, 11]], 'R')
+  r.rect(5, 14, 2, 4, 'o')
+  r.ellipse(12, 14, 3.2, 3.6, 'o')
+  r.ellipse(12, 14, 1.6, 1.8, 'v')
+  r.line(12, 10, 12, 18, 'b')
+  r.line(8.8, 14, 15.2, 14, 'b')
   r.outline('k')
   return r
 }
@@ -544,7 +572,7 @@ const bridge = (): Raster => {
 }
 
 /** The marks, in their order in WorldMap/marks.png (the catalogue's keys name them the same). */
-const MARKS = ['woods', 'woods2', 'mountains', 'mountains2', 'hills', 'hills2', 'village', 'town', 'ford', 'farm', 'mill', 'woods-place', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'none', 'deadwood', 'deadwood2', 'reeds', 'mesa', 'mesa2', 'fort', 'ruin', 'graveyard', 'cathedral', 'city', 'tower', 'battlefield', 'cave', 'seat', 'bridge'] as const
+const MARKS = ['woods', 'woods2', 'mountains', 'mountains2', 'hills', 'hills2', 'village', 'town', 'ford', 'farm', 'mill', 'woods-place', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'none', 'deadwood', 'deadwood2', 'reeds', 'mesa', 'mesa2', 'fort', 'ruin', 'graveyard', 'cathedral', 'city', 'tower', 'battlefield', 'cave', 'seat', 'bridge', 'snowpines', 'snowpines2', 'watermill'] as const
 const DRAW: Record<(typeof MARKS)[number], () => Raster> = {
   woods: () => woods(0),
   woods2: () => woods(1),
@@ -584,6 +612,9 @@ const DRAW: Record<(typeof MARKS)[number], () => Raster> = {
   cave: plainCave,
   seat,
   bridge,
+  snowpines: () => snowpines(0),
+  snowpines2: () => snowpines(1),
+  watermill,
 }
 
 writeAtlas('WorldMap/tiles.png', [...sea, ...river, grounds, grounds2, ...roads], PAL)

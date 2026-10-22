@@ -8,7 +8,7 @@
 
 import { readFileSync } from 'node:fs'
 import type { Entity, Text } from '@openworld/engine'
-import { CH1, PART_TWO, TERRAINS, TERRAIN_CHARS, UNTOLD, wildId, type RawChunk } from '@openworld-game/content'
+import { CH1, PART_TWO, TERRAINS, TERRAIN_CHARS, UNTOLD, VALLEY, wildId, type RawChunk } from '@openworld-game/content'
 import { MapBuilder } from './builder.ts'
 import { L } from './kit.ts'
 import { CONTINENT_FILE, FORD, HEIGHT, WIDTH, type Continent } from './continent/generate.ts'
@@ -48,7 +48,7 @@ const PLACES: Record<string, { ground: string; kind: string; opensWhen?: string 
   pass: { ground: 'ow_plain', kind: 'pass', opensWhen: CH1.knight },
   lair: { ground: 'ow_plain', kind: 'lair', opensWhen: CH1.knight },
   summit: { ground: 'ow_snow', kind: 'summit' },
-  mill: { ground: 'ow_plain', kind: 'mill' },
+  mill: { ground: 'ow_plain', kind: 'watermill' },
   dawnhill: { ground: 'ow_plain', kind: 'shrine' },
   foot: { ground: 'ow_plain', kind: 'camp' },
   hillmine: { ground: 'ow_hills', kind: 'mine' },
@@ -141,7 +141,7 @@ export function buildOverworld(chunks: RawChunk[], cells: Map<string, { x: numbe
       const region = regionOf(x, y)
       if (id) entities.push({ id: `site.${id}`, type: `site/place/${PLACES[id]?.kind ?? 'village'}`, name: names.get(id), place, props: { map: id, ...(region && { region }), ...(PLACES[id]?.opensWhen && { opensWhen: PLACES[id].opensWhen! }) } })
       else if (p) entities.push({ id: `site.${p.id}`, type: `site/place/${p.kind}`, name: p.name, place, props: { map: p.id, region: p.region, ground: g, backdrop: true, ...(p.capital && { capital: true }), ...(p.sealed && { opensWhen: UNTOLD }) } })
-      else entities.push({ id: `site.${x}.${y}`, type: 'site/wild', name: wildName(g), place, props: { map: wildId(x, y), ground: g, ...(region && { region }) } })
+      else entities.push({ id: `site.${x}.${y}`, type: 'site/wild', name: VALLEY[`${x},${y}`]?.name ?? wildName(g), place, props: { map: wildId(x, y), ground: g, ...(region && { region }) } })
     }
   const chunk = m.chunk()
   chunk.map.scale = OVERWORLD_STEP

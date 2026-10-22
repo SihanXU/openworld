@@ -121,6 +121,31 @@ export class MapBuilder {
     }))
   }
 
+  /**
+   * The ground's heights as drawn by hand: `maps/<name>.txt` beside the layout, a digit a cell in half levels (a level
+   * is 2; an odd height is a ramp between two). A layout of the wrong size, or a character not a digit, throws.
+   */
+  lift(name: string) {
+    const rows = readFileSync(new URL(`./maps/${name}.txt`, import.meta.url), 'utf8').split(/\r?\n/).filter((r) => r.length)
+    if (rows.length !== this.h || rows.some((r) => r.length !== this.w)) throw new Error(`heights ${name}: ${rows.length} rows of ${rows.map((r) => r.length).join('/')}, the map is ${this.w}x${this.h}`)
+    rows.forEach((row, y) => [...row].forEach((c, x) => {
+      if (!/[0-9]/.test(c)) throw new Error(`heights ${name}: '${c}' at ${x},${y} is not a digit`)
+      this.heights[y][x] = Number(c)
+    }))
+  }
+
+  /**
+   * A layout's old stumps ('u') as stump things on grass: the ground's stump grows back into a tree (its clock running
+   * from the first tick, so every save would carry it), a stump thing stays one. Ids of their own (`<map>.stump.<n>`),
+   * so no other thing's id moves.
+   */
+  stumpsAsThings() {
+    let n = 0
+    for (let y = 0; y < this.h; y++)
+      for (let x = 0; x < this.w; x++)
+        if (this.get(x, y) === 'stump') (this.set(x, y, 'grass'), this.fixture('fixture/nature/stump', x, y, { id: `${this.id}.stump.${n++}` }))
+  }
+
   /** Raise ground to `half` half levels (a level is 2; an odd height is a ramp between two levels). */
   raise(x: number, y: number, w: number, h: number, half: number) {
     for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (this.in(i, j)) this.heights[j][i] = half
