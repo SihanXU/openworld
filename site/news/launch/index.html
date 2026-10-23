@@ -58,9 +58,13 @@
         .chart { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; }
         .chart svg { width: 100%; height: auto; display: block; }
 
-        .sub-box { margin: 3rem 0 1rem; padding: 2rem; border-radius: var(--radius); background: var(--bg-alt); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 2rem; align-items: center; }
-        .sub-box h3 { font-size: 1.5rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.25; }
-        .sub-box p { font-size: 1rem; color: var(--muted); margin: 0.4rem 0 0; }
+        .cite { margin: 3rem 0 1rem; padding: 1.5rem 1.75rem; border-radius: var(--radius); background: var(--bg-alt); }
+        .cite-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .cite h3 { font-size: 1.5rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.25; }
+        .cite .copy { font: inherit; font-size: 0.9rem; font-weight: 600; color: var(--accent); background: #fff; border: 1px solid #d6e0f8; border-radius: 999px; padding: 0.3rem 0.9rem; cursor: pointer; }
+        .cite .copy:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .cite pre { margin: 0; overflow-x: auto; }
+        .cite code { font-family: var(--mono); font-size: 0.85rem; line-height: 1.65; color: var(--ink); background: none; padding: 0; }
 
         @media (max-width: 1100px) { .context-bar { display: none; } article { margin: 0 auto; } }
         @media (max-width: 760px) {
@@ -71,8 +75,8 @@
             article h2 { font-size: 1.5rem; }
             article p { font-size: 1.05rem; }
             article p.lede { font-size: 1.15rem; }
-            .pair, .sub-box { grid-template-columns: minmax(0, 1fr); }
-            .sub-box { padding: 1.5rem; }
+            .pair { grid-template-columns: minmax(0, 1fr); }
+            .cite { padding: 1.25rem; }
         }
         .nav-title .logo { font-family: 'Pixelify Sans', 'Segoe UI', sans-serif; font-weight: 600; letter-spacing: 0.02em; font-size: 1.45rem; }
         .cover video { width: 100%; display: block; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius); box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); image-rendering: pixelated; }
@@ -85,7 +89,7 @@
             <div class="nav-title"><a href="../../?lang=en" style="color:inherit" class="logo">OpenWorld</a><small>News</small></div>
             <div class="nav-links">
                 <a href="../../?lang=en#news" class="hide-sm">News</a>
-                <a href="#subscribe" class="cta">Waitlist</a>
+                <a href="../../?lang=en#join" class="cta">Waitlist</a>
             </div>
         </div>
     </nav>
@@ -96,7 +100,7 @@
             <h1>A world that learns what it has never seen</h1>
             <p class="dek">OpenWorld is a role-playing world whose state and rules are all code. Where the code runs out, a language model writes more — once, for everyone.</p>
             <dl class="byline">
-                <div class="fact"><dt>Written by</dt><dd>Sihan Xu</dd></div>
+                <div class="fact"><dt>Written by</dt><dd>OpenWorld Team</dd></div>
                 <div class="fact"><dt>Published</dt><dd>October 2026</dd></div>
                 <div class="fact"><dt>Reading</dt><dd>8 min</dd></div>
                 <div class="fact"><dt>Also in</dt><dd><a href="zh.html">中文</a></dd></div>
@@ -192,22 +196,14 @@
                 </div>
                 <p>The world itself remembers the Long Night, when the sun went out until the saint Astra bore five holy torments and it rose again. Now the days are growing short once more, and a pilgrim comes down from the mountain with a fairy at their side.</p>
                 <p>There is a second thread we will write about soon: the modder improving itself — keeping a memory, writing its own skills, revising its own working loop — as the world it works on grows. We will post every two weeks: how the rules are built, how the modder answers, what players try first, and what the world learns from them.</p>
-                <div class="sub-box" id="subscribe">
-                    <div>
-                        <h3>Follow along</h3>
-                    </div>
-                    <form class="wl" method="post" data-endpoint="">
-                        <div class="wl-row">
-                            <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
-                            <button type="submit">Join</button>
-                        </div>
-                        <div class="wl-roles"><span class="q">I'm here to</span>
-                            <input type="checkbox" id="r1" name="tag" value="player"><label for="r1">play</label>
-                            <input type="checkbox" id="r2" name="tag" value="research"><label for="r2">research</label>
-                            <input type="checkbox" id="r3" name="tag" value="maker"><label for="r3">make a world</label>
-                        </div>
-                        <p class="wl-done">Thanks — check your inbox to confirm.</p>
-                    </form>
+                <div class="cite" id="cite">
+                    <div class="cite-head"><h3>Cite</h3><button class="copy" type="button" data-copied="Copied">Copy</button></div>
+                    <pre><code>@misc{openworld2026,
+  title        = {OpenWorld: A Large Symbolic World},
+  author       = {{OpenWorld Team}},
+  year         = {2026},
+  howpublished = {\url{https://sihanxu.me/openworld/}}
+}</code></pre>
                 </div>
             </section>
         </article>

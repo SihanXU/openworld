@@ -115,3 +115,11 @@ document.querySelectorAll('form.wl').forEach((form) => {
         form.classList.add('sent')
     })
 })
+
+// ------------------------------------------------------------------ the citation, copied as it is written
+document.querySelectorAll('.cite .copy').forEach((b) => b.addEventListener('click', async () => {
+    const code = b.closest('.cite').querySelector('code')
+    try { await navigator.clipboard.writeText(code.textContent) } catch { const r = document.createRange(); r.selectNodeContents(code); getSelection().removeAllRanges(); getSelection().addRange(r); document.execCommand('copy'); getSelection().removeAllRanges() }
+    b.textContent = lang === 'zh' ? b.dataset.copiedZh : b.dataset.copied
+    setTimeout(() => (b.textContent = lang === 'zh' ? b.dataset.zh : b.dataset.en ?? 'Copy'), 1500)
+}))

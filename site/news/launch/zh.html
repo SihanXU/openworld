@@ -58,9 +58,13 @@
         .chart { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; }
         .chart svg { width: 100%; height: auto; display: block; }
 
-        .sub-box { margin: 3rem 0 1rem; padding: 2rem; border-radius: var(--radius); background: var(--bg-alt); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 2rem; align-items: center; }
-        .sub-box h3 { font-size: 1.5rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.25; }
-        .sub-box p { font-size: 1rem; color: var(--muted); margin: 0.4rem 0 0; }
+        .cite { margin: 3rem 0 1rem; padding: 1.5rem 1.75rem; border-radius: var(--radius); background: var(--bg-alt); }
+        .cite-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .cite h3 { font-size: 1.5rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.25; }
+        .cite .copy { font: inherit; font-size: 0.9rem; font-weight: 600; color: var(--accent); background: #fff; border: 1px solid #d6e0f8; border-radius: 999px; padding: 0.3rem 0.9rem; cursor: pointer; }
+        .cite .copy:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .cite pre { margin: 0; overflow-x: auto; }
+        .cite code { font-family: var(--mono); font-size: 0.85rem; line-height: 1.65; color: var(--ink); background: none; padding: 0; }
 
         @media (max-width: 1100px) { .context-bar { display: none; } article { margin: 0 auto; } }
         @media (max-width: 760px) {
@@ -71,8 +75,8 @@
             article h2 { font-size: 1.5rem; }
             article p { font-size: 1.05rem; }
             article p.lede { font-size: 1.15rem; }
-            .pair, .sub-box { grid-template-columns: minmax(0, 1fr); }
-            .sub-box { padding: 1.5rem; }
+            .pair { grid-template-columns: minmax(0, 1fr); }
+            .cite { padding: 1.25rem; }
         }
         .nav-title .logo { font-family: 'Pixelify Sans', 'Segoe UI', sans-serif; font-weight: 600; letter-spacing: 0.02em; font-size: 1.45rem; }
         .cover video { width: 100%; display: block; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius); box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); image-rendering: pixelated; }
@@ -86,7 +90,7 @@
             <div class="nav-title"><a href="../../?lang=zh" style="color:inherit" class="logo">OpenWorld</a><small>新闻</small></div>
             <div class="nav-links">
                 <a href="../../?lang=zh#news" class="hide-sm">新闻</a>
-                <a href="#subscribe" class="cta">等候名单</a>
+                <a href="../../?lang=zh#join" class="cta">等候名单</a>
             </div>
         </div>
     </nav>
@@ -97,7 +101,7 @@
             <h1>一个能学会从没见过之事的世界</h1>
             <p class="dek">OpenWorld 是一个角色扮演世界，它的全部状态和规则都是代码。代码写不到的地方，由语言模型补写——只写一次，所有人共用。</p>
             <dl class="byline">
-                <div class="fact"><dt>作者</dt><dd>徐思涵</dd></div>
+                <div class="fact"><dt>作者</dt><dd>OpenWorld 团队</dd></div>
                 <div class="fact"><dt>发布</dt><dd>2026 年 10 月</dd></div>
                 <div class="fact"><dt>阅读</dt><dd>约 8 分钟</dd></div>
                 <div class="fact"><dt>其他语言</dt><dd><a href="./">English</a></dd></div>
@@ -193,22 +197,14 @@
                 </div>
                 <p>这个世界本身记得"极夜"：那时太阳消失了，直到圣者阿斯特拉承受了五种圣刑，太阳才重新升起。如今白昼又一天天变短，一位朝圣者带着身边的妖精，从山上走了下来。</p>
                 <p>还有第二条线索我们很快会写：modder 在它所工作的世界不断变大的同时改进自己——保留记忆、为自己编写技能、修订自己的工作流程。我们每两周发一篇：规则是怎么搭起来的，modder 怎么作答，玩家最先尝试什么，以及世界从他们身上学到了什么。</p>
-                <div class="sub-box" id="subscribe">
-                    <div>
-                        <h3>关注我们</h3>
-                    </div>
-                    <form class="wl" method="post" data-endpoint="">
-                        <div class="wl-row">
-                            <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
-                            <button type="submit">加入</button>
-                        </div>
-                        <div class="wl-roles"><span class="q">我想</span>
-                            <input type="checkbox" id="r1" name="tag" value="player"><label for="r1">玩</label>
-                            <input type="checkbox" id="r2" name="tag" value="research"><label for="r2">看研究</label>
-                            <input type="checkbox" id="r3" name="tag" value="maker"><label for="r3">做一个世界</label>
-                        </div>
-                        <p class="wl-done">谢谢——请到邮箱里确认。</p>
-                    </form>
+                <div class="cite" id="cite">
+                    <div class="cite-head"><h3>引用</h3><button class="copy" type="button" data-copied="已复制">复制</button></div>
+                    <pre><code>@misc{openworld2026,
+  title        = {OpenWorld: A Large Symbolic World},
+  author       = {{OpenWorld Team}},
+  year         = {2026},
+  howpublished = {\url{https://sihanxu.me/openworld/}}
+}</code></pre>
                 </div>
             </section>
         </article>

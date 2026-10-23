@@ -128,3 +128,11 @@ section.night { background: #05070d; color: #c9d4ea; }
 .join .footer a { color: rgba(255,255,255,0.9); }
 .join .footer a:hover { color: #fff; }
 @media (max-width: 760px) { .join .footer { margin-top: 4rem; } }
+
+/* the citation, copied as it is written */
+.band .cite { position: relative; margin-top: 1.5rem; padding: 1.5rem 1.75rem; border-radius: var(--radius); background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 18px rgba(0,0,0,.05); }
+.band .cite pre { margin: 0; overflow-x: auto; }
+.band .cite code { font-family: var(--mono); font-size: 0.9rem; line-height: 1.7; color: var(--ink); }
+.band .cite .copy { position: absolute; top: 1rem; right: 1rem; font: inherit; font-size: 0.9rem; font-weight: 600; color: var(--accent); background: #fff; border: 1px solid #d6e0f8; border-radius: 999px; padding: 0.3rem 0.9rem; cursor: pointer; }
+.band .cite .copy:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+@media (max-width: 760px) { .band .cite { padding: 3.25rem 1.25rem 1.25rem; } .band .cite code { font-size: 0.8rem; } }
