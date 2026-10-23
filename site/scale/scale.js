@@ -217,19 +217,19 @@ function crowdCell(n, i) {
 }
 function drawPeople(t) {
   // the village behind, darkening as the crowd grows
-  const L = crowdLevel(t)
-  const n = Math.min(PEOPLE_N, 1 << L)
+  const level = crowdLevel(t)
+  const n = Math.min(PEOPLE_N, 1 << level)
   const bg = 1 - smooth((t - T.peopleSplit - 2) / 2.5)
   if (bg > 0.01 && t > T.people + 0.5) { tile(MAPS, mapAt(ORDER[0]), { x: -40, y: -40 - 400, w: W + 80, h: W + 80 }, bg * 0.55, 0) }
   const away = t > T.items ? easeInOut((t - T.items) / 1.0) : 0
-  const prev = Math.min(PEOPLE_N, 1 << Math.max(0, L - 1))
-  const u = easeBack((t - (T.peopleSplit + (L - 1) * BEAT)) / 0.3)
+  const prev = Math.min(PEOPLE_N, 1 << Math.max(0, level - 1))
+  const u = easeBack((t - (T.peopleSplit + (level - 1) * BEAT)) / 0.3)
   const first = easeBack((t - (T.people + 0.5)) / 0.4)
   for (let i = 0; i < n; i++) {
-    const at = L === 0 ? { x: W / 2, y: H / 2 + 60, s: 9 * first } : crowdCell(n, i)
+    const at = level === 0 ? { x: W / 2, y: H / 2 + 60, s: 9 * first } : crowdCell(n, i)
     let p = at
-    if (L > 0 && u < 1) { const from = i < prev ? crowdCell(prev, i) : crowdCell(prev, i >> 1); p = { x: lerp(from.x, at.x, u), y: lerp(from.y, at.y, u), s: lerp(L === 1 ? 9 : from.s, at.s, u) } }
-    if (L === 1 && u < 1 && i === 0) p = { x: lerp(W / 2, at.x, u), y: lerp(H / 2 + 60, at.y, u), s: lerp(9, at.s, u) }
+    if (level > 0 && u < 1) { const from = i < prev ? crowdCell(prev, i) : crowdCell(prev, i >> 1); p = { x: lerp(from.x, at.x, u), y: lerp(from.y, at.y, u), s: lerp(level === 1 ? 9 : from.s, at.s, u) } }
+    if (level === 1 && u < 1 && i === 0) p = { x: lerp(W / 2, at.x, u), y: lerp(H / 2 + 60, at.y, u), s: lerp(9, at.s, u) }
     // walking in place toward us, each in their own step
     const f = Math.floor(t * 8 + hash(i) * 4) % 4
     const [sx, sy, sw, shh] = personAt(Math.floor(hash(i * 3 + 1) * PEOPLE_N), f)
@@ -306,13 +306,13 @@ function drawItems(t) {
 }
 
 function drawScenes(t) {
-  const L = clamp(Math.floor((t - T.scenesSplit) / BEAT) + 1, 0, 9)
+  const level = clamp(Math.floor((t - T.scenesSplit) / BEAT) + 1, 0, 9)
   const intoTitle = smooth((t - T.title) / 1.2)
   for (let i = 0; i < 512; i++) {
     const s = splitting(t, T.scenesSplit, 9, i)
     if (i % (1 << (9 - s.level)) !== 0) continue
     let r = s.r
-    if (L === 0) { const k = easeBack((t - T.scenes) / 0.4); r = { x: W / 2 - (FRAME.w * k) / 2, y: H / 2 - (FRAME.h * k) / 2, w: FRAME.w * k, h: FRAME.h * k } }
+    if (level === 0) { const k = easeBack((t - T.scenes) / 0.4); r = { x: W / 2 - (FRAME.w * k) / 2, y: H / 2 - (FRAME.h * k) / 2, w: FRAME.w * k, h: FRAME.h * k } }
     // into the continent
     const gather = t > T.gather ? easeInOut((t - T.gather - hash(i) * 0.5) / 1.0) : 0
     if (gather > 0) { const [cx, cy] = LAND[Math.floor(hash(i * 7 + 3) * 1024)]; const to = { x: CX0 + cx * CELL, y: CY0 + cy * CELL, w: CELL * 1.6, h: CELL * 1.6 }; r = { x: lerp(r.x, to.x, gather), y: lerp(r.y, to.y, gather), w: lerp(r.w, to.w, gather), h: lerp(r.h, to.h, gather) } }
@@ -324,7 +324,7 @@ function drawScenes(t) {
     const z = 1 + 0.6 * hash(i * 13), fw = f.naturalWidth / z, fh = f.naturalHeight / z
     const fx = (f.naturalWidth - fw) * hash(i * 17), fy = (f.naturalHeight - fh) * hash(i * 19)
     const g = Math.min(4, r.w * 0.03)
-    tile(f, [fx, fy, fw, fh], inset(r, g), 1 - intoTitle * 0.7, L < 4 ? 14 : 4)
+    tile(f, [fx, fy, fw, fh], inset(r, g), 1 - intoTitle * 0.7, level < 4 ? 14 : 4)
   }
   // when it is all in: the continent, every place in it lit
   if (t > T.gather + 1.2) {

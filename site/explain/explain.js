@@ -46,7 +46,7 @@ function text(s, x, y, size, color, o = {}) {
   ctx.fillText(s, x, y)
   return ctx.measureText(s).width
 }
-const label = (s, x, y, a = 1) => { ctx.globalAlpha = a; text(s.toUpperCase(), x, y, 18, C.faint, { weight: 600 }); ctx.globalAlpha = 1 }
+const label = (s, x, y, a = 1, align = 'left') => { ctx.globalAlpha = a; text(s.toUpperCase(), x, y, 18, C.faint, { weight: 600, align }); ctx.globalAlpha = 1 }
 
 /** The game, as one player sees it: a clip at a time (`frame` its frame), grey while the world holds. */
 function world(r, id, frame, a = 1, hold = 0) {
@@ -117,7 +117,8 @@ function token(x, y, words, color = C.blue, a = 1) {
 
 // ------------------------------------------------------------------ the trees
 
-const TX = 1220
+// the trees' middle: the middle of the room right of the world's window
+const TX = 1320
 const CAMPFIRE = {
   root: { x: TX, y: 250, words: 'campfire · element', kind: 'root' },
   fire: { x: TX - 280, y: 410, words: 'fire?', kind: 'cond' },
@@ -215,7 +216,9 @@ function actOne(t) {
   const which = t < 8.7 ? 'camp' : 'stuck'
   const swap = which === 'camp' ? 1 - smooth((t - 8.5) / 0.3) : smooth((t - 8.7) / 0.3)
   const ta = smooth((t - 0.4) / 0.6) * out * swap
-  label(L('the rules of what it happens to', '它所发生在的东西的规则'), TX - 420, 180, ta)
+  // while the modder's panel is in, Hesper's tree steps left to make room for it
+  const dx = which === 'stuck' ? -170 * smooth((t - 10.7) / 0.5) * (1 - smooth((t - 17.3) / 0.5)) : 0
+  label(L('the rules of what it happens to', '它所发生在的东西的规则'), TX + dx, 180, ta, 'center')
   if (which === 'camp') {
     // the first: rain on the campfire
     let path = ['root', 'water', 'litW', 'douse'], from = 1.5, step = 0.3, words = 'rain', back = 'remove(lit) · steam', t0 = 1.0, tBack = 2.5
@@ -236,7 +239,7 @@ function actOne(t) {
     // Hesper, stuck
     const path = ['root', 'fire', 'wet', 'hole'], from = 9.9, step = 0.3
     const learned = t > 17.4
-    const nodes = { ...STUCK, hole: learned ? { ...STUCK.hole, words: 'wait_by(fire)', kind: 'learned' } : STUCK.hole }
+    const nodes = Object.fromEntries(Object.entries({ ...STUCK, hole: learned ? { ...STUCK.hole, words: 'wait_by(fire)', kind: 'learned' } : STUCK.hole }).map(([k, n]) => [k, { ...n, x: n.x + dx }]))
     const depth = Math.floor((t - from) / step)
     tree(nodes, STUCK_LINKS, t >= from ? litSet(path, depth) : undefined, ta)
     const pts = pathPts(nodes, path)
@@ -316,7 +319,7 @@ function actThree(t) {
   const a = smooth((t - 22.8) / 0.4)
   if (a <= 0.01) return
   // the windows of more and more players, on the left
-  const L = clamp(Math.floor((t - 23.1) / 0.5) + 1, 0, 6), n = 1 << L
+  const doublings = clamp(Math.floor((t - 23.1) / 0.5) + 1, 0, 6), n = 1 << doublings
   const cols = Math.ceil(Math.sqrt(n * 1.6)), rows = Math.ceil(n / cols)
   const area = { x: 90, y: 230, w: 720, h: 520 }
   const cw = area.w / cols, ch = area.h / rows
@@ -341,7 +344,7 @@ function actThree(t) {
     ctx.fillStyle = g; ctx.fillRect(x - 12, y - 12, 24, 24)
   }
   ctx.globalAlpha = 1
-  const extra = [[26.2, 'walk', TX + 400, 730, 'wade_in()'], [27.6, 'root', TX + 560, 410, 'shelter()']]
+  const extra = [[26.2, 'walk', TX + 340, 730, 'wade_in()'], [27.6, 'root', TX + 420, 410, 'shelter()']]
   for (const [t0, from, x, y, w] of extra) if (t > t0) {
     const k = smooth((t - t0) / 0.4), A = nodes[from]
     ctx.globalAlpha = a; ctx.strokeStyle = C.amber; ctx.lineWidth = 4
