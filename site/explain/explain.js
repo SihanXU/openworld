@@ -6,6 +6,7 @@
 //   23–30.5 s  learned once, for everyone: the next who meet it run the rule; more players, more acts, hardly a call
 // A frame for any t (?export, site/video/export.mjs); the page plays it round and round, its chapters a click away.
 import { playLoop } from '../embed.js'
+import { L } from '../lang.js'
 const params = new URLSearchParams(location.search)
 const VIDEO = params.has('export') || params.has('video')
 const W = 1920, H = 1080, FPS = 30, LENGTH = 30.5
@@ -155,7 +156,7 @@ const QUICK = [
 
 /** Everything of the first three parts sits this much lower than drawn (the chapter's title above it). */
 const DY = 80
-const CHAPTERS = [[0.4, 8.6, '1', 'A rule answers'], [8.8, 22.8, '2', 'No rule yet: the model is asked, once'], [23, LENGTH + 1, '3', 'Learned once, for everyone']]
+const CHAPTERS = [[0.4, 8.6, '1', L('A rule answers', '规则作答')], [8.8, 22.8, '2', L('No rule yet: the model is asked, once', '还没有规则：只问一次模型')], [23, LENGTH + 1, '3', L('Learned once, for everyone', '学会一次，所有人共用')]]
 /** The part's number and name, top left. */
 function chapter(t) {
   for (const [a, b, n, name] of CHAPTERS) {
@@ -193,7 +194,7 @@ function calls(t) {
   const bump = [16.8, 26.2, 27.6].map((b) => (t > b ? Math.exp(-(t - b) * 5) : 0)).reduce((x, y) => x + y, 0)
   ctx.globalAlpha = a
   box(1560, 60, 300, 110, 18, C.card, C.line, 2)
-  label('model calls', 1590, 92)
+  label(L('model calls', '模型调用'), 1590, 92)
   ctx.save(); ctx.translate(1590, 140); ctx.scale(1 + 0.3 * bump, 1 + 0.3 * bump)
   text(String(n), 0, 0, 52, n ? C.amber : C.ink, { weight: 800 })
   ctx.restore()
@@ -209,12 +210,12 @@ function actOne(t) {
   else { clip = 'hesper'; const k = t - 8.8; frame = k < 1.6 ? k * FPS * 0.6 : k < 10.8 ? 1.6 * FPS * 0.6 : 0.96 * FPS + (k - 10.8) * FPS; hold = smooth((t - 10.6) / 0.3) * (1 - smooth((t - 19.6) / 0.4)) }
   const win = smooth((t - 0.2) / 0.5)
   world({ x: GW.x, y: GW.y + 20 * (1 - win), w: GW.w, h: GW.h }, clip, frame, win * out, hold)
-  label('the world', GW.x, GW.y - 34, win * out)
+  label(L('the world', '世界'), GW.x, GW.y - 34, win * out)
   // ---- the rules
   const which = t < 8.7 ? 'camp' : 'stuck'
   const swap = which === 'camp' ? 1 - smooth((t - 8.5) / 0.3) : smooth((t - 8.7) / 0.3)
   const ta = smooth((t - 0.4) / 0.6) * out * swap
-  label('the rules of what it happens to', TX - 420, 180, ta)
+  label(L('the rules of what it happens to', '它所发生在的东西的规则'), TX - 420, 180, ta)
   if (which === 'camp') {
     // the first: rain on the campfire
     let path = ['root', 'water', 'litW', 'douse'], from = 1.5, step = 0.3, words = 'rain', back = 'remove(lit) · steam', t0 = 1.0, tBack = 2.5
@@ -230,7 +231,7 @@ function actOne(t) {
     // the leaf answers: back into the world
     if (t >= tBack && t < tBack + 0.5) { const u = ease((t - tBack) / 0.5), [lx, ly] = pts[pts.length - 1]; token(lerp(lx, GW_C[0], u), lerp(ly, GW_C[1], u), back, C.blue, out * smooth((t - tBack) / 0.12) * (1 - smooth((t - tBack - 0.4) / 0.1))) }
     if (t >= tBack && t < tBack + 0.6) { const [lx, ly] = pts[pts.length - 1]; ctx.globalAlpha = out * (1 - (t - tBack) / 0.6); ctx.strokeStyle = C.blue; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(lx, ly, 40 + 90 * (t - tBack), 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1 }
-    if (t > 3.2 && t < 4.4) { ctx.globalAlpha = smooth((t - 3.2) / 0.3) * (1 - smooth((t - 4.2) / 0.2)); text('a rule answers: no model', GW.x, GW.y + GW.h + 50, 30, C.ink, { weight: 600 }); ctx.globalAlpha = 1 }
+    if (t > 3.2 && t < 4.4) { ctx.globalAlpha = smooth((t - 3.2) / 0.3) * (1 - smooth((t - 4.2) / 0.2)); text(L('a rule answers: no model', '规则作答：不用模型'), GW.x, GW.y + GW.h + 50, 30, C.ink, { weight: 600 }); ctx.globalAlpha = 1 }
   } else {
     // Hesper, stuck
     const path = ['root', 'fire', 'wet', 'hole'], from = 9.9, step = 0.3
@@ -247,19 +248,19 @@ function actOne(t) {
     if (t >= 10.8 && t < 17.4) {
       const p = 0.5 + 0.5 * Math.sin((t - 10.8) * 6)
       ctx.globalAlpha = out * 0.25 * p; ctx.fillStyle = C.amber; ctx.beginPath(); ctx.arc(hx, hy, 60 + 14 * p, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1
-      ctx.globalAlpha = out * smooth((t - 10.9) / 0.3); text('no rule yet', hx + 70, hy, 26, C.amber, { weight: 700 }); ctx.globalAlpha = 1
-      ctx.globalAlpha = smooth((t - 10.9) / 0.3) * (1 - smooth((t - 19.4) / 0.3)); text('the world holds this one actor, and asks', GW.x, GW.y + GW.h + 50, 30, C.ink, { weight: 600 }); ctx.globalAlpha = 1
+      ctx.globalAlpha = out * smooth((t - 10.9) / 0.3); text(L('no rule yet', '还没有规则'), hx + 70, hy, 26, C.amber, { weight: 700 }); ctx.globalAlpha = 1
+      ctx.globalAlpha = smooth((t - 10.9) / 0.3) * (1 - smooth((t - 19.4) / 0.3)); text(L('the world holds this one actor, and asks', '世界只停住这一个角色，然后去问'), GW.x, GW.y + GW.h + 50, 30, C.ink, { weight: 600 }); ctx.globalAlpha = 1
     }
     modder(t, hx, hy)
     // the rule set in the leaf, checked
     if (t >= 17.4 && t < 22.8) checks(t, hx, hy)
     // and on: down to the world
     if (t >= 19.6 && t < 20.2) { const u = ease((t - 19.6) / 0.6); token(lerp(hx, GW_C[0], u), lerp(hy, GW_C[1], u), 'wait_by(fire)', C.amber, out) }
-    if (t > 20.4 && t < 22.8) { ctx.globalAlpha = smooth((t - 20.4) / 0.3) * out; text('kept in the shared library, for every player', GW.x, GW.y + GW.h + 50, 30, C.ink, { weight: 600 }); ctx.globalAlpha = 1 }
+    if (t > 20.4 && t < 22.8) { ctx.globalAlpha = smooth((t - 20.4) / 0.3) * out; text(L('kept in the shared library, for every player', '存入共享规则库，所有玩家共用'), GW.x, GW.y + GW.h + 50, 30, C.ink, { weight: 600 }); ctx.globalAlpha = 1 }
   }
 }
 
-const STAGES = [['comprehend', 'what happened, and why no rule fits'], ['recall', 'rules and lessons kept before'], ['design', 'a rule for this type, this leaf'], ['verify', 'repaired until it runs'], ['audit', 'an adversary tries it in a sandbox']]
+const STAGES = [[L('comprehend', '理解'), L('what happened, and why no rule fits', '发生了什么，为什么没有规则适用')], [L('recall', '回忆'), L('rules and lessons kept before', '以前留下的规则和经验')], [L('design', '设计'), L('a rule for this type, this leaf', '为这个类型、这片叶子写一条规则')], [L('verify', '验证'), L('repaired until it runs', '修到能运行为止')], [L('audit', '审查'), L('an adversary tries it in a sandbox', '对抗者在沙盒里试它')]]
 const CODE = ['person.on(stuck) {', '  wait_by(fire) }']
 /** The modder at work on the right: its stages one by one (the paper's), the rule written, then sent back. */
 function modder(t, hx, hy) {
@@ -271,8 +272,8 @@ function modder(t, hx, hy) {
   box(px, py, 380, 640, 22, C.card, null)
   ctx.restore(); ctx.globalAlpha = inA
   box(px, py, 380, 640, 22, null, C.amber, 2.5)
-  text('the modder', px + 26, py + 40, 26, C.ink, { weight: 700 })
-  text('≈ 10 s · $0.05', px + 354, py + 40, 20, C.muted, { align: 'right' })
+  text(L('the modder', 'modder'), px + 26, py + 40, 26, C.ink, { weight: 700 })
+  text(L('≈ 10 s · $0.05', '约 10 秒 · $0.05'), px + 354, py + 40, 20, C.muted, { align: 'right' })
   STAGES.forEach(([s, what], k) => {
     const t0 = 11.7 + k * 1.0, on = smooth((t - t0) / 0.2), done = t > t0 + 0.95
     const y = py + 100 + k * 72
@@ -289,18 +290,18 @@ function modder(t, hx, hy) {
   shown.forEach((ln, n) => text(ln, px + 40, py + 505 + n * 36, 22, '#ffdcab', { mono: true }))
   ctx.globalAlpha = 1
   // the request in, the rule out
-  if (t >= 11.0 && t < 11.7) { const u = ease((t - 11.0) / 0.7); token(lerp(hx, px + 190, u), lerp(hy, py + 100, u), 'request', C.amber) }
+  if (t >= 11.0 && t < 11.7) { const u = ease((t - 11.0) / 0.7); token(lerp(hx, px + 190, u), lerp(hy, py + 100, u), L('request', '请求'), C.amber) }
   if (t >= 16.8 && t < 17.4) { const u = ease((t - 16.8) / 0.6); token(lerp(px + 190, hx, u), lerp(py + 530, hy, u), 'wait_by(fire)', C.amber) }
 }
 
-const CHECKS = ['schema', 'ontology', 'locality', 'sandbox replay', 'auditor']
+const CHECKS = [L('schema', '格式'), L('ontology', '本体'), L('locality', '只写自己'), L('sandbox replay', '沙盒重放'), L('auditor', '对抗审查')]
 /** The checks a rule passes before it is set (the paper's), ticked one by one beside the leaf. */
 function checks(t, hx, hy) {
   const a = smooth((t - 17.4) / 0.3) * (1 - smooth((t - 22.6) / 0.3))
   const x = hx + 160, y = hy - 110
   ctx.globalAlpha = a
   box(x, y, 300, 250, 16, C.card, C.line, 2)
-  label('checked before it is kept', x + 22, y + 30)
+  label(L('checked before it is kept', '保留之前的检查'), x + 22, y + 30)
   CHECKS.forEach((c, k) => {
     const on = smooth((t - (17.6 + k * 0.32)) / 0.15)
     ctx.globalAlpha = a * (0.35 + 0.65 * on)
@@ -324,7 +325,7 @@ function actThree(t) {
     const id = USED[Math.floor(hash(i * 7 + 1) * USED.length)]
     world(r, id, (t * FPS + hash(i) * 60) % clipsInfo[id].frames, a * smooth((t - (23.1 + (Math.log2(Math.max(1, i)) | 0) * 0.5)) / 0.3))
   }
-  label('players', area.x, area.y - 34, a)
+  label(L('players', '玩家'), area.x, area.y - 34, a)
   // the rules: the tree, its learned leaf lit; new situations grow leaves of their own now and then
   const nodes = { ...STUCK, hole: { ...STUCK.hole, words: 'wait_by(fire)', kind: 'learned' } }
   const pts = pathPts(nodes, ['root', 'fire', 'wet', 'hole'])
@@ -360,10 +361,10 @@ function actThree(t) {
   const acts = Math.round(Math.pow(clamp((t - 23.2) / 6.4), 2.2) * 48000)
   ctx.globalAlpha = a
   box(1560, 190 - DY, 300, 110, 18, C.card, C.line, 2)
-  label('acts', 1590, 222 - DY)
+  label(L('acts', '行动'), 1590, 222 - DY)
   text(acts.toLocaleString('en'), 1590, 270 - DY, 52, C.blue, { weight: 800 })
   ctx.globalAlpha = smooth((t - 23.4) / 0.3) * a
-  text('the next to meet it runs the rule: no call', 90, 820, 30, C.ink, { weight: 600 })
+  text(L('the next to meet it runs the rule: no call', '下一个遇到的人直接运行规则：不再调用模型'), 90, 820, 30, C.ink, { weight: 600 })
   ctx.globalAlpha = 1
 }
 

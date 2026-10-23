@@ -7,6 +7,7 @@
 // The counts are the paper's (Figure 2). A frame for any t (?export: site/video/export.mjs takes them); the page
 // plays the film round and round.
 import { playLoop } from '../embed.js'
+import { L } from '../lang.js'
 const params = new URLSearchParams(location.search)
 const VIDEO = params.has('export') || params.has('video')
 const W = 1920, H = 1080, FPS = 30, LENGTH = 44, BEAT = 0.5
@@ -115,11 +116,13 @@ function slam(t, t0, big, word, sub) {
   ctx.font = `800 170px 'Segoe UI', system-ui, sans-serif`
   const bw = ctx.measureText(big).width
   ctx.font = `600 64px 'Segoe UI', system-ui, sans-serif`
-  const ww = ctx.measureText(' ' + word).width
+  // a word after Chinese runs on without a space
+  const sp = /^[一-鿿]/.test(big) ? '' : ' '
+  const ww = ctx.measureText(sp + word).width
   const x0 = -(bw + ww) / 2
   ctx.textAlign = 'left'
   ctx.font = `800 170px 'Segoe UI', system-ui, sans-serif`; ctx.fillStyle = '#ffffff'; ctx.fillText(big, x0, 40)
-  ctx.font = `600 64px 'Segoe UI', system-ui, sans-serif`; ctx.fillStyle = '#cfdcff'; ctx.fillText(' ' + word, x0 + bw, 40)
+  ctx.font = `600 64px 'Segoe UI', system-ui, sans-serif`; ctx.fillStyle = '#cfdcff'; ctx.fillText(sp + word, x0 + bw, 40)
   if (sub) { ctx.textAlign = 'center'; ctx.font = `400 34px 'Segoe UI', system-ui, sans-serif`; ctx.fillStyle = '#9fb0cc'; ctx.globalAlpha = a * smooth((k - 0.25) / 0.3); ctx.fillText(sub, 0, 110) }
   ctx.restore()
   // the hit: a flash
@@ -144,10 +147,10 @@ function film(t) {
   if (t >= T.items - 0.2 && t < T.scenes + 0.8) drawItems(t)
   if (t >= T.scenes && t < T.title + 1.5) drawScenes(t)
   ctx.setTransform(1, 0, 0, 1, 0, 0)
-  if (t >= T.mapsSlam && t < T.people) slam(t, T.mapsSlam, '1,024', 'maps', '59 hand-made, 965 across six regions')
-  if (t >= T.peopleSlam && t < T.items) slam(t, T.peopleSlam, '1,654', 'people', 'in 780 households, each with a look and a day of their own')
-  if (t >= T.itemsSlam && t < T.scenes) slam(t, T.itemsSlam, '40,562', 'items', 'of 1,013 kinds, in materials, qualities, elements')
-  if (t >= T.scenesSlam && t < T.title) slam(t, T.scenesSlam, 'Infinite', 'possibilities')
+  if (t >= T.mapsSlam && t < T.people) slam(t, T.mapsSlam, '1,024', L('maps', '张地图'), L('59 hand-made, 965 across six regions', '59 张手工制作，965 张分布在六个地区'))
+  if (t >= T.peopleSlam && t < T.items) slam(t, T.peopleSlam, '1,654', L('people', '个人'), L('in 780 households, each with a look and a day of their own', '分属 780 户人家，各有自己的样子和一天的安排'))
+  if (t >= T.itemsSlam && t < T.scenes) slam(t, T.itemsSlam, '40,562', L('items', '件物品'), L('of 1,013 kinds, in materials, qualities, elements', '共 1,013 种，分材质、品质和元素'))
+  if (t >= T.scenesSlam && t < T.title) slam(t, T.scenesSlam, L('Infinite', '无限'), L('possibilities', '的可能性'))
   if (t >= T.title - 0.2) drawTitle(t)
   // in and out
   const black = 1 - smooth(t / 0.4) + smooth((t - (LENGTH - 0.9)) / 0.8)
@@ -344,14 +347,14 @@ function drawTitle(t) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
   ctx.font = `600 30px 'Pixelify Sans', 'Segoe UI', sans-serif`; ctx.fillStyle = '#f6d48d'
   ctx.globalAlpha = a * smooth((t - T.title - 0.4) / 0.5)
-  ctx.fillText('A WORLD WHOSE RULES ARE CODE', 0, -130)
+  ctx.fillText(L('A WORLD WHOSE RULES ARE CODE', '一个规则即代码的世界'), 0, -130)
   ctx.globalAlpha = a
   ctx.font = `600 200px 'Pixelify Sans', 'Segoe UI', sans-serif`
   ctx.fillStyle = '#6b3d1f'; ctx.fillText('OpenWorld', 0, 8)
   ctx.fillStyle = '#fff8ea'; ctx.fillText('OpenWorld', 0, 0)
   ctx.globalAlpha = a * smooth((t - T.title - 1.2) / 0.5)
   ctx.font = `600 40px 'Segoe UI', system-ui, sans-serif`; ctx.fillStyle = '#ffffff'
-  ctx.fillText('Join the waitlist', 0, 170)
+  ctx.fillText(L('Join the waitlist', '加入等候名单'), 0, 170)
   ctx.restore()
 }
 

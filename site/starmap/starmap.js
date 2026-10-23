@@ -8,6 +8,7 @@
 import { EVENTS, OPENING } from './story.js'
 
 import { EMBED, playLoop } from '../embed.js'
+import { L, LANG } from '../lang.js'
 const params = new URLSearchParams(location.search)
 const VIDEO = params.has('export') || params.has('video')
 const FPS = 30
@@ -182,7 +183,9 @@ function camera(t) {
 
 const COUNTS_IN = ACT3 + 1.0, COUNTS_OUT = ACT3 + 5.2, LINE_IN = ACT3 + 6.4
 /** The last words (the user's 无限的可能性). */
-const LAST_LINE = 'Infinite possibilities'
+/** The regions' names in Chinese (games/openworld/content regions.ts). */
+const REGION_ZH = { frostfang: '霜牙海岸', redmarch: '赤痕边境', tithe: '衡谷平原', palefen: '苍白林沼', altar: '白坛高地', holy: '圣城' }
+const LAST_LINE = L('Infinite possibilities', '无限的可能性')
 // new stars lighting all round the world as the line comes: more and more often, a few of them amber
 const BIRTHS = (() => {
   const out = [], n = 220
@@ -346,7 +349,7 @@ function draw(t, view, ex) {
     if (o.words) {
       const a = smooth((t - o.open - 0.5) / 0.4) * (1 - smooth((t - (o.close - 0.7)) / 0.3))
       if (a > 0.01) {
-        const text = EVENTS[o.id].text.split('\n').join(' ')
+        const text = L(EVENTS[o.id].text, EVENTS[o.id].zh).split('\n').join(LANG === 'zh' ? '' : ' ')
         ctx.globalAlpha = a
         ctx.font = `500 ${34 * dpr}px 'Segoe UI', system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'top'
         const ty = o.size === 'full' ? canvas.height - 120 * dpr : y + R + 26 * dpr
@@ -369,7 +372,7 @@ function draw(t, view, ex) {
       const i = index.get(`region:${r.id}`)
       if (i === undefined) continue
       ctx.globalAlpha = 0.85; ctx.fillStyle = r.color
-      ctx.fillText(r.name.toUpperCase(), sx(X[i], Y[i]), sy(X[i], Y[i]) - nf * 1.4 * dpr)
+      ctx.fillText(LANG === 'zh' ? REGION_ZH[r.id] ?? r.name : r.name.toUpperCase(), sx(X[i], Y[i]), sy(X[i], Y[i]) - nf * 1.4 * dpr)
     }
   }
   if (film) {
@@ -389,7 +392,7 @@ function draw(t, view, ex) {
     if (hush > 0.01) { ctx.globalAlpha = hush; ctx.fillStyle = '#04060b'; ctx.fillRect(0, 0, canvas.width, canvas.height) }
     if (shown > 0.01) {
       // the paper's counts (Figure 2), not the graph's own: the same numbers wherever they are shown
-      const rows = [['place', 'places', 1024], ['person', 'people', 1654], ['kind', 'kinds of things', 1399]]
+      const rows = [['place', L('places', '个地方'), 1024], ['person', L('people', '个人'), 1654], ['kind', L('kinds of things', '种东西'), 1399]]
       const nf = 66 * dpr, wf = 40 * dpr, gap = 92 * dpr
       ctx.textBaseline = 'middle'
       const width = (n, word) => { ctx.font = `700 ${nf}px 'Segoe UI', system-ui, sans-serif`; const a = ctx.measureText(n).width; ctx.font = `400 ${wf}px 'Segoe UI', system-ui, sans-serif`; return a + 22 * dpr + ctx.measureText(word).width }
@@ -581,7 +584,7 @@ if (!VIDEO && !EMBED) {
     hover = pick(e.clientX, e.clientY)
     if (hover >= 0) {
       tip.style.display = 'block'; tip.style.left = `${e.clientX + 14}px`; tip.style.top = `${e.clientY + 14}px`
-      tip.innerHTML = `<b>${LABEL[hover].replace(/</g, '&lt;')}</b><span>${KINDS[KIND[hover]]} · ${deg[hover]} links</span>`
+      tip.innerHTML = `<b>${LABEL[hover].replace(/</g, '&lt;')}</b><span>${KINDS[KIND[hover]]} · ${deg[hover]} ${L('links', '条关联')}</span>`
     } else tip.style.display = 'none'
   })
   canvas.addEventListener('pointerleave', () => { hover = -1; tip.style.display = 'none' })
