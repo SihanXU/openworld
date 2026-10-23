@@ -34,3 +34,12 @@ const seenPiece = new IntersectionObserver((entries) => {
     for (const e of entries) { e.target.dataset.seen = e.isIntersecting ? '1' : ''; e.target.contentWindow?.postMessage({ run: e.isIntersecting }, '*') }
 }, { threshold: 0.15 })
 pieces.forEach((f) => { seenPiece.observe(f); f.addEventListener('load', () => f.contentWindow?.postMessage({ run: f.dataset.seen === '1' }, '*')) })
+
+// a citation copied as it is written
+document.querySelectorAll('.cite .copy').forEach((b) => b.addEventListener('click', async () => {
+    const code = b.closest('.cite').querySelector('code')
+    try { await navigator.clipboard.writeText(code.textContent) } catch { const r = document.createRange(); r.selectNodeContents(code); getSelection().removeAllRanges(); getSelection().addRange(r); document.execCommand('copy'); getSelection().removeAllRanges() }
+    const was = b.textContent
+    b.textContent = b.dataset.copied
+    setTimeout(() => (b.textContent = was), 1500)
+}))
