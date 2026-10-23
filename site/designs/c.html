@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenWorld</title>
+    <meta name="description" content="OpenWorld: a world whose rules are code. What the world has never seen, it learns — and remembers.">
+    <link rel="stylesheet" href="base.css">
+    <style>
+        /* C · Two layers: what you see and what it is, a seam between them you can move */
+        .hero { background: var(--bg-alt); padding: calc(var(--nav-h) + 3.5rem) 0 4rem; position: relative; }
+        .hero-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 440px); gap: 3rem; align-items: end; margin-bottom: 2.5rem; }
+        .hero h1 { white-space: nowrap; font-size: clamp(3rem, 7vw, 5.8rem); line-height: 0.92; font-weight: 800; letter-spacing: -0.05em; color: var(--ink-strong); }
+        /* the Chinese line never breaks */
+        .hero h1 .zh { white-space: nowrap; font-family: var(--serif-zh); font-size: 0.24em; font-weight: 600; letter-spacing: 0.12em; color: var(--ink); margin-left: 0.4em; vertical-align: 0.4em; }
+        .hero .sub { font-size: 1.35rem; color: var(--muted); margin-top: 1rem; max-width: 32ch; line-height: 1.4; }
+
+        .seam { position: relative; border-radius: var(--radius); overflow: hidden; aspect-ratio: 16 / 9; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); user-select: none; touch-action: pan-y; }
+        .seam img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+        .seam .layer-code { position: absolute; inset: 0; background: rgba(255,255,255,0.94); clip-path: inset(0 0 0 var(--cut, 50%)); }
+        .seam .layer-code .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(37,99,235,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(37,99,235,0.08) 1px, transparent 1px); background-size: 4% 6.4%; }
+        .seam .tag { position: absolute; font-family: var(--mono); font-size: clamp(0.55rem, 0.85vw, 0.78rem); color: var(--ink); background: #fff; border: 1px solid #d6e0f8; border-radius: 6px; padding: 0.15rem 0.45rem; white-space: nowrap; transform: translate(-50%, -50%); box-shadow: 0 2px 6px rgba(37,99,235,0.08); }
+        .seam .tag b { color: #c0265b; font-weight: 600; }
+        .seam .tag i { color: #3a9696; font-style: normal; }
+        .seam .tag::before { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 14px; background: #9db7f5; }
+        .seam .rules { position: absolute; right: 2.5%; bottom: 4%; width: min(38%, 400px); background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 0.9rem 1rem; }
+        .seam .rules .code { font-size: clamp(0.5rem, 0.72vw, 0.72rem); }
+        .seam .handle { position: absolute; top: 0; bottom: 0; left: var(--cut, 50%); width: 0; cursor: ew-resize; }
+        .seam .handle::before { content: ""; position: absolute; top: 0; bottom: 0; left: -1px; width: 2px; background: var(--accent); }
+        .seam .handle span { position: absolute; top: 50%; left: 0; transform: translate(-50%, -50%); width: 42px; height: 42px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 1rem; box-shadow: 0 4px 14px rgba(37,99,235,0.35); }
+        .seam .side { position: absolute; top: 1rem; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.2rem 0.7rem; border-radius: 999px; }
+        .seam .side.see { left: 1rem; background: rgba(0,0,0,0.45); color: #fff; }
+        .seam .side.is { right: 1rem; background: var(--accent-soft); color: var(--accent); }
+        .seam-cap { display: flex; justify-content: space-between; gap: 1rem; margin-top: 0.8rem; color: var(--faint); font-size: 0.88rem; }
+
+        /* the walk: one picture held while the text goes by */
+        .walk { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 4rem; max-width: 1200px; margin: 0 auto; padding: 6rem 2rem 2rem; }
+        .walk-fig { position: sticky; top: calc(var(--nav-h) + 3rem); align-self: start; }
+        .walk-fig .frame { position: relative; aspect-ratio: 16 / 10; border-radius: var(--radius); overflow: hidden; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 18px 40px rgba(0,0,0,.08); }
+        .walk-fig .frame > * { position: absolute; inset: 0; opacity: 0; transition: opacity 0.5s ease; }
+        .walk-fig .frame > .on { opacity: 1; }
+        .walk-fig img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+        .walk-fig .codepane { background: #fff; padding: 1.4rem 1.6rem; display: flex; flex-direction: column; justify-content: center; }
+        .walk-fig .codepane .code { font-size: 0.8rem; }
+        .walk-fig .toggle { display: inline-flex; margin-top: 1rem; border: 1px solid #d6e0f8; border-radius: 999px; padding: 3px; background: #fff; }
+        .walk-fig .toggle button { font: inherit; font-size: 0.85rem; border: 0; background: none; color: var(--accent); padding: 0.3rem 1rem; border-radius: 999px; cursor: pointer; }
+        .walk-fig .toggle button.on { background: var(--accent); color: #fff; }
+        .walk-steps .step { min-height: 62vh; display: flex; flex-direction: column; justify-content: center; border-top: 1px solid var(--line); padding: 2rem 0; }
+        .walk-steps .step:first-child { border-top: 0; min-height: 50vh; justify-content: flex-start; }
+        .walk-steps .num { font-size: 0.95rem; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; margin-bottom: 0.4rem; transition: color 0.2s ease; }
+        .walk-steps .step.on .num { color: var(--accent); }
+        .walk-steps h2 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.02em; color: var(--ink-strong); margin-bottom: 0.8rem; }
+        .walk-steps p { font-size: 1.15rem; line-height: 1.75; }
+        .walk-steps .m-fig { display: none; }
+
+        .end { background: var(--bg-alt); padding: 5rem 0; }
+        .end .container { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4rem; }
+        .end h2 { font-size: 2.25rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.2; margin-bottom: 0.75rem; }
+        .end p { color: var(--muted); margin-bottom: 1.5rem; }
+        .end .post { border-top: 1px solid var(--line); padding-top: 1.25rem; }
+        .end .post h3 { font-size: 1.35rem; color: var(--ink-strong); margin: 0.25rem 0 0.5rem; }
+        .end .post .meta { color: var(--faint); font-size: 0.9rem; }
+
+        @media (max-width: 1000px) { .hero-top { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; } }
+        @media (max-width: 860px) {
+            .walk { grid-template-columns: minmax(0, 1fr); padding: 4rem 1rem 1rem; gap: 0; }
+            .walk-fig { display: none; }
+            .walk-steps .step, .walk-steps .step:first-child { min-height: 0; padding: 2.5rem 0; }
+            .walk-steps .m-fig { display: block; margin-top: 1.25rem; }
+            .walk-steps .m-fig img { border-radius: var(--radius); aspect-ratio: 16 / 10; object-fit: cover; }
+            .end .container { grid-template-columns: minmax(0, 1fr); gap: 3rem; }
+        }
+        @media (max-width: 760px) {
+            .hero { padding: calc(var(--nav-h) + 2rem) 0 3rem; }
+            .hero h1 { white-space: normal; }
+            .seam { aspect-ratio: 4 / 5; }
+            .seam img { object-position: 40% 50%; }
+            .seam .rules { width: auto; left: 4%; right: 4%; }
+            .seam .tag.far { display: none; }
+            .seam-cap span:last-child { display: none; }
+            .walk-steps h2 { font-size: 1.5rem; }
+            .walk-steps p { font-size: 1.05rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="banner">
+        <div class="container">
+            <div class="nav-title">OpenWorld<small>Large Symbolic World</small></div>
+            <div class="nav-links">
+                <a href="#walk" class="hide-sm">World</a>
+                <a href="#end">Journal</a>
+                <a href="#end" class="cta">Waitlist</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="container">
+            <div class="hero-top">
+                <div>
+                    <h1>OpenWorld<span class="zh" lang="zh-CN">规则即代码</span></h1>
+                    <p class="sub">A world whose rules are code. What it has never seen, it learns — and remembers.</p>
+                </div>
+                <form class="wl" action="https://buttondown.com/api/emails/embed-subscribe/openworld" method="post">
+                    <div class="wl-row">
+                        <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
+                        <button type="submit">Join the waitlist</button>
+                    </div>
+                    <div class="wl-roles"><span class="q">I'm here to</span>
+                        <input type="checkbox" id="r1" name="tag" value="player"><label for="r1">play</label>
+                        <input type="checkbox" id="r2" name="tag" value="research"><label for="r2">read the research</label>
+                        <input type="checkbox" id="r3" name="tag" value="maker"><label for="r3">make a world</label>
+                    </div>
+                    <p class="wl-done">Thanks — check your inbox to confirm.</p>
+                </form>
+            </div>
+
+            <div class="seam" id="seam">
+                <img src="img/village-day.webp" alt="Firstlight Village at noon">
+                <div class="layer-code">
+                    <div class="grid"></div>
+                    <span class="tag" style="left:22%;top:31%"><b>person</b> villager · <i>schedule</i></span>
+                    <span class="tag" style="left:46%;top:31%"><b>fixture</b> well · <i>water</i></span>
+                    <span class="tag" style="left:58%;top:11%"><b>building</b> smithy · <i>door</i></span>
+                    <span class="tag" style="left:50%;top:56%"><b>fixture</b> fire_pit · <i>lit</i></span>
+                    <span class="tag" style="left:70%;top:40%"><b>person</b> guard · <i>watch</i></span>
+                    <span class="tag far" style="left:86%;top:50%"><b>person</b> peddler · <i>trade</i></span>
+                    <span class="tag far" style="left:24%;top:84%"><b>terrain</b> water · <i>pond</i></span>
+                    <div class="rules"><div class="code" data-code="fire"></div></div>
+                </div>
+                <div class="handle" id="handle"><span>⇆</span></div>
+                <span class="side see">What you see</span>
+                <span class="side is">What it is</span>
+            </div>
+            <div class="seam-cap"><span style="flex:1;max-width:420px"><div class="ph"><i></i></div></span></div>
+        </div>
+    </section>
+
+    <section class="walk" id="walk">
+        <div class="walk-fig">
+            <div class="frame" id="frame">
+                <img data-step="0" class="on" src="img/village-hud.webp" alt="">
+                <img data-step="1" src="img/ford.webp" alt="">
+                <img data-step="2" src="img/village-night.webp" alt="">
+                <img data-step="3" src="img/worldmap.webp" alt="" style="object-fit:contain;background:#1c2433">
+                <img data-step="4" src="img/creator.webp" alt="">
+                <img data-step="5" src="img/boss.webp" alt="">
+                <div class="codepane" data-pane><div class="code" id="pane"></div></div>
+            </div>
+            <div class="toggle"><button class="on" data-view="see">What you see</button><button data-view="is">What it is</button></div>
+        </div>
+        <div class="walk-steps">
+            <div class="step" data-k="scene"><div class="num">01</div><h2><span class="ph-h">Heading</span></h2><div class="ph"><i></i><i></i><i></i></div><div class="m-fig"><img src="img/village-hud.webp" alt="" loading="lazy"></div></div>
+            <div class="step" data-k="learned"><div class="num">02</div><h2><span class="ph-h">Heading</span></h2><div class="ph"><i></i><i></i><i></i></div><div class="m-fig"><img src="img/ford.webp" alt="" loading="lazy"></div></div>
+            <div class="step" data-k="quality"><div class="num">03</div><h2><span class="ph-h">Heading</span></h2><div class="ph"><i></i><i></i><i></i></div><div class="m-fig"><img src="img/village-night.webp" alt="" loading="lazy"></div></div>
+            <div class="step" data-k="continent"><div class="num">04</div><h2><span class="ph-h">Heading</span></h2><div class="ph"><i></i><i></i><i></i></div><div class="m-fig"><img src="img/worldmap.webp" alt="" loading="lazy"></div></div>
+            <div class="step" data-k="person"><div class="num">05</div><h2><span class="ph-h">Heading</span></h2><div class="ph"><i></i><i></i><i></i></div><div class="m-fig"><img src="img/creator.webp" alt="" loading="lazy"></div></div>
+            <div class="step" data-k="boss"><div class="num">06</div><h2><span class="ph-h">Heading</span></h2><div class="ph"><i></i><i></i><i></i></div><div class="m-fig"><img src="img/boss.webp" alt="" loading="lazy"></div></div>
+        </div>
+    </section>
+
+    <section class="end" id="end">
+        <div class="container">
+            <div>
+                <p class="label">Label</p>
+                <h2><span class="ph-h">Heading</span></h2>
+                <div class="ph"><i></i><i></i><i></i></div>
+                <div class="post">
+                    <div class="ph"><i></i></div>
+                    <h3><span class="ph-h">Heading</span></h3>
+                    <div class="arrow-links"><a href="post.html">Read</a><a href="post.html">中文</a></div>
+                </div>
+            </div>
+            <div>
+                <p class="label">Label</p>
+                <h2><span class="ph-h">Heading</span></h2>
+                <div class="ph"><i></i><i></i><i></i></div>
+                <form class="wl" action="https://buttondown.com/api/emails/embed-subscribe/openworld" method="post">
+                    <div class="wl-row">
+                        <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
+                        <button type="submit">Join</button>
+                    </div>
+                    <p class="wl-done">Thanks — check your inbox to confirm.</p>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <span>Designed by <a href="https://sihanxu.me/">Si.X</a> · Art: Ninja Adventure (CC0) and our own</span>
+            <span>OpenWorld &copy; 2026</span>
+        </div>
+    </footer>
+    <script src="snippets.js"></script>
+    <script src="base.js"></script>
+    <script>
+        // the seam
+        const seam = document.getElementById('seam')
+        const setCut = (x) => { const r = seam.getBoundingClientRect(); seam.style.setProperty('--cut', Math.min(96, Math.max(4, ((x - r.left) / r.width) * 100)) + '%') }
+        let dragging = false
+        seam.addEventListener('pointerdown', (e) => { dragging = true; seam.setPointerCapture(e.pointerId); setCut(e.clientX) })
+        seam.addEventListener('pointermove', (e) => { if (dragging) setCut(e.clientX) })
+        seam.addEventListener('pointerup', () => (dragging = false))
+        // a first nudge, so the seam is seen to move
+        let t0 = null
+        const nudge = (t) => { t0 ??= t; const k = Math.min(1, (t - t0) / 1600); seam.style.setProperty('--cut', (50 + 14 * Math.sin(k * Math.PI)) + '%'); if (k < 1 && !dragging) requestAnimationFrame(nudge) }
+        setTimeout(() => requestAnimationFrame(nudge), 600)
+
+        // the walk: the step in view picks the picture; the toggle shows its code
+        const steps = [...document.querySelectorAll('.walk-steps .step')]
+        const pics = [...document.querySelectorAll('#frame img')]
+        const pane = document.getElementById('pane'), paneBox = document.querySelector('[data-pane]')
+        let view = 'see', current = 0
+        function show() {
+            pics.forEach((p, i) => p.classList.toggle('on', view === 'see' && i === current))
+            paneBox.classList.toggle('on', view === 'is')
+            pane.innerHTML = SNIPPETS[steps[current].dataset.k]
+            steps.forEach((s, i) => s.classList.toggle('on', i === current))
+        }
+        const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { current = steps.indexOf(e.target); show() } }), { rootMargin: '-45% 0px -45% 0px' })
+        steps.forEach((s) => io.observe(s))
+        document.querySelectorAll('.toggle button').forEach((b) => b.addEventListener('click', () => {
+            view = b.dataset.view
+            document.querySelectorAll('.toggle button').forEach((x) => x.classList.toggle('on', x === b))
+            show()
+        }))
+        show()
+    </script>
+</body>
+</html>
