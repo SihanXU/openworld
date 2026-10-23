@@ -20,6 +20,7 @@ import { boonPanel } from './boons.ts'
 import { QuestLog } from './questlog.ts'
 import { SkillPanel } from './skillpanel.ts'
 import { AiOptions } from './quality.ts'
+import { ContextMenu } from './context-menu.ts'
 import { $, SLOT_KEYS, controlsTable, esc, kbd, locale, prefs, t, tx, gearFrame } from './common.ts'
 import type { Panel } from './paneltabs.ts'
 import { KeysPage } from './keyspage.ts'
@@ -231,6 +232,8 @@ export class Menu {
   private picked?: number
   /** A thing pressed in the bag and being dragged: where the press was, and whether the pointer has moved off it. */
   private drag?: { x: number; y: number; moved: boolean }
+  /** The item popup belongs to the currently open panel and closes with it. */
+  private readonly contextPopup = new ContextMenu()
   /** What is picked up rides on the pointer, as in Stardew's bag. */
   private carried = document.createElement('div')
 
@@ -384,6 +387,7 @@ export class Menu {
   }
 
   open(tab?: Tab): void {
+    this.contextPopup.close()
     if (tab) this.tab = tab
     $('#journal').classList.add('hidden')
     $('#skills').classList.add('hidden')
@@ -415,6 +419,7 @@ export class Menu {
   }
 
   openJournal(): void {
+    this.contextPopup.close()
     $('#menu').classList.add('hidden')
     $('#skills').classList.add('hidden')
     this.showCarried()
@@ -423,6 +428,7 @@ export class Menu {
   }
 
   close(): void {
+    this.contextPopup.close()
     this.keysPage.hide()
     if (this.chestOpen) this.send.closePanel()
     for (const id of ['#menu', '#journal', '#chest', '#skills', '#worldmap', '#profession', '#questlog', '#skillpanel']) $(id).classList.add('hidden')
@@ -437,7 +443,10 @@ export class Menu {
     this.frame = f
     // the chest panel follows the open container the worker names
     if (f.container && !this.chestOpen) ($('#chest').classList.remove('hidden'), (this.chestSig = ''))
-    if (!f.container && this.chestOpen) $('#chest').classList.add('hidden')
+    if (!f.container && this.chestOpen) {
+      this.contextPopup.close()
+      $('#chest').classList.add('hidden')
+    }
     if (this.chestOpen) this.renderChest(f)
     if (this.menuOpen && (this.tab === 'inventory' || this.tab === 'craft' || this.tab === 'shop' || this.tab === 'station')) this.renderLive()
     if (this.journalOpen && this.library && this.library.version !== this.journalLib) this.renderJournal()
@@ -696,7 +705,6 @@ export class Menu {
 
   /** The context menu on an item: use the held thing on it, put the held thing into it, handle it bare-handed — and extras. */
   private contextMenu(x: number, y: number, item: string, extra: [string, () => void][] = []): void {
-    document.querySelector('.ctx')?.remove()
     const held = this.frame?.player.held
     const target = this.frame && [this.frame.player.held, ...this.frame.player.slots.map((s) => s?.item), ...Object.values(this.frame.player.worn ?? {}), ...(this.frame.container?.contents ?? [])].find((it) => it?.id === item)
     const heldName = held ? tx(held.name) : ''
@@ -708,14 +716,7 @@ export class Menu {
       if (put !== false) rows.push([put ? tx(put) : t('putIn').replace('{held}', heldName), () => this.send.keyOnItem('put', item)])
     }
     rows.push([t('handsOn'), () => this.send.keyOnItem('hands', item)], ...extra)
-    const el = document.createElement('div')
-    el.className = 'ctx'
-    el.innerHTML = rows.map(([l], k) => `<div class="ctx-row" data-k="${k}">${esc(l)}</div>`).join('')
-    el.style.left = `${x}px`
-    el.style.top = `${y}px`
-    document.body.appendChild(el)
-    el.querySelectorAll<HTMLElement>('[data-k]').forEach((r) => (r.onclick = () => (el.remove(), rows[Number(r.dataset.k)][1]())))
-    setTimeout(() => window.addEventListener('mousedown', (ev) => !el.contains(ev.target as Node) && el.remove(), { once: true }), 0)
+    this.contextPopup.show(x, y, rows)
   }
 
   // ---------------------------------------------------------------- crafting

@@ -1,6 +1,6 @@
 // M4: farming, played through the same entry point as the player's keys (controls.plan + run).
 // A seed's own act sows it; water reaches a crop as an element; a sickle's blow (`strike`) is
-// answered by the ripe crop; a hand takes (`taken`) what it picks.
+// answered by the ripe crop; E handles (`handle`) a crop that stays rooted in its soil.
 
 import { describe, expect, it } from 'vitest'
 import { RuleLibrary, SANDBOX_MAP, buildSandbox, type Engine, type Key } from '@openworld/engine'

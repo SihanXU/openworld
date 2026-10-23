@@ -1157,7 +1157,7 @@ const NOTIFY_OPEN = new Set(['topic'])
 const KIND_PREFIXES = new Set<string>(EVENT_KINDS.flatMap((k) => k.split('/').map((_, i, a) => a.slice(0, i + 1).join('/'))))
 const BOUNDS = new Set(['eq', 'gt', 'gte', 'lt', 'lte'])
 const ROLE_NAMES = new Set(['host', 'actor', 'target', 'instrument', 'other', 'item', 'source'])
-const FISHING_CONDITION_ROLES = { fishingMap: 'host', fishingBusy: 'actor', fishingRoom: 'actor' } as const
+const ROLE_BOUND_CONDITIONS = { fishingMap: 'host', fishingBusy: 'actor', fishingRoom: 'actor', residentWorkFeed: 'actor' } as const
 const ROLE_REFS = new Set([...ROLE_NAMES, ...[...ROLE_NAMES].map((r) => `tileOf:${r}`)])
 
 interface ValidateCtx {
@@ -1324,12 +1324,12 @@ function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
   }
   const checkCond = (c: Cond | undefined, where: string): void => {
     if (!c || typeof c !== 'object' || Array.isArray(c)) return void errors.push(`${where}: condition must be an object`)
-    const fishingCondition = (Object.keys(FISHING_CONDITION_ROLES) as (keyof typeof FISHING_CONDITION_ROLES)[]).find((key) => key in c)
-    if (fishingCondition) {
-      if (Object.keys(c).length !== 1) return void errors.push(`${where}: a fishing condition must be used alone`)
-      if (!worldOps.conditions.has(fishingCondition)) return void errors.push(`${where}.${fishingCondition}: unknown condition`)
-      const expected = FISHING_CONDITION_ROLES[fishingCondition]
-      if ((c as Record<string, unknown>)[fishingCondition] !== expected) errors.push(`${where}.${fishingCondition}: role must be "${expected}"`)
+    const boundCondition = (Object.keys(ROLE_BOUND_CONDITIONS) as (keyof typeof ROLE_BOUND_CONDITIONS)[]).find((key) => key in c)
+    if (boundCondition) {
+      if (Object.keys(c).length !== 1) return void errors.push(`${where}: ${boundCondition === 'residentWorkFeed' ? 'a resident work feed condition' : 'a fishing condition'} must be used alone`)
+      if (!worldOps.conditions.has(boundCondition)) return void errors.push(`${where}.${boundCondition}: unknown condition`)
+      const expected = ROLE_BOUND_CONDITIONS[boundCondition]
+      if ((c as Record<string, unknown>)[boundCondition] !== expected) errors.push(`${where}.${boundCondition}: role must be "${expected}"`)
       return
     }
     // (each value in the shape evalCond reads: a value of another shape passes the keys and throws when the rule runs)
@@ -1433,6 +1433,11 @@ function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
     const any = e as Record<string, unknown>
     if ('of' in any) errors.push(`${where}: effects act on the host only (no "of"): to affect another thing, emit an impulse to it`)
     for (const k of ['at', 'to'] as const) if (k in any && typeof any[k] === 'string' && e.op !== 'emit' && !ROLE_REFS.has(any[k] as string)) errors.push(`${where}.${k}: role ref must be one of ${[...ROLE_REFS].join('|')}`)
+    if (e.op === 'spawn') {
+      if (e.owner !== undefined) role(e.owner, `${where}.owner`)
+      if (e.ownerFrom !== undefined) role(e.ownerFrom, `${where}.ownerFrom`)
+      if (e.owner !== undefined && e.ownerFrom !== undefined) errors.push(`${where}: choose owner or ownerFrom, not both`)
+    }
     if (worldOps.residentOnly.has(e.op) && !resident) errors.push(`${where}: ${e.op} is the story's and the world's only — notify the story instead`)
     if (e.op === 'spawn' && !/^@prop:(host|actor|target|instrument|other|item|source)\.\w+$/.test(e.type) && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"${closest(e.type, onto)}`)
     if (e.op === 'dropContents' && e.bundle && !(e.bundle in onto.types)) errors.push(`${where}: unknown type "${e.bundle}"${closest(e.bundle, onto)}`)

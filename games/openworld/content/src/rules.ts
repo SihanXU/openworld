@@ -1373,9 +1373,9 @@ const BUILD: Rule[] = [
 const CROP: Selector = { type: 'fixture', tags: ['crop'] }
 const GROWING: Selector = { type: 'fixture', tags: ['crop', 'growing'] }
 const NOTHING_GROWS: Cond = { count: { role: 'target', in: 'tile', match: { tags: ['crop'] }, cmp: { eq: 0 } } }
-const picked: Effect[] = [
-  { op: 'spawn', type: '@prop:host.yieldType', at: 'actor', into: 'hand', count: { prop: 'pick', of: 'actor', add: 1 } },
-  { op: 'spawn', type: '@prop:host.seedType', at: 'tileOf:host' },
+const picked = (into: 'hand' | 'contents', still = false): Effect[] => [
+  { op: 'spawn', type: '@prop:host.yieldType', at: 'actor', into, count: { prop: 'pick', of: 'actor', add: 1 } },
+  { op: 'spawn', type: '@prop:host.seedType', at: 'tileOf:host', ...(still && { still: true }) },
 ]
 /** A perennial goes back to its young stage, its fertilizer spent. */
 const regrow: Effect[] = [{ op: 'transform', into: '@prop:regrowType' }, remove('fertilized'), { op: 'setProp', key: 'yield', value: 2 }]
@@ -1487,8 +1487,14 @@ function HARVEST_ANY(): Tree {
 }
 /** Picking a ripe crop by hand: one (two for Green Fingers) and a seed; a perennial grows back (as harvesting). */
 function PICK(): Tree {
-  const keep = (perennial: boolean): Tree => (perennial ? IF(tag('actor', 'skill:perennial-keeper'), DO(...picked, log('You pick {host}.', '你摘下了{host}。'), { op: 'transform', into: '@prop:regrowType' }, vfx('leaves')), DO(...picked, log('You pick {host}.', '你摘下了{host}。'), ...regrow, vfx('leaves'))) : DO(...picked, log('You pick {host}.', '你摘下了{host}。'), vfx('leaves', 'tileOf:host'), { op: 'destroy' }))
-  return IF(tag('host', 'perennial'), keep(true), keep(false))
+  const keep = (perennial: boolean, residentWork: boolean): Tree => {
+    const products = picked(residentWork ? 'contents' : 'hand', residentWork)
+    return perennial
+      ? IF(tag('actor', 'skill:perennial-keeper'), DO(...products, log('You pick {host}.', '你摘下了{host}。'), { op: 'transform', into: '@prop:regrowType' }, vfx('leaves')), DO(...products, log('You pick {host}.', '你摘下了{host}。'), ...regrow, vfx('leaves')))
+      : DO(...products, log('You pick {host}.', '你摘下了{host}。'), vfx('leaves', 'tileOf:host'), { op: 'destroy' })
+  }
+  const ordinary = IF(tag('host', 'perennial'), keep(true, false), keep(false, false))
+  return IF(tag('actor', 'resident-work-harvest'), IF(tag('host', 'perennial'), keep(true, true), keep(false, true)), ordinary)
 }
 /** The kinds of crop a farmer may know best (life.ts; ontology.ts crop:<kind>). */
 const CROP_KINDS = ['grain', 'herb', 'berry', 'root', 'gourd', 'fruit'] as const

@@ -3,11 +3,13 @@
 
 import { cmp, type CondImpl, type Roles, type View, type World } from '@openworld/engine'
 import { socialIn } from './state.ts'
+import { residentWorkFeedCondition } from './resident-work.ts'
 
 /** The watch of where the host is (a resident host: where the role is). */
 const lawFor = (world: World, roles: Roles, role: View | undefined) => socialIn(world)?.lawAt(world.posOf(roles.host?.entity)?.map ?? world.posOf(role?.entity)?.map)
 
 export const SOCIAL_CONDS: Record<string, CondImpl> = {
+  residentWorkFeed: residentWorkFeedCondition,
   regard: (c, roles, world) => {
     const social = socialIn(world)
     const of = roles[c.regard.of as keyof Roles]?.entity

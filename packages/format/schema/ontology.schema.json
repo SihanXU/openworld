@@ -777,6 +777,19 @@
         {
           "type": "object",
           "properties": {
+            "residentWorkFeed": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "residentWorkFeed"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
             "chance": {
               "type": "number"
             }
@@ -1793,6 +1806,10 @@
           },
           "description": "A resident's day there, hour by hour: each span spent at its bed (`bed`) or its bed's day place (`day`), and doing what."
         },
+        "work": {
+          "$ref": "#/definitions/ResidenceWorkDef",
+          "description": "The kinds and states this home ground chooses to expose as its work overview and future work targets."
+        },
         "yes": {
           "$ref": "#/definitions/Text"
         },
@@ -1810,6 +1827,70 @@
       ],
       "additionalProperties": false,
       "description": "A home ground's room for people (the society module's `moveIn`): its map and the beds it has, each an anchor there (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; a resident's day there; what the one asked says, moved in or with no bed free."
+    },
+    "ResidenceWorkDef": {
+      "type": "object",
+      "properties": {
+        "controller": {
+          "$ref": "#/definitions/Selector",
+          "description": "People permitted to give work orders at this residence's steward/controller."
+        },
+        "crop": {
+          "$ref": "#/definitions/Selector",
+          "description": "Any crop grown here; later work may choose an authorized crop from this set."
+        },
+        "ripe": {
+          "$ref": "#/definitions/Selector",
+          "description": "Crops whose current type is ready for harvest."
+        },
+        "growing": {
+          "$ref": "#/definitions/Selector",
+          "description": "Crops waiting for water (the selector can require `growing` and exclude `watered`)."
+        },
+        "livestock": {
+          "$ref": "#/definitions/Selector",
+          "description": "Livestock shown on this ground; eligible unowned members may be claimed one at a time through its configured controller."
+        },
+        "unfed": {
+          "$ref": "#/definitions/Selector",
+          "description": "Livestock that still needs feeding."
+        },
+        "milkable": {
+          "$ref": "#/definitions/Selector",
+          "description": "Animals that can be milked now, including maturity and daily state."
+        },
+        "egg": {
+          "$ref": "#/definitions/Selector",
+          "description": "Loose gatherable eggs on the home ground."
+        },
+        "warehouse": {
+          "$ref": "#/definitions/Selector",
+          "description": "Real storage entities eligible to hold work supplies."
+        },
+        "feed": {
+          "$ref": "#/definitions/Selector",
+          "description": "The real feed item a future feeding job will draw from storage."
+        },
+        "yieldTypeProp": {
+          "type": "string",
+          "description": "Crop props that name the hand-pick products; the society module reads these names, never game type ids."
+        },
+        "seedTypeProp": {
+          "type": "string"
+        },
+        "pickBonusProp": {
+          "type": "string",
+          "description": "The worker's numeric stat added to yieldBase for the original hand-pick count."
+        },
+        "yieldBase": {
+          "type": "number"
+        },
+        "seedCount": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Game-authored selectors for a home ground's overview, claim eligibility, and work targets; the society module names no game's maps or types."
     },
     "ProtectionDef": {
       "type": "object",

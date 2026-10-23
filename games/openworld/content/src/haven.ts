@@ -177,6 +177,15 @@ const hostAtLeast = (key: string, v: number): Cond => ({ prop: { role: 'host', k
 const logLine = (en: string, zh: string): Effect => ({ op: 'log', text: L(en, zh) })
 /** The story keeps a copy of a count the steward keeps (for the panel). */
 const copy = (key: string): Effect => ({ op: 'emit', impulse: 'notify', to: 'story', params: { what: 'facts', [`fact.${key}`]: { prop: key, of: 'host' } } })
+/** Keep each reward spawn within the engine's default per-effect limit. */
+const REWARD_SPAWN_BATCH = 64
+const rewardCoins = (coins: number): Effect[] => {
+  const effects: Effect[] = []
+  for (let remaining = coins; remaining > 0; remaining -= REWARD_SPAWN_BATCH) {
+    effects.push({ op: 'spawn', type: 'item/misc/thornmark', at: 'actor', into: 'contents', count: Math.min(REWARD_SPAWN_BATCH, remaining) })
+  }
+  return effects
+}
 
 /** Something handed to the steward: what an upgrade asks for goes into the ground's stock (the thing itself is used up). */
 const HANDED: Tree = HAVEN_MATERIALS.reduceRight<Tree>(
@@ -209,7 +218,7 @@ const BUILD: Tree = HAVEN_UPGRADES.reduceRight<Tree>((rest, u) => {
   const build: Effect[] = [
     ...u.needs.flatMap((x): Effect[] => [{ op: 'addProp', key: stockKey(x.type), delta: -x.count }, copy(stockKey(x.type))]),
     { op: 'emit', impulse: 'notify', to: 'story', params: { what: 'facts', [`fact.${u.fact}`]: u.value } },
-    ...(u.coins ? [{ op: 'spawn', type: 'item/misc/thornmark', at: 'actor', into: 'contents', count: u.coins } as Effect] : []),
+    ...rewardCoins(u.coins),
     { op: 'say', text: L(u.done.en, u.done.zh) },
   ]
   return {
@@ -276,7 +285,7 @@ export const HAVEN_RULES: Rule[] = [
     doc: 'The steward spoken to about the ground (his talk\'s "The Held Ground…"): its panel (the land, its grounds, its buildings, the stock); asked to build one (choice build:<id>), he builds it from the stock if the land is ready for it and the stock holds all it asks; asked to go to a ground (choice go:<id>), he sends one there once it is opened.',
     host: STEWARD,
     on: 'impulse/handle',
-    tree: { if: param('say', 'haven'), then: { if: { param: { key: 'choice', cmp: { ne: '' } } }, then: { if: { any: [...HAVEN_UPGRADES.map((u) => param('choice', `build:${u.id}`))] }, then: BUILD, else: GO }, else: { do: [{ op: 'panel', panel: 'haven' }] } }, else: 'inherit' },
+    tree: { if: param('say', 'resident-work'), then: { do: [{ op: 'residentWork/order' }] }, else: { if: param('say', 'haven'), then: { if: { param: { key: 'choice', cmp: { ne: '' } } }, then: { if: { any: [...HAVEN_UPGRADES.map((u) => param('choice', `build:${u.id}`))] }, then: BUILD, else: GO }, else: { do: [{ op: 'panel', panel: 'haven' }] } }, else: 'inherit' } },
   }),
   story({
     id: 'haven/stock',

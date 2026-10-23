@@ -83,6 +83,23 @@ export const SOCIAL: SocialParams = {
   residence: {
     map: 'haven',
     at: 95,
+    work: {
+      controller: { type: 'actor/person/steward', tags: ['haven-steward'] },
+      crop: { type: 'fixture/crop', tags: ['crop'] },
+      ripe: { type: 'fixture/crop', tags: ['ripe'] },
+      growing: { type: 'fixture/crop', tags: ['growing'], notStatus: ['watered'] },
+      livestock: { type: 'actor/creature/animal', tags: ['livestock'] },
+      unfed: { type: 'actor/creature/animal', tags: ['livestock'], notStatus: ['fed'] },
+      milkable: { type: 'actor/creature/animal/cow', status: ['fed'], notStatus: ['milked'] },
+      egg: { type: 'item/food/egg/raw' },
+      warehouse: { type: 'fixture/container', props: { capacity: { gt: 0 } } },
+      feed: { type: 'item/material/feed' },
+      yieldTypeProp: 'yieldType',
+      seedTypeProp: 'seedType',
+      pickBonusProp: 'pick',
+      yieldBase: 1,
+      seedCount: 1,
+    },
     slots: [
       { anchor: 'home.camp' },
       { anchor: 'home.lodge1.a', when: 'haven.build.lodge1' },
@@ -425,6 +442,8 @@ const MERCHANT_TREE: Tree = IF(
 
 /** What a person is told (impulse/notify), beside what body/stage keeps (rules.ts folds these in there). */
 export const PERSON_NEWS = (rest: Tree): Tree =>
+  // Resident work commands and internal acknowledgements are a person-side notification branch.
+  IF(any(what('resident-work-command'), what('resident-work-internal')), DO({ op: 'residentWork/update' }),
   // Choosing to fight the watch takes a fighting stance; putting it away again yields to arrest.
   IF(what('resist'), DO(add('drawn')),
   IF(what('pay'), DO({ op: 'pay', amount: { param: 'amount' }, to: 'source' }),
@@ -441,7 +460,7 @@ export const PERSON_NEWS = (rest: Tree): Tree =>
   IF(what('calm'), DO({ op: 'calm' }),
   // a cry for help: one who fights (a guard, the smith) takes the attacker as its foe; the rest keep away from them
   IF(what('help'), IF(any({ prop: { role: 'host', key: 'fights', cmp: true } }, tag('host', 'watchman')), DO({ op: 'foe' }), DO({ op: 'fear' })),
-  rest))))))))))))
+  rest)))))))))))))
 
 export const SOCIAL_RULES: Rule[] = [
   rule({
@@ -549,5 +568,12 @@ export const SOCIAL_RULES: Rule[] = [
     host: { type: 'resident/watch' },
     on: 'impulse/notify',
     tree: IF(what('report'), DO({ op: 'charge' }), IF(what('pardon'), DO({ op: 'charge', clear: true }), 'inherit')),
+  }),
+  rule({
+    id: 'resident-work/body-command',
+    doc: 'Only a resident work order or its own transient work step is handled by the resident work module; worker-side authorization is checked again by its own-host primitive.',
+    host: { type: 'fixture/remains/body' },
+    on: 'impulse/notify',
+    tree: IF(any(what('resident-work-command'), what('resident-work-internal')), DO({ op: 'residentWork/update' }), 'inherit'),
   }),
 ]
