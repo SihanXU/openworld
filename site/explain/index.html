@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,">
+    <title>How it works · OpenWorld</title>
+    <style>
+        html, body { margin: 0; height: 100%; background: #f7f8fb; overflow: hidden; font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; }
+        canvas { display: block; width: 100vw; height: 100vh; object-fit: contain; }
+        body.video .ui, body.embed .ui { display: none; }
+        .ui { position: fixed; left: 16px; right: 16px; bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .ui button { font: 500 14px/1 inherit; color: #1f2937; background: #fff; border: 1px solid #d6e0f8; border-radius: 999px; padding: 9px 16px; cursor: pointer; }
+        .ui button:hover { border-color: #2563eb; color: #2563eb; }
+        .ui button.on { background: #2563eb; border-color: #2563eb; color: #fff; }
+        body.loading::after { content: 'loading…'; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); color: #8f9ab0; font-size: 14px; letter-spacing: 0.1em; }
+    </style>
+</head>
+<body class="loading">
+    <canvas id="c" width="1920" height="1080"></canvas>
+    <div class="ui">
+        <button data-from="0">▶ From the start</button>
+        <button data-from="0.6">A rule answers</button>
+        <button data-from="8.8">No rule yet</button>
+        <button data-from="23">Learned once, for everyone</button>
+    </div>
+    <script type="module" src="explain.js"></script>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenWorld</title>
+    <meta name="description" content="OpenWorld: a world whose rules are code. What the world has never seen, it learns — and remembers.">
+    <link rel="stylesheet" href="base.css">
+    <style>
+        /* B · The world first: NEPA's full-screen header, the village behind it keeping its own hours */
+        .banner { background: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; transition: background 0.3s ease, box-shadow 0.3s ease; }
+        .banner .nav-title, .banner .nav-links a { color: rgba(255,255,255,0.92); }
+        .banner .nav-title small { color: rgba(255,255,255,0.6); }
+        .banner.solid { background: rgba(255,255,255,0.88); box-shadow: 0 1px 0 rgba(0,0,0,0.06); -webkit-backdrop-filter: saturate(180%) blur(12px); backdrop-filter: saturate(180%) blur(12px); }
+        .banner.solid .nav-title { color: var(--ink); }
+        .banner.solid .nav-title small { color: var(--faint); }
+        .banner.solid .nav-links a { color: var(--muted); }
+        .banner.solid .nav-links a.cta { color: var(--accent); }
+
+        .hero { position: relative; min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; color: #fff; overflow: hidden; background: #1d1d18; }
+        .hero .bg { position: absolute; inset: -2%; background-size: cover; background-position: center; image-rendering: pixelated; animation: drift 40s ease-in-out infinite alternate; }
+        .hero .bg.night { animation: drift 40s ease-in-out infinite alternate, dusk 24s ease-in-out infinite; }
+        @keyframes drift { from { transform: scale(1.02) translate(0, 0); } to { transform: scale(1.08) translate(-1.5%, -1%); } }
+        @keyframes dusk { 0%, 35% { opacity: 0; } 50%, 85% { opacity: 1; } 100% { opacity: 0; } }
+        .hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 55% at 50% 48%, rgba(10,12,8,0.62), rgba(10,12,8,0.28) 70%), linear-gradient(180deg, rgba(10,12,8,0.35), rgba(10,12,8,0.1) 40%, rgba(10,12,8,0.6)); }
+        .hero-inner { position: relative; z-index: 1; padding: calc(var(--nav-h) + 2rem) 1rem 6rem; max-width: 880px; }
+        .hero .label { color: rgba(255,255,255,0.8); }
+        .hero h1 { font-size: clamp(3.5rem, 11vw, 8.5rem); line-height: 0.95; font-weight: 800; letter-spacing: -0.05em; margin: 0.6rem 0 1rem; text-shadow: 0 2px 30px rgba(0,0,0,0.25); }
+        .hero h1 span { color: #8fb2ff; }
+        .hero .sub { font-size: clamp(1.1rem, 2.2vw, 1.45rem); color: rgba(255,255,255,0.92); max-width: 34ch; margin: 0 auto; }
+        .hero .wl { margin: 2.25rem auto 0; }
+        .hero .wl input[type=email] { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.7); color: #fff; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+        .hero .wl input::placeholder { color: rgba(255,255,255,0.7); }
+        .hero .wl input:focus { box-shadow: 0 0 0 4px rgba(255,255,255,0.15); border-color: #fff; }
+        .hero .wl button { background: #fff; color: var(--ink-strong); }
+        .hero .wl button:hover { background: #eef3fe; }
+        .hero .wl-roles { justify-content: center; }
+        .hero .wl-roles span.q { color: rgba(255,255,255,0.7); }
+        .hero .wl-roles label { color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.45); }
+        .hero .wl-roles input:checked + label { color: var(--ink-strong); background: #fff; border-color: #fff; }
+        .hero .wl-done { color: #fff; }
+        .hero .clock { position: absolute; z-index: 1; left: 2rem; bottom: 2rem; font-size: 0.8rem; color: rgba(255,255,255,0.7); letter-spacing: 0.08em; text-transform: uppercase; }
+
+        section.band { padding: 6rem 0; }
+        section.alt { background: var(--bg-alt); }
+        .band h2 { font-size: 2.25rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.2; margin-bottom: 1rem; }
+        .lead { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: 4rem; align-items: center; }
+        .lead p { font-size: 1.2rem; line-height: 1.8; margin-bottom: 1.25rem; }
+        .lead .facts { margin-top: 1.5rem; }
+        .lead figure img { border-radius: var(--radius); box-shadow: 0 18px 40px rgba(0,0,0,.08); }
+        figcaption { margin-top: 0.6rem; font-size: 0.9rem; color: var(--faint); }
+
+        .strip-head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: 1.5rem; }
+        .strip-head p { color: var(--muted); }
+        .strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(300px, 34%); gap: 1.25rem; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0 max(2rem, calc((100vw - 1200px) / 2 + 2rem)) 1rem; scroll-padding-inline: max(2rem, calc((100vw - 1200px) / 2 + 2rem)); scrollbar-width: thin; }
+        .scene { scroll-snap-align: start; }
+        .scene .flip-front, .scene .flip-back { box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 18px rgba(0,0,0,.06); }
+        .scene h3 { font-size: 1.1rem; margin-top: 0.85rem; color: var(--ink-strong); }
+        .scene p { color: var(--muted); font-size: 0.95rem; }
+        .scene .code { font-size: 0.66rem; }
+
+        .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+        .step { background: #fff; border-radius: var(--radius); padding: 1.5rem; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 18px rgba(0,0,0,.05); display: flex; flex-direction: column; }
+        .step .n { width: 2rem; height: 2rem; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 700; display: grid; place-items: center; font-size: 0.95rem; }
+        .step h3 { font-size: 1.2rem; margin: 0.9rem 0 0.4rem; color: var(--ink-strong); }
+        .step p { color: var(--muted); margin-bottom: 1rem; }
+        .step .code { margin-top: auto; background: var(--bg-alt); border-radius: 8px; padding: 0.85rem 1rem; font-size: 0.7rem; }
+
+        .post { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 3rem; align-items: center; }
+        .post img { border-radius: var(--radius); aspect-ratio: 16 / 10; object-fit: cover; }
+        .post .meta { color: var(--faint); font-size: 0.9rem; margin-bottom: 0.5rem; }
+        .post h3 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.02em; color: var(--ink-strong); margin-bottom: 0.75rem; }
+        .post p { color: var(--ink); margin-bottom: 1.25rem; font-size: 1.05rem; }
+
+        .join { position: relative; padding: 7rem 0; color: #fff; text-align: center; overflow: hidden; }
+        .join .bg { position: absolute; inset: 0; background: url(img/village-night.webp) center / cover; image-rendering: pixelated; }
+        .join::after { content: ""; position: absolute; inset: 0; background: rgba(12,14,10,0.55); }
+        .join .container { position: relative; z-index: 1; }
+        .join h2 { font-size: clamp(2.2rem, 5vw, 3.5rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.04em; }
+        .join p { color: rgba(255,255,255,0.85); margin: 0.75rem 0 2rem; font-size: 1.1rem; }
+        .join .wl { margin: 0 auto; }
+        .join .wl input[type=email] { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.7); color: #fff; }
+        .join .wl input::placeholder { color: rgba(255,255,255,0.7); }
+        .join .wl button { background: #fff; color: var(--ink-strong); }
+        .join .wl-done { color: #fff; }
+
+        @media (max-width: 900px) {
+            .lead, .post { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+            .steps { grid-template-columns: minmax(0, 1fr); }
+            .strip { grid-auto-columns: minmax(260px, 80%); padding: 0 1rem 1rem; scroll-padding-inline: 1rem; }
+        }
+        @media (max-width: 760px) {
+            section.band { padding: 4rem 0; }
+            .hero .clock { display: none; }
+            .lead p { font-size: 1.05rem; }
+            .join { padding: 5rem 0; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="banner" id="nav">
+        <div class="container">
+            <div class="nav-title">OpenWorld<small>Large Symbolic World</small></div>
+            <div class="nav-links">
+                <a href="#world" class="hide-sm">World</a>
+                <a href="#how">How it learns</a>
+                <a href="#journal" class="hide-sm">Journal</a>
+                <a href="#join" class="cta">Waitlist</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="bg" style="background-image:url(img/village-day.webp)"></div>
+        <div class="bg night" style="background-image:url(img/village-night.webp)"></div>
+        <div class="hero-inner">
+            <p class="label">Label</p>
+            <h1>OpenWorld</h1>
+            <p class="sub">What the world has never seen, it learns — and remembers.</p>
+            <form class="wl" action="https://buttondown.com/api/emails/embed-subscribe/openworld" method="post">
+                <div class="wl-row">
+                    <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
+                    <button type="submit">Join the waitlist</button>
+                </div>
+                <div class="wl-roles"><span class="q">I'm here to</span>
+                    <input type="checkbox" id="r1" name="tag" value="player"><label for="r1">play</label>
+                    <input type="checkbox" id="r2" name="tag" value="research"><label for="r2">read the research</label>
+                    <input type="checkbox" id="r3" name="tag" value="maker"><label for="r3">make a world</label>
+                </div>
+                <p class="wl-done">Thanks — check your inbox to confirm.</p>
+            </form>
+        </div>
+        <div class="clock">Firstlight Village</div>
+        <div class="scroll-bar light" onclick="document.getElementById('world').scrollIntoView();"></div>
+    </section>
+
+    <section class="band" id="world">
+        <div class="container lead">
+            <div>
+                <p class="label">Label</p>
+                <h2><span class="ph-h">Heading</span></h2>
+                <div class="ph"><i></i><i></i><i></i></div>
+                <dl class="facts">
+                    <div class="fact"><dt>Maps</dt><dd>1,024</dd></div>
+                    <div class="fact"><dt>People</dt><dd>1,654</dd></div>
+                    <div class="fact"><dt>Kinds of things</dt><dd>2,029</dd></div>
+                </dl>
+            </div>
+            <figure>
+                <img src="img/village-hud.webp" alt="Sister Ilse welcomes a traveller to Firstlight" loading="lazy">
+                <figcaption><div class="ph"><i></i></div></figcaption>
+            </figure>
+        </div>
+    </section>
+
+    <section class="band alt">
+        <div class="container strip-head">
+            <div><p class="label">Label</p><h2 style="margin:0"><span class="ph-h">Heading</span></h2></div>
+            <div class="ph"><i></i><i></i><i></i></div>
+        </div>
+        <div class="strip">
+            <div class="scene"><div class="flip-container"><div class="flip-inner">
+                <div class="flip-front ratio"><img src="img/ford.webp" alt="The Ford" loading="lazy"></div>
+                <div class="flip-back"><div class="code" data-code="coat"></div></div></div></div>
+                <h3>The Ford</h3><div class="ph"><i></i><i></i><i></i></div></div>
+            <div class="scene"><div class="flip-container"><div class="flip-inner">
+                <div class="flip-front ratio"><img src="img/forest.webp" alt="The forest" loading="lazy"></div>
+                <div class="flip-back"><div class="code" data-code="fire"></div></div></div></div>
+                <h3>The Forest</h3><div class="ph"><i></i><i></i><i></i></div></div>
+            <div class="scene"><div class="flip-container"><div class="flip-inner">
+                <div class="flip-front ratio"><img src="img/haven.webp" alt="The Held Ground" loading="lazy"></div>
+                <div class="flip-back"><div class="code" data-code="scene"></div></div></div></div>
+                <h3>The Held Ground</h3><div class="ph"><i></i><i></i><i></i></div></div>
+            <div class="scene"><div class="flip-container"><div class="flip-inner">
+                <div class="flip-front ratio"><img src="img/emberfall.webp" alt="Emberfall" loading="lazy"></div>
+                <div class="flip-back"><div class="code" data-code="person"></div></div></div></div>
+                <h3>Emberfall</h3><div class="ph"><i></i><i></i><i></i></div></div>
+            <div class="scene"><div class="flip-container"><div class="flip-inner">
+                <div class="flip-front ratio"><img src="img/boss.webp" alt="The White Knight" loading="lazy"></div>
+                <div class="flip-back"><div class="code" data-code="boss"></div></div></div></div>
+                <h3>The White Knight</h3><div class="ph"><i></i><i></i><i></i></div></div>
+            <div class="scene"><div class="flip-container"><div class="flip-inner">
+                <div class="flip-front ratio"><img src="img/overworld-ford.webp" alt="The overworld" loading="lazy"></div>
+                <div class="flip-back"><div class="code" data-code="continent"></div></div></div></div>
+                <h3>The Lands of the Five Seals</h3><div class="ph"><i></i><i></i><i></i></div></div>
+        </div>
+    </section>
+
+    <section class="band" id="how">
+        <div class="container">
+            <p class="label">Label</p>
+            <h2><span class="ph-h">Heading</span></h2>
+            <div style="max-width:60ch"><div class="ph"><i></i><i></i></div></div>
+            <div class="steps">
+                <div class="step"><div class="n">1</div><h3><span class="ph-h">Heading</span></h3><div class="ph"><i></i><i></i><i></i></div><div class="code" data-code="coat"></div></div>
+                <div class="step"><div class="n">2</div><h3><span class="ph-h">Heading</span></h3><div class="ph"><i></i><i></i><i></i></div><div class="code" data-code="learned"></div></div>
+                <div class="step"><div class="n">3</div><h3><span class="ph-h">Heading</span></h3><div class="ph"><i></i><i></i><i></i></div><div class="code" data-code="quality"></div></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="band alt" id="journal">
+        <div class="container">
+            <p class="label" style="margin-bottom:1.25rem">Label</p>
+            <div class="post">
+                <img src="img/opening.webp" alt="" loading="lazy">
+                <div>
+                    <div class="ph"><i></i></div>
+                    <h3><span class="ph-h">Heading</span></h3>
+                    <div class="ph"><i></i><i></i><i></i></div>
+                    <div class="arrow-links"><a href="post.html">Read</a><a href="post.html">中文</a></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="join" id="join">
+        <div class="bg"></div>
+        <div class="container">
+            <h2><span class="ph-h">Heading</span></h2>
+            <div class="ph"><i></i><i></i><i></i></div>
+            <form class="wl" action="https://buttondown.com/api/emails/embed-subscribe/openworld" method="post">
+                <div class="wl-row">
+                    <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
+                    <button type="submit">Join the waitlist</button>
+                </div>
+                <p class="wl-done">Thanks — check your inbox to confirm.</p>
+            </form>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <span>Designed by <a href="https://sihanxu.me/">Si.X</a> · Art: Ninja Adventure (CC0) and our own</span>
+            <span>OpenWorld &copy; 2026</span>
+        </div>
+    </footer>
+    <script src="snippets.js"></script>
+    <script src="base.js"></script>
+    <script>
+        const nav = document.getElementById('nav')
+        const solid = () => nav.classList.toggle('solid', window.scrollY > window.innerHeight * 0.75)
+        window.addEventListener('scroll', solid, { passive: true }); solid()
+    </script>
+</body>
+</html>

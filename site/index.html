@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenWorld</title>
+    <meta name="description" content="OpenWorld: a world whose rules are code. What the world has never seen, it learns and remembers.">
+    <meta property="og:title" content="OpenWorld">
+    <meta property="og:description" content="A world whose rules are code. What the world has never seen, it learns and remembers.">
+    <meta property="og:image" content="media/hero.jpg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@600&display=block" rel="stylesheet">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="base.css">
+    <link rel="stylesheet" href="page.css">
+</head>
+<body>
+    <nav class="banner" id="nav">
+        <div class="container">
+            <div class="nav-title"><span class="logo">OpenWorld</span><small>Large Symbolic World</small></div>
+            <div class="nav-links" data-spy>
+                <a href="#world" class="hide-sm">World</a>
+                <a href="#web" class="hide-sm">Connections</a>
+                <a href="#how">How it works</a>
+                <a href="#news" class="hide-sm">News</a>
+                <a href="#join" class="cta">Waitlist</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- the trailer's village, forest and night behind the head, silent -->
+    <section class="hero on-dark" id="top">
+        <video class="backdrop" data-auto muted loop playsinline preload="auto" poster="media/hero.jpg"><source src="media/hero.mp4" type="video/mp4"></video>
+        <div class="hero-inner">
+            <h1 class="logo">OpenWorld</h1>
+            <p class="sub">What the world has never seen, it learns and remembers.</p>
+            <div class="hero-actions">
+                <a class="btn primary" href="http://35.239.4.44:5175/">Play the demo</a>
+                <a class="btn" href="#join">Join the waitlist</a>
+            </div>
+        </div>
+        <div class="scroll-bar light" onclick="document.getElementById('world').scrollIntoView();"></div>
+    </section>
+
+    <!-- 3 · the scale: maps, people, items, scenes -->
+    <section class="band" id="world">
+        <div class="container">
+            <div class="intro">
+                <div>
+                    <p class="label">The world</p>
+                    <h2>A thousand maps, all of them code</h2>
+                </div>
+                <div class="text"><p>Every map, person and thing in OpenWorld is data the engine reads: a type, tags, statuses, a place. Nothing on screen is painted on, so a rule written for one bucket of water holds for every bucket in the world — and the world can be as large as its content allows.</p></div>
+            </div>
+            <div class="stage"><iframe data-src="scale/index.html?embed" title="The world, in numbers" loading="lazy"></iframe></div>
+            <dl class="facts wide">
+                <div class="fact"><dt>Maps</dt><dd class="big">1,024</dd></div>
+                <div class="fact"><dt>People</dt><dd class="big">1,654</dd></div>
+                <div class="fact"><dt>Items</dt><dd class="big">40,562</dd></div>
+                <div class="fact"><dt>Kinds of thing</dt><dd class="big">1,399</dd></div>
+            </dl>
+        </div>
+    </section>
+
+    <!-- 2 · the butterfly effect: one event, then the star map of everything it touches -->
+    <section class="band night" id="web">
+        <div class="container">
+            <div class="intro">
+                <div>
+                    <p class="label">Butterfly effect</p>
+                    <h2>Nothing happens on its own</h2>
+                </div>
+                <div class="text"><p>Lightning sets a dead tree alight. Rain puts out a campfire. A theft in the storm puts up a bounty. Every event reaches the people, places and things around it, and each of those reaches more. Here is one stormy day at the Ford, and everything it touches.</p></div>
+            </div>
+            <div class="stage"><iframe data-src="starmap/index.html?embed" title="Butterfly effect" loading="lazy"></iframe></div>
+        </div>
+    </section>
+
+    <!-- 4 · how it works: a rule answers; no rule yet, the model asked once; learned once, for everyone -->
+    <section class="band alt" id="how">
+        <div class="container">
+            <div class="intro">
+                <div>
+                    <p class="label">How it works</p>
+                    <h2>Code runs the world. A model writes the code it lacks.</h2>
+                </div>
+                <div class="text"><p>Every change in OpenWorld is the outcome of an event, decided by rules that belong to the thing it happens to. Where those rules leave an outcome open, and only there, the world asks a language model. The answer comes back as a rule: checked, replayed in a sandbox, tested by an adversary, then kept for everyone.</p></div>
+            </div>
+            <div class="stage light" id="explain"><iframe data-src="explain/index.html?embed" title="How it works" loading="lazy"></iframe></div>
+            <div class="steps">
+                <button class="step" type="button" data-at="0.6"><div class="n">1</div><h3>A rule answers</h3><p>Rain falls on a lit campfire, and the campfire's own rules decide: it goes out, in steam. No model is asked. This is ordinary code, the same every time, for every player.</p><div class="code" data-code="fire"></div></button>
+                <button class="step" type="button" data-at="8.8"><div class="n">2</div><h3>No rule yet: the model is asked, once</h3><p>A ferrykeeper is stuck by her drowned fire, and no rule says what she does. The world holds her, and only her, and asks. In about ten seconds, for about five cents, a rule comes back for her kind, at that open leaf.</p><div class="code" data-code="coat"></div></button>
+                <button class="step" type="button" data-at="23"><div class="n">3</div><h3>Learned once, for everyone</h3><p>The rule joins a library every player shares. The next to meet the same situation, in anyone's world, runs it as plain code. Model calls grow with new situations — not with frames, players or the size of the world.</p><div class="code" data-code="learned"></div></button>
+            </div>
+        </div>
+    </section>
+
+    <section class="band" id="news">
+        <div class="container">
+            <p class="label" style="margin-bottom:1.25rem">News</p>
+            <div class="post">
+                <a class="cover" href="news/launch/"><video class="backdrop" data-auto muted loop playsinline preload="metadata" poster="media/hero.jpg"><source src="media/hero.mp4#t=4" type="video/mp4"></video></a>
+                <div>
+                    <p class="meta">Post 01 · October 2026</p>
+                    <h3>A world that learns what it has never seen</h3>
+                    <p>Why we build a role-playing world entirely out of code, where a language model fits in, and why it scales to a thousand maps in a browser tab.</p>
+                    <div class="arrow-links"><a href="news/launch/">Read</a><a href="news/launch/zh.html">中文</a></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="join on-dark" id="join">
+        <video class="backdrop" data-auto muted loop playsinline preload="metadata" poster="media/hero.jpg"><source src="media/hero.mp4#t=6.8" type="video/mp4"></video>
+        <div class="container">
+            <h2>Be there when it opens</h2>
+            <p>A post every two weeks, early builds as they come, and the paper when it is out.</p>
+            <form class="wl" method="post" data-endpoint="">
+                <div class="wl-row">
+                    <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
+                    <button type="submit">Join the waitlist</button>
+                </div>
+                <div class="wl-roles"><span class="q">I'm here to</span>
+                    <input type="checkbox" id="j1" name="tag" value="player"><label for="j1">play</label>
+                    <input type="checkbox" id="j2" name="tag" value="research"><label for="j2">read the research</label>
+                    <input type="checkbox" id="j3" name="tag" value="maker"><label for="j3">make a world</label>
+                </div>
+                <p class="wl-done">Thanks — check your inbox to confirm.</p>
+            </form>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <span>Designed by <a href="https://sihanxu.me/">Si.X</a> · Art: Ninja Adventure (CC0) and our own · Music: Ninja Adventure (CC0)</span>
+            <span>OpenWorld &copy; 2026</span>
+        </div>
+    </footer>
+
+
+    <script src="snippets.js"></script>
+    <script src="page.js"></script>
+</body>
+</html>

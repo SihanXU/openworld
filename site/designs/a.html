@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenWorld</title>
+    <meta name="description" content="OpenWorld: a world whose rules are code. What the world has never seen, it learns — and remembers.">
+    <link rel="stylesheet" href="base.css">
+    <style>
+        /* A · Editorial: the homepage's own layout, the game in the photo's place */
+        .hero { min-height: 100vh; background: var(--bg-alt); display: flex; align-items: center; position: relative; padding: calc(var(--nav-h) + 3rem) 0 7rem; }
+        .hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 520px); grid-template-areas: "name shot" "info shot"; column-gap: 4rem; }
+        .hero-name { grid-area: name; align-self: end; }
+        .hero-info { grid-area: info; align-self: start; margin-top: 2.25rem; }
+        .hero-shot { grid-area: shot; align-self: center; }
+        .name-row { display: flex; align-items: flex-end; gap: 0.14em; font-size: clamp(3.4rem, 6.6vw, 6rem); }
+        .display { font-size: 1em; line-height: 0.9; font-weight: 800; letter-spacing: -0.05em; color: var(--ink-strong); }
+        .display span { color: var(--accent); }
+        .alias { font-family: var(--serif-zh); writing-mode: vertical-rl; font-size: 0.17em; line-height: 1; letter-spacing: 0.12em; font-weight: 600; color: var(--ink); }
+        .subname { font-size: 1.4rem; color: var(--muted); margin-top: 0.9rem; font-weight: 400; max-width: 30ch; line-height: 1.4; }
+        .hero-info .wl { margin-top: 2rem; }
+        .hero-info .arrow-links { margin-top: 1.75rem; }
+        .hero-shot .flip-front, .hero-shot .flip-back { box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 18px 40px rgba(0,0,0,.08); }
+        .shot-cap { margin-top: 0.75rem; font-size: 0.85rem; color: var(--faint); }
+
+        .content { display: flex; align-items: flex-start; max-width: 1200px; margin: 0 auto; padding: 5rem 2rem 2rem; }
+        .context-bar { position: sticky; top: calc(var(--nav-h) + 2.5rem); width: 230px; flex-shrink: 0; padding-right: 2.5rem; }
+        .context-bar .label { margin-bottom: 0.75rem; }
+        .context-bar ol { list-style: none; border-left: 1px solid var(--line); }
+        .context-bar a { display: flex; gap: 0.75rem; align-items: baseline; padding: 0.45rem 0 0.45rem 1rem; margin-left: -1px; border-left: 2px solid transparent; color: var(--muted); transition: color 0.2s ease, border-color 0.2s ease; }
+        .context-bar .n { font-size: 0.8rem; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; }
+        .context-bar a:hover { color: var(--ink-strong); }
+        .context-bar a.active { color: var(--ink-strong); font-weight: 600; border-left-color: var(--accent); }
+        .context-bar a.active .n { color: var(--accent); }
+
+        .content-section { flex: 1; min-width: 0; }
+        .head, .entry { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr) 340px; gap: 0 2rem; }
+        .head { margin-bottom: 1.5rem; }
+        .head h2 { grid-column: 2 / -1; font-size: 2.25rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.2; margin-bottom: 0.5rem; }
+        .head p, .head .ph { grid-column: 2 / -1; color: var(--muted); font-size: 0.95rem; }
+        .entry { padding: 2.25rem 0; border-top: 1px solid var(--line); align-items: start; }
+        .entry:last-child { border-bottom: 1px solid var(--line); }
+        .num { font-size: 0.95rem; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; padding-top: 0.35rem; transition: color 0.2s ease; }
+        .entry h3 { font-size: 1.45rem; line-height: 1.3; font-weight: 600; letter-spacing: -0.01em; color: var(--ink-strong); margin-bottom: 0.6rem; transition: color 0.2s ease; }
+        .entry:hover h3, .entry:hover .num { color: var(--accent); }
+        .entry p { color: var(--ink); margin-bottom: 0.9rem; }
+        .entry .meta { color: var(--muted); font-size: 0.95rem; margin-bottom: 0.6rem; }
+        .entry .arrow-links { gap: 0.35rem 1.25rem; font-size: 0.95rem; }
+        .entry .flip-back { padding: 1rem 1.1rem; }
+        .entry .code { font-size: 0.68rem; }
+        .group + .group { margin-top: 5rem; }
+
+        .join { background: var(--bg-alt); padding: 6rem 0; margin-top: 4rem; }
+        .join .container { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 520px); gap: 4rem; align-items: center; }
+        .join h2 { font-size: clamp(2.2rem, 5vw, 3.5rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.04em; color: var(--ink-strong); }
+        .join p { color: var(--muted); margin-top: 0.75rem; font-size: 1.1rem; }
+
+        @media (max-width: 1100px) { .context-bar { display: none; } }
+        @media (max-width: 1000px) { .hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 380px); column-gap: 2.5rem; } .head, .entry { grid-template-columns: 3rem minmax(0, 1fr) 260px; } }
+        @media (max-width: 760px) {
+            .hero { min-height: 100svh; align-items: flex-start; padding: calc(var(--nav-h) + 1.25rem) 0 4.5rem; }
+            .hero-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "shot" "name" "info"; }
+            .hero-name { margin-top: 1.75rem; }
+            .name-row { font-size: clamp(2.8rem, 14.5vw, 6rem); }
+            .subname { font-size: 1.15rem; }
+            .scroll-bar { display: none; }
+            .content { padding: 3rem 1rem 1rem; }
+            .head, .entry { grid-template-columns: minmax(0, 1fr); gap: 0; }
+            .head h2, .head p, .head .ph { grid-column: 1; }
+            .num { padding: 0 0 0.25rem; }
+            .entry .thumb { margin-top: 1rem; }
+            .entry h3 { font-size: 1.25rem; }
+            .join { padding: 4rem 0; }
+            .join .container { grid-template-columns: minmax(0, 1fr); gap: 1.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="banner">
+        <div class="container">
+            <div class="nav-title">OpenWorld<small>Large Symbolic World</small></div>
+            <div class="nav-links" data-spy>
+                <a href="#top" class="hide-sm">About</a>
+                <a href="#world">World</a>
+                <a href="#journal">Journal</a>
+                <a href="#join" class="cta">Waitlist</a>
+            </div>
+        </div>
+    </nav>
+
+    <section id="top" class="hero">
+        <div class="container hero-grid">
+            <div class="hero-name">
+                <div class="name-row">
+                    <h1 class="display">Open<span>.</span>World</h1>
+                    <span class="alias" lang="zh-CN">规则即代码</span>
+                </div>
+                <p class="subname">A world whose rules are code. What it has never seen, it learns — and remembers.</p>
+            </div>
+            <div class="hero-info">
+                <dl class="facts">
+                    <div class="fact"><dt>Maps</dt><dd>1,024</dd></div>
+                    <div class="fact"><dt>People</dt><dd>1,654</dd></div>
+                    <div class="fact"><dt>Kinds of things</dt><dd>2,029</dd></div>
+                </dl>
+                <form class="wl" action="https://buttondown.com/api/emails/embed-subscribe/openworld" method="post">
+                    <div class="wl-row">
+                        <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
+                        <button type="submit">Join the waitlist</button>
+                    </div>
+                    <div class="wl-roles"><span class="q">I'm here to</span>
+                        <input type="checkbox" id="r1" name="tag" value="player"><label for="r1">play</label>
+                        <input type="checkbox" id="r2" name="tag" value="research"><label for="r2">read the research</label>
+                        <input type="checkbox" id="r3" name="tag" value="maker"><label for="r3">make a world</label>
+                    </div>
+                    <p class="wl-done">Thanks — check your inbox to confirm.</p>
+                </form>
+                <div class="arrow-links">
+                    <a href="post.html">Read the first post</a>
+                    <a href="https://x.com/SihanXuOfficial">Twitter</a>
+                    <span class="soon">Paper · soon</span>
+                </div>
+            </div>
+            <div class="hero-shot">
+                <div class="flip-container">
+                    <div class="flip-inner">
+                        <div class="flip-front ratio"><img src="img/village-day.webp" alt="Firstlight Village at noon"><span class="flip-hint">Hover · the code</span></div>
+                        <div class="flip-back"><div class="code" data-code="scene"></div></div>
+                    </div>
+                </div>
+                <div class="ph"><i></i></div>
+            </div>
+        </div>
+        <div class="scroll-bar" onclick="document.getElementById('world').scrollIntoView();"></div>
+    </section>
+
+    <main class="content">
+        <aside class="context-bar">
+            <p class="label">Label</p>
+            <ol data-spy>
+                <li><a href="#code"><span class="n">01</span>Section</a></li>
+                <li><a href="#learns"><span class="n">02</span>Section</a></li>
+                <li><a href="#whole"><span class="n">03</span>Section</a></li>
+                <li><a href="#continent"><span class="n">04</span>Section</a></li>
+                <li><a href="#people"><span class="n">05</span>Section</a></li>
+                <li><a href="#foes"><span class="n">06</span>Section</a></li>
+                <li><a href="#journal"><span class="n">J</span>Section</a></li>
+            </ol>
+        </aside>
+
+        <div class="content-section">
+            <div class="group" id="world">
+                <div class="head">
+                    <h2><span class="ph-h">Heading</span></h2>
+                    <div class="ph"><i></i><i></i><i></i></div>
+                </div>
+
+                <article class="entry" id="code">
+                    <div class="num">01</div>
+                    <div>
+                        <h3><span class="ph-h">Heading</span></h3>
+                        <div class="ph"><i></i><i></i><i></i></div>
+                    </div>
+                    <div class="thumb"><div class="flip-container"><div class="flip-inner">
+                        <div class="flip-front ratio"><img src="img/village-hud.webp" alt="The village with the game's interface" loading="lazy"></div>
+                        <div class="flip-back"><div class="code" data-code="fire"></div></div>
+                    </div></div></div>
+                </article>
+
+                <article class="entry" id="learns">
+                    <div class="num">02</div>
+                    <div>
+                        <h3><span class="ph-h">Heading</span></h3>
+                        <div class="ph"><i></i><i></i><i></i></div>
+                    </div>
+                    <div class="thumb"><div class="flip-container"><div class="flip-inner">
+                        <div class="flip-front ratio"><img src="img/ford.webp" alt="The Ford" loading="lazy"></div>
+                        <div class="flip-back"><div class="code" data-code="learned"></div></div>
+                    </div></div></div>
+                </article>
+
+                <article class="entry" id="whole">
+                    <div class="num">03</div>
+                    <div>
+                        <h3><span class="ph-h">Heading</span></h3>
+                        <div class="ph"><i></i><i></i><i></i></div>
+                    </div>
+                    <div class="thumb"><div class="flip-container"><div class="flip-inner">
+                        <div class="flip-front ratio"><img src="img/village-night.webp" alt="The village at night" loading="lazy"></div>
+                        <div class="flip-back"><div class="code" data-code="quality"></div></div>
+                    </div></div></div>
+                </article>
+
+                <article class="entry" id="continent">
+                    <div class="num">04</div>
+                    <div>
+                        <h3><span class="ph-h">Heading</span></h3>
+                        <div class="ph"><i></i><i></i><i></i></div>
+                    </div>
+                    <div class="thumb"><div class="flip-container"><div class="flip-inner">
+                        <div class="flip-front ratio"><img src="img/overworld-ford.webp" alt="The overworld by the Ford" loading="lazy"></div>
+                        <div class="flip-back"><div class="code" data-code="continent"></div></div>
+                    </div></div></div>
+                </article>
+
+                <article class="entry" id="people">
+                    <div class="num">05</div>
+                    <div>
+                        <h3><span class="ph-h">Heading</span></h3>
+                        <div class="ph"><i></i><i></i><i></i></div>
+                    </div>
+                    <div class="thumb"><div class="flip-container"><div class="flip-inner">
+                        <div class="flip-front ratio" style="background:#efe3c8"><img src="img/dialogue.webp" alt="Sister Ilse speaks" loading="lazy" style="object-fit:contain"></div>
+                        <div class="flip-back"><div class="code" data-code="person"></div></div>
+                    </div></div></div>
+                </article>
+
+                <article class="entry" id="foes">
+                    <div class="num">06</div>
+                    <div>
+                        <h3><span class="ph-h">Heading</span></h3>
+                        <div class="ph"><i></i><i></i><i></i></div>
+                    </div>
+                    <div class="thumb"><div class="flip-container"><div class="flip-inner">
+                        <div class="flip-front ratio"><img src="img/boss.webp" alt="The White Knight" loading="lazy"></div>
+                        <div class="flip-back"><div class="code" data-code="boss"></div></div>
+                    </div></div></div>
+                </article>
+            </div>
+
+            <div class="group" id="journal">
+                <div class="head">
+                    <h2><span class="ph-h">Heading</span></h2>
+                    <div class="ph"><i></i><i></i><i></i></div>
+                </div>
+                <article class="entry">
+                    <div class="num">01</div>
+                    <div>
+                        <h3><span class="ph-h">Heading</span></h3>
+                        <div class="ph"><i></i></div>
+                        <div class="ph"><i></i><i></i><i></i></div>
+                        <div class="arrow-links"><a href="post.html">Read</a><a href="post.html">中文</a></div>
+                    </div>
+                    <div class="thumb"><img src="img/opening.webp" alt="" loading="lazy" style="border-radius:var(--radius);aspect-ratio:16/10;object-fit:cover"></div>
+                </article>
+            </div>
+        </div>
+    </main>
+
+    <section class="join" id="join">
+        <div class="container">
+            <div>
+                <h2><span class="ph-h">Heading</span></h2>
+                <div class="ph"><i></i><i></i><i></i></div>
+            </div>
+            <form class="wl" action="https://buttondown.com/api/emails/embed-subscribe/openworld" method="post">
+                <div class="wl-row">
+                    <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
+                    <button type="submit">Join the waitlist</button>
+                </div>
+                <div class="wl-roles"><span class="q">I'm here to</span>
+                    <input type="checkbox" id="j1" name="tag" value="player"><label for="j1">play</label>
+                    <input type="checkbox" id="j2" name="tag" value="research"><label for="j2">read the research</label>
+                    <input type="checkbox" id="j3" name="tag" value="maker"><label for="j3">make a world</label>
+                </div>
+                <p class="wl-done">Thanks — check your inbox to confirm.</p>
+            </form>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <span>Designed by <a href="https://sihanxu.me/">Si.X</a> · Art: Ninja Adventure (CC0) and our own</span>
+            <span>OpenWorld &copy; 2026</span>
+        </div>
+    </footer>
+    <script src="snippets.js"></script>
+    <script src="base.js"></script>
+</body>
+</html>
