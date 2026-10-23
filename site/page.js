@@ -4,14 +4,14 @@ const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 // ------------------------------------------------------------------ English or Chinese
 // The words are written in English with their Chinese beside them (data-zh, data-zh-title, data-href-zh). The language
-// is the one asked (?lang=), else the one chosen here before, else the browser's.
+// is the one asked (?lang=), else the one chosen here before, else English.
 const META = {
     en: { title: 'OpenWorld', description: 'OpenWorld: a world whose rules are code. What the world has never seen, it learns and remembers.' },
     zh: { title: 'OpenWorld · 一个规则即代码的世界', description: 'OpenWorld：一个规则即代码的世界。这个世界从没见过的事，它会学会，并且记住。' },
 }
 const stored = (() => { try { return localStorage.getItem('openworld.lang') } catch { return null } })()
 const asked = new URLSearchParams(location.search).get('lang')
-let lang = ['en', 'zh'].includes(asked) ? asked : ['en', 'zh'].includes(stored) ? stored : (navigator.language || '').toLowerCase().startsWith('zh') ? 'zh' : 'en'
+let lang = ['en', 'zh'].includes(asked) ? asked : ['en', 'zh'].includes(stored) ? stored : 'en'
 /** A piece's address in the page's language. */
 const inLang = (src) => `${src}${src.includes('?') ? '&' : '?'}lang=${lang}`
 function setLang(to, chosen = false) {
