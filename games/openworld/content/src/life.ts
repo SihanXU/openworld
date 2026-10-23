@@ -12,6 +12,7 @@
 
 import type { Cond, Effect, Recipe, Rule, SkillDef, Text, Tree } from '@openworld/engine'
 import { FORM_BY_ID, MATERIALS } from './items.ts'
+import { unlockedBy } from './haven.ts'
 import { waterCrop } from './farming.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
@@ -60,10 +61,12 @@ const forge = (type: string, n: [string, number][], level: number, skill?: strin
   metals.map((metal) => ({
     id: `smith/${type.split('/').pop()}-${metal}`, name: L(`${MATERIALS[metal].en} ${FORM_BY_ID[type]?.en ?? type}`, `${MATERIALS[metal].zh}${FORM_BY_ID[type]?.zh ?? type}`), sprite: sprite(type),
     needs: needs(...n.map(([t, c]): [string, number] => [t === INGOT ? INGOTS[metal] : t, c])), make: { type }, station: 'anvil', tools: ['tool:hammer'], level, ...(skill && { skill }),
+    // what a skill teaches is forged once the Held Ground's smithy has its bellows (haven.ts smithy1); the plain pieces anywhere an anvil is
+    ...(skill && { unlockedBy: unlockedBy('smithy1') }),
   }))
-/** Leather worked at a workbench (Leatherworker). */
+/** Leather sewn by a Leatherworker (made anywhere once the Held Ground's weaving shed stands: haven.ts `recipes`). */
 const leather = (type: string, count: number): Recipe => ({
-  id: `leather/${type.split('/').pop()}`, name: formName(type), sprite: sprite(type), needs: needs([M.leather, count]), make: { type }, station: 'workbench', skill: 'leatherworker', level: 1,
+  id: `leather/${type.split('/').pop()}`, name: formName(type), sprite: sprite(type), needs: needs([M.leather, count]), make: { type }, station: 'hands', skill: 'leatherworker', level: 1,
 })
 
 export const LIFE_RECIPES: Recipe[] = [
@@ -94,17 +97,20 @@ export const LIFE_RECIPES: Recipe[] = [
   // the smith's own stations, raised at home (Forge Builder)
   { id: 'smith/forge', name: L("Smith's Forge", '铁匠炉'), sprite: 'fixture:forge', needs: needs([M.stone, 8], [M.coal, 2]), make: { type: 'fixture/craft/forge/smith', name: L("Smith's Forge", '铁匠炉') }, station: 'hands', skill: 'forge-builder' },
   { id: 'smith/anvil', name: L("Smith's Anvil", '铁匠砧'), sprite: 'fixture:anvil', needs: needs([INGOTS.iron, 3]), make: { type: 'fixture/craft/anvil/smith', name: L("Smith's Anvil", '铁匠砧') }, station: 'forge', skill: 'forge-builder' },
-  // cloth woven at a loom from grass fibre (the village weaver's, the Held Ground's weaving shed)
-  { id: 'weave/cloth', name: formName('item/material/cloth'), sprite: sprite('item/material/cloth'), needs: needs(['item/material/grass', 4]), make: { type: 'item/material/cloth' }, station: 'loom' },
+  // cloth woven from grass fibre: anywhere, once the Held Ground's weaving shed stands (haven.ts `recipes`)
+  { id: 'weave/cloth', name: formName('item/material/cloth'), sprite: sprite('item/material/cloth'), needs: needs(['item/material/grass', 4]), make: { type: 'item/material/cloth' }, station: 'hands' },
   // leather gear (Leatherworker)
   leather('item/clothing/gloves', 1),
   leather('item/clothing/boots', 2),
   leather('item/armor/helmet', 2),
   leather('item/armor/pauldrons', 2),
   leather('item/armor/breastplate', 4),
-  // the ranch: feed from wheat (a feed-maker's hands make more of it), a bee box (Apiarist)
+  // the workshop, better tooled (haven.ts workshop2): candles of honeycomb wax (a jar of honey, a wick of grass), a lantern of iron round a torch
+  { id: 'craft/candle', name: formName('item/light/candle'), sprite: sprite('item/light/candle'), needs: needs([M.honey, 1], [M.grass, 1]), make: { type: 'item/light/candle' }, station: 'hands', count: 2 },
+  { id: 'craft/lantern', name: formName('item/light/lantern'), sprite: sprite('item/light/lantern'), needs: needs([INGOTS.iron, 1], ['item/light/torch', 1]), make: { type: 'item/light/lantern' }, station: 'hands' },
+  // the ranch: feed from wheat (a feed-maker's hands make more of it), a bee box (Apiarist; once the Held Ground's workshop is Workshop II)
   { id: 'ranch/feed', name: formName(M.feed), sprite: sprite(M.feed), needs: needs([M.wheat, 2]), make: { type: M.feed, name: formName(M.feed) }, station: 'hands', count: 3, bonus: 'feedMaking' },
-  { id: 'ranch/bee-box', name: L('Bee Box', '蜂箱'), sprite: 'fixture:beehive', needs: needs([M.plank, 4], [M.honey, 1]), make: { type: 'fixture/nature/beehive/box', name: L('Bee Box', '蜂箱') }, station: 'workbench', skill: 'apiarist' },
+  { id: 'ranch/bee-box', name: L('Bee Box', '蜂箱'), sprite: 'fixture:beehive', needs: needs([M.plank, 4], [M.honey, 1]), make: { type: 'fixture/nature/beehive/box', name: L('Bee Box', '蜂箱') }, station: 'hands', skill: 'apiarist' },
   // the farm: compost from grass and ash (Composter)
   { id: 'farm/compost', name: formName(M.fertilizer), sprite: sprite(M.fertilizer), needs: needs([M.grass, 3], [M.ash, 1]), make: { type: M.fertilizer, name: formName(M.fertilizer) }, station: 'hands', skill: 'composter' },
 ]
@@ -135,7 +141,27 @@ const MINED_OUT: Effect[] = [
   { op: 'transform', into: '@prop:spent' },
 ]
 
+/** The stations a hand opens (E): each its own panel of what is made at it, from what is carried (the runtime's `station:<x>`). */
+const STATIONS: [type: string, station: string, label: Text][] = [
+  ['fixture/craft/forge', 'forge', L('Smelt at {target}', '在{target}冶炼')],
+  ['fixture/craft/anvil', 'anvil', L('Forge at {target}', '在{target}锻造')],
+  ['fixture/craft/arcane', 'arcane', L('Work at {target}', '在{target}施法制作')],
+  ['fixture/craft/workbench', 'workbench', L('Work at {target}', '在{target}做东西')],
+  ['fixture/craft/loom', 'loom', L('Weave at {target}', '在{target}织布')],
+]
+
 export const LIFE_RULES: Rule[] = [
+  // a station opened: its panel (what the world learned to make there shows beside the game's own recipes for it)
+  ...STATIONS.map(([type, station, label]) =>
+    rule({
+      id: `station/${station}`,
+      label,
+      doc: `A hand on a ${station} (E): its panel opens — what is made at it, from what one carries, made at this one. Nothing else is needed: no standing beside it while one makes.`,
+      host: { type },
+      on: 'impulse/handle',
+      tree: DO({ op: 'panel', panel: `station:${station}` }),
+    }),
+  ),
   rule({
     id: 'mine/vein',
     doc: 'An ore vein broken spills half the ore it holds (as anything broken does); a prospector gets more of its ore (mineOre), a gem-finder now and then a gem. What is left is its spent face (`spent`: bedrock, that no tool breaks), whole again, which grows back into the vein in a day (ontology.ts VEIN_REGROWS).',
@@ -322,9 +348,9 @@ export const LIFE_SKILLS: SkillDef[] = [
   S('stockman', 'husbandry', ['breeder'], 'Stockman', '畜群', 'Feeding one animal feeds the hungry ones around it too.', '喂一只动物时，周围没吃饱的动物也一起喂饱。'),
   S('feed-maker', 'husbandry', ['stockman'], 'Feed Maker', '饲料师', 'Two wheat make five feed, not three.', '用 2 份小麦做饲料得 5 份（原来 3 份）。', { grant: { feedMaking: 0.67 } }),
   S('tanner', 'husbandry', ['butcher'], 'Tanner', '制革', 'A cow you fell leaves its hide (leather).', '宰杀牛时得到 1 张皮革。', { grant: { tanner: 1 } }),
-  S('leatherworker', 'husbandry', ['tanner'], 'Leatherworker', '皮匠', 'Make leather gloves, boots, helmets, pauldrons and breastplates at a workbench.', '学会在工作台用皮革做手套、靴子、头盔、护肩和胸甲。'),
+  S('leatherworker', 'husbandry', ['tanner'], 'Leatherworker', '皮匠', 'Make leather gloves, boots, helmets, pauldrons and breastplates (once the Held Ground\'s weaving shed stands).', '学会用皮革做手套、靴子、头盔、护肩和胸甲（需领地建好织坊）。'),
   S('plucker', 'husbandry', ['butcher'], 'Plucker', '拔毛', 'A hen you fell leaves two feathers.', '宰杀鸡时得到 2 根羽毛。', { grant: { plucker: 2 } }),
-  S('apiarist', 'husbandry', ['beekeeper'], 'Apiarist', '蜂农', 'Build a bee box (four planks and a honey) at a workbench.', '学会在工作台用 4 块木板和 1 罐蜂蜜做蜂箱。'),
+  S('apiarist', 'husbandry', ['beekeeper'], 'Apiarist', '蜂农', 'Build a bee box (four planks and a honey) once the Held Ground\'s workshop stands.', '学会用 4 块木板和 1 罐蜂蜜做蜂箱（需领地建好工坊）。'),
   S('royal-jelly', 'husbandry', ['beekeeper'], 'Royal Jelly', '蜂王浆', 'A hive gives you one more honey again.', '取蜂蜜再多得 1 罐。', { grant: { honey: 1 } }),
   S('rancher', 'husbandry', ['dairy-master', 'feed-maker'], 'Rancher', '牧场主', 'Milk, eggs, cheese, honey, leather and feathers sell for 25% more.', '牛奶、鸡蛋、奶酪、蜂蜜、皮革、羽毛在货摊多卖 25%。', { grant: { 'sell:ranch': 0.25 } }),
   S('master-rancher', 'husbandry', ['rancher', 'leatherworker'], 'Master Rancher', '牧场大师', 'Capstone: one more of everything the ranch gives you — eggs, cheese, honey, meat.', '终极：牧场的每样产出都再多 1 份——鸡蛋、奶酪、蜂蜜、肉。', { ...CAP, grant: { feedEggs: 1, cheese: 1, honey: 1, butcher: 1 }, ability: true }),

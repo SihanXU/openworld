@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenWorld</title>
+    <meta name="description" content="OpenWorld: a world whose rules are code. What the world has never seen, it learns — and remembers.">
+    <link rel="stylesheet" href="base.css">
+    <style>
+        /* D · The journal first: a short masthead, the first post as the cover story, the world as a wall of pictures */
+        .mast { padding: calc(var(--nav-h) + 4rem) 0 3rem; border-bottom: 1px solid var(--line); }
+        .mast .container { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 4rem; align-items: end; }
+        .mast h1 { font-size: clamp(3rem, 7.5vw, 6rem); line-height: 0.95; font-weight: 800; letter-spacing: -0.05em; color: var(--ink-strong); }
+        .mast h1 span { color: var(--accent); }
+        .mast .sub { font-size: 1.3rem; color: var(--muted); margin-top: 1rem; max-width: 34ch; line-height: 1.45; }
+        .card { background: #fff; border-radius: var(--radius); padding: 1.5rem; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 18px rgba(0,0,0,.06); border: 1px solid var(--line); }
+        .card h2 { font-size: 1.2rem; color: var(--ink-strong); margin-bottom: 0.25rem; }
+        .card > p { color: var(--muted); font-size: 0.95rem; margin-bottom: 1rem; }
+
+        .cover { padding: 3.5rem 0 1rem; }
+        .cover a.story { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 3rem; align-items: center; color: inherit; }
+        .cover .pic { position: relative; border-radius: var(--radius); overflow: hidden; aspect-ratio: 16 / 9; }
+        .cover .pic img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; transition: transform 0.6s ease; }
+        .cover a.story:hover .pic img { transform: scale(1.03); }
+        .cover .pic .badge { position: absolute; left: 1rem; top: 1rem; background: var(--accent); color: #fff; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; padding: 0.2rem 0.7rem; border-radius: 999px; }
+        .cover .meta { color: var(--faint); font-size: 0.9rem; margin-bottom: 0.6rem; }
+        .cover h2 { font-size: clamp(1.9rem, 3.6vw, 2.8rem); line-height: 1.12; letter-spacing: -0.03em; color: var(--ink-strong); margin-bottom: 0.9rem; transition: color 0.2s ease; }
+        .cover a.story:hover h2 { color: var(--accent); }
+        .cover .dek { font-size: 1.1rem; color: var(--ink); margin-bottom: 1.25rem; }
+        .cover ol { list-style: none; counter-reset: s; border-left: 1px solid var(--line); margin-bottom: 1.25rem; }
+        .cover ol li { counter-increment: s; padding: 0.2rem 0 0.2rem 1rem; color: var(--muted); font-size: 0.95rem; }
+        .cover ol li::before { content: counter(s, decimal-leading-zero); color: var(--faint); font-weight: 600; font-size: 0.8rem; margin-right: 0.75rem; font-variant-numeric: tabular-nums; }
+        .cover .read { font-weight: 600; color: var(--accent); }
+
+        .wall { padding: 4.5rem 0; }
+        .wall-head { display: flex; justify-content: space-between; align-items: end; gap: 1rem; margin-bottom: 1.5rem; }
+        .wall-head h2 { font-size: 2.25rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.2; }
+        .wall-head p { color: var(--muted); }
+        .bento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 180px; gap: 1rem; }
+        .tile { position: relative; border-radius: var(--radius); overflow: hidden; background: var(--bg-alt); }
+        .tile .flip-container, .tile .flip-inner, .tile .flip-front { height: 100%; }
+        .tile .flip-back { padding: 1rem 1.2rem; }
+        .tile .code { font-size: 0.68rem; }
+        .tile img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+        .tile .cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 2rem 1rem 0.75rem; color: #fff; font-size: 0.9rem; font-weight: 500; background: linear-gradient(transparent, rgba(0,0,0,0.55)); pointer-events: none; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+        .t1 { grid-column: span 2; grid-row: span 2; }
+        .t2 { grid-column: span 2; }
+        .t5 { grid-row: span 2; }
+        .t6 { grid-column: span 2; }
+        .t5 img { object-position: 30% 50%; }
+        .t1 img { object-position: 62% 50%; }
+
+        .next { background: var(--bg-alt); padding: 4.5rem 0; }
+        .next .container { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 2.5rem; }
+        .next h2 { font-size: 1.6rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.2; }
+        .next .side p { color: var(--muted); margin-top: 0.5rem; font-size: 0.95rem; }
+        .row { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr) auto; gap: 0 1.5rem; padding: 1.1rem 0; border-top: 1px solid var(--line); align-items: baseline; }
+        .row:last-child { border-bottom: 1px solid var(--line); }
+        .row .num { font-size: 0.95rem; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; }
+        .row h3 { font-size: 1.15rem; font-weight: 600; color: var(--ink-strong); }
+        .row p { color: var(--muted); font-size: 0.95rem; }
+        .row .when { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); white-space: nowrap; }
+        .row.out .when { color: var(--accent); }
+        .row.out .num { color: var(--accent); }
+
+        @media (max-width: 1000px) { .mast .container, .cover a.story { grid-template-columns: minmax(0, 1fr); gap: 2rem; } .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 160px; } .t1 { grid-column: span 2; } .t5 { grid-row: span 1; } }
+        @media (max-width: 760px) {
+            .mast { padding: calc(var(--nav-h) + 2rem) 0 2rem; }
+            .mast .sub { font-size: 1.1rem; }
+            .wall { padding: 3rem 0; }
+            .wall-head { display: block; }
+            .bento { grid-auto-rows: 130px; gap: 0.6rem; }
+            .next .container { grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+            .row { grid-template-columns: 2.5rem minmax(0, 1fr); }
+            .row .when { grid-column: 2; margin-top: 0.25rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="banner">
+        <div class="container">
+            <div class="nav-title">OpenWorld<small>Journal</small></div>
+            <div class="nav-links">
+                <a href="#post">Latest</a>
+                <a href="#world" class="hide-sm">World</a>
+                <a href="#join" class="cta">Waitlist</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="mast" id="join">
+        <div class="container">
+            <div>
+                <p class="label">Label</p>
+                <h1>A world whose rules are code<span>.</span></h1>
+                <div class="ph"><i></i><i></i></div>
+            </div>
+            <div class="card">
+                <h2>Join the waitlist</h2>
+                <div class="ph"><i></i><i></i><i></i></div>
+                <form class="wl" action="https://buttondown.com/api/emails/embed-subscribe/openworld" method="post">
+                    <div class="wl-row">
+                        <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
+                        <button type="submit">Join</button>
+                    </div>
+                    <div class="wl-roles"><span class="q">I'm here to</span>
+                        <input type="checkbox" id="r1" name="tag" value="player"><label for="r1">play</label>
+                        <input type="checkbox" id="r2" name="tag" value="research"><label for="r2">research</label>
+                        <input type="checkbox" id="r3" name="tag" value="maker"><label for="r3">make a world</label>
+                    </div>
+                    <p class="wl-done">Thanks — check your inbox to confirm.</p>
+                </form>
+            </div>
+        </div>
+    </header>
+
+    <section class="cover" id="post">
+        <div class="container">
+            <a class="story" href="post.html">
+                <div class="pic"><img src="img/village-hud.webp" alt="Firstlight Village"><span class="badge">Post 01</span></div>
+                <div>
+                    <div class="ph"><i></i></div>
+                    <h2><span class="ph-h">Heading</span></h2>
+                    <div class="ph"><i></i></div>
+                    <ol><li>Section</li><li>Section</li><li>Section</li><li>Section</li><li>Section</li></ol>
+                    <span class="read">Read the post →</span>
+                </div>
+            </a>
+        </div>
+    </section>
+
+    <section class="wall" id="world">
+        <div class="container">
+            <div class="wall-head">
+                <h2><span class="ph-h">Heading</span></h2>
+                <div class="ph"><i></i><i></i><i></i></div>
+            </div>
+            <div class="bento">
+                <div class="tile t1"><div class="flip-container"><div class="flip-inner">
+                    <div class="flip-front"><img src="img/boss.webp" alt="" loading="lazy"><span class="cap">The White Knight</span></div>
+                    <div class="flip-back"><div class="code" data-code="boss"></div></div></div></div></div>
+                <div class="tile t2"><div class="flip-container"><div class="flip-inner">
+                    <div class="flip-front"><img src="img/ford.webp" alt="" loading="lazy"><span class="cap">The Ford</span></div>
+                    <div class="flip-back"><div class="code" data-code="coat"></div></div></div></div></div>
+                <div class="tile"><div class="flip-container"><div class="flip-inner">
+                    <div class="flip-front"><img src="img/village-night.webp" alt="" loading="lazy"><span class="cap">Night</span></div>
+                    <div class="flip-back"><div class="code" data-code="quality"></div></div></div></div></div>
+                <div class="tile"><img src="img/forest.webp" alt="" loading="lazy"><span class="cap">The forest</span></div>
+                <div class="tile t5" style="background:#efe3c8"><img src="img/portrait.webp" alt="" loading="lazy" style="object-fit:contain;image-rendering:auto"><span class="cap">Portrait</span></div>
+                <div class="tile t6"><div class="flip-container"><div class="flip-inner">
+                    <div class="flip-front"><img src="img/village-day.webp" alt="" loading="lazy"><span class="cap">Firstlight Village</span></div>
+                    <div class="flip-back"><div class="code" data-code="scene"></div></div></div></div></div>
+                <div class="tile"><img src="img/haven.webp" alt="" loading="lazy"><span class="cap">The Held Ground</span></div>
+                <div class="tile t2"><div class="flip-container"><div class="flip-inner">
+                    <div class="flip-front"><img src="img/overworld-ford.webp" alt="" loading="lazy"><span class="cap">The Lands of the Five Seals</span></div>
+                    <div class="flip-back"><div class="code" data-code="continent"></div></div></div></div></div>
+                <div class="tile"><img src="img/emberfall.webp" alt="" loading="lazy"><span class="cap">Emberfall</span></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="next">
+        <div class="container">
+            <div class="side">
+                <h2><span class="ph-h">Heading</span></h2>
+                <div class="ph"><i></i><i></i><i></i></div>
+            </div>
+            <div>
+                <div class="row out"><span class="num">01</span><div><h3><span class="ph-h">Heading</span></h3><div class="ph"><i></i><i></i><i></i></div></div><span class="when">Date</span></div>
+                <div class="row"><span class="num">02</span><div><h3><span class="ph-h">Heading</span></h3><div class="ph"><i></i><i></i><i></i></div></div><span class="when">Date</span></div>
+                <div class="row"><span class="num">03</span><div><h3><span class="ph-h">Heading</span></h3><div class="ph"><i></i><i></i><i></i></div></div><span class="when">Date</span></div>
+                <div class="row"><span class="num">04</span><div><h3><span class="ph-h">Heading</span></h3><div class="ph"><i></i><i></i><i></i></div></div><span class="when">Date</span></div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <span>Designed by <a href="https://sihanxu.me/">Si.X</a> · Art: Ninja Adventure (CC0) and our own</span>
+            <span>OpenWorld &copy; 2026</span>
+        </div>
+    </footer>
+    <script src="snippets.js"></script>
+    <script src="base.js"></script>
+</body>
+</html>

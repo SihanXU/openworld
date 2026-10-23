@@ -76,10 +76,21 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
     summary: L('Ore becomes a bar at the forge; a bar becomes equipment at the anvil.', '矿石在熔炉里变成锭，金属锭在铁砧上变成装备。'),
     sections: [
       { title: L('Find a smithy', '找到铁匠铺'), body: L('Firstlight Village, the Held Ground and Emberfall have forges and anvils. Haldor in Firstlight sells smithing hammers, coal, iron ore and iron bars. You can use the workstations even when the smith is away.', '初原村、誓守之地和余烬镇都有熔炉、铁砧。初原村的哈尔多出售锻锤、煤炭、铁矿石和铁锭；铁匠不在时，旁边的工作设施照样能用。') },
-      { title: L('Smelt metal', '先把矿石炼成锭'), body: L('Stand beside a forge and open crafting with {key:craft}. The iron recipe turns two iron ore and one coal into two iron bars. Gold and steel recipes require their smithing skills. You can also use iron ore directly on a lit forge with a right click.', '站在熔炉旁按 {key:craft} 打开制作。基础配方用 2 块铁矿石和 1 块煤炭炼出 2 块铁锭；金锭、钢条需要对应的锻造技能。也可以拿铁矿石右键点已点燃的熔炉，直接熔炼。') },
-      { title: L('Forge equipment', '再到铁砧打造'), body: L('Bring bars and a smithing hammer, stand beside an anvil and open crafting. Choose a weapon, armour piece or tool and check its materials and requirements. Your level and smithing skills affect the result; advanced recipes need skills shown in the recipe.', '带上金属锭和锻锤，站到铁砧旁打开制作，选择武器、护甲或工具，查看材料和条件。角色等级与锻造技能会影响成品；高级配方需要先学会配方中列出的技能。') },
+      { title: L('Smelt metal', '先把矿石炼成锭'), body: L('Press {key:hands} on a forge to open it. The iron recipe turns two iron ore and one coal into two iron bars. Gold and steel recipes require their smithing skills. You can also use iron ore directly on a lit forge with a right click.', '对熔炉按 {key:hands} 打开熔炉面板。基础配方用 2 块铁矿石和 1 块煤炭炼出 2 块铁锭；金锭、钢条需要对应的锻造技能。也可以拿铁矿石右键点已点燃的熔炉，直接熔炼。') },
+      { title: L('Forge equipment', '再到铁砧打造'), body: L('Bring bars and a smithing hammer and press {key:hands} on an anvil to open it. Choose a weapon, armour piece or tool and check its materials and requirements. Your level and smithing skills affect the result; advanced recipes need skills shown in the recipe.', '带上金属锭和锻锤，对铁砧按 {key:hands} 打开铁砧面板，选择武器、护甲或工具，查看材料和条件。角色等级与锻造技能会影响成品；高级配方需要先学会配方中列出的技能。') },
     ],
     tip: L('Need ore? Dawn Hill Mine north of Firstlight has iron and coal. Take a pickaxe, and make room for what you bring back.', '缺矿石可以去初原村北面的晨光丘矿洞，那里有铁矿和煤。记得带镐，也给带回来的材料留些空位。'),
+  },
+  {
+    id: 'crafting', group: 'craft', title: L('Crafting & the workshop', '制作与工坊'),
+    summary: L('Everything is made from the bag; the Held Ground\'s buildings open more recipes.', '东西都在背包里直接做；领地的建筑会解锁更多配方。'),
+    sections: [
+      { title: L('Make it from the bag', '在背包里做'), body: L('Press {key:craft} to open crafting. Nothing is made beside a bench: what the panel lists is made wherever you stand, from what you carry. Tools a recipe asks for are carried, not used up.', '按 {key:craft} 打开制作面板。做东西不用站在什么旁边：面板里列的配方，站在哪里都能用身上的材料做。配方要的工具只需带着，不会消耗。') },
+      { title: L('Buildings unlock recipes', '建筑解锁配方'), body: L('Simple tools are made by hand from the first. The rest wait for a building on the Held Ground: the Workshop opens the club, the shield and the bow, and raised to Workshop II, candles, lanterns and a smith\'s own forge; the Weaving Shed opens cloth and, for a Leatherworker, leather gear. A greyed recipe names the building it waits for.', '简单的工具一开始就能徒手做。其余的要等领地里建好对应的建筑：工坊解锁棍棒、盾牌和弓，升到工坊 II 后还有蜡烛、提灯和铁匠炉；织坊解锁织布，皮匠还能做皮甲。灰掉的配方上会标着它在等哪座建筑。') },
+      { title: L('Forges, anvils and the smithy', '熔炉、铁砧与铁匠铺'), body: L('Smelting and smithing are done at the thing itself: press {key:hands} on a forge or an anvil and its own panel opens. The Held Ground\'s smithy can be bettered twice: a bellows lets a skilled smith forge heavy arms, plate, metal tools and jewellery; a hardened anvil, the professions\' sets.', '冶炼和锻造在设施本身进行：对熔炉或铁砧按 {key:hands} 打开它的面板。领地的铁匠铺能升级两次：装上风箱后，学了技能的铁匠能打重兵器、板甲、金属工具和首饰；淬硬铁砧后能锻造职业套装。') },
+      { title: L('The arcane workshop', '魔法工坊'), body: L('Built on the Held Ground, its workbench makes wands, staves (a mage\'s alone), healing and fireproof draughts, and spell books: read one to learn a mage\'s spell. Raised to Arcane Workshop II, it makes staves of fire and frost and the deeper spell books.', '在领地建好魔法工坊后，对魔法工作台按 {key:hands}：能做魔杖、法杖（只有法师能用）、治疗药水、防火药剂和法术书，读一本就学会一个法师法术。升到魔法工坊 II 后还能做火焰、冰霜法杖和更深的法术书。') },
+    ],
+    tip: L('Ask Alberic about the Held Ground to see what each building unlocks before you gather for it.', '收集材料之前，先找阿尔贝里克打开领地扩建面板，看看每座建筑会解锁什么。'),
   },
   {
     id: 'building', group: 'craft', title: L('Building & moving', '建造与搬放'),

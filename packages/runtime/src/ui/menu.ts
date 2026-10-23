@@ -26,11 +26,10 @@ import type { Panel } from './paneltabs.ts'
 import { KeysPage } from './keyspage.ts'
 import type { Action } from '../keymap.ts'
 
-export type Tab = 'inventory' | 'craft' | 'options' | 'shop' | 'keys'
-const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙', shop: '🏪', keys: '⌨' }
+export type Tab = 'inventory' | 'craft' | 'options' | 'shop' | 'keys' | 'station'
+const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙', shop: '🏪', keys: '⌨', station: '⚒' }
 /** The game's shops (a station each, its shelves); none, no shop panel. */
 const shops = (): ShopDef[] => game().crafting.shops ?? []
-const shopStations = () => new Set(shops().map((s) => s.station))
 /** The runtime's own panels for a module a game uses, where the game has none of its own (ClientGame.panels). */
 const builtInPanels = (): Record<string, PanelFactory> => (hasModule('boons') ? { boons: boonPanel } : {})
 const ROW = SLOT_KEYS.length
@@ -160,7 +159,8 @@ export interface MenuSend {
   organize(): void
   /** What is worn: put a carried item on (in its own slot) or take it off; `putOn` from the bag (another of a stack). */
   wear(item?: string, putOn?: boolean): void
-  craft(id: string, all?: boolean): void
+  /** Make a recipe (the crafting panel's, a station's: `at` the station whose panel is open). */
+  craft(id: string, all?: boolean, at?: string): void
   /** The skill tree: spend skill points on a skill. */
   learn(id: string): void
   /** The skill bar: set an active skill in a slot (null: empty it). */
@@ -213,6 +213,9 @@ export class Menu {
   private shelf = ''
   /** The shop open (its station): a stall, a store's counter, a bookstand. */
   private shopStation = ''
+  /** The station open (a forge, an anvil: its kind), and the thing it is (whose rule opened it; what is made is made at it). */
+  private station = ''
+  private stationAt = ''
   private codex?: CodexView
   private codexTab: CodexTab = 'items'
   private skills: SkillTree
@@ -376,6 +379,13 @@ export class Menu {
     return shops().find((s) => s.station === this.shopStation)
   }
 
+  /** Open a station's panel (a forge's, an anvil's: `station:<x>`) on the thing whose rule opened it: its recipes, made at it. */
+  openStation(station: string, by: string): void {
+    this.station = station
+    this.stationAt = by
+    this.open('station')
+  }
+
   open(tab?: Tab): void {
     this.contextPopup.close()
     if (tab) this.tab = tab
@@ -438,7 +448,7 @@ export class Menu {
       $('#chest').classList.add('hidden')
     }
     if (this.chestOpen) this.renderChest(f)
-    if (this.menuOpen && (this.tab === 'inventory' || this.tab === 'craft' || this.tab === 'shop')) this.renderLive()
+    if (this.menuOpen && (this.tab === 'inventory' || this.tab === 'craft' || this.tab === 'shop' || this.tab === 'station')) this.renderLive()
     if (this.journalOpen && this.library && this.library.version !== this.journalLib) this.renderJournal()
     if (this.skillsOpen) this.skills.render(f)
     if (this.profession.open) this.profession.render(f)
@@ -499,12 +509,13 @@ export class Menu {
     this.liveSig = ''
     // each panel is its own (its button bottom right, or its key): a title, no tabs to switch between
     // (a shop's panel is headed by the shop's own name)
-    const title = this.tab === 'shop' && this.shop?.name ? esc(tx(this.shop.name)) : t(this.tab)
+    const title = this.tab === 'shop' && this.shop?.name ? esc(tx(this.shop.name)) : this.tab === 'station' ? esc(tx(game().crafting.stationName(this.station))) : t(this.tab)
     const head = `<div class="tabs-row"><b class="sheet-title">${ICONS[this.tab]} ${title}</b><button class="x" id="menuClose">✕</button></div>`
     let body = ''
     if (this.tab === 'inventory') body = this.inventoryHtml(f)
     if (this.tab === 'craft') body = this.craftHtml(f)
     if (this.tab === 'shop') body = this.shopHtml(f)
+    if (this.tab === 'station') body = this.stationHtml(f)
     if (this.tab === 'options') body = this.optionsHtml()
     if (this.tab === 'keys') body = '<div id="keysHost"></div>'
     if (this.tab !== 'keys') this.keysPage.hide()
@@ -513,14 +524,14 @@ export class Menu {
     if (this.tab === 'inventory') this.wireInventory(f)
     if (this.tab === 'options') this.wireOptions()
     if (this.tab === 'keys') this.keysPage.show($('#keysHost'))
-    if (this.tab === 'craft' || this.tab === 'shop') this.wireCraft()
+    if (this.tab === 'craft' || this.tab === 'shop' || this.tab === 'station') this.wireCraft()
     if (this.tab === 'shop') $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-shelf]').forEach((b) => (b.onclick = () => ((this.shelf = b.dataset.shelf!), this.render())))
     if (f) {
       this.liveSig = this.sigOf(f)
       // (the purse's coin: its icon as the crafting panel paints a material's)
       if (this.tab === 'inventory') (this.paintPortrait(f), paintSilhouettes($('#menuSheet')))
       if (this.tab === 'inventory') this.paintIcons?.([...f.player.slots.filter(Boolean).map((s) => s!.item), ...Object.values(f.player.worn ?? {}), ...craftInfos().filter((i) => i.id === `need:${game().items.coin}`)])
-      if (this.tab === 'craft' || this.tab === 'shop') {
+      if (this.tab === 'craft' || this.tab === 'shop' || this.tab === 'station') {
         const infos = craftInfos()
         for (const it of infos) this.registerTip?.(it.id, it)
         this.paintIcons?.(infos)
@@ -542,7 +553,7 @@ export class Menu {
 
   private sigOf(f: Frame): string {
     const icons = [...f.player.slots.filter(Boolean).map((s) => s!.item), ...Object.values(f.player.worn ?? {}), ...(f.player.offhand ? [f.player.offhand] : [])]
-    return `${this.tab}|${locale.value}|${f.player.hp}/${f.player.maxHp}|${f.player.hunger}|${f.player.purse}|${JSON.stringify(f.player.stats)}|${String(f.player.props.level)}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${itemIconSignature(icons)}|${f.player.stations.join()}|${this.picked}|${artEpoch}`
+    return `${this.tab}|${locale.value}|${f.player.hp}/${f.player.maxHp}|${f.player.hunger}|${f.player.purse}|${JSON.stringify(f.player.stats)}|${String(f.player.props.level)}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${itemIconSignature(icons)}|${f.player.stations.join()}|${this.station}:${this.stationAt}|${JSON.stringify(f.facts)}|${this.picked}|${artEpoch}`
   }
 
   // ---------------------------------------------------------------- inventory
@@ -726,20 +737,36 @@ export class Menu {
     return `<div class="shop-head"><div class="cx-tabs">${tabs}</div><span class="coins"><span class="icon" data-icon="need:${game().items.coin}"></span>${coins}</span></div>${away}${this.craftHtml(f, shop.shelves.find((s) => s.group === this.shelf))}`
   }
 
-  private craftHtml(f?: Frame, shelf?: ShopDef['shelves'][number]): string {
+  /** A station's panel (a forge's, an anvil's): what is made at the thing opened, from what is carried. */
+  private stationHtml(f?: Frame): string {
+    if (!f) return ''
+    // (the game's recipes for it, and what the world learned to make at one)
+    const list = allRecipes().filter((r) => r.station === this.station)
+    return `<div class="muted small">${esc(t('stationMade'))}</div>${list.length ? this.craftHtml(f, undefined, this.station) : `<div class="muted small">${esc(t('stationEmpty'))}</div>`}`
+  }
+
+  /**
+   * The recipes: the crafting panel's (C: what is made anywhere — by hand, or what a building raised on one's ground
+   * unlocks), a shop's shelf's (made beside its stall), or a station's (made at the thing opened: a forge's, an anvil's).
+   */
+  private craftHtml(f?: Frame, shelf?: ShopDef['shelves'][number], station?: string): string {
     if (!f) return ''
     const have = (type: string) => f.player.slots.reduce((n, s) => n + (s && s.item.type === type ? s.count : 0), 0)
     const tool = (tag: string) => f.player.slots.some((s) => s?.item.tags.includes(tag))
-    // the crafting panel shows what is made; the stall's offers are the stall's (its own tab)
-    const list = shelf ? game().crafting.recipes.filter((r) => r.station === this.shopStation && r.group === shelf.group) : allRecipes().filter((r) => !shopStations().has(r.station ?? ''))
+    const list = shelf
+      ? game().crafting.recipes.filter((r) => r.station === this.shopStation && r.group === shelf.group)
+      : station
+        ? allRecipes().filter((r) => r.station === station)
+        : allRecipes().filter((r) => !r.station || r.station === 'hands')
     const verb = shelf?.sell ? t('shopSell') : shelf ? t('shopBuy') : t('craftIt')
     const rows = list.map((r) => {
       // how many times what is carried makes it (the tools are not used up)
-      // (a station's recipe is made beside one: away from it, nothing is made however much is carried)
-      const here = !r.station || r.station === 'hands' || f.player.stations.includes(r.station)
-      // (a recipe a skill teaches: known only once it is learned)
+      // (a shop's offer is made beside its stall: away from it, nothing is traded however much is carried)
+      const here = !shelf || f.player.stations.includes(this.shopStation)
+      // (a recipe a skill teaches: known only once it is learned; one a building unlocks: once it stands)
       const knows = !r.skill || f.player.skills.includes(r.skill)
-      const times = knows && here && (r.tools ?? []).every(tool) ? Math.min(...r.needs.map((n) => Math.floor(have(n.type) / n.count))) : 0
+      const unlocked = !r.unlockedBy || Number(f.facts?.[r.unlockedBy.fact] ?? 0) >= (r.unlockedBy.level ?? 1)
+      const times = knows && here && unlocked && (r.tools ?? []).every(tool) ? Math.min(...r.needs.map((n) => Math.floor(have(n.type) / n.count))) : 0
       const ok = times > 0
       const needs = r.needs
         .map((n) => {
@@ -751,11 +778,14 @@ export class Menu {
           const form = toolForm(tag)
           return form ? `<span class="need tool${tool(tag) ? '' : ' short'}" data-item="need:${form}" title="${esc(t('toolKept'))}"><span class="icon" data-icon="need:${form}"></span>${tool(tag) ? '✓' : '✗'}</span>` : ''
         }).join('')
+      const unlock = r.unlockedBy ? ` <span class="station${unlocked ? '' : ' short'}">${esc(t('unlockNeeds').replace('{name}', tx(r.unlockedBy.name)))}</span>` : ''
+      const skill = r.skill ? ` <span class="station${knows ? '' : ' short'}">${esc(tx({ en: `skill: ${tx(game().skills.all.find((d) => d.id === r.skill)?.name)}`, zh: `需学会${tx(game().skills.all.find((d) => d.id === r.skill)?.name)}` }))}</span>` : ''
+      const why = !here ? t('shopAway').replace('{station}', tx(game().crafting.stationName(this.shopStation))) : !unlocked ? t('unlockNeeds').replace('{name}', tx(r.unlockedBy!.name)) : t('needMore')
       return `<div class="recipe${ok ? '' : ' off'}">
         <div class="slot" data-item="recipe:${r.id}"><div class="icon" data-icon="recipe:${r.id}"></div></div>
-        <div class="rname">${esc(tx(r.name))}${r.station && r.station !== 'hands' && !shelf ? ` <span class="station${here ? '' : ' short'}">${esc(tx({ en: `at a ${game().crafting.stationName(r.station).en}`, zh: `需在${game().crafting.stationName(r.station).zh}旁` }))}</span>` : ''}${r.skill ? ` <span class="station${knows ? '' : ' short'}">${esc(tx({ en: `skill: ${tx(game().skills.all.find((d) => d.id === r.skill)?.name)}`, zh: `需学会${tx(game().skills.all.find((d) => d.id === r.skill)?.name)}` }))}</span>` : ''}</div>
+        <div class="rname">${esc(tx(r.name))}${unlock}${skill}</div>
         <div class="needs">${needs}</div>
-        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(here ? t('needMore') : tx({ en: `Stand beside a ${game().crafting.stationName(r.station!).en}`, zh: `站到${game().crafting.stationName(r.station!).zh}旁边` }))}"`}>${verb}${shelf?.sell ? ` → ${r.count}` : r.count && r.count > 1 ? ` ×${r.count}` : ''}</button>
+        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(why)}"`}>${verb}${shelf?.sell ? ` → ${r.count}` : r.count && r.count > 1 ? ` ×${r.count}` : ''}</button>
         ${times > 1 ? `<button class="all" data-craft-all="${r.id}" title="${esc(t('craftAllTip'))}">${t('craftAll')} ×${times}</button>` : ''}
       </div>`
     }).join('')
@@ -763,9 +793,11 @@ export class Menu {
   }
 
   private wireCraft(): void {
+    // (a station's recipe is made at the thing whose panel is open)
+    const at = this.tab === 'station' ? this.stationAt : undefined
     // Shift-click makes as many as one can, as the "all" button does
-    $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-craft]').forEach((b) => (b.onclick = (e) => this.send.craft(b.dataset.craft!, e.shiftKey)))
-    $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-craft-all]').forEach((b) => (b.onclick = () => this.send.craft(b.dataset.craftAll!, true)))
+    $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-craft]').forEach((b) => (b.onclick = (e) => this.send.craft(b.dataset.craft!, e.shiftKey, at)))
+    $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-craft-all]').forEach((b) => (b.onclick = () => this.send.craft(b.dataset.craftAll!, true, at)))
   }
 
   // ---------------------------------------------------------------- options

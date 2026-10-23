@@ -156,9 +156,11 @@ describe('smithing', () => {
     expect(eng.world.num(better, 'power')).toBe(eng.world.num(plain, 'power') + 1)
     knows(eng, 'armorsmith')
     expect(eng.controls.craft(RECIPE_BY_ID['smith/helmet-iron'])).toBe(true)
-    // the heavy arms and the plate: not without their skills
+    // the heavy arms and the plate: not without their skills, nor before the Held Ground's smithy has its bellows
     expect(eng.controls.craft(RECIPE_BY_ID['smith/warhammer-iron'])).toBe(false)
     expect(eng.controls.craft(RECIPE_BY_ID['smith/breastplate-iron'])).toBe(false)
+    expect(RECIPE_BY_ID['smith/warhammer-iron'].unlockedBy).toMatchObject({ fact: 'haven.build.smithy' })
+    expect(RECIPE_BY_ID['smith/dagger-iron'].unlockedBy).toBeUndefined()
     // the craft lifts the quality (level 1 + Apprentice 1 + Fine Craft 2 + Grandmaster 3, against the dagger's 1: fine and better)
     knows(eng, 'apprentice-smith', 'fine-craft', 'grandmaster-smith')
     expect(eng.controls.craft(RECIPE_BY_ID['smith/dagger-iron'])).toBe(true)
@@ -180,6 +182,10 @@ describe('smithing', () => {
     carry(eng, 'item/material/steel_bar', 2)
     carry(eng, 'item/material/leather', 1)
     expect(RECIPE_BY_ID['set/shadowfang/weapon'].madeOf).toBe(true)
+    // a set's piece: only once the smithy's anvil is hardened (haven.build.smithy 2)
+    expect(RECIPE_BY_ID['set/shadowfang/weapon'].unlockedBy).toEqual({ fact: 'haven.build.smithy', name: expect.anything(), level: 2 })
+    expect(eng.controls.craft(RECIPE_BY_ID['set/shadowfang/weapon'])).toBe(false)
+    eng.author(() => w.setFact('haven.build.smithy', 2))
     expect(eng.controls.craft(RECIPE_BY_ID['set/shadowfang/weapon'])).toBe(true)
     const blade = made('item/weapon/blade/dagger')[0]
     expect(blade.tags).toEqual(expect.arrayContaining(['material:steel', 'quality:masterwork']))

@@ -1451,11 +1451,12 @@ req('W7', 'a wilderness is made from the world\'s seed and its cell: entered, le
   expect(loaded.engine.world.get('w7.stone')).toBeDefined()
 })
 
-req('W9', 'a recipe derived from what a thing is made of, made at the village workbench: it takes its main ingredient\'s material, and a quality by its maker\'s level; away from a workbench it is not made', ['fixture/craft/workbench'], () => {
+req('W9', 'a recipe derived from what a thing is made of, made anywhere from the bag once the Held Ground\'s workshop stands (never beside a bench): it takes its main ingredient\'s material, and a quality by its maker\'s level; a hand on the village workbench opens its panel, where what the world learns to make at one is made', ['fixture/craft/workbench'], () => {
   const f = fresh()
   const c = f.eng.controls
+  const home = W(f).posOf(W(f).player)!
   const recipe = RECIPE_BY_ID['item/armor/shield']
-  expect(recipe).toMatchObject({ station: 'workbench', needs: [{ type: 'item/material/plank', count: 3 }, { type: 'item/material/stick', count: 1 }] })
+  expect(recipe).toMatchObject({ station: 'hands', unlockedBy: { fact: 'haven.build.workshop' }, needs: [{ type: 'item/material/plank', count: 3 }, { type: 'item/material/stick', count: 1 }] })
   const supply = () =>
     author(f, () => {
       for (let i = 0; i < 3; i++) W(f).create('item/material/plank', { on: 'inside', holder: 'player' })
@@ -1464,13 +1465,19 @@ req('W9', 'a recipe derived from what a thing is made of, made at the village wo
   const shields = () => (W(f).player.contents ?? []).map((id) => W(f).get(id)!).filter((e) => e.type === 'item/armor/shield')
   supply()
   c.sync()
-  // on the Ford, no workbench at hand: nothing is made, nothing used up
-  c.craft(recipe)
+  // beside the village's bench in the woodcutter's yard, the workshop not yet built: nothing is made, nothing used up
+  const bench = W(f).get('village.workbench')!
+  const at = bench.place as { x: number; y: number }
+  stand(f, at.x, at.y + 1, 'up', FIRSTLIGHT.map)
+  expect(c.craft(recipe)).toBe(false)
   expect(shields()).toHaveLength(0)
   expect(c.count('item/material/plank')).toBe(3)
-  // beside the village's, in the woodcutter's yard
-  const bench = W(f).get('village.workbench')!.place as { x: number; y: number }
-  stand(f, bench.x, bench.y + 1, 'up', FIRSTLIGHT.map)
+  // the bench itself: a hand on it opens its panel (the world's learned recipes for one are made there)
+  f.eng.act('hands', 'player', { e: bench.id })
+  expect(W(f).fx).toContainEqual(expect.objectContaining({ t: 'panel', panel: 'station:workbench', by: bench.id }))
+  // the workshop built: made on the Ford, away from any bench
+  author(f, () => W(f).setFact('haven.build.workshop', 1))
+  stand(f, home.x, home.y, 'up', home.map)
   expect(c.craft(recipe)).toBe(true)
   const plain = shields()[0]
   expect(plain.name).toEqual({ en: 'Wooden Shield', zh: '木盾牌' })
@@ -2186,14 +2193,20 @@ req('S3', 'each profession\'s forged gear covers the whole body (head, ear, neck
     const setOf = (slot: string) => RECIPE_BY_ID[`set/${set.id}/${slot}`].make!.props?.set
     expect(['head', 'body', 'feet', 'neck', 'ring', 'weapon', 'arm'].map(setOf)).toEqual([set.id, set.id, set.id, `${set.id}_trinkets`, `${set.id}_trinkets`, undefined, undefined])
   }
-  // cloth: grass fibre woven at Cass's loom by the square
+  // cloth: grass fibre, woven anywhere once the Held Ground's weaving shed stands (not beside Cass's loom before it; a hand
+  // on her loom opens its panel, where what the world learns to weave is made)
   const loom = w.posOf(w.get('village.loom')!)!
   f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow', x: loom.x, y: loom.y + 1 }))
   carryN(f, 'item/material/grass', 4)
+  expect(RECIPE_BY_ID['weave/cloth'].unlockedBy?.fact).toBe('haven.build.loom')
+  expect(f.eng.controls.craft(RECIPE_BY_ID['weave/cloth'])).toBe(false)
+  f.eng.act('hands', 'player', { e: 'village.loom' })
+  expect(w.fx).toContainEqual(expect.objectContaining({ t: 'panel', panel: 'station:loom', by: 'village.loom' }))
+  f.eng.author(() => w.setFact('haven.build.loom', 1))
   expect(f.eng.controls.craft(RECIPE_BY_ID['weave/cloth'])).toBe(true)
   expect(f.eng.controls.count('item/material/cloth')).toBe(1)
-  // forged at the smithy's anvil: Shadowfang's jerkin, of its leather, named for its set
-  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: 5, y: 4 }))
+  // forged at the smithy's anvil, the Held Ground's smithy hardened (haven.build.smithy 2): Shadowfang's jerkin, of its leather, named for its set
+  f.eng.author(() => (f.eng.teleport(w.player, { map: 'meadow.smithy', x: 5, y: 4 }), w.setFact('haven.build.smithy', 2)))
   carryN(f, 'item/tool/smith_hammer', 1)
   const forge = (slot: string) => {
     const r = RECIPE_BY_ID[`set/shadowfang/${slot}`]
@@ -3896,7 +3909,7 @@ req('H4', 'the Held Ground\'s steward: his talk has "The Held Ground…", which 
   expect(w.get('haven.heart')!.type).toBe('fixture/sacred/sword')
 })
 
-req('H5', 'the Held Ground grows three ways: new grounds of their own (a quarry, a timberland, a lake, hot springs — each from a land it needs, then gone to from the panel, a way back at its edge) and buildings (a plot staked at the heart becomes a workshop, a hearth, a storehouse, a loom, a cauldron)', ['fixture/build/plot/workshop', 'fixture/build/plot/kitchen', 'fixture/build/plot/storehouse', 'fixture/build/plot/loom', 'fixture/build/plot/apothecary', 'fixture/nature/reeds', 'fixture/nature/vein/coal', 'fixture/nature/vein/gold', 'fixture/nature/logpile', 'fixture/nature/mushroom_ring'], () => {
+req('H5', 'the Held Ground grows three ways: new grounds of their own (a quarry, a timberland, a lake, hot springs — each from a land it needs, then gone to from the panel, a way back at its edge) and buildings (a plot staked at the heart becomes a workshop, a hearth, a storehouse, a loom, a cauldron)', ['fixture/build/plot/workshop', 'fixture/build/plot/kitchen', 'fixture/build/plot/storehouse', 'fixture/build/plot/loom', 'fixture/build/plot/apothecary', 'fixture/build/plot/arcane', 'fixture/nature/reeds', 'fixture/nature/vein/coal', 'fixture/nature/vein/gold', 'fixture/nature/logpile', 'fixture/nature/mushroom_ring'], () => {
   const f = fresh()
   const w = W(f)
   const c = f.eng.controls

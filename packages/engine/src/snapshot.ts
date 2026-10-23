@@ -204,7 +204,7 @@ export interface Frame {
     props: Record<string, PropValue>
     /** The skills learned (the skill tree). */
     skills: string[]
-    /** The stations within reach (a workbench beside one): which station recipes can be made now. */
+    /** The stations within reach (a shop's stall beside one): which station recipes can be made here without opening one. */
     stations: string[]
     held?: ItemInfo
     /** The skill bar's six slots (Shift+1–6): the active skill in each, ticks of its cooldown left and in all. */

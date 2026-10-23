@@ -74,8 +74,10 @@ export interface TypeDef {
   stage?: StageDef
   /** The order its goals are tried in (world-model.md §6.10): encounter, threat, follow, schedule, home, idle. */
   goals?: string[]
-  /** Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station a thing within reach is (its `station:<x>` tag). */
+  /** Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station (a thing tagged `station:<x>`, opened or within reach). */
   station?: string
+  /** A fact of the story's its recipe waits for (a building raised on one's ground: the fact at `level`, 1 by default), named for the panel. */
+  unlockedBy?: { fact: string; name: Text; level?: number }
   /** The level its recipe asks (default 1): a maker above it makes it finer. */
   craftLevel?: number
   /** Tools its making needs carried (tags: `tool:axe`), not used up (Elin's tool requirement). */
@@ -1356,8 +1358,13 @@ export interface Recipe {
    * `make`'s name, tags and props laid over that: a set's piece, forged of the steel it took, as well as its smith forges.
    */
   madeOf?: boolean
-  /** Where it is made: `hands`, or a station within reach. */
+  /**
+   * Where it is made: `hands` (or none), anywhere; a station (`forge`, `anvil`, a shop's `stall`), at one — the thing
+   * tagged `station:<x>` the act names (`at`: the one whose panel is open, within the hand's reach), or any beside one.
+   */
   station?: string
+  /** A fact of the story's that must hold before it is made (a building raised on one's ground: the fact at `level`, 1 by default), and its name for the panel. */
+  unlockedBy?: { fact: string; name: Text; level?: number }
   level?: number
   /** Tools it needs carried (tags), not used up. */
   tools?: string[]

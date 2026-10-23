@@ -458,6 +458,21 @@ At 0, `threshold/cross` `broken` (for every thing), resolved by the most specifi
 - A **station** is any placed thing with a station capability; the C panel is the `hands`
   station.
 
+Changed 2026-10-21 — nothing is made *beside* a station any more. The C panel is the bag's: every
+`hands` recipe, made wherever one stands. A station (a forge, an anvil; a workbench or a loom for what
+the world learns to make at one) is **opened**: a hand on it (E, the content's `station/<x>` rules)
+opens its own panel (`panel: station:<x>`, the runtime's), whose recipes are made at that thing — the
+act of crafting names it (`at`), and the outcome holds it to be such a station within the hand's reach
+(a station beside the maker still serves, as a shop's stall does). What used to be a workbench's — a
+club, a shield, a bow; cloth and leather — is a `hands` recipe that **waits for a building of the
+Held Ground** (`Recipe.unlockedBy` / `TypeDef.unlockedBy`: the story fact the steward sets as he
+raises it, and its name; content `haven.ts` `HavenUpgrade.recipes`): the Workshop the first three
+(and, raised to Workshop II — `unlockedBy.level`, the fact at 2 —, candles, lanterns, a smith's own forge and
+an Apiarist's bee box), the Weaving Shed cloth and leather gear; the smithy's upgrades gate what a skilled smith
+forges at any anvil (a bellows) and the professions' sets (a hardened anvil); the arcane workshop's bench, a station
+of its own (`station:arcane`), makes wands, staves, draughts and spell books. The crafting panel shows a locked
+recipe greyed, named for the building it waits for.
+
 As built (W4): a type's `station` (`hands`, or `workbench` …: a thing within reach tagged
 `station:<x>`) and `makeup` make its recipe (`deriveRecipes`, engine `recipes.ts`); content's
 `RECIPES` is that list for its own types, and the engine derives the same from whatever types it

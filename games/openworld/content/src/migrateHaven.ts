@@ -31,9 +31,10 @@ export function migrateHaven(game: Game): void {
 
 /**
  * Saves marked with it have the plots staked out at the Held Ground's heart (its buildings, 2026-10-11; the residents'
- * tents, 2026-10-12) and Cass's loom on Firstlight's square (2026-10-11), Firstlight's waypoint statue moved aside for it.
+ * tents, 2026-10-12; the arcane workshop's, 2026-10-21 — v2) and Cass's loom on Firstlight's square (2026-10-11),
+ * Firstlight's waypoint statue moved aside for it. A save marked v1 is looked over again: only what it lacks is added.
  */
-export const PLOTS_LAYOUT = 'content.haven-plots-v1'
+export const PLOTS_LAYOUT = 'content.haven-plots-v2'
 /** What the Held Ground and Firstlight put on maps an older save has seen: each plot (it becomes its building once built), the loom. */
 const ADDED = [...HAVEN_UPGRADES.filter((u) => u.plot).map((u) => `haven.plot.${u.id}`), 'village.loom']
 /** What moved to make room: Firstlight's waypoint statue stood where the loom stands. */

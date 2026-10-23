@@ -87,7 +87,7 @@ export type ToWorker =
   /** The off hand: wear a carried item there (a shield), or take off what is worn (no item). */
   | { t: 'wear'; item?: string; /** from the bag: put on (another of a stack), never take off */ putOn?: boolean }
   /** The crafting panel: make a recipe from what is carried. */
-  | { t: 'craft'; id: string; /** as many as what is carried makes */ all?: boolean }
+  | { t: 'craft'; id: string; /** as many as what is carried makes */ all?: boolean; /** the station it is made at (the one whose panel is open) */ at?: string }
   /** The skill tree: spend skill points on a skill. */
   | { t: 'learn'; id: string }
   /** The skill bar: cast the skill in a slot (Shift+1–6), or set one there (null: empty it). */

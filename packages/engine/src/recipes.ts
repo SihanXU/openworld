@@ -21,6 +21,7 @@ export function deriveRecipes(onto: OntologyIndex): Recipe[] {
       needs: def.makeup.map((m) => ({ type: m.type, count: m.count })),
       make: { type: id },
       station: def.station,
+      ...(def.unlockedBy && { unlockedBy: def.unlockedBy }),
       level: def.craftLevel ?? 1,
       ...(def.tools?.length && { tools: def.tools }),
       ...(def.yields && def.yields > 1 && { count: def.yields }),

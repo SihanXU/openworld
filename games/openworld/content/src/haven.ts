@@ -4,8 +4,9 @@
 // build a home, farm, keep animals. Alberic, its steward, grows it three ways (his talk's "The Held Ground…", the haven
 // panel): the LAND (rings of mist lifted: the story's `haven.size`), new GROUNDS (places of their own beyond a way he
 // opens: a quarry, a timberland, a lake, hot springs — `haven.zone.<id>`), and BUILDINGS (a plot staked out at the
-// heart that becomes a workshop, a storehouse… — `haven.build.<id>`). What each asks is handed to him into the
-// ground's stock (`haven.stock.<type>`, kept on him, copied to the story for the panel); built, it is taken from there.
+// heart that becomes a workshop, a storehouse… — `haven.build.<id>`; a building's `recipes` are made anywhere once it
+// stands, the crafting panel's `unlockedBy`). What each asks is handed to him into the ground's stock
+// (`haven.stock.<type>`, kept on him, copied to the story for the panel); built, it is taken from there.
 
 import type { Cond, Effect, Rule, Text, Tree } from '@openworld/engine'
 
@@ -47,6 +48,12 @@ export interface HavenUpgrade {
   /** A building: the plot staked out for it at the heart, and what it becomes. */
   plot?: [number, number]
   becomes?: string
+  /**
+   * The recipes it unlocks (their ids; recipes.ts sets their `unlockedBy` to its fact at its value): a hands recipe is made
+   * anywhere from then on, a station's at its station. A building's later levels are upgrades of the same fact (value 2,
+   * 3…), each after the one before.
+   */
+  recipes?: string[]
   /** A status it is built with (the hearth lit, the storehouse open). */
   status?: string
 }
@@ -90,9 +97,33 @@ export const HAVEN_UPGRADES: HavenUpgrade[] = [
     done: W('Warm water out of cold rock. Sit in it a while. I will keep watch.', '冷石头里流出来的暖水。去泡一会儿吧。我来守着。') },
   // buildings: a plot staked out at the heart, built into what the ground needs
   { id: 'workshop', track: 'building', name: L('Workshop', '工坊'), land: 0, fact: 'haven.build.workshop', value: 1, coins: 0, plot: [18, 18], becomes: 'fixture/craft/workbench',
-    unlocks: [L('A workbench: what is made at one is made here', '一张工作台：需要工作台的东西都能在这里做')],
+    recipes: ['item/weapon/blunt/club', 'item/armor/shield', 'item/weapon/ranged/bow'],
+    unlocks: [L('Recipes: a club, a shield and a bow, made anywhere from the bag', '解锁配方：棍棒、盾牌、弓，随时随地在背包里做'), L('Can be raised to Workshop II', '可以升级为工坊 II')],
     needs: [n(LOG, 8, 'Logs', '木头'), n(STONE, 4, 'Stones', '石块')],
     done: W('A bench, and room to work at it. Make what you need; I will not ask what it is for.', '一张工作台，还有干活的地方。需要什么就做什么；我不会问做来干什么。') },
+  { id: 'workshop2', track: 'building', name: L('Workshop II', '工坊 II'), land: 1, fact: 'haven.build.workshop', value: 2, coins: 0,
+    recipes: ['craft/candle', 'craft/lantern', 'smith/forge', 'ranch/bee-box'],
+    unlocks: [L('The workshop, better tooled: candles and lanterns', '工坊添置了工具：能做蜡烛和提灯'), L('A smith\'s own forge, for a Forge Builder; a bee box, for an Apiarist', '筑炉者可以做铁匠炉；蜂农可以做蜂箱')],
+    needs: [n(PLANK, 16, 'Planks', '木板'), n('item/material/iron_ingot', 4, 'Iron ingots', '铁锭')],
+    done: W('Iron on the bench now, and a better light to work by. A craftsman\'s room, nearly.', '台子上有了铁件，干活也有了更亮的灯。差不多算个匠人的屋子了。') },
+  // the smithy: the knight's forge and anvil, bettered — what a smith with the skill may forge there grows with it
+  { id: 'smithy1', track: 'building', name: L('Smithy: Bellows', '铁匠铺·风箱'), land: 1, fact: 'haven.build.smithy', value: 1, coins: 0,
+    unlocks: [L('The forge blows hotter: a smith who knows them forges heavy arms, plate, metal tools and jewellery at any anvil', '炉火更旺：学了对应技能的铁匠能在铁砧上打战锤、戟、板甲、金属工具和首饰')],
+    needs: [n('item/material/leather', 4, 'Leather', '皮革'), n(PLANK, 8, 'Planks', '木板'), n('item/material/iron_ingot', 3, 'Iron ingots', '铁锭')],
+    done: W('A bellows. My father had one like it. The fire answers it as it answered him.', '一架风箱。我父亲也有一架。炉火听它的，就像从前听我父亲的。') },
+  { id: 'smithy2', track: 'building', name: L('Smithy: Hardened Anvil', '铁匠铺·淬硬铁砧'), land: 2, fact: 'haven.build.smithy', value: 2, coins: 0,
+    unlocks: [L('An anvil that takes the finest work: the professions\' sets are forged at any anvil', '能承受最精细的活计：职业套装可以在铁砧上锻造了')],
+    needs: [n('item/material/steel_bar', 2, 'Steel bars', '钢条'), n(STONE, 12, 'Stones', '石块'), n('item/material/coal', 6, 'Coal', '煤炭')],
+    done: W('Steel over iron. Now it will take a blow without giving. Make something worth the anvil.', '铁上包了钢。现在它受得住重锤而不塌陷了。打点配得上这座砧的东西吧。') },
+  // the arcane workshop: a table of its own at the heart, for wands, staves, draughts and the spell books a mage reads
+  { id: 'arcane', track: 'building', name: L('Arcane Workshop', '魔法工坊'), land: 1, fact: 'haven.build.arcane', value: 1, coins: 0, plot: [29, 23], becomes: 'fixture/craft/arcane',
+    unlocks: [L('An arcane workbench: wands and staves (a mage\'s), healing and fireproof draughts', '一张魔法工作台：做魔杖、法杖（法师专用）、治疗药水和防火药剂'), L('Spell books that teach a mage\'s first spells', '写法术书，教法师的入门法术'), L('Can be raised to Arcane Workshop II', '可以升级为魔法工坊 II')],
+    needs: [n(PLANK, 12, 'Planks', '木板'), n(CLOTH, 4, 'Cloth', '布'), n('item/gem', 2, 'Gems', '宝石')],
+    done: W('I never trusted the arcane. But the order kept a mage, and we were glad of her more than once. Use it well.', '我从来不信奥术。可骑士团养着一位法师，我们不止一次庆幸有她在。好好用吧。') },
+  { id: 'arcane2', track: 'building', name: L('Arcane Workshop II', '魔法工坊 II'), land: 2, fact: 'haven.build.arcane', value: 2, coins: 0,
+    unlocks: [L('Staves that carry fire or frost', '能做带火焰、冰霜元素的法杖'), L('Spell books of the deeper spells: frost bolt, thunderstorm, meteor', '写更深的法术书：寒冰箭、雷暴、陨星')],
+    needs: [n('item/gem', 4, 'Gems', '宝石'), n('item/material/frostcap', 4, 'Frostcap', '霜盖菇'), n('item/material/fireweed', 4, 'Fireweed', '火绒草'), n('item/material/gold_ingot', 2, 'Gold ingots', '金锭')],
+    done: W('Frost and fire on one table, and neither has burnt it down. Whatever you learn here, keep it pointed away from the tents.', '冰与火摆在同一张桌上，居然没把它烧掉。不管你在这儿学到什么，别冲着帐篷放。') },
   { id: 'kitchen', track: 'building', name: L('Kitchen Hearth', '厨房灶台'), land: 0, fact: 'haven.build.kitchen', value: 1, coins: 0, plot: [22, 25], becomes: 'fixture/light/campfire', status: 'lit',
     unlocks: [L('A hearth that is always lit: cook what you catch and grow', '一直燃着的灶台：做你钓到、种出的东西')],
     needs: [n(STONE, 10, 'Stones', '石块'), n(LOG, 4, 'Logs', '木头')],
@@ -102,7 +133,8 @@ export const HAVEN_UPGRADES: HavenUpgrade[] = [
     needs: [n(PLANK, 12, 'Planks', '木板'), n(LOG, 6, 'Logs', '木头')],
     done: W('Walls and a roof for what you keep. Nothing in it will be taken; I sleep lightly.', '给你的东西搭了墙和顶。里面的东西不会丢；我睡得很浅。') },
   { id: 'loom', track: 'building', name: L('Weaving Shed', '织坊'), land: 1, fact: 'haven.build.loom', value: 1, coins: 0, plot: [26, 25], becomes: 'fixture/craft/loom',
-    unlocks: [L('A loom for cloth', '一架织布机')],
+    recipes: ['weave/cloth', 'leather/gloves', 'leather/boots', 'leather/helmet', 'leather/pauldrons', 'leather/breastplate'],
+    unlocks: [L('Recipes: cloth from grass, made anywhere from the bag', '解锁配方：干草织布，随时随地在背包里做'), L('Leather gloves, boots, a helmet, pauldrons and a breastplate, for a Leatherworker', '皮匠可以做皮手套、皮靴、皮头盔、皮护肩和皮胸甲')],
     needs: [n(PLANK, 8, 'Planks', '木板'), n('item/material/stick', 6, 'Sticks', '树枝')],
     done: W('A loom. Someone used to weave the order\'s banners. I do not remember who. It does not matter now.', '一架织布机。从前有人给骑士团织旗帜。我记不得是谁了。现在也不要紧了。') },
   // residents' tents (content social.ts residence): two beds each, for people asked to come and live here
@@ -123,6 +155,13 @@ export const HAVEN_UPGRADES: HavenUpgrade[] = [
     needs: [n(STONE, 8, 'Stones', '石块'), n('item/material/herb', 6, 'Herbs', '草药')],
     done: W('A pot for remedies. I have been wounded enough times to know which ones work.', '一口熬药的锅。我受过的伤够多，知道哪些药管用。') },
 ]
+
+/** What a building's recipes wait for (a type's or a recipe's `unlockedBy`): the fact that stands for it, at its level, and its name. */
+export const unlockedBy = (id: string): { fact: string; name: Text; level?: number } => {
+  const u = HAVEN_UPGRADES.find((x) => x.id === id)
+  if (!u) throw new Error(`no upgrade of the Held Ground is "${id}"`)
+  return { fact: u.fact, name: u.name, ...(u.value > 1 && { level: u.value }) }
+}
 
 /** Every kind of thing an upgrade asks for: what the steward takes into the ground's stock. */
 export const HAVEN_MATERIALS = [...new Set(HAVEN_UPGRADES.flatMap((u) => u.needs.map((x) => x.type)))]
@@ -171,8 +210,8 @@ const BUILD: Tree = HAVEN_UPGRADES.reduceRight<Tree>((rest, u) => {
     all: [
       storyAtLeast('haven.size', u.land),
       { not: storyAtLeast(u.fact, u.value) },
-      // the land's rings one after another
-      ...(u.track === 'land' ? [{ prop: { role: 'story', key: 'haven.size', cmp: u.value - 1, default: 0 } } as Cond] : []),
+      // the land's rings one after another, and a building's levels (Workshop II after the Workshop)
+      ...(u.value > 1 ? [{ prop: { role: 'story', key: u.fact, cmp: u.value - 1, default: 0 } } as Cond] : []),
       ...u.needs.map((x) => hostAtLeast(stockKey(x.type), x.count)),
     ],
   }
