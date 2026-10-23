@@ -79,6 +79,7 @@ section.night { background: #05070d; color: #c9d4ea; }
 .step h3 { font-size: 1.2rem; margin: 0.9rem 0 0.6rem; color: var(--ink-strong); }
 .step .code { margin-top: auto; background: var(--bg-alt); border-radius: 8px; padding: 0.85rem 1rem; font-size: 0.7rem; }
 
+.band h2.news-title { margin-bottom: 2rem; }
 .post { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 3rem; align-items: center; }
 .post .cover { position: relative; display: block; aspect-ratio: 16 / 10; border-radius: var(--radius); overflow: hidden; background: #1d1d18; }
 .post h3 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.02em; color: var(--ink-strong); margin-bottom: 0.75rem; }
