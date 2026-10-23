@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trailer stage</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&display=block" rel="stylesheet" />
+    <style>
+      html, body { margin: 0; height: 100%; background: #0b0d10; overflow: hidden; }
+      /* the frame is always 1920 x 1080; the preview scales it to the window */
+      #frame { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden; background: #000; }
+      #game, #overlay { position: absolute; inset: 0; }
+      #game canvas { display: block; }
+      #overlay { pointer-events: none; }
+      #bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; align-items: center; padding: 8px 12px; background: rgba(0,0,0,0.7); color: #ddd; font: 12px ui-monospace, monospace; }
+      #bar input[type=range] { flex: 1; }
+      body.export #bar { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="frame"><div id="game"></div><div id="overlay"></div></div>
+    <div id="bar"><button id="play">▶</button><input id="seek" type="range" min="0" value="0" /><span id="clock">0</span></div>
+    <script type="module" src="/src/trailer/main.ts"></script>
+  </body>
+</html>
