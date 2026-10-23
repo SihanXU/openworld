@@ -7,6 +7,7 @@
 // The counts are the paper's (Figure 2). A frame for any t (?export: site/video/export.mjs takes them); the page
 // plays the film round and round.
 import { playLoop } from '../embed.js'
+import { L } from '../lang.js'
 const params = new URLSearchParams(location.search)
 const VIDEO = params.has('export') || params.has('video')
 const W = 1920, H = 1080, FPS = 30, LENGTH = 44, BEAT = 0.5
@@ -115,11 +116,13 @@ function slam(t, t0, big, word, sub) {
   ctx.font = `800 170px 'Segoe UI', system-ui, sans-serif`
   const bw = ctx.measureText(big).width
   ctx.font = `600 64px 'Segoe UI', system-ui, sans-serif`
-  const ww = ctx.measureText(' ' + word).width
+  // a word after Chinese runs on without a space
+  const sp = /^[一-鿿]/.test(big) ? '' : ' '
+  const ww = ctx.measureText(sp + word).width
   const x0 = -(bw + ww) / 2
   ctx.textAlign = 'left'
   ctx.font = `800 170px 'Segoe UI', system-ui, sans-serif`; ctx.fillStyle = '#ffffff'; ctx.fillText(big, x0, 40)
-  ctx.font = `600 64px 'Segoe UI', system-ui, sans-serif`; ctx.fillStyle = '#cfdcff'; ctx.fillText(' ' + word, x0 + bw, 40)
+  ctx.font = `600 64px 'Segoe UI', system-ui, sans-serif`; ctx.fillStyle = '#cfdcff'; ctx.fillText(sp + word, x0 + bw, 40)
   if (sub) { ctx.textAlign = 'center'; ctx.font = `400 34px 'Segoe UI', system-ui, sans-serif`; ctx.fillStyle = '#9fb0cc'; ctx.globalAlpha = a * smooth((k - 0.25) / 0.3); ctx.fillText(sub, 0, 110) }
   ctx.restore()
   // the hit: a flash
@@ -144,10 +147,10 @@ function film(t) {
   if (t >= T.items - 0.2 && t < T.scenes + 0.8) drawItems(t)
   if (t >= T.scenes && t < T.title + 1.5) drawScenes(t)
   ctx.setTransform(1, 0, 0, 1, 0, 0)
-  if (t >= T.mapsSlam && t < T.people) slam(t, T.mapsSlam, '1,024', 'maps', '59 hand-made, 965 across six regions')
-  if (t >= T.peopleSlam && t < T.items) slam(t, T.peopleSlam, '1,654', 'people', 'in 780 households, each with a look and a day of their own')
-  if (t >= T.itemsSlam && t < T.scenes) slam(t, T.itemsSlam, '40,562', 'items', 'of 1,013 kinds, in materials, qualities, elements')
-  if (t >= T.scenesSlam && t < T.title) slam(t, T.scenesSlam, 'Infinite', 'possibilities')
+  if (t >= T.mapsSlam && t < T.people) slam(t, T.mapsSlam, '1,024', L('maps', '张地图'), L('59 hand-made, 965 across six regions', '59 张手工制作，965 张分布在六个地区'))
+  if (t >= T.peopleSlam && t < T.items) slam(t, T.peopleSlam, '1,654', L('people', '个人'), L('in 780 households, each with a look and a day of their own', '分属 780 户人家，各有自己的样子和一天的安排'))
+  if (t >= T.itemsSlam && t < T.scenes) slam(t, T.itemsSlam, '40,562', L('items', '件物品'), L('of 1,013 kinds, in materials, qualities, elements', '共 1,013 种，分材质、品质和元素'))
+  if (t >= T.scenesSlam && t < T.title) slam(t, T.scenesSlam, L('Infinite', '无限'), L('possibilities', '的可能性'))
   if (t >= T.title - 0.2) drawTitle(t)
   // in and out
   const black = 1 - smooth(t / 0.4) + smooth((t - (LENGTH - 0.9)) / 0.8)
@@ -214,19 +217,19 @@ function crowdCell(n, i) {
 }
 function drawPeople(t) {
   // the village behind, darkening as the crowd grows
-  const L = crowdLevel(t)
-  const n = Math.min(PEOPLE_N, 1 << L)
+  const level = crowdLevel(t)
+  const n = Math.min(PEOPLE_N, 1 << level)
   const bg = 1 - smooth((t - T.peopleSplit - 2) / 2.5)
   if (bg > 0.01 && t > T.people + 0.5) { tile(MAPS, mapAt(ORDER[0]), { x: -40, y: -40 - 400, w: W + 80, h: W + 80 }, bg * 0.55, 0) }
   const away = t > T.items ? easeInOut((t - T.items) / 1.0) : 0
-  const prev = Math.min(PEOPLE_N, 1 << Math.max(0, L - 1))
-  const u = easeBack((t - (T.peopleSplit + (L - 1) * BEAT)) / 0.3)
+  const prev = Math.min(PEOPLE_N, 1 << Math.max(0, level - 1))
+  const u = easeBack((t - (T.peopleSplit + (level - 1) * BEAT)) / 0.3)
   const first = easeBack((t - (T.people + 0.5)) / 0.4)
   for (let i = 0; i < n; i++) {
-    const at = L === 0 ? { x: W / 2, y: H / 2 + 60, s: 9 * first } : crowdCell(n, i)
+    const at = level === 0 ? { x: W / 2, y: H / 2 + 60, s: 9 * first } : crowdCell(n, i)
     let p = at
-    if (L > 0 && u < 1) { const from = i < prev ? crowdCell(prev, i) : crowdCell(prev, i >> 1); p = { x: lerp(from.x, at.x, u), y: lerp(from.y, at.y, u), s: lerp(L === 1 ? 9 : from.s, at.s, u) } }
-    if (L === 1 && u < 1 && i === 0) p = { x: lerp(W / 2, at.x, u), y: lerp(H / 2 + 60, at.y, u), s: lerp(9, at.s, u) }
+    if (level > 0 && u < 1) { const from = i < prev ? crowdCell(prev, i) : crowdCell(prev, i >> 1); p = { x: lerp(from.x, at.x, u), y: lerp(from.y, at.y, u), s: lerp(level === 1 ? 9 : from.s, at.s, u) } }
+    if (level === 1 && u < 1 && i === 0) p = { x: lerp(W / 2, at.x, u), y: lerp(H / 2 + 60, at.y, u), s: lerp(9, at.s, u) }
     // walking in place toward us, each in their own step
     const f = Math.floor(t * 8 + hash(i) * 4) % 4
     const [sx, sy, sw, shh] = personAt(Math.floor(hash(i * 3 + 1) * PEOPLE_N), f)
@@ -303,13 +306,13 @@ function drawItems(t) {
 }
 
 function drawScenes(t) {
-  const L = clamp(Math.floor((t - T.scenesSplit) / BEAT) + 1, 0, 9)
+  const level = clamp(Math.floor((t - T.scenesSplit) / BEAT) + 1, 0, 9)
   const intoTitle = smooth((t - T.title) / 1.2)
   for (let i = 0; i < 512; i++) {
     const s = splitting(t, T.scenesSplit, 9, i)
     if (i % (1 << (9 - s.level)) !== 0) continue
     let r = s.r
-    if (L === 0) { const k = easeBack((t - T.scenes) / 0.4); r = { x: W / 2 - (FRAME.w * k) / 2, y: H / 2 - (FRAME.h * k) / 2, w: FRAME.w * k, h: FRAME.h * k } }
+    if (level === 0) { const k = easeBack((t - T.scenes) / 0.4); r = { x: W / 2 - (FRAME.w * k) / 2, y: H / 2 - (FRAME.h * k) / 2, w: FRAME.w * k, h: FRAME.h * k } }
     // into the continent
     const gather = t > T.gather ? easeInOut((t - T.gather - hash(i) * 0.5) / 1.0) : 0
     if (gather > 0) { const [cx, cy] = LAND[Math.floor(hash(i * 7 + 3) * 1024)]; const to = { x: CX0 + cx * CELL, y: CY0 + cy * CELL, w: CELL * 1.6, h: CELL * 1.6 }; r = { x: lerp(r.x, to.x, gather), y: lerp(r.y, to.y, gather), w: lerp(r.w, to.w, gather), h: lerp(r.h, to.h, gather) } }
@@ -321,7 +324,7 @@ function drawScenes(t) {
     const z = 1 + 0.6 * hash(i * 13), fw = f.naturalWidth / z, fh = f.naturalHeight / z
     const fx = (f.naturalWidth - fw) * hash(i * 17), fy = (f.naturalHeight - fh) * hash(i * 19)
     const g = Math.min(4, r.w * 0.03)
-    tile(f, [fx, fy, fw, fh], inset(r, g), 1 - intoTitle * 0.7, L < 4 ? 14 : 4)
+    tile(f, [fx, fy, fw, fh], inset(r, g), 1 - intoTitle * 0.7, level < 4 ? 14 : 4)
   }
   // when it is all in: the continent, every place in it lit
   if (t > T.gather + 1.2) {
@@ -344,14 +347,14 @@ function drawTitle(t) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
   ctx.font = `600 30px 'Pixelify Sans', 'Segoe UI', sans-serif`; ctx.fillStyle = '#f6d48d'
   ctx.globalAlpha = a * smooth((t - T.title - 0.4) / 0.5)
-  ctx.fillText('A WORLD WHOSE RULES ARE CODE', 0, -130)
+  ctx.fillText(L('A WORLD WHOSE RULES ARE CODE', '一个规则即代码的世界'), 0, -130)
   ctx.globalAlpha = a
   ctx.font = `600 200px 'Pixelify Sans', 'Segoe UI', sans-serif`
   ctx.fillStyle = '#6b3d1f'; ctx.fillText('OpenWorld', 0, 8)
   ctx.fillStyle = '#fff8ea'; ctx.fillText('OpenWorld', 0, 0)
   ctx.globalAlpha = a * smooth((t - T.title - 1.2) / 0.5)
   ctx.font = `600 40px 'Segoe UI', system-ui, sans-serif`; ctx.fillStyle = '#ffffff'
-  ctx.fillText('Join the waitlist', 0, 170)
+  ctx.fillText(L('Join the waitlist', '加入等候名单'), 0, 170)
   ctx.restore()
 }
 

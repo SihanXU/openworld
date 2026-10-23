@@ -108,3 +108,19 @@ section.night { background: #05070d; color: #c9d4ea; }
 .post .meta { color: var(--faint); font-size: 0.9rem; margin-bottom: 0.5rem; }
 .post p:not(.meta) { color: var(--ink); margin-bottom: 1.25rem; font-size: 1.05rem; }
 .join p { color: rgba(255,255,255,0.85); font-size: 1.1rem; max-width: 36ch; margin: 0 auto; }
+
+/* the language switch, the last thing in the bar */
+.lang-btn { font: inherit; font-weight: 600; font-size: 0.85rem; color: inherit; background: none; border: 1px solid currentColor; border-radius: 999px; padding: 0.15rem 0.7rem; cursor: pointer; opacity: 0.85; transition: opacity 0.2s ease; }
+.lang-btn:hover { opacity: 1; }
+.banner .nav-links { align-items: center; }
+.banner .lang-btn { color: rgba(255,255,255,0.92); }
+.banner.solid .lang-btn { color: var(--muted); }
+.banner.solid.dark .lang-btn { color: rgba(255,255,255,0.75); }
+
+/* the footer under the waitlist, over the same film */
+.join { padding-bottom: 0; }
+.join .footer { position: relative; z-index: 1; margin-top: 6rem; border-top: 1px solid rgba(255,255,255,0.16); text-align: left; }
+.join .footer .container { color: rgba(255,255,255,0.72); }
+.join .footer a { color: rgba(255,255,255,0.9); }
+.join .footer a:hover { color: #fff; }
+@media (max-width: 760px) { .join .footer { margin-top: 4rem; } }
