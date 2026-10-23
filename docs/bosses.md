@@ -98,7 +98,6 @@ rows, physical hurt poses and a four-stage kneel/remove crown/offer/fall death a
 three directions. The camera looks down on the helmet roof and shoulders; the torso and legs
 are foreshortened. Three six-frame effect strips share the ivory/gold/bronze palette.
 Prompts: `alberic-art-v3-prompts.json`; export: `tools/src/art/export-alberic.swift`;
-previews: `boss-art/alberic-v3/`. Previous 48px and v2 images remain untouched.
 The preview gallery has an Alberic-only facing selector. See `alberic-art.md` for the full contract.
 
 The other three bosses remain unchanged:

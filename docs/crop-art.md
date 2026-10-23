@@ -4,7 +4,7 @@ Saved assets: `games/openworld/public/assets/lsw/Crops/<crop>/`. Each of carrot,
 
 Mode: built-in imagegen, four original family-atlas calls and four targeted transparency-cleanup calls. Style reference: `games/openworld/public/assets/lsw/skills/farming.png`. Technical export uses tight visible-alpha bounds and nearest-neighbour resampling, preserves generated colors and alpha, aligns plant roots at the tile base and limits each stage's size separately. Tomato's first row crosses the nominal half-height: its extraction divider is 600px; other atlases use 512px.
 
-[Native sprite / palette preview](crop-art-preview.png). All twenty sprites were loaded
+All twenty sprites were loaded
 and alpha-checked in an isolated browser verification page using the real placement
 planner and generated demo world; no saved user world was modified.
 

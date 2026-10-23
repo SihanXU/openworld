@@ -1,7 +1,7 @@
 """The portrait parts the pipeline draws (docs/looks.md §4): one edit of a locked full-body base per part and body
 (and per mood for faces), in the order they are needed. `python -I parts.py <work dir>` writes the jobs for batch.py.
 
-The style (agreed 2026-10-18, docs/figures/looks-style-trial.png): full figures about seven heads tall in crisp thin
+The style (agreed 2026-10-18): full figures about seven heads tall in crisp thin
 dark sepia ink lines, fine hatching in the folds, flat muted fills, on a flat pale cream ground. The bases carry it;
 every edit keeps it.
 
