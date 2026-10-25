@@ -23,7 +23,9 @@ past the knight) comes into Part One, and how (§6).
   north, south and east edges are woods but for the road; the rider's thorns grow across it under a signpost that says
   why. The engine never lets the player off a map's edge from a portal the story has not opened (`stepSelf`: a sealed
   way leads nowhere), so the far bank cannot be left for the world map east of the river. On the world map the Rest, the
-  Pilgrim's Road, the abbey, the Kneeling Field and the East Road are sealed sites, saying why (`SITE_GATES`).
+  Pilgrim's Road, the abbey, the Kneeling Field and the East Road are sealed sites: a sealed site is solid (`World.sealed`,
+  2026-10-25), never walked onto or across by anyone, and bumping into it says why (`site/sealed`, `SITE_GATES`); the
+  valley and every open cell stay joined (`tools/test/overworld.test.ts`).
 - Proved by demo F1 (the card once, the edge refused, the Rest's site shut; with Part Two open, no card) and by Q2 and
   PR1, which open Part Two to walk the road.
 

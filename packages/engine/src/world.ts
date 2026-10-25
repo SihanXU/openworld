@@ -1036,12 +1036,21 @@ export class World {
         for (const e of this.entitiesAt(map, x + dx, y + dy, z)) {
           if (e.id === ignore) continue
           const r = this.onto.resolve(e.type)
-          if (r.solid && !this.isAgent(e) && this.covers(e, map, x, y)) return e
+          if ((r.solid || this.sealed(e)) && !this.isAgent(e) && this.covers(e, map, x, y)) return e
         }
     return undefined
   }
 
-  /** Blocked whoever moves: no floor, or the base of a solid thing (a tree, rock, water, a wall, a cart). */
+  /**
+   * A way the story has not opened yet: a thing whose `opensWhen` fact is unset (a place of the overworld sealed until
+   * its part of the tale, as a portal's `opensWhen`). It stops what walks, as a wall does: one bumps into it.
+   */
+  sealed(e: Entity): boolean {
+    const f = e.props?.opensWhen
+    return typeof f === 'string' && !this.fact(f)
+  }
+
+  /** Blocked whoever moves: no floor, or the base of a solid thing (a tree, rock, water, a wall, a cart, a sealed place). */
   blocked(map: string, x: number, y: number, ignore?: Id, z = 0): boolean {
     return !this.occupant(map, x, y, 'floor', z) || !!this.solidAt(map, x, y, ignore, z)
   }

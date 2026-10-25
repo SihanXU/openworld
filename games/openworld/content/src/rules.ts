@@ -1856,6 +1856,13 @@ const TENTS: Rule[] = [
   }),
 ]
 
+/** A place of the overworld, sealed by one of the gates (its `opensWhen` fact unset): the gate's words; open, `open`. */
+const sealedSite = (open: Tree, label = true): Tree =>
+  SITE_GATES.reduceRight<Tree>((rest, g) => {
+    const say = DO(log(g.say.en, g.say.zh))
+    return IF({ all: [{ prop: { role: 'host', key: 'opensWhen', cmp: g.fact } }, { prop: { role: 'story', key: g.fact, cmp: 0, default: 0 } }] }, label ? AS(L('Sealed: {target}', '未开放：{target}'), say) : say, rest)
+  }, open)
+
 const SITES: Rule[] = [
   rule({
     id: 'site/enter',
@@ -1863,10 +1870,14 @@ const SITES: Rule[] = [
     doc: 'Empty hands on a place of the overworld: one goes in — pushed into the map it stands for, on the side one stands; a place the story has not opened yet (its `opensWhen` fact unset) says why and stays shut.',
     host: SITE,
     on: 'impulse/handle',
-    tree: SITE_GATES.reduceRight<Tree>(
-      (open, g) => IF({ all: [{ prop: { role: 'host', key: 'opensWhen', cmp: g.fact } }, { prop: { role: 'story', key: g.fact, cmp: 0, default: 0 } }] }, AS(L('Sealed: {target}', '未开放：{target}'), DO(log(g.say.en, g.say.zh))), open),
-      DO(emit('push', 'actor', { map: { prop: 'map', of: 'host' } })),
-    ),
+    tree: sealedSite(DO(emit('push', 'actor', { map: { prop: 'map', of: 'host' } }))),
+  }),
+  rule({
+    id: 'site/sealed',
+    doc: 'Something runs up against a place of the overworld the story has not opened yet: sealed, it stops what walks as a wall does (World.sealed), and it says why in its gate\'s words (the line is the one at the keys\': written when they bump into it). An open place is never bumped into: no change.',
+    host: SITE,
+    on: 'bump',
+    tree: sealedSite(NOTHING, false),
   }),
   rule({
     id: 'site/far',
