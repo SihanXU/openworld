@@ -1157,7 +1157,25 @@ base rules leave open, eight with a common use (chair, bench, log bench, stump, 
 chair with its owner by) and eight with none (boulder, fence, statue, lamppost, mist, dead tree, table, counter). A
 use passes when it was judged a use and the scene changed; a thing with none when it was judged words or nothing and
 the scene did not change. It reports both errors apart: `invented` (a use given to a thing with none) and
-`shrugged` (words for a thing with a use). The numbers are in the table below.
+`shrugged` (words for a thing with a use). A first answer of words is then asked again as a player would ask it
+(two more tries), and the final verdict is that second answer.
+
+Kimi K3 (OpenRouter), the live profile, 2026-10-25:
+
+| Run | First answers: uses / none | Invented / shrugged | Final, after asking again | Invented at the end | Calls, cost |
+|---|---|---|---|---|---|
+| no asking again yet | 6/8 · 8/8 | 0 / 2 | — | — | 16, $0.61 |
+| asked again, "they expected more" | 6/8 · 7/8 | 1 / 2 | 8/16 | 7 | 26, $0.56 |
+| asked again, judged on the thing alone | 6/8 · 8/8 | 0 / 2 | **14/16** | **0** | 26, $1.07 |
+
+Chairs, benches, a stump and a haystack were sat or lain on (the someone's-chair case too); a boulder, a fence, a
+statue, a lamppost, mist, a dead tree, a table and a counter got a line true to them. The second run showed what the
+signal costs: told the player "expected more", the model gave the things with no use the one use any of them could
+have — leaning (on a boulder, a fence, a lamppost, a table, a counter) or a stick snapped off the dead tree. The
+re-ask now says trying again is no sign of a use and a use made up is worse than a line, and the ModSpec says a
+posture is a thing's use only where that is what it is for. The two misses are the well and the fountain, judged
+words both times ("drawing it needs a vessel, which a hand is not"): defensible for a bare hand, so the labels, not
+only the model, are in question there. A larger set and other models are for later.
 
 ## 6. Rule system
 

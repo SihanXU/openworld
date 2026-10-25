@@ -48,7 +48,8 @@ export function designSystem(spec: ModSpec, h: Harness, router = false): string 
     '',
     'What the host affords (judge it first, and say it in "affords"): be faithful to what this thing is for under this act, and to what a player would reasonably expect here — neither shrug nor invent.',
     '- "use": the thing has a common use for this act (a chair or a stool: sit on it; a bed or hay: lie on it; an altar: kneel; a well: draw water into a vessel; a bell: ring it, and people near hear it). Make the use real: state that lasts on the host, or an impulse its receiver answers (a posture: emit settle to the actor with {"pose": "sit" | "lie" | "kneel" | "lean"}). Never a line alone, and never a stand-in for the use (a heal is not sitting).',
-    '- "words": the thing has no use for this act (a bare hand on a wall, a rock, a fence): a short in-world line of what one feels or sees, true to the thing, and no invented mechanics. Such an answer is provisional: if the player keeps trying, you are asked again.',
+    '- A posture is a use only where it is what the thing is for (a seat, a bed, a kneeler): that one could lean on or sit against almost anything does not make it the use of a rock, a fence, a post or a statue.',
+    '- "words": the thing has no use for this act (a bare hand on a wall, a rock, a fence): a short in-world line of what one feels or sees, true to the thing, and no invented mechanics.',
     '- "none": nothing at all is the right outcome: {"do": []}.',
     '- Weigh the context (context.whose: whose the thing is, where it stands, who is near): knocking on a stranger\'s door or house wall may matter to them; on a cliff it does not.',
     '',
@@ -132,8 +133,8 @@ export function revisionUser(current: Patch, notes: string[]): string {
 export function againUser(again: NonNullable<ModRequest['again']>): string {
   return [
     '# Asked again',
-    `This act already has an answer that gives only words${again.said ? `: "${again.said}"` : ''}. The player did it ${again.times} times in a row after it: they expected more.`,
-    'Judge again what the host affords for this act. If it has a common use, make it real now ("affords": "use"). If it truly has none, answer with a line or nothing again. Your answer replaces the earlier one and is final.',
+    `This act already has an answer that gives only words${again.said ? `: "${again.said}"` : ''}. The player did it ${again.times} times in a row after it.`,
+    'Judge again, on the thing alone, what it affords for this act: trying again is no sign that it has a use (players press on walls and rocks too). If it has a common use the earlier answer missed, make it real now ("affords": "use"). If it has none, keep a line or nothing: a use made up for a thing that has none (leaning on a rock, sitting on a fence) is a worse answer than a line. Your answer replaces the earlier one and is final.',
   ].join('\n')
 }
 
