@@ -60,8 +60,9 @@ export function judge(patch: Patch, req: ModRequest, stated: Affordance | undefi
   // only an answer whose change is all sent to others may change nothing (its receiver may have no answer): one that
   // writes its host, or whose derived test saw the scene change, needs no replay of its own
   const seen = rules.some((r) => writesItself(r) || r.tests?.some((t) => t.name?.startsWith('derived') && (t.expect?.length ?? 0) > 1))
+  // the answer is held to what it said: an unsaid judgment is read off the rule, never sent back
   const mismatch =
-    !force && affords === 'use' && !seen && !changesScene(patch, req, lib, onto)
+    !force && stated === 'use' && affords === 'use' && !seen && !changesScene(patch, req, lib, onto)
       ? 'You judged this a use (affords "use"), but in the scene that asked your rule changes nothing: no status, number, thing or cell is different afterwards, only words (an impulse you emit has no answer from its receiver there). Make the use real: state on the host, or an impulse its receiver answers (a posture: emit settle to the actor with {pose}). If the thing truly has no use for this act, answer with affords "words" and a short line.'
       : undefined
   const ids = new Set(rules.map((r) => r.id))

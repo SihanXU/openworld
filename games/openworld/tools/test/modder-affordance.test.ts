@@ -9,8 +9,7 @@ import { join } from 'node:path'
 import { AGAIN_AFTER, ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { ScriptedModel, SelfState, auditOf, type ChatMessage, type ChatOptions } from '@openworld/agent'
-import { Modder, WorldLibrary } from '../src/index.ts'
-import { judge, statedAffordance } from '../src/affordance.ts'
+import { Modder, WorldLibrary, judge, statedAffordance } from '@openworld/modder'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]

@@ -101,12 +101,23 @@
     "lit": { "id": "lit", "name": { "en": "lit", "zh": "点燃" }, "overlay": "flame" },
     "open": { "id": "open", "name": { "en": "open", "zh": "打开" } },
     "stage": { "id": "stage", "name": { "en": "growing", "zh": "生长中" } },
-    "down": { "id": "down", "name": { "en": "down", "zh": "倒地" }, "duration": 300, "immobilize": true, "pose": "lie" },
+    "down": {
+      "id": "down",
+      "name": { "en": "down", "zh": "倒地" },
+      "duration": 300,
+      "immobilize": true,
+      "pose": "lie"
+    },
     "due": { "id": "due", "name": { "en": "due", "zh": "期限" } },
     "asleep": { "id": "asleep", "name": { "en": "asleep", "zh": "睡着" }, "immobilize": true, "pose": "lie" },
     "seated": { "id": "seated", "name": { "en": "seated", "zh": "坐着" }, "pose": "sit", "untilMove": true },
     "lying": { "id": "lying", "name": { "en": "lying down", "zh": "躺着" }, "pose": "lie", "untilMove": true },
-    "kneeling": { "id": "kneeling", "name": { "en": "kneeling", "zh": "跪着" }, "pose": "kneel", "untilMove": true },
+    "kneeling": {
+      "id": "kneeling",
+      "name": { "en": "kneeling", "zh": "跪着" },
+      "pose": "kneel",
+      "untilMove": true
+    },
     "leaning": { "id": "leaning", "name": { "en": "leaning", "zh": "倚着" }, "pose": "lean", "untilMove": true },
     "out_cold": {
       "id": "out_cold",

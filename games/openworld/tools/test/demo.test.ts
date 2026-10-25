@@ -450,6 +450,25 @@ req('E4', 'the library is shared and persistent: a save keeps it, a new game kee
   expect(next.engine.lib.rules.has('patch/raft')).toBe(true)
 })
 
+req('E5', 'what a thing affords (design.md §5.17): a chair in a house of Firstlight, its learned answer a posture, asks the one who used it to sit (the settle impulse every actor answers): one sits on it, drawn so, and stands up walking off', ['fixture/furniture/chair'], () => {
+  const f = fresh()
+  const w = W(f)
+  const chair = Object.values(w.state.entities).find((e) => e.type === 'fixture/furniture/chair' && e.place.on === 'tile' && e.place.map.startsWith('meadow.'))!
+  const at = w.posOf(chair)!
+  const beside = [[0, 1], [1, 0], [-1, 0], [0, -1]].map(([dx, dy]) => ({ x: at.x + dx, y: at.y + dy })).find((p) => w.walkable(at.map, p.x, p.y))!
+  f.eng.author(() => f.eng.teleport(w.player, { map: at.map, ...beside }))
+  f.eng.lib.add({ id: 'patch/chair-sit', host: { type: 'fixture/furniture/chair' }, on: 'impulse/handle', hole: 'core/handle', at: [], affords: 'use', label: { en: 'Sit on {target}', zh: '坐到{target}上' }, tree: { do: [{ op: 'emit', impulse: 'settle', to: 'actor', params: { pose: 'sit' } }] }, source: { origin: 'patch' } })
+  f.eng.act('hands', w.player.id, { e: chair.id }, { instrument: null })
+  f.eng.tick()
+  expect(w.hasStatus({ e: w.player.id }, 'seated')).toBe(true)
+  expect(w.posOf(w.player)).toMatchObject({ map: at.map, x: at.x, y: at.y })
+  expect(snapshot(f.eng).entities.find((e) => e.id === w.player.id)?.pose).toBe('sit')
+  const back = beside.x > at.x ? 'right' : beside.x < at.x ? 'left' : beside.y > at.y ? 'down' : 'up'
+  f.eng.movePlayer(back)
+  ticks(f, 5)
+  expect(w.hasStatus({ e: w.player.id }, 'seated')).toBe(false)
+})
+
 // ------------------------------------------------------------------ C. the ontology the rules address
 
 req('C1', 'every kind of thing: the player, people, creatures, items, fixtures, tiles with statuses, and the residents', ['npc.hesper', 'npc.tobin', 'actor/creature/slime/fire_slime', 'item/tool/rope', 'fixture/light/campfire'], () => {

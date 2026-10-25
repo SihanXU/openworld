@@ -1127,8 +1127,9 @@ get a short in-world line, or nothing. It is not "every act must change the worl
 
 - **The judgment.** The design answers `{"affords": "use" | "words" | "none", "patch": …}`, the judgment first. The
   harness holds the answer to it (`packages/modder/src/affordance.ts`): words or nothing that change the world are a
-  use; a use that changes nothing in the scene that asked (only words, or an impulse its receiver does not answer)
-  is sent back once, and kept as words if it comes back the same. The verdict is written on the answering rule
+  use; a use it said that changes nothing in the scene that asked (only words, or an impulse its receiver does not
+  answer) is sent back once, and kept as words if it comes back the same; an answer that says nothing is judged by
+  its rule, and never sent back. The verdict is written on the answering rule
   (`Rule.affords`). The prompt no longer says "prefer outcomes that change something", which pushed toward
   invention; the reviewer's flag on a rule that only speaks asks it to check the judgment instead.
 - **Context.** The request carries `context.whose`: the host's owner and their relation to the doer (the society
