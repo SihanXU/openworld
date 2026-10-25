@@ -347,6 +347,8 @@ done to anything and the world stays consistent, the picture with it.
   learnt from it: an owner goes to ask back only what the doer still carries (`conduct.ts` `confront`: a wall broken
   or a chest smashed is cried out and reported, never asked for), and a deed whose thing the act destroyed still
   names it, from the record its cell keeps (`social.ts` `judge`: "smashed at Rowan's household's wooden wall").
+  A town has dozens of shells, so a map's named areas as its file has them now leave with it when it is put away and
+  are made again when it comes back (`sparse.ts` `fileRegions`, `Engine.mapArrived`): a save keeps only one that changed.
 - **The Held Ground's walls** are built things (`structure/wall`): a tool knocks one loose whole (§9 *Two forms*);
   any other blow or fire wears it down, and it shows the same cracks.
 - **Tests:** `packages/runtime/test/pieces.test.ts` (the binding, the states, the order), `games/openworld/content/

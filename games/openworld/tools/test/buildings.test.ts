@@ -3,7 +3,7 @@
 // the frame the view draws, a hole where the wall stood — the picture's piece bound to it gone, the way in open.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, snapshot, type Key, type MapData } from '@openworld/engine'
+import { Game, RuleLibrary, regionId, snapshot, type Key, type MapData } from '@openworld/engine'
 import { BASE_RULES, FIRSTLIGHT, STORY_RULES, buildOntology, decodeChunk, type RawChunk } from '@openworld-game/content'
 import { pieceState, piecesOf, type TerrainFacts } from '@openworld/runtime/src/render/pieces.ts'
 import { CATALOG } from '../../client/src/catalog.ts'
@@ -94,6 +94,25 @@ describe('the buildings on the maps (docs/building.md §10)', () => {
     expect(w.isSolidTerrain(w.terrainAt(FIRSTLIGHT.map, wall.x, wall.y - 1))).toBe(true)
     // whose it was: the household's, as the society module reads its regions
     expect(w.regionsAt(FIRSTLIGHT.map, wall.x, wall.y).map((r) => w.prop(r, 'owner'))).toContain(house.owner)
+  })
+
+  it('a far map put away takes its shells with it (as its file has them, they are not kept), and they come back with it', () => {
+    const game = Game.create(world.index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    for (const c of world.chunks) game.loadChunk(decodeChunk(c))
+    const eng = game.engine
+    const w = eng.world
+    const id = regionId(FIRSTLIGHT.map, 'shell.19.5.2.2')
+    eng.author(() => eng.teleport(w.player, { map: FIRSTLIGHT.map, x: 21, y: 9 }))
+    expect(w.prop(w.get(id)!, 'owner')).toBe('household:elder')
+    // the player far off on the mountain, Firstlight put away: its shells leave the state, and no save carries them
+    eng.author(() => eng.teleport(w.player, { map: 'summit', x: 10, y: 10 }))
+    expect(eng.author(() => eng.chunks.putAway(FIRSTLIGHT.map))).toBe(true)
+    expect(w.state.entities[id]).toBeUndefined()
+    expect(JSON.stringify(game.save().state)).not.toContain(id)
+    // come back to it: made again from its file, whose they are with them
+    game.loadChunk(decodeChunk(world.chunks.find((c) => c.map.id === FIRSTLIGHT.map)!))
+    eng.author(() => eng.teleport(w.player, { map: FIRSTLIGHT.map, x: 21, y: 9 }))
+    expect(w.prop(w.get(id)!, 'owner')).toBe('household:elder')
   })
 
   it("Rowan sees his house broken into: vandalism against his household; a wall cannot be handed back, so he does not come asking for it", () => {
