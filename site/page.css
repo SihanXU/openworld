@@ -81,7 +81,7 @@
 
 .hero { position: relative; min-height: 100vh; min-height: 100svh; display: flex; align-items: center; justify-content: center; text-align: center; color: #fff; overflow: hidden; background: #1d1d18; }
 .hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 55% at 50% 48%, rgba(10,12,8,0.62), rgba(10,12,8,0.3) 70%), linear-gradient(180deg, rgba(10,12,8,0.4), rgba(10,12,8,0.1) 40%, rgba(10,12,8,0.6)); }
-.hero-inner { position: relative; z-index: 1; padding: calc(var(--nav-h) + 2rem) 1rem 6rem; max-width: 880px; width: 100%; min-width: 0; clip-path: inset(var(--header-clip, 0px) 0 0); }
+.hero-inner { position: relative; z-index: 1; padding: calc(var(--nav-h) + 2rem) 1rem 6rem; max-width: 880px; width: 100%; min-width: 0; }
 .hero .label { color: rgba(255,255,255,0.8); }
 .hero h1 { font-size: clamp(3.5rem, 11vw, 8.5rem); line-height: 0.95; font-weight: 800; letter-spacing: -0.05em; margin: 0.6rem 0 1rem; text-shadow: 0 2px 30px rgba(0,0,0,0.25); }
 .hero .sub { font-size: clamp(1.1rem, 2.2vw, 1.45rem); color: rgba(255,255,255,0.92); margin: 0 auto; white-space: nowrap; }

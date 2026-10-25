@@ -134,12 +134,9 @@ navSize.observe(navLinks)
 navSize.observe(heroWordmark)
 const night = [...document.querySelectorAll('section.night')]
 function bar() {
-    const contentTop = heroContent.getBoundingClientRect().top
     const wordmarkBox = heroWordmark.getBoundingClientRect()
     const wordmarkBottom = wordmarkBox.bottom
     const overNight = night.some((s) => { const r = s.getBoundingClientRect(); return r.top <= navHeight && r.bottom > navHeight })
-    // Let the hero pass behind a clear header without painting its large letters through the controls.
-    heroContent.style.setProperty('--header-clip', `${Math.max(0, navHeight + 12 - contentTop)}px`)
     // Fade the whole wordmark before its top reaches the header's clipping edge.
     // Short viewports have less scrolling room; keep the title fully visible at scroll zero.
     const titleRoom = Math.max(1, Math.min(wordmarkBox.height, wordmarkBox.top + scrollY - navHeight - 24))
