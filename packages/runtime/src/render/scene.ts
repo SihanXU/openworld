@@ -13,6 +13,7 @@ import { GroundAtlas, T, groundBeneath, groundTile, hash2, objectLook, stairAt, 
 /** What a room's frame is drawn over: its walls (a door or a doorway through them is left open). */
 const ROOM_WALL = new Set(['wall', 'woodwall', 'void'])
 import { depthOf, footOf } from './depth.ts'
+import { crackStage, pieceDepth, pieceState, piecesOf, type CellNow, type PieceDef, type PieceState, type TerrainFacts } from './pieces.ts'
 import { prefs } from '../ui/common.ts'
 
 /** How much higher a storey is drawn than the one below it (world-model.md §5.2): one tile, a wall's height. */
@@ -61,11 +62,40 @@ interface EView {
   top?: Phaser.GameObjects.Image
   /** A raised floor's thickness, under a south edge nothing holds up (a balcony). */
   lip?: Phaser.GameObjects.Image
+  /** A built wall's cracks as it loses durability (pieces.ts crackStage). */
+  crack?: Phaser.GameObjects.Image
   /** Part of what hides the player (a wall's front, a floor overhead): see-through. */
   fadeFront?: boolean
   /** Standing in front of the player and over them (a statue, a dead tree): faded (fadeOver). */
   over?: boolean
 }
+
+/** A building's picture stamped on the map, cut into pieces bound to its cells (pieces.ts). */
+interface StampView {
+  p: import('../assets/types.ts').PrefabDef
+  x: number
+  y: number
+  pieces: PieceView[]
+}
+
+/** A piece of a building's picture or a room's frame: its image, how it shows its cell now, what it wears for that. */
+interface PieceView {
+  def: PieceDef
+  img: Phaser.GameObjects.Image
+  /** Its building (a room's frame piece keeps its own order). */
+  stamp?: StampView
+  state?: PieceState
+  sig?: string
+  /** Its cracks, over it. */
+  crack?: Phaser.GameObjects.Image
+  /** Gone, under a piece still standing north of it: the shade of what overhangs, on the ground. */
+  shade?: Phaser.GameObjects.Image
+}
+
+/** A wall burnt black: its piece darkened. */
+const BURNT_TINT = 0x4a3c36
+/** The catalogue's wall damage sheet (ui `wallDamage`): its frames — cracks a third, two thirds, nearly gone, then the eave's shade. */
+const SHADE_FRAME = 3
 
 /** Built things drawn as part of the place (structures.ts art): wall blocks, doors, floors, stairs. */
 const isWallish = (type: string) => type === 'structure/wall' || type.startsWith('structure/door')
@@ -123,6 +153,11 @@ export class WorldScene extends Phaser.Scene {
   private statics: Phaser.GameObjects.GameObject[] = []
   /** The cells a building's picture covers ("x,y"), with the depth it is drawn at: what flies over them is drawn over it. */
   private roofs = new Map<string, number>()
+  /** The pieces of the buildings' pictures and the rooms' frames bound to a wall, by its cell ("x,y"). */
+  private pieces = new Map<string, PieceView>()
+  /** The cells whose piece shows something besides a whole wall (cracked, burnt, gone): looked at again every frame. */
+  private marred = new Set<string>()
+  private facts?: TerrainFacts
   /** Where the player stands (and on which storey): what is above them near them fades. */
   private playerAt?: { x: number; y: number; z: number }
   /** The durability bars over struck cells. */
@@ -317,6 +352,10 @@ export class WorldScene extends Phaser.Scene {
     for (const o of this.statics) o.destroy()
     this.statics = []
     this.roofs.clear()
+    this.pieces.clear()
+    this.marred.clear()
+    // read again with each map: the editor hands over another game without a new scene
+    this.facts = undefined
     for (const o of this.objects.values()) o.destroy()
     this.objects.clear()
     this.covered.clear()
@@ -424,13 +463,22 @@ export class WorldScene extends Phaser.Scene {
     const p = catalog().prefabs[key]
     if (!p) return
     const tex = this.textures.get(p.img)
-    const name = `prefab:${key}`
-    if (!tex.has(name)) tex.add(name, 0, p.x, p.y, p.tw * T, p.th * T)
+    const m = this.base!
+    // the map's file: what each piece is bound to (pieces.ts)
+    const original = (cx: number, cy: number) => (cx >= 0 && cy >= 0 && cx < m.width && cy < m.height ? m.terrain[cy * m.width + cx] : '')
+    const sv: StampView = { p, x, y, pieces: [] }
+    for (const d of piecesOf(p, { x, y }, original, this.terrainFacts())) {
+      const name = `prefab:${key}:${d.i},${d.j}`
+      if (!tex.has(name)) tex.add(name, 0, p.x + d.i * T, p.y + d.j * T, T, T)
+      const img = this.add.image(d.x * T, d.y * T, p.img, name).setOrigin(0, 0).setDepth(pieceDepth(p, { y }, d.j, false))
+      this.statics.push(img)
+      const pv: PieceView = { def: d, img, stamp: sv }
+      sv.pieces.push(pv)
+      if (d.bound) this.pieces.set(`${d.x},${d.y}`, pv)
+    }
     let lastSolid = 0
     p.grid.forEach((row, j) => /[#D]/.test(row) && (lastSolid = j))
-    const depth = p.ground ? -40 : (y + lastSolid + 1) * T - 2
-    const img = this.add.image(x * T, y * T, p.img, name).setOrigin(0, 0).setDepth(depth)
-    this.statics.push(img)
+    const depth = pieceDepth(p, { y }, lastSolid, false)
     // a roof hides what is under it (the draw order); a pool one wades into is ground, no roof
     if (!p.ground) for (let j = 0; j <= lastSolid; j++) for (let i = 0; i < p.tw; i++) this.roofs.set(`${x + i},${y + j}`, depth)
     // the healing spring says what it is: a heart bobbing over its middle
@@ -454,6 +502,9 @@ export class WorldScene extends Phaser.Scene {
       if (!tex.has(name)) tex.add(name, 0, (r.col + sc) * T, (r.row + sr) * T, T, T)
       const img = this.add.image((x + dx) * T, (y + dy) * T, r.img, name).setOrigin(0, 0).setDepth(dy === h - 1 ? (y + dy + 1) * T + 1 : -40)
       this.statics.push(img)
+      // a frame's piece goes with the wall it is drawn over (pieces.ts): broken, the room is open there
+      const t = this.terrainAt(x + dx, y + dy)
+      if (this.terrainFacts().solid(t)) this.pieces.set(`${x + dx},${y + dy}`, { def: { x: x + dx, y: y + dy, i: dx, j: dy, bound: t }, img })
     }
     const mid = (i: number, _len: number) => 1 + ((i - 1) % (s - 2)) // cycle the edge's middle tiles 1,2,3,1,2,3
     for (let dx = 0; dx < w; dx++)
@@ -469,6 +520,77 @@ export class WorldScene extends Phaser.Scene {
         const sr = top ? 0 : bottom ? s - 1 : mid(dy, h)
         piece(sc, sr, dx, dy)
       }
+  }
+
+  /** What the renderer knows of the terrains (the game's ontology): which fill their cell, which are a wall burnt. */
+  private terrainFacts(): TerrainFacts {
+    if (!this.facts) {
+      const ts = game().ontology().terrains
+      this.facts = { solid: (t) => !!ts[t]?.solid, burnt: (t) => !!ts[t]?.tags?.includes('burnt') }
+    }
+    return this.facts
+  }
+
+  /**
+   * The pieces bound to the cells the frame names, and to those that showed damage before (pieces.ts): each shows
+   * its wall as it is now. A building with a piece gone is drawn row by row, and its cells open no longer hide.
+   */
+  private refreshPieces(f: Frame): void {
+    if (!this.pieces.size) return
+    const now = new Map<string, CellNow>()
+    for (const t of f.tiles) if (t.terrain) now.set(`${t.x},${t.y}`, { terrain: t.terrain, hp: t.hp, maxHp: t.maxHp })
+    const touched = new Set<StampView>()
+    for (const k of new Set([...now.keys(), ...this.marred])) {
+      const pv = this.pieces.get(k)
+      if (!pv) continue
+      const st = pieceState(pv.def, now.get(k), this.terrainFacts())
+      const sig = st.gone ? 'gone' : `${st.crack}${st.burnt ? 'b' : ''}`
+      if (sig === (pv.sig ?? '0')) continue
+      pv.sig = sig
+      pv.state = st
+      if (sig === '0') this.marred.delete(k)
+      else this.marred.add(k)
+      if (pv.stamp) touched.add(pv.stamp)
+      else this.dressPiece(pv, pv.img.depth)
+    }
+    for (const sv of touched) this.dressStamp(sv)
+  }
+
+  /** A building's pieces as their walls are: the order of its rows, its roof's cells, each piece's look. */
+  private dressStamp(sv: StampView): void {
+    const open = sv.pieces.some((pv) => pv.state?.gone)
+    let lastSolid = 0
+    sv.p.grid.forEach((row, j) => /[#D]/.test(row) && (lastSolid = j))
+    for (const pv of sv.pieces) {
+      const depth = pieceDepth(sv.p, sv, pv.def.j, open)
+      this.dressPiece(pv, depth)
+      const k = `${pv.def.x},${pv.def.y}`
+      if (sv.p.ground || pv.def.j > lastSolid) continue
+      if (pv.state?.gone) this.roofs.delete(k)
+      else this.roofs.set(k, depth)
+    }
+  }
+
+  /** A piece as its wall is: whole (its cracks, blackened if it burnt), or gone (the shade of what still stands over it). */
+  private dressPiece(pv: PieceView, depth: number): void {
+    const st = pv.state ?? { gone: false, crack: 0, burnt: false }
+    const dmg = catalog().ui.wallDamage
+    const frames = dmg ? spriteFrames(this, 'ui:wallDamage', dmg) : []
+    pv.img.setDepth(depth).setVisible(!st.gone)
+    if (!st.gone && st.burnt) pv.img.setTint(BURNT_TINT)
+    else pv.img.clearTint()
+    const crack = !st.gone && st.crack > 0 && frames[st.crack - 1]
+    if (crack) {
+      if (!pv.crack) this.statics.push((pv.crack = this.add.image(pv.def.x * T, pv.def.y * T, dmg!.img, crack).setOrigin(0, 0)))
+      pv.crack.setFrame(crack).setDepth(depth + 0.1).setVisible(true)
+    } else pv.crack?.setVisible(false)
+    // a hole under what still stands north of it (the eave over a broken front wall): its shade on the ground
+    const north = pv.stamp?.pieces.find((o) => o.def.i === pv.def.i && o.def.j === pv.def.j - 1)
+    const shade = st.gone && north && !north.state?.gone && frames[SHADE_FRAME]
+    if (shade) {
+      if (!pv.shade) this.statics.push((pv.shade = this.add.image(pv.def.x * T, pv.def.y * T, dmg!.img, shade).setOrigin(0, 0).setDepth(-39)))
+      pv.shade.setVisible(true)
+    } else pv.shade?.setVisible(false)
   }
 
   // ---------------------------------------------------------------- frames
@@ -945,6 +1067,7 @@ export class WorldScene extends Phaser.Scene {
       }
       this.refreshGround()
     }
+    this.refreshPieces(f)
     for (const [k, list] of statusNow) {
       const sig = list.slice().sort().join('|')
       const cur = this.tileFx.get(k)
@@ -1272,6 +1395,13 @@ export class WorldScene extends Phaser.Scene {
       top.setVisible(!(clear && !n) && (hiddenAbove || (!this.walls.has(at(0, 0, 1)) && !this.floors.has(at(0, 0, 1)))))
       v.fadeFront = clear
       v.key = 'built'
+      // its cracks as it loses durability, as a building's wall shows them (pieces.ts)
+      const dmg = catalog().ui.wallDamage
+      const stage = crackStage(e.hp, e.maxHp)
+      const crack = dmg && stage > 0 ? spriteFrames(this, 'ui:wallDamage', dmg)[stage - 1] : undefined
+      if (crack && !v.crack) v.root.addAt((v.crack = this.add.image(0, 0, dmg!.img, crack).setOrigin(0.5, 1)), v.root.getIndex(v.body) + 1)
+      if (crack) v.crack!.setFrame(crack)
+      v.crack?.setVisible(!!crack && v.body.visible)
       return
     }
     if (e.type === 'structure/floor' && z > 0) {

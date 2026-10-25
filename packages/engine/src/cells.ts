@@ -29,6 +29,12 @@ export interface Layers {
   volume: (string | undefined)[]
 }
 
+/**
+ * What one stands on that is a way through, never the ground under a filled cell: a wall broken beside a house's
+ * door leaves the ground of the street, not a second door (the kernel's tags `door` and `stairs`).
+ */
+export const WAY_TAGS = ['door', 'stairs']
+
 /** How far around a filled cell the ground under it is looked for. */
 const GROUND_REACH = 8
 /** The ground under a filled cell nothing around tells. */

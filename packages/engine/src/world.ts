@@ -2,7 +2,7 @@
 
 import { LOOK_TAG, lookProblems, lookTags, wornLook } from './looks.ts'
 import { calendarAt, type Calendar, type WeatherSpan, isNight } from './calendar.ts'
-import { CELL_SPACES, cellId, parseCellId, splitLayers, type CellSpace, type Layers } from './cells.ts'
+import { CELL_SPACES, WAY_TAGS, cellId, parseCellId, splitLayers, type CellSpace, type Layers } from './cells.ts'
 import { OntologyIndex } from './ontology.ts'
 import { nextRandom } from './rng.ts'
 import type {
@@ -504,7 +504,7 @@ export class World {
     const hit = this.layers.get(map)
     if (hit?.data === data) return hit.layers
     const spaceOf = (t: string): CellSpace => this.onto.terrain(t)?.space ?? 'floor'
-    const layers = splitLayers(data, spaceOf, (t) => !this.isSolidTerrain(t))
+    const layers = splitLayers(data, spaceOf, (t) => !this.isSolidTerrain(t) && !(this.onto.terrain(t)?.tags ?? []).some((g) => WAY_TAGS.includes(g)))
     this.layers.set(map, { data, layers })
     return layers
   }

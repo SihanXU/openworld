@@ -215,6 +215,8 @@ export class Conduct {
       // a thing taken from them or theirs (not a blow: violence is fled, not argued with; not a friend's: theirs to ask)
       const theirs = !!g && ['me', 'ours'].includes(socialOf(eng).victim(g.against, e))
       if (!g || !def || def.violent || !g.thing || !theirs || w.state.tick - g.tick > 2 * 600) continue
+      // only what the doer still has can be given back: a wall broken, a chest smashed is cried out and reported, not asked for
+      if (!this.carries(o, g.thing)) continue
       if (this.dist(e, o) <= 1 && o.place.on === 'tile') {
         this.face(e, o.place)
         eng.act('hands', e.id, { e: o.id }, { instrument: null, params: { say: 'demand', item: g.thing } })
@@ -222,6 +224,18 @@ export class Conduct {
         return true
       }
       return (o.place.on === 'tile' && this.go(e, o.place.x, o.place.y)) || true
+    }
+    return false
+  }
+
+  /** Does one have a thing about them: in hand, in the bag, or in what they carry? */
+  private carries(o: Entity, id: string): boolean {
+    const w = this.eng.world
+    let e = w.get(id)
+    for (let depth = 0; e && depth < 8; depth++) {
+      if (e.place.on !== 'inside' && e.place.on !== 'hand') return false
+      if (e.place.holder === o.id) return true
+      e = w.get(e.place.holder)
     }
     return false
   }

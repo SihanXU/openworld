@@ -55,6 +55,10 @@ export const TERRAIN_CHARS: Record<string, string> = {
   a: 'ash',
   t: 'charred_tree',
   K: 'burnt_wall',
+  // the walls of the buildings not of stone or wood (a tent's canvas, a hut's thatch, an igloo's snow blocks)
+  Y: 'canvaswall',
+  Z: 'thatchwall',
+  S: 'snowwall',
   // the overworld's ground (world-model.md §5.1)
   '0': 'ow_sea',
   '1': 'ow_plain',
@@ -175,6 +179,11 @@ export const TERRAINS: TerrainDef[] = [
   T('wall', '石墙', 'stone wall', ['stone', 'wall'], { space: 'volume', solid: true, props: { material: 'stone', maxHp: 24, hp: 24, supports: 2 }, makeup: [{ type: 'item/material/stone', count: 4 }], color: '#6b6e75' }),
   T('woodwall', '木墙', 'wooden wall', ['wooden', 'wall', 'flammable'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 12, hp: 12, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], color: '#8a5a33' }),
   T('burnt_wall', '焦黑的木墙', 'burnt wall', ['wall', 'burnt'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/coal', count: 2 }], color: '#3a2e28' }),
+  // a building is made of what its walls are (docs/building.md §10): a tent's canvas gives to a blade, a hut's thatch to
+  // an axe or a sickle, an igloo's packed snow to a pick; each breaks into what it is made of
+  T('canvaswall', '帆布墙', 'canvas wall', ['cloth', 'wall', 'flammable'], { space: 'volume', solid: true, props: { material: 'cloth', maxHp: 6, hp: 6, supports: 1 }, makeup: [{ type: 'item/material/cloth', count: 2 }, { type: 'item/material/stick', count: 1 }], color: '#c9a46a' }),
+  T('thatchwall', '草泥墙', 'thatch wall', ['plant', 'wall', 'flammable'], { space: 'volume', solid: true, props: { material: 'plant', maxHp: 6, hp: 6, supports: 1 }, makeup: [{ type: 'item/material/grass', count: 3 }, { type: 'item/material/stick', count: 2 }], color: '#b59a55' }),
+  T('snowwall', '雪砖墙', 'snow-block wall', ['cold', 'wall'], { space: 'volume', solid: true, props: { material: 'ice', maxHp: 10, hp: 10, supports: 2 }, makeup: [{ type: 'item/misc/snowball', count: 3 }], color: '#e8f0f4' }),
   T('roof', '屋顶', 'roof', ['roof'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 1 }], color: '#a8432f' }),
   T('floor_wood', '木地板', 'wooden floor', ['floor', 'wooden', 'flammable', 'indoor'], { color: '#9c7a4c' }),
   T('floor_stone', '石地板', 'stone floor', ['floor', 'stone', 'indoor'], { color: '#8d8f94' }),

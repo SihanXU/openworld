@@ -239,7 +239,7 @@ function fullTile(atlasTiles: (img: string, c: number, r: number) => void, catal
 }
 
 /** What the snow lies up against without a drift's rim: a hut's walls, a cliff, a floor with its own edge. */
-const SNOW_BANKS = new Set(['wall', 'woodwall', 'burnt_wall', 'cave_wall', 'floor_wood', 'floor_stone', 'cobble', 'carpet'])
+const SNOW_BANKS = new Set(['wall', 'woodwall', 'burnt_wall', 'canvaswall', 'thatchwall', 'snowwall', 'cave_wall', 'floor_wood', 'floor_stone', 'cobble', 'carpet'])
 
 /** Open ground that is not snow: what a snowfield gives way to (a floor, a road and what stands are neither). */
 const BARE = new Set(['grass', 'drygrass', 'flowers', 'dirt', 'sand', 'mud', 'gravel', 'ash', 'farmland'])
