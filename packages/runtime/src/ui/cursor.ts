@@ -127,7 +127,7 @@ function linesOf(k: Keys, pointer: boolean): string {
   if (!k) return ''
   // (an input whose key the player left unbound says nothing)
   const line = (key: string, v: KeyView | undefined) =>
-    v && key ? `<div class="kl${v.unknown ? ' unknown' : ''}${v.steal ? ' steal' : ''}"><kbd>${esc(key)}</kbd> ${esc(tx(v.label))}${v.unknown ? ' <span class="q">?</span>' : ''}</div>` : ''
+    v && key ? `<div class="kl${v.unknown ? ' unknown' : ''}${v.steal ? ' steal' : ''}"><kbd>${esc(key)}</kbd> ${esc(tx(v.label))}${v.confirm ? esc(t('asksFirst')) : ''}${v.unknown ? ' <span class="q">?</span>' : ''}</div>` : ''
   const hands = k.hands?.ground && (k.hands.unknown || k.hands.idle) ? undefined : k.hands
   // the right click where it is not what the left click already does (an axe at a tree chops either way)
   const right = k.secondary && same(k.secondary, k.primary) ? undefined : k.secondary

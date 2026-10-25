@@ -185,9 +185,9 @@ lies loose or stands.
 | **G** | `put(held, target)` | the world's `carry` (1: the cells round, one's own included) | set down, put in or on, set on a fire, hand to a person; a built thing put down lies loose (G never builds) |
 
 **The left click** is `Controls.plan('primary')`. A swing lands on what is struck — with nothing in hand someone
-first, then what cannot be carried, never a loose thing lying there; with a tool, the top layer —, on someone one
-talks to (a person, a companion) only with the weapon drawn (X: the blow is meant, docs/npc-sandbox.md; a torch is
-not put to a villager by a slip either), never on oneself. A tool swung where the world has never seen it is an
+first, then what cannot be carried, never a loose thing lying there; with a tool, someone one talks to first, then
+the top layer: aimed at a person, it is the person, never the ground under them —, never on oneself. A weapon swung
+at a person is a blow on them, a tool (a torch) its use on them. On someone friendly it is asked first (below). A tool swung where the world has never seen it is an
 experiment, as any use is (a pickaxe at the grass asks the world); only the bare fist at the bare ground the world
 has never seen struck makes nothing. It acts on the press; held, it goes on
 (`Controls.again`) at a swing's pace — the attack's cooldown, the same beat for a tool's work — making again only
@@ -306,10 +306,14 @@ aside naming a key the map leaves unbound goes). The wiki fills them with the de
   whatever they are used on except people; tools that are also weapons (the axe) strike living
   things and work everything else; the bare body strikes whatever it is used on (a fist wears down
   plants and wood, slowly; stone is too hard). A weapon used on a person is a use, never a blow — no
-  villager is hurt by accident; the swing strikes a person or a companion only drawn. A blow from afar flies along
-  a row or a column. A press never aims a blow at oneself (the chooser still strikes).
+  villager is hurt by accident; the left click's swing is a blow on them, asked first (below). A blow from afar
+  flies along a row or a column. A press never aims a blow at oneself (the chooser still strikes).
 - Eating and drinking oneself ask first (yes / no); so does any rule with `confirm`, a theft, and a use on oneself
-  the world has never seen. Food, a draught or armour used on another feeds them, doses them, dresses them.
+  the world has never seen. So does acting on someone friendly (agreed 2026-10-25): the left click's blow ("Attack
+  Hesper?"), the right click's use and G's gift (their labels as a question: "Give Apple to Hesper?"). Friendly is
+  data any actor carries: someone one talks to whom neither would attack (`Engine.hostileTo`: foes, factions,
+  temper) and neither has struck in the last `FIGHT_TICKS`. With the weapon drawn (X) a blow is meant and never asks;
+  a creature never asks; E's talk never asks. The key's view carries `confirm`, and the tip says "(asks first)". Food, a draught or armour used on another feeds them, doses them, dresses them.
 
 **Proof sketch.** An event is (verb, instrument, target). The input fixes the meaning (E: a hand, or a take of
 what lies loose; G: a put; the left click: the held thing's own use — a swing, the bare body's blow, or a use on

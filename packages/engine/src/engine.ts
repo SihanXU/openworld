@@ -1005,7 +1005,7 @@ export class Engine {
     // A status's pulse from one now gone (a bleed they opened) keeps naming them, if they are the last who struck.
     const status = by?.kind.startsWith('time/') && typeof by.params?.status === 'string' ? by.params.status : undefined
     const giver = status ? w.statusBy({ e: e.id }, status) : undefined
-    if (attacker && attacker.id !== e.id) Object.assign((e.combat ??= {}), { lastHurtBy: attacker.id, lastHurtByType: attacker.type })
+    if (attacker && attacker.id !== e.id) Object.assign((e.combat ??= {}), { lastHurtBy: attacker.id, lastHurtByType: attacker.type, lastHurtTick: w.state.tick })
     else if (e.combat && !(giver && giver !== e.id && e.combat.lastHurtBy === giver)) {
       delete e.combat.lastHurtBy
       delete e.combat.lastHurtByType
