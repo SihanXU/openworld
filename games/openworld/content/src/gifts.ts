@@ -23,6 +23,8 @@ export const GIFT_POOL: string[] = [
   'item/food/fish/catfish',
   'item/food/fish/eel',
   'item/food/fish/pike',
+  'item/material/flower',
+  'item/misc/bouquet',
   'item/material/herb',
   'item/material/fireweed',
   'item/material/frostcap',

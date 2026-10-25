@@ -113,6 +113,14 @@ export const TREE_GROWS = 28800
 const GROWS_INTO_TREE: StageDef = { into: 'tile/tree', lasts: TREE_GROWS, needs: { all: [LIGHT, CLEAR] }, wait: 600, fx: 'leaves' }
 /** A vein mined out grows back in a game day (its spent face stands meanwhile: nothing breaks it). */
 export const VEIN_REGROWS = TICKS_PER_DAY
+/** The ground's small things (flowers, tufts, leaves, pebbles): how often one more appears on an outdoor map (two game hours), and at most how many of each. */
+export const LITTER_EVERY = TICKS_PER_DAY / 12
+export const LITTER: [type: string, on: string[], max: number][] = [
+  ['fixture/nature/flowers', ['grass', 'flowers'], 3],
+  ['fixture/nature/tuft', ['grass', 'drygrass'], 3],
+  ['fixture/nature/leaves', ['grass', 'dirt'], 3],
+  ['fixture/nature/pebbles', ['dirt', 'gravel', 'sand'], 3],
+]
 /** A calf or a chick grows up in two game days. */
 const GROWS_UP = 2 * TICKS_PER_DAY
 /** A hen lays an egg every three game hours. */
@@ -462,6 +470,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/container/wardrobe', 'wardrobe', '衣柜', ['wooden', 'flammable'], { solid: true, props: { capacity: 12, material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/plank', count: 4 }] }),
   // the Held Ground's storehouse (built by its steward): forty places
   F('fixture/container/storehouse', 'storehouse', '储物棚', ['wooden', 'flammable'], { solid: true, sprite: 'fixture:wardrobe', props: { capacity: 40, material: 'wood' } }),
+  // the dresser's standing mirror (dresser.ts): a hand on it opens the restyle panel
+  F('fixture/furniture/mirror', 'standing mirror', '穿衣镜', ['wooden', 'glass', 'fragile'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
   F('fixture/container/shelf', 'shelf', '货架', ['wooden', 'flammable'], { solid: true, props: { capacity: 8, material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
   F('fixture/container/bookshelf', 'bookshelf', '书架', ['wooden', 'flammable', 'paper'], { solid: true, props: { capacity: 8, material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
   F('fixture/container/sack', 'sack', '麻袋', ['cloth', 'flammable'], { solid: false, props: { capacity: 4, material: 'cloth', maxHp: 3, hp: 3 }, makeup: [{ type: 'item/material/cloth', count: 1 }] }),
@@ -678,7 +688,7 @@ export function buildOntology(): Ontology {
     // each kind of monster's own piece: sure at the fiftieth, and what the finder is told (the loot module, trophies.ts)
     loot: LOOT,
     efficiency: EFFICIENCY,
-    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 }, nightFact: 'night.shift', gearLevels: GEAR_LEVELS },
+    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 }, nightFact: 'night.shift', gearLevels: GEAR_LEVELS, restyle: { coin: 10, needs: [{ type: 'item/material/flower', count: 3 }] } },
     // what makes a room what it is: a bed a bedroom (a night there gives everything back), a cooking fire a
     // kitchen, a workbench or forge a workshop, three chests and more a storeroom (world-model.md §5.4)
     roomRoles: [
@@ -709,6 +719,9 @@ export function buildOntology(): Ontology {
     // what appears on any map its `where` fits, besides each map's own: after dark, out in the wild,
     // the dead and the bats, a few at a time, six to ten cells off (out of sight where they come)
     appear: [
+      // the small things of the ground (life.ts forage/pick: picked up, they are gone): a new patch now and then on
+      // any outdoor map, a few at a time, slowly — every couple of hours, never more than a handful
+      ...LITTER.map(([type, on, max]) => ({ types: { [type]: 1 }, on, max, every: LITTER_EVERY, where: { light: 'outdoor' as const } })),
       {
         types: { 'actor/creature/undead/zombie': 0.6, 'actor/creature/beast/bat': 0.4 },
         where: { zone: 'combat', light: 'outdoor' },

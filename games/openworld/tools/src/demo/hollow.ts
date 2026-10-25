@@ -5,7 +5,7 @@
 // All are combat zones; the barrow's floors are dark.
 
 import type { AiData, AppearDef, Entity } from '@openworld/engine'
-import { MapBuilder, rng } from './builder.ts'
+import { MapBuilder, rng, litterChance } from './builder.ts'
 import { L, GROUND_YIELD, appears, lay } from './kit.ts'
 
 /** The forest's new southern gap (columns), the hollow's way in from it, and the hollow's way down to the barrow. */
@@ -46,7 +46,7 @@ function dresser(m: MapBuilder) {
   }
   /** Small things by mask, as MapBuilder.sprinkle, under ids of their own. */
   const strew = (type: string, p: number, where: (x: number, y: number, t: string) => boolean, [rx, ry, rw, rh]: [number, number, number, number] = [0, 0, m.w, m.h]) => {
-    for (let y = ry; y < ry + rh; y++) for (let x = rx; x < rx + rw; x++) if (m.free(x, y) && where(x, y, m.get(x, y)) && rng.chance(p)) put(type, x, y)
+    for (let y = ry; y < ry + rh; y++) for (let x = rx; x < rx + rw; x++) if (m.free(x, y) && where(x, y, m.get(x, y)) && rng.chance(litterChance(type, p))) put(type, x, y)
   }
   return { put, strew }
 }

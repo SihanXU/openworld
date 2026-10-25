@@ -485,6 +485,8 @@ export const CATALOG: Catalog = {
     'fixture:crate': { base: t(DUNGEON, 2, 1), open: t(DUNGEON, 3, 1) },
     'fixture:pot': { base: t(ELEM, 2, 9) },
     'fixture:wardrobe': { base: t(ELEM, 2, 7, 1, 2) },
+    // the dresser's standing mirror (TilesetElement (8,10))
+    'fixture:mirror': { base: t(ELEM, 8, 10) },
     'fixture:shelf': { base: t(ELEM, 4, 7, 1, 2) },
     'fixture:bookshelf': { base: t(ELEM, 3, 7, 1, 2) },
     'fixture:sack': { base: t(ELEM, 1, 1) },
@@ -745,6 +747,9 @@ export const CATALOG: Catalog = {
     'item:ore': t(NATURE, 6, 14),
     'item:ore_gold': t(NATURE, 4, 14),
     'item:herb': icon('Items/Resource/Grass.png', 16, 16),
+    // the field's flowers, as the ground shows them; a bouquet, a fuller clump
+    'item:flower': t(DETAIL, 5, 2),
+    'item:bouquet': t(NATURE, 6, 11),
     'item:herb_red': t(DETAIL, 5, 2),
     'item:mushroom_blue': t('Actor/Monster/Mushroom2/mushroom2.png', 0, 0),
     'item:feather': icon('Items/Resource/feather.png', 16, 16),

@@ -301,6 +301,9 @@ const BASE_FORMS: Form[] = [
   W('item/material/gold_ingot', 'Gold Ingot', '金锭', 'item:ore_gold', { tags: ['metal', 'smelted', 'precious', 'conductive'], props: { material: 'gold' }, where: { smithy: 0.3 } }),
   // steel: iron and much coal at a forge, for a smith who has learned it (life.ts); worked on an anvil like the others
   W('item/material/steel_bar', 'Steel Bar', '钢条', 'item:ingot', { tags: ['metal', 'smelted', 'conductive'], props: { material: 'steel' }, where: { smithy: 0.3 } }),
+  // the small things of the ground, picked up by hand (life.ts forage/pick): a wildflower — a gift, a bouquet's, a
+  // petal draught's, and the dresser's price (dresser.ts)
+  W('item/material/flower', 'Wildflower', '野花', 'item:flower', { tags: ['plant', 'flammable', 'fragrant'], where: { wild: 2, home: 0.3 } }),
   W('item/material/herb', 'Herb', '草药', 'item:herb', { tags: ['plant', 'flammable', 'medicinal', 'edible'], props: { heal: 3, food: 1 }, where: { wild: 3, temple: 1, farm: 0.5 } }),
   W('item/material/fireweed', 'Fireweed', '火焰草', 'item:herb_red', { tags: ['plant', 'flammable', 'fiery', 'reagent'], where: { wild: 1, library: 0.5 } }),
   W('item/material/frostcap', 'Frostcap', '霜盖菇', 'item:mushroom_blue', { tags: ['fungus', 'icy', 'reagent'], where: { wild: 0.8, dungeon: 0.5 } }),
@@ -329,6 +332,8 @@ const BASE_FORMS: Form[] = [
   W('item/misc/thornmark', 'Dawnmark', '晨辉币', 'item:thornmark', { tags: ['currency', 'metal', 'precious'], where: {} }),
   W('item/material/fertilizer', 'Fertilizer', '肥料', 'item:fertilizer', { tags: ['fertilizer'], where: { farm: 1 } }),
   W('item/material/feed', 'Animal Feed', '饲料', 'item:feed', { tags: ['feed', 'flammable', 'dry'], where: { farm: 1 } }),
+  // a bouquet, tied by hand from wildflowers: a gift anyone is glad of (gifts.ts)
+  W('item/misc/bouquet', 'Bouquet', '花束', 'item:bouquet', { tags: ['plant', 'flammable', 'fragrant'], where: { home: 0.3 }, makeup: [{ type: 'item/material/flower', count: 3 }, { type: 'item/material/grass', count: 1 }], station: 'hands' }),
   W('item/misc/bait', 'Bait', '鱼饵', 'item:bait', { tags: ['bait'], props: { casts: 5 }, where: { shop: 0.5 } }),
   W('item/misc/crate_hen', 'Crated Hen', '装箱的母鸡', 'item:crate', { tags: ['animal-crate', 'wooden'], props: { animalType: 'actor/creature/animal/chicken' }, where: {} }),
   W('item/misc/crate_calf', 'Crated Calf', '装箱的小牛', 'item:crate', { tags: ['animal-crate', 'wooden'], props: { animalType: 'actor/creature/animal/calf' }, where: {} }),

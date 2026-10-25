@@ -2887,6 +2887,54 @@ req('T1', 'Firstlight\'s houses are walked into: every house on the village map 
   expect(w.posOf(w.player)!.map).toBe('meadow.store')
 })
 
+req('T9', 'the dresser (docs/looks.md §5): Odette works on the square beside her standing mirror by day; asked to change one\'s look (the talk verb restyle), or a hand on the mirror, opens the restyle panel; the small things of the ground are picked up by hand — wildflowers into the bag, the patch gone, new ones appearing slowly on any outdoor map — and three with grass tie a bouquet from the bag', ['npc.odette', 'fixture/furniture/mirror', 'fixture/nature/flowers'], () => {
+  const f = fresh()
+  const w = W(f)
+  setHour(f, 2, 11)
+  const mirror = w.posOf(w.get('village.mirror')!)!
+  f.eng.author(() => f.eng.teleport(w.player, { map: FIRSTLIGHT.map, x: mirror.x - 1, y: mirror.y + 1 }))
+  ticks(f, 900)
+  // beside her mirror (her stand is the cell below it; the square is busy, so a step off it is still beside it)
+  const odette = w.posOf(w.get('npc.odette')!)!
+  expect([odette.map, Math.max(Math.abs(odette.x - mirror.x), Math.abs(odette.y - (mirror.y + 1))) <= 1]).toEqual([FIRSTLIGHT.map, true])
+  // asked: her panel (the verb offered: she is tagged dresser)
+  expect(socialOf(f.eng).verbs(w.get('npc.odette')!, w.player).map((v) => v.id)).toContain('restyle')
+  // (the square is busy: one stands on whichever cell beside her, or beside the mirror, is free)
+  const besideFree = (x: number, y: number) => [[0, 1], [-1, 0], [1, 0], [0, -1]].map(([dx, dy]) => ({ x: x + dx, y: y + dy })).find((p) => w.walkable(FIRSTLIGHT.map, p.x, p.y) && !w.placedAt(FIRSTLIGHT.map, p.x, p.y).some((e) => e.type.startsWith('actor')))!
+  const byHer = besideFree(odette.x, odette.y)
+  f.eng.author(() => f.eng.teleport(w.player, { map: FIRSTLIGHT.map, x: byHer.x, y: byHer.y }))
+  w.fx.length = 0
+  f.eng.controls.talk('npc.odette', 'restyle')
+  ticks(f, 2)
+  expect(w.fx.some((x) => x.t === 'panel' && x.panel === 'restyle' && x.by === 'npc.odette')).toBe(true)
+  // a hand on the mirror: the same panel
+  const byMirror = besideFree(mirror.x, mirror.y)
+  f.eng.author(() => f.eng.teleport(w.player, { map: FIRSTLIGHT.map, x: byMirror.x, y: byMirror.y }))
+  w.fx.length = 0
+  f.eng.act('hands', 'player', { e: 'village.mirror' }, { instrument: null })
+  ticks(f, 2)
+  expect(w.fx.some((x) => x.t === 'panel' && x.panel === 'restyle' && x.by === 'village.mirror')).toBe(true)
+  // the flowers of the field, picked: a wildflower in the bag, the patch gone
+  // (a patch in the village, where no lesson of the Ford's narrows what one may make)
+  const flowers = Object.values(w.state.entities).find((e) => e.type === 'fixture/nature/flowers' && e.place.on === 'tile' && e.place.map === FIRSTLIGHT.map) ?? ofType(f, 'fixture/nature/flowers')!
+  const at = w.posOf(flowers)!
+  f.eng.author(() => f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 }))
+  const before = f.eng.controls.count('item/material/flower')
+  f.eng.act('hands', 'player', { e: flowers.id }, { instrument: null })
+  ticks(f, 2)
+  expect(f.eng.controls.count('item/material/flower')).toBe(before + 1)
+  expect(w.get(flowers.id)).toBeUndefined()
+  // and the ground gives new ones, slowly, on any outdoor map (the world's appearances)
+  expect(w.onto.data.appear?.some((a) => a.types['fixture/nature/flowers'] && a.where?.light === 'outdoor' && a.every >= 1200)).toBe(true)
+  // a bouquet, tied from the bag: three flowers and a handful of grass
+  expect(RECIPE_BY_ID['item/misc/bouquet']).toMatchObject({ station: 'hands', needs: [{ type: 'item/material/flower', count: 3 }, { type: 'item/material/grass', count: 1 }] })
+  carryN(f, 'item/material/flower', 3)
+  carryN(f, 'item/material/grass', 1)
+  f.eng.controls.sync()
+  expect(f.eng.controls.craft(RECIPE_BY_ID['item/misc/bouquet'])).toBe(true)
+  expect(f.eng.controls.count('item/misc/bouquet')).toBe(1)
+})
+
 req('T2', 'the general store: Greta keeps it by day, behind her counter; a hand on the counter opens its shelves — supplies, provisions, and what she buys — and Dawnmarks buy a torch there, and a herb sells', ['npc.greta', 'fixture/furniture/counter/store'], () => {
   const f = fresh()
   const w = W(f)
@@ -3229,13 +3277,19 @@ req('R2', 'a theft its owner saw and could not stop (docs/quests.md §3): Cass s
     cass.facing = 'right'
     w.place(vigo, { on: 'tile', map: 'meadow', x: 19, y: 15 })
     vigo.facing = 'left'
+    // both held where they stand for the moment: a wander or her walk to the loom on the very tick would take the theft out of her sight
+    for (const e of [cass, vigo]) e.tags = [...(e.tags ?? []), 'stationary']
     socialOf(f.eng).meet(cass, vigo.id)
     return r
   })
-  // he takes it from her, an act as anyone's, in front of her
+  // he takes it from her, an act as anyone's, in front of her — and she notices: the sighting is a roll (social.ts
+  // notices), so the dice are held low while it is made, that the requirement does not hang on the seed
+  const rand = w.rand
+  w.rand = () => 0.01
   f.eng.act('take', vigo.id, { e: ring.id }, { instrument: null, params: { into: 'contents' } })
   expect(holderOf(f, ring.id)).toBe(vigo.id)
   ticks(f, 3)
+  w.rand = rand
   const offer = q.offers(cass.id, w.player).find((o) => o.ref.startsWith('quest.recover'))!
   expect(offer).toBeDefined()
   faceNpc(f, cass.id)

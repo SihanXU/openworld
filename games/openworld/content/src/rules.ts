@@ -16,6 +16,7 @@ import { CH1 } from './chapter1.ts'
 import { PART_TWO, UNTOLD } from './regions.ts'
 import { VILLAGE_SHOP_RULES } from './village.ts'
 import { PERSON_NEWS, SOCIAL_RULES } from './social.ts'
+import { DRESSER_RULES } from './dresser.ts'
 import { FAITH_RULES } from './faith.ts'
 import { LOOSE, type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@openworld/engine'
 import { HUNGRY_BELOW } from '@openworld/modules'
@@ -1964,4 +1965,4 @@ const GENERAL: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...FAITH_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...TENTS, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...AFFLICTION_RULES, ...KIT_RULES, ...ELITE_RULES, ...WEB_RULES, ...DROP_RULES, ...BOSS_KIT_RULES, ...VILLAGE_SHOP_RULES, ...FISHING_RULES]
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...FAITH_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...TENTS, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...AFFLICTION_RULES, ...KIT_RULES, ...ELITE_RULES, ...WEB_RULES, ...DROP_RULES, ...BOSS_KIT_RULES, ...VILLAGE_SHOP_RULES, ...FISHING_RULES, ...DRESSER_RULES]

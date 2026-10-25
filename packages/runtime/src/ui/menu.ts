@@ -15,6 +15,7 @@ import type { TransferProgress } from '../transferQueue.ts'
 import { SkillTree } from './skilltree.ts'
 import { WorldMap } from './worldmap.ts'
 import { ProfessionPanel } from './profession.ts'
+import { restylePanel } from './restyle.ts'
 import { PanelRegistry, type PanelFactory } from './panels.ts'
 import { boonPanel } from './boons.ts'
 import { QuestLog } from './questlog.ts'
@@ -31,7 +32,7 @@ const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: 
 /** The game's shops (a station each, its shelves); none, no shop panel. */
 const shops = (): ShopDef[] => game().crafting.shops ?? []
 /** The runtime's own panels for a module a game uses, where the game has none of its own (ClientGame.panels). */
-const builtInPanels = (): Record<string, PanelFactory> => (hasModule('boons') ? { boons: boonPanel } : {})
+const builtInPanels = (): Record<string, PanelFactory> => ({ restyle: restylePanel, ...(hasModule('boons') ? { boons: boonPanel } : {}) })
 const ROW = SLOT_KEYS.length
 
 /** The body's slots as the bag shows them (a paper doll), by the `wear:` key, each with the glyph an empty one shows; the two hands last (the main hand: the weapon kept ready). Their names: STRINGS `slot:<key>`. */
@@ -170,6 +171,8 @@ export interface MenuSend {
   travel(waypoint: string): void
   /** Take up (or change to) a profession at a trainer. */
   profession(id: string): void
+  /** The dresser's: keep this look as one's own, for her price (docs/looks.md §5). */
+  restyle(look: Look): void
   /** A word said to someone without the talk panel (the haven panel's widenings). */
   speak(who: string, verb: string, choice?: string): void
   /** Up to so many of a carried kind put into a thing (the haven panel). */

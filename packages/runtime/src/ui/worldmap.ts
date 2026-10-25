@@ -7,12 +7,17 @@ import type { EntitySnap, Frame, MapData } from '@openworld/engine'
 import { ontology } from '../game.ts'
 import type { Atlas, AtlasContinent } from '../protocol.ts'
 import { $, esc, kbd, prefs, t, tx } from './common.ts'
+import { paintContinent } from './terrainmap.ts'
 
 const colorOf = (id: string) => ontology().terrains[id]?.color ?? '#000'
 /** World map pixels per tile at zoom 1. */
 const PX = 6
 /** The continent's pixels per cell at zoom 1. */
 const CPX = 14
+/** The continent's painted pixels per cell (docs/continent.md; terrainmap.ts), sharp when zoomed right in. */
+const CRES = 40
+/** The continent's painting, kept: its grounds never move, and painting it takes a moment. */
+let painted: { key: string; canvas: HTMLCanvasElement } | undefined
 const ZOOM: [number, number] = [0.25, 3]
 
 /** A map's terrain as a canvas, one pixel per tile (scaled up by CSS, pixelated). */
@@ -37,12 +42,21 @@ function terrainCanvas(width: number, height: number, terrain: string[]): HTMLCa
   return c
 }
 
+/** The waypoint stone's mark: a crystal, lit when attuned. */
+const STONE_SVG = `<svg viewBox="0 0 24 32" aria-hidden="true"><path class="wm-crystal" d="M12 1 L21 11 L12 31 L3 11 Z"/><path class="wm-facet" d="M12 1 L12 31 L3 11 Z"/><path class="wm-rim" d="M12 1 L21 11 L12 31 L3 11 Z"/></svg>`
+/** The traveller's mark: a small figure on a round badge. */
+const YOU_SVG = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle class="wm-badge" cx="12" cy="12" r="10"/><circle class="wm-figure" cx="12" cy="8.5" r="3.2"/><path class="wm-figure" d="M5.5 19.5c0-4 2.9-6.3 6.5-6.3s6.5 2.3 6.5 6.3z"/></svg>`
+
 export class WorldMap {
   private pan = { x: 0, y: 0 }
   private zoom = 1
   private drag?: { id: number; x: number; y: number; px: number; py: number; moved: boolean }
   private suppressClick = false
   private atlas?: Atlas
+  /** The zoom at which the whole continent is in view: as far out as it goes. */
+  private fit = ZOOM[0]
+  /** The continent's size at zoom 1, for keeping it in view. */
+  private extent?: { w: number; h: number }
   /** The continent (its regions and places) or what lies nearby (the visited maps, as they join). */
   private mode: 'continent' | 'nearby' = 'continent'
 
@@ -84,7 +98,7 @@ export class WorldMap {
         const r = view.getBoundingClientRect()
         const cx = e.clientX - r.left
         const cy = e.clientY - r.top
-        const z = Math.min(ZOOM[1], Math.max(ZOOM[0], this.zoom * Math.exp(-e.deltaY * 0.0015)))
+        const z = Math.min(ZOOM[1], Math.max(this.fit, this.zoom * Math.exp(-e.deltaY * 0.0015)))
         this.pan = { x: cx - ((cx - this.pan.x) * z) / this.zoom, y: cy - ((cy - this.pan.y) * z) / this.zoom }
         this.zoom = z
         this.apply()
@@ -120,9 +134,21 @@ export class WorldMap {
 
   private apply(): void {
     const world = $('#wmWorld')
+    // the continent stays in view: it fills the window where it can, and sits in the middle where it cannot
+    if (this.extent && this.continental()) {
+      const r = $('#wmView').getBoundingClientRect()
+      const w = this.extent.w * this.zoom
+      const h = this.extent.h * this.zoom
+      this.pan.x = w <= r.width ? (r.width - w) / 2 : Math.min(0, Math.max(r.width - w, this.pan.x))
+      this.pan.y = h <= r.height - 40 ? (r.height - 40 - h) / 2 + 40 : Math.min(40, Math.max(r.height - h, this.pan.y))
+    }
     world.style.transform = `translate(${this.pan.x}px, ${this.pan.y}px) scale(${this.zoom})`
-    // the places' names come out as one comes closer
-    world.classList.toggle('near', this.zoom >= 1.4)
+    // the marks and names keep their size on the screen whatever the zoom
+    world.style.setProperty('--inv', String(1 / this.zoom))
+    // the places' names come out as one comes closer: the visited ones first, then every one
+    world.classList.toggle('far', this.zoom < 1.1)
+    world.classList.toggle('mid', this.zoom >= 1.6)
+    world.classList.toggle('near', this.zoom >= 2.8)
   }
 
   private centerOnPlayer(): void {
@@ -132,7 +158,7 @@ export class WorldMap {
     const c = a.continent
     if (this.continental() && c) {
       const at = c.cell ?? { x: c.width / 2, y: c.height / 2 }
-      this.zoom = 1.6
+      this.zoom = 2.2
       this.pan = { x: r.width / 2 - (at.x + 0.5) * CPX * this.zoom, y: r.height / 2 - (at.y + 0.5) * CPX * this.zoom }
       return this.apply()
     }
@@ -155,6 +181,8 @@ export class WorldMap {
     const mode = $('#wmMode')
     mode.classList.toggle('hidden', !a.continent)
     mode.textContent = this.continental() ? t('wmNearby') : t('wmContinent')
+    this.extent = undefined
+    this.fit = ZOOM[0]
     if (this.continental()) return this.drawContinent(a, a.continent!)
     const at = new Map(a.maps.map((m) => [m.id, m]))
     for (const m of a.maps) {
@@ -176,7 +204,7 @@ export class WorldMap {
       b.style.left = `${(m.at.x + s.x + 0.5) * PX}px`
       b.style.top = `${(m.at.y + s.y + 0.5) * PX}px`
       b.title = `${tx(s.name)} — ${s.attuned ? t('wmTravel') : t('wmAsleep')}`
-      b.innerHTML = `<span>${esc(tx(s.name))}</span>`
+      b.innerHTML = `${STONE_SVG}<span>${esc(tx(s.name))}</span>`
       b.onclick = () => {
         if (this.suppressClick) return void (this.suppressClick = false)
         if (s.attuned) this.send.travel(s.id)
@@ -190,7 +218,7 @@ export class WorldMap {
         if (m) world.insertAdjacentHTML('beforeend', `<span class="wm-quest" title="${esc(tx(q.text))}" style="left:${(m.at.x + q.x + 0.5) * PX}px;top:${(m.at.y + q.y + 0.5) * PX}px">★</span>`)
       }
     const here = at.get(a.here.map)
-    if (here) world.insertAdjacentHTML('beforeend', `<span class="wm-you" style="left:${(here.at.x + a.here.x + 0.5) * PX}px;top:${(here.at.y + a.here.y + 0.5) * PX}px"></span>`)
+    if (here) world.insertAdjacentHTML('beforeend', `<span class="wm-you" style="left:${(here.at.x + a.here.x + 0.5) * PX}px;top:${(here.at.y + a.here.y + 0.5) * PX}px">${YOU_SVG}</span>`)
     this.centerOnPlayer()
   }
 
@@ -201,24 +229,42 @@ export class WorldMap {
    */
   private drawContinent(a: Atlas, c: AtlasContinent): void {
     const world = $('#wmWorld')
-    const canvas = document.createElement('canvas')
-    canvas.width = c.width * CPX
-    canvas.height = c.height * CPX
+    const key = `${c.width}x${c.height}:${c.terrain.join('')}`
+    if (painted?.key !== key) painted = { key, canvas: paintContinent(c, CRES) }
+    const canvas = painted.canvas
     canvas.className = 'wm-continent'
-    const g = canvas.getContext('2d')!
+    canvas.style.width = `${c.width * CPX}px`
+    canvas.style.height = `${c.height * CPX}px`
+    world.appendChild(canvas)
+    // each region's tint, soft-edged, and the borders between regions as dashed lines
+    const R = 8
+    const tint = document.createElement('canvas')
+    tint.width = c.width * R
+    tint.height = c.height * R
+    tint.className = 'wm-tint'
+    tint.style.width = canvas.style.width
+    tint.style.height = canvas.style.height
+    const tg = tint.getContext('2d')!
     for (let y = 0; y < c.height; y++)
       for (let x = 0; x < c.width; x++) {
-        g.fillStyle = colorOf(c.terrain[y * c.width + x])
-        g.fillRect(x * CPX, y * CPX, CPX, CPX)
         const r = c.regions[c.regionOf[y * c.width + x]]
         if (!r?.color) continue
-        g.globalAlpha = r.backdrop ? 0.22 : 0.12
-        g.fillStyle = r.backdrop ? '#2a2630' : r.color
-        g.fillRect(x * CPX, y * CPX, CPX, CPX)
-        g.globalAlpha = 1
+        tg.globalAlpha = r.backdrop ? 0.26 : 0.16
+        tg.fillStyle = r.backdrop ? '#2a2630' : r.color
+        tg.fillRect(x * R, y * R, R, R)
       }
-    // the borders between regions
-    g.lineWidth = 2
+    world.appendChild(tint)
+    const lines = document.createElement('canvas')
+    lines.width = c.width * CRES
+    lines.height = c.height * CRES
+    lines.className = 'wm-borders'
+    lines.style.width = canvas.style.width
+    lines.style.height = canvas.style.height
+    const g = lines.getContext('2d')!
+    g.lineWidth = CRES * 0.1
+    g.lineCap = 'round'
+    g.setLineDash([CRES * 0.45, CRES * 0.3])
+    g.globalAlpha = 0.75
     for (let y = 0; y < c.height; y++)
       for (let x = 0; x < c.width; x++) {
         const r = c.regionOf[y * c.width + x]
@@ -228,12 +274,12 @@ export class WorldMap {
           const o = x + dx < c.width && y + dy < c.height ? c.regionOf[(y + dy) * c.width + x + dx] : -1
           if (o < 0 || o === r) continue
           g.beginPath()
-          if (dx) (g.moveTo((x + 1) * CPX, y * CPX), g.lineTo((x + 1) * CPX, (y + 1) * CPX))
-          else (g.moveTo(x * CPX, (y + 1) * CPX), g.lineTo((x + 1) * CPX, (y + 1) * CPX))
+          if (dx) (g.moveTo((x + 1) * CRES, y * CRES), g.lineTo((x + 1) * CRES, (y + 1) * CRES))
+          else (g.moveTo(x * CRES, (y + 1) * CRES), g.lineTo((x + 1) * CRES, (y + 1) * CRES))
           g.stroke()
         }
       }
-    world.appendChild(canvas)
+    world.appendChild(lines)
     // each region's name over its middle
     c.regions.forEach((r, i) => {
       let sx = 0
@@ -256,6 +302,7 @@ export class WorldMap {
       b.style.left = `${(at.x + 0.5) * CPX}px`
       b.style.top = `${(at.y + 0.2) * CPX}px`
       b.title = `${tx(s.name)} — ${s.attuned ? t('wmTravel') : t('wmAsleep')}`
+      b.innerHTML = STONE_SVG
       b.onclick = () => {
         if (this.suppressClick) return void (this.suppressClick = false)
         if (s.attuned) this.send.travel(s.id)
@@ -267,11 +314,13 @@ export class WorldMap {
         const at = cellOf(q.map)
         if (at) world.insertAdjacentHTML('beforeend', `<span class="wm-quest" title="${esc(tx(q.text))}" style="left:${(at.x + 0.5) * CPX}px;top:${(at.y - 0.4) * CPX}px">★</span>`)
       }
-    if (c.cell) world.insertAdjacentHTML('beforeend', `<span class="wm-you" style="left:${(c.cell.x + 0.5) * CPX}px;top:${(c.cell.y + 0.5) * CPX}px"></span>`)
-    // the whole continent in view to begin with
+    if (c.cell) world.insertAdjacentHTML('beforeend', `<span class="wm-you" style="left:${(c.cell.x + 0.5) * CPX}px;top:${(c.cell.y + 0.5) * CPX}px">${YOU_SVG}</span>`)
+    // as far out as the whole continent in view; opened close in on where one is
     const r = $('#wmView').getBoundingClientRect()
-    this.zoom = Math.max(ZOOM[0], Math.min(r.width / (c.width * CPX), (r.height - 60) / (c.height * CPX)) * 0.96)
-    this.pan = { x: (r.width - c.width * CPX * this.zoom) / 2, y: (r.height - c.height * CPX * this.zoom) / 2 + 20 }
+    this.extent = { w: c.width * CPX, h: c.height * CPX }
+    this.fit = Math.min(ZOOM[1], Math.max(ZOOM[0], Math.min(r.width / this.extent.w, (r.height - 60) / this.extent.h) * 0.96))
+    if (c.cell) return this.centerOnPlayer()
+    this.zoom = this.fit
     this.apply()
   }
 }

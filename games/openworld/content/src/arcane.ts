@@ -33,6 +33,8 @@ export const ARCANE_RECIPES: Recipe[] = [
   elementalStaff('fire', 'item/material/fireweed', 'Fire Staff', '火焰法杖'),
   elementalStaff('ice', 'item/material/frostcap', 'Frost Staff', '冰霜法杖'),
   { id: 'arcane/healing', name: formName('item/potion/healing'), sprite: sprite('item/potion/healing'), needs: needs(['item/material/herb', 2], [M.honey, 1]), make: { type: 'item/potion/healing' }, station: 'arcane', unlockedBy: unlockedBy('arcane') },
+  // the same draught from the field's flowers, for one with no honey
+  { id: 'arcane/healing-petals', name: formName('item/potion/healing'), sprite: sprite('item/potion/healing'), needs: needs(['item/material/flower', 3], ['item/material/herb', 1]), make: { type: 'item/potion/healing' }, station: 'arcane', unlockedBy: unlockedBy('arcane') },
   { id: 'arcane/fireproof', name: formName('item/potion/fire_resist'), sprite: sprite('item/potion/fire_resist'), needs: needs(['item/material/frostcap', 2], ['item/material/herb', 1]), make: { type: 'item/potion/fire_resist' }, station: 'arcane', unlockedBy: unlockedBy('arcane') },
   book('fireball', [['item/material/fireweed', 1]], 1),
   book('frost-nova', [['item/material/frostcap', 1]], 1),
