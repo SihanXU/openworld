@@ -256,10 +256,15 @@ reach inside it without crossing a floor one cannot stand on (water, lava, void;
 part it). The overworld is an ordinary map and its barriers are terrain: a mountain range north of the
 Ford and the river south of it run sea to sea, and the Ford's own cell is the river's — a crossing
 (`site/place/crossing`, hands' reach 1) gone into from the cell beside it. Walking out of a map's edge
-(the player) lands on the cell beside its own the way one left (on its own cell where that is sea or
-rock); out of a map of several parts, only onto a cell its part's ways lead to. Going in from standing
-on a place lands on the side one came onto it from (behind one, as one faces); from beside a crossing,
-by the way between the two maps (`Engine.enterFrom`). Older saves are brought over by `migrateOverworld`. Portals between hand-made maps stay. A wilderness is made by
+(the player) lands on its own cell, standing on the place one left, from where one chooses the way on
+(2026-10-25; before, the cell beside it the way one left). A place one cannot stand on — a barrier's cell
+(the Ford, the Reed Bend), or one the story has sealed — puts one on the cell beside it the way one left;
+out of a map of several parts, only onto a cell its part's ways lead to. Going in from standing on a
+place lands on the side one came onto it from (behind one, as one faces), or, not having stepped since
+one came out of it by its edge, where one came out (`Engine.leftBy`, forgotten with a save); from beside
+a crossing, by the way between the two maps (`Engine.enterFrom`). A site the story has not opened yet
+(its `opensWhen` fact unset, `World.sealed`) is solid: it stops whoever walks, and its bump says why in
+its gate's words (content `site/sealed`, `SITE_GATES`). Older saves are brought over by `migrateOverworld`. Portals between hand-made maps stay. A wilderness is made by
 `wildChunk` (content `wild.ts`) from the world's seed, its cell and its ground (a recipe each:
 plains, woods, hills, snow, road), with open edges; the client makes it when it is needed, and
 on loading. A long step's time passes at once at the end of the tick (fast-forward); harm stops

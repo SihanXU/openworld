@@ -584,7 +584,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
       hostile: e.ai ? eng.hostileTo(e, w.player) : undefined,
       frozen: !!e.frozenBy,
       ...(typeof e.props?.map === 'string' && { leadsTo: e.props.map }),
-      ...(typeof e.props?.opensWhen === 'string' && !w.fact(e.props.opensWhen) && { sealed: true }),
+      ...(w.sealed(e) && { sealed: true }),
       element: (w.prop(e, 'element') as string | undefined) ?? undefined,
       open: !!e.statuses?.open,
       held: held ? (w.onto.resolve(held.type).sprite ?? held.type) : undefined,

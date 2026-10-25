@@ -280,7 +280,9 @@ aside naming a key the map leaves unbound goes). The wiki fills them with the de
   changes something, and also when it changes nothing but what is in front is only the ground (or
   nothing): a place the story has not opened yet answers E by saying why (`site/enter`, its
   `opensWhen` unset), and that answer reaches the one standing on it rather than the ground's
-  "touched" in front (`Controls.plan`, 2026-10-11). The ground underfoot never takes E from
+  "touched" in front (`Controls.plan`, 2026-10-11). Since 2026-10-25 such a place is solid
+  (`World.sealed`): one bumps into it and the bump says why (`site/sealed`); one stands on it only
+  in an older save. The ground underfoot never takes E from
   anything in front. The Ford's cell is the river's (`site/place/crossing`, hands' reach 1): one
   goes in with E from the cell beside it. A press of E that only touches the ground (the floor
   brushed, said by `tile/handle`) does nothing: it would say so at every step; the chooser still

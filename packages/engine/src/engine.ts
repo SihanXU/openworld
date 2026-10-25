@@ -168,6 +168,11 @@ export class Engine {
   private later: GameEvent[] = []
   /** Who each mover has been pushing into, since when (a swap once it has lasted): by the mover's id. */
   private bumps = new Map<Id, { id: Id; since: number; last: number }>()
+  /**
+   * Who came out of a map by its edge onto its own place, and the point they left from (a fraction of the map): in
+   * again from there, they come in where they left. Forgotten at their next step (and with a save).
+   */
+  private leftBy = new Map<Id, { map: string; rel: [number, number] }>()
   private cooldowns = new Map<Id, number>()
   private flushing = false
   /** What outcomes touched since the last settle: ref key → ref. */
@@ -1183,10 +1188,7 @@ export class Engine {
     // off the edge of a map that lies on the overworld: out onto its cell there (world-model.md §5.1) — but never
     // from a way the story has not opened yet (one stands on it, so it is sealed): it leads nowhere until it opens
     const sealedHere = !!w.map(map)?.portals.some((p) => p.x === x && p.y === y)
-    if (!w.inBounds(map, nx, ny) && isPlayer && w.map(map)?.site && !sealedHere) {
-      this.leaveByEdge(e, x, y, dir)
-      return true
-    }
+    if (!w.inBounds(map, nx, ny) && isPlayer && w.map(map)?.site && !sealedHere && this.leaveByEdge(e, x, y, dir)) return true
     // storeys (world-model.md §5.2, §5.5): on a floor one walks; from stairs up onto the floor above;
     // onto the stairs below from above them; off a floor's edge one falls to the first below
     const z = e.place.z ?? 0
@@ -1262,6 +1264,7 @@ export class Engine {
     this.touch({ e: e.id })
     w.place(e, { on: 'tile', map, x: nx, y: ny, ...(nz && { z: nz }) })
     this.touch({ e: e.id })
+    this.leftBy.delete(e.id)
     if (drop) this.fallBy(e, drop, ev)
     // a step off a ledge is a fall (world-model.md §5.5): the faller strikes itself by the drop
     if ('fall' in over) this.fallBy(e, over.fall, ev)
@@ -1312,17 +1315,19 @@ export class Engine {
   /**
    * Out of a map by its edge (world-model.md §5.1, Elin's ExitBorder): onto its cell's block on the
    * overworld, at the tile of the same part of the map (the bank one left from) nearest where one
-   * left. A part the block does not show: its nearest open tile.
+   * left. A part the block does not show: its nearest open tile. A place of one cell: onto that cell,
+   * where one chooses the way on (in again, it is where one left).
    */
-  private leaveByEdge(e: Entity, x: number, y: number, dir: Dir): void {
+  private leaveByEdge(e: Entity, x: number, y: number, dir: Dir): boolean {
     const w = this.world
     const map = w.map(w.posOf(e)!.map)!
     const site = map.site!
     const part = w.partAt(map.id, x, y)
     const at = [(x + 0.5) / map.width, (y + 0.5) / map.height]
-    // a place of one cell: out onto the cell beside it the way one left (one walks back onto the place to go
-    // in again), or onto the place itself where that is sea or rock. A place a barrier runs through (its cell
-    // the barrier's, or two parts to the map) only onto a cell its part's ways lead to, nearest where one left.
+    // a place of one cell: out onto that cell, standing on the place one left — from there one chooses where to go
+    // (a step to a neighbour, or in again). A place one cannot stand on — a barrier runs through it (its cell the
+    // barrier's, or two parts to the map), or the story has sealed it — out onto the cell beside it the way one
+    // left; through a barrier only onto a cell its part's ways lead to, nearest where one left.
     if (site.size === 1) {
       const open = (tx: number, ty: number) => !w.map(site.map) || w.walkable(site.map, tx, ty, e.id)
       const parted = new Set(w.partsOf(map.id)?.filter((p) => p >= 0)).size > 1
@@ -1330,8 +1335,10 @@ export class Engine {
       const leads = (tx: number, ty: number) => w.entitiesAt(site.map, tx, ty).some((s) => linked.has(String(s.props?.map)))
       const ahead = { x: site.x + DIRS[dir][0], y: site.y + DIRS[dir][1] }
       let to: { x: number; y: number } | undefined
-      if (open(ahead.x, ahead.y) && (!parted || leads(ahead.x, ahead.y))) to = ahead
-      else if (!parted && open(site.x, site.y)) to = { x: site.x, y: site.y }
+      if (!parted && open(site.x, site.y)) {
+        to = { x: site.x, y: site.y }
+        this.leftBy.set(e.id, { map: map.id, rel: [at[0], at[1]] })
+      } else if (open(ahead.x, ahead.y) && (!parted || leads(ahead.x, ahead.y))) to = ahead
       else {
         const out = [site.x + at[0] - 0.5 + DIRS[dir][0], site.y + at[1] - 0.5 + DIRS[dir][1]]
         let best: { x: number; y: number; d: number; linked: boolean } | undefined
@@ -1339,16 +1346,19 @@ export class Engine {
           for (let dx = -1; dx <= 1; dx++) {
             const tx = site.x + dx
             const ty = site.y + dy
-            if ((!dx && !dy) || !open(tx, ty)) continue
             const l = leads(tx, ty)
+            // across a barrier, only where this part's ways lead (a cell its open ways reach): never the far side's ground
+            if ((!dx && !dy) || !open(tx, ty) || (parted && !l)) continue
             const d = Math.hypot(tx - out[0], ty - out[1])
             if (!best || (l && !best.linked) || (l === best.linked && d < best.d)) best = { x: tx, y: ty, d, linked: l }
           }
         to = best
       }
+      // a part whose ways all lead to places not open yet (the far bank before Part Two): its edge leads nowhere
+      if (!to && parted) return false
       e.facing = dir
       this.travel(e, { map: site.map, x: to?.x ?? site.x, y: to?.y ?? site.y })
-      return
+      return true
     }
     let best: { x: number; y: number; d: number; same: boolean } | undefined
     for (let j = 0; j < site.size; j++)
@@ -1363,6 +1373,7 @@ export class Engine {
       }
     e.facing = dir
     this.travel(e, { map: site.map, x: best?.x ?? site.x, y: best?.y ?? site.y })
+    return true
   }
 
   /**
@@ -1377,8 +1388,12 @@ export class Engine {
     const bx = through?.place.on === 'tile' ? through.place.x - Math.floor((size - 1) / 2) : 0
     const by = through?.place.on === 'tile' ? through.place.y - (size - 1) : 0
     const onIt = size === 1 && p && through?.place.on === 'tile' && p.x === through.place.x && p.y === through.place.y
-    // on a place of one cell: in on the side one came onto it from (behind one, as one faces)
-    const rel: [number, number] = onIt
+    // on a place of one cell: in where one came out of it, still standing where one came out; else on the side
+    // one came onto it from (behind one, as one faces)
+    const left = onIt ? this.leftBy.get(e.id) : undefined
+    const rel: [number, number] = left?.map === map
+      ? left.rel
+      : onIt
       ? [0.5 - DIRS[e.facing ?? 'down'][0] * 0.5, 0.5 - DIRS[e.facing ?? 'down'][1] * 0.5]
       : p ? [Math.min(1, Math.max(0, (p.x - bx + 0.5) / size)), Math.min(1, Math.max(0, (p.y - by + 0.5) / size))] : [0.5, 0.5]
     const tile: [number, number] = [Math.min(size - 1, Math.floor(rel[0] * size)), Math.min(size - 1, Math.floor(rel[1] * size))]
