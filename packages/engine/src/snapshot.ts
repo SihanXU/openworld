@@ -44,6 +44,8 @@ export interface EntitySnap {
   statuses: string[]
   /** What its statuses draw over it (their `overlay`, OVERLAYS), in the order it has them. */
   overlays?: string[]
+  /** The posture a status of its draws it in (its `pose`, POSES): the first it has. */
+  pose?: string
   tags: string[]
   name: Text
   hp?: number
@@ -570,6 +572,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
       facing: e.facing ?? 'down',
       statuses: Object.keys(e.statuses ?? {}),
       ...((o) => o.length && { overlays: o })(Object.keys(e.statuses ?? {}).flatMap((s) => w.onto.status(s)?.overlay ?? [])),
+      ...((p) => p && { pose: p })(Object.keys(e.statuses ?? {}).map((s) => w.onto.status(s)?.pose).find(Boolean)),
       tags: [...r.tags, ...(e.tags ?? [])],
       name: e.name ?? r.name ?? e.type.split('/').pop()!,
       hp: hasHp ? w.num(e, 'hp') : undefined,

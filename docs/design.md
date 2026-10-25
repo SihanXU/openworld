@@ -544,6 +544,7 @@ One impulse per channel through which one thing may change another's state:
 | **offered** | what it holds: it accepts or declines | the thing |
 | **handle** | whatever the receiver says: open, close, read, talk | — |
 | **notify** | records, attitudes, the story's facts | what happened: you defeated me, the rope is mended, a topic… |
+| **settle** | its posture and place (it goes to the source and holds a posture until it moves on, §5.17) | pose (sit, lie, kneel, lean), status |
 
 Checked against the base rules: every cross-thing effect maps to one impulse.
 
@@ -577,6 +578,7 @@ particular types ("a fire slime takes fire: undefined").
 | element | physics: flammable + fire → burning; water → wet, a fire goes out; ice → wet things freeze, others chill; lightning on a conductor → electrified; otherwise no change |
 | taken, receive | a portable thing moves; a surface or container takes it; otherwise undefined |
 | restore, notify | defined in data: add to the value, record the fact |
+| settle | an actor takes the posture at the source (§5.17); anything else undefined |
 | contact, time, seen, bump | no change |
 | threshold | hp 0: an `essential` actor goes down and comes to; others are defeated (destroy self, drop what they hold, notify the one who struck). Other thresholds: no change. |
 | stuck | undefined; default: wait where it is |
@@ -1106,6 +1108,56 @@ ground, on an item, on a person, on oneself, on a fixture with no purpose — st
 purpose: that is where the AI's answers are interesting, and it is most of the 27,213 `core/use`
 holes left. The planner no longer lets the ground's "touched" take E away from an unanswered
 thing in front (`controls.ts`: what one stands on wins only with an answer that does something).
+
+### 5.17 What a thing affords (2026-10-25)
+
+Agreed with the user, and built. The case: a bare hand on a chair, again and again, said only "this is a chair".
+Three things were behind it. No model was connected, and the hole's default (`core/handle`) read like an
+inspection label while the HUD still promised, with its `?`, that the world would learn. With a model (the paper's
+running eval, 2026-10-19) the answer was `patch/chair-sit-rest`: labelled "Sit down", it healed the one who sat
+by 3 and put a status on the chair. Sitting had no channel: a rule writes only its host, the impulses into an
+actor are blows, elements, coats, restores and pushes, and an answer on the actor's side would be one exact type's
+(§5.16), so the player's alone. So a heal stood in for it. And any answer closes its (open leaf, class) for good,
+so a chair answered with words could never grow a use.
+
+The criterion: **an answer is faithful to what the thing affords for this act and to what a player would reasonably
+expect, in context** (whose it is, where, who is near: knocking on a stranger's house wall may matter, on a cliff it
+does not). Things with a common use (a chair: sit; hay: lie; a well: draw water) get real state; things with none
+get a short in-world line, or nothing. It is not "every act must change the world".
+
+- **The judgment.** The design answers `{"affords": "use" | "words" | "none", "patch": …}`, the judgment first. The
+  harness holds the answer to it (`packages/modder/src/affordance.ts`): words or nothing that change the world are a
+  use; a use that changes nothing in the scene that asked (only words, or an impulse its receiver does not answer)
+  is sent back once, and kept as words if it comes back the same. The verdict is written on the answering rule
+  (`Rule.affords`). The prompt no longer says "prefer outcomes that change something", which pushed toward
+  invention; the reviewer's flag on a rule that only speaks asks it to check the judgment instead.
+- **Context.** The request carries `context.whose`: the host's owner and their relation to the doer (the society
+  module's `ownerOf`, `relation`), the rooms it stands in, the people near with their regard toward the doer.
+- **Postures, the material.** `POSES` (sit, lie, kneel, lean) is the client's vocabulary as `OVERLAYS` is: a
+  status may carry `pose` (drawn so: lying turned, seated with the legs folded onto the seat, kneeling lower,
+  leaning tilted) and `untilMove` (it ends as its bearer moves from its cell: the effect runner ends it after any
+  primitive that carried the host off). The standard library has `seated`, `lying`, `kneeling`, `leaning`; `down`,
+  `out_cold`, `asleep` and `jailed` declare `pose: lie` instead of the client knowing their ids. A new impulse,
+  `settle {pose, status?}`, is how a thing asks the one who used it to take a posture; the root answers it for every
+  actor (`core/settle`: the `posture` primitive, onto the thing's cell when the body fits there, beside it to lean),
+  any other host leaves it open. So sitting costs one hole, on the chair's side, and anyone sits: a person of the
+  village as the player. A patch may also carry the receiver's rule beside its own (the validator always placed it;
+  the ModSpec says so now), for a channel the receiver does not answer yet.
+- **Words are provisional.** An answer judged `words` stays open to growth. When the player does the same act on the
+  same answer a third time within two minutes (`AGAIN_AFTER`, `AGAIN_WITHIN`: a stray press does not count), the
+  port asks again (`ModRequest.again`: the rule, its line, how many tries), held like a hole, the provisional words
+  as the default while it waits. The service does not let the words cover their own question; the answer replaces
+  them in place (the revision path: `replaces`, `inPlaceOf`) and is final (`Rule.reasked`). `none` is decided at
+  once. So a (hole, class) costs at most two calls.
+- **No model.** The `?` is shown only while a modder with a model is up (`worker.ts` `asks`), and the default of a
+  bare hand on what nothing answers says what was done ("You run a hand over the chair.").
+
+**The evaluation** (`npm run eval:affordance`, `tools/src/eval/affordanceSet.ts`): a bare hand on sixteen things the
+base rules leave open, eight with a common use (chair, bench, log bench, stump, haystack, well, fountain, someone's
+chair with its owner by) and eight with none (boulder, fence, statue, lamppost, mist, dead tree, table, counter). A
+use passes when it was judged a use and the scene changed; a thing with none when it was judged words or nothing and
+the scene did not change. It reports both errors apart: `invented` (a use given to a thing with none) and
+`shrugged` (words for a thing with a use). The numbers are in the table below.
 
 ## 6. Rule system
 

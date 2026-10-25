@@ -5,6 +5,7 @@
 import { hasAffixes, rollAffixes } from './affixes.ts'
 import type { Engine } from './engine.ts'
 import { evalCond, matchSelector, rolesOf } from './rules.ts'
+import { POSES, POSE_STATUS, type Pose } from './types.ts'
 import type { AiData, Amount, Effect, ModuleOp, EmitTo, Entity, GameEvent, Id, Impulse, Place, Pos, PropValue, Ref, RoleName, RoleRef, Text } from './types.ts'
 import { GIVEN_LINE, chooseLine, memoryOf, raiseTopic } from './people.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
@@ -14,6 +15,9 @@ import { LOOSE, WriteError, isBuilt } from './world.ts'
 import { gearLevel, madeOf, qualityFor } from './recipes.ts'
 import { restyled } from './looks.ts'
 import { stackKey } from './stacks.ts'
+
+/** The primitives that may carry their host from where it is (a posture held there ends: StatusDef.untilMove). */
+const MOVES = new Set<string>(['step', 'move', 'ashore', 'pocket', 'fall'])
 
 /** How many things one effect makes at once at most, unless the world says (`params.spawnMax`). */
 const SPAWN_MAX = 64
@@ -34,6 +38,7 @@ export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
   removeTag: 'removeTag {tag}',
   hurt: 'hurt {amount, element?, pierce?, blow?} — the host loses health, or durability (hp; its defence applies unless pierce); at none, threshold/cross "broken". blow: a strike\'s — times how well the instrument (what struck, else the striker\'s own body) works on the host\'s material (the efficiency table), and nothing if the instrument is softer than it ("too hard")',
   wear: 'wear — the host (an actor) puts on the thing of its own it is offered (param item, by its slot prop: a helmet on the head; of a slot there are more of, as two rings, the first free), what was in that slot coming off; offered what it wears, it takes it off (world-model.md §6.8); a profession\'s piece (tag profession:<id>, the warrior\'s shield) goes on only for that profession',
+  posture: "posture — the host (an actor) takes a posture at the thing that asked it to (the source of a settle impulse: a chair, hay, an altar): param pose sit|lie|kneel|lean; for sit, lie and kneel it goes onto that thing's cell when its body fits there; it gains the pose's status (seated, lying, kneeling, leaning — or param status, a status whose pose it is), which ends as soon as it moves on",
   sleep: 'sleep — the host sleeps until it is time to rise (time passes at once for the one at the keys), and wakes with what it was missing given back as its room says (a bedroom: all; elsewhere: half)',
   fall: 'fall — with nothing under it on its storey, the host drops to the first floor below, struck by the drop beyond the safe height (the root of contact/end on)',
   breakdown: 'breakdown — the host breaks into what it is made of (its makeup × the world\'s recovery rate, in its material; a creature\'s parts by chance come more often to the luck of the one who felled it, chance × (1 + luck)), what it holds spills out, and it is gone (the root outcome of broken for anything with a makeup)',
@@ -51,7 +56,7 @@ export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
   lightning: 'lightning {power} — the world\'s: a bolt seeks what stands tall near the player and emits element lightning to it',
   ashore: 'ashore {} — the host gets out of where it cannot be, to the nearest free tile',
   fallback: 'fallback {} — the story\'s: run the broken invariant\'s authored fallback',
-  emit: 'emit {impulse, to, params?, item?, other?, chance?, filter?} — send an impulse (strike, element, coat, restore, push, taken, receive, offered, handle, notify) to a role, "story", "world", {named: id}, {area: {at?, radius}}, {line: {from?, away, length, over?}} or {map: true}; params are values, Amounts, {typeOf: role} (what kind of thing a role is, kept even after it is gone) or {idOf: role} (which thing it is); filter and chance pick who receives it; the receiver answers for itself',
+  emit: 'emit {impulse, to, params?, item?, other?, chance?, filter?} — send an impulse (strike, element, coat, restore, push, taken, receive, offered, handle, notify, settle) to a role, "story", "world", {named: id}, {area: {at?, radius}}, {line: {from?, away, length, over?}} or {map: true}; params are values, Amounts, {typeOf: role} (what kind of thing a role is, kept even after it is gone) or {idOf: role} (which thing it is); filter and chance pick who receives it; the receiver answers for itself',
   vfx: 'vfx {at?, fx} — play a visual effect (at the host unless at names a role)',
   say: 'say {text, who?} — the host says a line ("@line": one of its own lines for the moment; "@given": its line for the item it was given; "@chat": one of its chat lines, or what it likes best); text fills {host} {actor} {target} {instrument} {other} {item} and {role.key}',
   log: 'log {text} — a message line ({role} = names, {role.key} = that role\'s prop, {param.key} = an event param; "@line": what the host has written on it, its text and text_zh)',
@@ -185,7 +190,9 @@ export class EffectRunner {
     try {
       for (const eff of effects) {
         try {
+          const before = MOVES.has(eff.op) ? this.standing(ev) : undefined
           this.apply(eff, ev)
+          if (before) this.standUp(ev, before)
         } catch (err) {
           // a write outside an outcome or beyond its host is the engine's bug, not the rule's: it is not swallowed
           if (err instanceof WriteError) throw err
@@ -199,6 +206,22 @@ export class EffectRunner {
     } finally {
       this.names = outer
     }
+  }
+
+  /** Where the host stands now, if it holds a posture that ends as it moves (StatusDef.untilMove). */
+  private standing(ev: GameEvent): string | undefined {
+    const w = this.eng.world
+    const host = this.hostEntity(ev)
+    if (!host || !Object.keys(host.statuses ?? {}).some((s) => w.onto.status(s)?.untilMove)) return undefined
+    return JSON.stringify(host.place)
+  }
+
+  /** The host moved on from where it was: what it held while it stayed there ends (one gets up from a chair by walking off). */
+  private standUp(ev: GameEvent, before: string): void {
+    const w = this.eng.world
+    const host = this.hostEntity(ev)
+    if (!host || JSON.stringify(host.place) === before) return
+    for (const s of Object.keys(host.statuses ?? {})) if (w.onto.status(s)?.untilMove) this.eng.removeStatus({ e: host.id }, s)
   }
 
   apply(eff: Effect, ev: GameEvent): void {
@@ -445,6 +468,32 @@ export class EffectRunner {
         // lying still, and growing hungry slower (the hunger period's pace, data)
         if (host.id === w.state.player) w.setStatus({ e: host.id }, 'asleep', w.state.tick + eng.sleepUntil(params?.riseHour ?? 6))
         return
+      }
+      case 'posture': {
+        // a posture taken at what asked for it: onto its cell to sit, lie or kneel there (its body fits once the
+        // thing itself is set aside), beside it to lean; the posture's status ends as the host moves on
+        const pose = ev.params?.pose as Pose
+        if (!host || !(POSES as readonly string[]).includes(pose)) throw new Error(`posture: no posture "${String(ev.params?.pose)}" (one of ${POSES.join(', ')})`)
+        const named = typeof ev.params?.status === 'string' ? ev.params.status : undefined
+        const status = named && w.onto.status(named)?.pose === pose ? named : POSE_STATUS[pose]
+        if (!w.onto.status(status)) throw new Error(`posture: the world has no status "${status}" for ${pose}`)
+        const seat = ev.roles.source && 'e' in ev.roles.source ? w.get(ev.roles.source.e) : undefined
+        const at = seat && w.posOf(seat)
+        const here = w.posOf(host)
+        if (seat && at && here && at.map === here.map && pose !== 'lean' && w.walkable(at.map, at.x, at.y, seat.id, false, at.z ?? 0)) {
+          // for its own sake the seat's way is the way one sits on it (a chair faces the table); else as one came
+          if (seat.facing) host.facing = seat.facing
+          eng.touch({ e: host.id })
+          w.place(host, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(at.z && { z: at.z }) })
+          eng.touch({ e: host.id })
+        } else if (seat && at && here && at.map === here.map) {
+          const dx = at.x - here.x
+          const dy = at.y - here.y
+          if (dx || dy) host.facing = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up'
+        }
+        for (const s of Object.keys(host.statuses ?? {})) if (s !== status && w.onto.status(s)?.pose) eng.removeStatus({ e: host.id }, s)
+        const by = ev.roles.actor && 'e' in ev.roles.actor ? ev.roles.actor.e : ev.cause
+        return eng.applyStatus({ e: host.id }, status, undefined, by)
       }
       case 'fall': {
         // nothing under it on its storey: it drops to the first floor below, struck by the drop

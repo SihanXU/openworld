@@ -123,9 +123,15 @@ const ROOTS: Rule[] = [
   }),
   rule({
     id: 'core/handle',
-    doc: 'A bare hand on something with no answer of its own: undefined (it is looked at meanwhile).',
+    doc: 'A bare hand on something with no answer of its own: undefined (meanwhile one only runs a hand over it).',
     on: 'impulse/handle',
-    tree: HOLE(log('It is {host}.', '这是{host}。')),
+    tree: HOLE(log('You run a hand over {host}.', '你伸手摸了摸{host}。')),
+  }),
+  rule({
+    id: 'core/settle',
+    doc: 'Asked to take a posture at a thing (a chair, hay, an altar): an actor goes there and holds it until it moves on (its status ends as it steps away); anything else is undefined.',
+    on: 'impulse/settle',
+    tree: IF(is('host', { type: 'actor' }), DO({ op: 'posture' }), HOLE()),
   }),
   rule({
     id: 'core/taken',

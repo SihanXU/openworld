@@ -36,6 +36,11 @@ export interface UndefinedSink {
    * false when the leaf's default should run now (no one to ask, already asked, given up).
    */
   raise(ev: GameEvent, res: Resolution): boolean
+  /**
+   * A learned answer that only gave words is about to run (design.md §5.17): true when it is held while the
+   * question is asked again (the one who acted kept trying), false to run it now.
+   */
+  again?(ev: GameEvent, res: Resolution): boolean
   tick(): void
 }
 
@@ -409,8 +414,9 @@ export class Engine {
     if (this.trace.length > 300) this.trace.shift()
     this.trace.push({ ev, rule: res.rule?.id, defined: res.defined })
     this.traced++
-    if (res.defined && res.leaf && isDo(res.leaf)) this.run(res.leaf.do, ev, res.rule!.id)
-    else if (res.hole) {
+    if (res.defined && res.leaf && isDo(res.leaf)) {
+      if (!this.undefinedSink?.again?.(ev, res)) this.run(res.leaf.do, ev, res.rule!.id)
+    } else if (res.hole) {
       this.holes++
       const held = this.undefinedSink?.raise(ev, res) ?? false
       if (!held) this.run(res.hole.default, ev, res.hole.rule.id)

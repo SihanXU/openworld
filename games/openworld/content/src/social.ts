@@ -146,7 +146,7 @@ export const SOCIAL_STATUSES: StatusDef[] = [
   // given the thing they like best today (its special warmth comes once a day)
   { id: 'cheered', name: L('delighted', '欢喜'), duration: TICKS_PER_DAY },
   // in the cells
-  { id: 'jailed', name: L('jailed', '关押中'), immobilize: true },
+  { id: 'jailed', name: L('jailed', '关押中'), immobilize: true, pose: 'lie' },
 ]
 
 // ------------------------------------------------------------------ types

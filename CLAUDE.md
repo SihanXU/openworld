@@ -77,7 +77,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
   (`controls.ts`; a recipe's `madeOf` keeps the material and quality under the name it gives), gear's rolled extras (`affixes.ts`, `Ontology.affixes`) and sets
   (`Ontology.sets`), read by `World.stat` — mechanisms configured by data, kept in the kernel by decision (docs/engine-split.md §9), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`; a skill book asks no points but holds to the tree's `requires`); companions that follow a
-  leader (`companion.ts`) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); the inputs X (draw) and V (sneak) are statuses the input keeps; the AI setting (`quality.ts`, design.md §13: off/low/medium/high for
+  leader (`companion.ts`) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); postures (design.md §5.17: `POSES` a status may draw its bearer in, `untilMove`, the `settle` impulse every actor answers with the `posture` primitive); the inputs X (draw) and V (sneak) are statuses the input keeps; the AI setting (`quality.ts`, design.md §13: off/low/medium/high for
   things, people, the world, making new kinds and asking ahead — the same wait at every level, a level is how much the AI does in it;
   `Engine.quality` is the player's, never saved; learned rules keep their `tier`, each tier its own trees, a higher answer serving
   the lower settings). What a game hands the
@@ -253,6 +253,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
     record → reflect. The auditor (`audit.ts`) plays against a patch in the sandbox; only what it
     reproduces there, with the patch and not without it, counts. Live designs are routed (design.md §13, the router): local (the request's
     own types) → find (the catalogue) → create (a new type with its 16x16 picture as data).
+  - `affordance.ts`: what the host affords for the act (design.md §5.17): the answer's judgment (use, words, none),
+    a use held to changing the scene that asked, the verdict on the rule (`Rule.affords`); words are provisional,
+    asked again on the player's third try (`ModRequest.again`, the port's `again`), and the answer is final.
   - `tools.ts`: the design tools.
   - `library.ts`: the shared library as an append-only patch log.
   - `quality.ts`: a request's tier as a workload over the harness (medium the harness; low less, high more; never more time);

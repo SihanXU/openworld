@@ -256,13 +256,18 @@ export const STATUSES: StatusDef[] = [
   // a mechanism that needs mending (the ferry winch whose rope snapped)
   { id: 'broken', name: { en: 'broken', zh: '坏了' } },
   // at no health the essential (people, the player) collapse for a while instead of dying
-  { id: 'down', name: { en: 'down', zh: '倒地' }, duration: 300, immobilize: true },
+  { id: 'down', name: { en: 'down', zh: '倒地' }, duration: 300, immobilize: true, pose: 'lie' },
   // a quest's deadline (docs/quests.md): when it runs out, an offer is withdrawn and a quest under way fails
   { id: 'due', name: { en: 'due', zh: '期限' } },
   // out cold (a new game's first moments): lying still a while, then one comes round
-  { id: 'out_cold', name: { en: 'out cold', zh: '昏迷' }, duration: 50, immobilize: true },
+  { id: 'out_cold', name: { en: 'out cold', zh: '昏迷' }, duration: 50, immobilize: true, pose: 'lie' },
   // asleep in a bed: lying still while the night passes, hungry four times slower (the hunger period's paceBy)
-  { id: 'asleep', name: { en: 'asleep', zh: '睡着' }, immobilize: true },
+  { id: 'asleep', name: { en: 'asleep', zh: '睡着' }, immobilize: true, pose: 'lie' },
+  // the postures a thing's use asks of who uses it (a chair, hay, an altar, a wall: the settle impulse): each ends as one moves on
+  { id: 'seated', name: { en: 'seated', zh: '坐着' }, pose: 'sit', untilMove: true },
+  { id: 'lying', name: { en: 'lying down', zh: '躺着' }, pose: 'lie', untilMove: true },
+  { id: 'kneeling', name: { en: 'kneeling', zh: '跪着' }, pose: 'kneel', untilMove: true },
+  { id: 'leaning', name: { en: 'leaning', zh: '倚着' }, pose: 'lean', untilMove: true },
   // under six tenths of a full food bar: hunger falls slowly now (a body goes days without food)
   { id: 'hungry', name: { en: 'hungry', zh: '饿了' } },
   // a wound that bleeds 1 a second (Hemorrhage), and the rush of Adrenaline (the skills)
