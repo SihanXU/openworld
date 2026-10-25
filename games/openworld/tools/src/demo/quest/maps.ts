@@ -193,7 +193,7 @@ export const LAIR = { w: 30, h: 24, south: [14, 15, 16] } as const
 export const DRAGON_AT = { x: 15, y: 7 } as const
 
 export function buildLair(): MapBuilder {
-  const m = new MapBuilder('lair', L("The Dragon's Lair", '魔龙巢穴'), 'dungeon', LAIR.w, LAIR.h, 'cave_wall', 'battle', 'dark', 'frostfang')
+  const m = new MapBuilder('lair', L("The Dragon's Lair", '魔龙巢穴'), 'dungeon', LAIR.w, LAIR.h, 'cave_wall', 'cave', 'dark', 'frostfang')
   m.gearLevel = 8
   // an arena of scorched stone, rock pillars along its walls, the mouth in the south
   m.organic(15, 11, 12, 8.5, 'cave_floor', { only: (t) => t === 'cave_wall', rough: 0.15 })

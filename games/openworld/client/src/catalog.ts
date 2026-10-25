@@ -13,6 +13,7 @@
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL, type ActorDef, type Catalog, type FxDef, type PrefabDef, type SpriteDef } from '@openworld/runtime/src/assets/types.ts'
 import { SIN_ACTORS, SIN_FX } from '@openworld/runtime/src/assets/bosses.ts'
 import FACES from './faces.json'
+import LOUDNESS from './loudness.json'
 import { CROP_FIXTURES, CROP_ITEMS } from './crops.ts'
 
 // ---------------------------------------------------------------------------------------------
@@ -161,6 +162,8 @@ const ON_GRASS = ['grass', 'flowers', 'drygrass', 'tree', 'pine', 'bush', 'rock'
 
 const SND = 'Audio/Sounds/'
 const MUS = 'Audio/Musics/'
+/** A piece of the pack's music by its name. */
+const M = (name: string) => `${MUS}${name}.ogg`
 
 export const CATALOG: Catalog = {
   // -------------------------------------------------------------------------------------------
@@ -999,22 +1002,71 @@ export const CATALOG: Catalog = {
     // Emote face bubbles emote1..emote30 (14x13), added below as ui['emote<N>'].
   },
 
+  // The music (docs/music.md): a cue per map mood, in its versions for the hour and the weather, and the cues the runtime
+  // asks for itself (title, battle, boss, and outdoor/indoor/dark for a map that names none) and the scenes ask for by
+  // name. The wilds rest between their pieces (silence and the ambience); a village plays on with short rests. Every
+  // file is levelled by its measured loudness (loudness.json, `npm run loudness`).
   music: {
-    title: MUS + '1 - Adventure Begin.ogg',
-    village: MUS + '4 - Village.ogg',
-    village_night: MUS + '9 - Quiet.ogg',
-    field: MUS + '35 - Adventure.ogg',
-    forest: MUS + '11 - Clearing.ogg',
-    interior: MUS + '5 - Peaceful.ogg',
-    cave: MUS + '2 - The Cave.ogg',
-    battle: MUS + '17 - Fight.ogg',
-    // a boss fight: the grand one, while the camera holds over the arena (scene.ts frameBossFight)
-    boss: MUS + '24 - Final Area.ogg',
-    shop: MUS + '20 - Good Time.ogg',
-    temple: MUS + '12 - Temple.ogg',
-    dungeon: MUS + '21 - Dungeon.ogg',
-    dark_forest: MUS + '37 - Dark Forest.ogg',
+    // the title: its own pieces, whatever place shows behind it
+    title: { tracks: [M('38 - Intro'), M('22 - Dream')] },
+    // waking on Cloudtop: wonder and loneliness in the snow
+    cloudtop: { tracks: [M('19 - Ascension'), M('13 - Mystical')], rest: [45, 120], at: { night: 'field_night', storm: 'storm' } },
+    // the wilds: a piece now and then, long rests between (Breath of the Wild, Minecraft)
+    field: { tracks: [M('31 - Sunny'), M('23 - Road'), M('35 - Adventure')], rest: [60, 150], at: { dawn: 'field_dawn', dusk: 'field_dusk', night: 'field_night', rain: 'field_rain', storm: 'storm' } },
+    field_dawn: { tracks: [M('22 - Dream'), M('19 - Ascension')], rest: [45, 110] },
+    field_dusk: { tracks: [M('16 - Melancholia'), M('26 - Lost Village')], rest: [50, 120] },
+    field_night: { tracks: [M('29 - Lament'), M('30 - Ruins'), M('9 - Quiet')], rest: [90, 200] },
+    field_rain: { tracks: [M('16 - Melancholia'), M('7 - Sad Theme')], rest: [60, 140] },
+    storm: { tracks: [M('28 - Tension')], rest: [20, 60] },
+    // a village: plays on with short rests; its dusk by the fire, its night all but silent
+    village: { tracks: [M('33 - Calm Village'), M('36 - Village'), M('4 - Village')], rest: [15, 40], at: { dusk: 'village_dusk', night: 'village_night', rain: 'village_rain', storm: 'village_rain' } },
+    village_dusk: { tracks: [M('27 - Chill'), M('6 - Story')], rest: [20, 60] },
+    village_night: { tracks: [M('9 - Quiet'), M('22 - Dream')], rest: [120, 260] },
+    village_rain: { tracks: [M('27 - Chill'), M('16 - Melancholia')], rest: [30, 80] },
+    haven: { like: 'village' },
+    // the mill on its brook, the river at the Reed Bend, the Ford
+    millbrook: { tracks: [M('31 - Sunny'), M('39 - Boat'), M('33 - Calm Village')], rest: [30, 90], at: { dusk: 'village_dusk', night: 'village_night', rain: 'village_rain', storm: 'village_rain' } },
+    river: { tracks: [M('39 - Boat'), M('18 - Aquatic')], rest: [40, 110], at: { dusk: 'river_dusk', night: 'field_night', rain: 'field_rain', storm: 'storm' } },
+    river_dusk: { tracks: [M('26 - Lost Village'), M('7 - Sad Theme')], rest: [40, 110] },
+    ford: { tracks: [M('26 - Lost Village'), M('39 - Boat')], rest: [40, 110], at: { dusk: 'field_dusk', night: 'field_night', rain: 'field_rain', storm: 'storm' } },
+    // the woods: mystery by day, dark after it
+    forest: { tracks: [M('11 - Clearing'), M('13 - Mystical')], rest: [50, 130], at: { dusk: 'dark_forest', night: 'dark_forest', rain: 'field_rain', storm: 'storm' } },
+    dark_forest: { tracks: [M('37 - Dark Forest')], rest: [40, 120] },
+    hollow: { tracks: [M('30 - Ruins'), M('37 - Dark Forest')], rest: [40, 100], at: { night: 'dark_forest', storm: 'storm' } },
+    dell: { tracks: [M('30 - Ruins'), M('11 - Clearing')], rest: [50, 120], at: { dusk: 'dark_forest', night: 'dark_forest', rain: 'field_rain', storm: 'storm' } },
+    ruins: { tracks: [M('30 - Ruins'), M('14 - Curse')], rest: [40, 100], at: { storm: 'storm' } },
+    kneelfield: { tracks: [M('14 - Curse'), M('29 - Lament')], rest: [30, 90], at: { storm: 'storm' } },
+    // under a roof: quiet, quieter by night; the shop; the chapel's chant
+    interior: { tracks: [M('5 - Peaceful'), M('27 - Chill')], rest: [40, 120], at: { night: 'interior_night' } },
+    interior_night: { tracks: [M('9 - Quiet'), M('22 - Dream')], rest: [120, 240] },
+    shop: { tracks: [M('20 - Good Time'), M('32 - Manor')], rest: [10, 30] },
+    temple: { tracks: [M('12 - Temple'), M('3 - Revelation')], rest: [20, 60] },
+    // the dark: caves, the barrow and its crypts, the abbey's hall
+    cave: { tracks: [M('2 - The Cave'), M('40 - Crypt')], rest: [30, 90] },
+    crypt: { tracks: [M('40 - Crypt'), M('14 - Curse')], rest: [20, 60] },
+    dungeon: { tracks: [M('21 - Dungeon'), M('30 - Ruins')], rest: [20, 60] },
+    // the world map: the road
+    worldmap: { tracks: [M('23 - Road'), M('35 - Adventure')], rest: [10, 30] },
+    // a map that names no mood (the backdrop's places, the wilds made from the seed)
+    outdoor: { like: 'field' },
+    indoor: { like: 'interior' },
+    dark: { like: 'cave' },
+    // a fight: quick in, held a few seconds past the last blow; darker by night
+    battle: { tracks: [M('17 - Fight'), M('34  - Fight')], at: { night: 'battle_night' } },
+    battle_night: { tracks: [M('28 - Tension'), M('34  - Fight')] },
+    // a boss fight, while the camera holds over the arena (scene.ts frameBossFight); a kind's own, and its later phase
+    boss: { tracks: [M('24 - Final Area')] },
+    'boss:alberic': { tracks: [M('24 - Final Area')] },
+    'boss:alberic:2': { tracks: [M('10 - Dark Castle')] },
+    'boss:dragon': { tracks: [M('34  - Fight')] },
+    // the scenes' music (a scene's `music` command)
+    severin: { tracks: [M('14 - Curse')] },
+    sorrow: { tracks: [M('7 - Sad Theme'), M('29 - Lament')] },
+    revelation: { tracks: [M('3 - Revelation')] },
+    ending: { tracks: [M('8 - End Theme'), M('25 - End Theme 2')] },
+    credits: { tracks: [M('15 - Credit Theme')] },
   },
+  loudness: LOUDNESS,
 
   sfx: {
     step: SND + 'Elemental/Grass.wav',
@@ -1040,6 +1092,10 @@ export const CATALOG: Catalog = {
     coin: SND + 'Bonus/Coin.wav',
     undefined: SND + 'Magic & Skill/Strange.wav',
     patched: 'Audio/Jingles/Success1.wav',
+    // the jingles the music steps back for (scene.ts jingle): a level gained, a quest done, a seal's power taken up
+    levelup: 'Audio/Jingles/LevelUp1.wav',
+    quest: 'Audio/Jingles/Success3.wav',
+    boon: 'Audio/Jingles/Secret2.wav',
     error: SND + 'Menu/Cancel.wav',
     death: 'Audio/Jingles/GameOver2.wav',
     // a monster's wind-up and its fall (the kits module's poses, render/scene.ts)

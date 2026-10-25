@@ -345,6 +345,9 @@ export class Story {
       this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'stage', n: c.n } }], { e: `quest.${c.stage}` })
     } else if ('tell' in c) {
       this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: c.params }], { e: c.tell })
+    } else if ('music' in c) {
+      // the music is the scene's (it ends with it): a cue of the client's, or silence
+      s.music = c.music
     } else if ('status' in c) {
       if (c.add) this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'status', add: c.add } }], { e: c.status })
       if (c.remove) this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'status', remove: c.remove } }], { e: c.status })

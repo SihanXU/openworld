@@ -100,7 +100,7 @@ export const STAND = {
 } as const satisfies Record<string, readonly [number, number]>
 
 function buildMap(): MapBuilder {
-  const m = new MapBuilder('ford', L('The Ford', '渡口'), 'wild', 48, 30, 'grass', 'field', 'outdoor', 'frostfang')
+  const m = new MapBuilder('ford', L('The Ford', '渡口'), 'wild', 48, 30, 'grass', 'ford', 'outdoor', 'frostfang')
   const grass = (t: string) => t === 'grass'
   // ------------------------------------------------------------ the river: a pool at the landing, narrows at the dead tree
   for (let y = 0; y < m.h; y++) for (let x = NEAR[y]; x <= FAR[y]; x++) m.set(x, y, 'water')
@@ -586,6 +586,7 @@ const scenes: StepDef[] = [
     id: 'part_one',
     when: { map: 'ford', region: 'far_bank', quest: { first_seal: { gte: 40 } }, facts: { [PART_TWO]: 0 } },
     script: [
+      { music: 'ending' },
       { wait: 8 },
       say('pip', 'The road goes on east from here, all the way to the Rest, and the rider, and wherever the grey man took our flame.', '路从这里一直往东，通到驿站，通到那个骑手，通到灰衣人带走圣火的地方。'),
       {

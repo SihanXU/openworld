@@ -24,6 +24,7 @@
     "gen:world": "tsx games/openworld/tools/src/demo/world.ts && tsx games/openworld/client/scripts/bundle.ts",
     "check:world": "tsx games/openworld/tools/src/demo/check.ts",
     "assets": "tsx games/openworld/tools/src/copyAssets.ts",
+    "loudness": "tsx games/openworld/tools/src/audio/loudness.ts",
     "art:faces": "tsx games/openworld/tools/src/art/faces.ts",
     "coverage": "tsx games/openworld/tools/src/coverage.ts",
     "schema": "tsx packages/format/src/schema.ts",

@@ -1095,6 +1095,11 @@ export type SceneCmd =
   | { tell: Id; params: Record<string, PropValue> }
   /** a full-screen card (the ending), advanced like a line */
   | { card: Text }
+  /**
+   * the music the scene plays from here to its end, by a cue of the game's (the client's music table); '' : silence.
+   * The client's own music (the place's, a fight's) comes back when the scene ends.
+   */
+  | { music: string }
 
 export interface SceneState {
   id: string
@@ -1105,6 +1110,8 @@ export interface SceneState {
   started?: number
   /** the line waiting to be advanced (so a client that missed the say event can show it) */
   line?: { who: Id; text: Text; mood?: Mood; card?: boolean }
+  /** the music the scene asked for (its `music` command): a cue, or '' for silence */
+  music?: string
 }
 
 /**

@@ -113,7 +113,7 @@ const SOLID = new Set(['ow_sea', 'ow_mountain', 'ow_river'])
  */
 export function buildOverworld(chunks: RawChunk[], cells: Map<string, { x: number; y: number }>): RawChunk {
   const c = readContinent()
-  const m = new MapBuilder(OVERWORLD, L('The Lands of the Five Seals', '五印之地'), 'overworld', c.width * BLOCK, c.height * BLOCK, 'ow_sea', 'field', 'outdoor', 'world')
+  const m = new MapBuilder(OVERWORLD, L('The Lands of the Five Seals', '五印之地'), 'overworld', c.width * BLOCK, c.height * BLOCK, 'ow_sea', 'worldmap', 'outdoor', 'world')
   m.zone = 'peaceful'
   const ground = (x: number, y: number) => TERRAIN_CHARS[c.rows[y][x]]
   for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) m.set(x, y, ground(x, y))

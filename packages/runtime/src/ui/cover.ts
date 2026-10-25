@@ -12,7 +12,7 @@ import { KeysPage } from './keyspage.ts'
 import type { AiOptions } from './quality.ts'
 import type { SaveSummary } from '../protocol.ts'
 import { SLOTS, deleteSlot, exportSlot, listSlots, pickSaveFile, writeSlot, type Slot, type SlotData } from '../saves.ts'
-import { $, esc, locale, prefs, t, tx } from './common.ts'
+import { $, esc, locale, prefs, t, tx, volumeRows, wireVolumes } from './common.ts'
 
 /** The companion beside the menu (the game's, when its cover says so): the sheet it names in the game's assets, or OpenWorld's fairy. */
 const companionSheet = (c: string | boolean) => `${assetsBase()}${typeof c === 'string' ? c : 'lsw/Companion/Fairy/SpriteSheet.png'}`
@@ -45,6 +45,10 @@ export interface CoverHandlers {
   toggleLocale(): void
   toggleSound(): void
   muted(): boolean
+  /** The music's or the ambience's level changed (prefs): to the sound. */
+  levels(): void
+  /** The title's own music while the cover is up. */
+  titleMusic(on: boolean): void
   /** The AI setting (the options' section, the same one). */
   ai: AiOptions
 }
@@ -86,6 +90,7 @@ export class Cover {
     $('#intro').classList.remove('hidden')
     document.getElementById('app')?.classList.add('on-cover')
     document.addEventListener('keydown', this.onKey)
+    this.on.titleMusic(true)
     this.on.ai.also = () => this.panel === 'settings' && this.render()
     this.render()
     // the first place: the one `?cover=<n>` names (to look at one), else any
@@ -98,6 +103,7 @@ export class Cover {
     $('#intro').classList.add('hidden')
     document.getElementById('app')?.classList.remove('on-cover')
     document.removeEventListener('keydown', this.onKey)
+    this.on.titleMusic(false)
     this.keysPage.hide()
     this.creator?.dispose()
     this.creator = undefined
@@ -282,6 +288,7 @@ export class Cover {
     return `<div class="options cv-settings">
       <div class="opt"><span>${t('language')}</span><button id="cvLang">${zh ? '中文 → English' : 'English → 中文'}</button></div>
       <div class="opt"><span>${t('sound')}</span><button id="cvSound">${this.on.muted() ? t('off') : t('on')}</button></div>
+      ${volumeRows('cv')}
       ${filter}
       <div class="opt"><span>${t('controls')}</span><button id="cvKeysBtn">${t('keysSet')}</button></div>
       ${this.on.ai.html()}
@@ -304,6 +311,7 @@ export class Cover {
       const host = $('#intro').querySelector<HTMLElement>('.cv-settings')!
       $('#cvLang').onclick = () => (this.on.toggleLocale(), this.render())
       $('#cvSound').onclick = () => (this.on.toggleSound(), this.render())
+      wireVolumes(host, () => this.on.levels())
       document.querySelector<HTMLButtonElement>('#cvFilter')?.addEventListener('click', () => {
         const next = { off: 'light', light: 'full', full: 'off' } as const
         prefs.setFilter(next[prefs.filter()])

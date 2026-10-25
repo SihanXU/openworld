@@ -3,6 +3,7 @@
 import { nightHours, type Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import type { BossState, Look, Dir, FxEvent, Id, LessonInput, PropValue, SceneState, Text } from './types.ts'
+import { FIGHT_TICKS } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
 import { stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
@@ -182,7 +183,7 @@ export interface Frame {
   night: { dusk: number; dawn: number }
   calendar: Calendar
   /** A scene is playing: the player watches; `advance` moves past what is said. */
-  scene?: { id: string; waiting?: 'advance' | 'move'; line?: SceneState['line'] }
+  scene?: { id: string; waiting?: 'advance' | 'move'; line?: SceneState['line']; /** the music it asked for: a cue, or '' for silence */ music?: string }
   map: string
   /** A fishing line's fight, when the game's fishing module has an active session. */
   fishing?: FishingView
@@ -197,6 +198,8 @@ export interface Frame {
     /** The cells of the room the player stands in, if any: the storeys over it are not drawn. */
     room?: [number, number][]
     facing: Dir
+    /** In a fight now: something came at the player, or the player struck someone, a moment ago (the `fighting` condition's FIGHT_TICKS). */
+    fighting?: boolean
     hp: number
     maxHp: number
     /** Hunger, for actors that grow hungry (maxHunger 0: never). */
@@ -638,7 +641,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
     hour: w.hour(),
     night: nightHours(w.nightShift()),
     calendar: w.calendar(),
-    scene: sc ? { id: sc.id, waiting: sc.waiting, line: sc.line } : undefined,
+    scene: sc ? { id: sc.id, waiting: sc.waiting, line: sc.line, ...(sc.music !== undefined && { music: sc.music }) } : undefined,
     map,
     player: {
       id: p.id,
@@ -648,6 +651,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
       ...((room) => room && { room })(roomCells(eng, pos)),
       facing: p.facing ?? 'down',
       ...(typeof p.look === 'object' && { look: p.look }),
+      ...(w.state.tick - (p.combat?.fightTick ?? -Infinity) < FIGHT_TICKS && { fighting: true }),
       hp: w.num(p, 'hp'),
       maxHp: w.num(p, 'maxHp', 1),
       // hunger: a module's (needs), none without one

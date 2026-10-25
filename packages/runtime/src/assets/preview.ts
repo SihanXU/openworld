@@ -471,7 +471,13 @@ function fxCard(parent: HTMLElement, key: string, f: FxDef): void {
 {
   let playing: HTMLAudioElement | null = null
   const g = section('audio', 'Audio (music / sfx)')
-  for (const [group, table] of [['music', catalog().music], ['sfx', catalog().sfx]] as const) {
+  // a music cue's pieces, each a button (a cue that is like another has none of its own)
+  const music: Record<string, string> = {}
+  for (const [k, v] of Object.entries(catalog().music)) {
+    const tracks = typeof v === 'string' ? [v] : (v.tracks ?? [])
+    tracks.forEach((path, i) => (music[tracks.length > 1 ? `${k} ${i + 1}` : k] = path))
+  }
+  for (const [group, table] of [['music', music], ['sfx', catalog().sfx]] as const) {
     const box = document.createElement('div')
     box.className = 'card'
     const k = document.createElement('div')

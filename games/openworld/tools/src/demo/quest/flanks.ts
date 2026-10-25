@@ -66,7 +66,7 @@ const bed = (m: MapBuilder, x: number, y: number, anchor: string, at: [number, n
 
 /** West of the forest: a felled clearing in the coppice where the charcoal burner keeps his kilns, boars in the woods round it, and the roost oak. */
 export function buildDell(): MapBuilder {
-  const m = new MapBuilder('charcoal', L('The Charcoal Dell', '烧炭谷'), 'wild', 40, 30, 'grass', 'forest', 'outdoor', 'frostfang')
+  const m = new MapBuilder('charcoal', L('The Charcoal Dell', '烧炭谷'), 'wild', 40, 30, 'grass', 'dell', 'outdoor', 'frostfang')
   m.gearLevel = 2
   // the ground: the coppice round it, the felled ring, the trodden yard, the trail in from the forest (east, row 15)
   m.paint('charcoal')
@@ -149,7 +149,7 @@ export const bankAt = (y: number) => BANK[y]
 
 /** East of the forest: the Ford's river bending along the east side, reed beds and mud flats, the fisher's cabin and jetty, the spit, the drowned stone. */
 export function buildBend(): MapBuilder {
-  const m = new MapBuilder('reedbend', L('The Reed Bend', '芦苇湾'), 'wild', 40, 30, 'grass', 'field', 'outdoor', 'frostfang')
+  const m = new MapBuilder('reedbend', L('The Reed Bend', '芦苇湾'), 'wild', 40, 30, 'grass', 'river', 'outdoor', 'frostfang')
   m.gearLevel = 2
   // the ground: the river, its banks, the woods round, the path in from the forest (west, row 17)
   m.paint('reedbend')

@@ -4,7 +4,8 @@
 
 import Phaser from 'phaser'
 import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type Look, type MapData, type Mood, type Ref, type RegionLook, type Text, type WindupPose } from '@openworld/engine'
-import { catalog, game, hasLooks } from '../game.ts'
+import { catalog, game, hasLooks, ontology } from '../game.ts'
+import { Soundscape } from '../audio/soundscape.ts'
 import { hexRgb, installWorldFilter, signalCamera } from './worldfilter.ts'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
 import { faceFrame, personLook } from '../assets/looks.ts'
@@ -166,8 +167,12 @@ export class WorldScene extends Phaser.Scene {
   /** The editor's view (docs/engine-split.md P4): the camera is the author's to move, never the player's to follow; no music. */
   private free = false
   private editorLayer?: Phaser.GameObjects.Graphics
-  private music?: Phaser.Sound.BaseSound
-  private musicKey?: string
+  /** The music and the ambience (audio/soundscape.ts): made as the scene is, none in the editor's view. */
+  audio?: Soundscape
+  /** The title's music, asked for before the scene was made (the cover shows first). */
+  private titleMusic = false
+  /** When the ambience was last told what is near (performance.now ms). */
+  private ambienceAt = 0
   muted = false
 
   constructor() {
@@ -199,6 +204,12 @@ export class WorldScene extends Phaser.Scene {
     this.makeGlowTexture()
     this.makeFishTexture()
     this.cameras.main.setZoom(this.fitZoom()).setRoundPixels(true).setBackgroundColor('#0b0d12')
+    // the music and the ambience, through the sound manager's own way out (its mute holds for them)
+    const sm = this.sound as Phaser.Sound.WebAudioSoundManager
+    if (!this.free && sm.context) {
+      this.audio = new Soundscape(sm.context, sm.destination)
+      this.audio.music.setTitle(this.titleMusic)
+    }
     this.scale.on('resize', () => {
       this.cameras.main.setZoom(this.fitZoom())
       this.fitBounds()
@@ -375,7 +386,8 @@ export class WorldScene extends Phaser.Scene {
     this.drawHeights(map)
     if (this.free) this.setEditorDim(this.dim)
     this.fitBounds()
-    this.playMusic(map.music)
+    // (the music hears of the map with its first frame, when the hour and the weather there are known too)
+    this.ambienceAt = 0
     this.hooks.onMap?.(map)
   }
 
@@ -580,6 +592,7 @@ export class WorldScene extends Phaser.Scene {
     for (const fx of f.fx) this.playFx(fx)
     this.weather = (this.base.light ?? 'outdoor') === 'outdoor' ? f.calendar.weather : 'sun'
     this.updateNight(f)
+    this.hearFrame(f)
     this.hooks.onFrame(f)
     for (const fx of f.fx) this.hooks.onFx(fx, f)
   }
@@ -842,7 +855,8 @@ export class WorldScene extends Phaser.Scene {
       this.cameras.main.stopFollow()
       this.cameras.main.removeBounds()
       this.muted = true
-      this.music?.stop()
+      this.audio?.disable()
+      this.audio = undefined
     }
   }
 
@@ -1681,10 +1695,11 @@ export class WorldScene extends Phaser.Scene {
     const alive = (e: EntitySnap) => !!e.boss && (e.hp ?? 0) > 0 && e.boss.action !== 'death'
     if (this.bossCam) {
       const boss = f.entities.find((e) => e.id === this.bossCam!.id)
-      if (boss && alive(boss) && near(boss, 18)) return
+      // (its music follows its phase)
+      if (boss && alive(boss) && near(boss, 18)) return this.audio?.music.setBoss({ kind: boss.type, phase: boss.boss!.phase ?? 1 })
       // the fight is over: back to the player, at the usual distance, and the map's own music
       this.bossCam = undefined
-      this.playMusic(this.base?.music)
+      this.audio?.music.setBoss(undefined)
       const zoom = this.fitZoom()
       this.fitBounds(zoom)
       cam.zoomTo(zoom, 450, 'Sine.easeInOut')
@@ -1705,7 +1720,7 @@ export class WorldScene extends Phaser.Scene {
     this.fitBounds(zoom)
     cam.zoomTo(zoom, 600, 'Sine.easeInOut')
     cam.pan(x, y, 600, 'Sine.easeInOut')
-    this.playMusic('boss')
+    this.audio?.music.setBoss({ kind: boss.type, phase: boss.boss!.phase ?? 1 })
   }
 
   screenOf(id: string): { x: number; y: number } | undefined {
@@ -1820,38 +1835,61 @@ export class WorldScene extends Phaser.Scene {
     this.fogR?.setFillStyle(0xd8e2ea, this.weather === 'fog' ? 0.22 + 0.06 * Math.sin(time / 2200) : 0)
   }
 
-  private playMusic(mood?: string): void {
-    const path = mood ? catalog().music[mood] : undefined
-    if (!path || this.musicKey === path) return
-    this.musicKey = path
-    const key = `music:${mood}`
-    const start = () => {
-      if (this.musicKey !== path) return
-      const old = this.music
-      if (old) {
-        // a quick second map change: its fade-in may still be running on the track we drop
-        this.tweens.killTweensOf(old)
-        if (old.isPlaying) this.tweens.add({ targets: old, volume: 0, duration: 600, onComplete: () => old.destroy() })
-        else old.destroy()
-      }
-      this.music = this.sound.add(key, { loop: true, volume: 0 })
-      if (!this.muted) {
-        this.music.play()
-        this.tweens.add({ targets: this.music, volume: 0.35, duration: 900 })
-      }
-    }
-    if (this.cache.audio.exists(key)) start()
-    else {
-      this.load.audio(key, assetUrl(path))
-      this.load.once('complete', start)
-      this.load.start()
-    }
+  /** The title's music (the cover is up), whatever place shows behind it. */
+  setTitleMusic(on: boolean): void {
+    this.titleMusic = on
+    this.audio?.music.setTitle(on)
   }
+
+  /** The death screen: the music stops (its jingle plays). */
+  setDeathMusic(on: boolean): void {
+    this.audio?.music.setDeath(on)
+  }
+
+  /**
+   * What the music and the ambience hear of a frame: the hour and the weather, a fight, a scene's music; and, each
+   * second, what is near the middle of the view — water, snow and ice, the nearest fire burning.
+   */
+  private hearFrame(f: Frame): void {
+    const a = this.audio
+    if (!a || !this.base) return
+    const map = this.base
+    const light = (map.light ?? 'outdoor') as 'outdoor' | 'indoor' | 'dark'
+    // the hour and the weather first: a new map's music is chosen for them, not for the map before
+    a.music.setMoment({ hour: f.hour, dusk: f.night.dusk, dawn: f.night.dawn, weather: this.weather })
+    a.music.setPlace(map.music, light)
+    a.music.setFight(!!f.player.fighting)
+    a.music.setScene(f.scene?.music)
+    const now = performance.now()
+    if (now - this.ambienceAt < 1000) return
+    this.ambienceAt = now
+    const v = this.cameras.main.worldView
+    const cx = Math.floor((v.x + v.width / 2) / T)
+    const cy = Math.floor((v.y + v.height / 2) / T)
+    const R = 7
+    let water = 0
+    let cold = 0
+    let cells = 0
+    const onto = ontology()
+    const tags = (id: string) => this.terrainTags.get(id) ?? this.terrainTags.set(id, new Set(onto.terrains[id]?.tags ?? [])).get(id)!
+    for (let y = cy - R; y <= cy + R; y++)
+      for (let x = cx - R; x <= cx + R; x++) {
+        if (x < 0 || y < 0 || x >= map.width || y >= map.height) continue
+        cells++
+        const t = tags(map.terrain[y * map.width + x])
+        if (t.has('water')) water++
+        else if (t.has('cold')) cold++
+      }
+    let fire = 0
+    for (const e of f.entities)
+      if (e.statuses.includes('lit') || e.statuses.includes('burning')) fire = Math.max(fire, 1 - Math.hypot(e.x - cx, e.y - cy) / 7)
+    a.ambience.update({ light, hour: f.hour, dusk: f.night.dusk, dawn: f.night.dawn, weather: this.weather, water: Math.min(1, water / 30), cold: cells ? Math.min(1, (cold / cells) * 1.6) : 0, fire: Math.max(0, fire) })
+  }
+  private terrainTags = new Map<string, Set<string>>()
 
   setMuted(m: boolean): void {
     this.muted = m
     this.sound.mute = m
-    if (!m && this.music && !this.music.isPlaying) this.music.play()
   }
 
   private sfxLoading = new Set<string>()
@@ -2125,12 +2163,20 @@ export class WorldScene extends Phaser.Scene {
     })
   }
 
+  /** A jingle (a level, a quest done, a seal's power taken up): the music steps back under it. */
+  private jingle(name: string): void {
+    if (!catalog().sfx[name]) return
+    this.audio?.duck()
+    this.sfx(name, 0.55)
+  }
+
   playFx(fx: FxEvent): void {
     if (fx.t === 'strike') {
       // lightning: a flash over everything, then the bolt where it lands
       this.flash?.setAlpha(0.75)
       this.tweens.add({ targets: this.flash, alpha: 0, duration: 320 })
       this.oneShot('sparks', fx.x * T + 8, fx.y * T + 8)
+      this.audio?.ambience.thunder()
       return this.sfx('thunder', 0.7)
     }
     if (fx.t === 'vfx') {
@@ -2172,7 +2218,9 @@ export class WorldScene extends Phaser.Scene {
       if (snd) this.sfx(snd, 0.4)
       return
     }
-    if (fx.t === 'boon') return this.boonLight(fx)
+    if (fx.t === 'boon') return this.boonLight(fx), this.jingle('boon')
+    if (fx.t === 'levelup') return this.jingle('levelup')
+    if (fx.t === 'quest' && fx.state === 'done') return this.jingle('quest')
     if (fx.t === 'mapChanged') return this.sfx('door', 0.4)
     if (fx.t === 'damage' && fx.who === this.playerId && fx.amount > 0) return this.sfx('hurt', 0.5)
     if (fx.t === 'undefined') return this.sfx('undefined', 0.6)
