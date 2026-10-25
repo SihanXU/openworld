@@ -28,6 +28,9 @@ export interface HudSend {
   closeTalk(): void
 }
 
+/** The system asks for less motion: the portraits keep still. */
+const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+
 export class Hud {
   frame?: Frame
   /** The development warning that no one learns (no model) is said once a session. */
@@ -42,8 +45,8 @@ export class Hud {
   onSound?: (muted: boolean) => void
   /** Set by main.ts: paints item icons (from Phaser textures) into [data-icon] slots. */
   paintIcons?: (items: ItemInfo[]) => void
-  /** A portrait, for a line's mood when the face has one. */
-  facesetOf?: (id: string, mood?: Mood) => HTMLCanvasElement | undefined
+  /** A portrait, for a line's mood when the face has one; a portrait of a person's own also that face's blink and open mouth (`frame`). */
+  facesetOf?: (id: string, mood?: Mood, frame?: 'blink' | 'talk') => HTMLCanvasElement | undefined
   /** Set by main.ts: the threads' docs, for the "a new thread is woven" message. */
   threadDoc?: (rule: string) => string | undefined
   modderOnline = false
@@ -105,10 +108,11 @@ export class Hud {
       <div class="mapname" id="mapname"></div>
       <div class="learning hidden" id="learning"></div>
       <div class="chooser hidden" id="chooser"></div>
+      <div class="cg hidden" id="cg"><img id="cgImg" alt=""></div>
       <div class="dialog hidden" id="dialog"><div class="face" id="dFace"></div><div class="dtext"><div class="dname" id="dName"></div><div class="dline" id="dLine"></div><div class="dchoices hidden" id="dChoices"></div></div><div class="dmore" id="dMore">▼</div></div>
       <div class="fade hidden" id="fade"><div id="fadeText"></div></div>
       <div class="boonbanner hidden" id="boonBanner"><small id="boonKicker"></small><b id="boonName"></b></div>
-      <div class="card hidden" id="card"><div class="card-text" id="cardText"></div><div class="dmore">▼</div></div>`
+      <div class="card hidden" id="card"><img class="card-art hidden" id="cardArt" alt=""><div class="card-text" id="cardText"></div><div class="dmore">▼</div></div>`
     $('#hotbar').style.setProperty('--heart', cssAssetUrl('Ui/Receptacle/Heart.png'))
     if (catalog().ui.drumstick) $('#hotbar').style.setProperty('--drum', cssAssetUrl(catalog().ui.drumstick.img))
     $('#jbtn').onclick = () => this.send.openJournal()
@@ -371,6 +375,14 @@ export class Hud {
   private typer?: ReturnType<typeof setInterval>
   private typedAll = true
   private fullText = ''
+  /** A portrait of a person's own on show: its face, and that face's blink and open mouth where it has them. */
+  private ownFace?: { face: HTMLCanvasElement; blink?: HTMLCanvasElement; talk?: HTMLCanvasElement }
+  private blinkTimer?: ReturnType<typeof setTimeout>
+  /** An own portrait speaking its line: the mouth moves until then (about as long as the words take to say, not to type). */
+  private speakTimer?: ReturnType<typeof setInterval>
+  private speakUntil = 0
+  /** An own portrait's eyes are shut until then (a blink), whatever its mouth is doing. */
+  private blinkUntil = 0
   /** The dialog shows a scene's line: advancing it moves the scene on. */
   private sceneDialog = false
   /** Who the open dialog belongs to while their name is still unknown (not yet in a frame). */
@@ -378,6 +390,10 @@ export class Hud {
   /** Whose line is open, and its mood (the portrait). */
   private dialogWho?: string
   private dialogMood?: Mood
+  /** The bust shown last and its mood (it moves when either changes), and when a dialogue was last on screen. */
+  private bustWho?: string
+  private bustMood?: Mood
+  private dialogSeen = 0
   private questionOpen = false
 
   get dialogOpen(): boolean {
@@ -385,12 +401,33 @@ export class Hud {
   }
 
   private cardOpen = false
-  /** A full-screen card in a scene (the ending): E or a click moves on. */
-  private openCard(text: string): void {
+  /** A full-screen card in a scene (the ending), over a picture where it names one: E or a click moves on. */
+  private openCard(text: string, art?: string): void {
     if (this.cardOpen) return
     this.cardOpen = true
     $('#cardText').textContent = text
+    const img = $('#cardArt') as HTMLImageElement
+    img.classList.toggle('hidden', !art)
+    if (art) {
+      img.onerror = () => img.classList.add('hidden')
+      img.src = assetUrl(art)
+    } else img.removeAttribute('src')
+    $('#card').classList.toggle('with-art', !!art)
     $('#card').classList.remove('hidden')
+  }
+
+  /** The scene's picture now (a CG over the world, the lines over it). */
+  private picture?: string
+  private showPicture(src?: string): void {
+    if (src === this.picture) return
+    this.picture = src
+    const img = $('#cgImg') as HTMLImageElement
+    $('#cg').classList.toggle('hidden', !src)
+    $('#dialog').classList.toggle('on-cg', !!src)
+    if (!src) return void img.removeAttribute('src')
+    // a picture the game does not have: the scene goes on over the world
+    img.onerror = () => this.picture === src && $('#cg').classList.add('hidden')
+    img.src = assetUrl(src)
   }
 
   get questionShown(): boolean {
@@ -398,6 +435,8 @@ export class Hud {
   }
 
   openDialog(who: string, name: string, text: string, scene = false, mood?: Mood): void {
+    // a dialogue opened afresh (not the next line of one: a scene's lines close and open within a frame or two) — its first bust comes in
+    if ($('#dialog').classList.contains('hidden') && performance.now() - this.dialogSeen > 800) this.bustWho = undefined
     this.sceneDialog = scene
     this.dialogUnnamed = name ? undefined : who
     this.dialogWho = who
@@ -421,6 +460,23 @@ export class Hud {
     const bust = !!c?.dataset.bust
     face.classList.toggle('bust', bust)
     $('#dialog').classList.toggle('bust', bust)
+    // a portrait of the person's own (docs/character-art.md): its size beside the box, and its face blinks and speaks
+    const own = !!c?.dataset.own
+    face.classList.toggle('own', own)
+    $('#dialog').classList.toggle('own', own)
+    this.ownFace = own && c ? { face: c, blink: this.facesetOf?.(who, mood, 'blink'), talk: this.facesetOf?.(who, mood, 'talk') } : undefined
+    this.blinkLater(true)
+    // the bust moves with the line's mood: one coming in slides up, then each change of mood has its motion (game.css)
+    const m = mood ?? 'neutral'
+    if (!bust) face.classList.remove('enter', 'moving')
+    else if (who !== this.bustWho || m !== this.bustMood) {
+      face.classList.remove('enter', 'moving')
+      void face.offsetWidth
+      face.dataset.mood = m
+      face.classList.add(who !== this.bustWho ? 'enter' : 'moving')
+      this.bustWho = who
+      this.bustMood = m
+    }
     if (!bust && tries < 8) setTimeout(() => this.dialogWho === who && this.dialogMood === mood && !$('#dialog').classList.contains('hidden') && this.showFace(who, mood, tries + 1), 250)
   }
 
@@ -431,11 +487,70 @@ export class Hud {
     this.fullText = text
     this.typedAll = false
     let i = 0
+    this.speak(text)
     this.typer = setInterval(() => {
       i += 2
       line.textContent = text.slice(0, i)
       if (i >= text.length) (clearInterval(this.typer), (this.typedAll = true))
     }, 22)
+  }
+
+  /**
+   * An own portrait says its line: the mouth opens and closes for about as long as the words take to say (a character ~70 ms, a pause
+   * at a stop or a comma), whatever the typing's pace; then the face rests.
+   */
+  private speak(text: string): void {
+    clearInterval(this.speakTimer)
+    this.showFrame('face')
+    if (!this.ownFace?.talk || reducedMotion()) return
+    const start = performance.now()
+    this.speakUntil = start + Math.min(5000, text.length * 70)
+    // where the pauses fall in that time: each stop or comma rests the mouth for a beat
+    const pauses = [...text].flatMap((ch, k) => (/[。，、！？…—.,!?;:]/.test(ch) ? [k * 70] : []))
+    this.speakTimer = setInterval(() => {
+      const t = performance.now() - start
+      if (performance.now() >= this.speakUntil || $('#dialog').classList.contains('hidden')) {
+        clearInterval(this.speakTimer)
+        this.speakUntil = 0
+        return performance.now() >= this.blinkUntil && this.showFrame('face')
+      }
+      if (performance.now() < this.blinkUntil) return this.showFrame('blink')
+      const resting = pauses.some((p) => t >= p && t < p + 260)
+      this.showFrame(!resting && Math.floor(t / 120) % 2 === 0 ? 'talk' : 'face')
+    }, 40)
+  }
+
+  /** Put one of an own portrait's pictures in the face (the same size: they line up to the pixel). */
+  private showFrame(which: 'face' | 'blink' | 'talk'): void {
+    const f = this.ownFace
+    const c = f && f[which]
+    const face = $('#dFace')
+    if (!c || face.firstElementChild === c) return
+    face.replaceChildren(c)
+  }
+
+  /**
+   * The next blink of an own portrait while its line is open: the first soon after the line begins, so that one who reads fast sees
+   * it too, then every few seconds. A blink shuts the eyes over whatever the mouth is doing (the speaking goes on round it).
+   */
+  private blinkLater(first = false): void {
+    clearTimeout(this.blinkTimer)
+    if (!this.ownFace?.blink || reducedMotion()) return
+    this.blinkTimer = setTimeout(() => {
+      if (!this.ownFace?.blink || $('#dialog').classList.contains('hidden')) return
+      this.blink()
+      // now and then a second blink right after the first
+      if (Math.random() < 0.25) setTimeout(() => this.blink(), 300)
+      this.blinkLater()
+    }, first ? 350 + Math.random() * 250 : 2600 + Math.random() * 1600)
+  }
+
+  /** One blink: the eyes shut for a moment, then the face as it was (still speaking, or at rest). */
+  private blink(): void {
+    if (!this.ownFace?.blink || $('#dialog').classList.contains('hidden')) return
+    this.blinkUntil = performance.now() + 140
+    this.showFrame('blink')
+    setTimeout(() => performance.now() >= this.blinkUntil && performance.now() >= this.speakUntil && this.showFrame('face'), 150)
   }
 
   /** E (or a click) on an open dialog: the first press finishes the typing, the next moves on. */
@@ -477,6 +592,11 @@ export class Hud {
   }
 
   private renderScene(f: Frame): void {
+    if (!$('#dialog').classList.contains('hidden')) this.dialogSeen = performance.now()
+    // what the scene shows over the world is its state, not only its events (a reload keeps the picture and the dark)
+    this.showPicture(f.scene?.picture)
+    const dark = !!f.scene?.dark
+    if (dark !== !$('#fade').classList.contains('hidden')) $('#fade').classList.toggle('hidden', !dark)
     if (this.cardOpen && f.scene?.waiting !== 'advance') {
       this.cardOpen = false
       $('#card').classList.add('hidden')
@@ -495,7 +615,7 @@ export class Hud {
     } else if (!this.sceneDialog && f.scene?.waiting === 'advance' && f.scene.line) {
       // the say event was missed (loading, a reload): show the waiting line from the frame
       const l = f.scene.line
-      if (l.card) return this.openCard(tx(l.text))
+      if (l.card) return this.openCard(tx(l.text), l.art)
       const who = f.entities.find((e) => e.id === l.who)
       this.openDialog(l.who, who ? tx(who.name) : '', tx(l.text), true, l.mood)
     }
@@ -653,7 +773,7 @@ export class Hud {
         if (fx.who === this.dialogWho && !$('#dialog').classList.contains('hidden') && !this.questionOpen) this.showFace(fx.who, fx.mood)
         return this.bubble(fx.who, MOOD_GLYPH[fx.mood])
       case 'card':
-        return this.openCard(tx(fx.text))
+        return this.openCard(tx(fx.text), fx.art)
       case 'fade':
         return void $('#fade').classList.toggle('hidden', fx.dir !== 'out')
       case 'damage':

@@ -578,10 +578,28 @@
           "properties": {
             "card": {
               "$ref": "#/definitions/Text"
+            },
+            "art": {
+              "type": "string"
             }
           },
           "required": [
             "card"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "picture": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "picture"
           ],
           "additionalProperties": false
         }

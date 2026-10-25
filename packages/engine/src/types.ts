@@ -1036,8 +1036,10 @@ export type SceneCmd =
   | { stage: string; n: number }
   /** tell someone something (a notice they answer themselves: the fairy given a boon) */
   | { tell: Id; params: Record<string, PropValue> }
-  /** a full-screen card (the ending), advanced like a line */
-  | { card: Text }
+  /** a full-screen card (the ending), advanced like a line; over a picture where `art` names one (a path under the game's assets, as the catalogue writes them: `lsw/CG/…`) */
+  | { card: Text; art?: string }
+  /** a picture over the world while the scene plays (an event's illustration, a CG): the lines go on over it; null takes it away, and so does the scene's end */
+  | { picture: string | null }
 
 export interface SceneState {
   id: string
@@ -1047,7 +1049,11 @@ export interface SceneState {
   mover?: { who: Id; path: [number, number][]; next: number }
   started?: number
   /** the line waiting to be advanced (so a client that missed the say event can show it) */
-  line?: { who: Id; text: Text; mood?: Mood; card?: boolean }
+  line?: { who: Id; text: Text; mood?: Mood; card?: boolean; art?: string }
+  /** the picture shown over the world (a `picture` command), until taken away or the scene ends */
+  picture?: string
+  /** the screen is faded to black (a `fade` out not yet faded in): kept, so a reload does not show what it hides */
+  dark?: boolean
 }
 
 /**
@@ -1943,7 +1949,7 @@ export type FxEvent =
   | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean; /** said to another (one person telling another): heard in passing, not a talk with the one at the keys */ to?: Id }
   | { t: 'emote'; who: Id; mood: Mood }
   | { t: 'fade'; dir: 'out' | 'in' }
-  | { t: 'card'; text: Text }
+  | { t: 'card'; text: Text; art?: string }
   | { t: 'strike'; map: string; x: number; y: number }
   /** dev: for the developer (a rejected patch, a rule set aside): the console's, never a player's toast. */
   | { t: 'log'; text: Text; tone?: 'info' | 'warn' | 'ai' | 'good' | 'bad' | 'dev' }

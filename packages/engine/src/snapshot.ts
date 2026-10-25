@@ -127,7 +127,7 @@ export interface Frame {
   night: { dusk: number; dawn: number }
   calendar: Calendar
   /** A scene is playing: the player watches; `advance` moves past what is said. */
-  scene?: { id: string; waiting?: 'advance' | 'move'; line?: SceneState['line'] }
+  scene?: { id: string; waiting?: 'advance' | 'move'; line?: SceneState['line']; picture?: string; dark?: boolean }
   map: string
   /** A fishing line's fight, when the game's fishing module has an active session. */
   fishing?: FishingView
@@ -579,7 +579,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
     hour: w.hour(),
     night: nightHours(w.nightShift()),
     calendar: w.calendar(),
-    scene: sc ? { id: sc.id, waiting: sc.waiting, line: sc.line } : undefined,
+    scene: sc ? { id: sc.id, waiting: sc.waiting, line: sc.line, ...(sc.picture && { picture: sc.picture }), ...(sc.dark && { dark: true }) } : undefined,
     map,
     player: {
       id: p.id,

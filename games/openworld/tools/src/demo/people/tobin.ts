@@ -1,7 +1,8 @@
 // Tobin, the peddler. He brings charms and odd goods from the east twice a year and talks the
 // whole way. The storm stopped the ferry, so he moved his cart to Firstlight Village with
 // things nobody here will buy and nothing to eat. He owes Hesper last autumn's fare and hopes she has forgotten
-// (she has not). He is afraid of the slimes that come up out of the hollow at night.
+// (she has not). He is afraid of the slimes that come up out of the hollow at night. His portrait (docs/cast/tobin.md): copper hair,
+// green eyes, the teal coat, the pack of wares.
 
 import { line, type PersonDef } from '../person.ts'
 
@@ -14,7 +15,7 @@ export const tobin: PersonDef = {
   essential: true,
   name: { en: 'Tobin', zh: '托宾' },
   gender: 'male',
-  look: { parts: { hair: 'hair.messy', face: 'face.bright', outfit: 'outfit.travel', hat: 'hat.cap', beard: null }, colors: { hair: 'chestnut', eyes: 'amber', skin: 'warm', 'outfit.1': 'russet', 'hat.1': 'mustard' } },
+  look: { parts: { hair: 'hair.messy', face: 'face.bright', outfit: 'outfit.travel', hat: 'hat.cap', beard: null }, colors: { hair: 'copper', eyes: 'leaf', skin: 'warm', 'outfit.1': 'teal', 'hat.1': 'mustard' } },
   age: 34,
   temperament: { personality: 'chatty', manner: 'polite', social: 'outgoing', outlook: 'hopeful' },
   ties: { 'npc.hesper': 'the ferrykeeper he owes a fare' },

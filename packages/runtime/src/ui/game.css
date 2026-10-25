@@ -155,6 +155,27 @@
 .dialog .face.bust { position: absolute; left: -36px; bottom: -4px; width: 248px; height: 248px; border: none; background: none; pointer-events: none;
   -webkit-mask-image: linear-gradient(to top, transparent 0, #000 22px); mask-image: linear-gradient(to top, transparent 0, #000 22px); }
 .dialog .face.bust canvas { width: 248px; height: 248px; image-rendering: auto; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.35)); }
+/* the bust moves with its line's mood (the line names the mood, so the motion always matches the words): one coming
+   in slides up; then a hop for joy, a start for surprise, a shake for anger, a sink for sorrow, a turn for shyness */
+/* (on the face itself, not its picture: an own portrait swaps its picture to blink and speak, which must not start a motion again) */
+.dialog .face.bust.enter { animation: bust-enter 0.28s ease-out; }
+.dialog .face.bust.moving[data-mood="happy"] { animation: bust-hop 0.45s ease-out; }
+.dialog .face.bust.moving[data-mood="surprised"] { animation: bust-start 0.4s ease-out; }
+.dialog .face.bust.moving[data-mood="angry"] { animation: bust-shake 0.35s linear; }
+.dialog .face.bust.moving[data-mood="sad"] { animation: bust-sink 0.6s ease-out forwards; }
+.dialog .face.bust.moving[data-mood="shy"] { animation: bust-shy 0.7s ease-in-out; }
+@keyframes bust-enter { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes bust-hop { 0%, 100% { transform: none; } 35% { transform: translateY(-10px); } 65% { transform: translateY(1px); } }
+@keyframes bust-start { 0% { transform: none; } 30% { transform: translateY(-6px) scale(1.03); } 100% { transform: none; } }
+@keyframes bust-shake { 0%, 100% { transform: none; } 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+@keyframes bust-sink { from { transform: none; } to { transform: translateY(5px); } }
+@keyframes bust-shy { 0%, 100% { transform: none; } 40% { transform: rotate(-2deg) translateX(-3px); } }
+@media (prefers-reduced-motion: reduce) { .dialog .face.bust { animation: none !important; } }
+/* a portrait of the person's own (docs/character-art.md): inside the box, its frame cutting it at the shoulders — no corner of the box
+   behind the hair, no edge of the picture in the air, and the pixel world stays in front */
+.dialog.bust.own { padding-left: 196px; min-height: 140px; overflow: hidden; }
+.dialog .face.bust.own { left: -4px; top: 0; bottom: auto; width: 200px; height: 200px; -webkit-mask-image: none; mask-image: none; }
+.dialog .face.bust.own canvas { width: 200px; height: 200px; image-rendering: auto; filter: none; }
 .dialog .dtext { flex: 1; }
 .dialog .dname { font: 600 17px var(--pixel); color: #8a3b12; margin-bottom: 4px; }
 .dialog .dline { font-size: 17px; line-height: 1.5; min-height: 50px; }
@@ -176,6 +197,14 @@
 .card { position: absolute; inset: 0; background: rgba(5, 6, 12, 0.9); display: grid; place-items: center; z-index: 55; cursor: pointer; animation: fadein 1.2s; }
 .card .card-text { font: 600 22px var(--pixel); color: #f1e3c0; letter-spacing: 1px; line-height: 1.7; text-align: center; white-space: pre-line; max-width: min(640px, 86vw); }
 .card .dmore { position: absolute; bottom: 14%; color: #c8a46a; animation: pulse 1s infinite; }
+/* a card over a picture: the picture fills the screen, the words sit low on a shade */
+.card .card-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.card.with-art { place-items: end center; padding-bottom: 18vh; }
+.card.with-art .card-text { position: relative; padding: 14px 26px; background: rgba(5, 6, 12, 0.62); border-radius: 8px; }
+/* a scene's picture (a CG): over the world and the HUD, under the dialogue (raised over it while one shows) and the fade */
+.cg { position: absolute; inset: 0; z-index: 47; background: #05060c; pointer-events: none; animation: fadein 0.6s; }
+.cg img { width: 100%; height: 100%; object-fit: contain; }
+.dialog.on-cg { z-index: 48; }
 .fade #fadeText { font: 600 28px var(--pixel); color: #f1e3c0; letter-spacing: 2px; }
 @keyframes fadein { from { opacity: 0 } to { opacity: 1 } }
 

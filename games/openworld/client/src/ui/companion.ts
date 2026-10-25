@@ -9,7 +9,10 @@
 
 import type { Frame, JournalQuest, Mood, Text } from '@openworld/engine'
 import { BOON_BY_ID, COMPANION_LOOK } from '@openworld-game/content'
+import type { PortraitSet } from '@openworld/runtime/src/assets/types.ts'
 import { portraitOf, preparePortrait } from '@openworld/runtime/src/assets/figure/index.ts'
+import { catalog } from '@openworld/runtime/src/game.ts'
+import { assetUrl } from '@openworld/runtime/src/render/assets.ts'
 import { esc, locale, t, tx } from '@openworld/runtime/src/ui/common.ts'
 import { keys } from '@openworld/runtime/src/keymap.ts'
 import type { GamePanel, PanelContext } from '@openworld/runtime/src/ui/panels.ts'
@@ -38,6 +41,8 @@ export type CompanionTab = 'guide' | 'powers' | 'knowledge'
 class CompanionPanel implements GamePanel {
   private sig = ''
   private tab: CompanionTab = 'guide'
+  /** Her own portrait's set (docs/cast/lumi.md), when the catalogue has one with a panel picture: shown in place of her look's, its own wings drawn. */
+  private own?: PortraitSet
   private knowledge = 'waypoints'
   private frame?: Frame
   private keymap = JSON.stringify(keys.map)
@@ -76,6 +81,8 @@ class CompanionPanel implements GamePanel {
     const zh = locale.value === 'zh'
     const me = f.entities.find((e) => e.tags.includes('companion'))
     const name = me?.name ? tx(me.name) : zh ? '露米' : 'Lumi'
+    const set = me ? catalog().portraits?.[me.id] : undefined
+    this.own = set?.panel ? set : undefined
     const epithet = tx(EPITHET)
     const tab = (id: CompanionTab, icon: string, en: string, zh2: string) =>
       `<button class="lm-tab${this.tab === id ? ' on' : ''}" data-tab="${id}" aria-pressed="${this.tab === id}"><i>${icon}</i>${zh ? zh2 : en}</button>`
@@ -83,7 +90,7 @@ class CompanionPanel implements GamePanel {
       <aside class="lm-stage">
         <div class="lm-sky"></div>
         <div class="lm-halo"></div>
-        <div class="lm-figure">${WINGS}<div class="lm-bust" data-bust></div></div>
+        <div class="lm-figure${this.own ? ' own' : ''}">${this.own ? '' : WINGS}<div class="lm-bust" data-bust></div></div>
         ${Array.from({ length: 9 }, (_, i) => `<span class="lm-mote" style="--i:${i}"></span>`).join('')}
         <div class="lm-plate"><b>${esc(name)}</b><small>${esc(epithet)}</small></div>
       </aside>
@@ -138,7 +145,8 @@ class CompanionPanel implements GamePanel {
 
   /** On the powers page: a seal pointed at shows on her face, and its name under hers; away, the carried one's. */
   private stirred(rest: Mood | undefined, epithet: string): void {
-    for (const m of SEAL_MOOD) void preparePortrait(COMPANION_LOOK, m)
+    if (this.own) for (const m of SEAL_MOOD) new Image().src = this.ownUrl(m)
+    else for (const m of SEAL_MOOD) void preparePortrait(COMPANION_LOOK, m)
     const under = this.host.querySelector<HTMLElement>('.lm-plate small')
     const zh = locale.value === 'zh'
     this.host.querySelectorAll<HTMLElement>('[data-seal]').forEach((el) => {
@@ -160,6 +168,14 @@ class CompanionPanel implements GamePanel {
   private drawBust(mood?: Mood): void {
     const slot = this.host.querySelector('[data-bust]')
     if (!slot) return
+    if (this.own) {
+      const img = new Image()
+      img.className = 'lm-portrait'
+      img.alt = ''
+      img.src = this.ownUrl(mood)
+      slot.replaceChildren(img)
+      return
+    }
     const bust = portraitOf(COMPANION_LOOK, mood)
     if (bust) {
       bust.className = 'lm-portrait'
@@ -168,6 +184,12 @@ class CompanionPanel implements GamePanel {
       void preparePortrait(COMPANION_LOOK, mood).then((ok) => {
         if (ok && this.open && this.frame) ((this.sig = ''), this.render(this.frame))
       })
+  }
+
+  /** Her own panel picture in a mood (any it lacks, its neutral). */
+  private ownUrl(mood?: Mood): string {
+    const own = this.own!
+    return assetUrl(`${own.dir}/${mood && own.moods.includes(mood) ? mood : 'neutral'}-panel.webp`)
   }
 
   /**

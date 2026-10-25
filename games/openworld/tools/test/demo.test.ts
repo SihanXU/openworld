@@ -3027,7 +3027,7 @@ req('P3', "the main line never breaks: Rowan's rescue begins by itself at the we
   expect(w.posOf(w.player)?.map).toBe('barrow')
   // the first floor: Lina; the stair in the east cell down to the ossuary
   expect(w.posOf(w.get('npc.lina')!)?.map).toBe('barrow')
-  expect(talkTo(f, 'npc.lina')).toContain('我回家了')
+  expect(talkTo(f, 'npc.lina')).toContain('跟罗万说我还活着')
   /** Onto a stair from beside it, as a player walks: it takes one to the floor it leads to. */
   const stair = (map: string, [x, y]: readonly [number, number], to: string) => {
     const dirs = [['up', 0, 1], ['down', 0, -1], ['left', 1, 0], ['right', -1, 0]] as const

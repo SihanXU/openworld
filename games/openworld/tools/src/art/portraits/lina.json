@@ -1,0 +1,194 @@
+{
+  "person": "npc.lina",
+  "about": "Lina's own portrait (docs/cast/lina.md): the regions of her sprite the pipeline works in, in the sprite's pixels (1024x1536), the words for each mood and each mood's blink and talk, and where each mood's face is on her design sheet. portrait.py reads it.",
+  "sprite": "the sprite drawn on white by Qwen-Image-Edit from her design sheet, a hand on her satchel's strap, a third arm and a sleeve's flap taken out (kept outside the repository, like every draft)",
+  "keep": [
+    [
+      460,
+      220,
+      660,
+      420
+    ],
+    [
+      330,
+      450,
+      450,
+      560
+    ]
+  ],
+  "keepWhy": [
+    "the face",
+    "the ring and the collar's tie"
+  ],
+  "faceCrop": [
+    430,
+    190,
+    710,
+    470
+  ],
+  "face": [
+    492,
+    232,
+    642,
+    402
+  ],
+  "features": [
+    [
+      528,
+      270,
+      31,
+      20
+    ],
+    [
+      601,
+      301,
+      19,
+      19
+    ],
+    [
+      512,
+      302,
+      22,
+      12
+    ],
+    [
+      545,
+      366,
+      32,
+      22
+    ]
+  ],
+  "featuresBlur": 3,
+  "mouth": [
+    [
+      553,
+      364,
+      26,
+      12
+    ]
+  ],
+  "eyes": [
+    [
+      531,
+      270,
+      33,
+      21
+    ],
+    [
+      601,
+      301,
+      19,
+      19
+    ]
+  ],
+  "bust": [
+    150,
+    0,
+    870,
+    720
+  ],
+  "out": 400,
+  "moods": {
+    "happy": "laughing: both eyes closed in thin upward-curved arcs like ^ ^, the same as picture 2's closed eyes, no eye whites or irises showing; a wide cat-like grin with the mouth open showing one small upper fang; a light blush",
+    "sad": "sad: the eyes lowered and dimmed, the inner ends of the eyebrows a little raised, the lips pressed together, the mouth small and turned down",
+    "angry": "annoyed and unimpressed, as in picture 2: the upper eyelids lowered so both eyes are half-closed and flat, glancing sideways; her eyebrows stay hidden under the bangs, no eyebrow lines and no extra lines above the eyes; the mouth a small flat line, a little pouted",
+    "surprised": "surprised: her eyes opened only a little wider than in picture 1, keeping their almond shape and their size, the irises their usual size; the mouth a small open 'o'",
+    "shy": "pretending not to care: the eyes glancing aside, a soft pink blush across the cheeks, the lips pushed out a little"
+  },
+  "moodRefs": {
+    "happy": [
+      482,
+      655,
+      645,
+      915
+    ],
+    "sad": [
+      650,
+      655,
+      810,
+      915
+    ],
+    "angry": [
+      815,
+      655,
+      975,
+      915
+    ],
+    "shy": [
+      1145,
+      655,
+      1316,
+      915
+    ]
+  },
+  "seed": 7,
+  "frames": {
+    "blink": "Close her eyes as in a blink: the upper eyelids down and the lashes curved, the whites and irises of the eyes completely hidden, only smooth skin below each closed lash line, keeping her expression and the hair strands over her eyes.",
+    "talk": "Open her mouth a little, as in the middle of a word, keeping her expression."
+  },
+  "moodFrames": {
+    "happy": {
+      "blink": null,
+      "talk": null
+    },
+    "surprised": {
+      "blink": {
+        "from": "neutral",
+        "region": [
+          [
+            531,
+            271,
+            36,
+            25
+          ],
+          [
+            601,
+            301,
+            22,
+            23
+          ]
+        ]
+      }
+    }
+  },
+  "blushes": [
+    "happy",
+    "shy"
+  ],
+  "negative": "deformed face, extra eyes, extra eyebrows, glasses, text, watermark",
+  "keepAlso": "her eyebrows hidden under her bangs exactly as they are (draw no eyebrows and no new lines on her forehead or over the bangs)",
+  "moodSeeds": {
+    "surprised": 2,
+    "happy": 4,
+    "angry": 1
+  },
+  "moodFeatures": {
+    "happy": [
+      [
+        528,
+        270,
+        31,
+        20
+      ],
+      [
+        602,
+        301,
+        11,
+        14
+      ],
+      [
+        512,
+        302,
+        22,
+        12
+      ],
+      [
+        548,
+        359,
+        30,
+        22
+      ]
+    ]
+  },
+  "happyNote": "The shipped happy face is put together from three model drafts kept with the drafts (game_pic/lina/drafts): the near eye from the mood made here (seed 4, its features moodFeatures.happy), the far eye from a second pass over it alone (seed 3, region [602,300,11,13], asked to close inside the face's outline), the mouth from the first draft (seed 7, ellipse [548,354,38,32]). It has no blink and no talk frame: its eyes are closed and its mouth open."
+}

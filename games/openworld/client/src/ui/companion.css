@@ -39,6 +39,9 @@
 .lm-wing.left { animation: lmFlapL 3.6s ease-in-out infinite; }
 .lm-wing.right { animation: lmFlapR 3.6s ease-in-out infinite; }
 .lm-bust { position: relative; width: 360px; height: 360px; }
+/* her own portrait (docs/cast/lumi.md): its own wings, wider than the drawn ones, so the picture takes the whole stage's width */
+.lm-figure.own { left: 0; right: 0; width: auto; height: 400px; top: 34px; transform: none; display: flex; justify-content: center; animation-name: lmFloatOwn; }
+.lm-figure.own .lm-bust { width: 400px; height: 400px; flex: none; }
 .lm-portrait {
   display: block; width: 100%; height: auto;
   filter: drop-shadow(0 0 14px rgba(224, 210, 255, 0.7)) drop-shadow(0 6px 10px rgba(10, 4, 30, 0.5));
@@ -188,6 +191,7 @@
 .lm-carried { font: 700 13px var(--pixel); color: #5a3fb0; padding: 5px 12px; border-radius: 14px; background: rgba(184, 162, 239, 0.32); border: 1px solid #8a6be0; white-space: nowrap; }
 
 @keyframes lmFloat { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -7px); } }
+@keyframes lmFloatOwn { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
 @keyframes lmFlapL { 0%, 100% { transform: rotate(0deg) scaleX(1); } 50% { transform: rotate(4deg) scaleX(0.9); } }
 @keyframes lmFlapR { 0%, 100% { transform: rotate(0deg) scaleX(1); } 50% { transform: rotate(-4deg) scaleX(0.9); } }
 @keyframes lmPulse { 0%, 100% { opacity: 0.85; transform: translate(-50%, -30%) scale(1); } 50% { opacity: 1; transform: translate(-50%, -30%) scale(1.06); } }

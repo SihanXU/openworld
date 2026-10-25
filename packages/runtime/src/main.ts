@@ -7,7 +7,7 @@ import Phaser from 'phaser'
 import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, libraryKey, newWorker, savesKey, worldBase } from './game.ts'
 import { FishingInputLatch, routeFishingEscape, routeSpaceKeyDown, type FromWorker, type Tile, type ToWorker } from './protocol.ts'
-import { cssAssetUrl, registerArt } from './render/assets.ts'
+import { assetUrl, cssAssetUrl, registerArt } from './render/assets.ts'
 import { WorldScene } from './render/scene.ts'
 import { kvGet, kvSet } from './storage.ts'
 import { writeSlot, type Slot } from './saves.ts'
@@ -281,7 +281,36 @@ function crop(img: string, x: number, y: number, w: number, h: number): HTMLCanv
   g.drawImage(src, x, y, w, h, 0, 0, w, h)
   return c
 }
-const faceset = (id: string, mood?: Mood) => {
+// people with a portrait of their own (docs/character-art.md): their pictures, fetched as the game starts so the first line shows them
+const ownPortraits = new Map<string, HTMLImageElement>()
+const ownPortrait = (path: string): HTMLImageElement | undefined => {
+  let img = ownPortraits.get(path)
+  if (!img) {
+    img = new Image()
+    img.src = assetUrl(path)
+    ownPortraits.set(path, img)
+  }
+  return img.complete && img.naturalWidth ? img : undefined
+}
+for (const set of Object.values(catalog().portraits ?? {}))
+  for (const m of set.moods) for (const name of [m, ...(set.blink ? [`${m}-blink`] : []), ...(set.talk ? [`${m}-talk`] : [])]) ownPortrait(`${set.dir}/${name}.webp`)
+const faceset = (id: string, mood?: Mood, frame?: 'blink' | 'talk') => {
+  // a portrait of their own: the mood's picture (any other mood its neutral), or that face's blink or open mouth
+  const own = catalog().portraits?.[id]
+  if (own) {
+    const face = mood && own.moods.includes(mood) ? mood : 'neutral'
+    const name = frame ? (own[frame] ? `${face}-${frame}` : undefined) : face
+    const img = name && ownPortrait(`${own.dir}/${name}.webp`)
+    if (!img) return undefined
+    const c = document.createElement('canvas')
+    c.width = img.naturalWidth
+    c.height = img.naturalHeight
+    c.getContext('2d')!.drawImage(img, 0, 0)
+    c.dataset.bust = '1'
+    c.dataset.own = '1'
+    return c
+  }
+  if (frame) return undefined
   // a look's portrait, the anime bust (docs/looks.md); while its layers are still coming, the sprite's head
   const bust = scene.portraitOf(id, mood)
   if (bust) {

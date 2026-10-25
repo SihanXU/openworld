@@ -1,7 +1,7 @@
 // The project's own pixel art for the companion: Lumi, a fairy (2026-10-12; she was Pip) — what is left of the second
-// vessel (docs/lore.md), small and light: a big round head of moon-pale lavender hair with a star pinned in it (it
-// glows: the seals' power finds her), large violet eyes, a white dress with a star at the collar, glassy wings
-// touched with pink. The pack has no fairy, so she is drawn here from character grids, in the pack's style (dark
+// vessel (docs/lore.md), small and light: a big round head of lavender hair with a yellow five-petal flower pinned in it
+// (it glows: the seals' power finds her), large violet eyes, a white dress with a blue ribbon at the collar, glassy
+// ice-blue wings — her own portrait's colours (docs/cast/lumi.md, 2026-10-24). The pack has no fairy, so she is drawn here from character grids, in the pack's style (dark
 // outlines, flat tones), chibi-proportioned so she reads at sixteen pixels:
 // - SpriteSheet.png: one row of four 16x16 frames, the wings' beat (up, middle, down, middle); she faces the
 //   viewer (the renderer mirrors her);
@@ -17,11 +17,11 @@ type RGBA = [number, number, number, number]
 const PAL: Record<string, RGBA> = {
   '.': [0, 0, 0, 0],
   k: [62, 42, 78, 255], // outline
-  h: [236, 229, 255, 255], // hair
-  H: [190, 172, 236, 255], // hair shade
-  j: [150, 128, 208, 255], // hair deep shade
-  g: [255, 214, 102, 255], // the star
-  G: [255, 250, 214, 255], // its heart
+  h: [212, 204, 244, 255], // hair
+  H: [170, 160, 224, 255], // hair shade
+  j: [134, 118, 198, 255], // hair deep shade
+  g: [255, 214, 102, 255], // the flower's petals
+  G: [236, 150, 72, 255], // its heart
   s: [255, 233, 218, 255], // skin
   S: [242, 200, 184, 255], // skin shade
   b: [255, 168, 192, 255], // blush
@@ -32,7 +32,7 @@ const PAL: Record<string, RGBA> = {
   d: [246, 248, 255, 255], // dress
   D: [178, 196, 238, 255], // dress shade
   w: [214, 242, 255, 210], // wing (glassy)
-  p: [255, 202, 240, 220], // wing's pink
+  p: [178, 220, 248, 220], // wing's blue
   W: [112, 178, 236, 255], // wing edge
   y: [255, 244, 170, 255], // sparkle
 }
@@ -57,8 +57,8 @@ const BODY = [
   '....kkkkkkkk....',
 ]
 
-/** The star in her hair, about a centre: its points and its heart. */
-const star = (cx: number, cy: number): [number, number, string][] => [[cx, cy - 1, 'g'], [cx - 1, cy, 'g'], [cx, cy, 'G'], [cx + 1, cy, 'g'], [cx, cy + 1, 'g']]
+/** The flower in her hair, about a centre: its petals (four at this size) and its heart. */
+const flower = (cx: number, cy: number): [number, number, string][] => [[cx, cy - 1, 'g'], [cx - 1, cy, 'g'], [cx, cy, 'G'], [cx + 1, cy, 'g'], [cx, cy + 1, 'g']]
 
 /**
  * Her wings, a butterfly's two pairs, in three beats: the upper pair raised (up), both half (middle), the lower pair
@@ -74,7 +74,7 @@ const SPARKLES: [number, number][] = [[1, 3], [15, 7], [0, 9], [14, 1]]
 
 function frame(beat: number, sparkle: [number, number]): string[] {
   const g = BODY.map((r) => r.split(''))
-  for (const [x, y, c] of star(13, 2)) g[y][x] = c
+  for (const [x, y, c] of flower(13, 2)) g[y][x] = c
   for (const [row, r] of Object.entries(WINGS[beat])) {
     const y = Number(row)
     for (let x = 0; x < r.length; x++) {
@@ -104,7 +104,7 @@ function paint(grids: string[][], size: number, scale = 1): Uint8Array {
   return px
 }
 
-/** Her portrait: head and shoulders, the star in her hair, her wings behind (19x19, doubled to the pack's 38x38). */
+/** Her portrait: head and shoulders, the flower in her hair, the ribbon at her collar, her wings behind (19x19, doubled to the pack's 38x38). */
 const FACE_BASE = [
   '.......kkkkk.......',
   '.....kkhhhhhkk.....',
@@ -122,14 +122,14 @@ const FACE_BASE = [
   '.kHjbbsssmsssbbjHk.',
   '..kHkSsssssssSkHk..',
   '...kHkkSsssSkkHk...',
-  '...kdddddGdddddk...',
+  '...kdddddWdddddk...',
   '..kddddDdddDddddk..',
   '.kdddddDdddDdddddk.',
 ]
 
 function face(): string[] {
   const g = FACE_BASE.map((r) => r.slice(0, 19).padEnd(19, '.').split(''))
-  for (const [x, y, c] of star(14, 3)) g[y][x] = c
+  for (const [x, y, c] of flower(14, 3)) g[y][x] = c
   // the wings behind her shoulders, both sides
   const wing = ['W...', 'Ww..', 'WpW.', 'Wpw.', 'WwwW', '.WwW', '..WW']
   wing.forEach((r, dy) => {

@@ -1,5 +1,6 @@
 // Joss, the bridgewright (docs/chapter-1.md §7): he built the footbridge with Aldo twenty years ago,
-// and someone took it apart neatly. He teaches the plank route, and knows who paid for the bridge.
+// and someone took it apart neatly. He teaches the plank route, and knows who paid for the bridge: a brother of the Ashen
+// Watch, with a boy at his heel (the grey man at ten).
 
 import { line, type PersonDef } from '../person.ts'
 
@@ -32,6 +33,6 @@ export const joss: PersonDef = {
     line('default', 'An axe fells a tree, an axe on a log gives planks. Three planks and the footbridge is whole. That is the whole secret.', '斧头砍树，斧头劈木头出木板。三块木板，小桥就完整了。秘诀就这么多。'),
     line('default', 'Nails pulled straight and laid in a row. No storm pulls nails. Someone wanted that bridge gone, and wanted us to know it.', '钉子拔得笔直，摆成一排。哪场风暴会拔钉子？有人就是想让那座桥没了，还想让我们知道。'),
     line('fact:ford.crossed', 'You crossed. Good. Aldo would have laughed to see it — he said that bridge would outlive us both.', '你过去了。好。阿尔多要是看见了准会笑——他说过那座桥会比我们俩都活得长。', { once: true }),
-    line('fact:ch1.end', 'A grey young man paid for that bridge, twenty years back. Old coin, no king on it. "A road out of here a cart could take in a hurry," he said. I never knew what he meant.', '二十年前，是个穿灰衣服的年轻人出钱造的那座桥。旧钱币，上面没有国王的头像。他说："要一条能让马车赶紧离开这里的路。"我一直不明白他是什么意思。', { once: true }),
+    line('fact:ch1.end', 'A man in grey paid for that bridge, twenty years back, and a boy at his heel carried the purse. Old coin, no king on it. "A road out of here a cart could take in a hurry," he said. I never knew what he meant.', '二十年前，是个穿灰衣服的人出钱造的那座桥，身边跟着个替他拿钱袋的男孩。旧钱币，上面没有国王的头像。他说："要一条能让马车赶紧离开这里的路。"我一直不明白他是什么意思。', { once: true }),
   ],
 }

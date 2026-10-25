@@ -1,0 +1,97 @@
+{
+  "person": "npc.nessa",
+  "about": "Nessa's own portrait (docs/cast/nessa.md): the regions of her sprite the pipeline works in, in the sprite's pixels (1024x1536), and the words for each mood and each mood's blink and talk. portrait.py reads it.",
+  "sprite": "the sprite drawn on white from her design sheet (kept outside the repository, like every draft)",
+  "keep": [
+    [
+      355,
+      155,
+      495,
+      335
+    ],
+    [
+      470,
+      150,
+      650,
+      350
+    ]
+  ],
+  "keepWhy": [
+    "the feather and both earrings",
+    "the face and the glasses"
+  ],
+  "faceCrop": [
+    440,
+    130,
+    720,
+    410
+  ],
+  "face": [
+    488,
+    174,
+    664,
+    336
+  ],
+  "mouth": [
+    [
+      600,
+      294,
+      36,
+      24
+    ]
+  ],
+  "eyes": [
+    [
+      533,
+      232,
+      42,
+      32
+    ],
+    [
+      616,
+      205,
+      40,
+      30
+    ]
+  ],
+  "bust": [
+    300,
+    40,
+    860,
+    600
+  ],
+  "out": 400,
+  "moods": {
+    "happy": "a gentle, slight closed-mouth smile, calm and reserved, as in picture 2: the corners of the lips lifted only a little, the eyes softly open and calm, no blush at all on the cheeks",
+    "sad": "sad: the inner ends of the eyebrows raised, the eyes lowered and a little glistening, the lips pressed together, the corners turned down",
+    "angry": "exasperated and annoyed: the eyebrows pulled down and together, the eyes narrowed, the mouth a tight small frown",
+    "surprised": "surprised: the eyes wide open with small irises, the eyebrows raised high, the mouth a small open 'o'",
+    "shy": "shy and a little embarrassed: a faint, soft pink blush only on the cheeks just below the eyes (subtle, light, no hard band), the eyes glancing aside, a small shy smile"
+  },
+  "seed": 7,
+  "frames": {
+    "blink": "Close her eyes as in a blink: the upper eyelids down and the lashes curved, keeping her expression.",
+    "talk": "Open her mouth a little, as in the middle of a word, keeping her expression."
+  },
+  "blushes": [
+    "shy"
+  ],
+  "keepAlso": "the glasses exactly where they are",
+  "negative": "deformed face, extra eyes, moved glasses, text, watermark",
+  "moodRefs": {
+    "happy": [
+      0,
+      0,
+      362,
+      356
+    ]
+  },
+  "moodSeeds": {
+    "happy": 6
+  },
+  "moodFrames": {
+    "happy": {
+      "talk": "Part her lips only a little, as in the middle of a quiet word, keeping her slight closed smile's shape and its upturned corners; the mouth stays small, no round open mouth."
+    }
+  }
+}

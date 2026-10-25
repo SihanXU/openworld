@@ -1011,6 +1011,16 @@ export const CATALOG: Catalog = {
     dark_forest: MUS + '37 - Dark Forest.ogg',
   },
 
+  // people with a portrait of their own (docs/character-art.md, docs/cast/): the dialogue's bust in place of their look's
+  portraits: {
+    'npc.nessa': { dir: 'lsw/Portraits/nessa', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true },
+    'npc.lina': { dir: 'lsw/Portraits/lina', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true },
+    'npc.ilse': { dir: 'lsw/Portraits/ilse', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true },
+    'npc.severin': { dir: 'lsw/Portraits/severin', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true },
+    'npc.tobin': { dir: 'lsw/Portraits/tobin', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true },
+    pip: { dir: 'lsw/Portraits/lumi', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true, panel: true },
+  },
+
   sfx: {
     step: SND + 'Elemental/Grass.wav',
     take: SND + 'Bonus/Bonus2.wav',

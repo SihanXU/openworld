@@ -1,0 +1,98 @@
+{
+  "person": "npc.nessa",
+  "about": "Nessa's event CGs (docs/cast/nessa.md §5): each shot's spec, its drawing words and the references it was studied from. cg.py reads it.",
+  "who": "a young woman with a straight dark navy bob with blunt bangs and round glasses, in a dark indigo long coat over a cream waistcoat",
+  "identity": "Make the woman in picture 1 exactly the woman of picture 2: the same face, the straight dark navy bob with heavy blunt bangs cut straight across at the eyebrows, the thin perfectly round silver-grey glasses, the violet eyes, the dark indigo coat with the tall stand-up collar, the cream shirt and the cream waistcoat with small brass buttons, drawn in her character style.",
+  "shots": {
+    "01-sunset": {
+      "title": "Counting to Fifteen",
+      "scene": "the first sunset at her watch",
+      "camera": "eye level, a little low, tilted about 10 degrees, a slightly long lens",
+      "framing": "waist up; she fills most of the frame's height on the right, her face at the upper right third, turned left toward the sun",
+      "light": "the sun low behind her on the left: a gold rim on her hair, cheek, glasses and coat; a pink-violet fill from the sky on her front; dust motes",
+      "refs": [
+        "https://safebooru.org/index.php?page=post&s=view&id=286382",
+        "https://safebooru.org/index.php?page=post&s=view&id=1876100",
+        "https://safebooru.org/index.php?page=post&s=view&id=4896919",
+        "https://safebooru.org/index.php?page=post&s=view&id=1967250"
+      ],
+      "draw": "A medium close-up from the waist up, the camera at eye level tilted about ten degrees, a slightly long lens: {who}, her body filling most of the frame's height on the right, her face at the upper right third, turned to the left in three-quarter profile toward the setting sun; she holds a small round brass pocket watch on a chain up at eye level in her right hand; the sun sits low on the left on a dark line of trees behind her, so her hair, cheek, glasses rim and coat edges are rim-lit in gold while her front takes a soft pink-violet light from the sky; the wind lifts strands of her hair; a blurred wooden fence post in the lower left foreground; tiny far roofs and a chapel spire out of focus low on the left; a sky from amber at the horizon through rose to violet at the top with glowing clouds; faint dust motes in the light.",
+      "seeds": [
+        5,
+        6,
+        7,
+        8
+      ],
+      "picked": [
+        5,
+        6
+      ],
+      "detail": 0.2
+    },
+    "02-candle": {
+      "title": "The Last Pages",
+      "scene": "after The Measure of Days, at her desk under the market shelter",
+      "camera": "about 15 degrees from above, a small tilt",
+      "framing": "about two thirds of the frame's height, centre right; the open almanac sharp in the lower left foreground, the candle left of centre",
+      "light": "the candle as the key light, from the front and below, in her glasses; a cool blue night light rimming her hair from behind; Lumi's small glow in the blurred right foreground; shadows blue, never black",
+      "refs": [
+        "https://safebooru.org/index.php?page=post&s=view&id=4998288",
+        "https://safebooru.org/index.php?page=post&s=view&id=755783",
+        "https://safebooru.org/index.php?page=post&s=view&id=5617315"
+      ],
+      "draw": "A medium shot from slightly above, the camera looking down about fifteen degrees, a small tilt: {who}, sitting at a rough wooden desk under a canvas market shelter at night, leaning over an open old leather book; she fills about two thirds of the frame's height, centre right; the open book lies sharp in the lower left foreground, its last page covered in hurried handwriting and torn where the pen went through, her fingertip resting on the last line; a single candle stands left of centre, its warm flame the key light, from the front and below, on her face, the flame reflected in her glasses; a cool blue night light from behind her right shoulder rims her hair; a tiny soft glowing ball of fairy light floats in the blurred right foreground; behind her the canvas roof's edge, a deep blue night with faint stars and the warm out-of-focus windows of village houses; a cup of tea and stacked papers on the desk; warm gold against deep blue, the shadows blue and never black; she looks uneasy and thoughtful.",
+      "seeds": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "picked": [
+        11,
+        12
+      ],
+      "detail": 0.2
+    },
+    "03-log": {
+      "title": "A Light Asleep in the Snow",
+      "scene": "after The Watchman's Log",
+      "camera": "",
+      "framing": "",
+      "light": "",
+      "refs": [],
+      "draw": "",
+      "waits": "Lumi's design (docs/character-art.md)"
+    },
+    "04-stars": {
+      "title": "The Stars Do Not Care",
+      "scene": "a clear night at her watch, both errands done",
+      "camera": "straight above, the frame turned on a diagonal",
+      "framing": "corner to corner: her head at the upper left third, her raised arm reaching to the upper right, pointing at the stars",
+      "light": "cool starlight from above as the key; a small candle lantern in the lower left as a warm second light on her cheek and hand; fireflies",
+      "refs": [
+        "https://safebooru.org/index.php?page=post&s=view&id=5251972",
+        "https://safebooru.org/index.php?page=post&s=view&id=5860116",
+        "https://safebooru.org/index.php?page=post&s=view&id=6198151"
+      ],
+      "who": "a young woman with a straight dark navy bob with blunt bangs and round glasses pushed up onto her head, in a dark indigo long coat over a cream waistcoat",
+      "identity": "Make the woman in picture 1 exactly the woman of picture 2: the same face, the straight dark navy bob with heavy blunt bangs cut straight across at the eyebrows, the violet eyes, the dark indigo coat with the tall stand-up collar, the cream shirt and the cream waistcoat with small brass buttons, drawn in her character style. Her glasses are pushed up onto the top of her head: thin perfectly round silver-grey wire glasses with clear lenses resting in her hair, the only pair; nothing over her eyes, her eyes bare.",
+      "draw": "A shot from straight above, the frame turned on a diagonal: {who}, lying on her back on a blanket in the grass at night, her navy hair spread around her head; her head at the upper left third, her raised right arm reaching toward the upper right corner, pointing up at the stars, her left hand holding a folded paper star chart on her chest; she fills the frame from corner to corner; a quiet happy smile; soft cool starlight from above as the main light, a small candle lantern glowing warm orange in the lower left as a second light on her cheek and hand; blurred grass blades and small white flowers in the corners of the foreground; a few tiny fireflies.",
+      "seeds": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "picked": [
+        14,
+        13,
+        12
+      ],
+      "detail": 0.2
+    }
+  }
+}

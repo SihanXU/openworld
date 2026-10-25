@@ -301,9 +301,13 @@ export class Story {
     const w = eng.world
     const s = w.scene!
     if ('card' in c) {
-      w.fx.push({ t: 'card', text: c.card })
-      s.line = { who: w.state.player, text: c.card, card: true }
+      w.fx.push({ t: 'card', text: c.card, ...(c.art && { art: c.art }) })
+      s.line = { who: w.state.player, text: c.card, card: true, ...(c.art && { art: c.art }) }
       s.waiting = 'advance'
+    } else if ('picture' in c) {
+      // only the view draws it: the frame carries it while the scene plays (the scene's end takes it with it)
+      if (c.picture) s.picture = c.picture
+      else delete s.picture
     } else if ('say' in c) {
       const e = this.who(c.say)
       if (!e) return // the speaker is not in the world: the line is skipped
@@ -329,6 +333,8 @@ export class Story {
       s.until = w.state.tick + c.wait
     } else if ('fade' in c) {
       w.fx.push({ t: 'fade', dir: c.fade })
+      if (c.fade === 'out') s.dark = true
+      else delete s.dark
     } else if ('place' in c) {
       const e = w.get(c.place)
       if (e) this.send(e, { map: c.map, x: c.x, y: c.y })

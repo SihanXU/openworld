@@ -1,0 +1,186 @@
+{
+  "person": "npc.pip",
+  "about": "Lumi's own portrait (docs/cast/lumi.md): the regions of her sprite the pipeline works in, in the sprite's pixels (1024x1536), and the words for each mood and each mood's blink and talk. portrait.py reads it.",
+  "sprite": "the sprite drawn on white by Qwen-Image-Edit from her design sheet, facing left, turned to face right by the cut (kept outside the repository, like every draft)",
+  "mirror": true,
+  "keep": [
+    [
+      594,
+      210,
+      724,
+      480
+    ],
+    [
+      94,
+      180,
+      404,
+      700
+    ],
+    [
+      412,
+      150,
+      494,
+      242
+    ],
+    [
+      444,
+      180,
+      644,
+      380
+    ]
+  ],
+  "keepWhy": [
+    "the left wings",
+    "the right wings",
+    "the flower",
+    "the face"
+  ],
+  "faceCrop": [
+    404,
+    150,
+    684,
+    430
+  ],
+  "face": [
+    462,
+    198,
+    631,
+    362
+  ],
+  "mouth": [
+    [
+      563,
+      306,
+      24,
+      15
+    ]
+  ],
+  "eyes": [
+    [
+      610,
+      254,
+      30,
+      22
+    ],
+    [
+      513,
+      252,
+      30,
+      22
+    ]
+  ],
+  "bust": [
+    276,
+    70,
+    816,
+    610
+  ],
+  "out": 400,
+  "panel": [
+    126,
+    40,
+    966,
+    880
+  ],
+  "panelOut": 720,
+  "moods": {
+    "happy": "happy and bright: a wide, cheerful smile with the mouth open, the eyes curved in delight, a light blush",
+    "sad": "sad: the inner ends of the eyebrows raised, the eyes lowered and a little glistening, the lips pressed together, the corners turned down",
+    "angry": "pouting and cross: the eyes narrowed a little in a sulky look: the upper lash line itself drawn a little lower and flatter, with clean, plain skin above it (no crease, no shadow, no second line above the lashes), the irises glancing a little aside; the mouth a small pout of thin, small lips (as thin as her smile's line, only a little pushed forward, no extra lip colour or shading below them); her eyebrows stay exactly as they are, thin and faint under the bangs, and no new eyebrows are drawn; the face's outline, cheeks and jaw stay exactly as they are",
+    "surprised": "surprised: the eyes wide open with small irises, the eyebrows raised high, the mouth a small open 'o'",
+    "shy": "shy and a little embarrassed: a faint, soft pink blush only on the cheeks just below the eyes (subtle, light, no hard band), the eyes glancing aside, a small shy smile"
+  },
+  "seed": 7,
+  "moodSeeds": {
+    "angry": 16
+  },
+  "moodFeatures": {
+    "angry": [
+      [
+        610,
+        254,
+        32,
+        22
+      ],
+      [
+        516,
+        250,
+        36,
+        24
+      ],
+      [
+        563,
+        308,
+        28,
+        18
+      ]
+    ]
+  },
+  "featuresBlur": 3,
+  "moodTouch": {
+    "angry": {
+      "words": "Clean the skin just above her upper lashes: remove the faint grey-brown arc and smudge of an old eyelid line there, leaving plain skin and the hair strands as they are; keep her narrowed eyes, the lashes, the irises and their highlights exactly as they are.",
+      "features": [
+        [
+          610,
+          254,
+          32,
+          22
+        ],
+        [
+          516,
+          250,
+          36,
+          24
+        ]
+      ],
+      "seed": 3
+    }
+  },
+  "angryNote": "the angry face keeps her own brows (asked to frown, the model drew a second pair over the faint ones under the bangs): only the eyes and the mouth are redrawn, narrowed and sulky, the near eye's region wide enough to take the old lashes' tail, and a second pass clears the old lid's ghost above the lashes; its blink is the neutral's shut eyes, its talk a small parting of the pout",
+  "frames": {
+    "blink": "Close her eyes as in a blink: the upper eyelids down and the lashes curved, keeping her expression.",
+    "talk": "Open her mouth a little, as in the middle of a word, keeping her expression."
+  },
+  "moodFrames": {
+    "happy": {
+      "talk": null
+    },
+    "angry": {
+      "blink": {
+        "from": "neutral",
+        "region": [
+          [
+            610,
+            254,
+            32,
+            22
+          ],
+          [
+            516,
+            250,
+            36,
+            24
+          ]
+        ]
+      },
+      "talk": {
+        "words": "Part her lips only a little, as in the middle of a sulky word: a small, narrow opening between thin lips, keeping the pout's shape and its turned-down corners; no tongue, no teeth showing, no extra lip colour, nothing below the mouth.",
+        "region": [
+          [
+            563,
+            308,
+            28,
+            18
+          ]
+        ],
+        "seed": 4
+      }
+    }
+  },
+  "blushes": [
+    "happy",
+    "shy"
+  ],
+  "negative": "deformed face, extra eyes, glasses, text, watermark"
+}

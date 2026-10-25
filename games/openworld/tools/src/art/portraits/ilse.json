@@ -1,0 +1,504 @@
+{
+  "person": "npc.ilse",
+  "about": "Sister Ilse's own portrait (docs/cast/ilse.md): the regions of her sprite the pipeline works in, in the turned sprite's pixels (1024x1536), and the words for each mood and each mood's blink and talk. portrait.py reads it.",
+  "sprite": "the sprite drawn on white by Qwen-Image-Edit from her design sheet (seed 1 of six), her hands folded at her waist, drawn facing left and turned by the cut (kept outside the repository, like every draft)",
+  "sheet": "the expression sheet from the user's online model, twelve faces in four columns and three rows; `moodRefs` are its cells",
+  "mirror": true,
+  "keep": [
+    [
+      300,
+      120,
+      760,
+      640
+    ]
+  ],
+  "keepWhy": [
+    "the face, the veil and the white hair: nothing there is dark hair's edge"
+  ],
+  "faceCrop": [
+    420,
+    190,
+    700,
+    470
+  ],
+  "face": [
+    468,
+    240,
+    660,
+    440
+  ],
+  "features": [
+    [
+      512,
+      296,
+      42,
+      22
+    ],
+    [
+      625,
+      321,
+      31,
+      20
+    ],
+    [
+      553,
+      392,
+      30,
+      16
+    ]
+  ],
+  "featuresBlur": 3,
+  "keepAlso": "her eyebrows exactly as they are, faint and half under the bangs, with no new eyebrows or lines drawn above the eyes, the veil and its gold ornament",
+  "mouth": [
+    [
+      553,
+      392,
+      30,
+      16
+    ]
+  ],
+  "eyes": [
+    [
+      512,
+      296,
+      42,
+      22
+    ],
+    [
+      625,
+      321,
+      31,
+      20
+    ]
+  ],
+  "brows": [
+    [
+      522,
+      248,
+      58,
+      21
+    ],
+    [
+      638,
+      272,
+      32,
+      18
+    ]
+  ],
+  "browsWhy": "her thin, faint brows, half under the bangs, with room above for raised ones: a mood that moves them redraws all of it, so the old line goes",
+  "bust": [
+    164,
+    24,
+    884,
+    744
+  ],
+  "out": 400,
+  "moods": {
+    "happy": "happy, gracefully: a gentle, warm closed-mouth smile, the corners of the lips softly raised, the lips closed (unlike picture 2's open mouth), the eyes closed in soft upward crescents as in picture 2",
+    "sad": "sad: the eyes lowered and a little glistening, the upper lids heavy, the lips closed in a small, sad line, as in picture 2",
+    "angry": "gently cross, a small reproachful frown: her thin eyebrows drawn together and tilted, the inner ends raised a little, as in picture 2 (one eyebrow over each eye, drawn as a single thin, faint line, the old eyebrow lines gone); the eyes slightly narrowed, glancing a little aside; the lips pressed into a small pout, as in picture 2",
+    "surprised": "surprised, a soft 'oh my': her thin eyebrows raised high and arched, as in picture 2 (one eyebrow over each eye, drawn as a single thin, faint line, the old eyebrow lines gone); the eyes opened wider and rounder, as in picture 2; the lips parted in a small round 'o'",
+    "shy": "flustered and shy: a soft pink blush on the cheeks just below the eyes, the eyes glancing aside, the lips parted a little, as in picture 2"
+  },
+  "moodRefs": {
+    "happy": [
+      362,
+      0,
+      724,
+      356
+    ],
+    "sad": [
+      724,
+      0,
+      1086,
+      356
+    ],
+    "angry": [
+      1086,
+      0,
+      1448,
+      356
+    ],
+    "surprised": [
+      0,
+      362,
+      362,
+      716
+    ],
+    "shy": [
+      362,
+      362,
+      724,
+      716
+    ]
+  },
+  "moodFeatures": {
+    "happy": [
+      [
+        512,
+        296,
+        42,
+        22
+      ],
+      [
+        625,
+        321,
+        31,
+        20
+      ],
+      [
+        553,
+        393,
+        34,
+        17
+      ]
+    ],
+    "shy": [
+      [
+        512,
+        296,
+        42,
+        22
+      ],
+      [
+        625,
+        321,
+        31,
+        20
+      ],
+      [
+        553,
+        392,
+        30,
+        16
+      ],
+      [
+        502,
+        340,
+        30,
+        16
+      ],
+      [
+        617,
+        352,
+        22,
+        14
+      ]
+    ],
+    "angry": [
+      [
+        512,
+        296,
+        42,
+        22
+      ],
+      [
+        625,
+        321,
+        31,
+        20
+      ],
+      [
+        522,
+        248,
+        58,
+        21
+      ],
+      [
+        638,
+        272,
+        32,
+        18
+      ],
+      [
+        553,
+        393,
+        34,
+        17
+      ]
+    ],
+    "surprised": [
+      [
+        512,
+        294,
+        44,
+        26
+      ],
+      [
+        625,
+        319,
+        33,
+        24
+      ],
+      [
+        522,
+        248,
+        58,
+        21
+      ],
+      [
+        638,
+        272,
+        32,
+        18
+      ],
+      [
+        553,
+        393,
+        34,
+        17
+      ]
+    ]
+  },
+  "moodTouch": {
+    "happy": {
+      "words": "Her eyes stay softly closed in smiling crescents: each closed eye is one clean, dark brown lash line with a single soft eyelid crease above it; the skin above the lashes is clean and plain, with no faint lines, smudges or traces of an open eye, and no white highlight or glint on the lashes; the smile and everything else stay exactly as they are.",
+      "features": [
+        [
+          512,
+          292,
+          42,
+          26
+        ],
+        [
+          625,
+          317,
+          31,
+          24
+        ]
+      ],
+      "seed": 2
+    },
+    "surprised": {
+      "words": "Her lips are almost closed, parted only in a tiny round opening, smaller than her iris, as in picture 2: a soft, small upper lip and a tiny dark gap; no teeth, no tongue showing; the rest of the face, her eyes and eyebrows stay exactly as they are.",
+      "features": [
+        [
+          553,
+          396,
+          32,
+          20
+        ]
+      ],
+      "seed": 1
+    }
+  },
+  "seed": 7,
+  "moodSeeds": {
+    "happy": 11,
+    "angry": 4,
+    "surprised": 1
+  },
+  "frames": {
+    "blink": "Close her eyes as in a blink: the upper eyelids down and the lashes curved, keeping her expression.",
+    "talk": "Part her lips only a little, as in the middle of a soft word, keeping her expression: a small, gentle opening, no tongue showing."
+  },
+  "moodFrames": {
+    "neutral": {
+      "blink": {
+        "words": "Close her eyes as in a blink: the upper eyelids down and the lashes curved, one clean eyelid line above each closed eye and nothing else above it, keeping her expression.",
+        "region": [
+          [
+            512,
+            296,
+            42,
+            22
+          ],
+          [
+            625,
+            321,
+            31,
+            20
+          ]
+        ],
+        "seed": 1
+      },
+      "talk": {
+        "words": "Her lips parted only slightly, as when speaking softly with a gentle smile: a narrow open mouth across the same width as her smile now, its corners exactly where her smile's corners are; the upper lip follows the smile's curve, a narrow dark gap and a soft lower lip below it; no tongue.",
+        "region": [
+          [
+            553,
+            393,
+            30,
+            16
+          ]
+        ],
+        "seed": 1
+      }
+    },
+    "happy": {
+      "blink": null,
+      "talk": {
+        "words": "Her lips parted only slightly, as when speaking softly with a gentle smile: a narrow open mouth across the same width as her smile now, its corners exactly where her smile's corners are; the upper lip follows the smile's curve, a narrow dark gap and a soft lower lip below it; no tongue. Her eyes stay closed in smiling crescents.",
+        "region": [
+          [
+            553,
+            393,
+            30,
+            16
+          ]
+        ],
+        "seed": 1
+      }
+    },
+    "sad": {
+      "blink": {
+        "from": "neutral",
+        "region": [
+          [
+            512,
+            296,
+            42,
+            22
+          ],
+          [
+            625,
+            321,
+            31,
+            20
+          ]
+        ]
+      },
+      "talk": {
+        "words": "Part her lips as in the middle of a quiet word, as in picture 2 but smaller: a small open mouth across the same width as her mouth now, the corners a little down, keeping her sad expression; no tongue.",
+        "region": [
+          [
+            553,
+            393,
+            30,
+            16
+          ]
+        ],
+        "seed": 1,
+        "ref": [
+          1086,
+          724,
+          1448,
+          1086
+        ]
+      }
+    },
+    "angry": {
+      "blink": {
+        "from": "neutral",
+        "region": [
+          [
+            512,
+            296,
+            42,
+            22
+          ],
+          [
+            625,
+            321,
+            31,
+            20
+          ]
+        ]
+      },
+      "talk": {
+        "words": "Part her lips as in the middle of a word, as in picture 2 but smaller: a small open mouth across the same width as her pout now, keeping her cross expression; no tongue.",
+        "region": [
+          [
+            553,
+            393,
+            30,
+            16
+          ]
+        ],
+        "seed": 3,
+        "ref": [
+          1086,
+          724,
+          1448,
+          1086
+        ]
+      }
+    },
+    "surprised": {
+      "blink": {
+        "from": "neutral",
+        "region": [
+          [
+            512,
+            294,
+            44,
+            26
+          ],
+          [
+            625,
+            319,
+            33,
+            24
+          ]
+        ]
+      },
+      "talk": {
+        "words": "Open her small round mouth only a little more, as in the middle of a word: still a small 'o', only a little bigger than now, much smaller than picture 2's mouth; no tongue.",
+        "region": [
+          [
+            553,
+            393,
+            30,
+            16
+          ]
+        ],
+        "seed": 3,
+        "ref": [
+          1086,
+          724,
+          1448,
+          1086
+        ]
+      }
+    },
+    "shy": {
+      "blink": {
+        "from": "neutral",
+        "region": [
+          [
+            512,
+            296,
+            42,
+            22
+          ],
+          [
+            625,
+            321,
+            31,
+            20
+          ]
+        ]
+      },
+      "talk": {
+        "words": "Part her lips as in the middle of a shy word, as in picture 2 but smaller: a small open mouth across the same width as her mouth now, keeping her flustered expression and blush; no tongue.",
+        "region": [
+          [
+            553,
+            393,
+            30,
+            16
+          ]
+        ],
+        "seed": 1,
+        "ref": [
+          1086,
+          724,
+          1448,
+          1086
+        ]
+      }
+    }
+  },
+  "blushes": [
+    "happy",
+    "shy"
+  ],
+  "negative": "deformed face, extra eyes, extra eyebrows, glasses, text, watermark",
+  "framesNote": "every talk opens the mood's own mouth across its own width, so it opens and closes rather than turning from a wide smile into a small oval (the user: one big, one small looks wrong); the sad, cross, shy and surprised ones drawn with the sheet's speaking face (cell 12) as picture 2, the smiles without it (with it they opened far too wide); happy has no blink, and the other blinks are the neutral's shut eyes (a sad blink the model drew left the iris showing)",
+  "happyNote": "the user's choice: her happy face a graceful closed-mouth smile, not the sheet's open laugh; seed 11 of fourteen closed both eyes, and a second pass over both eyes (seed 2 of eight) cleared the old open eye's traces above the lashes and the highlights' glints",
+  "moodKeepAlso": {
+    "angry": "the veil and its gold ornament, and exactly one thin, faint eyebrow over each eye with no second line above or below it",
+    "surprised": "the veil and its gold ornament, and exactly one thin, faint eyebrow over each eye with no second line above or below it"
+  },
+  "ornamentNote": "the veil's gold ornament came out an irregular lump (the sheet's own was a loose four-armed cross). Its shape was mended in place (a five-petal flower, the top petal longer, its pale warm gold and the angle it lies at kept) and two stray leaves taken off; the top petal still leaned left. The other four petals fix the plane the flower lies in (an affine map, fitted within a pixel); in that plane the top petal points at 61 degrees, not 72. So the flower was designed in that plane (ornament/D-fit2.png, tools in the session scratchpad: rounded petals, the top one 1.28 times as long, every petal lit from the upper left, the colours sampled from the drawn flower, a narrow white rim) and the model drew it on the clean veil with the design as picture 2 (seed 7 of eight, the one whose petals keep the plane), then a light pass (0.45, seed 3) with the accepted flower as picture 2 brought back its warm gold and shiny centre. Rotating one petal five times was tried and looked pasted on: its light turned with it and it lay in no plane (the user). The same pixels laid into every frame (the ornament is outside every face region); drafts in game_pic/ilse/ornament/"
+}

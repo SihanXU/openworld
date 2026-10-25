@@ -1,0 +1,423 @@
+{
+  "person": "npc.tobin",
+  "about": "Tobin's own portrait (docs/cast/tobin.md): the regions of his sprite the pipeline works in, in the sprite's pixels (1024x1536), and the words for each mood and each mood's blink and talk. portrait.py reads it.",
+  "sprite": "seed 4 of eight drawn by Qwen-Image-Edit from his design sheet, cut at mid-thigh, a hand on his pack's strap, his ledger in the other, facing right (kept outside the repository, like every draft)",
+  "sheet": "the user's online model's sheet: three views, a close-up, his things and twelve expressions in one row; `moodRefs` are its cells",
+  "keep": [],
+  "faceCrop": [
+    465,
+    140,
+    745,
+    420
+  ],
+  "face": [
+    535,
+    200,
+    690,
+    380
+  ],
+  "features": [
+    [
+      572,
+      242,
+      27,
+      14
+    ],
+    [
+      647,
+      260,
+      19,
+      14
+    ],
+    [
+      595,
+      331,
+      42,
+      17
+    ]
+  ],
+  "featuresBlur": 3,
+  "keepAlso": "his eyebrows exactly as they are, with no new eyebrows or lines drawn, the cap and the pencil behind his ear, his freckles",
+  "mouth": [
+    [
+      595,
+      331,
+      42,
+      17
+    ]
+  ],
+  "eyes": [
+    [
+      572,
+      242,
+      27,
+      14
+    ],
+    [
+      647,
+      260,
+      19,
+      14
+    ]
+  ],
+  "brows": [
+    [
+      582,
+      219,
+      46,
+      13
+    ],
+    [
+      659,
+      237,
+      22,
+      11
+    ]
+  ],
+  "browsWhy": "his thick brows, which every mood but the laugh moves: those moods redraw them, with room above",
+  "bust": [
+    225,
+    31,
+    905,
+    711
+  ],
+  "out": 400,
+  "moods": {
+    "happy": "laughing: the eyes closed in happy upward arcs, the mouth wide open in a hearty laugh as in picture 2: a clean, complete upper lip line, the upper teeth in one neat row, the tongue inside, the lower lip a clean curve",
+    "sad": "sad and hangdog: the inner ends of his brows raised (one eyebrow over each eye, drawn once, the old eyebrow lines gone), the eyes lowered and soft, a small rueful closed smile, as in picture 2",
+    "angry": "mock indignation: his thick brows pulled down and together in a frown (one eyebrow over each eye, drawn once, the old eyebrow lines gone), the eyes narrowed, the mouth a small closed pout, as in picture 2",
+    "surprised": "startled: his brows raised high (one eyebrow over each eye, drawn once, the old eyebrow lines gone), the eyes wide open, the mouth open showing his teeth, as in picture 2",
+    "shy": "sheepish: the inner ends of his brows raised (one eyebrow over each eye, drawn once, the old eyebrow lines gone), a guilty grimace showing clenched teeth, the eyes glancing aside, as in picture 2"
+  },
+  "moodRefs": {
+    "happy": [
+      139,
+      731,
+      273,
+      920
+    ],
+    "sad": [
+      278,
+      731,
+      405,
+      920
+    ],
+    "angry": [
+      410,
+      731,
+      540,
+      920
+    ],
+    "surprised": [
+      545,
+      731,
+      681,
+      920
+    ],
+    "shy": [
+      686,
+      731,
+      818,
+      920
+    ]
+  },
+  "moodFeatures": {
+    "happy": [
+      [
+        572,
+        242,
+        27,
+        14
+      ],
+      [
+        647,
+        260,
+        19,
+        14
+      ],
+      [
+        596,
+        336,
+        48,
+        32
+      ]
+    ],
+    "sad": [
+      [
+        572,
+        242,
+        27,
+        14
+      ],
+      [
+        647,
+        260,
+        19,
+        14
+      ],
+      [
+        582,
+        219,
+        46,
+        13
+      ],
+      [
+        659,
+        237,
+        22,
+        11
+      ],
+      [
+        595,
+        331,
+        42,
+        17
+      ]
+    ],
+    "angry": [
+      [
+        572,
+        242,
+        27,
+        14
+      ],
+      [
+        647,
+        260,
+        19,
+        14
+      ],
+      [
+        582,
+        219,
+        46,
+        13
+      ],
+      [
+        659,
+        237,
+        22,
+        11
+      ],
+      [
+        595,
+        331,
+        42,
+        17
+      ]
+    ],
+    "surprised": [
+      [
+        572,
+        242,
+        27,
+        14
+      ],
+      [
+        647,
+        260,
+        19,
+        14
+      ],
+      [
+        582,
+        219,
+        46,
+        13
+      ],
+      [
+        659,
+        237,
+        22,
+        11
+      ],
+      [
+        595,
+        331,
+        42,
+        17
+      ]
+    ],
+    "shy": [
+      [
+        572,
+        242,
+        27,
+        14
+      ],
+      [
+        647,
+        260,
+        19,
+        14
+      ],
+      [
+        582,
+        219,
+        46,
+        13
+      ],
+      [
+        659,
+        237,
+        22,
+        11
+      ],
+      [
+        595,
+        331,
+        42,
+        17
+      ]
+    ]
+  },
+  "moodKeepAlso": {
+    "happy": "the cap and the pencil behind his ear, his freckles, and exactly one eyebrow over each eye with no second line above or below it",
+    "sad": "the cap and the pencil behind his ear, his freckles, and exactly one eyebrow over each eye with no second line above or below it",
+    "angry": "the cap and the pencil behind his ear, his freckles, and exactly one eyebrow over each eye with no second line above or below it",
+    "surprised": "the cap and the pencil behind his ear, his freckles, and exactly one eyebrow over each eye with no second line above or below it",
+    "shy": "the cap and the pencil behind his ear, his freckles, and exactly one eyebrow over each eye with no second line above or below it"
+  },
+  "seed": 7,
+  "moodSeeds": {
+    "happy": 6
+  },
+  "frames": {
+    "blink": "Close his eyes as in a blink: the upper eyelids down and the lashes curved, keeping his expression.",
+    "talk": "Open his mouth a little more, as in the middle of a word, across the same width as now, keeping his expression; no tongue."
+  },
+  "moodFrames": {
+    "happy": {
+      "blink": null,
+      "talk": null
+    },
+    "neutral": {
+      "blink": {
+        "words": "Close his eyes as in a blink: the upper eyelids down and the lashes curved, one clean eyelid line above each closed eye and nothing else above it, no trace of the open eye left, keeping his expression and his eyebrows exactly as they are.",
+        "region": [
+          [
+            573,
+            242,
+            33,
+            15
+          ],
+          [
+            648,
+            259,
+            22,
+            14
+          ]
+        ],
+        "seed": 2
+      },
+      "talk": {
+        "words": "Part his grinning lips only slightly, as in the middle of a cheerful word: the grin keeps its width and its corners where they are now; the upper teeth show as now and only a thin dark gap opens below them; the mouth only a little more open than now, much less than a laugh; no tongue.",
+        "region": [
+          [
+            596,
+            333,
+            42,
+            17
+          ]
+        ],
+        "seed": 4
+      }
+    },
+    "sad": {
+      "blink": {
+        "words": "Close his eyes as in a blink: the upper eyelids down and the lashes curved, one clean eyelid line above each closed eye and nothing else above it, no trace of the open eye left, keeping his expression and his eyebrows exactly as they are.",
+        "region": [
+          [
+            573,
+            244,
+            33,
+            19
+          ],
+          [
+            648,
+            261,
+            22,
+            17
+          ]
+        ],
+        "seed": 4
+      }
+    },
+    "angry": {
+      "blink": {
+        "words": "Close his eyes as in a blink: the upper eyelids down and the lashes curved, one clean eyelid line above each closed eye and nothing else above it, no trace of the open eye left, keeping his expression and his eyebrows exactly as they are.",
+        "region": [
+          [
+            573,
+            244,
+            33,
+            19
+          ],
+          [
+            648,
+            261,
+            22,
+            17
+          ]
+        ],
+        "seed": 4
+      }
+    },
+    "surprised": {
+      "blink": {
+        "words": "Close his eyes as in a blink: the upper eyelids down and the lashes curved, one clean eyelid line above each closed eye and nothing else above it, no trace of the open eye left, keeping his expression and his eyebrows exactly as they are.",
+        "region": [
+          [
+            573,
+            242,
+            33,
+            15
+          ],
+          [
+            648,
+            259,
+            22,
+            14
+          ]
+        ],
+        "seed": 2
+      }
+    },
+    "shy": {
+      "blink": {
+        "words": "Close his eyes as in a blink: the upper eyelids down and the lashes curved, one clean eyelid line above each closed eye and nothing else above it, no trace of the open eye left, keeping his expression and his eyebrows exactly as they are.",
+        "region": [
+          [
+            573,
+            242,
+            33,
+            15
+          ],
+          [
+            648,
+            259,
+            22,
+            14
+          ]
+        ],
+        "seed": 2
+      },
+      "talk": {
+        "words": "Part his clenched teeth a little, as in the middle of an awkward word: the same wide sheepish grimace, its corners where they are now, every tooth whole and even, a narrow dark gap between the upper and lower rows; no tongue.",
+        "region": [
+          [
+            596,
+            333,
+            42,
+            17
+          ]
+        ],
+        "seed": 5
+      }
+    }
+  },
+  "blushes": [],
+  "negative": "deformed face, extra eyes, extra eyebrows, feminine, glasses, text, watermark",
+  "framesNote": "every blink drawn over a larger region with words for one clean lid line (the first left the open eye showing through); the grin and the grimace talk across their own width (the first talk turned the grin into a small round mouth: one big, one small); the laugh has no blink and no talk; the blinks of the neutral, surprised and shy faces are pasted through a lower-reaching region cut a little shorter (the larger one carried a faint pink below the eyes), those of the sad and cross faces, whose eyes sit lower, through the larger one",
+  "happyNote": "the laugh opens wider than the grin: its mouth region reaches further (the first, cut by a smaller one, lost its upper lip); seed 6 of eight"
+}

@@ -1021,6 +1021,11 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
           summon = { kit: m.kit, map: m.map, x: m.x, y: m.y }
           if (w.posOf(w.player)?.map !== m.map) eng.author(() => eng.travel(w.player, { map: m.map, x: m.from[0], y: m.from[1] }))
         }
+        // development: a step played now, or a scene written in the console (lsw.send({ t: 'debug', op: 'scene', script: [{ picture: 'own/cg/x.webp' }, { say: 'player', text: '…' }] }))
+        if (m.op === 'scene') {
+          if (m.script) eng.story.defs.set('dev.scene', { id: 'dev.scene', manual: true, script: m.script })
+          if (!eng.story.start(m.script ? 'dev.scene' : m.id ?? '')) w.fx.push({ t: 'log', text: { en: 'No such step, or a scene is playing.', zh: '没有这个剧情步骤，或者正有场景在播放。' }, tone: 'bad' })
+        }
         // development: the player takes no harm (toggled), and is made whole
         if (m.op === 'god') eng.author(() => {
           const on = m.on ?? w.prop(w.player, 'invulnerable') !== true

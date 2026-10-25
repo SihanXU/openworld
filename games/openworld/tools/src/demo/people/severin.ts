@@ -1,6 +1,8 @@
-// Severin, the Greyvowed (docs/chapter-1.md §5): last of the Ashen Watch. He believes Astra is the
-// monster and works against the pilgrimage; he never harms anyone and never fights the player. He
-// appears only in the story's scenes (placed, then gone): he lives nowhere the player can visit yet.
+// Severin, the Greyvowed (docs/chapter-1.md §5): last of the Ashen Watch, the youngest of the brothers the Church named
+// heretics ten years ago; a foundling Sister Ilse raised. He believes Astra is the monster and works against the
+// pilgrimage; he never harms anyone and never fights the player. He appears only in the story's scenes (placed, then
+// gone): he lives nowhere the player can visit yet. His portrait (docs/cast/severin.md): dark hair, gold eyes, the hood up,
+// the lantern.
 
 import { line, type PersonDef } from '../person.ts'
 
@@ -12,8 +14,8 @@ export const severin: PersonDef = {
   essential: true,
   name: { en: 'The Grey Man', zh: '灰衣人' },
   gender: 'male',
-  look: { parts: { face: 'face.keen', outfit: 'outfit.cloak', hat: 'hat.hood', beard: 'beard.stubble', hair: 'hair.short' }, colors: { hair: 'steelgrey', eyes: 'storm', skin: 'light', 'outfit.1': 'charcoal', 'outfit.2': 'slate', 'hat.1': 'charcoal' } },
-  age: 40,
+  look: { parts: { face: 'face.keen', outfit: 'outfit.cloak', hat: 'hat.hood', beard: 'beard.stubble', hair: 'hair.short' }, colors: { hair: 'black', eyes: '#d4a84a', skin: 'light', 'outfit.1': 'charcoal', 'outfit.2': 'slate', 'hat.1': 'charcoal' } },
+  age: 30,
   temperament: { personality: 'grim', manner: 'plain', social: 'reserved', outlook: 'wary' },
   ties: { 'npc.ilse': 'raised by her' },
   // what they sell (fits who they are; content items.ts prices it)

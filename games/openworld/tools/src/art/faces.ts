@@ -6,7 +6,7 @@
 // face's own outline and skin colours (plus a blush and a tear from the pack's palette).
 //
 // Output: one strip per face, lsw/Faces/<faceset path>, its frames the face itself and then each of
-// its moods; and the client's src/assets/faces.json, faceset path -> { strip, moods }, frame i + 1
+// its moods; and the game client's src/faces.json, faceset path -> { strip, moods }, frame i + 1
 // being moods[i]. A face added later gets its moods by running this again.
 //
 //   npm run art:faces                       (write the strips and the manifest)
@@ -415,7 +415,7 @@ export function express(src: Img, f: FaceMap, mood: Mood): Img {
 
 const ASSETS = resolve(OUT, '..')
 const NA = join(ASSETS, 'na')
-const MANIFEST = resolve(OUT, '../../../src/assets/faces.json')
+const MANIFEST = resolve(OUT, '../../../client/src/faces.json')
 
 /** Every faceset under assets/, as the catalogue names it (`Actor/...` in the pack, `lsw/...` the project's own). */
 export function facesets(): string[] {
