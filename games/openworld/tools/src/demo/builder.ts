@@ -221,6 +221,36 @@ export class MapBuilder {
     return !this.entities.some((e) => ONTO.resolve(e.type).solid && this.under(e, x, y))
   }
 
+  /**
+   * Is every room still walked through from `from` (the cell inside its door): over walkable cells four ways, every
+   * walkable cell inside the rooms reached, and every thing in them beside a reached cell (or on one)? A room's
+   * furnishing asks it before a piece stands, so no piece walls off a corner, a doorway or another piece.
+   */
+  waysOpen(from: Cell): boolean {
+    const inside = (x: number, y: number) => this.rooms.some((r) => x > r.x && y > r.y && x < r.x + r.w - 1 && y < r.y + r.h - 1)
+    const reached = new Set<number>()
+    const queue: Cell[] = this.walkable(...from) ? [from] : []
+    for (const [x, y] of queue) reached.add(y * this.w + x)
+    while (queue.length) {
+      const [x, y] = queue.pop()!
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const k = (y + dy) * this.w + x + dx
+        if (reached.has(k) || !this.walkable(x + dx, y + dy)) continue
+        reached.add(k)
+        queue.push([x + dx, y + dy])
+      }
+    }
+    const touched = (x: number, y: number) => [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => this.in(x + dx, y + dy) && reached.has((y + dy) * this.w + x + dx))
+    for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) if (inside(x, y) && this.walkable(x, y) && !reached.has(y * this.w + x)) return false
+    for (const e of this.entities) {
+      if (e.place.on !== 'tile' || !inside(e.place.x, e.place.y)) continue
+      let near = false
+      for (let y = e.place.y - 2; y <= e.place.y + 2 && !near; y++) for (let x = e.place.x - 2; x <= e.place.x + 2 && !near; x++) near = (this.under(e, x, y) || (x === e.place.x && y === e.place.y)) && touched(x, y)
+      if (!near) return false
+    }
+    return true
+  }
+
   /** Does a placed thing stand on (x,y), or cover it with its base (its type's footprint)? */
   private under(e: Entity, x: number, y: number): boolean {
     if (e.place.on !== 'tile') return false

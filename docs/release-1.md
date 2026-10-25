@@ -65,6 +65,10 @@ watermill (`tools/src/art/worldmap.ts`).
 - **Every household sleeps in its own beds** (`bed.<n>` anchors in its house) — it slept on the lawn at its doorstep
   before. A household's home is its house (`home.<h>` over the whole interior): what stands in it is theirs, and by night
   one walks into it as a trespasser.
+- **Every building is walked through** (2026-10-25): nothing stands on a doorway or in the cell before a door or a
+  doorway, and from the way in one reaches every room's floor, every door and doorway, every thing in a room and every
+  named spot; the people's spots are reached, and every building's door from outside. Held on every map with rooms —
+  the hand-made ones and every backdrop room — by `tools/test/interiors.test.ts`, each failure named by map and cell.
 - Proved by demo F17 (the village) and F18 (the households, the doorways, what a house holds).
 
 ## 4. The Ford
