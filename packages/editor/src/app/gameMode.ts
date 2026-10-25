@@ -210,23 +210,31 @@ export class GameMode implements Mode {
   }
 
   private coverTab(ctx: Ctx, el: HTMLElement): void {
-    const c = (this.client<Record<string, unknown>>(ctx, 'cover') ?? {}) as { title?: Text; kicker?: Text; subtitle?: Text; credit?: Text | false; tutorial?: boolean; art?: boolean; companion?: boolean | string }
-    const line = (k: 'title' | 'kicker' | 'subtitle', hint: string) => `<label>${esc(hint)} ${textField(`data-c="${k}"`, c[k])}</label>`
+    type Scene = { map: string; x: number; y: number; hour?: number; stand?: [number, number]; zoom?: number }
+    const c = (this.client<Record<string, unknown>>(ctx, 'cover') ?? {}) as { title?: Text; credit?: Text | false; tutorial?: boolean; scenes?: Scene[]; companion?: boolean | string }
+    // the places behind the title, a line each: map x y [hour]
+    const scenes = (c.scenes ?? []).map((s) => [s.map, s.x, s.y, s.hour].filter((v) => v !== undefined).join(' ')).join('\n')
     el.innerHTML = `<h3>${t('The cover')}</h3><p class="muted">${t('The title screen: what it says, what it offers. Written in {file}.', { file: `<code>${esc(this.clientFile(ctx, 'cover'))}</code>` })}</p>
-      ${line('title', t('title (default: the game\'s name)'))}${line('kicker', t('the line above it'))}${line('subtitle', t('the line below it'))}
-      <label>${t('credits at its foot')} ${textField('data-c="credit"', c.credit === false ? undefined : c.credit, { placeholder: 'Art & music: Ninja Adventure (CC0)' })}</label>
+      <label>${esc(t('title (default: the game\'s name)'))} ${textField('data-c="title"', c.title)}</label>
+      <label>${t('the world behind the title: a place a line (map x y, and the hour)')} <textarea data-c="scenes" rows="3" placeholder="village 20 14 19.5">${esc(scenes)}</textarea></label>
+      <label>${t('credits in its settings')} ${textField('data-c="credit"', c.credit === false ? undefined : c.credit, { placeholder: 'Art & music: Ninja Adventure (CC0)' })}</label>
       <label><input type="checkbox" data-c="nocredit" ${c.credit === false ? 'checked' : ''}> ${t('no credits line')}</label>
       <label><input type="checkbox" data-c="tutorial" ${c.tutorial ? 'checked' : ''}> ${t('a tutorial run (the world has a start named {name})', { name: '<code>tutorial</code>' })}</label>
-      <label><input type="checkbox" data-c="art" ${c.art ? 'checked' : ''}> ${t('the mountain at dawn behind the title')}</label>
-      <label>${t('a companion flying across: its sheet')} <input data-c="companion" value="${esc(typeof c.companion === 'string' ? c.companion : '')}" placeholder="${t('own/companion.png (in the game\'s assets)')}"></label>`
-    el.querySelectorAll<HTMLInputElement>('[data-c]').forEach((inp) => (inp.onchange = () => together(() => {
+      <label>${t('a companion beside the menu: its sheet')} <input data-c="companion" value="${esc(typeof c.companion === 'string' ? c.companion : '')}" placeholder="${t('own/companion.png (in the game\'s assets)')}"></label>`
+    el.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[data-c]').forEach((inp) => (inp.onchange = () => together(() => {
       const next = structuredClone(c) as Record<string, unknown>
       const k = inp.dataset.c!
-      if (k === 'title' || k === 'kicker' || k === 'subtitle') next[k] = written(c[k], inp.value)
+      if (k === 'title') next.title = written(c.title, inp.value)
       else if (k === 'credit') next.credit = written(c.credit || undefined, inp.value)
-      else if (k === 'nocredit') next.credit = inp.checked ? false : undefined
+      else if (k === 'nocredit') next.credit = (inp as HTMLInputElement).checked ? false : undefined
       else if (k === 'companion') next.companion = inp.value.trim() || undefined
-      else next[k] = inp.checked || undefined
+      else if (k === 'scenes') {
+        // a line the editor cannot read is left out (map, then numbers)
+        const list = inp.value.split('\n').map((l) => l.trim().split(/[\s,]+/)).filter((w) => w[0] && w.slice(1).every((n) => Number.isFinite(Number(n))) && w.length >= 3)
+        const old = new Map((c.scenes ?? []).map((s) => [`${s.map} ${s.x} ${s.y}`, s]))
+        const made = list.map(([map, x, y, hour]) => ({ ...old.get(`${map} ${x} ${y}`), map, x: Number(x), y: Number(y), ...(hour !== undefined ? { hour: Number(hour) } : {}) }))
+        next.scenes = made.length ? made : undefined
+      } else next[k] = (inp as HTMLInputElement).checked || undefined
       for (const x of Object.keys(next)) if (next[x] === undefined) delete next[x]
       this.setClient(ctx, 'cover', t('the cover: {field}', { field: k }), Object.keys(next).length ? next : undefined)
     })))

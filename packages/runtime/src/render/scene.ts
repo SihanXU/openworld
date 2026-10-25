@@ -564,8 +564,8 @@ export class WorldScene extends Phaser.Scene {
     this.drawQuestArrows(f)
     const me = this.views.get(this.playerId)
     // a free camera (the editor's, a film's) is never taken over by a boss fight
-    if (!this.free) this.frameBossFight(f, me)
-    if (me && !this.bossCam && !this.free && this.following !== me.root) {
+    if (!this.free && !this.cinema) this.frameBossFight(f, me)
+    if (me && !this.bossCam && !this.free && !this.cinema && this.following !== me.root) {
       this.following = me.root
       this.cameras.main.startFollow(me.root, true, 0.2, 0.2)
     }
@@ -874,6 +874,36 @@ export class WorldScene extends Phaser.Scene {
     if (!this.base || !v || !v.width) return undefined
     return { map: this.base.id, x: Math.floor(v.x / T), y: Math.floor(v.y / T), w: Math.ceil(v.width / T) + 1, h: Math.ceil(v.height / T) + 1 }
   }
+  // ---------------------------------------------------------------- the title's camera
+
+  /**
+   * The camera behind the title (the cover's backdrop): it follows no one and drifts slowly about a point of the map
+   * (in cells), which stands at a share of the screen (`at`: 0.5, 0.5 its middle), as close as `zoom` (default the
+   * game's own view); the map's music plays. Undefined: back to following the player.
+   */
+  private cinema?: { x: number; y: number; zoom?: number; at: [number, number]; t0?: number }
+  setCinema(c?: { x: number; y: number; zoom?: number; at?: [number, number] }): void {
+    this.cinema = c && { ...c, at: c.at ?? [0.5, 0.5] }
+    const cam = this.cameras?.main
+    if (!cam) return
+    if (c) (this.following = undefined), (this.bossCam = undefined), cam.stopFollow()
+    else (cam.setZoom(this.fitZoom()), this.fitBounds())
+  }
+  private driftCinema(time: number): void {
+    const c = this.cinema!
+    const cam = this.cameras.main
+    c.t0 ??= time
+    const t = (time - c.t0) / 1000
+    // two slow swells, out of step, so the drift never seems to repeat (a little over a cell each way)
+    const dx = 1.4 * Math.sin((t / 47) * Math.PI * 2) + 0.5 * Math.sin((t / 19) * Math.PI * 2)
+    const dy = 0.6 * Math.sin((t / 61) * Math.PI * 2 + 1)
+    // (as close as the game's own view unless the scene says: whole pixels)
+    const zoom = c.zoom ?? this.fitZoom()
+    if (Math.abs(cam.zoom - zoom) > 0.001) (cam.setZoom(zoom), this.fitBounds(zoom))
+    const w = cam.width / cam.zoom, h = cam.height / cam.zoom
+    cam.centerOn((c.x + dx) * T + (0.5 - c.at[0]) * w, (c.y + dy) * T + (0.5 - c.at[1]) * h)
+  }
+
   /** Centre the camera on a cell. */
   lookAt(x: number, y: number): void {
     this.cameras.main.centerOn(x * T + T / 2, y * T + T / 2)
@@ -1584,6 +1614,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   update(time: number): void {
+    if (this.cinema) this.driftCinema(time)
     this.drawWeather(time)
     this.swimFish(time)
     this.fadeOver()

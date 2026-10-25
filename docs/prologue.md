@@ -20,7 +20,7 @@ teleport stones that are attuned by touch and used from the map.
   rim, Cloudtop's only way down; the trail comes out on the Mountain Foot's north edge. Cloudtop
   is peaceful, with berries, sticks, stones and grass before the shelter (its waypoint statue
   removed 2026-10-11: the first is the Mountain Foot's). Lumi's "the world answers" beat waits until the seal stone was seen (`after: 'relic'`).
-- **The tutorial is its own** (the title screen's *Tutorial* button): it begins in the Clearing, out cold,
+- **The tutorial is its own** (*Play the tutorial first*, at the top of the title screen's new-game panel): it begins in the Clearing, out cold,
   writes no save slot, and walking out of the Clearing ends it and returns to the title.
 - (Before 2026-10-06: the tutorial was the default start.)
 

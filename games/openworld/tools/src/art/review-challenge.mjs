@@ -1,4 +1,4 @@
-// Isolated local Chrome only: same setup as review-bosses.mjs, starting at the title.
+// Isolated local Chrome only: same setup as review-bosses.mjs, starting at the challenge's page.
 import { mkdir, writeFile } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 
@@ -43,13 +43,9 @@ const key = (type, code, value) => call('Input.dispatchKeyEvent', { type, code, 
 try {
   await call('Runtime.enable'); await call('Network.enable'); await call('Page.enable')
   await call('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false })
-  await call('Page.navigate', { url: origin + '/' })
-  await wait("!!document.getElementById('cvChallenge')")
-  if (await evaluate("document.getElementById('cvLang').textContent === '中文'")) await click('cvLang')
-  assert(await evaluate("[...document.querySelectorAll('.cv-menu button')].every(b => b.getBoundingClientRect().bottom < innerHeight - 25)"), 'Title menu clipped')
+  // (the challenge is its own page: the title no longer offers it)
+  await call('Page.navigate', { url: origin + '/boss-gallery.html?challenge=1' })
   await mkdir('docs/boss-review', { recursive: true })
-  await screenshot('title')
-  await click('cvChallenge')
   await wait("!!document.getElementById('startChallenge') && !document.getElementById('startChallenge').disabled")
   assert.equal(await evaluate("document.querySelectorAll('[name=challengeProfession]').length"), 4)
   assert.equal(await evaluate("document.getElementById('challengeBoss').options.length"), 7)

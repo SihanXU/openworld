@@ -472,7 +472,8 @@ program to install. Asked to go that way now, S2 changed and this was built.
   beside it: the pack, the templates, an export) and, from Linux, as a Windows zip.
 - **Left**: the installers are unsigned; the modder is still started on its own (`npm run modder -- serve`) for
   the holes panel's AI, and does not yet read a project's learned files; the fonts come from Google Fonts (a
-  machine offline draws the fallback); the cover's mountain art is OpenWorld's own, offered to any game.
+  machine offline draws the fallback); the cover's mountain art is OpenWorld's own, offered to any game (2026-10-25: gone —
+  the cover is now a game's own world drawn live behind it, the places its `cover.scenes` name, `ui/cover.ts`).
 
 ## 16. The editor as RPG Maker is used: E1–E7 (agreed 2026-10-13)
 

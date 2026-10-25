@@ -418,35 +418,66 @@
 .minimap kbd { position: absolute; left: 6px; bottom: 5px; font: 600 10px var(--pixel); color: #fff; text-shadow: 0 1px 0 #000; background: none; border: 0; line-height: 1; }
 @media (max-width: 720px) { .minimap { top: 10px; left: 10px; } .minimap canvas { max-width: 110px; max-height: 80px; } }
 
-/* the cover (title screen) */
+/* the cover (title screen): the world itself behind, a shade over its left, the title and the menu there */
 .cover { position: absolute; inset: 0; overflow: hidden; font-family: var(--pixel); color: #fff8e6; }
-.cv-land { position: absolute; inset: 0; width: 100%; height: 100%; }
-.cv-cloud { position: absolute; height: 34px; border-radius: 40px; background: rgba(255, 255, 255, 0.75); filter: blur(2px); animation: cvDrift linear infinite; }
-.cv-cloud::before, .cv-cloud::after { content: ''; position: absolute; background: inherit; border-radius: 50%; }
-.cv-cloud::before { width: 60px; height: 50px; left: 22px; top: -24px; } .cv-cloud::after { width: 44px; height: 40px; left: 70px; top: -16px; }
-.cv-cloud.c1 { width: 160px; top: 18%; animation-duration: 70s; animation-delay: -10s; }
-.cv-cloud.c2 { width: 120px; top: 30%; animation-duration: 95s; animation-delay: -60s; opacity: 0.8; }
-.cv-cloud.c3 { width: 200px; top: 44%; animation-duration: 120s; animation-delay: -30s; opacity: 0.65; }
-@keyframes cvDrift { from { transform: translateX(-260px); } to { transform: translateX(calc(100vw + 260px)); } }
-.cv-pip { position: absolute; width: 48px; height: 48px; background-size: 192px 48px; image-rendering: pixelated; top: 36%; animation: cvFlap 0.36s steps(4) infinite, cvFly 26s linear infinite; }
+.cover.plain { background: radial-gradient(ellipse at 65% 45%, #1d2233, #07080c 75%); }
+.cv-shade { position: absolute; inset: 0; pointer-events: none; background:
+  linear-gradient(90deg, rgba(5, 6, 10, 0.94) 0%, rgba(5, 6, 10, 0.8) 24%, rgba(5, 6, 10, 0.2) 52%, rgba(5, 6, 10, 0) 68%),
+  radial-gradient(ellipse 80% 90% at 64% 50%, rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.62) 100%); }
+.cv-shade::after { content: ''; position: absolute; inset: 0; opacity: 0.06; background: repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 3px); }
+/* black until the world has drawn, then it lifts */
+.cv-veil { position: absolute; inset: 0; background: #05060a; pointer-events: none; transition: opacity 1.6s ease; }
+.cover.lit .cv-veil, .cover.plain .cv-veil { opacity: 0; }
+.cv-bar { position: absolute; left: 0; right: 0; height: clamp(18px, 5.6vh, 64px); background: #050608; pointer-events: none; }
+.cv-bar.top { top: 0; } .cv-bar.bottom { bottom: 0; }
+/* motes of light rising through the scene */
+.cv-motes { position: absolute; left: 38%; right: 0; top: 0; bottom: 0; pointer-events: none; }
+.cv-motes i { position: absolute; bottom: -10px; width: 3px; height: 3px; background: #ffd27e; box-shadow: 0 0 8px 2px rgba(255, 170, 70, 0.6); opacity: 0; animation: cvRise linear infinite; }
+.cv-motes i:nth-child(3n) { width: 4px; height: 4px; }
+.cv-motes i:nth-child(1) { left: 22%; animation-duration: 14s; animation-delay: -2s; } .cv-motes i:nth-child(2) { left: 31%; animation-duration: 18s; animation-delay: -9s; }
+.cv-motes i:nth-child(3) { left: 40%; animation-duration: 12s; animation-delay: -5s; } .cv-motes i:nth-child(4) { left: 46%; animation-duration: 20s; animation-delay: -14s; }
+.cv-motes i:nth-child(5) { left: 52%; animation-duration: 16s; animation-delay: -1s; } .cv-motes i:nth-child(6) { left: 58%; animation-duration: 13s; animation-delay: -8s; }
+.cv-motes i:nth-child(7) { left: 63%; animation-duration: 19s; animation-delay: -12s; } .cv-motes i:nth-child(8) { left: 69%; animation-duration: 15s; animation-delay: -4s; }
+.cv-motes i:nth-child(9) { left: 74%; animation-duration: 22s; animation-delay: -17s; } .cv-motes i:nth-child(10) { left: 80%; animation-duration: 14s; animation-delay: -10s; }
+.cv-motes i:nth-child(11) { left: 85%; animation-duration: 17s; animation-delay: -6s; } .cv-motes i:nth-child(12) { left: 90%; animation-duration: 21s; animation-delay: -15s; }
+.cv-motes i:nth-child(13) { left: 27%; animation-duration: 23s; animation-delay: -19s; } .cv-motes i:nth-child(14) { left: 49%; animation-duration: 11s; animation-delay: -3s; }
+.cv-motes i:nth-child(15) { left: 61%; animation-duration: 24s; animation-delay: -21s; } .cv-motes i:nth-child(16) { left: 77%; animation-duration: 12s; animation-delay: -7s; }
+.cv-motes i:nth-child(17) { left: 36%; animation-duration: 16s; animation-delay: -13s; } .cv-motes i:nth-child(18) { left: 94%; animation-duration: 19s; animation-delay: -11s; }
+@keyframes cvRise { 0% { transform: translate(0, 0); opacity: 0; } 12% { opacity: 0.9; } 50% { transform: translate(18px, -50vh); } 85% { opacity: 0.5; } 100% { transform: translate(-6px, -100vh); opacity: 0; } }
+.cv-main { position: absolute; left: clamp(28px, 7.3vw, 140px); top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; padding: clamp(24px, 8vh, 90px) 0; transition: opacity 0.3s; }
+.cv-title { margin: 0; font: 700 clamp(44px, 8.8vw, 172px)/0.9 'Pixelify Sans', var(--pixel); letter-spacing: -0.012em; color: transparent;
+  background: linear-gradient(180deg, #fff6dc 0%, #f6d48a 46%, #c98a3c 54%, #e9b25e 100%); -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 0.04em 0 #2a160b) drop-shadow(0 0 40px rgba(255, 180, 90, 0.35)); opacity: 0; animation: cvIn 1.4s 0.2s ease forwards; }
+.cv-rule { margin: clamp(14px, 2.4vh, 28px) 0 clamp(36px, 9vh, 120px); width: min(520px, 60vw); height: 2px; background: linear-gradient(90deg, #d9a75a, rgba(217, 167, 90, 0)); transform-origin: left; transform: scaleX(0); animation: cvGrow 1.2s 0.7s ease forwards; }
+@keyframes cvIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes cvGrow { to { transform: scaleX(1); } }
+.cv-menu { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: clamp(2px, 0.6vh, 8px); opacity: 0; animation: cvIn 1s 1s ease forwards; }
+.cv-item { position: relative; font: clamp(22px, 1.9vw, 36px)/1 var(--pixel); letter-spacing: 0.11em; color: #cbbfa6; opacity: 0.7; background: none; border: 0; padding: clamp(8px, 1.4vh, 16px) 0; cursor: pointer; text-align: left; transition: color 0.15s, opacity 0.15s, text-shadow 0.15s, transform 0.15s; }
+.cv-item small { display: block; margin-top: 10px; font: clamp(13px, 1.05vw, 20px) var(--pixel); letter-spacing: 0.05em; color: #a99a7c; }
+.cv-item.on { color: #ffe3a3; opacity: 1; text-shadow: 0 0 18px rgba(255, 190, 90, 0.55); transform: translateX(6px); }
+.cv-item:disabled { opacity: 0.3; cursor: default; }
+.cv-item:focus-visible { outline: none; }
+/* the companion beside the line chosen, flapping */
+.cv-pip { position: absolute; left: clamp(-74px, -4vw, -50px); width: 48px; height: 48px; margin-top: -24px; background-size: 192px 48px; image-rendering: pixelated; filter: drop-shadow(0 0 10px rgba(180, 220, 255, 0.85)); transition: top 0.28s cubic-bezier(0.3, 1.4, 0.5, 1); animation: cvFlap 0.36s steps(4) infinite, cvHover 2.4s ease-in-out infinite; }
 @keyframes cvFlap { from { background-position: 0 0; } to { background-position: -192px 0; } }
-@keyframes cvFly { 0% { left: -60px; transform: translateY(0); } 25% { transform: translateY(-30px); } 50% { transform: translateY(10px); } 75% { transform: translateY(-20px); } 100% { left: calc(100% + 60px); transform: translateY(0); } }
-.cv-main { position: absolute; left: 50%; top: 9%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; text-align: center; width: min(560px, 92vw); }
-.cv-kicker { font-size: 14px; letter-spacing: 0.25em; color: #ffe7b0; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35); }
-.cv-title { font-size: clamp(48px, 9vw, 92px); line-height: 1; margin: 8px 0 6px; color: #fff8e6; text-shadow: 0 4px 0 #6b3d1c, 0 8px 0 rgba(0, 0, 0, 0.25), 0 0 30px rgba(255, 210, 140, 0.5); letter-spacing: 0.02em; }
-.cv-sub { font: 15px/1.5 var(--text); color: #fff3d8; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); max-width: 460px; }
-.cv-menu { display: flex; flex-direction: column; gap: 8px; margin-top: 22px; width: min(320px, 86vw); }
+@keyframes cvHover { 0%, 100% { translate: 0 -3px; } 50% { translate: 0 3px; } }
+.cv-status { margin-top: 14px; font-size: 15px; color: #e8dcc0; min-height: 18px; text-shadow: 0 1px 2px #000; }
+.cv-dim { position: absolute; inset: 0; background: rgba(4, 5, 8, 0.55); }
+.cover.paneled .cv-main { opacity: 0.35; }
 .cv-btn { font: 600 16px var(--pixel); color: var(--ink-warm); background: var(--paper); border: 3px solid var(--wood-dark); border-radius: 8px; padding: 9px 14px; box-shadow: 0 4px 0 var(--wood-edge); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; transition: transform 0.1s; }
 .cv-btn small { font: 12px var(--text); opacity: 0.75; }
 .cv-btn:hover:not(:disabled) { transform: translateY(-2px); background: #fff4d6; }
 .cv-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--wood-edge); }
 .cv-btn.primary { background: linear-gradient(#ffd98a, #f2b84e); }
-.cv-btn.cv-challenge { background: linear-gradient(#423650, #28273b); color: #ffe2a4; border-color: #b28b50; box-shadow: 0 4px 0 #342838; }
-.cv-btn.cv-challenge:hover:not(:disabled) { background: #4e3f5b; }
+.cv-btn.cv-tutorial { width: 100%; margin-bottom: 12px; }
 .cv-btn.small { font-size: 13px; padding: 5px 10px; box-shadow: 0 2px 0 var(--wood-edge); }
 .cv-btn.danger { color: #9b2a1a; }
 .cv-btn:disabled { opacity: 0.55; cursor: default; }
-.cv-status { margin-top: 10px; font-size: 14px; color: #fff3d8; min-height: 18px; text-shadow: 0 1px 2px #000; }
+.cv-plabel { font: 15px/1.5 var(--text); margin: 2px 0 4px; }
+.cv-credit { margin-top: 14px; font-size: 12px; color: #8a6a44; }
+.cv-credit a { color: inherit; }
+/* the world behind the title: the game's panels and labels are not shown over it */
+#app.on-cover #hud, #app.on-cover #labels { visibility: hidden; }
 /* the death screen (Minecraft's): a red veil over the stopped world */
 .death { position: absolute; inset: 0; z-index: 60; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(120, 10, 10, 0.45), rgba(40, 0, 0, 0.82)); }
 .death.hidden { display: none; }
@@ -779,3 +810,6 @@ body.looks-page { background: #2b3550; color: var(--ink-warm); overflow: auto; }
 .keys-page .kp-key.asking { background: #ffe08a; animation: kp-blink 0.8s ease-in-out infinite; }
 @keyframes kp-blink { 50% { box-shadow: 0 0 0 3px #ffbf3c; } }
 @media (max-width: 620px) { .keys-page .kp-row { grid-template-columns: 1fr 64px 64px 92px; } }
+/* the title's settings on paper (the muted notes of the AI section read on it) */
+.cv-settings { background: var(--paper); border: 2px solid var(--wood-dark); border-radius: 6px; padding: 12px 14px; color: var(--ink-warm); }
+.cv-settings .muted, .cv-settings small { color: #7a5a36; }
