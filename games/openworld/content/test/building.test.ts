@@ -315,7 +315,7 @@ describe('the build palette (B): setting things down', () => {
     expect(at(eng, 3, 1)).toEqual([])
   })
 
-  it('a workbench is made by hand from four planks and set down; what is made at a workbench is made beside it', () => {
+  it('a workbench is made by hand from four planks and set down; a bow is made anywhere once the Held Ground\'s workshop stands, beside a bench or not', () => {
     const eng = meadow()
     const c = eng.controls
     give(eng, 'item/material/plank', 4)
@@ -324,7 +324,13 @@ describe('the build palette (B): setting things down', () => {
     c.sync()
     expect(c.place('fixture/craft/workbench', { x: 3, y: 2 })).toBe(true)
     expect(at(eng, 3, 2)).toEqual(['fixture/craft/workbench'])
-    expect(c.craft(eng.recipes.get('item/weapon/ranged/bow')!)).toBe(true)
+    // the bench beside one does not make it: the workshop does
+    const bow = eng.recipes.get('item/weapon/ranged/bow')!
+    expect(bow.unlockedBy?.fact).toBe('haven.build.workshop')
+    expect(c.craft(bow)).toBe(false)
+    expect(c.count('item/weapon/ranged/bow')).toBe(0)
+    eng.author(() => eng.world.setFact('haven.build.workshop', 1))
+    expect(c.craft(bow)).toBe(true)
     expect(c.count('item/weapon/ranged/bow')).toBe(1)
   })
 })

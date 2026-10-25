@@ -112,17 +112,15 @@ including after reloading an existing save. Atlas selection is pure and covered 
   index's potentially older list. Without a matching kit the snapshot omits boss animation data
   and the renderer treats Alberic as an ordinary creature; changing a preview then does nothing.
   Regression tests load an index without Alberic and check the real scene's sprite frame choices.
-- `boss-art/alberic-v5/overview.png`, `overview-right.png`, `overview-up.png`: all thirty-two poses.
-- `boss-art/alberic-v5/actions/`: individual 8 × 4 contact sheets for each action/facing.
-- `boss-art/alberic-v5/motion-preview.gif`: archived thirty-two-pose source review, not the
-  current reduced-clip playback. Use Boss Studio for the current 8–12-pose / 20 fps timing.
-- `boss-art/alberic-v5/map-context.png`: labelled composition against existing game map pixels,
-  **not** an in-game screenshot or a campaign spawn change.
+- The review sheets that were in `docs/boss-art/` (the poses, the contact sheets, the motion preview, the map
+  composition) were taken out on 2026-10-21 as out of date; they are in the history. Use Boss Studio for the
+  current 8–12-pose / 20 fps timing.
 - `alberic-art-v5-prompts.json`: exact prompts, references, frame layout, source paths and export settings.
 - Sources are in `var/boss-art/alberic-v5/sources/`; originals also remain in the image tool cache.
-  Export from the project root with `swift games/openworld/tools/src/art/export-alberic.swift --v5`.
+  Export from the project root with `swift games/openworld/tools/src/art/export-alberic.swift --v5` (its references
+  in `docs/boss-art/alberic-v5/references/` come back from the history first).
   `--v4` reproduces twelve poses, no version flag reproduces v3; `--v2` the retained portrait version.
-- Runtime frames are audited in `boss-art/alberic-v5/frames.json`. Tests decode the PNG pixels
+- The export writes the runtime frames' audit, `frames.json`, beside its review sheets. Tests decode the PNG pixels
   and check nonempty art, real alpha, transparent borders, uniqueness and all directional rows.
 
 The previous legacy, v2, v3 and v4 assets are preserved. The five user concept images and lore file

@@ -563,7 +563,8 @@ export class WorldScene extends Phaser.Scene {
     this.drawQuestMarks(f)
     this.drawQuestArrows(f)
     const me = this.views.get(this.playerId)
-    this.frameBossFight(f, me)
+    // a free camera (the editor's, a film's) is never taken over by a boss fight
+    if (!this.free) this.frameBossFight(f, me)
     if (me && !this.bossCam && !this.free && this.following !== me.root) {
       this.following = me.root
       this.cameras.main.startFollow(me.root, true, 0.2, 0.2)

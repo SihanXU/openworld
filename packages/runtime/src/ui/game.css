@@ -400,31 +400,47 @@
 .wm-map.here { box-shadow: 0 0 0 3px #f2c14e, 0 6px 18px rgba(0, 0, 0, 0.5); }
 .wm-map canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
 .wm-name { position: absolute; left: 50%; top: 6px; transform: translateX(-50%); font: 700 14px var(--pixel); color: #fff8e6; text-shadow: 0 1px 0 #000, 0 0 6px #000; white-space: nowrap; pointer-events: none; }
-.wm-stone { position: absolute; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; border: 3px solid #1d3b44; background: #3a7f8a; padding: 0; cursor: default; }
-.wm-stone span { position: absolute; left: 50%; top: 22px; transform: translateX(-50%); font: 600 11px var(--pixel); color: #cfeff5; white-space: nowrap; text-shadow: 0 1px 0 #000; pointer-events: none; }
-.wm-stone.attuned { background: radial-gradient(circle, #fff, #5ff0ff 60%); border-color: #0f6a7a; cursor: pointer; box-shadow: 0 0 10px #5ff0ff; }
-.wm-stone.attuned:hover { transform: scale(1.25); }
-.wm-quest { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; font: 700 16px var(--pixel); line-height: 18px; text-align: center; color: #ffd23f; text-shadow: 0 0 2px #3a2414, 0 1px 0 #3a2414; pointer-events: auto; }
+.wm-stone { position: absolute; width: 22px; height: 30px; margin: -26px 0 0 -11px; padding: 0; border: 0; background: none; cursor: default; transform: scale(var(--inv, 1)); transform-origin: 50% 90%; }
+.wm-stone svg { display: block; width: 100%; height: 100%; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55)); }
+.wm-stone .wm-crystal { fill: #3f7d88; }
+.wm-stone .wm-facet { fill: rgba(255, 255, 255, 0.18); }
+.wm-stone .wm-rim { fill: none; stroke: #16333a; stroke-width: 1.6; stroke-linejoin: round; }
+.wm-stone span { position: absolute; left: 50%; top: 30px; transform: translateX(-50%); font: 600 11px var(--pixel); color: #cfeff5; white-space: nowrap; text-shadow: 0 1px 0 #000; pointer-events: none; }
+.wm-stone.attuned { cursor: pointer; }
+.wm-stone.attuned .wm-crystal { fill: #6ff0ff; }
+.wm-stone.attuned .wm-facet { fill: rgba(255, 255, 255, 0.55); }
+.wm-stone.attuned .wm-rim { stroke: #0e5f6e; }
+.wm-stone.attuned svg { filter: drop-shadow(0 0 5px #5ff0ff) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5)); }
+.wm-stone.attuned:hover { transform: scale(calc(var(--inv, 1) * 1.25)); }
+.wm-quest { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; transform: scale(var(--inv, 1)); font: 700 16px var(--pixel); line-height: 18px; text-align: center; color: #ffd23f; text-shadow: 0 0 2px #3a2414, 0 1px 0 #3a2414; pointer-events: auto; }
 /* the tracked quest's markers at the screen's edge (docs/quests.md §2.5) */
 .quest-arrows { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 2; }
 .quest-arrows .qa { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; display: flex; align-items: center; justify-content: center; }
 .quest-arrows .qa i { display: block; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 14px solid #ffd23f; filter: drop-shadow(0 0 1px #3a2414) drop-shadow(0 1px 0 #3a2414); }
 .quest-arrows .qa.on i { border: 0; width: 10px; height: 10px; background: #ffd23f; transform: rotate(45deg); box-shadow: 0 0 0 2px #3a2414; }
-.wm-continent { position: absolute; left: 0; top: 0; image-rendering: pixelated; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5), 0 6px 18px rgba(0, 0, 0, 0.5); }
-.wm-region { position: absolute; transform: translate(-50%, -50%); font: 700 20px var(--pixel); color: #fff8e6; text-shadow: 0 0 3px var(--rc), 0 1px 0 #000, 0 0 8px #000; white-space: nowrap; pointer-events: none; text-align: center; letter-spacing: 1px; opacity: 0.92; }
+.wm-continent { position: absolute; left: 0; top: 0; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 0 6px rgba(214, 190, 140, 0.35), 0 10px 30px rgba(0, 0, 0, 0.6); }
+.wm-tint { position: absolute; left: 0; top: 0; pointer-events: none; filter: blur(5px); mix-blend-mode: multiply; }
+.wm-borders { position: absolute; left: 0; top: 0; pointer-events: none; filter: blur(0.4px); }
+.wm-region { position: absolute; transform: translate(-50%, -50%) scale(var(--inv, 1)); font: 700 20px var(--pixel); color: #fff8e6; text-shadow: 0 0 3px var(--rc), 0 1px 0 #000, 0 0 8px #000; white-space: nowrap; pointer-events: none; text-align: center; letter-spacing: 1px; opacity: 0.92; }
 .wm-region small { display: block; font: 600 11px var(--pixel); color: #e8dcc0; letter-spacing: 0; }
 .wm-region.untold { color: #d8d0c0; }
-.wm-place { position: absolute; width: 0; height: 0; pointer-events: auto; }
-.wm-place i { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; background: #fff3d0; border: 1px solid #3a2414; transform: rotate(45deg); }
-.wm-place.major i { left: -5px; top: -5px; width: 10px; height: 10px; background: #f2c14e; }
+.wm-place { position: absolute; width: 0; height: 0; pointer-events: auto; transform: scale(var(--inv, 1)); }
+.wm-place i { position: absolute; left: -3.5px; top: -3.5px; width: 7px; height: 7px; border-radius: 50%; background: #fff3d0; border: 1px solid #3a2414; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.wm-place.major i { left: -6px; top: -6px; width: 12px; height: 12px; background: radial-gradient(circle at 40% 35%, #fff2c0, #f2c14e 70%); border-width: 1.5px; }
 .wm-place.backdrop i { background: #c8c0b0; }
 .wm-place.backdrop.major i { background: #d8c890; }
 .wm-place.sealed i { background: #3a3440; border-color: #c8a0ff; }
 .wm-place.visited i { box-shadow: 0 0 4px #fff; }
 .wm-place span { position: absolute; left: 0; top: 6px; transform: translateX(-50%); font: 600 9px var(--pixel); color: #fff8e6; text-shadow: 0 1px 0 #000, 0 0 3px #000; white-space: nowrap; pointer-events: none; display: none; }
-.wm-place.major span, .near .wm-place span, .wm-place.visited span { display: block; }
-.wm-stone.small { width: 10px; height: 10px; margin: -5px 0 0 -5px; border-width: 2px; }
-.wm-you { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff; border: 3px solid #e04848; animation: skReady 1.4s infinite; pointer-events: none; }
+.wm-place.major span, .near .wm-place span, .mid .wm-place.visited span { display: block; }
+.far .wm-place:not(.major):not(.visited) { transform: scale(calc(var(--inv, 1) * 0.7)); }
+.wm-stone.small { width: 16px; height: 22px; margin: -19px 0 0 -8px; }
+.wm-you { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; pointer-events: none; transform: scale(var(--inv, 1)); }
+.wm-you svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6)); }
+.wm-you .wm-badge { fill: #f2c14e; stroke: #fff8e6; stroke-width: 2; }
+.wm-you .wm-figure { fill: #3a2414; }
+.wm-you::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid rgba(242, 193, 78, 0.9); animation: wmPing 1.6s ease-out infinite; }
+@keyframes wmPing { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(1.8); opacity: 0; } }
 /* the minimap, under the clock */
 .minimap { position: absolute; left: 14px; top: 14px; padding: 4px; line-height: 0; cursor: pointer; }
 .minimap canvas { image-rendering: pixelated; border-radius: 4px; max-width: 168px; max-height: 120px; }
@@ -663,6 +679,15 @@
 .sk-tab.selected { background: var(--c-soft, #ffe6a8); box-shadow: inset 0 -3px 0 var(--c, var(--wood-dark)); }
 .sk-tab-icon { width: 22px; height: 22px; display: grid; place-items: center; }
 .sk-tab-icon .sk-art, .sk-tab-icon img { width: 22px; height: 22px; }
+/* the dresser's panel (ui/restyle.ts): the creator in a sheet, her price above, keep or never mind below */
+.rs-sheet { width: min(760px, 94vw); max-height: 92dvh; overflow: auto; padding: 14px 18px; }
+.rs-head { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; font: 600 18px var(--pixel); }
+.rs-head .x { margin-left: auto; }
+.rs-price { font: 600 13px var(--pixel); color: var(--ink-warm); }
+.rs-price .short { color: #b0322a; }
+.rs-price .ok { color: #3c7a2a; }
+.rs-foot { display: flex; align-items: center; gap: 10px; justify-content: flex-end; margin-top: 6px; }
+.rs-note { margin-right: auto; font-size: 12px; color: #8a6a44; }
 /* the character creator (ui/creator.ts, docs/looks.md): the portrait and the walking sprite beside the choices */
 .cv-sub { font: 600 15px var(--pixel); margin: 6px 0 4px; }
 .creator { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 10px; }
@@ -691,9 +716,14 @@ body.looks-page { background: #2b3550; color: var(--ink-warm); overflow: auto; }
 #lkCode { white-space: pre-wrap; background: #1d2338; color: #cfe3ff; padding: 10px; border-radius: 6px; font-size: 12px; }
 
 /* the people (docs/npc-sandbox.md): the talk's verbs, regard, the social status line, the trade and pockets panels */
-.dchoices.talk { flex-wrap: wrap; gap: 6px; }
-.dchoices.talk button { min-width: 0; font: 600 13px var(--pixel); padding: 3px 8px; }
-.dchoices.talk button kbd { font-size: 10px; margin-right: 2px; }
+/* the talk's verbs: one grid of two equal columns, the labels aligned behind their numbers; goodbye last */
+.dchoices.talk { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin-top: 10px; }
+.dchoices.talk button.wide { grid-column: 1 / -1; justify-content: center; }
+.dchoices.talk button.g-bye { background: var(--paper); }
+.dchoices.talk button { display: flex; align-items: center; gap: 7px; min-width: 0; min-height: 30px; padding: 4px 8px 4px 5px; text-align: left; font: 600 13px var(--pixel); line-height: 1.2; border-radius: 6px; }
+.dchoices.talk button:hover { background: #ffe9a8; }
+.dchoices.talk button kbd { flex: 0 0 18px; height: 18px; line-height: 18px; text-align: center; font-size: 10px; margin: 0; padding: 0; border-radius: 4px; background: var(--wood-dark); color: var(--paper); }
+.dchoices.talk button span { min-width: 0; }
 .dname .regard { font: 600 11px var(--pixel); padding: 1px 6px; border-radius: 8px; background: var(--paper-dark); color: var(--ink-warm); vertical-align: middle; }
 .dname .regard.r-hostile, .dname .regard.r-敌视 { background: #b0322a; color: #fbe9c4; }
 .dname .regard.r-cold, .dname .regard.r-冷淡 { background: #7d8db0; color: #fbe9c4; }

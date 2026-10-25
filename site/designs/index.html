@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project page 方案对比</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --ink: #333; --muted: #666; --line: #e9ecef; --bg-alt: #f8f9fa; --accent: #2563eb; --radius: 12px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif; color: var(--ink); background: var(--bg-alt); line-height: 1.6; }
+        a { color: var(--accent); text-decoration: none; }
+        .container { max-width: 1280px; margin: 0 auto; padding: 3rem 2rem 4rem; }
+        header { margin-bottom: 2.5rem; }
+        h1 { font-size: 2rem; letter-spacing: -0.01em; margin-bottom: 0.5rem; }
+        header p { color: var(--muted); max-width: 820px; }
+        header ul { color: var(--muted); max-width: 820px; margin: 0.75rem 0 0 1.1rem; font-size: 0.95rem; }
+        .toolbar { display: flex; gap: 0.5rem; margin-top: 1.25rem; }
+        .toolbar button { font: inherit; font-size: 0.9rem; padding: 0.35rem 1rem; border-radius: 999px; border: 1px solid #d6e0f8; background: #fff; color: var(--accent); cursor: pointer; }
+        .toolbar button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem; }
+        .card { background: #fff; border-radius: var(--radius); overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 18px rgba(0,0,0,.05); display: flex; flex-direction: column; }
+        .card.wide { grid-column: 1 / -1; }
+        .frame { position: relative; aspect-ratio: 16 / 10; overflow: hidden; border-bottom: 1px solid var(--line); background: #fff; }
+        .card.wide .frame { aspect-ratio: 16 / 7; }
+        .frame iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; }
+        .frame.mobile, .card.wide .frame.mobile { aspect-ratio: auto; height: 540px; display: flex; justify-content: center; background: var(--bg-alt); padding-top: 1rem; }
+        .frame.mobile .phone { position: relative; width: 250px; height: 516px; border-radius: 20px; overflow: hidden; border: 6px solid #222; background: #fff; }
+        .frame.mobile iframe { width: 375px; height: 756px; transform: scale(0.635); }
+        .body { padding: 1.25rem 1.5rem 1.5rem; display: flex; flex-direction: column; flex: 1; }
+        .tag { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+        h2 { font-size: 1.3rem; margin: 0.2rem 0 0.5rem; }
+        .body p { color: var(--muted); font-size: 0.95rem; }
+        .body ul { color: var(--muted); font-size: 0.95rem; margin: 0.5rem 0 1rem 1.1rem; }
+        .open { margin-top: auto; align-self: flex-start; font-weight: 500; padding: 0.4rem 1rem; border-radius: 999px; border: 1px solid #d6e0f8; }
+        .open:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+        @media (max-width: 600px) { .container { padding: 2rem 1rem 3rem; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Project page · 4 种首页 + 1 篇博文</h1>
+            <p>都用主页的视觉语言（系统字体、#333 正文、#2563eb 蓝、白 / #f8f9fa 交替底、12px 圆角、小号大写标签、↗ 箭头链接、翻转卡片、脉冲滚动条），游戏画面负责风格。所有截图都是 2026-10-21 从当前版本现截的。预览可以直接滚动和点。</p>
+            <ul>
+                <li><b>文字都是占位</b>：灰条和 “Heading / Section / Label” 处由你们来写；页面上只留了游戏标题画面上已有的名字和两句标语、真实数字、截图和地名。</li>
+                <li><b>翻转卡片</b>：正面是游戏画面，背面是它背后的规则代码（悬停翻面，手机点一下）。代码是 base rule library 里真规则的缩写。</li>
+                <li><b>Waitlist 表单</b>在这里只是演示（提交后显示“谢谢”）；上线时直接 POST 到邮件服务，带“玩 / 研究 / 做世界”三个标签。</li>
+                <li>名字暂用游戏标题画面的 <b>OpenWorld</b> 和它的两句标语，副标题写 Large Symbolic World，之后改名只是换字。</li>
+            </ul>
+            <div class="toolbar">
+                <button class="on" data-mode="desktop">桌面预览</button>
+                <button data-mode="mobile">手机预览</button>
+            </div>
+        </header>
+
+        <div class="grid">
+            <article class="card">
+                <div class="frame"><iframe src="a.html" loading="lazy" title="方案 A"></iframe></div>
+                <div class="body">
+                    <span class="tag">方案 A</span>
+                    <h2>主页同款（杂志排版）</h2>
+                    <ul>
+                        <li>就是主页的版式：灰底满屏首屏、超大 “Open.World” + 竖排宋体“规则即代码”，头像的位置换成游戏画面的翻转卡</li>
+                        <li>首屏里有数字（地图 / 人 / 物品种类）、邮箱框和链接</li>
+                        <li>下面是编号条目 01–06（左侧 sticky 目录），每条配一张能翻面的图；Journal 用论文列表的样式</li>
+                        <li>和你的主页放在一起最像一家人；画面感稍弱</li>
+                    </ul>
+                    <a class="open" href="a.html">打开 →</a>
+                </div>
+            </article>
+
+            <article class="card">
+                <div class="frame"><iframe src="b.html" loading="lazy" title="方案 B"></iframe></div>
+                <div class="body">
+                    <span class="tag">方案 B</span>
+                    <h2>世界铺满（NEPA 式首屏）</h2>
+                    <ul>
+                        <li>首屏是整张村子的画面，白天和夜晚慢慢交替，白色大字标题和邮箱框在中间</li>
+                        <li>往下是概述、一排可以横向滑动的地点卡（每张都能翻面）、“怎么学会”的三步卡片、一篇博文、夜景底的 waitlist</li>
+                        <li>最像游戏官网，第一眼冲击力最强；离主页的白底排版最远</li>
+                    </ul>
+                    <a class="open" href="b.html">打开 →</a>
+                </div>
+            </article>
+
+            <article class="card">
+                <div class="frame"><iframe src="c.html" loading="lazy" title="方案 C"></iframe></div>
+                <div class="body">
+                    <span class="tag">方案 C</span>
+                    <h2>两层（看到的 / 它是什么）</h2>
+                    <ul>
+                        <li>首屏是一张可以拖动缝的大图：左边是游戏画面，右边同一画面标出每个东西的类型和状态，再配上管它的规则</li>
+                        <li>往下滚动时左边的图固定不动，跟着右边的段落换图；开关可以把图换成它的代码</li>
+                        <li>最直接地讲“世界就是代码”；交互最多，实现和维护也最重</li>
+                    </ul>
+                    <a class="open" href="c.html">打开 →</a>
+                </div>
+            </article>
+
+            <article class="card">
+                <div class="frame"><iframe src="d.html" loading="lazy" title="方案 D"></iframe></div>
+                <div class="body">
+                    <span class="tag">方案 D</span>
+                    <h2>博客优先（刊物）</h2>
+                    <ul>
+                        <li>首屏不占满：左边标题和一句话，右边 waitlist 卡片</li>
+                        <li>第一篇博文当封面文章（大图 + 目录），然后是一面截图墙（部分能翻面），最后是文章列表</li>
+                        <li>最贴合“现在只有 waitlist + blog”；以后发的文章越多越好看</li>
+                    </ul>
+                    <a class="open" href="d.html">打开 →</a>
+                </div>
+            </article>
+
+            <article class="card wide">
+                <div class="frame"><iframe src="post.html" loading="lazy" title="博文"></iframe></div>
+                <div class="body">
+                    <span class="tag">博文 · 四个方案共用</span>
+                    <h2>博文模板</h2>
+                    <ul>
+                        <li>Launch 那一篇长文的版式：NEPA blog 的结构（左侧目录、图自动编号、代码块、提示框）配上主页的配色</li>
+                        <li>封面是能翻面的村子；正文里摆了各种图的样子（单图、图 + 代码、纯代码），文末是订阅框</li>
+                        <li>正文全是占位</li>
+                    </ul>
+                    <a class="open" href="post.html">打开 →</a>
+                </div>
+            </article>
+        </div>
+    </div>
+
+    <script>
+        const DESKTOP_W = 1280
+        function fit() {
+            document.querySelectorAll('.frame:not(.mobile)').forEach((frame) => {
+                const iframe = frame.querySelector('iframe')
+                const scale = frame.clientWidth / DESKTOP_W
+                iframe.style.width = DESKTOP_W + 'px'
+                iframe.style.height = frame.clientHeight / scale + 'px'
+                iframe.style.transform = `scale(${scale})`
+            })
+        }
+        window.addEventListener('resize', fit)
+        fit()
+        document.querySelectorAll('.toolbar button').forEach((btn) => btn.addEventListener('click', () => {
+            document.querySelectorAll('.toolbar button').forEach((b) => b.classList.toggle('on', b === btn))
+            const mobile = btn.dataset.mode === 'mobile'
+            document.querySelectorAll('.frame').forEach((frame) => {
+                const iframe = frame.querySelector('iframe')
+                const phone = frame.querySelector('.phone')
+                frame.classList.toggle('mobile', mobile)
+                if (mobile && !phone) {
+                    const wrap = document.createElement('div')
+                    wrap.className = 'phone'
+                    frame.appendChild(wrap)
+                    wrap.appendChild(iframe)
+                    iframe.removeAttribute('style')
+                } else if (!mobile && phone) {
+                    frame.appendChild(iframe)
+                    phone.remove()
+                }
+            })
+            if (!mobile) fit()
+        }))
+    </script>
+</body>
+</html>

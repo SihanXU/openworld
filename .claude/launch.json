@@ -32,6 +32,15 @@
       "port": 5173
     },
     {
+      "name": "editor",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "editor"
+      ],
+      "port": 5175
+    },
+    {
       "name": "player",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
@@ -105,6 +114,40 @@
         "5191"
       ],
       "port": 5191
+    },
+    {
+      "name": "site-designs",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8766",
+        "--directory",
+        "site/designs"
+      ],
+      "port": 8766
+    },
+    {
+      "name": "client-5177",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "games/openworld/client",
+        "--port",
+        "5177",
+        "--strictPort"
+      ],
+      "port": 5177
+    },
+    {
+      "name": "site",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "site/tools/serve.mjs",
+        "site",
+        "8767"
+      ],
+      "port": 8767
     }
   ]
 }

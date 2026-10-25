@@ -294,6 +294,9 @@ function buildMeadow(): MapBuilder {
   m.anchor('cass.loom', 16, 14)
   // where Vigo sleeps rough, at the square's east edge by the road
   m.anchor('vigo.camp', 34, 15)
+  // Odette's standing mirror at the square's south-east, east of the evening fire, and where she works beside it by day (content dresser.ts)
+  m.fixture('fixture/furniture/mirror', 26, 16, { id: 'village.mirror', props: { owner: 'npc.odette' } })
+  m.anchor('dresser.stand', 26, 17)
   // the warm spring in its clearing west of the pond: sit in it and it mends you
   const [sx, sy] = FIRSTLIGHT.spring
   m.scenery('spring', sx - 1, sy - 1)

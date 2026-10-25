@@ -6,7 +6,7 @@ Defaults the user accepted: map figures 16x32 (24x36 since 2026-10-17, §3), hal
 on people, all 24 people converted, the player makes their own look; the portrait art is drawn by a model
 hosted locally.
 
-Redrawn 2026-10-18 at the user's asking ("按照 black souls 这种风格", the trial `docs/figures/looks-style-trial.png`
+Redrawn 2026-10-18 at the user's asking ("按照 black souls 这种风格", a trial
 accepted): full-body standing portraits in a dark-fairy-tale line style — crisp thin sepia ink lines, hatching in
 the folds, flat muted fills, about seven heads tall, on a flat pale cream ground — the dialogue box showing the
 bust cut from the figure; legs and shoes as slots of their own; every body with its own head and face (a man is
@@ -103,7 +103,7 @@ the map and in the portrait is the same colour by construction.
   encoder, VAE, Lightning 4-step LoRA (`setup.md`, `download.sh`). `comfy_node.py` keeps the edit's reference at the
   input's size, so a 768x1536 edit leaves every pixel where it was. About 2–3 minutes a picture on an RTX 5080 laptop;
   the library (184 pictures) is a night's run.
-- **The style** (2026-10-18): found by trial (`docs/figures/looks-style-trial.png`) with prompts alone — the
+- **The style** (2026-10-18): found by trial with prompts alone — the
   reference the user showed was never given to the model. The woman's base was drawn from words (thin uniform dark
   sepia ink lines, hatching in the folds and shadows, flat muted fills without glossy highlights, refined anime eyes,
   about six and a half heads tall, a flat pale cream ground); every other picture is an edit, which keeps the style
@@ -143,6 +143,12 @@ the map and in the portrait is the same colour by construction.
   hat, the circlet, the crown of thorns), painted in its material's colour (`LookTable.materials`). The snapshot,
   the look's tags (`look:armoured`) and the modder's words are the look as seen; the bearer's own look is kept.
   Those parts are `gen.worn`: never drawn by chance, never offered in the creator.
+- The dresser (2026-10-24; content `dresser.ts`, runtime `ui/restyle.ts`): a person tagged `dresser` (Firstlight's
+  Odette, on the square beside her standing mirror `fixture/furniture/mirror`). Asked (the talk verb `restyle`), or a
+  hand on the mirror, a rule opens the panel `restyle`: the creator over the player's own look (`Frame.player.look`,
+  before what is worn). Kept, the runtime sends `restyle {look}`; the worker takes the price the world's
+  `params.restyle` names (coin and things carried: ten Dawnmarks and three wildflowers) and sets the look with
+  `World.setLook`, `own`. Short of the price, nothing changes and the log says what is wanted.
 - Loading: a save's people take the world's look unless theirs is `own`; a player who made a look keeps it; a
   sheet's key from before looks gets the world's.
 
@@ -150,23 +156,21 @@ the map and in the portrait is the same colour by construction.
 
 The full-body library (2026-10-18): 4 bodies, each its own head; 6 faces x 6 moods on every body they are for (72
 pictures), 15 hairstyles on each body (29), 3 beards, age lines, 2 marks, round glasses, 7 hats, 18 outfits (25 over
-the bodies they fit), 3 legwear and 5 shoes, 3 worn pieces — 184 pictures. `docs/figures/looks-review.png` is
-everyone as the game draws them.
+the bodies they fit), 3 legwear and 5 shoes, 3 worn pieces — 184 pictures. `npx tsx games/openworld/tools/src/art/looks/review.ts out.png` draws
+everyone as the game does.
 
 The first library (2026-10-09, half-body, replaced): 4 bodies, 6 faces x 6 moods, 15 hairstyles, 3 beards, age lines, 2 marks, round glasses,
 7 hats, 20 outfits (25 drawings over the bodies they fit), 3 worn pieces for both adult bodies — 98 pictures,
-cut into 18 MB of layers. `docs/figures/looks-review.png` is everyone as the game draws them,
-`looks-worn.png` what is worn, `looks-dialogue.jpg` the dialogue box in play.
+cut into 18 MB of layers.
 
 The map figures (2026-10-18): the man, the woman and the child, each facing's walk and idle frame; 16 adult outfits
 and 2 children's, 3 worn pieces, 15 hairstyles, 7 hats, 3 beards, the face's 5 variants, glasses, a scar, freckles and
-age's lines — `docs/figures/figures-map.png` (standing, the four facings) and `figures-walk.gif` (walking).
+age's lines.
 
 ## 8. The world filter (2026-10-18)
 
-The map in the portraits' style, asked for after them ("基于相同的风格给游戏加一层滤镜"): the trial
-`docs/figures/world-filter-trial.png` (four scenes captured from the game, filtered offline), the recommended
-strength taken.
+The map in the portraits' style, asked for after them ("基于相同的风格给游戏加一层滤镜"): a trial
+of four scenes captured from the game and filtered offline, the recommended strength taken.
 
 - **One shader pass** over the world camera (`runtime/src/render/worldfilter.ts`, a Phaser 4 filter on the main
   camera's internal list): the colours graded — desaturated, the bright yellow-greens further toward a sage, a little

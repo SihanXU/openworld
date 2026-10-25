@@ -63,12 +63,13 @@ const menu = new Menu({
   drop: (slot, all) => send({ t: 'drop', slot, all }),
   organize: () => send({ t: 'organize' }),
   wear: (item, putOn) => send({ t: 'wear', item, putOn }),
-  craft: (id, all) => send({ t: 'craft', id, all }),
+  craft: (id, all, at) => send({ t: 'craft', id, all, at }),
   learn: (id) => send({ t: 'learn', id }),
   setSkill: (slot, id) => send({ t: 'setSkill', slot, id }),
   atlas: () => send({ t: 'atlas' }),
   travel: (waypoint) => send({ t: 'travel', waypoint }),
   profession: (id) => send({ t: 'profession', id }),
+  restyle: (look) => send({ t: 'restyle', look }),
   speak: (who, verb, choice) => send({ t: 'speak', who, verb, ...(choice && { choice }) }),
   offer: (target, item, count) => send({ t: 'offer', target, item, count }),
   track: (id) => send({ t: 'track', id }),
@@ -460,13 +461,15 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       minimap.onFrame(m.frame)
       people.onFrame(m.frame)
       // a rule opened one of the player's panels: the runtime's own — a trainer's choice of profession, the commission
-      // board's favours (docs/quests.md §3), a shop on its shelves (`shop:<station>`; `shop`: the game's first) —, else
+      // board's favours (docs/quests.md §3), a shop on its shelves (`shop:<station>`; `shop`: the game's first), a station's
+      // recipes made at the thing opened (`station:<x>`: a forge, an anvil) —, else
       // one of the game's (ClientGame.panels, told whose rule opened it) or the runtime's for a module it uses
       const panels = m.frame.fx.filter((x): x is Extract<FxEvent, { t: 'panel' }> => x.t === 'panel')
       for (const x of panels) {
         if (x.panel === 'profession') menu.openProfession()
         else if (x.panel === 'board') x.by && menu.openBoard(x.by)
         else if (x.panel === 'shop' || x.panel.startsWith('shop:')) menu.openShop(x.panel === 'shop' ? undefined : x.panel.slice(5))
+        else if (x.panel.startsWith('station:')) x.by && menu.openStation(x.panel.slice(8), x.by)
         else if (menu.openPanel(x.panel, x.by)) break
       }
       reaim()
@@ -520,7 +523,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     case 'recipes':
       setLearnedRecipes(m.recipes)
       setLearnedPlaceables(m.recipes)
-      if (menu.menuOpen && (menu.tab === 'craft' || menu.tab === 'shop')) menu.render()
+      if (menu.menuOpen && (menu.tab === 'craft' || menu.tab === 'shop' || menu.tab === 'station')) menu.render()
       break
     case 'creating':
       hud.message(`✦ ${t('creating')}: ${m.names.map((n) => tx(n)).join(locale.value === 'zh' ? '、' : ', ')}…`, 'ai')

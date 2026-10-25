@@ -87,7 +87,7 @@ export type ToWorker =
   /** The off hand: wear a carried item there (a shield), or take off what is worn (no item). */
   | { t: 'wear'; item?: string; /** from the bag: put on (another of a stack), never take off */ putOn?: boolean }
   /** The crafting panel: make a recipe from what is carried. */
-  | { t: 'craft'; id: string; /** as many as what is carried makes */ all?: boolean }
+  | { t: 'craft'; id: string; /** as many as what is carried makes */ all?: boolean; /** the station it is made at (the one whose panel is open) */ at?: string }
   /** The skill tree: spend skill points on a skill. */
   | { t: 'learn'; id: string }
   /** The skill bar: cast the skill in a slot (Shift+1–6), or set one there (null: empty it). */
@@ -95,6 +95,8 @@ export type ToWorker =
   | { t: 'setSkill'; slot: number; id: string | null }
   /** Take up (or change to) a profession at a trainer. */
   | { t: 'profession'; id: string }
+  /** The dresser's: keep this look as one's own, for the price the world's params name (docs/looks.md §5). */
+  | { t: 'restyle'; look: Look }
   /** A word said to someone without the talk panel (a game's panel: a choice made on it, said to the one who opened it). */
   | { t: 'speak'; who: string; verb: string; choice?: string }
   /** Up to so many of a carried kind put into a thing (a game's panel: materials handed to the one who opened it). */

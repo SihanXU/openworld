@@ -274,6 +274,12 @@
             },
             "still": {
               "type": "boolean"
+            },
+            "owner": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "ownerFrom": {
+              "$ref": "#/definitions/RoleName"
             }
           },
           "required": [
@@ -1794,6 +1800,32 @@
             "op"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "residentWork/order"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "residentWork/update"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
         }
       ]
     },
@@ -2529,6 +2561,19 @@
           },
           "required": [
             "propEqualsParam"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "residentWorkFeed": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "residentWorkFeed"
           ],
           "additionalProperties": false
         },
@@ -3679,7 +3724,27 @@
         },
         "station": {
           "type": "string",
-          "description": "Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station a thing within reach is (its `station:<x>` tag)."
+          "description": "Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station (a thing tagged `station:<x>`, opened or within reach)."
+        },
+        "unlockedBy": {
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string"
+            },
+            "name": {
+              "$ref": "#/definitions/Text"
+            },
+            "level": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "fact",
+            "name"
+          ],
+          "additionalProperties": false,
+          "description": "A fact of the story's its recipe waits for (a building raised on one's ground: the fact at `level`, 1 by default), named for the panel."
         },
         "craftLevel": {
           "type": "number",

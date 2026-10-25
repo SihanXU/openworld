@@ -350,7 +350,27 @@
         },
         "station": {
           "type": "string",
-          "description": "Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station a thing within reach is (its `station:<x>` tag)."
+          "description": "Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station (a thing tagged `station:<x>`, opened or within reach)."
+        },
+        "unlockedBy": {
+          "type": "object",
+          "properties": {
+            "fact": {
+              "type": "string"
+            },
+            "name": {
+              "$ref": "#/definitions/Text"
+            },
+            "level": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "fact",
+            "name"
+          ],
+          "additionalProperties": false,
+          "description": "A fact of the story's its recipe waits for (a building raised on one's ground: the fact at `level`, 1 by default), named for the panel."
         },
         "craftLevel": {
           "type": "number",
@@ -751,6 +771,19 @@
           },
           "required": [
             "propEqualsParam"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "residentWorkFeed": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "residentWorkFeed"
           ],
           "additionalProperties": false
         },
@@ -1773,6 +1806,10 @@
           },
           "description": "A resident's day there, hour by hour: each span spent at its bed (`bed`) or its bed's day place (`day`), and doing what."
         },
+        "work": {
+          "$ref": "#/definitions/ResidenceWorkDef",
+          "description": "The kinds and states this home ground chooses to expose as its work overview and future work targets."
+        },
         "yes": {
           "$ref": "#/definitions/Text"
         },
@@ -1790,6 +1827,70 @@
       ],
       "additionalProperties": false,
       "description": "A home ground's room for people (the society module's `moveIn`): its map and the beds it has, each an anchor there (where the resident sleeps; `<anchor>.day` where their day is spent, else the same), open once its fact holds; a resident's day there; what the one asked says, moved in or with no bed free."
+    },
+    "ResidenceWorkDef": {
+      "type": "object",
+      "properties": {
+        "controller": {
+          "$ref": "#/definitions/Selector",
+          "description": "People permitted to give work orders at this residence's steward/controller."
+        },
+        "crop": {
+          "$ref": "#/definitions/Selector",
+          "description": "Any crop grown here; later work may choose an authorized crop from this set."
+        },
+        "ripe": {
+          "$ref": "#/definitions/Selector",
+          "description": "Crops whose current type is ready for harvest."
+        },
+        "growing": {
+          "$ref": "#/definitions/Selector",
+          "description": "Crops waiting for water (the selector can require `growing` and exclude `watered`)."
+        },
+        "livestock": {
+          "$ref": "#/definitions/Selector",
+          "description": "Livestock shown on this ground; eligible unowned members may be claimed one at a time through its configured controller."
+        },
+        "unfed": {
+          "$ref": "#/definitions/Selector",
+          "description": "Livestock that still needs feeding."
+        },
+        "milkable": {
+          "$ref": "#/definitions/Selector",
+          "description": "Animals that can be milked now, including maturity and daily state."
+        },
+        "egg": {
+          "$ref": "#/definitions/Selector",
+          "description": "Loose gatherable eggs on the home ground."
+        },
+        "warehouse": {
+          "$ref": "#/definitions/Selector",
+          "description": "Real storage entities eligible to hold work supplies."
+        },
+        "feed": {
+          "$ref": "#/definitions/Selector",
+          "description": "The real feed item a future feeding job will draw from storage."
+        },
+        "yieldTypeProp": {
+          "type": "string",
+          "description": "Crop props that name the hand-pick products; the society module reads these names, never game type ids."
+        },
+        "seedTypeProp": {
+          "type": "string"
+        },
+        "pickBonusProp": {
+          "type": "string",
+          "description": "The worker's numeric stat added to yieldBase for the original hand-pick count."
+        },
+        "yieldBase": {
+          "type": "number"
+        },
+        "seedCount": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Game-authored selectors for a home ground's overview, claim eligibility, and work targets; the society module names no game's maps or types."
     },
     "ProtectionDef": {
       "type": "object",
@@ -1848,6 +1949,10 @@
         "arrest": {
           "type": "boolean",
           "description": "A guard's, offered only when the guard has stopped the speaker (an arrest), and then only these."
+        },
+        "group": {
+          "type": "string",
+          "description": "The row the panel lays it in with its kin (small talk, dealings, company, amends…): verbs of one group sit together, in the order given."
         },
         "choices": {
           "type": "array",
@@ -2419,6 +2524,35 @@
         "nightFact": {
           "type": "string",
           "description": "The story's fact that lengthens the night by so many hours (a number; the Ford's `night.shift`): none, the night keeps its length."
+        },
+        "restyle": {
+          "type": "object",
+          "properties": {
+            "coin": {
+              "type": "number"
+            },
+            "needs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "count": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "type",
+                  "count"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false,
+          "description": "What a change of one's look costs at the dresser's (docs/looks.md §5): coin (the world's coin), and things carried."
         },
         "gearLevels": {
           "type": "object",

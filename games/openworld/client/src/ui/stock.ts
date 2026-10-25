@@ -48,8 +48,8 @@ export function stockView<U extends Widening>(upgrades: U[], facts: Record<strin
   const rows = upgrades.map((u): WideningView<U> => {
     const needs = u.needs.map((n) => ({ ...n, stock: stock(n.type), lack: Math.max(0, n.count - stock(n.type)) }))
     const done = num(facts[u.fact]) >= u.value
-    // a ring of the land opens only after the one before it; the other tracks once the land reaches theirs
-    const open = size >= u.land && (u.track !== 'land' || size === u.value - 1)
+    // a ring of the land opens only after the one before it, as a building's later level after the one before; the rest once the land reaches theirs
+    const open = size >= u.land && (u.track === 'land' ? size === u.value - 1 : u.value <= 1 || num(facts[u.fact]) === u.value - 1)
     const state: WideningState = done ? 'done' : open ? 'open' : 'locked'
     return { u, state, buildable: state === 'open' && needs.every((n) => n.lack === 0), needs }
   })

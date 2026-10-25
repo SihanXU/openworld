@@ -235,7 +235,7 @@ export class Conduct {
     if (!e.npc || e.place.on !== 'tile' || e.ai || !w.hasStatus({ e: e.id }, 'hungry') || eng.asleep(e)) return false
     const rt = this.runtime(e)
     if ((rt.meal ?? -1) > w.state.tick) return false
-    const edible = (x: Entity | undefined) => !!x && w.hasTag(x, 'edible') && !x.frozenBy
+    const edible = (x: Entity | undefined) => !!x && !e.residentWork?.cargoIds.includes(x.id) && w.hasTag(x, 'edible') && !x.frozenBy
     // what they carry: eaten
     const food = [...(e.held ? [e.held] : []), ...(e.contents ?? [])].map((id) => w.get(id)).find(edible)
     if (food) {

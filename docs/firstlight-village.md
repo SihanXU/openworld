@@ -32,6 +32,14 @@ the arrival and crossing scenes no longer ask an off-map peddler to speak.
   in the chapel (Ilse's).
 - Two homes in a south lane off the forest trail: the house in the lane (12,31) and
   the little cabin (30,31).
+- Odette the dresser (2026-10-24, content `dresser.ts`): her standing mirror (26,16) at the
+  square's south-east, east of the evening fire, where she works 9–18 (`dresser.stand` (26,17)); asked, or a hand on
+  the mirror, opens the restyle panel (docs/looks.md §5) for ten Dawnmarks and three
+  wildflowers; she sleeps under the market shelter as the travellers do. The small things of the ground
+  (flowers, tufts, ferns, reeds, leaves, pebbles, moss, soot) are picked up by hand since the same day and
+  are gone (content `life.ts` forage/pick); flowers, tufts, leaves and pebbles come back slowly on any outdoor
+  map (content `ontology.ts` LITTER: one every two hours, three at most), and the hand-made maps strew about a
+  quarter of what they did (`builder.ts` LITTER_SCALE).
 - Every house has a door and a furnished room behind it (an interior map each:
   `villageInteriors`), the cottages included; older saves get the town by
   `content/src/migrateSmithy.ts`.

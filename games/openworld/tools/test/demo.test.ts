@@ -1451,11 +1451,12 @@ req('W7', 'a wilderness is made from the world\'s seed and its cell: entered, le
   expect(loaded.engine.world.get('w7.stone')).toBeDefined()
 })
 
-req('W9', 'a recipe derived from what a thing is made of, made at the village workbench: it takes its main ingredient\'s material, and a quality by its maker\'s level; away from a workbench it is not made', ['fixture/craft/workbench'], () => {
+req('W9', 'a recipe derived from what a thing is made of, made anywhere from the bag once the Held Ground\'s workshop stands (never beside a bench): it takes its main ingredient\'s material, and a quality by its maker\'s level; a hand on the village workbench opens its panel, where what the world learns to make at one is made', ['fixture/craft/workbench'], () => {
   const f = fresh()
   const c = f.eng.controls
+  const home = W(f).posOf(W(f).player)!
   const recipe = RECIPE_BY_ID['item/armor/shield']
-  expect(recipe).toMatchObject({ station: 'workbench', needs: [{ type: 'item/material/plank', count: 3 }, { type: 'item/material/stick', count: 1 }] })
+  expect(recipe).toMatchObject({ station: 'hands', unlockedBy: { fact: 'haven.build.workshop' }, needs: [{ type: 'item/material/plank', count: 3 }, { type: 'item/material/stick', count: 1 }] })
   const supply = () =>
     author(f, () => {
       for (let i = 0; i < 3; i++) W(f).create('item/material/plank', { on: 'inside', holder: 'player' })
@@ -1464,13 +1465,19 @@ req('W9', 'a recipe derived from what a thing is made of, made at the village wo
   const shields = () => (W(f).player.contents ?? []).map((id) => W(f).get(id)!).filter((e) => e.type === 'item/armor/shield')
   supply()
   c.sync()
-  // on the Ford, no workbench at hand: nothing is made, nothing used up
-  c.craft(recipe)
+  // beside the village's bench in the woodcutter's yard, the workshop not yet built: nothing is made, nothing used up
+  const bench = W(f).get('village.workbench')!
+  const at = bench.place as { x: number; y: number }
+  stand(f, at.x, at.y + 1, 'up', FIRSTLIGHT.map)
+  expect(c.craft(recipe)).toBe(false)
   expect(shields()).toHaveLength(0)
   expect(c.count('item/material/plank')).toBe(3)
-  // beside the village's, in the woodcutter's yard
-  const bench = W(f).get('village.workbench')!.place as { x: number; y: number }
-  stand(f, bench.x, bench.y + 1, 'up', FIRSTLIGHT.map)
+  // the bench itself: a hand on it opens its panel (the world's learned recipes for one are made there)
+  f.eng.act('hands', 'player', { e: bench.id })
+  expect(W(f).fx).toContainEqual(expect.objectContaining({ t: 'panel', panel: 'station:workbench', by: bench.id }))
+  // the workshop built: made on the Ford, away from any bench
+  author(f, () => W(f).setFact('haven.build.workshop', 1))
+  stand(f, home.x, home.y, 'up', home.map)
   expect(c.craft(recipe)).toBe(true)
   const plain = shields()[0]
   expect(plain.name).toEqual({ en: 'Wooden Shield', zh: '木盾牌' })
@@ -2186,14 +2193,20 @@ req('S3', 'each profession\'s forged gear covers the whole body (head, ear, neck
     const setOf = (slot: string) => RECIPE_BY_ID[`set/${set.id}/${slot}`].make!.props?.set
     expect(['head', 'body', 'feet', 'neck', 'ring', 'weapon', 'arm'].map(setOf)).toEqual([set.id, set.id, set.id, `${set.id}_trinkets`, `${set.id}_trinkets`, undefined, undefined])
   }
-  // cloth: grass fibre woven at Cass's loom by the square
+  // cloth: grass fibre, woven anywhere once the Held Ground's weaving shed stands (not beside Cass's loom before it; a hand
+  // on her loom opens its panel, where what the world learns to weave is made)
   const loom = w.posOf(w.get('village.loom')!)!
   f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow', x: loom.x, y: loom.y + 1 }))
   carryN(f, 'item/material/grass', 4)
+  expect(RECIPE_BY_ID['weave/cloth'].unlockedBy?.fact).toBe('haven.build.loom')
+  expect(f.eng.controls.craft(RECIPE_BY_ID['weave/cloth'])).toBe(false)
+  f.eng.act('hands', 'player', { e: 'village.loom' })
+  expect(w.fx).toContainEqual(expect.objectContaining({ t: 'panel', panel: 'station:loom', by: 'village.loom' }))
+  f.eng.author(() => w.setFact('haven.build.loom', 1))
   expect(f.eng.controls.craft(RECIPE_BY_ID['weave/cloth'])).toBe(true)
   expect(f.eng.controls.count('item/material/cloth')).toBe(1)
-  // forged at the smithy's anvil: Shadowfang's jerkin, of its leather, named for its set
-  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: 5, y: 4 }))
+  // forged at the smithy's anvil, the Held Ground's smithy hardened (haven.build.smithy 2): Shadowfang's jerkin, of its leather, named for its set
+  f.eng.author(() => (f.eng.teleport(w.player, { map: 'meadow.smithy', x: 5, y: 4 }), w.setFact('haven.build.smithy', 2)))
   carryN(f, 'item/tool/smith_hammer', 1)
   const forge = (slot: string) => {
     const r = RECIPE_BY_ID[`set/shadowfang/${slot}`]
@@ -2874,6 +2887,54 @@ req('T1', 'Firstlight\'s houses are walked into: every house on the village map 
   expect(w.posOf(w.player)!.map).toBe('meadow.store')
 })
 
+req('T9', 'the dresser (docs/looks.md §5): Odette works on the square beside her standing mirror by day; asked to change one\'s look (the talk verb restyle), or a hand on the mirror, opens the restyle panel; the small things of the ground are picked up by hand — wildflowers into the bag, the patch gone, new ones appearing slowly on any outdoor map — and three with grass tie a bouquet from the bag', ['npc.odette', 'fixture/furniture/mirror', 'fixture/nature/flowers'], () => {
+  const f = fresh()
+  const w = W(f)
+  setHour(f, 2, 11)
+  const mirror = w.posOf(w.get('village.mirror')!)!
+  f.eng.author(() => f.eng.teleport(w.player, { map: FIRSTLIGHT.map, x: mirror.x - 1, y: mirror.y + 1 }))
+  ticks(f, 900)
+  // beside her mirror (her stand is the cell below it; the square is busy, so a step off it is still beside it)
+  const odette = w.posOf(w.get('npc.odette')!)!
+  expect([odette.map, Math.max(Math.abs(odette.x - mirror.x), Math.abs(odette.y - (mirror.y + 1))) <= 1]).toEqual([FIRSTLIGHT.map, true])
+  // asked: her panel (the verb offered: she is tagged dresser)
+  expect(socialOf(f.eng).verbs(w.get('npc.odette')!, w.player).map((v) => v.id)).toContain('restyle')
+  // (the square is busy: one stands on whichever cell beside her, or beside the mirror, is free)
+  const besideFree = (x: number, y: number) => [[0, 1], [-1, 0], [1, 0], [0, -1]].map(([dx, dy]) => ({ x: x + dx, y: y + dy })).find((p) => w.walkable(FIRSTLIGHT.map, p.x, p.y) && !w.placedAt(FIRSTLIGHT.map, p.x, p.y).some((e) => e.type.startsWith('actor')))!
+  const byHer = besideFree(odette.x, odette.y)
+  f.eng.author(() => f.eng.teleport(w.player, { map: FIRSTLIGHT.map, x: byHer.x, y: byHer.y }))
+  w.fx.length = 0
+  f.eng.controls.talk('npc.odette', 'restyle')
+  ticks(f, 2)
+  expect(w.fx.some((x) => x.t === 'panel' && x.panel === 'restyle' && x.by === 'npc.odette')).toBe(true)
+  // a hand on the mirror: the same panel
+  const byMirror = besideFree(mirror.x, mirror.y)
+  f.eng.author(() => f.eng.teleport(w.player, { map: FIRSTLIGHT.map, x: byMirror.x, y: byMirror.y }))
+  w.fx.length = 0
+  f.eng.act('hands', 'player', { e: 'village.mirror' }, { instrument: null })
+  ticks(f, 2)
+  expect(w.fx.some((x) => x.t === 'panel' && x.panel === 'restyle' && x.by === 'village.mirror')).toBe(true)
+  // the flowers of the field, picked: a wildflower in the bag, the patch gone
+  // (a patch in the village, where no lesson of the Ford's narrows what one may make)
+  const flowers = Object.values(w.state.entities).find((e) => e.type === 'fixture/nature/flowers' && e.place.on === 'tile' && e.place.map === FIRSTLIGHT.map) ?? ofType(f, 'fixture/nature/flowers')!
+  const at = w.posOf(flowers)!
+  f.eng.author(() => f.eng.teleport(w.player, { map: at.map, x: at.x, y: at.y + 1 }))
+  const before = f.eng.controls.count('item/material/flower')
+  f.eng.act('hands', 'player', { e: flowers.id }, { instrument: null })
+  ticks(f, 2)
+  expect(f.eng.controls.count('item/material/flower')).toBe(before + 1)
+  expect(w.get(flowers.id)).toBeUndefined()
+  // and the ground gives new ones, slowly, on any outdoor map (the world's appearances)
+  expect(w.onto.data.appear?.some((a) => a.types['fixture/nature/flowers'] && a.where?.light === 'outdoor' && a.every >= 1200)).toBe(true)
+  // a bouquet, tied from the bag: three flowers and a handful of grass
+  expect(RECIPE_BY_ID['item/misc/bouquet']).toMatchObject({ station: 'hands', needs: [{ type: 'item/material/flower', count: 3 }, { type: 'item/material/grass', count: 1 }] })
+  carryN(f, 'item/material/flower', 3)
+  carryN(f, 'item/material/grass', 1)
+  f.eng.controls.sync()
+  expect(f.eng.controls.craft(RECIPE_BY_ID['item/misc/bouquet'])).toBe(true)
+  expect(f.eng.controls.count('item/misc/bouquet')).toBe(1)
+})
+
 req('T2', 'the general store: Greta keeps it by day, behind her counter; a hand on the counter opens its shelves — supplies, provisions, and what she buys — and Dawnmarks buy a torch there, and a herb sells', ['npc.greta', 'fixture/furniture/counter/store'], () => {
   const f = fresh()
   const w = W(f)
@@ -3216,13 +3277,19 @@ req('R2', 'a theft its owner saw and could not stop (docs/quests.md §3): Cass s
     cass.facing = 'right'
     w.place(vigo, { on: 'tile', map: 'meadow', x: 19, y: 15 })
     vigo.facing = 'left'
+    // both held where they stand for the moment: a wander or her walk to the loom on the very tick would take the theft out of her sight
+    for (const e of [cass, vigo]) e.tags = [...(e.tags ?? []), 'stationary']
     socialOf(f.eng).meet(cass, vigo.id)
     return r
   })
-  // he takes it from her, an act as anyone's, in front of her
+  // he takes it from her, an act as anyone's, in front of her — and she notices: the sighting is a roll (social.ts
+  // notices), so the dice are held low while it is made, that the requirement does not hang on the seed
+  const rand = w.rand
+  w.rand = () => 0.01
   f.eng.act('take', vigo.id, { e: ring.id }, { instrument: null, params: { into: 'contents' } })
   expect(holderOf(f, ring.id)).toBe(vigo.id)
   ticks(f, 3)
+  w.rand = rand
   const offer = q.offers(cass.id, w.player).find((o) => o.ref.startsWith('quest.recover'))!
   expect(offer).toBeDefined()
   faceNpc(f, cass.id)
@@ -3896,7 +3963,7 @@ req('H4', 'the Held Ground\'s steward: his talk has "The Held Ground…", which 
   expect(w.get('haven.heart')!.type).toBe('fixture/sacred/sword')
 })
 
-req('H5', 'the Held Ground grows three ways: new grounds of their own (a quarry, a timberland, a lake, hot springs — each from a land it needs, then gone to from the panel, a way back at its edge) and buildings (a plot staked at the heart becomes a workshop, a hearth, a storehouse, a loom, a cauldron)', ['fixture/build/plot/workshop', 'fixture/build/plot/kitchen', 'fixture/build/plot/storehouse', 'fixture/build/plot/loom', 'fixture/build/plot/apothecary', 'fixture/nature/reeds', 'fixture/nature/vein/coal', 'fixture/nature/vein/gold', 'fixture/nature/logpile', 'fixture/nature/mushroom_ring'], () => {
+req('H5', 'the Held Ground grows three ways: new grounds of their own (a quarry, a timberland, a lake, hot springs — each from a land it needs, then gone to from the panel, a way back at its edge) and buildings (a plot staked at the heart becomes a workshop, a hearth, a storehouse, a loom, a cauldron)', ['fixture/build/plot/workshop', 'fixture/build/plot/kitchen', 'fixture/build/plot/storehouse', 'fixture/build/plot/loom', 'fixture/build/plot/apothecary', 'fixture/build/plot/arcane', 'fixture/nature/reeds', 'fixture/nature/vein/coal', 'fixture/nature/vein/gold', 'fixture/nature/logpile', 'fixture/nature/mushroom_ring'], () => {
   const f = fresh()
   const w = W(f)
   const c = f.eng.controls

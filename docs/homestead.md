@@ -80,8 +80,8 @@ illustrated crops' sprout and young plant of their habit (leafy, sprawling, clim
 
 - **The fish pond** lies north of the planted sword; any water fishes.
 - **A rod** is made at hand from two sticks and two grass (the crafting panel), or bought.
-- **Bait / 鱼饵**: while holding a fishing rod, right-click open ground or yourself to choose a bait stack and confirm it. One bait is consumed and the number of casts shown for it is added (`home/bait`, `home/rod`). While casts remain, only bait with the same name and quality can be added; spend the current bait before changing it. The original inventory route still works: hold bait and right-click the rod in the bag, then choose **Apply bait (+N casts) / 装上鱼饵（+N次）**. The rod's icon shows its loaded bait, and its tooltip shows the remaining casts, including zero.
-- **鱼饵**：手持鱼竿时右键空地或自身，选择一种鱼饵并确认；确认后消耗一份，并增加该鱼饵标注的抛竿次数（`home/bait`、`home/rod`）。鱼竿还有抛竿次数时，只能追加同名、同品质的鱼饵；用完后才能换饵。原背包操作仍可使用：手持鱼饵，在背包里右键鱼竿并选择**装上鱼饵（+N次）**。鱼竿图标会显示已挂鱼饵，提示框会显示剩余次数，耗尽时显示 0。
+- **Bait / 鱼饵**: while holding a fishing rod, right-click yourself to choose a bait stack and confirm it. One bait is consumed and the number of casts shown for it is added (`home/bait`, `home/rod`). While casts remain, only bait with the same name and quality can be added; spend the current bait before changing it. The original inventory route still works: hold bait and right-click the rod in the bag, then choose **Apply bait (+N casts) / 装上鱼饵（+N次）**. The rod's icon shows its loaded bait, and its tooltip shows the remaining casts, including zero.
+- **鱼饵**：手持鱼竿时右键自己，选择一种鱼饵并确认；确认后消耗一份，并增加该鱼饵标注的抛竿次数（`home/bait`、`home/rod`）。鱼竿还有抛竿次数时，只能追加同名、同品质的鱼饵；用完后才能换饵。原背包操作仍可使用：手持鱼饵，在背包里右键鱼竿并选择**装上鱼饵（+N次）**。鱼竿图标会显示已挂鱼饵，提示框会显示剩余次数，耗尽时显示 0。
 - **Casting**: hold the rod and left-click water (it reaches three cells). A baited hook bites 70% of the time (a
   bite or not, a baited cast is spent), a bare one 35%; the water is stirred after, and nothing bites there until
   it settles.
@@ -130,7 +130,17 @@ far the land goes and what was carried.
 - **Buildings** (`haven.build.<id>`): a plot staked out at the heart for each (`fixture/build/plot/<id>`) looks
   every few seconds whether it is built (`haven/plot-<id>`) and becomes it: the workshop (a workbench), the
   kitchen hearth (a campfire, lit), the storehouse (`fixture/container/storehouse`, forty places, open), the
-  weaving shed (a loom), the apothecary (a cauldron), and three residents' tents (2026-10-12).
+  weaving shed (a loom), the apothecary (a cauldron), and three residents' tents (2026-10-12). A building
+  **unlocks recipes** (2026-10-21, `HavenUpgrade.recipes` → `Recipe.unlockedBy`, the fact it sets): the
+  workshop the club, the shield and the bow (and an Apiarist's bee box), the weaving shed cloth and a
+  Leatherworker's gear; unlocked, they are made anywhere from the bag — no workbench or loom is stood beside
+  (world-model.md §6.4). A building has **levels** (the same fact at 2, 3…; `HavenUpgrade.value`, each after the one
+  before): Workshop II (candles, lanterns, a Forge Builder's forge, an Apiarist's bee box); the smithy's two upgrades,
+  which stake no plot — a bellows (`haven.build.smithy` 1: a skilled smith's heavy arms, plate, tools and jewellery at
+  any anvil) and a hardened anvil (2: the professions' sets); and the **arcane workshop** (`haven.build.arcane`, a plot
+  east-south of the sword that becomes `fixture/craft/arcane`, a station opened by a hand: content `arcane.ts` — wands,
+  staves (a mage's), healing and fireproof draughts, spell books of the mage's spells; raised again, staves of fire and
+  frost and the deeper spells' books).
 - **The residents** (content `social.ts` `SOCIAL.residence`; the society module's `moveIn`): one held in full
   regard who is not bound to the main story (tag `storybound`) may be asked, once Alberic has fallen, to come
   and live in the Held Ground. A bed by the camp is there from the first (`home.camp`); each residents' tent
@@ -138,3 +148,36 @@ far the land goes and what was carried.
   Asked with a bed free, they go at once and keep the ground's days from then on (`NpcData.resident`: asleep
   at their bed 21–7, about it 7–21); with none free they say so. Older saves get the tents' plots
   (`migratePlots`, with the Held Ground's other plots and Cass's loom).
+
+### Resident work orders (2026-10-22)
+
+On the steward panel's **Residents** page, assign at most one job to each actual resident who is an adult, has an
+open bed here, and is not protected or bound to another duty. A harvest order names a real, available warehouse
+and the exact crop cells the resident may work; no cell is selected automatically. A new crop planted in an
+authorized cell later is included, while crops on other cells remain untouched.
+
+The first job is a **hand harvester**. It uses the existing hand-pick rule: one crop plus the resident's own `pick`
+bonus, and one returned seed. It does not use sickles, sow, water, fertilize, milk, or sell. Its output goes into the
+resident's physical cargo and then the selected physical warehouse; it does not spend the Held Ground's upgrade
+stock or take anything from a private bag. Full storage stops the next harvest, including at the 999-item stack
+limit.
+
+The second job is a **feeder**. The player explicitly selects a real available warehouse and owned animals; the
+list starts empty, stays tied to those animal IDs, and does not add newborns. An owned animal may remain selected
+while already fed, but the resident fetches exactly one real feed item only when that animal needs it. The resident
+uses the same feeding rule as a person, so eggs and breeding keep their usual effects; the job never milks or sells
+anything. The manual Stockman action keeps its normal nearby herd behavior. A feed already carried for an animal
+that dies, leaves the ground, or gets fed by someone else is returned as that same item when it is safe to do so;
+if the selected warehouse cannot take it, it remains tracked for recovery. Existing livestock without provable
+ownership cannot be assigned, and animals owned by another person are unavailable.
+
+Older saves may contain livestock with no recorded owner. While beside the steward, the player can claim one eligible animal at a time through the Residents page after confirming that animal. Claiming checks the animal again on its own event, does not infer ownership from its home or birth location, and does not assign a job. Once claimed, the player can explicitly select it for feeding. Other unowned animals remain unchanged until individually claimed.
+
+Work advances only while the player is on the Held Ground and the clock is running. The resident keeps the current
+day schedule and rests from 21:00 to 07:00; leaving the map, a paused order, an ineligible worker, a blocked route,
+or an unavailable warehouse pauses the job with a status message. Close the steward panel to let time pass.
+
+Task cargo remains a physical, saved item. If the warehouse disappears or the job is revoked while cargo is in
+transit, use **Put task cargo down for recovery**. The resident (or retained body) leaves only tracked job cargo at
+their feet; the panel reports the map and coordinates. Pick it up from that ground tile. Private items are left alone,
+and cargo already moved out of the resident's custody is never moved remotely.

@@ -114,11 +114,66 @@ export interface KnownActive {
 export interface TalkOption {
   id: string
   label: Text
+  /** The panel's row it sits in with its kin (TalkVerb.group; a quest's is `quest`). */
+  group?: string
   choices?: { id: string; label: Text }[]
 }
 
 /** How a minor monster's body winds up a skill (Frame.telegraphs). */
 export type WindupPose = 'leap' | 'dash' | 'slam' | 'cast' | 'call'
+
+/** The part of a configured home ground that its steward's panel can read. */
+export interface ResidenceView {
+  map: string
+  /** The simulation is currently running this map. Work counts are present only while true. */
+  active: boolean
+  /** The player is physically on this map. */
+  onMap: boolean
+  residents: ResidenceResidentView[]
+  /** Dead workers retain the same order on their body so the steward can expose task cargo for recovery. */
+  recoveries?: { id: Id; name: Text; x: number; y: number; cargo: ItemInfo[]; status: 'paused' | 'revoked' | 'recovery'; blockedReason?: Text }[]
+  beds?: { total: number; occupied: number; empty: number; slots: { anchor: string; resident?: Id }[] }
+  work?: ResidenceWorkView
+}
+
+export interface ResidenceResidentView {
+  id: Id
+  name: Text
+  slot: string
+  eligible?: boolean
+  eligibilityReason?: Text
+  order?: {
+    kind: 'harvest' | 'feed'
+    status: 'working' | 'paused' | 'revoked' | 'recovery'
+    warehouse: Id
+    cells: { x: number; y: number }[]
+    animalIds: Id[]
+    pendingAnimalId?: Id
+    cargo: ItemInfo[]
+    blockedReason?: Text
+  }
+}
+
+/** A whole-map view, supplied by the optional society module when the game configures residence work. */
+export interface ResidenceWorkView {
+  crops?: { total?: number; ripe?: number; needsWater?: number; targets?: { id: Id; x: number; y: number; name: Text; ripe: boolean }[] }
+  livestock?: { total?: number; unfed?: number; milkable?: number; animals?: { id: Id; name: Text; type: string; x: number; y: number; fed: boolean; owner: 'mine' | 'ours' | 'nobody' | 'another'; selectable: boolean; claimable: boolean }[] }
+  groundEggs?: number
+  warehouses?: ResidenceWarehouseView[]
+}
+
+export interface ResidenceWarehouseView {
+  id: Id
+  type: string
+  name: Text
+  x: number
+  y: number
+  selectable: boolean
+  unavailableReason?: Text
+  capacity?: number
+  usedSlots: number
+  contents: (ItemInfo & { count: number })[]
+}
 
 export interface Frame {
   tick: number
@@ -131,6 +186,8 @@ export interface Frame {
   map: string
   /** A fishing line's fight, when the game's fishing module has an active session. */
   fishing?: FishingView
+  /** The configured home ground's resident beds and, while on its active map, its live work overview. */
+  residence?: ResidenceView
   player: {
     id: Id
     x: number
@@ -149,8 +206,10 @@ export interface Frame {
     props: Record<string, PropValue>
     /** The skills learned (the skill tree). */
     skills: string[]
-    /** The stations within reach (a workbench beside one): which station recipes can be made now. */
+    /** The stations within reach (a shop's stall beside one): which station recipes can be made here without opening one. */
     stations: string[]
+    /** One's own look (docs/looks.md), before what is worn goes over it: what the dresser's panel edits. */
+    look?: Look
     held?: ItemInfo
     /** The skill bar's six slots (Shift+1–6): the active skill in each, ticks of its cooldown left and in all. */
     skillbar: ({ id: string; left: number; cooldown: number; /** one has it now (what lent it is still worn) */ usable: boolean } | null)[]
@@ -588,6 +647,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
       ...(pos.z && { z: pos.z }),
       ...((room) => room && { room })(roomCells(eng, pos)),
       facing: p.facing ?? 'down',
+      ...(typeof p.look === 'object' && { look: p.look }),
       hp: w.num(p, 'hp'),
       maxHp: w.num(p, 'maxHp', 1),
       // hunger: a module's (needs), none without one

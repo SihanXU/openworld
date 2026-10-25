@@ -8,6 +8,7 @@
 // Nothing here asks whether one is the player (CLAUDE.md): anyone can steal, see, tell, be wanted.
 
 import { DIRS, TICKS_PER_DAY, evalCond, favouriteOf, isA, levelFactor, toldFavourite, weaponOf, type DeedDef, type DeedMemory, type Engine, type Entity, type GameEvent, type Id, type LawDef, type Look, type NpcMemory, type Pos, type PropValue, type Ref, type Roles, type SocialParams, type TalkOption, type TalkVerb, type Text } from '@openworld/engine'
+import { authorizedResidentWorkTake } from './resident-work.ts'
 
 /** The social numbers when the world gives none (the content gives its own). */
 export const SOCIAL_DEFAULTS: SocialParams = {
@@ -406,6 +407,7 @@ export class Social {
   /** The deed a seen event holds, as the world's deeds say: the worst (lowest rank) whose condition fits. */
   deedIn(seen: GameEvent): DeedDef | undefined {
     const w = this.w
+    if (authorizedResidentWorkTake(this.eng, seen)) return undefined
     const defs = [...(w.onto.data.deeds ?? [])].sort((a, b) => a.rank - b.rank)
     if (!defs.length) return undefined
     const roles: Roles = { host: w.view(seen.host), actor: w.view(seen.roles.actor), target: w.view(seen.roles.target), instrument: w.view(seen.roles.instrument) }
@@ -824,7 +826,7 @@ export class Social {
     try {
       // the quests' first (docs/quests.md §2.4): their offers to take on or turn down, the topics of those under way
       const quests: TalkOption[] = arrest ? [] : this.questVerbs(person, speaker)
-      return [...quests, ...(w.onto.data.talk ?? []).filter(fits).map((v) => ({ id: v.id, label: fill(v.label), ...(v.choices && { choices: v.choices.filter((c) => evalCond(c.when, roles, w)).map((c) => ({ id: c.id, label: fill(c.label) })) }) }))]
+      return [...quests, ...(w.onto.data.talk ?? []).filter(fits).map((v) => ({ id: v.id, label: fill(v.label), ...(v.group && { group: v.group }), ...(v.choices && { choices: v.choices.filter((c) => evalCond(c.when, roles, w)).map((c) => ({ id: c.id, label: fill(c.label) })) }) }))]
     } finally {
       // offering a verb rolls nothing
       w.state.rng = saved
@@ -837,10 +839,10 @@ export class Social {
     const name = (t: Text, l: 'en' | 'zh') => (typeof t === 'string' ? t : (l === 'zh' ? t.zh : undefined) ?? t.en)
     const out: TalkOption[] = []
     for (const o of q.offers(person.id, speaker)) {
-      out.push({ id: `quest:${o.ref}:accept`, label: { en: `Accept: ${name(o.title, 'en')}`, zh: `接受「${name(o.title, 'zh')}」` } })
-      out.push({ id: `quest:${o.ref}:decline`, label: { en: `Not now (${name(o.title, 'en')})`, zh: `拒绝「${name(o.title, 'zh')}」` } })
+      out.push({ id: `quest:${o.ref}:accept`, group: 'quest', label: { en: `Accept: ${name(o.title, 'en')}`, zh: `接受「${name(o.title, 'zh')}」` } })
+      out.push({ id: `quest:${o.ref}:decline`, group: 'quest', label: { en: `Not now (${name(o.title, 'en')})`, zh: `拒绝「${name(o.title, 'zh')}」` } })
     }
-    for (const t of q.topics(person.id, speaker)) out.push({ id: `quest:${t.ref}:${t.topic}`, label: t.label })
+    for (const t of q.topics(person.id, speaker)) out.push({ id: `quest:${t.ref}:${t.topic}`, group: 'quest', label: t.label })
     return out
   }
 
@@ -867,7 +869,7 @@ export class Social {
     const anchors = r && this.w.map(r.map)?.anchors
     if (!r || !anchors) return []
     const taken = new Map<string, Id>()
-    for (const e of Object.values(this.w.state.entities)) if (e.npc?.resident?.map === r.map) taken.set(e.npc.resident.slot, e.id)
+    for (const e of this.w.people()) if (e.npc?.resident?.map === r.map) taken.set(e.npc.resident.slot, e.id)
     return r.slots
       .filter((b) => anchors[b.anchor] && (!b.when || !!this.w.fact(b.when)))
       .map((b) => ({ anchor: b.anchor, at: anchors[b.anchor], day: anchors[`${b.anchor}.day`] ?? anchors[b.anchor], ...(taken.has(b.anchor) && { who: taken.get(b.anchor) }) }))

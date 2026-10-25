@@ -255,6 +255,12 @@
             },
             "still": {
               "type": "boolean"
+            },
+            "owner": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "ownerFrom": {
+              "$ref": "#/definitions/RoleName"
             }
           },
           "required": [
@@ -1775,6 +1781,32 @@
             "op"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "residentWork/order"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "residentWork/update"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
         }
       ]
     },
@@ -2510,6 +2542,19 @@
           },
           "required": [
             "propEqualsParam"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "residentWorkFeed": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "residentWorkFeed"
           ],
           "additionalProperties": false
         },

@@ -174,6 +174,35 @@
               "type": "string",
               "description": "The story's fact that lengthens the night by so many hours (a number; the Ford's `night.shift`): none, the night keeps its length."
             },
+            "restyle": {
+              "type": "object",
+              "properties": {
+                "coin": {
+                  "type": "number"
+                },
+                "needs": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string"
+                      },
+                      "count": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "count"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "description": "What a change of one's look costs at the dresser's (docs/looks.md §5): coin (the world's coin), and things carried."
+            },
             "gearLevels": {
               "type": "object",
               "properties": {
@@ -385,6 +414,10 @@
         "npc": {
           "$ref": "#/definitions/NpcData",
           "description": "NPCs: schedule + role."
+        },
+        "residentWork": {
+          "$ref": "#/definitions/ResidentWorkOrder",
+          "description": "A residence work order survives death when the actor becomes a body; its cargo stays physical."
         },
         "ai": {
           "$ref": "#/definitions/AiData",
@@ -1088,6 +1121,19 @@
           },
           "required": [
             "propEqualsParam"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "residentWorkFeed": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "residentWorkFeed"
           ],
           "additionalProperties": false
         },
@@ -1957,6 +2003,131 @@
       ],
       "additionalProperties": false,
       "description": "A look (docs/looks.md): what a body is drawn from — the one record its map sprite, its portrait and its look's tags and words all come from, so they cannot disagree. Parts and colours are the ontology's (`Ontology.looks`); their pictures are the client's."
+    },
+    "ResidentWorkOrder": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "harvest"
+            },
+            "cells": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "controller": {
+              "$ref": "#/definitions/Id"
+            },
+            "map": {
+              "type": "string"
+            },
+            "warehouse": {
+              "$ref": "#/definitions/Id"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "working",
+                "paused",
+                "revoked",
+                "recovery"
+              ]
+            },
+            "cargoIds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Id"
+              }
+            },
+            "blockedReason": {
+              "$ref": "#/definitions/Text"
+            }
+          },
+          "required": [
+            "cargoIds",
+            "cells",
+            "controller",
+            "kind",
+            "map",
+            "status",
+            "warehouse"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "feed"
+            },
+            "animalIds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Id"
+              }
+            },
+            "pendingAnimalId": {
+              "$ref": "#/definitions/Id"
+            },
+            "controller": {
+              "$ref": "#/definitions/Id"
+            },
+            "map": {
+              "type": "string"
+            },
+            "warehouse": {
+              "$ref": "#/definitions/Id"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "working",
+                "paused",
+                "revoked",
+                "recovery"
+              ]
+            },
+            "cargoIds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Id"
+              }
+            },
+            "blockedReason": {
+              "$ref": "#/definitions/Text"
+            }
+          },
+          "required": [
+            "animalIds",
+            "cargoIds",
+            "controller",
+            "kind",
+            "map",
+            "status",
+            "warehouse"
+          ]
+        }
+      ],
+      "description": "A saved, explicitly authorized residence task and its still-recoverable physical cargo."
     },
     "AiData": {
       "type": "object",

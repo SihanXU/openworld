@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>一个能学会从没见过之事的世界 · OpenWorld</title>
+    
+    <link rel="icon" href="data:,">
+    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@600&display=block" rel="stylesheet">
+    <link rel="stylesheet" href="../../base.css">
+    <style>
+        /* a news post: NEPA's blog (a context bar, numbered figures, code blocks) in the homepage's tokens; its figures the pieces' films, round and round */
+        .piece { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; background: #f7f8fb; }
+        .piece.night { background: #05070d; }
+        .piece iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+        .cover .piece { box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); }
+        body { counter-reset: figure; }
+        .post-hero { background: var(--bg-alt); padding: calc(var(--nav-h) + 4.5rem) 0 3.5rem; }
+        .post-hero .container { max-width: 980px; }
+        .post-hero h1 { font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.04em; color: var(--ink-strong); margin: 0.75rem 0 1rem; }
+        .post-hero .dek { font-size: 1.3rem; color: var(--muted); max-width: 46ch; line-height: 1.5; }
+        .byline { display: flex; flex-wrap: wrap; gap: 0.5rem 2.5rem; margin-top: 2rem; }
+        .byline .fact dd { font-size: 1rem; }
+        .cover { max-width: 980px; margin: -0.5rem auto 0; padding: 0 2rem; }
+        .cover .flip-front, .cover .flip-back { box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); }
+        .cover .code { font-size: 0.85rem; }
+
+        .content { display: flex; align-items: flex-start; max-width: 1200px; margin: 0 auto; padding: 4rem 2rem 2rem; }
+        .context-bar { position: sticky; top: calc(var(--nav-h) + 2.5rem); width: 240px; flex-shrink: 0; padding-right: 2.5rem; }
+        .context-bar .label { margin-bottom: 0.75rem; }
+        .context-bar ol { list-style: none; border-left: 1px solid var(--line); }
+        .context-bar a { display: flex; gap: 0.75rem; align-items: baseline; padding: 0.4rem 0 0.4rem 1rem; margin-left: -1px; border-left: 2px solid transparent; color: var(--muted); font-size: 0.95rem; transition: color 0.2s ease, border-color 0.2s ease; }
+        .context-bar .n { font-size: 0.8rem; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; }
+        .context-bar a:hover { color: var(--ink-strong); }
+        .context-bar a.active { color: var(--ink-strong); font-weight: 600; border-left-color: var(--accent); }
+        .context-bar a.active .n { color: var(--accent); }
+        .context-bar .lang { margin-top: 1.5rem; font-size: 0.9rem; }
+
+        article { flex: 1; min-width: 0; max-width: 760px; }
+        article section { margin-bottom: 3.5rem; }
+        article h2 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; color: var(--ink-strong); margin-bottom: 1rem; }
+        article h2 .n { color: var(--faint); font-weight: 600; font-size: 0.75em; margin-right: 0.6rem; font-variant-numeric: tabular-nums; }
+        article p { font-size: 1.15rem; line-height: 1.8; margin-bottom: 1.25rem; }
+        article p.lede { font-size: 1.3rem; line-height: 1.7; color: var(--ink-strong); }
+        article ul { margin: 0 0 1.25rem 1.25rem; font-size: 1.1rem; line-height: 1.75; }
+        article li { margin-bottom: 0.35rem; }
+        article code { font-family: var(--mono); font-size: 0.88em; background: var(--bg-alt); padding: 0.1em 0.35em; border-radius: 4px; }
+        .figure { margin: 2rem 0; }
+        .figure img { border-radius: var(--radius); width: 100%; }
+        .figure .caption { margin-top: 0.6rem; font-size: 0.9rem; color: var(--faint); display: flex; gap: 0.5rem; align-items: center; }
+        .figure .caption .ph { margin: 0; width: 55%; }
+        .figure .caption::before { counter-increment: figure; content: "Figure " counter(figure) ": "; font-weight: 500; color: var(--muted); }
+        .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; }
+        .block { background: var(--bg-alt); border-radius: var(--radius); padding: 1.1rem 1.3rem; overflow-x: auto; }
+        .block .code { font-size: 0.82rem; }
+        .note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 1rem 1.25rem; border-radius: 0 var(--radius) var(--radius) 0; margin: 1.75rem 0; font-size: 1.05rem; }
+        .note b { color: var(--ink-strong); }
+        .chart { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; }
+        .chart svg { width: 100%; height: auto; display: block; }
+
+        .cite { margin: 3rem 0 1rem; padding: 1.5rem 1.75rem; border-radius: var(--radius); background: var(--bg-alt); }
+        .cite-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .cite h3 { font-size: 1.5rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.25; }
+        .cite .copy { font: inherit; font-size: 0.9rem; font-weight: 600; color: var(--accent); background: #fff; border: 1px solid #d6e0f8; border-radius: 999px; padding: 0.3rem 0.9rem; cursor: pointer; }
+        .cite .copy:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .cite pre { margin: 0; overflow-x: auto; }
+        .cite code { font-family: var(--mono); font-size: 0.85rem; line-height: 1.65; color: var(--ink); background: none; padding: 0; }
+
+        @media (max-width: 1100px) { .context-bar { display: none; } article { margin: 0 auto; } }
+        @media (max-width: 760px) {
+            .post-hero { padding: calc(var(--nav-h) + 2.5rem) 0 2.5rem; }
+            .post-hero .dek { font-size: 1.1rem; }
+            .cover { padding: 0 1rem; }
+            .content { padding: 2.5rem 1rem 1rem; }
+            article h2 { font-size: 1.5rem; }
+            article p { font-size: 1.05rem; }
+            article p.lede { font-size: 1.15rem; }
+            .pair { grid-template-columns: minmax(0, 1fr); }
+            .cite { padding: 1.25rem; }
+        }
+        .nav-title .logo { font-family: 'Pixelify Sans', 'Segoe UI', sans-serif; font-weight: 600; letter-spacing: 0.02em; font-size: 1.45rem; }
+        .cover video { width: 100%; display: block; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius); box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); image-rendering: pixelated; }
+        .figure .caption::before { white-space: nowrap; }
+        .figure .caption::before { content: "图 " counter(figure) "："; }
+    </style>
+</head>
+<body>
+    <nav class="banner">
+        <div class="container">
+            <div class="nav-title"><a href="../../?lang=zh" style="color:inherit" class="logo">OpenWorld</a><small>新闻</small></div>
+            <div class="nav-links">
+                <a href="../../?lang=zh#news" class="hide-sm">新闻</a>
+                <a href="../../?lang=zh#join" class="cta">等候名单</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="post-hero">
+        <div class="container">
+            <p class="label">新闻 · 第 01 篇</p>
+            <h1>一个能学会从没见过之事的世界</h1>
+            <p class="dek">OpenWorld 是一个角色扮演世界，它的全部状态和规则都是代码。代码写不到的地方，由语言模型补写——只写一次，所有人共用。</p>
+            <dl class="byline">
+                <div class="fact"><dt>作者</dt><dd>OpenWorld 团队</dd></div>
+                <div class="fact"><dt>发布</dt><dd>2026 年 10 月</dd></div>
+                <div class="fact"><dt>阅读</dt><dd>约 8 分钟</dd></div>
+                <div class="fact"><dt>其他语言</dt><dd><a href="./">English</a></dd></div>
+            </dl>
+        </div>
+    </header>
+
+    <!-- the game itself, silent -->
+    <div class="cover">
+        <video muted loop playsinline autoplay preload="metadata" poster="../../media/hero.jpg"><source src="../../media/hero.mp4" type="video/mp4"></video>
+    </div>
+
+    <main class="content">
+        <aside class="context-bar">
+            <p class="label">本篇目录</p>
+            <ol data-spy>
+                <li><a href="#s1"><span class="n">01</span>两条路</a></li>
+                <li><a href="#s2"><span class="n">02</span>开放是稀疏的</a></li>
+                <li><a href="#s3"><span class="n">03</span>规则属于物</a></li>
+                <li><a href="#s4"><span class="n">04</span>一个事件，许多后果</a></li>
+                <li><a href="#s5"><span class="n">05</span>规则写到尽头</a></li>
+                <li><a href="#s6"><span class="n">06</span>接下来</a></li>
+            </ol>
+            <p class="lang"><a href="./">English ↗</a></p>
+        </aside>
+
+        <article>
+            <section id="s0">
+                <p class="lede">让一个神经世界模型往篝火上泼水，它会给你画出一团蒸汽。走开一分钟再回来，那堆篝火可能已经不在了。让一个手工制作的游戏做同样的事，火每次都会熄灭，对每个玩家都一样，多少年都不变——除非没人想到要写"火会熄灭"，那样的话，什么也不会发生。</p>
+                <p>OpenWorld 想同时要这两样：一个像游戏一样精确、持久的角色扮演世界，在玩家尝试没人预料到的事情时，依然能给出回应。它的状态和规则全都是代码；代码写不到的地方，由语言模型补写，只写一次，所有人共用。这第一篇讲它怎么做到，以及为什么我们认为它能做大。</p>
+            </section>
+            <section id="s1">
+                <h2><span class="n">01</span>通往开放世界的两条路</h2>
+                <p>我们说的开放世界，是指你可以尝试一件没人计划过的事，而世界会给出合理的回应。今天通往它的路有两条，各自成功在对方失败的地方。</p>
+                <p><b>学习得到的世界模型</b>——Genie、GameNGen、Oasis 以及它们的后继者——根据你的操作逐帧生成世界。它们接受任何输入，在这个意义上是开放的。但世界只存在于像素和很短的上下文里：GameNGen 大约记得三秒，Genie 记得十六帧，Genie 3 的视觉记忆大约一分钟。离开一个房间再回来，房间可能已经变了。而且每一帧都要让一个大网络算一遍，每个玩家都要算。</p>
+                <p><b>手工打造的游戏</b>正好相反。《矮人要塞》、上古卷轴系列、《旷野之息》的化学引擎：广阔、持久、严格一致，运行几乎不要成本。但它们是封闭的。设计者没有预料到的互动，根本不存在。</p>
+            </section>
+            <section id="s2">
+                <h2><span class="n">02</span>开放是稀疏的</h2>
+                <p>我们的出发点是：开放是<b>稀疏而有结构的</b>。玩家<i>可以</i>尝试任何事，但他们真正会尝试的事，落在一个长尾分布的<b>情境</b>集合里：某一类东西，在它规则的某一处，遇到某一种事件。一个情境一旦有了答案，之后它的每一次出现都只是普通的游戏过程。</p>
+                <p>所以只有在前沿——某个情境第一次被触及的时候——才需要开放。前沿之后的一切最好交给代码：精确、持久、可组合、可读，而且重新运行不花任何代价。这就引出一种分工：</p>
+                <ul><li><b>代码模拟一切</b>，每一帧都是：人们过着各自的日子，火沿着干草蔓延、被雨浇灭，故事按它的轨道推进。</li><li><b>模型只在前沿写代码</b>，也就是世界遇到规则留空的情境时。</li><li><b>它写下的东西会被保留</b>，放进所有玩家共享的规则库，每个情境只付一次代价。</li></ul>
+                <div class="figure">
+                    <div class="piece"><iframe src="../../explain/index.html?embed" title="工作原理" loading="lazy"></iframe></div>
+                    <div class="caption">工作原理：有规则时规则作答；没有规则时只问一次模型；之后所有人都直接运行这条规则。</div>
+                </div>
+            </section>
+            <section id="s3">
+                <h2><span class="n">03</span>规则属于物</h2>
+                <p>OpenWorld 里的每一次变化，都是某个<b>事件</b>的结果；而每个结果，都由这件事所发生在的那个东西的规则决定。篝火的规则说明雨落在篝火上会怎样；史莱姆的规则说明火碰到史莱姆会怎样。规则可以读取世界上的任何东西，但只能改写它自己的那个东西。要影响别的东西，它就向那个东西发出一个事件，由对方按自己的本性作答。</p>
+                <div class="figure">
+                    <div class="block"><div class="code" data-code="fire"></div></div>
+                    <div class="caption">基础规则库里的一条规则：火碰到任何东西时会怎样，对所有带同样标签和状态的种类只写一次。</div>
+                </div>
+                <p>规则针对的是<i>种类</i>——类型、标签和状态——从不针对某一个特定的桶或某一只特定的史莱姆，所以一条规则写一次，就对所有同类成立。事件本身来自一个小而封闭的集合：有意的行为、来自别的东西的冲击、接触、碰撞、时间流逝、越过阈值、被看见、被卡住、被损坏。</p>
+                <p>一条规则是一棵条件树，结果写在叶子上。有些叶子是刻意<b>留空</b>的：那是某个东西的本性还没被写下来的地方。一只碰到火的火焰史莱姆。一把用在绞盘上的斧头。一根递给狼的绳子。</p>
+                <div class="figure">
+                    <div class="block"><div class="code" data-code="coat"></div></div>
+                    <div class="caption">一片留空的叶子：基础规则库写了油对大多数东西的作用，其余的留着没写。</div>
+                </div>
+                <div class="note"><b>游戏从不依赖模型。</b>没有连接模型时，留空的叶子会退回它的默认结果——通常是什么也不发生——游戏照样能像任何游戏一样玩到结局。</div>
+            </section>
+            <section id="s4">
+                <h2><span class="n">04</span>一个事件，许多后果</h2>
+                <p>因为一切都是带着规则的东西，没有什么事是孤立发生的。闪电点燃一棵枯树。雨浇灭一堆篝火。有人趁着暴风雨偷东西，于是贴出了悬赏。每个事件都会波及它周围的人、地方和东西，而它们又会波及更多。</p>
+                <div class="figure">
+                    <div class="piece night"><iframe src="../../starmap/index.html?embed" title="蝴蝶效应" loading="lazy"></iframe></div>
+                    <div class="caption">渡口的一个暴风雨天，以及它所波及的一切：地方、人、各类东西、规则和任务。</div>
+                </div>
+                <p>这也是为什么模型的回答必须是一条规则，而不是一张图。规则能和已有的物理组合在一起：一旦摆渡人知道被困在雨里时该守在火边，火、雨和她身边的人都照旧运转。</p>
+            </section>
+            <section id="s5">
+                <h2><span class="n">05</span>当规则写到尽头</h2>
+                <p>当一个事件走到留空的叶子时，引擎只停住它所发生在的那个东西——世界的其余部分照常运行——并向 modder 发出一个请求：事件本身、它在规则树里走过的路径、参与者和它们的周边，以及一份写明规则能表达什么的规范。</p>
+                <p>modder 先在世界已有的东西里找答案：先是请求本身涉及的类型，再是已有种类的目录。只有都不合适时，它才会创造一个新种类，并配上一张它自己的小图。它的回答是一条针对那个<i>类型</i>的规则，放在那片留空的叶子上。</p>
+                <div class="figure">
+                    <div class="block"><div class="code" data-code="learned"></div></div>
+                    <div class="caption">一条学会的规则：倒油会怎样，对同类的每一种液体只写一次。</div>
+                </div>
+                <p>引擎把这个回答当作不可信的代码。它检查规则的格式、对本体的引用，以及它是否只改写自己的那个东西；在沙盒里重放触发它的事件；再让一个对抗性的审查者去和这条规则对着玩，寻找刷资源、卡死和失控的连锁反应。只有当沙盒能复现问题——有这条规则时出现、没有时不出现——这个发现才算数。全部通过后，规则才进入规则库。规则只能填补留空的叶子，所以模型永远改不了作者写好的东西。</p>
+                <p>一次回答大约十秒，花费大约五美分，而且只付一次：规则库是共享的，下一个遇到同样情境的玩家直接把它当普通代码运行。玩家可以按工作的种类，从关闭到高，自己选择要让模型做多少。</p>
+                <div class="figure">
+                    <img src="ai-zh.webp" alt="游戏选项里的 AI 设置：一个预设，以及物件互动、人与生物、世界自发、造物、预判各自从关到高的档位" loading="lazy" width="1290">
+                    <div class="caption">游戏选项里的 AI 设置：按每一类工作选择模型做多少，从关到高。每一档的等待时间都一样。</div>
+                </div>
+            </section>
+            <section id="s6">
+                <h2><span class="n">06</span>一千张地图，以及接下来</h2>
+                <p>因为每一帧的循环里完全没有模型，世界可以做到内容允许的任何大小。OpenWorld 有 1,024 张地图——59 张手工制作，965 张分布在圣城周围的六个地区——780 户人家里的 1,654 个人，各有自己的样子和一天的安排，还有 1,013 种、共 40,562 件物品。它在一个浏览器标签页里运行。离玩家很远的地图会沉睡，等你回来时再补上这段时间。</p>
+                <div class="figure">
+                    <div class="piece night"><iframe src="../../scale/index.html?embed" title="世界的规模" loading="lazy"></iframe></div>
+                    <div class="caption">世界的规模：一张地图，然后是一千张；一个人，然后是一群人；一只倒不完的箱子。</div>
+                </div>
+                <p>这个世界本身记得"极夜"：那时太阳消失了，直到圣者阿斯特拉承受了五种圣刑，太阳才重新升起。如今白昼又一天天变短，一位朝圣者带着身边的妖精，从山上走了下来。</p>
+                <p>还有第二条线索我们很快会写：modder 在它所工作的世界不断变大的同时改进自己——保留记忆、为自己编写技能、修订自己的工作流程。我们每两周发一篇：规则是怎么搭起来的，modder 怎么作答，玩家最先尝试什么，以及世界从他们身上学到了什么。</p>
+                <div class="cite" id="cite">
+                    <div class="cite-head"><h3>引用</h3><button class="copy" type="button" data-copied="已复制">复制</button></div>
+                    <pre><code>@misc{openworld2026,
+  title        = {OpenWorld: A Large Symbolic World},
+  author       = {{OpenWorld Team}},
+  year         = {2026},
+  howpublished = {\url{https://sihanxu.me/openworld/}}
+}</code></pre>
+                </div>
+            </section>
+        </article>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <span>Designed by <a href="https://sihanxu.me/">Si.X</a> · Art: Ninja Adventure (CC0) and our own</span>
+            <span>OpenWorld &copy; 2026</span>
+        </div>
+    </footer>
+    <script src="../../snippets.js"></script>
+    <script src="../../base.js"></script>
+</body>
+</html>

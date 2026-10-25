@@ -51,7 +51,8 @@
     "watch the road for pilgrims": "守望路上的朝圣者",
     "kneel by the road": "在路边跪拜",
     "sit by the pilgrims' fire": "坐在朝圣者的火堆旁",
-    "play by the well": "在井边玩耍"
+    "play by the well": "在井边玩耍",
+    "dress hair": "做头发"
   },
   "性格": {
     "blunt": "直来直去",
@@ -114,7 +115,8 @@
     "friend": "朋友",
     "old correspondent": "多年的通信者",
     "daughter": "女儿",
-    "mother": "母亲"
+    "mother": "母亲",
+    "buys her cloth": "从她那里买布"
   },
   "条件": {
     "fact:ch1.roost": "黄昏看过老橡树之后",
@@ -210,7 +212,8 @@
     "fact:ch1.writ": "找到替任文书之后",
     "fact:ch1.order_seal": "拿到骑士团印章之后",
     "fact:ch1.kneelfield": "到过跪石原之后",
-    "fact:ch1.shrines": "五座圣龛全部点亮之后"
+    "fact:ch1.shrines": "五座圣龛全部点亮之后",
+    "given:item/material/flower": "收到野花时"
   },
   "地图类型": {
     "wild": "野外",

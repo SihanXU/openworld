@@ -162,6 +162,10 @@
           "$ref": "#/definitions/Id",
           "description": "Actors: the held item."
         },
+        "residentWork": {
+          "$ref": "#/definitions/ResidentWorkOrder",
+          "description": "A residence work order survives death when the actor becomes a body; its cargo stays physical."
+        },
         "ai": {
           "$ref": "#/definitions/AiData",
           "description": "Creatures: combat behaviour."
@@ -697,6 +701,19 @@
           },
           "required": [
             "propEqualsParam"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "residentWorkFeed": {
+              "type": "string",
+              "const": "actor"
+            }
+          },
+          "required": [
+            "residentWorkFeed"
           ],
           "additionalProperties": false
         },
@@ -1721,6 +1738,10 @@
           "$ref": "#/definitions/NpcData",
           "description": "NPCs: schedule + role."
         },
+        "residentWork": {
+          "$ref": "#/definitions/ResidentWorkOrder",
+          "description": "A residence work order survives death when the actor becomes a body; its cargo stays physical."
+        },
         "ai": {
           "$ref": "#/definitions/AiData",
           "description": "Creatures: combat behaviour."
@@ -2022,6 +2043,131 @@
         "schedule"
       ],
       "additionalProperties": false
+    },
+    "ResidentWorkOrder": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "harvest"
+            },
+            "cells": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "controller": {
+              "$ref": "#/definitions/Id"
+            },
+            "map": {
+              "type": "string"
+            },
+            "warehouse": {
+              "$ref": "#/definitions/Id"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "working",
+                "paused",
+                "revoked",
+                "recovery"
+              ]
+            },
+            "cargoIds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Id"
+              }
+            },
+            "blockedReason": {
+              "$ref": "#/definitions/Text"
+            }
+          },
+          "required": [
+            "cargoIds",
+            "cells",
+            "controller",
+            "kind",
+            "map",
+            "status",
+            "warehouse"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "feed"
+            },
+            "animalIds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Id"
+              }
+            },
+            "pendingAnimalId": {
+              "$ref": "#/definitions/Id"
+            },
+            "controller": {
+              "$ref": "#/definitions/Id"
+            },
+            "map": {
+              "type": "string"
+            },
+            "warehouse": {
+              "$ref": "#/definitions/Id"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "working",
+                "paused",
+                "revoked",
+                "recovery"
+              ]
+            },
+            "cargoIds": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Id"
+              }
+            },
+            "blockedReason": {
+              "$ref": "#/definitions/Text"
+            }
+          },
+          "required": [
+            "animalIds",
+            "cargoIds",
+            "controller",
+            "kind",
+            "map",
+            "status",
+            "warehouse"
+          ]
+        }
+      ],
+      "description": "A saved, explicitly authorized residence task and its still-recoverable physical cargo."
     },
     "AiData": {
       "type": "object",

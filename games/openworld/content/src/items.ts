@@ -7,6 +7,7 @@ import { VEGETABLE_CROPS, cropHours } from './crops.ts'
 import { GEAR_LEVELS } from './gear.ts'
 import { regionalForms } from './goods.ts'
 import { AFFIX_TABLE, TROPHIES } from './trophies.ts'
+import { unlockedBy } from './haven.ts'
 
 export interface Form {
   id: string // full type path
@@ -24,6 +25,8 @@ export interface Form {
   /** What it is made of (its main ingredient first, whose material it takes), and where (world-model.md §6.4). */
   makeup?: TypeDef['makeup']
   station?: string
+  /** A building of the Held Ground its recipe waits for (haven.ts `unlockedBy`). */
+  unlockedBy?: TypeDef['unlockedBy']
   craftLevel?: number
   /** Tools its making needs carried, not used up; how many one making gives. */
   tools?: string[]
@@ -185,12 +188,12 @@ const BASE_FORMS: Form[] = [
   // the smith of Emberfall's blade, forged for the dragon (the main quest)
   W('item/weapon/blade/dragonsbane', 'Dragonsbane', '屠龙剑', 'item:sword', { tags: ['dragonsbane', 'quality:legendary'], props: stigmatic({ power: 4 }, { relic: 'dragonsbane' }), where: {} }),
   W('item/weapon/blade/scimitar', 'Scimitar', '弯刀', 'item:sword', { tags: ['profession:warrior'], props: { power: 4 }, materials: WEAPON_METALS, elemental: true, where: { dungeon: 1, smithy: 1 } }),
-  W('item/weapon/blunt/club', 'Club', '棍棒', 'item:club', { props: { power: 2 }, materials: ['wood', 'bone'], where: { wild: 1, npc: 1, dungeon: 1 }, makeup: [{ type: 'item/material/log', count: 1 }], station: 'workbench' }),
+  W('item/weapon/blunt/club', 'Club', '棍棒', 'item:club', { props: { power: 2 }, materials: ['wood', 'bone'], where: { wild: 1, npc: 1, dungeon: 1 }, makeup: [{ type: 'item/material/log', count: 1 }], station: 'hands', unlockedBy: unlockedBy('workshop') }),
   W('item/weapon/blunt/mace', 'Mace', '钉锤', 'item:mace', { props: { power: 4 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 2, dungeon: 2 } }),
   W('item/weapon/blunt/warhammer', 'Warhammer', '战锤', 'item:hammer', { props: { power: 5 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 1, dungeon: 1 } }),
   W('item/weapon/polearm/spear', 'Spear', '长矛', 'item:spear', { props: { power: 4, range: 2 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 2, dungeon: 1, npc: 0.5 } }),
   W('item/weapon/polearm/halberd', 'Halberd', '戟', 'item:spear', { props: { power: 5, range: 2 }, materials: WEAPON_METALS, elemental: true, where: { smithy: 1, dungeon: 1 } }),
-  W('item/weapon/ranged/bow', 'Bow', '弓', 'item:bow', { tags: ['profession:ranger'], props: { power: 3, range: 6 }, materials: ['wood', 'bone'], elemental: true, where: { smithy: 1, wild: 0.3, dungeon: 1 }, makeup: [{ type: 'item/material/stick', count: 2 }, { type: 'item/material/grass', count: 3 }], station: 'workbench', craftLevel: 2 }),
+  W('item/weapon/ranged/bow', 'Bow', '弓', 'item:bow', { tags: ['profession:ranger'], props: { power: 3, range: 6 }, materials: ['wood', 'bone'], elemental: true, where: { smithy: 1, wild: 0.3, dungeon: 1 }, makeup: [{ type: 'item/material/stick', count: 2 }, { type: 'item/material/grass', count: 3 }], station: 'hands', unlockedBy: unlockedBy('workshop'), craftLevel: 2 }),
   W('item/weapon/magic/wand', 'Wand', '魔杖', 'item:wand', { tags: ['arcane'], props: { power: 3, range: 5 }, materials: ['wood', 'crystal', 'bone', 'silver'], elemental: true, where: { library: 3, temple: 1, dungeon: 2, shop: 0.5 } }),
   W('item/weapon/magic/staff', 'Staff', '法杖', 'item:staff', { tags: ['arcane', 'profession:mage'], props: { power: 5, range: 4 }, materials: ['wood', 'crystal', 'bone', 'mithril'], elemental: true, where: { library: 1, dungeon: 1 } }),
   // the professions' legendary arms, two each (LEGENDARY_ARMS): kin of their family, never found
@@ -205,7 +208,7 @@ const BASE_FORMS: Form[] = [
   // armour and clothing: put on oneself, worn in a slot (world-model.md §6.8); armour adds its defence — and every
   // piece of clothing a little (2026-10-12: gloves, boots, hats, hoods and cloaks gave nothing but their rolled extras)
   W('item/armor/helmet', 'Helmet', '头盔', 'item:helmet', { tags: ['wearable'], props: { def: 1, slot: 'head', look: 'hat.helm' }, materials: ['iron', 'steel', 'bronze', 'leather', 'bone'], where: { smithy: 2, dungeon: 1 } }),
-  W('item/armor/shield', 'Shield', '盾牌', 'item:shield', { tags: ['wearable', 'profession:warrior'], props: { def: 2, slot: 'arm' }, materials: ['wood', 'iron', 'steel', 'bronze'], where: { smithy: 2, dungeon: 1 }, makeup: [{ type: 'item/material/plank', count: 3 }, { type: 'item/material/stick', count: 1 }], station: 'workbench' }),
+  W('item/armor/shield', 'Shield', '盾牌', 'item:shield', { tags: ['wearable', 'profession:warrior'], props: { def: 2, slot: 'arm' }, materials: ['wood', 'iron', 'steel', 'bronze'], where: { smithy: 2, dungeon: 1 }, makeup: [{ type: 'item/material/plank', count: 3 }, { type: 'item/material/stick', count: 1 }], station: 'hands', unlockedBy: unlockedBy('workshop') }),
   // the warrior's legendary shield: a block turns a blow aside (combat.ts)
   W('item/armor/shield/unfallen', 'The Unfallen Wall', '不陷之壁', 'item:shield', { tags: ['quality:legendary', 'legend', 'metal', 'conductive'], props: stigmatic({ def: 2 }, { relic: 'unfallen', slot: 'arm', block: 0.15 }), where: {} }),
   W('item/armor/breastplate', 'Breastplate', '胸甲', 'item:armor', { tags: ['wearable'], props: { def: 3, slot: 'body', look: 'armour.plate' }, materials: ['iron', 'steel', 'leather', 'mithril'], where: { smithy: 1, dungeon: 0.5 } }),
@@ -298,6 +301,9 @@ const BASE_FORMS: Form[] = [
   W('item/material/gold_ingot', 'Gold Ingot', '金锭', 'item:ore_gold', { tags: ['metal', 'smelted', 'precious', 'conductive'], props: { material: 'gold' }, where: { smithy: 0.3 } }),
   // steel: iron and much coal at a forge, for a smith who has learned it (life.ts); worked on an anvil like the others
   W('item/material/steel_bar', 'Steel Bar', '钢条', 'item:ingot', { tags: ['metal', 'smelted', 'conductive'], props: { material: 'steel' }, where: { smithy: 0.3 } }),
+  // the small things of the ground, picked up by hand (life.ts forage/pick): a wildflower — a gift, a bouquet's, a
+  // petal draught's, and the dresser's price (dresser.ts)
+  W('item/material/flower', 'Wildflower', '野花', 'item:flower', { tags: ['plant', 'flammable', 'fragrant'], where: { wild: 2, home: 0.3 } }),
   W('item/material/herb', 'Herb', '草药', 'item:herb', { tags: ['plant', 'flammable', 'medicinal', 'edible'], props: { heal: 3, food: 1 }, where: { wild: 3, temple: 1, farm: 0.5 } }),
   W('item/material/fireweed', 'Fireweed', '火焰草', 'item:herb_red', { tags: ['plant', 'flammable', 'fiery', 'reagent'], where: { wild: 1, library: 0.5 } }),
   W('item/material/frostcap', 'Frostcap', '霜盖菇', 'item:mushroom_blue', { tags: ['fungus', 'icy', 'reagent'], where: { wild: 0.8, dungeon: 0.5 } }),
@@ -326,6 +332,8 @@ const BASE_FORMS: Form[] = [
   W('item/misc/thornmark', 'Dawnmark', '晨辉币', 'item:thornmark', { tags: ['currency', 'metal', 'precious'], where: {} }),
   W('item/material/fertilizer', 'Fertilizer', '肥料', 'item:fertilizer', { tags: ['fertilizer'], where: { farm: 1 } }),
   W('item/material/feed', 'Animal Feed', '饲料', 'item:feed', { tags: ['feed', 'flammable', 'dry'], where: { farm: 1 } }),
+  // a bouquet, tied by hand from wildflowers: a gift anyone is glad of (gifts.ts)
+  W('item/misc/bouquet', 'Bouquet', '花束', 'item:bouquet', { tags: ['plant', 'flammable', 'fragrant'], where: { home: 0.3 }, makeup: [{ type: 'item/material/flower', count: 3 }, { type: 'item/material/grass', count: 1 }], station: 'hands' }),
   W('item/misc/bait', 'Bait', '鱼饵', 'item:bait', { tags: ['bait'], props: { casts: 5 }, where: { shop: 0.5 } }),
   W('item/misc/crate_hen', 'Crated Hen', '装箱的母鸡', 'item:crate', { tags: ['animal-crate', 'wooden'], props: { animalType: 'actor/creature/animal/chicken' }, where: {} }),
   W('item/misc/crate_calf', 'Crated Calf', '装箱的小牛', 'item:crate', { tags: ['animal-crate', 'wooden'], props: { animalType: 'actor/creature/animal/calf' }, where: {} }),
@@ -452,7 +460,7 @@ export function itemTypes(): TypeDef[] {
       tags: f.tags ?? [],
       // what it is worth (docs/npc-sandbox.md §2.10): its own, else its kind's; times its material's and quality's
       props: { value: baseValue(f.id), ...f.props },
-      ...(f.makeup && { makeup: f.makeup, station: f.station, craftLevel: f.craftLevel, tools: f.tools, yields: f.yields }),
+      ...(f.makeup && { makeup: f.makeup, station: f.station, unlockedBy: f.unlockedBy, craftLevel: f.craftLevel, tools: f.tools, yields: f.yields }),
     })),
   ]
 }

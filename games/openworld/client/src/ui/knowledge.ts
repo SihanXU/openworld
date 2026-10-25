@@ -72,14 +72,44 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
     tip: L('Eat before a long trip or a night’s sleep. Hunger can wake you before morning.', '远行或睡觉前先吃点东西，肚子饿可是会半夜醒来的。'),
   },
   {
+    id: 'foraging', group: 'living', title: L('Flowers & the small things of the ground', '野花与地上的小东西'),
+    summary: L('Flowers, tufts, ferns, leaves, pebbles and moss are all things: pick them up, and put them to use.', '花、草丛、蕨草、落叶、卵石、苔藓都是能捡的东西：按一下就进包，各有用处。'),
+    sections: [
+      { title: L('Pick them up', '怎么捡'), body: L('Stand beside any of the small things on the ground and press {key:hands}. Wildflowers give a wildflower; a grass tuft, ferns, reeds or fallen leaves give grass; pebbles give a stone; moss gives a herb; soot gives ash. Whatever you pick is gone, and the ground brings new flowers, tufts, leaves and pebbles slowly: one more every couple of hours on an outdoor map, never more than a few at a time.', '走到地上的小东西旁边，按 {key:hands}。野花给一枝野花；草丛、蕨草、芦苇、落叶给干草；卵石给石块；苔藓给草药；炭灰给灰烬。捡过的就没了，野花、草丛、落叶、卵石会在户外地图上慢慢重新出现：每隔两个小时左右多一处，一次最多几处。') },
+      { title: L('What flowers are for', '野花能做什么'), body: L('Three wildflowers and a handful of grass tie into a bouquet from the bag — a gift almost anyone is glad of, and some people like flowers best of all. At the Held Ground\'s arcane workbench, three flowers and a herb brew a healing potion when you have no honey. And Odette the dresser takes flowers as part of her fee.', '3 枝野花加 1 把干草，在背包里就能扎成一束花——几乎人人收了都高兴，有的人最喜欢的就是花。在领地的魔法工作台上，没有蜂蜜时 3 枝野花加 1 株草药也能熬一瓶治疗药水。梳妆师奥黛特也收野花当工钱。') },
+    ],
+    tip: L('Foragers pick one flower more from every patch. Keep a few in the bag before you visit the dresser.', '学了「采集好手」，每丛花多采 1 枝。去找梳妆师之前，包里先备上几枝。'),
+  },
+  {
+    id: 'dresser', group: 'living', title: L('Changing your look', '改换样子'),
+    summary: L('Odette on Firstlight\'s square redoes your hair, face and colours for ten Dawnmarks and three wildflowers.', '初原村广场上的奥黛特能给你重做头发、五官和衣服颜色，收 10 枚晨辉币和 3 枝野花。'),
+    sections: [
+      { title: L('Find the dresser', '找到梳妆师'), body: L('Odette works beside her standing mirror at the south-east of Firstlight\'s square, east of the evening fire, from nine in the morning to six in the evening. She sleeps in the little cabin down the south lane.', '奥黛特白天九点到傍晚六点在初原村广场东南、营火东边她的穿衣镜旁干活。晚上住在南边小巷的小木屋里。') },
+      { title: L('Open her panel', '打开面板'), body: L('Talk to her with {key:hands} and choose “Could you do something with my look?”, or press {key:hands} on the mirror itself. The character creator opens over your own look: body, hair, face, marks, outfit and every colour. Nothing changes until you keep it.', '按 {key:hands} 和她说话，选「帮我改改样子吧。」，或者直接对穿衣镜按 {key:hands}。捏脸面板会打开，上面是你自己的样子：身体、发型、五官、印记、服装和所有颜色。没按「就这样」之前什么都不会变。') },
+      { title: L('Pay and keep', '付钱'), body: L('Keeping a look costs ten Dawnmarks and three wildflowers, taken from your bag; the button stays grey while you are short. The new look is yours for good: your sprite, your portrait and how people describe you all follow it, and armour or a hat still shows over it.', '按「就这样」要从包里扣 10 枚晨辉币和 3 枝野花；不够时按钮是灰的。改好的样子就是你自己的了：地图上的小人、对话里的立绘、别人形容你的话都跟着变；穿戴的盔甲、帽子照旧盖在上面。') },
+    ],
+    tip: L('Wildflowers grow on most grassy maps and in the wilds. Pick a few on the way in and the fee is mostly coin.', '野花在大多数草地地图和荒野里都有。路上顺手采几枝，到她那儿基本只花钱。'),
+  },
+  {
     id: 'smithing', group: 'craft', title: L('Smelting & smithing', '冶炼与锻造'),
     summary: L('Ore becomes a bar at the forge; a bar becomes equipment at the anvil.', '矿石在熔炉里变成锭，金属锭在铁砧上变成装备。'),
     sections: [
       { title: L('Find a smithy', '找到铁匠铺'), body: L('Firstlight Village, the Held Ground and Emberfall have forges and anvils. Haldor in Firstlight sells smithing hammers, coal, iron ore and iron bars. You can use the workstations even when the smith is away.', '初原村、誓守之地和余烬镇都有熔炉、铁砧。初原村的哈尔多出售锻锤、煤炭、铁矿石和铁锭；铁匠不在时，旁边的工作设施照样能用。') },
-      { title: L('Smelt metal', '先把矿石炼成锭'), body: L('Stand beside a forge and open crafting with {key:craft}. The iron recipe turns two iron ore and one coal into two iron bars. Gold and steel recipes require their smithing skills. You can also use iron ore directly on a lit forge with a right click.', '站在熔炉旁按 {key:craft} 打开制作。基础配方用 2 块铁矿石和 1 块煤炭炼出 2 块铁锭；金锭、钢条需要对应的锻造技能。也可以拿铁矿石右键点已点燃的熔炉，直接熔炼。') },
-      { title: L('Forge equipment', '再到铁砧打造'), body: L('Bring bars and a smithing hammer, stand beside an anvil and open crafting. Choose a weapon, armour piece or tool and check its materials and requirements. Your level and smithing skills affect the result; advanced recipes need skills shown in the recipe.', '带上金属锭和锻锤，站到铁砧旁打开制作，选择武器、护甲或工具，查看材料和条件。角色等级与锻造技能会影响成品；高级配方需要先学会配方中列出的技能。') },
+      { title: L('Smelt metal', '先把矿石炼成锭'), body: L('Press {key:hands} on a forge to open it. The iron recipe turns two iron ore and one coal into two iron bars. Gold and steel recipes require their smithing skills. You can also use iron ore directly on a lit forge with a right click.', '对熔炉按 {key:hands} 打开熔炉面板。基础配方用 2 块铁矿石和 1 块煤炭炼出 2 块铁锭；金锭、钢条需要对应的锻造技能。也可以拿铁矿石右键点已点燃的熔炉，直接熔炼。') },
+      { title: L('Forge equipment', '再到铁砧打造'), body: L('Bring bars and a smithing hammer and press {key:hands} on an anvil to open it. Choose a weapon, armour piece or tool and check its materials and requirements. Your level and smithing skills affect the result; advanced recipes need skills shown in the recipe.', '带上金属锭和锻锤，对铁砧按 {key:hands} 打开铁砧面板，选择武器、护甲或工具，查看材料和条件。角色等级与锻造技能会影响成品；高级配方需要先学会配方中列出的技能。') },
     ],
     tip: L('Need ore? Dawn Hill Mine north of Firstlight has iron and coal. Take a pickaxe, and make room for what you bring back.', '缺矿石可以去初原村北面的晨光丘矿洞，那里有铁矿和煤。记得带镐，也给带回来的材料留些空位。'),
+  },
+  {
+    id: 'crafting', group: 'craft', title: L('Crafting & the workshop', '制作与工坊'),
+    summary: L('Everything is made from the bag; the Held Ground\'s buildings open more recipes.', '东西都在背包里直接做；领地的建筑会解锁更多配方。'),
+    sections: [
+      { title: L('Make it from the bag', '在背包里做'), body: L('Press {key:craft} to open crafting. Nothing is made beside a bench: what the panel lists is made wherever you stand, from what you carry. Tools a recipe asks for are carried, not used up.', '按 {key:craft} 打开制作面板。做东西不用站在什么旁边：面板里列的配方，站在哪里都能用身上的材料做。配方要的工具只需带着，不会消耗。') },
+      { title: L('Buildings unlock recipes', '建筑解锁配方'), body: L('Simple tools are made by hand from the first. The rest wait for a building on the Held Ground: the Workshop opens the club, the shield and the bow, and raised to Workshop II, candles, lanterns and a smith\'s own forge; the Weaving Shed opens cloth and, for a Leatherworker, leather gear. A greyed recipe names the building it waits for.', '简单的工具一开始就能徒手做。其余的要等领地里建好对应的建筑：工坊解锁棍棒、盾牌和弓，升到工坊 II 后还有蜡烛、提灯和铁匠炉；织坊解锁织布，皮匠还能做皮甲。灰掉的配方上会标着它在等哪座建筑。') },
+      { title: L('Forges, anvils and the smithy', '熔炉、铁砧与铁匠铺'), body: L('Smelting and smithing are done at the thing itself: press {key:hands} on a forge or an anvil and its own panel opens. The Held Ground\'s smithy can be bettered twice: a bellows lets a skilled smith forge heavy arms, plate, metal tools and jewellery; a hardened anvil, the professions\' sets.', '冶炼和锻造在设施本身进行：对熔炉或铁砧按 {key:hands} 打开它的面板。领地的铁匠铺能升级两次：装上风箱后，学了技能的铁匠能打重兵器、板甲、金属工具和首饰；淬硬铁砧后能锻造职业套装。') },
+      { title: L('The arcane workshop', '魔法工坊'), body: L('Built on the Held Ground, its workbench makes wands, staves (a mage\'s alone), healing and fireproof draughts, and spell books: read one to learn a mage\'s spell. Raised to Arcane Workshop II, it makes staves of fire and frost and the deeper spell books.', '在领地建好魔法工坊后，对魔法工作台按 {key:hands}：能做魔杖、法杖（只有法师能用）、治疗药水、防火药剂和法术书，读一本就学会一个法师法术。升到魔法工坊 II 后还能做火焰、冰霜法杖和更深的法术书。') },
+    ],
+    tip: L('Ask Alberic about the Held Ground to see what each building unlocks before you gather for it.', '收集材料之前，先找阿尔贝里克打开领地扩建面板，看看每座建筑会解锁什么。'),
   },
   {
     id: 'building', group: 'craft', title: L('Building & moving', '建造与搬放'),

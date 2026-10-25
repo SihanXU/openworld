@@ -9,6 +9,7 @@
 
 import type { GearSet, Recipe, Text } from '@openworld/engine'
 import { FORM_BY_ID } from './items.ts'
+import { unlockedBy } from './haven.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 
@@ -179,5 +180,7 @@ export const SET_RECIPES: Recipe[] = SET_DEFS.flatMap((s) =>
     tools: ['tool:hammer'],
     level: s.level,
     ...(p.skill && { skill: p.skill }),
+    // forged once the Held Ground's smithy has its hardened anvil (haven.ts smithy2)
+    unlockedBy: unlockedBy('smithy2'),
   })),
 )

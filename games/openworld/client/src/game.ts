@@ -75,7 +75,7 @@ export const CLIENT_GAME: ClientGame = {
   catalog: CATALOG,
   // its saves and its library keep the names they had before there were other games on the page
   saves: 'world',
-  // the world in the portraits' style (docs/looks.md §8; the trial docs/figures/world-filter-trial.png): their sepia
+  // the world in the portraits' style (docs/looks.md §8): their sepia
   // ink and cream paper, the pack's bright greens taken toward a sage, hatching in the dark
   worldFilter: {
     ink: '#281d18',

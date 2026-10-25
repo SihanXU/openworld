@@ -113,6 +113,14 @@ export const TREE_GROWS = 28800
 const GROWS_INTO_TREE: StageDef = { into: 'tile/tree', lasts: TREE_GROWS, needs: { all: [LIGHT, CLEAR] }, wait: 600, fx: 'leaves' }
 /** A vein mined out grows back in a game day (its spent face stands meanwhile: nothing breaks it). */
 export const VEIN_REGROWS = TICKS_PER_DAY
+/** The ground's small things (flowers, tufts, leaves, pebbles): how often one more appears on an outdoor map (two game hours), and at most how many of each. */
+export const LITTER_EVERY = TICKS_PER_DAY / 12
+export const LITTER: [type: string, on: string[], max: number][] = [
+  ['fixture/nature/flowers', ['grass', 'flowers'], 3],
+  ['fixture/nature/tuft', ['grass', 'drygrass'], 3],
+  ['fixture/nature/leaves', ['grass', 'dirt'], 3],
+  ['fixture/nature/pebbles', ['dirt', 'gravel', 'sand'], 3],
+]
 /** A calf or a chick grows up in two game days. */
 const GROWS_UP = 2 * TICKS_PER_DAY
 /** A hen lays an egg every three game hours. */
@@ -376,10 +384,10 @@ const actorTypes: TypeDef[] = [
   // the meadow's animals: passive, they run when struck, and leave food behind (drop × drops)
   P('actor/creature/animal', 'animal', '动物', { tags: ['animal'], props: { behaviour: 'passive', temper: 'wary', sight: 4 } }),
   P('actor/creature/animal/cow', 'cow', '牛', { tags: ['livestock', 'furry'], sprite: 'creature:cow', props: { hp: 10, maxHp: 10, atk: 0, speed: 7, babyType: 'actor/creature/animal/calf', meat: 'item/food/meat/raw', hide: 'item/material/leather' }, makeup: [{ type: 'item/food/meat/raw', count: 4 }] }),
-  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: LAYS, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, babyType: 'actor/creature/animal/chick', meat: 'item/food/chicken/raw', hide: 'item/material/feather' }, makeup: [{ type: 'item/food/chicken/raw', count: 2 }] }),
+  P('actor/creature/animal/chicken', 'chicken', '鸡', { tags: ['livestock', 'bird', 'feathered', 'lays-eggs'], sprite: 'creature:chicken', stage: LAYS, props: { hp: 4, maxHp: 4, atk: 0, speed: 5, babyType: 'actor/creature/animal/chick', meat: 'item/food/chicken/raw', hide: 'item/material/feather' }, makeup: [{ type: 'item/food/chicken/raw', count: 2 }] }),
   // the young of a pair fed together (homestead.ts, Minecraft's breeding): they grow up in two days
   P('actor/creature/animal/calf', 'calf', '小牛', { tags: ['livestock', 'furry', 'young'], sprite: 'creature:calf', stage: { lasts: GROWS_UP, into: 'actor/creature/animal/cow' }, props: { hp: 5, maxHp: 5, atk: 0, speed: 6 }, makeup: [{ type: 'item/food/meat/raw', count: 1 }] }),
-  P('actor/creature/animal/chick', 'chick', '小鸡', { tags: ['bird', 'feathered', 'young'], sprite: 'creature:chick', stage: { lasts: GROWS_UP, into: 'actor/creature/animal/chicken' }, props: { hp: 2, maxHp: 2, atk: 0, speed: 4 }, makeup: [{ type: 'item/material/feather', count: 1 }] }),
+  P('actor/creature/animal/chick', 'chick', '小鸡', { tags: ['livestock', 'bird', 'feathered', 'young'], sprite: 'creature:chick', stage: { lasts: GROWS_UP, into: 'actor/creature/animal/chicken' }, props: { hp: 2, maxHp: 2, atk: 0, speed: 4 }, makeup: [{ type: 'item/material/feather', count: 1 }] }),
   // the main quest's monsters (docs/main-quest.md)
   P('actor/creature/spider', 'cave spider', '洞穴蜘蛛', { tags: ['spider', 'venomous'], sprite: 'creature:spider', props: { speed: 4 } }),
   P('actor/creature/cyclops', 'cyclops', '独眼巨人', { tags: ['boss', 'large'], sprite: 'boss:cyclops', props: { speed: 9 } }),
@@ -462,6 +470,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/container/wardrobe', 'wardrobe', '衣柜', ['wooden', 'flammable'], { solid: true, props: { capacity: 12, material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/plank', count: 4 }] }),
   // the Held Ground's storehouse (built by its steward): forty places
   F('fixture/container/storehouse', 'storehouse', '储物棚', ['wooden', 'flammable'], { solid: true, sprite: 'fixture:wardrobe', props: { capacity: 40, material: 'wood' } }),
+  // the dresser's standing mirror (dresser.ts): a hand on it opens the restyle panel
+  F('fixture/furniture/mirror', 'standing mirror', '穿衣镜', ['wooden', 'glass', 'fragile'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
   F('fixture/container/shelf', 'shelf', '货架', ['wooden', 'flammable'], { solid: true, props: { capacity: 8, material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
   F('fixture/container/bookshelf', 'bookshelf', '书架', ['wooden', 'flammable', 'paper'], { solid: true, props: { capacity: 8, material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
   F('fixture/container/sack', 'sack', '麻袋', ['cloth', 'flammable'], { solid: false, props: { capacity: 4, material: 'cloth', maxHp: 3, hp: 3 }, makeup: [{ type: 'item/material/cloth', count: 1 }] }),
@@ -514,16 +524,21 @@ const fixtureTypes: TypeDef[] = [
   // the village's board of favours (docs/quests.md §3): what people want done, to take on
   F('fixture/sign/questboard', 'commission board', '委托板', ['paper']),
   F('fixture/craft', 'workstation', '工作台', [], { solid: true }),
-  // the smith's stations (content life.ts): ore smelted at a forge, ingots worked on an anvil; a smith who has learned to
-  // build them (Forge Builder) can raise the portable kind at home
+  // the smith's stations (content life.ts): ore smelted at a forge, ingots worked on an anvil — each opened by a hand on it
+  // (its panel: `station/<x>` rules), nothing made beside it; a smith who has learned to build them (Forge Builder) can
+  // raise the portable kind at home
   F('fixture/craft/anvil', 'anvil', '铁砧', ['metal', 'conductive', 'surface', 'station:anvil']),
   F('fixture/craft/anvil/smith', 'smith\'s anvil', '铁匠砧', ['portable'], { sprite: 'fixture:anvil' }),
   F('fixture/craft/forge', 'forge', '熔炉', ['stone', 'lightable', 'cookware', 'station:forge']),
   F('fixture/craft/forge/smith', 'smith\'s forge', '铁匠炉', ['portable'], { sprite: 'fixture:forge' }),
   F('fixture/craft/cauldron', 'cauldron', '坩埚', ['metal', 'conductive', 'lightable', 'cookware']),
   F('fixture/craft/loom', 'loom', '织布机', ['wooden', 'flammable', 'station:loom']),
-  // a station (world-model.md §6.4): what is made at a workbench is made beside one
-  // made by hand from planks, carried, and set down where one works (as a bed is)
+  // the arcane workbench (the Held Ground's arcane workshop, haven.ts): wands, staves, draughts and spell books are made at
+  // it (life.ts ARCANE_RECIPES), opened by a hand on it
+  F('fixture/craft/arcane', 'arcane workbench', '魔法工作台', ['wooden', 'flammable', 'surface', 'arcane', 'station:arcane'], { sprite: 'fixture:altar' }),
+  // a bench (world-model.md §6.4): made by hand from planks, carried, and set down where one works (as a bed is). The
+  // game's own recipes are no longer its (a club, a shield, a bow are made anywhere once the Held Ground's workshop
+  // stands); it stays a station for what the world learns to make at one (a hand on it opens its panel)
   F('fixture/craft/workbench', 'workbench', '工作台', ['wooden', 'flammable', 'surface', 'station:workbench', 'portable'], { makeup: [{ type: 'item/material/plank', count: 4 }], station: 'hands' }),
   F('fixture/sacred', 'sacred place', '圣所', ['stone'], { solid: true }),
   F('fixture/sacred/altar', 'altar', '祭坛', ['holy', 'surface']),
@@ -603,7 +618,7 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/build/ring', 'stone ring', '石圈', ['stone']),
   // a plot staked out at the Held Ground's heart for a building the steward will build there (haven.ts HAVEN_UPGRADES)
   F('fixture/build/plot', 'staked plot', '地基', ['wooden', 'flammable'], { solid: false, sprite: 'fixture:stakes' }),
-  ...([['workshop', 'workshop', '工坊'], ['kitchen', 'kitchen hearth', '厨房灶台'], ['storehouse', 'storehouse', '储物棚'], ['loom', 'weaving shed', '织坊'], ['apothecary', 'apothecary', '药房'], ['lodge1', "residents' tent", '居民营帐'], ['lodge2', "second residents' tent", '第二座居民营帐'], ['lodge3', "third residents' tent", '第三座居民营帐']] as const).map(([id, en, zh]) => F(`fixture/build/plot/${id}`, `plot for a ${en}`, `${zh}地基`, [])),
+  ...([['workshop', 'workshop', '工坊'], ['kitchen', 'kitchen hearth', '厨房灶台'], ['storehouse', 'storehouse', '储物棚'], ['loom', 'weaving shed', '织坊'], ['apothecary', 'apothecary', '药房'], ['arcane', 'arcane workshop', '魔法工坊'], ['lodge1', "residents' tent", '居民营帐'], ['lodge2', "second residents' tent", '第二座居民营帐'], ['lodge3', "third residents' tent", '第三座居民营帐']] as const).map(([id, en, zh]) => F(`fixture/build/plot/${id}`, `plot for a ${en}`, `${zh}地基`, [])),
   // a training dummy: knocked down it stands up again (train/dummy), for practising blows (the tutorial's)
   F('fixture/dummy', 'training dummy', '训练假人', ['wooden', 'flammable', 'straw'], { solid: true, props: { material: 'wood', maxHp: 12, hp: 12 } }),
   F('fixture/scarecrow', 'scarecrow', '稻草人', ['straw', 'cloth', 'wooden', 'flammable'], { solid: true }),
@@ -640,7 +655,7 @@ export function buildOntology(): Ontology {
     // theirs up in turn (docs/skills.md)
     kits: { ...KITS, ...ELITE_KITS, ...BOSS_KITS },
     encounters: BOSS_ENCOUNTERS,
-    goals: ['encounter', 'rout', 'kit', 'tactics', 'threat', 'social', 'follow', 'need', 'schedule', 'home', 'idle'],
+    goals: ['encounter', 'rout', 'kit', 'tactics', 'threat', 'social', 'follow', 'need', 'residentWork', 'schedule', 'home', 'idle'],
     // the people's social life (docs/npc-sandbox.md): deeds and their fines, the watches, the numbers, the talk panel's verbs
     deeds: DEEDS,
     laws: LAWS,
@@ -673,7 +688,7 @@ export function buildOntology(): Ontology {
     // each kind of monster's own piece: sure at the fiftieth, and what the finder is told (the loot module, trophies.ts)
     loot: LOOT,
     efficiency: EFFICIENCY,
-    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 }, nightFact: 'night.shift', gearLevels: GEAR_LEVELS },
+    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 }, nightFact: 'night.shift', gearLevels: GEAR_LEVELS, restyle: { coin: 10, needs: [{ type: 'item/material/flower', count: 3 }] } },
     // what makes a room what it is: a bed a bedroom (a night there gives everything back), a cooking fire a
     // kitchen, a workbench or forge a workshop, three chests and more a storeroom (world-model.md §5.4)
     roomRoles: [
@@ -704,6 +719,9 @@ export function buildOntology(): Ontology {
     // what appears on any map its `where` fits, besides each map's own: after dark, out in the wild,
     // the dead and the bats, a few at a time, six to ten cells off (out of sight where they come)
     appear: [
+      // the small things of the ground (life.ts forage/pick: picked up, they are gone): a new patch now and then on
+      // any outdoor map, a few at a time, slowly — every couple of hours, never more than a handful
+      ...LITTER.map(([type, on, max]) => ({ types: { [type]: 1 }, on, max, every: LITTER_EVERY, where: { light: 'outdoor' as const } })),
       {
         types: { 'actor/creature/undead/zombie': 0.6, 'actor/creature/beast/bat': 0.4 },
         where: { zone: 'combat', light: 'outdoor' },
@@ -725,6 +743,8 @@ export function buildOntology(): Ontology {
         ...QUALITIES.map((q) => `quality:${q.id}`),
         ...Object.keys(ELEMENT_NAMES).map((e) => `element:${e}`),
         'locked',
+        // a temporary actor-side selector used only while a resident harvests (rules.ts farm/pick)
+        'resident-work-harvest',
         // a person's place in the people's life, from their record (tools/src/demo/world.ts): the watch, a trade, a fence, a hand for hire
         'watchman',
         'merchant',

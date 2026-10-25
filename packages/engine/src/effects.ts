@@ -20,7 +20,7 @@ const SPAWN_MAX = 64
 
 /** The kernel's primitives, and what each does (the modules' are their own: module.ts). */
 export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
-  spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?} — create new things at a role\'s place (its tile, contents or hand); type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are picked up with E); what cannot be carried (not portable) is made on the holder\'s tile, never in a hand or bag',
+  spawn: 'spawn {type, at: role ref, into?: tile|contents|hand, count?, still?, owner?: role, ownerFrom?: role} — create new things at a role\'s place (its tile, contents or hand); owner makes the spawned thing belong to that role, while ownerFrom copies only an existing string owner prop from that role; type may be "@prop:<role>.<key>" (a crop\'s yieldType); count may read a prop or a param; items on the ground pop out for the magnet unless still (then they are picked up with E); what cannot be carried (not portable) is made on the holder\'s tile, never in a hand or bag',
   destroy: 'destroy {} — the host is gone (with what it holds); the essential (people) never are: they go down instead',
   transform: 'transform {into} — the host becomes another type ("@prop:key" reads the type from its own prop, e.g. emptyType). A cell is made of things (tile/<terrain>: the floor, what roots in the soil, what fills the volume): water becoming ice is the water transforming; becoming a type whose space in its cell another thing holds (rock into gravel, where a floor is), the host is gone instead; a carried host become a thing that cannot be carried is set down at its holder\'s feet',
   move: 'move {to: role ref, into?: tile|contents|hand} — the host moves itself to a role\'s tile, contents or hand; a built thing (a fixture, a structure) that comes to rest on a tile lies loose there (packed as item/misc/bundle/loose, which a hand picks up) unless the event says it is set up (param build: the right click\'s, the build palette\'s)',
@@ -214,12 +214,18 @@ export class EffectRunner {
         const at = this.ref(ev, eff.at)
         const into = eff.into ?? 'tile'
         const n = this.most(eff.count === undefined ? 1 : Math.max(0, Math.floor(this.amount(ev, eff.count))), 'a spawn')
+        const ownerRef = eff.owner ? this.ref(ev, eff.owner) : undefined
+        const ownerId = ownerRef && 'e' in ownerRef ? ownerRef.e : undefined
+        const ownerSource = eff.ownerFrom ? this.ref(ev, eff.ownerFrom) : undefined
+        const ownerEntity = ownerSource && 'e' in ownerSource ? w.get(ownerSource.e) : undefined
+        const inheritedOwner = ownerEntity ? w.prop(ownerEntity, 'owner') : undefined
+        const owner = typeof inheritedOwner === 'string' && inheritedOwner ? inheritedOwner : ownerId
         // what cannot be carried is not made into a hand or a bag: it is set down where its holder is
         const carried = into === 'tile' || w.onto.resolve(type).tags.includes('portable') ? into : 'tile'
         for (let i = 0; i < n; i++) {
           let place = this.placeFor(at, carried)
           if (!place) continue
-          const made = w.create(type, place)
+          const made = w.create(type, place, owner ? { props: { owner } } : {})
           // an actor never appears on top of another, or in a wall: it takes the nearest free tile
           if (place.on === 'tile' && w.isAgent(made) && !w.walkable(place.map, place.x, place.y, made.id)) {
             const free = eng.nearestFree({ map: place.map, x: place.x, y: place.y })
@@ -734,9 +740,18 @@ export class EffectRunner {
           w.fx.push({ t: 'log', text: { en: 'You need the right tool for that.', zh: '缺少需要的工具。' } })
           return
         }
-        // a station's recipe is made beside one (a workbench within reach); the hands' anywhere
+        // what a building raised on one's ground unlocks is made only once it stands (the story's fact)
+        if (r.unlockedBy && (!w.story || w.num(w.story, r.unlockedBy.fact, 0) < (r.unlockedBy.level ?? 1))) {
+          const name = r.unlockedBy.name
+          w.fx.push({ t: 'log', text: { en: `That is made once the ${typeof name === 'string' ? name : name.en} stands.`, zh: `要先建好${typeof name === 'string' ? name : (name.zh ?? name.en)}。` } })
+          return
+        }
+        // a station's recipe is made at one: the station the act names (its panel open, within the hand's reach) or one
+        // beside the maker; the hands' anywhere
         if (r.station && r.station !== 'hands') {
-          if (!w.stationsNear(host).has(r.station)) {
+          const at = typeof ev.params?.at === 'string' ? w.get(ev.params.at) : undefined
+          const opened = !!at && w.isStation(at, r.station) && eng.inReach('hands', host, { e: at.id }, undefined)
+          if (!opened && !w.stationsNear(host).has(r.station)) {
             // named as the world names it: the first kind of thing that is such a station (a stall's: "trading stall")
             const named = Object.values(w.onto.data.types).find((t) => t.tags?.includes(`station:${r.station}`))?.name
             const en = (typeof named === 'string' ? named : named?.en) ?? r.station
@@ -794,7 +809,11 @@ export class EffectRunner {
         eng.touch({ e: made.id })
         for (let i = 1; i < count; i++) (made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(look))), eng.touch({ e: made.id })
         const p = w.posOf(host)
-        if (p) w.fx.push({ t: 'pickup', item: made.id, sprite: r.sprite, name: r.name, map: p.map, x: p.x, y: p.y })
+        if (p) {
+          // A shop's recipe names its offer; the pickup names what actually reached the bag (coins when selling).
+          const form = w.onto.resolve(made.type)
+          w.fx.push({ t: 'pickup', item: made.id, sprite: form.sprite ?? made.type, name: made.name ?? form.name ?? made.type.split('/').pop()!, count, map: p.map, x: p.x, y: p.y })
+        }
         return
       }
       case 'grow': {

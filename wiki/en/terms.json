@@ -51,7 +51,8 @@
     "watch the road for pilgrims": "watch the road for pilgrims",
     "kneel by the road": "kneel by the road",
     "sit by the pilgrims' fire": "sit by the pilgrims' fire",
-    "play by the well": "play by the well"
+    "play by the well": "play by the well",
+    "dress hair": "dress hair"
   },
   "性格": {
     "blunt": "blunt",
@@ -114,7 +115,8 @@
     "friend": "friend",
     "old correspondent": "old correspondent",
     "daughter": "daughter",
-    "mother": "mother"
+    "mother": "mother",
+    "buys her cloth": "buys her cloth"
   },
   "条件": {
     "fact:ch1.roost": "after seeing the old oak at dusk",
@@ -210,7 +212,8 @@
     "fact:ch1.writ": "after finding the Writ of Relief",
     "fact:ch1.order_seal": "after getting the Order's Seal",
     "fact:ch1.kneelfield": "after visiting the Kneeling Field",
-    "fact:ch1.shrines": "after all five shrines are lit"
+    "fact:ch1.shrines": "after all five shrines are lit",
+    "given:item/material/flower": "when given wildflowers"
   },
   "地图类型": {
     "wild": "wild",

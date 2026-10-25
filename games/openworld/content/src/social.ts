@@ -83,6 +83,23 @@ export const SOCIAL: SocialParams = {
   residence: {
     map: 'haven',
     at: 95,
+    work: {
+      controller: { type: 'actor/person/steward', tags: ['haven-steward'] },
+      crop: { type: 'fixture/crop', tags: ['crop'] },
+      ripe: { type: 'fixture/crop', tags: ['ripe'] },
+      growing: { type: 'fixture/crop', tags: ['growing'], notStatus: ['watered'] },
+      livestock: { type: 'actor/creature/animal', tags: ['livestock'] },
+      unfed: { type: 'actor/creature/animal', tags: ['livestock'], notStatus: ['fed'] },
+      milkable: { type: 'actor/creature/animal/cow', status: ['fed'], notStatus: ['milked'] },
+      egg: { type: 'item/food/egg/raw' },
+      warehouse: { type: 'fixture/container', props: { capacity: { gt: 0 } } },
+      feed: { type: 'item/material/feed' },
+      yieldTypeProp: 'yieldType',
+      seedTypeProp: 'seedType',
+      pickBonusProp: 'pick',
+      yieldBase: 1,
+      seedCount: 1,
+    },
     slots: [
       { anchor: 'home.camp' },
       { anchor: 'home.lodge1.a', when: 'haven.build.lodge1' },
@@ -170,35 +187,39 @@ const INVITE = {
 }
 
 export const TALK: TalkVerb[] = [
-  { id: 'ask', label: L('What news?', '最近有什么事？') },
-  // a chat: one of their own lines for it, or what they like best let slip (people.ts chat); a gift: the panel (§2.15)
-  { id: 'chat', label: L("Let's talk a while.", '聊聊天吧。') },
-  { id: 'gift', label: L('I have something for you.', '送你一样东西。') },
-  { id: 'trade', label: L("Let's trade.", '做点买卖吧。'), when: { is: { role: 'host', sel: MERCHANT } } },
-  { id: 'profession', label: L('About professions…', '关于职业……'), when: { is: { role: 'host', sel: { type: 'actor/person/trainer' } } } },
-  // the Held Ground's steward: its land, grounds and buildings (haven.ts)
-  { id: 'haven', label: L('The Held Ground…', '领地扩建……'), when: { is: { role: 'host', sel: { tags: ['haven-steward'] } } } },
-  { id: 'giveback', label: L('Give back what I took.', '把拿走的东西还回去。'), when: GRUDGE },
-  { id: 'apologise', label: L("I'm sorry.", '对不起。'), when: GRUDGE },
-  { id: 'turnin', label: L('I want to settle what I owe the watch ({bounty}).', '我要了结欠守卫队的账（{bounty}）。'), when: all({ is: { role: 'host', sel: WATCHMAN } }, WANTED) },
+  // small talk: news, a chat (one of their own lines, or what they like best let slip: people.ts), a gift (the panel, §2.15)
+  { id: 'ask', group: 'talk', label: L('What news?', '最近有什么事？') },
+  { id: 'chat', group: 'talk', label: L("Let's talk a while.", '聊聊天吧。') },
+  { id: 'gift', group: 'talk', label: L('I have something for you.', '送你一样东西。') },
+  // dealings: a merchant's trade, the trainer's professions, the Held Ground's steward (haven.ts), an invitation to live there
+  { id: 'trade', group: 'deal', label: L("Let's trade.", '做点买卖吧。'), when: { is: { role: 'host', sel: MERCHANT } } },
+  { id: 'profession', group: 'deal', label: L('About professions…', '关于职业……'), when: { is: { role: 'host', sel: { type: 'actor/person/trainer' } } } },
+  { id: 'haven', group: 'deal', label: L('The Held Ground…', '领地扩建……'), when: { is: { role: 'host', sel: { tags: ['haven-steward'] } } } },
+  // the dresser (dresser.ts): one's look changed, for coin and wildflowers
+  { id: 'restyle', group: 'deal', label: L('Could you do something with my look?', '帮我改改样子吧。'), when: { is: { role: 'host', sel: { tags: ['dresser'] } } } },
   // one held in full regard, free to leave, asked to come and live in the Held Ground (once it is one's own)
-  { id: 'invite', label: L('Come and live in the Held Ground?', '要不要搬来誓守之地住？'), when: all(INVITE.regard, INVITE.free, INVITE.away, INVITE.ours) },
-  { id: 'follow', label: L('Come with me.', '跟我来。'), when: not(FOLLOWS) },
-  { id: 'wait', label: L('Wait here.', '在这儿等着。'), when: all(FOLLOWS, not({ prop: { role: 'host', key: 'waiting', cmp: true } })) },
-  { id: 'come', label: L("Let's go on.", '我们走吧。'), when: all(FOLLOWS, { prop: { role: 'host', key: 'waiting', cmp: true } }) },
-  { id: 'dismiss', label: L('Go home.', '回家去吧。'), when: FOLLOWS },
-  { id: 'bribe', label: L(`Bribe (${BRIBE})`, `贿赂（${BRIBE}）`), when: COINS(BRIBE) },
-  // robbery (might against might: no roll) and theft (a roll of nimbleness): once a day to each, never a child
-  { id: 'rob', label: L('Your money or your life.', '抢劫：要钱还是要命。'), when: all(GROWN, not(has('host', 'robbed'))) },
-  { id: 'steal', label: L('(Slip a hand into their pocket.)', '偷窃：（悄悄把手伸进他的口袋。）'), when: all(GROWN, not(has('host', 'pilfered'))) },
-  // to speak against the gods (lowers one's faith; the devout take it ill): once a day to each, never to a child
-  { id: 'unbelief', label: L('There are no gods watching, you know.', '散布无神论：其实根本没有神在看着。'), when: all(GROWN, not(has('host', 'doubted'))) },
+  { id: 'invite', group: 'deal', label: L('Come and live in the Held Ground?', '要不要搬来誓守之地住？'), when: all(INVITE.regard, INVITE.free, INVITE.away, INVITE.ours) },
+  // company: to follow, to wait, to go on, to go home
+  { id: 'follow', group: 'company', label: L('Come with me.', '跟我来。'), when: not(FOLLOWS) },
+  { id: 'wait', group: 'company', label: L('Wait here.', '在这儿等着。'), when: all(FOLLOWS, not({ prop: { role: 'host', key: 'waiting', cmp: true } })) },
+  { id: 'come', group: 'company', label: L("Let's go on.", '我们走吧。'), when: all(FOLLOWS, { prop: { role: 'host', key: 'waiting', cmp: true } }) },
+  { id: 'dismiss', group: 'company', label: L('Go home.', '回家去吧。'), when: FOLLOWS },
+  // amends: for what they hold against one, and what one owes the watch
+  { id: 'giveback', group: 'amends', label: L('Give back what I took.', '把拿走的东西还回去。'), when: GRUDGE },
+  { id: 'apologise', group: 'amends', label: L("I'm sorry.", '对不起。'), when: GRUDGE },
+  { id: 'turnin', group: 'amends', label: L('I want to settle what I owe the watch ({bounty}).', '我要了结欠守卫队的账（{bounty}）。'), when: all({ is: { role: 'host', sel: WATCHMAN } }, WANTED) },
+  // the underhand: a bribe; robbery (might against might: no roll) and theft (a roll of nimbleness), once a day to each,
+  // never a child; words against the gods (lower one's faith; the devout take it ill), once a day to each, never to a child
+  { id: 'bribe', group: 'shady', label: L(`Bribe (${BRIBE})`, `贿赂（${BRIBE}）`), when: COINS(BRIBE) },
+  { id: 'rob', group: 'shady', label: L('Your money or your life.', '抢劫：要钱还是要命。'), when: all(GROWN, not(has('host', 'robbed'))) },
+  { id: 'steal', group: 'shady', label: L('(Slip a hand into their pocket.)', '偷窃：（悄悄把手伸进他的口袋。）'), when: all(GROWN, not(has('host', 'pilfered'))) },
+  { id: 'unbelief', group: 'shady', label: L('There are no gods watching, you know.', '散布无神论：其实根本没有神在看着。'), when: all(GROWN, not(has('host', 'doubted'))) },
   // a guard who has stopped one the watch wants: these only
-  { id: 'pay', arrest: true, label: L('Pay the fine ({bounty}).', '交罚金（{bounty}）。'), when: { canPay: { role: 'actor' } } },
-  { id: 'jail', arrest: true, label: L('Go to jail.', '跟你去牢房。') },
-  { id: 'persuade', arrest: true, label: L('Talk your way out.', '设法说服他。'), when: all(not({ unpardonable: 'actor' }), not(has('host', 'persuaded'))) },
-  { id: 'bribe', arrest: true, label: L('Bribe ({bribe}).', '行贿（{bribe}）。'), when: all(not({ unpardonable: 'actor' }), { canPay: { role: 'actor', mul: 1.5 } }) },
-  { id: 'resist', arrest: true, label: L('Resist!', '拒捕！') },
+  { id: 'pay', arrest: true, group: 'watch', label: L('Pay the fine ({bounty}).', '交罚金（{bounty}）。'), when: { canPay: { role: 'actor' } } },
+  { id: 'jail', arrest: true, group: 'watch', label: L('Go to jail.', '跟你去牢房。') },
+  { id: 'persuade', arrest: true, group: 'watch', label: L('Talk your way out.', '设法说服他。'), when: all(not({ unpardonable: 'actor' }), not(has('host', 'persuaded'))) },
+  { id: 'bribe', arrest: true, group: 'watch', label: L('Bribe ({bribe}).', '行贿（{bribe}）。'), when: all(not({ unpardonable: 'actor' }), { canPay: { role: 'actor', mul: 1.5 } }) },
+  { id: 'resist', arrest: true, group: 'watch', label: L('Resist!', '拒捕！') },
 ]
 
 // ------------------------------------------------------------------ the people's rules
@@ -425,6 +446,8 @@ const MERCHANT_TREE: Tree = IF(
 
 /** What a person is told (impulse/notify), beside what body/stage keeps (rules.ts folds these in there). */
 export const PERSON_NEWS = (rest: Tree): Tree =>
+  // Resident work commands and internal acknowledgements are a person-side notification branch.
+  IF(any(what('resident-work-command'), what('resident-work-internal')), DO({ op: 'residentWork/update' }),
   // Choosing to fight the watch takes a fighting stance; putting it away again yields to arrest.
   IF(what('resist'), DO(add('drawn')),
   IF(what('pay'), DO({ op: 'pay', amount: { param: 'amount' }, to: 'source' }),
@@ -441,7 +464,7 @@ export const PERSON_NEWS = (rest: Tree): Tree =>
   IF(what('calm'), DO({ op: 'calm' }),
   // a cry for help: one who fights (a guard, the smith) takes the attacker as its foe; the rest keep away from them
   IF(what('help'), IF(any({ prop: { role: 'host', key: 'fights', cmp: true } }, tag('host', 'watchman')), DO({ op: 'foe' }), DO({ op: 'fear' })),
-  rest))))))))))))
+  rest)))))))))))))
 
 export const SOCIAL_RULES: Rule[] = [
   rule({
@@ -549,5 +572,12 @@ export const SOCIAL_RULES: Rule[] = [
     host: { type: 'resident/watch' },
     on: 'impulse/notify',
     tree: IF(what('report'), DO({ op: 'charge' }), IF(what('pardon'), DO({ op: 'charge', clear: true }), 'inherit')),
+  }),
+  rule({
+    id: 'resident-work/body-command',
+    doc: 'Only a resident work order or its own transient work step is handled by the resident work module; worker-side authorization is checked again by its own-host primitive.',
+    host: { type: 'fixture/remains/body' },
+    on: 'impulse/notify',
+    tree: IF(any(what('resident-work-command'), what('resident-work-internal')), DO({ op: 'residentWork/update' }), 'inherit'),
   }),
 ]

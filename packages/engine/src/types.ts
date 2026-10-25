@@ -74,8 +74,10 @@ export interface TypeDef {
   stage?: StageDef
   /** The order its goals are tried in (world-model.md §6.10): encounter, threat, follow, schedule, home, idle. */
   goals?: string[]
-  /** Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station a thing within reach is (its `station:<x>` tag). */
+  /** Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station (a thing tagged `station:<x>`, opened or within reach). */
   station?: string
+  /** A fact of the story's its recipe waits for (a building raised on one's ground: the fact at `level`, 1 by default), named for the panel. */
+  unlockedBy?: { fact: string; name: Text; level?: number }
   /** The level its recipe asks (default 1): a maker above it makes it finer. */
   craftLevel?: number
   /** Tools its making needs carried (tags: `tool:axe`), not used up (Elin's tool requirement). */
@@ -163,6 +165,8 @@ export interface WorldParams {
   slotCount?: Record<string, number>
   /** The story's fact that lengthens the night by so many hours (a number; the Ford's `night.shift`): none, the night keeps its length. */
   nightFact?: string
+  /** What a change of one's look costs at the dresser's (docs/looks.md §5): coin (the world's coin), and things carried. */
+  restyle?: { coin?: number; needs?: { type: string; count: number }[] }
   /**
    * Gear's levels (world-model.md §6.8, 2026-10-13): a piece of gear has a `level` from 1 to `max`; each level above the
    * first adds `perLevel` to the factor on its main stats (power, defence, attack: ×(1 + perLevel·(level − 1)); its
@@ -427,6 +431,8 @@ export interface Entity {
   held?: Id
   /** NPCs: schedule + role. */
   npc?: NpcData
+  /** A residence work order survives death when the actor becomes a body; its cargo stays physical. */
+  residentWork?: ResidentWorkOrder
   /** Creatures: combat behaviour. */
   ai?: AiData
   /**
@@ -827,6 +833,8 @@ export interface TalkVerb {
   when?: Cond
   /** A guard's, offered only when the guard has stopped the speaker (an arrest), and then only these. */
   arrest?: boolean
+  /** The row the panel lays it in with its kin (small talk, dealings, company, amends…): verbs of one group sit together, in the order given. */
+  group?: string
   choices?: { id: string; label: Text; when?: Cond }[]
 }
 
@@ -895,9 +903,58 @@ export interface ResidenceDef {
   slots: { anchor: string; when?: string }[]
   /** A resident's day there, hour by hour: each span spent at its bed (`bed`) or its bed's day place (`day`), and doing what. */
   days: { from: number; to: number; at: 'bed' | 'day'; activity: string }[]
+  /** The kinds and states this home ground chooses to expose as its work overview and future work targets. */
+  work?: ResidenceWorkDef
   yes: Text
   full: Text
 }
+
+/** Game-authored selectors for a home ground's overview, claim eligibility, and work targets; the society module names no game's maps or types. */
+export interface ResidenceWorkDef {
+  /** People permitted to give work orders at this residence's steward/controller. */
+  controller?: Selector
+  /** Any crop grown here; later work may choose an authorized crop from this set. */
+  crop?: Selector
+  /** Crops whose current type is ready for harvest. */
+  ripe?: Selector
+  /** Crops waiting for water (the selector can require `growing` and exclude `watered`). */
+  growing?: Selector
+  /** Livestock shown on this ground; eligible unowned members may be claimed one at a time through its configured controller. */
+  livestock?: Selector
+  /** Livestock that still needs feeding. */
+  unfed?: Selector
+  /** Animals that can be milked now, including maturity and daily state. */
+  milkable?: Selector
+  /** Loose gatherable eggs on the home ground. */
+  egg?: Selector
+  /** Real storage entities eligible to hold work supplies. */
+  warehouse?: Selector
+  /** The real feed item a future feeding job will draw from storage. */
+  feed?: Selector
+  /** Crop props that name the hand-pick products; the society module reads these names, never game type ids. */
+  yieldTypeProp?: string
+  seedTypeProp?: string
+  /** The worker's numeric stat added to yieldBase for the original hand-pick count. */
+  pickBonusProp?: string
+  yieldBase?: number
+  seedCount?: number
+}
+
+/** A saved, explicitly authorized residence task and its still-recoverable physical cargo. */
+interface ResidentWorkOrderBase {
+  controller: Id
+  map: string
+  warehouse: Id
+  status: 'working' | 'paused' | 'revoked' | 'recovery'
+  cargoIds: Id[]
+  blockedReason?: Text
+}
+
+/** A saved, explicitly authorized residence task and its still-recoverable physical cargo. */
+export type ResidentWorkOrder = ResidentWorkOrderBase & (
+  | { kind: 'harvest'; /** Authorized planted cells; a replacement crop at the same cell remains within the order. */ cells: { x: number; y: number }[] }
+  | { kind: 'feed'; /** Explicitly authorized livestock; newly born animals are never added automatically. */ animalIds: Id[]; /** The animal this exact carried feed item is reserved for until use or return. */ pendingAnimalId?: Id }
+)
 
 /** Something that happened, which people may talk about while it is fresh. */
 export interface Topic {
@@ -1311,8 +1368,13 @@ export interface Recipe {
    * `make`'s name, tags and props laid over that: a set's piece, forged of the steel it took, as well as its smith forges.
    */
   madeOf?: boolean
-  /** Where it is made: `hands`, or a station within reach. */
+  /**
+   * Where it is made: `hands` (or none), anywhere; a station (`forge`, `anvil`, a shop's `stall`), at one — the thing
+   * tagged `station:<x>` the act names (`at`: the one whose panel is open, within the hand's reach), or any beside one.
+   */
   station?: string
+  /** A fact of the story's that must hold before it is made (a building raised on one's ground: the fact at `level`, 1 by default), and its name for the panel. */
+  unlockedBy?: { fact: string; name: Text; level?: number }
   level?: number
   /** Tools it needs carried (tags), not used up. */
   tools?: string[]
@@ -1576,6 +1638,8 @@ export type Cond =
   | { param: { key: string; cmp: Cmp } }
   /** A role's property equals an event parameter (both must be present). */
   | { propEqualsParam: { role: Reader; key: string; param: string } }
+  /** A one-use society permit scoped to this exact resident feeding action. */
+  | { residentWorkFeed: 'actor' }
   | { chance: number }
   | { hour: { from: number; to: number } }
   /** It is night (true) or day (false), however long the story's night has grown (World.isNight). */
@@ -1660,10 +1724,10 @@ export type EmitTo =
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
 /** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
-export type ModuleOp = 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'plunder' | 'beaten' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy' | 'fishing/start' | 'fishing/step' | 'fishing/input' | 'fishing/land'
+export type ModuleOp = 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'plunder' | 'beaten' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy' | 'fishing/start' | 'fishing/step' | 'fishing/input' | 'fishing/land' | 'residentWork/order' | 'residentWork/update'
 
 export type Effect =
-  | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean }
+  | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean; owner?: RoleName; ownerFrom?: RoleName }
   | { op: 'destroy' }
   | { op: 'transform'; into: string }
   | { op: 'move'; to: RoleRef; into?: 'tile' | 'contents' | 'hand' }
@@ -1827,6 +1891,10 @@ export type Effect =
   | { op: 'fishing/step' }
   | { op: 'fishing/input' }
   | { op: 'fishing/land' }
+  /** A configured residence controller validates a work choice and sends it to the selected resident. */
+  | { op: 'residentWork/order' }
+  /** The selected resident/body changes only its own persisted order or moves only its tracked cargo. */
+  | { op: 'residentWork/update' }
 
 /**
  * A rule's outcome: a condition tree whose leaves are effects (an empty list: no change),
@@ -1957,8 +2025,8 @@ export type FxEvent =
   | { t: 'undefined'; request: string; summary: string; /** someone (a provider) is working it out */ asked?: boolean }
   | { t: 'patched'; request: string; rule: string }
   | { t: 'mapChanged'; map: string }
-  /** The magnet pulled a dropped item into the player's bag (from its tile). */
-  | { t: 'pickup'; item: Id; sprite: string; name: Text; map: string; x: number; y: number }
+  /** An item or crafted batch reached a bag; count defaults to one for single-piece pickups. */
+  | { t: 'pickup'; item: Id; sprite: string; name: Text; count?: number; map: string; x: number; y: number }
   /** An actor the player controls reached a new level. */
   | { t: 'levelup'; level: number }
   /** A rule opened one of the player's panels ('profession'). */

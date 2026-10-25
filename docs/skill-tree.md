@@ -16,7 +16,6 @@ forest green Ranger and violet Mage. All nodes remain full-colour when locked.
 
 - Assets: `games/openworld/public/assets/lsw/skills/<key>.png`.
 - Exact shared brief, individual subjects and paths: [generation manifest](skill-art-prompts.json).
-- New artwork contact sheet: [44 completed icons](skill-art-complete-preview.png).
 - Local full-resolution sources: `var/skill-art/sources/` (not committed).
 - Export: `games/openworld/tools/src/art/export-skill-icon.swift`, nearest-neighbour sampling
   with generated alpha preserved; it refuses to overwrite existing artwork.
@@ -290,8 +289,6 @@ materials, cream stitches and copper fittings give the set a shared handmade voc
 New Swiftness art uses teal, Survival moss green, Damage brick red, and Assassin plum.
 These illustrations are not generic line glyphs. Unlearned art retains its colours and
 material detail; neutral/dashed node borders communicate availability.
-
-Those original illustrations can be reviewed together in [the original preview](skill-art-preview.png).
 
 Every call uses this shared prompt verbatim, followed by its subject:
 

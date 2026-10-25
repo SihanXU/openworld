@@ -901,6 +901,12 @@
             },
             "still": {
               "type": "boolean"
+            },
+            "owner": {
+              "$ref": "#/definitions/RoleName"
+            },
+            "ownerFrom": {
+              "$ref": "#/definitions/RoleName"
             }
           },
           "required": [
@@ -2415,6 +2421,32 @@
             "op": {
               "type": "string",
               "const": "fishing/land"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "residentWork/order"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "residentWork/update"
             }
           },
           "required": [

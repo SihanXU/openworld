@@ -98,6 +98,58 @@ describe('base library', () => {
     expect(disabled.errors.some((e) => e.includes('fishingMap') && e.includes('unknown condition'))).toBe(true)
   })
 
+  it('validates resident feed conditions as a society-only actor condition', () => {
+    const patchFor = (condition: unknown): Patch => ({
+      artifacts: [{
+        kind: 'rule',
+        rule: {
+          id: 'test/resident-feed-condition',
+          host: { type: 'actor/person/player' },
+          on: 'act/use',
+          hole: 'test/hole',
+          tree: { if: condition as never, then: { do: [] }, else: { do: [] } },
+        } as Rule,
+      }],
+    })
+    const valid = validatePatch(patchFor({ residentWorkFeed: 'actor' }), { ontology: onto, library: new RuleLibrary() })
+    expect(valid.errors.some((e) => e.includes('residentWorkFeed'))).toBe(false)
+
+    const wrongRole = validatePatch(patchFor({ residentWorkFeed: 'host' }), { ontology: onto, library: new RuleLibrary() })
+    expect(wrongRole.errors.some((e) => e.includes('residentWorkFeed') && e.includes('actor'))).toBe(true)
+
+    const mixed = validatePatch(patchFor({ residentWorkFeed: 'actor', extra: true }), { ontology: onto, library: new RuleLibrary() })
+    expect(mixed.errors.some((e) => e.includes('resident work feed condition') && e.includes('alone'))).toBe(true)
+
+    const withoutSociety = structuredClone(onto)
+    withoutSociety.modules = withoutSociety.modules?.filter((module) => module !== 'society')
+    const disabled = validatePatch(patchFor({ residentWorkFeed: 'actor' }), { ontology: withoutSociety, library: new RuleLibrary() })
+    expect(disabled.errors.some((e) => e.includes('residentWorkFeed') && e.includes('unknown condition'))).toBe(true)
+  })
+
+  it('validates spawn ownership role references and forbids choosing two sources', () => {
+    const patchFor = (spawn: unknown): Patch => ({
+      artifacts: [{
+        kind: 'rule',
+        rule: {
+          id: 'test/spawn-owner',
+          host: { type: 'fixture/build/frame' },
+          on: 'impulse/notify',
+          hole: 'test/hole',
+          tree: { do: [spawn as never] },
+        } as Rule,
+      }],
+    })
+    const actor = validatePatch(patchFor({ op: 'spawn', type: 'actor/creature/animal/chick', at: 'host', owner: 'actor' }), { ontology: onto, library: new RuleLibrary() })
+    expect(actor.errors.some((e) => e.includes('.owner:'))).toBe(false)
+    const host = validatePatch(patchFor({ op: 'spawn', type: 'actor/creature/animal/chick', at: 'host', ownerFrom: 'host' }), { ontology: onto, library: new RuleLibrary() })
+    expect(host.errors.some((e) => e.includes('.ownerFrom:'))).toBe(false)
+
+    const badRole = validatePatch(patchFor({ op: 'spawn', type: 'actor/creature/animal/chick', at: 'host', ownerFrom: 'garbage' }), { ontology: onto, library: new RuleLibrary() })
+    expect(badRole.errors.some((e) => e.includes('ownerFrom') && e.includes('role must be'))).toBe(true)
+    const both = validatePatch(patchFor({ op: 'spawn', type: 'actor/creature/animal/chick', at: 'host', owner: 'actor', ownerFrom: 'host' }), { ontology: onto, library: new RuleLibrary() })
+    expect(both.errors.some((e) => e.includes('choose owner or ownerFrom'))).toBe(true)
+  })
+
   it('the root is total: every kind reaches a root rule, and no root rule inherits', () => {
     const roots = BASE_RULES.filter(isRoot)
     for (const r of roots) expect(leaves(r.tree), r.id).not.toContain('inherit')
