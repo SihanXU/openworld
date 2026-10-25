@@ -72,6 +72,7 @@ const navLinks = nav.querySelector('.nav-links')
 const navTitle = nav.querySelector('.nav-title')
 const heroWordmark = document.querySelector('.hero h1')
 const heroContent = document.querySelector('.hero-inner')
+const hero = heroContent.closest('.hero')
 const brandEasing = window.siteMotion.easing(getComputedStyle(document.documentElement).getPropertyValue('--motion-ease-standard'))
 const brandReduced = matchMedia('(prefers-reduced-motion: reduce)')
 // Row entrances finish after the surface; retain the animation gate until the last row settles.
@@ -148,7 +149,8 @@ function bar() {
     // No timed opacity transition may lag behind a fast reversal or a scrollbar drag.
     const distance = -wordmarkBottom
     const progress = Math.max(0, Math.min(1, (distance - 48) / 80))
-    const surfaceProgress = Math.max(0, Math.min(1, (distance - 8) / 40))
+    // The film stays under a clear header: the surface arrives with the page below it.
+    const surfaceProgress = Math.max(0, Math.min(1, (navHeight + 32 - hero.getBoundingClientRect().bottom) / 32))
     const reveal = brandReduced.matches ? Number(progress >= 0.5) : brandEasing(progress)
     const surface = brandReduced.matches ? Number(surfaceProgress >= 0.5) : brandEasing(surfaceProgress)
     const showBrand = reveal > 0
