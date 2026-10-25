@@ -22,6 +22,8 @@ let view: FrameView | undefined
 const frames = new FrameEncoder()
 const post = (m: FromWorker) => (self as unknown as Worker).postMessage(m)
 const transfers = new TransferQueue((err) => post({ t: 'error', message: (err as Error).stack ?? String(err) }), undefined, scheduleTransferTurn)
+const crafts = new TransferQueue<'craft'>((err) => post({ t: 'error', message: (err as Error).stack ?? String(err) }), undefined, scheduleTransferTurn)
+const batchBusy = () => transfers.busy || crafts.busy
 let nextTransferFrame = 0
 
 let base = ''
@@ -345,7 +347,7 @@ function keyViews(): Frame['keys'] {
 }
 
 /** Time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player). */
-const timeStopped = (g: Game) => paused || transfers.busy || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets || !!gift
+const timeStopped = (g: Game) => paused || batchBusy() || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets || !!gift
 
 function cancelFishing(g: Game | undefined): void {
   if (g && fishingActive(g.engine)) {
@@ -586,7 +588,7 @@ function loop(): void {
   peopleOpened(eng)
   // A paused world's full snapshot can itself cost more than a tick on large saves. Reserve
   // most worker time for the transfer; ordinary messages and closing the panel still run.
-  if (transfers.busy && t0 < nextTransferFrame) return
+  if (batchBusy() && t0 < nextTransferFrame) return
   const stopped = timeStopped(game)
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
@@ -627,8 +629,8 @@ function loop(): void {
   if (w.fx.some((x) => x.t === 'quest')) saveEvery = 599
   // (what the tick itself opened: a guard stopping the one at the keys)
   peopleOpened(eng)
-  // Transfers pause ticks, but their progress frames still need new bag kinds and the hand.
-  if (transfers.busy) eng.controls.keep()
+  // Batches pause ticks, but their progress frames still need new bag kinds and the hand.
+  if (batchBusy()) eng.controls.keep()
   const frame = snapshot(eng, { panel, view })
   if (panel && !frame.container) panel = undefined // closed by the world (it burned, a rule shut it)
   // the people's panels: closed when the one they are with is gone (dead, away)
@@ -641,12 +643,12 @@ function loop(): void {
   frame.keys = keysNow(game)
   maybePrefetch()
   lastTickMs = performance.now() - t0
-  nextTransferFrame = transfers.busy ? performance.now() + Math.max(TICK_MS, lastTickMs * 3) : 0
+  nextTransferFrame = batchBusy() ? performance.now() + Math.max(TICK_MS, lastTickMs * 3) : 0
   // the codex: what the player carries and who and what is near (the reader's record, beside the state)
   if (w.state.tick % 5 === 0) game.codex.record(w)
   const learning = asking && asked ? { seconds: Math.floor((t0 - asked.since) / 1000), limit: (asking.deadline === Number.POSITIVE_INFINITY ? MAKE_MS : ASK_MS) / 1000 } : undefined
   const sent = frames.encode(frame)
-  post({ t: 'frame', frame: sent.frame, ...(sent.gone && { gone: sent.gone }), perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length }, codex: game.codex.version, learning, transfer: transfers.progress })
+  post({ t: 'frame', frame: sent.frame, ...(sent.gone && { gone: sent.gone }), perf: { tickMs: lastTickMs, entities: Object.keys(w.state.entities).length, loaded: w.state.loadedMaps.length }, codex: game.codex.version, learning, transfer: transfers.progress, crafting: crafts.progress })
   if (buildAim) post({ t: 'placement', preview: buildPreview(eng, buildAim.id, { map: frame.map, x: buildAim.tile.x, y: buildAim.tile.y }, buildAim.up) })
   if (eng.lib.version !== lastRecordsVersion || frame.fx.some((f) => f.t === 'undefined' || f.t === 'patched')) {
     if (eng.lib.version !== lastRecordsVersion) (post({ t: 'library', library: storedLibrary(), statuses: eng.lib.statuses }), sendArts(), sendRecipes())
@@ -667,6 +669,7 @@ function loop(): void {
 
 async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Promise<void> {
   transfers.cancel()
+  crafts.cancel()
   nextTransferFrame = 0
   panel = undefined
   base = init.base
@@ -891,11 +894,21 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         game?.engine.controls.wear(m.item, m.putOn)
         break
       case 'craft': {
+        if (!game || batchBusy()) break
         // the game's recipes, and those of things the world learned (the engine derives them from a patch's type)
-        const r = recipeOf(game?.engine, m.id)
-        if (r) m.all ? game?.engine.controls.craftAll(r, undefined, m.at) : game?.engine.controls.craft(r, m.at)
+        const r = recipeOf(game.engine, m.id)
+        if (!r) break
+        if (m.all) {
+          const owner = game
+          nextTransferFrame = 0
+          crafts.enqueue(owner.engine.controls.craftSteps(r, undefined, m.at), 'craft',
+            () => game === owner && !owner.engine.world.state.question && !owner.mods.asking)
+        } else game.engine.controls.craft(r, m.at)
         break
       }
+      case 'cancelCraft':
+        crafts.cancel()
+        break
       case 'atlas': {
         const a = await atlas()
         if (a) post({ t: 'atlas', atlas: a })
@@ -934,7 +947,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (game) setSkill(game.engine, m.slot, m.id)
         break
       case 'transfer':
-        if (game && panel) {
+        if (game && panel && !crafts.busy) {
           if (!transfers.busy) nextTransferFrame = 0
           const owner = game, container = panel
           transfers.enqueue(owner.engine.controls.transferSteps(container, m.from, m.item, m.all), m.from,
@@ -989,6 +1002,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       case 'pause':
         paused = m.on
+        if (!m.on) crafts.cancel()
         break
       case 'quality':
         // a change of setting holds from the next event: its tier asks, and takes the answers it reaches
