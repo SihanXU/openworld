@@ -1,13 +1,8 @@
 /* The project page, design B (the world first) over base.css: the films carry the page. */
 
 :root {
-    --font-sans: 'Figtree', 'MiSans', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
-    --font-display: 'Source Serif 4', 'Noto Serif SC', 'Songti SC', 'STSong', serif;
     --motion-ease-spring: cubic-bezier(0.22, 1.2, 0.36, 1);
 }
-/* MiSans is served by Xiaomi; font information and terms: https://hyperos.mi.com/font/en/faq/ */
-body { font-family: var(--font-sans); font-weight: 400; }
-.band h2, .step h3, .post h3, .join h2 { font-family: var(--font-display); font-weight: 500; font-optical-sizing: auto; }
 
 .banner { --nav-panel-bg: rgba(5,7,13,0.72); --nav-header-bg: rgba(255,255,255,0.72); --nav-control-bg: rgba(255,255,255,0.08); --nav-control-border: rgba(255,255,255,0.24); --nav-control-hover: rgba(255,255,255,0.16); --nav-menu-h: 0px; --menu-duration: var(--motion-duration-exit); --menu-easing: var(--motion-ease-exit); height: auto; background: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
 .banner.menu-open { --menu-duration: var(--motion-duration-enter); --menu-easing: var(--motion-ease-enter); }
@@ -141,12 +136,14 @@ section.night { background: #05070d; color: #c9d4ea; }
 .night .stage { box-shadow: 0 0 0 1px rgba(143,178,255,0.12), 0 24px 60px rgba(0,0,0,.4); }
 .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
 .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; margin-top: 2rem; }
-.step { background: #fff; border-radius: var(--radius); padding: 1.5rem; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 18px rgba(0,0,0,.05); display: flex; flex-direction: column; text-align: left; font: inherit; color: inherit; border: 1.5px solid transparent; cursor: pointer; transition: border-color var(--motion-duration-short) var(--motion-ease-standard), transform var(--motion-duration-medium) var(--motion-ease-standard); }
+.step { background: #fff; border-radius: var(--radius); padding: 1.5rem; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 18px rgba(0,0,0,.05); display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; align-content: start; column-gap: 0.75rem; text-align: left; font: inherit; color: inherit; border: 1.5px solid transparent; cursor: pointer; transition: border-color var(--motion-duration-short) var(--motion-ease-standard), transform var(--motion-duration-medium) var(--motion-ease-standard); }
 .step:hover { border-color: #d6e0f8; transform: translateY(-2px); }
 .step.on { border-color: var(--accent); }
 .step .n { width: 2rem; height: 2rem; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 700; display: grid; place-items: center; font-size: 0.95rem; transition: background var(--motion-duration-short) var(--motion-ease-standard), color var(--motion-duration-short) var(--motion-ease-standard); }
 .step.on .n { background: var(--accent); color: #fff; }
-.step h3 { font-size: 1.2rem; margin: 0.9rem 0 0.6rem; color: var(--ink-strong); }
+/* The title sits beside its number; the sentence runs under both. */
+.step h3 { font-size: 1.2rem; margin: 0; color: var(--ink-strong); }
+.step p { grid-column: 1 / -1; margin-top: 0.75rem; }
 
 .band h2.news-title { margin-bottom: 2rem; }
 .post { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 3rem; align-items: center; }
@@ -156,7 +153,7 @@ section.night { background: #05070d; color: #c9d4ea; }
 .join { position: relative; padding: 7rem 0; color: #fff; text-align: center; overflow: hidden; background: #1d1d18; }
 .join::after { content: ""; position: absolute; inset: 0; background: rgba(12,14,10,0.62); }
 .join .container { position: relative; z-index: 1; }
-.join h2 { font-size: clamp(2.2rem, 5vw, 3.5rem); line-height: 1.05; font-weight: 500; letter-spacing: -0.025em; margin-bottom: 1rem; }
+.join h2 { font-size: clamp(2.2rem, 5vw, 3.5rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.04em; margin-bottom: 1rem; }
 .join .ph { max-width: 420px; margin: 0 auto; }
 .join .ph i { background: rgba(255,255,255,0.25); }
 .join .ph-h { color: rgba(255,255,255,0.45); }
