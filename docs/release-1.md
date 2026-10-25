@@ -131,7 +131,7 @@ What the game drew wrong, fixed where it was wrong, for every map that uses it:
 | drying nets | the camp's cooking rack, pot and all | nets hung on a pole (`fixture/furniture/rack/nets`); fish drying on their own rack (`…/rack/fish`) |
 | log pile | the house sheet's carved plank, which read as a bench | the camp sheet's felled log |
 | the rotted tent | the whole, patched tent | the pack's torn tent (`fixture/tent/torn`) |
-| high ground | a thin line round a raised rectangle | the relief's rims and rock faces where ground drops a level, taller for a bigger drop, a stair's steps (`ground.ts` `terracePieces`, `tools/src/art/terrace.ts`, both renderers) |
+| high ground | a thin line round a raised rectangle; then the pack's faces, dark vertical stripes that read as a fence, walked straight across | rock painted from the heights (`runtime/src/assets/relief.ts`, both renderers): bedded rock in masses and chunks with cracks, a lit lip, a snow cornice or grass fringe, a ragged shadowed foot with stones, a cell of face a level, stairs cut as steps, the region's rock; and the faces are rock to the engine too (`engine/src/relief.ts`: only stairs and ramps join levels, a ledge a level high is leapt down one way, a higher drop is a wall) |
 | snow | trees and paths in it on a grass square; a grey path | snow under a tree or a rock standing in snow, the snow path's own tiles, a snowy pine or rock (`ground.ts` `objectLook`) |
 | a pillar | a third, blocking cell with nothing drawn on it | its two tiles |
 | the mill | a longhouse, no wheel; a windmill on the world map | a water wheel and millstones (`tools/src/art/mill.ts`), a bell rope for the chapel (`bell-rope.ts`); a watermill mark |

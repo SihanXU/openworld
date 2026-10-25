@@ -8,7 +8,7 @@
 import type { AiData, Entity, AppearDef, MapData, Portal, PropValue, Text } from '@openworld/engine'
 import { readFileSync } from 'node:fs'
 import { CHAR_OF, FORM_BY_ID, TERRAIN_CHARS, buildOntology, makeItem, type RawChunk } from '@openworld-game/content'
-import { OntologyIndex, Rng, baseCovers, splitLayers } from '@openworld/engine'
+import { OntologyIndex, Rng, baseCovers, dropLevels, splitLayers } from '@openworld/engine'
 import type { PrefabDef } from '@openworld/runtime/src/assets/types.ts'
 import { CATALOG, FENCES, FENCE_PIECES } from '../../../client/src/catalog.ts'
 
@@ -152,6 +152,15 @@ export class MapBuilder {
         if (this.get(x, y) === 'stump') (this.set(x, y, 'grass'), this.fixture('fixture/nature/stump', x, y, { id: `${this.id}.stump.${n++}` }))
   }
 
+  /**
+   * Is the cell a face of rock (the engine's relief.ts): under ground that drops to the south, a cell a level. Nothing
+   * is set there and no one walks it.
+   */
+  face(x: number, y: number): boolean {
+    for (let k = 1; k <= y; k++) if (dropLevels(this.heights[y - k][x] - this.heights[y - k + 1][x]) >= k) return true
+    return false
+  }
+
   /** Raise ground to `half` half levels (a level is 2; an odd height is a ramp between two levels). */
   raise(x: number, y: number, w: number, h: number, half: number) {
     for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (this.in(i, j)) this.heights[j][i] = half
@@ -210,14 +219,14 @@ export class MapBuilder {
 
   /** Is the tile open ground: walkable terrain, nothing standing on it, under no thing's base? */
   free(x: number, y: number): boolean {
-    if (!this.in(x, y)) return false
+    if (!this.in(x, y) || this.face(x, y)) return false
     if (SOLID_TERRAIN.has(this.get(x, y)) || this.get(x, y) === 'door') return false
     return !this.entities.some((e) => this.under(e, x, y))
   }
 
   /** Can one walk here: walkable terrain, and no solid thing's base covers it? */
   walkable(x: number, y: number): boolean {
-    if (!this.in(x, y) || SOLID_TERRAIN.has(this.get(x, y))) return false
+    if (!this.in(x, y) || this.face(x, y) || SOLID_TERRAIN.has(this.get(x, y))) return false
     return !this.entities.some((e) => ONTO.resolve(e.type).solid && this.under(e, x, y))
   }
 
