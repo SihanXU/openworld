@@ -22,6 +22,8 @@ import type { PersonDef, Slot } from './person.ts'
 import { buildOverworld, placeCells, readContinent, siteOf } from './overworld.ts'
 import { backdropMeta, buildBackdrop } from './continent/backdrop.ts'
 import { peopleBackdrop } from './continent/people.ts'
+import { ownShells } from './shells.ts'
+import { CATALOG } from '../../../client/src/catalog.ts'
 import { HOUSEHOLDS, PEOPLE, householdOf } from './people.ts'
 import { buildHaven, buildHavenGrounds } from './quest/haven.ts'
 import { villageInteriors, villageLife, villageTown } from './village.ts'
@@ -789,6 +791,8 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
     b.regions[`home.${h}`] = indoors ? [0, 0, b.w, b.h] : [a.x - 1, a.y, 3, 1]
     b.regionProps[`home.${h}`] = { owner: `household:${h}` }
   }
+  // a house's walls are whose its rooms are (docs/building.md §10): breaking into them is a deed against them
+  ownShells(builders, CATALOG.prefabs)
   // the overworld (world-model.md §5.1): each map on its cell, the rest of the continent wild
   const cells = placeCells(builders, m)
   for (const b of builders) {
@@ -803,6 +807,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
     backdropMaps = buildBackdrop(continent)
     // the backdrop's people, made into its places' files (docs/continent.md §11): their records are their places', never the index's
     backdropPeople = peopleBackdrop(backdropMaps, continent)
+    ownShells(backdropMaps.map((c) => c.map), CATALOG.prefabs)
   }
   const backdrop = backdropMaps
   let items = 0

@@ -3855,7 +3855,8 @@ req('V2', "Millbrook is a working watermill (release 1, docs/release-1.md): its 
   const [wx, wy] = MILL.wheel
   expect(mill.stamps?.some((s) => s.key === 'waterwheel' && s.x === wx && s.y === wy)).toBe(true)
   for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) expect(w.terrainAt('mill', wx + dx, wy + dy)).toBe('water')
-  expect([w.terrainAt('mill', wx + 1, wy - 1), w.terrainAt('mill', wx + 1, wy + 3), w.terrainAt('mill', wx + 3, wy + 1)]).toEqual(['water', 'water', 'wall'])
+  // (the mill is timber: its walls are wooden, docs/building.md §10)
+  expect([w.terrainAt('mill', wx + 1, wy - 1), w.terrainAt('mill', wx + 1, wy + 3), w.terrainAt('mill', wx + 3, wy + 1)]).toEqual(['water', 'water', 'woodwall'])
   // behind the mill's door: a house of rooms, Tam's bed reached from its door, the stair down to the cellar and back up
   const inside = w.map('millhouse')!
   expect(mill.portals.some((p) => p.to === 'millhouse')).toBe(true)

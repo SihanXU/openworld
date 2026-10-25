@@ -8,7 +8,7 @@
 import type { AiData, Entity, AppearDef, MapData, Portal, PropValue, Text } from '@openworld/engine'
 import { readFileSync } from 'node:fs'
 import { CHAR_OF, FORM_BY_ID, TERRAIN_CHARS, buildOntology, makeItem, type RawChunk } from '@openworld-game/content'
-import { OntologyIndex, Rng, baseCovers, dropLevels, splitLayers } from '@openworld/engine'
+import { OntologyIndex, Rng, WAY_TAGS, baseCovers, dropLevels, splitLayers } from '@openworld/engine'
 import type { PrefabDef } from '@openworld/runtime/src/assets/types.ts'
 import { CATALOG, FENCES, FENCE_PIECES } from '../../../client/src/catalog.ts'
 
@@ -515,7 +515,7 @@ export class MapBuilder {
   private clearVolumes(): void {
     const spaceOf = (t: string) => ONTO.data.terrains[t]?.space ?? 'floor'
     const data = { id: this.id, name: this.name, kind: this.kind, width: this.w, height: this.h, terrain: this.cells.flat(), portals: [] }
-    const layers = splitLayers(data, spaceOf, (t) => !ONTO.data.terrains[t]?.solid)
+    const layers = splitLayers(data, spaceOf, (t) => !ONTO.data.terrains[t]?.solid && !(ONTO.data.terrains[t]?.tags ?? []).some((g) => WAY_TAGS.includes(g)))
     for (const e of this.entities) {
       if (e.place.on !== 'tile' || !ONTO.resolve(e.type).solid || ONTO.resolve(e.type).tags.includes('agent')) continue
       const { x, y } = e.place
