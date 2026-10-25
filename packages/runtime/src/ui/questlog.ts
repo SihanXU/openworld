@@ -5,7 +5,7 @@
 // the favours on offer, to take on.
 
 import type { Frame, JournalQuest, QuestOffer } from '@openworld/engine'
-import { $, esc, t, tx } from './common.ts'
+import { $, esc, locale, t, tx } from './common.ts'
 
 type Tab = 'active' | 'done' | 'failed'
 const KIND_TAG: Record<string, string> = { main: 'q_main', side: 'q_side', favor: 'q_favor', guide: 'q_guide' }
@@ -74,7 +74,7 @@ export class QuestLog {
     const state = x.state === 'done' ? `<span class="ql-state done">✓ ${t('qDone')}</span>` : x.state === 'failed' ? `<span class="ql-state failed">✗ ${t('qFailed')}</span>` : ''
     return `<div class="ql-quest ${x.kind}">
       <div class="ql-head"><b>${esc(tx(x.title))}</b>${state}${track}</div>
-      ${x.giver ? `<div class="ql-from">${t('qFrom')}：${esc(tx(x.giver))}</div>` : ''}
+      ${x.giver ? `<div class="ql-from">${t('qFrom')}${locale.value === 'zh' ? '：' : ': '}${esc(tx(x.giver))}</div>` : ''}
       <div class="ql-sum">${esc(tx(x.summary))}</div>
       <ul class="ql-goals">${[...open, ...shut].map(goal).join('')}</ul>
       ${x.log.length ? `<div class="ql-logh">${t('qLog')}</div><ol class="ql-log">${x.log.map((l) => `<li>${esc(tx(l.text))}</li>`).join('')}</ol>` : ''}

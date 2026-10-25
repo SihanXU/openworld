@@ -43,9 +43,10 @@
 .sheet { padding: 12px 16px 16px; animation: sheetIn 0.18s ease-out; }
 @keyframes sheetIn { from { transform: translateY(8px) scale(0.985); opacity: 0; } to { transform: none; opacity: 1; } }
 
-/* a panel's title as a gold ribbon; the close button a brass coin */
+/* a panel's title as a gold ribbon; the close button a brass coin — every panel's, whatever its header is called */
 .tabs-row { border-bottom: 2px solid rgba(74, 42, 20, 0.55); box-shadow: 0 1px 0 rgba(255, 232, 180, 0.6); padding-bottom: 8px; margin-bottom: 10px; }
-.tabs-row .sheet-title, .jhead > span:first-child {
+.jhead, .pp-head { border-bottom: 2px solid rgba(74, 42, 20, 0.55); box-shadow: 0 1px 0 rgba(255, 232, 180, 0.6); padding-bottom: 8px; margin-bottom: 10px; }
+.tabs-row .sheet-title, .tabs-row .sk-title, .jhead > span:first-child, .jhead > b:first-child, .pp-head > b:first-child {
   position: relative; padding: 4px 16px 5px 14px; margin-left: -4px;
   font: 700 16px var(--pixel); color: #fff6dc; letter-spacing: 0.04em;
   background: linear-gradient(180deg, #b8562e, #8f3a1c); border-radius: 4px 2px 2px 4px;
@@ -53,14 +54,14 @@
   text-shadow: 0 1px 0 rgba(60, 16, 0, 0.8);
   clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 50%, 100% 100%, 0 100%);
 }
-.tabs-row .x, .jhead .x, .cv-phead .x, .sk-bar .x {
+.tabs-row .x, .jhead .x, .cv-phead .x, .sk-bar .x, .pp-head .x, .rs-head .x, .build-panel header button {
   width: 32px; height: 32px; padding: 0; border-radius: 50%; display: grid; place-items: center;
   font: 700 15px var(--pixel); color: #5a320f;
   background: radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 60%, var(--brass-lo));
   border: 2px solid var(--walnut); box-shadow: 0 2px 0 var(--walnut), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   transition: transform 0.1s, filter 0.1s;
 }
-.tabs-row .x:hover, .jhead .x:hover { filter: brightness(1.08); transform: rotate(90deg); }
+.tabs-row .x:hover, .jhead .x:hover, .pp-head .x:hover, .rs-head .x:hover { filter: brightness(1.08); transform: rotate(90deg); }
 .tabs-row .tab, .cx-tab, .ql-tab {
   border-radius: 6px 6px 3px 3px; background: linear-gradient(#e9d3a0, #d9bd82); border: 2px solid var(--walnut-2);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 2px 0 rgba(74, 42, 20, 0.35); transition: transform 0.1s, background 0.1s;
@@ -152,6 +153,15 @@
 .inv-foot { margin: 4px 0 0; justify-content: flex-start; }
 .inv-help { line-height: 1.5; margin-top: auto; padding-top: 6px; border-top: 1px dashed rgba(154, 107, 60, 0.35); }
 @media (max-width: 900px) { .inv-wrap { grid-template-columns: 1fr; } .cs { width: auto; } }
+/* a short window (720p): the sheet a little smaller, so the bag fits without scrolling */
+@media (max-height: 820px) {
+  .cs { gap: 6px; padding: 8px 10px 10px; }
+  .cs-portrait { height: 178px; }
+  .cs-portrait.bust canvas { width: 196px; height: 196px; }
+  .cs .eq-slot { width: 38px; height: 38px; }
+  .cs .eq-slot canvas { width: 28px; height: 28px; }
+  .cs-stats { gap: 2px 10px; padding: 6px 10px; }
+}
 
 /* ------------------------------------------------------------------ crafting and shops */
 .recipe { background: linear-gradient(180deg, #fff6dd, var(--parch)); border-color: #a87a46; border-radius: 8px; box-shadow: 0 2px 0 rgba(74, 42, 20, 0.2); transition: transform 0.08s, box-shadow 0.12s; }

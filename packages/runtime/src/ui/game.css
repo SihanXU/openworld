@@ -200,8 +200,13 @@
 .inv-foot button:disabled { opacity: 0.45; cursor: default; }
 .tip { position: fixed; transform: translate(-50%, -100%); background: var(--ink-warm); color: #fbe9c4; padding: 3px 8px; border-radius: 5px; font-size: 12px; pointer-events: none; z-index: 60; white-space: nowrap; }
 .chest-grid { margin-bottom: 4px; }
+/* the chest's paper: its grid, its buttons and their hint, the bag; the buttons over the grids' left edge */
+.chest-body { min-height: 0; display: flex; flex-direction: column; align-items: center; }
+.chest-body .inv-foot { align-self: stretch; justify-content: center; }
+.jhead .muted.small { font: 600 12px var(--pixel); }
 .bag-grid { margin-top: 6px; }
 .shop-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.shop-head + .muted, .tab-body > .muted.small:first-child { margin-bottom: 8px; }
 .inv-foot .purse { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; font: 600 14px var(--pixel); color: var(--ink-warm); }
 .inv-foot .purse .icon { width: 20px; height: 20px; }
 .shop-head .coins { display: flex; align-items: center; gap: 4px; font: 600 14px var(--pixel); color: var(--ink-warm); }
@@ -210,7 +215,8 @@
 .cx-tab { background: var(--paper-dark); color: var(--ink-warm); border: 2px solid var(--wood-dark); font: 600 13px var(--pixel); padding: 4px 10px; }
 .cx-tab.on { background: var(--paper); transform: translateY(-2px); }
 .cx-tab small { opacity: 0.7; font-weight: 400; }
-.cx-body { max-height: min(60vh, 520px); overflow-y: auto; padding-right: 4px; }
+/* (one height whichever tab is open: the panel does not jump as its tabs change) */
+.cx-body { height: min(60vh, 520px); overflow-y: auto; padding-right: 4px; }
 .cx-group { font: 600 13px var(--pixel); color: var(--ink-warm); margin: 10px 0 4px; }
 .cx-group small { opacity: 0.6; font-weight: 400; }
 .cx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
@@ -227,14 +233,25 @@
 .jhint { margin-top: 4px; line-height: 1.5; }
 .jpast { margin: 4px 0 0 18px; padding: 0; color: #6a5338; text-decoration: line-through; }
 .threads { display: flex; flex-direction: column; gap: 6px; }
-.options .opt { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
-.options .opt span { width: 90px; }
-.options button { background: var(--paper-dark); color: var(--ink-warm); border: 2px solid var(--wood-dark); }
-.options td { padding: 2px 12px 2px 0; }
+/* Options and the title's settings: one grid for every row, the AI's among them — the labels' column as wide as the
+   widest label (up to a share of the panel, past which a label wraps), each row's control beside its label and its
+   note under the control; a row of actions, a heading and the rest across the whole width */
+.options { display: grid; grid-template-columns: fit-content(46%) minmax(0, 1fr); column-gap: 18px; row-gap: 8px; align-items: center; }
+.options > *, .ai-opts > * { grid-column: 1 / -1; }
+.options .opt, .options .ai-opts, .options .ai-row { display: grid; grid-template-columns: subgrid; align-items: center; justify-items: start; }
+.options .ai-opts { row-gap: 8px; }
+.options .opt > :first-child, .options .ai-name { grid-column: 1; line-height: 1.3; }
+.options .opt > :not(:first-child), .options .ai-row > :not(.ai-name) { grid-column: 2; }
+.options .opt-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.options h4 { margin: 10px 0 0; display: flex; align-items: center; gap: 10px; }
+.options button { background: var(--paper-dark); color: var(--ink-warm); border: 2px solid var(--wood-dark); white-space: nowrap; }
+.options td { padding: 2px 12px 2px 0; vertical-align: top; }
+/* (a key's column: each key a chip, the chips never broken inside, the row's keys kept on one line) */
+.options td:first-child { white-space: nowrap; }
+.options td kbd { white-space: nowrap; }
 /* The AI setting (ui/quality.ts): a level per kind of work, as a graphics setting's rows. */
-.ai-opts .ai-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
-.ai-opts .ai-name { width: 130px; }
-.ai-opts .ai-row small.muted { flex-basis: 100%; margin: -2px 0 2px 140px; font-size: 11px; }
+.options .ai-row { row-gap: 4px; }
+.ai-opts .ai-row small { margin-top: 2px; font-size: 12px; line-height: 1.35; }
 .ai-seg { display: inline-flex; }
 .ai-seg button { padding: 2px 12px; margin: 0; border-radius: 0; }
 .ai-seg button + button { border-left-width: 0; }
@@ -257,11 +274,20 @@
 }
 
 /* the crafting panel */
-.recipes { display: flex; flex-direction: column; gap: 6px; }
-.recipe { display: grid; grid-template-columns: 46px 1fr auto auto; gap: 10px; align-items: center; padding: 4px 6px; background: var(--paper); border: 2px solid var(--wood-dark); border-radius: 4px; color: var(--ink-warm); }
+/* every row one grid's (subgrid): the picture, the name, what it needs and its actions each a column, so the needs and
+   the buttons line up down the list; a row's actions together at its right ("all" beside the one) */
+.recipes { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto auto; gap: 6px 12px; }
+.recipe { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; padding: 4px 6px; background: var(--paper); border: 2px solid var(--wood-dark); border-radius: 4px; color: var(--ink-warm); }
 .recipe.off { opacity: 0.6; }
-.recipe .rname { font-weight: 600; }
-.recipe .needs { display: flex; gap: 10px; }
+.recipe .rname { font-weight: 600; min-width: 0; }
+.recipe .needs { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px; }
+.recipe .acts { display: flex; gap: 6px; justify-content: flex-end; }
+.recipe .acts button { white-space: nowrap; }
+@media (max-width: 620px) {
+  .recipes { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  .recipe .needs { grid-column: 2 / -1; grid-row: 2; justify-content: flex-start; }
+  .recipe .acts { grid-column: 3; grid-row: 1; }
+}
 .recipe .need { display: inline-flex; align-items: center; gap: 2px; font-size: 13px; }
 .recipe .need.short, .recipe .station.short { color: #b0322a; }
 .recipe .need .icon canvas { width: 24px; height: 24px; image-rendering: pixelated; }
@@ -290,7 +316,8 @@
 /* (its own background: the global button:hover would wash the wood out) */
 .cbtn:hover { background: linear-gradient(#f3c47e, #dca65e); transform: translateY(-1px); }
 .cbtn .cb-icon { width: 32px; height: 32px; image-rendering: pixelated; filter: drop-shadow(1px 1px 0 rgba(58, 36, 20, 0.35)); pointer-events: none; }
-.cbtn kbd { position: absolute; left: 3px; bottom: 1px; font: 600 10px var(--pixel); color: var(--ink-warm); opacity: 0.75; background: none; border: 0; padding: 0; }
+/* its key: a chip on the frame's corner, clear of the icon (as the toolbar's are) */
+.cbtn kbd { position: absolute; left: -5px; bottom: -5px; min-width: 14px; padding: 0 3px; font: 600 10px/13px var(--pixel); text-align: center; color: var(--ink-warm); background: var(--paper); border: 1px solid var(--wood-dark); border-radius: 4px; box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3); }
 .cbtn .badge { position: absolute; right: -6px; top: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #e04848; color: #fff; border: 2px solid #fff; font: 700 11px/14px var(--pixel); animation: jflash 1.2s infinite; }
 @media (max-width: 720px) { .corner { right: 8px; bottom: 74px; flex-direction: column; flex-wrap: wrap-reverse; max-width: none; max-height: calc(4 * 40px + 3 * 8px); } .cbtn { width: 40px; height: 40px; } .cbtn .cb-icon { width: 24px; height: 24px; } }
 
@@ -541,6 +568,8 @@
 .ql-quest.ready .ql-state { color: #b8321e; }
 .ql-sum { font-size: 13px; line-height: 1.45; margin: 3px 0; }
 .ql-goals { margin: 4px 0 0; padding-left: 4px; list-style: none; font-size: 13px; }
+/* (a goal's second line under its words, not under its mark) */
+.ql-goals li { padding-left: 1.1em; text-indent: -1.1em; }
 .ql-goals li.done { color: #3f6b1a; }
 .ql-goals span { font-weight: 600; }
 /* the journal (docs/quests.md §2.5): three tabs, the quests on the left, the one open on the right */
@@ -573,7 +602,8 @@
 .ql-take { font: 600 12px var(--pixel); padding: 2px 10px; border-radius: 6px; border: 2px solid var(--wood-dark); background: #ffd55a; cursor: pointer; }
 @media (max-width: 640px) { .ql-body { grid-template-columns: 1fr; } }
 /* the zone, under the minimap */
-.mm-zone { position: absolute; left: 4px; right: 4px; bottom: -20px; text-align: center; font: 600 11px/16px var(--pixel); color: #fff; border-radius: 4px; pointer-events: none; }
+/* (under the frame, growing down when its words take two lines, never up over the map) */
+.mm-zone { position: absolute; left: 4px; right: 4px; top: calc(100% + 2px); padding: 1px 4px; text-align: center; font: 600 11px/14px var(--pixel); color: #fff; border-radius: 4px; pointer-events: none; }
 .mm-zone.peaceful { background: rgba(63, 120, 40, 0.85); } .mm-zone.combat { background: rgba(160, 50, 30, 0.85); }
 
 /* An illuminated, forged-metal encounter plate. No bitmap art is replaced. */
@@ -701,9 +731,13 @@
 .cr-mood { background: none; border: 1px solid transparent; border-radius: 4px; padding: 0 2px; font-size: 15px; cursor: pointer; }
 .cr-mood.on { border-color: var(--wood-dark); background: #ffd55a55; }
 .cr-words { font-size: 12px; line-height: 1.35; color: var(--ink-warm); text-align: center; }
-.cr-controls { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.cr-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.cr-label { flex: 0 0 64px; font-size: 13px; color: #8a3b12; }
+/* (the rows one grid: the labels' column as wide as the widest label, the choices beside them) */
+.cr-controls { flex: 1; display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 10px; row-gap: 4px; align-items: center; min-width: 0; }
+.cr-row { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; }
+.cr-row > :not(.cr-label) { grid-column: 2; }
+.cr-row > .cr-pick { justify-self: start; }
+.cr-pick { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cr-label { grid-column: 1; font-size: 13px; color: #7a2f0c; white-space: nowrap; }
 .cr-val { min-width: 120px; text-align: center; font-size: 13px; }
 .cr-sws { display: flex; flex-wrap: wrap; gap: 3px; flex: 1; }
 .cr-sw { width: 16px; height: 16px; border: 1px solid rgba(0,0,0,0.35); border-radius: 3px; padding: 0; cursor: pointer; }
@@ -785,6 +819,14 @@ body.looks-page { background: #2b3550; color: var(--ink-warm); overflow: auto; }
 .panel-tabs .pt-tab { font: 13px var(--text); color: var(--ink-warm); background: var(--paper); border: 2px solid var(--wood-dark); border-radius: 5px; padding: 3px 8px; white-space: nowrap; cursor: pointer; }
 .panel-tabs .pt-tab.on { background: #fff3d0; box-shadow: inset 0 -3px 0 var(--wood-dark); font-weight: 700; }
 .panel-tabs .pt-tab kbd { font-size: 10px; color: var(--ink-warm); background: var(--paper-dark); border-color: var(--wood-dark); margin-left: 3px; }
+/* what is open under them starts below them: a sheet (paneltabs.ts marks the body while they show), and the bars of
+   the skill tree's and the world map's pages, which they always cover (laid out before the body is marked: the tree
+   fits itself under its bars as it opens) */
+body.with-tabs .overlay { padding-top: 58px; box-sizing: border-box; }
+body.with-tabs .overlay .sheet { max-height: calc(100dvh - 72px); }
+.sk-page .sk-bar { top: 62px; }
+.sk-page .sk-directions { top: 118px; }
+.sk-page .sk-branches { top: 190px; }
 
 /* Options → Keys (ui/keyspage.ts) */
 .keys-page { display: flex; flex-direction: column; gap: 4px; font-family: var(--text); }
