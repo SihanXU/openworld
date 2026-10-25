@@ -1,52 +1,31 @@
-// The cover (title screen): the mountain at dawn — the plateau the game begins on, ridges behind
-// it, clouds drifting by, the game's companion flying across — the title, and the menu: continue the latest
-// slot, a new game in a slot, load a slot, controls, language. The slot panel shows each of the
-// three slots' summary, and writes a slot out to a file or reads one back (saves.ts).
+// The cover (title screen): the game's world itself behind it — a place of the game's, drawn live by the renderer
+// under a camera drifting slowly about it (the worker's backdrop, a world with no story) —, a shade over its left side,
+// the title large and the menu under it: continue the latest slot, a new game in a slot, load a slot, settings. The
+// game's companion flies beside the line chosen; the keys move it (up, down, Enter). The slot panel shows each of the
+// three slots' summary, and writes a slot out to a file or reads one back (saves.ts); the settings hold the language,
+// the sound, the world filter, the keys, the AI setting and the credits.
 
-import { assetsBase, game } from '../game.ts'
+import { assetsBase, game, type CoverScene } from '../game.ts'
 import type { Difficulty, Look } from '@openworld/engine'
 import { Creator } from './creator.ts'
+import { KeysPage } from './keyspage.ts'
+import type { AiOptions } from './quality.ts'
 import type { SaveSummary } from '../protocol.ts'
 import { SLOTS, deleteSlot, exportSlot, listSlots, pickSaveFile, writeSlot, type Slot, type SlotData } from '../saves.ts'
-import { $, controlsTable, esc, locale, t, tx } from './common.ts'
+import { $, esc, locale, prefs, t, tx } from './common.ts'
 
-/** The companion flying across (the game's, when its cover says so): the sheet it names in the game's assets, or OpenWorld's fairy. */
+/** The companion beside the menu (the game's, when its cover says so): the sheet it names in the game's assets, or OpenWorld's fairy. */
 const companionSheet = (c: string | boolean) => `${assetsBase()}${typeof c === 'string' ? c : 'lsw/Companion/Fairy/SpriteSheet.png'}`
 
-/** The scene behind the title: ridges in four depths, the plateau with its shelter, pines. */
-const SCENE = `
-<svg class="cv-land" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-  <defs>
-    <linearGradient id="cvSky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2b3f6b"/><stop offset="0.45" stop-color="#7f8fc0"/><stop offset="0.75" stop-color="#f2a988"/><stop offset="1" stop-color="#fbd59a"/>
-    </linearGradient>
-    <linearGradient id="cvSnow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#cfdcec"/></linearGradient>
-  </defs>
-  <rect width="1600" height="900" fill="url(#cvSky)"/>
-  <circle cx="1180" cy="560" r="90" fill="#ffe7b0" opacity="0.85"/>
-  <path d="M0 640 L140 520 L260 590 L420 450 L560 560 L700 470 L860 590 L1010 480 L1180 600 L1330 500 L1480 590 L1600 540 L1600 900 L0 900Z" fill="#a3afd3"/>
-  <path d="M0 700 L180 600 L330 660 L470 560 L620 680 L760 610 L900 700 L1060 620 L1220 700 L1380 610 L1600 690 L1600 900 L0 900Z" fill="#6f7fae"/>
-  <!-- the plateau: a flat snow top, a shelter, the cut down its face (low, under the menu) -->
-  <g transform="translate(0 130)">
-  <path d="M420 900 L560 520 L640 470 L1000 470 L1080 520 L1240 900Z" fill="#46557e"/>
-  <path d="M560 520 L640 470 L1000 470 L1080 520 L1040 540 L980 515 L900 535 L820 512 L740 538 L660 516 L600 540Z" fill="url(#cvSnow)"/>
-  <rect x="690" y="440" width="44" height="30" fill="#7a4a2a"/><path d="M684 442 L712 422 L740 442Z" fill="#a8432f"/>
-  <path d="M820 535 L812 620 L830 700 L815 800 L826 900" stroke="#c9a86a" stroke-width="6" fill="none" opacity="0.7" stroke-linecap="round"/>
-  </g>
-  <path d="M0 790 L160 730 L320 780 L520 720 L700 800 L900 740 L1100 800 L1300 730 L1600 790 L1600 900 L0 900Z" fill="#2d3c5e"/>
-  <g fill="#1d2a45">${pines()}</g>
-</svg>`
-
-function pines(): string {
-  let out = ''
-  for (let i = 0; i < 26; i++) {
-    const x = (i * 67 + (i % 3) * 23) % 1600
-    const h = 60 + ((i * 37) % 50)
-    const y = 900 - ((i * 13) % 40)
-    out += `<path d="M${x} ${y - h} L${x - h * 0.32} ${y} L${x + h * 0.32} ${y}Z"/>`
-  }
-  return out
-}
+/** Where the place behind the title stands on the screen: right of the menu, a little below the middle. */
+const SCENE_AT: [number, number] = [0.64, 0.52]
+/**
+ * How long one place shows before the next (through black): the world's clock runs there (a game hour a minute), so
+ * the hour the place was chosen at would soon pass — its people gone to bed — were it kept.
+ */
+const SCENE_MS = 90_000
+/** The veil's fall before the next place (as long as its CSS transition). */
+const VEIL_MS = 1600
 
 /** How a new game begins: its difficulty, and where (a start of the world's other than its own: the tutorial, played on its own from the title). */
 export interface NewGame {
@@ -61,14 +40,33 @@ export interface CoverHandlers {
   start(slot: Slot, data: SlotData | undefined, game?: NewGame): void
   /** The tutorial, on its own: no slot is written, and walking out of it ends it (back to the title). */
   tutorial(): void
+  /** The world behind the title: at this place, the traveller (the latest save's look) standing there. */
+  backdrop(scene: CoverScene, at: [number, number], look?: Look): void
   toggleLocale(): void
+  toggleSound(): void
+  muted(): boolean
+  /** The AI setting (the options' section, the same one). */
+  ai: AiOptions
 }
+
+type Item = 'continue' | 'new' | 'load' | 'settings'
+type Panel = 'new' | 'load' | 'settings' | 'keys'
 
 export class Cover {
   private slots: (SlotData | undefined)[] = []
-  private panel: 'new' | 'load' | 'help' | undefined
+  private panel: Panel | undefined
+  /** The line the companion is beside (the keys move it, the pointer too). */
+  private chosen: Item = 'new'
   /** The difficulty a new game starts at (Minecraft's choice): normal unless chosen. */
   private difficulty: Difficulty = 'normal'
+  /** The place behind has drawn its first frame (its time there has begun), and the veil over it is lifted. */
+  private drawn = false
+  private lit = false
+  private keysPage = new KeysPage(() => ((this.panel = 'settings'), this.render()))
+  /** The place behind the title now (an index into the game's scenes), and the timer that moves to the next. */
+  private scene = -1
+  private next?: ReturnType<typeof setTimeout>
+  private readonly onKey = (e: KeyboardEvent) => this.key(e)
 
   constructor(
     private world: string,
@@ -82,13 +80,45 @@ export class Cover {
   async show(panel?: 'load'): Promise<void> {
     this.slots = await listSlots(this.world)
     this.panel = panel
+    this.chosen = this.latest() ? 'continue' : 'new'
+    this.drawn = this.lit = false
     document.getElementById('loading')?.remove()
     $('#intro').classList.remove('hidden')
+    document.getElementById('app')?.classList.add('on-cover')
+    document.addEventListener('keydown', this.onKey)
+    this.on.ai.also = () => this.panel === 'settings' && this.render()
     this.render()
+    // the first place: the one `?cover=<n>` names (to look at one), else any
+    const asked = Number(new URLSearchParams(location.search).get('cover'))
+    const n = game().cover?.scenes?.length ?? 0
+    this.backdrop(Number.isInteger(asked) && asked >= 0 && asked < n ? asked : Math.floor(Math.random() * n))
   }
 
   hide(): void {
     $('#intro').classList.add('hidden')
+    document.getElementById('app')?.classList.remove('on-cover')
+    document.removeEventListener('keydown', this.onKey)
+    this.keysPage.hide()
+    this.creator?.dispose()
+    this.creator = undefined
+    this.on.ai.also = undefined
+    clearTimeout(this.next)
+  }
+
+  /** The world behind has drawn: the veil over it lifts (once each time the title opens). */
+  worldShown(): void {
+    if (this.drawn) return
+    this.drawn = this.lit = true
+    document.querySelector('#intro .cover')?.classList.add('lit')
+    // the next place, after a while (through black)
+    const n = game().cover?.scenes?.length ?? 0
+    clearTimeout(this.next)
+    this.next = setTimeout(() => {
+      if (!this.open) return
+      this.lit = false
+      document.querySelector('#intro .cover')?.classList.remove('lit')
+      this.next = setTimeout(() => this.open && this.backdrop((this.scene + 1) % n), VEIL_MS)
+    }, SCENE_MS)
   }
 
   /** The game behind could not start the chosen slot: say why, and give the buttons back. */
@@ -113,44 +143,92 @@ export class Cover {
     return best
   }
 
+  /** One of the game's places behind the title (the `n`th), the latest save's traveller standing in it. */
+  private backdrop(n: number): void {
+    const scene = game().cover?.scenes?.[n]
+    if (!scene) return
+    clearTimeout(this.next)
+    this.scene = n
+    this.drawn = false
+    const latest = this.latest()
+    const save = latest ? this.slots[latest - 1]!.save : undefined
+    const look = save?.state?.entities?.[save.state.player]?.look
+    this.on.backdrop(scene, SCENE_AT, typeof look === 'object' ? look : undefined)
+  }
+
+  private items(): Item[] {
+    return [...(this.latest() ? ['continue' as const] : []), 'new', 'load', 'settings']
+  }
+
   private render(): void {
     const latest = this.latest()
-    const zh = locale.value === 'zh'
-    // what the game's cover shows (ClientGame.cover): its title, its art, its tutorial and its other pages
+    // what the game's cover shows (ClientGame.cover): its title, its world behind, its companion
     const cv = game().cover ?? {}
     const title = esc(cv.title ? tx(cv.title) : game().id)
+    const label: Record<Item, string> = { continue: t('cvContinue'), new: t('newGame'), load: t('cvLoad'), settings: t('cvSettings') }
+    const line = (i: Item) => {
+      const off = i === 'load' && !this.slots.some(Boolean)
+      const note = i === 'continue' && latest ? `<small>${esc(this.line(this.slots[latest - 1]!.summary))}</small>` : ''
+      return `<button class="cv-item${i === this.chosen ? ' on' : ''}" data-item="${i}" ${off ? 'disabled' : ''}>${label[i]}${note}</button>`
+    }
+    const pip = cv.companion ? `<span class="cv-pip" style="background-image:url('${encodeURI(companionSheet(cv.companion))}')"></span>` : ''
     $('#intro').innerHTML = `
-      <div class="cover${cv.art ? '' : ' plain'}">
-        ${cv.art ? SCENE : ''}
-        <div class="cv-cloud c1"></div><div class="cv-cloud c2"></div><div class="cv-cloud c3"></div>
-        ${cv.companion ? `<div class="cv-pip" style="background-image:url('${encodeURI(companionSheet(cv.companion))}')"></div>` : ''}
+      <div class="cover${cv.scenes?.length ? '' : ' plain'}${this.lit ? ' lit' : ''}${this.panel ? ' paneled' : ''}">
+        <div class="cv-shade"></div>
+        <div class="cv-motes">${'<i></i>'.repeat(18)}</div>
+        <div class="cv-veil"></div>
+        <div class="cv-bar top"></div><div class="cv-bar bottom"></div>
         <div class="cv-main">
-          ${cv.kicker ? `<div class="cv-kicker">${esc(tx(cv.kicker))}</div>` : ''}
           <h1 class="cv-title">${title}</h1>
-          ${cv.subtitle ? `<div class="cv-sub">${esc(tx(cv.subtitle))}</div>` : ''}
-          <div class="cv-menu">
-            ${latest ? `<button class="cv-btn primary" id="cvContinue">${t('cvContinue')}<small>${esc(this.line(this.slots[latest - 1]!.summary))}</small></button>` : ''}
-            <button class="cv-btn${latest ? '' : ' primary'}" id="cvNew">${t('newGame')}</button>
-            <button class="cv-btn" id="cvLoad" ${this.slots.some(Boolean) ? '' : 'disabled'}>${t('cvLoad')}</button>
-            ${cv.tutorial ? `<button class="cv-btn" id="cvTutorial">${zh ? '新手教程' : 'Tutorial'}<small>${zh ? '从零学起 · 独立于主线和存档' : 'Learn the ropes · Separate from the story and saves'}</small></button>` : ''}
-            ${cv.challenge ? `<button class="cv-btn cv-challenge" id="cvChallenge">${esc(tx(cv.challenge.label))}</button>` : ''}
-            <button class="cv-btn" id="cvHelp">${t('controls')}</button>
-            <button class="cv-btn small" id="cvLang">${zh ? 'English' : '中文'}</button>
-          </div>
+          <div class="cv-rule"></div>
+          <nav class="cv-menu">${pip}${this.items().map(line).join('')}</nav>
           <div class="cv-status"></div>
         </div>
-        ${this.panel ? `<div class="cv-panel wood">${this.panelHtml()}</div>` : ''}
-        ${cv.credit === false ? '' : `<div class="cv-foot">${cv.credit ? esc(tx(cv.credit)) : `${zh ? '美术与音乐：' : 'Art & music: '}<a href="https://pixel-boy.itch.io/ninja-adventure-asset-pack" target="_blank" rel="noopener">Ninja Adventure</a> (CC0)`}</div>`}
+        ${this.panel ? `<div class="cv-dim"></div><div class="cv-panel wood">${this.panelHtml()}</div>` : ''}
       </div>`
-    const go = (slot: Slot) => (this.busy(), this.on.start(slot, this.slots[slot - 1]))
-    document.querySelector<HTMLButtonElement>('#cvContinue')?.addEventListener('click', () => latest && go(latest))
-    $('#cvNew').onclick = () => ((this.panel = 'new'), this.render())
-    $('#cvLoad').onclick = () => ((this.panel = 'load'), this.render())
-    $('#cvHelp').onclick = () => ((this.panel = 'help'), this.render())
-    document.querySelector<HTMLButtonElement>('#cvTutorial')?.addEventListener('click', () => (this.busy(), this.on.tutorial()))
-    document.querySelector<HTMLButtonElement>('#cvChallenge')?.addEventListener('click', () => cv.challenge && location.assign(new URL(cv.challenge.href, location.href).href))
-    $('#cvLang').onclick = () => (this.on.toggleLocale(), this.render())
+    $('#intro').querySelectorAll<HTMLButtonElement>('[data-item]').forEach((b) => {
+      b.onmouseenter = () => this.choose(b.dataset.item as Item)
+      b.onclick = () => this.act(b.dataset.item as Item)
+    })
+    this.placePip()
     if (this.panel) this.wirePanel()
+  }
+
+  /** The companion beside the line chosen. */
+  private choose(i: Item): void {
+    if (this.chosen === i) return
+    this.chosen = i
+    $('#intro').querySelectorAll<HTMLButtonElement>('[data-item]').forEach((b) => b.classList.toggle('on', b.dataset.item === i))
+    this.placePip()
+  }
+
+  private placePip(): void {
+    const pip = document.querySelector<HTMLElement>('#intro .cv-pip')
+    const b = document.querySelector<HTMLElement>(`#intro [data-item="${this.chosen}"]`)
+    if (pip && b) pip.style.top = `${b.offsetTop + Math.min(b.offsetHeight, 52) / 2}px`
+  }
+
+  private act(i: Item): void {
+    const latest = this.latest()
+    if (i === 'continue' && latest) return this.busy(), this.on.start(latest, this.slots[latest - 1])
+    if (i === 'load' && !this.slots.some(Boolean)) return
+    this.panel = i === 'continue' ? undefined : i
+    this.render()
+  }
+
+  /** The keys on the cover: up and down choose a line, Enter (or Space) takes it, Esc closes a panel. */
+  private key(e: KeyboardEvent): void {
+    if (!this.open || (e.target as HTMLElement)?.closest?.('input, textarea, select')) return
+    if (this.panel) {
+      // (the keys page listens for keys itself, and leaves by its own buttons)
+      if (e.key === 'Escape' && this.panel !== 'keys') (e.preventDefault(), (this.panel = undefined), this.render())
+      return
+    }
+    const items = this.items().filter((i) => i !== 'load' || this.slots.some(Boolean))
+    const at = items.indexOf(this.chosen)
+    if (e.code === 'ArrowUp' || e.code === 'KeyW') (e.preventDefault(), this.choose(items[(at - 1 + items.length) % items.length]))
+    else if (e.code === 'ArrowDown' || e.code === 'KeyS') (e.preventDefault(), this.choose(items[(at + 1) % items.length]))
+    else if (e.code === 'Enter' || e.code === 'Space') (e.preventDefault(), this.act(this.chosen))
   }
 
   /** "Cloudtop · Day 1 13:00 · Lv 2 · Make a stone axe" */
@@ -162,8 +240,10 @@ export class Cover {
   }
 
   private panelHtml(): string {
-    const head = `<div class="cv-phead"><b>${this.panel === 'help' ? t('controls') : this.panel === 'new' ? t('cvPickNew') : t('cvPickLoad')}</b><button class="x" id="cvClose">✕</button></div>`
-    if (this.panel === 'help') return head + `<div class="cv-help">${controlsTable(import.meta.env.DEV)}</div>`
+    const name = { settings: t('cvSettings'), keys: t('keysSet'), new: t('cvPickNew'), load: t('cvPickLoad') }[this.panel!]
+    const head = `<div class="cv-phead"><b>${name}</b>${this.panel === 'keys' ? '' : '<button class="x" id="cvClose">✕</button>'}</div>`
+    if (this.panel === 'keys') return head + '<div id="cvKeys"></div>'
+    if (this.panel === 'settings') return head + this.settingsHtml()
     const when = (iso: string) => new Date(iso).toLocaleString(locale.value === 'zh' ? 'zh-CN' : 'en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     const cards = SLOTS.map((s) => {
       const d = this.slots[s - 1]
@@ -187,10 +267,26 @@ export class Cover {
     ]
     // a new game's traveller: their look, made here (docs/looks.md)
     // (a game without a look table keeps its travellers' sheets: nothing to make)
-    const maker = this.panel === 'new' && Object.keys(game().looks.bodies).length ? `<div class="cv-sub">${zh ? '你的样子' : 'Your look'}</div><div id="cvCreator"></div>` : ''
+    const maker = this.panel === 'new' && Object.keys(game().looks.bodies).length ? `<div class="cv-plabel">${t('cvYourLook')}</div><div id="cvCreator"></div>` : ''
     const pick = this.panel === 'new' ? `<div class="cv-diff">${levels.map(([id, name, note]) => `<button class="cv-btn small${this.difficulty === id ? ' primary' : ''}" data-diff="${id}">${name}<small>${note}</small></button>`).join('')}</div>` : ''
-    // a new game begins on the plateau, at the foot of the mountain: the tutorial is its own, from the title
-    return head + maker + pick + `<div class="cv-slots">${cards}</div><div class="cv-note muted">${t('cvNote')}</div>`
+    // the tutorial is its own run, offered as a new game begins: nothing saved, and walking out of it ends it
+    const tutorial = this.panel === 'new' && game().cover?.tutorial ? `<button class="cv-btn cv-tutorial" id="cvTutorial">${t('cvTutorial')}<small>${t('cvTutorialTip')}</small></button>` : ''
+    return head + tutorial + maker + pick + `<div class="cv-slots">${cards}</div><div class="cv-note muted">${t('cvNote')}</div>`
+  }
+
+  private settingsHtml(): string {
+    const cv = game().cover ?? {}
+    const zh = locale.value === 'zh'
+    const filter = game().worldFilter ? `<div class="opt"><span>${t('optFilter')}</span><button id="cvFilter">${t({ off: 'filterOff', light: 'filterLight', full: 'filterFull' }[prefs.filter()])}</button></div>` : ''
+    const credit = cv.credit === false ? '' : `<div class="cv-credit">${cv.credit ? esc(tx(cv.credit)) : `${zh ? '美术与音乐：' : 'Art & music: '}<a href="https://pixel-boy.itch.io/ninja-adventure-asset-pack" target="_blank" rel="noopener">Ninja Adventure</a> (CC0)`}</div>`
+    return `<div class="options cv-settings">
+      <div class="opt"><span>${t('language')}</span><button id="cvLang">${zh ? '中文 → English' : 'English → 中文'}</button></div>
+      <div class="opt"><span>${t('sound')}</span><button id="cvSound">${this.on.muted() ? t('off') : t('on')}</button></div>
+      ${filter}
+      <div class="opt"><span>${t('controls')}</span><button id="cvKeysBtn">${t('keysSet')}</button></div>
+      ${this.on.ai.html()}
+      ${credit}
+    </div>`
   }
 
   /** The look a new game's traveller is made with (the new-game panel's creator). */
@@ -201,7 +297,24 @@ export class Cover {
     this.creator?.dispose()
     const maker = document.getElementById('cvCreator')
     this.creator = maker ? new Creator(maker, this.look, (look) => (this.look = look)) : undefined
-    $('#cvClose').onclick = () => ((this.panel = undefined), this.render())
+    document.querySelector<HTMLButtonElement>('#cvClose')?.addEventListener('click', () => ((this.panel = undefined), this.render()))
+    if (this.panel === 'keys') return this.keysPage.show($('#cvKeys'))
+    this.keysPage.hide()
+    if (this.panel === 'settings') {
+      const host = $('#intro').querySelector<HTMLElement>('.cv-settings')!
+      $('#cvLang').onclick = () => (this.on.toggleLocale(), this.render())
+      $('#cvSound').onclick = () => (this.on.toggleSound(), this.render())
+      document.querySelector<HTMLButtonElement>('#cvFilter')?.addEventListener('click', () => {
+        const next = { off: 'light', light: 'full', full: 'off' } as const
+        prefs.setFilter(next[prefs.filter()])
+        this.render()
+      })
+      $('#cvKeysBtn').onclick = () => ((this.panel = 'keys'), this.render())
+      this.on.ai.wire(host)
+      void this.on.ai.refresh()
+      return
+    }
+    document.querySelector<HTMLButtonElement>('#cvTutorial')?.addEventListener('click', () => (this.busy(), this.on.tutorial()))
     document.querySelectorAll<HTMLButtonElement>('#intro [data-diff]').forEach((b) => (b.onclick = () => ((this.difficulty = b.dataset.diff as Difficulty), this.render())))
     document.querySelectorAll<HTMLButtonElement>('#intro [data-act]').forEach((b) => {
       const slot = Number(b.dataset.slot) as Slot

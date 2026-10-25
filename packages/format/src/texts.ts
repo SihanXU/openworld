@@ -68,7 +68,7 @@ const SCHEMAS: [RegExp, Schema][] = [
   [/^learned\//, learned as unknown as Schema],
   // the player's tables have no schema (free tables the runtime's panels read); its words are the cover's and the
   // interface's own (ClientGame.texts), the ones the editor writes
-  [/^client\//, { properties: { cover: { properties: { title: { $ref: '#/definitions/Text' }, kicker: { $ref: '#/definitions/Text' }, subtitle: { $ref: '#/definitions/Text' }, credit: { $ref: '#/definitions/Text' } } }, texts: { additionalProperties: { $ref: '#/definitions/Text' } } } }],
+  [/^client\//, { properties: { cover: { properties: { title: { $ref: '#/definitions/Text' }, credit: { $ref: '#/definitions/Text' } } }, texts: { additionalProperties: { $ref: '#/definitions/Text' } } } }],
 ]
 const TEXT = '#/definitions/Text'
 

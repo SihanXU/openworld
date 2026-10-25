@@ -84,7 +84,7 @@ details summary { cursor: pointer; font-size: 12px; color: var(--muted); }
 .dev-tools input { flex: 1; min-width: 0; font: 12px var(--mono); }
 .dev-tools input[type="number"] { flex: 0 0 64px; }
 
-#intro { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(11,13,18,0.55), rgba(11,13,18,0.92)); }
+#intro { position: absolute; inset: 0; }
 .intro-card { width: min(720px, 94vw); background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 28px 32px; box-shadow: 0 20px 80px rgba(0,0,0,0.6); }
 .kicker { font-family: var(--pixel); color: var(--accent); letter-spacing: 1.5px; text-transform: uppercase; font-size: 13px; }
 .intro-card h1 { font-family: var(--pixel); font-size: 44px; margin: 4px 0 8px; }

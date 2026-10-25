@@ -370,14 +370,37 @@ const frameThings = new FrameDecoder()
 /** What the camera showed when the worker was last told (it sends what lies there). */
 let viewSent = ''
 
+/** The worker runs the world behind the title (the cover's backdrop) until a game it begins is ready: its frames are only drawn. */
+let backdropOn = false
+/** The place asked for has sent its map: frames from here on are its (those of the place before may still be on the way). */
+let backdropHere = false
+
+/** The backdrop's messages: its map and its frames drawn (and the pictures of learned kinds), nothing else heard. */
+function onBackdrop(m: FromWorker): void {
+  if (m.t === 'map') (scene.setLook(m.look), scene.setMap(m.map), (backdropHere = true))
+  else if (m.t === 'art') for (const a of m.arts) registerArt(scene, a.id, a.art)
+  else if (m.t === 'frame') {
+    const frame = frameThings.decode(m.frame, m.gone)
+    const v = scene.viewCells()
+    const k = v && `${v.map}:${v.x}:${v.y}:${v.w}:${v.h}`
+    if (v && k !== viewSent) (viewSent = k!), send({ t: 'view', ...v })
+    scene.applyFrame(frame)
+    if (backdropHere) cover.worldShown()
+  } else if (m.t === 'error') console.warn(`[backdrop] ${m.message}`)
+}
+
 worker.onmessage = (ev: MessageEvent<FromWorker>) => {
   const m = ev.data
+  if (backdropOn && m.t !== 'ready') return onBackdrop(m)
   switch (m.t) {
     case 'placement':
       building.onPreview(m.preview)
       break
     case 'ready':
       dev.stats = m.stats
+      // (the title's camera gives way to the player's)
+      backdropOn = false
+      scene.setCinema(undefined)
       cover.hide()
       // a slot's save from another version of the world cannot be played on: a new game began instead
       if (startingFrom && !m.resumed) hud.message(t('cvIncompatible'), 'warn')
@@ -559,6 +582,13 @@ const cover = new Cover(WORLD, {
     const base = worldBase()
     send({ t: 'init', base, library, librarySeq: await librarySeq(), modder: MODDER, quality: menu.ai.quality, start: 'tutorial' })
   },
+  backdrop: async (s, at, look) => {
+    backdropOn = true
+    backdropHere = false
+    scene.setCinema({ x: s.x, y: s.y, zoom: s.zoom, at })
+    const [x, y] = s.stand ?? [s.x, s.y]
+    send({ t: 'backdrop', base: worldBase(), at: { map: s.map, x, y }, hour: s.hour, library: await kvGet<LibraryData>(libraryKey()), look })
+  },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
     hud.relabel()
@@ -566,7 +596,12 @@ const cover = new Cover(WORLD, {
     fishingHud.relabel()
     relabelAll()
   },
+  toggleSound: () => (hud.toggleSound(), (menu.muted = hud.muted)),
+  muted: () => hud.muted,
+  ai: menu.ai,
 })
+// (dev: the cover, for checking it by hand)
+if (import.meta.env.DEV) Object.assign((window as unknown as { lsw: object }).lsw, { cover })
 /**
  * A playtest (the editor's, docs/engine-split.md P4): `?playtest=1`, a new game at once with nothing saved, at
  * the world's start or at the cell `?at=<map>,<x>,<y>`; with `?scene=<step>`, that step of the story begun at once
