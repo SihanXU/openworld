@@ -10,7 +10,10 @@
     <meta property="og:image" content="media/hero.jpg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@600&display=block" rel="stylesheet">
+    <link rel="preconnect" href="https://cdn-font.hyperos.mi.com">
+    <link rel="preconnect" href="https://cdn-file.hyperos.mi.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Noto+Serif+SC:wght@500&family=Pixelify+Sans:wght@600&family=Source+Serif+4:opsz,wght@8..60,500&display=swap" rel="stylesheet">
+    <link href="https://cdn-font.hyperos.mi.com/font/css?family=MiSans:400,500,600:Chinese_Simplify,Latin&display=swap" rel="stylesheet">
     <link rel="icon" href="data:,">
     <link rel="stylesheet" href="base.css">
     <link rel="stylesheet" href="page.css">
@@ -18,14 +21,20 @@
 <body>
     <nav class="banner" id="nav">
         <div class="container">
-            <div class="nav-title"><span class="logo">OpenWorld</span><small>Large Symbolic World</small></div>
-            <div class="nav-links" data-spy>
-                <a href="#world" class="hide-sm" data-zh="世界">World</a>
-                <a href="#web" class="hide-sm" data-zh="关联">Connections</a>
+            <a class="nav-title" href="#top" inert aria-hidden="true"><span class="logo">OpenWorld</span><small>Large Symbolic World</small></a>
+            <div class="nav-links" id="nav-links" data-spy>
+                <a href="#world" data-zh="世界">World</a>
+                <a href="#web" data-zh="关联">Connections</a>
                 <a href="#how" data-zh="工作原理">How it works</a>
-                <a href="#news" class="hide-sm" data-zh="新闻">News</a>
+                <a href="#news" data-zh="新闻">News</a>
                 <a href="#join" class="cta" data-zh="等候名单">Waitlist</a>
-                <button class="lang-btn" type="button" data-lang-toggle aria-label="Language">中文</button>
+            </div>
+            <div class="nav-actions">
+                <button class="lang-btn" type="button" data-lang-toggle aria-label="Switch to Chinese"><svg class="lang-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg><span data-lang-label lang="zh-Hans">中文</span></button>
+                <button class="nav-toggle" type="button" aria-controls="nav-links" aria-expanded="false">
+                    <span class="sr-only" data-zh="切换导航菜单">Toggle navigation menu</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path class="menu-line top" d="M5 6h14"/><path class="menu-line middle" d="M5 12h14"/><path class="menu-line bottom" d="M5 18h14"/></svg>
+                </button>
             </div>
         </div>
     </nav>
@@ -35,14 +44,17 @@
         <video class="backdrop" data-auto muted loop playsinline preload="auto" poster="media/hero.jpg"><source src="media/hero.mp4" type="video/mp4"></video>
         <div class="hero-inner">
             <h1 class="logo">OpenWorld</h1>
-            <p class="sub" data-zh="这个世界从没见过的事，它会学会，并且记住。">What the world has never seen, it learns and remembers.</p>
+            <p class="sub" data-zh="这个世界从没见过的事，它会学会，并且记住。" data-zh-keep="这个世界从没见过的事，|它会学会，并且记住。">What the world has never seen, it learns and remembers.</p>
             <div class="hero-actions">
                 <a class="btn primary" href="http://35.239.4.44:5175/" data-zh="试玩 Demo">Play the demo</a>
                 <a class="btn" href="#join" data-zh="加入等候名单">Join the waitlist</a>
                 <a class="btn" href="https://x.com/intent/follow?screen_name=SihanXuOfficial" target="_blank" rel="noopener"><svg class="x-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span data-zh="在 X 上关注">Follow on X</span></a>
             </div>
         </div>
-        <div class="scroll-bar light" onclick="document.getElementById('world').scrollIntoView();"></div>
+        <a class="scroll-cue" href="#world">
+            <span class="sr-only" data-zh="向下浏览世界">Explore the world below</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </a>
     </section>
 
     <!-- 3 · the scale: maps, people, items, scenes -->
@@ -51,7 +63,7 @@
             <div class="intro">
                 <div>
                     <p class="label" data-zh="世界">The world</p>
-                    <h2 data-zh="一千张地图，全都是代码">A thousand maps, all of them code</h2>
+                    <h2 data-zh="一千张地图，全都是代码" data-zh-keep="一千张地图，|全都是代码">A thousand maps, all of them code</h2>
                 </div>
                 <div class="text"><p data-zh="OpenWorld 里的每一张地图、每一个人、每一件东西，都是引擎能读取的数据：一个类型、一组标签、几种状态、一个位置。屏幕上没有任何东西是画上去的，所以为一只水桶写的规则，对世界上每一只水桶都成立——而世界能做到内容允许的任何大小。">Every map, person and thing in OpenWorld is data the engine reads: a type, tags, statuses, a place. Nothing on screen is painted on, so a rule written for one bucket of water holds for every bucket in the world — and the world can be as large as its content allows.</p></div>
             </div>
@@ -71,7 +83,7 @@
             <div class="intro">
                 <div>
                     <p class="label" data-zh="蝴蝶效应">Butterfly effect</p>
-                    <h2 data-zh="没有什么事是孤立发生的">Nothing happens on its own</h2>
+                    <h2 data-zh="没有什么事是孤立发生的" data-zh-keep="没有什么事|是孤立发生的">Nothing happens on its own</h2>
                 </div>
                 <div class="text"><p data-zh="闪电点燃枯树。雨浇灭篝火。暴风雨里的一次偷窃，引出了一张悬赏。每个事件都会波及周围的人、地方和东西，而它们又会波及更多。这是渡口的一个暴风雨天，以及它所波及的一切。">Lightning sets a dead tree alight. Rain puts out a campfire. A theft in the storm puts up a bounty. Every event reaches the people, places and things around it, and each of those reaches more. Here is one stormy day at the Ford, and everything it touches.</p></div>
             </div>
@@ -85,15 +97,27 @@
             <div class="intro">
                 <div>
                     <p class="label" data-zh="工作原理">How it works</p>
-                    <h2 data-zh="代码运行世界，模型补写缺少的代码。">Code runs the world. A model writes the code it lacks.</h2>
+                    <h2 data-zh="代码运行世界，模型补写缺少的代码。" data-zh-keep="代码运行世界，|模型补写|缺少的代码。">Code runs the world. A model writes the code it lacks.</h2>
                 </div>
-                <div class="text"><p data-zh="OpenWorld 里的每一次变化，都是某个事件的结果，由这件事所发生在的那个东西的规则决定。只有当这些规则留下空白时，世界才会去问语言模型。回答以一条规则的形式回来：经过检查、在沙盒里重放、由对抗者测试，然后为所有人保留下来。">Every change in OpenWorld is the outcome of an event, decided by rules that belong to the thing it happens to. Where those rules leave an outcome open, and only there, the world asks a language model. The answer comes back as a rule: checked, replayed in a sandbox, tested by an adversary, then kept for everyone.</p></div>
+                <div class="text"><p data-zh="已有规则直接运行；缺少的规则由模型补写，经过验证后供所有玩家复用。">Existing rules run as code. A model fills the gaps with new rules, checked and shared with every player.</p></div>
             </div>
             <div class="stage light" id="explain"><iframe data-src="explain/index.html?embed" title="How it works" data-zh-title="工作原理" loading="lazy"></iframe></div>
             <div class="steps">
-                <button class="step" type="button" data-at="0.6"><div class="n">1</div><h3 data-zh="规则作答">A rule answers</h3><p data-zh="雨落在燃着的篝火上，由篝火自己的规则决定：它在蒸汽中熄灭。不问模型。这是普通的代码，每次都一样，对每个玩家都一样。">Rain falls on a lit campfire, and the campfire's own rules decide: it goes out, in steam. No model is asked. This is ordinary code, the same every time, for every player.</p><div class="code" data-code="fire"></div></button>
-                <button class="step" type="button" data-at="8.8"><div class="n">2</div><h3 data-zh="还没有规则：只问一次模型">No rule yet: the model is asked, once</h3><p data-zh="摆渡人被困在熄灭的火堆旁，没有规则说她该怎么做。世界只停住她一个人，然后去问。大约十秒、五美分之后，一条针对她这一类人的规则，落在那片留空的叶子上。">A ferrykeeper is stuck by her drowned fire, and no rule says what she does. The world holds her, and only her, and asks. In about ten seconds, for about five cents, a rule comes back for her kind, at that open leaf.</p><div class="code" data-code="coat"></div></button>
-                <button class="step" type="button" data-at="23"><div class="n">3</div><h3 data-zh="学会一次，所有人共用">Learned once, for everyone</h3><p data-zh="这条规则进入所有玩家共享的规则库。下一个遇到同样情境的人，无论在谁的世界里，都直接把它当普通代码运行。模型调用随新情境增长——而不是随帧数、玩家数或世界大小增长。">The rule joins a library every player shares. The next to meet the same situation, in anyone's world, runs it as plain code. Model calls grow with new situations — not with frames, players or the size of the world.</p><div class="code" data-code="learned"></div></button>
+                <button class="step" type="button" data-at="0.6">
+                    <div class="n">1</div>
+                    <h3 data-zh="有规则，直接执行" data-zh-keep="有规则，|直接执行">Run the rules</h3>
+                    <p data-zh="雨浇灭篝火，由已有规则处理。">Rain puts out a fire. The rules handle it.</p>
+                </button>
+                <button class="step" type="button" data-at="8.8">
+                    <div class="n">2</div>
+                    <h3 data-zh="缺规则，模型补写" data-zh-keep="缺规则，|模型补写">Fill the gap</h3>
+                    <p data-zh="遇到新情况，模型补写规则。">A model writes the missing rule, once.</p>
+                </button>
+                <button class="step" type="button" data-at="23">
+                    <div class="n">3</div>
+                    <h3 data-zh="写好一次，人人复用" data-zh-keep="写好一次，|人人复用">Share the rule</h3>
+                    <p data-zh="下次遇到，所有玩家直接复用。">Every player reuses the rule as ordinary code.</p>
+                </button>
             </div>
         </div>
     </section>
@@ -105,7 +129,7 @@
                 <a class="cover" href="news/launch/" data-href-zh="news/launch/zh.html"><video class="backdrop" data-auto muted loop playsinline preload="metadata" poster="media/hero.jpg"><source src="media/hero.mp4#t=4" type="video/mp4"></video></a>
                 <div>
                     <p class="meta" data-zh="第 01 篇 · 2026 年 10 月">Post 01 · October 2026</p>
-                    <h3 data-zh="一个能学会从没见过之事的世界">A world that learns what it has never seen</h3>
+                    <h3 data-zh="一个能学会从没见过之事的世界" data-zh-keep="一个能学会|从没见过之事|的世界">A world that learns what it has never seen</h3>
                     <p data-zh="我们为什么完全用代码搭建一个角色扮演世界，语言模型在其中扮演什么角色，以及它为什么能在一个浏览器标签页里撑起一千张地图。">Why we build a role-playing world entirely out of code, where a language model fits in, and why it scales to a thousand maps in a browser tab.</p>
                     <div class="arrow-links"><a href="news/launch/" data-href-zh="news/launch/zh.html" data-zh="阅读">Read</a><a href="news/launch/zh.html" data-href-zh="news/launch/" data-zh="English">中文</a></div>
                 </div>
@@ -132,7 +156,7 @@
     <section class="join on-dark" id="join">
         <video class="backdrop" data-auto muted loop playsinline preload="metadata" poster="media/hero.jpg"><source src="media/hero.mp4#t=6.8" type="video/mp4"></video>
         <div class="container">
-            <h2 data-zh="开放时第一个知道">Be there when it opens</h2>
+            <h2 data-zh="开放时第一个知道" data-zh-keep="开放时|第一个知道">Be there when it opens</h2>
             <form class="wl" method="post" data-endpoint="">
                 <div class="wl-row">
                     <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
@@ -155,7 +179,7 @@
         </footer>
     </section>
 
-    <script src="snippets.js"></script>
+    <script src="motion.js"></script>
     <script src="page.js"></script>
 </body>
 </html>
