@@ -393,6 +393,8 @@ export class Menu {
 
   open(tab?: Tab): void {
     this.contextPopup.close()
+    // (a panel opened, or another in its sheet, starts at its top: the sheet is shared and keeps its scroll)
+    const fresh = !this.menuOpen || (!!tab && tab !== this.tab)
     if (tab) this.tab = tab
     $('#journal').classList.add('hidden')
     $('#skills').classList.add('hidden')
@@ -400,6 +402,7 @@ export class Menu {
     $('#menu').classList.remove('hidden')
     this.picked = undefined
     this.render()
+    if (fresh) $('#menuSheet').scrollTop = 0
     if (this.tab === 'options') void this.ai.refresh()
   }
 
@@ -530,7 +533,7 @@ export class Menu {
     if (this.tab === 'options') this.wireOptions()
     if (this.tab === 'keys') this.keysPage.show($('#keysHost'))
     if (this.tab === 'craft' || this.tab === 'shop' || this.tab === 'station') this.wireCraft()
-    if (this.tab === 'shop') $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-shelf]').forEach((b) => (b.onclick = () => ((this.shelf = b.dataset.shelf!), this.render())))
+    if (this.tab === 'shop') $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-shelf]').forEach((b) => (b.onclick = () => ((this.shelf = b.dataset.shelf!), this.render(), ($('#menuSheet').scrollTop = 0))))
     if (f) {
       this.liveSig = this.sigOf(f)
       // (the purse's coin: its icon as the crafting panel paints a material's)
@@ -790,8 +793,7 @@ export class Menu {
         <div class="slot" data-item="recipe:${r.id}"><div class="icon" data-icon="recipe:${r.id}"></div></div>
         <div class="rname">${esc(tx(r.name))}${unlock}${skill}</div>
         <div class="needs">${needs}</div>
-        <button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(why)}"`}>${verb}${shelf?.sell ? ` → ${r.count}` : r.count && r.count > 1 ? ` ×${r.count}` : ''}</button>
-        ${times > 1 ? `<button class="all" data-craft-all="${r.id}" title="${esc(t('craftAllTip'))}">${t('craftAll')} ×${times}</button>` : ''}
+        <div class="acts">${times > 1 ? `<button class="all" data-craft-all="${r.id}" title="${esc(t('craftAllTip'))}">${t('craftAll')} ×${times}</button>` : ''}<button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(why)}"`}>${verb}${shelf?.sell ? ` → ${r.count}` : r.count && r.count > 1 ? ` ×${r.count}` : ''}</button></div>
       </div>`
     }).join('')
     return `<div class="recipes">${rows}</div>`
@@ -815,7 +817,7 @@ export class Menu {
       <div class="opt"><span>${t('optTracker')}</span><button id="oTracker">${prefs.get('tracker') ? t('on') : t('off')}</button></div>
       <div class="opt"><span>${t('optMarkers')}</span><button id="oMarkers">${prefs.get('markers') ? t('on') : t('off')}</button></div>
       ${game().worldFilter ? `<div class="opt"><span>${t('optFilter')}</span><button id="oFilter">${t({ off: 'filterOff', light: 'filterLight', full: 'filterFull' }[prefs.filter()])}</button></div>` : ''}
-      <div class="opt"><button id="oSave">${t('save')}</button><button id="oNew">${t('toTitle')}</button>${import.meta.env.DEV ? `<button id="oDev">${t('devConsole')}</button>` : ''}</div>
+      <div class="opt-acts"><button id="oSave">${t('save')}</button><button id="oNew">${t('toTitle')}</button>${import.meta.env.DEV ? `<button id="oDev">${t('devConsole')}</button>` : ''}</div>
       ${this.ai.html()}
       <h4>${t('controls')} <button id="oKeys">${t('keysSet')}</button></h4>${controlsTable(import.meta.env.DEV)}
     </div>`
@@ -925,14 +927,14 @@ export class Menu {
       : (zh ? '点击：整堆移到另一边 · Shift+点击：移一个 · 右键：更多' : 'Click: the stack across · Shift+click: one · right click: more')
     $('#chestSheet').innerHTML = `
       <div class="jhead"><b>${esc(tx(c.name))}</b><span class="muted small">${stacks.length} / ${c.capacity ?? '∞'}</span><button class="x" id="cClose">✕</button></div>
-      <div class="inv chest-grid">${chunk(chestCells, ROW).map((r) => `<div class="grid-row">${r.join('')}</div>`).join('')}</div>
+      <div class="tab-body chest-body"><div class="inv chest-grid">${chunk(chestCells, ROW).map((r) => `<div class="grid-row">${r.join('')}</div>`).join('')}</div>
       <div class="inv-foot"><button id="cFill" ${moving ? 'disabled' : ''}>⇣ ${t('fillStacks')}</button><button id="cOrg" ${moving ? 'disabled' : ''}>⇅ ${t('organize')}</button><span class="muted small" ${moving ? 'role="status"' : ''}>${hint}</span></div>
       <div class="inv bag-grid">${chunk(
         bag.map((s, j) => (s ? `<div class="slot" data-b="${s.item.id}" data-item="${s.item.id}"><div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}</div>` : `<div class="slot" data-i="${j}"></div>`)),
         ROW,
       )
         .map((r, k) => `<div class="grid-row${k === 0 ? ' toolbar-row' : ''}">${r.join('')}</div>`)
-        .join('')}</div>`
+        .join('')}</div></div>`
     const sheet = $('#chestSheet')
     sheet.setAttribute('aria-busy', String(!!moving))
     $('#cClose').onclick = () => this.close()
