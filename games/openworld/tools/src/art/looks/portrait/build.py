@@ -409,3 +409,8 @@ class Builder:
 if __name__ == "__main__":
     m = Builder(sys.argv[1], sys.argv[2]).run()
     print(len(m["parts"]), "parts,", len(m["bodies"]), "bodies")
+    # what the edits redrew of the body, and the ground, is no part's (clean.py)
+    from clean import clean  # noqa: E402
+
+    gone = clean(sys.argv[2])
+    print(sum(gone.values()), "stray pixels cleared")
