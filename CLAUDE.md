@@ -50,7 +50,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   a map's things kept as what differs from its file and the maps far behind put away (`sparse.ts`, docs/continent.md §13:
   `from`, `state.chunks`, `Game.keepMaps`/`trim`, the index as the file of the people who travel), the world's indices by
   type, person, prop, kept cell, agent and status by map (`world.ts`: `ofType`, `people`, `withProp` — never a scan over every thing),
-  new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
+  the relief (`relief.ts`: the faces of rock where ground drops south, a cell a level, rock to everyone; `World.stepOver`: only stairs and ramps join levels, a ledge a level high leapt down one way, a higher drop a wall), new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), the story's one
   script (`story.ts`, world-model.md §6.12: steps with triggers — a scene takes control, a beat does
   not — that write only the story and send pushes and notices; steps wait on quests' stages and objectives; hints; the lessons
@@ -194,7 +194,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `frameDelta.ts` frames as what changed (the page puts them back together), `render/scene.ts` renders snapshots with the Ninja Adventure pack (`render/depth.ts` the draw order; `render/worldfilter.ts` the world filter a game's `worldFilter` asks for — its grade, ink, paper and hatching — the options' strength, and the signal camera that keeps telegraphs above it); `assets/figure/` draws looks
   (docs/looks.md): the 24x36 map sprite: the bases and their walk (`bases.ts`: the man, the woman, the child), and frame by frame the outfit and what is worn (`baseoutfit.ts`), the head's parts (`basehead.ts`) and the hair (`basehair.ts`), drawn over ComfyUI drafts (`tools/src/art/looks/sprite/`), the legs and shoes laid on as colour (`basefeet.ts`); the full-body portrait (a dark-fairy-tale line style, every body its own face; its bust in the dialogue box, the whole figure in the creator) from the cut layers in
   `public/assets/lsw/Looks/portrait`, both repainted from the look's colours; `ui/creator.ts` the new game's character creator; `assets/types.ts` the catalogue's
-  contract; `assets/ground.ts` autotiles (the blob layout); `ui/` the Stardew-style UI (`hud.ts` clock, bars,
+  contract; `assets/ground.ts` autotiles (the blob layout); `assets/relief.ts` the relief painted from the heights (faces, rims, stairs; both renderers); `ui/` the Stardew-style UI (`hud.ts` clock, bars,
   toolbar, key labels, dialogue; `menu.ts` menu tabs, the character sheet (the engine's numbers, `Frame.player.stats`),
   journal, chest panel, the shops a game lists (`crafting.shops`: shelves with names and `sell`); `panels.ts` a game's own panels
   (`ClientGame.panels`: by the key a rule's `panel` effect opens, told the fx's `by`, loaded when first opened);

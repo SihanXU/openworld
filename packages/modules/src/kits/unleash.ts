@@ -3,7 +3,7 @@
 // answers itself; what the skill leaves behind (a briar, embers) is made on the cells nothing stands on, and acts by
 // its own rules (contact, time). One hit per foe however many of its cells the skill covers.
 
-import type { EffectRunner, Entity, GameEvent, KitSkill, Pos } from '@openworld/engine'
+import { dropLevels, type EffectRunner, type Entity, type GameEvent, type KitSkill, type Pos } from '@openworld/engine'
 import { kitsOf } from './cast.ts'
 import { axis, cellsOf } from './pattern.ts'
 
@@ -35,6 +35,11 @@ export function unleash(fx: EffectRunner, eff: UnleashArgs, ev: GameEvent): void
     w.place(e, { on: 'tile', map: at.map, x, y, ...(at.z && { z: at.z }) })
     eng.touch({ e: e.id })
   }
+  /** A leap or a blink lands only where a body could get by walking or dropping: not up a cliff, not down more than a level. */
+  const level = (x: number, y: number) => {
+    const d = w.heightAt(at.map, x, y) - w.heightAt(at.map, at.x, at.y)
+    return w.stanceOf(e) === 'air' || (d <= 1 && dropLevels(-d) <= 1)
+  }
   if (skill.move === 'dash') {
     // along the line, cell by cell (as wide as the line): the first foe stops it (it strikes from the cell before), so
     // does what it cannot enter
@@ -58,7 +63,8 @@ export function unleash(fx: EffectRunner, eff: UnleashArgs, ev: GameEvent): void
         path.push(...cells)
         break
       }
-      if (!w.fits(e, at.map, nx, ny)) break
+      // a dash keeps to the ground's rule: no climbing a cliff, no drop of more than a level (World.stepOver)
+      if (!w.fits(e, at.map, nx, ny) || w.safeStep(e, at.map, x, y, nx, ny) !== true) break
       x = nx
       y = ny
       steps++
@@ -74,7 +80,7 @@ export function unleash(fx: EffectRunner, eff: UnleashArgs, ev: GameEvent): void
       // onto the aimed cell, else the free cell beside it nearest where it was
       const spots = [[aim.x, aim.y], [aim.x + 1, aim.y], [aim.x - 1, aim.y], [aim.x, aim.y + 1], [aim.x, aim.y - 1]] as [number, number][]
       spots.sort((a, b) => (a[0] === aim.x && a[1] === aim.y ? -1 : b[0] === aim.x && b[1] === aim.y ? 1 : Math.abs(a[0] - at.x) + Math.abs(a[1] - at.y) - Math.abs(b[0] - at.x) - Math.abs(b[1] - at.y)))
-      const spot = spots.find(([x, y]) => w.inBounds(at.map, x, y) && w.fits(e, at.map, x, y))
+      const spot = spots.find(([x, y]) => w.inBounds(at.map, x, y) && w.fits(e, at.map, x, y) && level(x, y))
       if (spot) moveTo(spot[0], spot[1])
     }
     victims = foesOn(tiles)
@@ -102,7 +108,7 @@ export function unleash(fx: EffectRunner, eff: UnleashArgs, ev: GameEvent): void
     // beside where it aimed, on the first side its whole body fits
     for (const [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
       const x = aim.x + dx, y = aim.y + dy
-      if (w.inBounds(at.map, x, y) && w.fits(e, at.map, x, y)) {
+      if (w.inBounds(at.map, x, y) && w.fits(e, at.map, x, y) && level(x, y)) {
         moveTo(x, y)
         break
       }
@@ -115,7 +121,7 @@ export function unleash(fx: EffectRunner, eff: UnleashArgs, ev: GameEvent): void
     let bx = now.x, by = now.y
     for (let i = 0; i < skill.back; i++) {
       const nx = bx + vx, ny = by + vy
-      if (!w.inBounds(at.map, nx, ny) || !w.fits(e, at.map, nx, ny)) break
+      if (!w.inBounds(at.map, nx, ny) || !w.fits(e, at.map, nx, ny) || w.safeStep(e, at.map, bx, by, nx, ny) !== true) break
       bx = nx
       by = ny
     }

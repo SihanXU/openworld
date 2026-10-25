@@ -10,7 +10,7 @@
 // Every move is a step and every deed an act, as the player's are; what a goal sets going it does by events
 // (behaviour may make them, as a day that cannot go on makes `stuck`): the answers are the people's rules.
 
-import { DIRS, astar, type Dir, type Engine, type Entity, type Id, type Pos, type Scene } from '@openworld/engine'
+import { DIRS, astar, wayTo, type Dir, type Engine, type Entity, type Id, type Pos, type Scene } from '@openworld/engine'
 import { socialOf } from './state.ts'
 
 const NPC_STEP_TICKS = 4
@@ -63,7 +63,7 @@ export class Conduct {
     const rt = this.runtime(e)
     const goal = `${map}:${gx}:${gy}`
     // a path that no longer starts beside them (they were made to step aside) is planned again
-    if (rt.path?.length && Math.abs(rt.path[0][0] - x) + Math.abs(rt.path[0][1] - y) !== 1) rt.path = undefined
+    if (rt.path?.length && !wayTo(x, y, ...rt.path[0])) rt.path = undefined
     if (rt.goal !== goal || !rt.path?.length) {
       const m = w.map(map)
       if (!m) return false
@@ -73,7 +73,7 @@ export class Conduct {
     }
     const [nx, ny] = rt.path[0]
     if (nx === gx && ny === gy && w.actorAt(map, nx, ny, e.id)) return false
-    const dir: Dir = nx > x ? 'right' : nx < x ? 'left' : ny > y ? 'down' : 'up'
+    const dir = wayTo(x, y, nx, ny)!
     if (eng.step(e, dir)) rt.path.shift()
     else rt.path = undefined
     eng.setCooldown(e.id, NPC_STEP_TICKS)

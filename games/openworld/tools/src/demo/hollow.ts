@@ -20,7 +20,7 @@ export const UNDER_BARROW = ['ossuary', 'sanctum'] as const
 
 /** Where things are (the quest test reads these). */
 export const HAT = {
-  ring: [31, 12],
+  ring: [31, 13],
   warden: [12, 11],
   lina: [6, 19],
   oskar: [27, 19],

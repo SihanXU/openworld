@@ -9,7 +9,8 @@ import { hexRgb, installWorldFilter, signalCamera } from './worldfilter.ts'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
 import { faceFrame, personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
-import { GroundAtlas, T, groundBeneath, groundTile, hash2, objectLook, stairAt, terracePieces } from '../assets/ground.ts'
+import { GroundAtlas, T, groundBeneath, groundTile, hash2, objectLook } from '../assets/ground.ts'
+import { SLATE, paintRelief } from '../assets/relief.ts'
 /** What a room's frame is drawn over: its walls (a door or a doorway through them is left open). */
 const ROOM_WALL = new Set(['wall', 'woodwall', 'void'])
 import { depthOf, footOf } from './depth.ts'
@@ -980,50 +981,30 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * The ground's height (world-model.md §5.2): higher ground a little lighter, its edges where it
-   * drops a level or more — the catalogue's terrace: a rim round it, a rock face below it on the
-   * lower ground (ground.ts terracePieces); with none, a dark lip and a short face —, and a ramp's
-   * steps. Heights are half levels. The wiki draws them alike (render-map.ts).
+   * The ground's height (world-model.md §5.2, §5.5): higher ground a little lighter, and the relief painted as one
+   * layer over the ground and its specks, under all that stands (assets/relief.ts: the faces of rock where it drops,
+   * the rims, the stairs cut in it), in the rock of the map's region. Heights are half levels. The wiki draws them
+   * alike (render-map.ts).
    */
   private drawHeights(map: MapData): void {
     const hs = map.heights
     if (!hs?.some((h) => h)) return
     const g = this.add.graphics().setDepth(-90)
     this.statics.push(g)
-    const terrace = catalog().terrace
-    const at = (x: number, y: number) => (x < 0 || y < 0 || x >= map.width || y >= map.height ? undefined : hs[y * map.width + x] ?? 0)
     for (let y = 0; y < map.height; y++)
       for (let x = 0; x < map.width; x++) {
-        const h = at(x, y)!
+        const h = hs[y * map.width + x] ?? 0
         if (h >= 2) g.fillStyle(0xffffff, Math.min(0.12, 0.03 * Math.floor(h / 2))).fillRect(x * T, y * T, T, T)
-        // a stair: the steps across it, each lit on its tread and shadowed under its nose
-        if (stairAt(map.width, map.height, hs, x, y))
-          for (let i = 4; i < T; i += 5) {
-            g.fillStyle(0xfff2d8, 0.3).fillRect(x * T + 1, y * T + i - 1, T - 2, 1)
-            g.fillStyle(0x000000, 0.2).fillRect(x * T + 1, y * T + i, T - 2, 1)
-          }
-        if (terrace) continue
-        const drop = (dx: number, dy: number) => h - (at(x + dx, y + dy) ?? h) >= 2
-        g.fillStyle(0x2a2018, 0.55)
-        if (drop(0, -1)) g.fillRect(x * T, y * T, T, 1)
-        if (drop(-1, 0)) g.fillRect(x * T, y * T, 1, T)
-        if (drop(1, 0)) g.fillRect((x + 1) * T - 1, y * T, 1, T)
-        if (drop(0, 1)) {
-          // the face of the cliff, on the ground below it, and its shadow
-          g.fillStyle(0x6b5a48, 0.85).fillRect(x * T, (y + 1) * T, T, 5)
-          for (let i = 2; i < T; i += 4) g.fillStyle(0x4a3c30, 0.9).fillRect(x * T + i, (y + 1) * T, 1, 5)
-          g.fillStyle(0x000000, 0.22).fillRect(x * T, (y + 1) * T + 5, T, 3)
-          g.fillStyle(0xfff2d8, 0.35).fillRect(x * T, (y + 1) * T - 1, T, 1)
-        }
       }
-    if (!terrace) return
-    // the terrace's rims and faces: over the ground and its specks, under all that stands
-    const tex = this.textures.get(terrace.img)
-    for (const p of terracePieces(map.width, map.height, hs)) {
-      const name = `terrace:${p.col},${p.row}`
-      if (!tex.has(name)) tex.add(name, 0, p.col * T, p.row * T, T, T)
-      this.statics.push(this.add.image(p.x * T, p.y * T, terrace.img, name).setOrigin(0, 0).setDepth(-45))
-    }
+    const rock = catalog().relief
+    const layer = paintRelief(map.width, map.height, hs, this.groundAt, (map.region && rock?.[map.region]) || rock?.['*'] || SLATE)
+    if (!layer) return
+    const key = `relief:${map.id}`
+    if (this.textures.exists(key)) this.textures.remove(key)
+    const tex = this.textures.createCanvas(key, layer.width, layer.height)!
+    tex.getContext().putImageData(new ImageData(layer.rgba, layer.width, layer.height), 0, 0)
+    tex.refresh()
+    this.statics.push(this.add.image(0, 0, key).setOrigin(0, 0).setDepth(-45))
   }
 
   private overlaySprite(name: string, x: number, y: number): Phaser.GameObjects.Sprite | undefined {
@@ -1400,8 +1381,21 @@ export class WorldScene extends Phaser.Scene {
       // one step, straight or diagonal, slides; anything farther jumps
       const far = Math.max(Math.abs(prev.x - e.x), Math.abs(prev.y - e.y)) > 1
       this.tweens.killTweensOf(v.root)
+      // two cells on in a line on one storey, nothing between: a leap off a ledge over its face (World.stepOver) — a
+      // hop down to its foot
+      const hs = this.base?.heights
+      const hAt = (x: number, y: number) => hs?.[y * this.base!.width + x] ?? 0
+      const leap = (prev.x === e.x) !== (prev.y === e.y) && Math.abs(prev.x - e.x) + Math.abs(prev.y - e.y) === 2 && !(prev.z ?? 0) && !(e.z ?? 0) && hAt(prev.x, prev.y) - hAt(e.x, e.y) >= 2
+      if (leap) {
+        const walker = !!v.walker
+        v.walker = undefined
+        this.tweens.add({ targets: v.root, x: px, y: py, duration: 260, ease: 'Sine.easeIn', onComplete: () => walker && (v.walker = { x: px, y: py, t: this.time.now }) })
+        this.tweens.add({ targets: v.body, y: v.body.y - 7, duration: 110, yoyo: true, ease: 'Quad.easeOut' })
+        v.movingUntil = this.time.now + 260
+        this.sfx('hop', 0.35)
+      }
       // a creature's leap or dash (the kits module) flies the few cells quickly
-      if (far && e.id !== this.playerId && e.tags.includes('creature') && Math.max(Math.abs(prev.x - e.x), Math.abs(prev.y - e.y)) <= 6) {
+      else if (far && e.id !== this.playerId && e.tags.includes('creature') && Math.max(Math.abs(prev.x - e.x), Math.abs(prev.y - e.y)) <= 6) {
         this.tweens.add({ targets: v.root, x: px, y: py, duration: 160, ease: 'Quad.easeOut' })
         v.movingUntil = this.time.now + 160
       } else if (far) {

@@ -1,3 +1,5 @@
+import type { Dir } from './types.ts'
+
 // Grid A* with a binary heap. Actors are ignored when planning (they move); the caller
 // waits or re-plans when the next step turns out to be blocked.
 
@@ -10,8 +12,11 @@ export function astar(
   tx: number,
   ty: number,
   maxNodes = 6000,
-  /** Can one go from a column to the next (heights: no climbing a cliff, no unsafe drop)? */
-  step?: (ax: number, ay: number, bx: number, by: number) => boolean,
+  /**
+   * Can one go from a column to the next (heights: no climbing a cliff, no unsafe drop)? A cell instead: the step
+   * leaps over the next one and lands there (a ledge's face, World.safeStep).
+   */
+  step?: (ax: number, ay: number, bx: number, by: number) => boolean | [number, number],
 ): [number, number][] | undefined {
   if (sx === tx && sy === ty) return []
   const N = width * height
@@ -68,14 +73,23 @@ export function astar(
     const cx = cur % width
     const cy = (cur - cx) / width
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const nx = cx + dx
-      const ny = cy + dy
+      let nx = cx + dx
+      let ny = cy + dy
       if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+      let cost = 1
+      if (step) {
+        const s = step(cx, cy, nx, ny)
+        if (!s) continue
+        if (s !== true) {
+          ;[nx, ny] = s
+          cost = Math.abs(nx - cx) + Math.abs(ny - cy)
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue
+        }
+      }
       const ni = ny * width + nx
       if (closed[ni]) continue
       if (ni !== goal && !passable(nx, ny)) continue
-      if (step && !step(cx, cy, nx, ny)) continue
-      const ng = g[cur] + 1
+      const ng = g[cur] + cost
       if (ng < g[ni]) {
         g[ni] = ng
         came[ni] = cur
@@ -87,4 +101,15 @@ export function astar(
   const path: [number, number][] = []
   for (let c = goal; c !== start; c = came[c]) path.push([c % width, Math.floor(c / width)])
   return path.reverse()
+}
+
+/**
+ * The way to a path's next cell (a path from astar): toward a neighbour, or toward a cell two on in a line — a leap
+ * over a ledge's face, which a step that way makes. None for any other cell (the path no longer starts here).
+ */
+export function wayTo(x: number, y: number, nx: number, ny: number): Dir | undefined {
+  const dx = nx - x
+  const dy = ny - y
+  if ((dx !== 0) === (dy !== 0) || Math.abs(dx + dy) > 2) return undefined
+  return dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up'
 }

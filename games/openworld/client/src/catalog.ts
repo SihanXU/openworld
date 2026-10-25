@@ -12,6 +12,7 @@
 
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL, type ActorDef, type Catalog, type FxDef, type PrefabDef, type SpriteDef } from '@openworld/runtime/src/assets/types.ts'
 import { SIN_ACTORS, SIN_FX } from '@openworld/runtime/src/assets/bosses.ts'
+import { SLATE } from '@openworld/runtime/src/assets/relief.ts'
 import FACES from './faces.json'
 import { CROP_FIXTURES, CROP_ITEMS } from './crops.ts'
 
@@ -469,9 +470,8 @@ export const CATALOG: Catalog = {
     moss: { img: WALLS, col: 5, row: 6, size: 5 },
   },
 
-  // the edges of high ground: the relief sheet's rims and faces with its plateau's white top cleared
-  // (tools/src/art/terrace.ts), laid over the ground of any map with heights
-  terrace: { img: 'lsw/Relief/Terrace.png' },
+  // the rock of the relief (runtime assets/relief.ts): the Frostfang Coast's slate wherever ground rises
+  relief: { '*': SLATE },
 
   // -------------------------------------------------------------------------------------------
   // Fixtures. base = normal state; open / lit only where the pack draws that state.

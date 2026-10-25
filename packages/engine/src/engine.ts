@@ -1173,11 +1173,12 @@ export class Engine {
     e.facing = dir
     const { map, x, y } = e.place
     const [dx, dy] = DIRS[dir]
-    const nx = x + dx
-    const ny = y + dy
+    let nx = x + dx
+    let ny = y + dy
     const isPlayer = e.id === w.state.player
     // a way the story has not opened yet is only ground
-    const portalHere = w.map(map)?.portals.find((p) => p.x === nx && p.y === ny && (!p.opensWhen || !!w.fact(p.opensWhen)))
+    const portalAt = (px: number, py: number) => w.map(map)?.portals.find((p) => p.x === px && p.y === py && (!p.opensWhen || !!w.fact(p.opensWhen)))
+    let portalHere = portalAt(nx, ny)
     // only the player uses portals by stepping on them; NPCs transfer from the tile beside
     if (portalHere && !isPlayer) return false
     // off the edge of a map that lies on the overworld: out onto its cell there (world-model.md §5.1) — but never
@@ -1218,12 +1219,19 @@ export class Engine {
       this.offer({ kind: 'bump', host: { e: e.id }, roles: { other: { e: behind.id } }, params: { dir }, cause: ev.cause, origin: ev.origin })
       return false
     }
-    // a cliff cannot be climbed: one bumps into it (what makes up the cell above)
+    // the relief (world-model.md §5.5): a cliff is neither climbed nor dropped down beyond a level, nor walked into
+    // by its face — one bumps into it (what makes up the cell there); off a ledge a level high one drops, over its
+    // face to its foot
     const over = z === 0 && nz === 0 ? w.stepOver(e, map, x, y, nx, ny) : ({ walk: true } as const)
-    if ('climb' in over) {
+    if ('wall' in over) {
       const cliff = w.cellTop(map, nx, ny)
       this.offer({ kind: 'bump', host: { e: e.id }, roles: cliff ? { other: { e: cliff.id } } : {}, params: { dir }, cause: ev.cause, origin: ev.origin })
       return false
+    }
+    if ('fall' in over && over.to) {
+      ;({ x: nx, y: ny } = over.to)
+      portalHere = portalAt(nx, ny)
+      if (portalHere && !isPlayer) return false
     }
     // the one who pushed us to make way stands where we step: we take its cell as it takes ours
     const yielding = ev.params?.swap === true && ev.roles.source && 'e' in ev.roles.source && w.actorAt(map, nx, ny, undefined, nz)?.id === ev.roles.source.e

@@ -1269,7 +1269,7 @@ req('W21', "the Dawn Hill Mine, dug into the hill's western flank (docs/chapter-
   expect((w.map('mine')?.appear ?? []).some((a) => Object.keys(a.types).some((t) => t.includes('vein')))).toBe(false)
 })
 
-req('W8', "height: the high ground at the mountain's foot stands two levels above the land below its face of rock; down the ramp and back up unharmed; off the edge a drop of two levels hurts, and the face cannot be climbed", [], () => {
+req('W8', "height: the high ground at the mountain's foot stands two levels above the land below its face of rock; down the ramp and back up unharmed; its face is a wall both ways, and so is the drop off its edge; off the Hollow's ledge, a level high, one leaps to its foot and cannot climb back; nothing stands on a face", [], () => {
   const f = fresh()
   // the ramp where the trail comes down: each row half a level lower
   const [rx, ry] = PAT.ramp
@@ -1281,14 +1281,38 @@ req('W8', "height: the high ground at the mountain's foot stands two levels abov
   for (let i = 0; i < 4; i++) walk(f, 'up')
   expect(W(f).posOf(W(f).player)).toMatchObject({ x: rx, y: ry })
   expect(W(f).num(W(f).player, 'hp')).toBe(hp)
-  // the face beside it, opened (as a pickaxe would): stepping off is a fall of two levels
+  // the face beside it, two rows of rock under the edge: no one walks onto it from the foot or along it
   const x = rx + 3
+  expect([W(f).faceAt('foot', x, ry + 3), W(f).faceAt('foot', x, ry + 4), W(f).faceAt('foot', x, ry + 5)]).toEqual([2, 2, 0])
+  stand(f, x, ry + 5, 'up', 'foot')
+  expect(walk(f, 'up')).toMatchObject({ x, y: ry + 5 })
+  // the edge opened (as a pickaxe would): stepping off it is no drop but a wall, two levels down
   author(f, () => W(f).destroy(W(f).cellTop('foot', x, ry + 2)!))
   stand(f, x, ry + 2, 'down', 'foot')
-  expect(walk(f, 'down')).toMatchObject({ x, y: ry + 3 })
-  expect(W(f).num(W(f).player, 'hp')).toBeLessThan(hp)
-  // and it cannot be climbed back
-  expect(walk(f, 'up')).toMatchObject({ x, y: ry + 3 })
+  expect(walk(f, 'down')).toMatchObject({ x, y: ry + 2 })
+  expect(W(f).num(W(f).player, 'hp')).toBe(hp)
+  // the Hollow's ledge, a level over its dell: from its top one leaps the face to its foot, unharmed, one way
+  let ledge: [number, number] | undefined
+  for (let y = 1; y < 28 && !ledge; y++)
+    for (let lx = 1; lx < 39 && !ledge; lx++)
+      if (W(f).heightAt('hollow', lx, y) === 2 && W(f).faceAt('hollow', lx, y + 1) === 1 && W(f).walkable('hollow', lx, y) && W(f).walkable('hollow', lx, y + 2)) ledge = [lx, y]
+  expect(ledge).toBeDefined()
+  const [lx, ly] = ledge!
+  stand(f, lx, ly, 'down', 'hollow')
+  expect(walk(f, 'down')).toMatchObject({ map: 'hollow', x: lx, y: ly + 2 })
+  expect(W(f).num(W(f).player, 'hp')).toBe(hp)
+  expect(walk(f, 'up')).toMatchObject({ x: lx, y: ly + 2 })
+  // nothing is set on a face, no way and no anchor leads onto one, on any map
+  const onFaces: string[] = []
+  for (const m of Object.values(W(f).state.maps)) {
+    if (!m.heights?.some((h) => h)) continue
+    for (const p of m.portals) if (W(f).faceAt(m.id, p.x, p.y)) onFaces.push(`${m.id} portal ${p.x},${p.y}`)
+    for (const [k, [ax, ay]] of Object.entries(m.anchors ?? {})) if (W(f).faceAt(m.id, ax, ay)) onFaces.push(`${m.id} ${k}`)
+    for (let y = 0; y < m.height; y++)
+      for (let cx = 0; cx < m.width; cx++)
+        if (W(f).faceAt(m.id, cx, y)) for (const e of W(f).entitiesAt(m.id, cx, y)) if (!W(f).isTerrain(e)) onFaces.push(`${m.id} ${e.id}`)
+  }
+  expect(onFaces).toEqual([])
 })
 
 /** Make the map a wait for is (a wilderness is made from the world's seed and its cell, as the client does). */

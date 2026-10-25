@@ -2,7 +2,7 @@
 // References (types, maps, anchors, holders, aliases), sizes, portals, the rules (the patch validator's checks
 // that hold for base rules too; the root total; no ties) — each a Problem the editor's validation panel shows.
 
-import { EVENT_KINDS, RuleLibrary, registeredModule, restoreLibrary, compareSpec, hostsOverlap, isRoot, kindCovers, leaves, specOf, validatePatch, type Cond, type Entity, type Ontology, type RawChunk, type Rule, type Selector, type Tree, type WorldIndex } from '@openworld/engine'
+import { EVENT_KINDS, RuleLibrary, faceCells, registeredModule, restoreLibrary, compareSpec, hostsOverlap, isRoot, kindCovers, leaves, specOf, validatePatch, type Cond, type Entity, type Ontology, type RawChunk, type Rule, type Selector, type Tree, type WorldIndex } from '@openworld/engine'
 import { learnedOf } from './compile.ts'
 import type { Problem, Project } from './project.ts'
 import { filesSame, type Keep } from './texts.ts'
@@ -76,7 +76,11 @@ export function checkProject(p: Project, made: Made, keep?: Keep<CheckCache>): P
       for (let x = 0; x < row.length; x++) if (!(row[x] in p.game.terrainChars)) { err('reference', `${m.id}: "${row[x]}" at ${x},${y} stands for no terrain`, file, `rows[${y}]`); break }
     })
     if (m.heights && (m.heights.length !== m.height || m.heights.some((r) => r.length !== m.width || /[^0-9]/.test(r)))) err('size', `${m.id}: its heights are not one digit a cell, ${m.width} × ${m.height}`, file, 'heights')
+    // the relief's faces (the engine's relief.ts): rock no one stands on, where ground drops to the south
+    const faces = m.heights && m.heights.length === m.height ? faceCells(m.width, m.height, m.heights.flatMap((r) => [...r].map(Number))) : undefined
+    const onFace = (x: number, y: number) => !!faces?.[y * m.width + x]
     for (const [i, pt] of m.portals.entries()) {
+      if (onFace(pt.x, pt.y)) warn('relief', `${m.id}: portal ${i} at ${pt.x},${pt.y} is on a face of rock, where no one stands`, file, `portals[${i}]`)
       if (!inBounds(m.id, pt.x, pt.y)) err('portal', `${m.id}: portal ${i} at ${pt.x},${pt.y} is off the map`, file, `portals[${i}]`)
       if (!mapOf.has(pt.to)) err('portal', `${m.id}: portal ${i} leads to "${pt.to}", which is no map`, file, `portals[${i}]`)
       else if (!inBounds(pt.to, pt.tx, pt.ty)) err('portal', `${m.id}: portal ${i} lands at ${pt.tx},${pt.ty}, off ${pt.to}`, file, `portals[${i}]`)
@@ -85,6 +89,7 @@ export function checkProject(p: Project, made: Made, keep?: Keep<CheckCache>): P
     for (const [name, [x, y]] of Object.entries(m.anchors ?? {})) {
       if (!inBounds(m.id, x, y)) err('anchor', `${m.id}: the anchor "${name}" (${x},${y}) is off the map`, file, `anchors.${name}`)
       else if (terrainOf(m.id, x, y)?.solid) err('anchor', `${m.id}: the anchor "${name}" (${x},${y}) is on solid ground`, file, `anchors.${name}`)
+      else if (onFace(x, y)) warn('relief', `${m.id}: the anchor "${name}" (${x},${y}) is on a face of rock, where no one stands`, file, `anchors.${name}`)
     }
     for (const [name, [x, y, w, h]] of Object.entries(m.regions ?? {})) if (!inBounds(m.id, x, y) || !inBounds(m.id, x + w - 1, y + h - 1)) warn('region', `${m.id}: the area "${name}" reaches off the map`, file, `regions.${name}`)
     for (const e of c.entities) {
@@ -97,6 +102,7 @@ export function checkProject(p: Project, made: Made, keep?: Keep<CheckCache>): P
         const home = pl.map === m.id || (e.npc?.fidelity === 'local' && m.portals.some((pt) => pt.to === pl.map))
         if (!home) err('place', `${e.id} is on ${pl.map}, but in the file of ${m.id}`, file, e.id)
         else if (!inBounds(pl.map, pl.x, pl.y)) err('place', `${e.id} at ${pl.x},${pl.y} is off the map`, file, e.id)
+        else if (pl.map === m.id && !pl.z && onFace(pl.x, pl.y)) warn('relief', `${e.id} at ${pl.x},${pl.y} is on a face of rock, where no one stands`, file, e.id)
       } else if ((pl.on === 'inside' || pl.on === 'hand') && !holders.has(pl.holder)) err('reference', `${e.id} is in "${pl.holder}", which is nothing`, file, e.id)
     }
   }

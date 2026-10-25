@@ -4,7 +4,7 @@
 // walks to its foe, keeps to its arena and goes home when the foe is gone. Its place in the fight is its saved memory
 // (`Entity.boss`); a wind-up is the kits' (cast.ts), lost with a save as a minor monster's is.
 
-import { astar, type Engine, type Entity, type Frame, type KitSkill, type Pos, type WindupPose } from '@openworld/engine'
+import { astar, wayTo, type Engine, type Entity, type Frame, type KitSkill, type Pos, type WindupPose } from '@openworld/engine'
 import { TELEGRAPH_RED, beginCast, faceToward, kitsOf, scaled, stepCast } from './cast.ts'
 import { foeOf, ready, skillKey } from './kit.ts'
 import { edgeOf, originOf } from './pattern.ts'
@@ -16,9 +16,8 @@ const dist = (a: Pos, b: Pos) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.
 function moveToward(eng: Engine, e: Entity, goal: Pos): boolean {
   const w = eng.world, pos = w.posOf(e)!, ai = e.ai!
   const nextStep = ([x, y]: [number, number]) => {
-    if (Math.abs(x - pos.x) + Math.abs(y - pos.y) !== 1) return false
-    faceToward(e, pos, { map: pos.map, x, y })
-    return eng.step(e, e.facing!)
+    const dir = wayTo(pos.x, pos.y, x, y)
+    return !!dir && eng.step(e, dir)
   }
   if (ai.detour && (ai.detour.x !== goal.x || ai.detour.y !== goal.y || !ai.detour.path.length)) delete ai.detour
   if (ai.detour) {
