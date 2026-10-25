@@ -5,7 +5,7 @@ import { FrameEncoder } from './frameDelta.ts'
 import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
 import { adoptDefinitions, artsToSend, forgetInvalid, holdForMaking, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, LogPosition, type Kept } from './learned.ts'
-import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality } from '@openworld/engine'
+import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
 import { settleOpenQuestions, withOpenQuestions } from './saves.ts'
@@ -359,6 +359,36 @@ const keysNow = (g: Game): Frame['keys'] => (timeStopped(g) || g.engine.busy(g.e
 
 /** What each key's label last named: the target a key pressed now acts on, if it still reaches it. */
 const shownTarget: Partial<Record<Key, Ref>> = {}
+
+/**
+ * The dresser's work (docs/looks.md §5, content dresser.ts): the player's look becomes the one made in her panel, their own
+ * from then on, for the price the world's params name — coin and things carried, each taken from the bag; short of any,
+ * nothing changes and the log says so.
+ */
+function restyle(eng: Engine, look: Look): void {
+  const w = eng.world
+  const p = w.player
+  const table = ontology().looks
+  if (!table || typeof p.look !== 'object') return
+  const wrong = lookProblems(look, table)
+  if (wrong.length) return void w.fx.push({ t: 'log', text: { en: 'That look is not one the world knows.', zh: '这个样子世界不认得。' }, tone: 'warn' })
+  const price = ontology().params?.restyle
+  const needs = [...(price?.coin ? [{ type: played().items.coin, count: price.coin }] : []), ...(price?.needs ?? [])]
+  const carried = (p.contents ?? []).map((id) => w.get(id)).filter((e): e is Entity => !!e && !e.frozenBy)
+  const short = needs.find((n) => carried.filter((e) => e.type === n.type).length < n.count)
+  if (short) {
+    const name = ontology().types[short.type]?.name
+    const en = typeof name === 'string' ? name : (name?.en ?? short.type)
+    const zh = typeof name === 'string' ? name : (name?.zh ?? en)
+    return void w.fx.push({ t: 'log', text: { en: `The dresser wants ${short.count} ${en} for that.`, zh: `改样子要 ${short.count} 个${zh}。` }, tone: 'warn' })
+  }
+  eng.author(() => {
+    for (const n of needs) for (const e of carried.filter((e) => e.type === n.type).slice(0, n.count)) w.destroy(e)
+    w.setLook(p, { ...structuredClone(look), own: true })
+  })
+  w.fx.push({ t: 'vfx', fx: 'sparkle', at: { map: w.posOf(p)!.map, x: w.posOf(p)!.x, y: w.posOf(p)!.y } } as never)
+  w.fx.push({ t: 'log', text: { en: 'You look yourself over: that is you now.', zh: '你打量了一下自己：这就是现在的你了。' } })
+}
 
 /** Terrain of maps no longer in memory (the world map draws every visited one), fetched once. */
 const terrainCache = new Map<string, string[]>()
@@ -888,6 +918,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'profession':
         if (game) takeProfession(game.engine, professionById()[m.id], played().skills.all)
+        break
+      case 'restyle':
+        if (game) restyle(game.engine, m.look)
         break
       case 'learn': {
         const s = skillById()[m.id]

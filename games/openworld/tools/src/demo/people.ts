@@ -37,9 +37,10 @@ import { maud } from './people/maud.ts'
 import { wynn } from './people/wynn.ts'
 import { orrin } from './people/orrin.ts'
 import { hilde } from './people/hilde.ts'
+import { odette } from './people/odette.ts'
 
 // Chapter 1's (docs/chapter-1.md): the village's six, and the two the scenes bring on; the forest's flanks' two (§15)
-export const PEOPLE: PersonDef[] = [hesper, tobin, mara, garrick, wren, bram, rowan, marta, mia, holt, gus, lina, oskar, ilse, joss, pell, nessa, fennick, edda, brin, tam, alberic, severin, courier, cass, vigo, haldor, greta, anselm, caius, ezra, maud, wynn, orrin, hilde]
+export const PEOPLE: PersonDef[] = [hesper, tobin, mara, garrick, wren, bram, rowan, marta, mia, holt, gus, lina, oskar, ilse, joss, pell, nessa, fennick, edda, brin, tam, alberic, severin, courier, cass, vigo, haldor, greta, anselm, caius, ezra, maud, wynn, orrin, hilde, odette]
 
 /**
  * Who keeps house together (docs/npc-sandbox.md §2.1): what one of them owns, all of them do; a theft from one

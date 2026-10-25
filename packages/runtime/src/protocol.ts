@@ -95,6 +95,8 @@ export type ToWorker =
   | { t: 'setSkill'; slot: number; id: string | null }
   /** Take up (or change to) a profession at a trainer. */
   | { t: 'profession'; id: string }
+  /** The dresser's: keep this look as one's own, for the price the world's params name (docs/looks.md §5). */
+  | { t: 'restyle'; look: Look }
   /** A word said to someone without the talk panel (a game's panel: a choice made on it, said to the one who opened it). */
   | { t: 'speak'; who: string; verb: string; choice?: string }
   /** Up to so many of a carried kind put into a thing (a game's panel: materials handed to the one who opened it). */

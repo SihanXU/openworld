@@ -165,6 +165,8 @@ export interface WorldParams {
   slotCount?: Record<string, number>
   /** The story's fact that lengthens the night by so many hours (a number; the Ford's `night.shift`): none, the night keeps its length. */
   nightFact?: string
+  /** What a change of one's look costs at the dresser's (docs/looks.md §5): coin (the world's coin), and things carried. */
+  restyle?: { coin?: number; needs?: { type: string; count: number }[] }
   /**
    * Gear's levels (world-model.md §6.8, 2026-10-13): a piece of gear has a `level` from 1 to `max`; each level above the
    * first adds `perLevel` to the factor on its main stats (power, defence, attack: ×(1 + perLevel·(level − 1)); its
@@ -831,6 +833,8 @@ export interface TalkVerb {
   when?: Cond
   /** A guard's, offered only when the guard has stopped the speaker (an arrest), and then only these. */
   arrest?: boolean
+  /** The row the panel lays it in with its kin (small talk, dealings, company, amends…): verbs of one group sit together, in the order given. */
+  group?: string
   choices?: { id: string; label: Text; when?: Cond }[]
 }
 

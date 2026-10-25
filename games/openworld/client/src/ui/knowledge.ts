@@ -72,6 +72,25 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
     tip: L('Eat before a long trip or a night’s sleep. Hunger can wake you before morning.', '远行或睡觉前先吃点东西，肚子饿可是会半夜醒来的。'),
   },
   {
+    id: 'foraging', group: 'living', title: L('Flowers & the small things of the ground', '野花与地上的小东西'),
+    summary: L('Flowers, tufts, ferns, leaves, pebbles and moss are all things: pick them up, and put them to use.', '花、草丛、蕨草、落叶、卵石、苔藓都是能捡的东西：按一下就进包，各有用处。'),
+    sections: [
+      { title: L('Pick them up', '怎么捡'), body: L('Stand beside any of the small things on the ground and press {key:hands}. Wildflowers give a wildflower; a grass tuft, ferns, reeds or fallen leaves give grass; pebbles give a stone; moss gives a herb; soot gives ash. Whatever you pick is gone, and the ground brings new flowers, tufts, leaves and pebbles slowly: one more every couple of hours on an outdoor map, never more than a few at a time.', '走到地上的小东西旁边，按 {key:hands}。野花给一枝野花；草丛、蕨草、芦苇、落叶给干草；卵石给石块；苔藓给草药；炭灰给灰烬。捡过的就没了，野花、草丛、落叶、卵石会在户外地图上慢慢重新出现：每隔两个小时左右多一处，一次最多几处。') },
+      { title: L('What flowers are for', '野花能做什么'), body: L('Three wildflowers and a handful of grass tie into a bouquet from the bag — a gift almost anyone is glad of, and some people like flowers best of all. At the Held Ground\'s arcane workbench, three flowers and a herb brew a healing potion when you have no honey. And Odette the dresser takes flowers as part of her fee.', '3 枝野花加 1 把干草，在背包里就能扎成一束花——几乎人人收了都高兴，有的人最喜欢的就是花。在领地的魔法工作台上，没有蜂蜜时 3 枝野花加 1 株草药也能熬一瓶治疗药水。梳妆师奥黛特也收野花当工钱。') },
+    ],
+    tip: L('Foragers pick one flower more from every patch. Keep a few in the bag before you visit the dresser.', '学了「采集好手」，每丛花多采 1 枝。去找梳妆师之前，包里先备上几枝。'),
+  },
+  {
+    id: 'dresser', group: 'living', title: L('Changing your look', '改换样子'),
+    summary: L('Odette on Firstlight\'s square redoes your hair, face and colours for ten Dawnmarks and three wildflowers.', '初原村广场上的奥黛特能给你重做头发、五官和衣服颜色，收 10 枚晨辉币和 3 枝野花。'),
+    sections: [
+      { title: L('Find the dresser', '找到梳妆师'), body: L('Odette works beside her standing mirror at the south-east of Firstlight\'s square, east of the evening fire, from nine in the morning to six in the evening. She sleeps in the little cabin down the south lane.', '奥黛特白天九点到傍晚六点在初原村广场东南、营火东边她的穿衣镜旁干活。晚上住在南边小巷的小木屋里。') },
+      { title: L('Open her panel', '打开面板'), body: L('Talk to her with {key:hands} and choose “Could you do something with my look?”, or press {key:hands} on the mirror itself. The character creator opens over your own look: body, hair, face, marks, outfit and every colour. Nothing changes until you keep it.', '按 {key:hands} 和她说话，选「帮我改改样子吧。」，或者直接对穿衣镜按 {key:hands}。捏脸面板会打开，上面是你自己的样子：身体、发型、五官、印记、服装和所有颜色。没按「就这样」之前什么都不会变。') },
+      { title: L('Pay and keep', '付钱'), body: L('Keeping a look costs ten Dawnmarks and three wildflowers, taken from your bag; the button stays grey while you are short. The new look is yours for good: your sprite, your portrait and how people describe you all follow it, and armour or a hat still shows over it.', '按「就这样」要从包里扣 10 枚晨辉币和 3 枝野花；不够时按钮是灰的。改好的样子就是你自己的了：地图上的小人、对话里的立绘、别人形容你的话都跟着变；穿戴的盔甲、帽子照旧盖在上面。') },
+    ],
+    tip: L('Wildflowers grow on most grassy maps and in the wilds. Pick a few on the way in and the fee is mostly coin.', '野花在大多数草地地图和荒野里都有。路上顺手采几枝，到她那儿基本只花钱。'),
+  },
+  {
     id: 'smithing', group: 'craft', title: L('Smelting & smithing', '冶炼与锻造'),
     summary: L('Ore becomes a bar at the forge; a bar becomes equipment at the anvil.', '矿石在熔炉里变成锭，金属锭在铁砧上变成装备。'),
     sections: [

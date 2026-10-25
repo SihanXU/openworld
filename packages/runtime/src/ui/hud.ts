@@ -3,7 +3,7 @@
 // messages bottom left, the map name as it fades in (what the inputs would do is the pointer's mark and the tip
 // over the framed spot: ui/cursor.ts), the dialogue box and the yes/no question, speech bubbles and floating numbers.
 
-import { xpToNext, type Frame, type FxEvent, type ItemInfo, type Mood, type Text } from '@openworld/engine'
+import { xpToNext, type Frame, type FxEvent, type ItemInfo, type Mood, type TalkOption, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, itemIconSignature, ontology } from '../game.ts'
 import { artEpoch, assetUrl, cssAssetUrl } from '../render/assets.ts'
 import { $, MOOD_GLYPH, SLOT_KEYS, esc, kbd, locale, prefs, t, tx, gearFrame } from './common.ts'
@@ -582,8 +582,12 @@ export class Hud {
     // their regard as ten hearts (hearts.ts): how near one is to their full regard
     const hearts = tk.affection === undefined ? '' : `<span class="hearts" title="${zh ? '好感' : 'Regard'} ${Math.round(tk.affection)}/100">${heartsOf(tk.affection).map((h) => `<i class="${h}"></i>`).join('')}</span>`
     $('#dName').innerHTML = `${esc(who ? tx(who.name) : tx(tk.name))} <span class="regard r-${esc(tx(tk.regard).replace(/\s/g, ''))}">${esc(tx(tk.regard))}</span>${hearts}${tk.grudge ? ` <span class="grudge">${esc(tx(tk.grudge))}</span>` : ''}${tk.bounty ? ` <span class="grudge">${zh ? '悬赏' : 'bounty'} ${tk.bounty}</span>` : ''}`
-    const verbs = [...tk.verbs, ...(tk.arrest ? [] : [{ id: 'bye', label: { en: 'Goodbye.', zh: '再见。' } }])]
-    choices.innerHTML = verbs.map((v, i) => `<button data-verb="${esc(v.id)}"><kbd>${i + 1}</kbd> ${esc(tx(v.label))}</button>`).join('')
+    const verbs: TalkOption[] = [...tk.verbs, ...(tk.arrest ? [] : [{ id: 'bye', group: 'bye', label: { en: 'Goodbye.', zh: '再见。' } }])]
+    // the verbs in one grid of equal cells, each group's together in the order they come (the quests' first), the
+    // numbers running on; goodbye takes the last cell, and the whole last row when it would sit there alone
+    const cols = 2
+    const alone = (verbs.length - 1) % cols === 0
+    choices.innerHTML = verbs.map((v, i) => `<button data-verb="${esc(v.id)}" class="g-${esc(v.group ?? 'other')}${v.group === 'bye' && alone ? ' wide' : ''}"><kbd>${i + 1}</kbd><span>${esc(tx(v.label))}</span></button>`).join('')
     choices.classList.remove('hidden')
     choices.classList.add('talk')
     $('#dMore').classList.add('hidden')

@@ -143,6 +143,12 @@ the map and in the portrait is the same colour by construction.
   hat, the circlet, the crown of thorns), painted in its material's colour (`LookTable.materials`). The snapshot,
   the look's tags (`look:armoured`) and the modder's words are the look as seen; the bearer's own look is kept.
   Those parts are `gen.worn`: never drawn by chance, never offered in the creator.
+- The dresser (2026-10-24; content `dresser.ts`, runtime `ui/restyle.ts`): a person tagged `dresser` (Firstlight's
+  Odette, on the square beside her standing mirror `fixture/furniture/mirror`). Asked (the talk verb `restyle`), or a
+  hand on the mirror, a rule opens the panel `restyle`: the creator over the player's own look (`Frame.player.look`,
+  before what is worn). Kept, the runtime sends `restyle {look}`; the worker takes the price the world's
+  `params.restyle` names (coin and things carried: ten Dawnmarks and three wildflowers) and sets the look with
+  `World.setLook`, `own`. Short of the price, nothing changes and the log says what is wanted.
 - Loading: a save's people take the world's look unless theirs is `own`; a player who made a look keeps it; a
   sheet's key from before looks gets the world's.
 

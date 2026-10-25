@@ -150,7 +150,34 @@ const STATIONS: [type: string, station: string, label: Text][] = [
   ['fixture/craft/loom', 'loom', L('Weave at {target}', '在{target}织布')],
 ]
 
+/**
+ * The small things of the ground (ontology.ts), each picked up by hand into the bag for what it is, and gone (new ones
+ * appear slowly on outdoor maps: ontology LITTER): the flowers for a flower (a forager one more), a tuft, ferns, reeds and
+ * fallen leaves for grass, pebbles for a stone, moss for a herb, soot for ash.
+ */
+const PICKED: [type: string, gives: string, en: string, zh: string, forage?: boolean][] = [
+  ['fixture/nature/flowers', 'item/material/flower', 'You pick the wildflowers.', '你采下了野花。', true],
+  ['fixture/nature/reeds', 'item/material/grass', 'You pull up an armful of reeds.', '你拔起了一抱芦苇。'],
+  ['fixture/nature/soot', 'item/material/ash', 'You scrape up the soot.', '你刮起了炭灰。'],
+  ['fixture/nature/tuft', 'item/material/grass', 'You pull up the tuft of grass.', '你拔起了这丛草。'],
+  ['fixture/nature/ferns', 'item/material/grass', 'You gather the ferns.', '你收起了蕨草。'],
+  ['fixture/nature/leaves', 'item/material/grass', 'You gather up the fallen leaves.', '你拢起了落叶。'],
+  ['fixture/nature/pebbles', 'item/material/stone', 'You pick up the pebbles.', '你捡起了卵石。'],
+  ['fixture/nature/moss', 'item/material/herb', 'You peel up the moss.', '你揭起了苔藓。'],
+]
+const PICK_RULES: Rule[] = PICKED.map(([type, gives, en, zh, forage]) =>
+  rule({
+    id: `forage/pick/${type.split('/').pop()}`,
+    label: L('Pick up {target}', '捡起{target}'),
+    doc: `A hand on ${type.split('/').pop()} picks it up: ${gives.split('/').pop()} in the bag${forage ? ' (a forager one more)' : ''}, and it is gone from the ground.`,
+    host: { type },
+    on: 'impulse/handle',
+    tree: DO({ op: 'spawn', type: gives, at: 'actor', into: 'contents', count: forage ? more('forage', 1) : 1 }, { op: 'destroy' }, vfx('leaves'), log(en, zh)),
+  }),
+)
+
 export const LIFE_RULES: Rule[] = [
+  ...PICK_RULES,
   // a station opened: its panel (what the world learned to make there shows beside the game's own recipes for it)
   ...STATIONS.map(([type, station, label]) =>
     rule({

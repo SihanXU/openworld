@@ -59,6 +59,12 @@ export function itemOf(spec: ItemSpec, id: string, level = 1): Omit<Entity, 'id'
   return it
 }
 
+/** The small things of the ground (content ontology.ts, life.ts forage/pick), and how much of a mask's density they get since 2026-10-24. */
+const LITTER = new Set(['fixture/nature/flowers', 'fixture/nature/tuft', 'fixture/nature/ferns', 'fixture/nature/leaves', 'fixture/nature/pebbles', 'fixture/nature/moss', 'fixture/nature/reeds'])
+const LITTER_SCALE = 0.25
+/** The chance a mask's cell gets a thing: the ground's litter at a quarter of what the mask asks (a thing to pick up, not a carpet). */
+export const litterChance = (type: string, p: number): number => (LITTER.has(type) ? p * LITTER_SCALE : p)
+
 export class MapBuilder {
   cells: string[][]
   portals: Portal[] = []
@@ -354,7 +360,8 @@ export class MapBuilder {
    */
   sprinkle(type: string, p: number, where: (x: number, y: number, t: string) => boolean, rect: [number, number, number, number] = [0, 0, this.w, this.h]) {
     const [rx, ry, rw, rh] = rect
-    for (let y = ry; y < ry + rh; y++) for (let x = rx; x < rx + rw; x++) if (this.free(x, y) && where(x, y, this.get(x, y)) && rng.chance(p)) this.fixture(type, x, y)
+    const chance = litterChance(type, p)
+    for (let y = ry; y < ry + rh; y++) for (let x = rx; x < rx + rw; x++) if (this.free(x, y) && where(x, y, this.get(x, y)) && rng.chance(chance)) this.fixture(type, x, y)
   }
 
   /** An interior partition: a wall ring inside the room with doorways (drawn as a room frame). */

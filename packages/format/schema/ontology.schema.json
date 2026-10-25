@@ -1950,6 +1950,10 @@
           "type": "boolean",
           "description": "A guard's, offered only when the guard has stopped the speaker (an arrest), and then only these."
         },
+        "group": {
+          "type": "string",
+          "description": "The row the panel lays it in with its kin (small talk, dealings, company, amends…): verbs of one group sit together, in the order given."
+        },
         "choices": {
           "type": "array",
           "items": {
@@ -2520,6 +2524,35 @@
         "nightFact": {
           "type": "string",
           "description": "The story's fact that lengthens the night by so many hours (a number; the Ford's `night.shift`): none, the night keeps its length."
+        },
+        "restyle": {
+          "type": "object",
+          "properties": {
+            "coin": {
+              "type": "number"
+            },
+            "needs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "count": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "type",
+                  "count"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false,
+          "description": "What a change of one's look costs at the dresser's (docs/looks.md §5): coin (the world's coin), and things carried."
         },
         "gearLevels": {
           "type": "object",

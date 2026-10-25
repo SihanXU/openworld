@@ -826,7 +826,7 @@ export class Social {
     try {
       // the quests' first (docs/quests.md §2.4): their offers to take on or turn down, the topics of those under way
       const quests: TalkOption[] = arrest ? [] : this.questVerbs(person, speaker)
-      return [...quests, ...(w.onto.data.talk ?? []).filter(fits).map((v) => ({ id: v.id, label: fill(v.label), ...(v.choices && { choices: v.choices.filter((c) => evalCond(c.when, roles, w)).map((c) => ({ id: c.id, label: fill(c.label) })) }) }))]
+      return [...quests, ...(w.onto.data.talk ?? []).filter(fits).map((v) => ({ id: v.id, label: fill(v.label), ...(v.group && { group: v.group }), ...(v.choices && { choices: v.choices.filter((c) => evalCond(c.when, roles, w)).map((c) => ({ id: c.id, label: fill(c.label) })) }) }))]
     } finally {
       // offering a verb rolls nothing
       w.state.rng = saved
@@ -839,10 +839,10 @@ export class Social {
     const name = (t: Text, l: 'en' | 'zh') => (typeof t === 'string' ? t : (l === 'zh' ? t.zh : undefined) ?? t.en)
     const out: TalkOption[] = []
     for (const o of q.offers(person.id, speaker)) {
-      out.push({ id: `quest:${o.ref}:accept`, label: { en: `Accept: ${name(o.title, 'en')}`, zh: `接受「${name(o.title, 'zh')}」` } })
-      out.push({ id: `quest:${o.ref}:decline`, label: { en: `Not now (${name(o.title, 'en')})`, zh: `拒绝「${name(o.title, 'zh')}」` } })
+      out.push({ id: `quest:${o.ref}:accept`, group: 'quest', label: { en: `Accept: ${name(o.title, 'en')}`, zh: `接受「${name(o.title, 'zh')}」` } })
+      out.push({ id: `quest:${o.ref}:decline`, group: 'quest', label: { en: `Not now (${name(o.title, 'en')})`, zh: `拒绝「${name(o.title, 'zh')}」` } })
     }
-    for (const t of q.topics(person.id, speaker)) out.push({ id: `quest:${t.ref}:${t.topic}`, label: t.label })
+    for (const t of q.topics(person.id, speaker)) out.push({ id: `quest:${t.ref}:${t.topic}`, group: 'quest', label: t.label })
     return out
   }
 
