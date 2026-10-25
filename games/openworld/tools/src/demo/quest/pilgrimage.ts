@@ -59,7 +59,7 @@ export function buildRest(): MapBuilder {
   m.path([[0, 13], [8, 13], [16, 12], [26, 12], [35, 12]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
   // the chapel of the Five, north of the road; the hostel south of it; the pilgrims' fire between
   m.house('temple', 13, 3, 'chapel')
-  m.house('longhouse', 21, 16, 'hostel')
+  m.house('longhouse', 21, 15, 'hostel')
   m.organic(18, 13, 5, 2.4, 'cobble', { only: (t) => t === 'grass' || t === 'path' })
   m.fixture('fixture/water/well', 25, 10)
   m.fixture('fixture/light/campfire', 15, 16, { statuses: { lit: -1 } })
