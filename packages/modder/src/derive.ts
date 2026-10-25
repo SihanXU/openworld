@@ -111,3 +111,17 @@ export function deriveTests(patch: Patch, req: ModRequest, lib: RuleLibrary, ont
   })
   return { patch: { ...patch, artifacts }, notes }
 }
+
+/**
+ * Does the patch's answer change anything in the scene that asked (a status, a number, a thing made, gone or
+ * become another, a cell), beyond its words? What a `use` must do (design.md §5.17): an emit whose receiver has
+ * no answer of its own changes nothing here.
+ */
+export function changesScene(patch: Patch, req: ModRequest, lib: RuleLibrary, onto: Ontology): boolean {
+  try {
+    const cand = candidate(patch, lib, onto)
+    return patch.artifacts.some((a) => a.kind === 'rule' && (effectsOf(req.scenario, a.rule, cand.lib, cand.onto)?.length ?? 0) > 1)
+  } catch {
+    return false
+  }
+}

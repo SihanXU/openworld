@@ -185,6 +185,19 @@ export type Space = 'floor' | 'soil' | 'volume' | 'body'
  */
 export const OVERLAYS = ['fire', 'flame', 'ice', 'spark', 'wet', 'oil', 'mend'] as const
 
+/**
+ * The postures a body may take (the client's vocabulary, as OVERLAYS): a status that names one is drawn so
+ * on what has it — seated on a chair, lying on hay, kneeling at an altar, leaning on a wall.
+ */
+/** What a thing affords for an act, as the modder judges it (design.md §5.17): a common use, words only, or nothing. */
+export const AFFORDANCES = ['use', 'words', 'none'] as const
+export type Affordance = (typeof AFFORDANCES)[number]
+
+export const POSES = ['sit', 'lie', 'kneel', 'lean'] as const
+export type Pose = (typeof POSES)[number]
+/** The status each posture is kept by when nothing names another (the standard library's; each `untilMove`). */
+export const POSE_STATUS: Record<Pose, string> = { sit: 'seated', lie: 'lying', kneel: 'kneeling', lean: 'leaning' }
+
 export interface StatusDef {
   id: string
   name?: Text
@@ -202,6 +215,10 @@ export interface StatusDef {
   every?: number
   /** What the client draws over a thing that has it: one of OVERLAYS (an unknown one draws nothing). */
   overlay?: string
+  /** The posture its bearer is drawn in while it lasts: one of POSES (an unknown one draws nothing). */
+  pose?: string
+  /** It ends as soon as its bearer moves from where it is (one stands up from a chair by walking off). */
+  untilMove?: boolean
   /** What it adds to its holder's stats while held (world-model.md §6.8): fireproof's resistance to fire. */
   props?: Record<string, number>
 }
@@ -1525,6 +1542,7 @@ export const EVENT_KINDS = [
   'impulse/offered',
   'impulse/handle',
   'impulse/notify',
+  'impulse/settle',
   'contact/begin',
   'contact/stay',
   'contact/end',
@@ -1541,7 +1559,7 @@ export const EVENT_KINDS = [
 export type EventKind = (typeof EVENT_KINDS)[number]
 
 /** The impulses: what one thing does to another (design.md §5.8). */
-export type Impulse = 'strike' | 'element' | 'coat' | 'restore' | 'push' | 'taken' | 'receive' | 'offered' | 'handle' | 'notify'
+export type Impulse = 'strike' | 'element' | 'coat' | 'restore' | 'push' | 'taken' | 'receive' | 'offered' | 'handle' | 'notify' | 'settle'
 
 /**
  * The roles of an event besides its host (whose rule answers it):
@@ -1749,6 +1767,12 @@ export type Effect =
   | { op: 'fall' }
   /** The host sleeps until it is time to rise (time passes at once for the one at the keys); it wakes with health back as its room gives (a bedroom's `rest`). */
   | { op: 'sleep' }
+  /**
+   * The host (an actor) takes a posture at the thing that asked it to (the event's source: a chair, hay, an altar):
+   * param pose (POSES); for sit, lie and kneel it goes onto that thing's cell when its body fits there. It gains the
+   * pose's status (POSE_STATUS, or param status: one whose pose it is), which ends as it moves on.
+   */
+  | { op: 'posture' }
   | { op: 'heal'; amount: Amount }
   | { op: 'feed'; amount: Amount }
   | { op: 'gainXp'; amount: Amount }
@@ -1997,6 +2021,14 @@ export interface Rule {
    * keeps its own trees; an answer serves its own tier and every lower one, never a higher.
    */
   tier?: Tier
+  /**
+   * A learned rule's judgment of what its host affords for the act (design.md §5.17), set by the harness:
+   * `use` a common use made real (state on the host, or an impulse its receiver answers), `words` no use, only a
+   * line, `none` nothing happens. A `words` answer is provisional until it was asked again (`reasked`).
+   */
+  affords?: Affordance
+  /** Asked again (the player kept trying after a provisional line): its judgment is final. */
+  reasked?: boolean
   /** Ask the player first when their input chooses this rule ("Eat {instrument}?"). */
   confirm?: Text
   /**

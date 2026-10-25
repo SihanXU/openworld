@@ -1175,6 +1175,8 @@ export const ZH: Record<string, string> = {
   'Steps slower by (×)': '走路变慢（倍）',
   'Ticks between its periods': '每次发作间隔（刻）',
   'Picture drawn over it (fire, wet, ice …)': '叠在上面的图（火、湿、冰……）',
+  'Posture its holder is drawn in (sit, lie, kneel, lean)': '持有者画成的姿势（sit 坐、lie 躺、kneel 跪、lean 倚）',
+  'Ends as its holder moves on': '持有者一走动就结束',
   'What it adds to its holder': '它给持有者加上的',
   'Liquid': '液体',
   'The space it takes': '占据的空间',

@@ -39,6 +39,8 @@ interface EView {
   shadow?: Phaser.GameObjects.Ellipse
   overlay?: Phaser.GameObjects.Sprite
   overlayName?: string
+  /** How far a posture sets the body down from where it stands (drawPose): seated, it sinks onto the seat. */
+  poseDy?: number
   hp: Phaser.GameObjects.Graphics
   /** What shows over its head (the health bar, the quest mark, a sign of what it is): drawn over the world, following the body. */
   head: Phaser.GameObjects.Container
@@ -1640,7 +1642,7 @@ export class WorldScene extends Phaser.Scene {
     if (wound !== undefined && wound > 0.5 && Math.floor(wound * 10) % 2 === 0) v.body.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL)
     // a thing an act waits on shimmers; one who is down lies on the ground
     v.body.setAlpha(this.alphaOf(v))
-    v.body.setAngle(!e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold') || e.statuses.includes('asleep') || e.statuses.includes('jailed') || e.tags.includes('body')) ? 90 : 0)
+    this.drawPose(v, e.boss ? undefined : e.tags.includes('body') ? 'lie' : e.pose)
     // (what is held is not drawn in the hand: a weapon shows only as it is swung, swingWeapon)
     // lights glow at night
     const lit = e.statuses.includes('lit') || e.statuses.includes('burning') || e.statuses.includes('attuned') || (e.id === this.playerId && e.heldTags?.includes('light'))
@@ -1657,6 +1659,22 @@ export class WorldScene extends Phaser.Scene {
       const friend = e.tags.includes('person') || e.tags.includes('companion')
       v.hp.fillStyle(e.hostile ? 0xe04848 : friend ? 0x6ad06a : 0xd8b060, 1).fillRect(-w / 2, top2, Math.max(1, (w * e.hp) / e.maxHp), 2)
     }
+  }
+
+  /**
+   * A body in the posture a status of its names (POSES), drawn from its standing frame: lying turned on its side,
+   * seated with its legs folded out of sight onto the seat, kneeling lower, leaning tilted the way it faces.
+   */
+  private drawPose(v: EView, pose: string | undefined): void {
+    const b = v.body
+    b.setAngle(pose === 'lie' ? 90 : pose === 'lean' ? (v.snap.facing === 'left' ? -10 : v.snap.facing === 'right' ? 10 : 0) : 0)
+    // the frame's own rows, from its top: what is folded away is the bottom of it (the legs), and the rest sinks onto the seat
+    const h = b.frame.height
+    const fold = pose === 'sit' ? Math.round(h * 0.28) : pose === 'kneel' ? Math.round(h * 0.18) : 0
+    if (fold) b.setCrop(0, 0, b.frame.width, h - fold)
+    else b.setCrop()
+    v.poseDy = fold ? Math.round(fold * 0.55 * b.scaleY) : 0
+    b.setY(v.poseDy)
   }
 
   /** How opaque a thing's picture is: shimmering while an act waits on it, faded where it hides the player. */
@@ -1793,7 +1811,7 @@ export class WorldScene extends Phaser.Scene {
         const working = e.frozen && !e.statuses.includes('down')
         const row = moving ? Math.floor((time + v.phase) / 130) % walkRows : working ? Math.floor(time / 110) % walkRows : e.look || e.tags.includes('person') ? (v.actor.idleRow ?? 0) : Math.floor((time + v.phase) / 260) % walkRows
         v.body.setFrame(`${v.actor.key}:${col},${row}`)
-        v.body.y = working ? -Math.abs(Math.sin(time / 95)) * 1.5 : 0
+        v.body.y = (working ? -Math.abs(Math.sin(time / 95)) * 1.5 : 0) + (v.poseDy ?? 0)
       }
       if (v.dragon) this.updateDragon(v, time)
       if (!e.boss) this.windupPose(v, time)
