@@ -22,6 +22,22 @@ function setLang(to, chosen = false) {
     for (const el of document.querySelectorAll('[data-zh]')) {
         if (el.dataset.en === undefined) el.dataset.en = el.textContent
         el.textContent = to === 'zh' ? el.dataset.zh : el.dataset.en
+        // Only the authored headline phrases are grouped; all other copy stays plain text.
+        if (to === 'zh' && el.dataset.zhKeep) {
+            let rest = el.dataset.zh
+            const parts = []
+            for (const phrase of el.dataset.zhKeep.split('|')) {
+                const at = rest.indexOf(phrase)
+                if (!phrase || at < 0) continue
+                parts.push(document.createTextNode(rest.slice(0, at)))
+                const unit = document.createElement('span')
+                unit.className = 'zh-unit'
+                unit.textContent = phrase
+                parts.push(unit)
+                rest = rest.slice(at + phrase.length)
+            }
+            el.replaceChildren(...parts, document.createTextNode(rest))
+        }
     }
     for (const el of document.querySelectorAll('[data-zh-title]')) {
         if (el.dataset.enTitle === undefined) el.dataset.enTitle = el.title
@@ -31,7 +47,12 @@ function setLang(to, chosen = false) {
         if (a.dataset.hrefEn === undefined) a.dataset.hrefEn = a.getAttribute('href')
         a.setAttribute('href', to === 'zh' ? a.dataset.hrefZh : a.dataset.hrefEn)
     }
-    for (const b of document.querySelectorAll('[data-lang-toggle]')) b.textContent = to === 'zh' ? 'EN' : '中文'
+    for (const b of document.querySelectorAll('[data-lang-toggle]')) {
+        const label = b.querySelector('[data-lang-label]')
+        label.textContent = to === 'zh' ? 'EN' : '中文'
+        label.lang = to === 'zh' ? 'en' : 'zh-Hans'
+        b.setAttribute('aria-label', to === 'zh' ? '切换为英文' : 'Switch to Chinese')
+    }
     // a piece already playing is played again in the other language
     for (const f of document.querySelectorAll('.stage iframe[data-src]')) if (f.getAttribute('src')) f.src = inLang(f.dataset.src)
     if (!chosen) return
@@ -46,12 +67,105 @@ setLang(lang)
 
 // ------------------------------------------------------------------ the bar: clear over the head, dark over the night band
 const nav = document.getElementById('nav')
+const navToggle = nav.querySelector('.nav-toggle')
+const navLinks = nav.querySelector('.nav-links')
+const navTitle = nav.querySelector('.nav-title')
+const heroWordmark = document.querySelector('.hero h1')
+const heroContent = document.querySelector('.hero-inner')
+const hero = heroContent.closest('.hero')
+const brandEasing = window.siteMotion.easing(getComputedStyle(document.documentElement).getPropertyValue('--motion-ease-standard'))
+const brandReduced = matchMedia('(prefers-reduced-motion: reduce)')
+// Row entrances finish after the surface; retain the animation gate until the last row settles.
+navLinks.querySelectorAll('a').forEach((link, index) => link.style.setProperty('--menu-row', index))
+let menuMotionTimer
+function stopMenuMotion() {
+    clearTimeout(menuMotionTimer)
+    nav.classList.remove('menu-animating')
+}
+function startMenuMotion() {
+    clearTimeout(menuMotionTimer)
+    nav.classList.add('menu-animating')
+    const duration = parseFloat(getComputedStyle(nav).getPropertyValue('--menu-duration'))
+    menuMotionTimer = setTimeout(stopMenuMotion, Math.max(duration, nav.classList.contains('menu-open') ? 450 : 320) + 50)
+}
+function syncMenuAccess() {
+    const hidden = getComputedStyle(navToggle).display !== 'none' && !nav.classList.contains('menu-open')
+    navLinks.inert = hidden
+    navLinks.setAttribute('aria-hidden', String(hidden))
+}
+function closeMenu(animate = true) {
+    const wasOpen = nav.classList.contains('menu-open')
+    nav.classList.remove('menu-open')
+    if (!animate) stopMenuMotion()
+    else if (wasOpen) startMenuMotion()
+    navToggle.setAttribute('aria-expanded', 'false')
+    syncMenuAccess()
+}
+navToggle.addEventListener('click', () => {
+    nav.style.setProperty('--nav-menu-h', `${Math.ceil(navLinks.getBoundingClientRect().height)}px`)
+    const open = nav.classList.toggle('menu-open')
+    startMenuMotion()
+    navToggle.setAttribute('aria-expanded', String(open))
+    syncMenuAccess()
+    if (open) navLinks.querySelector('a').focus({ preventScroll: true })
+})
+nav.querySelectorAll('.nav-links a').forEach((a) => a.addEventListener('click', () => closeMenu()))
+// Resizing must never play the disclosure animation when crossing a layout breakpoint.
+window.addEventListener('resize', () => closeMenu(false))
+document.addEventListener('click', (e) => { if (!nav.contains(e.target)) closeMenu() })
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && nav.classList.contains('menu-open')) { closeMenu(); navToggle.focus() }
+})
+// The header can grow with enlarged text; its measured height also keeps anchor targets clear.
+let navHeight = 0
+let compactMenu = null
+const navSize = new ResizeObserver(() => {
+    navHeight = Math.ceil(nav.getBoundingClientRect().height)
+    document.documentElement.style.setProperty('--nav-h', `${navHeight}px`)
+    nav.style.setProperty('--nav-menu-h', `${Math.ceil(navLinks.getBoundingClientRect().height)}px`)
+    const compact = getComputedStyle(navToggle).display !== 'none'
+    if (compactMenu !== compact || !compact) closeMenu(false)
+    compactMenu = compact
+    syncMenuAccess()
+    bar()
+})
+navSize.observe(nav)
+navSize.observe(navLinks)
+navSize.observe(heroWordmark)
 const night = [...document.querySelectorAll('section.night')]
 function bar() {
-    nav.classList.toggle('solid', window.scrollY > window.innerHeight * 0.75)
-    nav.classList.toggle('dark', night.some((s) => { const r = s.getBoundingClientRect(); return r.top <= 64 && r.bottom > 64 }))
+    const contentTop = heroContent.getBoundingClientRect().top
+    const wordmarkBox = heroWordmark.getBoundingClientRect()
+    const wordmarkBottom = wordmarkBox.bottom
+    const overNight = night.some((s) => { const r = s.getBoundingClientRect(); return r.top <= navHeight && r.bottom > navHeight })
+    // Let the hero pass behind a clear header without painting its large letters through the controls.
+    heroContent.style.setProperty('--header-clip', `${Math.max(0, navHeight + 12 - contentTop)}px`)
+    // Fade the whole wordmark before its top reaches the header's clipping edge.
+    // Short viewports have less scrolling room; keep the title fully visible at scroll zero.
+    const titleRoom = Math.max(1, Math.min(wordmarkBox.height, wordmarkBox.top + scrollY - navHeight - 24))
+    const titleProgress = Math.max(0, Math.min(1, (wordmarkBox.top - navHeight - 24) / titleRoom))
+    heroWordmark.style.setProperty('--wordmark-opacity', brandReduced.matches ? Number(titleProgress >= 0.5) : 1 - brandEasing(1 - titleProgress))
+    // Finish the scroll-linked handoff before the large wordmark can re-enter the viewport.
+    // No timed opacity transition may lag behind a fast reversal or a scrollbar drag.
+    const distance = -wordmarkBottom
+    const progress = Math.max(0, Math.min(1, (distance - 48) / 80))
+    // The film stays under a clear header: the surface arrives with the page below it.
+    const surfaceProgress = Math.max(0, Math.min(1, (navHeight + 32 - hero.getBoundingClientRect().bottom) / 32))
+    const reveal = brandReduced.matches ? Number(progress >= 0.5) : brandEasing(progress)
+    const surface = brandReduced.matches ? Number(surfaceProgress >= 0.5) : brandEasing(surfaceProgress)
+    const showBrand = reveal > 0
+    nav.style.setProperty('--brand-opacity', reveal)
+    nav.style.setProperty('--brand-offset', `${(1 - reveal) * 8}px`)
+    nav.style.setProperty('--header-opacity', surface)
+    nav.classList.toggle('brand-visible', showBrand)
+    navTitle.inert = !showBrand
+    navTitle.setAttribute('aria-hidden', String(!showBrand))
+    nav.classList.toggle('solid', surface >= 0.5)
+    nav.classList.toggle('dark', overNight)
 }
 window.addEventListener('scroll', bar, { passive: true }); bar()
+document.addEventListener('site-motion-scroll', bar)
+brandReduced.addEventListener('change', bar)
 
 // the section in view, marked in each [data-spy] list
 document.querySelectorAll('[data-spy]').forEach((group) => {
@@ -102,7 +216,7 @@ if (explain) {
         explain.contentWindow?.postMessage({ seek: Number(step.dataset.at), run: true }, '*')
         mark(Number(step.dataset.at))
         const r = explain.getBoundingClientRect()
-        if (r.top < 0 || r.bottom > window.innerHeight) explain.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' })
+        if (r.top < 0 || r.bottom > window.innerHeight) window.siteMotion.scrollTo(scrollY + r.top - (window.innerHeight - r.height) / 2)
     }))
 }
 

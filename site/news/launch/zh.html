@@ -29,7 +29,7 @@
         .context-bar { position: sticky; top: calc(var(--nav-h) + 2.5rem); width: 240px; flex-shrink: 0; padding-right: 2.5rem; }
         .context-bar .label { margin-bottom: 0.75rem; }
         .context-bar ol { list-style: none; border-left: 1px solid var(--line); }
-        .context-bar a { display: flex; gap: 0.75rem; align-items: baseline; padding: 0.4rem 0 0.4rem 1rem; margin-left: -1px; border-left: 2px solid transparent; color: var(--muted); font-size: 0.95rem; transition: color 0.2s ease, border-color 0.2s ease; }
+        .context-bar a { display: flex; gap: 0.75rem; align-items: baseline; padding: 0.4rem 0 0.4rem 1rem; margin-left: -1px; border-left: 2px solid transparent; color: var(--muted); font-size: 0.95rem; transition: color var(--motion-duration-short) var(--motion-ease-standard), border-color var(--motion-duration-short) var(--motion-ease-standard); }
         .context-bar .n { font-size: 0.8rem; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; }
         .context-bar a:hover { color: var(--ink-strong); }
         .context-bar a.active { color: var(--ink-strong); font-weight: 600; border-left-color: var(--accent); }
@@ -217,6 +217,7 @@
         </div>
     </footer>
     <script src="../../snippets.js"></script>
+    <script src="../../motion.js"></script>
     <script src="../../base.js"></script>
 </body>
 </html>
