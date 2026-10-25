@@ -306,6 +306,8 @@ export const STRINGS: Record<string, [string, string]> = {
   done: ['Done', '已完成'],
   lmb: ['L-click', '左键'],
   rmb: ['R-click', '右键'],
+  // the tip after an act that is asked first (a blow on someone friendly, a theft, an experiment on oneself)
+  asksFirst: [' (asks first)', '（需确认）'],
   chooseTarget: ['on which?', '对哪一个？'],
   useOn: ['Use {held} on it', '用{held}作用于它'],
   putIn: ['Put {held} into / onto it', '把{held}放进 / 放到它上'],
