@@ -31,7 +31,7 @@ import { splitStacks, stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
 import type { Engine } from './engine.ts'
 import { NO_EXPIRY, isBuilt, type Writer } from './world.ts'
-import type { Aim, Dir, Entity, Id, LessonInput, Place, Plan, Pos, PropValue, Recipe, Ref, SkillDef, Text, Verb } from './types.ts'
+import { FIGHT_TICKS, type Aim, type Dir, type Entity, type Id, type LessonInput, type Place, type Plan, type Pos, type PropValue, type Recipe, type Ref, type SkillDef, type Text, type Verb } from './types.ts'
 import { cannotLearn, skillsOf } from './progression.ts'
 import { OFFHAND, isTool, weaponOf } from './blows.ts'
 
@@ -47,6 +47,8 @@ export const MAGNET = 2
 export const MAGNET_PER_TICK = 25
 
 const isWeapon = (type: string) => type.startsWith('item/weapon/')
+const textEn = (t: Text) => (typeof t === 'string' ? t : t.en)
+const textZh = (t: Text) => (typeof t === 'string' ? t : t.zh ?? t.en)
 
 /**
  * What an input does where no rule says (the labels are the rules' own: a rule, or one of its
@@ -59,6 +61,8 @@ const GENERIC: Record<string, Text> = {
   build: { en: 'Build {instrument} here', zh: '把{instrument}建在这里' },
   putLoose: { en: 'Put {instrument} down loose', zh: '把{instrument}散放在这里' },
   stealAsk: { en: 'Steal {target}?', zh: '偷走{target}？' },
+  // a blow on someone friendly is asked first, as a use on oneself is (a slip of the finger is not a blow)
+  attackAsk: { en: 'Attack {target}?', zh: '攻击{target}？' },
   hands: { en: 'Interact with {target}', zh: '与{target}互动' },
   put: { en: 'Put {instrument} on {target}', zh: '把{instrument}放到{target}上' },
   take: { en: 'Take {target}', zh: '拿起{target}' },
@@ -338,9 +342,10 @@ export class Controls {
     if (!this.reaches('use', target, held ?? (main && { e: main.id }))) return undefined
     if (heldE) {
       const pure = isWeapon(heldE.type) && !w.hasTag(heldE, 'tool:axe') && !(heldE.tags ?? []).some((g) => g.startsWith('tool:'))
-      // a person is struck only with the blade drawn (X: the blow is meant, docs/npc-sandbox.md)
+      // a person is struck by the right click only with the blade drawn (X: the blow is meant, docs/npc-sandbox.md);
+      // the left click's swing is a blow on them either way (someone friendly is asked first: make)
       const drawn = w.hasStatus({ e: p.id }, 'drawn')
-      const blow = isWeapon(heldE.type) && (this.isPerson(target) ? drawn : pure || this.isCreature(target))
+      const blow = isWeapon(heldE.type) && (this.isPerson(target) ? drawn || this.swinging : pure || this.isCreature(target))
       if (blow && (pressedOnSelf || (reach > 1 && !aligned))) return undefined
       const plan = this.make(key, at, 'use', target, held, blow, blow ? (heldE.type.startsWith('item/weapon/magic/') ? GENERIC.cast : GENERIC.attack) : undefined)
       // a built thing set up is checked against where it would rest, as G's put is (docs/building.md R2–R5): set up
@@ -354,7 +359,7 @@ export class Controls {
       }
       // a weapon that is not one's to fight with (another profession's): its blow is refused, and the label says so
       const why = blow ? this.eng.combat.refuses(p, heldE, 'aim') : undefined
-      if (why) plan.label = why
+      if (why) (plan.label = why), delete plan.confirm
       return plan
     }
     if (pressedOnSelf || (reach > 1 && !aligned)) return undefined
@@ -363,7 +368,7 @@ export class Controls {
     // makes nothing: a click in passing asks nothing (the chooser still strikes it, design.md §5.2)
     if (!chosen && plan.unknown && this.ground(target)) return undefined
     const why = main && this.eng.combat.refuses(p, main, 'aim')
-    if (why) plan.label = why
+    if (why) (plan.label = why), delete plan.confirm
     return plan
   }
 
@@ -385,6 +390,10 @@ export class Controls {
     // what answers is a cell taking what is held: it is set down there
     if (!r.unknown && plan.rule && this.eng.lib.rules.get(plan.rule)?.on === 'impulse/receive') plan.sets = true
     if (r.confirm && !r.unknown) plan.confirm = this.label(r.confirm, target, instrument)
+    // a blow, a use or a gift on someone friendly is asked first (a use or a gift in the words of its label: "Give the apple to
+    // Hesper?", "Slip the apple into her pocket?"); a blow with the blade drawn (X) is meant, and never asks
+    if (!plan.confirm && (verb === 'use' || verb === 'put') && this.friendly(target) && !(attack && this.w.hasStatus({ e: this.w.state.player }, 'drawn')))
+      plan.confirm = attack ? this.label(GENERIC.attackAsk, target) : { en: `${textEn(plan.label)}?`, zh: `${textZh(plan.label)}？` }
     const e = this.entity(target)
     if (e && this.w.hasTag(e, 'container') && (r.rules.includes('core/open-close') || this.w.hasTag(e, 'remains'))) plan.panel = e.id
     // taking what is another's (docs/npc-sandbox.md §2.1): the label says it is a theft
@@ -522,6 +531,8 @@ export class Controls {
 
   /** Planning the left click's blow with nothing in hand: the main hand's weapon, else the fist, strikes. */
   private bare = false
+  /** Planning the left click's swing: a weapon swung at a person is a blow, drawn or not. */
+  private swinging = false
 
   /** A tool or a weapon in hand (`isTool`, Stardew's line). */
   private toolInHand(): boolean {
@@ -539,9 +550,10 @@ export class Controls {
    * is on — a blow, a tool's work (chop, mine, till; a tool knocks a built thing loose) —; with nothing held,
    * the main hand's weapon or the fist strikes; anything else held is used on oneself, wherever one points (eat,
    * drink, put on), asked first where the world has never seen it (a stone used on oneself is an experiment,
-   * not a slip of the finger). A swing lands on what is struck, top first — someone first with nothing in
-   * hand, never a loose thing lying there then —, on someone one talks to (a person, a companion) only with
-   * the blade drawn (X: the blow is meant, docs/npc-sandbox.md), never on oneself. A tool swung where the world
+   * not a slip of the finger). A swing lands on what is struck, top first — someone first (with nothing in
+   * hand anyone, else someone one talks to: never the ground under them), never a loose thing lying there then —,
+   * never on oneself; on someone friendly it is asked first unless the blade is drawn (X: the blow is meant,
+   * docs/npc-sandbox.md; make). A tool swung where the world
    * has never seen it is an experiment, as any use is (a pickaxe at the grass asks the world); only the bare fist
    * on bare ground the world has never seen struck makes nothing (planOn). No chooser: Alt chooses.
    */
@@ -557,17 +569,16 @@ export class Controls {
     }
     const a = this.aim(aim, 'primary')
     if (!a || (a.at.x === pos.x && a.at.y === pos.y)) return undefined
-    const drawn = w.hasStatus({ e: w.state.player }, 'drawn')
     this.bare = !held
+    this.swinging = true
     try {
       const struck = this.targets(a.at, a.stack, 'use').filter((r) => {
         const e = w.get(r.e)
-        if (!e) return true
-        if (w.isAgent(e)) return drawn || !this.talksTo(r)
         // the fist strikes bodies and what stands; a tool works on anything, a loose log split as a tree felled
-        return !!held || !w.isPortable(e)
+        return !e || w.isAgent(e) || !!held || !w.isPortable(e)
       })
-      const bodies = held ? [] : struck.filter((r) => { const e = w.get(r.e); return !!e && w.isAgent(e) })
+      // someone first: with nothing in hand any body, else someone one talks to (the fairy over the grass, not the grass)
+      const bodies = struck.filter((r) => { const e = w.get(r.e); return !!e && w.isAgent(e) && (!held || this.talksTo(r)) })
       for (const r of [...bodies, ...struck.filter((r) => !bodies.includes(r))]) {
         const plan = this.planOn('use', a.at, r)
         if (plan) return plan
@@ -575,6 +586,7 @@ export class Controls {
       return undefined
     } finally {
       this.bare = false
+      this.swinging = false
     }
   }
 
@@ -611,6 +623,19 @@ export class Controls {
   private permits(key: Plan['key']): boolean {
     const allow = this.eng.story.lesson()?.def.allow
     return !allow || allow.includes(key)
+  }
+
+  /**
+   * Someone friendly to the one at the keys: someone to have a word with whom neither would attack now
+   * (Engine.hostileTo: their foes, their factions and temper) and neither has struck in the last moments (a
+   * villager who only runs from the blow is still in a fight with one) — data any actor carries.
+   */
+  private friendly(r: Ref): boolean {
+    const e = this.entity(r)
+    const me = this.w.player
+    const tick = this.w.state.tick
+    const struck = (a: Entity, by: Entity) => a.combat?.lastHurtBy === by.id && tick - (a.combat.lastHurtTick ?? -Infinity) < FIGHT_TICKS
+    return !!e && this.talksTo(r) && !this.eng.hostileTo(e, me) && !this.eng.hostileTo(me, e) && !struck(e, me) && !struck(me, e)
   }
 
   /** Someone to have a word with: a person, or a companion (one whose `companion` prop names a leader, companion.ts). */

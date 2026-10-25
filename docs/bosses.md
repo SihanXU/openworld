@@ -20,7 +20,7 @@ yet; the story's bosses are being redesigned (docs/chapter-1.md). The internal i
 - **Boss Studio** (`/boss-gallery.html`): the real engine, East Road terrain, Phaser renderer and
   HUD, without reading or writing saves. Choose a boss, inspect its animation modes, trigger its
   skills, or fight with WASD and Space (200 HP, 8 attack; not campaign balance).
-- **Boss Challenge** (首领挑战, the title screen's button, `/boss-gallery.html?challenge=1`): pick
+- **Boss Challenge** (首领挑战, a page of its own, `/boss-gallery.html?challenge=1`; the title screen's button went 2026-10-25): pick
   one of the four and a level-20 profession (assassin dagger, warrior sword and shield, ranger
   bow, mage fire staff), each with its six profession talents and four shared starter talents.
   Selection pauses; Escape pauses; victory and defeat offer retry. Nothing is saved.

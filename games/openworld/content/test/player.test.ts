@@ -50,6 +50,8 @@ describe('inputs on a storey', () => {
     const plan = eng.controls.plan(key)!
     expect(plan).toMatchObject({ at: { z: 1 }, target: { e: 'target1' } })
     eng.controls.run(plan)
+    // a gift to someone friendly is asked first
+    if (key === 'put') eng.controls.answer(true)
     if (key === 'hands') {
       expect(w.hasStatus({ e: 'target1' }, 'open')).toBe(true)
       expect(w.hasStatus({ e: 'target0' }, 'open')).toBe(false)

@@ -123,9 +123,15 @@ const ROOTS: Rule[] = [
   }),
   rule({
     id: 'core/handle',
-    doc: 'A bare hand on something with no answer of its own: undefined (it is looked at meanwhile).',
+    doc: 'A bare hand on something with no answer of its own: undefined (meanwhile one only runs a hand over it).',
     on: 'impulse/handle',
-    tree: HOLE(log('It is {host}.', '这是{host}。')),
+    tree: HOLE(log('You run a hand over {host}.', '你伸手摸了摸{host}。')),
+  }),
+  rule({
+    id: 'core/settle',
+    doc: 'Asked to take a posture at a thing (a chair, hay, an altar): an actor goes there and holds it until it moves on (its status ends as it steps away); anything else is undefined.',
+    on: 'impulse/settle',
+    tree: IF(is('host', { type: 'actor' }), DO({ op: 'posture' }), HOLE()),
   }),
   rule({
     id: 'core/taken',
@@ -1071,12 +1077,12 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'fire/burn-out-ground',
-    doc: 'Burnt ground is ash; a burnt tree is charred, a burnt wall black; what else burns on the ground (a bush, a stump) is gone.',
+    doc: "Burnt ground is ash; a burnt tree is charred, a burnt wooden wall black; what else burns on the ground (a bush, a stump, a tent's canvas, a hut's thatch) is gone.",
     host: { type: 'tile', tags: ['flammable'] },
     on: 'time/timer',
     tree: IF(
       param('status', 'burning'),
-      IF(tag('host', 'tree'), DO({ op: 'transform', into: 'tile/charred_tree' }, vfx('smoke')), IF(tag('host', 'wall'), DO({ op: 'transform', into: 'tile/burnt_wall' }, vfx('smoke')), DO({ op: 'transform', into: 'tile/ash' }, vfx('smoke')))),
+      IF(tag('host', 'tree'), DO({ op: 'transform', into: 'tile/charred_tree' }, vfx('smoke')), IF(all(tag('host', 'wall'), tag('host', 'wooden')), DO({ op: 'transform', into: 'tile/burnt_wall' }, vfx('smoke')), DO({ op: 'transform', into: 'tile/ash' }, vfx('smoke')))),
     ),
   }),
   rule({
@@ -1088,10 +1094,10 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'fire/burnt-wall',
-    doc: 'A wooden wall that burns down to nothing stands black (world-model.md §10.3, 13).',
-    host: { type: 'tile/woodwall' },
+    doc: 'A wall that burns down to nothing: a wooden one stands black (world-model.md §10.3, 13); canvas or thatch is ash, not what it was made of.',
+    host: { type: 'tile', tags: ['wall', 'flammable'] },
     on: 'threshold/cross',
-    tree: IF(all(param('name', 'broken'), has('host', 'burning')), DO({ op: 'transform', into: 'tile/burnt_wall' }, vfx('smoke')), 'inherit'),
+    tree: IF(all(param('name', 'broken'), has('host', 'burning')), IF(tag('host', 'wooden'), DO({ op: 'transform', into: 'tile/burnt_wall' }, vfx('smoke')), DO({ op: 'transform', into: 'tile/ash' }, vfx('smoke'))), 'inherit'),
   }),
   rule({
     id: 'water/bridge',
@@ -1856,6 +1862,13 @@ const TENTS: Rule[] = [
   }),
 ]
 
+/** A place of the overworld, sealed by one of the gates (its `opensWhen` fact unset): the gate's words; open, `open`. */
+const sealedSite = (open: Tree, label = true): Tree =>
+  SITE_GATES.reduceRight<Tree>((rest, g) => {
+    const say = DO(log(g.say.en, g.say.zh))
+    return IF({ all: [{ prop: { role: 'host', key: 'opensWhen', cmp: g.fact } }, { prop: { role: 'story', key: g.fact, cmp: 0, default: 0 } }] }, label ? AS(L('Sealed: {target}', '未开放：{target}'), say) : say, rest)
+  }, open)
+
 const SITES: Rule[] = [
   rule({
     id: 'site/enter',
@@ -1863,10 +1876,14 @@ const SITES: Rule[] = [
     doc: 'Empty hands on a place of the overworld: one goes in — pushed into the map it stands for, on the side one stands; a place the story has not opened yet (its `opensWhen` fact unset) says why and stays shut.',
     host: SITE,
     on: 'impulse/handle',
-    tree: SITE_GATES.reduceRight<Tree>(
-      (open, g) => IF({ all: [{ prop: { role: 'host', key: 'opensWhen', cmp: g.fact } }, { prop: { role: 'story', key: g.fact, cmp: 0, default: 0 } }] }, AS(L('Sealed: {target}', '未开放：{target}'), DO(log(g.say.en, g.say.zh))), open),
-      DO(emit('push', 'actor', { map: { prop: 'map', of: 'host' } })),
-    ),
+    tree: sealedSite(DO(emit('push', 'actor', { map: { prop: 'map', of: 'host' } }))),
+  }),
+  rule({
+    id: 'site/sealed',
+    doc: 'Something runs up against a place of the overworld the story has not opened yet: sealed, it stops what walks as a wall does (World.sealed), and it says why in its gate\'s words (the line is the one at the keys\': written when they bump into it). An open place is never bumped into: no change.',
+    host: SITE,
+    on: 'bump',
+    tree: sealedSite(NOTHING, false),
   }),
   rule({
     id: 'site/far',

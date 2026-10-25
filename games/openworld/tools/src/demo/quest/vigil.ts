@@ -17,7 +17,7 @@ export const VIGIL = {
   hillSouth: [19, 20, 21],
   /** where the vigil's things are: the oil on the cellar's back shelves, dawnbloom on Dawn Hill's east slope, the Dawnstone on its crown */
   oil: [[4, 3], [11, 3]] as const,
-  bloom: [[31, 14], [33, 11], [31, 17], [34, 15]] as const,
+  bloom: [[31, 14], [33, 11], [31, 17], [33, 15]] as const,
   stone: [28, 5] as const,
   /** Dawn Hill's waypoint, at the head of the first stair */
   statue: [22, 17] as const,
@@ -43,7 +43,7 @@ export const MILL = { house: [15, 11] as const, wheel: [12, 12] as const, field:
  * gone thin in the short days; south of the road a meadow; woods round it all.
  */
 export function buildMillbrook(): MapBuilder {
-  const m = new MapBuilder('mill', L('Millbrook', '水车磨坊'), 'village', 40, 30, 'grass', 'village', 'outdoor', 'frostfang')
+  const m = new MapBuilder('mill', L('Millbrook', '水车磨坊'), 'village', 40, 30, 'grass', 'millbrook', 'outdoor', 'frostfang')
   m.zone = 'peaceful'
   m.paint('mill')
   m.fish = true
@@ -152,7 +152,7 @@ export function buildMillCellar(): MapBuilder {
 
 /**
  * Dawn Hill, drawn by hand (release 1, docs/release-1.md): its ground `maps/dawnhill.txt`, its heights
- * `maps/dawnhill.heights.txt` (the faces drawn where it drops: ground.ts terracePieces). The village's lane comes up
+ * `maps/dawnhill.heights.txt` (the faces of rock where it drops: the engine's relief.ts, drawn by the runtime's). The village's lane comes up
  * from the south across the hill's foot; the hill's shoulder stands two levels over it behind a rock face (the face's
  * upper row is the rock itself, cave wall), and the road climbs it by a stair cut in the face, runs east along the
  * brow and up the east-facing slope where the dawnbloom grows, then back west and up a ramp to the crown, a level
@@ -168,8 +168,6 @@ export function buildDawnHill(): MapBuilder {
   const grass = (t: string) => t === 'grass'
   const tree = (t: string) => t === 'tree' || t === 'pine'
   const road = (t: string) => t === 'path' || t === 'dirt' || t === 'cobble'
-  /** Under a rock face: the ground a level below the cell north of it (keep it clear, the face is drawn there). */
-  const underFace = (x: number, y: number) => y > 0 && m.heights[y - 1][x] - m.heights[y][x] >= 2
   // the chapel on the crown, its forecourt before it; the churchyard of its old keepers west of it, its wall fallen in places
   m.house('temple', ...CHAPEL_AT, 'chapel')
   m.yard(13, 1, 5, 5, 'stonewall', [[17, 3], [13, 2], [15, 5], [16, 5]])
@@ -191,10 +189,10 @@ export function buildDawnHill(): MapBuilder {
   // small things where they belong: flowers on the east slope and round the Dawnstone, tufts on the open shoulder, stones
   // fallen at the foot of the faces, leaves under the woods
   const east = (x: number) => x >= 26
-  m.sprinkle('fixture/nature/flowers', 0.35, (x, y, t) => (grass(t) || t === 'flowers') && east(x) && m.heights[y][x] >= 2 && !underFace(x, y) && !m.near(x, y, road, 0))
-  m.sprinkle('fixture/nature/tuft', 0.08, (x, y, t) => grass(t) && !east(x) && !underFace(x, y) && !m.near(x, y, tree, 1) && !m.near(x, y, road, 1))
-  m.sprinkle('fixture/nature/pebbles', 0.3, (x, y, t) => grass(t) && underFace(x, y - 1) && !underFace(x, y))
-  m.sprinkle('fixture/nature/leaves', 0.16, (x, y, t) => grass(t) && !underFace(x, y) && m.near(x, y, tree))
+  m.sprinkle('fixture/nature/flowers', 0.35, (x, y, t) => (grass(t) || t === 'flowers') && east(x) && m.heights[y][x] >= 2 && !m.near(x, y, road, 0))
+  m.sprinkle('fixture/nature/tuft', 0.08, (x, y, t) => grass(t) && !east(x) && !m.near(x, y, tree, 1) && !m.near(x, y, road, 1))
+  m.sprinkle('fixture/nature/pebbles', 0.3, (x, y, t) => grass(t) && m.face(x, y - 1))
+  m.sprinkle('fixture/nature/leaves', 0.16, (x, y, t) => grass(t) && m.near(x, y, tree))
   m.appear = [...GROUND_YIELD, appears('item/material/herb', ['flowers', 'grass'], 3, 1200)]
   return m
 }

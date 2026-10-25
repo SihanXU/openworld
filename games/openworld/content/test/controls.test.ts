@@ -23,15 +23,20 @@ const ground = (eng: Engine, x = 2, y = 1) => eng.controls.layers({ map: 'sandbo
 const label = (p: Plan | undefined) => textOf(p?.label)
 
 describe('the inputs: one act each', () => {
-  it('E talks to a person whatever is held; G gives the held thing', () => {
+  it('E talks to a person whatever is held; G gives the held thing, asked first', () => {
     const eng = world('item/food/apple', [npc()])
     const talk = eng.controls.plan('hands')
     expect(talk).toMatchObject({ verb: 'hands', rule: 'people/talk', instrument: undefined })
+    expect(talk!.confirm).toBeUndefined()
     expect(label(talk)).toBe('Talk to farmer')
     const give = eng.controls.plan('put')
     expect(give).toMatchObject({ verb: 'put', rule: 'people/accept' })
     expect(label(give)).toBe('Give Apple to farmer')
+    expect(textOf(give!.confirm)).toBe('Give Apple to farmer?')
+    expect(textOf(give!.confirm, 'zh')).toBe('把苹果送给农夫？')
     eng.controls.run(give!)
+    expect(eng.world.get('held')!.place).toMatchObject({ on: 'hand', holder: 'actor' })
+    eng.controls.answer(true)
     expect(eng.world.get('held')!.place).toMatchObject({ on: 'inside', holder: 'npc.hollis' })
   })
 
@@ -239,10 +244,13 @@ describe('the inputs: one act each', () => {
     eng.author(() => eng.world.setProp(hollis, 'maxHunger', 20))
     eng.author(() => eng.world.setProp(hollis, 'hunger', 5))
     eng.controls.run(eng.controls.plan('use')!)
+    expect(eng.world.num(hollis, 'hunger')).toBe(5)
+    eng.controls.answer(true)
     expect(eng.world.num(hollis, 'hunger')).toBeGreaterThan(5)
     expect(eng.world.get('held')).toBeUndefined()
     const helm = world('item/armor/helmet', [npc()])
     helm.controls.run(helm.controls.plan('use')!)
+    helm.controls.answer(true)
     const h = helm.world.get('npc.hollis')!
     expect(helm.world.prop(h, 'wear:head')).toBe('held')
     expect(helm.world.get('held')!.place).toMatchObject({ on: 'inside', holder: 'npc.hollis' })
@@ -582,7 +590,7 @@ describe('the left click: the held thing as it is meant to be used', () => {
     expect(world('structure/wall', []).controls.plan('primary', at)).toMatchObject({ key: 'self' })
   })
 
-  it('nothing in hand: the main hand\'s weapon, else the fist — on someone first, then what stands, never a loose thing; a person only with the blade drawn', () => {
+  it('nothing in hand: the main hand\'s weapon, else the fist — on someone first, then what stands, never a loose thing; someone friendly asked first unless the blade is drawn', () => {
     const fist = world(undefined, [slime()])
     expect(fist.controls.plan('primary', at)).toMatchObject({ attack: true, instrument: undefined, target: { e: 's' } })
     expect(label(fist.controls.plan('primary', at))).toBe('Punch green slime')
@@ -590,18 +598,68 @@ describe('the left click: the held thing as it is meant to be used', () => {
     expect(world(undefined, [{ key: 'rock', type: 'fixture/nature/boulder', x: 2, y: 1 }]).controls.plan('primary', at)).toMatchObject({ attack: true, target: { e: 'rock' } })
     expect(world(undefined, [slime(), { key: 'stick', type: 'item/material/stick', x: 2, y: 1 }]).controls.plan('primary', { ...at, stack: [{ e: 'stick' }, { e: 's' }] })).toMatchObject({ target: { e: 's' } })
     const eng = world(undefined, [npc()])
-    expect(eng.controls.plan('primary', at)).toBeUndefined()
+    const sheathed = eng.controls.plan('primary', at)
+    expect(sheathed).toMatchObject({ attack: true, target: { e: 'npc.hollis' } })
+    expect(textOf(sheathed!.confirm)).toBe('Attack farmer?')
+    expect(textOf(sheathed!.confirm, 'zh')).toBe('攻击农夫？')
     eng.author(() => eng.applyStatus({ e: 'actor' }, 'drawn', NO_EXPIRY))
-    expect(eng.controls.plan('primary', at)).toMatchObject({ attack: true, target: { e: 'npc.hollis' } })
+    const drawn = eng.controls.plan('primary', at)
+    expect(drawn).toMatchObject({ attack: true, target: { e: 'npc.hollis' } })
+    expect(drawn!.confirm).toBeUndefined()
     const fairy = world(undefined, [{ key: 'fairy', type: 'actor/companion', x: 2, y: 1, props: { companion: 'actor' } }])
-    expect(fairy.controls.plan('primary', at)?.target).not.toEqual({ e: 'fairy' })
+    expect(fairy.controls.plan('primary', at)).toMatchObject({ attack: true, target: { e: 'fairy' } })
+    expect(fairy.controls.plan('primary', at)!.confirm).toBeDefined()
   })
 
-  it('a tool on someone one talks to only with the blade drawn: a torch is not put to a villager by a slip', () => {
+  it('a tool or a weapon aimed at someone friendly meets them, never the ground under them, and asks first: a torch is not put to a villager by a slip', () => {
     const torch = world('item/light/torch', [npc()])
-    expect(torch.controls.plan('primary', at)?.target).not.toEqual({ e: 'npc.hollis' })
+    const slip = torch.controls.plan('primary', at)!
+    expect(slip).toMatchObject({ verb: 'use', target: { e: 'npc.hollis' }, instrument: { e: 'held' } })
+    expect(textOf(slip.confirm)).toBe('Set fire to farmer?')
     torch.author(() => torch.applyStatus({ e: 'actor' }, 'drawn', NO_EXPIRY))
+    // drawn, only a blow goes unasked: a torch put to someone is still a use
     expect(torch.controls.plan('primary', at)).toMatchObject({ target: { e: 'npc.hollis' } })
+    expect(torch.controls.plan('primary', at)!.confirm).toBeDefined()
+    // the stone axe swung at a villager: a blow on them (never "use the axe on the grass"), asked first
+    const axe = world('item/weapon/blade/axe', [npc()])
+    const swing = axe.controls.plan('primary', at)!
+    expect(swing).toMatchObject({ attack: true, target: { e: 'npc.hollis' }, instrument: { e: 'held' } })
+    expect(textOf(swing.confirm)).toBe('Attack farmer?')
+    // the right click, the axe used on them: asked first too
+    const use = axe.controls.plan('secondary', at)!
+    expect(use).toMatchObject({ verb: 'use', target: { e: 'npc.hollis' } })
+    expect(use.attack).toBeUndefined()
+    expect(textOf(use.confirm)).toMatch(/^Use .* on farmer\?$/)
+  })
+
+  it('a blow on someone friendly waits for the answer: no is nothing, yes the same blow as ever; once they are struck the fight goes on unasked', () => {
+    const eng = world(undefined, [npc()])
+    const hollis = eng.world.get('npc.hollis')!
+    const hp = eng.world.num(hollis, 'hp')
+    const plan = eng.controls.plan('primary', at)!
+    eng.controls.swing(plan)
+    expect(eng.world.state.question).toMatchObject({ plan: { attack: true, target: { e: 'npc.hollis' } } })
+    expect(textOf(eng.world.state.question!.text)).toBe('Attack farmer?')
+    eng.controls.answer(false)
+    expect(eng.world.num(hollis, 'hp')).toBe(hp)
+    // the button held never asks: it does not sweep into a blow on them
+    eng.controls.again(plan, at)
+    expect(eng.world.state.question).toBeUndefined()
+    expect(eng.world.num(hollis, 'hp')).toBe(hp)
+    eng.controls.swing(eng.controls.plan('primary', at)!)
+    eng.controls.answer(true)
+    eng.tick()
+    expect(eng.world.num(hollis, 'hp')).toBeLessThan(hp)
+    expect(eng.controls.plan('primary', at)!.confirm).toBeUndefined()
+  })
+
+  it('someone hostile is struck unasked, drawn or not; a creature never asks', () => {
+    const eng = world(undefined, [npc()])
+    eng.author(() => (eng.world.get('npc.hollis')!.ai = { behaviour: 'melee', temper: 'wary', sight: 6, home: { map: 'sandbox', x: 2, y: 1 }, foes: ['actor'] }))
+    expect(eng.controls.plan('primary', at)).toMatchObject({ attack: true, target: { e: 'npc.hollis' } })
+    expect(eng.controls.plan('primary', at)!.confirm).toBeUndefined()
+    expect(world('item/weapon/blade/axe', [slime()]).controls.plan('primary', at)!.confirm).toBeUndefined()
+    expect(world(undefined, [slime()]).controls.plan('primary', at)!.confirm).toBeUndefined()
   })
 
   it('a swing never on oneself; a tool at the bare ground the world has never seen is an experiment, the bare fist there nothing; the chooser only where it swings', () => {

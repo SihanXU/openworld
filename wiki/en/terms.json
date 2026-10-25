@@ -266,7 +266,18 @@
     "temple": "Temple",
     "dungeon": "Dungeon",
     "dark_forest": "Dark Forest",
-    "title": "Title"
+    "title": "Title",
+    "ford": "Ford",
+    "hollow": "Hollow",
+    "crypt": "Crypt",
+    "dell": "Dell",
+    "river": "River",
+    "millbrook": "Millbrook",
+    "ruins": "Ruins",
+    "kneelfield": "Kneeling Field",
+    "cloudtop": "Cloudtop",
+    "haven": "Held Ground",
+    "worldmap": "World Map"
   },
   "元素": {
     "fire": "fire",

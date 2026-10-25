@@ -44,6 +44,11 @@ export class FishingInputLatch {
 export type ToWorker =
   | { t: 'skipLearning' }
   | { t: 'init'; base: string; save?: SaveWithQuestions; library?: StoredLibrary; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any */ modder?: string; /** true: prefetch undefined acts the pointer rests on (?prefetch=1: at least the medium setting's) */ prefetch?: boolean; /** the player's AI setting (the engine's quality.ts) */ quality?: AiQuality; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos; /** a step of the story begun at once in a new game (the editor's "play from this scene") */ scene?: string }
+  /**
+   * The world behind the title (the cover's backdrop): a world of its own at a place of the game's and an hour, with no
+   * story, nothing asked of the modder and nothing saved; its frames are only drawn. An `init` replaces it.
+   */
+  | { t: 'backdrop'; base: string; at: Pos; hour?: number; library?: StoredLibrary; /** the traveller standing there (the latest save's look) */ look?: Look }
   /** The one at the keys, fallen, rises again: where they fell, or at home (the death screen). */
   | { t: 'respawn'; home: boolean }
   /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */

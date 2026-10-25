@@ -584,6 +584,18 @@
             "card"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "music": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "music"
+          ],
+          "additionalProperties": false
         }
       ]
     },
@@ -1888,6 +1900,19 @@
             "op": {
               "type": "string",
               "const": "sleep"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "posture"
             }
           },
           "required": [
@@ -3457,7 +3482,8 @@
         "receive",
         "offered",
         "handle",
-        "notify"
+        "notify",
+        "settle"
       ],
       "description": "The impulses: what one thing does to another (design.md §5.8)."
     },

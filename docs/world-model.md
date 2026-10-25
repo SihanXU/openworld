@@ -256,10 +256,15 @@ reach inside it without crossing a floor one cannot stand on (water, lava, void;
 part it). The overworld is an ordinary map and its barriers are terrain: a mountain range north of the
 Ford and the river south of it run sea to sea, and the Ford's own cell is the river's — a crossing
 (`site/place/crossing`, hands' reach 1) gone into from the cell beside it. Walking out of a map's edge
-(the player) lands on the cell beside its own the way one left (on its own cell where that is sea or
-rock); out of a map of several parts, only onto a cell its part's ways lead to. Going in from standing
-on a place lands on the side one came onto it from (behind one, as one faces); from beside a crossing,
-by the way between the two maps (`Engine.enterFrom`). Older saves are brought over by `migrateOverworld`. Portals between hand-made maps stay. A wilderness is made by
+(the player) lands on its own cell, standing on the place one left, from where one chooses the way on
+(2026-10-25; before, the cell beside it the way one left). A place one cannot stand on — a barrier's cell
+(the Ford, the Reed Bend), or one the story has sealed — puts one on the cell beside it the way one left;
+out of a map of several parts, only onto a cell its part's ways lead to. Going in from standing on a
+place lands on the side one came onto it from (behind one, as one faces), or, not having stepped since
+one came out of it by its edge, where one came out (`Engine.leftBy`, forgotten with a save); from beside
+a crossing, by the way between the two maps (`Engine.enterFrom`). A site the story has not opened yet
+(its `opensWhen` fact unset, `World.sealed`) is solid: it stops whoever walks, and its bump says why in
+its gate's words (content `site/sealed`, `SITE_GATES`). Older saves are brought over by `migrateOverworld`. Portals between hand-made maps stay. A wilderness is made by
 `wildChunk` (content `wild.ts`) from the world's seed, its cell and its ground (a recipe each:
 plains, woods, hills, snow, road), with open edges; the client makes it when it is needed, and
 on loading. A long step's time passes at once at the end of the tick (fast-forward); harm stops
@@ -357,19 +362,30 @@ the room's contents on every query.
 ### 5.5 Vertical movement
 
 - On one z one walks; stairs and ramps join z and z + 1; a cliff edge cannot be crossed upward.
-- **Any drop is a fall** (classic ledges are just short falls): fall damage grows with the
-  drop above a safe height (a prop, defaulting to the parameter). Behaviour avoids unsafe drops.
+- **Ground is crossed by stairs and ramps** (agreed 2026-10-25, replacing "any drop is a fall"): off a
+  ledge one level high one drops, one way (Zelda's ledges); a higher drop is a wall. A drop between
+  storeys (support lost, off a floor's edge) is still a fall whose damage grows above a safe height.
 - Pathfinding, sight and range include z; height blocks sight and gives reach.
 
-As built (W2d): heights are a map's `heights` (one per column, in half levels: a level is two, a
-ramp is a column between two levels; the chunk stores a digit per column). `World.stepOver`: a
-step up or down of at most half a level is a walk; more up is a cliff (a bump into what makes up
-the cell above); more down is a fall of that many levels, which hurts beyond the safe height
-(`params.safeFall` 1, `params.fallDamage` 6 a level) as the faller's own blow (`Engine.fallBy`).
-What flies neither climbs nor falls. Planning (A*) takes only walks and safe drops; ground higher
-than both ends blocks sight. The high ground at the Mountain Foot stands two levels above its face of rock, the trail a
-ramp. The renderer draws higher ground lighter, a lip and a rock face with its shadow where it
-drops a level, a ramp's steps, and a durability bar over a struck cell or thing. z for storeys,
+As built (W2d, the relief 2026-10-25): heights are a map's `heights` (one per column, in half levels:
+a level is two, a ramp is a column between two levels; the chunk stores a digit per column). The
+map is seen from the south and above, so where ground drops to the south its face of rock shows on
+the lower ground below the edge, a cell a level (`relief.ts` `faceCells`): those cells are rock,
+`World.blocked` for everyone at z 0 (no one walks into or along a face; the builder sets nothing
+there, the format's check warns of what is). `World.stepOver`: a step up or down of at most half a
+level is a walk (a ramp, a stair); a drop of one level (two or three half levels) is a drop onto
+the next cell, or, south off a ledge's top, a leap over its one-cell face to its foot (`to`); more up,
+more down, or into a face is a wall (a bump into what makes up the cell there). A one-level drop is
+within `params.safeFall` and does no harm (`Engine.fallBy` stays for storeys). What flies neither
+climbs nor drops (the face's cells still stop it). Planning (A*, `step` may answer a landing cell)
+takes walks and safe drops, leaps included; followers step by `wayTo` (a neighbour, or two cells on
+in a line); ground higher than both ends blocks sight. The Mountain Foot's ledge stands two levels
+above its face, the trail a stair; Cloudtop's rim two over the way down, the cut a stair; the
+Hollow's ledge one level, leapt anywhere. The runtime paints the relief (`assets/relief.ts`, both
+renderers): faces of bedded rock in masses and chunks, a lit lip (a snow cornice, a grass fringe), the
+rock's side where it drops west or east, a ragged foot with its shadow and stones, stairs cut as
+steps, in the region's rock (`Catalog.relief`); a leap is drawn as a hop. A durability bar shows
+over a struck cell or thing. z for storeys,
 the `fall` primitive (support lost) and reach by height come with W6.
 
 ### 5.6 Sites, travel and the overworld's acts

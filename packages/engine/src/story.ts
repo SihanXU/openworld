@@ -12,12 +12,11 @@
 // leader is at (the companion's `@objective`), the latest beat its hint (`@hint`).
 
 import type { Engine } from './engine.ts'
-import { astar } from './path.ts'
-import { DIRS } from './types.ts'
+import { astar, wayTo } from './path.ts'
 import { cmp, isDo, isHole, leaves } from './rules.ts'
 import { regionId } from './world.ts'
 import { calendarAt, isNight, tickAt } from './calendar.ts'
-import type { Dir, Effect, Entity, Id, Lesson, Pos, Ref, Rule, SceneCmd, StepCond, StepDef, Text } from './types.ts'
+import type { Effect, Entity, Id, Lesson, Pos, Ref, Rule, SceneCmd, StepCond, StepDef, Text } from './types.ts'
 
 const MOVE_STEP_TICKS = 4
 const MOVE_TIMEOUT = 900
@@ -345,6 +344,9 @@ export class Story {
       this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'stage', n: c.n } }], { e: `quest.${c.stage}` })
     } else if ('tell' in c) {
       this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: c.params }], { e: c.tell })
+    } else if ('music' in c) {
+      // the music is the scene's (it ends with it): a cue of the client's, or silence
+      s.music = c.music
     } else if ('status' in c) {
       if (c.add) this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'status', add: c.add } }], { e: c.status })
       if (c.remove) this.story([{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'status', remove: c.remove } }], { e: c.status })
@@ -368,7 +370,7 @@ export class Story {
     }
     if (w.state.tick < m.next) return false
     const [x, y] = m.path.shift()!
-    const dir = (Object.entries(DIRS) as [Dir, [number, number]][]).find(([, [dx, dy]]) => e.place.on === 'tile' && dx === x - e.place.x && dy === y - e.place.y)?.[0]
+    const dir = e.place.on === 'tile' ? wayTo(e.place.x, e.place.y, x, y) : undefined
     if (dir) e.facing = dir
     this.send(e, { map: e.place.map, x, y })
     m.next = w.state.tick + MOVE_STEP_TICKS

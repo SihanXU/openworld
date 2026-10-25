@@ -38,6 +38,7 @@ export const CMD_KINDS: [string, string, (ctx: Ctx) => SceneCmd][] = [
   ['status', phrase('A status on or off'), () => ({ status: '', add: '' })],
   ['tell', phrase('Tell someone'), () => ({ tell: '', params: { what: 'news' } })],
   ['card', phrase('A full-screen card'), () => ({ card: '…' })],
+  ['music', phrase('Play music'), () => ({ music: '' })],
 ]
 export const cmdKind = (c: SceneCmd): string => CMD_KINDS.find(([k]) => k in c)?.[0] ?? '?'
 
@@ -82,6 +83,12 @@ export function cmdForm(f: Form, ctx: Ctx, c: SceneCmd, set: (c: SceneCmd) => vo
     }
     case 'tell': { const m = c as { tell: string; params: Record<string, never> }; return `${whoField(f, ctx, m.tell, (v) => set({ ...m, tell: v }))} ${f.json(m.params, (v) => set({ ...m, params: (v ?? {}) as never }), (msg) => toast(msg, 'error'), 1)}` }
     case 'card': return f.words(x.card as Text, (t) => set({ card: t ?? '' }), { area: true })
+    case 'music': {
+      // a cue of the project's catalogue, or silence; the place's own music comes back when the scene ends
+      const cues = Object.keys(ctx.store.get<Catalog>('catalog.json')?.music ?? {})
+      const cur = String(x.music ?? '')
+      return `${f.select([['', t('silence')], ...[...new Set([...cues, ...(cur ? [cur] : [])])].map((k): [string, string] => [k, k])], cur, (v) => set({ music: v }))} <span class="muted">${t('until the scene ends')}</span>`
+    }
   }
   return f.json(c, (v) => set(v as SceneCmd), (msg) => toast(msg, 'error'), 2)
 }

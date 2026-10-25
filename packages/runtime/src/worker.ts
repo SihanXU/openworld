@@ -44,6 +44,10 @@ let trade: string | undefined
 let pockets: string | undefined
 let gift: string | undefined
 let paused = false
+/** The world running is the title's backdrop (`backdrop`): nothing saved, nothing asked, no panels. */
+let backdropOn = false
+/** Which start is the latest: one begun before another finished loading gives way to it. */
+let generation = 0
 let buildAim: { id: string; tile: Tile; up?: boolean } | undefined
 let lastMap = ''
 let fetching = new Set<string>()
@@ -154,6 +158,11 @@ async function probeModder(live: () => boolean): Promise<boolean> {
     post({ t: 'modder', online: false, url: modderUrl })
     return !game
   }
+}
+
+/** Would a hole reached now be asked: a modder with a model is up. Else the label promises nothing (no "?"): the default comes. */
+function asks(): boolean {
+  return modderOnline && !!game?.mods.provider
 }
 
 async function resolveRemote(request: ModRequest): Promise<Patch | null> {
@@ -324,7 +333,7 @@ function keyViews(): Frame['keys'] {
   }
   // the act's own view: the '?' only where someone will be asked (the AI setting may leave it to the leaf's default)
   const view = (pl: Plan | undefined): KeyView | undefined =>
-    pl && { label: pl.label, unknown: (pl.unknown && !pl.quiet) || undefined, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(!pl.changes && { idle: true }), ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(c.ground(pl.target) && { ground: true }), ...(c.talksTo(pl.target) && { person: true }), ...(rect(pl) && { rect: rect(pl) }) }
+    pl && { label: pl.label, unknown: (pl.unknown && !pl.quiet && asks()) || undefined, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(!pl.changes && { idle: true }), ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(c.ground(pl.target) && { ground: true }), ...(c.talksTo(pl.target) && { person: true }), ...(rect(pl) && { rect: rect(pl) }) }
   // standing still, one turns to the spot beside one that the pointer is on (the input's own posture):
   // a person one points at sees one face them, and waits (npc.ts, attended)
   const stand = w.posOf(w.player)
@@ -345,7 +354,7 @@ function keyViews(): Frame['keys'] {
 }
 
 /** Time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player). */
-const timeStopped = (g: Game) => paused || transfers.busy || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets || !!gift
+const timeStopped = (g: Game) => (paused && !backdropOn) || transfers.busy || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets || !!gift
 
 function cancelFishing(g: Game | undefined): void {
   if (g && fishingActive(g.engine)) {
@@ -531,7 +540,7 @@ function inDanger(): boolean {
 
 /** Save the game; `auto`: the world's own (the minute's, on arriving, as the story moves), said to no one. */
 function doSave(auto = false): void {
-  if (!game) return
+  if (!game || backdropOn) return
   const w = game.engine.world
   const p = w.player
   // one lying fallen is not saved (a save to load is from before the fall) — but a hardcore game's end is
@@ -583,7 +592,8 @@ function loop(): void {
   if (asking && asked?.id !== asking.id) asked = { id: asking.id, since: t0 }
   if (!asking) asked = undefined
   else if (t0 - asked!.since > (asking.deadline === Number.POSITIVE_INFINITY ? MAKE_MS : ASK_MS)) game.mods.fallback(asking.id)
-  peopleOpened(eng)
+  if (backdropOn) panel = talk = trade = pockets = gift = undefined
+  else peopleOpened(eng)
   // A paused world's full snapshot can itself cost more than a tick on large saves. Reserve
   // most worker time for the transfer; ordinary messages and closing the panel still run.
   if (transfers.busy && t0 < nextTransferFrame) return
@@ -626,7 +636,7 @@ function loop(): void {
   // save as soon as the story moves on (a quest reached a stage)
   if (w.fx.some((x) => x.t === 'quest')) saveEvery = 599
   // (what the tick itself opened: a guard stopping the one at the keys)
-  peopleOpened(eng)
+  if (!backdropOn) peopleOpened(eng)
   // Transfers pause ticks, but their progress frames still need new bag kinds and the hand.
   if (transfers.busy) eng.controls.keep()
   const frame = snapshot(eng, { panel, view })
@@ -638,8 +648,8 @@ function loop(): void {
   if (pockets && !frame.pockets) pockets = undefined
   if (gift && !frame.gift) gift = undefined
   // nothing while the player cannot act (working out an act, down, in a scene)
-  frame.keys = keysNow(game)
-  maybePrefetch()
+  frame.keys = backdropOn ? undefined : keysNow(game)
+  if (!backdropOn) maybePrefetch()
   lastTickMs = performance.now() - t0
   nextTransferFrame = transfers.busy ? performance.now() + Math.max(TICK_MS, lastTickMs * 3) : 0
   // the codex: what the player carries and who and what is near (the reader's record, beside the state)
@@ -659,13 +669,67 @@ function loop(): void {
   const hp = w.num(w.player, 'hp')
   if (hp < lastHp) hurtTick = w.state.tick
   lastHp = hp
-  if (++saveEvery >= 600 && !inDanger()) {
+  if (!backdropOn && ++saveEvery >= 600 && !inDanger()) {
     saveEvery = 0
     doSave(true)
   }
 }
 
+/**
+ * The world behind the title: the game's world at a place and an hour with no story to take the stage (the trailer's
+ * stage does the same), the traveller standing there unharmed, the modder never asked. Its frames are only drawn.
+ */
+async function backdrop(m: Extract<ToWorker, { t: 'backdrop' }>): Promise<void> {
+  const mine = ++generation
+  // the world before stops at once: nothing of it is sent while the next is made
+  if (timer) clearInterval(timer)
+  timer = undefined
+  transfers.cancel()
+  panel = talk = trade = pockets = gift = undefined
+  base = m.base
+  const idx = await fetchJson<WorldIndex>('index.json')
+  if (mine !== generation) return
+  index = idx
+  connecting?.stop()
+  if (syncTimer) clearInterval(syncTimer)
+  const quiet = { ...index, steps: [], quests: [], invariants: [] }
+  const g = Game.create(quiet, ontology(), libraryFrom(m.library, index.protectedFacts), { at: m.at, ...(m.hour !== undefined && { hour: m.hour }) })
+  const w = g.engine.world
+  g.engine.author(() => {
+    w.setProp(w.player, 'invulnerable', true)
+    const looks = ontology().looks
+    if (m.look && looks && !lookProblems(m.look, looks).length) w.player.look = structuredClone(m.look)
+  })
+  g.worldVersion = index.version
+  g.keepMaps = KEEP_MAPS
+  g.engine.quality = quality
+  for (const s of played().skills.all) g.engine.skills.set(s.id, s)
+  game = g
+  backdropOn = true
+  paused = false
+  frames.reset()
+  view = undefined
+  lastMap = ''
+  lastRecordsVersion = g.engine.lib.version
+  await ensureMaps()
+  if (mine !== generation) return
+  artSent.clear()
+  sendArts()
+  if (timer) clearInterval(timer)
+  timer = setInterval(() => {
+    try {
+      loop()
+    } catch (err) {
+      post({ t: 'error', message: (err as Error).stack ?? String(err) })
+    }
+  }, TICK_MS)
+}
+
 async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Promise<void> {
+  const mine = ++generation
+  backdropOn = false
+  if (timer) clearInterval(timer)
+  timer = undefined
   transfers.cancel()
   nextTransferFrame = 0
   panel = undefined
@@ -673,6 +737,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   if (init.prefetch !== undefined) prefetchAsked = init.prefetch
   if (init.quality) quality = qualityOf(init.quality)
   index = await fetchJson<WorldIndex>('index.json')
+  if (mine !== generation) return
   const compatible = init.save?.world === index.version
   // the shared library, with what the save loaded keeps of its own though another game's sync forgot it
   const taken = withKept(init.library, init.save && !fresh && compatible ? init.save : undefined)
@@ -717,6 +782,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   // a game begun or loaded tells the main thread its library, whatever the last one's version was
   lastRecordsVersion = -1
   await ensureMaps()
+  if (mine !== generation) return
   post({ t: 'ready', stats: index.stats, name: index.name, resumed: !!init.save && !fresh && compatible })
   artSent.clear()
   sendArts()
@@ -741,6 +807,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
     switch (m.t) {
       case 'init':
         await start(m)
+        break
+      case 'backdrop':
+        await backdrop(m)
         break
       case 'newGame': {
         const library = game && storedLibrary()
@@ -844,7 +913,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'choices': {
         if (!game) break
-        const list = game.engine.controls.choices(m.key, m.tile).map((ch) => ({ layer: ch.layer, name: ch.name, label: ch.plan?.label, unknown: (ch.plan?.unknown && !ch.plan.quiet) || undefined }))
+        const list = game.engine.controls.choices(m.key, m.tile).map((ch) => ({ layer: ch.layer, name: ch.name, label: ch.plan?.label, unknown: (ch.plan?.unknown && !ch.plan.quiet && asks()) || undefined }))
         post({ t: 'choices', key: m.key, tile: m.tile, list })
         break
       }

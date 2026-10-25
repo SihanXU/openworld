@@ -23,7 +23,9 @@ past the knight) comes into Part One, and how (§6).
   north, south and east edges are woods but for the road; the rider's thorns grow across it under a signpost that says
   why. The engine never lets the player off a map's edge from a portal the story has not opened (`stepSelf`: a sealed
   way leads nowhere), so the far bank cannot be left for the world map east of the river. On the world map the Rest, the
-  Pilgrim's Road, the abbey, the Kneeling Field and the East Road are sealed sites, saying why (`SITE_GATES`).
+  Pilgrim's Road, the abbey, the Kneeling Field and the East Road are sealed sites: a sealed site is solid (`World.sealed`,
+  2026-10-25), never walked onto or across by anyone, and bumping into it says why (`site/sealed`, `SITE_GATES`); the
+  valley and every open cell stay joined (`tools/test/overworld.test.ts`).
 - Proved by demo F1 (the card once, the edge refused, the Rest's site shut; with Part Two open, no card) and by Q2 and
   PR1, which open Part Two to walk the road.
 
@@ -63,6 +65,10 @@ watermill (`tools/src/art/worldmap.ts`).
 - **Every household sleeps in its own beds** (`bed.<n>` anchors in its house) — it slept on the lawn at its doorstep
   before. A household's home is its house (`home.<h>` over the whole interior): what stands in it is theirs, and by night
   one walks into it as a trespasser.
+- **Every building is walked through** (2026-10-25): nothing stands on a doorway or in the cell before a door or a
+  doorway, and from the way in one reaches every room's floor, every door and doorway, every thing in a room and every
+  named spot; the people's spots are reached, and every building's door from outside. Held on every map with rooms —
+  the hand-made ones and every backdrop room — by `tools/test/interiors.test.ts`, each failure named by map and cell.
 - Proved by demo F17 (the village) and F18 (the households, the doorways, what a house holds).
 
 ## 4. The Ford
@@ -125,7 +131,7 @@ What the game drew wrong, fixed where it was wrong, for every map that uses it:
 | drying nets | the camp's cooking rack, pot and all | nets hung on a pole (`fixture/furniture/rack/nets`); fish drying on their own rack (`…/rack/fish`) |
 | log pile | the house sheet's carved plank, which read as a bench | the camp sheet's felled log |
 | the rotted tent | the whole, patched tent | the pack's torn tent (`fixture/tent/torn`) |
-| high ground | a thin line round a raised rectangle | the relief's rims and rock faces where ground drops a level, taller for a bigger drop, a stair's steps (`ground.ts` `terracePieces`, `tools/src/art/terrace.ts`, both renderers) |
+| high ground | a thin line round a raised rectangle; then the pack's faces, dark vertical stripes that read as a fence, walked straight across | rock painted from the heights (`runtime/src/assets/relief.ts`, both renderers): bedded rock in masses and chunks with cracks, a lit lip, a snow cornice or grass fringe, a ragged shadowed foot with stones, a cell of face a level, stairs cut as steps, the region's rock; and the faces are rock to the engine too (`engine/src/relief.ts`: only stairs and ramps join levels, a ledge a level high is leapt down one way, a higher drop is a wall) |
 | snow | trees and paths in it on a grass square; a grey path | snow under a tree or a rock standing in snow, the snow path's own tiles, a snowy pine or rock (`ground.ts` `objectLook`) |
 | a pillar | a third, blocking cell with nothing drawn on it | its two tiles |
 | the mill | a longhouse, no wheel; a windmill on the world map | a water wheel and millstones (`tools/src/art/mill.ts`), a bell rope for the chapel (`bell-rope.ts`); a watermill mark |
