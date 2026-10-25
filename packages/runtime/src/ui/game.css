@@ -813,3 +813,5 @@ body.looks-page { background: #2b3550; color: var(--ink-warm); overflow: auto; }
 /* the title's settings on paper (the muted notes of the AI section read on it) */
 .cv-settings { background: var(--paper); border: 2px solid var(--wood-dark); border-radius: 6px; padding: 12px 14px; color: var(--ink-warm); }
 .cv-settings .muted, .cv-settings small { color: #7a5a36; }
+/* the music's and the ambience's sliders (Options, the title's settings) */
+.options input.vol { width: 180px; accent-color: var(--wood-dark); cursor: pointer; }

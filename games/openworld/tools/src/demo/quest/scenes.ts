@@ -66,6 +66,7 @@ export const QUEST_SCENES: StepDef[] = [
       { wait: 20 },
       say('player', '(It is over. The fire in the lair is going out.)', '（结束了。巢穴里的火正在熄灭。）'),
       { topic: 'dragon_slain', days: 60 },
+      { music: 'ending' },
       {
         card: L(
           'THE DRAGON OF CINDER PEAK\n\nThe dragon is dead.\nEmberfall will sleep tonight, and the road east is open.\n\nEverything the world learned from you is in the Threadbook (J).',

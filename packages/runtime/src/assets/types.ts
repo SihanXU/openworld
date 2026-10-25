@@ -158,9 +158,35 @@ export interface Catalog {
    * to (none: the arrow).
    */
   ui: Record<string, SpriteDef>
-  /** Music per map mood and sound effects per event. Paths relative to the pack root. */
-  music: Record<string, string>
+  /**
+   * The music (docs/music.md): cues by name — a map's mood (MapData.music), and the names the runtime asks for itself:
+   * `title`, `battle`, `boss` (`boss:<kind>` for one kind, `boss:<kind>:<phase>` for its later phases), and `outdoor`,
+   * `indoor`, `dark` for a map that names no mood. A cue is a file, or a MusicCue. Paths relative to the pack root.
+   */
+  music: Record<string, string | MusicCue>
+  /** Each music file's measured loudness (integrated LUFS, `npm run loudness`): every piece is played as loud as the rest. */
+  loudness?: Record<string, number>
   sfx: Record<string, string>
+}
+
+/** When in the day and the weather a cue may have a version of its own for (MusicCue.at). */
+export type MusicMoment = 'dawn' | 'day' | 'dusk' | 'night' | 'rain' | 'storm' | 'snow' | 'fog'
+
+/**
+ * A piece of the music system: what it plays and how. Pieces with `rest` play once and leave silence after them, the
+ * ambience alone (the wilds' music in Breath of the Wild, Minecraft); without, they follow one another without end.
+ */
+export interface MusicCue {
+  /** The pieces, played in a shuffled order that never plays the same one twice running. */
+  tracks?: string[]
+  /** Another cue it is the same as (a mood that sounds like another). */
+  like?: string
+  /** Seconds of silence after each piece, [least, most]. */
+  rest?: [number, number]
+  /** How loud against the others, 0–1 (default 1). */
+  volume?: number
+  /** Its versions by the hour and the weather: the cue played instead (the weather's first, then the hour's). */
+  at?: Partial<Record<MusicMoment, string>>
 }
 
 /** The structure sheets (the project's own art, in the game's assets/lsw/): walls, floors and stairs are drawn from them by their neighbours. */

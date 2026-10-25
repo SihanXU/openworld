@@ -43,7 +43,7 @@ export const MILL = { house: [15, 11] as const, wheel: [12, 12] as const, field:
  * gone thin in the short days; south of the road a meadow; woods round it all.
  */
 export function buildMillbrook(): MapBuilder {
-  const m = new MapBuilder('mill', L('Millbrook', '水车磨坊'), 'village', 40, 30, 'grass', 'village', 'outdoor', 'frostfang')
+  const m = new MapBuilder('mill', L('Millbrook', '水车磨坊'), 'village', 40, 30, 'grass', 'millbrook', 'outdoor', 'frostfang')
   m.zone = 'peaceful'
   m.paint('mill')
   m.fish = true

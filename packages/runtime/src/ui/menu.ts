@@ -22,7 +22,7 @@ import { QuestLog } from './questlog.ts'
 import { SkillPanel } from './skillpanel.ts'
 import { AiOptions } from './quality.ts'
 import { ContextMenu } from './context-menu.ts'
-import { $, SLOT_KEYS, controlsTable, esc, kbd, locale, prefs, t, tx, gearFrame } from './common.ts'
+import { $, SLOT_KEYS, controlsTable, esc, kbd, locale, prefs, t, tx, gearFrame, volumeRows, wireVolumes } from './common.ts'
 import type { Panel } from './paneltabs.ts'
 import { KeysPage } from './keyspage.ts'
 import type { Action } from '../keymap.ts'
@@ -185,6 +185,8 @@ export interface MenuSend {
   newGame(): void
   toggleLocale(): void
   toggleSound(): void
+  /** The music's or the ambience's level changed (prefs): to the sound. */
+  levels(): void
   devConsole?(): void
   /** One of the inputs on an item in the bag or the open chest (the context menu). */
   keyOnItem(key: Plan['key'], item: string): void
@@ -809,6 +811,7 @@ export class Menu {
     return `<div class="options">
       <div class="opt"><span>${t('language')}</span><button id="oLang">${locale.value === 'zh' ? '中文 → English' : 'English → 中文'}</button></div>
       <div class="opt"><span>${t('sound')}</span><button id="oSound">${this.muted ? t('off') : t('on')}</button></div>
+      ${volumeRows('o')}
       <div class="opt"><span>${t('optTracker')}</span><button id="oTracker">${prefs.get('tracker') ? t('on') : t('off')}</button></div>
       <div class="opt"><span>${t('optMarkers')}</span><button id="oMarkers">${prefs.get('markers') ? t('on') : t('off')}</button></div>
       ${game().worldFilter ? `<div class="opt"><span>${t('optFilter')}</span><button id="oFilter">${t({ off: 'filterOff', light: 'filterLight', full: 'filterFull' }[prefs.filter()])}</button></div>` : ''}
@@ -821,6 +824,7 @@ export class Menu {
   private wireOptions(): void {
     $('#oLang').onclick = () => (this.send.toggleLocale(), this.render())
     $('#oSound').onclick = () => (this.send.toggleSound(), (this.muted = !this.muted), this.render())
+    wireVolumes($('#menuSheet'), () => this.send.levels())
     $('#oTracker').onclick = () => (prefs.set('tracker', !prefs.get('tracker')), this.render())
     $('#oMarkers').onclick = () => (prefs.set('markers', !prefs.get('markers')), this.render())
     document.querySelector<HTMLButtonElement>('#oFilter')?.addEventListener('click', () => {

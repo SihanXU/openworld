@@ -59,7 +59,7 @@ function dresser(m: MapBuilder) {
  * stones before it on the trodden earth.
  */
 export function buildHollow(): MapBuilder {
-  const m = new MapBuilder('hollow', L('Thornwood Hollow', '荆棘谷'), 'wild', 40, 30, 'grass', 'field', 'outdoor', 'frostfang')
+  const m = new MapBuilder('hollow', L('Thornwood Hollow', '荆棘谷'), 'wild', 40, 30, 'grass', 'hollow', 'outdoor', 'frostfang')
   m.gearLevel = 2
   m.paint('hollow')
   m.stumpsAsThings()
@@ -117,7 +117,7 @@ const brazier = (m: MapBuilder, x: number, y: number) => m.fixture('fixture/ligh
  * stone, and the two cells either side — Lina's, rough-cut (west), and the one with the stair cut down (east).
  */
 export function buildBarrow(): MapBuilder {
-  const m = new MapBuilder('barrow', L('The Old Barrow', '古墓'), 'dungeon', BARROW.w, BARROW.h, 'cave_wall', 'cave', 'dark', 'frostfang')
+  const m = new MapBuilder('barrow', L('The Old Barrow', '古墓'), 'dungeon', BARROW.w, BARROW.h, 'cave_wall', 'crypt', 'dark', 'frostfang')
   m.gearLevel = 2
   m.paint('barrow')
   for (const [x, y] of [[9, 4], [20, 4], [11, 16], [18, 16]] as const) brazier(m, x, y)
@@ -164,7 +164,7 @@ const NICHES: [number, number, string, string][] = [
  * further down, Oskar's cell south-east, and a passage south that has fallen in.
  */
 export function buildOssuary(): MapBuilder {
-  const m = new MapBuilder('ossuary', L('The Ossuary of the Thorn', '荆棘骸骨堂'), 'dungeon', OSSUARY.w, OSSUARY.h, 'cave_wall', 'cave', 'dark', 'frostfang')
+  const m = new MapBuilder('ossuary', L('The Ossuary of the Thorn', '荆棘骸骨堂'), 'dungeon', OSSUARY.w, OSSUARY.h, 'cave_wall', 'crypt', 'dark', 'frostfang')
   m.gearLevel = 3
   m.paint('ossuary')
   const [ux, uy] = OSSUARY.up
@@ -224,7 +224,7 @@ export function buildOssuary(): MapBuilder {
  * Order in stone in its side bays, and in the apse at its south end the altar of the Commander's vow.
  */
 export function buildSanctum(): MapBuilder {
-  const m = new MapBuilder('sanctum', L("The Warden's Sanctum", '守墓者圣所'), 'dungeon', SANCTUM.w, SANCTUM.h, 'cave_wall', 'cave', 'dark', 'frostfang')
+  const m = new MapBuilder('sanctum', L("The Warden's Sanctum", '守墓者圣所'), 'dungeon', SANCTUM.w, SANCTUM.h, 'cave_wall', 'crypt', 'dark', 'frostfang')
   m.gearLevel = 4
   m.paint('sanctum')
   const [ux, uy] = SANCTUM.up

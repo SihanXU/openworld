@@ -171,7 +171,7 @@ export function buildWay(): MapBuilder {
 
 export function buildAbbey(): MapBuilder {
   const P = PILGRIM.abbey
-  const m = new MapBuilder('abbey', L('Abbey of the Thorn', '荆棘修道院'), 'wild', P.w, P.h, 'grass', 'forest', 'outdoor', 'frostfang')
+  const m = new MapBuilder('abbey', L('Abbey of the Thorn', '荆棘修道院'), 'wild', P.w, P.h, 'grass', 'ruins', 'outdoor', 'frostfang')
   m.gearLevel = 4
   rim(m, (x, y) => y >= m.h - 4 && has(P.south, x), 4)
   m.path([[20, 29], [20, 22], [20, 15]], 'path', 2, { edge: 'dirt', edgeP: 0.3 })
@@ -242,7 +242,7 @@ export function buildAbbeyHall(): MapBuilder {
  * Thornwood Hollow: hollow.ts), and its last keeper with the seal.
  */
 export function buildAbbeyCrypt(): MapBuilder {
-  const m = new MapBuilder('abbey.crypt', L('The Abbey Crypt', '修道院地下墓室'), 'interior', 30, 20, 'cave_wall', 'cave', 'dark', 'frostfang')
+  const m = new MapBuilder('abbey.crypt', L('The Abbey Crypt', '修道院地下墓室'), 'interior', 30, 20, 'cave_wall', 'crypt', 'dark', 'frostfang')
   m.gearLevel = 5
   m.room('stone', 'floor_stone')
   for (let x = 1; x < m.w - 1; x++) for (const y of [6, 13]) if (x % 6 !== 3) m.set(x, y, 'wall')
@@ -263,7 +263,7 @@ export function buildAbbeyCrypt(): MapBuilder {
 
 export function buildField(): MapBuilder {
   const P = PILGRIM.field
-  const m = new MapBuilder('kneelfield', L('The Kneeling Field', '跪石原'), 'wild', P.w, P.h, 'grass', 'field', 'outdoor', 'frostfang')
+  const m = new MapBuilder('kneelfield', L('The Kneeling Field', '跪石原'), 'wild', P.w, P.h, 'grass', 'kneelfield', 'outdoor', 'frostfang')
   m.gearLevel = 4
   rim(m, (x, y) => (x < 4 && has(P.west, y)) || (x >= m.w - 4 && has(P.east, y)))
   m.path([[0, 12], [10, 12], [22, 11], [34, 12], [43, 12]], 'path', 2, { edge: 'dirt', edgeP: 0.25 })

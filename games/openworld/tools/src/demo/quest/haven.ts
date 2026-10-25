@@ -9,7 +9,7 @@ import { L, GROUND_YIELD, appears } from '../kit.ts'
 
 
 export function buildHaven(): MapBuilder {
-  const m = new MapBuilder(HAVEN.map, L('The Held Ground', '誓守之地'), 'village', HAVEN.w, HAVEN.h, 'grass', 'village', 'outdoor', 'frostfang')
+  const m = new MapBuilder(HAVEN.map, L('The Held Ground', '誓守之地'), 'village', HAVEN.w, HAVEN.h, 'grass', 'haven', 'outdoor', 'frostfang')
   m.zone = 'peaceful'
   const [hx, hy] = HAVEN.heart
   const dist = (x: number, y: number) => Math.hypot(x - hx, (y - hy) * 1.15)

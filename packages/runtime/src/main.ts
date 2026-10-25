@@ -91,6 +91,7 @@ const menu = new Menu({
     relabelAll()
   },
   toggleSound: () => hud.toggleSound(),
+  levels: () => scene.audio?.levels(),
   devConsole: () => dev.toggle(true),
   keyOnItem: (key, item) => send({ t: 'keyOnItem', key, item }),
   useItemOnHeldItem: (instrument, target) => send({ t: 'useItemOnHeldItem', instrument, target }),
@@ -245,6 +246,8 @@ let onChoices: ((key: Key, tile: Tile | undefined, list: { layer: number; name: 
 
 scene.hooks = {
   onFrame: (f) => {
+    // (the world behind the title is only drawn: the game's panels hear nothing of it)
+    if (backdropOn) return
     lastFrame = f
     const was = death.open
     // the title or the load panel is over the world (one chose to load a save, or to go back): the
@@ -254,6 +257,8 @@ scene.hooks = {
     else if (death.open) death.hide()
     // a hardcore game's one life is spent: its slot keeps the end
     if (!was && death.open && f.fallen?.difficulty === 'hardcore') send({ t: 'save' })
+    // the music stops while one lies fallen
+    if (was !== death.open) scene.setDeathMusic(death.open)
     hud.onFrame(f)
     skillbar.onFrame(f)
     menu.onFrame(f)
@@ -401,6 +406,8 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       // (the title's camera gives way to the player's)
       backdropOn = false
       scene.setCinema(undefined)
+      // (no place's music until the game's first map is drawn: not the backdrop's for a moment)
+      scene.audio?.music.setPlace(undefined, '')
       cover.hide()
       // a slot's save from another version of the world cannot be played on: a new game began instead
       if (startingFrom && !m.resumed) hud.message(t('cvIncompatible'), 'warn')
@@ -598,6 +605,8 @@ const cover = new Cover(WORLD, {
   },
   toggleSound: () => (hud.toggleSound(), (menu.muted = hud.muted)),
   muted: () => hud.muted,
+  levels: () => scene.audio?.levels(),
+  titleMusic: (on) => scene.setTitleMusic(on),
   ai: menu.ai,
 })
 // (dev: the cover, for checking it by hand)

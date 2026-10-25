@@ -2856,6 +2856,10 @@
           ],
           "additionalProperties": false,
           "description": "the line waiting to be advanced (so a client that missed the say event can show it)"
+        },
+        "music": {
+          "type": "string",
+          "description": "the music the scene asked for (its `music` command): a cue, or '' for silence"
         }
       },
       "required": [

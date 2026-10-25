@@ -584,6 +584,18 @@
             "card"
           ],
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "music": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "music"
+          ],
+          "additionalProperties": false
         }
       ]
     },
