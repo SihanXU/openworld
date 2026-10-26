@@ -113,7 +113,7 @@ export function useOffline(agent: OfflineAgent): void {
 }
 
 function offlineAgent(): OfflineAgent {
-  if (!offline) throw new Error('the offline profile runs under Node (@openworld/modder): this modder works live only')
+  if (!offline) throw new Error('the offline profile runs under Node (@openworld/ai): this modder works live only')
   return offline
 }
 

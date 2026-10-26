@@ -14,6 +14,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import '../src/agent/files-node.ts'
 import { LocalEnv } from '../src/agent/env.ts'
 import { runAgent } from '../src/agent/loop.ts'
 import { modelFromEnv, pinFromEnv } from '../src/models/model-node.ts'
@@ -40,9 +41,11 @@ function need(k: string): string {
 }
 
 /** The agent's own code as one hash: a run resumed after it changed would mix two agents. */
+/** The agent's own code, as a run's manifest records it: the agent, the models it calls, and their helpers. */
 function agentCodeHash(): string {
-  const dir = join(REPO, 'packages', 'agent', 'src')
-  return sha256(readdirSync(dir).filter((f) => f.endsWith('.ts')).sort().map((f) => `${f}\n${readFileSync(join(dir, f), 'utf8').replace(/\r\n/g, '\n')}`).join('\n'))
+  const src = join(REPO, 'packages', 'ai', 'src')
+  const files = ['agent', 'models'].flatMap((d) => readdirSync(join(src, d)).filter((f) => f.endsWith('.ts')).map((f) => `${d}/${f}`))
+  return sha256([...files, 'util.ts'].sort().map((f) => `${f}\n${readFileSync(join(src, f), 'utf8').replace(/\r\n/g, '\n')}`).join('\n'))
 }
 
 function readInstances(file: string): SweInstance[] {

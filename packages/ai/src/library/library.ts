@@ -107,7 +107,7 @@ export class WorldLibrary {
   ) {
     this.lib = new RuleLibrary(base)
     this.protectedFacts = opts.protectedFacts ?? []
-    if (typeof log === 'string' && !openFile) throw new Error('a library log in a file needs the Node entry (@openworld/modder)')
+    if (typeof log === 'string' && !openFile) throw new Error('a library log in a file needs the Node entry (@openworld/ai)')
     this.store = typeof log === 'string' ? openFile!(log) : log
     this.logId = this.store?.id ?? newLogId()
     for (const line of this.store?.lines() ?? []) {

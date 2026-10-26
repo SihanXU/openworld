@@ -25,7 +25,7 @@ let fallback: (() => Files) | undefined
 
 /** The files a caller gets when it names none: Node's disk once files-node.ts is loaded (the package's entry loads it). */
 export function defaultFiles(): Files {
-  if (!fallback) throw new Error('no files here: pass a Files (MemFiles in a browser), or load @openworld/agent for the disk')
+  if (!fallback) throw new Error('no files here: pass a Files (MemFiles in a browser), or load @openworld/ai for the disk')
   return fallback()
 }
 
