@@ -1457,790 +1457,6 @@
     ]
    }
   },
-  "hair.bob": {
-   "man": {
-    "layers": [
-     {
-      "file": "hair.bob/man.hair",
-      "x": 308,
-      "y": 49,
-      "w": 163,
-      "h": 264,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.bob/man.hairBack",
-      "x": 292,
-      "y": 48,
-      "w": 192,
-      "h": 243,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "woman": {
-    "layers": [
-     {
-      "file": "hair.bob/woman.hair",
-      "x": 302,
-      "y": 46,
-      "w": 174,
-      "h": 280,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.bob/woman.hairBack",
-      "x": 282,
-      "y": 41,
-      "w": 213,
-      "h": 260,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.braid": {
-   "man": {
-    "layers": [
-     {
-      "file": "hair.braid/man.hair",
-      "x": 301,
-      "y": 50,
-      "w": 170,
-      "h": 412,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.braid/man.hairBack",
-      "x": 300,
-      "y": 51,
-      "w": 170,
-      "h": 184,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "woman": {
-    "layers": [
-     {
-      "file": "hair.braid/woman.hair",
-      "x": 297,
-      "y": 47,
-      "w": 177,
-      "h": 474,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.braid/woman.hairBack",
-      "x": 326,
-      "y": 47,
-      "w": 139,
-      "h": 196,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.bun": {
-   "man": {
-    "layers": [
-     {
-      "file": "hair.bun/man.hair",
-      "x": 319,
-      "y": 48,
-      "w": 146,
-      "h": 103,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.bun/man.hairBack",
-      "x": 354,
-      "y": 16,
-      "w": 111,
-      "h": 138,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "woman": {
-    "layers": [
-     {
-      "file": "hair.bun/woman.hair",
-      "x": 310,
-      "y": 46,
-      "w": 159,
-      "h": 106,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.bun/woman.hairBack",
-      "x": 347,
-      "y": 8,
-      "w": 119,
-      "h": 146,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.childbob": {
-   "boy": {
-    "layers": [
-     {
-      "file": "hair.childbob/boy.hair",
-      "x": 299,
-      "y": 441,
-      "w": 176,
-      "h": 207,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.childbob/boy.hairBack",
-      "x": 268,
-      "y": 428,
-      "w": 237,
-      "h": 223,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "girl": {
-    "layers": [
-     {
-      "file": "hair.childbob/girl.hair",
-      "x": 295,
-      "y": 454,
-      "w": 182,
-      "h": 219,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.childbob/girl.hairBack",
-      "x": 266,
-      "y": 434,
-      "w": 240,
-      "h": 247,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.cropped": {
-   "man": {
-    "layers": [
-     {
-      "file": "hair.cropped/man.hair",
-      "x": 318,
-      "y": 49,
-      "w": 144,
-      "h": 101,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.cropped/man.hairBack",
-      "x": 317,
-      "y": 53,
-      "w": 146,
-      "h": 58,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "woman": {
-    "layers": [
-     {
-      "file": "hair.cropped/woman.hair",
-      "x": 310,
-      "y": 46,
-      "w": 155,
-      "h": 134,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.cropped/woman.hairBack",
-      "x": 320,
-      "y": 63,
-      "w": 145,
-      "h": 91,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.long": {
-   "man": {
-    "layers": [
-     {
-      "file": "hair.long/man.hair",
-      "x": 271,
-      "y": 48,
-      "w": 236,
-      "h": 387,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.long/man.hairBack",
-      "x": 267,
-      "y": 46,
-      "w": 244,
-      "h": 533,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "woman": {
-    "layers": [
-     {
-      "file": "hair.long/woman.hair",
-      "x": 263,
-      "y": 46,
-      "w": 251,
-      "h": 404,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.long/woman.hairBack",
-      "x": 219,
-      "y": 43,
-      "w": 337,
-      "h": 529,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.messy": {
-   "man": {
-    "layers": [
-     {
-      "file": "hair.messy/man.hair",
-      "x": 308,
-      "y": 48,
-      "w": 163,
-      "h": 196,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.messy/man.hairBack",
-      "x": 277,
-      "y": 18,
-      "w": 226,
-      "h": 230,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "woman": {
-    "layers": [
-     {
-      "file": "hair.messy/woman.hair",
-      "x": 302,
-      "y": 46,
-      "w": 172,
-      "h": 216,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.messy/woman.hairBack",
-      "x": 258,
-      "y": 15,
-      "w": 258,
-      "h": 256,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.pigtails": {
-   "boy": {
-    "layers": [
-     {
-      "file": "hair.pigtails/boy.hair",
-      "x": 301,
-      "y": 441,
-      "w": 171,
-      "h": 131,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.pigtails/boy.hairBack",
-      "x": 253,
-      "y": 435,
-      "w": 269,
-      "h": 149,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "girl": {
-    "layers": [
-     {
-      "file": "hair.pigtails/girl.hair",
-      "x": 296,
-      "y": 454,
-      "w": 181,
-      "h": 180,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.pigtails/girl.hairBack",
-      "x": 245,
-      "y": 450,
-      "w": 284,
-      "h": 207,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.ponytail": {
-   "man": {
-    "layers": [
-     {
-      "file": "hair.ponytail/man.hair",
-      "x": 309,
-      "y": 48,
-      "w": 161,
-      "h": 245,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.ponytail/man.hairBack",
-      "x": 308,
-      "y": 14,
-      "w": 173,
-      "h": 242,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "woman": {
-    "layers": [
-     {
-      "file": "hair.ponytail/woman.hair",
-      "x": 308,
-      "y": 46,
-      "w": 162,
-      "h": 255,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.ponytail/woman.hairBack",
-      "x": 308,
-      "y": 11,
-      "w": 192,
-      "h": 291,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.short": {
-   "man": {
-    "layers": [
-     {
-      "file": "hair.short/man.hair",
-      "x": 315,
-      "y": 48,
-      "w": 148,
-      "h": 130,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.short/man.hairBack",
-      "x": 296,
-      "y": 45,
-      "w": 175,
-      "h": 112,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "woman": {
-    "layers": [
-     {
-      "file": "hair.short/woman.hair",
-      "x": 302,
-      "y": 46,
-      "w": 172,
-      "h": 198,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.short/woman.hairBack",
-      "x": 295,
-      "y": 42,
-      "w": 187,
-      "h": 207,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.swept": {
-   "man": {
-    "layers": [
-     {
-      "file": "hair.swept/man.hair",
-      "x": 316,
-      "y": 48,
-      "w": 149,
-      "h": 110,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.swept/man.hairBack",
-      "x": 315,
-      "y": 46,
-      "w": 143,
-      "h": 98,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "woman": {
-    "layers": [
-     {
-      "file": "hair.swept/woman.hair",
-      "x": 302,
-      "y": 46,
-      "w": 172,
-      "h": 200,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.swept/woman.hairBack",
-      "x": 296,
-      "y": 46,
-      "w": 186,
-      "h": 205,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.thin": {
-   "man": {
-    "layers": [
-     {
-      "file": "hair.thin/man.hair",
-      "x": 308,
-      "y": 49,
-      "w": 161,
-      "h": 155,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.thin/man.hairBack",
-      "x": 314,
-      "y": 49,
-      "w": 150,
-      "h": 105,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.tied": {
-   "man": {
-    "layers": [
-     {
-      "file": "hair.tied/man.hair",
-      "x": 308,
-      "y": 48,
-      "w": 168,
-      "h": 347,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.tied/man.hairBack",
-      "x": 304,
-      "y": 47,
-      "w": 173,
-      "h": 250,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "woman": {
-    "layers": [
-     {
-      "file": "hair.tied/woman.hair",
-      "x": 307,
-      "y": 46,
-      "w": 185,
-      "h": 383,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.tied/woman.hairBack",
-      "x": 308,
-      "y": 46,
-      "w": 167,
-      "h": 254,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.tuft": {
-   "boy": {
-    "layers": [
-     {
-      "file": "hair.tuft/boy.hair",
-      "x": 299,
-      "y": 441,
-      "w": 176,
-      "h": 132,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.tuft/boy.hairBack",
-      "x": 273,
-      "y": 389,
-      "w": 228,
-      "h": 181,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "girl": {
-    "layers": [
-     {
-      "file": "hair.tuft/girl.hair",
-      "x": 295,
-      "y": 454,
-      "w": 182,
-      "h": 218,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.tuft/girl.hairBack",
-      "x": 255,
-      "y": 401,
-      "w": 265,
-      "h": 277,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
-  "hair.wavy": {
-   "man": {
-    "layers": [
-     {
-      "file": "hair.wavy/man.hair",
-      "x": 213,
-      "y": 48,
-      "w": 352,
-      "h": 467,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.wavy/man.hairBack",
-      "x": 177,
-      "y": 44,
-      "w": 428,
-      "h": 543,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   },
-   "woman": {
-    "layers": [
-     {
-      "file": "hair.wavy/woman.hair",
-      "x": 219,
-      "y": 46,
-      "w": 337,
-      "h": 593,
-      "z": "hair",
-      "zones": [
-       "hair"
-      ]
-     },
-     {
-      "file": "hair.wavy/woman.hairBack",
-      "x": 181,
-      "y": 38,
-      "w": 419,
-      "h": 598,
-      "z": "hairBack",
-      "zones": [
-       "hair"
-      ]
-     }
-    ]
-   }
-  },
   "hat.cap": {
    "man": {
     "layers": [
@@ -3803,6 +3019,790 @@
      }
     ],
     "encloses": true
+   }
+  },
+  "hair.bob": {
+   "man": {
+    "layers": [
+     {
+      "file": "hair.bob/man.hair",
+      "x": 308,
+      "y": 49,
+      "w": 163,
+      "h": 264,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.bob/man.hairBack",
+      "x": 292,
+      "y": 48,
+      "w": 192,
+      "h": 243,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.bob/woman.hair",
+      "x": 302,
+      "y": 46,
+      "w": 174,
+      "h": 280,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.bob/woman.hairBack",
+      "x": 282,
+      "y": 41,
+      "w": 213,
+      "h": 260,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.braid": {
+   "man": {
+    "layers": [
+     {
+      "file": "hair.braid/man.hair",
+      "x": 301,
+      "y": 50,
+      "w": 170,
+      "h": 412,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.braid/man.hairBack",
+      "x": 300,
+      "y": 51,
+      "w": 170,
+      "h": 184,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.braid/woman.hair",
+      "x": 297,
+      "y": 47,
+      "w": 177,
+      "h": 474,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.braid/woman.hairBack",
+      "x": 326,
+      "y": 46,
+      "w": 113,
+      "h": 27,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.bun": {
+   "man": {
+    "layers": [
+     {
+      "file": "hair.bun/man.hair",
+      "x": 319,
+      "y": 48,
+      "w": 146,
+      "h": 106,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.bun/man.hairBack",
+      "x": 354,
+      "y": 16,
+      "w": 93,
+      "h": 56,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.bun/woman.hair",
+      "x": 310,
+      "y": 46,
+      "w": 159,
+      "h": 108,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.bun/woman.hairBack",
+      "x": 347,
+      "y": 8,
+      "w": 83,
+      "h": 48,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.childbob": {
+   "boy": {
+    "layers": [
+     {
+      "file": "hair.childbob/boy.hair",
+      "x": 299,
+      "y": 441,
+      "w": 176,
+      "h": 207,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.childbob/boy.hairBack",
+      "x": 268,
+      "y": 428,
+      "w": 237,
+      "h": 223,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "girl": {
+    "layers": [
+     {
+      "file": "hair.childbob/girl.hair",
+      "x": 295,
+      "y": 454,
+      "w": 182,
+      "h": 219,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.childbob/girl.hairBack",
+      "x": 266,
+      "y": 434,
+      "w": 240,
+      "h": 247,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.cropped": {
+   "man": {
+    "layers": [
+     {
+      "file": "hair.cropped/man.hair",
+      "x": 318,
+      "y": 49,
+      "w": 144,
+      "h": 101,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.cropped/man.hairBack",
+      "x": 317,
+      "y": 53,
+      "w": 146,
+      "h": 58,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.cropped/woman.hair",
+      "x": 310,
+      "y": 46,
+      "w": 155,
+      "h": 134,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.cropped/woman.hairBack",
+      "x": 320,
+      "y": 63,
+      "w": 17,
+      "h": 18,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.long": {
+   "man": {
+    "layers": [
+     {
+      "file": "hair.long/man.hair",
+      "x": 271,
+      "y": 48,
+      "w": 236,
+      "h": 387,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.long/man.hairBack",
+      "x": 267,
+      "y": 46,
+      "w": 244,
+      "h": 533,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.long/woman.hair",
+      "x": 263,
+      "y": 46,
+      "w": 251,
+      "h": 404,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.long/woman.hairBack",
+      "x": 219,
+      "y": 43,
+      "w": 337,
+      "h": 529,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.messy": {
+   "man": {
+    "layers": [
+     {
+      "file": "hair.messy/man.hair",
+      "x": 308,
+      "y": 48,
+      "w": 163,
+      "h": 196,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.messy/man.hairBack",
+      "x": 277,
+      "y": 18,
+      "w": 226,
+      "h": 230,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.messy/woman.hair",
+      "x": 302,
+      "y": 46,
+      "w": 172,
+      "h": 216,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.messy/woman.hairBack",
+      "x": 258,
+      "y": 15,
+      "w": 258,
+      "h": 256,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.pigtails": {
+   "boy": {
+    "layers": [
+     {
+      "file": "hair.pigtails/boy.hair",
+      "x": 301,
+      "y": 441,
+      "w": 171,
+      "h": 131,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.pigtails/boy.hairBack",
+      "x": 253,
+      "y": 435,
+      "w": 269,
+      "h": 149,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "girl": {
+    "layers": [
+     {
+      "file": "hair.pigtails/girl.hair",
+      "x": 296,
+      "y": 454,
+      "w": 181,
+      "h": 183,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.pigtails/girl.hairBack",
+      "x": 245,
+      "y": 450,
+      "w": 284,
+      "h": 207,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.ponytail": {
+   "man": {
+    "layers": [
+     {
+      "file": "hair.ponytail/man.hair",
+      "x": 309,
+      "y": 48,
+      "w": 161,
+      "h": 245,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.ponytail/man.hairBack",
+      "x": 308,
+      "y": 14,
+      "w": 173,
+      "h": 242,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.ponytail/woman.hair",
+      "x": 308,
+      "y": 46,
+      "w": 162,
+      "h": 255,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.ponytail/woman.hairBack",
+      "x": 336,
+      "y": 11,
+      "w": 164,
+      "h": 291,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.short": {
+   "man": {
+    "layers": [
+     {
+      "file": "hair.short/man.hair",
+      "x": 315,
+      "y": 48,
+      "w": 148,
+      "h": 130,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.short/man.hairBack",
+      "x": 296,
+      "y": 45,
+      "w": 175,
+      "h": 112,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.short/woman.hair",
+      "x": 302,
+      "y": 46,
+      "w": 172,
+      "h": 202,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.short/woman.hairBack",
+      "x": 295,
+      "y": 42,
+      "w": 187,
+      "h": 207,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.swept": {
+   "man": {
+    "layers": [
+     {
+      "file": "hair.swept/man.hair",
+      "x": 316,
+      "y": 48,
+      "w": 149,
+      "h": 110,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.swept/man.hairBack",
+      "x": 315,
+      "y": 46,
+      "w": 143,
+      "h": 98,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.swept/woman.hair",
+      "x": 302,
+      "y": 46,
+      "w": 172,
+      "h": 200,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.swept/woman.hairBack",
+      "x": 296,
+      "y": 46,
+      "w": 186,
+      "h": 205,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.thin": {
+   "man": {
+    "layers": [
+     {
+      "file": "hair.thin/man.hair",
+      "x": 308,
+      "y": 49,
+      "w": 161,
+      "h": 155,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.thin/man.hairBack",
+      "x": 314,
+      "y": 49,
+      "w": 150,
+      "h": 105,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.tied": {
+   "man": {
+    "layers": [
+     {
+      "file": "hair.tied/man.hair",
+      "x": 308,
+      "y": 48,
+      "w": 168,
+      "h": 347,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.tied/man.hairBack",
+      "x": 304,
+      "y": 47,
+      "w": 173,
+      "h": 250,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.tied/woman.hair",
+      "x": 307,
+      "y": 46,
+      "w": 185,
+      "h": 383,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.tied/woman.hairBack",
+      "x": 318,
+      "y": 46,
+      "w": 167,
+      "h": 259,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.tuft": {
+   "boy": {
+    "layers": [
+     {
+      "file": "hair.tuft/boy.hair",
+      "x": 299,
+      "y": 441,
+      "w": 176,
+      "h": 132,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.tuft/boy.hairBack",
+      "x": 273,
+      "y": 389,
+      "w": 228,
+      "h": 181,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "girl": {
+    "layers": [
+     {
+      "file": "hair.tuft/girl.hair",
+      "x": 295,
+      "y": 454,
+      "w": 182,
+      "h": 220,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.tuft/girl.hairBack",
+      "x": 255,
+      "y": 401,
+      "w": 265,
+      "h": 277,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   }
+  },
+  "hair.wavy": {
+   "man": {
+    "layers": [
+     {
+      "file": "hair.wavy/man.hair",
+      "x": 213,
+      "y": 48,
+      "w": 352,
+      "h": 467,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.wavy/man.hairBack",
+      "x": 177,
+      "y": 44,
+      "w": 428,
+      "h": 543,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
+   },
+   "woman": {
+    "layers": [
+     {
+      "file": "hair.wavy/woman.hair",
+      "x": 219,
+      "y": 46,
+      "w": 337,
+      "h": 593,
+      "z": "hair",
+      "zones": [
+       "hair"
+      ]
+     },
+     {
+      "file": "hair.wavy/woman.hairBack",
+      "x": 181,
+      "y": 38,
+      "w": 419,
+      "h": 598,
+      "z": "hairBack",
+      "zones": [
+       "hair"
+      ]
+     }
+    ]
    }
   }
  }
