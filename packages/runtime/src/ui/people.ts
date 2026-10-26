@@ -4,7 +4,7 @@
 // what one carries to give, each with how warmly it would be taken. Each choice is an act the world answers (the
 // worker's `trade`, `pocket` and `gift`); the panels show what the frame says now.
 
-import type { Frame, ItemInfo } from '@openworld/engine'
+import { stackKey, type Frame, type ItemInfo } from '@openworld/engine'
 import { $, esc, locale, tx } from './common.ts'
 import { heartsOf } from './hearts.ts'
 
@@ -95,11 +95,11 @@ export class PeoplePanels {
     return `<div class="pp-row ${cls}"><div class="icon" data-icon="${item.id}"></div><span class="pp-name">${esc(tx(item.name))}${count > 1 ? ` ×${count}` : ''}${stolen && item.steal ? ` <span class="pp-steal">${L('not yours', '非你所有')}</span>` : ''}</span>${right}${action}</div>`
   }
 
-  /** Things alike (one kind, one name, one price) as one row: the first of them is the one bought or sold. */
+  /** One row per stack identity and price: pieces stay separate, materials keep their counted rows. */
   private stacks<T extends { item: ItemInfo; price?: number; count?: number }>(list: T[]): { first: T; count: number }[] {
     const by = new Map<string, { first: T; count: number }>()
     for (const x of list) {
-      const k = `${x.item.type}|${JSON.stringify(x.item.name)}|${x.price ?? ''}|${x.item.steal ? 1 : 0}`
+      const k = JSON.stringify([stackKey(x.item), x.price ?? null, !!x.item.steal])
       const s = by.get(k)
       // (a row may stand for several already: the trade's view counts things alike)
       if (s) s.count += x.count ?? 1
