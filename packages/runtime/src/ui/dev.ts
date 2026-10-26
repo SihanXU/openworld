@@ -7,6 +7,7 @@ import type { LibraryView, RecordView } from '../protocol.ts'
 import { game } from '../game.ts'
 import { $, esc, locale } from './common.ts'
 import { template } from './template.ts'
+import { mountCloseButton } from './components/window.ts'
 
 export { template }
 
@@ -101,6 +102,7 @@ export class ModConsole {
         <span class="tabs">${tabs.map(([k, l]) => `<button data-tab="${k}" class="${this.tab === k ? 'on' : ''}">${l}</button>`).join('')}</span>
         <button class="x" id="devClose">✕</button></div>
       <div class="dev-body" id="devBody"></div>`
+    dev.querySelectorAll<HTMLButtonElement>('#devClose').forEach(mountCloseButton)
     dev.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => (b.onclick = () => ((this.tab = b.dataset.tab as typeof this.tab), this.render())))
     $('#devClose').onclick = () => this.toggle(false)
     if (this.tab === 'undefined') this.renderUndefinedTab(keepText)

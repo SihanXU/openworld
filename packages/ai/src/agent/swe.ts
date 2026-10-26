@@ -3,7 +3,7 @@
 // used read-only — a fork, nothing recorded — so the benchmark never becomes training data.
 
 import { createHash } from 'node:crypto'
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { DockerEnv, LocalEnv, hostUser, sh, type DockerCli, type Env } from './env.ts'
 import { BASE_REF, gitDiff, runAgent } from './loop.ts'
@@ -92,6 +92,9 @@ async function git(args: string, cwd: string): Promise<void> {
 
 const dirName = (id: string) => id.replace(/[^A-Za-z0-9._-]+/g, '_')
 
+/** Mirrors being cloned: instances of one repository worked at once wait for the one clone. */
+const cloning = new Map<string, Promise<void>>()
+
 /** A fresh checkout of the instance's repository at its base commit. */
 export async function checkout(inst: SweInstance, cache: string, work: string): Promise<string> {
   mkdirSync(cache, { recursive: true })
@@ -99,7 +102,14 @@ export async function checkout(inst: SweInstance, cache: string, work: string): 
   const local = existsSync(inst.repo) ? resolve(inst.repo) : undefined
   const url = local ?? (/^(https?|git|ssh):|@/.test(inst.repo) ? inst.repo : `https://github.com/${inst.repo}.git`)
   const mirror = join(cache, `${inst.repo.replace(/[^A-Za-z0-9._-]+/g, '__')}.git`)
-  if (!existsSync(mirror)) await git(`clone --mirror ${sh(url)} ${sh(mirror)}`, cache)
+  if (!existsSync(mirror) || cloning.has(mirror)) {
+    let clone = cloning.get(mirror)
+    if (!clone) {
+      clone = git(`clone --mirror ${sh(url)} ${sh(mirror)}`, cache).finally(() => cloning.delete(mirror))
+      cloning.set(mirror, clone)
+    }
+    await clone
+  }
   const dir = join(work, dirName(inst.instance_id))
   rmSync(dir, { recursive: true, force: true })
   await git(`clone --quiet ${sh(mirror)} ${sh(dir)}`, work)
@@ -170,9 +180,10 @@ export async function solve(inst: SweInstance, o: SweOptions): Promise<SwePredic
     if (!node) o.log?.(`${inst.instance_id}: no Linux node to mount, so the agent's hooks cannot run in the container`)
     env = await DockerEnv.start({ image, root: dir, mount: workdir, sub, node, init: IMAGE_INIT, setup: [CONTAINER_SETUP], owner: o.owner ?? hostUser(), docker: o.docker })
   } else env = new LocalEnv(await checkout(inst, o.cache, o.work))
+  let state: SelfState | undefined
   try {
     const statement = [inst.problem_statement.trim(), ...(o.hints && inst.hints_text ? ['', '## Hints', inst.hints_text.trim()] : [])].join('\n')
-    const state = o.state.fork()
+    state = o.state.fork()
     const r = await runAgent(
       { id: inst.instance_id, kind: 'swe', statement, env, localRun: !env.isolated, tests: inst.test_cmd ? { command: inst.test_cmd } : undefined, request: { instance_id: inst.instance_id, repo: inst.repo } },
       { model: o.model, state, harness: o.harness, record: false, log: o.log },
@@ -197,6 +208,7 @@ export async function solve(inst: SweInstance, o: SweOptions): Promise<SwePredic
     }
     return { instance_id: inst.instance_id, model_name_or_path: o.label ?? `lsw-agent/${o.model.name}`, model_patch: patch, outcome: r.outcome, cost: record.cost, record }
   } finally {
+    state?.dispose()
     await env.dispose?.()
   }
 }
@@ -218,6 +230,23 @@ export interface SweRunOptions extends SweOptions {
 export const recordsOf = (out: string) => `${out}.runs.jsonl`
 export const manifestOf = (out: string) => `${out}.manifest.json`
 
+/** One record onto a JSON-lines file, on a line of its own: a crash may have torn the file's last line. */
+function appendRecord(file: string, record: unknown): void {
+  const size = existsSync(file) ? statSync(file).size : 0
+  let torn = false
+  if (size) {
+    const fd = openSync(file, 'r')
+    try {
+      const last = Buffer.alloc(1)
+      readSync(fd, last, 0, 1, size - 1)
+      torn = last[0] !== 0x0a
+    } finally {
+      closeSync(fd)
+    }
+  }
+  appendFileSync(file, (torn ? '\n' : '') + JSON.stringify(record) + '\n')
+}
+
 /** The hash a manifest records of an instances file. */
 export const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
 
@@ -227,7 +256,13 @@ export async function runInstances(items: SweInstance[], o: SweRunOptions): Prom
   const done = new Set<string>()
   if (existsSync(o.out)) {
     if (!o.resume) throw new Error(`${o.out} exists: --resume continues that run`)
-    for (const line of readFileSync(o.out, 'utf8').split('\n')) if (line.trim()) done.add((JSON.parse(line) as SwePrediction).instance_id)
+    for (const line of readFileSync(o.out, 'utf8').split('\n'))
+      if (line.trim())
+        try {
+          done.add((JSON.parse(line) as SwePrediction).instance_id)
+        } catch {
+          /* a line torn by a crash: that instance is worked again */
+        }
   }
   if (existsSync(mf)) {
     const was = JSON.parse(readFileSync(mf, 'utf8')) as Record<string, unknown>
@@ -246,12 +281,12 @@ export async function runInstances(items: SweInstance[], o: SweRunOptions): Prom
         cost += p.cost
         // a call served from outside the pin voids the instance: it is retried on resume, never scored
         if (p.record.error?.includes(PIN_BREACH)) throw new Error(p.record.error)
-        appendFileSync(o.out, JSON.stringify({ instance_id: p.instance_id, model_name_or_path: p.model_name_or_path, model_patch: p.model_patch }) + '\n')
-        appendFileSync(recordsOf(o.out), JSON.stringify(p.record) + '\n')
+        appendRecord(o.out, { instance_id: p.instance_id, model_name_or_path: p.model_name_or_path, model_patch: p.model_patch })
+        appendRecord(recordsOf(o.out), p.record)
         o.log?.(`${inst.instance_id}: ${p.outcome}, ${p.record.steps} steps, ${p.record.diffLines} diff lines, $${p.cost.toFixed(3)}`)
       } catch (err) {
         failed++
-        appendFileSync(recordsOf(o.out), JSON.stringify({ instance_id: inst.instance_id, outcome: 'error', error: (err as Error).message }) + '\n')
+        appendRecord(recordsOf(o.out), { instance_id: inst.instance_id, outcome: 'error', error: (err as Error).message })
         o.log?.(`${inst.instance_id}: error — ${(err as Error).message}`)
       }
     }

@@ -1291,6 +1291,17 @@ function allTypeTags(onto: Ontology): Set<string> {
 }
 
 /**
+ * What is wrong with a learned rule's, type's or status's id as a path: a world repository writes each to a file of its
+ * id (the AI's repo.ts), so no segment is empty, `.` or `..`, none holds a backslash, and it does not start with `/`.
+ */
+export function idProblem(id: string): string | undefined {
+  if (id.includes('\\')) return `id "${id}" holds a backslash`
+  if (id.startsWith('/')) return `id "${id}" starts with /`
+  if (id.split('/').some((s) => s === '' || s === '.' || s === '..')) return `id "${id}" has an empty, "." or ".." segment`
+  return undefined
+}
+
+/**
  * Check a patch (design.md §5.11, §5.16). Total: whatever is sent (a save, a reply, a file), the answer is a
  * result, never a throw.
  */
@@ -1323,13 +1334,15 @@ function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
     if (a?.kind === 'type') {
       const t = a.type
       if (!t?.id || typeof t.id !== 'string') errors.push(`${where}: type.id required`)
+      else if (idProblem(t.id)) errors.push(`${where}: ${idProblem(t.id)}`)
       else {
         const problems = newTypeProblems(t, onto, patch)
         if (problems.length) errors.push(...problems.map((p) => `${where} (type "${t.id}"): ${p}`))
         else onto.types[t.id] = t
       }
     } else if (a?.kind === 'status') {
-      if (!a.status?.id) errors.push(`${where}: status.id required`)
+      if (!a.status?.id || typeof a.status.id !== 'string') errors.push(`${where}: status.id required`)
+      else if (idProblem(a.status.id)) errors.push(`${where}: ${idProblem(a.status.id)}`)
       else if (statuses.some((s) => s.id === a.status.id && statusDefinition(s) !== statusDefinition(a.status))) errors.push(`${where}: status "${a.status.id}" already exists with a different definition`)
       else if (!statuses.some((s) => s.id === a.status.id) && newStatusProblems(a.status).length) errors.push(...newStatusProblems(a.status).map((p) => `${where}: ${p}`))
       else {
@@ -1631,6 +1644,7 @@ function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
       continue
     }
     if (!r.id || typeof r.id !== 'string') errors.push(`${where}: id required`)
+    else if (idProblem(r.id)) errors.push(`${where}: ${idProblem(r.id)}`)
     if (ids.has(r.id)) errors.push(`${where}: duplicate id in patch`)
     ids.add(r.id)
     if (ctx.library.rules.has(r.id)) errors.push(`${where}: id already exists in the library`)

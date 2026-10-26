@@ -1,5 +1,10 @@
 # Boss encounters
 
+Status (2026-10-26): Alberic's body now uses the user-delivered `boss01_01` pixel strips:
+8-frame idle and 10-frame left/right/down attacks. The shared foot pivot, frame timings,
+direction handling and explicit fallbacks are documented in [alberic-art.md](alberic-art.md).
+The earlier generated body descriptions below are historical; the encounter and skill kit remain in place.
+
 Status (2026-10-15): the bosses' skills and the minor monsters' are **one system** (docs/skills.md): a boss is a kit and an
 encounter — phases that take its skills up in turn — on the kits module. Two bosses were redesigned on it: **the White
 Knight Alberic** and **the dragon of Cinder Peak** (now a boss fight; docs/skills.md §6). The rest of this section is the

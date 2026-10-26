@@ -138,8 +138,9 @@ export class WorldLibrary {
   }
 
   /** The library a request is judged against: the shared one plus the client's own local patches. */
-  workspace(ws?: ModWorkspace, without: string[] = [], redefines?: Patch): RuleLibrary {
+  workspace(ws?: ModWorkspace, without: string[] = [], redefines?: Patch, req?: ModRequest): RuleLibrary {
     const lib = this.lib.clone()
+    without = this.replaceable(without, redefines, req)
     for (const id of without) lib.remove(id)
     // a revision may define again what the patches it replaces made (a jam that was not edible): the types
     // and statuses it brings anew leave with the patches they came with, unless a patch that stays brought
@@ -219,6 +220,26 @@ export class WorldLibrary {
     return rule && this.lib.rules.get(rule)?.source?.origin !== 'patch' ? rule : undefined
   }
 
+  /**
+   * Of the rules a patch says it takes the place of, those it may: patch rules the log took, never a base rule. The one
+   * id a client names, its request's `again.rule` (the provisional answer it asks about again), only when that rule
+   * answers an event the patch answers (the same host, kind and hole): else a client could retire another question's
+   * answer. The others come from the modder's own revisions, which replace every rule of the answer they revise.
+   */
+  private replaceable(ids: string[], patch?: Patch, req?: ModRequest): string[] {
+    if (!ids.length) return ids
+    const place = (r: Rule) => JSON.stringify([r.host?.type, r.on, r.hole])
+    const places = new Set((patch?.artifacts ?? []).flatMap((a) => (a?.kind === 'rule' && a.rule ? [place(a.rule)] : [])))
+    return ids.filter((id) => {
+      if (this.lib.rules.has(id) && this.lib.rules.get(id)!.source?.origin !== 'patch') return false
+      // the version the log took last (still in force, or rolled back since: a revision is judged in its place)
+      const e = [...this.log].reverse().find((x) => 'patch' in x && x.rules.includes(id))
+      const r = e && 'patch' in e ? e.patch.artifacts.find((a) => a?.kind === 'rule' && a.rule?.id === id) : undefined
+      if (!r || r.kind !== 'rule') return false
+      return id !== req?.again?.rule || !patch || places.has(place(r.rule))
+    })
+  }
+
   /** The rule that answers the request's event in the shared library, if any. */
   private answering(req: ModRequest): string | undefined {
     try {
@@ -242,7 +263,7 @@ export class WorldLibrary {
     const tests = rules.map((r) => (r.tests ?? []).map((t) => JSON.stringify(t)))
     const proof = this.proofs.get(key)
     if (proof && tests.every((ts, i) => ts.length === proof.tests[i].length && ts.every((t, j) => t === proof.tests[i][j]))) return structuredClone(proof.result)
-    const lib = this.workspace(ws, replaces, patch)
+    const lib = this.workspace(ws, replaces, patch, req)
     if (proof && tests.every((ts, i) => proof.tests[i].every((t, j) => t === ts[j]))) {
       const result = this.addedTests(patch, lib, proof)
       if (result.ok) this.proofs.set(key, { tests, result: structuredClone(result) })
@@ -323,13 +344,15 @@ export class WorldLibrary {
    * here (and its diagnostics go back to the design as a repair).
    */
   commit(patch: Patch, req?: ModRequest, now = new Date(), replaces: string[] = []): CommitResult {
+    // (only what it may take the place of: the rest stays, and the validator sees what it clashes with)
+    replaces = this.replaceable(replaces, patch, req)
     const result = this.validate(patch, req, undefined, replaces)
     if (!result.ok) return { ok: false, result, rules: [] }
     // a revision: the old rules leave the log first, so every client sees remove-then-add
     for (const id of replaces) if (this.lib.rules.get(id)?.source?.origin === 'patch') this.remove(id, now)
     const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : []))
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), patch, rules, request: req?.id, scenario: req?.scenario, ...(replaces.length && { replaces }) }
-    this.write(entry)
+    this.record(entry)
     return { ok: true, result, rules, seq: entry.seq }
   }
 
@@ -375,7 +398,8 @@ export class WorldLibrary {
     const gone = new Set<number>()
     for (const e of [...this.log]) {
       if (!('patch' in e)) continue
-      const live = e.rules.filter((id) => this.lib.rules.get(id)?.source?.origin === 'patch')
+      // (the version of each rule this entry added: one revised under its id since is judged with its own entry)
+      const live = e.rules.filter((id) => this.seqOf(id) === e.seq)
       if (!live.length) continue
       const req = e.scenario ? ({ scenario: e.scenario, origin: e.patch.trigger ?? 'player' } as ModRequest) : undefined
       let res: ValidationResult
@@ -442,20 +466,20 @@ export class WorldLibrary {
   /** Forget a learned status (the log keeps both its addition and its removal). */
   removeStatus(id: string, now = new Date()): void {
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), removeStatus: id }
-    this.write(entry)
+    this.record(entry)
   }
 
   /** Forget a learned type (the log keeps both its addition and its removal). */
   removeType(id: string, now = new Date()): void {
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), removeType: id }
-    this.write(entry)
+    this.record(entry)
   }
 
   /** Roll a patch rule back (the log keeps both the addition and the removal). */
   remove(ruleId: string, now = new Date()): boolean {
     if (this.lib.rules.get(ruleId)?.source?.origin !== 'patch') return false
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), remove: ruleId }
-    this.write(entry)
+    this.record(entry)
     return true
   }
 
@@ -492,10 +516,10 @@ export class WorldLibrary {
     if (first && sc) this.asked.push({ scenario: sc, rule: first })
   }
 
-  /** A new entry: applied, and appended to the log's store. */
-  private write(e: PatchLogEntry): void {
-    this.apply(e)
+  /** Write an entry, then put it in force: one the log could not keep is not in force (nor served, nor its seq taken). */
+  private record(e: PatchLogEntry): void {
     this.store?.append(JSON.stringify(e))
+    this.apply(e)
   }
 }
 

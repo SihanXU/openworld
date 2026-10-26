@@ -3,7 +3,7 @@
 // inside a container that has the workspace mounted (benchmark repositories: the isolation
 // boundary). Neither ever sees the model key.
 
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -32,6 +32,11 @@ export interface Env {
   /** the node that runs the agent's hooks where its commands run (default: `node` on the PATH) */
   readonly node?: string
   exec(cmd: string, o?: ExecOptions): Promise<ExecResult>
+  /**
+   * Stop everything still running where the commands ran (a container: frozen at once), so the workspace holds still
+   * while the host reads it; `dispose` still works after. None where nothing can be left running.
+   */
+  halt?(): void
   dispose?(): Promise<void>
 }
 
@@ -54,10 +59,42 @@ export function defaultShell(): string {
   return 'bash'
 }
 
+/** Process groups of commands still running, killed if this process exits first (a group outlives its leader). */
+const groups = new Set<number>()
+let reaper = false
+
+/** Kill a command and everything it started: on POSIX its process group (a child holding its output would keep it open). */
+function killTree(pid: number | undefined, fallback: () => void): void {
+  if (process.platform === 'win32' && pid) return void spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true })
+  try {
+    if (!pid) throw new Error('no pid')
+    process.kill(-pid, 'SIGKILL')
+  } catch {
+    fallback()
+  }
+}
+
 function run(file: string, args: string[], o: ExecOptions & { cwd?: string }): Promise<ExecResult> {
   return new Promise((resolve) => {
     const t0 = Date.now()
-    const child = spawn(file, args, { cwd: o.cwd, env: o.env, windowsHide: true })
+    // its own process group on POSIX, so the deadline reaches every process the command started
+    const group = process.platform !== 'win32'
+    const child = spawn(file, args, { cwd: o.cwd, env: o.env, windowsHide: true, detached: group })
+    const pid = group ? child.pid : undefined
+    if (pid) {
+      groups.add(pid)
+      if (!reaper) {
+        reaper = true
+        const reap = () => groups.forEach((g) => killTree(g, () => undefined))
+        process.on('exit', reap)
+        // a detached group no longer gets the terminal's Ctrl-C: pass it on, then end as the signal would
+        for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const)
+          process.once(sig, () => {
+            reap()
+            if (!process.listenerCount(sig)) process.kill(process.pid, sig)
+          })
+      }
+    }
     let stdout = ''
     let stderr = ''
     let timedOut = false
@@ -65,15 +102,16 @@ function run(file: string, args: string[], o: ExecOptions & { cwd?: string }): P
     child.stderr.on('data', (d: Buffer) => stderr.length < OUTPUT_CAP && (stderr += d.toString('utf8')))
     const timer = setTimeout(() => {
       timedOut = true
-      if (process.platform === 'win32' && child.pid) spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true })
-      else child.kill('SIGKILL')
+      killTree(child.pid, () => child.kill('SIGKILL'))
     }, o.timeoutMs ?? DEFAULT_TIMEOUT)
     child.on('error', (err) => {
       clearTimeout(timer)
+      if (pid) groups.delete(pid)
       resolve({ code: 127, stdout, stderr: stderr + String(err.message), ms: Date.now() - t0, timedOut })
     })
     child.on('close', (code) => {
       clearTimeout(timer)
+      if (pid) groups.delete(pid)
       resolve({ code: timedOut ? 124 : (code ?? 1), stdout, stderr, ms: Date.now() - t0, timedOut })
     })
     if (o.input !== undefined) child.stdin.end(o.input)
@@ -201,7 +239,19 @@ export class DockerEnv implements Env {
     return docker(this.cli, ['exec', '-i', ...envArgs, '-w', this.cwd, this.id, 'timeout', String(secs), 'bash', '-lc', script], (secs + 15) * 1000, o.input)
   }
 
+  private halted = false
+
+  halt(): void {
+    if (this.halted) return
+    const [file, ...pre] = Array.isArray(this.cli) ? this.cli : [this.cli ?? 'docker']
+    const r = spawnSync(file, [...pre, 'pause', this.id], { env: process.env, timeout: 60_000, windowsHide: true })
+    if (r.status !== 0) throw new Error(`could not pause the container: ${String(r.stderr ?? r.error ?? '').slice(-300)}`)
+    this.halted = true
+  }
+
   async dispose(): Promise<void> {
+    // (a halted container is let go again, for the last command; it is removed right after)
+    if (this.halted) await docker(this.cli, ['unpause', this.id], 60_000)
     if (this.owner) await this.exec(`chown -R ${sh(this.owner)} ${sh(this.mount)} 2>/dev/null; true`, { timeoutMs: 300_000 })
     await docker(this.cli, ['rm', '-f', this.id], 60_000)
   }
@@ -240,7 +290,10 @@ export function sandboxImage(cli = 'docker'): Promise<string> {
     if (b.code !== 0) throw new Error(`could not build the sandbox image: ${b.stderr.slice(-800)}`)
     return name
   })()
-  return imageAnswer
+  // a failure (the daemon restarting) is asked again next time, not kept for the life of the process
+  const asked = imageAnswer
+  asked.catch(() => imageAnswer === asked && (imageAnswer = undefined))
+  return asked
 }
 
 /** This process's uid:gid, so files a container writes into a mounted workspace stay the host user's. */

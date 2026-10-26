@@ -1,3 +1,4 @@
+import { mountWindow } from '@openworld/runtime/src/ui/components/index.ts'
 /// <reference types="vite/client" />
 
 // The Held Ground's panel (its steward's talk opens it: "The Held Ground…", `panel: haven`; content haven.ts): how far
@@ -148,6 +149,7 @@ class HomesteadPanel implements GamePanel {
         </div>
       </div></div>`
     this.chart(this.host.querySelector<HTMLCanvasElement>('.hs-chart')!, size, lands)
+    mountWindow(this.host.querySelector<HTMLElement>('.sheet')!, { size: 'lg', view: this.page, onClose: () => this.ctx.close() })
     this.wirePages()
     this.wire(view, carried, materials)
     this.ctx.paint([...carried.values()].map((c) => c.item))
@@ -335,6 +337,7 @@ class HomesteadPanel implements GamePanel {
     this.host.innerHTML = `<div class="sheet wood hs-sheet">
       <div class="tabs-row"><b class="sheet-title">⚑ ${esc(tx(TITLE))}</b>${this.pageTabs(zh)}<button class="x" data-close>✕</button></div>
       <div class="tab-body">${body}</div></div>`
+    mountWindow(this.host.querySelector<HTMLElement>('.sheet')!, { size: 'lg', view: this.page, onClose: () => this.ctx.close() })
     this.wirePages()
     this.host.querySelector<HTMLElement>('[data-close]')!.onclick = () => this.ctx.close()
     this.wireWork()

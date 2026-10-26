@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { Detector, Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, auditTools, changesNothing, probe, stationFromRules, withPatch, type ChatMessage, type ChatOptions, type Harness, type Model } from '@openworld/ai'
+import { Detector, Modder, ScriptedModel, gatherProbes, SelfState, WorldLibrary, auditOf, auditTools, changesNothing, probe, stationFromRules, withPatch, type ChatMessage, type ChatOptions, type Harness, type Model } from '@openworld/ai'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -251,5 +251,21 @@ describe('detecting what a model carries, while the backend throttles', () => {
     expect(detector.error).toBeUndefined()
     expect(detector.last?.runs).toHaveLength(9)
     expect(most).toBeLessThanOrEqual(2) // DETECT_AT_ONCE (the service's own gate lets 4 designs in at once)
+  })
+})
+
+describe('detecting what a model carries, after the game grew', () => {
+  it('a question the base rules answer now is not played: no model is asked, and it is no failure of the model', async () => {
+    const req = useRequest()
+    // the service's base rules grew since the question was asked: the stone on a dead tree is the game's own now
+    const answered: Rule = { id: 'core/stone-on-dead-tree', host: { type: STONE }, on: 'act/use', tree: { if: { is: { role: 'target', sel: { type: TREE } } }, then: { do: [{ op: 'log', text: { en: 'Nothing.', zh: '没什么。' } }] }, else: 'inherit' } }
+    let calls = 0
+    const dir = mkdtempSync(join(tmpdir(), 'lsw-guards-'))
+    const library = new WorldLibrary(onto, [...BASE, answered], join(dir, 'library.jsonl'))
+    const modder = new Modder({ library, state: SelfState.open(join(dir, 'modder-state')), model: new ScriptedModel(async () => (calls++, {})) })
+    expect(gatherProbes(modder, [req])).toEqual([])
+    // played, it would have been three failed runs and the things "off"
+    expect(await new Detector(modder, { probes: async () => [req] }).start()).toMatchObject({ started: false })
+    expect(calls).toBe(0)
   })
 })

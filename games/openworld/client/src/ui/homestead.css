@@ -1,3 +1,4 @@
+@layer legacy {
 /* The Held Ground's widenings (homestead.ts), OpenWorld's own panel: drawn in the runtime's wood and paper (its theme's
    variables and keyframes, packages/runtime/src/ui/polish.css). */
 .hs-sheet { width: min(940px, 96vw); }
@@ -138,3 +139,5 @@
 .hs-work-select small { color: var(--ink-soft); }
 @media (max-width: 700px) { .hs-pages { order: 3; flex-basis: 100%; justify-content: center; } .hs-overview-grid { grid-template-columns: 1fr; } .hs-overview { padding: 10px; } }
 
+
+}

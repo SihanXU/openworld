@@ -4,6 +4,7 @@
 // World of Warcraft's talent grids), joined by square elbows — so the tree can grow and still read in order.
 // What a node does shows on hover; a click learns it when it is ready.
 
+import { canvasWindow, placeFloating } from './components/index.ts'
 import type { Frame, SkillDef } from '@openworld/engine'
 import { game, skillById } from '../game.ts'
 import { $, esc, locale, t, tx } from './common.ts'
@@ -115,6 +116,7 @@ export class SkillTree {
     $('#skZoomIn').onclick = () => this.zoomBy(1.35)
     $('#skZoomOut').onclick = () => this.zoomBy(1 / 1.35)
     $('#skClose').onclick = () => this.close()
+    canvasWindow(host, view, t('skills'), () => this.close(), (dx, dy) => { this.pan.x += dx; this.pan.y += dy; this.apply(); this.hideTip() })
   }
 
   /** Back to the start, zoomed so the whole tree fits — but never so small a skill cannot be read (then the top shows, the rest a drag away). */
@@ -311,15 +313,7 @@ export class SkillTree {
     const tip = $('#skTip')
     tip.className = `sk-tip ${[...b.classList].filter((c) => game().skills.branches.some((x) => x.id === c) || c === 'ready').join(' ')}`
     tip.innerHTML = this.tipHtml(b)
-    const r = b.getBoundingClientRect()
-    const w = tip.offsetWidth
-    const h = tip.offsetHeight
-    // beside the node, on the side with room; kept on screen
-    let x = r.right + 12
-    if (x + w > innerWidth - 8) x = r.left - 12 - w
-    const y = Math.min(innerHeight - h - 8, Math.max(8, r.top + r.height / 2 - h / 2))
-    tip.style.left = `${Math.max(8, x)}px`
-    tip.style.top = `${y}px`
+    placeFloating(tip, b.getBoundingClientRect())
   }
 
   private hideTip(): void {

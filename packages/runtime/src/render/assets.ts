@@ -29,6 +29,7 @@ export function imagePaths(c: Catalog): string[] {
   for (const i of Object.values(c.items)) sd(i)
   for (const a of [...Object.values(c.characters), ...Object.values(c.creatures)]) {
     s.add(`${a.dir}/${a.sheet}`)
+    for (const clip of Object.values(a.clips ?? {})) s.add(`${a.dir}/${clip.sheet}`)
     if (a.faceset) s.add(`${a.dir}/${a.faceset}`)
     if (a.faces) s.add(a.faces.strip)
   }
@@ -92,6 +93,13 @@ export function actorFrames(scene: Phaser.Scene, key: string, a: ActorDef): { im
       const name = `${key}:${c},${r}`
       if (!tex.has(name)) tex.add(name, 0, c * fw, r * fh, fw, fh)
     }
+  for (const [clip, def] of Object.entries(a.clips ?? {})) {
+    const strip = scene.textures.get(`${a.dir}/${def.sheet}`)
+    for (let frame = 0; frame < def.frames; frame++) {
+      const name = `${key}:${clip}:${frame}`
+      if (!strip.has(name)) strip.add(name, 0, frame * def.frameWidth, 0, def.frameWidth, def.frameHeight)
+    }
+  }
   return { img, fw, fh }
 }
 

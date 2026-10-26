@@ -76,6 +76,13 @@ export const SETTINGS: Record<string, (v: unknown) => boolean> = {
 const MAX_NOTES = 12
 const MAX_HOOK_BYTES = 20_000
 
+/**
+ * What a hook may not do to reach the network: fetch; the network modules, imported or required (with or without
+ * `node:`); an import or require of a name built at run time; curl or wget (through child_process, which hooks may
+ * otherwise use for git, rg and the tests). A screen, not the boundary: hooks run in a container with no network.
+ */
+const NETWORK = /\bfetch\s*\(|\b(?:from|import|require)\s*\(?\s*['"`](?:node:)?(?:https?|http2|net|tls|dgram)['"`]|\b(?:import|require)\s*\(\s*(?!['"][^'"`]*['"]\s*\))|\b(?:curl|wget)\b/
+
 export const OUTER_SYSTEM = `You maintain your own way of working. You are a software engineer agent: you work tasks in repositories through tools (list_dir, read_file, search, write_file, edit_file, run, run_tests, read_skill, submit). What you have learned so far is in your self-state, and you may change ONE thing about it now. The change is kept only if, replayed on recorded tasks, it does not lower the pass rate and makes cost, steps or time better by at least 10 % without making another of them worse by more than 10 %.
 
 You may propose exactly one of:
@@ -158,12 +165,13 @@ export function checkProposal(p: Proposal, state: SelfState): string | undefined
       return undefined
     case 'skill':
       if (!p.skill?.name || typeof p.skill.body !== 'string' || !p.skill.body.trim()) return 'a skill needs a name and a body'
+      if (typeof p.skill.description !== 'string' || !Array.isArray(p.skill.triggers)) return 'a skill needs a description and triggers'
       return undefined
     case 'hook':
       if (p.stage !== 'start' && p.stage !== 'presubmit') return 'stage must be start or presubmit'
       if (!p.name || typeof p.code !== 'string' || !p.code.trim()) return 'a hook needs a name and code'
       if (p.code.length > MAX_HOOK_BYTES) return 'hook code too long'
-      if (/\bfetch\s*\(|node:https?|node:net|require\(['"]https?/.test(p.code)) return 'hooks must not use the network'
+      if (NETWORK.test(p.code)) return 'hooks must not use the network'
       return undefined
     default:
       return 'unknown proposal kind'
@@ -265,9 +273,14 @@ export async function improve(o: ImproveOptions): Promise<ImproveResult> {
   const trial = async (ids: string[]) => {
     const baseState = state.fork()
     const candState = state.fork()
-    applyProposal(proposal, candState, 'trial')
-    const [base, cand] = await Promise.all([arm(ids, baseState, o), arm(ids, candState, o)])
-    return { base, cand }
+    try {
+      applyProposal(proposal, candState, 'trial')
+      const [base, cand] = await Promise.all([arm(ids, baseState, o), arm(ids, candState, o)])
+      return { base, cand }
+    } finally {
+      baseState.dispose()
+      candState.dispose()
+    }
   }
   const selection = await trial(sets.select)
   let spent = selection.base.cost + selection.cand.cost

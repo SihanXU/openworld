@@ -3,7 +3,8 @@
 // through here once, from the settings' field to the modder's worker; the page keeps only its hint.
 
 import { ai } from './ai.ts'
-import { game } from './game.ts'
+import { game, worldBase } from './game.ts'
+import type { WorldIndex } from '@openworld/engine'
 import type { FromModder, ModelChoice, ModelStatus, Remember, ToModder } from './modderProtocol.ts'
 
 /** Set while a model is kept in this browser (never the key: only that the modder's worker should start at once). */
@@ -68,6 +69,9 @@ export class OwnModel {
     this.worker = w
     const g = game()
     this.post({ t: 'game', ontology: g.ontology(), rules: g.rules })
+    // then the story's protected facts, from the world's index as the engine's worker reads them: the modder commits
+    // only what the engine takes (it answers the engine's port once both are here; none, if the index does not come)
+    void protectedFacts().then((facts) => this.post({ t: 'facts', protectedFacts: facts }))
   }
 
   /** A port to the modder for the engine's worker (each its own). */
@@ -124,6 +128,20 @@ export class OwnModel {
     this.waiting.delete(m.id)
     if (m.error !== undefined) w.reject(new Error(m.error))
     else w.resolve(m.value)
+  }
+}
+
+/** How long the modder waits for the world's index (its port waits as long): past it, no protected facts. */
+const FACTS_WAIT_MS = 5000
+
+/** The fact prefixes only the story's own rules may change (the world index's `protectedFacts`). */
+async function protectedFacts(): Promise<string[]> {
+  try {
+    const res = await fetch(new URL('index.json', worldBase()), { signal: AbortSignal.timeout(FACTS_WAIT_MS) })
+    return ((await res.json()) as WorldIndex).protectedFacts ?? []
+  } catch {
+    // (no index: no world to play either)
+    return []
   }
 }
 

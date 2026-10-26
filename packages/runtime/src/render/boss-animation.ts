@@ -1,38 +1,44 @@
 import type { Dir, EntitySnap } from '@openworld/engine'
-import { ALBERIC_CLIPS, albericFrameMs } from '../assets/bosses.ts'
+import { ALBERIC_CLIPS, type AlbericClip, type AlbericAttackClip } from '../assets/bosses.ts'
+
+export interface BossAnimationFrame {
+  col: number
+  row: number
+  /** A delivered strip, when the boss has separate animation textures. */
+  clip?: AlbericClip
+  /** Already drawn left-facing strips and asymmetric frontal poses must not be mirrored again. */
+  flipX?: boolean
+}
+
+export const albericAttackClip = (facing: Dir): AlbericAttackClip =>
+  facing === 'left' ? 'attack_left' : facing === 'right' ? 'attack_right' : 'attack_down'
 
 /** Pure atlas selection: wind-up is [0,.5), release/recovery [.5,1], never an early shot. */
-export function bossAnimationFrame(boss: NonNullable<EntitySnap['boss']>, time: number, offset = 0, facing: Dir = 'down'): { col: number; row: number } {
+export function bossAnimationFrame(boss: NonNullable<EntitySnap['boss']>, time: number, offset = 0, facing: Dir = 'down'): BossAnimationFrame {
   const { action } = boss
   const progress = Math.max(0, Math.min(1, Number.isFinite(boss.progress) ? boss.progress : 0))
   if (boss.kit === 'alberic') {
-    // a skill's own clip (its volley, its arrow, its thorns), else its pose
-    const clipRow = boss.clip === 'volley' ? 4 : boss.clip === 'arrow' ? 3 : boss.clip === 'thorns' ? 2 : undefined
-    const row = action === 'idle' ? 0 : action === 'walk' ? 1 : action === 'hurt' ? 5 : action === 'death' ? 6
-      : clipRow ?? (boss.skill === 'volley' ? 4 : action === 'cast' ? 3 : 2)
-    const id = action === 'idle' || action === 'walk' || action === 'hurt' || action === 'death'
-      ? action : row === 4 ? 'volley' : row === 3 ? 'arrow' : 'thorns'
-    const clip = ALBERIC_CLIPS[id]
-    const frameMs = albericFrameMs(id)
     const elapsed = Number.isFinite(boss.animationElapsedMs) ? Math.max(0, boss.animationElapsedMs!) : undefined
-    let pose: number
     if (action === 'idle' || action === 'walk') {
-      // loops run on the screen's clock: the simulation's 10 Hz steps (and a lagging tick) would make them stutter
-      pose = Math.floor(Math.max(0, time + offset) / frameMs) % clip.length
-    } else if (action === 'attack' || action === 'cast') {
-      // Play the anticipation at the clip's pace, then hold the drawn weapon until the engine
-      // releases. Recovery starts at the actual hit, never by looping through a timer.
-      const windingUp = !!boss.warning || progress < 0.5, half = clip.length / 2
-      const step = elapsed === undefined ? Math.floor((windingUp ? progress : progress - 0.5) * clip.length)
-        : Math.floor(elapsed / frameMs)
-      pose = (windingUp ? 0 : half) + Math.min(half - 1, Math.max(0, step))
-    } else {
-      pose = Math.min(clip.length - 1, Math.floor(elapsed === undefined ? progress * clip.length : elapsed / frameMs))
+      // Only a frontal idle was delivered. Movement borrows it without inventing a stride/back view.
+      // Loops run on the screen's clock, independently of the simulation's 10 Hz snapshots.
+      const clip = ALBERIC_CLIPS.idle
+      return { col: Math.floor(Math.max(0, time + offset) / clip.frame_ms) % clip.frames, row: 0, clip: 'idle', flipX: false }
     }
-    const col = clip[pose]!
-    // Three genuinely drawn overhead directions; left mirrors right, never the front/back.
-    const direction = facing === 'up' ? 2 : facing === 'left' || facing === 'right' ? 1 : 0
-    return { col, row: row + direction * 7 }
+    if (action === 'attack' || action === 'cast') {
+      const id = albericAttackClip(facing), clip = ALBERIC_CLIPS[id]
+      // Hold the last anticipation pose until the engine releases. The hit pose starts on
+      // that authoritative release; a longer telegraph never plays an early strike.
+      const windingUp = !!boss.warning || progress < 0.5
+      const start = windingUp ? 0 : clip.hit_frame
+      const count = windingUp ? clip.hit_frame : clip.frames - clip.hit_frame
+      const phase = windingUp ? progress * 2 : (progress - 0.5) * 2
+      const step = elapsed === undefined ? Math.floor(phase * count) : Math.floor(elapsed / clip.frame_ms)
+      return { col: start + Math.min(count - 1, Math.max(0, step)), row: 0, clip: id, flipX: false }
+    }
+    // No hurt/death sheet was delivered. Keep one registered pose while the existing hit
+    // tint and despawn fade communicate those states, without switching character designs.
+    return { col: 0, row: 0, clip: 'idle', flipX: false }
   }
   // Keep the previous 20-frame layouts, pacing and two-frame deaths intact.
   const row = action === 'idle' ? 0 : action === 'walk' ? 1 : action === 'attack' ? 2 : action === 'cast' ? 3 : 4

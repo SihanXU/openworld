@@ -61,7 +61,7 @@ interface EView {
   walker?: { x: number; y: number; t: number }
   /** A flyer (a companion): where it heads; it is drawn gliding there, not stepped tile by tile. */
   flyer?: { x: number; y: number; t: number }
-  actor?: { key: string; rows: number; cols: number; tint?: number; scale?: number; idleRow?: number }
+  actor?: { key: string; rows: number; cols: number; tint?: number; scale?: number; idleRow?: number; dir: string; clips?: ActorDef['clips'] }
   /** The dragon's parts round its head: wings on the head's container, body and tail trailing it in the world. */
   dragon?: { wings: Phaser.GameObjects.Image[]; segments: Phaser.GameObjects.Image[]; trail: { x: number; y: number }[] }
   /** A built thing's second picture: a wall block's top (one storey up), a raised floor's edge. */
@@ -1253,7 +1253,7 @@ export class WorldScene extends Phaser.Scene {
     if (e.tags.includes('body') && e.look && typeof e.look === 'object') {
       const a = figureDef(this, e.look)
       const { img, fw, fh } = actorFrames(this, a.key, a.def)
-      return { img, frame: `${a.key}:0,0`, ax: fw / 2, ay: a.def.anchorY ?? fh }
+      return { img, frame: `${a.key}:0,0`, ax: a.def.anchorX ?? fw / 2, ay: a.def.anchorY ?? fh }
     }
     // a thing the world learned, with a picture of its own
     if (!e.tags.includes('agent') && e.sprite?.startsWith('art:') && this.textures.exists(e.sprite)) return { img: e.sprite, frame: '__BASE', ax: 8, ay: 14 }
@@ -1262,7 +1262,7 @@ export class WorldScene extends Phaser.Scene {
       if (a) {
         const { img, fw, fh } = actorFrames(this, a.key, a.def)
         const col = (e.boss && a.def.rows >= 5) || a.def.rows === 1 ? 0 : (DIR_COL[e.facing] ?? 0)
-        return { img, frame: `${a.key}:${col},${a.def.idleRow ?? 0}`, ax: fw / 2, ay: a.def.anchorY ?? fh, actor: { key: a.key, rows: a.def.rows, cols: a.def.cols, tint: a.def.tint, scale: a.def.scale, idleRow: a.def.idleRow } }
+        return { img, frame: `${a.key}:${col},${a.def.idleRow ?? 0}`, ax: a.def.anchorX ?? fw / 2, ay: a.def.anchorY ?? fh, actor: { key: a.key, rows: a.def.rows, cols: a.def.cols, tint: a.def.tint, scale: a.def.scale, idleRow: a.def.idleRow, dir: a.def.dir, clips: a.def.clips } }
       }
     }
     // a thing set in its cell (a built wall, a laid floor) is drawn as part of the place; a fixture
@@ -1826,7 +1826,7 @@ export class WorldScene extends Phaser.Scene {
       // a body between two cells is ordered by where it is drawn now (depth.ts footOf)
       if (e.tags.includes('agent') && !e.boss) v.root.setDepth(this.depthOf(e, footOf(e.y, v.root.y + (e.z ?? 0) * STOREY_LIFT + this.liftOf(e))))
       // a boss drawn on its own atlas (rows of poses); one drawn otherwise (the dragon in parts) moves as any creature
-      if (v.actor && e.boss && v.actor.rows >= 5) {
+      if (v.actor && e.boss && (v.actor.clips || v.actor.rows >= 5)) {
         let animated = e.boss
         // a preview plays on its own timeline (a loop starts at its first pose); the game on the screen's clock
         let clock = time, offset = v.phase
@@ -1842,8 +1842,11 @@ export class WorldScene extends Phaser.Scene {
         } else if (v.bossAnimation) {
           animated = { ...e.boss, progress: v.bossAnimation.progress(time), animationElapsedMs: v.bossAnimation.elapsed(time) }
         }
-        const { col, row } = bossAnimationFrame(animated, clock, offset, e.facing)
-        v.body.setFrame(`${v.actor.key}:${col},${row}`).setFlipX(e.facing === 'left')
+        const { col, row, clip, flipX } = bossAnimationFrame(animated, clock, offset, e.facing)
+        const strip = clip && v.actor.clips?.[clip]
+        if (strip) v.body.setTexture(`${v.actor.dir}/${strip.sheet}`, `${v.actor.key}:${clip}:${col}`)
+        else v.body.setFrame(`${v.actor.key}:${col},${row}`)
+        v.body.setFlipX(flipX ?? e.facing === 'left')
       } else if (v.actor && v.actor.rows === 1) {
         // single-row strips (bosses): animate across the columns
         v.body.setFrame(`${v.actor.key}:${Math.floor((time + v.phase) / 140) % v.actor.cols},0`)
@@ -1963,6 +1966,8 @@ export class WorldScene extends Phaser.Scene {
   lookOf(id: string): { img: string; frame: string } | undefined {
     const v = this.views.get(id)
     if (!v?.actor) return undefined
+    const idle = v.actor.clips?.idle
+    if (idle) return { img: `${v.actor.dir}/${idle.sheet}`, frame: `${v.actor.key}:idle:0` }
     return { img: v.body.texture.key, frame: `${v.actor.key}:0,0` }
   }
 

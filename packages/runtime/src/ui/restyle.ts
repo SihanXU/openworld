@@ -1,3 +1,4 @@
+import { mountWindow } from './components/index.ts'
 // The dresser's panel (docs/looks.md §5): the character creator over the traveller's own look, opened by a rule's
 // `panel: 'restyle'` (the dresser asked, a hand on her mirror). It says her price (the world's `params.restyle`: coin
 // and things carried) and whether one has it; kept, the look goes to the worker, which takes the price and makes the
@@ -15,6 +16,11 @@ class RestylePanel implements GamePanel {
   private sig = ''
 
   constructor(private ctx: PanelContext) {}
+
+  hide(): void {
+    this.creator?.dispose()
+    this.creator = undefined
+  }
 
   /** Her price: the coin and the things, each with its name. */
   private price(): { type: string; count: number }[] {
@@ -34,6 +40,7 @@ class RestylePanel implements GamePanel {
       <div id="rsCreator"></div>
       <div class="rs-foot"><span class="rs-note">${zh ? '穿戴的装备照旧盖在上面。' : 'What you wear still goes over it.'}</span><button class="cv-btn" id="rsCancel">${zh ? '算了' : 'Never mind'}</button><button class="cv-btn primary" id="rsKeep">${zh ? '就这样' : 'Keep this look'}</button></div>
     </div>`
+    mountWindow(this.ctx.host.querySelector<HTMLElement>('.sheet')!, { size: 'lg', onClose: () => { this.creator?.dispose(); this.ctx.close() } })
     this.creator = new Creator(this.ctx.host.querySelector('#rsCreator')!, this.look, (look) => (this.look = look))
     const close = () => {
       this.creator?.dispose()

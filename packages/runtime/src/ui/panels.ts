@@ -16,6 +16,8 @@ export interface GamePanel {
   show(f: Frame | undefined, opened: { panel: string; by?: string }): void | false
   /** Each frame while it is open. */
   render(f: Frame): void
+  /** Release transient UI work when closed, including by another panel or shortcut. */
+  hide?(): void
 }
 
 /** What the runtime gives a game's panel to work with. */
@@ -114,6 +116,7 @@ export class PanelRegistry {
 
 const isOpen = (m: Made) => !m.host.classList.contains('hidden')
 const hide = (m: Made) => {
+  if (isOpen(m)) m.panel?.hide?.()
   m.pending = undefined
   m.host.classList.add('hidden')
 }

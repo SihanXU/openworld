@@ -1,0 +1,64 @@
+:root {
+  --ui-font: 'Fusion Pixel', monospace;
+  --ui-ink: #51351f;
+  --ui-muted: #806044;
+  --ui-frame: #8c4c2b;
+  --ui-frame-dark: #502e20;
+  --ui-wood: #c88748;
+  --ui-wood-light: #efbd73;
+  --ui-paper: #f8dfab;
+  --ui-paper-light: #fff0c7;
+  --ui-inset: #ebc78d;
+  --ui-gold: #c48b36;
+  --ui-green: #6d8b45;
+  --ui-good: #476333;
+  --ui-danger: #ab4e35;
+  --ui-info: #36686e;
+  --ui-border: 2px;
+  --ui-space: 8px;
+  --ui-label: 12px;
+  --ui-body: 24px;
+  --ui-title: 24px;
+  --ui-cover: 48px;
+  --ui-shadow: 0 4px 0 #502e20, 0 8px 0 #291e2455;
+  --ui-edge: 24px;
+  --ui-viewport-height: 100dvh;
+  --ui-viewport-width: 100vw;
+  --ui-viewport-top: 0px;
+  --ui-viewport-left: 0px;
+  --ui-tabs-height: 0px;
+  --ui-z-hud: 10;
+  --ui-z-window: 40;
+  --ui-z-tabs: 42;
+  --ui-z-popup: 100;
+  --ui-z-confirm: 110;
+  /* Compatibility names are aliases, so game-owned panels consume the same palette. */
+  --pixel: var(--ui-font);
+  --text: var(--ui-font);
+  --wood-dark: var(--ui-frame);
+  --wood-edge: var(--ui-frame-dark);
+  --walnut: var(--ui-frame-dark);
+  --walnut-2: var(--ui-frame);
+  --walnut-hi: var(--ui-wood);
+  --paper: var(--ui-paper);
+  --paper-dark: var(--ui-inset);
+  --parch: var(--ui-paper);
+  --parch-2: var(--ui-inset);
+  --parch-3: #dbae71;
+  --brass: var(--ui-gold);
+  --brass-hi: #f6d391;
+  --brass-lo: #945e2e;
+  --ink-warm: var(--ui-ink);
+  --ink-soft: var(--ui-muted);
+  --muted: var(--ui-muted);
+  --accent: var(--ui-gold);
+  --good: var(--ui-good);
+  --bad: var(--ui-danger);
+  --grain: none;
+  --glow: 0 0 0 2px var(--ui-gold);
+}
+
+html { font-synthesis: none; text-size-adjust: 100%; -webkit-text-size-adjust: 100%; }
+button, input, select, textarea { font-family: var(--ui-font); font-synthesis: none; }
+:where(.dev,.help) { --muted: #adb4c4; --good: #81c98e; --bad: #f08b80; }
+@media (max-width: 719px), (max-height: 599px) { :root { --ui-edge: 8px; } }

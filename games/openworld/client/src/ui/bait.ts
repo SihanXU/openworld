@@ -1,3 +1,4 @@
+import { mountWindow } from '@openworld/runtime/src/ui/components/index.ts'
 /// <reference types="vite/client" />
 
 import type { Frame, ItemInfo } from '@openworld/engine'
@@ -62,8 +63,9 @@ class BaitPanel implements GamePanel {
       <header><b id="bait-title">${zh ? '选择鱼饵' : 'Choose bait'}</b><button class="x" data-close aria-label="${zh ? '关闭' : 'Close'}">✕</button></header>
       <p class="bait-intro">${remaining ? (zh ? `鱼竿还可挂饵抛竿 ${remaining} 次；用完后才能换其他鱼饵。` : `This rod has ${remaining} baited casts left. Spend them before changing bait.`) : (zh ? '选一份鱼饵挂到手里的鱼竿上。确认后会消耗一份，并增加该鱼饵标注的抛竿次数。' : 'Choose bait for the rod in your hand. Confirming spends one and adds the casts shown for that bait.')}</p>
       <div class="bait-options">${rows || `<p class="bait-empty">${zh ? '行囊里没有鱼饵。' : 'There is no bait in your pack.'}</p>`}</div>
-      <footer><button class="bait-cancel" data-close>${zh ? '取消' : 'Cancel'}</button><button class="bait-confirm" data-confirm ${!this.selected || this.pending || !options.some((c) => c.item.id === this.selected && !(remaining > 0 && c.key !== loadedKey)) ? 'disabled' : ''}>${zh ? '确认装饵' : 'Confirm bait'}</button></footer>
+      <footer><button class="bait-cancel" data-close>${zh ? '取消' : 'Cancel'}</button><button class="bait-confirm primary" data-confirm ${!this.selected || this.pending || !options.some((c) => c.item.id === this.selected && !(remaining > 0 && c.key !== loadedKey)) ? 'disabled' : ''}>${zh ? '确认装饵' : 'Confirm bait'}</button></footer>
     </section>`
+    mountWindow(this.ctx.host.querySelector<HTMLElement>('.sheet')!, { onClose: () => this.ctx.close() })
     this.ctx.paint(options.map((c) => c.item))
     this.ctx.host.querySelectorAll<HTMLElement>('[data-bait]').forEach((button) => {
       button.onclick = () => {

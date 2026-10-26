@@ -69,6 +69,9 @@ export function gatherProbes(modder: Modder, game: ModRequest[] = [], per = PER_
     if (seen.has(key) || !current(req)) return
     const category = categoryOfRequest(req)
     if (!room(category) || !base(req)) return
+    // a question the game's own rules answer now (they grew since it was asked) is no question: the modder would call
+    // no model for it, and counted, it would be a failure that says nothing about the model
+    if (library.answeredByBase(req)) return
     seen.add(key)
     out.push({ request: req, category, from })
   }

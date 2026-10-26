@@ -161,10 +161,10 @@ export class Modder {
   private design = new Gate(() => this.opts.state.harness().concurrency?.design ?? 4)
   private lanes = new Map<string, Promise<void>>()
   /** Work after the reply: reflections, late reviews, escalations, revisions (harness concurrency.background at once). */
-  private jobs: { what: string; job: () => Promise<void> }[] = []
+  private jobs: { what: string; job: () => Promise<void>; key?: string }[] = []
   private running = 0
   private idle: (() => void)[] = []
-  /** Where each class of request is (GET /progress), and the class of each request id. */
+  /** Where each class of request is at each tier (GET /progress; progressKey), and that key of each request id. */
   private progress = new Map<string, ModProgress>()
   private requestKey = new Map<string, string>()
   /** An author's draft as it goes (GET /trace?id=): kept a while after it ends, for the chat to read. */
@@ -245,8 +245,9 @@ export class Modder {
     await new Promise<void>((done) => this.idle.push(done))
   }
 
-  private later(what: string, job: () => Promise<void>): void {
-    this.jobs.push({ what, job })
+  /** `key`: what the job will put in flight (an escalation), so the same is not queued twice meanwhile. */
+  private later(what: string, job: () => Promise<void>, key?: string): void {
+    this.jobs.push({ what, job, key })
     this.pump()
   }
 
@@ -460,7 +461,7 @@ export class Modder {
     const base = signatureOf(req)
     // asked again (design.md §5.17): a question of its own, beside the provisional answer it replaces
     const sig = req.again ? { ...base, key: `${base.key}|again:${req.again.rule}` } : base
-    this.requestKey.set(req.id, sig.key)
+    this.requestKey.set(req.id, progressKey(sig, req))
     try {
       return await this.resolveClass(req, body, sig, profile)
     } finally {
@@ -542,7 +543,8 @@ export class Modder {
 
   /** A design in its lane, then in a slot (live first); one that waited is answered by what was committed meanwhile, if it can be. */
   private async episode(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions): Promise<ResolveReply> {
-    if (!this.progress.has(sig.key)) this.progress.set(sig.key, { stage: 'queued' })
+    const where = progressKey(sig, req, eo)
+    if (!this.progress.has(where)) this.progress.set(where, { stage: 'queued' })
     // a revision or an escalation is background work nobody waits on: it takes no lane, so a player's request
     // never waits behind it (its commit is validated against the library as it is then, like any other, so a
     // second answer at the same place is refused)
@@ -557,7 +559,7 @@ export class Modder {
     } finally {
       release()
       leave()
-      this.progress.delete(sig.key)
+      this.progress.delete(where)
     }
   }
 
@@ -616,7 +618,7 @@ export class Modder {
     const begin = (cs: Creation[]) => {
       if (draws) for (const c of cs) if (c?.id && !drawing.has(c.id)) drawing.set(c.id, this.drawOne(model, { id: c.id, name: c.name } as TypeDef, c.why, wl).catch(() => undefined))
     }
-    const at = (p: ModProgress) => this.progress.set(sig.key, p)
+    const at = (p: ModProgress) => this.progress.set(progressKey(sig, req, eo), p)
     at({ stage: 'local' })
     if (router) ep.route = ['local']
     const added = { types: lib.types.filter((t) => !(t.id in library.ontology.types)), statuses: lib.statuses.filter((s) => !(s.id in library.ontology.statuses)) }
@@ -770,7 +772,7 @@ export class Modder {
           // the draft makes a thing the world has no type for (a spawn or a transform into an unknown id): a
           // creation, not a slip to repair; told only "unknown type", the designer swaps in something known
           // and learns never to create
-          const missing = router && stage !== 'create' && wl.create !== 'off' ? unknownMade(patch, ctx.ontology) : []
+          const missing = router && !local && stage !== 'create' && wl.create !== 'off' ? unknownMade(patch, ctx.ontology) : []
           if (missing.length) {
             create(missing)
             continue
@@ -869,7 +871,8 @@ export class Modder {
    */
   private async repoEpisode(req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, eo: EpisodeOptions, h: Harness): Promise<ResolveReply> {
     const { state, library } = this.opts
-    const replaces = eo.revise?.episode.rules ?? []
+    // (asked again: the answer takes the provisional one's place, as in work())
+    const replaces = eo.revise?.episode.rules ?? (req.again ? [req.again.rule] : [])
     const lib = library.workspace(ws, replaces)
     const world = () => ({
       request: req,
@@ -894,12 +897,33 @@ export class Modder {
       // the rule's place is the request's, as the library is now (design.md §5.16)
       const patch = collected.patch ? placePatch(stationFromRules(collected.patch, library.fullOntology(lib)).patch, req, { ontology: library.fullOntology(lib), library: lib }).patch : collected.patch
       ep.patch = undefined
-      // the auditor, before shipping: a patch it breaks in the sandbox is not committed (nor one it
-      // could not audit because the backend went out)
-      let found: AuditResult | undefined
-      let unaudited = false
-      if (run.submitted && patch && !problems.length && auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch, req))
-        found = await this.audit(new Meter(this.backend!), req, patch, { library: lib, ontology: library.fullOntology(lib) }, h).catch((err: Error) => ((ep.error = err.message), (unaudited = true), undefined))
+      // the checks' calls (the audit, the review) are the episode's too
+      const checks = new Meter(this.backend!)
+      const ctx: ToolContext = { library: lib, ontology: library.fullOntology(lib), request: req, state, validate: (p) => library.validate(p, req, ws, replaces), skillsRead: ep.skillsRead }
+      // the auditor, before shipping, as work() asks it: a patch it breaks in the sandbox is not committed, nor one it
+      // could not audit (asked once more after a failure; the backend out is no audit either)
+      const audited = async (p: Patch): Promise<AuditResult | undefined> => {
+        try {
+          let found = await this.audit(checks, req, p, ctx, h)
+          if (found.error) found = await this.audit(checks, req, p, ctx, h)
+          if (!found.error) return found
+          ep.error = `the audit failed (${found.error}): not shipped unaudited`
+        } catch (err) {
+          ep.error = (err as Error).message
+        }
+        return undefined
+      }
+      // reviewed before it ships when the harness says so, as work() reviews its drafts: one the reviewer sends back is not committed
+      const ship = async (p: Patch): Promise<void> => {
+        if (h.review.enabled && h.review.blocking !== false) {
+          const review = await this.review(checks, req, p, ctx, h, flagsOf(p)).catch((err: Error) => void (ep.error = err.message))
+          if (!review) return
+          if (review.verdict === 'revise') return void ep.attempts.push({ phase: 'review', patch: p, errors: ['the reviewer sent the draft back: not shipped', ...review.notes], warnings: [], review })
+        }
+        this.commit(ep, { ...p, author: 'modder' }, req, replaces)
+      }
+      const auditing = run.submitted && patch && !problems.length && auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch, req)
+      const found = auditing ? await audited(patch) : undefined
       if (found?.confirmed.length) {
         ep.attempts.push({ phase: 'audit', patch, errors: auditNotes(found.confirmed), warnings: [], audit: { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length } })
         // what the auditor broke goes back to the agent once, as the pipeline gives it to the designer
@@ -910,16 +934,18 @@ export class Modder {
             ep.usage = { calls: ep.usage.calls + second.episode.usage.calls, input: ep.usage.input + second.episode.usage.input, output: ep.usage.output + second.episode.usage.output, cost: (ep.usage.cost ?? 0) + (second.episode.usage.cost ?? 0) }
             const fixed = again.collect()
             const placed = fixed.patch ? placePatch(fixed.patch, req, { ontology: library.fullOntology(lib), library: lib }).patch : undefined
-            const still = second.submitted && placed && !fixed.problems.length ? await this.audit(new Meter(this.backend!), req, placed, { library: lib, ontology: library.fullOntology(lib) }, h).catch(() => undefined) : undefined
-            if (placed && still && !still.confirmed.length) this.commit(ep, { ...placed, author: 'modder' }, req, replaces)
-            else ep.attempts.push({ phase: 'audit', patch: placed, errors: still?.confirmed.length ? auditNotes(still.confirmed) : fixed.problems.length ? fixed.problems : ['the second draft was not submitted'], warnings: [] })
+            const submitted = second.submitted && placed && !fixed.problems.length
+            const still = submitted ? await audited(placed) : undefined
+            if (placed && still && !still.confirmed.length) await ship(placed)
+            else ep.attempts.push({ phase: 'audit', patch: placed, errors: still?.confirmed.length ? auditNotes(still.confirmed) : fixed.problems.length ? fixed.problems : submitted ? [ep.error ?? 'not audited'] : ['the second draft was not submitted'], warnings: [] })
           } finally {
             await again.dispose()
           }
         }
-      } else if (run.submitted && patch && !problems.length && !unaudited) this.commit(ep, { ...patch, author: 'modder' }, req, replaces)
+      } else if (run.submitted && patch && !problems.length && (!auditing || found)) await ship(patch)
       else if (problems.length) ep.attempts.push({ phase: 'repair', errors: problems, warnings: [] })
       if (ep.outcome !== 'accepted') ep.outcome = 'failed'
+      ep.usage = { calls: ep.usage.calls + checks.calls, input: ep.usage.input + checks.input, output: ep.usage.output + checks.output, cost: (ep.usage.cost ?? 0) + checks.cost }
       // a trial run (a dry modder's) keeps nothing: no episode, no skill's use, no reflection, as work() does
       if (this.opts.dry) {
         this.trials.set(req.id, ep)
@@ -968,7 +994,7 @@ export class Modder {
       const model = new Meter(this.backend!)
       const v = await this.review(model, req, ep.patch!, ctx, h, flags)
       this.opts.state.note('review', { episode: ep.id, rules: ep.rules, flags, ...v, usage: model.usage })
-      if (v.verdict === 'revise' && v.notes.length && h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: ep, notes: v.notes } })
+      if (v.verdict === 'revise' && v.notes.length && h.revise) await this.reviseHeld(ep, req, ws, sig, v.notes, 'review')
     }
     if (reviewLater) flags.push('the reviewer before shipping gave no verdict: look at everything')
     // a review after the fact: for a rule that narrates only or that the harness's test could not check (and
@@ -999,8 +1025,7 @@ export class Modder {
           return reviewed(odd.map((u) => `the auditor showed, but the code does not count as harm: ${u.finding.kind}: ${u.finding.title}`))
         }
         // only the version audited leaves: one that replaced it under its id meanwhile (a revision) was not audited here
-        const shipped = this.shipped.get(ep)
-        const held = ep.rules.filter((id) => shipped !== undefined && this.opts.library.seqOf(id) === shipped)
+        const held = this.held(ep)
         if (!held.length) return void this.log(`${ep.id} audit: ${found.confirmed.map((f) => `${f.kind}: ${f.title}`).join('; ')}, but ${ep.rules.join(', ')} left or was replaced meanwhile`)
         for (const id of held) this.opts.library.remove(id, this.now())
         this.log(`${ep.id} audit: ${found.confirmed.map((f) => `${f.kind}: ${f.title}`).join('; ')} → removed ${held.join(', ')}`)
@@ -1008,11 +1033,16 @@ export class Modder {
       })
     // a live request that failed is worked again with the offline profile: the world still learns it
     const offline = `${inFlight(sig.key, tierOfRequest(req))}#offline`
-    if (ep.outcome === 'failed' && eo.profile === 'live' && h.escalate && !this.inflight.has(offline))
-      this.later(`escalate ${ep.id}`, async () => {
-        if (this.opts.library.covering(req)) return
-        await this.track(offline, this.episode(req, ws, sig, { profile: 'offline', escalatedFrom: ep.id }))
-      })
+    // (one escalation per class: none while one is in flight, or still waiting its turn among the background work)
+    if (ep.outcome === 'failed' && eo.profile === 'live' && h.escalate && !this.inflight.has(offline) && !this.jobs.some((j) => j.key === offline))
+      this.later(
+        `escalate ${ep.id}`,
+        async () => {
+          if (this.opts.library.covering(req)) return
+          await this.track(offline, this.episode(req, ws, sig, { profile: 'offline', escalatedFrom: ep.id }))
+        },
+        offline,
+      )
     // what went wrong is reflected on at once; live episodes that went cleanly, a batch at a time
     const clean = eo.profile === 'live' && !eo.revise && !eo.escalatedFrom && ep.outcome === 'accepted' && !flags.length && ep.attempts.every((a) => !a.errors.length && !a.fixes?.length && !a.review && ['design', 'find', 'create'].includes(a.phase))
     if (clean && (h.reflect.batch ?? 1) > 1) {
@@ -1021,6 +1051,19 @@ export class Modder {
       const due = this.clean.splice(0)
       this.later(`reflect ${due.map((d) => d.ep.id).join(', ')}`, () => this.reflect(due))
     } else this.later(`reflect ${ep.id}`, () => this.reflect([{ ep, sig }]))
+  }
+
+  /** The rules of a shipped episode still in force in the version it shipped (not removed, nor replaced under their id since). */
+  private held(ep: Episode): string[] {
+    const shipped = this.shipped.get(ep)
+    return ep.rules.filter((id) => shipped !== undefined && this.opts.library.seqOf(id) === shipped)
+  }
+
+  /** A revision of what a check after shipping looked at: only the version it looked at (one that replaced it meanwhile was not). */
+  private async reviseHeld(ep: Episode, req: ModRequest, ws: ModWorkspace | undefined, sig: Signature, notes: string[], by: string): Promise<void> {
+    const held = this.held(ep)
+    if (!held.length) return void this.log(`${ep.id} ${by}: revise, but ${ep.rules.join(', ')} left or was replaced meanwhile`)
+    await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: { ...ep, rules: held }, notes } })
   }
 
   /** Append to the shared library; on failure the diagnostics land on the last attempt. */
@@ -1351,6 +1394,12 @@ export function laneOf(req: ModRequest): string {
 
 /** What is in flight for a class of request: its answer serves its tier and the lower ones (covering, tiersFrom). */
 const inFlight = (key: string, tier: Tier): string => `${key}@${tier}`
+
+/**
+ * Where a request's progress is kept: its class at its tier, as it is in flight (another tier, or a revision or an
+ * escalation of the class nobody waits on, keeps its own, and its end does not clear the request's).
+ */
+const progressKey = (sig: Signature, req: ModRequest, eo?: EpisodeOptions): string => `${inFlight(sig.key, tierOfRequest(req))}${eo?.revise || eo?.escalatedFrom ? '#background' : ''}`
 
 /** A validation as a commit reports it (a trial run keeps nothing). */
 function judged(result: ValidationResult, patch: Patch): CommitResult {

@@ -4,6 +4,8 @@ import { PeoplePanels, type PeopleSend } from '../src/ui/people.ts'
 import { locale } from '../src/ui/common.ts'
 
 vi.mock('phaser', () => ({ default: { Scene: class {} } }))
+// Keep real stack rendering; shared window chrome and focus are covered by browser tests.
+vi.mock('../src/ui/components/index.ts', () => ({ mountWindow: (surface: HTMLElement) => surface }))
 
 class PanelElement {
   innerHTML = ''

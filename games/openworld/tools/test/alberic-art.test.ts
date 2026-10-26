@@ -1,14 +1,17 @@
 // the game handed to the runtime first, as its pages do (client/src/register.ts)
 import '../../client/src/register.ts'
-import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { inflateSync } from 'node:zlib'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Dir, EntitySnap } from '@openworld/engine'
-import { SIN_ACTORS, SIN_FX } from '@openworld/runtime/src/assets/bosses.ts'
+import { ALBERIC_CLIPS, ALBERIC_DELIVERY, SIN_ACTORS, SIN_FX } from '@openworld/runtime/src/assets/bosses.ts'
 import { bossAnimationFrame } from '@openworld/runtime/src/render/boss-animation.ts'
+import { actorFrames, imagePaths } from '@openworld/runtime/src/render/assets.ts'
+import { CATALOG } from '../../client/src/catalog.ts'
 
-// Decode actual pixels, not just PNG headers: reject opaque backgrounds, duplicates and clipping.
+vi.mock('phaser', () => ({ default: {} }))
+
+// Decode actual pixels, not just PNG headers: verify transparency and the exact recovery-to-idle pose.
 function decode(path: string) {
   const bytes = readFileSync(new URL(`../../public/assets/${path}`, import.meta.url))
   expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
@@ -38,72 +41,106 @@ function decode(path: string) {
 const snap = (action: NonNullable<EntitySnap['boss']>['action'], progress = 0, skill = 'arrow'): NonNullable<EntitySnap['boss']> =>
   ({ kit: 'alberic', phase: 1, color: 0xf2ead2, footprint: [3, 2], enrageAt: 0.5, action, progress, skill })
 
-describe('Alberic overhead art', () => {
-  it('ships 672 distinct transparent body frames and 18 distinct effect frames with clean borders', () => {
+function frame(sheet: ReturnType<typeof decode>, col: number, width: number, height: number): Buffer {
+  const pixels = Buffer.alloc(width * height * 4)
+  for (let y = 0; y < height; y++) {
+    const from = (y * sheet.w + col * width) * 4
+    sheet.pixels.copy(pixels, y * width * 4, from, from + width * 4)
+  }
+  return pixels
+}
+
+describe('Alberic delivered pixel art', () => {
+  it('preloads every directional strip and slices all frames without cropping their raised sword space', () => {
+    const actor = SIN_ACTORS['boss:sin:alberic']!, key = 'cre:boss:sin:alberic'
+    const paths = imagePaths(CATALOG)
+    const sheets = new Map(Object.values(ALBERIC_CLIPS).map((clip) => {
+      const path = `${actor.dir}/${clip.sheet}`, decoded = decode(path)
+      expect(paths.filter((p) => p === path)).toHaveLength(1)
+      const frames = new Map<string, number[]>()
+      const texture = {
+        getSourceImage: () => ({ width: decoded.w, height: decoded.h }),
+        has: (name: string) => frames.has(name),
+        add: vi.fn((name: string, source: number, x: number, y: number, w: number, h: number) => {
+          expect(source).toBe(0)
+          expect(x + w).toBeLessThanOrEqual(decoded.w)
+          expect(y + h).toBeLessThanOrEqual(decoded.h)
+          frames.set(name, [x, y, w, h])
+        }),
+      }
+      return [path, { texture, frames }] as const
+    }))
+    const scene = { textures: { get: (path: string) => {
+      const sheet = sheets.get(path)
+      if (!sheet) throw new Error(`Unloaded actor sheet: ${path}`)
+      return sheet.texture
+    } } } as unknown as Parameters<typeof actorFrames>[0]
+    expect(actorFrames(scene, key, actor)).toEqual({ img: `${actor.dir}/idle.png`, fw: 60, fh: 76 })
+    for (const [id, clip] of Object.entries(ALBERIC_CLIPS)) {
+      const { frames } = sheets.get(`${actor.dir}/${clip.sheet}`)!
+      for (let i = 0; i < clip.frames; i++)
+        expect(frames.get(`${key}:${id}:${i}`)).toEqual([i * clip.frame_w, 0, clip.frame_w, clip.frame_h])
+      expect(frames.has(`${key}:${id}:${clip.frames}`)).toBe(false)
+    }
+    const calls = [...sheets.values()].map(({ texture }) => texture.add.mock.calls.length)
+    actorFrames(scene, key, actor)
+    expect([...sheets.values()].map(({ texture }) => texture.add.mock.calls.length)).toEqual(calls)
+  })
+
+  it('registers the original rectangular sheets, exact foot pivot and integer world scale', () => {
     const actor = SIN_ACTORS['boss:sin:alberic']!
-    expect(actor).toMatchObject({ dir: 'lsw/Bosses/alberic/v5', cols: 32, rows: 21, anchorY: 88 })
-    const assets = [{ path: `${actor.dir}/${actor.sheet}`, size: 128, cols: 32, rows: 21 },
-      ...['arrow', 'volley', 'thorns'].map((id) => {
-        const fx = SIN_FX[`sin:alberic:${id}`]!
-        expect(fx.frames).toBe(6)
-        return { path: fx.img, size: fx.fw, cols: fx.frames, rows: 1 }
-      })]
-    const hashes: string[] = []
-    for (const { path, size, cols, rows } of assets) {
-      const { w, h, pixels } = decode(path)
-      expect([w, h], path).toEqual([size * cols, size * rows])
-      for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) {
-        const frame = Buffer.alloc(size * size * 4), name = `${path} ${col},${row}`
-        for (let y = 0; y < size; y++) {
-          const from = ((row * size + y) * w + col * size) * 4
-          pixels.copy(frame, y * size * 4, from, from + size * 4)
-        }
-        const alpha = frame.filter((_, i) => i % 4 === 3)
-        expect(alpha.filter((v) => v === 0).length, name).toBeGreaterThan(size * size / 4)
-        expect(alpha.filter((v) => v > 32).length, name).toBeGreaterThan(12)
-        for (let k = 0; k < size; k++) for (const i of [k, (size - 1) * size + k, k * size, k * size + size - 1])
-          expect(alpha[i], `${name} edge ${i}`).toBeLessThan(16)
-        hashes.push(createHash('sha256').update(frame).digest('hex'))
+    expect(actor).toMatchObject({ dir: 'lsw/Bosses/alberic/boss01_01', sheet: 'idle.png', cols: 8, rows: 1,
+      anchorX: 30.5, anchorY: 72, scale: 2 })
+    expect(ALBERIC_DELIVERY.canvas).toEqual([60, 76])
+    expect(ALBERIC_DELIVERY.anchor).toEqual([30, 71])
+    let count = 0
+    for (const [id, clip] of Object.entries(ALBERIC_CLIPS)) {
+      expect(actor.clips![id]).toEqual({ sheet: clip.sheet, frames: clip.frames,
+        frameWidth: clip.frame_w, frameHeight: clip.frame_h, frameMs: clip.frame_ms, loop: clip.loop })
+      const sheet = decode(`${actor.dir}/${clip.sheet}`)
+      expect([sheet.w, sheet.h]).toEqual([clip.frame_w * clip.frames, clip.frame_h])
+      for (let col = 0; col < clip.frames; col++) {
+        const pixels = frame(sheet, col, clip.frame_w, clip.frame_h)
+        const alpha = pixels.filter((_, i) => i % 4 === 3)
+        expect(new Set(alpha)).toEqual(new Set([0, 255]))
+        expect(alpha.filter((v) => v === 0).length).toBeGreaterThan(clip.frame_w * clip.frame_h / 4)
+        expect(alpha.filter((v) => v === 255).length).toBeGreaterThan(100)
+        count++
       }
     }
-    expect(hashes).toHaveLength(690)
-    expect(new Set(hashes).size).toBe(690)
-  })
-
-  it.each<Dir>(['down', 'right', 'up', 'left'])('selects all seven actions for %s without rotating the sprite', (dir) => {
-    const base = dir === 'down' ? 0 : dir === 'up' ? 14 : 7
-    for (const [action, skill, row] of [
-      ['idle', 'arrow', 0], ['walk', 'arrow', 1], ['attack', 'thorns', 2],
-      ['cast', 'arrow', 3], ['cast', 'volley', 4], ['hurt', 'arrow', 5], ['death', 'arrow', 6],
-    ] as const) {
-      expect(bossAnimationFrame(snap(action, 0, skill), 0, 0, dir)).toEqual({ row: base + row, col: 0 })
+    expect(count).toBe(38)
+    // Existing spell effects retain their own dimensions and six-frame playback.
+    for (const id of ['arrow', 'volley', 'thorns']) {
+      const fx = SIN_FX[`sin:alberic:${id}`]!, sheet = decode(fx.img)
+      expect(fx.frames).toBe(6)
+      expect([sheet.w, sheet.h]).toEqual([fx.fw * fx.frames, fx.fh])
     }
   })
 
-  it('keeps idle and walk registration steady across source sheet row boundaries', () => {
-    const { w, pixels } = decode('lsw/Bosses/alberic/v5/actions.png')
-    for (const row of [0, 1, 7, 8, 14, 15]) {
-      const baselines: number[] = [], centers: number[] = []
-      for (let col = 0; col < 32; col++) {
-        const rows = Array<number>(128).fill(0)
-        let mass = 0, xMass = 0
-        for (let y = 0; y < 128; y++) for (let x = 0; x < 128; x++) {
-          const alpha = pixels[((row * 128 + y) * w + col * 128 + x) * 4 + 3]!
-          rows[y] += alpha; mass += alpha; xMass += x * alpha
-        }
-        let sum = 0
-        baselines.push(rows.findIndex((weight) => (sum += weight) >= mass * 0.9))
-        centers.push(xMass / mass)
-      }
-      expect(Math.max(...baselines) - Math.min(...baselines), `row ${row} vertical registration`).toBeLessThanOrEqual(8)
-      expect(Math.max(...centers) - Math.min(...centers), `row ${row} horizontal registration`).toBeLessThanOrEqual(6)
+  it('ends every directional attack on the unmirrored idle pose with no registration jump', () => {
+    const actor = SIN_ACTORS['boss:sin:alberic']!, idle = ALBERIC_CLIPS.idle
+    const rest = frame(decode(`${actor.dir}/${idle.sheet}`), 0, idle.frame_w, idle.frame_h)
+    for (const id of ['attack_left', 'attack_right', 'attack_down'] as const) {
+      const clip = ALBERIC_CLIPS[id], sheet = decode(`${actor.dir}/${clip.sheet}`)
+      expect(frame(sheet, clip.segments.recover[0]!, clip.frame_w, clip.frame_h)).toEqual(rest)
     }
   })
 
-  it('separates drawn-bow frames from release/recovery and clamps death instead of looping it', () => {
-    for (const [progress, col] of [[0, 0], [0.249, 6], [0.25, 9], [0.499, 15], [0.5, 16], [0.749, 22], [0.75, 25], [1, 31], [4, 31]])
-      expect(bossAnimationFrame(snap('cast', progress), 0)).toEqual({ row: 3, col })
-    expect(bossAnimationFrame(snap('death', 1), 80000)).toEqual({ row: 6, col: 31 })
+  it.each<Dir>(['down', 'right', 'up', 'left'])('uses delivered direction %s with explicit non-mirroring and front fallback', (dir) => {
+    const clip = dir === 'left' ? 'attack_left' : dir === 'right' ? 'attack_right' : 'attack_down'
+    for (const action of ['attack', 'cast'] as const) {
+      expect(bossAnimationFrame(snap(action), 0, 0, dir)).toEqual({ row: 0, col: 0, clip, flipX: false })
+      expect(bossAnimationFrame({ ...snap(action, 1), animationElapsedMs: 9999 }, 0, 0, dir))
+        .toEqual({ row: 0, col: 9, clip, flipX: false })
+    }
+    for (const action of ['idle', 'walk', 'hurt', 'death'] as const)
+      expect(bossAnimationFrame(snap(action), 0, 0, dir)).toEqual({ row: 0, col: 0, clip: 'idle', flipX: false })
+  })
+
+  it('separates anticipation from the hit and clamps malformed progress or absent clips', () => {
+    for (const [progress, col] of [[0, 0], [0.249, 2], [0.25, 2], [0.499, 4], [0.5, 5], [0.749, 7], [0.75, 7], [1, 9], [4, 9]])
+      expect(bossAnimationFrame(snap('cast', progress), 0)).toEqual({ row: 0, col, clip: 'attack_down', flipX: false })
+    expect(bossAnimationFrame(snap('death', 1), 80000)).toEqual({ row: 0, col: 0, clip: 'idle', flipX: false })
     expect(bossAnimationFrame(snap('hurt', NaN), 0).col).toBe(0)
     expect(bossAnimationFrame(snap('cast', -1), 0).col).toBe(0)
   })
@@ -113,36 +150,5 @@ describe('Alberic overhead art', () => {
     expect(bossAnimationFrame(legacy, 0, 0, 'up')).toEqual({ row: 4, col: 2 })
     expect(bossAnimationFrame({ ...legacy, progress: 1 }, 0)).toEqual({ row: 4, col: 3 })
     expect(bossAnimationFrame({ ...legacy, action: 'cast' }, 0)).toEqual({ row: 3, col: 2 })
-  })
-
-  it('records the overhead camera, directions and real per-action generation prompts', () => {
-    const manifest = JSON.parse(readFileSync(new URL('../../../../docs/alberic-art-v3-prompts.json', import.meta.url), 'utf8'))
-    expect(manifest.generator).toBe('built-in imagegen')
-    expect(manifest.bodyPrompt).toContain('HIGH OVERHEAD')
-    expect(manifest.export.directions).toEqual(['down', 'right', 'up'])
-    expect(manifest.assets.filter((a: { kind: string }) => a.kind === 'body')).toHaveLength(7)
-    expect(manifest.export.bodyRows * manifest.export.bodyColumns).toBe(84)
-    const dense = JSON.parse(readFileSync(new URL('../../../../docs/alberic-art-v4-prompts.json', import.meta.url), 'utf8'))
-    expect(dense.generator).toBe('built-in imagegen')
-    expect(dense.export.bodyRows * dense.export.bodyColumns).toBe(252)
-    expect(dense.assets).toHaveLength(7)
-    expect(dense.assets.every((a: { frames: number }) => a.frames === 36)).toBe(true)
-    expect(dense.singleDirectionPrompt).toContain('HIGH OVERHEAD')
-    const smooth = JSON.parse(readFileSync(new URL('../../../../docs/alberic-art-v5-prompts.json', import.meta.url), 'utf8'))
-    expect(smooth.generator).toBe('built-in imagegen')
-    expect(smooth.export.bodyRows * smooth.export.bodyColumns).toBe(672)
-    expect(smooth.bodyPrompt).toContain('HIGH OVERHEAD')
-    expect(smooth.assets).toHaveLength(7)
-    for (const action of smooth.assets) {
-      expect(action.frames).toBe(96)
-      expect(action.sheets).toHaveLength(3)
-      for (const sheet of action.sheets) {
-        expect(sheet.columns * sheet.rows).toBe(32)
-        expect(sheet.frames).toBe(32)
-        expect(sheet.prompt).toContain('32 genuinely different successive poses')
-        expect(sheet.prompt).not.toContain('undefined')
-        expect(sheet.references).toHaveLength(2)
-      }
-    }
   })
 })

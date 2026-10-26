@@ -30,6 +30,9 @@ if (cmd === 'create') {
   cpSync(join(containers[id].image, path), to, { recursive: true })
 } else if (cmd === 'rm') {
   // nothing to stop
+} else if (cmd === 'pause' || cmd === 'unpause') {
+  containers[rest[0]].paused = cmd === 'pause'
+  save()
 } else if (cmd === 'run') {
   const mounts = []
   let wd = '/'
@@ -61,6 +64,10 @@ if (cmd === 'create') {
     else break
   }
   const c = containers[rest[i]]
+  if (c.paused) {
+    console.error(`Error response from daemon: container ${rest[i]} is paused, unpause the container before exec`)
+    process.exit(1)
+  }
   const script = rest.at(-1) // … timeout <secs> bash -lc <script>
   // the container's paths, longest first: a mounted file (the hook node) as a quoted path, a directory as a prefix
   const isFile = (p) => {
