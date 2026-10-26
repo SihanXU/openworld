@@ -9,9 +9,9 @@
 //
 //   serve   the page, and the results it sends written one file a participant (POST /submit)
 //
-//   npx tsx games/openworld/tools/src/eval/study.ts build [--lists 12] [--out var/eval/study]
-//   npx tsx games/openworld/tools/src/eval/study.ts serve <results dir> [--port 8080] [--out var/eval/study]
-//   npx tsx games/openworld/tools/src/eval/study.ts score <results dir> [--out var/eval/study]
+//   npx tsx games/openworld/ai/src/eval/study.ts build [--lists 12] [--out var/eval/study]
+//   npx tsx games/openworld/ai/src/eval/study.ts serve <results dir> [--port 8080] [--out var/eval/study]
+//   npx tsx games/openworld/ai/src/eval/study.ts score <results dir> [--out var/eval/study]
 //
 // A list rates half the situations, each in one condition, and chooses between two conditions on a quarter of the
 // others; across the lists every condition of every situation is rated and every pair chosen. The page takes
@@ -32,12 +32,13 @@ import { CATALOG } from '../../../wiki/src/bundle.ts'
 import { decodePng, encodePng } from '../../../wiki/src/png.ts'
 import { trueskill, type Choice } from './trueskill.ts'
 import type { Cell } from '../../../tools/src/coverage.ts'
+import { flags } from '../cli.ts'
 
 const argv = process.argv.slice(2)
-const opt = (k: string, d: string) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : d)
+const opt = flags(argv)
 const CONTROLLED = 'var/eval/controlled'
 const ASSETS = fileURLToPath(new URL('../../../public/assets/', import.meta.url))
-const OUT = opt('out', 'var/eval/study')
+const OUT = opt('out', 'var/eval/study')!
 const read = <T,>(f: string): T => JSON.parse(readFileSync(join(CONTROLLED, f), 'utf8'))
 
 interface Item { id: string; set: 'heldout' | 'undefined'; cell: Cell; heldOut?: string }

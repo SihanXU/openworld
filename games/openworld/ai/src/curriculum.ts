@@ -20,10 +20,10 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ModPort, Rng, buildSandbox, type ModRequest, type Ontology, type RuleLibrary, type Scenario } from '@openworld/engine'
 import { GAME, buildOntology } from '@openworld-game/content'
-import { improve, runAgent, type TaskSource } from '@openworld/ai'
-import { openModder, type Modder } from '@openworld/ai'
+import { improve, openModder, runAgent, type Modder, type TaskSource } from '@openworld/ai'
 import { FRONT, ORIGIN, sweep, targets, type Cell } from '../../tools/src/coverage.ts'
-import { engineSource, engineTask, engineTaskDefs } from './engine-tasks.ts'
+import { flags } from './cli.ts'
+import { engineSource, engineTask, engineTaskDefs, type WorkspaceTask } from './engine-tasks.ts'
 import { historyDefs, historySource, historyTask } from './ladder.ts'
 import { pickByHole, pickWeighted, scopedTotals, worldScope, type Scope } from '../../tools/src/scope.ts'
 
@@ -110,7 +110,7 @@ export function checkpoint(modder: Modder, scope: Scope | undefined, scopeName: 
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2)
-  const flag = (k: string, d?: string) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : d)
+  const flag = flags(argv)
   // positional [count] [seed] still work
   const n = Number(flag('n', /^\d+$/.test(argv[0] ?? '') ? argv[0] : '20'))
   const seed = Number(flag('seed', /^\d+$/.test(argv[1] ?? '') ? argv[1] : '1'))
@@ -127,7 +127,8 @@ async function main(): Promise<void> {
   const byHole = flag('by') === 'hole'
   const data = flag('data')
   const modder = openModder({ game: GAME, log: (l) => console.log(`  ${l}`), ...(data ? { data } : {}) })
-  if (!modder.model) {
+  const model = modder.model
+  if (!model) {
     console.error('no model configured: set LSW_MODEL_KEY + LSW_MODEL (e.g. in .env), or LSW_MODEL_SCRIPT')
     process.exit(1)
   }
@@ -142,10 +143,21 @@ async function main(): Promise<void> {
   const runFile = join(runs, `${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`)
   let undefinedNow = before.totals.undefined
   const sources: TaskSource[] = [modder.taskSource(), ...(withEngine ? [engineSource()] : []), ...(withLadder ? [historySource()] : [])]
-  console.log(`${scope ? `${scopedTotals(before.cells, scope).undefined} undefined in ${scopeName}` : `${open.length} undefined`}; taking ${cells.length} (seed ${seed}) with ${modder.model.name}`)
+  const openNow = scope ? `${scopedTotals(before.cells, scope).undefined} undefined in ${scopeName}` : `${open.length} undefined`
+  console.log(`${openNow}; taking ${cells.length} (seed ${seed}) with ${model.name}`)
   let since = state.episodes().length
   if (every) checkpoint(modder, scope, scopeName, since, `ckpt-${state.episodes().length}-start-${Date.now().toString(36)}`)
   const counts: Record<string, number> = {}
+  // an engine or ladder task, where a container can run it
+  const work = async (kind: string, t: WorkspaceTask | undefined, more = '') => {
+    if (!t) return console.log(`  ${kind} task skipped: no container here, and an unattended agent does not run its code on this machine`)
+    try {
+      const r = await runAgent(t.task, { model, state, log: (l) => console.log(`  ${l}`) })
+      console.log(`  ${kind} ${t.task.id}${more}: ${r.outcome}`)
+    } finally {
+      await t.dispose()
+    }
+  }
   for (const [i, cell] of cells.entries()) {
     if (budget && state.stats().spend >= budget) {
       console.log(`budget of $${budget} reached ($${state.stats().spend.toFixed(2)}): stopping`)
@@ -186,36 +198,21 @@ async function main(): Promise<void> {
     }
     appendFileSync(runFile, JSON.stringify(row) + '\n')
     console.log(`${label}: ${reply.outcome}${reply.diagnostics?.length ? ` (${reply.diagnostics[0].slice(0, 200)})` : ''} · ${(row.ms / 1000).toFixed(1)} s · answers ${answered} cell(s) · ${undefinedNow} undefined`)
+    const done = i + 1
     // stage 2: an engine task now and then (the world's own code, as an SWE task)
-    if (withEngine && (i + 1) % 5 === 0) {
+    if (withEngine && done % 5 === 0) {
       const defs = engineTaskDefs()
-      const t = await engineTask(defs[Math.floor((i + 1) / 5 - 1) % defs.length])
-      if (!t) console.log('  engine task skipped: no container here, and an unattended agent does not run its code on this machine')
-      else
-        try {
-          const r = await runAgent(t.task, { model: modder.model, state, log: (l) => console.log(`  ${l}`) })
-          console.log(`  engine ${t.task.id}: ${r.outcome}`)
-        } finally {
-          await t.dispose()
-        }
+      await work('engine', await engineTask(defs[Math.floor(done / 5 - 1) % defs.length]))
     }
     // and a ladder task every other step, one rung after another
-    if (ladder.length && (i + 1) % 2 === 0) {
-      const def = ladder[Math.floor((i + 1) / 2 - 1) % ladder.length]
-      const t = await historyTask(def)
-      if (!t) console.log('  ladder task skipped: no container here, and an unattended agent does not run its code on this machine')
-      else
-        try {
-          const r = await runAgent(t.task, { model: modder.model, state, log: (l) => console.log(`  ${l}`) })
-          console.log(`  ladder ${def.id} (${def.rung}): ${r.outcome}`)
-        } finally {
-          await t.dispose()
-        }
+    if (ladder.length && done % 2 === 0) {
+      const def = ladder[Math.floor(done / 2 - 1) % ladder.length]
+      await work('ladder', await historyTask(def), ` (${def.rung})`)
     }
-    const done = i + 1
     if (improveEvery && done % improveEvery === 0) {
       await modder.settled()
-      const r = await improve({ model: modder.model, state, sources, select: Number(flag('select', '8')), confirm: Number(flag('confirm', '8')), log: (l) => console.log(`  ${l}`) })
+      const select = Number(flag('select', '8'))
+      const r = await improve({ model, state, sources, select, confirm: Number(flag('confirm', '8')), log: (l) => console.log(`  ${l}`) })
       console.log(`  outer loop: ${r.proposal.kind} ${r.accepted ? 'KEPT' : 'rejected'} — ${r.reason}`)
     }
     if (every && done % every === 0) {
@@ -227,8 +224,9 @@ async function main(): Promise<void> {
   }
   await modder.settled()
   const after = sweep(library.fullOntology(), [...library.lib.rules.values()])
+  const undefinedIn = (cov: typeof after) => (scope ? scopedTotals(cov.cells, scope).undefined : cov.totals.undefined)
   console.log('\noutcomes', counts)
-  console.log(`undefined interactions${scope ? ` in ${scopeName}` : ''}: ${scope ? scopedTotals(before.cells, scope).undefined : before.totals.undefined} → ${scope ? scopedTotals(after.cells, scope).undefined : after.totals.undefined}`)
+  console.log(`undefined interactions${scope ? ` in ${scopeName}` : ''}: ${undefinedIn(before)} → ${undefinedIn(after)}`)
   console.log('self-state', state.stats())
   console.log(`steps: ${runFile}`)
 }

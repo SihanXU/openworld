@@ -8,22 +8,18 @@
 //   npm run eval:affordance               # the whole set
 //   npm run eval:affordance -- chair      # the cases whose name contains it
 
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { AGAIN_AFTER, textOf, type Engine, type Patch, type Rule } from '@openworld/engine'
-import { GAME } from '@openworld-game/content'
-import { modelFromEnv, openModder, type WorldEpisode } from '@openworld/ai'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { AGAIN_AFTER, textOf, type Engine } from '@openworld/engine'
+import { REPO, modelFromEnv } from '@openworld/ai'
 import { AFFORDANCE_CASES, askCase } from './eval/affordanceSet.ts'
+import { sleep } from './cli.ts'
+import { answering, episodesOf, follow, liveModder, rulesOf } from './live.ts'
 
-const REPO = resolve(fileURLToPath(new URL('../../../..', import.meta.url)))
-openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null }) // loads .env
 const model = modelFromEnv()
 if (!model) throw new Error('no model: set LSW_MODEL_BACKEND (claude-code, anthropic) or the OpenRouter key')
 const filter = process.argv[2]
 const cases = AFFORDANCE_CASES.filter((c) => !filter || c.name.includes(filter))
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** What the scene's things are: their type, statuses, numbers and cell, and how many things there are. */
 function stateOf(eng: Engine): string {
@@ -48,37 +44,16 @@ interface Result {
 }
 const results: Result[] = []
 for (const c of cases) {
-  const modder = openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-afford-')), model })
-  const { state } = modder.opts
-  const h = state.harness()
-  state.setHarness({ ...h, review: { ...h.review, enabled: false }, reflect: { ...h.reflect, enabled: false }, escalate: false }, 'eval: affordance')
+  const modder = liveModder(model, 'lsw-afford-', 'eval: affordance')
   const t0 = Date.now()
-  const patches: Patch[] = []
-  const episodes: string[] = []
-  // the act raises its question as the game raises it; the port waits for the model, not the clock
+  // the act raises its question as the game raises it
   const { eng, port } = askCase(c)
   const before = stateOf(eng)
-  port.timeoutTicks = 1e9
-  port.provider = {
-    resolve: async (req) => {
-      const reply = await modder.resolve({ request: req }, 'live')
-      if (reply.episode) episodes.push(reply.episode)
-      if (reply.patch) patches.push(reply.patch)
-      return reply.patch
-    },
-  }
+  const { patches, episodes } = answering(port, modder)
   for (const r of port.records) port['ask'](r)
   console.log(`\n=== ${c.name} (${c.expect}${c.use ? `: ${c.use}` : ''})`)
-  while (Date.now() - t0 < 300_000) {
-    eng.tick()
-    if (!port.records.some((r) => r.status === 'pending' || r.awaiting)) break
-    if (port.records.length > 3) break
-    await sleep(200)
-  }
-  for (let i = 0; i < 10; i++) eng.tick()
-  /** The episodes so far, the asking again's too. */
-  const spent = () => episodes.map((id) => state.episode(id) as WorldEpisode | undefined).filter((e): e is WorldEpisode => !!e)
-  const rules = patches.flatMap((p) => p.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule as Rule] : [])))
+  await follow(eng, port, t0, 3, 10)
+  const rules = rulesOf(patches)
   const own = rules.find((r) => r.host?.type === c.target && r.on === 'impulse/handle')
   const changed = stateOf(eng) !== before
   const affords = own?.affords
@@ -98,10 +73,12 @@ for (const c of cases) {
       await sleep(200)
     }
     for (let i = 0; i < 10; i++) eng.tick()
-    const next = patches.slice(seen).flatMap((p) => p.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule as Rule] : []))).find((r) => r.host?.type === c.target && r.on === 'impulse/handle')
+    const next = rulesOf(patches.slice(seen)).find((r) => r.host?.type === c.target && r.on === 'impulse/handle')
     const moved = stateOf(eng) !== was
     again = { asked: !!next, affords: next?.affords, changed: moved, pass: !!next && (c.expect === 'use' ? next.affords === 'use' && moved : next.affords !== 'use' && !moved), rule: next && { id: next.id, doc: next.doc } }
   }
+  // the episodes so far, the asking again's too
+  const spent = episodesOf(modder, episodes)
   const said = [...eng.world.recent, ...eng.world.fx.flatMap((f) => (f.t === 'log' || f.t === 'say' ? [f.text] : []))].map((t) => textOf(t, 'en')).filter((t) => !/^You reach out|patch rejected/.test(t))
   const r: Result = {
     case: c.name,
@@ -113,8 +90,8 @@ for (const c of cases) {
     rules: rules.map((x) => ({ id: x.id, doc: x.doc, affords: x.affords })),
     again,
     holes: port.records.map((x) => `${x.request.event.host?.type.split('/').pop()} ${x.request.event.kind}: ${x.status}`).join('; '),
-    calls: spent().reduce((a, e) => a + e.usage.calls, 0),
-    cost: spent().reduce((a, e) => a + (e.usage.cost ?? 0), 0),
+    calls: spent.reduce((a, e) => a + e.usage.calls, 0),
+    cost: spent.reduce((a, e) => a + (e.usage.cost ?? 0), 0),
     s: (Date.now() - t0) / 1000,
   }
   results.push(r)

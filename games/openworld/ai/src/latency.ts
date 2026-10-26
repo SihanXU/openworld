@@ -17,12 +17,10 @@ import { changesNothing, modelFromEnv, openModder, type ChatOptions, type WorldE
 import { GAME } from '@openworld-game/content'
 import { sweep } from '../../tools/src/coverage.ts'
 import { cellRequest, pick } from './curriculum.ts'
+import { flags } from './cli.ts'
 
 function args(argv: string[]) {
-  const get = (k: string) => {
-    const i = argv.indexOf(`--${k}`)
-    return i < 0 ? undefined : argv[i + 1]
-  }
+  const get = flags(argv)
   return {
     model: get('model'),
     n: Number(get('n') ?? 5),
@@ -42,8 +40,7 @@ const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(
 
 async function main(): Promise<void> {
   const a = args(process.argv.slice(2))
-  // load .env (via open.ts), then build the model with this run's overrides
-  openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null })
+  // the model with this run's overrides (.env is loaded by @openworld/ai)
   const model = modelFromEnv({ ...process.env, ...(a.model ? { LSW_MODEL: a.model } : {}), ...(a.sort ? { LSW_MODEL_SORT: a.sort } : {}), ...(a.providers ? { LSW_MODEL_PROVIDERS: a.providers } : {}) })
   if (!model) throw new Error('no model: set LSW_MODEL_KEY (in .env) and --model')
   const modder = openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-latency-')), model })
