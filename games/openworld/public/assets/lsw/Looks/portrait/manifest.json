@@ -1476,7 +1476,7 @@
       "x": 292,
       "y": 48,
       "w": 192,
-      "h": 244,
+      "h": 243,
       "z": "hairBack",
       "zones": [
        "hair"
@@ -1518,7 +1518,7 @@
       "file": "hair.braid/man.hair",
       "x": 301,
       "y": 50,
-      "w": 168,
+      "w": 170,
       "h": 412,
       "z": "hair",
       "zones": [
@@ -1529,8 +1529,8 @@
       "file": "hair.braid/man.hairBack",
       "x": 300,
       "y": 51,
-      "w": 171,
-      "h": 245,
+      "w": 170,
+      "h": 184,
       "z": "hairBack",
       "zones": [
        "hair"
@@ -1542,9 +1542,9 @@
     "layers": [
      {
       "file": "hair.braid/woman.hair",
-      "x": 301,
+      "x": 297,
       "y": 47,
-      "w": 172,
+      "w": 177,
       "h": 474,
       "z": "hair",
       "zones": [
@@ -1553,10 +1553,10 @@
      },
      {
       "file": "hair.braid/woman.hairBack",
-      "x": 297,
+      "x": 326,
       "y": 47,
-      "w": 177,
-      "h": 252,
+      "w": 139,
+      "h": 196,
       "z": "hairBack",
       "zones": [
        "hair"
@@ -1572,7 +1572,7 @@
       "file": "hair.bun/man.hair",
       "x": 319,
       "y": 48,
-      "w": 144,
+      "w": 146,
       "h": 103,
       "z": "hair",
       "zones": [
@@ -1596,9 +1596,9 @@
     "layers": [
      {
       "file": "hair.bun/woman.hair",
-      "x": 311,
+      "x": 310,
       "y": 46,
-      "w": 157,
+      "w": 159,
       "h": 106,
       "z": "hair",
       "zones": [
@@ -1607,9 +1607,9 @@
      },
      {
       "file": "hair.bun/woman.hairBack",
-      "x": 310,
+      "x": 347,
       "y": 8,
-      "w": 159,
+      "w": 119,
       "h": 146,
       "z": "hairBack",
       "zones": [
@@ -1692,7 +1692,7 @@
       "x": 317,
       "y": 53,
       "w": 146,
-      "h": 95,
+      "h": 58,
       "z": "hairBack",
       "zones": [
        "hair"
@@ -1715,9 +1715,9 @@
      },
      {
       "file": "hair.cropped/woman.hairBack",
-      "x": 317,
+      "x": 320,
       "y": 63,
-      "w": 148,
+      "w": 145,
       "h": 91,
       "z": "hairBack",
       "zones": [
@@ -1868,7 +1868,7 @@
       "file": "hair.pigtails/girl.hair",
       "x": 296,
       "y": 454,
-      "w": 180,
+      "w": 181,
       "h": 180,
       "z": "hair",
       "zones": [
@@ -1908,7 +1908,7 @@
       "x": 308,
       "y": 14,
       "w": 173,
-      "h": 278,
+      "h": 242,
       "z": "hairBack",
       "zones": [
        "hair"
@@ -2004,7 +2004,7 @@
       "file": "hair.swept/man.hair",
       "x": 316,
       "y": 48,
-      "w": 147,
+      "w": 149,
       "h": 110,
       "z": "hair",
       "zones": [
@@ -2015,8 +2015,8 @@
       "file": "hair.swept/man.hairBack",
       "x": 315,
       "y": 46,
-      "w": 150,
-      "h": 108,
+      "w": 143,
+      "h": 98,
       "z": "hairBack",
       "zones": [
        "hair"
@@ -2070,7 +2070,7 @@
       "x": 314,
       "y": 49,
       "w": 150,
-      "h": 147,
+      "h": 105,
       "z": "hairBack",
       "zones": [
        "hair"
@@ -2110,9 +2110,9 @@
     "layers": [
      {
       "file": "hair.tied/woman.hair",
-      "x": 308,
+      "x": 307,
       "y": 46,
-      "w": 184,
+      "w": 185,
       "h": 383,
       "z": "hair",
       "zones": [
@@ -2121,9 +2121,9 @@
      },
      {
       "file": "hair.tied/woman.hairBack",
-      "x": 307,
+      "x": 308,
       "y": 46,
-      "w": 168,
+      "w": 167,
       "h": 254,
       "z": "hairBack",
       "zones": [
