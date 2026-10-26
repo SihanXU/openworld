@@ -13,7 +13,7 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync,
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DockerEnv, LocalEnv, SANDBOX_LIMITS, SelfState, applyPreset, chooseIsolation, hostUser, modelFromEnv, runAgent, sandboxImage, type AgentTask, type Env, type Isolation, type Preset, type TaskSource } from '@openworld/ai'
+import { DockerEnv, LocalEnv, SANDBOX_LIMITS, SelfState, applyPreset, chooseIsolation, hostUser, modelFromEnv, reflectAfter, runAgent, sandboxImage, type AgentTask, type Env, type Isolation, type Preset, type TaskSource } from '@openworld/ai'
 
 export const REPO = resolve(fileURLToPath(new URL('../../../..', import.meta.url)))
 const TASKS = join(REPO, 'games/openworld/ai/tasks/engine')
@@ -151,6 +151,7 @@ async function main(): Promise<void> {
   if (!t.task.env.isolated) console.log('warning: no container here — the commands and tests of the agent run on this machine')
   try {
     const r = await runAgent(t.task, { model, state, log: (l) => console.log(l) })
+    await reflectAfter(r.episode, { model, state })
     console.log(r.diff)
     console.log(`${def.id}: ${r.outcome} · ${r.episode.usage.calls} steps · ${(r.episode.ms / 1000).toFixed(0)} s · $${(r.episode.usage.cost ?? 0).toFixed(3)}${r.verdict ? `\n${r.verdict.output.slice(-800)}` : ''}`)
   } finally {

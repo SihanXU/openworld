@@ -409,3 +409,9 @@ export class Meter implements Model {
 export function noAnthropicHere(env: Record<string, string | undefined> = globalThis.process?.env ?? {}, what?: string): void {
   if (what && env.LSW_NO_ANTHROPIC === '1') throw new Error(`${what} is refused on this machine (LSW_NO_ANTHROPIC=1): no Anthropic model is called from here`)
 }
+
+/**
+ * A backend that cannot answer says so in its error: out of quota or throttling (claude-code's session
+ * limit, an HTTP 429, a provider's quota), or not signed in (an expired OAuth session, a 401/403, a bad key).
+ */
+export const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota|authenticat|oauth|unauthori[sz]ed|\b401\b|\b403\b|invalid.?api.?key|not logged in/i

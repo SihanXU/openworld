@@ -19,6 +19,8 @@ import {
   better,
   checkProposal,
   improve,
+  reflectAfter,
+  reflectAgent,
   inside,
   jsSearch,
   manifestOf,
@@ -186,6 +188,63 @@ describe('the agent loop', () => {
     expect(intro).toContain('Begin with a short plan')
     expect(blocked).toMatch(/BLOCK: the tests fail/)
     expect(r.outcome).toBe('accepted') // it fixed the code after the block, then submitted
+  })
+})
+
+describe('the middle loop, across kinds of task', () => {
+  /** The prompt each step of a task was given (the intro, where the lessons and skills are). */
+  const intros = (seen: string[]) => {
+    const base = engineer()
+    return new ScriptedModel((messages, opts) => (seen.push(messages[1].content), base.chat(messages, opts)))
+  }
+  const section = (intro: string, title: string) => intro.split(`# ${title}`)[1].split('\n#')[0]
+
+  it('keeps a general lesson for every kind of task, and a codebase\'s lesson for its own kind', { timeout: 30_000 }, async () => {
+    const state = freshState()
+    const r = await runAgent(task(bugRepo(), { kind: 'world-repo' }), { model: engineer(), state })
+    const reflection = { lessons: { add: [{ text: 'Run the whole test suite before submitting, not only the test you changed.', general: true }, { text: 'A rule writes only its host.', terms: ['kind:act/use'] }] }, skill: null }
+    await reflectAgent(r.episode, { model: new ScriptedModel(() => reflection), state })
+    expect(state.lessons().map((l) => l.terms)).toEqual([[], ['kind:act/use']])
+    const seen: string[] = []
+    await runAgent(task(bugRepo(), { kind: 'swe' }), { model: intros(seen), state, record: false })
+    const shown = section(seen[0], 'Lessons from your past work')
+    expect(shown).toContain('Run the whole test suite')
+    expect(shown).not.toContain('writes only its host')
+  })
+
+  it('lists a task the skills its terms call for, and the general ones', { timeout: 30_000 }, async () => {
+    const state = freshState()
+    state.writeSkill({ name: 'item-on-ground', description: 'a portable item used on a ground tile', triggers: ['kind:act/use', 'target#ground'], body: '1. lay it down' }, 'E1')
+    state.writeSkill({ name: 'bisect-a-failure', description: 'narrow a failing test to the change that broke it', triggers: [], body: '1. git bisect' }, 'E2')
+    const seen: string[] = []
+    await runAgent(task(bugRepo(), { kind: 'swe' }), { model: intros(seen), state, record: false })
+    const listed = section(seen[0], 'Your skills (read_skill)')
+    expect(listed).toContain('bisect-a-failure')
+    expect(listed).not.toContain('item-on-ground')
+    const world: string[] = []
+    await runAgent(task(bugRepo(), { kind: 'world-repo', terms: ['kind:act/use', 'target#ground'] }), { model: intros(world), state, record: false })
+    expect(section(world[0], 'Your skills (read_skill)')).toContain('item-on-ground')
+    expect(state.relevantSkills(['kind:swe']).map((s) => s.name)).toEqual(['bisect-a-failure'])
+  })
+
+  it('writes a general skill with no triggers', async () => {
+    const state = freshState()
+    for (let i = 0; i < 4; i++) state.recordEpisode({ ...(await runAgent(task(bugRepo()), { model: engineer(), state, record: false })).episode, id: `E${i}` })
+    const ep = state.episode('E3')!
+    await reflectAgent(ep, { model: new ScriptedModel(() => ({ lessons: {}, skill: { name: 'read-then-edit', description: 'read a file before editing it', general: true, body: '1. read 2. edit' } })), state })
+    expect(state.skill('read-then-edit')?.triggers).toEqual([])
+  })
+
+  it('reflects after a recorded task, unless the backend failed it', async () => {
+    const state = freshState()
+    let asked = 0
+    const model = new ScriptedModel(() => (asked++, { lessons: { add: [{ text: 'Read the failing assertion first.', general: true }] }, skill: null }))
+    const r = await runAgent(task(bugRepo()), { model: engineer(), state })
+    await reflectAfter({ ...r.episode, outcome: 'failed', error: 'HTTP 429: rate limit' }, { model, state })
+    expect(asked).toBe(0)
+    await reflectAfter(r.episode, { model, state })
+    expect(asked).toBe(1)
+    expect(state.lessons().map((l) => l.text)).toEqual(['Read the failing assertion first.'])
   })
 })
 

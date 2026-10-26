@@ -126,11 +126,18 @@ outer   evidence → one proposal → replay base vs candidate → keep or rejec
 
 ### 4.1 Middle: reflection
 
-After every task, the model reads the episode: test runs, failures, tools used, its lessons
-and skills, and similar past tasks. It may then:
+After every recorded task (a world task, an engine task, a task from the history, an upstream
+proposal; `reflectAfter`, not after a failure that is the backend's), the model reads the episode:
+test runs, failures, tools used, its lessons and skills, and similar past tasks. It may then:
 - add, support, revise or drop lessons (each cites its episodes);
-- write or revise a skill with scripts — only once that kind of work has recurred, or to
+- write or revise a skill with scripts, only once that kind of work has recurred, or to
   improve a skill it used.
+
+A lesson or a skill is either the codebase's, kept under the terms it applies to (a world lesson
+under `kind:act/use`, `host#flammable`), or **general** (`"general": true`): engineering in any
+repository, with no terms, shown on every task. Only general ones reach a task of another kind, an
+SWE instance above all: a task is shown the lessons whose terms it has and the general ones, and
+listed the skills whose triggers it has and the general ones.
 
 Skills are booked against outcomes and retired when they keep doing worse than average.
 

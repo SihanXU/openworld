@@ -460,7 +460,7 @@ export class SelfState {
 
   /** Apply a reflection: new lessons, revised ones, dropped ones; each change cites the episode. */
   /** `episode`: the episode the reflection was on, or the episodes of a batch (each is cited). */
-  applyLessons(ops: { add?: { text: string; terms?: string[] }[]; revise?: { id: string; text: string }[]; drop?: string[]; support?: string[] }, episode: string | string[], defaultTerms: string[]): string[] {
+  applyLessons(ops: { add?: { text: string; terms?: string[]; general?: boolean }[]; revise?: { id: string; text: string }[]; drop?: string[]; support?: string[] }, episode: string | string[], defaultTerms: string[]): string[] {
     const now = this.now()
     const touched: string[] = []
     const eps = Array.isArray(episode) ? episode : [episode]
@@ -473,7 +473,8 @@ export class SelfState {
       const text = String(a?.text ?? '').trim()
       if (!text || this.lessonList.some((l) => l.status === 'active' && l.text === text)) continue
       const id = `L${this.lessonList.length + 1}`
-      const terms = Array.isArray(a.terms) && a.terms.length ? a.terms.map(String) : defaultTerms
+      // a general lesson (engineering anywhere, not this codebase) has no terms: every task is shown it
+      const terms = a.general === true ? [] : Array.isArray(a.terms) && a.terms.length ? a.terms.map(String) : defaultTerms
       this.lessonList.push({ id, text, terms, episodes: [...eps], status: 'active', created: now, updated: now })
       touched.push(id)
       this.note('lesson.add', { id, episode })
@@ -518,6 +519,12 @@ export class SelfState {
   skills(all = false): SkillMeta[] {
     if (this.ablated.has('skills')) return []
     return Object.values(this.skillIndex).filter((s) => all || s.status === 'active')
+  }
+
+  /** The active skills a task with these terms is shown: those whose triggers it has, and the general ones (no triggers). */
+  relevantSkills(terms: string[]): SkillMeta[] {
+    const set = new Set(terms)
+    return this.skills().filter((s) => !s.triggers?.length || s.triggers.some((t) => set.has(t)))
   }
 
   skill(name: string): SkillMeta | undefined {

@@ -20,7 +20,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ModPort, Rng, buildSandbox, type ModRequest, type Ontology, type RuleLibrary, type Scenario } from '@openworld/engine'
 import { GAME, buildOntology } from '@openworld-game/content'
-import { improve, runAgent, type TaskSource } from '@openworld/ai'
+import { improve, reflectAfter, runAgent, type AgentResult, type AgentTask, type Model, type SelfState, type TaskSource } from '@openworld/ai'
 import { openModder, type Modder } from '@openworld/ai'
 import { FRONT, ORIGIN, sweep, targets, type Cell } from '../../tools/src/coverage.ts'
 import { engineSource, engineTask, engineTaskDefs } from './engine-tasks.ts'
@@ -194,7 +194,7 @@ async function main(): Promise<void> {
       else if (!t) console.log('  engine task skipped: no container here, and an unattended agent does not run its code on this machine')
       else
         try {
-          const r = await runAgent(t.task, { model: modder.model, state, log: (l) => console.log(`  ${l}`) })
+          const r = await codeTask(t.task, { model: modder.model, state, log: (l) => console.log(`  ${l}`) })
           console.log(`  engine ${t.task.id}: ${r.outcome}`)
         } finally {
           await t.dispose()
@@ -207,7 +207,7 @@ async function main(): Promise<void> {
       if (!t) console.log('  ladder task skipped: no container here, and an unattended agent does not run its code on this machine')
       else
         try {
-          const r = await runAgent(t.task, { model: modder.model, state, log: (l) => console.log(`  ${l}`) })
+          const r = await codeTask(t.task, { model: modder.model, state, log: (l) => console.log(`  ${l}`) })
           console.log(`  ladder ${def.id} (${def.rung}): ${r.outcome}`)
         } finally {
           await t.dispose()
@@ -232,6 +232,16 @@ async function main(): Promise<void> {
   console.log(`undefined interactions${scope ? ` in ${scopeName}` : ''}: ${scope ? scopedTotals(before.cells, scope).undefined : before.totals.undefined} → ${scope ? scopedTotals(after.cells, scope).undefined : after.totals.undefined}`)
   console.log('self-state', state.stats())
   console.log(`steps: ${runFile}`)
+}
+
+/**
+ * A code task of the curriculum (the engine's, one from the history): worked and recorded, then reflected on as a
+ * world task is, so what it teaches reaches the lessons and skills (and, when general, every later task).
+ */
+export async function codeTask(task: AgentTask, o: { model: Model; state: SelfState; log?: (line: string) => void }): Promise<AgentResult> {
+  const r = await runAgent(task, { model: o.model, state: o.state, log: o.log })
+  await reflectAfter(r.episode, { model: o.model, state: o.state })
+  return r
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) await main()

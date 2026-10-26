@@ -16,7 +16,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { tmpdir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DockerEnv, LocalEnv, SANDBOX_LIMITS, SelfState, applyPreset, chooseIsolation, hostUser, modelFromEnv, runAgent, sandboxImage, type AgentTask, type Env, type Isolation, type Model, type Preset } from '@openworld/ai'
+import { DockerEnv, LocalEnv, SANDBOX_LIMITS, SelfState, applyPreset, chooseIsolation, hostUser, modelFromEnv, reflectAfter, runAgent, sandboxImage, type AgentTask, type Env, type Isolation, type Model, type Preset } from '@openworld/ai'
 import { PROMOTE, WorldLibrary, askedCounts, candidates, effectsOf, type Candidate } from '@openworld/ai'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { isA, placed, type Expectation, type Ontology, type Scenario } from '@openworld/engine'
@@ -601,6 +601,8 @@ export async function propose(c: Candidate, o: ProposeOptions): Promise<{ outcom
     }
     o.state.recordEpisode(ep)
     o.state.noteSkillUse(ep.skillsRead, ep.outcome, ep.id)
+    // a recorded task feeds the middle loop, as every other kind does
+    await reflectAfter(ep, { model: o.model, state: o.state })
     return { outcome: r.outcome, url, episode: ep.id, reason: r.verdict?.output.slice(-600) }
   } finally {
     await t.dispose()
