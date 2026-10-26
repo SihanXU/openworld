@@ -361,7 +361,11 @@ was cut).
     first free slot, the toolbar's first; with the bag full it stays on the ground. What the magnet
     pulls in never takes the selected slot while another is free (2026-10-20: the drops of a fight
     flew into the empty hand and the fist held them); a take (E) lands in the hand, as it means to.
-  - Equal items stack.
+  - Equal items stack: the same kind, name, tags, statuses and props of their own (whose a thing is aside), so
+    two letters with different words are two rows. A piece never stacks: a tool, a weapon, anything worn
+    (the tags `tool` and `weapon`, a `slot` prop) is one to a slot, in the bag and in a chest alike, each
+    with its own wear and affixes (`stacks.ts`, 2026-10-26: three axes were one row whatever each had
+    rolled). An older save's slot holding the key all of a kind's pieces once shared goes to the first of them.
   - In the menu: drag to move, right-click takes one, Shift+right-click takes half, Shift+click
     moves a stack between the toolbar and the rest of the bag, dragging an item out of the menu
     drops it, and a button organizes the bag.

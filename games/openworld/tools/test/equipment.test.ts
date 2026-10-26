@@ -35,17 +35,21 @@ describe('the body\'s ten slots', () => {
     expect(worn.head.type).toBe('item/armor/helmet')
   })
 
-  it('from the bag, a stack of two rings puts on the second when the first is already worn (never takes it off)', () => {
+  it('two rings are two bag slots; from the bag each goes on, and what is worn never comes off from there', () => {
     const { eng, w, p, give } = game()
     give('item/valuable/ring', 's1')
     give('item/valuable/ring', 's2')
     eng.controls.sync()
+    // a piece is one to a slot (stacks.ts): two rings, two slots
+    const slots = p.slots!.filter(Boolean)
+    expect(slots).toContain(eng.controls.key(w.get('s1')!))
+    expect(slots).toContain(eng.controls.key(w.get('s2')!))
     eng.controls.wear('s1', true)
     eng.tick()
-    eng.controls.wear('s1', true)
+    eng.controls.wear('s2', true)
     eng.tick()
     expect([w.prop(p, 'wear:ring'), w.prop(p, 'wear:ring.2')].sort()).toEqual(['s1', 's2'])
-    // and a third press from the bag, all worn: nothing comes off
+    // and a press from the bag on one worn: nothing comes off
     eng.controls.wear('s1', true)
     eng.tick()
     expect([w.prop(p, 'wear:ring'), w.prop(p, 'wear:ring.2')].sort()).toEqual(['s1', 's2'])

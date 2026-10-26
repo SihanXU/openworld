@@ -55,6 +55,9 @@ export class LocalModder {
   private probes?: ModRequest[]
   private saving?: ReturnType<typeof setTimeout>
   private ready: Promise<void>
+  /** The game handed over and the modder made over it: the engine's port waits for it (else its one probe hears no model). */
+  private gameIn: Promise<void>
+  private gameArrived!: () => void
 
   constructor(
     private io: {
@@ -64,6 +67,7 @@ export class LocalModder {
     },
   ) {
     this.ready = this.load()
+    this.gameIn = new Promise((resolve) => (this.gameArrived = resolve))
   }
 
   private async load(): Promise<void> {
@@ -83,9 +87,13 @@ export class LocalModder {
     await this.ready
     switch (m.t) {
       case 'game':
-        await this.openSelf()
-        this.library = new WorldLibrary(m.ontology, m.rules)
-        this.rebuild()
+        try {
+          await this.openSelf()
+          this.library = new WorldLibrary(m.ontology, m.rules)
+          this.rebuild()
+        } finally {
+          this.gameArrived()
+        }
         return
       case 'link':
         return this.link(m.port)
@@ -219,6 +227,8 @@ export class LocalModder {
 
   private async answer(c: LinkCall): Promise<unknown> {
     await this.ready
+    // the page hands the game over before any port (ownModel.start), but opening the self-state takes the database a while
+    await this.gameIn
     const modder = this.modder
     switch (c.op) {
       case 'health':
