@@ -42,7 +42,7 @@ const SELF = '/self'
 const KEEP_EPISODES = 300
 const SAVE_SELF_MS = 2000
 
-export const today = (d = new Date()): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const today = (d = new Date()): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const emptySpend = (day = today(), total = 0): Spend => ({ day, cost: 0, calls: 0, input: 0, output: 0, unpriced: 0, total })
 
 export class LocalModder {
@@ -105,7 +105,7 @@ export class LocalModder {
         return this.link(m.port)
       case 'set': {
         // a key kept for one service is never sent to another
-        const same = this.choice && this.choice.provider === m.choice.provider && (this.choice.baseUrl ?? '') === (m.choice.baseUrl ?? '')
+        const same = this.isChosen(m.choice)
         this.choice = { provider: m.choice.provider, model: m.choice.model.trim(), ...(m.choice.baseUrl?.trim() && { baseUrl: m.choice.baseUrl.trim() }) }
         this.key = m.key?.trim() || (same ? this.key : undefined)
         this.remember = m.remember
@@ -140,8 +140,13 @@ export class LocalModder {
 
   /** The config a test or a list is asked with: the key typed, or the one kept for this very service. */
   private configFor(choice: ModelChoice, key?: string): ModelConfig {
-    const same = this.choice && this.choice.provider === choice.provider && (this.choice.baseUrl ?? '') === (choice.baseUrl ?? '')
-    return { provider: choice.provider, baseUrl: choice.baseUrl?.trim() || undefined, model: choice.model.trim(), apiKey: key?.trim() || (same ? this.key : undefined) }
+    const apiKey = key?.trim() || (this.isChosen(choice) ? this.key : undefined)
+    return { provider: choice.provider, baseUrl: choice.baseUrl?.trim() || undefined, model: choice.model.trim(), apiKey }
+  }
+
+  /** The service chosen now (the one the kept key is for). */
+  private isChosen(choice: ModelChoice): boolean {
+    return !!this.choice && this.choice.provider === choice.provider && (this.choice.baseUrl ?? '') === (choice.baseUrl ?? '')
   }
 
   private async reply(id: number, work: () => Promise<unknown>): Promise<void> {

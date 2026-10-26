@@ -27,14 +27,6 @@ const REPO = fileURLToPath(new URL('../../../..', import.meta.url))
 const TSX = createRequire(import.meta.url).resolve('tsx/cli')
 const DIRS = ['rules', 'types', 'statuses']
 
-/**
- * A world task in a container sees its workspace (written to), the engine's code (read-only)
- * and nothing else — not the repository's `.env`, not `var/`, no network; there the agent may run
- * any command. Without a container it gets no shell: file tools and the validator only
- * (`chooseIsolation`, packages/ai/src/agent/env.ts).
- */
-export const worldIsolation = chooseIsolation
-
 /** The engine's code as a container sees it: read-only, under /repo, without secrets. */
 const IN_REPO = '/repo'
 const asSeen = (p: string, iso: Isolation) => (iso === 'docker' ? `${IN_REPO}/${relative(REPO, p).split(sep).join('/')}` : p)
@@ -94,7 +86,7 @@ function files(dir: string, sub: string): string[] {
   return out
 }
 
-export function modspecMarkdown(spec: ModSpec): string {
+function modspecMarkdown(spec: ModSpec): string {
   const kv = (o: Record<string, string>) => Object.entries(o).map(([k, v]) => `- \`${k}\`: ${v}`).join('\n')
   return [
     `# ModSpec (${spec.version})`,
@@ -163,14 +155,20 @@ function issueOf(req: ModRequest, revise?: { rules: Rule[]; notes: string[] }, a
           ...audit.notes.map((n) => `- ${n}`),
           '',
           'Your previous draft (write a new one that cannot be broken this way: make it cost something, run out, or give less):',
-          ...audit.draft.artifacts.filter((a) => a.kind === 'rule').map((a) => (a.kind === 'rule' ? '```json\n' + JSON.stringify({ ...a.rule, tests: undefined }) + '\n```' : '')),
+          ...audit.draft.artifacts.flatMap((a) => (a.kind === 'rule' ? ['```json\n' + JSON.stringify({ ...a.rule, tests: undefined }) + '\n```'] : [])),
         ]
       : []),
   ].join('\n')
 }
 
+/**
+ * A world task in a container sees its workspace (written to), the engine's code (read-only)
+ * and nothing else — not the repository's `.env`, not `var/`, no network; there the agent may run
+ * any command. Without a container it gets no shell: file tools and the validator only
+ * (`chooseIsolation`, packages/ai/src/agent/env.ts).
+ */
 export async function materializeWorld(o: { request: ModRequest; library: RuleLibrary; ontology: Ontology; base: Ontology; spec: ModSpec; revise?: { rules: string[]; notes: string[] }; audit?: { notes: string[]; draft: Patch }; isolation?: Isolation }): Promise<WorldRepo> {
-  const iso = o.isolation ?? (await worldIsolation())
+  const iso = o.isolation ?? (await chooseIsolation())
   const dir = mkdtempSync(join(tmpdir(), 'lsw-world-'))
   const lib = o.library
   write(dir, 'ISSUE.md', issueOf(o.request, o.revise ? { rules: o.revise.rules.map((id) => lib.rules.get(id)!).filter(Boolean), notes: o.revise.notes } : undefined, o.audit))

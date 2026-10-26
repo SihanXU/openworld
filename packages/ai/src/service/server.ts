@@ -32,6 +32,7 @@ export interface ServerOptions {
 
 export function createModderServer(modder: Modder, opts: ServerOptions = {}): Server {
   const { library, state } = modder.opts
+  const maxBody = opts.maxBody ?? 4_000_000
   const libraryInfo = () => ({ seq: library.seq, log: library.logId, patches: library.patchRules().length, rules: library.lib.rules.size })
   const detector = new Detector(modder, { file: modder.opts.data ? join(modder.opts.data, 'quality.json') : undefined, probes: modder.opts.probes, log: modder.opts.log })
   // a detection is model calls on this service's account: asked for from this machine only
@@ -63,28 +64,40 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
     }
     if (req.method === 'OPTIONS') return void res.writeHead(204).end()
     const url = new URL(req.url ?? '/', 'http://localhost')
+    const route = `${req.method} ${url.pathname}`
     try {
-      if (req.method === 'GET' && url.pathname === '/health') return send(200, { ok: true, game: opts.game ?? null, model: modder.model?.name ?? null, library: libraryInfo(), state: state.stats(), detected: detector.last ? { model: detector.last.model, at: detector.last.at, recommend: detector.last.recommend } : null })
-      if (req.method === 'GET' && url.pathname === '/quality')
-        return send(200, { model: modder.model?.name ?? null, waitMs: AI_WAIT_MS, detection: detector.last ?? null, running: detector.running ?? null, error: detector.error ?? null, ...(url.searchParams.get('plan') && { plan: await detector.plan() }) })
-      if (req.method === 'POST' && url.pathname === '/quality/detect') {
+      if (route === 'GET /health') {
+        const last = detector.last
+        const detected = last ? { model: last.model, at: last.at, recommend: last.recommend } : null
+        return send(200, { ok: true, game: opts.game ?? null, model: modder.model?.name ?? null, library: libraryInfo(), state: state.stats(), detected })
+      }
+      if (route === 'GET /quality')
+        return send(200, {
+          model: modder.model?.name ?? null,
+          waitMs: AI_WAIT_MS,
+          detection: detector.last ?? null,
+          running: detector.running ?? null,
+          error: detector.error ?? null,
+          ...(url.searchParams.get('plan') && { plan: await detector.plan() }),
+        })
+      if (route === 'POST /quality/detect') {
         const refused = hostOnly(req, true)
         if (refused) return send(refused[0], { error: `a detection is started from the machine the service runs on: ${refused[1]}` })
         return send(200, await detector.start())
       }
-      if (req.method === 'GET' && url.pathname === '/patches') {
+      if (route === 'GET /patches') {
         const since = Number(url.searchParams.get('since') ?? 0) || 0
         return send(200, { seq: library.seq, log: library.logId, entries: library.since(since) })
       }
-      if (req.method === 'GET' && url.pathname === '/trace') {
+      if (route === 'GET /trace') {
         // an author's draft is this host's own, as its asking is
         const refused = hostOnly(req, true)
         if (refused) return send(refused[0], { error: `a draft is read from the machine the service runs on: ${refused[1]}` })
         return send(200, modder.traceOf(url.searchParams.get('id') ?? ''))
       }
-      if (req.method === 'GET' && url.pathname === '/progress') return send(200, modder.progressOf(url.searchParams.get('id') ?? '') ?? {})
-      if (req.method === 'GET' && url.pathname === '/stats') return send(200, { library: libraryInfo(), state: state.stats(), snapshots: state.snapshots() })
-      if (req.method === 'POST' && url.pathname === '/fault') {
+      if (route === 'GET /progress') return send(200, modder.progressOf(url.searchParams.get('id') ?? '') ?? {})
+      if (route === 'GET /stats') return send(200, { library: libraryInfo(), state: state.stats(), snapshots: state.snapshots() })
+      if (route === 'POST /fault') {
         const body = (await readJson(req, 64_000)) as { rule?: unknown; reason?: unknown; client?: unknown }
         if (typeof body?.rule !== 'string') return send(400, { error: 'rule required' })
         // a fault is counted by where it came from: a caller elsewhere is one client whatever it says it is (else one
@@ -95,17 +108,17 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
         return send(200, modder.fault(body.rule, String(body.reason ?? ''), client))
       }
       // an author's new thing: drafted on this service's account, and taken into the shared library without the AI (this host only)
-      const refused = req.method === 'POST' && (url.pathname === '/create' || url.pathname === '/adopt' || url.pathname === '/draft') ? hostOnly(req) : undefined
+      const refused = ['POST /create', 'POST /adopt', 'POST /draft'].includes(route) ? hostOnly(req) : undefined
       if (refused) return send(refused[0], { error: `a new thing is asked for and taken in from the machine the service runs on: ${refused[1]}` })
-      if (req.method === 'POST' && url.pathname === '/draft') return send(200, await modder.draft((await readJson(req, opts.maxBody ?? 4_000_000)) as DraftBody))
-      if (req.method === 'POST' && url.pathname === '/create') return send(200, await modder.createThing((await readJson(req, opts.maxBody ?? 4_000_000)) as ThingBody))
-      if (req.method === 'POST' && url.pathname === '/adopt') {
-        const body = (await readJson(req, opts.maxBody ?? 4_000_000)) as { patch?: Patch }
+      if (route === 'POST /draft') return send(200, await modder.draft((await readJson(req, maxBody)) as DraftBody))
+      if (route === 'POST /create') return send(200, await modder.createThing((await readJson(req, maxBody)) as ThingBody))
+      if (route === 'POST /adopt') {
+        const body = (await readJson(req, maxBody)) as { patch?: Patch }
         if (!body?.patch) return send(400, { error: 'patch required' })
         return send(200, modder.adopt(body.patch))
       }
-      if (req.method === 'POST' && url.pathname === '/resolve') {
-        const body = (await readJson(req, opts.maxBody ?? 4_000_000)) as ResolveBody
+      if (route === 'POST /resolve') {
+        const body = (await readJson(req, maxBody)) as ResolveBody
         // an author asking from the editor asks with the offline profile (more care: tools, review before shipping); it
         // costs the service far more, so only a caller on this machine may (anyone else is answered live)
         const profile = body?.profile === 'offline' ? (local(req) && ownOrigin(req) ? 'offline' : 'live') : body?.profile === 'live' ? 'live' : undefined

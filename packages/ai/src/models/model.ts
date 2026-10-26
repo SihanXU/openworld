@@ -5,7 +5,6 @@
 // player's own key: docs/byok.md); what needs Node — Claude Code's print mode, a script file, the
 // environment — is model-node.ts.
 
-
 export interface ToolSpec {
   name: string
   description: string
@@ -97,7 +96,13 @@ export class OpenAICompatModel implements Model {
     return this.cfg.pin
   }
 
+  /** The endpoint is OpenRouter: what only it reads goes there only (another endpoint refuses a field it does not know). */
+  private get openrouter(): boolean {
+    return this.cfg.baseUrl.includes('openrouter.ai')
+  }
+
   async chat(messages: ChatMessage[], opts: ChatOptions = {}): Promise<ModelReply> {
+    const openrouter = this.openrouter
     const body: Record<string, unknown> = {
       model: this.cfg.model,
       temperature: opts.temperature ?? 0.3,
@@ -109,20 +114,19 @@ export class OpenAICompatModel implements Model {
         return w
       }),
       // OpenRouter reports what each call cost
-      ...(this.cfg.baseUrl.includes('openrouter.ai') ? { usage: { include: true } } : {}),
+      ...(openrouter ? { usage: { include: true } } : {}),
       ...this.cfg.extraBody,
     }
     if (opts.tools?.length) {
       body.tools = opts.tools.map((t) => ({ type: 'function', function: t }))
       body.tool_choice = 'auto'
     } else if (opts.json) body.response_format = { type: 'json_object' }
-    // what only OpenRouter reads (another endpoint — OpenAI's own, a local server — refuses a field it does not know)
-    const openrouter = this.cfg.baseUrl.includes('openrouter.ai')
     if (opts.reasoning && openrouter) body.reasoning = opts.reasoning === 'none' ? { enabled: false } : { effort: opts.reasoning }
     if (opts.provider && openrouter) body.provider = opts.provider
     // pinned: those providers and nothing a call asks (an endpoint other than OpenRouter is its own provider)
     const pin = this.cfg.pin
-    if (pin && this.cfg.baseUrl.includes('openrouter.ai')) body.provider = { only: pin.providers, order: pin.providers, allow_fallbacks: false, ...(pin.quantizations?.length ? { quantizations: pin.quantizations } : {}) }
+    if (pin && openrouter)
+      body.provider = { only: pin.providers, order: pin.providers, allow_fallbacks: false, ...(pin.quantizations?.length ? { quantizations: pin.quantizations } : {}) }
     else if (pin) delete body.provider
     if (!opts.hedgeMs && !opts.deadlineMs) return this.once(body, AbortSignal.timeout(this.cfg.timeoutMs ?? 180_000))
     let last: unknown
@@ -188,7 +192,7 @@ export class OpenAICompatModel implements Model {
     const data = (await res.json().catch(() => null)) as WireReply | null
     if (!res.ok || !data) throw new Error(`model: HTTP ${res.status} ${JSON.stringify(data)?.slice(0, 300) ?? ''}`)
     const pin = this.cfg.pin
-    if (pin && this.cfg.baseUrl.includes('openrouter.ai') && !pin.providers.some((p) => providerKey(p) === providerKey(data.provider ?? '')))
+    if (pin && this.openrouter && !pin.providers.some((p) => providerKey(p) === providerKey(data.provider ?? '')))
       throw new Error(`model: served by ${data.provider ?? 'an unnamed provider'}, ${PIN_BREACH} (${pin.providers.join(', ')})`)
     const m = data.choices?.[0]?.message
     if (!m) throw new Error('model: empty reply')
@@ -267,7 +271,6 @@ export class ScriptedModel implements Model {
   }
 }
 
-
 // ---------------------------------------------------------------- helpers
 
 /** Best-effort JSON out of a model reply: strip code fences, else take the outermost {...}. */
@@ -302,7 +305,7 @@ export function parseJson(text: string, onRepair?: () => void): unknown {
  * dropping one closer from the run just before the error, or appending the missing ones; up to a
  * few rounds. Returns the value, or undefined when brackets are not the problem.
  */
-export function repairBrackets(s: string): unknown {
+function repairBrackets(s: string): unknown {
   const error = (x: string): { pos: number; end: boolean } | undefined => {
     try {
       JSON.parse(x)

@@ -59,8 +59,8 @@ export class ClaudeCodeModel implements Model {
     const turns = messages.filter((m) => m.role !== 'system').map(transcriptLine)
     // a step of a tool conversation: one block per turn, so the next step only appends (the class comment)
     const stream = !!opts.tools?.length
-    const tail = opts.json ? 'Reply with one JSON object and nothing else.' : ''
-    const prompt = stream ? conversationInput(opts.tools!, turns) : [...turns, ...(tail ? [`[instructions]\n${tail}`] : [])].join('\n\n')
+    const tail = opts.json ? ['[instructions]\nReply with one JSON object and nothing else.'] : []
+    const prompt = stream ? conversationInput(opts.tools!, turns) : [...turns, ...tail].join('\n\n')
     const dir = mkdtempSync(join(tmpdir(), 'lsw-claude-'))
     const systemFile = join(dir, 'system.txt')
     writeFileSync(systemFile, system)
@@ -125,6 +125,7 @@ interface ClaudeResult {
  */
 export function commandFor(bin: string, args: string[]): { file: string; args: string[]; shell: boolean } {
   if (process.platform !== 'win32') return { file: bin, args, shell: false }
+  const isFile = (p: string) => existsSync(p) && statSync(p).isFile()
   const isScript = (p: string) => {
     try {
       return /^#!.*\bnode\b/.test(readFileSync(p, 'utf8').slice(0, 200))
@@ -140,15 +141,15 @@ export function commandFor(bin: string, args: string[]): { file: string; args: s
     return undefined
   }
   if (/[\\/]/.test(bin) || isAbsolute(bin)) {
-    for (const p of [bin, `${bin}.exe`, `${bin}.cmd`]) if (existsSync(p) && statSync(p).isFile()) return found(p) ?? { file: p, args, shell: false }
+    for (const p of [bin, `${bin}.exe`, `${bin}.cmd`]) if (isFile(p)) return found(p) ?? { file: p, args, shell: false }
     return { file: bin, args, shell: false }
   }
   for (const dir of (process.env.PATH ?? '').split(delimiter).filter(Boolean))
-    for (const ext of ['.exe', '.cmd', '.bat', ''])
-      if (existsSync(join(dir, bin + ext)) && statSync(join(dir, bin + ext)).isFile()) {
-        const f = found(join(dir, bin + ext))
-        if (f) return f
-      }
+    for (const ext of ['.exe', '.cmd', '.bat', '']) {
+      const p = join(dir, bin + ext)
+      const f = isFile(p) && found(p)
+      if (f) return f
+    }
   return { file: bin, args, shell: false }
 }
 
@@ -232,7 +233,6 @@ function toolCallsOf(text: string): ToolCall[] {
     .filter((c) => typeof c?.name === 'string')
     .map((c, i) => ({ id: `call_${Date.now().toString(36)}_${i}`, name: c.name as string, args: c.args ?? {} }))
 }
-
 
 /**
  * A script file: entries tried in order; the first whose `purpose` matches the stage and whose
