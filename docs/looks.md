@@ -116,13 +116,55 @@ the map and in the portrait is the same colour by construction.
   Hair, beards and brows are drawn grey (their value is their shading); garments in key hues (pure red: colour 1,
   green: colour 2, blue: leather or metal, colour 3) so the cut can tell the zones apart; an outfit leaves the feet
   bare and the legs bare below it (stockings and shoes are their own parts).
+- **Faces held to their eyes** (2026-10-25). The first library's faces were drawn freely: each face and each mood
+  redrew the eyes, so the irises ran from 0.05 to 0.21 of a head's width across them (a sad face's three times its
+  neutral's), the eyes moved down the face from mood to mood, and the "bright" and children's faces had a child's big
+  eyes on an adult's skull — the user saw the uncanny valley ("比例根本不对"). Now:
+  - a **size reference** per body (`lib/base-<body>-face.png`, `parts.py` `face_ref_jobs`): the base's head with its
+    features smaller ("五官再小一点": the irises a sixth narrower, a tenth for the man, whose were the smallest), in the
+    same places; every face is drawn from it;
+  - a face changes only what an expression moves — the brows, the lids, the mouth (`LOCK`, said in every face's edit:
+    not the eyes' outline, size, place or spacing, not the irises' size, not the nose, ears or the face's outline);
+    expressions are restrained (a blush is fine hatching, a smile shows no teeth; the word "surprised" is never said —
+    told it, the model opens the eyes wide whatever else it is told — only "the brows raised, the mouth a small o");
+    the irises are drawn grey like the brows (the cut finds them by place, `eyes.py` `iris_mask`, and the look colours
+    them), never a flat key blue;
+  - **every face picture is measured** (`eyes.py`): an iris is the circle its lower and side edges make (a Hough
+    transform along the gradient, each vote weighed by how much of the circle's inside is iris; the upper arc, where a
+    lid covers it and its line lies, does not vote), sought near the reference's irises; its width (the circle's) and
+    the eyes' span within 8% and their height in the head within 0.02 head widths of the reference — a neutral's is its
+    body's size reference, a mood's its face's neutral; how much of an iris the lids leave is the expression's;
+  - `faces.py` draws each face, measures it and draws it again with another seed while its eyes moved (up to five
+    tries, `LSW_FACE_TRIES`; the closest kept and flagged when none passed); every try stays in `tries/`, the numbers
+    in `faces.json`; `trysheet.py` shows every try with its circles and numbers beside its reference;
+  - a mood none of whose tries held its eyes is made from them: `faces.py --composite` puts the neutral's eyes over the
+    closest try, `--transplant` the closest try's brows and mouth on the neutral (every surprised face is the latter:
+    its eyes are its neutral's by construction).
 - **Cut** (`extract.py`, `build.py`): each body's frame is read from its base (the head's top, the neck, the knees,
   the soles; the bust square). The part is what the edit changed (a colour distance over a tolerance, cleaned), only
   in its region (a hat on the head, shoes at the feet, nothing below the soles); edges are unmixed from the known
-  background; hair outside the base figure becomes the layer behind the body; a face is what replaces the base's
-  features (the same mask in every mood); zones by hue (key hues, the skin's hue band, the iris, grey for hair);
+  background; hair outside the base figure becomes the layer behind the body, both normalised as one (each alone,
+  the same hair took two tones either side of the bald figure's outline: an ear-shaped patch over the ears);
+  zones by hue (key hues, the skin's hue band, grey for hair and brows);
   lines take their neighbour's zone (coloured lineart); values anchored at the zone's median with a bounded gain
   (skin uses one mapping for every layer, so no seams).
+- **The face layer is the whole face** (2026-10-25). It was what each picture changed, a ragged shape with holes, and
+  its edges showed under hair as a box round the eyes, specks and seams ("不就是个图层叠上去的问题吗"). Every face is
+  drawn from its body's size reference, so the face is always in one place: the layer is the face inside the head's
+  outline (the body keeps its line), from above the highest a brow is raised to the chin, short of the ears, its top
+  fading into the forehead — one outline for every face and mood of the body. Within it:
+  - its skin is brought to the body's (the ratio of their skins in the layer's rim); `seams.py <out>` holds every face
+    to it (the face's skin values against the body's in the rim, within 4);
+  - the irises (zone `eyes`) are the grey piece each iris's middle lies in, below the upper lid, never the brows;
+    the brows (zone `hair`) each side's largest dark-grey stroke above the eye, wherever the mood put it;
+  - the strokes the face drew on its skin (a nose's shade, lines under the eyes) are the style's ink, the blush keeps
+    its own pink, light shades and cream highlights become the plain skin, and its skin's shading is kept at half its
+    depth (a drawn shade read as a patch of another colour);
+  - a hairstyle on the face's bare skin is only what is clearly darker than the skin (the cheeks' shading the edit
+    redrew laid a pale wash of the hair's colour over the face), closed into whole strands (no dotted, half-clear
+    tips), and never the base's eyes or brows (over another face they showed as a second pair).
+  `build.py <work> <out> --only face. hair.` cuts those parts again into a cut there already; `looks/facecheck.ts`
+  draws every face in every mood under a fringe, and every hairstyle alone, at the portrait's own pixels.
 - **Clean** (`clean.py`, run by `build.py`; 2026-10-25): an edit redraws the whole figure, and the cut took some of
   the body's own lines and hatching for the part (a shirt's grey hatching is the hair's grey) — repainted, a blonde
   ponytail streaked the dress, hats and hair put their colour in the eyes, garments drew a second outline down the
@@ -137,6 +179,7 @@ the map and in the portrait is the same colour by construction.
 - **Review**: `npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]` composes everyone with the client's
   own code; `review.ts out.png --parts [k]` every part alone on each body in loud colours on a dark ground
   (`out-<body>.png`), where a stray pixel shows. `batch.py` runs the jobs (resumable; a job waits for the picture it edits).
+  `looks/faces.ts out.png [colours] [hair]` every face in every mood on every body it is for, as busts.
 - Outputs are CC0 with their prompts and workflow in the repository; the model's licence allows it.
 
 ## 5. The event model

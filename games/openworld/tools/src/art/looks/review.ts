@@ -15,7 +15,8 @@ import { FH, FW, IDLE_ROW, composeSprite } from '@openworld/runtime/src/assets/f
 import { PEOPLE } from '../../demo/people.ts'
 import { OUT, png, readPng } from '../png.ts'
 
-const ROOT = join(OUT, 'Looks', 'portrait')
+// the game's portrait layers, or a cut being reviewed before it goes in (LSW_PORTRAIT_DIR)
+const ROOT = process.env.LSW_PORTRAIT_DIR ?? join(OUT, 'Looks', 'portrait')
 
 export function loadManifest(): PortraitManifest | undefined {
   const p = join(ROOT, 'manifest.json')
