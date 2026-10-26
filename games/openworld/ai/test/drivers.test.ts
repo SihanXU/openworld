@@ -5,9 +5,9 @@ import { describe, expect, it } from 'vitest'
 import { RuleLibrary } from '@openworld/engine'
 import { BASE_RULES } from '@openworld-game/content'
 import { sweep } from '../../tools/src/coverage.ts'
-import { cellRequest, pick } from '../src/curriculum.ts'
-import { ScriptedModel, SelfState, runAgent, REPO, candidates } from '@openworld/ai'
-import { mkdtempSync, existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { cellRequest, codeTask, pick } from '../src/curriculum.ts'
+import { LocalEnv, ScriptedModel, SelfState, runAgent, REPO, candidates, type ChatMessage } from '@openworld/ai'
+import { mkdirSync, mkdtempSync, existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { engineTask, engineTaskDefs } from '../src/engine-tasks.ts'
@@ -44,6 +44,29 @@ describe('the curriculum', () => {
       // open ground around the event, but for the target's own tile
       expect(req.scenario.terrain!.flat().filter((t) => t !== 'grass').length, cell.target).toBeLessThanOrEqual(1)
     }
+  })
+})
+
+describe('a code task of the curriculum', () => {
+  it('is reflected on as a world task is: an engine task leaves a lesson, a general one shown to an SWE task', { timeout: 30_000 }, async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lsw-engine-'))
+    mkdirSync(join(dir, 'src'))
+    writeFileSync(join(dir, 'src', 'add.mjs'), 'export const add = (a, b) => a - b\n')
+    writeFileSync(join(dir, 'test.mjs'), "import { add } from './src/add.mjs'\nif (add(2, 3) !== 5) process.exit(1)\n")
+    execSync('git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm init', { cwd: dir })
+    const call = (name: string, args: Record<string, unknown>) => ({ content: '', toolCalls: [{ id: name, name, args }] })
+    const model = new ScriptedModel((messages: ChatMessage[], opts) => {
+      if (opts.purpose === 'reflect') return { lessons: { add: [{ text: 'Find where a function is defined before changing its callers.', general: true }] }, skill: null }
+      const done = messages.filter((m) => m.role === 'tool').map((m) => (m as { name: string }).name)
+      if (!done.includes('edit_file')) return call('edit_file', { path: 'src/add.mjs', old_string: 'a - b', new_string: 'a + b' })
+      if (!done.includes('run_tests')) return call('run_tests', {})
+      return call('submit', { summary: 'fix add' })
+    })
+    const state = SelfState.open(mkdtempSync(join(tmpdir(), 'lsw-curriculum-state-')))
+    const r = await codeTask({ id: 'add', kind: 'engine', statement: 'add() subtracts', env: new LocalEnv(dir), tests: { command: 'node test.mjs' } }, { model, state })
+    expect(r.outcome).toBe('accepted')
+    expect(state.episodes()).toHaveLength(1)
+    expect(state.relevantLessons(['kind:swe', 'w:pandas'], 8).map((l) => l.text)).toEqual(['Find where a function is defined before changing its callers.'])
   })
 })
 

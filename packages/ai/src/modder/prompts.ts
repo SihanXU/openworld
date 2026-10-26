@@ -225,7 +225,7 @@ export const REFLECT_SYSTEM = `You keep your own memory as the modder of a rule-
 Respond with JSON only:
 {
   "lessons": {
-    "add": [{"text": "...", "terms": ["..."]}],
+    "add": [{"text": "...", "terms": ["..."], "general": false}],
     "revise": [{"id": "L3", "text": "..."}],
     "support": ["L2"],
     "drop": ["L5"]
@@ -237,10 +237,11 @@ Lessons:
 - A lesson is a reusable rule of thumb about writing patches for this engine, or about coding in general — never a retelling of this episode. One sentence.
 - The most valuable lessons come from what went wrong: each validator error that cost a repair round is a lesson you did not have yet.
 - Add at most two. Often none is right. "support" lessons this episode confirmed; "revise" or "drop" lessons it contradicted.
-- "terms": the signature terms (from the list given) under which the lesson applies; [] if it always applies.
+- "terms": the signature terms (from the list given) under which the lesson applies.
+- "general": true for a lesson about coding in general (reading a failure, checking a change, keeping it small), not about this engine's rules: it is shown on every task, a repository's as well as a rule's. Keep the engine's own facts out of a general lesson.
 
 Skills:
-- A skill is a procedure you will follow again: when to use it, the steps, the checks, a template. Set "skill" to {"name": "kebab-case", "description": "when to use it, one line", "triggers": ["signature terms"], "body": "markdown"} only when this kind of work has recurred at least {N} times (see the similar episodes) and no skill of yours covers it, or to improve a skill you used (same name). Otherwise null.`
+- A skill is a procedure you will follow again: when to use it, the steps, the checks, a template. Set "skill" to {"name": "kebab-case", "description": "when to use it, one line", "triggers": ["signature terms"], "general": false, "body": "markdown"} ("general": true for a procedure that holds for any coding task; it is listed on every task) only when this kind of work has recurred at least {N} times (see the similar episodes) and no skill of yours covers it, or to improve a skill you used (same name). Otherwise null.`
 
 /** One episode, or several that each went cleanly (reflected on together, to save calls). */
 export function reflectUser(eps: Episode | Episode[], coarse: string[], lessons: Lesson[], skills: SkillMeta[], similar: EpisodeEntry[]): string {

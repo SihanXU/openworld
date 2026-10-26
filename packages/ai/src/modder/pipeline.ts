@@ -46,23 +46,20 @@ import {
 } from '@openworld/engine'
 import { changesNothing, deriveTests, judge, normalizePatch, qualifyTerrains, stationFromRules, statedAffordance } from './answer.ts'
 import type { CommitResult, WorldLibrary } from '../library/library.ts'
-import { Meter, parseJson, type ChatMessage, type ChatOptions, type Model } from '../models/model.ts'
+import { BACKEND_DOWN, Meter, parseJson, type ChatMessage, type ChatOptions, type Model } from '../models/model.ts'
 import type { AgentTask, runAgent } from '../agent/loop.ts'
 import type { TaskSource } from '../agent/outer.ts'
 import type { materializeWorld } from '../service/repo.ts'
 import { mapProblems, personProblems, settleMap, summary, withoutThinking, type DraftContext, type DraftKind, type TraceStep } from './drafts.ts'
 import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, againUser, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, reviseDraftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
 import { briefOf, coarseTerms, envelope, relatedRules, signatureOf, withoutChains, workloadNote, workloadOf, type Signature, type Workload } from './request.ts'
-import { auditOf, keepReflection, profileOf, reflectAgent, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '../agent/state.ts'
+import { auditOf, keepReflection, profileOf, reflectAfter, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '../agent/state.ts'
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
 import { audit, probe, type AuditResult } from '../checks/audit.ts'
 import { clipJson } from '../util.ts'
 
-/**
- * A backend that cannot answer says so in its error: out of quota or throttling (claude-code's session
- * limit, an HTTP 429, a provider's quota), or not signed in (an expired OAuth session, a 401/403, a bad key).
- */
-export const BACKEND_DOWN = /session limit|usage limit|rate.?limit|quota|\b429\b|overloaded|insufficient_quota|authenticat|oauth|unauthori[sz]ed|\b401\b|\b403\b|invalid.?api.?key|not logged in/i
+// (the backend's own failures are the models': kept exported here for the checks that read them from the pipeline)
+export { BACKEND_DOWN }
 /** How long the service makes no calls after the backend said it is out (a request meanwhile gets `unavailable`). */
 const BACKEND_PAUSE_MS = 5 * 60_000
 
@@ -596,7 +593,7 @@ export class Modder {
 
     // recall
     const lib = library.workspace(ws, replaces)
-    const recall = { lessons: state.relevantLessons(sig.terms, h.recall.lessons), episodes: state.similarEpisodes(sig.terms, h.recall.episodes), skills: state.skills() }
+    const recall = { lessons: state.relevantLessons(sig.terms, h.recall.lessons), episodes: state.similarEpisodes(sig.terms, h.recall.episodes), skills: state.relevantSkills(sig.terms) }
     ep.shown = { lessons: recall.lessons.map((l) => l.id), episodes: recall.episodes.map((e) => e.id), skills: recall.skills.map((s) => s.name) }
 
     const validate = (p: Patch) => library.validate(p, req, ws, replaces)
@@ -953,7 +950,7 @@ export class Modder {
       state.noteSkillUse(ep.skillsRead, ep.outcome, ep.id)
       this.log(`${ep.id} ${eo.profile} repo${eo.revise ? ' revision' : eo.escalatedFrom ? ' escalation' : ''} ${ep.outcome} in ${ep.usage.calls} steps, ${ep.ms} ms: ${req.summary}${ep.rules.length ? ` → ${ep.rules.join(', ')}` : ''}${ep.error ? ` (${ep.error})` : ''}`)
       // a failure that is the backend's is no lesson (afterwards() says why)
-      if (!(ep.outcome === 'failed' && BACKEND_DOWN.test(ep.error ?? ''))) this.later(`reflect ${ep.id}`, () => reflectAgent(ep as never, { model: this.backend!, state, harness: h }))
+      this.later(`reflect ${ep.id}`, () => reflectAfter(ep as never, { model: this.backend!, state, harness: h }))
       return replyOf(ep)
     } finally {
       await repo.dispose()
