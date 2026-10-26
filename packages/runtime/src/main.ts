@@ -91,6 +91,7 @@ const menu = new Menu({
   organize: () => send({ t: 'organize' }),
   wear: (item, putOn) => send({ t: 'wear', item, putOn }),
   craft: (id, all, at) => send({ t: 'craft', id, all, at }),
+  cancelCraft: () => send({ t: 'cancelCraft' }),
   learn: (id) => send({ t: 'learn', id }),
   setSkill: (slot, id) => send({ t: 'setSkill', slot, id }),
   atlas: () => send({ t: 'atlas' }),
@@ -504,6 +505,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       }
       hud.setLearning(m.learning)
       menu.containerTransfer = m.transfer
+      menu.crafting = m.crafting
       // the ceiling (R) is for a floor in hand: another thing taken in hand lays on one's storey again
       if (handUp && !laysInHand(m.frame)) setHandUp(false)
       const fishing = m.frame.fishing

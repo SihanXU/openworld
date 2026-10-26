@@ -93,6 +93,8 @@ export type ToWorker =
   | { t: 'wear'; item?: string; /** from the bag: put on (another of a stack), never take off */ putOn?: boolean }
   /** The crafting panel: make a recipe from what is carried. */
   | { t: 'craft'; id: string; /** as many as what is carried makes */ all?: boolean; /** the station it is made at (the one whose panel is open) */ at?: string }
+  /** Stop a batch when its crafting or shop panel closes. Completed recipes are kept. */
+  | { t: 'cancelCraft' }
   /** The skill tree: spend skill points on a skill. */
   | { t: 'learn'; id: string }
   /** The skill bar: cast the skill in a slot (Shift+1–6), or set one there (null: empty it). */
@@ -200,7 +202,7 @@ export type FromWorker =
   | { t: 'placement'; preview: PlacementPreview }
   | { t: 'ready'; stats: WorldIndex['stats']; name: WorldIndex['name']; resumed: boolean }
   | { t: 'map'; map: MapData; /** the look of the region it lies in (RegionMeta.look) */ look?: RegionLook }
-  | { t: 'frame'; frame: Frame; /** the frame's things are only those that changed; these left it (frameDelta.ts) */ gone?: string[]; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number }; transfer?: TransferProgress }
+  | { t: 'frame'; frame: Frame; /** the frame's things are only those that changed; these left it (frameDelta.ts) */ gone?: string[]; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number }; transfer?: TransferProgress; crafting?: TransferProgress<'craft'> }
   /** What the keys would do now, sent as soon as the pointer aims somewhere else (between frames). */
   | { t: 'keys'; keys: Frame['keys']; /** the aim they answer */ n?: number }
   | { t: 'records'; records: RecordView[]; library: LibraryView }

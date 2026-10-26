@@ -162,6 +162,7 @@ export interface MenuSend {
   wear(item?: string, putOn?: boolean): void
   /** Make a recipe (the crafting panel's, a station's: `at` the station whose panel is open). */
   craft(id: string, all?: boolean, at?: string): void
+  cancelCraft(): void
   /** The skill tree: spend skill points on a skill. */
   learn(id: string): void
   /** The skill bar: set an active skill in a slot (null: empty it). */
@@ -208,6 +209,7 @@ export class Menu {
   readonly ai: AiOptions
   library?: LibraryView
   containerTransfer?: TransferProgress
+  crafting?: TransferProgress<'craft'>
   muted = false
   paintIcons?: (items: ItemInfo[]) => void
   /** Set by main.ts: an item the tooltip should know that is not in the frame (the crafting panel's). */
@@ -392,6 +394,7 @@ export class Menu {
   }
 
   open(tab?: Tab): void {
+    this.send.cancelCraft()
     this.contextPopup.close()
     // (a panel opened, or another in its sheet, starts at its top: the sheet is shared and keeps its scroll)
     const fresh = !this.menuOpen || (!!tab && tab !== this.tab)
@@ -427,6 +430,7 @@ export class Menu {
   }
 
   openJournal(): void {
+    this.send.cancelCraft()
     this.contextPopup.close()
     $('#menu').classList.add('hidden')
     $('#skills').classList.add('hidden')
@@ -436,6 +440,8 @@ export class Menu {
   }
 
   close(): void {
+    // Cancel even before the first progress frame has reached the UI.
+    this.send.cancelCraft()
     this.contextPopup.close()
     this.keysPage.hide()
     if (this.chestOpen) this.send.closePanel()
@@ -527,7 +533,9 @@ export class Menu {
     if (this.tab === 'options') body = this.optionsHtml()
     if (this.tab === 'keys') body = '<div id="keysHost"></div>'
     if (this.tab !== 'keys') this.keysPage.hide()
-    $('#menuSheet').innerHTML = head + `<div class="tab-body">${body}</div>`
+    const progress = this.crafting && (this.tab === 'craft' || this.tab === 'shop' || this.tab === 'station')
+      ? `<div class="muted small" role="status">${locale.value === 'zh' ? '批量处理' : 'Batch progress'} ${this.crafting.done}/${this.crafting.total} · ${locale.value === 'zh' ? '关闭面板可停止' : 'Close this panel to stop'}</div>` : ''
+    $('#menuSheet').innerHTML = head + progress + `<div class="tab-body">${body}</div>`
     $('#menuClose').onclick = () => this.close()
     if (this.tab === 'inventory') this.wireInventory(f)
     if (this.tab === 'options') this.wireOptions()
@@ -561,7 +569,7 @@ export class Menu {
 
   private sigOf(f: Frame): string {
     const icons = [...f.player.slots.filter(Boolean).map((s) => s!.item), ...Object.values(f.player.worn ?? {}), ...(f.player.offhand ? [f.player.offhand] : [])]
-    return `${this.tab}|${locale.value}|${f.player.hp}/${f.player.maxHp}|${f.player.hunger}|${f.player.purse}|${JSON.stringify(f.player.stats)}|${String(f.player.props.level)}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${itemIconSignature(icons)}|${f.player.stations.join()}|${this.station}:${this.stationAt}|${JSON.stringify(f.facts)}|${this.picked}|${artEpoch}`
+    return `${this.tab}|${locale.value}|${f.player.hp}/${f.player.maxHp}|${f.player.hunger}|${f.player.purse}|${JSON.stringify(f.player.stats)}|${String(f.player.props.level)}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${itemIconSignature(icons)}|${f.player.stations.join()}|${this.station}:${this.stationAt}|${JSON.stringify(f.facts)}|${this.picked}|${artEpoch}|${this.crafting?.done}/${this.crafting?.total}`
   }
 
   // ---------------------------------------------------------------- inventory
@@ -774,8 +782,8 @@ export class Menu {
       // (a recipe a skill teaches: known only once it is learned; one a building unlocks: once it stands)
       const knows = !r.skill || f.player.skills.includes(r.skill)
       const unlocked = !r.unlockedBy || Number(f.facts?.[r.unlockedBy.fact] ?? 0) >= (r.unlockedBy.level ?? 1)
-      const times = knows && here && unlocked && (r.tools ?? []).every(tool) ? Math.min(...r.needs.map((n) => Math.floor(have(n.type) / n.count))) : 0
-      const ok = times > 0
+      const times = knows && here && unlocked && (r.tools ?? []).every(tool) ? (r.needs.length ? Math.min(...r.needs.map((n) => Math.floor(have(n.type) / n.count))) : 1) : 0
+      const ok = times > 0 && !this.crafting
       const needs = r.needs
         .map((n) => {
           const h = have(n.type)
@@ -793,7 +801,7 @@ export class Menu {
         <div class="slot" data-item="recipe:${r.id}"><div class="icon" data-icon="recipe:${r.id}"></div></div>
         <div class="rname">${esc(tx(r.name))}${unlock}${skill}</div>
         <div class="needs">${needs}</div>
-        <div class="acts">${times > 1 ? `<button class="all" data-craft-all="${r.id}" title="${esc(t('craftAllTip'))}">${t('craftAll')} ×${times}</button>` : ''}<button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(why)}"`}>${verb}${shelf?.sell ? ` → ${r.count}` : r.count && r.count > 1 ? ` ×${r.count}` : ''}</button></div>
+        <div class="acts">${times > 1 ? `<button class="all" data-craft-all="${r.id}" ${this.crafting ? 'disabled' : ''} title="${esc(t('craftAllTip'))}">${t('craftAll')} ×${times}</button>` : ''}<button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(why)}"`}>${verb}${shelf?.sell ? ` → ${r.count}` : r.count && r.count > 1 ? ` ×${r.count}` : ''}</button></div>
       </div>`
     }).join('')
     return `<div class="recipes">${rows}</div>`
