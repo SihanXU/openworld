@@ -73,6 +73,8 @@ const navTitle = nav.querySelector('.nav-title')
 const heroWordmark = document.querySelector('.hero h1')
 const heroContent = document.querySelector('.hero-inner')
 const hero = heroContent.closest('.hero')
+const heroActions = document.querySelector('.hero-actions')
+const navActions = nav.querySelector('.nav-actions')
 const brandEasing = window.siteMotion.easing(getComputedStyle(document.documentElement).getPropertyValue('--motion-ease-standard'))
 const brandReduced = matchMedia('(prefers-reduced-motion: reduce)')
 // Row entrances finish after the surface; retain the animation gate until the last row settles.
@@ -89,7 +91,8 @@ function startMenuMotion() {
     menuMotionTimer = setTimeout(stopMenuMotion, Math.max(duration, nav.classList.contains('menu-open') ? 450 : 320) + 50)
 }
 function syncMenuAccess() {
-    const hidden = getComputedStyle(navToggle).display !== 'none' && !nav.classList.contains('menu-open')
+    // (the links are hidden until the header shows them, and in the compact header until its menu opens)
+    const hidden = !nav.classList.contains('brand-visible') || (getComputedStyle(navToggle).display !== 'none' && !nav.classList.contains('menu-open'))
     navLinks.inert = hidden
     navLinks.setAttribute('aria-hidden', String(hidden))
 }
@@ -135,17 +138,15 @@ navSize.observe(heroWordmark)
 const night = [...document.querySelectorAll('section.night')]
 function bar() {
     const wordmarkBox = heroWordmark.getBoundingClientRect()
-    const wordmarkBottom = wordmarkBox.bottom
     const overNight = night.some((s) => { const r = s.getBoundingClientRect(); return r.top <= navHeight && r.bottom > navHeight })
     // Fade the whole wordmark before its top reaches the header's clipping edge.
     // Short viewports have less scrolling room; keep the title fully visible at scroll zero.
     const titleRoom = Math.max(1, Math.min(wordmarkBox.height, wordmarkBox.top + scrollY - navHeight - 24))
     const titleProgress = Math.max(0, Math.min(1, (wordmarkBox.top - navHeight - 24) / titleRoom))
     heroWordmark.style.setProperty('--wordmark-opacity', brandReduced.matches ? Number(titleProgress >= 0.5) : 1 - brandEasing(1 - titleProgress))
-    // Finish the scroll-linked handoff before the large wordmark can re-enter the viewport.
-    // No timed opacity transition may lag behind a fast reversal or a scrollbar drag.
-    const distance = -wordmarkBottom
-    const progress = Math.max(0, Math.min(1, (distance - 48) / 80))
+    // The header's title, links and controls arrive together once the hero's row of buttons has passed under it,
+    // scroll-linked: no timed opacity transition may lag behind a fast reversal or a scrollbar drag.
+    const progress = Math.max(0, Math.min(1, (navHeight - heroActions.getBoundingClientRect().bottom) / 80))
     // The film stays under a clear header: the surface arrives with the page below it.
     const surfaceProgress = Math.max(0, Math.min(1, (navHeight + 32 - hero.getBoundingClientRect().bottom) / 32))
     const reveal = brandReduced.matches ? Number(progress >= 0.5) : brandEasing(progress)
@@ -157,6 +158,9 @@ function bar() {
     nav.classList.toggle('brand-visible', showBrand)
     navTitle.inert = !showBrand
     navTitle.setAttribute('aria-hidden', String(!showBrand))
+    navActions.inert = !showBrand
+    navActions.setAttribute('aria-hidden', String(!showBrand))
+    syncMenuAccess()
     nav.classList.toggle('solid', surface >= 0.5)
     nav.classList.toggle('dark', overNight)
 }
