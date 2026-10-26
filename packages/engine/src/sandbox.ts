@@ -190,9 +190,8 @@ function replayOnce(eng: Engine, ev: GameEvent): { made: number; raised: string[
 export const REPEAT_TIMES = 128
 /** The most a host may give with no time between: a bigger store must come back over time (a stage, a status that runs out). */
 export const YIELD_MOST = 64
-/** Maximum complete chance assignments explored before refusing an unproven patch. */
+/** The most ways the chances may fall that the repeat check follows; past it, an endless yield cannot be ruled out. */
 export const REPEAT_ASSIGNMENTS = 64
-export class RepeatLimitError extends Error {}
 /** The events someone can make happen again at will (the rest wait on time or on a change). */
 export const REPEATABLE = ['act', 'impulse', 'contact', 'bump', 'seen']
 
@@ -284,16 +283,17 @@ export function yieldCycle(eng: Engine, ev: GameEvent): string | undefined {
 }
 
 /**
- * For every assignment of the chance sites the run reaches (each chance condition, chance emit and
- * breakdown fraction its own outcome, kept across the replays; depth first, at most
- * REPEAT_ASSIGNMENTS), a fresh copy of the engine with that luck: the first finding `run` makes.
+ * Each way the chances may fall (each chance condition, chance emit and breakdown fraction its own outcome, kept
+ * across the replays; depth first), on a fresh copy of the engine with that luck: the first finding `run` makes.
+ * `tooMany` when there are more than REPEAT_ASSIGNMENTS ways. Part of the repeat check (`whyEndless`), not a check
+ * of its own: a yield is endless if it is under any way the dice fall.
  */
-export function underEveryChance<T>(eng: Engine, run: (e: Engine) => T | undefined): T | undefined {
+function eachWayTheDiceFall(eng: Engine, run: (e: Engine) => string | undefined): { found?: string; tooMany?: true } {
   const pending = [new Map<object, boolean>()]
   const sites = new Map<object, object[]>()
-  let assignments = 0
+  let ways = 0
   while (pending.length) {
-    if (assignments++ === REPEAT_ASSIGNMENTS) throw new RepeatLimitError(`repeat check: exceeded ${REPEAT_ASSIGNMENTS} chance assignments; safety could not be established`)
+    if (ways++ === REPEAT_ASSIGNMENTS) return { tooMany: true }
     const choices = pending.pop()!
     const e = new Engine(structuredClone(eng.world.state), eng.world.onto.data, eng.lib)
     e.seedRelations(eng.activeMap)
@@ -308,26 +308,29 @@ export function underEveryChance<T>(eng: Engine, run: (e: Engine) => T | undefin
       return choices.get(key)!
     }
     const found = run(e)
-    if (found !== undefined) return found
+    if (found !== undefined) return { found }
   }
-  return undefined
+  return {}
 }
 
 /**
- * Why an event is an endless yield (D23), or nothing: under any outcome of its chances, the repeat
- * check finds a cycle that makes things, or more than a host may give at once. A yield must cost
- * its host: change it (a status that gates the yield and runs out, a stage, durability) or use it up.
+ * Why an event is an endless yield (D23), or nothing: the repeat check finds a cycle that makes things, or more
+ * than a host may give at once, under any way its chances may fall (a chance of a stick on every blow is a stick
+ * on every blow: the dice are not rolled, each outcome is followed). More ways than the check follows is an
+ * endless yield it cannot rule out. A yield must cost its host: change it (a status that gates the yield and runs
+ * out, a stage, durability) or use it up.
  */
 export function whyEndless(eng: Engine, ev: GameEvent, prime = false): string | undefined {
   // only what someone can do again at will: acts and what they set off (impulses, contact, bumps,
   // being seen). The clock's events wait on time, a threshold on the host changing, broken content
   // is reported once.
   if (!REPEATABLE.some((k) => ev.kind === k || ev.kind.startsWith(k + '/'))) return undefined
-  return underEveryChance(eng, (e) => {
+  const r = eachWayTheDiceFall(eng, (e) => {
     // the triggering replay uses the same assignment, before it can gate later yields
     if (prime) repeatYields(e, ev, 1)
     return yieldCycle(e, ev)
   })
+  return r.tooMany ? `its chances may fall more than ${REPEAT_ASSIGNMENTS} ways, too many to rule out a yield that never stops` : r.found
 }
 
 export function endlessYield(eng: Engine, ev: GameEvent, prime = false): boolean {

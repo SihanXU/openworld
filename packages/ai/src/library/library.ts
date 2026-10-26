@@ -7,7 +7,6 @@
 import { connected, economySteps, freeLunch } from '../checks/economy.ts'
 import {
   RuleLibrary,
-  RepeatLimitError,
   holeKey,
   ruleTier,
   tierOfRequest,
@@ -363,8 +362,7 @@ export class WorldLibrary {
         const eng = buildSandbox(reg.scenario, this.fullOntology(), this.lib)
         const why = rp.resolution.defined ? whyEndless(eng, scenarioEvent(reg.scenario, eng), true) : undefined
         if (why) out.push({ rule: reg.rule, reason: `endless yield: ${why}` })
-      } catch (err) {
-        if (err instanceof RepeatLimitError) out.push({ rule: reg.rule, reason: err.message })
+      } catch {
         /* a scenario no longer buildable (types removed): nothing to judge */
       }
     }
