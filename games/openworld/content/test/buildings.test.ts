@@ -1,7 +1,9 @@
 // The buildings one finds (docs/building.md §10): a house's walls are things of the world like any other — their
 // durability, what they are made of, whose they are. A blow on one is its own outcome (core/strike, the instrument's
-// efficiency on its material); broken, it is open ground with what it was made of lying there; and breaking into a
-// house is a deed against its household (the society module's vandalism), judged by whoever saw it.
+// efficiency on its material) and marks it; but the walls the maps are built of endure (wall/endure): hit to nothing
+// they hold at their last crack, solid, nothing falling out — the way in stays the door. Damaging someone's house is
+// still a deed against its household (the society module's vandalism), judged by whoever saw it. What one builds
+// oneself (structure/wall) still breaks, and a tool still knocks it loose.
 
 import { describe, expect, it } from 'vitest'
 import { RuleLibrary, buildSandbox, regionId, snapshot, type Engine, type Key } from '@openworld/engine'
@@ -20,7 +22,7 @@ function street(wall: string, tool: string, opts: { owned?: boolean; neighbour?:
       terrain,
       entities: [
         { key: 'actor', type: 'actor/person/player', x: 4, y: 3, props: { atk: 2 } },
-        { key: 'tool', type: tool, x: 4, y: 3, heldBy: 'actor', tags: ['material:stone'] },
+        { key: 'tool', type: tool, x: 4, y: 3, heldBy: 'actor', tags: ['material:iron'] },
         ...(opts.neighbour !== false ? [{ key: 'hesper', type: 'actor/person/ferrykeeper', x: 7, y: 4, props: { household: 'h1' } }] : []),
       ],
       event: {},
@@ -45,78 +47,91 @@ function swing(eng: Engine): void {
   if (choice?.plan) eng.controls.run(choice.plan, true)
 }
 
-/** Swing until the wall in front is gone (at most `max` blows): how many it took. */
-function breakIn(eng: Engine, max = 60): number {
-  for (let n = 1; n <= max; n++) {
-    swing(eng)
-    if (!eng.world.isSolidTerrain(eng.world.terrainAt('sandbox', 4, 2))) return n
-  }
-  return Infinity
+/** Swing `n` times at the wall in front. */
+function hit(eng: Engine, n: number): void {
+  for (let i = 0; i < n; i++) swing(eng)
 }
 
-const lying = (eng: Engine) => eng.world.placedAt('sandbox', 4, 2).map((e) => e.type).filter((t) => !t.startsWith('item/seed')).sort()
-/**
- * What a thing broken leaves of its makeup (world-model.md §6.3): half of each kind, a part left over by its chance —
- * never anything it was not made of.
- */
-function leavesHalf(left: string[], makeup: Record<string, number>): void {
-  for (const t of left) expect(Object.keys(makeup)).toContain(t)
-  for (const [t, n] of Object.entries(makeup)) {
-    const got = left.filter((x) => x === t).length
-    expect(got, t).toBeGreaterThanOrEqual(Math.floor(n / 2))
-    expect(got, t).toBeLessThanOrEqual(Math.ceil(n / 2))
-  }
-  expect(left.length).toBeGreaterThan(0)
-}
+/** The wall in front as the frame tells it: its terrain and durability. */
+const shown = (eng: Engine) => snapshot(eng).tiles.find((t) => t.x === 4 && t.y === 2)
+const lying = (eng: Engine) => eng.world.placedAt('sandbox', 4, 2).map((e) => e.type)
 
-describe('a house wall is a thing of the world (docs/building.md §10)', () => {
-  it('a wooden wall gives to an axe: each blow its own outcome, the frame telling its durability; broken, its planks lie in the opening one walks into', () => {
+describe('a house wall marks but never gives way (docs/building.md §10)', () => {
+  it('a wooden wall under an axe: each blow its own outcome, the frame telling its durability; hit to nothing it holds at its last crack, solid, nothing falling out', () => {
     const eng = street('woodwall', 'item/weapon/blade/axe')
     swing(eng)
-    const cell = snapshot(eng).tiles.find((t) => t.x === 4 && t.y === 2)
-    expect(cell).toMatchObject({ terrain: 'woodwall' })
-    expect(cell!.hp).toBeLessThan(cell!.maxHp!)
-    expect(breakIn(eng)).toBeLessThan(12)
-    expect(eng.world.passable('sandbox', 4, 2)).toBe(true)
-    // the ground of the street under it, never a door or what else stands round it
-    expect(snapshot(eng).tiles.find((t) => t.x === 4 && t.y === 2)?.terrain).toBe('path')
-    leavesHalf(lying(eng), { 'item/material/plank': 2 })
-    // the wall beside it stands
-    expect(eng.world.terrainAt('sandbox', 3, 2)).toBe('woodwall')
+    const cell = shown(eng)!
+    expect(cell.terrain).toBe('woodwall')
+    expect(cell.hp).toBeLessThan(cell.maxHp!)
+    hit(eng, 40)
+    expect(shown(eng)).toMatchObject({ terrain: 'woodwall', hp: 1, maxHp: 12 })
+    expect(eng.world.passable('sandbox', 4, 2)).toBe(false)
+    expect(lying(eng)).toEqual([])
   })
 
-  it('stone needs a pick: an axe hardly marks it, a pickaxe breaks it into its stones', () => {
-    const axed = street('wall', 'item/weapon/blade/axe')
-    const picked = street('wall', 'item/tool/pickaxe')
-    const byPick = breakIn(picked)
-    expect(byPick).toBeLessThan(20)
-    expect(breakIn(axed, byPick)).toBe(Infinity)
-    leavesHalf(lying(picked), { 'item/material/stone': 4 })
+  it('every wall a building is made of endures whatever strikes it: stone, wood, canvas, thatch, snow, a burnt one', () => {
+    for (const wall of ['wall', 'woodwall', 'canvaswall', 'thatchwall', 'snowwall', 'burnt_wall'])
+      for (const tool of ['item/weapon/blade/axe', 'item/tool/pickaxe']) {
+        const eng = street(wall, tool, { neighbour: false })
+        hit(eng, 60)
+        expect([wall, tool, shown(eng)?.terrain ?? wall, eng.world.passable('sandbox', 4, 2), lying(eng)]).toEqual([wall, tool, wall, false, []])
+      }
+    // a pick bites stone where an axe hardly marks it (the efficiency table, unchanged)
+    const axed = street('wall', 'item/weapon/blade/axe', { neighbour: false })
+    const picked = street('wall', 'item/tool/pickaxe', { neighbour: false })
+    swing(axed)
+    swing(picked)
+    expect(shown(picked)!.hp!).toBeLessThan(shown(axed)!.hp!)
   })
 
-  it('every wall a building is made of breaks into what it is made of: canvas, thatch, snow', () => {
-    const made: Record<string, [string, Record<string, number>]> = {
-      canvaswall: ['item/weapon/blade/axe', { 'item/material/cloth': 2, 'item/material/stick': 1 }],
-      thatchwall: ['item/weapon/blade/axe', { 'item/material/grass': 3, 'item/material/stick': 2 }],
-      snowwall: ['item/tool/pickaxe', { 'item/misc/snowball': 3 }],
-    }
-    for (const [wall, [tool, makeup]] of Object.entries(made)) {
-      const eng = street(wall, tool, { neighbour: false })
-      expect(breakIn(eng), wall).toBeLessThan(20)
-      leavesHalf(lying(eng), makeup)
+  it('a fire on a wall wears it to the same crack and leaves it scorched black, never burnt away', () => {
+    for (const wall of ['woodwall', 'canvaswall', 'thatchwall']) {
+      const eng = street(wall, 'item/weapon/blade/axe', { neighbour: false })
+      const top = () => eng.world.cellTop('sandbox', 4, 2)!
+      eng.author(() => eng.applyStatus({ e: top().id }, 'burning'))
+      for (let i = 0; i < 2000 && eng.world.hasStatus({ e: top().id }, 'burning'); i++) eng.tick()
+      expect([wall, eng.world.terrainAt('sandbox', 4, 2), eng.world.passable('sandbox', 4, 2)]).toEqual([wall, 'burnt_wall', false])
     }
   })
 
-  it("breaking into someone's house is vandalism against its household, seen by the neighbour; a wall nobody owns is nobody's business", () => {
+  it("damaging someone's house is vandalism against its household, seen by the neighbour; a wall nobody owns is nobody's business", () => {
     const eng = street('woodwall', 'item/weapon/blade/axe')
-    breakIn(eng)
+    hit(eng, 3)
     const deeds = eng.world.get('hesper')!.npc!.memory?.deeds ?? []
     expect(deeds.some((d) => d.deed === 'vandalism' && d.against === 'household:h1')).toBe(true)
-    // what she will tell of it names the wall, though it is gone (its cell keeps its record)
     expect(deeds.find((d) => d.deed === 'vandalism')?.what).toEqual({ en: 'wooden wall', zh: '木墙' })
     // the same wall in the wild, nobody's
     const wild = street('woodwall', 'item/weapon/blade/axe', { owned: false })
-    breakIn(wild)
+    hit(wild, 3)
     expect(wild.world.get('hesper')!.npc!.memory?.deeds ?? []).toEqual([])
+  })
+
+  it('a wall one builds oneself is taken down as it was put up: a tool knocks it loose whole, a mace breaks it into its planks', () => {
+    const build = (tool: string) => {
+      const eng = buildSandbox(
+        {
+          terrain: Array.from({ length: 5 }, () => Array(5).fill('grass')),
+          entities: [
+            { key: 'actor', type: 'actor/person/player', x: 2, y: 3, props: { atk: 2 } },
+            { key: 'tool', type: tool, x: 2, y: 3, heldBy: 'actor', tags: ['material:iron'] },
+            { key: 'wall', type: 'structure/wall', x: 2, y: 2 },
+          ],
+          event: {},
+        },
+        onto,
+        new RuleLibrary([...BASE_RULES, ...STORY_RULES]),
+      )
+      eng.world.get('actor')!.facing = 'up'
+      return eng
+    }
+    const axed = build('item/weapon/blade/axe')
+    swing(axed)
+    expect(axed.world.passable('sandbox', 2, 2)).toBe(true)
+    const cut = build('item/weapon/blunt/mace')
+    // (a weapon's blow lands as the swing goes on: a few ticks each)
+    for (let i = 0; i < 40 && cut.world.get('wall'); i++) (swing(cut), Array.from({ length: 10 }, () => cut.tick()))
+    expect(cut.world.get('wall')).toBeUndefined()
+    expect(cut.world.passable('sandbox', 2, 2)).toBe(true)
+    expect(cut.world.placedAt('sandbox', 2, 2).map((e) => e.type)).toContain('item/material/plank')
   })
 })
