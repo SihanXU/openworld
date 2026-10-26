@@ -4,6 +4,7 @@ import { LOOK_TAG, lookProblems, lookTags, wornLook } from './looks.ts'
 import { calendarAt, type Calendar, type WeatherSpan, isNight } from './calendar.ts'
 import { CELL_SPACES, WAY_TAGS, cellId, parseCellId, splitLayers, type CellSpace, type Layers } from './cells.ts'
 import { OntologyIndex } from './ontology.ts'
+import { usePieces } from './stacks.ts'
 import { nextRandom } from './rng.ts'
 import { dropLevels, faceCells } from './relief.ts'
 import type {
@@ -216,6 +217,11 @@ export class World {
   constructor(state: WorldState, onto: OntologyIndex) {
     this.state = state
     this.onto = onto
+    // the pieces (stacks.ts): what is used, wielded or worn is one to a slot
+    usePieces((type) => {
+      const t = onto.resolve(type)
+      return t.tags.includes('tool') || t.tags.includes('weapon') || t.props.slot !== undefined
+    })
     this.reindex()
   }
 

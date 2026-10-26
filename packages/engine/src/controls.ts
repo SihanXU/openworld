@@ -27,7 +27,7 @@
 
 import { isPatch, isRoot } from './rules.ts'
 import { categoryOf } from './quality.ts'
-import { splitStacks, stackKey } from './stacks.ts'
+import { oldStackKey, splitStacks, stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
 import type { Engine } from './engine.ts'
 import { NO_EXPIRY, isBuilt, type Writer } from './world.ts'
@@ -743,7 +743,7 @@ export class Controls {
 
   // ---------------------------------------------------------------- inventory slots
 
-  /** What makes items the same stack: type, name, tags, statuses (stacks.ts — a chest counts its slots by the same). */
+  /** What makes items the same stack (stacks.ts: a piece is one alone; a chest counts its slots by the same). */
   key(e: Entity): string {
     return stackKey(e)
   }
@@ -808,6 +808,14 @@ export class Controls {
     // what is worn is on the body: the hand lets go of it, and it takes no bag slot
     if (p.held && this.wornIds().has(p.held)) this.posture(w.get(p.held)!, { on: 'inside', holder: p.id })
     const by = this.carried(true)
+    // a slot of an older save holds the key every piece of a kind once shared (all its axes one stack): the first
+    // piece it now means takes that slot back, the others the free ones below
+    for (let i = 0; i < slots.length; i++) {
+      const k = slots[i]
+      if (!k || by.has(k)) continue
+      const heir = [...by.keys()].find((n) => !slots.includes(n) && oldStackKey(by.get(n)![0]!) === k)
+      if (heir) slots[i] = heir
+    }
     const held = w.get(p.held)
     if (held) {
       const hk = this.key(held)
@@ -991,21 +999,15 @@ export class Controls {
   /**
    * What is worn (the inventory's equipment): put a carried thing on oneself — an act, as using it on
    * oneself is (`use/wear` → `body/wear`: a helmet on the head, a shield on the arm) — or take it off
-   * (offered again, it comes off); with no item, what is worn in the off hand. `putOn`: from the bag, so a
-   * stack whose first is already worn puts on another of it (the second of two rings), never takes one off.
+   * (offered again, it comes off); with no item, what is worn in the off hand. `putOn`: from the bag, where a
+   * thing already worn never comes off (each ring is a slot of its own: the second is put on from its own).
    */
   wear(item?: Id, putOn = false): void {
     const w = this.w
     const p = w.player
-    let id = item ?? w.prop(p, OFFHAND)
+    const id = item ?? w.prop(p, OFFHAND)
     if (this.eng.busy(p) || typeof id !== 'string' || !w.get(id)) return
-    if (putOn && w.worn(p).some((e) => e.id === id)) {
-      const first = w.get(id)!
-      const worn = new Set(w.worn(p).map((e) => e.id))
-      const other = this.carried().get(this.key(first))?.find((e) => !worn.has(e.id))
-      if (!other) return
-      id = other.id
-    }
+    if (putOn && w.worn(p).some((e) => e.id === id)) return
     this.eng.act('use', p.id, { e: p.id }, { instrument: { e: id } })
     this.sync()
   }
