@@ -148,6 +148,15 @@ the map and in the portrait is the same colour by construction.
   zones by hue (key hues, the skin's hue band, grey for hair and brows);
   lines take their neighbour's zone (coloured lineart); values anchored at the zone's median with a bounded gain
   (skin uses one mapping for every layer, so no seams).
+- **The children** (2026-10-26). The girl's base was the woman's edited small, and the boy's the girl's: a woman's
+  lashes and long eyes on a round head too big for a thin neck — the user found them frightening ("太他妈恐怖了").
+  Four directions were drawn (a natural child, an older child, chibi, a picture-book child; the trial's sheets); the
+  user chose the natural child. Its drawings (`parts.py` `kid_trial_jobs`: a child's own face, eyes only a little larger
+  than an adult's, few lashes, no eyeliner) come at full frame height whatever the model is told, so `childbase.py`
+  scales each to 0.74, its soles on the adults' line and the figure alone on the adults' ground. A child's size
+  reference is its base itself. All the children's parts were drawn again on the new bases (faces and moods held to
+  their eyes; the surprised ones transplanted); the smock is a sleeved, belted smock now (it came out as a second
+  pinafore), and its belt is colour 3.
 - **The face layer is the whole face** (2026-10-25). It was what each picture changed, a ragged shape with holes, and
   its edges showed under hair as a box round the eyes, specks and seams ("不就是个图层叠上去的问题吗"). Every face is
   drawn from its body's size reference, so the face is always in one place: the layer is the face inside the head's
