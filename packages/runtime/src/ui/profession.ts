@@ -1,3 +1,4 @@
+import { mountWindow, confirmDialog } from './components/index.ts'
 // The trainer's panel (talking to a profession trainer opens it): the four professions, what
 // each is about and the weapon it starts with; the current one; the level it takes. Changing
 // profession gives back every point of the profession branch (engine/src/profession.ts), so
@@ -56,11 +57,12 @@ export class ProfessionPanel {
         <div class="pf-note">${ready ? (current ? t('profSwitchNote').replace('{n}', String(spent)) : t('profReady')) : t('profLevel').replace('{n}', String(PROFESSION_LEVEL)).replace('{l}', String(level))}</div>
         <div class="pf-cards">${cards}</div>
       </div></div>`
+    mountWindow(this.host.querySelector<HTMLElement>('.sheet')!, { onClose: () => this.close() })
     $('#pfClose').onclick = () => this.close()
     this.host.querySelectorAll<HTMLButtonElement>('[data-prof]').forEach((b) => {
-      b.onclick = () => {
+      b.onclick = async () => {
         const id = b.dataset.prof!
-        if (current && !confirm(t('profConfirm').replace('{n}', String(spent)))) return
+        if (current && !await confirmDialog(t('profConfirm').replace('{n}', String(spent)))) return
         this.choose(id)
       }
     })

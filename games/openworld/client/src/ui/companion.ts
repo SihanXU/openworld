@@ -1,3 +1,4 @@
+import { mountWindow } from '@openworld/runtime/src/ui/components/index.ts'
 /// <reference types="vite/client" />
 
 // The companion's panel (2026-10-12; E on Lumi, or a woken waypoint statue): the fairy herself, her portrait drawn
@@ -87,6 +88,8 @@ class CompanionPanel implements GamePanel {
     const tab = (id: CompanionTab, icon: string, en: string, zh2: string) =>
       `<button class="lm-tab${this.tab === id ? ' on' : ''}" data-tab="${id}" aria-pressed="${this.tab === id}"><i>${icon}</i>${zh ? zh2 : en}</button>`
     this.host.innerHTML = `<div class="sheet wood lm-sheet">
+      <header class="ui-window-head"><b>${esc(name)}</b><button class="x" data-close>×</button></header>
+      <div class="lm-layout">
       <aside class="lm-stage">
         <div class="lm-sky"></div>
         <div class="lm-halo"></div>
@@ -97,11 +100,12 @@ class CompanionPanel implements GamePanel {
       <section class="lm-main">
         <div class="lm-head">
           <div class="lm-tabs">${tab('guide', '✦', 'The Road', '主线指引')}${tab('powers', '✧', "The Seals' Powers", '印之力量')}${tab('knowledge', '▤', 'Knowledge', '知识')}</div>
-          <button class="lm-x" data-close title="${zh ? '关闭' : 'Close'}">✕</button>
         </div>
         <div class="lm-body">${this.tab === 'guide' ? this.guide(road, name) : this.tab === 'powers' ? this.powers(f) : this.readKnowledge()}</div>
       </section>
+      </div>
     </div>`
+    mountWindow(this.host.querySelector<HTMLElement>('.sheet')!, { size: 'lg', view: this.tab, onClose: () => this.ctx.close() })
     // her face: on the road, glad when nothing presses; on the powers, as the seal she carries stirs her
     const seal = b?.active ? BOON_BY_ID[b.active]?.seal : undefined
     const carried = seal ? seal - 1 : b?.active ? (b.unlocked ?? []).indexOf(b.active) : -1

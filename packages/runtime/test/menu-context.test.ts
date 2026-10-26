@@ -62,6 +62,10 @@ class FakeElement implements Clickable {
     return selector === '[data-k]' ? this.children.filter((child) => child.dataset.k !== undefined) : []
   }
 
+  querySelector(selector: string): FakeElement | null {
+    return this.querySelectorAll(selector)[0] ?? null
+  }
+
   contains(target: unknown): boolean {
     return target === this || this.children.some((child) => child.contains(target))
   }

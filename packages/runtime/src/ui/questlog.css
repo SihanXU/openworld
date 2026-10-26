@@ -1,0 +1,73 @@
+/* Quest reading has its own scale; ordinary window and control text never dictates prose size. */
+.ql-sheet { --quest-copy: 16px; --quest-leading: 26px; }
+.ql-sheet[data-ui-size='lg'] { width: 1040px; }
+.ql-sheet :where(button,.ql-from,.ql-empty,.ql-state) { font: 400 14px/20px var(--ui-font); }
+.ql-sheet .ui-icon { width: 12px; height: 12px; flex-basis: 12px; }
+.ql-sheet .ui-window-head .ui-icon { width: 24px; height: 24px; flex-basis: 24px; }
+.ql-sheet .ql-tabs { gap: 8px; margin: 0; padding: 12px 20px; border-bottom: 2px solid #c99759; }
+.ql-sheet .ql-tab { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; min-height: 36px; font: 400 14px/20px var(--ui-font); }
+.ql-sheet .ql-count { display: inline-grid; place-items: center; min-width: 20px; padding: 0 4px; font: 400 12px/20px var(--ui-font); background: #502e2012; color: inherit; opacity: 1; }
+.ql-sheet .ql-body { display: grid; grid-template-columns: 232px minmax(0,1fr); gap: 24px; height: auto; max-height: none; align-items: start; }
+.ql-sheet :where(.ql-list,.ql-detail) { min-width: 0; height: auto; max-height: none; overflow: visible; }
+.ql-sheet .ql-list { display: flex; flex-direction: column; gap: 8px; }
+.ql-sheet .ql-row {
+  display: flex; flex-direction: column; flex-wrap: nowrap; flex-shrink: 0; align-items: stretch; justify-content: start;
+  width: 100%; min-width: 0; gap: 8px; padding: 12px; text-align: left;
+  border: 2px solid transparent; background: #edce95; box-shadow: none;
+}
+.ql-sheet .ql-row.on { color: var(--ui-ink); background: var(--ui-paper-light); border-color: var(--ui-green); box-shadow: inset 4px 0 var(--ui-green); }
+.ql-sheet .ql-row:hover { background: var(--ui-paper-light); }
+.ql-sheet .ql-row-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.ql-sheet .ql-row-title { display: block; min-width: 0; font: 400 16px/24px var(--ui-font); overflow-wrap: anywhere; }
+.ql-sheet .ql-tag { align-self: start; padding: 0 4px; border: 1px solid #c99759; border-radius: 0; font: 400 12px/18px var(--ui-font); background: var(--ui-paper); color: var(--ui-muted); }
+.ql-sheet .ql-row-tracked { color: var(--ui-good); }
+.ql-sheet .ql-quest { margin: 0; padding: 24px; border: 1px solid #c99759; border-radius: 0; background: var(--ui-paper-light); }
+.ql-sheet .ql-head { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+.ql-sheet .ql-title { flex: 1 1 240px; min-width: 0; margin: 0; color: var(--ui-ink); font: 400 24px/32px var(--ui-font); overflow-wrap: anywhere; text-wrap: balance; }
+.ql-sheet :where(.ql-track,.ql-take) { flex: 0 0 auto; gap: 8px; min-height: 36px; padding: 6px 10px; font: 400 14px/20px var(--ui-font); white-space: nowrap; }
+.ql-sheet .ql-state { color: var(--ui-muted); }
+.ql-sheet .ql-state.done { color: var(--ui-good); }
+.ql-sheet .ql-state.failed { color: var(--ui-danger); }
+.ql-sheet .ql-from { margin-top: 12px; color: var(--ui-muted); overflow-wrap: anywhere; }
+.ql-sheet :where(.ql-sum,.ql-goal-text,.ql-log,.ql-log li) { font: 400 var(--quest-copy)/var(--quest-leading) var(--ui-font); overflow-wrap: anywhere; }
+.ql-sheet .ql-sum { margin: 20px 0 0; max-width: 70ch; white-space: pre-line; }
+.ql-sheet .ql-section { margin-top: 24px; padding-top: 16px; border-top: 1px solid #dac28f; }
+.ql-sheet .ql-section-title { margin: 0 0 12px; color: var(--ui-muted); font: 400 14px/20px var(--ui-font); }
+.ql-sheet .ql-goals { display: grid; gap: 16px; margin: 0; padding: 0; list-style: none; }
+.ql-sheet .ql-goal { display: grid; grid-template-columns: 16px minmax(0,1fr); gap: 10px; padding: 0; text-indent: 0; text-decoration: none; }
+.ql-sheet .ql-goal-mark { display: grid; place-items: center; width: 16px; height: 16px; margin-top: 5px; border: 2px solid #b99761; color: var(--ui-good); }
+.ql-sheet .ql-goal:not(.open) .ql-goal-mark { border-color: transparent; }
+.ql-sheet .ql-goal-copy { min-width: 0; }
+.ql-sheet .ql-goal-text { margin: 0; }
+.ql-sheet .ql-goal.done .ql-goal-text { color: var(--ui-good); }
+.ql-sheet .ql-goal.failed .ql-goal-text { color: var(--ui-muted); text-decoration: line-through; }
+.ql-sheet .ql-goal.failed .ql-goal-mark { color: var(--ui-danger); }
+.ql-sheet .ql-goal-meta { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px 12px; margin-top: 4px; color: var(--ui-muted); }
+.ql-sheet .ql-goal-meta :where(span,em) { font: 400 12px/20px var(--ui-font); }
+.ql-sheet :where(.ql-progress,.ql-optional) { white-space: nowrap; }
+.ql-sheet .ql-where { display: inline-flex; align-items: flex-start; gap: 6px; min-width: 0; max-width: 100%; color: var(--ui-good); }
+.ql-sheet .ql-where > [data-quest-icon] { flex: 0 0 12px; margin-top: 4px; }
+.ql-sheet .ql-where > :last-child { min-width: 0; overflow-wrap: anywhere; }
+.ql-sheet .ql-log { margin: 0; padding: 0 0 0 2em; color: var(--ui-ink); }
+.ql-sheet .ql-log li { padding-left: 6px; margin: 8px 0; text-indent: 0; }
+.ql-sheet .ql-log li::marker { color: var(--ui-muted); }
+.ql-sheet .ql-log li:first-child { margin-top: 0; }
+.ql-sheet .ql-log li:last-child { margin-bottom: 0; }
+.ql-sheet .ql-board { display: grid; gap: 16px; max-height: none; overflow: visible; }
+.ql-sheet .ql-empty { margin: 0; padding: 12px; color: var(--ui-muted); }
+
+@container window-body (width < 720px) {
+  .ql-sheet .ql-body { grid-template-columns: minmax(0,1fr); gap: 16px; }
+  .ql-sheet .ql-list { max-height: 152px; overflow-y: auto; flex: none; padding: 2px; }
+  .ql-sheet .ql-row { padding: 10px 12px; gap: 4px; }
+}
+@container window-body (width < 480px) {
+  .ql-sheet .ql-quest { padding: 16px; }
+  .ql-sheet .ql-head { gap: 12px; }
+  .ql-sheet .ql-title { flex-basis: 100%; }
+  .ql-sheet .ql-section { margin-top: 20px; padding-top: 16px; }
+}
+@media (max-width: 719px), (max-height: 599px) {
+  .ql-sheet .ql-tabs { padding: 8px 12px; gap: 6px; }
+  .ql-sheet .ql-tab { padding-inline: 8px; }
+}

@@ -1,3 +1,4 @@
+import { confirmDialog } from './components/index.ts'
 // The options' AI section (design.md §13, the AI setting): the AI setting as a game's graphics settings are laid out — a
 // preset, a level for each kind of work, and the detection of what the connected model carries (the
 // service plays its questions at every tier and recommends). The setting is the player's, kept in this
@@ -166,7 +167,7 @@ export class AiOptions {
     const url = this.service?.url
     if (!url || this.asking) return
     // on the player's own key: asked first
-    if (url === LOCAL_MODDER && !confirm(t('aiDetectCost'))) return
+    if (url === LOCAL_MODDER && !await confirmDialog(t('aiDetectCost'))) return
     this.asking = true
     this.draw()
     try {

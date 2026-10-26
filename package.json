@@ -49,9 +49,11 @@
     "wiki": "tsx games/openworld/wiki/src/serve.ts",
     "wiki:build": "tsx games/openworld/wiki/src/build.ts",
     "wiki:check": "tsx games/openworld/wiki/src/build.ts --check",
-    "wiki:translate": "tsx games/openworld/wiki/src/translate.ts"
+    "wiki:translate": "tsx games/openworld/wiki/src/translate.ts",
+    "test:ui": "npm run gen:world && playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.3",
     "ajv": "^8.20.0",
     "ts-json-schema-generator": "^2.9.0",

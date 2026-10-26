@@ -28,17 +28,53 @@ const SLOT_NAMES: Record<string, [string, string]> = {
   legs: ['Legs', '腿'], shoes: ['Shoes', '鞋'],
 }
 const MOODS: Mood[] = ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy']
+const MOOD_NAMES: Record<Mood, [string, string]> = {
+  neutral: ['Calm', '平静'], happy: ['Happy', '开心'], sad: ['Sad', '难过'],
+  angry: ['Angry', '生气'], surprised: ['Surprised', '惊讶'], shy: ['Shy', '害羞'],
+}
+const CLOTHING = new Set(['hat', 'cloak', 'armour', 'outfit', 'legs', 'shoes'])
+const CREATOR_TABS = [
+  ['appearance', 'Features', '容貌'], ['clothing', 'Clothing', '穿着'], ['palette', 'Colours', '配色'],
+] as const
+type CreatorTab = typeof CREATOR_TABS[number][0]
+let creatorId = 0
+
+/** Tiny, original icons use the same pixel grid as the rest of the controls. */
+function pixelIcon(kind: CreatorTab | 'dice'): string {
+  const shapes = {
+    appearance: '<path d="M5 2h6v1h2v8h-2v2H5v-2H3V3h2z"/><path fill="var(--ui-paper-light,#fff0c7)" d="M5 5h6v5H5zM6 11h4v1H6z"/><path d="M5 6h2v2H5zM9 6h2v2H9zM7 9h2v1H7zM4 13h8v2H4z"/>',
+    clothing: '<path d="M5 2h2v2h2V2h2l4 3-2 4-2-1v7H5V8L3 9 1 5z"/><path fill="var(--ui-paper-light,#fff0c7)" d="M7 6h2v6H7z"/>',
+    palette: '<path d="M5 1h6v1h2v2h2v7h-2v3H7v-3H3V9H1V5h2V3h2z"/><path fill="var(--ui-paper-light,#fff0c7)" d="M4 5h2v2H4zM7 3h2v2H7zM11 5h2v2h-2zM10 9h2v2h-2z"/>',
+    dice: '<path d="M2 1h12v1h1v12h-1v1H2v-1H1V2h1z"/><path fill="var(--ui-paper-light,#fff0c7)" d="M3 3h10v10H3z"/><path d="M4 4h2v2H4zM10 4h2v2h-2zM7 7h2v2H7zM4 10h2v2H4zM10 10h2v2h-2z"/>',
+  }
+  return `<svg class="cr-icon" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor" shape-rendering="crispEdges">${shapes[kind]}</svg>`
+}
+
+function moodIcon(mood: Mood): string {
+  const mouth = {
+    neutral: 'M6 11h4v1H6z', happy: 'M5 10h1v1h4v-1h1v2h-1v1H6v-1H5z',
+    sad: 'M6 10h4v1h1v1h-1v-1H6v1H5v-1h1z', angry: 'M6 11h4v1H6z',
+    surprised: 'M7 10h2v3H7z', shy: 'M6 11h4v1H6z',
+  }
+  const eyes = mood === 'happy' || mood === 'shy'
+    ? 'M4 7h3v1H4zM9 7h3v1H9z'
+    : mood === 'angry' ? 'M4 6h1v1h2v2H5V8H4zM11 6h1v2h-1v1H9V7h2z' : 'M5 7h2v2H5zM9 7h2v2H9z'
+  return `<svg viewBox="0 0 16 16" aria-hidden="true" shape-rendering="crispEdges"><path fill="#8c4c2b" d="M4 1h8v1h2v2h1v9h-2v2H3v-2H1V4h1V2h2z"/><path fill="#f9cc7a" d="M4 3h8v1h1v8h-2v1H5v-1H3V4h1z"/><path fill="#fff0c7" d="M4 3h8v1H4z"/><path fill="#563329" d="${eyes}${mouth[mood]}"/>${mood === 'shy' ? '<path fill="#d77d69" d="M3 9h3v1H3zM10 9h3v1h-3z"/>' : ''}${mood === 'sad' ? '<path fill="#75b9c5" d="M11 9h1v3h-1z"/>' : ''}</svg>`
+}
 
 export class Creator {
   private frame = 0
   private timer?: ReturnType<typeof setInterval>
   private mood: Mood = 'neutral'
+  private tab: CreatorTab = 'appearance'
+  private readonly id = `creator-${++creatorId}`
 
   constructor(
     private root: HTMLElement,
     public look: Look,
     private onChange?: (look: Look) => void,
   ) {
+    this.root.classList.add('creator-host')
     this.render()
     this.timer = setInterval(() => this.tick(), 180)
   }
@@ -94,35 +130,43 @@ export class Creator {
 
   private render(): void {
     const zh = this.zh()
+    const active = document.activeElement as HTMLElement | null
+    const focus = active && this.root.contains(active) ? active.dataset.crFocus : undefined
     const words = game().looks.describe(this.look)
     // (what only worn things fill — a breastplate, a cloak — is the things', not the creator's)
     const rows = game().looks.slots.filter((s) => s !== 'age' && !game().looks.worn.has(s))
       .filter((s) => this.options(s).filter(Boolean).length)
+      .filter((s) => this.tab === 'clothing' ? CLOTHING.has(s) : !CLOTHING.has(s))
       .map((slot) => {
         const id = this.look.parts[slot]
         const name = id ? tx(game().looks.parts[id].name) : zh ? '无' : 'none'
-        return `<div class="cr-row"><span class="cr-label">${zh ? SLOT_NAMES[slot][1] : SLOT_NAMES[slot][0]}</span>
-          <span class="cr-pick"><button class="cv-btn small" data-step="${slot}" data-by="-1">◀</button><span class="cr-val">${esc(name)}</span><button class="cv-btn small" data-step="${slot}" data-by="1">▶</button></span></div>`
+        const label = SLOT_NAMES[slot]?.[zh ? 1 : 0] ?? slot
+        const options = this.options(slot)
+        const index = options.indexOf(id ?? null) + 1
+        return `<div class="cr-row"><span class="cr-label">${esc(label)}</span>
+          <span class="cr-pick"><button type="button" class="cr-arrow" data-step="${slot}" data-by="-1" data-cr-focus="${slot}-previous" aria-label="${esc(zh ? `上一款${label}` : `Previous ${label.toLowerCase()}`)}"><span class="cr-chevron cr-chevron--left" aria-hidden="true"></span></button><span class="cr-choice"><span class="cr-val">${esc(name)}</span><span class="cr-index">${index} / ${options.length}</span></span><button type="button" class="cr-arrow" data-step="${slot}" data-by="1" data-cr-focus="${slot}-next" aria-label="${esc(zh ? `下一款${label}` : `Next ${label.toLowerCase()}`)}"><span class="cr-chevron" aria-hidden="true"></span></button></span></div>`
       })
       .join('')
     const colours = COLOUR_ROWS.filter(([key]) => !key.includes('.') || this.look.parts[key.split('.')[0]])
       .map(([key, families, en, cn]) => {
         const sw = Object.entries(game().looks.colors)
           .filter(([, c]) => c.for.some((f) => families.includes(f)))
-          .map(([id, c]) => `<button class="cr-sw${this.colourOf(key) === id ? ' on' : ''}" style="background:${c.hex}" title="${esc(tx(c.name))}" data-key="${key}" data-colour="${id}"></button>`)
+          .map(([id, c]) => `<button type="button" class="cr-sw${this.colourOf(key) === id ? ' on' : ''}" style="--cr-colour:${c.hex}" title="${esc(tx(c.name))}" aria-label="${esc(`${zh ? cn : en}: ${tx(c.name)}`)}" aria-pressed="${this.colourOf(key) === id}" data-cr-focus="${key}-${id}" data-key="${key}" data-colour="${id}"></button>`)
           .join('')
-        return `<div class="cr-row"><span class="cr-label">${zh ? cn : en}</span><span class="cr-sws">${sw}</span></div>`
+        return `<div class="cr-row cr-colour-row"><span class="cr-label">${zh ? cn : en}</span><span class="cr-sws" role="group" aria-label="${zh ? cn : en}">${sw}</span></div>`
       })
       .join('')
     const bodies = Object.entries(game().looks.bodies)
       .filter(([, b]) => b.age === 'adult')
-      .map(([id, b]) => `<button class="cv-btn small${this.look.body === id ? ' primary' : ''}" data-body="${id}">${esc(tx(b.name))}</button>`)
+      .map(([id, b]) => `<button type="button" class="cr-body${this.look.body === id ? ' primary' : ''}" data-body="${id}" data-cr-focus="body-${id}" aria-pressed="${this.look.body === id}">${esc(tx(b.name))}</button>`)
       .join('')
-    const moods = MOODS.map((m) => `<button class="cr-mood${this.mood === m ? ' on' : ''}" data-mood="${m}">${{ neutral: '😐', happy: '😊', sad: '😢', angry: '😠', surprised: '😮', shy: '😳' }[m]}</button>`).join('')
+    const moods = MOODS.map((m) => `<button type="button" class="cr-mood${this.mood === m ? ' on' : ''}" data-mood="${m}" data-cr-focus="mood-${m}" aria-label="${MOOD_NAMES[m][zh ? 1 : 0]}" title="${MOOD_NAMES[m][zh ? 1 : 0]}" aria-pressed="${this.mood === m}">${moodIcon(m)}</button>`).join('')
+    const tabs = CREATOR_TABS.map(([id, en, cn]) => `<button type="button" role="tab" class="cr-tab" id="${this.id}-${id}" aria-controls="${this.id}-panel" aria-selected="${this.tab === id}" tabindex="${this.tab === id ? 0 : -1}" data-cr-tab="${id}" data-cr-focus="tab-${id}">${pixelIcon(id)}<span>${zh ? cn : en}</span></button>`).join('')
+    const body = `<div class="cr-row cr-body-row"><span class="cr-label">${zh ? '体型' : 'Body'}</span><span class="cr-bodies" role="group" aria-label="${zh ? '体型' : 'Body'}">${bodies}</span></div>`
     this.root.innerHTML = `<div class="creator">
-      <div class="cr-preview"><canvas class="cr-bust" width="1" height="1"></canvas><canvas class="cr-sprite" width="${FW}" height="${FH}"></canvas>
-        <div class="cr-moods">${moods}</div><div class="cr-words">${esc(zh ? words.zh : words.en)}</div></div>
-      <div class="cr-controls"><div class="cr-row"><span class="cr-label">${zh ? '身体' : 'Body'}</span><span class="cr-pick">${bodies}<button class="cv-btn small" data-random>🎲 ${zh ? '随机' : 'Random'}</button></span></div>${rows}${colours}</div>
+      <div class="cr-preview"><div class="cr-scene"><div class="cr-scene-sun" aria-hidden="true"></div><div class="cr-scene-hills" aria-hidden="true"></div><div class="cr-scene-field" aria-hidden="true"></div><div class="cr-scene-path" aria-hidden="true"></div><canvas class="cr-bust" width="1" height="1" role="img" aria-label="${zh ? '角色立绘' : 'Character portrait'}"></canvas><div class="cr-sprite-frame"><canvas class="cr-sprite" width="${FW}" height="${FH}" role="img" aria-label="${zh ? '行走预览' : 'Walking preview'}"></canvas></div></div>
+        <div class="cr-preview-details"><div class="cr-moods" role="group" aria-label="${zh ? '表情预览' : 'Preview expression'}">${moods}</div><div class="cr-words">${esc(zh ? words.zh : words.en)}</div><button type="button" class="cr-random" data-random data-cr-focus="random">${pixelIcon('dice')}<span>${zh ? '随机外观' : 'Surprise me'}</span></button></div></div>
+      <div class="cr-controls"><div class="cr-tabs" role="tablist" aria-label="${zh ? '外观分类' : 'Appearance categories'}">${tabs}</div><div class="cr-panel" role="tabpanel" id="${this.id}-panel" aria-labelledby="${this.id}-${this.tab}">${this.tab === 'palette' ? colours : `${this.tab === 'appearance' ? body : ''}${rows}`}</div></div>
     </div>`
     this.root.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((b) => (b.onclick = () => this.step(b.dataset.step!, Number(b.dataset.by))))
     this.root.querySelectorAll<HTMLButtonElement>('[data-body]').forEach((b) => (b.onclick = () => this.set({ body: b.dataset.body! })))
@@ -130,6 +174,20 @@ export class Creator {
     this.root.querySelectorAll<HTMLButtonElement>('[data-mood]').forEach((b) => (b.onclick = () => ((this.mood = b.dataset.mood as Mood), this.render())))
     const r = this.root.querySelector<HTMLButtonElement>('[data-random]')
     if (r) r.onclick = () => this.random()
+    this.root.querySelectorAll<HTMLButtonElement>('[data-cr-tab]').forEach((button, index) => {
+      button.onclick = () => { this.tab = button.dataset.crTab as CreatorTab; this.render() }
+      button.onkeydown = (event) => {
+        const next = event.key === 'ArrowRight' ? (index + 1) % CREATOR_TABS.length
+          : event.key === 'ArrowLeft' ? (index + CREATOR_TABS.length - 1) % CREATOR_TABS.length
+          : event.key === 'Home' ? 0 : event.key === 'End' ? CREATOR_TABS.length - 1 : -1
+        if (next < 0) return
+        event.preventDefault()
+        this.tab = CREATOR_TABS[next][0]
+        this.render()
+        this.root.querySelector<HTMLButtonElement>(`[data-cr-tab="${this.tab}"]`)?.focus({ preventScroll: true })
+      }
+    })
+    if (focus) [...this.root.querySelectorAll<HTMLElement>('[data-cr-focus]')].find((el) => el.dataset.crFocus === focus)?.focus({ preventScroll: true })
     this.paintBust()
     this.tick()
   }

@@ -9,6 +9,8 @@ games/openworld/public/bundle.json
 *.zip
 .DS_Store
 /var/
+/test-results/
+/playwright-report/
 .env
 games/openworld/wiki/out/
 games/openworld/wiki/out.tmp/

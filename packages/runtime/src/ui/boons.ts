@@ -1,3 +1,4 @@
+import { mountWindow } from './components/index.ts'
 // The companion's boons (the boons module; a woken waypoint statue opens it, `panel: boons`): the powers the companion
 // has taken up, the one it carries, and the choice of another — only beside a woken statue (modules/src/boons). The
 // runtime's own panel, shown for a game that uses the module and has no panel of its own for it (ClientGame.panels,
@@ -42,6 +43,7 @@ class BoonPanel implements GamePanel {
     this.ctx.host.innerHTML = `<div class="sheet wood pf-sheet">
       <div class="tabs-row"><span class="sk-title">${t('boonTitle')}</span><button class="x" data-close>✕</button></div>
       <div class="tab-body"><div class="pf-note">${note}</div><div class="pf-cards">${cards}</div></div></div>`
+    mountWindow(this.ctx.host.querySelector<HTMLElement>('.sheet')!, { onClose: () => this.ctx.close() })
     this.ctx.host.querySelector<HTMLButtonElement>('[data-close]')!.onclick = () => this.ctx.close()
     this.ctx.host.querySelectorAll<HTMLButtonElement>('[data-boon]').forEach((el) => (el.onclick = () => this.ctx.send.boon(el.dataset.boon!)))
   }

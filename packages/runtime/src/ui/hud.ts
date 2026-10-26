@@ -3,6 +3,7 @@
 // messages bottom left, the map name as it fades in (what the inputs would do is the pointer's mark and the tip
 // over the framed spot: ui/cursor.ts), the dialogue box and the yes/no question, speech bubbles and floating numbers.
 
+import { bindSlotKeys, itemSlotHtml, placeFloating, windowManager } from './components/index.ts'
 import { xpToNext, type Frame, type FxEvent, type ItemInfo, type Mood, type TalkOption, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, itemIconSignature, ontology } from '../game.ts'
 import { artEpoch, assetUrl, cssAssetUrl } from '../render/assets.ts'
@@ -114,6 +115,22 @@ export class Hud {
       <div class="boonbanner hidden" id="boonBanner"><small id="boonKicker"></small><b id="boonName"></b></div>
       <div class="card hidden" id="card"><img class="card-art hidden" id="cardArt" alt=""><div class="card-text" id="cardText"></div><div class="dmore">▼</div></div>`
     $('#hotbar').style.setProperty('--heart', cssAssetUrl('Ui/Receptacle/Heart.png'))
+    const tracker = $('#objective')
+    tracker.tabIndex = 0
+    tracker.setAttribute('role', 'button')
+    tracker.setAttribute('aria-expanded', 'false')
+    const expandTracker = () => { const expanded = tracker.dataset.expanded !== 'true'; tracker.dataset.expanded = String(expanded); tracker.setAttribute('aria-expanded', String(expanded)) }
+    tracker.onclick = expandTracker
+    tracker.onkeydown = (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); expandTracker() } }
+    const dialog = $('#dialog')
+    dialog.tabIndex = -1
+    dialog.setAttribute('role', 'dialog')
+    dialog.setAttribute('aria-label', locale.value === 'zh' ? '对话' : 'Dialogue')
+    windowManager().register(dialog, dialog, { mode: 'modal', onClose: () => {
+      if (this.questionShown) this.answer(false)
+      else if (this.talkOpen) { if (!this.arrestOpen) this.send.closeTalk() }
+      else this.advanceDialog()
+    } })
     if (catalog().ui.drumstick) $('#hotbar').style.setProperty('--drum', cssAssetUrl(catalog().ui.drumstick.img))
     $('#jbtn').onclick = () => this.send.openJournal()
     $('#bagBtn').onclick = () => this.send.toggleInventory()
@@ -286,10 +303,11 @@ export class Hud {
     $('#toolbar').innerHTML = row
       .map(
         (s, i) =>
-          `<div class="slot${i === f.player.selected ? ' sel' : ''}${gearFrame(s?.item)}" data-slot="${i}"${s ? ` data-item="${s.item.id}"` : ''}>` +
-          `<span class="key" data-kbd="slot${i + 1}">${kbd(`slot${i + 1}` as Action)}</span>${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}</div>`,
+          itemSlotHtml({ label: s ? tx(s.item.name) : `${t('csPack')} ${i + 1}`, className: (i === f.player.selected ? ' sel' : '') + gearFrame(s?.item), attributes: { 'data-slot': i, 'data-item': s?.item.id }, content:
+          `<span class="key" data-kbd="slot${i + 1}">${kbd(`slot${i + 1}` as Action)}</span>${s ? `<div class="icon" data-icon="${esc(s.item.id)}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}` }),
       )
       .join('')
+    bindSlotKeys($('#toolbar'))
     $('#toolbar')
       .querySelectorAll<HTMLElement>('[data-slot]')
       .forEach((el) => (el.onclick = () => this.send.select(Number(el.dataset.slot))))
@@ -349,8 +367,8 @@ export class Hud {
         .join('')
     el.querySelectorAll<HTMLElement>('[data-layer]').forEach((row) => (row.onclick = () => this.choose(Number(row.dataset.layer))))
     const s = this.screenOfTile(tile.x, tile.y)
-    el.style.transform = `translate(${s.x}px, ${s.y + 14}px) translate(-50%, 0)`
     el.classList.remove('hidden')
+    placeFloating(el, { x: s.x, y: s.y + 14, width: 0, height: 0 })
   }
 
   /** The n-th row (1-based), from a number key. */
