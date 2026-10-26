@@ -84,12 +84,12 @@ function worldEngineer(rule: Rule = RULE) {
   return { model, tests: () => lastTests }
 }
 
-function setup(model?: ScriptedModel) {
+function setup(model?: ScriptedModel, dry = false) {
   const dir = mkdtempSync(join(tmpdir(), 'lsw-repo-modder-'))
   const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
   const state = SelfState.open(join(dir, 'modder-state'))
   state.setHarness({ ...state.harness(), audit: { ...auditOf(state.harness()), enabled: false } }, 'test: no auditor')
-  return { library, state, modder: new Modder({ library, state, model, profile: 'offline' }) }
+  return { library, state, modder: new Modder({ library, state, model, profile: 'offline', dry }) }
 }
 
 describe('a world task as a repository', () => {
@@ -203,5 +203,19 @@ describe('a world task as a repository', () => {
     expect(task).toBeTruthy()
     expect(existsSync(join(task!.env.root, 'rules/patch/stone-stills-creature.json'))).toBe(false)
     await modder.taskSource().cleanup?.(task!)
+  })
+
+  it('a dry modder (a trial run, detect.ts) judges the repository\'s answer and keeps nothing', { timeout: 180_000 }, async () => {
+    const { model } = worldEngineer()
+    const { modder, library, state } = setup(model, true)
+    const req = request()
+    const reply = await modder.resolve({ request: req }, 'offline')
+    await modder.settled()
+    expect(reply.outcome).toBe('accepted')
+    expect(modder.trials.get(req.id)).toMatchObject({ kind: 'world-repo', outcome: 'accepted' })
+    // nothing kept: no rule in the library, no episode, no reflection on it
+    expect(library.lib.rules.has('patch/stone-stills-creature')).toBe(false)
+    expect(state.stats().episodes).toBe(0)
+    expect(state.journalOf('reflect')).toEqual([])
   })
 })
