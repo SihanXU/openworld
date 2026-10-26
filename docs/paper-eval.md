@@ -7,7 +7,7 @@ are in the paper.
 ## The model
 
 The world-side experiments use Claude Opus 5.5 at low effort through Anthropic's API: the modder's backend
-`anthropic` (`packages/agent/src/anthropic.ts`; `LSW_MODEL_BACKEND=anthropic`, the key `ANTHROPIC_API_KEY` in the
+`anthropic` (`packages/ai/src/models/anthropic.ts`; `LSW_MODEL_BACKEND=anthropic`, the key `ANTHROPIC_API_KEY` in the
 gitignored `.env`, `LSW_CLAUDE_MODEL` and `LSW_CLAUDE_EFFORT` as for `claude-code`). A call is one Messages request: the
 system prompt cached, tools as tools, the effort the call asks for (never under the floor), and a declined call goes to
 the model's default fallback, which the reply names as its provider. Its cost is reckoned from the reported usage at
@@ -26,9 +26,9 @@ the list prices. The RSI experiments (§8) still name Kimi K3 (docs/rsi-experime
 | The trust boundary under attack | `npx tsx games/openworld/tools/src/eval/attack.ts` | yes |
 | Live answers by tier (Valid, Wait, Cost) | `npm run latency -- --n 20 --tier low\|medium\|high` (the tier set on the request's scenario, which the request's own defers to) | no |
 | The router | `npm run eval:objects` | no |
-| Table 1, controlled | `npx tsx games/openworld/tools/src/eval/controlled.ts items \| answer <cond> \| repeat \| judge \| report` | C, items: yes |
-| Table 1, the human study (Appendix D) | `npx tsx games/openworld/tools/src/eval/study.ts build \| serve <results dir> [--port 8080] \| score <results dir>` | yes |
-| The running world | `npx tsx games/openworld/tools/src/eval/running.ts --players 3 --hours 24 --budget 15` | no |
+| Table 1, controlled | `npx tsx games/openworld/ai/src/eval/controlled.ts items \| answer <cond> \| repeat \| judge \| report` | C, items: yes |
+| Table 1, the human study (Appendix D) | `npx tsx games/openworld/ai/src/eval/study.ts build \| serve <results dir> [--port 8080] \| score <results dir>` | yes |
+| The running world | `npx tsx games/openworld/ai/src/eval/running.ts --players 3 --hours 24 --budget 15` | no |
 
 - **persistence.ts** walks the world as the worker does (maps made or read when needed, the far ones put away, read
   again on the way back). Five probes — a thing placed, a fixture set burning, a creature felled, an item given to a

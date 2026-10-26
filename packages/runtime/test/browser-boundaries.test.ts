@@ -6,9 +6,9 @@ import { describe, expect, it } from 'vitest'
 
 const ROOT = resolve(import.meta.dirname, '..', '..', '..')
 
-// What a browser runs of the modder and the agent (docs/byok.md): the player's own modder in a worker of the page, and
+// What a browser runs of the AI (docs/byok.md): the player's own modder in a worker of the page, and
 // the page's settings. Everything they reach, value import by value import, is free of Node.
-const IN_A_BROWSER = ['packages/agent/src/core.ts', 'packages/agent/src/providerList.ts', 'packages/modder/src/browser.ts', 'packages/runtime/src/modderWorker.ts', 'packages/runtime/src/ownModel.ts', 'packages/runtime/src/ui/modelSettings.ts']
+const IN_A_BROWSER = ['packages/ai/src/browser.ts', 'packages/ai/src/player/index.ts', 'packages/ai/src/player/worker.ts', 'packages/runtime/src/ai.ts', 'packages/runtime/src/ownModel.ts', 'packages/runtime/src/ui/modelSettings.ts']
 const NODE = new Set(['fs', 'path', 'os', 'crypto', 'child_process', 'url', 'http', 'https', 'module', 'util', 'stream', 'events', 'worker_threads', 'net', 'zlib'])
 
 /** What a file imports for its values (a type-only import or export is gone once it is compiled). */
@@ -49,7 +49,7 @@ describe('what runs in a browser imports no Node (docs/byok.md)', () => {
       }
     }
     expect(found).toEqual([])
-    // (the walk went where it should: the pipeline and the self-state are among what it read)
-    expect([...seen].map((f) => relative(ROOT, f).split(sep).join('/'))).toEqual(expect.arrayContaining(['packages/modder/src/pipeline.ts', 'packages/agent/src/state.ts', 'packages/runtime/src/localModder.ts']))
+    // (the walk went where it should: the pipeline and the self-state are among what it read, in a checkout with the AI)
+    if (existsSync(join(ROOT, 'packages', 'ai'))) expect([...seen].map((f) => relative(ROOT, f).split(sep).join('/'))).toEqual(expect.arrayContaining(['packages/ai/src/modder/pipeline.ts', 'packages/ai/src/agent/state.ts', 'packages/ai/src/player/localModder.ts']))
   })
 })

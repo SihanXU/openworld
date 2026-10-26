@@ -60,8 +60,8 @@ packages/
   format/    @openworld/format   the project format: schema, validator, compiler (project → bundle)
   runtime/   @openworld/runtime  the player: worker, Phaser renderer, generic HUD
   editor/    @openworld/editor   the OpenWorld Editor
-  modder/    @openworld/modder   reads the game's ontology and rules; one patch library per game
-  agent/     @openworld/agent    unchanged (rsi.md)
+  ai/        @openworld/ai       the modder and the agent (rsi.md): reads the game's ontology and rules; one
+                                 patch library per game; the game plays without it
 games/
   starter/   the minimal game (S6)
   openworld/ the present game: content, maps, people, quests, art, wiki, its own tests

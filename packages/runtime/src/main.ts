@@ -11,6 +11,7 @@ import { assetUrl, cssAssetUrl, registerArt } from './render/assets.ts'
 import { WorldScene } from './render/scene.ts'
 import { kvGet, kvSet } from './storage.ts'
 import { LOCAL_MODDER } from './modderProtocol.ts'
+import { ai } from './ai.ts'
 import { OwnModel, namedModder, ownModel } from './ownModel.ts'
 import { writeSlot, type Slot } from './saves.ts'
 import { Cover } from './ui/cover.ts'
@@ -701,7 +702,8 @@ if (playtest) {
 
 /** Is there no model to ask: none chosen here, no service named, none skipped, the default service (if any) without one? */
 async function needsModel(): Promise<boolean> {
-  if (NAMED || OwnModel.kept() || OwnModel.skipped() || ownModel.ready) return false
+  // (a build without the AI has no model to offer: the game plays without one)
+  if (!ai || NAMED || OwnModel.kept() || OwnModel.skipped() || ownModel.ready) return false
   if (!MODDER) return true
   try {
     const health = (await (await fetch(`${MODDER.replace(/\/+$/, '')}/health`, { signal: AbortSignal.timeout(2500) })).json()) as { model?: string | null }

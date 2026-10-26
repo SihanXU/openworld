@@ -11,7 +11,7 @@
 
 import { OntologyIndex, type Entity, type LineDef, type ScheduleEntry } from '@openworld/engine'
 import { SOCIAL_COIN, TERRAIN_CHARS, buildOntology, favouriteFor, generateLook, type RawChunk } from '@openworld-game/content'
-import { itemOf, reseed, rng } from '../builder.ts'
+import { facesOf, itemOf, reseed, rng } from '../builder.ts'
 import { GIVEN, familyName, linesFor } from './folk.ts'
 import type { Continent, Place } from './generate.ts'
 import type { Role } from './rooms.ts'
@@ -44,6 +44,8 @@ class Ground {
     }
     // (never on a portal nor beside one: the way in and out stays clear)
     for (const p of m.portals) for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) solid.add(key(p.x + dx, p.y + dy))
+    // (nor on a face of rock: the relief's, where ground drops)
+    for (const f of facesOf(m)) solid.add(f)
     for (let y = 1; y < this.h - 1; y++)
       for (let x = 1; x < this.w - 1; x++) {
         const t = this.terrain[y * this.w + x]

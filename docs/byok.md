@@ -14,8 +14,8 @@ engine worker ──── ModderLink ──────────────
                └── a modder service over HTTP (?modder=<url>, VITE_MODDER_URL, the local one in development)
 ```
 
-- **The modder worker** (`packages/runtime/src/modderWorker.ts`, `localModder.ts`) runs the modder's live pipeline
-  (`@openworld/modder/src/browser.ts`) with the agent's browser part (`@openworld/agent/src/core.ts`). The page
+- **The modder worker** (`packages/ai/src/player/worker.ts`, `localModder.ts`) runs the modder's live pipeline
+  with the agent's browser part (both in `packages/ai/src/browser.ts`). The page
   makes it when it is first wanted: with the page when a model is kept in this browser, else when the options
   open. It is handed the game **as data** (the ontology and the base rules: no game code), and imports the
   engine's modules, whose primitives judge a patch.
@@ -31,7 +31,7 @@ engine worker ──── ModderLink ──────────────
   request (its workspace), and the answers it takes are in the client's library, stored in the browser as ever.
   Its log (`patches`) carries what it commits and removes in this page, so a patch its audit takes out leaves the
   client's library too. Nothing goes back to a shared library (§5).
-- **The self-state** (memory, skills, harness) is files in memory (`MemFiles`, `packages/agent/src/files.ts`),
+- **The self-state** (memory, skills, harness) is files in memory (`MemFiles`, `packages/ai/src/agent/files.ts`),
   kept in this browser (the newest 300 episodes). Its harness is the default's live part: no reflection on the
   player's account, no offline escalation or revision (the offline profile is the service's: `useOffline`, Node
   only), and a learned rule set aside here leaves at once (`faults.remove: 1`: one client).
@@ -56,12 +56,12 @@ engine worker ──── ModderLink ──────────────
 - What can still read it: anyone using the same browser profile (the options say so), and any script running on the
   game's page. The game's pages load scripts from their own origin only (a Content-Security-Policy says so).
 
-`packages/runtime/test/own-modder.test.ts` holds these; `packages/agent/test/providers.test.ts` what each service
+`packages/ai/test/own-modder.test.ts` holds these; `packages/ai/test/providers.test.ts` what each service
 is sent; `packages/runtime/test/browser-boundaries.test.ts` that what a browser runs reaches no Node module.
 
 ## 3. The services
 
-`packages/agent/src/providerList.ts`: OpenRouter, Anthropic (its own API, with the header that allows a browser),
+`packages/ai/src/models/providerList.ts`: OpenRouter, Anthropic (its own API, with the header that allows a browser),
 OpenAI, DeepSeek, Moonshot (Kimi), Google Gemini (its OpenAI-compatible endpoint), Ollama (on the player's machine,
 no key; it must be started with `OLLAMA_ORIGINS` allowing the page) and any other OpenAI-compatible address.
 A service a browser may not call (no CORS) fails its **Test** with a plain message; OpenRouter reaches most models.
