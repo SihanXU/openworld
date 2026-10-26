@@ -195,8 +195,8 @@ describe('what runs in a browser imports no Node (docs/byok.md)', () => {
       }
     }
     expect(found).toEqual([])
-    // (the walk went where it should: the pipeline and the self-state are among what it read)
-    expect([...seen].map((f) => relative(ROOT, f).split(sep).join('/'))).toEqual(expect.arrayContaining(['packages/ai/src/modder/pipeline.ts', 'packages/ai/src/agent/state.ts', 'packages/ai/src/player/localModder.ts']))
+    // (the walk went where it should: the pipeline and the self-state are among what it read, in a checkout with the AI)
+    if (existsSync(join(ROOT, 'packages', 'ai'))) expect([...seen].map((f) => relative(ROOT, f).split(sep).join('/'))).toEqual(expect.arrayContaining(['packages/ai/src/modder/pipeline.ts', 'packages/ai/src/agent/state.ts', 'packages/ai/src/player/localModder.ts']))
   })
 })
 
