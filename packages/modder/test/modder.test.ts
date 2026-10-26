@@ -649,7 +649,7 @@ describe('integrity', () => {
     expect(library.validate(b([`!${JSON.stringify(STONY)}`]), req).errors.join()).toMatch(/already defined by "patch\/a"/)
   })
 
-  it('reports an unproven chance assignment bound in the library audit', () => {
+  it('reports, as an endless yield, a patch whose chances fall more ways than the repeat check follows', () => {
     const { library } = setup()
     const req = useRequest()
     const rule: Rule = { id: 'patch/audit-chances', host: { type: 'item/material/stone' }, on: 'act/use', hole: holeOf(req), tree: {
@@ -657,7 +657,7 @@ describe('integrity', () => {
     } }
     library.lib.add({ ...rule, source: { origin: 'patch' } })
     library.asked.push({ scenario: req.scenario, rule: rule.id })
-    expect(library.audit()).toEqual([{ rule: rule.id, reason: expect.stringMatching(/repeat check.*64.*safety/) }])
+    expect(library.audit()).toEqual([{ rule: rule.id, reason: expect.stringMatching(/^endless yield: .*more than 64 ways/) }])
   })
 
   it('commits to the shared log only what stands on the shared library alone', async () => {
