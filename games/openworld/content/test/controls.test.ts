@@ -870,6 +870,54 @@ describe('physical inventory stacks', () => {
   const slotOf = (eng: Engine, id: string) => frameSlots(eng).findIndex((s) => s?.item.id === id)
   const emptySlot = (eng: Engine) => frameSlots(eng).findIndex((s) => !s)
 
+  it('keeps the selected slot when its held item is replaced before another kind arrives', () => {
+    const eng = world('item/misc/feather_quill', [])
+    const player = eng.world.player
+    const oldHeld = player.held!
+    const selected = player.selected!
+
+    eng.author(() => {
+      eng.world.create('item/misc/ink', { on: 'inside', holder: player.id })
+      eng.world.destroy(eng.world.get(oldHeld)!)
+      eng.world.create('item/misc/feather_quill', { on: 'hand', holder: player.id })
+    })
+    const replacement = player.held!
+    eng.controls.sync()
+
+    expect(replacement).not.toBe(oldHeld)
+    expect(eng.world.get(oldHeld)).toBeUndefined()
+    expect(eng.world.get(replacement)?.type).toBe('item/misc/feather_quill')
+    expect(player.held).toBe(replacement)
+    expect(frameSlots(eng)[selected]?.item.type).toBe('item/misc/feather_quill')
+    expect(frameSlots(eng).some((slot) => slot?.item.type === 'item/misc/ink')).toBe(true)
+    expect((player as typeof player & { slotItems?: (string[] | null)[] }).slotItems?.[selected]).toContain(replacement)
+  })
+
+  it('keeps a held item in its split group when another selected kind has gone', () => {
+    const eng = world(undefined, [
+      { key: 'quill-a', type: 'item/misc/feather_quill', x: 0, y: 0, inside: 'actor' },
+      { key: 'quill-b', type: 'item/misc/feather_quill', x: 0, y: 0, inside: 'actor' },
+      { key: 'bread', type: 'item/food/bread', x: 0, y: 0, inside: 'actor' },
+    ])
+    const source = slotOf(eng, 'quill-a')
+    const split = emptySlot(eng)
+    const breadSlot = slotOf(eng, 'bread')
+    eng.controls.moveSlot(source, split, 'quill-a', 1, 2)
+    eng.controls.select(split)
+
+    const player = eng.world.player as typeof eng.world.player & { slotItems?: (string[] | null)[] }
+    const heldGroup = [...player.slotItems![split]!]
+    const sourceGroup = [...player.slotItems![source]!]
+    eng.author(() => eng.world.destroy(eng.world.get('bread')!))
+    player.selected = breadSlot
+    eng.controls.sync()
+
+    expect(player.slotItems?.[split]).toEqual(heldGroup)
+    expect(player.slotItems?.[source]).toEqual(sourceGroup)
+    expect(frameSlots(eng).some((slot) => slot?.item.id === 'quill-a')).toBe(true)
+    expect(player.slotItems?.[breadSlot]).toBeNull()
+  })
+
   it('moves the rounded-up half into a separate persistent slot: five become two and three', () => {
     const eng = world(undefined, stones(5))
     const from = slotOf(eng, 'stone0')

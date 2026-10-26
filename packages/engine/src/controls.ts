@@ -854,7 +854,13 @@ export class Controls {
     if (held) {
       const hk = this.key(held)
       const sel = slots[p.selected]
-      if (sel !== hk) {
+      const heldSlot = slotItems.findIndex((members, i) => slots[i] === hk && members?.includes(held.id))
+      if (heldSlot >= 0) {
+        if (heldSlot !== p.selected) this.posture(held, { on: 'inside', holder: p.id }) // do not move a known member between split groups
+      } else if (sel === hk) {
+        // A fresh same-kind replacement keeps its selected slot before other newly carried kinds take free slots.
+        slotItems[p.selected] = [...(slotItems[p.selected] ?? []).filter((id) => keyById.get(id) === hk), held.id]
+      } else {
         const selectedItems = slotItems[p.selected] ?? []
         const selLeft = selectedItems.filter((id) => id !== held.id && keyById.get(id) === sel).length
         if (!sel || !selLeft) {
