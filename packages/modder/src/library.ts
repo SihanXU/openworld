@@ -58,6 +58,20 @@ export function useKeyHash(hash: (text: string) => string): void {
   keyOf = hash
 }
 
+/**
+ * A name for a log kept in memory. `crypto.randomUUID` exists only in a secure context: a game served over plain
+ * http at an address (not localhost) has none, and the player's own modder would fail to start there. Random
+ * bytes are there in every context.
+ */
+export function newLogId(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  const b = crypto.getRandomValues(new Uint8Array(16))
+  b[6] = (b[6] & 0x0f) | 0x40
+  b[8] = (b[8] & 0x3f) | 0x80
+  const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('')
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
+}
+
 /** How a log named by a file's path is opened (library-file.ts, loaded by the package's Node entry). */
 export function useLogFiles(open: (path: string) => LogStore): void {
   openFile = open
@@ -95,7 +109,7 @@ export class WorldLibrary {
     this.protectedFacts = opts.protectedFacts ?? []
     if (typeof log === 'string' && !openFile) throw new Error('a library log in a file needs the Node entry (@openworld/modder)')
     this.store = typeof log === 'string' ? openFile!(log) : log
-    this.logId = this.store?.id ?? crypto.randomUUID()
+    this.logId = this.store?.id ?? newLogId()
     for (const line of this.store?.lines() ?? []) {
       if (!line.trim()) continue
       try {

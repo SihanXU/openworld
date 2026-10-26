@@ -136,6 +136,21 @@ describe("the player's own modder keeps the key to the service chosen", () => {
     await Promise.all([game, linked])
   })
 
+  it('starts on a page that is not a secure context (plain http at an address): no crypto.randomUUID there', async () => {
+    const real = globalThis.crypto
+    vi.stubGlobal('crypto', { getRandomValues: (a: Uint8Array<ArrayBuffer>) => real.getRandomValues(a) })
+    expect(crypto.randomUUID).toBeUndefined()
+    const store = memoryStore()
+    store.data.set('model', { choice: { provider: 'openrouter', model: 'a/b' }, key: KEY })
+    const { h } = await host(store)
+    const ch = new MessageChannel()
+    ports.push(ch.port1, ch.port2)
+    await h.handle({ t: 'link', port: ch.port1 })
+    const link = portLink(ch.port2)
+    expect(await link.health()).toEqual({ model: 'a/b' })
+    expect((await link.patches(0)).log).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+  })
+
   it('takes the key out of what a service says back', async () => {
     const { h } = await host()
     answer = () => ({ status: 401, body: { error: { message: `no such key: ${KEY}` } } })
