@@ -78,7 +78,6 @@ export function goldmere(p: Place): MapBuilder[] {
   }
   piles(b, 0, 30, W, H - 30, 'poor', 0.35)
   strew(b, 0, 0, W, H, 0.05, 'poor')
-  b.vistas.push({ at: [22, 28, 16, 10], zoom: 0.6, focus: [30, 8], share: 0.45 })
   b.anchors = { door: [30, 23], ring: [30, 28], garden: [43, 18], annex: [19, 26], lane: [20, 44], well: [27, 47], fields: [12, 55], pasture: [45, 54], road: [30, 58] }
   clearDoorsteps(b)
   unshut(b)

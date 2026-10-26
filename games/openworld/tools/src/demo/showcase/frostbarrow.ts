@@ -99,7 +99,6 @@ export function frostbarrow(p: Place): MapBuilder[] {
   snowOver(b)
   piles(b, 8, 18, 47, 34, 'poor', 0.35)
   strew(b, 0, 10, W, H - 10, 0.04, 'poor')
-  b.vistas.push({ at: [22, 54, 20, 12], zoom: 0.6, focus: [31, 34], share: 0.4 })
   b.anchors = { gate: [31, 57], yard: [31, 43], keep: [31, 33], wallW: [10, 30], wallE: [52, 38], forge: [47, 36], stables: [48, 27], road: [31, 66], way: [44, 64], cairns: [14, 66] }
   clearDoorsteps(b)
   unshut(b)

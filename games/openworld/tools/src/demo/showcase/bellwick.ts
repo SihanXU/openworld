@@ -124,7 +124,6 @@ export function bellwick(p: Place): MapBuilder[] {
   for (const [x, y] of [[3, 3], [8, 8], [62, 4], [67, 10], [4, 18], [66, 20], [2, 56], [26, 66], [28, 52], [68, 46], [22, 76], [62, 71]] as Cell[]) if (b.get(x, y) === 'grass') b.set(x, y, 'tree')
   b.sprinkle('fixture/nature/flowers', 0.03, (_x, _y, t) => t === 'grass')
   strew(b, 0, 0, W, H, 0.05, 'city')
-  b.vistas.push({ at: [24, 24, 25, 17], zoom: 0.6, focus: [36, 12], share: 0.4 })
   b.anchors = { door: [36, 18], terrace: [26, 21], sweep: [36, 38], gardenW: [13, 35], gardenE: [59, 35], maze: [mx + 1, my + 4], orangery: [10, 52], stable: [10, 63], paddock: [11, 68], kitchen: [58, 77], avenue: [36, 60], gate: [36, 81] }
   clearDoorsteps(b)
   unshut(b)

@@ -68,7 +68,6 @@ export function northmoor(p: Place): MapBuilder[] {
   snowOver(b)
   piles(b, 0, 16, W, H - 16, 'poor', 0.4)
   strew(b, 0, 16, W, H - 16, 0.04, 'poor')
-  b.vistas.push({ at: [18, 22, 20, 10], zoom: 0.7, focus: [28, 12], share: 0.4 })
   b.anchors = { mouth: [28, 24], cutters: [30, 32], sledges: [21, 31], trade: [9, 35], campE: [45, 44], campW: [11, 43], moor: [24, 50], cairn: [34, 25] }
   clearDoorsteps(b)
   unshut(b)

@@ -609,7 +609,8 @@ export function undercroftHall(p: Place): MapBuilder {
   m.fixture('fixture/sacred/reliquary', P.apse.x + 4, P.apse.y)
   at(m, 'fixture/light/candles', [[P.apse.x + 1, P.apse.y], [P.apse.x + 6, P.apse.y]], lit)
   glow(m, P.apse.x + 4, P.apse.y + 1.5, 8, 4, '#ffb35c', 0.45)
-  m.creature('undead/zombie', H.x + 15, H.y + 4, { leash: 4 })
+  // (wary: the scholars work at its altar every day)
+  m.creature('undead/zombie', H.x + 15, H.y + 4, { leash: 4, temper: 'wary' })
   m.anchors = { stair: [P.landing.x + 1, P.landing.y], down: [H.x, H.y + 4], altar: [P.apse.x + 3, P.apse.y + 1] }
   return m
 }
@@ -651,8 +652,9 @@ export function iceCaveHall(p: Place): MapBuilder {
   m.fixture('fixture/remains/body', P.west.x + 3, P.west.y + 3)
   m.fixture('fixture/container/chest', P.west.x + 5, P.west.y + 1)
   for (const [x, y] of [[P.hall.x + 2, P.hall.y + 2], [P.east.x + 4, P.east.y + 2], [P.west.x + 3, P.west.y + 1], [P.sw.x + 1, P.sw.y + 1], [P.entry.x + 2, P.entry.y]] as Cell[]) glow(m, x, y, 6, 4, '#9fd8ff', 0.4)
-  m.creature('golem/ice_golem', P.east.x + 4, P.east.y + 1, { leash: 3 })
-  for (const [x, y] of [[P.hall.x + 6, P.hall.y + 3], [P.sw.x + 2, P.sw.y + 1]] as Cell[]) m.creature('slime/frost_slime', x, y, { leash: 4 })
+  // (wary: the ice-cutters work at the mouth every day)
+  m.creature('golem/ice_golem', P.east.x + 4, P.east.y + 1, { leash: 3, temper: 'wary' })
+  for (const [x, y] of [[P.hall.x + 6, P.hall.y + 3], [P.sw.x + 2, P.sw.y + 1]] as Cell[]) m.creature('slime/frost_slime', x, y, { leash: 4, temper: 'wary' })
   m.anchors = { entry: [P.entry.x + 2, P.entry.y + 2], hall: [P.hall.x + 5, P.hall.y + 3], down: [P.se.x + 2, P.se.y + 1] }
   return m
 }
@@ -728,7 +730,8 @@ export function towerCellar(p: Place): MapBuilder {
   const { m, P } = planHall(p, 'towercellar', `${p.id}.undercellar`, { en: `${p.name.en} — the Cellar`, zh: `${p.name.zh}·地下室` }, 'floor_stone', { music: 'crypt', light: 'dark', outside: false })
   const R = P.room
   for (const x of [R.x + 6, R.x + 10]) decor(m, 'decor_cage', x, R.y + 3)
-  m.creature('imp/fire_imp', R.x + 8, R.y + 5, { leash: 2 })
+  // (caged, and wary: the servants feed it)
+  m.creature('imp/fire_imp', R.x + 8, R.y + 5, { leash: 2, temper: 'wary' })
   at(m, 'fixture/container/barrel', [[R.x + 13, R.y], [R.x + 13, R.y + 1], [R.x + 12, R.y]])
   at(m, 'fixture/container/chest', [[R.x + 13, R.y + 8], [R.x, R.y + 8]])
   at(m, 'fixture/remains/bones', [[R.x + 3, R.y + 6]])

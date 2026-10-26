@@ -84,7 +84,6 @@ export function ashengate(p: Place): MapBuilder[] {
     glowAt(b, x, y, 'night')
   }
   b.path([[31, H - 1], [31, 62], [31, 55], [30, 46], [27, 18]], 'path', 2, { over: (c) => c === 'grass' || c === 'mud' })
-  b.vistas.push({ at: [20, 15, 24, 10], zoom: 0.7, focus: [29, 6], share: 0.4 })
   b.anchors = { nave: [28, 15], cloister: [30, 31], trenchW: [13, 47], trenchE: [47, 46], trenchN: [21, 47], finds: [26, 48], camp: [32, 62], arch: [31, 55], graves: [50, 26], tower: [45, 15] }
   clearDoorsteps(b)
   unshut(b)

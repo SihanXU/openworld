@@ -76,7 +76,6 @@ export function scarwell(p: Place): MapBuilder[] {
   b.sprinkle('fixture/nature/pebbles', 0.03, (_x, _y, t) => t === 'dirt' || t === 'sand')
   piles(b, 0, 14, W, H - 14, 'poor', 0.45)
   strew(b, 0, 14, W, H - 14, 0.06, 'poor')
-  b.vistas.push({ at: [18, 20, 24, 14], zoom: 0.7, focus: [30, 14], share: 0.4 })
   b.anchors = { burrow: [30, 22], fire: [29, 33], cages: [21, 29], butts: [22, 42], gate: [29, 48], road: [30, 57], lodge: [11, 28], huts: [45, 28], camp: [46, 46] }
   clearDoorsteps(b)
   unshut(b)
