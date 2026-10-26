@@ -1241,16 +1241,38 @@ export class Controls {
     return true
   }
 
-  /** Make it again and again while what it needs is carried (the crafting panel's "all"): how many times. */
-  craftAll(r: Recipe, most = 99, at?: Id): number {
+  /** One recipe at a time, bounded by the initial materials. Closing the iterator keeps completed work. */
+  *craftSteps(r: Recipe, most = Infinity, at?: Id): Generator<{ done: number; total: number }, void> {
+    if (!r.needs.every((need) => Number.isSafeInteger(need.count) && need.count > 0) || !this.canCraft(r)) return
+    // Even a recipe returning its input (or costing nothing) must finish this batch.
+    const available = r.needs.length ? Math.min(...r.needs.map((need) => Math.floor(this.count(need.type) / need.count))) : 1
+    const total = Math.min(available, Math.max(0, Math.floor(most)))
+    if (!Number.isSafeInteger(total) || total <= 0) return
     let n = 0
-    this.crafting = true
+    let attempted = false
     try {
-      while (n < most && this.craft(r, at)) n++
+      yield { done: 0, total }
+      while (n < total) {
+        // An act can be refused by its rules (for example, a station has gone away).
+        // A consumed ingredient, not merely a dispatched act, proves a completed recipe.
+        const input = r.needs.length ? this.carriedOf(r.needs[0]!.type) : undefined
+        attempted = true
+        this.crafting = true
+        let made: boolean
+        try { made = this.craft(r, at) } finally { this.crafting = false }
+        if (!made || (input && this.w.get(input.id))) break
+        n++
+        yield { done: n, total }
+      }
     } finally {
-      this.crafting = false
-      if (n) this.sync()
+      if (attempted) this.sync()
     }
+  }
+
+  /** Make all recipes the initial materials allow, or an explicit smaller limit. */
+  craftAll(r: Recipe, most = Infinity, at?: Id): number {
+    let n = 0
+    for (const step of this.craftSteps(r, most, at)) n = step.done
     return n
   }
 

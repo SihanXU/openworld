@@ -44,6 +44,8 @@ interface EView {
   hp: Phaser.GameObjects.Graphics
   /** What shows over its head (the health bar, the quest mark, a sign of what it is): drawn over the world, following the body. */
   head: Phaser.GameObjects.Container
+  /** The quest and role marks, placed above the body's current bounds and bobbed on their own. */
+  markLayer?: Phaser.GameObjects.Container
   glow?: Phaser.GameObjects.Image
   key: string
   movingUntil: number
@@ -747,10 +749,10 @@ export class WorldScene extends Phaser.Scene {
       const mark = marks[id]
       if (v.quest && v.quest.mark !== mark) (this.tweens.killTweensOf(v.quest.text), v.quest.text.destroy(), (v.quest = undefined))
       if (!mark || v.quest) continue
-      const text = this.add.text(0, -T * 1.45, mark, { fontFamily: 'Pixelify Sans, monospace', fontSize: '20px', color: '#ffd23f', stroke: '#3a2414', strokeThickness: 4, fontStyle: 'bold' }).setOrigin(0.5, 1).setResolution(2)
+      const text = this.add.text(0, 0, mark, { fontFamily: 'Pixelify Sans, monospace', fontSize: '20px', color: '#ffd23f', stroke: '#3a2414', strokeThickness: 4, fontStyle: 'bold' }).setOrigin(0.5, 1).setResolution(2)
       text.setScale(0.5)
-      v.head.add(text)
-      this.tweens.add({ targets: text, y: -T * 1.45 - 2, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
+      this.markLayer(v).add(text)
+      this.tweens.add({ targets: text, y: -2, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
       v.quest = { mark, text }
     }
     // what one is for, over the head: the catalogue's `<tag>Mark` for the first of one's tags that has one (OpenWorld's
@@ -760,12 +762,27 @@ export class WorldScene extends Phaser.Scene {
       const icon = tag ? catalog().ui[`${tag}Mark`] : undefined
       const show = !!icon && !v.quest
       if (show && !v.role) {
-        v.role = this.add.image(0, -T * 1.35, icon.img).setOrigin(0.5, 1).setScale(0.5)
-        v.head.add(v.role)
-        this.tweens.add({ targets: v.role, y: -T * 1.35 - 2, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
+        v.role = this.add.image(0, 0, icon.img).setOrigin(0.5, 1).setScale(0.5)
+        this.markLayer(v).add(v.role)
+        this.tweens.add({ targets: v.role, y: -2, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
       }
       v.role?.setVisible(show)
+      this.positionHeadMarks(v)
     }
+  }
+
+  private markLayer(v: EView): Phaser.GameObjects.Container {
+    if (!v.markLayer) {
+      v.markLayer = this.add.container(0, 0)
+      v.head.add(v.markLayer)
+    }
+    return v.markLayer
+  }
+
+  /** Keep visible marks three pixels above the body's displayed top, regardless of scale or posture. */
+  private positionHeadMarks(v: EView): void {
+    if (!v.markLayer || (!v.quest && !v.role?.visible)) return
+    v.markLayer.setPosition(0, v.body.getBounds().top - v.root.y - 3)
   }
 
   private arrows?: HTMLElement
@@ -1842,6 +1859,7 @@ export class WorldScene extends Phaser.Scene {
       }
       if (v.dragon) this.updateDragon(v, time)
       if (!e.boss) this.windupPose(v, time)
+      this.positionHeadMarks(v)
       if (v.glow) v.glow.setPosition(v.root.x, v.root.y - 8).setAlpha(this.darkness * 1.4 * (0.85 + 0.15 * Math.sin((time + v.phase) / 120)))
     }
     for (const t of this.tileFx.values())
