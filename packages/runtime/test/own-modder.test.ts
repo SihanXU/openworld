@@ -120,6 +120,22 @@ describe("the player's own modder keeps the key to the service chosen", () => {
     keyStayedPut()
   })
 
+  it('a model this browser kept answers the first probe, however the page and the engine race at the start', async () => {
+    const store = memoryStore()
+    store.data.set('model', { choice: { provider: 'openrouter', model: 'a/b' }, key: KEY })
+    // the browser's database answers a task later, not a microtask
+    const slow: ModderStore = { ...store, get: (k) => new Promise((r) => setTimeout(() => r(store.get(k)), 5)) }
+    const h = new LocalModder({ store: slow, post: (m) => posts.push(structuredClone(m)) })
+    const ch = new MessageChannel()
+    ports.push(ch.port1, ch.port2)
+    // as the worker's onmessage hands them on: the game, then the engine's port, neither waited for
+    const game = h.handle({ t: 'game', ontology: STDLIB_ONTOLOGY as Ontology, rules: STDLIB_RULES })
+    const linked = h.handle({ t: 'link', port: ch.port1 })
+    // the engine probes once and keeps what it hears: a model, or none (then every hole takes its default)
+    expect(await portLink(ch.port2).health()).toEqual({ model: 'a/b' })
+    await Promise.all([game, linked])
+  })
+
   it('takes the key out of what a service says back', async () => {
     const { h } = await host()
     answer = () => ({ status: 401, body: { error: { message: `no such key: ${KEY}` } } })
