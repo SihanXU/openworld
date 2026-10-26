@@ -89,9 +89,9 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
         if (typeof body?.rule !== 'string') return send(400, { error: 'rule required' })
         // a fault is counted by where it came from: a caller elsewhere is one client whatever it says it is (else one
         // caller could claim to be enough clients to remove a learned rule); only a caller on this machine (a tool,
-        // a test) may tell its clients apart
+        // a test), not a page on another site through a browser here, may tell its clients apart
         const from = req.socket.remoteAddress ?? 'anon'
-        const client = local(req) && typeof body.client === 'string' && body.client ? `${from}#${body.client}` : from
+        const client = local(req) && ownOrigin(req) && typeof body.client === 'string' && body.client ? `${from}#${body.client}` : from
         return send(200, modder.fault(body.rule, String(body.reason ?? ''), client))
       }
       // an author's new thing: drafted on this service's account, and taken into the shared library without the AI (this host only)

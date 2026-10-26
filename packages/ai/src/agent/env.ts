@@ -3,7 +3,7 @@
 // inside a container that has the workspace mounted (benchmark repositories: the isolation
 // boundary). Neither ever sees the model key.
 
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -32,6 +32,11 @@ export interface Env {
   /** the node that runs the agent's hooks where its commands run (default: `node` on the PATH) */
   readonly node?: string
   exec(cmd: string, o?: ExecOptions): Promise<ExecResult>
+  /**
+   * Stop everything still running where the commands ran (a container: frozen at once), so the workspace holds still
+   * while the host reads it; `dispose` still works after. None where nothing can be left running.
+   */
+  halt?(): void
   dispose?(): Promise<void>
 }
 
@@ -235,7 +240,19 @@ export class DockerEnv implements Env {
     return run(file, [...pre, 'exec', '-i', ...envArgs, '-w', this.cwd, this.id, 'timeout', String(secs), 'bash', '-lc', script], { ...o, timeoutMs: (secs + 15) * 1000, env: process.env as Record<string, string> })
   }
 
+  private halted = false
+
+  halt(): void {
+    if (this.halted) return
+    const [file, ...pre] = Array.isArray(this.cli) ? this.cli : [this.cli ?? 'docker']
+    const r = spawnSync(file, [...pre, 'pause', this.id], { env: process.env, timeout: 60_000, windowsHide: true })
+    if (r.status !== 0) throw new Error(`could not pause the container: ${String(r.stderr ?? r.error ?? '').slice(-300)}`)
+    this.halted = true
+  }
+
   async dispose(): Promise<void> {
+    // (a halted container is let go again, for the last command; it is removed right after)
+    if (this.halted) await docker(this.cli, ['unpause', this.id], 60_000)
     if (this.owner) await this.exec(`chown -R ${sh(this.owner)} ${sh(this.mount)} 2>/dev/null; true`, { timeoutMs: 300_000 })
     await docker(this.cli, ['rm', '-f', this.id], 60_000)
   }
