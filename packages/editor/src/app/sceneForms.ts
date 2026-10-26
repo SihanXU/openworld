@@ -90,6 +90,7 @@ export function cmdForm(f: Form, ctx: Ctx, c: SceneCmd, set: (c: SceneCmd) => vo
     case 'picture': {
       const m = c as { picture: string | null }
       return `${f.text(m.picture ?? '', (v) => set({ picture: v.trim() || null }), { placeholder: t('a path under assets/ (own/…); empty takes the picture away') })} <span class="muted">${t('the lines go on over it until the scene ends')}</span>`
+    }
     case 'music': {
       // a cue of the project's catalogue, or silence; the place's own music comes back when the scene ends
       const cues = Object.keys(ctx.store.get<Catalog>('catalog.json')?.music ?? {})
