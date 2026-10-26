@@ -24,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from bases import feet_row  # noqa: E402
 from extract import H, W, background, changed, figure, load, luminance, matte  # noqa: E402
 from parts import LONG  # noqa: E402
-from eyes import iris_mask, measure  # noqa: E402
+from eyes import deepen, iris_mask, measure, round_iris  # noqa: E402
 
 BODIES = ("woman", "man", "girl", "boy")
 MOODS = ["happy", "sad", "angry", "surprised", "shy"]
@@ -292,6 +292,8 @@ class Builder:
                 # a face's skin is flat, as the style's fills are: its drawn shades (the tan above a boy's eyes) kept at
                 # half their depth, so they never read as patches of another colour
                 value = np.where(zones == 1, 180 + (value - 180) * 0.5, value)
+                # and its irises keep their pupil and ring (the normalisation left them a flat disc)
+                value = deepen(value, zones == keys.index("eyes") + 1)
             _, _, v = hsv(rgb)
             # the lines and a face's drawn strokes are the style's ink (the blush keeps its own pink)
             rgb = inked(rgb, region & (zones == 0) & ((v < 0.38) | (strokes if strokes is not None else False)))
@@ -506,7 +508,8 @@ class Builder:
             strokes = (lum < local - 28) & mask & ~(brows & (sat < 0.22))
             h_, _, _ = hsv(im)
             blush = mask & (sat > 0.28) & ((h_ < 20) | (h_ > 330)) & (val > 0.6)
-            iris = iris_mask(im, found) & ~ndi.binary_dilation(brows, iterations=2)
+            # round: the lower lid's grey joined to an iris ran from it as a tail (a tear of the eye colour)
+            iris = round_iris(iris_mask(im, found) & ~ndi.binary_dilation(brows, iterations=2))
             e = self.emit(pid, body, mood, "face", ["skin", "eyes", "hair"], im, soft, soft > 0.01, iris, brows, strokes, blush)
             if e:
                 self.put(pid, body, mood, [e])

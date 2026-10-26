@@ -6,6 +6,7 @@ and flat, lashes and lines darker, the whites lighter. A picture's eyes are its 
 side of the face's middle. Sizes are in head widths, so a man's and a girl's numbers compare.
 
     python -I eyes.py <picture.png> [...]       prints each picture's eyes
+    python -I eyes.py --irises <out dir>         a cut's irises made round (`round_iris`) and given their depth (`deepen`), in place
 """
 
 from __future__ import annotations
@@ -230,6 +231,77 @@ def iris_mask(img: np.ndarray, e: Eyes, reach: float = 1.5) -> np.ndarray:
     return out
 
 
+# an iris's darkest (its pupil, its rim) on the value scale: near the gradient's ink, so a recoloured iris keeps its
+# pupil and its ring (portrait.ts `gradient`: lines toward 0, the colour itself at 180)
+DARK = 25
+
+
+def deepen(value: np.ndarray, iris: np.ndarray) -> np.ndarray:
+    """An iris's depth given back: the irises are drawn in a light grey with a faint pupil, and a zone's normalisation
+    (build.py `Normaliser`, its gain bounded) leaves their darkest near the middle of the scale — recoloured, an iris
+    was a flat disc with no pupil or ring, and the eyes looked blank. Below the irises' median the values are stretched
+    so their darkest twentieth reaches DARK; the lights are left. Never flattens, and a second time changes
+    nothing."""
+    v = value[iris].astype(np.float32)
+    if v.size < 20:
+        return value
+    m = float(np.median(v))
+    lo = float(np.percentile(v, 5))
+    if lo <= DARK + 3 or m - lo < 1:
+        return value
+    g = (m - DARK) / (m - lo)
+    out = value.astype(np.float32)
+    d = out - m
+    out = np.where(iris & (d < 0), m + d * g, out)
+    return np.clip(out, 0, 255)
+
+
+def round_iris(iris: np.ndarray) -> np.ndarray:
+    """An iris is round: the lower lid's grey and its lashes, joined to it, ran from it as a tail below the eye (the
+    look's eye colour as a tear on the cheek). Each piece keeps what an opening by a small disc leaves (the iris,
+    some thirteen pixels across) and a pixel back along its edge; the tail, a few pixels wide, is not the iris's."""
+    disc = np.array([[0, 1, 1, 1, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [0, 1, 1, 1, 0]], bool)
+    core = ndi.binary_opening(iris, structure=disc)
+    return iris & ndi.binary_dilation(core, structure=np.ones((3, 3), bool))
+
+
+def deepen_cut(out: str) -> int:
+    """Over every face layer of a cut, every mood: the irises made round (`round_iris`; what leaves them is the lid's
+    line, the style's ink) and given their depth (`deepen`). The layers changed."""
+    import json
+
+    from PIL import Image
+
+    m = json.load(open(os.path.join(out, "manifest.json"), encoding="utf-8"))
+    n = 0
+    for pid, per in m["parts"].items():
+        if not pid.startswith("face."):
+            continue
+        for p in per.values():
+            for layer in [*p["layers"], *[l for ls in (p.get("moods") or {}).values() for l in ls]]:
+                if "eyes" not in layer["zones"]:
+                    continue
+                path = os.path.join(out, layer["file"])
+                z = np.asarray(Image.open(path + ".z.png").convert("RGBA")).copy()
+                paint = np.asarray(Image.open(path + ".png").convert("RGBA")).copy()
+                was = (z[..., 1] == 40 * (layer["zones"].index("eyes") + 1)) & (z[..., 3] > 0)
+                iris = round_iris(was)
+                tail = was & ~iris
+                if tail.any():
+                    # the lid's line: ink as dark as its value says (build.py `inked`)
+                    ink = np.array([46.0, 34.0, 28.0]) * np.clip(z[..., 0][tail][:, None] / 100.0, 1.0, 2.2)
+                    paint[tail, :3] = np.round(ink).astype(np.uint8)
+                    z[tail, 0] = 0
+                    z[tail, 1] = 0
+                r = np.round(deepen(z[..., 0], iris)).astype(np.uint8)
+                if tail.any() or not np.array_equal(r, z[..., 0]):
+                    z[..., 0] = r
+                    Image.fromarray(z, "RGBA").save(path + ".z.png", optimize=True)
+                    Image.fromarray(paint, "RGBA").save(path + ".png", optimize=True)
+                    n += 1
+    return n
+
+
 def off(e: Eyes, ref: Eyes) -> dict[str, float]:
     """How far a picture's eyes are from a reference's, each as a fraction (sizes) or in head widths (places)."""
     return {
@@ -248,6 +320,9 @@ def within(e: Eyes, ref: Eyes, size: float = 0.08, place: float = 0.02, h: float
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["--irises"]:
+        print(deepen_cut(sys.argv[2]), "face layers' irises made round and deepened")
+        sys.exit(0)
     for p in sys.argv[1:]:
         e = measure(p)
         print(os.path.basename(p), "no eyes found" if e is None else f"w {e.w:.3f} h {e.h:.3f} span {e.span:.3f} y {e.y:.3f} (head {e.hw}px)")

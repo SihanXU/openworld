@@ -2473,40 +2473,6 @@
    }
   },
   "legs.hose": {
-   "boy": {
-    "layers": [
-     {
-      "file": "legs.hose/boy.legs",
-      "x": 289,
-      "y": 1066,
-      "w": 194,
-      "h": 409,
-      "z": "legs",
-      "zones": [
-       ".1",
-       ".2",
-       ".3"
-      ]
-     }
-    ]
-   },
-   "girl": {
-    "layers": [
-     {
-      "file": "legs.hose/girl.legs",
-      "x": 292,
-      "y": 1017,
-      "w": 187,
-      "h": 455,
-      "z": "legs",
-      "zones": [
-       ".1",
-       ".2",
-       ".3"
-      ]
-     }
-    ]
-   },
    "man": {
     "layers": [
      {
@@ -2540,17 +2506,15 @@
       ]
      }
     ]
-   }
-  },
-  "legs.stockings": {
-   "girl": {
+   },
+   "boy": {
     "layers": [
      {
-      "file": "legs.stockings/girl.legs",
-      "x": 303,
-      "y": 1124,
-      "w": 165,
-      "h": 351,
+      "file": "legs.hose/boy.legs",
+      "x": 289,
+      "y": 1066,
+      "w": 194,
+      "h": 409,
       "z": "legs",
       "zones": [
        ".1",
@@ -2560,6 +2524,25 @@
      }
     ]
    },
+   "girl": {
+    "layers": [
+     {
+      "file": "legs.hose/girl.legs",
+      "x": 292,
+      "y": 1017,
+      "w": 187,
+      "h": 455,
+      "z": "legs",
+      "zones": [
+       ".1",
+       ".2",
+       ".3"
+      ]
+     }
+    ]
+   }
+  },
+  "legs.stockings": {
    "woman": {
     "layers": [
      {
@@ -2576,17 +2559,15 @@
       ]
      }
     ]
-   }
-  },
-  "legs.wraps": {
-   "boy": {
+   },
+   "girl": {
     "layers": [
      {
-      "file": "legs.wraps/boy.legs",
-      "x": 308,
-      "y": 1152,
-      "w": 156,
-      "h": 290,
+      "file": "legs.stockings/girl.legs",
+      "x": 303,
+      "y": 1124,
+      "w": 165,
+      "h": 351,
       "z": "legs",
       "zones": [
        ".1",
@@ -2595,7 +2576,9 @@
       ]
      }
     ]
-   },
+   }
+  },
+  "legs.wraps": {
    "man": {
     "layers": [
      {
@@ -2612,39 +2595,26 @@
       ]
      }
     ]
-   }
-  },
-  "mark.freckles": {
+   },
    "boy": {
     "layers": [
      {
-      "file": "mark.freckles/boy.mark",
-      "x": 376,
-      "y": 583,
-      "w": 5,
-      "h": 5,
-      "z": "mark",
+      "file": "legs.wraps/boy.legs",
+      "x": 308,
+      "y": 1152,
+      "w": 156,
+      "h": 290,
+      "z": "legs",
       "zones": [
-       "skin"
+       ".1",
+       ".2",
+       ".3"
       ]
      }
     ]
-   },
-   "girl": {
-    "layers": [
-     {
-      "file": "mark.freckles/girl.mark",
-      "x": 353,
-      "y": 456,
-      "w": 66,
-      "h": 19,
-      "z": "mark",
-      "zones": [
-       "skin"
-      ]
-     }
-    ]
-   },
+   }
+  },
+  "mark.freckles": {
    "man": {
     "layers": [
      {
@@ -2668,6 +2638,36 @@
       "y": 47,
       "w": 173,
       "h": 198,
+      "z": "mark",
+      "zones": [
+       "skin"
+      ]
+     }
+    ]
+   },
+   "boy": {
+    "layers": [
+     {
+      "file": "mark.freckles/boy.mark",
+      "x": 376,
+      "y": 583,
+      "w": 5,
+      "h": 5,
+      "z": "mark",
+      "zones": [
+       "skin"
+      ]
+     }
+    ]
+   },
+   "girl": {
+    "layers": [
+     {
+      "file": "mark.freckles/girl.mark",
+      "x": 353,
+      "y": 456,
+      "w": 66,
+      "h": 19,
       "z": "mark",
       "zones": [
        "skin"
@@ -3219,40 +3219,6 @@
    }
   },
   "shoes.boots": {
-   "boy": {
-    "layers": [
-     {
-      "file": "shoes.boots/boy.shoes",
-      "x": 307,
-      "y": 1372,
-      "w": 160,
-      "h": 134,
-      "z": "shoes",
-      "zones": [
-       ".1",
-       ".2",
-       ".3"
-      ]
-     }
-    ]
-   },
-   "girl": {
-    "layers": [
-     {
-      "file": "shoes.boots/girl.shoes",
-      "x": 314,
-      "y": 1375,
-      "w": 146,
-      "h": 132,
-      "z": "shoes",
-      "zones": [
-       ".1",
-       ".2",
-       ".3"
-      ]
-     }
-    ]
-   },
    "man": {
     "layers": [
      {
@@ -3286,17 +3252,15 @@
       ]
      }
     ]
-   }
-  },
-  "shoes.buckled": {
-   "girl": {
+   },
+   "boy": {
     "layers": [
      {
-      "file": "shoes.buckled/girl.shoes",
-      "x": 314,
-      "y": 1430,
-      "w": 142,
-      "h": 77,
+      "file": "shoes.boots/boy.shoes",
+      "x": 307,
+      "y": 1372,
+      "w": 160,
+      "h": 134,
       "z": "shoes",
       "zones": [
        ".1",
@@ -3306,6 +3270,25 @@
      }
     ]
    },
+   "girl": {
+    "layers": [
+     {
+      "file": "shoes.boots/girl.shoes",
+      "x": 314,
+      "y": 1375,
+      "w": 146,
+      "h": 132,
+      "z": "shoes",
+      "zones": [
+       ".1",
+       ".2",
+       ".3"
+      ]
+     }
+    ]
+   }
+  },
+  "shoes.buckled": {
    "woman": {
     "layers": [
      {
@@ -3314,6 +3297,23 @@
       "y": 1399,
       "w": 198,
       "h": 106,
+      "z": "shoes",
+      "zones": [
+       ".1",
+       ".2",
+       ".3"
+      ]
+     }
+    ]
+   },
+   "girl": {
+    "layers": [
+     {
+      "file": "shoes.buckled/girl.shoes",
+      "x": 314,
+      "y": 1430,
+      "w": 142,
+      "h": 77,
       "z": "shoes",
       "zones": [
        ".1",
@@ -3361,40 +3361,6 @@
    }
   },
   "shoes.shoes": {
-   "boy": {
-    "layers": [
-     {
-      "file": "shoes.shoes/boy.shoes",
-      "x": 303,
-      "y": 1421,
-      "w": 164,
-      "h": 85,
-      "z": "shoes",
-      "zones": [
-       ".1",
-       ".2",
-       ".3"
-      ]
-     }
-    ]
-   },
-   "girl": {
-    "layers": [
-     {
-      "file": "shoes.shoes/girl.shoes",
-      "x": 315,
-      "y": 1431,
-      "w": 139,
-      "h": 76,
-      "z": "shoes",
-      "zones": [
-       ".1",
-       ".2",
-       ".3"
-      ]
-     }
-    ]
-   },
    "man": {
     "layers": [
      {
@@ -3420,6 +3386,40 @@
       "y": 1404,
       "w": 182,
       "h": 102,
+      "z": "shoes",
+      "zones": [
+       ".1",
+       ".2",
+       ".3"
+      ]
+     }
+    ]
+   },
+   "boy": {
+    "layers": [
+     {
+      "file": "shoes.shoes/boy.shoes",
+      "x": 303,
+      "y": 1421,
+      "w": 164,
+      "h": 85,
+      "z": "shoes",
+      "zones": [
+       ".1",
+       ".2",
+       ".3"
+      ]
+     }
+    ]
+   },
+   "girl": {
+    "layers": [
+     {
+      "file": "shoes.shoes/girl.shoes",
+      "x": 315,
+      "y": 1431,
+      "w": 139,
+      "h": 76,
       "z": "shoes",
       "zones": [
        ".1",

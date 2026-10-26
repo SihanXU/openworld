@@ -24,6 +24,9 @@ over the union of its layers (the hair in front and the hair behind are one thin
    or lie off the body (long hair behind it, seen past the arms);
 6. parts made of dots or fine strokes (a face, freckles, a scar, age's lines, stubble, glasses, thinning hair) have
    no core: their band (and the eyes) and the speckle filter are all.
+7. a hairstyle's and a beard's pinholes are closed (`fill_holes`, over the front and the back as one): a light
+   streak the cut dropped left a hole with a feathered ring, and the face under the hair showed through it as a
+   speck; and their lone grey or red dots, which no hair colour reached, take the hair's zone (`fill_specks`).
 
 Each layer keeps only its kept pixels, in both its images (the paint's alpha and the value map's agree, a pixel
 without coverage has no zone, value or colour), cropped again; manifest.json takes the new boxes. It runs over what
@@ -160,6 +163,71 @@ def ground_of(paint: np.ndarray, value: np.ndarray, from_row: int = 0, body: np.
     return np.concatenate([[False], stray])[lab]
 
 
+def fill_holes(layers: list[tuple[np.ndarray, np.ndarray]]) -> int:
+    """A hairstyle's pinholes closed, in place, over its layers on the canvas (paint, value): the pixels not fully
+    covered that the hairstyle's coverage encloses — the front and the back as one, since the back covers what lies
+    off the figure —, in pieces of at most holes.max (4-connected): a light streak the cut dropped and the feathered
+    ring round it; the face under the hair showed through them as specks. Each takes the nearest fully covered pixel's
+    zone, value, paint and full coverage, in that pixel's layer. The pixels filled."""
+    alpha = np.max([v[..., 3] for _, v in layers], axis=0)
+    owner = np.argmax([v[..., 3] for _, v in layers], axis=0)
+    soft = alpha < 255
+    lab, _ = ndi.label(np.pad(soft, 1, constant_values=True))
+    inner = soft & (lab != lab[0, 0])[1:-1, 1:-1]
+    lab, n = ndi.label(inner)
+    if not n:
+        return 0
+    size = ndi.sum(inner, lab, np.arange(1, n + 1))
+    pin = np.concatenate([[False], size <= TABLE["holes"]["max"]])[lab]
+    if not pin.any():
+        return 0
+    _, (iy, ix) = ndi.distance_transform_edt(soft, return_indices=True)
+    src = owner[iy, ix]
+    for o, (p, v) in enumerate(layers):
+        mine = pin & (src == o)
+        v[mine] = v[iy[mine], ix[mine]]
+        p[mine] = p[iy[mine], ix[mine]]
+        other = pin & (src != o)
+        v[other] = 0
+        p[other] = 0
+    return int(pin.sum())
+
+
+def fill_specks(paint: np.ndarray, value: np.ndarray) -> int:
+    """A hairstyle's lone specks repainted, in place: pieces that keep their paint (zone 0) of at most holes.speck
+    pixels, wholly inside the hair's repainted zone and lighter than the style's ink — a grey or a brown-red dot the
+    cut left in the strands, which no hair colour reaches. They take the zone round them and its middle value. The
+    ink's own dots (the hatching's texture) are darker and stay. The pixels repainted."""
+    cover = value[..., 3] == 255
+    hair = cover & (value[..., 1] > 0)
+    kept = (value[..., 3] > 0) & (value[..., 1] == 0)
+    lab, n = ndi.label(kept, structure=EIGHT)
+    if not n:
+        return 0
+    size = ndi.sum(kept, lab, np.arange(1, n + 1))
+    lum = paint[..., 0] * 0.299 + paint[..., 1] * 0.587 + paint[..., 2] * 0.114
+    done = 0
+    for i, sl in enumerate(ndi.find_objects(lab), start=1):
+        if size[i - 1] > TABLE["holes"]["speck"]:
+            continue
+        ys = slice(max(sl[0].start - 1, 0), sl[0].stop + 1)
+        xs = slice(max(sl[1].start - 1, 0), sl[1].stop + 1)
+        piece = lab[ys, xs] == i
+        ring = ndi.binary_dilation(piece, structure=EIGHT) & ~piece
+        if not ring.any() or not hair[ys, xs][ring].all() or lum[ys, xs][piece].mean() <= TABLE["holes"]["ink"]:
+            continue
+        zs = value[ys, xs, 1][ring]
+        v = value[ys, xs]
+        v[piece, 1] = np.bincount(zs).argmax()
+        v[piece, 0] = int(np.median(v[ring, 0]))
+        v[piece, 3] = 255
+        pt = paint[ys, xs]
+        pt[piece, :3] = 0
+        pt[piece, 3] = 255
+        done += int(piece.sum())
+    return done
+
+
 def load(root: str, file: str) -> tuple[np.ndarray, np.ndarray]:
     paint = np.asarray(Image.open(os.path.join(root, file + ".png")).convert("RGBA")).copy()
     value = np.asarray(Image.open(os.path.join(root, file + ".z.png")).convert("RGBA")).copy()
@@ -238,24 +306,36 @@ def sweep(root: str, dry: bool = False, report: str | None = None) -> dict[str, 
         removed[f"{pid}/{body}" + (f"~{mood}" if mood else "")] = int(gone.sum())
         if report and mood is None:
             sheets.setdefault(body, []).append((pid, keep, gone, fr))
+        # every layer on the canvas, only what is kept and covered by itself: nothing else of it carries a zone, a
+        # value or a colour, and its paint covers what its value map covers
+        canv = []
+        for (l, paint, value), g in zip(pix, grounds):
+            at = (slice(l["y"], l["y"] + l["h"]), slice(l["x"], l["x"] + l["w"]))
+            k = (keep[at] & (value[..., 3] > 0) & ~g)[..., None]
+            cp = np.zeros((H, W, 4), np.uint8)
+            cv = np.zeros((H, W, 4), np.uint8)
+            cp[at] = np.where(k, paint, 0)
+            cv[at] = np.where(k, value, 0)
+            cp[..., 3] = cv[..., 3]
+            canv.append((cp, cv))
+        if pid.split(".")[0] in TABLE["holes"]["slots"]:
+            filled = fill_holes(canv) + sum(fill_specks(cp, cv) for cp, cv in canv)
+            removed[f"{pid}/{body}" + (f"~{mood}" if mood else "")] += filled
         if dry:
             continue
-        for (l, paint, value), g in zip(pix, grounds):
-            # kept and covered by this layer: nothing else of it carries a zone, a value or a colour
-            k = keep[l["y"] : l["y"] + l["h"], l["x"] : l["x"] + l["w"]] & (value[..., 3] > 0) & ~g
-            if not paint[~k].any() and not value[~k].any():
+        for (l, paint, value), (cp, cv) in zip(pix, canv):
+            at = (slice(l["y"], l["y"] + l["h"]), slice(l["x"], l["x"] + l["w"]))
+            if cv[..., 3].sum() == int(value[..., 3].sum()) and np.array_equal(cp[at], paint) and np.array_equal(cv[at], value):
                 continue
-            paint[~k] = 0
-            value[~k] = 0
-            ys, xs = np.nonzero(value[..., 3] > 0)
+            ys, xs = np.nonzero(cv[..., 3] > 0)
             if not len(ys):
                 # a layer with nothing of the part left: an empty pixel, so the manifest stays as it is shaped
-                ys, xs = np.array([0]), np.array([0])
+                ys, xs = np.array([l["y"]]), np.array([l["x"]])
             y0, y1, x0, x1 = int(ys.min()), int(ys.max()) + 1, int(xs.min()), int(xs.max()) + 1
             path = os.path.join(root, l["file"])
-            Image.fromarray(paint[y0:y1, x0:x1], "RGBA").save(path + ".png", optimize=True)
-            Image.fromarray(value[y0:y1, x0:x1], "RGBA").save(path + ".z.png", optimize=True)
-            l["x"], l["y"], l["w"], l["h"] = l["x"] + x0, l["y"] + y0, x1 - x0, y1 - y0
+            Image.fromarray(cp[y0:y1, x0:x1], "RGBA").save(path + ".png", optimize=True)
+            Image.fromarray(cv[y0:y1, x0:x1], "RGBA").save(path + ".z.png", optimize=True)
+            l["x"], l["y"], l["w"], l["h"] = x0, y0, x1 - x0, y1 - y0
     if not dry:
         with open(os.path.join(root, "manifest.json"), "w", encoding="utf-8", newline="\n") as f:
             json.dump(m, f, indent=1)
