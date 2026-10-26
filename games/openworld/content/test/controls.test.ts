@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, holeKey, textOf, type Engine, type Key, type Plan, type PropValue, type Ref, type ScenarioEntity, type Verb } from '@openworld/engine'
+import { ModPort, TICKS_PER_HOUR, RuleLibrary, buildSandbox, holeKey, snapshot, textOf, type Engine, type Key, type Plan, type PropValue, type Ref, type ScenarioEntity, type Verb } from '@openworld/engine'
 import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_PACE } from '@openworld/modules'
-import { LOOSE, NO_EXPIRY, cellId, madeOf, weaponOf } from '@openworld/engine'
+import { LOOSE, NO_EXPIRY, cellId, madeOf, oldStackKey, weaponOf } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -861,6 +861,335 @@ describe('slots and the magnet', () => {
     eng.controls.magnetic = true
     eng.tick()
     expect(eng.world.get('log')!.place).toMatchObject({ holder: 'actor' })
+  })
+})
+
+describe('physical inventory stacks', () => {
+  const stones = (n: number): ScenarioEntity[] => Array.from({ length: n }, (_, i) => ({ key: `stone${i}`, type: 'item/material/stone', x: 0, y: 0, inside: 'actor' }))
+  const frameSlots = (eng: Engine) => snapshot(eng).player.slots
+  const slotOf = (eng: Engine, id: string) => frameSlots(eng).findIndex((s) => s?.item.id === id)
+  const emptySlot = (eng: Engine) => frameSlots(eng).findIndex((s) => !s)
+
+  it('keeps the selected slot when its held item is replaced before another kind arrives', () => {
+    const eng = world('item/misc/feather_quill', [])
+    const player = eng.world.player
+    const oldHeld = player.held!
+    const selected = player.selected!
+
+    eng.author(() => {
+      eng.world.create('item/misc/ink', { on: 'inside', holder: player.id })
+      eng.world.destroy(eng.world.get(oldHeld)!)
+      eng.world.create('item/misc/feather_quill', { on: 'hand', holder: player.id })
+    })
+    const replacement = player.held!
+    eng.controls.sync()
+
+    expect(replacement).not.toBe(oldHeld)
+    expect(eng.world.get(oldHeld)).toBeUndefined()
+    expect(eng.world.get(replacement)?.type).toBe('item/misc/feather_quill')
+    expect(player.held).toBe(replacement)
+    expect(frameSlots(eng)[selected]?.item.type).toBe('item/misc/feather_quill')
+    expect(frameSlots(eng).some((slot) => slot?.item.type === 'item/misc/ink')).toBe(true)
+    expect((player as typeof player & { slotItems?: (string[] | null)[] }).slotItems?.[selected]).toContain(replacement)
+  })
+
+  it('keeps a held item in its split group when another selected kind has gone', () => {
+    const eng = world(undefined, [
+      { key: 'quill-a', type: 'item/misc/feather_quill', x: 0, y: 0, inside: 'actor' },
+      { key: 'quill-b', type: 'item/misc/feather_quill', x: 0, y: 0, inside: 'actor' },
+      { key: 'bread', type: 'item/food/bread', x: 0, y: 0, inside: 'actor' },
+    ])
+    const source = slotOf(eng, 'quill-a')
+    const split = emptySlot(eng)
+    const breadSlot = slotOf(eng, 'bread')
+    eng.controls.moveSlot(source, split, 'quill-a', 1, 2)
+    eng.controls.select(split)
+
+    const player = eng.world.player as typeof eng.world.player & { slotItems?: (string[] | null)[] }
+    const heldGroup = [...player.slotItems![split]!]
+    const sourceGroup = [...player.slotItems![source]!]
+    eng.author(() => eng.world.destroy(eng.world.get('bread')!))
+    player.selected = breadSlot
+    eng.controls.sync()
+
+    expect(player.slotItems?.[split]).toEqual(heldGroup)
+    expect(player.slotItems?.[source]).toEqual(sourceGroup)
+    expect(frameSlots(eng).some((slot) => slot?.item.id === 'quill-a')).toBe(true)
+    expect(player.slotItems?.[breadSlot]).toBeNull()
+  })
+
+  it('moves the rounded-up half into a separate persistent slot: five become two and three', () => {
+    const eng = world(undefined, stones(5))
+    const from = slotOf(eng, 'stone0')
+    const to = emptySlot(eng)
+
+    eng.controls.moveSlot(from, to, 'stone0', 3, 5)
+
+    expect(frameSlots(eng)[from]?.count).toBe(2)
+    expect(frameSlots(eng)[to]?.count).toBe(3)
+    expect(frameSlots(eng)[to]?.item.id).toBe('stone0')
+    expect(frameSlots(eng)[from]?.item.stackKey).toBe(frameSlots(eng)[to]?.item.stackKey)
+    expect(eng.world.player.held).toBe('stone3')
+    expect((eng.world.player as typeof eng.world.player & { slotItems?: (string[] | null)[] }).slotItems?.[eng.world.player.selected ?? 0]).toContain(eng.world.player.held)
+    eng.controls.select(to)
+    expect(eng.world.player.held).toBe('stone0')
+    expect((eng.world.player as typeof eng.world.player & { slotItems?: (string[] | null)[] }).slotItems?.[eng.world.player.selected ?? 0]).toContain(eng.world.player.held)
+  })
+
+  it('moves half of an even stack exactly', () => {
+    const eng = world(undefined, stones(6))
+    const from = slotOf(eng, 'stone0')
+
+    eng.controls.moveSlot(from, emptySlot(eng), 'stone0', 3, 6)
+
+    expect(frameSlots(eng)[from]?.count).toBe(3)
+    expect(frameSlots(eng).filter((s) => s?.item.type === 'item/material/stone').map((s) => s?.count)).toEqual([3, 3])
+  })
+
+  it('moves a one-item stack whole, including an unstackable piece of equipment', () => {
+    const one = world(undefined, [{ key: 'one', type: 'item/food/bread', x: 0, y: 0, inside: 'actor' }])
+    one.controls.moveSlot(slotOf(one, 'one'), emptySlot(one), 'one', 1, 1)
+    expect(frameSlots(one).filter(Boolean).map((s) => s?.item.id)).toContain('one')
+
+    const gear = world(undefined, [{ key: 'sword', type: 'item/weapon/blade/sword', x: 0, y: 0, inside: 'actor' }])
+    gear.controls.moveSlot(slotOf(gear, 'sword'), emptySlot(gear), 'sword', 1, 1)
+    expect(frameSlots(gear).filter(Boolean).map((s) => s?.item.id)).toContain('sword')
+  })
+
+  it('swaps a whole stack onto a different kind and rejects non-integer slot indexes', () => {
+    const eng = world(undefined, [...stones(5), { key: 'bread', type: 'item/food/bread', x: 0, y: 0, inside: 'actor' }])
+    const from = slotOf(eng, 'stone0')
+    const target = slotOf(eng, 'bread')
+
+    expect(eng.controls.moveSlot(from, target, 'stone0', 5, 5)).toBe(true)
+    expect(frameSlots(eng)[from]?.item.id).toBe('bread')
+    expect(frameSlots(eng)[target]?.item.id).toBe('stone0')
+
+    expect(eng.controls.moveSlot(Number.NaN, target, 'stone0', 5, 5)).toBe(false)
+    expect(eng.controls.moveSlot(target, Number.POSITIVE_INFINITY, 'stone0', 5, 5)).toBe(false)
+    expect(frameSlots(eng)[target]?.count).toBe(5)
+  })
+
+  it('merges only the picked count into another same-kind physical stack', () => {
+    const eng = world(undefined, stones(6))
+    const from = slotOf(eng, 'stone0')
+    const to = emptySlot(eng)
+    eng.controls.moveSlot(from, to, 'stone0', 3, 6)
+    const remainder = frameSlots(eng)[from]!
+
+    eng.controls.moveSlot(from, to, remainder.item.id, 2, 3)
+
+    expect(frameSlots(eng)[from]?.count).toBe(1)
+    expect(frameSlots(eng)[to]?.count).toBe(5)
+  })
+
+  it('keeps item attributes and ownership on their own entities when a stack is split', () => {
+    const eng = world(undefined, stones(5))
+    eng.author(() => {
+      eng.world.get('stone0')!.props = { owner: 'farmer.a' }
+      eng.world.get('stone1')!.props = { owner: 'farmer.b' }
+      eng.world.get('stone4')!.name = 'Marked stone'
+    })
+    eng.controls.sync()
+    const from = slotOf(eng, 'stone0')
+    const to = emptySlot(eng)
+    const count = frameSlots(eng)[from]!.count
+    eng.controls.moveSlot(from, to, 'stone0', 2, count)
+
+    expect(eng.world.get('stone0')!.props?.owner).toBe('farmer.a')
+    expect(eng.world.get('stone1')!.props?.owner).toBe('farmer.b')
+    expect(frameSlots(eng).find((s) => s?.item.id === 'stone4')?.item.name).toBe('Marked stone')
+    expect(frameSlots(eng).filter((s) => s?.item.type === 'item/material/stone')).toHaveLength(3)
+  })
+
+  it('rejects a partial move to a different kind and leaves the source intact', () => {
+    const eng = world(undefined, [...stones(5), { key: 'bread', type: 'item/food/bread', x: 0, y: 0, inside: 'actor' }])
+    const from = slotOf(eng, 'stone0')
+    const target = slotOf(eng, 'bread')
+
+    eng.controls.moveSlot(from, target, 'stone0', 3, 5)
+
+    expect(frameSlots(eng)[from]?.count).toBe(5)
+    expect(frameSlots(eng)[target]?.item.id).toBe('bread')
+    expect(frameSlots(eng)[target]?.count).toBe(1)
+  })
+
+  it('leaves a full bag intact when a split has no empty destination', () => {
+    const fillers: ScenarioEntity[] = Array.from({ length: 29 }, (_, i) => ({
+      key: `filler${i}`,
+      type: 'item/material/stone',
+      tags: [`unique-filler-${i}`],
+      x: 0,
+      y: 0,
+      inside: 'actor',
+    }))
+    const eng = world(undefined, [...stones(5), ...fillers])
+    const from = slotOf(eng, 'stone0')
+    expect(frameSlots(eng).every(Boolean)).toBe(true)
+
+    expect(eng.controls.moveSlot(from, 30, 'stone0', 3, 5)).toBe(false)
+
+    expect(frameSlots(eng)[from]?.count).toBe(5)
+    expect(frameSlots(eng).filter(Boolean)).toHaveLength(30)
+  })
+
+  it('rejects a stale source frame after the source stack count changes', () => {
+    const eng = world(undefined, stones(5))
+    const from = slotOf(eng, 'stone0')
+    eng.author(() => eng.world.get('stone4')!.place = { on: 'tile', map: 'sandbox', x: 2, y: 1 })
+    eng.controls.sync()
+
+    eng.controls.moveSlot(from, emptySlot(eng), 'stone0', 3, 5)
+
+    expect(frameSlots(eng)[from]?.count).toBe(4)
+    expect(frameSlots(eng).filter((s) => s?.item.type === 'item/material/stone')).toHaveLength(1)
+  })
+
+  it('refuses to move a frozen item', () => {
+    const eng = world(undefined, stones(5))
+    const from = slotOf(eng, 'stone0')
+    eng.world.get('stone4')!.frozenBy = 'patch/unknown'
+
+    eng.controls.moveSlot(from, emptySlot(eng), 'stone0', 3, 5)
+
+    expect(frameSlots(eng)[from]?.count).toBe(5)
+    expect(frameSlots(eng).filter((s) => s?.item.type === 'item/material/stone')).toHaveLength(1)
+    expect(eng.world.get('stone4')?.place).toMatchObject({ on: 'inside', holder: 'actor' })
+  })
+
+  it('stores or drops only the chosen physical group when two slots share a stack key', () => {
+    const chest = world(undefined, [...stones(5), { key: 'chest', type: 'fixture/container/chest', x: 2, y: 1, statuses: ['open'] }])
+    const from = slotOf(chest, 'stone0')
+    const to = emptySlot(chest)
+    chest.controls.moveSlot(from, to, 'stone0', 3, 5)
+    chest.controls.transfer('chest', 'bag', 'stone0', true)
+    expect(chest.world.get('chest')!.contents).toHaveLength(3)
+    expect(frameSlots(chest)[from]?.count).toBe(2)
+
+    const dropped = world(undefined, stones(5))
+    const source = slotOf(dropped, 'stone0')
+    dropped.controls.moveSlot(source, emptySlot(dropped), 'stone0', 3, 5)
+    const split = slotOf(dropped, 'stone0')
+    dropped.controls.drop(split, true)
+    expect(frameSlots(dropped)[source]?.count).toBe(2)
+    expect(frameSlots(dropped)[split]).toBeNull()
+    expect(dropped.world.entitiesAt('sandbox', 2, 1).filter((e) => e.type === 'item/material/stone')).toHaveLength(3)
+  })
+
+  it('rejects a context-drop selection if its source slot now holds a replacement stack', () => {
+    const eng = world(undefined, [...stones(5), { key: 'bread', type: 'item/food/bread', x: 0, y: 0, inside: 'actor' }])
+    const source = slotOf(eng, 'stone0')
+    const bread = slotOf(eng, 'bread')
+    eng.controls.moveSlot(source, bread, 'stone0', 5, 5)
+
+    eng.controls.drop(source, true, { item: 'stone0', count: 5, sourceCount: 5 })
+
+    expect(frameSlots(eng)[source]?.item.id).toBe('bread')
+    expect(eng.world.entitiesAt('sandbox', 2, 1).some((e) => e.id === 'bread')).toBe(false)
+  })
+
+  it('keeps physical groups attached to their slots through row changes, swaps, and organize', () => {
+    const eng = world(undefined, [...stones(5), { key: 'bread', type: 'item/food/bread', x: 0, y: 0, inside: 'actor' }])
+    const from = slotOf(eng, 'stone0')
+    const to = emptySlot(eng)
+    eng.controls.moveSlot(from, to, 'stone0', 3, 5)
+    const originalMembers = (eng.world.player as typeof eng.world.player & { slotItems?: (string[] | null)[] }).slotItems
+    const splitIds = originalMembers?.[to]
+    expect(splitIds).toHaveLength(3)
+
+    eng.controls.nextRow()
+    eng.controls.nextRow(-1)
+    const other = slotOf(eng, 'bread')
+    eng.controls.swap(to, other)
+    eng.controls.swap(to, other)
+    eng.controls.organize()
+
+    const finalSlots = frameSlots(eng)
+    expect(finalSlots.filter((s) => s?.item.type === 'item/material/stone').map((s) => s?.count).sort()).toEqual([2, 3])
+    const finalMembers = (eng.world.player as typeof eng.world.player & { slotItems?: (string[] | null)[] }).slotItems
+    expect(finalMembers?.some((group) => group?.length === 3 && group[0] === splitIds?.[0])).toBe(true)
+  })
+
+  it('adds an F-taken same-kind item to the selected group and keeps the selected hand with it through a transform', () => {
+    const eng = world(undefined, [
+      ...stones(5),
+      { key: 'loose-stone', type: 'item/material/stone', x: 2, y: 1 },
+      { key: 'bread', type: 'item/food/bread', x: 0, y: 0, inside: 'actor' },
+    ])
+    const source = slotOf(eng, 'stone0')
+    const split = emptySlot(eng)
+    eng.controls.moveSlot(source, split, 'stone0', 3, 5)
+    eng.controls.select(split)
+
+    const take = eng.controls.plan('take')
+    expect(take?.target).toEqual({ e: 'loose-stone' })
+    eng.controls.run(take!)
+
+    const selectedItems = (eng.world.player as typeof eng.world.player & { slotItems?: (string[] | null)[] }).slotItems?.[eng.world.player.selected ?? 0]
+    expect(selectedItems).toContain('loose-stone')
+    expect(selectedItems).toContain(eng.world.player.held)
+
+    const beforeTransform = eng.world.player.held!
+    eng.author(() => eng.world.transform(eng.world.get(beforeTransform)!, 'item/food/bread'))
+    eng.controls.sync()
+
+    const heldAfter = eng.world.player.held
+    const currentSelected = (eng.world.player as typeof eng.world.player & { slotItems?: (string[] | null)[] }).slotItems?.[eng.world.player.selected ?? 0]
+    expect(heldAfter).not.toBe(beforeTransform)
+    expect(currentSelected).toContain(heldAfter)
+    expect(currentSelected).toContain('stone1')
+    expect(frameSlots(eng)[split]?.item.type).toBe('item/material/stone')
+    expect(frameSlots(eng).some((s) => s?.item.type === 'item/food/bread' && s.count === 2)).toBe(true)
+  })
+
+  it('reads an older one-key layout without mutating it, then migrates it on sync', () => {
+    const eng = world(undefined, stones(5))
+    const player = eng.world.player as typeof eng.world.player & { slotItems?: (string[] | null)[] }
+    delete player.slotItems
+
+    expect(frameSlots(eng).filter((s) => s?.item.type === 'item/material/stone').map((s) => s?.count)).toEqual([5])
+    expect(player.slotItems).toBeUndefined()
+
+    eng.controls.sync()
+
+    expect((eng.world.player as typeof eng.world.player & { slotItems?: (string[] | null)[] }).slotItems?.filter(Boolean).map((members) => members?.length)).toEqual([5])
+  })
+
+  it('shows every old-save same-kind piece in a virtual slot without mutating the save', () => {
+    const eng = world(undefined, [
+      { key: 'axe-one', type: 'item/weapon/blade/axe', x: 0, y: 0, inside: 'actor' },
+      { key: 'axe-two', type: 'item/weapon/blade/axe', x: 0, y: 0, inside: 'actor' },
+    ])
+    const player = eng.world.player as typeof eng.world.player & { slotItems?: (string[] | null)[] }
+    delete player.slotItems
+    player.slots = Array(30).fill(null)
+    player.slots[0] = oldStackKey(eng.world.get('axe-one')!)
+    const savedLayout = [...player.slots]
+
+    const axes = snapshot(eng).player.slots.filter((slot) => slot?.item.type === 'item/weapon/blade/axe')
+
+    expect(axes.map((slot) => slot?.item.id).sort()).toEqual(['axe-one', 'axe-two'])
+    expect(axes.every((slot) => slot?.count === 1)).toBe(true)
+    expect(player.slots).toEqual(savedLayout)
+    expect(player.slotItems).toBeUndefined()
+  })
+
+  it('uses the engine migration order so a legacy snapshot slot can be moved immediately', () => {
+    const eng = world(undefined, [
+      { key: 'axe-held', type: 'item/weapon/blade/axe', x: 0, y: 0, inside: 'actor' },
+      { key: 'axe-in-bag', type: 'item/weapon/blade/axe', x: 0, y: 0, inside: 'actor' },
+    ])
+    eng.author(() => eng.world.place(eng.world.get('axe-held')!, { on: 'hand', holder: 'actor' }))
+    const player = eng.world.player as typeof eng.world.player & { slotItems?: (string[] | null)[] }
+    delete player.slotItems
+    player.slots = Array(30).fill(null)
+    player.slots[0] = oldStackKey(eng.world.get('axe-held')!)
+    const frame = snapshot(eng)
+    const from = frame.player.slots.findIndex((slot) => slot?.item.id === 'axe-in-bag')
+    const to = frame.player.slots.findIndex((slot) => !slot)
+
+    expect(from).toBe(0)
+    expect(eng.controls.moveSlot(from, to, 'axe-in-bag', 1, 1)).toBe(true)
   })
 })
 

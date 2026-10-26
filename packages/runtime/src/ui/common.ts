@@ -105,8 +105,8 @@ export const STRINGS: Record<string, [string, string]> = {
   'slot:feet': ['Feet', '脚'],
   'slot:arm': ['Off hand', '副手'],
   invHelp: [
-    'Click to pick up, again to swap · Shift+click: toolbar ↔ bag · {key:row}: next row to the toolbar · pick up something wearable and click its slot on the left to put it on (or right click), click a worn piece to take it off · right click: use or put the held thing on it, or use it',
-    '点击拿起、再点击交换 · Shift+点击：快捷栏↔背包 · {key:row}：换一行到快捷栏 · 拿起装备点左边的装备栏穿上（右键也可以），点装备栏卸下 · 右键：对它用手上的东西、放进去、空手摆弄',
+    'Click to pick up a whole stack, then click to place or swap · right click: use, equip or drop menu · Shift+right click: pick up half (rounded up) · Shift+click: toolbar ↔ bag · {key:row}: next row to the toolbar · click a worn piece to take it off',
+    '左键拿起整堆，再点放置或交换 · 右键打开使用、装备或丢弃菜单 · Shift+右键拿起一半（向上取整） · Shift+左键：快捷栏↔背包 · {key:row}：换一行到快捷栏 · 点击已装备物品可卸下',
   ],
   // the tooltip: a creature's own piece (its kind's `trophy`), and whose
   tipTrophy: ['Trophy', '战利品'],
