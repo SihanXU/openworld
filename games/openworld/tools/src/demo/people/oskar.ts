@@ -34,5 +34,6 @@ export const oskar: PersonDef = {
     line('default', 'Took you long enough. Well — thank you.', '来得够慢的。好吧——谢谢你。'),
     line('fact:rescue.oskar', "Baskets don't mend themselves, and neither do old men. Both take time.", '篮子不会自己补好，老头子也一样。都得慢慢来。'),
     line('fact:rescue.oskar', 'The dead in there would not lie down. I have buried my share. They always lay down before.', '那里面的死人不肯躺下。我也埋过不少人了。以前他们总是会躺下的。'),
+    line('fact:rescue.oskar', "She says she was sheltering from the storm. Who shelters from a storm three floors down? ...Never mind. She came back.", '她说是躲风暴。谁躲风暴会往下钻三层？……算了。人回来就行。'),
   ],
 }

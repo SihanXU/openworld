@@ -167,6 +167,28 @@ export interface Catalog {
   /** Each music file's measured loudness (integrated LUFS, `npm run loudness`): every piece is played as loud as the rest. */
   loudness?: Record<string, number>
   sfx: Record<string, string>
+  /**
+   * People with a portrait of their own (docs/character-art.md), by person id: the dialogue shows it in place of the bust their look
+   * composes. None: everyone's portrait is their look's.
+   */
+  portraits?: Record<string, PortraitSet>
+}
+
+/**
+ * A person's own portrait: a square bust per mood, transparent (`<dir>/<mood>.webp`, `neutral` always), drawn so every picture of the set
+ * lines up to the pixel; where the set has them, each mood's blink (`<mood>-blink.webp`) and its mouth open in a word (`<mood>-talk.webp`).
+ */
+export interface PortraitSet {
+  /** The folder under the game's assets (`lsw/Portraits/<person>`). */
+  dir: string
+  /** The moods it has a picture for; any other is shown as `neutral`. */
+  moods: Mood[]
+  /** Every mood of `moods` has its blink. */
+  blink?: boolean
+  /** Every mood of `moods` has its open mouth. */
+  talk?: boolean
+  /** Every mood of `moods` has a wider picture for a panel of the game's own (`<mood>-panel.webp`: the figure with what spreads beside it, a fairy's wings). */
+  panel?: boolean
 }
 
 /** When in the day and the weather a cue may have a version of its own for (MusicCue.at). */

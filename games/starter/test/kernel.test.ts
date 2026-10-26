@@ -57,6 +57,55 @@ describe('the starter, on the kernel alone', () => {
     for (const op of ['feed', 'boon', 'talk', 'pay', 'arrest', 'unleash', 'trophy']) expect(ops).not.toContain(op)
   })
 
+  it('a scene shows a picture under its lines, keeps the dark of a fade, and sets a card over a picture; its end takes them away', () => {
+    const game = played()
+    const eng = game.engine
+    eng.story.defs.set('vignette', {
+      id: 'vignette',
+      manual: true,
+      script: [
+        { fade: 'out' },
+        { picture: 'own/cg/test.webp' },
+        { fade: 'in' },
+        { say: 'player', text: 'A picture.' },
+        { picture: null },
+        { say: 'player', text: 'Gone.' },
+        { picture: 'own/cg/again.webp' },
+        { card: 'THE END', art: 'own/cg/end.webp' },
+      ],
+    })
+    expect(eng.story.start('vignette')).toBe(true)
+    // the frame carries what the view shows, so a reload in the middle shows it again
+    const frame = () => snapshot(eng).scene
+    const next = () => { for (let i = 0; i < 20 && frame()?.waiting !== 'advance'; i++) eng.tick() }
+    eng.tick()
+    next()
+    expect(frame()).toMatchObject({ picture: 'own/cg/test.webp', line: { text: 'A picture.' } })
+    expect(frame()?.dark).toBeUndefined()
+    eng.story.advance()
+    next()
+    expect(frame()?.line?.text).toBe('Gone.')
+    expect(frame()?.picture).toBeUndefined()
+    eng.story.advance()
+    next()
+    expect(frame()).toMatchObject({ picture: 'own/cg/again.webp', line: { card: true, art: 'own/cg/end.webp' } })
+    eng.story.advance()
+    eng.tick()
+    expect(eng.world.scene).toBeUndefined()
+    expect(snapshot(eng).scene).toBeUndefined()
+  })
+
+  it('a fade out not yet faded in is kept in the scene: a reload stays dark', () => {
+    const game = played()
+    const eng = game.engine
+    eng.story.defs.set('dusk', { id: 'dusk', manual: true, script: [{ fade: 'out' }, { wait: 5 }, { fade: 'in' }] })
+    eng.story.start('dusk')
+    eng.tick()
+    expect(snapshot(eng).scene?.dark).toBe(true)
+    ticks(eng, 10)
+    expect(eng.world.scene).toBeUndefined()
+  })
+
   it('a new game begins at its start, at its hour, and the story opens', () => {
     const game = newGame()
     const eng = game.engine

@@ -38,6 +38,7 @@ export const CMD_KINDS: [string, string, (ctx: Ctx) => SceneCmd][] = [
   ['status', phrase('A status on or off'), () => ({ status: '', add: '' })],
   ['tell', phrase('Tell someone'), () => ({ tell: '', params: { what: 'news' } })],
   ['card', phrase('A full-screen card'), () => ({ card: '…' })],
+  ['picture', phrase('Show a picture'), () => ({ picture: 'own/' })],
   ['music', phrase('Play music'), () => ({ music: '' })],
 ]
 export const cmdKind = (c: SceneCmd): string => CMD_KINDS.find(([k]) => k in c)?.[0] ?? '?'
@@ -82,7 +83,14 @@ export function cmdForm(f: Form, ctx: Ctx, c: SceneCmd, set: (c: SceneCmd) => vo
       return `${f.text(m.status, (v) => set({ ...m, status: v }), { list: 'dlThings', placeholder: t('a thing\'s id') })} ${f.select([['add', t('gains')], ['remove', t('loses')]], on ? 'add' : 'remove', (v) => set(v === 'add' ? { status: m.status, add: m.remove ?? m.add ?? '' } : { status: m.status, remove: m.add ?? m.remove ?? '' }))} ${f.text(on ? m.add : m.remove, (v) => set(on ? { status: m.status, add: v } : { status: m.status, remove: v }), { list: 'dlStatuses', placeholder: t('a status') })}`
     }
     case 'tell': { const m = c as { tell: string; params: Record<string, never> }; return `${whoField(f, ctx, m.tell, (v) => set({ ...m, tell: v }))} ${f.json(m.params, (v) => set({ ...m, params: (v ?? {}) as never }), (msg) => toast(msg, 'error'), 1)}` }
-    case 'card': return f.words(x.card as Text, (t) => set({ card: t ?? '' }), { area: true })
+    case 'card': {
+      const m = c as { card: Text; art?: string }
+      return `${f.words(m.card, (t) => set({ ...m, card: t ?? '' }), { area: true })}<div class="row">${t('over a picture')} ${f.text(m.art ?? '', (v) => set({ card: m.card, ...(v.trim() && { art: v.trim() }) }), { placeholder: t('none (a path under assets/: own/…)') })}</div>`
+    }
+    case 'picture': {
+      const m = c as { picture: string | null }
+      return `${f.text(m.picture ?? '', (v) => set({ picture: v.trim() || null }), { placeholder: t('a path under assets/ (own/…); empty takes the picture away') })} <span class="muted">${t('the lines go on over it until the scene ends')}</span>`
+    }
     case 'music': {
       // a cue of the project's catalogue, or silence; the place's own music comes back when the scene ends
       const cues = Object.keys(ctx.store.get<Catalog>('catalog.json')?.music ?? {})

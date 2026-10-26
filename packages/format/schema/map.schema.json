@@ -2848,6 +2848,9 @@
             },
             "card": {
               "type": "boolean"
+            },
+            "art": {
+              "type": "string"
             }
           },
           "required": [
@@ -2856,6 +2859,14 @@
           ],
           "additionalProperties": false,
           "description": "the line waiting to be advanced (so a client that missed the say event can show it)"
+        },
+        "picture": {
+          "type": "string",
+          "description": "the picture shown over the world (a `picture` command), until taken away or the scene ends"
+        },
+        "dark": {
+          "type": "boolean",
+          "description": "the screen is faded to black (a `fade` out not yet faded in): kept, so a reload does not show what it hides"
         },
         "music": {
           "type": "string",

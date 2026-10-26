@@ -589,7 +589,8 @@ run of its done-when) and is recorded below as built.
   kind and its fields — spoken to, given to, carrying, felled, gone, entering a place, objectives, facts, another
   quest's stage or end, a step — and all, any and not of them, nested.
 - **A scene's commands as forms** (`app/sceneForms.ts`): each kind named as RPG Maker names its commands (show a line,
-  walk to, turn, a mood, wait, fade, transfer, place, give, a fact, a quest's stage, a topic, a status, tell, a card),
+  walk to, turn, a mood, wait, fade, transfer, place, give, a fact, a quest's stage, a topic, a status, tell, a card — over
+  a picture where it names one —, and a picture shown under the lines: docs/character-art.md, 2026-10-24),
   its fields from the project's names (the speaker among the people, the quest's stages by their log, the facts
   known), a cell **picked on the map** (the editor's `pick`: the canvas shown with the maps to choose among, Esc to
   cancel); reordered, copied, removed. **A line is shown as the game shows it**: the runtime's dialogue box, the

@@ -9,7 +9,7 @@ export const nessa: PersonDef = {
   essential: true,
   name: { en: 'Nessa Quill', zh: '奈莎·奎尔' },
   gender: 'female',
-  look: { parts: { hair: 'hair.bob', face: 'face.keen', outfit: 'outfit.coat', glasses: 'glasses.round', hat: null }, colors: { hair: 'raven', eyes: 'violet', skin: 'porcelain', 'outfit.1': 'indigo' } },
+  look: { parts: { hair: 'hair.long', face: 'face.keen', outfit: 'outfit.coat', glasses: 'glasses.round', hat: null }, colors: { hair: 'black', eyes: 'violet', skin: 'porcelain', 'outfit.1': 'indigo' } },
   age: 31,
   temperament: { personality: 'restless', manner: 'polite', social: 'outgoing', outlook: 'wary' },
   ties: {},

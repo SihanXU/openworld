@@ -120,7 +120,7 @@ balance for a Chapter 1 player come with the chapter.
 
 | | |
 |---|---|
-| Who | About 40. Grey travelling cloak, ash-dark hands, a hooded brass lantern. Once a brother of the **Ashen Watch** (灰烬守望), the Church order that kept the flames lit from the first dawn; the Church dissolved it twenty years ago and named its last brothers heretics. Raised as a foundling by Firstlight's chapel keeper. |
+| Who | 30 (was about 40, lowered 2026-10-25). Grey travelling cloak, ash-dark hands, a hooded brass lantern. Once a brother of the **Ashen Watch** (灰烬守望), the Church order that kept the flames lit from the first dawn; the Church dissolved it ten years ago (was twenty) and named its last brothers heretics, he the youngest of them, at twenty. A foundling left on the step of Firstlight's chapel: Ilse, a novice of sixteen, raised him; at ten a brother of the Watch who came to tend the flame took him into the order (the boy at the bridge-payer's heel, Joss's line). |
 | What the village sees | A heretic who scraped the holy shrine stone, lured two foragers into the barrow, and stole the Firstlight. |
 | What he believes (decided) | From the start, the first reversal (lore.md §9): **Astra is the monster** — the First Night itself, sealed, waking as the seals weaken — and the Church, feeding the seals' power to the Holy City, is waking him. So the pilgrimage, which carries the five instruments and the seals' power back to Astra's body for the Great Rite, would raise him. |
 | What he does | He works against the pilgrim from the first day. He takes the Firstlight, a flame of the first dawn, to hold what each fallen seal leaves, so that it never reaches the Holy City **[proposal: how he uses the flame]**. He gets there first, takes what he can, and tells the pilgrim the truth as he sees it. |
@@ -168,7 +168,8 @@ one thing they do not say.
 
 ### Sister Ilse (伊尔丝修女), keeper of Firstlight's chapel
 
-- 56; a nun of the Five Sufferings; calm, dry-humoured, ink on her cuffs. Tends the flame at dawn
+- 46 (was 56, lowered 2026-10-25); a nun of the Five Sufferings; gentle, a little absent-minded, motherly, deeply devout;
+  white hair and red eyes (was calm and dry-humoured, ink on her cuffs; changed with the user 2026-10-25, [cast/ilse.md](cast/ilse.md)). Tends the flame at dawn
   and dusk; reads the litany: *"Suffering is not God's abandonment. It is the proof the debt is
   being paid."*
 - **Stake**: the flame was hers to keep. She receives the Church's letter and sends you.
@@ -176,7 +177,8 @@ one thing they do not say.
   the First Dawn" on the east road and merged into hers 2026-10-12: the First Dawn's is the chapel on Dawn Hill, §13).
   Brother Anselm (68) serves in it and keeps its bookstand of skill books; on the east road Greta keeps the general store
   and Haldor the smithy.
-- **Unsaid**: she raised Severin; she recognised his walk in the chapel and told no one. She once
+- **Unsaid**: she raised Severin, left on the chapel's step when she was a novice of sixteen, until the Watch took him at ten;
+  she recognised his walk in the chapel and told no one. She once
   read a Watch book the Church burned.
 - Lines (sample): "The flame is older than the houses. The houses were built to keep it company." /
   "火比房子还老。房子是为了陪它才盖起来的。" — after the theft: "Some people take a thing to keep
@@ -186,8 +188,8 @@ one thing they do not say.
 
 - 58; gruff, precise. Built the footbridge twenty years ago with Aldo, Hesper's husband.
 - **Stake**: someone took his bridge apart *neatly*. Teaches the plank route.
-- **Unsaid**: a grey young man paid for the bridge in old Watch coin, "for a road out of here a
-  cart could take in a hurry."
+- **Unsaid**: a man in grey paid for the bridge in old Watch coin, a boy at his heel carrying the purse (Severin at ten),
+  "for a road out of here a cart could take in a hurry."
 - **Side quest, *The Ninth Nail***: one of the laid nails is missing; it is in the knight's kingdom.
   Reward: a fine hammer and the story of who paid for the bridge.
 

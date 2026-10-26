@@ -389,9 +389,12 @@ export function loadGame(): Game {
     const def = defOf.get(e.id)
     const role = String((e as any).npc?.role ?? def?.role ?? e.type.split('/').pop())
     const look = (e as Entity).look
-    // a look record: its portrait and sprite, composed by the game's code when the site is written (build.ts)
+    // a look record: its portrait and sprite, composed by the game's code when the site is written (build.ts); a person with a portrait of
+    // their own (the catalogue's `portraits`, docs/character-art.md) is shown as the dialogue shows them, its neutral face (a 400 px square)
     const urls = typeof look === 'object' ? lookUrls(look) : undefined
-    const face = urls ? { url: urls.face, x: 0, y: 0, w: FACE_PX, h: FACE_PX, iw: FACE_PX, ih: FACE_PX, smooth: true } : faceSprite(look as string | undefined)
+    const own = CATALOG.portraits?.[e.id]
+    const face = own ? { url: `/assets/${own.dir}/neutral.webp`, x: 0, y: 0, w: 400, h: 400, iw: 400, ih: 400, smooth: true }
+      : urls ? { url: urls.face, x: 0, y: 0, w: FACE_PX, h: FACE_PX, iw: FACE_PX, ih: FACE_PX, smooth: true } : faceSprite(look as string | undefined)
     const body = urls ? { url: urls.body, x: 0, y: 0, w: 16, h: 32, iw: 16, ih: 32 } : bodySprite(look as string | undefined)
     return {
       kind: 'person', id: e.id, zh: zh(e.name), en: (enOf(e.name) || e.id), name: say(e.name), title: say(e.name), group: e.place.on === 'tile' ? e.place.map : 'offstage', groupName: '',
@@ -402,9 +405,13 @@ export function loadGame(): Game {
   for (const c of index.companions ?? []) {
     const t = types[c.type]
     const fairy = CATALOG.creatures['creature:fairy']
+    // her own portrait where she has one (Lumi, docs/cast/lumi.md), as the dialogue shows her; else the pixel faceset
+    const own = CATALOG.portraits?.[c.id]
+    const face = own ? { url: `/assets/${own.dir}/neutral.webp`, x: 0, y: 0, w: 400, h: 400, iw: 400, ih: 400, smooth: true }
+      : fairy?.faceset ? whole(`${fairy.dir}/${fairy.faceset}`) : actorSprite(fairy)
     people.push({
       kind: 'companion', id: c.id, zh: zh(c.name), en: (enOf(c.name) || c.id), name: say(c.name), title: say(c.name), group: 'companion', groupName: L('同伴', 'Companion'), entity: c, role: 'companion', roleName: say(t?.name) || L('同伴', 'companion'),
-      look: undefined, face: fairy?.faceset ? whole(`${fairy.dir}/${fairy.faceset}`) : actorSprite(fairy), body: actorSprite(fairy),
+      look: undefined, face, body: actorSprite(fairy),
       sprite: fairy?.faceset ? whole(`${fairy.dir}/${fairy.faceset}`) : actorSprite(fairy),
     })
   }
