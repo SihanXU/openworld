@@ -19,6 +19,8 @@ import {
   better,
   checkProposal,
   improve,
+  inside,
+  jsSearch,
   manifestOf,
   modelFromEnv,
   pinFromEnv,
@@ -77,6 +79,20 @@ function engineer(o: { wander?: number; fix?: boolean; submitEarly?: boolean; la
 const freshState = () => SelfState.open(mkdtempSync(join(tmpdir(), 'lsw-agent-state-')))
 
 describe('the environment and tools', () => {
+  it('takes a name that begins with two dots for a name, and searches one file as it searches a folder', () => {
+    const dir = bugRepo()
+    expect(inside(dir, '..config')).toBe(join(dir, '..config'))
+    expect(() => inside(dir, '..')).toThrow(/outside the workspace/)
+    expect(() => inside(dir, '../x')).toThrow(/outside the workspace/)
+    mkdirSync(join(dir, 'deep'))
+    writeFileSync(join(dir, 'deep', 'a.txt'), 'needle\n')
+    expect(jsSearch(dir, join(dir, 'deep', 'a.txt'), 'needle')).toBe('deep/a.txt:1:needle')
+    // a file past the size cap is skipped when it is named, as when the walk finds it
+    writeFileSync(join(dir, 'big.txt'), `needle\n${'x'.repeat(1_000_000)}`)
+    expect(jsSearch(dir, join(dir, 'big.txt'), 'needle')).toBe('(no match)')
+    expect(jsSearch(dir, dir, 'needle')).toBe('deep/a.txt:1:needle')
+  })
+
   it('runs commands in the workspace without the model key, and stops them at the deadline', async () => {
     const dir = bugRepo()
     process.env.LSW_MODEL_KEY = 'secret-key'
@@ -226,6 +242,8 @@ describe('the outer loop', () => {
     expect(better(t(40, 1000), t(30, 1500), 0.1)).toMatchObject({ ok: false, why: 'ms worse by more than 10 %' })
     expect(better(t(40, 1000), t(30, 1500), 0.1, 1)).toMatchObject({ ok: true, why: 'better: calls' })
     expect(better(t(40, 1000), t(40, 950), 0.1, 1)).toMatchObject({ ok: false, why: 'no gain beyond noise' })
+    // the refusal names the margin each measure crossed: the clock's own, not the others'
+    expect(better(t(40, 1000), t(30, 2500), 0.1, 1)).toMatchObject({ ok: false, why: 'ms worse by more than 100 %' })
   })
 
   it('leaves out ablated parts of the self-state', async () => {

@@ -2,7 +2,7 @@
 // on the host under the workspace root (paths cannot leave it); commands go through the Env.
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join, relative, resolve, sep } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { Env } from './env.ts'
 import { sh } from './env.ts'
 import type { ToolSpec } from '../models/model.ts'
@@ -31,10 +31,12 @@ const str = (v: unknown, d = '') => (typeof v === 'string' ? v : v === undefined
 
 export function inside(root: string, p: string): string {
   const abs = resolve(root, p || '.')
-  const rel = relative(resolve(root), abs)
-  if (rel.startsWith('..') || rel.includes(`..${sep}`) || resolve(rel) === rel) throw new Error(`path outside the workspace: ${p}`)
+  if (outside(relative(resolve(root), abs))) throw new Error(`path outside the workspace: ${p}`)
   return abs
 }
+
+/** A relative path that leaves its root: up a level, or onto another drive (a name like `..config` stays). */
+const outside = (rel: string): boolean => rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)
 
 /**
  * A path to write: inside the workspace by its name AND by where it really is — a symlink in the
@@ -45,8 +47,7 @@ export function insideForWrite(root: string, p: string): string {
   let probe = abs
   while (!existsSync(probe) && dirname(probe) !== probe) probe = dirname(probe)
   const real = realpathSync(probe)
-  const rel = relative(realpathSync(root), real)
-  if (rel.startsWith('..') || resolve(rel) === rel) throw new Error(`path outside the workspace (through a link): ${p}`)
+  if (outside(relative(realpathSync(root), real))) throw new Error(`path outside the workspace (through a link): ${p}`)
   return abs
 }
 
@@ -74,7 +75,7 @@ function listDir(root: string, start: string, depth: number, limit = 400): strin
 }
 
 /** Plain JS search when ripgrep is not there. */
-function jsSearch(root: string, start: string, pattern: string, limit = 80): string {
+export function jsSearch(root: string, start: string, pattern: string, limit = 80): string {
   let re: RegExp
   try {
     re = new RegExp(pattern)
@@ -82,6 +83,12 @@ function jsSearch(root: string, start: string, pattern: string, limit = 80): str
     re = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   }
   const out: string[] = []
+  // one file, named or found by the walk: the same size cap, the path with / on every system
+  const scan = (abs: string, size: number) => {
+    if (size >= 1_000_000) return
+    const lines = readFileSync(abs, 'utf8').split('\n')
+    lines.forEach((l, i) => out.length < limit && re.test(l) && out.push(`${relative(root, abs).split(sep).join('/')}:${i + 1}:${l.slice(0, 300)}`))
+  }
   const walk = (dir: string) => {
     for (const name of readdirSync(dir)) {
       if (out.length >= limit || SKIP_DIRS.has(name)) continue
@@ -89,16 +96,12 @@ function jsSearch(root: string, start: string, pattern: string, limit = 80): str
       const st = statSync(abs, { throwIfNoEntry: false })
       if (!st) continue
       if (st.isDirectory()) walk(abs)
-      else if (st.size < 1_000_000) {
-        const lines = readFileSync(abs, 'utf8').split('\n')
-        lines.forEach((l, i) => out.length < limit && re.test(l) && out.push(`${relative(root, abs).split(sep).join('/')}:${i + 1}:${l.slice(0, 300)}`))
-      }
+      else scan(abs, st.size)
     }
   }
   const st = statSync(start, { throwIfNoEntry: false })
-  if (st?.isFile()) {
-    readFileSync(start, 'utf8').split('\n').forEach((l, i) => out.length < limit && re.test(l) && out.push(`${relative(root, start)}:${i + 1}:${l.slice(0, 300)}`))
-  } else if (st) walk(start)
+  if (st?.isFile()) scan(start, st.size)
+  else if (st) walk(start)
   return out.length ? out.join('\n') : '(no match)'
 }
 

@@ -383,12 +383,14 @@ export async function historyTask(def: HistoryDef, o: { isolation?: Isolation; l
   const iso = o.isolation ?? (await chooseIsolation())
   if (iso === 'none' && !o.localRun) return undefined
   const ws = mkdtempSync(join(tmpdir(), 'lsw-history-'))
-  const depsDir = deps(def)
-  workspace(def.parent, ws)
-  linkDeps(ws, depsDir, workspaceDirs(def.parent))
-  const visible = def.tests.filter((f) => existsSync(join(ws, f)))
   let env: Env
+  let visible: string[]
+  // the workspace goes again whatever fails before the task exists: the checkout, the dependencies, the container
   try {
+    workspace(def.parent, ws)
+    const depsDir = deps(def)
+    linkDeps(ws, depsDir, workspaceDirs(def.parent))
+    visible = def.tests.filter((f) => existsSync(join(ws, f)))
     env =
       iso === 'docker'
         ? await DockerEnv.start({ image: await sandboxImage(), root: ws, mount: ws, mounts: [{ host: depsDir, container: depsDir }], user: hostUser(), limits: SANDBOX_LIMITS })

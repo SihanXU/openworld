@@ -1,10 +1,10 @@
 import { execSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { REPO } from '../src/engine-tasks.ts'
-import { area, classify, isCode, isTest, leaks, rungOf, statuses, workspace } from '../src/ladder.ts'
+import { area, classify, historyDefs, historyTask, isCode, isTest, leaks, rungOf, statuses, workspace } from '../src/ladder.ts'
 
 describe('the ladder: this repository’s commits as tasks', () => {
   it('tells tests from code and places a commit on its rung', () => {
@@ -49,6 +49,23 @@ describe('the ladder: this repository’s commits as tasks', () => {
       expect(execSync('git log --format=%s', { cwd: ws, encoding: 'utf8' }).trim()).toBe('base')
     } finally {
       rmSync(ws, { recursive: true, force: true })
+    }
+  })
+
+  it('a history task that cannot be built leaves no workspace behind', async () => {
+    const def = historyDefs()[0]
+    if (!def) return
+    // a temp folder of its own (os.tmpdir() reads TMPDIR when called), so no other test's workspaces count
+    const tmp = mkdtempSync(join(tmpdir(), 'lsw-history-test-'))
+    const was = process.env.TMPDIR
+    process.env.TMPDIR = tmp
+    try {
+      await expect(historyTask({ ...def, parent: '0'.repeat(40) }, { isolation: 'none', localRun: true })).rejects.toThrow()
+      expect(readdirSync(tmp)).toEqual([])
+    } finally {
+      if (was === undefined) delete process.env.TMPDIR
+      else process.env.TMPDIR = was
+      rmSync(tmp, { recursive: true, force: true })
     }
   })
 })
