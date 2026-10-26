@@ -239,7 +239,9 @@ class Conversions {
         if (!receivers.length) this.warn(path, 'an emitted class with no statically matching type')
         const choices = this.unique(receivers.flatMap((host) => this.resolve(`impulse/${e.impulse}`, { host, roles: { host: { ...sel, type: host }, source: ctx.roles.host, actor: ctx.roles.actor, instrument: ctx.roles.instrument, item: e.item ? ctx.roles[e.item] : undefined, other: e.other ? ctx.roles[e.other] : undefined }, params, complete: true }, path, stack)), path)
         out = this.unique(out.flatMap((a) => (choices.length ? choices : [empty()]).map((b) => combine(a, mix(b, empty(), e.chance ?? 1, b.path)))), path)
-      } else if (counted && ['hurt', 'addStatus', 'removeStatus', 'setProp', 'addProp', 'craft', 'build', 'grow', 'quests', 'appear', 'fall'].includes(e.op)) this.warn(path, `${e.op}'s state-dependent consequences`)
+      } else if (counted && ['hurt', 'addStatus', 'removeStatus', 'setProp', 'addProp', 'craft', 'build', 'grow', 'quests', 'appear', 'fall'].includes(e.op)) {
+        this.warn(path, `${e.op}'s state-dependent consequences`)
+      }
     }
     return out
   }
