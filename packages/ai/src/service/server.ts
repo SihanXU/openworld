@@ -20,7 +20,7 @@ import { createServer, type IncomingMessage, type Server } from 'node:http'
 import { join } from 'node:path'
 import { AI_WAIT_MS, type Patch, type ResolveBody } from '@openworld/engine'
 import type { DraftBody, Modder, ThingBody } from '../modder/pipeline.ts'
-import { Detector } from '../checks/detect.ts'
+import { Detector } from '../modder/detect.ts'
 
 export interface ServerOptions {
   /** Access-Control-Allow-Origin (default *: the client is a static page on another origin). */

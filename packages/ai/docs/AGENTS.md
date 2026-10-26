@@ -19,8 +19,8 @@ The runtime finds the player's own modder through one glob (`packages/runtime/sr
 | Folder | What it holds |
 |---|---|
 | `src/models/` | Model backends behind one `Model` interface: OpenAI-compatible, `claude -p` (`model-node.ts`), Anthropic Messages (`anthropic.ts`), scripted for tests; the provider list. |
-| `src/modder/` | The modder: `pipeline.ts` (comprehend, recall, design, verify and repair, audit, review, commit, record, reflect), its prompts, tools, deterministic fixes, derived tests, tiers. |
-| `src/checks/` | The checks beyond the engine's validator: the auditor (`audit.ts`, harm by construction), the economy LP (`economy.ts`), detection (`detect.ts`). |
+| `src/modder/` | The modder: `pipeline.ts` (comprehend, recall, design, verify and repair, audit, review, commit, record, reflect), its prompts, tools, deterministic fixes, derived tests, tiers, and the detection of what a connected model carries (`detect.ts`, a dry modder at every tier). |
+| `src/checks/` | The checks beyond the engine's validator: the auditor (`audit.ts`, harm by construction), the economy LP (`economy.ts`). |
 | `src/library/` | The shared library as an append-only patch log, its file form, promotion of learned patches. |
 | `src/agent/` | The task-agnostic SWE-style agent and its self-state (memory, skills, harness, journal, snapshots), the outer loop, sandboxed environments. |
 | `src/service/` | The HTTP service (`server.ts`), a world request as a repository for the agent (`repo.ts`), the offline script. |
@@ -39,6 +39,9 @@ A game's own AI drivers (curriculum, evaluations, the outer loop's turns, engine
 
 - Imports go one way: `ai` may import the engine, modules, format and runtime; nothing outside `packages/ai` and
   `games/*/ai` imports `ai`. The boundaries test fails otherwise.
+- Inside the package the folders are layers, bottom up: `models`, `agent`, `checks`, `library`, `modder`,
+  `service`, `player`. A folder imports only those below it (type-only imports aside), and `src/` never imports
+  `scripts/` or `test/`. `test/layout.test.ts` holds this and the top-level layout.
 - Never hard-code a provider. Tests use `ScriptedModel`.
 - An unattended agent runs commands only in a container (`agent/env.ts`, `chooseIsolation`).
 - RSI design changes (what the outer loop may change, how it is judged) are discussed with the user before they are

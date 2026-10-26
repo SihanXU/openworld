@@ -1917,7 +1917,7 @@ The offline profile (escalations, revisions, the curriculum, the editor's offlin
 it always did, and keeps its answer in the tier the question was asked at. The editor asks at the
 high tier, so an answer an author takes into the game serves every setting.
 
-**Detection** (`packages/ai/src/checks/detect.ts`; `GET /quality`, `POST /quality/detect`, this
+**Detection** (`packages/ai/src/modder/detect.ts`; `GET /quality`, `POST /quality/detect`, this
 machine only). As a game detects the hardware and recommends a preset, the service plays a set of
 questions at each tier and recommends, for each kind of work, the highest tier the model answers in
 time at least three times in four (below that: low at one in two, else off). The questions are the

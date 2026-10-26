@@ -99,7 +99,7 @@ A patch passes every layer below before it ships; the model never decides whethe
 
 What each tier carries (no review, audit or escalation at low; more reasoning, a blocking review at high) is
 `ai/src/modder/quality.ts`; the levels themselves are the engine's (`engine/src/quality.ts`). The detection of
-what a connected model carries plays a set of questions at every tier (`ai/src/checks/detect.ts`).
+what a connected model carries plays a set of questions at every tier (`ai/src/modder/detect.ts`).
 
 ## 6. Profiles
 
@@ -155,7 +155,7 @@ One harness, two profiles (`ai/src/agent/state.ts`, `profileOf`):
 | The contract and the validator | `engine/src/mod.ts`, `engine/src/sandbox.ts`, `engine/src/quality.ts` |
 | The pipeline | `ai/src/modder/pipeline.ts`, `prompts.ts`, `brief.ts`, `signature.ts`, `tools.ts`, `affordance.ts` |
 | Repairs and tests the harness writes | `ai/src/modder/fixes.ts`, `derive.ts` |
-| Judges | `ai/src/checks/economy.ts`, `audit.ts`, `detect.ts`; `ai/src/modder/quality.ts` |
+| Judges | `ai/src/checks/economy.ts`, `audit.ts`; `ai/src/modder/quality.ts`, `detect.ts` |
 | The shared library | `ai/src/library/library.ts`, `library-file.ts`, `promote.ts` |
 | The service | `ai/src/service/server.ts`, `open.ts`; `ai/scripts/modder.ts`; `ai/src/browser.ts` |
 | Offline as a repository | `ai/src/service/repo.ts`, `validate-cli.ts`, `offline.ts` |

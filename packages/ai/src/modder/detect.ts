@@ -10,7 +10,7 @@
 import { defaultFiles, type Files } from '../agent/files.ts'
 import { AI_WAIT_MS, TIERS, categoryOfRequest, type AiCategory, type AiLevel, type AiQuality, type ModRequest, type Tier } from '@openworld/engine'
 import { WorldLibrary } from '../library/library.ts'
-import { BACKEND_DOWN, Modder } from '../modder/pipeline.ts'
+import { BACKEND_DOWN, Modder } from './pipeline.ts'
 
 /** Questions played per kind of work. */
 export const PER_CATEGORY = 4

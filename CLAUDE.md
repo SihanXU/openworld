@@ -267,10 +267,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
     asked again on the player's third try (`ModRequest.again`, the port's `again`), and the answer is final.
     `tools.ts` the design tools; `prompts.ts`, `brief.ts`, `fixes.ts`, `derive.ts`, `drafts.ts`, `signature.ts`;
     `quality.ts` a request's tier as a workload over the harness (medium the harness; low less, high more; never more time).
+    `detect.ts`: what the connected model carries — the history's questions and the game's probes (`GameDef.probes`)
+    played at every tier by a dry modder, a recommendation per kind of work (`GET /quality`, `POST /quality/detect`).
   - `checks/`: the auditor (`audit.ts`) plays against a patch in the sandbox; only what it reproduces there, with the
-    patch and not without it, counts. `economy.ts` the economy LP. `detect.ts`: what the connected model carries — the
-    history's questions and the game's probes (`GameDef.probes`) played at every tier by a dry modder, a
-    recommendation per kind of work (`GET /quality`, `POST /quality/detect`).
+    patch and not without it, counts. `economy.ts` the economy LP.
   - `library/`: `library.ts` the shared library as an append-only patch log, `library-file.ts` its log in a file,
     `promote.ts` promotion candidates (docs/upstream.md).
   - `agent/`: the SWE-style agent and its self-state, task-agnostic (no engine, no content):
