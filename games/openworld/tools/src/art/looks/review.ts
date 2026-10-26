@@ -7,7 +7,7 @@
 // the runtime's figures draw this game's looks (packages/runtime/src/game.ts)
 import '../../../../client/src/register.ts'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { Look, Mood } from '@openworld/engine'
 import { PLAYER_LOOK, generateLook } from '@openworld-game/content'
 import { bustRect, composePortrait, type LayerPixels, type PortraitManifest } from '@openworld/runtime/src/assets/figure/portrait.ts'
@@ -16,7 +16,7 @@ import { PEOPLE } from '../../demo/people.ts'
 import { OUT, png, readPng } from '../png.ts'
 
 // the game's portrait layers, or a cut being reviewed before it goes in (LSW_PORTRAIT_DIR)
-const ROOT = process.env.LSW_PORTRAIT_DIR ?? join(OUT, 'Looks', 'portrait')
+const ROOT = process.env.LSW_PORTRAIT_DIR ? resolve(process.env.LSW_PORTRAIT_DIR) : join(OUT, 'Looks', 'portrait')
 
 export function loadManifest(): PortraitManifest | undefined {
   const p = join(ROOT, 'manifest.json')

@@ -163,6 +163,10 @@ the map and in the portrait is the same colour by construction.
   - a hairstyle on the face's bare skin is only what is clearly darker than the skin (the cheeks' shading the edit
     redrew laid a pale wash of the hair's colour over the face), closed into whole strands (no dotted, half-clear
     tips), and never the base's eyes or brows (over another face they showed as a second pair).
+  - the irises are round (`eyes.py` `round_iris`: the lower lid's grey joined to an iris ran from it as a tail, a
+    tear of the eye colour on the cheek) and keep their depth (`deepen`: the zone's bounded normalisation left them a
+    flat disc with no pupil or ring; their darkest twentieth is brought near the ink). `eyes.py --irises <out>` does
+    both to a cut in place;
   `build.py <work> <out> --only face. hair.` cuts those parts again into a cut there already; `looks/facecheck.ts`
   draws every face in every mood under a fringe, and every hairstyle alone, at the portrait's own pixels.
 - **Clean** (`clean.py`, run by `build.py`; 2026-10-25): an edit redraws the whole figure, and the cut took some of
@@ -175,7 +179,8 @@ the map and in the portrait is the same colour by construction.
   pixels; for hair, pieces off the head stay only off the body — long hair seen past the arms). Parts of fine
   strokes (a face, freckles, age, stubble, glasses, thinning hair) keep their band and stay off the eyes. The
   numbers are `clean.json`; `tools/test/portrait.test.ts` holds every layer to them (and the paint and the value
-  map to the same coverage). Before and after: `docs/figures/portrait-clean.png` (`looks/pair.ts`).
+  map to the same coverage). A hairstyle's and a beard's pinholes (a dropped light streak, the face showing through
+  as a speck) are closed over front and back as one, and their lone grey or red dots take the hair's zone. Before and after: `docs/figures/portrait-clean.png` (`looks/pair.ts`).
 - **Review**: `npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]` composes everyone with the client's
   own code; `review.ts out.png --parts [k]` every part alone on each body in loud colours on a dark ground
   (`out-<body>.png`), where a stray pixel shows. `batch.py` runs the jobs (resumable; a job waits for the picture it edits).
