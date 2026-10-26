@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, confirm, withPatch, type ChatMessage, type ChatOptions, type Finding } from '../src/index.ts'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, audit, auditOf, confirm, withPatch, type ChatMessage, type ChatOptions, type Finding } from '../src/index.ts'
 
 // The auditor (audit.ts, design.md §13): an agent plays against a patch in the sandbox, out to break
 // the game. Its findings are setups, steps and claims; the sandbox decides: a finding counts only
@@ -102,6 +102,18 @@ function setup(model: ScriptedModel, profile: 'live' | 'offline') {
   state.setHarness({ ...h, audit: { ...auditOf(h), rounds: 2 }, review: { ...h.review, enabled: false }, reflect: { ...h.reflect, enabled: false }, escalate: false, revise: false, offline: { ...h.offline, design: { ...h.offline.design, mode: 'json' } } }, 'test: the auditor alone')
   return { library, state, modder: new Modder({ library, state, model, profile }) }
 }
+
+describe('audit: each finding judged on its own', () => {
+  it('a finding the sandbox cannot judge (a claim of no known shape) is unconfirmed; the one it confirms still counts', async () => {
+    const req = useRequest()
+    const base = new RuleLibrary(BASE)
+    const sloppy = { title: 'something', kind: 'other', steps: becomesBane.steps, expect: [{ prop: null }] } as unknown as Finding
+    const model = new ScriptedModel(() => ({ findings: [becomesBane, sloppy] }))
+    const out = await audit(model, 'system', 'user', req, onto, base, placePatch(bane, req).patch, { rounds: 0 })
+    expect(out.confirmed.map((c) => c.title)).toEqual([becomesBane.title])
+    expect(out.unconfirmed).toMatchObject([{ finding: { title: 'something' }, why: expect.stringMatching(/could not be judged/) }])
+  })
+})
 
 describe('the auditor in the pipeline', () => {
   it('live: the patch ships, then the auditor breaks it in the sandbox, and it leaves the library', async () => {
