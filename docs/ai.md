@@ -31,7 +31,7 @@ packages/engine             the contract: requests, the validator, the port, the
 
 The engine imports none of the others, nothing outside `packages/ai` and `games/*/ai` imports the AI, the AI
 imports no game, and what runs in a browser (`ai/src/browser.ts`, `ai/src/player/`) imports no Node.
-`packages/engine/test/boundaries.test.ts` holds all four. Delete `packages/ai` and `games/*/ai` and the game
+`packages/engine/test/boundaries.test.ts` holds the first three, `packages/runtime/test/browser-boundaries.test.ts` the fourth. Delete `packages/ai` and `games/*/ai` and the game
 still typechecks, passes its tests, plays and builds (the `no-ai` job in `.github/workflows/check.yml`).
 The package's own entry is `packages/ai/docs/AGENTS.md`.
 

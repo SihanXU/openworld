@@ -48,5 +48,5 @@ A game's own AI drivers (curriculum, evaluations, the outer loop's turns, engine
 
 ```bash
 npm run typecheck
-npx vitest run packages/ai games/openworld/ai packages/engine/test/boundaries.test.ts
+npx vitest run packages/ai games/openworld/ai packages/engine/test/boundaries.test.ts packages/runtime/test/browser-boundaries.test.ts
 ```

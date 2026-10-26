@@ -1,6 +1,6 @@
 // What of the AI runs anywhere, a browser's worker too (the player's own modder, docs/byok.md): the models, the live
 // modder over a library in memory, its checks, and the self-state over files it is handed. Nothing here imports Node
-// (packages/engine/test/boundaries.test.ts holds it).
+// (packages/runtime/test/browser-boundaries.test.ts holds it).
 export * from './util.ts'
 export * from './agent/files.ts'
 export * from './models/model.ts'
