@@ -53,6 +53,10 @@ Risk: low; mechanical. The largest piece, `validatePatch` (about 470 lines), sta
 
 ### Step 2: `ai/src/modder` into files by stage
 
+**Not taken (2026-10-26).** Fewer, whole files were chosen over more of them: the prompts stay one file, the
+`Modder` class one file, and the modder's small files were merged instead (`request.ts`, `answer.ts`). What
+follows is the plan as it was.
+
 Step 0 put the judges in `checks/`, the library in `library/` and the service in `service/`. What is left is
 the `Modder` class and the prompts:
 

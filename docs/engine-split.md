@@ -271,7 +271,7 @@ P2 and P3 overlap where they do not touch (the catalogue as data needs no module
   world of it gen:world makes, through its files too (`client/test/bake.test.ts`), with no error; its six
   warnings are the Ford's own (four people of a role no type defines, a chicken's missing parent type).
 - **The modder and the wiki read the bundle**: the modder takes `--game` as a bundle, a project's folder or a
-  module (`open.ts` `loadGame`); the wiki takes the ontology and the catalogue from the bundle the player
+  module (`service/server.ts` `loadGame`); the wiki takes the ontology and the catalogue from the bundle the player
   loads (`wiki/src/bundle.ts`), its world from the builders.
 - **The starter** became self-contained: its catalogue (`catalog.json`) and its pictures and sounds
   (`assets/`, a 5 MB subset of the CC0 pack) are its own.

@@ -1136,7 +1136,7 @@ does not). Things with a common use (a chair: sit; hay: lie; a well: draw water)
 get a short in-world line, or nothing. It is not "every act must change the world".
 
 - **The judgment.** The design answers `{"affords": "use" | "words" | "none", "patch": …}`, the judgment first. The
-  harness holds the answer to it (`packages/ai/src/modder/affordance.ts`): words or nothing that change the world are a
+  harness holds the answer to it (`packages/ai/src/modder/answer.ts`): words or nothing that change the world are a
   use; a use it said that changes nothing in the scene that asked (only words, or an impulse its receiver does not
   answer) is sent back once, and kept as words if it comes back the same; an answer that says nothing is judged by
   its rule, and never sent back. The verdict is written on the answering rule
@@ -1616,10 +1616,10 @@ checkpoints are produced between benchmark runs.
 
 | Measure | Effect |
 |---|---|
-| **Brief** (`brief.ts`): the roles' types and the rules that already speak about this target or instrument, assembled by code | the model answers in one call, with no tools |
+| **Brief** (`request.ts`): the roles' types and the rules that already speak about this target or instrument, assembled by code | the model answers in one call, with no tools |
 | **Low reasoning** | ~1,800 → ~50–150 reasoning tokens per call |
-| **Deterministic repairs** (`fixes.ts`): a right rule in the wrong wrapper is re-wrapped; a conflict caused only by an extra verb is narrowed to the verb used | first answers valid 0/5 → 4/4 |
-| **Derived tests** (`derive.ts`): the harness replays the rule on another instance of its class and keeps that as its test | fewer output tokens; a rule that does not generalize is flagged |
+| **Deterministic repairs** (`answer.ts`): a right rule in the wrong wrapper is re-wrapped; a conflict caused only by an extra verb is narrowed to the verb used | first answers valid 0/5 → 4/4 |
+| **Derived tests** (`answer.ts`): the harness replays the rule on another instance of its class and keeps that as its test | fewer output tokens; a rule that does not generalize is flagged |
 | **Tail guard**: providers pinned by measurement (`LSW_MODEL_PROVIDERS`); a hedge request to the next provider after 7 s; a 15 s deadline with one retry | stalls of 20–180 s seen before; OpenRouter's own throughput sort picked the slowest provider |
 | **Review after shipping**: rules that only narrate, or did not generalize, are always reviewed. A "revise" verdict sends the rule to one offline revision, which *replaces* it in the shared library (remove-then-add in the log) | quality without a model turn on the critical path |
 | **Escalation**: a live request that fails is worked again offline in the background | the player gets the fallback now; the world still learns it |

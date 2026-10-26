@@ -61,7 +61,7 @@ verdict   = the task's own: the validator, hidden tests, the visible tests
 6. **Verdict and record.** The task's verdict decides the outcome. The episode is recorded
    with the diff, every test run, the tool calls, and per-call time, tokens and cost.
 
-Two starting points (`presets.ts`):
+Two starting points (`outer.ts` `applyPreset`):
 - **naive** — the bare loop: no notes, no hooks, no skills. Every self-improvement run starts
   here.
 - **tuned** — the human reference arm. A start hook finds the files that mention the issue's
@@ -120,7 +120,7 @@ When a request needs a new primitive, condition or expectation, the task is the 
 
 ```
 inner   task → agent → verdict → (world: commit to the shared library)
-middle  episode → lessons, skills (reflect.ts)
+middle  episode → lessons, skills (state.ts reflectAgent)
 outer   evidence → one proposal → replay base vs candidate → keep or reject (outer.ts)
 ```
 
