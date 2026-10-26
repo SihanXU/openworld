@@ -98,7 +98,8 @@ details summary { cursor: pointer; font-size: 12px; color: var(--muted); }
 .controls-mini td { padding: 2px 10px 2px 0; }
 .intro-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
 .intro-actions button { padding: 8px 20px; font-size: 15px; }
-#loading { position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; justify-items: center; color: var(--muted); }
+/* the page before its code has run: black and a bar, as the title's loading (game.css .cv-loader) */
+#loading { position: absolute; inset: 0; display: grid; place-content: center; gap: 12px; justify-items: center; color: var(--muted); background: #05060a; }
 .spinner { width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 900px) {

@@ -63,7 +63,6 @@ export function exportGame(o: { game: GameFolder; player: string; out: string; z
     .replace(/<title>[^<]*<\/title>/, `<title>${escHtml(name)}</title>`)
     .replace(/<meta name="openworld-game"[^>]*>\s*/g, '')
     .replace('</title>', '</title>\n    <meta name="openworld-game" content="game/" />')
-    .replace(/<div class="kicker">[^<]*<\/div>/, `<div class="kicker">${escHtml(name)}</div>`)
   writeFileSync(join(out, 'index.html'), page)
   writeFileSync(
     join(out, 'README.txt'),
