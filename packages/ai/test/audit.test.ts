@@ -2,9 +2,9 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Scenario } from '@openworld/engine'
+import { ModPort, RuleLibrary, buildSandbox, placePatch, withArtifacts, type ModRequest, type Patch, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, audit, auditOf, confirm, withPatch, type ChatMessage, type ChatOptions, type Finding } from '../src/index.ts'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, audit, auditOf, confirm, type ChatMessage, type ChatOptions, type Finding } from '../src/index.ts'
 
 // The auditor (audit.ts, design.md §13): an agent plays against a patch in the sandbox, out to break
 // the game. Its findings are setups, steps and claims; the sandbox decides: a finding counts only
@@ -49,28 +49,28 @@ describe('confirm: the sandbox judges a finding', () => {
   const put = (p: Patch) => placePatch(p, req).patch
 
   it('counts what holds with the patch and not without it, with the evidence', () => {
-    const c = confirm(becomesBane, req.scenario, onto, base, withPatch(base, put(bane)))
+    const c = confirm(becomesBane, req.scenario, onto, base, withArtifacts(base, put(bane)))
     expect('evidence' in c && c.evidence).toMatch(/dragonsbane \+1/)
   })
 
   it('does not count a claim that does not hold, nor one the world already makes true', () => {
     const twice: Finding = { ...becomesBane, expect: [{ count: { type: BANE, atLeast: 2 } }] }
-    expect(confirm(twice, req.scenario, onto, base, withPatch(base, put(bane)))).toMatchObject({ why: expect.stringMatching(/does not hold/) })
+    expect(confirm(twice, req.scenario, onto, base, withArtifacts(base, put(bane)))).toMatchObject({ why: expect.stringMatching(/does not hold/) })
     const already: Finding = { ...becomesBane, expect: [{ is: { key: 'actor', type: 'actor/person/player' } }] }
-    expect(confirm(already, req.scenario, onto, base, withPatch(base, put(bane)))).toMatchObject({ why: expect.stringMatching(/without the patch too/) })
-    expect(confirm(becomesBane, req.scenario, onto, base, withPatch(base, put(sniff)))).toMatchObject({ why: expect.stringMatching(/does not hold/) })
+    expect(confirm(already, req.scenario, onto, base, withArtifacts(base, put(bane)))).toMatchObject({ why: expect.stringMatching(/without the patch too/) })
+    expect(confirm(becomesBane, req.scenario, onto, base, withArtifacts(base, put(sniff)))).toMatchObject({ why: expect.stringMatching(/does not hold/) })
   })
 
   it('counts a farm: a use that leaves a stone and costs nothing, again and again', () => {
     const farm = onDeadTree('patch/stone-farm', [{ op: 'spawn', type: STONE, at: 'actor', into: 'contents' }])
     const f: Finding = { title: 'stones for nothing', kind: 'farm', steps: [{ repeat: 30, steps: [{ act: 'use', target: 'target', instrument: 'instrument' }] }], expect: [{ count: { type: STONE, in: 'actor', atLeast: 30 } }] }
-    expect('evidence' in confirm(f, req.scenario, onto, base, withPatch(base, put(farm)))).toBe(true)
+    expect('evidence' in confirm(f, req.scenario, onto, base, withArtifacts(base, put(farm)))).toBe(true)
   })
 
   it('runs only so much: a finding that asks for a billion steps is cut short', () => {
     const f: Finding = { ...becomesBane, steps: [{ repeat: 1e9, steps: [{ tick: 1e9 }] }] }
     const t = Date.now()
-    confirm(f, req.scenario, onto, base, withPatch(base, put(bane)))
+    confirm(f, req.scenario, onto, base, withArtifacts(base, put(bane)))
     expect(Date.now() - t).toBeLessThan(30_000)
   }, 60_000)
 })

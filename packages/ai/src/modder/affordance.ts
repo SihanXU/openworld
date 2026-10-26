@@ -3,7 +3,7 @@
 // holds the answer to it: a use must change the scene that asked, not only speak of it; words are provisional (the
 // port asks again when the player keeps trying); nothing is decided.
 
-import { AFFORDANCES, isDo, leaves, type Affordance, type ModRequest, type Ontology, type Patch, type Rule, type RuleLibrary } from '@openworld/engine'
+import { AFFORDANCES, isDo, leaves, patchRules, type Affordance, type ModRequest, type Ontology, type Patch, type Rule, type RuleLibrary } from '@openworld/engine'
 import { changesNothing, changesScene } from './derive.ts'
 
 /** The judgment the answer states: `affords` beside the patch, or inside it. */
@@ -16,7 +16,7 @@ export function statedAffordance(answer: unknown): Affordance | undefined {
 
 /** The rules of the patch that answer the request (its host's type, its kind), not another thing's reply. */
 function answering(patch: Patch, req: ModRequest): Rule[] {
-  const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule] : []))
+  const rules = patchRules(patch)
   const own = rules.filter((r) => r.host?.type === req.event.host?.type && r.on === req.event.kind)
   return own.length ? own : rules.slice(0, 1)
 }

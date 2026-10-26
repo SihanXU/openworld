@@ -3,7 +3,7 @@
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { Engine, ModPort, Patch, Rule } from '@openworld/engine'
+import { patchRules, type Engine, type ModPort, type Patch, type Rule } from '@openworld/engine'
 import { GAME } from '@openworld-game/content'
 import { openModder, type Harness, type Modder, type Model, type WorldEpisode } from '@openworld/ai'
 import { sleep } from './cli.ts'
@@ -44,7 +44,7 @@ export async function follow(eng: Engine, port: ModPort, t0: number, max: number
   for (let i = 0; i < settle; i++) eng.tick()
 }
 
-export const rulesOf = (patches: Patch[]): Rule[] => patches.flatMap((p) => p.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule as Rule] : [])))
+export const rulesOf = (patches: Patch[]): Rule[] => patches.flatMap(patchRules)
 
 /** The episodes of these ids that the modder's self-state holds. */
 export const episodesOf = (modder: Modder, ids: string[]): WorldEpisode[] =>

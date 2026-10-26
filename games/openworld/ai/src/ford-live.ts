@@ -11,7 +11,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { Game, RuleLibrary, type UndefinedRecord } from '@openworld/engine'
+import { Game, RuleLibrary, patchRules, type UndefinedRecord } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { modelFromEnv, type WorldEpisode } from '@openworld/ai'
 import { buildFord } from '../../tools/src/demo/world.ts'
@@ -66,7 +66,7 @@ for (const sc of SCENARIOS) {
   const replayed = f.eng.trace.filter((t) => t.rule?.startsWith('patch/')).map((t) => `${t.ev.kind}@${'e' in t.ev.host ? t.ev.host.e : 'tile'} → ${t.rule}`)
   const last = state.episodes().at(-1)
   const ep = last && (state.episode(last.id) as WorldEpisode | undefined)
-  const rules = (ep?.patch?.artifacts ?? []).flatMap((a) => (a.kind === 'rule' ? [a.rule] : []))
+  const rules = ep?.patch ? patchRules(ep.patch) : []
   const row = {
     scenario: sc.name,
     request: { summary: rec.request.summary, kind: rec.request.event.kind, host: rec.request.event.host?.type, hole: rec.request.hole, origin: rec.origin },

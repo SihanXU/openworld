@@ -6,9 +6,9 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Rule, type Scenario } from '@openworld/engine'
+import { ModPort, RuleLibrary, buildSandbox, placePatch, withArtifacts, type ModRequest, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { Detector, Modder, ScriptedModel, gatherProbes, SelfState, WorldLibrary, auditOf, auditTools, changesNothing, probe, stationFromRules, withPatch, type ChatMessage, type ChatOptions, type Harness, type Model } from '@openworld/ai'
+import { Detector, Modder, ScriptedModel, gatherProbes, SelfState, WorldLibrary, auditOf, auditTools, changesNothing, probe, stationFromRules, type ChatMessage, type ChatOptions, type Harness, type Model } from '@openworld/ai'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -67,12 +67,12 @@ describe('the probe: a number that rises on every use is a farm, whoever holds i
     const req = useRequest()
     const base = new RuleLibrary(BASE)
     const farm = onDeadTree(req, 'patch/stone-hones', [{ op: 'addProp', key: 'power', delta: 2 }])
-    const found = probe(req, onto, base, withPatch(base, farm))
+    const found = probe(req, onto, base, withArtifacts(base, farm))
     expect(found.map((f) => f.kind)).toEqual(['farm'])
     expect(found[0].title).toMatch(/power every time/)
     // a number that rises once and stops (capped) is no farm
     const capped = onDeadTree(req, 'patch/stone-hones-once', [{ op: 'addProp', key: 'power', delta: 2, max: 2 }])
-    expect(probe(req, onto, base, withPatch(base, capped))).toEqual([])
+    expect(probe(req, onto, base, withArtifacts(base, capped))).toEqual([])
   })
 })
 
@@ -81,7 +81,7 @@ describe('the auditor sees what the engine refused', () => {
     const req = useRequest()
     const base = new RuleLibrary(BASE)
     const bad = onDeadTree(req, 'patch/stone-unheals', [{ op: 'heal', amount: -5 }])
-    const tool = auditTools(req.scenario, onto, base, withPatch(base, bad)).find((t) => t.name === 'run')!
+    const tool = auditTools(req.scenario, onto, base, withArtifacts(base, bad)).find((t) => t.name === 'run')!
     const out = tool.run({ steps: [{ act: 'use', target: req.scenario.event.target, instrument: req.scenario.event.instrument }] })
     expect(out).toMatch(/warnings: rule patch\/stone-unheals: a heal of -5/)
   })

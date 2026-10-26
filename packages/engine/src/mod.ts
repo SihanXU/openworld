@@ -688,7 +688,7 @@ export class ModPort implements UndefinedSink {
     const fresh = patch.artifacts?.filter((a) => !alreadyHeld(eng.lib, a)) ?? []
     if (Array.isArray(patch.artifacts) && patch.artifacts.length && !fresh.length && !aside.length) {
       const res: ValidationResult = { ok: true, errors: [], warnings: ['already in the library'] }
-      if (rec && rec.status !== 'patched') this.settled(rec, patch, patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : [])))
+      if (rec && rec.status !== 'patched') this.settled(rec, patch, patchRules(patch).map((r) => r.id))
       return res
     }
     if (fresh.length !== patch.artifacts.length) patch = { ...patch, artifacts: fresh }
@@ -1324,9 +1324,7 @@ function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
   }
   // candidate ontology (+ patch types/statuses): the world's, with what the patch and the library add beside it (only
   // added to: the world's own definitions are never written)
-  const onto: Ontology = { ...ctx.ontology, types: { ...ctx.ontology.types }, statuses: { ...ctx.ontology.statuses } }
-  for (const t of ctx.library.types) onto.types[t.id] = t
-  for (const s of ctx.library.statuses) onto.statuses[s.id] = s
+  const onto = ontologyWith(ctx.ontology, ctx.library)
   const statuses = [...Object.values(ctx.ontology.statuses), ...ctx.library.statuses]
   const rules: Rule[] = []
   for (const [i, a] of patch.artifacts.entries()) {
@@ -1773,8 +1771,19 @@ function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
   return { ok: errors.length === 0, errors, warnings }
 }
 
-/** The library with a patch's types and statuses (and, when asked, its rules) added, as a copy. */
-function withArtifacts(lib: RuleLibrary, patch: Patch, rules: boolean): RuleLibrary {
+/** The rules a patch brings. */
+export const patchRules = (patch: Patch): Rule[] => patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule] : []))
+
+/** The ontology with these types and statuses beside its own, as a copy (the world's own definitions are never written). */
+export function ontologyWith(onto: Ontology, add: { types: TypeDef[]; statuses: StatusDef[] }): Ontology {
+  const out: Ontology = { ...onto, types: { ...onto.types }, statuses: { ...onto.statuses } }
+  for (const t of add.types) out.types[t.id] = t
+  for (const s of add.statuses) out.statuses[s.id] = s
+  return out
+}
+
+/** The library with a patch's types and statuses (and, unless told not to, its rules) added, as a copy. */
+export function withArtifacts(lib: RuleLibrary, patch: Patch, rules = true): RuleLibrary {
   const cand = lib.clone()
   for (const a of patch.artifacts) {
     if (a.kind === 'type') cand.types = cand.types.filter((t) => t.id !== a.type.id).concat(a.type)

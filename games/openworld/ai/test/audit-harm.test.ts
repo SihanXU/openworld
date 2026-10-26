@@ -7,9 +7,9 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Scenario } from '@openworld/engine'
+import { ModPort, RuleLibrary, buildSandbox, placePatch, withArtifacts, type ModRequest, type Patch, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, confirm, withPatch, type ChatMessage, type ChatOptions, type Finding } from '@openworld/ai'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, confirm, type ChatMessage, type ChatOptions, type Finding } from '@openworld/ai'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -41,7 +41,7 @@ const USE: Finding['steps'][number] = { act: 'use', target: 'target', instrument
 describe('a reproduced finding counts only as a harm the code recognizes', () => {
   const req = useRequest()
   const base = new RuleLibrary(BASE)
-  const put = (p: Patch) => withPatch(base, placePatch(p, req).patch)
+  const put = (p: Patch) => withArtifacts(base, placePatch(p, req).patch)
 
   it('a stone made wet, claimed as harm, is reproduced but not confirmed', () => {
     const wets = put(onDeadTree('patch/stone-sapped', [{ op: 'addStatus', status: 'wet', duration: 10 }, { op: 'log', text: { en: 'Sap drips.', zh: '树液滴落。' } }]))

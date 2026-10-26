@@ -10,6 +10,7 @@ import {
   SANDBOX_MAP,
   buildSandbox,
   textOf,
+  withArtifacts,
   type Engine,
   type ModRequest,
   type Ontology,
@@ -72,17 +73,6 @@ export interface AuditResult {
 const VERBS = new Set<Verb>(['use', 'put', 'take', 'hands', 'move', 'craft', 'learn'])
 /** The most the sandbox runs for one finding: acts, ticks, repeats (an audit is bounded too). */
 const MOST = { acts: 2000, ticks: 6000, repeat: 500, findings: 5 }
-
-/** The library with the patch in it (as the validator builds its candidate). */
-export function withPatch(lib: RuleLibrary, patch: Patch): RuleLibrary {
-  const cand = lib.clone()
-  for (const a of patch.artifacts) {
-    if (a.kind === 'type') cand.types = cand.types.filter((t) => t.id !== a.type.id).concat(a.type)
-    if (a.kind === 'status') cand.statuses = cand.statuses.filter((s) => s.id !== a.status.id).concat(a.status)
-    if (a.kind === 'rule') cand.add({ ...a.rule, source: { origin: 'patch' } })
-  }
-  return cand
-}
 
 /** A cell (`tile:x,y`) or a thing by its key. */
 function refOf(eng: Engine, key: string): Ref {
@@ -489,7 +479,7 @@ export function probe(req: ModRequest, onto: Ontology, base: RuleLibrary, patche
 
 /** One audit of a patch: tool rounds, a final answer, every finding checked in the sandbox. */
 export async function audit(model: Model, system: string, user: string, req: ModRequest, onto: Ontology, base: RuleLibrary, patch: Patch, o: AuditOptions): Promise<AuditResult> {
-  const patched = withPatch(base, patch)
+  const patched = withArtifacts(base, patch)
   const tools = auditTools(req.scenario, onto, base, patched)
   const specs = tools.map(({ name, description, parameters }) => ({ name, description, parameters }))
   const messages: ChatMessage[] = [

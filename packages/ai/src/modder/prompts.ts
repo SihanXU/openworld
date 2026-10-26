@@ -5,7 +5,7 @@
 // harness replays it) is left out.
 
 import type { DraftContext, DraftKind } from './drafts.ts'
-import type { ModRequest, ModSpec, Patch, Rule, StatusDef, TypeDef } from '@openworld/engine'
+import { patchRules, type ModRequest, type ModSpec, type Patch, type Rule, type StatusDef, type TypeDef } from '@openworld/engine'
 import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '../agent/state.ts'
 import { compactRule } from './tools.ts'
 
@@ -197,7 +197,7 @@ export function auditRepairUser(notes: string[]): string {
 }
 
 export function reviewUser(req: ModRequest, patch: Patch, outcome: string, neighbours: Rule[], flags: string[] = []): string {
-  const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule] : []))
+  const rules = patchRules(patch)
   const ent = (r: string, e?: { name: string; type: string; tags: string[]; statuses: string[] }) => (e ? `${r}: ${e.name} (${e.type}) tags=${e.tags.join(',')} statuses=${e.statuses.join(',')}` : `${r}: none`)
   return [
     `# What happened (${req.origin === 'player' ? 'the player\'s act' : 'the world by itself'})\n${req.summary}`,

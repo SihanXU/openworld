@@ -6,10 +6,10 @@ import { describe, expect, it } from 'vitest'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ModPort, RuleLibrary, buildSandbox, holeKey, placePatch, validatePatch, type Patch, type Rule, type Scenario } from '@openworld/engine'
+import { ModPort, RuleLibrary, buildSandbox, holeKey, placePatch, validatePatch, withArtifacts, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { SelfState } from '../src/index.ts'
-import { Modder, WorldLibrary, probe, withPatch } from '../src/index.ts'
+import { Modder, WorldLibrary, probe } from '../src/index.ts'
 
 const onto = buildOntology()
 const BASE = [...BASE_RULES, ...STORY_RULES]
@@ -71,18 +71,18 @@ describe('the validator and the repeat check', () => {
     expect(validatePatch(xp, { ontology: onto, library: eng.lib, scenario: req.scenario }).ok).toBe(true)
     // a hand-built rule that raises the actor's xp through its own hands (the host writes only itself: here the host is the stone, so it cannot;
     // the probe below shows the farm when a receiver does)
-    const found = probe(req, onto, eng.lib, withPatch(eng.lib, xp))
+    const found = probe(req, onto, eng.lib, withArtifacts(eng.lib, xp))
     expect(found).toEqual([])
   })
 
   it('the probe finds a farm without a model: a thing made on every use that costs nothing', () => {
     const { req, eng } = ask(TREE)
     const farm = placePatch(rule('patch/farm', { do: [{ op: 'spawn', type: STONE, at: 'actor', into: 'contents' }] }), req).patch
-    const found = probe(req, onto, eng.lib, withPatch(eng.lib, farm))
+    const found = probe(req, onto, eng.lib, withArtifacts(eng.lib, farm))
     expect(found.map((f) => f.kind)).toEqual(['farm'])
     expect(found[0].evidence).toMatch(/with the patch/)
     const fair = placePatch(rule('patch/fair', { do: [{ op: 'spawn', type: STONE, at: 'actor', into: 'contents' }, { op: 'destroy' }] }), req).patch
-    expect(probe(req, onto, eng.lib, withPatch(eng.lib, fair))).toEqual([])
+    expect(probe(req, onto, eng.lib, withArtifacts(eng.lib, fair))).toEqual([])
   })
 })
 

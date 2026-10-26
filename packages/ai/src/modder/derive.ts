@@ -4,7 +4,7 @@
 // rule and guards it from then on (a learned rule is one type's, placed at one leaf: there is no
 // other instance of a class to try it on, design.md §5.16).
 
-import { RuleLibrary, buildSandbox, isDo, isHole, leaves, replay, type Effect, type Expectation, type ModRequest, type Ontology, type Patch, type Rule, type Scenario } from '@openworld/engine'
+import { RuleLibrary, buildSandbox, isDo, isHole, leaves, replay, ontologyWith, withArtifacts, type Effect, type Expectation, type ModRequest, type Ontology, type Patch, type Rule, type Scenario } from '@openworld/engine'
 
 const NARRATION = new Set(['vfx', 'say', 'log', 'emote'])
 
@@ -24,14 +24,8 @@ export function changesNothing(r: Rule, holeDefault: Effect[] = []): boolean {
 }
 
 function candidate(patch: Patch, lib: RuleLibrary, onto: Ontology): { lib: RuleLibrary; onto: Ontology } {
-  const l = lib.clone()
-  const o: Ontology = { ...onto, types: { ...onto.types }, statuses: { ...onto.statuses } }
-  for (const a of patch.artifacts) {
-    if (a.kind === 'type') o.types[a.type.id] = a.type
-    if (a.kind === 'status') o.statuses[a.status.id] = a.status
-  }
-  for (const a of patch.artifacts) if (a.kind === 'rule') l.add({ ...a.rule, source: { origin: 'patch' } })
-  return { lib: l, onto: o }
+  const l = withArtifacts(lib, patch)
+  return { lib: l, onto: ontologyWith(onto, l) }
 }
 
 /** What the event did to the scenario's things, as expectations that should hold for any instance (the upstream loop reads them too, resolvedBy aside). */

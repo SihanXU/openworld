@@ -29,6 +29,8 @@ import {
   scenarioEvent,
   tierOfRequest,
   tiersFrom,
+  patchRules,
+  withArtifacts,
   type ModProgress,
   type Ontology,
   type ModRequest,
@@ -58,7 +60,7 @@ import { coarseTerms, signatureOf, type Signature } from './signature.ts'
 import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '../agent/state.ts'
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
 import { envelope, withoutChains, workloadNote, workloadOf, type Workload } from './quality.ts'
-import { audit, probe, withPatch, type AuditResult } from '../checks/audit.ts'
+import { audit, probe, type AuditResult } from '../checks/audit.ts'
 
 /**
  * A backend that cannot answer says so in its error: out of quota or throttling (claude-code's session
@@ -1156,7 +1158,7 @@ export class Modder {
     const a = auditOf(h)
     // the deterministic probe first: a farm the sandbox shows by itself needs no model to find it
     try {
-      const found = probe(req, ctx.ontology, ctx.library, withPatch(ctx.library, patch))
+      const found = probe(req, ctx.ontology, ctx.library, withArtifacts(ctx.library, patch))
       if (found.length) return { confirmed: found, unconfirmed: [] }
     } catch (err) {
       this.log(`audit probe failed: ${(err as Error).message}`)
@@ -1403,7 +1405,7 @@ const progressKey = (sig: Signature, req: ModRequest, eo?: EpisodeOptions): stri
 
 /** A validation as a commit reports it (a trial run keeps nothing). */
 function judged(result: ValidationResult, patch: Patch): CommitResult {
-  return { ok: result.ok, result, rules: patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : [])) }
+  return { ok: result.ok, result, rules: patchRules(patch).map((r) => r.id) }
 }
 
 /** How many single-character edits turn one id into the other (small ids only: a slip, not a resemblance). */

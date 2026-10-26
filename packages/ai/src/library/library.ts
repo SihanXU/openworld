@@ -4,7 +4,6 @@
 // The log is kept by a `LogStore`: a file under Node (library-file.ts, named by its path), or none (in memory:
 // a fork, or the player's own modder in a browser — docs/byok.md — whose answers the client's library keeps).
 
-import { withPatch } from '../checks/audit.ts'
 import { connected, economySteps, freeLunch } from '../checks/economy.ts'
 import {
   RuleLibrary,
@@ -23,6 +22,9 @@ import {
   newTypeProblems,
   namesClash,
   withTerrainTypes,
+  ontologyWith,
+  patchRules,
+  withArtifacts,
   type ModRequest,
   type ModSpec,
   type ModWorkspace,
@@ -175,10 +177,7 @@ export class WorldLibrary {
 
   /** The ontology with patch-introduced types and statuses folded in. */
   fullOntology(lib: RuleLibrary = this.lib): Ontology {
-    const onto: Ontology = { ...this.ontology, types: { ...this.ontology.types }, statuses: { ...this.ontology.statuses } }
-    for (const t of lib.types) onto.types[t.id] = t
-    for (const s of lib.statuses) onto.statuses[s.id] = s
-    return onto
+    return ontologyWith(this.ontology, lib)
   }
 
   /**
@@ -281,9 +280,9 @@ export class WorldLibrary {
   }
 
   private addedTests(patch: Patch, lib: RuleLibrary, proof: { tests: string[][]; result: ValidationResult }): ValidationResult {
-    const cand = withPatch(lib, patch)
+    const cand = withArtifacts(lib, patch)
     const result = structuredClone(proof.result)
-    const rules = patch.artifacts.flatMap((a) => a.kind === 'rule' ? [a.rule] : [])
+    const rules = patchRules(patch)
     for (const [i, r] of rules.entries()) {
       if (r.tests?.length) result.warnings = result.warnings.filter((w) => w !== `rule[${i}] "${r.id}": no tests`)
       for (const [j, t] of (r.tests ?? []).entries()) {
@@ -350,7 +349,7 @@ export class WorldLibrary {
     if (!result.ok) return { ok: false, result, rules: [] }
     // a revision: the old rules leave the log first, so every client sees remove-then-add
     for (const id of replaces) if (this.lib.rules.get(id)?.source?.origin === 'patch') this.remove(id, now)
-    const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : []))
+    const rules = patchRules(patch).map((r) => r.id)
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), patch, rules, request: req?.id, scenario: req?.scenario, ...(replaces.length && { replaces }) }
     this.record(entry)
     return { ok: true, result, rules, seq: entry.seq }
