@@ -87,7 +87,7 @@ A patch passes every layer below before it ships; the model never decides whethe
 | Check | Where | What it refuses |
 |---|---|---|
 | The validator | `engine/src/mod.ts` `validatePatch` | bad shapes, unknown types, writes beyond the host, a rule placed at a defined leaf, ties, protected story facts, a replay that errors (refused effects included), failing tests |
-| The repeat check and the chain bound | `engine/src/sandbox.ts` | a yield with no end (things made, or a number raised every time), a chain that does not settle |
+| The repeat check (endless yield) and the chain bound | `engine/src/sandbox.ts` | a yield with no end (things made, or a number raised every time) under any way its chances may fall (the dice are not rolled: each outcome is followed), a chain that does not settle |
 | The economy | `modder/src/economy.ts` | a free lunch: any mix of conversions that makes more than it takes (a linear programme) |
 | The probe | `modder/src/audit.ts` `probe` | a farm the act shows when done 30 times, with no model |
 | The auditor | `modder/src/audit.ts` | an agent plays against the patch; a finding counts only if the sandbox reproduces it and the code sees a harm in it (`harmOf`: farm, value, harm to what the story needs, softlock, runaway) |
