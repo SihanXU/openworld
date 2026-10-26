@@ -289,6 +289,8 @@ export class Cover {
   }
 
   private act(i: Item): void {
+    // one start at a time: a second Enter while a slot is loading must not start it again
+    if (this.loading) return
     const latest = this.latest()
     if (i === 'continue' && latest) return this.busy(), this.on.start(latest, this.slots[latest - 1])
     if (i === 'load' && !this.slots.some(Boolean)) return
@@ -302,7 +304,7 @@ export class Cover {
 
   /** The keys on the cover: up and down choose a line, Enter (or Space) takes it, Esc closes a panel. */
   private key(e: KeyboardEvent): void {
-    if (!this.open || (e.target as HTMLElement)?.closest?.('input, textarea, select')) return
+    if (!this.open || this.loading || (e.target as HTMLElement)?.closest?.('input, textarea, select')) return
     if (this.panel) {
       // (the keys page listens for keys itself, and leaves by its own buttons)
       if (e.key === 'Escape' && this.panel !== 'keys') (e.preventDefault(), (this.panel = undefined), this.render())
