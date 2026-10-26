@@ -2,7 +2,7 @@
 // the player's page (ownModel.ts). The key is typed here and sent once to the modder's worker; the section shows only
 // its hint after. What a model has spent today stands under it, with the day's cap.
 
-import { PROVIDERS, providerOf } from '@openworld/agent/src/providerList.ts'
+import { ai, providerOf } from '../ai.ts'
 import type { ModelChoice, ModelStatus, Remember } from '../modderProtocol.ts'
 import type { OwnModel } from '../ownModel.ts'
 import { esc, t } from './common.ts'
@@ -61,7 +61,7 @@ export class ModelSection {
     const p = providerOf(d.provider)
     // the kept key is shown only for the service it was kept for
     const keptHere = s?.keyHint && s.choice?.provider === d.provider && (s.choice.baseUrl ?? '') === d.baseUrl.trim()
-    const options = PROVIDERS.map((x) => `<option value="${x.id}" ${x.id === d.provider ? 'selected' : ''}>${esc(x.id === 'custom' ? t('aiCustomProvider') : x.name)}</option>`).join('')
+    const options = (ai?.providers ?? []).map((x) => `<option value="${x.id}" ${x.id === d.provider ? 'selected' : ''}>${esc(x.id === 'custom' ? t('aiCustomProvider') : x.name)}</option>`).join('')
     const getKey = p?.keys ? ` <a href="${esc(p.keys)}" target="_blank" rel="noopener noreferrer">${t('aiGetKey')}</a>` : ''
     const list = this.models.length ? `<datalist id="aiOwnModels">${this.models.map((m) => `<option value="${esc(m)}"></option>`).join('')}</datalist>` : ''
     const keyField = p?.keyless

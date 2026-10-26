@@ -5,6 +5,7 @@
 // the detection asks whichever modder the engine asks: a service, or the player's own.
 
 import { AI_KEYS, AI_LEVELS, AI_WAIT_MS, PRESETS, presetOf, qualityOf, type AiCategory, type AiLevel, type AiQuality, type ModRequest, type Tier } from '@openworld/engine'
+import { ai } from '../ai.ts'
 import { game } from '../game.ts'
 import { LOCAL_MODDER } from '../modderProtocol.ts'
 import { namedModder, ownModel } from '../ownModel.ts'
@@ -59,8 +60,8 @@ export class AiOptions {
   /** Why a detection did not start (the service's answer). */
   private note?: string
   private poll?: ReturnType<typeof setTimeout>
-  /** The player's own model. */
-  readonly own: ModelSection
+  /** The player's own model (none in a build without the AI). */
+  readonly own?: ModelSection
   /** The game's questions for a detection (loaded when first wanted). */
   private probes?: ModRequest[]
 
@@ -71,7 +72,7 @@ export class AiOptions {
     private redraw: () => void,
   ) {
     const named = namedModder()
-    this.own = new ModelSection(ownModel, () => this.draw(), named && named !== 'off' ? named : undefined)
+    this.own = ai ? new ModelSection(ownModel, () => this.draw(), named && named !== 'off' ? named : undefined) : undefined
     ownModel.listen(() => this.draw())
   }
 
@@ -97,7 +98,7 @@ export class AiOptions {
     const rows = AI_KEYS.map(
       (k) => `<div class="ai-row"><span class="ai-name">${t(ROW_KEY[k])}</span>${seg(q[k], `data-ai-${k}`)}<small class="muted">${t(`${ROW_KEY[k]}Tip`)}</small></div>`,
     ).join('')
-    return `${this.own.html()}<h4>${t('aiSection')}</h4>
+    return `${this.own?.html() ?? ''}<h4>${t('aiSection')}</h4>
       <div class="ai-opts">
         <div class="ai-row"><span class="ai-name">${t('aiPreset')}</span>${seg(preset, 'data-ai-preset')}${preset ? '' : `<small class="ai-custom">${t('aiCustom')}</small>`}</div>
         ${rows}
@@ -133,7 +134,7 @@ export class AiOptions {
   }
 
   wire(root: HTMLElement): void {
-    this.own.wire(root)
+    this.own?.wire(root)
     for (const k of AI_KEYS)
       root.querySelectorAll<HTMLButtonElement>(`[data-ai-${k}]`).forEach((b) => (b.onclick = () => this.set({ ...this.quality, [k]: b.getAttribute(`data-ai-${k}`) as AiLevel })))
     root.querySelectorAll<HTMLButtonElement>('[data-ai-preset]').forEach((b) => (b.onclick = () => this.set({ ...PRESETS[b.dataset.aiPreset as AiLevel] })))

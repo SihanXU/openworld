@@ -180,7 +180,7 @@ repositories (the ones with the most candidates and the most recent recipes) kee
 `screen.py`, `export.py`, and one command, `python bench/fresh/fresh.py <stage> [--resume] [--limit n]
 [--repos …]`. The parts that do not need Docker — filters, FAIL_TO_PASS from parsed runs, the
 screens, the export — are tested with pytest on fixtures (a small repository, recorded API answers, a
-stand-in for docker as in `packages/agent/test`); the Docker parts are checked on the host at the
+stand-in for docker as in `packages/ai/test`); the Docker parts are checked on the host at the
 smallest size first (§8).
 
 The ladder's miner (rsi-experiments.md §5.3) shares the method — three runs before and after, the same
@@ -237,7 +237,7 @@ What changed from §3 as it was built:
   image where the team pulls it; `fresh.py finish --push` pushes the environments and the tasks' layers.
 - **`swebench eval` reads a compiled dataset** (`<dir>/test.parquet`), not the task repository itself: S5
   compiles it with `swebench dataset build` into `<root>/dist`.
-- **The SWE runner** (`packages/agent/src/swe.ts`) now finds a repository an image keeps below `/testbed`
+- **The SWE runner** (`packages/ai/src/agent/swe.ts`) now finds a repository an image keeps below `/testbed`
   (`repositoryIn`), as some of SWE-bench-Live's images do and as its own evaluation looks for it.
 
 **On the host**, once D3 is named (Docker, ~500 GB, the venv of `bench/requirements.txt`, `gh` signed in):

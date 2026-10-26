@@ -39,7 +39,7 @@ text we can read, version, ablate and roll back.
 ## 3. One agent, every kind of task
 
 The world must train what the benchmark measures. So the modder that improves is an
-**SWE-style agent** (`packages/agent`): it works every task as a repository, with the ordinary
+**SWE-style agent** (`packages/ai/src/agent`): it works every task as a repository, with the ordinary
 tools of an engineer. World tasks are one adapter of it; benchmark repositories are another.
 
 ```

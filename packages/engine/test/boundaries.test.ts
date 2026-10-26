@@ -3,22 +3,23 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 // The engine side imports no game (docs/engine-split.md, S1): games/* may import packages/*, never the
-// reverse, and among the packages the direction is engine ← modules ← runtime, modules ← modder → agent,
-// engine ← stdlib ← format; the runtime runs the player's own modder in a worker (docs/byok.md): runtime → modder. A game reaches the engine side only by being handed over (GameDef, ClientGame, a
-// bundle), never by being imported; and no game imports another.
+// reverse, and among the packages the direction is engine ← modules ← runtime, engine ← stdlib ← format, and the AI
+// (packages/ai) over them all. Nothing imports the AI but itself and a game's own AI (games/<id>/ai): the runtime finds
+// its plugin by a glob (runtime/src/ai.ts), so the game plays with the AI deleted. A game reaches the engine side only
+// by being handed over (GameDef, ClientGame, a bundle), never by being imported; and no game imports another.
 
 const ROOT = resolve(import.meta.dirname, '..', '..', '..')
 
 /** What each package's code may import of ours. */
 const MAY_IMPORT: Record<string, string[]> = {
   engine: [],
-  agent: [],
   modules: ['@openworld/engine'],
   stdlib: ['@openworld/engine'],
   format: ['@openworld/engine', '@openworld/stdlib', '@openworld/modules'],
   editor: ['@openworld/engine', '@openworld/stdlib', '@openworld/format', '@openworld/modules', '@openworld/runtime'],
-  modder: ['@openworld/engine', '@openworld/modules', '@openworld/format', '@openworld/agent'],
-  runtime: ['@openworld/engine', '@openworld/modules', '@openworld/format', '@openworld/modder', '@openworld/agent'],
+  runtime: ['@openworld/engine', '@openworld/modules', '@openworld/format'],
+  // (the runtime's protocol with the player's own modder, which the AI's plugin speaks: runtime/src/modderProtocol.ts)
+  ai: ['@openworld/engine', '@openworld/modules', '@openworld/format', '@openworld/runtime'],
 }
 
 /**
@@ -26,17 +27,17 @@ const MAY_IMPORT: Record<string, string[]> = {
  * fixture (docs/engine-split.md, P2). The list only shrinks: a test that no longer needs the game leaves it.
  */
 const TESTS_ON_THE_GAME = new Set([
-  'packages/modder/test/audit.test.ts',
-  'packages/modder/test/economy.test.ts',
+  'packages/ai/test/audit.test.ts',
+  'packages/ai/test/economy.test.ts',
   // (the god loop's and the promotion detector's, written on the game's content before the split)
-  'packages/modder/test/god-loop.test.ts',
-  'packages/modder/test/leaf-trees.test.ts',
-  'packages/modder/test/modder.test.ts',
-  'packages/modder/test/promote.test.ts',
-  'packages/modder/test/prune.test.ts',
-  'packages/modder/test/repo.test.ts',
-  'packages/modder/test/shackles.test.ts',
-  'packages/modder/test/validation-cache.test.ts',
+  'packages/ai/test/god-loop.test.ts',
+  'packages/ai/test/leaf-trees.test.ts',
+  'packages/ai/test/modder.test.ts',
+  'packages/ai/test/promote.test.ts',
+  'packages/ai/test/prune.test.ts',
+  'packages/ai/test/repo.test.ts',
+  'packages/ai/test/shackles.test.ts',
+  'packages/ai/test/validation-cache.test.ts',
 ])
 
 function files(dir: string): string[] {
@@ -105,6 +106,26 @@ describe('the engine side imports no game (docs/engine-split.md, S1)', () => {
     expect([...TESTS_ON_THE_GAME].filter((f) => here(f) && !onGame.has(f))).toEqual([])
   })
 
+  const NAME_THE_AI = new Set(['packages/runtime/src/ai.ts', 'games/openworld/tools/src/dev.ts', 'packages/engine/test/boundaries.test.ts'])
+  it('nothing reaches the AI but itself and a game\'s own AI: delete packages/ai and games/*/ai, and the game plays', () => {
+    const outside = [
+      ...readdirSync(join(ROOT, 'packages')).filter((p) => p !== 'ai').flatMap((p) => [...files(join(ROOT, 'packages', p, 'src')), ...files(join(ROOT, 'packages', p, 'test')), ...files(join(ROOT, 'packages', p, 'scripts'))]),
+      ...readdirSync(join(ROOT, 'games')).flatMap((g) => readdirSync(join(ROOT, 'games', g), { withFileTypes: true }).filter((d) => d.isDirectory() && d.name !== 'ai').flatMap((d) => files(join(ROOT, 'games', g, d.name)))),
+    ]
+    const found: string[] = []
+    for (const f of outside) {
+      const where = relative(ROOT, f).split(sep).join('/')
+      for (const spec of specifiers(f)) {
+        const t = target(f, spec)
+        if (t === '@openworld/ai' || t.startsWith('packages/ai/') || /^games\/[^/]+\/ai\//.test(t) || /^@openworld-game\/ai$/.test(t)) found.push(`${where}: ${spec}`)
+      }
+      // the ways in that look first: the runtime's glob for the AI's plugin (it finds nothing when the AI is gone),
+      // dev starting the modder only when packages/ai is there, and this test
+      if (!NAME_THE_AI.has(where) && /packages\/ai\/|\.\.\/ai\/src/.test(readFileSync(f, 'utf8'))) found.push(`${where}: names the AI's files`)
+    }
+    expect(found).toEqual([])
+  })
+
   it('no game imports another game', () => {
     const games = readdirSync(join(ROOT, 'games')).filter((g) => existsSync(join(ROOT, 'games', g)))
     // a game's packages, by name (games/<id>/<part>/package.json)
@@ -131,13 +152,13 @@ describe('the engine side imports no game (docs/engine-split.md, S1)', () => {
     expect(seen("export * from '@openworld/runtime/src/game.ts'")).toEqual(['@openworld/runtime'])
     expect(seen("import './register.ts'")).toEqual(['packages/engine/src/register.ts'])
     expect(seen("const m = await import('@openworld-game/content')")).toEqual(['@openworld-game/content'])
-    expect(seen('import {\n  a,\n  b,\n} from "@openworld/agent"')).toEqual(['@openworld/agent'])
+    expect(seen('import {\n  a,\n  b,\n} from "@openworld/ai"')).toEqual(['@openworld/ai'])
   })
 })
 
-// What a browser runs of the modder and the agent (docs/byok.md): the player's own modder in a worker of the page, and
+// What a browser runs of the AI (docs/byok.md): the player's own modder in a worker of the page, and
 // the page's settings. Everything they reach, value import by value import, is free of Node.
-const IN_A_BROWSER = ['packages/agent/src/core.ts', 'packages/agent/src/providerList.ts', 'packages/modder/src/browser.ts', 'packages/runtime/src/modderWorker.ts', 'packages/runtime/src/ownModel.ts', 'packages/runtime/src/ui/modelSettings.ts']
+const IN_A_BROWSER = ['packages/ai/src/browser.ts', 'packages/ai/src/player/index.ts', 'packages/ai/src/player/worker.ts', 'packages/runtime/src/ai.ts', 'packages/runtime/src/ownModel.ts', 'packages/runtime/src/ui/modelSettings.ts']
 const NODE = new Set(['fs', 'path', 'os', 'crypto', 'child_process', 'url', 'http', 'https', 'module', 'util', 'stream', 'events', 'worker_threads', 'net', 'zlib'])
 
 /** What a file imports for its values (a type-only import or export is gone once it is compiled). */
@@ -175,7 +196,7 @@ describe('what runs in a browser imports no Node (docs/byok.md)', () => {
     }
     expect(found).toEqual([])
     // (the walk went where it should: the pipeline and the self-state are among what it read)
-    expect([...seen].map((f) => relative(ROOT, f).split(sep).join('/'))).toEqual(expect.arrayContaining(['packages/modder/src/pipeline.ts', 'packages/agent/src/state.ts', 'packages/runtime/src/localModder.ts']))
+    expect([...seen].map((f) => relative(ROOT, f).split(sep).join('/'))).toEqual(expect.arrayContaining(['packages/ai/src/modder/pipeline.ts', 'packages/ai/src/agent/state.ts', 'packages/ai/src/player/localModder.ts']))
   })
 })
 

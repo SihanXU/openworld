@@ -70,7 +70,7 @@
         "--",
         "tsx",
         "watch",
-        "packages/modder/src/cli.ts",
+        "packages/ai/scripts/modder.ts",
         "--game",
         "games/openworld/content/src/game.ts",
         "serve"
@@ -87,7 +87,7 @@
         "serve",
         "8787",
         "--script",
-        "packages/modder/fixtures/offline.json",
+        "packages/ai/fixtures/offline.json",
         "--data",
         "var/offline"
       ],
@@ -107,7 +107,7 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": [
         "tsx",
-        "games/openworld/tools/src/eval/study.ts",
+        "games/openworld/ai/src/eval/study.ts",
         "serve",
         "var/eval/study/results",
         "--port",

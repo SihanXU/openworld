@@ -170,7 +170,7 @@ container and runs them. The self-state under evaluation is a throwaway fork (`s
 
 ### 4.3 What must be fixed before the pilot
 
-Reading `packages/agent/src/swe.ts`, `env.ts` and `loop.ts` against the SWE-bench images' Dockerfile
+Reading `packages/ai/src/agent/swe.ts`, `env.ts` and `loop.ts` against the SWE-bench images' Dockerfile
 templates (`swebench/harness/dockerfiles/python.py`, v4.0.4: Ubuntu with git, build tools, Python and
 Miniconda; the repository installed in `/testbed` by `setup_repo.sh`; the `testbed` conda environment
 activated from `/root/.bashrc`; no node) found four faults that would spoil a run. None was visible in
@@ -183,7 +183,7 @@ the smoke test (a local instance, no Docker).
 | F3 | the CLI runs instances one after another, and has no `--ablate` | a pool of 300–500 tasks at ~10 minutes each is 50–80 hours per arm; ablations cannot be run from the command line | `--workers N` (one container each), `--ablate memory,skills,harness`, and a per-instance record (outcome, steps, tokens, cost, time, provider) beside `predictions.jsonl` |
 | F4 | the model's provider is not pinned, and nothing ties a run to its model | §3 | the run manifest, checked against every call |
 
-**As built (2026-10-14).** Fixed in `packages/agent` (`env.ts`, `swe.ts`, `loop.ts`, `model.ts`,
+**As built (2026-10-14).** Fixed in `packages/ai/src/agent` (`env.ts`, `swe.ts`, `loop.ts`, `model.ts`,
 `cli.ts`), tested in `test/agent.test.ts` with a stand-in for the docker CLI (`test/fake-docker.mjs`:
 an image is a directory, `exec` runs on the host), since this machine has no Docker. Reading the code
 for F1 found two more faults of the same kind, fixed with it:
@@ -335,7 +335,7 @@ requirements and interface ([SWE-bench](https://arxiv.org/abs/2310.06770),
    The writer is not the frozen agent model (Sonnet 5.5 through `claude-code`, since the agent is Kimi K3).
 5. **Leakage checks**: no line of the gold patch's added code in the issue (an n-gram check), no test
    name that gives the answer away, and a person reads 20 issues at random before the first run.
-6. **The task**: `games/openworld/tools/tasks/history/<sha>/` with `ISSUE.md`, `meta.json` (commit,
+6. **The task**: `games/openworld/ai/tasks/history/<sha>/` with `ISSUE.md`, `meta.json` (commit,
    parent, rung, lock hash, FAIL_TO_PASS, PASS_TO_PASS, the test command) and `hidden.patch` (the
    test changes). The verdict is the engine tasks' (`engine-tasks.ts`): the hidden tests pass, and so
    does everything that passed before. Unattended, it runs only in a container (rsi.md §6).
@@ -343,8 +343,8 @@ requirements and interface ([SWE-bench](https://arxiv.org/abs/2310.06770),
 The miner is a generalization of `engineWorkspace` and `engineTask`: the same workspace, the same
 verdict, at any commit.
 
-**As built (2026-10-14)** — `games/openworld/tools/src/ladder.ts` (`npm run ladder -- candidates | validate |
-issues | status`), tested in `games/openworld/tools/test/ladder.test.ts`:
+**As built (2026-10-14)** — `games/openworld/ai/src/ladder.ts` (`npm run ladder -- candidates | validate |
+issues | status`), tested in `games/openworld/ai/test/ladder.test.ts`:
 - **candidates**: 144 commits on `origin/main` (R1 4, R2 29, R3 47, R4 64; 11 lockfiles), each with its parent,
   test files, code files, rung and the parent's lockfile.
 - **the workspace** of a parent: `git archive` of what tests need (the packages and games and their configs —
@@ -357,7 +357,7 @@ issues | status`), tested in `games/openworld/tools/test/ladder.test.ts`:
 - **issues**: a model (the configured backend; Sonnet 5.5 through `claude-code` for these) writes each validated
   commit's issue from the commit message, its pull request, the change and the test changes, with
   Requirements and an Interface section; an issue that quotes six consecutive added lines of the change is
-  asked again, then dropped. A task is `games/openworld/tools/tasks/history/<sha>/`: `ISSUE.md`, `meta.json`,
+  asked again, then dropped. A task is `games/openworld/ai/tasks/history/<sha>/`: `ISSUE.md`, `meta.json`,
   `hidden.patch`.
 - **the task** (`historyTask`, `historySource`): the parent's workspace, the commit's test files as they were for
   the agent to run, and the verdict — the hidden test changes applied, every FAIL_TO_PASS and PASS_TO_PASS test
@@ -435,8 +435,8 @@ world posed.
 
 ### 6.4 As built (2026-10-14)
 
-`games/openworld/tools/src/rsi.ts` (`npm run rsi -- plan | milestone | heldout <tag> --arm G|F`), its plan tested in
-`games/openworld/tools/test/rsi.test.ts`:
+`games/openworld/ai/src/rsi.ts` (`npm run rsi -- plan | milestone | heldout <tag> --arm G|F`), its plan tested in
+`games/openworld/ai/test/rsi.test.ts`:
 - the milestones are the tags `world-v*`, by their commits' dates; a milestone's window is the ladder tasks dated
   after the previous tag and up to this one;
 - **held-out**: the arm's previous snapshot and the naive start (the naive harness, no memory, no skills), each a
