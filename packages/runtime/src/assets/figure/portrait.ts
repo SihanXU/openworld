@@ -23,6 +23,8 @@ export interface PortraitLayer {
   z: string
   /** Zone k (1-based) paints this colour key: `skin`, `hair`, `eyes`, or a part's own `.1` (its slot's). */
   zones: string[]
+  /** Slots this layer alone is drawn over (a coat's hem over the riding boots, while its trousers stay under them). */
+  above?: string[]
 }
 
 /** A part's portrait for a body: its layers, and per mood the layers that replace them (a face's smile). */
@@ -33,6 +35,9 @@ export interface PortraitPart {
   covers?: boolean
   /** Slots it is drawn over, though they come later in the stack (a long skirt over the shoes). */
   above?: string[]
+  /** A boot that encloses the leg: below its top edge, nothing drawn under it shows (the trousers, the stockings, the
+   * leg go into it), only what is drawn over it (a coat's hem). */
+  encloses?: boolean
 }
 
 /** A body's own figure, and its bust: the square the dialogue box shows (the head and the shoulders). */
@@ -54,6 +59,8 @@ export interface PortraitManifest {
 /** The stack, back to front (boots over the trousers; a long skirt says it goes over the shoes). */
 export const LAYER_Z = ['hairBack', 'body', 'legs', 'outfit', 'shoes', 'armour', 'cloak', 'age', 'face', 'mark', 'beard', 'glasses', 'hair', 'hat'] as const
 const zOf = (z: string) => LAYER_Z.indexOf(z as (typeof LAYER_Z)[number])
+/** How far either side of an enclosing boot's box what goes into it is hidden (a trouser leg wider than the shaft). */
+const BOOT_MARGIN = 8
 
 /** A decoded layer: the paint and the value map, both RGBA of the layer's box. */
 export interface LayerPixels {
@@ -67,6 +74,7 @@ interface Drawn {
   layers: PortraitLayer[]
   covers?: boolean
   above?: string[]
+  encloses?: boolean
 }
 
 function partsOf(m: PortraitManifest, look: Look, mood: Mood | undefined): Drawn[] {
@@ -76,9 +84,91 @@ function partsOf(m: PortraitManifest, look: Look, mood: Mood | undefined): Drawn
   for (const [slot, id] of Object.entries(look.parts)) {
     const p = m.parts[id]?.[look.body]
     if (!p) continue
-    out.push({ slot, layers: (mood && mood !== 'neutral' && p.moods?.[mood]) || p.layers, covers: p.covers, above: p.above })
+    out.push({ slot, layers: (mood && mood !== 'neutral' && p.moods?.[mood]) || p.layers, covers: p.covers, above: p.above, encloses: p.encloses })
   }
   return out
+}
+
+/**
+ * Where an enclosing boot hides what is drawn under it (1), on the canvas, or undefined when no part encloses: below
+ * the boot's rim and outside its outline — a trouser leg wider than the shaft, a stocking beside it, the trousers
+ * between the two boots — while inside the outline (the opening, the leg going in) what is under it shows. The outline
+ * is, per boot (each 8-connected piece) and per row, what lies between its leftmost and rightmost pixel; the rim, per
+ * column, the outline's highest row there; in the few columns beside a boot (`BOOT_MARGIN`) the nearest rim, and
+ * between the boots the lower of the two rims beside the gap.
+ */
+function bootMask(parts: Drawn[], get: (file: string) => LayerPixels | undefined, S: number, SH: number): Uint8Array | undefined {
+  const layers = parts.filter((p) => p.encloses).flatMap((p) => p.layers)
+  if (!layers.length) return undefined
+  const inside = new Uint8Array(S * SH)
+  const rim = new Int32Array(S).fill(SH)
+  let x0 = S
+  let x1 = 0
+  for (const l of layers) {
+    const px = get(l.file)
+    if (!px) continue
+    // each boot: an 8-connected piece of the layer's coverage
+    const piece = new Int32Array(l.w * l.h)
+    let n = 0
+    for (let s0 = 0; s0 < l.w * l.h; s0++) {
+      if (piece[s0] || px.value[s0 * 4 + 3] === 0) continue
+      piece[s0] = ++n
+      const stack = [s0]
+      while (stack.length) {
+        const i = stack.pop()!
+        const x = i % l.w
+        const y = (i - x) / l.w
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const xx = x + dx
+            const yy = y + dy
+            if (xx < 0 || yy < 0 || xx >= l.w || yy >= l.h) continue
+            const j = yy * l.w + xx
+            if (!piece[j] && px.value[j * 4 + 3] > 0) ((piece[j] = n), stack.push(j))
+          }
+      }
+    }
+    // per boot and row, from its leftmost pixel to its rightmost
+    for (let y = 0; y < l.h; y++) {
+      const lo = new Int32Array(n + 1).fill(l.w)
+      const hi = new Int32Array(n + 1).fill(-1)
+      for (let x = 0; x < l.w; x++) {
+        const c = piece[y * l.w + x]
+        if (c) ((lo[c] = Math.min(lo[c], x)), (hi[c] = Math.max(hi[c], x)))
+      }
+      for (let c = 1; c <= n; c++)
+        for (let x = lo[c]; x <= hi[c]; x++) {
+          const ox = l.x + x
+          const oy = l.y + y
+          if (ox < 0 || ox >= S || oy < 0 || oy >= SH) continue
+          inside[oy * S + ox] = 1
+          if (oy < rim[ox]) rim[ox] = oy
+          x0 = Math.min(x0, ox)
+          x1 = Math.max(x1, ox)
+        }
+    }
+  }
+  if (x0 > x1) return undefined
+  const top = Int32Array.from(rim)
+  // beside a boot, the nearest rim; between the boots, the lower of the rims either side of the gap
+  for (let x = Math.max(0, x0 - BOOT_MARGIN); x <= Math.min(S - 1, x1 + BOOT_MARGIN); x++) {
+    if (rim[x] < SH) continue
+    let near = SH
+    for (let d = 1; d <= BOOT_MARGIN && near === SH; d++) near = Math.min(x - d >= 0 ? rim[x - d] : SH, x + d < S ? rim[x + d] : SH)
+    if (near < SH) {
+      top[x] = near
+      continue
+    }
+    if (x < x0 || x > x1) continue
+    let l = x
+    while (l > x0 && rim[l] >= SH) l--
+    let r = x
+    while (r < x1 && rim[r] >= SH) r++
+    top[x] = Math.max(rim[l], rim[r])
+  }
+  const hide = new Uint8Array(S * SH)
+  for (let x = 0; x < S; x++) for (let y = top[x]; y < SH; y++) if (!inside[y * S + x]) hide[y * S + x] = 1
+  return hide
 }
 
 /** The square of a look's figure its bust shows (the whole canvas for a body the manifest does not know). */
@@ -114,13 +204,16 @@ export function composePortrait(m: PortraitManifest, look: Look, mood: Mood | un
           break
         }
   }
+  // enclosing boots: what is drawn under them, below their rim and outside their outline, is in the boot
+  const boot = bootMask(parts, get, S, SH)
   // a layer's place: its own, or just over the last slot its part says it is drawn over
-  const place = (l: PortraitLayer, above?: string[]) => Math.max(zOf(l.z), ...(above ?? []).map((s) => zOf(s) + 0.5))
+  const place = (l: PortraitLayer, above?: string[]) => Math.max(zOf(l.z), ...[...(above ?? []), ...(l.above ?? [])].map((s) => zOf(s) + 0.5))
   const stack = parts.flatMap(({ slot, layers, above }) => layers.map((l) => ({ slot, l, at: place(l, above) })))
   stack.sort((a, b) => a.at - b.at)
-  for (const { slot, l } of stack) {
+  for (const { slot, l, at } of stack) {
     const px = get(l.file)
     if (!px) continue
+    const inBoot = at < zOf('shoes')
     const zg = l.zones.map((k) => grad(k.startsWith('.') ? slot + k : k))
     for (let y = 0; y < l.h; y++) {
       const oy = l.y + y
@@ -129,6 +222,7 @@ export function composePortrait(m: PortraitManifest, look: Look, mood: Mood | un
         const ox = l.x + x
         if (ox < 0 || ox >= S) continue
         if (slot === 'hair' && oy < under[ox]) continue
+        if (inBoot && boot && boot[oy * S + ox]) continue
         const i = (y * l.w + x) * 4
         const a = px.value[i + 3] / 255
         if (a <= 0) continue

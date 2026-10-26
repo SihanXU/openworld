@@ -189,7 +189,20 @@ the map and in the portrait is the same colour by construction.
   strokes (a face, freckles, age, stubble, glasses, thinning hair) keep their band and stay off the eyes. The
   numbers are `clean.json`; `tools/test/portrait.test.ts` holds every layer to them (and the paint and the value
   map to the same coverage). A hairstyle's and a beard's pinholes (a dropped light streak, the face showing through
-  as a speck) are closed over front and back as one, and their lone grey or red dots take the hair's zone. Before and after: `docs/figures/portrait-clean.png` (`looks/pair.ts`).
+  as a speck) are closed over front and back as one, and their lone grey or red dots take the hair's zone. Where the
+  hair on the body and the hair behind it meet over the body's outline, the gap between them is covered (the bald
+  figure's pale fringe showed there as specks). Long hair seen between an arm and the waist — a piece that does not
+  reach the head — is moved behind the body: cut into the hair on the body, it was drawn over what is worn, gold
+  flames on a coat at both hips.
+- **What falls over the shoes** (`hems.py`, run by `build.py`; 2026-10-26): the stack is body < legs < outfit < shoes,
+  so stockings and trousers go into the boots. But an outfit layer is everything its wearer has on — a coat or a
+  cloak and the trousers under it, a dress, a robe with a stole — and a whole part put over the shoes (`above`) drew a
+  long cloak's trousers over the riding boots, while one left under them drew the boots over a coat's skirt. So every
+  outfit is cut from the highest row a shoe of its body reaches: its cloth (zone 1) and every other coloured piece
+  that ends above the ankle (a stole, an apron), with their ink, are a layer of their own drawn over the shoes
+  (`<file>.hem`, the layer's `above`: `PortraitLayer.above` in the runtime); what reaches the ankle in another colour
+  (the trousers) stays under them. No list of garments; legwear is never over the shoes. `portrait.test.ts` holds the
+  order for every outfit × shoes on every body.
 - **Review**: `npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]` composes everyone with the client's
   own code; `review.ts out.png --parts [k]` every part alone on each body in loud colours on a dark ground
   (`out-<body>.png`), where a stray pixel shows. `batch.py` runs the jobs (resumable; a job waits for the picture it edits).

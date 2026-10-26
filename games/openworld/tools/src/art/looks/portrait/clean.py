@@ -26,7 +26,10 @@ over the union of its layers (the hair in front and the hair behind are one thin
    no core: their band (and the eyes) and the speckle filter are all.
 7. a hairstyle's and a beard's pinholes are closed (`fill_holes`, over the front and the back as one): a light
    streak the cut dropped left a hole with a feathered ring, and the face under the hair showed through it as a
-   speck; and their lone grey or red dots, which no hair colour reached, take the hair's zone (`fill_specks`).
+   speck; their lone grey or red dots, which no hair colour reached, take the hair's zone (`fill_specks`); and where
+   the hair on the body and the hair behind it meet, the body's own outline between them is covered (`close_seam`);
+   long hair seen between an arm and the waist (a piece that does not reach the head) is moved behind the body
+   (`hang_behind`), so what is worn covers it.
 
 Each layer keeps only its kept pixels, in both its images (the paint's alpha and the value map's agree, a pixel
 without coverage has no zone, value or colour), cropped again; manifest.json takes the new boxes. It runs over what
@@ -193,6 +196,65 @@ def fill_holes(layers: list[tuple[np.ndarray, np.ndarray]]) -> int:
     return int(pin.sum())
 
 
+def hang_behind(front: tuple[np.ndarray, np.ndarray], back: tuple[np.ndarray, np.ndarray], neck: int) -> int:
+    """Long hair seen between an arm and the waist moved behind, in place: a piece of the hairstyle (front and back as
+    one) that does not reach the head is hair hanging behind the body, seen through the gap the arm leaves; cut into
+    the hair on the body, it was drawn over whatever was worn — gold flames on a coat at both hips. Its pixels in the
+    front layer go to the back one (under the body and what is worn: on a bare body they show in the gap as before).
+    The pixels moved."""
+    union = (front[1][..., 3] > 0) | (back[1][..., 3] > 0)
+    lab, n = ndi.label(union, structure=EIGHT)
+    if not n:
+        return 0
+    rows = np.broadcast_to(np.arange(union.shape[0])[:, None], union.shape)
+    top = ndi.minimum(rows, lab, np.arange(1, n + 1))
+    move = np.concatenate([[False], top > neck])[lab] & (front[1][..., 3] > 0)
+    if not move.any():
+        return 0
+    take = move & (front[1][..., 3] >= back[1][..., 3])
+    back[1][take] = front[1][take]
+    back[0][take] = front[0][take]
+    front[1][move] = 0
+    front[0][move] = 0
+    return int(move.sum())
+
+
+def seam_zone(full_f: np.ndarray, full_b: np.ndarray, body: np.ndarray) -> np.ndarray:
+    """Where the hair on the body and the hair behind it meet over the body's outline: the body's pixels in the gaps
+    their union leaves (its closing by holes.seam), near both. Filling them leaves the closing as it was, so the hair
+    never creeps along the outline; and the cleaning keeps them as the hair's (else the two would undo each other)."""
+    reach = TABLE["holes"]["seam"]
+    full = full_f | full_b
+    zone = body & ndi.binary_closing(np.pad(full, reach), structure=EIGHT, iterations=reach)[reach:-reach, reach:-reach]
+    return zone & ndi.binary_dilation(full_f, structure=EIGHT, iterations=reach) & ndi.binary_dilation(full_b, structure=EIGHT, iterations=reach)
+
+
+def close_seam(front: tuple[np.ndarray, np.ndarray], back: tuple[np.ndarray, np.ndarray], body: np.ndarray) -> int:
+    """A hairstyle's seam closed, in place: the hair behind the body (`back`, drawn under it) and the hair on it
+    (`front`) meet at the bald figure's outline, and where the front stops a pixel short of the body's edge the
+    body's own outline — its pale anti-aliased fringe and its ink — showed between them as grey and white specks.
+    Those body pixels (`body`: its coverage on the canvas) between the two take the front's: the nearest fully
+    covered hair pixel's zone, value and paint. The pixels covered."""
+    fv = front[1]
+    full_f = fv[..., 3] == 255
+    full_b = back[1][..., 3] == 255
+    if not full_f.any() or not full_b.any():
+        return 0
+    full = full_f | full_b
+    seam = seam_zone(full_f, full_b, body) & ~full
+    if not seam.any():
+        return 0
+    _, (iy, ix) = ndi.distance_transform_edt(~full, return_indices=True)
+    src_front = full_f[iy, ix]
+    for (sp, sv), mine in ((front, src_front), (back, ~src_front)):
+        take = seam & mine
+        front[1][take] = sv[iy[take], ix[take]]
+        front[0][take] = sp[iy[take], ix[take]]
+    front[1][seam, 3] = 255
+    front[0][seam, 3] = 255
+    return int(seam.sum())
+
+
 def fill_specks(paint: np.ndarray, value: np.ndarray) -> int:
     """A hairstyle's lone specks repainted, in place: pieces that keep their paint (zone 0) of at most holes.speck
     pixels, wholly inside the hair's repainted zone and lighter than the style's ink — a grey or a brown-red dot the
@@ -247,12 +309,14 @@ def clean(root: str, dry: bool = False, report: str | None = None) -> dict[str, 
     """Clear every layer until nothing more goes (what one pass clears can bare an edge of ground, or leave a stroke
     that hung on it alone). The pixels cleared per body and part."""
     total = sweep(root, dry, report)
-    while not dry:
+    for _ in range(8 if not dry else 0):
         more = sweep(root)
         if not any(more.values()):
             return total
         for k, v in more.items():
             total[k] = total.get(k, 0) + v
+    if not dry:
+        raise RuntimeError(f"no fixed point after 8 passes: {[k for k, v in more.items() if v]}")
     return total
 
 
@@ -300,6 +364,15 @@ def sweep(root: str, dry: bool = False, report: str | None = None) -> dict[str, 
             sub = union[l["y"] : l["y"] + l["h"], l["x"] : l["x"] + l["w"]]
             np.maximum(sub, np.where(g, 0, v[..., 3]), out=sub)
         keep = keep_mask(union, pid, fr, eyes[body])
+        zs = [l["z"] for l, _, _ in pix]
+        if pid.split(".")[0] in TABLE["holes"]["slots"] and "hair" in zs and "hairBack" in zs:
+            # what close_seam fills is the hair's: never cleared again
+            full = []
+            for l, _, v in (pix[zs.index("hair")], pix[zs.index("hairBack")]):
+                c = np.zeros((H, W), bool)
+                c[l["y"] : l["y"] + l["h"], l["x"] : l["x"] + l["w"]] = v[..., 3] == 255
+                full.append(c)
+            keep |= seam_zone(full[0], full[1], fr.fig) & (union > 0)
         gone = (union > 0) & ~keep
         for (l, _, _), g in zip(pix, grounds):
             gone[l["y"] : l["y"] + l["h"], l["x"] : l["x"] + l["w"]] |= g
@@ -320,6 +393,9 @@ def sweep(root: str, dry: bool = False, report: str | None = None) -> dict[str, 
             canv.append((cp, cv))
         if pid.split(".")[0] in TABLE["holes"]["slots"]:
             filled = fill_holes(canv) + sum(fill_specks(cp, cv) for cp, cv in canv)
+            if "hair" in zs and "hairBack" in zs:
+                filled += hang_behind(canv[zs.index("hair")], canv[zs.index("hairBack")], fr.neck)
+                filled += close_seam(canv[zs.index("hair")], canv[zs.index("hairBack")], fr.fig)
             removed[f"{pid}/{body}" + (f"~{mood}" if mood else "")] += filled
         if dry:
             continue

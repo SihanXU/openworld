@@ -199,6 +199,50 @@ describe('the portrait', () => {
   it('draws a part only on the body it was drawn for (a man has his own face, never hers)', () => {
     expect(top({ body: 'man', parts: { outfit: 'outfit.travel' }, colors: {} })).toEqual([0, 0, 0])
   })
+
+  it('an enclosing boot: below its rim only the boot and what falls over it show; the leg shows in its opening', () => {
+    // a 40x20 canvas: trousers (blue) the full width from row 4 down; a boot (green) at columns 10..19 from row 10, its
+    // middle open from row 10 to 12 (columns 12..17); a coat's hem (red) over the shoes at columns 30..34
+    const W = 40
+    const H = 20
+    const rect = (x0: number, y0: number, x1: number, y1: number, rgb: number[], hole?: (x: number, y: number) => boolean): LayerPixels => {
+      const w = x1 - x0
+      const h = y1 - y0
+      const paint = new Uint8Array(w * h * 4)
+      const value = new Uint8Array(w * h * 4)
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++) {
+          if (hole?.(x0 + x, y0 + y)) continue
+          paint.set([...rgb, 255], (y * w + x) * 4)
+          value.set([180, 0, 0, 255], (y * w + x) * 4)
+        }
+      return { paint, value }
+    }
+    const px: Record<string, LayerPixels> = {
+      trousers: rect(0, 4, 40, 20, [0, 0, 255]),
+      boot: rect(10, 10, 20, 20, [0, 255, 0], (x, y) => x >= 12 && x <= 17 && y <= 12),
+      hem: rect(30, 8, 35, 20, [255, 0, 0]),
+    }
+    const at = (file: string, x: number, y: number, w: number, h: number, z: string, above?: string[]) => ({ file, x, y, w, h, z, zones: [], above })
+    const m: PortraitManifest = {
+      w: W,
+      h: H,
+      bodies: { woman: { layers: [], bust: { x: 0, y: 0, w: 20, h: 20 } } },
+      parts: {
+        'outfit.coat': { woman: { layers: [at('trousers', 0, 4, 40, 16, 'outfit'), at('hem', 30, 8, 5, 12, 'outfit', ['shoes'])] } },
+        'shoes.tall': { woman: { layers: [at('boot', 10, 10, 10, 10, 'shoes')], encloses: true } },
+      },
+    }
+    const fig = composePortrait(m, { body: 'woman', parts: { outfit: 'outfit.coat', shoes: 'shoes.tall' }, colors: {} }, undefined, (f) => px[f])
+    const rgb = (x: number, y: number) => (fig[(y * W + x) * 4 + 3] ? [...fig.subarray((y * W + x) * 4, (y * W + x) * 4 + 3)] : null)
+    expect(rgb(15, 5), 'the trousers above the rim').toEqual([0, 0, 255])
+    expect(rgb(15, 11), 'the leg in the opening').toEqual([0, 0, 255])
+    expect(rgb(10, 15), 'the boot').toEqual([0, 255, 0])
+    expect(rgb(5, 15), 'beside the shaft: in the boot, not shown').toBe(null)
+    expect(rgb(21, 15), 'beside the shaft').toBe(null)
+    expect(rgb(1, 15), 'far beside the boot, past its margin: shown').toEqual([0, 0, 255])
+    expect(rgb(32, 15), 'the hem falls over the shoes').toEqual([255, 0, 0])
+  })
 })
 
 describe('restyle: a look changes as an outcome of its bearer (the event model)', () => {
