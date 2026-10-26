@@ -786,17 +786,24 @@ export async function reflectAgent(ep: Episode, o: { model: Model; state: SelfSt
     ],
     { json: true, temperature: 0.2, purpose: 'reflect', reasoning: h.reflect.reasoning, provider: h.agent.provider },
   )
-  const j = parseJson(r.content) as { lessons?: Parameters<SelfState['applyLessons']>[0]; skill?: { name?: unknown; description?: unknown; triggers?: unknown; body?: unknown; files?: unknown } | null } | undefined
-  const touched = j?.lessons && typeof j.lessons === 'object' ? state.applyLessons(j.lessons, ep.id, [`kind:${ep.kind}`]) : []
-  let skill: string | undefined
-  const s = j?.skill
-  if (s && typeof s.name === 'string' && typeof s.body === 'string' && s.body.trim()) {
-    const name = safeName(s.name)
-    if (state.skill(name) || similar.length >= h.reflect.skillMinRecurrence) {
-      const files = s.files && typeof s.files === 'object' ? Object.fromEntries(Object.entries(s.files as Record<string, unknown>).filter(([, v]) => typeof v === 'string')) as Record<string, string> : undefined
-      state.writeSkill({ name, description: String(s.description ?? name), triggers: Array.isArray(s.triggers) ? s.triggers.map(String) : [`kind:${ep.kind}`], body: s.body, files }, ep.id)
-      skill = name
-    }
-  }
+  const { lessons: touched, skill } = keepReflection(state, r.content, { cited: ep.id, terms: [`kind:${ep.kind}`], recurred: similar.length >= h.reflect.skillMinRecurrence, files: true })
   state.note('reflect', { episode: ep.id, kind: ep.kind, lessons: touched, skill, usage: model.usage })
+}
+
+/**
+ * A reflection's reply kept in the self-state: its lessons applied (filed under `terms`, citing the episodes), and its
+ * skill written when this kind of work has recurred or the skill is one already kept (an improvement). The skill's
+ * triggers default to `terms`; its scripts are kept only where the reflection may write them (`files`).
+ */
+export function keepReflection(state: SelfState, reply: string, o: { cited: string | string[]; terms: string[]; recurred: boolean; files?: boolean }): { lessons: string[]; skill?: string } {
+  const j = parseJson(reply) as { lessons?: Parameters<SelfState['applyLessons']>[0]; skill?: { name?: unknown; description?: unknown; triggers?: unknown; body?: unknown; files?: unknown } | null } | undefined
+  const lessons = j?.lessons && typeof j.lessons === 'object' ? state.applyLessons(j.lessons, o.cited, o.terms) : []
+  const s = j?.skill
+  if (!s || typeof s.name !== 'string' || typeof s.body !== 'string' || !s.body.trim()) return { lessons }
+  const name = safeName(s.name)
+  if (!state.skill(name) && !o.recurred) return { lessons }
+  const files = o.files && s.files && typeof s.files === 'object' ? (Object.fromEntries(Object.entries(s.files as Record<string, unknown>).filter(([, v]) => typeof v === 'string')) as Record<string, string>) : undefined
+  const by = Array.isArray(o.cited) ? o.cited[o.cited.length - 1] : o.cited
+  state.writeSkill({ name, description: String(s.description ?? name), triggers: Array.isArray(s.triggers) ? s.triggers.map(String) : o.terms, body: s.body, ...(files && { files }) }, by)
+  return { lessons, skill: name }
 }

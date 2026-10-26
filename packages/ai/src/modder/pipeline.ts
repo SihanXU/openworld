@@ -53,7 +53,7 @@ import type { materializeWorld } from '../service/repo.ts'
 import { mapProblems, personProblems, settleMap, summary, withoutThinking, type DraftContext, type DraftKind, type TraceStep } from './drafts.ts'
 import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, againUser, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, reviseDraftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
 import { briefOf, coarseTerms, envelope, relatedRules, signatureOf, withoutChains, workloadNote, workloadOf, type Signature, type Workload } from './request.ts'
-import { auditOf, profileOf, reflectAgent, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '../agent/state.ts'
+import { auditOf, keepReflection, profileOf, reflectAgent, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '../agent/state.ts'
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
 import { audit, probe, type AuditResult } from '../checks/audit.ts'
 import { clipJson } from '../util.ts'
@@ -1209,18 +1209,7 @@ export class Modder {
       ],
       { json: true, temperature: 0.2, purpose: 'reflect', reasoning: h.reflect.reasoning, provider: profileOf(h, 'offline').design.provider },
     )
-    const j = parseJson(r.content) as { lessons?: Parameters<SelfState['applyLessons']>[0]; skill?: { name?: unknown; description?: unknown; triggers?: unknown; body?: unknown } | null } | undefined
-    const touched = j?.lessons && typeof j.lessons === 'object' ? state.applyLessons(j.lessons, cited, coarse) : []
-    let skill: string | undefined
-    const s = j?.skill
-    if (s && typeof s.name === 'string' && typeof s.body === 'string' && s.body.trim()) {
-      const name = safeName(s.name)
-      if (state.skill(name) || similar.length >= h.reflect.skillMinRecurrence) {
-        const triggers = Array.isArray(s.triggers) ? s.triggers.map(String) : coarse
-        state.writeSkill({ name, description: String(s.description ?? name), triggers, body: s.body }, last.ep.id)
-        skill = name
-      }
-    }
+    const { lessons: touched, skill } = keepReflection(state, r.content, { cited, terms: coarse, recurred: similar.length >= h.reflect.skillMinRecurrence })
     state.note('reflect', { episode: cited, lessons: touched, skill, usage: model.usage })
   }
 }
