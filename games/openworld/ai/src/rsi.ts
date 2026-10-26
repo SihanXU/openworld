@@ -15,7 +15,7 @@ import { spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { SelfState, applyPreset, modelFromEnv, pinFromEnv, runAgent } from '@openworld/ai'
+import { SelfState, applyPreset, modelFromEnv, pinFromEnv, runAgent, type Model } from '@openworld/ai'
 import { REPO } from './engine-tasks.ts'
 import { historyDefs, historyTask, type HistoryDef } from './ladder.ts'
 import { report } from '../../tools/src/rsi-report.ts'
@@ -79,12 +79,23 @@ async function heldout(plan: Plan, dir: string): Promise<void> {
   if (!model) throw new Error('no model')
   const state = SelfState.open(join(dir, 'modder-state'))
   const arms: [string, SelfState][] = []
-  if (plan.heldoutSnapshot) arms.push([plan.heldoutSnapshot, SelfState.open(join(state.dir, 'snapshots', plan.heldoutSnapshot)).fork()])
+  const previous = plan.heldoutSnapshot ? SelfState.open(join(state.dir, 'snapshots', plan.heldoutSnapshot)).fork() : undefined
+  if (previous) arms.push([plan.heldoutSnapshot!, previous])
   const naive = state.fork()
+  const forks = [naive, ...(previous ? [previous] : [])]
   applyPreset(naive, 'naive')
   arms.push(['naive', SelfState.open(join(naive.dir), undefined, ['memory', 'skills'])])
   const out = join(dir, 'heldout', `${plan.milestone.tag}.jsonl`)
   mkdirSync(join(dir, 'heldout'), { recursive: true })
+  // the forks are throwaway: they go when the window is played, whatever happens
+  try {
+    await playWindow(plan, arms, model, out)
+  } finally {
+    for (const f of forks) f.dispose()
+  }
+}
+
+async function playWindow(plan: Plan, arms: [string, SelfState][], model: Model, out: string): Promise<void> {
   for (const def of plan.window) {
     for (const [label, s] of arms) {
       const t = await historyTask(def)
