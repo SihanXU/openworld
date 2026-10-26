@@ -2,8 +2,7 @@
 // called from the player's browser straight at the service, with a key that stays there. Each service is an
 // OpenAI-compatible endpoint or Anthropic's own API; `custom` is any other OpenAI-compatible one.
 
-import { AnthropicModel } from './anthropic.ts'
-import { OpenAICompatModel, type Model } from './model.ts'
+import { AnthropicModel, OpenAICompatModel, type Model } from './model.ts'
 import { providerOf, type ProviderKind } from './providerList.ts'
 
 export * from './providerList.ts'

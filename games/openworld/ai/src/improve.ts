@@ -3,9 +3,8 @@
 //
 //   npm run improve -- [--select 8] [--confirm 8] [--margin 0.1]
 
-import { improve, openModder } from '@openworld/ai'
+import { improve, openModder, flags } from '@openworld/ai'
 import { GAME } from '@openworld-game/content'
-import { flags } from './cli.ts'
 import { engineSource } from './engine-tasks.ts'
 
 const flag = flags(process.argv.slice(2))

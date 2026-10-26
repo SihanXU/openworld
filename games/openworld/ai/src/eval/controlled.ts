@@ -22,12 +22,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { RuleLibrary, buildSandbox, scenarioEvent, textOf, type ModRequest, type Ontology, type Rule } from '@openworld/engine'
-import { modelFromEnv, openModder, parseJson, type Model, type WorldEpisode } from '@openworld/ai'
+import { modelFromEnv, openModder, parseJson, flags, type Model, type WorldEpisode } from '@openworld/ai'
 import { BASE_RULES, GAME, STORY_RULES, TERRAINS, buildOntology } from '@openworld-game/content'
 import { GENERIC_RULES, sweep, type Cell } from '../../../tools/src/coverage.ts'
 import { cellRequest } from '../curriculum.ts'
 import { trueskill, type Choice } from './trueskill.ts'
-import { flags } from '../cli.ts'
 
 const argv = process.argv.slice(2)
 const opt = flags(argv)

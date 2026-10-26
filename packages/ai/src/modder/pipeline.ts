@@ -50,17 +50,17 @@ import { judge, statedAffordance } from './affordance.ts'
 import { normalizePatch, qualifyTerrains, stationFromRules } from './fixes.ts'
 import type { CommitResult, WorldLibrary } from '../library/library.ts'
 import { Meter, parseJson, type ChatMessage, type ChatOptions, type Model } from '../models/model.ts'
-import { reflectAgent } from '../agent/reflect.ts'
 import type { AgentTask, runAgent } from '../agent/loop.ts'
 import type { TaskSource } from '../agent/outer.ts'
 import type { materializeWorld } from '../service/repo.ts'
 import { mapProblems, personProblems, settleMap, summary, withoutThinking, type DraftContext, type DraftKind, type TraceStep } from './drafts.ts'
 import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, againUser, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, reviseDraftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
-import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '../agent/state.ts'
+import { auditOf, profileOf, reflectAgent, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '../agent/state.ts'
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
 import { envelope, withoutChains, workloadNote, workloadOf, type Workload } from './quality.ts'
 import { audit, probe, type AuditResult } from '../checks/audit.ts'
+import { clipJson } from '../util.ts'
 
 /**
  * A backend that cannot answer says so in its error: out of quota or throttling (claude-code's session
@@ -131,7 +131,7 @@ export class Gate {
 
 /**
  * The offline profile's repo agent (a world request as a repository it works in, repo.ts; the agent loop): Node's
- * only. The package's Node entry hands it over (offline.ts); a modder in a browser — the player's own, docs/byok.md —
+ * only. The package's Node entry hands it over (service/server.ts); a modder in a browser — the player's own, docs/byok.md —
  * works live and has none.
  */
 export interface OfflineAgent {
@@ -1142,7 +1142,7 @@ export class Modder {
         } catch (err) {
           out = `tool error: ${(err as Error).message}`
         }
-        ep.tools.push({ name: c.name, args: clipJson(c.args), ms: Date.now() - t0 })
+        ep.tools.push({ name: c.name, args: clipJson(c.args, 2000), ms: Date.now() - t0 })
         messages.push({ role: 'tool', toolCallId: c.id, name: c.name, content: out.length > TOOL_OUTPUT_CAP ? out.slice(0, TOOL_OUTPUT_CAP) + '\n… (truncated)' : out })
       }
     }
@@ -1258,11 +1258,6 @@ function flagsOf(patch: Patch, derived?: string[]): string[] {
   for (const d of derived ?? [])
     if (UNTESTED.test(d) && ![...quiet].some((id) => d.startsWith(`${id}:`))) flags.push(`the harness could not test what it does (${d}): look at the whole outcome`)
   return flags
-}
-
-function clipJson(x: unknown): unknown {
-  const s = JSON.stringify(x ?? {})
-  return s.length > 2000 ? `${s.slice(0, 2000)}…` : x
 }
 
 const NO_PATCH = 'no JSON patch in the answer'

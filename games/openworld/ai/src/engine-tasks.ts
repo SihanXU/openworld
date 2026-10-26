@@ -13,9 +13,8 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync,
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DockerEnv, LocalEnv, REPO, SANDBOX_LIMITS, SelfState, applyPreset, chooseIsolation, hostUser, modelFromEnv, runAgent, sandboxImage } from '@openworld/ai'
+import { DockerEnv, LocalEnv, REPO, SANDBOX_LIMITS, SelfState, applyPreset, chooseIsolation, hostUser, modelFromEnv, runAgent, sandboxImage, flags } from '@openworld/ai'
 import type { AgentTask, Env, Isolation, Preset, TaskSource } from '@openworld/ai'
-import { flags } from './cli.ts'
 
 const TASKS = join(REPO, 'games/openworld/ai/tasks/engine')
 /** what the workspace copies, at the same paths as here, and the names they are imported by */

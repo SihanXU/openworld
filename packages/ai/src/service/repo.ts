@@ -18,12 +18,12 @@ import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
+import { REPO } from '../node.ts'
 import { DockerEnv, LocalEnv, SANDBOX_LIMITS, chooseIsolation, hostUser, sandboxImage, sh, type Env, type Isolation } from '../agent/env.ts'
 import { type AgentTask } from '../agent/loop.ts'
 import type { EntityInfo, LibraryData, ModRequest, ModSpec, Ontology, Patch, Rule, RuleLibrary, StatusDef, TypeDef } from '@openworld/engine'
 
 const VALIDATE_CLI = fileURLToPath(new URL('./validate-cli.ts', import.meta.url))
-const REPO = fileURLToPath(new URL('../../../..', import.meta.url))
 const TSX = createRequire(import.meta.url).resolve('tsx/cli')
 const DIRS = ['rules', 'types', 'statuses']
 

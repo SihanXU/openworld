@@ -13,10 +13,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Game, RuleLibrary, patchRules, type UndefinedRecord } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
-import { modelFromEnv, type WorldEpisode } from '@openworld/ai'
+import { modelFromEnv, sleep, type WorldEpisode } from '@openworld/ai'
 import { buildFord } from '../../tools/src/demo/world.ts'
 import { SCENARIOS, W, ready, ticks, type Ford } from '../../tools/src/fordScenarios.ts'
-import { sleep } from './cli.ts'
 import { liveModder } from './live.ts'
 
 const model = modelFromEnv()

@@ -9,7 +9,7 @@ import type { Env } from './env.ts'
 import { Meter, type ChatMessage, type Model } from '../models/model.ts'
 import type { Episode, Harness, HookStage, SelfState } from './state.ts'
 import { agentTools } from './tools.ts'
-import { clip, wordsOf } from '../util.ts'
+import { clip, clipJson, wordsOf } from '../util.ts'
 
 export interface AgentTask {
   id: string
@@ -213,7 +213,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
         } catch (err) {
           out = `error: ${(err as Error).message}`
         }
-        ep.tools.push({ name: c.name, args: compactArgs(c.args), ms: Date.now() - t1 })
+        ep.tools.push({ name: c.name, args: clipJson(c.args, 600), ms: Date.now() - t1 })
         messages.push({ role: 'tool', toolCallId: c.id, name: c.name, content: clip(out, cfg.maxToolOutput) })
         if (submitted) break
       }
@@ -257,11 +257,6 @@ export async function gitDiff(env: Env): Promise<string> {
   // against where the workspace began: what the agent changed, committed or not
   const r = await env.exec(`git -c core.autocrlf=false diff --no-color $(git rev-parse -q --verify ${BASE_REF} || true)`, { timeoutMs: 60_000 })
   return r.stdout
-}
-
-function compactArgs(x: unknown): unknown {
-  const s = JSON.stringify(x ?? {})
-  return s.length > 600 ? `${s.slice(0, 600)}…` : x
 }
 
 /** Keep the conversation bounded: old tool results are cut first. */

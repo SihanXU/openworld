@@ -25,8 +25,7 @@ import { appendFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFile
 import { tmpdir } from 'node:os'
 import { join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { REPO, chooseIsolation, modelFromEnv, type Isolation, type Model, type TaskSource } from '@openworld/ai'
-import { flags } from './cli.ts'
+import { REPO, chooseIsolation, modelFromEnv, flags, type Isolation, type Model, type TaskSource } from '@openworld/ai'
 import { taskEnv, taskSource, toLF, type WorkspaceTask } from './engine-tasks.ts'
 
 export const DATA = join(REPO, 'var', 'ladder')

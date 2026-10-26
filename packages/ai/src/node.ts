@@ -1,14 +1,42 @@
-// A library's log in a file (library.ts `LogStore`): one JSON line per entry, its identity beside it
-// (`<file>.id`). Loaded by the package's Node entry, which lets a library be named by its file's path (and gives the
-// validation cache Node's own hash, faster than the one a browser has). One process writes a log: from its first write it
-// holds `<file>.lock` (its pid), and a log another process wrote since this one read it is never written (its seqs would
-// be taken twice), so `library remove` beside a running service is refused. Reading takes no lock.
+// What the AI has under Node and not in a browser: the repository it works in (its `.env` read once), the
+// self-state's files on disk (files.ts), and a library's log in a file (library.ts). The package's Node entry and its
+// command lines load this; a browser's worker never does (packages/runtime/test/browser-boundaries.test.ts).
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, truncateSync, unlinkSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, truncateSync, unlinkSync, writeFileSync } from 'node:fs'
 import { createHash, randomUUID } from 'node:crypto'
-import { useKeyHash, useLogFiles, type LogStore } from './library.ts'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { useDefaultFiles, type Files } from './agent/files.ts'
+import { useKeyHash, useLogFiles, type LogStore } from './library/library.ts'
 
+export const REPO = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
+
+// Local secrets (the model key) live in <repo>/.env, which is not committed. Variables already
+// set in the environment win.
+if (existsSync(join(REPO, '.env'))) process.loadEnvFile(join(REPO, '.env'))
+
+export const nodeFiles: Files = {
+  join: (...parts) => join(...parts),
+  exists: (p) => existsSync(p),
+  read: (p) => readFileSync(p, 'utf8'),
+  write: (p, text) => writeFileSync(p, text),
+  append: (p, text) => appendFileSync(p, text),
+  mkdir: (p) => void mkdirSync(p, { recursive: true }),
+  list: (p) => readdirSync(p),
+  copy: (from, to) => cpSync(from, to, { recursive: true }),
+  rename: (from, to) => renameSync(from, to),
+  remove: (p) => rmSync(p, { recursive: true, force: true }),
+  tempDir: (prefix) => mkdtempSync(join(tmpdir(), prefix)),
+}
+
+/**
+ * A library's log in a file (library.ts `LogStore`): one JSON line per entry, its identity beside it
+ * (`<file>.id`). Loaded by the package's Node entry, which lets a library be named by its file's path (and gives the
+ * validation cache Node's own hash, faster than the one a browser has). One process writes a log: from its first write it
+ * holds `<file>.lock` (its pid), and a log another process wrote since this one read it is never written (its seqs would
+ * be taken twice), so `library remove` beside a running service is refused. Reading takes no lock.
+ */
 export function fileLog(file: string): LogStore {
   const id = logIdentity(file)
   const size = () => (existsSync(file) ? statSync(file).size : 0)
@@ -128,5 +156,6 @@ function alive(pid: number): boolean {
   }
 }
 
+useDefaultFiles(() => nodeFiles)
 useLogFiles(fileLog)
 useKeyHash((text) => createHash('sha256').update(text).digest('hex'))

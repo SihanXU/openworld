@@ -1,7 +1,7 @@
 // The shared rule library (design.md §9): base rules from content plus every accepted patch,
 // kept as an append-only log (one JSON line per patch or removal) so the library at any point
 // can be rebuilt, rolled back or ablated. Clients pull the log; the modder validates against it.
-// The log is kept by a `LogStore`: a file under Node (library-file.ts, named by its path), or none (in memory:
+// The log is kept by a `LogStore`: a file under Node (node.ts, named by its path), or none (in memory:
 // a fork, or the player's own modder in a browser — docs/byok.md — whose answers the client's library keeps).
 
 import { connected, economySteps, freeLunch } from '../checks/economy.ts'
@@ -53,7 +53,7 @@ export interface LogStore {
 }
 
 let openFile: ((path: string) => LogStore) | undefined
-/** The validation cache's key of a text: `digest` in a browser, Node's own sha256 under Node (library-file.ts). */
+/** The validation cache's key of a text: `digest` in a browser, Node's own sha256 under Node (node.ts). */
 let keyOf: (text: string) => string = digest
 
 export function useKeyHash(hash: (text: string) => string): void {
@@ -74,7 +74,7 @@ export function newLogId(): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
 }
 
-/** How a log named by a file's path is opened (library-file.ts, loaded by the package's Node entry). */
+/** How a log named by a file's path is opened (node.ts, loaded by the package's Node entry). */
 export function useLogFiles(open: (path: string) => LogStore): void {
   openFile = open
 }

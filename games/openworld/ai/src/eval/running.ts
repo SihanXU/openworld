@@ -15,10 +15,9 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { AI_WAIT_MS, Game, RuleLibrary, TICKS_PER_HOUR, type MapChunk } from '@openworld/engine'
 import { BASE_RULES, FORMS, GAME, STORY_RULES, buildOntology, decodeChunk, wildChunkFor } from '@openworld-game/content'
-import { modelFromEnv, openModder } from '@openworld/ai'
+import { modelFromEnv, openModder, flags, sleep } from '@openworld/ai'
 import type { Model } from '@openworld/ai'
 import { buildFord } from '../../../tools/src/demo/world.ts'
-import { flags, sleep } from '../cli.ts'
 
 const opt = flags(process.argv.slice(2))
 const PLAYERS = Number(opt('players', '3'))

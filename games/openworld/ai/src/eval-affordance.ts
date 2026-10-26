@@ -11,9 +11,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { AGAIN_AFTER, textOf, type Engine } from '@openworld/engine'
-import { REPO, modelFromEnv } from '@openworld/ai'
+import { REPO, modelFromEnv, sleep } from '@openworld/ai'
 import { AFFORDANCE_CASES, askCase } from './eval/affordanceSet.ts'
-import { sleep } from './cli.ts'
 import { answering, episodesOf, follow, liveModder, rulesOf } from './live.ts'
 
 const model = modelFromEnv()

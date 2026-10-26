@@ -5,8 +5,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, isAbsolute, join } from 'node:path'
-import { AnthropicModel } from './anthropic.ts'
-import { OpenAICompatModel, ScriptedModel, effortOf, noAnthropicHere, parseJson, type ChatMessage, type ChatOptions, type Model, type ModelReply, type ProviderPin, type ToolCall, type ToolSpec } from './model.ts'
+import { AnthropicModel, OpenAICompatModel, ScriptedModel, effortOf, noAnthropicHere, parseJson, type ChatMessage, type ChatOptions, type Model, type ModelReply, type ProviderPin, type ToolCall, type ToolSpec } from './model.ts'
 
 // ---------------------------------------------------------------- Claude Code (headless)
 
@@ -268,7 +267,7 @@ export function scriptFromFile(path: string): ScriptedModel {
  * - `claude-code`: `claude -p`, signed in as the user. LSW_CLAUDE_MODEL (default claude-opus-5-5),
  *   LSW_CLAUDE_EFFORT (default low), LSW_CLAUDE_BIN (default `claude`). LSW_CLAUDE_FAST=1 (`--fast`)
  *   asks for fast mode; it applies to this backend only.
- * - `anthropic`: Anthropic's API with ANTHROPIC_API_KEY (anthropic.ts). LSW_CLAUDE_MODEL (default claude-opus-5-5) and
+ * - `anthropic`: Anthropic's API with ANTHROPIC_API_KEY (model.ts `AnthropicModel`). LSW_CLAUDE_MODEL (default claude-opus-5-5) and
  *   LSW_CLAUDE_EFFORT (default low), as for claude-code.
  * - `none`: no model; the modder answers from the shared library only.
  */

@@ -20,8 +20,8 @@ import { dirname, join, resolve } from 'node:path'
 import type { GameDef, WorldIndex } from '@openworld/engine'
 import { compileProject } from '@openworld/format/src/node.ts'
 import { scriptFromFile } from '../src/index.ts'
-import { REPO, loadGame, openModder } from '../src/service/open.ts'
-import { createModderServer } from '../src/service/server.ts'
+import { REPO } from '../src/node.ts'
+import { createModderServer, loadGame, openModder } from '../src/service/server.ts'
 
 const argv = process.argv.slice(2)
 const flag = (name: string): string | undefined => {

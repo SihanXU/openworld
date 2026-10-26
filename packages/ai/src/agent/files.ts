@@ -1,4 +1,4 @@
-// Where the self-state's files are (state.ts): a directory on disk under Node (files-node.ts), or files kept in
+// Where the self-state's files are (state.ts): a directory on disk under Node (node.ts), or files kept in
 // memory (`MemFiles`) where there is no disk — a browser's worker running the player's own modder (docs/byok.md),
 // which saves them where it likes (`entries`, `onChange`). The paths are the caller's: `join` makes them.
 
@@ -25,7 +25,7 @@ export interface Files {
 
 let fallback: (() => Files) | undefined
 
-/** The files a caller gets when it names none: Node's disk once files-node.ts is loaded (the package's entry loads it). */
+/** The files a caller gets when it names none: Node's disk once node.ts is loaded (the package's Node entry loads it). */
 export function defaultFiles(): Files {
   if (!fallback) throw new Error('no files here: pass a Files (MemFiles in a browser), or load @openworld/ai for the disk')
   return fallback()

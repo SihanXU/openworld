@@ -175,7 +175,7 @@ describe('the outer loop', () => {
 
   it('keeps a hook that removes wasted steps, after selection and confirmation', { timeout: 120_000 }, async () => {
     const state = await withHistory(4)
-    const { RELATED_CODE_HOOK } = await import('../src/agent/presets.ts')
+    const { RELATED_CODE_HOOK } = await import('../src/agent/outer.ts')
     const proposal = { kind: 'hook', stage: 'start', name: 'related-code', code: RELATED_CODE_HOOK, rationale: 'every task starts with three list_dir calls' }
     const work = engineer({ wander: 3, latencyMs: 300 })
     const model = new ScriptedModel((messages, opts) => (opts.purpose === 'propose' ? proposal : work.chat(messages, opts)))

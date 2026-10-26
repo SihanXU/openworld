@@ -13,11 +13,10 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { changesNothing, modelFromEnv, openModder, type ChatOptions, type WorldEpisode } from '@openworld/ai'
+import { changesNothing, modelFromEnv, openModder, flags, type ChatOptions, type WorldEpisode } from '@openworld/ai'
 import { GAME } from '@openworld-game/content'
 import { sweep } from '../../tools/src/coverage.ts'
 import { cellRequest, pick } from './curriculum.ts'
-import { flags } from './cli.ts'
 
 function args(argv: string[]) {
   const get = flags(argv)

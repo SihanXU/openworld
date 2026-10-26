@@ -27,7 +27,7 @@ describe('the AI package', () => {
   it('holds its code in src, its entry points in scripts, its tests in test, and nothing loose', () => {
     expect(readdirSync(PKG).sort()).toEqual(['docs', 'fixtures', 'package.json', 'sandbox', 'scripts', 'src', 'test', 'tsconfig.json'])
     const loose = readdirSync(SRC, { withFileTypes: true }).filter((d) => !d.isDirectory()).map((d) => d.name)
-    expect(loose.sort()).toEqual(['browser.ts', 'index.ts', 'util.ts'])
+    expect(loose.sort()).toEqual(['browser.ts', 'index.ts', 'node.ts', 'util.ts'])
     const folders = readdirSync(SRC, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
     expect(folders.sort()).toEqual([...LAYERS].sort())
   })

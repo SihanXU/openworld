@@ -19,6 +19,7 @@
 // JSON; served by `serve`, to its own /submit) and ?cc=<code> (at the end the participant is sent back to Prolific with
 // that completion code); the results can also be saved as a file.
 
+import { flags } from '@openworld/ai'
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { dirname, join } from 'node:path'
@@ -32,7 +33,6 @@ import { CATALOG } from '../../../wiki/src/bundle.ts'
 import { decodePng, encodePng } from '../../../wiki/src/png.ts'
 import { trueskill, type Choice } from './trueskill.ts'
 import type { Cell } from '../../../tools/src/coverage.ts'
-import { flags } from '../cli.ts'
 
 const argv = process.argv.slice(2)
 const opt = flags(argv)

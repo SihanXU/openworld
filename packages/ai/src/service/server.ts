@@ -1,4 +1,6 @@
-// The modder service: one small HTTP API next to the static game (design.md §11).
+// The modder service: a modder opened for a world (its game's ontology and base rules, handed over: the modder imports
+// no game; the shared library file and the self-state directory under one data directory), and one small HTTP API
+// next to the static game (design.md §11).
 //   GET  /health          model, library and self-state at a glance
 //   POST /resolve         ResolveBody → ResolveReply (a validated patch, or why not); `profile: offline` from the editor
 //                         (this host only: from elsewhere it is answered live)
@@ -16,11 +18,27 @@
 //   POST /quality/detect  start a detection (this host only: it costs model calls)
 // "This host only": from a loopback address, with no Origin or a localhost one (not a page on another site), as JSON.
 
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server } from 'node:http'
-import { join } from 'node:path'
-import { AI_WAIT_MS, type Patch, type ResolveBody } from '@openworld/engine'
-import type { DraftBody, Modder, ThingBody } from '../modder/pipeline.ts'
+import { join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { AI_WAIT_MS, type GameDef, type Patch, type ResolveBody } from '@openworld/engine'
+import { gameDefOf, type Bundle } from '@openworld/format'
+import { compileProject } from '@openworld/format/src/node.ts'
+// the engine's official modules, which a game's ontology may name (docs/engine-split.md S3)
+import '@openworld/modules'
+import { REPO } from '../node.ts'
+import { runAgent } from '../agent/loop.ts'
+import { SelfState } from '../agent/state.ts'
+import { WorldLibrary } from '../library/library.ts'
+import { modelFromEnv } from '../models/model-node.ts'
+import type { Model } from '../models/model.ts'
 import { Detector } from '../modder/detect.ts'
+import { Modder, useOffline, type DraftBody, type ThingBody } from '../modder/pipeline.ts'
+import { materializeWorld } from './repo.ts'
+
+// the offline profile's repo agent, handed to the modder under Node (pipeline.ts `useOffline`)
+useOffline({ runAgent, materializeWorld })
 
 export interface ServerOptions {
   /** Access-Control-Allow-Origin (default *: the client is a static page on another origin). */
@@ -151,4 +169,44 @@ function readJson(req: IncomingMessage, max: number): Promise<unknown> {
     })
     req.on('error', reject)
   })
+}
+
+// ---------------------------------------------------------------- opening a modder for a world
+
+export interface OpenOptions {
+  /** The game whose world this modder patches. */
+  game: GameDef
+  /** Holds library.jsonl and modder-state/ (default: $LSW_DATA or <repo>/var). */
+  data?: string
+  /** Default: from the environment (model.ts modelFromEnv); null forces none. */
+  model?: Model | null
+  log?: (line: string) => void
+}
+
+export function openModder(o: OpenOptions): Modder {
+  const data = o.data ?? process.env.LSW_DATA ?? join(REPO, 'var')
+  const library = new WorldLibrary(o.game.ontology(), o.game.rules, join(data, 'library.jsonl'))
+  const state = SelfState.open(join(data, 'modder-state'))
+  const model = o.model === null ? undefined : (o.model ?? modelFromEnv())
+  return new Modder({ library, state, model, log: o.log, probes: o.game.probes, data })
+}
+
+/**
+ * A game's definition, for the command lines: a bundle (its bundle.json, or the folder that holds one), a
+ * project's folder (compiled: its game.json), or a module (its default export, or `GAME`).
+ */
+export async function loadGame(module: string): Promise<GameDef> {
+  const at = resolve(REPO, module)
+  const dir = existsSync(at) && statSync(at).isDirectory()
+  if (at.endsWith('.json') || (dir && existsSync(join(at, 'bundle.json')))) return gameDefOf(JSON.parse(readFileSync(at.endsWith('.json') ? at : join(at, 'bundle.json'), 'utf8')) as Bundle)
+  if (dir && existsSync(join(at, 'game.json'))) {
+    const c = compileProject(at)
+    const errors = c.problems.filter((p) => p.level === 'error')
+    if (errors.length) throw new Error(`${module} does not compile: ${errors.map((p) => p.message).join('; ')}`)
+    return gameDefOf(c.bundle)
+  }
+  const m = (await import(pathToFileURL(resolve(REPO, module)).href)) as { default?: GameDef; GAME?: GameDef }
+  const game = m.default ?? m.GAME
+  if (!game) throw new Error(`${module} exports no game (a default export or GAME)`)
+  return game
 }

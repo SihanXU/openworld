@@ -5,8 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { patchRules, type Engine, type ModPort, type Patch, type Rule } from '@openworld/engine'
 import { GAME } from '@openworld-game/content'
-import { openModder, type Harness, type Modder, type Model, type WorldEpisode } from '@openworld/ai'
-import { sleep } from './cli.ts'
+import { openModder, sleep, type Harness, type Modder, type Model, type WorldEpisode } from '@openworld/ai'
 
 /** A modder in the live profile on a fresh library and self-state (`prefix` in the temp dir): review, reflection and escalation off. */
 export function liveModder(model: Model, prefix: string, label: string, more: Partial<Harness> = {}): Modder {
