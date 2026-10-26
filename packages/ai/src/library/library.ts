@@ -4,6 +4,7 @@
 // The log is kept by a `LogStore`: a file under Node (library-file.ts, named by its path), or none (in memory:
 // a fork, or the player's own modder in a browser — docs/byok.md — whose answers the client's library keeps).
 
+import { withPatch } from '../checks/audit.ts'
 import { connected, economySteps, freeLunch } from '../checks/economy.ts'
 import {
   RuleLibrary,
@@ -52,7 +53,7 @@ export interface LogStore {
 
 let openFile: ((path: string) => LogStore) | undefined
 /** The validation cache's key of a text: `digest` in a browser, Node's own sha256 under Node (library-file.ts). */
-let keyOf: (text: string) => string = (text) => digest(text)
+let keyOf: (text: string) => string = digest
 
 export function useKeyHash(hash: (text: string) => string): void {
   keyOf = hash
@@ -260,12 +261,7 @@ export class WorldLibrary {
   }
 
   private addedTests(patch: Patch, lib: RuleLibrary, proof: { tests: string[][]; result: ValidationResult }): ValidationResult {
-    const cand = lib.clone()
-    for (const a of patch.artifacts) {
-      if (a.kind === 'type') cand.types = cand.types.filter((t) => t.id !== a.type.id).concat(a.type)
-      if (a.kind === 'status') cand.statuses = cand.statuses.filter((s) => s.id !== a.status.id).concat(a.status)
-      if (a.kind === 'rule') cand.add({ ...a.rule, source: { origin: 'patch' } })
-    }
+    const cand = withPatch(lib, patch)
     const result = structuredClone(proof.result)
     const rules = patch.artifacts.flatMap((a) => a.kind === 'rule' ? [a.rule] : [])
     for (const [i, r] of rules.entries()) {
@@ -334,8 +330,7 @@ export class WorldLibrary {
     for (const id of replaces) if (this.lib.rules.get(id)?.source?.origin === 'patch') this.remove(id, now)
     const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : []))
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), patch, rules, request: req?.id, scenario: req?.scenario, ...(replaces.length && { replaces }) }
-    this.apply(entry)
-    this.persist(entry)
+    this.write(entry)
     return { ok: true, result, rules, seq: entry.seq }
   }
 
@@ -449,23 +444,20 @@ export class WorldLibrary {
   /** Forget a learned status (the log keeps both its addition and its removal). */
   removeStatus(id: string, now = new Date()): void {
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), removeStatus: id }
-    this.apply(entry)
-    this.persist(entry)
+    this.write(entry)
   }
 
   /** Forget a learned type (the log keeps both its addition and its removal). */
   removeType(id: string, now = new Date()): void {
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), removeType: id }
-    this.apply(entry)
-    this.persist(entry)
+    this.write(entry)
   }
 
   /** Roll a patch rule back (the log keeps both the addition and the removal). */
   remove(ruleId: string, now = new Date()): boolean {
     if (this.lib.rules.get(ruleId)?.source?.origin !== 'patch') return false
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), remove: ruleId }
-    this.apply(entry)
-    this.persist(entry)
+    this.write(entry)
     return true
   }
 
@@ -502,7 +494,9 @@ export class WorldLibrary {
     if (first && sc) this.asked.push({ scenario: sc, rule: first })
   }
 
-  private persist(e: PatchLogEntry): void {
+  /** A new entry: applied, and appended to the log's store. */
+  private write(e: PatchLogEntry): void {
+    this.apply(e)
     this.store?.append(JSON.stringify(e))
   }
 }
