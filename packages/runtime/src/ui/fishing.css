@@ -1,3 +1,4 @@
+@layer legacy {
 #hud > .fishing-hud {
   --fishing-bottom-clearance: clamp(116px, 16vh, 140px);
   position: fixed;
@@ -154,4 +155,6 @@
   .fishing-hud__water { height: clamp(150px, 30vh, 188px); }
   .fishing-hud[data-phase='waiting'] .fishing-hud__water,
   .fishing-hud[data-phase='bite'] .fishing-hud__water { height: 62px; }
+}
+
 }

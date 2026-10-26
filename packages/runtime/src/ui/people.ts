@@ -1,3 +1,4 @@
+import { mountWindow } from './components/index.ts'
 // The people's panels (docs/npc-sandbox.md §2.10, §2.15): a merchant's trade — its goods at its prices, and what it
 // would pay for what one carries —, a person's pockets open to a sneaking hand — what they carry, to take,
 // and what one carries, to slip in —, and a gift for someone — what they like best, once they have said it, and
@@ -84,6 +85,7 @@ export class PeoplePanels {
       <div class="pp-title">${L('What you carry', '你身上的东西')}</div>
       <div class="gf-grid">${cards}</div>
       <div class="gf-foot muted">${L('The dearer the gift, the warmer the thanks. The thing they like best delights them once a day.', '礼物越贵重，他越高兴。送他最喜欢的东西，好感大涨，每天一次。')}</div>`
+    mountWindow($('#giftSheet'), { size: 'lg', onClose: () => this.send.closeGift() })
     $('#giftX').onclick = () => this.send.closeGift()
     $('#giftSheet').querySelectorAll<HTMLButtonElement>('[data-gift]').forEach((b) => (b.onclick = () => this.send.gift(b.dataset.gift!)))
     // (the favourite's picture: a thing of its kind, drawn by its type's sprite)
@@ -128,6 +130,7 @@ export class PeoplePanels {
         <div><div class="pp-title">${L('Their goods', '他们的货')}</div>${goods}</div>
         <div><div class="pp-title">${L('What they would pay', '他们愿意收的')}</div>${offers}</div>
       </div>`
+    mountWindow($('#tradeSheet'), { size: 'lg', onClose: () => this.send.closeTrade() })
     $('#tradeX').onclick = () => this.send.closeTrade()
     $('#tradeSheet').querySelectorAll<HTMLButtonElement>('[data-buy]').forEach((b) => (b.onclick = () => this.send.trade(b.dataset.buy!, true)))
     $('#tradeSheet').querySelectorAll<HTMLButtonElement>('[data-sell]').forEach((b) => (b.onclick = () => this.send.trade(b.dataset.sell!, false)))
@@ -153,6 +156,7 @@ export class PeoplePanels {
         <div><div class="pp-title">${L('What they carry', '他们身上的')}</div>${theirs}</div>
         <div><div class="pp-title">${L('What you carry', '你身上的')}</div>${yours}</div>
       </div>`
+    mountWindow($('#pocketsSheet'), { size: 'lg', onClose: () => this.send.closePockets() })
     $('#pocketsX').onclick = () => this.send.closePockets()
     $('#pocketsSheet').querySelectorAll<HTMLButtonElement>('[data-take]').forEach((b) => (b.onclick = () => this.send.pocket(b.dataset.take!, true)))
     $('#pocketsSheet').querySelectorAll<HTMLButtonElement>('[data-plant]').forEach((b) => (b.onclick = () => this.send.pocket(b.dataset.plant!, false)))

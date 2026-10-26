@@ -1,3 +1,4 @@
+import { mountWindow, confirmDialog } from './components/index.ts'
 // The cover (title screen): the game's world itself behind it — a place of the game's, drawn live by the renderer
 // under a camera drifting slowly about it (the worker's backdrop, a world with no story) —, a shade over its left side,
 // the title large and the menu under it: continue the latest slot, a new game in a slot, load a slot, settings. The
@@ -67,6 +68,9 @@ export class Cover {
   private chosen: Item = 'new'
   /** The difficulty a new game starts at (Minecraft's choice): normal unless chosen. */
   private difficulty: Difficulty = 'normal'
+  /** Appearance and the save destination are separate pages of the same new-game window. */
+  private newStep: 'look' | 'journey' = 'look'
+  private newSlot: Slot = 1
   /** The place behind has drawn its first frame (its time there has begun), and the veil over it is lifted. */
   private drawn = false
   private lit = false
@@ -227,6 +231,8 @@ export class Cover {
   }
 
   private render(): void {
+    this.creator?.dispose()
+    this.creator = undefined
     const latest = this.latest()
     // what the game's cover shows (ClientGame.cover): its title, its world behind, its companion
     const cv = game().cover ?? {}
@@ -251,14 +257,17 @@ export class Cover {
           <div class="cv-status"></div>
         </div>
         <div class="cv-loader" role="status" aria-label="${esc(t('cvLoading'))}"><i></i></div>
-        ${this.panel ? `<div class="cv-dim"></div><div class="cv-panel wood">${this.panelHtml()}</div>` : ''}
+        ${this.panel ? `<div class="cv-dim"></div><div class="cv-panel wood${this.panel === 'new' ? ` cv-new cv-new--${this.newStep}` : ''}">${this.panelHtml()}</div>` : ''}
       </div>`
     $('#intro').querySelectorAll<HTMLButtonElement>('[data-item]').forEach((b) => {
       b.onmouseenter = () => this.choose(b.dataset.item as Item)
       b.onclick = () => this.act(b.dataset.item as Item)
     })
     this.placePip()
-    if (this.panel) this.wirePanel()
+    if (this.panel) {
+      mountWindow($('#intro').querySelector<HTMLElement>('.cv-panel')!, { size: 'lg', view: this.panel === 'new' ? `new-${this.newStep}` : this.panel, onClose: () => { this.panel = undefined; this.render() } })
+      this.wirePanel()
+    }
   }
 
   /** The companion beside the line chosen. */
@@ -279,6 +288,10 @@ export class Cover {
     const latest = this.latest()
     if (i === 'continue' && latest) return this.busy(), this.on.start(latest, this.slots[latest - 1])
     if (i === 'load' && !this.slots.some(Boolean)) return
+    if (i === 'new') {
+      this.newStep = Object.keys(game().looks.bodies).length ? 'look' : 'journey'
+      this.newSlot = SLOTS.find((slot) => !this.slots[slot - 1]) ?? 1
+    }
     this.panel = i === 'continue' ? undefined : i
     this.render()
   }
@@ -307,7 +320,7 @@ export class Cover {
   }
 
   private panelHtml(): string {
-    const name = { settings: t('cvSettings'), keys: t('keysSet'), new: t('cvPickNew'), load: t('cvPickLoad'), model: t('aiFirstTitle') }[this.panel!]
+    const name = { settings: t('cvSettings'), keys: t('keysSet'), new: locale.value === 'zh' ? '开始旅程' : 'A new journey', load: t('cvPickLoad'), model: t('aiFirstTitle') }[this.panel!]
     const head = `<div class="cv-phead"><b>${name}</b>${this.panel === 'keys' ? '' : '<button class="x" id="cvClose">✕</button>'}</div>`
     if (this.panel === 'keys') return head + '<div id="cvKeys"></div>'
     if (this.panel === 'settings') return head + this.settingsHtml()
@@ -316,10 +329,11 @@ export class Cover {
         ${this.on.ai.own?.html(false) ?? ''}
         <div class="cv-skip"><button class="cv-btn" id="cvSkipModel">${t('aiSkip')}</button><small>${t('aiSkipTip')}</small></div>
       </div>`
+    if (this.panel === 'new') return head + this.newGameHtml()
     const when = (iso: string) => new Date(iso).toLocaleString(locale.value === 'zh' ? 'zh-CN' : 'en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     const cards = SLOTS.map((s) => {
       const d = this.slots[s - 1]
-      const main = this.panel === 'new' ? `<button class="cv-btn primary" data-act="new" data-slot="${s}">${d ? t('cvOverwrite') : t('cvStartHere')}</button>` : d && !d.summary?.ended ? `<button class="cv-btn primary" data-act="load" data-slot="${s}">${t('cvLoadThis')}</button>` : ''
+      const main = d && !d.summary?.ended ? `<button class="cv-btn primary" data-act="load" data-slot="${s}">${t('cvLoadThis')}</button>` : ''
       return `<div class="cv-slot${d ? '' : ' empty'}">
         <div class="cv-sname">${t('cvSlot').replace('{n}', String(s))}</div>
         <div class="cv-sinfo">${d ? `<div>${esc(this.line(d.summary))}</div><div class="muted">${t('cvSavedAt')} ${when(d.savedAt)}</div>` : `<div class="muted">${t('cvEmpty')}</div>`}</div>
@@ -330,20 +344,35 @@ export class Cover {
         </div>
       </div>`
     }).join('')
-    // a new game's difficulty (Minecraft's): what a fall costs
+    return head + `<div class="cv-slots">${cards}</div><div class="cv-note muted">${t('cvNote')}</div>`
+  }
+
+  private newGameHtml(): string {
     const zh = locale.value === 'zh'
+    const hasLook = !!Object.keys(game().looks.bodies).length
+    const lookStep = this.newStep === 'look' && hasLook
+    const step = (id: 'look' | 'journey', number: number, label: string) => `<button type="button" class="cv-step${this.newStep === id ? ' on' : ''}" data-new-step="${id}" aria-current="${this.newStep === id ? 'step' : 'false'}"><span class="cv-step-number" aria-hidden="true">${number}</span>${label}</button>`
+    const nav = hasLook ? `<nav class="ui-tabs cv-steps" aria-label="${zh ? '创建角色' : 'Create your traveller'}">${step('look', 1, zh ? '装扮角色' : 'Your traveller')}${step('journey', 2, zh ? '选择旅程' : 'Your journey')}</nav>` : ''
+    const tutorial = game().cover?.tutorial ? `<button type="button" class="cv-btn cv-tutorial" id="cvTutorial" title="${esc(t('cvTutorialTip'))}"><span class="cv-book-mark" aria-hidden="true"></span>${zh ? '先玩教学' : 'Play the tutorial'}</button>` : ''
+    if (lookStep) return `${nav}<div class="cv-look-page" id="cvLookPage"><div id="cvCreator"></div></div><footer class="cv-new-footer">${tutorial}<button type="button" class="cv-btn primary cv-continue" id="cvNext">${zh ? '下一步' : 'Next'}<span class="cv-next-mark" aria-hidden="true"></span></button></footer>`
     const levels: [Difficulty, string, string][] = [
-      ['easy', zh ? '简单' : 'Easy', zh ? '倒下后原地起身，东西都在' : 'get up where you fell, with everything'],
-      ['normal', zh ? '普通' : 'Normal', zh ? '在落脚处复活，身上的东西留在倒下的地方' : 'respawn at home; what you carried stays where you fell'],
-      ['hardcore', zh ? '极限' : 'Hardcore', zh ? '只有一条命' : 'one life'],
+      ['easy', zh ? '简单' : 'Easy', zh ? '倒下后原地起身，东西都在。' : 'Get back up where you fell. Keep everything.'],
+      ['normal', zh ? '普通' : 'Normal', zh ? '在落脚处复活，物品留在倒下的地方。' : 'Return home. Your belongings stay where you fell.'],
+      ['hardcore', zh ? '极限' : 'Hardcore', zh ? '只有一条命，珍惜每一步。' : 'One life. Make every step count.'],
     ]
-    // a new game's traveller: their look, made here (docs/looks.md)
-    // (a game without a look table keeps its travellers' sheets: nothing to make)
-    const maker = this.panel === 'new' && Object.keys(game().looks.bodies).length ? `<div class="cv-plabel">${t('cvYourLook')}</div><div id="cvCreator"></div>` : ''
-    const pick = this.panel === 'new' ? `<div class="cv-diff">${levels.map(([id, name, note]) => `<button class="cv-btn small${this.difficulty === id ? ' primary' : ''}" data-diff="${id}">${name}<small>${note}</small></button>`).join('')}</div>` : ''
-    // the tutorial is its own run, offered as a new game begins: nothing saved, and walking out of it ends it
-    const tutorial = this.panel === 'new' && game().cover?.tutorial ? `<button class="cv-btn cv-tutorial" id="cvTutorial">${t('cvTutorial')}<small>${t('cvTutorialTip')}</small></button>` : ''
-    return head + tutorial + maker + pick + `<div class="cv-slots">${cards}</div><div class="cv-note muted">${t('cvNote')}</div>`
+    const pick = `<section class="cv-journey-section" aria-labelledby="cvDifficultyTitle"><h2 id="cvDifficultyTitle">${zh ? '以自己的节奏冒险' : 'Adventure at your own pace'}</h2><div class="cv-diff">${levels.map(([id, name, note]) => `<button type="button" class="cv-difficulty-card${this.difficulty === id ? ' chosen' : ''}" data-diff="${id}" aria-pressed="${this.difficulty === id}"><span class="cv-difficulty-mark cv-difficulty-mark--${id}" aria-hidden="true"></span><span class="cv-difficulty-copy"><b>${name}</b><small>${note}</small></span><span class="cv-choice-check" aria-hidden="true"></span></button>`).join('')}</div></section>`
+    const cards = SLOTS.map((slot) => {
+      const data = this.slots[slot - 1]
+      const selected = this.newSlot === slot
+      const label = t('cvSlot').replace('{n}', String(slot))
+      return `<div class="cv-slot cv-save-choice${selected ? ' selected' : ''}${data ? '' : ' empty'}">
+        <button type="button" class="cv-slot-pick" data-pick-slot="${slot}" aria-pressed="${selected}"><span class="cv-save-mark" aria-hidden="true"><i></i></span><span class="cv-slot-copy"><b>${label}</b><small>${data ? esc(this.line(data.summary)) : zh ? '一段新的故事' : 'A fresh story'}</small></span><span class="cv-choice-check" aria-hidden="true"></span></button>
+        <div class="cv-sacts">${data ? `<button type="button" class="cv-btn small" data-act="export" data-slot="${slot}" title="${esc(t('cvExportTip'))}">${t('cvExport')}</button>` : `<span class="cv-empty-label">${t('cvEmpty')}</span>`}<button type="button" class="cv-btn small" data-act="import" data-slot="${slot}" title="${esc(t('cvImportTip'))}">${t('cvImport')}</button>${data ? `<button type="button" class="cv-btn small danger" data-act="delete" data-slot="${slot}">${t('cvDelete')}</button>` : ''}</div>
+      </div>`
+    }).join('')
+    const saves = `<section class="cv-journey-section" aria-labelledby="cvSaveTitle"><h2 id="cvSaveTitle">${zh ? '为故事留一个位置' : 'A place for your story'}</h2><div class="cv-slots cv-save-choices">${cards}</div><p class="cv-note muted">${t('cvNote')}</p></section>`
+    const footer = `<footer class="cv-new-footer">${hasLook ? `<button type="button" class="cv-btn cv-back" id="cvBack"><span class="cv-back-mark" aria-hidden="true"></span>${zh ? '返回装扮' : 'Back'}</button>` : tutorial}<span class="cv-start-note">${t('cvSlot').replace('{n}', String(this.newSlot))} · ${levels.find(([id]) => id === this.difficulty)![1]}</span><button type="button" class="cv-btn primary cv-continue" data-act="new" data-start="${this.newSlot}" data-slot="${this.newSlot}">${this.slots[this.newSlot - 1] ? zh ? '覆盖并出发' : 'Overwrite & begin' : zh ? '开始冒险' : 'Begin adventure'}<span class="cv-next-mark" aria-hidden="true"></span></button></footer>`
+    return nav + `<div class="cv-journey-page">${pick}${saves}</div>` + footer
   }
 
   private settingsHtml(): string {
@@ -396,6 +425,15 @@ export class Cover {
       return
     }
     document.querySelector<HTMLButtonElement>('#cvTutorial')?.addEventListener('click', () => (this.busy(), this.on.tutorial()))
+    const showStep = (step: 'look' | 'journey') => {
+      this.newStep = step
+      this.render()
+      document.querySelector<HTMLButtonElement>(`#intro [data-new-step="${step}"]`)?.focus({ preventScroll: true })
+    }
+    document.querySelector<HTMLButtonElement>('#cvNext')?.addEventListener('click', () => showStep('journey'))
+    document.querySelector<HTMLButtonElement>('#cvBack')?.addEventListener('click', () => showStep('look'))
+    document.querySelectorAll<HTMLButtonElement>('#intro [data-new-step]').forEach((button) => (button.onclick = () => showStep(button.dataset.newStep as 'look' | 'journey')))
+    document.querySelectorAll<HTMLButtonElement>('#intro [data-pick-slot]').forEach((button) => (button.onclick = () => { this.newSlot = Number(button.dataset.pickSlot) as Slot; this.render() }))
     document.querySelectorAll<HTMLButtonElement>('#intro [data-diff]').forEach((b) => (b.onclick = () => ((this.difficulty = b.dataset.diff as Difficulty), this.render())))
     document.querySelectorAll<HTMLButtonElement>('#intro [data-act]').forEach((b) => {
       const slot = Number(b.dataset.slot) as Slot
@@ -406,7 +444,7 @@ export class Cover {
             if (d && !d.summary?.ended) (this.busy(), this.on.start(slot, d))
             return
           case 'new':
-            if (d && !confirm(t('cvConfirmOverwrite').replace('{n}', String(slot)))) return
+            if (d && !await confirmDialog(t('cvConfirmOverwrite').replace('{n}', String(slot)), { danger: true })) return
             this.busy()
             return this.on.start(slot, undefined, { difficulty: this.difficulty, look: this.look })
           case 'export':
@@ -415,7 +453,7 @@ export class Cover {
           case 'import':
             try {
               const data = await pickSaveFile()
-              if (d && !confirm(t('cvConfirmOverwrite').replace('{n}', String(slot)))) return
+              if (d && !await confirmDialog(t('cvConfirmOverwrite').replace('{n}', String(slot)), { danger: true })) return
               await writeSlot(this.world, slot, data)
             } catch (err) {
               if ((err as Error).message !== 'no file') alert(`${t('cvBadFile')}\n${(err as Error).message}`)
@@ -423,7 +461,7 @@ export class Cover {
             }
             break
           case 'delete':
-            if (!confirm(t('cvConfirmDelete').replace('{n}', String(slot)))) return
+            if (!await confirmDialog(t('cvConfirmDelete').replace('{n}', String(slot)), { danger: true })) return
             await deleteSlot(this.world, slot)
             break
         }

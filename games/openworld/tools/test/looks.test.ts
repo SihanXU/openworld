@@ -200,6 +200,25 @@ describe('the portrait', () => {
     expect(top({ body: 'man', parts: { outfit: 'outfit.travel' }, colors: {} })).toEqual([0, 0, 0])
   })
 
+  it('the fringe over the eyes: where the front hair is opaque, no eye, brow or lash of the face shows', () => {
+    // a 10x10 canvas: a face whose eyes (zone 2) fill it; the front hair (blue paint, zone 0) over its left half
+    const face: LayerPixels = { paint: new Uint8Array(400), value: new Uint8Array(400) }
+    for (let i = 0; i < 100; i++) face.value.set([180, 80, 0, 255], i * 4)
+    const hair: LayerPixels = { paint: new Uint8Array(400), value: new Uint8Array(400) }
+    for (let y = 0; y < 10; y++) for (let x = 0; x < 5; x++) (hair.paint.set([0, 0, 255, 255], (y * 10 + x) * 4), hair.value.set([180, 0, 0, 255], (y * 10 + x) * 4))
+    const at = (file: string, z: string, zones: string[]) => ({ file, x: 0, y: 0, w: 10, h: 10, z, zones })
+    const m: PortraitManifest = {
+      w: 10,
+      h: 10,
+      bodies: { woman: { layers: [], bust: { x: 0, y: 0, w: 10, h: 10 } } },
+      parts: { 'face.soft': { woman: { layers: [at('face', 'face', ['skin', 'eyes'])] } }, 'hair.long': { woman: { layers: [at('hair', 'hair', [])] } } },
+    }
+    const px: Record<string, LayerPixels> = { face, hair }
+    const fig = composePortrait(m, { body: 'woman', parts: { face: 'face.soft', hair: 'hair.long' }, colors: { eyes: 'ember' } }, undefined, (f) => px[f])
+    expect([...fig.subarray((5 * 10 + 2) * 4, (5 * 10 + 2) * 4 + 3)], 'the strand over the eye').toEqual([0, 0, 255])
+    expect(fig[(5 * 10 + 7) * 4 + 2], 'the eye where no strand is').not.toBe(255)
+  })
+
   it('a covering hat: the hair is under it above its brim, beside it too, and comes out from under it below', () => {
     // a 40x20 canvas: hair (blue) everywhere; a cap (red) at columns 15..24, rows 0..5 (its brim at row 5)
     const fill = (w: number, h: number, rgb: number[]): LayerPixels => {

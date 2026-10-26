@@ -336,8 +336,25 @@ class Builder:
             if found is not None:
                 yy, xx = np.mgrid[0:H, 0:W]
                 # each eye about its iris (w its diameter): the white and the lashes either side, the lids
+                about = np.zeros((H, W), bool)
+                # but a strand of the fringe crossing an eye is the hair's, drawn over the eye (2026-10-26: cut out, the
+                # face's eyes showed through the fringe): over the eye, what is the hair's grey and joined to the hair
+                # outside the eye — of an eye the edit hid (most of it changed: the hair over it), all of it; of one it
+                # left, only the hair's grey it changed (the base's grey iris is no strand)
+                _, hs_, hv_ = hsv(img)
+                changed_ = np.abs(img - base).max(axis=2) >= 28
+                greyish = (hs_ < 0.22) & (hv_ > 0.25) & (hv_ < 0.85)
+                strand = np.zeros((H, W), bool)
                 for x, y, w, h in found.boxes:
-                    reg &= ((xx - x - w / 2) / (w * 1.25)) ** 2 + ((yy - y - h / 2) / (h * 0.8)) ** 2 > 1
+                    eye = ((xx - x - w / 2) / (w * 1.25)) ** 2 + ((yy - y - h / 2) / (h * 0.8)) ** 2 <= 1
+                    about |= eye
+                    hidden = changed_[eye].mean() > 0.5
+                    # an eye the edit hid is all the hair's, its strands' ink lines too
+                    strand |= eye & reg & (True if hidden else greyish & changed_)
+                outside = reg & ~about
+                lab, n = ndi.label(strand | outside, structure=np.ones((3, 3), bool))
+                joined = np.isin(lab, np.unique(lab[outside & (lab > 0)]))
+                reg &= ~about | (strand & joined)
                 brows = fr.rows(fr.top + int(0.3 * (fr.neck - fr.top)), int(min(b[1] for b in found.boxes)))
                 reg &= ~(brows & (np.abs(img - base).max(axis=2) < 28))
             # on the face's bare skin (between the ears, from the brows to the chin), hair is only what is clearly darker

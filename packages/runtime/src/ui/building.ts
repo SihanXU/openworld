@@ -3,6 +3,8 @@ import { game, ontology, perGame } from '../game.ts'
 import type { Tile, ToWorker } from '../protocol.ts'
 import { esc, kbd, locale, tx } from './common.ts'
 import { artEpoch } from '../render/assets.ts'
+import { mountCloseButton } from './components/window.ts'
+import { choiceTile } from './components/primitives.ts'
 
 /** What the palette offers: a placement recipe (a campfire, a chest, sowing), or setting a built thing down (`put:<type>`). */
 interface Entry {
@@ -111,15 +113,28 @@ export class BuildingMode {
       if (button.dataset.category) {
         this.category = button.dataset.category as PlacementRecipe['category']
         this.selected = this.entries()[0] ?? NOTHING
+        const content = this.panel.querySelector('.build-content')
+        if (content) content.scrollTop = 0
         this.render()
+        this.panel.querySelector<HTMLButtonElement>(`[data-category="${this.category}"]`)?.focus({ preventScroll: true })
       } else if (button.dataset.recipe) {
         this.selected = this.entries().find((r) => r.id === button.dataset.recipe) ?? this.selected
         if (!lays(this.selected.put)) this.up = false
         this.onView?.(this.open, this.ceiling())
         this.preview = undefined
-        this.render()
+        this.panel.querySelectorAll<HTMLButtonElement>('[data-recipe]').forEach((choice) => {
+          const selected = choice.dataset.recipe === this.selected.id
+          choice.classList.toggle('chosen', selected)
+          choice.setAttribute('aria-pressed', String(selected))
+        })
+        this.setArt(this.selected.sprite)
+        this.details()
       }
       this.refreshAim(true)
+    })
+    // Native button selection and focus navigation belong to this palette, not world actions.
+    for (const type of ['keydown', 'keyup'] as const) this.panel.addEventListener(type, (event) => {
+      if ((event.target as HTMLElement).closest('button') && ['Tab', 'Enter', ' '].includes(event.key)) event.stopPropagation()
     })
     this.panel.addEventListener('contextmenu', (e) => { e.preventDefault(); this.toggle(false) })
   }
@@ -311,20 +326,26 @@ export class BuildingMode {
   private render(): void {
     const zh = locale.value === 'zh'
     const entries = this.entries()
+    const scrollTop = this.panel.querySelector('.build-content')?.scrollTop ?? 0
     this.listSignature = `${entries.map((e) => e.id).join('|')}|${artEpoch}`
     if (!entries.some((e) => e.id === this.selected.id)) this.selected = entries[0] ?? NOTHING
-    this.panel.innerHTML = `<header><strong>${zh ? '建筑模式' : 'BUILD MODE'}</strong><button data-close="1" title="${esc([kbd('build'), 'Esc'].filter(Boolean).join(' / '))}">×</button></header>
-      <nav><button data-category="building" class="${this.category === 'building' ? 'chosen' : ''}">${zh ? '建筑' : 'Structures'}</button><button data-category="farming" class="${this.category === 'farming' ? 'chosen' : ''}">${zh ? '种植' : 'Farming'}</button></nav>
-      <div class="build-recipes">${entries.map((r) => `<button data-recipe="${r.id}" class="${r.id === this.selected.id ? 'chosen' : ''}"><span class="build-art" data-sprite="${r.sprite}"></span><span>${esc(tx(r.name))}</span></button>`).join('')}</div>
-      <div class="build-details"></div><footer>${esc(tx({ en: 'Left click / {key:hands} place · hold and drag to place a row · {key:rotate} turn · {key:build} / Esc / RMB exit', zh: '左键 / {key:hands} 放置 · 按住左键拖动连续放置 · {key:rotate} 转向 · {key:build} / Esc / 右键退出' }))}<br>${esc(tx({ en: '{key:move} move · Time keeps moving', zh: '{key:move} 移动 · 世界时间继续' }))}</footer>`
-    this.panel.querySelectorAll<HTMLElement>('[data-sprite]').forEach((el) => {
-      const c = this.paint?.(el.dataset.sprite!)
-      if (c) el.append(c)
-    })
+    this.panel.setAttribute('aria-label', zh ? '建筑与种植' : 'Construction and farming')
+    this.panel.innerHTML = `<header><strong>${zh ? '建筑模式' : 'Build & plant'}</strong><button data-close="1" title="${esc([kbd('build'), 'Esc'].filter(Boolean).join(' / '))}"></button></header>
+      <nav aria-label="${zh ? '建造分类' : 'Build category'}"><button type="button" data-category="building" aria-pressed="${this.category === 'building'}" class="${this.category === 'building' ? 'chosen' : ''}">${zh ? '建筑' : 'Structures'}</button><button type="button" data-category="farming" aria-pressed="${this.category === 'farming'}" class="${this.category === 'farming' ? 'chosen' : ''}">${zh ? '种植' : 'Farming'}</button></nav>
+      <div class="build-content"><div class="build-recipes" role="group" aria-label="${zh ? '选择建造物' : 'Choose what to build'}"></div>
+      <div class="build-details"></div><footer>${esc(tx({ en: 'Left click / {key:hands} place · hold and drag to place a row · {key:rotate} turn · {key:build} / Esc / RMB exit', zh: '左键 / {key:hands} 放置 · 按住左键拖动连续放置 · {key:rotate} 转向 · {key:build} / Esc / 右键退出' }))}<br>${esc(tx({ en: '{key:move} move · Time keeps moving', zh: '{key:move} 移动 · 世界时间继续' }))}</footer></div>`
+    this.panel.querySelectorAll<HTMLButtonElement>('[data-close]').forEach(mountCloseButton)
+    const recipes = this.panel.querySelector('.build-recipes')!
+    for (const entry of entries) {
+      const tile = choiceTile({ label: tx(entry.name), artwork: this.paint?.(entry.sprite), selected: entry.id === this.selected.id })
+      tile.dataset.recipe = entry.id
+      recipes.append(tile)
+    }
     this.artSig = ''
     this.setArt(this.selected.sprite)
     this.detailSignature = ''
     this.details()
+    this.panel.querySelector('.build-content')!.scrollTop = scrollTop
   }
   private details(): void {
     if (!this.open) return

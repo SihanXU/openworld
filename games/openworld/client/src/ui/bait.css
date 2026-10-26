@@ -1,3 +1,4 @@
+@layer legacy {
 .bait-sheet { width: min(440px, 94vw); padding: 14px; color: var(--ink-warm); }
 .bait-sheet header, .bait-sheet footer { display: flex; align-items: center; gap: 8px; }
 .bait-sheet header { font: 700 17px var(--pixel); }
@@ -17,3 +18,5 @@
 .bait-sheet footer button { padding: 6px 12px; border: 2px solid var(--wood-dark); border-radius: 5px; color: var(--ink-warm); background: var(--paper); cursor: pointer; font: 600 12px var(--pixel); }
 .bait-sheet footer .bait-confirm { color: #fff6dc; background: linear-gradient(#8fc458, #4f7d22); }
 .bait-sheet footer button:disabled { cursor: default; opacity: .5; filter: grayscale(.7); }
+
+}

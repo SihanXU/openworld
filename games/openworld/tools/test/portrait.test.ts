@@ -20,6 +20,7 @@ interface Slot {
   head?: boolean
   eyes?: boolean
   reachOn?: number
+  clearEyes?: boolean
 }
 const table = JSON.parse(readFileSync(join(import.meta.dirname, '../src/art/looks/portrait/clean.json'), 'utf8')) as {
   slots: Record<string, Slot>
@@ -224,7 +225,7 @@ function kept(alpha: Uint8Array, w: number, h: number, oy: number, ox: number, p
     const onEyes = new Array(n + 1).fill(0)
     for (let i = 0; i < w * h; i++) if (lab[i]) (size[lab[i]]++, eye(i) && onEyes[lab[i]]++)
     // a solid piece of hair or a hat lying mostly on the eyes is an eye
-    core = core.map((v, i) => (v && size[lab[i]] >= slot.piece! && !(slot.head && onEyes[lab[i]] / size[lab[i]] > 0.5) ? 1 : 0))
+    core = core.map((v, i) => (v && size[lab[i]] >= slot.piece! && !(slot.clearEyes && onEyes[lab[i]] / size[lab[i]] > 0.5) ? 1 : 0))
   }
   // grown back along the part's own pixels, a step (8-connected) at a time: how many steps each pixel is from the core
   const steps = new Int32Array(w * h).fill(-1)
@@ -253,7 +254,7 @@ function kept(alpha: Uint8Array, w: number, h: number, oy: number, ox: number, p
   }
   // on the body only a little; for what hangs from the head, nothing thin over the eyes
   const grown = new Uint8Array(w * h).map((_, i) =>
-    steps[i] < 0 ? 0 : steps[i] === 0 ? 1 : (slot.reachOn !== undefined && onBody(i) && steps[i] > slot.reachOn) || (slot.head && eye(i)) ? 0 : 1,
+    steps[i] < 0 ? 0 : steps[i] === 0 ? 1 : (slot.reachOn !== undefined && onBody(i) && steps[i] > slot.reachOn) || (slot.clearEyes && eye(i)) ? 0 : 1,
   )
   if (!slot.head) return grown
   const { lab, n } = label(grown, w, h)
@@ -476,6 +477,45 @@ describe('the portrait layers (tools/src/art/looks/portrait/clean.py)', () => {
     expect(bad).toEqual([])
   })
 
+  it('a lock hanging from the head in front stays in front: no hair behind the body between the hair in front above and below it', { timeout: 120_000 }, () => {
+    // clean.py `bridge_locks`: the cut put the hair beside the neck behind the body, so a lock from the temple to the
+    // chest went behind a hood or a collar where it crossed it
+    const bad: string[] = []
+    const reach = 2
+    for (const g of groups) {
+      const zs = g.layers.map((l) => l.z)
+      if (!g.pid.startsWith('hair.') || !zs.includes('hair') || !zs.includes('hairBack')) continue
+      const canvas = (z: string) => {
+        const l = g.layers[zs.indexOf(z)]
+        const { value } = pixels(l.file)
+        const out = new Uint8Array(W * H)
+        for (let y = 0; y < l.h; y++) for (let x = 0; x < l.w; x++) if (value[(y * l.w + x) * 4 + 3]) out[(l.y + y) * W + l.x + x] = 1
+        return out
+      }
+      const F = canvas('hair')
+      const B = canvas('hairBack')
+      const near = (y: number, x: number) => {
+        for (let d = -reach; d <= reach; d++) if (x + d >= 0 && x + d < W && F[y * W + x + d]) return true
+        return false
+      }
+      let n = 0
+      for (let x = 0; x < W; x++) {
+        let y = 0
+        while (y < H) {
+          if (!B[y * W + x] || F[y * W + x]) {
+            y++
+            continue
+          }
+          const top = y
+          while (y < H && B[y * W + x] && !F[y * W + x]) y++
+          if (top > 0 && y < H && near(top - 1, x) && near(y, x)) n += y - top
+        }
+      }
+      if (n) bad.push(`${g.pid} on the ${g.body}: ${n} pixels of a lock behind the body`)
+    }
+    expect(bad).toEqual([])
+  })
+
   it('hair on the body hangs from the head: no piece of it is drawn over what is worn (long hair behind an arm is behind the body)', { timeout: 120_000 }, () => {
     const bad: string[] = []
     for (const g of groups) {
@@ -550,6 +590,20 @@ describe('the portrait layers (tools/src/art/looks/portrait/clean.py)', () => {
           const cx = x0 + (i % w)
           if (alpha[i] && closed[i] && nearF[i] && nearB[i] && cx >= 0 && cy >= 0 && cx < W && cy < H && fig[cy * W + cx]) keep[i] = 1
         }
+      }
+      if (table.holes.slots.includes(pid.split('.')[0])) {
+        // a pixel whose clearing would leave a pinhole is the hair's (clean.py)
+        const pw = w + 2
+        const soft = new Uint8Array(pw * (h + 2)).fill(1)
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) soft[(y + 1) * pw + x + 1] = keep[y * w + x] ? 0 : 1
+        const { lab, n } = label(soft, pw, h + 2, true)
+        const size = new Array(n + 1).fill(0)
+        for (const c of lab) size[c]++
+        for (let y = 0; y < h; y++)
+          for (let x = 0; x < w; x++) {
+            const c = lab[(y + 1) * pw + x + 1]
+            if (c && c !== lab[0] && size[c] <= table.holes.max && alpha[y * w + x]) keep[y * w + x] = 1
+          }
       }
       let stray = 0
       for (let i = 0; i < w * h; i++) if (alpha[i] && !keep[i]) stray++

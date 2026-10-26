@@ -1,0 +1,56 @@
+/* The live-world palette keeps its header available while its catalogue scrolls. */
+.build-panel {
+  --build-top: 132px;
+  --build-bottom: 116px;
+  position: fixed; z-index: 30; pointer-events: auto;
+  display: flex; flex-direction: column;
+  left: max(14px, env(safe-area-inset-left)); top: var(--build-top);
+  width: min(344px, calc(100% - 28px));
+  max-height: calc(var(--ui-viewport-height) - var(--build-top) - var(--build-bottom));
+  min-height: 0; padding: 0; overflow: hidden;
+  border: 8px solid var(--ui-frame);
+  border-image: url('./assets/window-frame.svg') 8 / 8px / 0 stretch;
+  color: var(--ui-ink); background: var(--ui-paper);
+  box-shadow: var(--ui-shadow); font: 400 12px/1.5 var(--ui-font);
+}
+.build-panel > header { display: flex; align-items: center; justify-content: space-between; flex: 0 0 auto; min-height: 56px; padding: 8px 12px; gap: 8px; }
+.build-panel > header strong { font: 400 24px/1.25 var(--ui-font); }
+.build-panel > nav { display: flex; flex: 0 0 auto; gap: 0; margin: 0 12px; padding: 0; border-bottom: 2px solid var(--ui-frame); }
+.build-panel > nav button {
+  flex: 1; min-width: 0; min-height: 36px; margin-bottom: -2px; padding: 6px 8px;
+  border: 2px solid transparent; border-bottom-color: var(--ui-frame);
+  background: transparent; color: var(--ui-muted); box-shadow: none; font-size: 12px;
+}
+.build-panel > nav button.chosen {
+  background: var(--ui-paper-light); color: var(--ui-ink);
+  border-color: var(--ui-frame); border-bottom-color: var(--ui-paper-light);
+  box-shadow: inset 0 2px #fff7dc;
+}
+.build-panel > nav button:hover { background: var(--ui-paper-light); color: var(--ui-ink); }
+.build-panel > nav button:active { translate: none; }
+.build-content {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  padding: 12px; overscroll-behavior: contain; scrollbar-width: thin;
+  scrollbar-color: var(--ui-wood) var(--ui-paper); container: build-content / inline-size;
+}
+.build-recipes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.build-details { margin-top: 16px; padding-top: 12px; border-top: 2px solid #c99759; }
+.build-details h3 { margin: 0 0 8px; font: 400 24px/1.25 var(--ui-font); overflow-wrap: anywhere; }
+.build-details p { font: 400 12px/1.65 var(--ui-font); margin: 8px 0; }
+.build-cost { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; padding: 8px; background: var(--ui-paper-light); border: 1px solid #c99759; }
+.build-panel .missing { color: var(--ui-danger); }
+.build-panel .enough { color: var(--ui-good); }
+.build-panel footer { margin-top: 12px; padding-top: 12px; border-top: 1px solid #c99759; font: 400 12px/1.65 var(--ui-font); color: var(--ui-muted); }
+
+@media (max-width: 719px) {
+  .build-panel { --build-top: 164px; --build-bottom: 192px; left: max(8px, env(safe-area-inset-left)); width: min(344px, calc(100% - 16px)); }
+}
+@media (max-height: 599px) {
+  .build-panel { --build-top: 8px; --build-bottom: 8px; width: min(312px, calc(100% - 16px)); z-index: 31; }
+}
+@container build-content (width < 288px) {
+  .build-recipes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container build-content (width < 192px) {
+  .build-recipes { grid-template-columns: minmax(0, 1fr); }
+}

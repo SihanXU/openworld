@@ -1,4 +1,31 @@
-# White Knight Alberic — overhead visual remake
+# White Knight Alberic — active art and history
+
+## Active delivery (2026-10-26)
+
+The user-supplied `boss01_01_delivery.zip` now provides Alberic's body. Its original PNGs
+are copied unchanged into `games/openworld/public/assets/lsw/Bosses/alberic/boss01_01/`;
+`packages/runtime/src/assets/boss01_01.json` preserves the delivered animation metadata.
+This delivery supersedes the body atlas and playback instructions recorded below.
+
+- Every frame is 60 × 76 pixels, displayed at integer scale 2 with nearest-neighbour sampling.
+  The shared foot pivot is (30.5, 72), the centre/bottom edge of the supplied anchor pixel (30, 71).
+- Idle has 8 frames at 150 ms per frame (1.2 s). Each left/right/down attack has 10 frames
+  at 80 ms per frame (0.8 s). The hit is frame 5 (zero-based).
+- The renderer loads each strip separately. The left strip is already mirrored in the
+  delivery; it is never mirrored again, and frontal idle keeps its asymmetric sword/cape.
+- Up-facing attacks borrow the down strip. Movement borrows idle. Hurt/death use idle's
+  first frame with the existing hit tint/death fade; these animations were not delivered.
+  The Studio labels these fallbacks explicitly. Existing ranged/thorn effects remain in use.
+- Live skills retain authoritative timing: anticipation frames 0–4 stop at frame 4 until
+  the actual release, then frames 5–9 play and hold. Damage, telegraphs, collision and saved
+  encounters keep their existing behavior. Delivery chain hints are preserved as metadata;
+  the existing encounter still controls skill combinations.
+
+Review at `/boss-gallery.html?boss=alberic`. Idle and attack previews use the delivered
+frame cadence. The delivery's README beside the PNGs is kept verbatim for provenance;
+its generator, individual frame files and review GIFs are not runtime dependencies.
+
+## Historical generated art (superseded body and playback)
 
 2026-10-05. The user's five concept images (`assets/concept/seal1–5-*.png`) and the setting (`assets/concept/five-sufferings-setting.md`)
 define the design. Alberic's own image is the costume authority: a sealed ivory great helm,

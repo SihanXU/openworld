@@ -69,6 +69,10 @@ class FakeElement implements Clickable {
     this.matches.set(selector, elements)
   }
 
+  querySelector(selector: string): FakeElement | null {
+    return this.querySelectorAll(selector)[0] ?? null
+  }
+
   contains(target: unknown): boolean {
     return target === this || this.children.some((child) => child.contains(target))
   }

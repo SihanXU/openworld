@@ -10,6 +10,7 @@ export type Panel = 'bag' | 'craft' | 'skills' | 'skillPanel' | 'quests' | 'jour
 export class PanelTabs {
   private el = document.createElement('div')
   private shown = ''
+  private measure: ResizeObserver
 
   constructor(
     /** The tabs this game has, in order: each its name and the action whose key opens it. */
@@ -22,6 +23,10 @@ export class PanelTabs {
     this.el.className = 'panel-tabs hidden'
     this.el.id = 'paneltabs'
     document.body.appendChild(this.el)
+    this.measure = new ResizeObserver(() => {
+      document.documentElement.style.setProperty('--ui-measured-tabs', `${this.el.getBoundingClientRect().height + 8}px`)
+    })
+    this.measure.observe(this.el)
     this.el.addEventListener('click', (e) => {
       const b = (e.target as HTMLElement).closest<HTMLElement>('[data-panel]')
       if (b) this.go(b.dataset.panel as Panel)
@@ -39,7 +44,10 @@ export class PanelTabs {
     // (what is open under them leaves their room at the top: game.css `.with-tabs`)
     document.body.classList.toggle('with-tabs', !!now)
     if (!now) return
-    this.el.innerHTML = tabs.map((t) => `<button class="pt-tab${t.id === now ? ' on' : ''}" data-panel="${t.id}">${esc(t.name)} <kbd>${esc(kbd(t.action))}</kbd></button>`).join('')
+    this.el.setAttribute('role', 'tablist')
+    this.el.setAttribute('aria-label', document.documentElement.lang.startsWith('zh') ? '游戏菜单' : 'Game menu')
+    this.el.innerHTML = tabs.map((t) => `<button type="button" role="tab" aria-selected="${t.id === now}" class="pt-tab${t.id === now ? ' on' : ''}" data-panel="${t.id}">${esc(t.name)} <kbd>${esc(kbd(t.action))}</kbd></button>`).join('')
+    this.el.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }
 
   /** Redrawn at once (the keys or the language changed). */

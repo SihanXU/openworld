@@ -3,6 +3,7 @@
 // of thing it is; "When held:" with its attack in dark green; what a tool does and what food
 // restores in blue and gold; its traits as purple italic lore; statuses and an owner in red.
 
+import { placeFloating } from './components/floating.ts'
 import type { Frame, ItemInfo, StatusDef } from '@openworld/engine'
 import { game, hasModule, ontology, professionById } from '../game.ts'
 import { esc, gameText, locale, t, tx } from './common.ts'
@@ -245,6 +246,8 @@ export class Tooltip {
     document.body.appendChild(this.el)
     document.addEventListener('mousemove', (e) => this.move(e))
     document.addEventListener('mousedown', () => this.hide())
+    document.addEventListener('ui:windowchange', () => this.hide())
+    window.addEventListener('resize', () => this.hide())
   }
 
   /** An item that is not in the frame (a recipe's result, a material it needs). */
@@ -292,12 +295,7 @@ export class Tooltip {
     }
     this.el.classList.remove('hidden')
     // Minecraft's place: up and to the right of the cursor, kept on screen
-    const r = this.el.getBoundingClientRect()
-    let x = this.at.x + 14
-    let y = this.at.y - 14
-    if (x + r.width > window.innerWidth - 4) x = this.at.x - 14 - r.width
-    if (y + r.height > window.innerHeight - 4) y = window.innerHeight - 4 - r.height
-    this.el.style.transform = `translate(${Math.max(4, x)}px, ${Math.max(4, y)}px)`
+    placeFloating(this.el, { ...this.at, width: 0, height: 0 })
   }
 
   hide(): void {

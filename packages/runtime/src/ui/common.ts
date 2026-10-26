@@ -4,6 +4,7 @@ import type { Text } from '@openworld/engine'
 import { gameIfAny, hasModule } from '../game.ts'
 import { bindingLabel, fillKeys, keys, moveKeys, slotKeys, type Action } from '../keymap.ts'
 import { textOf } from '../render/scene.ts'
+import { syncSlider } from './components/primitives.ts'
 
 export type Locale = 'en' | 'zh'
 
@@ -192,6 +193,7 @@ export const STRINGS: Record<string, [string, string]> = {
   qFailed: ['Failed', '失败'],
   qFrom: ['From', '委托人'],
   qLog: ['Journal', '日志'],
+  qObjectives: ['Objectives', '任务目标'],
   qOptional: ['optional', '可选'],
   qBoard: ['Commission board', '委托板'],
   qBoardEmpty: ['Nobody wants anything done just now. Come back later.', '眼下没人有事相托。过些时候再来看看。'],
@@ -426,14 +428,19 @@ export const prefs = {
 /** The options' rows for the music's and the ambience's levels (a slider each; `id` prefixes the inputs' ids). */
 export function volumeRows(id: string): string {
   return (['music', 'ambience'] as const)
-    .map((k) => `<div class="opt"><span>${t(k === 'music' ? 'optMusic' : 'optAmbience')}</span><input type="range" class="vol" id="${id}Vol-${k}" data-vol="${k}" min="0" max="100" step="5" value="${Math.round(prefs.volume(k) * 100)}"></div>`)
+    .map((k) => `<div class="opt"><label for="${id}Vol-${k}">${t(k === 'music' ? 'optMusic' : 'optAmbience')}</label><input type="range" class="vol ui-slider" id="${id}Vol-${k}" data-vol="${k}" min="0" max="100" step="5" value="${Math.round(prefs.volume(k) * 100)}"></div>`)
     .join('')
 }
 
 /** The sliders under a root: a move sets the level (prefs) and tells the sound at once. */
 export function wireVolumes(root: HTMLElement, changed: () => void): void {
   root.querySelectorAll<HTMLInputElement>('input[data-vol]').forEach((inp) => {
-    inp.oninput = () => (prefs.setVolume(inp.dataset.vol as 'music' | 'ambience', Number(inp.value) / 100), changed())
+    syncSlider(inp)
+    inp.oninput = () => {
+      syncSlider(inp)
+      prefs.setVolume(inp.dataset.vol as 'music' | 'ambience', Number(inp.value) / 100)
+      changed()
+    }
   })
 }
 

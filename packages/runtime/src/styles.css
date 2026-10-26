@@ -1,3 +1,6 @@
+@import './ui/theme.css';
+
+@layer legacy {
 /* Chinese in the pixel style: Fusion Pixel Font, 12px proportional, simplified Chinese
    (github.com/TakWolf/fusion-pixel-font, SIL OFL 1.1: fonts/OFL.txt and the fonts it draws on, fonts/LICENSES) */
 @font-face {
@@ -130,3 +133,5 @@ details summary { cursor: pointer; font-size: 12px; color: var(--muted); }
 .letter .sign { text-align: right; margin-top: 10px; font-style: italic; }
 .thread { padding: 8px 10px; border-left: 3px solid #e2b33c; background: rgba(255,255,255,0.03); border-radius: 4px; }
 .small { font-size: 11px; }
+
+}
