@@ -8,14 +8,13 @@
 //
 //   npm run engine-task -- <id> --state <dir> [--preset naive|tuned]
 
-import { execSync } from 'node:child_process'
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DockerEnv, LocalEnv, SANDBOX_LIMITS, SelfState, applyPreset, chooseIsolation, hostUser, modelFromEnv, runAgent, sandboxImage, type AgentTask, type Env, type Isolation, type Preset, type TaskSource } from '@openworld/ai'
+import { REPO, SelfState, applyPreset, commitBase, modelFromEnv, runAgent, sandboxEnv, flags, taskIsolation } from '@openworld/ai'
+import type { AgentTask, Env, Isolation, Preset, TaskSource } from '@openworld/ai'
 
-export const REPO = resolve(fileURLToPath(new URL('../../../..', import.meta.url)))
 const TASKS = join(REPO, 'games/openworld/ai/tasks/engine')
 /** what the workspace copies, at the same paths as here, and the names they are imported by */
 const PACKAGES = [
@@ -28,6 +27,12 @@ const PACKAGES = [
 ]
 const SCOPES = new Set(PACKAGES.map((p) => p.name.split('/')[0]))
 const HIDDEN = 'games/openworld/content/test/hidden.test.ts'
+
+/** A task in a workspace of its own, which `dispose` removes. */
+export interface WorkspaceTask {
+  task: AgentTask
+  dispose: () => Promise<void>
+}
 
 export interface EngineTaskDef {
   id: string
@@ -42,6 +47,50 @@ export function engineTaskDefs(): EngineTaskDef[] {
     .map((id) => ({ id, statement: readFileSync(join(TASKS, id, 'ISSUE.md'), 'utf8'), hidden: join(TASKS, id, 'hidden.test.ts') }))
 }
 
+export const walk = (dir: string, f: (p: string) => void): void => {
+  for (const n of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, n.name)
+    if (n.isDirectory()) walk(p, f)
+    else f(p)
+  }
+}
+
+/** LF everywhere: a Windows checkout has CRLF, and an agent writing whole files with LF would turn its diff into a rewrite. */
+export const toLF = (dir: string): void =>
+  walk(dir, (p) => {
+    if (!/\.(ts|json|md|mjs|js)$/.test(p)) return
+    const t = readFileSync(p, 'utf8')
+    if (t.includes('\r\n')) writeFileSync(p, t.replace(/\r\n/g, '\n'))
+  })
+
+/**
+ * A task's commands run in a container (the workspace, and `deps` at the same path, so the workspace's links
+ * resolve; no network) or on this machine; `cleanup` when the container does not start.
+ */
+export async function taskEnv(iso: Isolation, ws: string, deps: string, cleanup: () => void): Promise<Env> {
+  try {
+    return await sandboxEnv(iso, ws, { mounts: [{ host: deps, container: deps }] })
+  } catch (err) {
+    cleanup()
+    throw err
+  }
+}
+
+/** Tasks for the outer loop's replays, by the recorded episode's id (unattended: only where they can run in a container). */
+export function taskSource<D extends { id: string }>(kind: string, defs: () => D[], task: (def: D) => Promise<WorkspaceTask | undefined>): TaskSource {
+  return {
+    kinds: [kind],
+    replay: async (ep) => {
+      const def = defs().find((d) => d.id === (ep.request as { id?: string })?.id)
+      if (!def) return undefined
+      const t = await task(def)
+      if (!t) return undefined // no container here: an unattended agent does not run its code on this machine
+      return { ...t.task, dispose: t.dispose }
+    },
+    cleanup: async (task: AgentTask) => task.dispose?.(),
+  }
+}
+
 /** The engine and content packages as a repository of their own. */
 export function engineWorkspace(o: { prefix?: string } = {}): { dir: string; dispose: () => void } {
   const dir = mkdtempSync(join(tmpdir(), o.prefix ?? 'lsw-engine-'))
@@ -50,15 +99,7 @@ export function engineWorkspace(o: { prefix?: string } = {}): { dir: string; dis
   const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'lsw-engine-task', private: true, type: 'module', workspaces: PACKAGES.map((p) => p.dir), scripts: { test: 'vitest run' }, devDependencies: pkg.devDependencies }, null, 2))
   for (const p of PACKAGES) cpSync(join(REPO, p.dir), join(dir, p.dir), { recursive: true, filter: (s) => !s.includes('node_modules') })
-  // LF everywhere: a Windows checkout has CRLF, and an agent writing whole files with LF would turn its diff into a rewrite
-  const lf = (d: string): void => {
-    for (const n of readdirSync(d, { withFileTypes: true })) {
-      const p = join(d, n.name)
-      if (n.isDirectory()) lf(p)
-      else if (/\.(ts|json|md|mjs|js)$/.test(n.name)) writeFileSync(p, readFileSync(p, 'utf8').replace(/\r\n/g, '\n'))
-    }
-  }
-  for (const top of new Set(PACKAGES.map((p) => p.dir.split('/')[0]))) lf(join(dir, top))
+  for (const top of new Set(PACKAGES.map((p) => p.dir.split('/')[0]))) toLF(join(dir, top))
   // dependencies: links into the real node_modules, except our own packages, which point at the copies
   for (const scope of SCOPES) mkdirSync(join(dir, 'node_modules', scope), { recursive: true })
   // (not the tools' caches: each workspace keeps its own, and a container sees the host's read-only)
@@ -66,7 +107,7 @@ export function engineWorkspace(o: { prefix?: string } = {}): { dir: string; dis
   for (const n of readdirSync(join(REPO, 'node_modules'))) if (!SCOPES.has(n) && !CACHES.has(n)) symlinkSync(join(REPO, 'node_modules', n), join(dir, 'node_modules', n), 'junction')
   for (const p of PACKAGES) symlinkSync(join(dir, p.dir), join(dir, 'node_modules', p.name), 'junction')
   writeFileSync(join(dir, '.gitignore'), 'node_modules/\n')
-  execSync('git init -q && git config core.autocrlf false && git add -A && git -c user.email=lsw@local -c user.name=lsw commit -qm base', { cwd: dir })
+  commitBase(dir)
   return { dir, dispose: () => rmSync(dir, { recursive: true, force: true }) }
 }
 
@@ -76,21 +117,12 @@ export function engineWorkspace(o: { prefix?: string } = {}): { dir: string; dis
  * paths, so the workspace's links resolve), no network. `localRun`: a person started it by hand
  * and lets it run on this machine. Without either there is no task (undefined).
  */
-export async function engineTask(def: EngineTaskDef, o: { isolation?: Isolation; localRun?: boolean } = {}): Promise<{ task: AgentTask; dispose: () => Promise<void> } | undefined> {
-  const iso = o.isolation ?? (await chooseIsolation())
-  if (iso === 'none' && !o.localRun) return undefined
+export async function engineTask(def: EngineTaskDef, o: { isolation?: Isolation; localRun?: boolean } = {}): Promise<WorkspaceTask | undefined> {
+  const iso = await taskIsolation(o)
+  if (!iso) return undefined
   const ws = engineWorkspace()
   const tests = 'npx vitest run packages/engine games/openworld/content'
-  let env: Env
-  try {
-    env =
-      iso === 'docker'
-        ? await DockerEnv.start({ image: await sandboxImage(), root: ws.dir, mount: ws.dir, mounts: [{ host: join(REPO, 'node_modules'), container: join(REPO, 'node_modules') }], user: hostUser(), limits: SANDBOX_LIMITS })
-        : new LocalEnv(ws.dir)
-  } catch (err) {
-    ws.dispose()
-    throw err
-  }
+  const env = await taskEnv(iso, ws.dir, join(REPO, 'node_modules'), ws.dispose)
   return {
     dispose: async () => {
       await env.dispose?.()
@@ -121,24 +153,11 @@ export async function engineTask(def: EngineTaskDef, o: { isolation?: Isolation;
 }
 
 /** Engine tasks for the outer loop (unattended): only where they can run in a container. */
-export function engineSource(): TaskSource {
-  return {
-    kinds: ['engine'],
-    replay: async (ep) => {
-      const def = engineTaskDefs().find((d) => d.id === (ep.request as { id?: string })?.id)
-      if (!def) return undefined
-      const t = await engineTask(def)
-      if (!t) return undefined // no container here: an unattended agent does not run its code on this machine
-      return { ...t.task, dispose: t.dispose }
-    },
-    cleanup: async (task: AgentTask) => task.dispose?.(),
-  }
-}
+export const engineSource = (): TaskSource => taskSource('engine', engineTaskDefs, engineTask)
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2)
-  const flag = (k: string) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : undefined)
-  if (existsSync(join(REPO, '.env'))) process.loadEnvFile(join(REPO, '.env'))
+  const flag = flags(argv)
   const id = argv[0]
   const def = engineTaskDefs().find((d) => d.id === id)
   if (!def) throw new Error(`tasks: ${engineTaskDefs().map((d) => d.id).join(', ')}`)

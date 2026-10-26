@@ -1,4 +1,4 @@
-// Where the self-state's files are (state.ts): a directory on disk under Node (files-node.ts), or files kept in
+// Where the self-state's files are (state.ts): a directory on disk under Node (node.ts), or files kept in
 // memory (`MemFiles`) where there is no disk — a browser's worker running the player's own modder (docs/byok.md),
 // which saves them where it likes (`entries`, `onChange`). The paths are the caller's: `join` makes them.
 
@@ -17,13 +17,15 @@ export interface Files {
   /** A file, or a directory with everything in it. */
   copy(from: string, to: string): void
   rename(from: string, to: string): void
+  /** A file, or a directory with everything in it (nothing when there is none). */
+  remove(path: string): void
   /** A new empty directory of its own. */
   tempDir(prefix: string): string
 }
 
 let fallback: (() => Files) | undefined
 
-/** The files a caller gets when it names none: Node's disk once files-node.ts is loaded (the package's entry loads it). */
+/** The files a caller gets when it names none: Node's disk once node.ts is loaded (the package's Node entry loads it). */
 export function defaultFiles(): Files {
   if (!fallback) throw new Error('no files here: pass a Files (MemFiles in a browser), or load @openworld/ai for the disk')
   return fallback()
@@ -47,6 +49,10 @@ export class MemFiles implements Files {
 
   private put(p: string, text: string): void {
     this.files.set(p, text)
+    this.parents(p)
+  }
+
+  private parents(p: string): void {
     for (let i = p.lastIndexOf('/'); i > 0; i = p.lastIndexOf('/', i - 1)) this.dirs.add(p.slice(0, i))
   }
 
@@ -84,7 +90,7 @@ export class MemFiles implements Files {
   mkdir(path: string): void {
     const p = norm(path)
     this.dirs.add(p)
-    for (let i = p.lastIndexOf('/'); i > 0; i = p.lastIndexOf('/', i - 1)) this.dirs.add(p.slice(0, i))
+    this.parents(p)
   }
 
   list(path: string): string[] {
@@ -110,6 +116,13 @@ export class MemFiles implements Files {
     if (t === undefined) throw new Error(`no such file: ${from}`)
     this.files.delete(a)
     this.put(norm(to), t)
+    this.onChange?.()
+  }
+
+  remove(path: string): void {
+    const p = norm(path)
+    for (const f of [...this.files.keys()]) if (f === p || f.startsWith(`${p}/`)) this.files.delete(f)
+    for (const d of [...this.dirs]) if (d === p || d.startsWith(`${p}/`)) this.dirs.delete(d)
     this.onChange?.()
   }
 

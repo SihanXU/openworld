@@ -8,8 +8,8 @@ import { join } from 'node:path'
 import type { Env } from './env.ts'
 import { Meter, type ChatMessage, type Model } from '../models/model.ts'
 import type { Episode, Harness, HookStage, SelfState } from './state.ts'
-import { agentTools, type AgentTool } from './tools.ts'
-import { clip, wordsOf } from '../util.ts'
+import { agentTools } from './tools.ts'
+import { clip, clipJson, wordsOf } from '../util.ts'
 
 export interface AgentTask {
   id: string
@@ -142,7 +142,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
 
   const started = await hooks(task, h, 'start')
   let submitted = false
-  const tools: AgentTool[] = agentTools(task.env, {
+  const tools = agentTools(task.env, {
     localRun: task.localRun,
     testCommand: task.tests?.command,
     testTimeoutMs: task.tests?.timeoutMs,
@@ -213,7 +213,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
         } catch (err) {
           out = `error: ${(err as Error).message}`
         }
-        ep.tools.push({ name: c.name, args: compactArgs(c.args), ms: Date.now() - t1 })
+        ep.tools.push({ name: c.name, args: clipJson(c.args, 600), ms: Date.now() - t1 })
         messages.push({ role: 'tool', toolCallId: c.id, name: c.name, content: clip(out, cfg.maxToolOutput) })
         if (submitted) break
       }
@@ -237,7 +237,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
   if (submitted && verdict && !verdict.ok) ep.attempts.push({ phase: 'repair', errors: [`verdict: ${clip(verdict.output, 1500)}`], warnings: [] })
   const diff = existsSync(join(task.env.root, '.git')) ? await gitDiff(task.env) : undefined
   if (diff !== undefined) ep.patch = diff
-  ep.usage = { calls: model.calls, input: model.input, output: model.output, cost: model.cost }
+  ep.usage = model.usage
   ep.calls = model.log
   ep.ms = Date.now() - t0
   if (o.record !== false) {
@@ -257,11 +257,6 @@ export async function gitDiff(env: Env): Promise<string> {
   // against where the workspace began: what the agent changed, committed or not
   const r = await env.exec(`git -c core.autocrlf=false diff --no-color $(git rev-parse -q --verify ${BASE_REF} || true)`, { timeoutMs: 60_000 })
   return r.stdout
-}
-
-function compactArgs(x: unknown): unknown {
-  const s = JSON.stringify(x ?? {})
-  return s.length > 600 ? `${s.slice(0, 600)}…` : x
 }
 
 /** Keep the conversation bounded: old tool results are cut first. */

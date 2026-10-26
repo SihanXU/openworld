@@ -907,9 +907,8 @@ too, so a lottery that loses on average is no free lunch and one that wins on av
 repeat check, which has no cost to weigh, forces every chance instead). A condition on the state is
 the player's choice, so each way of it is a step of its own. When there is no free lunch, the
 simplex's dual gives the proof: prices, each at least 1, under which no step gives more value than
-it takes. The base content has none, and its prices check (any length; tools/test/economy.test.ts;
-the simplex against strong duality, Chvátal's degenerate example and Bellman-Ford in
-modder/test/economy.test.ts). **A type the AI creates** names `props.material` and a
+it takes. The base content has none, and its prices check (any length; the simplex against strong
+duality, Chvátal's degenerate example and Bellman-Ford; games/openworld/ai/test/economy.test.ts). **A type the AI creates** names `props.material` and a
 makeup (a breakable one may give a rule of its own on `broken` instead), and never a new ground
 (`tile/*`); one with a station is craftable as soon as the patch applies.
 

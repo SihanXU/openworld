@@ -190,7 +190,7 @@ function treeLine(t: Tree, depth = 0): string {
   return `(${c.length > 70 ? c.slice(0, 67) + '…' : c} ? ${treeLine(t.then, depth + 1)} : ${treeLine(t.else ?? 'inherit', depth + 1)})`
 }
 
-export function asPatch(x: unknown): Patch | undefined {
+function asPatch(x: unknown): Patch | undefined {
   if (!x || typeof x !== 'object') return undefined
   const o = x as { artifacts?: unknown; patch?: unknown }
   if (Array.isArray(o.artifacts)) return o as Patch

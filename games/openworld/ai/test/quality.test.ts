@@ -6,35 +6,12 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import {
-  ModPort,
-  PRESETS,
-  RuleLibrary,
-  buildSandbox,
-  categoryOf,
-  categoryOfRequest,
-  placePatch,
-  presetOf,
-  qualityOf,
-  tiersFrom,
-  validatePatch,
-  type AiQuality,
-  type ModRequest,
-  type Patch,
-  type Rule,
-  type Scenario,
-  type Tier,
-} from '@openworld/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
+import { ModPort, PRESETS, RuleLibrary, buildSandbox, categoryOf, categoryOfRequest, placePatch, presetOf, qualityOf, tiersFrom, validatePatch, type AiQuality, type ModRequest, type Patch, type Rule, type Scenario, type Tier } from '@openworld/engine'
 import { Detector, Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, envelope, gatherProbes, recommendOf, withoutChains, workloadOf, type ChatOptions, type DetectRun } from '@openworld/ai'
+import { BASE, DEAD_TREE, SLIME, STONE, onto, testModder } from './fixtures.ts'
 
-const onto = buildOntology()
-const BASE = [...BASE_RULES, ...STORY_RULES]
-const STONE = 'item/material/stone'
-const TREE = 'fixture/nature/dead_tree'
-const SLIME = 'actor/creature/slime/green_slime'
 
-const scene = (target = TREE): Scenario => ({
+const scene = (target = DEAD_TREE): Scenario => ({
   entities: [
     { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
     { key: 'held', type: STONE, x: 2, y: 2, heldBy: 'actor' },
@@ -196,10 +173,6 @@ describe('the workload of a tier', () => {
 describe('the pipeline at each tier', () => {
   const draft = (req: ModRequest) => ({ patch: { artifacts: [{ kind: 'rule', rule: { id: 'patch/stone-taps-tree', host: { type: STONE }, on: 'act/use', label: { en: 'Tap {target}', zh: '敲{target}' }, doc: 'A stone taps a tree.', tree: { do: [{ op: 'emit', impulse: 'strike', to: 'target' }, { op: 'log', text: { en: 'Tap.', zh: '嗒。' } }] } } }] } })
   function setup() {
-    const dir = mkdtempSync(join(tmpdir(), 'lsw-q-'))
-    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
-    const state = SelfState.open(join(dir, 'modder-state'))
-    state.setHarness({ ...state.harness(), reflect: { ...state.harness().reflect, enabled: false } }, 'test: no reflection')
     const calls: { purpose?: string; opts: ChatOptions }[] = []
     let req!: ModRequest
     const model = new ScriptedModel((_m, opts) => {
@@ -208,7 +181,7 @@ describe('the pipeline at each tier', () => {
       if (opts.purpose === 'audit') return { findings: [] }
       return draft(req)
     })
-    const modder = new Modder({ library, state, model })
+    const { modder, state, library } = testModder({ model, harness: (h) => ({ reflect: { ...h.reflect, enabled: false } }) })
     return { modder, state, library, calls, ask: (r: ModRequest) => ((req = r), modder.resolve({ request: r })) }
   }
 
@@ -270,10 +243,7 @@ describe('detecting what a model carries', () => {
   })
 
   it('plays the game\'s probes at every tier on the base game alone, and keeps nothing', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'lsw-q-'))
-    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
-    const state = SelfState.open(join(dir, 'modder-state'))
-    state.setHarness({ ...state.harness(), reflect: { ...state.harness().reflect, enabled: false } }, 'test: no reflection')
+    const { library, state } = testModder({ harness: (h) => ({ reflect: { ...h.reflect, enabled: false } }) })
     const model = new ScriptedModel((_m, opts) => {
       if (opts.purpose === 'review') return { verdict: 'ship', notes: [] }
       return { patch: { artifacts: [{ kind: 'rule', rule: { id: `patch/tap-${Math.random().toString(36).slice(2, 7)}`, host: { type: STONE }, on: 'act/use', label: 'Tap {target}', doc: 'tap', tree: { do: [{ op: 'log', text: 'tap' }] } } }] } }

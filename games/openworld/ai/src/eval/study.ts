@@ -9,9 +9,9 @@
 //
 //   serve   the page, and the results it sends written one file a participant (POST /submit)
 //
-//   npx tsx games/openworld/tools/src/eval/study.ts build [--lists 12] [--out var/eval/study]
-//   npx tsx games/openworld/tools/src/eval/study.ts serve <results dir> [--port 8080] [--out var/eval/study]
-//   npx tsx games/openworld/tools/src/eval/study.ts score <results dir> [--out var/eval/study]
+//   npx tsx games/openworld/ai/src/eval/study.ts build [--lists 12] [--out var/eval/study]
+//   npx tsx games/openworld/ai/src/eval/study.ts serve <results dir> [--port 8080] [--out var/eval/study]
+//   npx tsx games/openworld/ai/src/eval/study.ts score <results dir> [--out var/eval/study]
 //
 // A list rates half the situations, each in one condition, and chooses between two conditions on a quarter of the
 // others; across the lists every condition of every situation is rated and every pair chosen. The page takes
@@ -19,6 +19,7 @@
 // JSON; served by `serve`, to its own /submit) and ?cc=<code> (at the end the participant is sent back to Prolific with
 // that completion code); the results can also be saved as a file.
 
+import { flags } from '@openworld/ai'
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { dirname, join } from 'node:path'
@@ -30,19 +31,15 @@ import { loadGame } from '../../../wiki/src/game.ts'
 import { renderMap } from '../../../wiki/src/render-map.ts'
 import { CATALOG } from '../../../wiki/src/bundle.ts'
 import { decodePng, encodePng } from '../../../wiki/src/png.ts'
-import { trueskill, type Choice } from './trueskill.ts'
-import type { Cell } from '../../../tools/src/coverage.ts'
+import { mean, minstd, shuffled, trueskill, type Answer, type Choice, type Item, type Rating } from './common.ts'
 
 const argv = process.argv.slice(2)
-const opt = (k: string, d: string) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : d)
+const opt = flags(argv)
 const CONTROLLED = 'var/eval/controlled'
 const ASSETS = fileURLToPath(new URL('../../../public/assets/', import.meta.url))
-const OUT = opt('out', 'var/eval/study')
+const OUT = opt('out', 'var/eval/study')!
 const read = <T,>(f: string): T => JSON.parse(readFileSync(join(CONTROLLED, f), 'utf8'))
 
-interface Item { id: string; set: 'heldout' | 'undefined'; cell: Cell; heldOut?: string }
-interface Answer { item: string; cond: string; sentence: string }
-interface Rating { item: string; cond: string; sense: number; fit: number }
 
 /** What a participant does: rate one outcome, or choose between two (shown in the order `shown`). */
 type Trial =
@@ -127,14 +124,7 @@ function icon(index: OntologyIndex, type: string): string | undefined {
 
 /** A fixed shuffle of the situations (the same lists every build). */
 function permuted<T>(xs: T[], seed = 11): T[] {
-  let s = seed
-  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647
-  const a = [...xs]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rnd() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
+  return shuffled(xs, minstd(seed))
 }
 
 /**
@@ -192,7 +182,6 @@ function build(): void {
 
 // ---------------------------------------------------------------- score
 
-const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN)
 function pearson(xs: number[], ys: number[]): number {
   const mx = mean(xs), my = mean(ys)
   const c = xs.reduce((s, x, k) => s + (x - mx) * (ys[k] - my), 0)

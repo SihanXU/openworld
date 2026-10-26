@@ -13,27 +13,19 @@
 // added into a Patch. The world's own files cannot be changed: the validator rejects that.
 
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join, relative, sep } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
-import { DockerEnv, LocalEnv, SANDBOX_LIMITS, chooseIsolation, hostUser, sandboxImage, sh, type Env, type Isolation } from '../agent/env.ts'
+import { REPO } from '../node.ts'
+import { chooseIsolation, sandboxEnv, sh, type Env, type Isolation } from '../agent/env.ts'
 import { type AgentTask } from '../agent/loop.ts'
 import type { EntityInfo, LibraryData, ModRequest, ModSpec, Ontology, Patch, Rule, RuleLibrary, StatusDef, TypeDef } from '@openworld/engine'
 
 const VALIDATE_CLI = fileURLToPath(new URL('./validate-cli.ts', import.meta.url))
-const REPO = fileURLToPath(new URL('../../../..', import.meta.url))
 const TSX = createRequire(import.meta.url).resolve('tsx/cli')
 const DIRS = ['rules', 'types', 'statuses']
-
-/**
- * A world task in a container sees its workspace (written to), the engine's code (read-only)
- * and nothing else — not the repository's `.env`, not `var/`, no network; there the agent may run
- * any command. Without a container it gets no shell: file tools and the validator only
- * (`chooseIsolation`, packages/ai/src/agent/env.ts).
- */
-export const worldIsolation = chooseIsolation
 
 /** The engine's code as a container sees it: read-only, under /repo, without secrets. */
 const IN_REPO = '/repo'
@@ -42,17 +34,9 @@ const asSeen = (p: string, iso: Isolation) => (iso === 'docker' ? `${IN_REPO}/${
 /** The validator, run from the engine's own code (never from a file the agent can edit). */
 const validateCommand = (iso: Isolation) => `node ${sh(asSeen(TSX, iso))} ${sh(asSeen(VALIDATE_CLI, iso))} .`
 
-async function worldEnv(dir: string, iso: Isolation): Promise<Env> {
-  if (iso === 'none') return new LocalEnv(dir)
+function worldEnv(dir: string, iso: Isolation): Promise<Env> {
   const ro = (p: string) => ({ host: join(REPO, p), container: `${IN_REPO}/${p}` })
-  return DockerEnv.start({
-    image: await sandboxImage(),
-    root: dir,
-    mount: '/work',
-    mounts: [ro('packages'), ro('node_modules'), ro('package.json'), ro('tsconfig.base.json')],
-    user: hostUser(),
-    limits: SANDBOX_LIMITS,
-  })
+  return sandboxEnv(iso, dir, { mount: '/work', mounts: [ro('packages'), ro('node_modules'), ro('package.json'), ro('tsconfig.base.json')] })
 }
 
 export interface WorldRepoState {
@@ -73,28 +57,54 @@ export interface WorldRepo {
 
 const hash = (s: string) => createHash('sha1').update(s).digest('hex')
 
+/** Is `p` inside the folder `dir` (not the folder itself)? */
+const inside = (dir: string, p: string) => {
+  const r = relative(dir, p)
+  return r !== '' && r !== '..' && !r.startsWith(`..${sep}`) && !isAbsolute(r)
+}
+
+/** A file's text as the repository holds it: a regular file, never read through a link at its last step. */
+function readOwn(p: string): string {
+  const fd = openSync(p, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0))
+  try {
+    if (!fstatSync(fd).isFile()) throw new Error('not a regular file')
+    return readFileSync(fd, 'utf8')
+  } finally {
+    closeSync(fd)
+  }
+}
+
+/** A file of the repository: never outside it (a rule's file is named by its id, which the validator keeps to a path). */
 function write(dir: string, rel: string, body: string): void {
-  const p = join(dir, rel)
+  const p = resolve(dir, rel)
+  if (!inside(dir, p)) throw new Error(`${rel} would be written outside the repository`)
   mkdirSync(dirname(p), { recursive: true })
   writeFileSync(p, body)
 }
 
-function files(dir: string, sub: string): string[] {
-  const root = join(dir, sub)
-  if (!existsSync(root)) return []
+/**
+ * The .json files under `sub`, as the repository holds them: a symbolic link is not followed (in a container the agent
+ * may link to anything, and the host reads what it points to), it is a problem; so is what cannot be read.
+ */
+function files(dir: string, sub: string, problems: string[] = []): string[] {
   const out: string[] = []
-  const walk = (d: string) => {
-    for (const n of readdirSync(d)) {
-      const p = join(d, n)
-      if (statSync(p).isDirectory()) walk(p)
-      else if (n.endsWith('.json')) out.push(relative(dir, p).split(sep).join('/'))
+  const walk = (rel: string) => {
+    try {
+      const at = join(dir, rel)
+      const st = lstatSync(at, { throwIfNoEntry: false })
+      if (!st) return
+      if (st.isSymbolicLink()) problems.push(`${rel} is a symbolic link: write the file itself`)
+      else if (st.isDirectory()) for (const n of readdirSync(at)) walk(`${rel}/${n}`)
+      else if (st.isFile() && rel.endsWith('.json')) out.push(rel)
+    } catch (err) {
+      problems.push(`${rel}: ${(err as Error).message}`)
     }
   }
-  walk(root)
+  walk(sub)
   return out
 }
 
-export function modspecMarkdown(spec: ModSpec): string {
+function modspecMarkdown(spec: ModSpec): string {
   const kv = (o: Record<string, string>) => Object.entries(o).map(([k, v]) => `- \`${k}\`: ${v}`).join('\n')
   return [
     `# ModSpec (${spec.version})`,
@@ -163,15 +173,33 @@ function issueOf(req: ModRequest, revise?: { rules: Rule[]; notes: string[] }, a
           ...audit.notes.map((n) => `- ${n}`),
           '',
           'Your previous draft (write a new one that cannot be broken this way: make it cost something, run out, or give less):',
-          ...audit.draft.artifacts.filter((a) => a.kind === 'rule').map((a) => (a.kind === 'rule' ? '```json\n' + JSON.stringify({ ...a.rule, tests: undefined }) + '\n```' : '')),
+          ...audit.draft.artifacts.flatMap((a) => (a.kind === 'rule' ? ['```json\n' + JSON.stringify({ ...a.rule, tests: undefined }) + '\n```'] : [])),
         ]
       : []),
   ].join('\n')
 }
 
-export async function materializeWorld(o: { request: ModRequest; library: RuleLibrary; ontology: Ontology; base: Ontology; spec: ModSpec; revise?: { rules: string[]; notes: string[] }; audit?: { notes: string[]; draft: Patch }; isolation?: Isolation }): Promise<WorldRepo> {
-  const iso = o.isolation ?? (await worldIsolation())
+type WorldOptions = { request: ModRequest; library: RuleLibrary; ontology: Ontology; base: Ontology; spec: ModSpec; revise?: { rules: string[]; notes: string[] }; audit?: { notes: string[]; draft: Patch }; isolation?: Isolation }
+
+/**
+ * A world task in a container sees its workspace (written to), the engine's code (read-only)
+ * and nothing else — not the repository's `.env`, not `var/`, no network; there the agent may run
+ * any command. Without a container it gets no shell: file tools and the validator only
+ * (`chooseIsolation`, packages/ai/src/agent/env.ts).
+ */
+export async function materializeWorld(o: WorldOptions): Promise<WorldRepo> {
+  const iso = o.isolation ?? (await chooseIsolation())
   const dir = mkdtempSync(join(tmpdir(), 'lsw-world-'))
+  try {
+    return await worldRepo(dir, iso, o)
+  } catch (err) {
+    // (a container that did not start, a file that could not be written: the folder goes with the attempt)
+    rmSync(dir, { recursive: true, force: true })
+    throw err
+  }
+}
+
+async function worldRepo(dir: string, iso: Isolation, o: WorldOptions): Promise<WorldRepo> {
   const lib = o.library
   write(dir, 'ISSUE.md', issueOf(o.request, o.revise ? { rules: o.revise.rules.map((id) => lib.rules.get(id)!).filter(Boolean), notes: o.revise.notes } : undefined, o.audit))
   write(
@@ -212,7 +240,11 @@ export async function materializeWorld(o: { request: ModRequest; library: RuleLi
       tests: { command: validateCommand(iso), timeoutMs: 180_000 },
       request: o.request,
     },
-    collect: () => collectPatch(dir),
+    // what the agent left running stops first: nothing swaps a file for a link while the host reads the patch
+    collect: () => {
+      env.halt?.()
+      return collectPatch(dir)
+    },
     dispose: async () => {
       await env.dispose?.()
       rmSync(dir, { recursive: true, force: true })
@@ -225,13 +257,32 @@ export async function materializeWorld(o: { request: ModRequest; library: RuleLi
  * the rules it may replace). Changes to anything else are problems, not part of the patch.
  */
 export function collectPatch(dir: string): { patch?: Patch; problems: string[] } {
-  const manifest = JSON.parse(readFileSync(join(dir, '.lsw/manifest.json'), 'utf8')) as Record<string, string>
-  const state = JSON.parse(readFileSync(join(dir, '.lsw/state.json'), 'utf8')) as WorldRepoState
-  const replaceable = new Set(state.replaces.map((id) => `rules/${id}.json`))
   const problems: string[] = []
+  // the harness's own files are in the workspace the agent writes: read as the repository's (no link out of it),
+  // and one changed or unreadable is a problem, not a throw
+  const own = <T>(rel: string): T | undefined => {
+    try {
+      const p = join(dir, rel)
+      if (!lstatSync(p).isFile() || !inside(realpathSync(dir), realpathSync(p))) throw new Error('not a file of the repository')
+      return JSON.parse(readOwn(p)) as T
+    } catch (err) {
+      problems.push(`${rel} is the harness's and cannot be read: ${(err as Error).message}`)
+      return undefined
+    }
+  }
+  const manifest = own<Record<string, string>>('.lsw/manifest.json')
+  const state = own<WorldRepoState>('.lsw/state.json')
+  if (!manifest || typeof manifest !== 'object' || !Array.isArray(state?.replaces)) return { problems: problems.length ? problems : ['.lsw/ was changed: the harness\'s files must stay as they were'] }
+  const replaceable = new Set(state.replaces.map((id) => `rules/${id}.json`))
   const artifacts: Patch['artifacts'] = []
-  for (const f of DIRS.flatMap((d) => files(dir, d))) {
-    const body = readFileSync(join(dir, f), 'utf8')
+  for (const f of DIRS.flatMap((d) => files(dir, d, problems))) {
+    let body: string
+    try {
+      body = readOwn(join(dir, f))
+    } catch (err) {
+      problems.push(`${f}: ${(err as Error).message}`)
+      continue
+    }
     const known = manifest[f]
     if (known && known === hash(body)) continue
     if (known && !replaceable.has(f)) {

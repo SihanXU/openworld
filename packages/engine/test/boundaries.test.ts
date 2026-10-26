@@ -26,18 +26,8 @@ const MAY_IMPORT: Record<string, string[]> = {
  * Tests that still exercise the engine side on the game's content, until the starter game is their
  * fixture (docs/engine-split.md, P2). The list only shrinks: a test that no longer needs the game leaves it.
  */
-const TESTS_ON_THE_GAME = new Set([
-  'packages/ai/test/audit.test.ts',
-  'packages/ai/test/economy.test.ts',
-  // (the god loop's and the promotion detector's, written on the game's content before the split)
-  'packages/ai/test/god-loop.test.ts',
-  'packages/ai/test/leaf-trees.test.ts',
-  'packages/ai/test/modder.test.ts',
-  'packages/ai/test/promote.test.ts',
-  'packages/ai/test/prune.test.ts',
-  'packages/ai/test/repo.test.ts',
-  'packages/ai/test/shackles.test.ts',
-  'packages/ai/test/validation-cache.test.ts',
+const TESTS_ON_THE_GAME = new Set<string>([
+  // (none: the AI's tests on the game's content are the game's, games/openworld/ai/test)
 ])
 
 function files(dir: string): string[] {

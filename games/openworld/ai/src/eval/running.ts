@@ -9,22 +9,22 @@
 // quests' stages. Costs model calls: --budget stops asking once the model's spend reaches it (the default runs, as
 // with no model). Revisions after shipping are off, to spend the budget on questions.
 //
-//   LSW_MODEL_BACKEND=anthropic npx tsx games/openworld/tools/src/eval/running.ts [--players 3] [--hours 24] [--budget 15] [--out var/eval/running]
+//   LSW_MODEL_BACKEND=anthropic npx tsx games/openworld/ai/src/eval/running.ts [--players 3] [--hours 24] [--budget 15] [--out var/eval/running]
 
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { AI_WAIT_MS, Game, RuleLibrary, TICKS_PER_HOUR, type MapChunk } from '@openworld/engine'
 import { BASE_RULES, FORMS, GAME, STORY_RULES, buildOntology, decodeChunk, wildChunkFor } from '@openworld-game/content'
-import { modelFromEnv, openModder } from '@openworld/ai'
+import { modelFromEnv, openModder, flags, sleep } from '@openworld/ai'
 import type { Model } from '@openworld/ai'
 import { buildFord } from '../../../tools/src/demo/world.ts'
+import { minstd } from './common.ts'
 
-const argv = process.argv.slice(2)
-const opt = (k: string, d: string) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : d)
+const opt = flags(process.argv.slice(2))
 const PLAYERS = Number(opt('players', '3'))
 const HOURS = Number(opt('hours', '24'))
 const BUDGET = Number(opt('budget', '15'))
-const OUT = opt('out', 'var/eval/running')
+const OUT = opt('out', 'var/eval/running')!
 mkdirSync(OUT, { recursive: true })
 
 // ---------------------------------------------------------------- the modder, with a budget
@@ -79,8 +79,7 @@ interface Tally {
 }
 
 async function player(p: number): Promise<{ game: Game; tally: Tally }> {
-  let s = p + 1
-  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647
+  const rnd = minstd(p + 1)
   const pick = <T,>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)]
   const game = Game.create(world.index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
   game.keepMaps = 8
@@ -165,7 +164,6 @@ async function player(p: number): Promise<{ game: Game; tally: Tally }> {
     }
     if (chains.size > 5000) chains.clear()
   }
-  const pause = () => new Promise((r) => setTimeout(r, 0))
   for (let hr = 0; hr < HOURS; hr++) {
     if (hr % 2 === 0 && hr) travel()
     for (let k = 0; k < 2; k++) bag[Math.floor(rnd() * BAG)] = pick(CARRY)
@@ -174,7 +172,7 @@ async function player(p: number): Promise<{ game: Game; tally: Tally }> {
       const asking = game.mods.asking
       if (asking) {
         const since = Date.now()
-        while (game.mods.asking?.id === asking.id && Date.now() - since < AI_WAIT_MS) await new Promise((r) => setTimeout(r, 100))
+        while (game.mods.asking?.id === asking.id && Date.now() - since < AI_WAIT_MS) await sleep(100)
         tally.waited.push(Date.now() - since)
         if (game.mods.asking?.id === asking.id) (game.mods.fallback(asking.id), tally.lateDefaults++)
         read()
@@ -212,7 +210,7 @@ async function player(p: number): Promise<{ game: Game; tally: Tally }> {
       read()
       if (t % 50 === 0) {
         sync()
-        await pause()
+        await sleep(0)
       }
     }
     tally.raised = game.mods.records.length

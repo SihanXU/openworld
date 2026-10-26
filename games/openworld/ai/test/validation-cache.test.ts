@@ -1,7 +1,10 @@
+// The validation cache (library.ts): a proof is reused only while the library and the ontology it was made under
+// hold. In a file of its own: it spies on the engine's validator and replay, and a module mock covers its file.
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, holeKey, validatePatch, replay, type ModWorkspace, type Patch, type Rule } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { WorldLibrary } from '../src/library/library.ts'
+import { WorldLibrary } from '@openworld/ai'
 
 vi.mock('@openworld/engine', async (original) => {
   const engine = await original<typeof import('@openworld/engine')>()
@@ -25,9 +28,9 @@ function fresh() {
   return { library: new WorldLibrary(ontology, base), ontology, patch, req, rule, hole }
 }
 
-beforeEach(() => vi.clearAllMocks())
-
 describe('validation proofs', () => {
+  beforeEach(() => vi.clearAllMocks())
+
   it('reuses an exact proof at commit, independent of patch record metadata', () => {
     const { library, patch, req } = fresh()
     const first = library.validate(patch, req)

@@ -11,25 +11,20 @@
 //         reset a self-state's harness to a starting point (a run starts from naive)
 // Model: LSW_MODEL_KEY + LSW_MODEL (+ LSW_MODEL_URL, LSW_MODEL_PROVIDERS), read from <repo>/.env.
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import '../src/agent/files-node.ts'
+import { REPO } from '../src/node.ts'
 import { LocalEnv } from '../src/agent/env.ts'
 import { runAgent } from '../src/agent/loop.ts'
 import { modelFromEnv, pinFromEnv } from '../src/models/model-node.ts'
-import { applyPreset, type Preset } from '../src/agent/presets.ts'
+import { applyPreset, type Preset } from '../src/agent/outer.ts'
 import { SelfState, type Ablation } from '../src/agent/state.ts'
 import { IMAGE_TEMPLATE, runInstances, sha256, type SweInstance } from '../src/agent/swe.ts'
+import { flags } from '../src/util.ts'
 
-const REPO = resolve(fileURLToPath(new URL('../../..', import.meta.url)))
-if (existsSync(join(REPO, '.env'))) process.loadEnvFile(join(REPO, '.env'))
 
 const argv = process.argv.slice(2)
-const flag = (k: string) => {
-  const i = argv.indexOf(`--${k}`)
-  return i < 0 ? undefined : argv[i + 1]
-}
+const flag = flags(argv)
 const has = (k: string) => argv.includes(`--${k}`)
 const cmd = argv[0]
 const log = (l: string) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${l}`)
@@ -45,7 +40,7 @@ function need(k: string): string {
 function agentCodeHash(): string {
   const src = join(REPO, 'packages', 'ai', 'src')
   const files = ['agent', 'models'].flatMap((d) => readdirSync(join(src, d)).filter((f) => f.endsWith('.ts')).map((f) => `${d}/${f}`))
-  return sha256([...files, 'util.ts'].sort().map((f) => `${f}\n${readFileSync(join(src, f), 'utf8').replace(/\r\n/g, '\n')}`).join('\n'))
+  return sha256([...files, 'node.ts', 'util.ts'].sort().map((f) => `${f}\n${readFileSync(join(src, f), 'utf8').replace(/\r\n/g, '\n')}`).join('\n'))
 }
 
 function readInstances(file: string): SweInstance[] {

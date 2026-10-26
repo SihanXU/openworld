@@ -1,4 +1,6 @@
-// The modder service: one small HTTP API next to the static game (design.md §11).
+// The modder service: a modder opened for a world (its game's ontology and base rules, handed over: the modder imports
+// no game; the shared library file and the self-state directory under one data directory), and one small HTTP API
+// next to the static game (design.md §11).
 //   GET  /health          model, library and self-state at a glance
 //   POST /resolve         ResolveBody → ResolveReply (a validated patch, or why not); `profile: offline` from the editor
 //                         (this host only: from elsewhere it is answered live)
@@ -16,11 +18,27 @@
 //   POST /quality/detect  start a detection (this host only: it costs model calls)
 // "This host only": from a loopback address, with no Origin or a localhost one (not a page on another site), as JSON.
 
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server } from 'node:http'
-import { join } from 'node:path'
-import { AI_WAIT_MS, type Patch, type ResolveBody } from '@openworld/engine'
-import type { DraftBody, Modder, ThingBody } from '../modder/pipeline.ts'
-import { Detector } from '../checks/detect.ts'
+import { join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { AI_WAIT_MS, type GameDef, type Patch, type ResolveBody } from '@openworld/engine'
+import { gameDefOf, type Bundle } from '@openworld/format'
+import { compileProject } from '@openworld/format/src/node.ts'
+// the engine's official modules, which a game's ontology may name (docs/engine-split.md S3)
+import '@openworld/modules'
+import { REPO } from '../node.ts'
+import { runAgent } from '../agent/loop.ts'
+import { SelfState } from '../agent/state.ts'
+import { WorldLibrary } from '../library/library.ts'
+import { modelFromEnv } from '../models/model-node.ts'
+import type { Model } from '../models/model.ts'
+import { Detector } from '../modder/detect.ts'
+import { Modder, useOffline, type DraftBody, type ThingBody } from '../modder/pipeline.ts'
+import { materializeWorld } from './repo.ts'
+
+// the offline profile's repo agent, handed to the modder under Node (pipeline.ts `useOffline`)
+useOffline({ runAgent, materializeWorld })
 
 export interface ServerOptions {
   /** Access-Control-Allow-Origin (default *: the client is a static page on another origin). */
@@ -32,6 +50,7 @@ export interface ServerOptions {
 
 export function createModderServer(modder: Modder, opts: ServerOptions = {}): Server {
   const { library, state } = modder.opts
+  const maxBody = opts.maxBody ?? 4_000_000
   const libraryInfo = () => ({ seq: library.seq, log: library.logId, patches: library.patchRules().length, rules: library.lib.rules.size })
   const detector = new Detector(modder, { file: modder.opts.data ? join(modder.opts.data, 'quality.json') : undefined, probes: modder.opts.probes, log: modder.opts.log })
   // a detection is model calls on this service's account: asked for from this machine only
@@ -63,49 +82,61 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
     }
     if (req.method === 'OPTIONS') return void res.writeHead(204).end()
     const url = new URL(req.url ?? '/', 'http://localhost')
+    const route = `${req.method} ${url.pathname}`
     try {
-      if (req.method === 'GET' && url.pathname === '/health') return send(200, { ok: true, game: opts.game ?? null, model: modder.model?.name ?? null, library: libraryInfo(), state: state.stats(), detected: detector.last ? { model: detector.last.model, at: detector.last.at, recommend: detector.last.recommend } : null })
-      if (req.method === 'GET' && url.pathname === '/quality')
-        return send(200, { model: modder.model?.name ?? null, waitMs: AI_WAIT_MS, detection: detector.last ?? null, running: detector.running ?? null, error: detector.error ?? null, ...(url.searchParams.get('plan') && { plan: await detector.plan() }) })
-      if (req.method === 'POST' && url.pathname === '/quality/detect') {
+      if (route === 'GET /health') {
+        const last = detector.last
+        const detected = last ? { model: last.model, at: last.at, recommend: last.recommend } : null
+        return send(200, { ok: true, game: opts.game ?? null, model: modder.model?.name ?? null, library: libraryInfo(), state: state.stats(), detected })
+      }
+      if (route === 'GET /quality')
+        return send(200, {
+          model: modder.model?.name ?? null,
+          waitMs: AI_WAIT_MS,
+          detection: detector.last ?? null,
+          running: detector.running ?? null,
+          error: detector.error ?? null,
+          ...(url.searchParams.get('plan') && { plan: await detector.plan() }),
+        })
+      if (route === 'POST /quality/detect') {
         const refused = hostOnly(req, true)
         if (refused) return send(refused[0], { error: `a detection is started from the machine the service runs on: ${refused[1]}` })
         return send(200, await detector.start())
       }
-      if (req.method === 'GET' && url.pathname === '/patches') {
+      if (route === 'GET /patches') {
         const since = Number(url.searchParams.get('since') ?? 0) || 0
         return send(200, { seq: library.seq, log: library.logId, entries: library.since(since) })
       }
-      if (req.method === 'GET' && url.pathname === '/trace') {
+      if (route === 'GET /trace') {
         // an author's draft is this host's own, as its asking is
         const refused = hostOnly(req, true)
         if (refused) return send(refused[0], { error: `a draft is read from the machine the service runs on: ${refused[1]}` })
         return send(200, modder.traceOf(url.searchParams.get('id') ?? ''))
       }
-      if (req.method === 'GET' && url.pathname === '/progress') return send(200, modder.progressOf(url.searchParams.get('id') ?? '') ?? {})
-      if (req.method === 'GET' && url.pathname === '/stats') return send(200, { library: libraryInfo(), state: state.stats(), snapshots: state.snapshots() })
-      if (req.method === 'POST' && url.pathname === '/fault') {
+      if (route === 'GET /progress') return send(200, modder.progressOf(url.searchParams.get('id') ?? '') ?? {})
+      if (route === 'GET /stats') return send(200, { library: libraryInfo(), state: state.stats(), snapshots: state.snapshots() })
+      if (route === 'POST /fault') {
         const body = (await readJson(req, 64_000)) as { rule?: unknown; reason?: unknown; client?: unknown }
         if (typeof body?.rule !== 'string') return send(400, { error: 'rule required' })
         // a fault is counted by where it came from: a caller elsewhere is one client whatever it says it is (else one
         // caller could claim to be enough clients to remove a learned rule); only a caller on this machine (a tool,
-        // a test) may tell its clients apart
+        // a test), not a page on another site through a browser here, may tell its clients apart
         const from = req.socket.remoteAddress ?? 'anon'
-        const client = local(req) && typeof body.client === 'string' && body.client ? `${from}#${body.client}` : from
+        const client = local(req) && ownOrigin(req) && typeof body.client === 'string' && body.client ? `${from}#${body.client}` : from
         return send(200, modder.fault(body.rule, String(body.reason ?? ''), client))
       }
       // an author's new thing: drafted on this service's account, and taken into the shared library without the AI (this host only)
-      const refused = req.method === 'POST' && (url.pathname === '/create' || url.pathname === '/adopt' || url.pathname === '/draft') ? hostOnly(req) : undefined
+      const refused = ['POST /create', 'POST /adopt', 'POST /draft'].includes(route) ? hostOnly(req) : undefined
       if (refused) return send(refused[0], { error: `a new thing is asked for and taken in from the machine the service runs on: ${refused[1]}` })
-      if (req.method === 'POST' && url.pathname === '/draft') return send(200, await modder.draft((await readJson(req, opts.maxBody ?? 4_000_000)) as DraftBody))
-      if (req.method === 'POST' && url.pathname === '/create') return send(200, await modder.createThing((await readJson(req, opts.maxBody ?? 4_000_000)) as ThingBody))
-      if (req.method === 'POST' && url.pathname === '/adopt') {
-        const body = (await readJson(req, opts.maxBody ?? 4_000_000)) as { patch?: Patch }
+      if (route === 'POST /draft') return send(200, await modder.draft((await readJson(req, maxBody)) as DraftBody))
+      if (route === 'POST /create') return send(200, await modder.createThing((await readJson(req, maxBody)) as ThingBody))
+      if (route === 'POST /adopt') {
+        const body = (await readJson(req, maxBody)) as { patch?: Patch }
         if (!body?.patch) return send(400, { error: 'patch required' })
         return send(200, modder.adopt(body.patch))
       }
-      if (req.method === 'POST' && url.pathname === '/resolve') {
-        const body = (await readJson(req, opts.maxBody ?? 4_000_000)) as ResolveBody
+      if (route === 'POST /resolve') {
+        const body = (await readJson(req, maxBody)) as ResolveBody
         // an author asking from the editor asks with the offline profile (more care: tools, review before shipping); it
         // costs the service far more, so only a caller on this machine may (anyone else is answered live)
         const profile = body?.profile === 'offline' ? (local(req) && ownOrigin(req) ? 'offline' : 'live') : body?.profile === 'live' ? 'live' : undefined
@@ -138,4 +169,44 @@ function readJson(req: IncomingMessage, max: number): Promise<unknown> {
     })
     req.on('error', reject)
   })
+}
+
+// ---------------------------------------------------------------- opening a modder for a world
+
+export interface OpenOptions {
+  /** The game whose world this modder patches. */
+  game: GameDef
+  /** Holds library.jsonl and modder-state/ (default: $LSW_DATA or <repo>/var). */
+  data?: string
+  /** Default: from the environment (model.ts modelFromEnv); null forces none. */
+  model?: Model | null
+  log?: (line: string) => void
+}
+
+export function openModder(o: OpenOptions): Modder {
+  const data = o.data ?? process.env.LSW_DATA ?? join(REPO, 'var')
+  const library = new WorldLibrary(o.game.ontology(), o.game.rules, join(data, 'library.jsonl'))
+  const state = SelfState.open(join(data, 'modder-state'))
+  const model = o.model === null ? undefined : (o.model ?? modelFromEnv())
+  return new Modder({ library, state, model, log: o.log, probes: o.game.probes, data })
+}
+
+/**
+ * A game's definition, for the command lines: a bundle (its bundle.json, or the folder that holds one), a
+ * project's folder (compiled: its game.json), or a module (its default export, or `GAME`).
+ */
+export async function loadGame(module: string): Promise<GameDef> {
+  const at = resolve(REPO, module)
+  const dir = existsSync(at) && statSync(at).isDirectory()
+  if (at.endsWith('.json') || (dir && existsSync(join(at, 'bundle.json')))) return gameDefOf(JSON.parse(readFileSync(at.endsWith('.json') ? at : join(at, 'bundle.json'), 'utf8')) as Bundle)
+  if (dir && existsSync(join(at, 'game.json'))) {
+    const c = compileProject(at)
+    const errors = c.problems.filter((p) => p.level === 'error')
+    if (errors.length) throw new Error(`${module} does not compile: ${errors.map((p) => p.message).join('; ')}`)
+    return gameDefOf(c.bundle)
+  }
+  const m = (await import(pathToFileURL(resolve(REPO, module)).href)) as { default?: GameDef; GAME?: GameDef }
+  const game = m.default ?? m.GAME
+  if (!game) throw new Error(`${module} exports no game (a default export or GAME)`)
+  return game
 }

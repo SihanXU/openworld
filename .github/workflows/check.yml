@@ -2,7 +2,7 @@
 # the modules, the format, the starter, the AI (packages/ai and OpenWorld's drivers in games/openworld/ai), the runtime
 # and editor, and OpenWorld's content, demo and wiki generator. The wiki's own check is wiki.yml; the desktop
 # installers are desktop.yml. The one test that needs Docker (the agent's sandbox container,
-# packages/ai/test/repo.test.ts) runs here, where Docker is. The no-ai job deletes the AI and checks the game still
+# games/openworld/ai/test/repo.test.ts) runs here, where Docker is. The no-ai job deletes the AI and checks the game still
 # typechecks, passes its tests, plays two headless days and builds.
 name: check
 on:
@@ -18,7 +18,7 @@ jobs:
     # The full suite alone can take about 30 minutes; allow setup, typecheck and cleanup to finish too.
     timeout-minutes: 45
     steps:
-      # the ladder's test makes a workspace of HEAD's parent (games/openworld/ai/test/ladder.test.ts): a parent is fetched too
+      # the ladder's test makes a workspace of HEAD's parent (games/openworld/ai/test/drivers.test.ts): a parent is fetched too
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2

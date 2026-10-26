@@ -14,35 +14,27 @@
 // A and C are told by one template from what the replay did; B is asked for a sentence in that template's style; the
 // judge is not told which condition wrote what. Costs model calls (the anthropic backend: LSW_MODEL_BACKEND=anthropic).
 //
-//   npx tsx games/openworld/tools/src/eval/controlled.ts items [--n 30] [--seed 7]
-//   npx tsx games/openworld/tools/src/eval/controlled.ts answer A|B|C|no-brief|... [--lanes 4]
-//   npx tsx games/openworld/tools/src/eval/controlled.ts judge | report
+//   npx tsx games/openworld/ai/src/eval/controlled.ts items [--n 30] [--seed 7]
+//   npx tsx games/openworld/ai/src/eval/controlled.ts answer A|B|C|no-brief|... [--lanes 4]
+//   npx tsx games/openworld/ai/src/eval/controlled.ts judge | report
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { RuleLibrary, buildSandbox, scenarioEvent, textOf, type ModRequest, type Ontology, type Rule } from '@openworld/engine'
-import { modelFromEnv, openModder, parseJson, type Model, type WorldEpisode } from '@openworld/ai'
+import { modelFromEnv, openModder, parseJson, flags, type Model, type WorldEpisode } from '@openworld/ai'
 import { BASE_RULES, GAME, STORY_RULES, TERRAINS, buildOntology } from '@openworld-game/content'
 import { GENERIC_RULES, sweep, type Cell } from '../../../tools/src/coverage.ts'
 import { cellRequest } from '../curriculum.ts'
-import { trueskill, type Choice } from './trueskill.ts'
+import { mean, minstd, pct, shuffled, trueskill, type Answer, type Choice, type Item, type Rating } from './common.ts'
 
 const argv = process.argv.slice(2)
-const opt = (k: string, d?: string) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : d)
+const opt = flags(argv)
 const DIR = opt('data', 'var/eval/controlled')!
 mkdirSync(DIR, { recursive: true })
 const onto = buildOntology()
 const read = <T,>(f: string): T => JSON.parse(readFileSync(join(DIR, f), 'utf8'))
 const write = (f: string, x: unknown) => writeFileSync(join(DIR, f), JSON.stringify(x, null, 1))
-
-interface Item {
-  id: string
-  set: 'heldout' | 'undefined'
-  cell: Cell
-  /** the authored rule removed (held-out situations) */
-  heldOut?: string
-}
 
 /** The base rules without one of them (a held-out situation's world). */
 const rulesWithout = (id?: string): Rule[] => [...BASE_RULES.filter((r) => r.id !== id), ...STORY_RULES]
@@ -50,13 +42,8 @@ const libWithout = (id?: string) => new RuleLibrary(rulesWithout(id))
 
 // ---------------------------------------------------------------- items
 
-let seed = Number(opt('seed', '7'))
-const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
-const shuffle = <T,>(xs: T[]): T[] => {
-  const a = [...xs]
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] }
-  return a
-}
+const rnd = minstd(Number(opt('seed', '7')))
+const shuffle = <T,>(xs: T[]): T[] => shuffled(xs, rnd)
 const familyOf = (type: string) => type.split('/').slice(0, 2).join('/') || 'hand'
 const targetClass = (t: string) => (t.startsWith('fixture/') ? 'fixture' : t.startsWith('tile:') ? 'ground' : t)
 /** Up to n from the groups in turn (each shuffled), so every group is drawn from before any twice. */
@@ -164,21 +151,6 @@ const ABLATIONS: Record<string, (h: any) => any> = {
   'no-router': (h) => ({ ...h, design: { ...h.design, router: false } }),
 }
 
-interface Answer {
-  item: string
-  cond: string
-  sentence: string
-  /** the modder's: accepted, valid at its first answer, after repairs; the player's wait; cost */
-  accepted?: boolean
-  firstValid?: boolean
-  ms?: number
-  cost?: number
-  calls?: number
-  rules?: string[]
-  route?: string[]
-  error?: string
-}
-
 async function pool<T, R>(xs: T[], lanes: number, f: (x: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(xs.length)
   let next = 0
@@ -247,8 +219,6 @@ async function answer(cond: string): Promise<void> {
 
 // ---------------------------------------------------------------- the judge
 
-interface Rating { item: string; cond: string; sense: number; fit: number }
-
 async function judge(): Promise<void> {
   const model = modelFromEnv()
   if (!model) throw new Error('no model (LSW_MODEL_BACKEND=anthropic)')
@@ -297,8 +267,6 @@ function report(): void {
   const ratings: Rating[] = existsSync(join(DIR, 'ratings.json')) ? read('ratings.json') : []
   const choices: Choice[] = existsSync(join(DIR, 'choices.json')) ? read('choices.json') : []
   const ts = trueskill(choices)
-  const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN)
-  const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(p * xs.length))]
   const rows: Record<string, unknown>[] = []
   for (const cond of ['A', 'B', 'C', ...Object.keys(ABLATIONS).filter((c) => c !== 'A')]) {
     if (!existsSync(join(DIR, `answers-${cond}.json`))) continue

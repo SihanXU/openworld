@@ -15,7 +15,7 @@ import { SelfState } from '../agent/state.ts'
 import { keyHint, listModels, modelOf, scrub, testModel, type ModelConfig } from '../models/providers.ts'
 import { providerOf } from '../models/providerList.ts'
 import { type ChatMessage, type ChatOptions, type Model, type ModelReply } from '../models/model.ts'
-import { Detector } from '../checks/detect.ts'
+import { Detector } from '../modder/detect.ts'
 import { Modder } from '../modder/pipeline.ts'
 import { WorldLibrary } from '../library/library.ts'
 import type { FromModder, LinkCall, ModelChoice, ModelStatus, Remember, Spend, ToModder } from '@openworld/runtime/src/modderProtocol.ts'
@@ -42,7 +42,7 @@ const SELF = '/self'
 const KEEP_EPISODES = 300
 const SAVE_SELF_MS = 2000
 
-export const today = (d = new Date()): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const today = (d = new Date()): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const emptySpend = (day = today(), total = 0): Spend => ({ day, cost: 0, calls: 0, input: 0, output: 0, unpriced: 0, total })
 
 export class LocalModder {
@@ -64,6 +64,8 @@ export class LocalModder {
   /** The game handed over and the modder made over it: the engine's port waits for it (else its one probe hears no model). */
   private gameIn: Promise<void>
   private gameArrived!: () => void
+  /** The game, held until its protected facts come (the page sends them right after it). */
+  private game?: Extract<ToModder, { t: 'game' }>
 
   constructor(
     private io: {
@@ -93,19 +95,26 @@ export class LocalModder {
     await this.ready
     switch (m.t) {
       case 'game':
+        this.game = m
+        return
+      case 'facts': {
+        const g = this.game
+        if (!g) return
         try {
           await this.openSelf()
-          this.library = new WorldLibrary(m.ontology, m.rules)
+          // judged with the story's protected facts, as the engine's worker judges what it takes
+          this.library = new WorldLibrary(g.ontology, g.rules, undefined, { protectedFacts: m.protectedFacts })
           this.rebuild()
         } finally {
           this.gameArrived()
         }
         return
+      }
       case 'link':
         return this.link(m.port)
       case 'set': {
         // a key kept for one service is never sent to another
-        const same = this.choice && this.choice.provider === m.choice.provider && (this.choice.baseUrl ?? '') === (m.choice.baseUrl ?? '')
+        const same = this.isChosen(m.choice)
         this.choice = { provider: m.choice.provider, model: m.choice.model.trim(), ...(m.choice.baseUrl?.trim() && { baseUrl: m.choice.baseUrl.trim() }) }
         this.key = m.key?.trim() || (same ? this.key : undefined)
         this.remember = m.remember
@@ -140,8 +149,13 @@ export class LocalModder {
 
   /** The config a test or a list is asked with: the key typed, or the one kept for this very service. */
   private configFor(choice: ModelChoice, key?: string): ModelConfig {
-    const same = this.choice && this.choice.provider === choice.provider && (this.choice.baseUrl ?? '') === (choice.baseUrl ?? '')
-    return { provider: choice.provider, baseUrl: choice.baseUrl?.trim() || undefined, model: choice.model.trim(), apiKey: key?.trim() || (same ? this.key : undefined) }
+    const apiKey = key?.trim() || (this.isChosen(choice) ? this.key : undefined)
+    return { provider: choice.provider, baseUrl: choice.baseUrl?.trim() || undefined, model: choice.model.trim(), apiKey }
+  }
+
+  /** The service chosen now (the one the kept key is for). */
+  private isChosen(choice: ModelChoice): boolean {
+    return !!this.choice && this.choice.provider === choice.provider && (this.choice.baseUrl ?? '') === (choice.baseUrl ?? '')
   }
 
   private async reply(id: number, work: () => Promise<unknown>): Promise<void> {
