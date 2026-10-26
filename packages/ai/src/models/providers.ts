@@ -45,7 +45,8 @@ export function modelOf(cfg: ModelConfig, opts: { browser?: boolean } = {}): Mod
   const p = providerOf(cfg.provider)
   if (!p) throw new Error(`unknown provider "${cfg.provider}"`)
   const baseUrl = baseUrlOf(cfg)
-  if (p.kind === 'anthropic') return new AnthropicModel({ model: cfg.model, effort: cfg.effort ?? 'low', apiKey: cfg.apiKey, browser: opts.browser, ...(baseUrl !== p.baseUrl && { baseUrl }) })
+  if (p.kind === 'anthropic')
+    return new AnthropicModel({ model: cfg.model, effort: cfg.effort ?? 'low', apiKey: cfg.apiKey, browser: opts.browser, ...(baseUrl !== p.baseUrl && { baseUrl }) })
   return new OpenAICompatModel({ baseUrl, apiKey: cfg.apiKey ?? '', model: cfg.model })
 }
 
@@ -62,7 +63,7 @@ export async function listModels(cfg: ModelConfig, signal: AbortSignal = AbortSi
   const base = baseUrlOf(cfg)
   const url = p.kind === 'anthropic' ? `${base}/v1/models?limit=1000` : `${base}/models`
   const res = await fetch(url, { headers: authOf(cfg, p.kind), signal })
-  const data = (await res.json().catch(() => null)) as { data?: { id?: string }[]; models?: { name?: string }[] } | null
+  const data = (await res.json().catch(() => null)) as { data?: { id?: string }[] } | null
   if (!res.ok) throw new Error(`HTTP ${res.status} ${JSON.stringify(data)?.slice(0, 200) ?? ''}`)
   const ids = (data?.data ?? []).map((m) => m.id).filter((id): id is string => typeof id === 'string')
   return [...new Set(ids)].sort()
