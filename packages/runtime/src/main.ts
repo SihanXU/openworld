@@ -86,8 +86,9 @@ const dev = new ModConsole({
 
 const menu = new Menu({
   swap: (a, b) => send({ t: 'swap', a, b }),
+  moveSlot: (request, from, to, item, count, sourceCount) => send({ t: 'moveSlot', request, from, to, item, count, sourceCount }),
   quickMove: (slot) => send({ t: 'quickMove', slot }),
-  drop: (slot, all) => send({ t: 'drop', slot, all }),
+  drop: (slot, all, selection) => send({ t: 'drop', slot, all, ...(selection && { item: selection.item, count: selection.count, sourceCount: selection.sourceCount }) }),
   organize: () => send({ t: 'organize' }),
   wear: (item, putOn) => send({ t: 'wear', item, putOn }),
   craft: (id, all, at) => send({ t: 'craft', id, all, at }),
@@ -488,6 +489,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       break
     case 'codex':
       menu.onCodex(m.codex)
+      break
+    case 'slotMove':
+      menu.onMoveSlotResult(m.request, m.moved)
       break
     case 'frame':
       m.frame = frameThings.decode(m.frame, m.gone)

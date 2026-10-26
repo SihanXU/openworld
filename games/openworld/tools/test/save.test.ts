@@ -2,7 +2,7 @@
 // plays on.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary } from '@openworld/engine'
+import { Game, RuleLibrary, snapshot } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
@@ -33,6 +33,30 @@ describe('a save taken while the modder works', () => {
     const p2 = loaded.engine.world.player
     expect(Object.values(loaded.engine.world.state.entities).filter((e) => e.frozenBy)).toEqual([])
     expect(loaded.engine.busy(p2)).toBe(false)
+  })
+})
+
+describe('physical inventory stacks in saves', () => {
+  it('keeps separate same-kind groups when the game is saved and loaded', () => {
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, onto, lib())
+    for (const c of chunks) game.loadChunk(decodeChunk(c))
+    const eng = game.engine
+    const player = eng.world.player
+    const ids = eng.author(() => Array.from({ length: 5 }, (_, i) => eng.world.create('item/material/stone', { on: 'inside', holder: player.id }).id))
+    eng.controls.sync()
+    const slots = snapshot(eng).player.slots
+    const from = slots.findIndex((s) => s?.item.id === ids[0])
+    const to = slots.findIndex((s) => !s)
+    eng.controls.moveSlot(from, to, ids[0]!, 3, 5)
+    const saved = structuredClone(game.save())
+
+    const loaded = Game.load(saved, index, onto, lib())
+    for (const c of chunks) loaded.loadChunk(decodeChunk(c))
+
+    const groups = snapshot(loaded.engine).player.slots.filter((s) => s?.item.type === 'item/material/stone')
+    expect(groups.map((s) => s?.count).sort()).toEqual([2, 3])
+    expect(groups.map((s) => s?.item.id).sort()).toEqual([ids[0], ids[3]].sort())
   })
 })
 

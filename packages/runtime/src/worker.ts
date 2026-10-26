@@ -953,12 +953,15 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'swap':
         game?.engine.controls.swap(m.a, m.b)
         break
+      case 'moveSlot':
+        post({ t: 'slotMove', request: m.request, moved: game?.engine.controls.moveSlot(m.from, m.to, m.item, m.count, m.sourceCount) ?? false })
+        break
       case 'quickMove':
         game?.engine.controls.quickMove(m.slot)
         break
       case 'drop':
         cancelFishing(game)
-        game?.engine.controls.drop(m.slot, m.all)
+        game?.engine.controls.drop(m.slot, m.all, m.item !== undefined && m.count !== undefined && m.sourceCount !== undefined ? { item: m.item, count: m.count, sourceCount: m.sourceCount } : undefined)
         break
       case 'organize':
         game?.engine.controls.organize()

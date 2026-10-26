@@ -154,9 +154,10 @@ function coinOf(): { type: string; name: Text } | undefined {
 
 export interface MenuSend {
   swap(a: number, b: number): void
+  moveSlot(request: number, from: number, to: number, item: string, count: number, sourceCount: number): void
   /** Shift+click: a stack between the toolbar and the rest of the bag. */
   quickMove(slot: number): void
-  drop(slot: number, all: boolean): void
+  drop(slot: number, all: boolean, selection?: { item: string; count: number; sourceCount: number }): void
   organize(): void
   /** What is worn: put a carried item on (in its own slot) or take it off; `putOn` from the bag (another of a stack). */
   wear(item?: string, putOn?: boolean): void
@@ -201,6 +202,12 @@ export interface MenuSend {
   setQuality(q: AiQuality): void
 }
 
+type PickedStack = { slot: number; item: string; count: number; sourceCount: number }
+type PendingSlotMove = {
+  request: number
+  accepted?: boolean
+}
+
 export class Menu {
   tab: Tab = 'inventory'
   /** Options → Keys (keyspage.ts): back to the options when done. */
@@ -235,8 +242,12 @@ export class Menu {
   /** The quest log (L). */
   quests: QuestLog
   skillPanel: SkillPanel
-  /** The inventory slot picked up by a click (placed by the next click). */
-  private picked?: number
+  /** The inventory stack portion picked up by a click; the world changes only when it is placed. */
+  private picked?: PickedStack
+  /** A slot placement awaiting its worker acknowledgement and confirming frame. Rejected moves keep the cursor selection. */
+  private pendingMove?: PendingSlotMove
+  /** Correlates worker move results so an old reply cannot settle a later cursor selection. */
+  private moveRequest = 0
   /** A thing pressed in the bag and being dragged: where the press was, and whether the pointer has moved off it. */
   private drag?: { x: number; y: number; moved: boolean }
   /** The item popup belongs to the currently open panel and closes with it. */
@@ -277,11 +288,10 @@ export class Menu {
       },
     )
     this.worldmap = new WorldMap($('#worldmap'), { atlas: () => this.send.atlas(), travel: (id) => (this.send.travel(id), this.close()), close: () => this.close() })
-    // a click on the backdrop closes (or, holding a stack, drops it)
+    // Closing a bag returns its cursor-only selection to the untouched source stack.
     for (const id of ['menu', 'journal', 'chest'])
       $(`#${id}`).addEventListener('mousedown', (e) => {
         if (e.target !== e.currentTarget) return
-        if (id === 'menu' && this.picked !== undefined) return void (this.send.drop(this.picked, true), (this.picked = undefined), this.render())
         this.close()
       })
     this.carried.className = 'carried hidden'
@@ -291,11 +301,15 @@ export class Menu {
   }
 
   /** What is picked up follows the pointer; a press dragged a little way off its slot becomes a drag. */
+  private positionCarried(x: number, y: number): void {
+    this.carried.style.transform = `translate(${x - 16}px, ${y - 16}px)`
+  }
+
   private carry(e: MouseEvent): void {
     if (this.picked === undefined) return
     // the bag went away under it (the journal opened, another panel): put back
     if (!this.bagShown) return this.showCarried()
-    this.carried.style.transform = `translate(${e.clientX - 16}px, ${e.clientY - 16}px)`
+    this.positionCarried(e.clientX, e.clientY)
     if (this.drag && Math.hypot(e.clientX - this.drag.x, e.clientY - this.drag.y) > 4) this.drag.moved = true
   }
 
@@ -310,16 +324,77 @@ export class Menu {
     if (!d?.moved || this.picked === undefined) return
     // let go once the bag has gone (the journal opened mid-drag): it goes back, never into the world
     if (!this.bagShown) return this.showCarried()
-    const from = this.picked
-    this.picked = undefined
+    const picked = this.picked
     const at = document.elementFromPoint(e.clientX, e.clientY)
     const slot = at?.closest<HTMLElement>('.inv [data-i]')
     const wear = at?.closest<HTMLElement>('[data-wear]')
-    const item = this.frame?.player.slots[from]?.item
-    if (slot) Number(slot.dataset.i) !== from && this.send.swap(from, Number(slot.dataset.i))
-    else if (wear) item?.props.slot && this.send.wear(item.id, true)
-    else if (!$('#menuSheet').contains(at)) this.send.drop(from, true)
+    const item = this.pickedItem(picked)
+    if (slot) {
+      const to = Number(slot.dataset.i)
+      if (to === picked.slot) this.clearPicked()
+      else this.placePicked(to)
+    } else if (wear) {
+      if (item?.props.slot) this.send.wear(item.id, true), this.clearPicked()
+    } else if (!$('#menuSheet').contains(at)) {
+      this.send.drop(picked.slot, true, picked)
+      this.clearPicked()
+    }
     this.render()
+  }
+
+  private pickSlot(i: number, half = false, pointer?: { clientX: number; clientY: number }): void {
+    const s = this.frame?.player.slots[i]
+    if (!s) return
+    this.picked = { slot: i, item: s.item.id, count: half ? Math.ceil(s.count / 2) : s.count, sourceCount: s.count }
+    this.pendingMove = undefined
+    this.showCarried()
+    if (pointer) this.positionCarried(pointer.clientX, pointer.clientY)
+  }
+
+  private pickedItem(picked = this.picked): ItemInfo | undefined {
+    if (!picked || !this.frame) return undefined
+    const slot = this.frame.player.slots[picked.slot]
+    if (slot?.item.id === picked.item) return slot.item
+    return this.frame.player.inventory.find((stack) => stack.ids.includes(picked.item))
+  }
+
+  private clearPicked(): void {
+    this.picked = undefined
+    this.pendingMove = undefined
+    this.drag = undefined
+    this.showCarried()
+  }
+
+  private placePicked(to: number): void {
+    const picked = this.picked
+    const f = this.frame
+    if (!picked || !f || this.pendingMove) return
+    const source = f.player.slots[picked.slot]
+    const target = f.player.slots[to]
+    if (!Number.isSafeInteger(to) || !source || source.item.id !== picked.item || source.count !== picked.sourceCount || to < 0 || to >= f.player.slots.length) return
+    const sourceKey = stackKey(source.item)
+    const targetKey = target ? stackKey(target.item) : undefined
+    if (target && targetKey !== sourceKey && picked.count !== picked.sourceCount) return
+    this.pendingMove = {
+      request: ++this.moveRequest,
+    }
+    this.send.moveSlot(this.pendingMove.request, picked.slot, to, picked.item, picked.count, picked.sourceCount)
+  }
+
+  /** The worker confirms or rejects this specific move command, independently of frames already in flight. */
+  onMoveSlotResult(request: number, moved: boolean): void {
+    const pending = this.pendingMove
+    if (!pending || pending.request !== request) return
+    if (!moved) {
+      this.pendingMove = undefined
+      return
+    }
+    pending.accepted = true
+  }
+
+  private settlePickedMove(): void {
+    // Worker message order is FIFO: any frame delivered after an accepted move acknowledgement reflects that move.
+    if (this.pendingMove?.accepted) this.clearPicked()
   }
 
   /** The bag is what is shown (a thing picked up from it rides the pointer only then). */
@@ -329,15 +404,16 @@ export class Menu {
 
   /** The thing picked up, drawn on the pointer while the bag is open; with the bag gone, it is put back. */
   private showCarried(): void {
-    if (!this.bagShown) (this.picked = undefined), (this.drag = undefined)
-    const s = this.picked !== undefined ? this.frame?.player.slots[this.picked] : undefined
-    this.carried.classList.toggle('hidden', !s)
-    if (!s) return void delete this.carried.dataset.item
-    const sig = `${s.item.id}|${s.count}|${itemIconSignature([s.item])}`
+    if (!this.bagShown) (this.picked = undefined), (this.pendingMove = undefined), (this.drag = undefined)
+    const picked = this.picked
+    const item = this.pickedItem(picked)
+    this.carried.classList.toggle('hidden', !picked || !item)
+    if (!picked || !item) return void delete this.carried.dataset.item
+    const sig = `${item.id}|${picked.count}|${itemIconSignature([item])}`
     if (this.carried.dataset.item === sig) return
     this.carried.dataset.item = sig
-    this.carried.innerHTML = `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}`
-    this.paintIcons?.([s.item])
+    this.carried.innerHTML = `<div class="icon" data-icon="${item.id}"></div>${picked.count > 1 ? `<span class="count">${picked.count}</span>` : ''}`
+    this.paintIcons?.([item])
   }
 
   get menuOpen(): boolean {
@@ -404,6 +480,7 @@ export class Menu {
     $('#worldmap').classList.add('hidden')
     $('#menu').classList.remove('hidden')
     this.picked = undefined
+    this.pendingMove = undefined
     this.render()
     if (fresh) $('#menuSheet').scrollTop = 0
     if (this.tab === 'options') void this.ai.refresh()
@@ -448,6 +525,7 @@ export class Menu {
     for (const id of ['#menu', '#journal', '#chest', '#skills', '#worldmap', '#profession', '#questlog', '#skillpanel']) $(id).classList.add('hidden')
     this.panels.close()
     this.picked = undefined
+    this.pendingMove = undefined
     this.drag = undefined
     this.showCarried()
     this.ai.stop()
@@ -455,6 +533,7 @@ export class Menu {
 
   onFrame(f: Frame): void {
     this.frame = f
+    this.settlePickedMove()
     // the chest panel follows the open container the worker names
     if (f.container && !this.chestOpen) ($('#chest').classList.remove('hidden'), (this.chestSig = ''))
     if (!f.container && this.chestOpen) {
@@ -569,7 +648,18 @@ export class Menu {
 
   private sigOf(f: Frame): string {
     const icons = [...f.player.slots.filter(Boolean).map((s) => s!.item), ...Object.values(f.player.worn ?? {}), ...(f.player.offhand ? [f.player.offhand] : [])]
-    return `${this.tab}|${locale.value}|${f.player.hp}/${f.player.maxHp}|${f.player.hunger}|${f.player.purse}|${JSON.stringify(f.player.stats)}|${String(f.player.props.level)}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${itemIconSignature(icons)}|${f.player.stations.join()}|${this.station}:${this.stationAt}|${JSON.stringify(f.facts)}|${this.picked}|${artEpoch}|${this.crafting?.done}/${this.crafting?.total}`
+    const picked = this.picked && [this.picked.slot, this.picked.item, this.picked.count, this.picked.sourceCount]
+    return `${this.tab}|${locale.value}|${f.player.hp}/${f.player.maxHp}|${f.player.hunger}|${f.player.purse}|${JSON.stringify(f.player.stats)}|${String(f.player.props.level)}|${JSON.stringify(this.displaySlots(f).map((s) => s && [s.item.id, s.count]))}|${f.player.offhand?.id}:${f.player.offhand?.works}|${Object.entries(f.player.worn ?? {}).map(([k, v]) => k + v.id).join()}|${itemIconSignature(icons)}|${f.player.stations.join()}|${this.station}:${this.stationAt}|${JSON.stringify(f.facts)}|${JSON.stringify(picked)}|${artEpoch}|${this.crafting?.done}/${this.crafting?.total}`
+  }
+
+  /** A picked portion remains on the cursor, so draw only its remainder in the source slot. */
+  private displaySlots(f: Frame): Frame['player']['slots'] {
+    const picked = this.picked
+    if (!picked) return f.player.slots
+    const source = f.player.slots[picked.slot]
+    if (!source || source.item.id !== picked.item || source.count !== picked.sourceCount) return f.player.slots
+    const remaining = source.count - picked.count
+    return f.player.slots.map((slot, i) => i !== picked.slot ? slot : remaining > 0 ? { ...source, count: remaining } : null)
   }
 
   // ---------------------------------------------------------------- inventory
@@ -581,9 +671,9 @@ export class Menu {
 
   private inventoryHtml(f?: Frame): string {
     if (!f) return ''
-    const slots = f.player.slots
+    const slots = this.displaySlots(f)
     // the toolbar row first (keys 1–0, set apart), then the rest of the bag
-    const rows = chunk(slots.map((s, j) => this.slotHtml(s, j, (j === this.picked ? ' picked' : '') + (j === f.player.selected ? ' sel' : ''))), ROW)
+    const rows = chunk(slots.map((s, j) => this.slotHtml(s, j, (j === this.picked?.slot ? ' picked' : '') + (j === f.player.selected ? ' sel' : ''))), ROW)
       .map((r, k) => `<div class="grid-row${k === 0 ? ' toolbar-row' : ''}">${r.join('')}</div>`)
       .join('')
     // what is worn beside the bag (world-model.md §6.8): ten slots of the body and the off hand, as a paper doll;
@@ -668,21 +758,26 @@ export class Menu {
   private wireInventory(f?: Frame): void {
     if (!f) return
     const slots = f.player.slots
-    $('#bOrganize').onclick = () => this.send.organize()
+    $('#bOrganize').onclick = () => {
+      // The worker may have accepted a move while its frame is still in flight; organizing changes the slot indices.
+      if (this.picked !== undefined) this.clearPicked()
+      this.send.organize()
+      this.render()
+    }
     $('#bDrop').onclick = () => {
       if (this.picked === undefined) return
-      this.send.drop(this.picked, true)
-      this.picked = undefined
+      this.send.drop(this.picked.slot, true, this.picked)
+      this.clearPicked()
       this.render()
     }
     // the equipment: a picked-up wearable is put on (in its own slot); a click on what is worn takes it off
     $('#menuSheet').querySelectorAll<HTMLElement>('[data-wear]').forEach((el) => {
       el.onclick = () => {
-        const s = this.picked !== undefined ? slots[this.picked] : null
+        const s = this.picked !== undefined ? this.pickedItem(this.picked) : null
         const it = f.player.worn?.[el.dataset.wear!]
-        if (s && s.item.props.slot) this.send.wear(s.item.id, true)
+        if (s && s.props.slot) this.send.wear(s.id, true)
         else if (!s && it) this.send.wear(it.id)
-        this.picked = undefined
+        this.clearPicked()
         this.render()
       }
     })
@@ -696,25 +791,29 @@ export class Menu {
         if (e.shiftKey && this.picked === undefined) return void (slots[i] && this.send.quickMove(i))
         if (this.picked === undefined) {
           if (!slots[i]) return
-          this.picked = i
+          this.pickSlot(i, false, e)
           this.drag = { x: e.clientX, y: e.clientY, moved: false }
-          this.carried.style.transform = `translate(${e.clientX - 16}px, ${e.clientY - 16}px)`
         } else {
-          if (this.picked !== i) this.send.swap(this.picked, i)
-          this.picked = undefined
+          if (this.picked.slot === i) this.clearPicked()
+          else this.placePicked(i)
         }
         this.render()
       }
-      // right click: the context menu — this item as the target of the held thing or a bare hand
+      // Right click picks a half; Shift+right click keeps the item's use/equip/drop context menu.
       el.oncontextmenu = (e) => {
         e.preventDefault()
         const s = slots[i]
         if (!s) return
+        if (!e.shiftKey) {
+          if (this.picked === undefined) (this.pickSlot(i, true, e), this.render())
+          return
+        }
+        if (this.picked !== undefined) (this.clearPicked(), this.render())
         const zh = locale.value === 'zh'
         // a worn piece alone in its slot comes off; otherwise one (another of the stack) goes on
         const off = !!s.worn && s.count === 1
         const wear: [string, () => void][] = !s.item.props.slot ? [] : [[off ? (zh ? '卸下' : 'Take off') : s.item.props.slot === 'arm' ? (zh ? '装备到副手' : 'Wear in the off hand') : s.item.props.slot === 'weapon' ? (zh ? '装备到主手' : 'Ready in the main hand') : (zh ? '装备' : 'Wear'), () => this.send.wear(s.item.id, !off)]]
-        this.contextMenu(e.clientX, e.clientY, s.item.id, [...wear, [t('dropHere'), () => this.send.drop(i, true)]])
+        this.contextMenu(e.clientX, e.clientY, s.item.id, [...wear, [t('dropHere'), () => this.send.drop(i, true, { item: s.item.id, count: s.count, sourceCount: s.count })]])
       }
     })
   }

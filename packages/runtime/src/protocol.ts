@@ -86,8 +86,9 @@ export type ToWorker =
   | { t: 'cycle'; dir: 1 | -1 }
   | { t: 'row'; dir: 1 | -1 }
   | { t: 'swap'; a: number; b: number }
+  | { t: 'moveSlot'; request: number; from: number; to: number; item: string; count: number; sourceCount: number }
   | { t: 'quickMove'; slot: number }
-  | { t: 'drop'; slot: number; all: boolean }
+  | { t: 'drop'; slot: number; all: boolean; item?: string; count?: number; sourceCount?: number }
   | { t: 'organize' }
   /** The off hand: wear a carried item there (a shield), or take off what is worn (no item). */
   | { t: 'wear'; item?: string; /** from the bag: put on (another of a stack), never take off */ putOn?: boolean }
@@ -203,6 +204,8 @@ export type FromWorker =
   | { t: 'ready'; stats: WorldIndex['stats']; name: WorldIndex['name']; resumed: boolean }
   | { t: 'map'; map: MapData; /** the look of the region it lies in (RegionMeta.look) */ look?: RegionLook }
   | { t: 'frame'; frame: Frame; /** the frame's things are only those that changed; these left it (frameDelta.ts) */ gone?: string[]; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number }; transfer?: TransferProgress; crafting?: TransferProgress<'craft'> }
+  /** A bag group move finished: request identifies the pending cursor action. */
+  | { t: 'slotMove'; request: number; moved: boolean }
   /** What the keys would do now, sent as soon as the pointer aims somewhere else (between frames). */
   | { t: 'keys'; keys: Frame['keys']; /** the aim they answer */ n?: number }
   | { t: 'records'; records: RecordView[]; library: LibraryView }

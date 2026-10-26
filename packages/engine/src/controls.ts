@@ -27,7 +27,7 @@
 
 import { isPatch, isRoot } from './rules.ts'
 import { categoryOf } from './quality.ts'
-import { oldStackKey, splitStacks, stackKey } from './stacks.ts'
+import { isPiece, oldStackKey, splitStacks, stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
 import type { Engine } from './engine.ts'
 import { NO_EXPIRY, isBuilt, type Writer } from './world.ts'
@@ -765,7 +765,8 @@ export class Controls {
     const by = new Map<string, Entity[]>()
     for (const id of [...(p.contents ?? []), ...(p.held ? [p.held] : [])]) {
       const e = w.get(id)
-      if (!e || worn?.has(id)) continue
+      const place = e?.place
+      if (!e || worn?.has(id) || !((place?.on === 'inside' || place?.on === 'hand') && place.holder === p.id)) continue
       const k = this.key(e)
       const s = by.get(k)
       if (s) s.push(e)
@@ -804,47 +805,111 @@ export class Controls {
     const p = w.player
     const slots = (p.slots ??= Array(this.slotCount()).fill(null))
     while (slots.length < this.slotCount()) slots.push(null)
+    const hadLayout = Array.isArray(p.slotItems)
+    const slotItems: (Id[] | null)[] = (p.slotItems ??= Array<Id[] | null>(slots.length).fill(null))
+    while (slotItems.length < slots.length) slotItems.push(null)
+    if (slotItems.length > slots.length) slotItems.length = slots.length
     p.selected ??= 0
     // what is worn is on the body: the hand lets go of it, and it takes no bag slot
     if (p.held && this.wornIds().has(p.held)) this.posture(w.get(p.held)!, { on: 'inside', holder: p.id })
     const by = this.carried(true)
-    // a slot of an older save holds the key every piece of a kind once shared (all its axes one stack): the first
-    // piece it now means takes that slot back, the others the free ones below
+    const keyById = new Map<string, string>()
+    const entityById = new Map<string, Entity>()
+    for (const [k, items] of by) for (const e of items) keyById.set(e.id, k), entityById.set(e.id, e)
+    // Older saves stored a key that may now have split into several kinds (axes with individual wear, for example).
+    // Give its first current heir that slot. Physical layouts already carry explicit membership and skip this migration.
+    const represented = new Set(slots.filter((k): k is string => !!k))
+    const heirsByOldKey = new Map<string, string[]>()
+    for (const [current, items] of by) {
+      const old = oldStackKey(items[0]!)
+      const heirs = heirsByOldKey.get(old)
+      if (heirs) heirs.push(current)
+      else heirsByOldKey.set(old, [current])
+    }
+    const nextHeir = new Map<string, number>()
     for (let i = 0; i < slots.length; i++) {
       const k = slots[i]
       if (!k || by.has(k)) continue
-      const heir = [...by.keys()].find((n) => !slots.includes(n) && oldStackKey(by.get(n)![0]!) === k)
-      if (heir) slots[i] = heir
+      const heirs = heirsByOldKey.get(k) ?? []
+      let at = nextHeir.get(k) ?? 0
+      while (at < heirs.length && represented.has(heirs[at]!)) at++
+      nextHeir.set(k, at + 1)
+      const heir = heirs[at]
+      if (heir) slots[i] = heir, represented.add(heir)
+    }
+    // An older save had one physical group for each key. Materialize that grouping once, while leaving
+    // duplicate-key groups in a newer save exactly where the player placed them.
+    if (!hadLayout) {
+      const seen = new Set<string>()
+      for (let i = 0; i < slots.length; i++) {
+        const k = slots[i]
+        if (!k || seen.has(k)) slots[i] = null, slotItems[i] = null
+        else {
+          seen.add(k)
+          slotItems[i] = (by.get(k) ?? []).map((e) => e.id)
+        }
+      }
     }
     const held = w.get(p.held)
     if (held) {
       const hk = this.key(held)
       const sel = slots[p.selected]
       if (sel !== hk) {
-        const selLeft = sel ? (by.get(sel) ?? []).filter((e) => e.id !== held.id).length : 0
+        const selectedItems = slotItems[p.selected] ?? []
+        const selLeft = selectedItems.filter((id) => id !== held.id && keyById.get(id) === sel).length
         if (!sel || !selLeft) {
           // the held thing changed in the hand: it keeps the selected slot
-          const other = slots.indexOf(hk)
-          if (other >= 0) slots[other] = null
+          for (let i = 0; i < slots.length; i++) if (i !== p.selected && slots[i] === hk) {
+            const members = (slotItems[i] ?? []).filter((id) => id !== held.id)
+            slotItems[i] = members.length ? members : null
+            if (!members.length) slots[i] = null
+          }
           slots[p.selected] = hk
+          slotItems[p.selected] = [held.id]
         } else this.posture(held, { on: 'inside', holder: p.id }) // it belongs elsewhere; the hand takes the selected stack below
       }
     }
-    for (let i = 0; i < slots.length; i++) if (slots[i] && !by.has(slots[i]!)) slots[i] = null
+    // Keep only currently carried entities whose live key still matches the slot. This validates both ownership
+    // and stack identity and bounds the pass by the number of carried entities, even for very large inventories.
+    const assigned = new Set<string>()
+    for (let i = 0; i < slots.length; i++) {
+      const k = slots[i]
+      const members = k ? slotItems[i] : null
+      if (!k || !Array.isArray(members)) {
+        slots[i] = null
+        slotItems[i] = null
+        continue
+      }
+      const valid: string[] = []
+      for (const id of members) if (!assigned.has(id) && keyById.get(id) === k) valid.push(id), assigned.add(id)
+      slotItems[i] = valid.length ? valid : null
+      if (!valid.length) slots[i] = null
+    }
     const here = w.posOf(p)
     for (const [k, items] of by) {
-      if (slots.includes(k)) continue
+      const missing = items.filter((e) => !assigned.has(e.id))
+      if (!missing.length) continue
+      const preferred = p.selected !== undefined && slots[p.selected] === k && !!slotItems[p.selected]?.length ? p.selected : -1
+      const existing = preferred >= 0 ? preferred : slots.findIndex((s, i) => s === k && !!slotItems[i]?.length)
+      if (existing >= 0) {
+        slotItems[existing]!.push(...missing.map((e) => e.id))
+        for (const e of missing) assigned.add(e.id)
+        continue
+      }
       const other = spare ? slots.findIndex((s, i) => s === null && i !== p.selected) : -1
       const free = other >= 0 ? other : slots.indexOf(null)
-      if (free >= 0) slots[free] = k
-      else if (here) for (const e of items) this.posture(e, { on: 'tile', ...here })
+      if (free >= 0) {
+        slots[free] = k
+        slotItems[free] = missing.map((e) => e.id)
+        for (const e of missing) assigned.add(e.id)
+      } else if (here) for (const e of missing) this.posture(e, { on: 'tile', ...here })
     }
     // the hand holds one of the selected stack (or nothing)
     const want = slots[p.selected]
     const inHand = w.get(p.held)
-    if (inHand && (!want || this.key(inHand) !== want)) this.posture(inHand, { on: 'inside', holder: p.id })
+    if (inHand && (!want || this.key(inHand) !== want || !slotItems[p.selected]?.includes(inHand.id))) this.posture(inHand, { on: 'inside', holder: p.id })
     if (want && !w.get(p.held)) {
-      const next = (this.carried(true).get(want) ?? [])[0]
+      const next = w.get(slotItems[p.selected]?.[0])
       if (next && !next.frozenBy) this.posture(next, { on: 'hand', holder: p.id })
     }
   }
@@ -892,6 +957,7 @@ export class Controls {
     this.stow()
     const n = dir === 1 ? ROW : slots.length - ROW
     p.slots = [...slots.slice(n), ...slots.slice(0, n)]
+    if (p.slotItems) p.slotItems = [...p.slotItems.slice(n), ...p.slotItems.slice(0, n)]
     this.sync()
   }
 
@@ -905,36 +971,103 @@ export class Controls {
 
   /** Move or swap two slots (the inventory menu). */
   swap(a: number, b: number): void {
-    const slots = this.w.player.slots
+    const p = this.w.player
+    const slots = p.slots
     if (!slots || a === b || a < 0 || b < 0 || a >= slots.length || b >= slots.length) return
     this.stow()
     ;[slots[a], slots[b]] = [slots[b], slots[a]]
+    if (p.slotItems) [p.slotItems[a], p.slotItems[b]] = [p.slotItems[b], p.slotItems[a]]
     this.sync()
+  }
+
+  /** Place a cursor-picked portion of one physical stack in another bag slot. `item` and
+   * `sourceCount` bind the request to the frame the player picked up, so a stale click cannot
+   * move a different stack after the bag changes. */
+  moveSlot(from: number, to: number, item: Id, count: number, sourceCount: number): boolean {
+    const w = this.w
+    const p = w.player
+    if (
+      this.eng.busy(p) || !Number.isSafeInteger(from) || !Number.isSafeInteger(to) || !Number.isSafeInteger(count) || !Number.isSafeInteger(sourceCount) ||
+      count < 1 || sourceCount < 1 || from === to || from < 0 || to < 0 || from >= this.slotCount() || to >= this.slotCount()
+    ) return false
+    // Refuse a known frozen cursor or held stack before sync can normalize any layout around it.
+    if (w.get(item)?.frozenBy || (p.held && w.get(p.held)?.frozenBy)) return false
+    if (p.slotItems?.[from]?.some((id) => w.get(id)?.frozenBy) || p.slotItems?.[to]?.some((id) => w.get(id)?.frozenBy)) return false
+    this.sync()
+    const slots = p.slots ?? []
+    const groups = p.slotItems ?? []
+    if (from < 0 || to < 0 || from >= slots.length || to >= slots.length) return false
+    const key = slots[from]
+    const source = groups[from]
+    const targetKey = slots[to]
+    const target = groups[to]
+    const targetGroup = target ?? []
+    if (!key || !source?.length || source[0] !== item || source.length !== sourceCount || count > sourceCount) return false
+    const sourceEntity = w.get(item)
+    const owned = (id: Id) => {
+      const place = w.get(id)?.place
+      return !!place && (place.on === 'inside' || place.on === 'hand') && place.holder === p.id
+    }
+    if (!sourceEntity || this.key(sourceEntity) !== key || source.some((id) => !owned(id) || w.get(id)?.frozenBy)) return false
+    if (isPiece(sourceEntity.type) && sourceCount !== 1) return false
+    if (targetKey && targetKey !== key && count !== sourceCount) return false
+    if (targetKey && !target) return false
+    if (targetKey && targetGroup.some((id) => !owned(id) || w.get(id)?.frozenBy)) return false
+
+    this.stow()
+    const moved = source.slice(0, count)
+    const remaining = source.slice(count)
+    if (!targetKey) {
+      slots[to] = key
+      groups[to] = moved
+      slots[from] = remaining.length ? key : null
+      groups[from] = remaining.length ? remaining : null
+    } else if (targetKey === key) {
+      groups[to] = [...targetGroup, ...moved]
+      slots[from] = remaining.length ? key : null
+      groups[from] = remaining.length ? remaining : null
+    } else {
+      slots[from] = targetKey
+      groups[from] = targetGroup
+      slots[to] = key
+      groups[to] = moved
+    }
+    this.sync()
+    return true
   }
 
   /** The organize button: tools first, then everything else, each by type; empty slots last. */
   organize(): void {
+    this.sync()
     const p = this.w.player
     const slots = p.slots ?? []
+    const slotItems = p.slotItems ?? []
     const typeOf = (k: string) => (JSON.parse(k) as [string])[0]
-    const keys = slots.filter((k): k is string => !!k).sort((a, b) => Number(!isTool(typeOf(a))) - Number(!isTool(typeOf(b))) || typeOf(a).localeCompare(typeOf(b)))
-    const held = p.selected !== undefined ? slots[p.selected] : null
+    const groups = slots.flatMap((key, i) => key ? [{ key, items: [...(slotItems[i] ?? [])] }] : [])
+      .sort((a, b) => Number(!isTool(typeOf(a.key))) - Number(!isTool(typeOf(b.key))) || typeOf(a.key).localeCompare(typeOf(b.key)))
+    const selectedItem = p.selected !== undefined ? slotItems[p.selected]?.[0] : undefined
     this.stow()
-    p.slots = [...keys, ...Array(this.slotCount() - keys.length).fill(null)]
-    if (held) p.selected = Math.min(ROW - 1, p.slots.indexOf(held)) === p.slots.indexOf(held) ? p.slots.indexOf(held) : p.selected
+    p.slots = [...groups.map((g) => g.key), ...Array(this.slotCount() - groups.length).fill(null)]
+    p.slotItems = [...groups.map((g) => g.items), ...Array(this.slotCount() - groups.length).fill(null)]
+    const selectedAt = selectedItem ? p.slotItems.findIndex((members) => members?.includes(selectedItem)) : -1
+    if (selectedAt >= 0 && selectedAt < ROW) p.selected = selectedAt
     this.sync()
   }
 
   /** Drop a slot's stack (or one of it) in front of the player, or at their feet when that is blocked (the menu's Drop): an act of putting each. */
-  drop(i: number, all = true): void {
+  drop(i: number, all = true, selection?: { item: Id; count: number; sourceCount: number }): void {
     const w = this.w
     const p = w.player
+    this.sync()
     const k = p.slots?.[i]
     const here = w.posOf(p)
     if (!k || !here) return
+    const members = p.slotItems?.[i] ?? []
+    if (selection && (members[0] !== selection.item || members.length !== selection.sourceCount || !Number.isSafeInteger(selection.count) || selection.count < 1 || selection.count > members.length)) return
     const front = w.front(p)
     const to = front && w.inBounds(front.map, front.x, front.y) && !w.blocked(front.map, front.x, front.y, undefined, front.z) ? front : here
-    const items = this.carried(true).get(k) ?? []
+    const chosen = selection ? members.slice(0, selection.count) : all ? members : members.slice(0, 1)
+    const items = chosen.map((id) => w.get(id)).filter((e): e is Entity => !!e)
     // put on the cell: on what is on top of it there
     const onto = w.cellTop(to.map, to.x, to.y, to.z)
     if (!onto) return
@@ -957,7 +1090,9 @@ export class Controls {
     const it = w.get(item)
     if (!box || !it || !w.hasStatus({ e: box.id }, 'open')) return
     const k = this.key(it)
-    const pool = from === 'chest' ? (box.contents ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : this.carried(true).get(k) ?? []
+    if (from === 'bag') this.sync()
+    const bagSlot = from === 'bag' ? (p.slotItems ?? []).findIndex((members) => members?.includes(item)) : -1
+    const pool = from === 'chest' ? (box.contents ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : bagSlot >= 0 ? (p.slotItems?.[bagSlot] ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : []
     const chunks = from === 'chest' ? splitStacks(pool) : [pool]
     // A panel may still name the representative just moved; the remaining first slot is then its kind.
     const slot = chunks.find((s) => s.some((e) => e.id === item)) ?? chunks[0] ?? []

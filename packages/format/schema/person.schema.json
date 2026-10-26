@@ -198,7 +198,24 @@
               "null"
             ]
           },
-          "description": "The player: inventory slots (design.md §5.3), each the stack key of what it holds; row 1 is the toolbar."
+          "description": "The player: inventory slots (design.md §5.3), each a physical stack's key; duplicate keys may occupy separate slots."
+        },
+        "slotItems": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/Id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Stable membership of each physical bag stack. Optional in older saves; aligned with `slots` when present."
         },
         "skillbar": {
           "type": "array",
@@ -1774,7 +1791,24 @@
               "null"
             ]
           },
-          "description": "The player: inventory slots (design.md §5.3), each the stack key of what it holds; row 1 is the toolbar."
+          "description": "The player: inventory slots (design.md §5.3), each a physical stack's key; duplicate keys may occupy separate slots."
+        },
+        "slotItems": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/Id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Stable membership of each physical bag stack. Optional in older saves; aligned with `slots` when present."
         },
         "skillbar": {
           "type": "array",

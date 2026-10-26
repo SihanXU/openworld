@@ -466,8 +466,10 @@ export interface Entity {
   frozenBy?: string
   /** Items a rule dropped on the ground (a harvest, logs, loot): the player's magnet pulls them in. */
   dropped?: boolean
-  /** The player: inventory slots (design.md §5.3), each the stack key of what it holds; row 1 is the toolbar. */
+  /** The player: inventory slots (design.md §5.3), each a physical stack's key; duplicate keys may occupy separate slots. */
   slots?: (string | null)[]
+  /** Stable membership of each physical bag stack. Optional in older saves; aligned with `slots` when present. */
+  slotItems?: (Id[] | null)[]
   /** The skill bar (the one at the keys): the active skills set in its six slots (Shift+1–6), by id. */
   skillbar?: (string | null)[]
   /** The player: the selected slot (what is held). */
