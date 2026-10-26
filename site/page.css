@@ -200,18 +200,6 @@ section.night { background: #05070d; color: #c9d4ea; }
 .join .footer a:hover { color: #fff; }
 @media (max-width: 760px) { .join .footer { margin-top: 4rem; } }
 
-/* the team: a tier a heading and its names, at the body's size */
-.team { margin-top: 1.5rem; }
-.team .tier + .tier { margin-top: 1.75rem; }
-.team h3 { font-size: 1.05rem; font-weight: 600; color: var(--ink-strong); margin: 0 0 0.4rem; }
-.team h3 small { font-size: 0.9rem; font-weight: 400; color: var(--faint); margin-left: 0.25rem; }
-.team .names { display: flex; flex-wrap: wrap; gap: 0.25rem 1.75rem; margin: 0; font-size: 1.05rem; }
-.team .names a { color: var(--accent); }
-.team .names a:hover { text-decoration: underline; }
-.team .names.pending { color: var(--faint); }
-.team .person { display: flex; flex-direction: column; margin-right: 1rem; }
-.team .person small { font-size: 0.9rem; color: var(--faint); }
-
 /* the citation, copied as it is written */
 .band .cite { position: relative; margin-top: 1.5rem; padding: 1.5rem 1.75rem; border-radius: var(--radius); background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 18px rgba(0,0,0,.05); }
 .band .cite pre { margin: 0; overflow-x: auto; }
