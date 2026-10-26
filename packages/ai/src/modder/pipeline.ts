@@ -2,9 +2,9 @@
 // is a little different afterwards (docs/rsi.md §3).
 //
 //   comprehend  signature of the request; the shared library may already answer it (no model)
-//   recall      lessons, similar episodes and skills from the self-state; the brief (brief.ts)
+//   recall      lessons, similar episodes and skills from the self-state; the brief (request.ts)
 //   design      the model's answer: one call from the brief (live), or a tool-using conversation
-//   fix         mechanical repairs and the derived generalization test, without the model (fixes.ts, derive.ts)
+//   fix         mechanical repairs and the derived generalization test, without the model (answer.ts)
 //   verify      the engine's validator; its diagnostics go back into the conversation (repair)
 //   review      before shipping (offline), or after it (live), when it may send the rule back
 //   commit      append to the shared library (re-validated against it as it is now)
@@ -44,10 +44,7 @@ import {
   type TypeDef,
   type ValidationResult,
 } from '@openworld/engine'
-import { briefOf, relatedRules } from './brief.ts'
-import { changesNothing, deriveTests } from './derive.ts'
-import { judge, statedAffordance } from './affordance.ts'
-import { normalizePatch, qualifyTerrains, stationFromRules } from './fixes.ts'
+import { changesNothing, deriveTests, judge, normalizePatch, qualifyTerrains, stationFromRules, statedAffordance } from './answer.ts'
 import type { CommitResult, WorldLibrary } from '../library/library.ts'
 import { Meter, parseJson, type ChatMessage, type ChatOptions, type Model } from '../models/model.ts'
 import type { AgentTask, runAgent } from '../agent/loop.ts'
@@ -55,10 +52,9 @@ import type { TaskSource } from '../agent/outer.ts'
 import type { materializeWorld } from '../service/repo.ts'
 import { mapProblems, personProblems, settleMap, summary, withoutThinking, type DraftContext, type DraftKind, type TraceStep } from './drafts.ts'
 import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, againUser, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, reviseDraftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
-import { coarseTerms, signatureOf, type Signature } from './signature.ts'
+import { briefOf, coarseTerms, envelope, relatedRules, signatureOf, withoutChains, workloadNote, workloadOf, type Signature, type Workload } from './request.ts'
 import { auditOf, profileOf, reflectAgent, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '../agent/state.ts'
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
-import { envelope, withoutChains, workloadNote, workloadOf, type Workload } from './quality.ts'
 import { audit, probe, type AuditResult } from '../checks/audit.ts'
 import { clipJson } from '../util.ts'
 
@@ -585,7 +581,7 @@ export class Modder {
     if (why) return { patch: null, outcome: 'unavailable', diagnostics: [`model unavailable: ${why}`] }
     const t0 = Date.now()
     const { state, library } = this.opts
-    // the setting's workload over the harness (quality.ts): a player waiting gets their tier's; the
+    // the setting's workload over the harness (request.ts): a player waiting gets their tier's; the
     // offline profile (escalations, revisions, the curriculum) works as it always does, kept in the tier asked
     const wl = workloadOf(req)
     const h = eo.profile === 'live' ? envelope(profileOf(state.harness(), eo.profile), wl) : profileOf(state.harness(), eo.profile)
@@ -676,7 +672,7 @@ export class Modder {
         const parsed = parseJson(answer, () => (bracketsRepaired = true))
         const stated = statedAffordance(parsed)
         const ask = router ? routeOf(parsed) : undefined
-        // what the setting does not carry (quality.ts): the catalogue at low, making new kinds when it is off
+        // what the setting does not carry (request.ts): the catalogue at low, making new kinds when it is off
         // (and with the router off, an ablation: the request's own things only)
         const local = h.design.router === false
         const barred = ask && ((ask.create && (wl.create === 'off' || local)) || (ask.need && (!wl.find || local) && !ask.create))
@@ -1240,7 +1236,7 @@ function narratesOnly(patch: Patch, req: ModRequest): boolean {
 }
 
 /**
- * What the harness's own test could not hold a rule to (derive.ts, and the derived test the validator dropped):
+ * What the harness's own test could not hold a rule to (answer.ts, and the derived test the validator dropped):
  * since a learned rule has no siblings (§5.16) this is what "did not generalize" was, a rule the harness
  * could not check.
  */

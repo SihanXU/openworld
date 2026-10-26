@@ -30,9 +30,9 @@ export interface Attempt<P = unknown> {
   patch?: P
   errors: string[]
   warnings: string[]
-  /** Deterministic repairs the harness applied before validating (fixes.ts). */
+  /** Deterministic repairs the harness applied before validating (answer.ts). */
   fixes?: string[]
-  /** The harness-derived generalization test, or why there is none (derive.ts). */
+  /** The harness-derived generalization test, or why there is none (answer.ts). */
   derived?: string[]
   /** Reviewer verdict on a valid draft, when the review stage ran. */
   review?: { verdict: string; notes: string[] }
@@ -144,13 +144,13 @@ export interface DesignConfig {
   /** 0 = one call, no tools: answer from the brief */
   toolRounds: number
   temperature: number
-  /** prepare the roles and related rules up front (brief.ts) */
+  /** prepare the roles and related rules up front (request.ts) */
   brief?: boolean
   reasoning?: Reasoning
-  /** who writes the generalization test: the model, or the harness (derive.ts) */
+  /** who writes the generalization test: the model, or the harness (answer.ts) */
   tests?: 'model' | 'harness'
   /**
-   * The deterministic repairs of an answer's mechanical slips (fixes.ts: its shape, bare terrains, a recipe's station;
+   * The deterministic repairs of an answer's mechanical slips (answer.ts: its shape, bare terrains, a recipe's station;
    * brackets): on unless false. Off (an ablation, paper §7.1), an answer that needed one is an invalid attempt.
    */
   fixes?: boolean

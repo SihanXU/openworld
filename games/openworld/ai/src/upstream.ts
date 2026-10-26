@@ -210,7 +210,7 @@ export interface PromotionCase {
 
 /**
  * What each learned rule of the candidate did in the scene that asked for it, as expectations
- * (derive.ts's, `resolvedBy` aside: the base, not the learned rule, is to answer now).
+ * (answer.ts's, `resolvedBy` aside: the base, not the learned rule, is to answer now).
  */
 export function promotionCases(c: Candidate, library: WorldLibrary): PromotionCase[] {
   const onto = library.fullOntology()
