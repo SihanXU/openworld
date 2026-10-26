@@ -198,19 +198,22 @@ export class Creator {
     return n ? game().looks.parts[this.look.parts[slot] ?? '']?.colors?.[n] : undefined
   }
 
+  /** The portrait: the head while the face is chosen (features), the whole figure while clothes and colours are. */
   private paintBust(): void {
     const look = this.look
     const mood = this.mood
+    const frame = this.tab === 'appearance' ? 'bust' : 'full'
     const draw = () => {
       if (look !== this.look || mood !== this.mood) return
-      const src = portraitOf(look, mood, [], 'full')
+      const src = portraitOf(look, mood, [], frame)
       const c = this.root.querySelector<HTMLCanvasElement>('.cr-bust')
       if (!src || !c) return
+      c.classList.toggle('head', frame === 'bust')
       c.width = src.width
       c.height = src.height
       c.getContext('2d')!.drawImage(src, 0, 0)
     }
-    if (portraitOf(look, mood, [], 'full')) draw()
+    if (portraitOf(look, mood, [], frame)) draw()
     else void preparePortrait(look, mood).then(draw)
   }
 

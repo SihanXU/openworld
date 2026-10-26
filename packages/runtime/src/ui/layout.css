@@ -115,14 +115,12 @@ body.with-tabs :where(.sk-page,.wm-page) { padding-top: calc(var(--ui-measured-t
 .sk-view { inset: var(--ui-canvas-top,210px) 0 0; }
 .wm-view { inset: var(--ui-canvas-top,100px) 0 0; }
 
-/* Title and save screens share window chrome, but keep the live world backdrop. */
-.cv-main { left: max(32px,8vw); top: 0; bottom: 0; width: min(480px,80vw); padding-block: 24px; }
-.cv-title { font: 400 48px/1.2 var(--ui-font); letter-spacing: normal; color: var(--ui-paper-light); text-shadow: 3px 3px 0 var(--ui-frame-dark); }
+/* Title and save screens share window chrome, but keep the live world backdrop; the title's wordmark, rule and motes
+   stay the cover's own (game.css: the large gold Pixelify Sans). */
+.cv-main { left: max(32px,8vw); top: 0; bottom: 0; width: max-content; max-width: calc(100vw - 2 * max(32px,8vw)); padding-block: 24px; }
 .cv-item { font: 400 24px/1.5 var(--ui-font); border-radius: 0; min-height: 48px; }
 .cv-item small { font-size: 12px; }
 .cv-item.on { color: #ead6a7; }
-.cv-rule { background: var(--ui-gold); height: 2px; }
-.cv-motes { display: none; }
 .cv-panel { position: absolute; top: calc(var(--ui-edge) + env(safe-area-inset-top)); bottom: calc(var(--ui-edge) + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: min(1120px,calc(100% - 2 * var(--ui-edge) - env(safe-area-inset-left) - env(safe-area-inset-right))); max-height: none; }
 .cv-phead { position: static; }
 .cv-slot { display: grid; grid-template-columns: 80px minmax(0,1fr); gap: 12px; border: 1px solid #ab916a; border-radius: 0; background: var(--ui-paper-light); }
@@ -230,7 +228,6 @@ body.with-tabs :where(.sk-page,.wm-page) { padding-top: calc(var(--ui-measured-t
   .ui-window-head,.ui-window-foot { padding: 8px 12px; gap: 8px; }
   .ui-window-head > :where(.muted,.rs-price) { font-size: 12px; }
   .cv-main { left: 24px; width: calc(100% - 48px); }
-  .cv-title { font-size: 48px; }
   .death-title { font-size: 24px; }
   .death-acts { display: flex; flex-direction: column; }
 }
@@ -290,6 +287,5 @@ body.with-tabs :where(.sk-page,.wm-page) { padding-top: calc(var(--ui-measured-t
   .dialog .face canvas,.dialog .face.bust canvas,.dialog .face.bust.own canvas { width: 64px; height: 64px; }
   .cv-main { top: 0; }
   .cv-menu { gap: 4px; }
-  .cv-title { margin-bottom: 12px; }
   .cv-item { min-height: 36px; padding-block: 2px; }
 }

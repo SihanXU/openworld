@@ -70,6 +70,8 @@
   border-radius: 0;
   background: none;
 }
+/* the head, while the face is chosen: as large as the scene holds, its proportions kept */
+.creator .cr-bust.head { bottom: 4px; width: auto; height: 276px; max-width: calc(100% - 16px); }
 .cr-sprite-frame { position: absolute; z-index: 2; right: 8px; bottom: 8px; display: grid; place-items: end center; width: 36px; height: 58px; padding-bottom: 2px; border: 2px solid #657c4d; background: #d7d7a3; box-shadow: inset 2px 2px #f0e7b5,0 2px #557247; }
 .creator .cr-sprite { position: static; width: 24px; height: 48px; max-width: none; image-rendering: pixelated; }
 .cr-preview-details { display: grid; justify-items: stretch; gap: 10px; padding-top: 12px; }

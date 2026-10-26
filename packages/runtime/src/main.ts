@@ -32,6 +32,8 @@ import { Tooltip, setLearnedStatuses } from './ui/tooltip.ts'
 import { Minimap } from './ui/worldmap.ts'
 import { AfterSave } from './afterSave.ts'
 import { FrameDecoder } from './frameDelta.ts'
+// the title's wordmark (and the map's marks) in Pixelify Sans, bundled: no font is asked of another site
+import '@fontsource/pixelify-sans/latin-700.css'
 import './styles.css'
 import './ui/game.css'
 import './ui/polish.css'
