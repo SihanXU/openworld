@@ -2,8 +2,7 @@
 // skills (a procedure, optionally with scripts the agent runs through its run tool).
 
 import { Meter, parseJson, type Model } from '../models/model.ts'
-import type { Episode, Harness, SelfState } from './state.ts'
-import { safeName } from './state.ts'
+import { safeName, type Episode, type Harness, type SelfState } from './state.ts'
 import { clip } from '../util.ts'
 
 export const AGENT_REFLECT_SYSTEM = `You keep your own memory as a software engineer who works tasks in repositories. After every task you decide what is worth keeping, so that the next task goes better. Your memory is read only by you.

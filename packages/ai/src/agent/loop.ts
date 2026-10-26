@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import type { Env } from './env.ts'
 import { Meter, type ChatMessage, type Model } from '../models/model.ts'
 import type { Episode, Harness, HookStage, SelfState } from './state.ts'
-import { agentTools, type AgentTool } from './tools.ts'
+import { agentTools } from './tools.ts'
 import { clip, wordsOf } from '../util.ts'
 
 export interface AgentTask {
@@ -142,7 +142,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
 
   const started = await hooks(task, h, 'start')
   let submitted = false
-  const tools: AgentTool[] = agentTools(task.env, {
+  const tools = agentTools(task.env, {
     localRun: task.localRun,
     testCommand: task.tests?.command,
     testTimeoutMs: task.tests?.timeoutMs,

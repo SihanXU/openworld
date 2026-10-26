@@ -54,7 +54,7 @@ export function defaultShell(): string {
   return 'bash'
 }
 
-function run(file: string, args: string[], o: ExecOptions & { cwd?: string; env?: Record<string, string> }): Promise<ExecResult> {
+function run(file: string, args: string[], o: ExecOptions & { cwd?: string }): Promise<ExecResult> {
   return new Promise((resolve) => {
     const t0 = Date.now()
     const child = spawn(file, args, { cwd: o.cwd, env: o.env, windowsHide: true })
@@ -103,9 +103,9 @@ export class LocalEnv implements Env {
 /** The docker CLI: an executable, or an executable and its first arguments (tests drive a stand-in). */
 export type DockerCli = string | string[]
 
-function docker(cli: DockerCli | undefined, args: string[], timeoutMs: number): Promise<ExecResult> {
+function docker(cli: DockerCli | undefined, args: string[], timeoutMs: number, input?: string): Promise<ExecResult> {
   const [file, ...pre] = Array.isArray(cli) ? cli : [cli ?? 'docker']
-  return run(file, [...pre, ...args], { timeoutMs, env: process.env as Record<string, string> })
+  return run(file, [...pre, ...args], { timeoutMs, input, env: process.env as Record<string, string> })
 }
 
 /** Where a mounted node sits in a container: the agent's hooks run with it, its own commands never see it. */
@@ -198,8 +198,7 @@ export class DockerEnv implements Env {
     const secs = Math.ceil((o.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)
     const envArgs = Object.entries(o.env ?? {}).flatMap(([k, v]) => ['-e', `${k}=${v}`])
     const script = this.init ? `${this.init}\n${cmd}` : cmd
-    const [file, ...pre] = Array.isArray(this.cli) ? this.cli : [this.cli ?? 'docker']
-    return run(file, [...pre, 'exec', '-i', ...envArgs, '-w', this.cwd, this.id, 'timeout', String(secs), 'bash', '-lc', script], { ...o, timeoutMs: (secs + 15) * 1000, env: process.env as Record<string, string> })
+    return docker(this.cli, ['exec', '-i', ...envArgs, '-w', this.cwd, this.id, 'timeout', String(secs), 'bash', '-lc', script], (secs + 15) * 1000, o.input)
   }
 
   async dispose(): Promise<void> {
@@ -210,8 +209,8 @@ export class DockerEnv implements Env {
 
 let dockerAnswer: Promise<boolean> | undefined
 /** Is there a Docker daemon this user can reach? Asked once per process. */
-export function dockerAvailable(docker = 'docker'): Promise<boolean> {
-  dockerAnswer ??= run(docker, ['version', '--format', '{{.Server.Version}}'], { timeoutMs: 15_000, env: process.env as Record<string, string> }).then((r) => r.code === 0 && !!r.stdout.trim())
+export function dockerAvailable(cli = 'docker'): Promise<boolean> {
+  dockerAnswer ??= docker(cli, ['version', '--format', '{{.Server.Version}}'], 15_000).then((r) => r.code === 0 && !!r.stdout.trim())
   return dockerAnswer
 }
 
@@ -232,13 +231,12 @@ export async function chooseIsolation(): Promise<Isolation> {
 const SANDBOX_DIR = fileURLToPath(new URL('../../sandbox', import.meta.url))
 let imageAnswer: Promise<string> | undefined
 /** The sandbox image (LSW_SANDBOX_IMAGE, default `lsw-sandbox`, built from packages/ai/sandbox when missing). */
-export function sandboxImage(docker = 'docker'): Promise<string> {
+export function sandboxImage(cli = 'docker'): Promise<string> {
   imageAnswer ??= (async () => {
     const name = process.env.LSW_SANDBOX_IMAGE ?? 'lsw-sandbox'
-    const env = process.env as Record<string, string>
-    if ((await run(docker, ['image', 'inspect', name], { timeoutMs: 30_000, env })).code === 0) return name
+    if ((await docker(cli, ['image', 'inspect', name], 30_000)).code === 0) return name
     if (name !== 'lsw-sandbox') throw new Error(`sandbox image ${name} not found`)
-    const b = await run(docker, ['build', '-t', name, SANDBOX_DIR], { timeoutMs: 900_000, env })
+    const b = await docker(cli, ['build', '-t', name, SANDBOX_DIR], 900_000)
     if (b.code !== 0) throw new Error(`could not build the sandbox image: ${b.stderr.slice(-800)}`)
     return name
   })()

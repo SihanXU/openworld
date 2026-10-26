@@ -47,6 +47,10 @@ export class MemFiles implements Files {
 
   private put(p: string, text: string): void {
     this.files.set(p, text)
+    this.parents(p)
+  }
+
+  private parents(p: string): void {
     for (let i = p.lastIndexOf('/'); i > 0; i = p.lastIndexOf('/', i - 1)) this.dirs.add(p.slice(0, i))
   }
 
@@ -84,7 +88,7 @@ export class MemFiles implements Files {
   mkdir(path: string): void {
     const p = norm(path)
     this.dirs.add(p)
-    for (let i = p.lastIndexOf('/'); i > 0; i = p.lastIndexOf('/', i - 1)) this.dirs.add(p.slice(0, i))
+    this.parents(p)
   }
 
   list(path: string): string[] {
