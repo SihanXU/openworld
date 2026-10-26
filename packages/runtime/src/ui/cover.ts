@@ -9,6 +9,7 @@ import { assetsBase, game, type CoverScene } from '../game.ts'
 import type { Difficulty, Look } from '@openworld/engine'
 import { Creator } from './creator.ts'
 import { KeysPage } from './keyspage.ts'
+import { OwnModel, ownModel } from '../ownModel.ts'
 import type { AiOptions } from './quality.ts'
 import type { SaveSummary } from '../protocol.ts'
 import { SLOTS, deleteSlot, exportSlot, listSlots, pickSaveFile, writeSlot, type Slot, type SlotData } from '../saves.ts'
@@ -54,7 +55,8 @@ export interface CoverHandlers {
 }
 
 type Item = 'continue' | 'new' | 'load' | 'settings'
-type Panel = 'new' | 'load' | 'settings' | 'keys'
+/** model: the first offer of a model to ask, when there is none (docs/byok.md) */
+type Panel = 'new' | 'load' | 'settings' | 'keys' | 'model'
 
 export class Cover {
   private slots: (SlotData | undefined)[] = []
@@ -91,7 +93,7 @@ export class Cover {
     document.getElementById('app')?.classList.add('on-cover')
     document.addEventListener('keydown', this.onKey)
     this.on.titleMusic(true)
-    this.on.ai.also = () => this.panel === 'settings' && this.render()
+    this.on.ai.also = () => this.aiChanged()
     this.render()
     // the first place: the one `?cover=<n>` names (to look at one), else any
     const asked = Number(new URLSearchParams(location.search).get('cover'))
@@ -109,6 +111,28 @@ export class Cover {
     this.creator = undefined
     this.on.ai.also = undefined
     clearTimeout(this.next)
+  }
+
+  /**
+   * There is no model to ask (none chosen, no service answering): the first thing the title offers is to choose one, or
+   * to play without AI. Not over a panel the player opened.
+   */
+  offerModel(): void {
+    if (!this.open || this.panel) return
+    this.panel = 'model'
+    this.render()
+  }
+
+  /** The AI's state changed (a model chosen, a test, what it spent): the panel showing it is drawn again. */
+  private aiChanged(): void {
+    if (this.panel === 'model' && ownModel.ready) {
+      // chosen: the offer is done, and the title says what answers now
+      this.panel = undefined
+      this.render()
+      $('#intro').querySelector('.cv-status')!.textContent = t('aiUsing').replace('{model}', ownModel.status!.model!)
+      return
+    }
+    if (this.panel === 'settings' || this.panel === 'model') this.render()
   }
 
   /** The world behind has drawn: the veil over it lifts (once each time the title opens). */
@@ -246,10 +270,15 @@ export class Cover {
   }
 
   private panelHtml(): string {
-    const name = { settings: t('cvSettings'), keys: t('keysSet'), new: t('cvPickNew'), load: t('cvPickLoad') }[this.panel!]
+    const name = { settings: t('cvSettings'), keys: t('keysSet'), new: t('cvPickNew'), load: t('cvPickLoad'), model: t('aiFirstTitle') }[this.panel!]
     const head = `<div class="cv-phead"><b>${name}</b>${this.panel === 'keys' ? '' : '<button class="x" id="cvClose">✕</button>'}</div>`
     if (this.panel === 'keys') return head + '<div id="cvKeys"></div>'
     if (this.panel === 'settings') return head + this.settingsHtml()
+    if (this.panel === 'model')
+      return `${head}<div class="options cv-settings cv-model">
+        ${this.on.ai.own.html(false)}
+        <div class="cv-skip"><button class="cv-btn" id="cvSkipModel">${t('aiSkip')}</button><small>${t('aiSkipTip')}</small></div>
+      </div>`
     const when = (iso: string) => new Date(iso).toLocaleString(locale.value === 'zh' ? 'zh-CN' : 'en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
     const cards = SLOTS.map((s) => {
       const d = this.slots[s - 1]
@@ -320,6 +349,13 @@ export class Cover {
       $('#cvKeysBtn').onclick = () => ((this.panel = 'keys'), this.render())
       this.on.ai.wire(host)
       void this.on.ai.refresh()
+      return
+    }
+    if (this.panel === 'model') {
+      ownModel.start()
+      this.on.ai.own.wire($('#intro').querySelector<HTMLElement>('.cv-model')!)
+      // no model, and not asked again (Settings still offers one); the ✕ and Esc only put it off until the next time
+      $('#cvSkipModel').onclick = () => (OwnModel.skip(), (this.panel = undefined), this.render())
       return
     }
     document.querySelector<HTMLButtonElement>('#cvTutorial')?.addEventListener('click', () => (this.busy(), this.on.tutorial()))

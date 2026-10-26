@@ -898,3 +898,6 @@ body.with-tabs .overlay .sheet { max-height: calc(100dvh - 72px); }
 .ai-own-state code { font-size: 12px; }
 .ai-own .warn { color: #a33a22; }
 .ai-own .good { color: #3d6b2a; }
+/* The title's first offer of a model (ui/cover.ts, panel `model`): the form, and playing without one under it. */
+.cv-model .cv-skip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--wood-dark); }
+.cv-model .cv-skip small { flex: 1 1 260px; font-size: 12px; line-height: 1.4; }

@@ -682,7 +682,23 @@ if (playtest) {
   quietSave = true
   const scene = PARAMS.get('scene') ?? undefined
   void (async () => sendInit({ t: 'init', base: worldBase(), library: await kvGet<LibraryData>(libraryKey()), prefetch: PARAMS.get('prefetch') === '1', quality: menu.ai.quality, ...(at && { at }), ...(scene && { scene }) }))()
-} else void cover.show()
+} else {
+  void cover.show()
+  // no model to ask: the first thing the title offers is to choose one, or to play without AI (docs/byok.md)
+  void needsModel().then((needs) => needs && cover.offerModel())
+}
+
+/** Is there no model to ask: none chosen here, no service named, none skipped, the default service (if any) without one? */
+async function needsModel(): Promise<boolean> {
+  if (NAMED || OwnModel.kept() || OwnModel.skipped() || ownModel.ready) return false
+  if (!MODDER) return true
+  try {
+    const health = (await (await fetch(`${MODDER.replace(/\/+$/, '')}/health`, { signal: AbortSignal.timeout(2500) })).json()) as { model?: string | null }
+    return !health.model
+  } catch {
+    return true
+  }
+}
 
 // the death screen: the world stops; rise again, load a save, or back to the title
 const death = new DeathScreen({

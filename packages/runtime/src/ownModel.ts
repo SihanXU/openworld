@@ -7,6 +7,8 @@ import type { FromModder, ModelChoice, ModelStatus, Remember, ToModder } from '.
 
 /** Set while a model is kept in this browser (never the key: only that the modder's worker should start at once). */
 const KEPT = 'lsw.model'
+/** Set once the player chose to play without a model (the title offers one no more). */
+const SKIPPED = 'lsw.model.skip'
 
 type Ask = Extract<ToModder, { id: number }>
 type AskOf<T extends Ask['t']> = Omit<Extract<Ask, { t: T }>, 'id' | 't'>
@@ -30,6 +32,23 @@ export class OwnModel {
 
   listen(fn: (s: ModelStatus, before?: ModelStatus) => void): void {
     this.listeners.push(fn)
+  }
+
+  /** The player chose to play without a model: the title does not offer one again (Settings still does). */
+  static skipped(): boolean {
+    try {
+      return localStorage.getItem(SKIPPED) === '1'
+    } catch {
+      return false
+    }
+  }
+
+  static skip(): void {
+    try {
+      localStorage.setItem(SKIPPED, '1')
+    } catch {
+      /* a blocked store: offered again next time */
+    }
   }
 
   /** Can the player's own modder answer now (a model chosen, with what it needs)? */

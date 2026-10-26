@@ -54,7 +54,8 @@ export class ModelSection {
     return { provider: d.provider, model: d.model.trim(), ...(d.baseUrl.trim() && { baseUrl: d.baseUrl.trim() }) }
   }
 
-  html(): string {
+  /** `heading`: under its own heading (the options); none where a panel names it (the title's first offer). */
+  html(heading = true): string {
     const d = this.form()
     const s = this.own.status
     const p = providerOf(d.provider)
@@ -67,7 +68,7 @@ export class ModelSection {
       ? `<small class="muted">${t('aiKeyless')}</small>`
       : `<span class="ai-own-field"><input data-own="key" type="${this.showKey ? 'text' : 'password'}" autocomplete="off" spellcheck="false" value="${esc(d.key)}" placeholder="${esc(keptHere ? t('aiKeyKept').replace('{hint}', s!.keyHint!) : t('aiKeyPlaceholder'))}"><button data-own-act="show">${t(this.showKey ? 'aiHide' : 'aiShow')}</button>${getKey}</span>`
     const radio = (r: Remember, label: string) => `<label><input type="radio" name="aiRemember" data-own-remember="${r}" ${d.remember === r ? 'checked' : ''}> ${t(label)}</label>`
-    return `<h4>${t('aiOwnSection')}</h4>
+    return `${heading ? `<h4>${t('aiOwnSection')}</h4>` : ''}
       <div class="ai-opts ai-own">
         <p class="muted ai-note">${t('aiOwnIntro')}</p>
         ${this.named ? `<p class="warn ai-note">${t('aiNamedService').replace('{url}', esc(this.named))}</p>` : ''}
