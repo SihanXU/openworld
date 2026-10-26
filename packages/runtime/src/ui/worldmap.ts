@@ -3,6 +3,7 @@
 // position, the waypoint stones (an attuned one takes you there with a click), dragged and zoomed like the
 // skill tree — and the minimap, the current map always on screen under the clock.
 
+import { canvasWindow } from './components/index.ts'
 import type { EntitySnap, Frame, MapData } from '@openworld/engine'
 import { ontology } from '../game.ts'
 import type { Atlas, AtlasContinent } from '../protocol.ts'
@@ -111,6 +112,14 @@ export class WorldMap {
       if (this.atlas) this.onAtlas(this.atlas)
     }
     $('#wmClose').onclick = () => this.send.close()
+    canvasWindow(host, view, t('worldMap'), () => this.send.close(), (dx, dy) => {
+      this.pan.x += dx; this.pan.y += dy
+      if (this.extent) {
+        const r = view.getBoundingClientRect()
+        this.fit = Math.min(ZOOM[1], Math.max(ZOOM[0], Math.min(r.width / this.extent.w, (r.height - 60) / this.extent.h) * 0.96))
+      }
+      this.apply()
+    })
   }
 
   get open(): boolean {

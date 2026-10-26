@@ -1,3 +1,4 @@
+import { mountWindow, itemSlotHtml } from './components/index.ts'
 // The game's panels (each opened by its own button bottom right, or its key: the bag, crafting,
 // options), the codex (J: every item, person and creature, the ones met shown, and the Threadbook —
 // every thread the world has learned, and whose act taught it) and the chest panel: the chest's
@@ -28,7 +29,6 @@ import { KeysPage } from './keyspage.ts'
 import type { Action } from '../keymap.ts'
 
 export type Tab = 'inventory' | 'craft' | 'options' | 'shop' | 'keys' | 'station'
-const ICONS: Record<Tab, string> = { inventory: '🎒', craft: '🔨', options: '⚙', shop: '🏪', keys: '⌨', station: '⚒' }
 /** The game's shops (a station each, its shelves); none, no shop panel. */
 const shops = (): ShopDef[] => game().crafting.shops ?? []
 /** The runtime's own panels for a module a game uses, where the game has none of its own (ClientGame.panels). */
@@ -394,10 +394,13 @@ export class Menu {
   }
 
   open(tab?: Tab): void {
-    this.send.cancelCraft()
-    this.contextPopup.close()
     // (a panel opened, or another in its sheet, starts at its top: the sheet is shared and keeps its scroll)
     const fresh = !this.menuOpen || (!!tab && tab !== this.tab)
+    if (fresh) this.close()
+    else {
+      this.send.cancelCraft()
+      this.contextPopup.close()
+    }
     if (tab) this.tab = tab
     $('#journal').classList.add('hidden')
     $('#skills').classList.add('hidden')
@@ -405,7 +408,7 @@ export class Menu {
     $('#menu').classList.remove('hidden')
     this.picked = undefined
     this.render()
-    if (fresh) $('#menuSheet').scrollTop = 0
+    if (fresh) ($('#menuSheet').querySelector('.ui-window-body') ?? $('#menuSheet')).scrollTop = 0
     if (this.tab === 'options') void this.ai.refresh()
   }
 
@@ -430,13 +433,12 @@ export class Menu {
   }
 
   openJournal(): void {
-    this.send.cancelCraft()
-    this.contextPopup.close()
-    $('#menu').classList.add('hidden')
-    $('#skills').classList.add('hidden')
-    this.showCarried()
-    $('#journal').classList.toggle('hidden')
-    if (this.journalOpen) this.renderJournal()
+    const show = !this.journalOpen
+    this.close()
+    if (show) {
+      $('#journal').classList.remove('hidden')
+      this.renderJournal()
+    }
   }
 
   close(): void {
@@ -524,7 +526,7 @@ export class Menu {
     // each panel is its own (its button bottom right, or its key): a title, no tabs to switch between
     // (a shop's panel is headed by the shop's own name)
     const title = this.tab === 'shop' && this.shop?.name ? esc(tx(this.shop.name)) : this.tab === 'station' ? esc(tx(game().crafting.stationName(this.station))) : t(this.tab)
-    const head = `<div class="tabs-row"><b class="sheet-title">${ICONS[this.tab]} ${title}</b><button class="x" id="menuClose">✕</button></div>`
+    const head = `<div class="tabs-row"><b class="sheet-title">${title}</b><button class="x" id="menuClose">✕</button></div>`
     let body = ''
     if (this.tab === 'inventory') body = this.inventoryHtml(f)
     if (this.tab === 'craft') body = this.craftHtml(f)
@@ -536,12 +538,13 @@ export class Menu {
     const progress = this.crafting && (this.tab === 'craft' || this.tab === 'shop' || this.tab === 'station')
       ? `<div class="muted small" role="status">${locale.value === 'zh' ? '批量处理' : 'Batch progress'} ${this.crafting.done}/${this.crafting.total} · ${locale.value === 'zh' ? '关闭面板可停止' : 'Close this panel to stop'}</div>` : ''
     $('#menuSheet').innerHTML = head + progress + `<div class="tab-body">${body}</div>`
+    mountWindow($('#menuSheet'), { size: this.tab === 'inventory' ? 'lg' : 'md', view: this.tab, onClose: () => this.close() })
     $('#menuClose').onclick = () => this.close()
     if (this.tab === 'inventory') this.wireInventory(f)
     if (this.tab === 'options') this.wireOptions()
     if (this.tab === 'keys') this.keysPage.show($('#keysHost'))
     if (this.tab === 'craft' || this.tab === 'shop' || this.tab === 'station') this.wireCraft()
-    if (this.tab === 'shop') $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-shelf]').forEach((b) => (b.onclick = () => ((this.shelf = b.dataset.shelf!), this.render(), ($('#menuSheet').scrollTop = 0))))
+    if (this.tab === 'shop') $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-shelf]').forEach((b) => (b.onclick = () => ((this.shelf = b.dataset.shelf!), this.render(), (($('#menuSheet').querySelector('.ui-window-body') ?? $('#menuSheet')).scrollTop = 0))))
     if (f) {
       this.liveSig = this.sigOf(f)
       // (the purse's coin: its icon as the crafting panel paints a material's)
@@ -576,7 +579,7 @@ export class Menu {
 
   private slotHtml(s: Frame['player']['slots'][number], i: number, extra = ''): string {
     const key = i < ROW ? `<span class="key" data-kbd="slot${i + 1}">${kbd(`slot${i + 1}` as Action)}</span>` : ''
-    return `<div class="slot${extra}${gearFrame(s?.item)}" data-i="${i}" ${s ? `data-item="${s.item.id}"` : ''}>${key}${s ? `<div class="icon" data-icon="${s.item.id}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : ''}</div>`
+    return itemSlotHtml({ label: s ? tx(s.item.name) : `${t('csPack')} ${i + 1}`, className: extra + gearFrame(s?.item), attributes: { 'data-i': i, 'data-item': s?.item.id }, content: key + (s ? `<div class="icon" data-icon="${esc(s.item.id)}"></div>${s.count > 1 ? `<span class="count">${s.count}</span>` : ''}${s.worn ? '<span class="worn"></span>' : ''}` : '') })
   }
 
   private inventoryHtml(f?: Frame): string {
@@ -864,6 +867,7 @@ export class Menu {
       <div class="jhead"><b>${t('codex')}</b><button class="x" id="jClose">✕</button></div>
       <div class="cx-tabs">${tabs}</div>
       <div class="cx-body">${body}</div>`
+    mountWindow($('#journalSheet'), { size: 'lg', view: this.codexTab, onClose: () => this.close() })
     $('#jClose').onclick = () => this.close()
     $('#journalSheet').querySelectorAll<HTMLButtonElement>('[data-cx]').forEach((b) => (b.onclick = () => ((this.codexTab = b.dataset.cx as CodexTab), this.renderJournal())))
     paintCodex($('#journalSheet'))
@@ -944,6 +948,7 @@ export class Menu {
         .map((r, k) => `<div class="grid-row${k === 0 ? ' toolbar-row' : ''}">${r.join('')}</div>`)
         .join('')}</div></div>`
     const sheet = $('#chestSheet')
+    mountWindow(sheet, { size: 'lg', onClose: () => this.close() })
     sheet.setAttribute('aria-busy', String(!!moving))
     $('#cClose').onclick = () => this.close()
     const move = (from: 'chest' | 'bag', id: string, all: boolean) => {

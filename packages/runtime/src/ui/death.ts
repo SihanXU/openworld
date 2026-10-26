@@ -7,6 +7,7 @@
 // On easy and normal one may instead load a save (the slot is not saved while one lies fallen, so
 // its save is from before the fall) or go back to the title.
 
+import { mountWindow } from './components/index.ts'
 import type { Frame } from '@openworld/engine'
 import { esc, locale, tx } from './common.ts'
 
@@ -75,6 +76,7 @@ export class DeathScreen {
           <button class="cv-btn" data-act="title">${zh ? '回到标题' : 'Title screen'}</button>
         </div>
       </div>`
+    mountWindow(this.el.querySelector<HTMLElement>('.death-box')!, { title: zh ? '你倒下了' : 'You fell', dismissible: false })
     this.el.querySelectorAll<HTMLButtonElement>('[data-act]').forEach((b) => {
       b.onclick = () => {
         const act = b.dataset.act

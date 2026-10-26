@@ -1,3 +1,4 @@
+@layer legacy {
 /* The companion's panel (companion.ts, 2026-10-12), OpenWorld's own, in the runtime's wood and paper (its theme's
    variables, packages/runtime/src/ui/polish.css). Lumi under a night sky — her bust floating in its own light, her wings
    beating slowly behind it, motes rising — and on parchment beside her, the road (what the main quest asks now, in her
@@ -224,3 +225,5 @@
 .lm-portrait { animation: lmFace 0.22s ease-out; }
 @keyframes lmFace { from { opacity: 0.55; filter: brightness(1.25) drop-shadow(0 0 22px rgba(255, 236, 190, 0.9)); } }
 
+
+}

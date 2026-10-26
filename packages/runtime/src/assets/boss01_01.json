@@ -1,0 +1,202 @@
+{
+  "source": "boss01_01/boss01_01.png",
+  "canvas": [
+    60,
+    76
+  ],
+  "original_offset_in_canvas": [
+    0,
+    16
+  ],
+  "anchor": [
+    30,
+    71
+  ],
+  "anchor_note": "脚底锚点, 所有动画所有帧相同: y=71 为靴底行, x=30 为角色中轴/镜像轴 (原画正面两靴不对称, 正面靴底中心 x=31; 侧面靴底中心 x=30)",
+  "fx_colors": [
+    "#FFFFFF",
+    "#FFE9B0"
+  ],
+  "palette": [
+    "#953737",
+    "#2A2020",
+    "#EDE1D2",
+    "#BDAC9C",
+    "#712B2C",
+    "#DACDC1",
+    "#A6968D",
+    "#CE9659",
+    "#9E8771",
+    "#C1B2A8",
+    "#381F14",
+    "#F3B876",
+    "#DBA161",
+    "#E4DACD",
+    "#382020",
+    "#897972",
+    "#81563E",
+    "#231B1C",
+    "#C48B5B",
+    "#3F1E12",
+    "#9D8C84",
+    "#B6A59B",
+    "#EEB16E",
+    "#855137"
+  ],
+  "animations": {
+    "idle": {
+      "sheet": "idle.png",
+      "frames": 8,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 150,
+      "loop": true,
+      "preview_gif": "idle_preview_x8.gif",
+      "on_end": null,
+      "frame_files": [
+        "idle/idle_01.png",
+        "idle/idle_02.png",
+        "idle/idle_03.png",
+        "idle/idle_04.png",
+        "idle/idle_05.png",
+        "idle/idle_06.png",
+        "idle/idle_07.png",
+        "idle/idle_08.png"
+      ]
+    },
+    "attack_right": {
+      "sheet": "attack_right.png",
+      "frames": 10,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 80,
+      "loop": false,
+      "preview_gif": "attack_right_preview_x8.gif",
+      "on_end": {
+        "goto": "idle",
+        "frame": 0
+      },
+      "frame_files": [
+        "attack_right/attack_right_01.png",
+        "attack_right/attack_right_02.png",
+        "attack_right/attack_right_03.png",
+        "attack_right/attack_right_04.png",
+        "attack_right/attack_right_05.png",
+        "attack_right/attack_right_06.png",
+        "attack_right/attack_right_07.png",
+        "attack_right/attack_right_08.png",
+        "attack_right/attack_right_09.png",
+        "attack_right/attack_right_10.png"
+      ],
+      "segments": {
+        "main": [
+          0,
+          8
+        ],
+        "recover": [
+          9
+        ]
+      },
+      "hit_frame": 5,
+      "chain": {
+        "at_frame": 8,
+        "goto_frame": 0,
+        "can_chain_to": [
+          "attack_right",
+          "attack_left",
+          "attack_down"
+        ]
+      }
+    },
+    "attack_left": {
+      "sheet": "attack_left.png",
+      "frames": 10,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 80,
+      "loop": false,
+      "preview_gif": "attack_left_preview_x8.gif",
+      "on_end": {
+        "goto": "idle",
+        "frame": 0
+      },
+      "frame_files": [
+        "attack_left/attack_left_01.png",
+        "attack_left/attack_left_02.png",
+        "attack_left/attack_left_03.png",
+        "attack_left/attack_left_04.png",
+        "attack_left/attack_left_05.png",
+        "attack_left/attack_left_06.png",
+        "attack_left/attack_left_07.png",
+        "attack_left/attack_left_08.png",
+        "attack_left/attack_left_09.png",
+        "attack_left/attack_left_10.png"
+      ],
+      "segments": {
+        "main": [
+          0,
+          8
+        ],
+        "recover": [
+          9
+        ]
+      },
+      "hit_frame": 5,
+      "chain": {
+        "at_frame": 8,
+        "goto_frame": 0,
+        "can_chain_to": [
+          "attack_right",
+          "attack_left",
+          "attack_down"
+        ]
+      },
+      "note": "由 attack_right 第1-9帧水平镜像 (x'=60-x), 第10帧为 idle 第1帧"
+    },
+    "attack_down": {
+      "sheet": "attack_down.png",
+      "frames": 10,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 80,
+      "loop": false,
+      "preview_gif": "attack_down_preview_x8.gif",
+      "on_end": {
+        "goto": "idle",
+        "frame": 0
+      },
+      "frame_files": [
+        "attack_down/attack_down_01.png",
+        "attack_down/attack_down_02.png",
+        "attack_down/attack_down_03.png",
+        "attack_down/attack_down_04.png",
+        "attack_down/attack_down_05.png",
+        "attack_down/attack_down_06.png",
+        "attack_down/attack_down_07.png",
+        "attack_down/attack_down_08.png",
+        "attack_down/attack_down_09.png",
+        "attack_down/attack_down_10.png"
+      ],
+      "segments": {
+        "main": [
+          0,
+          8
+        ],
+        "recover": [
+          9
+        ]
+      },
+      "hit_frame": 5,
+      "chain": {
+        "at_frame": 8,
+        "goto_frame": 0,
+        "can_chain_to": [
+          "attack_right",
+          "attack_left",
+          "attack_down"
+        ]
+      }
+    }
+  },
+  "chain_rule": "攻击动画播到 chain.at_frame (main 段最后一帧) 结束时: 若有新的攻击输入, 跳到目标攻击动画的 chain.goto_frame 继续, 不播 recover 段; 若没有输入, 播 recover 段 (正面 idle 第1帧) 后回 idle。hit_frame 为命中帧, 可用于触发伤害判定。帧号从 0 开始。"
+}

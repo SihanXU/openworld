@@ -34,6 +34,17 @@ function registry(factories: Record<string, PanelFactory>) {
 }
 
 describe("a game's own panels", () => {
+  it('releases transient work once when its host closes, including a shortcut or another panel', () => {
+    let hidden = 0
+    const { r } = registry({ restyle: () => ({ show() {}, render() {}, hide() { hidden++ } }) })
+    r.open('restyle', frame(1))
+    r.close()
+    r.close()
+    expect(hidden).toBe(1)
+    r.open('restyle', frame(2))
+    r.close()
+    expect(hidden).toBe(2)
+  })
   it('opens the panel a key names, told whose rule opened it, and draws it each frame while it is open', () => {
     const p = recording()
     const { r, hosts } = registry({ haven: p.make })

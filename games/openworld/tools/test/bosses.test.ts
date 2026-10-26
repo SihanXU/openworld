@@ -233,7 +233,7 @@ describe('the boss fights', () => {
 })
 
 describe('Alberic visual timing and locked effects', () => {
-  it.each([1, 2])('keeps the bow drawn until release in phase %s and keeps the clip through saves', (phase) => {
+  it.each([1, 2])('holds the delivered anticipation pose until release in phase %s and keeps the clip through saves', (phase) => {
     const { game, index, map, eng, w, boss, ticks, pending } = arena('alberic')
     if (phase === 2) (boss.props = { ...boss.props, hp: BOSS_BY_ID.alberic.hp * 0.4 }), Object.assign(boss.boss!, { phase: 2, opened: 2 })
     castNow(eng, boss, 'volley')
@@ -241,15 +241,15 @@ describe('Alberic visual timing and locked effects', () => {
     const cast = pending()!
     expect(snap().skill).toBe('volley')
     expect(snap().clip).toBe('volley')
-    expect(bossAnimationFrame(snap(), 0, 0, 'up')).toEqual({ col: 0, row: 18 })
+    expect(bossAnimationFrame(snap(), 0, 0, 'up')).toEqual({ col: 0, row: 0, clip: 'attack_down', flipX: false })
     ticks(cast.releaseAt - w.state.tick - 1)
     expect(snap().progress).toBeLessThan(0.5)
-    expect(bossAnimationFrame(snap(), 0).col).toBe(15)
-    expect(bossAnimationFrame(snap(), 0).col).toBeLessThan(16)
+    expect(bossAnimationFrame(snap(), 0).col).toBe(4)
+    expect(bossAnimationFrame(snap(), 0).col).toBeLessThan(5)
     ticks(1)
     expect(snap().skill).toBe('volley')
     expect(snap().warning).toBeUndefined()
-    expect(bossAnimationFrame(snap(), 0)).toEqual({ col: 16, row: 4 })
+    expect(bossAnimationFrame(snap(), 0)).toEqual({ col: 5, row: 0, clip: 'attack_down', flipX: false })
     const afterRelease = Game.load(structuredClone(game.save()), index, onto, library())
     afterRelease.loadMapData(map)
     expect(snapshot(afterRelease.engine).entities.find((e) => e.id === boss.id)!.boss!.clip).toBe('volley')
@@ -285,32 +285,36 @@ describe('Alberic visual timing and locked effects', () => {
     expect(snapshot(eng).entities.find((e) => e.id === boss.id)!.boss!.skill).toBe('arrow')
   })
 
-  it('plays the twelve-pose death at 10 fps and holds it until the original despawn tick', () => {
+  it('holds the delivered rest pose during death until the original despawn tick', () => {
     const { eng, w, boss, player, ticks } = arena('alberic')
     ticks(1)
     eng.damage(boss, 10000, undefined, true, { e: player.id })
     ticks(1)
     const pose = () => bossAnimationFrame(snapshot(eng).entities.find((e) => e.id === boss.id)!.boss!, 0)
-    expect(pose()).toEqual({ row: 6, col: 0 })
-    for (const col of [12, 24, 31]) { ticks(4); expect(pose()).toEqual({ row: 6, col }) }
+    expect(pose()).toEqual({ row: 0, col: 0, clip: 'idle', flipX: false })
+    for (let i = 0; i < 3; i++) { ticks(4); expect(pose()).toEqual({ row: 0, col: 0, clip: 'idle', flipX: false }) }
     ticks(4)
-    expect(pose()).toEqual({ row: 6, col: 31 })
+    expect(pose()).toEqual({ row: 0, col: 0, clip: 'idle', flipX: false })
     ticks(4)
     expect(w.get(boss.id)).toBeUndefined()
   })
 })
 
 describe('boss encounter assets and compatibility', () => {
-  it('ships 732 body frames and 54 skill-effect frames, all as RGBA PNGs', () => {
-    expect(Object.values(SIN_ACTORS).reduce((n, a) => n + a.cols! * a.rows!, 0)).toBe(732)
+  it('ships the delivered animation strips and legacy body/effect atlases as RGBA PNGs', () => {
+    expect(Object.values(SIN_ACTORS).reduce((n, a) => n + (a.clips
+      ? Object.values(a.clips).reduce((sum, clip) => sum + clip.frames, 0) : a.cols * a.rows), 0)).toBe(98)
     expect(Object.values(SIN_FX).reduce((n, f) => n + f.frames, 0)).toBe(54)
     for (const b of BOSSES.filter((b) => b.type.startsWith('actor/creature/sin/'))) {
-      const actor = SIN_ACTORS[`boss:sin:${b.id}`], cell = b.id === 'envy' ? 32 : b.id === 'alberic' ? 128 : 96
-      expect(actor.scale).toBeGreaterThanOrEqual(b.id === 'envy' || b.id === 'alberic' ? 1.25 : 1.75)
-      const files = [[`${actor.dir}/${actor.sheet}`, cell * actor.cols!, cell * actor.rows!], ...b.skills.filter((s) => s.fx?.startsWith('sin:')).map((s) => {
+      const actor = SIN_ACTORS[`boss:sin:${b.id}`], cell = b.id === 'envy' ? 32 : 96
+      expect(actor.scale).toBeGreaterThanOrEqual(b.id === 'envy' ? 1.25 : 1.75)
+      const bodies = actor.clips ? Object.values(actor.clips).map((clip): [string, number, number] =>
+        [`${actor.dir}/${clip.sheet}`, clip.frameWidth * clip.frames, clip.frameHeight])
+        : [[`${actor.dir}/${actor.sheet}`, cell * actor.cols, cell * actor.rows] as [string, number, number]]
+      const files = [...bodies, ...b.skills.filter((s) => s.fx?.startsWith('sin:')).map((s): [string, number, number] => {
         const fx = SIN_FX[s.fx!]
         return [fx.img, fx.fw * fx.frames, fx.fh]
-      })] as [string, number, number][]
+      })]
       for (const [path, width, height] of files) {
         const bytes = readFileSync(new URL(`../../public/assets/${path}`, import.meta.url))
         expect(bytes.readUInt32BE(16), path).toBe(width)
