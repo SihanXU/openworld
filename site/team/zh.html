@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>团队 · OpenWorld</title>
+    <link rel="icon" href="data:,">
+    <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@600&display=block" rel="stylesheet">
+    <link rel="stylesheet" href="../base.css">
+    <style>
+        /* the team: a tier a heading and its people, a grid that takes as many as come */
+        .nav-title .logo { font-family: 'Pixelify Sans', 'Segoe UI', sans-serif; font-weight: 600; letter-spacing: 0.02em; font-size: 1.45rem; }
+        .team-hero { background: var(--bg-alt); padding: calc(var(--nav-h) + 4rem) 0 3rem; }
+        .team-hero h1 { font-size: clamp(2.4rem, 6vw, 3.6rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.04em; color: var(--ink-strong); margin-top: 0.75rem; }
+        .team { padding: 3.5rem 0 5rem; }
+        .tier + .tier { margin-top: 2.75rem; }
+        .tier h2 { font-size: 1.15rem; font-weight: 600; color: var(--ink-strong); padding-bottom: 0.75rem; border-bottom: 1px solid var(--line); margin-bottom: 1.25rem; }
+        .tier h2 small { font-size: 0.9rem; font-weight: 400; color: var(--faint); margin-left: 0.25rem; }
+        .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.25rem 2rem; }
+        .person a { display: block; font-size: 1.05rem; font-weight: 500; color: var(--ink-strong); }
+        .person a:hover { color: var(--accent); }
+        .person .role { font-size: 0.9rem; color: var(--faint); }
+        .pending { font-size: 1.05rem; color: var(--faint); }
+        @media (max-width: 760px) { .team-hero { padding: calc(var(--nav-h) + 2.5rem) 0 2rem; } .people { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    </style>
+</head>
+<body>
+    <nav class="banner">
+        <div class="container">
+            <div class="nav-title"><a href="../?lang=zh" style="color:inherit" class="logo">OpenWorld</a><small>团队</small></div>
+            <div class="nav-links">
+                <a href="../?lang=zh#news" class="hide-sm">新闻</a>
+                <a href="../?lang=zh#join" class="cta">等候名单</a>
+                <a href="./" lang="en">English</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="team-hero">
+        <div class="container">
+            <p class="label">OpenWorld</p>
+            <h1>团队</h1>
+        </div>
+    </header>
+
+    <main class="team">
+        <div class="container">
+            <section class="tier">
+                <h2>组织者</h2>
+                <div class="people">
+                    <div class="person"><a href="https://sihanxu.me/" target="_blank" rel="noopener">Sihan Xu</a><span class="role">项目负责人</span></div>
+                    <div class="person"><a href="https://killthefullmoon.github.io/" target="_blank" rel="noopener">Hui Shen</a><span class="role">游戏负责人</span></div>
+                    <div class="person"><a href="https://horizonwind2004.github.io/" target="_blank" rel="noopener">Ji Xie</a><span class="role">算法负责人</span></div>
+                </div>
+            </section>
+            <section class="tier">
+                <h2>初始贡献者 <small>（按字母顺序）</small></h2>
+                <p class="pending">待定</p>
+            </section>
+            <section class="tier">
+                <h2>顾问 <small>（按字母顺序）</small></h2>
+                <p class="pending">待定</p>
+            </section>
+            <section class="tier">
+                <h2>贡献者 <small>（按字母顺序）</small></h2>
+                <p class="pending">敬请期待</p>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <span>设计：<a href="https://sihanxu.me/">Si.X</a> · 美术：Ninja Adventure（CC0）与我们自己的作品</span>
+            <span>OpenWorld &copy; 2026</span>
+        </div>
+    </footer>
+    <script src="../snippets.js"></script>
+    <script src="../motion.js"></script>
+    <script src="../base.js"></script>
+</body>
+</html>
