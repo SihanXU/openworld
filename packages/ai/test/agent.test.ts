@@ -41,7 +41,7 @@ function bugRepo(): string {
   const dir = mkdtempSync(join(tmpdir(), 'lsw-repo-'))
   mkdirSync(join(dir, 'src'))
   writeFileSync(join(dir, 'src', 'add.mjs'), 'export const add = (a, b) => a - b\n')
-  writeFileSync(join(dir, 'test.mjs'), "import { add } from '../../agent/test/src/add.mjs'\nif (add(2, 3) !== 5) { console.error('add(2, 3) should be 5, got ' + add(2, 3)); process.exit(1) }\nconsole.log('ok')\n")
+  writeFileSync(join(dir, 'test.mjs'), "import { add } from './src/add.mjs'\nif (add(2, 3) !== 5) { console.error('add(2, 3) should be 5, got ' + add(2, 3)); process.exit(1) }\nconsole.log('ok')\n")
   execSync('git init -q && git config core.autocrlf false && git add -A && git -c user.email=t@t -c user.name=t commit -qm init', { cwd: dir })
   return dir
 }

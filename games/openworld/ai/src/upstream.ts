@@ -69,7 +69,7 @@ export function contentWorkspace(): { dir: string; engineHash: string; dispose: 
   mkdirSync(join(ws.dir, JUDGE), { recursive: true })
   writeFileSync(join(ws.dir, JUDGE, 'coverage.ts'), readFileSync(COVERAGE, 'utf8'))
   // (the cells go to a file: the sweep is larger than a command's output may be)
-  writeFileSync(join(ws.dir, JUDGE, 'sweep.ts'), "import { writeFileSync } from 'node:fs'\nimport { sweep } from '../../tools/src/coverage.ts'\nwriteFileSync(new URL('../../tools/src/sweep.json', import.meta.url), JSON.stringify(sweep().cells))\n")
+  writeFileSync(join(ws.dir, JUDGE, 'sweep.ts'), "import { writeFileSync } from 'node:fs'\nimport { sweep } from './coverage.ts'\nwriteFileSync(new URL('./sweep.json', import.meta.url), JSON.stringify(sweep().cells))\n")
   mkdirSync(join(ws.dir, '.git', 'info'), { recursive: true })
   writeFileSync(join(ws.dir, '.git', 'info', 'exclude'), `${JUDGE}/\n`)
   return {

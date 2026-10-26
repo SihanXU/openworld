@@ -36,7 +36,7 @@ import type { Cell } from '../../../tools/src/coverage.ts'
 const argv = process.argv.slice(2)
 const opt = (k: string, d: string) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : d)
 const CONTROLLED = 'var/eval/controlled'
-const ASSETS = fileURLToPath(new URL('../../../public/assets', import.meta.url))
+const ASSETS = fileURLToPath(new URL('../../../public/assets/', import.meta.url))
 const OUT = opt('out', 'var/eval/study')
 const read = <T,>(f: string): T => JSON.parse(readFileSync(join(CONTROLLED, f), 'utf8'))
 
