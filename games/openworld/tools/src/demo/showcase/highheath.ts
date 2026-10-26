@@ -155,7 +155,6 @@ export function highheath(p: Place): MapBuilder[] {
   b.sprinkle('fixture/nature/tuft', 0.04, (_x, _y, t) => t === 'grass' || t === 'drygrass')
   b.fixture('fixture/furniture/stall', 36, 79)
   strew(b, 0, 0, W, 22, 0.08, 'city')
-  b.vistas.push({ at: [26, 38, 18, 12], zoom: 0.65, focus: [34, 20], share: 0.4 })
   b.anchors = { chapel: [34, 13], garth: [33, 18], graves: [58, 18], gardens: [48, 27], bridge: [34, 42], shrine: [20, 57], heath: [30, 68], gate: [33, 86], camp: [14, 86], stall: [37, 80] }
   clearDoorsteps(b)
   unshut(b)

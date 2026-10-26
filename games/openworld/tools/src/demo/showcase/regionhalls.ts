@@ -484,8 +484,9 @@ export function workingsHall(p: Place): MapBuilder {
     glow(m, x + 0.5, y + 0.5, 5, 4, '#ffb35c', 0.45)
   }
   m.fixture('fixture/craft/workbench', P.stopeW.x, P.stopeW.y + 5)
-  for (const [x, y] of [[P.cavern.x + 2, P.cavern.y + 1], [P.winze.x + 3, P.winze.y + 2]] as Cell[]) m.creature('beast/bat', x, y, { leash: 4 })
-  m.creature('spider', P.cavern.x + 7, P.cavern.y + 5, { leash: 3 })
+  // the workings' own creatures keep to themselves (wary): the miners go down the shaft and past the cavern every day
+  for (const [x, y] of [[P.cavern.x + 2, P.cavern.y + 1], [P.winze.x + 3, P.winze.y + 2]] as Cell[]) m.creature('beast/bat', x, y, { leash: 4, temper: 'wary' })
+  m.creature('spider', P.cavern.x + 7, P.cavern.y + 5, { leash: 3, temper: 'wary' })
   m.anchors = { face: [M.x + 2, M.y + 12], stopeW: [P.stopeW.x + 5, P.stopeW.y + 3], stopeE: [P.stopeE.x + 3, P.stopeE.y + 1], entry: [P.entry.x + 3, P.entry.y + 2], down: [P.stopeE.x + 4, P.stopeE.y + 1], shaft: [P.winze.x + 2, P.winze.y] }
   return m
 }

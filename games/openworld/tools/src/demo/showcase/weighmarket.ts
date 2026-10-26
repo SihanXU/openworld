@@ -160,7 +160,6 @@ export function weighmarket(p: Place): MapBuilder[] {
   piles(b, 0, 18, W, H - 18, 'market', 0.4)
   strew(b, 0, 18, W, 55, 0.1)
   strew(b, 0, 73, 44, 17, 0.14, 'poor')
-  b.vistas.push({ at: [14, 29, 52, 26], zoom: 0.6, focus: [40, 30], share: 0.4 })
   b.anchors = { square: [40, 46], scales: [40, 44], north: [40, 27], fields: [20, 16], mills: [58, 14], south: [40, 70], lane: [20, 81], pans: [60, 78], well: [23, 44] }
   clearDoorsteps(b)
   unshut(b)

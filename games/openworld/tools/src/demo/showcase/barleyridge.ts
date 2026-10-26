@@ -140,7 +140,6 @@ export function barleyridge(p: Place): MapBuilder[] {
     b.fixture('fixture/light/lantern', x, y, { statuses: { lit: -1 } })
     glowAt(b, x, y, 'night')
   }
-  b.vistas.push({ at: [36, 40, 24, 16], zoom: 0.65, focus: [46, 30], share: 0.4 })
   b.anchors = { green: [47, 48], well: [50, 47], mill: [45, 22], orchard: [12, 8], fieldN: [38, 9], fieldW: [10, 40], fieldS: [30, 72], pasture: [65, 30], yardNE: [63, 18], yardSE: [60, 64], pond: [58, 70], road: [41, 72] }
   clearDoorsteps(b)
   unshut(b)

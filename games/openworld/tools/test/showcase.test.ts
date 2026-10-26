@@ -1,5 +1,5 @@
-// The showcase's checks (docs/showcase.md §6): the Holy City's hand-made places — Sunwell Abbey and the five quarters —
-// are all there with their halls and rooms; every way between their maps leads both ways and every hall is reached from
+// The showcase's checks (docs/showcase.md §6): the hand-made places — the Holy City's Sunwell Abbey and five quarters, the
+// places of the regions round it, the farm village and the mine — are all there with their halls and rooms; every way between their maps leads both ways and every hall is reached from
 // its place; the quarters are one walk, street into street; nothing the place builds rises off the top of its map (the
 // view could never show it), every view's rect and every pool of light lies in its map; the buildings' strips are all
 // in the catalogue; and the busiest of them ticks within a tick's time.

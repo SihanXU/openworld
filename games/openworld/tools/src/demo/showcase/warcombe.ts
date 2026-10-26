@@ -157,7 +157,6 @@ export function warcombe(p: Place): MapBuilder[] {
   }
   piles(b, 0, 0, W, 63, 'poor', 0.4)
   strew(b, 0, 0, W, H, 0.06, 'poor')
-  b.vistas.push({ at: [40, 64, 32, 26], zoom: 0.7, focus: [56, 76], share: 0.4 })
   b.anchors = { mesa: [40, 7], court: [36, 20], ledge: [12, 24], square: [36, 44], street: [20, 40], yard: [54, 58], gate: [36, 64], camp: [18, 70], camp2: [12, 79], field: [56, 76], hospital: [7, 71] }
   clearDoorsteps(b)
   unshut(b)

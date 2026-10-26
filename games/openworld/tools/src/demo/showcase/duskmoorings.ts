@@ -98,7 +98,6 @@ export function duskMoorings(p: Place): MapBuilder[] {
   // decor on the walks: casks and traps, a cat, washing over the water
   for (const [x, y] of [[20, 22], [60, 22], [8, 40], [26, 40], [62, 40], [18, 58], [56, 58], [24, 73], [50, 73]] as Cell[]) decor(b, rng.pick(['decor_casks', 'decor_crates', 'decor_sacks']), x, y)
   for (const [x, y] of [[14, 22], [30, 58], [44, 73]] as Cell[]) decor(b, 'decor_cat', x, y)
-  b.vistas.push({ at: [0, 0, 30, 22], zoom: 0.7, focus: [12, 8], share: 0.4 })
   b.anchors = { chapel: [11, 14], crossing: [35, 40], market: [46, 45], walkN: [50, 24], walkW: [14, 40], walkS: [24, 58], walkE: [55, 59], south: [35, 78], graves: [16, 16] }
   unshut(b)
   standAnchors(b)

@@ -110,7 +110,6 @@ export function brandby(p: Place): MapBuilder[] {
   b.sprinkle('fixture/nature/pebbles', 0.03, (_x, _y, t) => t === 'dirt' || t === 'sand' || t === 'gravel')
   piles(b, 0, 14, W, H - 14, 'poor', 0.45)
   strew(b, 0, 14, W, H - 14, 0.06, 'poor')
-  b.vistas.push({ at: [20, 16, 20, 12], zoom: 0.7, focus: [30, 10], share: 0.4 })
   b.anchors = { adit: [28, 20], spoil: [42, 29], forge: [14, 24], yard: [30, 31], timber: [20, 32], camp: [16, 50], cook: [42, 50], stall: [33, 48], mesa: [40, 8] }
   clearDoorsteps(b)
   unshut(b)

@@ -186,7 +186,6 @@ export function rimeholm(p: Place): MapBuilder[] {
   for (let x = 1; x < W - 1; x++) if ((x < 34 || x > 43) && rng.chance(0.22)) decor(b, rng.pick(['decor_casks', 'decor_crates', 'decor_sacks', 'decor_casks_row', 'decor_crates_row']), x, 58)
   piles(b, 0, 0, W, H, 'poor', 0.4)
   strew(b, 0, 0, W, H, 0.08, 'poor')
-  b.vistas.push({ at: [18, 57, 54, 31], zoom: 0.7, focus: [44, 72], share: 0.4 })
   b.anchors = { gate: [6, 9], longhall: [35, 18], street: [22, 20], green: [33, 48], quay: [38, 60], pier: [41, 70], shore: [10, 76], lighthouse: [60, 76], fire: [6, 75] }
   clearDoorsteps(b)
   unshut(b)
