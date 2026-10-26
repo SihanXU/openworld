@@ -36,6 +36,12 @@ engine worker ──── ModderLink ──────────────
   player's account, no offline escalation or revision (the offline profile is the service's: `useOffline`, Node
   only), and a learned rule set aside here leaves at once (`faults.remove: 1`: one client).
 
+- **The first offer.** When the game opens with no model to ask — none kept in this browser, no service named
+  (`?modder=`), the default service (if any) answering without a model, and the player has not chosen to play
+  without one — the title opens on **Choose the model the world asks** (`ui/cover.ts`, panel `model`): the same form,
+  and **Play without AI**, remembered in this browser (`lsw.model.skip`; Settings still offers a model). Its ✕ and
+  Esc only put it off until the game is opened again. Choosing a model closes it.
+
 ## 2. The key
 
 - Typed in the options' **Your model** (`ui/modelSettings.ts`), sent once to the modder's worker, and kept there.

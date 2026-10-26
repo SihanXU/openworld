@@ -261,6 +261,12 @@ export const STRINGS: Record<string, [string, string]> = {
   aiApply: ['Apply the recommendation', '应用推荐'],
   aiDetectCost: ['The detection makes dozens of model calls on your key. Go on?', '检测会用你的 key 发起几十次模型调用，继续吗？'],
   aiOwnSection: ['Your model', '你的模型'],
+  aiFirstTitle: ['Choose the model the world asks', '选择世界要问的模型'],
+  aiSkip: ['Play without AI', '不用 AI，直接玩'],
+  aiSkipTip: [
+    'The game plays to its end without one: what no rule covers simply does nothing, and the world learns nothing new. You can choose a model later in Settings.',
+    '没有模型也能从头玩到尾：规则没写的事就什么也不发生，世界也不会学新东西。以后可以在“设置”里再选模型。',
+  ],
   aiOwnIntro: [
     "When something happens that no rule covers, the world asks a model. Choose a service and give your own key: it stays in this browser and goes to that service only — never to the game's server, never into a save.",
     '世界遇到没有规则覆盖的事时会去问模型。选一个服务商，填上你自己的 key：它只留在这个浏览器里、只发给你选的服务商——绝不发到游戏的服务器，也不进存档。',

@@ -174,3 +174,24 @@ describe("the options' Your model", () => {
     expect(new ModelSection(own as never, () => undefined, 'http://localhost:8787').html()).toContain('http://localhost:8787')
   })
 })
+
+describe("the title's first offer of a model", () => {
+  it('is drawn without a heading of its own (the panel names it)', async () => {
+    const { ModelSection } = await import('../src/ui/modelSettings.ts')
+    const own = { status: { remember: 'device', cap: 0, spend: { day: '', cost: 0, calls: 0, input: 0, output: 0, unpriced: 0, total: 0 } } }
+    const section = new ModelSection(own as never, () => undefined)
+    expect(section.html()).toContain('<h4>')
+    expect(section.html(false)).not.toContain('<h4>')
+  })
+
+  it('remembers a player who chose to play without AI, and nothing else of them', async () => {
+    const kept = new Map<string, string>()
+    vi.stubGlobal('localStorage', { getItem: (k: string) => kept.get(k) ?? null, setItem: (k: string, v: string) => void kept.set(k, v), removeItem: (k: string) => void kept.delete(k) })
+    const { OwnModel } = await import('../src/ownModel.ts')
+    expect(OwnModel.skipped()).toBe(false)
+    OwnModel.skip()
+    expect(OwnModel.skipped()).toBe(true)
+    expect(OwnModel.kept()).toBe(false)
+    expect([...kept.keys()]).toEqual(['lsw.model.skip'])
+  })
+})
