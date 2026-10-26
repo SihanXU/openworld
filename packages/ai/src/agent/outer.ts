@@ -228,8 +228,9 @@ export function better(base: ArmStats, cand: ArmStats, margin: number, timeMargi
   const per = (s: ArmStats, k: 'cost' | 'calls' | 'ms') => s[k] / s.tasks
   const rate = (s: ArmStats) => s.accepted / s.tasks
   if (rate(cand) < rate(base)) return { ok: false, why: `pass rate ${rate(cand).toFixed(2)} < ${rate(base).toFixed(2)}` }
-  const worse = (['cost', 'calls', 'ms'] as const).filter((k) => per(cand, k) > per(base, k) * (1 + (k === 'ms' ? timeMargin : margin)))
-  if (worse.length) return { ok: false, why: `${worse.join(', ')} worse by more than ${margin * 100} %` }
+  const allowed = (k: 'cost' | 'calls' | 'ms') => (k === 'ms' ? timeMargin : margin)
+  const worse = (['cost', 'calls', 'ms'] as const).filter((k) => per(cand, k) > per(base, k) * (1 + allowed(k)))
+  if (worse.length) return { ok: false, why: worse.map((k) => `${k} worse by more than ${allowed(k) * 100} %`).join(', ') }
   const gains = [
     rate(cand) > rate(base) ? 'pass rate' : '',
     ...(['cost', 'calls', 'ms'] as const).map((k) => (per(cand, k) < per(base, k) && per(cand, k) <= per(base, k) * (1 - margin) ? k : '')),

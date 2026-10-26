@@ -85,6 +85,7 @@ async function main(): Promise<void> {
     for (const n of ep.attempts.at(-1)?.derived ?? []) console.log(`         · ${n}`)
     if (ep.outcome === 'failed') console.log(`         ${ep.attempts.at(-1)?.errors.slice(0, 2).join(' | ') ?? ep.error}`)
   }
+  if (!eps.length) return void console.log(`\nSUMMARY ${label}: no request could be built from the cells drawn`)
   const ms = eps.map((e) => e.ms / 1000)
   const ok = eps.filter((e) => e.outcome === 'accepted')
   const firstValid = eps.filter((e) => e.attempts[0] && !e.attempts[0].errors.length).length

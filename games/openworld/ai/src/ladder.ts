@@ -25,7 +25,7 @@ import { appendFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFile
 import { tmpdir } from 'node:os'
 import { join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { REPO, chooseIsolation, modelFromEnv, type Model, type TaskSource } from '@openworld/ai'
+import { REPO, chooseIsolation, modelFromEnv, type Isolation, type Model, type TaskSource } from '@openworld/ai'
 import { flags } from './cli.ts'
 import { taskEnv, taskSource, toLF, type WorkspaceTask } from './engine-tasks.ts'
 
@@ -367,15 +367,24 @@ const vitestCmd = (files: string[], report?: string) => `node node_modules/vites
  * (the commit's test files as they were), and the verdict: the hidden test changes applied, every
  * FAIL_TO_PASS and PASS_TO_PASS test passing. Unattended, it runs only in a container (the engine tasks' rule).
  */
-export async function historyTask(def: HistoryDef, o: { localRun?: boolean } = {}): Promise<WorkspaceTask | undefined> {
-  const iso = await chooseIsolation()
+export async function historyTask(def: HistoryDef, o: { isolation?: Isolation; localRun?: boolean } = {}): Promise<WorkspaceTask | undefined> {
+  const iso = o.isolation ?? (await chooseIsolation())
   if (iso === 'none' && !o.localRun) return undefined
   const ws = mkdtempSync(join(tmpdir(), 'lsw-history-'))
-  const depsDir = deps(def)
-  workspace(def.parent, ws)
-  linkDeps(ws, depsDir, workspaceDirs(def.parent))
-  const visible = def.tests.filter((f) => existsSync(join(ws, f)))
-  const env = await taskEnv(iso, ws, depsDir, () => rmSync(ws, { recursive: true, force: true }))
+  let depsDir: string
+  let visible: string[]
+  // the workspace goes again whatever fails before the task exists: the checkout, the dependencies, the container
+  const cleanup = () => rmSync(ws, { recursive: true, force: true })
+  try {
+    workspace(def.parent, ws)
+    depsDir = deps(def)
+    linkDeps(ws, depsDir, workspaceDirs(def.parent))
+    visible = def.tests.filter((f) => existsSync(join(ws, f)))
+  } catch (err) {
+    cleanup()
+    throw err
+  }
+  const env = await taskEnv(iso, ws, depsDir, cleanup)
   const dispose = async () => {
     await env.dispose?.()
     rmSync(ws, { recursive: true, force: true })

@@ -75,10 +75,12 @@ export class ClaudeCodeModel implements Model {
     // (a deadline of 0 is the harness's "off", as the API backend reads it)
     const timeout = opts.deadlineMs || this.cfg.timeoutMs || 180_000
     let last: unknown
+    // the time the caller waited, failed tries included
+    const t0 = Date.now()
     try {
       for (let i = 0; i <= (opts.retries ?? 0); i++) {
         try {
-          return this.reply(await runClaude(this.cfg.bin ?? 'claude', args, prompt, timeout, stream), stream)
+          return { ...this.reply(await runClaude(this.cfg.bin ?? 'claude', args, prompt, timeout, stream), stream), ms: Date.now() - t0 }
         } catch (err) {
           last = err
         }

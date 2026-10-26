@@ -208,6 +208,14 @@ const M = (name: string) => `${MUS}${name}.ogg`
 /** The Holy City's built ground (docs/showcase.md §3.5): its terraces, quays and walls in the pale warm limestone of its
  * buildings (tools/src/art/arch/materials.ts `s`), not the hills' slate. */
 const LIMESTONE: ReliefPalette = { ...SLATE, outline: 0x3a3027, deep: 0x5b4e42, dark: 0x83725d, mid: 0xae9c7e, light: 0xd3c3a2, lit: 0xebdfc4 }
+/** The Scarred March's red sandstone, banded, its canyons' walls (docs/showcase.md §4b). */
+const SANDSTONE: ReliefPalette = { ...SLATE, outline: 0x2c1410, deep: 0x5a2a1e, dark: 0x82402c, mid: 0xb0603f, light: 0xd48a5f, lit: 0xf0b88a, grass: 0x9a8a48, grassShade: 0x6a5a30 }
+/** The White Altar Heights' chalk cliffs: bleached, a cold blue in their shade. */
+const CHALK: ReliefPalette = { ...SLATE, outline: 0x3b4352, deep: 0x7a8496, dark: 0xa3acbb, mid: 0xc9d0da, light: 0xe6eaef, lit: 0xfbfcfd }
+/** The Vale of Scales' dry earth banks, straw-pale. */
+const LOESS: ReliefPalette = { ...SLATE, outline: 0x3a2f1c, deep: 0x6b5a3a, dark: 0x8f7a52, mid: 0xb39d6e, light: 0xcfbd8c, lit: 0xe7dbb0, grass: 0xb0a45a, grassShade: 0x7c7238 }
+/** The Pale Fens' peat banks: dark, wet, green-grey. */
+const PEAT: ReliefPalette = { ...SLATE, outline: 0x131714, deep: 0x262d28, dark: 0x37403a, mid: 0x4b564d, light: 0x637062, lit: 0x7f8c7c, grass: 0x5f7350, grassShade: 0x3b4a34 }
 
 export const CATALOG: Catalog = {
   // -------------------------------------------------------------------------------------------
@@ -542,7 +550,7 @@ export const CATALOG: Catalog = {
 
   // the rock of the relief (runtime assets/relief.ts): the Frostfang Coast's slate wherever ground rises
   // the Holy City's: its terraces, quays and the North Gate's walls are built of its limestone
-  relief: { '*': SLATE, holy: LIMESTONE },
+  relief: { '*': SLATE, holy: LIMESTONE, redmarch: SANDSTONE, altar: CHALK, tithe: LOESS, palefen: PEAT },
 
   // -------------------------------------------------------------------------------------------
   // Fixtures. base = normal state; open / lit only where the pack draws that state.

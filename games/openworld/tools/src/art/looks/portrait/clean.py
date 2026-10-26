@@ -114,9 +114,10 @@ def keep_mask(alpha: np.ndarray, pid: str, fr: Frame, eyes: np.ndarray) -> np.nd
         idx = np.arange(1, n + 1)
         size = ndi.sum(core, lab, idx)
         ok = size >= p["piece"]
-        if p.get("head"):
-            # a solid piece lying mostly on the eyes is an eye the edit redrew in the hair's grey (a lock over an eye
-            # is a piece of the hair's mass, mostly elsewhere)
+        if p.get("clearEyes"):
+            # a solid piece lying mostly on the eyes is an eye the edit redrew in the hat's colour (a hat's own mass
+            # lies elsewhere). Not the hair's: its fringe is drawn over the eyes (build.py keeps the face's own eyes out
+            # of it)
             ok &= ndi.mean(eyes, lab, idx) <= 0.5
         core = np.concatenate([[False], ok])[lab]
     grown = ndi.binary_dilation(core, structure=EIGHT, iterations=p["reach"], mask=m) if core.any() else core
@@ -124,9 +125,10 @@ def keep_mask(alpha: np.ndarray, pid: str, fr: Frame, eyes: np.ndarray) -> np.nd
         # on the body a strand is grown back only a little (the body's own lines lie there, redrawn); off it, against
         # the ground, as far as the reach (a spike's tip)
         grown &= ndi.binary_dilation(core, structure=EIGHT, iterations=p["reachOn"], mask=m) | ~fr.fig
-    if p.get("head"):
+    if p.get("clearEyes"):
         # nothing thin of it over the eyes
         grown = core | (grown & ~eyes)
+    if p.get("head"):
         # what is grown, in pieces: those that reach above the neck (long hair hangs from the head), and those that
         # lie mostly off the body (long hair behind it, seen past the arms and between an arm and the waist); a
         # solid patch on the body away from the head is the body's own hatching, redrawn
@@ -217,6 +219,54 @@ def hang_behind(front: tuple[np.ndarray, np.ndarray], back: tuple[np.ndarray, np
     front[1][move] = 0
     front[0][move] = 0
     return int(move.sum())
+
+
+def _bridge_once(front: tuple[np.ndarray, np.ndarray], back: tuple[np.ndarray, np.ndarray], reach: int = 2) -> int:
+    """A lock hanging from the head in front of the body kept in front, in place: the cut put the hair beside the neck
+    (off the bald figure) behind the body, so a lock falling from the temple past the cheek to the chest went behind
+    a hood or a collar where it crossed it, and came out again below. Per column, a run of the hair behind the body
+    with the hair in front just above it and just below it (within `reach` columns) is the lock's, moved to the front.
+    Long hair behind the shoulders has no hair in front below it and stays behind. The pixels moved."""
+    F = front[1][..., 3] > 0
+    B = back[1][..., 3] > 0
+    if not F.any() or not B.any():
+        return 0
+    Fw = ndi.binary_dilation(F, structure=np.ones((1, 2 * reach + 1), bool))
+    moved = np.zeros_like(F)
+    for x in np.nonzero(B.any(axis=0))[0]:
+        col = B[:, x]
+        y = 0
+        H = col.shape[0]
+        while y < H:
+            if not col[y]:
+                y += 1
+                continue
+            top = y
+            while y < H and col[y] and not F[y, x]:
+                y += 1
+            if top > 0 and y < H and Fw[top - 1, x] and Fw[y, x]:
+                moved[top:y, x] = True
+            while y < H and col[y]:
+                y += 1
+    moved &= B & ~F
+    if not moved.any():
+        return 0
+    front[1][moved] = back[1][moved]
+    front[0][moved] = back[0][moved]
+    back[1][moved] = 0
+    back[0][moved] = 0
+    return int(moved.sum())
+
+
+def bridge_locks(front: tuple[np.ndarray, np.ndarray], back: tuple[np.ndarray, np.ndarray]) -> int:
+    """`_bridge_once` until nothing more moves: what one pass moves joins the lock and lets the column beside it be
+    seen as the lock too, so the lock is brought forward whole (and a second sweep finds nothing). The pixels moved."""
+    total = 0
+    while True:
+        n = _bridge_once(front, back)
+        if not n:
+            return total
+        total += n
 
 
 def seam_zone(full_f: np.ndarray, full_b: np.ndarray, body: np.ndarray) -> np.ndarray:
@@ -373,6 +423,15 @@ def sweep(root: str, dry: bool = False, report: str | None = None) -> dict[str, 
                 c[l["y"] : l["y"] + l["h"], l["x"] : l["x"] + l["w"]] = v[..., 3] == 255
                 full.append(c)
             keep |= seam_zone(full[0], full[1], fr.fig) & (union > 0)
+        if pid.split(".")[0] in TABLE["holes"]["slots"]:
+            # a pixel whose clearing would leave a pinhole is the hair's (fill_holes would put it back)
+            soft = ~keep
+            lab, _ = ndi.label(np.pad(soft, 1, constant_values=True))
+            enclosed = soft & (lab != lab[0, 0])[1:-1, 1:-1]
+            lab, n = ndi.label(enclosed)
+            if n:
+                size = ndi.sum(enclosed, lab, np.arange(1, n + 1))
+                keep |= np.concatenate([[False], size <= TABLE["holes"]["max"]])[lab] & (union > 0)
         gone = (union > 0) & ~keep
         for (l, _, _), g in zip(pix, grounds):
             gone[l["y"] : l["y"] + l["h"], l["x"] : l["x"] + l["w"]] |= g
@@ -394,9 +453,20 @@ def sweep(root: str, dry: bool = False, report: str | None = None) -> dict[str, 
         if pid.split(".")[0] in TABLE["holes"]["slots"]:
             filled = fill_holes(canv) + sum(fill_specks(cp, cv) for cp, cv in canv)
             if "hair" in zs and "hairBack" in zs:
+                filled += bridge_locks(canv[zs.index("hair")], canv[zs.index("hairBack")])
                 filled += hang_behind(canv[zs.index("hair")], canv[zs.index("hairBack")], fr.neck)
                 filled += close_seam(canv[zs.index("hair")], canv[zs.index("hairBack")], fr.fig)
             removed[f"{pid}/{body}" + (f"~{mood}" if mood else "")] += filled
+        # what this pass changes is what differs from what was read (a pixel cleared and filled again is no change)
+        before = 0
+        for (l, paint, value), (cp, cv) in zip(pix, canv):
+            at = (slice(l["y"], l["y"] + l["h"]), slice(l["x"], l["x"] + l["w"]))
+            was = np.zeros_like(cv)
+            was[at] = value
+            wasp = np.zeros_like(cp)
+            wasp[at] = paint
+            before += int(((cv != was).any(axis=2) | (cp != wasp).any(axis=2)).sum())
+        removed[f"{pid}/{body}" + (f"~{mood}" if mood else "")] = before
         if dry:
             continue
         for (l, paint, value), (cp, cv) in zip(pix, canv):

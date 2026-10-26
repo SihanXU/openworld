@@ -1,5 +1,5 @@
-export interface TransferProgress {
-  from: 'chest' | 'bag'
+export interface TransferProgress<From extends string = 'chest' | 'bag'> {
+  from: From
   done: number
   total: number
 }
@@ -7,22 +7,22 @@ export interface TransferProgress {
 type TransferTurnScheduler = (run: () => void) => () => void
 
 type TransferStep = { done: number; total: number }
-type TransferTask = {
+type TransferTask<From extends string> = {
   steps: Generator<TransferStep, void>
-  from: TransferProgress['from']
+  from: From
   valid: () => boolean
 }
 
 const MAX_STEPS = 64
 const MAX_MS = 8
 
-/** Runs item transfers in short turns so the worker can process messages between batches. */
-export class TransferQueue {
-  private readonly tasks: TransferTask[] = []
+/** Runs inventory operations in short turns so the worker can process messages between batches. */
+export class TransferQueue<From extends string = 'chest' | 'bag'> {
+  private readonly tasks: TransferTask<From>[] = []
   private cancelScheduled: (() => void) | undefined
   private running = false
   private generation = 0
-  private currentProgress: TransferProgress | undefined
+  private currentProgress: TransferProgress<From> | undefined
 
   constructor(
     private readonly onError: (err: unknown) => void,
@@ -37,11 +37,11 @@ export class TransferQueue {
     return this.running || this.cancelScheduled !== undefined || this.tasks.length > 0
   }
 
-  get progress(): TransferProgress | undefined {
+  get progress(): TransferProgress<From> | undefined {
     return this.currentProgress
   }
 
-  enqueue(steps: Generator<TransferStep, void>, from: TransferProgress['from'], valid: () => boolean): void {
+  enqueue(steps: Generator<TransferStep, void>, from: From, valid: () => boolean): void {
     this.tasks.push({ steps, from, valid })
     this.schedule()
   }
@@ -114,12 +114,12 @@ export class TransferQueue {
     }
   }
 
-  private finish(task: TransferTask): void {
+  private finish(task: TransferTask<From>): void {
     if (this.tasks[0] === task) this.tasks.shift()
     this.currentProgress = undefined
   }
 
-  private return(task: TransferTask): void {
+  private return(task: TransferTask<From>): void {
     try {
       task.steps.return()
     } catch (err) {

@@ -202,7 +202,8 @@ async function main(): Promise<void> {
     // stage 2: an engine task now and then (the world's own code, as an SWE task)
     if (withEngine && done % 5 === 0) {
       const defs = engineTaskDefs()
-      await work('engine', await engineTask(defs[Math.floor(done / 5 - 1) % defs.length]))
+      if (!defs.length) console.log('  engine task skipped: there are none (games/openworld/ai/tasks/engine)')
+      else await work('engine', await engineTask(defs[Math.floor(done / 5 - 1) % defs.length]))
     }
     // and a ladder task every other step, one rung after another
     if (ladder.length && done % 2 === 0) {

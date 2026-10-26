@@ -112,12 +112,12 @@ describe('no endless yield (world-model.md §8.4)', () => {
     expect(endlessYield(eng, scenarioEvent(sc, eng))).toBe(true)
   })
 
-  it('refuses a patch when chance exploration exceeds its assignment budget', () => {
+  it('refuses a patch whose chances fall more ways than the repeat check follows, as an endless yield', () => {
     const res = validatePatch(patch({ id: 'patch/many-chances', host: { type: 'fixture/sacred/statue' }, on: 'impulse/strike', tree: {
       if: { all: Array.from({ length: 7 }, () => ({ any: [{ chance: 0.5 }, { chance: 1 }] })) }, then: { do: [] }, else: { do: [] },
     } }), { ontology: onto, library: lib(), scenario: blowOnStatue() })
     expect(res.ok).toBe(false)
-    expect(res.errors.join('\n')).toMatch(/repeat check.*64.*chance assignments.*safety/i)
+    expect(res.errors.join('\n')).toMatch(/^endless yield: .*more than 64 ways, too many to rule out/m)
   })
 
   it('does not explore impossible outcomes of zero or certain chances', () => {
@@ -344,5 +344,36 @@ describe('worth from nothing: what the economy reads is never an answer\'s to ra
       // and back again: dearer, then cheaper, the same round for ever (no worth gained by going round)
       expect(at(onFeather({ do: [{ op: 'transform', into: 'item/material/gold_ore' }] }), { id: 'test/ore', host: { type: 'item/material/gold_ore' }, on: 'act/use', tree: { do: [{ op: 'transform', into: FEATHER }] } })).toBeUndefined()
     })
+  })
+})
+
+describe('chance is part of the repeat check, not a check of its own', () => {
+  const onto = buildOntology()
+  const base = [...BASE_RULES, ...STORY_RULES]
+  const STATUE = 'fixture/sacred/statue'
+  const blow = () => {
+    const eng = buildSandbox({ terrain: Array.from({ length: 5 }, () => Array(5).fill('grass')), entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'axe', type: 'item/weapon/blade/axe', x: 2, y: 2, heldBy: 'actor' }, { key: 'statue', type: STATUE, x: 2, y: 1 }], event: {} }, onto, new RuleLibrary(base))
+    const port = new ModPort(eng)
+    eng.act('use', 'actor', { e: 'statue' })
+    return port.records.find((r) => r.event.kind === 'impulse/strike')!.request
+  }
+  /** A blow on the statue answered with `n` chances of its own, each a separate roll, behind a five-second rest. */
+  const rolls = (req: ModRequest, n: number): Patch => {
+    const fx = Array.from({ length: n }, () => ({ op: 'emit', impulse: 'handle', to: 'actor', chance: 0.5 }))
+    const tree = { if: { not: { has: { role: 'host', status: 'stirred' } } }, then: { do: [...fx, { op: 'addStatus', status: 'stirred', duration: 50 }, { op: 'log', text: 'It rings.' }] }, else: { do: [] } }
+    return { artifacts: [{ kind: 'rule', rule: { id: 'patch/statue', host: { type: STATUE }, on: 'impulse/strike', hole: holeKey(req.hole.rule, req.hole.path), tree, source: { origin: 'patch' } } as unknown as Rule }] }
+  }
+
+  it('a stick by chance on every blow is a stick on every blow: the dice are not rolled, each way is followed', () => {
+    const req = blow()
+    const stick: Patch = { artifacts: [{ kind: 'rule', rule: { id: 'patch/statue', host: { type: STATUE }, on: 'impulse/strike', hole: holeKey(req.hole.rule, req.hole.path), tree: { if: { chance: 0.1 }, then: { do: [{ op: 'spawn', type: 'item/material/stick', at: 'host' }] }, else: { do: [] } }, source: { origin: 'patch' } } as unknown as Rule }] }
+    expect(validatePatch(stick, { ontology: onto, library: new RuleLibrary(base), scenario: req.scenario }).errors.join('\n')).toMatch(/^endless yield: .*come back to where they began and make 1 thing/m)
+  })
+
+  it('more ways for the dice to fall than the check follows is refused as an endless yield it cannot rule out, not as an error of its own', () => {
+    const req = blow()
+    expect(validatePatch(rolls(req, 6), { ontology: onto, library: new RuleLibrary(base), scenario: req.scenario }).ok).toBe(true)
+    const errs = validatePatch(rolls(req, 7), { ontology: onto, library: new RuleLibrary(base), scenario: req.scenario }).errors
+    expect(errs).toEqual([expect.stringMatching(/^endless yield: .*more than 64 ways, too many to rule out a yield that never stops/)])
   })
 })

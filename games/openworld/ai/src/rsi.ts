@@ -132,8 +132,9 @@ async function main(): Promise<void> {
   const flag = flags(argv)
   const [cmd, tag] = argv
   if (cmd === 'report') {
-    const md = report(resolve(flag('root') ?? join(REPO, 'var', 'rsi')))
-    writeFileSync(join(REPO, 'var', 'rsi', 'report.md'), md)
+    const root = resolve(flag('root') ?? join(REPO, 'var', 'rsi'))
+    const md = report(root)
+    writeFileSync(join(root, 'report.md'), md)
     console.log(md)
     return
   }

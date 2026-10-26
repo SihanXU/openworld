@@ -199,6 +199,15 @@ the map and in the portrait is the same colour by construction.
   hair is under it above its brim, and beside it above a line sloping down from the brim's ends (portrait.ts
   `HAT_SLOPE`): spikes, waves and a bun no longer stick out round the hat (it read as perched on the hair); below that
   line the hair falls out from under the hat, widening as it goes down.
+- **Locks in front** (2026-10-26): the cut puts the hair beside the neck (off the bald figure) behind the body, so a
+  lock falling from the temple past the cheek to the chest went behind a hood, a cloak or a collar where it crossed
+  it, and came out again below. `clean.py` `bridge_locks`: per column, the hair behind the body with the hair in front
+  just above and below it is the lock's, brought to the front whole; long hair behind the shoulders has no hair in
+  front below it and stays behind. The fringe over the eyes (2026-10-26) is the hair's too: the cut (`build.py`)
+  kept the face's eyes out of the hair in an ellipse round each iris, so the eyes showed through holes in the fringe;
+  now over an eye the edit hid (most of it changed) the hair is kept whole, and over one it left, the strands the edit
+  drew in the hair's grey that join the hair outside the eye. The hair was cut again so (CPU only, on the server). The
+  eye-clearing rules of the cleaning are a hat's and a beard's only (`clearEyes`).
 - **What falls over the shoes** (`hems.py`, run by `build.py`; 2026-10-26): the stack is body < legs < outfit < shoes,
   so stockings and trousers go into the boots. But an outfit layer is everything its wearer has on — a coat or a
   cloak and the trousers under it, a dress, a robe with a stole — and a whole part put over the shoes (`above`) drew a

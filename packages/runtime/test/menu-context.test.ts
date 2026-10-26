@@ -129,7 +129,7 @@ type MenuInternals = {
 function bareMenu(): Menu {
   const menu = Object.create(Menu.prototype) as Menu
   Object.assign(menu, {
-    send: { closePanel: vi.fn() },
+    send: { closePanel: vi.fn(), cancelCraft: vi.fn() },
     panels: { close: vi.fn(), onFrame: vi.fn() },
     ai: { stop: vi.fn() },
     contextPopup: new ContextMenu(),
@@ -153,6 +153,16 @@ async function settleContextMenuTimer(): Promise<void> {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('inventory context menu lifecycle', () => {
+  it.each(['close', 'open', 'openJournal'] as const)('cancels a batch on %s even before its first progress frame', (action) => {
+    const dom = domHarness()
+    vi.stubGlobal('document', dom.document)
+    const menu = bareMenu()
+    const cancelCraft = vi.fn()
+    Object.assign(menu, { send: { cancelCraft, closePanel: vi.fn() } })
+    menu[action]()
+    expect(cancelCraft).toHaveBeenCalledOnce()
+  })
+
   it('removes the popup and disables its old action when the owning panel closes', async () => {
     const dom = domHarness()
     vi.stubGlobal('document', dom.document)

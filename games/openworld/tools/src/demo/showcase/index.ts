@@ -15,6 +15,19 @@ import { bellWard, BELL_SOUTH, BELL_WEST } from './bellward.ts'
 import { market, MARKET_NORTH, MARKET_SOUTH } from './market.ts'
 import { lampWard, LAMP_NORTH, LAMP_WEST } from './lampward.ts'
 import { lowerTown, LOWER_EAST } from './lowertown.ts'
+import { rimeholm } from './rimeholm.ts'
+import { warcombe } from './warcombe.ts'
+import { weighmarket } from './weighmarket.ts'
+import { duskMoorings } from './duskmoorings.ts'
+import { highheath } from './highheath.ts'
+import { barleyridge } from './barleyridge.ts'
+import { brandby } from './brandby.ts'
+import { bellwick } from './bellwick.ts'
+import { ashengate } from './ashengate.ts'
+import { northmoor } from './northmoor.ts'
+import { goldmere } from './goldmere.ts'
+import { scarwell } from './scarwell.ts'
+import { frostbarrow } from './frostbarrow.ts'
 
 const MAKERS: Record<string, (p: Place) => MapBuilder[]> = {
   'holy.sunwell-abbey': abbeyClose,
@@ -23,12 +36,34 @@ const MAKERS: Record<string, (p: Place) => MapBuilder[]> = {
   'holy.quarter-3': market,
   'holy.quarter-4': lampWard,
   'holy.quarter-5': lowerTown,
+  // the regions' places (docs/showcase.md §4b)
+  'frostfang.rimeholm': rimeholm,
+  'redmarch.warcombe': warcombe,
+  'tithe.weighmarket': weighmarket,
+  'palefen.dusk-moorings': duskMoorings,
+  'altar.highheath-abbey': highheath,
+  // a farm village and a mine with what it broke into (docs/showcase.md §4c)
+  'tithe.barleyridge-farm': barleyridge,
+  'redmarch.brandby-mine': brandby,
+  // a manor, a ruin, a cave, a mage's tower, a bandits' hold, a border fort (docs/showcase.md §4d)
+  'altar.bellwick-farm': bellwick,
+  'palefen.ashengate-ruins': ashengate,
+  'frostfang.northmoor-cave': northmoor,
+  'tithe.goldmere-tower': goldmere,
+  'redmarch.scarwell-camp': scarwell,
+  'frostfang.frostbarrow-camp': frostbarrow,
 }
 
 /** The roles a room behind a door has (continent/rooms.ts): stocked as such. */
 const ROLES = new Set(['home', 'farmhouse', 'mill', 'smithy', 'shop', 'teahouse', 'inn', 'chapel', 'tent', 'barracks', 'cell'])
 /** What a showcase's own halls keep (stock.ts's uses). */
-const HALL_USE: Record<string, string> = { nave: 'temple', crypt: 'dungeon', belfry: 'temple', library: 'library', refectory: 'inn', hall: 'home', solar: 'home' }
+const HALL_USE: Record<string, string> = {
+  nave: 'temple', crypt: 'dungeon', belfry: 'temple', library: 'library', refectory: 'inn', hall: 'home', solar: 'home',
+  boathouse: 'shop', longhall: 'home', warhall: 'home', armoury: 'smithy', hospital: 'temple', counting: 'shop', granary: 'farm', poorhouse: 'home',
+  ossuary: 'temple', healer: 'shop', chapel: 'temple', catacombs: 'dungeon', barn: 'farm', farmhouse: 'home', workings: 'dungeon', oldworks: 'dungeon',
+  manorhall: 'home', gallery: 'library', cellar: 'inn', undercroft: 'dungeon', drowned: 'dungeon', icecave: 'dungeon', icelake: 'dungeon',
+  tower: 'library', alchemy: 'shop', observatory: 'library', undercellar: 'dungeon', lodge: 'camp', burrow: 'dungeon', garrison: 'camp',
+}
 
 /** A showcase place's maps, made, and stocked as the backdrop's are (stock.ts): the place's, its rooms', its halls'. */
 function make(p: Place, maker: (p: Place) => MapBuilder[]): MapBuilder[] {
