@@ -1031,8 +1031,8 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * The camera behind the title (the cover's backdrop): it follows no one and drifts slowly about a point of the map
-   * (in cells), which stands at a share of the screen (`at`: 0.5, 0.5 its middle), as close as `zoom` (default the
-   * game's own view); the map's music plays. Undefined: back to following the player.
+   * (in cells), which stands at a share of the screen (`at`: 0.5, 0.5 its middle), as close as `zoom` (a share of the
+   * game's own view, default 1); the map's music plays. Undefined: back to following the player.
    */
   private cinema?: { x: number; y: number; zoom?: number; at: [number, number]; t0?: number }
   setCinema(c?: { x: number; y: number; zoom?: number; at?: [number, number] }): void {
@@ -1050,8 +1050,8 @@ export class WorldScene extends Phaser.Scene {
     // two slow swells, out of step, so the drift never seems to repeat (a little over a cell each way)
     const dx = 1.4 * Math.sin((t / 47) * Math.PI * 2) + 0.5 * Math.sin((t / 19) * Math.PI * 2)
     const dy = 0.6 * Math.sin((t / 61) * Math.PI * 2 + 1)
-    // (as close as the game's own view unless the scene says: whole pixels)
-    const zoom = c.zoom ?? this.fitZoom()
+    // (as close as the game's own view, or a share of it the scene asks for)
+    const zoom = (c.zoom ?? 1) * this.fitZoom()
     if (Math.abs(cam.zoom - zoom) > 0.001) (cam.setZoom(zoom), this.fitBounds(zoom))
     const w = cam.width / cam.zoom, h = cam.height / cam.zoom
     cam.centerOn((c.x + dx) * T + (0.5 - c.at[0]) * w, (c.y + dy) * T + (0.5 - c.at[1]) * h)

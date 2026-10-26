@@ -645,12 +645,12 @@ const cover = new Cover(WORLD, {
     const base = worldBase()
     sendInit({ t: 'init', base, library, librarySeq: await librarySeq(), quality: menu.ai.quality, start: 'tutorial' })
   },
-  backdrop: async (s, at, look) => {
+  backdrop: async (s, at) => {
     backdropOn = true
     backdropHere = false
     scene.setCinema({ x: s.x, y: s.y, zoom: s.zoom, at })
     const [x, y] = s.stand ?? [s.x, s.y]
-    send({ t: 'backdrop', base: worldBase(), at: { map: s.map, x, y }, hour: s.hour, library: await kvGet<LibraryData>(libraryKey()), look })
+    send({ t: 'backdrop', base: worldBase(), at: { map: s.map, x, y }, hour: s.hour, library: await kvGet<LibraryData>(libraryKey()) })
   },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')

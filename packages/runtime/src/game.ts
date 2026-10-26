@@ -92,9 +92,9 @@ export interface CoverScene {
   y: number
   /** The hour the world is at there (default: the world's start hour). */
   hour?: number
-  /** Where the traveller stands (default: the point itself). */
+  /** Where the world is run round (the traveller stands there, not drawn; out of doors, off any roof): default the point. */
   stand?: [number, number]
-  /** How close the camera is (default: the game's own view). */
+  /** How close the camera is, against the game's own view (default 1; 0.5 draws back to twice as much). */
   zoom?: number
 }
 

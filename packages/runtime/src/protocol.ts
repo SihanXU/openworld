@@ -48,7 +48,7 @@ export type ToWorker =
    * The world behind the title (the cover's backdrop): a world of its own at a place of the game's and an hour, with no
    * story, nothing asked of the modder and nothing saved; its frames are only drawn. An `init` replaces it.
    */
-  | { t: 'backdrop'; base: string; at: Pos; hour?: number; library?: StoredLibrary; /** the traveller standing there (the latest save's look) */ look?: Look }
+  | { t: 'backdrop'; base: string; at: Pos; hour?: number; library?: StoredLibrary }
   /** The one at the keys, fallen, rises again: where they fell, or at home (the death screen). */
   | { t: 'respawn'; home: boolean }
   /** Hold a direction (null: stop); `walk`: Shift, slower than the default run. */
