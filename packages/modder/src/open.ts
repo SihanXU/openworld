@@ -10,6 +10,9 @@ import { compileProject } from '@openworld/format/src/node.ts'
 // the engine's official modules, which a game's ontology may name (docs/engine-split.md S3)
 import '@openworld/modules'
 import { WorldLibrary } from './library.ts'
+// Node's part of the modder: a library's log in a file, the offline profile's repo agent
+import './library-file.ts'
+import './offline.ts'
 import { modelFromEnv, type Model } from '@openworld/agent'
 import { Modder } from './pipeline.ts'
 import { SelfState } from '@openworld/agent'

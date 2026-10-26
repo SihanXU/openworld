@@ -21,8 +21,8 @@ import {
   type Tree,
   type ValidationResult,
 } from '@openworld/engine'
-import type { ToolSpec } from '@openworld/agent'
-import type { SelfState } from '@openworld/agent'
+import type { ToolSpec } from '@openworld/agent/src/core.ts'
+import type { SelfState } from '@openworld/agent/src/core.ts'
 
 export interface Tool extends ToolSpec {
   run(args: Record<string, unknown>): string

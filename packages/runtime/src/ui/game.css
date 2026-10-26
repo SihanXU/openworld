@@ -857,3 +857,15 @@ body.with-tabs .overlay .sheet { max-height: calc(100dvh - 72px); }
 .cv-settings .muted, .cv-settings small { color: #7a5a36; }
 /* the music's and the ambience's sliders (Options, the title's settings) */
 .options input.vol { width: 180px; accent-color: var(--wood-dark); cursor: pointer; }
+/* The player's own model (ui/modelSettings.ts): a field and its buttons on one line, the actions across, the state under. */
+.ai-own-field { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ai-own input:not([type='radio']), .ai-own select { min-width: 0; width: min(340px, 100%); padding: 3px 6px; font: inherit; font-size: 13px; background: var(--paper); color: var(--ink-warm); border: 2px solid var(--wood-dark); border-radius: 4px; }
+.ai-own .ai-own-field input:not([type='radio']) { width: min(260px, 100%); }
+.ai-own input[type='number'] { width: 90px; }
+.ai-own label { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+.ai-own a { font-size: 12px; color: #8a3b12; }
+.ai-own-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.ai-own-state { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.ai-own-state code { font-size: 12px; }
+.ai-own .warn { color: #a33a22; }
+.ai-own .good { color: #3d6b2a; }

@@ -7,7 +7,7 @@
 // fresh library: every question open, the yardstick the same from run to run) by a dry modder: designed and
 // validated as ever, nothing committed or recorded. An answer counts when it validates within the wait.
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { defaultFiles, type Files } from '@openworld/agent/src/core.ts'
 import { AI_WAIT_MS, TIERS, categoryOfRequest, type AiCategory, type AiLevel, type AiQuality, type ModRequest, type Tier } from '@openworld/engine'
 import { WorldLibrary } from './library.ts'
 import { BACKEND_DOWN, Modder } from './pipeline.ts'
@@ -122,14 +122,19 @@ export class Detector {
 
   constructor(
     private modder: Modder,
-    private opts: { file?: string; probes?: () => Promise<ModRequest[]>; log?: (line: string) => void } = {},
+    /** file: where the last detection is kept, in `files` (default: Node's disk). */
+    private opts: { file?: string; files?: Files; probes?: () => Promise<ModRequest[]>; log?: (line: string) => void } = {},
   ) {
-    if (opts.file && existsSync(opts.file))
+    if (opts.file && this.files().exists(opts.file))
       try {
-        this.last = JSON.parse(readFileSync(opts.file, 'utf8')) as Detection
+        this.last = JSON.parse(this.files().read(opts.file)) as Detection
       } catch {
         /* a torn file: detected again when asked */
       }
+  }
+
+  private files(): Files {
+    return this.opts.files ?? defaultFiles()
   }
 
   private game?: ModRequest[]
@@ -202,7 +207,7 @@ export class Detector {
     if (down) throw new Error(`the model was unavailable during the detection (${down}): no verdict`)
     const detection: Detection = { model: modelName, at: new Date().toISOString(), waitMs: AI_WAIT_MS, runs, table: tableOf(runs), recommend: recommendOf(runs) }
     this.last = detection
-    if (this.opts.file) writeFileSync(this.opts.file, JSON.stringify(detection, null, 1))
+    if (this.opts.file) this.files().write(this.opts.file, JSON.stringify(detection, null, 1))
     this.opts.log?.(`detection for ${modelName}: ${JSON.stringify(detection.recommend)} (${runs.filter((r) => r.ok).length}/${runs.length} in time)`)
     this.running = undefined
   }

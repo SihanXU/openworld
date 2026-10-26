@@ -20,12 +20,14 @@ import { changesNothing, deriveTests } from './derive.ts'
 import { judge, statedAffordance } from './affordance.ts'
 import { normalizePatch, placePatch, qualifyTerrains, stationFromRules } from './fixes.ts'
 import type { CommitResult, WorldLibrary } from './library.ts'
-import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@openworld/agent'
-import { materializeWorld } from './repo.ts'
+import { Meter, parseJson, reflectAgent, type ChatMessage, type ChatOptions, type Model } from '@openworld/agent/src/core.ts'
+import type { AgentTask, runAgent } from '@openworld/agent/src/loop.ts'
+import type { TaskSource } from '@openworld/agent/src/outer.ts'
+import type { materializeWorld } from './repo.ts'
 import { mapProblems, personProblems, settleMap, summary, withoutThinking, type DraftContext, type DraftKind, type TraceStep } from './drafts.ts'
 import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, againUser, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, reviseDraftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
-import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@openworld/agent'
+import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@openworld/agent/src/core.ts'
 
 /**
  * A backend that cannot answer says so in its error: out of quota or throttling (claude-code's session
@@ -92,6 +94,27 @@ class Gate {
       this.queue.shift()?.go()
     }
   }
+}
+
+/**
+ * The offline profile's repo agent (a world request as a repository it works in, repo.ts; the agent loop): Node's
+ * only. The package's Node entry hands it over (offline.ts); a modder in a browser — the player's own, docs/byok.md —
+ * works live and has none.
+ */
+export interface OfflineAgent {
+  runAgent: typeof runAgent
+  materializeWorld: typeof materializeWorld
+}
+
+let offline: OfflineAgent | undefined
+
+export function useOffline(agent: OfflineAgent): void {
+  offline = agent
+}
+
+function offlineAgent(): OfflineAgent {
+  if (!offline) throw new Error('the offline profile runs under Node (@openworld/modder): this modder works live only')
+  return offline
 }
 
 export class Modder {
@@ -817,7 +840,7 @@ export class Modder {
     const { state, library } = this.opts
     const replaces = eo.revise?.episode.rules ?? []
     const lib = library.workspace(ws, replaces)
-    const repo = await materializeWorld({
+    const repo = await offlineAgent().materializeWorld({
       request: req,
       library: lib,
       ontology: library.fullOntology(lib),
@@ -826,7 +849,7 @@ export class Modder {
       revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined,
     })
     try {
-      const run = await runAgent({ ...repo.task, terms: sig.terms }, { model: this.backend!, state, harness: h, record: false, log: this.opts.log })
+      const run = await offlineAgent().runAgent({ ...repo.task, terms: sig.terms }, { model: this.backend!, state, harness: h, record: false, log: this.opts.log })
       const ep = run.episode as unknown as Episode
       ep.request = req
       ep.summary = req.summary
@@ -849,9 +872,9 @@ export class Modder {
         ep.attempts.push({ phase: 'audit', patch, errors: auditNotes(found.confirmed), warnings: [], audit: { confirmed: found.confirmed.map((f) => `${f.kind}: ${f.title}`), unconfirmed: found.unconfirmed.length } })
         // what the auditor broke goes back to the agent once, as the pipeline gives it to the designer
         if (h.repair.maxRounds > 0 && patch) {
-          const again = await materializeWorld({ request: req, library: lib, ontology: library.fullOntology(lib), base: library.ontology, spec: buildModSpec(library.ontology, lib), revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined, audit: { notes: auditNotes(found.confirmed), draft: patch } })
+          const again = await offlineAgent().materializeWorld({ request: req, library: lib, ontology: library.fullOntology(lib), base: library.ontology, spec: buildModSpec(library.ontology, lib), revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined, audit: { notes: auditNotes(found.confirmed), draft: patch } })
           try {
-            const second = await runAgent({ ...again.task, terms: sig.terms }, { model: this.backend!, state, harness: h, record: false, log: this.opts.log })
+            const second = await offlineAgent().runAgent({ ...again.task, terms: sig.terms }, { model: this.backend!, state, harness: h, record: false, log: this.opts.log })
             ep.usage = { calls: ep.usage.calls + second.episode.usage.calls, input: ep.usage.input + second.episode.usage.input, output: ep.usage.output + second.episode.usage.output, cost: (ep.usage.cost ?? 0) + (second.episode.usage.cost ?? 0) }
             const fixed = again.collect()
             const placed = fixed.patch ? placePatch(fixed.patch, req, { ontology: library.fullOntology(lib), library: lib }).patch : undefined
@@ -889,7 +912,7 @@ export class Modder {
         if (!req?.scenario) return undefined
         const before = this.opts.library.fork((e) => !('patch' in e && e.request === req.id))
         if (before.covering(req)) return undefined // something else answers it now: no test of the harness
-        const repo = await materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), base: before.ontology, spec: buildModSpec(before.ontology, before.lib) })
+        const repo = await offlineAgent().materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), base: before.ontology, spec: buildModSpec(before.ontology, before.lib) })
         // the task carries its own release: its workspace and its container go with it, whoever cleans up
         return { ...repo.task, terms: ep.terms, dispose: repo.dispose }
       },

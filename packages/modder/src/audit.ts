@@ -20,8 +20,8 @@ import {
   type ScenarioEntity,
   type Verb,
 } from '@openworld/engine'
-import type { ChatMessage, ChatOptions, Model } from '@openworld/agent'
-import { parseJson } from '@openworld/agent'
+import type { ChatMessage, ChatOptions, Model } from '@openworld/agent/src/core.ts'
+import { parseJson } from '@openworld/agent/src/core.ts'
 import type { Tool } from './tools.ts'
 
 /** What must hold at the end of a finding's steps. */

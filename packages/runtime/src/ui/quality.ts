@@ -1,10 +1,15 @@
 // The options' AI section (design.md §13, the AI setting): the AI setting as a game's graphics settings are laid out — a
 // preset, a level for each kind of work, and the detection of what the connected model carries (the
 // service plays its questions at every tier and recommends). The setting is the player's, kept in this
-// browser like a graphics setting, never in a save.
+// browser like a graphics setting, never in a save. Above it, the player's own model (modelSettings.ts, docs/byok.md);
+// the detection asks whichever modder the engine asks: a service, or the player's own.
 
-import { AI_KEYS, AI_LEVELS, AI_WAIT_MS, PRESETS, presetOf, qualityOf, type AiCategory, type AiLevel, type AiQuality, type Tier } from '@openworld/engine'
+import { AI_KEYS, AI_LEVELS, AI_WAIT_MS, PRESETS, presetOf, qualityOf, type AiCategory, type AiLevel, type AiQuality, type ModRequest, type Tier } from '@openworld/engine'
+import { game } from '../game.ts'
+import { LOCAL_MODDER } from '../modderProtocol.ts'
+import { namedModder, ownModel } from '../ownModel.ts'
 import { esc, t } from './common.ts'
+import { ModelSection } from './modelSettings.ts'
 
 const STORE = 'lsw.ai'
 
@@ -54,13 +59,21 @@ export class AiOptions {
   /** Why a detection did not start (the service's answer). */
   private note?: string
   private poll?: ReturnType<typeof setTimeout>
+  /** The player's own model. */
+  readonly own: ModelSection
+  /** The game's questions for a detection (loaded when first wanted). */
+  private probes?: ModRequest[]
 
   constructor(
     /** The setting to the engine (the worker). */
     private apply: (q: AiQuality) => void,
     /** Draw the section again (the options tab, if it is open). */
     private redraw: () => void,
-  ) {}
+  ) {
+    const named = namedModder()
+    this.own = new ModelSection(ownModel, () => this.draw(), named && named !== 'off' ? named : undefined)
+    ownModel.listen(() => this.draw())
+  }
 
   /** Another place showing the section (the title's settings): drawn again with it. */
   also?: () => void
@@ -84,7 +97,7 @@ export class AiOptions {
     const rows = AI_KEYS.map(
       (k) => `<div class="ai-row"><span class="ai-name">${t(ROW_KEY[k])}</span>${seg(q[k], `data-ai-${k}`)}<small class="muted">${t(`${ROW_KEY[k]}Tip`)}</small></div>`,
     ).join('')
-    return `<h4>${t('aiSection')}</h4>
+    return `${this.own.html()}<h4>${t('aiSection')}</h4>
       <div class="ai-opts">
         <div class="ai-row"><span class="ai-name">${t('aiPreset')}</span>${seg(preset, 'data-ai-preset')}${preset ? '' : `<small class="ai-custom">${t('aiCustom')}</small>`}</div>
         ${rows}
@@ -120,6 +133,7 @@ export class AiOptions {
   }
 
   wire(root: HTMLElement): void {
+    this.own.wire(root)
     for (const k of AI_KEYS)
       root.querySelectorAll<HTMLButtonElement>(`[data-ai-${k}]`).forEach((b) => (b.onclick = () => this.set({ ...this.quality, [k]: b.getAttribute(`data-ai-${k}`) as AiLevel })))
     root.querySelectorAll<HTMLButtonElement>('[data-ai-preset]').forEach((b) => (b.onclick = () => this.set({ ...PRESETS[b.dataset.aiPreset as AiLevel] })))
@@ -130,10 +144,15 @@ export class AiOptions {
 
   /** Ask the service what it knows of its model (when the options open, and while a detection runs). */
   async refresh(plan = true): Promise<void> {
+    // the player's own modder starts with the options: the model can be chosen there
+    ownModel.start()
     const url = this.service?.online ? this.service.url : undefined
     if (!url) return
     try {
-      this.reply = (await (await fetch(`${url}/quality${plan ? '?plan=1' : ''}`, { signal: AbortSignal.timeout(5000) })).json()) as QualityReply
+      this.reply =
+        url === LOCAL_MODDER
+          ? ((await ownModel.ask('quality', { plan, ...(plan && { probes: await this.gameProbes() }) })) as QualityReply)
+          : ((await (await fetch(`${url}/quality${plan ? '?plan=1' : ''}`, { signal: AbortSignal.timeout(5000) })).json()) as QualityReply)
     } catch {
       this.reply = undefined
     }
@@ -145,16 +164,32 @@ export class AiOptions {
   private async detect(): Promise<void> {
     const url = this.service?.url
     if (!url || this.asking) return
+    // on the player's own key: asked first
+    if (url === LOCAL_MODDER && !confirm(t('aiDetectCost'))) return
     this.asking = true
     this.draw()
     try {
-      const r = (await (await fetch(`${url}/quality/detect`, { method: 'POST', signal: AbortSignal.timeout(5000) })).json()) as { started?: boolean; why?: string; error?: string }
+      const r = (
+        url === LOCAL_MODDER
+          ? await ownModel.ask('detect', { probes: await this.gameProbes() })
+          : await (await fetch(`${url}/quality/detect`, { method: 'POST', signal: AbortSignal.timeout(5000) })).json()
+      ) as { started?: boolean; why?: string; error?: string }
       this.note = r.started ? undefined : (r.why ?? r.error)
     } catch (err) {
       this.note = (err as Error).message
     }
     this.asking = false
     await this.refresh(false)
+  }
+
+  private async gameProbes(): Promise<ModRequest[]> {
+    if (!this.probes)
+      try {
+        this.probes = (await game().probes?.()) ?? []
+      } catch {
+        this.probes = []
+      }
+    return this.probes
   }
 
   /** The options closed: no more asking. */

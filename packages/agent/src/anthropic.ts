@@ -24,6 +24,10 @@ export interface AnthropicConfig {
   apiKey?: string
   timeoutMs?: number
   maxTokens?: number
+  /** Called from a browser with the player's own key (docs/byok.md): the key goes to Anthropic and nowhere else. */
+  browser?: boolean
+  /** Another address than Anthropic's own (a gateway of the player's). */
+  baseUrl?: string
 }
 
 type Block = Anthropic.Beta.BetaContentBlockParam
@@ -51,11 +55,11 @@ export class AnthropicModel implements Model {
 
   constructor(private cfg: AnthropicConfig) {
     this.name = `anthropic:${cfg.model}@${cfg.effort ?? 'low'}`
-    this.client = new Anthropic({ apiKey: cfg.apiKey, timeout: cfg.timeoutMs ?? 180_000, maxRetries: 2 })
+    this.client = new Anthropic({ apiKey: cfg.apiKey, timeout: cfg.timeoutMs ?? 180_000, maxRetries: 2, ...(cfg.baseUrl && { baseURL: cfg.baseUrl }), ...(cfg.browser && { dangerouslyAllowBrowser: true }) })
   }
 
   async chat(messages: ChatMessage[], opts: ChatOptions = {}): Promise<ModelReply> {
-    noAnthropicHere(process.env, 'the anthropic backend')
+    noAnthropicHere(undefined, 'the anthropic backend')
     const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n')
     const tools = opts.tools?.length ? opts.tools : undefined
     const params: Anthropic.Beta.MessageCreateParamsNonStreaming = {

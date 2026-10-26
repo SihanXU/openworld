@@ -13,7 +13,7 @@
 // out of it.
 
 import { tierOfRequest, type AiLevel, type ModRequest, type Patch, type Tier, type Tree } from '@openworld/engine'
-import type { ChatOptions, Harness } from '@openworld/agent'
+import type { ChatOptions, Harness } from '@openworld/agent/src/core.ts'
 
 export interface Workload {
   tier: Tier

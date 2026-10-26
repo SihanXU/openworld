@@ -6,7 +6,7 @@
 
 import type { DraftContext } from './drafts.ts'
 import type { ModRequest, ModSpec, Patch, Rule, StatusDef, TypeDef } from '@openworld/engine'
-import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '@openworld/agent'
+import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '@openworld/agent/src/core.ts'
 
 type Episode = AgentEpisode<ModRequest, Patch>
 import { compactRule } from './tools.ts'

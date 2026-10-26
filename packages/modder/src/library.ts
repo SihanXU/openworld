@@ -1,10 +1,9 @@
 // The shared rule library (design.md §9): base rules from content plus every accepted patch,
 // kept as an append-only log (one JSON line per patch or removal) so the library at any point
 // can be rebuilt, rolled back or ablated. Clients pull the log; the modder validates against it.
+// The log is kept by a `LogStore`: a file under Node (library-file.ts, named by its path), or none (in memory:
+// a fork, or the player's own modder in a browser — docs/byok.md — whose answers the client's library keeps).
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, truncateSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
-import { createHash, randomUUID } from 'node:crypto'
 import { connected, economySteps, freeLunch } from './economy.ts'
 import {
   RuleLibrary,
@@ -42,6 +41,28 @@ export interface CommitResult {
   seq?: number
 }
 
+/** Where a library's log is kept: its lines as they were written, and each new one. */
+export interface LogStore {
+  /** The log's identity (made with it: another log has another). */
+  readonly id: string
+  /** Every line written so far. */
+  lines(): string[]
+  append(line: string): void
+}
+
+let openFile: ((path: string) => LogStore) | undefined
+/** The validation cache's key of a text: `digest` in a browser, Node's own sha256 under Node (library-file.ts). */
+let keyOf: (text: string) => string = (text) => digest(text)
+
+export function useKeyHash(hash: (text: string) => string): void {
+  keyOf = hash
+}
+
+/** How a log named by a file's path is opened (library-file.ts, loaded by the package's Node entry). */
+export function useLogFiles(open: (path: string) => LogStore): void {
+  openFile = open
+}
+
 export class WorldLibrary {
   readonly lib: RuleLibrary
   readonly log: PatchLogEntry[] = []
@@ -61,38 +82,26 @@ export class WorldLibrary {
    */
   protectedFacts: string[]
 
+  private readonly store?: LogStore
+
+  /** `log`: where the log is kept (a path: a file, under Node; none: in memory). */
   constructor(
     readonly ontology: Ontology,
     readonly base: Rule[],
-    private file?: string,
+    log?: string | LogStore,
     opts: { protectedFacts?: string[] } = {},
   ) {
     this.lib = new RuleLibrary(base)
     this.protectedFacts = opts.protectedFacts ?? []
-    this.logId = file ? logIdentity(file) : randomUUID()
-    if (file && existsSync(file)) {
-      const text = readFileSync(file, 'utf8')
-      // a last line cut short (the service stopped mid-write): cut back to the last whole line, so the next
-      // entry starts a line of its own (appended onto the torn one, it would be lost on the next start, and its seq used again)
-      if (text && !text.endsWith('\n')) {
-        const cut = text.lastIndexOf('\n') + 1
-        let whole = false
-        try {
-          JSON.parse(text.slice(cut))
-          whole = true
-        } catch {
-          /* torn */
-        }
-        if (whole) appendFileSync(file, '\n')
-        else truncateSync(file, Buffer.byteLength(text.slice(0, cut)))
-      }
-      for (const line of text.split('\n')) {
-        if (!line.trim()) continue
-        try {
-          this.apply(JSON.parse(line) as PatchLogEntry)
-        } catch {
-          /* a torn last line: skip it */
-        }
+    if (typeof log === 'string' && !openFile) throw new Error('a library log in a file needs the Node entry (@openworld/modder)')
+    this.store = typeof log === 'string' ? openFile!(log) : log
+    this.logId = this.store?.id ?? crypto.randomUUID()
+    for (const line of this.store?.lines() ?? []) {
+      if (!line.trim()) continue
+      try {
+        this.apply(JSON.parse(line) as PatchLogEntry)
+      } catch {
+        /* a torn last line: skip it */
       }
     }
   }
@@ -214,7 +223,7 @@ export class WorldLibrary {
     // (the library's version moves with every add and removal, so its rules need not be hashed)
     // judged as the client judges it: a world event's answer within the world's boundaries, the story's facts its own
     const world = (req?.origin ?? patch?.trigger) === 'world'
-    const key = createHash('sha256').update(JSON.stringify([this.lib.version, this.lib.types, this.lib.statuses, this.ontology, ws, req?.scenario, replaces, artifacts, world, this.protectedFacts])).digest('hex')
+    const key = keyOf(JSON.stringify([this.lib.version, this.lib.types, this.lib.statuses, this.ontology, ws, req?.scenario, replaces, artifacts, world, this.protectedFacts]))
     const rules = patch?.artifacts?.flatMap((a) => a?.kind === 'rule' && a.rule ? [a.rule] : []) ?? []
     const tests = rules.map((r) => (r.tests ?? []).map((t) => JSON.stringify(t)))
     const proof = this.proofs.get(key)
@@ -480,24 +489,35 @@ export class WorldLibrary {
   }
 
   private persist(e: PatchLogEntry): void {
-    if (!this.file) return
-    mkdirSync(dirname(this.file), { recursive: true })
-    appendFileSync(this.file, JSON.stringify(e) + '\n')
+    this.store?.append(JSON.stringify(e))
   }
 }
 
-/** The identity of the log in `file`: read from beside it, or made with the file (a log with no identity of its own gets one). */
-function logIdentity(file: string): string {
-  const side = `${file}.id`
-  if (existsSync(file) && existsSync(side)) {
-    const id = readFileSync(side, 'utf8').trim()
-    if (id) return id
+/**
+ * A 128-bit digest of a text (four lanes of a multiply-xorshift hash): the validation cache's key, the same under
+ * Node and in a browser, where no hash is synchronous.
+ */
+export function digest(text: string): string {
+  let h1 = 1779033703
+  let h2 = 3144134277
+  let h3 = 1013904242
+  let h4 = 2773480762
+  for (let i = 0; i < text.length; i++) {
+    const k = text.charCodeAt(i)
+    h1 = h2 ^ Math.imul(h1 ^ k, 597399067)
+    h2 = h3 ^ Math.imul(h2 ^ k, 2869860233)
+    h3 = h4 ^ Math.imul(h3 ^ k, 951274213)
+    h4 = h1 ^ Math.imul(h4 ^ k, 2716044179)
   }
-  const id = randomUUID()
-  mkdirSync(dirname(file), { recursive: true })
-  appendFileSync(file, '')
-  writeFileSync(side, `${id}\n`)
-  return id
+  h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067)
+  h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233)
+  h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213)
+  h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179)
+  h1 ^= h2 ^ h3 ^ h4
+  h2 ^= h1
+  h3 ^= h1
+  h4 ^= h1
+  return [h1, h2, h3, h4, text.length].map((h) => (h >>> 0).toString(16).padStart(8, '0')).join('')
 }
 
 function firstTestScenario(p: Patch): Scenario | undefined {
