@@ -481,6 +481,14 @@
   linear-gradient(90deg, rgba(5, 6, 10, 0.94) 0%, rgba(5, 6, 10, 0.8) 24%, rgba(5, 6, 10, 0.2) 52%, rgba(5, 6, 10, 0) 68%),
   radial-gradient(ellipse 80% 90% at 64% 50%, rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.62) 100%); }
 .cv-shade::after { content: ''; position: absolute; inset: 0; opacity: 0.06; background: repeating-linear-gradient(0deg, #fff 0 1px, transparent 1px 3px); }
+/* loading (the world behind not yet drawn, or the chosen slot on its way): no words, no menu, only a bar */
+.cover.booting .cv-main, .cover.booting .cv-motes, .cover.loading .cv-main, .cover.loading .cv-dim, .cover.loading .cv-panel { display: none; }
+.cover.loading .cv-veil { opacity: 1; }
+.cv-loader { position: absolute; inset: 0; z-index: 3; display: none; place-items: center; pointer-events: none; }
+.cover.booting .cv-loader, .cover.loading .cv-loader { display: grid; }
+.cv-loader i, #loading .loadbar { position: relative; display: block; width: 160px; height: 2px; overflow: hidden; background: rgba(217, 167, 90, 0.18); }
+.cv-loader i::after, #loading .loadbar::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 40%; background: linear-gradient(90deg, rgba(246, 212, 138, 0), #f6d48a, rgba(246, 212, 138, 0)); animation: cvLoad 1.3s ease-in-out infinite; }
+@keyframes cvLoad { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 /* black until the world has drawn, then it lifts */
 .cv-veil { position: absolute; inset: 0; background: #05060a; pointer-events: none; transition: opacity 1.6s ease; }
 .cover.lit .cv-veil, .cover.plain .cv-veil { opacity: 0; }

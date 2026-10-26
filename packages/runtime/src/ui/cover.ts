@@ -24,6 +24,11 @@ const SCENE_AT: [number, number] = [0.64, 0.52]
 const SCENE_MS = 10_000
 /** The veil's fall before the next place (as long as its CSS transition). */
 const VEIL_MS = 1600
+/**
+ * How long the title waits for the world behind it before it shows its menu all the same: a place that never draws (a
+ * first visit downloads every picture first, so it is long).
+ */
+const BOOT_MS = 60_000
 
 /** How a new game begins: its difficulty, and where (a start of the world's other than its own: the tutorial, played on its own from the title). */
 export interface NewGame {
@@ -65,6 +70,14 @@ export class Cover {
   /** The place behind has drawn its first frame (its time there has begun), and the veil over it is lifted. */
   private drawn = false
   private lit = false
+  /**
+   * Loading: the title's own words and menu wait, only a bar shows, until the world behind has drawn (`booting`) or
+   * while the chosen slot loads (`loading`). A model offered meanwhile waits for the menu.
+   */
+  private booting = false
+  private loading = false
+  private offerWaits = false
+  private boot?: ReturnType<typeof setTimeout>
   private keysPage = new KeysPage(() => ((this.panel = 'settings'), this.render()))
   /** The place behind the title now (an index into the game's scenes), and the timer that moves to the next. */
   private scene = -1
@@ -85,6 +98,11 @@ export class Cover {
     this.panel = panel
     this.chosen = this.latest() ? 'continue' : 'new'
     this.drawn = this.lit = false
+    this.loading = this.offerWaits = false
+    // the menu waits for the world behind (none to wait for: at once)
+    this.booting = !!game().cover?.scenes?.length
+    clearTimeout(this.boot)
+    if (this.booting) this.boot = setTimeout(() => this.reveal(), BOOT_MS)
     document.getElementById('loading')?.remove()
     $('#intro').classList.remove('hidden')
     document.getElementById('app')?.classList.add('on-cover')
@@ -108,6 +126,23 @@ export class Cover {
     this.creator = undefined
     this.on.ai.also = undefined
     clearTimeout(this.next)
+    clearTimeout(this.boot)
+  }
+
+  /** The menu shows: the world behind has drawn, could not, or was waited for long enough. */
+  reveal(): void {
+    clearTimeout(this.boot)
+    if (!this.booting) return
+    this.booting = false
+    this.mark()
+    if (this.offerWaits) (this.offerWaits = false), this.offerModel()
+  }
+
+  /** The cover's loading state on its element (between renders). */
+  private mark(): void {
+    const el = document.querySelector('#intro .cover')
+    el?.classList.toggle('booting', this.booting)
+    el?.classList.toggle('loading', this.loading)
   }
 
   /**
@@ -115,6 +150,7 @@ export class Cover {
    * to play without AI. Not over a panel the player opened.
    */
   offerModel(): void {
+    if (this.booting) return void (this.offerWaits = true)
     if (!this.open || this.panel) return
     this.panel = 'model'
     this.render()
@@ -137,6 +173,7 @@ export class Cover {
     if (this.drawn) return
     this.drawn = this.lit = true
     document.querySelector('#intro .cover')?.classList.add('lit')
+    this.reveal()
     // the next place, after a while (through black)
     const n = game().cover?.scenes?.length ?? 0
     clearTimeout(this.next)
@@ -150,12 +187,17 @@ export class Cover {
 
   /** The game behind could not start the chosen slot: say why, and give the buttons back. */
   failed(why: string): void {
+    this.loading = false
+    this.reveal()
+    this.mark()
     $('#intro').querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.disabled = false))
     $('#intro').querySelector('.cv-status')!.textContent = `${t('cvFailed')} ${why}`
   }
 
-  /** The game behind is loading the chosen slot. */
+  /** The game behind is loading the chosen slot: the menu goes, the world behind darkens, the bar shows. */
   busy(): void {
+    this.loading = true
+    this.mark()
     $('#intro').querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.disabled = true))
     $('#intro').querySelector('.cv-status')!.textContent = t('cvLoading')
   }
@@ -197,7 +239,7 @@ export class Cover {
     }
     const pip = cv.companion ? `<span class="cv-pip" style="background-image:url('${encodeURI(companionSheet(cv.companion))}')"></span>` : ''
     $('#intro').innerHTML = `
-      <div class="cover${cv.scenes?.length ? '' : ' plain'}${this.lit ? ' lit' : ''}${this.panel ? ' paneled' : ''}">
+      <div class="cover${cv.scenes?.length ? '' : ' plain'}${this.lit ? ' lit' : ''}${this.panel ? ' paneled' : ''}${this.booting ? ' booting' : ''}${this.loading ? ' loading' : ''}">
         <div class="cv-shade"></div>
         <div class="cv-motes">${'<i></i>'.repeat(18)}</div>
         <div class="cv-veil"></div>
@@ -208,6 +250,7 @@ export class Cover {
           <nav class="cv-menu">${pip}${this.items().map(line).join('')}</nav>
           <div class="cv-status"></div>
         </div>
+        <div class="cv-loader" role="status" aria-label="${esc(t('cvLoading'))}"><i></i></div>
         ${this.panel ? `<div class="cv-dim"></div><div class="cv-panel wood">${this.panelHtml()}</div>` : ''}
       </div>`
     $('#intro').querySelectorAll<HTMLButtonElement>('[data-item]').forEach((b) => {

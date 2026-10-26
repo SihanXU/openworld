@@ -446,8 +446,13 @@ function onBackdrop(m: FromWorker): void {
     const k = v && `${v.map}:${v.x}:${v.y}:${v.w}:${v.h}`
     if (v && k !== viewSent) (viewSent = k!), send({ t: 'view', ...v })
     scene.applyFrame(frame)
-    if (backdropHere) cover.worldShown()
-  } else if (m.t === 'error') console.warn(`[backdrop] ${m.message}`)
+    // shown once it is really drawn: the place's own frame, on a scene whose pictures have loaded
+    if (backdropHere && scene.loaded) cover.worldShown()
+  } else if (m.t === 'error') {
+    // the place behind could not be made: the title shows its menu over black rather than load for ever
+    console.warn(`[backdrop] ${m.message}`)
+    cover.reveal()
+  }
 }
 
 worker.onmessage = (ev: MessageEvent<FromWorker>) => {

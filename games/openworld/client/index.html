@@ -10,6 +10,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=Noto+Sans+SC:wght@400;600&display=swap" rel="stylesheet" />
+    <!-- black from the first paint, as the loading that follows (no white page before the styles arrive) -->
+    <style>html, body { background: #05060a; }</style>
   </head>
   <body>
     <div id="app">
@@ -18,7 +20,7 @@
       <div id="hud"></div>
       <div id="dev" class="panel dev hidden"></div>
       <div id="intro" class="hidden"></div>
-      <div id="loading"><div class="kicker">OpenWorld</div><div class="spinner"></div><div>Loading…</div></div>
+      <div id="loading"><i class="loadbar"></i></div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
