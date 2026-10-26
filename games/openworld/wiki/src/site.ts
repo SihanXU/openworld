@@ -468,9 +468,15 @@ function portal(ctx: Ctx, conf: SiteConf, g: Game): string {
     if (!key) return ''
     if (key.startsWith('skill:')) return `<span class="spr" style="width:32px;height:32px;background-image:url('/assets/lsw/skills/${key.slice(6)}.png');background-size:32px 32px"></span>`
     const e = g.byTitle.get(key) ?? (g.byName.get(key) ?? [])[0]
-    return e ? fit((e as any).face ?? e.sprite, 32) : ''
+    return e ? fit(e.sprite, 32) : ''
   }
-  return `<div class="portal">${conf.门户.map((s) => `<section class="portal-box"><h3>${esc(s.标题)}</h3><ul>${s.条目.map(([t, i]) => `<li>${icon(i || t) || '<span class="spr-ph"></span>'}${ctx.link(t)}</li>`).join('')}</ul></section>`).join('')}</div>`
+  // an icon named in site.json must be drawn: a name the game no longer has would leave a blank in its box
+  const named = (t: string, i: string) => {
+    const html = icon(i || t)
+    if (i && !html) ctx.error(L(`门户：「${t}」的图标「${i}」在游戏里不存在`, `Portal: the icon "${i}" of "${t}" is not in the game`))
+    return html
+  }
+  return `<div class="portal">${conf.门户.map((s) => `<section class="portal-box"><h3>${esc(s.标题)}</h3><ul>${s.条目.map(([t, i]) => `<li><span class="ico">${named(t, i)}</span>${ctx.link(t)}</li>`).join('')}</ul></section>`).join('')}</div>`
 }
 
 /** Where a new file for a page starts on GitHub: a Chinese page, or (in the English edition) a page's translation. */
