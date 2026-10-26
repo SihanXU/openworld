@@ -17,7 +17,7 @@
 // browser's worker (the player's own modder, docs/byok.md), which keeps them where it likes.
 
 import { defaultFiles, type Files } from './files.ts'
-import { Meter, parseJson, type CallRecord, type ChatOptions, type Model } from '../models/model.ts'
+import { BACKEND_DOWN, Meter, parseJson, type CallRecord, type ChatOptions, type Model } from '../models/model.ts'
 import { clip, similarity } from '../util.ts'
 
 // ---------------------------------------------------------------- records
@@ -463,7 +463,7 @@ export class SelfState {
    * Apply a reflection: new lessons, revised ones, dropped ones; each change cites the episode.
    * `episode`: the episode the reflection was on, or the episodes of a batch (each is cited).
    */
-  applyLessons(ops: { add?: { text: string; terms?: string[] }[]; revise?: { id: string; text: string }[]; drop?: string[]; support?: string[] }, episode: string | string[], defaultTerms: string[]): string[] {
+  applyLessons(ops: { add?: { text: string; terms?: string[]; general?: boolean }[]; revise?: { id: string; text: string }[]; drop?: string[]; support?: string[] }, episode: string | string[], defaultTerms: string[]): string[] {
     const now = this.now()
     const touched: string[] = []
     const eps = Array.isArray(episode) ? episode : [episode]
@@ -477,7 +477,8 @@ export class SelfState {
       const text = String(a?.text ?? '').trim()
       if (!text || this.lessonList.some((l) => l.status === 'active' && l.text === text)) continue
       const id = `L${this.lessonList.length + 1}`
-      const terms = Array.isArray(a.terms) && a.terms.length ? a.terms.map(String) : defaultTerms
+      // a general lesson (engineering anywhere, not this codebase) has no terms: every task is shown it
+      const terms = a.general === true ? [] : Array.isArray(a.terms) && a.terms.length ? a.terms.map(String) : defaultTerms
       this.lessonList.push({ id, text, terms, episodes: [...eps], status: 'active', created: now, updated: now })
       touched.push(id)
       this.note('lesson.add', { id, episode })
@@ -522,6 +523,12 @@ export class SelfState {
   skills(all = false): SkillMeta[] {
     if (this.ablated.has('skills')) return []
     return Object.values(this.skillIndex).filter((s) => all || s.status === 'active')
+  }
+
+  /** The active skills a task with these terms is shown: those whose triggers it has, and the general ones (no triggers). */
+  relevantSkills(terms: string[]): SkillMeta[] {
+    const set = new Set(terms)
+    return this.skills().filter((s) => !s.triggers?.length || s.triggers.some((t) => set.has(t)))
   }
 
   skill(name: string): SkillMeta | undefined {
@@ -736,7 +743,7 @@ export const AGENT_REFLECT_SYSTEM = `You keep your own memory as a software engi
 
 Respond with JSON only:
 {
-  "lessons": { "add": [{"text": "...", "terms": ["..."]}], "revise": [{"id": "L3", "text": "..."}], "support": ["L2"], "drop": ["L5"] },
+  "lessons": { "add": [{"text": "...", "terms": ["..."], "general": false}], "revise": [{"id": "L3", "text": "..."}], "support": ["L2"], "drop": ["L5"] },
   "skill": null
 }
 
@@ -744,11 +751,12 @@ Lessons:
 - A lesson is a reusable rule of thumb about working in this kind of codebase, or about engineering in general. One sentence. Never a retelling of this task.
 - The most valuable lessons come from what went wrong: failing test runs, wasted steps, a submission that did not pass.
 - Add at most two; often none is right. "support" lessons this task confirmed; "revise" or "drop" lessons it contradicted.
-- "terms": words under which the lesson applies (e.g. "kind:engine", "w:validator"); [] if it always applies.
+- "terms": words under which the lesson applies (e.g. "kind:engine", "w:validator").
+- "general": true for a lesson about engineering in any repository (how to find code, test, read a failure, scope a change), not about this codebase: it is shown on every task, whatever its kind. Keep the codebase's own facts out of a general lesson.
 
 Skills:
 - A skill is a procedure you will follow again: when to use it, the steps, the checks. It may come with scripts (files) that you run with your run tool from .agent/skills/<name>/ — for example a script that finds the code related to a symbol, or one that runs only the relevant tests.
-- Set "skill" to {"name": "kebab-case", "description": "when to use it, one line", "triggers": ["terms"], "body": "markdown", "files": {"script.mjs": "…"}} only when this kind of work has recurred at least {N} times (see similar tasks) and no skill of yours covers it, or to improve a skill you used (same name). Otherwise null.`
+- Set "skill" to {"name": "kebab-case", "description": "when to use it, one line", "triggers": ["terms"], "general": false, "body": "markdown", "files": {"script.mjs": "…"}} ("general": true for a procedure that holds in any repository; it is listed on every task) only when this kind of work has recurred at least {N} times (see similar tasks) and no skill of yours covers it, or to improve a skill you used (same name). Otherwise null.`
 
 export async function reflectAgent(ep: Episode, o: { model: Model; state: SelfState; harness?: Harness }): Promise<void> {
   const { state } = o
@@ -791,12 +799,22 @@ export async function reflectAgent(ep: Episode, o: { model: Model; state: SelfSt
 }
 
 /**
+ * Reflect after a task an unattended agent worked and recorded (a world task, an engine task, a task from the
+ * history, an upstream proposal): every recorded task feeds the middle loop. A failure that is the backend's is
+ * no lesson.
+ */
+export async function reflectAfter(ep: Episode, o: { model: Model; state: SelfState; harness?: Harness }): Promise<void> {
+  if (ep.outcome === 'failed' && BACKEND_DOWN.test(ep.error ?? '')) return
+  await reflectAgent(ep, o)
+}
+
+/**
  * A reflection's reply kept in the self-state: its lessons applied (filed under `terms`, citing the episodes), and its
  * skill written when this kind of work has recurred or the skill is one already kept (an improvement). The skill's
  * triggers default to `terms`; its scripts are kept only where the reflection may write them (`files`).
  */
 export function keepReflection(state: SelfState, reply: string, o: { cited: string | string[]; terms: string[]; recurred: boolean; files?: boolean }): { lessons: string[]; skill?: string } {
-  const j = parseJson(reply) as { lessons?: Parameters<SelfState['applyLessons']>[0]; skill?: { name?: unknown; description?: unknown; triggers?: unknown; body?: unknown; files?: unknown } | null } | undefined
+  const j = parseJson(reply) as { lessons?: Parameters<SelfState['applyLessons']>[0]; skill?: { name?: unknown; description?: unknown; triggers?: unknown; general?: unknown; body?: unknown; files?: unknown } | null } | undefined
   const lessons = j?.lessons && typeof j.lessons === 'object' ? state.applyLessons(j.lessons, o.cited, o.terms) : []
   const s = j?.skill
   if (!s || typeof s.name !== 'string' || typeof s.body !== 'string' || !s.body.trim()) return { lessons }
@@ -804,6 +822,6 @@ export function keepReflection(state: SelfState, reply: string, o: { cited: stri
   if (!state.skill(name) && !o.recurred) return { lessons }
   const files = o.files && s.files && typeof s.files === 'object' ? (Object.fromEntries(Object.entries(s.files as Record<string, unknown>).filter(([, v]) => typeof v === 'string')) as Record<string, string>) : undefined
   const by = Array.isArray(o.cited) ? o.cited[o.cited.length - 1] : o.cited
-  state.writeSkill({ name, description: String(s.description ?? name), triggers: Array.isArray(s.triggers) ? s.triggers.map(String) : o.terms, body: s.body, ...(files && { files }) }, by)
+  state.writeSkill({ name, description: String(s.description ?? name), triggers: s.general === true ? [] : Array.isArray(s.triggers) && s.triggers.length ? s.triggers.map(String) : o.terms, body: s.body, ...(files && { files }) }, by)
   return { lessons, skill: name }
 }

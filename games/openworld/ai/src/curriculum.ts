@@ -28,7 +28,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ModPort, Rng, buildSandbox, type ModRequest, type Ontology, type RuleLibrary, type Scenario } from '@openworld/engine'
 import { GAME, buildOntology } from '@openworld-game/content'
-import { improve, openModder, runAgent, flags, type Modder, type TaskSource } from '@openworld/ai'
+import { improve, openModder, reflectAfter, runAgent, flags, type AgentResult, type AgentTask, type Model, type Modder, type SelfState, type TaskSource } from '@openworld/ai'
 import { FRONT, ORIGIN, sweep, targets, type Cell } from '../../tools/src/coverage.ts'
 import { engineSource, engineTask, engineTaskDefs, type WorkspaceTask } from './engine-tasks.ts'
 import { historyDefs, historySource, historyTask } from './ladder.ts'
@@ -159,7 +159,7 @@ async function main(): Promise<void> {
   const work = async (kind: string, t: WorkspaceTask | undefined, more = '') => {
     if (!t) return console.log(`  ${kind} task skipped: no container here, and an unattended agent does not run its code on this machine`)
     try {
-      const r = await runAgent(t.task, { model, state, log: (l) => console.log(`  ${l}`) })
+      const r = await codeTask(t.task, { model, state, log: (l) => console.log(`  ${l}`) })
       console.log(`  ${kind} ${t.task.id}${more}: ${r.outcome}`)
     } finally {
       await t.dispose()
@@ -237,6 +237,16 @@ async function main(): Promise<void> {
   console.log(`undefined interactions${scope ? ` in ${scopeName}` : ''}: ${undefinedIn(before)} → ${undefinedIn(after)}`)
   console.log('self-state', state.stats())
   console.log(`steps: ${runFile}`)
+}
+
+/**
+ * A code task of the curriculum (the engine's, one from the history): worked and recorded, then reflected on as a
+ * world task is, so what it teaches reaches the lessons and skills (and, when general, every later task).
+ */
+export async function codeTask(task: AgentTask, o: { model: Model; state: SelfState; log?: (line: string) => void }): Promise<AgentResult> {
+  const r = await runAgent(task, { model: o.model, state: o.state, log: o.log })
+  await reflectAfter(r.episode, { model: o.model, state: o.state })
+  return r
 }
 
 // ---------------------------------------------------------------- one outer-loop turn
