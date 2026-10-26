@@ -189,8 +189,9 @@ async function main(): Promise<void> {
     // stage 2: an engine task now and then (the world's own code, as an SWE task)
     if (withEngine && (i + 1) % 5 === 0) {
       const defs = engineTaskDefs()
-      const t = await engineTask(defs[Math.floor((i + 1) / 5 - 1) % defs.length])
-      if (!t) console.log('  engine task skipped: no container here, and an unattended agent does not run its code on this machine')
+      const t = defs.length ? await engineTask(defs[Math.floor((i + 1) / 5 - 1) % defs.length]) : undefined
+      if (!defs.length) console.log('  engine task skipped: there are none (games/openworld/ai/tasks/engine)')
+      else if (!t) console.log('  engine task skipped: no container here, and an unattended agent does not run its code on this machine')
       else
         try {
           const r = await runAgent(t.task, { model: modder.model, state, log: (l) => console.log(`  ${l}`) })
