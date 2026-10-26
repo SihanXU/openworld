@@ -52,6 +52,7 @@ export function briefOf(req: ModRequest, lib: RuleLibrary, onto: Ontology, tools
   out.push(`- event: ${ev.kind}${Object.keys(ev.params).length ? ` ${JSON.stringify(ev.params)}` : ''}`)
   out.push(`- undefined at: ${req.hole.rule}${req.hole.path.length ? ` (branches ${req.hole.path.join(' → ')})` : ''}; while nobody answers: ${req.hole.default.length ? JSON.stringify(req.hole.default) : 'nothing happens'}`)
   if (ev.detail) out.push(`- detail: ${ev.detail}`)
+  if (req.context.whose) out.push(`- whose and where: ${req.context.whose}`)
   if (ev.kind === 'stuck' || ev.kind === 'broken') out.push(`- anchors on this map (for goto): ${req.context.anchors?.join(', ') || '—'}`)
   const line = (role: string, e: EntityInfo) => {
     let props = ''

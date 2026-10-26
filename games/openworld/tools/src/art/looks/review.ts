@@ -72,7 +72,57 @@ export function bustOf(m: PortraitManifest, look: Look, figure: Uint8ClampedArra
   return { w: r.w, h: r.h, rgba }
 }
 
-if (process.argv[1]?.endsWith('review.ts')) {
+/** Loud colours for a part's keys, so a stray pixel of any layer shows on the bare body and the dark ground. */
+const LOUD: Record<string, string> = { hair: 'gold', skin: 'light', eyes: 'sky', '1': 'madder', '2': 'teal', '3': 'ochre' }
+
+/**
+ * Every part drawn for a body, each alone on the bare body (with the body's first face, so hair and hats sit on a
+ * face), in loud colours on a dark ground, `cols` to a row, at 1/k: what the reviewer zooms into for colour leaks.
+ */
+export function partsSheet(m: PortraitManifest, body: string, k = 2, cols = 8): { w: number; h: number; rgba: Uint8Array } {
+  const ids = Object.keys(m.parts).filter((id) => m.parts[id][body]).sort()
+  const face = ids.find((id) => id.startsWith('face.'))
+  const colors = (id: string) => {
+    const slot = id.split('.')[0]
+    return { hair: LOUD.hair, skin: LOUD.skin, eyes: LOUD.eyes, [`${slot}.1`]: LOUD['1'], [`${slot}.2`]: LOUD['2'], [`${slot}.3`]: LOUD['3'] }
+  }
+  const PW = Math.floor(m.w / k)
+  const PH = Math.floor(m.h / k)
+  const W = cols * PW
+  const H = Math.ceil(ids.length / cols) * PH
+  const rgba = new Uint8Array(W * H * 4)
+  for (let i = 0; i < W * H; i++) rgba.set([34, 38, 46, 255], i * 4)
+  ids.forEach((id, n) => {
+    const slot = id.split('.')[0]
+    const parts: Record<string, string> = { [slot]: id }
+    if (face && slot !== 'face') parts.face = face
+    const fig = shrink(composePortrait(m, { body, parts, colors: colors(id) }, undefined, layerFromDisk), m.w, m.h, k)
+    const ox = (n % cols) * PW
+    const oy = Math.floor(n / cols) * PH
+    for (let y = 0; y < PH; y++)
+      for (let x = 0; x < PW; x++) {
+        const i = (y * PW + x) * 4
+        const t = fig[i + 3] / 255
+        if (!t) continue
+        const o = ((oy + y) * W + ox + x) * 4
+        for (let c = 0; c < 3; c++) rgba[o + c] = rgba[o + c] * (1 - t) + fig[i + c] * t
+      }
+  })
+  return { w: W, h: H, rgba }
+}
+
+if (process.argv[1]?.endsWith('review.ts') && process.argv[3] === '--parts') {
+  // npx tsx review.ts <out-prefix> --parts [k]: <out-prefix>-<body>.png, every part alone on each body
+  const m = loadManifest()
+  if (!m) throw new Error(`no manifest in ${ROOT}: run portrait/build.py first`)
+  const k = Number(process.argv[4] ?? 2)
+  for (const body of Object.keys(m.bodies)) {
+    const s = partsSheet(m, body, k)
+    const out = `${process.argv[2].replace(/\.png$/, '')}-${body}.png`
+    writeFileSync(out, png(s.w, s.h, s.rgba))
+    console.log(out)
+  }
+} else if (process.argv[1]?.endsWith('review.ts')) {
   const out = process.argv[2] ?? 'looks-review.png'
   const mood = process.argv[3] as Mood | undefined
   const m = loadManifest()

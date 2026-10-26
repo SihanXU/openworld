@@ -1,5 +1,5 @@
 // The Lower Town (docs/showcase.md §4.6): the poor quarter on the canal — the quay's masonry dropping to the water
-// (tools/src/art/rampart.ts's limestone), boats moored along it, the treadwheel crane, nets and fish hung to dry,
+// (the relief's limestone), boats moored along it, the treadwheel crane, nets and fish hung to dry,
 // barrels and crates; crooked timber houses under thatch leaning over mud lanes, washing strung between them; the
 // tavern where the quarter drinks; a wooden footbridge over the water. Dubrovnik's and Venice's lesser quays, the poor
 // parts of every old port.

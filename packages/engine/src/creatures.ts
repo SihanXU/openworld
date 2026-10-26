@@ -8,7 +8,7 @@
 // elemental reaction is a rule.
 
 import type { Engine } from './engine.ts'
-import { astar } from './path.ts'
+import { astar, wayTo } from './path.ts'
 import type { Dir, Entity, Pos } from './types.ts'
 import { DIRS, FIRE_RADIUS } from './types.ts'
 
@@ -161,12 +161,11 @@ function go(eng: Engine, e: Entity, gx: number, gy: number, safe: (x: number, y:
   return true
 }
 
-/** One step onto a neighbouring tile, if it is safe. */
+/** One step onto a neighbouring tile (or a leap down to a ledge's foot), if it is safe. */
 function stepTo(eng: Engine, e: Entity, [nx, ny]: [number, number], safe: (x: number, y: number) => boolean): boolean {
   if (e.place.on !== 'tile' || !safe(nx, ny)) return false
-  const { x, y } = e.place
-  if (Math.abs(nx - x) + Math.abs(ny - y) !== 1) return false
-  return eng.step(e, nx > x ? 'right' : nx < x ? 'left' : ny > y ? 'down' : 'up')
+  const dir = wayTo(e.place.x, e.place.y, nx, ny)
+  return !!dir && eng.step(e, dir)
 }
 
 /** Greedy step reducing distance along the longer axis first (never into a fire's reach). */

@@ -16,6 +16,15 @@
     --nav-h: 64px;
     --mono: SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
     --serif-zh: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', serif;
+    /* Google Material 3: shared state, entrance and exit curves. */
+    --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --motion-ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+    --motion-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+    --motion-duration-short: 150ms;
+    --motion-duration-medium: 250ms;
+    --motion-duration-long: 400ms;
+    --motion-duration-enter: 300ms;
+    --motion-duration-exit: 200ms;
 }
 
 html { scroll-behavior: smooth; scroll-padding-top: calc(var(--nav-h) + 16px); }
@@ -42,7 +51,7 @@ img { display: block; max-width: 100%; }
 .nav-title { font-size: 1.35rem; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
 .nav-title small { font-size: 0.8rem; font-weight: 500; color: var(--faint); margin-left: 0.6rem; letter-spacing: 0; }
 .nav-links { display: flex; gap: 2rem; }
-.nav-links a { color: var(--muted); font-weight: 500; transition: color 0.2s ease; }
+.nav-links a { color: var(--muted); font-weight: 500; transition: color var(--motion-duration-short) var(--motion-ease-standard); }
 .nav-links a:hover, .nav-links a.active { color: #000; }
 .nav-links a.cta { color: var(--accent); }
 
@@ -52,8 +61,8 @@ img { display: block; max-width: 100%; }
 
 /* links with an arrow */
 .arrow-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.75rem; font-weight: 500; }
-.arrow-links a { color: var(--ink); border-bottom: 1.5px solid #dcdfe3; padding-bottom: 2px; transition: color 0.2s ease, border-color 0.2s ease; }
-.arrow-links a::after { content: " \2197"; color: var(--faint); transition: color 0.2s ease; }
+.arrow-links a { color: var(--ink); border-bottom: 1.5px solid #dcdfe3; padding-bottom: 2px; transition: color var(--motion-duration-short) var(--motion-ease-standard), border-color var(--motion-duration-short) var(--motion-ease-standard); }
+.arrow-links a::after { content: " \2197"; color: var(--faint); transition: color var(--motion-duration-short) var(--motion-ease-standard); }
 .arrow-links a:hover { color: var(--accent); border-color: var(--accent); }
 .arrow-links a:hover::after { color: var(--accent); }
 .arrow-links .soon { color: var(--faint); border-bottom: 1.5px dashed #dcdfe3; padding-bottom: 2px; }
@@ -65,7 +74,7 @@ img { display: block; max-width: 100%; }
 
 /* flip card: the front is what the game shows, the back the code behind it */
 .flip-container { position: relative; width: 100%; perspective: 1400px; cursor: pointer; }
-.flip-inner { position: relative; width: 100%; transition: transform 0.6s; transform-style: preserve-3d; }
+.flip-inner { position: relative; width: 100%; transition: transform 600ms var(--motion-ease-standard); transform-style: preserve-3d; }
 @media (hover: hover) { .flip-container:hover .flip-inner { transform: rotateY(180deg); } }
 .flip-container.is-flipped .flip-inner { transform: rotateY(180deg); }
 .flip-front, .flip-back {
@@ -96,18 +105,18 @@ img { display: block; max-width: 100%; }
 .wl input[type=email] {
     flex: 1; min-width: 0; font: inherit; font-size: 1rem; color: var(--ink);
     padding: 0.7rem 1.1rem; border: 1.5px solid #dcdfe3; border-radius: 999px; background: #fff; outline: none;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: border-color var(--motion-duration-short) var(--motion-ease-standard), box-shadow var(--motion-duration-short) var(--motion-ease-standard);
 }
 .wl input[type=email]:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
 .wl button {
     font: inherit; font-weight: 600; font-size: 1rem; color: #fff; background: var(--accent);
     border: 0; border-radius: 999px; padding: 0.7rem 1.4rem; cursor: pointer; white-space: nowrap;
-    transition: transform 0.2s ease, background 0.2s ease;
+    transition: transform var(--motion-duration-medium) var(--motion-ease-standard), background var(--motion-duration-short) var(--motion-ease-standard);
 }
 .wl button:hover { background: #1d4fd7; transform: translateY(-1px); }
 .wl-roles { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; align-items: center; }
 .wl-roles span.q { font-size: 0.85rem; color: var(--faint); margin-right: 0.25rem; }
-.wl-roles label { font-size: 0.85rem; color: var(--muted); border: 1px solid #dcdfe3; border-radius: 999px; padding: 0.15rem 0.75rem; cursor: pointer; user-select: none; transition: all 0.2s ease; }
+.wl-roles label { font-size: 0.85rem; color: var(--muted); border: 1px solid #dcdfe3; border-radius: 999px; padding: 0.15rem 0.75rem; cursor: pointer; user-select: none; transition: color var(--motion-duration-short) var(--motion-ease-standard), border-color var(--motion-duration-short) var(--motion-ease-standard), background var(--motion-duration-short) var(--motion-ease-standard); }
 .wl-roles input { display: none; }
 .wl-roles input:checked + label { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 .wl-note { font-size: 0.8rem; color: var(--faint); margin-top: 0.6rem; }
@@ -124,7 +133,7 @@ img { display: block; max-width: 100%; }
 }
 .scroll-bar::after {
     content: ""; width: max(3vw, 40px); height: max(0.5vh, 3px);
-    background: rgba(0, 0, 0, 0.7); border-radius: 50px; animation: pulse 1.8s infinite;
+    background: rgba(0, 0, 0, 0.7); border-radius: 50px; animation: pulse 1.8s var(--motion-ease-standard) infinite;
 }
 .scroll-bar.light { background: rgba(255, 255, 255, 0.18); }
 .scroll-bar.light::after { background: rgba(255, 255, 255, 0.85); }
@@ -153,3 +162,8 @@ img { display: block; max-width: 100%; }
 .ph i:last-child { width: 60%; }
 .ph i:only-child { width: 45%; }
 .ph-h { color: #b9c0c9; }
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+}

@@ -10,7 +10,7 @@
 // Every move is a step and every deed an act, as the player's are; what a goal sets going it does by events
 // (behaviour may make them, as a day that cannot go on makes `stuck`): the answers are the people's rules.
 
-import { DIRS, astar, type Dir, type Engine, type Entity, type Id, type Pos, type Scene } from '@openworld/engine'
+import { DIRS, astar, wayTo, type Dir, type Engine, type Entity, type Id, type Pos, type Scene } from '@openworld/engine'
 import { socialOf } from './state.ts'
 
 const NPC_STEP_TICKS = 4
@@ -63,7 +63,7 @@ export class Conduct {
     const rt = this.runtime(e)
     const goal = `${map}:${gx}:${gy}`
     // a path that no longer starts beside them (they were made to step aside) is planned again
-    if (rt.path?.length && Math.abs(rt.path[0][0] - x) + Math.abs(rt.path[0][1] - y) !== 1) rt.path = undefined
+    if (rt.path?.length && !wayTo(x, y, ...rt.path[0])) rt.path = undefined
     if (rt.goal !== goal || !rt.path?.length) {
       const m = w.map(map)
       if (!m) return false
@@ -73,7 +73,7 @@ export class Conduct {
     }
     const [nx, ny] = rt.path[0]
     if (nx === gx && ny === gy && w.actorAt(map, nx, ny, e.id)) return false
-    const dir: Dir = nx > x ? 'right' : nx < x ? 'left' : ny > y ? 'down' : 'up'
+    const dir = wayTo(x, y, nx, ny)!
     if (eng.step(e, dir)) rt.path.shift()
     else rt.path = undefined
     eng.setCooldown(e.id, NPC_STEP_TICKS)
@@ -215,6 +215,8 @@ export class Conduct {
       // a thing taken from them or theirs (not a blow: violence is fled, not argued with; not a friend's: theirs to ask)
       const theirs = !!g && ['me', 'ours'].includes(socialOf(eng).victim(g.against, e))
       if (!g || !def || def.violent || !g.thing || !theirs || w.state.tick - g.tick > 2 * 600) continue
+      // only what the doer still has can be given back: a wall broken, a chest smashed is cried out and reported, not asked for
+      if (!this.carries(o, g.thing)) continue
       if (this.dist(e, o) <= 1 && o.place.on === 'tile') {
         this.face(e, o.place)
         eng.act('hands', e.id, { e: o.id }, { instrument: null, params: { say: 'demand', item: g.thing } })
@@ -222,6 +224,18 @@ export class Conduct {
         return true
       }
       return (o.place.on === 'tile' && this.go(e, o.place.x, o.place.y)) || true
+    }
+    return false
+  }
+
+  /** Does one have a thing about them: in hand, in the bag, or in what they carry? */
+  private carries(o: Entity, id: string): boolean {
+    const w = this.eng.world
+    let e = w.get(id)
+    for (let depth = 0; e && depth < 8; depth++) {
+      if (e.place.on !== 'inside' && e.place.on !== 'hand') return false
+      if (e.place.holder === o.id) return true
+      e = w.get(e.place.holder)
     }
     return false
   }

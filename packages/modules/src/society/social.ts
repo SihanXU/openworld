@@ -7,7 +7,7 @@
 //
 // Nothing here asks whether one is the player (CLAUDE.md): anyone can steal, see, tell, be wanted.
 
-import { DIRS, TICKS_PER_DAY, evalCond, favouriteOf, isA, levelFactor, toldFavourite, weaponOf, type DeedDef, type DeedMemory, type Engine, type Entity, type GameEvent, type Id, type LawDef, type Look, type NpcMemory, type Pos, type PropValue, type Ref, type Roles, type SocialParams, type TalkOption, type TalkVerb, type Text } from '@openworld/engine'
+import { DIRS, TICKS_PER_DAY, evalCond, textOf, favouriteOf, isA, levelFactor, toldFavourite, weaponOf, type DeedDef, type DeedMemory, type Engine, type Entity, type GameEvent, type Id, type LawDef, type Look, type NpcMemory, type Pos, type PropValue, type Ref, type Roles, type SocialParams, type TalkOption, type TalkVerb, type Text } from '@openworld/engine'
 import { authorizedResidentWorkTake } from './resident-work.ts'
 
 /** The social numbers when the world gives none (the content gives its own). */
@@ -439,6 +439,9 @@ export class Social {
     if (!def) return undefined
     const at = { map: String(seen.params?.map ?? w.posOf(doer)?.map ?? ''), x: Number(seen.params?.x ?? 0), y: Number(seen.params?.y ?? 0) }
     const thing = seen.roles.target ? w.get(seen.roles.target.e) : undefined
+    // a thing the act broke is gone by now: a cell's keeps its record, and says what it was (a house's wall)
+    const was = !thing && seen.roles.target ? w.state.entities[seen.roles.target.e] : undefined
+    const wasName = was && (was.name ?? w.onto.resolve(was.type).name)
     const known = this.recognises(seer, doer, at)
     const whose = seen.params?.whose
     const against = typeof whose === 'string' && whose ? whose : thing && seen.params?.person === true ? thing.id : undefined
@@ -449,6 +452,7 @@ export class Social {
       ...(known ? { by: doer.id } : { ...(look && typeof look === 'object' && { desc: structuredClone(look) }), words: this.describe(doer, 'en') }),
       ...(against && { against }),
       ...(thing && { thing: thing.id, what: { en: eng.nameOf({ e: thing.id }, 'en'), zh: eng.nameOf({ e: thing.id }, 'zh') } }),
+      ...(was && wasName && { thing: was.id, what: { en: textOf(wasName, 'en'), zh: textOf(wasName, 'zh') } }),
       ...at,
       tick: w.state.tick,
       firsthand: true,

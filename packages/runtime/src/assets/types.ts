@@ -6,6 +6,7 @@
 // own art instead, under its assets/ (`own/`: what the editor imports).
 
 import type { Mood } from '@openworld/engine'
+import type { ReliefPalette } from './relief.ts'
 
 /** A rectangle in an image, in pixels, plus the anchor that sits on the entity's tile. */
 export interface SpriteDef {
@@ -136,13 +137,10 @@ export interface Catalog {
    */
   rooms: Record<string, { img: string; col: number; row: number; size: number }>
   /**
-   * The edges of high ground (MapData.heights), laid over the ground (ground.ts terracePieces): a sheet laid out as the
-   * pack's relief, TilesetRelief.png columns 0-6 and rows 0-4, with its plateau's top clear. None: the heights are
-   * drawn as plain lines.
+   * The rock of the relief (MapData.heights; assets/relief.ts paints its faces, rims and stairs) by the region a map
+   * lies in, `*` for any other. None: the runtime's slate.
    */
-  terrace?: { img: string }
-  /** The edges of high ground by the terrain on top of it, laid out as `terrace` (a wall-walk's masonry, a quay's). */
-  terraces?: Record<string, { img: string }>
+  relief?: Record<string, ReliefPalette>
   /** Fixture sprite keys used by the ontology ('fixture:chest', …) -> states. */
   /**
    * Fixtures by sprite key. `variants`: looks picked per thing (by its id); `ground`: drawn flat

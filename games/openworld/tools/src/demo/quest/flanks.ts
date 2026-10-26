@@ -241,11 +241,11 @@ export function buildBendCabin(): MapBuilder {
   bed(m, 14, 2, 'hilde.bed', [14, 3])
   m.fixture('fixture/container/drawers', 12, 2)
   m.fixture('fixture/container/chest', 11, 3)
-  // the store: the smoked eels crated, the salt, a sack of bait-meal
-  m.fixture('fixture/container/crate', 13, 6, { name: L('Smoked eels', '熏鳗鱼箱') }, [{ form: 'item/food/fish/cooked' }, { form: 'item/food/fish/cooked' }])
-  m.fixture('fixture/container/barrel', 14, 6, { name: L('Salt', '盐') })
-  m.fixture('fixture/container/barrel', 14, 7)
-  m.fixture('fixture/container/sack', 12, 7)
+  // the store: the smoked eels crated, the salt, a sack of bait-meal — along its walls, the row from the doorway left free
+  m.fixture('fixture/container/crate', 14, 6, { name: L('Smoked eels', '熏鳗鱼箱') }, [{ form: 'item/food/fish/cooked' }, { form: 'item/food/fish/cooked' }])
+  m.fixture('fixture/container/barrel', 14, 7, { name: L('Salt', '盐') })
+  m.fixture('fixture/container/barrel', 12, 7)
+  m.fixture('fixture/container/sack', 11, 7)
   return m
 }
 

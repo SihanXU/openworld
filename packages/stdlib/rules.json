@@ -410,11 +410,21 @@
   },
   {
     "id": "core/handle",
-    "doc": "A bare hand on something with no answer of its own: undefined (it is looked at meanwhile).",
+    "doc": "A bare hand on something with no answer of its own: undefined (meanwhile one only runs a hand over it).",
     "on": "impulse/handle",
     "tree": {
       "undefined": true,
-      "default": [{ "op": "log", "text": { "en": "It is {host}.", "zh": "这是{host}。" } }]
+      "default": [{ "op": "log", "text": { "en": "You run a hand over {host}.", "zh": "你伸手摸了摸{host}。" } }]
+    }
+  },
+  {
+    "id": "core/settle",
+    "doc": "Asked to take a posture at a thing (a chair, hay, an altar): an actor goes there and holds it until it moves on; anything else is undefined.",
+    "on": "impulse/settle",
+    "tree": {
+      "if": { "is": { "role": "host", "sel": { "type": "actor" } } },
+      "then": { "do": [{ "op": "posture" }] },
+      "else": { "undefined": true }
     }
   },
   {

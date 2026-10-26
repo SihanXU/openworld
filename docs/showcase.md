@@ -18,7 +18,6 @@ backdrop's own. The five quarters are one walk, street into street, round the Mo
 ## 1. Where it lives
 
 - `games/openworld/tools/src/art/arch/` — the buildings' art (§3).
-- `games/openworld/tools/src/art/rampart.ts` — the masonry under built high ground (§3.5).
 - `games/openworld/tools/src/demo/showcase/` — the places: `index.ts` (the makers by place id, the stocking, the quarters
   joined across their edges after every place is made, `SHOWCASE_PLACES`), one file a place, `rooms.ts` (a hall with
   its north wall's face, doors and stairs between maps), `street.ts` (rows of townhouses with rooms behind their doors,
@@ -110,8 +109,9 @@ after dark (`scene.ts layPools`, `shinePools`).
 ### 3.5 Grounds and built high ground
 
 New terrains: `paving` (pale limestone in panels: a parvis, a square, a nave), `flagstone` and `rampart` (a fortress's
-wards and the walk on its walls). High ground whose top is `rampart` draws its face in granite masonry, a quay's
-(`cobble`, `paving`) in limestone with the water's line at its foot (`Catalog.terraces`, by the high cell's terrain).
+wards and the walk on its walls), `plaza`, `flags`, `flowerbed`, the floors within. High ground is drawn by the runtime's
+relief (`assets/relief.ts`) in the region's rock: the Holy City's is its limestone (`Catalog.relief.holy`), so a quay, a
+terrace's edge and a curtain wall show pale dressed stone.
 So a curtain wall is raised ground one climbs to by stairs and walks along, its parapet merlons on its outer edge; a
 canal is a level under its quays.
 
@@ -209,7 +209,6 @@ templates' places (the showcase is measured here).
 ```bash
 npx tsx games/openworld/tools/src/art/arch/main.ts [name …]   # draw the buildings (all, or some) → Buildings/*.png, client/src/buildings.json
 npx tsx games/openworld/tools/src/art/arch/try.ts abbey,fort_ out.png 2   # a review sheet of models
-npx tsx games/openworld/tools/src/art/rampart.ts               # the masonry sheets for built high ground
 npx tsx games/openworld/wiki/src/render-showcase.ts out/ 1     # the showcase's maps drawn as the game draws them
 ```
 

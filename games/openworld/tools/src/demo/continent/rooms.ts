@@ -98,11 +98,18 @@ function sizeOf(role: Role, prefab: string): [number, number] {
 
 const LIT: Partial<Entity> = { statuses: { lit: -1 } }
 
-/** A thing in the room where there is floor and nothing stands, never in the way in from the door. */
+/**
+ * A thing in the room where there is floor and nothing stands, never in the way in from the door, and never where it
+ * would wall off a corner of the floor or another thing from the door (MapBuilder.waysOpen).
+ */
 function put(m: MapBuilder, type: string, x: number, y: number, extra: Partial<Entity> = {}): boolean {
-  const [dx] = m.doors.out
+  const [dx, dy] = m.doors.out
   if (x < 1 || y < 1 || x > m.w - 2 || y > m.h - 2 || (x === dx && y >= m.h - 3)) return false
   if (!m.free(x, y)) return false
+  m.entities.push({ id: '', type, place: { on: 'tile', map: m.id, x, y } })
+  const open = m.waysOpen([dx, dy - 1])
+  m.entities.pop()
+  if (!open) return false
   m.fixture(type, x, y, extra)
   return true
 }

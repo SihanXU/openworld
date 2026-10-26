@@ -123,8 +123,20 @@ the map and in the portrait is the same colour by construction.
   features (the same mask in every mood); zones by hue (key hues, the skin's hue band, the iris, grey for hair);
   lines take their neighbour's zone (coloured lineart); values anchored at the zone's median with a bounded gain
   (skin uses one mapping for every layer, so no seams).
+- **Clean** (`clean.py`, run by `build.py`; 2026-10-25): an edit redraws the whole figure, and the cut took some of
+  the body's own lines and hatching for the part (a shirt's grey hatching is the hair's grey) — repainted, a blonde
+  ponytail streaked the dress, hats and hair put their colour in the eyes, garments drew a second outline down the
+  legs. The cut also took the picture's ground in the gaps it filled and along edges (a cream wedge between an arm
+  and the waist, a pale rim round a coat). Per part, body and mood, over its layers' union: the ground goes, then
+  what lies outside the slot's band of the figure, speckle, and every stroke or patch away from the part's solid
+  mass (a mass is what survives an opening; what is kept is the mass grown back a few pixels along the part's own
+  pixels; for hair, pieces off the head stay only off the body — long hair seen past the arms). Parts of fine
+  strokes (a face, freckles, age, stubble, glasses, thinning hair) keep their band and stay off the eyes. The
+  numbers are `clean.json`; `tools/test/portrait.test.ts` holds every layer to them (and the paint and the value
+  map to the same coverage). Before and after: `docs/figures/portrait-clean.png` (`looks/pair.ts`).
 - **Review**: `npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]` composes everyone with the client's
-  own code. `batch.py` runs the jobs (resumable; a job waits for the picture it edits).
+  own code; `review.ts out.png --parts [k]` every part alone on each body in loud colours on a dark ground
+  (`out-<body>.png`), where a stray pixel shows. `batch.py` runs the jobs (resumable; a job waits for the picture it edits).
 - Outputs are CC0 with their prompts and workflow in the repository; the model's licence allows it.
 
 ## 5. The event model

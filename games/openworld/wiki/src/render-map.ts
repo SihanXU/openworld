@@ -15,7 +15,8 @@ import { OntologyIndex, type Dir, type Entity, type Look } from '@openworld/engi
 import { TERRAIN_CHARS } from '@openworld-game/content'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '@openworld/runtime/src/assets/types.ts'
 import { CATALOG } from './bundle.ts'
-import { T, groundBeneath, groundTile, hash2, objectLook, stairAt, terracePieces, type GroundAtlas } from '@openworld/runtime/src/assets/ground.ts'
+import { T, groundBeneath, groundTile, hash2, objectLook, type GroundAtlas } from '@openworld/runtime/src/assets/ground.ts'
+import { SLATE, paintRelief } from '@openworld/runtime/src/assets/relief.ts'
 import { personLook } from '@openworld/runtime/src/assets/looks.ts'
 import type { ActorDef, SpriteDef } from '@openworld/runtime/src/assets/types.ts'
 import { bossAnimationFrame } from '@openworld/runtime/src/render/boss-animation.ts'
@@ -494,41 +495,23 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
       }
   }
 
-  // the ground's height (scene.ts drawHeights): higher ground lighter, a ramp's steps, the terrace's rim and face where
-  // it drops a level (a plain lip and a short face for a catalogue with no terrace)
-  const terrace = CATALOG.terrace && image(CATALOG.terrace.img)
-  if (heights?.some((h) => h)) at(-90, () => {
-    const hAt = (x: number, y: number) => (x < 0 || y < 0 || x >= W || y >= H ? undefined : heights[y * W + x] ?? 0)
-    for (let y = 0; y < H; y++)
-      for (let x = 0; x < W; x++) {
-        const h = hAt(x, y)!
-        if (h >= 2) pic.fill(x * T, y * T, T, T, 0xffffff, Math.min(0.12, 0.03 * Math.floor(h / 2)))
-        if (stairAt(W, H, heights, x, y))
-          for (let i = 4; i < T; i += 5) {
-            pic.fill(x * T + 1, y * T + i - 1, T - 2, 1, 0xfff2d8, 0.3)
-            pic.fill(x * T + 1, y * T + i, T - 2, 1, 0x000000, 0.2)
-          }
-        if (terrace) continue
-        const drop = (dx: number, dy: number) => h - (hAt(x + dx, y + dy) ?? h) >= 2
-        if (drop(0, -1)) pic.fill(x * T, y * T, T, 1, 0x2a2018, 0.55)
-        if (drop(-1, 0)) pic.fill(x * T, y * T, 1, T, 0x2a2018, 0.55)
-        if (drop(1, 0)) pic.fill((x + 1) * T - 1, y * T, 1, T, 0x2a2018, 0.55)
-        if (drop(0, 1)) {
-          pic.fill(x * T, (y + 1) * T, T, 5, 0x6b5a48, 0.85)
-          for (let i = 2; i < T; i += 4) pic.fill(x * T + i, (y + 1) * T, 1, 5, 0x4a3c30, 0.9)
-          pic.fill(x * T, (y + 1) * T + 5, T, 3, 0x000000, 0.22)
-          pic.fill(x * T, (y + 1) * T - 1, T, 1, 0xfff2d8, 0.35)
+  // the ground's height (scene.ts drawHeights): higher ground lighter, and the relief painted over the ground and its
+  // specks, under all that stands (assets/relief.ts), in the rock of the map's region
+  if (heights?.some((h) => h)) {
+    at(-90, () => {
+      for (let y = 0; y < H; y++)
+        for (let x = 0; x < W; x++) {
+          const h = heights[y * W + x] ?? 0
+          if (h >= 2) pic.fill(x * T, y * T, T, T, 0xffffff, Math.min(0.12, 0.03 * Math.floor(h / 2)))
         }
-      }
-  })
-  // the terrace's rims and faces (ground.ts terracePieces): over the ground and its specks, under all that stands
-  // (a built top's own sheet — a wall-walk's masonry, a quay's — by the terrain on the high cell)
-  if (terrace && heights?.some((h) => h))
-    for (const p of terracePieces(W, H, heights)) {
-      const own = CATALOG.terraces?.[terrainAt(p.hx, p.hy)]
-      const img = (own && image(own.img)) || terrace
-      at(-45, () => pic.blit({ img, rect: [p.col * T, p.row * T, T, T], x: p.x * T, y: p.y * T, ox: 0, oy: 0 }))
+    })
+    const rock = CATALOG.relief
+    const layer = paintRelief(W, H, heights, groundAt, (raw.region && rock?.[raw.region]) || rock?.['*'] || SLATE)
+    if (layer) {
+      const img: Image = { w: layer.width, h: layer.height, rgba: new Uint8Array(layer.rgba.buffer) }
+      at(-45, () => pic.blit({ img, rect: [0, 0, img.w, img.h], x: 0, y: 0, ox: 0, oy: 0 }))
     }
+  }
 
   // the things of the map where the world begins, and the people who start on it
   const model = modelOf(g)

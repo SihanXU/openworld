@@ -17,12 +17,13 @@
 import { artProblems, buildModSpec, buildRequest, buildSandbox, closestTypes, holeKey, isDo, isHole, leaves, patchKey, scenarioEvent, tierOfRequest, tiersFrom, type ModProgress, type Ontology, type ModRequest, type ModWorkspace, type Patch, type PixelArt, type ResolveBody, type ResolveReply, type Scenario, type Tier, type TypeDef, type ValidationResult } from '@openworld/engine'
 import { briefOf, relatedRules } from './brief.ts'
 import { changesNothing, deriveTests } from './derive.ts'
+import { judge, statedAffordance } from './affordance.ts'
 import { normalizePatch, placePatch, qualifyTerrains, stationFromRules } from './fixes.ts'
 import type { CommitResult, WorldLibrary } from './library.ts'
 import { Meter, parseJson, reflectAgent, runAgent, type AgentTask, type ChatMessage, type ChatOptions, type Model, type TaskSource } from '@openworld/agent'
 import { materializeWorld } from './repo.ts'
 import { mapProblems, personProblems, settleMap, summary, withoutThinking, type DraftContext, type DraftKind, type TraceStep } from './drafts.ts'
-import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, reviseDraftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
+import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, againUser, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, reviseDraftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
 import { coarseTerms, signatureOf, type Signature } from './signature.ts'
 import { auditOf, profileOf, safeName, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '@openworld/agent'
 
@@ -398,7 +399,9 @@ export class Modder {
   async resolve(body: ResolveBody, profile: Profile = this.opts.profile ?? 'live'): Promise<ResolveReply> {
     const req = body?.request
     if (!req?.event || !req.scenario || !req.context) return { patch: null, outcome: 'failed', diagnostics: ['malformed request'] }
-    const sig = signatureOf(req)
+    const base = signatureOf(req)
+    // asked again (design.md §5.17): a question of its own, beside the provisional answer it replaces
+    const sig = req.again ? { ...base, key: `${base.key}|again:${req.again.rule}` } : base
     this.requestKey.set(req.id, sig.key)
     try {
       return await this.resolveClass(req, body, sig, profile)
@@ -445,7 +448,8 @@ export class Modder {
   /** The shared library already answers it: reply with the patch that does, and book the reuse. */
   private cover(req: ModRequest, sig: Signature): ResolveReply | undefined {
     const c = this.opts.library.covering(req)
-    if (!c) return undefined
+    // what is asked again is the provisional answer itself: it does not cover its own question
+    if (!c || (req.again && c.rule === req.again.rule)) return undefined
     const { state } = this.opts
     const ep = this.blank(state.newEpisodeId(), req, sig, state.harness())
     ep.outcome = 'covered'
@@ -530,7 +534,7 @@ export class Modder {
     ep.quality = { tier: wl.tier, create: wl.create }
     if (eo.escalatedFrom) ep.escalatedFrom = eo.escalatedFrom
     if (eo.revise) ep.revises = eo.revise.episode.id
-    const replaces = eo.revise?.episode.rules ?? []
+    const replaces = eo.revise?.episode.rules ?? (req.again ? [req.again.rule] : [])
 
     // recall
     const lib = library.workspace(ws, replaces)
@@ -559,7 +563,7 @@ export class Modder {
     const added = { types: lib.types.filter((t) => !(t.id in library.ontology.types)), statuses: lib.statuses.filter((s) => !(s.id in library.ontology.statuses)) }
     const messages: ChatMessage[] = [
       { role: 'system', content: designSystem(buildModSpec(library.ontology, undefined, { types: !router }), h, router) },
-      { role: 'user', content: designUser(req, recall, h.design.brief ? briefOf(req, lib, ctx.ontology, !router) : undefined, added, !router) + (eo.revise ? `\n\n${revisionUser(eo.revise.episode.patch!, eo.revise.notes)}` : '') + (workloadNote(wl) ? `\n\n${workloadNote(wl)}` : '') },
+      { role: 'user', content: designUser(req, recall, h.design.brief ? briefOf(req, lib, ctx.ontology, !router) : undefined, added, !router) + (eo.revise ? `\n\n${revisionUser(eo.revise.episode.patch!, eo.revise.notes)}` : '') + (req.again ? `\n\n${againUser(req.again)}` : '') + (workloadNote(wl) ? `\n\n${workloadNote(wl)}` : '') },
     ]
 
     let repairs = 0
@@ -567,6 +571,7 @@ export class Modder {
     let reviewLater = false
     let phase: Attempt['phase'] = 'design'
     let lastRaw = '' // the last answer, kept for an attempt the program failed on before it was recorded
+    let sentBack = false // a use that changed nothing is sent back once; then it is kept as words
     const retry = (content: string, next: Attempt['phase']) => {
       messages.push({ role: 'user', content })
       phase = next
@@ -577,6 +582,7 @@ export class Modder {
         lastRaw = answer
         let bracketsRepaired = false
         const parsed = parseJson(answer, () => (bracketsRepaired = true))
+        const stated = statedAffordance(parsed)
         const ask = router ? routeOf(parsed) : undefined
         // what the setting does not carry (quality.ts): the catalogue at low, making new kinds when it is off
         // (and with the router off, an ablation: the request's own things only)
@@ -706,6 +712,23 @@ export class Modder {
           if (repairs++ >= h.repair.maxRounds) break
           retry(repairUser(res.errors, res.warnings), 'repair')
           continue
+        }
+        // what the thing affords (design.md §5.17): a use must change the scene that asked; sent back once, then words
+        {
+          const j = judge(patch, req, stated, lib, ctx.ontology)
+          if (j.mismatch && !sentBack) {
+            sentBack = true
+            attempt.errors = [j.mismatch]
+            if (repairs++ >= h.repair.maxRounds) break
+            retry(`${j.mismatch}\n\nAnswer with the complete JSON object again, same format.`, 'repair')
+            continue
+          }
+          const kept = j.mismatch ? judge(patch, req, stated, lib, ctx.ontology, 'words') : j
+          if (j.mismatch) kept.fixes.push('a use that changed nothing in the scene, twice: kept as words (provisional)')
+          patch = kept.patch
+          attempt.patch = patch
+          ep.affords = kept.affords
+          if (kept.fixes.length) attempt.fixes = [...(attempt.fixes ?? []), ...kept.fixes]
         }
         // the auditor, before shipping: what it breaks in the sandbox goes back to the designer
         if (auditOf(h).enabled && auditOf(h).blocking && !narratesOnly(patch, req)) {
@@ -1126,7 +1149,7 @@ function flagsOf(patch: Patch, derived?: string[]): string[] {
   for (const a of patch.artifacts)
     if (a.kind === 'rule' && changesNothing(a.rule)) {
       quiet.add(a.rule.id)
-      flags.push(`"${a.rule.id}" changes nothing in the world (it only narrates). Revise unless doing nothing is clearly the most plausible and interesting outcome — and then its class must be narrow.`)
+      flags.push(`"${a.rule.id}" changes nothing in the world (it only narrates; judged ${a.rule.affords ?? 'unsaid'}: no use for this act). Check that judgment: revise if the thing has a common use a player would expect here, keep it if it has none.`)
     }
   for (const d of derived ?? [])
     if (UNTESTED.test(d) && ![...quiet].some((id) => d.startsWith(`${id}:`))) flags.push(`the harness could not test what it does (${d}): look at the whole outcome`)

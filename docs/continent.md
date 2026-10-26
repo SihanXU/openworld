@@ -218,7 +218,9 @@ tanner, herder, fletcher, veteran; the Vale's reaper, weigher, baker, gleaner; t
 gravedigger, candlemaker; the Heights' stonemason, shepherd, acolyte, copyist; the Holy City's chandler, scribe,
 pilgrim-host, glazier); a smithy's forge, anvil and rack; a shop's shelves and counter; a chapel's altar, candles and
 benches; an inn's beds, counter and tables; a tent's bedroll, crate and lantern; a barracks' row of beds and racks; a
-cell's bed, books and candle. Nothing is put in the way in from the door. The containers are empty (phase D fills them).
+cell's bed, books and candle. Nothing is put in the way in from the door, nor where it would wall off a corner of the
+floor or another thing from the door (`MapBuilder.waysOpen`, asked before each piece stands; 2026-10-25). The containers
+are empty (phase D fills them).
 
 **Templates.** A settlement is laid out with a `Layout`: its first buildings on the main street (`civic`: a town's
 store, smithy and inn or teahouse; a village's smithy or shop now and then) and ground kept clear for its theme

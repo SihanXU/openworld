@@ -12,6 +12,7 @@
 import type { Engine, MapChunk } from './engine.ts'
 import type { ChunkState, Entity, Id, Selector, WorldState } from './types.ts'
 import { matchSelector } from './rules.ts'
+import { regionId } from './world.ts'
 
 type Json = Record<string, unknown>
 
@@ -294,6 +295,24 @@ export class Chunks {
     return { out, changed, things }
   }
 
+  /**
+   * A map's named areas as its file has them (`MapData.regions`, `regionProps`): made again from the file when it comes
+   * back (`Engine.mapArrived`), so they leave with it and only one that changed is kept. A town has dozens (every house's
+   * shell, docs/building.md §10).
+   */
+  private fileRegions(map: string, keeps: (e: Entity) => boolean): Entity[] {
+    const w = this.eng.world
+    const data = w.map(map)
+    const out: Entity[] = []
+    for (const [name, r] of Object.entries(data?.regions ?? {})) {
+      const e = w.state.entities[regionId(map, name)]
+      if (!e || keeps(e)) continue
+      const asFile: Entity = { id: e.id, type: 'region', place: { on: 'area', map, rects: [r] }, ...(data!.regionProps?.[name] && { props: data!.regionProps[name] }) }
+      if (JSON.stringify(e) === JSON.stringify(asFile)) out.push(e)
+    }
+    return out
+  }
+
   /** The maps a save puts away: those kept as what differs from their files, but the player's and one a step waits for. */
   private savable(): string[] {
     const s = this.eng.world.state
@@ -329,7 +348,7 @@ export class Chunks {
     const chunks: Record<string, ChunkState> = { ...s.chunks }
     for (const map of this.savable()) {
       const { out, changed, things } = this.plan(map, keeps)
-      for (const e of out) (delete entities[e.id], relations && delete relations[e.id])
+      for (const e of [...out, ...this.fileRegions(map, keeps)]) (delete entities[e.id], relations && delete relations[e.id])
       chunks[map] = { ...chunks[map], away: true, ...(Object.keys(changed).length && { changed }), ...(things.length && { things }) }
     }
     const here = this.eng.activeMap
@@ -367,7 +386,9 @@ export class Chunks {
     const s = w.state
     const cs = s.chunks?.[map]
     if (!cs || cs.away || map === ROSTER || map === eng.activeMap || map === eng.pendingTransition?.map) return false
-    const { out, changed, things } = this.plan(map, this.keeper())
+    const keeps = this.keeper()
+    const { out, changed, things } = this.plan(map, keeps)
+    for (const e of this.fileRegions(map, keeps)) w.takeOut(e)
     const idx = this.awayIdx
     for (const e of out) {
       w.takeOut(e)

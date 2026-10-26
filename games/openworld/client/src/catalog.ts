@@ -12,6 +12,7 @@
 
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL, type ActorDef, type Catalog, type FxDef, type PrefabDef, type SpriteDef } from '@openworld/runtime/src/assets/types.ts'
 import { SIN_ACTORS, SIN_FX } from '@openworld/runtime/src/assets/bosses.ts'
+import { SLATE, type ReliefPalette } from '@openworld/runtime/src/assets/relief.ts'
 import FACES from './faces.json'
 import BUILDINGS_JSON from './buildings.json'
 import LOUDNESS from './loudness.json'
@@ -204,6 +205,10 @@ const MUS = 'Audio/Musics/'
 /** A piece of the pack's music by its name. */
 const M = (name: string) => `${MUS}${name}.ogg`
 
+/** The Holy City's built ground (docs/showcase.md §3.5): its terraces, quays and walls in the pale warm limestone of its
+ * buildings (tools/src/art/arch/materials.ts `s`), not the hills' slate. */
+const LIMESTONE: ReliefPalette = { ...SLATE, outline: 0x3a3027, deep: 0x5b4e42, dark: 0x83725d, mid: 0xae9c7e, light: 0xd3c3a2, lit: 0xebdfc4 }
+
 export const CATALOG: Catalog = {
   // -------------------------------------------------------------------------------------------
   // Blobs. Every block below was checked two ways: (1) rendering a random island through
@@ -330,6 +335,11 @@ export const CATALOG: Catalog = {
     woodwall: [[HOUSE, 11, 5], [HOUSE, 12, 5]],
     // a wooden wall burnt black (the pack has none: the wall, darkened by its tint in ground.ts)
     burnt_wall: [[HOUSE, 11, 5], [HOUSE, 12, 5]],
+    // the walls of tents, huts and igloos, drawn alone (a building draws its own picture over them): a palisade's
+    // and a stone wall's pieces
+    canvaswall: [[HOUSE, 11, 5], [HOUSE, 12, 5]],
+    thatchwall: [[HOUSE, 11, 5], [HOUSE, 12, 5]],
+    snowwall: [[HOUSE, 11, 9], [HOUSE, 12, 9]],
     roof: [[HOUSE, 13, 1], [HOUSE, 14, 1]],
     cave_wall: [[RELIEF, 5, 1], [RELIEF, 9, 1], [RELIEF, 10, 1]],
   },
@@ -411,29 +421,31 @@ export const CATALOG: Catalog = {
   // Prefabs. Grids: '#' solid, '.' drawn & walkable, 'D' door (the tile you walk into), ' ' empty.
   // -------------------------------------------------------------------------------------------
   prefabs: {
+    // What a building's walls are made of is its solid cells' terrain (docs/building.md §10): plaster and stone are
+    // 'wall' (the default), timber 'woodwall', a tent's canvas, a hut's thatch, an igloo's snow their own.
     // Four 4x3 cottages (roof rows 0-1, wall row 2, door = the dark arch at column 1).
     house_orange: pf(HOUSE, 0, 0, ['####', '####', '#D##']),
     house_plaster: pf(HOUSE, 4, 0, ['####', '####', '#D##']),
     house_thatch: pf(HOUSE, 8, 0, ['####', '####', '#D##']),
     house_red: pf(HOUSE, 12, 0, ['####', '####', '#D##']),
     // Wooden house seen corner-on, door centre.
-    house_wood: pf(HOUSE, 26, 0, ['###', '###', '#D#']),
+    house_wood: pf(HOUSE, 26, 0, ['###', '###', '#D#'], 'woodwall'),
     // Front-gabled wooden cabin (3x3), door centre.
-    cabin: pf(HOUSE, 19, 19, ['###', '###', '#D#']),
+    cabin: pf(HOUSE, 19, 19, ['###', '###', '#D#'], 'woodwall'),
     // Shop with a hanging sign on the roof; door centre.
-    shop: pf(HOUSE, 16, 0, ['###', '###', '#D#']),
+    shop: pf(HOUSE, 16, 0, ['###', '###', '#D#'], 'woodwall'),
     // General store: tall right wing (sign, round window) + low left wing with the door.
-    store: pf(HOUSE, 29, 0, ['  ##', '####', '####', '#D##']),
+    store: pf(HOUSE, 29, 0, ['  ##', '####', '####', '#D##'], 'woodwall'),
     // Tea house with lanterns (4x3): lattice door at col 1 is closed; the open doorway is col 2.
-    teahouse: pf(HOUSE, 19, 0, ['####', '####', '##D#']),
+    teahouse: pf(HOUSE, 19, 0, ['####', '####', '##D#'], 'woodwall'),
     // Inn: big two-storey A-frame (4x5), door at col 1 of the bottom row.
-    inn: pf(HOUSE, 25, 14, ['####', '####', '####', '####', '#D##']),
+    inn: pf(HOUSE, 25, 14, ['####', '####', '####', '####', '#D##'], 'woodwall'),
     // Thatched longhouse: thatch roof piece (rows 7-11) stacked on the ground-floor piece (12-13).
-    longhouse: pf(HOUSE, 25, 7, [' ## ', '####', '####', '####', '####', '####', '#D##']),
+    longhouse: pf(HOUSE, 25, 7, [' ## ', '####', '####', '####', '####', '####', '#D##'], 'woodwall'),
     // Smithy: orange canvas forge hut, door centre.
-    smithy: pf(HOUSE, 0, 7, ['###', '###', '#D#']),
+    smithy: pf(HOUSE, 0, 7, ['###', '###', '#D#'], 'canvaswall'),
     // Straw hut (3 wide x 2 tall), door centre.
-    hut_straw: pf(HOUSE, 3, 8, ['###', '#D#']),
+    hut_straw: pf(HOUSE, 3, 8, ['###', '#D#'], 'thatchwall'),
     // Stone temple with sun emblem, door centre.
     temple: pf(HOUSE, 23, 0, ['###', '###', '#D#']),
     // Shrine: seated statue holding a glowing orb (2x2, not enterable).
@@ -443,14 +455,14 @@ export const CATALOG: Catalog = {
     statue_frog: pf(HOUSE, 3, 17, ['##', '##']),
     // Pottery kiln / furnace building (3x4, the opening is a fire mouth, not a door).
     kiln: pf(HOUSE, 29, 4, ['###', '###', '###', '###']),
-    igloo: pf(HOUSE, 0, 11, ['###', '###', '#D#']),
+    igloo: pf(HOUSE, 0, 11, ['###', '###', '#D#'], 'snowwall'),
     // Narrower igloo drawn off-centre in its 3 tiles (x 7..41 of 48); door in the middle column.
-    igloo_small: pf(HOUSE, 3, 11, ['###', '###', '#D#']),
-    igloo_brick: pf(HOUSE, 6, 11, ['###', '###', '#D#']),
+    igloo_small: pf(HOUSE, 3, 11, ['###', '###', '#D#'], 'snowwall'),
+    igloo_brick: pf(HOUSE, 6, 11, ['###', '###', '#D#'], 'snowwall'),
     // Camp tents (tileset_camp): plain, patched, torn. Door = the dark opening, centre.
-    tent: pf(CAMP, 4, 0, ['###', '###', '#D#']),
-    tent_patched: pf(CAMP, 7, 0, ['###', '###', '#D#']),
-    tent_torn: pf(CAMP, 10, 0, ['###', '###', '#D#']),
+    tent: pf(CAMP, 4, 0, ['###', '###', '#D#'], 'canvaswall'),
+    tent_patched: pf(CAMP, 7, 0, ['###', '###', '#D#'], 'canvaswall'),
+    tent_torn: pf(CAMP, 10, 0, ['###', '###', '#D#'], 'canvaswall'),
     // A wooden watchtower on legs, its ladder in front (3x5), and a round log tower (3x6): a fort's towers.
     watchtower: pf(HOUSE, 16, 6, ['###', '###', '###', '###', '###'], 'woodwall'),
     tower_round: pf(HOUSE, 19, 3, ['###', '###', '###', '###', '###', '###'], 'woodwall'),
@@ -528,12 +540,9 @@ export const CATALOG: Catalog = {
     moss: { img: WALLS, col: 5, row: 6, size: 5 },
   },
 
-  // the edges of high ground: the relief sheet's rims and faces with its plateau's white top cleared
-  // (tools/src/art/terrace.ts), laid over the ground of any map with heights
-  terrace: { img: 'lsw/Relief/Terrace.png' },
-  // high ground whose top is built (tools/src/art/rampart.ts): a curtain wall's masonry under its walk, a quay's under a
-  // street
-  terraces: { rampart: { img: 'lsw/Relief/Rampart.png' }, cobble: { img: 'lsw/Relief/Quay.png' }, paving: { img: 'lsw/Relief/Quay.png' }, flags: { img: 'lsw/Relief/Quay.png' }, plaza: { img: 'lsw/Relief/Quay.png' }, marble: { img: 'lsw/Relief/Steps.png' } },
+  // the rock of the relief (runtime assets/relief.ts): the Frostfang Coast's slate wherever ground rises
+  // the Holy City's: its terraces, quays and the North Gate's walls are built of its limestone
+  relief: { '*': SLATE, holy: LIMESTONE },
 
   // -------------------------------------------------------------------------------------------
   // Fixtures. base = normal state; open / lit only where the pack draws that state.
@@ -1037,6 +1046,9 @@ export const CATALOG: Catalog = {
     // Heart receptacle: 5 frames of 16x16, frame 0 empty -> frame 4 full.
     heart: ui('Ui/Receptacle/Heart.png', 16, 16, { frames: 5, step: 16 }),
     iconHeart: ui('Ui/Receptacle/IconHeart.png', 14, 12),
+    // a wall breaking (tools/src/art/damage.ts): its cracks a third, two thirds and nearly all gone, then the shade a
+    // hole leaves under the eave still over it — laid over a building's pieces and built walls (render/pieces.ts)
+    wallDamage: ui('lsw/Structures/damage.png', 16, 16, { frames: 4 }),
     // the hunger bar's drumstick (hud.ts)
     drumstick: ui('Items/Food/Meat.png', 15, 15),
     // the corner buttons (hud.ts): quests, build, bag, skills

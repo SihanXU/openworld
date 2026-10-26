@@ -306,6 +306,8 @@ export const STRINGS: Record<string, [string, string]> = {
   done: ['Done', '已完成'],
   lmb: ['L-click', '左键'],
   rmb: ['R-click', '右键'],
+  // the tip after an act that is asked first (a blow on someone friendly, a theft, an experiment on oneself)
+  asksFirst: [' (asks first)', '（需确认）'],
   chooseTarget: ['on which?', '对哪一个？'],
   useOn: ['Use {held} on it', '用{held}作用于它'],
   putIn: ['Put {held} into / onto it', '把{held}放进 / 放到它上'],
@@ -450,7 +452,7 @@ export function controlsTable(dev: boolean): string {
     [zh ? '选项 → 按键' : 'Options → Keys', 'change any of these keys (the mouse buttons stay)', '改任何一个键（鼠标左右键不能改）'],
   ]
   if (dev) rows.push(['`', 'Mod Console (dev)', '模组控制台（开发）'])
-  return `<table>${rows.filter(([k]) => k).map(([k, en, z]) => `<tr><td><kbd>${esc(k)}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`
+  return `<table>${rows.filter(([k]) => k).map(([k, en, z]) => `<tr><td>${k.split(' · ').map((x) => `<kbd>${esc(x)}</kbd>`).join(' ')}</td><td>${zh ? z : en}</td></tr>`).join('')}</table>`
 }
 
 /**

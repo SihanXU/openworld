@@ -55,6 +55,10 @@ export const TERRAIN_CHARS: Record<string, string> = {
   a: 'ash',
   t: 'charred_tree',
   K: 'burnt_wall',
+  // the walls of the buildings not of stone or wood (a tent's canvas, a hut's thatch, an igloo's snow blocks)
+  Y: 'canvaswall',
+  Z: 'thatchwall',
+  S: 'snowwall',
   // the overworld's ground (world-model.md §5.1)
   '0': 'ow_sea',
   '1': 'ow_plain',
@@ -198,9 +202,17 @@ export const TERRAINS: TerrainDef[] = [
   T('pine', '松树', 'pine tree', ['plant', 'tree', 'flammable', 'wooden', 'cold'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/log', count: 4 }, { type: 'item/material/stick', count: 2 }], color: '#23553a' }),
   T('bush', '灌木', 'bush', ['plant', 'flammable'], { space: 'volume', solid: true, props: { material: 'plant', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 2 }], color: '#4f8f3a' }),
   T('rock', '岩石', 'rock', ['rock', 'stone', 'mineable'], { space: 'volume', solid: true, props: { material: 'stone', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/stone', count: 2 }], color: '#7d7a74' }),
-  T('wall', '石墙', 'stone wall', ['stone', 'wall'], { space: 'volume', solid: true, props: { material: 'stone', maxHp: 24, hp: 24, supports: 2 }, makeup: [{ type: 'item/material/stone', count: 4 }], color: '#6b6e75' }),
-  T('woodwall', '木墙', 'wooden wall', ['wooden', 'wall', 'flammable'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 12, hp: 12, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], color: '#8a5a33' }),
-  T('burnt_wall', '焦黑的木墙', 'burnt wall', ['wall', 'burnt'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/coal', count: 2 }], color: '#3a2e28' }),
+  // the walls the maps are built of (houses, chapels, keeps, ruins, fences: docs/building.md §10) are `enduring`: hit,
+  // they show it, crack by crack, but never give way (wall/endure) — the way into a house is its door. What one builds
+  // (structure/wall) is not: it is taken down as it was put up.
+  T('wall', '石墙', 'stone wall', ['stone', 'wall', 'enduring'], { space: 'volume', solid: true, props: { material: 'stone', maxHp: 24, hp: 24, supports: 2 }, makeup: [{ type: 'item/material/stone', count: 4 }], color: '#6b6e75' }),
+  T('woodwall', '木墙', 'wooden wall', ['wooden', 'wall', 'flammable', 'enduring'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 12, hp: 12, supports: 2 }, makeup: [{ type: 'item/material/plank', count: 2 }], color: '#8a5a33' }),
+  T('burnt_wall', '焦黑的木墙', 'burnt wall', ['wall', 'burnt', 'enduring'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/coal', count: 2 }], color: '#3a2e28' }),
+  // a building is made of what its walls are (docs/building.md §10): a tent's canvas gives to a blade, a hut's thatch to
+  // an axe or a sickle, an igloo's packed snow to a pick; what each is made of is what it would break into
+  T('canvaswall', '帆布墙', 'canvas wall', ['cloth', 'wall', 'flammable', 'enduring'], { space: 'volume', solid: true, props: { material: 'cloth', maxHp: 6, hp: 6, supports: 1 }, makeup: [{ type: 'item/material/cloth', count: 2 }, { type: 'item/material/stick', count: 1 }], color: '#c9a46a' }),
+  T('thatchwall', '草泥墙', 'thatch wall', ['plant', 'wall', 'flammable', 'enduring'], { space: 'volume', solid: true, props: { material: 'plant', maxHp: 6, hp: 6, supports: 1 }, makeup: [{ type: 'item/material/grass', count: 3 }, { type: 'item/material/stick', count: 2 }], color: '#b59a55' }),
+  T('snowwall', '雪砖墙', 'snow-block wall', ['cold', 'wall', 'enduring'], { space: 'volume', solid: true, props: { material: 'ice', maxHp: 10, hp: 10, supports: 2 }, makeup: [{ type: 'item/misc/snowball', count: 3 }], color: '#e8f0f4' }),
   T('roof', '屋顶', 'roof', ['roof'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 1 }], color: '#a8432f' }),
   T('floor_wood', '木地板', 'wooden floor', ['floor', 'wooden', 'flammable', 'indoor'], { color: '#9c7a4c' }),
   T('floor_stone', '石地板', 'stone floor', ['floor', 'stone', 'indoor'], { color: '#8d8f94' }),
@@ -282,13 +294,18 @@ export const STATUSES: StatusDef[] = [
   // a mechanism that needs mending (the ferry winch whose rope snapped)
   { id: 'broken', name: { en: 'broken', zh: '坏了' } },
   // at no health the essential (people, the player) collapse for a while instead of dying
-  { id: 'down', name: { en: 'down', zh: '倒地' }, duration: 300, immobilize: true },
+  { id: 'down', name: { en: 'down', zh: '倒地' }, duration: 300, immobilize: true, pose: 'lie' },
   // a quest's deadline (docs/quests.md): when it runs out, an offer is withdrawn and a quest under way fails
   { id: 'due', name: { en: 'due', zh: '期限' } },
   // out cold (a new game's first moments): lying still a while, then one comes round
-  { id: 'out_cold', name: { en: 'out cold', zh: '昏迷' }, duration: 50, immobilize: true },
+  { id: 'out_cold', name: { en: 'out cold', zh: '昏迷' }, duration: 50, immobilize: true, pose: 'lie' },
   // asleep in a bed: lying still while the night passes, hungry four times slower (the hunger period's paceBy)
-  { id: 'asleep', name: { en: 'asleep', zh: '睡着' }, immobilize: true },
+  { id: 'asleep', name: { en: 'asleep', zh: '睡着' }, immobilize: true, pose: 'lie' },
+  // the postures a thing's use asks of who uses it (a chair, hay, an altar, a wall: the settle impulse): each ends as one moves on
+  { id: 'seated', name: { en: 'seated', zh: '坐着' }, pose: 'sit', untilMove: true },
+  { id: 'lying', name: { en: 'lying down', zh: '躺着' }, pose: 'lie', untilMove: true },
+  { id: 'kneeling', name: { en: 'kneeling', zh: '跪着' }, pose: 'kneel', untilMove: true },
+  { id: 'leaning', name: { en: 'leaning', zh: '倚着' }, pose: 'lean', untilMove: true },
   // under six tenths of a full food bar: hunger falls slowly now (a body goes days without food)
   { id: 'hungry', name: { en: 'hungry', zh: '饿了' } },
   // a wound that bleeds 1 a second (Hemorrhage), and the rush of Adrenaline (the skills)

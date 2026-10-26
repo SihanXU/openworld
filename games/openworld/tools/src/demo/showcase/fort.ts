@@ -3,7 +3,7 @@
 // the moat on the drawbridge, and passes under the great gatehouse's portcullis into the outer ward: the barracks, the
 // smithy, the armoury, the stables, the yard where the garrison drills. The inner curtain stands higher; through its gate
 // tower, the inner ward — the keep on its forebuilding's stair, the chapel, the well. The walls' walks are raised ground
-// one climbs to by stairs (the masonry under them is their face, tools/src/art/rampart.ts), crenellated on their outer
+// one climbs to by stairs (the relief's limestone is their face, client catalog `relief.holy`), crenellated on their outer
 // edge, and the watch walks them by day and by night. Within the keep: the great hall, and over it the castellan's floor.
 
 import type { Place } from '../continent/generate.ts'

@@ -6,7 +6,8 @@ crime loop, M2 relations and talk, M3 the AI and the crowd), on our principles: 
 player"** (anyone can steal, witness, report, be wanted), **relations are per pair and come from what each saw**
 (world-model.md §6.10), and **everything is events and rules** (design.md §5.4–5.15). Decisions taken:
 villagers can die, those the story needs only go down; a per-pair *regard* replaces the cut hearts (shown only by
-how people act, and a word in the talk panel); a drawn-weapon stance makes a blow on a person deliberate; talk is
+how people act, and a word in the talk panel); a drawn-weapon stance makes a blow on a person deliberate (sheathed, a blow, a use or a gift on someone friendly
+is asked first, design.md §5.2); talk is
 a panel of fixed verbs (free text later, through the same request).
 
 Built 2026-10-09 (all three milestones). The numbers below are the content's (`content/src/social.ts`); §4 lists

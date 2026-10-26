@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary } from '@openworld/engine'
-import { BASE_RULES, HAVEN_LAYOUT, OVERWORLD_LAYOUT, SITE_GATES, migrateHaven, migrateHavenHeart, STORY_RULES, WILD_GROUNDS, buildOntology, decodeChunk, migrateOverworld, wildChunk } from '@openworld-game/content'
+import { BASE_RULES, CH1, PART_TWO, VALLEY, HAVEN_LAYOUT, OVERWORLD_LAYOUT, SITE_GATES, migrateHaven, migrateHavenHeart, STORY_RULES, WILD_GROUNDS, buildOntology, decodeChunk, migrateOverworld, wildChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { UNDER_BARROW } from '../src/demo/hollow.ts'
@@ -144,8 +144,68 @@ describe('the overworld (world-model.md §5.1, §10.2)', () => {
       return w.posOf(w.player)!.map
     }
     for (const e of sealed) expect([e.id, enter(e)]).toEqual([e.id, OVERWORLD])
+    // nor is it walked onto or across: from an open cell beside it, a step into it is a bump, and the line says why in
+    // its gate's words; and no one else walks it either (it is not passable)
+    const DIRS = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] } as const
+    let bumped = 0
+    for (const e of sealed) {
+      const { x, y } = e.place as { x: number; y: number }
+      expect([e.id, w.passable(OVERWORLD, x, y)]).toEqual([e.id, false])
+      const side = (Object.entries(DIRS) as [keyof typeof DIRS, readonly [number, number]][]).find(([, d]) => w.passable(OVERWORLD, x - d[0], y - d[1]))
+      if (!side) continue
+      const [dir, d] = side
+      g.engine.author(() => w.place(w.player, { on: 'tile', map: OVERWORLD, x: x - d[0], y: y - d[1] }))
+      g.engine.setCooldown(w.player.id, 0)
+      w.fx = []
+      g.engine.movePlayer(dir)
+      for (let i = 0; i < 3; i++) g.engine.tick()
+      expect([e.id, w.posOf(w.player)]).toEqual([e.id, { map: OVERWORLD, x: x - d[0], y: y - d[1] }])
+      const said = SITE_GATES.find((s) => s.fact === e.props!.opensWhen)!.say.en
+      expect([e.id, w.fx.some((x) => x.t === 'log' && (x.text as { en: string }).en === said)]).toEqual([e.id, true])
+      bumped++
+    }
+    expect(bumped).toBeGreaterThan(0)
     g.engine.author(() => { for (const f of gates) w.setFact(f, 1) })
+    expect(w.passable(OVERWORLD, (sealed[0].place as { x: number }).x, (sealed[0].place as { y: number }).y)).toBe(true)
     expect(enter(sealed[0])).toBe(sealed[0].props!.map)
+  })
+
+  it('sealing a place closes only its own cell: what is open on the world map stays joined — the valley and its places, each part of the tale, every open cell reached as it was with the seals lifted', () => {
+    const g = game()
+    const w = g.engine.world
+    const reach = (x: number, y: number, open: (x: number, y: number) => boolean) => {
+      const seen = new Set([`${x},${y}`])
+      const queue: [number, number][] = [[x, y]]
+      while (queue.length) {
+        const [cx, cy] = queue.pop()!
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const k = `${cx + dx},${cy + dy}`
+          if (seen.has(k) || !w.inBounds(OVERWORLD, cx + dx, cy + dy) || !open(cx + dx, cy + dy)) continue
+          seen.add(k)
+          queue.push([cx + dx, cy + dy])
+        }
+      }
+      return seen
+    }
+    const sites = Object.values(w.state.entities).filter((e) => e.type.startsWith('site') && e.place.on === 'tile' && e.place.map === OVERWORLD)
+    const cellOf = (e: (typeof sites)[number]) => `${(e.place as { x: number }).x},${(e.place as { y: number }).y}`
+    // the ground as if nothing were sealed: a cell is open if its ground is, whatever stands for a place there
+    const ground = (x: number, y: number) => !w.blocked(OVERWORLD, x, y) || w.entitiesAt(OVERWORLD, x, y).some((e) => w.sealed(e))
+    const meadow = w.get('site.meadow')!.place as { x: number; y: number }
+    // each stage of the tale: Part One (nothing opened), past the knight, Part Two
+    for (const opened of [[], [CH1.knight], [CH1.knight, PART_TWO]]) {
+      g.engine.author(() => { for (const f of opened) w.setFact(f, 1) })
+      const now = reach(meadow.x, meadow.y, (x, y) => w.passable(OVERWORLD, x, y))
+      const sealedCells = new Set(sites.filter((e) => w.sealed(e)).map(cellOf))
+      const lifted = [...reach(meadow.x, meadow.y, ground)].filter((k) => !sealedCells.has(k))
+      expect([opened, lifted.filter((k) => !now.has(k))]).toEqual([opened, []])
+      // Part One's valley: its ten wild places and the hand-made places of the west bank, every one reached
+      if (!opened.length) {
+        const west = ['meadow', 'pasture', 'forest', 'hollow', 'charcoal', 'barrow', 'mill', 'dawnhill', 'foot', 'hillmine']
+        const want = [...Object.keys(VALLEY), ...west.map((id) => cellOf(w.get(`site.${id}`)!))]
+        expect(want.filter((k) => !now.has(k))).toEqual([])
+      }
+    }
   })
 
   it('an older save\'s widening errands (the Held Ground widened by Alberic\'s quests) go; how far the ground goes stays', () => {

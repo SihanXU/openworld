@@ -1,6 +1,6 @@
 // Explicit, saved residence work orders. Physical items stay real entities; the order stores only their ids.
 
-import { astar, hoursAt, itemInfo, matchSelector, slotsOf, stackKey, type Engine, type Entity, type GameEvent, type Id, type Pos, type Ref, type ResidentWorkOrder, type ResidenceWorkDef, type Roles, type Scene, type Text, type View, type World } from '@openworld/engine'
+import { astar, wayTo, hoursAt, itemInfo, matchSelector, slotsOf, stackKey, type Engine, type Entity, type GameEvent, type Id, type Pos, type Ref, type ResidentWorkOrder, type ResidenceWorkDef, type Roles, type Scene, type Text, type View, type World } from '@openworld/engine'
 import type { EffectRunner } from '@openworld/engine'
 import { socialOf } from './state.ts'
 
@@ -747,13 +747,13 @@ function routeAdjacent(eng: Engine, e: Entity, target: Pos, targetId: string): b
   if (route?.key !== key) route = undefined
   if (route?.path?.length) {
     const [nx, ny] = route.path[0]
-    if (Math.abs(nx - at.x) + Math.abs(ny - at.y) !== 1) {
+    const dir = wayTo(at.x, at.y, nx, ny)
+    if (!dir) {
       route.path = undefined
       route.retryAt = w.state.tick
       rt.routes.set(e.id, route)
       return routeAdjacent(eng, e, target, targetId)
     }
-    const dir = nx > at.x ? 'right' : nx < at.x ? 'left' : ny > at.y ? 'down' : 'up'
     if (eng.step(e, dir)) {
       setReason(eng, e)
       route.path.shift()
