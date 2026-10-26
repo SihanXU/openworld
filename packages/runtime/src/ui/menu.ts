@@ -394,11 +394,13 @@ export class Menu {
   }
 
   open(tab?: Tab): void {
-    this.send.cancelCraft()
-    this.contextPopup.close()
     // (a panel opened, or another in its sheet, starts at its top: the sheet is shared and keeps its scroll)
     const fresh = !this.menuOpen || (!!tab && tab !== this.tab)
     if (fresh) this.close()
+    else {
+      this.send.cancelCraft()
+      this.contextPopup.close()
+    }
     if (tab) this.tab = tab
     $('#journal').classList.add('hidden')
     $('#skills').classList.add('hidden')
