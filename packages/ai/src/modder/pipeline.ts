@@ -101,25 +101,28 @@ interface EpisodeOptions {
 
 const TOOL_OUTPUT_CAP = 12_000
 
-/** Turns to do one kind of work, a few at a time; the lower priority goes first (live before offline). */
-class Gate {
+/**
+ * Turns to do one kind of work, a few at a time; the lower priority goes first (live before offline). A turn that
+ * ends hands itself to the first waiting, so no newcomer slips in between the end and the waiter's waking.
+ */
+export class Gate {
   private running = 0
   private queue: { priority: number; go: () => void }[] = []
   constructor(private limit: () => number) {}
   async acquire(priority: number): Promise<() => void> {
-    if (this.running >= this.limit()) {
+    if (this.running >= this.limit())
       await new Promise<void>((go) => {
         this.queue.push({ priority, go })
         this.queue.sort((a, b) => a.priority - b.priority)
       })
-    }
-    this.running++
+    else this.running++
     let done = false
     return () => {
       if (done) return
       done = true
-      this.running--
-      this.queue.shift()?.go()
+      const next = this.queue.shift()
+      if (next) next.go()
+      else this.running--
     }
   }
 }
@@ -917,6 +920,11 @@ export class Modder {
       } else if (run.submitted && patch && !problems.length && !unaudited) this.commit(ep, { ...patch, author: 'modder' }, req, replaces)
       else if (problems.length) ep.attempts.push({ phase: 'repair', errors: problems, warnings: [] })
       if (ep.outcome !== 'accepted') ep.outcome = 'failed'
+      // a trial run (a dry modder's) keeps nothing: no episode, no skill's use, no reflection, as work() does
+      if (this.opts.dry) {
+        this.trials.set(req.id, ep)
+        return { patch: ep.outcome === 'accepted' ? (ep.patch ?? null) : null, outcome: ep.outcome, episode: ep.id }
+      }
       state.recordEpisode(ep)
       state.noteSkillUse(ep.skillsRead, ep.outcome, ep.id)
       this.log(`${ep.id} ${eo.profile} repo${eo.revise ? ' revision' : eo.escalatedFrom ? ' escalation' : ''} ${ep.outcome} in ${ep.usage.calls} steps, ${ep.ms} ms: ${req.summary}${ep.rules.length ? ` → ${ep.rules.join(', ')}` : ''}${ep.error ? ` (${ep.error})` : ''}`)
