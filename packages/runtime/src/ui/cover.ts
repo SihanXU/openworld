@@ -19,11 +19,8 @@ const companionSheet = (c: string | boolean) => `${assetsBase()}${typeof c === '
 
 /** Where the place behind the title stands on the screen: right of the menu, a little below the middle. */
 const SCENE_AT: [number, number] = [0.64, 0.52]
-/**
- * How long one place shows before the next (through black): the world's clock runs there (a game hour a minute), so
- * the hour the place was chosen at would soon pass — its people gone to bed — were it kept.
- */
-const SCENE_MS = 90_000
+/** How long one place shows before the next (through black): a glance each, the places in turn. */
+const SCENE_MS = 10_000
 /** The veil's fall before the next place (as long as its CSS transition). */
 const VEIL_MS = 1600
 
@@ -40,8 +37,8 @@ export interface CoverHandlers {
   start(slot: Slot, data: SlotData | undefined, game?: NewGame): void
   /** The tutorial, on its own: no slot is written, and walking out of it ends it (back to the title). */
   tutorial(): void
-  /** The world behind the title: at this place, the traveller (the latest save's look) standing there. */
-  backdrop(scene: CoverScene, at: [number, number], look?: Look): void
+  /** The world behind the title: at this place (its people, never the traveller). */
+  backdrop(scene: CoverScene, at: [number, number]): void
   toggleLocale(): void
   toggleSound(): void
   muted(): boolean
@@ -149,17 +146,14 @@ export class Cover {
     return best
   }
 
-  /** One of the game's places behind the title (the `n`th), the latest save's traveller standing in it. */
+  /** One of the game's places behind the title (the `n`th). */
   private backdrop(n: number): void {
     const scene = game().cover?.scenes?.[n]
     if (!scene) return
     clearTimeout(this.next)
     this.scene = n
     this.drawn = false
-    const latest = this.latest()
-    const save = latest ? this.slots[latest - 1]!.save : undefined
-    const look = save?.state?.entities?.[save.state.player]?.look
-    this.on.backdrop(scene, SCENE_AT, typeof look === 'object' ? look : undefined)
+    this.on.backdrop(scene, SCENE_AT)
   }
 
   private items(): Item[] {

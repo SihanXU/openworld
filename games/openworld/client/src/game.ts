@@ -86,12 +86,16 @@ export const CLIENT_GAME: ClientGame = {
   cover: {
     title: 'OpenWorld',
     tutorial: true,
-    // the world behind the title, a place after another: Firstlight's square by its fire after dark, the Reed Bend's
-    // jetty and fish fire at sundown, Millbrook's wheel in the early morning
+    // the world behind the title, the Holy City's six showcase places one after another (docs/showcase.md), each from
+    // where its own vista looks and at an hour that suits it: the abbey's front at dusk, the North Gate at dawn, the Bell
+    // Ward's hall in the morning, the Market at its busiest, the Lamp Ward by its lamps, the Lower Town's quays at evening
     scenes: [
-      { map: 'meadow', x: 21.5, y: 17.5, hour: 20.5, stand: [23, 18] },
-      { map: 'reedbend', x: 21, y: 14, hour: 18.4, stand: [23, 17] },
-      { map: 'mill', x: 15, y: 13, hour: 7.2, stand: [21, 14] },
+      { map: 'holy.sunwell-abbey', x: 35, y: 58, hour: 18.6, stand: [36, 82], zoom: 0.55 },
+      { map: 'holy.quarter-1', x: 31, y: 62, hour: 7, stand: [32, 82], zoom: 0.65 },
+      { map: 'holy.quarter-2', x: 30, y: 30, hour: 10.5, stand: [27, 53], zoom: 0.6 },
+      { map: 'holy.quarter-3', x: 31, y: 36, hour: 9.5, stand: [32, 49], zoom: 0.65 },
+      { map: 'holy.quarter-4', x: 27, y: 38, hour: 21, stand: [28, 46], zoom: 0.75 },
+      { map: 'holy.quarter-5', x: 37, y: 34, hour: 19, stand: [28, 43], zoom: 0.8 },
     ],
     companion: 'lsw/Companion/Fairy/SpriteSheet.png',
   },

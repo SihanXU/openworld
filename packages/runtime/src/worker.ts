@@ -641,6 +641,8 @@ function loop(): void {
   // Transfers pause ticks, but their progress frames still need new bag kinds and the hand.
   if (transfers.busy) eng.controls.keep()
   const frame = snapshot(eng, { panel, view })
+  // the world behind the title shows its places and their people: the traveller and the companions are not drawn
+  if (backdropOn) frame.entities = frame.entities.filter((e) => e.id !== w.state.player && !w.companionIds.has(e.id))
   if (panel && !frame.container) panel = undefined // closed by the world (it burned, a rule shut it)
   // the people's panels: closed when the one they are with is gone (dead, away)
   if (eng.modules.some((m) => m.id === 'society')) Object.assign(frame, peopleViews(eng, { talk, trade, pockets, gift }))
@@ -678,7 +680,8 @@ function loop(): void {
 
 /**
  * The world behind the title: the game's world at a place and an hour with no story to take the stage (the trailer's
- * stage does the same), the traveller standing there unharmed, the modder never asked. Its frames are only drawn.
+ * stage does the same), the modder never asked. The traveller stands there unharmed for the world to run round them,
+ * but is not drawn (loop). Its frames are only drawn.
  */
 async function backdrop(m: Extract<ToWorker, { t: 'backdrop' }>): Promise<void> {
   const mine = ++generation
@@ -696,11 +699,7 @@ async function backdrop(m: Extract<ToWorker, { t: 'backdrop' }>): Promise<void> 
   const quiet = { ...index, steps: [], quests: [], invariants: [] }
   const g = Game.create(quiet, ontology(), libraryFrom(m.library, index.protectedFacts), { at: m.at, ...(m.hour !== undefined && { hour: m.hour }) })
   const w = g.engine.world
-  g.engine.author(() => {
-    w.setProp(w.player, 'invulnerable', true)
-    const looks = ontology().looks
-    if (m.look && looks && !lookProblems(m.look, looks).length) w.player.look = structuredClone(m.look)
-  })
+  g.engine.author(() => w.setProp(w.player, 'invulnerable', true))
   g.worldVersion = index.version
   g.keepMaps = KEEP_MAPS
   g.engine.quality = quality
