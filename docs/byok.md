@@ -57,7 +57,7 @@ engine worker ──── ModderLink ──────────────
   game's page. The game's pages load scripts from their own origin only (a Content-Security-Policy says so).
 
 `packages/runtime/test/own-modder.test.ts` holds these; `packages/agent/test/providers.test.ts` what each service
-is sent; `packages/engine/test/boundaries.test.ts` that what a browser runs reaches no Node module.
+is sent; `packages/runtime/test/browser-boundaries.test.ts` that what a browser runs reaches no Node module.
 
 ## 3. The services
 
