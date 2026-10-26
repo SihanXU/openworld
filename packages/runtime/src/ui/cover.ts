@@ -42,8 +42,8 @@ export interface NewGame {
 export interface CoverHandlers {
   /** Start a slot: from its save, or a new game in it (any save there is overwritten). */
   start(slot: Slot, data: SlotData | undefined, game?: NewGame): void
-  /** The tutorial, on its own: no slot is written, and walking out of it ends it (back to the title). */
-  tutorial(): void
+  /** The tutorial, on its own: no slot is written, and walking out of it ends it (back to the title); it starts from the panel's choices like any new game. */
+  tutorial(game?: NewGame): void
   /** The world behind the title: at this place (its people, never the traveller). */
   backdrop(scene: CoverScene, at: [number, number]): void
   toggleLocale(): void
@@ -428,7 +428,7 @@ export class Cover {
       $('#cvSkipModel').onclick = () => (OwnModel.skip(), (this.panel = undefined), this.render())
       return
     }
-    document.querySelector<HTMLButtonElement>('#cvTutorial')?.addEventListener('click', () => (this.busy(), this.on.tutorial()))
+    document.querySelector<HTMLButtonElement>('#cvTutorial')?.addEventListener('click', () => (this.busy(), this.on.tutorial({ difficulty: this.difficulty, look: this.look })))
     const showStep = (step: 'look' | 'journey') => {
       this.newStep = step
       this.render()
