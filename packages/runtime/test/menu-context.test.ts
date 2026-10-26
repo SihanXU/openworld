@@ -187,7 +187,7 @@ describe('inventory context menu lifecycle', () => {
     expect(frame.player.slots[0]?.count).toBe(sourceCount)
   })
 
-  it('right click picks the rounded-up half, while Shift+right click keeps the context menu', () => {
+  it('Shift+right click picks the rounded-up half, while right click keeps the context menu', () => {
     const dom = domHarness()
     vi.stubGlobal('document', dom.document)
     const sheet = dom.document.querySelector('#menuSheet') as FakeElement
@@ -205,13 +205,13 @@ describe('inventory context menu lifecycle', () => {
     })
     ;(menu as unknown as MenuInternals).wireInventory((menu as unknown as { frame: Frame }).frame)
 
-    slot.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: false, clientX: 10, clientY: 20 } as unknown as MouseEvent)
+    slot.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: true, clientX: 10, clientY: 20 } as unknown as MouseEvent)
 
     expect((menu as unknown as MenuInternals).picked).toEqual({ slot: 0, item: 'stone', count: 3, sourceCount: 5 })
     expect((menu as unknown as MenuInternals).carried.style.transform).toBe('translate(-6px, 4px)')
     expect(contextMenu).not.toHaveBeenCalled()
 
-    slot.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: true, clientX: 10, clientY: 20 } as unknown as MouseEvent)
+    slot.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: false, clientX: 10, clientY: 20 } as unknown as MouseEvent)
 
     expect(contextMenu).toHaveBeenCalledOnce()
     expect((menu as unknown as MenuInternals).picked).toBeUndefined()
@@ -245,7 +245,7 @@ describe('inventory context menu lifecycle', () => {
     })
     ;(menu as unknown as MenuInternals).wireInventory((menu as unknown as { frame: Frame }).frame)
 
-    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: false } as unknown as MouseEvent)
+    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: true } as unknown as MouseEvent)
     target.onmousedown?.({ button: 0, preventDefault: vi.fn() } as unknown as MouseEvent)
 
     expect(moveSlot).toHaveBeenCalledWith(1, 0, 1, 'stone', 3, 5)
@@ -276,7 +276,7 @@ describe('inventory context menu lifecycle', () => {
     })
     ;(menu as unknown as MenuInternals).wireInventory((menu as unknown as { frame: Frame }).frame)
 
-    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: false } as unknown as MouseEvent)
+    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: true } as unknown as MouseEvent)
     target.onmousedown?.({ button: 0, preventDefault: vi.fn() } as unknown as MouseEvent)
 
     expect(moveSlot).not.toHaveBeenCalled()
@@ -310,7 +310,7 @@ describe('inventory context menu lifecycle', () => {
     })
     ;(menu as unknown as MenuInternals).wireInventory(initial)
 
-    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: false } as unknown as MouseEvent)
+    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: true } as unknown as MouseEvent)
     target.onmousedown?.({ button: 0, preventDefault: vi.fn() } as unknown as MouseEvent)
     expect(moveSlot).toHaveBeenCalledWith(1, 0, 1, 'sword', 1, 1)
 
@@ -351,7 +351,7 @@ describe('inventory context menu lifecycle', () => {
     const internals = menu as unknown as MenuInternals
     internals.wireInventory(initial)
 
-    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: false } as unknown as MouseEvent)
+    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: true } as unknown as MouseEvent)
     target.onmousedown?.({ button: 0, preventDefault: vi.fn() } as unknown as MouseEvent)
     menu.onFrame({ player: { slots: [...initial.player.slots], worn: {} } } as Frame)
     internals.onMoveSlotResult(99, true)
@@ -384,7 +384,7 @@ describe('inventory context menu lifecycle', () => {
     const internals = menu as unknown as MenuInternals
     internals.wireInventory((menu as unknown as { frame: Frame }).frame)
 
-    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: false } as unknown as MouseEvent)
+    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: true } as unknown as MouseEvent)
     target.onmousedown?.({ button: 0, preventDefault: vi.fn() } as unknown as MouseEvent)
     dom.document.querySelector('#bOrganize')!.click()
 

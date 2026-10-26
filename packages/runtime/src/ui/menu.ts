@@ -799,12 +799,12 @@ export class Menu {
         }
         this.render()
       }
-      // Right click picks a half; Shift+right click keeps the item's use/equip/drop context menu.
+      // Right click keeps the item's use/equip/drop context menu; Shift+right click picks a half.
       el.oncontextmenu = (e) => {
         e.preventDefault()
         const s = slots[i]
         if (!s) return
-        if (!e.shiftKey) {
+        if (e.shiftKey) {
           if (this.picked === undefined) (this.pickSlot(i, true, e), this.render())
           return
         }
