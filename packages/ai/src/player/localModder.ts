@@ -95,7 +95,8 @@ export class LocalModder {
       case 'game':
         try {
           await this.openSelf()
-          this.library = new WorldLibrary(m.ontology, m.rules)
+          // judged with the story's protected facts, as the engine's worker judges what it takes
+          this.library = new WorldLibrary(m.ontology, m.rules, undefined, { protectedFacts: m.protectedFacts })
           this.rebuild()
         } finally {
           this.gameArrived()

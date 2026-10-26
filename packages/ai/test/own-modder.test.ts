@@ -49,7 +49,7 @@ afterEach(() => {
 
 async function host(store = memoryStore()) {
   const h = new LocalModder({ store, post: (m) => posts.push(structuredClone(m)) })
-  await h.handle({ t: 'game', ontology: STDLIB_ONTOLOGY as Ontology, rules: STDLIB_RULES })
+  await h.handle({ t: 'game', ontology: STDLIB_ONTOLOGY as Ontology, rules: STDLIB_RULES, protectedFacts: [] })
   return { h, store }
 }
 const status = (): ModelStatus => (posts.filter((m) => m.t === 'status').at(-1) as { status: ModelStatus }).status
@@ -129,7 +129,7 @@ describe("the player's own modder keeps the key to the service chosen", () => {
     const ch = new MessageChannel()
     ports.push(ch.port1, ch.port2)
     // as the worker's onmessage hands them on: the game, then the engine's port, neither waited for
-    const game = h.handle({ t: 'game', ontology: STDLIB_ONTOLOGY as Ontology, rules: STDLIB_RULES })
+    const game = h.handle({ t: 'game', ontology: STDLIB_ONTOLOGY as Ontology, rules: STDLIB_RULES, protectedFacts: [] })
     const linked = h.handle({ t: 'link', port: ch.port1 })
     // the engine probes once and keeps what it hears: a model, or none (then every hole takes its default)
     expect(await portLink(ch.port2).health()).toEqual({ model: 'a/b' })

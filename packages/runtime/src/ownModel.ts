@@ -3,7 +3,8 @@
 // through here once, from the settings' field to the modder's worker; the page keeps only its hint.
 
 import { ai } from './ai.ts'
-import { game } from './game.ts'
+import { game, worldBase } from './game.ts'
+import type { WorldIndex } from '@openworld/engine'
 import type { FromModder, ModelChoice, ModelStatus, Remember, ToModder } from './modderProtocol.ts'
 
 /** Set while a model is kept in this browser (never the key: only that the modder's worker should start at once). */
@@ -67,7 +68,9 @@ export class OwnModel {
     w.onerror = (e) => console.error('[modder]', e.message)
     this.worker = w
     const g = game()
-    this.post({ t: 'game', ontology: g.ontology(), rules: g.rules })
+    // with the story's protected facts, from the world's index as the engine's worker reads them: the modder commits
+    // only what the engine takes (the modder answers the engine's port once the game is here)
+    void protectedFacts().then((facts) => this.post({ t: 'game', ontology: g.ontology(), rules: g.rules, protectedFacts: facts }))
   }
 
   /** A port to the modder for the engine's worker (each its own). */
@@ -124,6 +127,16 @@ export class OwnModel {
     this.waiting.delete(m.id)
     if (m.error !== undefined) w.reject(new Error(m.error))
     else w.resolve(m.value)
+  }
+}
+
+/** The fact prefixes only the story's own rules may change (the world index's `protectedFacts`). */
+async function protectedFacts(): Promise<string[]> {
+  try {
+    return ((await (await fetch(new URL('index.json', worldBase()))).json()) as WorldIndex).protectedFacts ?? []
+  } catch {
+    // (no index: no world to play either)
+    return []
   }
 }
 
