@@ -50,7 +50,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   a map's things kept as what differs from its file and the maps far behind put away (`sparse.ts`, docs/continent.md §13:
   `from`, `state.chunks`, `Game.keepMaps`/`trim`, the index as the file of the people who travel), the world's indices by
   type, person, prop, kept cell, agent and status by map (`world.ts`: `ofType`, `people`, `withProp` — never a scan over every thing),
-  new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
+  the relief (`relief.ts`: the faces of rock where ground drops south, a cell a level, rock to everyone; `World.stepOver`: only stairs and ramps join levels, a ledge a level high leapt down one way, a higher drop a wall), new game / save (`game.ts`); days, nights and weather spans (`calendar.ts`), people — keyed
   lines, schedule variants with the thing an activity needs, topics (`people.ts`), the story's one
   script (`story.ts`, world-model.md §6.12: steps with triggers — a scene takes control, a beat does
   not — that write only the story and send pushes and notices; steps wait on quests' stages and objectives; hints; the lessons
@@ -77,7 +77,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
   (`controls.ts`; a recipe's `madeOf` keeps the material and quality under the name it gives), gear's rolled extras (`affixes.ts`, `Ontology.affixes`) and sets
   (`Ontology.sets`), read by `World.stat` — mechanisms configured by data, kept in the kernel by decision (docs/engine-split.md §9), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`; a skill book asks no points but holds to the tree's `requires`); companions that follow a
-  leader (`companion.ts`) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); the inputs X (draw) and V (sneak) are statuses the input keeps; the AI setting (`quality.ts`, design.md §13: off/low/medium/high for
+  leader (`companion.ts`) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); postures (design.md §5.17: `POSES` a status may draw its bearer in, `untilMove`, the `settle` impulse every actor answers with the `posture` primitive); the inputs X (draw) and V (sneak) are statuses the input keeps; the AI setting (`quality.ts`, design.md §13: off/low/medium/high for
   things, people, the world, making new kinds and asking ahead — the same wait at every level, a level is how much the AI does in it;
   `Engine.quality` is the player's, never saved; learned rules keep their `tier`, each tier its own trees, a higher answer serving
   the lower settings). What a game hands the
@@ -165,7 +165,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   its places' doors, `npc.fidelity: 'local'`, laid into its places' files; docs/continent.md §12), `demo/scale.ts` (`npm run scale`: fifty maps, a tick, a frame, a save; and `demo/toolchain.ts`, the world's files and the compile, whole and a map alone), `art/animals.ts` (the project's own sprites → `public/assets/lsw/`), `art/cg/` (the event CGs: `refboard.py` references by tag, `cg.py` a shot drawn to its spec in `shots/<person>.json` and the person made themself from their look portrait, `art/looks/person.ts` that portrait; docs/character-art.md §4b), `art/portraits/` (a person's own portrait: `portrait.py` cut, moods, ship, per person `<id>.json`; docs/character-art.md §4c), `demo/` (the hand-crafted Ford, Firstlight Village west of it (`meadow`) and the forest south of that, and the main quest's maps and scenes in `quest/` (the Pilgrim's Road before the knight in `quest/pilgrimage.ts`) → `public/world/`, each map from its own seed: `builder.ts` the map DSL
   with the tools of composition — curved paths, organic shapes, fences and yards, small things by masks,
   anchors, regions; `world.ts` `buildFord()` — the map, scenes, invariants; `village.ts` Firstlight's houses and the rooms
-  behind their doors; `overworld.ts` the world map from `continent/continent.json` with the hand-made maps on their
+  behind their doors; `shells.ts` a house's walls owned as the rooms behind its door are (the Ford's maps and the backdrop's); `overworld.ts` the world map from `continent/continent.json` with the hand-made maps on their
   cells; `continent/` the continent (docs/continent.md): `generate.ts` its generator (land, the Ford's barrier, regions,
   grounds, rivers, the gazetteer, roads, reach → `continent.json`, `npm run continent`), `names.ts` places named in both
   languages, `backdrop.ts` a map for every place by its kind and region (the backdrop: `MapData.backdrop`, no story, its own checks
@@ -191,10 +191,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   uses it); `bundle.ts` a bundle by URL → the game, and its plugins; `play/` the engine's player, no game in its
   build (`?game=<url>`, `npm run play`, `npm run build:player`); `main.ts` the page and `worker.ts` the engine thread, each loaded by a game's entry;
   `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
-  `frameDelta.ts` frames as what changed (the page puts them back together), `render/scene.ts` renders snapshots with the Ninja Adventure pack (`render/depth.ts` the draw order; `render/worldfilter.ts` the world filter a game's `worldFilter` asks for — its grade, ink, paper and hatching — the options' strength, and the signal camera that keeps telegraphs above it); `assets/figure/` draws looks
+  `frameDelta.ts` frames as what changed (the page puts them back together), `render/scene.ts` renders snapshots with the Ninja Adventure pack (`render/depth.ts` the draw order; `render/pieces.ts` a building's picture cut into pieces bound to its walls — cracked, burnt, gone as the frame tells them (docs/building.md §10); `render/worldfilter.ts` the world filter a game's `worldFilter` asks for — its grade, ink, paper and hatching — the options' strength, and the signal camera that keeps telegraphs above it); `audio/` the music and the ambience (docs/music.md: `music.ts` the director — the title's, a scene's `music` command, a boss by kind and phase, a fight held past its end, the place's mood by the hour and the weather, its piece held and taken up again, rests in the wilds, every piece at one loudness from the catalogue's measured `loudness` —, `cues.ts` the cues' versions, `ambience.ts` the world's sounds made as it plays, `soundscape.ts` their buses at the player's levels); `assets/figure/` draws looks
   (docs/looks.md): the 24x36 map sprite: the bases and their walk (`bases.ts`: the man, the woman, the child), and frame by frame the outfit and what is worn (`baseoutfit.ts`), the head's parts (`basehead.ts`) and the hair (`basehair.ts`), drawn over ComfyUI drafts (`tools/src/art/looks/sprite/`), the legs and shoes laid on as colour (`basefeet.ts`); the full-body portrait (a dark-fairy-tale line style, every body its own face; its bust in the dialogue box, the whole figure in the creator) from the cut layers in
   `public/assets/lsw/Looks/portrait`, both repainted from the look's colours; `ui/creator.ts` the new game's character creator; a person's own portrait in place of their look's bust (the catalogue's `portraits`, `hud.ts` blinking and speaking); `assets/types.ts` the catalogue's
-  contract; `assets/ground.ts` autotiles (the blob layout); `ui/` the Stardew-style UI (`hud.ts` clock, bars,
+  contract; `assets/ground.ts` autotiles (the blob layout); `assets/relief.ts` the relief painted from the heights (faces, rims, stairs; both renderers); `ui/` the Stardew-style UI (`hud.ts` clock, bars,
   toolbar, key labels, dialogue; `menu.ts` menu tabs, the character sheet (the engine's numbers, `Frame.player.stats`),
   journal, chest panel, the shops a game lists (`crafting.shops`: shelves with names and `sell`); `panels.ts` a game's own panels
   (`ClientGame.panels`: by the key a rule's `panel` effect opens, told the fx's `by`, loaded when first opened);
@@ -253,6 +253,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
     record → reflect. The auditor (`audit.ts`) plays against a patch in the sandbox; only what it
     reproduces there, with the patch and not without it, counts. Live designs are routed (design.md §13, the router): local (the request's
     own types) → find (the catalogue) → create (a new type with its 16x16 picture as data).
+  - `affordance.ts`: what the host affords for the act (design.md §5.17): the answer's judgment (use, words, none),
+    a use held to changing the scene that asked, the verdict on the rule (`Rule.affords`); words are provisional,
+    asked again on the player's third try (`ModRequest.again`, the port's `again`), and the answer is final.
   - `tools.ts`: the design tools.
   - `library.ts`: the shared library as an append-only patch log.
   - `quality.ts`: a request's tier as a workload over the harness (medium the harness; low less, high more; never more time);
@@ -347,6 +350,7 @@ npm run continent        # the continent made again for the hand-made places (on
 npm run check:world      # headless playtest of it: days kept over two game days, what the world asked
 npm run scale            # the world at scale: fifty maps walked into, a tick, a frame on the world map, a save
 npm run assets           # copy the catalogue's subset of the asset pack into public/assets/na
+npm run loudness         # every music file's loudness measured → client/src/loudness.json (docs/music.md)
 npm run dev              # client at http://localhost:5173 + the modder on :8787 (asks for its model; dev:client for the client alone)
 npm run dev -- --backend claude-code   # the modder through claude -p (Opus 5.5, effort low)
 npm test                 # vitest (engine + base rules + Mod port)

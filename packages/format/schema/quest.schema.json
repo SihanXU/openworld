@@ -1227,6 +1227,19 @@
           "properties": {
             "op": {
               "type": "string",
+              "const": "posture"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
               "const": "heal"
             },
             "amount": {
@@ -2806,7 +2819,8 @@
         "receive",
         "offered",
         "handle",
-        "notify"
+        "notify",
+        "settle"
       ],
       "description": "The impulses: what one thing does to another (design.md §5.8)."
     },

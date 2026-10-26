@@ -450,6 +450,25 @@ req('E4', 'the library is shared and persistent: a save keeps it, a new game kee
   expect(next.engine.lib.rules.has('patch/raft')).toBe(true)
 })
 
+req('E5', 'what a thing affords (design.md §5.17): a chair in a house of Firstlight, its learned answer a posture, asks the one who used it to sit (the settle impulse every actor answers): one sits on it, drawn so, and stands up walking off', ['fixture/furniture/chair'], () => {
+  const f = fresh()
+  const w = W(f)
+  const chair = Object.values(w.state.entities).find((e) => e.type === 'fixture/furniture/chair' && e.place.on === 'tile' && e.place.map.startsWith('meadow.'))!
+  const at = w.posOf(chair)!
+  const beside = [[0, 1], [1, 0], [-1, 0], [0, -1]].map(([dx, dy]) => ({ x: at.x + dx, y: at.y + dy })).find((p) => w.walkable(at.map, p.x, p.y))!
+  f.eng.author(() => f.eng.teleport(w.player, { map: at.map, ...beside }))
+  f.eng.lib.add({ id: 'patch/chair-sit', host: { type: 'fixture/furniture/chair' }, on: 'impulse/handle', hole: 'core/handle', at: [], affords: 'use', label: { en: 'Sit on {target}', zh: '坐到{target}上' }, tree: { do: [{ op: 'emit', impulse: 'settle', to: 'actor', params: { pose: 'sit' } }] }, source: { origin: 'patch' } })
+  f.eng.act('hands', w.player.id, { e: chair.id }, { instrument: null })
+  f.eng.tick()
+  expect(w.hasStatus({ e: w.player.id }, 'seated')).toBe(true)
+  expect(w.posOf(w.player)).toMatchObject({ map: at.map, x: at.x, y: at.y })
+  expect(snapshot(f.eng).entities.find((e) => e.id === w.player.id)?.pose).toBe('sit')
+  const back = beside.x > at.x ? 'right' : beside.x < at.x ? 'left' : beside.y > at.y ? 'down' : 'up'
+  f.eng.movePlayer(back)
+  ticks(f, 5)
+  expect(w.hasStatus({ e: w.player.id }, 'seated')).toBe(false)
+})
+
 // ------------------------------------------------------------------ C. the ontology the rules address
 
 req('C1', 'every kind of thing: the player, people, creatures, items, fixtures, tiles with statuses, and the residents', ['npc.hesper', 'npc.tobin', 'actor/creature/slime/fire_slime', 'item/tool/rope', 'fixture/light/campfire'], () => {
@@ -533,6 +552,13 @@ req('F1', 'the goal is a state: the far bank ends the bridge stage, however the 
   expect(cross(one.f, 'ford', W(one.f).map('ford')!.width - 1, EAST_ROAD.fordEast[1], 'right')).toBe('ford')
   expect(W(one.f).posOf(W(one.f).player)!.x).toBe(W(one.f).map('ford')!.width - 1)
   expect(W(one.f).get('site.waystation')?.props?.opensWhen).toBe(PART_TWO)
+  // nor by any other edge of the far bank: its ways all lead east, sealed, so none of them goes out onto the world map
+  // (never onto the east bank's ground beside the Rest)
+  const ford = W(one.f).map('ford')!
+  const bank = W(one.f).partAt('ford', ...AT.farLanding)
+  const rim = [...[...Array(ford.height).keys()].flatMap((y) => [[0, y, 'left'], [ford.width - 1, y, 'right']] as const), ...[...Array(ford.width).keys()].flatMap((x) => [[x, 0, 'up'], [x, ford.height - 1, 'down']] as const)]
+  const outs = rim.filter(([x, y]) => W(one.f).walkable('ford', x, y) && W(one.f).partAt('ford', x, y) === bank)
+  for (const [x, y, dir] of outs) expect([x, y, cross(one.f, 'ford', x, y, dir)]).toEqual([x, y, 'ford'])
   // with Part Two open the chapter goes on past the bridge (docs/chapter-1.md): no card here
   expect(across(true).cards).toEqual([])
 })
@@ -1269,7 +1295,7 @@ req('W21', "the Dawn Hill Mine, dug into the hill's western flank (docs/chapter-
   expect((w.map('mine')?.appear ?? []).some((a) => Object.keys(a.types).some((t) => t.includes('vein')))).toBe(false)
 })
 
-req('W8', "height: the high ground at the mountain's foot stands two levels above the land below its face of rock; down the ramp and back up unharmed; off the edge a drop of two levels hurts, and the face cannot be climbed", [], () => {
+req('W8', "height: the high ground at the mountain's foot stands two levels above the land below its face of rock; down the ramp and back up unharmed; its face is a wall both ways, and so is the drop off its edge; off the Hollow's ledge, a level high, one leaps to its foot and cannot climb back; nothing stands on a face", [], () => {
   const f = fresh()
   // the ramp where the trail comes down: each row half a level lower
   const [rx, ry] = PAT.ramp
@@ -1281,14 +1307,38 @@ req('W8', "height: the high ground at the mountain's foot stands two levels abov
   for (let i = 0; i < 4; i++) walk(f, 'up')
   expect(W(f).posOf(W(f).player)).toMatchObject({ x: rx, y: ry })
   expect(W(f).num(W(f).player, 'hp')).toBe(hp)
-  // the face beside it, opened (as a pickaxe would): stepping off is a fall of two levels
+  // the face beside it, two rows of rock under the edge: no one walks onto it from the foot or along it
   const x = rx + 3
+  expect([W(f).faceAt('foot', x, ry + 3), W(f).faceAt('foot', x, ry + 4), W(f).faceAt('foot', x, ry + 5)]).toEqual([2, 2, 0])
+  stand(f, x, ry + 5, 'up', 'foot')
+  expect(walk(f, 'up')).toMatchObject({ x, y: ry + 5 })
+  // the edge opened (as a pickaxe would): stepping off it is no drop but a wall, two levels down
   author(f, () => W(f).destroy(W(f).cellTop('foot', x, ry + 2)!))
   stand(f, x, ry + 2, 'down', 'foot')
-  expect(walk(f, 'down')).toMatchObject({ x, y: ry + 3 })
-  expect(W(f).num(W(f).player, 'hp')).toBeLessThan(hp)
-  // and it cannot be climbed back
-  expect(walk(f, 'up')).toMatchObject({ x, y: ry + 3 })
+  expect(walk(f, 'down')).toMatchObject({ x, y: ry + 2 })
+  expect(W(f).num(W(f).player, 'hp')).toBe(hp)
+  // the Hollow's ledge, a level over its dell: from its top one leaps the face to its foot, unharmed, one way
+  let ledge: [number, number] | undefined
+  for (let y = 1; y < 28 && !ledge; y++)
+    for (let lx = 1; lx < 39 && !ledge; lx++)
+      if (W(f).heightAt('hollow', lx, y) === 2 && W(f).faceAt('hollow', lx, y + 1) === 1 && W(f).walkable('hollow', lx, y) && W(f).walkable('hollow', lx, y + 2)) ledge = [lx, y]
+  expect(ledge).toBeDefined()
+  const [lx, ly] = ledge!
+  stand(f, lx, ly, 'down', 'hollow')
+  expect(walk(f, 'down')).toMatchObject({ map: 'hollow', x: lx, y: ly + 2 })
+  expect(W(f).num(W(f).player, 'hp')).toBe(hp)
+  expect(walk(f, 'up')).toMatchObject({ x: lx, y: ly + 2 })
+  // nothing is set on a face, no way and no anchor leads onto one, on any map
+  const onFaces: string[] = []
+  for (const m of Object.values(W(f).state.maps)) {
+    if (!m.heights?.some((h) => h)) continue
+    for (const p of m.portals) if (W(f).faceAt(m.id, p.x, p.y)) onFaces.push(`${m.id} portal ${p.x},${p.y}`)
+    for (const [k, [ax, ay]] of Object.entries(m.anchors ?? {})) if (W(f).faceAt(m.id, ax, ay)) onFaces.push(`${m.id} ${k}`)
+    for (let y = 0; y < m.height; y++)
+      for (let cx = 0; cx < m.width; cx++)
+        if (W(f).faceAt(m.id, cx, y)) for (const e of W(f).entitiesAt(m.id, cx, y)) if (!W(f).isTerrain(e)) onFaces.push(`${m.id} ${e.id}`)
+  }
+  expect(onFaces).toEqual([])
 })
 
 /** Make the map a wait for is (a wilderness is made from the world's seed and its cell, as the client does). */
@@ -1322,7 +1372,7 @@ function reach(f: Ford, x: number, y: number): Set<string> {
   return seen
 }
 
-req('W4', 'every map but the tutorial (and the floors under the barrow) lies on the overworld, a place to a cell drawn as what it is, and its edges are open: mined through the rock at the pass\'s north edge, one walks out onto the cell north of it; back onto the pass\'s cell and in, one comes in on the north side', [...['village', 'town', 'farm', 'watermill', 'woods', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'crossing'].map((k) => `site/place/${k}`)], () => {
+req('W4', 'every map but the tutorial (and the floors under the barrow) lies on the overworld, a place to a cell drawn as what it is, and its edges are open: mined through the rock at the pass\'s north edge, one walks out onto the pass\'s own cell and stands there (as off the village\'s west edge onto the village\'s); in again at once, one comes in where one left; a step north and back onto it, in on the north side', [...['village', 'town', 'farm', 'watermill', 'woods', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'crossing'].map((k) => `site/place/${k}`)], () => {
   const f = fresh()
   // (the floors under the barrow are reached by its stairs: they lie under its cell; the Held Ground is carried in a thorn)
   for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD && id !== 'tutorial' && id !== 'offstage' && id !== 'haven' && !id.startsWith('haven.') && W(f).map(id)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(id))) {
@@ -1338,17 +1388,50 @@ req('W4', 'every map but the tutorial (and the floors under the barrow) lies on 
   expect(walk(f, 'up')).toMatchObject({ map: 'pass', x, y: 1 })
   for (let i = 0; i < 2; i++) run(f, 'use', x, 0)
   expect(walk(f, 'up')).toMatchObject({ map: 'pass', x, y: 0 })
-  const out = walk(f, 'up')
-  expect(out.map).toBe(OVERWORLD)
-  const site = W(f).map('pass')!.site!
-  // the cell north of the pass's: the way it left by
-  expect(out).toMatchObject({ x: site.x, y: site.y - 1 })
-  // back down onto the pass's cell (open: the White Knight is beaten), and E there takes one in on the side one came from
+  // (open: the White Knight is beaten; a place the story has sealed is not stood on, so one would come out beside it)
   author(f, () => W(f).setFact(CH1.knight, true))
+  const out = walk(f, 'up')
+  const site = W(f).map('pass')!.site!
+  // the pass's own cell, not the one north of it: from there one chooses the way on
+  expect(out).toMatchObject({ map: OVERWORLD, x: site.x, y: site.y })
+  // E at once: in where one left, at the north rim by x
+  goIn(f)
+  const back = W(f).posOf(W(f).player)!
+  expect(back.map).toBe('pass')
+  expect(back.y).toBeLessThan(W(f).map('pass')!.height / 4)
+  expect(Math.abs(back.x - x)).toBeLessThan(4)
+  // out again, a step north and back down onto the pass's cell: E there takes one in on the side one came from
+  stand(f, x, 0, 'up', 'pass')
+  expect(walk(f, 'up')).toMatchObject({ map: OVERWORLD, x: site.x, y: site.y })
+  expect(W(f).walkable(OVERWORLD, site.x, site.y - 1)).toBe(true)
+  expect(walk(f, 'up')).toMatchObject({ map: OVERWORLD, x: site.x, y: site.y - 1 })
   expect(walk(f, 'down')).toMatchObject({ map: OVERWORLD, x: site.x, y: site.y })
   goIn(f)
   expect(W(f).posOf(W(f).player)!.map).toBe('pass')
   expect(W(f).posOf(W(f).player)!.y).toBeLessThan(W(f).map('pass')!.height / 4)
+  // every map one can walk off by an edge (the story open): out onto its own cell, never the neighbour the way one
+  // went — but for a place one cannot stand on (a barrier's cell: the Ford, the Reed Bend), out beside it
+  author(f, () => W(f).setFact(PART_TWO, 1))
+  const left: string[] = []
+  for (const id of W(f).state.loadedMaps) {
+    const m = W(f).map(id)!
+    if (m.site?.map !== OVERWORLD || m.site.size !== 1) continue
+    const edges = [...[...Array(m.height).keys()].flatMap((y) => [[0, y, 'left'], [m.width - 1, y, 'right']] as const), ...[...Array(m.width).keys()].flatMap((x) => [[x, 0, 'up'], [x, m.height - 1, 'down']] as const)]
+    const edge = edges.find(([ex, ey]) => W(f).walkable(id, ex, ey) && !m.portals.some((p) => p.x === ex && p.y === ey))
+    if (!edge) continue
+    stand(f, edge[0], edge[1], edge[2], id)
+    const to = walk(f, edge[2])
+    const own = W(f).passable(OVERWORLD, m.site.x, m.site.y)
+    left.push(id)
+    expect([id, to.map, own ? `${to.x},${to.y}` : 'beside']).toEqual([id, OVERWORLD, own ? `${m.site.x},${m.site.y}` : 'beside'])
+    if (!own) continue
+    // in again at once: on the side one left by
+    goIn(f)
+    const p = W(f).posOf(W(f).player)!
+    const side = { left: p.x < m.width / 2, right: p.x >= m.width / 2, up: p.y < m.height / 2, down: p.y >= m.height / 2 }[edge[2]]
+    expect([id, p.map, side]).toEqual([id, id, true])
+  }
+  expect(left.length).toBeGreaterThan(1)
 })
 
 req('W5', 'an overworld step passes its time at once (a cell: half an hour on plains, by its ground), and hunger falls; harm stops it', [], () => {
@@ -1374,11 +1457,14 @@ req('W6', 'the river is a barrier on the overworld too: the Ford\'s cell is the 
   const f = fresh()
   const ford = W(f).map('ford')!.site!
   expect(W(f).passable(OVERWORLD, ford.x, ford.y)).toBe(false)
-  const west = reach(f, ford.x - 1, ford.y)
-  // (the far bank's cell east of the Ford: the Pilgrims' Rest's, where the road east begins)
+  // (the far bank's cell east of the Ford: the Pilgrims' Rest's, where the road east begins — sealed until Part Two,
+  // and then the barrier still holds)
   const road = W(f).map('waystation')!.site!
   expect(road).toMatchObject({ x: ford.x + 1, y: ford.y })
+  expect(W(f).passable(OVERWORLD, road.x, road.y)).toBe(false)
+  author(f, () => W(f).setFact(PART_TWO, 1))
   expect(W(f).passable(OVERWORLD, road.x, road.y)).toBe(true)
+  const west = reach(f, ford.x - 1, ford.y)
   expect(west.has(`${road.x},${road.y}`)).toBe(false)
   // on the east road's cell, facing the Ford: E goes in, on the far bank by the road
   stand(f, road.x, road.y, 'left', OVERWORLD)
@@ -1397,11 +1483,19 @@ req('W6', 'the river is a barrier on the overworld too: the Ford\'s cell is the 
   }
 })
 
-req('W6b', 'the places beyond the White Knight are sealed on the world map until he falls: one stands on Emberfall\'s cell, but E says why and does not go in, and it is drawn sealed; once he is beaten, in one goes', [], () => {
+req('W6b', 'the places beyond the White Knight are sealed on the world map until he falls: Emberfall\'s cell stops one like a wall, and bumping into it says why; stood on (an older save), E says why and does not go in; it is drawn sealed; once he is beaten, one walks onto it and in', [], () => {
   const f = fresh()
   const w = W(f)
   for (const id of ['emberfall', 'mine', 'pass', 'lair']) expect([id, w.get(`site.${id}`)!.props?.opensWhen]).toEqual([id, CH1.knight])
   const at = w.get('site.emberfall')!.place as { x: number; y: number }
+  expect(w.passable(OVERWORLD, at.x, at.y)).toBe(false)
+  // from an open cell beside it, a step onto it: one stays, and the line says why (the knight's gate)
+  const DIR = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] } as const
+  const [dir, d] = (Object.entries(DIR) as [Entity['facing'], readonly [number, number]][]).find(([, d]) => w.passable(OVERWORLD, at.x - d[0], at.y - d[1]))!
+  stand(f, at.x - d[0], at.y - d[1], dir, OVERWORLD)
+  w.fx = []
+  expect(walk(f, dir)).toMatchObject({ map: OVERWORLD, x: at.x - d[0], y: at.y - d[1] })
+  expect(w.fx.filter((x) => x.t === 'log').map((x) => textOf((x as unknown as { text: { en: string; zh: string } }).text))).toContain('The White Knight still holds the East Road. There is no way past him yet.')
   stand(f, at.x, at.y, 'down', OVERWORLD)
   const plan = f.eng.controls.plan('hands')!
   expect(textOf(plan.label)).toMatch(/^Sealed: /)
@@ -1410,8 +1504,10 @@ req('W6b', 'the places beyond the White Knight are sealed on the world map until
   expect(w.posOf(w.player)!.map).toBe(OVERWORLD)
   expect(snapshot(f.eng).entities.find((e) => e.id === 'site.emberfall')).toMatchObject({ sealed: true, leadsTo: 'emberfall' })
   author(f, () => w.setFact(CH1.knight, true))
-  expect(textOf(f.eng.controls.plan('hands')!.label)).toMatch(/^Enter /)
   expect(snapshot(f.eng).entities.find((e) => e.id === 'site.emberfall')!.sealed).toBeUndefined()
+  stand(f, at.x - d[0], at.y - d[1], dir, OVERWORLD)
+  expect(walk(f, dir)).toMatchObject({ map: OVERWORLD, x: at.x, y: at.y })
+  expect(textOf(f.eng.controls.plan('hands')!.label)).toMatch(/^Enter /)
 })
 
 req('W7', 'a wilderness is made from the world\'s seed and its cell: entered, left and entered again — or saved and loaded — it is the same map, with what one changed kept', ['site/wild'], () => {
@@ -1436,10 +1532,11 @@ req('W7', 'a wilderness is made from the world\'s seed and its cell: entered, le
   stand(f, 0, p.y, 'left', id)
   const out = walk(f, 'left')
   expect(out.map).toBe(OVERWORLD)
-  // beside its cell (or on it, where the west is sea): back onto it and in
-  if (out.x !== at.x || out.y !== at.y) expect(walk(f, 'right')).toMatchObject({ x: at.x, y: at.y })
+  // on its own cell, standing there: in again, by the west edge one left by
+  expect(out).toMatchObject({ x: at.x, y: at.y })
   goIn(f)
   expect(W(f).posOf(W(f).player)!.map).toBe(id)
+  expect(W(f).posOf(W(f).player)!.x).toBeLessThan(WILD_W / 4)
   expect(W(f).terrainAt(id, tx, ty)).not.toBe('tree')
   expect(W(f).get('w7.stone')?.place).toMatchObject({ map: id, x: tx, y: ty })
   // saved and loaded: the map is made again, the changes come from the save
@@ -3777,7 +3874,8 @@ req('V2', "Millbrook is a working watermill (release 1, docs/release-1.md): its 
   const [wx, wy] = MILL.wheel
   expect(mill.stamps?.some((s) => s.key === 'waterwheel' && s.x === wx && s.y === wy)).toBe(true)
   for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) expect(w.terrainAt('mill', wx + dx, wy + dy)).toBe('water')
-  expect([w.terrainAt('mill', wx + 1, wy - 1), w.terrainAt('mill', wx + 1, wy + 3), w.terrainAt('mill', wx + 3, wy + 1)]).toEqual(['water', 'water', 'wall'])
+  // (the mill is timber: its walls are wooden, docs/building.md §10)
+  expect([w.terrainAt('mill', wx + 1, wy - 1), w.terrainAt('mill', wx + 1, wy + 3), w.terrainAt('mill', wx + 3, wy + 1)]).toEqual(['water', 'water', 'woodwall'])
   // behind the mill's door: a house of rooms, Tam's bed reached from its door, the stair down to the cellar and back up
   const inside = w.map('millhouse')!
   expect(mill.portals.some((p) => p.to === 'millhouse')).toBe(true)

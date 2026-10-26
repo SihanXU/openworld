@@ -85,11 +85,14 @@ export const CLIENT_GAME: ClientGame = {
   },
   cover: {
     title: 'OpenWorld',
-    kicker: { en: 'A world whose rules are code', zh: '一个规则即代码的世界' },
-    subtitle: { en: 'What the world has never seen, it learns — and remembers.', zh: '这个世界从没见过的事，它会学会，并且记住。' },
     tutorial: true,
-    challenge: { label: { en: 'Boss Challenge', zh: '首领挑战' }, href: 'boss-gallery.html?challenge=1' },
-    art: true,
+    // the world behind the title, a place after another: Firstlight's square by its fire after dark, the Reed Bend's
+    // jetty and fish fire at sundown, Millbrook's wheel in the early morning
+    scenes: [
+      { map: 'meadow', x: 21.5, y: 17.5, hour: 20.5, stand: [23, 18] },
+      { map: 'reedbend', x: 21, y: 14, hour: 18.4, stand: [23, 17] },
+      { map: 'mill', x: 15, y: 13, hour: 7.2, stand: [21, 14] },
+    ],
     companion: 'lsw/Companion/Fairy/SpriteSheet.png',
   },
   // the interface's words about the Ford's own people: the trainer, the fairy who carries the seals' powers

@@ -102,7 +102,7 @@ export class Creator {
         const id = this.look.parts[slot]
         const name = id ? tx(game().looks.parts[id].name) : zh ? '无' : 'none'
         return `<div class="cr-row"><span class="cr-label">${zh ? SLOT_NAMES[slot][1] : SLOT_NAMES[slot][0]}</span>
-          <button class="cv-btn small" data-step="${slot}" data-by="-1">◀</button><span class="cr-val">${esc(name)}</span><button class="cv-btn small" data-step="${slot}" data-by="1">▶</button></div>`
+          <span class="cr-pick"><button class="cv-btn small" data-step="${slot}" data-by="-1">◀</button><span class="cr-val">${esc(name)}</span><button class="cv-btn small" data-step="${slot}" data-by="1">▶</button></span></div>`
       })
       .join('')
     const colours = COLOUR_ROWS.filter(([key]) => !key.includes('.') || this.look.parts[key.split('.')[0]])
@@ -122,7 +122,7 @@ export class Creator {
     this.root.innerHTML = `<div class="creator">
       <div class="cr-preview"><canvas class="cr-bust" width="1" height="1"></canvas><canvas class="cr-sprite" width="${FW}" height="${FH}"></canvas>
         <div class="cr-moods">${moods}</div><div class="cr-words">${esc(zh ? words.zh : words.en)}</div></div>
-      <div class="cr-controls"><div class="cr-row"><span class="cr-label">${zh ? '身体' : 'Body'}</span>${bodies}<button class="cv-btn small" data-random>🎲 ${zh ? '随机' : 'Random'}</button></div>${rows}${colours}</div>
+      <div class="cr-controls"><div class="cr-row"><span class="cr-label">${zh ? '身体' : 'Body'}</span><span class="cr-pick">${bodies}<button class="cv-btn small" data-random>🎲 ${zh ? '随机' : 'Random'}</button></span></div>${rows}${colours}</div>
     </div>`
     this.root.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((b) => (b.onclick = () => this.step(b.dataset.step!, Number(b.dataset.by))))
     this.root.querySelectorAll<HTMLButtonElement>('[data-body]').forEach((b) => (b.onclick = () => this.set({ body: b.dataset.body! })))

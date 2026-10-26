@@ -36,6 +36,8 @@ export class PanelTabs {
     if (sig === this.shown) return
     this.shown = sig
     this.el.classList.toggle('hidden', !now)
+    // (what is open under them leaves their room at the top: game.css `.with-tabs`)
+    document.body.classList.toggle('with-tabs', !!now)
     if (!now) return
     this.el.innerHTML = tabs.map((t) => `<button class="pt-tab${t.id === now ? ' on' : ''}" data-panel="${t.id}">${esc(t.name)} <kbd>${esc(kbd(t.action))}</kbd></button>`).join('')
   }

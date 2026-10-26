@@ -2,9 +2,10 @@
 
 import { LOOK_TAG, lookProblems, lookTags, wornLook } from './looks.ts'
 import { calendarAt, type Calendar, type WeatherSpan, isNight } from './calendar.ts'
-import { CELL_SPACES, cellId, parseCellId, splitLayers, type CellSpace, type Layers } from './cells.ts'
+import { CELL_SPACES, WAY_TAGS, cellId, parseCellId, splitLayers, type CellSpace, type Layers } from './cells.ts'
 import { OntologyIndex } from './ontology.ts'
 import { nextRandom } from './rng.ts'
+import { dropLevels, faceCells } from './relief.ts'
 import type {
   Dir,
   Entity,
@@ -504,7 +505,7 @@ export class World {
     const hit = this.layers.get(map)
     if (hit?.data === data) return hit.layers
     const spaceOf = (t: string): CellSpace => this.onto.terrain(t)?.space ?? 'floor'
-    const layers = splitLayers(data, spaceOf, (t) => !this.isSolidTerrain(t))
+    const layers = splitLayers(data, spaceOf, (t) => !this.isSolidTerrain(t) && !(this.onto.terrain(t)?.tags ?? []).some((g) => WAY_TAGS.includes(g)))
     this.layers.set(map, { data, layers })
     return layers
   }
@@ -907,22 +908,47 @@ export class World {
   }
 
   /**
-   * What a step from one column to the next is for a thing (world-model.md §5.5): a walk (half a
-   * level up or down at most: level ground, a ramp), a fall (further down: that many levels), or a
-   * climb, which one cannot make (a cliff). What flies does neither.
+   * How many levels of rock face cover a cell (relief.ts: the face of ground that drops to the south, drawn on the
+   * lower ground below it): 0 where it is ground. No one stands on a face (`blocked`).
    */
-  stepOver(e: Entity | undefined, map: string, ax: number, ay: number, bx: number, by: number): { walk: true } | { fall: number } | { climb: true } {
+  faceAt(map: string, x: number, y: number): number {
+    const m = this.state.maps[map]
+    if (!m?.heights || !this.inBounds(map, x, y)) return 0
+    return faceCells(m.width, m.height, m.heights)[y * m.width + x]
+  }
+
+  /**
+   * What a step from one column to the next is for a thing (world-model.md §5.5): a walk (half a level up or down at
+   * most: level ground, a ramp, a stair), a drop off a ledge a level high (one way: onto the ground beside it, or from
+   * its top south over its face to its foot, `to`), or a wall — up more than half a level, down more than a level, into
+   * a face. The same for every body that walks; what flies does none of it.
+   */
+  stepOver(e: Entity | undefined, map: string, ax: number, ay: number, bx: number, by: number): { walk: true } | { fall: number; to?: { x: number; y: number } } | { wall: true } {
     if (e && this.stanceOf(e) === 'air') return { walk: true }
-    const d = this.heightAt(map, bx, by) - this.heightAt(map, ax, ay)
-    if (d > 1) return { climb: true }
-    if (d < -1) return { fall: -d / 2 }
+    const hb = this.heightAt(map, bx, by)
+    const face = this.faceAt(map, bx, by)
+    if (face) {
+      // a ledge's own face, a level high, is leapt from its top: one lands at its foot
+      const fx = bx
+      const fy = by + 1
+      if (face === 1 && bx === ax && by === ay + 1 && this.inBounds(map, fx, fy) && !this.faceAt(map, fx, fy) && Math.abs(this.heightAt(map, fx, fy) - hb) <= 1) return { fall: 1, to: { x: fx, y: fy } }
+      return { wall: true }
+    }
+    const d = hb - this.heightAt(map, ax, ay)
+    if (d > 1 || dropLevels(-d) > 1) return { wall: true }
+    if (d < -1) return { fall: 1 }
     return { walk: true }
   }
 
-  /** A step one would plan to take: a walk, or a fall that does no harm (behaviour avoids unsafe drops). */
-  safeStep(e: Entity | undefined, map: string, ax: number, ay: number, bx: number, by: number): boolean {
+  /**
+   * A step one would plan to take (A*'s `step`): a walk, or a drop that does no harm (behaviour avoids unsafe drops) —
+   * where the drop is a leap over a face, the cell it lands on.
+   */
+  safeStep(e: Entity | undefined, map: string, ax: number, ay: number, bx: number, by: number): boolean | [number, number] {
     const s = this.stepOver(e, map, ax, ay, bx, by)
-    return 'walk' in s || ('fall' in s && s.fall <= (this.onto.data.params?.safeFall ?? 1))
+    if ('wall' in s) return false
+    if ('fall' in s) return s.fall > (this.onto.data.params?.safeFall ?? 1) ? false : s.to ? [s.to.x, s.to.y] : true
+    return true
   }
 
   /** Can it be carried? (the `portable` tag) */
@@ -1036,14 +1062,23 @@ export class World {
         for (const e of this.entitiesAt(map, x + dx, y + dy, z)) {
           if (e.id === ignore) continue
           const r = this.onto.resolve(e.type)
-          if (r.solid && !this.isAgent(e) && this.covers(e, map, x, y)) return e
+          if ((r.solid || this.sealed(e)) && !this.isAgent(e) && this.covers(e, map, x, y)) return e
         }
     return undefined
   }
 
-  /** Blocked whoever moves: no floor, or the base of a solid thing (a tree, rock, water, a wall, a cart). */
+  /**
+   * A way the story has not opened yet: a thing whose `opensWhen` fact is unset (a place of the overworld sealed until
+   * its part of the tale, as a portal's `opensWhen`). It stops what walks, as a wall does: one bumps into it.
+   */
+  sealed(e: Entity): boolean {
+    const f = e.props?.opensWhen
+    return typeof f === 'string' && !this.fact(f)
+  }
+
+  /** Blocked whoever moves: no floor, the base of a solid thing (a tree, rock, water, a wall, a cart, a sealed place), or a face of rock. */
   blocked(map: string, x: number, y: number, ignore?: Id, z = 0): boolean {
-    return !this.occupant(map, x, y, 'floor', z) || !!this.solidAt(map, x, y, ignore, z)
+    return !this.occupant(map, x, y, 'floor', z) || (!z && this.faceAt(map, x, y) > 0) || !!this.solidAt(map, x, y, ignore, z)
   }
 
   /** Static passability for path planning: terrain and solid things, ignoring actors. */

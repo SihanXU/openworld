@@ -2542,6 +2542,10 @@
         "dark": {
           "type": "boolean",
           "description": "the screen is faded to black (a `fade` out not yet faded in): kept, so a reload does not show what it hides"
+        },
+        "music": {
+          "type": "string",
+          "description": "the music the scene asked for (its `music` command): a cue, or '' for silence"
         }
       },
       "required": [

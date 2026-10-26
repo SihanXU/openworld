@@ -6,6 +6,7 @@
 // own art instead, under its assets/ (`own/`: what the editor imports).
 
 import type { Mood } from '@openworld/engine'
+import type { ReliefPalette } from './relief.ts'
 
 /** A rectangle in an image, in pixels, plus the anchor that sits on the entity's tile. */
 export interface SpriteDef {
@@ -129,11 +130,10 @@ export interface Catalog {
    */
   rooms: Record<string, { img: string; col: number; row: number; size: number }>
   /**
-   * The edges of high ground (MapData.heights), laid over the ground (ground.ts terracePieces): a sheet laid out as the
-   * pack's relief, TilesetRelief.png columns 0-6 and rows 0-4, with its plateau's top clear. None: the heights are
-   * drawn as plain lines.
+   * The rock of the relief (MapData.heights; assets/relief.ts paints its faces, rims and stairs) by the region a map
+   * lies in, `*` for any other. None: the runtime's slate.
    */
-  terrace?: { img: string }
+  relief?: Record<string, ReliefPalette>
   /** Fixture sprite keys used by the ontology ('fixture:chest', …) -> states. */
   /**
    * Fixtures by sprite key. `variants`: looks picked per thing (by its id); `ground`: drawn flat
@@ -158,8 +158,14 @@ export interface Catalog {
    * to (none: the arrow).
    */
   ui: Record<string, SpriteDef>
-  /** Music per map mood and sound effects per event. Paths relative to the pack root. */
-  music: Record<string, string>
+  /**
+   * The music (docs/music.md): cues by name — a map's mood (MapData.music), and the names the runtime asks for itself:
+   * `title`, `battle`, `boss` (`boss:<kind>` for one kind, `boss:<kind>:<phase>` for its later phases), and `outdoor`,
+   * `indoor`, `dark` for a map that names no mood. A cue is a file, or a MusicCue. Paths relative to the pack root.
+   */
+  music: Record<string, string | MusicCue>
+  /** Each music file's measured loudness (integrated LUFS, `npm run loudness`): every piece is played as loud as the rest. */
+  loudness?: Record<string, number>
   sfx: Record<string, string>
   /**
    * People with a portrait of their own (docs/character-art.md), by person id: the dialogue shows it in place of the bust their look
@@ -183,6 +189,26 @@ export interface PortraitSet {
   talk?: boolean
   /** Every mood of `moods` has a wider picture for a panel of the game's own (`<mood>-panel.webp`: the figure with what spreads beside it, a fairy's wings). */
   panel?: boolean
+}
+
+/** When in the day and the weather a cue may have a version of its own for (MusicCue.at). */
+export type MusicMoment = 'dawn' | 'day' | 'dusk' | 'night' | 'rain' | 'storm' | 'snow' | 'fog'
+
+/**
+ * A piece of the music system: what it plays and how. Pieces with `rest` play once and leave silence after them, the
+ * ambience alone (the wilds' music in Breath of the Wild, Minecraft); without, they follow one another without end.
+ */
+export interface MusicCue {
+  /** The pieces, played in a shuffled order that never plays the same one twice running. */
+  tracks?: string[]
+  /** Another cue it is the same as (a mood that sounds like another). */
+  like?: string
+  /** Seconds of silence after each piece, [least, most]. */
+  rest?: [number, number]
+  /** How loud against the others, 0–1 (default 1). */
+  volume?: number
+  /** Its versions by the hour and the weather: the cue played instead (the weather's first, then the hour's). */
+  at?: Partial<Record<MusicMoment, string>>
 }
 
 /** The structure sheets (the project's own art, in the game's assets/lsw/): walls, floors and stairs are drawn from them by their neighbours. */

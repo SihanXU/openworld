@@ -848,6 +848,8 @@ export class Hud {
     el.className = `msg ${tone ?? ''}`
     el.textContent = text
     const box = $('#msgs')
+    // the same line again (one pushing on into a sealed way) is the last one renewed, never a column of copies
+    if (box.lastElementChild?.textContent === text) box.lastElementChild.remove()
     box.appendChild(el)
     while (box.children.length > 6) box.firstElementChild!.remove()
     setTimeout(() => el.classList.add('fade'), 5000)

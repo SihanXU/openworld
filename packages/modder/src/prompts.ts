@@ -44,18 +44,23 @@ export function designSystem(spec: ModSpec, h: Harness, router = false): string 
           '2. Decide what a player would find plausible and satisfying here, consistent with those rules. Write it for this type: branch on what varies among its instances (material, quality, element, statuses) and on the other roles\' classes.',
           '3. Answer directly — there are no tools. The engine validates your answer and sends back exact diagnostics if anything is wrong.',
         ]),
-    `${h.design.toolRounds > 0 ? 5 : 4}. Answer with ONLY one JSON object, minified: {"patch": {"artifacts": [...], "note": "<what the rule does, one line>"}}`,
+    `${h.design.toolRounds > 0 ? 5 : 4}. Answer with ONLY one JSON object, minified: {"affords": "use" | "words" | "none", "patch": {"artifacts": [...], "note": "<what the rule does, one line>"}}`,
+    '',
+    'What the host affords (judge it first, and say it in "affords"): be faithful to what this thing is for under this act, and to what a player would reasonably expect here — neither shrug nor invent.',
+    '- "use": the thing has a common use for this act (a chair or a stool: sit on it; a bed or hay: lie on it; an altar: kneel; a well: draw water into a vessel; a bell: ring it, and people near hear it). Make the use real: state that lasts on the host, or an impulse its receiver answers (a posture: emit settle to the actor with {"pose": "sit" | "lie" | "kneel" | "lean"}). Never a line alone, and never a stand-in for the use (a heal is not sitting).',
+    '- A posture is a use only where it is what the thing is for (a seat, a bed, a kneeler): that one could lean on or sit against almost anything does not make it the use of a rock, a fence, a post or a statue.',
+    '- "words": the thing has no use for this act (a bare hand on a wall, a rock, a fence): a short in-world line of what one feels or sees, true to the thing, and no invented mechanics.',
+    '- "none": nothing at all is the right outcome: {"do": []}.',
+    '- Weigh the context (context.whose: whose the thing is, where it stands, who is near): knocking on a stranger\'s door or house wall may matter to them; on a cliff it does not.',
     '',
     'Requirements:',
     '- Rule ids start with "patch/" and must be new.',
     h.design.tests === 'harness'
       ? '- Every rule has a one-line `doc` and player-visible feedback (vfx and/or log/say). Do not write tests: the harness keeps the scene that asked as the rule\'s test.'
       : '- Every rule has a one-line `doc`, player-visible feedback (vfx and/or log/say), and at least one test (the triggering event is replayed automatically).',
-    '- Prefer outcomes that change something (a status, a transformation, an item). A rule that only narrates is right only when nothing happening is clearly the most plausible outcome.',
     '- Answer the case that was asked (the target\'s class, the params given); a case you do not answer ends in {"undefined": true} so it stays open and is asked later. Never write `inherit`; give every `if` an `else`.',
     '- Nothing for nothing: if the outcome makes something (a stick shaken from a tree, food), let it cost or run out — use the instrument up, or change or spend the host (a status that clears with time, a prop that counts down) — so it is not a faucet pressed forever.',
     '- Your rule writes only its host; to affect anything else, emit an impulse to it and its receiver answers. Player-facing text is {"en": "...", "zh": "..."}; {host}, {actor}, {target}, {instrument}, {item} insert names.',
-    '- If nothing should happen, still define it: {"do": []} (no change) or a short in-world line of feedback is a valid answer.',
     '- Give a rule the player reaches a `label`: what their input does there, as the game shows it before the press ("label": {"en": "Tame {target}", "zh": "驯服{target}"}), naming {target}, {instrument} or {actor}; when its branches do different things, put a label on each {"do"} leaf instead. Without one the player sees a generic line.',
     ...(router ? [ROUTER_RULES] : []),
     '',
@@ -124,7 +129,16 @@ export function revisionUser(current: Patch, notes: string[]): string {
   ].join('\n')
 }
 
-export const NO_JSON = 'Your answer had no JSON patch. Answer with ONLY the JSON object: {"patch": {"artifacts": [...]}}'
+/** A provisional answer (words only) asked again: the player kept trying after it (design.md §5.17). */
+export function againUser(again: NonNullable<ModRequest['again']>): string {
+  return [
+    '# Asked again',
+    `This act already has an answer that gives only words${again.said ? `: "${again.said}"` : ''}. The player did it ${again.times} times in a row after it.`,
+    'Judge again, on the thing alone, what it affords for this act: trying again is no sign that it has a use (players press on walls and rocks too). If it has a common use the earlier answer missed, make it real now ("affords": "use"). If it has none, keep a line or nothing: a use made up for a thing that has none (leaning on a rock, sitting on a fence) is a worse answer than a line. Your answer replaces the earlier one and is final.',
+  ].join('\n')
+}
+
+export const NO_JSON ='Your answer had no JSON patch. Answer with ONLY the JSON object: {"patch": {"artifacts": [...]}}'
 
 export const FINALIZE = 'Stop investigating. Answer now with ONLY the JSON object: {"patch": {"artifacts": [...]}}'
 

@@ -70,19 +70,32 @@ export interface DevShortcut {
 
 /** What the title screen shows of the game. */
 export interface CoverDef {
-  /** The title, the line above it, the line below it (default: the game's name and nothing). */
+  /** The title (default: the game's name). */
   title?: Text
-  kicker?: Text
-  subtitle?: Text
-  /** The game has a tutorial run of its own (a start named `tutorial` in its world). */
+  /** The game has a tutorial run of its own (a start named `tutorial` in its world): offered as a new game begins. */
   tutorial?: boolean
-  /** A page of the game's beside the player, offered on the cover (the boss challenge). */
-  challenge?: { label: Text; href: string }
-  /** The game's own art behind the title (the mountain at dawn), and its companion flying across: the sheet it is drawn from (in the game's assets/; true: OpenWorld's fairy). */
-  art?: boolean
+  /**
+   * The world behind the title: places of the game's world, one taken each time the title opens, drawn live (the
+   * world runs there, at the hour given, with no story) under a camera drifting slowly about the place. None: a dark cover.
+   */
+  scenes?: CoverScene[]
+  /** The game's companion, flying beside the line chosen: the sheet it is drawn from (in the game's assets/; true: OpenWorld's fairy). */
   companion?: boolean | string
-  /** The line of credits at the foot of the cover (default: the pack's; false: none). */
+  /** The line of credits in the title's settings (default: the pack's; false: none). */
   credit?: Text | false
+}
+
+/** A place behind the title: the point the camera drifts about, in cells (it stands right of the menu). */
+export interface CoverScene {
+  map: string
+  x: number
+  y: number
+  /** The hour the world is at there (default: the world's start hour). */
+  hour?: number
+  /** Where the traveller stands (default: the point itself). */
+  stand?: [number, number]
+  /** How close the camera is (default: the game's own view). */
+  zoom?: number
 }
 
 /** How strong each part of the world filter is (0 none … 1 full; `hatch` scales the hatching in the dark). */

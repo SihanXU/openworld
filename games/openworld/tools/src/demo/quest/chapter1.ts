@@ -510,6 +510,8 @@ export const CHAPTER1_SCENES: StepDef[] = [
       say('npc.rowan', 'Lina and Oskar are home. Firstlight gives thanks — to the flame that kept us, and to the one who walked into the barrow for us.', '莉娜和奥斯卡回家了。初原村在此感恩——感谢守护我们的圣火，也感谢那位为我们走进古墓的人。'),
       say('npc.ilse', 'Suffering is not God\'s abandonment. It is the proof the debt is being paid. ...Go to your beds. The flame keeps the night.', '苦难并非神的遗弃。苦难，是灾厄得以被偿还的证明。……回去睡吧。圣火会守着夜晚。'),
       { fade: 'out' },
+      // the grey man's music as the dark falls (docs/music.md)
+      { music: 'severin' },
       { wait: 10 },
       { place: 'npc.severin', map: 'meadow', x: v.severin[0], y: v.severin[1] },
       { fade: 'in' },
@@ -530,6 +532,7 @@ export const CHAPTER1_SCENES: StepDef[] = [
     id: 'letter',
     when: { map: 'meadow', morningAfter: 'night_flame', facts: { [CH1.knight]: 0 } },
     script: [
+      { music: 'revelation' },
       { place: 'npc.courier', map: 'meadow', x: v.courier[0], y: v.courier[1] },
       say('npc.courier', 'By order of the Holy City: the Seal-bearers fail. The Long Night returns. Let the pilgrimage be called.', '奉圣城之命：持印者正在衰败。极夜正在回归。朝圣就此发起。'),
       say('npc.courier', 'One has come down from the mountain with a fairy at their side. The Church names them pilgrim.', '有一人带着精灵从山上下来。教会封其为朝圣者。'),
@@ -546,6 +549,7 @@ export const CHAPTER1_SCENES: StepDef[] = [
     id: 'kingdom',
     when: { map: 'eastroad', region: 'kingdom' },
     script: [
+      { music: '' },
       say('player', '(A field ringed with thorns. Stones carved as kneeling pilgrims. In the middle, a knight in white, a crown of briars grown through his helm.)', '（一片被荆棘围起来的田野。石头被雕成跪着的朝圣者。正中间，一位白衣骑士，荆棘冠长进了他的头盔。）'),
       say(ALBERIC_ID, 'None cross that do not kneel.', '不跪者，不得过。'),
       say(ALBERIC_ID, 'Another pilgrim. They always send another.', '又一个朝圣者。他们总是再派一个来。'),
@@ -559,6 +563,7 @@ export const CHAPTER1_SCENES: StepDef[] = [
     id: 'crown',
     when: { map: 'eastroad', facts: { [CH1.knight]: 1 } },
     script: [
+      { music: 'sorrow' },
       { wait: 22 },
       say('player', '(The knight kneels. For the first time in a long while he lifts the crown from his own head, and holds it out.)', '（骑士跪了下来。很久以来第一次，他亲手把荆棘冠从头上摘下，递了出来。）'),
       say('player', '("Take it. It was never mine to hold.")', '（"拿去吧。它本就不该由我戴着。"）', 'sad'),
@@ -569,6 +574,7 @@ export const CHAPTER1_SCENES: StepDef[] = [
       { wait: 32 },
       say('pip', 'It came to me! It\'s warm — no, cold — no, it\'s mine? Is that allowed?', '它朝我来了！暖暖的——不对，凉凉的——不对，它是我的？可以这样吗？', 'surprised'),
       { place: 'npc.severin', map: 'eastroad', x: rd.severin[0], y: rd.severin[1] },
+      { music: 'severin' },
       say('npc.severin', '...So it has started.', '……原来已经开始了。'),
       say('player', '(The grey man opens his lantern. The rest of the light goes into the stolen flame. It gutters gold; his hand shakes.)', '（灰衣人打开了提灯。剩下的光流进了被夺走的圣火。火焰一阵金黄，他的手在发抖。）'),
       say('npc.severin', 'Every seal you break makes the night longer. Ask your Church why.', '你每打破一道印，夜就更长一分。去问问你的教会为什么。'),
@@ -590,6 +596,7 @@ export const CHAPTER1_SCENES: StepDef[] = [
       say('npc.ilse', 'He always did carry things that were too heavy for him.', '他从小就总是背着对他来说太重的东西。', 'sad'),
       say('npc.nessa', 'Four minutes. The sun set four minutes early tonight. I am sure it means nothing.', '四分钟。今晚太阳早落了四分钟。我相信这什么都不代表。'),
       { fact: CH1.end, value: 1 },
+      { music: 'ending' },
       {
         card: L(
           'CHAPTER ONE · THE FIRST SEAL\n\nThe White Knight knelt, and gave up the Crown.\nThe grey man took the light east.\nAnd the night came a little sooner.',

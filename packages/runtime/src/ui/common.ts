@@ -130,6 +130,12 @@ export const STRINGS: Record<string, [string, string]> = {
   toTitle: ['Save & back to title', '保存并返回标题'],
   savedSlot: ['Saved to slot {n}', '已保存到存档 {n}'],
   cvContinue: ['Continue', '继续游戏'],
+  cvSettings: ['Settings', '设置'],
+  optMusic: ['Music', '音乐'],
+  optAmbience: ['Ambience', '环境声'],
+  cvTutorial: ['Play the tutorial first', '先玩新手教程'],
+  cvTutorialTip: ['Learn the ropes · nothing is saved, and the story begins after', '从零学起 · 不占存档，主线在之后开始'],
+  cvYourLook: ['Your look', '你的样子'],
   cvLoad: ['Load game', '读取存档'],
   cvLoading: ['Loading…', '载入中……'],
   cvFailed: ['The world could not start:', '世界没能开始：'],
@@ -300,6 +306,8 @@ export const STRINGS: Record<string, [string, string]> = {
   done: ['Done', '已完成'],
   lmb: ['L-click', '左键'],
   rmb: ['R-click', '右键'],
+  // the tip after an act that is asked first (a blow on someone friendly, a theft, an experiment on oneself)
+  asksFirst: [' (asks first)', '（需确认）'],
   chooseTarget: ['on which?', '对哪一个？'],
   useOn: ['Use {held} on it', '用{held}作用于它'],
   putIn: ['Put {held} into / onto it', '把{held}放进 / 放到它上'],
@@ -335,6 +343,23 @@ export const prefs = {
       /* a blocked store: the choice lasts this page only */
     }
   },
+  /** How loud the music and the ambience are, 0–1 (Options; default 0.8). */
+  volume(k: 'music' | 'ambience'): number {
+    try {
+      const v = Number(localStorage.getItem(`lsw.${k}Volume`) ?? NaN)
+      return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : (volumeHere[k] ?? 0.8)
+    } catch {
+      return volumeHere[k] ?? 0.8
+    }
+  },
+  setVolume(k: 'music' | 'ambience', v: number): void {
+    volumeHere[k] = v
+    try {
+      localStorage.setItem(`lsw.${k}Volume`, String(v))
+    } catch {
+      /* a blocked store: the choice lasts this page only */
+    }
+  },
   /** How strong the world filter is (render/worldfilter.ts): full unless the player chose otherwise. */
   filter(): FilterStrength {
     try {
@@ -354,8 +379,23 @@ export const prefs = {
   },
 }
 
+/** The options' rows for the music's and the ambience's levels (a slider each; `id` prefixes the inputs' ids). */
+export function volumeRows(id: string): string {
+  return (['music', 'ambience'] as const)
+    .map((k) => `<div class="opt"><span>${t(k === 'music' ? 'optMusic' : 'optAmbience')}</span><input type="range" class="vol" id="${id}Vol-${k}" data-vol="${k}" min="0" max="100" step="5" value="${Math.round(prefs.volume(k) * 100)}"></div>`)
+    .join('')
+}
+
+/** The sliders under a root: a move sets the level (prefs) and tells the sound at once. */
+export function wireVolumes(root: HTMLElement, changed: () => void): void {
+  root.querySelectorAll<HTMLInputElement>('input[data-vol]').forEach((inp) => {
+    inp.oninput = () => (prefs.setVolume(inp.dataset.vol as 'music' | 'ambience', Number(inp.value) / 100), changed())
+  })
+}
+
 export type FilterStrength = 'off' | 'light' | 'full'
 let filterHere: FilterStrength = 'full'
+const volumeHere: Partial<Record<'music' | 'ambience', number>> = {}
 
 export function t(k: string): string {
   const own = gameText(k)
@@ -412,7 +452,7 @@ export function controlsTable(dev: boolean): string {
     [zh ? '选项 → 按键' : 'Options → Keys', 'change any of these keys (the mouse buttons stay)', '改任何一个键（鼠标左右键不能改）'],
   ]
   if (dev) rows.push(['`', 'Mod Console (dev)', '模组控制台（开发）'])
-  return `<table>${rows.filter(([k]) => k).map(([k, en, z]) => `<tr><td><kbd>${esc(k)}</kbd></td><td>${zh ? z : en}</td></tr>`).join('')}</table>`
+  return `<table>${rows.filter(([k]) => k).map(([k, en, z]) => `<tr><td>${k.split(' · ').map((x) => `<kbd>${esc(x)}</kbd>`).join(' ')}</td><td>${zh ? z : en}</td></tr>`).join('')}</table>`
 }
 
 /**

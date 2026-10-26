@@ -39,6 +39,7 @@ export const CMD_KINDS: [string, string, (ctx: Ctx) => SceneCmd][] = [
   ['tell', phrase('Tell someone'), () => ({ tell: '', params: { what: 'news' } })],
   ['card', phrase('A full-screen card'), () => ({ card: '…' })],
   ['picture', phrase('Show a picture'), () => ({ picture: 'own/' })],
+  ['music', phrase('Play music'), () => ({ music: '' })],
 ]
 export const cmdKind = (c: SceneCmd): string => CMD_KINDS.find(([k]) => k in c)?.[0] ?? '?'
 
@@ -89,6 +90,11 @@ export function cmdForm(f: Form, ctx: Ctx, c: SceneCmd, set: (c: SceneCmd) => vo
     case 'picture': {
       const m = c as { picture: string | null }
       return `${f.text(m.picture ?? '', (v) => set({ picture: v.trim() || null }), { placeholder: t('a path under assets/ (own/…); empty takes the picture away') })} <span class="muted">${t('the lines go on over it until the scene ends')}</span>`
+    case 'music': {
+      // a cue of the project's catalogue, or silence; the place's own music comes back when the scene ends
+      const cues = Object.keys(ctx.store.get<Catalog>('catalog.json')?.music ?? {})
+      const cur = String(x.music ?? '')
+      return `${f.select([['', t('silence')], ...[...new Set([...cues, ...(cur ? [cur] : [])])].map((k): [string, string] => [k, k])], cur, (v) => set({ music: v }))} <span class="muted">${t('until the scene ends')}</span>`
     }
   }
   return f.json(c, (v) => set(v as SceneCmd), (msg) => toast(msg, 'error'), 2)

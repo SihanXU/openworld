@@ -3,6 +3,7 @@
 import { nightHours, type Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import type { BossState, Look, Dir, FxEvent, Id, LessonInput, PropValue, SceneState, Text } from './types.ts'
+import { FIGHT_TICKS } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
 import { stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
@@ -44,6 +45,8 @@ export interface EntitySnap {
   statuses: string[]
   /** What its statuses draw over it (their `overlay`, OVERLAYS), in the order it has them. */
   overlays?: string[]
+  /** The posture a status of its draws it in (its `pose`, POSES): the first it has. */
+  pose?: string
   tags: string[]
   name: Text
   hp?: number
@@ -182,7 +185,7 @@ export interface Frame {
   night: { dusk: number; dawn: number }
   calendar: Calendar
   /** A scene is playing: the player watches; `advance` moves past what is said. */
-  scene?: { id: string; waiting?: 'advance' | 'move'; line?: SceneState['line']; picture?: string; dark?: boolean }
+  scene?: { id: string; waiting?: 'advance' | 'move'; line?: SceneState['line']; picture?: string; dark?: boolean; /** the music it asked for: a cue, or '' for silence */ music?: string }
   map: string
   /** A fishing line's fight, when the game's fishing module has an active session. */
   fishing?: FishingView
@@ -197,6 +200,8 @@ export interface Frame {
     /** The cells of the room the player stands in, if any: the storeys over it are not drawn. */
     room?: [number, number][]
     facing: Dir
+    /** In a fight now: something came at the player, or the player struck someone, a moment ago (the `fighting` condition's FIGHT_TICKS). */
+    fighting?: boolean
     hp: number
     maxHp: number
     /** Hunger, for actors that grow hungry (maxHunger 0: never). */
@@ -570,6 +575,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
       facing: e.facing ?? 'down',
       statuses: Object.keys(e.statuses ?? {}),
       ...((o) => o.length && { overlays: o })(Object.keys(e.statuses ?? {}).flatMap((s) => w.onto.status(s)?.overlay ?? [])),
+      ...((p) => p && { pose: p })(Object.keys(e.statuses ?? {}).map((s) => w.onto.status(s)?.pose).find(Boolean)),
       tags: [...r.tags, ...(e.tags ?? [])],
       name: e.name ?? r.name ?? e.type.split('/').pop()!,
       hp: hasHp ? w.num(e, 'hp') : undefined,
@@ -581,7 +587,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
       hostile: e.ai ? eng.hostileTo(e, w.player) : undefined,
       frozen: !!e.frozenBy,
       ...(typeof e.props?.map === 'string' && { leadsTo: e.props.map }),
-      ...(typeof e.props?.opensWhen === 'string' && !w.fact(e.props.opensWhen) && { sealed: true }),
+      ...(w.sealed(e) && { sealed: true }),
       element: (w.prop(e, 'element') as string | undefined) ?? undefined,
       open: !!e.statuses?.open,
       held: held ? (w.onto.resolve(held.type).sprite ?? held.type) : undefined,
@@ -638,7 +644,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
     hour: w.hour(),
     night: nightHours(w.nightShift()),
     calendar: w.calendar(),
-    scene: sc ? { id: sc.id, waiting: sc.waiting, line: sc.line, ...(sc.picture && { picture: sc.picture }), ...(sc.dark && { dark: true }) } : undefined,
+    scene: sc ? { id: sc.id, waiting: sc.waiting, line: sc.line, ...(sc.picture && { picture: sc.picture }), ...(sc.dark && { dark: true }), ...(sc.music !== undefined && { music: sc.music }) } : undefined,
     map,
     player: {
       id: p.id,
@@ -648,6 +654,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
       ...((room) => room && { room })(roomCells(eng, pos)),
       facing: p.facing ?? 'down',
       ...(typeof p.look === 'object' && { look: p.look }),
+      ...(w.state.tick - (p.combat?.fightTick ?? -Infinity) < FIGHT_TICKS && { fighting: true }),
       hp: w.num(p, 'hp'),
       maxHp: w.num(p, 'maxHp', 1),
       // hunger: a module's (needs), none without one

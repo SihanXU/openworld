@@ -1498,6 +1498,14 @@
           "type": "string",
           "description": "What the client draws over a thing that has it: one of OVERLAYS (an unknown one draws nothing)."
         },
+        "pose": {
+          "type": "string",
+          "description": "The posture its bearer is drawn in while it lasts: one of POSES (an unknown one draws nothing)."
+        },
+        "untilMove": {
+          "type": "boolean",
+          "description": "It ends as soon as its bearer moves from where it is (one stands up from a chair by walking off)."
+        },
         "props": {
           "type": "object",
           "additionalProperties": {

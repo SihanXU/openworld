@@ -8,7 +8,7 @@
 import type { AiData, Entity, AppearDef, MapData, Portal, PropValue, Text } from '@openworld/engine'
 import { readFileSync } from 'node:fs'
 import { CHAR_OF, FORM_BY_ID, TERRAIN_CHARS, buildOntology, makeItem, type RawChunk } from '@openworld-game/content'
-import { OntologyIndex, Rng, baseCovers, splitLayers } from '@openworld/engine'
+import { OntologyIndex, Rng, WAY_TAGS, baseCovers, dropLevels, splitLayers } from '@openworld/engine'
 import type { PrefabDef } from '@openworld/runtime/src/assets/types.ts'
 import { CATALOG, FENCES, FENCE_PIECES } from '../../../client/src/catalog.ts'
 
@@ -152,6 +152,15 @@ export class MapBuilder {
         if (this.get(x, y) === 'stump') (this.set(x, y, 'grass'), this.fixture('fixture/nature/stump', x, y, { id: `${this.id}.stump.${n++}` }))
   }
 
+  /**
+   * Is the cell a face of rock (the engine's relief.ts): under ground that drops to the south, a cell a level. Nothing
+   * is set there and no one walks it.
+   */
+  face(x: number, y: number): boolean {
+    for (let k = 1; k <= y; k++) if (dropLevels(this.heights[y - k][x] - this.heights[y - k + 1][x]) >= k) return true
+    return false
+  }
+
   /** Raise ground to `half` half levels (a level is 2; an odd height is a ramp between two levels). */
   raise(x: number, y: number, w: number, h: number, half: number) {
     for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (this.in(i, j)) this.heights[j][i] = half
@@ -210,15 +219,45 @@ export class MapBuilder {
 
   /** Is the tile open ground: walkable terrain, nothing standing on it, under no thing's base? */
   free(x: number, y: number): boolean {
-    if (!this.in(x, y)) return false
+    if (!this.in(x, y) || this.face(x, y)) return false
     if (SOLID_TERRAIN.has(this.get(x, y)) || this.get(x, y) === 'door') return false
     return !this.entities.some((e) => this.under(e, x, y))
   }
 
   /** Can one walk here: walkable terrain, and no solid thing's base covers it? */
   walkable(x: number, y: number): boolean {
-    if (!this.in(x, y) || SOLID_TERRAIN.has(this.get(x, y))) return false
+    if (!this.in(x, y) || this.face(x, y) || SOLID_TERRAIN.has(this.get(x, y))) return false
     return !this.entities.some((e) => ONTO.resolve(e.type).solid && this.under(e, x, y))
+  }
+
+  /**
+   * Is every room still walked through from `from` (the cell inside its door): over walkable cells four ways, every
+   * walkable cell inside the rooms reached, and every thing in them beside a reached cell (or on one)? A room's
+   * furnishing asks it before a piece stands, so no piece walls off a corner, a doorway or another piece.
+   */
+  waysOpen(from: Cell): boolean {
+    const inside = (x: number, y: number) => this.rooms.some((r) => x > r.x && y > r.y && x < r.x + r.w - 1 && y < r.y + r.h - 1)
+    const reached = new Set<number>()
+    const queue: Cell[] = this.walkable(...from) ? [from] : []
+    for (const [x, y] of queue) reached.add(y * this.w + x)
+    while (queue.length) {
+      const [x, y] = queue.pop()!
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const k = (y + dy) * this.w + x + dx
+        if (reached.has(k) || !this.walkable(x + dx, y + dy)) continue
+        reached.add(k)
+        queue.push([x + dx, y + dy])
+      }
+    }
+    const touched = (x: number, y: number) => [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => this.in(x + dx, y + dy) && reached.has((y + dy) * this.w + x + dx))
+    for (let y = 0; y < this.h; y++) for (let x = 0; x < this.w; x++) if (inside(x, y) && this.walkable(x, y) && !reached.has(y * this.w + x)) return false
+    for (const e of this.entities) {
+      if (e.place.on !== 'tile' || !inside(e.place.x, e.place.y)) continue
+      let near = false
+      for (let y = e.place.y - 2; y <= e.place.y + 2 && !near; y++) for (let x = e.place.x - 2; x <= e.place.x + 2 && !near; x++) near = (this.under(e, x, y) || (x === e.place.x && y === e.place.y)) && touched(x, y)
+      if (!near) return false
+    }
+    return true
   }
 
   /** Does a placed thing stand on (x,y), or cover it with its base (its type's footprint)? */
@@ -476,7 +515,7 @@ export class MapBuilder {
   private clearVolumes(): void {
     const spaceOf = (t: string) => ONTO.data.terrains[t]?.space ?? 'floor'
     const data = { id: this.id, name: this.name, kind: this.kind, width: this.w, height: this.h, terrain: this.cells.flat(), portals: [] }
-    const layers = splitLayers(data, spaceOf, (t) => !ONTO.data.terrains[t]?.solid)
+    const layers = splitLayers(data, spaceOf, (t) => !ONTO.data.terrains[t]?.solid && !(ONTO.data.terrains[t]?.tags ?? []).some((g) => WAY_TAGS.includes(g)))
     for (const e of this.entities) {
       if (e.place.on !== 'tile' || !ONTO.resolve(e.type).solid || ONTO.resolve(e.type).tags.includes('agent')) continue
       const { x, y } = e.place

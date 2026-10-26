@@ -6,14 +6,14 @@
 // The engine is the trust boundary: patches are untrusted data until validated.
 
 import { lookWords } from './looks.ts'
-import { EVENT_KINDS, OVERLAYS } from './types.ts'
+import { AFFORDANCES, EVENT_KINDS, OVERLAYS, POSES } from './types.ts'
 import { PRIMITIVES, RESIDENT_ONLY } from './effects.ts'
 import { modulesOf } from './module.ts'
 import type { Engine, Resolution, UndefinedSink } from './engine.ts'
 import { STORY, textOf } from './engine.ts'
 import { OntologyIndex, isA, withTerrainTypes } from './ontology.ts'
 import { deriveRecipes } from './recipes.ts'
-import { RuleLibrary, cmp, compareSpec, holeKey, isDo, isHole, leaves, locate, patchKey, rolesOf, specOf, withAside, type LibraryData } from './rules.ts'
+import { RuleLibrary, cmp, compareSpec, holeKey, isDo, isHole, isPatch, leaves, locate, patchKey, rolesOf, specOf, withAside, type LibraryData } from './rules.ts'
 import { TIERS, categoryOf, isTier, ruleTier, tierOfRequest, type AiLevel } from './quality.ts'
 import { buildSandbox, chainLoop, checkExpectations, replay, scenarioEvent, whyEndless } from './sandbox.ts'
 import type { Cmp, Cond, Effect, EmitTo, GameEvent, Look, Ontology, PixelArt, PropValue, Ref, RoleName, Rule, Scenario, ScenarioEntity, Selector, StatusDef, Text, Tier, Tree, TypeDef } from './types.ts'
@@ -71,6 +71,12 @@ export interface ModRequest {
    * The answer is placed there (design.md §5.16).
    */
   hole: { rule: string; path: string[]; default: Effect[]; at: string[] }
+  /**
+   * Asked again (design.md §5.17): the event is answered by a provisional learned rule (`rule`: words only), and the
+   * one who acted kept trying after it (`times` within a short while; `said`: the line it gave). The answer replaces
+   * that rule in its place, and is final.
+   */
+  again?: { rule: string; said?: string; times: number }
   /** The AI setting it is asked at (quality.ts): the tier its answer is made at and kept in (the scenario's too). None: medium. */
   tier?: Tier
   /** How far its answer may go in making kinds the world has none of (the setting's `create`). None: medium. */
@@ -84,6 +90,11 @@ export interface ModRequest {
     tiles: string[][] // terrain window around the host, the host at the center
     tileStatuses: { at: [number, number]; statuses: string[] }[]
     recent: string[]
+    /**
+     * Whose the host is and where, in words, as the one who acted would weigh it (design.md §5.17): a stranger's
+     * house wall is not a cliff. The owner and their relation to the doer, the rooms it stands in, who is near.
+     */
+    whose?: string
     /** What the world already says about this host and kind: the rules that cover it, most specific first. */
     rules: Rule[]
   }
@@ -104,7 +115,7 @@ export interface ModSpec {
   expectations: string[]
   ontology: {
     types: { id: string; tags: string[]; name?: string }[]
-    statuses: { id: string; name?: string; duration?: number; immobilize?: boolean; moveDelay?: number; clears?: string[] }[]
+    statuses: { id: string; name?: string; duration?: number; immobilize?: boolean; moveDelay?: number; clears?: string[]; pose?: string; untilMove?: boolean }[]
     terrains: { id: string; tags: string[]; solid?: boolean; liquid?: boolean }[]
     elements: string[]
     /** Factions: an actor belongs to those its faction:<id> tags name; the wild is hostile to folk. */
@@ -183,6 +194,8 @@ export interface UndefinedRecord {
   patch?: Patch
   diagnostics?: string[]
   rules?: string[]
+  /** Asked again: the provisional learned rule (words only) the answer takes the place of (design.md §5.17). */
+  again?: string
 }
 
 export interface ValidationResult {
@@ -199,7 +212,9 @@ const AUTHORING_RULES = [
   'A rule belongs to a HOST: the thing whose nature it describes. Write what the host does when the event happens to it. Read anything (conditions on any role), but WRITE ONLY THE HOST: every effect acts on the host, spawns new things, or presents. To affect anything else, `emit` an impulse to it — the receiver answers for itself (lava does not hurt people; lava emits element fire to what stands on it, and a person, taking fire, loses health).',
   'Write for every instance of the type (its materials, qualities, elements and statuses are tags and props: branch on them in the tree when they matter). Never use `id`.',
   'Conditions narrow the cases (the target\'s type or tags, a param like element or how). A case you do not answer ends in {"undefined": true}: it stays open and is asked later; a learned rule never writes `inherit`. An `if` needs an `else`.',
-  `Use only the listed event kinds, impulses, primitives, statuses, terrains, types and vfx. If you need a new type or status, add a \`type\`/\`status\` artifact to the same patch; a status draws over what has it with \`overlay\`: one of ${OVERLAYS.join(', ')}.`,
+  `Use only the listed event kinds, impulses, primitives, statuses, terrains, types and vfx. If you need a new type or status, add a \`type\`/\`status\` artifact to the same patch; a status draws over what has it with \`overlay\`: one of ${OVERLAYS.join(', ')}; it draws its bearer in a posture with \`pose\`: one of ${POSES.join(', ')}, and \`untilMove\`: true ends it as its bearer moves on.`,
+  "A thing whose use is a posture (a chair or a stool to sit on, hay or a bed to lie on, an altar to kneel at) asks the one who used it to take it: emit `settle` to the actor with params {pose}. Every actor answers it already (it goes there and holds the posture until it moves on): your rule is the thing's side only. A posture is a thing's use only where that is what it is for, not wherever one could lean or sit.",
+  "One answer may need the other side's too (a thing you emit to has no answer of its own for it yet): a second rule in the same patch, hosted by the receiver's exact type, on the impulse you emit, answers it there. Prefer an impulse the receiver already answers.",
   'Every rule should carry at least one test (a small scenario + expectations). The triggering event is replayed automatically.',
   'Give the player feedback: a `vfx` and/or a `say`/`log` line, so the outcome is visible.',
   'Name slots ({actor}, {target}, {host}, …) read "you" when they are the player: write lines that read right either way — no verb or possessive straight after a slot ("a warm glow mends {target}", not "{actor} holds" or "{target}\'s wounds").',
@@ -242,6 +257,7 @@ const IMPULSES: Record<string, string> = {
   receive: 'something is put on or into the host: item = the thing. The host decides: take it (emit taken to the item with into) or refuse.',
   offered: 'the host (an actor) is handed a thing: item = the thing; accept (emit taken with into contents) or decline.',
   handle: 'a bare hand on the host: open, read, talk, push, shake — the host says; param say (a talk verb: ask, chat, gift, trade, follow, bribe, rob, steal, unbelief, apologise, pay, jail, persuade, resist, buy with param item …) when one speaks to it, and a say no rule knows is the host\'s to answer',
+  settle: "the host (an actor) is asked by the source to take a posture at it: param pose (sit | lie | kneel | lean), status (optional: a status of that pose). Every actor answers it: it goes onto the source's cell when it fits (beside it to lean) and holds the posture until it moves on.",
   notify: 'news for the host: params what (a key) and value — a topic for the story, the player\'s stage, a defeat for the one who struck; for people: pay (amount, to the source), give (the item, to the source), surrender, jail (map, x, y, hours), news (deeds), chat, calm; for a watch: report (actor, amount, key), pardon.',
 }
 
@@ -322,7 +338,7 @@ export function buildModSpec(onto: Ontology, lib?: Pick<RuleLibrary, 'types' | '
     ontology: {
       // without types: the model is shown the request's own types (the brief) and asks for the rest (the router)
       types: opts.types === false ? [] : Object.values(types).map((t) => ({ id: t.id, tags: t.tags ?? [], name: t.name ? textOf(t.name) : undefined })),
-      statuses: Object.values(statuses).map((s) => ({ id: s.id, name: s.name ? textOf(s.name) : undefined, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })),
+      statuses: Object.values(statuses).map((s) => ({ id: s.id, name: s.name ? textOf(s.name) : undefined, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears, pose: s.pose, untilMove: s.untilMove })),
       terrains: Object.values(onto.terrains).map((t) => ({ id: t.id, tags: t.tags ?? [], solid: t.solid, liquid: t.liquid })),
       elements: onto.elements,
       factions: onto.factions ?? {},
@@ -445,6 +461,10 @@ const askedAt = (r: Pick<UndefinedRecord, 'signature' | 'request'>) => `${r.sign
 
 /** Asks of one question that may go unanswered (no reply) before it is given up for the session. */
 const MAX_UNREACHABLE = 3
+/** A provisional answer (words only) is asked again on the player's third try (design.md §5.17)… */
+export const AGAIN_AFTER = 3
+/** …each within two minutes of the one before (at 10 ticks a second): a stray press does not count. */
+export const AGAIN_WITHIN = 1200
 
 export class ModPort implements UndefinedSink {
   provider?: ModProvider
@@ -464,6 +484,10 @@ export class ModPort implements UndefinedSink {
   private failed = new Set<string>()
   /** Questions whose asking itself failed (no reply: the service restarting, a dropped connection), by count. */
   private unreachable = new Map<string, number>()
+  /** The player's tries at a provisional answer (words only): how many in a row, and the last tick. */
+  private tries = new Map<string, { n: number; last: number }>()
+  /** Provisional answers asked again this session: once each. */
+  private reasked = new Set<string>()
 
   constructor(private eng: Engine) {
     eng.undefinedSink = this
@@ -517,6 +541,43 @@ export class ModPort implements UndefinedSink {
       this.fallback(rec.id)
       return false
     }
+    return true
+  }
+
+  /**
+   * A learned answer that gave only words (affords `words`, not yet asked again) is about to run for the player's
+   * act (design.md §5.17). On their third try within a short while it is asked again, with that signal: held like a
+   * hole while it is (the provisional words are what runs if nobody answers), and the answer, final, takes its place.
+   */
+  again(ev: GameEvent, res: Resolution): boolean {
+    const eng = this.eng
+    const w = eng.world
+    const r = res.rule
+    if (!r || !isPatch(r) || r.affords !== 'words' || r.reasked || ev.origin !== 'player' || !res.leaf || !isDo(res.leaf)) return false
+    const t = w.state.tick
+    const was = this.tries.get(r.id)
+    const n = was && t - was.last <= AGAIN_WITHIN ? was.n + 1 : 1
+    this.tries.set(r.id, { n, last: t })
+    if (n < AGAIN_AFTER || this.reasked.has(r.id) || !this.provider || eng.quality[categoryOf(w, ev)] === 'off') return false
+    const [baseId, ...rest] = (r.hole ?? '').split('#')
+    const base = eng.lib.rules.get(baseId)
+    if (!base) return false
+    this.reasked.add(r.id)
+    const said = res.leaf.do.flatMap((e) => (e.op === 'log' || e.op === 'say' ? [textOf(e.text)] : [])).join(' ')
+    // the place is the provisional answer's own; while nobody answers, what runs is its words
+    const place: Resolution = { defined: false, hole: { rule: base, path: rest.length ? rest.join('#').split('&') : [], default: res.leaf.do }, open: { key: '', tier: eng.tierOf(ev), path: r.at ?? [] } }
+    const rec = this.open(ev, place, `again:${r.id}`, 'player')
+    rec.request.again = { rule: r.id, ...(said && { said }), times: n }
+    rec.request.hole.rule = baseId
+    rec.again = r.id
+    w.fx.push({ t: 'log', text: attemptLine(eng, ev) })
+    w.fx.push({ t: 'undefined', request: rec.id, summary: rec.request.summary, asked: true })
+    this.onChange?.()
+    for (const x of [ev.host, ...Object.values(ev.roles), ...(ev.cause ? [{ e: ev.cause }] : [])]) {
+      const e = x && 'e' in x ? w.get(x.e) : undefined
+      if (e && !w.isPlaceless(e)) e.frozenBy = rec.id
+    }
+    this.ask(rec)
     return true
   }
 
@@ -631,6 +692,14 @@ export class ModPort implements UndefinedSink {
       return res
     }
     if (fresh.length !== patch.artifacts.length) patch = { ...patch, artifacts: fresh }
+    // an answer asked again takes the provisional one's place (design.md §5.17): that one leaves first, and comes
+    // back where it was should the answer be refused
+    const provisional = rec?.again ? eng.lib.rules.get(rec.again) : undefined
+    if (provisional) {
+      eng.lib.remove(provisional.id)
+      replaces = [...replaces, provisional.id]
+    }
+    const restore = () => provisional && !eng.lib.rules.has(provisional.id) && eng.lib.add(provisional, provisional.source?.at, provisional.id)
     // an answer to this port's own question is placed where the question was asked (design.md §5.16)
     if (rec && !aside.length) patch = placePatch(patch, rec.request, { ontology: w.onto.data, library: eng.lib }).patch
     const res: ValidationResult = aside.length
@@ -647,6 +716,7 @@ export class ModPort implements UndefinedSink {
       rec.diagnostics = [...res.errors, ...res.warnings]
     }
     if (!res.ok) {
+      restore()
       const wasPending = rec?.status === 'pending'
       if (rec) this.failed.add(askedAt(rec))
       if (rec && wasPending) {
@@ -940,13 +1010,15 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
     tiles.push(row)
   }
   const involved = new Set(Object.values(roles).map((v) => v?.id).filter(Boolean))
+  // a person in the event, or near it, is told with what they think of the one who acted (docs/npc-sandbox.md §2.12)
+  const doer = ev.roles.actor ?? (ev.cause ? { e: ev.cause } : undefined)
   const nearby: EntityInfo[] = []
   for (let dy = -view.nearby; dy <= view.nearby; dy++)
     for (let dx = -view.nearby; dx <= view.nearby; dx++)
       for (const e of w.entitiesAt(center.map, center.x + dx, center.y + dy)) {
         // the cells themselves are the tiles' rows; nearby is what stands or lies there
         if (w.isTerrain(e) || involved.has(e.id) || nearby.some((x) => x.id === e.id)) continue
-        const i = info(eng, 'nearby', w.view({ e: e.id }), center)
+        const i = info(eng, 'nearby', w.view({ e: e.id }), center, doer)
         if (i) nearby.push(i)
       }
   // what was said lately: the lines already shown (drained each frame) and this frame's
@@ -954,8 +1026,6 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
   const recent = (view.recent ? said.slice(-view.recent) : []).map((t) => textOf(t))
   const hostView = roles.host
   const infos: Partial<Record<RoleName, EntityInfo>> = {}
-  // a person in the event is told with what they think of the one who acted (docs/npc-sandbox.md §2.12)
-  const doer = ev.roles.actor ?? (ev.cause ? { e: ev.cause } : undefined)
   for (const [k, v] of Object.entries(roles)) if (k !== 'host' && v) infos[k as RoleName] = info(eng, k, v, center, doer)
   return {
     id,
@@ -973,10 +1043,32 @@ export function buildRequest(eng: Engine, ev: GameEvent, res: Resolution, id: st
       tiles,
       tileStatuses,
       recent,
+      ...((x) => x && { whose: x })(whoseOf(eng, ev, nearby)),
       rules: [...eng.lib.candidates(ev.kind, hostView), ...eng.lib.learned(hostView?.type, ev.kind)].slice(0, view.rules),
     },
     scenario: buildScenario(eng, ev),
   }
+}
+
+/** Whose the host is, where it stands and who is near, in words (ModRequest.context.whose). */
+function whoseOf(eng: Engine, ev: GameEvent, nearby: EntityInfo[]): string | undefined {
+  const w = eng.world
+  const host = 'e' in ev.host ? w.get(ev.host.e) : undefined
+  const doer = ev.roles.actor && 'e' in ev.roles.actor ? w.get(ev.roles.actor.e) : ev.cause ? w.get(ev.cause) : undefined
+  if (!host || w.isPlaceless(host)) return undefined
+  const out: string[] = []
+  const owner = eng.society.ownerOf(host)
+  if (owner) {
+    const rel = doer ? eng.society.relation(owner, doer) : 'another'
+    const who = w.get(owner) ? eng.nameOf({ e: owner }) : owner
+    out.push(rel === 'mine' ? `it is the doer's own` : rel === 'ours' ? `it is their household's (${who})` : `it is someone else's (${who})`)
+  } else out.push("it is nobody's")
+  const p = w.posOf(host)
+  const rooms = p ? w.regionsAt(p.map, p.x, p.y, p.z).map((r) => eng.nameOf({ e: r.id })).filter(Boolean) : []
+  if (rooms.length) out.push(`it stands in ${rooms.join(', ')}`)
+  const people = nearby.filter((n) => n.person).map((n) => `${n.name}${n.person?.regard !== undefined ? ` (regard ${n.person.regard})` : ''}`)
+  out.push(people.length ? `near: ${people.slice(0, 4).join(', ')}` : 'no one is near')
+  return out.join('; ')
 }
 
 /** What a world event is about, in words, for the modder. */
@@ -1151,7 +1243,7 @@ function economyRule(onto: Ontology): string {
   return `What a thing is worth comes from what it is — its kind, its material, its quality — and the economy reads it to price things: a learned rule never writes, on its host, ${[...props].map(([k, why]) => `\`${k}\` (${why})`).join(', ')}, nor adds or removes a \`material:\` or quality tag. Raised by an answer on every use, worth is coin from nothing once sold: ${WORTH_WAY}.`
 }
 
-const IMPULSE_KINDS = new Set(['strike', 'element', 'coat', 'restore', 'push', 'taken', 'receive', 'offered', 'handle', 'notify'])
+const IMPULSE_KINDS = new Set(['strike', 'element', 'coat', 'restore', 'push', 'taken', 'receive', 'offered', 'handle', 'notify', 'settle'])
 /** The news a learned rule may send: a topic for people to talk about. The rest (quest, defeat, reward, status…) is the game's own. */
 const NOTIFY_OPEN = new Set(['topic'])
 const KIND_PREFIXES = new Set<string>(EVENT_KINDS.flatMap((k) => k.split('/').map((_, i, a) => a.slice(0, i + 1).join('/'))))
@@ -1547,6 +1639,7 @@ function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
     else checkSel(r.host, `${where}.host`)
     if (typeof r.hole !== 'string' || !r.hole) errors.push(`${where}: hole required — the base hole this rule fills (the harness sets it from the request)`)
     if (r.at !== undefined && !(Array.isArray(r.at) && r.at.every((x) => typeof x === 'string'))) errors.push(`${where}: at must be a path (a list of branches) when given`)
+    if (r.affords !== undefined && !(AFFORDANCES as readonly string[]).includes(r.affords)) errors.push(`${where}: affords is one of ${AFFORDANCES.join('|')} (the harness sets it from the answer)`)
     if (r.tier !== undefined && !isTier(r.tier)) errors.push(`${where}: tier must be one of ${TIERS.join('|')} (the harness sets it from the request)`)
     if ('when' in (r as object) || 'do' in (r as object)) errors.push(`${where}: this is the earlier rule shape (when/do); write {host, on, tree}`)
     const resident = !!r.host?.type && isA(r.host.type, 'resident')
@@ -1848,6 +1941,8 @@ export function newStatusProblems(st: StatusDef): string[] {
   const out: string[] = []
   if (st.immobilize && !lasts(st.duration)) out.push('a status that holds its bearer still lasts a while: duration (ticks, > 0), or it would never end')
   if (st.overlay !== undefined && !(OVERLAYS as readonly string[]).includes(st.overlay)) out.push(`overlay "${st.overlay}" is not one the world can draw: one of ${OVERLAYS.join(', ')}`)
+  if (st.pose !== undefined && !(POSES as readonly string[]).includes(st.pose)) out.push(`pose "${st.pose}" is not one the world can draw: one of ${POSES.join(', ')}`)
+  if (st.untilMove !== undefined && typeof st.untilMove !== 'boolean') out.push('untilMove is true or false')
   if (typeof st.name !== 'object' || !st.name?.en?.trim() || !st.name?.zh?.trim()) out.push('a new status says what it is called, as the things that have it show it: name {"en": "...", "zh": "..."}')
   return out
 }

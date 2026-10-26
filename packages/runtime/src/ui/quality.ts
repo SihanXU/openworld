@@ -62,11 +62,18 @@ export class AiOptions {
     private redraw: () => void,
   ) {}
 
+  /** Another place showing the section (the title's settings): drawn again with it. */
+  also?: () => void
+  private draw(): void {
+    this.redraw()
+    this.also?.()
+  }
+
   set(q: AiQuality): void {
     this.quality = q
     storeQuality(q)
     this.apply(q)
-    this.redraw()
+    this.draw()
   }
 
   html(): string {
@@ -130,7 +137,7 @@ export class AiOptions {
     } catch {
       this.reply = undefined
     }
-    this.redraw()
+    this.draw()
     clearTimeout(this.poll)
     if (this.reply?.running) this.poll = setTimeout(() => void this.refresh(false), POLL_MS)
   }
@@ -139,7 +146,7 @@ export class AiOptions {
     const url = this.service?.url
     if (!url || this.asking) return
     this.asking = true
-    this.redraw()
+    this.draw()
     try {
       const r = (await (await fetch(`${url}/quality/detect`, { method: 'POST', signal: AbortSignal.timeout(5000) })).json()) as { started?: boolean; why?: string; error?: string }
       this.note = r.started ? undefined : (r.why ?? r.error)

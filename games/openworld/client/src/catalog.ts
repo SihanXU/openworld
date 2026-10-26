@@ -12,7 +12,9 @@
 
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL, type ActorDef, type Catalog, type FxDef, type PrefabDef, type SpriteDef } from '@openworld/runtime/src/assets/types.ts'
 import { SIN_ACTORS, SIN_FX } from '@openworld/runtime/src/assets/bosses.ts'
+import { SLATE } from '@openworld/runtime/src/assets/relief.ts'
 import FACES from './faces.json'
+import LOUDNESS from './loudness.json'
 import { CROP_FIXTURES, CROP_ITEMS } from './crops.ts'
 
 // ---------------------------------------------------------------------------------------------
@@ -161,6 +163,8 @@ const ON_GRASS = ['grass', 'flowers', 'drygrass', 'tree', 'pine', 'bush', 'rock'
 
 const SND = 'Audio/Sounds/'
 const MUS = 'Audio/Musics/'
+/** A piece of the pack's music by its name. */
+const M = (name: string) => `${MUS}${name}.ogg`
 
 export const CATALOG: Catalog = {
   // -------------------------------------------------------------------------------------------
@@ -273,6 +277,11 @@ export const CATALOG: Catalog = {
     woodwall: [[HOUSE, 11, 5], [HOUSE, 12, 5]],
     // a wooden wall burnt black (the pack has none: the wall, darkened by its tint in ground.ts)
     burnt_wall: [[HOUSE, 11, 5], [HOUSE, 12, 5]],
+    // the walls of tents, huts and igloos, drawn alone (a building draws its own picture over them): a palisade's
+    // and a stone wall's pieces
+    canvaswall: [[HOUSE, 11, 5], [HOUSE, 12, 5]],
+    thatchwall: [[HOUSE, 11, 5], [HOUSE, 12, 5]],
+    snowwall: [[HOUSE, 11, 9], [HOUSE, 12, 9]],
     roof: [[HOUSE, 13, 1], [HOUSE, 14, 1]],
     cave_wall: [[RELIEF, 5, 1], [RELIEF, 9, 1], [RELIEF, 10, 1]],
   },
@@ -354,29 +363,31 @@ export const CATALOG: Catalog = {
   // Prefabs. Grids: '#' solid, '.' drawn & walkable, 'D' door (the tile you walk into), ' ' empty.
   // -------------------------------------------------------------------------------------------
   prefabs: {
+    // What a building's walls are made of is its solid cells' terrain (docs/building.md §10): plaster and stone are
+    // 'wall' (the default), timber 'woodwall', a tent's canvas, a hut's thatch, an igloo's snow their own.
     // Four 4x3 cottages (roof rows 0-1, wall row 2, door = the dark arch at column 1).
     house_orange: pf(HOUSE, 0, 0, ['####', '####', '#D##']),
     house_plaster: pf(HOUSE, 4, 0, ['####', '####', '#D##']),
     house_thatch: pf(HOUSE, 8, 0, ['####', '####', '#D##']),
     house_red: pf(HOUSE, 12, 0, ['####', '####', '#D##']),
     // Wooden house seen corner-on, door centre.
-    house_wood: pf(HOUSE, 26, 0, ['###', '###', '#D#']),
+    house_wood: pf(HOUSE, 26, 0, ['###', '###', '#D#'], 'woodwall'),
     // Front-gabled wooden cabin (3x3), door centre.
-    cabin: pf(HOUSE, 19, 19, ['###', '###', '#D#']),
+    cabin: pf(HOUSE, 19, 19, ['###', '###', '#D#'], 'woodwall'),
     // Shop with a hanging sign on the roof; door centre.
-    shop: pf(HOUSE, 16, 0, ['###', '###', '#D#']),
+    shop: pf(HOUSE, 16, 0, ['###', '###', '#D#'], 'woodwall'),
     // General store: tall right wing (sign, round window) + low left wing with the door.
-    store: pf(HOUSE, 29, 0, ['  ##', '####', '####', '#D##']),
+    store: pf(HOUSE, 29, 0, ['  ##', '####', '####', '#D##'], 'woodwall'),
     // Tea house with lanterns (4x3): lattice door at col 1 is closed; the open doorway is col 2.
-    teahouse: pf(HOUSE, 19, 0, ['####', '####', '##D#']),
+    teahouse: pf(HOUSE, 19, 0, ['####', '####', '##D#'], 'woodwall'),
     // Inn: big two-storey A-frame (4x5), door at col 1 of the bottom row.
-    inn: pf(HOUSE, 25, 14, ['####', '####', '####', '####', '#D##']),
+    inn: pf(HOUSE, 25, 14, ['####', '####', '####', '####', '#D##'], 'woodwall'),
     // Thatched longhouse: thatch roof piece (rows 7-11) stacked on the ground-floor piece (12-13).
-    longhouse: pf(HOUSE, 25, 7, [' ## ', '####', '####', '####', '####', '####', '#D##']),
+    longhouse: pf(HOUSE, 25, 7, [' ## ', '####', '####', '####', '####', '####', '#D##'], 'woodwall'),
     // Smithy: orange canvas forge hut, door centre.
-    smithy: pf(HOUSE, 0, 7, ['###', '###', '#D#']),
+    smithy: pf(HOUSE, 0, 7, ['###', '###', '#D#'], 'canvaswall'),
     // Straw hut (3 wide x 2 tall), door centre.
-    hut_straw: pf(HOUSE, 3, 8, ['###', '#D#']),
+    hut_straw: pf(HOUSE, 3, 8, ['###', '#D#'], 'thatchwall'),
     // Stone temple with sun emblem, door centre.
     temple: pf(HOUSE, 23, 0, ['###', '###', '#D#']),
     // Shrine: seated statue holding a glowing orb (2x2, not enterable).
@@ -386,14 +397,14 @@ export const CATALOG: Catalog = {
     statue_frog: pf(HOUSE, 3, 17, ['##', '##']),
     // Pottery kiln / furnace building (3x4, the opening is a fire mouth, not a door).
     kiln: pf(HOUSE, 29, 4, ['###', '###', '###', '###']),
-    igloo: pf(HOUSE, 0, 11, ['###', '###', '#D#']),
+    igloo: pf(HOUSE, 0, 11, ['###', '###', '#D#'], 'snowwall'),
     // Narrower igloo drawn off-centre in its 3 tiles (x 7..41 of 48); door in the middle column.
-    igloo_small: pf(HOUSE, 3, 11, ['###', '###', '#D#']),
-    igloo_brick: pf(HOUSE, 6, 11, ['###', '###', '#D#']),
+    igloo_small: pf(HOUSE, 3, 11, ['###', '###', '#D#'], 'snowwall'),
+    igloo_brick: pf(HOUSE, 6, 11, ['###', '###', '#D#'], 'snowwall'),
     // Camp tents (tileset_camp): plain, patched, torn. Door = the dark opening, centre.
-    tent: pf(CAMP, 4, 0, ['###', '###', '#D#']),
-    tent_patched: pf(CAMP, 7, 0, ['###', '###', '#D#']),
-    tent_torn: pf(CAMP, 10, 0, ['###', '###', '#D#']),
+    tent: pf(CAMP, 4, 0, ['###', '###', '#D#'], 'canvaswall'),
+    tent_patched: pf(CAMP, 7, 0, ['###', '###', '#D#'], 'canvaswall'),
+    tent_torn: pf(CAMP, 10, 0, ['###', '###', '#D#'], 'canvaswall'),
     // A wooden watchtower on legs, its ladder in front (3x5), and a round log tower (3x6): a fort's towers.
     watchtower: pf(HOUSE, 16, 6, ['###', '###', '###', '###', '###'], 'woodwall'),
     tower_round: pf(HOUSE, 19, 3, ['###', '###', '###', '###', '###', '###'], 'woodwall'),
@@ -469,9 +480,8 @@ export const CATALOG: Catalog = {
     moss: { img: WALLS, col: 5, row: 6, size: 5 },
   },
 
-  // the edges of high ground: the relief sheet's rims and faces with its plateau's white top cleared
-  // (tools/src/art/terrace.ts), laid over the ground of any map with heights
-  terrace: { img: 'lsw/Relief/Terrace.png' },
+  // the rock of the relief (runtime assets/relief.ts): the Frostfang Coast's slate wherever ground rises
+  relief: { '*': SLATE },
 
   // -------------------------------------------------------------------------------------------
   // Fixtures. base = normal state; open / lit only where the pack draws that state.
@@ -973,6 +983,9 @@ export const CATALOG: Catalog = {
     // Heart receptacle: 5 frames of 16x16, frame 0 empty -> frame 4 full.
     heart: ui('Ui/Receptacle/Heart.png', 16, 16, { frames: 5, step: 16 }),
     iconHeart: ui('Ui/Receptacle/IconHeart.png', 14, 12),
+    // a wall breaking (tools/src/art/damage.ts): its cracks a third, two thirds and nearly all gone, then the shade a
+    // hole leaves under the eave still over it — laid over a building's pieces and built walls (render/pieces.ts)
+    wallDamage: ui('lsw/Structures/damage.png', 16, 16, { frames: 4 }),
     // the hunger bar's drumstick (hud.ts)
     drumstick: ui('Items/Food/Meat.png', 15, 15),
     // the corner buttons (hud.ts): quests, build, bag, skills
@@ -999,22 +1012,71 @@ export const CATALOG: Catalog = {
     // Emote face bubbles emote1..emote30 (14x13), added below as ui['emote<N>'].
   },
 
+  // The music (docs/music.md): a cue per map mood, in its versions for the hour and the weather, and the cues the runtime
+  // asks for itself (title, battle, boss, and outdoor/indoor/dark for a map that names none) and the scenes ask for by
+  // name. The wilds rest between their pieces (silence and the ambience); a village plays on with short rests. Every
+  // file is levelled by its measured loudness (loudness.json, `npm run loudness`).
   music: {
-    title: MUS + '1 - Adventure Begin.ogg',
-    village: MUS + '4 - Village.ogg',
-    village_night: MUS + '9 - Quiet.ogg',
-    field: MUS + '35 - Adventure.ogg',
-    forest: MUS + '11 - Clearing.ogg',
-    interior: MUS + '5 - Peaceful.ogg',
-    cave: MUS + '2 - The Cave.ogg',
-    battle: MUS + '17 - Fight.ogg',
-    // a boss fight: the grand one, while the camera holds over the arena (scene.ts frameBossFight)
-    boss: MUS + '24 - Final Area.ogg',
-    shop: MUS + '20 - Good Time.ogg',
-    temple: MUS + '12 - Temple.ogg',
-    dungeon: MUS + '21 - Dungeon.ogg',
-    dark_forest: MUS + '37 - Dark Forest.ogg',
+    // the title: its own pieces, whatever place shows behind it
+    title: { tracks: [M('38 - Intro'), M('22 - Dream')] },
+    // waking on Cloudtop: wonder and loneliness in the snow
+    cloudtop: { tracks: [M('19 - Ascension'), M('13 - Mystical')], rest: [45, 120], at: { night: 'field_night', storm: 'storm' } },
+    // the wilds: a piece now and then, long rests between (Breath of the Wild, Minecraft)
+    field: { tracks: [M('31 - Sunny'), M('23 - Road'), M('35 - Adventure')], rest: [60, 150], at: { dawn: 'field_dawn', dusk: 'field_dusk', night: 'field_night', rain: 'field_rain', storm: 'storm' } },
+    field_dawn: { tracks: [M('22 - Dream'), M('19 - Ascension')], rest: [45, 110] },
+    field_dusk: { tracks: [M('16 - Melancholia'), M('26 - Lost Village')], rest: [50, 120] },
+    field_night: { tracks: [M('29 - Lament'), M('30 - Ruins'), M('9 - Quiet')], rest: [90, 200] },
+    field_rain: { tracks: [M('16 - Melancholia'), M('7 - Sad Theme')], rest: [60, 140] },
+    storm: { tracks: [M('28 - Tension')], rest: [20, 60] },
+    // a village: plays on with short rests; its dusk by the fire, its night all but silent
+    village: { tracks: [M('33 - Calm Village'), M('36 - Village'), M('4 - Village')], rest: [15, 40], at: { dusk: 'village_dusk', night: 'village_night', rain: 'village_rain', storm: 'village_rain' } },
+    village_dusk: { tracks: [M('27 - Chill'), M('6 - Story')], rest: [20, 60] },
+    village_night: { tracks: [M('9 - Quiet'), M('22 - Dream')], rest: [120, 260] },
+    village_rain: { tracks: [M('27 - Chill'), M('16 - Melancholia')], rest: [30, 80] },
+    haven: { like: 'village' },
+    // the mill on its brook, the river at the Reed Bend, the Ford
+    millbrook: { tracks: [M('31 - Sunny'), M('39 - Boat'), M('33 - Calm Village')], rest: [30, 90], at: { dusk: 'village_dusk', night: 'village_night', rain: 'village_rain', storm: 'village_rain' } },
+    river: { tracks: [M('39 - Boat'), M('18 - Aquatic')], rest: [40, 110], at: { dusk: 'river_dusk', night: 'field_night', rain: 'field_rain', storm: 'storm' } },
+    river_dusk: { tracks: [M('26 - Lost Village'), M('7 - Sad Theme')], rest: [40, 110] },
+    ford: { tracks: [M('26 - Lost Village'), M('39 - Boat')], rest: [40, 110], at: { dusk: 'field_dusk', night: 'field_night', rain: 'field_rain', storm: 'storm' } },
+    // the woods: mystery by day, dark after it
+    forest: { tracks: [M('11 - Clearing'), M('13 - Mystical')], rest: [50, 130], at: { dusk: 'dark_forest', night: 'dark_forest', rain: 'field_rain', storm: 'storm' } },
+    dark_forest: { tracks: [M('37 - Dark Forest')], rest: [40, 120] },
+    hollow: { tracks: [M('30 - Ruins'), M('37 - Dark Forest')], rest: [40, 100], at: { night: 'dark_forest', storm: 'storm' } },
+    dell: { tracks: [M('30 - Ruins'), M('11 - Clearing')], rest: [50, 120], at: { dusk: 'dark_forest', night: 'dark_forest', rain: 'field_rain', storm: 'storm' } },
+    ruins: { tracks: [M('30 - Ruins'), M('14 - Curse')], rest: [40, 100], at: { storm: 'storm' } },
+    kneelfield: { tracks: [M('14 - Curse'), M('29 - Lament')], rest: [30, 90], at: { storm: 'storm' } },
+    // under a roof: quiet, quieter by night; the shop; the chapel's chant
+    interior: { tracks: [M('5 - Peaceful'), M('27 - Chill')], rest: [40, 120], at: { night: 'interior_night' } },
+    interior_night: { tracks: [M('9 - Quiet'), M('22 - Dream')], rest: [120, 240] },
+    shop: { tracks: [M('20 - Good Time'), M('32 - Manor')], rest: [10, 30] },
+    temple: { tracks: [M('12 - Temple'), M('3 - Revelation')], rest: [20, 60] },
+    // the dark: caves, the barrow and its crypts, the abbey's hall
+    cave: { tracks: [M('2 - The Cave'), M('40 - Crypt')], rest: [30, 90] },
+    crypt: { tracks: [M('40 - Crypt'), M('14 - Curse')], rest: [20, 60] },
+    dungeon: { tracks: [M('21 - Dungeon'), M('30 - Ruins')], rest: [20, 60] },
+    // the world map: the road
+    worldmap: { tracks: [M('23 - Road'), M('35 - Adventure')], rest: [10, 30] },
+    // a map that names no mood (the backdrop's places, the wilds made from the seed)
+    outdoor: { like: 'field' },
+    indoor: { like: 'interior' },
+    dark: { like: 'cave' },
+    // a fight: quick in, held a few seconds past the last blow; darker by night
+    battle: { tracks: [M('17 - Fight'), M('34  - Fight')], at: { night: 'battle_night' } },
+    battle_night: { tracks: [M('28 - Tension'), M('34  - Fight')] },
+    // a boss fight, while the camera holds over the arena (scene.ts frameBossFight); a kind's own, and its later phase
+    boss: { tracks: [M('24 - Final Area')] },
+    'boss:alberic': { tracks: [M('24 - Final Area')] },
+    'boss:alberic:2': { tracks: [M('10 - Dark Castle')] },
+    'boss:dragon': { tracks: [M('34  - Fight')] },
+    // the scenes' music (a scene's `music` command)
+    severin: { tracks: [M('14 - Curse')] },
+    sorrow: { tracks: [M('7 - Sad Theme'), M('29 - Lament')] },
+    revelation: { tracks: [M('3 - Revelation')] },
+    ending: { tracks: [M('8 - End Theme'), M('25 - End Theme 2')] },
+    credits: { tracks: [M('15 - Credit Theme')] },
   },
+  loudness: LOUDNESS,
 
   // people with a portrait of their own (docs/character-art.md, docs/cast/): the dialogue's bust in place of their look's
   portraits: {
@@ -1050,6 +1112,10 @@ export const CATALOG: Catalog = {
     coin: SND + 'Bonus/Coin.wav',
     undefined: SND + 'Magic & Skill/Strange.wav',
     patched: 'Audio/Jingles/Success1.wav',
+    // the jingles the music steps back for (scene.ts jingle): a level gained, a quest done, a seal's power taken up
+    levelup: 'Audio/Jingles/LevelUp1.wav',
+    quest: 'Audio/Jingles/Success3.wav',
+    boon: 'Audio/Jingles/Secret2.wav',
     error: SND + 'Menu/Cancel.wav',
     death: 'Audio/Jingles/GameOver2.wav',
     // a monster's wind-up and its fall (the kits module's poses, render/scene.ts)

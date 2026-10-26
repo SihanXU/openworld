@@ -13,7 +13,7 @@
 // people who travel, and come and go only between neighbouring maps, placed by their days when one is entered.
 
 import type { Engine } from './engine.ts'
-import { astar } from './path.ts'
+import { astar, wayTo } from './path.ts'
 import { scheduleFor } from './people.ts'
 import { evalCond, matchSelector } from './rules.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
@@ -391,7 +391,7 @@ export class NpcSim {
     }
     const goal = `${active}:${gx}:${gy}`
     // a path that no longer starts beside them (they were made to step aside) is planned again
-    if (rt.path?.length && Math.abs(rt.path[0][0] - x) + Math.abs(rt.path[0][1] - y) !== 1) rt.path = undefined
+    if (rt.path?.length && !wayTo(x, y, ...rt.path[0])) rt.path = undefined
     if (!rt.path || rt.goal !== goal || !rt.path.length) {
       if (this.budget <= 0) return true
       this.budget--
@@ -419,7 +419,7 @@ export class NpcSim {
       this.labour(e, job)
       return true
     }
-    const dir: Dir = nx > x ? 'right' : nx < x ? 'left' : ny > y ? 'down' : 'up'
+    const dir = wayTo(x, y, nx, ny)!
     if (eng.step(e, dir)) {
       rt.path.shift()
       rt.blocked = 0

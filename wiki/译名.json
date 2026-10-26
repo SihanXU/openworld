@@ -269,7 +269,18 @@
     "temple": "神殿",
     "dungeon": "地牢",
     "dark_forest": "幽暗森林",
-    "title": "标题"
+    "title": "标题",
+    "ford": "渡口",
+    "hollow": "荆棘谷",
+    "crypt": "墓穴",
+    "dell": "烧炭谷",
+    "river": "河湾",
+    "millbrook": "水车磨坊",
+    "ruins": "废墟",
+    "kneelfield": "跪石原",
+    "cloudtop": "云顶",
+    "haven": "誓守之地",
+    "worldmap": "世界地图"
   },
   "元素": {
     "fire": "火",

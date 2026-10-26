@@ -22,6 +22,8 @@ import type { PersonDef, Slot } from './person.ts'
 import { buildOverworld, placeCells, readContinent, siteOf } from './overworld.ts'
 import { backdropMeta, buildBackdrop } from './continent/backdrop.ts'
 import { peopleBackdrop } from './continent/people.ts'
+import { ownShells } from './shells.ts'
+import { CATALOG } from '../../../client/src/catalog.ts'
 import { HOUSEHOLDS, PEOPLE, householdOf } from './people.ts'
 import { buildHaven, buildHavenGrounds } from './quest/haven.ts'
 import { villageInteriors, villageLife, villageTown } from './village.ts'
@@ -100,7 +102,7 @@ export const STAND = {
 } as const satisfies Record<string, readonly [number, number]>
 
 function buildMap(): MapBuilder {
-  const m = new MapBuilder('ford', L('The Ford', '渡口'), 'wild', 48, 30, 'grass', 'field', 'outdoor', 'frostfang')
+  const m = new MapBuilder('ford', L('The Ford', '渡口'), 'wild', 48, 30, 'grass', 'ford', 'outdoor', 'frostfang')
   const grass = (t: string) => t === 'grass'
   // ------------------------------------------------------------ the river: a pool at the landing, narrows at the dead tree
   for (let y = 0; y < m.h; y++) for (let x = NEAR[y]; x <= FAR[y]; x++) m.set(x, y, 'water')
@@ -294,9 +296,9 @@ function buildMeadow(): MapBuilder {
   m.anchor('cass.loom', 16, 14)
   // where Vigo sleeps rough, at the square's east edge by the road
   m.anchor('vigo.camp', 34, 15)
-  // Odette's standing mirror at the square's south-east, east of the evening fire, and where she works beside it by day (content dresser.ts)
+  // Odette's standing mirror at the square's south-east, east of the evening fire, and where she works beside it by day, a step east of the grey man's spot before it (content dresser.ts)
   m.fixture('fixture/furniture/mirror', 26, 16, { id: 'village.mirror', props: { owner: 'npc.odette' } })
-  m.anchor('dresser.stand', 26, 17)
+  m.anchor('dresser.stand', 27, 17)
   // the warm spring in its clearing west of the pond: sit in it and it mends you
   const [sx, sy] = FIRSTLIGHT.spring
   m.scenery('spring', sx - 1, sy - 1)
@@ -586,6 +588,7 @@ const scenes: StepDef[] = [
     id: 'part_one',
     when: { map: 'ford', region: 'far_bank', quest: { first_seal: { gte: 40 } }, facts: { [PART_TWO]: 0 } },
     script: [
+      { music: 'ending' },
       { wait: 8 },
       say('pip', 'The road goes on east from here, all the way to the Rest, and the rider, and wherever the grey man took our flame.', '路从这里一直往东，通到驿站，通到那个骑手，通到灰衣人带走圣火的地方。'),
       {
@@ -788,6 +791,8 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
     b.regions[`home.${h}`] = indoors ? [0, 0, b.w, b.h] : [a.x - 1, a.y, 3, 1]
     b.regionProps[`home.${h}`] = { owner: `household:${h}` }
   }
+  // a house's walls are whose its rooms are (docs/building.md §10): breaking into them is a deed against them
+  ownShells(builders, CATALOG.prefabs)
   // the overworld (world-model.md §5.1): each map on its cell, the rest of the continent wild
   const cells = placeCells(builders, m)
   for (const b of builders) {
@@ -802,6 +807,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
     backdropMaps = buildBackdrop(continent)
     // the backdrop's people, made into its places' files (docs/continent.md §11): their records are their places', never the index's
     backdropPeople = peopleBackdrop(backdropMaps, continent)
+    ownShells(backdropMaps.map((c) => c.map), CATALOG.prefabs)
   }
   const backdrop = backdropMaps
   let items = 0
