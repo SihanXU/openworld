@@ -222,6 +222,9 @@ export const MATERIALS: Record<string, (s: Surface) => string> = {
   darkwood: (s) => step('dw', tone(s) + (((s.cls === 'south' ? s.x : s.y) % 5 + 5) % 5 < 1 ? 1 : 0)),
   salt: plain('sl', 0),
   whiteStone: ashlar('pw', 7, 16),
+  // the north's caves: rock glazed with ice, blue in its hollows; crystal growing out of it, lit from within
+  iceRock: (s) => step(hash(Math.floor(s.x / 6), Math.floor(s.z / 5), 77) < 0.35 ? 'pb' : 'g', tone(s) + (hash(Math.floor(s.x / 3), Math.floor(s.z / 7), 78) < 0.25 ? 1 : 0)),
+  crystal: (s) => step(hash(Math.floor(s.x / 4), Math.floor(s.y / 4), 79) < 0.5 ? 'B' : 'U', s.cls === 'top' ? 0 : tone(s, -0.5)),
   // black iron (a street lamp's)
   ironDark: plain('i', 1.4),
   bronze: plain('z', 0),

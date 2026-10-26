@@ -71,3 +71,27 @@ export function standAnchors(b: MapBuilder): void {
           }
   }
 }
+
+/**
+ * Beds out of doors for a camp's people: `n` cells one can stand on, no two alike, each as near as may be to one of the
+ * places given (a tent's door, a fire), taken by turns.
+ */
+export function bedsNear(b: MapBuilder, around: [number, number][], n: number): [number, number][] {
+  const ok = (x: number, y: number) => b.passable(x, y) && !b.face(x, y) && !b.get(x, y).includes('water') && b.get(x, y) !== 'door' && b.get(x, y - 1) !== 'door'
+  const taken = new Set<string>()
+  const out: [number, number][] = []
+  for (let k = 0; out.length < n && k < n * 4; k++) {
+    const [cx, cy] = around[k % around.length]
+    search: for (let r = 0; r < 8; r++)
+      for (let dy = -r; dy <= r; dy++)
+        for (let dx = -r; dx <= r; dx++) {
+          const x = cx + dx
+          const y = cy + dy
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || taken.has(`${x},${y}`) || !ok(x, y)) continue
+          taken.add(`${x},${y}`)
+          out.push([x, y])
+          break search
+        }
+  }
+  return out
+}

@@ -59,6 +59,39 @@ function hallPlan(W: number, H: number, TOP: number, parts: Record<string, [numb
   return { TOP, parts: rects, plan, doors: ds }
 }
 
+/** A plan's own little hash (the caves' ragged edges): a number in [0, 1) for three integers. */
+function jitter(a: number, b: number, c: number): number {
+  let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263) + Math.imul(c | 0, 2147483647)) | 0
+  h = Math.imul(h ^ (h >>> 13), 1274126177)
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296
+}
+
+/**
+ * A cave's plan: its floor the union of ragged ellipses (cx, cy, rx, ry) and passages between them, laid as a rect a row
+ * so its walls step as rock does; the named parts (where things go and people keep) are floor as well.
+ */
+function cavePlan(W: number, H: number, TOP: number, seed: number, blobs: [number, number, number, number][], passages: [number, number, number, number][], named: Record<string, [number, number, number, number]>, doors: [number, number][]): HallPlan {
+  const floor = Array.from({ length: H }, () => Array(W).fill(false))
+  for (const [cx, cy, rx, ry] of blobs)
+    for (let y = 1; y < H - 1; y++)
+      for (let x = 2; x < W - 2; x++) if (((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1 - jitter(x, y, seed) * 0.35) floor[y][x] = true
+  for (const [x, y, w, h] of [...passages, ...Object.values(named)]) for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) if (floor[j]) floor[j][i] = true
+  const parts: Record<string, [number, number, number, number]> = { ...named }
+  for (let y = 0; y < H; y++) {
+    let x = 0
+    while (x < W) {
+      if (!floor[y][x]) {
+        x++
+        continue
+      }
+      const x0 = x
+      while (x < W && floor[y][x]) x++
+      parts[`row${y}_${x0}`] = [x0, y, x - x0, 1]
+    }
+  }
+  return hallPlan(W, H, TOP, parts, doors)
+}
+
 /**
  * The plans of the showcase's other halls (docs/showcase.md §4; the user's word of 2026-10-26: "内饰怎么全是方块"): each its
  * own shape — alcoves and bays, a dais, a nook for the hearth, rooms off a room — so its walls step in and out as the
@@ -97,5 +130,22 @@ export const HALLS = {
   mill: hallPlan(24, 15, 7, { floor: [2, 3, 20, 9], race: [16, 1, 5, 2], entry: [9, 12, 5, 2] }, [[11, 14]]),
   workings: hallPlan(58, 40, 5, { entry: [25, 33, 8, 5], main: [27, 6, 4, 27], westLow: [6, 24, 21, 3], eastMid: [31, 18, 20, 3], westHigh: [8, 10, 19, 3], eastHigh: [31, 7, 22, 3], stopeW: [3, 18, 8, 6], stopeE: [47, 21, 9, 8], cavern: [3, 3, 10, 7], winze: [50, 2, 6, 5], sump: [12, 29, 12, 6], drift: [16, 27, 3, 2] }, [[28, 38]]),
   oldworks: hallPlan(50, 38, 7, { landing: [22, 31, 6, 5], way: [23, 18, 4, 13], hall: [10, 8, 30, 10], gate: [20, 2, 10, 6], forge: [2, 10, 7, 6], forgeDoor: [9, 12, 1, 2], vault: [41, 10, 7, 6], vaultDoor: [40, 12, 1, 2], tombW: [12, 20, 8, 6], tombWDoor: [20, 22, 3, 2], tombE: [30, 20, 8, 6], tombEDoor: [27, 22, 3, 2] }, []),
+  // the fourth batch (docs/showcase.md §4d): the manor's hall, gallery and cellar; the ruin's undercroft and the drowned
+  // vault under it; the ice cave's two levels; the mage's tower floor by floor; the bandits' lodge and burrow; the fort's
+  // garrison
+  manorhall: hallPlan(30, 18, 8, { hall: [2, 4, 26, 10], dais: [10, 1, 10, 3], bayW: [1, 7, 1, 4], bayE: [28, 7, 1, 4], stair: [24, 14, 4, 2], entry: [12, 14, 6, 3] }, [[14, 17]]),
+  gallery: hallPlan(34, 12, 7, { gallery: [2, 3, 30, 5], bayN1: [6, 1, 4, 2], bayN2: [15, 1, 4, 2], bayN3: [24, 1, 4, 2], landing: [15, 8, 4, 3] }, []),
+  cellar: hallPlan(26, 15, 5, { kitchen: [2, 3, 12, 9], cellar: [15, 3, 9, 9], arch: [14, 6, 1, 3], landing: [6, 12, 4, 2] }, []),
+  undercroft: hallPlan(26, 18, 5, { hall: [3, 3, 20, 10], apse: [9, 1, 8, 2], landing: [11, 13, 4, 3] }, []),
+  drowned: hallPlan(24, 16, 5, { pool: [3, 3, 18, 9], landing: [9, 12, 4, 3] }, []),
+  icecave: cavePlan(50, 38, 6, 7, [[25, 33, 5, 4], [24, 21, 9, 6], [10, 14, 7, 5], [38, 12, 8, 5], [12, 27, 5, 4], [41, 27, 6, 4]], [[24, 25, 3, 6], [14, 14, 10, 3], [30, 12, 8, 3], [14, 25, 10, 2], [28, 25, 12, 2], [24, 34, 3, 3]], { entry: [23, 31, 5, 4], hall: [19, 18, 10, 6], west: [6, 12, 7, 4], east: [34, 10, 8, 4], sw: [10, 25, 4, 3], se: [39, 25, 5, 3] }, [[25, 37]]),
+  icelake: cavePlan(50, 34, 6, 9, [[25, 15, 18, 10], [8, 24, 6, 5], [42, 25, 6, 5], [25, 28, 5, 4]], [[12, 22, 8, 3], [33, 22, 8, 3]], { landing: [23, 27, 5, 4], shore: [10, 20, 30, 4], west: [5, 22, 6, 4], east: [39, 23, 6, 4] }, []),
+  towerhall: hallPlan(22, 16, 7, { room: [3, 3, 16, 10], entry: [8, 13, 6, 2] }, [[10, 15]]),
+  alchemy: hallPlan(20, 14, 7, { room: [3, 3, 14, 9] }, []),
+  observatory: hallPlan(20, 14, 8, { room: [3, 3, 14, 9] }, []),
+  towercellar: hallPlan(20, 14, 5, { room: [3, 3, 14, 9] }, []),
+  chieflodge: hallPlan(24, 15, 5, { lodge: [3, 3, 18, 9], entry: [9, 12, 6, 2] }, [[11, 14]]),
+  burrow: cavePlan(36, 26, 5, 11, [[18, 21, 5, 4], [18, 12, 10, 6], [6, 9, 5, 4], [30, 9, 5, 4]], [[17, 15, 3, 6], [9, 9, 6, 3], [25, 9, 5, 3], [17, 23, 3, 2]], { entry: [16, 20, 5, 4], den: [13, 10, 10, 5], hoard: [27, 7, 6, 4], cells: [3, 7, 6, 4] }, [[18, 25]]),
+  garrison: hallPlan(28, 16, 7, { hall: [2, 3, 24, 10], armoury: [2, 1, 6, 2], entry: [11, 13, 6, 2] }, [[13, 15]]),
   catacombs: hallPlan(30, 20, 5, { north: [3, 2, 24, 3], south: [3, 13, 24, 3], west: [3, 5, 3, 8], east: [24, 5, 3, 8], spine: [13, 5, 4, 8], tombW: [7, 7, 5, 4], passW: [6, 8, 1, 2], tombE: [18, 7, 5, 4], passE: [23, 8, 1, 2], entry: [13, 16, 4, 3] }, []),
 }

@@ -522,3 +522,278 @@ export function oldWorksHall(p: Place): MapBuilder {
   m.anchors = { stair: [P.landing.x + 2, P.landing.y + 2], hall: [Hh.x + 15, Hh.y + 8], gate: [P.gate.x + 5, P.gate.y + 5] }
   return m
 }
+
+// ------------------------------------------------------------------------------------------------ Bellwick (the manor)
+
+/** The manor's hall: the lord's chair on the dais, the table set for twenty, the busts and the sideboards, the stair up. */
+export function manorHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'manorhall', `${p.id}.manorhall`, { en: `${p.name.en} — the Hall`, zh: `${p.name.zh}·庄园大厅` }, 'parquet', { floors: [['dais', 'carpet_royal'], ['entry', 'marble'], ['stair', 'marble']] })
+  const H = P.hall
+  const D = P.dais
+  m.rect(H.x + 12, H.y, 2, H.h + 3, 'runner')
+  at(m, 'fixture/furniture/table/long', span(H.x + 4, H.x + 10, H.y + 4))
+  at(m, 'fixture/furniture/table/long', span(H.x + 15, H.x + 21, H.y + 4))
+  at(m, 'fixture/furniture/chair', [...span(H.x + 4, H.x + 10, H.y + 3), ...span(H.x + 4, H.x + 10, H.y + 5), ...span(H.x + 15, H.x + 21, H.y + 3), ...span(H.x + 15, H.x + 21, H.y + 5)])
+  at(m, 'fixture/light/candelabrum', [[H.x + 3, H.y + 4], [H.x + 22, H.y + 4]], lit)
+  m.fixture('fixture/furniture/throne', D.x + 4, D.y)
+  m.fixture('fixture/furniture/throne', D.x + 5, D.y)
+  at(m, 'fixture/standard', [[D.x, D.y], [D.x + 9, D.y]])
+  at(m, 'fixture/light/candelabrum', [[D.x + 1, D.y + 2], [D.x + 8, D.y + 2]], lit)
+  at(m, 'fixture/sacred/statue', [[H.x, H.y], [H.x + H.w - 1, H.y], [P.bayE.x, P.bayE.y + 1]])
+  at(m, 'fixture/container/cupboard', [[H.x, H.y + 4], [H.x, H.y + 5], [H.x + H.w - 1, H.y + 4], [H.x + H.w - 1, H.y + 5]])
+  m.fixture('fixture/furniture/mirror', H.x + H.w - 1, H.y + 8)
+  at(m, 'fixture/nature/plant', [[H.x + 1, H.y + 9], [H.x + H.w - 2, H.y + 9], [P.entry.x, P.entry.y + 2], [P.entry.x + 5, P.entry.y + 2]])
+  decor(m, 'decor_rug', H.x + 5, H.y + 8)
+  decor(m, 'decor_rug', H.x + 18, H.y + 8)
+  glow(m, D.x + 5, D.y + 2, 14, 6, '#ffc46b', 0.4)
+  glow(m, H.x + 13, H.y + 4, 22, 5, '#ffd27a', 0.3)
+  m.anchors = { lord: [D.x + 4, D.y + 2], table: [H.x + 13, H.y + 4], hall: [H.x + 7, H.y + 8], up: [P.stair.x + 1, P.stair.y], down: [P.bayW.x, P.bayW.y + 1] }
+  return m
+}
+
+/** The long gallery: the family's portraits down its length, busts in the bays, benches, the bookcases at its end. */
+export function galleryHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'gallery', `${p.id}.gallery`, { en: `${p.name.en} — the Long Gallery`, zh: `${p.name.zh}·长廊` }, 'parquet', { outside: false, floors: [['landing', 'marble']] })
+  const G = P.gallery
+  m.rect(G.x + 1, G.y + 2, G.w - 2, 1, 'runner')
+  for (const b of [P.bayN1, P.bayN2, P.bayN3]) {
+    m.fixture('fixture/sacred/statue', b.x + 1, b.y)
+    m.fixture('fixture/nature/plant', b.x + 3, b.y)
+  }
+  at(m, 'fixture/garden/bench', [[G.x + 6, G.y + 4], [G.x + 12, G.y + 4], [G.x + 21, G.y + 4], [G.x + 27, G.y + 4]])
+  at(m, 'fixture/container/bookcase', [[G.x, G.y], [G.x, G.y + 1], [G.x + G.w - 1, G.y], [G.x + G.w - 1, G.y + 1]])
+  m.fixture('fixture/furniture/desk', G.x + 1, G.y + 4)
+  at(m, 'fixture/light/candelabrum', [[G.x + 9, G.y], [G.x + 18, G.y], [G.x + 27, G.y]], lit)
+  glow(m, G.x + 15, G.y + 2, 28, 4, '#ffe8b0', 0.25, 'sun')
+  m.anchors = { stair: [P.landing.x + 1, P.landing.y + 1], walk: [G.x + 9, G.y + 2] }
+  return m
+}
+
+/** The kitchen and the wine cellar under the hall: the spit and the pot, the long table, the barrels in their rows. */
+export function manorCellar(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'cellar', `${p.id}.cellar`, { en: `${p.name.en} — the Kitchens`, zh: `${p.name.zh}·厨房与酒窖` }, 'floor_stone', { outside: false })
+  const K = P.kitchen
+  const C = P.cellar
+  m.fixture('fixture/craft/cauldron', K.x + 5, K.y, lit)
+  at(m, 'fixture/container/cupboard', [[K.x, K.y], [K.x + 1, K.y]])
+  at(m, 'fixture/container/pot', [[K.x + 8, K.y], [K.x + 9, K.y], [K.x + 10, K.y]])
+  at(m, 'fixture/furniture/table/long', span(K.x + 3, K.x + 8, K.y + 4))
+  at(m, 'fixture/furniture/bench', [...span(K.x + 3, K.x + 8, K.y + 5)])
+  m.fixture('fixture/furniture/rack', K.x + 11, K.y)
+  at(m, 'fixture/container/sack', [[K.x, K.y + 7], [K.x + 1, K.y + 7], [K.x, K.y + 8]])
+  decor(m, 'decor_firewood', K.x + 10, K.y + 7)
+  m.building('decor_casks_row', C.x + 1, C.y)
+  m.building('decor_casks_row', C.x + 5, C.y)
+  for (const y of [C.y + 3, C.y + 6]) at(m, 'fixture/container/barrel', span(C.x + 1, C.x + 7, y, 2))
+  at(m, 'fixture/container/shelf', [[C.x + 8, C.y + 3], [C.x + 8, C.y + 4]])
+  m.fixture('fixture/light/candles', C.x, C.y + 8, lit)
+  glow(m, K.x + 6, K.y + 1, 9, 5, '#ff8a3a', 0.45)
+  m.anchors = { cook: [K.x + 6, K.y + 2], cellar: [C.x + 4, C.y + 5], stair: [P.landing.x + 1, P.landing.y] }
+  return m
+}
+
+// ------------------------------------------------------------------------------------------------ Ashengate (the ruin)
+
+/** The undercroft under the ruined church: its pillars, the tombs, water standing on the floor, roots through the vault. */
+export function undercroftHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'undercroft', `${p.id}.undercroft`, { en: `${p.name.en} — the Undercroft`, zh: `${p.name.zh}·地下墓堂` }, 'floor_stone', { music: 'crypt', light: 'dark', outside: false })
+  const H = P.hall
+  for (const y of [H.y + 2, H.y + 7]) for (const x of [H.x + 3, H.x + 6, H.x + 13, H.x + 16]) m.building('crypt_pillar', x, y)
+  at(m, 'fixture/sacred/sarcophagus', [[H.x + 1, H.y + 1], [H.x + 18, H.y + 1], [H.x + 1, H.y + 8], [H.x + 18, H.y + 8]])
+  m.rect(H.x + 9, H.y + 4, 3, 3, 'water')
+  m.rect(H.x + 4, H.y + 5, 2, 1, 'water')
+  at(m, 'fixture/remains/bones', [[H.x + 8, H.y + 9], [H.x + 15, H.y]])
+  at(m, 'fixture/nature/ferns', [[H.x + 12, H.y], [H.x + 19, H.y + 5], [H.x, H.y + 7]])
+  m.fixture('fixture/nature/boulder', H.x + 7, H.y + 5)
+  m.fixture('fixture/sacred/altar', P.apse.x + 3, P.apse.y)
+  m.fixture('fixture/sacred/reliquary', P.apse.x + 4, P.apse.y)
+  at(m, 'fixture/light/candles', [[P.apse.x + 1, P.apse.y], [P.apse.x + 6, P.apse.y]], lit)
+  glow(m, P.apse.x + 4, P.apse.y + 1.5, 8, 4, '#ffb35c', 0.45)
+  m.creature('undead/zombie', H.x + 15, H.y + 4, { leash: 4 })
+  m.anchors = { stair: [P.landing.x + 1, P.landing.y], down: [H.x, H.y + 4], altar: [P.apse.x + 3, P.apse.y + 1] }
+  return m
+}
+
+/** The drowned vault below: black water to the walls, a causeway of stones to the altar, what the monks hid there. */
+export function drownedHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'drowned', `${p.id}.drowned`, { en: `${p.name.en} — the Drowned Vault`, zh: `${p.name.zh}·水淹地窖` }, 'floor_stone', { music: 'crypt', light: 'dark', outside: false })
+  const Q = P.pool
+  m.rect(Q.x, Q.y, Q.w, Q.h, 'water')
+  const mid = Q.x + 7
+  for (const [x, y] of [[0, 8], [0, 7], [0, 6], [1, 6], [1, 5], [1, 4], [0, 4], [0, 3], [0, 2], [1, 2], [0, 1], [1, 1], [-1, 0], [0, 0], [1, 0], [2, 0]] as Cell[]) m.set(mid + x, Q.y + y, 'floor_stone')
+  m.fixture('fixture/sacred/reliquary', mid + 2, Q.y)
+  m.fixture('fixture/container/chest', mid - 1, Q.y)
+  at(m, 'fixture/light/candles', [[mid + 1, Q.y]], lit)
+  glow(m, mid + 0.5, Q.y + 1, 6, 3, '#9fd8ff', 0.4)
+  m.creature('undead/ghost', mid + 1, Q.y + 4, { leash: 4 })
+  m.anchors = { stair: [P.landing.x + 1, P.landing.y], altar: [mid, Q.y + 1] }
+  return m
+}
+
+// ------------------------------------------------------------------------------------------------ Northmoor Cave
+
+/** Crystals and stalagmites along a rect's edges, glowing moss on its floor (the cave's furniture). */
+function caveFurnish(m: MapBuilder, r: { x: number; y: number; w: number; h: number }, seed: number): void {
+  for (let i = 0; i < r.w; i += 2) {
+    const k = (i + seed) % 3
+    if ((i + seed) % 4 === 0) decor(m, `decor_crystals_${k}`, r.x + i, r.y)
+    else if ((i + seed) % 4 === 2) decor(m, `decor_stalagmite_${k}`, r.x + i, r.y)
+  }
+  decor(m, 'decor_glowmoss', r.x + Math.floor(r.w / 2), r.y + Math.floor(r.h / 2))
+}
+
+/** The ice caves: snow drifted in at the mouth, the hall of crystals, ice on the floor, the frozen dead, what lives there. */
+export function iceCaveHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'icecave', `${p.id}.icecave`, { en: `${p.name.en} — the Ice Caves`, zh: `${p.name.zh}·冰窟` }, 'cave_floor', { music: 'crypt', light: 'dark', floors: [['entry', 'snow']] })
+  for (const [x, y, rx, ry] of [[24, 27, 5, 2], [10, 20, 4, 2], [38, 18, 4, 1.5]]) m.organic(x, y, rx, ry, 'ice', { rough: 0.4, only: (c) => c === 'cave_floor' })
+  for (const [k, r] of [P.hall, P.west, P.east, P.sw, P.se].entries()) caveFurnish(m, r, k)
+  at(m, 'fixture/remains/bones', [[P.west.x + 1, P.west.y + 2], [P.hall.x + 8, P.hall.y + 5]])
+  m.fixture('fixture/remains/body', P.west.x + 3, P.west.y + 3)
+  m.fixture('fixture/container/chest', P.west.x + 5, P.west.y + 1)
+  for (const [x, y] of [[P.hall.x + 2, P.hall.y + 2], [P.east.x + 4, P.east.y + 2], [P.west.x + 3, P.west.y + 1], [P.sw.x + 1, P.sw.y + 1], [P.entry.x + 2, P.entry.y]] as Cell[]) glow(m, x, y, 6, 4, '#9fd8ff', 0.4)
+  m.creature('golem/ice_golem', P.east.x + 4, P.east.y + 1, { leash: 3 })
+  for (const [x, y] of [[P.hall.x + 6, P.hall.y + 3], [P.sw.x + 2, P.sw.y + 1]] as Cell[]) m.creature('slime/frost_slime', x, y, { leash: 4 })
+  m.anchors = { entry: [P.entry.x + 2, P.entry.y + 2], hall: [P.hall.x + 5, P.hall.y + 3], down: [P.se.x + 2, P.se.y + 1] }
+  return m
+}
+
+/** The lake under the ice: black water in a hall of crystal, an island with a saint frozen at prayer, the shore's moss. */
+export function iceLakeHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'icelake', `${p.id}.icelake`, { en: `${p.name.en} — the Under-lake`, zh: `${p.name.zh}·地下冰湖` }, 'cave_floor', { music: 'crypt', light: 'dark', outside: false })
+  const cx = 25
+  const cy = 20
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (m.get(x, y) === 'cave_floor' && ((x - cx) / 13) ** 2 + ((y - cy) / 5.5) ** 2 <= 1) m.set(x, y, 'water')
+  m.organic(cx, cy, 2.5, 1.5, 'snow', { rough: 0.2 })
+  m.fixture('fixture/sacred/statue', cx, cy)
+  for (const [k, r] of [P.shore, P.west, P.east].entries()) caveFurnish(m, r, k + 3)
+  for (let x = P.shore.x; x < P.shore.x + P.shore.w; x += 5) glow(m, x, P.shore.y, 6, 3, '#9fd8ff', 0.35)
+  glow(m, cx + 0.5, cy + 0.5, 8, 5, '#c9a2f2', 0.4)
+  m.creature('slime/frost_slime', P.east.x + 2, P.east.y + 2, { leash: 3 })
+  m.anchors = { stair: [P.landing.x + 2, P.landing.y + 1], shore: [P.shore.x + 10, P.shore.y + 2] }
+  return m
+}
+
+// ------------------------------------------------------------------------------------------------ Goldmere Tower
+
+/** The tower's ground floor: the library, its desks and lecterns, the stair up and the stair down. */
+export function towerHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'towerhall', `${p.id}.tower`, { en: `${p.name.en} — the Library`, zh: `${p.name.zh}·藏书大厅` }, 'parquet', { floors: [['entry', 'floor_stone']] })
+  const R = P.room
+  for (const x of [R.x + 4, R.x + 8, R.x + 12]) {
+    m.fixture('fixture/furniture/desk', x, R.y + 4)
+    m.fixture('fixture/furniture/chair', x, R.y + 5)
+  }
+  at(m, 'fixture/furniture/bookstand', [[R.x + 2, R.y + 7], [R.x + 13, R.y + 7]])
+  m.fixture('fixture/sacred/lectern', R.x + 8, R.y + 8)
+  at(m, 'fixture/container/bookcase', [[R.x, R.y + 3], [R.x, R.y + 4], [R.x + R.w - 1, R.y + 3], [R.x + R.w - 1, R.y + 4]])
+  decor(m, 'decor_rug', R.x + 7, R.y + 6)
+  decor(m, 'decor_crystals_0', R.x + 15, R.y + 8)
+  at(m, 'fixture/light/candelabrum', [[R.x + 2, R.y + 1], [R.x + 13, R.y + 1]], lit)
+  glow(m, R.x + 8, R.y + 4, 14, 5, '#c9a2f2', 0.3)
+  m.anchors = { desk: [R.x + 8, R.y + 6], up: [R.x + 14, R.y], down: [R.x + 1, R.y] }
+  return m
+}
+
+/** The alchemist's floor: two cauldrons on their fires, the benches, jars and retorts, a crystal growing on the bench. */
+export function alchemyHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'alchemy', `${p.id}.alchemy`, { en: `${p.name.en} — the Laboratory`, zh: `${p.name.zh}·炼金室` }, 'floor_stone', { outside: false })
+  const R = P.room
+  at(m, 'fixture/craft/cauldron', [[R.x + 5, R.y + 3], [R.x + 9, R.y + 3]], lit)
+  at(m, 'fixture/craft/workbench', [[R.x + 3, R.y + 6], [R.x + 7, R.y + 6], [R.x + 11, R.y + 6]])
+  at(m, 'fixture/container/shelf', [[R.x, R.y + 4], [R.x, R.y + 5], [R.x + R.w - 1, R.y + 4], [R.x + R.w - 1, R.y + 5]])
+  decor(m, 'decor_amphorae', R.x + 1, R.y + 8)
+  decor(m, 'decor_crystals_1', R.x + 12, R.y + 8)
+  at(m, 'fixture/container/chest', [[R.x + 6, R.y + 8]])
+  for (const x of [R.x + 5, R.x + 9]) glow(m, x + 0.5, R.y + 3.5, 5, 4, '#7fe0a0', 0.45)
+  m.anchors = { work: [R.x + 7, R.y + 5], down: [R.x + 1, R.y], up: [R.x + 12, R.y] }
+  return m
+}
+
+/** The observatory under the spire: the great orb on its stand, the star charts, the desk, the window to the sky. */
+export function observatoryHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'observatory', `${p.id}.observatory`, { en: `${p.name.en} — the Observatory`, zh: `${p.name.zh}·观星台` }, 'marble', { outside: false })
+  const R = P.room
+  decor(m, 'decor_crystals_2', R.x + 7, R.y + 4)
+  m.rect(R.x + 5, R.y + 3, 5, 3, 'carpet_royal')
+  at(m, 'fixture/furniture/desk', [[R.x + 2, R.y + 7], [R.x + 12, R.y + 7]])
+  at(m, 'fixture/furniture/bookstand', [[R.x + 3, R.y + 2], [R.x + 11, R.y + 2]])
+  at(m, 'fixture/furniture/chair', [[R.x + 2, R.y + 8], [R.x + 12, R.y + 8]])
+  glow(m, R.x + 7.5, R.y + 4, 8, 5, '#c9a2f2', 0.55)
+  m.anchors = { gaze: [R.x + 7, R.y + 7], down: [R.x + 1, R.y] }
+  return m
+}
+
+/** The tower's cellar: its stores, the cage where something the mage keeps is kept. */
+export function towerCellar(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'towercellar', `${p.id}.undercellar`, { en: `${p.name.en} — the Cellar`, zh: `${p.name.zh}·地下室` }, 'floor_stone', { music: 'crypt', light: 'dark', outside: false })
+  const R = P.room
+  for (const x of [R.x + 6, R.x + 10]) decor(m, 'decor_cage', x, R.y + 3)
+  m.creature('imp/fire_imp', R.x + 8, R.y + 5, { leash: 2 })
+  at(m, 'fixture/container/barrel', [[R.x + 13, R.y], [R.x + 13, R.y + 1], [R.x + 12, R.y]])
+  at(m, 'fixture/container/chest', [[R.x + 13, R.y + 8], [R.x, R.y + 8]])
+  at(m, 'fixture/remains/bones', [[R.x + 3, R.y + 6]])
+  m.fixture('fixture/light/candles', R.x + 4, R.y, lit)
+  glow(m, R.x + 8, R.y + 4, 8, 5, '#ff7a2a', 0.35)
+  m.anchors = { up: [R.x + 1, R.y], cage: [R.x + 8, R.y + 7] }
+  return m
+}
+
+// ------------------------------------------------------------------------------------------------ Scarwell (the bandits)
+
+/** The chief's lodge: his seat by the hearth, the loot heaped by the walls, the furs, the table where the takings are shared. */
+export function chiefLodge(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'chieflodge', `${p.id}.lodge`, { en: `${p.name.en} — the Chief's Lodge`, zh: `${p.name.zh}·头目木屋` }, 'floor_wood', { music: 'interior_night' })
+  const L = P.lodge
+  m.fixture('fixture/furniture/throne', L.x + 8, L.y + 1)
+  decor(m, 'decor_loot', L.x, L.y)
+  decor(m, 'decor_loot', L.x + 16, L.y)
+  for (const [x, y] of [[L.x + 3, L.y + 4], [L.x + 13, L.y + 4]] as Cell[]) decor(m, 'decor_rug', x, y)
+  setting(m, L.x + 9, L.y + 6)
+  at(m, 'fixture/furniture/rack/arms', [[L.x, L.y + 3], [L.x, L.y + 4], [L.x + L.w - 1, L.y + 3]])
+  at(m, 'fixture/container/barrel', [[L.x + L.w - 1, L.y + 7], [L.x + L.w - 1, L.y + 8], [L.x, L.y + 8]])
+  at(m, 'fixture/container/chest', [[L.x + 2, L.y + 8], [L.x + 15, L.y + 8]])
+  at(m, 'fixture/furniture/bed', [[L.x + 5, L.y + 8], [L.x + 12, L.y + 8]])
+  glow(m, L.x + 9, L.y + 1, 9, 5, '#ff8a3a', 0.5)
+  m.anchors = { chief: [L.x + 8, L.y + 3], eat: [L.x + 6, L.y + 6], guard: [L.x + 12, L.y + 6] }
+  return m
+}
+
+/** The burrow behind the camp: the den with its fire and bedrolls, the hoard, the cells where the takings that can walk are kept. */
+export function burrowHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'burrow', `${p.id}.burrow`, { en: `${p.name.en} — the Burrow`, zh: `${p.name.zh}·藏身洞` }, 'cave_floor', { music: 'crypt', light: 'dark' })
+  const Dn = P.den
+  m.fixture('fixture/light/campfire', Dn.x + 5, Dn.y + 2, lit)
+  glow(m, Dn.x + 5.5, Dn.y + 2.5, 7, 5, '#ff8a3a', 0.55)
+  at(m, 'fixture/furniture/bench/log', [[Dn.x + 3, Dn.y + 2], [Dn.x + 7, Dn.y + 2]])
+  at(m, 'fixture/furniture/bed', [[Dn.x, Dn.y], [Dn.x + 2, Dn.y], [Dn.x + 9, Dn.y], [Dn.x, Dn.y + 4]])
+  at(m, 'fixture/container/barrel', [[Dn.x + 9, Dn.y + 4], [Dn.x + 8, Dn.y + 4]])
+  decor(m, 'decor_sacks', Dn.x + 3, Dn.y + 4)
+  decor(m, 'decor_loot', P.hoard.x, P.hoard.y)
+  decor(m, 'decor_loot', P.hoard.x + 3, P.hoard.y + 2)
+  at(m, 'fixture/container/chest', [[P.hoard.x + 5, P.hoard.y], [P.hoard.x + 1, P.hoard.y + 3]])
+  glow(m, P.hoard.x + 3, P.hoard.y + 1, 6, 4, '#ffd27a', 0.35)
+  for (const x of [P.cells.x, P.cells.x + 2, P.cells.x + 4]) decor(m, 'decor_cage', x, P.cells.y)
+  m.fixture('fixture/light/lantern', P.entry.x + 4, P.entry.y, lit)
+  glow(m, P.entry.x + 4.5, P.entry.y + 0.5, 5, 4, '#ffb35c', 0.4)
+  m.anchors = { den: [Dn.x + 5, Dn.y + 3], hoard: [P.hoard.x + 2, P.hoard.y + 1], cells: [P.cells.x + 2, P.cells.y + 2], entry: [P.entry.x + 2, P.entry.y + 2] }
+  return m
+}
+
+// ------------------------------------------------------------------------------------------------ Frostbarrow (the border fort)
+
+/** The garrison's hall: bunks along the walls, the mess table, the arms in the armoury's alcove, the stove. */
+export function garrisonHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'garrison', `${p.id}.garrison`, { en: `${p.name.en} — the Garrison`, zh: `${p.name.zh}·营房` }, 'floor_wood', { floors: [['armoury', 'floor_stone']] })
+  const H = P.hall
+  at(m, 'fixture/furniture/bed', [...span(H.x + 8, H.x + 22, H.y, 2), ...span(H.x, H.x + 6, H.y + 9, 2), ...span(H.x + 16, H.x + 22, H.y + 9, 2)])
+  at(m, 'fixture/container/chest', [[H.x + 9, H.y], [H.x + 13, H.y], [H.x + 17, H.y]])
+  board(m, H.x + 7, H.y + 4, 10)
+  at(m, 'fixture/furniture/rack/arms', span(P.armoury.x, P.armoury.x + 5, P.armoury.y))
+  at(m, 'fixture/dummy', [[H.x + 22, H.y + 4], [H.x + 22, H.y + 6]])
+  at(m, 'fixture/standard', [[H.x, H.y + 1], [H.x + H.w - 1, H.y + 1]])
+  at(m, 'fixture/light/brazier', [[H.x, H.y + 5], [H.x + H.w - 1, H.y + 5]], lit)
+  for (const x of [H.x, H.x + H.w - 1]) glow(m, x + 0.5, H.y + 5.5, 5, 4, '#ff8a3a', 0.45)
+  decor(m, 'decor_firewood', H.x + 1, H.y + 7)
+  m.anchors = { mess: [H.x + 12, H.y + 7], bunks: [H.x + 15, H.y + 1], arms: [P.armoury.x + 2, P.armoury.y + 1] }
+  return m
+}

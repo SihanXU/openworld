@@ -13,7 +13,7 @@ import { S } from '../kit.ts'
 import { hash } from '../materials.ts'
 import { fire, skulls, tapestry } from './inside.ts'
 
-type Hang = 'tapestry' | 'banner' | 'painting' | 'shelves' | 'books' | 'jars' | 'trophy' | 'niches' | 'timbers' | 'veins' | 'tools' | 'none'
+type Hang = 'tapestry' | 'banner' | 'painting' | 'shelves' | 'books' | 'jars' | 'trophy' | 'niches' | 'timbers' | 'veins' | 'tools' | 'crystals' | 'none'
 
 interface Style {
   wall: string
@@ -153,6 +153,12 @@ function dresser(st: Style, plan: HallPlan): (f: Face) => Dress {
       } else if (kind === 'jars') orn.push({ x: cx - 12, y, z: 14, ...jars(24, seed + k) })
       else if (kind === 'trophy') orn.push(trophy().at(cx - 6, y, 22))
       else if (kind === 'tools') orn.push(tools().at(cx - 12, y, 14))
+      else if (kind === 'crystals') {
+        // crystals grown out of the rock's face, lit from within, and the ice they glaze it with
+        const rows: string[] = []
+        for (let j = 0; j < 26; j++) rows.push(Array.from({ length: 22 }, (_, i) => { const t = 25 - j; const spike = [3, 8, 12, 17].some((sx, n) => Math.abs(i - sx) <= Math.max(0, (8 + n * 3 + (seed % 5) - t) / 4) && t < 8 + n * 3 + (seed % 5)); return spike ? (hash(i, j, seed) < 0.3 ? 'w' : i % 2 ? 'b' : 'u') : ' ' }).join(''))
+        orn.push({ x: cx - 11, y, z: Math.round(h * 0.05), rows, keys: { b: 'B0', u: 'U0', w: 'cw0' } })
+      }
       else if (kind === 'veins') orn.push({ x: cx - 12, y, z: Math.round(h * 0.15), ...veins(24, Math.round(h * 0.5), seed + k) })
       else if (kind === 'timbers') {
         // a set of timbers against the rock: two props, the cap over them, a lantern hung from it
@@ -252,6 +258,20 @@ const STYLES: Record<keyof typeof HALLS, Style> = {
   mill: { wall: 'stone', trim: 'timber', h: 96, windows: 'round', hang: ['none', 'tools', 'shelves'], feature: 'none', pilasters: 'timber' },
   workings: { wall: 'sandstoneRough', trim: 'timber', h: 64, windows: 'none', hang: ['timbers', 'veins', 'timbers', 'none'], feature: 'none' },
   oldworks: { wall: 'sandstone', trim: 'sandstone', h: 112, windows: 'none', hang: ['niches', 'veins', 'trophy', 'none'], feature: 'gate', pilasters: 'sandstone' },
+  manorhall: { wall: 'plasterWhite', trim: 'darkwood', h: 120, windows: 'rect', hang: ['painting', 'tapestry', 'trophy'], feature: 'hearth', pilasters: 'darkwood' },
+  gallery: { wall: 'plasterRose', trim: 'timber', h: 96, windows: 'round', hang: ['painting', 'painting', 'books'], feature: 'window', glass: 'gold', pilasters: 'timber' },
+  cellar: { wall: 'stone', trim: 'timber', h: 72, windows: 'none', hang: ['jars', 'shelves', 'none'], feature: 'hearth' },
+  undercroft: { wall: 'graniteRough', trim: 'graniteRough', h: 64, windows: 'none', hang: ['niches', 'none', 'niches'], feature: 'ossuary', pilasters: 'graniteRough' },
+  drowned: { wall: 'graniteRough', trim: 'graniteRough', h: 64, windows: 'none', hang: ['niches', 'veins', 'none'], feature: 'none', pilasters: 'graniteRough' },
+  icecave: { wall: 'iceRock', trim: 'iceRock', h: 80, windows: 'none', hang: ['crystals', 'none', 'veins', 'crystals', 'none'], feature: 'none' },
+  icelake: { wall: 'iceRock', trim: 'iceRock', h: 88, windows: 'none', hang: ['crystals', 'none', 'crystals', 'none'], feature: 'none' },
+  towerhall: { wall: 'stone', trim: 'darkwood', h: 104, windows: 'lancet', glass: 'violet', hang: ['books', 'books', 'painting'], feature: 'books', pilasters: 'darkwood' },
+  alchemy: { wall: 'stone', trim: 'darkwood', h: 96, windows: 'lancet', glass: 'green', hang: ['jars', 'jars', 'shelves'], feature: 'hearth', pilasters: 'darkwood' },
+  observatory: { wall: 'stone', trim: 'darkwood', h: 112, windows: 'lancet', glass: 'blue', hang: ['painting', 'books', 'none'], feature: 'window', pilasters: 'darkwood' },
+  towercellar: { wall: 'graniteRough', trim: 'graniteRough', h: 64, windows: 'none', hang: ['niches', 'jars', 'none'], feature: 'none' },
+  chieflodge: { wall: 'darkwood', trim: 'timber', h: 72, windows: 'rect', hang: ['trophy', 'banner', 'none'], feature: 'hearth' },
+  burrow: { wall: 'sandstoneRough', trim: 'timber', h: 64, windows: 'none', hang: ['timbers', 'none', 'veins'], feature: 'none' },
+  garrison: { wall: 'granite', trim: 'darkwood', h: 96, windows: 'round', hang: ['trophy', 'banner', 'none'], feature: 'hearth', pilasters: 'granite' },
   catacombs: { wall: 'whiteStone', trim: 'whiteStone', h: 64, windows: 'none', hang: ['niches', 'niches', 'none'], feature: 'ossuary', pilasters: 'whiteStone' },
 }
 

@@ -22,6 +22,12 @@ import { duskMoorings } from './duskmoorings.ts'
 import { highheath } from './highheath.ts'
 import { barleyridge } from './barleyridge.ts'
 import { brandby } from './brandby.ts'
+import { bellwick } from './bellwick.ts'
+import { ashengate } from './ashengate.ts'
+import { northmoor } from './northmoor.ts'
+import { goldmere } from './goldmere.ts'
+import { scarwell } from './scarwell.ts'
+import { frostbarrow } from './frostbarrow.ts'
 
 const MAKERS: Record<string, (p: Place) => MapBuilder[]> = {
   'holy.sunwell-abbey': abbeyClose,
@@ -39,6 +45,13 @@ const MAKERS: Record<string, (p: Place) => MapBuilder[]> = {
   // a farm village and a mine with what it broke into (docs/showcase.md §4c)
   'tithe.barleyridge-farm': barleyridge,
   'redmarch.brandby-mine': brandby,
+  // a manor, a ruin, a cave, a mage's tower, a bandits' hold, a border fort (docs/showcase.md §4d)
+  'altar.bellwick-farm': bellwick,
+  'palefen.ashengate-ruins': ashengate,
+  'frostfang.northmoor-cave': northmoor,
+  'tithe.goldmere-tower': goldmere,
+  'redmarch.scarwell-camp': scarwell,
+  'frostfang.frostbarrow-camp': frostbarrow,
 }
 
 /** The roles a room behind a door has (continent/rooms.ts): stocked as such. */
@@ -48,6 +61,8 @@ const HALL_USE: Record<string, string> = {
   nave: 'temple', crypt: 'dungeon', belfry: 'temple', library: 'library', refectory: 'inn', hall: 'home', solar: 'home',
   boathouse: 'shop', longhall: 'home', warhall: 'home', armoury: 'smithy', hospital: 'temple', counting: 'shop', granary: 'farm', poorhouse: 'home',
   ossuary: 'temple', healer: 'shop', chapel: 'temple', catacombs: 'dungeon', barn: 'farm', farmhouse: 'home', workings: 'dungeon', oldworks: 'dungeon',
+  manorhall: 'home', gallery: 'library', cellar: 'inn', undercroft: 'dungeon', drowned: 'dungeon', icecave: 'dungeon', icelake: 'dungeon',
+  tower: 'library', alchemy: 'shop', observatory: 'library', undercellar: 'dungeon', lodge: 'camp', burrow: 'dungeon', garrison: 'camp',
 }
 
 /** A showcase place's maps, made, and stocked as the backdrop's are (stock.ts): the place's, its rooms', its halls'. */

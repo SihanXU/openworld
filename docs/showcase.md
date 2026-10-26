@@ -234,6 +234,26 @@ works' head, the sealed gate (`buildings/halls.ts`: the `timbers`, `veins` and `
 | Barleyridge | `tithe.barleyridge-farm` | a farm village round its green: the stream under the mill's wheel, the orchard on its bank with the hives, four farmsteads with their barns, coops, dovecote and staddle granaries, the cottages, the strips of wheat and barley between hedges, the cows in the pasture, the pond | the farmhouse (kitchen and parlour), the great barn (the cows' pen, the hay), the watermill (its stones, the race) | Laxton's open fields, the Cotswolds' farmsteads round a green, the mill on its leat |
 | Brandby Mine | `redmarch.brandby-mine` | a mine under a mesa's face: the adit and its rails to the spoil, the headframe over the shaft, the smelter's hearths, the smith, the bunkhouse, the timber yard; the camp on the ground below; underground the workings and the old works past the breakthrough | the workings (drifts on rails, stopes with ore in the walls, the flooded sump; in by the adit or down the shaft), the old works (a pillared hall before the sealed gate, a forge of molten rock, tombs, a vault, the dead that keep them) | Rio Tinto's adits, the Harz's headframes, the camps of the gold rushes; the dungeon under the mine of every old tale |
 
+## 4d. A manor, a ruin, a cave, a mage's tower, a bandits' hold, a border fort
+
+The fourth batch: the kinds of place the backdrop holds that had no model yet. Their buildings in
+`arch/buildings/wilds.ts` (the manor's house with its portico and wings, the orangery, the gazebo, stables and lodge; the
+ruin's roofless church, broken walls, a lone arch, columns and a tower's stump, all of ragged granite; the ice cave's
+mouth; the mage's eight-sided tower and its annex; the bandits' huts, cages and loot; crystals, stalagmites, a fallen
+column and saint, glowing moss; and the North Gate's castle snowed over, `snow_fort_*`, its tops capped and its leads
+white). A cave's plan is drawn as its rock is, the union of ragged ellipses laid a row at a time (`plans.ts`
+`cavePlan`), its faces dressed with crystal (`crystals`). A camp's people sleep out of doors, each by a tent's door or
+the fire (`ground.ts` `bedsNear`).
+
+| Place | Continent id | What it shows | Halls |
+|---|---|---|---|
+| Bellwick | `altar.bellwick-farm` | a manor on its terrace between parterres, the carriage sweep round its fountain, the gardens in their beds, the avenue to the lodge, the orangery and its citrus walk, the stables and paddock, the hedge maze and its gazebo, the canal, the kitchen garden | the hall (the lord's chair, the table for twenty), the long gallery over it, the kitchens and wine cellar under it |
+| Ashengate | `palefen.ashengate-ruins` | a ruined abbey sinking into the fen: the roofless church with trees up its nave, the cloister fallen to its footings and its columns, an arch alone, a tower's stump, leaning graves, pools and reeds; and the scholars' dig: trenches, sieves, the finds, tents, the fire | the undercroft (its pillars, tombs, water on the floor), the drowned vault under it (a causeway of stones to its altar) |
+| Northmoor Cave | `frostfang.northmoor-cave` | a crag four levels high, the cave's mouth in it hung with icicles, the frozen stream; the ice-cutters' sledges and blocks, the trappers' furs, the trading hut, the tents round the fires | the ice caves (crystals, stalagmites, the frozen dead, a golem), the lake under the ice (an island with a saint frozen at prayer) |
+| Goldmere Tower | `tithe.goldmere-tower` | a mage's tower on its knoll in a ring of stones, the annex, the physic garden, crystals pushing out of the ground; the hamlet below with its fields and pasture | floor by floor: the library, the laboratory, the observatory under the spire, the cellar and what is caged there |
+| Scarwell | `redmarch.scarwell-camp` | a bandits' hold under a ravine's wall: the burrow's mouth, the stockade and its towers, the chief's lodge, huts and tents, cages and captives, the loot by the fire, the butts, the road they watch | the chief's lodge, the burrow (the den, the hoard, the cells) |
+| Frostbarrow | `frostfang.frostbarrow-camp` | a border fort on the pass: four drum towers and the curtain in snow, the gatehouse on the road, the keep, the garrison's longhouse, stables, forge, drill yard, well; the waystation and the cairns outside | the keep's great hall, the garrison (bunks, the mess table, the arms) |
+
 ## 5. People (`showcase/cast.ts`)
 
 A place's maker sets its cast as it builds: each one's role, where they sleep, and their day hour by hour (a map, a
