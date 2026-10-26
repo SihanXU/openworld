@@ -64,6 +64,8 @@ export class LocalModder {
   /** The game handed over and the modder made over it: the engine's port waits for it (else its one probe hears no model). */
   private gameIn: Promise<void>
   private gameArrived!: () => void
+  /** The game, held until its protected facts come (the page sends them right after it). */
+  private game?: Extract<ToModder, { t: 'game' }>
 
   constructor(
     private io: {
@@ -93,15 +95,21 @@ export class LocalModder {
     await this.ready
     switch (m.t) {
       case 'game':
+        this.game = m
+        return
+      case 'facts': {
+        const g = this.game
+        if (!g) return
         try {
           await this.openSelf()
           // judged with the story's protected facts, as the engine's worker judges what it takes
-          this.library = new WorldLibrary(m.ontology, m.rules, undefined, { protectedFacts: m.protectedFacts })
+          this.library = new WorldLibrary(g.ontology, g.rules, undefined, { protectedFacts: m.protectedFacts })
           this.rebuild()
         } finally {
           this.gameArrived()
         }
         return
+      }
       case 'link':
         return this.link(m.port)
       case 'set': {

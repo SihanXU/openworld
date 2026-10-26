@@ -46,7 +46,9 @@ export interface ModelStatus {
 
 /** The page to the modder's worker. A `key` is a new one; none: the one kept stays. */
 export type ToModder =
-  | { t: 'game'; ontology: Ontology; rules: Rule[]; /** the story's protected fact prefixes (the world index's): a commit is judged with them, as the engine's worker judges what it takes */ protectedFacts: string[] }
+  | { t: 'game'; ontology: Ontology; rules: Rule[] }
+  /** The story's protected fact prefixes (the world index's), right after the game: commits are judged with them, as the engine's worker judges what it takes. */
+  | { t: 'facts'; protectedFacts: string[] }
   | { t: 'link'; port: MessagePort }
   | { t: 'set'; choice: ModelChoice; key?: string; remember: Remember; cap: number }
   | { t: 'forget' }

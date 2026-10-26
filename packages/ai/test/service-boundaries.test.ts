@@ -3,15 +3,16 @@
 // host (repo.ts: its folder only, never through a link the agent made), and what the player's own modder commits
 // (localModder.ts: judged with the story's protected facts, as the engine's worker judges what it takes).
 
-import { existsSync, mkdtempSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import type { Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Readable } from 'node:stream'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ModPort, RuleLibrary, buildModSpec, buildSandbox, placePatch, type ModRequest, type Ontology, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { STDLIB_ONTOLOGY, STDLIB_RULES } from '@openworld/stdlib'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, collectPatch, createModderServer, materializeWorld, type ChatMessage } from '../src/index.ts'
+import { DockerEnv, Modder, ScriptedModel, SelfState, WorldLibrary, collectPatch, createModderServer, materializeWorld, type ChatMessage } from '../src/index.ts'
 import { LocalModder, type ModderStore, type StoreKey } from '../src/player/localModder.ts'
 
 vi.mock('phaser', () => ({ default: { Scene: class {} } }))
@@ -85,6 +86,27 @@ describe('a page on another site, through the browser of someone on this machine
     expect(library.lib.rules.has('patch/knock')).toBe(true)
     // the editor or the game on this machine still tells its clients apart
     expect((await fault('c', 'http://localhost:5173')).body).toMatchObject({ counted: 2, removed: true })
+  })
+})
+
+describe('a container the host is about to read (env.ts halt)', () => {
+  it('is frozen: nothing it still runs changes the workspace while the host reads it, and it is removed as before', async () => {
+    const tmp = scratch('lsw-halt-')
+    const image = join(tmp, 'image')
+    mkdirSync(image)
+    mkdirSync(join(tmp, 'work'))
+    process.env.FAKE_DOCKER_STATE = join(tmp, 'docker')
+    try {
+      const env = await DockerEnv.start({ image, root: join(tmp, 'work'), docker: [process.execPath, fileURLToPath(new URL('./fake-docker.mjs', import.meta.url))], owner: '4242:4242' })
+      expect((await env.exec('true')).code).toBe(0)
+      env.halt()
+      expect((await env.exec('true')).code).not.toBe(0)
+      await env.dispose()
+      const calls = readFileSync(join(tmp, 'docker', 'calls.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l)[0])
+      expect(calls.slice(-5)).toEqual(['pause', 'exec', 'unpause', 'exec', 'rm'])
+    } finally {
+      delete process.env.FAKE_DOCKER_STATE
+    }
   })
 })
 
@@ -186,7 +208,8 @@ describe("the player's own modder (localModder.ts)", () => {
 
   it("commits only what the engine takes: it judges with the story's protected facts the page hands it", SLOW, async () => {
     const h = new LocalModder({ store: store(), post: () => undefined })
-    await h.handle({ t: 'game', ontology: onto, rules: BASE, protectedFacts: ['ford.'] })
+    await h.handle({ t: 'game', ontology: onto, rules: BASE })
+    await h.handle({ t: 'facts', protectedFacts: ['ford.'] })
     const req = request()
     // the stone hands the story a fact of its own (as ai-guards.test.ts's chain does)
     const story = answer('patch/hand', req, [{ op: 'emit', impulse: 'handle', to: 'story', params: { 'fact.ford.crossed': 1 } }])

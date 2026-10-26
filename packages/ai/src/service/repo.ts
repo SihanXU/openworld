@@ -13,7 +13,7 @@
 // added into a Patch. The world's own files cannot be changed: the validator rejects that.
 
 import { createHash } from 'node:crypto'
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { closeSync, constants, existsSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -77,6 +77,17 @@ const hash = (s: string) => createHash('sha1').update(s).digest('hex')
 const inside = (dir: string, p: string) => {
   const r = relative(dir, p)
   return r !== '' && r !== '..' && !r.startsWith(`..${sep}`) && !isAbsolute(r)
+}
+
+/** A file's text as the repository holds it: a regular file, never read through a link at its last step. */
+function readOwn(p: string): string {
+  const fd = openSync(p, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0))
+  try {
+    if (!fstatSync(fd).isFile()) throw new Error('not a regular file')
+    return readFileSync(fd, 'utf8')
+  } finally {
+    closeSync(fd)
+  }
 }
 
 /** A file of the repository: never outside it (a rule's file is named by its id, which the validator keeps to a path). */
@@ -239,7 +250,11 @@ async function worldRepo(dir: string, iso: Isolation, o: WorldOptions): Promise<
       tests: { command: validateCommand(iso), timeoutMs: 180_000 },
       request: o.request,
     },
-    collect: () => collectPatch(dir),
+    // what the agent left running stops first: nothing swaps a file for a link while the host reads the patch
+    collect: () => {
+      env.halt?.()
+      return collectPatch(dir)
+    },
     dispose: async () => {
       await env.dispose?.()
       rmSync(dir, { recursive: true, force: true })
@@ -259,7 +274,7 @@ export function collectPatch(dir: string): { patch?: Patch; problems: string[] }
     try {
       const p = join(dir, rel)
       if (!lstatSync(p).isFile() || !inside(realpathSync(dir), realpathSync(p))) throw new Error('not a file of the repository')
-      return JSON.parse(readFileSync(p, 'utf8')) as T
+      return JSON.parse(readOwn(p)) as T
     } catch (err) {
       problems.push(`${rel} is the harness's and cannot be read: ${(err as Error).message}`)
       return undefined
@@ -273,7 +288,7 @@ export function collectPatch(dir: string): { patch?: Patch; problems: string[] }
   for (const f of DIRS.flatMap((d) => files(dir, d, problems))) {
     let body: string
     try {
-      body = readFileSync(join(dir, f), 'utf8')
+      body = readOwn(join(dir, f))
     } catch (err) {
       problems.push(`${f}: ${(err as Error).message}`)
       continue

@@ -68,9 +68,10 @@ export class OwnModel {
     w.onerror = (e) => console.error('[modder]', e.message)
     this.worker = w
     const g = game()
-    // with the story's protected facts, from the world's index as the engine's worker reads them: the modder commits
-    // only what the engine takes (the modder answers the engine's port once the game is here)
-    void protectedFacts().then((facts) => this.post({ t: 'game', ontology: g.ontology(), rules: g.rules, protectedFacts: facts }))
+    this.post({ t: 'game', ontology: g.ontology(), rules: g.rules })
+    // then the story's protected facts, from the world's index as the engine's worker reads them: the modder commits
+    // only what the engine takes (it answers the engine's port once both are here; none, if the index does not come)
+    void protectedFacts().then((facts) => this.post({ t: 'facts', protectedFacts: facts }))
   }
 
   /** A port to the modder for the engine's worker (each its own). */
@@ -130,10 +131,14 @@ export class OwnModel {
   }
 }
 
+/** How long the modder waits for the world's index (its port waits as long): past it, no protected facts. */
+const FACTS_WAIT_MS = 5000
+
 /** The fact prefixes only the story's own rules may change (the world index's `protectedFacts`). */
 async function protectedFacts(): Promise<string[]> {
   try {
-    return ((await (await fetch(new URL('index.json', worldBase()))).json()) as WorldIndex).protectedFacts ?? []
+    const res = await fetch(new URL('index.json', worldBase()), { signal: AbortSignal.timeout(FACTS_WAIT_MS) })
+    return ((await res.json()) as WorldIndex).protectedFacts ?? []
   } catch {
     // (no index: no world to play either)
     return []
