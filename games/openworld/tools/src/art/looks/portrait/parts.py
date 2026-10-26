@@ -73,29 +73,55 @@ HAIR = {
     "hair.tuft": (CHILDREN, "short messy hair with a tuft sticking up on top"),
     "hair.childbob": (CHILDREN, "a round bowl-cut bob with straight bangs"),
 }
+# A face changes only what an expression moves: the brows, the eyelids, the mouth. The eyes' outline, their size and place,
+# the irises' size, the nose, the face's outline and the head are the base's in every face and every mood (2026-10-25:
+# faces drawn freely grew their eyes and moved them from mood to mood, and the user saw the uncanny valley). Every
+# picture is measured against its reference (eyes.py) and drawn again when its eyes moved (faces.py).
 FACES = {
-    "face.soft": (ADULTS, "soft gentle eyes, thin arched eyebrows, a small gentle mouth"),
-    "face.bright": (ADULTS, "big bright lively eyes with large light catches, raised eyebrows, a small open cheerful mouth"),
-    "face.keen": (ADULTS, "narrow sharp eyes with a keen look, straight eyebrows, a small firm mouth"),
-    "face.stern": (ADULTS, "narrowed stern eyes with small irises, thick heavy straight eyebrows, a firm straight mouth"),
-    "face.weary": (ADULTS, "tired heavy-lidded half-closed eyes, softly drooping eyebrows, a small calm mouth"),
-    "face.child": (CHILDREN, "big round innocent eyes with large light catches, small eyebrows, a small mouth"),
+    "face.soft": (ADULTS, "a gentle look: the upper eyelids a little relaxed, thin softly arched eyebrows, a small soft closed mouth"),
+    "face.bright": (ADULTS, "a lively look: the upper eyelids lifted a little so a little more of the eye shows, the eyebrows slightly raised, a small closed smile"),
+    "face.keen": (ADULTS, "a keen look: the lower eyelids raised a little, straight eyebrows set a little lower, a small firm closed mouth"),
+    "face.stern": (ADULTS, "a stern look made by the brows and the mouth: thick heavy straight eyebrows low over the eyes, the mouth a firm straight line; the eyes themselves stay as they are, only the upper eyelid line comes down a very little over the top of each iris"),
+    "face.weary": (ADULTS, "a weary look: softly drooping eyebrows, a small calm mouth; the eyes themselves stay exactly as they are, the same irises and lashes, only the upper eyelid line comes down a little over the top of each iris"),
+    "face.child": (CHILDREN, "a calm child's look: small soft eyebrows, a small closed mouth"),
 }
-# how each body's face stays its own, and in the style, when its features change: the eyes as refined as the base's
-EYES = ("drawn as refined anime eyes like before, the same size or larger, with detailed irises and a small light catch; "
-        "the irises a flat pure blue (the cut finds them by it and the look gives their colour)")
+# The faces' size reference (2026-10-25: "五官再小一点"): each base's head with its features smaller — the eyes a
+# sixth smaller, the nose and mouth a little — in the same places. Every face is drawn from it and held to its eyes
+# (faces.py: `target` is how far its eyes are from the base's, the iris's width a sixth less, its span the same).
+# the man's eyes were the smallest already, and the model shrinks them least: a tenth for him
+FACE_REF_TARGET = {b: {"w": -0.09 if b == "man" else -0.16, "span": -0.03, "y": 0.0} for b in ("woman", "man", "girl", "boy")}
+OWN_LINES = {"woman": "the same dark lashes and eye lines", "man": "the same eye lines, short lashes", "girl": "the same dark lashes and eye lines", "boy": "the same eye lines, short lashes"}
+
+
+def face_ref_jobs() -> list[dict]:
+    return [
+        {"out": f"lib/base-{b}-face.png", "edit": f"lib/base-{b}.png", "seed": 60 + i, "target": FACE_REF_TARGET[b],
+         "prompt": f"Make {WHO[b]} eyes, eyebrows, nose and mouth a little smaller, each in the same place: the eyes about a sixth smaller, "
+                   f"the irises smaller with them, the same eye shape and {OWN_LINES[b]}; the nose and the mouth a little smaller; the eyebrows a little shorter. "
+                   f"Do not change the face's outline, the head, the ears or the neck; the scalp stays plain smooth bald skin with no lines or hatching on it. {KEEP_FACE}"}
+        for i, b in enumerate(ALL)
+    ]
+
+
+# what no face and no mood may change, said in every face's edit
+LOCK = ("Do not change the eyes' outline, their size, their shape or their position, nor the distance between them, nor the size of the irises; "
+        "keep the same dark eye lines and lashes drawn the same way; "
+        "do not change the nose, the ears, the face's outline or the head. The irises stay plain grey with their dark pupils and small light catches, "
+        "exactly as before.")
 OWN_FACE = {
-    "woman": f"The eyes {EYES} and dark upper lashes. It stays her own pretty young woman's face.",
-    "man": f"The eyes {EYES}, short lashes and no eyeliner. It stays his own handsome young man's face, the same jaw.",
-    "girl": f"The eyes {EYES} and dark upper lashes. It stays her own little girl's face.",
-    "boy": f"The eyes {EYES}, short lashes and no eyeliner. It stays his own little boy's face.",
+    "woman": f"{LOCK} The eyebrows {GREY_HAIR}. It stays her own young woman's face.",
+    "man": f"{LOCK} The eyebrows {GREY_HAIR}; short lashes, no eyeliner. It stays his own young man's face, the same jaw.",
+    "girl": f"{LOCK} The eyebrows {GREY_HAIR}. It stays her own little girl's face.",
+    "boy": f"{LOCK} The eyebrows {GREY_HAIR}; short lashes, no eyeliner. It stays his own little boy's face.",
 }
+# restrained, as the style's faces are: an expression is the brows, the lids and the mouth, never bigger eyes
 MOODS = {
-    "happy": "smiling happily, the eyes gently curved, the mouth open in a smile",
-    "sad": "sad, the eyebrows raised in the middle, the eyes glistening, the mouth turned down",
-    "angry": "angry, the eyebrows pulled down hard, the eyes narrowed, the mouth in a tight frown",
-    "surprised": "surprised, the eyes wide open, the eyebrows raised high, the mouth a small round o",
-    "shy": "shy and embarrassed, blushing on the cheeks, looking slightly aside, a small uncertain smile",
+    "happy": "a gentle smile: the corners of the mouth turned up, the mouth closed or barely open with no teeth showing, the lower eyelids lifted a little so the eyes soften, the eyebrows relaxed",
+    "sad": "sad: the inner ends of the eyebrows raised a little, the upper eyelids lowered a little, the corners of the mouth turned slightly down",
+    "angry": "angry: the eyebrows drawn down and together, the upper eyelids lowered a little, the mouth a tight line turned slightly down",
+    # never the word itself: told "surprised", the model opens the eyes wide whatever else it is told
+    "surprised": "only two changes: the eyebrows raised a little higher, and the mouth slightly open in a small round o; nothing else changes",
+    "shy": "shy: the inner ends of the eyebrows raised a little, the irises turned a little to one side, a small uncertain closed smile, a light blush drawn as a few fine diagonal hatching lines on each cheek, no solid pink",
 }
 BEARDS = {
     "beard.full": "a full thick beard covering the jaw and chin, with a moustache, the mouth closed under it",
@@ -164,12 +190,12 @@ SHOES = {
 
 
 def jobs() -> list[dict]:
-    j: list[dict] = base_jobs()
+    j: list[dict] = base_jobs() + face_ref_jobs()
     add = lambda out, edit, prompt, seed: j.append({"out": out, "edit": edit, "prompt": prompt, "seed": seed})
     # neutral faces first: every person has one
     for i, (pid, (bodies, d)) in enumerate(FACES.items()):
         for b in bodies:
-            add(f"parts/{pid}@{b}.png", f"lib/base-{b}.png", f"Change only {WHO[b]} eyes, eyebrows and mouth: {d}, a calm neutral expression. The eyebrows {GREY_HAIR}. {OWN_FACE[b]} " + KEEP_FACE, 100 + i)
+            add(f"parts/{pid}@{b}.png", f"lib/base-{b}-face.png", f"Change only {WHO[b]} eyebrows, eyelids and mouth: {d}, a calm neutral expression. {OWN_FACE[b]} " + KEEP_FACE, 100 + i)
     # hair
     for i, (pid, (bodies, d)) in enumerate(HAIR.items()):
         for b in bodies:
@@ -200,7 +226,7 @@ def jobs() -> list[dict]:
     for i, (pid, (bodies, _)) in enumerate(FACES.items()):
         for b in bodies:
             for k, (mood, d) in enumerate(MOODS.items()):
-                add(f"parts/{pid}@{b}~{mood}.png", f"parts/{pid}@{b}.png", f"Change only the expression of the face: {d}. Keep the same eyes' shape and colour, the same eyebrows' shape. {OWN_FACE[b]} " + KEEP, 500 + i * 10 + k)
+                add(f"parts/{pid}@{b}~{mood}.png", f"parts/{pid}@{b}.png", f"Change only the expression of the face, only the eyebrows, the eyelids and the mouth: {d}. {OWN_FACE[b]} " + KEEP, 500 + i * 10 + k)
     return j
 
 

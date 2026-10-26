@@ -40,8 +40,8 @@ Not on a laptop: a 768x1536 edit takes 4–5 minutes on a throttled laptop GPU, 
   fetched there from `hf-mirror.com` (an upload from the laptop runs at well under 1 MB/s);
 - the pipeline's scripts in `/mnt/data2/lmmslab-03/lsw-portraits/pipeline/`, the work dir (`lib/`, `parts/`,
   `jobs.json`) in `.../work/`; `run_server.sh` as `.../lsw_run.sh`;
-- `nohup sh lsw_run.sh <gpu> > run.log 2>&1 &` starts one ComfyUI on that card, runs the batch and stops both when
-  it ends; `kill $(cat run.pid)` stops it early. Check `nvidia-smi` afterwards: nothing may keep holding the card;
+- `nohup sh lsw_run.sh <gpu> [script args…] > run.log 2>&1 &` starts one ComfyUI on that card, runs the batch (or
+  `faces.py . [only…]`, the faces held to their eyes) and stops both when it ends; `kill $(cat run.pid)` stops it early. Check `nvidia-smi` afterwards: nothing may keep holding the card;
 - the way back is slow too (about 0.2 MB/s), so the checking and the cut run there: `sheets.py work sheets` makes a
   small JPEG of each kind of part to look at, `build.py work out` cuts them, and only `out/` (the layers and the
   manifest, about 40 MB) comes back into `games/openworld/public/assets/lsw/Looks/portrait`.

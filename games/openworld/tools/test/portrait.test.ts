@@ -31,6 +31,7 @@ const table = JSON.parse(readFileSync(join(import.meta.dirname, '../src/art/look
   groundPiece: number
   groundInset: number
   groundKept: string[]
+  holes: { slots: string[]; max: number; speck: number; ink: number }
 }
 /** A part's numbers: its slot's, with its own overrides. */
 const params = (pid: string): Slot => ({ ...table.slots[pid.split('.')[0]], ...table.parts[pid] })
@@ -317,6 +318,94 @@ describe('the portrait layers (tools/src/art/looks/portrait/clean.py)', () => {
       for (const l of g.layers) {
         const n = groundIn(l, 0, g.body)
         if (n) bad.push(`${l.file}: ${n} pixels of ground`)
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it("a hairstyle and a beard have no pinholes and no lone grey or red dots: no speck shows in the strands", { timeout: 120_000 }, () => {
+    const bad: string[] = []
+    for (const g of groups) {
+      if (!table.holes.slots.includes(g.pid.split('.')[0])) continue
+      // what the hairstyle (front and back as one) does not fully cover, 4-connected, with a ring round its box: the
+      // pieces that never reach the ring are pinholes
+      const x0 = Math.min(...g.layers.map((l) => l.x)) - 1
+      const y0 = Math.min(...g.layers.map((l) => l.y)) - 1
+      const pw = Math.max(...g.layers.map((l) => l.x + l.w)) + 1 - x0
+      const ph = Math.max(...g.layers.map((l) => l.y + l.h)) + 1 - y0
+      const cover = new Uint8Array(pw * ph)
+      for (const l of g.layers) {
+        const { value } = pixels(l.file)
+        for (let y = 0; y < l.h; y++)
+          for (let x = 0; x < l.w; x++) {
+            const i = (l.y - y0 + y) * pw + l.x - x0 + x
+            cover[i] = Math.max(cover[i], value[(y * l.w + x) * 4 + 3])
+          }
+      }
+      const holes = label(cover.map((a) => (a < 255 ? 1 : 0)), pw, ph, true)
+      const size = new Array(holes.n + 1).fill(0)
+      for (const c of holes.lab) size[c]++
+      let pins = 0
+      for (let c = 1; c <= holes.n; c++) if (c !== holes.lab[0] && size[c] <= table.holes.max) pins++
+      if (pins) bad.push(`${g.pid} on the ${g.body}: ${pins} pinholes`)
+      for (const l of g.layers) {
+        const { value } = pixels(l.file)
+        const { w, h } = l
+        // the pieces keeping their paint, small, wholly inside the repainted hair and lighter than ink
+        const { paint } = pixels(l.file)
+        const kept = new Uint8Array(w * h)
+        for (let i = 0; i < w * h; i++) kept[i] = value[i * 4 + 3] && !value[i * 4 + 1] ? 1 : 0
+        const k = label(kept, w, h)
+        const px: number[][] = Array.from({ length: k.n + 1 }, () => [])
+        for (let i = 0; i < w * h; i++) if (k.lab[i] && px[k.lab[i]].length <= table.holes.speck) px[k.lab[i]].push(i)
+        let specks = 0
+        for (let c = 1; c <= k.n; c++) {
+          const piece = px[c]
+          if (piece.length > table.holes.speck) continue
+          let inside = true
+          for (const i of piece)
+            for (let dy = -1; dy <= 1; dy++)
+              for (let dx = -1; dx <= 1; dx++) {
+                const x = (i % w) + dx
+                const y = Math.floor(i / w) + dy
+                if (x < 0 || y < 0 || x >= w || y >= h) continue
+                const q = y * w + x
+                if (k.lab[q] !== c && !(value[q * 4 + 3] === 255 && value[q * 4 + 1] > 0)) inside = false
+              }
+          const lum = piece.reduce((a, i) => a + paint[i * 4] * 0.299 + paint[i * 4 + 1] * 0.587 + paint[i * 4 + 2] * 0.114, 0) / piece.length
+          if (inside && lum > table.holes.ink) specks++
+        }
+        if (specks) bad.push(`${l.file}: ${specks} lone specks`)
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it("a face's irises are round (no tail of the eye colour below an eye) and keep their pupil and ring", { timeout: 120_000 }, () => {
+    const bad: string[] = []
+    // the disc eyes.py `round_iris` opens with
+    const disc = [[0, 1, 1, 1, 0], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [1, 1, 1, 1, 1], [0, 1, 1, 1, 0]]
+    for (const g of groups) {
+      if (!g.pid.startsWith('face.')) continue
+      for (const l of g.layers) {
+        const k = l.zones.indexOf('eyes') + 1
+        if (!k) continue
+        const { value } = pixels(l.file)
+        const { w, h } = l
+        const iris = new Uint8Array(w * h)
+        for (let i = 0; i < w * h; i++) iris[i] = value[i * 4 + 3] && value[i * 4 + 1] === 40 * k ? 1 : 0
+        const fits = (y: number, x: number) => disc.every((row, dy) => row.every((d, dx) => !d || iris[(y + dy - 2) * w + x + dx - 2] === 1))
+        // what an opening by the disc keeps, grown a pixel: the iris; anything further out is a tail
+        const core = new Uint8Array(w * h)
+        for (let y = 2; y < h - 2; y++) for (let x = 2; x < w - 2; x++) if (fits(y, x)) disc.forEach((row, dy) => row.forEach((d, dx) => d && (core[(y + dy - 2) * w + x + dx - 2] = 1)))
+        const near = squareFilter(core, w, h, 1, true)
+        let tail = 0
+        const vals: number[] = []
+        for (let i = 0; i < w * h; i++) if (iris[i]) (near[i] ? vals.push(value[i * 4]) : tail++)
+        if (tail) bad.push(`${l.file}: ${tail} iris pixels off the round iris`)
+        vals.sort((a, b) => a - b)
+        // the darkest twentieth near the gradient's ink (eyes.py DARK): recoloured, an iris keeps its pupil and ring
+        if (vals.length >= 20 && vals[Math.floor(vals.length * 0.05)] > 40) bad.push(`${l.file}: a flat iris (its darkest ${vals[Math.floor(vals.length * 0.05)]})`)
       }
     }
     expect(bad).toEqual([])
