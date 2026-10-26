@@ -7,45 +7,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type ResolveBody, type ResolveReply, type Scenario } from '@openworld/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { SelfState } from '@openworld/ai'
-import { Modder, WorldLibrary, createModderServer } from '@openworld/ai'
+import { placePatch, type Patch, type ResolveBody, type ResolveReply } from '@openworld/engine'
+import { createModderServer } from '@openworld/ai'
+import { SAP, SLOW, onDeadTree, testModder, useRequest } from './fixtures.ts'
 
-/** These commit and replay in the sandbox: under a full parallel run, slow. */
-const SLOW = { timeout: 120_000 }
-
-const onto = buildOntology()
-const BASE = [...BASE_RULES, ...STORY_RULES]
-const STONE = 'item/material/stone'
-
-/** The stone used on a dead tree: a hole in the stone's own nature (`core/use`). */
-function useRequest(): ModRequest {
-  const sc: Scenario = {
-    entities: [
-      { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-      { key: 'held', type: STONE, x: 2, y: 2, heldBy: 'actor' },
-      { key: 'it', type: 'fixture/nature/dead_tree', x: 2, y: 1 },
-    ],
-    event: {},
-  }
-  const eng = buildSandbox(sc, onto, new RuleLibrary(BASE))
-  const port = new ModPort(eng)
-  expect(eng.act('use', 'actor', { e: 'it' }).defined).toBe(false)
-  return port.records[0].request
-}
-
-const sapped = (id: string): Patch => ({
-  artifacts: [{ kind: 'rule', rule: { id, host: { type: STONE }, on: 'act/use', label: { en: 'Use {instrument} on {target}', zh: '对{target}使用{instrument}' }, tree: { if: { is: { role: 'target', sel: { type: 'fixture/nature/dead_tree' } } }, then: { do: [{ op: 'addStatus', status: 'wet', duration: 10 }, { op: 'log', text: { en: '{target} drips sap on {instrument}.', zh: '{target}的树液把{instrument}弄湿了。' } }] }, else: 'inherit' } } }],
-})
+const sapped = (id: string): Patch => onDeadTree(id, SAP)
 
 function setup() {
-  const dir = mkdtempSync(join(tmpdir(), 'lsw-service-'))
-  const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
-  const state = SelfState.open(join(dir, 'modder-state'))
-  state.setHarness({ ...state.harness(), revise: false, faults: { remove: 2 } }, 'test: the service guards')
-  const modder = new Modder({ library, state })
-  return { library, state, modder, server: createModderServer(modder) }
+  const t = testModder({ harness: () => ({ revise: false, faults: { remove: 2 } }) })
+  return { ...t, server: createModderServer(t.modder) }
 }
 
 interface Call {

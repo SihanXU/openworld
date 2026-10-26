@@ -2,7 +2,7 @@
 // with what a player would reasonably expect. Positives have a common use for the act — something to sit on, lie
 // on, kneel at, drink from — and must get real state; negatives have none — a rock, a fence, moss — and must get a
 // short line or nothing, no invented mechanics. It measures the modder's judgment both ways: neither shrugs nor
-// invents. The cases are checked without a model (test/affordance-set.test.ts): each is still a hole.
+// invents. The cases are checked without a model (test/modder-affordance.test.ts): each is still a hole.
 
 import { ModPort, RuleLibrary, buildSandbox, type Engine, type Scenario } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'

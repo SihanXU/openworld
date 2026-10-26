@@ -3,16 +3,11 @@
 // trying, and the answer then takes their place, final; the request says whose the thing is and who is near.
 
 import { describe, expect, it } from 'vitest'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { AGAIN_AFTER, ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Rule, type Scenario } from '@openworld/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { ScriptedModel, SelfState, auditOf, type ChatMessage, type ChatOptions } from '@openworld/ai'
-import { Modder, WorldLibrary, judge, statedAffordance } from '@openworld/ai'
+import { ScriptedModel, judge, statedAffordance, type ChatMessage, type ChatOptions } from '@openworld/ai'
+import { AFFORDANCE_CASES, askCase } from '../src/eval/affordanceSet.ts'
+import { BASE, noAudit, onto, testModder } from './fixtures.ts'
 
-const onto = buildOntology()
-const BASE = [...BASE_RULES, ...STORY_RULES]
 const CHAIR = 'fixture/furniture/chair'
 
 const scene = (owner?: string): Scenario => ({
@@ -44,11 +39,7 @@ function live(design: (n: number, messages: ChatMessage[]) => object) {
     prompts.push([...messages])
     return design(n++, messages)
   })
-  const dir = mkdtempSync(join(tmpdir(), 'lsw-afford-'))
-  const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
-  const state = SelfState.open(join(dir, 'modder-state'))
-  state.setHarness({ ...state.harness(), audit: { ...auditOf(state.harness()), enabled: false } }, 'test: no audit')
-  const modder = new Modder({ library, state, model, profile: 'live' })
+  const { library, state, modder } = testModder({ model, profile: 'live', harness: noAudit })
   return { modder, library, state, prompts, calls: () => n }
 }
 
@@ -166,5 +157,24 @@ describe('the request says whose the thing is', () => {
   it('another\'s chair, and who is near', () => {
     expect(ask().req.context.whose).toMatch(/nobody's/)
     expect(ask(undefined, 'npc.marta').req.context.whose).toMatch(/someone else's/)
+  })
+})
+
+// The affordance set stays a set of holes (design.md §5.17): every case, a bare hand on its thing, is still a
+// question the base rules leave open, so the evaluation measures the modder and not the content.
+
+describe('the affordance set', () => {
+  it('has uses and things with none, each still a hole', () => {
+    expect(AFFORDANCE_CASES.filter((c) => c.expect === 'use').length).toBeGreaterThanOrEqual(6)
+    expect(AFFORDANCE_CASES.filter((c) => c.expect === 'words').length).toBeGreaterThanOrEqual(6)
+    for (const c of AFFORDANCE_CASES) {
+      const { port } = askCase(c)
+      expect(port.records.map((r) => r.request.event.kind), c.name).toEqual(['impulse/handle'])
+    }
+  })
+
+  it('an owned thing is told as someone else\'s, its owner near', () => {
+    const { port } = askCase(AFFORDANCE_CASES.find((c) => c.owned)!)
+    expect(port.records[0].request.context.whose).toMatch(/someone else's/)
   })
 })
