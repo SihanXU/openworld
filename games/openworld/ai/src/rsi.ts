@@ -15,9 +15,9 @@ import { spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { SelfState, applyPreset, modelFromEnv, pinFromEnv, runAgent } from '@openworld/ai'
-import { REPO } from './engine-tasks.ts'
-import { historyDefs, historyTask, type HistoryDef } from './ladder.ts'
+import { REPO, SelfState, applyPreset, modelFromEnv, pinFromEnv, runAgent } from '@openworld/ai'
+import { flags } from './cli.ts'
+import { git, historyDefs, historyTask, type HistoryDef } from './ladder.ts'
 import { report } from '../../tools/src/rsi-report.ts'
 
 export type Arm = 'G' | 'F'
@@ -42,18 +42,12 @@ export interface Plan {
   heldoutSnapshot?: string
 }
 
-function git(args: string[]): string {
-  const r = spawnSync('git', args, { cwd: REPO, encoding: 'utf8' })
-  if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr.trim()}`)
-  return r.stdout.trim()
-}
-
 /** The milestones: the tags world-v*, by their commits' dates. */
 export function milestones(): Milestone[] {
   return git(['tag', '-l', 'world-v*'])
     .split('\n')
     .filter(Boolean)
-    .map((tag) => ({ tag, commit: git(['rev-list', '-n', '1', tag]), date: git(['log', '-1', '--format=%cI', tag]) }))
+    .map((tag) => ({ tag, commit: git(['rev-list', '-n', '1', tag]).trim(), date: git(['log', '-1', '--format=%cI', tag]).trim() }))
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 
@@ -71,8 +65,6 @@ export function planOf(all: Milestone[], tag: string, arm: Arm, defs: HistoryDef
   return { arm, milestone, previous, first, window, curriculum, heldoutSnapshot }
 }
 
-const stateDir = (arm: Arm, o?: string) => resolve(o ?? join(REPO, 'var', 'rsi', arm))
-
 /** H4: the previous snapshot and the naive start on the window's tasks, each a throwaway fork, nothing recorded. */
 async function heldout(plan: Plan, dir: string): Promise<void> {
   const model = modelFromEnv()
@@ -82,7 +74,7 @@ async function heldout(plan: Plan, dir: string): Promise<void> {
   if (plan.heldoutSnapshot) arms.push([plan.heldoutSnapshot, SelfState.open(join(state.dir, 'snapshots', plan.heldoutSnapshot)).fork()])
   const naive = state.fork()
   applyPreset(naive, 'naive')
-  arms.push(['naive', SelfState.open(join(naive.dir), undefined, ['memory', 'skills'])])
+  arms.push(['naive', SelfState.open(naive.dir, undefined, ['memory', 'skills'])])
   const out = join(dir, 'heldout', `${plan.milestone.tag}.jsonl`)
   mkdirSync(join(dir, 'heldout'), { recursive: true })
   for (const def of plan.window) {
@@ -112,9 +104,9 @@ function describe(plan: Plan): string {
 }
 
 function handoff(plan: Plan, dir: string, snapshot: string): string {
-  const out = join(dir, 'runs', plan.milestone.tag, 'RUN.md')
-  mkdirSync(join(dir, 'runs', plan.milestone.tag), { recursive: true })
   const run = join(dir, 'runs', plan.milestone.tag)
+  mkdirSync(run, { recursive: true })
+  const out = join(run, 'RUN.md')
   const md = `# ${plan.arm} at ${plan.milestone.tag}: the benchmark
 
 The snapshot: \`${snapshot}\`. The measured pool is the fresh pool and B (docs/rsi-experiments.md §4.1), each graded by its
@@ -137,8 +129,7 @@ plain snapshot (§6.3). The step cap at 40 is a copy of the snapshot with \`agen
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2)
-  const flag = (k: string) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : undefined)
-  if (existsSync(join(REPO, '.env'))) process.loadEnvFile(join(REPO, '.env'))
+  const flag = flags(argv)
   const [cmd, tag] = argv
   if (cmd === 'report') {
     const md = report(resolve(flag('root') ?? join(REPO, 'var', 'rsi')))
@@ -148,7 +139,7 @@ async function main(): Promise<void> {
   }
   const arm = (flag('arm') ?? 'G') as Arm
   if (!tag || !['plan', 'milestone', 'heldout'].includes(cmd)) throw new Error('npm run rsi -- plan|milestone|heldout <tag> [--arm G|F]')
-  const dir = stateDir(arm, flag('state'))
+  const dir = resolve(flag('state') ?? join(REPO, 'var', 'rsi', arm))
   const snaps = existsSync(join(dir, 'modder-state', 'snapshots')) ? SelfState.open(join(dir, 'modder-state')).snapshots() : []
   const plan = planOf(milestones(), tag, arm, historyDefs(), snaps)
   console.log(describe(plan))
@@ -167,7 +158,9 @@ async function main(): Promise<void> {
   const r = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'curriculum', '--', '--n', String(steps), '--seed', String(milestones().findIndex((m) => m.tag === tag) + 1), '--ladder', '--until', until, '--improve-every', '10', '--data', dir], { cwd: world, stdio: 'inherit', shell: process.platform === 'win32' })
   if (r.status !== 0) throw new Error(`the curriculum stopped (${r.status})`)
   const state = SelfState.open(join(dir, 'modder-state'))
-  const snapshot = state.snapshot(tag, { arm, tag, commit: plan.milestone.commit, date: plan.milestone.date, world: git(['-C', world, 'rev-parse', 'HEAD']), pin: pinFromEnv() ?? null, window: plan.window.map((d) => d.id) })
+  const head = git(['-C', world, 'rev-parse', 'HEAD']).trim()
+  const { commit, date } = plan.milestone
+  const snapshot = state.snapshot(tag, { arm, tag, commit, date, world: head, pin: pinFromEnv() ?? null, window: plan.window.map((d) => d.id) })
   console.log(`snapshot ${snapshot}\nthe benchmark: ${handoff(plan, dir, snapshot)}`)
 }
 

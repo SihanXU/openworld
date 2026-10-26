@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { REPO } from '../src/engine-tasks.ts'
+import { REPO } from '@openworld/ai'
 import { area, classify, isCode, isTest, leaks, rungOf, statuses, workspace } from '../src/ladder.ts'
 
 describe('the ladder: this repository’s commits as tasks', () => {

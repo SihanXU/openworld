@@ -30,6 +30,7 @@ for (const s of steps) {
 }
 const lessons = journal.filter((x) => x.kind !== 'review').map((x) => x.kind)
 console.log('\nJOURNAL KINDS', [...new Set(lessons)].map((k) => `${k} ${lessons.filter((x) => x === k).length}`).join(', '))
-const spend = eps.reduce((a, e) => a + (e.usage.cost ?? 0), 0) + journal.reduce((a, j) => a + (j.usage?.cost ?? 0), 0)
-console.log(`\nspend: episodes $${eps.reduce((a, e) => a + (e.usage.cost ?? 0), 0).toFixed(3)} + background $${journal.reduce((a, j) => a + (j.usage?.cost ?? 0), 0).toFixed(3)} = $${spend.toFixed(3)}`)
+const episodeSpend = eps.reduce((a, e) => a + (e.usage.cost ?? 0), 0)
+const background = journal.reduce((a, j) => a + (j.usage?.cost ?? 0), 0)
+console.log(`\nspend: episodes $${episodeSpend.toFixed(3)} + background $${background.toFixed(3)} = $${(episodeSpend + background).toFixed(3)}`)
 console.log(`undefined (all): ${steps[0].undefined + steps[0].answered} → ${steps.at(-1).undefined}`)

@@ -3,13 +3,12 @@
 //
 //   npm run improve -- [--select 8] [--confirm 8] [--margin 0.1]
 
-import { improve } from '@openworld/ai'
-import { openModder } from '@openworld/ai'
+import { improve, openModder } from '@openworld/ai'
 import { GAME } from '@openworld-game/content'
+import { flags } from './cli.ts'
 import { engineSource } from './engine-tasks.ts'
 
-const argv = process.argv.slice(2)
-const flag = (k: string, d: string) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : d)
+const flag = flags(process.argv.slice(2))
 const modder = openModder({ game: GAME, log: (l) => console.log(`  ${l}`) })
 if (!modder.model) throw new Error('no model configured (LSW_MODEL_KEY, LSW_MODEL)')
 const r = await improve({

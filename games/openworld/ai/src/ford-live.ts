@@ -9,22 +9,20 @@
 //   npm run ford-live                 # all six
 //   npm run ford-live -- "stump"      # the scenarios whose name contains it ("-stump": all but)
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Game, RuleLibrary, type UndefinedRecord } from '@openworld/engine'
-import { BASE_RULES, GAME, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
-import { modelFromEnv, openModder, type WorldEpisode } from '@openworld/ai'
+import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
+import { modelFromEnv, type WorldEpisode } from '@openworld/ai'
 import { buildFord } from '../../tools/src/demo/world.ts'
 import { SCENARIOS, W, ready, ticks, type Ford } from '../../tools/src/fordScenarios.ts'
+import { sleep } from './cli.ts'
+import { liveModder } from './live.ts'
 
-openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null }) // loads .env
 const model = modelFromEnv()
 if (!model) throw new Error('no model')
-const modder = openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-live-')), model })
+const modder = liveModder(model, 'lsw-live-', 'live smoke', { revise: false })
 const { state } = modder.opts
-const h = state.harness()
-state.setHarness({ ...h, review: { ...h.review, enabled: false }, reflect: { ...h.reflect, enabled: false }, escalate: false, revise: false }, 'live smoke')
 const onto = buildOntology()
 
 function fresh(): Ford {
@@ -40,7 +38,6 @@ function fresh(): Ford {
   }
   return ready({ game, eng: game.engine })
 }
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const out: unknown[] = []
 const only = process.argv[2]
 for (const sc of SCENARIOS) {
@@ -67,7 +64,8 @@ for (const sc of SCENARIOS) {
   f.eng.trace.length = 0
   ticks(f, 5)
   const replayed = f.eng.trace.filter((t) => t.rule?.startsWith('patch/')).map((t) => `${t.ev.kind}@${'e' in t.ev.host ? t.ev.host.e : 'tile'} → ${t.rule}`)
-  const ep = state.episodes().at(-1) ? (state.episode(state.episodes().at(-1)!.id) as WorldEpisode | undefined) : undefined
+  const last = state.episodes().at(-1)
+  const ep = last && (state.episode(last.id) as WorldEpisode | undefined)
   const rules = (ep?.patch?.artifacts ?? []).flatMap((a) => (a.kind === 'rule' ? [a.rule] : []))
   const row = {
     scenario: sc.name,

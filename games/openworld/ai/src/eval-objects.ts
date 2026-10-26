@@ -11,14 +11,13 @@
 //   npm run eval:objects                  # all ten
 //   npm run eval:objects -- flour         # the cases whose name contains it
 
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { ModPort, RuleLibrary, buildSandbox, type Patch, type PixelArt, type Rule, type TypeDef } from '@openworld/engine'
-import { BASE_RULES, GAME, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { modelFromEnv, openModder, type WorldEpisode } from '@openworld/ai'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { ModPort, RuleLibrary, buildSandbox, type PixelArt, type TypeDef } from '@openworld/engine'
+import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
+import { REPO, modelFromEnv } from '@openworld/ai'
 import { png } from '../../tools/src/art/png.ts'
+import { answering, episodesOf, follow, liveModder, rulesOf } from './live.ts'
 
 interface Case {
   name: string
@@ -42,8 +41,6 @@ const CASES: Case[] = [
   { name: 'berries in a lit cauldron: jam', held: 'item/food/berries', target: 'fixture/craft/cauldron', statuses: ['lit'] },
 ]
 
-const REPO = resolve(fileURLToPath(new URL('../../../..', import.meta.url)))
-openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null }) // loads .env
 const model = modelFromEnv()
 if (!model) throw new Error('no model: set LSW_MODEL_BACKEND (claude-code) or the OpenRouter key')
 const onto = buildOntology()
@@ -53,7 +50,6 @@ const out = join(REPO, 'var/eval-objects', new Date().toISOString().replace(/[:.
 mkdirSync(out, { recursive: true })
 
 const MAX_HOLES = 4
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 function picture(id: string, art: PixelArt): string {
   const S = 8
@@ -88,27 +84,14 @@ interface Result {
 }
 const results: Result[] = []
 for (const c of cases) {
-  const modder = openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-eval-')), model })
-  const { state } = modder.opts
-  const h = state.harness()
-  state.setHarness({ ...h, review: { ...h.review, enabled: false }, reflect: { ...h.reflect, enabled: false }, escalate: false }, 'eval: objects')
+  const modder = liveModder(model, 'lsw-eval-', 'eval: objects')
   const eng = buildSandbox(
     { entities: [{ key: 'actor', type: 'actor/person/player', x: 2, y: 2 }, { key: 'held', type: c.held, x: 2, y: 2, heldBy: 'actor' }, { key: 'it', type: c.target, x: 2, y: 1, statuses: c.statuses }], event: {} },
     onto,
     new RuleLibrary([...BASE_RULES, ...STORY_RULES]),
   )
   const port = new ModPort(eng)
-  port.timeoutTicks = 1e9 // the eval waits for the model, not the clock
-  const patches: Patch[] = []
-  const episodes: string[] = []
-  port.provider = {
-    resolve: async (req) => {
-      const reply = await modder.resolve({ request: req }, 'live')
-      if (reply.episode) episodes.push(reply.episode)
-      if (reply.patch) patches.push(reply.patch)
-      return reply.patch
-    },
-  }
+  const { patches, episodes } = answering(port, modder)
   const before = new Map(Object.values(eng.world.state.entities).map((e) => [e.id, e.type]))
   console.log(`\n=== ${c.name} (${c.find ? 'find' : 'create'})`)
   const t0 = Date.now()
@@ -117,16 +100,9 @@ for (const c of cases) {
     console.log('  not a hole any more: skipped')
     continue
   }
-  // follow the act: each answer is replayed, and what it sends on may be the next hole
-  while (Date.now() - t0 < 300_000) {
-    eng.tick()
-    if (!port.records.some((r) => r.status === 'pending' || r.awaiting)) break
-    if (port.records.length > MAX_HOLES) break
-    await sleep(200)
-  }
-  for (let i = 0; i < 20; i++) eng.tick()
-  const eps = episodes.map((id) => state.episode(id) as WorldEpisode | undefined).filter((e): e is WorldEpisode => !!e)
-  const rules = patches.flatMap((p) => p.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule as Rule] : [])))
+  await follow(eng, port, t0, MAX_HOLES, 20)
+  const eps = episodesOf(modder, episodes)
+  const rules = rulesOf(patches)
   const types = patches.flatMap((p) => p.artifacts.flatMap((a) => (a.kind === 'type' ? [a.type as TypeDef] : [])))
   // what the world holds now that it did not: new things, and things that became another kind
   const makes = [...new Set(Object.values(eng.world.state.entities).filter((e) => before.get(e.id) !== e.type).map((e) => e.type))]

@@ -27,9 +27,10 @@ import { BASE_RULES, GAME, STORY_RULES, TERRAINS, buildOntology } from '@openwor
 import { GENERIC_RULES, sweep, type Cell } from '../../../tools/src/coverage.ts'
 import { cellRequest } from '../curriculum.ts'
 import { trueskill, type Choice } from './trueskill.ts'
+import { flags } from '../cli.ts'
 
 const argv = process.argv.slice(2)
-const opt = (k: string, d?: string) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : d)
+const opt = flags(argv)
 const DIR = opt('data', 'var/eval/controlled')!
 mkdirSync(DIR, { recursive: true })
 const onto = buildOntology()
