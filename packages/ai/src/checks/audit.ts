@@ -529,7 +529,13 @@ export async function audit(model: Model, system: string, user: string, req: Mod
   const findings = (Array.isArray(j?.findings) ? j!.findings : []).slice(0, MOST.findings) as Finding[]
   const out: AuditResult = { confirmed: [], unconfirmed: [] }
   for (const f of findings) {
-    const c = confirm(f, req.scenario, onto, base, patched)
+    // each finding judged on its own: one the sandbox cannot judge (a claim of no known shape) is no reason to lose the rest
+    let c: ReturnType<typeof confirm>
+    try {
+      c = confirm(f, req.scenario, onto, base, patched)
+    } catch (err) {
+      c = { why: `the finding could not be judged: ${(err as Error)?.message ?? String(err)}` }
+    }
     if ('evidence' in c) out.confirmed.push(c)
     else {
       out.unconfirmed.push({ finding: f, why: c.why })
