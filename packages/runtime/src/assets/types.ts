@@ -60,6 +60,13 @@ export interface PrefabDef {
   terrain?: string
   /** Drawn as ground (under whoever stands on it: a pool one wades into), not as a wall in front of them. */
   ground?: boolean
+  /**
+   * The grid row it is drawn at the depth of, if not its last solid one: a strip of a building (one footprint row of it,
+   * the picture over it as tall as what is seen of the row) whose row may be walked under (an arcade, a gateway).
+   */
+  base?: number
+  /** Drawn in front of whoever stands in its base row (an arcade, a gateway one walks under), not behind them. */
+  front?: boolean
 }
 
 /** Sheets with the pack's standard actor layout. */

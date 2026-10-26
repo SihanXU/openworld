@@ -1263,6 +1263,17 @@ export interface MapData {
   rooms?: { style: string; x: number; y: number; w: number; h: number }[]
   music?: string
   light?: 'outdoor' | 'indoor' | 'dark'
+  /**
+   * Where the camera draws back and looks ahead (render hint, docs/showcase.md §3.3): standing in a vista's rect, the
+   * view is `zoom` times the usual and centred `look` cells from whoever it follows — a cathedral's front seen whole from
+   * its square, a gate's towers from the bridge before it.
+   */
+  vistas?: Vista[]
+  /**
+   * Coloured light lying on the floor (render hint, docs/showcase.md §3.4): the pools a stained-glass window throws by
+   * day, moving with the sun; a hearth's or a chandelier's glow by night.
+   */
+  lights?: LightPool[]
   /** Fish shadows glide in its water now and then: the water is worth a line (a stocked pond). */
   fish?: boolean
   /** Named spots ('square.well') for schedules, scenes and authors. */
@@ -1284,6 +1295,43 @@ export interface MapData {
    * map is, but none of a played map's (the engine ignores it).
    */
   backdrop?: boolean
+}
+
+/** A rect of a map where the camera draws back and looks ahead (MapData.vistas). */
+export interface Vista {
+  /** [x, y, w, h] in cells. */
+  at: [number, number, number, number]
+  /** The view's scale against the usual (0.75: a quarter further out); default 1. */
+  zoom?: number
+  /** Where the view is centred, in cells from whoever it follows ([0, -6]: six cells ahead to the north). */
+  look?: [number, number]
+  /**
+   * A point (in cells) the view keeps in sight instead: it is centred between whoever it follows and this point
+   * (`share` of the way to it, default a half), so the nearer they come the more of the front they see over them.
+   */
+  focus?: [number, number]
+  share?: number
+}
+
+/** A pool of coloured light on a map's floor (MapData.lights). */
+export interface LightPool {
+  /** Its middle at noon, in cells (fractions allowed). */
+  x: number
+  y: number
+  /** Its size in cells. */
+  w: number
+  h: number
+  /** '#rrggbb'. */
+  color: string
+  /** The window's shape it takes: a tall pointed light, a round rose, a soft round glow. */
+  shape: 'lancet' | 'rose' | 'glow'
+  /**
+   * When it shows: `sun` while the sun is up, moving with it (east in the morning, west in the evening) and gone at night;
+   * `night` after dark (a hearth, a chandelier); `always`.
+   */
+  when: 'sun' | 'night' | 'always'
+  /** How strong at its height, 0–1 (default 0.5). */
+  strength?: number
 }
 
 /** An older chunk's appearance (MapData.forage): one type. */

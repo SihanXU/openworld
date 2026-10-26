@@ -712,7 +712,8 @@ describe('deterministic repairs', () => {
       expect(calls.design).toBe(2) // the tool turn and the answer: no repair round
       expect(library.lib.rules.get('patch/stone-stills-creature')!.tree).toEqual(bindTree())
     }
-  })
+    // (six whole resolutions, each audited in the sandbox: past the default timeout on a loaded machine)
+  }, 120_000)
 
   it('reads a rule the model wrote without its place (no on, no host) as a rule, bare or flattened beside its kind', () => {
     // 2026-10-10, Opus 5.5 low (frostcap used on oneself): the harness sets host and on now, so the model leaves them out

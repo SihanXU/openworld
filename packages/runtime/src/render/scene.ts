@@ -3,7 +3,7 @@
 // status overlays, VFX and day/night. It only renders engine snapshots.
 
 import Phaser from 'phaser'
-import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type Look, type MapData, type Mood, type Ref, type RegionLook, type Text, type WindupPose } from '@openworld/engine'
+import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type LightPool, type Look, type MapData, type Mood, type Ref, type RegionLook, type Text, type Vista, type WindupPose } from '@openworld/engine'
 import { catalog, game, hasLooks, ontology } from '../game.ts'
 import { Soundscape } from '../audio/soundscape.ts'
 import { hexRgb, installWorldFilter, signalCamera } from './worldfilter.ts'
@@ -167,6 +167,8 @@ export class WorldScene extends Phaser.Scene {
   /** The durability bars over struck cells. */
   private tileBars?: Phaser.GameObjects.Graphics
   private objects = new Map<string, Phaser.GameObjects.Image>() // terrain objects by "x,y"
+  /** The tall strips of the map's buildings, which fade over the player behind them (fadeOver). */
+  private tall: Phaser.GameObjects.Image[] = []
   /** The terrain objects faded because they stand over the player (fadeOver). */
   private faded = new Set<Phaser.GameObjects.Image>()
   private views = new Map<string, EView>()
@@ -249,7 +251,7 @@ export class WorldScene extends Phaser.Scene {
       this.audio.music.setTitle(this.titleMusic)
     }
     this.scale.on('resize', () => {
-      this.cameras.main.setZoom(this.fitZoom())
+      this.cameras.main.setZoom(this.bossCam ? this.bossZoom() : this.viewZoom())
       this.fitBounds()
     })
     this.night = this.add.rectangle(-4000, -4000, 8000, 8000, 0x0a1030, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(1e7)
@@ -365,6 +367,8 @@ export class WorldScene extends Phaser.Scene {
     this.fishShadows.clear()
     for (const o of this.statics) o.destroy()
     this.statics = []
+    this.tall = []
+    this.faded = new Set([...this.faded].filter((o) => o.active))
     this.roofs.clear()
     this.pieces.clear()
     this.marred.clear()
@@ -384,6 +388,11 @@ export class WorldScene extends Phaser.Scene {
     this.tilemap?.destroy()
     if (this.base && this.base.id !== map.id) this.cameFrom = this.base.id
     this.base = map
+    // a new map: no vista yet (the first frame finds the one the player stands in)
+    if (this.vista) {
+      this.vista = undefined
+      this.cameras.main.setZoom(this.fitZoom()).setFollowOffset(0, 0)
+    }
     this.fishWater = []
     if (map.fish) {
       const water = (x: number, y: number) => x >= 0 && y >= 0 && x < map.width && y < map.height && FISH_WATER.has(map.terrain[y * map.width + x])
@@ -425,6 +434,7 @@ export class WorldScene extends Phaser.Scene {
       }
     for (const s of map.stamps ?? []) this.stamp(s.key, s.x, s.y)
     for (const r of map.rooms ?? []) this.roomFrame(r.style, r.x, r.y, r.w, r.h)
+    this.layPools(map)
     this.drawHeights(map)
     if (this.free) this.setEditorDim(this.dim)
     this.fitBounds()
@@ -487,12 +497,15 @@ export class WorldScene extends Phaser.Scene {
       if (!tex.has(name)) tex.add(name, 0, p.x + d.i * T, p.y + d.j * T, T, T)
       const img = this.add.image(d.x * T, d.y * T, p.img, name).setOrigin(0, 0).setDepth(pieceDepth(p, { y }, d.j, false))
       this.statics.push(img)
+      // a building's strip taller than a house fades over the player behind it (fadeOver)
+      if (p.base !== undefined && p.base >= 3) this.tall.push(img)
       const pv: PieceView = { def: d, img, stamp: sv }
       sv.pieces.push(pv)
       if (d.bound) this.pieces.set(`${d.x},${d.y}`, pv)
     }
     let lastSolid = 0
     p.grid.forEach((row, j) => /[#D]/.test(row) && (lastSolid = j))
+    if (p.base !== undefined) lastSolid = p.base
     const depth = pieceDepth(p, { y }, lastSolid, false)
     // a roof hides what is under it (the draw order); a pool one wades into is ground, no roof
     if (!p.ground) for (let j = 0; j <= lastSolid; j++) for (let i = 0; i < p.tw; i++) this.roofs.set(`${x + i},${y + j}`, depth)
@@ -706,6 +719,7 @@ export class WorldScene extends Phaser.Scene {
       this.following = me.root
       this.cameras.main.startFollow(me.root, true, 0.2, 0.2)
     }
+    if (me && !this.bossCam && !this.free && !this.cinema) this.frameVista(f)
     // Tall silhouettes may overhang walkable cells behind their actual collision base.
     // Keep a backstabbing player and ground warnings legible through that overhang.
     if (me) for (const v of this.views.values()) if (v.snap.boss) {
@@ -1701,6 +1715,15 @@ export class WorldScene extends Phaser.Scene {
           const o = this.objects.get(`${me.snap.x + dx},${me.snap.y + dy}`)
           if (o && hides(o)) faded.add(o)
         }
+      // a tall building's strips (catalog BUILDINGS) that stand south of the player and are drawn over them: the
+      // player's body under the strip's own pixels, not just its rectangle
+      for (const o of this.tall)
+        if (o.depth > mine && o.getBounds().contains(px, py))
+          for (const [ox, oy] of [[0, 0], [0, -T], [-4, -T / 2], [4, -T / 2]])
+            if (this.textures.getPixelAlpha(Math.floor(px + ox - o.x), Math.floor(py + oy - o.y), o.texture.key, o.frame.name) > 0) {
+              faded.add(o)
+              break
+            }
     }
     for (const o of this.faded) if (!faded.has(o) && o.active) o.setAlpha(1)
     for (const o of faded) o.setAlpha(0.45)
@@ -1831,6 +1854,37 @@ export class WorldScene extends Phaser.Scene {
    * returns to the player when the boss falls or the player leaves the fight far behind. The boss's music
    * plays meanwhile.
    */
+  /** The vista the player stands in (MapData.vistas), if any. */
+  private vista?: Vista
+  /** The view's scale now: the game's own, times the vista's. */
+  private viewZoom(): number {
+    return this.fitZoom() * (this.vista?.zoom ?? 1)
+  }
+  /**
+   * The camera in a vista (docs/showcase.md §3.3): standing in one of the map's vistas, it eases back to the vista's
+   * scale and over to where it looks (a cathedral's front from its square); out of it, back to the usual.
+   */
+  private frameVista(f: Frame): void {
+    const v = this.base?.vistas?.find(({ at: [x, y, w, h] }) => f.player.x >= x && f.player.x < x + w && f.player.y >= y && f.player.y < y + h)
+    const cam = this.cameras.main
+    if (v !== this.vista) {
+      this.vista = v
+      const zoom = this.viewZoom()
+      this.fitBounds(zoom)
+      cam.zoomTo(zoom, 900, 'Sine.easeInOut')
+    }
+    // where it looks: ahead by `look`, or between the player and the point it keeps in sight; eased there a frame at a time
+    const me = this.views.get(this.playerId)
+    let [lx, ly] = v?.look ?? [0, 0]
+    if (v?.focus && me) {
+      const s = v.share ?? 0.5
+      lx = (((v.focus[0] + 0.5) * T - me.root.x) / T) * s
+      ly = (((v.focus[1] + 0.5) * T - me.root.y) / T) * s
+    }
+    const o = cam.followOffset
+    o.set(o.x + (-lx * T - o.x) * 0.12, o.y + (-ly * T - o.y) * 0.12)
+  }
+
   private frameBossFight(f: Frame, me: EView | undefined): void {
     const cam = this.cameras.main
     const near = (e: EntitySnap, r: number) => Math.max(Math.abs(e.x - f.player.x), Math.abs(e.y - f.player.y)) <= r
@@ -1842,7 +1896,7 @@ export class WorldScene extends Phaser.Scene {
       // the fight is over: back to the player, at the usual distance, and the map's own music
       this.bossCam = undefined
       this.audio?.music.setBoss(undefined)
-      const zoom = this.fitZoom()
+      const zoom = this.viewZoom()
       this.fitBounds(zoom)
       cam.zoomTo(zoom, 450, 'Sine.easeInOut')
       if (me) (this.following = me.root), cam.startFollow(me.root, true, 0.08, 0.08)
@@ -1952,6 +2006,7 @@ export class WorldScene extends Phaser.Scene {
     else if (light === 'indoor') d = Math.min(0.5, d + this.shownLook.shade * 0.4)
     this.darkness = d
     this.night.setFillStyle(light === 'dark' ? 0x05060c : 0x0a1030, d)
+    this.shinePools(f)
   }
 
   /** Rain and storm streaks across the screen; fog as a slow, breathing veil. */
@@ -2126,6 +2181,79 @@ export class WorldScene extends Phaser.Scene {
     g.fillStyle = '#08142a'
     rows.forEach((r, y) => [...r].forEach((ch, x) => ch === '#' && g.fillRect(x, y, 1, 1)))
     this.textures.addCanvas('fishShadow', c)
+  }
+
+  /**
+   * The pools of coloured light on the floor (MapData.lights, docs/showcase.md §3.4): a window's shape, soft at its edges,
+   * crossed by the lead of its panes; laid on the floor over the ground and under all that stands, added to what is there.
+   */
+  private pools: { img: Phaser.GameObjects.Image; l: LightPool }[] = []
+  private layPools(map: MapData): void {
+    this.pools = []
+    for (const l of map.lights ?? []) {
+      const key = `pool:${l.shape}`
+      this.makePoolTexture(l.shape)
+      const img = this.add.image((l.x + 0.5) * T, (l.y + 0.5) * T, key).setBlendMode(Phaser.BlendModes.ADD).setDepth(-43)
+      img.setDisplaySize(l.w * T, l.h * T).setTint(Number.parseInt(l.color.slice(1), 16)).setAlpha(0)
+      this.statics.push(img)
+      this.pools.push({ img, l })
+    }
+  }
+  private makePoolTexture(shape: LightPool['shape']): void {
+    const key = `pool:${shape}`
+    if (this.textures.exists(key)) return
+    const w = shape === 'lancet' ? 32 : 64
+    const h = 64
+    const c = document.createElement('canvas')
+    c.width = w
+    c.height = h
+    const g = c.getContext('2d')!
+    const img = g.createImageData(w, h)
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        let a = 0
+        if (shape === 'glow') {
+          const d = Math.hypot(x + 0.5 - 32, y + 0.5 - 32) / 32
+          a = Math.max(0, 1 - d) ** 1.6
+        } else if (shape === 'rose') {
+          const dx = x + 0.5 - 32
+          const dy = y + 0.5 - 32
+          const d = Math.hypot(dx, dy) / 30
+          const petal = Math.abs(Math.sin(Math.atan2(dy, dx) * 6))
+          a = d > 1 ? 0 : (1 - d ** 4) * (petal < 0.18 && d > 0.25 ? 0.35 : 1) * (Math.abs(d - 0.55) < 0.05 ? 0.4 : 1)
+        } else {
+          // a pointed light: straight sides, the arch over them, the lead's bars across every eighth of it
+          const u = (x + 0.5 - 16) / 13
+          const v = (y + 0.5) / h
+          const top = 0.3
+          const inside = v > top ? Math.abs(u) <= 1 : Math.hypot(Math.abs(u) + 0.6, (top - v) / top * 1.4) <= 1.6
+          const edge = Math.min(1, (1 - Math.abs(u)) * 4, (1 - v) * 10)
+          a = inside ? Math.max(0, edge) * ((y % 8 === 0 || Math.abs(u) < 0.08) ? 0.45 : 1) : 0
+        }
+        img.data.set([255, 255, 255, Math.round(a * 255)], (y * w + x) * 4)
+      }
+    g.putImageData(img, 0, 0)
+    this.textures.addCanvas(key, c)
+  }
+  /** The pools as the hour makes them: the sun's by day, moving and lengthening with it; the night's after dark. */
+  private shinePools(f: Frame): void {
+    if (!this.pools.length) return
+    const { dusk, dawn } = f.night ?? { dusk: 21, dawn: 5 }
+    const day = Math.max(0, 1 - this.darkness / 0.6)
+    const up = f.hour > dawn && f.hour < dusk
+    // the sun's hour from noon, -1 at dawn to 1 at dusk
+    const sun = Math.max(-1, Math.min(1, (f.hour - (dawn + dusk) / 2) / ((dusk - dawn) / 2)))
+    for (const { img, l } of this.pools) {
+      const s = l.strength ?? 0.5
+      const a = l.when === 'sun' ? (up ? s * day * (1 - 0.35 * Math.abs(sun)) : 0) : l.when === 'night' ? s * (1 - day) : s
+      img.setAlpha(a)
+      if (l.when === 'sun') {
+        // the morning sun throws the window's light to the west, the evening's to the east, longer as it sinks
+        img.setPosition((l.x + 0.5 - sun * l.h * 0.35) * T, (l.y + 0.5 + Math.abs(sun) * l.h * 0.15) * T)
+        img.setDisplaySize(l.w * T, l.h * T * (1 + Math.abs(sun) * 0.3))
+        img.setAngle(-sun * 18)
+      }
+    }
   }
 
   private makeGlowTexture(): void {

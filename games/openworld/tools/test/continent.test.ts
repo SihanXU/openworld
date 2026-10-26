@@ -12,6 +12,7 @@ import { scaleRun } from '../src/demo/scale.ts'
 import { toolchainRun } from '../src/demo/toolchain.ts'
 import { compile, compileMap } from '@openworld/format'
 import { fordProject } from '../../client/scripts/bake.ts'
+import { SHOWCASE_PLACES } from '../src/demo/showcase/index.ts'
 
 // The continent's checks (docs/continent.md §6): the file is what the generator makes for the hand-made places as they
 // lie; every region of the lore is on it with its places; one walks everywhere from the far bank and the west bank
@@ -58,7 +59,8 @@ function offTheMap(w: World, map: string, from: { x: number; y: number }): boole
   const edge = (x: number, y: number) => x === 0 || y === 0 || x === m.width - 1 || y === m.height - 1
   return edge(from.x, from.y) || walkTo(w, map, from, (x, y) => edge(x, y) && w.walkable(map, x, y, undefined, true))
 }
-const rooms = world.backdrop.filter((ch) => ch.map.kind === 'interior')
+// (the rooms behind doors, `<place>.<role>-<n>`; a showcase place's own halls — a nave, a council hall — are checked as halls, showcase.test.ts)
+const rooms = world.backdrop.filter((ch) => ch.map.kind === 'interior' && /-\d+$/.test(ch.map.id))
 const byId = new Map(world.backdrop.map((ch) => [ch.map.id, ch]))
 
 describe('the continent (docs/continent.md)', () => {
@@ -287,7 +289,7 @@ describe("the backdrop's people", () => {
       expect([p.id, mine.length > 0]).toEqual([p.id, peopled])
       if (!peopled) continue
       const beds = new Set(mine.map(({ e }) => e.npc!.schedule.find((s) => s.activity === 'sleep')!.map))
-      for (const r of roomsOf(p.id)) expect([r.map.id, beds.has(r.map.id)]).toEqual([r.map.id, true])
+      for (const r of roomsOf(p.id).filter((x) => /-\d+$/.test(x.map.id))) expect([r.map.id, beds.has(r.map.id)]).toEqual([r.map.id, true])
     }
     // a town keeps a watch and a market, a farm its farmers, a fort its garrison
     expect([...byKind.get('town')!]).toEqual(expect.arrayContaining(['merchant', 'guard', 'smith', 'innkeeper', 'child']))
@@ -365,7 +367,8 @@ describe("the backdrop's people", () => {
 // The engine at the continent's scale (docs/continent.md §12): a map's things kept as what differs from its file,
 // the maps far behind put away, the scans over every thing gone.
 describe('the world at scale', () => {
-  const town = world.backdrop.find((ch) => ch.map.kind === 'town' && ch.entities.some((e) => e.npc))!
+  // (a town the backdrop's templates made: a showcase place keeps halls that are no one's, showcase.test.ts)
+  const town = world.backdrop.find((ch) => ch.map.kind === 'town' && ch.entities.some((e) => e.npc) && !SHOWCASE_PLACES.includes(ch.map.id))!
   const elsewhere = world.backdrop.find((ch) => ch.map.kind === 'village' && ch.entities.some((e) => e.npc))!
   const lib = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
   const fresh = () => {

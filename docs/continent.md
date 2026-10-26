@@ -169,6 +169,14 @@ By region (the backdrop: places, rooms, people, things):
 | The White Altar Heights | 35 | 91 | 196 | 5,387 |
 | The Holy City | 31 | 234 | 502 | 10,680 |
 
+## 8b. The showcase
+
+Six of the Holy City's places — Sunwell Abbey and the quarters 1 to 5 (the North Gate, the Bell Ward, the Market, the
+Lamp Ward, the Lower Town) — are made by hand instead of by their kind (docs/showcase.md): `backdrop.ts` hands such a
+place to its maker (`showcase/index.ts`), which builds its map, its halls and the rooms behind its doors at its id and
+site; the quarters are joined street to street after all places are made; their people are set by the maker (its cast)
+after the households of their rooms. They stay backdrop. The continent's file and generator are unchanged.
+
 ## 9. The phases
 
 - **A — the continent** (built): the regions, the world map grown, its grounds, rivers and roads, the gazetteer, the

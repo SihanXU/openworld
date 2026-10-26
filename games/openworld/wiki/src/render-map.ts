@@ -467,7 +467,8 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
     if (!p || !img) continue
     let lastSolid = 0
     p.grid.forEach((row, j) => /[#D]/.test(row) && (lastSolid = j))
-    const depth = p.ground ? -40 : (s.y + lastSolid + 1) * T - 2
+    if (p.base !== undefined) lastSolid = p.base
+    const depth = p.ground ? -40 : (s.y + lastSolid + 1) * T + (p.front ? 3 : -2)
     at(depth, () => pic.blit({ img, rect: [p.x, p.y, p.tw * T, p.th * T], x: s.x * T, y: s.y * T, ox: 0, oy: 0 }))
     if (!p.ground) for (let j = 0; j <= lastSolid; j++) for (let i = 0; i < p.tw; i++) roofs.set(`${s.x + i},${s.y + j}`, depth)
     // the healing spring's heart (it bobs; drawn where it starts)

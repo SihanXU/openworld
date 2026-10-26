@@ -10,6 +10,7 @@ import { Game, ROSTER, RuleLibrary, snapshot, type Engine, type FrameView, type 
 import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk, wildChunkFor } from '@openworld-game/content'
 import { FrameEncoder } from '@openworld/runtime/src/frameDelta.ts'
 import { buildFord } from './world.ts'
+import { SHOWCASE_PLACES } from './showcase/index.ts'
 
 export interface ScaleNumbers {
   /** Maps walked into, and the maps whose things are in memory at the end. */
@@ -81,7 +82,8 @@ export function scaleRun(opts: { maps?: number; ticks?: number; keep?: number } 
     game.trim()
   }
   const played = world.chunks.map((c) => c.map.id).filter((id) => !['tutorial', 'offstage', 'haven', 'overworld'].includes(id) && !id.startsWith('haven.'))
-  const backdrop = world.backdrop.map((c) => c.map.id)
+  // (the backdrop as its templates make it: the showcase's hand-made places, far denser by design, are measured on their own, showcase.test.ts)
+  const backdrop = world.backdrop.map((c) => c.map.id).filter((id) => !SHOWCASE_PLACES.some((p) => id === p || id.startsWith(`${p}.`)))
   const peopled = backdrop.filter((id) => (world.index.maps.find((m) => m.id === id)?.npcs ?? 0) > 0)
   const others = backdrop.filter((id) => !peopled.includes(id))
   const route: string[] = []

@@ -77,7 +77,9 @@ export function pieceState(piece: PieceDef, now: CellNow | undefined, facts: Ter
 export function pieceDepth(p: PrefabDef, at: { y: number }, j: number, open: boolean): number {
   if (p.ground) return -40
   if (open) return (at.y + j + 1) * T - 2
+  // (a building's strip says its row, `base`, and whether one walks under it, `front`: drawn before whoever is there)
   let last = 0
   p.grid.forEach((row, r) => /[#D]/.test(row) && (last = r))
-  return (at.y + last + 1) * T - 2
+  if (p.base !== undefined) last = p.base
+  return (at.y + last + 1) * T + (p.front ? 3 : -2)
 }

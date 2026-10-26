@@ -12,8 +12,9 @@
 
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL, type ActorDef, type Catalog, type FxDef, type PrefabDef, type SpriteDef } from '@openworld/runtime/src/assets/types.ts'
 import { SIN_ACTORS, SIN_FX } from '@openworld/runtime/src/assets/bosses.ts'
-import { SLATE } from '@openworld/runtime/src/assets/relief.ts'
+import { SLATE, type ReliefPalette } from '@openworld/runtime/src/assets/relief.ts'
 import FACES from './faces.json'
+import BUILDINGS_JSON from './buildings.json'
 import LOUDNESS from './loudness.json'
 import { CROP_FIXTURES, CROP_ITEMS } from './crops.ts'
 
@@ -37,6 +38,8 @@ const HOLE = TS + 'TilesetHole.png'
 const DESERT = TS + 'TilesetDesert.png'
 const IFLOOR = TS + 'Interior/TilesetInteriorFloor.png'
 const WALLS = TS + 'Interior/TilesetWallSimple.png'
+// the showcase's floors and grounds (tools/src/art/floors.ts)
+const FLOORS = 'lsw/Tiles/Floors.png'
 // the world map's own inked tiles and marks (tools/src/art/worldmap.ts)
 const WM_TILES = 'lsw/WorldMap/tiles.png'
 const WM_MARKS = 'lsw/WorldMap/marks.png'
@@ -140,6 +143,42 @@ function pf(img: string, c: number, r: number, grid: string[], terrain?: string)
 }
 
 /**
+ * The project's own buildings (tools/src/art/arch, docs/showcase.md §3), drawn in the oblique view and cut into strips:
+ * each building's footprint, its doors, and a strip for each row of it — its picture as tall as what is seen of the
+ * row, standing on the row's cells and drawn at the row's depth, so whoever stands beside the building is drawn before
+ * what is north of them and behind what is south. A map lays a building with `MapBuilder.building`.
+ */
+export const BUILDINGS: Record<string, { img: string; w: number; d: number; doors: [number, number][]; ground?: boolean; terrain?: string; shadow?: { x: number; y: number; tw: number; th: number; dx: number; dy: number }; cover?: string[]; slices: { row: number; col: number; tw: number; th: number; x: number; y: number; grid: string[] }[] }> = (BUILDINGS_JSON as unknown as { buildings: never }).buildings
+
+/** The showcase's furniture pictures (the props' sheet), as the fixtures' sprites: `fixture:<name>`; a tomb's two looks. */
+function propFixtures(): Catalog['fixtures'] {
+  const props = (BUILDINGS_JSON as unknown as { props: Record<string, { img: string; x: number; y: number; w: number; h: number; ax: number; ay: number }> }).props ?? {}
+  const sp = (k: string) => props[k] && px(props[k].img, props[k].x, props[k].y, props[k].w, props[k].h, props[k].ax, props[k].ay)
+  const out: Catalog['fixtures'] = {}
+  for (const k of Object.keys(props)) if (k !== 'tomb_gilt') out[`fixture:${k}`] = { base: sp(k)! }
+  if (props.tomb && props.tomb_gilt) out['fixture:tomb'].variants = [sp('tomb')!, sp('tomb_gilt')!]
+  return out
+}
+
+function buildingPrefabs(): Record<string, PrefabDef> {
+  const out: Record<string, PrefabDef> = {}
+  for (const [name, b] of Object.entries(BUILDINGS))
+    for (const s of b.slices) {
+      const p: PrefabDef = { img: b.img, x: s.x, y: s.y, tw: s.tw, th: s.th, grid: s.grid, base: s.th - 1 }
+      // a row one walks under (an arcade, a gateway): its strip in front of whoever is there
+      if (s.grid[s.th - 1].includes('.')) p.front = true
+      // a building laid as ground (a bridge's deck, a quay's steps): under whoever stands on it
+      if (b.ground) p.ground = true
+      if (b.terrain) p.terrain = b.terrain
+      out[`${name}@${s.row}`] = p
+    }
+  // its shadow, laid as ground (under all that stands), no cell of it changed
+  for (const [name, b] of Object.entries(BUILDINGS))
+    if (b.shadow) out[`${name}@shadow`] = { img: b.img, x: b.shadow.x, y: b.shadow.y, tw: b.shadow.tw, th: b.shadow.th, grid: Array(b.shadow.th).fill(' '.repeat(b.shadow.tw)), ground: true }
+  return out
+}
+
+/**
  * The joining pieces of the house sheet's three fences (the low rail, the pointed palisade, the stone wall), each laid
  * out alike from column 8 of its two rows: the corners, the ends, the straight runs, the T-joints and the cross. A
  * fence cell is stamped as `<kind>_<piece>`, the piece chosen by which of its four sides another cell of the same
@@ -165,6 +204,10 @@ const SND = 'Audio/Sounds/'
 const MUS = 'Audio/Musics/'
 /** A piece of the pack's music by its name. */
 const M = (name: string) => `${MUS}${name}.ogg`
+
+/** The Holy City's built ground (docs/showcase.md §3.5): its terraces, quays and walls in the pale warm limestone of its
+ * buildings (tools/src/art/arch/materials.ts `s`), not the hills' slate. */
+const LIMESTONE: ReliefPalette = { ...SLATE, outline: 0x3a3027, deep: 0x5b4e42, dark: 0x83725d, mid: 0xae9c7e, light: 0xd3c3a2, lit: 0xebdfc4 }
 
 export const CATALOG: Catalog = {
   // -------------------------------------------------------------------------------------------
@@ -202,6 +245,16 @@ export const CATALOG: Catalog = {
     carpet: { img: IFLOOR, col: 0, row: 6 },
     // Dark rounded stones. Self-bordered (no outside pixels).
     cave_floor: { img: IFLOOR, col: 11, row: 12 },
+    // The showcase's grounds (docs/showcase.md §3.5): pale limestone panels (a parvis, a nave), and the dark flags of a
+    // fortress's wards and the walk on its walls. Self-bordered.
+    paving: { img: IFLOOR, col: 0, row: 0 },
+    flagstone: { img: IFLOOR, col: 11, row: 12 },
+    rampart: { img: IFLOOR, col: 11, row: 12 },
+    // the showcase's own (tools/src/art/floors.ts): each block draws its own rim
+    carpet_royal: { img: FLOORS, col: 0, row: 0 },
+    runner: { img: FLOORS, col: 11, row: 0 },
+    plaza: { img: FLOORS, col: 22, row: 0 },
+    flowerbed: { img: FLOORS, col: 33, row: 0 },
     // White snow drifts. Outside: TRANSPARENT — whatever the renderer draws under the tile
     // (grass, dirt…) shows around the drift edges.
     snow: { img: FLOORB, col: 0, row: 0 },
@@ -221,6 +274,11 @@ export const CATALOG: Catalog = {
   // Plain ground tiles (variants picked per position). Opaque 16x16 unless noted.
   // -------------------------------------------------------------------------------------------
   plain: {
+    // the showcase's floors (tools/src/art/floors.ts): variants picked by position
+    lattice: [0, 1, 2, 3].map((c) => [FLOORS, c, 5] as [string, number, number]),
+    marble: [4, 5, 6, 7].map((c) => [FLOORS, c, 5] as [string, number, number]),
+    flags: [8, 9, 10, 11, 12, 13].map((c) => [FLOORS, c, 5] as [string, number, number]),
+    parquet: [14, 15].map((c) => [FLOORS, c, 5] as [string, number, number]),
     // the world map's grounds (its woods, hills and mountains are marks drawn over the plains)
     ow_plain: [[WM_TILES, 0, 10], [WM_TILES, 1, 10], [WM_TILES, 2, 10]],
     ow_forest: [[WM_TILES, 0, 10], [WM_TILES, 1, 10]],
@@ -433,6 +491,8 @@ export const CATALOG: Catalog = {
     stonewall_v: pf(HOUSE, 11, 8, ['#']),
     // every joining piece of the three fences (FENCE_PIECES): rail_es, fence_nsw, stonewall_x …
     ...fencePieces(),
+    // the project's own buildings (tools/src/art/arch): a strip a footprint row, `<building>@<row>` (BUILDINGS)
+    ...buildingPrefabs(),
     // Bridges run north-south (planks across, rails on the east/west sides). 4 wide x 3 long.
     bridge_ns: pf(HOUSE, 9, 15, ['....', '....', '....'], 'bridge'),
     bridge_stone_ns: pf(HOUSE, 9, 19, ['....', '....', '....'], 'bridge'),
@@ -481,7 +541,8 @@ export const CATALOG: Catalog = {
   },
 
   // the rock of the relief (runtime assets/relief.ts): the Frostfang Coast's slate wherever ground rises
-  relief: { '*': SLATE },
+  // the Holy City's: its terraces, quays and the North Gate's walls are built of its limestone
+  relief: { '*': SLATE, holy: LIMESTONE },
 
   // -------------------------------------------------------------------------------------------
   // Fixtures. base = normal state; open / lit only where the pack draws that state.
@@ -499,6 +560,8 @@ export const CATALOG: Catalog = {
     'fixture:mirror': { base: t(ELEM, 8, 10) },
     'fixture:shelf': { base: t(ELEM, 4, 7, 1, 2) },
     'fixture:bookshelf': { base: t(ELEM, 3, 7, 1, 2) },
+    // the showcase's furniture, drawn by the oblique renderer (tools/src/art/arch/buildings/inside.ts, BUILDINGS_JSON.props)
+    ...propFixtures(),
     'fixture:sack': { base: t(ELEM, 1, 1) },
     'fixture:furniture': { base: t(ELEM, 5, 7) },
     'fixture:table': { base: t(ELEM, 5, 7) },
