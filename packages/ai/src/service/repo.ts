@@ -19,7 +19,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { REPO } from '../node.ts'
-import { DockerEnv, LocalEnv, SANDBOX_LIMITS, chooseIsolation, hostUser, sandboxImage, sh, type Env, type Isolation } from '../agent/env.ts'
+import { chooseIsolation, sandboxEnv, sh, type Env, type Isolation } from '../agent/env.ts'
 import { type AgentTask } from '../agent/loop.ts'
 import type { EntityInfo, LibraryData, ModRequest, ModSpec, Ontology, Patch, Rule, RuleLibrary, StatusDef, TypeDef } from '@openworld/engine'
 
@@ -34,17 +34,9 @@ const asSeen = (p: string, iso: Isolation) => (iso === 'docker' ? `${IN_REPO}/${
 /** The validator, run from the engine's own code (never from a file the agent can edit). */
 const validateCommand = (iso: Isolation) => `node ${sh(asSeen(TSX, iso))} ${sh(asSeen(VALIDATE_CLI, iso))} .`
 
-async function worldEnv(dir: string, iso: Isolation): Promise<Env> {
-  if (iso === 'none') return new LocalEnv(dir)
+function worldEnv(dir: string, iso: Isolation): Promise<Env> {
   const ro = (p: string) => ({ host: join(REPO, p), container: `${IN_REPO}/${p}` })
-  return DockerEnv.start({
-    image: await sandboxImage(),
-    root: dir,
-    mount: '/work',
-    mounts: [ro('packages'), ro('node_modules'), ro('package.json'), ro('tsconfig.base.json')],
-    user: hostUser(),
-    limits: SANDBOX_LIMITS,
-  })
+  return sandboxEnv(iso, dir, { mount: '/work', mounts: [ro('packages'), ro('node_modules'), ro('package.json'), ro('tsconfig.base.json')] })
 }
 
 export interface WorldRepoState {

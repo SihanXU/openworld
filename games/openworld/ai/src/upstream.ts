@@ -16,7 +16,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { tmpdir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { REPO, SelfState, applyPreset, chooseIsolation, modelFromEnv, runAgent, type AgentTask, type Isolation, type Model, type Preset } from '@openworld/ai'
+import { REPO, SelfState, applyPreset, modelFromEnv, runAgent, taskIsolation, type AgentTask, type Isolation, type Model, type Preset } from '@openworld/ai'
 import { PROMOTE, WorldLibrary, askedCounts, candidates, effectsOf, type Candidate } from '@openworld/ai'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { isA, placed, type Expectation, type Ontology, type Scenario } from '@openworld/engine'
@@ -333,8 +333,8 @@ export interface UpstreamTask {
  * container; `localRun`: a person started it by hand. Without either there is no task.
  */
 export async function upstreamTask(c: Candidate, o: { library: WorldLibrary; isolation?: Isolation; localRun?: boolean; note?: string; cellsByRule?: Record<string, number>; L?: number }): Promise<UpstreamTask | undefined> {
-  const iso = o.isolation ?? (await chooseIsolation())
-  if (iso === 'none' && !o.localRun) return undefined
+  const iso = await taskIsolation(o)
+  if (!iso) return undefined
   const onto = o.library.fullOntology()
   const scenes = Object.fromEntries(o.library.asked.filter((a) => c.rules.some((r) => r.id === a.rule)).map((a) => [a.rule, a.scenario]))
   const cases = promotionCases(c, o.library)

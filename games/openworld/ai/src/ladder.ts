@@ -25,7 +25,7 @@ import { appendFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFile
 import { tmpdir } from 'node:os'
 import { join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { REPO, chooseIsolation, modelFromEnv, flags, type Isolation, type Model, type TaskSource } from '@openworld/ai'
+import { REPO, commitBase, git as gitAt, modelFromEnv, flags, taskIsolation, type Isolation, type Model, type TaskSource } from '@openworld/ai'
 import { taskEnv, taskSource, toLF, type WorkspaceTask } from './engine-tasks.ts'
 
 export const DATA = join(REPO, 'var', 'ladder')
@@ -78,11 +78,8 @@ export function rungOf(lines: number, areas: Set<string>): Rung | undefined {
   return lines <= 300 ? 'R2' : 'R3'
 }
 
-export function git(args: string[], o: { cwd?: string; input?: string | Buffer; binary?: boolean } = {}): string {
-  const r = spawnSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd: o.cwd ?? REPO, input: o.input, maxBuffer: 1 << 30, encoding: o.binary ? 'buffer' : 'utf8' })
-  if (r.status !== 0) throw new Error(`git ${args.slice(0, 3).join(' ')}: ${String(r.stderr).slice(0, 400)}`)
-  return String(r.stdout)
-}
+/** git in this repository (or `cwd`): its output. */
+export const git = (args: string[], o: { cwd?: string; input?: string | Buffer; binary?: boolean } = {}): string => gitAt(args, { cwd: REPO, ...o })
 
 /** The non-merge commits of `ref` that change code and tests, with their rungs (the largest left out). */
 export function candidates(ref = 'origin/main'): Candidate[] {
@@ -125,9 +122,7 @@ export function workspace(parent: string, dir: string): void {
   if (x.status !== 0) throw new Error(`tar: ${String(x.stderr).slice(0, 300)}`)
   toLF(dir)
   writeFileSync(join(dir, '.gitignore'), 'node_modules/\n')
-  git(['init', '-q'], { cwd: dir })
-  git(['add', '-A'], { cwd: dir })
-  git(['-c', 'user.email=lsw@local', '-c', 'user.name=lsw', 'commit', '-qm', 'base'], { cwd: dir })
+  commitBase(dir)
 }
 
 /** The workspace directories of a commit's package.json ("packages/*", "games/*\/*"). */
@@ -367,8 +362,8 @@ const vitestCmd = (files: string[], report?: string) => `node node_modules/vites
  * FAIL_TO_PASS and PASS_TO_PASS test passing. Unattended, it runs only in a container (the engine tasks' rule).
  */
 export async function historyTask(def: HistoryDef, o: { isolation?: Isolation; localRun?: boolean } = {}): Promise<WorkspaceTask | undefined> {
-  const iso = o.isolation ?? (await chooseIsolation())
-  if (iso === 'none' && !o.localRun) return undefined
+  const iso = await taskIsolation(o)
+  if (!iso) return undefined
   const ws = mkdtempSync(join(tmpdir(), 'lsw-history-'))
   let depsDir: string
   let visible: string[]

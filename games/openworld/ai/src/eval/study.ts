@@ -31,8 +31,7 @@ import { loadGame } from '../../../wiki/src/game.ts'
 import { renderMap } from '../../../wiki/src/render-map.ts'
 import { CATALOG } from '../../../wiki/src/bundle.ts'
 import { decodePng, encodePng } from '../../../wiki/src/png.ts'
-import { trueskill, type Choice } from './trueskill.ts'
-import type { Cell } from '../../../tools/src/coverage.ts'
+import { mean, minstd, shuffled, trueskill, type Answer, type Choice, type Item, type Rating } from './common.ts'
 
 const argv = process.argv.slice(2)
 const opt = flags(argv)
@@ -41,9 +40,6 @@ const ASSETS = fileURLToPath(new URL('../../../public/assets/', import.meta.url)
 const OUT = opt('out', 'var/eval/study')!
 const read = <T,>(f: string): T => JSON.parse(readFileSync(join(CONTROLLED, f), 'utf8'))
 
-interface Item { id: string; set: 'heldout' | 'undefined'; cell: Cell; heldOut?: string }
-interface Answer { item: string; cond: string; sentence: string }
-interface Rating { item: string; cond: string; sense: number; fit: number }
 
 /** What a participant does: rate one outcome, or choose between two (shown in the order `shown`). */
 type Trial =
@@ -128,14 +124,7 @@ function icon(index: OntologyIndex, type: string): string | undefined {
 
 /** A fixed shuffle of the situations (the same lists every build). */
 function permuted<T>(xs: T[], seed = 11): T[] {
-  let s = seed
-  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647
-  const a = [...xs]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rnd() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
+  return shuffled(xs, minstd(seed))
 }
 
 /**
@@ -193,7 +182,6 @@ function build(): void {
 
 // ---------------------------------------------------------------- score
 
-const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN)
 function pearson(xs: number[], ys: number[]): number {
   const mx = mean(xs), my = mean(ys)
   const c = xs.reduce((s, x, k) => s + (x - mx) * (ys[k] - my), 0)

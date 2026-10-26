@@ -302,6 +302,36 @@ export const hostUser = (): string | undefined => (typeof process.getuid === 'fu
 /** The caps every sandbox gets: a runaway command cannot take the host down. */
 export const SANDBOX_LIMITS = { memory: '1g', cpus: '1', pids: 256 }
 
+/**
+ * Where a workspace task runs (an engine task, a ladder or upstream task, a world repository): the isolation the task
+ * asks for, else the one chosen; on this machine only when a person started it there (`localRun`). None otherwise.
+ */
+export async function taskIsolation(o: { isolation?: Isolation; localRun?: boolean }): Promise<Isolation | undefined> {
+  const iso = o.isolation ?? (await chooseIsolation())
+  return iso === 'none' && !o.localRun ? undefined : iso
+}
+
+/** A workspace's environment: this machine, or the sandbox image (its limits, no network) with `root` at `mount`. */
+export async function sandboxEnv(iso: Isolation, root: string, o: { mount?: string; mounts?: { host: string; container: string }[] } = {}): Promise<Env> {
+  if (iso === 'none') return new LocalEnv(root)
+  return DockerEnv.start({ image: await sandboxImage(), root, mount: o.mount ?? root, mounts: o.mounts, user: hostUser(), limits: SANDBOX_LIMITS })
+}
+
+/** git here, synchronously, line endings as written: its output (it throws when git fails). */
+export function git(args: string[], o: { cwd: string; input?: string | Buffer; binary?: boolean }): string {
+  const r = spawnSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd: o.cwd, input: o.input, maxBuffer: 1 << 30, encoding: o.binary ? 'buffer' : 'utf8' })
+  if (r.status !== 0) throw new Error(`git ${args.slice(0, 3).join(' ')}: ${String(r.stderr).slice(0, 400)}`)
+  return String(r.stdout)
+}
+
+/** A repository of what `dir` holds, all of it committed as its base (line endings kept as written, every later command too). */
+export function commitBase(dir: string, message = 'base'): void {
+  git(['init', '-q'], { cwd: dir })
+  git(['config', 'core.autocrlf', 'false'], { cwd: dir })
+  git(['add', '-A'], { cwd: dir })
+  git(['-c', 'user.email=lsw@local', '-c', 'user.name=lsw', 'commit', '-qm', message], { cwd: dir })
+}
+
 /** Quote a string for a POSIX shell. */
 export function sh(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`

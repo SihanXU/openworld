@@ -8,12 +8,11 @@
 //
 //   npm run engine-task -- <id> --state <dir> [--preset naive|tuned]
 
-import { execSync } from 'node:child_process'
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DockerEnv, LocalEnv, REPO, SANDBOX_LIMITS, SelfState, applyPreset, chooseIsolation, hostUser, modelFromEnv, runAgent, sandboxImage, flags } from '@openworld/ai'
+import { REPO, SelfState, applyPreset, commitBase, modelFromEnv, runAgent, sandboxEnv, flags, taskIsolation } from '@openworld/ai'
 import type { AgentTask, Env, Isolation, Preset, TaskSource } from '@openworld/ai'
 
 const TASKS = join(REPO, 'games/openworld/ai/tasks/engine')
@@ -70,9 +69,7 @@ export const toLF = (dir: string): void =>
  */
 export async function taskEnv(iso: Isolation, ws: string, deps: string, cleanup: () => void): Promise<Env> {
   try {
-    if (iso !== 'docker') return new LocalEnv(ws)
-    const mounts = [{ host: deps, container: deps }]
-    return await DockerEnv.start({ image: await sandboxImage(), root: ws, mount: ws, mounts, user: hostUser(), limits: SANDBOX_LIMITS })
+    return await sandboxEnv(iso, ws, { mounts: [{ host: deps, container: deps }] })
   } catch (err) {
     cleanup()
     throw err
@@ -110,7 +107,7 @@ export function engineWorkspace(o: { prefix?: string } = {}): { dir: string; dis
   for (const n of readdirSync(join(REPO, 'node_modules'))) if (!SCOPES.has(n) && !CACHES.has(n)) symlinkSync(join(REPO, 'node_modules', n), join(dir, 'node_modules', n), 'junction')
   for (const p of PACKAGES) symlinkSync(join(dir, p.dir), join(dir, 'node_modules', p.name), 'junction')
   writeFileSync(join(dir, '.gitignore'), 'node_modules/\n')
-  execSync('git init -q && git config core.autocrlf false && git add -A && git -c user.email=lsw@local -c user.name=lsw commit -qm base', { cwd: dir })
+  commitBase(dir)
   return { dir, dispose: () => rmSync(dir, { recursive: true, force: true }) }
 }
 
@@ -121,8 +118,8 @@ export function engineWorkspace(o: { prefix?: string } = {}): { dir: string; dis
  * and lets it run on this machine. Without either there is no task (undefined).
  */
 export async function engineTask(def: EngineTaskDef, o: { isolation?: Isolation; localRun?: boolean } = {}): Promise<WorkspaceTask | undefined> {
-  const iso = o.isolation ?? (await chooseIsolation())
-  if (iso === 'none' && !o.localRun) return undefined
+  const iso = await taskIsolation(o)
+  if (!iso) return undefined
   const ws = engineWorkspace()
   const tests = 'npx vitest run packages/engine games/openworld/content'
   const env = await taskEnv(iso, ws.dir, join(REPO, 'node_modules'), ws.dispose)

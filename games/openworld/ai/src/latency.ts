@@ -17,6 +17,7 @@ import { changesNothing, modelFromEnv, openModder, flags, type ChatOptions, type
 import { GAME } from '@openworld-game/content'
 import { sweep } from '../../tools/src/coverage.ts'
 import { cellRequest, pick } from './curriculum.ts'
+import { pct } from './eval/common.ts'
 
 function args(argv: string[]) {
   const get = flags(argv)
@@ -35,7 +36,6 @@ function args(argv: string[]) {
   }
 }
 
-const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(p * xs.length))] ?? 0
 
 async function main(): Promise<void> {
   const a = args(process.argv.slice(2))
@@ -90,7 +90,7 @@ async function main(): Promise<void> {
   const firstValid = eps.filter((e) => e.attempts[0] && !e.attempts[0].errors.length).length
   const cost = eps.reduce((s, e) => s + (e.usage.cost ?? 0), 0)
   console.log(
-    `\nSUMMARY ${label}: accepted ${ok.length}/${eps.length} · first answer valid ${firstValid}/${eps.length} · median ${pct(ms, 0.5).toFixed(1)} s · max ${Math.max(...ms).toFixed(1)} s · calls/ep ${(eps.reduce((s, e) => s + e.usage.calls, 0) / eps.length).toFixed(1)} · $${(cost / eps.length).toFixed(3)}/ep`,
+    `\nSUMMARY ${label}: accepted ${ok.length}/${eps.length} · first answer valid ${firstValid}/${eps.length} · median ${(pct(ms, 0.5) ?? 0).toFixed(1)} s · max ${Math.max(...ms).toFixed(1)} s · calls/ep ${(eps.reduce((s, e) => s + e.usage.calls, 0) / eps.length).toFixed(1)} · $${(cost / eps.length).toFixed(3)}/ep`,
   )
 }
 

@@ -18,6 +18,7 @@ import { BASE_RULES, FORMS, GAME, STORY_RULES, buildOntology, decodeChunk, wildC
 import { modelFromEnv, openModder, flags, sleep } from '@openworld/ai'
 import type { Model } from '@openworld/ai'
 import { buildFord } from '../../../tools/src/demo/world.ts'
+import { minstd } from './common.ts'
 
 const opt = flags(process.argv.slice(2))
 const PLAYERS = Number(opt('players', '3'))
@@ -78,8 +79,7 @@ interface Tally {
 }
 
 async function player(p: number): Promise<{ game: Game; tally: Tally }> {
-  let s = p + 1
-  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647
+  const rnd = minstd(p + 1)
   const pick = <T,>(xs: T[]): T => xs[Math.floor(rnd() * xs.length)]
   const game = Game.create(world.index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
   game.keepMaps = 8
