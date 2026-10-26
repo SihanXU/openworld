@@ -19,19 +19,21 @@ drafter), the self-improving agent (RSI) and the evaluations all reuse the same 
 ## 2. The layers and their direction
 
 ```
-games/openworld/tools/src   drivers: curriculum, improve, rsi, upstream, latency, eval/*      (may import all)
-packages/editor             authoring: holes panel, AI drafter                                 → modder, format, engine
-packages/runtime            play: asks a modder, syncs the shared library, runs the player's
-                            own modder in the page (byok)                                      → modder (browser part), engine
-packages/modder             the modder: pipeline, prompts, judges, shared library, service     → agent, engine
-packages/agent              model backends; the agent loop and self-state (RSI)                → (nothing of ours)
+games/openworld/ai          OpenWorld's drivers: curriculum, improve, rsi, upstream, latency, eval/*   (may import all)
+packages/ai                 all the AI: models, the modder, its checks, the shared library, the
+                            agent and its self-state, the service, the player's own modder     → runtime, format, engine
+packages/editor             authoring: holes panel, AI drafter (asks the modder over HTTP)     → format, engine
+packages/runtime            play: asks a modder, syncs the shared library; finds the player's
+                            own modder through one glob (`runtime/src/ai.ts`)                  → format, engine
 packages/format             a project's holes, the checks of a new thing                       → engine
 packages/engine             the contract: requests, the validator, the port, the sandbox       → (nothing)
 ```
 
-The engine imports none of the others, the modder imports no game, and the parts that run in a browser
-(`modder/src/browser.ts`, `agent/src/core.ts`) import no Node. `packages/engine/test/boundaries.test.ts`
-holds all three.
+The engine imports none of the others, nothing outside `packages/ai` and `games/*/ai` imports the AI, the AI
+imports no game, and what runs in a browser (`ai/src/browser.ts`, `ai/src/player/`) imports no Node.
+`packages/engine/test/boundaries.test.ts` holds all four. Delete `packages/ai` and `games/*/ai` and the game
+still typechecks, passes its tests, plays and builds (the `no-ai` job in `.github/workflows/check.yml`).
+The package's own entry is `packages/ai/docs/AGENTS.md`.
 
 ## 3. One question, end to end
 
@@ -41,9 +43,9 @@ holds all three.
    (`buildRequest`): the event, the host, the path to the hole, the context, and a `Scenario` that can replay it.
    One question per hole and class (`classKey`).
 3. **The link.** The runtime's worker sends it to a modder through `ModderLink` (`runtime/src/modderLink.ts`):
-   a service over HTTP, or the player's own modder in a worker of the page (`localModder.ts`, `byok.md`). Both
+   a service over HTTP, or the player's own modder in a worker of the page (`ai/src/player/localModder.ts`, `byok.md`). Both
    answer the same five calls: health, resolve, progress, patches, fault.
-4. **The pipeline.** `Modder.resolve` (`modder/src/pipeline.ts`) works it in stages:
+4. **The pipeline.** `Modder.resolve` (`ai/src/modder/pipeline.ts`) works it in stages:
    - *comprehend*: the request's signature (`signature.ts`); the shared library may already cover it (no model);
    - *recall*: lessons, similar episodes and skills from the self-state; the brief (`brief.ts`);
    - *design*: the model's answer. Live, it is one call routed local → find → create (design.md §13, the
@@ -76,7 +78,7 @@ The time a player waits is the same at every AI setting (`AI_WAIT_MS`, `engine/s
 | `PatchLogEntry` | `engine/src/mod.ts` | one line of the shared library's log |
 | `ValidationResult` | `engine/src/mod.ts` | errors and warnings of `validatePatch` |
 
-The service's endpoints are listed at the top of `modder/src/server.ts`. Endpoints that cost model calls or
+The service's endpoints are listed at the top of `ai/src/service/server.ts`. Endpoints that cost model calls or
 write the library without the AI (`/create`, `/draft`, `/adopt`, `/quality/detect`, the offline profile of
 `/resolve`) answer this machine only: a loopback address, no foreign `Origin`, JSON.
 
@@ -88,20 +90,20 @@ A patch passes every layer below before it ships; the model never decides whethe
 |---|---|---|
 | The validator | `engine/src/mod.ts` `validatePatch` | bad shapes, unknown types, writes beyond the host, a rule placed at a defined leaf, ties, protected story facts, a replay that errors (refused effects included), failing tests |
 | The repeat check (endless yield) and the chain bound | `engine/src/sandbox.ts` | a yield with no end (things made, or a number raised every time) under any way its chances may fall (the dice are not rolled: each outcome is followed), a chain that does not settle |
-| The economy | `modder/src/economy.ts` | a free lunch: any mix of conversions that makes more than it takes (a linear programme) |
-| The probe | `modder/src/audit.ts` `probe` | a farm the act shows when done 30 times, with no model |
-| The auditor | `modder/src/audit.ts` | an agent plays against the patch; a finding counts only if the sandbox reproduces it and the code sees a harm in it (`harmOf`: farm, value, harm to what the story needs, softlock, runaway) |
+| The economy | `ai/src/checks/economy.ts` | a free lunch: any mix of conversions that makes more than it takes (a linear programme) |
+| The probe | `ai/src/checks/audit.ts` `probe` | a farm the act shows when done 30 times, with no model |
+| The auditor | `ai/src/checks/audit.ts` | an agent plays against the patch; a finding counts only if the sandbox reproduces it and the code sees a harm in it (`harmOf`: farm, value, harm to what the story needs, softlock, runaway) |
 | The reviewer | `pipeline.ts` `review`, `REVIEW_SYSTEM` | a rule a player would find wrong; before shipping when blocking, after when not |
 | The client | `ModPort.submit`, `takeLogEntries` | anything the client's own validator refuses |
 | Run time | `engine.fault`, quarantine | a learned rule whose effects the engine refuses, or whose chain will not end |
 
 What each tier carries (no review, audit or escalation at low; more reasoning, a blocking review at high) is
-`modder/src/quality.ts`; the levels themselves are the engine's (`engine/src/quality.ts`). The detection of
-what a connected model carries plays a set of questions at every tier (`modder/src/detect.ts`).
+`ai/src/modder/quality.ts`; the levels themselves are the engine's (`engine/src/quality.ts`). The detection of
+what a connected model carries plays a set of questions at every tier (`ai/src/checks/detect.ts`).
 
 ## 6. Profiles
 
-One harness, two profiles (`agent/src/state.ts`, `profileOf`):
+One harness, two profiles (`ai/src/agent/state.ts`, `profileOf`):
 
 - **live**: a player waits. One call from the brief, low reasoning, deterministic fixes, the derived test,
   hedged calls; the audit and review run after shipping.
@@ -111,15 +113,15 @@ One harness, two profiles (`agent/src/state.ts`, `profileOf`):
 
 ## 7. Models
 
-`packages/agent` holds the only code that talks to a model (`Model`: `chat(messages, opts)`):
+`packages/ai/src/models` holds the only code that talks to a model (`Model`: `chat(messages, opts)`):
 
 | Backend | File | Chosen by |
 |---|---|---|
-| OpenAI-compatible (OpenRouter by default) | `agent/src/model.ts` | `LSW_MODEL_URL`, `LSW_MODEL_KEY`, `LSW_MODEL` |
-| Claude Code's print mode (`claude -p`, signed in as the user) | `agent/src/model-node.ts` | `--backend claude-code` |
-| Anthropic's API | `agent/src/anthropic.ts` | `--backend anthropic`, `ANTHROPIC_API_KEY` |
-| A player's own key, from the browser | `agent/src/providers.ts` | the game's options (`byok.md`) |
-| Scripted (tests, offline demos) | `agent/src/model.ts` `ScriptedModel` | `--script`, `LSW_MODEL_SCRIPT` |
+| OpenAI-compatible (OpenRouter by default) | `ai/src/models/model.ts` | `LSW_MODEL_URL`, `LSW_MODEL_KEY`, `LSW_MODEL` |
+| Claude Code's print mode (`claude -p`, signed in as the user) | `ai/src/models/model-node.ts` | `--backend claude-code` |
+| Anthropic's API | `ai/src/models/anthropic.ts` | `--backend anthropic`, `ANTHROPIC_API_KEY` |
+| A player's own key, from the browser | `ai/src/models/providers.ts` | the game's options (`byok.md`) |
+| Scripted (tests, offline demos) | `ai/src/models/model.ts` `ScriptedModel` | `--script`, `LSW_MODEL_SCRIPT` |
 
 `modelFromEnv` (`model-node.ts`) picks one; no provider is hard-coded. Every caller sees the same options
 (`json`, `tools`, `reasoning`, `deadlineMs` with 0 for none), and `Meter` counts calls, tokens and cost.
@@ -130,38 +132,39 @@ One harness, two profiles (`agent/src/state.ts`, `profileOf`):
   (`format/src/holes.ts`); answer one by hand, or ask the modder (offline), replay it, take it into the
   game's `learned/` files, which every new game and save begins from.
 - **The AI drafter** (`editor/src/app/drafter.ts`): a sentence becomes a new thing (`Modder.createThing`,
-  `POST /create`), a person or a map (`Modder.draft`, `POST /draft`, `modder/src/drafts.ts`). A new thing is
+  `POST /create`), a person or a map (`Modder.draft`, `POST /draft`, `ai/src/modder/drafts.ts`). A new thing is
   checked by `format/src/things.ts` (it holds, a player can have it, it is good for something, its numbers sit
   among its kind's) and taken in by `newThing.ts` and `POST /adopt`.
 
 ## 9. The self-improving agent and the evaluations
 
-- **Three loops** (rsi.md §4): the inner loop works one task (`agent/src/loop.ts`); the middle loop writes
+- **Three loops** (rsi.md §4): the inner loop works one task (`ai/src/agent/loop.ts`); the middle loop writes
   lessons and skills after it (`reflect.ts`); the outer loop proposes one change to the harness and keeps it
   only if it holds up on recorded tasks (`outer.ts`). Everything it may change is the self-state
   (`state.ts`). RSI design changes are discussed with the user before they are coded (CLAUDE.md).
 - **The upstream loop** (upstream.md): where learned answers show that a whole class answers alike
-  (`modder/src/promote.ts`), a change to the base rules is proposed as a task (`tools/src/upstream.ts`).
-- **Drivers and benches** (`games/openworld/tools/src`): `curriculum.ts`, `improve.ts`, `rsi.ts`,
+  (`ai/src/library/promote.ts`), a change to the base rules is proposed as a task (`games/openworld/ai/src/upstream.ts`).
+- **Drivers and benches** (`games/openworld/ai/src`): `curriculum.ts`, `improve.ts`, `rsi.ts`,
   `latency.ts`, `ladder.ts`, `eval-objects.ts`, `eval-affordance.ts`, and the paper's runs in `eval/`
-  (paper-eval.md). An unattended agent runs commands only in a container (`agent/src/env.ts`).
+  (paper-eval.md). An unattended agent runs commands only in a container (`ai/src/agent/env.ts`).
 
 ## 10. Where to look
 
 | Concern | Files |
 |---|---|
 | The contract and the validator | `engine/src/mod.ts`, `engine/src/sandbox.ts`, `engine/src/quality.ts` |
-| The pipeline | `modder/src/pipeline.ts`, `prompts.ts`, `brief.ts`, `signature.ts`, `tools.ts`, `affordance.ts` |
-| Repairs and tests the harness writes | `modder/src/fixes.ts`, `derive.ts` |
-| Judges | `modder/src/economy.ts`, `audit.ts`, `detect.ts`, `quality.ts` |
-| The shared library | `modder/src/library.ts`, `library-file.ts`, `promote.ts` |
-| The service | `modder/src/server.ts`, `cli.ts`, `open.ts`, `browser.ts` |
-| Offline as a repository | `modder/src/repo.ts`, `validate-cli.ts`, `offline.ts` |
-| Models | `agent/src/model.ts`, `model-node.ts`, `anthropic.ts`, `providers.ts`, `providerList.ts` |
-| Self-state and RSI | `agent/src/state.ts`, `loop.ts`, `reflect.ts`, `outer.ts`, `presets.ts`, `tools.ts`, `env.ts`, `swe.ts` |
-| Play | `runtime/src/worker.ts` (asking, syncing), `learned.ts`, `modderLink.ts`, `localModder.ts`, `modderWorker.ts`, `ownModel.ts`, `ui/modelSettings.ts`, `ui/quality.ts` |
+| The pipeline | `ai/src/modder/pipeline.ts`, `prompts.ts`, `brief.ts`, `signature.ts`, `tools.ts`, `affordance.ts` |
+| Repairs and tests the harness writes | `ai/src/modder/fixes.ts`, `derive.ts` |
+| Judges | `ai/src/checks/economy.ts`, `audit.ts`, `detect.ts`; `ai/src/modder/quality.ts` |
+| The shared library | `ai/src/library/library.ts`, `library-file.ts`, `promote.ts` |
+| The service | `ai/src/service/server.ts`, `open.ts`; `ai/scripts/modder.ts`; `ai/src/browser.ts` |
+| Offline as a repository | `ai/src/service/repo.ts`, `validate-cli.ts`, `offline.ts` |
+| Models | `ai/src/models/model.ts`, `model-node.ts`, `anthropic.ts`, `providers.ts`, `providerList.ts` |
+| Self-state and RSI | `ai/src/agent/state.ts`, `loop.ts`, `reflect.ts`, `outer.ts`, `presets.ts`, `tools.ts`, `env.ts`, `swe.ts` |
+| Play | `runtime/src/worker.ts` (asking, syncing), `learned.ts`, `modderLink.ts`, `ai.ts`, `ownModel.ts`, `ui/modelSettings.ts`, `ui/quality.ts`; `ai/src/player/` |
 | Authoring | `editor/src/app/holesMode.ts`, `drafter.ts`, `drafts.ts`, `newThing.ts`; `format/src/holes.ts`, `things.ts` |
 
-Tests: the engine's guards in `engine/test/ai-guards.test.ts`; the modder's in `modder/test/` (pipeline,
-economy, audit, library); those that need the game in `games/openworld/tools/test/` (`detection-guards`,
-`audit-harm`, `pipeline-guards`, `service-guards`, `library-log`, `yield`, `coverage`, `quality`).
+Tests: the engine's guards in `engine/test/ai-guards.test.ts`; the AI's own in `ai/test/` (pipeline,
+economy, audit, library, models, the agent); those that need the game in `games/openworld/ai/test/`
+(`detection-guards`, `audit-harm`, `pipeline-guards`, `service-guards`, `library-log`, `quality`); the game's
+own `yield` and `coverage` in `games/openworld/tools/test/`.
