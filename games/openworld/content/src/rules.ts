@@ -1077,12 +1077,12 @@ const GROUND: Rule[] = [
   }),
   rule({
     id: 'fire/burn-out-ground',
-    doc: "Burnt ground is ash; a burnt tree is charred, a burnt wooden wall black; what else burns on the ground (a bush, a stump, a tent's canvas, a hut's thatch) is gone.",
+    doc: "Burnt ground is ash; a burnt tree is charred, a burnt wall black (a building's walls are scorched, never burnt away); what else burns on the ground (a bush, a stump) is gone.",
     host: { type: 'tile', tags: ['flammable'] },
     on: 'time/timer',
     tree: IF(
       param('status', 'burning'),
-      IF(tag('host', 'tree'), DO({ op: 'transform', into: 'tile/charred_tree' }, vfx('smoke')), IF(all(tag('host', 'wall'), tag('host', 'wooden')), DO({ op: 'transform', into: 'tile/burnt_wall' }, vfx('smoke')), DO({ op: 'transform', into: 'tile/ash' }, vfx('smoke')))),
+      IF(tag('host', 'tree'), DO({ op: 'transform', into: 'tile/charred_tree' }, vfx('smoke')), IF(tag('host', 'wall'), DO({ op: 'transform', into: 'tile/burnt_wall' }, vfx('smoke')), DO({ op: 'transform', into: 'tile/ash' }, vfx('smoke')))),
     ),
   }),
   rule({
@@ -1093,11 +1093,15 @@ const GROUND: Rule[] = [
     tree: IF(all(param('status', 'burning'), { chance: 0.5 }), DO(WEAR), 'inherit'),
   }),
   rule({
-    id: 'fire/burnt-wall',
-    doc: 'A wall that burns down to nothing: a wooden one stands black (world-model.md §10.3, 13); canvas or thatch is ash, not what it was made of.',
-    host: { type: 'tile', tags: ['wall', 'flammable'] },
+    id: 'wall/endure',
+    doc: "A wall the maps are built of (a house's, a chapel's, a keep's: docs/building.md §10) hit down to nothing does not give way: it holds at its last crack, solid, nothing falling out of it — the way into a house is its door. A fire on it wears it to the same crack and leaves it black when it goes out (fire/burn-out-ground). What one builds oneself breaks as anything does.",
+    host: { type: 'tile', tags: ['enduring'] },
     on: 'threshold/cross',
-    tree: IF(all(param('name', 'broken'), has('host', 'burning')), IF(tag('host', 'wooden'), DO({ op: 'transform', into: 'tile/burnt_wall' }, vfx('smoke')), DO({ op: 'transform', into: 'tile/ash' }, vfx('smoke'))), 'inherit'),
+    tree: IF(
+      param('name', 'broken'),
+      DO({ op: 'heal', amount: 1 }, vfx('dust', 'tileOf:host'), log('{host} holds.', '{host}还立着。')),
+      'inherit',
+    ),
   }),
   rule({
     id: 'water/bridge',

@@ -305,52 +305,56 @@ Taking it down is the reverse, step by step, with a tool. Every step is reachabl
 - **Tests:** `games/openworld/content/test/building.test.ts` ("storeys: what one reaches…"), one test per table
   of §6, and W10, W12 and the tutorial walkthrough laying the ceiling by choice.
 
-## 10. The buildings one finds: walls that break (2026-10-25)
+## 10. The buildings one finds: walls that mark, never break (2026-10-25)
 
 The user chopped a village house's wall with a stone axe: the wall broke and they could walk where it stood, yet
 the house was still drawn whole. A building on a map is a picture (the catalogue's prefab, `MapData.stamps`) over a
 block of wall cells, and the picture was one image the state never reached. The promise is that anything can be
-done to anything and the world stays consistent, the picture with it.
+done to anything and the world stays consistent, the picture with it. First (PR #143) the walls broke and the
+picture opened with them; then the user decided (2026-10-25): **the buildings one finds are not destructible.**
+Damage leaves marks, stronger as they are hit; the wall stays, and the way into a house is only its door. What one
+builds oneself is taken down as it was put up.
 
 - **The walls are things of the world.** Every solid cell of a prefab is a wall in the map's file, with the
   durability, material and makeup of its terrain (`Prefab.terrain`). What a building's walls are made of is chosen
-  by what its picture shows: plaster and stone cottages, the temple, the kiln `wall` (stone, 24, four stones);
-  timber houses, the store, the teahouse, the inn, the longhouse, towers and palisades `woodwall` (wood, 12, two
-  planks); tents and the smithy's canvas `canvaswall` (cloth, 6); the straw hut `thatchwall` (plant, 6); igloos
-  `snowwall` (ice, 10, snowballs). A blow on one is its own outcome by the physics there is (`core/strike`, the
-  instrument's efficiency on its material: an axe gives wood at 1 and stone at 0.25, a pick the reverse); broken, it
-  is open ground with half of what it was made of lying there (`world-model.md` §6.3). Fire takes a wooden wall
-  black (`burnt_wall`) and canvas or thatch to ash (`fire/burn-out-ground`, `fire/burnt-wall`).
+  by what its picture shows: plaster and stone cottages, the temple, the kiln `wall` (stone, 24); timber houses, the
+  store, the teahouse, the inn, the longhouse, towers and palisades `woodwall` (wood, 12); tents and the smithy's
+  canvas `canvaswall` (cloth, 6); the straw hut `thatchwall` (plant, 6); igloos `snowwall` (ice, 10). A blow on one
+  is its own outcome by the physics there is (`core/strike`, the instrument's efficiency on its material: an axe
+  bites wood at 1 and stone at 0.25, a pick the reverse), and it loses durability as anything does.
+- **They endure.** The walls the maps are built of — houses, chapels, keeps, ruins, the fences and palisades, a
+  room's frame inside — carry the tag `enduring` (`ontology.ts`: `wall`, `woodwall`, `burnt_wall`, `canvaswall`,
+  `thatchwall`, `snowwall`). Their one rule, `wall/endure`, answers their `broken` (the durability threshold): they
+  hold at 1, at their last crack — solid, nothing falling out, a puff of dust and "the wall holds". It is data and a
+  rule: no engine case, and the makeup is still what each is made of (what the AI and the wiki read). A fire wears
+  one to the same crack and, when it goes out, leaves it black (`fire/burn-out-ground`: any wall becomes
+  `burnt_wall`, scorched, never ash). A cave's rock (`cave_wall`) and a cliff are not walls: they are mined.
+- **What one builds breaks.** A `structure/wall` (the build palette, the Held Ground's construction) has no such
+  tag: a tool knocks it loose whole (§9 *Two forms*), any other blow wears it down and breaks it into its planks,
+  fire leaves ash; it shows the same cracks as it goes.
 - **The ground under a wall** is the street round it, never a way through: a door or stairs beside it are passed
-  over when a filled cell's floor is found (`cells.ts` `WAY_TAGS`), so a wall broken beside a door is not a door.
+  over when a filled cell's floor is found (`cells.ts` `WAY_TAGS`).
 - **The picture is pieces bound to the walls** (`packages/runtime/src/render/pieces.ts`). A stamp is cut into a
   piece per cell; each solid cell's piece is bound to the wall the file has there and shows it as the frame tells
   it (`Frame.tiles`: its terrain and durability): whole; cracked by thirds as it loses durability (the project's
-  own `Structures/damage.png`, the catalogue's `ui.wallDamage`); darkened when it burnt; gone when the wall is,
-  a hole in the picture where one walks in. The door, cells drawn and free ('.') and cells drawn over nothing
-  (' ') are not bound. A room's frame (`MapData.rooms`) is bound the same way, and a built `structure/wall` shows
-  the same cracks. The renderer only reads.
-- **The roof over a hole.** The prefabs are drawn in the 3/4 view: their upper rows are the roof over the
-  house's body, and they are wall cells too. So the roof is what it covers: a roof piece stays while its cell's
-  wall stands and goes when it is broken, as every piece does. A hole under a roof piece still standing has the
-  eave's shade on its ground. Whole, a building is drawn at its last solid row (all of it in front of whoever is
-  behind it); opened, row by row like everything that stands, so one in a hole is behind the rows south of it and
-  in front of those north of it, and the hole's cells no longer hide what is in them (the scene's `roofs`).
-  A house's rooms are a map of their own behind its door; the shell one breaks into outside is the house's body,
-  not a way into those rooms.
+  own `Structures/damage.png`, the catalogue's `ui.wallDamage`) — a building's wall stops at the deepest; darkened
+  when it burnt. A piece whose cell is no longer solid is gone (a cliff mined through, a wall a mod or an older save
+  opened): the picture never shows a wall the world does not have. The door, cells drawn and free ('.') and cells
+  drawn over nothing (' ') are not bound. A room's frame (`MapData.rooms`) is bound the same way, and a built
+  `structure/wall` shows the same cracks. The renderer only reads. Whole, a building is drawn at its last solid row;
+  opened, row by row like everything that stands (the scene's `roofs`).
 - **Whose the walls are.** A building whose door leads into an owned room has an owned shell: a region over each
   row's run of its solid cells, owned as the room behind the door is (`games/openworld/tools/src/demo/shells.ts`,
-  run over the Ford's maps and the backdrop's). So breaking someone's wall is a deed against them: `seen` carries
-  `theirs` and the harm, and the society module judges it vandalism (`social.ts`), seen by whoever had sight of it;
-  standing in the hole by night is a trespass, as standing in their rooms is. Nothing here is an engine shortcut:
-  the wall's damage is its own outcome, the deed is what witnesses make of the act. Two things the society module
-  learnt from it: an owner goes to ask back only what the doer still carries (`conduct.ts` `confront`: a wall broken
-  or a chest smashed is cried out and reported, never asked for), and a deed whose thing the act destroyed still
-  names it, from the record its cell keeps (`social.ts` `judge`: "smashed at Rowan's household's wooden wall").
-  A town has dozens of shells, so a map's named areas as its file has them now leave with it when it is put away and
-  are made again when it comes back (`sparse.ts` `fileRegions`, `Engine.mapArrived`): a save keeps only one that changed.
-- **The Held Ground's walls** are built things (`structure/wall`): a tool knocks one loose whole (§9 *Two forms*);
-  any other blow or fire wears it down, and it shows the same cracks.
+  run over the Ford's maps and the backdrop's). So damaging someone's wall is a deed against them: `seen` carries
+  `theirs` and the harm, and the society module judges it vandalism (`social.ts`), seen by whoever had sight of it.
+  Nothing here is an engine shortcut: the wall's damage is its own outcome, the deed is what witnesses make of the
+  act. An owner goes to ask back only what the doer still carries (`conduct.ts` `confront`: a wall hacked at or a
+  chest smashed is cried out and reported, never asked for), and a deed whose thing the act destroyed still names
+  it, from the record its cell keeps (`social.ts` `judge`). A town has dozens of shells, so a map's named areas as
+  its file has them leave with it when it is put away and are made again when it comes back (`sparse.ts`
+  `fileRegions`, `Engine.mapArrived`): a save keeps only one that changed.
 - **Tests:** `packages/runtime/test/pieces.test.ts` (the binding, the states, the order), `games/openworld/content/
-  test/buildings.test.ts` (materials, makeup, the deed), `games/openworld/tools/test/buildings.test.ts` (the real
-  maps: every owned house's shell, a Firstlight wall broken through the keys, the frame and the pieces).
+  test/buildings.test.ts` (a wall hit to nothing holds at its last crack, every building material, fire scorches,
+  the deed, a built wall knocked loose or broken), `games/openworld/tools/test/buildings.test.ts` (the real maps:
+  every owned house's shell, a Firstlight wall struck through the keys — cracked, then holding, solid and whole in
+  the frame —, the shells put away and back, Rowan's vandalism).

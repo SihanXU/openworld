@@ -1,6 +1,6 @@
 // The buildings on the real maps (docs/building.md §10): every house whose door leads into someone's rooms has a
-// shell that is theirs, on the Ford's maps and the backdrop's; and a Firstlight wall broken through the keys is, in
-// the frame the view draws, a hole where the wall stood — the picture's piece bound to it gone, the way in open.
+// shell that is theirs, on the Ford's maps and the backdrop's; and a Firstlight wall struck through the keys shows it,
+// crack by crack, in the frame the view draws — but holds at its last crack: no hole, the way in only the door.
 
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, regionId, snapshot, type Key, type MapData } from '@openworld/engine'
@@ -53,7 +53,7 @@ describe('the buildings on the maps (docs/building.md §10)', () => {
     expect(ownedHouses(world.chunks).some((h) => h.map.id === FIRSTLIGHT.map)).toBe(true)
   })
 
-  it('a Firstlight wall broken through the keys: cracked, then a hole in the picture where one walks in, its pieces as the frame tells them', () => {
+  it('a Firstlight wall struck through the keys: cracked, more with every blow, then holding at its last crack — solid, drawn whole, nothing fallen out', () => {
     const game = Game.create(world.index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
     for (const c of world.chunks) game.loadChunk(decodeChunk(c))
     const eng = game.engine
@@ -87,11 +87,11 @@ describe('the buildings on the maps (docs/building.md §10)', () => {
     swing()
     expect(shown()).toMatchObject({ gone: false })
     expect((shown() as { crack: number }).crack).toBeGreaterThan(0)
-    for (let n = 0; n < 40 && !shown().gone; n++) swing()
-    // the picture and the world agree: a hole drawn, the way in open, the rest of the house standing
-    expect(shown()).toEqual({ gone: true })
-    expect(w.passable(FIRSTLIGHT.map, wall.x, wall.y)).toBe(true)
-    expect(w.isSolidTerrain(w.terrainAt(FIRSTLIGHT.map, wall.x, wall.y - 1))).toBe(true)
+    for (let n = 0; n < 40; n++) swing()
+    // the picture and the world agree: the deepest cracks, the wall still there, the way in only the door
+    expect(shown()).toEqual({ gone: false, crack: 3, burnt: false })
+    expect(w.passable(FIRSTLIGHT.map, wall.x, wall.y)).toBe(false)
+    expect(w.placedAt(FIRSTLIGHT.map, wall.x, wall.y)).toEqual([])
     // whose it was: the household's, as the society module reads its regions
     expect(w.regionsAt(FIRSTLIGHT.map, wall.x, wall.y).map((r) => w.prop(r, 'owner'))).toContain(house.owner)
   })
@@ -115,7 +115,7 @@ describe('the buildings on the maps (docs/building.md §10)', () => {
     expect(w.prop(w.get(id)!, 'owner')).toBe('household:elder')
   })
 
-  it("Rowan sees his house broken into: vandalism against his household; a wall cannot be handed back, so he does not come asking for it", () => {
+  it("Rowan sees his house hacked at: vandalism against his household; a wall cannot be handed back, so he does not come asking for it", () => {
     const game = Game.create(world.index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
     for (const c of world.chunks) game.loadChunk(decodeChunk(c))
     const eng = game.engine
@@ -134,11 +134,11 @@ describe('the buildings on the maps (docs/building.md §10)', () => {
     const act = eng.act.bind(eng)
     eng.act = ((...a: Parameters<typeof act>) => (a[3]?.params?.say === 'demand' && asked.push(a), act(...a))) as typeof act
     w.player.facing = 'up'
-    for (let n = 0; n < 40 && w.isSolidTerrain(w.terrainAt(FIRSTLIGHT.map, 21, 7)); n++) {
+    for (let n = 0; n < 6; n++) {
       const choice = eng.controls.choices('use' as Key).find((c) => c.plan)
       if (choice?.plan) eng.controls.run(choice.plan, true)
     }
-    expect(w.isSolidTerrain(w.terrainAt(FIRSTLIGHT.map, 21, 7))).toBe(false)
+    expect(w.terrainAt(FIRSTLIGHT.map, 21, 7)).toBe('woodwall')
     expect(w.get('npc.rowan')!.npc!.memory?.deeds?.some((d) => d.deed === 'vandalism' && d.against === 'household:elder')).toBe(true)
     for (let i = 0; i < 300; i++) eng.tick()
     expect(asked).toEqual([])
