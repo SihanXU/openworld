@@ -506,8 +506,12 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       // the tutorial on its own ends where its way out leads: back to the title
       if (tutorialRun && m.frame.map !== 'tutorial' && !cover.open) {
         tutorialRun = false
-        hud.message(locale.value === 'zh' ? '教程完成！从标题页开始新游戏，进入主线。' : 'Tutorial complete! Start a new game from the title for the story.', 'good')
-        void cover.show()
+        // the note belongs to the title, which is drawn over the HUD: put it where the player can read it
+        const note = locale.value === 'zh' ? '教程完成！从标题页开始新游戏，进入主线。' : 'Tutorial complete! Start a new game from the title for the story.'
+        void cover.show().then(() => {
+          const status = document.querySelector<HTMLElement>('#intro .cv-status')
+          if (status) status.textContent = note
+        })
         break
       }
       hud.setLearning(m.learning)
