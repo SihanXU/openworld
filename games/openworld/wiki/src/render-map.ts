@@ -466,7 +466,8 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
     if (!p || !img) continue
     let lastSolid = 0
     p.grid.forEach((row, j) => /[#D]/.test(row) && (lastSolid = j))
-    const depth = p.ground ? -40 : (s.y + lastSolid + 1) * T - 2
+    if (p.base !== undefined) lastSolid = p.base
+    const depth = p.ground ? -40 : (s.y + lastSolid + 1) * T + (p.front ? 3 : -2)
     at(depth, () => pic.blit({ img, rect: [p.x, p.y, p.tw * T, p.th * T], x: s.x * T, y: s.y * T, ox: 0, oy: 0 }))
     if (!p.ground) for (let j = 0; j <= lastSolid; j++) for (let i = 0; i < p.tw; i++) roofs.set(`${s.x + i},${s.y + j}`, depth)
     // the healing spring's heart (it bobs; drawn where it starts)
@@ -521,8 +522,13 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
       }
   })
   // the terrace's rims and faces (ground.ts terracePieces): over the ground and its specks, under all that stands
+  // (a built top's own sheet — a wall-walk's masonry, a quay's — by the terrain on the high cell)
   if (terrace && heights?.some((h) => h))
-    for (const p of terracePieces(W, H, heights)) at(-45, () => pic.blit({ img: terrace, rect: [p.col * T, p.row * T, T, T], x: p.x * T, y: p.y * T, ox: 0, oy: 0 }))
+    for (const p of terracePieces(W, H, heights)) {
+      const own = CATALOG.terraces?.[terrainAt(p.hx, p.hy)]
+      const img = (own && image(own.img)) || terrace
+      at(-45, () => pic.blit({ img, rect: [p.col * T, p.row * T, T, T], x: p.x * T, y: p.y * T, ox: 0, oy: 0 }))
+    }
 
   // the things of the map where the world begins, and the people who start on it
   const model = modelOf(g)

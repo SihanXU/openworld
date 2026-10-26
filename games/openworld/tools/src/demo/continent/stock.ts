@@ -55,7 +55,7 @@ const LARDER: Record<string, string> = {
 /** What a container is filled with when it stood there before (a barrel by a door, a ruin's chest); a market's stall keeps a trade's wares. */
 const KEEP_OF: Record<string, Keep> = {
   'fixture/container/chest': 'wares', 'fixture/container/wardrobe': 'wares', 'fixture/container/shelf': 'wares', 'fixture/container/storehouse': 'any',
-  'fixture/container/bookshelf': 'books', 'fixture/container/barrel': 'larder', 'fixture/container/crate': 'larder', 'fixture/container/sack': 'larder',
+  'fixture/container/bookshelf': 'books', 'fixture/container/bookcase': 'books', 'fixture/container/barrel': 'larder', 'fixture/container/crate': 'larder', 'fixture/container/sack': 'larder',
   'fixture/furniture/stall': 'any',
 }
 /** How many kinds a thing with no capacity (a market stall's board) keeps. */

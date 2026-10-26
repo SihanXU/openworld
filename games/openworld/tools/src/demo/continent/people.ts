@@ -15,6 +15,7 @@ import { itemOf, reseed, rng } from '../builder.ts'
 import { GIVEN, familyName, linesFor } from './folk.ts'
 import type { Continent, Place } from './generate.ts'
 import type { Role } from './rooms.ts'
+import { CASTS, castPeople } from '../showcase/cast.ts'
 
 type Cell = [number, number]
 const key = (x: number, y: number) => `${x},${y}`
@@ -160,6 +161,9 @@ function household(role: Role, p: Place): string[] {
       return some(CAMP[p.region] ?? CAMP.frostfang, 1, 2)
     case 'barracks':
       return p.kind === 'fort' ? ['guard', ...some([['soldier', 1]], 4, 5)] : some([['guard', 1]], 3, 4)
+    default:
+      // a showcase place's halls that are no one's home (a nave, a library, a keep's hall): its cast keeps them
+      return []
   }
 }
 
@@ -335,7 +339,10 @@ export function peoplePlace(chunk: RawChunk, rooms: RawChunk[], p: Place, onto: 
   // a household to a room
   rs.forEach((room, i) => {
     const house = { id: `${map}.h${i}`, family: familyName(p.region, (xs) => rng.pick(xs), families), room, names: new Set<string>() }
-    for (const role of household(room.role, p)) make(role, house)
+    const members = household(room.role, p)
+    // (a hall no one lives in, a showcase's nave or library: none of it is anyone's)
+    if (!members.length) return
+    for (const role of members) make(role, house)
     // the room is theirs, and so is what it keeps (phase D's stock): taking from it is taking what is another's, as at
     // the Ford's doorsteps (docs/npc-sandbox.md §2.1)
     const m = room.g.chunk.map
@@ -360,6 +367,9 @@ export function peopleBackdrop(chunks: RawChunk[], c: Continent): Map<string, nu
     if (!p) continue
     const rooms = chunks.filter((r) => r.map.kind === 'interior' && r.map.id.startsWith(`${p.id}.`))
     const made = peoplePlace(ch, rooms, p, onto)
+    // a showcase place's own people, as its maker placed them (showcase/cast.ts), in any of its maps
+    const cast = CASTS.get(p.id)
+    if (cast) made.push(...castPeople(ch, chunks.filter((r) => r.map.id.startsWith(`${p.id}.`)), p, onto, cast, made))
     if (!made.length) continue
     ch.entities.push(...made)
     counts.set(ch.map.id, made.filter((e) => e.npc).length)

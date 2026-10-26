@@ -15,6 +15,7 @@ import { OVERWORLD } from '../overworld.ts'
 import type { Continent, Place } from './generate.ts'
 import { roleOf, roomsBehind, type DoorNote, type Role } from './rooms.ts'
 import { stockPlace, stockRoom } from './stock.ts'
+import { SHOWCASE, joinShowcase } from '../showcase/index.ts'
 
 /** A kind's map size. */
 const SIZE: Record<string, [number, number]> = {
@@ -65,6 +66,9 @@ let doors: DoorNote[] = []
 
 /** The map for a place: its ground's wild, then its kind built on it, its region's look; its rooms and depths beside it. */
 function placeMaps(p: Place, ground: string): MapBuilder[] {
+  // a showcase place is made by hand (showcase/index.ts)
+  const own = SHOWCASE[p.id]
+  if (own) return own(p)
   reseed(p.seed)
   const [w, h] = SIZE[p.kind] ?? [40, 30]
   const b = new MapBuilder(p.id, p.name, MAP_KIND[p.kind] ?? 'field', w, h, 'grass', undefined, 'outdoor', p.region)
@@ -682,7 +686,10 @@ const KINDS: Record<string, Build> = {
 /** Every backdrop map of the continent: its places', the rooms behind their doors, and the depths under its caves and mines. */
 export function buildBackdrop(c: Continent): RawChunk[] {
   const ground = (x: number, y: number) => TERRAIN_CHARS[c.rows[y][x]] ?? 'ow_plain'
-  return c.places.flatMap((p) => placeMaps(p, ground(p.x, p.y)).map((b) => b.chunk()))
+  const all = c.places.flatMap((p) => placeMaps(p, ground(p.x, p.y)))
+  // the showcase's quarters joined street to street (showcase/index.ts)
+  joinShowcase(all)
+  return all.map((b) => b.chunk())
 }
 
 /** A backdrop map's line in the world's index. */

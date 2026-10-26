@@ -26,6 +26,7 @@ export function imagePaths(c: Catalog): string[] {
   for (const p of Object.values(c.prefabs)) s.add(p.img)
   for (const r of Object.values(c.rooms)) s.add(r.img)
   if (c.terrace) s.add(c.terrace.img)
+  for (const t of Object.values(c.terraces ?? {})) s.add(t.img)
   for (const f of Object.values(c.fixtures)) (sd(f.base), sd(f.open), sd(f.lit), f.variants?.forEach(sd))
   for (const i of Object.values(c.items)) sd(i)
   for (const a of [...Object.values(c.characters), ...Object.values(c.creatures)]) {

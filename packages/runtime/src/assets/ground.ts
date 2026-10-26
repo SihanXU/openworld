@@ -387,12 +387,14 @@ export function objectLook(catalog: Catalog, t: string, ground: string): string 
   return ground === 'snow' && catalog.terrainObjects[`${t}_snow`]?.length ? `${t}_snow` : t
 }
 
-/** A piece of high ground's edge (Catalog.terrace): the sheet's tile (col, row), drawn on cell (x, y). */
+/** A piece of high ground's edge (Catalog.terrace): the sheet's tile (col, row), drawn on cell (x, y), the edge of the high cell (hx, hy). */
 export interface TerracePiece {
   x: number
   y: number
   col: number
   row: number
+  hx: number
+  hy: number
 }
 
 /**
@@ -420,22 +422,24 @@ export function terracePieces(w: number, h: number, heights: number[]): TerraceP
       const s = low(x, y, 0, 1)
       // the rim on the high cell itself
       const col = wl && e ? 0 : wl ? 1 : e ? 3 : n ? 2 : -1
-      if (col >= 0) out.push({ x, y, col, row: n ? 0 : 1 })
+      const hx = x
+      const hy = y
+      if (col >= 0) out.push({ x, y, col, row: n ? 0 : 1, hx, hy })
       // the inner corners' notches: the edge turns in at a corner of this cell
-      if (!n && !wl && low(x, y, -1, -1)) out.push({ x, y, col: 0, row: 3 })
-      if (!n && !e && low(x, y, 1, -1)) out.push({ x, y, col: 1, row: 3 })
-      if (!s && !wl && low(x, y, -1, 1)) out.push({ x, y, col: 0, row: 4 })
-      if (!s && !e && low(x, y, 1, 1)) out.push({ x, y, col: 1, row: 4 })
+      if (!n && !wl && low(x, y, -1, -1)) out.push({ x, y, col: 0, row: 3, hx, hy })
+      if (!n && !e && low(x, y, 1, -1)) out.push({ x, y, col: 1, row: 3, hx, hy })
+      if (!s && !wl && low(x, y, -1, 1)) out.push({ x, y, col: 0, row: 4, hx, hy })
+      if (!s && !e && low(x, y, 1, 1)) out.push({ x, y, col: 1, row: 4, hx, hy })
       if (!s) continue
       // the face below it: does it run on west and east (the cells beside drop south as far)?
       const levels = Math.floor((at(x, y)! - at(x, y + 1)!) / 2)
       const runs = (dx: number) => low(x + dx, y, 0, 1) && !low(x, y, dx, 0)
       const cw = runs(-1)
       const ce = runs(1)
-      if (levels === 1) out.push({ x, y: y + 1, col: !cw && !ce ? 0 : !cw ? 1 : !ce ? 3 : 2, row: 2 })
+      if (levels === 1) out.push({ x, y: y + 1, col: !cw && !ce ? 0 : !cw ? 1 : !ce ? 3 : 2, row: 2, hx, hy })
       else {
         const c = !cw ? 4 : !ce ? 6 : 5
-        for (let k = 0; k < levels && y + 1 + k < h; k++) out.push({ x, y: y + 1 + k, col: c, row: k === 0 ? 0 : k === levels - 1 ? 2 : 1 })
+        for (let k = 0; k < levels && y + 1 + k < h; k++) out.push({ x, y: y + 1 + k, col: c, row: k === 0 ? 0 : k === levels - 1 ? 2 : 1, hx, hy })
       }
     }
   return out

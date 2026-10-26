@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { OntologyIndex, Rng, type Entity } from '@openworld/engine'
 import { FORMS, FORM_BY_ID, REGION_GOODS, REGIONS, buildOntology, makeItem } from '@openworld-game/content'
-import { CATALOG } from '../../client/src/catalog.ts'
+import { BUILDINGS, CATALOG } from '../../client/src/catalog.ts'
 import { buildFord } from '../src/demo/world.ts'
 import { readContinent } from '../src/demo/overworld.ts'
 
@@ -73,7 +73,13 @@ describe('the backdrop\'s stock (tools/src/demo/continent/stock.ts)', () => {
     const byId = new Map(world.backdrop.map((ch) => [ch.map.id, ch]))
     for (const p of c.places.filter((x) => ['village', 'town', 'city'].includes(x.kind))) {
       const ch = byId.get(p.id)!
-      const houses = (ch.map.stamps ?? []).filter((s) => !/^(rail|stonewall|fence)/.test(s.key)).length
+      // (a building of the project's own is many strips, `<name>@<row>`: one house, if it has a door — a showcase's street)
+      const own = new Set((ch.map.stamps ?? []).filter((s) => s.key.includes('@') && !s.key.endsWith('@shadow') && BUILDINGS[s.key.split('@')[0]].doors.length).map((s) => {
+        const [name, row] = s.key.split('@')
+        const sl = BUILDINGS[name].slices.find((x) => x.row === Number(row))!
+        return `${name} ${s.x - sl.col},${s.y - Number(row) + sl.th - 1}`
+      }))
+      const houses = (ch.map.stamps ?? []).filter((s) => !/^(rail|stonewall|fence)/.test(s.key) && !s.key.includes('@')).length + own.size
       // (a house's stores are in the room behind its door, phase B: the place's map and its rooms together)
       const maps = [ch, ...world.backdrop.filter((r) => r.map.kind === 'interior' && r.map.id.startsWith(`${p.id}.`))]
       const stores = maps.flatMap((m) => m.entities.filter((e) => e.place.on === 'tile' && e.type.startsWith('fixture/container/') && m.entities.some((i) => i.place.on === 'inside' && i.place.holder === e.id)))

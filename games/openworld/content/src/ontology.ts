@@ -82,6 +82,17 @@ export const TERRAIN_CHARS: Record<string, string> = {
   M: 'mud',
   h: 'spring',
   V: 'void',
+  p: 'paving',
+  Z: 'flagstone',
+  U: 'rampart',
+  z: 'plaza',
+  k: 'flags',
+  e: 'flowerbed',
+  l: 'lattice',
+  q: 'marble',
+  d: 'parquet',
+  y: 'carpet_royal',
+  j: 'runner',
 }
 export const CHAR_OF: Record<string, string> = Object.fromEntries(Object.entries(TERRAIN_CHARS).map(([c, t]) => [t, c]))
 
@@ -161,6 +172,21 @@ export const TERRAINS: TerrainDef[] = [
   T('dirt', '泥土', 'dirt', ['ground', 'diggable'], { color: '#9a7b52' }),
   T('path', '土路', 'dirt road', ['ground', 'road'], { color: '#c9a86a' }),
   T('cobble', '石板路', 'cobblestones', ['ground', 'road', 'stone'], { color: '#9ea3a8' }),
+  // the Holy City's showcase grounds (docs/showcase.md §3.5): pale limestone laid in panels (a cathedral's parvis and
+  // its nave), grey flags (a fortress's wards), and the walk along a curtain wall's top (its face is masonry)
+  T('paving', '石板铺地', 'paving', ['ground', 'road', 'stone'], { color: '#efd6c0' }),
+  T('flagstone', '灰石板地', 'flagstones', ['ground', 'road', 'stone'], { color: '#5d5660' }),
+  T('rampart', '城墙步道', 'wall-walk', ['ground', 'stone'], { color: '#6a646e' }),
+  // (tools/src/art/floors.ts) a city's cobbled plaza in its kerb, its flagstone streets, flower beds in stone edging; and
+  // within, a nave's diamond lattice, a chancel's marble, oak parquet, the crimson carpet and the blue runner
+  T('plaza', '广场石地', 'plaza', ['ground', 'road', 'stone'], { color: '#6f7377' }),
+  T('flags', '石板街', 'flagstone street', ['ground', 'road', 'stone'], { color: '#d3c3a2' }),
+  T('flowerbed', '花坛', 'flower bed', ['plant', 'ground'], { space: 'volume', solid: true, color: '#7fb24d' }),
+  T('lattice', '菱纹地砖', 'lattice tiles', ['floor', 'stone', 'indoor'], { color: '#b9573d' }),
+  T('marble', '大理石地面', 'marble floor', ['floor', 'stone', 'indoor'], { color: '#f4f2ee' }),
+  T('parquet', '人字拼木地板', 'parquet', ['floor', 'wooden', 'flammable', 'indoor'], { color: '#a3754e' }),
+  T('carpet_royal', '金边红毯', 'crimson carpet', ['floor', 'cloth', 'flammable', 'indoor'], { color: '#a72f39' }),
+  T('runner', '蓝色长毯', 'blue runner', ['floor', 'cloth', 'flammable', 'indoor'], { color: '#2f5aa6' }),
   T('sand', '沙地', 'sand', ['ground', 'diggable'], { color: '#e3cf8f' }),
   T('snow', '雪地', 'snow', ['ground', 'cold', 'diggable'], { color: '#eef3f6' }),
   // ice that froze from water (thin: `chilled`) thaws back to water when that runs out; the ice a map is made with does not
@@ -474,6 +500,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/mirror', 'standing mirror', '穿衣镜', ['wooden', 'glass', 'fragile'], { solid: true, props: { material: 'wood', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
   F('fixture/container/shelf', 'shelf', '货架', ['wooden', 'flammable'], { solid: true, props: { capacity: 8, material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
   F('fixture/container/bookshelf', 'bookshelf', '书架', ['wooden', 'flammable', 'paper'], { solid: true, props: { capacity: 8, material: 'wood', maxHp: 8, hp: 8 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
+  // the showcase's furniture (docs/showcase.md §4; pictures by tools/src/art/arch/buildings/inside.ts): a library's tall case
+  F('fixture/container/bookcase', 'tall bookcase', '高书柜', ['wooden', 'flammable', 'paper'], { solid: true, footprint: [2, 1], props: { capacity: 16, material: 'wood', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/plank', count: 5 }] }),
   F('fixture/container/sack', 'sack', '麻袋', ['cloth', 'flammable'], { solid: false, props: { capacity: 4, material: 'cloth', maxHp: 3, hp: 3 }, makeup: [{ type: 'item/material/cloth', count: 1 }] }),
   F('fixture/furniture', 'furniture', '家具', ['wooden', 'flammable'], { solid: true }),
   F('fixture/furniture/table', 'table', '桌子', ['surface']),
@@ -498,6 +526,9 @@ const fixtureTypes: TypeDef[] = [
   // the general store's counter, the church's bookstand: shops whose offers are recipes (village.ts)
   F('fixture/furniture/counter/store', 'general store counter', '杂货铺柜台', ['shop', 'station:store'], { sprite: 'fixture:counter' }),
   F('fixture/furniture/bookstand', 'bookstand', '教堂书架', ['paper', 'shop', 'station:books'], { sprite: 'fixture:bookshelf' }),
+  F('fixture/furniture/pew', 'pew', '教堂长椅', ['surface'], { footprint: [3, 1], props: { material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
+  F('fixture/furniture/desk', "copyist's desk", '抄写台', ['surface'], { props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
+  F('fixture/furniture/throne', 'throne', '王座', [], { props: { material: 'wood', maxHp: 14, hp: 14 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
   F('fixture/furniture/stall', 'market stall', '市集摊位', ['cloth', 'surface']),
   // a stall that trades (homestead.ts): its shelves are made at it as at a station
   F('fixture/furniture/stall/trade', 'trading stall', '货摊', ['cloth', 'surface', 'stall', 'station:stall'], { sprite: 'fixture:stall' }),
@@ -508,11 +539,15 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/light/campfire', 'campfire', '营火', ['lightable', 'cookware'], { solid: true, props: { material: 'stone', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/stone', count: 2 }, { type: 'item/material/stick', count: 2 }] }),
   F('fixture/light/brazier', 'brazier', '火盆', ['lightable', 'metal', 'conductive', 'cookware'], { solid: true }),
   F('fixture/light/lamppost', 'lamp post', '路灯', ['lightable', 'metal', 'conductive'], { solid: true }),
+  // the Holy City's lamps of black iron (docs/showcase.md §3.4)
+  F('fixture/light/lamppost/street', 'street lamp', '铁艺街灯', [], { sprite: 'fixture:street_lamp' }),
   F('fixture/light/candles', 'candles', '烛台', ['lightable'], { solid: true }),
+  F('fixture/light/candelabrum', 'candelabrum', '落地烛架', ['lightable', 'metal', 'conductive'], { solid: true }),
   F('fixture/light/lantern', 'lantern post', '灯笼柱', ['lightable', 'wooden', 'flammable'], { solid: true }),
   F('fixture/light/fireplace', 'fireplace', '壁炉', ['lightable', 'stone', 'cookware'], { solid: true }),
   F('fixture/water', 'water source', '水源', ['water-source', 'stone'], { solid: true }),
   F('fixture/water/well', 'well', '水井', []),
+  F('fixture/water/well/square', 'well head', '井台', [], { footprint: [2, 1], sprite: 'fixture:well_head' }),
   F('fixture/water/fountain', 'fountain', '喷泉', []),
   F('fixture/water/trough', 'trough', '水槽', ['wooden']),
   // a sign is read from a step or two off
@@ -545,6 +580,29 @@ const fixtureTypes: TypeDef[] = [
   // the Held Ground's heart: Alberic's longsword, point down in the earth (tools/src/art/planted-sword.ts)
   F('fixture/sacred/sword', 'planted sword', '插在地上的长剑', ['metal', 'conductive'], { sprite: 'fixture:planted_sword' }),
   F('fixture/sacred/statue', 'statue', '雕像', []),
+  // Astra the First Martyr in bronze, the sun held up in his hands, on the squares of the Holy City (docs/lore.md §1)
+  F('fixture/sacred/statue/martyr', 'statue of Astra the First Martyr', '初殉者阿斯特拉像', ['metal', 'conductive', 'holy'], { sprite: 'fixture:martyr_statue' }),
+  // what a square of the Holy City is furnished with (docs/showcase.md §3.4): clipped evergreens and urns of flowers in
+  // stone, balustrades along its terraces, the city's standards
+  F('fixture/garden', 'garden ornament', '园饰', ['stone'], { solid: true, props: { material: 'stone', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 2 }] }),
+  F('fixture/garden/cypress', 'clipped cypress', '修剪柏树', ['plant']),
+  F('fixture/garden/topiary', 'box topiary', '黄杨球盆', ['plant', 'clay']),
+  F('fixture/garden/urn', 'urn of flowers', '石瓶花', ['plant', 'flower']),
+  F('fixture/garden/balustrade', 'balustrade', '石栏杆', []),
+  F('fixture/garden/bench', 'stone bench', '石凳', ['surface'], { footprint: [2, 1], sprite: 'fixture:stone_bench', props: { material: 'stone', maxHp: 20, hp: 20 }, makeup: [{ type: 'item/material/stone', count: 3 }] }),
+  F('fixture/standard', 'standard', '旗杆', ['cloth', 'wooden', 'flammable'], { solid: true, props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/stick', count: 2 }, { type: 'item/material/cloth', count: 1 }] }),
+  F('fixture/sacred/pulpit', 'pulpit', '讲道坛', ['wooden', 'flammable']),
+  F('fixture/sacred/font', 'font', '洗礼池', ['holy', 'water-source']),
+  F('fixture/sacred/tomb', 'tomb', '石墓', ['readable'], { footprint: [1, 2] }),
+  F('fixture/sacred/sarcophagus', 'sarcophagus', '石棺', [], { footprint: [1, 2] }),
+  F('fixture/sacred/reliquary', 'reliquary', '圣骨匣', ['holy', 'metal', 'conductive']),
+  F('fixture/sacred/organ', 'organ', '管风琴', ['wooden', 'metal'], { footprint: [3, 1] }),
+  F('fixture/sacred/altar/high', 'high altar', '主祭坛', ['stone'], { footprint: [3, 1], sprite: 'fixture:high_altar' }),
+  // the lectern of brass on its stone foot, from which the lessons are read in a church or a hall
+  F('fixture/sacred/lectern', 'lectern', '读经台', ['metal', 'conductive', 'surface'], { props: { material: 'metal', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 1 }] }),
+  F('fixture/sacred/saint', 'statue of a saint', '圣徒像', ['stone']),
+  F('fixture/sacred/rail', 'altar rail', '圣坛栏杆', ['wooden'], { sprite: 'fixture:altar_rail' }),
+  F('fixture/sacred/cross', 'processional cross', '十字杖架', ['holy', 'metal', 'conductive'], { sprite: 'fixture:standing_cross' }),
   F('fixture/sacred/gravestone', 'gravestone', '墓碑', ['readable']),
   // a wayside shrine of the Five Sufferings: five carved wounds, the first cracked and weeping black (docs/chapter-1.md)
   F('fixture/sacred/seal_stone', 'five-wound shrine stone', '五伤路碑', ['ancient', 'runic', 'holy']),

@@ -130,6 +130,20 @@
             "dark"
           ]
         },
+        "vistas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Vista"
+          },
+          "description": "Where the camera draws back and looks ahead (render hint, docs/showcase.md §3.3): standing in a vista's rect, the view is `zoom` times the usual and centred `look` cells from whoever it follows — a cathedral's front seen whole from its square, a gate's towers from the bridge before it."
+        },
+        "lights": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/LightPool"
+          },
+          "description": "Coloured light lying on the floor (render hint, docs/showcase.md §3.4): the pools a stained-glass window throws by day, moving with the sun; a hearth's or a chandelier's glow by night."
+        },
         "fish": {
           "type": "boolean"
         },
@@ -329,6 +343,106 @@
         "ty"
       ],
       "additionalProperties": false
+    },
+    "Vista": {
+      "type": "object",
+      "properties": {
+        "at": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 4,
+          "maxItems": 4,
+          "description": "[x, y, w, h] in cells."
+        },
+        "zoom": {
+          "type": "number",
+          "description": "The view's scale against the usual (0.75: a quarter further out); default 1."
+        },
+        "look": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Where the view is centred, in cells from whoever it follows ([0, -6]: six cells ahead to the north)."
+        },
+        "focus": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "A point (in cells) the view keeps in sight instead: it is centred between whoever it follows and this point (`share` of the way to it, default a half), so the nearer they come the more of the front they see over them."
+        },
+        "share": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "at"
+      ],
+      "additionalProperties": false,
+      "description": "A rect of a map where the camera draws back and looks ahead (MapData.vistas)."
+    },
+    "LightPool": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "description": "Its middle at noon, in cells (fractions allowed)."
+        },
+        "y": {
+          "type": "number"
+        },
+        "w": {
+          "type": "number",
+          "description": "Its size in cells."
+        },
+        "h": {
+          "type": "number"
+        },
+        "color": {
+          "type": "string",
+          "description": "'#rrggbb'."
+        },
+        "shape": {
+          "type": "string",
+          "enum": [
+            "lancet",
+            "rose",
+            "glow"
+          ],
+          "description": "The window's shape it takes: a tall pointed light, a round rose, a soft round glow."
+        },
+        "when": {
+          "type": "string",
+          "enum": [
+            "sun",
+            "night",
+            "always"
+          ],
+          "description": "When it shows: `sun` while the sun is up, moving with it (east in the morning, west in the evening) and gone at night; `night` after dark (a hearth, a chandelier); `always`."
+        },
+        "strength": {
+          "type": "number",
+          "description": "How strong at its height, 0–1 (default 0.5)."
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "w",
+        "h",
+        "color",
+        "shape",
+        "when"
+      ],
+      "additionalProperties": false,
+      "description": "A pool of coloured light on a map's floor (MapData.lights)."
     },
     "PropValue": {
       "type": [

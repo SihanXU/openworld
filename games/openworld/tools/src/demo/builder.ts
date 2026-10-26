@@ -5,12 +5,12 @@
 // no picture without a thing, and no wall without one: what the map shows and what blocks are
 // terrain or entities (a big thing blocks its type's footprint, and only while it stands).
 
-import type { AiData, Entity, AppearDef, MapData, Portal, PropValue, Text } from '@openworld/engine'
+import type { AiData, Entity, AppearDef, LightPool, MapData, Portal, PropValue, Text, Vista } from '@openworld/engine'
 import { readFileSync } from 'node:fs'
 import { CHAR_OF, FORM_BY_ID, TERRAIN_CHARS, buildOntology, makeItem, type RawChunk } from '@openworld-game/content'
 import { OntologyIndex, Rng, baseCovers, splitLayers } from '@openworld/engine'
 import type { PrefabDef } from '@openworld/runtime/src/assets/types.ts'
-import { CATALOG, FENCES, FENCE_PIECES } from '../../../client/src/catalog.ts'
+import { BUILDINGS, CATALOG, FENCES, FENCE_PIECES } from '../../../client/src/catalog.ts'
 
 /** The builders' randomness. Re-seeded for each map (`reseed`), so a map comes out the same however many were built before it. */
 export let rng = new Rng(4242)
@@ -95,6 +95,10 @@ export class MapBuilder {
   heights: number[][] = []
   /** Background, not played yet (MapData.backdrop, docs/continent.md §1). */
   backdrop = false
+  /** Where the camera draws back and looks ahead (MapData.vistas). */
+  vistas: Vista[] = []
+  /** Coloured light on the floor (MapData.lights). */
+  lights: LightPool[] = []
 
   constructor(
     public id: string,
@@ -215,6 +219,17 @@ export class MapBuilder {
     return !this.entities.some((e) => this.under(e, x, y))
   }
 
+  /** The cells a house's roof hides that were walled for it (MapBuilder.building's `block`), with the ground they had. */
+  covered = new Map<string, string>()
+
+  /** Can one walk here as the game will judge it: no solid terrain (the ontology's), no solid thing's base on it. */
+  passable(x: number, y: number): boolean {
+    if (!this.in(x, y)) return false
+    const t = this.get(x, y)
+    if (SOLID_TERRAIN.has(t) || ONTO.data.terrains[t]?.solid) return false
+    return !this.entities.some((e) => ONTO.resolve(e.type).solid && this.under(e, x, y))
+  }
+
   /** Can one walk here: walkable terrain, and no solid thing's base covers it? */
   walkable(x: number, y: number): boolean {
     if (!this.in(x, y) || SOLID_TERRAIN.has(this.get(x, y))) return false
@@ -321,6 +336,35 @@ export class MapBuilder {
         }
       }),
     )
+  }
+
+  /**
+   * One of the project's own buildings (catalog BUILDINGS, docs/showcase.md §3), its footprint's top-left at (x, y):
+   * every strip of it stamped on its row, its solid cells walls, its doors named `doors` in the footprint's order
+   * (west to east, north to south). Returns its door cells.
+   */
+  building(name: string, x: number, y: number, doors: string[] = [], block = false): Cell[] {
+    const b = BUILDINGS[name]
+    if (!b) throw new Error(`building ${name} not in the catalog`)
+    // (a house's roof hides the ground behind it: that ground is the house's, as a roof's tiles are in the pack's towns)
+    if (block)
+      b.cover?.forEach((row, k) =>
+        [...row].forEach((c, i) => {
+          const cx = x + i
+          const cy = y - 1 - k
+          if (c !== '#' || !this.in(cx, cy) || SOLID_TERRAIN.has(this.get(cx, cy)) || this.get(cx, cy - 1) === 'door' || this.get(cx, cy) === 'door') return
+          this.covered.set(`${cx},${cy}`, this.get(cx, cy))
+          this.set(cx, cy, 'wall')
+        }),
+      )
+    // its shadow first, on the ground round it
+    if (b.shadow) this.stamps.push({ key: `${name}@shadow`, x: x + b.shadow.dx, y: y + b.shadow.dy })
+    for (const s of b.slices) this.prefab(`${name}@${s.row}`, CATALOG.prefabs[`${name}@${s.row}`], x + s.col, y + s.row - (s.th - 1))
+    return b.doors.map(([dx, dy], i) => {
+      const at: Cell = [x + dx, y + dy]
+      if (doors[i]) this.doors[doors[i]] = at
+      return at
+    })
   }
 
   /** A building from the catalog (solid walls, a named door). Returns its door cell. */
@@ -506,6 +550,30 @@ export class MapBuilder {
     }
   }
 
+  /**
+   * Room above what is laid: `rows` rows of `fill` added at the map's top and everything laid moved down by them — its
+   * ground, heights, stamps, things, doors, anchors, regions, vistas and lights (before any portal is made). So a tall
+   * building near the top (a belfry, a keep, a cathedral's chevet) has the ground behind it its picture rises over, and
+   * the view can show it whole.
+   */
+  grow(rows: number, fill: string): void {
+    if (this.portals.length) throw new Error(`${this.id}: grow before the portals are made`)
+    this.cells = [...Array.from({ length: rows }, () => Array(this.w).fill(fill)), ...this.cells]
+    this.heights = [...Array.from({ length: rows }, () => Array(this.w).fill(this.heights[0]?.[0] ?? 0)), ...this.heights]
+    this.h += rows
+    for (const s of this.stamps) s.y += rows
+    for (const e of this.entities) if (e.place.on === 'tile') e.place = { ...e.place, y: e.place.y + rows }
+    for (const d of Object.values(this.doors)) d[1] += rows
+    for (const a of Object.values(this.anchors)) a[1] += rows
+    for (const r of Object.values(this.regions)) r[1] += rows
+    for (const r of this.rooms) r.y += rows
+    for (const v of this.vistas) {
+      v.at[1] += rows
+      if (v.focus) v.focus[1] += rows
+    }
+    for (const l of this.lights) l.y += rows
+  }
+
   chunk(): RawChunk {
     this.clearVolumes()
     this.joinFences()
@@ -538,6 +606,8 @@ export class MapBuilder {
         appear: this.appear.length ? this.appear : undefined,
         music: this.music,
         light: this.light,
+        ...(this.vistas.length && { vistas: this.vistas }),
+        ...(this.lights.length && { lights: this.lights }),
         fish: this.fish || undefined,
         zone: this.zone,
         site: this.site,
