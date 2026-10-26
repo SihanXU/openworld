@@ -13,7 +13,8 @@ import { PEOPLE } from '../../tools/src/demo/people.ts'
 import type { PersonDef } from '../../tools/src/demo/person.ts'
 import { BUNDLE, CATALOG, WORLD } from './bundle.ts'
 import { pngSize } from './png.ts'
-import { FACE_PX, lookUrls } from './looks.ts'
+import { FACE_PX, HEAD_PX, lookUrls } from './looks.ts'
+import { FH, FW } from '@openworld/runtime/src/assets/figure/sprite.ts'
 import { defaultKeys, fillKeys } from '@openworld/runtime/src/keymap.ts'
 import { L, lang } from './lang.ts'
 
@@ -395,11 +396,14 @@ export function loadGame(): Game {
     const own = CATALOG.portraits?.[e.id]
     const face = own ? { url: `/assets/${own.dir}/neutral.webp`, x: 0, y: 0, w: 400, h: 400, iw: 400, ih: 400, smooth: true }
       : urls ? { url: urls.face, x: 0, y: 0, w: FACE_PX, h: FACE_PX, iw: FACE_PX, ih: FACE_PX, smooth: true } : faceSprite(look as string | undefined)
-    const body = urls ? { url: urls.body, x: 0, y: 0, w: 16, h: 32, iw: 16, ih: 32 } : bodySprite(look as string | undefined)
+    const body = urls ? { url: urls.body, x: 0, y: 0, w: FW, h: FH, iw: FW, ih: FH } : bodySprite(look as string | undefined)
+    // their icon wherever a person is small (links, lists, lines said): the map sprite's head, one style and size for everyone;
+    // a drawn sheet's 16 px figure is a head already
+    const head = urls ? { url: urls.head, x: 0, y: 0, w: HEAD_PX, h: HEAD_PX, iw: HEAD_PX, ih: HEAD_PX } : body
     return {
       kind: 'person', id: e.id, zh: zh(e.name), en: (enOf(e.name) || e.id), name: say(e.name), title: say(e.name), group: e.place.on === 'tile' ? e.place.map : 'offstage', groupName: '',
       def, entity: e, role, roleName: roleName(role), age: def?.age ?? (Number(e.props?.age ?? 0) || undefined), favourite: typeof e.props?.favourite === 'string' ? e.props.favourite : undefined, look,
-      face, body, sprite: face, home: e.place.on === 'tile' ? e.place.map : undefined,
+      face, body, sprite: head, home: e.place.on === 'tile' ? e.place.map : undefined,
     } satisfies PersonEnt
   })
   for (const c of index.companions ?? []) {
@@ -411,8 +415,7 @@ export function loadGame(): Game {
       : fairy?.faceset ? whole(`${fairy.dir}/${fairy.faceset}`) : actorSprite(fairy)
     people.push({
       kind: 'companion', id: c.id, zh: zh(c.name), en: (enOf(c.name) || c.id), name: say(c.name), title: say(c.name), group: 'companion', groupName: L('同伴', 'Companion'), entity: c, role: 'companion', roleName: say(t?.name) || L('同伴', 'companion'),
-      look: undefined, face, body: actorSprite(fairy),
-      sprite: fairy?.faceset ? whole(`${fairy.dir}/${fairy.faceset}`) : actorSprite(fairy),
+      look: undefined, face, body: actorSprite(fairy), sprite: actorSprite(fairy),
     })
   }
   ents.push(...people)
@@ -596,7 +599,7 @@ export function loadGame(): Game {
       return {
         id, slot: p.slot, name: p.name, say: p.say, tags: p.tags ?? [], bodies: p.bodies ?? Object.keys(LOOK_BODIES), sample,
         face: { url: urls.face, x: 0, y: 0, w: FACE_PX, h: FACE_PX, iw: FACE_PX, ih: FACE_PX, smooth: true },
-        body: { url: urls.body, x: 0, y: 0, w: 16, h: 32, iw: 16, ih: 32 },
+        body: { url: urls.body, x: 0, y: 0, w: FW, h: FH, iw: FW, ih: FH },
       }
     }),
     typeName, entOfType,

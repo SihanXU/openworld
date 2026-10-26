@@ -70,14 +70,15 @@ export function writeSite(editions: Built[], out: string): void {
     try { png = renderMap(b.game, m.id).png } catch (e) { console.warn(`地图 ${m.id} 画不出来，改用地形色：${(e as Error).message}`); png = mapPng(b, m.map) }
     writeFileSync(join(out, '_', 'maps', `${m.id}.png`), png)
   }
-  // each person's look as the game draws it (docs/looks.md): the portrait and the sprite
+  // each person's look as the game draws it (docs/looks.md): the portrait, the sprite and its head
   mkdirSync(join(out, '_', 'looks'), { recursive: true })
   for (const p of [...b.game.people.map((p) => ({ look: p.look })), ...b.game.lookParts.map((l) => ({ look: l.sample }))]) {
     if (typeof p.look !== 'object') continue
     const urls = lookUrls(p.look)
-    const { face, body } = lookPngs(p.look)
+    const { face, body, head } = lookPngs(p.look)
     if (face) writeFileSync(join(out, urls.face.replace('/wiki/', '')), face)
     writeFileSync(join(out, urls.body.replace('/wiki/', '')), body)
+    writeFileSync(join(out, urls.head.replace('/wiki/', '')), head)
   }
   // the team's images (wiki/images), and the setting's illustrations (assets/concept), scaled for the web
   const img = join(out, '_', 'img')

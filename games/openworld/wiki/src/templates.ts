@@ -8,6 +8,7 @@ import {
   EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, VOWS, enOf, groupName, isAccessory, kindName, say, zh,
   type BossEnt, type CreatureEnt, type Ent, type Game, type ItemEnt, type MapEnt, type PersonEnt, type QuestEnt, type Sprite,
 } from './game.ts'
+import { fitScale } from './fit.ts'
 import { L, lang, linkHref } from './lang.ts'
 import { escapeAttr, escapeHtml, type TemplateCall } from './markup.ts'
 
@@ -52,14 +53,13 @@ const T = (ctx: Ctx, section: string, key: string): string => {
 /** A sprite, scaled, as a CSS-cropped span. */
 export function spr(s: Sprite | undefined, scale = 2, cls = ''): string {
   if (!s) return ''
-  const k = scale
-  return `<span class="spr ${cls}${s.smooth ? ' smooth' : ''}" style="width:${s.w * k}px;height:${s.h * k}px;background-image:url('${s.url}');background-position:-${s.x * k}px -${s.y * k}px;background-size:${s.iw * k}px ${s.ih * k}px"></span>`
+  const px = (n: number) => +(n * scale).toFixed(2)
+  return `<span class="spr ${cls}${s.smooth ? ' smooth' : ''}" style="width:${px(s.w)}px;height:${px(s.h)}px;background-image:url('${s.url}');background-position:-${px(s.x)}px -${px(s.y)}px;background-size:${px(s.iw)}px ${px(s.ih)}px"></span>`
 }
-/** Fit a sprite into a box of `box` pixels (whole multiples where possible). */
+/** Fit a sprite into a box of `box` pixels. */
 export function fit(s: Sprite | undefined, box: number, cls = ''): string {
   if (!s) return ''
-  const k = Math.max(0.5, Math.min(8, Math.floor((box / Math.max(s.w, s.h)) * 2) / 2))
-  return spr(s, k, cls)
+  return spr(s, fitScale(s, box), cls)
 }
 
 function table(head: string[], rows: string[][], cls = 'wikitable'): string {
@@ -319,7 +319,7 @@ function personInfobox(ctx: Ctx, p: PersonEnt): string {
   if (qs.length) rows.push([L('任务', 'Quests'), qs.map((q) => entLink(ctx, q, { icon: 0 })).join('<br>')])
   rows.push(otherName(p))
   rows.push([L('编号', 'ID'), `<code>${esc(p.id)}</code>`])
-  return infobox(ctx, p.name, fit(p.face, 96, 'face'), rows)
+  return infobox(ctx, p.name, fit(p.face, 192, 'face'), rows)
 }
 
 /** A minor monster's role, as the infobox says it (content levels.ts). */
@@ -721,7 +721,7 @@ function dialogue(ctx: Ctx, p: PersonEnt): string {
   for (const l of d.lines) { if (!groups.has(l.key)) groups.set(l.key, []); groups.get(l.key)!.push(l) }
   const rank = (k: string) => (k === 'greeting:first' ? 0 : k === 'default' ? 1 : k.startsWith('hour:') ? 2 : k.startsWith('weather:') ? 3 : k.startsWith('fact:') ? 4 : k.startsWith('topic:') ? 5 : 6)
   return [...groups].sort(([a], [b]) => rank(a) - rank(b)).map(([k, lines]) =>
-    `<div class="dlg"><div class="dlg-key">${esc(T(ctx, '条件', k))}</div>${lines.map((l) => `<blockquote class="line">${fit(p.face, 32, 'face')}<span>${quot(esc(say(l.text)))}${l.mood && MOOD[l.mood] ? `<span class="mood">${MOOD[l.mood]}</span>` : ''}${l.once ? `<span class="once">${L('只说一次', 'said once')}</span>` : ''}</span></blockquote>`).join('')}</div>`,
+    `<div class="dlg"><div class="dlg-key">${esc(T(ctx, '条件', k))}</div>${lines.map((l) => `<blockquote class="line">${fit(p.sprite, 32, 'face')}<span>${quot(esc(say(l.text)))}${l.mood && MOOD[l.mood] ? `<span class="mood">${MOOD[l.mood]}</span>` : ''}${l.once ? `<span class="once">${L('只说一次', 'said once')}</span>` : ''}</span></blockquote>`).join('')}</div>`,
   ).join('')
 }
 
@@ -808,7 +808,7 @@ function mapView(ctx: Ctx, m: MapEnt): string {
 function mapPeople(ctx: Ctx, m: MapEnt): string {
   const ids = [...(idx(ctx.g).mapPeople.get(m.id) ?? [])]
   if (!ids.length) return `<p class="empty">${L('没有人住在这里。', 'No one lives here.')}</p>`
-  return `<ul class="gallery">${ids.map((id) => { const p = ctx.g.byId.get(id) as PersonEnt; return `<li>${fit(p.face, 48, 'face')}${ctx.link(p.title, p.name)}<small>${p.home === m.id ? L('住在这里', 'lives here') : L('按日程来这里', 'comes by on schedule')}</small></li>` }).join('')}</ul>`
+  return `<ul class="gallery">${ids.map((id) => { const p = ctx.g.byId.get(id) as PersonEnt; return `<li>${fit(p.sprite, 48, 'face')}${ctx.link(p.title, p.name)}<small>${p.home === m.id ? L('住在这里', 'lives here') : L('按日程来这里', 'comes by on schedule')}</small></li>` }).join('')}</ul>`
 }
 
 function mapCreatures(ctx: Ctx, m: MapEnt): string {
@@ -885,7 +885,7 @@ function questTalk(ctx: Ctx, q: QuestEnt): string {
   const giverId = questGiver(d)
   const giver = ctx.g.byId.get(giverId ?? '') as PersonEnt | undefined
   const person = (alias?: string) => (ctx.g.byId.get(d.aliases?.[alias ?? '']?.id ?? '') as PersonEnt | undefined) ?? giver
-  const line = (label: string, t?: Text, who = giver) => (t && say(t) ? `<div class="dlg"><div class="dlg-key">${label}</div><blockquote class="line">${fit(who?.face, 32, 'face')}<span>${quot(esc(fill(ctx, d, t)))}</span></blockquote></div>` : '')
+  const line = (label: string, t?: Text, who = giver) => (t && say(t) ? `<div class="dlg"><div class="dlg-key">${label}</div><blockquote class="line">${fit(who?.sprite, 32, 'face')}<span>${quot(esc(fill(ctx, d, t)))}</span></blockquote></div>` : '')
   const talks = (d.objectives ?? []).filter((o) => o.say).map((o) => {
     const a = typeof o.target === 'string' ? o.target : undefined
     const whom = a ? fill(ctx, d, `{${a}}`) : giver?.name ?? ''
@@ -945,7 +945,7 @@ function lists(ctx: Ctx, name: string, args: string[], written: string): string 
   switch (name) {
     case '物品表': return itemTable(ctx, argOf(name, args[0]) || '全部', written, args[0] ?? '')
     case '地区物产': return regionalGoods(ctx, args[0])
-    case '居民表': return table(['', L('名字', 'Name'), L('身份', 'Role'), L('年龄', 'Age'), L('住在', 'Lives in'), L('任务', 'Quests')], g.people.map((p) => [fit(p.face, 40, 'face'), ctx.link(p.title, p.name), esc(p.roleName), p.age ? String(p.age) : '—', p.home ? mapLink(ctx, p.home) : p.kind === 'companion' ? L('跟着玩家', 'Follows the player') : L('只在剧情中', 'Story only'), String((idx(g).personQuests.get(p.id) ?? []).length || '—')]), 'wikitable sortable')
+    case '居民表': return table(['', L('名字', 'Name'), L('身份', 'Role'), L('年龄', 'Age'), L('住在', 'Lives in'), L('任务', 'Quests')], g.people.map((p) => [fit(p.sprite, 40, 'face'), ctx.link(p.title, p.name), esc(p.roleName), p.age ? String(p.age) : '—', p.home ? mapLink(ctx, p.home) : p.kind === 'companion' ? L('跟着玩家', 'Follows the player') : L('只在剧情中', 'Story only'), String((idx(g).personQuests.get(p.id) ?? []).length || '—')]), 'wikitable sortable')
     case '怪物表': return table(['', L('名字', 'Name'), L('类别', 'Family'), L('生命', 'Health'), L('攻击', 'Attack'), L('防御', 'Defence'), L('元素', 'Element'), L('出没', 'Found in')], g.creatures.map((c) => {
       const where = join([...whereCreature(ctx, c.id).map((m) => mapLink(ctx, m)), ...bornOf(ctx, c.id).short])
       return [fit(c.sprite, 32), ctx.link(c.title, c.name), esc(c.groupName), String(c.props.maxHp ?? '—'), String(c.props.atk ?? '—'), String(c.props.def ?? 0), c.props.element ? T(ctx, '元素', String(c.props.element)) : '—', where === '—' ? `<span class="muted">${L('游戏里目前不会出现', 'Not in the game yet')}</span>` : where]
