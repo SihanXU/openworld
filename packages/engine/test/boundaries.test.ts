@@ -106,7 +106,7 @@ describe('the engine side imports no game (docs/engine-split.md, S1)', () => {
     expect([...TESTS_ON_THE_GAME].filter((f) => here(f) && !onGame.has(f))).toEqual([])
   })
 
-  const NAME_THE_AI = new Set(['packages/runtime/src/ai.ts', 'games/openworld/tools/src/dev.ts', 'packages/engine/test/boundaries.test.ts'])
+  const NAME_THE_AI = new Set(['packages/runtime/src/ai.ts', 'games/openworld/tools/src/dev.ts', 'packages/engine/test/boundaries.test.ts', 'packages/runtime/test/browser-boundaries.test.ts'])
   it('nothing reaches the AI but itself and a game\'s own AI: delete packages/ai and games/*/ai, and the game plays', () => {
     const outside = [
       ...readdirSync(join(ROOT, 'packages')).filter((p) => p !== 'ai').flatMap((p) => [...files(join(ROOT, 'packages', p, 'src')), ...files(join(ROOT, 'packages', p, 'test')), ...files(join(ROOT, 'packages', p, 'scripts'))]),
