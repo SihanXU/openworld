@@ -117,7 +117,15 @@ function hold(f: Ford, e: Entity | undefined): void {
   const c = f.eng.controls
   author(f, () => W(f).place(e, { on: 'inside', holder: 'player' }))
   c.sync()
-  c.select(W(f).player.slots!.indexOf(c.key(e)))
+  // A physical group may hold several of a kind; the hand takes the group's first. The test puts the one it means first.
+  const p = W(f).player
+  const slot = p.slots!.indexOf(c.key(e))
+  const members = p.slotItems?.[slot]
+  if (members && members[0] !== e.id) author(f, () => {
+    const at = members.indexOf(e.id)
+    if (at > 0) members.splice(at, 1), members.unshift(e.id)
+  })
+  c.select(slot)
   expect(W(f).player.held).toBe(e.id)
 }
 /**
