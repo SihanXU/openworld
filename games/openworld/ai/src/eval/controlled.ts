@@ -14,9 +14,9 @@
 // A and C are told by one template from what the replay did; B is asked for a sentence in that template's style; the
 // judge is not told which condition wrote what. Costs model calls (the anthropic backend: LSW_MODEL_BACKEND=anthropic).
 //
-//   npx tsx games/openworld/tools/src/eval/controlled.ts items [--n 30] [--seed 7]
-//   npx tsx games/openworld/tools/src/eval/controlled.ts answer A|B|C|no-brief|... [--lanes 4]
-//   npx tsx games/openworld/tools/src/eval/controlled.ts judge | report
+//   npx tsx games/openworld/ai/src/eval/controlled.ts items [--n 30] [--seed 7]
+//   npx tsx games/openworld/ai/src/eval/controlled.ts answer A|B|C|no-brief|... [--lanes 4]
+//   npx tsx games/openworld/ai/src/eval/controlled.ts judge | report
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

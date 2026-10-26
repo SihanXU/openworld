@@ -9,7 +9,7 @@
 // quests' stages. Costs model calls: --budget stops asking once the model's spend reaches it (the default runs, as
 // with no model). Revisions after shipping are off, to spend the budget on questions.
 //
-//   LSW_MODEL_BACKEND=anthropic npx tsx games/openworld/tools/src/eval/running.ts [--players 3] [--hours 24] [--budget 15] [--out var/eval/running]
+//   LSW_MODEL_BACKEND=anthropic npx tsx games/openworld/ai/src/eval/running.ts [--players 3] [--hours 24] [--budget 15] [--out var/eval/running]
 
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

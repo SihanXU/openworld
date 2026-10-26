@@ -9,9 +9,9 @@
 //
 //   serve   the page, and the results it sends written one file a participant (POST /submit)
 //
-//   npx tsx games/openworld/tools/src/eval/study.ts build [--lists 12] [--out var/eval/study]
-//   npx tsx games/openworld/tools/src/eval/study.ts serve <results dir> [--port 8080] [--out var/eval/study]
-//   npx tsx games/openworld/tools/src/eval/study.ts score <results dir> [--out var/eval/study]
+//   npx tsx games/openworld/ai/src/eval/study.ts build [--lists 12] [--out var/eval/study]
+//   npx tsx games/openworld/ai/src/eval/study.ts serve <results dir> [--port 8080] [--out var/eval/study]
+//   npx tsx games/openworld/ai/src/eval/study.ts score <results dir> [--out var/eval/study]
 //
 // A list rates half the situations, each in one condition, and chooses between two conditions on a quarter of the
 // others; across the lists every condition of every situation is rated and every pair chosen. The page takes
