@@ -139,11 +139,6 @@ const night = [...document.querySelectorAll('section.night')]
 function bar() {
     const wordmarkBox = heroWordmark.getBoundingClientRect()
     const overNight = night.some((s) => { const r = s.getBoundingClientRect(); return r.top <= navHeight && r.bottom > navHeight })
-    // Fade the whole wordmark before its top reaches the header's clipping edge.
-    // Short viewports have less scrolling room; keep the title fully visible at scroll zero.
-    const titleRoom = Math.max(1, Math.min(wordmarkBox.height, wordmarkBox.top + scrollY - navHeight - 24))
-    const titleProgress = Math.max(0, Math.min(1, (wordmarkBox.top - navHeight - 24) / titleRoom))
-    heroWordmark.style.setProperty('--wordmark-opacity', brandReduced.matches ? Number(titleProgress >= 0.5) : 1 - brandEasing(1 - titleProgress))
     // The header's title, links and controls show from the start and step aside only while the hero's own title,
     // words and buttons pass under the header, where they would clash: gone as the title comes within reach of the
     // header, back once the buttons have passed above it. Scroll-linked: no timed opacity transition may lag behind a
