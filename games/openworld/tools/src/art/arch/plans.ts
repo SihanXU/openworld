@@ -91,5 +91,11 @@ export const HALLS = {
   healer: hallPlan(18, 13, 5, { hut: [2, 3, 14, 7], entry: [7, 10, 4, 2] }, [[8, 12]]),
   stiltinn: hallPlan(26, 16, 6, { common: [2, 3, 16, 10], rooms: [19, 3, 5, 10], arch: [18, 6, 1, 3], hearth: [6, 1, 5, 2], entry: [8, 13, 4, 2] }, [[9, 15]]),
   chapel: hallPlan(30, 19, 9, { nave: [5, 5, 20, 10], apse: [11, 2, 8, 3], chapelW: [2, 8, 3, 4], chapelE: [25, 8, 3, 4], entry: [12, 15, 6, 3] }, [[14, 18]]),
+  // the farm's barn, farmhouse and mill; the mine's workings and the old works under them (docs/showcase.md §4c)
+  barn: hallPlan(28, 16, 7, { floor: [2, 3, 24, 10], loft: [3, 1, 8, 2], entry: [11, 13, 6, 2] }, [[13, 15]]),
+  farmhouse: hallPlan(26, 15, 6, { kitchen: [2, 3, 14, 9], parlour: [17, 4, 7, 7], arch: [16, 6, 1, 3], hearth: [5, 1, 6, 2], entry: [8, 12, 4, 2] }, [[9, 14]]),
+  mill: hallPlan(24, 15, 7, { floor: [2, 3, 20, 9], race: [16, 1, 5, 2], entry: [9, 12, 5, 2] }, [[11, 14]]),
+  workings: hallPlan(58, 40, 5, { entry: [25, 33, 8, 5], main: [27, 6, 4, 27], westLow: [6, 24, 21, 3], eastMid: [31, 18, 20, 3], westHigh: [8, 10, 19, 3], eastHigh: [31, 7, 22, 3], stopeW: [3, 18, 8, 6], stopeE: [47, 21, 9, 8], cavern: [3, 3, 10, 7], winze: [50, 2, 6, 5], sump: [12, 29, 12, 6], drift: [16, 27, 3, 2] }, [[28, 38]]),
+  oldworks: hallPlan(50, 38, 7, { landing: [22, 31, 6, 5], way: [23, 18, 4, 13], hall: [10, 8, 30, 10], gate: [20, 2, 10, 6], forge: [2, 10, 7, 6], forgeDoor: [9, 12, 1, 2], vault: [41, 10, 7, 6], vaultDoor: [40, 12, 1, 2], tombW: [12, 20, 8, 6], tombWDoor: [20, 22, 3, 2], tombE: [30, 20, 8, 6], tombEDoor: [27, 22, 3, 2] }, []),
   catacombs: hallPlan(30, 20, 5, { north: [3, 2, 24, 3], south: [3, 13, 24, 3], west: [3, 5, 3, 8], east: [24, 5, 3, 8], spine: [13, 5, 4, 8], tombW: [7, 7, 5, 4], passW: [6, 8, 1, 2], tombE: [18, 7, 5, 4], passE: [23, 8, 1, 2], entry: [13, 16, 4, 3] }, []),
 }

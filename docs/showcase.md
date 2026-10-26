@@ -220,6 +220,20 @@ at most four levels; a stair down a drop of more than one level is a row for eve
 | Dusk Moorings | `palefen.dusk-moorings` | a town on piles: the causeway and its walks (each side's a row apart), houses over the water with gaps between, fog lamps burning all day, the floating market, the ossuary's island and its sinking graveyard, dead trees in the shallows | the ossuary, the healer's hut, the Lantern on Piles | Ganvie, the Marsh Arabs' villages, the Tonlé Sap |
 | Highheath Abbey | `altar.highheath-abbey` | a monastery on chalk cliffs: the gatehouse at the foot, hermits' cells against the faces, switchback stairs, the chasm and its one bridge, the brothers' gardens and hives, the chapel, hall, cells, garth and graves on the summit | the Chapel of the Martyrs, the catacombs under it | the Meteora, Mont-Saint-Michel's terraces, the lavra cells of Athos and Cappadocia |
 
+## 4c. A farm village and a mine
+
+The third batch (agreed with the second): the country between the towns and the dark under it, built from their own
+buildings (`arch/buildings/works.ts`: barns with their gable ends to the yard, thatched farmhouses, a dovecote, a granary
+on staddle stones, hen houses, the watermill with its wheel in the stream; the adit's timbered mouth, the headframe and
+its sheave, spoil heaps, sheds, rails laid flat, ore heaps, millstones). The halls on their plans (`regionhalls.ts`); the
+mine's underground halls are drawn as every hall is, their faces dressed with timber sets, ore in seams and, at the old
+works' head, the sealed gate (`buildings/halls.ts`: the `timbers`, `veins` and `tools` hangings, the `gate` feature).
+
+| Place | Continent id | What it shows | Halls | Learned from |
+|---|---|---|---|---|
+| Barleyridge | `tithe.barleyridge-farm` | a farm village round its green: the stream under the mill's wheel, the orchard on its bank with the hives, four farmsteads with their barns, coops, dovecote and staddle granaries, the cottages, the strips of wheat and barley between hedges, the cows in the pasture, the pond | the farmhouse (kitchen and parlour), the great barn (the cows' pen, the hay), the watermill (its stones, the race) | Laxton's open fields, the Cotswolds' farmsteads round a green, the mill on its leat |
+| Brandby Mine | `redmarch.brandby-mine` | a mine under a mesa's face: the adit and its rails to the spoil, the headframe over the shaft, the smelter's hearths, the smith, the bunkhouse, the timber yard; the camp on the ground below; underground the workings and the old works past the breakthrough | the workings (drifts on rails, stopes with ore in the walls, the flooded sump; in by the adit or down the shaft), the old works (a pillared hall before the sealed gate, a forge of molten rock, tombs, a vault, the dead that keep them) | Rio Tinto's adits, the Harz's headframes, the camps of the gold rushes; the dungeon under the mine of every old tale |
+
 ## 5. People (`showcase/cast.ts`)
 
 A place's maker sets its cast as it builds: each one's role, where they sleep, and their day hour by hour (a map, a

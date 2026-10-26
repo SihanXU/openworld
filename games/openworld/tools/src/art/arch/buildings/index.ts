@@ -13,6 +13,7 @@ import { DECOR } from './decor.ts'
 import { CASTLE } from './castle.ts'
 import { HALL_SHELLS } from './halls.ts'
 import { REGIONS } from './regions.ts'
+import { WORKS } from './works.ts'
 import { fountain, grandFountain } from '../kit.ts'
 
 export const MODELS: Record<string, () => Model> = {
@@ -22,6 +23,7 @@ export const MODELS: Record<string, () => Model> = {
   ...CASTLE,
   ...HALL_SHELLS,
   ...REGIONS,
+  ...WORKS,
   ...TOWN,
   ...MARKET,
   ...INSIDE,

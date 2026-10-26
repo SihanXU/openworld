@@ -6,14 +6,14 @@
 
 import type { Model, Ornament } from '../oblique.ts'
 import { archNS, backOf, box, recess, type Solid } from '../shapes.ts'
-import { banner, lancet, picture, sconce, statue, window, type Glass } from '../ornaments.ts'
+import { banner, door, lancet, picture, sconce, statue, window, type Glass } from '../ornaments.ts'
 import { shell, type Dress, type Face } from '../shell.ts'
 import { HALLS, type HallPlan } from '../plans.ts'
 import { S } from '../kit.ts'
 import { hash } from '../materials.ts'
 import { fire, skulls, tapestry } from './inside.ts'
 
-type Hang = 'tapestry' | 'banner' | 'painting' | 'shelves' | 'books' | 'jars' | 'trophy' | 'niches' | 'none'
+type Hang = 'tapestry' | 'banner' | 'painting' | 'shelves' | 'books' | 'jars' | 'trophy' | 'niches' | 'timbers' | 'veins' | 'tools' | 'none'
 
 interface Style {
   wall: string
@@ -24,7 +24,7 @@ interface Style {
   /** What hangs between the windows, by turns. */
   hang: Hang[]
   /** The head face's feature. */
-  feature: 'hearth' | 'canopy' | 'window' | 'books' | 'ossuary' | 'none'
+  feature: 'hearth' | 'canopy' | 'window' | 'books' | 'ossuary' | 'gate' | 'none'
   pilasters?: string
 }
 
@@ -87,6 +87,42 @@ function trophy() {
   return picture(['i          i', ' i        i ', '  i aaaa i  ', '   iUUUUi   ', '   aUyyUa   ', '   aUyyUa   ', '   aUUUUa   ', '  i aUUa i  ', ' i   aa   i ', 'i          i'], { i: 'i1', a: 'a2', U: 'U1', y: 'a0' })
 }
 
+/** Ore in a face of rock: a band of glints, copper and iron and a little gold, along the seam. */
+function veins(w: number, h: number, seed: number) {
+  const rows: string[] = []
+  for (let j = 0; j < h; j++) {
+    let l = ''
+    for (let i = 0; i < w; i++) {
+      const band = Math.abs(j - h / 2 - (i - w / 2) * 0.45 - Math.sin(i / 4 + seed) * 2) < 3
+      const r = hash(i, j, seed + 900)
+      l += band && r < 0.35 ? (r < 0.06 ? 'a' : r < 0.2 ? 'c' : 'i') : r < 0.02 ? 'i' : ' '
+    }
+    rows.push(l)
+  }
+  return { rows, keys: { a: 'a1', c: 'c1', i: 'i0' } }
+}
+
+/** A farm's tools hung on the wall: a scythe, a rake, a pitchfork, a saw, a coil of rope. */
+function tools() {
+  return picture(
+    [
+      'wwwwwwwwwwwwwwwwwwwwwwww',
+      ' i     w     i i i   ww ',
+      ' ii    w     i i i  w  w',
+      '  i    w     iiiii  w  w',
+      '  w   www      w     ww ',
+      '  w  w w w     w        ',
+      '  w    w       w   iiii ',
+      '  w    w       w   iiii ',
+      '  w    w       w   iiii ',
+      '  w    w       w   iiii ',
+      '  w    w       w     w  ',
+      '  w    w       w     w  ',
+    ],
+    { w: 'w2', i: 'i1' },
+  )
+}
+
 /** A face's dressing by its hall's style: windows and hangings by turns, pilasters, sconces; the head face's feature. */
 function dresser(st: Style, plan: HallPlan): (f: Face) => Dress {
   const head = Math.min(...plan.plan.map((row, y) => (row.includes('.') ? y : Infinity))) - 1
@@ -116,6 +152,14 @@ function dresser(st: Style, plan: HallPlan): (f: Face) => Dress {
         orn.push({ x: cx - 14, y, z: 2, ...bk })
       } else if (kind === 'jars') orn.push({ x: cx - 12, y, z: 14, ...jars(24, seed + k) })
       else if (kind === 'trophy') orn.push(trophy().at(cx - 6, y, 22))
+      else if (kind === 'tools') orn.push(tools().at(cx - 12, y, 14))
+      else if (kind === 'veins') orn.push({ x: cx - 12, y, z: Math.round(h * 0.15), ...veins(24, Math.round(h * 0.5), seed + k) })
+      else if (kind === 'timbers') {
+        // a set of timbers against the rock: two props, the cap over them, a lantern hung from it
+        const t = Math.round(h * 0.72)
+        solids.push(box(cx - 13, y - 3, 0, cx - 9, y + 2, t, 'timber'), box(cx + 9, y - 3, 0, cx + 13, y + 2, t, 'timber'), box(cx - 16, y - 3, t, cx + 16, y + 2, t + 5, 'timber'))
+        if (k % 2 === 0) orn.push(sconce().at(cx - 3, y + 2, t - 14))
+      }
       else if (kind === 'niches') {
         voids.push(...recess(cx, y, 8, 14, 20, 5, 'round'))
         orn.push(skulls(10).at(cx - 5, backOf(y, 5), 9))
@@ -141,6 +185,13 @@ function dresser(st: Style, plan: HallPlan): (f: Face) => Dress {
         for (const k of [-1, 1]) orn.push(statue(10, 30, true).at(mid + k * 30 - 5, y, 6))
       } else if (st.feature === 'books') {
         for (let x = x0 + 4; x < x1 - 30; x += 32) orn.push({ x, y, z: 2, ...books(30, Math.round(h * 0.7), seed + x) })
+      } else if (st.feature === 'gate') {
+        // the sealed gate of the old works: its arch in rings, the iron door shut, a guardian either side
+        const gh = Math.round(h * 0.62)
+        voids.push(...recess(mid, y, 0, 40, gh, 6, 'round', 3, 3))
+        orn.push(door(32, gh - 6, 'round', 'g').at(mid - 16, backOf(y, 6) - 1, 0))
+        for (const k of [-1, 1]) orn.push(statue(12, 46).at(mid + k * 34 - 6, y, 4))
+        solids.push(box(mid - 44, y - 2, gh + 10, mid + 44, y + 3, gh + 16, st.trim))
       } else if (st.feature === 'ossuary') {
         for (let x = x0 + 12; x < x1 - 12; x += 16) {
           voids.push(...recess(x, y, 6, 12, 18, 5, 'round'), ...recess(x, y, 30, 12, 16, 5, 'round'))
@@ -196,6 +247,11 @@ const STYLES: Record<keyof typeof HALLS, Style> = {
   healer: { wall: 'darkwood', trim: 'timber', h: 64, windows: 'rect', hang: ['jars', 'jars', 'shelves'], feature: 'hearth' },
   stiltinn: { wall: 'darkwood', trim: 'timber', h: 72, windows: 'rect', hang: ['jars', 'painting', 'trophy'], feature: 'hearth', pilasters: 'timber' },
   chapel: { wall: 'whiteStone', trim: 'whiteStone', h: 120, windows: 'lancet', glass: 'gold', hang: ['tapestry', 'painting', 'banner'], feature: 'window', pilasters: 'whiteStone' },
+  barn: { wall: 'timber', trim: 'darkwood', h: 104, windows: 'none', hang: ['tools', 'none', 'none'], feature: 'none', pilasters: 'darkwood' },
+  farmhouse: { wall: 'plasterOchre', trim: 'timber', h: 80, windows: 'rect', hang: ['jars', 'tools', 'painting'], feature: 'hearth', pilasters: 'timber' },
+  mill: { wall: 'stone', trim: 'timber', h: 96, windows: 'round', hang: ['none', 'tools', 'shelves'], feature: 'none', pilasters: 'timber' },
+  workings: { wall: 'sandstoneRough', trim: 'timber', h: 64, windows: 'none', hang: ['timbers', 'veins', 'timbers', 'none'], feature: 'none' },
+  oldworks: { wall: 'sandstone', trim: 'sandstone', h: 112, windows: 'none', hang: ['niches', 'veins', 'trophy', 'none'], feature: 'gate', pilasters: 'sandstone' },
   catacombs: { wall: 'whiteStone', trim: 'whiteStone', h: 64, windows: 'none', hang: ['niches', 'niches', 'none'], feature: 'ossuary', pilasters: 'whiteStone' },
 }
 

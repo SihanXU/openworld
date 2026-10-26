@@ -377,3 +377,147 @@ export function catacombHall(p: Place): MapBuilder {
   m.anchors = { stair: [P.entry.x + 1, P.entry.y + 1], tombW: [P.tombW.x + 2, P.tombW.y + 2], tombE: [P.tombE.x + 2, P.tombE.y + 2] }
   return m
 }
+
+// ------------------------------------------------------------------------------------------------ Barleyridge (the farm)
+
+/** The barn: the cows' pen in the corner, hay heaped to the beams, the cart, the tools, the hens scratching at the floor. */
+export function barnHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'barn', `${p.id}.barn`, { en: `${p.name.en} — the Great Barn`, zh: `${p.name.zh}·大谷仓` }, 'dirt', { floors: [['loft', 'floor_wood']] })
+  const F = P.floor
+  m.fence('rail', [F.x, F.y + 5], [F.x + 9, F.y + 5], [[F.x + 5, F.y + 5]])
+  m.fence('rail', [F.x + 10, F.y], [F.x + 10, F.y + 5])
+  at(m, 'fixture/water/trough', [[F.x + 1, F.y], [F.x + 5, F.y]])
+  for (const [x, y] of [[F.x + 3, F.y + 2], [F.x + 7, F.y + 3]] as Cell[]) m.creature('animal/cow', x, y, { behaviour: 'passive', temper: 'wary', sight: 3, leash: 2 })
+  m.creature('animal/calf', F.x + 5, F.y + 2, { behaviour: 'passive', temper: 'wary', sight: 3, leash: 2 })
+  for (const x of [F.x + 13, F.x + 16, F.x + 19, F.x + 22]) decor(m, 'decor_hay', x, F.y)
+  for (const [x, y] of [[F.x + 20, F.y + 3], [F.x + 23, F.y + 4]] as Cell[]) m.fixture('fixture/nature/haystack', x, y)
+  m.fixture('fixture/furniture/cart', F.x + 15, F.y + 4)
+  at(m, 'fixture/furniture/rack', [[F.x + 23, F.y + 7], [F.x + 23, F.y + 8]])
+  m.fixture('fixture/craft/workbench', F.x + 18, F.y + 8)
+  at(m, 'fixture/container/sack', [[F.x, F.y + 8], [F.x + 1, F.y + 8], [F.x, F.y + 9]])
+  at(m, 'fixture/container/barrel', [[F.x + 23, F.y + 9], [F.x + 22, F.y + 9]])
+  for (const [x, y] of [[F.x + 4, F.y + 7], [F.x + 12, F.y + 8], [F.x + 9, F.y + 9]] as Cell[]) decor(m, 'decor_straw', x, y)
+  for (const [x, y] of [[F.x + 13, F.y + 7], [F.x + 8, F.y + 8]] as Cell[]) m.creature('animal/chicken', x, y, { behaviour: 'passive', temper: 'wary', sight: 3, leash: 4 })
+  decor(m, 'decor_hay', P.loft.x, P.loft.y)
+  decor(m, 'decor_sacks', P.loft.x + 3, P.loft.y)
+  m.fixture('fixture/container/chest', P.loft.x + 7, P.loft.y)
+  glow(m, F.x + 12, F.y + 2, 18, 6, '#ffe8b0', 0.22, 'sun')
+  m.anchors = { work: [F.x + 15, F.y + 7], pen: [F.x + 6, F.y + 6] }
+  return m
+}
+
+/** The farmhouse's kitchen and parlour: the long table, the pot on the fire, the loom, the dresser, the beds through the arch. */
+export function farmhouseHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'farmhouse', `${p.id}.farmhouse`, { en: `${p.name.en} — the Farmhouse`, zh: `${p.name.zh}·农舍` }, 'floor_wood', { floors: [['hearth', 'floor_stone'], ['parlour', 'parquet']] })
+  const K = P.kitchen
+  const R = P.parlour
+  board(m, K.x + 3, K.y + 4, 6)
+  m.fixture('fixture/craft/cauldron', K.x + 5, K.y, lit)
+  decor(m, 'decor_firewood', K.x, K.y)
+  at(m, 'fixture/container/pot', [[K.x + 8, K.y], [K.x + 9, K.y]])
+  at(m, 'fixture/container/cupboard', [[K.x + 12, K.y], [K.x + 13, K.y]])
+  m.fixture('fixture/craft/loom', K.x, K.y + 4)
+  at(m, 'fixture/container/barrel', [[K.x + 13, K.y + 8], [K.x + 13, K.y + 7]])
+  at(m, 'fixture/container/sack', [[K.x, K.y + 8], [K.x + 1, K.y + 8]])
+  decor(m, 'decor_cat', K.x + 6, K.y + 1)
+  m.fixture('fixture/light/candles', K.x + 9, K.y + 3, lit)
+  at(m, 'fixture/furniture/bed', [[R.x, R.y], [R.x + 2, R.y]])
+  m.fixture('fixture/container/wardrobe', R.x + 6, R.y)
+  m.fixture('fixture/container/chest', R.x + 4, R.y)
+  m.fixture('fixture/furniture/mirror', R.x + 6, R.y + 3)
+  decor(m, 'decor_rug', R.x + 2, R.y + 4)
+  m.fixture('fixture/furniture/chair', R.x + 5, R.y + 6)
+  glow(m, K.x + 7, P.hearth.y + 2, 10, 6, '#ff8a3a', 0.45)
+  m.anchors = { hearth: [K.x + 6, K.y + 1], eat: [K.x + 10, K.y + 2], rest: [R.x + 3, R.y + 2] }
+  return m
+}
+
+/** The mill: the stones turning under their hopper, the race's water at the head, sacks of flour, the miller's scale. */
+export function millHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'mill', `${p.id}.mill`, { en: `${p.name.en} — the Watermill`, zh: `${p.name.zh}·水磨坊` }, 'floor_wood', { floors: [['race', 'water'], ['entry', 'floor_stone']] })
+  const F = P.floor
+  for (const x of [F.x + 8, F.x + 12]) decor(m, 'decor_millstone', x, F.y + 2)
+  at(m, 'fixture/craft/workbench', [[F.x + 9, F.y + 1], [F.x + 11, F.y + 1]])
+  for (const x of [F.x, F.x + 2, F.x + 16, F.x + 18]) decor(m, 'decor_sacks', x, F.y)
+  for (const [x, y] of [[F.x, F.y + 5], [F.x + 18, F.y + 6]] as Cell[]) decor(m, 'decor_sacks', x, y)
+  at(m, 'fixture/furniture/counter', span(F.x + 5, F.x + 7, F.y + 6))
+  m.fixture('fixture/furniture/cart', F.x + 15, F.y + 7)
+  at(m, 'fixture/container/barrel', [[F.x + 19, F.y + 8], [F.x, F.y + 8]])
+  for (const [x, y] of [[F.x + 4, F.y + 2], [F.x + 15, F.y + 2]] as Cell[]) m.building('crypt_pillar', x, y)
+  decor(m, 'decor_millstone', F.x + 2, F.y + 8)
+  glow(m, F.x + 10, F.y + 1, 12, 5, '#ffe8b0', 0.25, 'sun')
+  m.anchors = { stones: [F.x + 10, F.y + 4], floor: [F.x + 8, F.y + 7] }
+  return m
+}
+
+// ------------------------------------------------------------------------------------------------ Brandby Mine
+
+/** The workings: the main drift and its levels, rails and carts, timbered faces, the stopes with their ore, the flooded sump. */
+export function workingsHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'workings', `${p.id}.workings`, { en: `${p.name.en} — the Workings`, zh: `${p.name.zh}·矿道` }, 'cave_floor', { music: 'crypt', light: 'dark', floors: [['entry', 'gravel']] })
+  const M = P.main
+  for (let y = M.y; y < P.entry.y + P.entry.h; y++) decor(m, 'decor_rails_v', M.x + 1, y)
+  for (let x = P.westLow.x; x < M.x; x++) decor(m, 'decor_rails_h', x, P.westLow.y + 1)
+  for (let x = M.x + M.w; x < P.eastMid.x + P.eastMid.w; x++) decor(m, 'decor_rails_h', x, P.eastMid.y + 1)
+  for (const [x, y] of [[M.x + 1, M.y + 9], [P.eastMid.x + 9, P.eastMid.y + 1], [P.westLow.x + 9, P.westLow.y + 1]] as Cell[]) m.fixture('fixture/furniture/cart', x, y)
+  // the ore in the stopes and the cavern: veins in the rock to be worked, heaps broken out
+  for (const [T, n] of [[P.stopeW, 4], [P.stopeE, 5], [P.cavern, 4], [P.winze, 2]] as const)
+    for (let k = 0; k < n; k++) {
+      const x = T.x + ((k * 3) % T.w)
+      const y = T.y + (k % 2 ? T.h - 1 : 0)
+      m.fixture(k % 3 === 0 ? 'fixture/nature/vein/coal' : k === 4 ? 'fixture/nature/vein/gold' : 'fixture/nature/vein/iron', x, y)
+    }
+  for (const [x, y] of [[P.stopeW.x + 3, P.stopeW.y + 2], [P.stopeE.x + 3, P.stopeE.y + 3], [P.stopeE.x + 6, P.stopeE.y + 5], [P.cavern.x + 5, P.cavern.y + 3]] as Cell[]) decor(m, 'decor_ore', x, y)
+  // the sump's black water, the pump that keeps it down, the bones of what fell in
+  m.rect(P.sump.x + 1, P.sump.y + 2, 9, 3, 'water')
+  decor(m, 'decor_pump', P.sump.x + 10, P.sump.y + 1)
+  m.fixture('fixture/remains/bones', P.sump.x, P.sump.y + 5)
+  // the store at the mouth: timbers, casks, crates, the brazier the shifts warm themselves at
+  at(m, 'fixture/nature/logpile/stack', [[P.entry.x, P.entry.y], [P.entry.x, P.entry.y + 1]])
+  at(m, 'fixture/container/barrel', [[P.entry.x + 7, P.entry.y], [P.entry.x + 7, P.entry.y + 1]])
+  at(m, 'fixture/container/crate', [[P.entry.x, P.entry.y + 3]])
+  m.fixture('fixture/light/brazier', P.entry.x + 6, P.entry.y + 3, lit)
+  glow(m, P.entry.x + 6.5, P.entry.y + 3.5, 5, 4, '#ff8a3a', 0.5)
+  // lanterns along the drifts, each a pool of light in the dark
+  for (const [x, y] of [[M.x + 3, M.y + 4], [M.x + 3, M.y + 16], [P.westLow.x + 4, P.westLow.y + 2], [P.eastMid.x + 14, P.eastMid.y + 2], [P.westHigh.x + 3, P.westHigh.y + 2], [P.eastHigh.x + 10, P.eastHigh.y + 2], [P.stopeE.x + 1, P.stopeE.y + 7], [P.stopeW.x + 7, P.stopeW.y + 5]] as Cell[]) {
+    m.fixture('fixture/light/lantern', x, y, lit)
+    glow(m, x + 0.5, y + 0.5, 5, 4, '#ffb35c', 0.45)
+  }
+  m.fixture('fixture/craft/workbench', P.stopeW.x, P.stopeW.y + 5)
+  for (const [x, y] of [[P.cavern.x + 2, P.cavern.y + 1], [P.winze.x + 3, P.winze.y + 2]] as Cell[]) m.creature('beast/bat', x, y, { leash: 4 })
+  m.creature('spider', P.cavern.x + 7, P.cavern.y + 5, { leash: 3 })
+  m.anchors = { face: [M.x + 2, M.y + 12], stopeW: [P.stopeW.x + 5, P.stopeW.y + 3], stopeE: [P.stopeE.x + 3, P.stopeE.y + 1], entry: [P.entry.x + 3, P.entry.y + 2], down: [P.stopeE.x + 4, P.stopeE.y + 1], shaft: [P.winze.x + 2, P.winze.y] }
+  return m
+}
+
+/** The old works the miners broke into: a hall of pillars before a sealed gate, a forge where the rock still burns, tombs, a vault. */
+export function oldWorksHall(p: Place): MapBuilder {
+  const { m, P } = planHall(p, 'oldworks', `${p.id}.oldworks`, { en: `${p.name.en} — the Old Works`, zh: `${p.name.zh}·古代工坊` }, 'floor_stone', { music: 'crypt', light: 'dark', outside: false, floors: [['gate', 'marble'], ['way', 'runner'], ['landing', 'cave_floor']] })
+  const Hh = P.hall
+  for (const y of [Hh.y + 2, Hh.y + 7]) for (const x of [Hh.x + 2, Hh.x + 6, Hh.x + 10, Hh.x + 19, Hh.x + 23, Hh.x + 27]) m.building('crypt_pillar', x, y)
+  const fires: Cell[] = [[P.gate.x + 1, P.gate.y + 4], [P.gate.x + 8, P.gate.y + 4], [Hh.x + 13, Hh.y + 5], [Hh.x + 16, Hh.y + 5]]
+  at(m, 'fixture/light/brazier', fires, lit)
+  for (const [x, y] of fires) glow(m, x + 0.5, y + 0.5, 5, 4, '#ff7a2a', 0.5)
+  at(m, 'fixture/sacred/statue', [[Hh.x, Hh.y], [Hh.x + Hh.w - 1, Hh.y]])
+  at(m, 'fixture/remains/bones', [[Hh.x + 4, Hh.y + 9], [Hh.x + 25, Hh.y + 1], [Hh.x + 8, Hh.y + 4], [P.way.x, P.way.y + 6]])
+  // the forge: a pool of the rock still molten, the anvil, the tools of a smith no one remembers
+  m.rect(P.forge.x, P.forge.y + 2, 3, 3, 'lava')
+  m.fixture('fixture/craft/anvil', P.forge.x + 4, P.forge.y + 1)
+  m.fixture('fixture/craft/forge', P.forge.x + 4, P.forge.y, lit)
+  at(m, 'fixture/furniture/rack/arms', [[P.forge.x + 6, P.forge.y], [P.forge.x + 6, P.forge.y + 5]])
+  glow(m, P.forge.x + 2, P.forge.y + 3.5, 7, 6, '#ff5a1a', 0.6)
+  // the vault: its chests, a reliquary, gold in the wall
+  at(m, 'fixture/container/chest', [[P.vault.x, P.vault.y], [P.vault.x + 2, P.vault.y], [P.vault.x + 4, P.vault.y], [P.vault.x + 6, P.vault.y + 5]])
+  m.fixture('fixture/sacred/reliquary', P.vault.x + 3, P.vault.y + 3)
+  m.fixture('fixture/nature/vein/gold', P.vault.x + 6, P.vault.y)
+  for (const T of [P.tombW, P.tombE]) {
+    at(m, 'fixture/sacred/sarcophagus', [[T.x + 1, T.y + 1], [T.x + 5, T.y + 1]])
+    at(m, 'fixture/light/candles', [[T.x, T.y], [T.x + 7, T.y]], lit)
+    m.fixture('fixture/sacred/tomb', T.x + 3, T.y + 4, tomb('Here lie the makers. They sealed the gate and stayed behind it.', '造物者长眠于此。他们封上了门，留在了门后。'))
+    glow(m, T.x + 4, T.y + 1, 7, 4, '#ffb35c', 0.35)
+  }
+  for (const [x, y] of [[Hh.x + 4, Hh.y + 5], [Hh.x + 25, Hh.y + 5], [P.tombW.x + 4, P.tombW.y + 3]] as Cell[]) m.creature('undead/skeleton', x, y, { leash: 4 })
+  m.creature('imp/fire_imp', P.forge.x + 5, P.forge.y + 3, { leash: 3 })
+  m.anchors = { stair: [P.landing.x + 2, P.landing.y + 2], hall: [Hh.x + 15, Hh.y + 8], gate: [P.gate.x + 5, P.gate.y + 5] }
+  return m
+}
