@@ -384,6 +384,10 @@ export class Meter implements Model {
   constructor(private inner: Model) {
     this.name = inner.name
   }
+  /** What the calls so far used, as an episode or a journal entry records it. */
+  get usage(): { calls: number; input: number; output: number; cost: number } {
+    return { calls: this.calls, input: this.input, output: this.output, cost: this.cost }
+  }
   async chat(messages: ChatMessage[], opts?: ChatOptions): Promise<ModelReply> {
     this.calls++
     const t0 = Date.now()

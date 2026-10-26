@@ -376,7 +376,7 @@ export class Modder {
         const shown = library.validate(drawn).ok ? drawn : patch
         const pictured = shown.artifacts.filter((a) => a.kind === 'type' && a.type.art).length
         step({ who: 'artist', text: pictured === types.length ? 'drawn' : `${pictured} of ${types.length} drawn (the rest show their kind's picture)` })
-        return { patch: shown, diagnostics: [], ...(look && { look }), usage: usageOf(model) }
+        return { patch: shown, diagnostics: [], ...(look && { look }), usage: model.usage }
       }
       step({ who: 'engine', text: 'no draft held after three tries', problems: diagnostics.slice(-5) })
       return { patch: null, diagnostics }
@@ -418,14 +418,14 @@ export class Modder {
         const problems = kind === 'person' ? personProblems(j, ctx) : mapProblems(j, ctx)
         if (!problems.length) {
           step({ who: 'engine', text: 'its shape holds' })
-          return { draft: kind === 'map' ? settleMap(j!) : j!, diagnostics: [], usage: usageOf(model) }
+          return { draft: kind === 'map' ? settleMap(j!) : j!, diagnostics: [], usage: model.usage }
         }
         diagnostics.push(...problems)
         step({ who: 'engine', text: 'sent back to the AI', problems })
         messages.push({ role: 'assistant', content: answer }, { role: 'user', content: `The file is not yet right:\n${problems.map((p) => `- ${p}`).join('\n')}\nFix it and answer with the whole JSON object again.` })
       }
       step({ who: 'engine', text: 'no draft held after three tries', problems: diagnostics.slice(-5) })
-      return { draft: null, diagnostics, usage: usageOf(model) }
+      return { draft: null, diagnostics, usage: model.usage }
     } catch (err) {
       this.pause((err as Error).message)
       step({ who: 'engine', text: (err as Error).message })
@@ -843,7 +843,7 @@ export class Modder {
     // pictures begun for new things the episode did not ship (it failed, was covered, or found them after all):
     // still the episode's calls, waited for so their usage is counted and nothing runs on after it
     if (drawing.size) await Promise.allSettled(drawing.values())
-    ep.usage = usageOf(model)
+    ep.usage = model.usage
     ep.calls = model.log
     ep.ms = Date.now() - t0
     if (this.opts.dry) {
@@ -959,7 +959,7 @@ export class Modder {
     const reviewed = async (flags: string[]) => {
       const model = new Meter(this.backend!)
       const v = await this.review(model, req, ep.patch!, ctx, h, flags)
-      this.opts.state.note('review', { episode: ep.id, rules: ep.rules, flags, ...v, usage: usageOf(model) })
+      this.opts.state.note('review', { episode: ep.id, rules: ep.rules, flags, ...v, usage: model.usage })
       if (v.verdict === 'revise' && v.notes.length && h.revise) await this.episode(req, ws, sig, { profile: 'offline', revise: { episode: ep, notes: v.notes } })
     }
     if (reviewLater) flags.push('the reviewer before shipping gave no verdict: look at everything')
@@ -982,7 +982,7 @@ export class Modder {
           confirmed: found.confirmed.map(({ evidence: _, ...f }) => f),
           unconfirmed: found.unconfirmed.map((u) => `${u.finding.title}: ${u.why}`),
           ...(found.error && { error: found.error }),
-          usage: usageOf(model),
+          usage: model.usage,
         })
         if (!found.confirmed.length) {
           // what the sandbox reproduced but is no harm the code recognizes is not removed: a reviewer reads it
@@ -1172,7 +1172,7 @@ export class Modder {
         skill = name
       }
     }
-    state.note('reflect', { episode: cited, lessons: touched, skill, usage: usageOf(model) })
+    state.note('reflect', { episode: cited, lessons: touched, skill, usage: model.usage })
   }
 }
 
@@ -1244,9 +1244,6 @@ function replyOf(ep: Episode): ResolveReply {
 
 /** A new type's English name (its id when it has none). */
 const enName = (t: TypeDef): string => (t.name as { en?: string })?.en ?? t.id
-
-/** What a metered model spent. */
-const usageOf = (m: Meter) => ({ calls: m.calls, input: m.input, output: m.output, cost: m.cost })
 
 /** A creation's name as the waiting player reads it: one named only in English (from its id) is so in Chinese too. */
 const shownName = (n: { en: string; zh: string }) => ({ en: n.en, zh: n.zh || n.en })

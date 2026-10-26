@@ -71,5 +71,5 @@ export async function reflectAgent(ep: Episode, o: { model: Model; state: SelfSt
       skill = name
     }
   }
-  state.note('reflect', { episode: ep.id, kind: ep.kind, lessons: touched, skill, usage: { calls: model.calls, input: model.input, output: model.output, cost: model.cost } })
+  state.note('reflect', { episode: ep.id, kind: ep.kind, lessons: touched, skill, usage: model.usage })
 }

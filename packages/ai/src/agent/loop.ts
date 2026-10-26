@@ -237,7 +237,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
   if (submitted && verdict && !verdict.ok) ep.attempts.push({ phase: 'repair', errors: [`verdict: ${clip(verdict.output, 1500)}`], warnings: [] })
   const diff = existsSync(join(task.env.root, '.git')) ? await gitDiff(task.env) : undefined
   if (diff !== undefined) ep.patch = diff
-  ep.usage = { calls: model.calls, input: model.input, output: model.output, cost: model.cost }
+  ep.usage = model.usage
   ep.calls = model.log
   ep.ms = Date.now() - t0
   if (o.record !== false) {
