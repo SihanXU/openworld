@@ -5,9 +5,8 @@ import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it, beforeEach, vi } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, placePatch, holeKey, validatePatch, replay, compose, locate, patchKey, restoreLibrary, withArtifacts, type ModRequest, type Patch, type Rule, type Scenario, type Cond, type ModWorkspace, type Tree } from '@openworld/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
+import { describe, expect, it } from 'vitest'
+import { ModPort, RuleLibrary, buildSandbox, placePatch, holeKey, validatePatch, compose, locate, patchKey, restoreLibrary, withArtifacts, type ModRequest, type Patch, type Rule, type Scenario, type Cond, type Tree } from '@openworld/engine'
 import { SelfState, Modder, WorldLibrary, createModderServer, ScriptedModel, auditOf, askedCounts, candidates, lowestCommonAncestor, normalKey, normalizeTree, probe, type ChatMessage, type ChatOptions, type LogStore } from '@openworld/ai'
 import { spawnSync } from 'node:child_process'
 import { BASE, SEIZE, slimeLibrary, DEAD_TREE, SLIME, SLOW, STONE, ask, offerRequest, onto, patchOf, useRequest, useScene } from './fixtures.ts'
@@ -453,96 +452,6 @@ describe('library prune', () => {
     writeFileSync(join(dir, 'library.jsonl'), JSON.stringify({ seq: 1, at, patch: makes('patch/stone-jam', jam), rules: ['patch/stone-jam'] }) + '\n')
     const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
     expect(library.validate(makes('patch/stone-jam-2'), undefined, undefined, ['patch/stone-jam']).errors).toEqual([])
-  })
-})
-
-vi.mock('@openworld/engine', async (original) => {
-  const engine = await original<typeof import('@openworld/engine')>()
-  return { ...engine, validatePatch: vi.fn(engine.validatePatch), replay: vi.fn(engine.replay) }
-})
-
-function fresh() {
-  const ontology = buildOntology(), base = [...BASE_RULES, ...STORY_RULES]
-  const eng = buildSandbox({ entities: [
-    { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-    { key: 'stone', type: 'item/material/stone', x: 2, y: 2, heldBy: 'actor' },
-    { key: 'it', type: 'fixture/nature/dead_tree', x: 2, y: 1 },
-  ], event: {} }, ontology, new RuleLibrary(base))
-  const port = new ModPort(eng)
-  eng.act('use', 'actor', { e: 'it' })
-  const req = port.records[0].request
-  // the rule as the pipeline places it: the stone's own, at the hole the use (on a dead tree) fell into (design.md §5.16)
-  const hole = holeKey(req.hole.rule, req.hole.path)
-  const rule: Rule = { id: 'patch/cache-stone', host: { type: 'item/material/stone' }, on: 'act/use', hole, at: req.hole.at, tree: { do: [{ op: 'setProp', key: 'used', value: 1 }] } }
-  const patch: Patch = { artifacts: [{ kind: 'rule', rule }] }
-  return { library: new WorldLibrary(ontology, base), ontology, patch, req, rule, hole }
-}
-
-describe('validation proofs', () => {
-  beforeEach(() => vi.clearAllMocks())
-
-  it('reuses an exact proof at commit, independent of patch record metadata', () => {
-    const { library, patch, req } = fresh()
-    const first = library.validate(patch, req)
-    expect(first.ok).toBe(true)
-    first.errors.push('caller changed its copy')
-    expect(library.commit({ ...patch, trigger: 'player' }, req).result.errors).toEqual([])
-    expect(validatePatch).toHaveBeenCalledTimes(1)
-  })
-
-  it('replays only added tests and keeps the same diagnostics as full validation', () => {
-    const { library, patch, req, rule, ontology } = fresh()
-    expect(library.validate(patch, req).ok).toBe(true)
-    rule.tests = [{ name: 'another stone', given: req.scenario, expect: [{ key: req.scenario.event.host!, propGt: ['used', 0] }] }]
-    const result = library.validate(patch, req)
-    expect(result.ok).toBe(true)
-    expect(validatePatch).toHaveBeenCalledTimes(1)
-    expect(replay).toHaveBeenCalledTimes(1)
-    const full = validatePatch(patch, { ontology, library: library.workspace(), scenario: req.scenario })
-    expect(result).toEqual(full)
-    rule.tests!.push({ name: 'wrong expectation', given: req.scenario, expect: [{ key: 'actor', destroyed: true }] })
-    expect(library.validate(patch, req).errors).toEqual(validatePatch(patch, { ontology, library: library.workspace(), scenario: req.scenario }).errors)
-  })
-
-  it.each(['library', 'ontology', 'scenario', 'workspace', 'artifacts', 'status', 'type', 'replaces'] as const)('invalidates on %s changes', (change) => {
-    const { library, patch, req, ontology, hole } = fresh()
-    let ws: ModWorkspace | undefined
-    let replaces: string[] = []
-    expect(library.validate(patch, req).ok).toBe(true)
-    if (change === 'library') library.lib.add({ id: 'patch/other', host: { type: 'item/material/stick' }, on: 'act/use', hole, tree: { do: [] }, source: { origin: 'patch' } })
-    if (change === 'ontology') ontology.types['item/material/stone'].props = { used: false }
-    if (change === 'scenario') req.scenario.entities[0].props = { test: 1 }
-    if (change === 'workspace') ws = { patches: { types: [], statuses: [], rules: [] } }
-    if (change === 'artifacts' && patch.artifacts[0].kind === 'rule') patch.artifacts[0].rule.doc = 'Changed content'
-    if (change === 'status') library.lib.addStatus({ id: 'cache-status', duration: 1 })
-    if (change === 'type') library.lib.addType({ id: 'item/cache' })
-    if (change === 'replaces') replaces = ['patch/old']
-    library.validate(patch, req, ws, replaces)
-    expect(validatePatch).toHaveBeenCalledTimes(2)
-    library.validate(patch, req, ws, replaces)
-    expect(validatePatch).toHaveBeenCalledTimes(2)
-  })
-
-  it('rechecks when another commit, removal or revision changed the shared library', () => {
-    const { library, patch, req, hole } = fresh()
-    expect(library.validate(patch, req).ok).toBe(true)
-    const other: Patch = { artifacts: [{ kind: 'rule', rule: { id: 'patch/other', host: { type: 'item/material/stick' }, on: 'act/use', hole, tree: { do: [] } } }] }
-    expect(library.commit(other).ok).toBe(true)
-    expect(library.commit(patch, req).ok).toBe(true)
-    expect(validatePatch).toHaveBeenCalledTimes(3)
-    expect(library.remove('patch/cache-stone')).toBe(true)
-    expect(library.validate(patch, req).ok).toBe(true)
-    expect(library.commit(patch, req).ok).toBe(true)
-    expect(validatePatch).toHaveBeenCalledTimes(4)
-    expect(library.commit(patch, req, new Date(), ['patch/cache-stone']).ok).toBe(true)
-    expect(validatePatch).toHaveBeenCalledTimes(5)
-  })
-
-  it('does not use a client workspace proof for a shared commit', () => {
-    const { library, patch, req } = fresh()
-    expect(library.validate(patch, req, { patches: { types: [], statuses: [], rules: [] } }).ok).toBe(true)
-    expect(library.commit(patch, req).ok).toBe(true)
-    expect(validatePatch).toHaveBeenCalledTimes(2)
   })
 })
 

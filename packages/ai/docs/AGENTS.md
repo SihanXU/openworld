@@ -41,7 +41,7 @@ A game's own AI drivers (curriculum, evaluations, the outer loop's turns, engine
   `games/*/ai` imports `ai`. The boundaries test fails otherwise.
 - Inside the package the folders are layers, bottom up: `models`, `agent`, `checks`, `library`, `modder`,
   `service`, `player`. A folder imports only those below it (type-only imports aside), and `src/` never imports
-  `scripts/` or `test/`. `test/layout.test.ts` holds this and the top-level layout.
+  `scripts/` or `test/`. `test/package.test.ts` holds this and the top-level layout.
 - Never hard-code a provider. Tests use `ScriptedModel`.
 - An unattended agent runs commands only in a container (`agent/env.ts`, `chooseIsolation`).
 - RSI design changes (what the outer loop may change, how it is judged) are discussed with the user before they are
