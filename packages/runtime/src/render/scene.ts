@@ -188,6 +188,10 @@ export class WorldScene extends Phaser.Scene {
   /** The player's worn weapon's picture: what is swung when nothing held is a weapon (blows.ts weaponOf). */
   private mainHand?: string
   private ready = false
+  /** The scene has loaded its pictures and been made: until then a frame draws nothing (only Phaser's own loading). */
+  get loaded(): boolean {
+    return this.ready
+  }
   private pending: { map?: MapData; frames: Frame[] } = { frames: [] }
   private following?: Phaser.GameObjects.Container
   /** A boss fight under way: the camera holds still over the arena, zoomed out, until it ends. */

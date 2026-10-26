@@ -72,7 +72,8 @@ export class ClaudeCodeModel implements Model {
       // stream-json input needs stream-json output, and that needs --verbose in print mode
       ...(stream ? ['--input-format', 'stream-json', '--verbose'] : []),
     ]
-    const timeout = opts.deadlineMs ?? this.cfg.timeoutMs ?? 180_000
+    // (a deadline of 0 is the harness's "off", as the API backend reads it)
+    const timeout = opts.deadlineMs || this.cfg.timeoutMs || 180_000
     let last: unknown
     try {
       for (let i = 0; i <= (opts.retries ?? 0); i++) {

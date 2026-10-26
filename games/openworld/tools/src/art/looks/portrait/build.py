@@ -555,3 +555,10 @@ if __name__ == "__main__":
 
     gone = clean(sys.argv[2])
     print(sum(gone.values()), "stray pixels cleared")
+    # a coat's hem over the riding boots, its trousers under them (hems.py); the irises round, with their depth (eyes.py)
+    from hems import hems  # noqa: E402
+
+    print(len(hems(sys.argv[2])), "hems cut")
+    from eyes import deepen_cut  # noqa: E402
+
+    print(deepen_cut(sys.argv[2]), "face layers' irises made round and deepened")
