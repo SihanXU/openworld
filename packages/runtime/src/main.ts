@@ -10,6 +10,8 @@ import { FishingInputLatch, routeFishingEscape, routeSpaceKeyDown, type FromWork
 import { assetUrl, cssAssetUrl, registerArt } from './render/assets.ts'
 import { WorldScene } from './render/scene.ts'
 import { kvGet, kvSet } from './storage.ts'
+import { LOCAL_MODDER } from './modderProtocol.ts'
+import { OwnModel, namedModder, ownModel } from './ownModel.ts'
 import { writeSlot, type Slot } from './saves.ts'
 import { Cover } from './ui/cover.ts'
 import { DeathScreen } from './ui/death.ts'
@@ -42,6 +44,31 @@ const MODDER = PARAMS.get('modder') === 'off' ? undefined : PARAMS.get('modder')
 const scene = new WorldScene()
 const worker = newWorker()
 const send = (m: ToWorker) => worker.postMessage(m)
+
+// The modder the engine asks (docs/byok.md): a service the page names (?modder=) first; else the player's own model,
+// chosen in the options (its worker starts with the page when a model is kept in this browser); else the default
+// service (VITE_MODDER_URL, the local one in development).
+const NAMED = namedModder()
+if (!NAMED && OwnModel.kept()) ownModel.start()
+/** The modder now, as the engine's worker is told it: a port to the player's own (sent with the message), or an address ('': none). */
+function modderNow(): { modder: string } | { modderPort: MessagePort } {
+  if (NAMED) return { modder: MODDER ?? '' }
+  if (ownModel.ready) return { modderPort: ownModel.port() }
+  return { modder: MODDER ?? '' }
+}
+/** Where the modder now is (what a synced position is kept under). */
+const modderWhere = (): string => (!NAMED && ownModel.ready ? LOCAL_MODDER : (MODDER ?? '').replace(/\/+$/, ''))
+/** A game begun or loaded: the engine's worker is told the modder with it. */
+function sendInit(m: Extract<ToWorker, { t: 'init' }>): void {
+  const link = modderNow()
+  worker.postMessage({ ...m, ...link }, 'modderPort' in link ? [link.modderPort] : [])
+}
+// the player chose another model, or none: the engine asks the modder that is now (a model of the same name: nothing to tell)
+ownModel.listen((s, before) => {
+  if (NAMED || s.model === before?.model) return
+  const link = modderNow()
+  worker.postMessage({ t: 'modder', ...('modderPort' in link ? { port: link.modderPort } : { url: link.modder }) }, 'modderPort' in link ? [link.modderPort] : [])
+})
 // dev-only hook for scripted testing from the console
 // development: lsw.god() toggles the player's invulnerability (lsw.god(true) / lsw.god(false)); ?god=1 turns it on at start
 if (import.meta.env.DEV) (window as unknown as { lsw: unknown }).lsw = { send, scene, god: (on?: boolean) => send({ t: 'debug', op: 'god', on }) }
@@ -587,7 +614,7 @@ async function storeSeq(): Promise<void> {
 }
 async function librarySeq(): Promise<number | undefined> {
   const s = await kvGet<{ url: string; seq: number }>(`${libraryKey()}Seq`)
-  return s && MODDER && s.url === MODDER.replace(/\/+$/, '') ? s.seq : undefined
+  return s && s.url && s.url === modderWhere() ? s.seq : undefined
 }
 /** The save the slot started from (undefined: a new game). */
 let startingFrom: SaveData | undefined
@@ -606,7 +633,7 @@ const cover = new Cover(WORLD, {
     quietSave = true
     const library = await kvGet<LibraryData>(libraryKey())
     const base = worldBase()
-    send({ t: 'init', base, save: data?.save, library, librarySeq: await librarySeq(), modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', quality: menu.ai.quality, difficulty: game?.difficulty, start: game?.start, look: game?.look })
+    sendInit({ t: 'init', base, save: data?.save, library, librarySeq: await librarySeq(), prefetch: PARAMS.get('prefetch') === '1', quality: menu.ai.quality, difficulty: game?.difficulty, start: game?.start, look: game?.look })
   },
   tutorial: async () => {
     // its own run: nothing is saved, and the story's main line is not reached from it
@@ -616,7 +643,7 @@ const cover = new Cover(WORLD, {
     quietSave = true
     const library = await kvGet<LibraryData>(libraryKey())
     const base = worldBase()
-    send({ t: 'init', base, library, librarySeq: await librarySeq(), modder: MODDER, quality: menu.ai.quality, start: 'tutorial' })
+    sendInit({ t: 'init', base, library, librarySeq: await librarySeq(), quality: menu.ai.quality, start: 'tutorial' })
   },
   backdrop: async (s, at, look) => {
     backdropOn = true
@@ -654,7 +681,7 @@ if (playtest) {
   slot = undefined
   quietSave = true
   const scene = PARAMS.get('scene') ?? undefined
-  void (async () => send({ t: 'init', base: worldBase(), library: await kvGet<LibraryData>(libraryKey()), modder: MODDER, prefetch: PARAMS.get('prefetch') === '1', quality: menu.ai.quality, ...(at && { at }), ...(scene && { scene }) }))()
+  void (async () => sendInit({ t: 'init', base: worldBase(), library: await kvGet<LibraryData>(libraryKey()), prefetch: PARAMS.get('prefetch') === '1', quality: menu.ai.quality, ...(at && { at }), ...(scene && { scene }) }))()
 } else void cover.show()
 
 // the death screen: the world stops; rise again, load a save, or back to the title

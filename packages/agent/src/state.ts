@@ -12,10 +12,11 @@
 //   harness/CHANGELOG.md        every harness change and why
 //   journal.jsonl               append-only log of every write above
 //   snapshots/<label>/          frozen copies (benchmark checkpoints, ablations, rollback)
+//
+// The files are reached through `Files` (files.ts): a directory on disk under Node, or files in memory in a
+// browser's worker (the player's own modder, docs/byok.md), which keeps them where it likes.
 
-import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { defaultFiles, type Files } from './files.ts'
 import type { CallRecord, ChatOptions } from './model.ts'
 import { similarity } from './util.ts'
 
@@ -301,45 +302,47 @@ export class SelfState {
     readonly dir: string,
     private clock: () => Date,
     readonly ablated: Set<Ablation> = new Set(),
+    /** Where its files are (Node's disk unless another is given). */
+    readonly fs: Files = defaultFiles(),
   ) {}
 
   /** A throwaway copy (in a temp directory) to try a different harness or skill set on. */
   fork(): SelfState {
-    const to = mkdtempSync(join(tmpdir(), 'lsw-state-fork-'))
-    for (const d of ['memory', 'skills', 'harness']) cpSync(join(this.dir, d), join(to, d), { recursive: true })
-    return SelfState.open(to, this.clock, [...this.ablated])
+    const to = this.fs.tempDir('lsw-state-fork-')
+    for (const d of ['memory', 'skills', 'harness']) this.fs.copy(this.fs.join(this.dir, d), this.fs.join(to, d))
+    return SelfState.open(to, this.clock, [...this.ablated], this.fs)
   }
 
-  static open(dir: string, clock: () => Date = () => new Date(), ablate: Ablation[] = []): SelfState {
-    const s = new SelfState(dir, clock, new Set(ablate))
-    for (const d of ['memory/episodes', 'skills', 'harness', 'snapshots']) mkdirSync(join(dir, d), { recursive: true })
-    const idx = join(dir, 'memory/index.jsonl')
-    if (existsSync(idx))
-      for (const line of readFileSync(idx, 'utf8').split('\n'))
+  static open(dir: string, clock: () => Date = () => new Date(), ablate: Ablation[] = [], fs: Files = defaultFiles()): SelfState {
+    const s = new SelfState(dir, clock, new Set(ablate), fs)
+    for (const d of ['memory/episodes', 'skills', 'harness', 'snapshots']) fs.mkdir(fs.join(dir, d))
+    const idx = fs.join(dir, 'memory/index.jsonl')
+    if (fs.exists(idx))
+      for (const line of fs.read(idx).split('\n'))
         if (line.trim())
           try {
             s.index.push(JSON.parse(line))
           } catch {
             /* torn line */
           }
-    const journal = join(dir, 'journal.jsonl')
-    if (existsSync(journal))
-      for (const line of readFileSync(journal, 'utf8').split('\n'))
+    const journal = fs.join(dir, 'journal.jsonl')
+    if (fs.exists(journal))
+      for (const line of fs.read(journal).split('\n'))
         if (line.includes('"usage"'))
           try {
             s.backgroundSpend += JSON.parse(line).usage?.cost ?? 0
           } catch {
             /* torn line */
           }
-    s.lessonList = readJson(join(dir, 'memory/lessons.json'), [])
-    s.skillIndex = readJson(join(dir, 'skills/index.json'), {})
-    const h = join(dir, 'harness/pipeline.json')
-    if (existsSync(h)) s.harnessData = mergeHarness(readJson<Partial<Harness>>(h, {}))
+    s.lessonList = readJson(fs, fs.join(dir, 'memory/lessons.json'), [])
+    s.skillIndex = readJson(fs, fs.join(dir, 'skills/index.json'), {})
+    const h = fs.join(dir, 'harness/pipeline.json')
+    if (fs.exists(h)) s.harnessData = mergeHarness(readJson<Partial<Harness>>(fs, h, {}))
     else {
-      writeJson(h, s.harnessData)
-      writeFileSync(join(dir, 'harness/CHANGELOG.md'), `# Harness changelog\n\n- v1 (${s.now()}): the default pipeline.\n`)
+      writeJson(fs, h, s.harnessData)
+      fs.write(fs.join(dir, 'harness/CHANGELOG.md'), `# Harness changelog\n\n- v1 (${s.now()}): the default pipeline.\n`)
     }
-    if (!existsSync(join(dir, 'memory/lessons.md'))) s.renderLessons()
+    if (!fs.exists(fs.join(dir, 'memory/lessons.md'))) s.renderLessons()
     return s
   }
 
@@ -350,7 +353,7 @@ export class SelfState {
   /** Append to the journal (every write to the self-state goes through here). */
   note(kind: string, data: Record<string, unknown>): void {
     this.backgroundSpend += (data.usage as { cost?: number } | undefined)?.cost ?? 0
-    appendFileSync(join(this.dir, 'journal.jsonl'), JSON.stringify({ at: this.now(), kind, ...data }) + '\n')
+    this.fs.append(this.fs.join(this.dir, 'journal.jsonl'), JSON.stringify({ at: this.now(), kind, ...data }) + '\n')
   }
 
   // ---------------------------------------------------------------- harness
@@ -362,8 +365,8 @@ export class SelfState {
   setHarness(h: Harness, reason: string, by?: string): void {
     const next = { ...h, version: this.harnessData.version + 1 }
     this.harnessData = next
-    writeJson(join(this.dir, 'harness/pipeline.json'), next)
-    appendFileSync(join(this.dir, 'harness/CHANGELOG.md'), `- v${next.version} (${this.now()}${by ? `, ${by}` : ''}): ${reason}\n`)
+    writeJson(this.fs, this.fs.join(this.dir, 'harness/pipeline.json'), next)
+    this.fs.append(this.fs.join(this.dir, 'harness/CHANGELOG.md'), `- v${next.version} (${this.now()}${by ? `, ${by}` : ''}): ${reason}\n`)
     this.note('harness.set', { version: next.version, reason, by })
   }
 
@@ -375,7 +378,7 @@ export class SelfState {
   }
 
   recordEpisode(ep: Episode): void {
-    writeJson(join(this.dir, 'memory/episodes', `${ep.id}.json`), ep)
+    writeJson(this.fs, this.fs.join(this.dir, 'memory/episodes', `${ep.id}.json`), ep)
     const entry: EpisodeEntry = {
       id: ep.id,
       at: ep.at,
@@ -391,7 +394,7 @@ export class SelfState {
       ms: ep.ms,
     }
     this.index.push(entry)
-    appendFileSync(join(this.dir, 'memory/index.jsonl'), JSON.stringify(entry) + '\n')
+    this.fs.append(this.fs.join(this.dir, 'memory/index.jsonl'), JSON.stringify(entry) + '\n')
     this.note('episode', { id: ep.id, outcome: ep.outcome, rules: ep.rules })
   }
 
@@ -401,10 +404,10 @@ export class SelfState {
 
   /** Journal entries of one kind (proposals, reviews, reflections…), oldest first. */
   journalOf(kind: string): Record<string, unknown>[] {
-    const p = join(this.dir, 'journal.jsonl')
-    if (!existsSync(p)) return []
+    const p = this.fs.join(this.dir, 'journal.jsonl')
+    if (!this.fs.exists(p)) return []
     const out: Record<string, unknown>[] = []
-    for (const line of readFileSync(p, 'utf8').split('\n'))
+    for (const line of this.fs.read(p).split('\n'))
       if (line.includes(`"kind":"${kind}"`))
         try {
           out.push(JSON.parse(line))
@@ -416,16 +419,16 @@ export class SelfState {
 
   /** A small JSON document kept with the memory (e.g. the outer loop's replay sets). */
   readDoc<T>(name: string, fallback: T): T {
-    return readJson(join(this.dir, 'memory', `${safeName(name)}.json`), fallback)
+    return readJson(this.fs, this.fs.join(this.dir, 'memory', `${safeName(name)}.json`), fallback)
   }
 
   writeDoc(name: string, value: unknown): void {
-    writeJson(join(this.dir, 'memory', `${safeName(name)}.json`), value)
+    writeJson(this.fs, this.fs.join(this.dir, 'memory', `${safeName(name)}.json`), value)
   }
 
   episode(id: string): Episode | undefined {
-    const p = join(this.dir, 'memory/episodes', `${id.replace(/[^\w.-]/g, '')}.json`)
-    return existsSync(p) ? readJson<Episode | undefined>(p, undefined) : undefined
+    const p = this.fs.join(this.dir, 'memory/episodes', `${id.replace(/[^\w.-]/g, '')}.json`)
+    return this.fs.exists(p) ? readJson<Episode | undefined>(this.fs, p, undefined) : undefined
   }
 
   /** Past episodes most like these terms (cache hits excluded: nothing was learned there). */
@@ -498,7 +501,7 @@ export class SelfState {
       this.note('lesson.drop', { id, episode })
     }
     if (touched.length) {
-      writeJson(join(this.dir, 'memory/lessons.json'), this.lessonList)
+      writeJson(this.fs, this.fs.join(this.dir, 'memory/lessons.json'), this.lessonList)
       this.renderLessons()
     }
     return touched
@@ -507,7 +510,7 @@ export class SelfState {
   private renderLessons(): void {
     const lines = ['# Lessons', '', 'Distilled by the modder from its episodes. Each cites the episodes behind it.', '']
     for (const l of this.lessons()) lines.push(`- **${l.id}** ${l.text}  `, `  _terms:_ ${l.terms.join(', ') || '(general)'} · _episodes:_ ${l.episodes.join(', ')}`)
-    writeFileSync(join(this.dir, 'memory/lessons.md'), lines.join('\n') + '\n')
+    this.fs.write(this.fs.join(this.dir, 'memory/lessons.md'), lines.join('\n') + '\n')
   }
 
   // ---------------------------------------------------------------- skills
@@ -523,9 +526,9 @@ export class SelfState {
 
   readSkill(name: string): string | undefined {
     const meta = this.skillIndex[name]
-    const p = join(this.dir, 'skills', safeName(name), 'SKILL.md')
-    if (!meta || meta.status !== 'active' || !existsSync(p) || this.ablated.has('skills')) return undefined
-    return readFileSync(p, 'utf8').replace(/^---[\s\S]*?---\s*/, '')
+    const p = this.fs.join(this.dir, 'skills', safeName(name), 'SKILL.md')
+    if (!meta || meta.status !== 'active' || !this.fs.exists(p) || this.ablated.has('skills')) return undefined
+    return this.fs.read(p).replace(/^---[\s\S]*?---\s*/, '')
   }
 
   /** Write a new skill or a new version of one. */
@@ -537,12 +540,12 @@ export class SelfState {
       ? { ...prev, description: s.description, triggers: s.triggers, version: prev.version + 1, status: 'active', updated: now }
       : { name, description: s.description, triggers: s.triggers, version: 1, status: 'active', created: now, updated: now, origin: episode, uses: 0, accepted: 0, failed: 0, recent: [] }
     this.skillIndex[name] = meta
-    mkdirSync(join(this.dir, 'skills', name), { recursive: true })
+    this.fs.mkdir(this.fs.join(this.dir, 'skills', name))
     const front = ['---', `name: ${name}`, `description: ${s.description.replace(/\n/g, ' ')}`, `triggers: ${s.triggers.join(', ')}`, `version: ${meta.version}`, '---', ''].join('\n')
-    writeFileSync(join(this.dir, 'skills', name, 'SKILL.md'), front + s.body.trim() + '\n')
+    this.fs.write(this.fs.join(this.dir, 'skills', name, 'SKILL.md'), front + s.body.trim() + '\n')
     // scripts the skill runs (in the task sandbox, through the agent's run tool)
     for (const [file, code] of Object.entries(s.files ?? {}).slice(0, MAX_SKILL_FILES))
-      if (typeof code === 'string' && code.length <= MAX_SCRIPT_BYTES && safeFile(file) !== 'SKILL.md') writeFileSync(join(this.dir, 'skills', name, safeFile(file)), code)
+      if (typeof code === 'string' && code.length <= MAX_SCRIPT_BYTES && safeFile(file) !== 'SKILL.md') this.fs.write(this.fs.join(this.dir, 'skills', name, safeFile(file)), code)
     this.saveSkills()
     this.note(prev ? 'skill.revise' : 'skill.write', { name, version: meta.version, episode })
     return meta
@@ -550,23 +553,23 @@ export class SelfState {
 
   /** The files of a skill (SKILL.md and its scripts), to put into a task workspace. */
   skillFiles(name: string): Record<string, string> {
-    const d = join(this.dir, 'skills', safeName(name))
-    if (!existsSync(d) || this.ablated.has('skills')) return {}
-    return Object.fromEntries(readdirSync(d).map((f) => [f, readFileSync(join(d, f), 'utf8')]))
+    const d = this.fs.join(this.dir, 'skills', safeName(name))
+    if (!this.fs.exists(d) || this.ablated.has('skills')) return {}
+    return Object.fromEntries(this.fs.list(d).map((f) => [f, this.fs.read(this.fs.join(d, f))]))
   }
 
   // ---------------------------------------------------------------- hooks (code for its own loop)
 
   writeHook(stage: HookStage, name: string, code: string, by?: string): void {
-    const d = join(this.dir, 'harness/hooks', stage)
-    mkdirSync(d, { recursive: true })
-    writeFileSync(join(d, `${safeName(name)}.mjs`), code)
+    const d = this.fs.join(this.dir, 'harness/hooks', stage)
+    this.fs.mkdir(d)
+    this.fs.write(this.fs.join(d, `${safeName(name)}.mjs`), code)
     this.note('hook.write', { stage, name: safeName(name), by })
   }
 
   hookCode(stage: HookStage, name: string): string | undefined {
-    const p = join(this.dir, 'harness/hooks', stage, `${safeName(name)}.mjs`)
-    return existsSync(p) ? readFileSync(p, 'utf8') : undefined
+    const p = this.fs.join(this.dir, 'harness/hooks', stage, `${safeName(name)}.mjs`)
+    return this.fs.exists(p) ? this.fs.read(p) : undefined
   }
 
   /** Book an episode's outcome against the skills it read; retire skills that keep doing worse. */
@@ -593,7 +596,7 @@ export class SelfState {
   }
 
   private saveSkills(): void {
-    writeJson(join(this.dir, 'skills/index.json'), this.skillIndex)
+    writeJson(this.fs, this.fs.join(this.dir, 'skills/index.json'), this.skillIndex)
   }
 
   // ---------------------------------------------------------------- numbers, snapshots, export
@@ -629,20 +632,20 @@ export class SelfState {
   /** Freeze the whole self-state under a label (for the benchmark runs, ablations, rollback). */
   snapshot(label: string, extra: Record<string, unknown> = {}): string {
     const name = safeName(label)
-    const to = join(this.dir, 'snapshots', name)
-    if (existsSync(to)) throw new Error(`snapshot "${name}" exists`)
-    mkdirSync(to, { recursive: true })
-    for (const d of ['memory', 'skills', 'harness']) cpSync(join(this.dir, d), join(to, d), { recursive: true })
-    for (const f of ['journal.jsonl']) if (existsSync(join(this.dir, f))) cpSync(join(this.dir, f), join(to, f))
-    writeJson(join(to, 'meta.json'), { label: name, at: this.now(), stats: this.stats(), ...extra })
-    writeFileSync(join(to, 'SELF.md'), this.render())
+    const to = this.fs.join(this.dir, 'snapshots', name)
+    if (this.fs.exists(to)) throw new Error(`snapshot "${name}" exists`)
+    this.fs.mkdir(to)
+    for (const d of ['memory', 'skills', 'harness']) this.fs.copy(this.fs.join(this.dir, d), this.fs.join(to, d))
+    for (const f of ['journal.jsonl']) if (this.fs.exists(this.fs.join(this.dir, f))) this.fs.copy(this.fs.join(this.dir, f), this.fs.join(to, f))
+    writeJson(this.fs, this.fs.join(to, 'meta.json'), { label: name, at: this.now(), stats: this.stats(), ...extra })
+    this.fs.write(this.fs.join(to, 'SELF.md'), this.render())
     this.note('snapshot', { label: name })
     return to
   }
 
   snapshots(): string[] {
-    const d = join(this.dir, 'snapshots')
-    return existsSync(d) ? readdirSync(d) : []
+    const d = this.fs.join(this.dir, 'snapshots')
+    return this.fs.exists(d) ? this.fs.list(d) : []
   }
 
   /**
@@ -671,19 +674,19 @@ function mergeHarness(file: Partial<Harness>): Harness {
   return d as unknown as Harness
 }
 
-function readJson<T>(path: string, fallback: T): T {
+function readJson<T>(fs: Files, path: string, fallback: T): T {
   try {
-    return JSON.parse(readFileSync(path, 'utf8')) as T
+    return JSON.parse(fs.read(path)) as T
   } catch {
     return fallback
   }
 }
 
 /** Write via a temp file so a crash never leaves half a file. */
-function writeJson(path: string, value: unknown): void {
+function writeJson(fs: Files, path: string, value: unknown): void {
   const tmp = `${path}.tmp`
-  writeFileSync(tmp, JSON.stringify(value, null, 1) + '\n')
-  renameSync(tmp, path)
+  fs.write(tmp, JSON.stringify(value, null, 1) + '\n')
+  fs.rename(tmp, path)
 }
 
 export type HookStage = 'start' | 'presubmit'

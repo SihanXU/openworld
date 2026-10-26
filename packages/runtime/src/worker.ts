@@ -1,11 +1,12 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
 import { untilUp } from './untilUp.ts'
+import { portLink, serviceLink, type ModderLink } from './modderLink.ts'
 import { FrameEncoder } from './frameDelta.ts'
 import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
 import { adoptDefinitions, artsToSend, forgetInvalid, holdForMaking, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, LogPosition, type Kept } from './learned.ts'
-import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModProgress, type ModRequest, type Patch, type PatchLogEntry, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type ResolveReply, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look } from '@openworld/engine'
+import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModRequest, type Patch, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
 import { settleOpenQuestions, withOpenQuestions } from './saves.ts'
@@ -85,14 +86,15 @@ function buildPreview(eng: Engine, id: string, at: { map: string; x: number; y: 
   return { id, at, ok: pv.ok, reason: pv.reason, have: [pv.carried] }
 }
 
-// ------------------------------------------------------------------ the modder service
+// ------------------------------------------------------------------ the modder: a service, or the player's own
 
 const MODDER_TIMEOUT_TICKS = 150 // with a modder online, an interaction waits up to 15 s; a later patch still teaches the world
 const PROGRESS_MS = 1000 // how often a waiting request asks where it is
 const SYNC_MS = 15_000
 /** How soon a service not up yet is asked again (twice as long after each failure, up to a minute). */
 const RETRY_MS = 5_000
-let modderUrl = ''
+/** The modder asked: a service at its address, or the player's own in a worker of the page (modderLink.ts, docs/byok.md). */
+let link: ModderLink | undefined
 /** How far the shared log is synced, and the log it counts in (the service names it). */
 const synced = new LogPosition()
 let syncTimer: ReturnType<typeof setInterval> | undefined
@@ -118,14 +120,20 @@ let probe: { key: string; spot: string; ev: GameEvent; res: Resolution; ticks: n
 const prefetched = new Set<string>()
 let prefetching = false
 
-/** Probe the service; if it answers, undefined interactions go to it and the shared library syncs from it. */
-async function connectModder(url: string, since?: number, stored?: StoredLibrary): Promise<void> {
+/** Probe the modder; if it answers, undefined interactions go to it and the shared library syncs from it. */
+async function connectModder(to: ModderLink | undefined, since?: number, stored?: StoredLibrary): Promise<void> {
   if (syncTimer) clearInterval(syncTimer)
   connecting?.stop()
-  modderUrl = url.replace(/\/+$/, '')
+  link = to
   // the library restored has the log up to `since` in it already: only what came after is new (in the same log)
-  synced.begin(modderUrl, since, stored)
-  if (!modderUrl || !game) return
+  synced.begin(link?.where ?? '', since, stored)
+  if (game) {
+    // whatever answered before answers no more until this one says it can
+    game.mods.provider = undefined
+    game.mods.adopt = undefined
+    game.engine.onFault = undefined
+  }
+  if (!link || !game) return post({ t: 'modder', online: false })
   // a service not up yet (started after the page, or starting again) is asked again until it answers
   connecting = untilUp(probeModder, RETRY_MS, 60_000)
 }
@@ -133,7 +141,7 @@ async function connectModder(url: string, since?: number, stored?: StoredLibrary
 /** One probe of the service: true once it answers (or there is no game to connect any more). `live`: false once a newer connection called it off. */
 async function probeModder(live: () => boolean): Promise<boolean> {
   try {
-    const health = (await (await fetch(`${modderUrl}/health`, { signal: AbortSignal.timeout(2500) })).json()) as { model?: string | null }
+    const health = await link!.health()
     if (!game || !live()) return true
     // a service with no model answers only from the shared library, which syncs here anyway:
     // asking it would only pause the world before the default, so the default runs at once
@@ -142,20 +150,19 @@ async function probeModder(live: () => boolean): Promise<boolean> {
       // an answer to our own question wins over a learned definition kept here, as a synced one does
       game.mods.adopt = adoptAnswer
       // a learned rule set aside here is reported: the service counts, and past its bound retires the rule for everyone
-      game.engine.onFault = (rule, reason) => {
-        void fetch(`${modderUrl}/fault`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rule: rule.id, reason }), signal: AbortSignal.timeout(5000) }).catch(() => undefined)
-      }
+      const to = link!
+      game.engine.onFault = (rule, reason) => to.fault(rule.id, reason)
       game.mods.timeoutTicks = MODDER_TIMEOUT_TICKS
     }
     modderOnline = true
-    post({ t: 'modder', online: true, url: modderUrl, model: health.model })
+    post({ t: 'modder', online: true, url: link!.where, model: health.model })
     await syncLibrary()
     if (live()) syncTimer = setInterval(() => void syncLibrary(), SYNC_MS)
     return true
   } catch {
     if (!live()) return true
     modderOnline = false
-    post({ t: 'modder', online: false, url: modderUrl })
+    post({ t: 'modder', online: false, url: link?.where })
     return !game
   }
 }
@@ -173,13 +180,7 @@ async function resolveRemote(request: ModRequest): Promise<Patch | null> {
   }
   const watching = watchProgress(request.id)
   try {
-    const res = await fetch(`${modderUrl}/resolve`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(240_000),
-    })
-    const reply = (await res.json()) as ResolveReply
+    const reply = await link!.resolve(body)
     return reply.patch
   } finally {
     watching.stop()
@@ -194,7 +195,7 @@ function watchProgress(id: string): { stop: () => void } {
   let told = false
   const timer = setInterval(async () => {
     try {
-      const p = (await (await fetch(`${modderUrl}/progress?id=${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(2000) })).json()) as ModProgress
+      const p = await link!.progress(id)
       if (told || !game || (p.stage !== 'create' && p.stage !== 'art')) return
       told = true
       // (the player's own act only: a question of the world's keeps its time-out)
@@ -242,7 +243,7 @@ function noteProbe(hole: { ev: GameEvent; res: Resolution } | undefined, spot: s
 /** Ask the modder ahead of time; its patch goes through this engine's validator like any other. */
 function maybePrefetch(): void {
   const level = prefetchLevel()
-  if (!level || !probe || !modderUrl || !modderOnline || !game || !game.mods.provider || prefetching || prefetched.size >= PREFETCH[level].cap) return
+  if (!level || !probe || !link || !modderOnline || !game || !game.mods.provider || prefetching || prefetched.size >= PREFETCH[level].cap) return
   // (nor for a kind of work the setting turns off)
   if (++probe.ticks < PREFETCH[level].dwell || prefetched.has(probe.key) || game.engine.quality[categoryOf(game.engine.world, probe.ev)] === 'off') return
   prefetched.add(probe.key)
@@ -263,9 +264,9 @@ function maybePrefetch(): void {
 
 /** Pull the shared library's patch log; every patch still goes through this engine's validator. */
 async function syncLibrary(): Promise<void> {
-  if (!game || !modderUrl) return
+  if (!game || !link) return
   try {
-    const log = (await (await fetch(`${modderUrl}/patches?since=${synced.seq}`, { signal: AbortSignal.timeout(5000) })).json()) as { seq: number; log?: string; entries: PatchLogEntry[] }
+    const log = await link.patches(synced.seq)
     // (a reply this client cannot read at all is as no reply: the next sync asks again)
     if (typeof log?.seq !== 'number' || !Array.isArray(log.entries)) throw new Error('not a patch log')
     // another log than the one we were in (the service started anew: it names another, or it is shorter than where we were): sync it from the start
@@ -274,7 +275,7 @@ async function syncLibrary(): Promise<void> {
     const before = lib.version
     // each entry on its own: one this client cannot read or take is passed over, and the position moves past it
     takeLogEntries(game.engine, game.mods, kept, log.entries)
-    if (log.seq !== synced.seq) post({ t: 'synced', url: modderUrl, seq: log.seq, changed: lib.version !== before })
+    if (log.seq !== synced.seq) post({ t: 'synced', url: link.where, seq: log.seq, changed: lib.version !== before })
     // a log named anew: the library is stored again, with it
     if (synced.advance(log)) post({ t: 'library', library: storedLibrary(), statuses: lib.statuses })
     if (lib.version !== before) sendRecords()
@@ -790,7 +791,9 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   recipesSent = '\0'
   sendRecipes()
   sendRecords()
-  void connectModder(init.modder ?? modderUrl, init.library ? init.librarySeq : 0, init.library)
+  // a modder named anew (the player's own, over a port of its own; a service's address), or the one asked before
+  const to = init.modderPort ? portLink(init.modderPort) : init.modder !== undefined ? (init.modder ? serviceLink(init.modder) : undefined) : link
+  void connectModder(to, init.library ? init.librarySeq : 0, init.library)
   if (timer) clearInterval(timer)
   timer = setInterval(() => {
     try {
@@ -1058,6 +1061,10 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       case 'pause':
         paused = m.on
+        break
+      case 'modder':
+        // the player chose another modder (their own model in the settings, or none): asked from now on
+        void connectModder(m.port ? portLink(m.port) : m.url ? serviceLink(m.url) : undefined)
         break
       case 'quality':
         // a change of setting holds from the next event: its tier asks, and takes the answers it reaches

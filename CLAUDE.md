@@ -36,7 +36,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 
 - **The engine side imports no game** (docs/engine-split.md S1): `games/*` may import `packages/*`, never
   the reverse, and no game imports another; among the packages, engine ← modules ← runtime, engine ← stdlib ←
-  format, modules ← modder → agent. `packages/engine/test/boundaries.test.ts` holds it. A game is handed over instead: the engine's
+  format, modules ← modder → agent, runtime → modder (the player's own, in a worker; what a browser runs of them reaches
+  no Node module). `packages/engine/test/boundaries.test.ts` holds it. A game is handed over instead: the engine's
   `GameDef` (`gamedef.ts`: ontology, base rules, terrain characters) to the modder (`openModder({ game })`,
   `--game <module>`), and the runtime's `ClientGame` (`runtime/src/game.ts`: `useGame()`, read through
   `game()` and never at a module's top level) to the runtime by the game's own entries.
@@ -190,7 +191,11 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   `useWorker`; where a game's assets, world and saves are; `hasModule`: a module's panels show only where the game
   uses it); `bundle.ts` a bundle by URL → the game, and its plugins; `play/` the engine's player, no game in its
   build (`?game=<url>`, `npm run play`, `npm run build:player`); `main.ts` the page and `worker.ts` the engine thread, each loaded by a game's entry;
-  `worker.ts` runs the engine at 10 ticks/s (+ the action prompt);
+  `worker.ts` runs the engine at 10 ticks/s (+ the action prompt); the player's own modder (docs/byok.md):
+  `modderLink.ts` how the engine's worker asks a modder (a service over HTTP, or the player's own over a port),
+  `ownModel.ts` the page's side, `modderWorker.ts` + `localModder.ts` the worker that runs the modder's live pipeline
+  on the player's own key (kept in this browser, sent to the service chosen only), `ui/modelSettings.ts` Options →
+  Your model;
   `frameDelta.ts` frames as what changed (the page puts them back together), `render/scene.ts` renders snapshots with the Ninja Adventure pack (`render/depth.ts` the draw order; `render/pieces.ts` a building's picture cut into pieces bound to its walls — cracked, burnt, gone as the frame tells them (docs/building.md §10); `render/worldfilter.ts` the world filter a game's `worldFilter` asks for — its grade, ink, paper and hatching — the options' strength, and the signal camera that keeps telegraphs above it); `audio/` the music and the ambience (docs/music.md: `music.ts` the director — the title's, a scene's `music` command, a boss by kind and phase, a fight held past its end, the place's mood by the hour and the weather, its piece held and taken up again, rests in the wilds, every piece at one loudness from the catalogue's measured `loudness` —, `cues.ts` the cues' versions, `ambience.ts` the world's sounds made as it plays, `soundscape.ts` their buses at the player's levels); `assets/figure/` draws looks
   (docs/looks.md): the 24x36 map sprite: the bases and their walk (`bases.ts`: the man, the woman, the child), and frame by frame the outfit and what is worn (`baseoutfit.ts`), the head's parts (`basehead.ts`) and the hair (`basehair.ts`), drawn over ComfyUI drafts (`tools/src/art/looks/sprite/`), the legs and shoes laid on as colour (`basefeet.ts`); the full-body portrait (a dark-fairy-tale line style, every body its own face; its bust in the dialogue box, the whole figure in the creator) from the cut layers in
   `public/assets/lsw/Looks/portrait`, both repainted from the look's colours; `ui/creator.ts` the new game's character creator; a person's own portrait in place of their look's bust (the catalogue's `portraits`, `hud.ts` blinking and speaking); `assets/types.ts` the catalogue's
@@ -227,7 +232,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   pages are shown with a banner, never fail the check), `wiki/en/site.json` the navigation's headings, `wiki/en/terms.json`
   the term table. A link or template argument may name a page in Chinese in an English page: it resolves to the English page
   (`relink` rewrites it); templates have English names too (`TEMPLATE_EN`).
-- `packages/agent` — the SWE-style agent and its self-state, task-agnostic (no engine, no content):
+- `packages/agent` — the SWE-style agent and its self-state, task-agnostic (no engine, no content); `core.ts` what
+  runs anywhere, a browser's worker too (the model, `providers.ts` + `providerList.ts` the services a player brings a
+  key for, the self-state over `files.ts` — the disk or `MemFiles` —, reflection), `index.ts` Node's (`model-node.ts`
+  Claude Code and the environment, the disk, the loop, the benchmark):
   `model.ts` (OpenAI-compatible / scripted / `anthropic.ts` Anthropic's API; `LSW_MODEL_PIN` freezes the provider for an experiment; `LSW_NO_ANTHROPIC=1`
   makes the claude-code backend and `anthropic/*` models refuse on a machine),
   `state.ts` (memory, skills + scripts, harness, hooks, journal, snapshots, ablations), `env.ts` (local /
@@ -264,6 +272,8 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   - `state.ts`: the self-state — memory, skills, harness, journal, snapshots.
   - `server.ts`, `cli.ts`: the HTTP API and the command line.
   - `repo.ts`, `validate-cli.ts`: a world request as a repository for the agent (the offline profile).
+  - `browser.ts`: what runs in a browser (the live pipeline over a library in memory, docs/byok.md); `index.ts` adds
+    Node's: the library's log in a file (`library-file.ts`), the offline profile's repo agent (`offline.ts`), the service.
   - The offline driver is `games/openworld/tools/src/curriculum.ts`; engine tasks (hidden fail-to-pass tests) are
     `games/openworld/tools/src/engine-tasks.ts` + `games/openworld/tools/tasks/engine/<id>/`; the ladder — this
   repository's own commits as fail-to-pass tasks at their parents — is `games/openworld/tools/src/ladder.ts` +
@@ -274,6 +284,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - Game mechanics are designed reference-first: read how Elin (installed; decompile
   `Elin_Data/Managed/Elin.dll` with `ilspycmd` into the scratchpad) and other games built it,
   then adapt to our principles; invent only where no game has a model.
+- A published game asks the player's own model (docs/byok.md): chosen in Options → Your model, the key kept in the
+  player's browser and sent to that service only, never to the game's server. The service below is for development,
+  the editor and the experiments.
 - The model is Kimi K3 via OpenRouter, with the key in the gitignored `.env`. Anthropic, Google and OpenAI
   return 403 from here. Never hard-code a provider; tests use `ScriptedModel`. A second backend,
   `claude-code`, calls `claude -p` signed in as the user (Opus 5.5, effort low by default — the least: a call asking for

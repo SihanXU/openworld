@@ -58,4 +58,4 @@ export function coarseTerms(sig: Signature): string[] {
   })
 }
 
-export { similarity } from '@openworld/agent'
+export { similarity } from '@openworld/agent/src/core.ts'
