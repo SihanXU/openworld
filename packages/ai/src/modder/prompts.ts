@@ -4,17 +4,18 @@
 // the model can use: the brief replaces the rules the request carries, and the scenario (the
 // harness replays it) is left out.
 
-import type { DraftContext } from './drafts.ts'
+import type { DraftContext, DraftKind } from './drafts.ts'
 import type { ModRequest, ModSpec, Patch, Rule, StatusDef, TypeDef } from '@openworld/engine'
 import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '../agent/state.ts'
-type Episode = AgentEpisode<ModRequest, Patch>
 import { compactRule } from './tools.ts'
+
+type Episode = AgentEpisode<ModRequest, Patch>
 
 /**
  * The router (pipeline.ts): the design sees only the request's own types; what lies beyond them it
  * asks for by name, and the harness finds it in the catalogue or has it created.
  */
-export const ROUTER_RULES = [
+const ROUTER_RULES = [
   '',
   'Things beyond this request:',
   '- The ModSpec lists no types. You know the types of the request (its roles, their parents and the directories they sit in, in the brief) and those named by the rules shown. Name no other type id from memory.',
@@ -76,7 +77,7 @@ export interface Recall {
 }
 
 /** The request as the model reads it: no scenario (the harness replays it), no setting (the harness works it); with a brief, no rules (the brief has them). */
-export function requestView(req: ModRequest, brief: boolean): Omit<ModRequest, 'scenario'> {
+function requestView(req: ModRequest, brief: boolean): Omit<ModRequest, 'scenario'> {
   const { scenario: _s, tier: _t, create: _c, ...rest } = req
   return brief ? { ...rest, context: { ...rest.context, rules: [] } } : rest
 }
@@ -124,7 +125,7 @@ export function revisionUser(current: Patch, notes: string[]): string {
     ...notes.map((n) => `- ${n}`),
     '',
     'Write the replacement patch. It replaces these rules (you may reuse their ids) and must still answer the request above.',
-    ...current.artifacts.filter((a) => a.kind === 'rule').map((a) => JSON.stringify(a.kind === 'rule' ? { ...a.rule, tests: undefined } : a)),
+    ...current.artifacts.flatMap((a) => (a.kind === 'rule' ? [JSON.stringify({ ...a.rule, tests: undefined })] : [])),
   ].join('\n')
 }
 
@@ -196,7 +197,7 @@ export function auditRepairUser(notes: string[]): string {
 }
 
 export function reviewUser(req: ModRequest, patch: Patch, outcome: string, neighbours: Rule[], flags: string[] = []): string {
-  const rules = patch.artifacts.filter((a) => a.kind === 'rule').map((a) => (a.kind === 'rule' ? a.rule : undefined)!)
+  const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule] : []))
   const ent = (r: string, e?: { name: string; type: string; tags: string[]; statuses: string[] }) => (e ? `${r}: ${e.name} (${e.type}) tags=${e.tags.join(',')} statuses=${e.statuses.join(',')}` : `${r}: none`)
   return [
     `# What happened (${req.origin === 'player' ? 'the player\'s act' : 'the world by itself'})\n${req.summary}`,
@@ -259,7 +260,7 @@ export function reflectUser(eps: Episode | Episode[], coarse: string[], lessons:
 }
 
 function episodeSection(ep: Episode, coarse?: string[]): string[] {
-  const rules = (ep.patch?.artifacts ?? []).filter((a) => a.kind === 'rule').map((a) => (a.kind === 'rule' ? compactRule(a.rule) : ''))
+  const rules = (ep.patch?.artifacts ?? []).flatMap((a) => (a.kind === 'rule' ? [compactRule(a.rule)] : []))
   return [
     `# Episode ${ep.id}: ${ep.summary}`,
     `outcome: ${ep.outcome} after ${ep.attempts.length} attempt(s), ${ep.usage.calls} model call(s)`,
@@ -386,7 +387,7 @@ export function thingUser(intent: string, o: { catalogue: string; materials: str
 export const DRAFT_SYSTEM = 'You draft content for a 2D JRPG world whose state is data, at the request of the game\'s author: one file of the game, in its exact form. You answer with JSON only.'
 
 /** The author asks for a person or a map in a sentence: one file of the game, in the form of the sample, made of what the game has. */
-export function draftUser(kind: 'person' | 'map', intent: string, ctx: DraftContext): string {
+export function draftUser(kind: DraftKind, intent: string, ctx: DraftContext): string {
   const lang = ctx.lang ? `Write its words (names, lines) in ${ctx.lang}.` : ''
   if (kind === 'person')
     return [
@@ -434,7 +435,7 @@ export function reviseDraftUser(previous: unknown, feedback: string): string {
 export const ART_SYSTEM = 'You are a pixel artist for the 16x16 icon pack of a JRPG. You answer with JSON only.'
 
 /** Two icons of the pack as character grids, for the style: outline, tones, light. */
-export const ART_REFERENCES: { name: string; grid: string[]; palette: Record<string, string> }[] = [
+const ART_REFERENCES: { name: string; grid: string[]; palette: Record<string, string> }[] = [
   {
     name: 'Stone (item/material/stone)',
     grid: ['.......kk.......', '....kkkaak......', '..kkaabaaakkk...', '.kaaaaababbbbk..', 'kaaaaaaabaabbbk.', 'kaaaaaabaabbcck.', 'kaaaaaabaabccck.', 'kaaaaabcbbcccck.', '.kaaaaccccccck..', '.kaabbbbdccck...', '..kbaaaabdck....', '.kaaaaaabck..kk.', '.kaaaaabcck.kcck', '..kkbbbccck.kcck', '....kkccck...kk.', '......kkk.......'],

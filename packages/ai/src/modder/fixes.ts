@@ -88,8 +88,6 @@ function flatEffects(t: Tree, id: string, fixes: string[]): Tree {
   return n ? { ...t, do: effects } : t
 }
 
-export { placePatch } from '@openworld/engine'
-
 /**
  * A selector naming a terrain by its bare id (`{type: "bush"}`) means the tile type `tile/bush`:
  * qualify it, in the host and in every `is` condition, when no type of that name exists.
@@ -143,19 +141,10 @@ function toolsOf(made: { patch: Patch; fixes: string[] }, onto: Ontology): { pat
   const types = new Map(patch.artifacts.flatMap((a) => (a?.kind === 'type' && a.type?.id ? [[a.type.id, a.type]] : [])))
   const needs = new Map<string, Set<string>>()
   const targetOf = (c: Cond): string | undefined => (c && typeof c === 'object' && 'is' in c && c.is?.role === 'target' && typeof c.is.sel?.type === 'string' ? c.is.sel.type : undefined)
-  const walk = (t: Tree, path: Cond[]): void => {
-    if (!t || typeof t !== 'object') return
-    if ('if' in t) {
-      const c = t.if as Cond | null
-      const here = c && typeof c === 'object' && 'all' in c && Array.isArray(c.all) ? c.all : [c as Cond]
-      walk(t.then, [...path, ...here])
-      if (t.else !== undefined) walk(t.else, path)
-      return
-    }
-    if (!('do' in t) || !Array.isArray(t.do)) return
-    for (const e of t.do) {
+  const visit = (effects: Effect[], path: Cond[]): void => {
+    for (const e of effects) {
       if (!e || typeof e !== 'object') continue
-      const id = e.op === 'spawn' ? e.type : e.op === 'transform' ? e.into : undefined
+      const id = madeBy(e)
       const type = typeof id === 'string' ? types.get(id) : undefined
       if (!type) continue
       for (const target of path.map(targetOf)) {
@@ -165,7 +154,7 @@ function toolsOf(made: { patch: Patch; fixes: string[] }, onto: Ontology): { pat
       }
     }
   }
-  for (const a of patch.artifacts) if (a?.kind === 'rule' && a.rule?.tree) walk(a.rule.tree, [])
+  for (const a of patch.artifacts) if (a?.kind === 'rule' && a.rule?.tree) branches(a.rule.tree, visit)
   if (!needs.size) return made
   const index = new OntologyIndex({ ...onto, types: { ...onto.types, ...Object.fromEntries(types) } })
   const artifacts = patch.artifacts.map((a) => {
@@ -189,6 +178,22 @@ function toolsOf(made: { patch: Patch; fixes: string[] }, onto: Ontology): { pat
   return { patch: { ...patch, artifacts }, fixes }
 }
 
+/** Each `do` leaf of a tree with the conditions on its way there (an `all` read as its parts; an `else` adds none). */
+function branches(t: Tree, visit: (effects: Effect[], path: Cond[]) => void, path: Cond[] = []): void {
+  if (!t || typeof t !== 'object') return
+  if ('if' in t) {
+    const c = t.if as Cond | null
+    const here = c && typeof c === 'object' && 'all' in c && Array.isArray(c.all) ? c.all : [c as Cond]
+    branches(t.then, visit, [...path, ...here])
+    if (t.else !== undefined) branches(t.else, visit, path)
+    return
+  }
+  if ('do' in t && Array.isArray(t.do)) visit(t.do, path)
+}
+
+/** The type an effect makes: a spawn's, or what a transform turns its host into. */
+const madeBy = (e: Effect): unknown => (e.op === 'spawn' ? e.type : e.op === 'transform' ? e.into : undefined)
+
 /** A condition that holds only by chance (at any depth). */
 function byChance(c: Cond): boolean {
   if (!c || typeof c !== 'object') return false
@@ -211,22 +216,13 @@ function stationsOf(patch: Patch, onto: Ontology): { patch: Patch; fixes: string
   }
   const found = new Map<string, string>()
   const counts = new Map<string, number>()
-  const walk = (t: Tree, path: Cond[]): void => {
-    if (!t || typeof t !== 'object') return
-    if ('if' in t) {
-      const c = t.if as Cond | null
-      const here = c && typeof c === 'object' && 'all' in c && Array.isArray(c.all) ? c.all : [c as Cond]
-      walk(t.then, [...path, ...here])
-      if (t.else !== undefined) walk(t.else, path)
-      return
-    }
-    if (!('do' in t) || !Array.isArray(t.do)) return
+  const visit = (effects: Effect[], path: Cond[]): void => {
     const station = path.map(stationOf).find(Boolean)
     // a branch taken only by chance (one strike in ten at the anvil) is no craft: a recipe never fails
     if (!station || path.some(byChance)) return
-    for (const e of t.do) {
+    for (const e of effects) {
       if (!e || typeof e !== 'object') continue
-      const id = e.op === 'spawn' ? e.type : e.op === 'transform' ? e.into : undefined
+      const id = madeBy(e)
       if (typeof id !== 'string' || !open.has(id) || found.has(id)) continue
       found.set(id, station)
       // what the rule makes at once, the recipe makes too (a bolt cut into two bandages)
@@ -234,7 +230,7 @@ function stationsOf(patch: Patch, onto: Ontology): { patch: Patch; fixes: string
       if (n > 1) counts.set(id, n)
     }
   }
-  for (const a of patch.artifacts) if (a.kind === 'rule' && a.rule?.tree) walk(a.rule.tree, [])
+  for (const a of patch.artifacts) if (a.kind === 'rule' && a.rule?.tree) branches(a.rule.tree, visit)
   if (!found.size) return { patch, fixes }
   const artifacts = patch.artifacts.map((a) => {
     if (a?.kind !== 'type' || !a.type?.id || !found.has(a.type.id)) return a

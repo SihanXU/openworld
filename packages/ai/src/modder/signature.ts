@@ -11,7 +11,6 @@ export interface Signature {
   terms: string[]
 }
 
-
 function roleTerms(role: string, e: EntityInfo | undefined): string[] {
   if (!e) return [`${role}:none`]
   const out = new Set<string>()
@@ -57,5 +56,3 @@ export function coarseTerms(sig: Signature): string[] {
     return !!m && m[2].split('/').length <= 2
   })
 }
-
-export { similarity } from '../util.ts'
