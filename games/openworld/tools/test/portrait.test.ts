@@ -459,6 +459,23 @@ describe('the portrait layers (tools/src/art/looks/portrait/clean.py)', () => {
     expect(bad).toEqual([])
   })
 
+  it("a hat sits on the skull: its crown at the head's top whatever hair is chosen, and the hair under it", () => {
+    const bad: string[] = []
+    for (const [pid, bodies] of Object.entries(manifest.parts)) {
+      if (!pid.startsWith('hat.')) continue
+      for (const [body, p] of Object.entries(bodies)) {
+        const fr = frames[body]
+        const head = fr.neck - fr.top
+        const crown = Math.min(...p.layers.map((l) => l.y))
+        // a cap or a helm sits on the head: its crown within a fifth of a head of the skull's top (a straw hat's a little higher)
+        if (Math.abs(crown - fr.top) > 0.2 * head) bad.push(`${pid} on the ${body}: crown at row ${crown}, the skull's top at ${fr.top}`)
+        // a hat that covers the hair says so (the composer puts the hair under it)
+        if (['hat.cap', 'hat.helm', 'hat.hood', 'hat.straw', 'hat.kerchief'].includes(pid) && !p.covers) bad.push(`${pid} on the ${body} does not cover the hair`)
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
   it('hair on the body hangs from the head: no piece of it is drawn over what is worn (long hair behind an arm is behind the body)', { timeout: 120_000 }, () => {
     const bad: string[] = []
     for (const g of groups) {

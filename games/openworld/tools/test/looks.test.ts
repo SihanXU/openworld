@@ -200,6 +200,32 @@ describe('the portrait', () => {
     expect(top({ body: 'man', parts: { outfit: 'outfit.travel' }, colors: {} })).toEqual([0, 0, 0])
   })
 
+  it('a covering hat: the hair is under it above its brim, beside it too, and comes out from under it below', () => {
+    // a 40x20 canvas: hair (blue) everywhere; a cap (red) at columns 15..24, rows 0..5 (its brim at row 5)
+    const fill = (w: number, h: number, rgb: number[]): LayerPixels => {
+      const paint = new Uint8Array(w * h * 4)
+      const value = new Uint8Array(w * h * 4)
+      for (let i = 0; i < w * h; i++) (paint.set([...rgb, 255], i * 4), value.set([180, 0, 0, 255], i * 4))
+      return { paint, value }
+    }
+    const px: Record<string, LayerPixels> = { hair: fill(40, 20, [0, 0, 255]), cap: fill(10, 6, [255, 0, 0]) }
+    const at = (file: string, x: number, y: number, w: number, h: number, z: string) => ({ file, x, y, w, h, z, zones: [] })
+    const m: PortraitManifest = {
+      w: 40,
+      h: 20,
+      bodies: { man: { layers: [], bust: { x: 0, y: 0, w: 20, h: 20 } } },
+      parts: { 'hair.messy': { man: { layers: [at('hair', 0, 0, 40, 20, 'hair')] } }, 'hat.cap': { man: { layers: [at('cap', 15, 0, 10, 6, 'hat')], covers: true } } },
+    }
+    const fig = composePortrait(m, { body: 'man', parts: { hair: 'hair.messy', hat: 'hat.cap' }, colors: {} }, undefined, (f) => px[f])
+    const a = (x: number, y: number) => fig[(y * 40 + x) * 4 + 3]
+    expect(a(20, 2), 'the cap').toBe(255)
+    expect(fig[(2 * 40 + 20) * 4], 'the cap is red').toBe(255)
+    expect(a(13, 3), 'hair beside the cap, above its brim: under it').toBe(0)
+    expect(a(13, 12), 'hair beside the cap, well below its brim: shown').toBe(255)
+    expect(a(2, 12), 'hair far out, above the line sloping down from the brim: under the cap').toBe(0)
+    expect(a(10, 19), 'beside the cap and low, below that line: shown').toBe(255)
+  })
+
   it('an enclosing boot: below its rim only the boot and what falls over it show; the leg shows in its opening', () => {
     // a 40x20 canvas: trousers (blue) the full width from row 4 down; a boot (green) at columns 10..19 from row 10, its
     // middle open from row 10 to 12 (columns 12..17); a coat's hem (red) over the shoes at columns 30..34

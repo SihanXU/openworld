@@ -194,6 +194,11 @@ the map and in the portrait is the same colour by construction.
   figure's pale fringe showed there as specks). Long hair seen between an arm and the waist — a piece that does not
   reach the head — is moved behind the body: cut into the hair on the body, it was drawn over what is worn, gold
   flames on a coat at both hips.
+- **Under a hat** (2026-10-26): a covering hat (`covers`: the cap, the straw hat, the helm, the hood, the kerchief) sits
+  on the skull, the same size and place whatever hair is chosen (`portrait.test.ts`: its crown at the head's top). The
+  hair is under it above its brim, and beside it above a line sloping down from the brim's ends (portrait.ts
+  `HAT_SLOPE`): spikes, waves and a bun no longer stick out round the hat (it read as perched on the hair); below that
+  line the hair falls out from under the hat, widening as it goes down.
 - **What falls over the shoes** (`hems.py`, run by `build.py`; 2026-10-26): the stack is body < legs < outfit < shoes,
   so stockings and trousers go into the boots. But an outfit layer is everything its wearer has on — a coat or a
   cloak and the trousers under it, a dress, a robe with a stole — and a whole part put over the shoes (`above`) drew a

@@ -61,6 +61,8 @@ export const LAYER_Z = ['hairBack', 'body', 'legs', 'outfit', 'shoes', 'armour',
 const zOf = (z: string) => LAYER_Z.indexOf(z as (typeof LAYER_Z)[number])
 /** How far either side of an enclosing boot's box what goes into it is hidden (a trouser leg wider than the shaft). */
 const BOOT_MARGIN = 8
+/** How steeply hair beside a covering hat comes out from under its brim (rows down per column away from the hat). */
+const HAT_SLOPE = 1.5
 
 /** A decoded layer: the paint and the value map, both RGBA of the layer's box. */
 export interface LayerPixels {
@@ -203,6 +205,24 @@ export function composePortrait(m: PortraitManifest, look: Look, mood: Mood | un
           under[l.x + x] = Math.max(under[l.x + x], l.y + y)
           break
         }
+  }
+  // and beside it a line sloping down from its brim's ends: hair wider than the hat (spikes, waves, a bun) is under it
+  // above that line, and below it falls out from under the hat, widening as it goes down (the sideburns, what falls to
+  // the shoulders) — else it stuck out round the hat and the hat sat perched on the hair rather than on the head
+  let first = -1
+  let last = -1
+  for (let x = 0; x < S; x++) if (under[x] >= 0) ((first = first < 0 ? x : first), (last = x))
+  if (first >= 0) {
+    for (let x = 0; x < first; x++) under[x] = under[first] + Math.round((first - x) * HAT_SLOPE)
+    for (let x = last + 1; x < S; x++) under[x] = under[last] + Math.round((x - last) * HAT_SLOPE)
+    for (let x = first; x <= last; x++)
+      if (under[x] < 0) {
+        let l = x
+        while (under[l] < 0) l--
+        let r = x
+        while (under[r] < 0) r++
+        under[x] = Math.max(under[l], under[r])
+      }
   }
   // enclosing boots: what is drawn under them, below their rim and outside their outline, is in the boot
   const boot = bootMask(parts, get, S, SH)
