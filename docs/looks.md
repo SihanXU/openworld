@@ -148,6 +148,15 @@ the map and in the portrait is the same colour by construction.
   zones by hue (key hues, the skin's hue band, grey for hair and brows);
   lines take their neighbour's zone (coloured lineart); values anchored at the zone's median with a bounded gain
   (skin uses one mapping for every layer, so no seams).
+- **The children** (2026-10-26). The girl's base was the woman's edited small, and the boy's the girl's: a woman's
+  lashes and long eyes on a round head too big for a thin neck — the user found them frightening ("太他妈恐怖了").
+  Four directions were drawn (a natural child, an older child, chibi, a picture-book child; the trial's sheets); the
+  user chose the natural child. Its drawings (`parts.py` `kid_trial_jobs`: a child's own face, eyes only a little larger
+  than an adult's, few lashes, no eyeliner) come at full frame height whatever the model is told, so `childbase.py`
+  scales each to 0.74, its soles on the adults' line and the figure alone on the adults' ground. A child's size
+  reference is its base itself. All the children's parts were drawn again on the new bases (faces and moods held to
+  their eyes; the surprised ones transplanted); the smock is a sleeved, belted smock now (it came out as a second
+  pinafore), and its belt is colour 3.
 - **The face layer is the whole face** (2026-10-25). It was what each picture changed, a ragged shape with holes, and
   its edges showed under hair as a box round the eyes, specks and seams ("不就是个图层叠上去的问题吗"). Every face is
   drawn from its body's size reference, so the face is always in one place: the layer is the face inside the head's
@@ -180,7 +189,25 @@ the map and in the portrait is the same colour by construction.
   strokes (a face, freckles, age, stubble, glasses, thinning hair) keep their band and stay off the eyes. The
   numbers are `clean.json`; `tools/test/portrait.test.ts` holds every layer to them (and the paint and the value
   map to the same coverage). A hairstyle's and a beard's pinholes (a dropped light streak, the face showing through
-  as a speck) are closed over front and back as one, and their lone grey or red dots take the hair's zone. Before and after: `docs/figures/portrait-clean.png` (`looks/pair.ts`).
+  as a speck) are closed over front and back as one, and their lone grey or red dots take the hair's zone. Where the
+  hair on the body and the hair behind it meet over the body's outline, the gap between them is covered (the bald
+  figure's pale fringe showed there as specks). Long hair seen between an arm and the waist — a piece that does not
+  reach the head — is moved behind the body: cut into the hair on the body, it was drawn over what is worn, gold
+  flames on a coat at both hips.
+- **Under a hat** (2026-10-26): a covering hat (`covers`: the cap, the straw hat, the helm, the hood, the kerchief) sits
+  on the skull, the same size and place whatever hair is chosen (`portrait.test.ts`: its crown at the head's top). The
+  hair is under it above its brim, and beside it above a line sloping down from the brim's ends (portrait.ts
+  `HAT_SLOPE`): spikes, waves and a bun no longer stick out round the hat (it read as perched on the hair); below that
+  line the hair falls out from under the hat, widening as it goes down.
+- **What falls over the shoes** (`hems.py`, run by `build.py`; 2026-10-26): the stack is body < legs < outfit < shoes,
+  so stockings and trousers go into the boots. But an outfit layer is everything its wearer has on — a coat or a
+  cloak and the trousers under it, a dress, a robe with a stole — and a whole part put over the shoes (`above`) drew a
+  long cloak's trousers over the riding boots, while one left under them drew the boots over a coat's skirt. So every
+  outfit is cut from the highest row a shoe of its body reaches: its cloth (zone 1) and every other coloured piece
+  that ends above the ankle (a stole, an apron), with their ink, are a layer of their own drawn over the shoes
+  (`<file>.hem`, the layer's `above`: `PortraitLayer.above` in the runtime); what reaches the ankle in another colour
+  (the trousers) stays under them. No list of garments; legwear is never over the shoes. `portrait.test.ts` holds the
+  order for every outfit × shoes on every body.
 - **Review**: `npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]` composes everyone with the client's
   own code; `review.ts out.png --parts [k]` every part alone on each body in loud colours on a dark ground
   (`out-<body>.png`), where a stray pixel shows. `batch.py` runs the jobs (resumable; a job waits for the picture it edits).

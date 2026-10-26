@@ -41,7 +41,10 @@ CHILD_BODY = ("a small child's body much shorter than an adult's, about four and
 
 
 def base_jobs() -> list[dict]:
-    """The four bases: the woman's and the man's cleaned of their ground, the girl's from her, the boy's from the girl."""
+    """The four bases: the woman's and the man's cleaned of their ground. The children's are no longer edits of the
+    woman's (2026-10-26: a woman's eyes and lashes on a child's round head were frightening): they are the trial's
+    "natural child" drawings the user chose (`kid_trial_jobs`), each at full frame height, scaled to the child's height
+    on the adults' ground by childbase.py. The jobs below are the first library's and stay for its record."""
     j = [
         {"out": "lib/base-woman.png", "edit": "lib/base-woman-raw.png", "seed": 1,
          "prompt": "Remove the dark shadow on the ground under and around her feet and the hatching lines on her right leg, so the background is the same flat plain pale cream everywhere and both legs are drawn alike. " + KEEP},
@@ -99,7 +102,25 @@ def face_ref_jobs() -> list[dict]:
          "prompt": f"Make {WHO[b]} eyes, eyebrows, nose and mouth a little smaller, each in the same place: the eyes about a sixth smaller, "
                    f"the irises smaller with them, the same eye shape and {OWN_LINES[b]}; the nose and the mouth a little smaller; the eyebrows a little shorter. "
                    f"Do not change the face's outline, the head, the ears or the neck; the scalp stays plain smooth bald skin with no lines or hatching on it. {KEEP_FACE}"}
-        for i, b in enumerate(ALL)
+        for i, b in enumerate(ADULTS)
+    ]
+
+
+# The children's own references are their bases (drawn at a child's proportions already, nothing to make smaller):
+# lib/base-<child>-face.png is a copy of lib/base-<child>.png.
+KID_FACE = ("a natural child's face, not a doll: soft round cheeks and a small soft chin, eyes only a little larger than an adult's, "
+            "drawn simply with a few short lashes and no heavy eyeliner, the eyes set at a natural distance, a small but clearly drawn nose and mouth")
+
+
+def kid_trial_jobs() -> list[dict]:
+    """The drawings the children's bases are scaled from (the 2026-10-26 trial, its "natural" direction, seed 0)."""
+    tail = (", completely bald, wearing a plain light grey sleeveless tank top and plain light grey shorts, barefoot, standing front-facing in the "
+            "same calm pose, centred, the feet on the same line as before. Draw the head and the body in proportion for that age. " + STYLE)
+    return [
+        {"out": "kids/natural-girl-0.png", "edit": "lib/base-woman.png", "seed": 11,
+         "prompt": "Turn her into a 8-year-old girl: a child's body about five heads tall, much shorter than an adult, narrow shoulders, short arms and legs; " + KID_FACE + tail},
+        {"out": "kids/natural-boy-0.png", "edit": "lib/base-man.png", "seed": 111,
+         "prompt": "Turn him into a 9-year-old boy: a child's body about five heads tall, much shorter than an adult, narrow shoulders, short arms and legs; " + KID_FACE + tail},
     ]
 
 
@@ -170,7 +191,7 @@ OUTFITS = {
     "outfit.gi": (["man"], "a wrapped martial-arts jacket crossing at the chest (pure red) tied with a sash belt, and loose trousers to the ankles (pure green)", False),
     "outfit.cloak": (["woman", "man"], "a long heavy travelling cloak without a hood to the ankles, closed at the throat (pure red), the head bare, over a tunic and trousers (pure green), a clasp (pure blue)", True),
     "outfit.adventurer": (["woman", "man"], "adventurer's clothes: a fitted tunic to the thighs (pure red) over a shirt and close trousers to the ankles (pure green), a leather vest, belt and pouches (pure blue)", False),
-    "outfit.smock": (["girl", "boy"], "a simple child's smock to the knees (pure red) over a shirt (pure green)", False),
+    "outfit.smock": (["girl", "boy"], "a loose long-sleeved child's smock tunic with no straps, gathered at a round neck and falling to the knees (pure red), a small shirt collar showing at the neck (pure green), a cloth belt (pure blue)", False),
     "outfit.pinafore": (["girl"], "a pinafore dress to the knees (pure red) over a blouse with puffed sleeves (pure green)", False),
 }
 

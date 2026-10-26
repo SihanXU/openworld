@@ -31,7 +31,9 @@ const table = JSON.parse(readFileSync(join(import.meta.dirname, '../src/art/look
   groundPiece: number
   groundInset: number
   groundKept: string[]
-  holes: { slots: string[]; max: number; speck: number; ink: number }
+  into: Record<string, string[]>
+  encloses: string[]
+  holes: { slots: string[]; max: number; speck: number; ink: number; seam: number }
 }
 /** A part's numbers: its slot's, with its own overrides. */
 const params = (pid: string): Slot => ({ ...table.slots[pid.split('.')[0]], ...table.parts[pid] })
@@ -411,6 +413,99 @@ describe('the portrait layers (tools/src/art/looks/portrait/clean.py)', () => {
     expect(bad).toEqual([])
   })
 
+  it("the order of what is worn: legwear and trousers go into the shoes, a garment's cloth falls over them", { timeout: 120_000 }, () => {
+    // body < legs < outfit < shoes; what of an outfit hangs over the boots is its hem (hems.py)
+    const bad: string[] = []
+    const order = ['hairBack', 'body', 'legs', 'outfit', 'shoes', 'armour', 'cloak', 'age', 'face', 'mark', 'beard', 'glasses', 'hair', 'hat']
+    const overShoes = (p: { above?: string[] }, l: PortraitLayer) => (p.above ?? []).includes('shoes') || (l.above ?? []).includes('shoes') || order.indexOf(l.z) > order.indexOf('shoes')
+    for (const [pid, bodies] of Object.entries(manifest.parts)) {
+      const slot = pid.split('.')[0]
+      for (const [body, p] of Object.entries(bodies)) {
+        // a boot encloses the leg (clean.json `encloses`): the composer hides what goes into it below its rim
+        if (slot === 'shoes' && !!p.encloses !== table.encloses.includes(pid)) bad.push(`${pid} on the ${body}: encloses should be ${table.encloses.includes(pid)}`)
+        // stockings, hose and wraps never over the shoes
+        if (slot === 'legs' && p.layers.some((l) => overShoes(p, l))) bad.push(`${pid} on the ${body} is drawn over the shoes`)
+        if (slot !== 'outfit') continue
+        // nothing over the shoes is what goes into them: the trousers, the greaves (clean.json `into`), bare skin
+        const into = [...(table.into[pid] ?? []), 'skin']
+        for (const l of p.layers) {
+          if (!overShoes(p, l)) continue
+          const { value } = pixels(l.file)
+          const ks = into.map((k) => l.zones.indexOf(k) + 1).filter((k) => k > 0)
+          let n = 0
+          for (let i = 0; i < l.w * l.h; i++) if (value[i * 4 + 3] && ks.includes(value[i * 4 + 1] / 40)) n++
+          if (n) bad.push(`${l.file}: ${n} pixels of ${into.join(', ')} over the shoes (trousers over the boots)`)
+        }
+        // no shoe covers the garment's cloth (zone 1) drawn under it
+        const under = new Uint8Array(W * H)
+        for (const l of p.layers) {
+          if (!l.zones.includes('.1') || overShoes(p, l)) continue
+          const { value } = pixels(l.file)
+          const k = l.zones.indexOf('.1') + 1
+          for (let y = 0; y < l.h; y++) for (let x = 0; x < l.w; x++) if (value[(y * l.w + x) * 4 + 3] && value[(y * l.w + x) * 4 + 1] === 40 * k) under[(l.y + y) * W + l.x + x] = 1
+        }
+        for (const [sid, sbodies] of Object.entries(manifest.parts)) {
+          if (!sid.startsWith('shoes.') || !sbodies[body]) continue
+          let n = 0
+          for (const l of sbodies[body].layers) {
+            const { value } = pixels(l.file)
+            for (let y = 0; y < l.h; y++) for (let x = 0; x < l.w; x++) if (value[(y * l.w + x) * 4 + 3] > 128 && under[(l.y + y) * W + l.x + x]) n++
+          }
+          // a few pixels where a boot's outline grazes the cloth's edge are the drawing's; a coat's skirt is hundreds
+          if (n > 40) bad.push(`${sid} drawn over ${pid}'s cloth on the ${body}: ${n} pixels`)
+        }
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it("a hat sits on the skull: its crown at the head's top whatever hair is chosen, and the hair under it", () => {
+    const bad: string[] = []
+    for (const [pid, bodies] of Object.entries(manifest.parts)) {
+      if (!pid.startsWith('hat.')) continue
+      for (const [body, p] of Object.entries(bodies)) {
+        const fr = frames[body]
+        const head = fr.neck - fr.top
+        const crown = Math.min(...p.layers.map((l) => l.y))
+        // a cap or a helm sits on the head: its crown within a fifth of a head of the skull's top (a straw hat's a little higher)
+        if (Math.abs(crown - fr.top) > 0.2 * head) bad.push(`${pid} on the ${body}: crown at row ${crown}, the skull's top at ${fr.top}`)
+        // a hat that covers the hair says so (the composer puts the hair under it)
+        if (['hat.cap', 'hat.helm', 'hat.hood', 'hat.straw', 'hat.kerchief'].includes(pid) && !p.covers) bad.push(`${pid} on the ${body} does not cover the hair`)
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('hair on the body hangs from the head: no piece of it is drawn over what is worn (long hair behind an arm is behind the body)', { timeout: 120_000 }, () => {
+    const bad: string[] = []
+    for (const g of groups) {
+      if (!g.pid.startsWith('hair.')) continue
+      const x0 = Math.min(...g.layers.map((l) => l.x))
+      const y0 = Math.min(...g.layers.map((l) => l.y))
+      const w = Math.max(...g.layers.map((l) => l.x + l.w)) - x0
+      const h = Math.max(...g.layers.map((l) => l.y + l.h)) - y0
+      const union = new Uint8Array(w * h)
+      const front = new Uint8Array(w * h)
+      for (const l of g.layers) {
+        const { value } = pixels(l.file)
+        for (let y = 0; y < l.h; y++)
+          for (let x = 0; x < l.w; x++)
+            if (value[(y * l.w + x) * 4 + 3]) {
+              const i = (l.y - y0 + y) * w + l.x - x0 + x
+              union[i] = 1
+              if (l.z === 'hair') front[i] = 1
+            }
+      }
+      const { lab, n } = label(union, w, h)
+      const top = new Array(n + 1).fill(Infinity)
+      for (let i = 0; i < w * h; i++) if (lab[i]) top[lab[i]] = Math.min(top[lab[i]], y0 + Math.floor(i / w))
+      let hang = 0
+      for (let i = 0; i < w * h; i++) if (front[i] && top[lab[i]] > frames[g.body].neck) hang++
+      if (hang) bad.push(`${g.pid} on the ${g.body}: ${hang} pixels of hair on the body that do not reach the head`)
+    }
+    expect(bad).toEqual([])
+  })
+
   it("every part's pixels are its own: no speckle, no faint dust, nothing outside its band of the figure, no stroke or patch away from its mass", { timeout: 120_000 }, () => {
     const bad: string[] = []
     for (const { pid, body, mood, layers } of groups) {
@@ -432,6 +527,30 @@ describe('the portrait layers (tools/src/art/looks/portrait/clean.py)', () => {
           }
       }
       const keep = kept(alpha, w, h, y0, x0, pid, body)
+      // where the hair on the body and the hair behind it meet over the body's outline (clean.py `seam_zone`), the
+      // body's pixels between them are the hair's
+      const zs = layers.map((l) => l.z)
+      if (table.holes.slots.includes(pid.split('.')[0]) && zs.includes('hair') && zs.includes('hairBack')) {
+        const full = (z: string) => {
+          const l = layers[zs.indexOf(z)]
+          const { value } = pixels(l.file)
+          const out = new Uint8Array(w * h)
+          for (let y = 0; y < l.h; y++) for (let x = 0; x < l.w; x++) if (value[(y * l.w + x) * 4 + 3] === 255) out[(l.y - y0 + y) * w + l.x - x0 + x] = 1
+          return out
+        }
+        const f = full('hair')
+        const b = full('hairBack')
+        const R = table.holes.seam
+        const closed = squareFilter(squareFilter(f.map((v, i) => v | b[i]), w, h, R, true), w, h, R, false)
+        const nearF = squareFilter(f, w, h, R, true)
+        const nearB = squareFilter(b, w, h, R, true)
+        const fig = frames[body].fig
+        for (let i = 0; i < w * h; i++) {
+          const cy = y0 + Math.floor(i / w)
+          const cx = x0 + (i % w)
+          if (alpha[i] && closed[i] && nearF[i] && nearB[i] && cx >= 0 && cy >= 0 && cx < W && cy < H && fig[cy * W + cx]) keep[i] = 1
+        }
+      }
       let stray = 0
       for (let i = 0; i < w * h; i++) if (alpha[i] && !keep[i]) stray++
       if (stray) bad.push(`${pid} on the ${body}${mood ? ` (${mood})` : ''}: ${stray} stray pixels`)

@@ -186,7 +186,7 @@ export const LOOK_PARTS: Record<string, LookPart> = {
   'outfit.gi': { slot: 'outfit', name: T("drillmaster's wrap", '武师短褂'), bodies: ['man'], colors: { 1: 'undyed', 2: 'umber' }, say: T("a {c} drillmaster's wrap", '{c}色武师短褂'), gen: { roles: ['trainer'], only: true } },
   'outfit.cloak': { slot: 'outfit', name: T('long cloak', '长斗篷'), bodies: ADULTS, colors: { 1: 'charcoal', 2: 'slate', 3: 'leather' }, tags: [LOOK_TAG + 'cloaked'], say: T('a long {c} cloak', '{c}色长斗篷'), gen: { roles: ['stranger', 'traveler', 'hunter'], only: true, colors: { 1: ['charcoal', 'slate', 'umber', 'forest'] } } },
   'outfit.adventurer': { slot: 'outfit', name: T("adventurer's gear", '冒险者装束'), bodies: ADULTS, colors: { 1: 'teal', 2: 'linen', 3: 'leather' }, say: T("{c} adventurer's gear", '{c}色冒险者装束'), gen: { w: 0, colors: { 1: [...CLOTH_PLAIN, ...CLOTH_DYED] } } },
-  'outfit.smock': { slot: 'outfit', name: T("child's smock", '孩子的罩衫'), bodies: CHILDREN, colors: { 1: 'woad', 2: 'linen' }, say: T("a {c} child's smock", '{c}色罩衫'), gen: { colors: { 1: [...CLOTH_PLAIN, ...CLOTH_DYED] } } },
+  'outfit.smock': { slot: 'outfit', name: T("child's smock", '孩子的罩衫'), bodies: CHILDREN, colors: { 1: 'woad', 2: 'linen', 3: 'leather' }, say: T("a {c} child's smock", '{c}色罩衫'), gen: { colors: { 1: [...CLOTH_PLAIN, ...CLOTH_DYED] } } },
   'outfit.pinafore': { slot: 'outfit', name: T('pinafore dress', '背带裙'), bodies: ['girl'], colors: { 1: 'rose', 2: 'ivory' }, say: T('a {c} pinafore dress', '{c}色背带裙'), gen: { colors: { 1: ['rose', 'madder', 'woad', 'moss', 'mustard'] } } },
 
   // ---------------------------------------------------------------- legs (seen under a skirt) and shoes
