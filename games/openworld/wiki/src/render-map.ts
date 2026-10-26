@@ -344,6 +344,7 @@ interface Body {
   oy: number
   scale?: number
   tint?: number
+  flipX?: boolean
 }
 
 /** A look's map sheet (docs/looks.md), composed as the game composes it. */
@@ -360,14 +361,16 @@ function bodyOf(e: Snap): Body | undefined {
   if (e.tags.includes('agent') && look) return { img: figureImage(look), rect: [(DIR_COL[e.facing] ?? 0) * FW, IDLE_ROW * FH, FW, FH], ox: FW / 2, oy: ANCHOR_Y }
   if (e.tags.includes('agent')) {
     const a = actorDef(e)
-    const img = a && image(`${a.dir}/${a.sheet}`)
+    let img = a && image(`${a.dir}/${a.sheet}`)
     if (!a || !img) return undefined
-    const fw = Math.floor(img.w / a.cols), fh = Math.floor(img.h / a.rows)
     // the first frame of what it does at rest: a boss's idle pose, a strip's first, a sheet's standing frame facing its way
-    const { col, row } = e.boss
+    const pose = e.boss
       ? bossAnimationFrame({ kit: e.boss.kit, phase: 1, color: 0, footprint: e.boss.footprint, enrageAt: 0.5, action: 'idle', progress: 0, animationElapsedMs: 0 }, 0, 0, e.facing)
       : { col: a.rows === 1 ? 0 : (DIR_COL[e.facing] ?? 0), row: 0 }
-    return { img, rect: [col * fw, row * fh, fw, fh], ox: fw / 2, oy: a.anchorY ?? fh, scale: a.scale, tint: a.tint }
+    const clip = 'clip' in pose && pose.clip ? a.clips?.[pose.clip] : undefined
+    if (clip) img = image(`${a.dir}/${clip.sheet}`) ?? img
+    const fw = clip?.frameWidth ?? Math.floor(img.w / a.cols), fh = clip?.frameHeight ?? Math.floor(img.h / a.rows)
+    return { img, rect: [pose.col * fw, pose.row * fh, fw, fh], ox: a.anchorX ?? fw / 2, oy: a.anchorY ?? fh, scale: a.scale, tint: a.tint, flipX: 'flipX' in pose ? pose.flipX : undefined }
   }
   if (!e.tags.includes('portable') || e.spaces || e.type.startsWith('fixture/')) {
     const f = fixtureDef(e)
@@ -554,7 +557,7 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
     const [bx, by] = loose ? [(hashStr(e.id, 23) % 9) - 4, (hashStr(e.id, 29) % 5) - 2] : [0, 0]
     const down = !e.boss && (e.statuses.includes('down') || e.statuses.includes('out_cold') || e.statuses.includes('asleep'))
     const s = body.scale ?? (e.type.startsWith('item/') && !e.spaces ? 0.8 : 1)
-    let main: Blit | undefined = { img: body.img, rect: body.rect, x: rx + bx, y: ry + by, ox: body.ox, oy: body.oy, sx: s, sy: s, angle: down ? 90 : 0, flipX: !!e.boss && e.facing === 'left', alpha: 1, ...tint }
+    let main: Blit | undefined = { img: body.img, rect: body.rect, x: rx + bx, y: ry + by, ox: body.ox, oy: body.oy, sx: s, sy: s, angle: down ? 90 : 0, flipX: body.flipX ?? (!!e.boss && e.facing === 'left'), alpha: 1, ...tint }
     const after: (() => void)[] = []
     if (e.type.startsWith('structure/')) main = dressBuilt(e, main, rx, ry, after)
     if (e.sprite === 'boss:dragon') parts.push(...dragonWings(rx, ry))

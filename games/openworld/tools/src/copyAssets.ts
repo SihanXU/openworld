@@ -26,6 +26,7 @@ export function catalogPaths(): string[] {
   for (const s of [...Object.values(c.items), ...Object.values(c.ui)]) paths.add(s.img)
   for (const a of [...Object.values(c.characters), ...Object.values(c.creatures)]) {
     paths.add(`${a.dir}/${a.sheet}`)
+    for (const clip of Object.values(a.clips ?? {})) paths.add(`${a.dir}/${clip.sheet}`)
     if (a.faceset) paths.add(`${a.dir}/${a.faceset}`)
   }
   for (const f of Object.values(c.fx)) paths.add(f.img)

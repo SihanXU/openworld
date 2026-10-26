@@ -69,7 +69,17 @@ export interface PrefabDef {
   front?: boolean
 }
 
-/** Sheets with the pack's standard actor layout. */
+/** A named animation strip, with its original frame size and cadence. */
+export interface ActorClipDef {
+  sheet: string
+  frames: number
+  frameWidth: number
+  frameHeight: number
+  frameMs: number
+  loop: boolean
+}
+
+/** Sheets with the pack's standard actor layout, or named animation strips. */
 export interface ActorDef {
   /** Folder under Actor/ e.g. 'Character/Villager', 'Monster/Slime'. */
   dir: string // full folder path from the pack root, e.g. "Actor/Character/Villager"
@@ -84,6 +94,10 @@ export interface ActorDef {
   rows: number
   /** Nonstandard action atlases may keep transparent space below their feet. */
   anchorY?: number
+  /** Horizontal foot pivot from the original frame's left edge; default is its centre. */
+  anchorX?: number
+  /** Separate, untrimmed animation sheets inside dir. The base sheet supplies the rest pose. */
+  clips?: Record<string, ActorClipDef>
   /** The row a person stands in when not walking (a figure's sheet: the walk's four rows, then this one); default 0. */
   idleRow?: number
   /** World-space scale of the original pixel atlas, independent of camera zoom. */
