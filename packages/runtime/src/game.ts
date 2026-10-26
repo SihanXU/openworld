@@ -221,9 +221,12 @@ export function game(): ClientGame {
   return current
 }
 
-/** The cache key for item icons: changes only when an item's game-owned overlay changes. */
+/**
+ * The cache key for item icons: changes when an item becomes another while it stays the same thing (a fish cooked in
+ * the hand, a bucket filled: the same id, another type, its stack key with it) or its game-owned overlay changes.
+ */
 export function itemIconSignature(items: readonly ItemInfo[]): string {
-  return JSON.stringify(items.map((item) => [item.id, game().itemIconDecoration?.(item) ?? null]))
+  return JSON.stringify(items.map((item) => [item.id, item.stackKey ?? item.type, game().itemIconDecoration?.(item) ?? null]))
 }
 
 /** The game's worker entry, which hands the game over in the worker too: the page that plays the game sets it. */

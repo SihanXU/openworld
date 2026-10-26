@@ -1021,7 +1021,7 @@ export class Menu {
     const c = f.container
     if (!c) return
     const moving = this.containerTransfer
-    const sig = `${locale.value}|${c.id}|${c.capacity}|${c.contents.map((i) => i.id + keyOf(i)).join(',')}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.count]))}|${JSON.stringify(moving)}`
+    const sig = `${locale.value}|${c.id}|${c.capacity}|${c.contents.map((i) => i.id + keyOf(i)).join(',')}|${JSON.stringify(f.player.slots.map((s) => s && [s.item.id, s.item.stackKey, s.count]))}|${JSON.stringify(moving)}`
     if (sig === this.chestSig) return
     this.chestSig = sig
     const stacks = stackItems(c.contents)

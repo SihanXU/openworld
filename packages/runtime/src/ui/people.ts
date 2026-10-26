@@ -140,7 +140,7 @@ export class PeoplePanels {
   private renderPockets(f: Frame): void {
     const p = f.pockets
     const mine = f.player.inventory.filter((i) => !i.tags.includes('important') && !i.tags.includes('bound'))
-    const sig = p ? `${locale.value}|${JSON.stringify(p)}|${mine.map((i) => `${i.id}×${i.count}`).join(',')}` : ''
+    const sig = p ? `${locale.value}|${JSON.stringify(p)}|${mine.map((i) => `${i.id}:${i.stackKey}×${i.count}`).join(',')}` : ''
     if (sig === this.pocketsSig) return
     this.pocketsSig = sig
     $('#pocketsPanel').classList.toggle('hidden', !p)
