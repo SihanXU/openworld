@@ -16,7 +16,8 @@ import type { Engine } from './engine.ts'
 import type { Frame } from './snapshot.ts'
 import { cmp, matchSelector } from './rules.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
-import { regionId } from './world.ts'
+import { isA } from './ontology.ts'
+import { regionId, type View } from './world.ts'
 import type { Cmp, Effect, Entity, GameEvent, Id, Lesson, PropValue, Selector, Text } from './types.ts'
 
 /** The main line, someone's errand, a radiant favour, or a guide: the companion's teaching of one of the game's systems, told beside the main line in her panel. */
@@ -247,7 +248,12 @@ export class Quests {
   private pending: News[] = []
   private flushing = false
   /** Reused only while a read-only quest view is being assembled for one frame. */
-  private reading?: Entity[]
+  private reading?: {
+    quests: Entity[]
+    carried: Map<Id, Entity[]>
+    views: Map<Id, View | undefined>
+    counts: Map<Id, { selectors: Map<Selector, number>; aliases: Map<Id | undefined, number> }>
+  }
   /** The derived tags of what quests under way hold (essential people, kept things), by id. */
   private tagCache?: Map<Id, string[]>
   private lastHour = -1
@@ -272,7 +278,7 @@ export class Quests {
 
   /** Every quest thing in the world (offered, under way, over). */
   all(): Entity[] {
-    return this.reading ?? this.w.residents().filter((e) => e.type === QUEST_TYPE)
+    return this.reading?.quests ?? this.w.residents().filter((e) => e.type === QUEST_TYPE)
   }
 
   /** The quests of a definition (the authored one's single thing first). */
@@ -337,22 +343,47 @@ export class Quests {
 
   private carried(by: Entity | undefined): Entity[] {
     if (!by) return []
-    return [by.held, ...(by.contents ?? [])].map((id) => this.w.get(id)).filter((e): e is Entity => !!e && !e.frozenBy)
+    const cached = this.reading?.carried.get(by.id)
+    if (cached) return cached
+    const items = [by.held, ...(by.contents ?? [])].map((id) => this.w.get(id)).filter((e): e is Entity => !!e && !e.frozenBy)
+    this.reading?.carried.set(by.id, items)
+    return items
+  }
+
+  /** A selector's view, reused only while a read-only quest view is being assembled. */
+  private itemView(id: Id): View | undefined {
+    const cached = this.reading?.views
+    if (cached?.has(id)) return cached.get(id)
+    const view = this.w.view({ e: id })
+    cached?.set(id, view)
+    return view
   }
 
   /** How many of a class (or the alias's own thing) one holds. */
   private holding(q: Entity, by: Entity | undefined, what: string | Selector): number {
+    if (!by) return 0
     const items = this.carried(by)
+    let counts = this.reading?.counts.get(by.id)
+    if (this.reading && !counts) {
+      counts = { selectors: new Map(), aliases: new Map() }
+      this.reading.counts.set(by.id, counts)
+    }
     if (typeof what === 'string') {
       const id = this.alias(q, what)
-      return items.filter((e) => e.id === id).length
+      if (counts?.aliases.has(id)) return counts.aliases.get(id)!
+      const count = items.filter((e) => e.id === id).length
+      counts?.aliases.set(id, count)
+      return count
     }
-    return items.filter((e) => matchSelector(what, this.w.view({ e: e.id }))).length
+    if (counts?.selectors.has(what)) return counts.selectors.get(what)!
+    const count = items.filter((e) => (!what.type || isA(e.type, what.type)) && matchSelector(what, this.itemView(e.id))).length
+    counts?.selectors.set(what, count)
+    return count
   }
 
   /** Does the thing match a class (its view now, or what the news kept of it)? */
   private matches(sel: Selector, id: Id | undefined, news?: News): boolean {
-    const v = id ? this.w.view({ e: id }) : undefined
+    const v = id ? this.itemView(id) : undefined
     if (v) return matchSelector(sel, v)
     if (!news?.type) return false
     return matchSelector(sel, { ref: { e: id ?? '' }, id: id ?? '', type: news.type, tags: new Set(news.tags ?? []), statuses: new Set(), props: {}, entity: undefined as never })
@@ -1105,7 +1136,7 @@ export class Quests {
   /** Reuse one quest list across the read-only pieces of a frame. Never survives the call. */
   withReading<T>(read: () => T): T {
     const previous = this.reading
-    if (!previous) this.reading = this.all()
+    if (!previous) this.reading = { quests: this.all(), carried: new Map(), views: new Map(), counts: new Map() }
     try {
       return read()
     } finally {
