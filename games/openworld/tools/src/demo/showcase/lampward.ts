@@ -8,7 +8,8 @@ import { MapBuilder, reseed, type Cell } from '../builder.ts'
 import { OVERWORLD } from '../overworld.ts'
 import { roomsBehind, type DoorNote } from '../continent/rooms.ts'
 import { CASTS, type Cast, type Hours } from './cast.ts'
-import { floorTop, hallRoom, linkDoors } from './rooms.ts'
+import { linkDoors } from './rooms.ts'
+import { innHall } from './halls.ts'
 import { clearDoorsteps, houseRow, pave } from './street.ts'
 import { LOW_HOUSES, NARROW_HOUSES, TALL_HOUSES } from '../../art/arch/buildings/town.ts'
 import { busyRow, decor, festoons, frontage, lamp, lampRow, panels, parterre, pavement, piles, strew, unshut } from './dress.ts'
@@ -91,17 +92,7 @@ export function lampWard(p: Place): MapBuilder[] {
   b.grow(ABOVE, 'flagstone')
 
   // ------------------------------------------------------------------ the inn within: the common room, the counter, the hearth, the alcoves
-  const inn = hallRoom({ id: `${p.id}.inn-0`, name: { en: `${p.name.en} — the Pilgrims' Rest`, zh: `${p.name.zh}·朝圣者客栈` }, w: 24, h: 16, floor: 'floor_wood', music: 'interior', region: p.region, wall: 'wall_inn', frame: 'wood', doors: [12] })
-  const i0 = floorTop(inn)
-  for (let x = 2; x < 9; x += 2) inn.fixture('fixture/furniture/counter', x, i0 + 3)
-  for (const [x, y] of [[2, i0 + 1], [3, i0 + 1], [5, i0 + 1]]) inn.fixture('fixture/container/barrel', x, y)
-  for (const [x, y] of [[13, i0 + 6], [18, i0 + 6], [13, i0 + 10], [18, i0 + 10], [6, i0 + 9]]) {
-    inn.fixture('fixture/furniture/table', x, y)
-    for (const dx of [-1, 1]) inn.fixture('fixture/furniture/chair', x + dx, y)
-  }
-  for (let y = i0 + 1; y < i0 + 13; y += 2) inn.fixture('fixture/furniture/bed', 22, y)
-  inn.fixture('fixture/container/chest', 21, i0 + 13)
-  inn.lights.push({ x: 12, y: i0 + 1, w: 12, h: 7, color: '#ff9a4a', shape: 'glow', when: 'always', strength: 0.4 })
+  const inn = innHall(p)
   linkDoors(b, [b.doors.inn], inn, [inn.doors.out])
   const rooms = roomsBehind(b, p, doors)
 
@@ -110,10 +101,10 @@ export function lampWard(p: Place): MapBuilder[] {
   const A = b.anchors
   const home = (n: number) => rooms[n % rooms.length].id
   const cast: Cast[] = []
-  for (let n = 0; n < 3; n++) cast.push({ role: 'innkeeper', home: inn.id, day: [at(inn, [5, i0 + 4], 6, 23, 'work', 3)] })
-  for (let n = 0; n < 6; n++) cast.push({ role: 'traveler', home: inn.id, day: [at(b, A.square, 8, 12, 'walk', 8), at(inn, [15, i0 + 8], 12, 13, 'eat', 4), at(b, A.street, 13, 18, 'walk', 12), at(inn, [15, i0 + 8], 18, 22, 'rest', 5)] })
-  cast.push({ role: 'bard', home: inn.id, day: [at(inn, [10, i0 + 8], 17, 23, 'work', 1), at(b, A.square, 11, 16, 'work', 4)] })
-  for (let n = 0; n < 10; n++) cast.push({ role: n % 4 === 0 ? 'noble' : 'villager', home: home(n), day: [at(b, n % 2 ? A.street : A.square, 9, 12, 'walk', 10), at(rooms[n % rooms.length], [5, 3], 12, 13, 'eat', 2), at(b, A.street, 13, 18, 'walk', 12), at(n % 3 ? b : inn, n % 3 ? A.well : [15, i0 + 9], 18, 22, 'rest', 5)] })
+  for (let n = 0; n < 3; n++) cast.push({ role: 'innkeeper', home: inn.id, day: [at(inn, inn.anchors.bar, 6, 23, 'work', 2)] })
+  for (let n = 0; n < 6; n++) cast.push({ role: 'traveler', home: inn.id, day: [at(b, A.square, 8, 12, 'walk', 8), at(inn, inn.anchors.eat, 12, 13, 'eat', 4), at(b, A.street, 13, 18, 'walk', 12), at(inn, inn.anchors.rest, 18, 22, 'rest', 5)] })
+  cast.push({ role: 'bard', home: inn.id, day: [at(inn, inn.anchors.bard, 17, 23, 'work', 1), at(b, A.square, 11, 16, 'work', 4)] })
+  for (let n = 0; n < 10; n++) cast.push({ role: n % 4 === 0 ? 'noble' : 'villager', home: home(n), day: [at(b, n % 2 ? A.street : A.square, 9, 12, 'walk', 10), at(rooms[n % rooms.length], [5, 3], 12, 13, 'eat', 2), at(b, A.street, 13, 18, 'walk', 12), at(n % 3 ? b : inn, n % 3 ? A.well : inn.anchors.eat, 18, 22, 'rest', 5)] })
   for (const c of [A.north, A.street]) cast.push({ role: 'guard', home: home(cast.length), day: [at(b, c, 16, 4, 'watch', 6), at(b, A.square, 4, 6, 'watch', 6)] })
   cast.push({ role: 'beggar', home: home(cast.length), day: [at(b, A.innDoor, 8, 22, 'sit', 2)] })
   CASTS.set(p.id, cast)

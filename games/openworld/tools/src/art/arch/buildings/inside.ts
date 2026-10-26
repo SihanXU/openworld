@@ -115,7 +115,7 @@ function wallFace(o: { w: number; h: number; mat: string; windows?: 'lancet' | '
 }
 
 /** A hanging: a woven scene in deep red and gold, a border, a rod. */
-function tapestry(w: number, h: number, seed: number) {
+export function tapestry(w: number, h: number, seed: number) {
   const rowsPic: string[] = []
   for (let j = 0; j < h; j++) {
     let line = ''
@@ -131,13 +131,13 @@ function tapestry(w: number, h: number, seed: number) {
 }
 
 /** Skulls stacked in a niche (an ossuary's wall). */
-function skulls(w: number) {
+export function skulls(w: number) {
   const rowsPic = ['  o  o  o ', ' oooooooo ', 'o.oo.oo.oo', 'oooooooooo', ' o.o o.o o', 'oooooooooo'].map((r) => r.slice(0, w))
   return { at: (x: number, y: number, z: number): Ornament => ({ x, y, z, rows: rowsPic, keys: { o: 'pw1', '.': 'n3' } }) }
 }
 
 /** A fire in a hearth. */
-function fire(w: number) {
+export function fire(w: number) {
   const rowsPic: string[] = []
   for (let j = 0; j < 14; j++) {
     let line = ''
@@ -327,7 +327,7 @@ function pilasters(f: Face, h: number, every = 4): Solid[] {
 }
 
 /** A dark doorway's leaves (a sacristy's door at the back of its recess). */
-function doorDark(w: number, h: number): (x: number, y: number, z: number) => Ornament {
+export function doorDark(w: number, h: number): (x: number, y: number, z: number) => Ornament {
   const rowsPic: string[] = []
   for (let j = 0; j < h; j++) {
     let line = ''

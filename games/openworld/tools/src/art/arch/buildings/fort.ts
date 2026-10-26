@@ -4,7 +4,7 @@
 
 import type { Model } from '../oblique.ts'
 import { box, drum, gable, type Solid } from '../shapes.ts'
-import { gatehouse, hall, keep, S, tower } from '../kit.ts'
+import { gatehouse, hall, house, keep, S, tower } from '../kit.ts'
 
 /** The well-house in the inner ward: a round curb, two posts, a little roof, the windlass. */
 function wellhouse(): Model {
@@ -28,13 +28,14 @@ export const FORT: Record<string, () => Model> = {
   fort_tower_crenel: () => tower({ name: 'fort_tower_crenel', size: 5, round: true, height: 128, wall: 'granite', top: 'crenel', slits: true, banner: 'U' }),
   fort_tower_square: () => tower({ name: 'fort_tower_square', size: 5, round: false, height: 136, wall: 'granite', top: 'crenel', slits: true, door: true }),
   fort_keep: () => keep({ name: 'fort_keep', w: 12, d: 10, height: 230, wall: 'granite', banner: 'U' }),
-  fort_barracks: () => hall({ name: 'fort_barracks', w: 14, d: 5, wall: 'granite', roof: 'slate', storeys: 2, storeyH: 34, ridge: 'x', doors: [3, 10], windows: 'rect', chimneys: [6], seed: 21 }),
-  fort_stables: () => hall({ name: 'fort_stables', w: 10, d: 5, wall: 'timber', roof: 'tile', storeys: 1, storeyH: 40, ridge: 'x', doors: [5], windows: 'none', plinth: 'granite', seed: 22 }),
-  fort_armoury: () => hall({ name: 'fort_armoury', w: 7, d: 5, wall: 'granite', roof: 'slate', storeys: 2, storeyH: 34, ridge: 'y', doors: [3], windows: 'rect', crenel: false, sign: 'anvil', chimneys: [1], seed: 23 }),
+  // the garrison's quarters, the stables, the armourer's forge: houses of the castle's own stone (kit.ts house)
+  fort_barracks: () => house({ name: 'fort_barracks', w: 14, d: 4, upper: 1, wall: 'granite', roof: 'slate', timber: false, seed: 21, plan: 'wingE', wing: [4, 1], shutters: 'cr', banner: 'U' }),
+  fort_stables: () => house({ name: 'fort_stables', w: 11, d: 4, upper: 0, wall: 'plaster', roof: 'thatch', timber: true, seed: 22, plan: 'eaves', poor: true, shutters: 'cg' }),
+  fort_armoury: () => house({ name: 'fort_armoury', w: 8, d: 4, upper: 1, wall: 'granite', roof: 'tile', timber: false, seed: 23, plan: 'gable', sign: 'anvil', shutters: 'cb' }),
   fort_chapel: () => hall({ name: 'fort_chapel', w: 6, d: 8, wall: 'granite', roof: 'slate', storeys: 1, storeyH: 58, ridge: 'y', doors: [3], doorKind: 'pointed', windows: 'lancet', glass: 'red', buttresses: true, bell: true, seed: 24 }),
   fort_well: wellhouse,
   // a gate tower in a curtain: a square tower with a passage through it, crenellated (the inner ward's gate, the postern north)
-  fort_gate_tower: () => tower({ name: 'fort_gate_tower', size: 5, round: false, height: 128, wall: 'granite', top: 'crenel', passage: true, banner: 'U' }),
+  fort_gate_tower: () => tower({ name: 'fort_gate_tower', size: 5, round: false, height: 96, wall: 'granite', top: 'crenel', passage: true, banner: 'U' }),
   // a merlon of the parapet along a wall-walk's outer edge (the walk itself is raised ground, its face the masonry terrace)
   fort_merlon: () => ({ name: 'fort_merlon', footprint: ['#'], solids: [box(1, 8, 0, S - 1, S, 14, 'granite')], voids: [], ornaments: [] }),
   // a stretch of the parapet a merlon wide, low (the crenel between two merlons): walked past, not over

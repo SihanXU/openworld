@@ -78,6 +78,16 @@ drawn as ground, `Model.ground`); `street.ts` (the streets' furniture as fixture
 bench, the clipped cypress, the box ball, the urn of flowers, the balustrade, the city's standard, the hero in bronze, the
 well head); `decor.ts` (§3.6).
 
+#### 3.2.0 The halls within (`arch/buildings/halls.ts`, `showcase/halls.ts`)
+
+After the user's word of 2026-10-26 ("内饰怎么全是方块"): every hall has its own plan (`plans.ts HALLS`: alcoves, bays, a dais,
+a nook for the hearth, rooms off a room) and its walls are that plan's shell (shell.ts), as the nave's are, each face
+dressed by the hall's style — windows, tapestries, banners, paintings, walls of books, shelves of jars, trophies of arms,
+niches of bones, pilasters, sconces, and at its head a great hearth, a cloth of estate over a dais, a window of glass, a
+wall of books or an ossuary. `showcase/halls.ts` lays each from its plan (floors by part, rugs and runners) and furnishes it
+full: the crypt, the belfry, the library, the refectory, the keep's great hall and the castellan's floor, the council
+hall, the market hall (stalls under its roof), the Pilgrims' Rest, the Drowned Lantern.
+
 #### 3.2.1 The townhouse (`house`)
 
 The user's word of 2026-10-25: the first houses were "narrowed" — too tall for their width — and every one faced the
@@ -164,11 +174,15 @@ on its causeway; the fork round the tower gate south to the Market.
 
 ### 4.3 The North Gate
 
-From the city's square: the barbican, the moat and drawbridge, the gatehouse under its cones; the outer ward (barracks,
-smithy, armoury, stables, the drill yard with its dummies and racks, the well, the lists with butts, stores and a
-kitchen garden); the inner curtain, higher, its gate tower; the keep on its forebuilding (lead roof, corner turrets,
-the banner), the chapel, the well-house; the postern north to the fields. The watch walks every stretch of wall by day
-and by night; the garrison drills; the castellan sits in the great hall.
+Redrawn after the user's word of 2026-10-26 ("这城堡太丑了"; `arch/buildings/castle.ts`): curtain walls that are walls —
+solid, two cells thick and 76 pixels high, battered at the foot, slits in their face, a machicolated outer parapet and an
+inner one with the walk between (`fort_wall_x<n>` along x, `fort_wall_y<n>` along y, laid in the longest stretches by
+`fort.ts wall`) — drum towers as stout as Beaumaris's under low cones at the corners, crenellated drums either side of the
+great gatehouse (two drums under cones round its deep arch, the portcullis half raised, the city's arms over it, lanterns),
+the keep with its four turrets under cones, its lead roof and its forebuilding. Within: the inner ward behind its own wall
+(the keep, the chapel and the garrison's graves, the castellan's garden, the well), the barracks and the drill yard west,
+the armourer's forge and its yard, the stables and the paddock east, the kitchen garden and the hives, roads of grey flags
+from the gatehouse to the inner gate and round the wards; the moat winding before it, the drawbridge, the barbican.
 
 ### 4.4 The Market
 

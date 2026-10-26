@@ -10,7 +10,9 @@ import { MapBuilder, reseed, type Cell } from '../builder.ts'
 import { OVERWORLD } from '../overworld.ts'
 import { roomsBehind, type DoorNote } from '../continent/rooms.ts'
 import { CASTS, type Cast, type Hours } from './cast.ts'
-import { floorTop, hallRoom, linkDoors } from './rooms.ts'
+import { linkDoors } from './rooms.ts'
+import { marketHall } from './halls.ts'
+import { HALLS } from '../../art/arch/plans.ts'
 import { clearDoorsteps, houseRow, pave } from './street.ts'
 import { LOW_HOUSES, TALL_HOUSES } from '../../art/arch/buildings/town.ts'
 import { busyRow, decor, festoons, frontage, lamp, lampRow, pavement, piles, strew, unshut } from './dress.ts'
@@ -126,15 +128,8 @@ export function market(p: Place): MapBuilder[] {
   b.grow(ABOVE, 'flagstone')
 
   // ------------------------------------------------------------------ the market hall within: its counters along the walls, cloth on the tables
-  const hall = hallRoom({ id: `${p.id}.hall`, name: { en: `${p.name.en} — the Market Hall`, zh: `${p.name.zh}·市场大厅` }, w: 26, h: 16, floor: 'floor_wood', music: 'shop', region: p.region, wall: 'wall_markethall', doors: [12, 13] })
-  const h0 = floorTop(hall)
-  for (let x = 3; x < 24; x += 4) hall.fixture('fixture/furniture/counter', x, h0 + 1)
-  for (const y of [h0 + 5, h0 + 9]) for (const x of [6, 13, 20]) hall.fixture('fixture/furniture/table/long', x, y)
-  for (const [x, y] of [[2, h0 + 12], [23, h0 + 12], [2, h0 + 6], [23, h0 + 6]]) hall.fixture('fixture/container/barrel', x, y)
-  for (const [x, y] of [[3, h0 + 12], [22, h0 + 12]]) hall.fixture('fixture/container/sack', x, y)
-  for (const x of [4, 21]) hall.building('hall_pillar', x, h0 + 9)
-  hall.lights.push({ x: 13, y: h0 + 2, w: 22, h: 5, color: '#ffe8b0', shape: 'glow', when: 'sun', strength: 0.22 })
-  linkDoors(b, [b.doors.hall, b.doors.hall2], hall, [[12, hall.h - 1], [13, hall.h - 1]])
+  const hall = marketHall(p)
+  linkDoors(b, [b.doors.hall, b.doors.hall2], hall, HALLS.markethall.doors)
   const rooms = roomsBehind(b, p, doors)
 
   // ------------------------------------------------------------------ the keepers at their stalls, the city shopping, the weighmaster, the watch
@@ -145,8 +140,8 @@ export function market(p: Place): MapBuilder[] {
   stalls.forEach((st, n) =>
     cast.push({ role: 'merchant', home: home(n), stock: TRADES[st.trade][1], day: [at(b, st.keeper, 6, 12, 'work', 0), at(b, A.cross, 12, 13, 'eat', 4), at(b, st.keeper, 13, 18, 'work', 0), at(b, A.well, 18, 21, 'rest', 6)] }),
   )
-  for (let n = 0; n < 4; n++) cast.push({ role: 'merchant', home: home(n + 20), stock: n % 2 ? [['item/material/cloth/holy_cloth_of_gold', 1], ['item/material/cloth', 4]] : [['item/food/wine/holy_spiced_wine', 2], ['item/food/cheese', 3]], day: [at(hall, [3 + n * 6, h0 + 2], 7, 18, 'work', 0), at(b, A.square, 18, 21, 'rest', 10)] })
-  cast.push({ role: 'scholar', home: home(40), day: [at(b, A.weigh, 7, 18, 'work', 1), at(hall, [13, h0 + 7], 18, 20, 'rest', 3)] })
+  for (let n = 0; n < 4; n++) cast.push({ role: 'merchant', home: home(n + 20), stock: n % 2 ? [['item/material/cloth/holy_cloth_of_gold', 1], ['item/material/cloth', 4]] : [['item/food/wine/holy_spiced_wine', 2], ['item/food/cheese', 3]], day: [at(hall, n % 2 ? hall.anchors.counters2 : hall.anchors.counters, 7, 18, 'work', 1), at(b, A.square, 18, 21, 'rest', 10)] })
+  cast.push({ role: 'scholar', home: home(40), day: [at(b, A.weigh, 7, 18, 'work', 1), at(hall, hall.anchors.rest, 18, 20, 'rest', 3)] })
   for (let n = 0; n < 22; n++) cast.push({ role: n % 7 === 0 ? 'noble' : n % 5 === 0 ? 'elder' : 'villager', home: home(n + 3), day: [at(b, A.square, 8, 12, 'walk', 12), at(rooms[(n + 3) % rooms.length], [5, 3], 12, 13, 'eat', 2), at(b, n % 2 ? A.square : A.hallArcade, 13, 18, 'walk', 11), at(b, A.cross, 18, 21, 'rest', 8)] })
   for (let n = 0; n < 4; n++) cast.push({ role: 'peddler', home: home(n + 30), stock: [['item/light/torch', 2], ['item/misc/bait', 3]], day: [at(b, n % 2 ? A.north : A.south, 7, 19, 'walk', 6)] })
   for (let n = 0; n < 4; n++) cast.push({ role: 'child', home: home(n + 10), day: [at(b, A.well, 8, 12, 'play', 5), at(rooms[(n + 10) % rooms.length], [5, 3], 12, 13, 'eat', 2), at(b, A.cross, 13, 18, 'play', 6)] })

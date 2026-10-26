@@ -9,7 +9,8 @@ import { MapBuilder, reseed, rng, type Cell } from '../builder.ts'
 import { OVERWORLD } from '../overworld.ts'
 import { roomsBehind, type DoorNote } from '../continent/rooms.ts'
 import { CASTS, type Cast, type Hours } from './cast.ts'
-import { floorTop, hallRoom, linkDoors } from './rooms.ts'
+import { linkDoors } from './rooms.ts'
+import { tavernHall } from './halls.ts'
 import { clearDoorsteps, houseRow, pave } from './street.ts'
 import { HOVEL_NAMES } from '../../art/arch/buildings/town.ts'
 import { busyRow, decor, frontage, piles, strew, unshut } from './dress.ts'
@@ -93,18 +94,7 @@ export function lowerTown(p: Place): MapBuilder[] {
   b.raise(0, 0, W, ABOVE, 2)
 
   // ------------------------------------------------------------------ the tavern within
-  const tavern = hallRoom({ id: `${p.id}.inn-0`, name: { en: `${p.name.en} — the Drowned Lantern`, zh: `${p.name.zh}·溺灯酒馆` }, w: 18, h: 12, floor: 'floor_wood', music: 'interior_night', region: p.region, wall: 'wall_tavern', frame: 'wood' })
-  const t0 = floorTop(tavern)
-  for (let x = 2; x < 8; x += 2) tavern.fixture('fixture/furniture/counter', x, t0 + 3)
-  for (const [x, y] of [[2, t0 + 1], [4, t0 + 1], [6, t0 + 1]]) tavern.fixture('fixture/container/barrel', x, y)
-  for (const [x, y] of [[11, t0 + 4], [15, t0 + 4], [11, t0 + 8], [15, t0 + 8], [5, t0 + 7]]) {
-    tavern.fixture('fixture/furniture/table', x, y)
-    tavern.fixture('fixture/furniture/chair', x - 1, y)
-    tavern.fixture('fixture/furniture/chair', x + 1, y)
-  }
-  tavern.fixture('fixture/furniture/bed', 16, t0 + 1)
-  tavern.fixture('fixture/furniture/bed', 16, t0 + 2)
-  tavern.lights.push({ x: 9, y: t0 + 1, w: 10, h: 6, color: '#ff8a3a', shape: 'glow', when: 'always', strength: 0.45 })
+  const tavern = tavernHall(p)
   linkDoors(b, [b.doors.tavern], tavern, [tavern.doors.out])
   const rooms = roomsBehind(b, p, doors)
 
@@ -113,14 +103,14 @@ export function lowerTown(p: Place): MapBuilder[] {
   const A = b.anchors
   const home = (n: number) => rooms[n % rooms.length].id
   const cast: Cast[] = []
-  for (let n = 0; n < 6; n++) cast.push({ role: 'fisher', home: home(n), day: [at(b, n % 2 ? A.quayN : A.quayS, 5, 12, 'work', 6), at(rooms[n % rooms.length], [5, 3], 12, 13, 'eat', 2), at(b, n % 2 ? A.quayN : A.quayS, 13, 17, 'work', 6), at(tavern, [12, t0 + 6], 17, 22, 'rest', 4)] })
-  for (let n = 0; n < 5; n++) cast.push({ role: 'villager', home: home(n + 6), day: [at(b, A.crane, 6, 12, 'work', 3), at(b, A.lane, 12, 13, 'eat', 4), at(b, A.crane, 13, 18, 'work', 3), at(tavern, [13, t0 + 6], 18, 22, 'rest', 4)] })
+  for (let n = 0; n < 6; n++) cast.push({ role: 'fisher', home: home(n), day: [at(b, n % 2 ? A.quayN : A.quayS, 5, 12, 'work', 6), at(rooms[n % rooms.length], [5, 3], 12, 13, 'eat', 2), at(b, n % 2 ? A.quayN : A.quayS, 13, 17, 'work', 6), at(tavern, tavern.anchors.rest, 17, 22, 'rest', 4)] })
+  for (let n = 0; n < 5; n++) cast.push({ role: 'villager', home: home(n + 6), day: [at(b, A.crane, 6, 12, 'work', 3), at(b, A.lane, 12, 13, 'eat', 4), at(b, A.crane, 13, 18, 'work', 3), at(tavern, tavern.anchors.eat, 18, 22, 'rest', 4)] })
   for (let n = 0; n < 4; n++) cast.push({ role: 'villager', sex: 'female', home: home(n + 11), day: [at(b, A.lane, 7, 12, 'work', 6), at(rooms[(n + 11) % rooms.length], [5, 3], 12, 13, 'eat', 2), at(b, A.lane, 13, 18, 'work', 6), at(b, A.fire, 18, 21, 'rest', 3)] })
   for (let n = 0; n < 6; n++) cast.push({ role: 'child', home: home(n + 2), day: [at(b, A.lane, 8, 12, 'play', 8), at(rooms[(n + 2) % rooms.length], [5, 3], 12, 13, 'eat', 2), at(b, n % 2 ? A.quayS : A.bridge, 13, 18, 'play', 6)] })
   for (let n = 0; n < 3; n++) cast.push({ role: 'beggar', home: home(n + 20), day: [at(b, A.fire, 6, 22, 'sit', 3)] })
   cast.push({ role: 'elder', home: home(30), day: [at(b, A.quayN, 8, 18, 'sit', 2)] })
-  cast.push({ role: 'innkeeper', home: tavern.id, day: [at(tavern, [4, t0 + 4], 10, 24, 'work', 2)] })
-  cast.push({ role: 'bard', home: tavern.id, day: [at(tavern, [8, t0 + 8], 18, 24, 'work', 1), at(b, A.street, 12, 17, 'work', 4)] })
+  cast.push({ role: 'innkeeper', home: tavern.id, day: [at(tavern, tavern.anchors.bar, 10, 24, 'work', 2)] })
+  cast.push({ role: 'bard', home: tavern.id, day: [at(tavern, tavern.anchors.bard, 18, 24, 'work', 1), at(b, A.street, 12, 17, 'work', 4)] })
   cast.push({ role: 'herbalist', home: home(33), stock: [['item/material/herb', 4], ['item/potion/antidote', 1]], day: [at(b, A.street, 8, 18, 'work', 3)] })
   cast.push({ role: 'guard', home: home(35), day: [at(b, A.street, 8, 20, 'watch', 10)] })
   CASTS.set(p.id, cast)

@@ -15,6 +15,7 @@ import { roomsBehind } from '../continent/rooms.ts'
 import { CASTS, type Cast, type Hours } from './cast.ts'
 import { floorTop, hallRoom, linkDoors, linkStair } from './rooms.ts'
 import { NAVE } from '../../art/arch/plans.ts'
+import { belfryHall, cryptHall, libraryHall, refectoryHall } from './halls.ts'
 import { clearDoorsteps } from './street.ts'
 import { lamp, panels, parterre, piles, strew, unshut } from './dress.ts'
 
@@ -258,61 +259,15 @@ export function abbeyClose(p: Place): MapBuilder[] {
   linkDoors(b, [b.doors['church.west']], nave, [nave.doors.out])
   b.portal(b.doors['church.west2'][0], b.doors['church.west2'][1], nave.id, AX, NAVE.door[1] - 1, nave.name)
 
-  // ------------------------------------------------------------------ the crypt under the choir
-  const crypt = hallRoom({ id: `${p.id}.crypt`, name: { en: `${p.name.en} — the Crypt`, zh: `${p.name.zh}·地下墓室` }, w: 26, h: 18, floor: 'cave_floor', music: 'crypt', light: 'dark', region: p.region, wall: 'wall_crypt', kind: 'dungeon', doors: [] })
-  const c0 = floorTop(crypt)
-  for (let y = c0 + 2; y < c0 + 15; y += 4) for (let x = 4; x < 24; x += 5) crypt.building('crypt_pillar', x, y)
-  for (let y = c0 + 3; y < c0 + 15; y += 4) for (let x = 6; x < 22; x += 5) crypt.fixture('fixture/sacred/sarcophagus', x, y)
-  crypt.fixture('fixture/sacred/reliquary', 13, c0 + 1)
-  // urns of ashes between the pillars, the old bones gathered in a corner, a candle at a tomb here and there
-  for (const [x, y] of [[2, c0 + 4], [2, c0 + 9], [23, c0 + 4], [23, c0 + 9]]) crypt.fixture('fixture/container/pot', x, y)
-  for (const [x, y] of [[22, c0 + 13], [23, c0 + 12]]) crypt.fixture('fixture/remains/bones', x, y)
-  for (const [x, y] of [[8, c0 + 6], [18, c0 + 10]]) crypt.fixture('fixture/light/candles', x, y)
-  for (const x of [11, 15]) crypt.fixture('fixture/light/candles', x, c0 + 1)
-  crypt.lights.push({ x: 13, y: c0 + 1, w: 8, h: 6, color: '#ffb35c', shape: 'glow', when: 'always', strength: 0.45 })
-  crypt.rect(1, crypt.h - 1, 24, 1, 'wall')
-  linkStair(nave, [3, NP.transept.y + 1], crypt, [2, crypt.h - 3], true)
-
-  // ------------------------------------------------------------------ the belfry over the south-west tower
-  const belfry = hallRoom({ id: `${p.id}.belfry`, name: { en: `${p.name.en} — the Belfry`, zh: `${p.name.zh}·钟楼` }, w: 14, h: 12, floor: 'floor_wood', music: 'temple', region: p.region, wall: 'wall_belfry', frame: 'wood', doors: [] })
-  const f0 = floorTop(belfry)
-  belfry.building('belfry_bells', 5, f0 + 2)
-  belfry.fixture('fixture/container/crate', 2, f0 + 1)
-  belfry.lights.push({ x: 7, y: f0 + 2, w: 12, h: 6, color: '#ffe8b0', shape: 'glow', when: 'sun', strength: 0.25 })
-  belfry.rect(1, belfry.h - 1, 12, 1, 'wall')
-  linkStair(nave, [NP.narthex.x, NP.narthex.y], belfry, [2, belfry.h - 3], false)
-
-  // ------------------------------------------------------------------ the library and scriptorium
-  const library = hallRoom({ id: `${p.id}.library`, name: { en: `${p.name.en} — the Library`, zh: `${p.name.zh}·藏书楼` }, w: 26, h: 18, floor: 'floor_wood', music: 'interior', region: p.region, wall: 'wall_library' })
-  const l0 = floorTop(library)
-  for (let y = l0 + 1; y < l0 + 9; y += 3) for (let x = 3; x < 24; x += 4) if (x !== 11 && x !== 15) library.fixture('fixture/container/bookcase', x, y)
-  for (let x = 4; x < 23; x += 3) library.fixture('fixture/furniture/desk', x, l0 + 11)
-  for (let x = 4; x < 23; x += 3) library.fixture('fixture/light/candles', x + 1, l0 + 12)
-  library.fixture('fixture/sacred/lectern', 13, l0 + 5)
-  library.fixture('fixture/furniture/table/long', 13, l0 + 14)
-  // a runner up to the lectern, chests of the house's charters, plants in the window's light, the reading table's candles
-  library.rect(12, l0 + 6, 3, 4, 'carpet')
-  for (const x of [2, 23]) library.fixture('fixture/container/chest', x, l0 + 10)
-  for (const x of [2, 23]) library.fixture('fixture/nature/plant', x, l0 + 14)
-  library.fixture('fixture/light/candles', 11, l0 + 14)
-  library.fixture('fixture/light/candles', 15, l0 + 14)
-  for (let k = 0; k < 6; k++) library.lights.push({ x: 2.5 + k * 4, y: l0 + 10, w: 2, h: 3, color: '#ffe08a', shape: 'lancet', when: 'sun', strength: 0.35 })
-  library.anchors = { desks: [13, l0 + 12], cases: [13, l0 + 4] }
+  // ------------------------------------------------------------------ the crypt under the choir, the belfry over the south-west tower, the library, the refectory
+  // (each from its own plan, art/arch/plans.ts HALLS; laid and furnished in halls.ts)
+  const crypt = cryptHall(p)
+  linkStair(nave, [3, NP.transept.y + 1], crypt, crypt.anchors.stair, true)
+  const belfry = belfryHall(p)
+  linkStair(nave, [NP.narthex.x, NP.narthex.y], belfry, belfry.anchors.stair, false)
+  const library = libraryHall(p)
   linkDoors(b, [b.doors.library], library, [library.doors.out])
-
-  // ------------------------------------------------------------------ the refectory
-  const refectory = hallRoom({ id: `${p.id}.refectory`, name: { en: `${p.name.en} — the Refectory`, zh: `${p.name.zh}·食堂` }, w: 22, h: 14, floor: 'paving', music: 'interior', region: p.region, wall: 'wall_refectory' })
-  const r0 = floorTop(refectory)
-  for (let y = r0 + 3; y < r0 + 11; y += 4) {
-    for (const x of [6, 15]) {
-      refectory.fixture('fixture/furniture/table/long', x, y)
-      refectory.fixture('fixture/furniture/bench/log', x, y + 1)
-    }
-  }
-  refectory.fixture('fixture/sacred/pulpit', 11, r0 + 1)
-  refectory.fixture('fixture/light/fireplace', 19, r0 + 1)
-  refectory.fixture('fixture/container/barrel', 2, r0 + 1)
-  refectory.fixture('fixture/container/barrel', 3, r0 + 1)
+  const refectory = refectoryHall(p)
   linkDoors(b, [b.doors.refectory], refectory, [refectory.doors.out])
 
   // ------------------------------------------------------------------ the rooms behind the other doors (rooms.ts): the brothers' cells, the lodge, the almonry
@@ -346,7 +301,7 @@ export function abbeyClose(p: Place): MapBuilder[] {
       day: [
         at(nave, nave.anchors.choir, 5, 7, 'pray', 3),
         at(m, c, 7, 12, act, 3),
-        at(refectory, [i % 2 ? 6 : 15, floorTop(refectory) + 4 + (i % 3) * 4], 12, 13, 'eat', 2),
+        at(refectory, [i % 2 ? 7 : 18, refectory.anchors.table[1] + 3 + (i % 3) * 3], 12, 13, 'eat', 2),
         at(m, c, 13, 17, act, 3),
         at(nave, nave.anchors.choir, 17, 19, 'pray', 3),
         at(b, A.garth, 19, 21, 'walk', 6),
@@ -354,8 +309,8 @@ export function abbeyClose(p: Place): MapBuilder[] {
     }),
   )
   // the abbot, the sacristan who keeps the nave, the almoner, the keeper of the parvis's candle stall
-  cast.push({ role: 'priest', home: rooms[1].id, age: [55, 75], sex: 'male', day: [at(nave, nave.anchors.choir, 6, 8, 'pray', 2), at(b, A.parvis, 8, 11, 'walk', 4), at(library, library.anchors.cases, 11, 12, 'read', 2), at(refectory, [11, floorTop(refectory) + 2], 12, 13, 'eat', 1), at(nave, nave.anchors.altar, 13, 18, 'pray', 2), at(nave, nave.anchors.choir, 18, 21, 'pray', 2)] })
-  cast.push({ role: 'priest', home: dorter.id, day: [at(nave, nave.anchors.font, 5, 12, 'work', 4), at(refectory, [6, floorTop(refectory) + 8], 12, 13, 'eat', 2), at(nave, nave.anchors.pulpit, 13, 21, 'work', 5)] })
+  cast.push({ role: 'priest', home: rooms[1].id, age: [55, 75], sex: 'male', day: [at(nave, nave.anchors.choir, 6, 8, 'pray', 2), at(b, A.parvis, 8, 11, 'walk', 4), at(library, library.anchors.cases, 11, 12, 'read', 2), at(refectory, refectory.anchors.table, 12, 13, 'eat', 1), at(nave, nave.anchors.altar, 13, 18, 'pray', 2), at(nave, nave.anchors.choir, 18, 21, 'pray', 2)] })
+  cast.push({ role: 'priest', home: dorter.id, day: [at(nave, nave.anchors.font, 5, 12, 'work', 4), at(refectory, refectory.anchors.bench, 12, 13, 'eat', 2), at(nave, nave.anchors.pulpit, 13, 21, 'work', 5)] })
   cast.push({ role: 'merchant', home: rooms[2].id, stock: [['item/light/candle', 6], ['item/vessel/flask/holy_water', 2], ['item/food/bread', 3]], day: [at(b, A.candles, 7, 12, 'work', 1), at(rooms[2], [5, 3], 12, 13, 'eat', 2), at(b, A.candles, 13, 19, 'work', 1), at(b, A.parvis, 19, 21, 'rest', 4)] })
   cast.push({ role: 'herbalist', home: rooms[2].id, stock: [['item/material/herb', 5], ['item/potion/healing', 1]], day: [at(b, A.herbs, 7, 12, 'work', 1), at(b, A.garden, 12, 15, 'work', 3), at(b, A.herbs, 15, 19, 'work', 1), at(rooms[2], [5, 3], 19, 21, 'rest', 2)] })
   // pilgrims on the parvis and at the altar, a beggar at the porch (they sleep in the almonry's loft)

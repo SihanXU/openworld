@@ -147,7 +147,7 @@ for (const [name, make] of Object.entries(MODELS)) {
   const t = Date.now()
   const m = make()
   if (m.name !== name) throw new Error(`model ${name} names itself ${m.name}`)
-  manifest[name] = build(m, name in INSIDE)
+  manifest[name] = build(m, name in INSIDE || name.endsWith('_shell'))
   console.log(`${name}: ${manifest[name].slices.length} strips, ${Date.now() - t} ms`)
 }
 for (const name of Object.keys(manifest)) if (!MODELS[name]) delete manifest[name]

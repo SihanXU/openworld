@@ -10,7 +10,9 @@ import { MapBuilder, reseed, type Cell } from '../builder.ts'
 import { OVERWORLD } from '../overworld.ts'
 import { roomsBehind, type DoorNote } from '../continent/rooms.ts'
 import { CASTS, type Cast, type Hours } from './cast.ts'
-import { floorTop, hallRoom, linkDoors } from './rooms.ts'
+import { linkDoors } from './rooms.ts'
+import { councilHall } from './halls.ts'
+import { HALLS } from '../../art/arch/plans.ts'
 import { clearDoorsteps, houseRow, pave, type Row } from './street.ts'
 import { LOW_HOUSES, NARROW_HOUSES, TALL_HOUSES } from '../../art/arch/buildings/town.ts'
 import { busyRow, decor, frontage, lamp, lampRow, panels, parterre, pavement, piles, strew, terrace, unshut } from './dress.ts'
@@ -130,18 +132,8 @@ export function bellWard(p: Place): MapBuilder[] {
   b.raise(53, 0, 4, ABOVE, 0)
 
   // ------------------------------------------------------------------ the council's chamber in the hall
-  const hall = hallRoom({ id: `${p.id}.hall`, name: { en: `${p.name.en} — the Council Hall`, zh: `${p.name.zh}·议事厅` }, w: 24, h: 16, floor: 'paving', music: 'interior', region: p.region, wall: 'wall_townhall', doors: [11, 12] })
-  const h0 = floorTop(hall)
-  hall.fixture('fixture/furniture/throne', 12, h0 + 1)
-  hall.fixture('fixture/furniture/table/long', 12, h0 + 5)
-  for (const x of [9, 12, 15]) for (const y of [h0 + 4, h0 + 6]) hall.fixture('fixture/furniture/chair', x, y)
-  for (let y = h0 + 9; y < h0 + 14; y += 2) hall.fixture('fixture/furniture/pew', 6, y)
-  for (let y = h0 + 9; y < h0 + 14; y += 2) hall.fixture('fixture/furniture/pew', 18, y)
-  for (const [x, y] of [[2, h0 + 1], [21, h0 + 1]]) hall.fixture('fixture/container/bookcase', x, y)
-  hall.fixture('fixture/furniture/desk', 3, h0 + 6)
-  hall.rect(11, h0 + 7, 2, hall.h - 1 - (h0 + 7), 'carpet')
-  for (let k = 0; k < 4; k++) hall.lights.push({ x: 4.5 + k * 5, y: h0 + 2, w: 2, h: 4, color: k % 2 ? '#d9474e' : '#f0bd45', shape: 'lancet', when: 'sun', strength: 0.35 })
-  linkDoors(b, [b.doors.hall, b.doors.hall2], hall, [[11, hall.h - 1], [12, hall.h - 1]])
+  const hall = councilHall(p)
+  linkDoors(b, [b.doors.hall, b.doors.hall2], hall, HALLS.council.doors)
   const rooms = roomsBehind(b, p, doors)
 
   // ------------------------------------------------------------------ the city's people on its great square
@@ -150,8 +142,8 @@ export function bellWard(p: Place): MapBuilder[] {
   const homes = rooms.map((r) => r.id)
   const home = (k: number) => homes[k % homes.length]
   const cast: Cast[] = []
-  cast.push({ role: 'noble', home: home(0), day: [at(hall, [12, h0 + 2], 9, 12, 'sit', 0), at(b, A.square, 12, 14, 'walk', 6), at(hall, [12, h0 + 2], 14, 18, 'sit', 0), at(b, A.fountain, 18, 21, 'rest', 5)] })
-  for (let k = 0; k < 3; k++) cast.push({ role: 'scholar', home: home(k + 1), day: [at(hall, [4, h0 + 6], 8, 12, 'work', 3), at(b, A.square, 12, 13, 'walk', 6), at(hall, [12, h0 + 9], 13, 18, 'work', 4), at(b, A.way, 18, 21, 'walk', 8)] })
+  cast.push({ role: 'noble', home: home(0), day: [at(hall, hall.anchors.seat, 9, 12, 'sit', 0), at(b, A.square, 12, 14, 'walk', 6), at(hall, hall.anchors.seat, 14, 18, 'sit', 0), at(b, A.fountain, 18, 21, 'rest', 5)] })
+  for (let k = 0; k < 3; k++) cast.push({ role: 'scholar', home: home(k + 1), day: [at(hall, hall.anchors.clerk, 8, 12, 'work', 3), at(b, A.square, 12, 13, 'walk', 6), at(hall, hall.anchors.bench, 13, 18, 'work', 4), at(b, A.way, 18, 21, 'walk', 8)] })
   for (const c of [A.hallDoor, A.bridge, A.fork]) cast.push({ role: 'guard', home: home(cast.length), day: [at(b, c, 6, 18, 'watch', 1), at(b, A.square, 18, 21, 'watch', 10)] })
   cast.push({ role: 'guard', home: home(cast.length), day: [at(b, A.square, 18, 2, 'watch', 8), at(b, A.way, 2, 6, 'watch', 8)] })
   for (const [x, y] of [[17, 40], [38, 58], [3, 52], [10, 15]] as Cell[]) cast.push({ role: 'merchant', home: home(cast.length), stock: [['item/material/herb', 3], ['item/food/honey/holy_honeycomb', 2]], day: [at(b, [x, y + 1 + ABOVE], 7, 12, 'work', 0), at(b, A.fountain, 12, 13, 'eat', 4), at(b, [x, y + 1 + ABOVE], 13, 18, 'work', 0)] })

@@ -87,7 +87,7 @@ export const TERRAIN_CHARS: Record<string, string> = {
   h: 'spring',
   V: 'void',
   p: 'paving',
-  Z: 'flagstone',
+  w: 'flagstone',
   U: 'rampart',
   z: 'plaza',
   k: 'flags',

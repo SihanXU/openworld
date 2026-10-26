@@ -10,12 +10,16 @@ import { MARKET } from './market.ts'
 import { INSIDE, PROPS as INSIDE_PROPS } from './inside.ts'
 import { STREET_PROPS } from './street.ts'
 import { DECOR } from './decor.ts'
+import { CASTLE } from './castle.ts'
+import { HALL_SHELLS } from './halls.ts'
 import { fountain, grandFountain } from '../kit.ts'
 
 export const MODELS: Record<string, () => Model> = {
   abbey_church: abbeyChurch,
   ...CLOSE,
   ...FORT,
+  ...CASTLE,
+  ...HALL_SHELLS,
   ...TOWN,
   ...MARKET,
   ...INSIDE,
