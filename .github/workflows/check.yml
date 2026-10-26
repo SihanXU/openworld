@@ -1,7 +1,9 @@
 # The typecheck and the whole test suite (as npm run check) on every pull request and every push to main: the engine,
-# the modules, the format, the starter, the modder and agent, the runtime and editor, and OpenWorld's content, demo
-# and wiki generator. The wiki's own check is wiki.yml; the desktop installers are desktop.yml. The one test that
-# needs Docker (the agent's sandbox container, packages/modder/test/repo.test.ts) runs here, where Docker is.
+# the modules, the format, the starter, the AI (packages/ai and OpenWorld's drivers in games/openworld/ai), the runtime
+# and editor, and OpenWorld's content, demo and wiki generator. The wiki's own check is wiki.yml; the desktop
+# installers are desktop.yml. The one test that needs Docker (the agent's sandbox container,
+# packages/ai/test/repo.test.ts) runs here, where Docker is. The no-ai job deletes the AI and checks the game still
+# typechecks, passes its tests, plays two headless days and builds.
 name: check
 on:
   pull_request:
@@ -16,7 +18,7 @@ jobs:
     # The full suite alone can take about 30 minutes; allow setup, typecheck and cleanup to finish too.
     timeout-minutes: 45
     steps:
-      # the ladder's test makes a workspace of HEAD's parent (tools/test/ladder.test.ts): a parent is fetched too
+      # the ladder's test makes a workspace of HEAD's parent (games/openworld/ai/test/ladder.test.ts): a parent is fetched too
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
@@ -29,3 +31,19 @@ jobs:
       # a runner has a few cores: the slowest tests (a night in bed, rising at home) take 10 s each on a fast machine
       # and run beside the rest, so they get more than the local 30 s
       - run: npm test -- --testTimeout=120000
+  no-ai:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      # the game without its AI: delete both AI folders before installing, as a checkout without them would be
+      - run: rm -rf packages/ai games/openworld/ai
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck:game
+      - run: npm test -- --testTimeout=120000
+      - run: npm run check:world
+      - run: npm run build

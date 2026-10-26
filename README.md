@@ -69,7 +69,7 @@ accepted patch joins the shared rule library that all clients sync from.
 # LSW_MODEL_PROVIDERS=together,parasail,inference-net (any OpenAI-compatible endpoint; default OpenRouter)
 npm run modder -- serve
 # or offline, with a scripted model (rope on a creature is the one interaction it knows)
-npm run modder -- serve 8787 --script packages/modder/fixtures/offline.json --data var/offline
+npm run modder -- serve 8787 --script packages/ai/fixtures/offline.json --data var/offline
 ```
 
 The dev client finds it at `http://localhost:8787`. Elsewhere, point the client at it with

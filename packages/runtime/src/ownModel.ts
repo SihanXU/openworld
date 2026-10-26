@@ -2,6 +2,7 @@
 // browser, or the settings opened), handed the game as data, and a port to it for the engine's worker. The key passes
 // through here once, from the settings' field to the modder's worker; the page keeps only its hint.
 
+import { ai } from './ai.ts'
 import { game } from './game.ts'
 import type { FromModder, ModelChoice, ModelStatus, Remember, ToModder } from './modderProtocol.ts'
 
@@ -59,7 +60,9 @@ export class OwnModel {
   /** The modder's worker, made (and handed the game) the first time it is wanted. */
   start(): void {
     if (this.worker) return
-    const w = new Worker(new URL('./modderWorker.ts', import.meta.url), { type: 'module', name: 'modder' })
+    // (a build without the AI has no modder to start: the game plays with no model)
+    if (!ai) return
+    const w = ai.startModder()
     w.onmessage = (e: MessageEvent<FromModder>) => this.receive(e.data)
     w.onerror = (e) => console.error('[modder]', e.message)
     this.worker = w

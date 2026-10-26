@@ -313,7 +313,7 @@ export class Cover {
     if (this.panel === 'settings') return head + this.settingsHtml()
     if (this.panel === 'model')
       return `${head}<div class="options cv-settings cv-model">
-        ${this.on.ai.own.html(false)}
+        ${this.on.ai.own?.html(false) ?? ''}
         <div class="cv-skip"><button class="cv-btn" id="cvSkipModel">${t('aiSkip')}</button><small>${t('aiSkipTip')}</small></div>
       </div>`
     const when = (iso: string) => new Date(iso).toLocaleString(locale.value === 'zh' ? 'zh-CN' : 'en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -390,7 +390,7 @@ export class Cover {
     }
     if (this.panel === 'model') {
       ownModel.start()
-      this.on.ai.own.wire($('#intro').querySelector<HTMLElement>('.cv-model')!)
+      this.on.ai.own?.wire($('#intro').querySelector<HTMLElement>('.cv-model')!)
       // no model, and not asked again (Settings still offers one); the ✕ and Esc only put it off until the next time
       $('#cvSkipModel').onclick = () => (OwnModel.skip(), (this.panel = undefined), this.render())
       return

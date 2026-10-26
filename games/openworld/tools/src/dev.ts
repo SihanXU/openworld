@@ -72,11 +72,13 @@ process.on('SIGINT', stop)
 process.on('SIGTERM', stop)
 if (existsSync('.env')) process.loadEnvFile('.env')
 if (await modderAnswers()) console.log(`[dev] a modder already answers on :${PORT}`)
+// a checkout without the AI (packages/ai) plays with no model: no modder to start
+else if (!existsSync('packages/ai')) console.log('[dev] no AI in this checkout (packages/ai): the game plays with no model')
 // watched: the modder validates against the content it loaded, so it restarts when the content changes
 else {
   // --fast asks claude-code for fast mode (the account must allow it: extra usage on)
   const fast = process.argv.includes('--fast') ? { LSW_CLAUDE_FAST: '1' } : {}
-  run('modder', ['exec', '--', 'tsx', 'watch', 'packages/modder/src/cli.ts', '--game', 'games/openworld/content/src/game.ts', 'serve', String(PORT)], { ...process.env, LSW_MODEL_BACKEND: await chooseBackend(), ...fast })
+  run('modder', ['exec', '--', 'tsx', 'watch', 'packages/ai/scripts/modder.ts', '--game', 'games/openworld/content/src/game.ts', 'serve', String(PORT)], { ...process.env, LSW_MODEL_BACKEND: await chooseBackend(), ...fast })
 }
 // the world the client serves is built from the content: built again first, so a content change is never
 // played on a stale world (a new start the old world lacks fails the game at its first frame)

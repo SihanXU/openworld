@@ -1136,7 +1136,7 @@ does not). Things with a common use (a chair: sit; hay: lie; a well: draw water)
 get a short in-world line, or nothing. It is not "every act must change the world".
 
 - **The judgment.** The design answers `{"affords": "use" | "words" | "none", "patch": …}`, the judgment first. The
-  harness holds the answer to it (`packages/modder/src/affordance.ts`): words or nothing that change the world are a
+  harness holds the answer to it (`packages/ai/src/modder/affordance.ts`): words or nothing that change the world are a
   use; a use it said that changes nothing in the scene that asked (only words, or an impulse its receiver does not
   answer) is sent back once, and kept as words if it comes back the same; an answer that says nothing is judged by
   its rule, and never sent back. The verdict is written on the answering rule
@@ -1521,7 +1521,7 @@ hand-crafted; the generated 460-map world was removed on 2026-10-02.
 
 ## 13. Phase 2 — the modder service (2026-10-01)
 
-`packages/modder` closes the loop: an undefined interaction in the browser reaches the
+`packages/ai` (the modder) closes the loop: an undefined interaction in the browser reaches the
 service, which returns a validated patch, and the frozen interaction re-resolves under it.
 The model is not chosen yet, so the model is an interface (`model.ts`). Anything
 OpenAI-compatible plugs in (OpenRouter reaches most providers). A scripted model answers from
@@ -1788,9 +1788,9 @@ class. `npm run curriculum:report` summarises a run.
 - **The offline agent left its workspace** — and now cannot. In one revision it ran commands
   in the real repository (reading engine source, writing a debug script at its root; it
   changed no tracked file). The task ran on the host (`LocalEnv`), and its `validate.mjs`
-  named the repository's path. Now (`packages/agent/src/env.ts`, `chooseIsolation`):
+  named the repository's path. Now (`packages/ai/src/agent/env.ts`, `chooseIsolation`):
   - **With Docker** (the Linux host has it since 2026-10-03), an unattended task's commands run
-    in the `lsw-sandbox` container (node, git, ripgrep; built from `packages/agent/sandbox`):
+    in the `lsw-sandbox` container (node, git, ripgrep; built from `packages/ai/sandbox`):
     no network, 1 GB, 1 CPU, 256 processes, the host user's uid. A world task sees its
     workspace and the engine's code read-only under `/repo` — not `.env`, not `var/`. An engine
     task sees its workspace and the host's `node_modules` read-only.
@@ -1917,7 +1917,7 @@ The offline profile (escalations, revisions, the curriculum, the editor's offlin
 it always did, and keeps its answer in the tier the question was asked at. The editor asks at the
 high tier, so an answer an author takes into the game serves every setting.
 
-**Detection** (`packages/modder/src/detect.ts`; `GET /quality`, `POST /quality/detect`, this
+**Detection** (`packages/ai/src/checks/detect.ts`; `GET /quality`, `POST /quality/detect`, this
 machine only). As a game detects the hardware and recommends a preset, the service plays a set of
 questions at each tier and recommends, for each kind of work, the highest tier the model answers in
 time at least three times in four (below that: low at one in two, else off). The questions are the
@@ -1940,7 +1940,7 @@ tier's reasoning had no effect there.
 ### The self-improving agent (2026-10-01)
 
 The offline profile no longer uses the patch pipeline. A request is worked by an SWE-style agent
-(`packages/agent`) as a **repository**: rules as files, the ModSpec as docs, the validator as the
+(`packages/ai/src/agent`) as a **repository**: rules as files, the ModSpec as docs, the validator as the
 tests. The same agent works engine issues (hidden fail-to-pass tests) and SWE-bench instances,
 and an outer loop lets it change its own loop under meta-validation. Design, guard rails and
 smoke results: [rsi.md](rsi.md).

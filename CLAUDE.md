@@ -4,7 +4,7 @@ A web-playable 2D JRPG world whose state and rules are code; an LLM modder (late
 patches undefined interactions at runtime. Successor to BardOS (`C:\Users\chica\文字游戏`).
 Story and world: [docs/lore.md](docs/lore.md) (the user's canonical setting: the Five Sufferings, the
 First Night, the five Seal-bearers; every chapter follows it) and [docs/chapter-1.md](docs/chapter-1.md).
-Design: [docs/design.md](docs/design.md); the key people's own portraits and event CGs (release 1's cast of six, each designed to a sheet; the CGs drawn as shots): [docs/character-art.md](docs/character-art.md), [docs/cast/](docs/cast/); the agreed world model and base gameplay (not yet built,
+Design: [docs/design.md](docs/design.md); the AI side at a glance (what runs where, who checks what, which file does which job): [docs/ai.md](docs/ai.md); the key people's own portraits and event CGs (release 1's cast of six, each designed to a sheet; the CGs drawn as shots): [docs/character-art.md](docs/character-art.md), [docs/cast/](docs/cast/); the agreed world model and base gameplay (not yet built,
 steps W1–W10): [docs/world-model.md](docs/world-model.md); the continent — six regions round the Holy City, the backdrop
 that fills them, the phases of scaling A–E (A–D built 2026-10-18): [docs/continent.md](docs/continent.md); six of the Holy City's
 places made by hand as models for all to come — a Gothic cathedral without and within, a concentric fortress, the grand
@@ -242,18 +242,6 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   pages are shown with a banner, never fail the check), `wiki/en/site.json` the navigation's headings, `wiki/en/terms.json`
   the term table. A link or template argument may name a page in Chinese in an English page: it resolves to the English page
   (`relink` rewrites it); templates have English names too (`TEMPLATE_EN`).
-- `packages/agent` — the SWE-style agent and its self-state, task-agnostic (no engine, no content); `core.ts` what
-  runs anywhere, a browser's worker too (the model, `providers.ts` + `providerList.ts` the services a player brings a
-  key for, the self-state over `files.ts` — the disk or `MemFiles` —, reflection), `index.ts` Node's (`model-node.ts`
-  Claude Code and the environment, the disk, the loop, the benchmark):
-  `model.ts` (OpenAI-compatible / scripted / `anthropic.ts` Anthropic's API; `LSW_MODEL_PIN` freezes the provider for an experiment; `LSW_NO_ANTHROPIC=1`
-  makes the claude-code backend and `anthropic/*` models refuse on a machine),
-  `state.ts` (memory, skills + scripts, harness, hooks, journal, snapshots, ablations), `env.ts` (local /
-  docker: a benchmark image's `/testbed` copied out and mounted back, a node mounted for the hooks),
-  `tools.ts`, `loop.ts` (the agent loop), `reflect.ts`, `outer.ts` (proposals + meta-validation),
-  `presets.ts` (naive / tuned), `swe.ts` + `cli.ts` (SWE-bench instances → predictions.jsonl, N at a
-  time, a record per instance, the run's manifest, resumable). See docs/rsi.md and, for the
-  experiments, docs/rsi-experiments.md.
 - `bench/` — the RSI experiments' benchmark pool (docs/rsi-experiments.md §4.1): `pool.py` counts the
   public SWE-style datasets by date (each at a pinned revision), freezes a pool as identifiers only
   (`bench/pools/`), fetches a pool's instances into `var/bench/`; `fresh/` the fresh pool's miner
@@ -263,32 +251,44 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - An unattended agent runs commands only in a container (`env.ts` `chooseIsolation`: the
   `lsw-sandbox` image, no network, no `.env`); without Docker it gets no shell and its hooks do
   not run. `LSW_ISOLATION=docker|none` overrides. Never give an unattended agent a local shell.
-- `packages/modder` — the modder service (design.md §13, rsi.md). It imports no game: it is handed one
-  (`openModder({ game })`; the command line's `--game <module>`, which the root script passes); a world
-  repository carries its own ontology. The engine never depends on it. Parts:
-  - `model.ts`: a model interface — OpenAI-compatible, or scripted for tests and offline.
-  - `pipeline.ts`: comprehend → recall → design (tools) → verify/repair → audit → review → commit →
-    record → reflect. The auditor (`audit.ts`) plays against a patch in the sandbox; only what it
-    reproduces there, with the patch and not without it, counts. Live designs are routed (design.md §13, the router): local (the request's
+- `packages/ai` — all the AI, in one package the game does not need: delete it and `games/*/ai` and the game
+  still typechecks, tests, plays and builds (`engine/test/boundaries.test.ts`, the `no-ai` CI job). Its entry is
+  `packages/ai/docs/AGENTS.md`; the design is docs/ai.md. It imports no game: it is handed one (`openModder({ game })`;
+  the command line's `--game <module>`, which the root script passes); a world repository carries its own ontology.
+  `browser.ts` is what runs anywhere, a browser's worker too; `index.ts` adds Node's. Its folders:
+  - `models/`: `model.ts` (OpenAI-compatible / scripted; `LSW_MODEL_PIN` freezes the provider for an experiment;
+    `LSW_NO_ANTHROPIC=1` makes the claude-code backend and `anthropic/*` models refuse on a machine), `anthropic.ts`
+    Anthropic's API, `model-node.ts` Claude Code, `providers.ts` + `providerList.ts` the services a player brings a key for.
+  - `modder/`: `pipeline.ts`: comprehend → recall → design (tools) → verify/repair → audit → review → commit →
+    record → reflect. Live designs are routed (design.md §13, the router): local (the request's
     own types) → find (the catalogue) → create (a new type with its 16x16 picture as data).
-  - `affordance.ts`: what the host affords for the act (design.md §5.17): the answer's judgment (use, words, none),
+    `affordance.ts`: what the host affords for the act (design.md §5.17): the answer's judgment (use, words, none),
     a use held to changing the scene that asked, the verdict on the rule (`Rule.affords`); words are provisional,
     asked again on the player's third try (`ModRequest.again`, the port's `again`), and the answer is final.
-  - `tools.ts`: the design tools.
-  - `library.ts`: the shared library as an append-only patch log.
-  - `quality.ts`: a request's tier as a workload over the harness (medium the harness; low less, high more; never more time);
-    `detect.ts`: what the connected model carries — the history's questions and the game's probes (`GameDef.probes`) played
-    at every tier by a dry modder, a recommendation per kind of work (`GET /quality`, `POST /quality/detect`).
-  - `state.ts`: the self-state — memory, skills, harness, journal, snapshots.
-  - `server.ts`, `cli.ts`: the HTTP API and the command line.
-  - `repo.ts`, `validate-cli.ts`: a world request as a repository for the agent (the offline profile).
-  - `browser.ts`: what runs in a browser (the live pipeline over a library in memory, docs/byok.md); `index.ts` adds
-    Node's: the library's log in a file (`library-file.ts`), the offline profile's repo agent (`offline.ts`), the service.
-  - The offline driver is `games/openworld/tools/src/curriculum.ts`; engine tasks (hidden fail-to-pass tests) are
-    `games/openworld/tools/src/engine-tasks.ts` + `games/openworld/tools/tasks/engine/<id>/`; the ladder — this
-  repository's own commits as fail-to-pass tasks at their parents — is `games/openworld/tools/src/ladder.ts` +
-  `games/openworld/tools/tasks/history/<sha>/`; one outer-loop turn is
-    `games/openworld/tools/src/improve.ts`.
+    `tools.ts` the design tools; `prompts.ts`, `brief.ts`, `fixes.ts`, `derive.ts`, `drafts.ts`, `signature.ts`;
+    `quality.ts` a request's tier as a workload over the harness (medium the harness; low less, high more; never more time).
+  - `checks/`: the auditor (`audit.ts`) plays against a patch in the sandbox; only what it reproduces there, with the
+    patch and not without it, counts. `economy.ts` the economy LP. `detect.ts`: what the connected model carries — the
+    history's questions and the game's probes (`GameDef.probes`) played at every tier by a dry modder, a
+    recommendation per kind of work (`GET /quality`, `POST /quality/detect`).
+  - `library/`: `library.ts` the shared library as an append-only patch log, `library-file.ts` its log in a file,
+    `promote.ts` promotion candidates (docs/upstream.md).
+  - `agent/`: the SWE-style agent and its self-state, task-agnostic (no engine, no content):
+    `state.ts` (memory, skills + scripts, harness, hooks, journal, snapshots, ablations) over `files.ts` (the disk
+    or `MemFiles`), `env.ts` (local / docker: a benchmark image's `/testbed` copied out and mounted back, a node
+    mounted for the hooks), `tools.ts`, `loop.ts` (the agent loop), `reflect.ts`, `outer.ts` (proposals +
+    meta-validation), `presets.ts` (naive / tuned), `swe.ts` (SWE-bench instances → predictions.jsonl, N at a
+    time, a record per instance, the run's manifest, resumable). See docs/rsi.md and, for the experiments,
+    docs/rsi-experiments.md.
+  - `service/`: `server.ts` the HTTP API, `repo.ts` + `validate-cli.ts` a world request as a repository for the agent
+    (the offline profile), `offline.ts` that profile's repo agent, `open.ts` `openModder`.
+  - `player/`: the player's own modder in a browser worker (docs/byok.md) and the plugin the runtime finds through
+    one glob (`runtime/src/ai.ts`).
+  - `scripts/modder.ts`, `scripts/agent.ts`: the command lines (`npm run modder`, `npm run agent`).
+- `games/openworld/ai` — OpenWorld's own AI drivers and their tests: the offline driver `src/curriculum.ts`;
+  engine tasks (hidden fail-to-pass tests) `src/engine-tasks.ts` + `tasks/engine/<id>/`; the ladder — this
+  repository's own commits as fail-to-pass tasks at their parents — `src/ladder.ts` + `tasks/history/<sha>/`; one
+  outer-loop turn `src/improve.ts`; `src/upstream.ts`, `src/rsi.ts`, the latency and evaluation drivers.
 - RSI design changes (what the outer loop may change, how it is judged, the benchmark interface)
   are discussed with the user before they are coded.
 - Game mechanics are designed reference-first: read how Elin (installed; decompile
@@ -398,7 +398,7 @@ npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]   # everyon
 # portrait parts: a local ComfyUI with Qwen-Image-Edit (tools/src/art/looks/portrait/setup.md), then
 #   python -I parts.py <work> && python -I batch.py <work>/jobs.json && python -I build.py <work> games/openworld/public/assets/lsw/Looks/portrait
 npm run modder -- serve  # modder service on :8787 (model from LSW_MODEL_URL/KEY/MODEL; data in var/)
-npm run modder -- serve 8787 --script packages/modder/fixtures/offline.json --data var/offline
+npm run modder -- serve 8787 --script packages/ai/fixtures/offline.json --data var/offline
 npm run curriculum -- 20 # resolve 20 sampled undefined interactions offline (offline profile)
 npm run curriculum -- --n 20 --profile live --by hole --data var/<run>   # live profile, spread over holes; per-step reach
 npm run curriculum:report -- var/<run>   # summarise a run: steps, reviews, revisions, spend
@@ -406,7 +406,7 @@ npm run ford-live        # the six kinds of hole on the Ford, live (costs model 
 npm run probes           # the game's probes for the AI setting's detection → games/openworld/content/src/probes.json
 npm run eval:objects     # five acts to find a known thing, five to create a new one, live (costs model calls)
 npx tsx games/openworld/tools/src/eval/persistence.ts | attack.ts   # the paper's persistence and trust-boundary runs (no model; docs/paper-eval.md)
-npx tsx games/openworld/tools/src/eval/controlled.ts items | answer <cond> | judge | report   # the paper's Table 1 (costs model calls)
+npx tsx games/openworld/ai/src/eval/controlled.ts items | answer <cond> | judge | report   # the paper's Table 1 (costs model calls)
 npm run latency -- --n 20 # live-profile latency bench (fresh library each run; costs model calls)
 npm run improve -- --select 8 --confirm 8   # one outer-loop turn (costs model calls)
 npm run engine-task -- toggle-status --state <dir>
