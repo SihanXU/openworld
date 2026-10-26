@@ -15,14 +15,14 @@ export function statedAffordance(answer: unknown): Affordance | undefined {
 }
 
 /** The rules of the patch that answer the request (its host's type, its kind), not another thing's reply. */
-export function answering(patch: Patch, req: ModRequest): Rule[] {
+function answering(patch: Patch, req: ModRequest): Rule[] {
   const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule] : []))
   const own = rules.filter((r) => r.host?.type === req.event.host?.type && r.on === req.event.kind)
   return own.length ? own : rules.slice(0, 1)
 }
 
 /** What a rule's own effects say it is, when the answer did not: a change is a use; lines alone, words; nothing, none. */
-export function derivedAffordance(r: Rule): Affordance {
+function derivedAffordance(r: Rule): Affordance {
   if (!changesNothing(r)) return 'use'
   return JSON.stringify(r.tree).includes('"op":"') ? 'words' : 'none'
 }
@@ -51,9 +51,10 @@ export interface Judged {
 export function judge(patch: Patch, req: ModRequest, stated: Affordance | undefined, lib: RuleLibrary, onto: Ontology, force?: Affordance): Judged {
   const fixes: string[] = []
   const rules = answering(patch, req)
-  let affords: Affordance = force ?? stated ?? (rules.some((r) => derivedAffordance(r) === 'use') ? 'use' : rules.some((r) => derivedAffordance(r) === 'words') ? 'words' : 'none')
+  const derived = rules.map(derivedAffordance)
+  let affords: Affordance = force ?? stated ?? (derived.includes('use') ? 'use' : derived.includes('words') ? 'words' : 'none')
   // words or nothing that change the world after all are a use
-  if (!force && affords !== 'use' && rules.some((r) => derivedAffordance(r) === 'use')) {
+  if (!force && affords !== 'use' && derived.includes('use')) {
     fixes.push(`judged "${affords}" but the rule changes the world: kept as "use"`)
     affords = 'use'
   }
