@@ -297,6 +297,10 @@ export class SelfState {
   private harnessData: Harness = structuredClone(DEFAULT_HARNESS)
   /** USD spent after replies: reviews, reflections, the outer loop (episodes carry their own). */
   private backgroundSpend = 0
+  /** JSON-lines files this instance has appended to: their tails are whole lines (appendLine). */
+  private whole = new Set<string>()
+  /** A throwaway copy (fork) whose directory goes when it is disposed. */
+  private temporary = false
 
   private constructor(
     readonly dir: string,
@@ -310,7 +314,14 @@ export class SelfState {
   fork(): SelfState {
     const to = this.fs.tempDir('lsw-state-fork-')
     for (const d of ['memory', 'skills', 'harness']) this.fs.copy(this.fs.join(this.dir, d), this.fs.join(to, d))
-    return SelfState.open(to, this.clock, [...this.ablated], this.fs)
+    const fork = SelfState.open(to, this.clock, [...this.ablated], this.fs)
+    fork.temporary = true
+    return fork
+  }
+
+  /** Remove a fork's directory (whoever forked calls it when done); a state that is not a fork is kept. */
+  dispose(): void {
+    if (this.temporary) this.fs.remove(this.dir)
   }
 
   static open(dir: string, clock: () => Date = () => new Date(), ablate: Ablation[] = [], fs: Files = defaultFiles()): SelfState {
@@ -353,7 +364,22 @@ export class SelfState {
   /** Append to the journal (every write to the self-state goes through here). */
   note(kind: string, data: Record<string, unknown>): void {
     this.backgroundSpend += (data.usage as { cost?: number } | undefined)?.cost ?? 0
-    this.fs.append(this.fs.join(this.dir, 'journal.jsonl'), JSON.stringify({ at: this.now(), kind, ...data }) + '\n')
+    this.appendLine('journal.jsonl', { at: this.now(), kind, ...data })
+  }
+
+  /**
+   * One record onto a JSON-lines file. A crash may have left the file's last line torn (no newline):
+   * the record starts on a line of its own, so the torn one costs only itself.
+   */
+  private appendLine(name: string, record: unknown): void {
+    const p = this.fs.join(this.dir, name)
+    let text = JSON.stringify(record) + '\n'
+    if (!this.whole.has(p) && this.fs.exists(p)) {
+      const was = this.fs.read(p)
+      if (was && !was.endsWith('\n')) text = '\n' + text
+    }
+    this.fs.append(p, text)
+    this.whole.add(p)
   }
 
   // ---------------------------------------------------------------- harness
@@ -394,7 +420,7 @@ export class SelfState {
       ms: ep.ms,
     }
     this.index.push(entry)
-    this.fs.append(this.fs.join(this.dir, 'memory/index.jsonl'), JSON.stringify(entry) + '\n')
+    this.appendLine('memory/index.jsonl', entry)
     this.note('episode', { id: ep.id, outcome: ep.outcome, rules: ep.rules })
   }
 
