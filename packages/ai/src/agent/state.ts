@@ -167,12 +167,6 @@ export interface DesignConfig {
 export type Profile = 'live' | 'offline'
 
 /**
- * The base settings are the LIVE profile: a player is waiting, so one call from a prepared
- * brief, little reasoning, review after the fact. `offline` overrides them for work nobody
- * waits on — the curriculum, escalations of failed live requests, revisions — where quality
- * comes first.
- */
-/**
  * The SWE-style agent loop (loop.ts): the part of the harness that transfers. The same loop works
  * a world task in repo form, an engine issue, and a benchmark repository.
  */
@@ -247,6 +241,12 @@ export const NAIVE_AGENT: AgentConfig = {
   provider: { order: ['moonshotai', 'parasail', 'together'], allow_fallbacks: true },
 }
 
+/**
+ * The base settings are the LIVE profile: a player is waiting, so one call from a prepared
+ * brief, little reasoning, review after the fact. `offline` overrides them for work nobody
+ * waits on — the curriculum, escalations of failed live requests, revisions — where quality
+ * comes first.
+ */
 export const DEFAULT_HARNESS: Harness = {
   version: 1,
   agent: NAIVE_AGENT,
@@ -301,39 +301,24 @@ export class SelfState {
   private constructor(
     readonly dir: string,
     private clock: () => Date,
-    readonly ablated: Set<Ablation> = new Set(),
+    readonly ablated: Set<Ablation>,
     /** Where its files are (Node's disk unless another is given). */
-    readonly fs: Files = defaultFiles(),
+    readonly fs: Files,
   ) {}
 
   /** A throwaway copy (in a temp directory) to try a different harness or skill set on. */
   fork(): SelfState {
     const to = this.fs.tempDir('lsw-state-fork-')
-    for (const d of ['memory', 'skills', 'harness']) this.fs.copy(this.fs.join(this.dir, d), this.fs.join(to, d))
+    for (const d of COPIED) this.fs.copy(this.fs.join(this.dir, d), this.fs.join(to, d))
     return SelfState.open(to, this.clock, [...this.ablated], this.fs)
   }
 
   static open(dir: string, clock: () => Date = () => new Date(), ablate: Ablation[] = [], fs: Files = defaultFiles()): SelfState {
     const s = new SelfState(dir, clock, new Set(ablate), fs)
     for (const d of ['memory/episodes', 'skills', 'harness', 'snapshots']) fs.mkdir(fs.join(dir, d))
-    const idx = fs.join(dir, 'memory/index.jsonl')
-    if (fs.exists(idx))
-      for (const line of fs.read(idx).split('\n'))
-        if (line.trim())
-          try {
-            s.index.push(JSON.parse(line))
-          } catch {
-            /* torn line */
-          }
-    const journal = fs.join(dir, 'journal.jsonl')
-    if (fs.exists(journal))
-      for (const line of fs.read(journal).split('\n'))
-        if (line.includes('"usage"'))
-          try {
-            s.backgroundSpend += JSON.parse(line).usage?.cost ?? 0
-          } catch {
-            /* torn line */
-          }
+    s.index = readLines<EpisodeEntry>(fs, fs.join(dir, 'memory/index.jsonl'), (line) => !!line.trim())
+    for (const j of readLines<{ usage?: { cost?: number } }>(fs, fs.join(dir, 'journal.jsonl'), (line) => line.includes('"usage"')))
+      s.backgroundSpend += j.usage?.cost ?? 0
     s.lessonList = readJson(fs, fs.join(dir, 'memory/lessons.json'), [])
     s.skillIndex = readJson(fs, fs.join(dir, 'skills/index.json'), {})
     const h = fs.join(dir, 'harness/pipeline.json')
@@ -404,17 +389,7 @@ export class SelfState {
 
   /** Journal entries of one kind (proposals, reviews, reflections…), oldest first. */
   journalOf(kind: string): Record<string, unknown>[] {
-    const p = this.fs.join(this.dir, 'journal.jsonl')
-    if (!this.fs.exists(p)) return []
-    const out: Record<string, unknown>[] = []
-    for (const line of this.fs.read(p).split('\n'))
-      if (line.includes(`"kind":"${kind}"`))
-        try {
-          out.push(JSON.parse(line))
-        } catch {
-          /* torn line */
-        }
-    return out
+    return readLines(this.fs, this.fs.join(this.dir, 'journal.jsonl'), (line) => line.includes(`"kind":"${kind}"`))
   }
 
   /** A small JSON document kept with the memory (e.g. the outer loop's replay sets). */
@@ -458,12 +433,15 @@ export class SelfState {
       .slice(0, k)
   }
 
-  /** Apply a reflection: new lessons, revised ones, dropped ones; each change cites the episode. */
-  /** `episode`: the episode the reflection was on, or the episodes of a batch (each is cited). */
+  /**
+   * Apply a reflection: new lessons, revised ones, dropped ones; each change cites the episode.
+   * `episode`: the episode the reflection was on, or the episodes of a batch (each is cited).
+   */
   applyLessons(ops: { add?: { text: string; terms?: string[] }[]; revise?: { id: string; text: string }[]; drop?: string[]; support?: string[] }, episode: string | string[], defaultTerms: string[]): string[] {
     const now = this.now()
     const touched: string[] = []
     const eps = Array.isArray(episode) ? episode : [episode]
+    const active = (id: unknown) => this.lessonList.find((l) => l.id === id && l.status === 'active')
     const cite = (l: Lesson) => {
       let added = false
       for (const e of eps) if (!l.episodes.includes(e)) (l.episodes.push(e), (added = true))
@@ -479,7 +457,7 @@ export class SelfState {
       this.note('lesson.add', { id, episode })
     }
     for (const r of ops.revise ?? []) {
-      const l = this.lessonList.find((x) => x.id === r?.id && x.status === 'active')
+      const l = active(r?.id)
       const text = String(r?.text ?? '').trim()
       if (!l || !text) continue
       l.text = text
@@ -489,11 +467,11 @@ export class SelfState {
       this.note('lesson.revise', { id: l.id, episode })
     }
     for (const id of ops.support ?? []) {
-      const l = this.lessonList.find((x) => x.id === id && x.status === 'active')
+      const l = active(id)
       if (l && cite(l)) touched.push(l.id)
     }
     for (const id of ops.drop ?? []) {
-      const l = this.lessonList.find((x) => x.id === id && x.status === 'active')
+      const l = active(id)
       if (!l) continue
       l.status = 'dropped'
       l.updated = now
@@ -610,6 +588,7 @@ export class SelfState {
     const tried = this.index.filter((e) => e.outcome !== 'covered')
     const accepted = tried.filter((e) => e.outcome === 'accepted')
     const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : 0)
+    const spent = this.index.reduce((a, e) => a + (e.cost ?? 0), 0) + this.backgroundSpend
     return {
       episodes: this.index.length,
       covered: this.index.length - tried.length,
@@ -620,8 +599,8 @@ export class SelfState {
       callsPerEpisode: avg(tried.map((e) => e.calls)),
       msPerEpisode: Math.round(avg(tried.map((e) => e.ms))),
       /** USD: everything the model cost, and per accepted patch (reflection included) */
-      spend: Math.round((this.index.reduce((a, e) => a + (e.cost ?? 0), 0) + this.backgroundSpend) * 10000) / 10000,
-      costPerAccepted: accepted.length ? Math.round(((this.index.reduce((a, e) => a + (e.cost ?? 0), 0) + this.backgroundSpend) / accepted.length) * 10000) / 10000 : 0,
+      spend: Math.round(spent * 10000) / 10000,
+      costPerAccepted: accepted.length ? Math.round((spent / accepted.length) * 10000) / 10000 : 0,
       lessons: this.lessons().length,
       skills: this.skills().length,
       retiredSkills: this.skills(true).length - this.skills().length,
@@ -635,8 +614,9 @@ export class SelfState {
     const to = this.fs.join(this.dir, 'snapshots', name)
     if (this.fs.exists(to)) throw new Error(`snapshot "${name}" exists`)
     this.fs.mkdir(to)
-    for (const d of ['memory', 'skills', 'harness']) this.fs.copy(this.fs.join(this.dir, d), this.fs.join(to, d))
-    for (const f of ['journal.jsonl']) if (this.fs.exists(this.fs.join(this.dir, f))) this.fs.copy(this.fs.join(this.dir, f), this.fs.join(to, f))
+    for (const d of COPIED) this.fs.copy(this.fs.join(this.dir, d), this.fs.join(to, d))
+    const journal = this.fs.join(this.dir, 'journal.jsonl')
+    if (this.fs.exists(journal)) this.fs.copy(journal, this.fs.join(to, 'journal.jsonl'))
     writeJson(this.fs, this.fs.join(to, 'meta.json'), { label: name, at: this.now(), stats: this.stats(), ...extra })
     this.fs.write(this.fs.join(to, 'SELF.md'), this.render())
     this.note('snapshot', { label: name })
@@ -674,6 +654,20 @@ function mergeHarness(file: Partial<Harness>): Harness {
   return d as unknown as Harness
 }
 
+/** The parsed lines of a JSON-lines file that `keep` passes (a torn line is skipped). */
+function readLines<T = Record<string, unknown>>(fs: Files, path: string, keep: (line: string) => boolean): T[] {
+  if (!fs.exists(path)) return []
+  const out: T[] = []
+  for (const line of fs.read(path).split('\n'))
+    if (keep(line))
+      try {
+        out.push(JSON.parse(line))
+      } catch {
+        /* torn line */
+      }
+  return out
+}
+
 function readJson<T>(fs: Files, path: string, fallback: T): T {
   try {
     return JSON.parse(fs.read(path)) as T
@@ -694,6 +688,8 @@ export type HookStage = 'start' | 'presubmit'
 /** Parts of the self-state an ablation run leaves out (docs/rsi.md §6). */
 export type Ablation = 'memory' | 'skills' | 'harness'
 
+/** What a fork and a snapshot copy. */
+const COPIED = ['memory', 'skills', 'harness']
 const MAX_SKILL_FILES = 6
 const MAX_SCRIPT_BYTES = 40_000
 

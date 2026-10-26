@@ -10,7 +10,7 @@
 
 import { runAgent, type AgentTask } from './loop.ts'
 import { Meter, parseJson, type Model } from '../models/model.ts'
-import { safeName, type Episode, type EpisodeEntry, type Harness, type HookStage, type SelfState } from './state.ts'
+import { safeName, type Episode, type HookStage, type SelfState } from './state.ts'
 import { clip } from '../util.ts'
 
 export interface TaskSource {
@@ -190,7 +190,7 @@ export function replaySets(state: SelfState, kinds: string[], select: number, co
   const used = new Set([...saved.select, ...saved.confirm])
   const pool = state
     .episodes()
-    .filter((e: EpisodeEntry) => kinds.includes(e.kind ?? '') && e.outcome !== 'covered' && !used.has(e.id))
+    .filter((e) => kinds.includes(e.kind ?? '') && e.outcome !== 'covered' && !used.has(e.id))
     .map((e) => e.id)
   // alternate between the sets so both see the same mix of old and recent work
   for (const id of pool) {
@@ -201,7 +201,7 @@ export function replaySets(state: SelfState, kinds: string[], select: number, co
   return { select: saved.select.slice(0, select), confirm: saved.confirm.slice(0, confirm) }
 }
 
-async function arm(ids: string[], state: SelfState, o: ImproveOptions, harness: Harness | undefined): Promise<ArmStats> {
+async function arm(ids: string[], state: SelfState, o: ImproveOptions): Promise<ArmStats> {
   const s: ArmStats = { tasks: 0, accepted: 0, cost: 0, calls: 0, ms: 0 }
   for (const id of ids) {
     const ep = o.state.episode(id)
@@ -209,7 +209,7 @@ async function arm(ids: string[], state: SelfState, o: ImproveOptions, harness: 
     const task = ep && source ? await source.replay(ep) : undefined
     if (!task) continue
     try {
-      const r = await runAgent(task, { model: o.model, state, harness, record: false })
+      const r = await runAgent(task, { model: o.model, state, record: false })
       s.tasks++
       if (r.outcome === 'accepted') s.accepted++
       s.cost += r.episode.usage.cost ?? 0
@@ -265,7 +265,7 @@ export async function improve(o: ImproveOptions): Promise<ImproveResult> {
     const baseState = state.fork()
     const candState = state.fork()
     applyProposal(proposal, candState, 'trial')
-    const [base, cand] = await Promise.all([arm(ids, baseState, o, undefined), arm(ids, candState, o, undefined)])
+    const [base, cand] = await Promise.all([arm(ids, baseState, o), arm(ids, candState, o)])
     return { base, cand }
   }
   const selection = await trial(sets.select)
