@@ -138,9 +138,9 @@ export class WorldLibrary {
   }
 
   /** The library a request is judged against: the shared one plus the client's own local patches. */
-  workspace(ws?: ModWorkspace, without: string[] = [], redefines?: Patch): RuleLibrary {
+  workspace(ws?: ModWorkspace, without: string[] = [], redefines?: Patch, req?: ModRequest): RuleLibrary {
     const lib = this.lib.clone()
-    without = this.replaceable(without, redefines)
+    without = this.replaceable(without, redefines, req)
     for (const id of without) lib.remove(id)
     // a revision may define again what the patches it replaces made (a jam that was not edible): the types
     // and statuses it brings anew leave with the patches they came with, unless a patch that stays brought
@@ -221,11 +221,12 @@ export class WorldLibrary {
   }
 
   /**
-   * Of the rules a patch says it takes the place of (a revision, an answer asked again), those it may: patch rules
-   * the log took that answer an event the patch answers (the same host, kind and hole). A base rule, or the answer
-   * to another question, never: a client names them in its request. With no patch, any patch rule the log took.
+   * Of the rules a patch says it takes the place of, those it may: patch rules the log took, never a base rule. The one
+   * id a client names, its request's `again.rule` (the provisional answer it asks about again), only when that rule
+   * answers an event the patch answers (the same host, kind and hole): else a client could retire another question's
+   * answer. The others come from the modder's own revisions, which replace every rule of the answer they revise.
    */
-  private replaceable(ids: string[], patch?: Patch): string[] {
+  private replaceable(ids: string[], patch?: Patch, req?: ModRequest): string[] {
     if (!ids.length) return ids
     const place = (r: Rule) => JSON.stringify([r.host?.type, r.on, r.hole])
     const places = new Set((patch?.artifacts ?? []).flatMap((a) => (a?.kind === 'rule' && a.rule ? [place(a.rule)] : [])))
@@ -234,7 +235,8 @@ export class WorldLibrary {
       // the version the log took last (still in force, or rolled back since: a revision is judged in its place)
       const e = [...this.log].reverse().find((x) => 'patch' in x && x.rules.includes(id))
       const r = e && 'patch' in e ? e.patch.artifacts.find((a) => a?.kind === 'rule' && a.rule?.id === id) : undefined
-      return !!r && r.kind === 'rule' && (!patch || places.has(place(r.rule)))
+      if (!r || r.kind !== 'rule') return false
+      return id !== req?.again?.rule || !patch || places.has(place(r.rule))
     })
   }
 
@@ -261,7 +263,7 @@ export class WorldLibrary {
     const tests = rules.map((r) => (r.tests ?? []).map((t) => JSON.stringify(t)))
     const proof = this.proofs.get(key)
     if (proof && tests.every((ts, i) => ts.length === proof.tests[i].length && ts.every((t, j) => t === proof.tests[i][j]))) return structuredClone(proof.result)
-    const lib = this.workspace(ws, replaces, patch)
+    const lib = this.workspace(ws, replaces, patch, req)
     if (proof && tests.every((ts, i) => proof.tests[i].every((t, j) => t === ts[j]))) {
       const result = this.addedTests(patch, lib, proof)
       if (result.ok) this.proofs.set(key, { tests, result: structuredClone(result) })
@@ -348,7 +350,7 @@ export class WorldLibrary {
    */
   commit(patch: Patch, req?: ModRequest, now = new Date(), replaces: string[] = []): CommitResult {
     // (only what it may take the place of: the rest stays, and the validator sees what it clashes with)
-    replaces = this.replaceable(replaces, patch)
+    replaces = this.replaceable(replaces, patch, req)
     const result = this.validate(patch, req, undefined, replaces)
     if (!result.ok) return { ok: false, result, rules: [] }
     // a revision: the old rules leave the log first, so every client sees remove-then-add

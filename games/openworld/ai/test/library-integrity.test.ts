@@ -47,16 +47,28 @@ const answer = (req: ModRequest, id: string, text = 'You knock it on the tree.')
 const patchOf = (...rules: Rule[]): Patch => ({ artifacts: rules.map((rule) => ({ kind: 'rule' as const, rule })) })
 
 describe('what a patch takes the place of', () => {
-  it('not the answer to another question, though the commit names it', () => {
+  it('not the answer to another question, though the request names it as the one it asks about again', () => {
     const library = new WorldLibrary(onto, BASE)
     const stone = useRequest(STONE)
     expect(library.commit(patchOf(answer(stone, 'patch/stone')), stone).ok).toBe(true)
-    const stick = useRequest(STICK)
+    const stick = { ...useRequest(STICK), again: { rule: 'patch/stone', times: 3 } }
     const c = library.commit(patchOf(answer(stick, 'patch/stick')), stick, new Date(), ['patch/stone'])
     expect(c.ok).toBe(true)
     // the stone's answer is no revision's to remove, and the log does not say it was replaced
     expect(library.lib.rules.has('patch/stone')).toBe(true)
     expect(library.since(0).find((e) => e.seq === c.seq)).not.toHaveProperty('replaces')
+  })
+
+  it('every rule of the answer a revision revises: a helper the revision leaves out goes too', () => {
+    const library = new WorldLibrary(onto, BASE)
+    const stone = useRequest(STONE)
+    const stick = useRequest(STICK)
+    // the answer to the stone, with a helper elsewhere (the stick's place)
+    expect(library.commit(patchOf(answer(stone, 'patch/stone'), answer(stick, 'patch/helper')), stone).result.errors).toEqual([])
+    const c = library.commit(patchOf(answer(stone, 'patch/stone-2', 'You tap the tree.')), stone, new Date(), ['patch/stone', 'patch/helper'])
+    expect(c.result.errors).toEqual([])
+    expect(library.lib.rules.has('patch/stone')).toBe(false)
+    expect(library.lib.rules.has('patch/helper')).toBe(false)
   })
 
   it('never a base rule: a patch under its id is refused, and the base rule stays', () => {
@@ -135,18 +147,31 @@ describe('an entry is in force only once written', () => {
 })
 
 describe('one process writes a log', () => {
-  it('a log another live process holds is refused; one whose holder is gone is taken over', () => {
+  it('a log another live process holds is read freely but not written; one whose holder is gone is taken over', () => {
     const dir = mkdtempSync(join(tmpdir(), 'lsw-integrity-'))
     const file = join(dir, 'library.jsonl')
+    const req = useRequest()
     // the service, in another process (this one's parent stands for it: alive, and not this process)
     writeFileSync(`${file}.lock`, `${process.ppid}\n`)
-    expect(() => new WorldLibrary(onto, BASE, file)).toThrow(/open in another process/)
+    const reader = new WorldLibrary(onto, BASE, file)
+    expect(reader.since(0)).toEqual([])
+    expect(() => reader.commit(patchOf(answer(req, 'patch/a')), req)).toThrow(/open in another process/)
     // a service that was killed: its pid is no process now
     const gone = spawnSync(process.execPath, ['-e', '']).pid
     writeFileSync(`${file}.lock`, `${gone}\n`)
     const library = new WorldLibrary(onto, BASE, file)
-    expect(readFileSync(`${file}.lock`, 'utf8').trim()).toBe(String(process.pid))
-    const req = useRequest()
     expect(library.commit(patchOf(answer(req, 'patch/a')), req).seq).toBe(1)
+    expect(readFileSync(`${file}.lock`, 'utf8').trim()).toBe(String(process.pid))
+  })
+
+  it('a log written since it was read is not written: no seq is taken twice', () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'lsw-integrity-')), 'library.jsonl')
+    const stone = useRequest(STONE)
+    const stick = useRequest(STICK)
+    const service = new WorldLibrary(onto, BASE, file)
+    // another library over the file (a command line beside the service) writes first
+    expect(new WorldLibrary(onto, BASE, file).commit(patchOf(answer(stone, 'patch/stone')), stone).seq).toBe(1)
+    expect(() => service.commit(patchOf(answer(stick, 'patch/stick')), stick)).toThrow(/written by another process/)
+    expect(readFileSync(file, 'utf8').trim().split('\n').map((l) => JSON.parse(l).seq)).toEqual([1])
   })
 })

@@ -1,7 +1,8 @@
 // A library's log in a file (library.ts `LogStore`): one JSON line per entry, its identity beside it
 // (`<file>.id`). Loaded by the package's Node entry, which lets a library be named by its file's path (and gives the
-// validation cache Node's own hash, faster than the one a browser has). One process writes a log: it holds `<file>.lock`
-// (its pid) while it runs, so `library remove` beside a running service is refused instead of writing a seq twice.
+// validation cache Node's own hash, faster than the one a browser has). One process writes a log: from its first write it
+// holds `<file>.lock` (its pid), and a log another process wrote since this one read it is never written (its seqs would
+// be taken twice), so `library remove` beside a running service is refused. Reading takes no lock.
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, truncateSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
@@ -9,8 +10,11 @@ import { createHash, randomUUID } from 'node:crypto'
 import { useKeyHash, useLogFiles, type LogStore } from './library.ts'
 
 export function fileLog(file: string): LogStore {
-  lock(file)
   const id = logIdentity(file)
+  const size = () => (existsSync(file) ? statSync(file).size : 0)
+  /** The log's size as this process last read or wrote it. */
+  let known = size()
+  let mine = false
   return {
     id,
     lines() {
@@ -30,22 +34,29 @@ export function fileLog(file: string): LogStore {
         if (whole) appendFileSync(file, '\n')
         else truncateSync(file, Buffer.byteLength(text.slice(0, cut)))
       }
+      known = size()
       return text.split('\n')
     },
     append(line) {
       mkdirSync(dirname(file), { recursive: true })
-      const size = existsSync(file) ? statSync(file).size : 0
+      if (!mine) {
+        lock(file)
+        mine = true
+      }
+      const was = size()
+      if (was !== known) throw new Error(`the library log ${file} was written by another process since this one read it: restart this one to read it again`)
       try {
         appendFileSync(file, line + '\n')
       } catch (err) {
         // a write cut short (the disk full) leaves no part of a line for the next one to be appended onto
         try {
-          truncateSync(file, size)
+          truncateSync(file, was)
         } catch {
           /* nothing was written */
         }
         throw err
       }
+      known = size()
     },
   }
 }
