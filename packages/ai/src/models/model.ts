@@ -124,11 +124,15 @@ export class OpenAICompatModel implements Model {
     const pin = this.cfg.pin
     if (pin && this.cfg.baseUrl.includes('openrouter.ai')) body.provider = { only: pin.providers, order: pin.providers, allow_fallbacks: false, ...(pin.quantizations?.length ? { quantizations: pin.quantizations } : {}) }
     else if (pin) delete body.provider
-    if (!opts.hedgeMs && !opts.deadlineMs) return this.once(body, AbortSignal.timeout(this.cfg.timeoutMs ?? 180_000))
+    const timeoutMs = this.cfg.timeoutMs ?? 180_000
+    if (!opts.hedgeMs && !opts.deadlineMs) return this.once(body, AbortSignal.timeout(timeoutMs))
+    // the time the caller waited, hedge and retries included (what a latency report means by a call's time)
+    const t0 = Date.now()
     let last: unknown
     for (let i = 0; i <= (opts.retries ?? 1); i++) {
       try {
-        return await this.hedged(body, opts.hedgeMs, opts.deadlineMs)
+        // (0 is the harness's "off" for both; with no deadline of its own a try still ends at the timeout)
+        return { ...(await this.hedged(body, opts.hedgeMs || undefined, opts.deadlineMs || timeoutMs)), ms: Date.now() - t0 }
       } catch (err) {
         last = err
       }
@@ -190,7 +194,11 @@ export class OpenAICompatModel implements Model {
     const pin = this.cfg.pin
     if (pin && this.cfg.baseUrl.includes('openrouter.ai') && !pin.providers.some((p) => providerKey(p) === providerKey(data.provider ?? '')))
       throw new Error(`model: served by ${data.provider ?? 'an unnamed provider'}, ${PIN_BREACH} (${pin.providers.join(', ')})`)
-    const m = data.choices?.[0]?.message
+    // a provider that failed upstream answers 200 with an error in place of a message: an error, not an empty answer
+    const choice = data.choices?.[0]
+    const failed = data.error ?? choice?.error
+    if (failed || choice?.finish_reason === 'error') throw new Error(`model: the provider failed: ${JSON.stringify(failed ?? choice).slice(0, 300)}`)
+    const m = choice?.message
     if (!m) throw new Error('model: empty reply')
     return {
       content: m.content ?? '',
@@ -213,7 +221,8 @@ function rotated(body: Record<string, unknown>): Record<string, unknown> {
 
 interface WireReply {
   provider?: string
-  choices?: { message?: { content?: string | null; tool_calls?: { id: string; function?: { name?: string; arguments?: string } }[] } }[]
+  error?: unknown
+  choices?: { message?: { content?: string | null; tool_calls?: { id: string; function?: { name?: string; arguments?: string } }[] }; error?: unknown; finish_reason?: string }[]
   usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number; completion_tokens_details?: { reasoning_tokens?: number } }
 }
 

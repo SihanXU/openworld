@@ -67,7 +67,7 @@ export class AnthropicModel implements Model {
       max_tokens: this.cfg.maxTokens ?? 16_000,
       ...(system ? { system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }] } : {}),
       // a tool conversation goes on: its history is cached up to the last turn, so the next step reads it, not pays it again
-      messages: cachedTo(this.turns(messages.filter((m) => m.role !== 'system'), !!opts.json && !tools), !!tools),
+      messages: cachedTo(this.turns(messages.filter((m) => m.role !== 'system'), !!opts.json && !tools, !!tools), !!tools),
       output_config: { effort: effortOf(this.cfg.effort, opts.reasoning) as 'low' },
       ...(tools
         ? {
@@ -100,11 +100,18 @@ export class AnthropicModel implements Model {
     }
   }
 
-  /** The conversation in the API's turns: tool results together in one user turn, and the JSON request at the end. */
-  private turns(messages: ChatMessage[], json: boolean): Turn[] {
+  /**
+   * The conversation in the API's turns: tool results together in one user turn, and the JSON request at the end.
+   * A call that offers no tools gets its history's tool calls and results as text (the API refuses tool blocks in a
+   * request that defines no tools: the design's last call after its tool rounds is one).
+   */
+  private turns(messages: ChatMessage[], json: boolean, tools: boolean): Turn[] {
     const out: Turn[] = []
     for (const m of messages) {
-      if (m.role === 'tool') {
+      if (!tools && m.role === 'tool') out.push({ role: 'user', content: `[result of ${m.toolCallId}]\n${m.content}` })
+      else if (!tools && m.role === 'assistant' && m.toolCalls?.length)
+        out.push({ role: 'assistant', content: [m.content, ...m.toolCalls.map((c) => `[called ${c.name} (${c.id}) with ${JSON.stringify(c.args ?? {})}]`)].filter(Boolean).join('\n') })
+      else if (m.role === 'tool') {
         const result: Block = { type: 'tool_result', tool_use_id: m.toolCallId, content: m.content }
         const last = out[out.length - 1]
         if (last?.role === 'user' && Array.isArray(last.content) && last.content.every((b) => b.type === 'tool_result')) last.content.push(result)
