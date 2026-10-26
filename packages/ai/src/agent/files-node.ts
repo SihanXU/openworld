@@ -1,6 +1,6 @@
 // The self-state's files on disk (files.ts): what a caller gets under Node when it names none.
 
-import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { useDefaultFiles, type Files } from './files.ts'
@@ -15,6 +15,7 @@ export const nodeFiles: Files = {
   list: (p) => readdirSync(p),
   copy: (from, to) => cpSync(from, to, { recursive: true }),
   rename: (from, to) => renameSync(from, to),
+  remove: (p) => rmSync(p, { recursive: true, force: true }),
   tempDir: (prefix) => mkdtempSync(join(tmpdir(), prefix)),
 }
 

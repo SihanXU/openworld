@@ -17,6 +17,8 @@ export interface Files {
   /** A file, or a directory with everything in it. */
   copy(from: string, to: string): void
   rename(from: string, to: string): void
+  /** A file, or a directory with everything in it (nothing when there is none). */
+  remove(path: string): void
   /** A new empty directory of its own. */
   tempDir(prefix: string): string
 }
@@ -110,6 +112,13 @@ export class MemFiles implements Files {
     if (t === undefined) throw new Error(`no such file: ${from}`)
     this.files.delete(a)
     this.put(norm(to), t)
+    this.onChange?.()
+  }
+
+  remove(path: string): void {
+    const p = norm(path)
+    for (const f of [...this.files.keys()]) if (f === p || f.startsWith(`${p}/`)) this.files.delete(f)
+    for (const d of [...this.dirs]) if (d === p || d.startsWith(`${p}/`)) this.dirs.delete(d)
     this.onChange?.()
   }
 
