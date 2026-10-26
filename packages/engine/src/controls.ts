@@ -789,12 +789,22 @@ export class Controls {
   }
 
   private bagSig = ''
+  /** What is carried, each by its stack key: a thing that became another where it is (cooked, spoiled, filled) is a change too. */
   private bagNow(): string {
-    const p = this.w.state.player ? this.w.get(this.w.state.player) : undefined
-    return p ? `${(p.contents ?? []).join(',')}|${p.held ?? ''}` : ''
+    const w = this.w
+    const p = w.state.player ? w.get(w.state.player) : undefined
+    if (!p) return ''
+    const sig = (id: Id) => {
+      const e = w.get(id)
+      return e ? `${id}=${this.key(e)}` : id
+    }
+    return `${(p.contents ?? []).map(sig).join(',')}|${p.held ? sig(p.held) : ''}`
   }
 
-  /** What reached the bag without an input (a scene's gift, a reward, a trade someone else began) takes its slot (each tick). */
+  /**
+   * What reached the bag without an input (a scene's gift, a reward, a trade someone else began), or changed in it
+   * without one (food spoiled, a held thing an outcome turned into another), takes its slot (each tick).
+   */
   keep(): void {
     const now = this.bagNow()
     if (now && now !== this.bagSig) this.sync()

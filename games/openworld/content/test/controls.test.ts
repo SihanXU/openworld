@@ -791,6 +791,18 @@ describe('slots and the magnet', () => {
     expect(eng.world.get(p.held)!.type).toBe('item/vessel/bucket/empty')
   })
 
+  it('a carried thing that becomes another without an input (cooked in the hand, spoiled in the bag) keeps its slot from the next tick', () => {
+    const eng = world('item/food/fish/raw', [{ key: 'm', type: 'item/food/meat/raw', x: 0, y: 0, inside: 'actor' }])
+    const p = eng.world.player
+    const fishSlot = p.selected!
+    const meatSlot = p.slots!.findIndex((k, i) => k && i !== fishSlot)
+    eng.author(() => (eng.world.transform(eng.world.get('held')!, 'item/food/fish/cooked'), eng.world.transform(eng.world.get('m')!, 'item/food/meat/cooked')))
+    eng.tick()
+    expect(p.slots![fishSlot]).toBe(eng.controls.key(eng.world.get('held')!))
+    expect(p.held).toBe('held')
+    expect(p.slots![meatSlot]).toBe(eng.controls.key(eng.world.get('m')!))
+  })
+
   it('what the magnet pulls in takes a free slot but the selected one: an empty hand stays empty (the fist), unless no other slot is free', () => {
     const eng = world(undefined, [{ key: 'log', type: 'item/material/log', x: 4, y: 2 }])
     const p = eng.world.player
