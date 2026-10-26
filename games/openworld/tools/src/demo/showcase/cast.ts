@@ -6,7 +6,7 @@
 
 import { OntologyIndex, type Entity, type LineDef, type ScheduleEntry } from '@openworld/engine'
 import { SOCIAL_COIN, TERRAIN_CHARS, favouriteFor, generateLook, type RawChunk } from '@openworld-game/content'
-import { itemOf, reseed, rng } from '../builder.ts'
+import { facesOf, itemOf, reseed, rng } from '../builder.ts'
 import { GIVEN, familyName, linesFor } from '../continent/folk.ts'
 import type { Place } from '../continent/generate.ts'
 
@@ -61,6 +61,7 @@ class Floor {
       for (let dy = 0; dy < fd; dy++) for (let dx = 0; dx < fw; dx++) solid.add(key(e.place.x - Math.floor((fw - 1) / 2) + dx, e.place.y - dy))
     }
     for (const p of m.portals) for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) solid.add(key(p.x + dx, p.y + dy))
+    for (const f of facesOf(m)) solid.add(f)
     for (let y = 1; y < m.height - 1; y++)
       for (let x = 1; x < m.width - 1; x++) {
         const t = terrain[y * m.width + x]

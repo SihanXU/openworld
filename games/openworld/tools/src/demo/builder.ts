@@ -65,6 +65,24 @@ const LITTER_SCALE = 0.25
 /** The chance a mask's cell gets a thing: the ground's litter at a quarter of what the mask asks (a thing to pick up, not a carpet). */
 export const litterChance = (type: string, p: number): number => (LITTER.has(type) ? p * LITTER_SCALE : p)
 
+/**
+ * The cells of a map's file that are faces of rock (the engine's relief.ts, as `MapBuilder.face`, read from the file's
+ * heights): no one stands there, so no one's day is kept there.
+ */
+export function facesOf(m: { width: number; height: number; heights?: string[] }): Set<string> {
+  const out = new Set<string>()
+  if (!m.heights) return out
+  const h = (x: number, y: number) => Number(m.heights![y][x])
+  for (let y = 1; y < m.height; y++)
+    for (let x = 0; x < m.width; x++)
+      for (let k = 1; k <= y; k++)
+        if (dropLevels(h(x, y - k) - h(x, y - k + 1)) >= k) {
+          out.add(`${x},${y}`)
+          break
+        }
+  return out
+}
+
 export class MapBuilder {
   cells: string[][]
   portals: Portal[] = []

@@ -369,7 +369,7 @@ describe("the backdrop's people", () => {
 describe('the world at scale', () => {
   // (a town the backdrop's templates made: a showcase place keeps halls that are no one's, showcase.test.ts)
   const town = world.backdrop.find((ch) => ch.map.kind === 'town' && ch.entities.some((e) => e.npc) && !SHOWCASE_PLACES.includes(ch.map.id))!
-  const elsewhere = world.backdrop.find((ch) => ch.map.kind === 'village' && ch.entities.some((e) => e.npc))!
+  const elsewhere = world.backdrop.find((ch) => ch.map.kind === 'village' && ch.entities.some((e) => e.npc) && !SHOWCASE_PLACES.includes(ch.map.id))!
   const lib = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
   const fresh = () => {
     const g = Game.create(world.index, buildOntology(), lib())

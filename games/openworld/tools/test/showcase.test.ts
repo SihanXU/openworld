@@ -1,5 +1,5 @@
-// The showcase's checks (docs/showcase.md §6): the Holy City's hand-made places — Sunwell Abbey and the five quarters —
-// are all there with their halls and rooms; every way between their maps leads both ways and every hall is reached from
+// The showcase's checks (docs/showcase.md §6): the hand-made places — the Holy City's Sunwell Abbey and five quarters, the
+// places of the regions round it, the farm village and the mine — are all there with their halls and rooms; every way between their maps leads both ways and every hall is reached from
 // its place; the quarters are one walk, street into street; nothing the place builds rises off the top of its map (the
 // view could never show it), every view's rect and every pool of light lies in its map; the buildings' strips are all
 // in the catalogue; and the busiest of them ticks within a tick's time.
@@ -23,9 +23,16 @@ function game(ids: string[]) {
 
 describe('the showcase (docs/showcase.md)', () => {
   it('makes every one of its places with the halls and rooms it is for', () => {
-    expect(SHOWCASE_PLACES.length).toBe(6)
+    expect(SHOWCASE_PLACES.length).toBe(19)
     for (const p of SHOWCASE_PLACES) expect([p, byId.has(p)]).toEqual([p, true])
-    const halls = ['holy.sunwell-abbey.nave', 'holy.sunwell-abbey.crypt', 'holy.sunwell-abbey.belfry', 'holy.sunwell-abbey.library', 'holy.sunwell-abbey.refectory', 'holy.quarter-1.hall', 'holy.quarter-1.solar', 'holy.quarter-2.hall', 'holy.quarter-3.hall', 'holy.quarter-4.inn-0', 'holy.quarter-5.inn-0']
+    const halls = ['holy.sunwell-abbey.nave', 'holy.sunwell-abbey.crypt', 'holy.sunwell-abbey.belfry', 'holy.sunwell-abbey.library', 'holy.sunwell-abbey.refectory', 'holy.quarter-1.hall', 'holy.quarter-1.solar', 'holy.quarter-2.hall', 'holy.quarter-3.hall', 'holy.quarter-4.inn-0', 'holy.quarter-5.inn-0',
+      'frostfang.rimeholm.inn-0', 'frostfang.rimeholm.boathouse', 'frostfang.rimeholm.longhall', 'redmarch.warcombe.warhall', 'redmarch.warcombe.armoury', 'redmarch.warcombe.hospital',
+      'tithe.weighmarket.counting', 'tithe.weighmarket.granary', 'tithe.weighmarket.poorhouse', 'palefen.dusk-moorings.ossuary', 'palefen.dusk-moorings.healer', 'palefen.dusk-moorings.inn-0',
+      'altar.highheath-abbey.chapel', 'altar.highheath-abbey.catacombs', 'tithe.barleyridge-farm.farmhouse', 'tithe.barleyridge-farm.barn', 'tithe.barleyridge-farm.mill',
+      'redmarch.brandby-mine.workings', 'redmarch.brandby-mine.oldworks', 'altar.bellwick-farm.manorhall', 'altar.bellwick-farm.gallery', 'altar.bellwick-farm.cellar',
+      'palefen.ashengate-ruins.undercroft', 'palefen.ashengate-ruins.drowned', 'frostfang.northmoor-cave.icecave', 'frostfang.northmoor-cave.icelake', 'tithe.goldmere-tower.tower',
+      'tithe.goldmere-tower.alchemy', 'tithe.goldmere-tower.observatory', 'tithe.goldmere-tower.undercellar', 'redmarch.scarwell-camp.lodge', 'redmarch.scarwell-camp.burrow',
+      'frostfang.frostbarrow-camp.hall', 'frostfang.frostbarrow-camp.garrison']
     for (const h of halls) expect([h, byId.has(h)]).toEqual([h, true])
     // the market's keepers at their stalls, the garrison on the walls, the brothers in their choir: each place has its people
     for (const p of SHOWCASE_PLACES) expect([p, byId.get(p)!.entities.filter((e) => e.npc).length > 20]).toEqual([p, true])
