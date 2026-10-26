@@ -4,7 +4,7 @@
 // panel shows taken. Played through the same entry point as the player's keys (storage.test.ts).
 
 import { describe, expect, it } from 'vitest'
-import { RuleLibrary, buildSandbox, countAt, itemInfo, slotsOf, snapshot, splitStacks, stackKey, type Engine, type Id, type Key, type Scenario, type ScenarioEntity } from '@openworld/engine'
+import { RuleLibrary, buildSandbox, countAt, isPiece, itemInfo, oldStackKey, slotsOf, snapshot, splitStacks, stackKey, type Engine, type Id, type Key, type Scenario, type ScenarioEntity } from '@openworld/engine'
 import { BASE_RULES, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
@@ -226,5 +226,54 @@ describe('a container counts its slots, not its things', () => {
     expect(cells(eng)).toBe(2)
     expect(press(eng, 'put').offered).toBe(false)
     expect(inside(eng)).toHaveLength(2)
+  })
+})
+
+// What carries a state of its own stacks only with what is the same in every way; a piece (a tool, a weapon,
+// anything worn) never stacks: one to a slot, in the bag and in a chest alike (stacks.ts).
+describe('pieces and things with their own state', () => {
+  /** n pickaxes, each its own piece. */
+  const picks = (n: number): ScenarioEntity[] => Array.from({ length: n }, () => ({ key: '', type: 'item/tool/pickaxe', x: 0, y: 0 }))
+
+  it('a tool, a weapon and a worn thing are pieces; stone and a letter are not', () => {
+    play([])
+    expect(isPiece('item/tool/pickaxe')).toBe(true)
+    expect(isPiece('item/weapon/blade/sword')).toBe(true)
+    expect(isPiece('item/valuable/ring')).toBe(true)
+    expect(isPiece('item/material/stone')).toBe(false)
+    expect(isPiece('item/document/letter')).toBe(false)
+  })
+
+  it('three pickaxes in a chest are three slots, three stones one', () => {
+    const eng = play(chest([...picks(3), ...stones(3)]))
+    expect(cells(eng)).toBe(4)
+  })
+
+  it('two letters with different words are two stacks, with the same words one, whoever owns them', () => {
+    const letter = (text: string, owner?: string): ScenarioEntity => ({ key: '', type: 'item/document/letter', x: 0, y: 0, props: { text, ...(owner !== undefined && { owner }) } })
+    expect(cells(play(chest([letter('a'), letter('b')])))).toBe(2)
+    expect(cells(play(chest([letter('a'), letter('a', 'actor')])))).toBe(1)
+  })
+
+  it('in the bag two pickaxes take two slots; an older save\'s slot of every pickaxe goes to the first of them', () => {
+    const eng = play([], 'item/tool/pickaxe')
+    const w = eng.world
+    const p = w.player
+    eng.author(() => w.create('item/tool/pickaxe', { on: 'inside', holder: p.id }, { id: 'pick2' }))
+    eng.controls.sync()
+    const keys = [p.held!, 'pick2'].map((id) => eng.controls.key(w.get(id)!))
+    expect(new Set(keys).size).toBe(2)
+    for (const k of keys) expect(p.slots).toContain(k)
+    // the save before pieces: one slot (the fourth) held the key both pickaxes shared
+    const old = oldStackKey(w.get('pick2')!)
+    eng.author(() => {
+      p.slots = p.slots!.map(() => null)
+      p.slots[3] = old
+      p.selected = 3
+    })
+    eng.controls.sync()
+    expect(keys).toContain(p.slots![3])
+    expect(p.slots!.filter((s) => s && keys.includes(s))).toHaveLength(2)
+    expect(p.held && keys.includes(eng.controls.key(w.get(p.held)!))).toBe(true)
   })
 })

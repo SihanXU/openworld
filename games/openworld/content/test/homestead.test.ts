@@ -102,11 +102,12 @@ describe('fishing choices', () => {
     expect(eng.world.num(eng.world.get('old-rod')!, 'bait')).toBe(7)
 
     eng.author(() => {
-      eng.world.place(eng.world.get('old-rod')!, { on: 'inside', holder: 'actor' })
-      eng.world.place(eng.world.get('new-rod')!, { on: 'hand', holder: 'actor' })
       eng.world.create('item/misc/bait', { on: 'inside', holder: 'actor' }, { id: 'stale-bait', tags: ['quality:masterwork'] })
     })
     eng.controls.sync()
+    // the other rod's slot chosen (each rod is a slot of its own): the old one goes back in the bag
+    eng.controls.select(eng.world.player.slots!.indexOf(eng.controls.key(eng.world.get('new-rod')!)))
+    expect(eng.world.player.held).toBe('new-rod')
     expect(eng.controls.useItemOnHeldItem('stale-bait', 'old-rod')).toBe(false)
     expect(eng.world.get('stale-bait')).toBeDefined()
     expect(eng.world.num(eng.world.get('old-rod')!, 'bait')).toBe(7)
