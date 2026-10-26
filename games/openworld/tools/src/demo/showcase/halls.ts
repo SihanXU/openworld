@@ -11,7 +11,7 @@ import type { Text } from '@openworld/engine'
 type Key = keyof typeof HALLS
 
 /** A hall from its plan: the dark round it, its floors (a default and the parts' own), its walls, its doors to the outside. */
-function planHall(p: Place, key: Key, id: string, name: Text, floor: string, opts: { music?: string; light?: 'indoor' | 'dark'; kind?: string; floors?: [string, string][]; outside?: boolean } = {}): { m: MapBuilder; P: HallPlan['parts']; plan: HallPlan } {
+export function planHall(p: Place, key: Key, id: string, name: Text, floor: string, opts: { music?: string; light?: 'indoor' | 'dark'; kind?: string; floors?: [string, string][]; outside?: boolean } = {}): { m: MapBuilder; P: HallPlan['parts']; plan: HallPlan } {
   const plan = HALLS[key]
   const W = plan.plan[0].length
   const H = plan.plan.length
@@ -31,8 +31,8 @@ function planHall(p: Place, key: Key, id: string, name: Text, floor: string, opt
   return { m, P: plan.parts, plan }
 }
 
-const glow = (m: MapBuilder, x: number, y: number, w: number, h: number, color = '#ff9a4a', strength = 0.4, when: 'always' | 'night' | 'sun' = 'always') => m.lights.push({ x, y, w, h, color, shape: 'glow', when, strength })
-const lit = { statuses: { lit: -1 } }
+export const glow = (m: MapBuilder, x: number, y: number, w: number, h: number, color = '#ff9a4a', strength = 0.4, when: 'always' | 'night' | 'sun' = 'always') => m.lights.push({ x, y, w, h, color, shape: 'glow', when, strength })
+export const lit = { statuses: { lit: -1 } }
 
 /** The crypt under the choir: its vault on two rows of pillars, a sarcophagus in every bay, the reliquary in the apse, candles. */
 export function cryptHall(p: Place): MapBuilder {

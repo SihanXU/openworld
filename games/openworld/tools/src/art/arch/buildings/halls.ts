@@ -183,6 +183,20 @@ const STYLES: Record<keyof typeof HALLS, Style> = {
   markethall: { wall: 'stone', trim: 'timber', h: 88, windows: 'round', hang: ['jars', 'banner', 'shelves'], feature: 'window', pilasters: 'timber' },
   inn: { wall: 'plasterOchre', trim: 'timber', h: 80, windows: 'rect', hang: ['painting', 'jars', 'trophy'], feature: 'hearth', pilasters: 'timber' },
   tavern: { wall: 'plaster', trim: 'timber', h: 72, windows: 'rect', hang: ['jars', 'painting', 'none'], feature: 'hearth', pilasters: 'timber' },
+  seatavern: { wall: 'darkwood', trim: 'timber', h: 72, windows: 'rect', hang: ['trophy', 'jars', 'painting'], feature: 'hearth', pilasters: 'timber' },
+  boathouse: { wall: 'darkwood', trim: 'timber', h: 104, windows: 'round', glass: 'blue', hang: ['trophy', 'none', 'jars'], feature: 'window', pilasters: 'timber' },
+  longhall: { wall: 'darkwood', trim: 'timber', h: 120, windows: 'none', hang: ['trophy', 'tapestry', 'banner'], feature: 'hearth', pilasters: 'timber' },
+  warhall: { wall: 'sandstone', trim: 'darkwood', h: 120, windows: 'round', hang: ['banner', 'trophy', 'tapestry'], feature: 'canopy', pilasters: 'sandstone' },
+  armoury: { wall: 'sandstoneRough', trim: 'darkwood', h: 88, windows: 'rect', hang: ['trophy', 'trophy', 'shelves'], feature: 'hearth' },
+  hospital: { wall: 'plasterRed', trim: 'timber', h: 80, windows: 'round', glass: 'red', hang: ['jars', 'none', 'shelves'], feature: 'window' },
+  counting: { wall: 'plasterWhite', trim: 'timber', h: 104, windows: 'round', hang: ['shelves', 'painting', 'books'], feature: 'books', pilasters: 'timber' },
+  granary: { wall: 'timber', trim: 'darkwood', h: 112, windows: 'none', hang: ['none', 'shelves', 'none'], feature: 'none', pilasters: 'darkwood' },
+  poorhouse: { wall: 'plaster', trim: 'timber', h: 72, windows: 'rect', hang: ['none', 'jars', 'none'], feature: 'hearth' },
+  ossuary: { wall: 'stone', trim: 'stone', h: 80, windows: 'none', hang: ['niches', 'niches', 'niches'], feature: 'ossuary', pilasters: 'stone' },
+  healer: { wall: 'darkwood', trim: 'timber', h: 64, windows: 'rect', hang: ['jars', 'jars', 'shelves'], feature: 'hearth' },
+  stiltinn: { wall: 'darkwood', trim: 'timber', h: 72, windows: 'rect', hang: ['jars', 'painting', 'trophy'], feature: 'hearth', pilasters: 'timber' },
+  chapel: { wall: 'whiteStone', trim: 'whiteStone', h: 120, windows: 'lancet', glass: 'gold', hang: ['tapestry', 'painting', 'banner'], feature: 'window', pilasters: 'whiteStone' },
+  catacombs: { wall: 'whiteStone', trim: 'whiteStone', h: 64, windows: 'none', hang: ['niches', 'niches', 'none'], feature: 'ossuary', pilasters: 'whiteStone' },
 }
 
 /** Every hall's walls, `<hall>_shell`. */

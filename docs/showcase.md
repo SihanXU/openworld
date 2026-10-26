@@ -1,6 +1,6 @@
 # The showcase: model places of the Holy City
 
-Six of the Holy City's backdrop places are made by hand as models for every place to come (the user's ask, 2026-10-25:
+Six of the Holy City's backdrop places — and five more, one in each region round it (§4b) — are made by hand as models for every place to come (the user's ask, 2026-10-25:
 "样板房" — a Gothic cathedral without and within, a grand busy city, a strong fortress, a busy market and more), each
 laid out from the great places it learns from and built from the project's own buildings. They take the places' files
 (the continent and its generator are unchanged), stay backdrop (no tale is told there yet), and their people are the
@@ -201,6 +201,24 @@ barrels, tables, the hearth, the lodgers' beds.
 The canal a level under the town: a narrow quay north, a wide one south with the crane, nets and fish on their racks,
 barrels and crates; boats on the water, the footbridge; hovels under thatch, the lane up to the Drowned Lantern, mud in
 the lanes, washing strung across, the fire where the poor warm themselves.
+
+## 4b. The regions' places
+
+The second batch (the user's ask, 2026-10-26: "再多做一些地图，也是这个质量"): one place in each of five regions round
+the Holy City, each built from its region's own buildings (`arch/buildings/regions.ts`: snow roofs, cogs and a
+lighthouse; flat sandstone roofs, palisades, tents and a trebuchet; windmills, granaries and the great scales; stilt
+houses, an ossuary chapel and dead trees; white chalk chapels, cells cut against the cliff), its ground in steps of the
+relief in its region's stone (`Catalog.relief`), and two or three halls within, each from its own plan
+(`plans.ts` HALLS, `showcase/regionhalls.ts`). A map's heights are a digit a cell (9 half levels at most), so a cliff is
+at most four levels; a stair down a drop of more than one level is a row for every half level (`showcase/ground.ts`).
+
+| Place | Continent id | What it shows | Halls | Learned from |
+|---|---|---|---|---|
+| Rimeholm | `frostfang.rimeholm` | a harbour on a fjord in three shelves: the longhall and the old gate in its thorns, the green and the tavern, the quay with its fish market, three piers and their cogs, the lighthouse on its spit | the Salt Mermaid, the boathouse (a cog on the slip), the longhall (its hearth down the hall's length) | Bergen's Bryggen, Lofoten's fishing villages, the Hanse's cogs |
+| Warcombe | `redmarch.warcombe` | a fort town in a red canyon: the mesa's watch and trebuchet, the war hall on its ledge, the town behind its palisade, the levies' camp and the field of the last battle outside the gate | the war hall, the armoury, the field hospital | the Roman limes, the presidios of the badlands, the Alamo |
+| Weighmarket | `tithe.weighmarket` | the tithe's granary city: mills on their rise over the fields, the granaries and the counting house over the great square and its scales, the guild houses; behind them hovels, the poorhouse and the salt pans | the counting house, the tithe granary, the poorhouse | Siena's Campo, the Hanse's grain halls, the tithe barns |
+| Dusk Moorings | `palefen.dusk-moorings` | a town on piles: the causeway and its walks (each side's a row apart), houses over the water with gaps between, fog lamps burning all day, the floating market, the ossuary's island and its sinking graveyard, dead trees in the shallows | the ossuary, the healer's hut, the Lantern on Piles | Ganvie, the Marsh Arabs' villages, the Tonlé Sap |
+| Highheath Abbey | `altar.highheath-abbey` | a monastery on chalk cliffs: the gatehouse at the foot, hermits' cells against the faces, switchback stairs, the chasm and its one bridge, the brothers' gardens and hives, the chapel, hall, cells, garth and graves on the summit | the Chapel of the Martyrs, the catacombs under it | the Meteora, Mont-Saint-Michel's terraces, the lavra cells of Athos and Cappadocia |
 
 ## 5. People (`showcase/cast.ts`)
 

@@ -64,6 +64,12 @@ const RAMPS: Record<string, string[]> = {
   i: ['#a9b0b8', '#7c838c', '#585e66', '#3b4046'],
   // hedge and grass on a roof garden or a courtyard
   v: ['#a8d16a', '#7fb24d', '#5a8d3b', '#3d672c'],
+  // the regions' own (docs/showcase.md §4b): snow lying on a roof, the Scarred March's red sandstone, a fen's dark wood,
+  // the Vale's salt
+  sn: ['#ffffff', '#eef4fb', '#d2deec', '#aebfd4', '#8597b1'],
+  rd: ['#f2b48a', '#d98d64', '#b96a4a', '#8e4c37', '#653528', '#47251d'],
+  dw: ['#8a6d55', '#6b5242', '#4f3b31', '#382a23', '#251c18'],
+  sl: ['#fbfbf6', '#ecebe0', '#d6d4c3', '#b5b29e'],
   // bronze gone green (a statue in a square)
   z: ['#a9d1b4', '#79a68b', '#567f68', '#3c5c4c', '#283f35'],
   // water in a fountain
@@ -197,6 +203,25 @@ export const MATERIALS: Record<string, (s: Surface) => string> = {
     return step('w', ((u % 4) + 4) % 4 < 1 ? 3 : 2)
   },
   iron: plain('i', 0),
+  // snow on a roof: soft, its courses barely showing, blue in shade
+  snowRoof: (s) => {
+    // the slates' courses showing through where the snow lies thin, drifts, a darker patch where it has slid
+    const t = tone(s, -0.3)
+    if (s.cls === 'south' || s.cls === 'north' || s.cls === 'east' || s.cls === 'west') return step('sn', t + 1)
+    const course = Math.floor(s.z / 5)
+    const along = Math.abs(s.n[0]) >= Math.abs(s.n[1]) ? s.y : s.x
+    const thin = hash(Math.floor(along / 4), Math.floor(s.z / 3), 71) < 0.1 && hash(Math.floor(along / 11), Math.floor(s.z / 9), 74) < 0.6
+    const bed = ((s.z % 5) + 5) % 5 < 1
+    if (thin) return bed ? 'r2' : hash(Math.floor(along / 4), course, 72) < 0.3 ? 'sn3' : 'sn2'
+    return step('sn', t + (bed && hash(Math.floor(along / 7), course, 73) < 0.35 ? 1 : 0))
+  },
+  snowField: plain('sn', 0),
+  sandstone: ashlar('rd', 8, 18),
+  sandstoneRough: (s) => step('rd', tone(s) + (hash(Math.floor(s.x / 7), Math.floor(s.z / 5), 73) < 0.3 ? 1 : 0) + (Math.floor(s.z / 9) % 3 === 0 ? 0.6 : 0)),
+  plasterRed: plain('rd', -1),
+  darkwood: (s) => step('dw', tone(s) + (((s.cls === 'south' ? s.x : s.y) % 5 + 5) % 5 < 1 ? 1 : 0)),
+  salt: plain('sl', 0),
+  whiteStone: ashlar('pw', 7, 16),
   // black iron (a street lamp's)
   ironDark: plain('i', 1.4),
   bronze: plain('z', 0),

@@ -15,6 +15,11 @@ import { bellWard, BELL_SOUTH, BELL_WEST } from './bellward.ts'
 import { market, MARKET_NORTH, MARKET_SOUTH } from './market.ts'
 import { lampWard, LAMP_NORTH, LAMP_WEST } from './lampward.ts'
 import { lowerTown, LOWER_EAST } from './lowertown.ts'
+import { rimeholm } from './rimeholm.ts'
+import { warcombe } from './warcombe.ts'
+import { weighmarket } from './weighmarket.ts'
+import { duskMoorings } from './duskmoorings.ts'
+import { highheath } from './highheath.ts'
 
 const MAKERS: Record<string, (p: Place) => MapBuilder[]> = {
   'holy.sunwell-abbey': abbeyClose,
@@ -23,12 +28,22 @@ const MAKERS: Record<string, (p: Place) => MapBuilder[]> = {
   'holy.quarter-3': market,
   'holy.quarter-4': lampWard,
   'holy.quarter-5': lowerTown,
+  // the regions' places (docs/showcase.md §4b)
+  'frostfang.rimeholm': rimeholm,
+  'redmarch.warcombe': warcombe,
+  'tithe.weighmarket': weighmarket,
+  'palefen.dusk-moorings': duskMoorings,
+  'altar.highheath-abbey': highheath,
 }
 
 /** The roles a room behind a door has (continent/rooms.ts): stocked as such. */
 const ROLES = new Set(['home', 'farmhouse', 'mill', 'smithy', 'shop', 'teahouse', 'inn', 'chapel', 'tent', 'barracks', 'cell'])
 /** What a showcase's own halls keep (stock.ts's uses). */
-const HALL_USE: Record<string, string> = { nave: 'temple', crypt: 'dungeon', belfry: 'temple', library: 'library', refectory: 'inn', hall: 'home', solar: 'home' }
+const HALL_USE: Record<string, string> = {
+  nave: 'temple', crypt: 'dungeon', belfry: 'temple', library: 'library', refectory: 'inn', hall: 'home', solar: 'home',
+  boathouse: 'shop', longhall: 'home', warhall: 'home', armoury: 'smithy', hospital: 'temple', counting: 'shop', granary: 'farm', poorhouse: 'home',
+  ossuary: 'temple', healer: 'shop', chapel: 'temple', catacombs: 'dungeon',
+}
 
 /** A showcase place's maps, made, and stocked as the backdrop's are (stock.ts): the place's, its rooms', its halls'. */
 function make(p: Place, maker: (p: Place) => MapBuilder[]): MapBuilder[] {

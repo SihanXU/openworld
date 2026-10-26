@@ -195,7 +195,7 @@ export interface HouseOpts {
   d: number
   storeys: number
   wall: string
-  roof: 'tile' | 'slate' | 'thatch'
+  roof: 'tile' | 'slate' | 'thatch' | 'snowRoof' | 'darkwood'
   gableToStreet: boolean
   timber: boolean
   seed: number
@@ -294,7 +294,7 @@ export interface HouseOpts2 {
   d?: number
   upper: number
   wall: string
-  roof: 'tile' | 'slate' | 'thatch'
+  roof: 'tile' | 'slate' | 'thatch' | 'snowRoof' | 'darkwood'
   timber: boolean
   seed: number
   /** How it stands to the street (default its eaves along it). */
@@ -569,6 +569,11 @@ export function house(o: HouseOpts2): Model {
       const x = r(67) < 0.5 ? 4 : W - 14
       if (!inWing(x, x + 9)) orn.push(pots(9, o.seed).at(x, D, 0, true))
     }
+  }
+  // icicles along a snowy roof's eaves
+  if (o.roof === 'snowRoof') {
+    const ice = Array.from({ length: 5 }, (_, j) => Array.from({ length: W + 6 }, (_, i) => (j === 0 ? 'w' : hash(i, o.seed, 81) < 0.3 && j < 2 + hash(i, o.seed, 82) * 4 ? 'i' : ' ')).join(''))
+    orn.push({ x: -3, y: D, z: H - 5, rows: ice, keys: { w: 'sn0', i: 'q0' }, free: true })
   }
   // ------------------------------------------------------------------ the roof: moss in its courses, a skylight, birds on the ridge, a cat, a weathervane
   const roofAt = (x: number, y: number) => {

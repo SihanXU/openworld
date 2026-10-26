@@ -75,4 +75,21 @@ export const HALLS = {
   markethall: hallPlan(28, 17, 6, { hall: [2, 4, 24, 11], bay: [10, 2, 8, 2], entry: [11, 15, 6, 1] }, [[13, 16], [14, 16]]),
   inn: hallPlan(26, 17, 6, { common: [2, 4, 16, 10], hearth: [6, 2, 6, 2], dorm: [19, 4, 5, 10], arch: [18, 9, 1, 4], entry: [8, 14, 4, 2] }, [[9, 16]]),
   tavern: hallPlan(20, 14, 5, { main: [2, 3, 12, 8], nook: [14, 5, 4, 5], hearth: [5, 1, 4, 2], entry: [6, 11, 4, 2] }, [[7, 13]]),
+  // the regions' places (docs/showcase.md §4b): Rimeholm's tavern, boathouse and longhall; Warcombe's war hall, armoury and
+  // field hospital; Weighmarket's counting house, granary and poorhouse; Dusk Moorings' ossuary, healer's hut and inn;
+  // Highheath's chapel and the catacombs under it
+  seatavern: hallPlan(24, 15, 6, { main: [2, 3, 14, 9], snug: [17, 5, 5, 6], arch: [16, 7, 1, 3], hearth: [6, 1, 5, 2], entry: [8, 12, 4, 2] }, [[9, 14]]),
+  boathouse: hallPlan(30, 17, 7, { slip: [2, 3, 26, 11], loft: [3, 1, 7, 2], store: [21, 1, 6, 2], entry: [12, 14, 6, 2] }, [[14, 16]]),
+  longhall: hallPlan(32, 18, 8, { hall: [2, 4, 28, 10], dais: [11, 1, 10, 3], bayW: [1, 7, 1, 4], bayE: [30, 7, 1, 4], entry: [13, 14, 6, 3] }, [[15, 17]]),
+  warhall: hallPlan(28, 17, 8, { hall: [2, 4, 24, 10], dais: [9, 1, 10, 3], bayW: [1, 7, 1, 4], bayE: [26, 7, 1, 4], entry: [11, 14, 6, 2] }, [[13, 16]]),
+  armoury: hallPlan(24, 15, 6, { hall: [2, 3, 20, 9], forge: [8, 1, 7, 2], entry: [9, 12, 5, 2] }, [[11, 14]]),
+  hospital: hallPlan(28, 16, 6, { ward: [2, 3, 24, 9], shrine: [11, 1, 6, 2], entry: [11, 12, 6, 3] }, [[13, 15]]),
+  counting: hallPlan(26, 15, 7, { hall: [2, 4, 22, 8], clerks: [3, 2, 7, 2], strong: [17, 1, 6, 3], entry: [10, 12, 6, 2] }, [[12, 14]]),
+  granary: hallPlan(30, 17, 6, { floor: [2, 3, 26, 11], bayW: [1, 6, 1, 4], bayE: [28, 6, 1, 4], entry: [12, 14, 6, 2] }, [[14, 16]]),
+  poorhouse: hallPlan(24, 15, 5, { hall: [2, 3, 20, 9], kitchen: [3, 1, 6, 2], entry: [9, 12, 5, 2] }, [[11, 14]]),
+  ossuary: hallPlan(22, 16, 6, { nave: [3, 3, 16, 10], apse: [8, 1, 6, 2], entry: [9, 13, 4, 2] }, [[10, 15]]),
+  healer: hallPlan(18, 13, 5, { hut: [2, 3, 14, 7], entry: [7, 10, 4, 2] }, [[8, 12]]),
+  stiltinn: hallPlan(26, 16, 6, { common: [2, 3, 16, 10], rooms: [19, 3, 5, 10], arch: [18, 6, 1, 3], hearth: [6, 1, 5, 2], entry: [8, 13, 4, 2] }, [[9, 15]]),
+  chapel: hallPlan(30, 19, 9, { nave: [5, 5, 20, 10], apse: [11, 2, 8, 3], chapelW: [2, 8, 3, 4], chapelE: [25, 8, 3, 4], entry: [12, 15, 6, 3] }, [[14, 18]]),
+  catacombs: hallPlan(30, 20, 5, { north: [3, 2, 24, 3], south: [3, 13, 24, 3], west: [3, 5, 3, 8], east: [24, 5, 3, 8], spine: [13, 5, 4, 8], tombW: [7, 7, 5, 4], passW: [6, 8, 1, 2], tombE: [18, 7, 5, 4], passE: [23, 8, 1, 2], entry: [13, 16, 4, 3] }, []),
 }
