@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { AGAIN_AFTER, ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Rule, type Scenario } from '@openworld/engine'
 import { ScriptedModel, judge, statedAffordance, type ChatMessage, type ChatOptions } from '@openworld/ai'
-import { AFFORDANCE_CASES, askCase } from '../src/eval/affordanceSet.ts'
+import { AFFORDANCE_CASES, askCase } from '../src/live.ts'
 import { BASE, noAudit, onto, testModder } from './fixtures.ts'
 
 const CHAIR = 'fixture/furniture/chair'

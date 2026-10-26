@@ -1,6 +1,6 @@
 // The Ford's six kinds of hole, each reached through the game's own path (an undefined use, a blow on what
 // cannot break, a hand on what does not say, a rope used on a creature, a person stuck, content broken): the
-// live smoke test plays them with a model (ford-live.ts), and the game's probes are the requests they raise
+// live smoke test plays them with a model (games/openworld/ai/src/live.ts `fordLive`), and the game's probes are the requests they raise
 // (probes.ts → content/src/probes.json, for the modder's detection of what a model carries).
 
 import { TICKS_PER_HOUR, tickAt, type Engine, type Entity, type Game, type Key } from '@openworld/engine'

@@ -1163,7 +1163,7 @@ get a short in-world line, or nothing. It is not "every act must change the worl
 - **No model.** The `?` is shown only while a modder with a model is up (`worker.ts` `asks`), and the default of a
   bare hand on what nothing answers says what was done ("You run a hand over the chair.").
 
-**The evaluation** (`npm run eval:affordance`, `tools/src/eval/affordanceSet.ts`): a bare hand on sixteen things the
+**The evaluation** (`npm run eval:affordance`, `games/openworld/ai/src/live.ts`): a bare hand on sixteen things the
 base rules leave open, eight with a common use (chair, bench, log bench, stump, haystack, well, fountain, someone's
 chair with its owner by) and eight with none (boulder, fence, statue, lamppost, mist, dead tree, table, counter). A
 use passes when it was judged a use and the scene changed; a thing with none when it was judged words or nothing and
