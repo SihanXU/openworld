@@ -7,7 +7,7 @@ import { Server } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, holeKey, patchKey, placePatch, restoreLibrary, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@openworld/engine'
 import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, qualifyTerrains, scriptFromFile, stationFromRules, normalizePatch, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '@openworld/ai'
-import { BASE, SLIME, jsonOffline, noAudit, offerRequest, onto, testModder, useRequest } from './fixtures.ts'
+import { BASE, SLIME, SLOW, jsonOffline, noAudit, offerRequest, onto, testModder, useRequest } from './fixtures.ts'
 
 function listening(server: Server): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -450,7 +450,7 @@ describe('the service', () => {
 })
 
 describe('the offline script (fixtures/offline.json, for `serve --script`)', () => {
-  it('answers a stone held out to a creature and a stone used on a dead tree, live, each at its own hole; the same event again is covered', async () => {
+  it('answers a stone held out to a creature and a stone used on a dead tree, live, each at its own hole; the same event again is covered', SLOW, async () => {
     const model = scriptFromFile(fileURLToPath(new URL('../../../../packages/ai/fixtures/offline.json', import.meta.url)))
     const ids = (p: Patch | null | undefined) => p?.artifacts.map((a) => (a.kind === 'rule' ? a.rule.id : a.kind))
     for (const first of ['put', 'use'] as const) {

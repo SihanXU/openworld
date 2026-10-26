@@ -1775,11 +1775,11 @@ function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
 export const patchRules = (patch: Patch): Rule[] => patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule] : []))
 
 /** The ontology with these types and statuses beside its own, as a copy (the world's own definitions are never written). */
-export function ontologyWith(onto: Ontology, add: { types: TypeDef[]; statuses: StatusDef[] }): Ontology {
-  const out: Ontology = { ...onto, types: { ...onto.types }, statuses: { ...onto.statuses } }
-  for (const t of add.types) out.types[t.id] = t
-  for (const s of add.statuses) out.statuses[s.id] = s
-  return out
+export function ontologyWith(base: Ontology, add: { types: TypeDef[]; statuses: StatusDef[] }): Ontology {
+  const onto: Ontology = { ...base, types: { ...base.types }, statuses: { ...base.statuses } }
+  for (const t of add.types) onto.types[t.id] = t
+  for (const s of add.statuses) onto.statuses[s.id] = s
+  return onto
 }
 
 /** The library with a patch's types and statuses (and, unless told not to, its rules) added, as a copy. */
