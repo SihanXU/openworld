@@ -11,6 +11,7 @@ import { GEAR_LEVELS } from './gear.ts'
 import { GEAR_SETS } from './sets.ts'
 import { AFFIX_TABLE, LOOT, TROPHY_OF, TROPHY_SETS } from './trophies.ts'
 import { PILGRIMAGE_TYPES } from './pilgrimage.ts'
+import { FOG, FOG_EVERY } from './bossrooms.ts'
 import { FAITH_STATUSES } from './faith.ts'
 import { VEGETABLE_CROPS, cropHours } from './crops.ts'
 import { BOSSES, BOSS_ENCOUNTERS, BOSS_KITS, BOSS_TYPES } from './bosses.ts'
@@ -39,6 +40,7 @@ export const TERRAIN_CHARS: Record<string, string> = {
   T: 'tree',
   P: 'pine',
   b: 'bush',
+  '%': 'thornhedge',
   R: 'rock',
   X: 'wall',
   H: 'woodwall',
@@ -200,7 +202,10 @@ export const TERRAINS: TerrainDef[] = [
   // what fills a cell can be broken (world-model.md §6.3): its durability, what it is made of
   T('tree', '树', 'tree', ['plant', 'tree', 'flammable', 'wooden'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/log', count: 4 }, { type: 'item/material/stick', count: 2 }], color: '#2f6b33' }),
   T('pine', '松树', 'pine tree', ['plant', 'tree', 'flammable', 'wooden', 'cold'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/log', count: 4 }, { type: 'item/material/stick', count: 2 }], color: '#23553a' }),
-  T('bush', '灌木', 'bush', ['plant', 'flammable'], { space: 'volume', solid: true, props: { material: 'plant', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 2 }], color: '#4f8f3a' }),
+  // (low enough to push through: one walks into a bush as into tall grass)
+  T('bush', '灌木', 'bush', ['plant', 'flammable'], { space: 'volume', solid: false, props: { material: 'plant', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 2 }], color: '#4f8f3a' }),
+  // the White Knight's hedge across the East Road (docs/boss-rooms.md): thorns that close again, no blade or fire opens them
+  T('thornhedge', '荆棘篱', 'thorn hedge', ['plant', 'thorn'], { space: 'volume', solid: true, color: '#3b4a2a' }),
   T('rock', '岩石', 'rock', ['rock', 'stone', 'mineable'], { space: 'volume', solid: true, props: { material: 'stone', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/stone', count: 2 }], color: '#7d7a74' }),
   // the walls the maps are built of (houses, chapels, keeps, ruins, fences: docs/building.md §10) are `enduring`: hit,
   // they show it, crack by crack, but never give way (wall/endure) — the way into a house is its door. What one builds
@@ -637,6 +642,8 @@ const fixtureTypes: TypeDef[] = [
   // briars: the White Knight's thorns, a hedge that stands where he set it (docs/chapter-1.md §4)
   // a bank of mist at the Held Ground's edge (haven.ts): it holds the ground in until the steward widens it
   F('fixture/nature/mist', 'bank of mist', '雾墙', ['mist'], { solid: true }),
+  // the fog at a boss's door (docs/boss-rooms.md): through it one comes into the arena; sealed inside while the boss stands
+  F('fixture/fog', 'wall of fog', '雾门', ['mist', 'opaque'], { solid: true, sprite: 'fixture:fog' }),
   F('fixture/nature/briar', 'briar', '荆棘丛', ['plant', 'sharp', 'thorny', 'flammable'], { props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/stick', count: 1 }] }),
   F('fixture/nature/boulder', 'boulder', '巨石', ['stone', 'rock', 'mineable'], { props: { material: 'stone', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 8 }] }),
   // the mines' veins: a pickaxe breaks them like a boulder, into the ore they hold (half of it, as anything broken); what
@@ -784,6 +791,8 @@ export function buildOntology(): Ontology {
       { name: 'weather', every: 60, host: 'world' },
       // the Held Ground's mist looks now and then whether the ground has grown past it (haven.ts)
       { name: 'mist', every: 30, host: { type: 'fixture/nature/mist' } },
+      // a boss's fog looks now and then whether its boss has fallen (bossrooms.ts)
+      { name: 'fog', every: FOG_EVERY, host: { type: FOG } },
       // a plot staked at the Held Ground's heart looks whether its building has been built (haven.ts)
       { name: 'plot', every: 30, host: { type: 'fixture/build/plot' } },
       { name: 'storm', every: 300, host: 'world' },

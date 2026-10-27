@@ -25,7 +25,7 @@ export const FIRSTLIGHT_ROOMS = ['meadow.cook', 'meadow.elder', 'meadow.guards',
 /** Set once a save has stepped off the walls of the Pilgrim's Road and the Held Ground as they were redrawn (docs/release-1.md §7, 2026-10-27). */
 export const PART_ONE_LAYOUT = 'content.part-one-maps-v1'
 /** The maps of Part One's road east redrawn then, and their rooms. */
-export const PART_ONE_MAPS = ['waystation', 'waystation.chapel', 'waystation.hostel', 'pilgrimway', 'abbey', 'abbey.hall', 'abbey.crypt', 'kneelfield', 'eastroad', 'eastroad.farmhouse', 'haven', 'haven.quarry', 'haven.timber', 'haven.lake', 'haven.springs']
+export const PART_ONE_MAPS = ['waystation', 'waystation.chapel', 'waystation.hostel', 'pilgrimway', 'abbey', 'abbey.hall', 'abbey.crypt', 'abbey.tomb', 'kneelfield', 'eastroad', 'eastroad.farmhouse', 'kingdom', 'haven', 'haven.quarry', 'haven.timber', 'haven.lake', 'haven.springs']
 /** Set once a save has stepped off the walls of the way down the mountain as its ruins were drawn (docs/release-1.md §4b, 2026-10-27). */
 export const PROLOGUE_LAYOUT = 'content.prologue-maps-v1'
 /** The maps of the way down redrawn then (the tutorial's Clearing is in no save). */

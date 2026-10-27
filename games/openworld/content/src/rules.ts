@@ -279,17 +279,27 @@ const ESSENTIAL: Selector = { type: 'actor', tags: ['essential'] }
 /** What one carried, bundled where one fell (body/rise). */
 const BUNDLE = 'item/misc/bundle'
 
+/** What falls at no health that is not essential: the striker learns from it, it breaks down and spills what it carried. */
+const DEFEAT: Effect[] = [
+  // the striker learns from it, and may find the kind's own piece (trophies.ts) in their bag
+  emit('notify', 'actor', { what: 'defeat', xp: { prop: 'maxHp', of: 'host' }, trophy: { prop: 'trophy', of: 'host' }, trophyChance: { prop: 'trophyChance', of: 'host' } }),
+  // the story hears what fell, and to whom (quests count it)
+  vfx('poof', 'tileOf:host'),
+  log('{host} is defeated.', '{host}被打倒了。'),
+  { op: 'breakdown', still: true },
+]
+
 const BODIES: Rule[] = [
   rule({
     id: 'body/rise',
-    doc: 'One who has fallen, told by the story to rise (the death screen\'s choice): one gets up, whole — leaving what one carried bundled where one fell (one\'s coin loose beside it), when one rises at home (but what one wears, the weapon in one\'s hand and what is important stay with one). Told of a home (a bed slept in, a waypoint woken), one keeps it.',
+    doc: 'One who has fallen, told by the story to rise (the death screen\'s choice): one gets up, whole — leaving what one carried bundled where one fell (one\'s coin loose beside it) and telling the bosses there that one is gone (each is whole again), when one rises at home (but what one wears, the weapon in one\'s hand and what is important stay with one). Told of a home (a bed slept in, a waypoint woken), one keeps it.',
     host: ESSENTIAL,
     on: 'impulse/notify',
     tree: IF(
       param('what', 'respawn'),
       IF(
         param('drop', true),
-        DO({ op: 'dropContents', keepWorn: true, keep: ['important'], bundle: BUNDLE, loose: ['currency'] }, remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, log('You rise again. What you carried lies bundled where you fell, your coin scattered beside it; what you wore and what matters most are still with you.', '你重新站了起来。身上的东西打成一包留在了倒下的地方，钱撒在旁边；穿戴的装备和重要物品还在身上。')),
+        DO({ op: 'dropContents', keepWorn: true, keep: ['important'], bundle: BUNDLE, loose: ['currency'] }, remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, emit('notify', { map: true }, { what: 'foe-fell' }, { filter: { type: 'actor', tags: ['boss'] } }), log('You rise again. What you carried lies bundled where you fell, your coin scattered beside it; what you wore and what matters most are still with you.', '你重新站了起来。身上的东西打成一包留在了倒下的地方，钱撒在旁边；穿戴的装备和重要物品还在身上。')),
         DO(remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, log('You get up again.', '你重新站了起来。')),
       ),
       IF(param('what', 'home'), DO({ op: 'setProp', key: 'home', value: { param: 'value' } }), 'inherit'),
@@ -386,7 +396,7 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'combat/defeat',
-    doc: 'At no health: the essential (people, the player) go down for a while (as anything essential); the rest break down into what they are made of and spill what they carried (lying still: taken with F), and the one who struck learns from it (world-model.md §6.8, D9).',
+    doc: 'At no health: the essential (people, the player) go down for a while (as anything essential); the rest break down into what they are made of and spill what they carried (lying still: taken with F), and the one who struck learns from it (world-model.md §6.8, D9); a boss tells the story which boss fell (the fogs of its room lift, docs/boss-rooms.md).',
     host: ACTOR,
     on: 'threshold/cross',
     tree: IF(
@@ -394,14 +404,8 @@ const BODIES: Rule[] = [
       IF(
         tag('host', 'essential'),
         'inherit',
-        DO(
-          // the striker learns from it, and may find the kind's own piece (trophies.ts) in their bag
-          emit('notify', 'actor', { what: 'defeat', xp: { prop: 'maxHp', of: 'host' }, trophy: { prop: 'trophy', of: 'host' }, trophyChance: { prop: 'trophyChance', of: 'host' } }),
-          // the story hears what fell, and to whom (quests count it)
-          vfx('poof', 'tileOf:host'),
-          log('{host} is defeated.', '{host}被打倒了。'),
-          { op: 'breakdown', still: true },
-        ),
+        // a boss tells the story which boss fell (docs/boss-rooms.md: its room's fogs lift)
+        IF(tag('host', 'boss'), DO(...DEFEAT, emit('notify', 'story', { what: 'boss-fell', who: { idOf: 'host' } })), DO(...DEFEAT)),
       ),
     ),
   }),

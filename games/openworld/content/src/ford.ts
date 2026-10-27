@@ -13,6 +13,7 @@ import { QUEST_RULES } from './quest.ts'
 import { BOSS_RULES } from './bosses.ts'
 import { CH1_RULES } from './chapter1.ts'
 import { HAVEN_RULES } from './haven.ts'
+import { BOSS_ROOM_RULES } from './bossrooms.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 
@@ -156,7 +157,7 @@ const FORD_RULES: Rule[] = [
 ]
 
 /** The story's rules: the Ford's, then the main quest's (quest.ts). */
-export const STORY_RULES: Rule[] = [...FORD_RULES, ...QUEST_RULES, ...BOSS_RULES, ...CH1_RULES, ...PILGRIMAGE_RULES, ...HAVEN_RULES]
+export const STORY_RULES: Rule[] = [...FORD_RULES, ...QUEST_RULES, ...BOSS_RULES, ...CH1_RULES, ...PILGRIMAGE_RULES, ...HAVEN_RULES, ...BOSS_ROOM_RULES]
 
 const RIVER_CROSSED: Effect = { op: 'scene', id: 'ferry' }
 /** The story speaks through the person the content belongs to. */

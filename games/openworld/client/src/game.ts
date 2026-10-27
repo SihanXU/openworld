@@ -53,6 +53,9 @@ import {
   migrateHaven,
   migrateHavenHeart,
   migratePartTwo,
+  migrateBossRooms,
+  BOSS_ROOMS_LAYOUT,
+  BOSS_ROOMS,
   PART_TWO,
   migrateStats,
   STATS_LAYOUT,
@@ -168,6 +171,11 @@ export const CLIENT_GAME: ClientGame = {
     if (!w.fact(HAVEN_LAYOUT)) game.engine.author(() => migrateHaven(game))
     // its heart is the planted sword, not an altar
     game.engine.author(() => migrateHavenHeart(game))
+    // the bosses moved into arenas of their own behind their fogs: a save that held one where it stood before sends it to its post
+    if (!w.fact(BOSS_ROOMS_LAYOUT)) {
+      const arenas = await Promise.all(BOSS_ROOMS.map((r) => chunk(r.arena)))
+      game.engine.author(() => migrateBossRooms(game, arenas))
+    }
     // Part One ends with the Crown home: a Dragon Road begun before Part Two was sealed waits for it again
     game.engine.author(() => migratePartTwo(game))
     // the plots at the Held Ground's heart (its buildings, the residents' tents) and Cass's loom on Firstlight's square
@@ -193,7 +201,7 @@ export const CLIENT_GAME: ClientGame = {
   },
   fresh(game) {
     const w = game.engine.world
-    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(FIRSTLIGHT_HOUSES, true), w.setFact(PART_ONE_LAYOUT, true), w.setFact(PROLOGUE_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(PLOTS_LAYOUT, true), w.setFact(STOCK_LAYOUT, true), w.setFact(STATS_LAYOUT, true), w.setFact(GEAR_LAYOUT, true), w.setFact(VOWS_LAYOUT, true)))
+    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(FIRSTLIGHT_HOUSES, true), w.setFact(PART_ONE_LAYOUT, true), w.setFact(PROLOGUE_LAYOUT, true), w.setFact(BOSS_ROOMS_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(PLOTS_LAYOUT, true), w.setFact(STOCK_LAYOUT, true), w.setFact(STATS_LAYOUT, true), w.setFact(GEAR_LAYOUT, true), w.setFact(VOWS_LAYOUT, true)))
   },
   summon(kit, at, id) {
     const body = createBoss(kit, at, id)
@@ -204,7 +212,7 @@ export const CLIENT_GAME: ClientGame = {
   dev: {
     shortcuts: [
       { label: 'Emberfall, by the lit forge', debug: { op: 'teleport', map: 'emberfall', x: 31, y: 8 } },
-      { label: '召唤白骑士 · Summon the White Knight (East Road)', debug: { op: 'summon', kit: 'alberic', map: 'eastroad', x: 40, y: 15, from: [30, 12] } },
+      { label: '召唤白骑士 · Summon the White Knight (the Kingdom)', debug: { op: 'summon', kit: 'alberic', map: 'kingdom', x: 18, y: 12, from: [3, 11] } },
       // release 1 ends with the Crown home (docs/release-1.md): the road on east to Emberfall, and all beyond it
       { label: '开启第二部 · Open Part Two', debug: { op: 'fact', key: PART_TWO, value: 1 } },
     ],
