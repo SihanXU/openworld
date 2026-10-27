@@ -1,5 +1,5 @@
 // Frames of the trailer stage taken one by one in an isolated headless Chrome, then made into a video.
-//   node site/video/export.mjs [--from s] [--to s] [--every n] [--size 360|720|1080] [--out var/video/trailer] [--url …]
+//   node site/video/export.mjs [--from s] [--to s] [--every n] [--size 360|720|1080] [--out var/video/trailer] [--url …] [--port n]
 // Drafts are 360p (the default: frames of 640 x 360); --size 1080 for a final.
 // (npm run dev:client first). Frames go to <out>/frames; the video is made by site/video/encode.mjs.
 import { spawn } from 'node:child_process'
@@ -14,7 +14,8 @@ const EVERY = Number(arg('every', 1))
 // the stage is always laid out at 1920 x 1080; a frame is taken scaled down to the size asked
 const SIZE = Number(arg('size', 360))
 const SCALE = SIZE / 1080
-const PORT = 9335
+// Chrome's debugging port: another export running at once needs its own
+const PORT = Number(arg('port', 9335))
 const pause = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const profile = await mkdtemp(join(tmpdir(), 'lsw-video-'))
