@@ -44,6 +44,9 @@ function renderedFrame(entity: EntitySnap, time = 0, bossAnimation?: BossAnimati
 
 const modes: BossPreviewMode[] = ['idle', 'walk', 'attack', 'cast', 'volley', 'hurt', 'death']
 const attackMode = (mode: BossPreviewMode) => mode === 'attack' || mode === 'cast' || mode === 'volley'
+const modeClip = (mode: BossPreviewMode, facing: 'down' | 'right' | 'up' | 'left'): keyof typeof ALBERIC_CLIPS => attackMode(mode)
+  ? facing === 'left' ? 'attack_left' : facing === 'right' ? 'attack_right' : 'attack_down'
+  : mode === 'walk' ? `walk_${facing}` : 'idle'
 
 describe.each(factories)('$name bootstrap', ({ create }) => {
   it('shows the boss as a boss before its first tick: its fight is its type\'s, whatever the world\'s index holds', () => {
@@ -69,7 +72,7 @@ describe('Boss Studio actions reach the rendered sprite', () => {
     for (const facing of ['down', 'right', 'up', 'left'] as const) {
       e.facing = facing
       scene.setBossPreview(e.id, mode)
-      const id = attackMode(mode) ? facing === 'left' ? 'attack_left' : facing === 'right' ? 'attack_right' : 'attack_down' : 'idle'
+      const id = modeClip(mode, facing)
       const clip = ALBERIC_CLIPS[id], staticPose = mode === 'hurt' || mode === 'death'
       const ms = clip.frame_ms, duration = clip.frames * ms
       // A stale combat sample and a delayed first render must not skip the first pose.
@@ -168,7 +171,7 @@ describe('Boss Studio actions reach the rendered sprite', () => {
       const e = snapshot(game.engine).entities.find((e) => e.id === boss.id)!
       e.facing = facing
       previewBoss(e, mode, 0)
-      const id = attackMode(mode) ? facing === 'left' ? 'attack_left' : facing === 'right' ? 'attack_right' : 'attack_down' : 'idle'
+      const id = modeClip(mode, facing)
       expect(renderedFrame(e)).toBe(`${key}:${id}:0`)
       expect(e.boss!.warning).toBeUndefined()
     }
