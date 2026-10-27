@@ -1565,6 +1565,10 @@ export interface Plan {
   sets?: boolean
   /** It takes what is another's (docs/npc-sandbox.md §2.1): the HUD says so. */
   steal?: boolean
+  /** A swing at the air (in a fight, where the aim meets no foe and nothing the world knows): it strikes a body on its way, never the ground. */
+  whiff?: boolean
+  /** Not made (in a fight, an experiment the world has never seen: a slip of the finger mid-blow): the label says so, the press does nothing. */
+  idle?: boolean
 }
 
 // ------------------------------------------------------------------ events (design.md §5.7)

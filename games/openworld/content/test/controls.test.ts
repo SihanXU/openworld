@@ -672,6 +672,62 @@ describe('the left click: the held thing as it is meant to be used', () => {
     expect(world('item/food/bread', []).controls.choices('primary', at)).toEqual([])
   })
 
+  it('a sword or a bow at the bare ground is a swing at the air, in a fight or not: nothing is asked, the ground unchanged', () => {
+    const eng = world('item/weapon/blade/sword', [])
+    eng.world.player.props!.profession = 'warrior'
+    const port = new ModPort(eng)
+    const plan = eng.controls.plan('primary', at)!
+    expect(plan).toMatchObject({ attack: true, whiff: true, instrument: { e: 'held' } })
+    expect(plan.unknown).toBeUndefined()
+    const ground = eng.world.terrainAt('sandbox', 2, 1)
+    eng.controls.run(plan)
+    expect(port.records).toHaveLength(0)
+    expect(eng.world.terrainAt('sandbox', 2, 1)).toBe(ground)
+  })
+
+  describe('in a fight (the `fighting` condition): a press makes no experiment', () => {
+    const fighting = (eng: Engine) => (eng.author(() => ((eng.world.player.combat ??= {}).fightTick = eng.world.state.tick)), eng)
+
+    it('a tool at the ground the world has never seen swings at the air; so does the bare fist', () => {
+      const pick = fighting(world('item/tool/pickaxe', []))
+      const port = new ModPort(pick)
+      const plan = pick.controls.plan('primary', at)!
+      expect(plan).toMatchObject({ attack: true, whiff: true })
+      pick.controls.run(plan)
+      expect(port.records).toHaveLength(0)
+      expect(fighting(world(undefined, [])).controls.plan('primary', at)).toMatchObject({ attack: true, whiff: true, label: { zh: '挥拳' } })
+    })
+
+    it('a foe a cell off the pointer is the one struck', () => {
+      const off = { x: 1, y: 1 }
+      const calm = world('item/weapon/blade/sword', [slime()])
+      calm.world.player.props!.profession = 'warrior'
+      expect(calm.controls.plan('primary', off)).toMatchObject({ whiff: true })
+      const eng = fighting(world('item/weapon/blade/sword', [slime()]))
+      eng.world.player.props!.profession = 'warrior'
+      eng.author(() => (eng.world.get('s')!.ai = { behaviour: 'melee', temper: 'wary', sight: 6, home: { map: 'sandbox', x: 2, y: 1 }, foes: ['actor'] }))
+      expect(eng.controls.plan('primary', off)).toMatchObject({ attack: true, target: { e: 's' } })
+      expect(eng.controls.plan('primary', off)!.whiff).toBeUndefined()
+    })
+
+    it('what the world has never seen is not tried by a press — the label says so — but what it knows is done, and the chooser still asks', () => {
+      const stone = fighting(world('item/material/stone', []))
+      const self = stone.controls.plan('primary')!
+      expect(self).toMatchObject({ idle: true, label: { zh: '战斗中不尝试' } })
+      expect(self.unknown).toBeUndefined()
+      const port = new ModPort(stone)
+      stone.controls.run(self)
+      expect(port.records).toHaveLength(0)
+      const apple = fighting(world('item/food/apple', [{ key: 'well', type: 'fixture/water/well', x: 2, y: 1 }]))
+      expect(apple.controls.plan('secondary', at)).toMatchObject({ idle: true, target: { e: 'well' } })
+      expect(apple.controls.choices('secondary', at).some((c) => c.plan?.unknown)).toBe(true)
+      const meat = fighting(world('item/food/meat/raw', [{ key: 'fire', type: 'fixture/light/campfire', x: 2, y: 1 }]))
+      meat.author(() => meat.applyStatus({ e: 'fire' }, 'lit', 999))
+      meat.controls.run(meat.controls.plan('secondary', at)!)
+      expect(meat.world.get('held')!.type).toBe('item/food/meat/cooked')
+    })
+  })
+
   it('held, it goes on at a swing\'s pace: blows wherever the aim meets one, the same work cell after cell, never what the world has not seen nor what undoes it; a meal once', () => {
     const hoe = world('item/tool/hoe', [])
     const c = hoe.controls

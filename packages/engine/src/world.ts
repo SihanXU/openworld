@@ -24,7 +24,7 @@ import type {
   Text,
   WorldState,
 } from './types.ts'
-import { DIRS } from './types.ts'
+import { DIRS, FIGHT_TICKS } from './types.ts'
 import { matchSelector } from './rules.ts'
 import { weaponOf } from './blows.ts'
 import type { CondImpl } from './module.ts'
@@ -750,6 +750,14 @@ export class World {
   /** Does it act by itself, with a body that takes its cells? (the `agent` tag) */
   isAgent(e: Entity): boolean {
     return this.hasTag(e, 'agent')
+  }
+
+  /**
+   * In a fight now: it struck at an actor, was struck by one, or was chased by a hostile one in the last FIGHT_TICKS
+   * (the `fighting` condition, the fight's music, the inputs' fight, design.md §5.2).
+   */
+  fighting(e: Entity): boolean {
+    return this.state.tick - (e.combat?.fightTick ?? -Infinity) < FIGHT_TICKS
   }
 
   /** What it is made of: its own `material:<id>` tag (an item's), else its type's, else its `material` prop. */
