@@ -13,7 +13,7 @@ them; the maps are polished one by one, their ground drawn by hand; every pictur
 (2026-10-26) the release runs to the first boss and opens the Held Ground after him, so the Held Ground is Part One's
 (the open question of 2026-10-21, §6, closed); Emberfall stays Part Two's; the way on east is shut by its gate's words, no
 new obstacle of the story's; the chapter's card is the release's end; the people's lines that speak of the road east are
-kept, as Part Two's promise; the Pilgrim's Road's maps and the Held Ground are polished to the valley's standard (§7).
+kept, as Part Two's promise; the Pilgrim's Road's maps and the Held Ground are polished to the valley's standard (§4b, built 2026-10-27).
 
 ## 1. The ending and the sealed road
 
@@ -146,6 +146,34 @@ Every hand-made map of the west bank to the same standard, its ground drawn by h
   the barrow's three levels bones, fallen stones and cracked flags), all lying pictures laid last on each map, never a
   thing: the demo's proof is unchanged.
 
+- **The Pilgrim's Road and the Held Ground, redrawn to the same standard** (2026-10-27, after the country): their
+  buildings are the project's own (`tools/src/art/arch/buildings/pilgrimage.ts`) — the Rest's chapel of the Five, grey
+  stone under slate with its porch, its rose of the five wounds and the bell-cote on its west gable (`pr_chapel`), and the
+  pilgrims' hostel, stone below and timber above under its sign of a bed (`pr_hostel`); the Abbey of the Thorn's chapter
+  hall, still roofed but holed (`ab_hall`), its church roofless but for the chancel over the crypt and its tower's stump
+  (`ab_church`), the cloister's arcades and broken walls (`ab_arcade_x<n>`, `ab_wall_y<n>`, with the ruin's own pieces);
+  the East Road's burned farmhouse, black and open to the sky (`er_farm`, its walls wood), and the barn a frame of charred
+  posts where Edda hides (`er_barn`); and in the Held Ground the knight's pavilion, white and red with its pennant, a
+  thing's own picture (`fixture/tent/pavilion`, drawn as the props are) — each door on the cell the story keeps. Their rooms
+  are halls on plans (`plans.ts` `prchapel`, `prhostel`, `abhall`, `abcrypt`, `erfarm`): the chapel's nave and the
+  priest's cell, the hostel's common room and dormitory, the chapter hall between its scriptorium and Alberic's cell
+  under a cloth of estate, the crypt's vault on its pillars before the priors' tomb and its ossuary, the farmhouse's
+  kitchen and bedroom; every anchor, bed, region, fixture id and named thing kept (the chapel's `altar`, the hall's
+  `cell`, the crypt's `tomb` read from the maps). Their ground is laid in code for what each place is (`quest/country.ts`:
+  soft noise, woods as a belt round a map, every edge closed but the ways): the Rest a halt on the road, its chapel and
+  hostel facing it over their forecourts, its yard in a dry-stone wall (the well, the fire, the kitchen garden), a
+  wayside cross where the road comes in; the Pilgrim's Road through grazing and heath, two old fields walled in dry
+  stone, the brook under its plank bridge, the shrines on their aprons of flags, a cross at the abbey's way; the abbey a
+  ruin gone to weeds inside its broken close, the gate a lone arch; the Kneeling Field a sweep of dry grass, the ground
+  worn bare before every stone, a cross at its head; the East Road's farm yard and fields in ash and cinders
+  (`decor_ash_<k>`), its orchard dead, beams fallen; the Held Ground's field trodden round the sword with its worn paths,
+  the grove among grey stones, the meadow round its deep pool, the old ground of heath and bare rock, the rings' banks
+  only on open ground; its grounds a quarry pit, a timberland round a clearing of stumps, a lake with its beach and
+  jetty, the springs on their green shelf in the rock. Fronts and yards are dressed with stamped pictures and the wilds
+  strewn last; no thing the story does not ask for. An older save steps off what are now walls (`migratePartOneMaps`,
+  its test in `tools/test/firstlight.test.ts`). The plots' buildings in the Held Ground (workbench, cauldron, storehouse,
+  loom, the residents' tents) are still the things they become, with their own pictures.
+
 ## 5. The pictures
 
 What the game drew wrong, fixed where it was wrong, for every map that uses it:
@@ -187,27 +215,7 @@ potted plant (`content/src/ontology.ts`), with the pack's own pictures.
 - **The editor and the layout files**: `maps/*.txt` are the map format's rows, but OpenWorld's maps are still built by
   code, so the editor cannot save into them yet.
 
-## 7. The Pilgrim's Road and the Held Ground, redrawn (to do)
-
-Part One's new maps to the standard Firstlight and its country were redrawn to (§3, §4b, 2026-10-26: docs/showcase.md),
-one by one, each looked at in the browser: the Pilgrims' Rest, its chapel and hostel; the Pilgrim's Road; the Abbey of
-the Thorn, its chapter hall and crypt; the Kneeling Field; the East Road and the burned farmhouse; the Held Ground and its
-four grounds.
-
-- **Their buildings are the project's own**, drawn by the oblique renderer (`tools/src/art/arch`, a module of their own
-  under `arch/buildings/` as `firstlight.ts` and `chapter1.ts` are): the Rest's chapel of the Five and the pilgrims'
-  hostel, the abbey's ruined cloister, chapter hall and church over its crypt, the burned farmhouse, the Held Ground's
-  tent, stall and the buildings raised on its plots — each door on the cell the story keeps.
-- **Their rooms are halls on plans** (`plans.ts`, rooms side by side joined by arches, recorded as rooms of style
-  `shell`), every anchor, bed, fixture id and named thing kept; an older save moved off what is now a wall.
-- **Their ground is laid in code** for what each place is — a road through a pilgrims' country, a ruin gone to weeds, a
-  field of kneeling stones, a burned farm, a held field in rings of mist — not woods laid round a road by chance; fronts
-  and yards dressed with stamped pictures (`showcase/dress.ts`), the wilds strewn last (`wildfloor.ts`); no thing the
-  story does not ask for (the demo's minimality holds).
-- Every building walked through (`tools/test/interiors.test.ts`); the edges closed but for the ways (`release.test.ts`).
-  The knight's fight, the Crown's scene and the chapter's card played through with them.
-
-## 8. Wiki
+## 7. Wiki
 
 The pages that spoke of the far bank as the end (the Ford, the First Seal, the main line, the world map) say the road
 goes on to the knight; Emberfall's, the mine's, the pass's, the lair's and the Dragon Road's say they are Part Two's.
