@@ -187,13 +187,25 @@ potted plant (`content/src/ontology.ts`), with the pack's own pictures.
 - **The editor and the layout files**: `maps/*.txt` are the map format's rows, but OpenWorld's maps are still built by
   code, so the editor cannot save into them yet.
 
-## 7. The Pilgrim's Road and the Held Ground, polished (to do)
+## 7. The Pilgrim's Road and the Held Ground, redrawn (to do)
 
-Part One's new maps to the valley's standard (§4b), one by one, each looked at in the browser: the Pilgrims' Rest, its
-chapel and hostel; the Pilgrim's Road; the Abbey of the Thorn, its chapter hall and crypt; the Kneeling Field; the East
-Road and the burned farmhouse; the Held Ground and its four grounds. Their ground drawn by hand (`maps/<map>.txt`, and
-heights where they rise), not woods laid round a road by chance; borrowed pictures cut right; every building walked
-through. The knight's fight, the Crown's scene and the chapter's card played through with them.
+Part One's new maps to the standard Firstlight and its country were redrawn to (§3, §4b, 2026-10-26: docs/showcase.md),
+one by one, each looked at in the browser: the Pilgrims' Rest, its chapel and hostel; the Pilgrim's Road; the Abbey of
+the Thorn, its chapter hall and crypt; the Kneeling Field; the East Road and the burned farmhouse; the Held Ground and its
+four grounds.
+
+- **Their buildings are the project's own**, drawn by the oblique renderer (`tools/src/art/arch`, a module of their own
+  under `arch/buildings/` as `firstlight.ts` and `chapter1.ts` are): the Rest's chapel of the Five and the pilgrims'
+  hostel, the abbey's ruined cloister, chapter hall and church over its crypt, the burned farmhouse, the Held Ground's
+  tent, stall and the buildings raised on its plots — each door on the cell the story keeps.
+- **Their rooms are halls on plans** (`plans.ts`, rooms side by side joined by arches, recorded as rooms of style
+  `shell`), every anchor, bed, fixture id and named thing kept; an older save moved off what is now a wall.
+- **Their ground is laid in code** for what each place is — a road through a pilgrims' country, a ruin gone to weeds, a
+  field of kneeling stones, a burned farm, a held field in rings of mist — not woods laid round a road by chance; fronts
+  and yards dressed with stamped pictures (`showcase/dress.ts`), the wilds strewn last (`wildfloor.ts`); no thing the
+  story does not ask for (the demo's minimality holds).
+- Every building walked through (`tools/test/interiors.test.ts`); the edges closed but for the ways (`release.test.ts`).
+  The knight's fight, the Crown's scene and the chapter's card played through with them.
 
 ## 8. Wiki
 
