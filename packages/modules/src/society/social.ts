@@ -232,11 +232,33 @@ export class Social {
    * weighs with people (murder 25, theft 4) — seen by anyone or not. A blow against one who fought it first is no sin.
    */
   conscience(e: Entity, seen: GameEvent): number {
+    const def = this.sin(e, seen)
+    return def ? this.moral(e, 'karma', -this.weighs(def)) : 0
+  }
+
+  /** The deed one's own seen act holds, as one's conscience takes it (a blow against one who fought it first is none). */
+  private sin(e: Entity, seen: GameEvent): DeedDef | undefined {
     const def = this.deedIn(seen)
-    if (!def || seen.params?.own !== true) return 0
+    if (!def || seen.params?.own !== true) return undefined
     const victim = seen.roles.target ? this.w.get(seen.roles.target.e) : undefined
-    if (def.violent && victim?.ai?.foes?.includes(e.id)) return 0
-    return this.moral(e, 'karma', -Math.max(1, Math.round(def.weight / 4)))
+    return def.violent && victim?.ai?.foes?.includes(e.id) ? undefined : def
+  }
+
+  /** How much a deed weighs on its doer's karma: a quarter of what it weighs with people, one at least. */
+  private weighs(def: DeedDef): number {
+    return Math.max(1, Math.round(def.weight / 4))
+  }
+
+  /**
+   * What one's own act would cost its karma, foreseen (the controls ask first, Engine.guilt): the deed, and how far
+   * the karma would fall from where it stands (none at the floor). Nothing written.
+   */
+  guilt(e: Entity, seen: GameEvent): { def: DeedDef; toll: number } | undefined {
+    const def = this.sin(e, seen)
+    if (!def) return undefined
+    const now = this.w.num(e, 'karma')
+    const toll = now - Math.max(-100, Math.min(100, Math.round(now - this.weighs(def))))
+    return toll > 0 ? { def, toll } : undefined
   }
 
   // ---------------------------------------------------------------- gifts (§2.15)

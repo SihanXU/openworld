@@ -186,6 +186,8 @@ export interface Society {
   brief(e: Entity, toward: Id): { regard: number; knows: string[] } | undefined
   /** The deed a seen event holds, if any: its name. */
   deedName(seen: GameEvent): Text | undefined
+  /** One's own deed (a seen event with params own, hosted by its doer): its name, and how far its conscience would bring its karma down — nothing written. */
+  guilt(seen: GameEvent): { deed: Text; toll: number } | undefined
 }
 
 export const noSociety = (): Society => ({
@@ -200,4 +202,5 @@ export const noSociety = (): Society => ({
   watchOf: () => undefined,
   brief: () => undefined,
   deedName: () => undefined,
+  guilt: () => undefined,
 })

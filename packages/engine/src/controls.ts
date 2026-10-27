@@ -31,7 +31,7 @@ import { isPiece, oldStackKey, splitStacks, stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
 import type { Engine } from './engine.ts'
 import { NO_EXPIRY, isBuilt, type Writer } from './world.ts'
-import { FIGHT_TICKS, type Aim, type Dir, type Entity, type Id, type LessonInput, type Place, type Plan, type Pos, type PropValue, type Recipe, type Ref, type SkillDef, type Text, type Verb } from './types.ts'
+import { FIGHT_TICKS, type Aim, type Dir, type Entity, type Id, type LessonInput, type Place, type Plan, type Pos, type PropValue, type Recipe, type Ref, type Sin, type SkillDef, type Text, type Verb } from './types.ts'
 import { cannotLearn, skillsOf } from './progression.ts'
 import { OFFHAND, isTool, weaponOf } from './blows.ts'
 
@@ -49,6 +49,20 @@ export const MAGNET_PER_TICK = 25
 const isWeapon = (type: string) => type.startsWith('item/weapon/')
 const textEn = (t: Text) => (typeof t === 'string' ? t : t.en)
 const textZh = (t: Text) => (typeof t === 'string' ? t : t.zh ?? t.en)
+/** A label asked as a question ("Give the apple to Hesper?"). */
+const asked = (label: Text): Text => ({ en: `${textEn(label)}?`, zh: `${textZh(label)}？` })
+
+/** What several acts together would weigh on a conscience: every deed once, the tolls added. */
+export function joinSins(sins: (Sin | undefined)[]): Sin | undefined {
+  const deeds: Text[] = []
+  let toll = 0
+  for (const s of sins) {
+    if (!s) continue
+    toll += s.toll
+    for (const d of s.deeds) if (!deeds.some((x) => textEn(x) === textEn(d))) deeds.push(d)
+  }
+  return toll > 0 ? { deeds, toll } : undefined
+}
 
 /**
  * What an input does where no rule says (the labels are the rules' own: a rule, or one of its
@@ -391,9 +405,10 @@ export class Controls {
     if (!r.unknown && plan.rule && this.eng.lib.rules.get(plan.rule)?.on === 'impulse/receive') plan.sets = true
     if (r.confirm && !r.unknown) plan.confirm = this.label(r.confirm, target, instrument)
     // a blow, a use or a gift on someone friendly is asked first (a use or a gift in the words of its label: "Give the apple to
-    // Hesper?", "Slip the apple into her pocket?"); a blow with the blade drawn (X) is meant, and never asks
+    // Hesper?", "Slip the apple into her pocket?"); a blow with the blade drawn (X) is meant, and asks only what the
+    // conscience asks (run: every act that would weigh on it)
     if (!plan.confirm && (verb === 'use' || verb === 'put') && this.friendly(target) && !(attack && this.w.hasStatus({ e: this.w.state.player }, 'drawn')))
-      plan.confirm = attack ? this.label(GENERIC.attackAsk, target) : { en: `${textEn(plan.label)}?`, zh: `${textZh(plan.label)}？` }
+      plan.confirm = attack ? this.label(GENERIC.attackAsk, target) : asked(plan.label)
     const e = this.entity(target)
     if (e && this.w.hasTag(e, 'container') && (r.rules.includes('core/open-close') || this.w.hasTag(e, 'remains'))) plan.panel = e.id
     // taking what is another's (docs/npc-sandbox.md §2.1): the label says it is a theft
@@ -616,8 +631,30 @@ export class Controls {
     const plan = this.plan('primary', aim)
     if (!plan || plan.key === 'self' || plan.unknown || plan.confirm || !plan.changes || !!plan.attack !== !!first.attack) return
     if (!plan.attack && plan.rule !== first.rule) return
+    // nor goes on to what would weigh on one's conscience (a blow on someone new, a neighbour's fence): that is asked of a press
+    if (this.sinOf(plan)) return
     this.swing(plan)
   }
+
+  /**
+   * What a plan would weigh on the conscience of the one at the keys (Engine.guilt): a blow by what it lands on and its
+   * sweep's sides, any other act by what it is made on. Every act that would is asked first, its toll said (run).
+   */
+  private sinOf(plan: Plan): Sin | undefined {
+    const p = this.w.player
+    if (plan.attack) return this.eng.blowGuilt(p, plan.target)
+    if (!plan.verb) return undefined
+    return this.eng.guilt(plan.verb, p.id, plan.target, { instrument: plan.instrument ?? null })
+  }
+
+  /** Ask first: the question, and what its yes makes (an act of a panel's: its plan is the panel's to say). */
+  private askFirst(text: Text, sin: Sin | undefined, go: () => void): void {
+    this.w.state.question = { text, ...(sin && { sin }) }
+    this.pending = go
+  }
+
+  /** What the open question's yes makes, when it has no plan of its own. */
+  private pending?: () => void
 
   /** May the keys make this act now? A lesson's gate asked without a refusal shown. */
   private permits(key: Plan['key']): boolean {
@@ -671,9 +708,21 @@ export class Controls {
     return ok
   }
 
-  /** The attack key: a blow in the facing direction (the engine's cooldown paces a held key). */
+  /**
+   * The attack key: a blow in the facing direction (the engine's cooldown paces a held key) — asked first where it
+   * would weigh on one's conscience (someone who has not fought one, a neighbour's door), as any act is (run).
+   */
   strike(): void {
-    if (this.eng.busy(this.w.player) || !this.allows('use')) return
+    const w = this.w
+    const p = w.player
+    if (this.eng.busy(p) || !this.allows('use')) return
+    const sin = this.eng.ready('atk:' + p.id) ? this.eng.blowGuilt(p) : undefined
+    const at = sin && w.refPos(sin.target)
+    if (sin && at) {
+      const plan: Plan = { key: 'use', at, verb: 'use', target: sin.target, attack: true, label: this.label(GENERIC.attack, sin.target) }
+      w.state.question = { text: this.label(GENERIC.attackAsk, sin.target), plan, sin: { deeds: sin.deeds, toll: sin.toll } }
+      return
+    }
     this.eng.playerAttack()
   }
 
@@ -688,9 +737,13 @@ export class Controls {
     this.face(plan.at)
     // the build palette's turn (R): one faces that way setting it down (stairs go up that way)
     if (facing) p.facing = facing
-    if (plan.confirm && !confirmed) {
-      w.state.question = { text: plan.confirm, plan }
-      return {}
+    // what asks first: the plan's own question, and every act that would weigh on one's conscience (its toll said under it)
+    if (!confirmed) {
+      const sin = this.sinOf(plan)
+      if (plan.confirm || sin) {
+        w.state.question = { text: plan.confirm ?? (plan.attack ? this.label(GENERIC.attackAsk, plan.target) : asked(plan.label)), plan, ...(sin && { sin }) }
+        return {}
+      }
     }
     if (plan.attack) {
       eng.playerAttack(plan.target)
@@ -707,12 +760,14 @@ export class Controls {
   /** The player answers the open question. */
   answer(yes: boolean): void {
     const q = this.w.state.question
+    const go = this.pending
+    this.pending = undefined
     if (!q) return
     delete this.w.state.question
     // what was asked was let through the lesson's gate when it was asked
     this.answering = true
     try {
-      if (yes) this.run(q.plan, true)
+      if (yes) q.plan ? this.run(q.plan, true) : go?.()
     } finally {
       this.answering = false
     }
@@ -1103,18 +1158,9 @@ export class Controls {
     const eng = this.eng
     const p = w.player
     const box = w.get(container)
-    const it = w.get(item)
-    if (!box || !it || !w.hasStatus({ e: box.id }, 'open')) return
-    const k = this.key(it)
     if (from === 'bag') this.sync()
-    const bagSlot = from === 'bag' ? (p.slotItems ?? []).findIndex((members) => members?.includes(item)) : -1
-    const pool = from === 'chest' ? (box.contents ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : bagSlot >= 0 ? (p.slotItems?.[bagSlot] ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : []
-    const chunks = from === 'chest' ? splitStacks(pool) : [pool]
-    // A panel may still name the representative just moved; the remaining first slot is then its kind.
-    const slot = chunks.find((s) => s.some((e) => e.id === item)) ?? chunks[0] ?? []
-    const one = slot.find((e) => e.id === item) ?? slot[0]
-    const items = all ? slot : one ? [one] : []
-    if (!items.length) return
+    const items = this.transferItems(container, from, item, all)
+    if (!box || !items.length) return
     try {
       yield { done: 0, total: items.length }
       for (const [i, e] of items.entries()) {
@@ -1130,6 +1176,38 @@ export class Controls {
     } finally {
       this.sync()
     }
+  }
+
+  /** What a transfer moves: the item, or all of its slot (the chest's stacks as the panel shows them; the bag's kind). */
+  private transferItems(container: Id, from: 'chest' | 'bag', item: Id, all: boolean): Entity[] {
+    const w = this.w
+    const box = w.get(container)
+    const it = w.get(item)
+    if (!box || !it || !w.hasStatus({ e: box.id }, 'open')) return []
+    const k = this.key(it)
+    const p = w.player
+    const bagSlot = from === 'bag' ? (p.slotItems ?? []).findIndex((members) => members?.includes(item)) : -1
+    const pool = from === 'chest' ? (box.contents ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : bagSlot >= 0 ? (p.slotItems?.[bagSlot] ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : []
+    const chunks = from === 'chest' ? splitStacks(pool) : [pool]
+    // A panel may still name the representative just moved; the remaining first slot is then its kind.
+    const slot = chunks.find((s) => s.some((e) => e.id === item)) ?? chunks[0] ?? []
+    const one = slot.find((e) => e.id === item) ?? slot[0]
+    return all ? slot : one ? [one] : []
+  }
+
+  /**
+   * The chest panel's taking, asked first where it would weigh on one's conscience (what is another's: a theft, each
+   * thing taken one): true when it is asked, `go` making the transfer on a yes.
+   */
+  asksBeforeTransfer(container: Id, from: 'chest' | 'bag', item: Id, all: boolean, go: () => void): boolean {
+    if (from !== 'chest') return false
+    const p = this.w.player
+    const items = this.transferItems(container, from, item, all)
+    const sin = joinSins(items.map((e) => this.eng.guilt('take', p.id, { e: e.id }, { instrument: null })))
+    if (!sin) return false
+    const text = this.label(GENERIC.stealAsk, { e: items[0].id })
+    this.askFirst(items.length > 1 ? { en: `${textEn(text).replace(/\?$/, '')} ×${items.length}?`, zh: `${textZh(text).replace(/？$/, '')} ×${items.length}？` } : text, sin, go)
+    return true
   }
 
   /**
@@ -1226,10 +1304,15 @@ export class Controls {
     this.sync()
   }
 
-  /** The pockets panel: take a thing from a person's pockets, or slip one into them (acts of taking and putting, seen or not). */
-  pocket(who: Id, item: Id, take: boolean): void {
+  /**
+   * The pockets panel: take a thing from a person's pockets, or slip one into them (acts of taking and putting, seen or
+   * not) — a taking asked first where it would weigh on one's conscience (a pocket picked).
+   */
+  pocket(who: Id, item: Id, take: boolean, confirmed = false): void {
     const p = this.w.player
     if (this.eng.busy(p)) return
+    const sin = take && !confirmed ? this.eng.guilt('take', p.id, { e: item }, { instrument: null, params: { into: 'contents' } }) : undefined
+    if (sin) return this.askFirst(this.label(GENERIC.stealAsk, { e: item }), sin, () => this.pocket(who, item, take, true))
     if (take) this.eng.act('take', p.id, { e: item }, { instrument: null, params: { into: 'contents' } })
     else {
       this.stow()

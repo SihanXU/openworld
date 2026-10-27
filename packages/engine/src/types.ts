@@ -1504,8 +1504,12 @@ export interface WorldState {
   reported?: string[]
   /** Learned rules set aside for misbehaving at runtime (the engine's guards): their holes are open again. */
   quarantine?: Record<string, { tick: number; reason: string }>
-  /** A yes/no question waiting for the player (Action: "Eat the apple?"); time stops while it is open. */
-  question?: { text: Text; plan: Plan }
+  /**
+   * A yes/no question waiting for the player (Action: "Eat the apple?"); time stops while it is open. Its plan runs on
+   * a yes (a panel's act asked first has none: the controls keep what it makes); `sin`: what the act would weigh on
+   * the one at the keys' conscience, said under the question.
+   */
+  question?: { text: Text; plan?: Plan; sin?: Sin }
   /**
    * How far each period on a host's own pace (hunger, asleep or hungry slower) has come toward its next, as of a tick:
    * `period|id` → done (0..1) and at. Kept with the state so a loaded save keeps each clock's phase (it was the
@@ -1575,6 +1579,16 @@ export type Verb = 'use' | 'put' | 'take' | 'hands' | 'move' | 'craft' | 'learn'
 /** A reference to anything that can host or fill an event role: an entity or a map tile. */
 /** The one reference form (world-model.md §4.6): every thing has an id; a thing of a map's cells has one derived from its place. */
 export type Ref = { e: Id }
+
+/**
+ * What an act would weigh on its doer's conscience, foreseen before it is made (Engine.guilt, docs/npc-sandbox.md
+ * §2.2): the deeds it would be, and how far the doer's own answer to them (the society's `conscience`) would bring
+ * its karma down. Every such act of the one at the keys is asked first.
+ */
+export interface Sin {
+  deeds: Text[]
+  toll: number
+}
 
 /**
  * The closed tree of event kinds. A rule answers a kind or a whole branch (`impulse` answers
