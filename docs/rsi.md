@@ -224,6 +224,25 @@ harness (`SelfState.open(dir, clock, ['memory' | 'skills' | 'harness'])`).
 - **Ablations and reference arms:** the naive harness, the tuned harness, and the self-state
   with memory, skills or harness left out.
 
+### The rule bench (`npm run rulebench`)
+
+Whether the reflection helps, in the world's own work: 200 holes of the sweep frozen at a commit
+(`games/openworld/ai/bench/rulebench.json`), 20 kinds of task (nodes, §4.1) of 10 holes each. Every hole is a
+place of its own (no two share a `type|kind|hole`), so none is answered by another's patch: what recurs is the kind,
+never the hole. Two arms work the same holes in the same order, live, each from an empty library and self-state:
+`on` reflects and recalls; `off` has memory and skills left out and does not reflect. A rep shuffles the nodes'
+order. The report gives, per arm and paired hole by hole, how many were accepted and whose first answer held
+(McNemar exact), the calls, the tokens (the design's, and with the reflections'), the time; and each of these by the
+hole's place among its kind (the first of its node … the tenth): with reflection the later ones should be better,
+without it the curve should be flat.
+
+```bash
+npm run rulebench -- build                       # choose and freeze the holes (no model)
+npm run rulebench -- run --arm on --rep 1        # LSW_MODEL_BACKEND=claude-code, or a pinned model
+npm run rulebench -- run --arm off --rep 1
+npm run rulebench -- report
+```
+
 ## 8. Commands
 
 ```bash
