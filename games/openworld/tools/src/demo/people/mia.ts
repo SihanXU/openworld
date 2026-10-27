@@ -24,10 +24,10 @@ export const mia: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'I can hold my breath for a whole song. Pell can\'t even do half.', '我能憋气憋一整首歌。佩尔连半首都不行。'),
-    line('chat', 'Mama says the pot is never empty. It looks empty. I checked.', '妈妈说锅从来不空。它看着是空的。我检查过了。'),
-    line('favourite', 'If you ever find {favourite}, I would trade you my best frog for it. Not this one. A different one.', '你要是找到{favourite}，我拿我最好的青蛙跟你换。不是这只。另一只。'),
-    line('default', "I'm not supposed to go past the forest. I didn't. Much.", '我不该跑到森林那边去的。我没去。也就……去了一点点。'),
+    line('chat', "I can hold my breath for a whole song. Pell can't even do half.", '我能憋气憋一整首歌。佩尔连半首都憋不住。'),
+    line('chat', 'Mum says the pot is never empty. It looks empty. I checked.', '妈妈说锅里从来不会空。可它看着就是空的。我去看过了。'),
+    line('favourite', 'If you ever find {favourite}, I would trade you my best frog for it. Not this one. A different one.', '你要是找到{favourite}，我拿我最好的青蛙跟你换。不是这只，是另一只。'),
+    line('default', "Mum says I'm not allowed past the forest. I only went a little way. Only a tiny bit, honest.", '妈妈不让我走过森林那边。我就走了一点点，真的就一点点。'),
     line('default', "Do frogs sleep? This one doesn't.", '青蛙睡觉吗？这只不睡。'),
   ],
 }

@@ -19,6 +19,8 @@ manner of RPG Maker (a local server and page, or a desktop application, over pro
 ## Working agreements
 
 - Converse with the user in Chinese; write code, comments and docs in English.
+- The game's words (people's lines, scenes, quests, readable things) follow [docs/writing.md](docs/writing.md): FromSoftware's
+  manner, whole plain sentences, each person telling only what they know, the world's history through hearsay and things.
 - Build order: a small, polished demo first, then scale. The target is hundreds of maps,
   thousands of NPCs, tens of thousands of items; the demo (the Ford and the maps growing around
   it) is the development scaffold, never an argument against growth. Every element it holds

@@ -97,12 +97,12 @@ export function errand(e: Errand): QuestDef {
   const facts = e.reward.facts
   const stages: QuestStage[] = [
     { n: 10, log: begun, show: e.asks.map((a) => a.id) },
-    { n: 20, on: { objectives: ids }, show: ['back'], log: all ?? L('All of it done. Back to {giver}.', '都办齐了。回去找{giver}。') },
+    { n: 20, on: { objectives: ids }, show: ['back'], log: all ?? L('All of it is done. Back to {giver}.', '都办齐了。回去找{giver}。') },
     { n: 100, on: { all: [{ talk: 'giver' }, { objectives: ids }] }, done: ['back'], say: e.done, take, reward: e.reward, complete: true, log: handed ?? L('Handed in to {giver}.', '交给了{giver}。') },
     ...(e.skip
       ? [
-          { n: 105, on: { all: [e.skip, { objectives: ids }] }, reward: e.reward, complete: true, log: L('All of it done as the road went on.', '路走下去，这件事也一起办完了。') } as QuestStage,
-          { n: 110, on: e.skip, ...(facts && { reward: { facts } }), complete: true, log: L('The road went past it.', '路已经走过了这里。') } as QuestStage,
+          { n: 105, on: { all: [e.skip, { objectives: ids }] }, reward: e.reward, complete: true, log: L('All of it was done along the way.', '一路走来，这件事也办完了。') } as QuestStage,
+          { n: 110, on: e.skip, ...(facts && { reward: { facts } }), complete: true, log: L('It is too late for this now.', '这件事已经来不及了。') } as QuestStage,
         ]
       : []),
   ]

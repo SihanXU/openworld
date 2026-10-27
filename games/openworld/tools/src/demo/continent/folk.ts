@@ -1,6 +1,7 @@
 // The backdrop's people, in words (docs/continent.md §11): their names in both languages, by region; what they say,
 // by what they do and where they live. No tale is told in what they say — the regions' sufferings are in the weather,
-// the work and the prices, never in a quest or a secret.
+// the work and the prices, never in a quest or a secret. Written to docs/writing.md §3: a whole sentence or two in the
+// voice of their trade, about what is in front of them; the nights, the roads and the shortages show through their work.
 
 import type { LineDef } from '@openworld/engine'
 import type { Name } from './names.ts'
@@ -67,121 +68,121 @@ const L = (key: string, en: string, zh: string): LineDef => ({ key, text: { en, 
 /** By what they do. */
 const BY_ROLE: Record<string, LineDef[]> = {
   villager: [
-    L('default', 'Mind the ruts in the lane. Everybody trips on the same one.', '小心巷子里的车辙。大家都在同一个坑里绊倒过。'),
-    L('default', 'Water from the well is cold this year. Colder than I remember.', '今年井里的水很凉。比我记得的还要凉。'),
-    L('default', 'You are not from here. That is all right. Most people are not from anywhere, these days.', '你不是本地人。没关系。如今大多数人哪儿的人也不算。'),
-    L('hour:morning', 'Up already? The bread is not even out yet.', '这么早就起了？面包还没出炉呢。'),
-    L('hour:evening', 'Day is done. Feet are sore. That is how you know it was a day.', '一天结束了。脚也酸了。这样才算过了一天。'),
+    L('default', 'Watch the rut at the end of the lane. The rain dug it deeper, and a cart tipped over in it the day before yesterday.', '巷口那道车辙你留神点。下过一场雨又冲深了，前天还有辆车在那儿翻了。'),
+    L('default', 'It gets dark earlier every day. Our lamp oil used to last till spring; this year I doubt it will see midwinter.', '天黑得一天比一天早了。我家的灯油往年能点到开春，今年怕是撑不到冬至。'),
+    L('default', "You're not from here, are you? There have been more people on the road than usual lately. They say the Church is calling for pilgrims.", '你是外地来的吧？这阵子路上的人比往年多，听说是教会在召朝圣的人。'),
+    L('hour:morning', "Up already? The bakery isn't open yet. I want the first batch; flour is short, and by mid-morning there's nothing left.", '这么早就起了？面包房还没开门呢。我得赶第一炉，这阵子面粉紧，晚了就买不着了。'),
+    L('hour:evening', "Done at last. I'll fetch a bucket from the well, and then there's supper to make for the whole house.", '活总算干完了。我去井边打桶水，回来还得给一家子做饭。'),
   ],
   farmer: [
-    L('default', 'The soil gives what it gives. You cannot shout at it.', '地里长什么就是什么。冲它喊也没用。'),
-    L('default', 'Turned the east rows twice this week. They will thank me in autumn. Or they will not.', '这周东边那几垄翻了两遍。秋天它们会谢我的。也可能不会。'),
-    L('hour:morning', 'Best hour of the day for a hoe. The ground is soft and nobody talks to you.', '一天里最适合锄地的时候。地是软的，也没人跟你说话。'),
-    L('weather:rain', 'Rain! Good. Do not stand in my furrows.', '下雨了！好。别站在我的垄沟里。'),
+    L('default', 'The wheat came into ear nearly half a month late this year, and the ears are thin. My father farmed forty years and says he never saw the like.', '今年的麦子抽穗晚了快半个月，穗子也瘪。我爹种了四十年地，说从没见过这样的。'),
+    L('default', "I've turned the east rows twice this week and the soil is still hard. Other years it would be loose by now.", '东边那几垄我这礼拜翻了两遍，土还是硬邦邦的。往年这时候早就松了。'),
+    L('hour:morning', "I want these rows hoed by noon. This afternoon I'm helping next door mend their pigsty. I promised.", '我得趁上午把这几垄锄完。下午要去帮邻居家修猪圈，早就说好了的。'),
+    L('weather:rain', "Rain. Good. Walk round, would you, and don't step in the furrows I just opened.", '下雨了，好。你绕着点走，别踩我刚开的沟。'),
   ],
   merchant: [
-    L('default', 'Fair prices, honest weights. Ask anyone. Well — ask most people.', '价钱公道，秤准。随便问谁。好吧——问大多数人。'),
-    L('default', 'Coin moves slow this season. Everything else moves slower.', '这一季钱流得慢。别的东西流得更慢。'),
-    L('hour:evening', 'Closing soon. Buy now or dream about it.', '快收摊了。现在买，或者回去做梦。'),
+    L('default', "Have a look, take your time. Don't ask for lamp oil, though. Not a drop has come in this month, and every house is short.", '要什么随便看。灯油就别问了，这个月一滴都没进来，家家都缺。'),
+    L('default', "Salt has gone up again; it costs me a third more to buy in than last month. I can't help it. If it's too dear, buy less.", '盐又涨了，进价比上个月高了三成。我也没办法，你要是嫌贵，就少买点。'),
+    L('hour:evening', "I'm packing up. Buy now if you want anything; I'm off early tomorrow to restock.", '我要收摊了。要买趁现在，明天我得一早去进货。'),
   ],
   smith: [
-    L('default', 'Iron does not lie. It bends where you were lazy.', '铁不会骗人。你在哪儿偷了懒，它就在哪儿弯。'),
-    L('default', 'Bring me something broken and I will make it ugly and strong.', '把坏东西拿来，我把它打得又丑又结实。'),
+    L('default', "Iron has doubled in price these two months, and half the time there's none to be had at any price. I'll take mending, but anything new you'll have to wait for.", '铁料这两个月涨了一倍，还常常有钱也买不到。修补的活我接，要打新的就得等。'),
+    L('default', "Everyone wants door bars and shutter bolts lately, and they want them thick. If you've something to mend, leave it there and come back tomorrow.", '最近来打门闩、窗栓的人多，都要厚的。有要修的东西就放那边，明天来拿。'),
   ],
   innkeeper: [
-    L('default', 'Bed is a coin, soup is two, and the stories are free if you are not boring.', '床一枚钱，汤两枚，故事免费——只要你不无聊。'),
-    L('hour:evening', 'Evening crowd is the thirsty crowd. Stay clear of the corner table.', '晚上来的都是口渴的人。离角落那张桌子远点。'),
+    L('default', "A bed is one coin, soup is two. There's meat in the soup today; have it while it's hot.", '住一晚一枚钱，汤两枚。今天的汤里放了肉，趁热喝。'),
+    L('hour:evening', "It fills up in the evening with people who won't travel after dark. The corner table is for the regulars; sit somewhere else.", '晚上人多，都是天黑了不敢赶路的。角落那张桌子是熟客的，你坐别处吧。'),
   ],
   priest: [
-    L('default', 'Sit a while if you need to. The quiet is free.', '需要的话就坐一会儿吧。安静是不收钱的。'),
-    L('default', 'People pray more for rain than for mercy. I do not blame them.', '人们为雨祈祷的比为怜悯祈祷的多。我不怪他们。'),
-    L('hour:morning', 'Morning prayers are short. The day is long enough already.', '晨祷很短。白天已经够长了。'),
+    L('default', 'If you are weary, traveller, come in and sit. Many come to light candles of late; the chapel is brighter than it used to be.', '旅人，若是累了，便进来坐坐。近来点烛的人多，堂里倒比往日亮些。'),
+    L('default', 'Those who come to pray these days ask for longer days and quiet nights. I tell them what the Church teaches: suffering brings us closer to God.', '近来来祷告的人，求的多是白昼长些、夜里平安。我便照教会的教导告诉他们：苦难使人接近神。'),
+    L('hour:morning', 'Morning prayers are just over. If you want holy water, you will have to wait for the deacon; he has the key.', '晨祷刚做完。你若要领圣水，得等执事回来，钥匙在他身上。'),
   ],
   guard: [
-    L('default', 'Keep your blade in its sheath and we will get along.', '刀留在鞘里，我们就能相安无事。'),
-    L('default', 'Quiet watch so far. I like quiet watches.', '到现在为止都很太平。我喜欢太平的班。'),
-    L('hour:night', 'Late to be walking. Go home, or go somewhere lit.', '这么晚还在走。回家去，或者去有灯的地方。'),
+    L('default', "Keep your blade sheathed while you're here. If there's trouble, come to us. Don't settle it yourself.", '在这儿把刀收好。有什么麻烦就来找我们，别自己动手。'),
+    L('default', "Don't go out after dark. Those things out in the wilds — there weren't this many of them last year.", '天黑以后别往外走。野地里那些东西，去年还没这么多。'),
+    L('hour:night', "What are you doing out at this hour? If you've no business here, go and get some sleep. Don't hang about.", '这么晚了，你在这儿做什么？没事就回去睡觉，别在这儿转悠。'),
   ],
   soldier: [
-    L('default', 'Drill at dawn, drill at dusk, and in between we wait.', '黎明操练，黄昏操练，中间就是等。'),
-    L('default', 'Nobody tells us what we are guarding against. So we guard against everything.', '没人告诉我们在防什么。所以我们什么都防。'),
+    L('default', 'Drill before dawn, and after drill we dig ditches. The blisters on my hands never get the chance to heal.', '天不亮就操练，练完了还得去挖壕沟。我这手上的泡就没消过。'),
+    L('default', 'Half the company was sent off again last month to escort pilgrims, they said. The rest of us stand two posts each.', '上个月又调走了半个队，说是去护送朝圣的人。剩下我们几个，一人守两个岗。'),
   ],
   child: [
-    L('default', 'Bet you cannot hop to the well and back on one foot.', '打赌你没法单脚跳到井边再跳回来。'),
-    L('default', 'My mother says not to talk to travellers. You do not look like a traveller.', '我娘说别跟过路人说话。你看起来不像过路人。'),
-    L('hour:evening', 'I have to go in soon. I am not tired. I am not.', '我马上得回去了。我不困。真的不困。'),
+    L('default', 'Can you hop to the well and back on one foot? I can. I did twenty hops without switching.', '你能单脚跳到井边再跳回来吗？我能，我跳了二十下都没换脚。'),
+    L('default', "My mum says I can't go out after dark because something out there takes children. Have you ever seen one?", '我娘说天黑了不许出门，外面有东西会把小孩叼走。你见过那种东西吗？'),
+    L('hour:evening', "I have to go home, Mum's calling me for supper. I'm not tired. I'm really not.", '我得回家了，我娘喊我吃饭。我不困，真的不困。'),
   ],
   elder: [
-    L('default', 'When I was young the winters were shorter. Or I was quicker.', '我年轻的时候冬天短一些。要么就是我腿脚快一些。'),
-    L('default', 'Sit, sit. Standing is for people with somewhere to be.', '坐，坐。站着是给那些有地方要去的人的。'),
+    L('default', "When I was small, at this time of year it was still light after supper, and we would play outside a good while. Now it's dark before supper is even cooked.", '我小时候，这个时节吃完晚饭天还亮着，我们还能在外面玩好一阵。现在饭还没做好，天就黑了。'),
+    L('default', "Sit down, sit down, don't stand there. My legs aren't what they were, and looking up at you hurts my neck.", '坐吧，坐吧，别站着。我这腿不中用了，仰着头跟你说话，脖子疼。'),
   ],
   fisher: [
-    L('default', 'The fish bite when they please. So do I.', '鱼想咬钩的时候才咬。我也一样。'),
-    L('weather:rain', 'Rain on the water is good luck. Rain down my collar is not.', '雨打在水上是好兆头。雨灌进领子里可不是。'),
+    L('default', "The fish have all gone down deep lately. Two all morning, that's all. It wasn't like this in my father's day.", '这阵子鱼都沉到深水里去了，一上午就钓上来两条。我爹那时候可不是这样。'),
+    L('weather:rain', "Fish come up in the rain, so I'll stay out a while longer. If you don't mind getting wet, you can watch.", '下雨天鱼爱往上浮，我得多待一会儿。你不怕淋的话，就在边上看着吧。'),
   ],
   hunter: [
-    L('default', 'Tracks everywhere and nothing at the end of them. Odd year.', '到处是脚印，尽头却什么都没有。怪年景。'),
-    L('default', 'Walk softer. The woods hear you before they see you.', '脚步轻点。林子先听见你，然后才看见你。'),
+    L('default', "Half the deer in the woods are gone, and there are tracks I can't put a name to. Big ones. I'm back before dark now.", '林子里的鹿少了一大半，倒多了些我叫不出名字的脚印，个头不小。我现在都赶在天黑前回来。'),
+    L('default', 'If you go into the woods, keep clear of the spots marked with red rags. Those are my snares.', '你要进林子的话，绕开那些挂了红布条的地方，那是我下的套子。'),
   ],
   miner: [
-    L('default', 'Down there you count by lamps, not hours.', '在下面，你按灯算时间，不按钟点。'),
+    L('default', "They're pushing us hard this month. They say every smith in town is waiting on ore. We go down twice a day now, for the same pay.", '这个月上头催得紧，说是城里的铁匠都在等矿。我们现在一天下去两趟，工钱还是那么多。'),
   ],
   herbalist: [
-    L('default', 'Feverfew for the head, yarrow for the cut, patience for everything else.', '小白菊治头疼，蓍草止血，其他的都靠耐心。'),
+    L('default', 'Feverfew for headaches, yarrow to stop bleeding. Both are slow to come up this year; I have to go deeper into the woods to gather enough.', '小白菊治头疼，蓍草止血。这两样今年都长得慢，我得往林子深处走才采得够。'),
   ],
   scholar: [
-    L('default', 'I am copying a book about copying books. It is going slowly.', '我在抄一本讲怎么抄书的书。进展很慢。'),
+    L('default', "I'm copying the pilgrim rolls for the Church: names sent in from every parish, dozens a day. By noon my hand aches.", '我在替教会誊朝圣者的名册。各地报上来的名字，一天就有好几十个，抄到中午手就酸了。'),
   ],
   noble: [
-    L('default', 'One does not loiter. One surveys.', '本人不是闲逛。本人是在巡视。'),
+    L('default', 'Stand aside, if you would. My coachman has gone for someone to mend the wheel, and I can hardly wait in the mud.', '劳驾让一让。我的车夫找人修车轮去了，我总不能站在泥里等着。'),
   ],
   bard: [
-    L('default', 'I know a song for every road. Most of them are about feet.', '每条路我都会一首歌。大多数是讲脚的。'),
+    L('default', "Care for a song? One coin each. I've just learned a pilgrims' song from people on the road. It has seventeen verses.", '想听首歌吗？一枚钱一首。我刚跟路上的朝圣者学了一首歌，一共十七段。'),
   ],
   beggar: [
-    L('default', 'A coin, a crust, a kind word. Any of the three.', '一枚钱，一块面包皮，一句好话。三样哪样都行。'),
+    L('default', 'Spare a coin, please, or a crust of bread. Even the soup tent has been shut these past few days.', '行行好，给一枚钱吧，一块干面包也行。这几天连施粥的棚子都关了。'),
   ],
   traveler: [
-    L('default', 'Just passing through. Everybody is, if you think about it.', '只是路过。仔细想想，谁不是呢。'),
-    L('default', 'The road east was empty for half a day. I sang to keep myself company.', '往东的路有半天一个人都没有。我唱歌给自己作伴。'),
+    L('default', "Six days on the road to get here, and I've worn through my soles. Is there a cobbler round here?", '我走了六天才到这儿，鞋底都磨穿了。这附近有补鞋的吗？'),
+    L('default', 'The Church named me for the pilgrimage. They say it is calling people everywhere; of every ten I meet on the road, three or four are on the same errand.', '教会点了我的名，叫我去朝圣。听说各地都在召人，路上碰见的十个人里，倒有三四个跟我一样。'),
   ],
   peddler: [
-    L('default', 'Needles, buttons, a little lamp oil. Small things keep a house together.', '针、扣子、一点灯油。小东西才撑得起一个家。'),
+    L('default', 'Needles, thread, buttons, torches, bait, I have all of that. Have a look; after this town, the next market is four days off.', '针线、扣子、火把、鱼饵，都有。看看吧，过了这个镇子，下一个集要走四天。'),
   ],
 }
 
-/** By where they live: the land and its weather, never its tale. */
+/** By where they live: the land, its weather and its work, never its tale. */
 const BY_REGION: Record<string, LineDef[]> = {
   frostfang: [
-    L('default', 'Wind off the sea again. It gets into the bread.', '又是海上来的风。连面包里都是。'),
+    L('default', "They say there's a knight on the road past the Ford who stops everyone. Nobody gets by him.", '听说过了渡口的那条大路上，有个骑士把路拦住了，谁也过不去。'),
     L('weather:storm', 'Storm off the sea. Stack the wood high and keep the shutters shut.', '海上起风暴了。柴堆高，窗板关好。'),
   ],
   redmarch: [
-    L('default', 'Red dust on everything. You stop seeing it after a year.', '什么上面都是红土。过一年你就看不见了。'),
-    L('default', 'Fences go up faster than houses here.', '在这儿，篱笆比房子盖得快。'),
+    L('default', "The fort has been taking men again. Both the neighbours' sons went last month, and there hasn't been a letter since.", '要塞又来征人了。隔壁家两个儿子上个月都走了，到现在一封信也没有。'),
+    L('default', "The wolves have been bold this year. They took three of our sheep last month, and we've raised the fence again.", '今年的狼胆子大，上个月叼走了我们三只羊。篱笆我们又加高了一截。'),
   ],
   tithe: [
-    L('default', 'Half the grain to the granary, half the rest to the scales. What is left, we eat.', '一半粮食交粮仓，剩下的一半交秤。再剩的，我们吃。'),
-    L('default', 'Dry again. The wells taste of salt by midsummer.', '又旱了。到了仲夏，井水都是咸的。'),
+    L('default', 'Every sack of grain is weighed first, and the granary takes its share before we get ours. This year, after that, we have half a sack left.', '麦子收上来先过秤，交够粮仓的份才轮到自家。今年交完，家里就剩小半袋。'),
+    L('default', 'The well has gone too salty to drink. We walk the better part of an hour for water now.', '井水咸得没法喝了，现在挑一趟水得走大半个时辰。'),
   ],
   palefen: [
-    L('default', 'The mist comes up at noon some days. You learn the paths by your feet.', '有些日子中午就起雾。路得靠脚去记。'),
-    L('default', 'Do not step off the boards. The mud keeps what it takes.', '别走下木板。泥会把吞下去的东西留着。'),
+    L('default', "We haven't seen the sun for days. Noon looks much like evening here, and washing won't dry in a week.", '这里好几天没见着太阳了，晌午跟傍晚差不多。晾的衣服一个礼拜都不干。'),
+    L('default', "Keep to the boards and stay out of the mud. And if you hear anything from the graveyard at night, don't go and look.", '走路踩着木板走，别下到泥里。还有，夜里墓地那边要是有动静，别过去看。'),
   ],
   altar: [
-    L('default', 'Bells at every hour. You stop hearing them, then you miss them.', '每个钟点都有钟声。你会听不见，然后又会想念。'),
-    L('default', 'White stone everywhere. Sweep it once and it is white for a day.', '到处都是白石头。扫一遍能白一天。'),
+    L('default', 'The monastery bell used to ring seven times a day. Now it rings through the night as well, for the vigil, they say.', '修道院的钟以前一天敲七回，现在夜里也敲，说是为了守夜。'),
+    L('default', "The snow on the heights is late melting this year. The sheep still can't get up to the high pasture, so they're on hay.", '山上的雪今年化得晚，羊到现在还上不了高处的草场，只能喂干草。'),
   ],
   holy: [
-    L('default', 'Pilgrims every day. Some come to pray, some to sell, some to be seen.', '天天有朝圣的人。有的来祈祷，有的来做买卖，有的来让人看见。'),
+    L('default', 'Pilgrims come into the city every day now. The inns have been full for weeks, and plenty of them sleep out on the squares.', '这阵子天天有朝圣的人进城，客栈早就住满了，好多人只能在广场上过夜。'),
     L('default', 'Mind your purse in the crowd by the gate.', '城门边人多，看好你的钱袋。'),
   ],
 }
 
 const GREETING: LineDef[] = [
-  L('greeting:first', 'Hello there. New face.', '你好啊。生面孔。'),
-  L('greeting:first', 'Well met. Not many stop to talk.', '幸会。停下来说话的人不多。'),
-  L('greeting:first', 'Oh — hello. Can I help you?', '哦——你好。有什么事吗？'),
+  L('greeting:first', "Hello. I haven't seen you before. Are you from out of town?", '你好。没见过你，是外地来的吧？'),
+  L('greeting:first', 'Hello there. Where are you from? So many people have been passing through lately.', '你好啊，从哪儿来的？这阵子过路的人真多。'),
+  L('greeting:first', 'Oh, hello. Can I help you?', '啊，你好。找我有事吗？'),
 ]
 
 /** What a person of this role in this region says: a greeting, two of their work's lines and one of their land's. */

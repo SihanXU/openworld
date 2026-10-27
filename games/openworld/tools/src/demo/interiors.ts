@@ -20,14 +20,14 @@ export function emberfallRooms(): Room[] {
   const elder = room('emberfall.elder', "Mara's Teahouse", '玛拉的茶屋', 12, 9, 'wood', 'floor_wood')
   elder.fixture('fixture/furniture/bed', 1, 1)
   elder.fixture('fixture/light/fireplace', 9, 1, { statuses: { lit: -1 } })
-  elder.fixture('fixture/furniture/table', 5, 4, { name: L('The tea table', '茶桌'), tags: ['readable'], props: { text: 'A kettle, three cups, and a list of the houses the dragon burned, each crossed out as it was rebuilt. Two are not crossed out yet.', text_zh: '一把茶壶，三只杯子，还有一张被龙烧过的房子的名单，重建好一间就划掉一间。还有两间没划掉。' } })
+  elder.fixture('fixture/furniture/table', 5, 4, { name: L('The tea table', '茶桌'), tags: ['readable'], props: { text: 'A kettle, three cups, and a list of the houses the dragon burned, each crossed out as it was rebuilt. Two are not crossed out yet.', text_zh: '一把茶壶，三只杯子，还有一张单子，记着被龙烧掉的房子，重建好一间就划掉一间。还剩两间没划。' } })
   for (const x of [4, 6]) elder.fixture('fixture/furniture/chair', x, 4)
   elder.fixture('fixture/container/shelf', 3, 1)
   elder.fixture('fixture/container/chest', 10, 6)
   const smithy = room('emberfall.smithy', "Garrick's Smithy", '加里克的铁匠铺', 12, 9, 'stone', 'floor_stone')
   smithy.fixture('fixture/furniture/rack', 2, 1, { name: L('Tool rack', '工具架') })
   smithy.fixture('fixture/furniture/rack/arms', 3, 1)
-  smithy.fixture('fixture/furniture/table', 6, 3, { name: L('The dragon-blade pattern', '屠龙剑图样'), tags: ['readable'], props: { text: 'A pattern for a blade, inked and re-inked by twelve smiths. In the margin, in a newer hand: "Five iron ore. Three coal. Then we will see."', text_zh: '一张剑的图样，十二代铁匠一遍遍描过。页边是较新的字迹：“五块铁矿石，三块煤。到时候再说。”' } })
+  smithy.fixture('fixture/furniture/table', 6, 3, { name: L('The dragon-blade pattern', '屠龙剑图样'), tags: ['readable'], props: { text: 'A pattern for a blade, inked and re-inked by twelve smiths. In the margin, in a newer hand: "Five iron ore. Three coal. Then we will see."', text_zh: '一张剑的图样，先后经过十二个铁匠的手，描了又描。页边有一行新些的字：“五块铁矿石，三块煤。到时候再说。”' } })
   smithy.fixture('fixture/container/barrel', 1, 5, { name: L('Quench barrel', '淬火桶') })
   smithy.fixture('fixture/container/crate', 10, 5, { name: L('Coal crate', '煤箱') })
   smithy.fixture('fixture/furniture/bed', 10, 1)
@@ -58,7 +58,7 @@ export function eastRoadRooms(): Room[] {
   m.zone = 'combat'
   const K = P.kitchen
   m.fixture('fixture/light/fireplace', K.x + 4, K.y, { name: L('A cold hearth', '冷掉的灶') })
-  m.fixture('fixture/furniture/table', K.x + 4, K.y + 3, { name: L("Edda's table", '艾达的桌子'), tags: ['readable'], props: { text: 'Two plates set out, one never used. Soot on everything but the place where a ring once lay.', text_zh: '摆着两只盘子，其中一只从没用过。处处都是烟灰，只有一枚戒指曾放过的地方是干净的。' } })
+  m.fixture('fixture/furniture/table', K.x + 4, K.y + 3, { name: L("Edda's table", '艾达的桌子'), tags: ['readable'], props: { text: 'Two plates set out, one never used. Soot on everything but the place where a ring once lay.', text_zh: '桌上摆着两只盘子，有一只从来没用过。到处落满烟灰，只有一小圈是干净的，那里放过一枚戒指。' } })
   m.fixture('fixture/furniture/chair', K.x + 3, K.y + 3)
   m.fixture('fixture/container/barrel', K.x, K.y + 5)
   m.building('decor_beams', K.x + 6, K.y + 1)
@@ -103,8 +103,8 @@ export function tentRooms(ford: MapBuilder, forest: MapBuilder, haven: MapBuilde
         name: L("The pilgrim's daybook", '朝圣者的日记'),
         tags: ['readable'],
         props: {
-          text: "A pilgrim's daybook, its pages swollen together with damp. A few lines still read: 'The road east, and him on it.' — 'I knelt. God forgive me, I knelt.' — and on the last page, pressed hard: 'Not home. Not like this.'",
-          text_zh: '一本朝圣者的日记，纸页受潮粘在了一起。还能认出几行：“往东的路，他就在路上。”——“我跪下了。愿神宽恕我，我跪下了。”——最后一页，字迹压得很深：“不回家了。不能这样回去。”',
+          text: "A pilgrim's daybook, its pages swollen together with damp. A few lines can still be read: 'The road east, and him on it.' — 'I knelt. God forgive me.' — and on the last page, pressed hard: 'Not home. Not like this.'",
+          text_zh: '一本朝圣者的日记，纸页受了潮，粘成一团。还能认出几行：“往东的路，他就在路上。”——“我跪下了。愿神宽恕我。”——最后一页，字压得很深：“不回家了。不能这样回去。”',
         },
       })
       m.fixture('fixture/container/sack', 6, 2, { name: L("A forager's sack", '采集者的麻袋') })

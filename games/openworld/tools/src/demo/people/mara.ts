@@ -26,13 +26,13 @@ export const mara: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'Two husbands, one harvest, and a dragon. I am too old to be impressed by anything smaller.', '两个丈夫，一季收成，一条龙。比这小的事已经吓不到我这把年纪了。'),
-    line('chat', 'The well is forty-one buckets deep. I know because I counted the year it nearly ran dry.', '井深四十一桶。我知道，是因为它差点干掉的那年我数过。'),
-    line('default', 'Keep the buckets full. That is all the advice I have, and it is not enough.', '把水桶都装满。我能给的忠告就这一句，而且远远不够。'),
-    line('default', 'Cinder Peak used to be a name for a mountain. Now it is a name for a fear.', '烬峰以前只是座山的名字。现在成了害怕的代名词。'),
-    line('fact:mq.blade', 'Garrick has forged it, then. I heard the hammer all night.', '加里克锻好了。我听了一夜的锤子声。', { once: true }),
-    line('fact:mq.draught', 'Wren\'s draught. Drink it at the lair\'s mouth, not before — it does not last.', '雷恩的药剂。到巢穴门口再喝，别早喝——药效不长。', { once: true }),
+    line('chat', "I've buried two husbands, and I've watched the dragon burn a whole season's wheat to ash. I am not leaving this town.", '我送走过两个丈夫，也眼看着那条龙把一整季的麦子烧成了灰。这个镇子，我不会丢下。'),
+    line('chat', 'This well is forty-one buckets deep. I counted them one by one the year it nearly ran dry.', '这口井有四十一桶深。差点干掉的那年，我一桶一桶数过。'),
+    line('default', "Every house keeps two full buckets at the door, day and night. When the dragon's fire comes down, there is no time to run to the well.", '镇上每家门口都要摆两桶水，白天黑夜都不许空着。龙火落下来的时候，再跑去井边就来不及了。'),
+    line('default', 'The dragon nests up on Cinder Peak. We used to go up there for wood and to graze the sheep. Nobody goes that way now.', '那条龙的巢在烬峰上。以前我们上山砍柴、放羊，现在没人敢往那边走了。'),
+    line('fact:mq.blade', 'Garrick has finished the blade, then. I heard his hammer all night.', '加里克把剑打好了吧。我听了一整夜的锤子声。', { once: true }),
+    line('fact:mq.draught', "Wren's draught. Drink it at the mouth of the lair, not before. It doesn't last long.", '雷恩的药。到了巢穴门口再喝，别喝早了，药劲撑不了多久。', { once: true }),
     line('fact:mq.dragon', 'You did it. I will have your name cut into the well. Do not argue.', '你做到了。我要把你的名字刻在井上。别跟我争。', { once: true, mood: 'happy' }),
-    line('given', 'For the village? Thank you.', '给镇子的？谢谢你。'),
+    line('given', 'For the town? Thank you.', '给镇上的？谢谢你。'),
   ],
 }

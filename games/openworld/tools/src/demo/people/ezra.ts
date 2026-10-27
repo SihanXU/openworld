@@ -26,13 +26,13 @@ export const ezra: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'The road teaches the feet before it teaches the heart. My feet have learnt a great deal.', '路先教会脚，再教会心。我的脚已经学了很多。'),
-    line('chat', 'At the Rest they give you bread. On the road you give it away. That is the whole pilgrimage, if you ask me.', '在驿站他们给你面包。在路上你把它送出去。要我说，这就是整个朝圣。'),
-    line('greeting:first', 'Ezra. A penitent. I walk the road east a little further every year, and kneel at the shrines.', '我叫以斯拉，一个苦修者。我每年都往东多走一小段，在圣龛前跪拜。'),
-    line('default', 'The shrines want what their suffering asks. The crown, something for the head. The scourge, a cord. I have given them all my cords.', '圣龛要的是它那一苦要的东西。荆冠要头上戴的东西，鞭刑要一根绳。我的绳子都已经给它们了。'),
-    line('default', 'Every stroke I take is one Astra need not. That is what they taught me at the Rest. It helps, to think it helps.', '我每挨一下，阿斯特拉就少挨一下。驿站里是这么教我的。能让人觉得有用，本身就有用。'),
-    line('default', 'The abbey up the hill is where they made him a knight. I won\'t go in. The dead there still keep the hours.', '山上那座修道院，是他受封为骑士的地方。我不会进去。那里的死人还在按时辰守祷。'),
-    line('fact:ch1.shrines', 'All five burning. I have walked this road eleven years and never seen them all lit at once. Go up to the abbey, pilgrim.', '五座全亮了。我在这条路上走了十一年，从没见过它们同时亮起。去山上的修道院吧，朝圣者。', { once: true, mood: 'happy' }),
-    line('fact:sins.defeated.alberic', 'He knelt at the last, they say. To you. I think he had been waiting three hundred years for someone he could kneel to.', '听说他最后跪下了。向你。我想他等了三百年，就是在等一个他能向之下跪的人。', { mood: 'sad' }),
+    line('chat', 'My feet are bad this year. I wrap them in rags each morning and walk until the rags wear through. Then I stop for the day.', '今年我的脚不大好。每天早上拿布条缠上，走到布条磨穿了，这一天就不走了。'),
+    line('chat', 'At the Rest they give you bread when you set out. I gave mine to a family on the road in the first week. Since then I eat what people give me.', '出发的时候，驿站会给每人发面包。头一个礼拜，我就把我那份给了路边的一家人。从那以后，别人给什么我就吃什么。'),
+    line('greeting:first', 'I\'m Ezra, a penitent. Every year I walk a little further east along this road, and kneel at the shrines.', '我叫以斯拉，是个苦修的人。我每年都沿着这条路往东多走一段，在圣龛前跪拜。'),
+    line('default', 'Each shrine wants what its suffering asks. The crown wants something for the head; the scourge wants a cord. I have given them all my cords.', '每座圣龛要的，是它那一苦的东西。荆冠那座要戴在头上的，鞭刑那座要一根绳。我的绳子全都给出去了。'),
+    line('default', 'At the Rest they taught me that every stroke I take is one Astra need not. So every evening I take a few.', '驿站里教我，我每挨一鞭，阿斯特拉就能少挨一鞭。所以每天晚上，我都抽自己几下。'),
+    line('default', 'The abbey up the hill is where they made him a knight. I won\'t go in. The dead there still keep the hours.', '山上那座修道院，是他受封骑士的地方。我不进去。里面的死人，到现在还按着时辰念祷文。'),
+    line('fact:ch1.shrines', 'All five burning. I have walked this road eleven years and never seen them all lit at once. Go up to the abbey, pilgrim.', '五座都点亮了。我在这条路上走了十一年，从没见过五座同时亮着。上山去修道院吧，朝圣者。', { once: true, mood: 'happy' }),
+    line('fact:sins.defeated.alberic', 'They say he knelt at the end. To you. I saw him once, years ago, sitting in the field mending a flag. I did not think then that he wanted to fight anyone.', '听说他最后跪下了，是向你跪的。我早些年见过他一回，他坐在田里补一面旗子。那时候我就觉得，他并不想跟谁打。', { mood: 'sad' }),
   ],
 }

@@ -25,13 +25,13 @@ export const greta: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'Rope, lamps, bread. People think a store is about what you sell. It is about what you remember they ran out of.', '绳子、灯、面包。人们以为开店是卖东西。其实是记住谁家缺了什么。'),
-    line('chat', 'The drovers used to bring news with the cattle. Now the news walks in on two legs, and wants a discount.', '从前赶牲口的人连消息一起带来。现在消息自己走进来，两条腿，还想要折扣。'),
-    line('greeting:first', "Come in out of the wind. Lamps, rope, bread, a potion for the road — it is all on the shelves; the counter does the reckoning. And bring me herbs and hides, I pay fair.", '进来避避风。灯、绳子、面包、路上用的药水——都在架子上，到柜台结账。草药和皮子也拿来，我给公道价。', { once: true }),
-    line('default', 'A torch before you go into the woods. Two, if you go to the barrow.', '进林子之前带支火把。要去古墓的话，带两支。'),
-    line('default', 'Marta bakes, I sell. She says I sell it too cheap. I say she bakes it too well.', '玛尔塔烤，我卖。她说我卖得太便宜。我说是她烤得太好。'),
-    line('hour:evening', 'Closing soon. Buy now or buy tomorrow — the shelf will wait.', '快关门了。现在买还是明天买——架子会等你。'),
-    line('weather:rain', 'Rain brings customers. Nobody wants to be outside.', '下雨天客人多。谁都不想待在外头。'),
-    line('given', 'For me? I will put it in the window.', '给我的？我把它摆在窗边。'),
+    line('chat', 'I keep a book behind the counter of what each house buys. When a house that always comes stops coming, I go and knock on the door.', '柜台后面我记着一本账，哪家常买什么都写着。哪家平常总来、忽然不来了，我就去敲敲他家的门。'),
+    line('chat', 'The drovers used to bring the news along with the cattle. Since the storms cut the road they don\'t come, and I\'m the last to hear anything.', '以前赶牲口的人路过，会把外头的消息一起捎来。自从风暴把路截断，他们就不来了，外头出了什么事，我总是最后一个知道。'),
+    line('greeting:first', "Come in out of the wind. Lamps, rope, bread, a potion for the road — it's all on the shelves; pay at the counter. And if you have herbs or hides, bring them to me. I pay fair.", '快进来，外头风大。灯、绳子、面包、路上喝的药水，都在架子上，挑好了到柜台结账。你要是有草药和皮子，也拿来卖给我，我给公道价。', { once: true }),
+    line('default', 'Take a torch before you go into the woods. Two, if you\'re going to the barrow.', '进林子前带一支火把。要是去古墓，带两支。'),
+    line('default', 'Marta bakes the bread and I sell it. She says I charge too little. I don\'t want anyone here going without.', '面包是玛尔塔烤的，我只管卖。她嫌我卖得太便宜。便宜就便宜吧，我不想村里有人买不起。'),
+    line('hour:evening', 'I\'m closing soon. If you need anything, buy it now; otherwise I open again at seven.', '快打烊了。要买什么趁现在，不然就明早七点再来。'),
+    line('weather:rain', 'Rain brings customers. Nobody wants to be out in it.', '一下雨，店里人就多了。谁也不想在外头淋着。'),
+    line('given', 'For me? I\'ll put it in the window.', '给我的？那我把它摆在窗台上。'),
   ],
 }

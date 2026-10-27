@@ -103,8 +103,8 @@ export function buildDell(): MapBuilder {
   m.fixture('fixture/sign', rx + 2, ry, {
     name: L("Orrin's tally board", '奥林的刻痕板'),
     props: {
-      text: 'Notches cut in a board, in fives. Under them, in charcoal: DAYS SINCE THE BIRDS CAME. They come at dusk, every one in the forest, and sit in the old oak till dawn. They do not sing.',
-      text_zh: '板子上刻着一道道痕，五道一组。下面用炭写着：鸟来了多少天。它们每天黄昏都来，整座森林的鸟一只不少，在老橡树上一直待到天亮。它们不叫。',
+      text: 'Notches cut in a board, in fives. Over them, in charcoal: DAYS SINCE THE BIRDS CAME. Under them, smaller: come at dusk, all of them, sit in the old oak till light. not a sound.',
+      text_zh: '木板上刻着一道道痕，五道一组。上面用炭写着：鸟来了的天数。下面还有一行小字：黄昏来，一只不少，蹲在老橡树上，天亮才走。一声不吭。',
     },
   })
   m.regions.roost = [rx - 4, ry - 3, 9, 7]
@@ -193,8 +193,8 @@ export function buildBend(): MapBuilder {
   m.fixture('fixture/sacred/gravestone', tx, ty, {
     name: L('A drowned stone', '沉在水边的石头'),
     props: {
-      text: 'A standing stone, tilted, the river up to its waist. The carving is worn soft: a boat; a figure in it handing a fish down to a child on the bank. No thorns. No wounds. Nobody kneeling.',
-      text_zh: '一块歪倒的立石，河水淹到它半腰。刻纹已经磨得很柔和：一条船；船上的人把一条鱼递给岸边的孩子。没有荆棘。没有伤口。没有人下跪。',
+      text: 'A standing stone, tilted, the river up to its waist. The carving is worn soft: a boat, and a figure in it handing a fish down to a child on the bank. The five wounds are nowhere on it.',
+      text_zh: '一块歪斜的立石，河水没到它的腰间。刻纹已经磨圆了：一条船，船上的人弯下腰，把一条鱼递给岸上的孩子。石头上哪里都找不到五道圣伤。',
     },
   })
   m.regions.stone = [tx - 2, ty - 2, 5, 5]
@@ -275,16 +275,16 @@ export const FLANKS_STORY: StepDef[] = [
     // The dell, first time: smoke that has been burning for days.
     id: 'dell_first',
     when: { map: 'charcoal' },
-    say: L('Smoke. Somebody is burning something slow — it smells like a fire that has been going for days. ...And listen: still no birds.', '有烟。有人在慢慢地烧什么东西——闻起来像一堆烧了好几天的火。……你听：还是没有鸟叫。'),
+    say: L('Smoke... It smells like a fire that has been burning for days.', '有烟味……闻起来像是一堆烧了好几天的火。'),
   },
   {
     // The roost at dusk: every bird of the forest, silent, facing east.
     id: 'roost_dusk',
     when: { map: 'charcoal', region: 'roost', hour: { from: 17, to: 21 } },
     script: [
-      say('player', '(The old oak is black with birds. Hundreds of them, wing to wing on every branch. Not one makes a sound.)', '（老橡树上落满了鸟，黑压压一片。几百只，翅膀挨着翅膀，挤满了每一根枝条。没有一只出声。）', 'surprised'),
-      say('pip', 'So THAT\'s where they went. Every bird in the forest, and they all came here. ...They\'re facing east. Like the cows.', '原来它们都到这儿来了。整座森林的鸟，全都飞到了这里。……它们朝着东边。和那些牛一样。', 'sad'),
-      say('pip', 'Birds know when something is wrong before people do. They won\'t sleep in the forest. What walked through it?', '鸟比人先知道出了事。它们不肯在森林里过夜。到底是什么从那片林子里走过去了？', 'shy'),
+      say('player', '(The old oak is black with birds. Hundreds of them, wing to wing on every branch, all facing east. Not one makes a sound.)', '（老橡树上落满了鸟，黑压压一片。几百只，翅膀挨着翅膀，挤满了每一根枝条，全都朝着东边。没有一只出声。）', 'surprised'),
+      say('pip', 'So this is where they all went...', '原来它们都在这里……', 'sad'),
+      say('pip', 'Don\'t make a sound. I don\'t want them all to fly up at once.', '别出声。我怕它们一下子全飞起来。', 'shy'),
       { fact: FLANKS_FACTS.roost, value: 1 },
     ],
   },
@@ -292,15 +292,15 @@ export const FLANKS_STORY: StepDef[] = [
     // The bend, first time: the Ford's river again, quiet.
     id: 'bend_first',
     when: { map: 'reedbend' },
-    say: L('The river! It\'s the Ford\'s river, I\'m sure — it bends down this way. ...Even the water is quiet here.', '是那条河！我敢肯定是渡口那条河——它拐到这边来了。……这里连水都是安静的。'),
+    say: L('The river! It\'s the same one as at the Ford. It bends round this way.', '是那条河！和渡口那条是同一条，它在这里拐了个弯。'),
   },
   {
     // The drowned stone: a carving with no suffering in it.
     id: 'drowned_stone',
     when: { map: 'reedbend', region: 'stone' },
     script: [
-      say('player', '(A standing stone half in the river, older than anything in the village. A boat; a figure handing a fish down to a child. No thorns, no wounds. Nobody kneeling.)', '（一块半泡在河里的立石，比村里任何东西都古老。一条船；船上的人把一条鱼递给岸边的孩子。没有荆棘，没有伤口。没有人下跪。）'),
-      say('pip', 'Nobody\'s suffering on this one. Somebody\'s just... giving somebody a fish. ...Why does that feel so strange to look at?', '这块石头上没有人在受苦。只是有人……在给另一个人一条鱼。……为什么看着会觉得这么奇怪？', 'shy'),
+      say('player', '(A standing stone half in the river. On it, a boat, and a figure in it handing a fish down to a child. The carving is worn almost smooth.)', '（一块半泡在河里的立石。上面刻着一条船，船上的人把一条鱼递给岸上的孩子。刻纹几乎磨平了。）'),
+      say('pip', 'Who carved this? It looks older than the village.', '这是谁刻的呀？看上去比村子还老。', 'shy'),
       { fact: FLANKS_FACTS.stone, value: 1 },
     ],
   },

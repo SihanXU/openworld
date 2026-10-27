@@ -29,14 +29,14 @@ export const alberic: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'The mist moves at night. I count the tent pegs each morning. Same number, so far.', '迷雾夜里会动。每天早上我都数一遍帐篷桩。到目前为止数目没变。'),
-    line('chat', 'You have a name. I asked it once. Forgive me if I ask it again — it does not stay.', '你有名字。我问过一次。要是再问，请原谅我——它留不住。'),
-    line('greeting:first', 'You came back. Good. The ground is quiet while you are away; I keep it so.', '你回来了。很好。你不在的时候，这片土地很安静；我让它保持安静。'),
-    line('default', 'I will hold until I am relieved. You relieved me — so now I hold for you. It is the same vow, turned round.', '我将坚守，直到有人来接替我。你接替了我——所以现在我为你坚守。还是同一个誓言，只是转了个方向。'),
-    line('default', 'Plant what you like. Build what you like. Nothing here needs to kneel.', '想种什么就种什么。想建什么就建什么。这里没有什么需要下跪。'),
-    line('default', 'The mist is only the edge of what I can hold. Bring me what a wider ground needs, and I will push it back.', '迷雾只是我能守住的边界。把扩建所需的东西带给我，我就把它推远一些。'),
-    line('default', 'My father was a smith before I was a knight. The forge is lit; the anvil is yours whenever you carry a hammer. Bars and coal I keep, if you lack them.', '我当骑士之前，父亲是个铁匠。炉火一直点着；你手里拿着锻锤，铁砧随时归你用。缺锭缺煤的话，我这里有。'),
-    line('hour:evening', 'The sun goes down early. Earlier than it used to. I am sorry for that. I think I am.', '太阳落得早。比从前早。我很抱歉。我想我是抱歉的。'),
-    line('fact:q.templar', 'There was a squire, once. He carried my lance. I cannot see his face any more. If you meet him — tell him I am sorry I asked his name.', '从前有个侍从。他给我扛长枪。我已经想不起他的脸了。如果你遇见他——告诉他，我很抱歉问了他的名字。', { once: true, mood: 'sad' }),
+    line('chat', 'The mist moves in the night. Each morning I walk its edge and count the tent pegs. None has gone yet.', '夜里迷雾会挪动。每天早上，我都沿着它的边走一圈，把帐篷桩数一遍。到今天，一根也没少。'),
+    line('chat', 'I asked thy name once, and I have lost it again. Forgive me. Tell it me once more, and I will try to keep it this time.', '你的名字，我问过一次，又忘了。原谅我。请再告诉我一遍，这一回我会尽力记住。'),
+    line('greeting:first', 'You have come back. Good. While you are away the ground stays quiet; I see to it.', '你回来了。很好。你不在的时候，这片地一直很安静，我守着它。'),
+    line('default', 'I swore to hold until I was relieved. It was you who relieved me. So now I hold this ground for you. It is the same vow.', '我立过誓，要守到有人来接替我为止。来接替我的是你。所以如今，我替你守着这片地。誓言还是那一个。'),
+    line('default', 'Plant what you will, and build what you will. No one need kneel here.', '想种什么就种什么，想盖什么就盖什么。在这里，谁也不必下跪。'),
+    line('default', 'The mist marks how far I can hold. Bring me what a wider ground needs, and I will push it further back.', '迷雾在哪里，我能守住的地方就到哪里。把扩地要用的东西带来给我，我就把迷雾再往外推一些。'),
+    line('default', 'Before I was a knight, my father was a smith. The forge is lit; whenever you carry a hammer, the anvil is yours. If you lack bars or coal, I keep some.', '我做骑士以前，父亲是个铁匠。炉火一直生着，你只要带着锻锤，铁砧随时可以用。缺铁锭、缺煤，就跟我说，我这里备着。'),
+    line('hour:evening', 'The sun sets early now, earlier than it did. I am sorry for it. I cannot say why I am sorry, but I am.', '如今太阳落得早，比从前早。我很抱歉。为什么抱歉，我说不上来，可我心里确实抱歉。'),
+    line('fact:q.templar', 'There was a squire once, who carried my lance. I cannot see his face any more. If you meet him, tell him I am sorry. One morning I asked him his name.', '从前有个侍从，替我扛长枪。他的脸，我已经想不起来了。你要是遇见他，替我跟他说声对不起。有一天早上，我问了他叫什么名字。', { once: true, mood: 'sad' }),
   ],
 }

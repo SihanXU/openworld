@@ -2516,7 +2516,7 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   expect(talkTo(f, 'npc.wynn')).toContain('童谣')
   // the Holy See's notice: the pilgrimage as proclaimed — seek out the Seal-bearers, overcome them, bring the instruments home
   const notice = read(things('waystation', 'fixture/sign/noticeboard')[0])
-  expect(notice).toContain('击败他们')
+  expect(notice).toContain('胜之')
   expect(notice).not.toContain('下跪')
   // into the chapel of the Five: the litany on its bookstand, read (E)
   expect(door('waystation', 'waystation.chapel')).toBe('waystation.chapel')
@@ -2575,7 +2575,7 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   hold(f, leaf)
   w.fx = []
   c.run(c.plan('self')!, true)
-  expect(w.fx.some((x) => x.t === 'log' && JSON.stringify(x.text).includes('我兄弟休说这是判决'))).toBe(true)
+  expect(w.fx.some((x) => x.t === 'log' && JSON.stringify(x.text).includes('我兄弟休说这是刑罚'))).toBe(true)
   // the writ of relief on the scriptorium's desk, never sent: taken (F)
   const writ = things('abbey.hall', 'item/document/writ_of_relief')[0]
   expect(writ).toBeTruthy()
@@ -3310,7 +3310,7 @@ req('P3', "the main line never breaks: Rowan's rescue begins by itself at the we
   stair('barrow', BARROW.down, 'ossuary')
   // the second floor: the Order's dead, Oskar in his cell, the roll; the stair further down
   expect(w.posOf(w.get('npc.oskar')!)?.map).toBe('ossuary')
-  expect(talkTo(f, 'npc.oskar')).toContain('守墓者在下面')
+  expect(talkTo(f, 'npc.oskar')).toContain('守墓者在楼梯最底下')
   expect(w.get('ossuary.roll')?.props?.text).toContain('ALBERIC')
   // the Order's dead do not lie still: a ghost among the niches
   expect(Object.values(w.state.entities).some((e) => e.type === 'actor/creature/undead/ghost' && w.posOf(e)?.map === 'ossuary')).toBe(true)
@@ -3330,7 +3330,7 @@ req('P3', "the main line never breaks: Rowan's rescue begins by itself at the we
   // all the experience one has had: what each level took (20, 40, 60 …) and what is carried toward the next
   const total = () => w.num(w.player, 'xp') + Array.from({ length: w.num(w.player, 'level', 1) - 1 }, (_, i) => xpToNext(i + 1)).reduce((a, b) => a + b, 0)
   const xp = total()
-  expect(talkTo(f, 'npc.rowan')).toContain('在圣火前感恩')
+  expect(talkTo(f, 'npc.rowan')).toContain('在圣火前为他们感恩')
   ticks(f, 2)
   expect(qs(f, 'rescue')).toBe('done')
   expect(w.fact('rescue.lina')).toBe(1)

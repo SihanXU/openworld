@@ -100,7 +100,7 @@ things to it.
 
 ## 3. How she speaks
 
-- Fast, precise, in numbers: "Do you know what time it is? Exactly?" *(canon)*. Counts under her breath.
+- Fast, precise, in numbers: "Do you know what time it is? Exactly, I mean. To the minute." *(canon)*. Counts under her breath.
 - Dry, and funny without trying: "I have four pens and I lose them in the same order every week. There is a pattern.
   I have not found it." *(canon)*
 - Says the frightening thing and takes it back: "I am sure it means nothing." *(canon)*
@@ -154,7 +154,7 @@ marks lines already in the game. Each CG is a 16:9 frame whose lower 30% the dia
 - **Trigger:** the errand handed in: `{ map: 'meadow', quest: { measure: { gte: 100 } }, hour: { from: 18, to: 23 } }`.
 - **Scene:**
   1. `picture: lsw/CG/nessa/02-almanac.webp`
-  2. Nessa: "Lower every week, and faster than the old almanac says." / 「一周比一周低，而且比旧历书说的还快。」 *(canon, the hand-in)*
+  2. Nessa: "Lower every week, and faster than the old almanac says." / 「一个礼拜比一个礼拜低，比旧历书上算的还快。」 *(canon, the hand-in)*
   3. Nessa *(sad)*: "Look at the last page. The hand changes. He pressed so hard the pen went through." / 「看最后一页。字迹变了。他用力到笔尖把纸划破了。」
   4. Nessa: "'He says he will take it all. Whoever reads this — stop him.'" / 「『他说他会把一切都担下来。读到这里的人——阻止他。』」 *(canon: the almanac's text)*
   5. Nessa *(angry)*: "Who is he? What was there to stop? I measure the sky. I do not know how to measure that." / 「他是谁？要阻止什么？我量的是天。这个我不知道该怎么量。」
@@ -174,8 +174,8 @@ marks lines already in the game. Each CG is a 16:9 frame whose lower 30% the dia
 - **Needs Lumi's design first** (character-art.md; docs/looks.md §7 lists her as "not yet").
 - **Scene:**
   1. `picture: lsw/CG/nessa/03-log.webp`
-  2. Nessa *(surprised)*: "Eleven years. The sunsets were coming early ELEVEN years ago, and he wrote it down every night, and nobody read it." / 「十一年。十一年前日落就开始提前了，他每天晚上都记下来，却没有人读过。」 *(canon)*
-  3. Nessa: "...And a sleeping light in the snow? Lumi, you do not remember a watchman, do you? No. Of course not." / 「……还有雪里一点睡着的光？露米，你不记得什么守夜人吧？不记得。当然不记得。」 *(canon)*
+  2. Nessa *(surprised)*: "Eleven years. The sunsets were coming early eleven years ago, and he wrote it down every night, and nobody read it." / 「十一年。十一年前日落就开始提前了，他每天晚上都记下来，可是没有人读过。」 *(canon)*
+  3. Nessa: "...A sleeping light in the snow. I do not know what he meant by that. I am sure it means nothing." / 「……雪里有一点睡着的光。我不明白他写的是什么意思。应该没什么吧。」 *(canon)*
   4. Lumi *(shy)*: "I remember snow. And being very, very sleepy." / 「我记得雪。还有好困、好困。」
   5. Nessa *(sad)*: "Then we have that in common." / 「那我们倒是有这一点一样。」
   6. Nessa: "I will write him down. Someone should read him." / 「我会把他记下来。总该有人读一读。」

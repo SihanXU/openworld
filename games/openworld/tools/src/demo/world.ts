@@ -276,7 +276,7 @@ function buildMeadow(): MapBuilder {
   // the woodworker's bench in the woodcutter's yard, by the wood pile: what is made at a workbench is made here (world-model.md §6.4)
   m.fixture('fixture/craft/workbench', 12, 14, { id: 'village.workbench' })
   // the boards at the square's north-west corner, under the chapel: the village's notices, and the favours people want done (docs/quests.md §3)
-  m.fixture('fixture/sign/noticeboard', 19, 13, { id: 'village.notice', props: { text: 'FIRSTLIGHT VILLAGE — Every journey begins with a first step. East: The Ford. West: Millbrook. North: Dawn Hill. South: the grassland, and the forest beyond.', text_zh: '初原村——每段旅程都从第一步开始。东：渡口。西：水车磨坊。北：晨光丘。南：草原，再往南是森林。' } })
+  m.fixture('fixture/sign/noticeboard', 19, 13, { id: 'village.notice', props: { text: 'FIRSTLIGHT VILLAGE. East: the Ford. West: Millbrook. North: Dawn Hill. South: the grassland, and the forest beyond.', text_zh: '初原村。东：渡口。西：水车磨坊。北：晨光丘。南：草原，再往南是森林。' } })
   m.fixture('fixture/sign/questboard', 20, 13, { id: 'village.board' })
   for (const [x, y] of [[25, 13], [12, 16]] as const) m.fixture('fixture/light/lamppost', x, y, { id: `village.lamp.${x}`, statuses: { lit: -1 } })
   // Tobin and his stock move together, at the square's market corner where the road comes in. Stable IDs keep saved trades and inventories intact.
@@ -419,7 +419,7 @@ function buildForest(): MapBuilder {
   m.fixture('fixture/nature/logpile/stack', 25, 7)
   m.fixture('fixture/nature/logpile/stack', 20, 5)
   // the fork, where the trails part: a signpost that says where each goes
-  m.fixture('fixture/sign', 19, 13, { props: { text: 'NORTH — the grassland, and Firstlight. WEST — the Charcoal Dell. EAST — over the brook to the Reed Bend. SOUTH — Thornwood Hollow; keep to the path.', text_zh: '北——草原，再往前是初原村。西——炭窑谷。东——过了溪就是芦苇湾。南——荆棘谷；别离开小路。' } })
+  m.fixture('fixture/sign', 19, 13, { props: { text: 'NORTH — the grassland, and Firstlight. WEST — the Charcoal Dell. EAST — over the brook to the Reed Bend. SOUTH — Thornwood Hollow; keep to the path.', text_zh: '北——草原，再往前是初原村。西——烧炭谷。东——过了溪就是芦苇湾。南——荆棘谷，别离开小路。' } })
   // what the forest gives a forager and a beekeeper (content life.ts): mushroom rings in the frostcap glade's shade,
   // wild hives on the sunny side of the trees by the clearing and the spring
   for (const [x, y] of [[5, 20], [9, 19], [7, 21]] as const) m.fixture('fixture/nature/mushroom_ring', x, y)
@@ -529,7 +529,7 @@ const FIRSTLIGHT_BEATS: StepDef[] = [
   {
     id: 'see_spring',
     when: { map: FIRSTLIGHT.map, region: 'spring' },
-    say: L('Look, steam! That is a healing spring — sit in it and your wounds close. Come back here whenever you are hurt.', '看，冒着热气！那是疗伤温泉——泡进去伤口就会慢慢愈合。受伤了就回来泡一泡吧。'),
+    say: L('Steam! It\'s a warm spring. If you sit in it, your wounds heal. Come back here when you\'re hurt.', '冒热气了！是温泉。泡在里面，伤口会慢慢长好。受了伤就回这里来。'),
   },
 ]
 
@@ -539,7 +539,7 @@ const scenes: StepDef[] = [
     id: 'far_bank_early',
     when: { map: 'ford', region: 'far_bank', quest: { first_seal: { lt: 30 } } },
     facts: { 'ford.crossed': 1 },
-    say: L('We made it across! ...But the village still needs us, and nobody has told us what is down that road yet. Let\'s not go far.', '我们过来了！……不过村里还需要我们，也还没人告诉我们那条路上有什么。先别走太远。'),
+    say: L('We\'re across! But the village still needs us, and we don\'t know yet what\'s down that road. Let\'s not go too far.', '我们过来了！不过村里还等着我们呢，这条路通到哪儿也还不知道。先别走太远。'),
   },
   {
     // The afternoon after the storm: you come down the cliff stair from the mountain (docs/prologue.md).
@@ -550,15 +550,15 @@ const scenes: StepDef[] = [
       { face: 'npc.hesper', dir: 'up' },
       { face: 'player', dir: 'down' },
       { wait: 10 },
-      say('npc.hesper', 'Someone off the mountain? Nobody has come down that stair since the storm — and the evenings come sooner every week.', '有人从山上下来了？风暴以后就没人走过那道石阶——而且天黑得一周比一周早。'),
-      say('npc.hesper', 'The storm took the ferry rope. The footbridge it did not take: a rider did. All in white, a crown of thorns grown through his helm. He pulled the planks out with his hands and laid the nails on my pier like a toll paid.', '风暴扯断了渡绳。可那座小桥不是风暴冲走的：是一个骑手拆的。浑身雪白，荆棘冠长进了他的头盔。他用手把木板拔出来，把钉子摆在我的码头上，像是付了过路费。'),
-      say('npc.hesper', 'Three planks would span the bridge. There is an old axe by the stump; the woods have trees.', '三块木板就能把桥接上。树桩边有把旧斧头，林子里有的是树。'),
-      say('npc.hesper', 'West of here is Firstlight Village. Tobin keeps his cart there now — a meal might buy you something useful.', '西边是初原村。托宾现在把货车停在那里——拿顿饭说不定能换点有用的东西。'),
-      say('npc.hesper', 'A small place. Good soil, a well, and a roof when the weather turns.', '村子不大。有能种东西的地，有井，变天了也有屋檐能躲。'),
+      say('npc.hesper', 'Off the mountain? Nobody has come down that stair since the storm. And the evenings come sooner every week.', '从山上下来的？风暴以后，那道石阶就没人走过。天也一个礼拜比一个礼拜黑得早。'),
+      say('npc.hesper', 'The storm took my ferry rope. The bridge was a rider. He was all in white, with a crown of thorns grown through his helm. He pulled the planks up with his hands and laid the nails out on my pier in a row, like a toll.', '风暴扯断了我的渡绳。桥是一个骑手拆的。那人一身白，荆棘冠长进了头盔里。他徒手把木板一块块拔起来，把钉子在我的码头上摆成一排，像是交了过路钱。'),
+      say('npc.hesper', 'Three planks would mend it. There\'s an old axe by the stump, and the woods are full of trees.', '补上三块木板，桥就能走。树桩边上有把旧斧头，林子里树有的是。'),
+      say('npc.hesper', 'West of here is Firstlight Village. Tobin keeps his cart there now. A meal might buy you something useful from him.', '往西是初原村。托宾现在把货车停在那边。给他一顿饭，兴许能换到点有用的东西。'),
+      say('npc.hesper', 'It\'s a small place. Good soil, a well, and a roof when the weather turns.', '村子不大。地好，有口井，变天了也有个躲雨的地方。'),
       // before the bridge, the village (docs/quests.md): its rescue opens the bridge chapter (quest 1)
-      say('npc.hesper', 'But they have it worse than us — two of theirs are lost, they say. Rowan, their elder, is asking anyone who can fight. The bridge will keep; go to them first.', '不过风暴对他们的打击比我们还重——听说有两个人失踪了。他们的长老罗万在找能打的人。桥可以等，先去帮他们吧。'),
+      say('npc.hesper', 'They\'ve had it worse than me, though. Two of theirs went missing in the storm, I hear. Rowan, their elder, is asking anyone who can hold a blade. The bridge can wait. Go to them first.', '不过他们比我惨。听说村里有两个人在风暴里没了音信。他们的长老罗万在找会使兵器的人。桥不急，你先去那边。'),
       { give: 'item/food/bread' },
-      say('player', '(Still in your pack: the end of a travel loaf.)', '（行囊里还剩半块路上吃的面包。）'),
+      say('player', '(In your pack: the end of a travel loaf.)', '（行囊里还剩一截路上吃的面包。）'),
       { fact: 'village.sent', value: 1 },
     ],
   },
@@ -573,7 +573,7 @@ const scenes: StepDef[] = [
       { warp: 'ford', x: AT.farLanding[0], y: AT.farLanding[1] },
       { place: 'npc.hesper', map: 'ford', x: 23, y: 14 },
       { fade: 'in' },
-      say('npc.hesper', 'There. Mind the step — and the road. Nobody has walked it since the storm.', '到了。小心脚下——也小心那条路。风暴以后还没人走过。'),
+      say('npc.hesper', 'There. Mind the step. Mind the road, too. Nobody has walked it since the storm.', '到了。上岸当心脚下。那条路风暴以后还没人走过，路上也当心。'),
     ],
   },
   {
@@ -586,8 +586,8 @@ const scenes: StepDef[] = [
       { fact: 'ford.crossed', value: 1 },
       { wait: 10 },
       // (the road east comes first to the Church's Rest: the Pilgrim's Road, docs/chapter-1.md §14)
-      say('npc.hesper', 'Go on, then. The road east comes first to the Church\'s Rest; the rider went on far past it, beyond the burned farm. If you find him — mind his bow.', '那就走吧。往东的路先到教会的驿站；那个骑手去了远得多的地方，过了烧毁的农庄。要是你找到他——当心他的弓。'),
-      say('npc.hesper', 'If you need supplies before the road, Firstlight Village is still just west of here.', '上路前若还缺东西，初原村就在渡口西边。'),
+      say('npc.hesper', 'Go on, then. East, the road comes first to the Church\'s Rest. The rider went a long way past it, beyond the burned farm. If you find him, mind his bow.', '去吧。往东走，先到教会的驿站。那个骑手去得远多了，在烧掉的农庄再过去。真找着他，当心他的弓。'),
+      say('npc.hesper', 'If you need anything before the road, Firstlight Village is just west of here.', '上路前要是还缺什么，初原村就在西边，不远。'),
       { topic: 'crossed', days: 30 },
     ],
   },

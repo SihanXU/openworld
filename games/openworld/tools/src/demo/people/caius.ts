@@ -27,17 +27,17 @@ export const caius: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'I was a pilgrim once myself. I got as far as here, and stayed. Someone had to hold the door.', '我自己也当过朝圣者。走到这里就留下了。总得有人守着门。'),
-    line('chat', 'Tea, if you have the time. The water here is good. It is the one thing nobody argues about.', '有空的话喝杯茶吧。这里的水好。这是唯一没人争论的事。'),
+    line('chat', 'I set out as a pilgrim myself, when I was young. I got as far as this Rest, and stayed. Someone has to keep the door here.', '我年轻时也是朝圣者。走到这座驿站，就没再往前走，留了下来。这里总得有人守着门。'),
+    line('chat', 'Have some tea before you go, if you have the time. The well here is deep and the water is good; pilgrims fill their skins here before they go east.', '有空的话，喝杯茶再走。这里的井打得深，水好，朝圣者往东去之前，都在这里把水囊灌满。'),
     // (a first meeting may come before the knight falls or after: it says nothing of him either way — `rest_after` and
     // his line on the knight's fall are what he says once the road is open)
-    line('greeting:first', 'Peace on your road, pilgrim. I am Father Caius; the Holy See keeps me at this Rest to bless the pilgrims it sends east, and to keep the five wounds.', '愿你一路平安，朝圣者。我是凯乌斯司铎；圣座派我驻守这座驿站，为它派往东边的朝圣者祝福，也守着五道圣伤。'),
-    line('default', 'Suffering is not God\'s abandonment. Say it until you believe it; that is what I do.', '苦难并非神的遗弃。一遍遍地念，念到你相信为止；我就是这么做的。'),
-    line('default', 'Five shrines on the road. Lay at each what its suffering asks: a thing for the head, a cord, a meal, metal, a light.', '路上有五座圣龛。在每座龛上放下它那一苦要的东西：一样戴在头上的、一根绳、一顿饭、一块金属、一盏光。'),
-    line('default', 'The Seal-bearer on the East Road was a gentle man, they say. The Crown asks a great deal of the gentle.', '据说东大路上那位持印者，曾经是个温和的人。荆冠对温和的人索取得格外多。'),
-    line('hour:evening', 'Another evening come early. I write the hour in the book. Sister Ilse writes it in hers. Neither of us writes what it means.', '又一个提前到来的黄昏。我把时辰记进册子。伊尔丝修女也记在她的册子里。我们谁都没写它意味着什么。'),
-    line(`fact:ch1.writ`, 'You found the writ. ...Yes. I knew. I was told it was not a pilgrim\'s concern, and I decided to believe it. Go on. Don\'t look at me like that.', '你找到那份文书了。……是的。我知道。有人告诉我那不是朝圣者该操心的事，我就决定相信了。走吧。别那样看着我。', { once: true, mood: 'sad' }),
-    line('fact:sins.defeated.alberic', 'Three hundred years, and it took one pilgrim and a fairy. God forgive us for how long we let him hold.', '三百年，最后只用了一个朝圣者和一个精灵。愿神宽恕我们，让他守了那么久。', { mood: 'sad' }),
-    line('fact:sins.defeated.alberic', 'The road east is open. Go on when you are ready, pilgrim: four more Seal-bearers wait, and the Crown is only the first of the five.', '往东的路通了。准备好了就继续上路吧，朝圣者：还有四位持印者在等着，荆棘冠只是五件中的第一件。'),
+    line('greeting:first', 'Peace on your road, pilgrim. I am Father Caius. The Holy See keeps me at this Rest to bless the pilgrims it sends east, and to keep the five wounds.', '愿你一路平安，朝圣者。我是凯乌斯司铎。圣座派我驻守这座驿站，为往东去的朝圣者祝福，并看守五道圣伤。'),
+    line('default', 'Suffering is not God\'s abandonment. I say it at the altar every morning, and on the hard mornings I say it twice.', '苦难并非神的遗弃。我每天早上都在祭坛前念一遍，日子难熬的时候，就念两遍。'),
+    line('default', 'There are five shrines on the road, one for each suffering. Lay at each what it asks: a thing for the head, a cord, a meal, metal, a light.', '路上有五座圣龛，一苦一座。每座龛前放上它要的东西：戴在头上的一样，一根绳，一顿饭，一块金属，一盏灯。'),
+    line('default', 'They say the Seal-bearer on the East Road was a gentle man. I never met him; that is how Wynn\'s old rhyme tells it.', '听说东大路上那位持印者，从前是个很温和的人。我没见过他，温唱的那首老童谣里是这么说的。'),
+    line('hour:evening', 'Evening has come early again. I write the hour in my book, and Sister Ilse writes it in hers, and we send each other the numbers by the pilgrims.', '黄昏又提早了。我把时辰记进册子，伊尔丝修女也在她那边记，我们托朝圣者把数字捎给对方。'),
+    line(`fact:ch1.writ`, 'You found the writ. ...Yes. I knew. I was told it was not a pilgrim\'s concern, and I decided to believe it. Go on. Don\'t look at me like that.', '你找到那份文书了。……是，我知道这件事。上面跟我说，这不是朝圣者该过问的，我就决定信了。走吧。别那样看着我。', { once: true, mood: 'sad' }),
+    line('fact:sins.defeated.alberic', 'Three hundred years, and in the end it took one pilgrim and a fairy. God forgive us for letting him hold so long.', '三百年。到头来，只用了一个朝圣者和一个精灵。我们竟让他守了这么久，愿神宽恕我们。', { mood: 'sad' }),
+    line('fact:sins.defeated.alberic', 'The road east is open. Go on when you are ready, pilgrim. Four more Seal-bearers wait, and the Crown is only the first of the five.', '往东的路通了。准备好了就上路吧，朝圣者。还有四位持印者在等你，荆棘冠只是五件圣器里的第一件。'),
   ],
 }
