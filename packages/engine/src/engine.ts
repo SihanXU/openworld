@@ -934,6 +934,16 @@ export class Engine {
     return !!e.ai && !this.world.hasTag(e, 'fiery')
   }
 
+  /**
+   * In a fight one's blows pass over one's own side (World.allied: who follows one, whom one follows, who follows the
+   * same one): they are not struck, and a blow aimed at one of them is a swing at the air (design.md §5.2).
+   */
+  spares(a: Entity, b: Entity | Ref | undefined): boolean {
+    const w = this.world
+    const v = b && ('e' in b ? w.get(b.e) : 'id' in b ? b : undefined)
+    return !!v && w.fighting(a) && w.allied(a, v)
+  }
+
   /** Whether an entity matches this game's read-only protection selectors. */
   isProtected(e: Entity | Ref): boolean {
     const def = this.world.onto.data.protection
@@ -1743,6 +1753,8 @@ export class Engine {
     const element = (weapon && (w.prop(weapon, 'element') as string | undefined)) || (w.prop(a, 'element') as string | undefined)
     const start = w.posOf(a)
     if (!start) return true
+    // (one's own side, in a fight: the blow goes past them, a swing at the air)
+    if (this.spares(a, chosen)) (chosen = undefined), (whiff = true)
     const aimed = this.blowAt(a, weapon, range, chosen, whiff)
     if (!aimed) return true
     const { target, last } = aimed
@@ -1769,7 +1781,7 @@ export class Engine {
     this.combat.struck(a, victim, strike, before, range, true)
     // what else the blow lands on (a sweep's sides): each its own blow, of its power alone
     for (const side of this.combat.besides(a, victim, range)) {
-      if (this.isProtected(side)) continue
+      if (this.isProtected(side) || this.spares(a, side)) continue
       const sideHp = w.num(side, 'hp')
       const sideStrike = this.combat.strike(a, side, base, range, weapon, false)
       this.act('use', a.id, { e: side.id }, { instrument: weapon ? { e: weapon.id } : null, params: { attack: true, power: sideStrike.power } })
@@ -1799,7 +1811,10 @@ export class Engine {
       last = { ...start, x, y }
       // a body first, then what stands there and cannot be carried (a blow on the well is a blow on the well)
       // (the ground of a cell is not in the way: a blow goes on to what the cell's top is, where it stops)
-      const victim = w.actorAt(start.map, x, y, a.id, start.z) ?? (whiff ? undefined : w.entitiesAt(start.map, x, y, start.z).find((e) => !w.isAgent(e) && !w.isPortable(e) && !w.isTerrain(e)))
+      const body = w.actorAt(start.map, x, y, a.id, start.z)
+      // (one's own side, in a fight, is passed over: the blow goes on to what is beyond them)
+      if (body && this.spares(a, body)) continue
+      const victim = body ?? (whiff ? undefined : w.entitiesAt(start.map, x, y, start.z).find((e) => !w.isAgent(e) && !w.isPortable(e) && !w.isTerrain(e)))
       if (victim) {
         target = { e: victim.id }
         break
@@ -1831,11 +1846,12 @@ export class Engine {
     const weapon = weaponOf(w, a)
     if (weapon && this.combat.refuses(a, weapon, 'fight')) return undefined
     const range = this.reachOf('use', a, undefined, weapon) ?? 1
+    if (this.spares(a, chosen)) (chosen = undefined), (whiff = true)
     const target = this.blowAt(a, weapon, range, chosen, whiff)?.target
     const victim = target && w.get(target.e)
     if (!target || !victim || this.isProtected(victim)) return undefined
     const instrument = weapon ? { e: weapon.id } : null
-    const struck = [victim, ...this.combat.besides(a, victim, range).filter((s) => !this.isProtected(s))]
+    const struck = [victim, ...this.combat.besides(a, victim, range).filter((s) => !this.isProtected(s) && !this.spares(a, s))]
     const sin = joinSins(struck.map((v) => this.guilt('use', a.id, { e: v.id }, { instrument, params: { attack: true } })))
     return sin && { ...sin, target }
   }

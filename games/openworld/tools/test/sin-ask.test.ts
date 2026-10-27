@@ -114,6 +114,52 @@ describe('what would weigh on one\'s conscience is asked first', () => {
     expect(w.num(marta, 'hp')).toBe(hp)
   })
 
+  it("in a fight one's own side is not struck (design.md §5.2): a press on Lumi is a swing at the air, an arrow goes past her; out of a fight, it is asked", () => {
+    const { eng, w, p, clear } = fresh()
+    clear()
+    const lumi = Object.values(w.state.entities).find((e) => e.type.startsWith('actor/companion/'))!
+    const at = w.posOf(p)!
+    // a clear line from where one stands: Lumi beside, a wolf beyond her
+    const [dx, dy] = ([[0, -1], [1, 0], [0, 1], [-1, 0]] as const).find(([dx, dy]) => [1, 2, 3].every((i) => w.walkable(MAP, at.x + dx * i, at.y + dy * i, p.id)))!
+    const face = dx ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up'
+    eng.author(() => {
+      eng.teleport(lumi, { map: MAP, x: at.x + dx, y: at.y + dy })
+      lumi.props = { ...lumi.props, companion: p.id }
+      p.props!.profession = 'warrior'
+      w.create('item/weapon/blade/sword', { on: 'hand', holder: p.id })
+    })
+    eng.controls.sync()
+    const hp = w.num(lumi, 'hp')
+    const beside = { x: at.x + dx, y: at.y + dy }
+    // out of a fight: a blow on someone friendly is asked first ("Attack Lumi?")
+    eng.controls.run(eng.controls.plan('primary', beside)!)
+    expect(textOf(w.state.question!.text, 'en')).toBe(`Attack ${textOf(lumi.name, 'en')}?`)
+    eng.controls.answer(false)
+    expect(w.num(lumi, 'hp')).toBe(hp)
+    // in a fight: a swing at the air past her, nothing asked, she is untouched
+    eng.author(() => void ((p.combat ??= {}).fightTick = w.state.tick))
+    const plan = eng.controls.plan('primary', beside)!
+    expect(plan).toMatchObject({ attack: true, whiff: true })
+    eng.controls.run(plan)
+    expect(w.state.question).toBeUndefined()
+    expect(w.num(lumi, 'hp')).toBe(hp)
+    expect(eng.blowGuilt(p, { e: lumi.id })).toBeUndefined()
+    // a bow's arrow along the line passes over her to the wolf beyond
+    const wolf = eng.author(() => w.create('actor/creature/beast/wolf', { on: 'tile', map: MAP, x: at.x + dx * 2, y: at.y + dy * 2 }))
+    eng.author(() => {
+      const sword = w.get(p.held!)
+      if (sword) w.destroy(sword)
+      p.props!.profession = 'ranger'
+      w.create('item/weapon/ranged/bow', { on: 'hand', holder: p.id })
+      p.facing = face
+      ;(p.combat ??= {}).fightTick = w.state.tick
+    })
+    const wolfHp = w.num(wolf, 'hp')
+    eng.attack(p)
+    expect(w.num(wolf, 'hp')).toBeLessThan(wolfHp)
+    expect(w.num(lumi, 'hp')).toBe(hp)
+  })
+
   it('a pocket picked: asked from the pockets panel, made on a yes', () => {
     const { eng, w, p, clear, deeds } = fresh()
     clear(['npc.marta'])

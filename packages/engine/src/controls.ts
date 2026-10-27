@@ -612,6 +612,8 @@ export class Controls {
         }
       const struck = this.targets(a.at, a.stack, 'use').filter((r) => {
         const e = w.get(r.e)
+        // (one's own side, in a fight, is not struck: Engine.spares; the press is a swing at the air past them)
+        if (e && this.eng.spares(w.player, e)) return false
         // the fist strikes bodies and what stands; a tool works on anything, a loose log split as a tree felled
         return !e || w.isAgent(e) || !!held || !w.isPortable(e)
       })
