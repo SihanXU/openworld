@@ -367,3 +367,44 @@ describe("the fairy's guides", () => {
     expect(carries(eng, 'item/seed/turnip')).toBe(2)
   })
 })
+
+describe('a quest done for someone is a kindness', () => {
+  /** Next to someone, a hand on them (E): the talk that hands a quest in. */
+  const handIn = (eng: Engine, who: string) => {
+    const e = eng.world.get(who)!
+    const at = eng.world.posOf(e)!
+    eng.author(() => eng.teleport(eng.world.player, { map: at.map, x: at.x, y: at.y + 1 }))
+    eng.interact('interact', 'player', { e: e.id }, { instrument: null })
+    ticks(eng, 4)
+  }
+
+  it('the firewood handed in: Gus warms to you, and your heart grows lighter', () => {
+    const { eng } = world()
+    const w = eng.world, s = socialOf(eng)
+    begin(eng, 'firewood')
+    ticks(eng, 2)
+    eng.author(() => { for (let i = 0; i < 4; i++) w.create('item/material/log', { on: 'inside', holder: 'player' }) })
+    ticks(eng, 2)
+    const gus = s.regard(w.get('npc.gus'), 'player')
+    handIn(eng, 'npc.gus')
+    expect(eng.quests.stateOf(eng.quests.latest('firewood'))).toBe('done')
+    expect(s.regard(w.get('npc.gus'), 'player')).toBeGreaterThan(gus + 2)
+    expect(w.num(w.player, 'karma')).toBe(3)
+  })
+
+  it('Lina and Oskar brought home: Rowan and both of them warm to you, and it weighs as a good deed', () => {
+    const { eng } = world()
+    const w = eng.world, s = socialOf(eng)
+    begin(eng, 'rescue')
+    ticks(eng, 2)
+    const q = eng.quests.latest('rescue')!
+    eng.author(() => {
+      for (const o of ['mouth', 'lina', 'oskar', 'warden']) w.setProp(q, `obj.${o}`, 'done')
+      w.setProp(q, 'stage', 20)
+    })
+    handIn(eng, 'npc.rowan')
+    expect(eng.quests.stateOf(q)).toBe('done')
+    for (const who of ['npc.rowan', 'npc.lina', 'npc.oskar']) expect(s.regard(w.get(who), 'player')).toBeGreaterThan(10)
+    expect(w.num(w.player, 'karma')).toBe(3)
+  })
+})
