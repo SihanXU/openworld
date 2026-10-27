@@ -2421,7 +2421,7 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   expect(door('waystation', 'waystation.chapel')).toBe('waystation.chapel')
   expect(read(things('waystation.chapel', 'fixture/furniture/bookstand')[0])).toContain('极夜便不会归来')
   // the oath at the altar of the five wounds; the pilgrim's own scallop
-  enter('waystation.chapel', [5, 3, 7, 3], 'pilgrim_oath')
+  enter('waystation.chapel', w.map('waystation.chapel')!.regions!.altar, 'pilgrim_oath')
   expect(w.fact('ch1.oath')).toBe(1)
   ticks(f, 2)
   expect(stage()).toBe(50)
@@ -2469,7 +2469,7 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   enter('abbey', [10, 6, 20, 14], 'abbey_yard')
   expect(door('abbey', 'abbey.hall')).toBe('abbey.hall')
   expect(read(things('abbey.hall', 'fixture/furniture/table').find((e) => textOf(e.name ?? { en: '', zh: '' }) === 'The Roll of the Order')!)).toContain('四十一个名字')
-  enter('abbey.hall', [13, 7, 8, 5], 'alberic_cell')
+  enter('abbey.hall', w.map('abbey.hall')!.regions!.cell, 'alberic_cell')
   const leaf = pick(things('abbey.hall', 'item/document/letter').find((e) => textOf(e.name!).endsWith('Leaf II'))!)
   hold(f, leaf)
   w.fx = []
@@ -2483,7 +2483,7 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   // the crypt under the abbey church: the Order's last keeper rises, and is fought down with blows
   expect(door('abbey.hall', 'abbey')).toBe('abbey')
   expect(door('abbey', 'abbey.crypt')).toBe('abbey.crypt')
-  enter('abbey.crypt', [10, 1, 10, 5], 'crypt_keeper')
+  enter('abbey.crypt', w.map('abbey.crypt')!.regions!.tomb, 'crypt_keeper')
   const keeper = w.get(ABBOT_ID)!
   expect(textOf(keeper.name!)).toBe('Prior Wendel, the Last Keeper')
   give(f, 'item/weapon/blunt/mace', 1)
@@ -2771,7 +2771,7 @@ req('T3', 'a lesson of the tutorial can be skipped (Esc held): it is done, and w
   expect(plain.engine.controls.allows('take')).toBe(true)
 })
 
-req('T4', 'every building can be walked into: each house, shop, smithy, temple and hut stamped on any map has a door that leads into a room and back; each tent is gone into with a hand on it, and left by its flap in front of it — the rotted one too, drawn torn', ['fixture/tent/torn'], () => {
+req('T4', 'every building can be walked into: each house, shop, smithy, temple and hut stamped on any map has a door that leads into a room and back; each tent is gone into with a hand on it, and left by its flap in front of it — the rotted one too, drawn torn, and the knight\'s pavilion in the Held Ground', ['fixture/tent/torn', 'fixture/tent/pavilion'], () => {
   const f = fresh()
   const w = W(f)
   const { index, chunks } = buildFord()

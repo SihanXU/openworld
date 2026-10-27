@@ -7,7 +7,7 @@
 import type { Entity } from '@openworld/engine'
 import { MapBuilder } from './builder.ts'
 import { L } from './kit.ts'
-import { home, room } from './village.ts'
+import { flHouse, home, room } from './village.ts'
 
 /** A room behind a named door of a map. */
 export interface Room {
@@ -49,15 +49,24 @@ export function emberfallRooms(): Room[] {
   ]
 }
 
-/** The burned farmstead on the East Road: the house still stands, smoke-black inside. */
+/**
+ * The burned farmhouse on the East Road (the redo of 2026-10-27: a hall on its plan, plans.ts erfarm): its kitchen, the
+ * hearth cold and the table still set for two, and the bedroom beside it; black to the rafters, beams fallen on the floor.
+ */
 export function eastRoadRooms(): Room[] {
-  const m = room('eastroad.farmhouse', 'The Burned Farmhouse', '烧焦的农舍', 11, 8, 'wood', 'floor_wood')
-  m.fixture('fixture/furniture/bed', 1, 1, { name: L('A scorched bed', '烧焦的床') })
-  m.fixture('fixture/light/fireplace', 8, 1, { name: L('A cold hearth', '冷掉的灶') })
-  m.fixture('fixture/furniture/table', 5, 4, { name: L("Edda's table", '艾达的桌子'), tags: ['readable'], props: { text: 'Two plates set out, one never used. Soot on everything but the place where a ring once lay.', text_zh: '摆着两只盘子，其中一只从没用过。处处都是烟灰，只有一枚戒指曾放过的地方是干净的。' } })
-  m.fixture('fixture/furniture/chair', 4, 4)
-  m.fixture('fixture/container/chest', 9, 5)
-  m.fixture('fixture/container/barrel', 1, 5)
+  const { m, P } = flHouse('erfarm', 'eastroad.farmhouse', 'The Burned Farmhouse', '烧焦的农舍', 'floor_wood', ['kitchen', 'bedroom'])
+  m.zone = 'combat'
+  const K = P.kitchen
+  m.fixture('fixture/light/fireplace', K.x + 4, K.y, { name: L('A cold hearth', '冷掉的灶') })
+  m.fixture('fixture/furniture/table', K.x + 4, K.y + 3, { name: L("Edda's table", '艾达的桌子'), tags: ['readable'], props: { text: 'Two plates set out, one never used. Soot on everything but the place where a ring once lay.', text_zh: '摆着两只盘子，其中一只从没用过。处处都是烟灰，只有一枚戒指曾放过的地方是干净的。' } })
+  m.fixture('fixture/furniture/chair', K.x + 3, K.y + 3)
+  m.fixture('fixture/container/barrel', K.x, K.y + 5)
+  m.building('decor_beams', K.x + 6, K.y + 1)
+  m.building('decor_beams', K.x + 1, K.y + 2)
+  const B = P.bedroom
+  m.fixture('fixture/furniture/bed', B.x + 4, B.y + 1, { name: L('A scorched bed', '烧焦的床') })
+  m.fixture('fixture/container/chest', B.x + 1, B.y + 4)
+  m.building('decor_beams', B.x + 2, B.y + 2)
   return [{ door: 'farmhouse', map: m }]
 }
 

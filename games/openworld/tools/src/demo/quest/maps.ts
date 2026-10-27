@@ -6,10 +6,12 @@
 import type { AiData, AppearDef } from '@openworld/engine'
 import { BOSS_ARENA } from '@openworld-game/content'
 import { MapBuilder, rng } from '../builder.ts'
-import { L, GROUND_YIELD, appears, clump, lay } from '../kit.ts'
+import { L, GROUND_YIELD, appears, lay } from '../kit.ts'
+import { wildFloor } from '../wildfloor.ts'
+import { noise, seal, ways, woods as belt } from './country.ts'
 
 const tree = () => (rng.chance(0.3) ? 'pine' : 'tree')
-const grassy = (t: string) => t === 'grass'
+const grassy = (t: string) => t === 'grass' || t === 'drygrass'
 
 /** Woods round a map's edge, two to four deep, open where `open(x, y)` says (a road's gap). */
 function woods(m: MapBuilder, open: (x: number, y: number) => boolean): void {
@@ -30,28 +32,62 @@ const hunters = (type: string, max: number, every: number, on: string[], ai: Par
 /** Rows where the road enters from the Ford (its east edge) and leaves for Emberfall. */
 export const EAST_ROAD = { w: 48, h: 24, west: [11, 12, 13], east: [10, 11, 12], fordEast: [12, 13, 14] } as const
 
+/**
+ * The East Road (the redo of 2026-10-27): the road on from the Kneeling Field past a burned farm — the farmhouse black
+ * and open to the sky, the barn a frame of charred posts where Edda hides, the yard and the orchard ash, the hay still
+ * smouldering, its fields south of the road burned in their strips behind a broken rail — to the trodden clearing off
+ * the road and the knight's field beyond, ringed in his thorns (quest/chapter1.ts); woods close it but for the road.
+ */
+export const EAST_FARM = { house: [24, 5] as const, barn: [17, 5] as const }
+
 export function buildEastRoad(): MapBuilder {
   const m = new MapBuilder('eastroad', L('The East Road', '东大路'), 'wild', EAST_ROAD.w, EAST_ROAD.h, 'grass', 'field', 'outdoor', 'frostfang')
   m.gearLevel = 4
-  woods(m, (x, y) => (x < 4 && (EAST_ROAD.west as readonly number[]).includes(y)) || (x >= m.w - 4 && (EAST_ROAD.east as readonly number[]).includes(y)))
-  for (const [cx, cy, r] of [[8, 4.5, 2.4], [14, 19, 2.6], [33, 4, 2.2], [41, 19, 2.8], [44, 5, 2]] as const) clump(m, cx, cy, r, 0.7)
-  m.path([[0, 12], [6, 12], [12, 10], [20, 11], [28, 13], [36, 11], [42, 11], [47, 11]], 'path', 2, { edge: 'dirt', edgeP: 0.2 })
-  // the burned farmstead north of the road: the house still stands; the yard, the hay and the orchard are ash
-  m.organic(24, 6, 6, 3, 'ash', { only: grassy, rough: 0.25 })
-  m.scenery('house_wood', 22, 3, 'farmhouse')
-  for (const [x, y] of [[19, 5], [28, 4], [29, 7], [20, 8]] as const) m.set(x, y, 'charred_tree')
-  m.fixture('fixture/nature/haystack', 26, 7, { statuses: { lit: -1 } })
+  // meadow gone rank, dry where the noise swells; the knight's field a wide sweep of dry grass
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (noise(x, y, 6, 451) > 0.63) m.set(x, y, 'drygrass')
+  m.organic(40, 13, 7.5, 6.5, 'drygrass', { only: grassy, rough: 0.3 })
+  m.path([[0, 12], [6, 12], [12, 10], [20, 11], [28, 13], [36, 11], [42, 11], [47, 11]], 'path', 3, { edge: 'dirt', edgeP: 0.08 })
+  // the burned farmstead north of the road: the farmhouse and the barn, the yard and the hay in ash, the orchard dead
+  m.organic(22, 7, 9, 3.4, 'dirt', { only: (t) => grassy(t), rough: 0.3 })
+  m.building('er_farm', ...EAST_FARM.house, ['farmhouse'])
+  m.building('er_barn', ...EAST_FARM.barn)
+  const [fx, fy] = m.doors.farmhouse
+  m.rect(fx - 1, fy + 1, 3, 1, 'dirt')
+  m.path([[fx, fy + 1], [fx, 10]], 'dirt', 1)
+  for (const [x, y] of [[10, 3], [12, 5], [14, 3], [11, 7], [13, 8], [15, 6], [9, 5]] as const) m.set(x, y, 'charred_tree')
+  m.fence('rail', [8, 2], [8, 9], [[8, 6]])
+  m.fence('rail', [31, 3], [31, 8], [[31, 5], [31, 6]])
+  m.fixture('fixture/nature/haystack', 15, 9, { statuses: { lit: -1 } })
   m.regions = { farmstead: [17, 2, 15, 8] }
   m.fixture('fixture/sign', 4, 10, { props: { text: 'Emberfall →', text_zh: '余烬镇 →' } })
+  // its fields south of the road, burned in their strips behind a broken rail
+  m.fence('rail', [3, 16], [14, 16], [[6, 16], [10, 16]])
+  for (const y of [17, 19, 21]) for (let x = 4; x < 14; x++) if (m.get(x, y) !== 'tree') m.set(x, y, 'dirt')
   // the road's dangers: a pair of wolves, a boar in the brush
   m.creature('beast/wolf', 33, 15, { sight: 5 })
   m.creature('beast/wolf', 36, 17, { sight: 5 })
-  m.creature('beast/boar', 12, 16, { temper: 'wary', sight: 4 })
-  lay(m, 'item/material/stick', 2, [6, 14, 8, 5])
+  m.creature('beast/boar', 12, 14, { temper: 'wary', sight: 4 })
+  lay(m, 'item/material/stick', 2, [6, 13, 8, 3])
   lay(m, 'item/material/stone', 2, [36, 5, 8, 4])
   m.appear = [...GROUND_YIELD, hunters('actor/creature/beast/wolf', 2, 2400, ['grass'])]
   // a trodden clearing off the road (the Boss Studio's and the challenge's stage)
-  m.organic(BOSS_ARENA.x, BOSS_ARENA.y, 7, 4, 'dirt', { only: (t) => t === 'grass', rough: 0.12 })
+  m.organic(BOSS_ARENA.x, BOSS_ARENA.y, 7, 4, 'dirt', { only: grassy, rough: 0.12 })
+  // the woods round it, never on the road, the farm, the fields, the clearing or the knight's field
+  const keep = (x: number, y: number) => m.near(x, y, (t) => t === 'path' || t === 'dirt' || t === 'charred_tree', 2) || (x >= 32 && Math.hypot((x - 40) / 8.5, (y - 13) / 7.5) < 1) || (x >= 3 && x <= 14 && y >= 15 && y <= 22)
+  belt(m, keep, { depth: 2.5, swell: 2.3, pines: 0.3, seed: 451 })
+  seal(m, ways(m, { west: EAST_ROAD.west, east: EAST_ROAD.east }))
+  // what the fire left: beams fallen in the ash, a cart, the wood and the hay of the yard
+  for (const [name, x, y] of [['decor_beams', 20, 9], ['decor_beams', 28, 9], ['decor_beams', 18, 3], ['decor_cart', 30, 9], ['decor_firewood', 23, 8], ['decor_stones', 25, 9]] as [string, number, number][]) m.building(name, x, y)
+  // the ash of the yard and the fields, cinders in it, an ember now and then
+  for (let y = 1; y < 23; y++)
+    for (let x = 3; x < 32; x++) {
+      const yard = Math.hypot((x - 22) / 9, (y - 7) / 3.4) < 1
+      const field = x >= 4 && x < 14 && (y === 17 || y === 19 || y === 21)
+      if ((yard || field) && m.get(x, y) === 'dirt' && m.free(x, y) && !m.stamps.some((st) => st.x === x && st.y === y) && rng.chance(yard ? 0.55 : 0.45)) m.building(`decor_ash_${rng.int(0, 2)}`, x, y)
+    }
+  m.sprinkle('fixture/nature/tuft', 0.04, (x, y, t) => t === 'drygrass' && !m.near(x, y, (u) => u === 'path', 1))
+  m.sprinkle('fixture/nature/leaves', 0.12, (x, y, t) => grassy(t) && m.near(x, y, (u) => u === 'tree' || u === 'pine'))
+  wildFloor(m, 1, (x, y) => m.near(x, y, (t) => t === 'path', 1) || (x >= 32 && y >= 5 && y <= 21))
   return m
 }
 

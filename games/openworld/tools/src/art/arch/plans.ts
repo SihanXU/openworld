@@ -167,5 +167,14 @@ export const HALLS = {
   mbmill: hallPlan(26, 13, 6, { floor: [2, 2, 14, 9], room: [17, 3, 7, 7], arch: [16, 6, 1, 1], entry: [6, 11, 3, 1] }, [[7, 12]]),
   dlhut: hallPlan(20, 11, 6, { room: [2, 2, 9, 7], store: [12, 2, 6, 7], arch: [11, 5, 1, 1], entry: [5, 9, 3, 1] }, [[6, 10]]),
   rbcabin: hallPlan(25, 11, 6, { room: [2, 2, 10, 7], bedroom: [13, 2, 5, 7], store: [19, 2, 4, 7], a1: [12, 5, 1, 1], a2: [18, 5, 1, 1], entry: [5, 9, 3, 1] }, [[6, 10]]),
+  // the Pilgrim's Road's (docs/release-1.md §7, the redo of 2026-10-27): the Rest's chapel of the Five and the priest's
+  // cell beside it; the hostel's common room and the pilgrims' dormitory; the abbey's chapter hall between its scriptorium
+  // and Alberic's cell; the crypt under the church, its vault before the priors' tomb; the burned farmhouse's kitchen and
+  // its bedroom
+  prchapel: hallPlan(21, 13, 7, { nave: [2, 2, 11, 9], cell: [14, 3, 5, 6], arch: [13, 5, 1, 1], entry: [6, 11, 3, 1] }, [[7, 12]]),
+  prhostel: hallPlan(23, 12, 6, { common: [2, 2, 9, 8], dorm: [12, 2, 9, 8], arch: [11, 5, 1, 2], entry: [5, 10, 3, 1] }, [[6, 11]]),
+  abhall: hallPlan(28, 13, 7, { scriptorium: [2, 4, 5, 6], hall: [8, 2, 11, 9], cell: [20, 4, 6, 6], aW: [7, 6, 1, 1], aE: [19, 6, 1, 1], entry: [12, 11, 3, 1] }, [[13, 12]]),
+  abcrypt: hallPlan(28, 20, 5, { tomb: [9, 2, 10, 5], vault: [3, 7, 22, 8], entry: [12, 15, 4, 3] }, [[13, 18]]),
+  erfarm: hallPlan(20, 11, 6, { kitchen: [2, 2, 9, 7], bedroom: [12, 3, 6, 5], arch: [11, 5, 1, 1], entry: [5, 9, 3, 1] }, [[6, 10]]),
   catacombs: hallPlan(30, 20, 5, { north: [3, 2, 24, 3], south: [3, 13, 24, 3], west: [3, 5, 3, 8], east: [24, 5, 3, 8], spine: [13, 5, 4, 8], tombW: [7, 7, 5, 4], passW: [6, 8, 1, 2], tombE: [18, 7, 5, 4], passE: [23, 8, 1, 2], entry: [13, 16, 4, 3] }, []),
 }

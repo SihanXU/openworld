@@ -78,6 +78,12 @@ describe('the wayside shrines', () => {
   })
 })
 
+/** A cell at the altar of the five wounds, where the oath is taken (the chapel's region `altar`). */
+const altar = (f: ReturnType<typeof fresh>): [number, number] => {
+  const [x, y] = f.w.map('waystation.chapel')!.regions!.altar
+  return [x + 2, y + 1]
+}
+
 describe("the Pilgrims' Rest after the knight", () => {
   it('neither the welcome nor the oath plays once the White Knight has fallen; the priest greets one who comes from him, and speaks of the road, not of kneeling to him', () => {
     const f = fresh()
@@ -91,7 +97,7 @@ describe("the Pilgrims' Rest after the knight", () => {
     expect(f.w.fact('seen.rest_arrival') ?? 0).toBeFalsy()
     expect(f.w.fact('ch1.rest') ?? 0).toBe(0)
     // the altar of the five wounds: no oath to the living knight
-    teleport(f, 'waystation.chapel', 8, 4)
+    teleport(f, 'waystation.chapel', ...altar(f))
     ticks(f, 300)
     expect(f.w.fact('seen.pilgrim_oath') ?? 0).toBeFalsy()
     expect(f.w.fact('ch1.oath') ?? 0).toBe(0)
@@ -118,7 +124,7 @@ describe("the Pilgrims' Rest after the knight", () => {
     teleport(f, 'waystation', 6, 13)
     expect(ticks(f, 600, () => f.w.fact('ch1.rest') === 1 && !f.w.scene)).toBe(true)
     expect(f.w.fact('seen.rest_after') ?? 0).toBeFalsy()
-    teleport(f, 'waystation.chapel', 8, 4)
+    teleport(f, 'waystation.chapel', ...altar(f))
     expect(ticks(f, 900, () => f.w.fact('ch1.oath') === 1 && !f.w.scene)).toBe(true)
   })
 })

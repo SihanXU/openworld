@@ -296,6 +296,11 @@ const STYLES: Record<keyof typeof HALLS, Style> = {
   mbmill: { wall: 'timber', trim: 'darkwood', h: 80, windows: 'rect', hang: ['timbers', 'tools', 'shelves'], feature: 'none', pilasters: 'darkwood' },
   dlhut: { wall: 'darkwood', trim: 'darkwood', h: 64, windows: 'rect', hang: ['tools', 'none', 'jars'], feature: 'none' },
   rbcabin: { wall: 'timber', trim: 'darkwood', h: 64, windows: 'rect', hang: ['jars', 'painting', 'none'], feature: 'none', pilasters: 'darkwood' },
+  prchapel: { wall: 'stone', trim: 'stone', h: 104, windows: 'lancet', glass: 'red', hang: ['tapestry', 'banner', 'painting'], feature: 'window', pilasters: 'stone' },
+  prhostel: { wall: 'plaster', trim: 'timber', h: 72, windows: 'rect', hang: ['painting', 'jars', 'none'], feature: 'hearth', pilasters: 'timber' },
+  abhall: { wall: 'granite', trim: 'darkwood', h: 96, windows: 'lancet', glass: 'blue', hang: ['banner', 'books', 'trophy'], feature: 'canopy', pilasters: 'granite' },
+  abcrypt: { wall: 'graniteRough', trim: 'graniteRough', h: 72, windows: 'none', hang: ['niches', 'niches', 'none'], feature: 'ossuary', pilasters: 'graniteRough' },
+  erfarm: { wall: 'charred', trim: 'darkwood', h: 64, windows: 'rect', hang: ['none', 'tools', 'none'], feature: 'hearth' },
   catacombs: { wall: 'whiteStone', trim: 'whiteStone', h: 64, windows: 'none', hang: ['niches', 'niches', 'none'], feature: 'ossuary', pilasters: 'whiteStone' },
 }
 

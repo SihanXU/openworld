@@ -1,6 +1,6 @@
 // Authored-content migration, kept outside the generic engine. No inventory or quest reset.
 import { scheduleAt, scheduleFor, type Entity, type Game, type MapChunk, type WorldIndex } from '@openworld/engine'
-import { FIRSTLIGHT, FIRSTLIGHT_HOUSES, FIRSTLIGHT_LAYOUT } from './firstlight.ts'
+import { FIRSTLIGHT, FIRSTLIGHT_HOUSES, FIRSTLIGHT_LAYOUT, PART_ONE_LAYOUT } from './firstlight.ts'
 
 const gardenEntity = (e: Entity) => e.id.startsWith('ford.garden.') || (e.place.on === 'inside' && e.place.holder === 'ford.garden.supplies')
 const relocated = (e: Entity) => gardenEntity(e) || ['ford.cart', 'tobin.wand', 'tobin.oil'].includes(e.id)
@@ -95,9 +95,33 @@ export function migrateFirstlight(game: Game, index: WorldIndex, ford: MapChunk,
  * stand on. Nothing is taken away; what is carried, stored or grown stays as it was.
  */
 export function migrateFirstlightHouses(game: Game, chunks: MapChunk[]): void {
+  if (game.engine.world.fact(FIRSTLIGHT_HOUSES)) return
+  stepOffWalls(game, chunks)
+  game.engine.world.setFact(FIRSTLIGHT_HOUSES, true)
+}
+
+/**
+ * Apply once when a save from before the Pilgrim's Road and the Held Ground were redrawn (2026-10-27, docs/release-1.md
+ * §7) loads: as for Firstlight's houses, whatever stands on what is now a wall or a building's dark on those maps steps
+ * to the nearest cell it can stand on, and nothing is taken away.
+ */
+export function migratePartOneMaps(game: Game, chunks: MapChunk[]): void {
+  const w = game.engine.world
+  if (w.fact(PART_ONE_LAYOUT)) return
+  stepOffWalls(game, chunks)
+  // a thing the save kept that the maps have made a kind of what it was (Alberic's tent, a pavilion now): that kind
+  for (const c of chunks)
+    for (const f of c.entities) {
+      const saved = w.get(f.id)
+      if (saved && saved.type !== f.type && f.type.startsWith(`${saved.type}/`)) w.transform(saved, f.type)
+    }
+  w.setFact(PART_ONE_LAYOUT, true)
+}
+
+/** The maps given loaded as they are now, and what of the save stands on a wall or the dark there moved to the nearest open cell. */
+function stepOffWalls(game: Game, chunks: MapChunk[]): void {
   const eng = game.engine
   const w = eng.world
-  if (w.fact(FIRSTLIGHT_HOUSES)) return
   const maps = chunks.map((c) => c.map.id)
   for (const c of chunks) if (!w.map(c.map.id)) game.loadChunk(c)
   for (const e of Object.values(w.state.entities)) {
@@ -111,5 +135,4 @@ export function migrateFirstlightHouses(game: Game, chunks: MapChunk[]): void {
     if (free) eng.teleport(e, free)
   }
   eng.npcs.invalidate()
-  w.setFact(FIRSTLIGHT_HOUSES, true)
 }

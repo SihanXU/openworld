@@ -17,6 +17,7 @@ import { WORKS } from './works.ts'
 import { WILDS } from './wilds.ts'
 import { FIRSTLIGHT_BUILDINGS } from './firstlight.ts'
 import { CHAPTER1_BUILDINGS } from './chapter1.ts'
+import { PILGRIMAGE_BUILDINGS, PILGRIMAGE_PROPS } from './pilgrimage.ts'
 import { fountain, grandFountain } from '../kit.ts'
 
 export const MODELS: Record<string, () => Model> = {
@@ -30,6 +31,7 @@ export const MODELS: Record<string, () => Model> = {
   ...WILDS,
   ...FIRSTLIGHT_BUILDINGS,
   ...CHAPTER1_BUILDINGS,
+  ...PILGRIMAGE_BUILDINGS,
   ...TOWN,
   ...MARKET,
   ...INSIDE,
@@ -38,4 +40,4 @@ export const MODELS: Record<string, () => Model> = {
   town_fountain_grand: () => grandFountain('town_fountain_grand'),
 }
 
-export const PROPS = { ...INSIDE_PROPS, ...STREET_PROPS }
+export const PROPS = { ...INSIDE_PROPS, ...STREET_PROPS, ...PILGRIMAGE_PROPS }
