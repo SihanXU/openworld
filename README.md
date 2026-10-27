@@ -1,209 +1,217 @@
 # OpenWorld
 
-A web-playable 2D JRPG world whose rules are code. An LLM acts as a live modder: when an
-interaction is undefined, it writes a type-level rule patch that the engine validates,
-applies, and keeps. When interactions are defined, the game runs on its own.
+[![check](https://github.com/SihanXU/openworld/actions/workflows/check.yml/badge.svg)](https://github.com/SihanXU/openworld/actions/workflows/check.yml)
+[![wiki](https://github.com/SihanXU/openworld/actions/workflows/wiki.yml/badge.svg)](https://github.com/SihanXU/openworld/actions/workflows/wiki.yml)
 
-Successor to BardOS. Design: [docs/design.md](docs/design.md).
+OpenWorld is a 2D JRPG that runs in the browser, together with the engine and the editor it is built with. The
+world's state and rules are code. When the player does something no rule covers, a language model can write
+the missing rule. The engine checks it, applies it to every thing of that type, and keeps it. Without a model
+the game is complete and plays to its end.
 
-OpenWorld is both the engine and, for now, the name of its first game. The engine side lives in
-`packages/` (`engine`, `runtime`, `modder`, `agent`) and imports no game; each game lives in
-`games/<id>/` and hands itself over (this one: `games/openworld/`, with its content, maps, tools,
-art, wiki generator and app in `client/`). The OpenWorld Editor makes games on the engine in the manner
-of RPG Maker — a program of its own, in the browser or as a desktop application:
+![Firstlight Village: the HUD, a quest tracked, and a conversation with Sister Ilse](site/designs/img/village-hud.webp)
+
+<p>
+  <img src="site/designs/img/ford.webp" width="32%" alt="The Ford">
+  <img src="site/designs/img/overworld.webp" width="32%" alt="The overworld">
+  <img src="site/designs/img/boss.webp" width="32%" alt="The White Knight Alberic">
+</p>
+
+The project is the testbed for the research paper *Large Symbolic World* (in preparation): a world defined
+symbolically, as opposed to one learned by a neural world model, that grows as it is played.
+
+## Contents
+
+- [Overview](#overview)
+- [Repository layout](#repository-layout)
+- [Getting started](#getting-started)
+- [Playing](#playing)
+- [The engine, the player and the editor](#the-engine-the-player-and-the-editor)
+- [AI (optional)](#ai-optional)
+- [Development](#development)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Credits and license](#credits-and-license)
+
+## Overview
+
+**The game.** Release 1, *Part One*, runs from waking on Cloudtop, down the mountain, through Firstlight Village
+and its country, across the Ford, and along the Pilgrim's Road to the White Knight. It has a main quest, errands
+and radiant favours, a homestead, crafting and building, gear and a skill tree, monsters with their own skills,
+and people who keep schedules and households, trade, and remember what they saw. Around it lies a continent of
+1,024 maps and 1,651 people. The story and setting are in [docs/lore.md](docs/lore.md); the scope of the release
+is in [docs/release-1.md](docs/release-1.md).
+
+**The event model.** Every change to the world is the outcome of an event: an act, an impulse, a contact, a tick
+of time. Rules belong to a host type. They read anything and write only their host, and reach other things by
+sending them events. Where a rule tree ends in an undefined leaf (a *hole*), the outcome is the one place the AI
+may answer. A patch only fills a hole and never changes behaviour that is already defined. It is validated
+(host-only writes, replay in a sandbox) before it joins a shared rule library that every client syncs. With no
+model, a failure or a time-out, the leaf's default applies. See [docs/design.md](docs/design.md) §5.
+
+**The engine.** The engine is a pure, deterministic TypeScript kernel with optional modules. It runs in a Web
+Worker and imports no game. A game is handed to it as data and code, and the same engine plays OpenWorld and the
+minimal `games/starter`. The OpenWorld Editor makes games for it in the manner of RPG Maker. See
 [docs/engine-split.md](docs/engine-split.md).
 
-## Worlds
+## Repository layout
 
-- **The Ford** (default, hand-crafted demo): a river crossing at the edge of the world — a
-  ferrykeeper, a stranded peddler, slimes — with a meadow west of it and a forest south of that,
-  and one goal: the far bank. The place teaches three ways across; anything else the world
-  learns from the player counts too. It is the development scaffold of a world meant to reach
-  hundreds of maps; every element it holds witnesses a requirement
-  ([docs/game-design.md](docs/game-design.md) §9, proven by `games/openworld/tools/test/demo.test.ts`).
+| Path | Contents |
+| --- | --- |
+| `packages/engine` | The kernel: world state and indices, rules and their specificity, effect primitives, events, behaviour, quests, story, saves. No DOM, no AI. |
+| `packages/modules` | Optional systems a game may name: classes, waypoints, boons, needs, society, loot, monster kits. |
+| `packages/stdlib` | The standard library: the types, statuses and root rules the kernel names. |
+| `packages/format` | The project format, its checker and compiler, localization, and the JSON Schemas. |
+| `packages/runtime` | The player: rendering (Phaser 4), the DOM interface, audio, the engine's worker. |
+| `packages/editor` | The OpenWorld Editor: a local server and page, and an Electron desktop shell. |
+| `packages/ai` | The modder service, model backends, the self-improving agent and its benchmark harness. The game builds and plays without this package. |
+| `games/openworld` | This game: content and rules (`content/`), maps and tools (`tools/`), the app (`client/`), the AI experiments (`ai/`), the wiki generator (`wiki/`), and its assets (`public/`). |
+| `games/starter` | The smallest whole game, written as data files and played by the kernel with no module. |
+| `docs/` | Design documents (see [Documentation](#documentation)). |
+| `wiki/` | The wiki's pages, in Chinese with an English edition. |
+| `bench/` | The benchmark pools for the research experiments. |
+| `site/` | The project page. |
 
-The event model — one AI interface, the outcome of an event — is in
-[docs/design.md](docs/design.md) §5.4–5.14.
+Dependencies point one way: a game may import the packages, never the reverse, and no game imports another
+(`packages/engine/test/boundaries.test.ts` holds this).
 
-## Run
+## Getting started
+
+Requirements: Node.js 24 (as in CI) and npm. A model is optional.
 
 ```bash
 npm install
-npm run gen:world     # the Ford → games/openworld/public/world/
-npm run dev           # http://localhost:5173, with the modder service on :8787
-npm run build         # static site in games/openworld/client/dist
+npm run gen:world     # generate the world → games/openworld/public/world/
+npm run dev           # the game at http://localhost:5173, with the modder service on :8787
 ```
 
-## The engine, its player and its editor
-
-OpenWorld is also the engine the game runs on ([docs/engine-split.md](docs/engine-split.md)): the kernel and
-its optional modules in `packages/`, each game in `games/<id>/` — this one, and `games/starter`, the smallest
-whole game, written as data files and played by the kernel with no module.
+`npm run dev` asks which model backend to use (see [AI](#ai-optional)); `npm run dev:client` starts the game alone.
+To build a static site:
 
 ```bash
-npm run play          # the engine's player, http://localhost:5174/?game=/games/starter/ (or /games/openworld/)
-npm run editor        # the OpenWorld Editor, http://localhost:5175/editor/ — projects in any folder; the game,
-                      # maps, people, database, pictures and sounds, rules, story, quests, and the holes with
-                      # the AI as co-author; playtest from any cell; export a game anyone can play
-npm run editor:build  # the editor as a program of its own (packages/editor/dist), then npm run editor:start
-npm run desktop       # the editor as a desktop application (npm run desktop:dist: its installers)
-npm run game -- check games/starter        # a project's problems (build <project> --out <dir>: a bundle)
-npm run bake          # OpenWorld written as a project in the format → games/openworld/project/
+npm run build         # → games/openworld/client/dist
 ```
 
-Controls: WASD/arrows move (Shift walks) · **E** hands (talk, open, push) · **F** take · **G** put
-(place, store, hand over) · **left click** use the held thing (weapons strike; click yourself to eat) ·
-**right click** the action, as the cursor shows (talk, open, pick up, set down a bed, eat) — on the
-topmost thing drawn where you point; hold to choose another · **1–0** / wheel
-choose what to hold · **Esc** menu · **I** inventory · **J** journal and Threadbook ·
-**`** Mod Console (dev).
+## Playing
 
-## The modder
+| Input | Action |
+| --- | --- |
+| WASD / arrow keys | Move (hold Shift to walk) |
+| Left click | Use what you hold: swing a weapon or tool; with anything else, use it on yourself |
+| Right click | Use what you hold on what you point at; set down a built thing there |
+| E | The hand: pick up what lies loose; talk, open, read |
+| G | Put down, put in, hand over |
+| Space / Q | Attack ahead / dash |
+| X / V | Draw or sheathe your weapon / sneak |
+| 1–0, mouse wheel | Choose the toolbar slot; Shift+Tab brings the next bag row to the toolbar |
+| Shift+1–6 | Skills |
+| Tab or I, C, K, U, L, J, M | Bag, crafting, skill tree, skills, quests, codex, world map |
+| B / R | Build mode / rotate what you build |
+| Esc | Menu |
+| ` | Mod Console (development builds) |
 
-The game is complete without it: undefined interactions fall back, and can be patched by hand
-in the Mod Console. With the modder service running, they are patched live, and every
-accepted patch joins the shared rule library that all clients sync from.
+Every key can be rebound in Options → Keys.
+
+## The engine, the player and the editor
 
 ```bash
-# the model comes from .env (not committed): LSW_MODEL_KEY=..., LSW_MODEL=moonshotai/kimi-k3,
-# LSW_MODEL_PROVIDERS=together,parasail,inference-net (any OpenAI-compatible endpoint; default OpenRouter)
-npm run modder -- serve
-# or offline, with a scripted model (rope on a creature is the one interaction it knows)
-npm run modder -- serve 8787 --script packages/ai/fixtures/offline.json --data var/offline
+npm run play                          # the engine's player: http://localhost:5174/?game=/games/starter/ (or /games/openworld/)
+npm run editor                        # the OpenWorld Editor: http://localhost:5175/editor/
+npm run editor:build                  # the editor as a standalone program → packages/editor/dist
+npm run editor:start                  # run that build
+npm run desktop                       # the editor as a desktop application (desktop:dist builds installers)
+npm run game -- check games/starter   # a project's problems; `build <project> --out <dir>` writes a bundle
+npm run bake                          # OpenWorld written as a project in the format → games/openworld/project/
 ```
 
-The dev client finds it at `http://localhost:8787`. Elsewhere, point the client at it with
-`?modder=<url>` or `VITE_MODDER_URL` at build time; `?modder=off` disables it.
+The editor opens projects in any folder. It covers the game's settings, maps, people, database, pictures and
+sounds, rules, story and quests, and the holes, which it can answer by hand or with the AI. It playtests from any
+cell and exports a game anyone can play. See [docs/engine-split.md](docs/engine-split.md) §6 and §11–§19.
 
-Data lives in `var/` (not committed):
-- `library.jsonl` — the shared library's append-only patch log;
-- `modder-state/` — the modder's memory, skills and harness ([docs/rsi.md](docs/rsi.md)).
+## AI (optional)
+
+The game is complete without a model: a hole falls back to its default, and can be patched by hand in the Mod
+Console. With a modder service running, holes are patched as they are met, and every accepted patch joins the
+shared library. [docs/ai.md](docs/ai.md) is the map of this side of the repository.
+
+Backends (`npm run dev -- --backend <name>`, or `LSW_MODEL_BACKEND`):
+
+| Backend | Configuration (in `.env`, not committed) |
+| --- | --- |
+| `openrouter` | `LSW_MODEL_KEY`, `LSW_MODEL` (e.g. `moonshotai/kimi-k3`); optionally `LSW_MODEL_URL` for any OpenAI-compatible endpoint, and `LSW_MODEL_PROVIDERS` |
+| `anthropic` | `ANTHROPIC_API_KEY` |
+| `claude-code` | None: calls `claude -p` as the signed-in user |
+| `none` | None: answers only from the shared library |
 
 ```bash
-npm run curriculum -- 20         # resolve 20 sampled undefined interactions offline (quality profile)
-npm run latency -- --n 20        # the live profile on 20 fresh interactions: latency, validity, cost
-npm run modder -- stats          # library and self-state numbers
-npm run modder -- snapshot <label>   # freeze the self-state (benchmark checkpoints)
-npm run modder -- export [label]     # the self-state as one document
-npm run modder -- library remove <rule-id>   # roll a patch back
+npm run modder -- serve                                   # the modder service on :8787
+npm run modder -- serve 8787 --script packages/ai/fixtures/offline.json --data var/offline   # offline, scripted
 ```
 
-The offline modder is an SWE-style agent that improves its own way of working; the same agent
-runs SWE-bench-style instances from a self-state snapshot ([docs/rsi.md](docs/rsi.md)):
+The game finds a local service at `http://localhost:8787` in development. Elsewhere, set `?modder=<url>` or
+`VITE_MODDER_URL` at build time; `?modder=off` turns it off. A published game can instead use the player's own
+model and key, kept in their browser (Options → Your model; [docs/byok.md](docs/byok.md)). The service keeps its
+data in `var/` (not committed). The self-improving modder and the research experiments are described in
+[docs/rsi.md](docs/rsi.md), [docs/rsi-experiments.md](docs/rsi-experiments.md) and
+[docs/paper-eval.md](docs/paper-eval.md).
+
+## Development
 
 ```bash
-npm run agent -- swe --instances instances.jsonl --state var/modder-state --out predictions.jsonl
-npm run improve -- --select 8 --confirm 8   # one turn of the outer loop
-```
-
-## Wiki
-
-The game's Chinese wiki (and design proposal), in the shape of the Stardew Valley wiki: a page for
-every system, control, item, fixture, person, creature, boss, place and quest, plus the setting.
-Pages are Markdown files in `wiki/pages/` that anyone on the team can edit on GitHub; tables,
-infoboxes, schedules, dialogue and maps are generated from the game's own data at build time.
-How to edit: `wiki/pages/帮助/编辑入门.md`. Live at `http://35.239.4.44:5175/wiki/`, rebuilt a minute
-after a change reaches main.
-
-```bash
-npm run wiki          # http://localhost:5180/wiki/, rebuilt when wiki/ changes
-npm run wiki:check    # links, templates, and completeness (every thing and system has a page)
-npm run wiki:build    # the static site in games/openworld/wiki/out
-```
-
-## Art & audio
-
-[Ninja Adventure asset pack](https://pixel-boy.itch.io/ninja-adventure-asset-pack) by
-Pixel-boy & AAA, CC0. The full pack goes in `assets/ninja-adventure/` (not committed);
-`npm run assets` copies the subset the catalogue uses into `games/openworld/public/assets/na/`
-(committed, so the site builds without the pack).
-
-## Checks
-
-```bash
-npm test                                  # engine, base rules, story, Mod port, coverage, modder
+npm run check         # typecheck + tests, as CI runs them
+npm test              # vitest
 npm run typecheck
-npm run coverage                          # interaction coverage (roadmap §1, §3)
+npm run coverage      # interaction coverage; commit the refreshed baseline with rule changes
+npm run check:world   # a headless playtest over two game days
+npm run scale         # the world at scale: fifty maps, a tick, a frame, a save
+npm run test:ui       # browser checks of the interface (Playwright; once: npx playwright install chromium)
 ```
 
-## Pixel UI components
+The interface is built from shared pixel UI components, with a workshop page at `/ui-lab.html` in development:
+see [docs/ui.md](docs/ui.md).
 
-Run the game locally and open `http://127.0.0.1:5173/ui-lab.html` for the interactive component
-workshop (`?lang=en` for English). The workshop runs without a world or model service, and is not
-included in the production build. It includes inventory, journal, settings and trading examples,
-all control states, nested confirmations, keyboard navigation, and screen-edge context menus.
-
-The reusable DOM components live in `packages/runtime/src/ui/components/index.ts`. They receive
-content and callbacks; game state and worker messages stay with their callers:
-
-```ts
-import { button, createWindow, element } from '@openworld/runtime/src/ui/components/index.ts'
-
-const panel = createWindow({ title: '旅途日志', size: 'md' }, [
-  element('p', '', ['渡口的守船人正在等你。']),
-])
-panel.footer.append(button({ label: '继续旅程', tone: 'primary', onClick: () => panel.hide() }))
-panel.show()
-// Keep the handle for reuse; call panel.destroy() when its owner is disposed.
-```
-
-`mountWindow(surface, { onClose, view, size })` adapts an existing panel without replacing its
-business nodes, event handlers or data attributes. It builds fixed header/footer areas around a
-scrollable body, remembers focus and scrolling across renders of the same `view`, and integrates
-with the shared keyboard manager. Existing `PanelFactory`/`PanelContext` extensions remain valid;
-an optional `GamePanel.hide()` releases transient work when a panel closes through any path.
-Use `choiceTile({ label, artwork, selected, onClick })` for named item choices. Its separate
-art and label rows keep long names aligned; `pixelArtwork()` trims transparent preview padding
-and preserves sprite proportions in a 64×48 inset, without modifying the source used in the world.
-The building palette in `ui/building.css` arranges these choices into three, two or one column
-according to its available width and keeps its header outside the scrolling catalogue.
-Use `confirmDialog()` for nested choices and `trackFloating()` for anchored popups; dispose the
-tracking callback when its popup closes. `itemSlotHtml()` is the trusted-template adapter for
-frame-rendered item grids; pass names and attributes separately, never interpolate player input
-into its HTML content.
-
-The theme has one ownership chain: `tokens.css` (palette, font aliases and dimensions),
-`components.css` (shared chrome), and `layout.css` (game compositions and responsive behavior).
-The honey-coloured wood frame uses an original nine-slice SVG (`ui/assets/window-frame.svg`);
-shared icons use a 12×12 pixel grid instead of platform-dependent symbols. `creator.css` and
-`cover.css` compose these controls into the portrait dresser and the two-page new-game flow.
-Features, clothing and colours have separate tabs; moving between the traveller and journey
-pages keeps the chosen appearance, difficulty and save slot. Only starting an occupied slot
-asks for overwrite confirmation.
-The older content-specific styles are in the lower-priority `legacy` layer. New panels should use
-the shared components rather than adding another global override. Use 12px for compact metadata,
-24px for window headings, and 48px for the cover title. The journal uses 16px/26px prose,
-14px controls/section headings, and 12px metadata; `questlog.css` owns its reading layout.
-All sizes use the bundled Fusion Pixel font declared in `styles.css`, without a font CDN.
-The workshop renders the actual `QuestLog`, including long bilingual titles and objectives,
-progress counts, locations, and completed/failed states.
-
-Windows use 480/800/1120px maximum sizes, constrained by available space, with 24px outer margins
-or 8px on narrow/short screens. Inventory reflows below an 880px content width; list/detail and
-forms reflow below 720px. Keep item indices stable when columns change. Titles and window-level
-actions remain visible while content scrolls. Tab height is measured; maps and skill trees measure
-their own toolbars and preserve the point at the viewport centre during resize. Floating UI
-uses the visible viewport, including its offset when the on-screen keyboard appears.
+**Wiki.** The game's wiki is modelled on the Stardew Valley wiki: a page for every system, item, fixture, person,
+creature, boss, place and quest, generated in part from the game's own data. It is written in Chinese, with an
+English edition at `/wiki/en/`. The live site is <http://35.239.4.44:5175/wiki/>; how to edit:
+`wiki/pages/帮助/编辑入门.md`.
 
 ```bash
-npx playwright install chromium            # once, unless using an existing Chromium
-npm run test:ui                            # generates the world, then runs browser checks
+npm run wiki          # http://localhost:5180/wiki/
+npm run wiki:check    # links, templates, and completeness
+npm run wiki:build    # → games/openworld/wiki/out
 ```
 
-For an existing browser, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to its executable. The tests cover
-Chinese and English at 1920×1080, 1366×768, 1024×768, 800×600, 844×390, 390×844 and 360×640,
-continuous resize, font failure, nested dismissal/focus, and real game windows. The reduced
-683×384 viewport also checks the layout space available at 200% zoom on a 1366×768 desktop;
-it does not emulate a real browser zoom setting. Full phone gameplay controls are outside this UI change.
+**Assets.** The full [Ninja Adventure](https://pixel-boy.itch.io/ninja-adventure-asset-pack) pack goes in
+`assets/ninja-adventure/` (not committed); `npm run assets` copies the subset the game uses into
+`games/openworld/public/assets/na/`, which is committed, so the game builds without the pack.
 
-Visual references: [previous UI audit](docs/figures/ui-audit/bag.jpg),
-[character creation](docs/figures/ui-system/creator-desktop.jpg),
-[colour palettes](docs/figures/ui-system/creator-palette.jpg),
-[narrow character creation](docs/figures/ui-system/creator-narrow.jpg),
-[journey and saves](docs/figures/ui-system/journey-desktop.jpg),
-[current inventory](docs/figures/ui-system/inventory-desktop.jpg),
-[narrow inventory](docs/figures/ui-system/inventory-narrow.jpg),
-[narrow skill tree](docs/figures/ui-system/skills-narrow.jpg),
-[building choices](docs/figures/ui-system/building-palette-en.png),
-[the in-game journal](docs/figures/ui-system/quest-typography-live-en.png),
-and [narrow journal objectives](docs/figures/ui-system/quest-typography-mobile-zh.png).
+## Documentation
+
+| Area | Documents |
+| --- | --- |
+| Design | [design.md](docs/design.md) (event model, inputs, AI interface) · [world-model.md](docs/world-model.md) · [game-design.md](docs/game-design.md) · [engine-split.md](docs/engine-split.md) · [roadmap.md](docs/roadmap.md) |
+| World and story | [lore.md](docs/lore.md) · [release-1.md](docs/release-1.md) · [prologue.md](docs/prologue.md) · [chapter-1.md](docs/chapter-1.md) · [main-quest.md](docs/main-quest.md) · [continent.md](docs/continent.md) · [showcase.md](docs/showcase.md) · [firstlight-village.md](docs/firstlight-village.md) · [writing.md](docs/writing.md) |
+| Game systems | [quests.md](docs/quests.md) · [npc-sandbox.md](docs/npc-sandbox.md) · [homestead.md](docs/homestead.md) · [construction.md](docs/construction.md) · [building.md](docs/building.md) · [gear.md](docs/gear.md) · [skills.md](docs/skills.md) · [skill-tree.md](docs/skill-tree.md) · [creatures.md](docs/creatures.md) · [bosses.md](docs/bosses.md) · [boss-rooms.md](docs/boss-rooms.md) · [music.md](docs/music.md) |
+| Art and interface | [ui.md](docs/ui.md) · [looks.md](docs/looks.md) · [character-art.md](docs/character-art.md) · [cast/](docs/cast/) · [crop-art.md](docs/crop-art.md) · [alberic-art.md](docs/alberic-art.md) |
+| AI and research | [ai.md](docs/ai.md) · [byok.md](docs/byok.md) · [rsi.md](docs/rsi.md) · [rsi-experiments.md](docs/rsi-experiments.md) · [paper-eval.md](docs/paper-eval.md) · [upstream.md](docs/upstream.md) · [fresh-pool.md](docs/fresh-pool.md) |
+
+## Contributing
+
+- Work on a branch and open a pull request to `main`. CI runs `npm run check`, and a typecheck, test and build of
+  the game without `packages/ai`.
+- New behaviour is a rule (data) in `games/openworld/content`, not engine code. A new primitive, condition or event
+  kind is an engine change, and is added to the ModSpec documentation.
+- Anything added to the demo's maps must witness a requirement in `games/openworld/tools/test/demo.test.ts`.
+- Content that adds a thing or a system needs its wiki page (`npm run wiki:check` fails otherwise).
+- New interface panels use the shared components in `packages/runtime/src/ui/components/` ([docs/ui.md](docs/ui.md)).
+- Code, comments and documents are written in English.
+
+[CLAUDE.md](CLAUDE.md) holds the full working agreements and architecture notes.
+
+## Credits and license
+
+- Art and audio: [Ninja Adventure](https://pixel-boy.itch.io/ninja-adventure-asset-pack) by Pixel-boy and AAA (CC0),
+  and the project's own art in `games/openworld/public/assets/lsw/`.
+- Font: Fusion Pixel, under the SIL Open Font License, with its component fonts' licenses in
+  `packages/runtime/src/fonts/`.
+
+License: to be decided.
