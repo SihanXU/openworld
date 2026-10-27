@@ -23,6 +23,21 @@ function crate(x: number, y: number, z: number, w = 10, d = 9, h = 9): Solid[] {
   return [box(x, y, z, x + w, y + d, z + h, 'timber'), box(x - 0.3, y + d - 1, z + h / 2 - 0.5, x + w + 0.3, y + d + 0.3, z + h / 2 + 0.5, 'earth')]
 }
 
+/** A split log lying north–south, r about (x, z), from y0 to y1: bark along it, its cut end (to the south) pale with a ring. */
+function log(x: number, z: number, r: number, y0: number, y1: number, seed: number): Solid {
+  const ring = r * 0.55 + hash(seed, 2) * 0.3
+  return {
+    b: [x - r, y0, z - r, x + r, y1, z + r],
+    mat: 'darkwood',
+    inside: (px, py, pz) => py >= y0 && py <= y1 && Math.hypot(px - x, pz - z) <= r,
+    paint: (px, py, pz) => {
+      if (py < y1 - 0.6) return undefined
+      const d = Math.hypot(px - x, pz - z)
+      return d > r - 0.8 ? undefined : d < 0.8 || Math.abs(d - ring) < 0.35 ? 'endRing' : 'endGrain'
+    },
+  }
+}
+
 /** A sack, slumped. */
 function sack(x: number, y: number, z: number, seed: number): Solid[] {
   const r = 3.4 + hash(seed, 1)
@@ -43,9 +58,14 @@ function standing(): Record<string, () => Model> {
   out.decor_amphorae = () =>
     one('decor_amphorae', [3, 8, 13].flatMap((x, k) => [drum(x, 6 + k * 2, 2, 0, 3, 'tile'), drum(x, 6 + k * 2, 3.6, 3, 10, 'tile'), drum(x, 6 + k * 2, 2.6, 10, 13, 'tile'), drum(x, 6 + k * 2, 1.4, 13, 17, 'tile'), drum(x, 6 + k * 2, 2, 17, 18, 'tile')]))
   out.decor_firewood = () => {
-    const solids: Solid[] = [box(1, 3, 0, 2 * S - 1, 4, 22, 'timber')]
-    for (let z = 0; z < 20; z += 4) for (let x = 3; x < 2 * S - 3; x += 4) solids.push(drum(x, 9, 2, z, z + 4, 'timber'))
-    solids.push(box(0, 2, 22, 2 * S, 13, 24, 'timber'))
+    // split logs stacked between two stakes, their cut ends to the street, each row laid in the gaps of the one below
+    const W = 2 * S
+    const r = (W - 7) / 8
+    const solids: Solid[] = [box(2, 7, 0, 3.5, 8.5, 19, 'darkwood'), box(W - 3.5, 7, 0, W - 2, 8.5, 19, 'darkwood')]
+    for (let row = 0; row < 3; row++) {
+      const z = r + row * (2 * r - 0.6)
+      for (let k = 0; k < (row % 2 ? 3 : 4); k++) solids.push(log(3.5 + r * (2 * k + 1 + (row % 2)), z, r, 3, 11.5, row * 7 + k))
+    }
     return one('decor_firewood', solids, [], ['##'])
   }
   out.decor_flowerstand = () => {
