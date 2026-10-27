@@ -240,3 +240,34 @@ describe('the way down the mountain dressed in its ruins (2026-10-27)', () => {
     expect(w.fact(PROLOGUE_LAYOUT)).toBe(true)
   })
 })
+
+describe('the hand-made maps walked to', () => {
+  // (Firstlight redrawn put the watch house against the drill yard's gate: Bram, who sets one on a profession, stood
+  // behind a fence no one could get past)
+  it('every place named on a map (where its people stand, where their days lead) can be walked to from a way in', () => {
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    const w = game.engine.world
+    const shut: string[] = []
+    for (const raw of chunks) {
+      const c = decodeChunk(raw)
+      game.loadChunk(c)
+      const map = c.map
+      // from every way onto the map (its portals' cells), over the cells one can stand on
+      const seen = new Set<string>()
+      const todo: [number, number][] = map.portals.map((p) => [p.x, p.y])
+      if (!todo.length) continue
+      while (todo.length) {
+        const [x, y] = todo.pop()!
+        const k = `${x},${y}`
+        if (seen.has(k) || x < 0 || y < 0 || x >= map.width || y >= map.height) continue
+        seen.add(k)
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (w.walkable(map.id, x + dx, y + dy)) todo.push([x + dx, y + dy])
+      }
+      // (an anchor on a thing one stands at, a bed or a stall: one of its four sides is enough)
+      const reached = (x: number, y: number) => [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen.has(`${x + dx},${y + dy}`))
+      for (const [name, [x, y]] of Object.entries(map.anchors ?? {})) if (!reached(x, y)) shut.push(`${map.id} ${name} ${x},${y}`)
+    }
+    expect(shut).toEqual([])
+  })
+})
