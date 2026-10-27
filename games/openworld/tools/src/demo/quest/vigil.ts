@@ -7,7 +7,8 @@
 import type { AiData } from '@openworld/engine'
 import { MapBuilder } from '../builder.ts'
 import { L, GROUND_YIELD, appears } from '../kit.ts'
-import { house } from '../village.ts'
+import { flHouse, house } from '../village.ts'
+import { wildFloor } from '../wildfloor.ts'
 
 /** Edge openings: Firstlight's new west gap (rows) and north gap (columns), and where they meet the new maps. */
 export const VIGIL = {
@@ -23,15 +24,15 @@ export const VIGIL = {
   statue: [22, 17] as const,
 } as const
 
-/** The Chapel of the First Dawn on Dawn Hill's crown (its door the middle of its bottom row). */
+/** The Chapel of the First Dawn on Dawn Hill's crown (five cells by three, its door the second of its bottom row). */
 const CHAPEL_AT = [19, 2] as const
 
 const HUNT = (sight = 5): Omit<AiData, 'home'> => ({ behaviour: 'melee', temper: 'aggressive', sight, leash: 6 })
 
 // =================================================================== Millbrook
 
-/** Millbrook's mill: the building (its door the second column of its bottom row) and its wheel in the race against its west wall. */
-export const MILL = { house: [15, 11] as const, wheel: [12, 12] as const, field: [22, 4, 12, 9] as const }
+/** Millbrook's mill: the building (five cells by four, its door the second column of its bottom row) and its wheel in the race against its west wall. */
+export const MILL = { house: [15, 12] as const, wheel: [12, 12] as const, field: [22, 4, 12, 9] as const }
 
 /**
  * Millbrook, drawn by hand (release 1, docs/release-1.md): its ground `maps/mill.txt`. The brook comes down from the
@@ -52,7 +53,7 @@ export function buildMillbrook(): MapBuilder {
   const water = (t: string) => t === 'water' || t === 'deepwater'
   const road = (t: string) => t === 'path' || t === 'dirt'
   // the mill on its race, the wheel against its west wall; the weir's stones across the pond's outlet
-  m.house('inn', ...MILL.house, 'mill')
+  m.building('mb_mill', ...MILL.house, ['mill'])
   m.scenery('waterwheel', ...MILL.wheel)
   for (const x of [4, 5, 6]) m.fixture('fixture/nature/boulder', x, 9, { name: L('A stone of the weir', '堰石') })
   // Tam minds the wheel from the race's bank below it; sleeps in his room in the mill (buildMillHouse)
@@ -61,6 +62,9 @@ export function buildMillbrook(): MapBuilder {
   for (const [x, y] of [[18, 16], [19, 16]] as const) m.fixture('fixture/container/sack', x, y, { name: L('Grain sack', '麦袋') }, ['item/material/wheat'])
   m.fixture('fixture/container/barrel', 17, 16)
   m.fixture('fixture/furniture/cart', 23, 16, { props: { owner: 'npc.tam' } })
+  // the flour waiting by the wall for the cart, the empties stacked
+  m.building('decor_sacks', 20, 17)
+  m.building('decor_casks', 14, 17)
   // the field behind its rail, the gate on the lane; ripe wheat at its north end, young further down, the last rows bare
   const [fx, fy, fw, fh] = MILL.field
   m.yard(fx, fy, fw, fh, 'rail', [[fx, fy + 4]])
@@ -81,12 +85,10 @@ export function buildMillbrook(): MapBuilder {
   m.sprinkle('fixture/nature/flowers', 0.12, (x, y, t) => grass(t) && m.near(x, y, road, 1) && !m.near(x, y, tree, 2))
   m.sprinkle('fixture/nature/tuft', 0.06, (x, y, t) => grass(t) && !m.near(x, y, tree, 1) && !m.near(x, y, road, 1) && !m.near(x, y, water, 1))
   m.sprinkle('fixture/nature/leaves', 0.16, (x, y, t) => grass(t) && m.near(x, y, tree))
+  wildFloor(m, 0.8, (x, y) => x >= 13 && x <= 24 && y >= 10 && y <= 19)
   m.appear = GROUND_YIELD
   return m
 }
-
-/** The stair down to the cellar, in the mill floor's north-east corner. */
-const MILL_STAIR = [8, 1] as const
 const hearthOf = (m: MapBuilder, x: number, y: number) => m.fixture('fixture/light/fireplace', x, y, { statuses: { lit: -1 } })
 
 /**
@@ -94,27 +96,35 @@ const hearthOf = (m: MapBuilder, x: number, y: number) => m.fixture('fixture/lig
  * flour, the long table where it is bagged, the stair down to the cellar — and, through the side, Tam's own room.
  */
 export function buildMillHouse(): MapBuilder {
-  const m = house('millhouse', 'The Mill', '磨坊', 16, 10, 'wood', [[0, 0, 10, 10], [10, 2, 6, 6]], [[9, 4], [10, 4]], [4, 9])
-  m.zone = 'peaceful'
-  // the mill floor
-  m.scenery('millstones', 2, 2)
-  m.set(...MILL_STAIR, 'stairs_down')
-  m.doors.cellar = [...MILL_STAIR]
-  for (const [x, y] of [[1, 5], [1, 6], [2, 6]] as const) m.fixture('fixture/container/sack', x, y, { name: L('Flour sack', '面粉袋') })
-  m.fixture('fixture/container/sack', 4, 2, { name: L('Grain sack', '麦袋') }, ['item/material/wheat', 'item/material/wheat'])
-  m.fixture('fixture/furniture/table/long', 6, 6)
-  m.fixture('fixture/container/barrel', 8, 6)
-  m.fixture('fixture/container/crate', 8, 7)
-  m.fixture('fixture/light/candles', 6, 2, { statuses: { lit: -1 } })
-  m.fixture('fixture/craft/workbench', 2, 8, { name: L("The millwright's bench", '磨坊木工台') })
+  // (a hall of its plan, plans.ts mbmill: the mill floor, and Tam's room through the arch beside it)
+  const { m, P } = flHouse('mbmill', 'millhouse', 'The Mill', '磨坊', 'floor_wood', ['floor', 'room'])
+  // the mill floor: the millstones under their hopper, the stair down to the cellar in its north-east corner
+  const F = P.floor
+  m.scenery('millstones', F.x + 1, F.y + 1)
+  const stair = [F.x + F.w - 1, F.y] as [number, number]
+  m.set(...stair, 'stairs_down')
+  m.doors.cellar = stair
+  for (const [x, y] of [[F.x, F.y + 5], [F.x, F.y + 6], [F.x + 1, F.y + 6]] as const) m.fixture('fixture/container/sack', x, y, { name: L('Flour sack', '面粉袋') })
+  m.fixture('fixture/container/sack', F.x + 3, F.y + 1, { name: L('Grain sack', '麦袋') }, ['item/material/wheat', 'item/material/wheat'])
+  // the long table the flour is bagged at (three cells wide), its barrel and crate
+  m.fixture('fixture/furniture/table/long', F.x + 7, F.y + 5)
+  m.fixture('fixture/container/barrel', F.x + 10, F.y + 5)
+  m.fixture('fixture/container/crate', F.x + 10, F.y + 6)
+  m.fixture('fixture/light/candles', F.x + 6, F.y, { statuses: { lit: -1 } })
+  m.fixture('fixture/craft/workbench', F.x + 1, F.y + 8, { name: L("The millwright's bench", '磨坊木工台') })
+  m.building('decor_sacks', F.x + 4, F.y)
+  m.building('decor_sacks', F.x + 12, F.y + 8)
+  m.building('decor_hay', F.x + 9, F.y + 8)
   // Tam's room: his bed by the hearth, a table, his chest
-  hearthOf(m, 12, 3)
-  m.fixture('fixture/furniture/bed', 14, 4)
-  m.anchor('bed', 13, 4)
-  m.fixture('fixture/furniture/table', 12, 5)
-  m.fixture('fixture/furniture/chair', 11, 5)
-  m.fixture('fixture/nature/plant', 13, 6)
-  m.fixture('fixture/container/chest', 14, 6)
+  const T = P.room
+  hearthOf(m, T.x + 1, T.y)
+  m.fixture('fixture/furniture/bed', T.x + 5, T.y + 1)
+  m.anchor('bed', T.x + 4, T.y + 1)
+  m.rect(T.x + 1, T.y + 3, 3, 2, 'carpet')
+  m.fixture('fixture/furniture/table', T.x + 2, T.y + 3)
+  m.fixture('fixture/furniture/chair', T.x + 1, T.y + 3)
+  m.fixture('fixture/nature/plant', T.x, T.y + 6)
+  m.fixture('fixture/container/chest', T.x + 5, T.y + 6)
   return m
 }
 
@@ -169,7 +179,7 @@ export function buildDawnHill(): MapBuilder {
   const tree = (t: string) => t === 'tree' || t === 'pine'
   const road = (t: string) => t === 'path' || t === 'dirt' || t === 'cobble'
   // the chapel on the crown, its forecourt before it; the churchyard of its old keepers west of it, its wall fallen in places
-  m.house('temple', ...CHAPEL_AT, 'chapel')
+  m.building('dh_chapel', ...CHAPEL_AT, ['chapel'])
   m.yard(13, 1, 5, 5, 'stonewall', [[17, 3], [13, 2], [15, 5], [16, 5]])
   for (const [x, y] of [[14, 3], [16, 3], [15, 2]] as const) m.fixture('fixture/sacred/gravestone', x, y, { name: L('A keeper of the chapel', '礼拜堂的守护人'), props: { text: 'The name is worn away. Under it, a small sun, rising.', text_zh: '名字已经磨平了。下面刻着一个小小的、正在升起的太阳。' } })
   // the stone where the first dawn was seen, on the crown's east brow, and dawnbloom on the east-facing slope below it
@@ -193,6 +203,7 @@ export function buildDawnHill(): MapBuilder {
   m.sprinkle('fixture/nature/tuft', 0.08, (x, y, t) => grass(t) && !east(x) && !m.near(x, y, tree, 1) && !m.near(x, y, road, 1))
   m.sprinkle('fixture/nature/pebbles', 0.3, (x, y, t) => grass(t) && m.face(x, y - 1))
   m.sprinkle('fixture/nature/leaves', 0.16, (x, y, t) => grass(t) && m.near(x, y, tree))
+  wildFloor(m, 1, (x, y) => x >= 12 && x <= 30 && y <= 7)
   m.appear = [...GROUND_YIELD, appears('item/material/herb', ['flowers', 'grass'], 3, 1200)]
   return m
 }

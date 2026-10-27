@@ -573,6 +573,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/tent', 'tent', '帐篷', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3] }),
   // a tent left to rot, drawn torn (the forest's pilgrims' camp: docs/release-1.md)
   F('fixture/tent/torn', 'torn tent', '破帐篷', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3], sprite: 'fixture:tent_torn' }),
+  // the knight's own pavilion in the Held Ground, white and red, its pennant up (docs/release-1.md §7)
+  F('fixture/tent/pavilion', 'pavilion', '骑士营帐', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3], sprite: 'fixture:pavilion' }),
   F('fixture/sign/noticeboard', 'notice board', '布告栏', ['paper']),
   // the village's board of favours (docs/quests.md §3): what people want done, to take on
   F('fixture/sign/questboard', 'commission board', '委托板', ['paper']),

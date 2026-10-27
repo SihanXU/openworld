@@ -62,10 +62,10 @@ export interface LookPartInfo extends LookPartDef {
   gen?: { worn?: boolean }
 }
 
-/** A button of the dev console's World tab: a place to go, or a boss to set down there. */
+/** A button of the dev console's World tab: a place to go, a boss to set down there, or a fact of the story set. */
 export interface DevShortcut {
   label: string
-  debug: { op: 'teleport'; map: string; x: number; y: number } | { op: 'summon'; kit: string; map: string; x: number; y: number; from: [number, number] }
+  debug: { op: 'teleport'; map: string; x: number; y: number } | { op: 'summon'; kit: string; map: string; x: number; y: number; from: [number, number] } | { op: 'fact'; key: string; value: number }
 }
 
 /** What the title screen shows of the game. */

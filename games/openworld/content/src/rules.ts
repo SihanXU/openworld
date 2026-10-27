@@ -12,7 +12,6 @@ import { ELITE_RULES, KIT_RULES, WEB_RULES } from './kits.ts'
 import { DROP_RULES } from './drops.ts'
 import { AFFLICTION_RULES } from './afflictions.ts'
 import { BOSS_KIT_RULES } from './bosses.ts'
-import { CH1 } from './chapter1.ts'
 import { PART_TWO, UNTOLD } from './regions.ts'
 import { TUTORIAL_OPEN } from './prologue.ts'
 import { VILLAGE_SHOP_RULES } from './village.ts'
@@ -1852,22 +1851,17 @@ interface Gate {
 
 /**
  * The ways the story opens on the world map: a place whose `opensWhen` is the fact is sealed until the story
- * sets it (as a portal's `opensWhen`), and says why. East of the Ford: Part Two's (release 1 ends at the river);
- * beyond the White Knight on the East Road: Emberfall and all east of it.
+ * sets it (as a portal's `opensWhen`), and says why. Past the White Knight on the East Road: Emberfall and all east of
+ * it, Part Two's (release 1 ends with the Crown home).
  */
 export const SITE_GATES: Gate[] = [
-  // release 1 is Part One (regions.ts PART_TWO): the road east of the Ford and all beyond it, until the story's second part
+  // release 1 is Part One (regions.ts PART_TWO): the road on east from the knight's field and all beyond it, until the
+  // story's second part
   {
     fact: PART_TWO,
-    say: L('The road east of the Ford is not open yet: its tale is told in Part Two.', '渡口以东的路还没有开放：那里的故事在第二部。'),
-    remark: L("That way lies east of the Ford, and the road there isn't open yet. Let's come back and explore it another time!", '那边就是渡口以东了，路还没通呢。以后再来探索吧！'),
-    again: L('East of the Ford — another time.', '渡口以东，以后再去吧。'),
-  },
-  {
-    fact: CH1.knight,
-    say: L('The White Knight still holds the East Road. There is no way past him yet.', '白骑士还守在东大路上，暂时过不去。'),
-    remark: L("The White Knight still holds the East Road. We can't get past him yet — let's come back when we can.", '白骑士还守在东大路上，现在还过不去。等有办法了再来吧。'),
-    again: L('Not past the knight yet.', '还过不了白骑士那一关。'),
+    say: L('The road on east to Emberfall is not open yet: its tale is told in Part Two.', '往东去余烬镇的路还没有开放：那里的故事在第二部。'),
+    remark: L("The road goes on east to Emberfall, but it isn't open yet. Let's come back and explore it another time!", '路一直往东通到余烬镇，可现在还没通呢。以后再来探索吧！'),
+    again: L('Emberfall — another time.', '余烬镇，以后再去吧。'),
   },
   // a place whose tale is not told yet (regions.ts UNTOLD): a Seal-bearer's seat beyond the first, the Most Holy Hall
   {

@@ -12,7 +12,12 @@ import {
   COIN,
   COMPANION_LAYOUT,
   COMPANION_NAME,
+  FIRSTLIGHT,
+  FIRSTLIGHT_HOUSES,
+  PART_ONE_LAYOUT,
+  PART_ONE_MAPS,
   FIRSTLIGHT_LAYOUT,
+  FIRSTLIGHT_ROOMS,
   FORM_BY_ID,
   GAME,
   LOOK_BODIES,
@@ -35,6 +40,8 @@ import {
   describeLook,
   generateLook,
   migrateBosses,
+  migrateFirstlightHouses,
+  migratePartOneMaps,
   migrateCompanion,
   migrateCompanionName,
   migrateOverworld,
@@ -42,6 +49,8 @@ import {
   migrateSmithy,
   migrateHaven,
   migrateHavenHeart,
+  migratePartTwo,
+  PART_TWO,
   migrateStats,
   STATS_LAYOUT,
   migrateGear,
@@ -119,6 +128,16 @@ export const CLIENT_GAME: ClientGame = {
       const [ford, village] = await Promise.all(['ford', 'meadow'].map(chunk))
       game.engine.author(() => migrateFirstlight(game, index, ford, village))
     }
+    // the village's houses redrawn: what stood where a wall now stands steps off it (only the maps a save has been to)
+    if (!w.fact(FIRSTLIGHT_HOUSES)) {
+      const maps = await Promise.all([FIRSTLIGHT.map, ...FIRSTLIGHT_ROOMS].filter((id) => w.state.loadedMaps.includes(id)).map(chunk))
+      game.engine.author(() => migrateFirstlightHouses(game, maps))
+    }
+    // the Pilgrim's Road and the Held Ground redrawn: the same, for the maps of them a save has been to
+    if (!w.fact(PART_ONE_LAYOUT)) {
+      const maps = await Promise.all(PART_ONE_MAPS.filter((id) => w.state.loadedMaps.includes(id)).map(chunk))
+      game.engine.author(() => migratePartOneMaps(game, maps))
+    }
     // the removed boss kits' bodies go
     if (!w.fact(BOSS_LAYOUT)) game.engine.author(() => migrateBosses(game))
     // the bird became a fairy
@@ -141,6 +160,8 @@ export const CLIENT_GAME: ClientGame = {
     if (!w.fact(HAVEN_LAYOUT)) game.engine.author(() => migrateHaven(game))
     // its heart is the planted sword, not an altar
     game.engine.author(() => migrateHavenHeart(game))
+    // Part One ends with the Crown home: a Dragon Road begun before Part Two was sealed waits for it again
+    game.engine.author(() => migratePartTwo(game))
     // the plots at the Held Ground's heart (its buildings, the residents' tents) and Cass's loom on Firstlight's square
     // (only for maps a save has been to: the others come as built)
     if (!w.fact(PLOTS_LAYOUT)) {
@@ -164,7 +185,7 @@ export const CLIENT_GAME: ClientGame = {
   },
   fresh(game) {
     const w = game.engine.world
-    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(PLOTS_LAYOUT, true), w.setFact(STOCK_LAYOUT, true), w.setFact(STATS_LAYOUT, true), w.setFact(GEAR_LAYOUT, true), w.setFact(VOWS_LAYOUT, true)))
+    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(FIRSTLIGHT_HOUSES, true), w.setFact(PART_ONE_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(PLOTS_LAYOUT, true), w.setFact(STOCK_LAYOUT, true), w.setFact(STATS_LAYOUT, true), w.setFact(GEAR_LAYOUT, true), w.setFact(VOWS_LAYOUT, true)))
   },
   summon(kit, at, id) {
     const body = createBoss(kit, at, id)
@@ -176,6 +197,8 @@ export const CLIENT_GAME: ClientGame = {
     shortcuts: [
       { label: 'Emberfall, by the lit forge', debug: { op: 'teleport', map: 'emberfall', x: 31, y: 8 } },
       { label: '召唤白骑士 · Summon the White Knight (East Road)', debug: { op: 'summon', kit: 'alberic', map: 'eastroad', x: 40, y: 15, from: [30, 12] } },
+      // release 1 ends with the Crown home (docs/release-1.md): the road on east to Emberfall, and all beyond it
+      { label: '开启第二部 · Open Part Two', debug: { op: 'fact', key: PART_TWO, value: 1 } },
     ],
   },
   items: { forms: FORM_BY_ID, materials: MATERIALS, relics: RELICS, vows: VOWS, coin: COIN },

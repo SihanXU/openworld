@@ -220,6 +220,21 @@ export const MATERIALS: Record<string, (s: Surface) => string> = {
   sandstoneRough: (s) => step('rd', tone(s) + (hash(Math.floor(s.x / 7), Math.floor(s.z / 5), 73) < 0.3 ? 1 : 0) + (Math.floor(s.z / 9) % 3 === 0 ? 0.6 : 0)),
   plasterRed: plain('rd', -1),
   darkwood: (s) => step('dw', tone(s) + (((s.cls === 'south' ? s.x : s.y) % 5 + 5) % 5 < 1 ? 1 : 0)),
+  // timber the fire has been through: black, split along the grain, grey ash on what faces up, an ember's glow in a crack
+  // thatch the fire went through: black where it caught, the old straw's brown showing in patches
+  thatchBurnt: (s) => {
+    const k = hash(Math.floor(s.x / 2), Math.floor((s.y + s.z) / 2), 94)
+    return k < 0.72 ? step('n', tone(s) + 1) : step('h', tone(s) + (k < 0.86 ? 3 : 2))
+  },
+  charred: (s) => {
+    const u = s.cls === 'south' ? s.x : s.y
+    if (s.cls === 'top') return hash(Math.floor(s.x / 2), Math.floor(s.y / 2), 91) < 0.1 ? 'g4' : 'n2'
+    // narrow planks split along the grain, a few still brown where the fire did not take, an ember deep in a split
+    const plank = Math.floor(u / 3)
+    const split = ((u % 3) + 3) % 3 === 0
+    if (split && hash(plank, Math.floor(s.z / 4), 92) < 0.05) return 'E2'
+    return step(hash(plank, Math.floor(s.z / 16), 93) < 0.22 ? 'dw' : 'n', tone(s) + (split ? 1 : 0))
+  },
   salt: plain('sl', 0),
   whiteStone: ashlar('pw', 7, 16),
   // the north's caves: rock glazed with ice, blue in its hollows; crystal growing out of it, lit from within

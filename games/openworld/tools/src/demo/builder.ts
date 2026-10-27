@@ -631,6 +631,48 @@ export class MapBuilder {
     for (const l of this.lights) l.y += rows
   }
 
+  /**
+   * The ids the map's things had before it was redrawn, given back (a save keeps a map as what differs from its file,
+   * by id: a thing taken, a creature felled, a chest emptied). Each thing whose id is the map's own is matched to a
+   * thing of the same type and name the map had, in the order they were made, and takes its id; the rest take ids none
+   * of those spelled, so nothing new answers to what a save says of something old.
+   */
+  keepIds(before: readonly (readonly [id: string, type: string, name: string])[] | undefined): void {
+    if (!before?.length) return
+    const nameOf = (e: Entity) => (typeof e.name === 'string' ? e.name : (e.name as { en?: string } | undefined)?.en ?? '')
+    const queue = new Map<string, string[]>()
+    for (const [id, type, name] of before) queue.set(`${type}|${name}`, [...(queue.get(`${type}|${name}`) ?? []), id])
+    const old = new Set(before.map(([id]) => id))
+    const own = (e: Entity) => e.id.startsWith(`${this.id}~`)
+    const renamed = new Map<string, string>()
+    for (const e of this.entities) {
+      const id = own(e) ? queue.get(`${e.type}|${nameOf(e)}`)?.shift() : undefined
+      if (id) renamed.set(e.id, id)
+    }
+    // a thing made a kind of what it was (Alberic's tent, now a pavilion) keeps its id too, by its name
+    for (const e of this.entities) {
+      if (!own(e) || renamed.has(e.id)) continue
+      const at = [...queue].find(([k, ids]) => ids.length && k.endsWith(`|${nameOf(e)}`) && nameOf(e) && e.type.startsWith(`${k.slice(0, k.indexOf('|'))}/`))
+      const id = at?.[1].shift()
+      if (id) renamed.set(e.id, id)
+    }
+    for (const id of renamed.values()) this.given.add(id)
+    for (const e of this.entities) {
+      if (!own(e) || renamed.has(e.id) || !old.has(e.id)) continue
+      const prefix = e.type.startsWith('item/') ? 'i' : e.type.startsWith('actor/creature/') ? 'c' : ''
+      let id: string
+      do id = this.newId(prefix)
+      while (old.has(id))
+      renamed.set(e.id, id)
+    }
+    for (const e of this.entities) {
+      const id = renamed.get(e.id)
+      if (id) e.id = id
+      const p = e.place
+      if ((p.on === 'inside' || p.on === 'hand') && renamed.has(p.holder)) e.place = { ...p, holder: renamed.get(p.holder)! }
+    }
+  }
+
   chunk(): RawChunk {
     this.clearVolumes()
     this.joinFences()

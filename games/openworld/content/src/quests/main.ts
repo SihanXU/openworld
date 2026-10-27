@@ -9,6 +9,7 @@ import { TUTORIAL_LESSONS, TUTORIAL_DONE } from '../prologue.ts'
 import { ALBERIC_ID, CH1 } from '../chapter1.ts'
 import { ASKS, BLADE, DRAGON } from '../quest.ts'
 import { ABBOT_ID, PILGRIMAGE, SWORN_SCALLOP, WAYSHRINES, shrineFact } from '../pilgrimage.ts'
+import { PART_TWO } from '../regions.ts'
 
 /** The White Knight is down: what comes before him is behind you. */
 export const PAST_KNIGHT: QuestTrigger = { fact: { [CH1.knight]: { ne: 0 } } }
@@ -238,7 +239,8 @@ const dragonRoad: QuestDef = {
     { n: 50, on: { step: 'lair_gate' }, done: ['pass'], show: ['dragon'], hint: L('Defeat the dragon. Space strikes; keep out of its line of fire, and mind its whelps.', '打倒魔龙。空格键攻击；别站在它喷火的直线上，小心它的幼龙。'), log: L('Heat, and the smell of scorched stone. Something vast breathes in the dark.', '一股热浪，还有烧焦石头的气味。有个庞然大物在黑暗里呼吸。') },
     { n: 100, on: { fact: { 'mq.dragon': 1 } }, done: ['road', 'mara', 'pass', 'dragon'], complete: true, reward: { xp: 100, regard: { mara: 20, smith: 15, herbalist: 15 }, karma: 10 }, hint: L('The dragon is dead. Emberfall can sleep. What you taught the world is in the Threadbook ({key:journal}).', '魔龙死了，余烬镇可以安睡了。你教会这个世界的事都记在织线簿里（{key:journal}）。'), log: L('The dragon is dead, and Emberfall can sleep.', '魔龙死了，余烬镇可以安睡了。') },
   ],
-  start: { auto: { done: 'crown_home' } },
+  // Part Two's (release 1 ends with the Crown home: docs/release-1.md), begun once it opens
+  start: { auto: { all: [{ done: 'crown_home' }, { fact: { [PART_TWO]: 1 } }] } },
 }
 void BLADE
 

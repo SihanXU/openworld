@@ -158,7 +158,7 @@ export const STRINGS: Record<string, [string, string]> = {
   cvConfirmOverwrite: ['Slot {n} already holds a game. Replace it?', '存档 {n} 已经有进度了，要覆盖吗？'],
   cvConfirmDelete: ['Delete slot {n}? This cannot be undone (unless you exported it).', '删除存档 {n}？删除后无法恢复（除非你导出过）。'],
   cvBadFile: ['That file is not an OpenWorld save.', '这个文件不是 OpenWorld 的存档。'],
-  cvIncompatible: ['That save is from another version of the world: a new game began in its slot.', '这个存档来自另一个版本的世界，已在该存档位开始新游戏。'],
+  cvIncompatible: ['That save is from another version of the world. It was kept: export it, or start a new game in another slot.', '这个存档来自另一个版本的世界。它已被保留：可以导出它，或在别的存档位开始新游戏。'],
   cvNote: ['Saves live in this browser (it autosaves as you play). Export one to keep it as a file, or to carry it to another browser.', '存档保存在这个浏览器里（游戏中会自动保存）。导出可以存成文件，或带到别的浏览器。'],
   skillNoProfession: ['No profession yet: a trainer sets you on one once you are ready.', '还没有职业：时候到了，会有导师为你指点。'],
   boonTitle: ['The Companion\'s Powers', '同伴的力量'],

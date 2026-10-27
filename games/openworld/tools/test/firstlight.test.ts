@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { Game, RuleLibrary, tickAt, type Entity } from '@openworld/engine'
-import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_LAYOUT, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight } from '@openworld-game/content'
+import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_HOUSES, FIRSTLIGHT_LAYOUT, FIRSTLIGHT_ROOMS, PART_ONE_LAYOUT, PART_ONE_MAPS, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight, migrateFirstlightHouses, migratePartOneMaps } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 import { CANOPIES, reachingPlots } from '../src/demo/garden.ts'
 
@@ -140,5 +141,77 @@ describe('Firstlight Village garden', () => {
     const village = decodeChunk(chunks.find((c) => c.map.id === FIRSTLIGHT.map)!)
     const at = (x: number, y: number) => village.map.terrain[y * village.map.width + x]
     expect(reachingPlots().map(([x, y]) => at(x, y)).filter((t) => CANOPIES.has(t))).toEqual([])
+  })
+})
+
+describe("Firstlight's houses redrawn (2026-10-26)", () => {
+  it('moves what an older save left where a wall now stands, in the village and in its houses, and keeps it whole', () => {
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    const w = game.engine.world
+    const maps = [FIRSTLIGHT.map, ...FIRSTLIGHT_ROOMS].map((id) => decodeChunk(chunks.find((c) => c.map.id === id)!))
+    for (const c of maps) game.loadChunk(c)
+    // a wall of the village and the dark outside a house's rooms, as an older save might have left things there
+    const wallAt = (map: string) => {
+      const m = w.map(map)!
+      for (let y = 0; y < m.height; y++) for (let x = 0; x < m.width; x++) if (w.isSolidTerrain(w.terrainAt(map, x, y)) && [[0, 1], [1, 0], [0, -1], [-1, 0]].some(([dx, dy]) => w.walkable(map, x + dx, y + dy))) return { x, y }
+      throw new Error(`no wall on ${map}`)
+    }
+    const out = wallAt(FIRSTLIGHT.map)
+    const inn = wallAt('meadow.cook')
+    w.author(() => {
+      w.place(w.player, { on: 'tile', map: FIRSTLIGHT.map, ...out })
+      w.add({ id: 'old.stone', type: 'item/material/stone', place: { on: 'tile', map: 'meadow.cook', ...inn } })
+      w.setFact(FIRSTLIGHT_HOUSES, false)
+    })
+    Object.assign(w.player.props!, { xp: 42 })
+    game.engine.author(() => migrateFirstlightHouses(game, maps))
+    for (const id of [w.player.id, 'old.stone']) {
+      const p = w.get(id)!.place as { map: string; x: number; y: number }
+      expect([id, w.isSolidTerrain(w.terrainAt(p.map, p.x, p.y))]).toEqual([id, false])
+    }
+    expect(w.player.props?.xp).toBe(42)
+    expect(w.fact(FIRSTLIGHT_HOUSES)).toBe(true)
+  })
+})
+
+describe("the Pilgrim's Road and the Held Ground redrawn (2026-10-27)", () => {
+  it('keeps the ids their things had (a save keeps a map by id: the writ, the Ninth Nail, a wolf felled)', () => {
+    const kept = JSON.parse(readFileSync(new URL('../src/demo/quest/kept-ids.json', import.meta.url), 'utf8')) as Record<string, [string, string, string][]>
+    const now = new Map(buildFord().chunks.flatMap((c) => c.entities.map((e) => [e.id, e] as const)))
+    const name = (e: Entity) => (typeof e.name === 'string' ? e.name : (e.name as { en?: string } | undefined)?.en ?? '')
+    const moved = Object.entries(kept)
+      .filter(([k]) => k !== '$comment')
+      .flatMap(([, rows]) => rows.filter(([id, type, n]) => { const e = now.get(id); return e && !((e.type === type || e.type.startsWith(`${type}/`)) && name(e) === n) }).map(([id, type, n]) => `${id}: ${type} ${n} → ${now.get(id)!.type} ${name(now.get(id)!)}`))
+    expect(moved).toEqual([])
+    for (const id of ['abbey.hall~if', 'eastroad~i15', 'pilgrimway~ch', 'haven~8']) expect(now.has(id), id).toBe(true)
+  })
+
+  it('moves what an older save left where a wall now stands, on the road east, in its rooms and in the Held Ground', () => {
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    const w = game.engine.world
+    const maps = PART_ONE_MAPS.map((id) => decodeChunk(chunks.find((c) => c.map.id === id)!))
+    for (const c of maps) game.loadChunk(c)
+    const wallAt = (map: string) => {
+      const m = w.map(map)!
+      for (let y = 0; y < m.height; y++) for (let x = 0; x < m.width; x++) if (w.isSolidTerrain(w.terrainAt(map, x, y)) && [[0, 1], [1, 0], [0, -1], [-1, 0]].some(([dx, dy]) => w.walkable(map, x + dx, y + dy))) return { x, y }
+      throw new Error(`no wall on ${map}`)
+    }
+    w.author(() => {
+      w.place(w.player, { on: 'tile', map: 'abbey', ...wallAt('abbey') })
+      w.add({ id: 'old.stone', type: 'item/material/stone', place: { on: 'tile', map: 'waystation.hostel', ...wallAt('waystation.hostel') } })
+      w.add({ id: 'old.log', type: 'item/material/log', place: { on: 'tile', map: 'haven', ...wallAt('haven') } })
+      // Alberic's tent as the save kept it, before it was a pavilion
+      w.transform(w.get('haven~8')!, 'fixture/tent')
+      w.setFact(PART_ONE_LAYOUT, false)
+    })
+    game.engine.author(() => migratePartOneMaps(game, maps))
+    expect(w.get('haven~8')?.type).toBe('fixture/tent/pavilion')
+    for (const id of [w.player.id, 'old.stone', 'old.log']) {
+      const p = w.get(id)!.place as { map: string; x: number; y: number }
+      expect([id, w.isSolidTerrain(w.terrainAt(p.map, p.x, p.y))]).toEqual([id, false])
+    }
+    expect(w.fact(PART_ONE_LAYOUT)).toBe(true)
   })
 })

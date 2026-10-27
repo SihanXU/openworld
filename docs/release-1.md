@@ -1,38 +1,53 @@
-# Release 1: Part One, the west bank
+# Release 1: Part One, to the White Knight
 
-Status: **agreed 2026-10-21; the ending, the valley, Firstlight, the Ford and every map of the valley built (2026-10-21).** Release 1 is the
-game's first part, played on the Frostfang Coast's west bank: from waking on Cloudtop, down the mountain, through
-Firstlight and its country — the grassland, the forest, Thornwood Hollow and the barrow, Millbrook and Dawn Hill, the
-Charcoal Dell and the Reed Bend — to the far bank of the Ford. The rest of the world stays as it is: the Pilgrim's Road,
-Alberic and the dragon are Part Two, already built and played by the team behind one fact.
+Status: **agreed 2026-10-21; re-scoped 2026-10-26 to run to the first boss.** Release 1 is the game's first part, played on
+the Frostfang Coast: from waking on Cloudtop, down the mountain, through Firstlight and its country — the grassland, the
+forest, Thornwood Hollow and the barrow, Millbrook and Dawn Hill, the Charcoal Dell and the Reed Bend — across the Ford,
+and east along the Pilgrim's Road — the Pilgrims' Rest, the five wayside shrines, the Abbey of the Thorn, the Kneeling
+Field — to the White Knight on the East Road; then the Crown carried home, and the Held Ground. Emberfall, its mine,
+Cinder Pass, the dragon's lair and the continent beyond the river are Part Two, already built and played by the team
+behind one fact.
 
-The user's decisions (2026-10-21): the release ends at the river; the walkable west bank shrinks to a valley of places
-with a reason to walk between them; the maps are polished one by one from Firstlight and the Ford, their ground drawn by
-hand; every picture the game shows there is cut and drawn right. Still open: whether the Held Ground (now reached only
-past the knight) comes into Part One, and how (§6).
+The user's decisions: (2026-10-21) the walkable west bank shrinks to a valley of places with a reason to walk between
+them; the maps are polished one by one, their ground drawn by hand; every picture the game shows is cut and drawn right.
+(2026-10-26) the release runs to the first boss and opens the Held Ground after him, so the Held Ground is Part One's
+(the open question of 2026-10-21, §6, closed); Emberfall stays Part Two's; the way on east is shut by its gate's words, no
+new obstacle of the story's; the chapter's card is the release's end; the people's lines that speak of the road east are
+kept, as Part Two's promise; the Pilgrim's Road's maps and the Held Ground are polished to the valley's standard (§4b, built 2026-10-27).
 
 ## 1. The ending and the sealed road
 
 - **`world.part2`** (content `regions.ts` `PART_TWO`) is the fact the second part waits for. No rule sets it in
-  release 1; the dev console (or a test, by the author's hand) sets it to play on. `world.` is a protected prefix: no
-  learned rule may set it.
-- **The ending** is the story step `part_one` (`tools/src/demo/world.ts`): on the Ford's far bank with the First Seal at
-  its river stage (40) and Part Two unopened, Lumi looks down the road and the card plays — "PART ONE · THE FORD". The
-  west bank stays the player's afterwards (the game's sandbox after its ending, game-design.md §1).
-- **The road east is sealed**: the Ford's east portal to the Pilgrims' Rest has `opensWhen: world.part2`; the far bank's
-  north, south and east edges are woods but for the road; the rider's thorns grow across it under a signpost that says
-  why. The engine never lets the player off a map's edge from a portal the story has not opened (`stepSelf`: a sealed
-  way leads nowhere), so the far bank cannot be left for the world map east of the river. On the world map the Rest, the
-  Pilgrim's Road, the abbey, the Kneeling Field and the East Road are sealed sites: a sealed site is solid (`World.sealed`,
-  2026-10-25), never walked onto or across by anyone, and bumping into it says why (`site/sealed`, `SITE_GATES`); the
-  valley and every open cell stay joined (`tools/test/overworld.test.ts`).
-- **Lumi says so** (2026-10-26): run up against a way the story has not opened — a sealed site, or off a map's edge from
-  a sealed way or from the far bank (`Engine.sealedEdge`: a bump on the story, answered by `story/sealed`) — the
-  companion says it in the gate's words (`SITE_GATES`' `remark`, then `again`; any other fact: another time), at most
-  once a minute for one way (the `remark` primitive); with no companion at hand, the gate's own words in the message
-  line (`tools/test/companion.test.ts`).
-- Proved by demo F1 (the card once, the edge refused, the Rest's site shut; with Part Two open, no card) and by Q2 and
-  PR1, which open Part Two to walk the road.
+  release 1; the dev console's World tab (its shortcut "Open Part Two", the debug op `fact`) or a test, by the author's
+  hand, sets it to play on. `world.` is a protected prefix: no learned rule may set it.
+- **The ending** is the Crown home: the story step `return` (`tools/src/demo/quest/chapter1.ts`, the village, Nessa's
+  four minutes, `ch1.end`) and after it, with Part Two unopened, `part_one`: the chapter's card — "CHAPTER ONE · THE
+  FIRST SEAL" — with the release's last lines, the road on east opening in Part Two and Firstlight, its country and the
+  Held Ground the player's until then. With Part Two open, `chapter_end` shows the chapter's card alone. The world stays
+  the player's afterwards (the game's sandbox after its ending, game-design.md §1): the valley, the Pilgrim's Road, the
+  Held Ground with its land, grounds and buildings, the professions, the errands.
+- **The Dragon Road waits**: `dragon_road` begins once the Crown is home *and* Part Two is open (its `start`). A save that
+  began it before (Part Two then opened with the knight) has it put back, unbegun, on loading while Part Two is shut
+  (`migratePartTwo`, run every load); it begins again when Part Two opens.
+- **The road east of the Ford is open**: the Ford's east portal to the Rest and the world map's places of the Pilgrim's
+  Road carry no gate; the far bank's sign names the Rest. The far bank's north, south and east edges are woods but for
+  the road's own way, from the water's edge (`world.ts`), so nothing walks off it onto the world map east of the river.
+- **The road on east is sealed**: the East Road's way to Emberfall has `opensWhen: world.part2`, so does every place of
+  Part Two on the world map (Emberfall, the Old Mine, Cinder Pass, the lair: `overworld.ts`), the knight fallen or not. A
+  sealed way is plain ground and leads nowhere (`stepSelf`, `Engine.sealedEdge`); run off, Lumi says why in its gate's
+  words, once a minute (`story/sealed`, `SITE_GATES`: "The road on east to Emberfall is not open yet"); a sealed place on
+  the world map is solid and says why when bumped (`site/sealed`).
+- **The reach** is held by `tools/test/release.test.ts`: from the start, every way the engine gives — a map's ways and
+  doors, its edges out onto the world map (a parted map's only where its part's ways lead), the world map's open cells
+  and places, the Oath-Thorn's pocket — with every other gate of the story opened, reaches the valley, the Ford and the
+  Pilgrim's Road; past the knight the Held Ground besides; never Part Two's places or a backdrop place, and never a cell
+  of the world map east of the river; with Part Two open, Emberfall and the dragon's country. A map whose edge opens
+  onto the far side fails it, by name.
+- Also proved by demo F1 (the far bank: no card, the road on to the Rest, no edge but the road's), W6b (Part Two's places
+  sealed, he fallen or not), Q2 (the way on shut past the knight), C1 (the one card, the Dragon Road unbegun until Part
+  Two), PR1 (the Pilgrim's Road walked without Part Two), and the companion's gate test.
+- Part Two's way onto the continent is no longer the far bank's edge (it was until 2026-10-26): it is the road on east,
+  Emberfall and the pass.
 
 ## 2. The valley
 
@@ -53,20 +68,28 @@ watermill (`tools/src/art/worldmap.ts`).
 
 ## 3. Firstlight Village
 
-- **Its ground is drawn by hand**: `tools/src/demo/maps/meadow.txt`, a character a cell in the map format's own
-  characters, read by `MapBuilder.paint`. The woods ring it with thick corners; the square of cobble lies before the
-  chapel; the east road comes in from the Ford two wide, lanes go north, west and south, footpaths run to each door
-  (always four-connected: a diagonal path comes apart). The editor does not yet write these files back (§6).
+- **Redrawn to the showcase's standard** (2026-10-26, docs/showcase.md): the village's own buildings
+  (`tools/src/art/arch/buildings/firstlight.ts`: low cottages of timber and wash under thatch, the elder's of stone, the watch
+  house under slate with its banner, the store with its awning and goods, the smithy under its sign, the chapel of grey
+  stone with a bell-cote over its door, Joss's house, Edda's hut) stand on the cells the story keeps (`village.ts` `TOWN`:
+  the chapel's door on the step above Astra's altar; the square, its well, fire, boards and cart where every scene and
+  test finds them). The ground is laid in code (`firstlightGround`: the woods, the four roads on the cells the
+  neighbouring maps meet, the square, the pond, the footpaths to every door); every front is piled with what a house uses
+  and the lanes strung with washing, all of it stamped pictures (`showcase/dress.ts`), never things the story does not ask
+  for. The hand-drawn `maps/meadow.txt` is gone.
 - **Its yards** (`village.ts` `villageLife`): Marta's kitchen patch, the woodcutter's yard (stump, split logs, wood pile,
   the workbench), the drill yard by the watch house with its lookout tower, the trades' frontage, the hay meadow and its
-  stacks, the fields behind a rail with their scarecrow, the orchard and its hives, the churchyard in its clearing, the
-  lane house's garden and washing line, a trough on the road, the green banners and the village's name where the road
-  comes in. Every fence joins (§5).
-- **Houses of rooms** (`village.ts` `house`): each house is rooms of its own walls side by side, joined by doorways — the
-  pack's way of joining rooms. Marta's: the kitchen and the family table, her room, the children's. The watch house: the
-  guard room and the bunks. The elder's: his study and his bedroom. The woodcutter's: the hearth room with Cass's loom,
-  the bedroom. Joss's: his workshop and a narrow room. Edda's hut: one room and a pantry. The store: the shop, the
-  storeroom, Greta's room. The smithy: the forge and Haldor's room. The chapel: the nave and two cells. All are peaceful.
+  stacks, the fields in their strips behind a rail with their scarecrow, the orchard and its hives, the churchyard in its
+  clearing, the lane house's garden and washing line, a trough on the road, the green banners and the village's name where
+  the road comes in. Every fence joins (§5).
+- **Houses of rooms** (`village.ts` `villageInteriors`): each house is a hall on its own plan (`plans.ts` `fl*`, its walls
+  the plan's shell as the showcase's halls are), its rooms side by side (a room behind another would be hidden by the wall
+  between, as tall as the house) and joined by arches; the map records them as rooms of style `shell` (their walls are the
+  shell's picture: the renderers draw no frame of the pack's for them). Marta's: the kitchen and the family's long table,
+  her room, the children's. The watch house: the guard room and the bunks. The elder's: his study and his bedroom. The
+  woodcutter's: the hearth room with Cass's loom, the bedroom. Joss's: his workshop and a narrow room. Edda's hut: one room
+  and a pantry. The store: the shop, the storeroom, Greta's room. The smithy: the forge and Haldor's room. The chapel: the
+  nave and two cells. All are peaceful. An older save is moved off what is now a wall (`migrateFirstlightHouses`).
 - **Every household sleeps in its own beds** (`bed.<n>` anchors in its house) — it slept on the lawn at its doorstep
   before. A household's home is its house (`home.<h>` over the whole interior): what stands in it is theirs, and by night
   one walks into it as a trespasser.
@@ -80,7 +103,7 @@ watermill (`tools/src/art/worldmap.ts`).
 
 The frost slime's corner is a frozen margin — rime on the bank running into an ice floe along the river — not a white
 blob on the grass; the dry meadow is grass with gold clumps, not tinted squares; the far bank is closed but for the road,
-and the road east ends in the rider's thorns (§1).
+which goes on east to the Pilgrims' Rest (§1).
 
 ## 4b. The rest of the valley
 
@@ -110,6 +133,46 @@ Every hand-made map of the west bank to the same standard, its ground drawn by h
   his hut's yard, the old oak's glade; his hut two rooms. **The Reed Bend**: the river bending along the east, reed beds on
   mud and in the shallows, sand at a widened jetty with Hilde's boat, fish drying by a smoking fire, nets on poles, an old
   oxbow pond; her cabin three rooms. Demo FL2.
+- **Redrawn to the showcase's standard** (2026-10-26, after Firstlight, §3): the country's houses are the project's own
+  (`tools/src/art/arch/buildings/chapter1.ts`, drawn by the oblique renderer) on the cells the pack's stood — the
+  hunter's cabin of dark logs (`ft_hut`, its walls wood: they burn, demo W13), Tam's watermill of two storeys over stone on
+  its race (`mb_mill`, wooden walls against the wheel, demo V2), the Chapel of the First Dawn low and mossed under its empty
+  bell-cote (`dh_chapel`), Orrin's sooty hut under thatch (`dl_hut`), Hilde's cabin of grey boards (`rb_cabin`) — each
+  door on the cell the story keeps. Their rooms are halls on plans as Firstlight's are (`plans.ts` `fthut`, `mbmill`,
+  `dlhut`, `rbcabin`, rooms side by side: the cabin and its lean-to, the mill floor with the cellar's stair and Tam's room,
+  Orrin's room and coal store, Hilde's room, bedroom and store), every anchor, bed and named thing kept; a hall's feature
+  (its hearth) stands on its widest room's head wall only. The wilds' ground is strewn with what lies there
+  (`wildfloor.ts`: needles and twigs under the trees, mushrooms in their shade, stones under rock, now and then bones; in
+  the barrow's three levels bones, fallen stones and cracked flags), all lying pictures laid last on each map, never a
+  thing: the demo's proof is unchanged.
+
+- **The Pilgrim's Road and the Held Ground, redrawn to the same standard** (2026-10-27, after the country): their
+  buildings are the project's own (`tools/src/art/arch/buildings/pilgrimage.ts`) — the Rest's chapel of the Five, grey
+  stone under slate with its porch, its rose of the five wounds and the bell-cote on its west gable (`pr_chapel`), and the
+  pilgrims' hostel, stone below and timber above under its sign of a bed (`pr_hostel`); the Abbey of the Thorn's chapter
+  hall, still roofed but holed (`ab_hall`), its church roofless but for the chancel over the crypt and its tower's stump
+  (`ab_church`), the cloister's arcades and broken walls (`ab_arcade_x<n>`, `ab_wall_y<n>`, with the ruin's own pieces);
+  the East Road's burned farmhouse, black and open to the sky (`er_farm`, its walls wood), and the barn a frame of charred
+  posts where Edda hides (`er_barn`); and in the Held Ground the knight's pavilion, white and red with its pennant, a
+  thing's own picture (`fixture/tent/pavilion`, drawn as the props are) — each door on the cell the story keeps. Their rooms
+  are halls on plans (`plans.ts` `prchapel`, `prhostel`, `abhall`, `abcrypt`, `erfarm`): the chapel's nave and the
+  priest's cell, the hostel's common room and dormitory, the chapter hall between its scriptorium and Alberic's cell
+  under a cloth of estate, the crypt's vault on its pillars before the priors' tomb and its ossuary, the farmhouse's
+  kitchen and bedroom; every anchor, bed, region, fixture id and named thing kept (the chapel's `altar`, the hall's
+  `cell`, the crypt's `tomb` read from the maps). Their ground is laid in code for what each place is (`quest/country.ts`:
+  soft noise, woods as a belt round a map, every edge closed but the ways): the Rest a halt on the road, its chapel and
+  hostel facing it over their forecourts, its yard in a dry-stone wall (the well, the fire, the kitchen garden), a
+  wayside cross where the road comes in; the Pilgrim's Road through grazing and heath, two old fields walled in dry
+  stone, the brook under its plank bridge, the shrines on their aprons of flags, a cross at the abbey's way; the abbey a
+  ruin gone to weeds inside its broken close, the gate a lone arch; the Kneeling Field a sweep of dry grass, the ground
+  worn bare before every stone, a cross at its head; the East Road's farm yard and fields in ash and cinders
+  (`decor_ash_<k>`), its orchard dead, beams fallen; the Held Ground's field trodden round the sword with its worn paths,
+  the grove among grey stones, the meadow round its deep pool, the old ground of heath and bare rock, the rings' banks
+  only on open ground; its grounds a quarry pit, a timberland round a clearing of stumps, a lake with its beach and
+  jetty, the springs on their green shelf in the rock. Fronts and yards are dressed with stamped pictures and the wilds
+  strewn last; no thing the story does not ask for. An older save steps off what are now walls (`migratePartOneMaps`,
+  its test in `tools/test/firstlight.test.ts`). The plots' buildings in the Held Ground (workbench, cauldron, storehouse,
+  loom, the residents' tents) are still the things they become, with their own pictures.
 
 ## 5. The pictures
 
@@ -147,9 +210,12 @@ potted plant (`content/src/ontology.ts`), with the pack's own pictures.
 
 ## 6. Open
 
-- **The Held Ground in Part One.** It opens with the Oath-Thorn, from the fallen knight (chapter-1.md §12), so release 1
-  never reaches it. Bringing it in needs the story to give it another way in and another steward before the knight.
-- **Pictures still borrowed**: Garrick's tool rack (Emberfall, Part Two) is the camp's cooking rack; a bedroll is drawn
-  as a framed bed; the pack has neither. Millbrook's wheel does not turn.
+- **Pictures still borrowed**: a bedroll is drawn as a framed bed; the pack has none. Millbrook's wheel does not turn.
+  (Garrick's tool rack, the camp's cooking rack, is Emberfall's: Part Two.)
 - **The editor and the layout files**: `maps/*.txt` are the map format's rows, but OpenWorld's maps are still built by
   code, so the editor cannot save into them yet.
+
+## 7. Wiki
+
+The pages that spoke of the far bank as the end (the Ford, the First Seal, the main line, the world map) say the road
+goes on to the knight; Emberfall's, the mine's, the pass's, the lair's and the Dragon Road's say they are Part Two's.

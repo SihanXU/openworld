@@ -24,6 +24,8 @@ export interface AgentTask {
   verdict?: (env: Env) => Promise<{ ok: boolean; output: string }>
   /** retrieval terms; default: the words of the statement */
   terms?: string[]
+  /** the kind of task it is, for its skill (one skill a node); default `kind:<kind>` */
+  node?: string
   /** recorded with the episode (what a replay needs to rebuild the task) */
   request?: unknown
   /** notes about this family of tasks, shown after the statement */
@@ -65,13 +67,13 @@ Call submit only when the task is solved and the tests you can run pass. You hav
 const NUDGE = 'Continue with your tools; call submit when the task is done.'
 
 /** Write the agent's own material into the workspace: the issue, its skills, its hooks. */
-function prepare(task: AgentTask, state: SelfState, h: Harness, terms: string[]): string[] {
+function prepare(task: AgentTask, state: SelfState, h: Harness, terms: string[], node: string): string[] {
   const root = task.env.root
   const dir = join(root, '.agent')
   rmSync(dir, { recursive: true, force: true })
   mkdirSync(join(dir, 'skills'), { recursive: true })
   writeFileSync(join(dir, 'ISSUE.md'), task.statement)
-  const skills = state.relevantSkills(terms).map((s) => s.name)
+  const skills = state.relevantSkills(terms, node).map((s) => s.name)
   for (const name of skills) {
     mkdirSync(join(dir, 'skills', name), { recursive: true })
     for (const [f, body] of Object.entries(state.skillFiles(name))) writeFileSync(join(dir, 'skills', name, f), body)
@@ -124,6 +126,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
     request: task.request ?? { id: task.id, statement: task.statement },
     key: `${task.kind}|${task.id}`,
     terms,
+    node: task.node ?? `kind:${task.kind}`,
     outcome: 'failed',
     attempts: [],
     tools: [],
@@ -135,7 +138,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
     usage: { calls: 0, input: 0, output: 0 },
     ms: 0,
   }
-  const skills = prepare(task, state, h, terms)
+  const skills = prepare(task, state, h, terms, ep.node!)
   const lessons = state.relevantLessons(terms, cfg.recall.lessons)
   const similar = state.similarEpisodes(terms, cfg.recall.episodes, ep.id)
   ep.shown = { lessons: lessons.map((l) => l.id), episodes: similar.map((e) => e.id), skills }
@@ -166,7 +169,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
     ...(task.tests ? ['', `Tests: \`${task.tests.command}\` (run_tests).`] : []),
     '',
     '# Your skills (read_skill)',
-    ...(skills.length ? state.relevantSkills(terms).map((s) => `- ${s.name}: ${s.description}`) : ['(none yet)']),
+    ...(skills.length ? state.relevantSkills(terms, ep.node).map((s) => `- ${s.name}${s.node === ep.node ? ' (this kind of task\'s own: read it first)' : ''}: ${s.description}`) : ['(none yet)']),
     '',
     '# Lessons from your past work',
     ...(lessons.length ? lessons.map((l) => `- ${l.text}`) : ['(none yet)']),

@@ -18,3 +18,11 @@ export const FIRSTLIGHT = {
 }
 
 export const FIRSTLIGHT_LAYOUT = 'content.firstlight-layout-v1'
+/** The village's houses redrawn (2026-10-26, docs/release-1.md §3): its buildings and the rooms behind their doors. */
+export const FIRSTLIGHT_HOUSES = 'content.firstlight-houses-v1'
+/** The maps of the village's houses (its interiors), whose rooms were redrawn with it. */
+export const FIRSTLIGHT_ROOMS = ['meadow.cook', 'meadow.elder', 'meadow.guards', 'meadow.woodhouse', 'meadow.store', 'meadow.smithy', 'meadow.church', 'meadow.lane', 'meadow.cabin']
+/** Set once a save has stepped off the walls of the Pilgrim's Road and the Held Ground as they were redrawn (docs/release-1.md §7, 2026-10-27). */
+export const PART_ONE_LAYOUT = 'content.part-one-maps-v1'
+/** The maps of Part One's road east redrawn then, and their rooms. */
+export const PART_ONE_MAPS = ['waystation', 'waystation.chapel', 'waystation.hostel', 'pilgrimway', 'abbey', 'abbey.hall', 'abbey.crypt', 'kneelfield', 'eastroad', 'eastroad.farmhouse', 'haven', 'haven.quarry', 'haven.timber', 'haven.lake', 'haven.springs']

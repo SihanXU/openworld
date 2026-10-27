@@ -436,6 +436,7 @@ export const ZH: Record<string, string> = {
   '{n} to look at again': '{n} 条待复核',
   'no longer translated into it': '不再翻译成这种语言',
   'Not translated yet: add a language.': '还没有翻译：添加一种语言。',
+  '{lang} has no words yet: translate it first, then write the game in it.': '{lang} 还没有任何译文：请先翻译，再用这种语言书写游戏。',
   '+ a language': '+ 一种语言',
   'another (its code)…': '其他（填代码）……',
   'Show': '显示',

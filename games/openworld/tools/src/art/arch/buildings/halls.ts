@@ -126,6 +126,17 @@ function tools() {
 /** A face's dressing by its hall's style: windows and hangings by turns, pilasters, sconces; the head face's feature. */
 function dresser(st: Style, plan: HallPlan): (f: Face) => Dress {
   const head = Math.min(...plan.plan.map((row, y) => (row.includes('.') ? y : Infinity))) - 1
+  // (one feature to a hall: on the widest run of floor along its head, never on the back wall of every room beside it)
+  const top = plan.plan[head + 1] ?? ''
+  let run: [number, number] = [0, -1]
+  for (let x = 0; x < top.length; x++) {
+    if (top[x] !== '.') continue
+    let e = x
+    while (top[e + 1] === '.') e++
+    if (e - x > run[1] - run[0]) run = [x, e]
+    x = e
+  }
+  const featureAt = (run[0] + run[1]) / 2
   return (f) => {
     const y = (f.y + 1) * S
     const len = f.x1 - f.x0 + 1
@@ -172,7 +183,7 @@ function dresser(st: Style, plan: HallPlan): (f: Face) => Dress {
       }
     }
     // the head face: the hall's feature in its middle
-    const featureHere = f.y === head && len >= 4 && st.feature !== 'none'
+    const featureHere = f.y === head && len >= 4 && st.feature !== 'none' && f.x0 <= featureAt && featureAt <= f.x1
     if (featureHere) {
       if (st.feature === 'hearth') {
         solids.push(box(mid - 30, y, 0, mid + 30, y + 10, 50, st.trim), box(mid - 24, y, 50, mid + 24, y + 6, h, st.wall), box(mid - 32, y, 48, mid + 32, y + 12, 54, st.trim))
@@ -272,6 +283,24 @@ const STYLES: Record<keyof typeof HALLS, Style> = {
   chieflodge: { wall: 'darkwood', trim: 'timber', h: 72, windows: 'rect', hang: ['trophy', 'banner', 'none'], feature: 'hearth' },
   burrow: { wall: 'sandstoneRough', trim: 'timber', h: 64, windows: 'none', hang: ['timbers', 'none', 'veins'], feature: 'none' },
   garrison: { wall: 'granite', trim: 'darkwood', h: 96, windows: 'round', hang: ['trophy', 'banner', 'none'], feature: 'hearth', pilasters: 'granite' },
+  flcook: { wall: 'plasterOchre', trim: 'timber', h: 72, windows: 'rect', hang: ['painting', 'jars', 'none'], feature: 'hearth', pilasters: 'timber' },
+  flwatch: { wall: 'stone', trim: 'timber', h: 72, windows: 'rect', hang: ['trophy', 'banner', 'none'], feature: 'hearth', pilasters: 'timber' },
+  flelder: { wall: 'plasterWhite', trim: 'darkwood', h: 80, windows: 'rect', hang: ['books', 'painting', 'books'], feature: 'books', pilasters: 'darkwood' },
+  flwood: { wall: 'darkwood', trim: 'timber', h: 72, windows: 'rect', hang: ['tools', 'none', 'jars'], feature: 'hearth' },
+  fllane: { wall: 'plaster', trim: 'timber', h: 72, windows: 'rect', hang: ['tools', 'shelves', 'none'], feature: 'none', pilasters: 'timber' },
+  flcabin: { wall: 'timber', trim: 'darkwood', h: 64, windows: 'rect', hang: ['jars', 'none'], feature: 'hearth' },
+  flstore: { wall: 'plaster', trim: 'timber', h: 72, windows: 'rect', hang: ['shelves', 'jars', 'shelves'], feature: 'none', pilasters: 'timber' },
+  flsmithy: { wall: 'stone', trim: 'darkwood', h: 80, windows: 'rect', hang: ['trophy', 'tools', 'none'], feature: 'hearth', pilasters: 'darkwood' },
+  flchurch: { wall: 'stone', trim: 'stone', h: 104, windows: 'lancet', glass: 'blue', hang: ['tapestry', 'banner', 'painting'], feature: 'window', pilasters: 'stone' },
+  fthut: { wall: 'darkwood', trim: 'timber', h: 64, windows: 'rect', hang: ['trophy', 'tools', 'none'], feature: 'none' },
+  mbmill: { wall: 'timber', trim: 'darkwood', h: 80, windows: 'rect', hang: ['timbers', 'tools', 'shelves'], feature: 'none', pilasters: 'darkwood' },
+  dlhut: { wall: 'darkwood', trim: 'darkwood', h: 64, windows: 'rect', hang: ['tools', 'none', 'jars'], feature: 'none' },
+  rbcabin: { wall: 'timber', trim: 'darkwood', h: 64, windows: 'rect', hang: ['jars', 'painting', 'none'], feature: 'none', pilasters: 'darkwood' },
+  prchapel: { wall: 'stone', trim: 'stone', h: 104, windows: 'lancet', glass: 'red', hang: ['tapestry', 'banner', 'painting'], feature: 'window', pilasters: 'stone' },
+  prhostel: { wall: 'plaster', trim: 'timber', h: 72, windows: 'rect', hang: ['painting', 'jars', 'none'], feature: 'hearth', pilasters: 'timber' },
+  abhall: { wall: 'granite', trim: 'darkwood', h: 96, windows: 'lancet', glass: 'blue', hang: ['banner', 'books', 'trophy'], feature: 'canopy', pilasters: 'granite' },
+  abcrypt: { wall: 'graniteRough', trim: 'graniteRough', h: 72, windows: 'none', hang: ['niches', 'niches', 'none'], feature: 'ossuary', pilasters: 'graniteRough' },
+  erfarm: { wall: 'charred', trim: 'darkwood', h: 64, windows: 'rect', hang: ['none', 'tools', 'none'], feature: 'hearth' },
   catacombs: { wall: 'whiteStone', trim: 'whiteStone', h: 64, windows: 'none', hang: ['niches', 'niches', 'none'], feature: 'ossuary', pilasters: 'whiteStone' },
 }
 

@@ -15,7 +15,8 @@
 import type { AiData, StepDef } from '@openworld/engine'
 import { MapBuilder, rng } from '../builder.ts'
 import { L, GROUND_YIELD, appears, lay } from '../kit.ts'
-import { house } from '../village.ts'
+import { flHouse } from '../village.ts'
+import { wildFloor } from '../wildfloor.ts'
 
 /** Edge openings: the forest's new west and east gaps (rows), and the rows they meet on the new maps. */
 export const FLANKS = {
@@ -86,9 +87,9 @@ export function buildDell(): MapBuilder {
   m.regions.dell = [10, 6, 22, 13]
   // his hut east of the yard, its own yard before the door: his firewood against its wall, the water butt, a bench,
   // the lantern he walks to the kilns by at night (its room: buildDellHut)
-  m.house('hut_straw', 30, 16, 'hut')
+  m.building('dl_hut', 30, 16, ['hut'])
   m.fixture('fixture/container/woodpile', 28, 17, { statuses: { open: -1 } })
-  m.fixture('fixture/container/barrel', 33, 17, { name: L('Water butt', '接雨水的桶') })
+  m.fixture('fixture/container/barrel', 34, 17, { name: L('Water butt', '接雨水的桶') })
   m.fixture('fixture/furniture/bench/log', 29, 19)
   m.fixture('fixture/light/lantern', 29, 16)
   // the felled ring: the stumps of the trees that went into the kilns, round the clearing's edge; older ones in the coppice
@@ -116,28 +117,35 @@ export function buildDell(): MapBuilder {
   m.sprinkle('fixture/nature/pebbles', 0.05, (x, y, t) => t === 'dirt' && !m.near(x, y, (u) => u === 'wall', 1))
   lay(m, 'item/material/stick', 3, [4, 2, 6, 3])
   lay(m, 'item/material/stone', 2, [29, 3, 6, 3])
+  wildFloor(m, 1, (x, y) => x >= 10 && x <= 31 && y >= 6 && y <= 18)
   m.appear = [...GROUND_YIELD, appears('actor/creature/beast/boar', ['grass'], 3, 1500, { ai: HUNT(4) })]
   return m
 }
 
 /** The charcoal burner's hut: his room (the bed, the hearth, his table), and the store behind it where the coal is sacked. */
 export function buildDellHut(): MapBuilder {
-  const m = house('charcoal.hut', "Orrin's Hut", '奥林的小屋', 15, 7, 'wood', [[0, 0, 9, 7], [9, 1, 6, 6]], [[8, 3], [9, 3]], [4, 6])
-  bed(m, 1, 2, 'orrin.bed', [1, 3])
-  m.fixture('fixture/container/drawers', 2, 2)
-  m.fixture('fixture/light/fireplace', 5, 1, { statuses: { lit: -1 } })
-  rug(m, 4, 3, 3, 2)
-  m.fixture('fixture/furniture/table', 5, 3)
-  m.fixture('fixture/furniture/chair', 4, 3)
-  m.fixture('fixture/container/chest', 1, 5)
-  m.fixture('fixture/container/barrel', 7, 5)
+  // (a hall of its plan, plans.ts dlhut: his room, and the store through the side)
+  const { m, P } = flHouse('dlhut', 'charcoal.hut', "Orrin's Hut", '奥林的小屋', 'floor_wood', ['room', 'store'])
+  m.zone = 'combat'
+  const R = P.room
+  bed(m, R.x, R.y + 1, 'orrin.bed', [R.x, R.y + 2])
+  m.fixture('fixture/container/drawers', R.x + 2, R.y)
+  m.fixture('fixture/light/fireplace', R.x + 5, R.y, { statuses: { lit: -1 } })
+  rug(m, R.x + 4, R.y + 2, 3, 2)
+  m.fixture('fixture/furniture/table', R.x + 5, R.y + 2)
+  m.fixture('fixture/furniture/chair', R.x + 4, R.y + 2)
+  m.fixture('fixture/container/chest', R.x, R.y + 5)
+  m.fixture('fixture/container/barrel', R.x + 8, R.y + 5)
+  m.building('decor_firewood', R.x + 7, R.y)
   // the store: the coal sacked for Firstlight's smithy and hearths, the kindling, a barrel of water against a spark
-  m.fixture('fixture/container/sack', 10, 2, { name: L('A sack of charcoal', '一袋木炭') }, [{ form: 'item/material/coal' }, { form: 'item/material/coal' }])
-  m.fixture('fixture/container/sack', 11, 2, { name: L('A sack of charcoal', '一袋木炭') })
-  m.fixture('fixture/container/crate', 13, 2)
-  m.fixture('fixture/container/crate', 13, 3)
-  m.fixture('fixture/nature/logpile/stack', 11, 5)
-  m.fixture('fixture/container/barrel', 13, 5)
+  const S = P.store
+  m.fixture('fixture/container/sack', S.x, S.y, { name: L('A sack of charcoal', '一袋木炭') }, [{ form: 'item/material/coal' }, { form: 'item/material/coal' }])
+  m.fixture('fixture/container/sack', S.x + 1, S.y, { name: L('A sack of charcoal', '一袋木炭') })
+  m.fixture('fixture/container/crate', S.x + 5, S.y)
+  m.fixture('fixture/container/crate', S.x + 5, S.y + 1)
+  m.fixture('fixture/nature/logpile/stack', S.x + 1, S.y + 5)
+  m.fixture('fixture/container/barrel', S.x + 5, S.y + 5)
+  m.building('decor_sacks', S.x + 3, S.y)
   return m
 }
 
@@ -166,9 +174,9 @@ export function buildBend(): MapBuilder {
   m.creature('crab', bankAt(25) - 2, 25, HUNT(3))
   m.regions.spit = [26, 19, 9, 5]
   // her cabin up the bank, its yard before the door (its rooms: buildBendCabin): the salt barrel, her catch crated, a bench
-  m.house('cabin', 20, 8, 'cabin')
+  m.building('rb_cabin', 20, 8, ['cabin'])
   m.fixture('fixture/container/barrel', 19, 10, { name: L('Salt barrel', '盐桶') })
-  m.fixture('fixture/container/crate', 23, 10, { name: L("Hilde's catch", '希尔德的渔获') })
+  m.fixture('fixture/container/crate', 24, 10, { name: L("Hilde's catch", '希尔德的渔获') })
   m.fixture('fixture/furniture/bench/log', 23, 13)
   // the jetty on its beach, her boat tied alongside, a lantern at its foot; she fishes from its end
   const [px, py] = FAT.pier
@@ -214,6 +222,7 @@ export function buildBend(): MapBuilder {
   m.sprinkle('fixture/nature/leaves', 0.2, (x, y, t) => grassy(t) && m.near(x, y, wood))
   lay(m, 'item/material/stick', 3, [4, 6, 8, 5])
   lay(m, 'item/material/stone', 2, [4, 9, 12, 4])
+  wildFloor(m, 1, (x, y) => x >= 17 && x <= 28 && y >= 6 && y <= 24)
   // fish shadows in the river: a stocked water (eels at night, pike in the deep: content rules.ts)
   m.fish = true
   m.appear = [...GROUND_YIELD, appears('actor/creature/slime/water_slime', ['sand'], 2, 1800, { ai: HUNT(4) })]
@@ -222,11 +231,14 @@ export function buildBend(): MapBuilder {
 
 /** The fisher's cabin: the room by the door (her hearth, her table and its tally), her room, the store where the nets and the smoked fish are kept. */
 export function buildBendCabin(): MapBuilder {
-  const m = house('reedbend.cabin', "Hilde's Cabin", '希尔德的小屋', 16, 9, 'wood', [[0, 0, 10, 9], [10, 0, 6, 5], [10, 5, 6, 4]], [[9, 2], [10, 2], [9, 6], [10, 6]], [4, 8])
-  m.fixture('fixture/light/fireplace', 6, 1, { statuses: { lit: -1 } })
-  m.fixture('fixture/container/cupboard', 1, 2, { name: L("Hilde's cupboard", '希尔德的橱柜') })
-  rug(m, 3, 4, 3, 2)
-  m.fixture('fixture/furniture/table', 4, 4, {
+  // (a hall of its plan, plans.ts rbcabin: the room by the door, her bedroom and the store side by side)
+  const { m, P } = flHouse('rbcabin', 'reedbend.cabin', "Hilde's Cabin", '希尔德的小屋', 'floor_wood', ['room', 'bedroom', 'store'])
+  m.zone = 'combat'
+  const R = P.room
+  m.fixture('fixture/light/fireplace', R.x + 5, R.y, { statuses: { lit: -1 } })
+  m.fixture('fixture/container/cupboard', R.x, R.y + 1, { name: L("Hilde's cupboard", '希尔德的橱柜') })
+  rug(m, R.x + 2, R.y + 3, 3, 2)
+  m.fixture('fixture/furniture/table', R.x + 3, R.y + 3, {
     name: L("Hilde's table", '希尔德的桌子'),
     tags: ['readable'],
     props: {
@@ -234,18 +246,22 @@ export function buildBendCabin(): MapBuilder {
       text_zh: '一年一年的渔获记录，字迹方方正正。九个冬天前有一行不是记录："船回来了。他没有。雾。"那一年再没有写别的。',
     },
   })
-  m.fixture('fixture/furniture/chair', 3, 4)
-  m.fixture('fixture/nature/plant', 8, 7)
-  m.fixture('fixture/container/barrel', 1, 7)
+  m.fixture('fixture/furniture/chair', R.x + 2, R.y + 3)
+  m.fixture('fixture/nature/plant', R.x + 9, R.y + 6)
+  m.fixture('fixture/container/barrel', R.x, R.y + 6)
+  m.building('decor_firewood', R.x + 8, R.y)
   // her room: one bed (his side of it empty nine winters), her drawers, the chest
-  bed(m, 14, 2, 'hilde.bed', [14, 3])
-  m.fixture('fixture/container/drawers', 12, 2)
-  m.fixture('fixture/container/chest', 11, 3)
+  const B = P.bedroom
+  bed(m, B.x + 3, B.y + 1, 'hilde.bed', [B.x + 3, B.y + 2])
+  m.fixture('fixture/container/drawers', B.x + 1, B.y)
+  m.fixture('fixture/container/chest', B.x, B.y + 5)
   // the store: the smoked eels crated, the salt, a sack of bait-meal — along its walls, the row from the doorway left free
-  m.fixture('fixture/container/crate', 14, 6, { name: L('Smoked eels', '熏鳗鱼箱') }, [{ form: 'item/food/fish/cooked' }, { form: 'item/food/fish/cooked' }])
-  m.fixture('fixture/container/barrel', 14, 7, { name: L('Salt', '盐') })
-  m.fixture('fixture/container/barrel', 12, 7)
-  m.fixture('fixture/container/sack', 11, 7)
+  const S = P.store
+  m.fixture('fixture/container/crate', S.x + 2, S.y, { name: L('Smoked eels', '熏鳗鱼箱') }, [{ form: 'item/food/fish/cooked' }, { form: 'item/food/fish/cooked' }])
+  m.fixture('fixture/container/barrel', S.x + 3, S.y + 2, { name: L('Salt', '盐') })
+  m.fixture('fixture/container/barrel', S.x + 2, S.y + 6)
+  m.fixture('fixture/container/sack', S.x + 3, S.y + 6)
+  m.building('decor_sacks', S.x, S.y)
   return m
 }
 
