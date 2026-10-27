@@ -44,7 +44,7 @@ import {
   type TypeDef,
   type ValidationResult,
 } from '@openworld/engine'
-import { changesNothing, deriveTests, judge, normalizePatch, qualifyTerrains, stationFromRules, statedAffordance } from './answer.ts'
+import { changesNothing, deriveTests, judge, namedHost, normalizePatch, qualifyTerrains, stationFromRules, statedAffordance } from './answer.ts'
 import type { CommitResult, WorldLibrary } from '../library/library.ts'
 import { BACKEND_DOWN, Meter, parseJson, type ChatMessage, type ChatOptions, type Model } from '../models/model.ts'
 import type { AgentTask, runAgent } from '../agent/loop.ts'
@@ -734,6 +734,7 @@ export class Modder {
         if (!wl.chains) take(withoutChains(patch))
         take(qualifyTerrains(patch, ctx.ontology))
         take(stationFromRules(patch, ctx.ontology))
+        take(namedHost(patch, ctx.ontology))
         // the deterministic repairs off (an ablation): an answer that needed one is an invalid attempt
         if (h.design.fixes === false && fixes.length) {
           failed(fixes.map((f) => `needed a mechanical repair: ${f}`))

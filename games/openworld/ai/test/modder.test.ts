@@ -6,7 +6,7 @@ import type { AddressInfo } from 'node:net'
 import { Server } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, holeKey, patchKey, placePatch, restoreLibrary, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@openworld/engine'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, qualifyTerrains, scriptFromFile, stationFromRules, normalizePatch, nodeSkillName, signatureOf, skillNodeOf, type ChatMessage, type ChatOptions, type Model, type Script } from '@openworld/ai'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, namedHost, qualifyTerrains, scriptFromFile, stationFromRules, normalizePatch, nodeSkillName, signatureOf, skillNodeOf, type ChatMessage, type ChatOptions, type Model, type Script } from '@openworld/ai'
 import { BASE, SLIME, SLOW, jsonOffline, noAudit, offerRequest, onto, testModder, useRequest } from './fixtures.ts'
 
 function listening(server: Server): Promise<void> {
@@ -747,6 +747,28 @@ describe('deterministic repairs', () => {
     // a real type of that name is left alone, and the validator says what the terrain is called
     expect(qualifyTerrains(patchOf({ ...r, host: { type: 'item/food' }, tree: { do: [{ op: 'vfx', fx: 'leaves' }] } }), onto).fixes).toEqual([])
     expect(new WorldLibrary(onto, BASE).validate(patchOf(r)).errors.join()).toMatch(/a terrain is named "tile\/bush"/)
+  })
+
+  it('writes the host\'s own name where a label says {host}, in each of its languages, so the first answer holds', async () => {
+    // 2026-10-27, the rule bench: 42 of the 43 first answers a modder without memory had sent back named {host} in a label
+    const name = onto.types[SLIME].name as { en: string; zh: string }
+    const r: Rule = { ...bindRule(), label: { en: 'Weigh {host} down', zh: '压住{host}' } }
+    expect(new WorldLibrary(onto, BASE).validate(patchOf(r)).errors.join()).toMatch(/a label names \{target\}, \{instrument\} or \{actor\}, not \{host\}/)
+    const { patch, fixes } = namedHost(patchOf(r), onto)
+    expect((patch.artifacts[0] as { rule: Rule }).rule.label).toEqual({ en: `Weigh ${name.en} down`, zh: `压住${name.zh}` })
+    expect(fixes).toHaveLength(1)
+    expect(namedHost(patchOf(bindRule()), onto).fixes).toEqual([])
+    // in the pipeline: the answer is taken at its first attempt, the repair said
+    const { model, calls } = scripted([patchOf(r)])
+    const { modder, state } = setup(model)
+    const reply = await modder.resolve({ request: offerRequest() })
+    expect(reply.outcome).toBe('accepted')
+    const ep = state.episode(reply.episode!)!
+    expect(ep.attempts[0].errors).toEqual([])
+    expect(ep.attempts[0].fixes?.join()).toMatch(/host's name for \{host\}/)
+    // no repair round: one attempt (the design's tool turn and its answer)
+    expect(ep.attempts).toHaveLength(1)
+    expect(calls.design).toBe(2)
   })
 
   it('reads an answer whose only fault is its brackets (one closed too early), as a live model wrote it', () => {

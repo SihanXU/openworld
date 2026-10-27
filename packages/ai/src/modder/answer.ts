@@ -2,7 +2,7 @@
 // the tests it derives instead of the model writing them, and the judgment of what the thing affords (design.md
 // §5.17) held to what the rule does.
 
-import { OntologyIndex, PRIMITIVES, selectByType, RuleLibrary, buildSandbox, isDo, isHole, leaves, replay, ontologyWith, withArtifacts, AFFORDANCES, patchRules, type Artifact, type Cond, type Effect, type Ontology, type Patch, type Rule, type Selector, type Tree, type Expectation, type ModRequest, type Scenario, type Affordance } from '@openworld/engine'
+import { OntologyIndex, PRIMITIVES, selectByType, RuleLibrary, buildSandbox, isDo, isHole, leaves, replay, ontologyWith, withArtifacts, AFFORDANCES, patchRules, type Artifact, type Cond, type Effect, type Text, type Ontology, type Patch, type Rule, type Selector, type Tree, type Expectation, type ModRequest, type Scenario, type Affordance } from '@openworld/engine'
 
 // ---------------------------------------------------------------- deterministic repairs
 // Deterministic repairs. A model repair round costs a full turn (5–10 s); most first answers
@@ -114,6 +114,49 @@ export function qualifyTerrains(patch: Patch, onto: Ontology): { patch: Patch; f
   }
   const tree = (t: Tree, id: string): Tree => (t && typeof t === 'object' && 'if' in t ? { if: cond(t.if, id), then: tree(t.then, id), ...(t.else !== undefined ? { else: tree(t.else, id) } : {}) } : t)
   const artifacts = patch.artifacts.map((a) => (a.kind === 'rule' && a.rule ? { ...a, rule: { ...a.rule, host: sel(a.rule.host, a.rule.id), tree: tree(a.rule.tree, a.rule.id) } } : a))
+  return { patch: fixes.length ? { ...patch, artifacts } : patch, fixes }
+}
+
+/**
+ * A label names only the roles an input has ({target}, {instrument}, {actor}: the validator holds to it), never the
+ * host. A label that says {host} means the host itself: its name is written in, in each language the label has
+ * (the one mistake a reflecting modder learns first, and a modder without memory makes every time).
+ */
+export function namedHost(patch: Patch, onto: Ontology): { patch: Patch; fixes: string[] } {
+  const fixes: string[] = []
+  const name = (type: string | undefined, lang: string): string | undefined => {
+    const n = type ? onto.types[type]?.name : undefined
+    return typeof n === 'string' ? n : n && typeof n === 'object' ? ((n as Record<string, string>)[lang] ?? (n as Record<string, string>).en) : undefined
+  }
+  const label = (l: unknown, type: string | undefined, id: string): unknown => {
+    if (typeof l === 'string') {
+      const n = name(type, 'en')
+      if (!n || !l.includes('{host}')) return l
+      fixes.push(`wrote the host's name for {host} in the label of "${id}"`)
+      return l.replaceAll('{host}', n)
+    }
+    if (!l || typeof l !== 'object') return l
+    let changed = false
+    const out = Object.fromEntries(Object.entries(l as Record<string, unknown>).map(([lang, s]) => {
+      const n = name(type, lang)
+      if (typeof s !== 'string' || !n || !s.includes('{host}')) return [lang, s]
+      changed = true
+      return [lang, s.replaceAll('{host}', n)]
+    }))
+    if (changed) fixes.push(`wrote the host's name for {host} in the label of "${id}"`)
+    return changed ? out : l
+  }
+  const tree = (t: Tree, type: string | undefined, id: string): Tree => {
+    if (!t || typeof t !== 'object') return t
+    if ('if' in t) return { ...t, then: tree(t.then, type, id), ...(t.else !== undefined ? { else: tree(t.else, type, id) } : {}) }
+    if ('do' in t && t.label !== undefined) return { ...t, label: label(t.label, type, id) as Text }
+    return t
+  }
+  const artifacts = patch.artifacts.map((a) => {
+    if (a.kind !== 'rule' || !a.rule) return a
+    const type = a.rule.host?.type
+    return { ...a, rule: { ...a.rule, ...(a.rule.label !== undefined && { label: label(a.rule.label, type, a.rule.id) as Text }), tree: tree(a.rule.tree, type, a.rule.id) } }
+  })
   return { patch: fixes.length ? { ...patch, artifacts } : patch, fixes }
 }
 
