@@ -174,6 +174,25 @@ Every hand-made map of the west bank to the same standard, its ground drawn by h
   its test in `tools/test/firstlight.test.ts`). The plots' buildings in the Held Ground (workbench, cauldron, storehouse,
   loom, the residents' tents) are still the things they become, with their own pictures.
 
+- **The way down the mountain, dressed as a ruin** (2026-10-27, after the road east): what a new game walks through
+  before Firstlight — the Clearing, Cloudtop, the Mountain Foot and the Ford — is one old way down, long given up, its
+  pieces the project's own (`tools/src/art/arch/buildings/prologue.ts`, with the ruin's of `wilds.ts`). On Cloudtop the
+  watch shelter is dry stone fallen to shoulder height, its hearth's chimney standing (`ct_shelter`, on the cells the
+  yard was); the cairn of the watchman's log with its pale rag (`ct_cairn`), waymarks along the trail (`ct_waymark_<k>`),
+  a signal tower's stump in the snow (`snow_ruin_tower`) and the way's gate, an arch alone in the rim over the cut
+  (`snow_ruin_arch`) — stone up there as dry stone (material `fieldstone`), snow on every top. In the Clearing the spring
+  rises under an old wall of the Five, its niche with a worn figure, five marks over it (the first black) and a spout into
+  the pool (`cl_spring`), knee-high runs of wall and broken columns either side (`ruin_low_x<n>`, `ruin_stump_<k>`), and an
+  oak older than any of it over the woods' west edge (`cl_oak`) — none of it on the ground the lessons work. At the
+  Mountain Foot the seal stone stands in an old close: its walls fallen to their last runs, its gate two columns where the
+  trail comes off the ramp, stumps of its colonnade, a saint toppled, a tower's stump to the east, a wayside cross by the
+  sign (the pillars the pack drew there are gone). At the Ford two columns stand at the foot of the cliff stair, a
+  watchtower's stump on the far bank over the river, a run of wall by the road east. The meadows' ground is less even
+  (`wildfloor.ts` `rough`: dry grass where soft noise rises, bare earth only in patches), petals blown from the flowers
+  and leaves at the woods' edge (`bloom`). Every piece is a stamp laid after what each map's seed placed, through `ruin`,
+  which throws on a way, the water, a door or a thing: no story position, id or test moves. An older save steps off the
+  new walls (`migratePrologueMaps`).
+
 ## 5. The pictures
 
 What the game drew wrong, fixed where it was wrong, for every map that uses it:

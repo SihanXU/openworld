@@ -168,6 +168,18 @@ export const MATERIALS: Record<string, (s: Surface) => string> = {
     const joint = (((u + course * 5) % w) + w) % w < 1
     return step('g', bed || joint ? t + 1 : hash(Math.floor(u / w), course) < 0.15 ? t - 0.6 : t)
   },
+  // dry stone, laid without mortar: small grey stones in rough courses, darker than a mason's wall (the
+  // prologue's ruins up in the snow, buildings/prologue.ts)
+  fieldstone: (s) => {
+    const t = tone(s) + 1.2
+    if (s.cls === 'top') return step('g', t - 0.4 + (hash(s.x / 4, s.y / 4, 93) < 0.25 ? 0.8 : 0))
+    const course = Math.floor(s.z / 5)
+    const u = (s.cls === 'south' ? s.x : s.y) + course * 3
+    const w = 5 + Math.floor(hash(course, 7) * 5)
+    const stone = Math.floor(u / w)
+    const gap = ((s.z % 5) + 5) % 5 < 1 || ((u % w) + w) % w < 1
+    return step('g', gap ? t + 1 : t + (hash(stone, course, 10) < 0.25 ? 0.5 : hash(stone, course, 11) < 0.15 ? -0.4 : 0))
+  },
   slate: shingles('r', 5, 7),
   // a spire's dressed stone: no courses across it (they read as rungs on so steep a face), a rib down each arris
   spireStone: (s) => {
