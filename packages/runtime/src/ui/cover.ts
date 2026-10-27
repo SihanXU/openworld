@@ -42,8 +42,8 @@ export interface NewGame {
 export interface CoverHandlers {
   /** Start a slot: from its save, or a new game in it (any save there is overwritten). */
   start(slot: Slot, data: SlotData | undefined, game?: NewGame): void
-  /** The tutorial, on its own: no slot is written, and walking out of it ends it (back to the title). */
-  tutorial(): void
+  /** The tutorial, on its own: no slot is written, and walking out of it ends it (back to the title); it starts from the panel's choices like any new game. */
+  tutorial(game?: NewGame): void
   /** The world behind the title: at this place (its people, never the traveller). */
   backdrop(scene: CoverScene, at: [number, number]): void
   toggleLocale(): void
@@ -191,6 +191,11 @@ export class Cover {
     }, SCENE_MS)
   }
 
+  /** A word on the title's status line (what the game behind has to say as the title opens). */
+  note(text: string): void {
+    $('#intro').querySelector('.cv-status')!.textContent = text
+  }
+
   /** The game behind could not start the chosen slot: say why, and give the buttons back. */
   failed(why: string): void {
     this.loading = false
@@ -289,6 +294,8 @@ export class Cover {
   }
 
   private act(i: Item): void {
+    // one start at a time: a second Enter while a slot is loading must not start it again
+    if (this.loading) return
     const latest = this.latest()
     if (i === 'continue' && latest) return this.busy(), this.on.start(latest, this.slots[latest - 1])
     if (i === 'load' && !this.slots.some(Boolean)) return
@@ -302,7 +309,7 @@ export class Cover {
 
   /** The keys on the cover: up and down choose a line, Enter (or Space) takes it, Esc closes a panel. */
   private key(e: KeyboardEvent): void {
-    if (!this.open || (e.target as HTMLElement)?.closest?.('input, textarea, select')) return
+    if (!this.open || this.loading || (e.target as HTMLElement)?.closest?.('input, textarea, select')) return
     if (this.panel) {
       // (the keys page listens for keys itself, and leaves by its own buttons)
       if (e.key === 'Escape' && this.panel !== 'keys') (e.preventDefault(), (this.panel = undefined), this.render())
@@ -428,7 +435,7 @@ export class Cover {
       $('#cvSkipModel').onclick = () => (OwnModel.skip(), (this.panel = undefined), this.render())
       return
     }
-    document.querySelector<HTMLButtonElement>('#cvTutorial')?.addEventListener('click', () => (this.busy(), this.on.tutorial()))
+    document.querySelector<HTMLButtonElement>('#cvTutorial')?.addEventListener('click', () => (this.busy(), this.on.tutorial({ difficulty: this.difficulty, look: this.look })))
     const showStep = (step: 'look' | 'journey') => {
       this.newStep = step
       this.render()

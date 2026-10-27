@@ -512,8 +512,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       // the tutorial on its own ends where its way out leads: back to the title
       if (tutorialRun && m.frame.map !== 'tutorial' && !cover.open) {
         tutorialRun = false
-        hud.message(locale.value === 'zh' ? '教程完成！从标题页开始新游戏，进入主线。' : 'Tutorial complete! Start a new game from the title for the story.', 'good')
-        void cover.show()
+        // the note belongs to the title, which is drawn over the HUD: put it where the player can read it
+        const note = locale.value === 'zh' ? '教程完成！从标题页开始新游戏，进入主线。' : 'Tutorial complete! Start a new game from the title for the story.'
+        void cover.show().then(() => cover.note(note))
         break
       }
       hud.setLearning(m.learning)
@@ -652,14 +653,14 @@ const cover = new Cover(WORLD, {
     const base = worldBase()
     sendInit({ t: 'init', base, save: data?.save, library, librarySeq: await librarySeq(), prefetch: PARAMS.get('prefetch') === '1', quality: menu.ai.quality, difficulty: game?.difficulty, start: game?.start, look: game?.look })
   },
-  tutorial: async () => {
+  tutorial: async (game) => {
     // its own run: nothing is saved, and the story's main line is not reached from it
     slot = undefined
     tutorialRun = true
     quietSave = true
     const library = await kvGet<LibraryData>(libraryKey())
     const base = worldBase()
-    sendInit({ t: 'init', base, library, librarySeq: await librarySeq(), quality: menu.ai.quality, start: 'tutorial' })
+    sendInit({ t: 'init', base, library, librarySeq: await librarySeq(), quality: menu.ai.quality, start: 'tutorial', difficulty: game?.difficulty, look: game?.look })
   },
   backdrop: async (s, at) => {
     backdropOn = true
