@@ -246,7 +246,7 @@ export class MapBuilder {
     return !this.entities.some((e) => this.under(e, x, y))
   }
 
-  /** The cells a house's roof hides that were walled for it (MapBuilder.building's `block`), with the ground they had. */
+  /** The cells a house's roof hides, held while the map is made (MapBuilder.building's `block`), with the ground they had. */
   covered = new Map<string, string>()
 
   /** Can one walk here as the game will judge it: no solid terrain (the ontology's), no solid thing's base on it. */
@@ -403,7 +403,8 @@ export class MapBuilder {
   building(name: string, x: number, y: number, doors: string[] = [], block = false): Cell[] {
     const b = BUILDINGS[name]
     if (!b) throw new Error(`building ${name} not in the catalog`)
-    // (a house's roof hides the ground behind it: that ground is the house's, as a roof's tiles are in the pack's towns)
+    // (the ground a house's roof hides is held while the map is made, so nothing is laid where no one would see it, and
+    // given back walkable as the map is written: chunk())
     if (block)
       b.cover?.forEach((row, k) =>
         [...row].forEach((c, i) => {
@@ -676,6 +677,13 @@ export class MapBuilder {
   chunk(): RawChunk {
     this.clearVolumes()
     this.joinFences()
+    // the ground a roof hides is walked as any other, one goes behind the house and out of sight (the user's call,
+    // 2026-10-27): walled while the map was made, so nothing was laid where no one would see it, given back now
+    for (const [key, ground] of this.covered) {
+      const [x, y] = key.split(',').map(Number)
+      if (this.get(x, y) === 'wall') this.set(x, y, ground)
+    }
+    this.covered.clear()
     const rows = this.cells.map((r) =>
       r
         .map((t) => {
