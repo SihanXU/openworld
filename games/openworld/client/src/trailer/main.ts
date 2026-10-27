@@ -17,10 +17,11 @@ import { FILM as TRAILER, MUSIC as TRAILER_MUSIC, type Shot, type Cut } from './
 import { EVENTS_FILM } from './events.ts'
 import { INTRO_FILM } from './intro.ts'
 import { SURVEY_FILM } from './survey.ts'
+import { EXPLAIN_FILM } from './explainfilm.ts'
 
 // which film the stage plays (?film=): the trailer, the star map's event clips (each shot one clip, no music), or the
 // channel's opening (timed to its voiceover)
-const FILMS: Record<string, { shots: Shot[]; music?: typeof TRAILER_MUSIC }> = { trailer: { shots: TRAILER, music: TRAILER_MUSIC }, events: { shots: EVENTS_FILM }, intro: { shots: INTRO_FILM }, survey: { shots: SURVEY_FILM } }
+const FILMS: Record<string, { shots: Shot[]; music?: typeof TRAILER_MUSIC }> = { trailer: { shots: TRAILER, music: TRAILER_MUSIC }, events: { shots: EVENTS_FILM }, intro: { shots: INTRO_FILM }, survey: { shots: SURVEY_FILM }, explain: { shots: EXPLAIN_FILM } }
 const CHOSEN = FILMS[new URLSearchParams(location.search).get('film') ?? 'trailer'] ?? FILMS.trailer
 const FILM = CHOSEN.shots
 const MUSIC = CHOSEN.music
