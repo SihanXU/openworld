@@ -7,7 +7,7 @@
 //   npx tsx games/openworld/tools/src/demo/world.ts
 
 import { wildFloor } from './wildfloor.ts'
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@openworld/engine'
@@ -798,6 +798,9 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
     for (let y = 0; y < b.h; y++)
       for (let x = 0; x < b.w; x++) if ((x === 0 || y === 0 || x === b.w - 1 || y === b.h - 1) && b.get(x, y) === 'bush' && !b.portals.some((p) => p.x === x && p.y === y)) b.set(x, y, 'tree')
   }
+  // the maps redrawn since a save could hold them: their things under the ids they had (builder.ts keepIds)
+  const kept = JSON.parse(readFileSync(new URL('./quest/kept-ids.json', import.meta.url), 'utf8')) as Record<string, [string, string, string][]>
+  for (const b of builders) b.keepIds(kept[b.id])
   const chunks = builders.map((b) => b.chunk())
   if (opts.overworld === false) return { index: undefined as unknown as WorldIndex, chunks, backdrop: [], cells }
   const overworld = buildOverworld(chunks, cells)

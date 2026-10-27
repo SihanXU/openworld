@@ -327,7 +327,8 @@ export const STATUSES: StatusDef[] = [
   { id: 'stunned', name: { en: 'stunned', zh: '眩晕' }, duration: 15, immobilize: true },
 ]
 
-export const ELEMENTS = ['fire', 'water', 'ice', 'lightning', 'wind', 'earth']
+import { ELEMENTS } from './elements.ts'
+export { ELEMENTS }
 
 export const VFX = [
   'steam',

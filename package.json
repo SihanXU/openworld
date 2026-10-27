@@ -31,6 +31,7 @@
     "modder": "tsx packages/ai/scripts/modder.ts --game games/openworld/content/src/game.ts",
     "agent": "tsx packages/ai/scripts/agent.ts",
     "curriculum": "tsx games/openworld/ai/src/curriculum.ts",
+    "rulebench": "tsx games/openworld/ai/src/rulebench.ts",
     "improve": "tsx games/openworld/ai/src/curriculum.ts improve",
     "engine-task": "tsx games/openworld/ai/src/engine-tasks.ts",
     "upstream": "tsx games/openworld/ai/src/upstream.ts",

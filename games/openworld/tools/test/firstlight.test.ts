@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { Game, RuleLibrary, tickAt, type Entity } from '@openworld/engine'
 import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_HOUSES, FIRSTLIGHT_LAYOUT, FIRSTLIGHT_ROOMS, PART_ONE_LAYOUT, PART_ONE_MAPS, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight, migrateFirstlightHouses, migratePartOneMaps } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
@@ -175,6 +176,17 @@ describe("Firstlight's houses redrawn (2026-10-26)", () => {
 })
 
 describe("the Pilgrim's Road and the Held Ground redrawn (2026-10-27)", () => {
+  it('keeps the ids their things had (a save keeps a map by id: the writ, a wolf felled, a tent)', () => {
+    const kept = JSON.parse(readFileSync(new URL('../src/demo/quest/kept-ids.json', import.meta.url), 'utf8')) as Record<string, [string, string, string][]>
+    const now = new Map(buildFord().chunks.flatMap((c) => c.entities.map((e) => [e.id, e] as const)))
+    const name = (e: Entity) => (typeof e.name === 'string' ? e.name : (e.name as { en?: string } | undefined)?.en ?? '')
+    const moved = Object.entries(kept)
+      .filter(([k]) => k !== '$comment')
+      .flatMap(([, rows]) => rows.filter(([id, type, n]) => { const e = now.get(id); return e && !((e.type === type || e.type.startsWith(`${type}/`)) && name(e) === n) }).map(([id, type, n]) => `${id}: ${type} ${n} → ${now.get(id)!.type} ${name(now.get(id)!)}`))
+    expect(moved).toEqual([])
+    for (const id of ['abbey.hall~if', 'eastroad~c3', 'pilgrimway~ch', 'haven~8']) expect(now.has(id), id).toBe(true)
+  })
+
   it('moves what an older save left where a wall now stands, on the road east, in its rooms and in the Held Ground', () => {
     const { index, chunks } = buildFord()
     const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
@@ -190,9 +202,12 @@ describe("the Pilgrim's Road and the Held Ground redrawn (2026-10-27)", () => {
       w.place(w.player, { on: 'tile', map: 'abbey', ...wallAt('abbey') })
       w.add({ id: 'old.stone', type: 'item/material/stone', place: { on: 'tile', map: 'waystation.hostel', ...wallAt('waystation.hostel') } })
       w.add({ id: 'old.log', type: 'item/material/log', place: { on: 'tile', map: 'haven', ...wallAt('haven') } })
+      // Alberic's tent as the save kept it, before it was a pavilion
+      w.transform(w.get('haven~8')!, 'fixture/tent')
       w.setFact(PART_ONE_LAYOUT, false)
     })
     game.engine.author(() => migratePartOneMaps(game, maps))
+    expect(w.get('haven~8')?.type).toBe('fixture/tent/pavilion')
     for (const id of [w.player.id, 'old.stone', 'old.log']) {
       const p = w.get(id)!.place as { map: string; x: number; y: number }
       expect([id, w.isSolidTerrain(w.terrainAt(p.map, p.x, p.y))]).toEqual([id, false])

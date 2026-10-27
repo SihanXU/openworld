@@ -52,8 +52,8 @@ import type { TaskSource } from '../agent/outer.ts'
 import type { materializeWorld } from '../service/repo.ts'
 import { mapProblems, personProblems, settleMap, summary, withoutThinking, type DraftContext, type DraftKind, type TraceStep } from './drafts.ts'
 import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, againUser, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, reviseDraftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
-import { briefOf, coarseTerms, envelope, relatedRules, signatureOf, withoutChains, workloadNote, workloadOf, type Signature, type Workload } from './request.ts'
-import { auditOf, keepReflection, profileOf, reflectAfter, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '../agent/state.ts'
+import { WORLD_TERM, briefOf, coarseTerms, envelope, relatedRules, signatureOf, skillNodeOf, withoutChains, workloadNote, workloadOf, type Signature, type Workload } from './request.ts'
+import { auditOf, keepReflection, nodeSection, nodeStand, profileOf, reflectAfter, troubled, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '../agent/state.ts'
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
 import { audit, probe, type AuditResult } from '../checks/audit.ts'
 import { clipJson } from '../util.ts'
@@ -523,6 +523,7 @@ export class Modder {
       request: req,
       key: sig.key,
       terms: sig.terms,
+      node: skillNodeOf(req),
       outcome: 'failed',
       attempts: [],
       tools: [],
@@ -593,7 +594,11 @@ export class Modder {
 
     // recall
     const lib = library.workspace(ws, replaces)
-    const recall = { lessons: state.relevantLessons(sig.terms, h.recall.lessons), episodes: state.similarEpisodes(sig.terms, h.recall.episodes), skills: state.relevantSkills(sig.terms) }
+    // this kind of request's own skill is shown whole (and booked as read): the rest by name
+    const own = ep.node ? state.skillAt(ep.node) : undefined
+    const ownBody = own && state.readSkill(own.name)
+    const recall = { lessons: state.relevantLessons(sig.terms, h.recall.lessons), episodes: state.similarEpisodes(sig.terms, h.recall.episodes), skills: state.relevantSkills(sig.terms, ep.node), ...(own && ownBody && { skill: { name: own.name, body: ownBody.trim() } }) }
+    if (own && ownBody && !ep.skillsRead.includes(own.name)) ep.skillsRead.push(own.name)
     ep.shown = { lessons: recall.lessons.map((l) => l.id), episodes: recall.episodes.map((e) => e.id), skills: recall.skills.map((s) => s.name) }
 
     const validate = (p: Patch) => library.validate(p, req, ws, replaces)
@@ -879,7 +884,7 @@ export class Modder {
     })
     const repo = await offlineAgent().materializeWorld(world())
     try {
-      const run = await offlineAgent().runAgent({ ...repo.task, terms: sig.terms }, { model: this.backend!, state, harness: h, record: false, log: this.opts.log })
+      const run = await offlineAgent().runAgent({ ...repo.task, terms: sig.terms, node: skillNodeOf(req) }, { model: this.backend!, state, harness: h, record: false, log: this.opts.log })
       const ep = run.episode as unknown as Episode
       ep.request = req
       ep.summary = req.summary
@@ -925,7 +930,7 @@ export class Modder {
         if (h.repair.maxRounds > 0 && patch) {
           const again = await offlineAgent().materializeWorld({ ...world(), audit: { notes: auditNotes(found.confirmed), draft: patch } })
           try {
-            const second = await offlineAgent().runAgent({ ...again.task, terms: sig.terms }, { model: this.backend!, state, harness: h, record: false, log: this.opts.log })
+            const second = await offlineAgent().runAgent({ ...again.task, terms: sig.terms, node: skillNodeOf(req) }, { model: this.backend!, state, harness: h, record: false, log: this.opts.log })
             ep.usage = { calls: ep.usage.calls + second.episode.usage.calls, input: ep.usage.input + second.episode.usage.input, output: ep.usage.output + second.episode.usage.output, cost: (ep.usage.cost ?? 0) + (second.episode.usage.cost ?? 0) }
             const fixed = again.collect()
             const placed = fixed.patch ? placePatch(fixed.patch, req, { ontology: library.fullOntology(lib), library: lib }).patch : undefined
@@ -950,7 +955,7 @@ export class Modder {
       state.noteSkillUse(ep.skillsRead, ep.outcome, ep.id)
       this.log(`${ep.id} ${eo.profile} repo${eo.revise ? ' revision' : eo.escalatedFrom ? ' escalation' : ''} ${ep.outcome} in ${ep.usage.calls} steps, ${ep.ms} ms: ${req.summary}${ep.rules.length ? ` → ${ep.rules.join(', ')}` : ''}${ep.error ? ` (${ep.error})` : ''}`)
       // a failure that is the backend's is no lesson (afterwards() says why)
-      this.later(`reflect ${ep.id}`, () => reflectAfter(ep as never, { model: this.backend!, state, harness: h }))
+      this.later(`reflect ${ep.id}`, () => reflectAfter(ep as never, { model: this.backend!, state, harness: h, kindTerm: WORLD_TERM }))
       return replyOf(ep)
     } finally {
       await repo.dispose()
@@ -1199,15 +1204,17 @@ export class Modder {
     const terms = [...new Set(done.flatMap((i) => i.sig.terms))]
     const similar = state.similarEpisodes(last.sig.terms, 8, last.ep.id)
     const cited = done.length === 1 ? last.ep.id : ids
+    // one episode: its kind of task too (its skill, or its notes); a batch of several kinds: the rules alone
+    const stand = done.length === 1 ? nodeStand(state, last.ep.node ?? skillNodeOf(last.ep.request), h, troubled(last.ep as never)) : undefined
     const r = await model.chat(
       [
-        { role: 'system', content: REFLECT_SYSTEM.replace('{N}', String(h.reflect.skillMinRecurrence)) },
-        { role: 'user', content: reflectUser(done.length === 1 ? last.ep : done.map((i) => i.ep), coarse, state.relevantLessons(terms, 20), state.skills(), similar) },
+        { role: 'system', content: REFLECT_SYSTEM },
+        { role: 'user', content: reflectUser(done.length === 1 ? last.ep : done.map((i) => i.ep), coarse, state.relevantLessons(terms, 20), stand ? nodeSection(stand) : [], similar) },
       ],
       { json: true, temperature: 0.2, purpose: 'reflect', reasoning: h.reflect.reasoning, provider: profileOf(h, 'offline').design.provider },
     )
-    const { lessons: touched, skill } = keepReflection(state, r.content, { cited, terms: coarse, recurred: similar.length >= h.reflect.skillMinRecurrence })
-    state.note('reflect', { episode: cited, lessons: touched, skill, usage: model.usage })
+    const kept = keepReflection(state, r.content, { cited, kindTerm: WORLD_TERM, stand })
+    state.note('reflect', { episode: cited, node: stand?.node, lessons: kept.lessons, skill: kept.skill, notes: kept.notes, usage: model.usage })
   }
 }
 
