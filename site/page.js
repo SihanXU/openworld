@@ -39,6 +39,13 @@ function setLang(to, chosen = false) {
             el.replaceChildren(...parts, document.createTextNode(rest))
         }
     }
+    // a picture's words and a control's name, where they are written beside it (data-zh-alt, data-zh-label)
+    for (const [attr, key] of [['alt', 'Alt'], ['aria-label', 'Label']]) {
+        for (const el of document.querySelectorAll(`[data-zh-${key.toLowerCase()}]`)) {
+            if (el.dataset[`en${key}`] === undefined) el.dataset[`en${key}`] = el.getAttribute(attr) ?? ''
+            el.setAttribute(attr, to === 'zh' ? el.dataset[`zh${key}`] : el.dataset[`en${key}`])
+        }
+    }
     for (const el of document.querySelectorAll('[data-zh-title]')) {
         if (el.dataset.enTitle === undefined) el.dataset.enTitle = el.title
         el.title = to === 'zh' ? el.dataset.zhTitle : el.dataset.enTitle
@@ -239,3 +246,109 @@ document.querySelectorAll('.cite .copy').forEach((b) => b.addEventListener('clic
     b.textContent = lang === 'zh' ? b.dataset.copiedZh : b.dataset.copied
     setTimeout(() => (b.textContent = lang === 'zh' ? b.dataset.zh : b.dataset.en ?? 'Copy'), 1500)
 }))
+
+// ------------------------------------------------------------------ the hero: which of the Holy City's six is behind the words
+// (the film is six places of six seconds each, in the order tour.ts films them)
+const HERO_PLACES = [
+    ['Sunwell Abbey', '日泉修道院'], ['The North Gate', '北门区'], ['The Bell Ward', '钟楼区'],
+    ['The Market', '市集区'], ['The Lamp Ward', '灯区'], ['The Lower Town', '下城区'],
+]
+{
+    const film = document.querySelector('.hero video')
+    const caption = document.querySelector('.now-showing')
+    const name = caption?.querySelector('[data-now]')
+    let shown = 0
+    film?.addEventListener('timeupdate', () => {
+        const n = Math.floor(film.currentTime / 6) % HERO_PLACES.length
+        if (n === shown || !name) return
+        shown = n
+        caption.classList.add('changing')
+        setTimeout(() => {
+            const [en, zh] = HERO_PLACES[n]
+            name.dataset.en = en
+            name.dataset.zh = zh
+            name.textContent = lang === 'zh' ? zh : en
+            caption.classList.remove('changing')
+        }, 450)
+    })
+}
+
+// ------------------------------------------------------------------ the places: one at a time, on by itself while it is seen
+{
+    const viewer = document.querySelector('[data-viewer]')
+    const slides = viewer ? [...viewer.querySelectorAll('.slide')] : []
+    const thumbs = [...document.querySelectorAll('.thumbs .thumb')]
+    let at = 0, timer = 0, seen = false, held = false
+    function show(n) {
+        at = (n + slides.length) % slides.length
+        slides.forEach((s, i) => s.classList.toggle('on', i === at))
+        thumbs.forEach((t, i) => t.classList.toggle('on', i === at))
+        // the next one ready before it is wanted
+        const next = slides[(at + 1) % slides.length]?.querySelector('img')
+        if (next) next.loading = 'eager'
+        const strip = thumbs[at]?.parentElement
+        if (strip && thumbs[at]) strip.scrollTo({ left: thumbs[at].offsetLeft - strip.clientWidth / 2 + thumbs[at].clientWidth / 2, behavior: still ? 'auto' : 'smooth' })
+        schedule()
+    }
+    function schedule() {
+        clearTimeout(timer)
+        if (seen && !held && !still && !document.hidden) timer = setTimeout(() => show(at + 1), 7000)
+    }
+    if (viewer) {
+        viewer.querySelectorAll('[data-step]').forEach((b) => b.addEventListener('click', () => show(at + Number(b.dataset.step))))
+        thumbs.forEach((t) => t.addEventListener('click', () => show(Number(t.dataset.to))))
+        viewer.addEventListener('pointerenter', () => { held = true; schedule() })
+        viewer.addEventListener('pointerleave', () => { held = false; schedule() })
+        viewer.tabIndex = 0
+        viewer.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') show(at - 1); if (e.key === 'ArrowRight') show(at + 1) })
+        new IntersectionObserver(([e]) => { seen = e.isIntersecting; schedule() }, { threshold: 0.4 }).observe(viewer)
+        document.addEventListener('visibilitychange', schedule)
+    }
+}
+
+// ------------------------------------------------------------------ the people: they blink, and speak when they are looked at
+{
+    const people = [...document.querySelectorAll('.person[data-person]')]
+    const src = (id, mood) => `media/cast/${id}/${mood}.webp`
+    let seen = false
+    for (const p of people) {
+        const id = p.dataset.person, img = p.querySelector('.face img')
+        let talking = 0, blinkTimer = 0, face = 'neutral'
+        // every face it may show, ready before it is shown
+        for (const m of ['neutral-blink', 'happy', 'happy-blink', 'happy-talk']) new Image().src = src(id, m)
+        const set = (m) => { if (!img.src.endsWith(`/${m}.webp`)) img.src = src(id, m) }
+        function blink() {
+            clearTimeout(blinkTimer)
+            blinkTimer = setTimeout(() => {
+                if (seen && !still && !talking) { set(`${face}-blink`); setTimeout(() => { if (!talking) set(face) }, 140) }
+                blink()
+            }, 2400 + Math.random() * 3600)
+        }
+        function speak(on) {
+            clearInterval(talking); talking = 0
+            face = on ? 'happy' : 'neutral'
+            set(face)
+            if (on && !still) { let open = false; talking = setInterval(() => { open = !open; set(open ? 'happy-talk' : 'happy') }, 160) }
+        }
+        p.addEventListener('pointerenter', () => speak(true))
+        p.addEventListener('pointerleave', () => speak(false))
+        p.addEventListener('focus', () => speak(true))
+        p.addEventListener('blur', () => speak(false))
+        blink()
+    }
+    const section = document.getElementById('people')
+    if (section) new IntersectionObserver(([e]) => { seen = e.isIntersecting }, { threshold: 0.2 }).observe(section)
+
+    // a person opened: their design sheet, over the page
+    const sheet = document.getElementById('sheet')
+    if (sheet) {
+        const pic = sheet.querySelector('img')
+        for (const p of people) p.addEventListener('click', () => {
+            pic.src = `media/cast/${p.dataset.person}-design.webp`
+            pic.alt = p.querySelector('.who b').textContent
+            sheet.showModal()
+        })
+        sheet.querySelector('.close').addEventListener('click', () => sheet.close())
+        sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.close() })
+    }
+}
