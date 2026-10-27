@@ -108,7 +108,7 @@ describe('Alberic delivered pixel art', () => {
         count++
       }
     }
-    expect(count).toBe(38)
+    expect(count).toBe(70)
     // Existing spell effects retain their own dimensions and six-frame playback.
     for (const id of ['arrow', 'volley', 'thorns']) {
       const fx = SIN_FX[`sin:alberic:${id}`]!, sheet = decode(fx.img)
@@ -133,7 +133,11 @@ describe('Alberic delivered pixel art', () => {
       expect(bossAnimationFrame({ ...snap(action, 1), animationElapsedMs: 9999 }, 0, 0, dir))
         .toEqual({ row: 0, col: 9, clip, flipX: false })
     }
-    for (const action of ['idle', 'walk', 'hurt', 'death'] as const)
+    const walk = { down: 'walk_down', right: 'walk_right', up: 'walk_up', left: 'walk_left' } as const
+    expect(bossAnimationFrame(snap('walk'), 0, 0, dir)).toEqual({ row: 0, col: 0, clip: walk[dir], flipX: false })
+    const ms = ALBERIC_CLIPS[walk[dir]].frame_ms
+    expect([0, ms - 1, ms, ms * 7].map((at) => bossAnimationFrame(snap('walk'), at, 0, dir).col)).toEqual([0, 0, 1, 7])
+    for (const action of ['idle', 'hurt', 'death'] as const)
       expect(bossAnimationFrame(snap(action), 0, 0, dir)).toEqual({ row: 0, col: 0, clip: 'idle', flipX: false })
   })
 

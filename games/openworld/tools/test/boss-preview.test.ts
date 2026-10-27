@@ -21,7 +21,7 @@ describe('Boss Studio direct action controls', () => {
     expect(modes.map((m) => m.value)).toEqual(['live', 'idle', 'walk', 'attack', 'cast', 'volley', 'hurt', 'death'])
     expect(modes.find((m) => m.value === 'idle')!.label).toContain('8 帧 · 150 ms/帧')
     expect(modes.find((m) => m.value === 'attack')!.label).toContain('10 帧 · 80 ms/帧')
-    expect(modes.find((m) => m.value === 'walk')!.label).toContain('借用待机')
+    expect(modes.find((m) => m.value === 'walk')!.label).toContain('四向 8 帧')
     for (const value of ['cast', 'volley']) expect(modes.find((m) => m.value === value)!.label).toContain('借用攻击')
     for (const value of ['hurt', 'death']) expect(modes.find((m) => m.value === value)!.label).toContain('待机静帧回退')
     const html = readFileSync(new URL('../../client/boss-gallery.html', import.meta.url), 'utf8')
@@ -43,7 +43,7 @@ describe('Boss Studio direct action controls', () => {
   })
 
   it.each([
-    ['idle', 'idle'], ['walk', 'idle'], ['attack', 'attack_down'], ['cast', 'attack_down'],
+    ['idle', 'idle'], ['walk', 'walk_down'], ['attack', 'attack_down'], ['cast', 'attack_down'],
     ['volley', 'attack_down'], ['hurt', 'idle'], ['death', 'idle'],
   ] as const)('immediately applies %s to the render snapshot instead of the pending combat action', (mode, clip) => {
     const original = entity(), frameEntity = structuredClone(original)
@@ -78,7 +78,7 @@ describe('Boss Studio direct action controls', () => {
   it.each(['idle', 'walk', 'attack', 'cast', 'volley'] as const)(
     'shows every delivered %s frame at its own pace at 20, 60 and 144 Hz', (mode) => {
       const e = entity(), loops = mode === 'idle' || mode === 'walk'
-      const clip = loops ? ALBERIC_CLIPS.idle : ALBERIC_CLIPS.attack_down
+      const clip = loops ? (mode === 'walk' ? ALBERIC_CLIPS.walk_down : ALBERIC_CLIPS.idle) : ALBERIC_CLIPS.attack_down
       const ms = clip.frame_ms, duration = clip.frames * ms, indices = Array.from({ length: clip.frames }, (_, i) => i)
       for (const fps of [20, 60, 144]) {
         const frames = new Set<number>()

@@ -70,9 +70,10 @@ describe('delivered boss clips between simulation ticks', () => {
     expect(clock.progress(9000)).toBe(1)
   })
 
-  it('plays the complete idle/walk clips at their pace on the screen\'s clock, at different display refresh rates, whatever the simulation\'s phase time', () => {
-    for (const action of ['idle', 'walk'] as const) {
-      const ms = ALBERIC_CLIPS.idle.frame_ms, clip = Array.from({ length: ALBERIC_CLIPS.idle.frames }, (_, i) => i), cycleMs = clip.length * ms
+  it('plays the complete idle and four-way walk clips at their pace on the screen\'s clock, at different display refresh rates, whatever the simulation\'s phase time', () => {
+    for (const [action, clipName] of [['idle', 'idle'], ['walk', 'walk_down']] as const) {
+      const delivered = ALBERIC_CLIPS[clipName]
+      const ms = delivered.frame_ms, clip = Array.from({ length: delivered.frames }, (_, i) => i), cycleMs = clip.length * ms
       expect(clip.map((_, i) => bossAnimationFrame({ ...boss(0), action }, i * ms + 1).col)).toEqual(clip)
       // a lagging tick's phase time does not hold or jump the loop
       expect(bossAnimationFrame({ ...boss(0), action, animationElapsedMs: 9999 }, ms + 1).col).toBe(clip[1])

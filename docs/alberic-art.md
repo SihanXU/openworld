@@ -1,6 +1,6 @@
 # White Knight Alberic — active art and history
 
-## Active delivery (2026-10-26)
+## Active delivery (2026-10-27)
 
 The user-supplied `boss01_01_delivery.zip` now provides Alberic's body. Its original PNGs
 are copied unchanged into `games/openworld/public/assets/lsw/Bosses/alberic/boss01_01/`;
@@ -11,18 +11,21 @@ This delivery supersedes the body atlas and playback instructions recorded below
   The shared foot pivot is (30.5, 72), the centre/bottom edge of the supplied anchor pixel (30, 71).
 - Idle has 8 frames at 150 ms per frame (1.2 s). Each left/right/down attack has 10 frames
   at 80 ms per frame (0.8 s). The hit is frame 5 (zero-based).
+- All four walking directions were delivered: down, up, left and right, 8 in-place frames
+  each at 100 ms per frame. The body advances from game logic, never from the strip; the
+  delivered left strip is used as drawn, exactly like the attack strips.
 - The renderer loads each strip separately. The left strip is already mirrored in the
   delivery; it is never mirrored again, and frontal idle keeps its asymmetric sword/cape.
-- Up-facing attacks borrow the down strip. Movement borrows idle. Hurt/death use idle's
-  first frame with the existing hit tint/death fade; these animations were not delivered.
-  The Studio labels these fallbacks explicitly. Existing ranged/thorn effects remain in use.
+- Up-facing attacks borrow the down strip. Hurt/death use idle's first frame with the
+  existing hit tint/death fade; these animations were not delivered. The Studio labels
+  these fallbacks explicitly. Existing ranged/thorn effects remain in use.
 - Live skills retain authoritative timing: anticipation frames 0–4 stop at frame 4 until
   the actual release, then frames 5–9 play and hold. Damage, telegraphs, collision and saved
   encounters keep their existing behavior. Delivery chain hints are preserved as metadata;
   the existing encounter still controls skill combinations.
 
-Review at `/boss-gallery.html?boss=alberic`. Idle and attack previews use the delivered
-frame cadence. The delivery's README beside the PNGs is kept verbatim for provenance;
+Review at `/boss-gallery.html?boss=alberic`. Idle, four-way walk and attack previews use the
+delivered frame cadence; the facing control chooses the walk direction. The delivery's README beside the PNGs is kept verbatim for provenance;
 its generator, individual frame files and review GIFs are not runtime dependencies.
 
 ## Historical generated art (superseded body and playback)
