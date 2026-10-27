@@ -1,6 +1,6 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
-import { CRAFTSPERSON, researchCatalogue, researchPatch, trialResearch, readResearchReply, type ResearchDesign, type ResearchRequest } from '@openworld/engine'
+import { CRAFTSPERSON, INVENTION, researchCatalogue, researchPatch, trialResearch, readResearchReply, type ResearchDesign, type ResearchRequest } from '@openworld/engine'
 import { untilUp } from './untilUp.ts'
 import { portLink, serviceLink, resolveForSave, type ModderLink } from './modderLink.ts'
 import { FrameEncoder } from './frameDelta.ts'
@@ -77,7 +77,7 @@ async function askResearch(message: string): Promise<void> {
     session.history = session.history.slice(-8)
     if (result.design) {
       const token = crypto.randomUUID()
-      researchPatch(owner.engine, result.design, `${result.design.prototype}/invention_${token.replaceAll('-', '_')}`)
+      researchPatch(owner.engine, result.design, `${result.design.prototype}${INVENTION}${token.replaceAll('-', '_')}`)
       session.draft = result.design
       session.token = token
     }
@@ -94,7 +94,7 @@ function confirmResearch(token: string): void {
   // Consume the capability before doing work: double-clicks cannot manufacture twice.
   s.token = undefined
   try {
-    const id = `${design.prototype}/invention_${token.replaceAll('-', '_')}`
+    const id = `${design.prototype}${INVENTION}${token.replaceAll('-', '_')}`
     trialResearch(s.owner.engine, s.owner.mods, design, id)
     kept.types.add(id)
     s.draft = undefined
@@ -820,7 +820,7 @@ async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, min
   }
   // the shared library, with what the save loaded keeps of its own though another game's sync forgot it
   const taken = withKept(init.library, init.save && !fresh && compatible ? init.save : undefined)
-  kept = { types: new Set(taken.kept.types), statuses: new Set(taken.kept.statuses), shadow: taken.kept.shadow }
+  kept = { types: new Set(taken.kept.types), statuses: new Set(taken.kept.statuses) }
   const lib = libraryFrom(taken.library ?? init.save?.library, index.protectedFacts)
   if (init.save && !fresh && compatible) {
     game = Game.load(init.save, index, ontology(), lib, played().upgradeSave)

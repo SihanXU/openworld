@@ -4,7 +4,7 @@
 // the game handed to the runtime first, as its pages do (client/src/register.ts)
 import '../src/register.ts'
 import { describe, expect, it } from 'vitest'
-import { ModPort, RuleLibrary, buildSandbox, type Patch, type Rule, type SaveData } from '@openworld/engine'
+import { ModPort, RuleLibrary, buildSandbox, type Patch, type SaveData } from '@openworld/engine'
 import { BASE_RULES, buildOntology } from '@openworld-game/content'
 import { adoptDefinitions, artsToSend, forgetInvalid, forgetStatus, forgetType, learnedRecipes, recipeOf, shareKept, sharedPart, takeDefinitions, takeLogEntries, withKept } from '@openworld/runtime/src/learned.ts'
 
@@ -60,39 +60,12 @@ describe('learned recipes', () => {
     const withBranch = withKept(shared, { ...save, library: eng.lib.toJSON() })
     expect(withBranch.library!.aside?.some(a => a.rule.id === 'patch/private-twine-care')).toBe(true)
     expect(JSON.stringify(sharedPart(withBranch.library!, { types: new Set(withBranch.kept.types), statuses: new Set(withBranch.kept.statuses) }))).not.toMatch(/private-twine-care|private_twine_case|private_twine_care/)
-    // A later shared patch may independently choose the same id. Loading or syncing it
-    // cannot redefine a save's own item/status or remove its provisional branch.
-    const publicRule: Rule = { ...save.library.rules.find(r => r.id === 'patch/private-twine-care')!, host: { type: 'item/material/stone' }, source: { origin: 'patch' }, tree: { do: [{ op: 'log', text: 'Public stone care.' }] } }
-    const collision = { ...shared, rules: [...shared.rules, publicRule], types: [{ ...auxiliary, name: 'Public Case' }], statuses: [{ id: 'private_twine_care', name: 'Public Care' }] }
-    const preserved = withKept(collision, { ...save, library: eng.lib.toJSON() })
-    expect(preserved.library!.types.find(t => t.id === auxiliary.id)?.name).toBe('Private Twine Case')
-    expect(preserved.library!.statuses.find(s => s.id === 'private_twine_care')?.name).toBe('Twine Care')
-    const cached = sharedPart(preserved.library!, { types: new Set(preserved.kept.types), statuses: new Set(preserved.kept.statuses), shadow: preserved.kept.shadow })
-    expect(cached.types.find(t => t.id === auxiliary.id)?.name).toBe('Public Case')
-    expect(cached.statuses.find(s => s.id === 'private_twine_care')?.name).toBe('Public Care')
-    expect(cached.rules.find(r => r.id === publicRule.id)?.host?.type).toBe('item/material/stone')
-    expect(cached.rules.find(r => r.id === publicRule.id)?.source?.local).toBeUndefined()
-    expect(cached.aside?.some(a => a.rule.id === publicRule.id)).toBe(false)
-    expect(withKept(cached, { state: fresh().world.state } as SaveData).library!.types.find(t => t.id === auxiliary.id)?.name).toBe('Public Case')
-    const submit = () => { throw new Error('a colliding shared patch must not be submitted') }
-    const syncKept = { types: new Set<string>(), statuses: new Set<string>() }
-    takeLogEntries(eng, { submit }, syncKept, [
-      { seq: 1, removeType: auxiliary.id }, { seq: 2, removeStatus: 'private_twine_care' },
-      { seq: 3, remove: 'patch/private-twine-care' }, { seq: 4, patch: { artifacts: [{ kind: 'type', type: collision.types[0] }, { kind: 'rule', rule: publicRule }] } },
-    ])
-    expect(eng.lib.types.find(t => t.id === auxiliary.id)?.name).toBe('Private Twine Case')
-    expect(eng.lib.statuses.find(s => s.id === 'private_twine_care')?.name).toBe('Twine Care')
-    expect(eng.lib.isAside('patch/private-twine-care')).toBe(true)
-    const syncedPublic = sharedPart(eng.lib.toJSON(), syncKept)
-    expect(syncedPublic.types.find(t => t.id === auxiliary.id)?.name).toBe('Public Case')
-    expect(syncedPublic.statuses.some(s => s.id === 'private_twine_care')).toBe(false)
-    expect(syncedPublic.rules.find(r => r.id === publicRule.id)?.source?.origin).toBe('patch')
-    expect(syncedPublic.rules.find(r => r.id === publicRule.id)?.host?.type).toBe('item/material/stone')
-    takeLogEntries(eng, { submit }, syncKept, [{ seq: 5, removeType: auxiliary.id }, { seq: 6, remove: publicRule.id }])
-    expect(sharedPart(eng.lib.toJSON(), syncKept).types.some(t => t.id === auxiliary.id)).toBe(false)
-    expect(sharedPart(eng.lib.toJSON(), syncKept).rules.some(r => r.id === publicRule.id)).toBe(false)
-    expect(eng.lib.types.some(t => t.id === auxiliary.id)).toBe(true)
-    expect(eng.lib.isAside(publicRule.id)).toBe(true)
+    // the shared log never names what only one save may hold (the service refuses such names): an entry that did is passed over
+    const submit = () => { throw new Error('an entry naming a private rule must not be submitted') }
+    const warned: string[] = []
+    const ownRule = { id: 'patch/save-0123abcd/twine-care', host: { type: 'item/material/stone' }, on: 'act/use', tree: { do: [{ op: 'log', text: 'Public stone care.' }] } }
+    takeLogEntries(eng, { submit }, { types: new Set(), statuses: new Set() }, [{ seq: 1, remove: ownRule.id }, { seq: 2, patch: { artifacts: [{ kind: 'rule', rule: ownRule }] } }, { seq: 3, removeType: 'item/tool/sickle/invention_x' }], (m) => warned.push(m))
+    expect(warned.filter((m) => m.includes('only a save may hold'))).toHaveLength(3)
     // Retiring a rule must not erase a recipe it introduced. Its private history is
     // kept across multiple loads, without reviving the removed rule or exporting it.
     eng.lib.remove('patch/private-twine-care')

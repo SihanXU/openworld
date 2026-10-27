@@ -22,7 +22,7 @@ function asking(target: 'self' | 'road' = 'self') {
 }
 
 describe('save-private research answers', () => {
-  it('keeps an ordinary action private when the designer can see an invention in the workspace', async () => {
+  it('answers an ordinary act for everyone though the save holds an invention: shared, recorded, designed without it', async () => {
     const lib = new RuleLibrary(BASE)
     lib.addType(invention)
     const eng = buildSandbox({ entities: [
@@ -40,10 +40,12 @@ describe('save-private research answers', () => {
     const { modder, library, state } = testModder({ model, harness: h => ({ ...quiet(h), ...noAudit(h) }) })
     const reply = await modder.resolve({ request, workspace: { patches: { rules: lib.patches(), types: lib.types, statuses: lib.statuses } } })
     expect(reply.outcome, JSON.stringify(reply)).toBe('accepted')
-    expect(reply.patch?.scope).toBe('save')
+    expect(reply.patch?.scope).toBeUndefined()
     expect(port.submit(request.id, reply.patch!).errors).toEqual([])
-    expect(library.seq).toBe(0)
-    expect(state.episodes()).toEqual([])
+    // the shared library has it, and the modder remembers the work
+    expect(library.lib.rules.has('patch/ordinary-stone-private-save')).toBe(true)
+    expect(library.lib.types.some((t) => t.id === invention.id)).toBe(false)
+    expect(state.episodes()).toHaveLength(1)
   })
   it('native admission records every new definition on the private rule even if unused', () => {
     const { eng, port, body } = asking()
@@ -74,8 +76,11 @@ describe('save-private research answers', () => {
     expect(library.lib.types).toEqual([])
     expect(library.lib.rules.has('patch/sickle-care')).toBe(false)
     expect(state.episodes()).toEqual([])
+    // named apart from anything the shared library may hold
+    const own = (reply.patch!.artifacts[0] as { rule: { id: string } }).rule.id
+    expect(own).toMatch(/^patch\/save-[0-9a-f]+\/sickle-care$/)
     expect(port.submit(body.request.id, reply.patch!).ok).toBe(true)
-    expect(eng.lib.rules.get('patch/sickle-care')?.source?.local).toEqual({ types: [], statuses: [] })
+    expect(eng.lib.rules.get(own)?.source?.local).toEqual({ types: [], statuses: [] })
     expect(eng.world.fx.some(f => f.t === 'log' && String(f.text).includes('wooden edge'))).toBe(true)
     expect(library.commit(reply.patch!, body.request).ok).toBe(false)
     // Reuse through the service must not write a covered episode containing private data either.
@@ -89,7 +94,7 @@ describe('save-private research answers', () => {
       id: 'patch/sickle-care-revised', host: { type: invention.id }, on: 'act/use',
       tree: { do: [{ op: 'log', text: 'The inspected edge remains sound.' }] },
     } }] }
-    const revised = await modder.resolve({ ...body, request: { ...body.request, again: { rule: 'patch/sickle-care', said: 'The wooden edge is still sound.', times: 3 } } })
+    const revised = await modder.resolve({ ...body, request: { ...body.request, again: { rule: own, said: 'The wooden edge is still sound.', times: 3 } } })
     expect(revised.outcome, JSON.stringify(revised)).toBe('accepted')
     expect(revised.patch?.scope).toBe('save')
     expect(library.seq).toBe(0)
@@ -134,6 +139,26 @@ describe('save-private research answers', () => {
     expect(nextPort.submit(request.id, reply.patch!).errors).toEqual([])
     expect(library.seq).toBe(0)
     expect(state.episodes()).toEqual([])
+  })
+
+  it('the shared library never takes a name only one save may hold, so the two never meet', () => {
+    const { library } = testModder()
+    const rule = { id: 'patch/save-0123abcd/sickle-care', host: { type: 'item/tool/sickle' }, on: 'act/use', tree: { do: [{ op: 'log', text: 'x' }] } }
+    expect(library.validate({ artifacts: [{ kind: 'rule', rule }] } as Patch).errors.join()).toMatch(/only one save may hold/)
+    expect(library.validate({ artifacts: [{ kind: 'type', type: invention }] }).errors.join()).toMatch(/only one save may hold/)
+  })
+
+  it('an answer for one save makes no kinds or statuses of its own (their names could meet the shared library\'s)', async () => {
+    const { body } = asking()
+    const model = new ScriptedModel(() => ({ artifacts: [
+      { kind: 'status', status: { id: 'honed', name: { en: 'Honed', zh: '磨利' } } },
+      { kind: 'rule', rule: { id: 'patch/sickle-hone', host: { type: invention.id }, on: 'act/use', tree: { do: [{ op: 'addStatus', status: 'honed', duration: 10 }] } } },
+    ] }))
+    const { modder, library } = testModder({ model, harness: h => ({ ...quiet(h), ...noAudit(h) }) })
+    const reply = await modder.resolve(body)
+    expect(reply.patch).toBeNull()
+    expect(reply.diagnostics?.join()).toMatch(/may not make new kinds or statuses/)
+    expect(library.seq).toBe(0)
   })
 
   it('rejects invalid private definitions before calling the model and leaves shared state untouched', async () => {

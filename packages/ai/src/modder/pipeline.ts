@@ -16,6 +16,7 @@
 
 import {
   artProblems,
+  PRIVATE_RULES,
   buildModSpec,
   buildRequest,
   buildSandbox,
@@ -37,6 +38,7 @@ import {
   type Ontology,
   type ModRequest,
   type ModWorkspace,
+  type EntityInfo,
   type Patch,
   type PixelArt,
   type ResolveBody,
@@ -478,15 +480,13 @@ export class Modder {
   }
 
   private async resolveClass(req: ModRequest, body: ResolveBody, sig: Signature, profile: Profile): Promise<ResolveReply> {
-    const ws = body.workspace?.patches
     const host = req.event.host?.type
-    const ownRules = [...(ws?.rules ?? []), ...(ws?.aside ?? []).map(a => a.rule)]
-    // The designer can consult the whole workspace, not just the held item. Once
-    // it contains private knowledge, even an ordinary action may refer to it.
-    // Keep the entire answer private rather than promoting an indirect reference.
-    const privateAct = ws?.types?.some(t => t.researched) || ownRules.some(r => r.source?.local) ||
-      !!(ws?.local?.types.length || ws?.local?.statuses.length)
-    if (privateAct) return this.privateEpisode(req, body.workspace!)
+    // a question about what only this save knows (a thing it researched) is answered for this save alone; any other
+    // is answered for everyone, from the workspace without the save's own knowledge (a shared answer that named a
+    // researched kind would name what no other client has)
+    const own = privateOf(body.workspace)
+    if (touchesPrivate(req, own)) return this.privateEpisode(req, body.workspace!)
+    body = { ...body, workspace: sharedWorkspace(body.workspace, own) }
     const hit = this.cover(req, sig)
     if (hit) return hit
     // the same class already being worked on at this tier or a higher one: wait for it, then see whether it answers
@@ -521,6 +521,7 @@ export class Modder {
     const release = await this.design.acquire(0)
     try {
       const library = this.opts.library.fork()
+      library.forOneSave = true
       const known = library.fullOntology()
       const p = ws.patches!
       const definitions: Patch['artifacts'] = [
@@ -550,8 +551,12 @@ export class Modder {
       }
       const local = new Modder({ ...this.opts, library, model: this.backend, dry: true })
       this.privateWork.set(req.id, local)
-      const reply = await local.resolve({ request: req }, 'live')
-      return { ...reply, episode: undefined, ...(reply.patch && { patch: { ...reply.patch, scope: 'save' } }) }
+      // what only this save knows grows by rules: it makes no kinds or statuses of its own (their names could be
+      // taken by the shared library's later), and its rules are named apart (PRIVATE_RULES)
+      const reply = await local.resolve({ request: { ...req, create: 'off' } }, 'live')
+      if (!reply.patch) return { ...reply, episode: undefined }
+      if (reply.patch.artifacts.some((a) => a.kind !== 'rule')) return { patch: null, outcome: 'failed', diagnostics: ['an answer for this save alone may not make new kinds or statuses'] }
+      return { ...reply, episode: undefined, patch: { ...privateNames(reply.patch), scope: 'save' } }
     } finally {
       this.privateWork.delete(req.id)
       release()
@@ -1476,3 +1481,49 @@ function editDistance(a: string, b: string): number {
   return prev[b.length]
 }
 
+// ---------------------------------------------------------------- what only one save knows (NPC recipe research)
+
+/** What of a client's workspace is its save's own: the kinds it researched, and the rules only it keeps. */
+function privateOf(ws?: ModWorkspace): { types: Set<string>; statuses: Set<string>; rules: Set<string> } {
+  const p = ws?.patches
+  const rules = [...(p?.rules ?? []), ...(p?.aside ?? []).map((a) => a.rule)].filter((r) => r.source?.local)
+  return {
+    rules: new Set(rules.map((r) => r.id)),
+    types: new Set([...(p?.types ?? []).filter((t) => t.researched).map((t) => t.id), ...(p?.local?.types ?? []), ...rules.flatMap((r) => r.source!.local!.types)]),
+    statuses: new Set([...(p?.local?.statuses ?? []), ...rules.flatMap((r) => r.source!.local!.statuses)]),
+  }
+}
+
+/** Does the question touch what only the save knows: one of its things (the host, a role) of a kind it researched or with a status only it keeps, or a hole in a rule only it keeps? */
+function touchesPrivate(req: ModRequest, own: ReturnType<typeof privateOf>): boolean {
+  const things = [req.event.host, ...Object.values(req.event.roles)].filter((e): e is EntityInfo => !!e)
+  return own.rules.has(req.hole.rule) || things.some((e) => [e.type, ...(e.typeChain ?? [])].some((t) => own.types.has(t)) || (e.statuses ?? []).some((x) => own.statuses.has(x)))
+}
+
+/** The workspace a shared answer is designed from: the client's patches without what only its save knows. */
+function sharedWorkspace(ws: ModWorkspace | undefined, own: ReturnType<typeof privateOf>): ModWorkspace | undefined {
+  const p = ws?.patches
+  if (!p || (!own.types.size && !own.rules.size && !own.statuses.size)) return ws
+  return {
+    ...ws,
+    patches: {
+      rules: p.rules.filter((r) => !own.rules.has(r.id)),
+      ...(p.aside && { aside: p.aside.filter((a) => !own.rules.has(a.rule.id)) }),
+      ...(p.types && { types: p.types.filter((t) => !own.types.has(t.id)) }),
+      ...(p.statuses && { statuses: p.statuses.filter((x) => !own.statuses.has(x.id)) }),
+    },
+  }
+}
+
+/** A private answer's rules under names of their own, and every place the patch names them (holes, tests). */
+function privateNames(patch: Patch): Patch {
+  const tag = Math.random().toString(16).slice(2, 10)
+  let text = JSON.stringify(patch)
+  for (const a of patch.artifacts)
+    if (a.kind === 'rule' && !a.rule.id.startsWith(PRIVATE_RULES)) {
+      const to = `${PRIVATE_RULES}${tag}/${a.rule.id.replace(/^patch\//, '')}`
+      // the id as a whole string, or as the rule part of a hole key (`<rule>#<path>`)
+      text = text.split(`"${a.rule.id}"`).join(`"${to}"`).split(`"${a.rule.id}#`).join(`"${to}#`)
+    }
+  return JSON.parse(text) as Patch
+}

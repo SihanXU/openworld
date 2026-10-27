@@ -3,7 +3,7 @@
 import { Engine } from './engine.ts'
 import { ModPort, type Patch } from './mod.ts'
 import { RuleLibrary } from './rules.ts'
-import { readResearchReply, type ResearchCatalogue, type ResearchDesign } from './research.ts'
+import { INVENTION, readResearchReply, type ResearchCatalogue, type ResearchDesign } from './research.ts'
 import type { Recipe, TypeDef } from './types.ts'
 
 /** The tag of a person one may talk a new recipe over with (the content says who: a smith, an innkeeper…). */
@@ -50,7 +50,7 @@ export function researchPatch(eng: Engine, proposed: unknown, id: string): { pat
   const design = readResearchReply({ reply: 'draft', design: proposed }, researchCatalogue(eng)).design!
   const base = reference(eng, design.prototype)
   if (!base) throw new Error('This craft is not unlocked')
-  if (!id.startsWith(`${design.prototype}/invention_`) || eng.world.onto.data.types[id]) throw new Error('Invalid invention identity')
+  if (!id.startsWith(`${design.prototype}${INVENTION}`) || eng.world.onto.data.types[id]) throw new Error('Invalid invention identity')
   const cost = design.ingredients.reduce((n, m) => n + price(eng, m.type) * m.count, 0)
   const baseline = base.needs.reduce((n, m) => n + price(eng, m.type) * m.count, 0) / (base.count ?? 1)
   // A new material combination may not cheaply bypass an established production chain.

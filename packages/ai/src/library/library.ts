@@ -8,6 +8,7 @@ import { connected, economySteps, freeLunch } from '../checks/economy.ts'
 import {
   RuleLibrary,
   holeKey,
+  isPrivateName,
   ruleTier,
   tierOfRequest,
   tiersFrom,
@@ -97,6 +98,8 @@ export class WorldLibrary {
    * judged with them as a client judges the patch it syncs, so the log holds nothing every client would refuse.
    */
   protectedFacts: string[]
+  /** A copy answering one save's own question (pipeline.ts privateEpisode): it may hold that save's names. */
+  forOneSave = false
 
   private readonly store?: LogStore
 
@@ -252,6 +255,9 @@ export class WorldLibrary {
   /** replaces: patch rules this patch takes the place of (a revision), judged as if they were gone. */
   validate(patch: Patch, req?: ModRequest, ws?: ModWorkspace, replaces: string[] = []): ValidationResult {
     if (patch?.scope === 'save') return { ok: false, errors: ['a save-only patch cannot enter the shared library'], warnings: [] }
+    // names only one save may hold (research.ts isPrivateName): the shared library never takes one, so a save's own never meets it
+    const taken = (patch?.artifacts ?? []).flatMap((a) => (a?.kind === 'rule' ? [a.rule?.id] : a?.kind === 'type' ? [a.type?.id] : a?.kind === 'status' ? [a.status?.id] : [])).filter((id): id is string => typeof id === 'string' && isPrivateName(id))
+    if (taken.length && !this.forOneSave) return { ok: false, errors: [`a name only one save may hold cannot enter the shared library: ${taken.join(', ')}`], warnings: [] }
     withTerrainTypes(this.ontology)
     // Public ontology and workspace data can change without a mutator or sequence bump.
     const artifacts = patch?.artifacts?.map((a) => a?.kind === 'rule' && a.rule ? { ...a, rule: { ...a.rule, tests: undefined } } : a)

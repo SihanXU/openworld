@@ -2,6 +2,13 @@
 // catalogue from the current game, and rechecks it at confirmation: a model is not authority.
 import type { Text } from './types.ts'
 
+/** A researched kind is its prototype's child named apart: `<prototype>/invention_<id>`. */
+export const INVENTION = '/invention_'
+/** A save's own rules are named apart too: `patch/save-<n>/…` (an answer about what only that save knows). */
+export const PRIVATE_RULES = 'patch/save-'
+/** A name only one save may hold: the shared library never takes one (so the two never meet). */
+export const isPrivateName = (id: string): boolean => id.startsWith(PRIVATE_RULES) || id.includes(INVENTION)
+
 export interface ResearchCatalogue {
   prototypes: string[]
   materials: string[]
