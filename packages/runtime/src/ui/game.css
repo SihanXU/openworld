@@ -161,6 +161,7 @@
 .dialog .dline { font-size: 17px; line-height: 1.5; min-height: 50px; }
 .dialog .dmore { position: absolute; right: 12px; bottom: 6px; font-size: 12px; color: #8a6a44; animation: pulse 1s infinite; }
 .dchoices { display: flex; gap: 10px; margin-top: 8px; }
+.dialog .dsin { margin-top: 4px; font-size: 14px; font-weight: 600; color: #a3242a; }
 .dchoices button { min-width: 80px; }
 @keyframes pulse { 50% { filter: brightness(1.35); } }
 

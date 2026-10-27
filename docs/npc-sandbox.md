@@ -7,7 +7,7 @@ player"** (anyone can steal, witness, report, be wanted), **relations are per pa
 (world-model.md §6.10), and **everything is events and rules** (design.md §5.4–5.15). Decisions taken:
 villagers can die, those the story needs only go down; a per-pair *regard* replaces the cut hearts (shown only by
 how people act, and a word in the talk panel); a drawn-weapon stance makes a blow on a person deliberate (sheathed, a blow, a use or a gift on someone friendly
-is asked first, design.md §5.2); talk is
+is asked first, design.md §5.2; drawn or not, a blow that would weigh on one's conscience is asked, §2.2); talk is
 a panel of fixed verbs (free text later, through the same request).
 
 Built 2026-10-09 (all three milestones). The numbers below are the content's (`content/src/social.ts`); §4 lists
@@ -52,6 +52,19 @@ deed; one act is one deed.
 
 The weight is the regard the victim (and their household) loses; kin (`ties`) lose 0.6 of it, one who keeps a
 watch 0.5, anyone else 0.25; heard second-hand, half again.
+
+**Its doer's conscience.** The doer sees its own act too, witnessed or not (`own`), and a person's `people/see`
+answers it with `conscience`: its karma falls by a quarter of the weight (one at least); a blow on one who has made
+it a foe is no sin. **Every act of the one at the keys that would bring its karma down is asked first** (agreed
+2026-10-26): `Engine.guilt` foresees the own `seen` an act would make — as `see` makes it, a blow or a chain that
+hurts or breaks its target taken to harm it by the act's power, to kill one it would leave at no health — and asks
+the society slot (`guilt`) what it would hold and cost, where the doer's own rule answers it with `conscience`.
+The controls ask before any such act — a key or a click (`run`), the attack key along the facing with its sweep
+(`strike`, `Engine.blowGuilt`), the pockets panel's taking (`pocket`), the chest panel's (`asksBeforeTransfer`,
+once for a whole stack, the tolls added) — and the question names the deed and its toll under it ("This would be
+theft: evil +4."). The blade drawn (X) still means the blow, but no longer skips a question the conscience asks;
+a held button never asks and stops where the next act would be a sin. What would not be made (out of reach, a
+child's things) is not asked.
 
 ### 2.3 Seeing and knowing who
 - `see` (engine): sight, line of sight, the dark, sleep as before; and **sneaking** (V, a status with

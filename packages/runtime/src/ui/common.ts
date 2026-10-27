@@ -316,6 +316,8 @@ export const STRINGS: Record<string, [string, string]> = {
   empty: ['empty', '空'],
   yes: ['Yes', '是'],
   no: ['No', '否'],
+  // under a question whose act would weigh on one's conscience: what it would be, and how far it darkens one
+  sinWarn: ['This would be {deed}: evil +{n}.', '这是{deed}：恶 +{n}。'],
   health: ['Health', '生命'],
   hunger: ['Hunger', '饱食度'],
   day: ['Day', '第'],

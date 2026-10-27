@@ -937,6 +937,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         post({ t: 'keys', keys: game ? keysNow(game) : undefined, n: m.n })
         break
       case 'answer':
+        // a key or a button held when the question came is not taken for a second press after it (it would ask again)
+        attacking = false
+        swinging = undefined
         game?.engine.controls.answer(m.yes)
         break
       case 'select':
@@ -1024,10 +1027,15 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'transfer':
         if (game && panel && !crafts.busy) {
-          if (!transfers.busy) nextTransferFrame = 0
           const owner = game, container = panel
-          transfers.enqueue(owner.engine.controls.transferSteps(container, m.from, m.item, m.all), m.from,
-            () => game === owner && panel === container && !owner.engine.world.state.question && !owner.mods.asking)
+          const go = () => {
+            if (game !== owner || panel !== container) return
+            if (!transfers.busy) nextTransferFrame = 0
+            transfers.enqueue(owner.engine.controls.transferSteps(container, m.from, m.item, m.all), m.from,
+              () => game === owner && panel === container && !owner.engine.world.state.question && !owner.mods.asking)
+          }
+          // taking what is another's is asked first (a theft: it would weigh on one's conscience)
+          if (!owner.engine.controls.asksBeforeTransfer(container, m.from, m.item, m.all, go)) go()
         }
         break
       case 'toggle':

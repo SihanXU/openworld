@@ -7,7 +7,7 @@
 
 import { TICKS_PER_HOUR, TICKS_PER_MINUTE } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
-import { Controls } from './controls.ts'
+import { Controls, joinSins } from './controls.ts'
 import { Story } from './story.ts'
 import { deriveRecipes } from './recipes.ts'
 import { Behaviour, KERNEL_GOALS } from './behaviour.ts'
@@ -22,7 +22,7 @@ import { Chunks } from './sparse.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
 import { DEFAULT_QUALITY, categoryOf, tierOfLevel, type AiQuality } from './quality.ts'
 import { modulesOf, noHooks, noSociety, type Combat, type Society, type EffectImpl, type EngineHooks, type EngineModule, type Goal } from './module.ts'
-import type { Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, SkillDef, Text, Tier, Verb, WorldState } from './types.ts'
+import type { Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, Sin, SkillDef, Text, Tier, Verb, WorldState } from './types.ts'
 import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
 import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type View, type Writer } from './world.ts'
 import { seedOf } from './rng.ts'
@@ -95,6 +95,8 @@ interface Before {
 }
 
 const OPAQUE_TERRAIN = ['wall', 'tree', 'rock', 'roof']
+/** The primitives that harm their host (a preview's `harms`). */
+const HARMS = new Set<string>(['hurt', 'destroy', 'breakdown'])
 
 export class Engine {
   world: World
@@ -556,14 +558,16 @@ export class Engine {
   preview(
     ev: GameEvent,
     depth = 3,
-  ): { defined: boolean; unknown: boolean; changes: boolean; rules: string[]; labels: { text: Text; rule: string }[]; confirm?: Text; hole?: { ev: GameEvent; res: Resolution } } {
+  ): { defined: boolean; unknown: boolean; changes: boolean; rules: string[]; labels: { text: Text; rule: string }[]; confirm?: Text; hole?: { ev: GameEvent; res: Resolution }; harms: Id[] } {
     const res = this.resolveEvent(ev)
     const rules = res.rule ? [res.rule.id] : []
     const confirm = res.defined ? ((res.leaf && isDo(res.leaf) && res.leaf.confirm) || res.rule?.confirm) : undefined
-    if (!res.defined || !res.leaf || !isDo(res.leaf)) return { defined: false, unknown: true, changes: false, rules, labels: [], confirm, hole: res.hole ? { ev, res } : undefined }
+    if (!res.defined || !res.leaf || !isDo(res.leaf)) return { defined: false, unknown: true, changes: false, rules, labels: [], confirm, hole: res.hole ? { ev, res } : undefined, harms: [] }
     // what this outcome says it does: its leaf's label, else its rule's
     const own = res.leaf.label ?? res.rule?.label
     const labels: { text: Text; rule: string }[] = own && res.rule ? [{ text: own, rule: res.rule.id }] : []
+    // the hosts the chain hurts, breaks or makes away with (what is harmed, as those who see it judge it)
+    const harms: Id[] = res.leaf.do.some((e) => HARMS.has(e.op)) ? [ev.host.e] : []
     let unknown = false
     // what an emit changes is what its receiver does (followed below), unless it cannot be followed (to the story, an area)
     const followed = (e: Effect) => e.op === 'emit' && typeof e.to === 'string' && e.to !== 'story' && e.to !== 'world' && !e.to.startsWith('tileOf:')
@@ -589,11 +593,12 @@ export class Engine {
         const p = this.preview(child, depth - 1)
         rules.push(...p.rules)
         labels.push(...p.labels)
+        harms.push(...p.harms)
         if (p.unknown) unknown = true
         if (p.changes) changes = true
         hole ??= p.hole
       }
-    return { defined: true, unknown, changes, rules, labels, confirm, hole }
+    return { defined: true, unknown, changes, rules, labels, confirm, hole, harms }
   }
 
   // ---------------------------------------------------------------- acts (design.md §5.7)
@@ -788,25 +793,8 @@ export class Engine {
     const t = b.thing ? w.get(b.thing) : undefined
     const gone = !t || t.place.on === 'none' || (b.person && !w.isAgent(t))
     const harm = b.hp !== undefined ? Math.max(0, b.hp - (gone ? 0 : w.num(t!, 'hp', w.num(t!, 'maxHp', 1)))) : 0
-    const killed = !!b.person && gone
-    const element = ev.params?.element
-    const facts: Record<string, PropValue> = {
-      act: String(ev.params?.verb ?? ''),
-      defined,
-      map: at.map,
-      x: at.x,
-      y: at.y,
-      ...(b.whose && { whose: b.whose }),
-      ...(b.theirs && { theirs: true }),
-      ...(b.from && { from: b.from }),
-      ...(b.person && { person: true }),
-      ...(b.worn && { worn: true }),
-      ...(harm > 0 && { harm }),
-      ...(killed && { killed: true }),
-      ...(b.value !== undefined && { value: b.value }),
-      ...(typeof element === 'string' && element && { element }),
-      ...(ev.params?.attack === true && { attack: true }),
-    }
+    const killed = !!b.person && !!gone
+    const facts = this.seenFacts(ev, b, at, defined, harm, killed)
     for (const e of w.entitiesOnMap(at.map)) {
       // a seer is anything with sight of its own
       if (e.id === doer.id || e.place.on !== 'tile' || !(w.num(e, 'sight') > 0) || this.asleep(e) || this.busy(e)) continue
@@ -828,16 +816,81 @@ export class Engine {
     }
     // and the doer sees it too, seen or not: one's own deed (its conscience: the society's deeds say what it was)
     if (w.isAgent(doer) && doer.place.on === 'tile') {
-      const own: GameEvent = {
-        kind: 'seen',
-        host: { e: doer.id },
-        roles: { actor: ev.roles.actor, target: ev.roles.target, instrument: ev.roles.instrument },
-        params: { ...facts, own: true, owner: this.society.relation(b.whose, doer), victim: this.society.victim(b.person ? b.thing : b.whose, doer) },
-        cause: ev.cause,
-        origin: ev.origin,
-      }
+      const own = this.ownSeen(ev, b, facts, doer)
       if (this.society.deedName(own)) this.offer(own)
     }
+  }
+
+  /** What those who see an act see in it (docs/npc-sandbox.md §2.2): the act, where, whose the thing was, the harm, a death. */
+  private seenFacts(ev: GameEvent, b: Before, at: Pos, defined: boolean, harm: number, killed: boolean): Record<string, PropValue> {
+    const element = ev.params?.element
+    return {
+      act: String(ev.params?.verb ?? ''),
+      defined,
+      map: at.map,
+      x: at.x,
+      y: at.y,
+      ...(b.whose && { whose: b.whose }),
+      ...(b.theirs && { theirs: true }),
+      ...(b.from && { from: b.from }),
+      ...(b.person && { person: true }),
+      ...(b.worn && { worn: true }),
+      ...(harm > 0 && { harm }),
+      ...(killed && { killed: true }),
+      ...(b.value !== undefined && { value: b.value }),
+      ...(typeof element === 'string' && element && { element }),
+      ...(ev.params?.attack === true && { attack: true }),
+    }
+  }
+
+  /** The doer's own sight of its act: what it holds is its own deed. */
+  private ownSeen(ev: GameEvent, b: Before, facts: Record<string, PropValue>, doer: Entity): GameEvent {
+    return {
+      kind: 'seen',
+      host: { e: doer.id },
+      roles: { actor: ev.roles.actor, target: ev.roles.target, instrument: ev.roles.instrument },
+      params: { ...facts, own: true, owner: this.society.relation(b.whose, doer), victim: this.society.victim(b.person ? b.thing : b.whose, doer) },
+      cause: ev.cause,
+      origin: ev.origin,
+    }
+  }
+
+  /**
+   * What an act would weigh on its doer's conscience, foreseen before it is made (the controls ask first): the own
+   * `seen` it would make, as `see` makes it — a blow, or a chain that hurts or breaks what it is made on, taken to
+   * harm it by the act's power, and to kill one it would leave at no health — and what the doer's own answer to it
+   * (a rule's `conscience`) would cost its karma. Nothing is written.
+   */
+  guilt(verb: Verb, actorId: Id, target: Ref, opts: { instrument?: Ref | null; params?: Record<string, PropValue> } = {}): Sin | undefined {
+    const w = this.world
+    const doer = w.get(actorId)
+    if (!doer || !w.isAgent(doer) || doer.place.on !== 'tile') return undefined
+    const instrument = opts.instrument === undefined ? (doer.held ? { e: doer.held } : undefined) : (opts.instrument ?? undefined)
+    // an act that would not be made (out of reach, a child's things: act) weighs on no one
+    if (!this.inReach(verb, doer, target, instrument)) return undefined
+    const thing = w.get(target.e)
+    const shielded = thing && (verb === 'take' ? this.protectedHolder(thing) : opts.params?.attack === true && this.isProtected(thing) ? thing : undefined)
+    if (shielded && shielded.id !== actorId) return undefined
+    const ev = this.actEvent(verb, actorId, target, instrument, opts.params)
+    const b = this.before(ev)
+    if (!b.at) return undefined
+    let harm = 0
+    let killed = false
+    if (verb === 'use' && b.hp !== undefined && b.hp > 0) {
+      const blow = ev.params?.attack === true
+      if (blow || this.preview(ev).harms.includes(target.e)) {
+        const power = Math.max(1, Number(ev.params?.power ?? 1))
+        harm = Math.min(b.hp, power)
+        killed = !!b.person && blow && power >= b.hp
+      }
+    }
+    const own = this.ownSeen(ev, b, this.seenFacts(ev, b, b.at, true, harm, killed), doer)
+    const sin = this.society.guilt(own)
+    if (!sin) return undefined
+    // only where the doer's own rules answer its deed with its conscience
+    const res = this.resolveEvent(own)
+    if (!res.defined || !res.leaf || !isDo(res.leaf) || !res.leaf.do.some((e) => e.op === 'conscience')) return undefined
+    return { deeds: [sin.deed], toll: sin.toll }
   }
 
   // ---------------------------------------------------------------- factions and fear
@@ -1690,37 +1743,9 @@ export class Engine {
     const element = (weapon && (w.prop(weapon, 'element') as string | undefined)) || (w.prop(a, 'element') as string | undefined)
     const start = w.posOf(a)
     if (!start) return true
-    const cp = chosen && w.refPos(chosen)
-    if (chosen && (!cp || !this.inReach('use', a, chosen, weapon ? { e: weapon.id } : undefined))) return true
-    const [dx, dy] = DIRS[a.facing ?? 'down']
-    let target: Ref | undefined
-    let last: Pos | undefined
-    for (let i = 1; i <= range; i++) {
-      const x = start.x + dx * i
-      const y = start.y + dy * i
-      if (!w.inBounds(start.map, x, y)) break
-      last = { ...start, x, y }
-      // a body first, then what stands there and cannot be carried (a blow on the well is a blow on the well)
-      // (the ground of a cell is not in the way: a blow goes on to what the cell's top is, where it stops)
-      const victim = w.actorAt(start.map, x, y, a.id, start.z) ?? (whiff ? undefined : w.entitiesAt(start.map, x, y, start.z).find((e) => !w.isAgent(e) && !w.isPortable(e) && !w.isTerrain(e)))
-      if (victim) {
-        target = { e: victim.id }
-        break
-      }
-      if (w.blocked(start.map, x, y, undefined, start.z)) break
-    }
-    if (!target && last && !whiff) {
-      const top = w.cellTop(last.map, last.x, last.y, last.z)
-      if (top) target = { e: top.id }
-    }
-    // a melee blow on the layer the player chose; a cast at a tile the player chose lands there when it lies on the bolt's way
-    if (chosen && cp) {
-      const d = Math.abs(cp.x - start.x) + Math.abs(cp.y - start.y)
-      const onRay = cp.x - start.x === dx * d && cp.y - start.y === dy * d
-      if (range <= 1 || d === 0) (target = chosen), (last = cp)
-      else if (onRay && last && d <= Math.abs(last.x - start.x) + Math.abs(last.y - start.y)) (target = chosen), (last = cp)
-      else return true
-    }
+    const aimed = this.blowAt(a, weapon, range, chosen, whiff)
+    if (!aimed) return true
+    const { target, last } = aimed
     const victim = target && 'e' in target ? w.get(target.e) : undefined
     if (victim && this.isProtected(victim)) {
       this.refuseProtection(a.id)
@@ -1751,6 +1776,68 @@ export class Engine {
       this.combat.struck(a, side, sideStrike, sideHp, range, false)
     }
     return true
+  }
+
+  /**
+   * Where a blow along the facing lands: the first body on its way, else what stands there and cannot be carried,
+   * else the top of the last cell it reaches; the chosen target when it lies on the way. None when it cannot be made
+   * there (the chosen one out of reach, or off the bolt's way). A `whiff` lands only on a body on its way.
+   */
+  private blowAt(a: Entity, weapon: Entity | undefined, range: number, chosen?: Ref, whiff = false): { target?: Ref; last?: Pos } | undefined {
+    const w = this.world
+    const start = w.posOf(a)
+    if (!start) return undefined
+    const cp = chosen && w.refPos(chosen)
+    if (chosen && (!cp || !this.inReach('use', a, chosen, weapon ? { e: weapon.id } : undefined))) return undefined
+    const [dx, dy] = DIRS[a.facing ?? 'down']
+    let target: Ref | undefined
+    let last: Pos | undefined
+    for (let i = 1; i <= range; i++) {
+      const x = start.x + dx * i
+      const y = start.y + dy * i
+      if (!w.inBounds(start.map, x, y)) break
+      last = { ...start, x, y }
+      // a body first, then what stands there and cannot be carried (a blow on the well is a blow on the well)
+      // (the ground of a cell is not in the way: a blow goes on to what the cell's top is, where it stops)
+      const victim = w.actorAt(start.map, x, y, a.id, start.z) ?? (whiff ? undefined : w.entitiesAt(start.map, x, y, start.z).find((e) => !w.isAgent(e) && !w.isPortable(e) && !w.isTerrain(e)))
+      if (victim) {
+        target = { e: victim.id }
+        break
+      }
+      if (w.blocked(start.map, x, y, undefined, start.z)) break
+    }
+    if (!target && last && !whiff) {
+      const top = w.cellTop(last.map, last.x, last.y, last.z)
+      if (top) target = { e: top.id }
+    }
+    // a melee blow on the layer the player chose; a cast at a tile the player chose lands there when it lies on the bolt's way
+    if (chosen && cp) {
+      const d = Math.abs(cp.x - start.x) + Math.abs(cp.y - start.y)
+      const onRay = cp.x - start.x === dx * d && cp.y - start.y === dy * d
+      if (range <= 1 || d === 0) (target = chosen), (last = cp)
+      else if (onRay && last && d <= Math.abs(last.x - start.x) + Math.abs(last.y - start.y)) (target = chosen), (last = cp)
+      else return undefined
+    }
+    return { target, last }
+  }
+
+  /**
+   * What a blow along the facing (attack) would weigh on the striker's conscience: on what it lands on and on what
+   * its sweep's sides land on, each a `use` with `attack` (guilt); a `whiff`, on the body on its way. Nothing is
+   * written, nothing rolled.
+   */
+  blowGuilt(a: Entity, chosen?: Ref, whiff = false): (Sin & { target: Ref }) | undefined {
+    const w = this.world
+    const weapon = weaponOf(w, a)
+    if (weapon && this.combat.refuses(a, weapon, 'fight')) return undefined
+    const range = this.reachOf('use', a, undefined, weapon) ?? 1
+    const target = this.blowAt(a, weapon, range, chosen, whiff)?.target
+    const victim = target && w.get(target.e)
+    if (!target || !victim || this.isProtected(victim)) return undefined
+    const instrument = weapon ? { e: weapon.id } : null
+    const struck = [victim, ...this.combat.besides(a, victim, range).filter((s) => !this.isProtected(s))]
+    const sin = joinSins(struck.map((v) => this.guilt('use', a.id, { e: v.id }, { instrument, params: { attack: true } })))
+    return sin && { ...sin, target }
   }
 
   /** The `lightning` primitive: a bolt seeks what stands tall near the player (four times in five, as lightning does), or falls near them. */

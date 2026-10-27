@@ -2,7 +2,7 @@
 
 import { nightHours, type Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
-import type { BossState, Look, Dir, Entity, FxEvent, Id, LessonInput, PropValue, SceneState, Text } from './types.ts'
+import type { BossState, Look, Dir, Entity, FxEvent, Id, LessonInput, PropValue, SceneState, Sin, Text } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
 import { oldStackKey, stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
@@ -241,8 +241,8 @@ export interface Frame {
     /** The coin one carries. */
     purse: number
   }
-  /** A yes/no question waiting for the player (time is stopped). */
-  question?: { text: Text }
+  /** A yes/no question waiting for the player (time is stopped); `sin`: what the act would weigh on their conscience. */
+  question?: { text: Text; sin?: Sin }
   /** The world's facts (the story's counts: what the smith has been given…), for the HUD's objective. */
   facts: Record<string, PropValue>
   /**
@@ -742,7 +742,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
       // what one owes the watch here, and the coin one carries: a module's (society)
       purse: 0,
     },
-    question: w.state.question ? { text: w.state.question.text } : undefined,
+    question: w.state.question ? { text: w.state.question.text, ...(w.state.question.sin && { sin: w.state.question.sin }) } : undefined,
     quests: questView.quests,
     ...(fallen(eng) && { fallen: fallen(eng) }),
     facts: { ...(w.story?.props ?? {}) },

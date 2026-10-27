@@ -138,6 +138,11 @@ export const societyModule: EngineModule = {
       },
       brief: (e, toward) => ({ regard: social.regard(e, toward), knows: (e.npc?.memory?.deeds ?? []).filter((d) => d.by === toward).slice(-4).map((d) => social.deedWords(d, 'en')) }),
       deedName: (seen) => social.deedIn(seen)?.name,
+      guilt(seen) {
+        const doer = w.get(seen.host.e)
+        const g = doer && social.guilt(doer, seen)
+        return g && { deed: g.def.name, toll: g.toll }
+      },
     }
     // the watches: a resident each (its ledger is its props)
     eng.hooks.residents.push(() =>
