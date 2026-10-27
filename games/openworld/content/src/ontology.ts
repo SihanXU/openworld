@@ -1,7 +1,7 @@
 // Base ontology: terrains, statuses, elements, visual effects and the type tree
 // for actors and fixtures. Item types come from the catalogue in items.ts.
 
-import { APPEAR_TICK, TICKS_PER_DAY, type Cond, type Ontology, type StageDef, type StatusDef, type TerrainDef, type TypeDef } from '@openworld/engine'
+import { APPEAR_TICK, CRAFTSPERSON, TICKS_PER_DAY, type Cond, type Ontology, type StageDef, type StatusDef, type TerrainDef, type TypeDef } from '@openworld/engine'
 import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE } from '@openworld/modules'
 // the engine's official modules this game uses (docs/engine-split.md S3): loading them registers them
 import '@openworld/modules'
@@ -357,6 +357,9 @@ const F = (id: string, en: string, zh: string, tags: string[], extra: Partial<Ty
   ...extra,
 })
 
+/** The people who make things: the smith (tools, weapons, armour), the innkeeper (food), the herbalist. */
+const CRAFTSPEOPLE = ['smith', 'innkeeper', 'herbalist']
+
 export const PERSON_ROLES: [string, string, string][] = [
   ['villager', 'villager', '村民'],
   ['farmer', 'farmer', '农夫'],
@@ -394,7 +397,8 @@ const actorTypes: TypeDef[] = [
     sprite: 'person',
   }),
   P('actor/person/player', 'you', '你', { tags: ['essential'], props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, hunger: 20, maxHunger: 20, hungerEvery: 480 } }),
-  ...PERSON_ROLES.map(([id, en, zh]) => P(`actor/person/${id}`, en, zh)),
+  // a craftsperson talks over a new recipe with one who brings an idea (NPC recipe research: engine/src/researchCraft.ts)
+  ...PERSON_ROLES.map(([id, en, zh]) => P(`actor/person/${id}`, en, zh, CRAFTSPEOPLE.includes(id) ? { tags: [CRAFTSPERSON] } : {})),
   // the profession trainer (engine/src/profession.ts): a profession is chosen within reach of one
   P('actor/person/trainer', 'profession trainer', '职业导师', { tags: ['trainer'] }),
   // a minor kind's health, attack and defence are not set here: they come from one curve through its role (levels.ts)

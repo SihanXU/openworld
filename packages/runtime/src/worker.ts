@@ -1,6 +1,6 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
-import { researchCatalogue, researchPatch, trialResearch, readResearchReply, type ResearchDesign, type ResearchRequest } from '@openworld/engine'
+import { CRAFTSPERSON, researchCatalogue, researchPatch, trialResearch, readResearchReply, type ResearchDesign, type ResearchRequest } from '@openworld/engine'
 import { untilUp } from './untilUp.ts'
 import { portLink, serviceLink, resolveForSave, type ModderLink } from './modderLink.ts'
 import { FrameEncoder } from './frameDelta.ts'
@@ -50,7 +50,7 @@ let researchSession: { owner: Game; who: string; history: ResearchRequest['histo
 function researchHere(owner: Game, who: string): boolean {
   const w = owner.engine.world
   const npc = w.get(who)
-  return game === owner && talk?.who === who && !talk.arrest && !!npc && owner.engine.inReach('hands', w.player, { e: npc.id }, undefined) && !owner.engine.busy(w.player)
+  return game === owner && talk?.who === who && !talk.arrest && !!npc && w.hasTag(npc, CRAFTSPERSON) && owner.engine.inReach('hands', w.player, { e: npc.id }, undefined) && !owner.engine.busy(w.player)
 }
 
 async function askResearch(message: string): Promise<void> {

@@ -320,6 +320,8 @@ export interface TalkView {
   bounty?: number
   /** A guard has stopped them: only the watch's choices. */
   arrest?: boolean
+  /** They make things: a new recipe may be talked over with them (researchCraft.ts `CRAFTSPERSON`). */
+  crafts?: boolean
   verbs: TalkOption[]
 }
 

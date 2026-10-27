@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildSandbox, madeOf, ModPort, RuleLibrary, researchCatalogue, trialResearch, type ResearchDesign } from '@openworld/engine'
+import { CRAFTSPERSON, OntologyIndex, buildSandbox, madeOf, ModPort, RuleLibrary, researchCatalogue, trialResearch, type ResearchDesign } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 function world() {
@@ -12,6 +12,13 @@ function world() {
 }
 
 describe('research in the actual game', () => {
+  it('is talked over with those who make things: a smith, an innkeeper, a herbalist; not a guard or a child', () => {
+    const onto = new OntologyIndex(buildOntology())
+    const crafts = (role: string) => onto.resolve(`actor/person/${role}`).tags.includes(CRAFTSPERSON)
+    expect(['smith', 'innkeeper', 'herbalist'].map(crafts)).toEqual([true, true, true])
+    expect(['guard', 'child', 'villager', 'beggar'].map(crafts)).toEqual([false, false, false, false])
+  })
+
   it.each(['stone', 'log'])('keeps the ordinary crafting material effects when %s is first', (main) => {
     const { eng, port } = world()
     const prototype = 'item/tool/pickaxe'

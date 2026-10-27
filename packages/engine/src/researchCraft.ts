@@ -6,6 +6,9 @@ import { RuleLibrary } from './rules.ts'
 import { readResearchReply, type ResearchCatalogue, type ResearchDesign } from './research.ts'
 import type { Recipe, TypeDef } from './types.ts'
 
+/** The tag of a person one may talk a new recipe over with (the content says who: a smith, an innkeeper…). */
+export const CRAFTSPERSON = 'craftsperson'
+
 const form = /^(item\/(tool|weapon|armor|clothing|food))\//
 const text = (x: unknown) => typeof x === 'string' ? x : ''
 
