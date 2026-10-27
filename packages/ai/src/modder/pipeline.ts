@@ -734,7 +734,7 @@ export class Modder {
         if (!wl.chains) take(withoutChains(patch))
         take(qualifyTerrains(patch, ctx.ontology))
         take(stationFromRules(patch, ctx.ontology))
-        take(namedHost(patch, ctx.ontology))
+        take(namedHost(patch, ctx.ontology, req.event.host?.type))
         // the deterministic repairs off (an ablation): an answer that needed one is an invalid attempt
         if (h.design.fixes === false && fixes.length) {
           failed(fixes.map((f) => `needed a mechanical repair: ${f}`))

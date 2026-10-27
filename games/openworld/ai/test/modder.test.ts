@@ -758,6 +758,10 @@ describe('deterministic repairs', () => {
     expect((patch.artifacts[0] as { rule: Rule }).rule.label).toEqual({ en: `Weigh ${name.en} down`, zh: `压住${name.zh}` })
     expect(fixes).toHaveLength(1)
     expect(namedHost(patchOf(bindRule()), onto).fixes).toEqual([])
+    // the host the model left out is the request's, and a cell's is its terrain's name (2026-10-27: "Strike {host}" on the city, host null)
+    const city = namedHost(patchOf({ ...r, host: undefined }), onto, 'tile/ow_city')
+    const cityName = onto.terrains.ow_city.name as { en: string; zh: string }
+    expect((city.patch.artifacts[0] as { rule: Rule }).rule.label).toEqual({ en: `Weigh ${cityName.en} down`, zh: `压住${cityName.zh}` })
     // in the pipeline: the answer is taken at its first attempt, the repair said
     const { model, calls } = scripted([patchOf(r)])
     const { modder, state } = setup(model)

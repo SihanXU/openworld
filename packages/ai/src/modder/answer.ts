@@ -120,12 +120,14 @@ export function qualifyTerrains(patch: Patch, onto: Ontology): { patch: Patch; f
 /**
  * A label names only the roles an input has ({target}, {instrument}, {actor}: the validator holds to it), never the
  * host. A label that says {host} means the host itself: its name is written in, in each language the label has
- * (the one mistake a reflecting modder learns first, and a modder without memory makes every time).
+ * (the one mistake a reflecting modder learns first, and a modder without memory makes every time). The host is the
+ * request's (`requestHost`): a learned rule's host is always the type that asked.
  */
-export function namedHost(patch: Patch, onto: Ontology): { patch: Patch; fixes: string[] } {
+export function namedHost(patch: Patch, onto: Ontology, requestHost?: string): { patch: Patch; fixes: string[] } {
   const fixes: string[] = []
   const name = (type: string | undefined, lang: string): string | undefined => {
-    const n = type ? onto.types[type]?.name : undefined
+    // a thing's type, or a cell's terrain (tile/<id>)
+    const n = !type ? undefined : (onto.types[type]?.name ?? (type.startsWith('tile/') ? onto.terrains[type.slice(5)]?.name : undefined))
     return typeof n === 'string' ? n : n && typeof n === 'object' ? ((n as Record<string, string>)[lang] ?? (n as Record<string, string>).en) : undefined
   }
   const label = (l: unknown, type: string | undefined, id: string): unknown => {
@@ -154,7 +156,8 @@ export function namedHost(patch: Patch, onto: Ontology): { patch: Patch; fixes: 
   }
   const artifacts = patch.artifacts.map((a) => {
     if (a.kind !== 'rule' || !a.rule) return a
-    const type = a.rule.host?.type
+    // the request's host (its place is the harness's, set after this: the model may have left the host out)
+    const type = requestHost ?? a.rule.host?.type
     return { ...a, rule: { ...a.rule, ...(a.rule.label !== undefined && { label: label(a.rule.label, type, a.rule.id) as Text }), tree: tree(a.rule.tree, type, a.rule.id) } }
   })
   return { patch: fixes.length ? { ...patch, artifacts } : patch, fixes }
