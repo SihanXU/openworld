@@ -258,6 +258,9 @@ export const MATERIALS: Record<string, (s: Surface) => string> = {
   // a lantern's panes lit from within
   glassLit: (s) => step('Y', s.cls === 'top' ? 0 : 0.5),
   earth: plain('w', 2.5),
+  // a log's cut end: pale wood, a ring drawn a tone darker
+  endGrain: plain('a', 1),
+  endRing: plain('a', 2.5),
   // clipped evergreen: leaves in three greens, darker below
   foliage: (s) => step('v', tone(s, 0.8) + (hash(Math.floor(s.x / 2), Math.floor(s.z / 2), Math.floor(s.y / 2)) < 0.3 ? 1 : hash(Math.floor(s.x / 2), Math.floor(s.z / 2), 5) < 0.15 ? -1 : 0)),
   grass: plain('v', 0),
