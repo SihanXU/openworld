@@ -222,7 +222,9 @@ export class Workspace {
     // written in another language than the template: its words turned round, the template's into a table
     if (o.source && o.source !== languagesOf(JSON.parse(readFileSync(join(to, 'game.json'), 'utf8')) as GameJson).source) {
       const p = readProject(to)
-      const { changed } = switchSource(p, o.source)
+      // a language the template has no words in is still a choice for a new project: its words are the template's own
+      // (English), written under that language, ready to be translated (an existing project is not switched so: texts.ts)
+      const { changed } = switchSource(p, o.source, { fallback: true })
       const byFile = new Map(filesOf(p).map((f) => [f.file, f.data]))
       for (const f of changed) writeFileSync(join(to, f), formatJson(byFile.get(f)))
       mkdirSync(join(to, 'locales'), { recursive: true })
