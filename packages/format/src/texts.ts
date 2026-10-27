@@ -391,14 +391,15 @@ function hasWords(p: Project, lang: string): boolean {
  * language become its words, where it has them, and the former source's go into that language's table. The project
  * changed in place (its game.json's `languages` too); the files changed and the tables. A language no text of the
  * project has words in is refused (`refused`: nothing is changed, the tables as they were): writing the game in it
- * would write the English fallback as its words and replace the translation tables it has.
+ * would write the English fallback as its words and replace the translation tables it has. A new project asks for
+ * that fallback on purpose (`fallback`): it has no translations of its own to lose, and its words are written over.
  */
-export function switchSource(p: Project, to: string): { changed: string[]; tables: LocaleFile[]; refused?: string } {
+export function switchSource(p: Project, to: string, o: { fallback?: boolean } = {}): { changed: string[]; tables: LocaleFile[]; refused?: string } {
   const from = languagesOf(p.game)
   if (from.source === to) return { changed: [], tables: (p.locales ?? []).map((f) => f.data) }
   const inline = applyLocales({ ...p, game: { ...p.game, languages: { source: from.source, translations: [...new Set([...from.translations, to])] } } })
   inline.game.languages = { source: to, translations: [from.source, ...from.translations.filter((l) => l !== to)] }
-  if (!hasWords(inline, to)) return { changed: [], tables: (p.locales ?? []).map((f) => structuredClone(f.data)), refused: to }
+  if (!o.fallback && !hasWords(inline, to)) return { changed: [], tables: (p.locales ?? []).map((f) => structuredClone(f.data)), refused: to }
   const r = extractLocales(inline, [])
   // (back into the project given: its files and its game.json)
   const byFile = new Map(filesOf(inline).map((f) => [f.file, f.data]))
