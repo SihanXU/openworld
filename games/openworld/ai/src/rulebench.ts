@@ -8,11 +8,15 @@
 // reflections'), the time; and all of it by the hole's place among its node's (the first of its kind … the K-th).
 //
 //   npm run rulebench -- build [--nodes 20 --per 10 --seed 1 --out games/openworld/ai/bench/rulebench.json]
-//   npm run rulebench -- run --arm on|off [--rep 1] [--bench <file>] [--data var/rulebench] [--limit n]
+//   npm run rulebench -- run --arm on|rules|off [--rep 1] [--bench <file>] [--data var/rulebench] [--label <name>]
+//                                [--nodes n --per k: the small bench, the first n nodes and the first k holes of each]
+//                                [--order interleaved|shuffled] [--checks on: the audit, the review and revisions too]
 //   npm run rulebench -- report [--data var/rulebench]
 //
 // Arms: `on`, the self-state as it is (rules, notes, skills); `off`, memory and skills left out (SelfState ablation)
-// and no reflection, the same harness otherwise. A rep shuffles the nodes' order (seeded), so a rep is a different stream of the same holes.
+// and no reflection, the same harness otherwise; `rules`, the reflection with its skills left out (what the nodes'
+// skills add over the global rules). The audit, the review and revisions after an answer ships are off in
+// every arm (they are not what is measured, and the validator's economy and repeat checks stay). A rep shuffles the nodes' order (seeded), so a rep is a different stream of the same holes.
 
 import { execSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -91,18 +95,34 @@ export function chooseHoles(cells: Cell[], o: { nodes: number; per: number; seed
   return chosen
 }
 
-/** The order an arm works the holes in, for a rep: the first of every node, then the second … (the nodes' order shuffled by the rep). */
-export function streamOf(bench: Bench, rep: number): { node: string; occurrence: number; cell: Cell }[] {
+/**
+ * The order an arm works the holes in, for a rep. `interleaved`: the first of every node, then the second … (the
+ * nodes' order shuffled by the rep). `shuffled`: every hole in a random order of the rep's, as play would bring them.
+ * A hole's place among its kind is where it falls in the stream (the first of its node to come, the second …).
+ */
+export function streamOf(bench: Bench, rep: number, order: 'interleaved' | 'shuffled' = 'interleaved'): { node: string; occurrence: number; cell: Cell }[] {
   const rng = new Rng(1000 + rep)
-  const nodes = [...bench.nodes]
-  for (let i = nodes.length - 1; i > 0; i--) {
-    const j = rng.int(0, i)
-    ;[nodes[i], nodes[j]] = [nodes[j], nodes[i]]
+  const shuffle = <T>(xs: T[]): T[] => {
+    for (let i = xs.length - 1; i > 0; i--) {
+      const j = rng.int(0, i)
+      ;[xs[i], xs[j]] = [xs[j], xs[i]]
+    }
+    return xs
   }
-  const per = Math.max(...nodes.map((n) => n.cells.length))
-  const out: { node: string; occurrence: number; cell: Cell }[] = []
-  for (let k = 0; k < per; k++) for (const n of nodes) if (n.cells[k]) out.push({ node: n.node, occurrence: k + 1, cell: n.cells[k] })
-  return out
+  let items: { node: string; cell: Cell }[]
+  if (order === 'shuffled') items = shuffle(bench.nodes.flatMap((n) => n.cells.map((cell) => ({ node: n.node, cell }))))
+  else {
+    const nodes = shuffle([...bench.nodes])
+    const per = Math.max(...nodes.map((n) => n.cells.length))
+    items = []
+    for (let k = 0; k < per; k++) for (const n of nodes) if (n.cells[k]) items.push({ node: n.node, cell: n.cells[k] })
+  }
+  const seen = new Map<string, number>()
+  return items.map((x) => {
+    const occurrence = (seen.get(x.node) ?? 0) + 1
+    seen.set(x.node, occurrence)
+    return { ...x, occurrence }
+  })
 }
 
 export interface Row {
@@ -130,26 +150,40 @@ const label = (c: Cell) => `${c.verb} ${c.hand || '(empty hand)'} → ${c.target
 
 async function run(argv: string[]): Promise<void> {
   const arm = flagOf(argv, 'arm') ?? 'on'
-  if (arm !== 'on' && arm !== 'off') throw new Error('--arm on | off')
+  if (arm !== 'on' && arm !== 'off' && arm !== 'rules') throw new Error('--arm on | rules | off')
   const rep = Number(flagOf(argv, 'rep', '1'))
-  const bench = JSON.parse(readFileSync(flagOf(argv, 'bench', BENCH)!, 'utf8')) as Bench
+  const full = JSON.parse(readFileSync(flagOf(argv, 'bench', BENCH)!, 'utf8')) as Bench
+  // the small bench: the first nodes (of kinds of event in turn) and the first holes of each
+  const nodes = Number(flagOf(argv, 'nodes', String(full.nodes.length)))
+  const per = Number(flagOf(argv, 'per', '1000'))
+  const bench: Bench = { ...full, nodes: full.nodes.slice(0, nodes).map((n) => ({ ...n, cells: n.cells.slice(0, per) })) }
+  // the arm's name in the report (two versions of the code may both run `on`)
+  const name = flagOf(argv, 'label', arm)!
   const root = flagOf(argv, 'data', join(REPO, 'var/rulebench'))!
-  const data = join(root, `${arm}-${rep}`)
+  const data = join(root, `${name}-${rep}`)
   rmSync(data, { recursive: true, force: true })
   mkdirSync(data, { recursive: true })
   const model = modelFromEnv()
   if (!model) throw new Error('no model: LSW_MODEL_BACKEND=claude-code, or LSW_MODEL_KEY + LSW_MODEL')
-  const ablate: Ablation[] = arm === 'off' ? ['memory', 'skills'] : []
+  // rules: the global rules and the notes kept, the skills left out (what the nodes' skills add)
+  const ablate: Ablation[] = arm === 'off' ? ['memory', 'skills'] : arm === 'rules' ? ['skills'] : []
   // an empty library and an empty self-state of the arm's own
   const library = new WorldLibrary(GAME.ontology(), GAME.rules, join(data, 'library.jsonl'))
   const state = SelfState.open(join(data, 'modder-state'), undefined, ablate)
   // the arm without it does not reflect at all (nothing it writes would be read, and its cost is not the work's)
   if (arm === 'off') state.setHarness({ ...state.harness(), reflect: { ...state.harness().reflect, enabled: false } }, 'rulebench: the arm without reflection')
+  // the checks after an answer ships (the audit, the review, revisions) are not what is measured: off unless asked for
+  // (--checks on), the same in every arm (the economy and the repeat check, which the validator runs, stay)
+  if (flagOf(argv, 'checks', 'off') === 'off') {
+    const h = state.harness()
+    state.setHarness({ ...h, review: { ...h.review, enabled: false }, audit: { ...h.audit, enabled: false } as typeof h.audit, revise: false }, 'rulebench: no checks after shipping')
+  }
   const modder = new Modder({ library, state, model, log: () => undefined, probes: GAME.probes, data })
-  const stream = streamOf(bench, rep).slice(0, Number(flagOf(argv, 'limit', '100000')))
+  const order = flagOf(argv, 'order', 'interleaved') as 'interleaved' | 'shuffled'
+  const stream = streamOf(bench, rep, order)
   const file = join(data, 'rows.jsonl')
   const reflected = () => state.journalOf('reflect').length
-  console.log(`rulebench ${arm} rep ${rep}: ${stream.length} holes of ${bench.nodes.length} nodes (bench at ${bench.commit.slice(0, 8)}), model ${model.name}`)
+  console.log(`rulebench ${name} (${arm}) rep ${rep}: ${stream.length} holes of ${bench.nodes.length} nodes (bench at ${bench.commit.slice(0, 8)}), model ${model.name}`)
   for (const [i, s] of stream.entries()) {
     const req = cellRequest(s.cell, library.fullOntology(), library.lib)
     if (!req) {
@@ -165,7 +199,7 @@ async function run(argv: string[]): Promise<void> {
     const ep = reply.episode ? state.episode(reply.episode) : undefined
     const refl = state.journalOf('reflect').slice(before) as { usage?: { calls?: number; input?: number; output?: number } }[]
     const row: Row = {
-      arm,
+      arm: name,
       rep,
       step: i + 1,
       node: s.node,
@@ -227,15 +261,16 @@ export function report(rows: Row[]): string {
           .join(' | ') +
         ' |',
     )
-  if (arms.includes('on') && arms.includes('off')) {
-    const key = (r: Row) => `${r.rep}|${r.cell}`
-    const off = new Map(rows.filter((r) => r.arm === 'off').map((r) => [key(r), r]))
-    const pairs = rows.filter((r) => r.arm === 'on' && off.has(key(r))).map((r) => [r, off.get(key(r))!] as const)
-    const b = pairs.filter(([on, of]) => on.firstValid && !of.firstValid).length
-    const c = pairs.filter(([on, of]) => !on.firstValid && of.firstValid).length
-    out.push('', '# Paired, hole by hole (on against off)', `- pairs ${pairs.length}; the first answer held in one arm only: on ${b}, off ${c} (McNemar exact p = ${mcnemar(b, c).toFixed(3)})`)
-    out.push(`- design tokens, on − off: ${(mean(pairs.map(([on, of]) => on.input + on.output - of.input - of.output)) / 1000).toFixed(2)}k a hole; time ${(mean(pairs.map(([on, of]) => on.ms - of.ms)) / 1000).toFixed(2)} s`)
-  }
+  const key = (r: Row) => `${r.rep}|${r.cell}`
+  for (const [i, x] of arms.entries())
+    for (const y of arms.slice(i + 1)) {
+      const ys = new Map(rows.filter((r) => r.arm === y).map((r) => [key(r), r]))
+      const pairs = rows.filter((r) => r.arm === x && ys.has(key(r))).map((r) => [r, ys.get(key(r))!] as const)
+      const b = pairs.filter(([p, q]) => p.firstValid && !q.firstValid).length
+      const c = pairs.filter(([p, q]) => !p.firstValid && q.firstValid).length
+      out.push('', `# Paired, hole by hole (${x} against ${y})`, `- pairs ${pairs.length}; the first answer held in one arm only: ${x} ${b}, ${y} ${c} (McNemar exact p = ${mcnemar(b, c).toFixed(3)})`)
+      out.push(`- design tokens, ${x} − ${y}: ${(mean(pairs.map(([p, q]) => p.input + p.output - q.input - q.output)) / 1000).toFixed(2)}k a hole; calls ${mean(pairs.map(([p, q]) => p.calls - q.calls)).toFixed(2)}; time ${(mean(pairs.map(([p, q]) => p.ms - q.ms)) / 1000).toFixed(2)} s`)
+    }
   return out.join('\n')
 }
 

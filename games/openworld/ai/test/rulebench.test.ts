@@ -45,6 +45,11 @@ describe('the rule bench', () => {
     const two = streamOf(bench, 2)
     expect(two.map((s) => s.node)).not.toEqual(one.map((s) => s.node))
     expect(new Set(two.map((s) => s.cell.open))).toEqual(new Set(one.map((s) => s.cell.open)))
+    // shuffled: the same holes in play's order, each numbered by where it falls among its kind
+    const mixed = streamOf(bench, 1, 'shuffled')
+    expect(new Set(mixed.map((s) => s.cell.open))).toEqual(new Set(one.map((s) => s.cell.open)))
+    expect(mixed.slice(0, 20).every((s) => s.occurrence === 1)).toBe(false)
+    for (const n of bench.nodes) expect(mixed.filter((s) => s.node === n.node).map((s) => s.occurrence)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
   })
 
   it('pairs the arms hole by hole (McNemar exact) and reports by the hole\'s place among its kind', () => {
@@ -55,7 +60,8 @@ describe('the rule bench', () => {
     const text = report([row('on', 'a', 1, true, 1000), row('off', 'a', 1, false, 2000), row('on', 'b', 2, true, 900), row('off', 'b', 2, true, 1000)])
     expect(text).toContain('- on: n 2 · accepted 100% · first answer held 100%')
     expect(text).toContain('- off: n 2 · accepted 100% · first answer held 50%')
-    expect(text).toContain('the first answer held in one arm only: on 1, off 0 (McNemar exact p = 1.000)')
+    expect(text).toContain('# Paired, hole by hole (off against on)')
+    expect(text).toContain('the first answer held in one arm only: off 0, on 1 (McNemar exact p = 1.000)')
     // (the arms in order: off, then on)
     expect(text).toMatch(/\| 1 \| 0% · 2\.1k · 1\.0 \| 100% · 1\.1k · 1\.0 \|/)
   })
