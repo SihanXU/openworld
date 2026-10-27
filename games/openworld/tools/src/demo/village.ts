@@ -103,8 +103,9 @@ export function villageLife(m: MapBuilder): void {
   // the woodcutter's yard east of his house: the chopping stump, a stack of split logs, the wood pile, the bench
   m.fixture('fixture/nature/stump', 11, 13)
   m.fixture('fixture/nature/logpile/stack', 14, 13)
-  // the drill yard by the watch house (Bram's): a straw man to strike and the weapon rack
-  m.yard(39, 4, 8, 6, 'rail', [[39, 7]])
+  // the drill yard by the watch house (Bram's): a straw man to strike and the weapon rack; its gate on the south, onto
+  // the green (the watch house stands against its west side, another house against its east)
+  m.yard(39, 4, 8, 6, 'rail', [[42, 9]])
   m.fixture('fixture/dummy', 42, 6, { name: L('Training dummy', '训练假人') })
   m.fixture('fixture/furniture/rack/arms', 45, 8)
   // the store's and the smithy's frontage: barrels and a crate by the doors
