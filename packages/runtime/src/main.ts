@@ -508,10 +508,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
         tutorialRun = false
         // the note belongs to the title, which is drawn over the HUD: put it where the player can read it
         const note = locale.value === 'zh' ? '教程完成！从标题页开始新游戏，进入主线。' : 'Tutorial complete! Start a new game from the title for the story.'
-        void cover.show().then(() => {
-          const status = document.querySelector<HTMLElement>('#intro .cv-status')
-          if (status) status.textContent = note
-        })
+        void cover.show().then(() => cover.note(note))
         break
       }
       hud.setLearning(m.learning)

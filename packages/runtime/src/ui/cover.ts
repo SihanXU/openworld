@@ -191,6 +191,11 @@ export class Cover {
     }, SCENE_MS)
   }
 
+  /** A word on the title's status line (what the game behind has to say as the title opens). */
+  note(text: string): void {
+    $('#intro').querySelector('.cv-status')!.textContent = text
+  }
+
   /** The game behind could not start the chosen slot: say why, and give the buttons back. */
   failed(why: string): void {
     this.loading = false
