@@ -272,6 +272,15 @@ const STYLES: Record<keyof typeof HALLS, Style> = {
   chieflodge: { wall: 'darkwood', trim: 'timber', h: 72, windows: 'rect', hang: ['trophy', 'banner', 'none'], feature: 'hearth' },
   burrow: { wall: 'sandstoneRough', trim: 'timber', h: 64, windows: 'none', hang: ['timbers', 'none', 'veins'], feature: 'none' },
   garrison: { wall: 'granite', trim: 'darkwood', h: 96, windows: 'round', hang: ['trophy', 'banner', 'none'], feature: 'hearth', pilasters: 'granite' },
+  flcook: { wall: 'plasterOchre', trim: 'timber', h: 72, windows: 'rect', hang: ['painting', 'jars', 'none'], feature: 'hearth', pilasters: 'timber' },
+  flwatch: { wall: 'stone', trim: 'timber', h: 72, windows: 'rect', hang: ['trophy', 'banner', 'none'], feature: 'hearth', pilasters: 'timber' },
+  flelder: { wall: 'plasterWhite', trim: 'darkwood', h: 80, windows: 'rect', hang: ['books', 'painting', 'books'], feature: 'books', pilasters: 'darkwood' },
+  flwood: { wall: 'darkwood', trim: 'timber', h: 72, windows: 'rect', hang: ['tools', 'none', 'jars'], feature: 'hearth' },
+  fllane: { wall: 'plaster', trim: 'timber', h: 72, windows: 'rect', hang: ['tools', 'shelves', 'none'], feature: 'none', pilasters: 'timber' },
+  flcabin: { wall: 'timber', trim: 'darkwood', h: 64, windows: 'rect', hang: ['jars', 'none'], feature: 'hearth' },
+  flstore: { wall: 'plaster', trim: 'timber', h: 72, windows: 'rect', hang: ['shelves', 'jars', 'shelves'], feature: 'none', pilasters: 'timber' },
+  flsmithy: { wall: 'stone', trim: 'darkwood', h: 80, windows: 'rect', hang: ['trophy', 'tools', 'none'], feature: 'hearth', pilasters: 'darkwood' },
+  flchurch: { wall: 'stone', trim: 'stone', h: 104, windows: 'lancet', glass: 'blue', hang: ['tapestry', 'banner', 'painting'], feature: 'window', pilasters: 'stone' },
   catacombs: { wall: 'whiteStone', trim: 'whiteStone', h: 64, windows: 'none', hang: ['niches', 'niches', 'none'], feature: 'ossuary', pilasters: 'whiteStone' },
 }
 

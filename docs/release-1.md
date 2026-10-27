@@ -48,20 +48,28 @@ watermill (`tools/src/art/worldmap.ts`).
 
 ## 3. Firstlight Village
 
-- **Its ground is drawn by hand**: `tools/src/demo/maps/meadow.txt`, a character a cell in the map format's own
-  characters, read by `MapBuilder.paint`. The woods ring it with thick corners; the square of cobble lies before the
-  chapel; the east road comes in from the Ford two wide, lanes go north, west and south, footpaths run to each door
-  (always four-connected: a diagonal path comes apart). The editor does not yet write these files back (§6).
+- **Redrawn to the showcase's standard** (2026-10-26, docs/showcase.md): the village's own buildings
+  (`tools/src/art/arch/buildings/firstlight.ts`: low cottages of timber and wash under thatch, the elder's of stone, the watch
+  house under slate with its banner, the store with its awning and goods, the smithy under its sign, the chapel of grey
+  stone with a bell-cote over its door, Joss's house, Edda's hut) stand on the cells the story keeps (`village.ts` `TOWN`:
+  the chapel's door on the step above Astra's altar; the square, its well, fire, boards and cart where every scene and
+  test finds them). The ground is laid in code (`firstlightGround`: the woods, the four roads on the cells the
+  neighbouring maps meet, the square, the pond, the footpaths to every door); every front is piled with what a house uses
+  and the lanes strung with washing, all of it stamped pictures (`showcase/dress.ts`), never things the story does not ask
+  for. The hand-drawn `maps/meadow.txt` is gone.
 - **Its yards** (`village.ts` `villageLife`): Marta's kitchen patch, the woodcutter's yard (stump, split logs, wood pile,
   the workbench), the drill yard by the watch house with its lookout tower, the trades' frontage, the hay meadow and its
-  stacks, the fields behind a rail with their scarecrow, the orchard and its hives, the churchyard in its clearing, the
-  lane house's garden and washing line, a trough on the road, the green banners and the village's name where the road
-  comes in. Every fence joins (§5).
-- **Houses of rooms** (`village.ts` `house`): each house is rooms of its own walls side by side, joined by doorways — the
-  pack's way of joining rooms. Marta's: the kitchen and the family table, her room, the children's. The watch house: the
-  guard room and the bunks. The elder's: his study and his bedroom. The woodcutter's: the hearth room with Cass's loom,
-  the bedroom. Joss's: his workshop and a narrow room. Edda's hut: one room and a pantry. The store: the shop, the
-  storeroom, Greta's room. The smithy: the forge and Haldor's room. The chapel: the nave and two cells. All are peaceful.
+  stacks, the fields in their strips behind a rail with their scarecrow, the orchard and its hives, the churchyard in its
+  clearing, the lane house's garden and washing line, a trough on the road, the green banners and the village's name where
+  the road comes in. Every fence joins (§5).
+- **Houses of rooms** (`village.ts` `villageInteriors`): each house is a hall on its own plan (`plans.ts` `fl*`, its walls
+  the plan's shell as the showcase's halls are), its rooms side by side (a room behind another would be hidden by the wall
+  between, as tall as the house) and joined by arches; the map records them as rooms of style `shell` (their walls are the
+  shell's picture: the renderers draw no frame of the pack's for them). Marta's: the kitchen and the family's long table,
+  her room, the children's. The watch house: the guard room and the bunks. The elder's: his study and his bedroom. The
+  woodcutter's: the hearth room with Cass's loom, the bedroom. Joss's: his workshop and a narrow room. Edda's hut: one room
+  and a pantry. The store: the shop, the storeroom, Greta's room. The smithy: the forge and Haldor's room. The chapel: the
+  nave and two cells. All are peaceful. An older save is moved off what is now a wall (`migrateFirstlightHouses`).
 - **Every household sleeps in its own beds** (`bed.<n>` anchors in its house) — it slept on the lawn at its doorstep
   before. A household's home is its house (`home.<h>` over the whole interior): what stands in it is theirs, and by night
   one walks into it as a trespasser.

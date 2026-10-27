@@ -58,9 +58,12 @@ describe('the buildings on the maps (docs/building.md §10)', () => {
     for (const c of world.chunks) game.loadChunk(decodeChunk(c))
     const eng = game.engine
     const w = eng.world
-    // a house of Firstlight's, its front wall beside the door; the player in the street before it with an axe
-    const house = ownedHouses(world.chunks).find((h) => h.map.id === FIRSTLIGHT.map && CATALOG.prefabs[h.stamp.key].terrain === 'woodwall')
-      ?? ownedHouses(world.chunks).find((h) => h.map.id === FIRSTLIGHT.map)!
+    // a house of Firstlight's, its front wall beside the door (the strip of its picture on its front row, a building's
+    // picture being cut a strip to a row); the player in the street before it with an axe
+    const front = (h: ReturnType<typeof ownedHouses>[number]) => h.stamp.y + CATALOG.prefabs[h.stamp.key].th - 1
+    const owned = ownedHouses(world.chunks).filter((h) => h.map.id === FIRSTLIGHT.map)
+    const elder = owned.filter((h) => h.owner === 'household:elder')
+    const house = (elder.length ? elder : owned).reduce((a, b) => (front(b) > front(a) ? b : a))
     const p = CATALOG.prefabs[house.stamp.key]
     const last = p.th - 1
     const col = [...p.grid[last]].findIndex((c) => c === '#')
@@ -101,8 +104,9 @@ describe('the buildings on the maps (docs/building.md §10)', () => {
     for (const c of world.chunks) game.loadChunk(decodeChunk(c))
     const eng = game.engine
     const w = eng.world
-    const id = regionId(FIRSTLIGHT.map, 'shell.19.5.2.2')
-    eng.author(() => eng.teleport(w.player, { map: FIRSTLIGHT.map, x: 21, y: 9 }))
+    // a shell of the elder's house (its walls, owned as the rooms behind its door are)
+    eng.author(() => eng.teleport(w.player, { map: FIRSTLIGHT.map, x: 18, y: 10 }))
+    const id = Object.values(w.state.entities).find((e) => e.id.startsWith(regionId(FIRSTLIGHT.map, 'shell.')) && w.prop(e, 'owner') === 'household:elder')!.id
     expect(w.prop(w.get(id)!, 'owner')).toBe('household:elder')
     // the player far off on the mountain, Firstlight put away: its shells leave the state, and no save carries them
     eng.author(() => eng.teleport(w.player, { map: 'summit', x: 10, y: 10 }))
@@ -111,7 +115,7 @@ describe('the buildings on the maps (docs/building.md §10)', () => {
     expect(JSON.stringify(game.save().state)).not.toContain(id)
     // come back to it: made again from its file, whose they are with them
     game.loadChunk(decodeChunk(world.chunks.find((c) => c.map.id === FIRSTLIGHT.map)!))
-    eng.author(() => eng.teleport(w.player, { map: FIRSTLIGHT.map, x: 21, y: 9 }))
+    eng.author(() => eng.teleport(w.player, { map: FIRSTLIGHT.map, x: 18, y: 10 }))
     expect(w.prop(w.get(id)!, 'owner')).toBe('household:elder')
   })
 
@@ -120,16 +124,20 @@ describe('the buildings on the maps (docs/building.md §10)', () => {
     for (const c of world.chunks) game.loadChunk(decodeChunk(c))
     const eng = game.engine
     const w = eng.world
-    // the elder's timber house (house_wood at 19,5): its front wall east of the door at (21,7)
+    // the elder's stone house (village.ts TOWN): its front wall, the strip of its picture on its front row
+    const front = (h: ReturnType<typeof ownedHouses>[number]) => h.stamp.y + CATALOG.prefabs[h.stamp.key].th - 1
+    const house = ownedHouses(world.chunks).filter((h) => h.map.id === FIRSTLIGHT.map && h.owner === 'household:elder').reduce((a, b) => (front(b) > front(a) ? b : a))
+    const p = CATALOG.prefabs[house.stamp.key]
+    const wall = { x: house.stamp.x + [...p.grid[p.th - 1]].findIndex((c) => c === '#'), y: front(house) }
     eng.author(() => {
       eng.quests.put('descent', 'done')
       w.author(() => (w.setFact('seen.arrival', true), w.setFact('seen.village_arrival', true)))
-      eng.teleport(w.player, { map: FIRSTLIGHT.map, x: 21, y: 8 })
-      eng.teleport(w.get('npc.rowan')!, { map: FIRSTLIGHT.map, x: 19, y: 9 })
+      eng.teleport(w.player, { map: FIRSTLIGHT.map, x: wall.x, y: wall.y + 1 })
+      eng.teleport(w.get('npc.rowan')!, { map: FIRSTLIGHT.map, x: wall.x + 1, y: wall.y + 2 })
       w.create('item/weapon/blade/axe', { on: 'hand', holder: w.player.id }, { tags: ['material:iron'] })
       eng.controls.sync()
     })
-    expect(w.regionsAt(FIRSTLIGHT.map, 21, 7).map((r) => w.prop(r, 'owner'))).toContain('household:elder')
+    expect(w.regionsAt(FIRSTLIGHT.map, wall.x, wall.y).map((r) => w.prop(r, 'owner'))).toContain('household:elder')
     const asked: unknown[] = []
     const act = eng.act.bind(eng)
     eng.act = ((...a: Parameters<typeof act>) => (a[3]?.params?.say === 'demand' && asked.push(a), act(...a))) as typeof act
@@ -138,7 +146,7 @@ describe('the buildings on the maps (docs/building.md §10)', () => {
       const choice = eng.controls.choices('use' as Key).find((c) => c.plan)
       if (choice?.plan) eng.controls.run(choice.plan, true)
     }
-    expect(w.terrainAt(FIRSTLIGHT.map, 21, 7)).toBe('woodwall')
+    expect(w.isSolidTerrain(w.terrainAt(FIRSTLIGHT.map, wall.x, wall.y))).toBe(true)
     expect(w.get('npc.rowan')!.npc!.memory?.deeds?.some((d) => d.deed === 'vandalism' && d.against === 'household:elder')).toBe(true)
     for (let i = 0; i < 300; i++) eng.tick()
     expect(asked).toEqual([])

@@ -19,6 +19,7 @@ import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts
 import { PILGRIM } from '../src/demo/quest/pilgrimage.ts'
 import { FAT, FLANKS } from '../src/demo/quest/flanks.ts'
 import { GARDEN } from '../src/demo/garden.ts'
+import { FL_COTTAGES, FL_HOMES } from '../src/art/arch/buildings/firstlight.ts'
 import { BARROW, HOLLOW, OSSUARY, UNDER_BARROW } from '../src/demo/hollow.ts'
 import { PAT, TUTORIAL } from '../src/demo/prologue.ts'
 import { HILL_MINE, MILL } from '../src/demo/quest/vigil.ts'
@@ -1925,9 +1926,9 @@ req('F17', 'Firstlight Village is the former meadow: homes, a well, a lit square
   const ford = w.map('ford')!
   expect(village.name).toEqual(FIRSTLIGHT.name)
   expect(village.kind).toBe('village')
-  // the four cottages (Marta's, the elder's, the watch house, the woodcutter's), the lane's cabin and Edda's hut beside them
-  expect(village.stamps?.filter((s) => s.key.startsWith('house_'))).toHaveLength(4)
-  expect(village.stamps?.filter((s) => s.key === 'cabin' || s.key === 'hut_straw')).toHaveLength(2)
+  // the four cottages (Marta's, the elder's, the watch house, the woodcutter's), the lane's house and Edda's hut beside
+  // them: the village's own buildings (village.ts TOWN, art/arch/buildings/firstlight.ts)
+  for (const b of [...FL_COTTAGES, ...FL_HOMES]) expect([b, village.stamps?.some((s) => s.key.startsWith(`${b}@`))]).toEqual([b, true])
   expect(Object.values(w.state.entities).filter((e) => e.npc && e.place.on === 'tile' && e.place.map === 'ford').map((e) => e.id)).toEqual(['npc.hesper'])
   expect(w.posOf(w.get('npc.tobin'))?.map).toBe(FIRSTLIGHT.map)
   expect(w.posOf(w.get('ford.cart'))).toEqual({ map: FIRSTLIGHT.map, x: FIRSTLIGHT.cart[0], y: FIRSTLIGHT.cart[1] })
@@ -1941,8 +1942,10 @@ req('F17', 'Firstlight Village is the former meadow: homes, a well, a lit square
     expect(w.walkable(s.map, s.x, s.y, tobin.id, true)).toBe(true)
     expect(astar(village.width, village.height, (x, y) => !w.blocked(FIRSTLIGHT.map, x, y), 39, 19, s.x, s.y)).toBeDefined()
   }
-  for (const s of village.stamps!.filter((s) => s.key.startsWith('house_'))) {
-    const x = s.x + 1, y = s.y + 3
+  // each home's door with a step one stands on before it, reached from the road
+  for (const to of ['meadow.cook', 'meadow.elder', 'meadow.guards', 'meadow.woodhouse', 'meadow.lane', 'meadow.cabin']) {
+    const d = village.portals.find((p) => p.to === to)!
+    const x = d.x, y = d.y + 1
     expect(w.terrainAt(FIRSTLIGHT.map, x, y - 1)).toBe('door')
     expect(w.isSolidTerrain(w.terrainAt(FIRSTLIGHT.map, x, y))).toBe(false)
     expect(astar(village.width, village.height, (x, y) => !w.blocked(FIRSTLIGHT.map, x, y), 39, 19, x, y)).toBeDefined()
@@ -2311,7 +2314,8 @@ req('S3', 'each profession\'s forged gear covers the whole body (head, ear, neck
   expect(f.eng.controls.craft(RECIPE_BY_ID['weave/cloth'])).toBe(true)
   expect(f.eng.controls.count('item/material/cloth')).toBe(1)
   // forged at the smithy's anvil, the Held Ground's smithy hardened (haven.build.smithy 2): Shadowfang's jerkin, of its leather, named for its set
-  f.eng.author(() => (f.eng.teleport(w.player, { map: 'meadow.smithy', x: 5, y: 4 }), w.setFact('haven.build.smithy', 2)))
+  const anvilAt = w.posOf(w.get('smithy.anvil')!)!
+  f.eng.author(() => (f.eng.teleport(w.player, { map: 'meadow.smithy', x: anvilAt.x - 1, y: anvilAt.y + 1 }), w.setFact('haven.build.smithy', 2)))
   carryN(f, 'item/tool/smith_hammer', 1)
   const forge = (slot: string) => {
     const r = RECIPE_BY_ID[`set/shadowfang/${slot}`]
@@ -2954,14 +2958,16 @@ req('S1', 'a smithy in Firstlight Village, a house on the east road: inside, a l
   expect(Math.max(Math.abs(at.x - anvil[0]), Math.abs(at.y - anvil[1]))).toBeLessThanOrEqual(2)
   expect(w.hasTag(haldor, 'smith')).toBe(true)
   expect(PEOPLE.find((p) => p.id === 'npc.haldor')!.trade!.stock.map(([t]) => t)).toEqual(expect.arrayContaining(['item/tool/smith_hammer', 'item/material/coal', 'item/material/iron_ingot']))
-  // smelt and forge between the forge and the anvil
-  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: 4, y: 3 }))
+  // smelt and forge between the forge and the anvil (a step off each, below and beside it)
+  const forgeAt = w.posOf(w.get('smithy.forge')!)!
+  const anvilAt = w.posOf(w.get('smithy.anvil')!)!
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: forgeAt.x + 1, y: forgeAt.y + 1 }))
   carryN(f, 'item/material/iron_ore', 2)
   carryN(f, 'item/material/coal', 1)
   expect(f.eng.controls.craft(RECIPE_BY_ID['smith/smelt-iron'])).toBe(true)
   const bars = () => [w.player.held, ...(w.player.contents ?? [])].filter((id) => w.get(id ?? '')?.type === 'item/material/iron_ingot').length
   expect(bars()).toBe(2)
-  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: 5, y: 4 }))
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: anvilAt.x - 1, y: anvilAt.y + 1 }))
   // no hammer, no gear
   carryN(f, 'item/material/plank', 1)
   expect(f.eng.controls.craft(RECIPE_BY_ID['smith/dagger-iron'])).toBe(false)

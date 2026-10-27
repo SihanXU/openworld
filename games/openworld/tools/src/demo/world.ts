@@ -26,7 +26,7 @@ import { ownShells } from './shells.ts'
 import { CATALOG } from '../../../client/src/catalog.ts'
 import { HOUSEHOLDS, PEOPLE, householdOf } from './people.ts'
 import { buildHaven, buildHavenGrounds } from './quest/haven.ts'
-import { villageInteriors, villageLife, villageTown } from './village.ts'
+import { firstlightGround, villageInteriors, villageLife, villageTown } from './village.ts'
 import { eastRoadRooms, emberfallRooms, tentRooms } from './interiors.ts'
 import { HILL_MINE, VIGIL, buildChapel, buildDawnHill, buildHillMine, buildMillCellar, buildMillHouse, buildMillbrook } from './quest/vigil.ts'
 import { PILGRIM, PILGRIMAGE_STORY, buildAbbey, buildAbbeyCrypt, buildAbbeyHall, buildField, buildHostel, buildRest, buildRestChapel, buildWay } from './quest/pilgrimage.ts'
@@ -250,11 +250,11 @@ const GRAZER: Omit<AiData, 'home'> = { behaviour: 'passive', temper: 'wary', sig
 
 /** A starting village in a ring of woods, with homes, a shared square, pasture and a garden. */
 function buildMeadow(): MapBuilder {
-  // (60 x 40 since 2026-10-11; drawn by hand since 2026-10-21, docs/release-1.md: the layout file is the ground — the
-  // woods round it, the square before the chapel, the east road from the Ford and the lanes north, west and south, the
-  // pond, the gardens, the fields, the hay meadow and the orchard. What stands on it is placed here and in village.ts.)
+  // (60 x 40 since 2026-10-11; redrawn to the showcase's standard on 2026-10-26, docs/release-1.md §3: the ground laid in
+  // code — the woods round it, the square before the chapel, the east road from the Ford and the lanes north, west and
+  // south, the pond — the village's own buildings on it. What stands on it is placed here and in village.ts.)
   const m = new MapBuilder(FIRSTLIGHT.map, FIRSTLIGHT.name, 'village', 60, 40, 'grass', 'village', 'outdoor', 'frostfang')
-  m.paint('meadow')
+  firstlightGround(m)
   // the houses with their doors (every one has a room behind it: village.ts), their yards and what the village uses
   villageTown(m)
   m.fixture('fixture/water/well', ...FIRSTLIGHT.well, { id: 'village.well' })
@@ -277,9 +277,9 @@ function buildMeadow(): MapBuilder {
   m.anchor('square.well', 20, 14)
   m.anchor('square.warm', 23, 17)
   // the drill yard by the watch house: Bram, the profession trainer (docs/skill-tree.md)
-  m.anchor('drill.yard', 34, 10)
-  m.anchor('drill.bed', 33, 9)
-  m.anchor('elder.porch', 20, 9)
+  m.anchor('drill.yard', 41, 7)
+  m.anchor('drill.bed', 40, 6)
+  m.anchor('elder.porch', 18, 10)
   m.anchor('cook.fire', 21, 18)
   m.anchor('pond.edge', 19, 21)
   m.anchor('guard.post', 25, 25)
@@ -290,7 +290,7 @@ function buildMeadow(): MapBuilder {
   m.anchor('oskar.bench', 17, 19)
   // the village keeps the law (docs/npc-sandbox.md §2.7): its watch, and the cells beside the watch house
   m.law = 'firstlight'
-  m.anchor('cells', 33, 6)
+  m.anchor('cells', 38, 10)
   // Cass's loom west of the square: anyone may weave cloth at it from grass fibre (life.ts weave/cloth)
   m.fixture('fixture/craft/loom', 16, 13, { id: 'village.loom', props: { owner: 'npc.cass' } })
   m.anchor('cass.loom', 16, 14)
@@ -314,9 +314,9 @@ function buildMeadow(): MapBuilder {
   // sticks under the woods, stones and grass in the open, as on the Ford
   lay(m, 'item/material/stick', 3, [3, 21, 6, 8])
   lay(m, 'item/material/stone', 3, [30, 20, 8, 5])
-  lay(m, 'item/material/grass', 3, [34, 4, 10, 6])
-  // fireweed in the open grass, for the herbalist of Emberfall (main quest)
-  lay(m, 'item/material/fireweed', 3, [4, 4, 12, 4])
+  lay(m, 'item/material/grass', 3, [25, 26, 7, 4])
+  // fireweed in the open grass of the hay meadow, for the herbalist of Emberfall (main quest)
+  lay(m, 'item/material/fireweed', 3, [50, 3, 7, 8])
   m.appear = [...GROUND_YIELD, appears('item/material/fireweed', ['grass'], 3, 900)]
   plantGarden(m)
   return m
@@ -645,7 +645,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   const dawnhill = buildDawnHill()
   const chapel = buildChapel()
   dawnhill.linkInterior('chapel', chapel)
-  // (the village's ways west and north are in its layout: maps/meadow.txt)
+  // (the village's ways west and north: its ground, village.ts firstlightGround)
   linkEdge(meadow, VIGIL.villageWest.map((y) => [0, y]), [1, 0], mill, VIGIL.millEast.map((y) => [mill.w - 1, y]), [-1, 0])
   linkEdge(meadow, VIGIL.villageNorth.map((x) => [x, 0]), [0, 1], dawnhill, VIGIL.hillSouth.map((x) => [x, dawnhill.h - 1]), [0, -1])
   // the mine in Dawn Hill's western flank (quest/vigil.ts): the first chapter's ore

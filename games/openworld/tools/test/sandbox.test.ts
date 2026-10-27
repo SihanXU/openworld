@@ -182,6 +182,8 @@ describe('deeds seen, remembered, told to the watch (§2.2–2.7)', () => {
     put(s, 'npc.marta', 21, 13, 'left')
     // rounds of gossip (every gossipEvery ticks; at each, two who meet talk now and then)
     for (let i = 0; i < 30 && !deeds(s, 'npc.marta').length; i++) {
+      // (only the two of them in the square: the hours pass, and the others' days would bring them back to it)
+      clear(s, ['npc.cass', 'npc.marta'])
       put(s, 'npc.cass', 20, 13, 'down')
       put(s, 'npc.marta', 21, 13, 'left')
       author(s, () => (W(s).state.tick = Math.ceil((W(s).state.tick + 1) / 150) * 150 - 1))

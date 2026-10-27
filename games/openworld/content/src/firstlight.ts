@@ -18,3 +18,7 @@ export const FIRSTLIGHT = {
 }
 
 export const FIRSTLIGHT_LAYOUT = 'content.firstlight-layout-v1'
+/** The village's houses redrawn (2026-10-26, docs/release-1.md §3): its buildings and the rooms behind their doors. */
+export const FIRSTLIGHT_HOUSES = 'content.firstlight-houses-v1'
+/** The maps of the village's houses (its interiors), whose rooms were redrawn with it. */
+export const FIRSTLIGHT_ROOMS = ['meadow.cook', 'meadow.elder', 'meadow.guards', 'meadow.woodhouse', 'meadow.store', 'meadow.smithy', 'meadow.church', 'meadow.lane', 'meadow.cabin']
