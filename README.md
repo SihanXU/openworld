@@ -1,30 +1,36 @@
-<p align="center">
-  <img src="docs/figures/readme/title.jpg" alt="OpenWorld: a world whose rules are code">
-</p>
-
 # OpenWorld
 
 [![check](https://github.com/SihanXU/openworld/actions/workflows/check.yml/badge.svg)](https://github.com/SihanXU/openworld/actions/workflows/check.yml)
 [![wiki](https://github.com/SihanXU/openworld/actions/workflows/wiki.yml/badge.svg)](https://github.com/SihanXU/openworld/actions/workflows/wiki.yml)
+
+![Sunwell Abbey, the Holy City's cathedral](docs/figures/readme/sunwell-abbey.webp)
 
 OpenWorld is a 2D JRPG that runs in the browser, together with the engine and the editor it is built with. The
 world's state and rules are code. When the player does something no rule covers, a language model can write
 the missing rule. The engine checks it, applies it to every thing of that type, and keeps it. Without a model
 the game is complete and plays to its end.
 
-<p align="center">
-  <img src="docs/figures/readme/learns.webp" width="100%" alt="A bone used on farmland: no rule covers it, so a rule is written, checked and kept, and a skeleton rises">
-  <br><sub>No rule covered a bone used on farmland. The world wrote one, checked it, and kept it.</sub>
-</p>
+<table>
+  <tr>
+    <td width="33%"><img src="docs/figures/readme/north-gate.webp" alt="The North Gate"><br><sub><b>The North Gate</b> · The Holy City</sub></td>
+    <td width="33%"><img src="docs/figures/readme/market.webp" alt="The Market"><br><sub><b>The Market</b> · The Holy City</sub></td>
+    <td width="33%"><img src="docs/figures/readme/lamp-ward.webp" alt="The Lamp Ward"><br><sub><b>The Lamp Ward</b> · The Holy City</sub></td>
+  </tr>
+  <tr>
+    <td width="33%"><img src="docs/figures/readme/rimeholm.webp" alt="Rimeholm"><br><sub><b>Rimeholm</b> · Frostfang Coast</sub></td>
+    <td width="33%"><img src="docs/figures/readme/dusk-moorings.webp" alt="Dusk Moorings"><br><sub><b>Dusk Moorings</b> · The Pale Fens</sub></td>
+    <td width="33%"><img src="docs/figures/readme/frostbarrow.webp" alt="Frostbarrow Camp"><br><sub><b>Frostbarrow Camp</b> · Frostfang Coast</sub></td>
+  </tr>
+</table>
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/figures/readme/dialogue.jpg" alt="Sister Ilse greets the traveller in Firstlight Village"></td>
-    <td width="50%"><img src="docs/figures/readme/boss.jpg" alt="The White Knight Alberic winds up a skill"></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/figures/readme/fishing.jpg" alt="Fishing at the Ford"></td>
-    <td width="50%"><img src="docs/figures/readme/night.jpg" alt="Firstlight Village at night"></td>
+    <td align="center"><img src="games/openworld/public/assets/lsw/Portraits/lumi/neutral.webp" width="120" alt="Lumi"><br><sub><b>Lumi</b></sub></td>
+    <td align="center"><img src="games/openworld/public/assets/lsw/Portraits/ilse/neutral.webp" width="120" alt="Sister Ilse"><br><sub><b>Sister Ilse</b></sub></td>
+    <td align="center"><img src="games/openworld/public/assets/lsw/Portraits/nessa/neutral.webp" width="120" alt="Nessa Quill"><br><sub><b>Nessa Quill</b></sub></td>
+    <td align="center"><img src="games/openworld/public/assets/lsw/Portraits/lina/neutral.webp" width="120" alt="Lina"><br><sub><b>Lina</b></sub></td>
+    <td align="center"><img src="games/openworld/public/assets/lsw/Portraits/severin/neutral.webp" width="120" alt="Severin the Greyvowed"><br><sub><b>Severin</b></sub></td>
+    <td align="center"><img src="games/openworld/public/assets/lsw/Portraits/tobin/neutral.webp" width="120" alt="Tobin"><br><sub><b>Tobin</b></sub></td>
   </tr>
 </table>
 
@@ -52,6 +58,8 @@ and radiant favours, a homestead, crafting and building, gear and a skill tree, 
 and people who keep schedules and households, trade, and remember what they saw. Around it lies a continent of
 1,024 maps and 1,651 people. The story and setting are in [docs/lore.md](docs/lore.md); the scope of the release
 is in [docs/release-1.md](docs/release-1.md).
+
+![Some of the continent's maps, side by side](site/scale/assets/big.jpg)
 
 **The event model.** Every change to the world is the outcome of an event: an act, an impulse, a contact, a tick
 of time. Rules belong to a host type. They read anything and write only their host, and reach other things by
