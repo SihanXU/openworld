@@ -5,16 +5,20 @@ import { locale, tx } from './common.ts'
 
 const say = (en: string, zh: string) => locale.value === 'zh' ? zh : en
 
-/** Keep engine/provider diagnostics out of the character's dialogue. */
-function problem(message: string): string {
-  if (locale.value !== 'zh') return message
-  if (message.includes('materials, tools and skills')) return '还缺材料、工具或相应的手艺。准备齐了，我们再试。'
-  if (message.includes('crafting station')) return '得在对应的工作台旁边，才能试做这个。'
-  if (message.includes('too cheap')) return '这点材料还不够做成它。多用些材料，或者换个简单些的设计吧。'
-  if (message.includes('not unlocked')) return '这门手艺还没学会。先试试我们已经会做的东西吧。'
-  if (message.includes(' / ')) return message.split(' / ').at(-1)!
-  if (/fetch|network|connect|unavailable|timeout|timed out|abort/i.test(message)) return '暂时连不上 AI 服务。检查连接后，可以重新说说你的想法。'
-  return '这张图纸还不能用。换个想法，再试一次吧。'
+/** Why not, in the craftsperson's words (never the engine's or the provider's diagnostics). */
+const PROBLEM: Record<NonNullable<Extract<FromWorker, { t: 'research' }>['problem']>, [string, string]> = {
+  busy: ['Give me a moment, I am still thinking over the last one.', '稍等，上一个想法我还在琢磨。'],
+  off: ['Making new things is switched off in the AI settings.', '设置里关掉了 AI 造物，新配方研制用不了。'],
+  offline: ['Connect an AI model in the settings, and we can talk it over.', '先在设置里连上 AI 模型，我们再细聊。'],
+  unreachable: ['I cannot reach the AI service just now. Check the connection, then tell me your idea again.', '暂时连不上 AI 服务。检查连接后，可以重新说说你的想法。'],
+  locked: ['We have not learned that craft yet. Let us try something we already know how to make.', '这门手艺还没学会。先试试我们已经会做的东西吧。'],
+  cheap: ['That is too little to make it from. Use more, or think of something simpler.', '这点材料还不够做成它。多用些材料，或者换个简单些的设计吧。'],
+  station: ['This needs its workbench nearby before we can try it.', '得在对应的工作台旁边，才能试做这个。'],
+  needs: ['You are still short of materials, tools or the skill. Once you have them, we try again.', '还缺材料、工具或相应的手艺。准备齐了，我们再试。'],
+  identity: ['This plan will not do as it stands. Try another idea.', '这张图纸还不能用。换个想法，再试一次吧。'],
+  refused: ['This plan will not do as it stands. Try another idea.', '这张图纸还不能用。换个想法，再试一次吧。'],
+  unmade: ['It did not come out, and nothing was used up. Try another idea.', '没做出来，材料一样没少。换个想法再试吧。'],
+  design: ['This plan will not do as it stands. Try another idea.', '这张图纸还不能用。换个想法，再试一次吧。'],
 }
 
 /** Lives inside the existing NPC dialogue, retaining its portrait and window/focus handling.
@@ -131,8 +135,8 @@ export class ResearchWindow {
 
   receive(m: Extract<FromWorker, { t: 'research' }>): void {
     if (!this.open || m.who !== this.who) return
-    this.line.textContent = m.made ? say('There! Your new creation is in your bag. I’ve written down the recipe for you.', '成了！东西收好，配方也给你记下了。') : m.error ? problem(m.reply) : m.reply
-    this.line.classList.toggle('research-error', !!m.error)
+    this.line.textContent = m.made ? say('There! Your new creation is in your bag. I’ve written down the recipe for you.', '成了！东西收好，配方也给你记下了。') : m.problem ? say(...PROBLEM[m.problem]) : (m.reply ?? '')
+    this.line.classList.toggle('research-error', !!m.problem)
     this.token = m.token
     this.card.replaceChildren()
     this.card.hidden = !m.design

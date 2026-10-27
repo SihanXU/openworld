@@ -1,6 +1,6 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
-import { CRAFTSPERSON, INVENTION, researchCatalogue, researchPatch, trialResearch, readResearchReply, type ResearchDesign, type ResearchRequest } from '@openworld/engine'
+import { CRAFTSPERSON, INVENTION, ResearchProblem, researchCatalogue, researchPatch, trialResearch, readResearchReply, type ResearchDesign, type ResearchRequest } from '@openworld/engine'
 import { untilUp } from './untilUp.ts'
 import { portLink, serviceLink, resolveForSave, type ModderLink } from './modderLink.ts'
 import { FrameEncoder } from './frameDelta.ts'
@@ -56,7 +56,7 @@ function researchHere(owner: Game, who: string): boolean {
 async function askResearch(message: string): Promise<void> {
   if (!game || !talk || !researchHere(game, talk.who)) return
   if (researchBusy) {
-    post({ t: 'research', who: talk.who, error: true, reply: 'The previous request is still finishing. Please try again shortly. / 上一次请求尚未结束，请稍后重试。' })
+    post({ t: 'research', who: talk.who, problem: 'busy' })
     return
   }
   const owner = game, who = talk.who
@@ -66,12 +66,15 @@ async function askResearch(message: string): Promise<void> {
   session.token = undefined
   researchBusy = true
   try {
-    if (owner.engine.quality.create === 'off') throw new Error('Recipe research is disabled in AI settings. / 新配方研制已关闭，请先在设置中开启 AI 造物。')
-    if (!link?.research || !modderOnline) throw new Error('Connect an AI model in settings to discuss a new recipe. / 请先在设置中连接 AI 模型。')
+    if (owner.engine.quality.create === 'off') return void post({ t: 'research', who, problem: 'off' })
+    if (!link?.research || !modderOnline) return void post({ t: 'research', who, problem: 'offline' })
     const catalogue = researchCatalogue(owner.engine)
     const npc = owner.engine.world.get(who)!
     const name = npc.name ?? owner.engine.world.onto.resolve(npc.type).name
-    const result = readResearchReply(await link.research({ npc: typeof name === 'string' ? name : name?.en ?? 'Craftsperson', message, history: session.history.slice(-8), catalogue }), catalogue)
+    const said = await link.research({ npc: typeof name === 'string' ? name : name?.en ?? 'Craftsperson', message, history: session.history.slice(-8), catalogue }).catch((err: Error) => {
+      throw Object.assign(err, { unreachable: true })
+    })
+    const result = readResearchReply(said, catalogue)
     if (researchSession !== session || !researchHere(owner, who)) return
     session.history.push({ player: message, npc: result.reply })
     session.history = session.history.slice(-8)
@@ -83,7 +86,8 @@ async function askResearch(message: string): Promise<void> {
     }
     post({ t: 'research', who, ...result, token: session.token })
   } catch (err) {
-    if (researchSession === session && researchHere(owner, who)) post({ t: 'research', who, error: true, reply: (err as Error).message })
+    const problem = err instanceof ResearchProblem ? err.code : (err as { unreachable?: boolean }).unreachable ? 'unreachable' : 'design'
+    if (researchSession === session && researchHere(owner, who)) post({ t: 'research', who, problem })
   } finally { researchBusy = false }
 }
 
@@ -99,10 +103,10 @@ function confirmResearch(token: string): void {
     kept.types.add(id)
     s.draft = undefined
     sendRecords(); sendRecipes()
-    post({ t: 'research', who: s.who, made: true, reply: 'Trial complete. The item is in your bag and its recipe is learned. / 试制成功！物品已放入背包，配方已学会。' })
+    post({ t: 'research', who: s.who, made: true })
   } catch (err) {
     s.token = crypto.randomUUID()
-    post({ t: 'research', who: s.who, error: true, reply: (err as Error).message, design, token: s.token })
+    post({ t: 'research', who: s.who, problem: err instanceof ResearchProblem ? err.code : 'design', design, token: s.token })
   }
 }
 let trade: string | undefined

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CRAFTSPERSON, OntologyIndex, buildSandbox, madeOf, ModPort, RuleLibrary, researchCatalogue, trialResearch, type ResearchDesign } from '@openworld/engine'
+import { CRAFTSPERSON, OntologyIndex, ResearchProblem, buildSandbox, madeOf, ModPort, RuleLibrary, researchCatalogue, trialResearch, type ResearchDesign } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 function world() {
@@ -61,6 +61,18 @@ describe('research in the actual game', () => {
     expect(() => trialResearch(eng, port, proposal, `${proposal.prototype}/invention_cheat`)).toThrow()
     expect(JSON.stringify(eng.world.state)).toBe(before)
     expect(eng.lib.types).toHaveLength(0)
+  })
+  it('says why a recipe is refused as a code, for the panel to say in the player\'s language', () => {
+    const { eng, port } = world()
+    const cheap = { name: 'A one-log pick', prototype: 'item/tool/pickaxe', ingredients: [{ type: 'item/material/log', count: 1 }] }
+    let caught: unknown
+    try {
+      trialResearch(eng, port, cheap, `${cheap.prototype}/invention_cheap`)
+    } catch (err) {
+      caught = err
+    }
+    expect(caught).toBeInstanceOf(ResearchProblem)
+    expect((caught as ResearchProblem).code).toBe('cheap')
   })
   it('rejects an unaffordable trial without spending or learning anything', () => {
     const { eng, port } = world()

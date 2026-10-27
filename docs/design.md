@@ -473,9 +473,11 @@ lists where it fell short).
 - **The game is an ordinary, complete game.** The inputs, the behaviour of people and
   creatures, physics, combat and the story are code and rules. It plays to its end, the far
   bank and the ending included, without any AI.
-- **There is one AI interface: the outcome of an event.** Every event carries an outcome, and
+- **The world's AI interface is the outcome of an event.** Every event carries an outcome, and
   every event is resolved the same way: if the rules define the outcome, it is used; if they do
-  not, the AI is asked.
+  not, the AI is asked. A second interface was agreed on 2026-10-27, the player's own: a recipe talked
+  over with a craftsperson (CLAUDE.md, the event model). It proposes data the game checks, and what it
+  makes stays in that save.
 - **Without an AI, nothing happens.** No modder, a failure or a time-out: the leaf's default
   runs, which is "no change" unless the author wrote one to keep the story playable. Undefined
   behaviour never stops the game.

@@ -162,6 +162,7 @@ One harness, two profiles (`ai/src/agent/state.ts`, `profileOf`):
 | Models | `ai/src/models/model.ts`, `model-node.ts`, `providers.ts`, `providerList.ts` |
 | Self-state and RSI | `ai/src/agent/state.ts`, `loop.ts`, `outer.ts`, `tools.ts`, `env.ts`, `swe.ts` |
 | Play | `runtime/src/worker.ts` (asking, syncing), `learned.ts`, `modderLink.ts`, `ai.ts`, `ownModel.ts`, `ui/modelSettings.ts`, `ui/quality.ts`; `ai/src/player/` |
+| Recipes talked over with a craftsperson (the second AI interface) | `engine/src/research.ts` (the bounded request and reply), `researchCraft.ts` (price, trial, admission); `ai/src/modder/research.ts`; `modder/pipeline.ts` `privateEpisode`; `runtime/src/ui/research.ts`, `learned.ts` (what one save keeps) |
 | Authoring | `editor/src/app/holesMode.ts`, `drafter.ts`, `drafts.ts`, `newThing.ts`; `format/src/holes.ts`, `things.ts` |
 
 Tests: the engine's guards in `engine/test/ai-guards.test.ts`; the AI's own in `ai/test/` (the models, the agent,

@@ -9,6 +9,15 @@ import type { Recipe, TypeDef } from './types.ts'
 /** The tag of a person one may talk a new recipe over with (the content says who: a smith, an innkeeper…). */
 export const CRAFTSPERSON = 'craftsperson'
 
+/** Why a recipe was refused, as a code: the panel says it in the player's language (runtime ui/research.ts). */
+export type ResearchProblemCode = 'locked' | 'identity' | 'cheap' | 'refused' | 'station' | 'needs' | 'unmade'
+
+export class ResearchProblem extends Error {
+  constructor(readonly code: ResearchProblemCode, message: string) {
+    super(message)
+  }
+}
+
 const form = /^(item\/(tool|weapon|armor|clothing|food))\//
 const text = (x: unknown) => typeof x === 'string' ? x : ''
 
@@ -49,12 +58,12 @@ export function researchCatalogue(eng: Engine): ResearchCatalogue {
 export function researchPatch(eng: Engine, proposed: unknown, id: string): { patch: Patch; design: ResearchDesign } {
   const design = readResearchReply({ reply: 'draft', design: proposed }, researchCatalogue(eng)).design!
   const base = reference(eng, design.prototype)
-  if (!base) throw new Error('This craft is not unlocked')
-  if (!id.startsWith(`${design.prototype}${INVENTION}`) || eng.world.onto.data.types[id]) throw new Error('Invalid invention identity')
+  if (!base) throw new ResearchProblem('locked', 'This craft is not unlocked')
+  if (!id.startsWith(`${design.prototype}${INVENTION}`) || eng.world.onto.data.types[id]) throw new ResearchProblem('identity', 'Invalid invention identity')
   const cost = design.ingredients.reduce((n, m) => n + price(eng, m.type) * m.count, 0)
   const baseline = base.needs.reduce((n, m) => n + price(eng, m.type) * m.count, 0) / (base.count ?? 1)
   // A new material combination may not cheaply bypass an established production chain.
-  if (cost < Math.max(baseline, price(eng, design.prototype))) throw new Error('The proposed materials are too cheap for this craft; add materials or choose a simpler item')
+  if (cost < Math.max(baseline, price(eng, design.prototype))) throw new ResearchProblem('cheap', 'The proposed materials are too cheap for this craft; add materials or choose a simpler item')
   const original = eng.world.onto.resolve(design.prototype)
   const first = eng.world.onto.resolve(design.ingredients[0].type)
   const type: TypeDef = {
@@ -88,19 +97,19 @@ export function trialResearch(eng: Engine, port: ModPort, proposed: unknown, id:
   for (const [key, recipe] of eng.recipes) trial.recipes.set(key, structuredClone(recipe))
   const trialPort = new ModPort(trial)
   const checked = trialPort.submit(undefined, patch)
-  if (!checked.ok) throw new Error(checked.errors.join('; '))
+  if (!checked.ok) throw new ResearchProblem('refused', checked.errors.join('; '))
   const r = trial.recipes.get(id)!
-  if (!stationReady(trial, r)) throw new Error('Stand beside the required crafting station to try this recipe')
-  if (!trial.controls.canCraft(r)) throw new Error('You need the recipe materials, tools and skills before trying it')
-  if (!trial.controls.craft(r) || trial.controls.count(id) < 1) throw new Error('The trial did not produce an item; nothing was consumed')
+  if (!stationReady(trial, r)) throw new ResearchProblem('station', 'Stand beside the required crafting station to try this recipe')
+  if (!trial.controls.canCraft(r)) throw new ResearchProblem('needs', 'You need the recipe materials, tools and skills before trying it')
+  if (!trial.controls.craft(r) || trial.controls.count(id) < 1) throw new ResearchProblem('unmade', 'The trial did not produce an item; nothing was consumed')
   // No await between replay and real submission/craft: inventory and unlocks cannot race.
   const committed = port.submit(undefined, patch)
-  if (!committed.ok) throw new Error(committed.errors.join('; '))
+  if (!committed.ok) throw new ResearchProblem('refused', committed.errors.join('; '))
   if (!eng.controls.craft(eng.recipes.get(id)!) || eng.controls.count(id) < 1) {
     eng.lib.removeType(id)
     eng.world.onto.removeType(id)
     eng.recipes.delete(id)
-    throw new Error('The item was not made; the recipe was not learned')
+    throw new ResearchProblem('unmade', 'The item was not made; the recipe was not learned')
   }
   return type
 }

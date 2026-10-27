@@ -8,7 +8,7 @@ player"** (anyone can steal, witness, report, be wanted), **relations are per pa
 villagers can die, those the story needs only go down; a per-pair *regard* replaces the cut hearts (shown only by
 how people act, and a word in the talk panel); a drawn-weapon stance makes a blow on a person deliberate (sheathed, a blow, a use or a gift on someone friendly
 is asked first, design.md §5.2; drawn or not, a blow that would weigh on one's conscience is asked, §2.2); talk is
-a panel of fixed verbs (free text later, through the same request).
+a panel of fixed verbs; free text is a craftsperson's, talking a new recipe over (CLAUDE.md, the event model).
 
 Built 2026-10-09 (all three milestones). The numbers below are the content's (`content/src/social.ts`); §4 lists
 what the implementation refined against the first draft. The player's guide is the wiki (基本/犯罪, 守卫与悬赏,

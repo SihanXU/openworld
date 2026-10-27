@@ -1,6 +1,6 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { ResearchDesign, AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SceneCmd, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
+import type { ResearchDesign, ResearchProblemCode, AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SceneCmd, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
 import type { TransferProgress } from './transferQueue.ts'
 import type { SaveWithQuestions } from './saves.ts'
 
@@ -229,7 +229,8 @@ export type FromWorker =
   | { t: 'art'; arts: { id: string; art: PixelArt }[] }
   /** The recipes of learned things (a patch's type made at hand or at a workbench from its makeup): the crafting panel lists them beside the content's. */
   | { t: 'recipes'; recipes: Recipe[] }
-  | { t: 'research'; who: string; reply: string; design?: ResearchDesign; token?: string; error?: boolean; made?: boolean }
+  /** A talk over a new recipe: the craftsperson's words (`reply`), a draft, or why not (`problem`: the panel says it in the player's language). */
+  | { t: 'research'; who: string; reply?: string; design?: ResearchDesign; token?: string; problem?: ResearchProblemCode | 'busy' | 'off' | 'offline' | 'unreachable' | 'design'; made?: boolean }
   /** The modder is making things the world does not have yet; the act waits for them. */
   | { t: 'creating'; names: Text[] }
   | { t: 'error'; message: string }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildSandbox, ModPort, RuleLibrary, type Patch, type TypeDef } from '@openworld/engine'
 import { ScriptedModel } from '@openworld/ai'
-import { BASE, noAudit, onto, quiet, testModder } from './fixtures.ts'
+import { BASE, SLOW, noAudit, onto, quiet, testModder } from './fixtures.ts'
 
 const invention: TypeDef = {
   id: 'item/tool/sickle/invention_save_test', name: { en: 'Fordreed Sickle', zh: '渡苇镰刀' }, researched: true,
@@ -22,7 +22,7 @@ function asking(target: 'self' | 'road' = 'self') {
 }
 
 describe('save-private research answers', () => {
-  it('answers an ordinary act for everyone though the save holds an invention: shared, recorded, designed without it', async () => {
+  it('answers an ordinary act for everyone though the save holds an invention: shared, recorded, designed without it', SLOW, async () => {
     const lib = new RuleLibrary(BASE)
     lib.addType(invention)
     const eng = buildSandbox({ entities: [
@@ -60,7 +60,7 @@ describe('save-private research answers', () => {
     expect(eng.lib.types.some(t => t.id === 'item/material/private_reed_tie')).toBe(true)
     expect(eng.lib.statuses.some(s => s.id === 'private_reed_care')).toBe(true)
   })
-  it('answers a researched type without committing its kind or rule to the shared library', async () => {
+  it('answers a researched type without committing its kind or rule to the shared library', SLOW, async () => {
     const { eng, port, body } = asking()
     let draft: Patch = { artifacts: [{ kind: 'rule', rule: {
       id: 'patch/sickle-care', host: { type: invention.id }, on: 'act/use',
@@ -100,7 +100,7 @@ describe('save-private research answers', () => {
     expect(library.seq).toBe(0)
     expect(state.episodes()).toEqual([])
   })
-  it('keeps a canonical receiver answer private when the instrument is a researched form', async () => {
+  it('keeps a canonical receiver answer private when the instrument is a researched form', SLOW, async () => {
     const { body } = asking('road')
     expect(body.request.event.host?.type).toBe('tile/path')
     const model = new ScriptedModel(() => ({ artifacts: [{ kind: 'rule', rule: {
@@ -114,7 +114,7 @@ describe('save-private research answers', () => {
     expect(library.seq).toBe(0)
   })
 
-  it.each([false, true])('keeps follow-ups to a private status on an ordinary item private (source retired: %s)', async (retired) => {
+  it.each([false, true])('keeps follow-ups to a private status on an ordinary item private (source retired: %s)', SLOW, async (retired) => {
     const { eng, port, body } = asking()
     expect(port.submit(body.request.id, { scope: 'save', artifacts: [
       { kind: 'status', status: { id: 'private_reed_care', name: { en: 'Reed Care', zh: '苇绳养护' } } },
@@ -148,7 +148,7 @@ describe('save-private research answers', () => {
     expect(library.validate({ artifacts: [{ kind: 'type', type: invention }] }).errors.join()).toMatch(/only one save may hold/)
   })
 
-  it('an answer for one save makes no kinds or statuses of its own (their names could meet the shared library\'s)', async () => {
+  it('an answer for one save makes no kinds or statuses of its own (their names could meet the shared library\'s)', SLOW, async () => {
     const { body } = asking()
     const model = new ScriptedModel(() => ({ artifacts: [
       { kind: 'status', status: { id: 'honed', name: { en: 'Honed', zh: '磨利' } } },
@@ -161,7 +161,7 @@ describe('save-private research answers', () => {
     expect(library.seq).toBe(0)
   })
 
-  it('rejects invalid private definitions before calling the model and leaves shared state untouched', async () => {
+  it('rejects invalid private definitions before calling the model and leaves shared state untouched', SLOW, async () => {
     const { body } = asking()
     body.workspace.patches.types[0] = { ...invention, makeup: [{ type: 'item/material/missing_private_input', count: 1 }] }
     let calls = 0
