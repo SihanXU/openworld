@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { Game, RuleLibrary, tickAt, type Entity } from '@openworld/engine'
-import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_HOUSES, FIRSTLIGHT_LAYOUT, FIRSTLIGHT_ROOMS, PART_ONE_LAYOUT, PART_ONE_MAPS, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight, migrateFirstlightHouses, migratePartOneMaps } from '@openworld-game/content'
+import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_HOUSES, FIRSTLIGHT_LAYOUT, FIRSTLIGHT_ROOMS, PART_ONE_LAYOUT, PART_ONE_MAPS, PROLOGUE_LAYOUT, PROLOGUE_MAPS, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight, migrateFirstlightHouses, migratePartOneMaps, migratePrologueMaps } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 import { CANOPIES, reachingPlots } from '../src/demo/garden.ts'
 
@@ -213,5 +213,30 @@ describe("the Pilgrim's Road and the Held Ground redrawn (2026-10-27)", () => {
       expect([id, w.isSolidTerrain(w.terrainAt(p.map, p.x, p.y))]).toEqual([id, false])
     }
     expect(w.fact(PART_ONE_LAYOUT)).toBe(true)
+  })
+})
+
+describe('the way down the mountain dressed in its ruins (2026-10-27)', () => {
+  it('moves what an older save left where a ruin now stands, on Cloudtop, at the Mountain Foot and at the Ford', () => {
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    const w = game.engine.world
+    const maps = PROLOGUE_MAPS.map((id) => decodeChunk(chunks.find((c) => c.map.id === id)!))
+    for (const c of maps) game.loadChunk(c)
+    // the cairn on Cloudtop, the tower's stump at the foot, the tower on the Ford's far bank
+    const ruins = [['summit', 17, 6], ['foot', 29, 11], ['ford', 38, 3]] as const
+    for (const [map, x, y] of ruins) expect([map, w.isSolidTerrain(w.terrainAt(map, x, y))]).toEqual([map, true])
+    w.author(() => {
+      w.place(w.player, { on: 'tile', map: 'summit', x: 17, y: 6 })
+      w.add({ id: 'old.stone', type: 'item/material/stone', place: { on: 'tile', map: 'foot', x: 29, y: 11 } })
+      w.add({ id: 'old.log', type: 'item/material/log', place: { on: 'tile', map: 'ford', x: 38, y: 3 } })
+      w.setFact(PROLOGUE_LAYOUT, false)
+    })
+    game.engine.author(() => migratePrologueMaps(game, maps))
+    for (const id of [w.player.id, 'old.stone', 'old.log']) {
+      const p = w.get(id)!.place as { map: string; x: number; y: number }
+      expect([id, w.isSolidTerrain(w.terrainAt(p.map, p.x, p.y))]).toEqual([id, false])
+    }
+    expect(w.fact(PROLOGUE_LAYOUT)).toBe(true)
   })
 })

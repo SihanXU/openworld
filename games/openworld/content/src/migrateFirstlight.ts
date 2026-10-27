@@ -1,6 +1,6 @@
 // Authored-content migration, kept outside the generic engine. No inventory or quest reset.
 import { scheduleAt, scheduleFor, type Entity, type Game, type MapChunk, type WorldIndex } from '@openworld/engine'
-import { FIRSTLIGHT, FIRSTLIGHT_HOUSES, FIRSTLIGHT_LAYOUT, PART_ONE_LAYOUT } from './firstlight.ts'
+import { FIRSTLIGHT, FIRSTLIGHT_HOUSES, FIRSTLIGHT_LAYOUT, PART_ONE_LAYOUT, PROLOGUE_LAYOUT } from './firstlight.ts'
 
 const gardenEntity = (e: Entity) => e.id.startsWith('ford.garden.') || (e.place.on === 'inside' && e.place.holder === 'ford.garden.supplies')
 const relocated = (e: Entity) => gardenEntity(e) || ['ford.cart', 'tobin.wand', 'tobin.oil'].includes(e.id)
@@ -116,6 +116,18 @@ export function migratePartOneMaps(game: Game, chunks: MapChunk[]): void {
       if (saved && saved.type !== f.type && f.type.startsWith(`${saved.type}/`)) w.transform(saved, f.type)
     }
   w.setFact(PART_ONE_LAYOUT, true)
+}
+
+/**
+ * The way down the mountain dressed in its ruins (2026-10-27, docs/release-1.md §4b): Cloudtop's cairn, waymarks, tower
+ * and gate, the old close at the Mountain Foot, the columns and the tower at the Ford. What an older save left where a
+ * wall now stands steps off it, on the maps given (those the save has been to).
+ */
+export function migratePrologueMaps(game: Game, chunks: MapChunk[]): void {
+  const w = game.engine.world
+  if (w.fact(PROLOGUE_LAYOUT)) return
+  stepOffWalls(game, chunks)
+  w.setFact(PROLOGUE_LAYOUT, true)
 }
 
 /** The maps given loaded as they are now, and what of the save stands on a wall or the dark there moved to the nearest open cell. */

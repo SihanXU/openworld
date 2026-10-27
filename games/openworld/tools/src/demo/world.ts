@@ -6,7 +6,7 @@
 //
 //   npx tsx games/openworld/tools/src/demo/world.ts
 
-import { wildFloor } from './wildfloor.ts'
+import { bloom, ruin, wildFloor } from './wildfloor.ts'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -231,8 +231,17 @@ function buildMap(): MapBuilder {
   for (const x of FOOTBRIDGE.piers) m.set(x, FOOTBRIDGE.y, 'bridge')
   // the trail from the cliff stair to the camp (docs/prologue.md): drawn last, so every draw above stays as it was
   m.path([[17, 2], [17, 5], [15, 8], [13, 11]], 'path', 1)
+  // the old way down the mountain ends here as it began (prologue.ts): two columns at the foot of the cliff stair, a
+  // watchtower's stump on the far bank over the river, a run of wall by the road east
+  ruin(m, 'ruin_column_1', 16, 3)
+  ruin(m, 'ruin_column_2', 19, 3)
+  ruin(m, 'ruin_tower', 38, 3)
+  ruin(m, 'ruin_wall_x3', 41, 18)
+  for (const [name, x, y] of [['decor_column_fallen', 20, 10], ['decor_stones', 26, 8], ['decor_stones', 43, 17]] as [string, number, number][]) m.building(name, x, y)
   // what lies about (wildfloor.ts): never at the camp, the landing or the hollow's mouth
-  wildFloor(m, 0.8, (x, y) => (x >= 4 && x <= 20 && y >= 11 && y <= 23) || (x >= 21 && x <= 29 && y >= 10 && y <= 23) || (x <= 9 && y <= 8))
+  const camp = (x: number, y: number) => (x >= 4 && x <= 20 && y >= 11 && y <= 23) || (x >= 21 && x <= 29 && y >= 10 && y <= 23) || (x <= 9 && y <= 8)
+  wildFloor(m, 0.8, camp)
+  bloom(m, 0.8, camp)
   return m
 }
 

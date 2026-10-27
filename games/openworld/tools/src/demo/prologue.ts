@@ -10,7 +10,7 @@ import { MapBuilder } from './builder.ts'
 import { TUTORIAL_DUMMY, TUTORIAL_OPEN } from '@openworld-game/content'
 import { L, GROUND_YIELD, appears } from './kit.ts'
 import { flHouse } from './village.ts'
-import { wildFloor } from './wildfloor.ts'
+import { bloom, rough, ruin, wildFloor } from './wildfloor.ts'
 
 /** Edge openings: the foot's way in from the north (the tutorial's road comes out there), its way out below, the Ford's cliff stair. */
 export const PROLOGUE = {
@@ -46,9 +46,9 @@ export function buildSummit(): MapBuilder {
   const m = new MapBuilder('summit', L('Cloudtop', '云顶台地'), 'wild', 40, 30, 'snow', 'cloudtop', 'outdoor', 'frostfang')
   m.paint('summit')
   // the ruined watch shelter one wakes in: low walls of dry stone built against the crags, roofless, fallen in at its
-  // north-west corner and on its west side, its doorway on the south toward the cut; snow has drifted in where the wall
-  // is down, and a stone that fell lies outside (the layout)
-  m.yard(6, 3, 9, 6, 'stonewall', [[8, 3], [6, 5], [10, 8]])
+  // north-west corner and on its west side, its doorway on the south toward the cut, the hearth's chimney still standing
+  // (art/arch/buildings/prologue.ts); snow has drifted in where the wall is down, and a stone that fell lies outside
+  m.building('ct_shelter', 6, 3)
   // what the watchman left: his cot, his chair at the table his log lies on (chapter1.ts), a barrel of stores long empty
   m.fixture('fixture/furniture/bed', 7, 7)
   m.fixture('fixture/furniture/chair', 12, 4)
@@ -63,6 +63,15 @@ export function buildSummit(): MapBuilder {
   for (const [x, y] of [[6, 11], [7, 13]] as const) m.item('item/material/grass', x, y)
   // small things where they belong: tufts in the tussock (the snow has its own, drawn with the ground)
   m.sprinkle('fixture/nature/tuft', 0.3, (_x, _y, t) => t === 'drygrass')
+  // the old way down, given up: the cairn the watchman found the small light by (his log, chapter1.ts), the signal
+  // tower's stump in the lee of the rocks, columns that marked the way through the snow, and the way's gate, an arch
+  // alone in the rim over the cut
+  ruin(m, 'ct_cairn', 17, 6)
+  ruin(m, 'snow_ruin_tower', 31, 13)
+  ruin(m, 'ct_waymark_0', 13, 10)
+  ruin(m, 'ct_waymark_1', 21, 15)
+  ruin(m, 'ct_waymark_0', 17, 18)
+  m.building('snow_ruin_arch', PAT.cut[0] - 1, PAT.cut[1])
   // what lies about: needles under the pines, stones shed at the crags, never in the shelter
   wildFloor(m, 1, (x, y) => x >= 6 && x <= 14 && y >= 3 && y <= 8)
   // the heights, drawn by hand: the crags two levels above the plateau, their face along its north side (the shelter
@@ -96,7 +105,6 @@ export function buildFoot(): MapBuilder {
   // pillars of whatever stood round it still standing
   m.fixture('fixture/sacred/seal_stone', ...PAT.relic)
   m.regions.relic = [14, 7, 13, 10]
-  for (const x of [16, 24]) m.scenery('pillar', x, 10)
   m.fixture('fixture/sacred/waypoint', ...PAT.footStone, { id: 'wp.foot', name: L('Mountain Foot statue', '山脚传送雕像') })
   // the hunter's cabin, long left (its room: buildFootHut), built of wood and burning like it; its yard before the door:
   // a rail fence round the trodden ground, fallen in places, the block he split wood on, the wood he split stacked
@@ -125,7 +133,27 @@ export function buildFoot(): MapBuilder {
   m.sprinkle('fixture/nature/flowers', 0.12, (x, y, t) => t === 'grass' && y > 13 && m.near(x, y, road))
   m.sprinkle('fixture/nature/leaves', 0.16, (x, y, t) => t === 'grass' && y > 9 && m.near(x, y, tree))
   m.sprinkle('fixture/nature/tuft', 0.05, (x, y, t) => t === 'grass' && y > 9 && !m.near(x, y, rock))
+  // the ground of the meadows: dry grass where the noise rises, bare earth where it falls, never in the yard
+  const yard = (x: number, y: number) => x >= 3 && x <= 10 && y >= 13 && y <= 20
+  rough(m, 2521, (x, y) => y >= 8 && !yard(x, y) && !(x >= 13 && x <= 27 && y >= 9 && y <= 16))
+  // the old close round the stone, as the way's other places are (art/arch/buildings/wilds.ts): its walls fallen to their
+  // last runs, its gate two columns where the trail comes in off the ramp; stumps of its colonnade, a saint toppled off
+  // its plinth, its stones; a tower's stump out to the east
+  ruin(m, 'ruin_wall_x4', 14, 9)
+  ruin(m, 'ruin_column_1', 19, 9)
+  ruin(m, 'ruin_column_2', 22, 9)
+  ruin(m, 'ruin_wall_x4', 23, 9)
+  ruin(m, 'ab_wall_y4', 13, 11)
+  ruin(m, 'ab_wall_y3', 27, 10)
+  ruin(m, 'ruin_stump_1', 15, 12)
+  ruin(m, 'ruin_stump_2', 25, 12)
+  ruin(m, 'ruin_stump_0', 15, 16)
+  ruin(m, 'ruin_stump_1', 25, 16)
+  ruin(m, 'ruin_tower', 29, 11)
+  ruin(m, 'decor_waycross', 22, 24)
+  for (const [name, x, y] of [['decor_column_fallen', 17, 15], ['decor_statue_fallen', 26, 14], ['decor_stones', 15, 14], ['decor_stones', 24, 11], ['decor_stones', 12, 10], ['decor_stones', 28, 13]] as [string, number, number][]) m.building(name, x, y)
   wildFloor(m, 1, (x, y) => (x >= 14 && x <= 26 && y >= 7 && y <= 16) || (x >= 3 && x <= 10 && y >= 13 && y <= 20))
+  bloom(m, 1, (x, y) => x >= 3 && x <= 10 && y >= 13 && y <= 20)
   m.appear = GROUND_YIELD
   return m
 }
@@ -220,8 +248,22 @@ export function buildTutorial(): MapBuilder {
   // the way out: only once the story has opened it
   for (const [i, x] of exit.entries()) m.portals.push({ x, y: h - 1, to: 'foot', tx: TUTORIAL.arrive[0] + i, ty: TUTORIAL.arrive[1], label: L('Mountain Foot', '山脚'), opensWhen: TUTORIAL_OPEN })
   m.anchors.spawn = [TUTORIAL.spawn[0], TUTORIAL.spawn[1]]
+  // what was here before the woods: the spring rising under an old wall of the Five, its niche and its five marks
+  // (art/arch/buildings/prologue.ts), columns of whatever stood round it, a saint fallen by the water; and the oak the
+  // clearing grew round, its crown over the woods' west edge — none of it on the ground the lessons work
+  const lessons = (x: number, y: number) => (x >= 4 && x <= 25 && y >= 6 && y <= 20) || (x >= exit[0] - 3 && x <= exit[0] + 4 && y >= h - 6)
+  rough(m, 2541, (x, y) => !lessons(x, y) && y > 2)
+  ruin(m, 'cl_spring', 14, 2)
+  ruin(m, 'cl_oak', 1, 6)
+  ruin(m, 'ruin_low_x3', 10, 3)
+  ruin(m, 'ruin_low_x2', 19, 3)
+  ruin(m, 'ruin_stump_1', 11, 5)
+  ruin(m, 'ruin_stump_2', 21, 5)
+  ruin(m, 'ruin_low_x3', 25, 5)
+  for (const [name, x, y] of [['decor_statue_fallen', 8, 4], ['decor_column_fallen', 23, 6], ['decor_stones', 13, 4], ['decor_stones', 19, 6]] as [string, number, number][]) m.building(name, x, y)
   // what lies about under the woods' edge — never on the ground the lessons work, nor on the way out
-  wildFloor(m, 1, (x, y) => (x >= 4 && x <= 25 && y >= 6 && y <= 20) || (x >= exit[0] - 3 && x <= exit[0] + 4 && y >= h - 6))
+  wildFloor(m, 1, lessons)
+  bloom(m, 1.4, lessons)
   // the clearing's own: berries keep turning up, enough to eat one's fill before the night
   m.appear = [...GROUND_YIELD, appears('item/food/berries', ['grass'], 6)]
   return m

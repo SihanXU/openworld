@@ -98,7 +98,7 @@ function gazebo(): Model {
 // ------------------------------------------------------------------------------------------------ the ruin
 
 /** A ragged top for a ruined wall: how high it still stands at `u` along it (pixels), never lower than `lo`. */
-const ragged = (u: number, seed: number, hi: number, lo: number) => Math.max(lo, hi * (0.35 + 0.65 * hash(Math.floor(u / 10), seed, 41)) - (hash(Math.floor(u / 3), seed, 42) < 0.3 ? 4 : 0))
+export const ragged = (u: number, seed: number, hi: number, lo: number) => Math.max(lo, hi * (0.35 + 0.65 * hash(Math.floor(u / 10), seed, 41)) - (hash(Math.floor(u / 3), seed, 42) < 0.3 ? 4 : 0))
 
 /** The church's shell, roofless: walls standing to their windows' heads in places, fallen to the sill in others, a gap at the door. */
 function ruinNave(): Model {

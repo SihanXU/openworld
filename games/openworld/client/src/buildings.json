@@ -6187,6 +6187,119 @@
    ],
    "doors": []
   },
+  "cl_oak": {
+   "img": "lsw/Buildings/cl_oak.png",
+   "w": 5,
+   "d": 3,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 5,
+     "th": 8,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "     "
+     ]
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "tw": 5,
+     "th": 8,
+     "x": 80,
+     "y": 0,
+     "grid": [
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "     "
+     ]
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "tw": 5,
+     "th": 8,
+     "x": 160,
+     "y": 0,
+     "grid": [
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "  #  "
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [
+    "  #  ",
+    " ### ",
+    "#####",
+    " ####",
+    " ### ",
+    "  #  "
+   ],
+   "shadow": {
+    "x": 0,
+    "y": 128,
+    "tw": 13,
+    "th": 11,
+    "dx": 0,
+    "dy": -8
+   }
+  },
+  "cl_spring": {
+   "img": "lsw/Buildings/cl_spring.png",
+   "w": 5,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 5,
+     "th": 5,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "     ",
+      "     ",
+      "     ",
+      "     ",
+      "#####"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [
+    "#####",
+    " ### "
+   ],
+   "shadow": {
+    "x": 80,
+    "y": 0,
+    "tw": 10,
+    "th": 6,
+    "dx": 0,
+    "dy": -5
+   }
+  },
   "council_shell": {
    "img": "lsw/Buildings/council_shell.png",
    "w": 26,
@@ -6878,6 +6991,194 @@
     }
    ],
    "doors": []
+  },
+  "ct_cairn": {
+   "img": "lsw/Buildings/ct_cairn.png",
+   "w": 1,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 4,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 16,
+    "y": 0,
+    "tw": 5,
+    "th": 5,
+    "dx": 0,
+    "dy": -4
+   }
+  },
+  "ct_shelter": {
+   "img": "lsw/Buildings/ct_shelter.png",
+   "w": 9,
+   "d": 6,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 9,
+     "th": 4,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "         ",
+      "         ",
+      "         ",
+      "## ######"
+     ]
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "tw": 9,
+     "th": 3,
+     "x": 144,
+     "y": 0,
+     "grid": [
+      "         ",
+      "         ",
+      "#       #"
+     ]
+    },
+    {
+     "row": 2,
+     "col": 8,
+     "tw": 1,
+     "th": 3,
+     "x": 288,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      "#"
+     ]
+    },
+    {
+     "row": 3,
+     "col": 0,
+     "tw": 9,
+     "th": 2,
+     "x": 0,
+     "y": 64,
+     "grid": [
+      "         ",
+      "#       #"
+     ]
+    },
+    {
+     "row": 4,
+     "col": 0,
+     "tw": 9,
+     "th": 2,
+     "x": 144,
+     "y": 64,
+     "grid": [
+      "         ",
+      "#       #"
+     ]
+    },
+    {
+     "row": 5,
+     "col": 0,
+     "tw": 9,
+     "th": 3,
+     "x": 0,
+     "y": 96,
+     "grid": [
+      "         ",
+      "         ",
+      "#### ####"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [
+    "   ######",
+    "       # "
+   ],
+   "shadow": {
+    "x": 144,
+    "y": 96,
+    "tw": 13,
+    "th": 10,
+    "dx": 0,
+    "dy": -4
+   }
+  },
+  "ct_waymark_0": {
+   "img": "lsw/Buildings/ct_waymark_0.png",
+   "w": 1,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 3,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 16,
+    "y": 0,
+    "tw": 4,
+    "th": 4,
+    "dx": 0,
+    "dy": -3
+   }
+  },
+  "ct_waymark_1": {
+   "img": "lsw/Buildings/ct_waymark_1.png",
+   "w": 1,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 3,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 16,
+    "y": 0,
+    "tw": 4,
+    "th": 4,
+    "dx": 0,
+    "dy": -3
+   }
   },
   "decor_amphorae": {
    "img": "lsw/Buildings/decor_amphorae.png",
@@ -31006,6 +31307,100 @@
     "dy": -5
    }
   },
+  "ruin_low_x2": {
+   "img": "lsw/Buildings/ruin_low_x2.png",
+   "w": 2,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 2,
+     "th": 3,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "  ",
+      "  ",
+      "##"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 32,
+    "y": 0,
+    "tw": 5,
+    "th": 4,
+    "dx": 0,
+    "dy": -3
+   }
+  },
+  "ruin_low_x3": {
+   "img": "lsw/Buildings/ruin_low_x3.png",
+   "w": 3,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 3,
+     "th": 3,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "   ",
+      "   ",
+      "###"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [
+    "#  "
+   ],
+   "shadow": {
+    "x": 48,
+    "y": 0,
+    "tw": 6,
+    "th": 4,
+    "dx": 0,
+    "dy": -3
+   }
+  },
+  "ruin_low_x4": {
+   "img": "lsw/Buildings/ruin_low_x4.png",
+   "w": 4,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 4,
+     "th": 3,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "    ",
+      "    ",
+      "####"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [
+    "#   "
+   ],
+   "shadow": {
+    "x": 64,
+    "y": 0,
+    "tw": 7,
+    "th": 4,
+    "dx": 0,
+    "dy": -3
+   }
+  },
   "ruin_nave": {
    "img": "lsw/Buildings/ruin_nave.png",
    "w": 10,
@@ -31137,6 +31532,95 @@
     "th": 14,
     "dx": 0,
     "dy": -7
+   }
+  },
+  "ruin_stump_0": {
+   "img": "lsw/Buildings/ruin_stump_0.png",
+   "w": 1,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 2,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 16,
+    "y": 0,
+    "tw": 3,
+    "th": 3,
+    "dx": 0,
+    "dy": -2
+   }
+  },
+  "ruin_stump_1": {
+   "img": "lsw/Buildings/ruin_stump_1.png",
+   "w": 1,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 3,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 16,
+    "y": 0,
+    "tw": 4,
+    "th": 4,
+    "dx": 0,
+    "dy": -3
+   }
+  },
+  "ruin_stump_2": {
+   "img": "lsw/Buildings/ruin_stump_2.png",
+   "w": 1,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 3,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 16,
+    "y": 0,
+    "tw": 4,
+    "th": 4,
+    "dx": 0,
+    "dy": -3
    }
   },
   "ruin_tower": {
@@ -33847,6 +34331,245 @@
     "th": 14,
     "dx": 0,
     "dy": -6
+   }
+  },
+  "snow_ruin_arch": {
+   "img": "lsw/Buildings/snow_ruin_arch.png",
+   "w": 3,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 3,
+     "th": 6,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "# #"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 48,
+    "y": 0,
+    "tw": 8,
+    "th": 6,
+    "dx": 0,
+    "dy": -5
+   }
+  },
+  "snow_ruin_column_0": {
+   "img": "lsw/Buildings/snow_ruin_column_0.png",
+   "w": 1,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 5,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      " ",
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 16,
+    "y": 0,
+    "tw": 6,
+    "th": 6,
+    "dx": 0,
+    "dy": -5
+   }
+  },
+  "snow_ruin_column_1": {
+   "img": "lsw/Buildings/snow_ruin_column_1.png",
+   "w": 1,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 5,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      " ",
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 16,
+    "y": 0,
+    "tw": 6,
+    "th": 6,
+    "dx": 0,
+    "dy": -5
+   }
+  },
+  "snow_ruin_column_2": {
+   "img": "lsw/Buildings/snow_ruin_column_2.png",
+   "w": 1,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 6,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      " ",
+      " ",
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 16,
+    "y": 0,
+    "tw": 6,
+    "th": 6,
+    "dx": 0,
+    "dy": -5
+   }
+  },
+  "snow_ruin_tower": {
+   "img": "lsw/Buildings/snow_ruin_tower.png",
+   "w": 3,
+   "d": 3,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 3,
+     "th": 7,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "###"
+     ]
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "tw": 3,
+     "th": 8,
+     "x": 48,
+     "y": 0,
+     "grid": [
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "###"
+     ]
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "tw": 3,
+     "th": 8,
+     "x": 96,
+     "y": 0,
+     "grid": [
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "###"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [
+    " # ",
+    " # ",
+    " # ",
+    " # "
+   ],
+   "shadow": {
+    "x": 144,
+    "y": 0,
+    "tw": 11,
+    "th": 11,
+    "dx": 0,
+    "dy": -8
+   }
+  },
+  "snow_ruin_wall_x3": {
+   "img": "lsw/Buildings/snow_ruin_wall_x3.png",
+   "w": 3,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 3,
+     "th": 5,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "###"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [
+    "###"
+   ],
+   "shadow": {
+    "x": 48,
+    "y": 0,
+    "tw": 8,
+    "th": 6,
+    "dx": 0,
+    "dy": -5
    }
   },
   "solar_shell": {
