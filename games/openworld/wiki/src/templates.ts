@@ -877,6 +877,10 @@ function questReward(ctx: Ctx, q: QuestEnt): string {
   const out: string[] = []
   if (r?.xp) out.push(`<li>${L('经验', 'Experience')} +${r.xp}${par(ctx.link('等级与经验'))}</li>`)
   for (const it of r?.items ?? []) out.push(`<li>${rewardItem(ctx, it)}</li>`)
+  // what the people it names make of the one who did it, and how it weighs on their karma (a kindness unsaid: +3)
+  for (const [alias, d] of Object.entries(r?.regard ?? {})) out.push(`<li>${L('好感', 'Regard')} ${personLink(ctx, q.def.aliases?.[alias]?.id ?? alias)} ${d > 0 ? '+' : ''}${d}${par(ctx.link('友谊'))}</li>`)
+  const karma = r?.karma ?? (Object.values(r?.regard ?? {}).some((d) => d > 0) ? 3 : 0)
+  if (karma) out.push(`<li>${L('善恶值', 'Karma')} ${karma > 0 ? '+' : ''}${karma}${par(ctx.link('善恶与信念'))}</li>`)
   return out.length ? `<ul class="facts">${out.join('')}</ul>` : `<p class="empty">${L('没有物品奖励。', 'No item rewards.')}</p>`
 }
 

@@ -77,7 +77,7 @@ export const SIDE_QUESTS: QuestDef[] = [
       { id: 'joss', text: L('Ask Joss about the bridge', '问乔斯桥的事'), talk: 'npc.joss', line: L('Three planks fill the gap. An axe fells a tree and splits a log; lay the planks on the water. Or go round some other way — the river does not care how.', '三块木板就能补上缺口。斧头砍树、劈木头；把木板铺到水面上。或者想别的办法过去——河才不在乎你怎么过。') },
       { id: 'hesper', text: L('Ask Hesper what she saw', '问赫斯珀她看到了什么'), talk: 'npc.hesper', line: L('White, all of him. A crown of thorns grown through his helm. He pulled my bridge out board by board and laid the nails on the pier like a toll paid. He did not look at me once.', '他浑身是白的。荆棘冠长进了他的头盔里。他一块一块把我的桥拆了，把钉子摆在码头上，像是在收过路费。他一眼都没看我。') },
     ],
-    reward: { xp: 40, items: [{ type: 'item/food/bread', count: 2 }, gear('item/valuable/amulet', 'neck', 'Amulet of the Five Wounds', '五伤护符', 'masterwork', {}, 3)], facts: { [CH1.pilgrim]: 1 } },
+    reward: { xp: 40, items: [{ type: 'item/food/bread', count: 2 }, gear('item/valuable/amulet', 'neck', 'Amulet of the Five Wounds', '五伤护符', 'masterwork', {}, 3)], facts: { [CH1.pilgrim]: 1 }, regard: { giver: 5 } },
   }),
   errand({
     id: 'drawings',
@@ -163,7 +163,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     done: L('Brother Cassian. He sat in this chapel when I was a novice and asked me to pray for him. The Church named him pilgrim thirty-one years ago. ...They told us he reached the Holy City. Keep it. He would want it walking.', '卡西安修士。我还是见习修女的时候，他坐在这间礼拜堂里，请我为他祈祷。三十一年前，教会点名他为朝圣者。……他们告诉我们，他到达了圣城。你留着吧。他会希望它继续上路。'),
     // (his, not the one the Rest gives a pilgrim for the oath: that is sworn, items.ts)
     asks: [{ id: 'scallop', text: L("The pilgrim's scallop", '朝圣者的扇贝'), carry: { type: 'item/valuable/scallop', notTags: ['sworn'] }, count: 1, keep: true, where: 'forest:camp' }],
-    reward: { xp: 40, items: [{ type: 'item/potion/healing', count: 2 }, gear('item/valuable/amulet', 'neck', "Cassian's Prayer Cord", '卡西安的祈祷绳', 'vowed', { 'night:def': 1 }, 3, undefined, 'dawn')] },
+    reward: { xp: 40, items: [{ type: 'item/potion/healing', count: 2 }, gear('item/valuable/amulet', 'neck', "Cassian's Prayer Cord", '卡西安的祈祷绳', 'vowed', { 'night:def': 1 }, 3, undefined, 'dawn')], regard: { giver: 20 } },
   }),
   errand({
     id: 'band',
