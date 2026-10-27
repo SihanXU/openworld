@@ -205,14 +205,19 @@ export class LocaleMode implements Mode {
   /** Write the game in another language: every text's words in it become its words, its former words a translation. */
   private switchDialog(ctx: Ctx): void {
     const langs = languages()
+    // only a language the project has words in can become the one it is written in (its table's, or an older
+    // project's inline ones): the format refuses a language with none, and it must not be offered here
+    const targets = [...new Set([...langs.translations, ...Object.keys(inlineLanguages(ctx.store.project()))])].filter((l) => l !== langs.source)
+    if (!targets.length) return toast(t('Not translated yet: add a language.'), 'warn')
     const m = modal(t('Write the game in another language'), `<p class="muted">${t('Every text\'s words in the language chosen become its words (where its table has them), and its words now go into the table of the language it was written in. A text with no words in it stays as it is, to translate.')}</p>
-      <label>${t('written in')} <select id="lcTo">${[...langs.translations, ...Object.keys(LANG_NAMES).filter((l) => l !== langs.source && !langs.translations.includes(l))].map((l) => `<option value="${esc(l)}">${esc(langName(l))}</option>`).join('')}</select></label>
+      <label>${t('written in')} <select id="lcTo">${targets.map((l) => `<option value="${esc(l)}">${esc(langName(l))}</option>`).join('')}</select></label>
       <div class="row end"><button id="lcGo" class="on">${t('Change it')}</button></div>`)
     $<HTMLButtonElement>('#lcGo', m.el).onclick = () => {
       const to = $<HTMLSelectElement>('#lcTo', m.el).value
       m.close()
       const p = structuredClone(ctx.store.project())
-      const { changed } = switchSource(p, to)
+      const { changed, refused } = switchSource(p, to)
+      if (refused) return toast(t('{lang} has no words yet: translate it first, then write the game in it.', { lang: langName(to) }), 'warn')
       const files = new Map([['game.json', p.game] as [string, unknown], ...[...p.ontology, ...p.rules, ...p.maps, ...p.people, ...p.quests, ...p.story, ...(p.learned ?? []), ...(p.client ?? [])].map((f): [string, unknown] => [f.file, f.data])])
       ctx.store.batch(t('written in {lang}', { lang: langName(to) }), () => {
         for (const f of changed) ctx.store.set(f, files.get(f), t('written in {lang}', { lang: langName(to) }))

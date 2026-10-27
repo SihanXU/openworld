@@ -222,7 +222,14 @@ export class Workspace {
     // written in another language than the template: its words turned round, the template's into a table
     if (o.source && o.source !== languagesOf(JSON.parse(readFileSync(join(to, 'game.json'), 'utf8')) as GameJson).source) {
       const p = readProject(to)
-      const { changed } = switchSource(p, o.source)
+      const { changed, refused } = switchSource(p, o.source)
+      // a language the template has no words in cannot be the one the project is written in: the switch would write its
+      // English fallback as the words and replace the template's tables (so it is refused, and the half-made project goes)
+      if (refused) {
+        rmSync(to, { recursive: true, force: true })
+        const langs = languagesOf(p.game)
+        throw new WorkspaceError(400, `the template has no ${o.source} words to write the project in: it is written in ${langs.source}${langs.translations.length ? `, translated into ${langs.translations.join(', ')}` : ''}`)
+      }
       const byFile = new Map(filesOf(p).map((f) => [f.file, f.data]))
       for (const f of changed) writeFileSync(join(to, f), formatJson(byFile.get(f)))
       mkdirSync(join(to, 'locales'), { recursive: true })
