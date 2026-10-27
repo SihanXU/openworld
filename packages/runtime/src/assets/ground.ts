@@ -325,7 +325,7 @@ function nearestBlob(sig: number): [number, number] {
 }
 
 /** What stands, rather than lies: a cell of these is never the ground drawn under a building. */
-const STANDING = new Set(['wall', 'woodwall', 'door', 'roof', 'tree', 'pine', 'bush', 'rock', 'cave_wall', 'burnt_wall', 'charred_tree', 'void', 'stump'])
+const STANDING = new Set(['wall', 'woodwall', 'door', 'roof', 'tree', 'pine', 'bush', 'thornhedge', 'rock', 'cave_wall', 'burnt_wall', 'charred_tree', 'void', 'stump'])
 
 /**
  * The ground under a map's buildings and fences (its prefab stamps): a stamp's solid cells are wall terrain, so the
@@ -377,7 +377,7 @@ export function groundBeneath(catalog: Catalog, stamps: { key: string; x: number
 }
 
 /** Terrains drawn as a thing standing on the ground (scene.ts placeObject): a tree, a pine, a bush, a rock, a stump. */
-const OBJECTS = new Set(['tree', 'pine', 'bush', 'rock', 'stump', 'charred_tree'])
+const OBJECTS = new Set(['tree', 'pine', 'bush', 'thornhedge', 'rock', 'stump', 'charred_tree'])
 
 /**
  * The look a terrain's standing thing takes from the ground it stands in: in snow, its winter one where the catalogue

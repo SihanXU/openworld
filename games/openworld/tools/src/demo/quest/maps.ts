@@ -9,6 +9,7 @@ import { MapBuilder, rng } from '../builder.ts'
 import { L, GROUND_YIELD, appears, lay } from '../kit.ts'
 import { wildFloor } from '../wildfloor.ts'
 import { noise, seal, ways, woods as belt } from './country.ts'
+import { HEDGE, KINGDOM } from './kingdom.ts'
 
 const tree = () => (rng.chance(0.3) ? 'pine' : 'tree')
 const grassy = (t: string) => t === 'grass' || t === 'drygrass'
@@ -35,8 +36,9 @@ export const EAST_ROAD = { w: 48, h: 24, west: [11, 12, 13], east: [10, 11, 12],
 /**
  * The East Road (the redo of 2026-10-27): the road on from the Kneeling Field past a burned farm — the farmhouse black
  * and open to the sky, the barn a frame of charred posts where Edda hides, the yard and the orchard ash, the hay still
- * smouldering, its fields south of the road burned in their strips behind a broken rail — to the trodden clearing off
- * the road and the knight's field beyond, ringed in his thorns (quest/chapter1.ts); woods close it but for the road.
+ * smouldering, its fields south of the road burned in their strips behind a broken rail — past the trodden clearing off
+ * the road to the knight's hedge, its one gate his fog into his arena (quest/kingdom.ts, docs/boss-rooms.md); beyond the
+ * hedge the road goes on east to Emberfall, reached only out of the arena. Woods close it but for the road.
  */
 export const EAST_FARM = { house: [24, 5] as const, barn: [17, 5] as const }
 
@@ -45,7 +47,7 @@ export function buildEastRoad(): MapBuilder {
   m.gearLevel = 4
   // meadow gone rank, dry where the noise swells; the knight's field a wide sweep of dry grass
   for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (noise(x, y, 6, 451) > 0.63) m.set(x, y, 'drygrass')
-  m.organic(40, 13, 7.5, 6.5, 'drygrass', { only: grassy, rough: 0.3 })
+  m.organic(41, 15, 5, 4, 'drygrass', { only: grassy, rough: 0.3 })
   m.path([[0, 12], [6, 12], [12, 10], [20, 11], [28, 13], [36, 11], [42, 11], [47, 11]], 'path', 3, { edge: 'dirt', edgeP: 0.08 })
   // the burned farmstead north of the road: the farmhouse and the barn, the yard and the hay in ash, the orchard dead
   m.organic(22, 7, 9, 3.4, 'dirt', { only: (t) => grassy(t), rough: 0.3 })
@@ -63,9 +65,19 @@ export function buildEastRoad(): MapBuilder {
   // its fields south of the road, burned in their strips behind a broken rail
   m.fence('rail', [3, 16], [14, 16], [[6, 16], [10, 16]])
   for (const y of [17, 19, 21]) for (let x = 4; x < 14; x++) if (m.get(x, y) !== 'tree') m.set(x, y, 'dirt')
+  // the knight's hedge (docs/boss-rooms.md §4.1): his thorns close the road from edge to edge past the farm; its one gate
+  // is his fog, on the ways into his arena (quest/kingdom.ts), and the road goes on east beyond it only out of the arena
+  for (let y = 0; y < m.h; y++)
+    for (const x of [HEDGE.x, HEDGE.x + 1]) if (!(KINGDOM.rows as readonly number[]).includes(y)) m.set(x, y, 'thornhedge')
+  m.rect(HEDGE.x - 2, KINGDOM.rows[0], 5, KINGDOM.rows.length, 'path')
+  for (const y of KINGDOM.rows) {
+    m.portal(HEDGE.x, y, 'kingdom', KINGDOM.arrive[0], y, L('The Kingdom', '荆棘王国'))
+    m.fixture('fixture/fog', HEDGE.x, y, { name: L("The knight's fog", '骑士的雾门'), props: { boss: 'alberic', interior: 'kingdom', interiorX: KINGDOM.arrive[0], interiorY: y } })
+  }
+  for (let y = 1; y < m.h - 1; y += 2) if (m.free(HEDGE.x - 1, y) && Math.abs(y - KINGDOM.rows[1]) > 2) m.fixture('fixture/nature/briar', HEDGE.x - 1, y, { name: L("The knight's thorns", '骑士的荆棘') })
   // the road's dangers: a pair of wolves, a boar in the brush
-  m.creature('beast/wolf', 33, 15, { sight: 5 })
-  m.creature('beast/wolf', 36, 17, { sight: 5 })
+  m.creature('beast/wolf', 27, 17, { sight: 5 })
+  m.creature('beast/wolf', 30, 19, { sight: 5 })
   m.creature('beast/boar', 12, 14, { temper: 'wary', sight: 4 })
   lay(m, 'item/material/stick', 2, [6, 13, 8, 3])
   lay(m, 'item/material/stone', 2, [36, 5, 8, 4])
@@ -73,7 +85,7 @@ export function buildEastRoad(): MapBuilder {
   // a trodden clearing off the road (the Boss Studio's and the challenge's stage)
   m.organic(BOSS_ARENA.x, BOSS_ARENA.y, 7, 4, 'dirt', { only: grassy, rough: 0.12 })
   // the woods round it, never on the road, the farm, the fields, the clearing or the knight's field
-  const keep = (x: number, y: number) => m.near(x, y, (t) => t === 'path' || t === 'dirt' || t === 'charred_tree', 2) || (x >= 32 && Math.hypot((x - 40) / 8.5, (y - 13) / 7.5) < 1) || (x >= 3 && x <= 14 && y >= 15 && y <= 22)
+  const keep = (x: number, y: number) => m.near(x, y, (t) => t === 'path' || t === 'dirt' || t === 'charred_tree' || t === 'thornhedge', 2) || (x >= 3 && x <= 14 && y >= 15 && y <= 22)
   belt(m, keep, { depth: 2.5, swell: 2.3, pines: 0.3, seed: 451 })
   seal(m, ways(m, { west: EAST_ROAD.west, east: EAST_ROAD.east }))
   // what the fire left: beams fallen in the ash, a cart, the wood and the hay of the yard
@@ -87,7 +99,7 @@ export function buildEastRoad(): MapBuilder {
     }
   m.sprinkle('fixture/nature/tuft', 0.04, (x, y, t) => t === 'drygrass' && !m.near(x, y, (u) => u === 'path', 1))
   m.sprinkle('fixture/nature/leaves', 0.12, (x, y, t) => grassy(t) && m.near(x, y, (u) => u === 'tree' || u === 'pine'))
-  wildFloor(m, 1, (x, y) => m.near(x, y, (t) => t === 'path', 1) || (x >= 32 && y >= 5 && y <= 21))
+  wildFloor(m, 1, (x, y) => m.near(x, y, (t) => t === 'path', 1))
   return m
 }
 

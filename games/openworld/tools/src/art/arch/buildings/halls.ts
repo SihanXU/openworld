@@ -299,7 +299,8 @@ const STYLES: Record<keyof typeof HALLS, Style> = {
   prchapel: { wall: 'stone', trim: 'stone', h: 104, windows: 'lancet', glass: 'red', hang: ['tapestry', 'banner', 'painting'], feature: 'window', pilasters: 'stone' },
   prhostel: { wall: 'plaster', trim: 'timber', h: 72, windows: 'rect', hang: ['painting', 'jars', 'none'], feature: 'hearth', pilasters: 'timber' },
   abhall: { wall: 'granite', trim: 'darkwood', h: 96, windows: 'lancet', glass: 'blue', hang: ['banner', 'books', 'trophy'], feature: 'canopy', pilasters: 'granite' },
-  abcrypt: { wall: 'graniteRough', trim: 'graniteRough', h: 72, windows: 'none', hang: ['niches', 'niches', 'none'], feature: 'ossuary', pilasters: 'graniteRough' },
+  abcrypt: { wall: 'graniteRough', trim: 'graniteRough', h: 72, windows: 'none', hang: ['niches', 'niches', 'none'], feature: 'none', pilasters: 'graniteRough' },
+  abtomb: { wall: 'graniteRough', trim: 'graniteRough', h: 88, windows: 'none', hang: ['niches', 'niches', 'banner'], feature: 'ossuary', pilasters: 'graniteRough' },
   erfarm: { wall: 'charred', trim: 'darkwood', h: 64, windows: 'rect', hang: ['none', 'tools', 'none'], feature: 'hearth' },
   catacombs: { wall: 'whiteStone', trim: 'whiteStone', h: 64, windows: 'none', hang: ['niches', 'niches', 'none'], feature: 'ossuary', pilasters: 'whiteStone' },
 }

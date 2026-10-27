@@ -83,13 +83,14 @@ function problems(): string[] {
       for (let x = 0; x < m.width; x++) if (onFrame(m, x, y) && !m.portals.some((p) => p.x === x && p.y === y) && !w.onto.data.terrains[m.terrain[y * m.width + x]]?.solid) gaps.push([x, y, 'doorway'])
     for (const [x, y, what] of gaps) {
       if (!touched(reached, [[x, y]])) out.push(`${m.id}: ${what} not reached at ${key(x, y)}`)
-      for (const f of fixturesAt(m.id, x, y)) out.push(`${m.id}: ${f.type} stands on the ${what} at ${key(x, y)}`)
+      // (a boss's fog stands on its door by design: it is the door, sealed while the boss stands — docs/boss-rooms.md)
+      for (const f of fixturesAt(m.id, x, y)) if (f.type !== 'fixture/fog') out.push(`${m.id}: ${f.type} stands on the ${what} at ${key(x, y)}`)
       if (what === 'doorway' && !open(m.id, x, y)) out.push(`${m.id}: doorway blocked at ${key(x, y)}`)
       for (const [dx, dy] of FOUR) {
         const [fx, fy] = [x + dx, y + dy]
         if (!inside(m, fx, fy)) continue
         const solid = w.solidAt(m.id, fx, fy)
-        if (solid && !w.isAgent(solid)) out.push(`${m.id}: ${solid.type} before the ${what} at ${key(fx, fy)}`)
+        if (solid && !w.isAgent(solid) && solid.type !== 'fixture/fog') out.push(`${m.id}: ${solid.type} before the ${what} at ${key(fx, fy)}`)
       }
     }
     // every thing in a room within a hand's reach of the floor one walks

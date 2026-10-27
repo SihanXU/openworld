@@ -16,6 +16,7 @@ import { flHouse } from '../village.ts'
 import { decor, piles, strew, unshut } from '../showcase/dress.ts'
 import { wildFloor } from '../wildfloor.ts'
 import { noise, seal, ways, woods } from './country.ts'
+import { HALLS } from '../../art/arch/plans.ts'
 
 /** Edge openings: the Ford's east edge into the Rest, the Rest into the road, the road into the field and to the abbey. */
 export const PILGRIM = {
@@ -378,30 +379,61 @@ export function buildAbbeyHall(): MapBuilder {
   return m
 }
 
+/** The way from the crypt's head into the priors' tomb (docs/boss-rooms.md): the arch's cells in the crypt, the tomb's door. */
+const TOMB_ARCH = (() => {
+  const a = HALLS.abcrypt.parts.arch
+  return Array.from({ length: a.w }, (_, i): [number, number] => [a.x + i, a.y])
+})()
+const TOMB_DOOR = HALLS.abtomb.doors[0]
+
 /**
  * The crypt under the abbey church: its vault on two rows of pillars, the abbey's priors in their niches along it (the
- * Order's knights lie in the ossuary under Thornwood Hollow: hollow.ts), and at its head the priors' tomb, where its last
- * keeper waits with the seal.
+ * Order's knights lie in the ossuary under Thornwood Hollow: hollow.ts), and at its head the arch into the priors' tomb,
+ * its fog across it (docs/boss-rooms.md: Prior Wendel's room, buildAbbeyTomb).
  */
 export function buildAbbeyCrypt(): MapBuilder {
-  const { m, P } = flHouse('abcrypt', 'abbey.crypt', 'The Abbey Crypt', '修道院地下墓室', 'floor_stone', ['tomb', 'vault', 'entry'], { music: 'crypt', light: 'dark', floors: [['tomb', 'flagstone']] })
+  const { m, P } = flHouse('abcrypt', 'abbey.crypt', 'The Abbey Crypt', '修道院地下墓室', 'floor_stone', ['vault', 'entry'], { music: 'crypt', light: 'dark' })
   m.zone = 'combat'
   m.gearLevel = 5
   const V = P.vault
-  const T = P.tomb
   for (const y of [V.y + 2, V.y + 5]) for (const x of [V.x + 3, V.x + 7, V.x + 14, V.x + 18]) m.building('crypt_pillar', x, y)
-  for (const [x, y] of [[V.x, V.y], [V.x + V.w - 1, V.y], [T.x, T.y], [T.x + T.w - 1, T.y], [V.x, V.y + V.h - 1]] as const) m.fixture('fixture/light/brazier', x, y, { statuses: { lit: -1 } })
+  for (const [x, y] of [[V.x, V.y], [V.x + V.w - 1, V.y], [V.x, V.y + V.h - 1]] as const) m.fixture('fixture/light/brazier', x, y, { statuses: { lit: -1 } })
   for (const x of [V.x + 1, V.x + 3, V.x + 5, V.x + V.w - 6, V.x + V.w - 4, V.x + V.w - 2]) m.fixture('fixture/sacred/gravestone', x, V.y + V.h - 1, { name: L("A prior's niche", '院长的壁龛'), props: { text: 'A prior of the abbey, a thorn ring carved over the niche. The name has been chiselled off and cut again, smaller, lower down, as if by someone who kept forgetting.', text_zh: '一位修道院院长的壁龛，上方刻着一圈荆棘。名字被凿掉过，又在更低处刻了一遍，字更小，像是有人总在忘记。' } })
   m.creature('undead/skeleton', V.x + 5, V.y + 3, HUNT(4))
   m.creature('undead/ghost', V.x + 16, V.y + 3, { behaviour: 'ranged', temper: 'aggressive', sight: 5, leash: 5 })
+  // the arch at its head into the priors' tomb, its fog across it: through it one is sealed in with the last keeper
+  for (const [x, y] of TOMB_ARCH) {
+    m.set(x, y, 'door')
+    m.portal(x, y, 'abbey.tomb', TOMB_DOOR[0], TOMB_DOOR[1] - 1, L("The Priors' Tomb", '院长墓穴'))
+    m.fixture('fixture/fog', x, y, { name: L("The keeper's fog", '看守的雾门'), props: { boss: 'wendel', interior: 'abbey.tomb', interiorX: TOMB_DOOR[0], interiorY: TOMB_DOOR[1] - 1 } })
+  }
+  for (const [x, y, w] of [[V.x + 1.5, V.y + 0.5, 3], [V.x + V.w - 1.5, V.y + 0.5, 3], [TOMB_ARCH[0][0] + 1, V.y + 0.5, 3]] as const) m.lights.push({ x, y, w, h: w * 0.75, color: x > V.x + 5 && x < V.x + V.w - 5 ? '#fff0c8' : '#ff9a4a', shape: 'glow', when: 'always', strength: 0.35 })
+  wildFloor(m, 1, (x, y) => inRect([TOMB_ARCH[0][0] - 1, V.y, TOMB_ARCH.length + 2, 2], x, y) || inRect([P.entry.x, P.entry.y - 1, P.entry.w, P.entry.h + 1], x, y), [0, 0, m.w, m.h], 'barrow')
+  return m
+}
+
+/**
+ * The priors' tomb, Prior Wendel's room behind its fog (docs/boss-rooms.md §4.3): the abbey's last keeper on the dais at
+ * its head under the wall of bones, braziers at its corners; one comes in at its foot, sealed behind while he stands.
+ */
+export function buildAbbeyTomb(): MapBuilder {
+  const { m, P } = flHouse('abtomb', 'abbey.tomb', "The Priors' Tomb", '院长墓穴', 'floor_stone', ['tomb', 'entry'], { music: 'crypt', light: 'dark', floors: [['dais', 'flagstone']] })
+  m.zone = 'combat'
+  m.gearLevel = 5
+  const T = P.tomb
+  for (const [x, y] of [[T.x, T.y], [T.x + T.w - 1, T.y], [T.x, T.y + T.h - 1], [T.x + T.w - 1, T.y + T.h - 1]] as const) m.fixture('fixture/light/brazier', x, y, { statuses: { lit: -1 } })
+  m.rect(T.x + 7, T.y + 1, 4, T.h - 1, 'carpet')
   // the Order's last keeper: Prior Wendel, who sent the Crown east and never sent the relief
-  const abbot = m.creature('undead/skeleton', T.x + 5, T.y + 1, { id: ABBOT_ID, sight: 5, leash: 5, loot: [ORDER_SEAL] })
+  const abbot = m.creature('undead/skeleton', T.x + 9, T.y + 1, { id: ABBOT_ID, sight: 5, leash: 6, loot: [ORDER_SEAL] })
   abbot.name = L('Prior Wendel, the Last Keeper', '最后的看守·温德尔院长')
   abbot.tags = ['boss']
   abbot.props = { hp: 90, maxHp: 90, atk: 5, def: 2, trophyChance: 0 }
   m.regions.tomb = [T.x, T.y, T.w, T.h]
-  for (const [x, y, w] of [[T.x + 5, T.y + 1, 4], [V.x + 1.5, V.y + 0.5, 3], [V.x + V.w - 1.5, V.y + 0.5, 3]] as const) m.lights.push({ x, y, w, h: w * 0.75, color: '#ff9a4a', shape: 'glow', when: 'always', strength: 0.4 })
-  wildFloor(m, 1, (x, y) => inRect([T.x + 3, T.y, 5, 3], x, y) || inRect([P.entry.x, P.entry.y - 1, P.entry.w, P.entry.h + 1], x, y), [0, 0, m.w, m.h], 'barrow')
+  // its door back down to the crypt, the fog across it (sealed while he stands)
+  m.portal(TOMB_DOOR[0], TOMB_DOOR[1], 'abbey.crypt', TOMB_ARCH[0][0], TOMB_ARCH[0][1] + 1, L('The Abbey Crypt', '修道院地下墓室'))
+  m.fixture('fixture/fog', TOMB_DOOR[0], TOMB_DOOR[1], { name: L("The keeper's fog", '看守的雾门'), props: { boss: 'wendel' } })
+  for (const [x, y, w] of [[T.x + 9, T.y + 1, 5], [T.x + 1, T.y + 1, 3], [T.x + T.w - 1, T.y + 1, 3]] as const) m.lights.push({ x, y, w, h: w * 0.75, color: '#ff9a4a', shape: 'glow', when: 'always', strength: 0.4 })
+  wildFloor(m, 1.2, (x, y) => inRect([T.x + 6, T.y, 6, 4], x, y) || inRect([P.entry.x, P.entry.y - 1, P.entry.w, P.entry.h + 1], x, y), [0, 0, m.w, m.h], 'barrow')
   return m
 }
 
@@ -592,7 +624,7 @@ export const PILGRIMAGE_STORY: StepDef[] = [
   {
     // The crypt: the last keeper rises.
     id: 'crypt_keeper',
-    when: { map: 'abbey.crypt', region: 'tomb' },
+    when: { map: 'abbey.tomb', region: 'tomb' },
     script: [
       say(ABBOT_ID, 'Who... comes for the seal? The Crown went east. The relief stays here. We hold, that others need not. We HOLD.', '是谁……来取印章？荆冠已经往东去了。替任留在这里。我们坚守，好让别人不必。我们——坚守。', 'angry'),
       say('pip', 'He\'s the one who kept the writ! Careful — he\'s not going to give it up nicely.', '就是他扣下了文书！小心——他不会好好交出来的。', 'angry'),

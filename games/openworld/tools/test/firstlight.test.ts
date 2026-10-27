@@ -176,7 +176,7 @@ describe("Firstlight's houses redrawn (2026-10-26)", () => {
 })
 
 describe("the Pilgrim's Road and the Held Ground redrawn (2026-10-27)", () => {
-  it('keeps the ids their things had (a save keeps a map by id: the writ, the Ninth Nail, a wolf felled)', () => {
+  it('keeps the ids their things had (a save keeps a map by id: the writ, a wolf felled, a tent)', () => {
     const kept = JSON.parse(readFileSync(new URL('../src/demo/quest/kept-ids.json', import.meta.url), 'utf8')) as Record<string, [string, string, string][]>
     const now = new Map(buildFord().chunks.flatMap((c) => c.entities.map((e) => [e.id, e] as const)))
     const name = (e: Entity) => (typeof e.name === 'string' ? e.name : (e.name as { en?: string } | undefined)?.en ?? '')
@@ -184,7 +184,7 @@ describe("the Pilgrim's Road and the Held Ground redrawn (2026-10-27)", () => {
       .filter(([k]) => k !== '$comment')
       .flatMap(([, rows]) => rows.filter(([id, type, n]) => { const e = now.get(id); return e && !((e.type === type || e.type.startsWith(`${type}/`)) && name(e) === n) }).map(([id, type, n]) => `${id}: ${type} ${n} → ${now.get(id)!.type} ${name(now.get(id)!)}`))
     expect(moved).toEqual([])
-    for (const id of ['abbey.hall~if', 'eastroad~i15', 'pilgrimway~ch', 'haven~8']) expect(now.has(id), id).toBe(true)
+    for (const id of ['abbey.hall~if', 'eastroad~c3', 'pilgrimway~ch', 'haven~8']) expect(now.has(id), id).toBe(true)
   })
 
   it('moves what an older save left where a wall now stands, on the road east, in its rooms and in the Held Ground', () => {
