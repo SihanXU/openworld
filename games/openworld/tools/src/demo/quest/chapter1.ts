@@ -9,6 +9,7 @@ import { ALBERIC_CAMPAIGN, ALBERIC_ID, CH1, HAVEN, PART_TWO, createBoss } from '
 const HAVEN_MAP = HAVEN.map
 import { L } from '../kit.ts'
 import { MapBuilder } from '../builder.ts'
+import { KINGDOM } from './kingdom.ts'
 
 const say = (who: string, en: string, zh: string, mood?: 'neutral' | 'happy' | 'sad' | 'angry' | 'surprised' | 'shy') => ({ say: who, text: L(en, zh), ...(mood && { mood }) })
 
@@ -23,13 +24,15 @@ export const CH1_AT = {
   hollow: { stones: [[24, 25], [30, 25]] as const },
   barrow: { drawing: [14, 2] as const, loaf: [7, 20] as const },
   road: {
-    knight: [40, 15] as const,
     stone: [30, 12] as const,
-    kingdom: [33, 6, 15, 16] as const,
-    nail: [38, 9] as const,
-    band: [44, 17] as const,
-    severin: [36, 13] as const,
     barn: [21, 8] as const,
+  },
+  // the knight's arena behind his fog (docs/boss-rooms.md; quest/kingdom.ts)
+  kingdom: {
+    knight: KINGDOM.knight,
+    nail: [15, 8] as const,
+    band: [24, 17] as const,
+    severin: [25, 13] as const,
   },
 }
 
@@ -101,30 +104,30 @@ export function chapter1Barrow(m: MapBuilder): void {
   m.item({ form: 'item/food/bread', name: L('Loaf marked with ash', '印着灰痕的面包') }, ...spot(m, ...a.loaf))
 }
 
-/** The East Road: Edda's barn, a waypoint statue before the kingdom, the kingdom of thorns, the knight in it. */
+/** The East Road: Edda's barn, the waypoint statue before the knight's hedge, the stretch of road where the grey man waits. */
 export function chapter1EastRoad(m: MapBuilder): void {
   const a = CH1_AT.road
   anchor(m, 'edda.barn', ...a.barn)
   statue(m, 'wp.eastroad', ...a.stone, 'The East Road', '东大路')
-  m.regions.kingdom = [...a.kingdom]
   // the barn where Edda hides; the stretch of road before the thorns, where the grey man waits
   m.regions.barn = [18, 6, 7, 4]
   m.regions.thornroad = [27, 8, 5, 7]
-  // a ring of briars round the knight's field, open where the road runs through
-  const [cx, cy, r] = [40, 13, 6.5]
-  for (let t = 0; t < 64; t++) {
-    const x = Math.round(cx + Math.cos((t / 64) * Math.PI * 2) * r * 1.15)
-    const y = Math.round(cy + Math.sin((t / 64) * Math.PI * 2) * r)
-    if (y >= 9 && y <= 13) continue // the road through
-    if (!m.free(x, y)) continue
-    m.fixture('fixture/nature/briar', x, y, { name: L("The knight's thorns", '骑士的荆棘') })
-  }
+  // the road on to Emberfall is Part Two's (release 1 ends with the Crown home: docs/release-1.md)
+  for (const p of m.portals) if (p.to === 'emberfall') p.opensWhen = PART_TWO
+}
+
+/**
+ * The Kingdom, the knight's arena behind his fog (docs/boss-rooms.md §4.1): the kneeling stones of those who came before
+ * and would not kneel, what a pilgrim before you wore, the gauntlets of one of his own, what he took, and the knight.
+ */
+export function chapter1Kingdom(m: MapBuilder): void {
+  const a = CH1_AT.kingdom
   // kneeling stones: those who came before and would not kneel (docs/chapter-1.md §6)
-  for (const [x, y] of [[36, 16], [38, 17], [43, 17], [45, 15], [35, 9]] as const)
+  for (const [x, y] of [[13, 16], [16, 18], [21, 18], [24, 15], [12, 8]] as const)
     m.fixture('fixture/sacred/gravestone', ...spot(m, x, y), { name: L('A kneeling stone', '跪石'), props: { text: 'A stone carved as a pilgrim kneeling. No name. A scallop shell, the pilgrim\'s mark, worn almost away.', text_zh: '一块雕成朝圣者跪姿的石头。没有名字。朝圣者的扇贝徽记几乎被磨平了。' } })
   // by a kneeling stone, what a pilgrim before you wore; in the ring, the gauntlets of one of the knight's own
-  m.item({ form: 'item/valuable/earring', material: 'silver', quality: 'fine', name: L("A Kneeling Pilgrim's Earring", '跪石旁的朝圣耳环'), props: {} }, ...spot(m, 37, 16))
-  m.item({ form: 'item/clothing/gloves', material: 'leather', quality: 'masterwork', name: L('Gauntlets of the White Host', '白骑士扈从的护手'), props: { atk: 1 } }, ...spot(m, 43, 11))
+  m.item({ form: 'item/valuable/earring', material: 'silver', quality: 'fine', name: L("A Kneeling Pilgrim's Earring", '跪石旁的朝圣耳环'), props: {} }, ...spot(m, 14, 16))
+  m.item({ form: 'item/clothing/gloves', material: 'leather', quality: 'masterwork', name: L('Gauntlets of the White Host', '白骑士扈从的护手'), props: { atk: 1 } }, ...spot(m, 22, 10))
   // what he took: the bridge's ninth nail, a farmer's wedding band
   m.item({ form: 'item/misc/ninth_nail' }, ...spot(m, ...a.nail))
   m.item({ form: 'item/valuable/band', material: 'gold' }, ...spot(m, ...a.band))
@@ -133,8 +136,6 @@ export function chapter1EastRoad(m: MapBuilder): void {
   const knight: Entity = createBoss('alberic', { map: m.id, x: a.knight[0], y: a.knight[1] }, ALBERIC_ID)
   knight.props = { ...ALBERIC_CAMPAIGN }
   m.entities.push(knight)
-  // the road on to Emberfall is Part Two's (release 1 ends with the Crown home: docs/release-1.md)
-  for (const p of m.portals) if (p.to === 'emberfall') p.opensWhen = PART_TWO
 }
 
 /** Cloudtop: the Church's sunset watch, its logbook on the table (E reads it). */
@@ -211,7 +212,7 @@ export function buildOffstage(): MapBuilder {
 }
 
 const v = CH1_AT.village
-const rd = CH1_AT.road
+const kd = CH1_AT.kingdom
 
 /** The chapter's story before the knight (docs/chapter-1.md §6): the village, the barrow, the tale, the road. */
 export const CHAPTER1_STORY: StepDef[] = [
@@ -553,7 +554,7 @@ export const CHAPTER1_SCENES: StepDef[] = [
   {
     // The kingdom: stepping inside the ring of thorns, the White Knight speaks once.
     id: 'kingdom',
-    when: { map: 'eastroad', region: 'kingdom' },
+    when: { map: 'kingdom', region: 'kingdom' },
     script: [
       { music: '' },
       say('player', '(A field ringed with thorns. Stones carved as kneeling pilgrims. In the middle, a knight in white, a crown of briars grown through his helm.)', '（一片被荆棘围起来的田野。石头被雕成跪着的朝圣者。正中间，一位白衣骑士，荆棘冠长进了他的头盔。）'),
@@ -567,7 +568,7 @@ export const CHAPTER1_SCENES: StepDef[] = [
     // The crown: the knight falls, gives up the crown; its power breaks loose; Lumi catches part of it; the
     // grey man takes the rest into the stolen flame, and goes. The night grows longer.
     id: 'crown',
-    when: { map: 'eastroad', facts: { [CH1.knight]: 1 } },
+    when: { map: 'kingdom', facts: { [CH1.knight]: 1 } },
     script: [
       { music: 'sorrow' },
       { wait: 22 },
@@ -579,13 +580,13 @@ export const CHAPTER1_SCENES: StepDef[] = [
       { tell: 'pip', params: { what: 'boon', unlock: 'xp', from: ALBERIC_ID } },
       { wait: 32 },
       say('pip', 'It came to me! It\'s warm — no, cold — no, it\'s mine? Is that allowed?', '它朝我来了！暖暖的——不对，凉凉的——不对，它是我的？可以这样吗？', 'surprised'),
-      { place: 'npc.severin', map: 'eastroad', x: rd.severin[0], y: rd.severin[1] },
+      { place: 'npc.severin', map: 'kingdom', x: kd.severin[0], y: kd.severin[1] },
       { music: 'severin' },
       say('npc.severin', '...So it has started.', '……原来已经开始了。'),
       say('player', '(The grey man opens his lantern. The rest of the light goes into the stolen flame. It gutters gold; his hand shakes.)', '（灰衣人打开了提灯。剩下的光流进了被夺走的圣火。火焰一阵金黄，他的手在发抖。）'),
       say('npc.severin', 'Every seal you break makes the night longer. Ask your Church why.', '你每打破一道印，夜就更长一分。去问问你的教会为什么。'),
       say('npc.severin', 'Keep what the little one caught. Go home. Tell Rowan the light is safer with me than with you.', '那只小家伙接住的，你就留着。回去吧。告诉罗万，光在我这里比在你们那里安全。'),
-      { move: 'npc.severin', x: 46, y: 11 },
+      { move: 'npc.severin', x: KINGDOM.east - 2, y: 11 },
       { place: 'npc.severin', map: 'offstage', x: 2, y: 2 },
       { fact: CH1.crown, value: 1 },
       // the first seal down: the night is an hour longer from now on (calendar.ts nightHours)

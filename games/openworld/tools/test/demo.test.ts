@@ -10,13 +10,14 @@
 import { describe, expect, it } from 'vitest'
 import { textOf, isPatch, restoreLibrary, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
 import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf, kitsOf } from '@openworld/modules'
-import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, PART_TWO, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP } from '@openworld-game/content'
+import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, PART_TWO, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP, BOSS_ROOMS } from '@openworld-game/content'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { CH1_AT } from '../src/demo/quest/chapter1.ts'
 import { PEOPLE } from '../src/demo/people.ts'
 import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts'
 import { PILGRIM } from '../src/demo/quest/pilgrimage.ts'
+import { HEDGE, KINGDOM } from '../src/demo/quest/kingdom.ts'
 import { FAT, FLANKS } from '../src/demo/quest/flanks.ts'
 import { GARDEN } from '../src/demo/garden.ts'
 import { FL_COTTAGES, FL_HOMES } from '../src/art/arch/buildings/firstlight.ts'
@@ -1373,8 +1374,8 @@ function reach(f: Ford, x: number, y: number): Set<string> {
 
 req('W4', 'every map but the tutorial (and the floors under the barrow) lies on the overworld, a place to a cell drawn as what it is, and its edges are open: mined through the rock at the pass\'s north edge, one walks out onto the pass\'s own cell and stands there (as off the village\'s west edge onto the village\'s); in again at once, one comes in where one left; a step north and back onto it, in on the north side', [...['village', 'town', 'farm', 'watermill', 'woods', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'crossing'].map((k) => `site/place/${k}`)], () => {
   const f = fresh()
-  // (the floors under the barrow are reached by its stairs: they lie under its cell; the Held Ground is carried in a thorn)
-  for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD && id !== 'tutorial' && id !== 'offstage' && id !== 'haven' && !id.startsWith('haven.') && W(f).map(id)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(id))) {
+  // (the floors under the barrow are reached by its stairs: they lie under its cell; a boss's arena through its fog; the Held Ground is carried in a thorn)
+  for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD && id !== 'tutorial' && id !== 'offstage' && id !== 'haven' && !id.startsWith('haven.') && !BOSS_ROOMS.some((r) => r.arena === id) && W(f).map(id)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(id))) {
     const site = W(f).map(m)!.site!
     expect([m, site.map]).toEqual([m, OVERWORLD])
     expect([m, W(f).entitiesAt(OVERWORLD, site.x, site.y).some((e) => e.type.startsWith('site/place/') && e.props?.map === m)]).toEqual([m, true])
@@ -2068,6 +2069,61 @@ const give = (f: Ford, type: string, n: number) => {
   author(f, () => { for (let i = 0; i < n; i++) W(f).create(type, { on: 'inside', holder: 'player' }) })
   f.eng.controls.sync()
 }
+
+/** A fog of a boss's room on a map (docs/boss-rooms.md), at a row. */
+const fogAt = (f: Ford, map: string, y = KINGDOM.rows[1], x?: number) => Object.values(W(f).state.entities).find((e) => e.type === 'fixture/fog' && e.place.on === 'tile' && e.place.map === map && e.place.y === y && (x === undefined || e.place.x === x))
+/** To the knight's hedge on the East Road, and a hand on his fog: through it into his kingdom. */
+function throughFog(f: Ford): void {
+  // (a scene the road plays as one comes up to the hedge — the statue's rest, the grey man — plays out first)
+  stand(f, HEDGE.x - 1, KINGDOM.rows[1], 'right', 'eastroad')
+  ticks(f, 900, () => !W(f).scene)
+  stand(f, HEDGE.x - 1, KINGDOM.rows[1], 'right', 'eastroad')
+  f.eng.act('hands', 'player', { e: fogAt(f, 'eastroad')!.id }, { instrument: null })
+  ticks(f, 3)
+}
+
+req('BR1', "a boss's room (docs/boss-rooms.md): past the burned farm the knight's hedge closes the East Road but for his fog; a hand on it and one is in his kingdom, the fog one's home, the ways out sealed while he stands; falling there one rises at the fog, and he is whole again when one comes back; once he falls every fog of his room lifts, and the road goes on out of its far side onto the East Road beyond his hedge", ['fixture/fog'], () => {
+  const f = fresh()
+  const w = W(f)
+  // nothing walks round his hedge: the road's only way east is his fog, on the ways into his arena
+  const road = w.map('eastroad')!
+  for (let y = 0; y < road.height; y++) expect([y, w.passable('eastroad', HEDGE.x, y)]).toEqual([y, false])
+  expect(road.portals.filter((p) => p.to === 'kingdom').map((p) => p.y)).toEqual([...KINGDOM.rows])
+  throughFog(f)
+  expect(w.posOf(w.player)).toMatchObject({ map: 'kingdom', x: KINGDOM.arrive[0] })
+  ticks(f, 400, () => !w.scene)
+  // the fog is one's home now (one rises beside it); the fogs inside are sealed while he stands
+  expect(w.player.props?.home).toBe(fogAt(f, 'eastroad')!.id)
+  stand(f, KINGDOM.west + 1, KINGDOM.rows[1], 'left', 'kingdom')
+  w.fx = []
+  f.eng.act('hands', 'player', { e: fogAt(f, 'kingdom', KINGDOM.rows[1], KINGDOM.west)!.id }, { instrument: null })
+  ticks(f, 2)
+  expect(w.posOf(w.player)!.map).toBe('kingdom')
+  expect(w.fx.some((x) => x.t === 'log' && JSON.stringify(x.text).includes('雾不会散开'))).toBe(true)
+  // wounded and falling there: one rises at his fog outside, and he is whole again, at his post, when one comes back
+  const knight = w.get(ALBERIC_ID)!
+  author(f, () => w.setProp(knight, 'hp', 50))
+  f.eng.author(() => f.eng.hurt(w.player, 100000, undefined, true))
+  ticks(f, 2)
+  f.eng.respawn(true)
+  ticks(f, 3)
+  expect(w.posOf(w.player)!.map).toBe('eastroad')
+  expect(Math.abs(w.posOf(w.player)!.x - HEDGE.x)).toBeLessThanOrEqual(2)
+  throughFog(f)
+  ticks(f, 5)
+  expect([w.num(knight, 'hp'), knight.boss?.phase]).toEqual([w.num(knight, 'maxHp'), 1])
+  // he falls: every fog of his room lifts, and out of its far side one is on the East Road beyond his hedge
+  author(f, () => w.setFact(CH1.knight, 1))
+  const fogs = (map: string) => Object.values(w.state.entities).filter((e) => e.type === 'fixture/fog' && e.place.on === 'tile' && e.place.map === map).length
+  ticks(f, 30)
+  expect(fogs('kingdom')).toBe(0)
+  ticks(f, 1500, () => !w.scene)
+  expect(cross(f, 'kingdom', KINGDOM.east - 1, KINGDOM.rows[1], 'right')).toBe('eastroad')
+  expect(w.posOf(w.player)!.x).toBe(HEDGE.east)
+  // (the East Road's fog, on a map asleep while one fought, lifts as it wakes)
+  ticks(f, 30)
+  expect(fogs('eastroad')).toBe(0)
+})
 
 req('Q2', 'the road east: past the far bank the Pilgrim\'s Road, and past the Kneeling Field the East Road; the burned farm shows the dragon\'s mark; wolves and a boar on the road; it ends at Emberfall, Part Two\'s (release 1 ends with the Crown home: docs/release-1.md)', ['actor/creature/beast/wolf', 'actor/creature/beast/boar'], () => {
   const f = fresh()
@@ -3499,9 +3555,10 @@ req('C1', 'Chapter 1, offline: the night of the flame (the grey man takes it), t
   author(f, () => w.setFact('ford.crossed', 1))
   ticks(f, 2)
   expect(quest()).toBe(2)
-  // into the ring of thorns: the knight speaks once
-  stand(f, 32, 11, 'right', 'eastroad')
-  expect(ticks(f, 60, () => (f.eng.movePlayer('right'), !!w.fact('seen.kingdom')))).toBe(true)
+  // to the knight's hedge, and through his fog into his kingdom (docs/boss-rooms.md): the knight speaks once
+  throughFog(f)
+  expect(w.posOf(w.player)!.map).toBe('kingdom')
+  expect(ticks(f, 60, () => !!w.fact('seen.kingdom'))).toBe(true)
   ticks(f, 200, () => !w.scene)
   // the First Seal-bearer: softer here than in the Boss Challenge
   const knight = w.get(ALBERIC_ID)!
@@ -3584,8 +3641,8 @@ req('C2', "Chapter 1's errands: Pell's drawings (four, where the grey man was), 
   for (const type of ['item/misc/ninth_nail', 'item/valuable/band']) {
     const it = Object.values(w.state.entities).find((e) => e.type === type)!
     const at = w.posOf(it)!
-    expect(at.map).toBe('eastroad')
-    stand(f, at.x, at.y + 1, 'up', 'eastroad')
+    expect(at.map).toBe('kingdom')
+    stand(f, at.x, at.y + 1, 'up', 'kingdom')
     run(f, 'take', at.x, at.y)
     expect(c.count(type)).toBe(1)
   }
@@ -3676,7 +3733,7 @@ req('C6', "Chapter 1's gear: worn pieces lie along the whole road to the knight 
   // found along the road: each where the story put it, in its tier
   for (const [zh, map, q] of [
     ['守夜人的斗篷', 'summit', 'fine'], ['猎人的手套', 'foot', 'common'], ['防刺长靴', 'hollow', 'fine'], ['生锈的荆棘骑士团头盔', 'barrow', 'crude'],
-    ['奥多修士的护肩', 'ossuary', 'vowed'], ['玛伦修女的戒指', 'ossuary', 'vowed'], ['跪石旁的朝圣耳环', 'eastroad', 'fine'], ['白骑士扈从的护手', 'eastroad', 'masterwork'],
+    ['奥多修士的护肩', 'ossuary', 'vowed'], ['玛伦修女的戒指', 'ossuary', 'vowed'], ['跪石旁的朝圣耳环', 'kingdom', 'fine'], ['白骑士扈从的护手', 'kingdom', 'masterwork'],
   ] as const) {
     const e = named(zh)
     expect([zh, w.posOf(e!)?.map, tier(e), typeof w.prop(e!, 'slot')]).toEqual([zh, map, q, 'string'])

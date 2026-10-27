@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, textOf } from '@openworld/engine'
-import { BASE_RULES, CH1, PART_TWO, VALLEY, HAVEN_LAYOUT, OVERWORLD_LAYOUT, SITE_GATES, migrateHaven, migrateHavenHeart, STORY_RULES, WILD_GROUNDS, buildOntology, decodeChunk, migrateOverworld, wildChunk } from '@openworld-game/content'
+import { BOSS_ROOMS, BASE_RULES, CH1, PART_TWO, VALLEY, HAVEN_LAYOUT, OVERWORLD_LAYOUT, SITE_GATES, migrateHaven, migrateHavenHeart, STORY_RULES, WILD_GROUNDS, buildOntology, decodeChunk, migrateOverworld, wildChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { UNDER_BARROW } from '../src/demo/hollow.ts'
@@ -56,9 +56,9 @@ describe('the overworld (world-model.md §5.1, §10.2)', () => {
     expect(split).toEqual([])
   })
 
-  it('every map but the overworld (and the tutorial, which lies nowhere, the floors under the barrow, reached by its stairs, and the Held Ground and its grounds, carried in a thorn) lies on a cell of land, and that cell holds the site that leads into it', () => {
+  it('every map but the overworld (and the tutorial, which lies nowhere, the floors under the barrow, reached by its stairs, a boss arena, reached through its fog, and the Held Ground and its grounds, carried in a thorn) lies on a cell of land, and that cell holds the site that leads into it', () => {
     const w = world()
-    for (const id of w.state.loadedMaps.filter((m) => m !== OVERWORLD && m !== 'tutorial' && m !== 'offstage' && m !== 'haven' && !m.startsWith('haven.') && w.map(m)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(m))) {
+    for (const id of w.state.loadedMaps.filter((m) => m !== OVERWORLD && m !== 'tutorial' && m !== 'offstage' && m !== 'haven' && !m.startsWith('haven.') && !BOSS_ROOMS.some((r) => r.arena === m) && w.map(m)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(m))) {
       const s = w.map(id)!.site!
       const site = w.entitiesAt(OVERWORLD, s.x, s.y).find((e) => e.props?.map === id)
       expect([id, !!site]).toEqual([id, true])

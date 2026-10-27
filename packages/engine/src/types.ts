@@ -1817,7 +1817,7 @@ export type EmitTo =
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
 /** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
-export type ModuleOp = 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'plunder' | 'beaten' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy' | 'fishing/start' | 'fishing/step' | 'fishing/input' | 'fishing/land' | 'residentWork/order' | 'residentWork/update'
+export type ModuleOp = 'unleash' | 'rally' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'plunder' | 'beaten' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy' | 'fishing/start' | 'fishing/step' | 'fishing/input' | 'fishing/land' | 'residentWork/order' | 'residentWork/update'
 
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean; owner?: RoleName; ownerFrom?: RoleName }
@@ -1906,6 +1906,8 @@ export type Effect =
    * `leaveStatus` from the start: embers already burning).
    */
   | { op: 'unleash'; power?: Amount; element?: PropValue | Amount; edge?: string; coat?: string; push?: number; pull?: number; heal?: Amount; leave?: string; leaveStatus?: string }
+  /** A boss whole again (the kits module; docs/boss-rooms.md): its health full, its fight begun again from the first phase, back at its post. */
+  | { op: 'rally' }
   /** Open one of the panels the game's client shows, by its id (profession, board, haven, …), for the one at the keys who spoke to the host. */
   | { op: 'panel'; panel: string }
   | { op: 'scene'; id: string }

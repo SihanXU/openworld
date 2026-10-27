@@ -127,7 +127,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     offer: L('Eight nails on the pier. Eight. I drove nine. Whoever took my bridge kept one — find it for me, if you go that way.', '码头上八根钉子。八根。我钉了九根。拆我桥的人留了一根——你要是往那边去，帮我找回来。'),
     waiting: L('The ninth nail. Square-headed, pulled straight. You\'ll know it.', '第九根钉子。方头的，拔得笔直。你一看就知道。'),
     done: L('The ninth. ...Twenty years that bridge stood. Here — a proper hammer. You\'ve earned it.', '第九根。……那座桥立了二十年。给——一把像样的锤子。这是你应得的。'),
-    asks: [{ id: 'nail', text: L('The ninth nail', '第九根钉子'), carry: { type: 'item/misc/ninth_nail' }, count: 1, where: 'eastroad' }],
+    asks: [{ id: 'nail', text: L('The ninth nail', '第九根钉子'), carry: { type: 'item/misc/ninth_nail' }, count: 1, where: 'kingdom' }],
     reward: { xp: 30, items: [{ type: 'item/tool/smith_hammer', count: 1 }, gear('item/clothing/belt', 'waist', "Joss's Tool Belt", '乔斯的工具腰带', 'fine', {}, 3)], regard: { giver: 15 } },
   }),
   errand({
@@ -173,7 +173,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     offer: L('If you\'re going up the road — my husband\'s ring. The knight took it with everything else. I don\'t care about the rest.', '你要是往那条路上去——我丈夫的戒指。骑士把它和别的东西一起拿走了。别的我都不在乎。'),
     waiting: L('A plain band. It\'s all I have of him.', '一枚普通的戒指。这是他留给我的全部。'),
     done: L('...Thank you. I\'ll wear it now. I was keeping it on the gate so he could find his way home.', '……谢谢你。我现在就戴上。之前我把它挂在门上，是想让他能找到回家的路。'),
-    asks: [{ id: 'band', text: L('The wedding band', '婚戒'), carry: { type: 'item/valuable/band' }, count: 1, where: 'eastroad:kingdom' }],
+    asks: [{ id: 'band', text: L('The wedding band', '婚戒'), carry: { type: 'item/valuable/band' }, count: 1, where: 'kingdom:kingdom' }],
     reward: { xp: 30, items: [{ type: 'item/food/egg/raw', count: 2 }, { type: 'item/food/bread', count: 1 }, gear('item/clothing/gloves', 'hands', "Edda's Work Gloves", '艾达的干活手套', 'fine', {}, 4)], regard: { giver: 20 } },
   }),
   // ------------------------------------------------------------------ the forest's flanks (docs/chapter-1.md §15): the Charcoal Dell, west

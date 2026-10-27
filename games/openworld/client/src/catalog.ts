@@ -198,7 +198,7 @@ function fencePieces(): Record<string, PrefabDef> {
 }
 
 /** The grounds drawn on the yellow-green grass (and what stands on it): where a block on grass shows its edge. */
-const ON_GRASS = ['grass', 'flowers', 'drygrass', 'tree', 'pine', 'bush', 'rock', 'stump', 'spring']
+const ON_GRASS = ['grass', 'flowers', 'drygrass', 'tree', 'pine', 'bush', 'thornhedge', 'rock', 'stump', 'spring']
 
 const SND = 'Audio/Sounds/'
 const MUS = 'Audio/Musics/'
@@ -387,6 +387,8 @@ export const CATALOG: Catalog = {
     tree_blossom: [px(NATURE, 224, 0, 32, 32, 16, 31), px(NATURE, 0, 288, 48, 48, 24, 48)],
     pine: [px(NATURE, 32, 0, 32, 32, 16, 31)],
     pine_snow: [px(NATURE, 128, 0, 32, 32, 16, 32), px(NATURE, 160, 0, 32, 32, 16, 32)],
+    // the knight's thorn hedge across the East Road: his briars, close set (tools/src/art/chapter1.ts)
+    thornhedge: [px('lsw/Fixtures/Briar.png', 0, 0, 16, 16, 8, 15)],
     bush: [t(NATURE, 1, 10), t(NATURE, 2, 10), t(NATURE, 6, 10), t(NATURE, 10, 10), t(NATURE, 10, 8), t(NATURE, 8, 11), t(NATURE, 4, 11), t(NATURE, 5, 11)],
     rock: [
       t(NATURE, 15, 9), t(NATURE, 18, 9), t(NATURE, 7, 12), t(NATURE, 8, 12),
@@ -675,6 +677,8 @@ export const CATALOG: Catalog = {
     'fixture:embers': { base: t(NATURE, 8, 13), ground: true },
     // the Held Ground's edge (tools/src/art/haven.ts)
     'fixture:mist': { base: px('lsw/Fixtures/Mist.png', 0, 0, 16, 16, 8, 15) },
+    // the fog at a boss's door: a column of gold-white mist two cells tall, three looks (tools/src/art/fog.ts)
+    'fixture:fog': { base: px('lsw/Fixtures/Fog.png', 0, 0, 16, 32, 8, 31), variants: [0, 1, 2].map((k) => px('lsw/Fixtures/Fog.png', k * 16, 0, 16, 32, 8, 31)) },
     'fixture:seal_stone': { base: t(DUNGEON, 3, 2), lit: t(DUNGEON, 5, 2) },
     // the waypoint stone is a statue: it glows once woken (scene.ts lights what is attuned)
     'fixture:waypoint': { base: t(HOUSE, 7, 15, 1, 2) },

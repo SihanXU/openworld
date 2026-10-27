@@ -30,9 +30,10 @@ import { buildHaven, buildHavenGrounds } from './quest/haven.ts'
 import { firstlightGround, villageInteriors, villageLife, villageTown } from './village.ts'
 import { eastRoadRooms, emberfallRooms, tentRooms } from './interiors.ts'
 import { HILL_MINE, VIGIL, buildChapel, buildDawnHill, buildHillMine, buildMillCellar, buildMillHouse, buildMillbrook } from './quest/vigil.ts'
+import { buildKingdom } from './quest/kingdom.ts'
 import { PILGRIM, PILGRIMAGE_STORY, buildAbbey, buildAbbeyCrypt, buildAbbeyHall, buildField, buildHostel, buildRest, buildRestChapel, buildWay } from './quest/pilgrimage.ts'
 import { FLANKS, FLANKS_STORY, buildBend, buildBendCabin, buildDell, buildDellHut } from './quest/flanks.ts'
-import { CHAPTER1_SCENES, CHAPTER1_STORY, HAVEN_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Foot, chapter1Ford, chapter1Forest, chapter1Hollow, chapter1Pasture, chapter1Summit, chapter1Village } from './quest/chapter1.ts'
+import { CHAPTER1_SCENES, CHAPTER1_STORY, HAVEN_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Kingdom, chapter1Foot, chapter1Ford, chapter1Forest, chapter1Hollow, chapter1Pasture, chapter1Summit, chapter1Village } from './quest/chapter1.ts'
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../public/world')
 export const VERSION = 'ford-4'
@@ -700,12 +701,15 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   abbey.linkInterior('crypt', abbeyCrypt)
   reseed(4283)
   const field = buildField()
+  // the White Knight's arena behind his fog on the East Road (docs/boss-rooms.md §4.1)
+  reseed(4284)
+  const kingdom = buildKingdom()
   linkEdge(m, col(m, m.w - 1, EAST_ROAD.fordEast), [-1, 0], rest, col(rest, 0, PILGRIM.rest.west), [1, 0])
   linkEdge(rest, col(rest, rest.w - 1, PILGRIM.rest.east), [-1, 0], way, col(way, 0, PILGRIM.way.west), [1, 0])
   linkEdge(way, row(way, 0, PILGRIM.way.north), [0, 1], abbey, row(abbey, abbey.h - 1, PILGRIM.abbey.south), [0, -1])
   linkEdge(way, col(way, way.w - 1, PILGRIM.way.east), [-1, 0], field, col(field, 0, PILGRIM.field.west), [1, 0])
   linkEdge(field, col(field, field.w - 1, PILGRIM.field.east), [-1, 0], road, col(road, 0, EAST_ROAD.west), [1, 0])
-  const pilgrimage = [rest, restChapel, hostel, way, abbey, abbeyHall, abbeyCrypt, field]
+  const pilgrimage = [rest, restChapel, hostel, way, abbey, abbeyHall, abbeyCrypt, field, kingdom]
   linkEdge(road, col(road, road.w - 1, EAST_ROAD.east), [-1, 0], ember, col(ember, 0, EMBERFALL.west), [1, 0])
   linkEdge(ember, row(ember, 0, EMBERFALL.north), [0, 1], mine, row(mine, mine.h - 1, MINE.south), [0, -1])
   linkEdge(ember, col(ember, ember.w - 1, EMBERFALL.east), [-1, 0], pass, col(pass, 0, PASS.west), [1, 0])
@@ -738,6 +742,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   chapter1Hollow(hollow)
   chapter1Barrow(barrow)
   chapter1EastRoad(road)
+  chapter1Kingdom(kingdom)
   const offstage = buildOffstage()
   // the Held Ground the Oath-Thorn opens (docs/chapter-1.md §12): linked to nothing
   const haven = buildHaven()
@@ -784,6 +789,12 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   for (const b of builders) {
     const c = cells.get(b.id)
     if (c) b.site = siteOf(c)
+  }
+  // bushes are walked through (2026-10-27): one on a map's edge would be a way off it onto the world map, so there it is a tree
+  for (const b of builders) {
+    if (b.kind === 'interior') continue
+    for (let y = 0; y < b.h; y++)
+      for (let x = 0; x < b.w; x++) if ((x === 0 || y === 0 || x === b.w - 1 || y === b.h - 1) && b.get(x, y) === 'bush' && !b.portals.some((p) => p.x === x && p.y === y)) b.set(x, y, 'tree')
   }
   const chunks = builders.map((b) => b.chunk())
   if (opts.overworld === false) return { index: undefined as unknown as WorldIndex, chunks, backdrop: [], cells }

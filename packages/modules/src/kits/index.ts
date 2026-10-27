@@ -10,6 +10,7 @@ import { encounter, kitFrame } from './encounter.ts'
 import { kitGoal } from './kit.ts'
 import { tacticsGoal } from './tactics.ts'
 import { unleash } from './unleash.ts'
+import { rally } from './rally.ts'
 
 export * from './cast.ts'
 export * from './encounter.ts'
@@ -17,6 +18,7 @@ export * from './kit.ts'
 export * from './pattern.ts'
 export * from './tactics.ts'
 export * from './unleash.ts'
+export * from './rally.ts'
 
 export const kitsModule: EngineModule = {
   id: 'kits',
@@ -29,11 +31,13 @@ export const kitsModule: EngineModule = {
     rout: { paced: true, urgent: true, run: (eng, e, sc) => tacticsGoal(eng, e, sc, 'rout') },
     tactics: { paced: true, urgent: true, run: (eng, e, sc) => tacticsGoal(eng, e, sc, 'place') },
   },
-  effects: { unleash },
+  effects: { unleash, rally },
   spec: {
     primitives: {
       unleash:
         "unleash {power?, element?, edge?, coat?, push?, pull?, heal?, leave?, leaveStatus?} — the host's kit skill (the act's param kit) lands: the host gets there as the skill says (a leap onto the aimed cell, a dash to the first foe or the first thing in its way: a dash into a wall stuns the dasher, a blink beside the aimed cell, a spring back after the blow), and each foe on the cells the act marked (params ox, oy, ax, ay) is struck by power with element and edge, coated with coat (a status it answers for itself), pushed push cells away or pulled pull cells toward where the skill was wound up; the host mends heal for each foe it hit; a leave thing (a type) is made on each marked cell no body stands on, holding leaveStatus (a status) from the start",
+      rally:
+        'rally {} — the host boss is whole again: its health full, its fight begun again from its first phase (its openings to come, its wind-up dropped), and back at its post (docs/boss-rooms.md: told the one it fought has fallen)',
     },
     rules: ["A creature's or a boss's kit skill is its act/use with the param kit (the skill's id): its own rule answers it, usually with unleash; any other use is its plain blow."],
   },
