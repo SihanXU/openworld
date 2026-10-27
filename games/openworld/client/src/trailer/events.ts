@@ -87,14 +87,12 @@ const hesper = shot({
 // ------------------------------------------------------------------ the ones that flash past
 
 const SHORT = 1.4
-/** The dry grass the burning tree's sparks fall on: on the bank south-west of it, out of the water. */
-const TUFTS: [number, number][] = [[27, 12], [26, 11], [25, 12], [24, 11]]
 const grass = shot({
   id: 'grass', seconds: SHORT, map: 'ford', at: [2, 28], hour: 19.3,
-  setup: (c) => { c.memo.t = TUFTS.map(([x, y]) => puppet(c, 'fixture/nature/tuft', [x, y])) },
+  setup: (c) => { c.memo.t = [[27, 11], [28, 12], [26, 12], [29, 12]].map(([x, y]) => puppet(c, 'fixture/nature/tuft', [x, y])) },
   tick: (c) => { const ts = c.memo.t as string[]; ts.forEach((id, k) => { if (once(c, `b${k}`, 0.1 + k * 0.25)) burn(c, id) }) },
-  edit: (f, c) => { sky(f, 19.3, 'storm'); TUFTS.forEach(([x, y], k) => { if (now(c, 0.1 + k * 0.25)) vfx(f, 'fire_burst', x, y) }) },
-  camera: () => ({ x: 26.6, y: 11.2, zoom: 5.6 }),
+  edit: (f, c) => { sky(f, 19.3, 'storm'); [[27, 11], [28, 12], [26, 12], [29, 12]].forEach(([x, y], k) => { if (now(c, 0.1 + k * 0.25)) vfx(f, 'fire_burst', x, y) }) },
+  camera: () => ({ x: 27.8, y: 11.4, zoom: 5.6 }),
 })
 const hay = shot({
   id: 'hay', seconds: SHORT, map: 'ford', at: [2, 28], hour: 19.3,
@@ -148,18 +146,17 @@ const cells = shot({
   id: 'cells', seconds: SHORT, map: 'meadow', at: [2, 28], hour: 18.2,
   setup: (c) => { hold(c, 'npc.holt'); hold(c, 'npc.vigo') },
   tick: (c) => {
-    // up the path to the watch house's door
-    const a = along(line([34, 14], [34, 10]), 0, 0.3, c.t), b = along(line([34, 15], [34, 11]), 0, 0.3, c.t)
+    const a = along(line([27, 12], [27, 8]), 0, 0.3, c.t), b = along(line([27, 13], [27, 9]), 0, 0.3, c.t)
     place(c, 'npc.holt', a.x, a.y, 'up'); place(c, 'npc.vigo', b.x, b.y, 'up')
   },
   edit: (f, c) => { sky(f, 18.2); still(f, 'npc.holt', 'npc.vigo') },
-  camera: (c) => ({ x: 34.5, y: lerp(13.2, 11.4, c.t / SHORT), zoom: 5.4 }),
+  camera: (c) => ({ x: 27.5, y: lerp(11.2, 9.6, c.t / SHORT), zoom: 5.4 }),
 })
 const pell = shot({
   id: 'pell', seconds: SHORT, map: 'meadow', at: [2, 28], hour: 18,
-  setup: (c) => { hold(c, 'npc.marta'); hold(c, 'npc.pell'); place(c, 'npc.marta', 19, 15, 'right'); place(c, 'npc.pell', 20, 15, 'left') },
+  setup: (c) => { hold(c, 'npc.marta'); hold(c, 'npc.pell'); place(c, 'npc.marta', 19, 13, 'right'); place(c, 'npc.pell', 20, 13, 'left') },
   edit: (f, c) => { sky(f, 18); still(f, 'npc.marta', 'npc.pell') },
-  camera: () => ({ x: 19.9, y: 14.6, zoom: 6.2 }),
+  camera: () => ({ x: 19.9, y: 12.8, zoom: 6.2 }),
   overlay: (o, c) => {
     const m = head(c, 'npc.marta'), p = head(c, 'npc.pell')
     if (m) o.emote(m.x, m.y - 8, '…', ramp(c.t, 0.1, 0.15) * (1 - ramp(c.t, 0.7, 0.8)), ramp(c.t, 0.1, 0.3))
