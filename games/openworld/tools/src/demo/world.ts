@@ -6,6 +6,7 @@
 //
 //   npx tsx games/openworld/tools/src/demo/world.ts
 
+import { wildFloor } from './wildfloor.ts'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -229,6 +230,8 @@ function buildMap(): MapBuilder {
   for (const x of FOOTBRIDGE.piers) m.set(x, FOOTBRIDGE.y, 'bridge')
   // the trail from the cliff stair to the camp (docs/prologue.md): drawn last, so every draw above stays as it was
   m.path([[17, 2], [17, 5], [15, 8], [13, 11]], 'path', 1)
+  // what lies about (wildfloor.ts): never at the camp, the landing or the hollow's mouth
+  wildFloor(m, 0.8, (x, y) => (x >= 4 && x <= 20 && y >= 11 && y <= 23) || (x >= 21 && x <= 29 && y >= 10 && y <= 23) || (x <= 9 && y <= 8))
   return m
 }
 
@@ -380,6 +383,7 @@ function buildPasture(): MapBuilder {
     appears('actor/creature/animal/cow', ['grass'], 4, 1200, { ai: GRAZER }),
     appears('actor/creature/animal/chicken', ['grass'], 5, 900, { ai: GRAZER }),
   ]
+  wildFloor(m, 0.8)
   return m
 }
 
@@ -434,6 +438,7 @@ function buildForest(): MapBuilder {
     appears('item/material/stone', ['grass'], 3),
     appears('item/material/grass', ['grass'], 4),
   ]
+  wildFloor(m, 1)
   return m
 }
 

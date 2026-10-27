@@ -16,6 +16,7 @@ import { REGIONS } from './regions.ts'
 import { WORKS } from './works.ts'
 import { WILDS } from './wilds.ts'
 import { FIRSTLIGHT_BUILDINGS } from './firstlight.ts'
+import { CHAPTER1_BUILDINGS } from './chapter1.ts'
 import { fountain, grandFountain } from '../kit.ts'
 
 export const MODELS: Record<string, () => Model> = {
@@ -28,6 +29,7 @@ export const MODELS: Record<string, () => Model> = {
   ...WORKS,
   ...WILDS,
   ...FIRSTLIGHT_BUILDINGS,
+  ...CHAPTER1_BUILDINGS,
   ...TOWN,
   ...MARKET,
   ...INSIDE,

@@ -161,5 +161,11 @@ export const HALLS = {
   flstore: hallPlan(28, 13, 6, { shop: [2, 2, 12, 9], store: [15, 2, 5, 9], room: [21, 2, 5, 9], a1: [14, 4, 1, 1], a2: [20, 6, 1, 1], entry: [7, 11, 3, 1] }, [[8, 12]]),
   flsmithy: hallPlan(22, 13, 6, { forge: [2, 2, 12, 9], room: [15, 5, 5, 6], arch: [14, 7, 1, 1], entry: [6, 11, 3, 1] }, [[7, 12]]),
   flchurch: hallPlan(26, 16, 8, { nave: [6, 2, 14, 11], cellW: [2, 3, 3, 5], cellE: [21, 3, 3, 5], aW: [5, 5, 1, 1], aE: [20, 5, 1, 1], entry: [11, 13, 4, 1] }, [[12, 14]]),
+  // the first chapter's houses outside the village (the same redo): the hunter's cabin and its lean-to, the mill floor
+  // with Tam's room beside it, Orrin's room and his coal store, Hilde's room by the door, her bedroom and her store
+  fthut: hallPlan(16, 11, 6, { room: [2, 2, 8, 7], store: [11, 3, 3, 5], arch: [10, 5, 1, 1], entry: [5, 9, 3, 1] }, [[6, 10]]),
+  mbmill: hallPlan(26, 13, 6, { floor: [2, 2, 14, 9], room: [17, 3, 7, 7], arch: [16, 6, 1, 1], entry: [6, 11, 3, 1] }, [[7, 12]]),
+  dlhut: hallPlan(20, 11, 6, { room: [2, 2, 9, 7], store: [12, 2, 6, 7], arch: [11, 5, 1, 1], entry: [5, 9, 3, 1] }, [[6, 10]]),
+  rbcabin: hallPlan(25, 11, 6, { room: [2, 2, 10, 7], bedroom: [13, 2, 5, 7], store: [19, 2, 4, 7], a1: [12, 5, 1, 1], a2: [18, 5, 1, 1], entry: [5, 9, 3, 1] }, [[6, 10]]),
   catacombs: hallPlan(30, 20, 5, { north: [3, 2, 24, 3], south: [3, 13, 24, 3], west: [3, 5, 3, 8], east: [24, 5, 3, 8], spine: [13, 5, 4, 8], tombW: [7, 7, 5, 4], passW: [6, 8, 1, 2], tombE: [18, 7, 5, 4], passE: [23, 8, 1, 2], entry: [13, 16, 4, 3] }, []),
 }

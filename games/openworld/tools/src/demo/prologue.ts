@@ -9,7 +9,8 @@
 import { MapBuilder } from './builder.ts'
 import { TUTORIAL_DUMMY, TUTORIAL_OPEN } from '@openworld-game/content'
 import { L, GROUND_YIELD, appears } from './kit.ts'
-import { house } from './village.ts'
+import { flHouse } from './village.ts'
+import { wildFloor } from './wildfloor.ts'
 
 /** Edge openings: the foot's way in from the north (the tutorial's road comes out there), its way out below, the Ford's cliff stair. */
 export const PROLOGUE = {
@@ -32,8 +33,8 @@ export const PAT = {
   ramp: [20, 3],
 } as const satisfies Record<string, readonly [number, number]>
 
-/** The hunter's cabin at the foot: its top-left cell (a 3x3 cabin, its door in the middle of its bottom row). */
-export const FOOT_HUT = [5, 13] as const
+/** The hunter's cabin at the foot: its top-left cell (a cabin of logs five cells by three, its door in the middle of its bottom row). */
+export const FOOT_HUT = [4, 13] as const
 
 // =================================================================== Cloudtop: the summit
 
@@ -62,6 +63,8 @@ export function buildSummit(): MapBuilder {
   for (const [x, y] of [[6, 11], [7, 13]] as const) m.item('item/material/grass', x, y)
   // small things where they belong: tufts in the tussock (the snow has its own, drawn with the ground)
   m.sprinkle('fixture/nature/tuft', 0.3, (_x, _y, t) => t === 'drygrass')
+  // what lies about: needles under the pines, stones shed at the crags, never in the shelter
+  wildFloor(m, 1, (x, y) => x >= 6 && x <= 14 && y >= 3 && y <= 8)
   // the heights, drawn by hand: the crags two levels above the plateau, their face along its north side (the shelter
   // built against it), and the plateau two levels above the way down, the rim's face below it; in the cut a ramp, each
   // row half a level lower
@@ -99,12 +102,14 @@ export function buildFoot(): MapBuilder {
   // a rail fence round the trodden ground, fallen in places, the block he split wood on, the wood he split stacked
   // against the wall, the rack he hung meat on, bones; a footpath from the door through the gate to the trail
   const [hx, hy] = FOOT_HUT
-  m.house('cabin', hx, hy, 'hut')
-  for (let y = hy; y < hy + 3; y++) for (let x = hx; x < hx + 3; x++) if (m.get(x, y) === 'wall') m.set(x, y, 'woodwall')
+  m.building('ft_hut', hx, hy, ['hut'])
+  // the wood he split stacked against the cabin's west end, bones of his kills by the rack
+  m.building('decor_firewood', hx - 1, hy + 2)
+  m.building('decor_bones', 6, 18)
   m.fence('rail', [3, 16], [3, 20], [[3, 18]])
   m.fence('rail', [4, 20], [10, 20], [[7, 20]])
   m.fence('rail', [10, 16], [10, 19], [[10, 18]])
-  m.fixture('fixture/nature/logpile/stack', hx + 4, hy + 2)
+  m.fixture('fixture/nature/logpile/stack', hx + 5, hy + 2)
   m.fixture('fixture/nature/stump', 8, 16)
   m.fixture('fixture/furniture/rack', 4, 17)
   for (const [x, y] of [[5, 19], [9, 19]] as const) m.item('item/material/bone', x, y)
@@ -120,6 +125,7 @@ export function buildFoot(): MapBuilder {
   m.sprinkle('fixture/nature/flowers', 0.12, (x, y, t) => t === 'grass' && y > 13 && m.near(x, y, road))
   m.sprinkle('fixture/nature/leaves', 0.16, (x, y, t) => t === 'grass' && y > 9 && m.near(x, y, tree))
   m.sprinkle('fixture/nature/tuft', 0.05, (x, y, t) => t === 'grass' && y > 9 && !m.near(x, y, rock))
+  wildFloor(m, 1, (x, y) => (x >= 14 && x <= 26 && y >= 7 && y <= 16) || (x >= 3 && x <= 10 && y >= 13 && y <= 20))
   m.appear = GROUND_YIELD
   return m
 }
@@ -130,13 +136,23 @@ export function buildFoot(): MapBuilder {
  * block in the yard: chapter1.ts).
  */
 export function buildFootHut(): MapBuilder {
-  const m = house('foot.hut', "The Hunter's Cabin", '猎人小屋', 9, 7, 'wood', [[0, 0, 9, 7]], [], [4, 6])
-  m.fixture('fixture/furniture/bed', 1, 2)
-  m.fixture('fixture/furniture/rack/arms', 3, 1)
-  m.fixture('fixture/light/fireplace', 6, 1)
-  m.fixture('fixture/furniture/table', 5, 4)
-  m.fixture('fixture/furniture/chair', 4, 4)
-  m.fixture('fixture/container/barrel', 7, 5)
+  // (a hall of its plan, plans.ts fthut: the room and, through the side, the lean-to where he kept his stores)
+  const { m, P } = flHouse('fthut', 'foot.hut', "The Hunter's Cabin", '猎人小屋', 'floor_wood', ['room', 'store'])
+  m.zone = 'combat'
+  const R = P.room
+  m.fixture('fixture/furniture/bed', R.x, R.y + 1)
+  m.fixture('fixture/furniture/rack/arms', R.x + 2, R.y)
+  m.fixture('fixture/light/fireplace', R.x + 5, R.y)
+  m.rect(R.x + 3, R.y + 3, 3, 2, 'carpet')
+  m.fixture('fixture/furniture/table', R.x + 4, R.y + 3)
+  m.fixture('fixture/furniture/chair', R.x + 3, R.y + 3)
+  m.fixture('fixture/container/barrel', R.x + 7, R.y + 5)
+  m.building('decor_firewood', R.x + 7, R.y)
+  // the lean-to: a sack and crates of what he lived on, gone to dust; his kindling
+  const S = P.store
+  m.fixture('fixture/container/sack', S.x, S.y)
+  for (const y of [S.y, S.y + 1]) m.fixture('fixture/container/crate', S.x + 2, y)
+  m.building('decor_firewood', S.x, S.y + 4)
   return m
 }
 
@@ -204,6 +220,8 @@ export function buildTutorial(): MapBuilder {
   // the way out: only once the story has opened it
   for (const [i, x] of exit.entries()) m.portals.push({ x, y: h - 1, to: 'foot', tx: TUTORIAL.arrive[0] + i, ty: TUTORIAL.arrive[1], label: L('Mountain Foot', '山脚'), opensWhen: TUTORIAL_OPEN })
   m.anchors.spawn = [TUTORIAL.spawn[0], TUTORIAL.spawn[1]]
+  // what lies about under the woods' edge — never on the ground the lessons work, nor on the way out
+  wildFloor(m, 1, (x, y) => (x >= 4 && x <= 25 && y >= 6 && y <= 20) || (x >= exit[0] - 3 && x <= exit[0] + 4 && y >= h - 6))
   // the clearing's own: berries keep turning up, enough to eat one's fill before the night
   m.appear = [...GROUND_YIELD, appears('item/food/berries', ['grass'], 6)]
   return m

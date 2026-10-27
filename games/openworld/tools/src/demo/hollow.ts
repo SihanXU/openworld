@@ -4,6 +4,7 @@
 // Order of the Thorn (Oskar's cell, the Order's roll), and the Warden's Sanctum (the warden, Alberic's vow).
 // All are combat zones; the barrow's floors are dark.
 
+import { wildFloor } from './wildfloor.ts'
 import type { AiData, AppearDef, Entity } from '@openworld/engine'
 import { MapBuilder, rng, litterChance } from './builder.ts'
 import { L, GROUND_YIELD, appears, lay } from './kit.ts'
@@ -79,6 +80,7 @@ export function buildHollow(): MapBuilder {
     hunters('actor/creature/slime/green_slime', 3, 900, ['grass', 'drygrass']),
     hunters('actor/creature/spider', 3, 1200, ['grass', 'drygrass']),
   ]
+  wildFloor(m, 0.8)
   return m
 }
 
@@ -144,6 +146,7 @@ export function buildBarrow(): MapBuilder {
   // the east passage, where the roof came down: the boulders it dropped, and the stones
   for (const [x, y] of [[25, 11], [26, 12], [27, 12], [24, 10], [22, 13]] as const) put('fixture/nature/boulder', x, y)
   strew('fixture/nature/pebbles', 0.55, (x, y, t) => (t === 'cave_floor' || t === 'gravel') && m.near(x, y, (_, i, j) => m.entities.some((e) => e.type === 'fixture/nature/boulder' && e.place.on === 'tile' && e.place.x === i && e.place.y === j)), [18, 9, 10, 7])
+  wildFloor(m, 1, () => false, undefined, 'barrow')
   return m
 }
 
@@ -213,6 +216,7 @@ export function buildOssuary(): MapBuilder {
   // the fallen passage: the boulders that came down, and the stones
   for (const [x, y] of [[8, 19], [8, 20], [9, 21]] as const) put('fixture/nature/boulder', x, y)
   strew('fixture/nature/pebbles', 0.55, (x, y, t) => (t === 'cave_floor' || t === 'gravel') && m.near(x, y, (_, i, j) => m.entities.some((e) => e.type === 'fixture/nature/boulder' && e.place.on === 'tile' && e.place.x === i && e.place.y === j)), [8, 16, 7, 6])
+  wildFloor(m, 1, () => false, undefined, 'barrow')
   return m
 }
 
@@ -250,5 +254,6 @@ export function buildSanctum(): MapBuilder {
   for (const x of [2, 20]) m.scenery('statue_knight', x, 9)
   for (const x of [10, 14]) put('fixture/light/candles', x, 15, { statuses: { lit: -1 } })
   for (const x of [9, 15]) m.scenery('pillar', x, 4)
+  wildFloor(m, 0.6, () => false, undefined, 'barrow')
   return m
 }

@@ -113,6 +113,18 @@ Every hand-made map of the west bank to the same standard, its ground drawn by h
   his hut's yard, the old oak's glade; his hut two rooms. **The Reed Bend**: the river bending along the east, reed beds on
   mud and in the shallows, sand at a widened jetty with Hilde's boat, fish drying by a smoking fire, nets on poles, an old
   oxbow pond; her cabin three rooms. Demo FL2.
+- **Redrawn to the showcase's standard** (2026-10-26, after Firstlight, §3): the country's houses are the project's own
+  (`tools/src/art/arch/buildings/chapter1.ts`, drawn by the oblique renderer) on the cells the pack's stood — the
+  hunter's cabin of dark logs (`ft_hut`, its walls wood: they burn, demo W13), Tam's watermill of two storeys over stone on
+  its race (`mb_mill`, wooden walls against the wheel, demo V2), the Chapel of the First Dawn low and mossed under its empty
+  bell-cote (`dh_chapel`), Orrin's sooty hut under thatch (`dl_hut`), Hilde's cabin of grey boards (`rb_cabin`) — each
+  door on the cell the story keeps. Their rooms are halls on plans as Firstlight's are (`plans.ts` `fthut`, `mbmill`,
+  `dlhut`, `rbcabin`, rooms side by side: the cabin and its lean-to, the mill floor with the cellar's stair and Tam's room,
+  Orrin's room and coal store, Hilde's room, bedroom and store), every anchor, bed and named thing kept; a hall's feature
+  (its hearth) stands on its widest room's head wall only. The wilds' ground is strewn with what lies there
+  (`wildfloor.ts`: needles and twigs under the trees, mushrooms in their shade, stones under rock, now and then bones; in
+  the barrow's three levels bones, fallen stones and cracked flags), all lying pictures laid last on each map, never a
+  thing: the demo's proof is unchanged.
 
 ## 5. The pictures
 

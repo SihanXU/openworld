@@ -222,7 +222,7 @@ const PLACE = { id: FIRSTLIGHT.map, name: FIRSTLIGHT.name, region: 'frostfang' }
  * A house of Firstlight's: its plan's hall (plans.ts, its walls the plan's shell), the village's own (no backdrop), its
  * rooms recorded as the house's rooms (`shell`: their walls are the shell's picture, not a frame of the pack's).
  */
-function flHouse(key: Parameters<typeof planHall>[1], id: string, en: string, zh: string, floor: string, rooms: string[], opts: Parameters<typeof planHall>[5] = {}) {
+export function flHouse(key: Parameters<typeof planHall>[1], id: string, en: string, zh: string, floor: string, rooms: string[], opts: Parameters<typeof planHall>[5] = {}) {
   const { m, P } = planHall(PLACE, key, id, L(en, zh), floor, opts)
   m.backdrop = false
   for (const r of rooms) m.rooms.push({ style: 'shell', x: P[r].x - 1, y: P[r].y - 1, w: P[r].w + 2, h: P[r].h + 2 })
