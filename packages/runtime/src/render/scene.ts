@@ -10,7 +10,7 @@ import { hexRgb, installWorldFilter, signalCamera } from './worldfilter.ts'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
 import { faceFrame, personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
-import { GroundAtlas, T, groundBeneath, groundTile, hash2, objectLook } from '../assets/ground.ts'
+import { GroundAtlas, T, groundBeneath, groundTile, hash2, objectAt } from '../assets/ground.ts'
 import { SLATE, paintRelief } from '../assets/relief.ts'
 /** What a room's frame is drawn over: its walls (a door or a doorway through them is left open). */
 const ROOM_WALL = new Set(['wall', 'woodwall', 'void'])
@@ -134,8 +134,6 @@ const CELL_OVERLAY: Record<string, string> = { burning: 'fire', frozen: 'ice', e
 // The engine's DIRS, kept here so the main thread does not bundle the engine.
 const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }
 
-/** Terrain objects and decor groups that grow loose: drawn a few pixels off the tile grid. */
-const LOOSE = new Set(['drygrass', 'flowers', 'bush'])
 /** The ground a stocked pond's fish shadows swim in. */
 const FISH_WATER = new Set(['water', 'deepwater'])
 const TINT_OF: Record<string, number> ={ frozen: 0xbfe9ff, burning: 0xffc9a0, wet: 0xc8dcff, electrified: 0xfff6a0, oiled: 0xb9b29a, poisoned: 0xb6ec8c, webbed: 0xd9d2e6, frenzied: 0xff9f9f, shelled: 0xcfc4ad }
@@ -481,18 +479,13 @@ export class WorldScene extends Phaser.Scene {
     if (was) (this.tweens.killTweensOf(was), was.destroy())
     this.objects.delete(k)
     const t = this.terrainAt(x, y)
-    // a pine or a rock in the snow takes its winter look (ground.ts objectLook)
-    const look = objectLook(catalog(), t, this.groundAt(x, y))
-    const list = catalog().terrainObjects[look]
-    if (!list?.length) return
-    // tall grass is a meadow, not a crop: a third of its tiles stay bare
-    if (t === 'drygrass' && hash2(x, y, 13) % 100 < 35) return
-    const i = hash2(x, y, 11) % list.length
-    const img = this.addSprite(`tobj:${look}:${i}`, list[i], x, y)
+    // its look (a pine in the snow, a wood's heart), its pick and its place off the grid (ground.ts objectAt)
+    const o = objectAt(catalog(), this.terrainAt, this.groundAt, x, y)
+    if (!o) return
+    const img = this.addSprite(`tobj:${o.key}`, o.def, x, y)
     img.setDepth((y + 1) * T - 1)
     if (t === 'drygrass') img.setTint(0xe8cf7a)
-    // loose growth (tall grass, flowers, bushes) sits a little off the grid, never in rows
-    if (LOOSE.has(t)) img.setPosition(img.x + (hash2(x, y, 17) % 9) - 4, img.y + (hash2(x, y, 19) % 5) - 2)
+    if (o.dx || o.dy) img.setPosition(img.x + o.dx, img.y + o.dy)
     if (this.free && this.dim.ground < 1) img.setAlpha(this.dim.ground)
     this.objects.set(k, img)
   }

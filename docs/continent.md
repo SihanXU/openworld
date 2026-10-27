@@ -134,6 +134,14 @@ continent too.
 
 ## 7. The world map, and older saves
 
+The overworld one walks and the world map (M) are one picture (`tools/src/art/worldmap.ts`; runtime `ui/chart.ts`):
+the sea's coast, the river and the road as blob blocks open at their banks, every other ground a block laid over the
+plains (`Catalog.blobs[…].over`, `layer`: each gives way along a hand-drawn rim to the ground below it, a lower one
+running on under a higher, so no ground ends in a cell's square), a wood's heart and a range's high peaks drawn out to
+the cell's sides (`<terrain>_inner`, where all four sides are the same; `Catalog.looseObjects` set them off the grid),
+the places' marks on their cells. M draws that map once a world from the pictures already loaded (about 50 ms; the
+painted relief chart before it froze the game for over a second on first opening), a cell 16 px at zoom 1.
+
 The world map (M) shows the continent (`Atlas.continent`): its grounds, each region tinted and bordered in its colour
 and named over its middle (a backdrop region "no tale here yet"), its places (the larger always named, the rest as one
 comes closer; sealed ones shut, visited ones lit), the waypoint stones and the quest's marks at their maps' cells, and

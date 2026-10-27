@@ -15,7 +15,7 @@ import { OntologyIndex, type Dir, type Entity, type Look } from '@openworld/engi
 import { TERRAIN_CHARS } from '@openworld-game/content'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '@openworld/runtime/src/assets/types.ts'
 import { CATALOG } from './bundle.ts'
-import { T, groundBeneath, groundTile, hash2, objectLook, type GroundAtlas } from '@openworld/runtime/src/assets/ground.ts'
+import { T, groundBeneath, groundTile, hash2, objectAt, type GroundAtlas } from '@openworld/runtime/src/assets/ground.ts'
 import { SLATE, paintRelief } from '@openworld/runtime/src/assets/relief.ts'
 import { personLook } from '@openworld/runtime/src/assets/looks.ts'
 import type { ActorDef, SpriteDef } from '@openworld/runtime/src/assets/types.ts'
@@ -233,7 +233,6 @@ const atlas = {
 const STOREY_LIFT = T
 /** The camera's background (scene.ts): what shows where nothing is drawn. */
 const BACKGROUND = 0x0b0d12
-const LOOSE = new Set(['drygrass', 'flowers', 'bush'])
 const TINT_OF: Record<string, number> = { frozen: 0xbfe9ff, burning: 0xffc9a0, wet: 0xc8dcff, electrified: 0xfff6a0, oiled: 0xb9b29a }
 const OVERLAY_FX: [string, string][] = [
   ['fire', 'ovl:burning'], ['ice', 'ovl:frozen'], ['spark', 'ovl:electrified'], ['wet', 'ovl:wet'], ['oil', 'ovl:oiled'], ['flame', 'ovl:lit'], ['mend', 'ovl:mend'],
@@ -443,14 +442,9 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       const t = terrainAt(x, y)
-      // a pine or a rock in the snow takes its winter look, as the client draws it (ground.ts objectLook)
-      const list = CATALOG.terrainObjects[objectLook(CATALOG, t, groundAt(x, y))]
-      if (list?.length && !(t === 'drygrass' && hash2(x, y, 13) % 100 < 35)) {
-        const d = list[hash2(x, y, 11) % list.length]
-        // loose growth sits a little off the grid, never in rows
-        const [dx, dy] = LOOSE.has(t) ? [(hash2(x, y, 17) % 9) - 4, (hash2(x, y, 19) % 5) - 2] : [0, 0]
-        at((y + 1) * T - 1, () => sprite(d, x, y, { x: x * T + T / 2 + dx, y: (y + 1) * T + dy, ...(t === 'drygrass' && { tint: 0xe8cf7a }) }))
-      }
+      // its look, pick and place off the grid, as the client draws it (ground.ts objectAt)
+      const o = objectAt(CATALOG, terrainAt, groundAt, x, y)
+      if (o) at((y + 1) * T - 1, () => sprite(o.def, x, y, { x: x * T + T / 2 + o.dx, y: (y + 1) * T + o.dy, ...(t === 'drygrass' && { tint: 0xe8cf7a }) }))
       // (snow too: frost-bitten tufts, as the client draws them)
       if ((t === 'grass' || t === 'flowers' || t === 'snow') && hash2(x, y, 7) % 100 < (t === 'flowers' ? 70 : 9)) {
         const decals = CATALOG.decals[t === 'flowers' || t === 'snow' ? t : 'grass'] ?? CATALOG.decals.grass

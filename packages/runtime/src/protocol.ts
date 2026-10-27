@@ -255,7 +255,8 @@ export interface AtlasContinent {
   /** Each cell's region, an index into `regions` (-1: none, the sea). */
   regionOf: number[]
   regions: { id: string; name: Text; color?: string; backdrop?: boolean }[]
-  places: { x: number; y: number; name: Text; kind: string; map: string; sealed?: boolean; backdrop?: boolean; visited?: boolean; capital?: boolean }[]
+  /** Its places: where, named, of what kind, drawn with what (the sprite its type names, as the overworld draws it). */
+  places: { x: number; y: number; name: Text; kind: string; map: string; sprite?: string; sealed?: boolean; backdrop?: boolean; visited?: boolean; capital?: boolean }[]
   /** The cell one is at, where the world map can tell. */
   cell?: { x: number; y: number }
 }
