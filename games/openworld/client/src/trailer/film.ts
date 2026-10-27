@@ -36,6 +36,8 @@ export interface Shot {
   facing?: Dir
   /** Ticks the world runs before the shot begins (people under way). */
   warm?: number
+  /** Other maps' files whose things stand on this map (a room's household, kept in its town's file). */
+  also?: string[]
   /** The map's file changed before it is loaded (what stands where for this shot). */
   chunk?(chunk: ReturnType<typeof decodeChunk>): void
   setup?(c: Cut): void
@@ -51,6 +53,8 @@ export interface Shot {
   /** Just before the frame is drawn: the scene's own pictures touched (someone rising out of the ground). */
   before?(c: Cut): void
   overlay?(o: Overlay, c: Cut): void
+  /** The part of the frame taken (stage pixels: x, y, w, h), when not all of it. */
+  clip?(c: Cut): [number, number, number, number]
   sounds?: Cue[]
 }
 

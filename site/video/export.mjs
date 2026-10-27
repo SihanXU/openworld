@@ -1,5 +1,5 @@
 // Frames of the trailer stage taken one by one in an isolated headless Chrome, then made into a video.
-//   node site/video/export.mjs [--from s] [--to s] [--every n] [--size 360|720|1080] [--out var/video/trailer] [--url …] [--port n]
+//   node site/video/export.mjs [--from s] [--to s] [--every n] [--size 360|720|1080] [--out var/video/trailer] [--url …] [--port n] [--clip-w n]
 // Drafts are 360p (the default: frames of 640 x 360); --size 1080 for a final.
 // (npm run dev:client first). Frames go to <out>/frames; the video is made by site/video/encode.mjs.
 import { spawn } from 'node:child_process'
@@ -16,6 +16,8 @@ const SIZE = Number(arg('size', 360))
 const SCALE = SIZE / 1080
 // Chrome's debugging port: another export running at once needs its own
 const PORT = Number(arg('port', 9335))
+// a shot that names the part of the frame it wants (stage.clip) is taken as that part, --clip-w pixels wide
+const CLIP_W = Number(arg('clip-w', 0))
 const pause = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const profile = await mkdtemp(join(tmpdir(), 'lsw-video-'))
@@ -74,7 +76,9 @@ for (let f = from; f < to; f += EVERY) {
       await js('stage.ready'); await js('document.fonts.ready.then(() => true)')
     }
   }
-  const shot = await call('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: 1920, height: 1080, scale: SCALE } })
+  const part = CLIP_W ? await js('stage.clip ? stage.clip() : null') : null
+  const clip = part ? { x: part[0], y: part[1], width: part[2], height: part[3], scale: CLIP_W / part[2] } : { x: 0, y: 0, width: 1920, height: 1080, scale: SCALE }
+  const shot = await call('Page.captureScreenshot', { format: 'png', clip })
   await writeFile(join(dir, `${String(f).padStart(5, '0')}.png`), Buffer.from(shot.data, 'base64'))
   if ((f - from) % (fps * 2 * EVERY) === 0) console.log(`  ${(f / fps).toFixed(1)} s  (${((Date.now() - t0) / 1000).toFixed(0)} s elapsed)`)
 }
