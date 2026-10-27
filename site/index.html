@@ -20,6 +20,8 @@
         <div class="container">
             <a class="nav-title" href="#top" inert aria-hidden="true"><span class="logo">OpenWorld</span><small>Large Symbolic World</small></a>
             <div class="nav-links" id="nav-links" data-spy>
+                <a href="#places" data-zh="地点">Places</a>
+                <a href="#people" data-zh="人物">People</a>
                 <a href="#world" data-zh="世界">World</a>
                 <a href="#web" data-zh="关联">Connections</a>
                 <a href="#how" data-zh="工作原理">How it works</a>
@@ -37,7 +39,7 @@
         </div>
     </nav>
 
-    <!-- the trailer's village, forest and night behind the head, silent -->
+    <!-- the Holy City's six places behind the head, as the title shows them, silent (trailer stage ?film=tour) -->
     <section class="hero on-dark" id="top">
         <video class="backdrop" data-auto muted loop playsinline preload="auto" poster="media/hero.jpg"><source src="media/hero.mp4" type="video/mp4"></video>
         <div class="hero-inner">
@@ -49,7 +51,233 @@
                 <a class="btn" href="https://x.com/intent/follow?screen_name=SihanXuOfficial" target="_blank" rel="noopener"><svg class="x-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span data-zh="在 X 上关注">Follow on X</span></a>
             </div>
         </div>
-        <a class="scroll-bar light" href="#world"><span class="sr-only" data-zh="向下浏览世界">Explore the world below</span></a>
+        <!-- which of the six is behind the words now, kept in step with the film (page.js) -->
+        <p class="now-showing" aria-hidden="true"><span class="region" data-zh="圣城">The Holy City</span><b data-now data-zh="日泉修道院">Sunwell Abbey</b></p>
+        <a class="scroll-bar light" href="#places"><span class="sr-only" data-zh="向下浏览地点">Explore the places below</span></a>
+    </section>
+
+    <!-- the places: the showcase places (docs/showcase.md), each from where it shows best (trailer stage ?film=places) -->
+    <section class="band night places" id="places">
+        <div class="container">
+            <div class="intro">
+                <div>
+                    <p class="label" data-zh="地点">Places</p>
+                    <h2 data-zh="每一块砖，都是亲手搭的" data-zh-keep="每一块砖，|都是亲手搭的">Built by hand, down to the last stone</h2>
+                </div>
+                <div class="text"><p data-zh="每一座建筑都由项目自己的渲染器绘制，每一个地点都先在纸上规划，再参照真实世界的伟大建筑搭起来——哥特大教堂、两重城墙的要塞、峡湾里的港口、木桩上的小镇。它们是世界上其余地点的样板。">Every building is drawn by the project's own renderer, and every place is laid out on paper first, after the great places it learns from: a Gothic cathedral, a fortress in two rings, a harbour on a fjord, a town on piles. These are the models the rest of the world is built to.</p></div>
+            </div>
+            <div class="viewer" data-viewer>
+                <figure class="slide on" data-place="sunwell-abbey">
+                    <img src="media/places/sunwell-abbey.webp" alt="Sunwell Abbey" data-zh-alt="日泉修道院" width="1920" height="1080" loading="eager" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="圣城">The Holy City</span>
+                        <b data-zh="日泉修道院">Sunwell Abbey</b>
+                        <span class="what" data-zh="一座大教堂和它的院落：玫瑰窗、飞扶壁、回廊，地下还有墓穴。">A cathedral and its close: the rose window, the flying buttresses, a cloister, a crypt below.</span>
+                        <span class="from" data-zh="借鉴兰斯、亚眠、科隆和沙特尔">After Reims, Amiens, Cologne and Chartres</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="north-gate">
+                    <img src="media/places/north-gate.webp" alt="The North Gate" data-zh-alt="北门区" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="圣城">The Holy City</span>
+                        <b data-zh="北门区">The North Gate</b>
+                        <span class="what" data-zh="城门之上的同心圆要塞：两重城墙、护城河和外堡。">A fortress in two rings over the city&#x27;s gate, its moat and its barbican.</span>
+                        <span class="from" data-zh="借鉴骑士堡、博马里斯和卡尔卡松">After Krak des Chevaliers, Beaumaris and Carcassonne</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="bell-ward">
+                    <img src="media/places/bell-ward.webp" alt="The Bell Ward" data-zh-alt="钟楼区" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="圣城">The Holy City</span>
+                        <b data-zh="钟楼区">The Bell Ward</b>
+                        <span class="what" data-zh="钟楼下的大广场，议事厅坐落在广场尽头。">A grand square under its belfry, the council hall at its head.</span>
+                        <span class="from" data-zh="借鉴布鲁日的集市广场与钟楼、锡耶纳的田野广场">After Bruges&#x27;s Markt and Belfort, and Siena&#x27;s Campo</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="market">
+                    <img src="media/places/market.webp" alt="The Market" data-zh-alt="市集区" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="圣城">The Holy City</span>
+                        <b data-zh="市集区">The Market</b>
+                        <span class="what" data-zh="摊位和摊主、市集大厅、过秤所和布匹拱廊。">Stalls and their keepers, the market hall, the weigh-house, the cloth arcade.</span>
+                        <span class="from" data-zh="借鉴伊普尔的布料大厅和马拉喀什的大广场">After the cloth halls of Ypres and Marrakech&#x27;s great square</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="lamp-ward">
+                    <img src="media/places/lamp-ward.webp" alt="The Lamp Ward" data-zh-alt="灯区" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="圣城">The Holy City</span>
+                        <b data-zh="灯区">The Lamp Ward</b>
+                        <span class="what" data-zh="小广场上的朝圣者客栈，每走几步就有一盏灯。">The pilgrims&#x27; inn on its little square, and a lamp every few steps.</span>
+                        <span class="from" data-zh="借鉴围着广场的驿站客栈和夜晚的城市">After the coaching inns round a square, and the city at evening</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="lower-town">
+                    <img src="media/places/lower-town.webp" alt="The Lower Town" data-zh-alt="下城区" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="圣城">The Holy City</span>
+                        <b data-zh="下城区">The Lower Town</b>
+                        <span class="what" data-zh="运河边的穷人区：码头、小船、起重架和晾着的衣服。">The poor quarter on the canal: quays, boats, the crane, washing on the lines.</span>
+                        <span class="from" data-zh="借鉴威尼斯和杜布罗夫尼克的小码头">After the lesser quays of Venice and Dubrovnik</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="rimeholm">
+                    <img src="media/places/rimeholm.webp" alt="Rimeholm" data-zh-alt="凇洲村" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="霜牙海岸">Frostfang Coast</span>
+                        <b data-zh="凇洲村">Rimeholm</b>
+                        <span class="what" data-zh="峡湾里的港口：码头上的鱼市、三座栈桥和停泊的柯克船、岬角上的灯塔。">A harbour on a fjord: the fish market on the quay, three piers and their cogs, the lighthouse on its spit.</span>
+                        <span class="from" data-zh="借鉴卑尔根的布吕根和罗弗敦的渔村">After Bergen&#x27;s Bryggen and Lofoten&#x27;s fishing villages</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="warcombe">
+                    <img src="media/places/warcombe.webp" alt="Warcombe" data-zh-alt="战坳镇" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="赤痕边境">The Scarred March</span>
+                        <b data-zh="战坳镇">Warcombe</b>
+                        <span class="what" data-zh="红色峡谷里的要塞小镇：岩台上的战厅、民兵营地、最后一战的战场。">A fort town in a red canyon: the war hall on its ledge, the levies’ camp, the field of the last battle.</span>
+                        <span class="from" data-zh="借鉴罗马边墙和荒原上的要塞">After the Roman limes and the presidios of the badlands</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="weighmarket">
+                    <img src="media/places/weighmarket.webp" alt="Weighmarket" data-zh-alt="秤市城" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="衡谷平原">The Vale of Scales</span>
+                        <b data-zh="秤市城">Weighmarket</b>
+                        <span class="what" data-zh="粮仓之城：坡上的风车，大广场和它的公秤，俯视广场的账房。">The granary city: mills on their rise, the great square and its scales, the counting house over it.</span>
+                        <span class="from" data-zh="借鉴锡耶纳的田野广场和汉萨同盟的粮仓">After Siena&#x27;s Campo and the Hanse&#x27;s grain halls</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="dusk-moorings">
+                    <img src="media/places/dusk-moorings.webp" alt="Dusk Moorings" data-zh-alt="暮泊镇" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="苍白林沼">The Pale Fens</span>
+                        <b data-zh="暮泊镇">Dusk Moorings</b>
+                        <span class="what" data-zh="建在木桩上的小镇：水上的房屋、终日点着的雾灯、水上集市。">A town on piles: houses over the water, fog lamps burning all day, the floating market.</span>
+                        <span class="from" data-zh="借鉴冈维耶水上村和洞里萨湖的村落">After Ganvie and the villages of the Tonlé Sap</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="barleyridge">
+                    <img src="media/places/barleyridge.webp" alt="Barleyridge Farm" data-zh-alt="麦脊农庄" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="衡谷平原">The Vale of Scales</span>
+                        <b data-zh="麦脊农庄">Barleyridge Farm</b>
+                        <span class="what" data-zh="围着草地的农村：溪上的水磨、谷仓、果园和蜂箱。">A farm village round its green: the mill on the stream, the barns, the orchard and its hives.</span>
+                        <span class="from" data-zh="借鉴拉克斯顿的敞田和科茨沃尔德的农舍">After Laxton&#x27;s open fields and the Cotswolds&#x27; farmsteads</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="brandby-mine">
+                    <img src="media/places/brandby-mine.webp" alt="Brandby Mine" data-zh-alt="烙屯矿坑" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="赤痕边境">The Scarred March</span>
+                        <b data-zh="烙屯矿坑">Brandby Mine</b>
+                        <span class="what" data-zh="台地崖下的矿场：平硐和铁轨、井架、冶炼炉。">A mine under a mesa&#x27;s face: the adit and its rails, the headframe, the smelter&#x27;s hearths.</span>
+                        <span class="from" data-zh="借鉴力拓矿区的平硐和哈茨山的井架">After Rio Tinto&#x27;s adits and the Harz&#x27;s headframes</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="bellwick">
+                    <img src="media/places/bellwick.webp" alt="Bellwick Farm" data-zh-alt="钟坞农庄" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="白坛高地">The White Altar Heights</span>
+                        <b data-zh="钟坞农庄">Bellwick Farm</b>
+                        <span class="what" data-zh="花坛之间的庄园、绕着喷泉的车道，远处还有树篱迷宫。">A manor between its parterres, the carriage sweep round its fountain, the hedge maze beyond.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="ashengate">
+                    <img src="media/places/ashengate.webp" alt="Ashengate Ruins" data-zh-alt="烬门遗迹" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="苍白林沼">The Pale Fens</span>
+                        <b data-zh="烬门遗迹">Ashengate Ruins</b>
+                        <span class="what" data-zh="沉入沼泽的修道院废墟，中殿里长出了树，学者们正在发掘。">A ruined abbey sinking into the fen, trees growing up its nave, and the scholars&#x27; dig.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="goldmere-tower">
+                    <img src="media/places/goldmere-tower.webp" alt="Goldmere Tower" data-zh-alt="金湖塔" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="衡谷平原">The Vale of Scales</span>
+                        <b data-zh="金湖塔">Goldmere Tower</b>
+                        <span class="what" data-zh="立在石环中的法师塔，水晶正从地里长出来。">A mage&#x27;s tower in a ring of stones, crystals pushing out of the ground.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="frostbarrow">
+                    <img src="media/places/frostbarrow.webp" alt="Frostbarrow Camp" data-zh-alt="霜丘营地" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="霜牙海岸">Frostfang Coast</span>
+                        <b data-zh="霜丘营地">Frostbarrow Camp</b>
+                        <span class="what" data-zh="山口上的边境要塞：雪中的四座圆塔和城墙。">A border fort on the pass: four drum towers and the curtain wall in snow.</span>
+                    </figcaption>
+                </figure>
+                <button class="step-btn prev" type="button" data-step="-1" aria-label="Previous place" data-zh-label="上一个地点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+                <button class="step-btn next" type="button" data-step="1" aria-label="Next place" data-zh-label="下一个地点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+            </div>
+            <div class="thumbs" role="group" aria-label="Places" data-zh-label="地点">
+                <button class="thumb on" type="button" data-to="0" aria-label="Sunwell Abbey" data-zh-label="日泉修道院"><img src="media/places/sunwell-abbey-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="1" aria-label="The North Gate" data-zh-label="北门区"><img src="media/places/north-gate-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="2" aria-label="The Bell Ward" data-zh-label="钟楼区"><img src="media/places/bell-ward-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="3" aria-label="The Market" data-zh-label="市集区"><img src="media/places/market-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="4" aria-label="The Lamp Ward" data-zh-label="灯区"><img src="media/places/lamp-ward-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="5" aria-label="The Lower Town" data-zh-label="下城区"><img src="media/places/lower-town-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="6" aria-label="Rimeholm" data-zh-label="凇洲村"><img src="media/places/rimeholm-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="7" aria-label="Warcombe" data-zh-label="战坳镇"><img src="media/places/warcombe-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="8" aria-label="Weighmarket" data-zh-label="秤市城"><img src="media/places/weighmarket-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="9" aria-label="Dusk Moorings" data-zh-label="暮泊镇"><img src="media/places/dusk-moorings-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="10" aria-label="Barleyridge Farm" data-zh-label="麦脊农庄"><img src="media/places/barleyridge-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="11" aria-label="Brandby Mine" data-zh-label="烙屯矿坑"><img src="media/places/brandby-mine-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="12" aria-label="Bellwick Farm" data-zh-label="钟坞农庄"><img src="media/places/bellwick-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="13" aria-label="Ashengate Ruins" data-zh-label="烬门遗迹"><img src="media/places/ashengate-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="14" aria-label="Goldmere Tower" data-zh-label="金湖塔"><img src="media/places/goldmere-tower-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="15" aria-label="Frostbarrow Camp" data-zh-label="霜丘营地"><img src="media/places/frostbarrow-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+            </div>
+        </div>
+    </section>
+
+    <!-- the people: release 1's cast, each with a portrait of their own (docs/character-art.md, docs/cast/) -->
+    <section class="band cast" id="people">
+        <div class="container">
+            <div class="intro">
+                <div>
+                    <p class="label" data-zh="人物">People</p>
+                    <h2 data-zh="最先遇见的人" data-zh-keep="最先遇见的人">The people you meet first</h2>
+                </div>
+                <div class="text"><p data-zh="世界上的 1,654 个人，每个人都有自己的样子、住处和一天的安排。这六位是第一部的主角：每人都有自己的设定稿，立绘会随着说话而动。点开看他们的设定稿。">Every one of the world's 1,654 people has a look, a home and a day of their own. These six are the first part's own: each drawn to a sheet, with a portrait that moves as they speak. Open one to see the sheet.</p></div>
+            </div>
+            <div class="people">
+                <button class="person" type="button" data-person="lumi">
+                    <span class="face"><img src="media/cast/lumi/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
+                    <span class="who"><b data-zh="露米">Lumi</b></span>
+                    <span class="role" data-zh="一个手掌高的妖精，你去哪里，她就跟到哪里。">A fairy as tall as a hand, who goes wherever you go.</span>
+                </button>
+                <button class="person" type="button" data-person="ilse">
+                    <span class="face"><img src="media/cast/ilse/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
+                    <span class="who"><b data-zh="伊尔丝修女">Sister Ilse</b></span>
+                    <span class="role" data-zh="初原村圣火的守护者，是她送你踏上朝圣之路。">Keeper of Firstlight&#x27;s flame, who sends you on the pilgrimage.</span>
+                </button>
+                <button class="person" type="button" data-person="nessa">
+                    <span class="face"><img src="media/cast/nessa/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
+                    <span class="who"><b data-zh="奈莎·奎尔">Nessa Quill</b></span>
+                    <span class="role" data-zh="为教会历书测量天空的人，桥断之后被困在了初原村。">She measures the sky for the Church&#x27;s almanacs, stranded in Firstlight since the bridge went.</span>
+                </button>
+                <button class="person" type="button" data-person="lina">
+                    <span class="face"><img src="media/cast/lina/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
+                    <span class="who"><b data-zh="莉娜">Lina</b></span>
+                    <span class="role" data-zh="谁也不信、自食其力的采集者。">A forager who trusts no one and pays her own way.</span>
+                </button>
+                <button class="person" type="button" data-person="severin">
+                    <span class="face"><img src="media/cast/severin/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
+                    <span class="who"><b data-zh="塞弗林">Severin</b> <small data-zh="灰誓者">the Greyvowed</small></span>
+                    <span class="role" data-zh="一个被定为异端的修会的修士，提着一盏黄铜灯，从不多说一句。">A brother of an order named heretic, who carries a brass lantern and says no more than he must.</span>
+                </button>
+                <button class="person" type="button" data-person="tobin">
+                    <span class="face"><img src="media/cast/tobin/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
+                    <span class="who"><b data-zh="托宾">Tobin</b></span>
+                    <span class="role" data-zh="东路上的行商，他讲的故事有一半是真的。">The peddler of the eastern road. Half his stories are true.</span>
+                </button>
+            </div>
+        </div>
+        <dialog class="sheet" id="sheet">
+            <button class="close" type="button" aria-label="Close" data-zh-label="关闭">&times;</button>
+            <img alt="" width="1300" height="1000">
+        </dialog>
     </section>
 
     <!-- 3 · the scale: maps, people, items, scenes -->
