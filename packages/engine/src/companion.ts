@@ -3,7 +3,8 @@
 // goal, `follow` (behaviour.ts, world-model.md §6.10). It is `airborne` (its type's tag): it never
 // blocks a tile, and blows pass under it. Each hop is an act of moving, and when it cannot go on
 // (it is down) it reports `stuck` (design.md §5.7), whose outcome is the world's to say. What it
-// says when the story moves, and when spoken to, is the story's (story.ts).
+// says when the story moves, and when spoken to, is the story's (story.ts); what it remarks on for its leader (a way
+// the story has not opened, run up against), a rule's (the `remark` primitive).
 
 import type { Engine } from './engine.ts'
 import type { Entity, Id } from './types.ts'
@@ -25,6 +26,8 @@ export class Companions {
   private still = new Map<Id, { map: string; x: number; y: number; ticks: number }>()
   /** When each companion may next report that it cannot follow (runtime only). */
   private stuckUntil = new Map<Id, number>()
+  /** When each line remarked on was last said, by what said it and the line (runtime only: after a load, it is new again). */
+  private remarked = new Map<string, number>()
 
   constructor(private eng: Engine) {}
 
@@ -32,6 +35,21 @@ export class Companions {
   of(leader: Id): Entity[] {
     const w = this.eng.world
     return [...w.companionIds].map((id) => w.state.entities[id]).filter((e) => e && e.props?.companion === leader && e.place.on === 'tile')
+  }
+
+  /**
+   * A line remarked on for `by` (the `remark` primitive): which of its companions beside it says it (on its map; none:
+   * no one, the caller writes the line instead) and whether it was said before (`again`). Undefined: said within
+   * `every` ticks already (a way walked into on and on), so nothing now.
+   */
+  remark(by: Entity, key: string, every?: number): { companion?: Entity; again: boolean } | undefined {
+    const w = this.eng.world
+    const last = this.remarked.get(key)
+    if (last !== undefined && every && w.state.tick - last < every) return undefined
+    this.remarked.set(key, w.state.tick)
+    const map = w.posOf(by)?.map
+    const companion = map ? this.of(by.id).find((c) => c.place.on === 'tile' && c.place.map === map) : undefined
+    return { companion, again: last !== undefined }
   }
 
   /**

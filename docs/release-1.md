@@ -26,6 +26,11 @@ past the knight) comes into Part One, and how (§6).
   Pilgrim's Road, the abbey, the Kneeling Field and the East Road are sealed sites: a sealed site is solid (`World.sealed`,
   2026-10-25), never walked onto or across by anyone, and bumping into it says why (`site/sealed`, `SITE_GATES`); the
   valley and every open cell stay joined (`tools/test/overworld.test.ts`).
+- **Lumi says so** (2026-10-26): run up against a way the story has not opened — a sealed site, or off a map's edge from
+  a sealed way or from the far bank (`Engine.sealedEdge`: a bump on the story, answered by `story/sealed`) — the
+  companion says it in the gate's words (`SITE_GATES`' `remark`, then `again`; any other fact: another time), at most
+  once a minute for one way (the `remark` primitive); with no companion at hand, the gate's own words in the message
+  line (`tools/test/companion.test.ts`).
 - Proved by demo F1 (the card once, the edge refused, the Rest's site shut; with Part Two open, no card) and by Q2 and
   PR1, which open Part Two to walk the road.
 

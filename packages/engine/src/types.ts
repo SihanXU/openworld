@@ -1907,6 +1907,7 @@ export type Effect =
   /** A line said by the host (or, for the story and the world, by one of the event's roles). */
   | { op: 'say'; text: Text; who?: RoleName }
   | { op: 'log'; text: Text }
+  | { op: 'remark'; text: Text; again?: Text; alone?: Text; every?: number }
   | { op: 'emote'; mood: Mood }
   | { op: 'restyle'; parts?: Record<string, string | null>; colors?: Record<string, string | null> }
   // the people's social life (docs/npc-sandbox.md): each writes its host only
