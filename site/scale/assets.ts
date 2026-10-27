@@ -1,10 +1,13 @@
 // The scale film's material, drawn by the game's own code (npm run gen:world first):
 //   maps.png      every map (the hand-made and the backdrop's), as the game draws it, cut to a square, 64 x 64 each
+//   lead.png      the map the film opens on (Firstlight), whole, at the game's own size
+//   big.jpg       the places it splits into first (the showcase's and the hand-made country by turns), 256 x 256 each
 //   people.png    every person's map figure from their look, walking toward us (4 frames) and standing, 24 x 36 each
-//   faces.png     some of them as the dialogue shows them (their portrait's bust), 128 x 128 each
+//   faces.png     some of them as the dialogue shows them: the cast's own portraits first, then others' busts, 128 x 128 each
 //   items.png     every item picture in the catalogue, in a 24 x 24 cell each
 // with a .json beside each saying what is where.  npx tsx site/scale/assets.ts
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Look } from '@openworld/engine'
@@ -62,11 +65,20 @@ const g = loadGame()
 const chunks = files.map((f) => JSON.parse(readFileSync(join(PUB, 'world/maps', f), 'utf8')))
 // every map, the backdrop's too, where the renderer looks for them
 g.maps = chunks.map((c) => ({ kind: 'map', id: c.map.id, zh: '', en: c.map.id, title: '', group: c.map.kind, map: c.map, entities: c.entities })) as never
+// what the film shows first as the one map splits, in this order: the showcase places (docs/showcase.md) and the
+// hand-made country by turns
+const SHOWCASE = ['holy.quarter-2', 'holy.sunwell-abbey', 'frostfang.rimeholm', 'holy.quarter-3', 'redmarch.warcombe', 'tithe.weighmarket', 'holy.quarter-1', 'palefen.dusk-moorings', 'altar.highheath-abbey', 'holy.quarter-4', 'tithe.barleyridge-farm', 'redmarch.brandby-mine', 'holy.quarter-5', 'altar.bellwick-farm', 'palefen.ashengate-ruins', 'frostfang.northmoor-cave', 'tithe.goldmere-tower', 'redmarch.scarwell-camp', 'frostfang.frostbarrow-camp']
+const LEAD = 'meadow'
+const handMade = index.maps.filter((m: { id: string; backdrop?: boolean; kind: string }) => !m.backdrop && ['wild', 'village', 'field'].includes(m.kind) && m.id !== LEAD && m.id !== 'tutorial' && m.id !== 'offstage').map((m: { id: string }) => m.id)
+const SHOWN: string[] = []
+for (let k = 0; k < Math.max(SHOWCASE.length, handMade.length); k++) for (const id of [SHOWCASE[k], handMade[k]]) if (id) SHOWN.push(id)
 {
   const M = 64, cols = 32
   const list = chunks.map((c) => c.map.id)
   const s = sheet(cols * M, Math.ceil(list.length / cols) * M)
-  const out: { id: string; region?: string; kind?: string; made: boolean }[] = []
+  // the first 31 (the tiles of the first five splits, drawn larger than the atlas's squares)
+  const BIG = 256, bigCols = 8, bigN = Math.min(31, SHOWN.length), big = sheet(bigCols * BIG, Math.ceil(bigN / bigCols) * BIG)
+  const out: { id: string; region?: string; kind?: string; made: boolean; show?: number }[] = []
   let n = 0
   const t0 = Date.now()
   for (const id of list) {
@@ -74,11 +86,17 @@ g.maps = chunks.map((c) => ({ kind: 'map', id: c.map.id, zh: '', en: c.map.id, t
     try { img = decodePng(renderMap(g, id, 1).png) } catch (e) { console.warn('cannot draw', id, (e as Error).message); continue }
     s.put(square(img, M), M, 0, 0, M, M, (n % cols) * M, Math.floor(n / cols) * M)
     const m = info.get(id) as { region?: string; kind?: string; backdrop?: boolean } | undefined
-    out.push({ id, region: m?.region, kind: m?.kind, made: !m?.backdrop })
+    const show = SHOWN.indexOf(id)
+    out.push({ id, region: m?.region, kind: m?.kind, made: !m?.backdrop, ...(show >= 0 ? { show } : {}) })
+    if (show >= 0 && show < bigN) big.put(square(img, BIG), BIG, 0, 0, BIG, BIG, (show % bigCols) * BIG, Math.floor(show / bigCols) * BIG)
     if (++n % 100 === 0) console.log(`  maps ${n}/${list.length} (${((Date.now() - t0) / 1000).toFixed(0)} s)`)
   }
   s.save('maps.png')
-  writeFileSync(join(OUT, 'maps.json'), JSON.stringify({ size: M, cols, maps: out }))
+  writeFileSync(join(OUT, 'lead.png'), renderMap(g, LEAD, 1).png)
+  big.save('big.png')
+  spawnSync('ffmpeg', ['-v', 'error', '-y', '-i', join(OUT, 'big.png'), '-q:v', '5', join(OUT, 'big.jpg')], { stdio: 'inherit' })
+  rmSync(join(OUT, 'big.png'))
+  writeFileSync(join(OUT, 'maps.json'), JSON.stringify({ size: M, cols, lead: LEAD, big: { size: BIG, cols: bigCols, count: bigN }, maps: out }))
   console.log(`${out.length} maps`)
 }
 
@@ -105,16 +123,13 @@ g.maps = chunks.map((c) => ({ kind: 'map', id: c.map.id, zh: '', en: c.map.id, t
   writeFileSync(join(OUT, 'people.json'), JSON.stringify({ w: FW, h: FH, frames: F, cols, count: people.length }))
   console.log(`${people.length} people`)
 
-  // faces: some of everyone, their busts
+  // faces: the cast's own portraits (as the dialogue shows them), then some of everyone, their busts
   const m = loadManifest()
   if (m) {
     const B = 128, n = 48, cols2 = 8
     const s2 = sheet(cols2 * B, Math.ceil(n / cols2) * B)
-    const pick = people.filter((_, k) => k % Math.floor(people.length / n) === 0).slice(0, n)
-    pick.forEach(({ look }, k) => {
-      const bust = bustOf(m, look, composePortrait(m, look, undefined, layerFromDisk))
-      const img = { w: bust.w, h: bust.h, rgba: new Uint8Array(bust.rgba.buffer) }
-      // brought down as a picture is (smooth), kept transparent where the figure is not
+    /** A picture brought down to B x B as a picture is (smooth), kept transparent where the figure is not. */
+    const down = (img: Image) => {
       const sm = Math.min(img.w, img.h), k2 = sm / B, out = new Uint8Array(B * B * 4)
       for (let y = 0; y < B; y++) for (let x = 0; x < B; x++) {
         let r = 0, gg = 0, b = 0, a = 0, cnt = 0
@@ -124,11 +139,32 @@ g.maps = chunks.map((c) => ({ kind: 'map', id: c.map.id, zh: '', en: c.map.id, t
         }
         out.set([a ? r / a : 0, a ? gg / a : 0, a ? b / a : 0, a / cnt], (y * B + x) * 4)
       }
-      s2.put(out, B, 0, 0, B, B, (k % cols2) * B, Math.floor(k / cols2) * B)
-    })
+      return out
+    }
+    // the cast's portraits are webp: ffmpeg gives their pixels
+    const webp = (file: string): Image | undefined => {
+      const probe = spawnSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', file], { encoding: 'utf8' })
+      const [w, h] = (probe.stdout ?? '').trim().split(',').map(Number)
+      if (!w || !h) return undefined
+      const r = spawnSync('ffmpeg', ['-v', 'error', '-i', file, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-'], { maxBuffer: 1 << 26 })
+      return r.status === 0 ? { w, h, rgba: new Uint8Array(r.stdout) } : undefined
+    }
+    const faces: Uint8Array[] = []
+    for (const p of Object.values(CATALOG.portraits ?? {})) {
+      const img = webp(join(PUB, 'assets', p.dir, 'neutral.webp'))
+      if (img) faces.push(down(img))
+    }
+    const own = new Set(Object.keys(CATALOG.portraits ?? {}))
+    const rest = people.filter((p) => !own.has(p.id))
+    for (let k = 0; faces.length < n && k < rest.length; k += Math.floor(rest.length / n)) {
+      const { look } = rest[k]
+      const bust = bustOf(m, look, composePortrait(m, look, undefined, layerFromDisk))
+      faces.push(down({ w: bust.w, h: bust.h, rgba: new Uint8Array(bust.rgba.buffer) }))
+    }
+    faces.forEach((f, k) => s2.put(f, B, 0, 0, B, B, (k % cols2) * B, Math.floor(k / cols2) * B))
     s2.save('faces.png')
-    writeFileSync(join(OUT, 'faces.json'), JSON.stringify({ size: B, cols: cols2, count: pick.length }))
-    console.log(`${pick.length} faces`)
+    writeFileSync(join(OUT, 'faces.json'), JSON.stringify({ size: B, cols: cols2, count: faces.length, own: Math.min(own.size, faces.length) }))
+    console.log(`${faces.length} faces`)
   }
 }
 
