@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { readdirSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { KEEP, catalogPaths } from '../src/copyAssets.ts'
 
@@ -16,7 +16,8 @@ function committed(dir: string): string[] {
     for (const f of readdirSync(d)) {
       const p = join(d, f)
       if (statSync(p).isDirectory()) walk(p)
-      else out.push(relative(OUT, p))
+      // (the catalogue's paths use '/', on every system)
+      else out.push(relative(OUT, p).split(sep).join('/'))
     }
   }
   walk(dir)
