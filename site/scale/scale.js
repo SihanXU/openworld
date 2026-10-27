@@ -19,7 +19,7 @@ ctx.imageSmoothingEnabled = false
 const load = (src) => new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(im); im.src = src })
 const json = (src) => fetch(src).then((r) => r.json())
 const [mapsInfo, peopleInfo, facesInfo, itemsInfo, continent, clipsInfo] = await Promise.all(['assets/maps.json', 'assets/people.json', 'assets/faces.json', 'assets/items.json', 'assets/continent.json', '../starmap/clips/clips.json'].map(json))
-const [MAPS, PEOPLE, FACES, ITEMS] = await Promise.all(['assets/maps.png', 'assets/people.png', 'assets/faces.png', 'assets/items.png'].map(load))
+const [MAPS, PEOPLE, FACES, ITEMS, LEAD, BIG] = await Promise.all(['assets/maps.png', 'assets/people.png', 'assets/faces.png', 'assets/items.png', 'assets/lead.png', 'assets/big.jpg'].map(load))
 const CLIPS = Object.entries(clipsInfo).map(([id, c]) => ({ id, ...c, frames: [] }))
 async function loadClips() {
   await Promise.all(CLIPS.map(async (c) => {
@@ -39,15 +39,17 @@ const lerp = (a, b, x) => a + (b - a) * x
 
 /** A map's square in the atlas. */
 const mapAt = (k) => { const n = mapsInfo.maps.length, i = ((k % n) + n) % n; return [(i % mapsInfo.cols) * mapsInfo.size, Math.floor(i / mapsInfo.cols) * mapsInfo.size, mapsInfo.size, mapsInfo.size] }
-/** The maps in the order they appear as the first one splits: the open country first, the rooms later. */
+/** The maps in the order they appear as the first one splits: the showcase places and the hand-made country first, then
+ *  the open country, the rooms later. */
 const ORDER = (() => {
-  const open = [], rooms = []
-  mapsInfo.maps.forEach((m, i) => (m.kind === 'interior' ? rooms : open).push(i))
-  const shuffle = (a, s) => a.map((v, k) => [hash(k * 7 + s), v]).sort((x, y) => x[0] - y[0]).map((x) => x[1])
+  const shown = [], open = [], rooms = []
   // a village to begin with
-  const first = mapsInfo.maps.findIndex((m) => m.id === 'meadow')
+  const first = Math.max(0, mapsInfo.maps.findIndex((m) => m.id === (mapsInfo.lead ?? 'meadow')))
+  mapsInfo.maps.forEach((m, i) => { if (i !== first) (m.show !== undefined ? shown : m.kind === 'interior' ? rooms : open).push(i) })
+  shown.sort((a, b) => mapsInfo.maps[a].show - mapsInfo.maps[b].show)
+  const shuffle = (a, s) => a.map((v, k) => [hash(k * 7 + s), v]).sort((x, y) => x[0] - y[0]).map((x) => x[1])
   // the open country twice for each room: the rooms are many, the open places are what one sees
-  const o = shuffle(open.filter((i) => i !== first), 3), r = shuffle(rooms, 5), pool = [first]
+  const o = shuffle(open, 3), r = shuffle(rooms, 5), pool = [first, ...shown]
   for (let k = 0, a = 0, b = 0; pool.length < 1024; k++) pool.push(k % 3 === 2 ? r[b++ % r.length] : o[a++ % o.length])
   // the index a tile has at the last level, by the level it first appears at (its lowest set bit): fill by appearance
   const byAppearance = Array.from({ length: 1024 }, (_, i) => i).sort((a, b) => appear(a) - appear(b) || a - b)
@@ -58,7 +60,9 @@ const ORDER = (() => {
 function appear(i) { if (i === 0) return 0; let l = 10; while (i % 2 === 0) (i /= 2), l--; return l }
 
 const personAt = (k, f) => { const n = peopleInfo.count, i = ((k % n) + n) % n, cw = peopleInfo.w * peopleInfo.frames; return [(i % peopleInfo.cols) * cw + f * peopleInfo.w, Math.floor(i / peopleInfo.cols) * peopleInfo.h, peopleInfo.w, peopleInfo.h] }
-const faceAt = (k) => { const i = k % facesInfo.count; return [(i % facesInfo.cols) * facesInfo.size, Math.floor(i / facesInfo.cols) * facesInfo.size, facesInfo.size, facesInfo.size] }
+/** The faces shown up close: the cast's own portraits among the others. */
+const FACE_PICK = (() => { const own = facesInfo.own ?? 0, out = []; for (let k = 0, a = 0, b = own; out.length < facesInfo.count; k++) out.push(k % 2 === 0 && a < own ? a++ : b++); return out })()
+const faceAt = (k) => { const i = FACE_PICK[k % facesInfo.count]; return [(i % facesInfo.cols) * facesInfo.size, Math.floor(i / facesInfo.cols) * facesInfo.size, facesInfo.size, facesInfo.size] }
 const itemAt = (k) => { const n = itemsInfo.keys.length, i = ((k % n) + n) % n; return [(i % itemsInfo.cols) * itemsInfo.size, Math.floor(i / itemsInfo.cols) * itemsInfo.size, itemsInfo.size, itemsInfo.size] }
 const CRATE = Math.max(0, itemsInfo.keys.indexOf('item:crate'))
 
@@ -167,10 +171,29 @@ function tile(src, [sx, sy, sw, sh], r, a = 1, round = 6) {
   ctx.restore()
 }
 const inset = (r, g) => ({ x: r.x + g, y: r.y + g, w: Math.max(0, r.w - 2 * g), h: Math.max(0, r.h - 2 * g) })
+/** A map's picture in a tile: drawn large, the first map from its own whole picture and the first places it splits into
+ *  from their larger squares; the rest from the atlas. */
+function mapTile(id, r, a = 1, round = 6) {
+  const big = mapsInfo.maps[id].show, large = Math.max(r.w, r.h) > mapsInfo.size * 1.5
+  if (large && big < (mapsInfo.big?.count ?? 0) && BIG.naturalWidth) {
+    const B = mapsInfo.big.size
+    return tile(BIG, [(big % mapsInfo.big.cols) * B, Math.floor(big / mapsInfo.big.cols) * B, B, B], r, a, round)
+  }
+  if (id === ORDER[0] && LEAD.naturalWidth && large) {
+    // the atlas's square is the middle of the map: the lead's picture is cut the same way once the tile is square
+    const s = Math.min(LEAD.naturalWidth, LEAD.naturalHeight)
+    const k = clamp((Math.max(r.w, r.h) / Math.min(r.w, r.h) - 1) / 0.5)
+    const cw = lerp(s, LEAD.naturalWidth, k)
+    return tile(LEAD, [(LEAD.naturalWidth - cw) / 2, (LEAD.naturalHeight - s) / 2, cw, s], r, a, round)
+  }
+  tile(MAPS, mapAt(id), r, a, round)
+}
 
+/** How far the camera has fallen into the first village (0 to 1). */
+const fallen = (t) => (t > T.people ? easeInOut((t - T.people) / 0.6) : 0)
 /** The camera falling into the first village as the people begin: about it, it coming to the middle as it grows. */
 function fall(r, t) {
-  const z = t > T.people ? easeInOut((t - T.people) / 0.6) : 0
+  const z = fallen(t)
   if (z <= 0) return r
   const fx = CX0 + CELL_OF[0][0] * CELL + CELL / 2, fy = CY0 + CELL_OF[0][1] * CELL + CELL / 2
   const sc = lerp(1, (W / CELL) * 1.2, z), px = lerp(fx, W / 2, z), py = lerp(fy, H / 2, z)
@@ -194,7 +217,8 @@ function drawMaps(t) {
     // as the people begin, the camera falls into the first village
     if (t > T.people) r = fall(r, t)
     const g = Math.min(4, r.w * 0.04)
-    tile(MAPS, mapAt(id), inset(r, g), 1, s.level < 4 ? 14 : 4)
+    // the others, blown up round it as the camera falls, give way to the first village
+    mapTile(id, inset(r, g), i === 0 ? 1 : 1 - fallen(t), s.level < 4 ? 14 : 4)
   }
   // the coasts come in round them, and the continent has its shape
   if (t > T.morph + 1.0 && t < T.people + 0.8) {
@@ -202,7 +226,7 @@ function drawMaps(t) {
       const a = smooth((t - (T.morph + 1.0) - hash(k * 3) * 0.6) / 0.3)
       if (a <= 0.01) return
       const r = fall({ x: CX0 + cx * CELL, y: CY0 + cy * CELL, w: CELL, h: CELL }, t)
-      tile(MAPS, mapAt(ORDER[(k * 7) % 1024]), inset(r, Math.min(4, r.w * 0.04)), a, 4)
+      tile(MAPS, mapAt(ORDER[(k * 7) % 1024]), inset(r, Math.min(4, r.w * 0.04)), a * (1 - fallen(t)), 4)
     })
   }
 }
@@ -220,7 +244,7 @@ function drawPeople(t) {
   const level = crowdLevel(t)
   const n = Math.min(PEOPLE_N, 1 << level)
   const bg = 1 - smooth((t - T.peopleSplit - 2) / 2.5)
-  if (bg > 0.01 && t > T.people + 0.5) { tile(MAPS, mapAt(ORDER[0]), { x: -40, y: -40 - 400, w: W + 80, h: W + 80 }, bg * 0.55, 0) }
+  if (bg > 0.01 && t > T.people + 0.5) { mapTile(ORDER[0], { x: -40, y: -40 - 400, w: W + 80, h: W + 80 }, bg * 0.55, 0) }
   const away = t > T.items ? easeInOut((t - T.items) / 1.0) : 0
   const prev = Math.min(PEOPLE_N, 1 << Math.max(0, level - 1))
   const u = easeBack((t - (T.peopleSplit + (level - 1) * BEAT)) / 0.3)
@@ -250,7 +274,7 @@ function drawPeople(t) {
     ctx.save(); ctx.globalAlpha = a
     ctx.beginPath(); ctx.arc(x, y, 64 * s, 0, Math.PI * 2); ctx.fillStyle = '#efe6d2'; ctx.fill(); ctx.clip()
     ctx.imageSmoothingEnabled = true
-    const [fx, fy, fs] = faceAt(k * 3 + 1)
+    const [fx, fy, fs] = faceAt(k)
     ctx.drawImage(FACES, fx, fy, fs, fs, x - 64 * s, y - 64 * s, 128 * s, 128 * s)
     ctx.imageSmoothingEnabled = false
     ctx.restore()

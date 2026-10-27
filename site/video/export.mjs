@@ -4,6 +4,7 @@
 // (npm run dev:client first). Frames go to <out>/frames; the video is made by site/video/encode.mjs.
 import { spawn } from 'node:child_process'
 import { mkdir, writeFile, mkdtemp, rm } from 'node:fs/promises'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -14,7 +15,8 @@ const EVERY = Number(arg('every', 1))
 // the stage is always laid out at 1920 x 1080; a frame is taken scaled down to the size asked
 const SIZE = Number(arg('size', 360))
 const SCALE = SIZE / 1080
-const PORT = 9335
+// a free port for this Chrome's debugger: two exports at once must never drive each other's page
+const PORT = await new Promise((res) => { const s = createServer().listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => res(p)) }) })
 const pause = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const profile = await mkdtemp(join(tmpdir(), 'lsw-video-'))
