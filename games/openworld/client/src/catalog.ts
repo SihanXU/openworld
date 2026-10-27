@@ -43,9 +43,11 @@ const FLOORS = 'lsw/Tiles/Floors.png'
 // the world map's own inked tiles and marks (tools/src/art/worldmap.ts)
 const WM_TILES = 'lsw/WorldMap/tiles.png'
 const WM_MARKS = 'lsw/WorldMap/marks.png'
-const WM_MARK = ['woods', 'woods2', 'mountains', 'mountains2', 'hills', 'hills2', 'village', 'town', 'ford', 'farm', 'mill', 'woods-place', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'none', 'deadwood', 'deadwood2', 'reeds', 'mesa', 'mesa2', 'fort', 'ruin', 'graveyard', 'cathedral', 'city', 'tower', 'battlefield', 'cave', 'seat', 'bridge', 'snowpines', 'snowpines2', 'watermill']
+const WM_GROUNDS = 'lsw/WorldMap/grounds.png'
+const WM_MARK = ['woods', 'woods2', 'mountains', 'mountains2', 'hills', 'hills2', 'village', 'town', 'ford', 'farm', 'mill', 'woods-place', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'none', 'deadwood', 'deadwood2', 'reeds', 'mesa', 'mesa2', 'fort', 'ruin', 'graveyard', 'cathedral', 'city', 'tower', 'battlefield', 'cave', 'seat', 'bridge', 'snowpines', 'snowpines2', 'watermill',
+  'woods3', 'woods4', 'canopy', 'canopy2', 'canopy3', 'canopy4', 'mountains3', 'mountains4', 'peaks', 'peaks2', 'peaks3', 'peaks4', 'hills3', 'hills4', 'deadwood3', 'reeds2', 'reeds3', 'mesa3', 'snowpines3']
 /** A mark of the world map (16x20, its foot on the cell's bottom). */
-const wm = (key: string) => px(WM_MARKS, WM_MARK.indexOf(key) * 16, 0, 16, 20)
+const wm = (key: string): SpriteDef => px(WM_MARKS, WM_MARK.indexOf(key) * 16, 0, 16, 20)
 // the project's own pixel art for what one builds
 
 /** Tile-aligned sprite: (c, r) in tiles, w x h tiles, anchor defaults to bottom-centre of the rect. */
@@ -269,13 +271,21 @@ export const CATALOG: Catalog = {
     // Wooden deck / jetty (front edge with posts on the south side). Outside: TRANSPARENT — draw
     // the water (or ground) under it. Plain plank tiles are also listed in `plain.bridge`.
     bridge: { img: WATER, col: 0, row: 12 },
-    // the world map: the sea with its beach and inked coast, the river with its banks
+    // the world map: the sea with its beach and inked coast, the river between open banks (the ground beside it shows)
     ow_sea: { img: WM_TILES, col: 0, row: 0 },
-    ow_river: { img: WM_TILES, col: 0, row: 5 },
+    ow_river: { img: WM_TILES, col: 0, row: 5, over: 'ow_plain' },
     // a bridge is the river's cell gone over: drawn as the river (it joins its banks), the planks a mark on it
-    ow_bridge: { img: WM_TILES, col: 0, row: 5 },
+    ow_bridge: { img: WM_TILES, col: 0, row: 5, over: 'ow_plain' },
     // the roads, joined where they meet (the continent's turn every way)
-    ow_road: { img: WM_TILES, col: 0, row: 12 },
+    ow_road: { img: WM_TILES, col: 0, row: 10, over: 'ow_plain' },
+    // every other ground laid over the plains, each giving way along a drawn rim to the ground below it: the lowest
+    // first (docs/continent.md §2; tools/src/art/worldmap.ts LAID, its blocks in this order)
+    ...Object.fromEntries(
+      ['ow_steppe', 'ow_dust', 'ow_salt', 'ow_fields', 'ow_hills', 'ow_marsh', 'ow_highland', 'ow_snow', 'ow_badlands', 'ow_deadwood', 'ow_forest', 'ow_mountain', 'ow_city'].map((id, i) => [
+        id,
+        { img: WM_GROUNDS, col: 0, row: i * 5, over: 'ow_plain', layer: i + 1, fills: id === 'ow_fields' ? 3 : 2 },
+      ]),
+    ),
   },
 
   // -------------------------------------------------------------------------------------------
@@ -287,22 +297,8 @@ export const CATALOG: Catalog = {
     marble: [4, 5, 6, 7].map((c) => [FLOORS, c, 5] as [string, number, number]),
     flags: [8, 9, 10, 11, 12, 13].map((c) => [FLOORS, c, 5] as [string, number, number]),
     parquet: [14, 15].map((c) => [FLOORS, c, 5] as [string, number, number]),
-    // the world map's grounds (its woods, hills and mountains are marks drawn over the plains)
-    ow_plain: [[WM_TILES, 0, 10], [WM_TILES, 1, 10], [WM_TILES, 2, 10]],
-    ow_forest: [[WM_TILES, 0, 10], [WM_TILES, 1, 10]],
-    ow_hills: [[WM_TILES, 2, 10], [WM_TILES, 1, 10]],
-    ow_mountain: [[WM_TILES, 0, 10]],
-    ow_snow: [[WM_TILES, 3, 10], [WM_TILES, 4, 10]],
-    // the other regions' grounds (docs/continent.md §2): the March's, the Vale's, the Fens', the Heights', the Holy City's
-    ow_steppe: [[WM_TILES, 6, 10], [WM_TILES, 10, 11]],
-    ow_badlands: [[WM_TILES, 7, 10], [WM_TILES, 7, 11]],
-    ow_fields: [[WM_TILES, 8, 10], [WM_TILES, 6, 11]],
-    ow_dust: [[WM_TILES, 9, 10], [WM_TILES, 8, 11]],
-    ow_salt: [[WM_TILES, 10, 10], [WM_TILES, 9, 11]],
-    ow_marsh: [[WM_TILES, 0, 11], [WM_TILES, 1, 11]],
-    ow_highland: [[WM_TILES, 2, 11], [WM_TILES, 3, 11]],
-    ow_city: [[WM_TILES, 4, 11]],
-    ow_deadwood: [[WM_TILES, 5, 11]],
+    // the world map's plains: grass, now and then a tuft, a flower, a stone (the other grounds are laid over them: blobs)
+    ow_plain: [0, 1, 2, 3, 4, 5].map((c) => [WM_TILES, c, 15] as [string, number, number]),
     // The yellow-green grass that is the "outside" of path/water: col 0 plain, 1-4 with tufts.
     grass: [[FLOOR, 0, 12], [FLOOR, 0, 12], [FLOOR, 1, 12], [FLOOR, 2, 12], [FLOOR, 3, 12], [FLOOR, 4, 12]],
     drygrass: [[FLOOR, 0, 12], [FLOOR, 2, 12], [FLOOR, 3, 12]],
@@ -373,6 +369,9 @@ export const CATALOG: Catalog = {
   // -------------------------------------------------------------------------------------------
   // Terrain objects (one per tile; overhang upwards). All from TilesetNature unless noted.
   // -------------------------------------------------------------------------------------------
+  // what grows or stands loose sits a few pixels off the grid: tall grass, flowers, bushes, and the world map's woods,
+  // mountains, hills, reeds, mesas and snowy pines, so none of them stands in rows
+  looseObjects: ['drygrass', 'flowers', 'bush', 'ow_forest', 'ow_mountain', 'ow_hills', 'ow_deadwood', 'ow_marsh', 'ow_badlands', 'ow_snow'],
   terrainObjects: {
     tree: [
       px(NATURE, 0, 0, 32, 32, 16, 31), // round green, 2x2
@@ -407,16 +406,19 @@ export const CATALOG: Catalog = {
       t(NATURE, 9, 12),
     ],
     stump: [t(NATURE, 4, 8), t(NATURE, 14, 18), t(NATURE, 12, 13), px(NATURE, 0, 128, 32, 32, 16, 29), px(NATURE, 32, 128, 32, 32, 16, 29)],
-    // the world map: woods, mountains and hills as inked marks, one to a cell
-    ow_forest: [wm('woods'), wm('woods2')],
-    ow_mountain: [wm('mountains'), wm('mountains2')],
-    ow_hills: [wm('hills'), wm('hills2')],
-    ow_deadwood: [wm('deadwood'), wm('deadwood2')],
-    ow_marsh: [wm('reeds')],
-    ow_badlands: [wm('mesa'), wm('mesa2')],
+    // the world map: woods, mountains and hills as inked marks, one to a cell; a wood's heart and a range's high peaks
+    // (`_inner`, where all four sides are the same) drawn out to the cell's sides, so they stand as one mass
+    ow_forest: ['woods', 'woods2', 'woods3', 'woods4'].map(wm),
+    ow_forest_inner: ['canopy', 'canopy2', 'canopy3', 'canopy4'].map(wm),
+    ow_mountain: ['mountains', 'mountains2', 'mountains3', 'mountains4'].map(wm),
+    ow_mountain_inner: ['peaks', 'peaks2', 'peaks3', 'peaks4'].map(wm),
+    ow_hills: ['hills', 'hills2', 'hills3', 'hills4', 'none'].map(wm),
+    ow_deadwood: ['deadwood', 'deadwood2', 'deadwood3'].map(wm),
+    ow_marsh: ['reeds', 'reeds2', 'reeds3', 'none'].map(wm),
+    ow_badlands: ['mesa', 'mesa2', 'mesa3', 'none'].map(wm),
     ow_bridge: [wm('bridge')],
-    // a snowfield's pines under snow (a snow cell was a blank white square)
-    ow_snow: [wm('snowpines'), wm('snowpines2')],
+    // a snowfield's pines under snow, here and there
+    ow_snow: ['snowpines', 'snowpines2', 'snowpines3', 'none', 'none'].map(wm),
     // Bare dead trees (the pack has no burnt trees; these read as charred).
     charred_tree: [px(NATURE, 64, 0, 32, 32, 16, 31), t(NATURE, 4, 9)],
     // Tall grass tufts. The pack's tufts are green: tint them golden (e.g. 0xe0c060) for dry

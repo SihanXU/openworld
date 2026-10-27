@@ -443,6 +443,7 @@ async function continent(): Promise<{ continent: AtlasContinent; cells: Record<s
       name: s.name ?? { en: s.props.map, zh: s.props.map },
       kind: s.type.split('/').pop()!,
       map: s.props.map,
+      sprite: w.onto.resolve(s.type).sprite ?? s.type,
       ...(opens && !w.fact(opens) && { sealed: true }),
       ...(s.props.backdrop === true && { backdrop: true }),
       ...(w.prop(w.player, `visited.${s.props.map}`) !== undefined && { visited: true }),
