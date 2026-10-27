@@ -206,7 +206,11 @@ there being struck. The left click's blow goes to a foe at the aim or a cell bes
 pointer is still the one meant), else to what the base rules or a learned answer know at the aim (a tree still falls),
 else into the air (a whiff, with whatever is swung: a tool, the fist); an object used on oneself the world has never
 seen, and the right click's use the world has never seen, are not made (`Plan.idle`, labelled `Not mid-fight`, no
-`?`). The holes stay: the chooser (Alt, a layer chosen) is meant, and asks the world in a fight as out of it.
+`?`). The holes stay: the chooser (Alt, a layer chosen) is meant, and asks the world in a fight as out of it. And in a
+fight one's blows pass over one's own side (`Engine.spares`, `World.allied`: one's companion and followers, whom one
+follows, who follow the same one — data any actor carries): a blow along the facing goes on past them to what is
+beyond (an arrow over the fairy to the wolf), a sweep's sides leave them, and a press on one of them is a swing at the
+air, asked nothing. Out of a fight a blow on someone friendly is still asked first ("Attack Lumi?").
 
 **The right click** is `Controls.plan('secondary')`, the exact use: it chooses nothing. Every "use X on Y" the
 player makes is a right click, so the experiments — the world's one AI interface reached by hand (§5.11) — are a

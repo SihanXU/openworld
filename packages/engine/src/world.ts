@@ -760,6 +760,20 @@ export class World {
     return this.state.tick - (e.combat?.fightTick ?? -Infinity) < FIGHT_TICKS
   }
 
+  /** Whom an actor follows: the one its `companion` prop (a companion's) or its `follow` prop (a person's) names. */
+  leaderOf(e: Entity): Id | undefined {
+    const l = this.prop(e, 'companion') ?? this.prop(e, 'follow')
+    return typeof l === 'string' && l ? l : undefined
+  }
+
+  /** Two actors on one side: one follows the other (the `leads` condition), or both follow the same one. */
+  allied(a: Entity, b: Entity): boolean {
+    if (a.id === b.id) return false
+    const la = this.leaderOf(a)
+    const lb = this.leaderOf(b)
+    return la === b.id || lb === a.id || (!!la && la === lb)
+  }
+
   /** What it is made of: its own `material:<id>` tag (an item's), else its type's, else its `material` prop. */
   materialOf(e: Entity): MaterialDef | undefined {
     const tag = [...(e.tags ?? []), ...this.onto.resolve(e.type).tags].find((t) => t.startsWith('material:'))
