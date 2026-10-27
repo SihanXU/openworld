@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, type Entity } from '@openworld/engine'
 import { socialOf } from '@openworld/modules'
-import { BASE_RULES, GAME, PLOTS_LAYOUT, SET_DEFS, STOCK_LAYOUT, STORY_RULES, buildOntology, decodeChunk, migratePlots, migrateStock } from '@openworld-game/content'
+import { BASE_RULES, GAME, PLOTS_LAYOUT, SET_DEFS, STOCK_LAYOUT, STORY_RULES, buildOntology, decodeChunk, migratePlots, migrateStock, migrateTents } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()
@@ -122,5 +122,28 @@ describe('the forged sets\' pieces of an older save', () => {
     // the trinkets, three of three, give theirs
     const t3 = set.trinkets.find((b) => b.pieces === 3)!
     expect(lw.stat(lw.player, 'holdFast')).toBeCloseTo(t3.props.holdFast ?? 0, 5)
+  })
+})
+
+describe('the tents’ rooms in an older save', () => {
+  it('every tent that stands where its map has one takes the room behind its flap, the forest’s torn tent too', () => {
+    const { g, chunk, eng, w } = game()
+    const tents = Object.values(w.state.entities).filter((e) => e.type.startsWith('fixture/tent') && e.place.on === 'tile')
+    expect(tents.map((e) => e.id).sort()).toEqual(['ford.tent', 'forest~1c', 'haven~8'])
+    // as a save from before the rooms has them: no room behind the flap
+    eng.author(() => {
+      for (const t of tents) {
+        delete t.props!.interior
+        delete t.props!.interiorX
+        delete t.props!.interiorY
+      }
+    })
+    expect(w.get('forest~1c')!.props?.interior).toBeUndefined()
+    eng.author(() => migrateTents(g, [chunk('ford'), chunk('forest'), chunk('haven')]))
+    expect(Object.fromEntries(tents.map((t) => [t.id, t.props?.interior]))).toEqual({
+      'ford.tent': 'ford.tentroom',
+      'forest~1c': 'forest.tentroom',
+      'haven~8': 'haven.tentroom',
+    })
   })
 })
