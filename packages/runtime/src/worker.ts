@@ -744,6 +744,12 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   index = await fetchJson<WorldIndex>('index.json')
   if (mine !== generation) return
   const compatible = init.save?.world === index.version
+  if (init.save && !fresh && !compatible) {
+    // a save from another version of the world is never replaced by a new game: the title keeps it and says so
+    game = undefined
+    post({ t: 'incompatible' })
+    return
+  }
   // the shared library, with what the save loaded keeps of its own though another game's sync forgot it
   const taken = withKept(init.library, init.save && !fresh && compatible ? init.save : undefined)
   kept = { types: new Set(taken.kept.types), statuses: new Set(taken.kept.statuses) }

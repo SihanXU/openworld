@@ -368,15 +368,38 @@ export function localeProblems(p: Project, keep?: Keep): { level: 'warning'; cod
 }
 
 /**
+ * Does some text of the project have words in `lang` of its own: in a table's entries (as `applyLocales` hands them
+ * over), or kept inside the text (an older project's `{ en, zh }`, or a thing's `text_<code>`)? A language with no
+ * words of its own cannot be the one a game is written in.
+ */
+function hasWords(p: Project, lang: string): boolean {
+  for (const f of filesOf(p))
+    for (const at of textsOf(f.file, f.data)) {
+      if (at.prop) {
+        // a thing's written words: the other languages are its `text_<code>` props, not an object
+        let o: unknown = f.data
+        for (const k of at.path.slice(0, -1)) o = (o as Record<string | number, unknown>)[k]
+        const w = (o as Record<string, unknown>)[`text_${lang}`]
+        if (typeof w === 'string' && w.trim()) return true
+      } else if (typeof at.text === 'object' && wordsIn(at.text, lang, '')) return true
+    }
+  return false
+}
+
+/**
  * The project written in another source language (the game's words then said first in it): each text's words in that
  * language become its words, where it has them, and the former source's go into that language's table. The project
- * changed in place (its game.json's `languages` too); the files changed and the tables.
+ * changed in place (its game.json's `languages` too); the files changed and the tables. A language no text of the
+ * project has words in is refused (`refused`: nothing is changed, the tables as they were): writing the game in it
+ * would write the English fallback as its words and replace the translation tables it has. A new project asks for
+ * that fallback on purpose (`fallback`): it has no translations of its own to lose, and its words are written over.
  */
-export function switchSource(p: Project, to: string): { changed: string[]; tables: LocaleFile[] } {
+export function switchSource(p: Project, to: string, o: { fallback?: boolean } = {}): { changed: string[]; tables: LocaleFile[]; refused?: string } {
   const from = languagesOf(p.game)
   if (from.source === to) return { changed: [], tables: (p.locales ?? []).map((f) => f.data) }
   const inline = applyLocales({ ...p, game: { ...p.game, languages: { source: from.source, translations: [...new Set([...from.translations, to])] } } })
   inline.game.languages = { source: to, translations: [from.source, ...from.translations.filter((l) => l !== to)] }
+  if (!o.fallback && !hasWords(inline, to)) return { changed: [], tables: (p.locales ?? []).map((f) => structuredClone(f.data)), refused: to }
   const r = extractLocales(inline, [])
   // (back into the project given: its files and its game.json)
   const byFile = new Map(filesOf(inline).map((f) => [f.file, f.data]))

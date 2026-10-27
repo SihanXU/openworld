@@ -79,4 +79,22 @@ describe.skipIf(!STARTER)('the starter', () => {
     switchSource(p, 'en')
     expect(compile(p).bundle.rules).toEqual(before.bundle.rules)
   })
+
+  it('a language the project has no words in is refused: nothing is rewritten, the table stays', () => {
+    const p = english()
+    const before = structuredClone(p.locales ?? [])
+    const r = switchSource(p, 'ja')
+    expect(r).toMatchObject({ refused: 'ja', changed: [] })
+    expect(p.game.languages).toEqual({ source: 'en', translations: ['zh'] })
+    const zh = p.locales!.find((f) => f.data.language === 'zh')!
+    expect(Object.keys(zh.data.entries).length).toBe(Object.keys(before.find((f) => f.data.language === 'zh')!.data.entries).length)
+    // the project as it was: the same world, and the same files (a refused switch writes nothing)
+    expect(compile(p).bundle).toEqual(compile(english()).bundle)
+    // a language it declares but has no words in is refused too
+    const q = english()
+    q.game.languages = { source: 'en', translations: ['zh', 'ja'] }
+    q.locales!.push({ file: 'locales/ja.json', data: { language: 'ja', entries: {} } })
+    expect(switchSource(q, 'ja')).toMatchObject({ refused: 'ja', changed: [] })
+    expect(q.game.languages).toEqual({ source: 'en', translations: ['zh', 'ja'] })
+  })
 })
