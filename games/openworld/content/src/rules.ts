@@ -20,6 +20,7 @@ import { DRESSER_RULES } from './dresser.ts'
 import { FAITH_RULES } from './faith.ts'
 import { LOOSE, type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@openworld/engine'
 import { HUNGRY_BELOW } from '@openworld/modules'
+import { ELEMENTAL, unlessElemental } from './elements.ts'
 
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
 const L = (en: string, zh: string) => ({ en, zh })
@@ -603,7 +604,7 @@ const INSTRUMENTS: Rule[] = [
     doc: 'A document with something written in it (its text, text_zh), used on oneself, is read; one with nothing written is the world\'s to answer.',
     host: { type: 'item/document', tags: ['readable'] },
     on: 'act/use',
-    tree: IF(all({ same: ['actor', 'target'] }, { prop: { role: 'host', key: 'text' } }), DO({ op: 'log', text: '@line' }), 'inherit'),
+    tree: IF(all({ same: ['actor', 'target'] }, { prop: { role: 'host', key: 'text' } }), unlessElemental(ELEMENTAL('host'), DO({ op: 'log', text: '@line' })), 'inherit'),
   }),
   rule({
     id: 'use/read-skillbook',
@@ -728,21 +729,21 @@ const INSTRUMENTS: Rule[] = [
     doc: 'A blade used on something strikes it with a cutting edge — on a person only with the blade drawn (X: a blow on a person is meant).',
     host: { type: 'item/weapon/blade' },
     on: 'act/use',
-    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'cut', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', unlessElemental(ELEMENTAL('host'), DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'cut', ...WOUND })))),
   }),
   rule({
     id: 'use/polearm',
     doc: 'A spear or a halberd used on something strikes it with a point — on a person only with it drawn.',
     host: { type: 'item/weapon/polearm' },
     on: 'act/use',
-    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'pierce', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', unlessElemental(ELEMENTAL('host'), DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'pierce', ...WOUND })))),
   }),
   rule({
     id: 'use/weapon',
     doc: 'A weapon used on something strikes it — on a person only with it drawn.',
     host: { type: 'item/weapon' },
     on: 'act/use',
-    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', unlessElemental(ELEMENTAL('host'), DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND })))),
   }),
   rule({
     id: 'use/spell',
@@ -1966,10 +1967,11 @@ const GENERAL: Rule[] = [
       'inherit',
       IF(
         all(tag('item', 'fiber'), not(has('host', 'frozen'))),
-        AS(L('Bind {target} with {instrument}', '用{instrument}捆住{target}'), DO(add('frozen', 30), taken('contents'), vfx('dust'), log('{host} is lashed down with {item}.', '{host}被{item}捆住了。'))),
+        // (a creature of an element, a fire slime held out a rope: its own to answer, lashed down meanwhile)
+        unlessElemental(ELEMENTAL('host'), AS(L('Bind {target} with {instrument}', '用{instrument}捆住{target}'), DO(add('frozen', 30), taken('contents'), vfx('dust'), log('{host} is lashed down with {item}.', '{host}被{item}捆住了。')))),
         IF(
           tag('item', 'edible'),
-          AS(L('Feed {instrument} to {target}', '给{target}吃{instrument}'), DO(emit('notify', 'item', { what: 'eaten' }), { op: 'emote', mood: 'happy' }, vfx('sparkle'), log('{host} snaps up {item}.', '{host}一口吞下了{item}。'))),
+          unlessElemental(ELEMENTAL('host'), AS(L('Feed {instrument} to {target}', '给{target}吃{instrument}'), DO(emit('notify', 'item', { what: 'eaten' }), { op: 'emote', mood: 'happy' }, vfx('sparkle'), log('{host} snaps up {item}.', '{host}一口吞下了{item}。')))),
           'inherit',
         ),
       ),
@@ -1991,7 +1993,7 @@ const GENERAL: Rule[] = [
     tree: IF(
       any({ same: ['host', 'actor'] }, tag('host', 'animal')),
       'inherit',
-      DO(emit('strike', 'actor', { power: { prop: 'atk', of: 'host' }, edge: 'pierce' }), { op: 'foe' }, { op: 'emote', mood: 'angry' }, vfx('hit', 'actor'), log('{host} snaps at the outstretched hand!', '{host}朝伸来的手猛咬一口！')),
+      unlessElemental(ELEMENTAL('host'), DO(emit('strike', 'actor', { power: { prop: 'atk', of: 'host' }, edge: 'pierce' }), { op: 'foe' }, { op: 'emote', mood: 'angry' }, vfx('hit', 'actor'), log('{host} snaps at the outstretched hand!', '{host}朝伸来的手猛咬一口！'))),
     ),
   }),
   rule({
