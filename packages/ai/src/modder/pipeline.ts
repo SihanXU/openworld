@@ -19,6 +19,8 @@ import {
   buildModSpec,
   buildRequest,
   buildSandbox,
+  restoreLibrary,
+  withAside,
   closestTypes,
   holeKey,
   isDo,
@@ -57,6 +59,7 @@ import { auditOf, keepReflection, nodeSection, nodeStand, profileOf, reflectAfte
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
 import { audit, probe, type AuditResult } from '../checks/audit.ts'
 import { clipJson } from '../util.ts'
+import { researchConversation } from './research.ts'
 
 // (the backend's own failures are the models': kept exported here for the checks that read them from the pipeline)
 export { BACKEND_DOWN }
@@ -161,6 +164,7 @@ export class Modder {
   private idle: (() => void)[] = []
   /** Where each class of request is at each tier (GET /progress; progressKey), and that key of each request id. */
   private progress = new Map<string, ModProgress>()
+  private privateWork = new Map<string, Modder>()
   private requestKey = new Map<string, string>()
   /** An author's draft as it goes (GET /trace?id=): kept a while after it ends, for the chat to read. */
   private traces = new Map<string, { steps: TraceStep[]; done: boolean }>()
@@ -326,6 +330,13 @@ export class Modder {
     }
   }
 
+  /** A player conversation proposes bounded recipe data, without tools or library writes. */
+  async research(body: unknown) {
+    const why = this.down()
+    if (why || !this.backend) throw new Error(why || 'No model connected')
+    return researchConversation(this.backend, body)
+  }
+
   /**
    * A new thing the game's author asks for in a sentence (the editor's AI plan, M1): its type, made of what a player
    * can have (`had`, as the editor counts it in the author's game), with its icon. Nothing is committed: the author
@@ -446,6 +457,8 @@ export class Modder {
 
   /** Where a request is: waiting its turn, designing, finding, creating (undefined: not here, or done). */
   progressOf(requestId: string): ModProgress | undefined {
+    const local = this.privateWork.get(requestId)
+    if (local) return local.progressOf(requestId)
     const key = this.requestKey.get(requestId)
     return key ? this.progress.get(key) : undefined
   }
@@ -465,6 +478,15 @@ export class Modder {
   }
 
   private async resolveClass(req: ModRequest, body: ResolveBody, sig: Signature, profile: Profile): Promise<ResolveReply> {
+    const ws = body.workspace?.patches
+    const host = req.event.host?.type
+    const ownRules = [...(ws?.rules ?? []), ...(ws?.aside ?? []).map(a => a.rule)]
+    // The designer can consult the whole workspace, not just the held item. Once
+    // it contains private knowledge, even an ordinary action may refer to it.
+    // Keep the entire answer private rather than promoting an indirect reference.
+    const privateAct = ws?.types?.some(t => t.researched) || ownRules.some(r => r.source?.local) ||
+      !!(ws?.local?.types.length || ws?.local?.statuses.length)
+    if (privateAct) return this.privateEpisode(req, body.workspace!)
     const hit = this.cover(req, sig)
     if (hit) return hit
     // the same class already being worked on at this tier or a higher one: wait for it, then see whether it answers
@@ -480,7 +502,6 @@ export class Modder {
     if (base) return { patch: null, outcome: 'failed', diagnostics: [`answered by the base rule "${base}" here: the client's base rules are older than the service's`] }
     // the thing asked about is a kind only the asking client knows (its own patch, or one its save kept after the
     // library forgot it): an answer hosted on it could never be shared (the library refuses its host), so none is designed
-    const host = req.event.host?.type
     if (host && body.workspace?.patches?.types?.some((t) => t?.id === host) && !(host in this.opts.library.fullOntology().types))
       return { patch: null, outcome: 'failed', diagnostics: [`"${host}" is known only to this client (a kind of its own, or one its save kept): no answer for it can be shared`] }
     if (!this.opts.model) return { patch: null, outcome: 'unavailable' }
@@ -488,6 +509,53 @@ export class Modder {
     const why = this.down()
     if (why) return { patch: null, outcome: 'unavailable', diagnostics: [`model unavailable: ${why}`] }
     return this.track(inFlight(sig.key, tier), this.episode(req, body.workspace, sig, { profile }))
+  }
+
+  /** A researched form belongs to the asking save. Judge it in an in-memory fork and return
+   * a save-only patch; neither its definitions nor its episode/memory enter shared state.
+   */
+  private async privateEpisode(req: ModRequest, ws: ModWorkspace): Promise<ResolveReply> {
+    if (!this.backend) return { patch: null, outcome: 'unavailable' }
+    const why = this.down()
+    if (why) return { patch: null, outcome: 'unavailable', diagnostics: [`model unavailable: ${why}`] }
+    const release = await this.design.acquire(0)
+    try {
+      const library = this.opts.library.fork()
+      const known = library.fullOntology()
+      const p = ws.patches!
+      const definitions: Patch['artifacts'] = [
+        ...(p.types ?? []).filter(t => !(t.id in known.types)).map(type => ({ kind: 'type' as const, type })),
+        ...(p.statuses ?? []).filter(s => !(s.id in known.statuses)).map(status => ({ kind: 'status' as const, status })),
+      ]
+      if (definitions.length) {
+        const checked = library.commit({ artifacts: definitions })
+        if (!checked.ok) return { patch: null, outcome: 'failed', diagnostics: checked.result.errors }
+      }
+      // Client rules are replayed through the normal loader, including provisional branches
+      // set aside after a re-ask. They cannot redefine anything the canonical library owns.
+      const data = library.lib.toJSON()
+      const had = new Set(withAside(data).rules.map(r => r.id))
+      const restored = restoreLibrary(library.base, {
+        ...data, types: [], statuses: [],
+        rules: [...data.rules, ...p.rules.filter(r => !had.has(r.id))],
+        aside: [...(data.aside ?? []), ...(p.aside ?? []).filter(a => !had.has(a.rule.id))],
+      }, library.fullOntology(), library.protectedFacts)
+      const ordered = withAside(restored.toJSON())
+      for (const rule of ordered.rules) if (!had.has(rule.id)) {
+        // Keep an in-memory log too: coverage and a provisional rule's re-ask use it to
+        // find the patch being reused/replaced. Nothing in this fork is persisted.
+        const checked = library.commit({ artifacts: [{ kind: 'rule', rule }] })
+        if (!checked.ok) return { patch: null, outcome: 'failed', diagnostics: checked.result.errors }
+        if (ordered.aside.has(rule.id)) library.lib.setAside(rule.id)
+      }
+      const local = new Modder({ ...this.opts, library, model: this.backend, dry: true })
+      this.privateWork.set(req.id, local)
+      const reply = await local.resolve({ request: req }, 'live')
+      return { ...reply, episode: undefined, ...(reply.patch && { patch: { ...reply.patch, scope: 'save' } }) }
+    } finally {
+      this.privateWork.delete(req.id)
+      release()
+    }
   }
 
   private async track(key: string, p: Promise<ResolveReply>): Promise<ResolveReply> {
@@ -509,8 +577,11 @@ export class Modder {
     ep.outcome = 'covered'
     ep.rules = [c.rule]
     ep.patch = c.patch
-    state.recordEpisode(ep)
-    this.log(`${ep.id} covered by ${c.rule}: ${req.summary}`)
+    if (this.opts.dry) this.trials.set(req.id, ep)
+    else {
+      state.recordEpisode(ep)
+      this.log(`${ep.id} covered by ${c.rule}: ${req.summary}`)
+    }
     return { patch: c.patch, outcome: 'covered', episode: ep.id }
   }
 
@@ -879,6 +950,7 @@ export class Modder {
       library: lib,
       ontology: library.fullOntology(lib),
       base: library.ontology,
+      protectedFacts: library.protectedFacts,
       spec: buildModSpec(library.ontology, lib),
       revise: eo.revise ? { rules: replaces, notes: eo.revise.notes } : undefined,
     })
@@ -974,7 +1046,7 @@ export class Modder {
         if (!req?.scenario) return undefined
         const before = this.opts.library.fork((e) => !('patch' in e && e.request === req.id))
         if (before.covering(req)) return undefined // something else answers it now: no test of the harness
-        const repo = await offlineAgent().materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), base: before.ontology, spec: buildModSpec(before.ontology, before.lib) })
+        const repo = await offlineAgent().materializeWorld({ request: req, library: before.lib, ontology: before.fullOntology(), base: before.ontology, spec: buildModSpec(before.ontology, before.lib), protectedFacts: before.protectedFacts })
         // the task carries its own release: its workspace and its container go with it, whoever cleans up
         return { ...repo.task, terms: ep.terms, dispose: repo.dispose }
       },

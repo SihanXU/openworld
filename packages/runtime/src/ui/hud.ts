@@ -26,6 +26,7 @@ export interface HudSend {
   toggleSkillPanel(): void
   /** The talk panel (docs/npc-sandbox.md §2.9): a verb said, the talk closed. */
   talk(verb: string): void
+  research?(): void
   closeTalk(): void
 }
 
@@ -37,6 +38,7 @@ export class Hud {
   /** The development warning that no one learns (no model) is said once a session. */
   private warnedNoModder = false
   muted = (() => {
+    if (new URLSearchParams(location.search).get('muted') === '1') return true
     try {
       return localStorage.getItem('lsw.muted') === '1'
     } catch {
@@ -727,7 +729,7 @@ export class Hud {
     // their regard as ten hearts (hearts.ts): how near one is to their full regard
     const hearts = tk.affection === undefined ? '' : `<span class="hearts" title="${zh ? '好感' : 'Regard'} ${Math.round(tk.affection)}/100">${heartsOf(tk.affection).map((h) => `<i class="${h}"></i>`).join('')}</span>`
     $('#dName').innerHTML = `${esc(who ? tx(who.name) : tx(tk.name))} <span class="regard r-${esc(tx(tk.regard).replace(/\s/g, ''))}">${esc(tx(tk.regard))}</span>${hearts}${tk.grudge ? ` <span class="grudge">${esc(tx(tk.grudge))}</span>` : ''}${tk.bounty ? ` <span class="grudge">${zh ? '悬赏' : 'bounty'} ${tk.bounty}</span>` : ''}`
-    const verbs: TalkOption[] = [...tk.verbs, ...(tk.arrest ? [] : [{ id: 'bye', group: 'bye', label: { en: 'Goodbye.', zh: '再见。' } }])]
+    const verbs: TalkOption[] = [...tk.verbs, ...(!tk.arrest && this.send.research ? [{ id: 'research', group: 'other', label: { en: 'Discuss a new invention…', zh: '聊聊新配方……' } }] : []), ...(tk.arrest ? [] : [{ id: 'bye', group: 'bye', label: { en: 'Goodbye.', zh: '再见。' } }])]
     // the verbs in one grid of equal cells, each group's together in the order they come (the quests' first), the
     // numbers running on; goodbye takes the last cell, and the whole last row when it would sit there alone
     const cols = 2
@@ -741,6 +743,7 @@ export class Hud {
 
   /** A verb of the open talk, chosen (a click, or its number). */
   say(verb: string): void {
+    if (verb === 'research') return this.send.research?.()
     if (verb === 'bye') return this.send.closeTalk()
     this.send.talk(verb)
   }
@@ -749,7 +752,7 @@ export class Hud {
   sayNth(n: number): void {
     const tk = this.frame?.talk
     if (!tk) return
-    const verbs = [...tk.verbs.map((v) => v.id), ...(tk.arrest ? [] : ['bye'])]
+    const verbs = [...tk.verbs.map((v) => v.id), ...(!tk.arrest && this.send.research ? ['research'] : []), ...(tk.arrest ? [] : ['bye'])]
     const v = verbs[n - 1]
     if (v) this.say(v)
   }

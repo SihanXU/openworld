@@ -28,6 +28,8 @@ export type Artifact =
 
 export interface Patch {
   artifacts: Artifact[]
+  /** An answer owned by one save: never promoted into a shared library. */
+  scope?: 'save'
   note?: string
   author?: string
   /** Who started the chain it answers (the Threadbook's "you" or "the world"). */
@@ -133,7 +135,7 @@ export interface ModProvider {
 
 /** What the client knows that the service may not: its local patches. */
 export interface ModWorkspace {
-  patches?: { rules: Rule[]; types?: TypeDef[]; statuses?: StatusDef[] }
+  patches?: { rules: Rule[]; aside?: LibraryData['aside']; types?: TypeDef[]; statuses?: StatusDef[]; local?: { types: string[]; statuses: string[] } }
 }
 
 /** POST /resolve */
@@ -746,11 +748,12 @@ export class ModPort implements UndefinedSink {
     // a new thing made at hand or at a station from its makeup can be crafted at once (world-model.md §6.4)
     if (patch.artifacts.some((a) => a.kind === 'type')) for (const r of deriveRecipes(w.onto)) eng.recipes.set(r.id, r)
     const trigger = rec?.origin ?? patch.trigger ?? a0trigger(patch)
+    const local = patch.scope === 'save' ? { types: patch.artifacts.flatMap(a => a.kind === 'type' ? [a.type.id] : []), statuses: patch.artifacts.flatMap(a => a.kind === 'status' ? [a.status.id] : []) } : undefined
     for (const a of patch.artifacts) {
       if (a.kind !== 'rule') continue
       // a shared patch that answers a request of this game's (a revision of one's own) is credited to it
       const request = id ?? (answers && this.get(answers) ? answers : undefined)
-      const rule: Rule = { ...a.rule, source: { origin: 'patch', request, author: patch.author ?? 'manual', at: now, note: patch.note, trigger } }
+      const rule: Rule = { ...a.rule, source: { origin: 'patch', request, author: patch.author ?? 'manual', at: now, note: patch.note, trigger, ...(local && { local }) } }
       eng.lib.add(rule, now, replaces.find((old) => !eng.lib.rules.has(old)))
       ruleIds.push(rule.id)
     }
@@ -786,7 +789,7 @@ export class ModPort implements UndefinedSink {
   dismiss(id: string): void {
     const r = this.get(id)
     if (r) this.failed.add(askedAt(r))
-    this.fallback(id)
+    this.fallback(id, true)
   }
 }
 

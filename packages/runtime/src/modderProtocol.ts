@@ -3,7 +3,7 @@
 // from the page to the modder's worker and nowhere else — the engine's worker reaches the modder only through a
 // port that carries requests and answers, as it reaches a service over HTTP (modderLink.ts).
 
-import type { ModRequest, Ontology, ResolveBody, Rule } from '@openworld/engine'
+import type { ResearchRequest, ModRequest, Ontology, ResolveBody, Rule } from '@openworld/engine'
 
 /** Where the key is kept: this page's life only, or this browser (its storage, until the player forgets it). */
 export type Remember = 'session' | 'device'
@@ -62,6 +62,7 @@ export type FromModder = { t: 'status'; status: ModelStatus } | { t: 'reply'; id
 /** The engine's worker to the modder, over the port: what it asks a service at /health, /resolve, /progress, /patches, /fault. */
 export type LinkCall =
   | { id: number; op: 'health' }
+  | { id: number; op: 'research'; body: ResearchRequest }
   | { id: number; op: 'resolve'; body: ResolveBody }
   | { id: number; op: 'progress'; request: string }
   | { id: number; op: 'patches'; since: number }

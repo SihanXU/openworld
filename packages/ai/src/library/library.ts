@@ -251,6 +251,7 @@ export class WorldLibrary {
 
   /** replaces: patch rules this patch takes the place of (a revision), judged as if they were gone. */
   validate(patch: Patch, req?: ModRequest, ws?: ModWorkspace, replaces: string[] = []): ValidationResult {
+    if (patch?.scope === 'save') return { ok: false, errors: ['a save-only patch cannot enter the shared library'], warnings: [] }
     withTerrainTypes(this.ontology)
     // Public ontology and workspace data can change without a mutator or sequence bump.
     const artifacts = patch?.artifacts?.map((a) => a?.kind === 'rule' && a.rule ? { ...a, rule: { ...a.rule, tests: undefined } } : a)

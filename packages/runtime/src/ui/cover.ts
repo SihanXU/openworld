@@ -99,6 +99,8 @@ export class Cover {
     return !$('#intro').classList.contains('hidden')
   }
 
+  get starting(): boolean { return this.loading }
+
   async show(panel?: 'load'): Promise<void> {
     this.slots = await listSlots(this.world)
     this.panel = panel
@@ -228,7 +230,7 @@ export class Cover {
   /** One of the game's places behind the title (the `n`th). */
   private backdrop(n: number): void {
     const scene = game().cover?.scenes?.[n]
-    if (!scene || this.loading) return
+    if (!scene || !this.open || this.loading) return
     clearTimeout(this.next)
     this.scene = n
     this.drawn = false

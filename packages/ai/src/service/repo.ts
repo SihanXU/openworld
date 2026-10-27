@@ -46,6 +46,8 @@ export interface WorldRepoState {
   library: LibraryData
   /** patch rules this task may replace (a revision) */
   replaces: string[]
+  /** Protected story prefixes, identical to final library admission. */
+  protectedFacts?: string[]
 }
 
 export interface WorldRepo {
@@ -179,7 +181,7 @@ function issueOf(req: ModRequest, revise?: { rules: Rule[]; notes: string[] }, a
   ].join('\n')
 }
 
-type WorldOptions = { request: ModRequest; library: RuleLibrary; ontology: Ontology; base: Ontology; spec: ModSpec; revise?: { rules: string[]; notes: string[] }; audit?: { notes: string[]; draft: Patch }; isolation?: Isolation }
+type WorldOptions = { request: ModRequest; library: RuleLibrary; ontology: Ontology; base: Ontology; spec: ModSpec; protectedFacts?: string[]; revise?: { rules: string[]; notes: string[] }; audit?: { notes: string[]; draft: Patch }; isolation?: Isolation }
 
 /**
  * A world task in a container sees its workspace (written to), the engine's code (read-only)
@@ -224,7 +226,7 @@ async function worldRepo(dir: string, iso: Isolation, o: WorldOptions): Promise<
     'validate.mjs',
     `// the tests of this repository: the engine's validator on the rules under rules/patch/\nimport { spawnSync } from 'node:child_process'\nconst r = spawnSync(process.execPath, ${JSON.stringify([asSeen(TSX, iso), asSeen(VALIDATE_CLI, iso), '.'])}, { stdio: 'inherit' })\nprocess.exit(r.status ?? 1)\n`,
   )
-  const state: WorldRepoState = { request: o.request, ontology: o.base, library: lib.toJSON(), replaces: o.revise?.rules ?? [] }
+  const state: WorldRepoState = { request: o.request, ontology: o.base, library: lib.toJSON(), replaces: o.revise?.rules ?? [], protectedFacts: [...(o.protectedFacts ?? [])] }
   write(dir, '.lsw/state.json', JSON.stringify(state))
   const manifest = Object.fromEntries(DIRS.flatMap((d) => files(dir, d)).map((f) => [f, hash(readFileSync(join(dir, f), 'utf8'))]))
   write(dir, '.lsw/manifest.json', JSON.stringify(manifest))

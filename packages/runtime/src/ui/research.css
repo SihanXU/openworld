@@ -1,0 +1,34 @@
+/* Recipe discussion is a page of the NPC's existing parchment dialogue. */
+.dialog.researching { cursor: default; max-height: calc(100dvh - 155px); }
+.dialog.researching .dtext { min-width: 0; }
+.dialog.researching #dLine, .dialog.researching #dChoices, .dialog.researching #dMore { display: none !important; }
+#recipeResearch [hidden], #recipeResearch[hidden] { display: none !important; }
+#recipeResearch { font: 16px/1.55 var(--pixel); color: var(--ink-warm); }
+#recipeResearch .research-line { margin: 8px 0 14px; max-height: 115px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+#recipeResearch .research-error { color: #943a26; }
+#recipeResearch .research-composer { display: flex; align-items: stretch; gap: 8px; margin-top: 12px; }
+#recipeResearch textarea { flex: 1; min-width: 0; resize: none; box-sizing: border-box; border: 1px solid #b9a174; border-radius: 4px; padding: 10px 12px; background: #fffcf0b3; color: var(--ink-warm); font: inherit; line-height: 1.45; }
+#recipeResearch textarea::placeholder { color: #927b56; }
+#recipeResearch textarea:focus { outline: 2px solid #aa7d3b; outline-offset: 2px; }
+#recipeResearch button { font: 600 14px var(--pixel); color: var(--ink-warm); padding: 8px 14px; border: 1px solid #ad8756; border-radius: 4px; background: linear-gradient(#fff4d5, #e9d5a5); cursor: pointer; box-shadow: 0 2px 0 #b4915e; }
+#recipeResearch button:hover:not(:disabled) { background: #fff0be; }
+#recipeResearch button:disabled { opacity: .55; cursor: default; }
+#recipeResearch .research-actions { justify-content: flex-end; flex-wrap: wrap; margin-top: 14px; gap: 8px; }
+#recipeResearch .research-actions button:first-child { margin-right: auto; background: transparent; border-color: transparent; box-shadow: none; padding-left: 0; color: #826341; }
+#recipeResearch .research-recipe { border: 1px solid #c5a46d; border-left: 3px solid #aa7d3b; border-radius: 3px; background: #fffaf04d; padding: 12px 14px; }
+#recipeResearch .research-recipe-head { display: flex; align-items: center; gap: 10px; font-size: 20px; color: #73451f; }
+#recipeResearch small { display: block; color: #8b714a; font-size: 12px; line-height: 1.5; }
+#recipeResearch .research-ingredients { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 0; }
+#recipeResearch .research-ingredients > span { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; }
+#recipeResearch .research-icon { display: inline-grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; }
+#recipeResearch .research-recipe-head .research-icon { width: 40px; height: 40px; }
+#recipeResearch .research-icon canvas { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+@media (max-width: 600px), (max-height: 600px) {
+  .dialog.researching { bottom: 88px; overflow: auto; max-height: calc(100dvh - 112px); }
+  .dialog.researching.bust.own { padding-left: 92px; }
+  .dialog.researching .face.bust.own { width: 90px; height: 130px; }
+  .dialog.researching .face.bust.own canvas { width: 130px; height: 130px; margin-left: -20px; }
+  #recipeResearch .research-line { max-height: 90px; font-size: 14px; }
+  #recipeResearch .research-composer { flex-wrap: wrap; }
+  #recipeResearch textarea { flex-basis: 100%; }
+}

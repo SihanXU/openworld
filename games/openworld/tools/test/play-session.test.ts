@@ -288,4 +288,22 @@ describe('the world', () => {
       expect(eng.world.get('stone')!.tags?.includes('marked') ?? false).toBe(!declined)
     }
   })
+
+  it('the console choice Nothing happens also prevents a late answer replaying the declined act', () => {
+    const eng = meadow([{ key: 'stone', type: 'item/material/stone', x: 3, y: 3 }, { key: 'tree', type: 'fixture/nature/dead_tree', x: 3, y: 2 }])
+    eng.author(() => eng.world.place(eng.world.get('stone')!, { on: 'hand', holder: 'actor' }))
+    const port = new ModPort(eng)
+    port.provider = { resolve: () => new Promise(() => undefined) }
+    eng.act('use', 'actor', { e: 'tree' })
+    const id = port.asking!.id
+    port.dismiss(id)
+    const answer = { artifacts: [{ kind: 'rule' as const, rule: { id: 'patch/stone-dismiss-mark', host: { type: 'item/material/stone' }, on: 'act/use' as const, tree: { do: [{ op: 'addTag' as const, tag: 'marked' }] } } }] }
+    expect(port.submit(id, answer).ok).toBe(true)
+    expect(eng.lib.rules.has('patch/stone-dismiss-mark')).toBe(true)
+    expect(eng.world.get('stone')!.tags?.includes('marked') ?? false).toBe(false)
+    expect(eng.world.get('stone')!.frozenBy).toBeUndefined()
+    // The answer is learned for a later intentional use, rather than executed behind the player.
+    eng.act('use', 'actor', { e: 'tree' })
+    expect(eng.world.get('stone')!.tags?.includes('marked')).toBe(true)
+  })
 })

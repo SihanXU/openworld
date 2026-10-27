@@ -376,6 +376,14 @@
           "type": "number",
           "description": "The level its recipe asks (default 1): a maker above it makes it finer."
         },
+        "craftSkill": {
+          "type": "string",
+          "description": "A learned recipe keeps the skill gate of the craft it was developed from."
+        },
+        "researched": {
+          "type": "boolean",
+          "description": "Player research kept by this save even after its last specimen is used up."
+        },
         "tools": {
           "type": "array",
           "items": {

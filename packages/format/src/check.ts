@@ -2,7 +2,7 @@
 // References (types, maps, anchors, holders, aliases), sizes, portals, the rules (the patch validator's checks
 // that hold for base rules too; the root total; no ties) — each a Problem the editor's validation panel shows.
 
-import { EVENT_KINDS, RuleLibrary, faceCells, registeredModule, restoreLibrary, compareSpec, hostsOverlap, isRoot, kindCovers, leaves, specOf, validatePatch, type Cond, type Entity, type Ontology, type RawChunk, type Rule, type Selector, type Tree, type WorldIndex } from '@openworld/engine'
+import { EVENT_KINDS, RuleLibrary, ontologyWith, faceCells, registeredModule, restoreLibrary, compareSpec, hostsOverlap, isRoot, kindCovers, leaves, specOf, validatePatch, type Cond, type Entity, type Ontology, type RawChunk, type Rule, type Selector, type Tree, type WorldIndex } from '@openworld/engine'
 import { learnedOf } from './compile.ts'
 import type { Problem, Project } from './project.ts'
 import { filesSame, type Keep } from './texts.ts'
@@ -28,13 +28,16 @@ export function checkProject(p: Project, made: Made, keep?: Keep<CheckCache>): P
   const err = (code: string, message: string, file?: string, at?: string) => out.push({ level: 'error', code, message, ...(file && { file }), ...(at && { at }) })
   const warn = (code: string, message: string, file?: string, at?: string) => out.push({ level: 'warning', code, message, ...(file && { file }), ...(at && { at }) })
   const { ontology: onto, chunks, npcs } = made
+  // Shipped learned definitions are part of the playable world, while staying separate from base content.
+  const shipped = learnedOf((p.learned ?? []).map((f) => f.data))
+  const references = ontologyWith(onto, restoreLibrary([], { ...shipped, rules: [] }, onto))
   const fileOf = new Map(p.maps.map((f) => [f.data.map.id, f.file]))
   const mapOf = new Map(chunks.map((c) => [c.map.id, c.map]))
   const terrainOf = (map: string, x: number, y: number) => onto.terrains[p.game.terrainChars[mapOf.get(map)?.rows[y]?.[x] ?? ''] ?? '']
   const inBounds = (map: string, x: number, y: number) => { const m = mapOf.get(map); return !!m && x >= 0 && y >= 0 && x < m.width && y < m.height }
-  const knownType = (t: string) => !!onto.types[t] || (t.startsWith('tile/') && !!onto.terrains[t.slice(5)])
+  const knownType = (t: string) => !!references.types[t] || (t.startsWith('tile/') && !!onto.terrains[t.slice(5)])
   /** The nearest kind a type without a definition of its own is (the ontology resolves it by its prefixes). */
-  const kindOf = (t: string): string | undefined => { for (let k = t; k.includes('/'); ) { k = k.slice(0, k.lastIndexOf('/')); if (onto.types[k]) return k } return undefined }
+  const kindOf = (t: string): string | undefined => { for (let k = t; k.includes('/'); ) { k = k.slice(0, k.lastIndexOf('/')); if (references.types[k]) return k } return undefined }
   /** A thing's type: known, or of a known kind (a warning: it is only that kind), or unknown (an error). */
   const typed = (what: string, t: string, file?: string, at?: string) => {
     if (knownType(t)) return
@@ -152,8 +155,8 @@ export function checkProject(p: Project, made: Made, keep?: Keep<CheckCache>): P
   for (const m of missing) err('module', `the module "${m}" is not loaded here: import its package (the engine's official ones: @openworld/modules)`, 'game.json', 'modules')
   if (missing.length) return out
   // (the rules' problems as they were found, while the rules, the ontology's parts and game.json are as they were)
-  const ruleFiles = ['game.json', ...p.ontology.map((f) => f.file), ...p.rules.map((f) => f.file)]
-  const ofRules = keep?.cache.rules && filesSame(ruleFiles, keep.cache.rules.files, keep.same) ? keep.cache.rules.problems : ruleProblems(made.rules, onto, new Set(p.rules.flatMap((f) => f.data.map((r) => r.id))))
+  const ruleFiles = ['game.json', ...p.ontology.map((f) => f.file), ...p.rules.map((f) => f.file), ...(p.learned ?? []).map((f) => f.file)]
+  const ofRules = keep?.cache.rules && filesSame(ruleFiles, keep.cache.rules.files, keep.same) ? keep.cache.rules.problems : ruleProblems(made.rules, references, new Set(p.rules.flatMap((f) => f.data.map((r) => r.id))))
   if (keep) keep.cache.rules = { files: ruleFiles, problems: ofRules }
   out.push(...ofRules)
   // the patches it ships with: each must have its place in this library still (a hole that is still one)

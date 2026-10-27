@@ -5,7 +5,7 @@
 
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { RuleLibrary, tierOfRequest, validatePatch, ontologyWith } from '@openworld/engine'
+import { RuleLibrary, placePatch, validatePatch, ontologyWith } from '@openworld/engine'
 // the engine's official modules, which a world's ontology may name (docs/engine-split.md S3)
 import '@openworld/modules'
 import { collectPatch, type WorldRepoState } from './repo.ts'
@@ -15,20 +15,20 @@ const dir = resolve(process.argv[2] ?? '.')
 const state = JSON.parse(readFileSync(join(dir, '.lsw/state.json'), 'utf8')) as WorldRepoState
 const collected = collectPatch(dir)
 const { problems } = collected
-// the tier the question was asked at (the AI setting, design.md §13) is the harness's to set, as the place is
-const tier = tierOfRequest(state.request)
-const patch = collected.patch && tier !== 'medium'
-  ? { ...collected.patch, artifacts: collected.patch.artifacts.map((a) => (a.kind === 'rule' && a.rule && a.rule.tier === undefined ? { ...a, rule: { ...a.rule, tier } } : a)) }
-  : collected.patch
+const lib = RuleLibrary.fromJSON(state.library)
+for (const id of state.replaces) lib.remove(id)
+const ontology = state.ontology
+// The issue promises harness-owned placement. Use the same placement as final admission,
+// so a valid draft is not sent back to the agent for missing or stale location metadata.
+const patch = collected.patch
+  ? placePatch(collected.patch, state.request, { ontology: ontologyWith(ontology, lib), library: lib }).patch
+  : undefined
 const out: string[] = []
 if (!patch) out.push('FAIL: no rule added under rules/patch/ yet')
 for (const p of problems) out.push(`FAIL: ${p}`)
 if (patch) {
-  const lib = RuleLibrary.fromJSON(state.library)
-  for (const id of state.replaces) lib.remove(id)
-  const ontology = state.ontology
   // a world event's answer is held to the world's boundaries, as the commit and every client hold it
-  const res = validatePatch(patch, { ontology, library: lib, scenario: state.request.scenario, world: (state.request.origin ?? patch.trigger) === 'world' })
+  const res = validatePatch(patch, { ontology, library: lib, scenario: state.request.scenario, world: (state.request.origin ?? patch.trigger) === 'world', protectedFacts: state.protectedFacts })
   for (const e of res.errors) out.push(`FAIL: ${e}`)
   for (const w of res.warnings) out.push(`warning: ${w}`)
   if (!res.errors.length) {

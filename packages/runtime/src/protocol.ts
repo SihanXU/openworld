@@ -1,6 +1,6 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SceneCmd, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
+import type { ResearchDesign, AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SceneCmd, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
 import type { TransferProgress } from './transferQueue.ts'
 import type { SaveWithQuestions } from './saves.ts'
 
@@ -43,6 +43,9 @@ export class FishingInputLatch {
 
 export type ToWorker =
   | { t: 'skipLearning' }
+  | { t: 'researchAsk'; message: string }
+  | { t: 'researchConfirm'; token: string }
+  | { t: 'researchCancel' }
   | { t: 'init'; base: string; save?: SaveWithQuestions; library?: StoredLibrary; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any ('': none) */ modder?: string; /** the player's own modder, over this port (docs/byok.md; sent with the message) */ modderPort?: MessagePort; /** true: prefetch undefined acts the pointer rests on (?prefetch=1: at least the medium setting's) */ prefetch?: boolean; /** the player's AI setting (the engine's quality.ts) */ quality?: AiQuality; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos; /** a step of the story begun at once in a new game (the editor's "play from this scene") */ scene?: string }
   /**
    * The world behind the title (the cover's backdrop): a world of its own at a place of the game's and an hour, with no
@@ -226,6 +229,7 @@ export type FromWorker =
   | { t: 'art'; arts: { id: string; art: PixelArt }[] }
   /** The recipes of learned things (a patch's type made at hand or at a workbench from its makeup): the crafting panel lists them beside the content's. */
   | { t: 'recipes'; recipes: Recipe[] }
+  | { t: 'research'; who: string; reply: string; design?: ResearchDesign; token?: string; error?: boolean; made?: boolean }
   /** The modder is making things the world does not have yet; the act waits for them. */
   | { t: 'creating'; names: Text[] }
   | { t: 'error'; message: string }

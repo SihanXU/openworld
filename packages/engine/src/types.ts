@@ -80,6 +80,10 @@ export interface TypeDef {
   unlockedBy?: { fact: string; name: Text; level?: number }
   /** The level its recipe asks (default 1): a maker above it makes it finer. */
   craftLevel?: number
+  /** A learned recipe keeps the skill gate of the craft it was developed from. */
+  craftSkill?: string
+  /** Player research kept by this save even after its last specimen is used up. */
+  researched?: boolean
   /** Tools its making needs carried (tags: `tool:axe`), not used up (Elin's tool requirement). */
   tools?: string[]
   /** How many one making gives (a log splits into two planks); what one breaks back into is its share of the makeup. */
@@ -2071,6 +2075,8 @@ export type Expectation =
 
 export interface Provenance {
   origin: 'base' | 'patch'
+  /** Save-private rule and the definitions its patch brought, retained even without specimens. */
+  local?: { types: string[]; statuses: string[] }
   /** Who started the chain the patch answers: the player, or the world itself (design.md §5.11). */
   trigger?: 'player' | 'world'
   request?: string

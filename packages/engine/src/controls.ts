@@ -194,7 +194,13 @@ export class Controls {
     // only the storey aimed at (the one the player stands on): what is above or below is out of the
     // inputs' reach (its ground is the floor laid there; the cells' own make-up is the ground storey's)
     const storey = at.z ?? w.posOf(w.player)?.z ?? 0
-    const ok = (r: Ref) => { const p = w.refPos(r); return p?.map === at.map && (p.z ?? 0) === storey }
+    const ok = (r: Ref) => {
+      // A rendered frame can lag behind a pickup: held or stored items are no longer world targets.
+      const e = w.get(r.e)
+      if (e && e.place.on !== 'tile') return false
+      const p = w.refPos(r)
+      return p?.map === at.map && (p.z ?? 0) === storey
+    }
     // a cell drawn at the point (a tree's canopy) is named by any of its ids: it is what makes it up on top
     const cellOf = (r: Ref): Ref => {
       const c = !w.get(r.e) && parseCellId(r.e)

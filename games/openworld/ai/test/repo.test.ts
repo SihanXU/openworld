@@ -115,6 +115,39 @@ describe('a world task as a repository', () => {
     }
   })
 
+  it('places an unpositioned draft before the trusted repository check, as final admission does', { timeout: 120_000 }, async () => {
+    const lib = new RuleLibrary(BASE)
+    const repo = await materializeWorld({ request: offerRequest(), library: lib, ontology: onto, base: onto, spec: buildModSpec(onto, lib), isolation: 'none' })
+    try {
+      const { hole: _hole, at: _at, ...draft } = RULE
+      const file = join(repo.dir, 'rules/patch/stone-stills-creature.json')
+      writeFileSync(file, JSON.stringify(draft))
+      const checked = await repo.task.env.exec(repo.task.tests!.command, { timeoutMs: 120_000 })
+      expect(checked.code, checked.stdout).toBe(0)
+      expect(checked.stdout).toMatch(/resolved by patch\/stone-stills-creature/)
+      // Placement belongs to the harness; checking does not rewrite the agent's draft.
+      expect(JSON.parse(readFileSync(file, 'utf8')).hole).toBeUndefined()
+    } finally {
+      await repo.dispose()
+    }
+  })
+
+  it('checks the same protected story facts as final admission', { timeout: 120_000 }, async () => {
+    const lib = new RuleLibrary(BASE)
+    const repo = await materializeWorld({ request: offerRequest(), library: lib, ontology: onto, base: onto, spec: buildModSpec(onto, lib), protectedFacts: ['topic.first_seal'], isolation: 'none' })
+    try {
+      const draft = { ...RULE, tests: undefined, tree: { do: [
+        { op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'topic', value: 'first_seal' } },
+      ] } }
+      writeFileSync(join(repo.dir, 'rules/patch/stone-stills-creature.json'), JSON.stringify(draft))
+      const checked = await repo.task.env.exec(repo.task.tests!.command, { timeoutMs: 120_000 })
+      expect(checked.code, checked.stdout).toBe(1)
+      expect(checked.stdout).toContain('the story raises the topic "first_seal" itself')
+    } finally {
+      await repo.dispose()
+    }
+  })
+
   // where a Docker daemon answers (the Linux host): the boundary itself, not a description of it
   it.runIf(DOCKER)('in a container: the engine is read-only, the secrets and the network are out of reach, the validator runs', { timeout: 300_000 }, async () => {
     const lib = new RuleLibrary(BASE)

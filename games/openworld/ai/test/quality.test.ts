@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ModPort, PRESETS, RuleLibrary, buildSandbox, categoryOf, categoryOfRequest, placePatch, presetOf, qualityOf, tiersFrom, validatePatch, type AiQuality, type ModRequest, type Patch, type Rule, type Scenario, type Tier } from '@openworld/engine'
-import { Detector, Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, envelope, gatherProbes, recommendOf, withoutChains, workloadOf, type ChatOptions, type DetectRun } from '@openworld/ai'
+import { Detector, Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, envelope, gatherProbes, recommendOf, reviewUser, withoutChains, workloadOf, type ChatOptions, type DetectRun } from '@openworld/ai'
 import { BASE, DEAD_TREE, SLIME, STONE, onto, testModder } from './fixtures.ts'
 
 
@@ -167,6 +167,22 @@ describe('the workload of a tier', () => {
     expect(fixes).toHaveLength(1)
     expect(JSON.stringify(patch)).not.toMatch(/emit/)
     expect(withoutChains(patch).patch).toBe(patch)
+  })
+})
+
+describe('the reviewer sees tier boundaries', () => {
+  it('distinguishes a high-tier draft from lower-tier neighbours and base rules', () => {
+    const req = ask('high').req
+    const patch = placePatch(answer('patch/review-high', 'tap'), req).patch
+    const low = { ...ruleOf(placePatch(answer('patch/review-low', 'tap'), ask('low').req).patch), source: { origin: 'patch' as const } }
+    const medium = { ...ruleOf(placePatch(answer('patch/review-medium', 'tap'), ask('medium').req).patch), source: { origin: 'patch' as const } }
+    const text = reviewUser(req, patch, 'Tap.', [low, medium, BASE[0]])
+    const draft = text.split('\n').filter((line) => line.startsWith('{')).map((line) => JSON.parse(line)).find((r) => r.id === 'patch/review-high')
+    expect(draft?.tier).toBe('high')
+    expect(text).toContain('AI tier: high')
+    expect(text).toMatch(/patch\/review-low.*AI tier: low/)
+    expect(text).toMatch(/patch\/review-medium.*AI tier: medium/)
+    expect(text).toContain('base: all AI tiers')
   })
 })
 

@@ -1,7 +1,7 @@
 // What the world learned that the main thread shows: the recipes of learned things (a patch's type
 // with a station and a makeup is crafted like the content's own, world-model.md §6.4).
 
-import { deriveRecipes, everyThing, namesClash, newStatusProblems, newTypeProblems, type Engine, type Entity, type LibraryData, type ModPort, type Patch, type PatchLogEntry, type Recipe, type SaveData, type StatusDef, type TypeDef, type ValidationResult } from '@openworld/engine'
+import { withAside, deriveRecipes, everyThing, namesClash, newStatusProblems, newTypeProblems, type Engine, type Entity, type LibraryData, type ModPort, type Patch, type PatchLogEntry, type Recipe, type Rule, type SaveData, type StatusDef, type TypeDef, type ValidationResult } from '@openworld/engine'
 import { recipeById } from './game.ts'
 import type { StoredLibrary } from './protocol.ts'
 
@@ -117,28 +117,107 @@ export function forgetStatus(eng: Engine, id: string): boolean {
  * the statuses they have come back from the save's copy of the library. `kept` names them: they are this
  * save's, and are not written back to the shared library.
  */
-export function withKept(shared: LibraryData | undefined, save: SaveData | undefined): { library: LibraryData | undefined; kept: { types: string[]; statuses: string[] } } {
+export function withKept(shared: LibraryData | undefined, save: SaveData | undefined): { library: LibraryData | undefined; kept: { types: string[]; statuses: string[]; shadow?: PublicShadow } } {
   const own = save?.library
   const none = { types: [], statuses: [] }
-  if (!shared || !own) return { library: shared ?? own, kept: none }
+  if (!own) return { library: shared, kept: none }
+  const local = [...withAside(own).rules, ...own.log.flatMap(e => e.rule ? [e.rule] : [])].filter(r => r.source?.local)
+  const privateTypes = new Set([
+    ...own.types.filter(t => t.researched).map(t => t.id),
+    ...local.flatMap(r => r.source!.local!.types),
+  ])
+  const localTypes = new Set(privateTypes)
+  const localStatuses = new Set(local.flatMap(r => r.source!.local!.statuses))
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const t of own.types) if (localTypes.has(t.id)) for (const k of named(t).flatMap(kinds)) if (!localTypes.has(k)) (localTypes.add(k), (grew = true))
+  }
+  if (!shared) return { library: own, kept: {
+    types: own.types.filter(t => localTypes.has(t.id)).map(t => t.id),
+    statuses: own.statuses.filter(s => localStatuses.has(s.id)).map(s => s.id),
+  } }
   const entities = everyThing(save.state)
-  const missing = (own.types ?? []).filter((t) => !shared.types.some((x) => x.id === t.id))
-  const want = new Set(entities.flatMap((e) => kinds(e.type)))
+  const missing = own.types.filter(t => privateTypes.has(t.id) || !shared.types.some(x => x.id === t.id))
+  const want = new Set([...entities.flatMap(e => kinds(e.type)), ...[...localTypes].flatMap(kinds)])
   for (let grew = true; grew; ) {
     grew = false
     for (const t of missing) if (want.has(t.id)) for (const k of named(t).flatMap(kinds)) if (!want.has(k)) (want.add(k), (grew = true))
   }
-  const types = missing.filter((t) => want.has(t.id))
-  const had = new Set(entities.flatMap((e) => Object.keys(e.statuses ?? {})))
-  const statuses = (own.statuses ?? []).filter((s) => had.has(s.id) && !shared.statuses.some((x) => x.id === s.id))
-  if (!types.length && !statuses.length) return { library: shared, kept: none }
-  return { library: { ...shared, types: [...shared.types, ...types], statuses: [...shared.statuses, ...statuses] }, kept: { types: types.map((t) => t.id), statuses: statuses.map((s) => s.id) } }
+  const types = missing.filter(t => want.has(t.id))
+  const had = new Set([...entities.flatMap(e => Object.keys(e.statuses ?? {})), ...localStatuses])
+  const statuses = own.statuses.filter(s => had.has(s.id) && (localStatuses.has(s.id) || !shared.statuses.some(x => x.id === s.id)))
+  const privateIds = new Set(local.map(r => r.id))
+  const rules = own.rules.filter(r => privateIds.has(r.id))
+  const aside = (own.aside ?? []).filter(a => privateIds.has(a.rule.id))
+  // Keep canonical copies out of the active private game, but preserve them when
+  // publishing its shared snapshot. Otherwise another save would lose these ids.
+  const shadow = emptyShadow()
+  for (const r of shared.rules) if (privateIds.has(r.id)) shadow.rules.set(r.id, { rule: r })
+  for (const a of shared.aside ?? []) if (privateIds.has(a.rule.id)) shadow.rules.set(a.rule.id, { ...a, aside: true })
+  for (const t of shared.types) if (privateTypes.has(t.id)) shadow.types.set(t.id, t)
+  for (const s of shared.statuses) if (localStatuses.has(s.id)) shadow.statuses.set(s.id, s)
+  const privateEntry = (e: LibraryData['log'][number]) => !!((e.ruleId && privateIds.has(e.ruleId)) || (e.type && localTypes.has(e.type.id)) || (e.typeId && localTypes.has(e.typeId)) || (e.status && localStatuses.has(e.status.id)) || (e.statusId && localStatuses.has(e.statusId)))
+  if (!types.length && !statuses.length && !local.length) return { library: shared, kept: none }
+  return { library: {
+    ...shared,
+    rules: [...shared.rules.filter(r => !privateIds.has(r.id)), ...rules],
+    aside: [...(shared.aside ?? []).filter(a => !privateIds.has(a.rule.id)), ...aside],
+    types: [...shared.types.filter(t => !privateTypes.has(t.id)), ...types],
+    statuses: [...shared.statuses.filter(s => !localStatuses.has(s.id)), ...statuses],
+    log: [...shared.log.filter(e => !privateEntry(e)), ...own.log.filter(privateEntry)],
+    version: Math.max(shared.version, own.version),
+  }, kept: { types: types.map(t => t.id), statuses: statuses.map(s => s.id), ...((shadow.rules.size || shadow.types.size || shadow.statuses.size) && { shadow }) } }
 }
 
-/** The library as the shared store keeps it: without what only this save keeps (`withKept`). */
-export function sharedPart(lib: LibraryData, kept: { types: Set<string>; statuses: Set<string> }): LibraryData {
-  if (!kept.types.size && !kept.statuses.size) return lib
-  return { ...lib, types: lib.types.filter((t) => !kept.types.has(t.id)), statuses: lib.statuses.filter((s) => !kept.statuses.has(s.id)) }
+/** The shared snapshot excludes save-private rules, definitions and their history. */
+export function sharedPart(lib: LibraryData, kept: Kept): LibraryData {
+  const local = [...withAside(lib).rules, ...lib.log.flatMap(e => e.rule ? [e.rule] : [])].filter(r => r.source?.local)
+  const rules = new Set(local.map(r => r.id))
+  const types = new Set([...kept.types, ...lib.types.filter(t => t.researched).map(t => t.id), ...local.flatMap(r => r.source!.local!.types)])
+  const statuses = new Set([...kept.statuses, ...local.flatMap(r => r.source!.local!.statuses)])
+  if (!rules.size && !types.size && !statuses.size) return withPublicShadow(lib, kept.shadow)
+  return withPublicShadow({
+    ...lib,
+    rules: lib.rules.filter(r => !rules.has(r.id)),
+    aside: lib.aside?.filter(a => !rules.has(a.rule.id)).map(a => rules.has(a.after ?? '') ? { ...a, after: undefined } : a),
+    types: lib.types.filter(t => !types.has(t.id)), statuses: lib.statuses.filter(s => !statuses.has(s.id)),
+    log: lib.log.filter(e => !(e.ruleId && rules.has(e.ruleId)) && !(e.type && types.has(e.type.id)) && !(e.typeId && types.has(e.typeId)) && !(e.status && statuses.has(e.status.id)) && !(e.statusId && statuses.has(e.statusId))),
+  }, kept.shadow)
+}
+
+/** Public ids hidden by this save's private ids; never part of the save itself. */
+type PublicShadow = {
+  rules: Map<string, { rule: Rule; aside?: boolean; after?: string } | undefined>
+  types: Map<string, TypeDef | undefined>
+  statuses: Map<string, StatusDef | undefined>
+}
+const emptyShadow = (): PublicShadow => ({ rules: new Map(), types: new Map(), statuses: new Map() })
+
+function withPublicShadow(lib: LibraryData, shadow?: PublicShadow): LibraryData {
+  if (!shadow || (!shadow.rules.size && !shadow.types.size && !shadow.statuses.size)) return lib
+  const rules = [...shadow.rules.values()].filter(r => !!r)
+  return { ...lib,
+    rules: [...lib.rules.filter(r => !shadow.rules.has(r.id)), ...rules.filter(r => !r.aside).map(r => r.rule)],
+    aside: [...(lib.aside ?? []).filter(a => !shadow.rules.has(a.rule.id)), ...rules.filter(r => r.aside).map(({ rule, after }) => ({ rule, after }))],
+    types: [...lib.types.filter(t => !shadow.types.has(t.id)), ...[...shadow.types.values()].filter(t => !!t)],
+    statuses: [...lib.statuses.filter(s => !shadow.statuses.has(s.id)), ...[...shadow.statuses.values()].filter(s => !!s)],
+  }
+}
+
+/** A colliding public patch stays available to other saves, without changing this one. */
+function rememberPublic(kept: Kept, e: PatchLogEntry, collides: boolean): void {
+  if (!kept.shadow && !collides) return
+  const s = kept.shadow ??= emptyShadow()
+  if ('patch' in e) {
+    for (const id of e.replaces ?? []) if (collides || s.rules.has(id)) s.rules.set(id, undefined)
+    for (const a of e.patch.artifacts) {
+      if (a.kind === 'rule' && (collides || s.rules.has(a.rule.id))) s.rules.set(a.rule.id, { rule: { ...a.rule, source: { origin: 'patch', request: e.request, author: e.patch.author, at: e.at, note: e.patch.note, trigger: e.patch.trigger } } })
+      else if (a.kind === 'type' && (collides || s.types.has(a.type.id))) s.types.set(a.type.id, a.type)
+      else if (a.kind === 'status' && (collides || s.statuses.has(a.status.id))) s.statuses.set(a.status.id, a.status)
+    }
+  } else if ('remove' in e && (collides || s.rules.has(e.remove))) s.rules.set(e.remove, undefined)
+  else if ('removeType' in e && (collides || s.types.has(e.removeType))) s.types.set(e.removeType, undefined)
+  else if ('removeStatus' in e && (collides || s.statuses.has(e.removeStatus))) s.statuses.set(e.removeStatus, undefined)
 }
 
 /** An answer taken brings definitions from the library: what it brings that only this save kept is the library's again. Returns how to undo it, should the answer be refused. */
@@ -206,11 +285,21 @@ function makes(t: unknown): string[] {
 }
 
 /** What only one save keeps of the learned kinds (`withKept`). */
-export type Kept = { types: Set<string>; statuses: Set<string> }
+export type Kept = { types: Set<string>; statuses: Set<string>; shadow?: PublicShadow }
 
 /** Take a learned definition an answer brings anew, and make what it brings shared; both undone should the answer be refused. */
 export function adoptDefinitions(eng: Engine, kept: Kept, patch: Patch): { restore: () => void; done: () => void } {
   const took = takeDefinitions(eng, patch)
+  if (patch.scope === 'save') return {
+    restore: took.restore,
+    done: () => {
+      took.done().forEach(id => kept.types.add(id))
+      for (const a of patch.artifacts) {
+        if (a.kind === 'type') kept.types.add(a.type.id)
+        else if (a.kind === 'status') kept.statuses.add(a.status.id)
+      }
+    },
+  }
   const unshare = shareKept(kept, patch)
   return {
     restore: () => (took.restore(), unshare()),
@@ -282,6 +371,11 @@ export function takePatch(eng: Engine, kept: Kept, patch: Patch, submit: (patch:
  */
 export function takeLogEntries(eng: Engine, mods: Pick<ModPort, 'submit'>, kept: Kept, entries: unknown[], warn: (msg: string) => void = (m) => console.warn(m)): void {
   const lib = eng.lib
+  const data = lib.toJSON()
+  const local = [...withAside(data).rules, ...data.log.flatMap(e => e.rule ? [e.rule] : [])].filter(r => r.source?.local)
+  const privateRules = new Set(local.map(r => r.id))
+  const privateTypes = new Set([...lib.types.filter(t => t.researched).map(t => t.id), ...local.flatMap(r => r.source!.local!.types)])
+  const privateStatuses = new Set(local.flatMap(r => r.source!.local!.statuses))
   for (const raw of entries) {
     const problem = logEntryProblem(raw)
     const seq = isObject(raw) ? raw.seq : undefined
@@ -291,6 +385,15 @@ export function takeLogEntries(eng: Engine, mods: Pick<ModPort, 'submit'>, kept:
     }
     const e = raw as PatchLogEntry
     try {
+      if ('patch' in e && e.patch.scope === 'save') {
+        warn(`[library] a save-private patch cannot arrive through the shared log (${String(seq)})`)
+        continue
+      }
+      // A shared correction or rollback cannot overwrite an unrelated save-private id.
+      const collides = 'patch' in e ? e.patch.artifacts.some(a => a.kind === 'rule' ? privateRules.has(a.rule.id) : a.kind === 'type' ? privateTypes.has(a.type.id) : privateStatuses.has(a.status.id)) || e.replaces?.some(id => privateRules.has(id))
+        : 'remove' in e ? privateRules.has(e.remove) : 'removeType' in e ? privateTypes.has(e.removeType) : privateStatuses.has(e.removeStatus)
+      rememberPublic(kept, e, !!collides)
+      if (collides) continue
       // what the library forgot but a thing here needs is this save's from now on: not written back to the shared store
       if ('removeType' in e) forgetType(eng, e.removeType) || (lib.types.some((t) => t.id === e.removeType) && kept.types.add(e.removeType))
       else if ('removeStatus' in e) forgetStatus(eng, e.removeStatus) || (lib.statuses.some((s) => s.id === e.removeStatus) && kept.statuses.add(e.removeStatus))

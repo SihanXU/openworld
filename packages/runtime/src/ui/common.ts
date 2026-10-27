@@ -249,7 +249,7 @@ export const STRINGS: Record<string, [string, string]> = {
   aiCreateTip: ['Making kinds the world has none of: low not drawn, high drawn and checked', '造世界上没有的新东西：低档不画图，高档画完再检查'],
   aiPrefetch: ['Asking ahead', '预判'],
   aiPrefetchTip: ['Asking while you point at something, before you act (calls for acts you may never make)', '你指着东西时提前去问（可能为没做的事花调用）'],
-  aiWait: ['The world waits up to {s} s for an answer at every level. A higher level does more in that time — it sees more, thinks harder, checks before the answer ships — so a stronger model carries a higher one. Answers are kept by level: a higher one serves the levels below it too.', '每一档世界都最多等 {s} 秒。档位越高，AI 在这段时间里做得越多：看得更多、想得更深、发出前检查更多，所以模型越强，能开的档越高。答案按档位分开保存，高档的答案低档也能用。'],
+  aiWait: ['The world waits up to {s} s for an answer at every level. Creating or drawing a new kind may take up to two minutes; press Esc to continue playing sooner. A higher level does more in the answer time — it sees more, thinks harder, checks before the answer ships — so a stronger model carries a higher one. Answers are kept by level: a higher one serves the levels below it too.', '每一档世界都最多等 {s} 秒来回答互动；制造或绘制新物体时最多等两分钟，可以按 Esc 提前继续。档位越高，AI 在回答时做得越多：看得更多、想得更深、发出前检查更多，所以模型越强，能开的档越高。答案按档位分开保存，高档的答案低档也能用。'],
   aiNoService: ['No AI service connected: the setting still chooses which learned answers apply.', '未连接 AI 服务：设置仍决定用哪一档学到的答案。'],
   aiNoModel: ['The AI service has no model: it answers only from what was learned.', 'AI 服务没有接模型：只用已经学到的答案。'],
   aiModel: ['Model', '模型'],

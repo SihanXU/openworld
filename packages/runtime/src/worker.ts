@@ -1,12 +1,13 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
+import { researchCatalogue, researchPatch, trialResearch, readResearchReply, type ResearchDesign, type ResearchRequest } from '@openworld/engine'
 import { untilUp } from './untilUp.ts'
-import { portLink, serviceLink, type ModderLink } from './modderLink.ts'
+import { portLink, serviceLink, resolveForSave, type ModderLink } from './modderLink.ts'
 import { FrameEncoder } from './frameDelta.ts'
 import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
 import { adoptDefinitions, artsToSend, forgetInvalid, holdForMaking, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, LogPosition, type Kept } from './learned.ts'
-import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModRequest, type Patch, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look } from '@openworld/engine'
+import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModRequest, type Patch, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
 import { settleOpenQuestions, withOpenQuestions } from './saves.ts'
@@ -43,6 +44,67 @@ let handUp = false
 let panel: string | undefined
 /** The people's panels open (docs/npc-sandbox.md): the talk with someone (a guard's arrest), a merchant's trade, a person's pockets. */
 let talk: { who: string; arrest?: boolean } | undefined
+let researchBusy = false
+let researchSession: { owner: Game; who: string; history: ResearchRequest['history']; draft?: ResearchDesign; token?: string } | undefined
+
+function researchHere(owner: Game, who: string): boolean {
+  const w = owner.engine.world
+  const npc = w.get(who)
+  return game === owner && talk?.who === who && !talk.arrest && !!npc && owner.engine.inReach('hands', w.player, { e: npc.id }, undefined) && !owner.engine.busy(w.player)
+}
+
+async function askResearch(message: string): Promise<void> {
+  if (!game || !talk || !researchHere(game, talk.who)) return
+  if (researchBusy) {
+    post({ t: 'research', who: talk.who, error: true, reply: 'The previous request is still finishing. Please try again shortly. / 上一次请求尚未结束，请稍后重试。' })
+    return
+  }
+  const owner = game, who = talk.who
+  if (!researchSession || researchSession.owner !== owner || researchSession.who !== who) researchSession = { owner, who, history: [] }
+  const session = researchSession
+  session.draft = undefined
+  session.token = undefined
+  researchBusy = true
+  try {
+    if (owner.engine.quality.create === 'off') throw new Error('Recipe research is disabled in AI settings. / 新配方研制已关闭，请先在设置中开启 AI 造物。')
+    if (!link?.research || !modderOnline) throw new Error('Connect an AI model in settings to discuss a new recipe. / 请先在设置中连接 AI 模型。')
+    const catalogue = researchCatalogue(owner.engine)
+    const npc = owner.engine.world.get(who)!
+    const name = npc.name ?? owner.engine.world.onto.resolve(npc.type).name
+    const result = readResearchReply(await link.research({ npc: typeof name === 'string' ? name : name?.en ?? 'Craftsperson', message, history: session.history.slice(-8), catalogue }), catalogue)
+    if (researchSession !== session || !researchHere(owner, who)) return
+    session.history.push({ player: message, npc: result.reply })
+    session.history = session.history.slice(-8)
+    if (result.design) {
+      const token = crypto.randomUUID()
+      researchPatch(owner.engine, result.design, `${result.design.prototype}/invention_${token.replaceAll('-', '_')}`)
+      session.draft = result.design
+      session.token = token
+    }
+    post({ t: 'research', who, ...result, token: session.token })
+  } catch (err) {
+    if (researchSession === session && researchHere(owner, who)) post({ t: 'research', who, error: true, reply: (err as Error).message })
+  } finally { researchBusy = false }
+}
+
+function confirmResearch(token: string): void {
+  const s = researchSession
+  if (!s || researchBusy || !s.draft || !s.token || token !== s.token || !researchHere(s.owner, s.who)) return
+  const design = s.draft
+  // Consume the capability before doing work: double-clicks cannot manufacture twice.
+  s.token = undefined
+  try {
+    const id = `${design.prototype}/invention_${token.replaceAll('-', '_')}`
+    trialResearch(s.owner.engine, s.owner.mods, design, id)
+    kept.types.add(id)
+    s.draft = undefined
+    sendRecords(); sendRecipes()
+    post({ t: 'research', who: s.who, made: true, reply: 'Trial complete. The item is in your bag and its recipe is learned. / 试制成功！物品已放入背包，配方已学会。' })
+  } catch (err) {
+    s.token = crypto.randomUUID()
+    post({ t: 'research', who: s.who, error: true, reply: (err as Error).message, design, token: s.token })
+  }
+}
 let trade: string | undefined
 let pockets: string | undefined
 let gift: string | undefined
@@ -150,13 +212,13 @@ async function probeModder(live: () => boolean): Promise<boolean> {
     // a service with no model answers only from the shared library, which syncs here anyway:
     // asking it would only pause the world before the default, so the default runs at once
     if (health.model) {
-      game.mods.provider = { resolve: resolveRemote }
-      // an answer to our own question wins over a learned definition kept here, as a synced one does
-      game.mods.adopt = adoptAnswer
-      // a learned rule set aside here is reported: the service counts, and past its bound retires the rule for everyone
-      const to = link!
-      game.engine.onFault = (rule, reason) => to.fault(rule.id, reason)
-      game.mods.timeoutTicks = MODDER_TIMEOUT_TICKS
+      const owner = game, to = link!, ownKept = kept
+      owner.mods.provider = { resolve: request => resolveRemote(request, owner, to) }
+      // An answer and its definitions stay bound to the save that asked.
+      owner.mods.adopt = patch => adoptDefinitions(owner.engine, ownKept, patch)
+      // Private faults cannot retire a similarly named rule in another save's shared library.
+      owner.engine.onFault = (rule, reason) => { if (!rule.source?.local) to.fault(rule.id, reason) }
+      owner.mods.timeoutTicks = MODDER_TIMEOUT_TICKS
     }
     modderOnline = true
     post({ t: 'modder', online: true, url: link!.where, model: health.model })
@@ -176,16 +238,10 @@ function asks(): boolean {
   return modderOnline && !!game?.mods.provider
 }
 
-async function resolveRemote(request: ModRequest): Promise<Patch | null> {
-  const lib = game!.engine.lib
-  const body: ResolveBody = {
-    request,
-    workspace: { patches: { rules: lib.patches(), types: lib.types, statuses: lib.statuses } },
-  }
-  const watching = watchProgress(request.id)
+async function resolveRemote(request: ModRequest, owner = game!, to = link!): Promise<Patch | null> {
+  const watching = watchProgress(request.id, owner, to)
   try {
-    const reply = await link!.resolve(body)
-    return reply.patch
+    return await resolveForSave(owner.engine, to, () => game === owner && link === to, request)
   } finally {
     watching.stop()
   }
@@ -195,15 +251,15 @@ async function resolveRemote(request: ModRequest): Promise<Patch | null> {
  * While a request waits, ask the modder where it is. Once it is making things the world does not
  * have yet, the player's own act waits for them past the time-out (the player is told), until the patch comes.
  */
-function watchProgress(id: string): { stop: () => void } {
+function watchProgress(id: string, owner: Game, to: ModderLink): { stop: () => void } {
   let told = false
   const timer = setInterval(async () => {
     try {
-      const p = await link!.progress(id)
-      if (told || !game || (p.stage !== 'create' && p.stage !== 'art')) return
+      const p = await to.progress(id)
+      if (told || game !== owner || link !== to || (p.stage !== 'create' && p.stage !== 'art')) return
       told = true
       // (the player's own act only: a question of the world's keeps its time-out)
-      if (holdForMaking(game.mods, id)) post({ t: 'creating', names: p.creating ?? [] })
+      if (holdForMaking(owner.mods, id)) post({ t: 'creating', names: p.creating ?? [] })
     } catch {
       /* the reply still comes, or the request fails: either ends the wait */
     }
@@ -213,9 +269,6 @@ function watchProgress(id: string): { stop: () => void } {
 
 /** What only the save loaded keeps (learned kinds its things are of that the shared library forgot): never written back to it. */
 let kept: Kept = { types: new Set(), statuses: new Set() }
-
-/** Take a learned definition an answer brings anew, and make what it brings shared; both undone should the answer be refused. */
-const adoptAnswer = (patch: Patch): { restore: () => void; done: () => void } => adoptDefinitions(game!.engine, kept, patch)
 
 /** The recipes of learned things (derived from their makeup when a patch brings a type with a station), sent when they change. */
 let recipesSent = ''
@@ -252,14 +305,13 @@ function maybePrefetch(): void {
   if (++probe.ticks < PREFETCH[level].dwell || prefetched.has(probe.key) || game.engine.quality[categoryOf(game.engine.world, probe.ev)] === 'off') return
   prefetched.add(probe.key)
   prefetching = true
-  const eng = game.engine
+  const owner = game, to = link, ownKept = kept
+  const eng = owner.engine
   const request = buildRequest(eng, probe.ev, probe.res, `pre-${eng.world.state.tick.toString(36)}`)
-  resolveRemote(request)
+  resolveRemote(request, owner, to)
     .then((patch) => {
-      if (patch && game) {
-        // as any answer: a learned definition it brings anew replaces the one kept here
-        const mods = game.mods
-        takePatch(game.engine, kept, patch, (p) => mods.submit(undefined, p, request.scenario))
+      if (patch && game === owner && link === to) {
+        takePatch(owner.engine, ownKept, patch, p => owner.mods.submit(undefined, p, request.scenario))
       }
     })
     .catch(() => undefined)
@@ -269,8 +321,10 @@ function maybePrefetch(): void {
 /** Pull the shared library's patch log; every patch still goes through this engine's validator. */
 async function syncLibrary(): Promise<void> {
   if (!game || !link) return
+  const owner = game, to = link
   try {
-    const log = await link.patches(synced.seq)
+    const log = await to.patches(synced.seq)
+    if (game !== owner || link !== to) return
     // (a reply this client cannot read at all is as no reply: the next sync asks again)
     if (typeof log?.seq !== 'number' || !Array.isArray(log.entries)) throw new Error('not a patch log')
     // another log than the one we were in (the service started anew: it names another, or it is shorter than where we were): sync it from the start
@@ -766,7 +820,7 @@ async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, min
   }
   // the shared library, with what the save loaded keeps of its own though another game's sync forgot it
   const taken = withKept(init.library, init.save && !fresh && compatible ? init.save : undefined)
-  kept = { types: new Set(taken.kept.types), statuses: new Set(taken.kept.statuses) }
+  kept = { types: new Set(taken.kept.types), statuses: new Set(taken.kept.statuses), shadow: taken.kept.shadow }
   const lib = libraryFrom(taken.library ?? init.save?.library, index.protectedFacts)
   if (init.save && !fresh && compatible) {
     game = Game.load(init.save, index, ontology(), lib, played().upgradeSave)
@@ -1060,6 +1114,15 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'toggle':
         game?.engine.controls.toggle(m.what)
+        break
+      case 'researchAsk':
+        void askResearch(m.message)
+        break
+      case 'researchConfirm':
+        confirmResearch(m.token)
+        break
+      case 'researchCancel':
+        researchSession = undefined
         break
       case 'talk': {
         if (!game || !talk) break
