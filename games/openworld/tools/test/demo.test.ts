@@ -2091,6 +2091,19 @@ req('BR1', "a boss's room (docs/boss-rooms.md): past the burned farm the knight'
   expect(road.portals.filter((p) => p.to === 'kingdom').map((p) => p.y)).toEqual([...KINGDOM.rows])
   throughFog(f)
   expect(w.posOf(w.player)).toMatchObject({ map: 'kingdom', x: KINGDOM.arrive[0] })
+  // from either gate one walks into his field, up to his post
+  const reached = new Set<string>()
+  const queue: [number, number][] = [[KINGDOM.arrive[0], KINGDOM.arrive[1]]]
+  while (queue.length) {
+    const [x, y] = queue.pop()!
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const k = `${x + dx},${y + dy}`
+      if (reached.has(k) || !w.inBounds('kingdom', x + dx, y + dy) || !w.passable('kingdom', x + dx, y + dy)) continue
+      reached.add(k)
+      queue.push([x + dx, y + dy])
+    }
+  }
+  expect([reached.has(`${KINGDOM.knight[0] - 2},${KINGDOM.knight[1]}`), reached.has(`${KINGDOM.east - 1},${KINGDOM.rows[1]}`)]).toEqual([true, true])
   ticks(f, 400, () => !w.scene)
   // the fog is one's home now (one rises beside it); the fogs inside are sealed while he stands
   expect(w.player.props?.home).toBe(fogAt(f, 'eastroad')!.id)

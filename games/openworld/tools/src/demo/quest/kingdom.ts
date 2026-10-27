@@ -45,7 +45,8 @@ export function buildKingdom(): MapBuilder {
   for (let y = 1; y < m.h - 1; y++)
     for (let x = 1; x < m.w - 1; x++) {
       const d = Math.hypot((x - kx) / 1.35, y - ky)
-      if (d >= 10.3 && d < 11.4 && !gate(x, y) && m.get(x, y) !== 'tree' && m.get(x, y) !== 'pine') m.set(x, y, 'thornhedge')
+      // (open where the road runs through it, west and east: the way from each gate into the field)
+      if (d >= 10.3 && d < 11.4 && !(K.rows as readonly number[]).includes(y) && m.get(x, y) !== 'tree' && m.get(x, y) !== 'pine') m.set(x, y, 'thornhedge')
     }
   for (const x of [0, K.w - 1]) for (const y of K.rows) m.set(x, y, 'tree')
   // the broken shrine at its head where he keeps his post: an arch left standing, its columns, a fallen saint
