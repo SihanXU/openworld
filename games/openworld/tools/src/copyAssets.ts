@@ -37,9 +37,24 @@ export function catalogPaths(): string[] {
   return [...paths].filter((p) => !p.startsWith('lsw/')).sort()
 }
 
+/**
+ * Pack files no catalogue entry names but the project's own tools read from `na/`: the trailer's music
+ * (client/src/trailer/film.ts `MUSIC.file`) and the six item-and-weapon skill icons the gear-icon tool cuts
+ * (tools/src/art/gear-icons.ts `ICONS` plus the shield). They are copied too, so running this script does
+ * not delete them.
+ */
+export const KEEP = [
+  'Audio/Musics/1 - Adventure Begin.ogg',
+  'Ui/Skill Icon/Items & Weapon/Amulet.png',
+  'Ui/Skill Icon/Items & Weapon/Armor.png',
+  'Ui/Skill Icon/Items & Weapon/Boot.png',
+  'Ui/Skill Icon/Items & Weapon/Helmet.png',
+  'Ui/Skill Icon/Items & Weapon/Ring.png',
+]
+
 function main(): void {
   if (!existsSync(PACK)) throw new Error(`pack not found: ${PACK}`)
-  const paths = catalogPaths()
+  const paths = [...new Set([...catalogPaths(), ...KEEP])].sort()
   const missing = paths.filter((p) => !existsSync(join(PACK, p)))
   if (missing.length) {
     console.error('Missing files referenced by the catalogue:\n  ' + missing.join('\n  '))
@@ -56,4 +71,5 @@ function main(): void {
   console.log(`copied ${paths.length} files, ${(bytes / 1024 / 1024).toFixed(2)} MB -> ${OUT}`)
 }
 
-main()
+// run when this file is the command, not when a test imports its lists
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main()
