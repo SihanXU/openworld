@@ -51,6 +51,8 @@ let paused = false
 let backdropOn = false
 /** Which start is the latest: one begun before another finished loading gives way to it. */
 let generation = 0
+/** A start is loading: a backdrop asked meanwhile is not made. */
+let starting = false
 let buildAim: { id: string; tile: Tile; up?: boolean } | undefined
 let lastMap = ''
 let fetching = new Set<string>()
@@ -686,6 +688,8 @@ function loop(): void {
  * but is not drawn (loop). Its frames are only drawn.
  */
 async function backdrop(m: Extract<ToWorker, { t: 'backdrop' }>): Promise<void> {
+  // a start under way is the player's choice: the title's next place never cancels it
+  if (starting) return
   const mine = ++generation
   // the world before stops at once: nothing of it is sent while the next is made
   if (timer) clearInterval(timer)
@@ -731,6 +735,15 @@ async function backdrop(m: Extract<ToWorker, { t: 'backdrop' }>): Promise<void> 
 
 async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Promise<void> {
   const mine = ++generation
+  starting = true
+  try {
+    await begin(init, fresh, mine)
+  } finally {
+    if (mine === generation) starting = false
+  }
+}
+
+async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, mine: number): Promise<void> {
   backdropOn = false
   if (timer) clearInterval(timer)
   timer = undefined

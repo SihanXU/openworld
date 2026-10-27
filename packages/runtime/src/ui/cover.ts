@@ -176,7 +176,8 @@ export class Cover {
 
   /** The world behind has drawn: the veil over it lifts (once each time the title opens). */
   worldShown(): void {
-    if (this.drawn) return
+    // (while a slot loads the title's places stand still: a next one would cancel the start)
+    if (this.drawn || this.loading) return
     this.drawn = this.lit = true
     document.querySelector('#intro .cover')?.classList.add('lit')
     this.reveal()
@@ -184,10 +185,10 @@ export class Cover {
     const n = game().cover?.scenes?.length ?? 0
     clearTimeout(this.next)
     this.next = setTimeout(() => {
-      if (!this.open) return
+      if (!this.open || this.loading) return
       this.lit = false
       document.querySelector('#intro .cover')?.classList.remove('lit')
-      this.next = setTimeout(() => this.open && this.backdrop((this.scene + 1) % n), VEIL_MS)
+      this.next = setTimeout(() => this.open && !this.loading && this.backdrop((this.scene + 1) % n), VEIL_MS)
     }, SCENE_MS)
   }
 
@@ -208,6 +209,7 @@ export class Cover {
   /** The game behind is loading the chosen slot: the menu goes, the world behind darkens, the bar shows. */
   busy(): void {
     this.loading = true
+    clearTimeout(this.next)
     this.mark()
     $('#intro').querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.disabled = true))
     $('#intro').querySelector('.cv-status')!.textContent = t('cvLoading')
@@ -226,7 +228,7 @@ export class Cover {
   /** One of the game's places behind the title (the `n`th). */
   private backdrop(n: number): void {
     const scene = game().cover?.scenes?.[n]
-    if (!scene) return
+    if (!scene || this.loading) return
     clearTimeout(this.next)
     this.scene = n
     this.drawn = false
