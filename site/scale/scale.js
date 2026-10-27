@@ -371,7 +371,7 @@ function drawTitle(t) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
   ctx.font = `600 30px 'Pixelify Sans', 'Segoe UI', sans-serif`; ctx.fillStyle = '#f6d48d'
   ctx.globalAlpha = a * smooth((t - T.title - 0.4) / 0.5)
-  ctx.fillText(L('A WORLD WHOSE RULES ARE CODE', '一个规则即代码的世界'), 0, -130)
+  ctx.fillText(L('A PIXEL-ART OPEN-WORLD RPG', '像素风开放世界角色扮演'), 0, -130)
   ctx.globalAlpha = a
   ctx.font = `600 200px 'Pixelify Sans', 'Segoe UI', sans-serif`
   ctx.fillStyle = '#6b3d1f'; ctx.fillText('OpenWorld', 0, 8)

@@ -91,9 +91,8 @@
 .hero-inner { position: relative; z-index: 1; padding: calc(var(--nav-h) + 2rem) 1rem 6rem; max-width: 880px; width: 100%; min-width: 0; }
 .hero .label { color: rgba(255,255,255,0.8); }
 .hero h1 { font-size: clamp(3.5rem, 11vw, 8.5rem); line-height: 0.95; font-weight: 800; letter-spacing: -0.05em; margin: 0.6rem 0 1rem; text-shadow: 0 2px 30px rgba(0,0,0,0.25); }
-.hero .sub { font-size: clamp(1.1rem, 2.2vw, 1.45rem); color: rgba(255,255,255,0.92); margin: 0 auto; white-space: nowrap; }
-/* a phone has no room for it on one line: there it breaks, evenly */
-@media (max-width: 760px) { .hero .sub { white-space: normal; text-wrap: balance; max-width: 30ch; } }
+/* the line under the wordmark, big as Minecraft's */
+.hero .tagline { font-size: clamp(2rem, 4.6vw, 3.3rem); font-weight: 800; line-height: 1.1; letter-spacing: -0.03em; margin: 0 auto; text-shadow: 0 2px 24px rgba(0,0,0,0.35); }
 /* the pulse bar under the hero (base.css .scroll-bar), above the film */
 .hero .scroll-bar { z-index: 1; }
 .hero .scroll-bar:focus-visible { outline: 2px solid rgba(255,255,255,0.85); outline-offset: 4px; }
@@ -210,11 +209,11 @@ section.night { background: #05070d; color: #c9d4ea; }
 
 /* Chinese copy: retain the authored spaces and use the same web fonts across platforms. */
 html:lang(zh) [data-zh] { text-autospace: no-autospace; line-break: strict; }
-html:lang(zh) :is(.hero .sub, .band h2, .step h3, .post h3, .join h2) { letter-spacing: normal; line-height: 1.4; text-wrap: balance; }
+html:lang(zh) :is(.hero .tagline, .band h2, .step h3, .post h3, .join h2) { letter-spacing: normal; line-height: 1.4; text-wrap: balance; }
 html:lang(zh) :is(.label, .fact dt) { letter-spacing: normal; }
 html:lang(zh) :is(.intro .text p, .step p, .post p:not(.meta), .footer) { line-height: 1.8; text-wrap: pretty; }
 html:lang(zh) .intro .text { max-width: 32em; }
-html:lang(zh) .hero .sub { max-width: none; white-space: normal; }
+html:lang(zh) .hero .tagline { letter-spacing: 0.02em; }
 /* An inline block keeps a phrase together, but can reflow inside at enlarged text sizes. */
 .zh-unit { display: inline-block; max-width: 100%; vertical-align: bottom; }
 
