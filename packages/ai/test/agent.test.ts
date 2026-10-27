@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { CONTAINER_SETUP, HOOK_NODE, IMAGE_INIT, LocalEnv, OpenAICompatModel, PIN_BREACH, ScriptedModel, SelfState, agentTools, applyPreset, better, checkProposal, improve, reflectAfter, reflectAgent, inside, jsSearch, manifestOf, modelFromEnv, pinFromEnv, recordsOf, repositoryIn, runAgent, runInstances, solve, RELATED_CODE_HOOK, TESTS_PASS_HOOK, nodeFiles, sandboxImage, REPO, type AgentTask, type ChatMessage, type Episode, type TaskSource, type Files } from '../src/index.ts'
+import { CONTAINER_SETUP, HOOK_NODE, IMAGE_INIT, LocalEnv, OpenAICompatModel, PIN_BREACH, ScriptedModel, SelfState, agentTools, applyPreset, better, checkProposal, improve, AGENT_REFLECT_SYSTEM, nodeSkillName, reflectAfter, reflectAgent, inside, jsSearch, manifestOf, modelFromEnv, pinFromEnv, recordsOf, repositoryIn, runAgent, runInstances, solve, RELATED_CODE_HOOK, TESTS_PASS_HOOK, nodeFiles, sandboxImage, REPO, type AgentTask, type ChatMessage, type Episode, type TaskSource, type Files } from '../src/index.ts'
 
 /** A stand-in for the docker CLI (an image is a directory; exec runs here): the container path without Docker. */
 const FAKE_DOCKER = fileURLToPath(new URL('./fake-docker.mjs', import.meta.url))
@@ -164,54 +164,67 @@ describe('the agent loop', () => {
   })
 })
 
-describe('the middle loop, across kinds of task', () => {
-  /** The prompt each step of a task was given (the intro, where the lessons and skills are). */
-  const intros = (seen: string[]) => {
-    const base = engineer()
+describe('the middle loop: global rules, and one skill a kind of task', () => {
+  /** The prompt each step of a task was given (the intro, where the rules and skills are). */
+  const intros = (seen: string[], o: { fix?: boolean } = {}) => {
+    const base = engineer(o)
     return new ScriptedModel((messages, opts) => (seen.push(messages[1].content), base.chat(messages, opts)))
   }
   const section = (intro: string, title: string) => intro.split(`# ${title}`)[1].split('\n#')[0]
 
-  it('keeps a general lesson for every kind of task, and a codebase\'s lesson for its own kind', { timeout: 30_000 }, async () => {
+  it('files a rule under its kind of task, or as general for every task; never one about answering fast', { timeout: 30_000 }, async () => {
     const state = freshState()
     const r = await runAgent(task(bugRepo(), { kind: 'world-repo' }), { model: engineer(), state })
-    const reflection = { lessons: { add: [{ text: 'Run the whole test suite before submitting, not only the test you changed.', general: true }, { text: 'A rule writes only its host.', terms: ['kind:act/use'] }] }, skill: null }
-    await reflectAgent(r.episode, { model: new ScriptedModel(() => reflection), state })
-    expect(state.lessons().map((l) => l.terms)).toEqual([[], ['kind:act/use']])
+    const reflection = { rules: { add: [{ text: 'Run the whole test suite before submitting, not only the test you changed.', scope: 'general' }, { text: 'A rule writes only its host.', scope: 'kind' }] }, notes: [], skill: null }
+    await reflectAgent(r.episode, { model: new ScriptedModel(() => reflection), state, kindTerm: 'task:world' })
+    expect(state.lessons().map((l) => l.terms)).toEqual([[], ['task:world']])
     const seen: string[] = []
     await runAgent(task(bugRepo(), { kind: 'swe' }), { model: intros(seen), state, record: false })
     const shown = section(seen[0], 'Lessons from your past work')
     expect(shown).toContain('Run the whole test suite')
     expect(shown).not.toContain('writes only its host')
+    expect(AGENT_REFLECT_SYSTEM).toMatch(/A rule about a time limit, or about answering fast, is never general/)
   })
 
-  it('lists a task the skills its terms call for, and the general ones', { timeout: 30_000 }, async () => {
+  it('keeps notes on a kind of task until it has recurred and gone wrong, then writes its one skill from them', { timeout: 60_000 }, async () => {
+    const state = freshState()
+    const asked: string[] = []
+    const model = new ScriptedModel((messages) => (asked.push(messages[1].content), { rules: {}, notes: ['add() lives in src/add.mjs.'], skill: { description: 'arithmetic bugs in src', body: '1. Read src/add.mjs.\n2. Fix the operator.\n3. Run the tests.' } }))
+    // a first submission that fails its tests each time: something went wrong to learn from
+    for (let i = 0; i < 3; i++) {
+      const r = await runAgent(task(bugRepo()), { model: engineer({ submitEarly: true }), state })
+      await reflectAgent(r.episode, { model, state })
+      if (i < 2) expect(state.skills()).toEqual([]) // fewer than three of its kind: the note waits on the node
+    }
+    expect(asked[0]).toContain('## This kind of task: kind:mini (1 task(s) so far)')
+    expect(asked[2]).toContain('Write its skill now')
+    expect(asked[2]).toContain('- add() lives in src/add.mjs.')
+    expect(state.skills().map((s) => [s.name, s.node, s.triggers])).toEqual([[nodeSkillName('kind:mini'), 'kind:mini', []]])
+    expect(state.pendingAt('kind:mini')).toEqual([])
+    // its own kind of task lists it first; another kind does not see it
+    const mine: string[] = []
+    await runAgent(task(bugRepo()), { model: intros(mine), state, record: false })
+    expect(section(mine[0], 'Your skills (read_skill)')).toContain(`${nodeSkillName('kind:mini')} (this kind of task's own: read it first)`)
+    const swe: string[] = []
+    await runAgent(task(bugRepo(), { kind: 'swe' }), { model: intros(swe), state, record: false })
+    expect(section(swe[0], 'Your skills (read_skill)')).not.toContain(nodeSkillName('kind:mini'))
+  })
+
+  it('lists a general skill on every task, and an older skill by its triggers', () => {
     const state = freshState()
     state.writeSkill({ name: 'item-on-ground', description: 'a portable item used on a ground tile', triggers: ['kind:act/use', 'target#ground'], body: '1. lay it down' }, 'E1')
     state.writeSkill({ name: 'bisect-a-failure', description: 'narrow a failing test to the change that broke it', triggers: [], body: '1. git bisect' }, 'E2')
-    const seen: string[] = []
-    await runAgent(task(bugRepo(), { kind: 'swe' }), { model: intros(seen), state, record: false })
-    const listed = section(seen[0], 'Your skills (read_skill)')
-    expect(listed).toContain('bisect-a-failure')
-    expect(listed).not.toContain('item-on-ground')
-    const world: string[] = []
-    await runAgent(task(bugRepo(), { kind: 'world-repo', terms: ['kind:act/use', 'target#ground'] }), { model: intros(world), state, record: false })
-    expect(section(world[0], 'Your skills (read_skill)')).toContain('item-on-ground')
-    expect(state.relevantSkills(['kind:swe']).map((s) => s.name)).toEqual(['bisect-a-failure'])
-  })
-
-  it('writes a general skill with no triggers', async () => {
-    const state = freshState()
-    for (let i = 0; i < 4; i++) state.recordEpisode({ ...(await runAgent(task(bugRepo()), { model: engineer(), state, record: false })).episode, id: `E${i}` })
-    const ep = state.episode('E3')!
-    await reflectAgent(ep, { model: new ScriptedModel(() => ({ lessons: {}, skill: { name: 'read-then-edit', description: 'read a file before editing it', general: true, body: '1. read 2. edit' } })), state })
-    expect(state.skill('read-then-edit')?.triggers).toEqual([])
+    state.writeSkill({ name: nodeSkillName('kind:engine'), node: 'kind:engine', description: 'engine tasks', triggers: [], body: '1. types first' }, 'E3')
+    expect(state.relevantSkills(['kind:swe'], 'kind:swe').map((s) => s.name)).toEqual(['bisect-a-failure'])
+    expect(state.relevantSkills(['kind:act/use', 'target#ground'], 'x').map((s) => s.name)).toEqual(['item-on-ground', 'bisect-a-failure'])
+    expect(state.relevantSkills(['kind:engine'], 'kind:engine').map((s) => s.name)).toEqual(['bisect-a-failure', nodeSkillName('kind:engine')])
+    expect(nodeSkillName('impulse/strike|core/strike|fixture/furniture|actor/person')).not.toBe(nodeSkillName('impulse/strike|core/strike|fixture/furniture|actor/creature'))
   })
 
   it('reflects after a recorded task, unless the backend failed it', async () => {
     const state = freshState()
     let asked = 0
-    const model = new ScriptedModel(() => (asked++, { lessons: { add: [{ text: 'Read the failing assertion first.', general: true }] }, skill: null }))
+    const model = new ScriptedModel(() => (asked++, { rules: { add: [{ text: 'Read the failing assertion first.', scope: 'general' }] }, notes: [], skill: null }))
     const r = await runAgent(task(bugRepo()), { model: engineer(), state })
     await reflectAfter({ ...r.episode, outcome: 'failed', error: 'HTTP 429: rate limit' }, { model, state })
     expect(asked).toBe(0)

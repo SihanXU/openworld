@@ -6,7 +6,7 @@ import type { AddressInfo } from 'node:net'
 import { Server } from 'node:http'
 import { describe, expect, it } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, holeKey, patchKey, placePatch, restoreLibrary, validatePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree, type Cond, type Effect } from '@openworld/engine'
-import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, qualifyTerrains, scriptFromFile, stationFromRules, normalizePatch, signatureOf, type ChatMessage, type ChatOptions, type Model, type Script } from '@openworld/ai'
+import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, qualifyTerrains, scriptFromFile, stationFromRules, normalizePatch, nodeSkillName, signatureOf, skillNodeOf, type ChatMessage, type ChatOptions, type Model, type Script } from '@openworld/ai'
 import { BASE, SLIME, SLOW, jsonOffline, noAudit, offerRequest, onto, testModder, useRequest } from './fixtures.ts'
 
 function listening(server: Server): Promise<void> {
@@ -332,42 +332,48 @@ describe('the modder pipeline', () => {
     expect(library.lib.rules.has('patch/stone-stills-slime')).toBe(false)
   })
 
-  it('writes a skill once work recurs, offers it, and books its outcomes', async () => {
-    const skill = { name: 'Still with stone', description: 'Weighing things down with stone-like items.', triggers: ['item#stone'], body: '1. Host the rule on the creature\'s own type; select the item by the stone tag.\n2. Freeze the host for a while; take the stone into it (emit taken to the item).' }
-    let reads = 0
-    const calls = { design: 0 }
+  it('keeps notes on a kind of request until it recurs, then writes its one skill from them, shows it whole, and books it', async () => {
+    const skill = { description: 'Weighing a creature down with a stone-like item.', body: '1. Host the rule on the creature\'s own type; select the item by the stone tag.\n2. Freeze the host for a while; take the stone into it (emit taken to the item).' }
+    const prompts: string[] = []
     const model = new ScriptedModel((messages, opts) => {
-      const last = messages[messages.length - 1]
       if (opts.purpose === 'review') return { verdict: 'ship' }
-      if (opts.purpose === 'reflect') return { lessons: {}, skill }
-      calls.design++
+      if (opts.purpose === 'reflect') return (prompts.push(messages[1].content), { rules: {}, notes: ['A stone goes into the creature it stills.'], skill })
       const user = messages.find((m, i) => i > 0 && m.role === 'user')!.content
-      if (last.role === 'user' && user.includes('- still-with-stone:')) return { content: '', toolCalls: [{ id: `r${++reads}`, name: 'read_skill', args: { name: 'still-with-stone' } }] }
+      prompts.push(user)
       // write the rule for the host's own type (a learned rule is one type's)
       const type = /"host":\{"role":"host"[^}]*?"type":"([^"]+)"/.exec(user)![1]
       return { patch: patchOf(bindRule(`patch/stone-stills-${type.split('/').pop()}`, type)) }
     })
     const { modder, state } = setup(model)
-    state.setHarness({ ...state.harness(), reflect: { enabled: true, skillMinRecurrence: 1 } }, 'test: skills after one similar episode')
+    state.setHarness({ ...state.harness(), reflect: { enabled: true, skillMinRecurrence: 2 } }, 'test: a skill after two tasks of a kind')
+    const node = skillNodeOf(offerRequest())
+    expect(node).toBe('impulse/offered|core/offered|actor/creature|item/material')
 
     await modder.resolve({ request: offerRequest() })
     await modder.settled()
-    expect(state.skills()).toHaveLength(0) // nothing similar before: no skill yet
+    // once: no skill, what it taught is kept on its node
+    expect(state.skills()).toHaveLength(0)
+    expect(state.pendingAt(node).map((n) => n.text)).toEqual(['A stone goes into the creature it stills.'])
 
+    // a wolf is the same kind of request (a creature, a stone): twice now, with a note on file, so its skill is written
     await modder.resolve({ request: offerRequest('actor/creature/beast/wolf') })
     await modder.settled()
-    expect(state.skills().map((s) => s.name)).toEqual(['still-with-stone'])
-    expect(readFileSync(join(state.dir, 'skills/still-with-stone/SKILL.md'), 'utf8')).toMatch(/^---\nname: still-with-stone/)
+    expect(prompts.at(-1)).toContain('Write its skill now')
+    expect(state.skills().map((s) => [s.name, s.node])).toEqual([[nodeSkillName(node), node]])
+    expect(state.pendingAt(node)).toEqual([])
+    expect(readFileSync(join(state.dir, `skills/${nodeSkillName(node)}/SKILL.md`), 'utf8')).toMatch(new RegExp(`^---\nname: ${nodeSkillName(node)}\n[^]*node: ${node.replace(/[|/]/g, '\\$&')}`))
 
-    const third = await modder.resolve({ request: offerRequest('actor/creature/beast/wolf', 'item/material/stone') })
-    // the wolf's rule covers the next wolf; a new type then: another kind of creature, the same stone
-    expect(third.outcome).toBe('covered')
+    // another creature: the skill is in its design whole, read without a tool, booked, and rewritten after (not a second one)
     const golem = Object.keys(onto.types).find((t) => t.startsWith('actor/creature/') && !t.startsWith('actor/creature/slime') && !t.startsWith('actor/creature/beast') && !Object.keys(onto.types).some((o) => o.startsWith(t + '/')))!
-    const r4 = await modder.resolve({ request: offerRequest(golem) })
-    expect(state.episode(r4.episode!)!.skillsRead).toEqual(['still-with-stone'])
-    expect(state.skill('still-with-stone')).toMatchObject({ uses: 1, accepted: 1 })
+    const r = await modder.resolve({ request: offerRequest(golem) })
+    expect(prompts.find((p) => p.includes(`"type":"${golem}"`) && p.includes('# Request'))).toContain(`# Your skill for this kind of request (${nodeSkillName(node)})\n1. Host the rule`)
+    expect(state.episode(r.episode!)!.skillsRead).toEqual([nodeSkillName(node)])
+    expect(state.skill(nodeSkillName(node))).toMatchObject({ uses: 1, accepted: 1 })
     await modder.settled()
-    expect(state.skill('still-with-stone')!.version).toBe(2) // revised by name after use
+    expect(state.skills()).toHaveLength(1)
+    expect(state.skill(nodeSkillName(node))!.version).toBe(2)
+    // and another kind of request (a shovel is a tool, not a material) has no skill shown
+    expect(state.relevantSkills([], skillNodeOf(offerRequest(undefined, 'item/tool/shovel')))).toEqual([])
   })
 
   it('snapshots the self-state and renders it as one transferable document', async () => {

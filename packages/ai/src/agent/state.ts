@@ -70,6 +70,8 @@ export interface Episode<Req = unknown, P = unknown> {
   request: Req
   key: string
   terms: string[]
+  /** The kind of task it is, for its skill: one skill a node (a world request's, request.ts `skillNodeOf`; else `kind:<kind>`). */
+  node?: string
   outcome: Outcome
   attempts: Attempt<P>[]
   tools: { name: string; args: unknown; ms: number }[]
@@ -101,6 +103,7 @@ export interface EpisodeEntry {
   kind?: string
   key: string
   terms: string[]
+  node?: string
   summary: string
   outcome: Outcome
   rules: string[]
@@ -124,8 +127,10 @@ export interface Lesson {
 export interface SkillMeta {
   name: string
   description: string
-  /** Signature terms that suggest the skill. */
+  /** Signature terms that suggest the skill (a skill of a node has none: its node says where it applies). */
   triggers: string[]
+  /** The kind of task it is the skill of (one a node); none: an older skill, shown by its triggers. */
+  node?: string
   version: number
   status: 'active' | 'retired'
   created: string
@@ -286,6 +291,24 @@ export function auditOf(h: Harness): AuditConfig {
 
 /** A skill is retired once it has been used this often and does clearly worse than the average episode. */
 const RETIRE_AFTER_USES = 6
+/** Notes kept on a kind of task with no skill yet (the latest). */
+const PENDING_MAX = 10
+/** A skill is rewritten whole each time: at most this many lines (merged, not appended to). */
+export const SKILL_MAX_LINES = 40
+
+/** A note on a kind of task with no skill yet. */
+export interface PendingNote {
+  text: string
+  episode: string
+  at: string
+}
+
+/** The name of a node's skill: the node as a file name, with a hash of it (names are cut short: two nodes never share one). */
+export function nodeSkillName(node: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < node.length; i++) h = Math.imul(h ^ node.charCodeAt(i), 0x01000193) >>> 0
+  return `${safeName(node.replace(/[|/:]+/g, '-')).slice(0, 39).replace(/-+$/, '')}-${h.toString(36).padStart(7, '0').slice(-7)}`
+}
 const RETIRE_MARGIN = 0.2
 
 // ---------------------------------------------------------------- the store
@@ -294,6 +317,7 @@ export class SelfState {
   private index: EpisodeEntry[] = []
   private lessonList: Lesson[] = []
   private skillIndex: Record<string, SkillMeta> = {}
+  private pending: Record<string, PendingNote[]> = {}
   private harnessData: Harness = structuredClone(DEFAULT_HARNESS)
   /** USD spent after replies: reviews, reflections, the outer loop (episodes carry their own). */
   private backgroundSpend = 0
@@ -332,6 +356,7 @@ export class SelfState {
       s.backgroundSpend += j.usage?.cost ?? 0
     s.lessonList = readJson(fs, fs.join(dir, 'memory/lessons.json'), [])
     s.skillIndex = readJson(fs, fs.join(dir, 'skills/index.json'), {})
+    s.pending = readJson(fs, fs.join(dir, 'memory/pending.json'), {})
     const h = fs.join(dir, 'harness/pipeline.json')
     if (fs.exists(h)) s.harnessData = mergeHarness(readJson<Partial<Harness>>(fs, h, {}))
     else {
@@ -395,6 +420,7 @@ export class SelfState {
       at: ep.at,
       key: ep.key,
       terms: ep.terms,
+      ...(ep.node && { node: ep.node }),
       kind: ep.kind,
       summary: ep.summary,
       outcome: ep.outcome,
@@ -525,10 +551,49 @@ export class SelfState {
     return Object.values(this.skillIndex).filter((s) => all || s.status === 'active')
   }
 
-  /** The active skills a task with these terms is shown: those whose triggers it has, and the general ones (no triggers). */
-  relevantSkills(terms: string[]): SkillMeta[] {
+  /**
+   * The active skills a task is shown: its node's (one at most), the general ones (no node, no triggers), and an
+   * older skill (no node) whose triggers it has.
+   */
+  relevantSkills(terms: string[], node?: string): SkillMeta[] {
     const set = new Set(terms)
-    return this.skills().filter((s) => !s.triggers?.length || s.triggers.some((t) => set.has(t)))
+    return this.skills().filter((s) => (s.node ? s.node === node : !s.triggers?.length || s.triggers.some((t) => set.has(t))))
+  }
+
+  /** The skill of a kind of task, if it has one. */
+  skillAt(node: string): SkillMeta | undefined {
+    return this.skills().find((s) => s.node === node)
+  }
+
+  /** The tasks of a node so far (cache hits aside). */
+  nodeEpisodes(node: string): number {
+    return this.index.filter((e) => e.node === node && e.outcome !== 'covered').length
+  }
+
+  // ---------------------------------------------------------------- notes on a kind of task with no skill yet
+
+  /** What was learned about a kind of task before it has a skill: kept on its node, written into the skill when one is made. */
+  pendingAt(node: string): PendingNote[] {
+    if (this.ablated.has('memory')) return []
+    return this.pending[node] ?? []
+  }
+
+  addPending(node: string, texts: string[], episode: string): void {
+    const now = this.now()
+    const kept = this.pending[node] ?? []
+    for (const t of texts.map((x) => String(x ?? '').trim()).filter(Boolean)) if (!kept.some((k) => k.text === t)) kept.push({ text: t, episode, at: now })
+    this.pending[node] = kept.slice(-PENDING_MAX)
+    this.savePending()
+  }
+
+  clearPending(node: string): void {
+    if (!this.pending[node]) return
+    delete this.pending[node]
+    this.savePending()
+  }
+
+  private savePending(): void {
+    writeJson(this.fs, this.fs.join(this.dir, 'memory/pending.json'), this.pending)
   }
 
   skill(name: string): SkillMeta | undefined {
@@ -543,16 +608,16 @@ export class SelfState {
   }
 
   /** Write a new skill or a new version of one. */
-  writeSkill(s: { name: string; description: string; triggers: string[]; body: string; files?: Record<string, string> }, episode?: string): SkillMeta {
+  writeSkill(s: { name: string; description: string; triggers: string[]; node?: string; body: string; files?: Record<string, string> }, episode?: string): SkillMeta {
     const name = safeName(s.name)
     const now = this.now()
     const prev = this.skillIndex[name]
     const meta: SkillMeta = prev
-      ? { ...prev, description: s.description, triggers: s.triggers, version: prev.version + 1, status: 'active', updated: now }
-      : { name, description: s.description, triggers: s.triggers, version: 1, status: 'active', created: now, updated: now, origin: episode, uses: 0, accepted: 0, failed: 0, recent: [] }
+      ? { ...prev, description: s.description, triggers: s.triggers, ...(s.node && { node: s.node }), version: prev.version + 1, status: 'active', updated: now }
+      : { name, description: s.description, triggers: s.triggers, ...(s.node && { node: s.node }), version: 1, status: 'active', created: now, updated: now, origin: episode, uses: 0, accepted: 0, failed: 0, recent: [] }
     this.skillIndex[name] = meta
     this.fs.mkdir(this.fs.join(this.dir, 'skills', name))
-    const front = ['---', `name: ${name}`, `description: ${s.description.replace(/\n/g, ' ')}`, `triggers: ${s.triggers.join(', ')}`, `version: ${meta.version}`, '---', ''].join('\n')
+    const front = ['---', `name: ${name}`, `description: ${s.description.replace(/\n/g, ' ')}`, ...(s.node ? [`node: ${s.node}`] : [`triggers: ${s.triggers.join(', ')}`]), `version: ${meta.version}`, '---', ''].join('\n')
     this.fs.write(this.fs.join(this.dir, 'skills', name, 'SKILL.md'), front + s.body.trim() + '\n')
     // scripts the skill runs (in the task sandbox, through the agent's run tool)
     for (const [file, code] of Object.entries(s.files ?? {}).slice(0, MAX_SKILL_FILES))
@@ -736,40 +801,81 @@ export function safeName(s: string): string {
 }
 
 // ---------------------------------------------------------------- reflection
-// The middle loop for repo-form tasks: after an episode, what is worth keeping — lessons, and
-// skills (a procedure, optionally with scripts the agent runs through its run tool).
+// The middle loop: after an episode, what is worth keeping. A reflection writes two places only:
+// - the global rules (lessons): one sentence that holds for every task of this kind, or for engineering anywhere;
+// - this kind of task (its node): its skill, rewritten whole, when it has one; else a note kept on the node, until
+//   the node has recurred and gone wrong enough to be worth a skill, which is then written from its notes.
+// One node has one skill at most, named from the node, so two reflections at once never write two.
 
-export const AGENT_REFLECT_SYSTEM = `You keep your own memory as a software engineer who works tasks in repositories. After every task you decide what is worth keeping, so that the next task goes better. Your memory is read only by you.
-
-Respond with JSON only:
+/** What every reflection answers, and how (the agent's and the modder's alike). `general` says what a general rule is about. */
+export const reflectFormat = (general: string): string => `Respond with JSON only:
 {
-  "lessons": { "add": [{"text": "...", "terms": ["..."], "general": false}], "revise": [{"id": "L3", "text": "..."}], "support": ["L2"], "drop": ["L5"] },
+  "rules": { "add": [{"text": "...", "scope": "kind"}], "revise": [{"id": "L3", "text": "..."}], "support": ["L2"], "drop": ["L5"] },
+  "notes": [],
   "skill": null
 }
 
-Lessons:
-- A lesson is a reusable rule of thumb about working in this kind of codebase, or about engineering in general. One sentence. Never a retelling of this task.
-- The most valuable lessons come from what went wrong: failing test runs, wasted steps, a submission that did not pass.
-- Add at most two; often none is right. "support" lessons this task confirmed; "revise" or "drop" lessons it contradicted.
-- "terms": words under which the lesson applies (e.g. "kind:engine", "w:validator").
-- "general": true for a lesson about engineering in any repository (how to find code, test, read a failure, scope a change), not about this codebase: it is shown on every task, whatever its kind. Keep the codebase's own facts out of a general lesson.
+Rules (yours on file are listed with their ids):
+- A rule is one sentence that holds for every task of this kind ("scope": "kind"), or ${general} ("scope": "general"). Never a retelling of this task, never about one kind of thing in it: that goes to the skill or the notes below.
+- A rule about a time limit, or about answering fast, is never general.
+- The most valuable rules come from what went wrong. Add at most one; often none is right. "support" rules this task confirmed; "revise" or "drop" rules it contradicted.
 
-Skills:
-- A skill is a procedure you will follow again: when to use it, the steps, the checks. It may come with scripts (files) that you run with your run tool from .agent/skills/<name>/ — for example a script that finds the code related to a symbol, or one that runs only the relevant tests.
-- Set "skill" to {"name": "kebab-case", "description": "when to use it, one line", "triggers": ["terms"], "general": false, "body": "markdown", "files": {"script.mjs": "…"}} ("general": true for a procedure that holds in any repository; it is listed on every task) only when this kind of work has recurred at least {N} times (see similar tasks) and no skill of yours covers it, or to improve a skill you used (same name). Otherwise null.`
+This kind of task (the last section says which it is, and what you keep on it):
+- If it has a skill and this task taught something about this kind of task, rewrite the skill whole in "skill": {"description": "when to use it, one line", "body": "markdown: when it applies, the steps, the checks, the pitfalls"}, at most ${SKILL_MAX_LINES} lines, merging what you learned into it, not appending. Otherwise "skill": null.
+- If you are asked to write its skill, write it the same way, from the notes and this task.
+- Otherwise put in "notes" what this task taught about this kind of task: at most two one-line pitfalls or patterns, or []. They are kept until its skill is written.`
 
-export async function reflectAgent(ep: Episode, o: { model: Model; state: SelfState; harness?: Harness }): Promise<void> {
+export const AGENT_REFLECT_SYSTEM = `You keep your own memory as a software engineer who works tasks in repositories. After every task you decide what is worth keeping, so that the next task goes better. Your memory is read only by you.
+
+${reflectFormat('for engineering in any repository: how to find code, test, read a failure, scope a change')}
+- A skill may carry scripts in "files": {"script.mjs": "…"}, which you run with your run tool from .agent/skills/<name>/.`
+
+/** Where a kind of task stands when it is reflected on: its skill, or its notes and whether it is due for a skill. */
+export interface NodeStand {
+  node: string
+  skill?: SkillMeta
+  body?: string
+  notes: PendingNote[]
+  /** its tasks so far, this one among them */
+  count: number
+  /** no skill yet, recurred often enough, and something went wrong (a note on file, or this task) */
+  due: boolean
+}
+
+export function nodeStand(state: SelfState, node: string, h: Harness, troubled: boolean): NodeStand {
+  const skill = state.skillAt(node)
+  const notes = state.pendingAt(node)
+  const count = state.nodeEpisodes(node)
+  return { node, skill, body: skill && state.readSkill(skill.name)?.trim(), notes, count, due: !skill && count >= h.reflect.skillMinRecurrence && (notes.length > 0 || troubled) }
+}
+
+/** The prompt's section on this kind of task. */
+export function nodeSection(s: NodeStand): string[] {
+  const head = `## This kind of task: ${s.node} (${s.count} task(s) so far)`
+  if (s.skill) return [head, `Your skill for it (v${s.skill.version}, used ${s.skill.uses}×, ${s.skill.accepted} accepted):`, '', s.body ?? '']
+  const notes = s.notes.length ? s.notes.map((n) => `- ${n.text}`) : ['(none)']
+  return s.due ? [head, 'No skill yet. It has recurred and gone wrong; your notes on it:', ...notes, '', 'Write its skill now, in "skill".'] : [head, 'No skill yet. Your notes on it:', ...notes]
+}
+
+/** An episode's node: the world's, else its kind's. */
+export const nodeOf = (ep: Pick<Episode, 'node' | 'kind'>): string => ep.node ?? `kind:${ep.kind ?? 'task'}`
+
+/** Something went wrong in it: a failure, or an attempt sent back. */
+export const troubled = (ep: Episode): boolean => ep.outcome === 'failed' || ep.attempts.some((a) => a.errors.length > 0)
+
+export async function reflectAgent(ep: Episode, o: { model: Model; state: SelfState; harness?: Harness; kindTerm?: string }): Promise<void> {
   const { state } = o
   const h = o.harness ?? state.harness()
   if (!h.reflect.enabled) return
   const model = new Meter(o.model)
+  const kindTerm = o.kindTerm ?? `kind:${ep.kind}`
+  const stand = nodeStand(state, nodeOf(ep), h, troubled(ep))
   const similar = state.similarEpisodes(ep.terms, 8, ep.id).filter((e) => e.kind === ep.kind)
   const tools: Record<string, number> = {}
   for (const t of ep.tools) tools[t.name] = (tools[t.name] ?? 0) + 1
   const user = [
     `# Task ${ep.id} (${ep.kind}): ${ep.summary}`,
     `outcome: ${ep.outcome} after ${ep.usage.calls} model calls${ep.error ? ` — ${ep.error}` : ''}`,
-    `terms: ${ep.terms.slice(0, 20).join(', ')}`,
     '',
     '## Test runs and verdict',
     ...(ep.attempts.length ? ep.attempts.map((a, i) => `${i + 1}. ${a.errors.length ? `failed: ${clip(a.errors[0], 600)}` : 'passed'}`) : ['(no test runs)']),
@@ -778,24 +884,23 @@ export async function reflectAgent(ep: Episode, o: { model: Model; state: SelfSt
     Object.entries(tools).map(([k, v]) => `${k}×${v}`).join(', ') || '(none)',
     `skills read: ${ep.skillsRead.join(', ') || '(none)'}`,
     '',
-    '## Your lessons on file (relevant)',
-    ...state.relevantLessons(ep.terms, 20).map((l) => `- [${l.id}] ${l.text}`),
-    '',
-    '## Your skills',
-    ...state.skills().map((s) => `- ${s.name}: ${s.description} (used ${s.uses}×, ${s.accepted} accepted)`),
+    '## Your rules on file (relevant)',
+    ...state.relevantLessons([...ep.terms, kindTerm], 20).map((l) => `- [${l.id}] ${l.text}`),
     '',
     `## Similar past tasks (${similar.length})`,
     ...similar.map((e) => `- ${e.summary} → ${e.outcome}`),
+    '',
+    ...nodeSection(stand),
   ].join('\n')
   const r = await model.chat(
     [
-      { role: 'system', content: AGENT_REFLECT_SYSTEM.replace('{N}', String(h.reflect.skillMinRecurrence)) },
+      { role: 'system', content: AGENT_REFLECT_SYSTEM },
       { role: 'user', content: user },
     ],
     { json: true, temperature: 0.2, purpose: 'reflect', reasoning: h.reflect.reasoning, provider: h.agent.provider },
   )
-  const { lessons: touched, skill } = keepReflection(state, r.content, { cited: ep.id, terms: [`kind:${ep.kind}`], recurred: similar.length >= h.reflect.skillMinRecurrence, files: true })
-  state.note('reflect', { episode: ep.id, kind: ep.kind, lessons: touched, skill, usage: model.usage })
+  const kept = keepReflection(state, r.content, { cited: ep.id, kindTerm, stand, files: true })
+  state.note('reflect', { episode: ep.id, kind: ep.kind, node: stand.node, lessons: kept.lessons, skill: kept.skill, notes: kept.notes, usage: model.usage })
 }
 
 /**
@@ -803,25 +908,37 @@ export async function reflectAgent(ep: Episode, o: { model: Model; state: SelfSt
  * history, an upstream proposal): every recorded task feeds the middle loop. A failure that is the backend's is
  * no lesson.
  */
-export async function reflectAfter(ep: Episode, o: { model: Model; state: SelfState; harness?: Harness }): Promise<void> {
+export async function reflectAfter(ep: Episode, o: { model: Model; state: SelfState; harness?: Harness; kindTerm?: string }): Promise<void> {
   if (ep.outcome === 'failed' && BACKEND_DOWN.test(ep.error ?? '')) return
   await reflectAgent(ep, o)
 }
 
+type RuleOps = { add?: { text: string; scope?: unknown; general?: unknown; terms?: string[] }[]; revise?: { id: string; text: string }[]; support?: string[]; drop?: string[] }
+
 /**
- * A reflection's reply kept in the self-state: its lessons applied (filed under `terms`, citing the episodes), and its
- * skill written when this kind of work has recurred or the skill is one already kept (an improvement). The skill's
- * triggers default to `terms`; its scripts are kept only where the reflection may write them (`files`).
+ * A reflection's reply kept in the self-state: its rules applied to the lessons (filed under the task's kind,
+ * `kindTerm`, or general; citing the episodes), and this kind of task (`stand`; none for a batch of several kinds)
+ * to its skill or its notes. Scripts are kept only where the reflection may write them (`files`).
  */
-export function keepReflection(state: SelfState, reply: string, o: { cited: string | string[]; terms: string[]; recurred: boolean; files?: boolean }): { lessons: string[]; skill?: string } {
-  const j = parseJson(reply) as { lessons?: Parameters<SelfState['applyLessons']>[0]; skill?: { name?: unknown; description?: unknown; triggers?: unknown; general?: unknown; body?: unknown; files?: unknown } | null } | undefined
-  const lessons = j?.lessons && typeof j.lessons === 'object' ? state.applyLessons(j.lessons, o.cited, o.terms) : []
-  const s = j?.skill
-  if (!s || typeof s.name !== 'string' || typeof s.body !== 'string' || !s.body.trim()) return { lessons }
-  const name = safeName(s.name)
-  if (!state.skill(name) && !o.recurred) return { lessons }
-  const files = o.files && s.files && typeof s.files === 'object' ? (Object.fromEntries(Object.entries(s.files as Record<string, unknown>).filter(([, v]) => typeof v === 'string')) as Record<string, string>) : undefined
+export function keepReflection(state: SelfState, reply: string, o: { cited: string | string[]; kindTerm: string; stand?: NodeStand; files?: boolean }): { lessons: string[]; skill?: string; notes: number } {
+  const j = parseJson(reply) as { rules?: RuleOps; lessons?: RuleOps; notes?: unknown; skill?: { description?: unknown; body?: unknown; files?: unknown } | null } | undefined
   const by = Array.isArray(o.cited) ? o.cited[o.cited.length - 1] : o.cited
-  state.writeSkill({ name, description: String(s.description ?? name), triggers: s.general === true ? [] : Array.isArray(s.triggers) && s.triggers.length ? s.triggers.map(String) : o.terms, body: s.body, ...(files && { files }) }, by)
-  return { lessons, skill: name }
+  // (an older reply's "lessons" keep their own terms)
+  const ops = j?.rules && typeof j.rules === 'object' ? { ...j.rules, add: (j.rules.add ?? []).map((a) => ({ text: a?.text, general: a?.scope === 'general' || a?.general === true, terms: [o.kindTerm] })) } : j?.lessons && typeof j.lessons === 'object' ? j.lessons : undefined
+  const lessons = ops ? state.applyLessons(ops as Parameters<SelfState['applyLessons']>[0], o.cited, [o.kindTerm]) : []
+  const s = o.stand
+  if (!s) return { lessons, notes: 0 }
+  const sk = j?.skill
+  if (sk && typeof sk.body === 'string' && sk.body.trim() && (s.skill || s.due)) {
+    const body = sk.body.trim().split('\n').slice(0, SKILL_MAX_LINES + 10).join('\n')
+    const files = o.files && sk.files && typeof sk.files === 'object' ? (Object.fromEntries(Object.entries(sk.files as Record<string, unknown>).filter(([, v]) => typeof v === 'string')) as Record<string, string>) : undefined
+    const name = s.skill?.name ?? nodeSkillName(s.node)
+    state.writeSkill({ name, node: s.node, triggers: [], description: String(sk.description ?? s.skill?.description ?? s.node), body, ...(files && { files }) }, by)
+    // what was kept on the node is in the skill now
+    if (!s.skill) state.clearPending(s.node)
+    return { lessons, skill: name, notes: 0 }
+  }
+  const notes = !s.skill && Array.isArray(j?.notes) ? j!.notes.filter((n): n is string => typeof n === 'string' && !!n.trim()).slice(0, 2) : []
+  if (notes.length) state.addPending(s.node, notes, by)
+  return { lessons, notes: notes.length }
 }

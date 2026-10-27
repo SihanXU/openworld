@@ -46,11 +46,28 @@ export function signatureOf(req: ModRequest): Signature {
     ...roleTerms('host', ev.host),
     ...Object.entries(ev.roles).flatMap(([k, e]) => roleTerms(k, e)),
     `map:${req.context.map.kind}`,
+    // every world request's: the global rules of patching are filed under it
+    WORLD_TERM,
   ]
   // the class, as the client's port keys it (the engine's classKey: one definition)
   const self = (e: EntityInfo | undefined) => !!e?.id && e.id === ev.host?.id
   const key = classKey({ hole: holeKey(req.hole.rule, req.hole.path), kind: ev.kind, host: ev.host?.type ?? '-', roles: Object.entries(ev.roles).map(([k, e]) => [k, self(e) ? 'self' : e?.type ?? '-']), params: ev.params })
   return { key, terms: [...new Set(terms)] }
+}
+
+/** The term every world request carries: a global rule of patching is filed under it. */
+export const WORLD_TERM = 'task:world'
+
+/**
+ * The kind of task a request is, for its skill (one skill a node, docs/rsi.md §4.1): the event kind, the hole, the
+ * host's class and the other role's (the target, else the source), each cut at depth 2 of the type tree, so no node
+ * holds another (a terrain is "tile").
+ */
+export function skillNodeOf(req: ModRequest): string {
+  const ev = req.event
+  const cls = (t?: string) => (!t ? '-' : t.startsWith('tile') ? 'tile' : t.split('/').slice(0, 2).join('/'))
+  const other = (['target', 'source', 'item'] as const).map((k) => ev.roles[k]).find((e) => e && e.id !== ev.host?.id)
+  return [ev.kind, req.hole.rule, cls(ev.host?.type), cls(other?.type)].join('|')
 }
 
 /** The coarse terms a lesson learned from this request should be filed under. */
