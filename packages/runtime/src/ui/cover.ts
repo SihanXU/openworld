@@ -83,6 +83,8 @@ export class Cover {
   private offerWaits = false
   private boot?: ReturnType<typeof setTimeout>
   private keysPage = new KeysPage(() => ((this.panel = 'settings'), this.render()))
+  /** The AI service was asked as the settings opened: once each time (its answer draws them again, which must not ask again). */
+  private asked = false
   /** The place behind the title now (an index into the game's scenes), and the timer that moves to the next. */
   private scene = -1
   private next?: ReturnType<typeof setTimeout>
@@ -264,6 +266,8 @@ export class Cover {
       b.onclick = () => this.act(b.dataset.item as Item)
     })
     this.placePip()
+    // (the keys page is the settings' own: back from it they are not opened anew)
+    if (this.panel !== 'settings' && this.panel !== 'keys') this.asked = false
     if (this.panel) {
       mountWindow($('#intro').querySelector<HTMLElement>('.cv-panel')!, { size: 'lg', view: this.panel === 'new' ? `new-${this.newStep}` : this.panel, onClose: () => { this.panel = undefined; this.render() } })
       this.wirePanel()
@@ -414,7 +418,7 @@ export class Cover {
       })
       $('#cvKeysBtn').onclick = () => ((this.panel = 'keys'), this.render())
       this.on.ai.wire(host)
-      void this.on.ai.refresh()
+      if (!this.asked) (this.asked = true), void this.on.ai.refresh()
       return
     }
     if (this.panel === 'model') {
