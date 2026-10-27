@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenWorld</title>
-    <meta name="description" content="OpenWorld: a world whose rules are code. What the world has never seen, it learns and remembers.">
+    <meta name="description" content="OpenWorld: a pixel-art open-world RPG you play in the browser. Try anything: what nobody wrote, the world works out and keeps.">
     <meta property="og:title" content="OpenWorld">
-    <meta property="og:description" content="A world whose rules are code. What the world has never seen, it learns and remembers.">
+    <meta property="og:description" content="A pixel-art open-world RPG you play in the browser. Try anything: what nobody wrote, the world works out and keeps.">
     <meta property="og:image" content="media/hero.jpg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -44,7 +44,7 @@
         <video class="backdrop" data-auto muted loop playsinline preload="auto" poster="media/hero.jpg"><source src="media/hero.mp4" type="video/mp4"></video>
         <div class="hero-inner">
             <h1 class="logo">OpenWorld</h1>
-            <p class="sub" data-zh="这个世界从没见过的事，它会学会，并且记住。" data-zh-keep="这个世界从没见过的事，|它会学会，并且记住。">What the world has never seen, it learns and remembers.</p>
+            <p class="tagline" data-zh="想到什么，就试什么" data-zh-keep="想到什么，|就试什么">Try anything</p>
             <div class="hero-actions">
                 <a class="btn primary" href="http://35.239.4.44:5175/" data-zh="试玩 Demo">Play the demo</a>
                 <a class="btn" href="#join" data-zh="加入等候名单">Join the waitlist</a>
@@ -62,9 +62,9 @@
             <div class="intro">
                 <div>
                     <p class="label" data-zh="地点">Places</p>
-                    <h2 data-zh="每一块砖，都是亲手搭的" data-zh-keep="每一块砖，|都是亲手搭的">Built by hand, down to the last stone</h2>
+                    <h2 data-zh="路的前方">Further down the road</h2>
                 </div>
-                <div class="text"><p data-zh="每一座建筑都由项目自己的渲染器绘制，每一个地点都先在纸上规划，再参照真实世界的伟大建筑搭起来——哥特大教堂、两重城墙的要塞、峡湾里的港口、木桩上的小镇。它们是世界上其余地点的样板。">Every building is drawn by the project's own renderer, and every place is laid out on paper first, after the great places it learns from: a Gothic cathedral, a fortress in two rings, a harbour on a fjord, a town on piles. These are the models the rest of the world is built to.</p></div>
+                <div class="text"><p data-zh="朝圣之路的尽头是圣城，这些是圣城和它周围六个地区里等着你去的地方。">The pilgrimage ends in the Holy City, and these are the places waiting for you there and in the six regions around it.</p></div>
             </div>
             <div class="viewer" data-viewer>
                 <figure class="slide on" data-place="sunwell-abbey">
@@ -72,8 +72,7 @@
                     <figcaption>
                         <span class="region" data-zh="圣城">The Holy City</span>
                         <b data-zh="日泉修道院">Sunwell Abbey</b>
-                        <span class="what" data-zh="一座大教堂和它的院落：玫瑰窗、飞扶壁、回廊，地下还有墓穴。">A cathedral and its close: the rose window, the flying buttresses, a cloister, a crypt below.</span>
-                        <span class="from" data-zh="借鉴兰斯、亚眠、科隆和沙特尔">After Reims, Amiens, Cologne and Chartres</span>
+                        <span class="what" data-zh="一座有玫瑰窗和回廊的大教堂，地下还有墓穴。">A cathedral with its rose window and cloister, and a crypt below.</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="north-gate">
@@ -82,7 +81,6 @@
                         <span class="region" data-zh="圣城">The Holy City</span>
                         <b data-zh="北门区">The North Gate</b>
                         <span class="what" data-zh="城门之上的同心圆要塞：两重城墙、护城河和外堡。">A fortress in two rings over the city&#x27;s gate, its moat and its barbican.</span>
-                        <span class="from" data-zh="借鉴骑士堡、博马里斯和卡尔卡松">After Krak des Chevaliers, Beaumaris and Carcassonne</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="bell-ward">
@@ -91,7 +89,6 @@
                         <span class="region" data-zh="圣城">The Holy City</span>
                         <b data-zh="钟楼区">The Bell Ward</b>
                         <span class="what" data-zh="钟楼下的大广场，议事厅坐落在广场尽头。">A grand square under its belfry, the council hall at its head.</span>
-                        <span class="from" data-zh="借鉴布鲁日的集市广场与钟楼、锡耶纳的田野广场">After Bruges&#x27;s Markt and Belfort, and Siena&#x27;s Campo</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="market">
@@ -99,8 +96,7 @@
                     <figcaption>
                         <span class="region" data-zh="圣城">The Holy City</span>
                         <b data-zh="市集区">The Market</b>
-                        <span class="what" data-zh="摊位和摊主、市集大厅、过秤所和布匹拱廊。">Stalls and their keepers, the market hall, the weigh-house, the cloth arcade.</span>
-                        <span class="from" data-zh="借鉴伊普尔的布料大厅和马拉喀什的大广场">After the cloth halls of Ypres and Marrakech&#x27;s great square</span>
+                        <span class="what" data-zh="摊位挤满了广场，旁边是市集大厅、过秤所和卖布的拱廊。">Stalls fill the square beside the market hall, the weigh-house and the cloth arcade.</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="lamp-ward">
@@ -109,7 +105,6 @@
                         <span class="region" data-zh="圣城">The Holy City</span>
                         <b data-zh="灯区">The Lamp Ward</b>
                         <span class="what" data-zh="小广场上的朝圣者客栈，每走几步就有一盏灯。">The pilgrims&#x27; inn on its little square, and a lamp every few steps.</span>
-                        <span class="from" data-zh="借鉴围着广场的驿站客栈和夜晚的城市">After the coaching inns round a square, and the city at evening</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="lower-town">
@@ -117,8 +112,7 @@
                     <figcaption>
                         <span class="region" data-zh="圣城">The Holy City</span>
                         <b data-zh="下城区">The Lower Town</b>
-                        <span class="what" data-zh="运河边的穷人区：码头、小船、起重架和晾着的衣服。">The poor quarter on the canal: quays, boats, the crane, washing on the lines.</span>
-                        <span class="from" data-zh="借鉴威尼斯和杜布罗夫尼克的小码头">After the lesser quays of Venice and Dubrovnik</span>
+                        <span class="what" data-zh="运河边的穷人区，码头上停着小船，巷子里晾满了衣服。">The poor quarter on the canal, with boats at its quays and washing over its lanes.</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="rimeholm">
@@ -126,8 +120,7 @@
                     <figcaption>
                         <span class="region" data-zh="霜牙海岸">Frostfang Coast</span>
                         <b data-zh="凇洲村">Rimeholm</b>
-                        <span class="what" data-zh="峡湾里的港口：码头上的鱼市、三座栈桥和停泊的柯克船、岬角上的灯塔。">A harbour on a fjord: the fish market on the quay, three piers and their cogs, the lighthouse on its spit.</span>
-                        <span class="from" data-zh="借鉴卑尔根的布吕根和罗弗敦的渔村">After Bergen&#x27;s Bryggen and Lofoten&#x27;s fishing villages</span>
+                        <span class="what" data-zh="峡湾里的渔港，码头上有鱼市，岬角上立着灯塔。">A harbour on a fjord with a fish market on the quay and a lighthouse on the spit.</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="warcombe">
@@ -135,8 +128,7 @@
                     <figcaption>
                         <span class="region" data-zh="赤痕边境">The Scarred March</span>
                         <b data-zh="战坳镇">Warcombe</b>
-                        <span class="what" data-zh="红色峡谷里的要塞小镇：岩台上的战厅、民兵营地、最后一战的战场。">A fort town in a red canyon: the war hall on its ledge, the levies’ camp, the field of the last battle.</span>
-                        <span class="from" data-zh="借鉴罗马边墙和荒原上的要塞">After the Roman limes and the presidios of the badlands</span>
+                        <span class="what" data-zh="红色峡谷里的要塞小镇，战厅建在岩台上，下面是最后一战的战场。">A fort town in a red canyon with its war hall on a ledge above the field of the last battle.</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="weighmarket">
@@ -144,8 +136,7 @@
                     <figcaption>
                         <span class="region" data-zh="衡谷平原">The Vale of Scales</span>
                         <b data-zh="秤市城">Weighmarket</b>
-                        <span class="what" data-zh="粮仓之城：坡上的风车，大广场和它的公秤，俯视广场的账房。">The granary city: mills on their rise, the great square and its scales, the counting house over it.</span>
-                        <span class="from" data-zh="借鉴锡耶纳的田野广场和汉萨同盟的粮仓">After Siena&#x27;s Campo and the Hanse&#x27;s grain halls</span>
+                        <span class="what" data-zh="粮仓之城，风车立在坡上，大广场中央摆着公秤。">The granary city, its mills on the rise and the public scales in its great square.</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="dusk-moorings">
@@ -153,8 +144,7 @@
                     <figcaption>
                         <span class="region" data-zh="苍白林沼">The Pale Fens</span>
                         <b data-zh="暮泊镇">Dusk Moorings</b>
-                        <span class="what" data-zh="建在木桩上的小镇：水上的房屋、终日点着的雾灯、水上集市。">A town on piles: houses over the water, fog lamps burning all day, the floating market.</span>
-                        <span class="from" data-zh="借鉴冈维耶水上村和洞里萨湖的村落">After Ganvie and the villages of the Tonlé Sap</span>
+                        <span class="what" data-zh="建在木桩上的水镇，雾灯整天亮着，集市就开在水上。">A town on stilts over the water where the fog lamps burn all day and the market floats.</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="barleyridge">
@@ -162,8 +152,7 @@
                     <figcaption>
                         <span class="region" data-zh="衡谷平原">The Vale of Scales</span>
                         <b data-zh="麦脊农庄">Barleyridge Farm</b>
-                        <span class="what" data-zh="围着草地的农村：溪上的水磨、谷仓、果园和蜂箱。">A farm village round its green: the mill on the stream, the barns, the orchard and its hives.</span>
-                        <span class="from" data-zh="借鉴拉克斯顿的敞田和科茨沃尔德的农舍">After Laxton&#x27;s open fields and the Cotswolds&#x27; farmsteads</span>
+                        <span class="what" data-zh="围着草地的农村，溪上有水磨，果园里摆着蜂箱。">A farm village round its green with a mill on the stream and hives in the orchard.</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="brandby-mine">
@@ -171,8 +160,7 @@
                     <figcaption>
                         <span class="region" data-zh="赤痕边境">The Scarred March</span>
                         <b data-zh="烙屯矿坑">Brandby Mine</b>
-                        <span class="what" data-zh="台地崖下的矿场：平硐和铁轨、井架、冶炼炉。">A mine under a mesa&#x27;s face: the adit and its rails, the headframe, the smelter&#x27;s hearths.</span>
-                        <span class="from" data-zh="借鉴力拓矿区的平硐和哈茨山的井架">After Rio Tinto&#x27;s adits and the Harz&#x27;s headframes</span>
+                        <span class="what" data-zh="台地崖下的矿场，铁轨一直通进矿洞，洞口旁边就是冶炼炉。">A mine under a mesa where the rails run into the adit beside the smelter&#x27;s hearths.</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="bellwick">
@@ -180,7 +168,7 @@
                     <figcaption>
                         <span class="region" data-zh="白坛高地">The White Altar Heights</span>
                         <b data-zh="钟坞农庄">Bellwick Farm</b>
-                        <span class="what" data-zh="花坛之间的庄园、绕着喷泉的车道，远处还有树篱迷宫。">A manor between its parterres, the carriage sweep round its fountain, the hedge maze beyond.</span>
+                        <span class="what" data-zh="花坛环绕的庄园，远处还有一座树篱迷宫。">A manor among its flower beds with a hedge maze beyond.</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="ashengate">
@@ -188,7 +176,7 @@
                     <figcaption>
                         <span class="region" data-zh="苍白林沼">The Pale Fens</span>
                         <b data-zh="烬门遗迹">Ashengate Ruins</b>
-                        <span class="what" data-zh="沉入沼泽的修道院废墟，中殿里长出了树，学者们正在发掘。">A ruined abbey sinking into the fen, trees growing up its nave, and the scholars&#x27; dig.</span>
+                        <span class="what" data-zh="沉进沼泽的修道院废墟，学者们正在长满树的中殿里发掘。">A ruined abbey sinking into the fen where scholars dig in a nave grown full of trees.</span>
                     </figcaption>
                 </figure>
                 <figure class="slide" data-place="goldmere-tower">
@@ -204,7 +192,7 @@
                     <figcaption>
                         <span class="region" data-zh="霜牙海岸">Frostfang Coast</span>
                         <b data-zh="霜丘营地">Frostbarrow Camp</b>
-                        <span class="what" data-zh="山口上的边境要塞：雪中的四座圆塔和城墙。">A border fort on the pass: four drum towers and the curtain wall in snow.</span>
+                        <span class="what" data-zh="山口上的边境要塞，四座圆塔立在雪里。">A border fort on the pass with four round towers standing in the snow.</span>
                     </figcaption>
                 </figure>
                 <button class="step-btn prev" type="button" data-step="-1" aria-label="Previous place" data-zh-label="上一个地点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
@@ -239,18 +227,18 @@
                     <p class="label" data-zh="人物">People</p>
                     <h2 data-zh="最先遇见的人" data-zh-keep="最先遇见的人">The people you meet first</h2>
                 </div>
-                <div class="text"><p data-zh="世界上的 1,654 个人，每个人都有自己的样子、住处和一天的安排。这六位是第一部的主角：每人都有自己的设定稿，立绘会随着说话而动。点开看他们的设定稿。">Every one of the world's 1,654 people has a look, a home and a day of their own. These six are the first part's own: each drawn to a sheet, with a portrait that moves as they speak. Open one to see the sheet.</p></div>
+                <div class="text"><p data-zh="几百年前极夜吞掉了太阳，直到圣者阿斯特拉受完五种圣刑它才重新升起。如今白昼又在一天天变短，你被派上了朝圣之路，下面六位是你最先遇见的人。">Centuries ago the Long Night swallowed the sun until the saint Astra bore five holy torments and it rose again. Now the days are growing short once more and you are sent out on the pilgrimage, and these six are the first people you meet.</p></div>
             </div>
             <div class="people">
                 <button class="person" type="button" data-person="lumi">
                     <span class="face"><img src="media/cast/lumi/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
                     <span class="who"><b data-zh="露米">Lumi</b></span>
-                    <span class="role" data-zh="一个手掌高的妖精，你去哪里，她就跟到哪里。">A fairy as tall as a hand, who goes wherever you go.</span>
+                    <span class="role" data-zh="一个手掌高的妖精，你去哪里她就跟到哪里。">A fairy as tall as a hand, who goes wherever you go.</span>
                 </button>
                 <button class="person" type="button" data-person="ilse">
                     <span class="face"><img src="media/cast/ilse/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
                     <span class="who"><b data-zh="伊尔丝修女">Sister Ilse</b></span>
-                    <span class="role" data-zh="初原村圣火的守护者，是她送你踏上朝圣之路。">Keeper of Firstlight&#x27;s flame, who sends you on the pilgrimage.</span>
+                    <span class="role" data-zh="守着初原村圣火的修女，是她送你踏上了朝圣之路。">Keeper of Firstlight&#x27;s flame, who sends you on the pilgrimage.</span>
                 </button>
                 <button class="person" type="button" data-person="nessa">
                     <span class="face"><img src="media/cast/nessa/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
@@ -265,7 +253,7 @@
                 <button class="person" type="button" data-person="severin">
                     <span class="face"><img src="media/cast/severin/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
                     <span class="who"><b data-zh="塞弗林">Severin</b> <small data-zh="灰誓者">the Greyvowed</small></span>
-                    <span class="role" data-zh="一个被定为异端的修会的修士，提着一盏黄铜灯，从不多说一句。">A brother of an order named heretic, who carries a brass lantern and says no more than he must.</span>
+                    <span class="role" data-zh="异端修会的修士，提着一盏黄铜灯从不多说一句。">A brother of an order named heretic, who carries a brass lantern and says no more than he must.</span>
                 </button>
                 <button class="person" type="button" data-person="tobin">
                     <span class="face"><img src="media/cast/tobin/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
@@ -286,16 +274,16 @@
             <div class="intro">
                 <div>
                     <p class="label" data-zh="世界">The world</p>
-                    <h2 data-zh="一千张地图，全都是代码" data-zh-keep="一千张地图，|全都是代码">A thousand maps, all of them code</h2>
+                    <h2 data-zh="一千张地图，一个浏览器标签页" data-zh-keep="一千张地图，|一个浏览器标签页">A thousand maps in one browser tab</h2>
                 </div>
-                <div class="text"><p data-zh="OpenWorld 里的每一张地图、每一个人、每一件东西，都是引擎能读取的数据：一个类型、一组标签、几种状态、一个位置。屏幕上没有任何东西是画上去的，所以为一只水桶写的规则，对世界上每一只水桶都成立——而世界能做到内容允许的任何大小。">Every map, person and thing in OpenWorld is data the engine reads: a type, tags, statuses, a place. Nothing on screen is painted on, so a rule written for one bucket of water holds for every bucket in the world — and the world can be as large as its content allows.</p></div>
+                <div class="text"><p data-zh="这个世界有一千多张地图和一千六百多个人，每个人都有自己的家和自己的一天，而这些只要一个浏览器标签页就能打开。">The world has over a thousand maps and more than sixteen hundred people with homes and days of their own, and all of it opens in a single browser tab.</p></div>
             </div>
             <div class="stage"><iframe data-src="scale/index.html?embed" title="The world, in numbers" data-zh-title="世界的规模" loading="lazy"></iframe></div>
             <dl class="facts wide">
                 <div class="fact"><dt data-zh="地图">Maps</dt><dd class="big">1,024</dd></div>
                 <div class="fact"><dt data-zh="人物">People</dt><dd class="big">1,654</dd></div>
                 <div class="fact"><dt data-zh="物品">Items</dt><dd class="big">40,562</dd></div>
-                <div class="fact"><dt data-zh="东西的种类">Kinds of thing</dt><dd class="big">1,399</dd></div>
+                <div class="fact"><dt data-zh="户人家">Households</dt><dd class="big">780</dd></div>
             </dl>
         </div>
     </section>
@@ -305,12 +293,12 @@
         <div class="container">
             <div class="intro">
                 <div>
-                    <p class="label" data-zh="蝴蝶效应">Butterfly effect</p>
-                    <h2 data-zh="没有什么事是孤立发生的" data-zh-keep="没有什么事|是孤立发生的">Nothing happens on its own</h2>
+                    <p class="label" data-zh="关联">Connections</p>
+                    <h2 data-zh="渡口的一场暴雨">One storm at the Ford</h2>
                 </div>
-                <div class="text"><p data-zh="闪电点燃枯树。雨浇灭篝火。暴风雨里的一次偷窃，引出了一张悬赏。每个事件都会波及周围的人、地方和东西，而它们又会波及更多。这是渡口的一个暴风雨天，以及它所波及的一切。">Lightning sets a dead tree alight. Rain puts out a campfire. A theft in the storm puts up a bounty. Every event reaches the people, places and things around it, and each of those reaches more. Here is one stormy day at the Ford, and everything it touches.</p></div>
+                <div class="text"><p data-zh="渡口下暴雨的那天，雷劈着了枯树，雨淋湿了赫斯珀的篝火。维戈趁乱拿走玛尔塔的面包时被霍尔特看见了，于是悬赏贴了出来。下面这张图把这一天牵动的所有事都连在了一起。">On the day of the storm at the Ford, lightning sets the dead tree alight and rain soaks Hesper's campfire. Holt sees Vigo take Marta's bread in the confusion, and a bounty goes up. The map below links everything that day set in motion.</p></div>
             </div>
-            <div class="stage"><iframe data-src="starmap/index.html?embed" title="Butterfly effect" data-zh-title="蝴蝶效应" loading="lazy"></iframe></div>
+            <div class="stage"><iframe data-src="starmap/index.html?embed" title="One storm at the Ford" data-zh-title="渡口的一场暴雨" loading="lazy"></iframe></div>
         </div>
     </section>
 
@@ -320,26 +308,26 @@
             <div class="intro">
                 <div>
                     <p class="label" data-zh="工作原理">How it works</p>
-                    <h2 data-zh="代码运行世界，模型补写缺少的代码。" data-zh-keep="代码运行世界，|模型补写|缺少的代码。">Code runs the world. A model writes the code it lacks.</h2>
+                    <h2 data-zh="只问一次">Asked once</h2>
                 </div>
-                <div class="text"><p data-zh="已有规则直接运行；缺少的规则由模型补写，经过验证后供所有玩家复用。">Existing rules run as code. A model fills the gaps with new rules, checked and shared with every player.</p></div>
+                <div class="text"><p data-zh="你做的大多数事游戏里早就有规则，照着运行就行。只有碰到没有规则的事，游戏才会去问一次语言模型，模型交回的新规则检查通过后收进规则库，以后谁再碰到都直接照它来。">Most of what you do already has a rule and the game just runs it. Only when you try something no rule covers does the game ask a language model, and the new rule it writes back is checked, added to the library and simply run for whoever meets the same thing after.</p></div>
             </div>
             <div class="stage light" id="explain"><iframe data-src="explain/index.html?embed" title="How it works" data-zh-title="工作原理" loading="lazy"></iframe></div>
             <div class="steps">
                 <button class="step" type="button" data-at="0.6">
                     <div class="n">1</div>
-                    <h3 data-zh="有规则，直接执行" data-zh-keep="有规则，|直接执行">Run the rules</h3>
-                    <p data-zh="雨浇灭篝火，由已有规则处理。">Rain puts out a fire. The rules handle it.</p>
+                    <h3 data-zh="有规则">There is a rule</h3>
+                    <p data-zh="雨落在篝火上时，篝火的规则让它熄灭。">Rain falls on a campfire, and the campfire's rule puts it out.</p>
                 </button>
                 <button class="step" type="button" data-at="8.8">
                     <div class="n">2</div>
-                    <h3 data-zh="缺规则，模型补写" data-zh-keep="缺规则，|模型补写">Fill the gap</h3>
-                    <p data-zh="遇到新情况，模型补写规则。">A model writes the missing rule, once.</p>
+                    <h3 data-zh="还没有规则">No rule yet</h3>
+                    <p data-zh="摆渡人被困在雨里该怎么办没人写过，于是问一次模型。">Nobody wrote what a ferrykeeper stuck in the rain should do, so the model is asked once.</p>
                 </button>
                 <button class="step" type="button" data-at="23">
                     <div class="n">3</div>
-                    <h3 data-zh="写好一次，人人复用" data-zh-keep="写好一次，|人人复用">Share the rule</h3>
-                    <p data-zh="下次遇到，所有玩家直接复用。">Every player reuses the rule as ordinary code.</p>
+                    <h3 data-zh="现在有了">Now there is</h3>
+                    <p data-zh="模型答的“守到火边”成了一条规则，之后谁遇到都直接照办。">Its answer, wait by the fire, is a rule now, and everyone after just runs it.</p>
                 </button>
             </div>
         </div>
@@ -352,8 +340,8 @@
                 <a class="cover" href="news/launch/" data-href-zh="news/launch/zh.html"><video class="backdrop" data-auto muted loop playsinline preload="metadata" poster="media/hero.jpg"><source src="media/hero.mp4#t=4" type="video/mp4"></video></a>
                 <div>
                     <p class="meta" data-zh="第 01 篇 · 2026 年 10 月">Post 01 · October 2026</p>
-                    <h3 data-zh="一个能学会从没见过之事的世界" data-zh-keep="一个能学会|从没见过之事|的世界">A world that learns what it has never seen</h3>
-                    <p data-zh="我们为什么完全用代码搭建一个角色扮演世界，语言模型在其中扮演什么角色，以及它为什么能在一个浏览器标签页里撑起一千张地图。">Why we build a role-playing world entirely out of code, where a language model fits in, and why it scales to a thousand maps in a browser tab.</p>
+                    <h3 data-zh="没人写过规则的时候" data-zh-keep="没人写过|规则的时候">When nobody wrote the rule</h3>
+                    <p data-zh="从一堆篝火、一场雨和一个被困住的摆渡人讲起，说说游戏里的事怎样写成规则、规则没写到时模型做什么，以及这样为什么撑得起一千张地图。">A campfire, the rain and a stranded ferrykeeper: how the game's world is written as rules, what the model does where none is written, and why that holds up across a thousand maps.</p>
                     <div class="arrow-links"><a href="news/launch/" data-href-zh="news/launch/zh.html" data-zh="阅读">Read</a><a href="news/launch/zh.html" data-href-zh="news/launch/" data-zh="English">中文</a></div>
                 </div>
             </div>
