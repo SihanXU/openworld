@@ -169,8 +169,11 @@ export class WorldScene extends Phaser.Scene {
   /** The durability bars over struck cells. */
   private tileBars?: Phaser.GameObjects.Graphics
   private objects = new Map<string, Phaser.GameObjects.Image>() // terrain objects by "x,y"
-  /** The tall strips of the map's buildings, which fade over the player behind them (fadeOver). */
-  private tall: Phaser.GameObjects.Image[] = []
+  /**
+   * The map's buildings, each one picture laid (a building's strips together, PrefabDef.part): its pieces, and the
+   * pixels they cover. Whichever hides the player fades whole in front of them (fadeOver).
+   */
+  private buildings = new Map<string, { pieces: Phaser.GameObjects.Image[]; x0: number; y0: number; x1: number; y1: number }>()
   /** The terrain objects faded because they stand over the player (fadeOver). */
   private faded = new Set<Phaser.GameObjects.Image>()
   private views = new Map<string, EView>()
@@ -371,9 +374,11 @@ export class WorldScene extends Phaser.Scene {
     this.tileFx.clear()
     for (const f of this.fishShadows) (this.tweens.killTweensOf(f), f.destroy())
     this.fishShadows.clear()
+    // (a fade under way ends with what it fades)
+    for (const o of this.faded) this.tweens.killTweensOf(o)
     for (const o of this.statics) o.destroy()
     this.statics = []
-    this.tall = []
+    this.buildings.clear()
     this.faded = new Set([...this.faded].filter((o) => o.active))
     this.roofs.clear()
     this.pieces.clear()
@@ -472,7 +477,8 @@ export class WorldScene extends Phaser.Scene {
 
   private placeObject(x: number, y: number): void {
     const k = `${x},${y}`
-    this.objects.get(k)?.destroy()
+    const was = this.objects.get(k)
+    if (was) (this.tweens.killTweensOf(was), was.destroy())
     this.objects.delete(k)
     const t = this.terrainAt(x, y)
     // a pine or a rock in the snow takes its winter look (ground.ts objectLook)
@@ -504,8 +510,17 @@ export class WorldScene extends Phaser.Scene {
       if (!tex.has(name)) tex.add(name, 0, p.x + d.i * T, p.y + d.j * T, T, T)
       const img = this.add.image(d.x * T, d.y * T, p.img, name).setOrigin(0, 0).setDepth(pieceDepth(p, { y }, d.j, false))
       this.statics.push(img)
-      // a building's strip taller than a house fades over the player behind it (fadeOver)
-      if (p.base !== undefined && p.base >= 3) this.tall.push(img)
+      // a building's piece: the building fades whole over the player behind it (fadeOver); a pool or a shadow is ground
+      if (!p.ground) {
+        // (a building's strips by where the building is; any other picture laid is a building of its own)
+        const k = p.part ? `${p.part.of}|${x - p.part.dx}|${y - p.part.dy}` : `${key}|${x}|${y}`
+        const b = this.buildings.get(k) ?? this.buildings.set(k, { pieces: [], x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }).get(k)!
+        b.pieces.push(img)
+        b.x0 = Math.min(b.x0, img.x)
+        b.y0 = Math.min(b.y0, img.y)
+        b.x1 = Math.max(b.x1, img.x + T)
+        b.y1 = Math.max(b.y1, img.y + T)
+      }
       const pv: PieceView = { def: d, img, stamp: sv }
       sv.pieces.push(pv)
       if (d.bound) this.pieces.set(`${d.x},${d.y}`, pv)
@@ -1720,8 +1735,9 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * What stands in front of the player and over them fades, so they are never lost behind it: a
-   * tree's crown, a tall statue, a dead tree, stairs (Stardew's trees; built walls and floors have their
-   * own see-through, findSeeThrough). Checked every frame, as the player's picture moves.
+   * tree's crown, a tall statue, a dead tree, stairs (Stardew's trees), a building — the whole of it that
+   * is drawn in front of them, as Stardew's do (built walls and floors have their own see-through,
+   * findSeeThrough). Checked every frame, as the player's picture moves; a fade comes and goes in a moment.
    */
   private fadeOver(): void {
     const me = this.views.get(this.playerId)
@@ -1737,18 +1753,19 @@ export class WorldScene extends Phaser.Scene {
           const o = this.objects.get(`${me.snap.x + dx},${me.snap.y + dy}`)
           if (o && hides(o)) faded.add(o)
         }
-      // a tall building's strips (catalog BUILDINGS) that stand south of the player and are drawn over them: the
-      // player's body under the strip's own pixels, not just its rectangle
-      for (const o of this.tall)
-        if (o.depth > mine && o.getBounds().contains(px, py))
-          for (const [ox, oy] of [[0, 0], [0, -T], [-4, -T / 2], [4, -T / 2]])
-            if (this.textures.getPixelAlpha(Math.floor(px + ox - o.x), Math.floor(py + oy - o.y), o.texture.key, o.frame.name) > 0) {
-              faded.add(o)
-              break
-            }
+      // a building drawn over the player — some piece of it in front of them, its own pixels on their body (its middle,
+      // head and sides: a roof's edge at their feet hides no one), not just its square: every piece of it in front of
+      // them fades (those behind hide no one)
+      const body = [[0, 0], [0, -T], [-4, -T / 2], [4, -T / 2]].map(([ox, oy]) => [px + ox, py + oy])
+      const over = (o: Phaser.GameObjects.Image, [x, y]: number[]) =>
+        o.visible && o.depth > mine && x >= o.x && x < o.x + T && y >= o.y && y < o.y + T && this.textures.getPixelAlpha(Math.floor(x - o.x), Math.floor(y - o.y), o.texture.key, o.frame.name) > 0
+      for (const b of this.buildings.values()) {
+        if (px < b.x0 - T || px > b.x1 + T || py < b.y0 - T || py > b.y1 + T) continue
+        if (b.pieces.some((o) => body.some((q) => over(o, q)))) for (const o of b.pieces) if (o.visible && o.depth > mine) faded.add(o)
+      }
     }
-    for (const o of this.faded) if (!faded.has(o) && o.active) o.setAlpha(1)
-    for (const o of faded) o.setAlpha(0.45)
+    for (const o of this.faded) if (!faded.has(o) && o.active) this.fadeTo(o, 1)
+    for (const o of faded) if (!this.faded.has(o)) this.fadeTo(o, 0.45)
     this.faded = faded
     for (const v of this.views.values()) {
       const e = v.snap
@@ -1756,6 +1773,12 @@ export class WorldScene extends Phaser.Scene {
       const over = !!me && v !== me && !e.tags.includes('agent') && (!e.type.startsWith('structure/') || e.type === 'structure/stairs') && near(e.x, e.y) && v.body.displayHeight > T && v.root.depth > mine && v.body.getBounds().contains(px, py)
       if (over !== !!v.over) (v.over = over), v.body.setAlpha(this.alphaOf(v))
     }
+  }
+
+  /** A picture's alpha eased to `to` (a fade over the player comes and goes in a moment, never a blink). */
+  private fadeTo(o: Phaser.GameObjects.Image, to: number): void {
+    this.tweens.killTweensOf(o)
+    this.tweens.add({ targets: o, alpha: to, duration: 150, ease: 'Sine.easeOut' })
   }
 
   private destroyView(v: EView): void {

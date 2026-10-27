@@ -67,6 +67,11 @@ export interface PrefabDef {
   base?: number
   /** Drawn in front of whoever stands in its base row (an arcade, a gateway one walks under), not behind them. */
   front?: boolean
+  /**
+   * A strip of a building drawn as one picture: the building, and where the strip is laid from where the building is
+   * (in cells). Its strips are one building: they fade together over whoever is behind it.
+   */
+  part?: { of: string; dx: number; dy: number }
 }
 
 /** A named animation strip, with its original frame size and cadence. */

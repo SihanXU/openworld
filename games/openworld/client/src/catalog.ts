@@ -164,7 +164,7 @@ function buildingPrefabs(): Record<string, PrefabDef> {
   const out: Record<string, PrefabDef> = {}
   for (const [name, b] of Object.entries(BUILDINGS))
     for (const s of b.slices) {
-      const p: PrefabDef = { img: b.img, x: s.x, y: s.y, tw: s.tw, th: s.th, grid: s.grid, base: s.th - 1 }
+      const p: PrefabDef = { img: b.img, x: s.x, y: s.y, tw: s.tw, th: s.th, grid: s.grid, base: s.th - 1, part: { of: name, dx: s.col, dy: s.row - (s.th - 1) } }
       // a row one walks under (an arcade, a gateway): its strip in front of whoever is there
       if (s.grid[s.th - 1].includes('.')) p.front = true
       // a building laid as ground (a bridge's deck, a quay's steps): under whoever stands on it
