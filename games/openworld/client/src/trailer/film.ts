@@ -488,7 +488,8 @@ export function corner(id: string, map: string, at: [number, number], who: [numb
   }
 }
 const corners: Shot[] = [
-  corner('forge', 'meadow', [46, 19], [48, 17], '✓ anvil × use · fish', 3, 41, 18, { x: 45.4, y: 17, zoom: 4.2 }),
+  // (Haldor's anvil in his smithy, village.ts: the forge's room at 2,8 of its plan, the anvil four cells in and one down)
+  corner('forge', 'meadow.smithy', [6, 10], [6, 9], '✓ anvil × use · fish', 3, 41, 18, { x: 6.5, y: 9, zoom: 4.2 }),
   corner('ferry', 'ford', [25, 17], [28, 16], '✓ raft × put · lantern', 41, 318, 12),
   corner('wheel', 'mill', [18, 16], [12, 13], '✓ waterwheel × use · bell', 318, 2147, 9),
   corner('kiln', 'charcoal', [20, 14], [17, 10], '✓ kiln × use · pumpkin', 2147, 12408, 15),

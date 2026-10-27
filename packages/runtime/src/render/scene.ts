@@ -439,7 +439,8 @@ export class WorldScene extends Phaser.Scene {
         }
       }
     for (const s of map.stamps ?? []) this.stamp(s.key, s.x, s.y)
-    for (const r of map.rooms ?? []) this.roomFrame(r.style, r.x, r.y, r.w, r.h)
+    // (a room of style `shell` has its walls drawn by its building's picture, docs/showcase.md: no frame of the pack's)
+    for (const r of map.rooms ?? []) if (r.style !== 'shell') this.roomFrame(r.style, r.x, r.y, r.w, r.h)
     this.layPools(map)
     this.drawHeights(map)
     if (this.free) this.setEditorDim(this.dim)

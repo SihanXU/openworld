@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, tickAt, type Entity } from '@openworld/engine'
-import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_LAYOUT, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight } from '@openworld-game/content'
+import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_HOUSES, FIRSTLIGHT_LAYOUT, FIRSTLIGHT_ROOMS, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight, migrateFirstlightHouses } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 import { CANOPIES, reachingPlots } from '../src/demo/garden.ts'
 
@@ -140,5 +140,36 @@ describe('Firstlight Village garden', () => {
     const village = decodeChunk(chunks.find((c) => c.map.id === FIRSTLIGHT.map)!)
     const at = (x: number, y: number) => village.map.terrain[y * village.map.width + x]
     expect(reachingPlots().map(([x, y]) => at(x, y)).filter((t) => CANOPIES.has(t))).toEqual([])
+  })
+})
+
+describe("Firstlight's houses redrawn (2026-10-26)", () => {
+  it('moves what an older save left where a wall now stands, in the village and in its houses, and keeps it whole', () => {
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    const w = game.engine.world
+    const maps = [FIRSTLIGHT.map, ...FIRSTLIGHT_ROOMS].map((id) => decodeChunk(chunks.find((c) => c.map.id === id)!))
+    for (const c of maps) game.loadChunk(c)
+    // a wall of the village and the dark outside a house's rooms, as an older save might have left things there
+    const wallAt = (map: string) => {
+      const m = w.map(map)!
+      for (let y = 0; y < m.height; y++) for (let x = 0; x < m.width; x++) if (w.isSolidTerrain(w.terrainAt(map, x, y)) && [[0, 1], [1, 0], [0, -1], [-1, 0]].some(([dx, dy]) => w.walkable(map, x + dx, y + dy))) return { x, y }
+      throw new Error(`no wall on ${map}`)
+    }
+    const out = wallAt(FIRSTLIGHT.map)
+    const inn = wallAt('meadow.cook')
+    w.author(() => {
+      w.place(w.player, { on: 'tile', map: FIRSTLIGHT.map, ...out })
+      w.add({ id: 'old.stone', type: 'item/material/stone', place: { on: 'tile', map: 'meadow.cook', ...inn } })
+      w.setFact(FIRSTLIGHT_HOUSES, false)
+    })
+    Object.assign(w.player.props!, { xp: 42 })
+    game.engine.author(() => migrateFirstlightHouses(game, maps))
+    for (const id of [w.player.id, 'old.stone']) {
+      const p = w.get(id)!.place as { map: string; x: number; y: number }
+      expect([id, w.isSolidTerrain(w.terrainAt(p.map, p.x, p.y))]).toEqual([id, false])
+    }
+    expect(w.player.props?.xp).toBe(42)
+    expect(w.fact(FIRSTLIGHT_HOUSES)).toBe(true)
   })
 })

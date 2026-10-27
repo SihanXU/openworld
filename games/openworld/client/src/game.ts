@@ -12,7 +12,10 @@ import {
   COIN,
   COMPANION_LAYOUT,
   COMPANION_NAME,
+  FIRSTLIGHT,
+  FIRSTLIGHT_HOUSES,
   FIRSTLIGHT_LAYOUT,
+  FIRSTLIGHT_ROOMS,
   FORM_BY_ID,
   GAME,
   LOOK_BODIES,
@@ -35,6 +38,7 @@ import {
   describeLook,
   generateLook,
   migrateBosses,
+  migrateFirstlightHouses,
   migrateCompanion,
   migrateCompanionName,
   migrateOverworld,
@@ -121,6 +125,11 @@ export const CLIENT_GAME: ClientGame = {
       const [ford, village] = await Promise.all(['ford', 'meadow'].map(chunk))
       game.engine.author(() => migrateFirstlight(game, index, ford, village))
     }
+    // the village's houses redrawn: what stood where a wall now stands steps off it (only the maps a save has been to)
+    if (!w.fact(FIRSTLIGHT_HOUSES)) {
+      const maps = await Promise.all([FIRSTLIGHT.map, ...FIRSTLIGHT_ROOMS].filter((id) => w.state.loadedMaps.includes(id)).map(chunk))
+      game.engine.author(() => migrateFirstlightHouses(game, maps))
+    }
     // the removed boss kits' bodies go
     if (!w.fact(BOSS_LAYOUT)) game.engine.author(() => migrateBosses(game))
     // the bird became a fairy
@@ -168,7 +177,7 @@ export const CLIENT_GAME: ClientGame = {
   },
   fresh(game) {
     const w = game.engine.world
-    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(PLOTS_LAYOUT, true), w.setFact(STOCK_LAYOUT, true), w.setFact(STATS_LAYOUT, true), w.setFact(GEAR_LAYOUT, true), w.setFact(VOWS_LAYOUT, true)))
+    game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(FIRSTLIGHT_HOUSES, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(PLOTS_LAYOUT, true), w.setFact(STOCK_LAYOUT, true), w.setFact(STATS_LAYOUT, true), w.setFact(GEAR_LAYOUT, true), w.setFact(VOWS_LAYOUT, true)))
   },
   summon(kit, at, id) {
     const body = createBoss(kit, at, id)
