@@ -1,0 +1,1906 @@
+{
+ "commit": "d4006fedb033c634980f8721b2f3b598de831f33",
+ "created": "2026-10-27T03:22:52.366Z",
+ "nodes": [
+  {
+   "node": "impulse/strike|core/strike|tile|actor/person",
+   "cells": [
+    {
+     "hand": "",
+     "target": "tile:mud",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "tile/mud|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "tile:grass",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "tile/grass|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "tile:cave_floor",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "tile/cave_floor|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "tile:ow_bridge",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "tile/ow_bridge|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "tile:ow_highland",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "tile/ow_highland|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "tile:carpet_royal",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "tile/carpet_royal|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "tile:farmland",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "tile/farmland|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "tile:ow_forest",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "tile/ow_forest|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "tile:floor_wood",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "tile/floor_wood|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "tile:ow_city",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "tile/ow_city|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "act/use|core/use|item/food|fixture/boat",
+   "cells": [
+    {
+     "hand": "item/food/strawberry",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/strawberry|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/eggplant",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/eggplant|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/meat/cooked",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/meat/cooked|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/melon",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/melon|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/carrot",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/carrot|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/chicken/cooked",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/chicken/cooked|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/pie",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/pie|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/fish/raw",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/fish/raw|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/blueberry",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/blueberry|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/pie/palefen_eel_pie",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/pie/palefen_eel_pie|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "impulse/handle|core/handle|fixture/crop|actor/person",
+   "cells": [
+    {
+     "hand": "",
+     "target": "fixture/crop/tomato/sprout",
+     "verb": "hands",
+     "rule": "core/hands",
+     "hole": "core/handle",
+     "open": "fixture/crop/tomato/sprout|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/crop/carrot/sprout",
+     "verb": "hands",
+     "rule": "core/hands",
+     "hole": "core/handle",
+     "open": "fixture/crop/carrot/sprout|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/crop/wheat/young",
+     "verb": "hands",
+     "rule": "core/hands",
+     "hole": "core/handle",
+     "open": "fixture/crop/wheat/young|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/crop/potato/sprout",
+     "verb": "hands",
+     "rule": "core/hands",
+     "hole": "core/handle",
+     "open": "fixture/crop/potato/sprout|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/crop/melon/sprout",
+     "verb": "hands",
+     "rule": "core/hands",
+     "hole": "core/handle",
+     "open": "fixture/crop/melon/sprout|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/crop/strawberry/sprout",
+     "verb": "hands",
+     "rule": "core/hands",
+     "hole": "core/handle",
+     "open": "fixture/crop/strawberry/sprout|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/crop/tomato/young",
+     "verb": "hands",
+     "rule": "core/hands",
+     "hole": "core/handle",
+     "open": "fixture/crop/tomato/young|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/crop/carrot/young",
+     "verb": "hands",
+     "rule": "core/hands",
+     "hole": "core/handle",
+     "open": "fixture/crop/carrot/young|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/crop/corn/sprout",
+     "verb": "hands",
+     "rule": "core/hands",
+     "hole": "core/handle",
+     "open": "fixture/crop/corn/sprout|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/crop/cauliflower/sprout",
+     "verb": "hands",
+     "rule": "core/hands",
+     "hole": "core/handle",
+     "open": "fixture/crop/cauliflower/sprout|impulse/handle|core/handle",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "impulse/strike|core/strike|tile|item/tool",
+   "cells": [
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "tile:ow_mountain",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "tile/ow_mountain|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "tile:plaza",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "tile/plaza|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "tile:ow_plain",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "tile/ow_plain|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "tile:floor_stone",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "tile/floor_stone|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "tile:ow_snow",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "tile/ow_snow|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "tile:ow_deadwood",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "tile/ow_deadwood|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "tile:flowerbed",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "tile/flowerbed|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "tile:ow_sea",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "tile/ow_sea|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "tile:paving",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "tile/paving|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "tile:runner",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "tile/runner|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "act/use|core/use|item/food|fixture/build",
+   "cells": [
+    {
+     "hand": "item/food/pepper",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/pepper|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/tomato",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/tomato|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/mushroom/raw",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/mushroom/raw|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/cheese/tithe_salted_curd",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/cheese/tithe_salted_curd|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/fish/perch",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/fish/perch|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/meat/raw",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/meat/raw|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/parsnip",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/parsnip|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/apple",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/apple|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/fish/dawnscale",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/fish/dawnscale|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/food/fish/raw/tithe_salt_lake_mullet",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/food/fish/raw/tithe_salt_lake_mullet|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "impulse/handle|core/handle|fixture/crop|item/key",
+   "cells": [
+    {
+     "hand": "item/key",
+     "target": "fixture/crop/turnip/sprout",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/crop/turnip/sprout|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/crop/oak/sapling",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/crop/oak/sapling|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/crop/blueberry/sprout",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/crop/blueberry/sprout|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/crop/parsnip/sprout",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/crop/parsnip/sprout|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/crop/pumpkin/sprout",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/crop/pumpkin/sprout|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/crop/corn/young",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/crop/corn/young|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/crop/eggplant/young",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/crop/eggplant/young|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/crop/pepper/young",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/crop/pepper/young|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/crop/cauliflower/young",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/crop/cauliflower/young|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/crop/pepper/sprout",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/crop/pepper/sprout|impulse/handle|core/handle",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "impulse/strike|core/strike|fixture/nature|actor/person",
+   "cells": [
+    {
+     "hand": "",
+     "target": "fixture/nature/beehive/box",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "fixture/nature/beehive/box|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/nature/burrow",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "fixture/nature/burrow|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/nature/haystack",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "fixture/nature/haystack|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/nature/mist",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "fixture/nature/mist|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/nature/mushroom_ring",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "fixture/nature/mushroom_ring|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/nature/reeds",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "fixture/nature/reeds|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/nature/soot",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "fixture/nature/soot|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/nature/leaves",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "fixture/nature/leaves|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/nature/dead_tree",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "fixture/nature/dead_tree|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "",
+     "target": "fixture/nature/pebbles",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/strike",
+     "open": "fixture/nature/pebbles|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "act/use|core/use|item/material|fixture/boat",
+   "cells": [
+    {
+     "hand": "item/material/iron_ore",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/iron_ore|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/ash",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/ash|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/log/frostfang_pine_log",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/log/frostfang_pine_log|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/grass",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/grass|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/wax/palefen_moth_wax",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/wax/palefen_moth_wax|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/gold_ore",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/gold_ore|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/feather",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/feather|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/stone",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/stone|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/bone",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/bone|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/fireweed",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/fireweed|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "impulse/handle|core/handle|fixture/nature|item/key",
+   "cells": [
+    {
+     "hand": "item/key",
+     "target": "fixture/nature/logpile/stack",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/nature/logpile/stack|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/nature/spentvein/coal",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/nature/spentvein/coal|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/nature/spentvein/gold",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/nature/spentvein/gold|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/nature/plant",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/nature/plant|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/nature/burrow",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/nature/burrow|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/nature/briar/sprout/hedge",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/nature/briar/sprout/hedge|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/nature/vein/iron",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/nature/vein/iron|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/nature/boulder",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/nature/boulder|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/nature/vein/gold",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/nature/vein/gold|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/nature/web",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/nature/web|impulse/handle|core/handle",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "impulse/strike|core/strike|fixture/sacred|item/tool",
+   "cells": [
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/sacred/tomb",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/sacred/tomb|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/sacred/pulpit",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/sacred/pulpit|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/sacred/rail",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/sacred/rail|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/sacred/altar/high",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/sacred/altar/high|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/sacred/sarcophagus",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/sacred/sarcophagus|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/sacred/statue/martyr",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/sacred/statue/martyr|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/sacred/font",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/sacred/font|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/sacred/sword",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/sacred/sword|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/sacred/saint",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/sacred/saint|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/sacred/seal_stone",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/sacred/seal_stone|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "act/use|core/use|item/material|fixture/build",
+   "cells": [
+    {
+     "hand": "item/material/salt",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/salt|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/coal",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/coal|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/cloth",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/cloth|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/leather",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/leather|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/gold_ingot",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/gold_ingot|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/leather/altar_vellum",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/leather/altar_vellum|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/flower",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/flower|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/feather/altar_eyrie_feather",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/feather/altar_eyrie_feather|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/herb/redmarch_steppe_sage",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/herb/redmarch_steppe_sage|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/material/cloth/tithe_sackcloth",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/material/cloth/tithe_sackcloth|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "impulse/handle|core/handle|fixture/container|item/key",
+   "cells": [
+    {
+     "hand": "item/key",
+     "target": "fixture/container/chest#open",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/container/chest|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/container/crate#open",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/container/crate|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/container/barrel#open",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/container/barrel|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/container/cupboard#open",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/container/cupboard|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/container/wardrobe#open",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/container/wardrobe|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/container/bookcase#open",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/container/bookcase|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/container/drawers#open",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/container/drawers|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/container/woodpile#open",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/container/woodpile|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/container/storehouse#open",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/container/storehouse|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/key",
+     "target": "fixture/container/sack#open",
+     "verb": "use",
+     "rule": "use/key",
+     "hole": "core/handle",
+     "open": "fixture/container/sack|impulse/handle|core/handle",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "impulse/strike|core/strike|fixture/build|item/tool",
+   "cells": [
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/build/plot/lodge1",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/build/plot/lodge1|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/build/plot/arcane",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/build/plot/arcane|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/build/post",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/build/post|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/build/frame|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/shovel",
+     "target": "fixture/build/ring",
+     "verb": "use",
+     "rule": "use/shovel",
+     "hole": "core/strike",
+     "open": "fixture/build/ring|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/build/plot/storehouse",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/build/plot/storehouse|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/build/plot/loom",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/build/plot/loom|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/build/plot/workshop",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/build/plot/workshop|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/build/plot/lodge3",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/build/plot/lodge3|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/tool/pickaxe",
+     "target": "fixture/build/plot/kitchen",
+     "verb": "use",
+     "rule": "use/pickaxe",
+     "hole": "core/strike",
+     "open": "fixture/build/plot/kitchen|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "act/use|core/use|item/misc|fixture/boat",
+   "cells": [
+    {
+     "hand": "item/misc/ink/holy_vermilion_ink",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/ink/holy_vermilion_ink|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/lute/redmarch_steppe_fiddle",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/lute/redmarch_steppe_fiddle|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/ink",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/ink|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/firework",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/firework|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/warm_ember",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/warm_ember|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/bell",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/bell|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/bundle",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/bundle|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/crate_calf",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/crate_calf|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/ninth_nail",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/ninth_nail|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/soap/palefen_mortician_s_lye",
+     "target": "fixture/boat",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/soap/palefen_mortician_s_lye|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "impulse/handle|core/handle|fixture/build|item/misc",
+   "cells": [
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/build/plot/lodge3",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/build/plot/lodge3|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/build/post",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/build/post|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/build/plot/kitchen",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/build/plot/kitchen|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/build/stakes",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/build/stakes|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/build/ring",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/build/ring|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/build/plot/lodge1",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/build/plot/lodge1|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/build/plot/loom",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/build/plot/loom|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/build/plot/storehouse",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/build/plot/storehouse|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/build/plot/workshop",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/build/plot/workshop|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/build/plot/lodge2",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/build/plot/lodge2|impulse/handle|core/handle",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "impulse/strike|core/strike|fixture/furniture|item/weapon",
+   "cells": [
+    {
+     "hand": "item/weapon/blade/sword",
+     "target": "fixture/furniture/bench/log",
+     "verb": "use",
+     "rule": "use/blade",
+     "hole": "core/strike",
+     "open": "fixture/furniture/bench/log|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/weapon/blade/sword",
+     "target": "fixture/furniture/washing_line",
+     "verb": "use",
+     "rule": "use/blade",
+     "hole": "core/strike",
+     "open": "fixture/furniture/washing_line|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/weapon/blade/sword",
+     "target": "fixture/furniture/rack/fish",
+     "verb": "use",
+     "rule": "use/blade",
+     "hole": "core/strike",
+     "open": "fixture/furniture/rack/fish|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/weapon/blade/sword",
+     "target": "fixture/furniture/rack/arms",
+     "verb": "use",
+     "rule": "use/blade",
+     "hole": "core/strike",
+     "open": "fixture/furniture/rack/arms|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/weapon/blade/sword",
+     "target": "fixture/furniture/bookstand",
+     "verb": "use",
+     "rule": "use/blade",
+     "hole": "core/strike",
+     "open": "fixture/furniture/bookstand|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/weapon/blade/sword",
+     "target": "fixture/furniture/bed",
+     "verb": "use",
+     "rule": "use/blade",
+     "hole": "core/strike",
+     "open": "fixture/furniture/bed|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/weapon/blade/sword",
+     "target": "fixture/furniture/chair",
+     "verb": "use",
+     "rule": "use/blade",
+     "hole": "core/strike",
+     "open": "fixture/furniture/chair|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/weapon/blade/sword",
+     "target": "fixture/furniture/counter/store",
+     "verb": "use",
+     "rule": "use/blade",
+     "hole": "core/strike",
+     "open": "fixture/furniture/counter/store|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/weapon/blade/sword",
+     "target": "fixture/furniture/cart/flowers",
+     "verb": "use",
+     "rule": "use/blade",
+     "hole": "core/strike",
+     "open": "fixture/furniture/cart/flowers|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/weapon/blade/sword",
+     "target": "fixture/furniture/stall/trade",
+     "verb": "use",
+     "rule": "use/blade",
+     "hole": "core/strike",
+     "open": "fixture/furniture/stall/trade|impulse/strike|core/strike#!{\"all\":[{\"any\":[{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"structure\",\"notTags\":[\"locked\"]}}},{\"is\":{\"role\":\"host\",\"sel\":{\"type\":\"fixture\",\"tags\":[\"portable\"],\"notTags\":[\"locked\"]}}}]},{\"any\":[{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:axe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:pickaxe\"}},{\"has\":{\"role\":\"instrument\",\"tag\":\"tool:hammer\"}}]}]}&!{\"prop\":{\"role\":\"host\",\"key\":\"maxHp\",\"cmp\":{\"gt\":0}}}&!{\"param\":{\"key\":\"element\",\"cmp\":{\"ne\":\"\"}}}",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "act/use|core/use|item/misc|fixture/build",
+   "cells": [
+    {
+     "hand": "item/misc/bouquet",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/bouquet|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/old_boot",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/old_boot|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/bomb",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/bomb|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/soap",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/soap|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/thornmark",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/thornmark|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/lute",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/lute|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/mirror",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/mirror|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/doll/palefen_reed_poppet",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/doll/palefen_reed_poppet|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/snowball",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/snowball|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/flute",
+     "target": "fixture/build/frame",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/misc/flute|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "impulse/handle|core/handle|fixture/sacred|item/misc",
+   "cells": [
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/sacred/sarcophagus",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/sacred/sarcophagus|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/sacred/lectern",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/sacred/lectern|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/sacred/sword",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/sacred/sword|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/sacred/seal_stone",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/sacred/seal_stone|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/sacred/organ",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/sacred/organ|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/sacred/reliquary",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/sacred/reliquary|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/sacred/saint",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/sacred/saint|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/sacred/statue/martyr",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/sacred/statue/martyr|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/sacred/pulpit",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/sacred/pulpit|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/sacred/cross",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/sacred/cross|impulse/handle|core/handle",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "act/use|core/use|item/clothing|fixture/chalk",
+   "cells": [
+    {
+     "hand": "item/clothing/hood",
+     "target": "fixture/chalk/stone",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/clothing/hood|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/clothing/cloak/holy_pilgrim_s_cloak",
+     "target": "fixture/chalk/stone",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/clothing/cloak/holy_pilgrim_s_cloak|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/clothing/hat/jellycrown",
+     "target": "fixture/chalk/stone",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/clothing/hat/jellycrown|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/clothing/belt/tuskbelt",
+     "target": "fixture/chalk/stone",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/clothing/belt/tuskbelt|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/clothing/cloak/tidecloak",
+     "target": "fixture/chalk/stone",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/clothing/cloak/tidecloak|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/clothing/cloak/wolfpelt",
+     "target": "fixture/chalk/stone",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/clothing/cloak/wolfpelt|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/clothing/gloves/altar_highland_gloves",
+     "target": "fixture/chalk/stone",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/clothing/gloves/altar_highland_gloves|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/clothing/belt",
+     "target": "fixture/chalk/stone",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/clothing/belt|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/clothing/hat",
+     "target": "fixture/chalk/stone",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/clothing/hat|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/clothing/robe",
+     "target": "fixture/chalk/stone",
+     "verb": "use",
+     "rule": "core/use",
+     "hole": "core/use",
+     "open": "item/clothing/robe|act/use|core/use#!{\"none\":\"instrument\"}&!{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"site\"}}}&!{\"param\":{\"key\":\"attack\",\"cmp\":true}}&!{\"all\":[{\"is\":{\"role\":\"target\",\"sel\":{\"type\":\"actor/creature\"}}},{\"not\":{\"same\":[\"actor\",\"target\"]}}]}",
+     "outcome": "undefined"
+    }
+   ]
+  },
+  {
+   "node": "impulse/handle|core/handle|fixture/furniture|item/misc",
+   "cells": [
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/furniture/desk",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/furniture/desk|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/furniture/table/long",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/furniture/table/long|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/furniture/rack/fish",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/furniture/rack/fish|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/furniture/rack/nets",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/furniture/rack/nets|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/furniture/washing_line",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/furniture/washing_line|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/furniture/bench/log",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/furniture/bench/log|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/furniture/chair",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/furniture/chair|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/furniture/cart/flowers",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/furniture/cart/flowers|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/furniture/throne",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/furniture/throne|impulse/handle|core/handle",
+     "outcome": "undefined"
+    },
+    {
+     "hand": "item/misc/feather_quill",
+     "target": "fixture/furniture/rack/arms",
+     "verb": "use",
+     "rule": "use/writing",
+     "hole": "core/handle",
+     "open": "fixture/furniture/rack/arms|impulse/handle|core/handle",
+     "outcome": "undefined"
+    }
+   ]
+  }
+ ]
+}

@@ -8,6 +8,7 @@ import type { DraftContext, DraftKind } from './drafts.ts'
 import { patchRules, type ModRequest, type ModSpec, type Patch, type Rule, type StatusDef, type TypeDef } from '@openworld/engine'
 import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '../agent/state.ts'
 import { compactRule } from './tools.ts'
+import { reflectFormat } from '../agent/state.ts'
 
 type Episode = AgentEpisode<ModRequest, Patch>
 
@@ -74,6 +75,8 @@ export interface Recall {
   lessons: Lesson[]
   episodes: (EpisodeEntry & { score: number })[]
   skills: SkillMeta[]
+  /** This kind of request's own skill, shown whole (a one-call design has no read_skill). */
+  skill?: { name: string; body: string }
 }
 
 /** The request as the model reads it: no scenario (the harness replays it), no setting (the harness works it); with a brief, no rules (the brief has them). */
@@ -90,8 +93,12 @@ export function designUser(req: ModRequest, recall: Recall, brief?: string, adde
     for (const t of added.types) out.push(`- type ${JSON.stringify({ id: t.id, tags: t.tags ?? [], name: t.name })}`)
     for (const s of added.statuses) out.push(`- status ${JSON.stringify({ id: s.id, name: s.name, duration: s.duration, immobilize: s.immobilize, moveDelay: s.moveDelay, clears: s.clears })}`)
   }
-  out.push('', tools ? '# Your skills (read one with read_skill)' : '# Your skills')
-  out.push(...(recall.skills.length ? recall.skills.map((s) => `- ${s.name}: ${s.description} (used ${s.uses}×, ${s.accepted} accepted)`) : ['(none yet)']))
+  if (recall.skill) out.push('', `# Your skill for this kind of request (${recall.skill.name})`, recall.skill.body)
+  const others = recall.skills.filter((s) => s.name !== recall.skill?.name)
+  if (others.length || !recall.skill) {
+    out.push('', tools ? '# Your skills (read one with read_skill)' : '# Your skills')
+    out.push(...(others.length ? others.map((s) => `- ${s.name}: ${s.description} (used ${s.uses}×, ${s.accepted} accepted)`) : ['(none yet)']))
+  }
   out.push('', '# Lessons from your past episodes')
   out.push(...(recall.lessons.length ? recall.lessons.map((l) => `- [${l.id}] ${l.text}`) : ['(none yet)']))
   out.push('', tools ? '# Similar past episodes (read one with get_episode)' : '# Similar past episodes')
@@ -220,43 +227,24 @@ export function reviewUser(req: ModRequest, patch: Patch, outcome: string, neigh
 
 // ---------------------------------------------------------------- reflection
 
-export const REFLECT_SYSTEM = `You keep your own memory as the modder of a rule-based game world. After every episode you decide what is worth keeping, so that the next request goes better. Your memory is read by you only.
+export const REFLECT_SYSTEM = `You keep your own memory as the modder of a rule-based game world. After every episode you decide what is worth keeping, so that the next request goes better. Your memory is read by you only. A task of "this kind" is a request to patch this engine; its kind below is the request's class of host and target.
 
-Respond with JSON only:
-{
-  "lessons": {
-    "add": [{"text": "...", "terms": ["..."], "general": false}],
-    "revise": [{"id": "L3", "text": "..."}],
-    "support": ["L2"],
-    "drop": ["L5"]
-  },
-  "skill": null
-}
-
-Lessons:
-- A lesson is a reusable rule of thumb about writing patches for this engine, or about coding in general — never a retelling of this episode. One sentence.
-- The most valuable lessons come from what went wrong: each validator error that cost a repair round is a lesson you did not have yet.
-- Add at most two. Often none is right. "support" lessons this episode confirmed; "revise" or "drop" lessons it contradicted.
-- "terms": the signature terms (from the list given) under which the lesson applies.
-- "general": true for a lesson about coding in general (reading a failure, checking a change, keeping it small), not about this engine's rules: it is shown on every task, a repository's as well as a rule's. Keep the engine's own facts out of a general lesson.
-
-Skills:
-- A skill is a procedure you will follow again: when to use it, the steps, the checks, a template. Set "skill" to {"name": "kebab-case", "description": "when to use it, one line", "triggers": ["signature terms"], "general": false, "body": "markdown"} ("general": true for a procedure that holds for any coding task; it is listed on every task) only when this kind of work has recurred at least {N} times (see the similar episodes) and no skill of yours covers it, or to improve a skill you used (same name). Otherwise null.`
+${reflectFormat('for coding in general: reading a failure, checking a change, keeping it small')}
+- Each validator error that cost a repair round is something you did not know yet: a rule if it holds for every patch, else a note or the skill's.`
 
 /** One episode, or several that each went cleanly (reflected on together, to save calls). */
-export function reflectUser(eps: Episode | Episode[], coarse: string[], lessons: Lesson[], skills: SkillMeta[], similar: EpisodeEntry[]): string {
+export function reflectUser(eps: Episode | Episode[], coarse: string[], lessons: Lesson[], node: string[], similar: EpisodeEntry[]): string {
   const list = Array.isArray(eps) ? eps : [eps]
   return [
     ...(list.length > 1 ? [`# ${list.length} episodes, each accepted at its first answer (reflect on them together)`, `signature terms: ${coarse.join(', ')}`, ''] : []),
     ...list.flatMap((ep) => [...episodeSection(ep, list.length > 1 ? undefined : coarse), '']),
-    '## Your lessons on file (relevant ones)',
+    '## Your rules on file (relevant ones)',
     ...(lessons.length ? lessons.map((l) => `- [${l.id}] ${l.text} (from ${l.episodes.length} episode(s))`) : ['(none)']),
-    '',
-    '## Your skills',
-    ...(skills.length ? skills.map((s) => `- ${s.name}: ${s.description} (used ${s.uses}×, ${s.accepted} accepted)`) : ['(none)']),
     '',
     `## Similar past episodes (${similar.length})`,
     ...(similar.length ? similar.map((e) => `- ${e.summary} → ${e.outcome}`) : ['(none)']),
+    '',
+    ...(node.length ? node : ['## These are of several kinds: rules only ("notes" and "skill" are not kept)']),
   ].join('\n')
 }
 

@@ -56,7 +56,7 @@ describe('a code task of the curriculum', () => {
     execSync('git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm init', { cwd: dir })
     const call = (name: string, args: Record<string, unknown>) => ({ content: '', toolCalls: [{ id: name, name, args }] })
     const model = new ScriptedModel((messages: ChatMessage[], opts) => {
-      if (opts.purpose === 'reflect') return { lessons: { add: [{ text: 'Find where a function is defined before changing its callers.', general: true }] }, skill: null }
+      if (opts.purpose === 'reflect') return { rules: { add: [{ text: 'Find where a function is defined before changing its callers.', scope: 'general' }] }, notes: [], skill: null }
       const done = messages.filter((m) => m.role === 'tool').map((m) => (m as { name: string }).name)
       if (!done.includes('edit_file')) return call('edit_file', { path: 'src/add.mjs', old_string: 'a - b', new_string: 'a + b' })
       if (!done.includes('run_tests')) return call('run_tests', {})
