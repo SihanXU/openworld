@@ -106,9 +106,16 @@ export function migrateFirstlightHouses(game: Game, chunks: MapChunk[]): void {
  * to the nearest cell it can stand on, and nothing is taken away.
  */
 export function migratePartOneMaps(game: Game, chunks: MapChunk[]): void {
-  if (game.engine.world.fact(PART_ONE_LAYOUT)) return
+  const w = game.engine.world
+  if (w.fact(PART_ONE_LAYOUT)) return
   stepOffWalls(game, chunks)
-  game.engine.world.setFact(PART_ONE_LAYOUT, true)
+  // a thing the save kept that the maps have made a kind of what it was (Alberic's tent, a pavilion now): that kind
+  for (const c of chunks)
+    for (const f of c.entities) {
+      const saved = w.get(f.id)
+      if (saved && saved.type !== f.type && f.type.startsWith(`${saved.type}/`)) w.transform(saved, f.type)
+    }
+  w.setFact(PART_ONE_LAYOUT, true)
 }
 
 /** The maps given loaded as they are now, and what of the save stands on a wall or the dark there moved to the nearest open cell. */
