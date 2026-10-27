@@ -1565,6 +1565,10 @@ export interface Plan {
   sets?: boolean
   /** It takes what is another's (docs/npc-sandbox.md §2.1): the HUD says so. */
   steal?: boolean
+  /** A swing at the air (in a fight, where the aim meets no foe and nothing the world knows): it strikes a body on its way, never the ground. */
+  whiff?: boolean
+  /** Not made (in a fight, an experiment the world has never seen: a slip of the finger mid-blow): the label says so, the press does nothing. */
+  idle?: boolean
 }
 
 // ------------------------------------------------------------------ events (design.md §5.7)
@@ -1903,6 +1907,7 @@ export type Effect =
   /** A line said by the host (or, for the story and the world, by one of the event's roles). */
   | { op: 'say'; text: Text; who?: RoleName }
   | { op: 'log'; text: Text }
+  | { op: 'remark'; text: Text; again?: Text; alone?: Text; every?: number }
   | { op: 'emote'; mood: Mood }
   | { op: 'restyle'; parts?: Record<string, string | null>; colors?: Record<string, string | null> }
   // the people's social life (docs/npc-sandbox.md): each writes its host only

@@ -14,6 +14,7 @@ import { AFFLICTION_RULES } from './afflictions.ts'
 import { BOSS_KIT_RULES } from './bosses.ts'
 import { CH1 } from './chapter1.ts'
 import { PART_TWO, UNTOLD } from './regions.ts'
+import { TUTORIAL_OPEN } from './prologue.ts'
 import { VILLAGE_SHOP_RULES } from './village.ts'
 import { PERSON_NEWS, SOCIAL_RULES } from './social.ts'
 import { DRESSER_RULES } from './dresser.ts'
@@ -1838,17 +1839,62 @@ const BUILDING: Rule[] = [
 ]
 
 /**
+ * A gate the story keeps shut (its fact unset): the gate's words (`say`, the message line's and the label's), and what
+ * the companion says when one runs up against it (`remark` the first time, `again` after: the `remark` primitive).
+ */
+interface Gate {
+  fact: string
+  say: Text
+  remark: Text
+  again: Text
+}
+
+/**
  * The ways the story opens on the world map: a place whose `opensWhen` is the fact is sealed until the story
  * sets it (as a portal's `opensWhen`), and says why. East of the Ford: Part Two's (release 1 ends at the river);
  * beyond the White Knight on the East Road: Emberfall and all east of it.
  */
-export const SITE_GATES: { fact: string; say: { en: string; zh: string } }[] = [
+export const SITE_GATES: Gate[] = [
   // release 1 is Part One (regions.ts PART_TWO): the road east of the Ford and all beyond it, until the story's second part
-  { fact: PART_TWO, say: L('The road east of the Ford is not open yet: its tale is told in Part Two.', '渡口以东的路还没有开放：那里的故事在第二部。') },
-  { fact: CH1.knight, say: L('The White Knight still holds the East Road. There is no way past him yet.', '白骑士还守在东大路上，暂时过不去。') },
+  {
+    fact: PART_TWO,
+    say: L('The road east of the Ford is not open yet: its tale is told in Part Two.', '渡口以东的路还没有开放：那里的故事在第二部。'),
+    remark: L("That way lies east of the Ford, and the road there isn't open yet. Let's come back and explore it another time!", '那边就是渡口以东了，路还没通呢。以后再来探索吧！'),
+    again: L('East of the Ford — another time.', '渡口以东，以后再去吧。'),
+  },
+  {
+    fact: CH1.knight,
+    say: L('The White Knight still holds the East Road. There is no way past him yet.', '白骑士还守在东大路上，暂时过不去。'),
+    remark: L("The White Knight still holds the East Road. We can't get past him yet — let's come back when we can.", '白骑士还守在东大路上，现在还过不去。等有办法了再来吧。'),
+    again: L('Not past the knight yet.', '还过不了白骑士那一关。'),
+  },
   // a place whose tale is not told yet (regions.ts UNTOLD): a Seal-bearer's seat beyond the first, the Most Holy Hall
-  { fact: UNTOLD, say: L('The way in is shut. Its tale is not yet told.', '入口紧闭。此地的故事尚未开放。') },
+  {
+    fact: UNTOLD,
+    say: L('The way in is shut. Its tale is not yet told.', '入口紧闭。此地的故事尚未开放。'),
+    remark: L("Shut tight... its tale isn't told yet. Let's come back and explore it later.", '关得紧紧的……这里的故事还没到讲的时候，以后再来探索吧。'),
+    again: L('This one is for later.', '这里以后再来吧。'),
+  },
+  // the clearing's way down, before its last morning (prologue.ts)
+  {
+    fact: TUTORIAL_OPEN,
+    say: L('The way down is not open yet.', '下山的路还没开。'),
+    remark: L("Not yet — let's settle in here first. We go at first light.", '先别走——先在这儿安顿下来，天一亮就出发。'),
+    again: L('At first light.', '等天亮。'),
+  },
 ]
+
+/** A way the story has not opened whose fact no gate names: the companion's words all the same. */
+const ANY_GATE: Pick<Gate, 'remark' | 'again'> = {
+  remark: L("We can't go on that way yet. Let's come back and explore it another time!", '前面的区域以后再来探索吧！'),
+  again: L('Another time.', '以后再来吧。'),
+}
+
+/** A way run up against again and again: the companion says so at most once in this long (ticks: a minute). */
+const SEALED_EVERY = 600
+
+/** The companion's line at a gate (`remark`); with no companion at hand, the gate's own words in the message line. */
+const gateRemark = (g: Pick<Gate, 'remark' | 'again'> & { say?: Text }, every?: number): Effect => ({ op: 'remark', text: g.remark, again: g.again, ...(g.say && { alone: g.say }), ...(every && { every }) })
 
 /** A tent with a room behind its flap (its `interior`, `interiorX`, `interiorY`): a hand on it, and in one goes. */
 const TENTS: Rule[] = [
@@ -1869,7 +1915,8 @@ const TENTS: Rule[] = [
 /** A place of the overworld, sealed by one of the gates (its `opensWhen` fact unset): the gate's words; open, `open`. */
 const sealedSite = (open: Tree, label = true): Tree =>
   SITE_GATES.reduceRight<Tree>((rest, g) => {
-    const say = DO(log(g.say.en, g.say.zh))
+    // run up against (a bump, `label` false), a companion says it at most once a minute; asked (a hand on it), always
+    const say = DO(gateRemark(g, label ? undefined : SEALED_EVERY))
     return IF({ all: [{ prop: { role: 'host', key: 'opensWhen', cmp: g.fact } }, { prop: { role: 'story', key: g.fact, cmp: 0, default: 0 } }] }, label ? AS(L('Sealed: {target}', '未开放：{target}'), say) : say, rest)
   }, open)
 
@@ -1888,6 +1935,13 @@ const SITES: Rule[] = [
     host: SITE,
     on: 'bump',
     tree: sealedSite(NOTHING, false),
+  }),
+  rule({
+    id: 'story/sealed',
+    doc: 'The one at the keys ran off an edge where the story has not opened the way (Engine.sealedEdge: a way sealed underfoot, or an edge whose ways all lead to places not open yet; the bump\'s `sealed` is the fact that opens it): their companion says so, at most once a minute — in the gate\'s words for that fact, else that it is for another time; with no companion at hand, the message line says it.',
+    host: { type: 'resident/story' },
+    on: 'bump',
+    tree: SITE_GATES.reduceRight<Tree>((rest, g) => IF(param('sealed', g.fact), DO(gateRemark(g, SEALED_EVERY)), rest), DO(gateRemark(ANY_GATE, SEALED_EVERY))),
   }),
   rule({
     id: 'site/far',
