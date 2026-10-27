@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/figures/readme/title.jpg" alt="OpenWorld: a world whose rules are code">
+</p>
+
 # OpenWorld
 
 [![check](https://github.com/SihanXU/openworld/actions/workflows/check.yml/badge.svg)](https://github.com/SihanXU/openworld/actions/workflows/check.yml)
@@ -8,13 +12,21 @@ world's state and rules are code. When the player does something no rule covers,
 the missing rule. The engine checks it, applies it to every thing of that type, and keeps it. Without a model
 the game is complete and plays to its end.
 
-![Firstlight Village: the HUD, a quest tracked, and a conversation with Sister Ilse](site/designs/img/village-hud.webp)
-
-<p>
-  <img src="site/designs/img/ford.webp" width="32%" alt="The Ford">
-  <img src="site/designs/img/overworld.webp" width="32%" alt="The overworld">
-  <img src="site/designs/img/boss.webp" width="32%" alt="The White Knight Alberic">
+<p align="center">
+  <img src="docs/figures/readme/learns.webp" width="100%" alt="A bone used on farmland: no rule covers it, so a rule is written, checked and kept, and a skeleton rises">
+  <br><sub>No rule covered a bone used on farmland. The world wrote one, checked it, and kept it.</sub>
 </p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/figures/readme/dialogue.jpg" alt="Sister Ilse greets the traveller in Firstlight Village"></td>
+    <td width="50%"><img src="docs/figures/readme/boss.jpg" alt="The White Knight Alberic winds up a skill"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/figures/readme/fishing.jpg" alt="Fishing at the Ford"></td>
+    <td width="50%"><img src="docs/figures/readme/night.jpg" alt="Firstlight Village at night"></td>
+  </tr>
+</table>
 
 The project is the testbed for the research paper *Large Symbolic World* (in preparation): a world defined
 symbolically, as opposed to one learned by a neural world model, that grows as it is played.
@@ -209,9 +221,9 @@ npm run wiki:build    # → games/openworld/wiki/out
 
 ## Credits and license
 
-- Art and audio: [Ninja Adventure](https://pixel-boy.itch.io/ninja-adventure-asset-pack) by Pixel-boy and AAA (CC0),
-  and the project's own art in `games/openworld/public/assets/lsw/`.
-- Font: Fusion Pixel, under the SIL Open Font License, with its component fonts' licenses in
+- Code: [MIT](LICENSE).
+- The project's own art (`games/openworld/public/assets/lsw/`): [CC0 1.0](games/openworld/public/assets/lsw/LICENSE.md).
+- Art and audio from [Ninja Adventure](https://pixel-boy.itch.io/ninja-adventure-asset-pack) by Pixel-boy and AAA:
+  CC0.
+- Font: Fusion Pixel, under the SIL Open Font License 1.1, with its component fonts' licenses in
   `packages/runtime/src/fonts/`.
-
-License: to be decided.
