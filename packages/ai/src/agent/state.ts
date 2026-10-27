@@ -612,8 +612,10 @@ export class SelfState {
     const name = safeName(s.name)
     const now = this.now()
     const prev = this.skillIndex[name]
+    // (written again after it was retired: the new text is judged on its own uses, not the retired one's)
+    const fresh = prev?.status === 'retired' ? { uses: 0, accepted: 0, failed: 0, recent: [], origin: episode } : {}
     const meta: SkillMeta = prev
-      ? { ...prev, description: s.description, triggers: s.triggers, ...(s.node && { node: s.node }), version: prev.version + 1, status: 'active', updated: now }
+      ? { ...prev, ...fresh, description: s.description, triggers: s.triggers, ...(s.node && { node: s.node }), version: prev.version + 1, status: 'active', updated: now }
       : { name, description: s.description, triggers: s.triggers, ...(s.node && { node: s.node }), version: 1, status: 'active', created: now, updated: now, origin: episode, uses: 0, accepted: 0, failed: 0, recent: [] }
     this.skillIndex[name] = meta
     this.fs.mkdir(this.fs.join(this.dir, 'skills', name))
@@ -924,11 +926,13 @@ export function keepReflection(state: SelfState, reply: string, o: { cited: stri
   const j = parseJson(reply) as { rules?: RuleOps; lessons?: RuleOps; notes?: unknown; skill?: { description?: unknown; body?: unknown; files?: unknown } | null } | undefined
   const by = Array.isArray(o.cited) ? o.cited[o.cited.length - 1] : o.cited
   // (an older reply's "lessons" keep their own terms)
-  const ops = j?.rules && typeof j.rules === 'object' ? { ...j.rules, add: (j.rules.add ?? []).map((a) => ({ text: a?.text, general: a?.scope === 'general' || a?.general === true, terms: [o.kindTerm] })) } : j?.lessons && typeof j.lessons === 'object' ? j.lessons : undefined
+  const ops = j?.rules && typeof j.rules === 'object' ? { ...j.rules, add: (Array.isArray(j.rules.add) ? j.rules.add : []).map((a) => ({ text: a?.text, general: a?.scope === 'general' || a?.general === true, terms: [o.kindTerm] })) } : j?.lessons && typeof j.lessons === 'object' ? j.lessons : undefined
   const lessons = ops ? state.applyLessons(ops as Parameters<SelfState['applyLessons']>[0], o.cited, [o.kindTerm]) : []
   const s = o.stand
   if (!s) return { lessons, notes: 0 }
   const sk = j?.skill
+  // (another reflection on this node wrote its skill since this one read it: that one stands, this one's is not kept)
+  if (state.skillAt(s.node)?.version !== s.skill?.version) return { lessons, notes: 0 }
   if (sk && typeof sk.body === 'string' && sk.body.trim() && (s.skill || s.due)) {
     const body = sk.body.trim().split('\n').slice(0, SKILL_MAX_LINES + 10).join('\n')
     const files = o.files && sk.files && typeof sk.files === 'object' ? (Object.fromEntries(Object.entries(sk.files as Record<string, unknown>).filter(([, v]) => typeof v === 'string')) as Record<string, string>) : undefined

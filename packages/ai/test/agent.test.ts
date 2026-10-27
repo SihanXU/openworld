@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_HARNESS, keepReflection, nodeStand } from '../src/agent/state.ts'
 import { CONTAINER_SETUP, HOOK_NODE, IMAGE_INIT, LocalEnv, OpenAICompatModel, PIN_BREACH, ScriptedModel, SelfState, agentTools, applyPreset, better, checkProposal, improve, AGENT_REFLECT_SYSTEM, nodeSkillName, reflectAfter, reflectAgent, inside, jsSearch, manifestOf, modelFromEnv, pinFromEnv, recordsOf, repositoryIn, runAgent, runInstances, solve, RELATED_CODE_HOOK, TESTS_PASS_HOOK, nodeFiles, sandboxImage, REPO, type AgentTask, type ChatMessage, type Episode, type TaskSource, type Files } from '../src/index.ts'
 
 /** A stand-in for the docker CLI (an image is a directory; exec runs here): the container path without Docker. */
@@ -219,6 +220,24 @@ describe('the middle loop: global rules, and one skill a kind of task', () => {
     expect(state.relevantSkills(['kind:act/use', 'target#ground'], 'x').map((s) => s.name)).toEqual(['item-on-ground', 'bisect-a-failure'])
     expect(state.relevantSkills(['kind:engine'], 'kind:engine').map((s) => s.name)).toEqual(['bisect-a-failure', nodeSkillName('kind:engine')])
     expect(nodeSkillName('impulse/strike|core/strike|fixture/furniture|actor/person')).not.toBe(nodeSkillName('impulse/strike|core/strike|fixture/furniture|actor/creature'))
+  })
+
+  it("a node's skill written again after it was retired is judged afresh; a reflection read before another wrote the skill keeps none", () => {
+    const state = freshState()
+    const node = 'kind:mini'
+    const name = nodeSkillName(node)
+    state.writeSkill({ name, node, description: 'd', triggers: [], body: '1. old' }, 'E1')
+    for (let i = 0; i < 8; i++) state.noteSkillUse([name], 'failed', `F${i}`)
+    expect(state.skill(name)?.status).toBe('retired')
+    // two reflections on the node, both read while it had no skill
+    const h = { ...DEFAULT_HARNESS, reflect: { ...DEFAULT_HARNESS.reflect, skillMinRecurrence: 0 } }
+    const a = nodeStand(state, node, h, true), b = nodeStand(state, node, h, true)
+    const reply = (body: string) => JSON.stringify({ rules: { add: 'not a list' }, skill: { description: 'd', body } })
+    expect(keepReflection(state, reply('1. new'), { cited: 'E9', kindTerm: node, stand: a }).skill).toBe(name)
+    expect(state.skill(name)).toMatchObject({ status: 'active', uses: 0, accepted: 0, failed: 0 })
+    // the second, read before the first wrote, does not write over it
+    expect(keepReflection(state, reply('1. stale'), { cited: 'E10', kindTerm: node, stand: b }).skill).toBeUndefined()
+    expect(state.readSkill(name)).toContain('1. new')
   })
 
   it('reflects after a recorded task, unless the backend failed it', async () => {

@@ -28,8 +28,12 @@ describe('the rule bench', () => {
   it('groups the holes as the reflection does: each hole asked is of its node (request.ts skillNodeOf)', { timeout: 120_000 }, () => {
     const onto = GAME.ontology()
     const lib = new RuleLibrary(GAME.rules)
-    const off = bench.nodes.flatMap((n) => n.cells.map((c) => ({ n: n.node, req: cellRequest(c, onto, lib) }))).filter(({ n, req }) => !req || skillNodeOf(req) !== n)
-    expect(off.map(({ n, req }) => `${n} ≠ ${req ? skillNodeOf(req) : 'not a hole'}`)).toEqual([])
+    const asked = bench.nodes.flatMap((n) => n.cells.map((c) => ({ n: n.node, req: cellRequest(c, onto, lib) })))
+    // (a hole a later base rule answers is left out of a run, rulebench.ts; most of the bench must still be holes)
+    const holes = asked.filter((a) => a.req)
+    expect(holes.length).toBeGreaterThan(asked.length * 0.9)
+    const off = holes.filter(({ n, req }) => skillNodeOf(req!) !== n)
+    expect(off.map(({ n, req }) => `${n} ≠ ${skillNodeOf(req!)}`)).toEqual([])
   })
 
   it('works the first of every kind, then the second …; a rep is the same holes in another order', () => {
