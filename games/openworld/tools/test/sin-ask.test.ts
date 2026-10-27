@@ -89,6 +89,31 @@ describe('what would weigh on one\'s conscience is asked first', () => {
     expect(eng.blowGuilt(p)).toBeUndefined()
   })
 
+  it('a swing at the air in a fight (design.md §5.2) that would strike someone on its way is asked as that blow', () => {
+    const { eng, w, p, clear, deeds } = fresh()
+    clear(['npc.marta'])
+    const marta = w.get('npc.marta')!
+    // a clear line from where one stands: the cell aimed at empty, she two cells beyond it
+    const at = w.posOf(p)!
+    const line = ([[0, -1], [1, 0], [0, 1], [-1, 0]] as const).find(([dx, dy]) => [1, 2, 3].every((i) => w.walkable(MAP, at.x + dx * i, at.y + dy * i, p.id)))!
+    const [dx, dy] = line
+    eng.author(() => {
+      eng.teleport(marta, { map: MAP, x: at.x + dx * 3, y: at.y + dy * 3 })
+      p.props!.profession = 'ranger'
+      w.create('item/weapon/ranged/bow', { on: 'hand', holder: p.id })
+      ;(p.combat ??= {}).fightTick = w.state.tick
+    })
+    eng.controls.sync()
+    const plan = eng.controls.plan('primary', { x: at.x + dx, y: at.y + dy })!
+    expect(plan).toMatchObject({ attack: true, whiff: true })
+    const hp = w.num(marta, 'hp')
+    eng.controls.run(plan)
+    expect(deeds()).toEqual(['assault'])
+    expect(textOf(w.state.question!.text, 'en')).toContain(textOf(marta.name, 'en'))
+    eng.controls.answer(false)
+    expect(w.num(marta, 'hp')).toBe(hp)
+  })
+
   it('a pocket picked: asked from the pockets panel, made on a yes', () => {
     const { eng, w, p, clear, deeds } = fresh()
     clear(['npc.marta'])

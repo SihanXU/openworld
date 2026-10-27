@@ -84,6 +84,10 @@ const GENERIC: Record<string, Text> = {
   steal: { en: 'Steal {target}', zh: '偷走{target}' },
   punch: { en: 'Punch {target}', zh: '一拳打向{target}' },
   cast: { en: 'Cast {instrument}', zh: '施放{instrument}' },
+  // in a fight (design.md §5.2): a swing where nothing is struck, and an experiment left for later
+  swing: { en: 'Swing {instrument}', zh: '挥动{instrument}' },
+  punchAir: { en: 'Punch', zh: '挥拳' },
+  notInFight: { en: 'Not mid-fight', zh: '战斗中不尝试' },
 }
 
 /** The chooser's layer for the ceiling over the spot (docs/building.md §5): never a default. */
@@ -355,7 +359,7 @@ export class Controls {
     const aligned = !here || !there || here.x === there.x || here.y === there.y
     if (!this.reaches('use', target, held ?? (main && { e: main.id }))) return undefined
     if (heldE) {
-      const pure = isWeapon(heldE.type) && !w.hasTag(heldE, 'tool:axe') && !(heldE.tags ?? []).some((g) => g.startsWith('tool:'))
+      const pure = this.pureWeapon(heldE)
       // a person is struck by the right click only with the blade drawn (X: the blow is meant, docs/npc-sandbox.md);
       // the left click's swing is a blow on them either way (someone friendly is asked first: make)
       const drawn = w.hasStatus({ e: p.id }, 'drawn')
@@ -469,8 +473,12 @@ export class Controls {
    * over what only a choice makes (a blow on oneself, a fist on the bare ground the world has never seen struck).
    */
   plan(key: Key, aim?: Aim, layer?: number): Plan | undefined {
-    // the right click: the held thing used on what is aimed at (nothing held, nothing)
-    if (key === 'secondary') return this.w.player.held ? this.plan('use', aim, layer) : undefined
+    // the right click: the held thing used on what is aimed at (nothing held, nothing); in a fight, what the world
+    // has never seen is not tried by a press (a layer chosen is meant)
+    if (key === 'secondary') {
+      const p = this.w.player.held ? this.plan('use', aim, layer) : undefined
+      return p?.unknown && layer === undefined && this.w.fighting(this.w.player) ? this.idle(p) : p
+    }
     // the left click: a press swings (or uses an object on oneself); a layer chosen is the swing's on that layer
     if (key === 'primary') return layer === undefined ? this.primary(aim) : this.swings() ? this.plan('use', aim, layer) : undefined
     const a = this.aim(aim, key)
@@ -549,6 +557,11 @@ export class Controls {
   /** Planning the left click's swing: a weapon swung at a person is a blow, drawn or not. */
   private swinging = false
 
+  /** A weapon that is no tool as well (a sword, a bow; not an axe): what it does to the ground is a blow at nothing. */
+  private pureWeapon(e: Entity): boolean {
+    return isWeapon(e.type) && !this.w.hasTag(e, 'tool:axe') && !(e.tags ?? []).some((g) => g.startsWith('tool:'))
+  }
+
   /** A tool or a weapon in hand (`isTool`, Stardew's line). */
   private toolInHand(): boolean {
     const held = this.w.get(this.w.player.held)
@@ -577,8 +590,13 @@ export class Controls {
     const pos = w.posOf(w.player)
     const held = w.get(w.player.held)
     if (!pos) return undefined
+    // in a fight (the `fighting` condition, the fight's music) a press makes no experiment: the blow goes to a foe
+    // near the pointer, else to what the world knows there, else into the air; a sword or a bow at the bare ground
+    // is a swing at the air in or out of a fight (a tool at it is a tool's experiment)
+    const fight = w.fighting(w.player)
     if (held && !isTool(held.type)) {
       const s = this.planOn('self', pos, { e: w.state.player })
+      if (s?.unknown && fight) return this.idle(s)
       if (s?.unknown && !s.confirm) s.confirm = this.label(GENERIC.selfAsk, s.target, s.instrument)
       return s
     }
@@ -587,6 +605,11 @@ export class Controls {
     this.bare = !held
     this.swinging = true
     try {
+      if (fight)
+        for (const foe of this.foesNear(a.at)) {
+          const plan = this.planOn('use', w.posOf(foe)!, { e: foe.id })
+          if (plan?.attack) return plan
+        }
       const struck = this.targets(a.at, a.stack, 'use').filter((r) => {
         const e = w.get(r.e)
         // the fist strikes bodies and what stands; a tool works on anything, a loose log split as a tree felled
@@ -596,13 +619,48 @@ export class Controls {
       const bodies = struck.filter((r) => { const e = w.get(r.e); return !!e && w.isAgent(e) && (!held || this.talksTo(r)) })
       for (const r of [...bodies, ...struck.filter((r) => !bodies.includes(r))]) {
         const plan = this.planOn('use', a.at, r)
-        if (plan) return plan
+        const tried = !!plan?.unknown && !bodies.includes(r) && (fight || (!!held && this.pureWeapon(held) && this.ground(r)))
+        if (plan && !tried) return plan
       }
-      return undefined
+      return fight || (held && this.pureWeapon(held)) ? this.whiff(a.at) : undefined
     } finally {
       this.bare = false
       this.swinging = false
     }
+  }
+
+  /**
+   * Those near the aim one fights now (in reach of the blow or not: planOn holds it to the reach), the aim's own cell
+   * first, then the four beside it: a foe a cell off the pointer is still the one meant (aim assist, design.md §5.2).
+   */
+  private foesNear(at: Pos): Entity[] {
+    const w = this.w
+    const me = w.player
+    const z = at.z ?? w.posOf(me)?.z
+    const out: Entity[] = []
+    for (const [dx, dy] of [[0, 0], [0, -1], [1, 0], [0, 1], [-1, 0]] as const) {
+      const e = w.actorAt(at.map, at.x + dx, at.y + dy, me.id, z)
+      if (e && (this.eng.hostileTo(e, me) || this.eng.hostileTo(me, e))) out.push(e)
+    }
+    return out
+  }
+
+  /** The left click in a fight where nothing it knows is struck: a swing at the air toward the aim (Engine.attack's whiff). */
+  private whiff(at: Pos): Plan {
+    const w = this.w
+    const p = w.player
+    const weapon = weaponOf(w, p)
+    const instrument = weapon ? { e: weapon.id } : undefined
+    const target = w.cellRef(at.map, at.x, at.y, w.posOf(p)?.z ?? 0)
+    const plan: Plan = { key: 'use', at, verb: 'use', target, instrument, attack: true, whiff: true, changes: true, label: weapon ? this.label(GENERIC.swing, target, instrument) : GENERIC.punchAir }
+    const why = weapon && this.eng.combat.refuses(p, weapon, 'aim')
+    if (why) plan.label = why
+    return plan
+  }
+
+  /** A press that makes no experiment now (in a fight): it says so, and does nothing. */
+  private idle(plan: Plan): Plan {
+    return { key: plan.key, at: plan.at, verb: plan.verb, target: plan.target, instrument: plan.instrument, label: GENERIC.notInFight, idle: true }
   }
 
   /**
@@ -629,7 +687,7 @@ export class Controls {
   again(first: Plan, aim?: Aim): void {
     if (first.key === 'self') return
     const plan = this.plan('primary', aim)
-    if (!plan || plan.key === 'self' || plan.unknown || plan.confirm || !plan.changes || !!plan.attack !== !!first.attack) return
+    if (!plan || plan.key === 'self' || plan.unknown || plan.idle || plan.confirm || !plan.changes || !!plan.attack !== !!first.attack) return
     if (!plan.attack && plan.rule !== first.rule) return
     // nor goes on to what would weigh on one's conscience (a blow on someone new, a neighbour's fence): that is asked of a press
     if (this.sinOf(plan)) return
@@ -642,7 +700,8 @@ export class Controls {
    */
   private sinOf(plan: Plan): Sin | undefined {
     const p = this.w.player
-    if (plan.attack) return this.eng.blowGuilt(p, plan.target)
+    // (a swing at the air weighs by the body on its way, if any)
+    if (plan.attack) return this.eng.blowGuilt(p, plan.whiff ? undefined : plan.target, plan.whiff)
     if (!plan.verb) return undefined
     return this.eng.guilt(plan.verb, p.id, plan.target, { instrument: plan.instrument ?? null })
   }
@@ -733,7 +792,7 @@ export class Controls {
     const p = w.player
     // a lesson at hand: only what it teaches (setting a thing down, only that thing, only where it says)
     if (!this.answering && !this.allows(plan.key, plan.key === 'put' || plan.sets ? { type: this.entity(plan.instrument)?.type, at: plan.at } : undefined)) return {}
-    if (eng.busy(p)) return {}
+    if (eng.busy(p) || plan.idle) return {}
     this.face(plan.at)
     // the build palette's turn (R): one faces that way setting it down (stairs go up that way)
     if (facing) p.facing = facing
@@ -741,12 +800,13 @@ export class Controls {
     if (!confirmed) {
       const sin = this.sinOf(plan)
       if (plan.confirm || sin) {
-        w.state.question = { text: plan.confirm ?? (plan.attack ? this.label(GENERIC.attackAsk, plan.target) : asked(plan.label)), plan, ...(sin && { sin }) }
+        const struck = plan.whiff && sin && 'target' in sin ? (sin.target as Ref) : plan.target
+        w.state.question = { text: plan.confirm ?? (plan.attack ? this.label(GENERIC.attackAsk, struck) : asked(plan.label)), plan, ...(sin && { sin }) }
         return {}
       }
     }
     if (plan.attack) {
-      eng.playerAttack(plan.target)
+      eng.playerAttack(plan.whiff ? undefined : plan.target, plan.whiff)
       return {}
     }
     // a container left open: just show its panel

@@ -3,7 +3,6 @@
 import { nightHours, type Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
 import type { BossState, Look, Dir, Entity, FxEvent, Id, LessonInput, PropValue, SceneState, Sin, Text } from './types.ts'
-import { FIGHT_TICKS } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
 import { oldStackKey, stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
@@ -709,7 +708,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
       ...((room) => room && { room })(roomCells(eng, pos)),
       facing: p.facing ?? 'down',
       ...(typeof p.look === 'object' && { look: p.look }),
-      ...(w.state.tick - (p.combat?.fightTick ?? -Infinity) < FIGHT_TICKS && { fighting: true }),
+      ...(w.fighting(p) && { fighting: true }),
       hp: w.num(p, 'hp'),
       maxHp: w.num(p, 'maxHp', 1),
       // hunger: a module's (needs), none without one

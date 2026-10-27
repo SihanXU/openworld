@@ -1249,6 +1249,11 @@ export class Engine {
     // from a way the story has not opened yet (one stands on it, so it is sealed): it leads nowhere until it opens
     const sealedHere = !!w.map(map)?.portals.some((p) => p.x === x && p.y === y)
     if (!w.inBounds(map, nx, ny) && isPlayer && w.map(map)?.site && !sealedHere && this.leaveByEdge(e, x, y, dir)) return true
+    // off an edge where the way is one the story has not opened (a way sealed underfoot, or an edge whose ways all lead
+    // to places not open yet): the story hears that one ran up against it — a bump on it, its `sealed` the fact that
+    // opens the way — and its rules answer (a companion's remark); the step is refused below as at any edge
+    const sealed = !w.inBounds(map, nx, ny) && isPlayer ? this.sealedEdge(map, x, y) : undefined
+    if (sealed && w.story) this.offer({ kind: 'bump', host: { e: w.story.id }, roles: { other: { e: e.id } }, params: { dir, sealed }, cause: ev.cause ?? e.id, origin: ev.origin })
     // storeys (world-model.md §5.2, §5.5): on a floor one walks; from stairs up onto the floor above;
     // onto the stairs below from above them; off a floor's edge one falls to the first below
     const z = e.place.z ?? 0
@@ -1385,6 +1390,24 @@ export class Engine {
    * left. A part the block does not show: its nearest open tile. A place of one cell: onto that cell,
    * where one chooses the way on (in again, it is where one left).
    */
+  /**
+   * The fact that opens the way off a map's edge at (x, y), where the story has not opened it: a way (a portal) there
+   * sealed by its `opensWhen`, or, on a map a barrier parts, an edge whose part's ways all lead to places not open
+   * yet (the far bank before Part Two). Undefined where the edge is only an edge, or open.
+   */
+  private sealedEdge(map: string, x: number, y: number): string | undefined {
+    const w = this.world
+    const m = w.map(map)
+    if (!m) return undefined
+    const shut = (p: { opensWhen?: string }) => !!p.opensWhen && !w.fact(p.opensWhen)
+    const here = m.portals.find((p) => p.x === x && p.y === y && shut(p))
+    if (here) return here.opensWhen
+    if (!m.site || new Set(w.partsOf(map)?.filter((p) => p >= 0)).size <= 1) return undefined
+    const part = w.partAt(map, x, y)
+    const ways = m.portals.filter((p) => w.partAt(map, p.x, p.y) === part)
+    return ways.length && ways.every(shut) ? ways[0].opensWhen : undefined
+  }
+
   private leaveByEdge(e: Entity, x: number, y: number, dir: Dir): boolean {
     const w = this.world
     const map = w.map(w.posOf(e)!.map)!
@@ -1690,11 +1713,11 @@ export class Engine {
   // ---------------------------------------------------------------- combat
 
   /** The player attacks with the held item (or bare hands): at a chosen target next to them, or along the facing direction. */
-  playerAttack(target?: Ref): void {
+  playerAttack(target?: Ref, whiff = false): void {
     const w = this.world
     const p = w.player
     if (this.busy(p) || !this.ready('atk:' + p.id)) return
-    if (!this.attack(p, target)) {
+    if (!this.attack(p, target, whiff)) {
       // a weapon that is not one's to fight with (another profession's): said once per press, then the key rests a moment
       const weapon = weaponOf(w, p)!
       const why = this.combat.refuses(p, weapon, 'fight')
@@ -1707,9 +1730,10 @@ export class Engine {
 
   /**
    * A blow (or a cast) along the facing: aiming is the input's; what the blow does is the act's
-   * outcome. False when it cannot be made: the held weapon belongs to another profession.
+   * outcome. False when it cannot be made: the held weapon belongs to another profession. A `whiff` (the inputs' swing at
+   * the air in a fight, design.md §5.2) strikes only a body on its way: never what stands there, never the ground.
    */
-  attack(a: Entity, chosen?: Ref): boolean {
+  attack(a: Entity, chosen?: Ref, whiff = false): boolean {
     const w = this.world
     // the weapon in the hand, else the one kept in the main hand (a torch held, the sword still strikes)
     const weapon = weaponOf(w, a)
@@ -1719,7 +1743,7 @@ export class Engine {
     const element = (weapon && (w.prop(weapon, 'element') as string | undefined)) || (w.prop(a, 'element') as string | undefined)
     const start = w.posOf(a)
     if (!start) return true
-    const aimed = this.blowAt(a, weapon, range, chosen)
+    const aimed = this.blowAt(a, weapon, range, chosen, whiff)
     if (!aimed) return true
     const { target, last } = aimed
     const victim = target && 'e' in target ? w.get(target.e) : undefined
@@ -1728,12 +1752,14 @@ export class Engine {
       return true
     }
     const base = w.stat(a, 'atk', 1) + (weapon ? w.num(weapon, 'power', 0) : 0)
+    // a blow from afar flies: a bolt of its element, or what the weapon looses (its `missile`: a bow's arrow)
+    const missile = weapon && w.prop(weapon, 'missile')
     if (!target) {
+      // a swing at the air is seen as one: the blade's arc, the bolt as far as it flies
+      if (whiff) w.fx.push(range > 1 && last ? { t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}${typeof missile === 'string' ? `:${missile}` : ''}`, map: start.map, x: start.x, y: start.y, who: a.id } : { t: 'vfx', fx: `swing:${a.facing}`, map: start.map, x: start.x, y: start.y, who: a.id })
       this.combat.struck(a, undefined, { power: base }, 0, range, true)
       return true
     }
-    // a blow from afar flies: a bolt of its element, or what the weapon looses (its `missile`: a bow's arrow)
-    const missile = weapon && w.prop(weapon, 'missile')
     if (range > 1 && last && (last.x !== start.x || last.y !== start.y)) w.fx.push({ t: 'vfx', fx: `bolt:${element ?? 'none'}:${a.facing}:${Math.abs(last.x - start.x) + Math.abs(last.y - start.y)}${typeof missile === 'string' ? `:${missile}` : ''}`, map: start.map, x: start.x, y: start.y, who: a.id })
     else w.fx.push({ t: 'vfx', fx: `swing:${a.facing}`, map: start.map, x: start.x, y: start.y, who: a.id })
     // the attacker's talents shape the blow (combat.ts): its power, a critical; the act carries it
@@ -1755,9 +1781,9 @@ export class Engine {
   /**
    * Where a blow along the facing lands: the first body on its way, else what stands there and cannot be carried,
    * else the top of the last cell it reaches; the chosen target when it lies on the way. None when it cannot be made
-   * there (the chosen one out of reach, or off the bolt's way).
+   * there (the chosen one out of reach, or off the bolt's way). A `whiff` lands only on a body on its way.
    */
-  private blowAt(a: Entity, weapon: Entity | undefined, range: number, chosen?: Ref): { target?: Ref; last?: Pos } | undefined {
+  private blowAt(a: Entity, weapon: Entity | undefined, range: number, chosen?: Ref, whiff = false): { target?: Ref; last?: Pos } | undefined {
     const w = this.world
     const start = w.posOf(a)
     if (!start) return undefined
@@ -1773,14 +1799,14 @@ export class Engine {
       last = { ...start, x, y }
       // a body first, then what stands there and cannot be carried (a blow on the well is a blow on the well)
       // (the ground of a cell is not in the way: a blow goes on to what the cell's top is, where it stops)
-      const victim = w.actorAt(start.map, x, y, a.id, start.z) ?? w.entitiesAt(start.map, x, y, start.z).find((e) => !w.isAgent(e) && !w.isPortable(e) && !w.isTerrain(e))
+      const victim = w.actorAt(start.map, x, y, a.id, start.z) ?? (whiff ? undefined : w.entitiesAt(start.map, x, y, start.z).find((e) => !w.isAgent(e) && !w.isPortable(e) && !w.isTerrain(e)))
       if (victim) {
         target = { e: victim.id }
         break
       }
       if (w.blocked(start.map, x, y, undefined, start.z)) break
     }
-    if (!target && last) {
+    if (!target && last && !whiff) {
       const top = w.cellTop(last.map, last.x, last.y, last.z)
       if (top) target = { e: top.id }
     }
@@ -1797,14 +1823,15 @@ export class Engine {
 
   /**
    * What a blow along the facing (attack) would weigh on the striker's conscience: on what it lands on and on what
-   * its sweep's sides land on, each a `use` with `attack` (guilt). Nothing is written, nothing rolled.
+   * its sweep's sides land on, each a `use` with `attack` (guilt); a `whiff`, on the body on its way. Nothing is
+   * written, nothing rolled.
    */
-  blowGuilt(a: Entity, chosen?: Ref): (Sin & { target: Ref }) | undefined {
+  blowGuilt(a: Entity, chosen?: Ref, whiff = false): (Sin & { target: Ref }) | undefined {
     const w = this.world
     const weapon = weaponOf(w, a)
     if (weapon && this.combat.refuses(a, weapon, 'fight')) return undefined
     const range = this.reachOf('use', a, undefined, weapon) ?? 1
-    const target = this.blowAt(a, weapon, range, chosen)?.target
+    const target = this.blowAt(a, weapon, range, chosen, whiff)?.target
     const victim = target && w.get(target.e)
     if (!target || !victim || this.isProtected(victim)) return undefined
     const instrument = weapon ? { e: weapon.id } : null
