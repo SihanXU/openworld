@@ -1151,6 +1151,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
           w.state.tick = today >= w.state.tick ? today : tickAt(w.calendar().day + 1, m.hour)
         }
         if (m.op === 'hurt') eng.author(() => eng.hurt(w.player, m.amount, undefined, true))
+        // a fact of the story set (a part of the tale opened, a gate lifted)
+        if (m.op === 'fact') eng.author(() => w.setFact(m.key, m.value))
         // a boss again (the dev's hand): to its map first; it is set down once that map is loaded (`loop`)
         if (m.op === 'summon') {
           summon = { kit: m.kit, map: m.map, x: m.x, y: m.y }
