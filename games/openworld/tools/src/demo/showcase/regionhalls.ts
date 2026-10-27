@@ -106,7 +106,6 @@ export function longHall(p: Place): MapBuilder {
   at(m, 'fixture/container/barrel', [[P.bayW.x, P.bayW.y], [P.bayW.x, P.bayW.y + 1]])
   at(m, 'fixture/furniture/rack/arms', [[P.bayE.x, P.bayE.y], [P.bayE.x, P.bayE.y + 1], [H.x, H.y + 1]])
   at(m, 'fixture/container/sack', [[H.x, H.y], [H.x + 1, H.y]])
-  decor(m, 'decor_firewood', H.x + 25, H.y + 9)
   // furs before the benches, the loom, the chests of the household, a hound's bed of straw
   for (const x of [H.x + 4, H.x + 9, H.x + 18, H.x + 23]) decor(m, 'decor_rug', x, H.y + 9)
   m.fixture('fixture/craft/loom', H.x + 1, H.y + 9)
@@ -168,7 +167,6 @@ export function armouryHall(p: Place): MapBuilder {
   at(m, 'fixture/furniture/rack/arms', [[H.x + 9, H.y + 4], [H.x + 10, H.y + 4]])
   at(m, 'fixture/container/chest', [[H.x + 7, H.y + 6], [H.x + 12, H.y + 6]])
   at(m, 'fixture/container/barrel', [[H.x + 9, H.y + 6], [H.x + 10, H.y + 6]])
-  decor(m, 'decor_firewood', H.x + 5, H.y + 8)
   decor(m, 'decor_casks', H.x + 15, H.y + 8)
   glow(m, F.x + 3.5, F.y + 2, 9, 5, '#ff7a2a', 0.55)
   m.anchors = { forge: [F.x + 3, H.y], work: [H.x + 6, H.y + 5] }
@@ -581,7 +579,6 @@ export function manorCellar(p: Place): MapBuilder {
   at(m, 'fixture/furniture/bench', [...span(K.x + 3, K.x + 8, K.y + 5)])
   m.fixture('fixture/furniture/rack', K.x + 11, K.y)
   at(m, 'fixture/container/sack', [[K.x, K.y + 7], [K.x + 1, K.y + 7], [K.x, K.y + 8]])
-  decor(m, 'decor_firewood', K.x + 10, K.y + 7)
   m.building('decor_casks_row', C.x + 1, C.y)
   m.building('decor_casks_row', C.x + 5, C.y)
   for (const y of [C.y + 3, C.y + 6]) at(m, 'fixture/container/barrel', span(C.x + 1, C.x + 7, y, 2))

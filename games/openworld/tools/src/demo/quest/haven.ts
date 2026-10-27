@@ -228,7 +228,7 @@ function buildSprings(): MapBuilder {
   for (const [x, y] of [[6, 12], [25, 12], [7, 16]] as const) (m.get(x, y) === 'rock' && m.set(x, y, 'snow'), m.item('item/material/herb', x, y))
   for (const [x, y] of [[24, 16], [5, 9]] as const) (m.get(x, y) === 'rock' && m.set(x, y, 'snow'), m.item('item/material/frostcap', x, y))
   m.fixture('fixture/sign', 14, 18, { props: { text: 'THE HOT SPRINGS — sit a while, and it mends you.', text_zh: '温泉谷——泡一会儿，伤就好了。' } })
-  for (const [name, x, y] of [['decor_stones', 22, 13], ['decor_stones', 10, 13], ['decor_firewood', 19, 16]] as [string, number, number][]) if (m.free(x, y)) m.building(name, x, y)
+  for (const [name, x, y] of [['decor_stones', 22, 13], ['decor_stones', 10, 13]] as [string, number, number][]) if (m.free(x, y)) m.building(name, x, y)
   wildFloor(m, 1, (x, y) => x >= 15 && x <= 17 && y >= 17)
   m.appear = [appears('item/material/herb', ['grass'], 4)]
   return m
