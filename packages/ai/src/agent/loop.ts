@@ -61,7 +61,7 @@ export interface AgentOptions {
 
 export const AGENT_SYSTEM = `You are a software engineer working on a task in a repository, through tools.
 Work like a careful engineer: find out how the code is organized before changing it, make the smallest change that solves the task properly, run the tests, read failures closely and fix the cause.
-Use only the available tools listed below. Their schemas describe what they can do; never call an unavailable tool.
+Your tools: list_dir, read_file, search, write_file, edit_file, run (a shell command), run_tests (when the task has tests), read_skill (your own skills), submit (when you are done).
 Call submit only when the task is solved and the tests you can run pass. You have a limited number of steps.`
 
 const NUDGE = 'Continue with your tools; call submit when the task is done.'
@@ -178,7 +178,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
     ...(cfg.planFirst ? ['', 'Begin with a short plan, then work through it.'] : []),
   ].join('\n')
   const messages: ChatMessage[] = [
-    { role: 'system', content: [AGENT_SYSTEM, `Available tools: ${tools.map((t) => t.name).join(', ')}`, ...(!tools.some((t) => t.name === 'run') ? ['No shell is available in this task. Use the file tools to inspect and edit; use run_tests for the provided checks when available.'] : []), ...(h.addenda.length ? ['', 'Your own working notes:', ...h.addenda.map((a) => `- ${a}`)] : [])].join('\n') },
+    { role: 'system', content: [AGENT_SYSTEM, ...(h.addenda.length ? ['', 'Your own working notes:', ...h.addenda.map((a) => `- ${a}`)] : [])].join('\n') },
     { role: 'user', content: intro },
   ]
 

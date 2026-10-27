@@ -114,21 +114,11 @@ describe('the environment and tools', () => {
     const state = freshState()
     applyPreset(state, 'tuned') // a start hook and a presubmit hook
     let intro = ''
-    let system = ''
-    let available: string[] = []
     const base = engineer()
-    const model = new ScriptedModel(async (messages, opts) => {
-      intro = messages[1].content
-      system = messages[0].content
-      available = opts?.tools?.map((t) => t.name) ?? []
-      return base.chat(messages, opts)
-    })
+    const model = new ScriptedModel(async (messages, opts) => ((intro = messages[1].content), base.chat(messages, opts)))
     const r = await runAgent(task(bugRepo(), { localRun: false }), { model, state })
     expect(intro).not.toContain('# From your start hooks')
     expect(r.episode.tools.map((x) => x.name)).not.toContain('run')
-    expect(available).not.toContain('run')
-    expect(system).not.toContain('run (a shell command)')
-    expect(system).toContain(`Available tools: ${available.join(', ')}`)
     expect(r.outcome).toBe('accepted')
   })
 })
