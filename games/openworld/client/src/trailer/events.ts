@@ -5,7 +5,7 @@
 import type { Frame } from '@openworld/engine'
 import type { Cut, Cue, Shot } from './film.ts'
 import { head, iconOf, rise } from './film.ts'
-import { hold, line, now, once, place, pose, puppet, sky, vfx, along } from './kit.ts'
+import { hold, line, now, once, place, pose, puppet, remove, sky, vfx, along } from './kit.ts'
 import { ramp } from './overlay.ts'
 
 const lerp = (a: number, b: number, x: number) => a + (b - a) * x
@@ -15,6 +15,18 @@ const burn = (c: Cut, id: string | undefined, status = 'burning') => { if (id) c
 const quench = (c: Cut, id: string | undefined, status = 'burning') => { if (id) c.eng.author(() => c.eng.removeStatus({ e: id }, status)) }
 /** People held for the script are drawn standing, not working something out. */
 const still = (f: Frame, ...ids: string[]) => { for (const id of ids) pose(f, id, { frozen: false }) }
+/** The square's other people sent off, so only the cast stands in the frame (a box of cells, the cast kept). */
+const clear = (c: Cut, [x0, y0, x1, y1]: [number, number, number, number], ...cast: string[]) => {
+  const w = c.eng.world
+  for (const e of w.people()) {
+    const p = w.posOf(e)
+    if (p && p.map === c.shot.map && p.x >= x0 && p.x <= x1 && p.y >= y0 && p.y <= y1 && !cast.includes(e.id)) remove(c, e.id)
+  }
+}
+/** Firstlight's square, round the well, the fire and the boards. */
+const SQUARE: [number, number, number, number] = [12, 10, 38, 24]
+/** Over someone's head, on screen: `head` is at the face, the head's top half a sprite's height above the feet. */
+const over = (c: Cut, id: string) => head(c, id, c.scene.zoom * 15)
 /** The one at the keys out of the way. */
 const away = (c: Cut) => place(c, 'player', 2, 28, 'down')
 
@@ -46,7 +58,7 @@ const camp = shot({
   camera: (c) => ({ x: 14.4, y: 16.3, zoom: lerp(5.6, 6.1, c.t / 2.6) }),
   overlay: (o, c) => {
     o.rain(c.t, 1)
-    const h = head(c, 'npc.hesper')
+    const h = over(c, 'npc.hesper')
     if (h) o.emote(h.x, h.y - 8, '…', ramp(c.t, 1.5, 1.6), ramp(c.t, 1.5, 1.75))
   },
 })
@@ -56,6 +68,7 @@ const theft = shot({
   id: 'theft', seconds: 2.8, map: 'meadow', at: [2, 28], hour: 17.2, warm: 10,
   setup: (c) => {
     for (const id of ['npc.vigo', 'npc.marta', 'npc.holt']) hold(c, id)
+    clear(c, SQUARE, 'npc.vigo', 'npc.marta', 'npc.holt')
     place(c, 'npc.marta', 21, 18, 'right'); place(c, 'npc.holt', 25, 21, 'up'); place(c, 'npc.vigo', 27, 18, 'left')
     c.memo.bread = puppet(c, 'item/food/bread', [23, 18])
   },
@@ -67,9 +80,9 @@ const theft = shot({
   edit: (f, c) => { sky(f, 17.2); still(f, 'npc.vigo', 'npc.marta', 'npc.holt') },
   camera: (c) => ({ x: 23.6, y: lerp(18.9, 18.6, c.t / 2.8), zoom: lerp(5, 5.4, c.t / 2.8) }),
   overlay: (o, c) => {
-    const v = head(c, 'npc.vigo')
+    const v = over(c, 'npc.vigo')
     if (v) o.icon(v.x, v.y - 6, iconOf(c, 'item:bread'), c.scene.zoom * 1.2, ramp(c.t, 1.1, 1.2), 0)
-    const h = head(c, 'npc.holt'), m = head(c, 'npc.marta')
+    const h = over(c, 'npc.holt'), m = over(c, 'npc.marta')
     if (h) o.emote(h.x, h.y - 8, '!', ramp(c.t, 1.6, 1.65), ramp(c.t, 1.6, 1.85))
     if (m) o.emote(m.x, m.y - 8, '!', ramp(c.t, 1.9, 1.95), ramp(c.t, 1.9, 2.15))
   },
@@ -81,18 +94,20 @@ const hesper = shot({
   // working it out (the world asks), then waiting by the fire
   edit: (f, c) => { sky(f, 19.4, 'rain'); pose(f, 'npc.hesper', { frozen: c.t > 0.3 && c.t < 2.4 }) },
   camera: (c) => ({ x: 14.5, y: 16.4, zoom: lerp(6, 6.4, c.t / 3.4) }),
-  overlay: (o, c) => { o.rain(c.t, 0.6); const h = head(c, 'npc.hesper'); if (h) o.thinking(h.x, h.y - 14, c.t, ramp(c.t, 0.35, 0.5) * (1 - ramp(c.t, 2.2, 2.4))) },
+  overlay: (o, c) => { o.rain(c.t, 0.6); const h = over(c, 'npc.hesper'); if (h) o.thinking(h.x, h.y - 14, c.t, ramp(c.t, 0.35, 0.5) * (1 - ramp(c.t, 2.2, 2.4))) },
 })
 
 // ------------------------------------------------------------------ the ones that flash past
 
 const SHORT = 1.4
+/** The dry grass the burning tree's sparks fall on: the bank west of it, out of the water. */
+const TUFTS: [number, number][] = [[27, 11], [27, 12], [26, 12], [24, 11]]
 const grass = shot({
   id: 'grass', seconds: SHORT, map: 'ford', at: [2, 28], hour: 19.3,
-  setup: (c) => { c.memo.t = [[27, 11], [28, 12], [26, 12], [29, 12]].map(([x, y]) => puppet(c, 'fixture/nature/tuft', [x, y])) },
+  setup: (c) => { c.memo.t = TUFTS.map(([x, y]) => puppet(c, 'fixture/nature/tuft', [x, y])) },
   tick: (c) => { const ts = c.memo.t as string[]; ts.forEach((id, k) => { if (once(c, `b${k}`, 0.1 + k * 0.25)) burn(c, id) }) },
-  edit: (f, c) => { sky(f, 19.3, 'storm'); [[27, 11], [28, 12], [26, 12], [29, 12]].forEach(([x, y], k) => { if (now(c, 0.1 + k * 0.25)) vfx(f, 'fire_burst', x, y) }) },
-  camera: () => ({ x: 27.8, y: 11.4, zoom: 5.6 }),
+  edit: (f, c) => { sky(f, 19.3, 'storm'); TUFTS.forEach(([x, y], k) => { if (now(c, 0.1 + k * 0.25)) vfx(f, 'fire_burst', x, y) }) },
+  camera: () => ({ x: 26.4, y: 11.4, zoom: 5.6 }),
 })
 const hay = shot({
   id: 'hay', seconds: SHORT, map: 'ford', at: [2, 28], hour: 19.3,
@@ -118,7 +133,7 @@ const lit = shot({
 })
 const slime = shot({
   id: 'slime', seconds: SHORT, map: 'ford', at: [2, 28], hour: 19.3,
-  setup: (c) => { c.memo.s = c.eng.world.placedAt('ford', 5, 6).find((e) => e.type.includes('fire_slime'))?.id ?? puppet(c, 'actor/creature/slime/fire_slime', [5, 6]); hold(c, c.memo.s as string) },
+  setup: (c) => { c.memo.s = c.eng.world.placedAt('ford', 5, 6).find((e) => e.type.includes('fire_slime'))?.id ?? puppet(c, 'actor/creature/slime/fire_slime', [5, 6]); hold(c, c.memo.s as string); place(c, c.memo.s as string, 5, 6, 'down') },
   tick: (c) => { if (once(c, 'b', 0.2)) burn(c, c.memo.s as string) },
   edit: (f, c) => { sky(f, 19.3); still(f, c.memo.s as string); if (now(c, 0.2)) vfx(f, 'fire_burst', 5, 6) },
   before: (c) => rise(c, c.memo.s as string, 0.25, 0.6, 1.7),
@@ -126,39 +141,41 @@ const slime = shot({
 })
 const bounty = shot({
   id: 'bounty', seconds: SHORT, map: 'meadow', at: [2, 28], hour: 17.6,
-  setup: (c) => { hold(c, 'npc.holt'); hold(c, 'npc.vigo'); place(c, 'npc.holt', 24, 18, 'right'); place(c, 'npc.vigo', 25, 18, 'left') },
+  setup: (c) => { hold(c, 'npc.holt'); hold(c, 'npc.vigo'); clear(c, SQUARE, 'npc.holt', 'npc.vigo'); place(c, 'npc.holt', 24, 18, 'right'); place(c, 'npc.vigo', 25, 18, 'left') },
   edit: (f, c) => { sky(f, 17.6); still(f, 'npc.holt', 'npc.vigo') },
   camera: () => ({ x: 24.9, y: 17.9, zoom: 6 }),
   overlay: (o, c) => {
-    const h = head(c, 'npc.holt'), v = head(c, 'npc.vigo')
+    const h = over(c, 'npc.holt'), v = over(c, 'npc.vigo')
     if (h) o.emote(h.x, h.y - 8, '!', ramp(c.t, 0.15, 0.2), ramp(c.t, 0.15, 0.4))
     if (v) o.icon(v.x, v.y - 6, iconOf(c, 'item:coins'), c.scene.zoom * 1.2, ramp(c.t, 0.6, 0.7), 0.6)
   },
 })
 const marta = shot({
   id: 'marta', seconds: SHORT, map: 'meadow', at: [2, 28], hour: 17.4,
-  setup: (c) => { hold(c, 'npc.marta'); place(c, 'npc.marta', 21, 18, 'right') },
+  setup: (c) => { hold(c, 'npc.marta'); clear(c, SQUARE, 'npc.marta'); place(c, 'npc.marta', 21, 18, 'right') },
   edit: (f, c) => { sky(f, 17.4); still(f, 'npc.marta') },
   camera: () => ({ x: 21.4, y: 17.8, zoom: 6.2 }),
-  overlay: (o, c) => { const m = head(c, 'npc.marta'); if (m) o.emote(m.x, m.y - 8, '!', ramp(c.t, 0.2, 0.25), ramp(c.t, 0.2, 0.45)) },
+  overlay: (o, c) => { const m = over(c, 'npc.marta'); if (m) o.emote(m.x, m.y - 8, '!', ramp(c.t, 0.2, 0.25), ramp(c.t, 0.2, 0.45)) },
 })
 const cells = shot({
   id: 'cells', seconds: SHORT, map: 'meadow', at: [2, 28], hour: 18.2,
-  setup: (c) => { hold(c, 'npc.holt'); hold(c, 'npc.vigo') },
+  setup: (c) => { hold(c, 'npc.holt'); hold(c, 'npc.vigo'); clear(c, SQUARE, 'npc.holt', 'npc.vigo') },
   tick: (c) => {
-    const a = along(line([27, 12], [27, 8]), 0, 0.3, c.t), b = along(line([27, 13], [27, 9]), 0, 0.3, c.t)
+    // up the lane to the watch house's door
+    const a = along(line([34, 14], [34, 10]), 0, 0.3, c.t), b = along(line([34, 15], [34, 11]), 0, 0.3, c.t)
     place(c, 'npc.holt', a.x, a.y, 'up'); place(c, 'npc.vigo', b.x, b.y, 'up')
   },
   edit: (f, c) => { sky(f, 18.2); still(f, 'npc.holt', 'npc.vigo') },
-  camera: (c) => ({ x: 27.5, y: lerp(11.2, 9.6, c.t / SHORT), zoom: 5.4 }),
+  camera: (c) => ({ x: 34.5, y: lerp(13.0, 10.9, c.t / SHORT), zoom: 5.4 }),
 })
 const pell = shot({
   id: 'pell', seconds: SHORT, map: 'meadow', at: [2, 28], hour: 18,
-  setup: (c) => { hold(c, 'npc.marta'); hold(c, 'npc.pell'); place(c, 'npc.marta', 19, 13, 'right'); place(c, 'npc.pell', 20, 13, 'left') },
+  // before the boards
+  setup: (c) => { hold(c, 'npc.marta'); hold(c, 'npc.pell'); clear(c, SQUARE, 'npc.marta', 'npc.pell'); place(c, 'npc.marta', 19, 16, 'right'); place(c, 'npc.pell', 20, 16, 'left') },
   edit: (f, c) => { sky(f, 18); still(f, 'npc.marta', 'npc.pell') },
-  camera: () => ({ x: 19.9, y: 12.8, zoom: 6.2 }),
+  camera: () => ({ x: 19.9, y: 15.4, zoom: 6.2 }),
   overlay: (o, c) => {
-    const m = head(c, 'npc.marta'), p = head(c, 'npc.pell')
+    const m = over(c, 'npc.marta'), p = over(c, 'npc.pell')
     if (m) o.emote(m.x, m.y - 8, '…', ramp(c.t, 0.1, 0.15) * (1 - ramp(c.t, 0.7, 0.8)), ramp(c.t, 0.1, 0.3))
     if (p) o.emote(p.x, p.y - 8, '!', ramp(c.t, 0.8, 0.85), ramp(c.t, 0.8, 1.0))
   },
