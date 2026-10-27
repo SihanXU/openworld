@@ -265,7 +265,7 @@ export function buildHillMine(): MapBuilder {
  */
 export function buildChapel(): MapBuilder {
   const m = house('chapel', 'Chapel of the First Dawn', '初晓礼拜堂', 14, 12, 'stone', [[0, 0, 10, 12], [10, 0, 4, 7]], [[9, 4], [10, 4]], [5, 11], { floor: 'floor_stone', music: 'temple' })
-  m.fixture('fixture/sacred/altar', 5, 2, { name: L('The first hearth', '最初的火坛'), tags: ['readable'], props: { text: 'A stone hearth, cold for centuries. Soot in the cracks: the Firstlight was kindled here from the dawn, and carried down the hill.', text_zh: '一座石砌的火坛，冷了几百年。裂缝里还有烟灰：初火就是在这里借着晨光点燃，再被带下山去的。' } })
+  m.fixture('fixture/sacred/altar', 5, 2, { name: L('The first hearth', '最初的火坛'), tags: ['readable'], props: { text: 'The chapel\'s first hearth, a ring of stone, cold for centuries. Old soot is still packed deep in its cracks.', text_zh: '礼拜堂最早的火坛，一圈石头砌成，已经冷了几百年。裂缝深处还塞着陈年的烟灰。' } })
   for (const [x, y] of [[3, 2], [7, 2]] as const) m.fixture('fixture/light/candles', x, y)
   // what is left of the benches, two either side of the aisle, one tipped over by the wall
   for (const [x, y] of [[3, 5], [7, 5], [3, 7], [7, 8]] as const) m.fixture('fixture/furniture/bench', x, y)

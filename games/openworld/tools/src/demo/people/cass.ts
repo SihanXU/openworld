@@ -27,14 +27,14 @@ export const cass: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'The loom talks if you listen. A dropped thread sounds different from a tight one.', '织机会说话，只要你听。断了的线和绷紧的线声音不一样。'),
-    line('chat', 'Gus snores like the kiln. Thirty years, and I still sleep through it. Mostly.', '格斯打呼像窑炉一样。三十年了，我照样睡得着。多半时候。'),
-    line('greeting:first', "You're new. I'm Cass — Gus's wife, though most days I'd say he's the wood's husband.", '你是新来的吧。我叫卡丝——格斯的老婆，不过多数时候我觉得他是那片林子的丈夫。', { once: true }),
-    line('default', 'Wool from the grassland, dye from the herbs, and a winter coming that wants every inch of it.', '羊毛来自草原，染料来自草药，冬天要来了，每一寸布都用得上。'),
-    line('default', "Gus says the fire eats every day. So does Gus. So do I. Somebody has to keep the house while they're both eating.", '格斯说火天天都要吃。格斯也天天要吃。我也是。总得有人在他们吃的时候看着家。'),
-    line('hour:evening', 'The square is warm and Marta has something in the pot. Sit, if you like.', '广场上暖和，玛尔塔锅里也有吃的。想坐就坐吧。'),
-    line('topic:death', "Someone died, and nobody here will say how. I don't sleep well in a village that keeps that kind of quiet.", '有人死了，可这里没人肯说是怎么死的。村子要是这么安静，我睡不踏实。', { mood: 'sad' }),
-    line('given:item/food', 'Oh, that is kind. I will save half for Gus.', '哎呀，你真好心。我留一半给格斯。', { mood: 'happy' }),
-    line('given', 'For me? Well. Thank you.', '给我的？哎。谢谢你。', { mood: 'shy' }),
+    line('chat', 'I can hear a thread go slack before I see it. The loom sounds duller.', '线一松，我不用看就听得出来，织机的声音会发闷。'),
+    line('chat', 'Gus snores like the kiln. We\'ve been married thirty years, and I sleep right through it.', '格斯打呼噜跟窑炉似的。我们成亲三十年了，我早听惯了，倒头就睡。'),
+    line('greeting:first', "You're new here. I'm Cass, Gus's wife. He's out in the wood most days, and I'm at my loom by the square.", '你是新来的吧。我叫卡丝，格斯是我男人。他白天多半在林子里砍柴，我就在广场边上织布。', { once: true }),
+    line('default', 'The wool comes off the grassland, and I boil the dye from herbs. Winter\'s coming, and every yard of cloth will be wanted.', '羊毛是草原上来的，染料是拿草药煮的。冬天快到了，织多少布都不嫌多。'),
+    line('default', 'Gus is out at the wood all day and comes home too tired to eat. I keep the house, and I see that he eats.', '格斯成天在林子里砍柴，回到家累得饭都不想吃。家里的事我管着，饭也得看着他吃下去。'),
+    line('hour:evening', 'There\'s a fire on the square and Marta has something in the pot. Come and sit, if you like.', '广场上生着火，玛尔塔锅里还煮着东西。你想坐就过来坐吧。'),
+    line('topic:death', "Someone died, and nobody here will say how. With everyone keeping their mouths shut like that, I can't sleep at night.", '有人死了，可村里谁也不肯说是怎么死的。大家都闭着嘴，我夜里睡不安稳。', { mood: 'sad' }),
+    line('given:item/food', 'Oh, thank you. I\'ll save half for Gus.', '哎呀，谢谢你。我留一半给格斯。', { mood: 'happy' }),
+    line('given', 'For me? Well... thank you.', '给我的？哎……谢谢你。', { mood: 'shy' }),
   ],
 }

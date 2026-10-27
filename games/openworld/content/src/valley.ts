@@ -56,7 +56,7 @@ export const VALLEY: Record<string, ValleyPlace> = {
       '  PnnnnnnnP  ',
     ],
     things: {
-      x: { type: 'fixture/sign', name: L('The cairn', '石堆'), props: { text: 'Stones piled by the watchmen of Cloudtop: as far as the watch went, and no farther.', text_zh: '云顶台地的守望人堆起的石头：守望只到这里，再往上不去了。' } },
+      x: { type: 'fixture/sign', name: L('The cairn', '石堆'), props: { text: 'A cairn of flat stones, piled by the watchmen of Cloudtop to mark where their watch ended. No one has piled any stones beyond it.', text_zh: '一堆扁平的石头，是云顶台地的守望人堆的，标着他们巡守到的地方。再往上，就没有人堆过石头了。' } },
       y: { type: 'fixture/remains/bones', name: L("A pilgrim's bones", '朝圣者的遗骨') },
       z: { type: 'fixture/container/sack', name: L('A frozen pack', '冻硬的行囊'), contents: ['item/food/bread', 'item/light/candle', 'item/tool/rope'] },
     },
@@ -199,7 +199,7 @@ export const VALLEY: Record<string, ValleyPlace> = {
       ' ..y... ',
     ],
     things: {
-      x: { type: 'fixture/sacred/gravestone', props: { text: 'BEREN, WHO CUT THE WESTWOOD FORTY YEARS AND NEVER TOOK THE OLD ONES.', text_zh: '贝伦，在西林砍了四十年柴，从没动过一棵老树。' } },
+      x: { type: 'fixture/sacred/gravestone', props: { text: 'BEREN, WHO CUT THE WESTWOOD FORTY YEARS AND NEVER TOOK THE OLD ONES.', text_zh: '樵夫贝伦之墓。伐木西林四十载，未尝伐一株老树。' } },
       y: { type: 'fixture/nature/stump' },
     },
   },

@@ -30,14 +30,14 @@ export const edda: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'I still wake at the hour the rooster used to crow. There is no rooster. I wake anyway.', '我还是在公鸡以前打鸣的那个钟点醒来。鸡没了。我照样醒。'),
-    line('chat', 'A house is just walls until you\'ve lost one. Then it is everything.', '房子只是几面墙，直到你失去过一座。然后它就是一切。'),
+    line('chat', 'I still wake at the hour the rooster used to crow. There is no rooster now. I wake anyway.', '我每天还是在公鸡打鸣的时辰醒过来。公鸡早就没了，可我还是会醒。'),
+    line('chat', 'Sorry — I jump at every sound. Since the night they came, I can\'t sleep unless my back is to a wall.', '对不起，一点动静我就吓一跳。自从那天夜里它们来过，我不背靠着墙就睡不着。'),
     // the news the story spreads (its topics), said once while fresh
-    line('topic:crown', "The crown is in the village now. I went to look at it. Only thorns. I thought it would look like more.", "荆棘冠现在在村里了。我去看过。就是一圈荆棘。我还以为它会更像样些。"),
-    line('greeting:first', 'Stay back! ...You\'re not one of them. Sorry. I don\'t see many living faces out here any more.', '别过来！……你不是那些东西。抱歉。这一带我很久没见过活人的脸了。'),
-    line('default', 'The days got too short for the wheat. Then the night things came for what was left. The house is all I kept.', '白天短得麦子都长不成。后来夜里的东西把剩下的也夺走了。我只保住了这栋房子。'),
-    line('default', 'There\'s a knight up the road, in white. He took my husband\'s ring off the gatepost. Took everything that shone.', '路那头有个白衣骑士。他从门柱上取走了我丈夫的戒指。凡是会发光的东西他都拿走了。'),
-    line('fact:ch1.flame_stolen', 'A grey man came through, the night of the fire. He pulled me out of the smoke. Don\'t tell anyone in the village I said so.', '着火那天夜里，有个灰衣人路过。是他把我从烟里拉出来的。别跟村里人说是我讲的。'),
-    line('fact:sins.defeated.alberic', 'The road is quiet again. I\'ll go to Firstlight — there\'s nothing to keep me here but ash.', '路上又安静了。我去初原村——这里除了灰烬，什么都留不住我了。', { once: true }),
+    line('topic:crown', "The crown is in the village now. I went to look at it. It's only thorns. I thought it would look like... more.", "荆棘冠现在放在村里了。我去看过一眼，就是一圈荆棘。我还以为它会更……更了不得一点。"),
+    line('greeting:first', 'Stay back! ...You\'re not one of them. Sorry. I haven\'t seen a living face out here in a long while.', '别过来！……你不是那些东西。对不起。这一带我好久没见过活人了。'),
+    line('default', 'The days got too short for the wheat to ripen. Then the night things came for what was left. The house is all I kept.', '白天短得麦子都熟不了。后来夜里那些东西来了，把剩下的也糟蹋了。我就只保住了这间屋子。'),
+    line('default', 'There\'s a knight up the road, all in white. He took my husband\'s ring off the gatepost. He took everything that shone.', '路那头有个骑士，一身白。他把我丈夫的戒指从门柱上拿走了。凡是会发亮的东西，他都拿走了。'),
+    line('fact:ch1.flame_stolen', 'A man in grey came through, the night of the fire. He pulled me out of the smoke. Don\'t tell anyone in the village I said so.', '起火那天夜里，有个穿灰衣服的人路过，是他把我从烟里拖出来的。你别跟村里人说是我讲的。'),
+    line('fact:sins.defeated.alberic', 'The road\'s gone quiet again. I\'ll go to Firstlight. There\'s nothing left for me here but ash.', '路上又安静下来了。我要去初原村。这里除了一地灰，什么也不剩了。', { once: true }),
   ],
 }

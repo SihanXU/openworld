@@ -26,7 +26,7 @@ export interface ShopDef {
 const SELL = { name: L('Sell', '出售'), sell: true }
 export const SHOPS: ShopDef[] = [
   { station: 'stall', name: L("Alberic's stall", '阿尔贝里克的货摊'), shelves: [{ group: 'farm', name: L('Farming', '农业') }, { group: 'ranch', name: L('Ranching', '牧业') }, { group: 'fish', name: L('Fishing', '渔业') }, { group: 'sell', ...SELL }] },
-  { station: 'store', name: L('General Store', '杂货铺'), shelves: [{ group: 'supplies', name: L('Supplies', '杂货') }, { group: 'provisions', name: L('Provisions', '食物药水') }, { group: 'store-sell', ...SELL }] },
+  { station: 'store', name: L('General Store', '杂货铺'), shelves: [{ group: 'supplies', name: L('Supplies', '杂货') }, { group: 'provisions', name: L('Provisions', '食物与药水') }, { group: 'store-sell', ...SELL }] },
   { station: 'books', name: L('Chapel Bookstand', '礼拜堂书架'), shelves: [{ group: 'books', name: L('Skill Books', '技能书') }, { group: 'books-profession', name: L('Profession', '职业技能书') }] },
 ]
 
@@ -41,8 +41,8 @@ export const CHAPEL_SIGN = {
   at: [22, 12] as const,
   /** where it stood on the east road */
   was: [51, 17] as const,
-  text: "FIRSTLIGHT CHAPEL — Sister Ilse keeps the flame and Astra's altar; inside, Brother Anselm keeps the bookstand of skill books.",
-  text_zh: '初原村礼拜堂——伊尔丝修女守着圣火和阿斯特拉的祭坛；里面，安塞姆修士照看着技能书架。',
+  text: "FIRSTLIGHT CHAPEL. The flame and Astra's altar, kept by Sister Ilse. Skill books at the bookstand within; ask Brother Anselm.",
+  text_zh: '初原村礼拜堂。圣火与阿斯特拉祭坛，由伊尔丝修女看守。堂内书架有技能书，请找安塞姆修士。',
 }
 
 /** A merchant's price for so many of a thing: its worth and the merchant's quarter (social.ts markup), as any trader asks. */

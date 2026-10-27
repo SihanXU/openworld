@@ -60,7 +60,7 @@ export function buildHaven(): MapBuilder {
   }
   for (const [x, y] of [[hx - 18, hy], [hx + 18, hy], [hx, hy - 17], [hx, hy + 16]] as const) {
     m.set(x, y, 'grass')
-    m.fixture('fixture/sacred/gravestone', x, y, { name: L('A boundary stone', '界石'), props: { text: 'A boundary stone, its carving worn: a thorn ring, and inside it, nothing kneeling.', text_zh: '一块界石，刻纹已经磨损：一圈荆棘，圈里没有任何下跪的身影。' } })
+    m.fixture('fixture/sacred/gravestone', x, y, { name: L('A boundary stone', '界石'), props: { text: 'A boundary stone. Its carving is worn: a ring of thorns, and nothing inside the ring.', text_zh: '一块界石。刻纹已经磨损了：一圈荆棘，圈里什么也没有。' } })
   }
   // the held field: trodden bare round the sword, worn paths out to the pavilion, the forge, the stall, the pond and the
   // plots, the tilled earth west of it
@@ -72,7 +72,7 @@ export function buildHaven(): MapBuilder {
     id: 'haven.heart',
     name: L('The planted sword', '插在地上的长剑'),
     tags: ['readable', 'haven-heart'],
-    props: { text: 'Alberic\'s longsword, point down in the earth, a little crooked. The ground holds as far as he holds it.', text_zh: '阿尔贝里克的长剑，剑尖朝下插在土里，有点歪。他能守多远，这片土地就有多远。' },
+    props: { text: 'Alberic\'s longsword, driven point down into the earth, a little crooked. Its grip is wrapped in new cloth.', text_zh: '阿尔贝里克的长剑，剑尖朝下插在土里，有点歪。剑柄上缠着新换的布。' },
   })
   // the steward's pavilion and post, a chest for what is kept here
   m.fixture('fixture/tent/pavilion', hx - 4, hy - 3, { name: L("Alberic's tent", '阿尔贝里克的帐篷') })
@@ -161,7 +161,7 @@ function buildQuarry(): MapBuilder {
   for (const [x, y] of [[13, 4], [19, 4], [26, 15]] as const) (m.set(x, y, 'gravel'), m.fixture('fixture/nature/vein/coal', x, y))
   m.set(16, 4, 'gravel')
   m.fixture('fixture/nature/vein/gold', 16, 4)
-  m.fixture('fixture/sign', 14, 18, { props: { text: 'THE QUARRY — stone for the walls of a kingdom that kneels to nobody.', text_zh: '采石场——为一个不向任何人下跪的王国提供城墙的石头。' } })
+  m.fixture('fixture/sign', 14, 18, { props: { text: 'THE QUARRY — stone for building. Take what you need.', text_zh: '采石场——盖房砌墙的石头。用多少，取多少。' } })
   for (const [name, x, y] of [['decor_stones', 9, 11], ['decor_stones', 21, 10], ['decor_stones', 18, 13], ['decor_cart', 19, 17], ['decor_crates', 12, 17], ['decor_stones', 6, 10]] as [string, number, number][]) if (m.free(x, y)) m.building(name, x, y)
   wildFloor(m, 1.2, (x, y) => x >= 15 && x <= 17 && y >= 17)
   m.appear = [appears('item/material/stone', ['dirt', 'gravel'], 10)]
@@ -184,7 +184,7 @@ function buildTimber(): MapBuilder {
   m.fixture('fixture/nature/mushroom_ring', 22, 9)
   for (const [x, y] of [[8, 8], [24, 14], [10, 15]] as const) (m.set(x, y, 'grass'), m.item('item/food/berries', x, y))
   m.set(22, 9, 'grass')
-  m.fixture('fixture/sign', 14, 18, { props: { text: 'THE TIMBERLAND — fell what you need; the old woods grow back.', text_zh: '林场——需要多少就砍多少；老林子会长回来的。' } })
+  m.fixture('fixture/sign', 14, 18, { props: { text: 'THE TIMBERLAND — fell what you need. The trees grow back.', text_zh: '林场——要多少就砍多少。砍了还会长回来。' } })
   for (const [name, x, y] of [['decor_firewood', 19, 15], ['decor_firewood', 11, 13], ['decor_cart', 20, 17]] as [string, number, number][]) if (m.free(x, y)) m.building(name, x, y)
   m.sprinkle('fixture/nature/leaves', 0.2, (x, y, t) => t === 'grass' && m.near(x, y, (u) => u === 'tree' || u === 'pine'))
   wildFloor(m, 1.2, (x, y) => x >= 15 && x <= 17 && y >= 17)

@@ -12,8 +12,8 @@ export const QUEST_SCENES: StepDef[] = [
     id: 'burned_farm',
     when: { map: 'eastroad', region: 'farmstead' },
     script: [
-      say('player', '(Everything here burned — the hay, the orchard, the hen house. The house alone still stands.)', '（这里的一切都烧光了——干草、果园、鸡舍。只剩那座房子还立着。）'),
-      say('player', '(Marks in the ash, each longer than my arm. Claws.)', '（灰烬里有印子，每一道都比我的胳膊还长。是爪痕。）', 'surprised'),
+      say('player', '(Everything here has burned: the hay, the orchard, the hen house. Only the house is still standing.)', '（这里的东西全烧光了：干草、果园、鸡舍。只有那座房子还立着。）'),
+      say('player', '(There are marks in the ash, each one longer than an arm. Something with claws made them.)', '（灰烬里有几道印子，每一道都比胳膊还长，是爪子抓出来的。）', 'surprised'),
       { fact: 'mq.farm', value: 1 },
     ],
   },
@@ -22,7 +22,7 @@ export const QUEST_SCENES: StepDef[] = [
     id: 'emberfall_arrival',
     when: { map: 'emberfall', region: 'gate' },
     script: [
-      say('player', '(Emberfall. Half its roofs are new thatch; the rest are still black.)', '（余烬镇。一半的屋顶是新铺的茅草，另一半还是黑的。）'),
+      say('player', '(Emberfall. Half its roofs are new thatch; the rest are still black.)', '（余烬镇。一半的屋顶铺着新茅草，另一半还是焦黑的。）'),
     ],
   },
   {
@@ -33,9 +33,9 @@ export const QUEST_SCENES: StepDef[] = [
     script: [
       { face: 'npc.mara', dir: 'down' },
       say('npc.mara', 'You came up the east road. Then you saw the farm.', '你是从东大路上来的。那你看见那座农庄了。'),
-      say('npc.mara', 'A dragon nests on Cinder Peak, up the pass east of here. Every spring it comes down. This spring it came down twice.', '烬峰上住着一头魔龙，就在镇东的山道上面。每年春天它都下山一回。今年春天，它下来了两回。'),
-      say('npc.mara', 'Garrick the smith has a pattern for a blade that can cut its hide. He needs iron and coal from the old mine.', '铁匠加里克有一把能砍穿龙皮的剑的图样。他缺铁和煤，旧矿坑里有。'),
-      say('npc.mara', 'And Wren, our herbalist, knows a draught against fire. Bring them what they ask — and take this bread. Nobody fights hungry.', '我们的草药师雷恩会熬一种防火的药。把他们要的东西带去——再拿上这些面包。饿着肚子可打不了仗。'),
+      say('npc.mara', 'A dragon nests on Cinder Peak, up the pass east of here. It comes down every spring. This spring it has come down twice.', '顺着镇东的山道上去，烬峰上住着一头魔龙。它每年春天下山一回。今年春天，它已经下来两回了。'),
+      say('npc.mara', 'Garrick the smith has a pattern for a blade that can cut its hide. He needs iron and coal from the old mine.', '铁匠加里克手上有一张剑的图样，打出来能砍穿龙皮。他缺铁和煤，旧矿坑里有。'),
+      say('npc.mara', 'And Wren, our herbalist, knows a draught against fire. Bring them what they ask for. And take this bread with you.', '我们的草药师雷恩会熬一种防火的药。他们要什么，你就给他们带去。这些面包你也拿上。'),
       { give: 'item/food/bread' },
       { give: 'item/food/bread' },
       { fact: 'mq.council', value: 1 },

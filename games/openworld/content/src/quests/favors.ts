@@ -14,7 +14,7 @@ export const FAVORS: QuestDef[] = [
     id: 'meal',
     kind: 'favor',
     title: L('A Bite to Eat', '一口吃的'),
-    summary: L('{hungry} has not eaten all day and has no coin for a meal. Bring them something to eat ({key:put} hands it over).', '{hungry}一整天没吃东西了，身上也没钱买。给{hungry}带点吃的（{key:put} 交给对方）。'),
+    summary: L('{hungry} has not eaten all day and has no coin for a meal. Bring them something to eat ({key:put} hands it over).', '{hungry}一整天没吃东西了，身上也没钱买。给{hungry}带点吃的（按 {key:put} 递给对方）。'),
     aliases: { hungry: { from: 'target' } },
     objectives: [{ id: 'feed', text: L('Something to eat for {hungry}', '给{hungry}的吃的'), target: 'hungry', on: { give: { tags: ['edible'] }, to: 'hungry' } }],
     stages: [
@@ -24,9 +24,9 @@ export const FAVORS: QuestDef[] = [
     ],
     start: { news: 'hungry', offer: 'hungry', most: 2 },
     deadline: 8,
-    offer: L('I have not eaten since yesterday, and there is not a coin on me. ...If you had anything to spare.', '我从昨天起就没吃东西了，身上一个子儿也没有。……你要是有多余的吃的就好了。'),
+    offer: L('I have not eaten since yesterday, and there is not a coin on me. ...If you have anything to spare, I would be grateful.', '我从昨天到现在什么都没吃，身上一个子儿也没有。……你要是有多余的吃的，能不能分我一点？'),
     accepted: L('You would? Anything at all.', '你愿意？什么都行。'),
-    declined: L('No. Of course not.', '不行。当然不行。'),
+    declined: L('No. I understand.', '没事。我明白。'),
     waiting: L('Anything to eat. Anything.', '吃的就行。什么都行。'),
   },
   {
@@ -57,7 +57,7 @@ export const FAVORS: QuestDef[] = [
     id: 'parcel',
     kind: 'favor',
     title: L('A Letter to Carry', '捎封信'),
-    summary: L('{sender} has a letter for {recipient}. Carry it over ({key:put} hands it to them).', '{sender}有一封信要给{recipient}。帮忙送过去（{key:put} 交给对方）。'),
+    summary: L('{sender} has a letter for {recipient}. Carry it over ({key:put} hands it to them).', '{sender}有一封信要给{recipient}。帮忙送过去（按 {key:put} 递给对方）。'),
     aliases: {
       sender: { find: { ...PERSON, map: 'meadow', person: true, pick: 'random', notTags: ['merchant', 'watchman'] } },
       recipient: { find: { ...PERSON, map: 'meadow', person: true, pick: 'random' } },
@@ -80,7 +80,7 @@ export const FAVORS: QuestDef[] = [
     id: 'cull',
     kind: 'favor',
     title: L('The Night-born', '清剿夜行者'),
-    summary: L('{guard} wants the night-born kept off the village tonight: put down 3 of them, out past the fence, and come back.', '{guard}今晚想让夜里的东西离村子远点：在村外打倒 3 个夜行者，然后回去找{guard}。'),
+    summary: L('{guard} wants the night-born kept away tonight. Put down 3 of them out past the fence, then go back to {guard}.', '{guard}想让夜行者今晚别靠近。到围栏外面打倒 3 个，再回去找{guard}。'),
     aliases: { guard: { find: { ...PERSON, tags: ['watchman'], person: true, pick: 'random' }, essential: true } },
     objectives: [
       { id: 'kill', text: L('Night-born put down', '打倒的夜行者'), count: { kill: { tags: ['nightborn'] } }, need: 3 },

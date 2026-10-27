@@ -28,16 +28,16 @@ export const bram: PersonDef = {
   tags: ['stationary'],
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'I was quicker than you once. Then I was quicker than nobody. That is how it goes.', '我曾经比你快。后来谁都比我快。事情就是这样。'),
-    line('chat', 'Rest is a drill too. The young never believe me.', '休息也是一种训练。年轻人从来不信。'),
-    line('favourite', 'The one thing that still makes an old man smile is {favourite}. Tobin knows it. Tobin charges accordingly.', '还能让老头子笑的只有{favourite}一样东西。托宾知道。托宾收钱也按这个来。'),
+    line('chat', 'Before the storms I trained the road wardens in this yard. The road is cut now. I train whoever comes down the mountain.', '起风暴以前，我在这个院子里练巡路的卫士。现在路断了，从山上下来的人，谁来我就教谁。'),
+    line('chat', 'Sleep before a long fight. When the arm tires, the guard drops first. I tell every one of them. Few listen.', '打大仗之前先睡够。人一累，最先垂下来的就是护身的那只胳膊。这话我跟每个人都说过，没几个听的。'),
+    line('favourite', 'If you want to see an old man pleased, bring me {favourite}. Tobin knows I like it, and charges me more for it.', '想让我这老头子高兴，就带{favourite}来。托宾知道我喜欢，每回卖给我都要多收几个钱。'),
     // said once, at whatever level one first comes by: the road opens at level five
-    line('greeting:first', 'Off the mountain, are you. Once you have a few fights in you — level five — I set people on a road: dagger, sword and shield, bow or staff. Pick when you are ready.', '从山上下来的？打过几场像样的仗、到了五级，我就给人指条路：匕首、剑盾、弓，还是法杖。准备好了就选。', { once: true }),
-    line('default', 'Pick a road and walk it. Change your mind if you must — but you start that road again from the first step.', '选一条路，就走下去。真要改也行——只是新路得从头走起。'),
-    line('default', 'A dagger from behind. A sword and a shield from the front. An arrow from afar. A spell from wherever you stand. Which are you?', '匕首从背后，剑盾从正面，箭从远处，法术从你站着的地方。你是哪一种？'),
-    line('default', 'Tobin talks through every drill. I have stopped telling him.', '托宾每次操练都在旁边说个不停。我已经懒得说他了。'),
-    line('hour:evening', 'Light is going. Practise your footwork; it does not need light.', '天要黑了。练练步法吧，步法不用看。'),
-    line('weather:rain', 'Rain makes the grip slip. Learn to hold on anyway.', '下雨手会打滑。照样得学会握紧。'),
-    line('given', 'Keep it. Gifts do not make a fighter.', '留着吧。礼物成就不了战士。'),
+    line('greeting:first', 'Off the mountain, are you. When you have a few fights behind you — level five — come to me, and I will set you on a road: dagger, sword and shield, bow, or staff. Choose when you are ready.', '从山上下来的吧。等你打过几场仗、到了五级，再来找我，我给你指一条路：匕首，剑和盾，弓，或者法杖。想好了再选。', { once: true }),
+    line('default', 'Pick a road and keep to it. You can change if you must, but the new road starts again from the first step.', '选了一条路，就一直走下去。真想换也可以，只是新的那条得从头练起。'),
+    line('default', 'The dagger works from behind. Sword and shield from the front. The bow from far off. The staff from wherever you stand. Which will you be?', '匕首是从背后下手的，剑和盾是正面硬碰的，弓是远远地射，法杖站在哪儿都能施法。你想当哪一种？'),
+    line('default', 'Tobin stands at the edge of every drill and talks the whole way through. I have given up telling him to go.', '托宾每回都站在边上，一边看操练一边说个没完。我已经懒得赶他走了。'),
+    line('hour:evening', 'The light is going. Practise your footwork; you do not need light for that.', '天快黑了。去练步法吧，步法不用看也能练。'),
+    line('weather:rain', 'Rain makes the grip slip. Wrap the handle in cloth, and hold it tighter.', '下雨天手握不稳。拿布把握柄缠一圈，再握紧些。'),
+    line('given', 'Keep it. You will need it more than I do.', '你留着吧。你比我用得着。'),
   ],
 }

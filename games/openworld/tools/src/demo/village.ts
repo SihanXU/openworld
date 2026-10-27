@@ -285,7 +285,7 @@ export function villageInteriors(): Interior[] {
     for (const x of [S.x, S.x + 1, S.x + 2]) elder.fixture('fixture/container/bookshelf', x, S.y)
     hearth(elder, S.x + 7, S.y)
     rug(elder, S.x + 2, S.y + 3, 5, 3)
-    elder.fixture('fixture/furniture/table', S.x + 4, S.y + 4, { name: L("The elder's desk", '村长的书桌'), tags: ['readable'], props: { text: 'A ledger of the village: who came, who went, who was owed what. The last pages are about the storms.', text_zh: '村子的账簿：谁来了，谁走了，谁欠谁什么。最后几页写的都是风暴。' } })
+    elder.fixture('fixture/furniture/table', S.x + 4, S.y + 4, { name: L("The elder's desk", '村长的书桌'), tags: ['readable'], props: { text: 'The village ledger: who came, who went, who was owed what. The last pages are all about the storm.', text_zh: '村里的账簿，记着谁来了、谁走了、谁欠谁什么。最后几页记的全是那场风暴。' } })
     elder.fixture('fixture/furniture/chair', S.x + 4, S.y + 5)
     elder.fixture('fixture/nature/plant', S.x + 9, S.y + 7)
     elder.fixture('fixture/nature/plant', S.x, S.y + 7)
@@ -384,7 +384,7 @@ export function villageInteriors(): Interior[] {
   const { m: church, P: CH } = flHouse('flchurch', 'meadow.church', 'Firstlight Chapel', '初原村礼拜堂', 'floor_stone', ['nave', 'cellW', 'cellE'], { music: 'temple' })
   {
     const N = CH.nave
-    church.fixture('fixture/sacred/altar', N.x + 6, N.y, { name: L('The five wounds', '五道圣伤'), tags: ['readable'], props: { text: 'Five wounds carved in the stone round a figure of Astra, the First Martyr: the crown, the scourge, the scales, the nails, the lance. Here the village kneels to give thanks for the flame outside.', text_zh: '石壁上围着初殉者阿斯特拉的像，刻着五道圣伤：荆棘冠、鞭刑、天平、圣钉、圣枪。村里人就在这里跪下，为门外的圣火感恩。' } })
+    church.fixture('fixture/sacred/altar', N.x + 6, N.y, { name: L('The five wounds', '五道圣伤'), tags: ['readable'], props: { text: 'A figure of Astra, the First Martyr, carved in the stone, and round it his five wounds: the crown, the scourge, the scales, the nails, the lance. The flags before it are worn hollow where the village kneels to give thanks for the flame outside.', text_zh: '石壁上刻着初殉者阿斯特拉的像，四周是五道圣伤：荆棘冠、鞭刑柱、天平、圣钉、圣枪。像前的石板磨出了浅坑，村里人常跪在这里，为门外的圣火谢恩。' } })
     for (const x of [N.x + 4, N.x + 8]) church.fixture('fixture/light/candles', x, N.y, { statuses: { lit: -1 } })
     rug(church, N.x + 5, N.y + 1, 3, N.h - 1)
     for (const y of [N.y + 4, N.y + 6, N.y + 8]) for (const x of [N.x + 2, N.x + 10]) church.fixture('fixture/furniture/bench/log', x, y)

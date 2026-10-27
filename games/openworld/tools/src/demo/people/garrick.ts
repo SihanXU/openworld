@@ -29,12 +29,12 @@ export const garrick: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'A good weld is quiet. A bad one tells you about it later.', '好的焊口是安静的。坏的以后会告诉你。'),
-    line('chat', 'Twelve smiths before me kept that pattern. Not one had the ore. I did not expect to be the one.', '我之前十二代铁匠守着那张图样。没一个有矿石。我没想过轮到我。'),
-    line('greeting:first', 'Smith. Garrick. If you are here about the dragon, everyone is. If you are here about a horseshoe, you are the first this month.', '铁匠，加里克。要是为了魔龙来的——大家都是。要是为了马掌来的，你是这个月头一个。', { once: true }),
-    line('default', 'Five iron ore and three coal. The old mine north of the square has both, and things that bite.', '五块铁矿石，三块煤。广场北边的旧矿坑两样都有，还有会咬人的东西。'),
-    line('default', 'A pickaxe breaks a vein in two blows. Do not let the cyclops see you do it.', '镐子敲两下就能敲开矿脉。别让独眼巨人看见你在敲。'),
-    line('fact:mq.blade', 'Swing it like you mean it. It was made to mean it.', '挥剑要用真力气。它生来就是干这个的。', { once: true }),
-    line('given', 'Hm. I will find a use for it.', '嗯。我会给它找个用处的。'),
+    line('chat', 'MIND THE SPARKS! ...Sorry. I shout when I\'m at the iron. My father did too.', '当心火星子！……对不住，我一打铁嗓门就大。我爹也是这样。'),
+    line('chat', 'Twelve smiths before me kept that pattern, father to son. Not one of them ever had the ore. I never thought I would be the one to forge it.', '我前面十二代铁匠，一代传一代守着那张图样，谁也没弄到过那种矿石。我从没想过，会轮到我来打。'),
+    line('greeting:first', 'Garrick. I\'m the smith. If you\'ve come about the dragon, so has everyone else this month. Nobody has brought me a horseshoe in weeks.', '我是加里克，这里的铁匠。你要是为了魔龙来的——这个月来的人都是为这个。已经好几个礼拜没人找我钉马掌了。', { once: true }),
+    line('default', 'Five iron ore and three coal. The old mine north of the square has both, and things that bite.', '五块铁矿石，三块煤。广场北边的旧矿坑里两样都有，里头也有咬人的东西。'),
+    line('default', 'A pickaxe opens a vein in two blows. Don\'t let the cyclops see you at it.', '用镐子敲两下，矿脉就开了。敲的时候别让独眼巨人看见。'),
+    line('fact:mq.blade', 'There. Twelve of us kept the pattern, and I\'m the one who forged it. Swing it hard. It was made for that dragon.', '好了。十二代人守着这张图样，到我手上总算打出来了。用力挥，它就是为那条龙打的。', { once: true }),
+    line('given', 'Hm. I\'ll find a use for it.', '嗯。我找个地方用上。'),
   ],
 }

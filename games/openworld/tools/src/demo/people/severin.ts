@@ -27,8 +27,8 @@ export const severin: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'You keep talking to me. Most do not. I am not sure it is wise, but I find I do not mind.', '你一直在跟我说话。多数人不会。我不确定这明智，但我发现我并不介意。'),
-    line('chat', 'Ash keeps. Everything else burns. That is the whole creed of the Watch, if you want it short.', '灰烬留得住。别的都会烧掉。要是你想要个短的，这就是守望者全部的信条。'),
+    line('chat', 'Do not follow me. What I am doing has nothing to do with you.', '别跟着我。我做的事，跟你没有关系。'),
+    line('chat', 'The ash on my hands does not wash off. It never did, for any of us who kept the flames.', '我手上的灰洗不掉。以前守火的人，都是这样。'),
     line('default', '...', '……'),
   ],
 }

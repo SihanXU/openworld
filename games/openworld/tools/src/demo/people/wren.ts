@@ -28,12 +28,12 @@ export const wren: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'Fireweed stings the fingers when it\'s fresh. That is how you know it\'s worth picking.', '火焰草新鲜时会蜇手。这就是它值得采的证明。'),
-    line('chat', 'The books say dragons are patient. I have never seen anything patient breathe fire.', '书上说龙有耐心。我从没见过有耐心的东西会喷火。'),
-    line('greeting:first', 'Oh! A traveller. Wren — herbs, salves, the occasional explosion. Mind the cauldron.', '哦！一位旅人。我叫雷恩——草药、药膏，偶尔炸个锅。小心别碰到锅。', { once: true }),
-    line('default', 'Fireweed grows in open meadow; frostcap in the shade of the forest. Three of each, and I can brew against fire.', '火焰草长在开阔的草原上，霜盖菇长在森林的阴凉处。各三份，我就能熬出防火的药。'),
-    line('default', 'The books say dragons call their young when they are hurt. The books do not say what to do about it.', '书上说，龙受了伤会召唤幼龙。书上没说该怎么办。'),
-    line('fact:mq.draught', 'One at the lair\'s mouth, one when the first wears thin. And come back.', '巢穴门口喝一瓶，第一瓶快没效了再喝第二瓶。还有——要回来。', { once: true }),
+    line('chat', "Fresh fireweed stings — that's what these red spots on my hands are. It only works while it still stings. Once it's dried it stops, and it's not half as strong.", '新鲜的火焰草会蜇手，我手上这些红点就是这么来的。蜇手的才有药性，晒干了就不蜇了，药性也差了一大半。'),
+    line('chat', "When Mara taught me my letters, the first book I finished was about dragons. It's the only one in town, and I've read it more times than I can count.", '玛拉教我认字的时候，我读完的第一本书就是讲龙的。镇上就那么一本，我翻了不知道多少遍。'),
+    line('greeting:first', "Oh! A visitor. I'm Wren; I make herbal remedies and salves. Mind the cauldron — now and then it goes off.", '哦！来客人了。我叫雷恩，在这儿配草药、熬药膏。小心那口锅，它有时候会炸。', { once: true }),
+    line('default', 'Fireweed grows in open meadow; frostcap in the shade of the forest. Bring me three of each, and I can brew something against fire.', '火焰草长在开阔的草原上，霜盖菇长在森林的阴凉处。各给我带三份来，我就能熬出防火的药。'),
+    line('default', "The book says a dragon calls its young when it's hurt. It doesn't say what to do when that happens. Be careful.", '书上说，龙受了伤就会把幼龙叫来。真到了那时候该怎么办，书上没写。你要当心。'),
+    line('fact:mq.draught', "One at the mouth of the lair, and one when the first wears thin. And come back.", '到了巢穴门口喝一瓶，第一瓶快没效了再喝第二瓶。还有——一定要回来。', { once: true }),
     line('given', 'For my shelves? Thank you!', '给我的架子添货？谢谢！'),
   ],
 }
