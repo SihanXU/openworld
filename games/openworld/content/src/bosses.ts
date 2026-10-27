@@ -6,6 +6,7 @@
 import type { Effect, EncounterDef, Entity, KitSkill, Pos, Rule, Text, Tree, TypeDef } from '@openworld/engine'
 import { CALL, CLING, DO, HARM, POWER, kitRule, skill, unleash } from './afflictions.ts'
 import { LEGENDARY_ARMS } from './items.ts'
+import { BOSS_ROOMS } from './bossrooms.ts'
 
 const L = (en: string, zh: string) => ({ en, zh })
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
@@ -282,13 +283,17 @@ export const BOSS_RULES: Rule[] = [
   {
     id: 'sins/story',
     source: { origin: 'base', note: 'story' },
-    doc: 'The story keeps which sins have fallen, and which legendary arms they have left.',
+    doc: 'The story keeps which sins have fallen, which legendary arms they have left, and which of the bosses with a room have fallen (docs/boss-rooms.md).',
     host: { type: 'resident/story' },
     on: 'impulse/notify',
     tree: [
       ...SIN_BOSSES.map((b) => [`sin.${b.id}`, `sins.defeated.${b.id}`]),
       ...Object.values(LEGENDARY_ARMS).flat().map((type) => [legendFact(type), legendFact(type)]),
-    ].reduceRight<Rule['tree']>((rest, [what, key]) => ({ if: { param: { key: 'what', cmp: what } }, then: { do: [{ op: 'setProp', key, value: 1 }] }, else: rest }), 'inherit'),
+    ].reduceRight<Rule['tree']>(
+      (rest, [what, key]) => ({ if: { param: { key: 'what', cmp: what } }, then: { do: [{ op: 'setProp', key, value: 1 }] }, else: rest }),
+      // and which of the bosses with a room has fallen (combat/defeat; docs/boss-rooms.md)
+      BOSS_ROOMS.reduceRight<Rule['tree']>((rest, r) => ({ if: { all: [{ param: { key: 'what', cmp: 'boss-fell' } }, { param: { key: 'who', cmp: r.who } }] }, then: { do: [{ op: 'setProp', key: r.fact, value: 1 }] }, else: rest }), 'inherit'),
+    ),
   },
 ]
 

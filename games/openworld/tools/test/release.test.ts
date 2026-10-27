@@ -99,7 +99,7 @@ function openTheRest(g: Game): void {
   g.engine.author(() => { for (const f of facts) w.setFact(f, 1) })
 }
 
-const PILGRIMS_ROAD = ['waystation', 'waystation.chapel', 'waystation.hostel', 'pilgrimway', 'abbey', 'abbey.hall', 'abbey.crypt', 'kneelfield', 'eastroad', 'kingdom']
+const PILGRIMS_ROAD = ['waystation', 'waystation.chapel', 'waystation.hostel', 'pilgrimway', 'abbey', 'abbey.hall', 'abbey.crypt', 'abbey.tomb', 'kneelfield', 'eastroad', 'kingdom']
 const PART_TWO_PLACES = ['emberfall', 'mine', 'pass', 'lair']
 
 describe("release 1's reach (docs/release-1.md §1)", () => {

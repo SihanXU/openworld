@@ -4,13 +4,21 @@
 // one it fought has fallen (body/rise) is whole again (the kits module's `rally`).
 
 import type { Cond, Effect, Rule, Text, Tree } from '@openworld/engine'
-import { CH1 } from './chapter1.ts'
+import { ALBERIC_ID, CH1 } from './chapter1.ts'
+import { ABBOT_ID } from './pilgrimage.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base', note: 'story' } })
 
-/** Each boss with a room: the boss (a fog's `boss` prop), the fact that tells the story of its fall, its arena. */
-export const BOSS_ROOMS = [{ boss: 'alberic', fact: CH1.knight, arena: 'kingdom' }] as const
+/**
+ * Each boss with a room: the boss (a fog's `boss` prop), the boss itself (its id), the fact that tells the story of its
+ * fall (a sin's its own; another boss's set as it is defeated, `combat/defeat` → `sins/story`), its arena.
+ */
+export const BOSS_ROOMS = [
+  { boss: 'alberic', who: ALBERIC_ID, fact: CH1.knight, arena: 'kingdom' },
+  { boss: 'warden', who: 'barrow.warden', fact: 'boss.fell.warden', arena: 'sanctum' },
+  { boss: 'wendel', who: ABBOT_ID, fact: 'boss.fell.wendel', arena: 'abbey.tomb' },
+] as const
 
 /** The fog's type, and its period: how often it looks whether its boss has fallen. */
 export const FOG = 'fixture/fog'

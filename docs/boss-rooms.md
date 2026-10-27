@@ -1,8 +1,8 @@
 # Boss rooms
 
-Status: **agreed 2026-10-27** (the user's word: "我们现在要给boss加一个单独的boss房，boss的场景单独设计，然后进入方式和类魂一样，
-有雾墙挡着"; the five decisions below, all as proposed). The White Knight's is built first (§4.1), then the Warden's and Prior
-Wendel's (§4.2–4.3); Part Two's come with it.
+Status: **agreed 2026-10-27; the White Knight's, the Warden's and Prior Wendel's rooms built the same day** (the user's word: "我们现在要给boss加一个单独的boss房，boss的场景单独设计，然后进入方式和类魂一样，
+有雾墙挡着"; the five decisions below, all as proposed). The White Knight's (§4.1), the Warden's and Prior Wendel's (§4.2–4.3) are built; Part Two's
+come with it.
 
 Why: the White Knight stood in the middle of the East Road, on the same map as the burned farm, Edda's barn, the wolves and
 whoever walked by; the people went on with their day while he fought, and his thorns grew across the road. Prior Wendel
@@ -79,12 +79,20 @@ leader through, as she follows across every way.
 
 ### 4.2 The Warden: the sanctum (`sanctum`)
 
-The barrow's octagonal arena is already a map of its own; its stair in from the ossuary gets a fog.
+The barrow's octagonal arena was already a map of its own. The fog stands on the ossuary's stair down to it (its stake);
+another on the sanctum's stair back up, sealed while the warden stands (both placed last on their maps, so the barrow's
+other things keep their ids). The warden falling tells the story `boss.fell.warden`.
 
-### 4.3 Prior Wendel: the priors' tomb
+### 4.3 Prior Wendel: the priors' tomb (`abbey.tomb`)
 
-The tomb at the crypt's head walled off from the vault and made a room of its own behind a fog in its arch; the vault
-before it keeps the crypt's skeletons.
+The tomb at the crypt's head is a map of its own (`plans.ts abtomb`): the dais under the wall of bones, braziers at its
+corners, the last keeper before it. The crypt's vault keeps its skeleton, ghost and the priors' niches; an arch in the
+middle of its north wall holds the fog, two cells wide, and the tomb's door back holds the other. His falling tells the
+story `boss.fell.wendel`.
+
+How a boss that is no sin tells the story: `combat/defeat` has every boss (the tag `boss`) emit `notify` with `what:
+'boss-fell'` and its id to the story, and the story's `sins/story` keeps the fact of each boss with a room
+(`BOSS_ROOMS.who` → `fact`).
 
 ### 4.4 Part Two
 

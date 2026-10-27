@@ -174,7 +174,9 @@ export const HALLS = {
   prchapel: hallPlan(21, 13, 7, { nave: [2, 2, 11, 9], cell: [14, 3, 5, 6], arch: [13, 5, 1, 1], entry: [6, 11, 3, 1] }, [[7, 12]]),
   prhostel: hallPlan(23, 12, 6, { common: [2, 2, 9, 8], dorm: [12, 2, 9, 8], arch: [11, 5, 1, 2], entry: [5, 10, 3, 1] }, [[6, 11]]),
   abhall: hallPlan(28, 13, 7, { scriptorium: [2, 4, 5, 6], hall: [8, 2, 11, 9], cell: [20, 4, 6, 6], aW: [7, 6, 1, 1], aE: [19, 6, 1, 1], entry: [12, 11, 3, 1] }, [[13, 12]]),
-  abcrypt: hallPlan(28, 20, 5, { tomb: [9, 2, 10, 5], vault: [3, 7, 22, 8], entry: [12, 15, 4, 3] }, [[13, 18]]),
+  abcrypt: hallPlan(28, 20, 5, { vault: [3, 7, 22, 8], arch: [13, 6, 2, 1], entry: [12, 15, 4, 3] }, [[13, 18]]),
+  // the priors' tomb behind its fog at the crypt's head (docs/boss-rooms.md): Prior Wendel's room, its dais and its bones
+  abtomb: hallPlan(24, 15, 6, { tomb: [3, 2, 18, 9], dais: [8, 1, 8, 1], entry: [10, 11, 4, 2] }, [[11, 13]]),
   erfarm: hallPlan(20, 11, 6, { kitchen: [2, 2, 9, 7], bedroom: [12, 3, 6, 5], arch: [11, 5, 1, 1], entry: [5, 9, 3, 1] }, [[6, 10]]),
   catacombs: hallPlan(30, 20, 5, { north: [3, 2, 24, 3], south: [3, 13, 24, 3], west: [3, 5, 3, 8], east: [24, 5, 3, 8], spine: [13, 5, 4, 8], tombW: [7, 7, 5, 4], passW: [6, 8, 1, 2], tombE: [18, 7, 5, 4], passE: [23, 8, 1, 2], entry: [13, 16, 4, 3] }, []),
 }

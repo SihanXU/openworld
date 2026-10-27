@@ -2138,6 +2138,38 @@ req('BR1', "a boss's room (docs/boss-rooms.md): past the burned farm the knight'
   expect(fogs('eastroad')).toBe(0)
 })
 
+req('BR2', "the warden's room and the last keeper's (docs/boss-rooms.md): the fog on the ossuary's stair takes one down into the sanctum, the fog at the crypt's head into the priors' tomb; in each the way back is sealed while its boss stands; felled, each tells the story it fell and the fogs of its room lift", [], () => {
+  for (const [outer, arena, who, fact] of [['ossuary', 'sanctum', 'barrow.warden', 'boss.fell.warden'], ['abbey.crypt', 'abbey.tomb', ABBOT_ID, 'boss.fell.wendel']] as const) {
+    const f = fresh()
+    const w = W(f)
+    const fogOn = (map: string) => Object.values(w.state.entities).filter((e) => e.type === 'fixture/fog' && e.place.on === 'tile' && e.place.map === map)
+    author(f, () => (w.player.props!.hp = 100000, w.player.props!.maxHp = 100000))
+    f.eng.author(() => f.eng.teleport(w.player, { map: outer, x: 2, y: 2 }))
+    ticks(f, 3)
+    const gate = fogOn(outer)[0]
+    expect([outer, !!gate]).toEqual([outer, true])
+    const g = gate.place as { x: number; y: number }
+    const [sx, sy, dir] = beside(f, g.x, g.y, outer)
+    stand(f, sx, sy, dir, outer)
+    f.eng.act('hands', 'player', { e: gate.id }, { instrument: null })
+    ticks(f, 3)
+    expect([outer, w.posOf(w.player)!.map]).toEqual([outer, arena])
+    expect(w.player.props?.home).toBe(gate.id)
+    // sealed behind: a hand on it (one comes in on the cell before it), and one is still in
+    const back = fogOn(arena)[0]
+    f.eng.act('hands', 'player', { e: back.id }, { instrument: null })
+    ticks(f, 3)
+    expect([arena, w.posOf(w.player)!.map]).toEqual([arena, arena])
+    // felled: the story knows it, and the fogs of its room lift
+    const boss = w.get(who)!
+    f.eng.damage(boss, 100000, undefined, true, { e: 'player' })
+    ticks(f, 5)
+    expect([who, w.fact(fact)]).toEqual([who, 1])
+    ticks(f, 900, () => !w.scene && fogOn(arena).length === 0)
+    expect([arena, fogOn(arena).length]).toEqual([arena, 0])
+  }
+})
+
 req('Q2', 'the road east: past the far bank the Pilgrim\'s Road, and past the Kneeling Field the East Road; the burned farm shows the dragon\'s mark; wolves and a boar on the road; it ends at Emberfall, Part Two\'s (release 1 ends with the Crown home: docs/release-1.md)', ['actor/creature/beast/wolf', 'actor/creature/beast/boar'], () => {
   const f = fresh()
   // past the far bank, the Pilgrim's Road (docs/chapter-1.md §14) first: the Rest; the Kneeling Field gives onto the road
@@ -2552,7 +2584,14 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   // the crypt under the abbey church: the Order's last keeper rises, and is fought down with blows
   expect(door('abbey.hall', 'abbey')).toBe('abbey')
   expect(door('abbey', 'abbey.crypt')).toBe('abbey.crypt')
-  enter('abbey.crypt', w.map('abbey.crypt')!.regions!.tomb, 'crypt_keeper')
+  // at the crypt's head the priors' tomb, his room behind its fog (docs/boss-rooms.md): a hand on it, and one is in with him
+  settle()
+  const keeperFog = Object.values(w.state.entities).find((e) => e.type === 'fixture/fog' && e.place.on === 'tile' && e.place.map === 'abbey.crypt')!
+  stand(f, keeperFog.place.on === 'tile' ? keeperFog.place.x : 0, keeperFog.place.on === 'tile' ? keeperFog.place.y + 1 : 0, 'up', 'abbey.crypt')
+  f.eng.act('hands', 'player', { e: keeperFog.id }, { instrument: null })
+  ticks(f, 3)
+  expect(w.posOf(w.player)!.map).toBe('abbey.tomb')
+  enter('abbey.tomb', w.map('abbey.tomb')!.regions!.tomb, 'crypt_keeper')
   const keeper = w.get(ABBOT_ID)!
   expect(textOf(keeper.name!)).toBe('Prior Wendel, the Last Keeper')
   give(f, 'item/weapon/blunt/mace', 1)
@@ -2560,8 +2599,8 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   const k0 = w.posOf(keeper)!
   let blows = 0
   for (; blows < 200 && w.get(ABBOT_ID); blows++) {
-    author(f, () => w.place(keeper, { on: 'tile', map: 'abbey.crypt', x: k0.x, y: k0.y }))
-    stand(f, k0.x, k0.y + 1, 'up', 'abbey.crypt')
+    author(f, () => w.place(keeper, { on: 'tile', map: 'abbey.tomb', x: k0.x, y: k0.y }))
+    stand(f, k0.x, k0.y + 1, 'up', 'abbey.tomb')
     f.eng.setCooldown('atk:player', 0)
     c.strike()
     ticks(f, 1)
@@ -2569,12 +2608,16 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   expect(w.get(ABBOT_ID)).toBeUndefined()
   expect(blows).toBeGreaterThan(1)
   // his seal, where he fell: taken (F)
-  const seal = things('abbey.crypt', 'item/valuable/order_seal')[0]
+  const seal = things('abbey.tomb', 'item/valuable/order_seal')[0]
   expect(seal).toBeTruthy()
   pick(seal)
   expect(ticks(f, 600, () => w.fact('ch1.order_seal') === 1 && !w.scene)).toBe(true)
   ticks(f, 2)
   expect(stage()).toBe(70)
+  // he fallen, the fog of his room lifts: down through its door to the crypt
+  expect(w.fact('boss.fell.wendel')).toBe(1)
+  ticks(f, 20)
+  expect(door('abbey.tomb', 'abbey.crypt')).toBe('abbey.crypt')
   // back down to the road, and east into the Kneeling Field: the stones of those who would not kneel; straw subjects on their knees
   expect(door('abbey.crypt', 'abbey')).toBe('abbey')
   expect(cross(f, 'abbey', PILGRIM.abbey.south[1], PILGRIM.abbey.h - 2, 'down')).toBe('pilgrimway')
@@ -3271,7 +3314,12 @@ req('P3', "the main line never breaks: Rowan's rescue begins by itself at the we
   expect(w.get('ossuary.roll')?.props?.text).toContain('ALBERIC')
   // the Order's dead do not lie still: a ghost among the niches
   expect(Object.values(w.state.entities).some((e) => e.type === 'actor/creature/undead/ghost' && w.posOf(e)?.map === 'ossuary')).toBe(true)
-  stair('ossuary', OSSUARY.down, 'sanctum')
+  // the stair further down holds the warden's fog (docs/boss-rooms.md): a hand on it, and one is in the sanctum
+  const wardenFog = Object.values(w.state.entities).find((e) => e.type === 'fixture/fog' && e.place.on === 'tile' && e.place.map === 'ossuary')!
+  stand(f, OSSUARY.down[0] - 1, OSSUARY.down[1], 'right', 'ossuary')
+  f.eng.act('hands', 'player', { e: wardenFog.id }, { instrument: null })
+  ticks(f, 3)
+  expect(w.posOf(w.player)?.map).toBe('sanctum')
   // the bottom: the warden before the Commander's vow
   expect(w.posOf(w.get('barrow.warden')!)?.map).toBe('sanctum')
   expect(w.get('sanctum.vow')?.props?.text).toContain('I WILL HOLD UNTIL I AM RELIEVED')

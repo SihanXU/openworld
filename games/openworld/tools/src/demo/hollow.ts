@@ -217,6 +217,9 @@ export function buildOssuary(): MapBuilder {
   for (const [x, y] of [[8, 19], [8, 20], [9, 21]] as const) put('fixture/nature/boulder', x, y)
   strew('fixture/nature/pebbles', 0.55, (x, y, t) => (t === 'cave_floor' || t === 'gravel') && m.near(x, y, (_, i, j) => m.entities.some((e) => e.type === 'fixture/nature/boulder' && e.place.on === 'tile' && e.place.x === i && e.place.y === j)), [8, 16, 7, 6])
   wildFloor(m, 1, () => false, undefined, 'barrow')
+  // the warden's fog on the stair down to its sanctum (docs/boss-rooms.md): through it, sealed in with it, the stake one
+  // rises at; it lifts when the warden falls (placed last: the ids of what is above stay as they were)
+  m.fixture('fixture/fog', dx, dy, { name: L("The warden's fog", '守墓者的雾门'), props: { boss: 'warden', interior: 'sanctum', interiorX: SANCTUM.up[0], interiorY: SANCTUM.up[1] + 1 } })
   return m
 }
 
@@ -255,5 +258,7 @@ export function buildSanctum(): MapBuilder {
   for (const x of [10, 14]) put('fixture/light/candles', x, 15, { statuses: { lit: -1 } })
   for (const x of [9, 15]) m.scenery('pillar', x, 4)
   wildFloor(m, 0.6, () => false, undefined, 'barrow')
+  // the fog on its stair back up, sealed while the warden stands (docs/boss-rooms.md)
+  m.fixture('fixture/fog', ux, uy, { name: L("The warden's fog", '守墓者的雾门'), props: { boss: 'warden' } })
   return m
 }

@@ -52,6 +52,7 @@ import {
   migratePartTwo,
   migrateBossRooms,
   BOSS_ROOMS_LAYOUT,
+  BOSS_ROOMS,
   PART_TWO,
   migrateStats,
   STATS_LAYOUT,
@@ -162,10 +163,10 @@ export const CLIENT_GAME: ClientGame = {
     if (!w.fact(HAVEN_LAYOUT)) game.engine.author(() => migrateHaven(game))
     // its heart is the planted sword, not an altar
     game.engine.author(() => migrateHavenHeart(game))
-    // the White Knight moved into his arena behind his fog: a save that stood him on the East Road sends him to his post
+    // the bosses moved into arenas of their own behind their fogs: a save that held one where it stood before sends it to its post
     if (!w.fact(BOSS_ROOMS_LAYOUT)) {
-      const kingdom = await chunk('kingdom')
-      game.engine.author(() => migrateBossRooms(game, kingdom))
+      const arenas = await Promise.all(BOSS_ROOMS.map((r) => chunk(r.arena)))
+      game.engine.author(() => migrateBossRooms(game, arenas))
     }
     // Part One ends with the Crown home: a Dragon Road begun before Part Two was sealed waits for it again
     game.engine.author(() => migratePartTwo(game))

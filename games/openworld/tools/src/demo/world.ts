@@ -31,7 +31,7 @@ import { firstlightGround, villageInteriors, villageLife, villageTown } from './
 import { eastRoadRooms, emberfallRooms, tentRooms } from './interiors.ts'
 import { HILL_MINE, VIGIL, buildChapel, buildDawnHill, buildHillMine, buildMillCellar, buildMillHouse, buildMillbrook } from './quest/vigil.ts'
 import { buildKingdom } from './quest/kingdom.ts'
-import { PILGRIM, PILGRIMAGE_STORY, buildAbbey, buildAbbeyCrypt, buildAbbeyHall, buildField, buildHostel, buildRest, buildRestChapel, buildWay } from './quest/pilgrimage.ts'
+import { PILGRIM, PILGRIMAGE_STORY, buildAbbey, buildAbbeyCrypt, buildAbbeyHall, buildAbbeyTomb, buildField, buildHostel, buildRest, buildRestChapel, buildWay } from './quest/pilgrimage.ts'
 import { FLANKS, FLANKS_STORY, buildBend, buildBendCabin, buildDell, buildDellHut } from './quest/flanks.ts'
 import { CHAPTER1_SCENES, CHAPTER1_STORY, HAVEN_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Kingdom, chapter1Foot, chapter1Ford, chapter1Forest, chapter1Hollow, chapter1Pasture, chapter1Summit, chapter1Village } from './quest/chapter1.ts'
 
@@ -697,6 +697,8 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   const abbey = buildAbbey()
   const abbeyHall = buildAbbeyHall()
   const abbeyCrypt = buildAbbeyCrypt()
+  // the priors' tomb behind its fog at the crypt's head (docs/boss-rooms.md)
+  const abbeyTomb = buildAbbeyTomb()
   abbey.linkInterior('hall', abbeyHall)
   abbey.linkInterior('crypt', abbeyCrypt)
   reseed(4283)
@@ -709,7 +711,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   linkEdge(way, row(way, 0, PILGRIM.way.north), [0, 1], abbey, row(abbey, abbey.h - 1, PILGRIM.abbey.south), [0, -1])
   linkEdge(way, col(way, way.w - 1, PILGRIM.way.east), [-1, 0], field, col(field, 0, PILGRIM.field.west), [1, 0])
   linkEdge(field, col(field, field.w - 1, PILGRIM.field.east), [-1, 0], road, col(road, 0, EAST_ROAD.west), [1, 0])
-  const pilgrimage = [rest, restChapel, hostel, way, abbey, abbeyHall, abbeyCrypt, field, kingdom]
+  const pilgrimage = [rest, restChapel, hostel, way, abbey, abbeyHall, abbeyCrypt, abbeyTomb, field, kingdom]
   linkEdge(road, col(road, road.w - 1, EAST_ROAD.east), [-1, 0], ember, col(ember, 0, EMBERFALL.west), [1, 0])
   linkEdge(ember, row(ember, 0, EMBERFALL.north), [0, 1], mine, row(mine, mine.h - 1, MINE.south), [0, -1])
   linkEdge(ember, col(ember, ember.w - 1, EMBERFALL.east), [-1, 0], pass, col(pass, 0, PASS.west), [1, 0])
