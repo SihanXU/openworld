@@ -1,5 +1,6 @@
 // The map system (docs/prologue.md): the world map (M) — the continent with its regions and places
-// (docs/continent.md), or nearby, every visited map where it lies, painted from its terrain; the player's
+// (docs/continent.md), drawn as the overworld one walks (chart.ts), or nearby, every visited map where it lies, painted
+// from its terrain; the player's
 // position, the waypoint stones (an attuned one takes you there with a click), dragged and zoomed like the
 // skill tree — and the minimap, the current map always on screen under the clock.
 
@@ -8,18 +9,18 @@ import type { EntitySnap, Frame, MapData } from '@openworld/engine'
 import { ontology } from '../game.ts'
 import type { Atlas, AtlasContinent } from '../protocol.ts'
 import { $, esc, kbd, prefs, t, tx } from './common.ts'
-import { paintContinent } from './terrainmap.ts'
+import { drawChart } from './chart.ts'
 
 const colorOf = (id: string) => ontology().terrains[id]?.color ?? '#000'
 /** World map pixels per tile at zoom 1. */
 const PX = 6
-/** The continent's pixels per cell at zoom 1. */
-const CPX = 14
-/** The continent's painted pixels per cell (docs/continent.md; terrainmap.ts), sharp when zoomed right in. */
-const CRES = 40
-/** The continent's painting, kept: its grounds never move, and painting it takes a moment. */
-let painted: { key: string; canvas: HTMLCanvasElement } | undefined
-const ZOOM: [number, number] = [0.25, 3]
+/** The continent's pixels per cell at zoom 1: the overworld's own, a pixel a pixel (chart.ts). */
+const CPX = 16
+/** The borders' pixels per cell, sharp when zoomed right in. */
+const CRES = 32
+/** The continent's picture, kept: its grounds never move. */
+let painted: { key: string; canvas: Promise<HTMLCanvasElement> } | undefined
+const ZOOM: [number, number] = [0.25, 4]
 
 /** A map's terrain as a canvas, one pixel per tile (scaled up by CSS, pixelated). */
 function terrainCanvas(width: number, height: number, terrain: string[]): HTMLCanvasElement {
@@ -239,26 +240,34 @@ export class WorldMap {
   private drawContinent(a: Atlas, c: AtlasContinent): void {
     const world = $('#wmWorld')
     const key = `${c.width}x${c.height}:${c.terrain.join('')}`
-    if (painted?.key !== key) painted = { key, canvas: paintContinent(c, CRES) }
-    const canvas = painted.canvas
-    canvas.className = 'wm-continent'
-    canvas.style.width = `${c.width * CPX}px`
-    canvas.style.height = `${c.height * CPX}px`
-    world.appendChild(canvas)
+    if (painted?.key !== key) painted = { key, canvas: drawChart(c) }
+    // the picture under everything else, as soon as it is drawn (at once, once it has been)
+    const slot = document.createElement('div')
+    slot.className = 'wm-continent'
+    slot.style.width = `${c.width * CPX}px`
+    slot.style.height = `${c.height * CPX}px`
+    world.appendChild(slot)
+    void painted.canvas.then((canvas) => {
+      canvas.style.width = '100%'
+      canvas.style.height = '100%'
+      canvas.style.display = 'block'
+      canvas.style.imageRendering = 'pixelated'
+      slot.replaceChildren(canvas)
+    })
     // each region's tint, soft-edged, and the borders between regions as dashed lines
     const R = 8
     const tint = document.createElement('canvas')
     tint.width = c.width * R
     tint.height = c.height * R
     tint.className = 'wm-tint'
-    tint.style.width = canvas.style.width
-    tint.style.height = canvas.style.height
+    tint.style.width = slot.style.width
+    tint.style.height = slot.style.height
     const tg = tint.getContext('2d')!
     for (let y = 0; y < c.height; y++)
       for (let x = 0; x < c.width; x++) {
         const r = c.regions[c.regionOf[y * c.width + x]]
         if (!r?.color) continue
-        tg.globalAlpha = r.backdrop ? 0.26 : 0.16
+        tg.globalAlpha = r.backdrop ? 0.22 : 0.1
         tg.fillStyle = r.backdrop ? '#2a2630' : r.color
         tg.fillRect(x * R, y * R, R, R)
       }
@@ -267,8 +276,8 @@ export class WorldMap {
     lines.width = c.width * CRES
     lines.height = c.height * CRES
     lines.className = 'wm-borders'
-    lines.style.width = canvas.style.width
-    lines.style.height = canvas.style.height
+    lines.style.width = slot.style.width
+    lines.style.height = slot.style.height
     const g = lines.getContext('2d')!
     g.lineWidth = CRES * 0.1
     g.lineCap = 'round'
@@ -300,7 +309,8 @@ export class WorldMap {
     })
     for (const p of c.places) {
       const cls = ['wm-place', p.capital ? 'major' : '', p.sealed ? 'sealed' : '', p.visited ? 'visited' : '', p.backdrop ? 'backdrop' : ''].filter(Boolean).join(' ')
-      world.insertAdjacentHTML('beforeend', `<div class="${cls}" title="${esc(tx(p.name))}" style="left:${(p.x + 0.5) * CPX}px;top:${(p.y + 0.5) * CPX}px"><i></i><span>${esc(tx(p.name))}</span></div>`)
+      // its mark is drawn on the map (chart.ts): here its name under it, and a sealed one's seal
+      world.insertAdjacentHTML('beforeend', `<div class="${cls}" title="${esc(tx(p.name))}" style="left:${(p.x + 0.5) * CPX}px;top:${(p.y + 1) * CPX}px">${p.sealed ? '<i></i>' : ''}<span style="top:1px">${esc(tx(p.name))}</span></div>`)
     }
     const cellOf = (map: string) => a.cells?.[map]
     for (const s of a.waypoints) {
