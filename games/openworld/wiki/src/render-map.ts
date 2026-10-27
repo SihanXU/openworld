@@ -482,6 +482,8 @@ export function renderMap(g: Game, mapId: string, scale = 1): { w: number; h: nu
 
   // room frames: the ring of a room's walls, the south wall in front of who stands inside
   for (const r of raw.rooms ?? []) {
+    // (a `shell` room's walls are its building's picture)
+    if (r.style === 'shell') continue
     const def = CATALOG.rooms[r.style] ?? Object.values(CATALOG.rooms)[0]
     const img = def && image(def.img)
     if (!def || !img) continue
