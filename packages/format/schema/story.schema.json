@@ -2611,6 +2611,32 @@
           "properties": {
             "op": {
               "type": "string",
+              "const": "remark"
+            },
+            "text": {
+              "$ref": "#/definitions/Text"
+            },
+            "again": {
+              "$ref": "#/definitions/Text"
+            },
+            "alone": {
+              "$ref": "#/definitions/Text"
+            },
+            "every": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "op",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
               "const": "emote"
             },
             "mood": {

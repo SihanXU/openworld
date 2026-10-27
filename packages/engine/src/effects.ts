@@ -59,6 +59,7 @@ export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
   emit: 'emit {impulse, to, params?, item?, other?, chance?, filter?} — send an impulse (strike, element, coat, restore, push, taken, receive, offered, handle, notify, settle) to a role, "story", "world", {named: id}, {area: {at?, radius}}, {line: {from?, away, length, over?}} or {map: true}; params are values, Amounts, {typeOf: role} (what kind of thing a role is, kept even after it is gone) or {idOf: role} (which thing it is); filter and chance pick who receives it; the receiver answers for itself',
   vfx: 'vfx {at?, fx} — play a visual effect (at the host unless at names a role)',
   say: 'say {text, who?} — the host says a line ("@line": one of its own lines for the moment; "@given": its line for the item it was given; "@chat": one of its chat lines, or what it likes best); text fills {host} {actor} {target} {instrument} {other} {item} and {role.key}',
+  remark: 'remark {text, again?, alone?, every?} — a line for whoever set the event going (the cause; else its other): its companion beside it says it in a bubble, as a leader\'s companion speaks the story\'s beats — `text` the first time this host says it, `again` (default text) after; `every` (ticks): not again within that long (a way walked into on and on). No companion at hand: `alone` (default text) in the message line, as log writes it. Writes nothing',
   log: 'log {text} — a message line ({role} = names, {role.key} = that role\'s prop, {param.key} = an event param; "@line": what the host has written on it, its text and text_zh)',
   emote: 'emote {mood: neutral|happy|sad|angry|surprised|shy} — an emote bubble over the host',
   restyle: 'restyle {parts?, colors?} — the host\'s look changes (docs/looks.md): a part per slot of the world\'s look table (hair: "hair.bob"; null empties the slot), a colour per key (hair, skin, eyes, <slot>.<n>; a colour id or #rrggbb); its map sprite, its portrait and its look:* tags follow, and the change is its own from then on',
@@ -908,6 +909,18 @@ export class EffectRunner {
         const line = (eff.text === '@line' || eff.text === '@chat') && who.npc?.person?.lines?.length ? chooseLine(eng, who, { record: who.id === host?.id, ...(eff.text === '@chat' && { chat: true }) }) : undefined
         if (line) w.fx.push({ t: 'say', who: who.id, text: line.text, mood: line.mood })
         else w.fx.push({ t: 'say', who: who.id, text: this.text(ev, who, eff.text) })
+        return
+      }
+      case 'remark': {
+        const other = ev.roles.other && 'e' in ev.roles.other ? ev.roles.other.e : undefined
+        const by = w.get(ev.cause ?? other)
+        if (!by) return
+        // (a line asked for, `every` unset, is kept apart from the same line run up against: asked, it is always said)
+        const r = eng.companions.remark(by, `${host?.id ?? ''}|${eff.every ?? ''}|${JSON.stringify(eff.text)}`, eff.every)
+        if (!r) return
+        if (r.companion) return void w.fx.push({ t: 'say', who: r.companion.id, text: this.text(ev, r.companion, r.again ? (eff.again ?? eff.text) : eff.text) })
+        // with no one beside them, the message line, which is the one at the keys' (as log's)
+        if (by.id === w.state.player) w.fx.push({ t: 'log', text: this.text(ev, undefined, eff.alone ?? eff.text) })
         return
       }
       case 'log':

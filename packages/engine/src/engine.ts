@@ -1196,6 +1196,11 @@ export class Engine {
     // from a way the story has not opened yet (one stands on it, so it is sealed): it leads nowhere until it opens
     const sealedHere = !!w.map(map)?.portals.some((p) => p.x === x && p.y === y)
     if (!w.inBounds(map, nx, ny) && isPlayer && w.map(map)?.site && !sealedHere && this.leaveByEdge(e, x, y, dir)) return true
+    // off an edge where the way is one the story has not opened (a way sealed underfoot, or an edge whose ways all lead
+    // to places not open yet): the story hears that one ran up against it — a bump on it, its `sealed` the fact that
+    // opens the way — and its rules answer (a companion's remark); the step is refused below as at any edge
+    const sealed = !w.inBounds(map, nx, ny) && isPlayer ? this.sealedEdge(map, x, y) : undefined
+    if (sealed && w.story) this.offer({ kind: 'bump', host: { e: w.story.id }, roles: { other: { e: e.id } }, params: { dir, sealed }, cause: ev.cause ?? e.id, origin: ev.origin })
     // storeys (world-model.md §5.2, §5.5): on a floor one walks; from stairs up onto the floor above;
     // onto the stairs below from above them; off a floor's edge one falls to the first below
     const z = e.place.z ?? 0
@@ -1332,6 +1337,24 @@ export class Engine {
    * left. A part the block does not show: its nearest open tile. A place of one cell: onto that cell,
    * where one chooses the way on (in again, it is where one left).
    */
+  /**
+   * The fact that opens the way off a map's edge at (x, y), where the story has not opened it: a way (a portal) there
+   * sealed by its `opensWhen`, or, on a map a barrier parts, an edge whose part's ways all lead to places not open
+   * yet (the far bank before Part Two). Undefined where the edge is only an edge, or open.
+   */
+  private sealedEdge(map: string, x: number, y: number): string | undefined {
+    const w = this.world
+    const m = w.map(map)
+    if (!m) return undefined
+    const shut = (p: { opensWhen?: string }) => !!p.opensWhen && !w.fact(p.opensWhen)
+    const here = m.portals.find((p) => p.x === x && p.y === y && shut(p))
+    if (here) return here.opensWhen
+    if (!m.site || new Set(w.partsOf(map)?.filter((p) => p >= 0)).size <= 1) return undefined
+    const part = w.partAt(map, x, y)
+    const ways = m.portals.filter((p) => w.partAt(map, p.x, p.y) === part)
+    return ways.length && ways.every(shut) ? ways[0].opensWhen : undefined
+  }
+
   private leaveByEdge(e: Entity, x: number, y: number, dir: Dir): boolean {
     const w = this.world
     const map = w.map(w.posOf(e)!.map)!
