@@ -533,42 +533,32 @@ req('D2', 'every layer a target can be: a person, a creature, a fixture, a loose
 
 // ------------------------------------------------------------------ F. what a game needs at the least
 
-req('F1', 'the goal is a state: the far bank ends the bridge stage, however the player got there — and release 1 with it (Part One, docs/release-1.md): its card, the road east sealed', ['region:far_bank'], () => {
-  /** Across onto the far bank with the pilgrimage called; the cards shown until the story rests. */
-  const across = (part2: boolean) => {
-    const f = fresh()
-    if (part2) author(f, () => W(f).setFact(PART_TWO, 1))
-    // set down on the landing, then a step on it: arriving is an outcome (the author's hand makes no contact)
-    stand(f, ...AT.farLanding, 'right')
-    walk(f, 'right')
+req('F1', 'the goal is a state: the far bank ends the bridge stage, however the player got there; the road goes on east to the Pilgrims\' Rest (release 1 runs to the White Knight: docs/release-1.md), and the far bank leads nowhere but by it', ['region:far_bank'], () => {
+  const f = fresh()
+  // set down on the landing, then a step on it: arriving is an outcome (the author's hand makes no contact)
+  stand(f, ...AT.farLanding, 'right')
+  walk(f, 'right')
+  W(f).fx = []
+  const cards: unknown[] = []
+  expect(ticks(f, 400, () => f.eng.quests.stage('first_seal') === 40 && !W(f).scene)).toBe(true)
+  ticks(f, 300, () => {
+    cards.push(...W(f).fx.filter((x) => x.t === 'card'))
     W(f).fx = []
-    const cards: { text: { en: string } }[] = []
-    const rest = (n: number) => ticks(f, n, () => {
-      cards.push(...(W(f).fx.filter((x) => x.t === 'card') as unknown as { text: { en: string } }[]))
-      W(f).fx = []
-      return false
-    })
-    expect(ticks(f, 400, () => f.eng.quests.stage('first_seal') === 40 && !W(f).scene)).toBe(true)
-    rest(300)
-    expect(far(f)).toBe(true)
-    return { f, cards }
-  }
-  // release 1: Part One ends on the far bank, once
-  const one = across(false)
-  expect(one.cards.map((c) => c.text.en.split('\n')[0])).toEqual(['PART ONE · THE FORD'])
-  // the road east is sealed: off the Ford's east edge one stays on the Ford, and the Rest's place on the world map is shut
-  expect(cross(one.f, 'ford', W(one.f).map('ford')!.width - 1, EAST_ROAD.fordEast[1], 'right')).toBe('ford')
-  expect(W(one.f).posOf(W(one.f).player)!.x).toBe(W(one.f).map('ford')!.width - 1)
-  expect(W(one.f).get('site.waystation')?.props?.opensWhen).toBe(PART_TWO)
-  // nor by any other edge of the far bank: its ways all lead east, sealed, so none of them goes out onto the world map
-  // (never onto the east bank's ground beside the Rest)
-  const ford = W(one.f).map('ford')!
-  const bank = W(one.f).partAt('ford', ...AT.farLanding)
-  const rim = [...[...Array(ford.height).keys()].flatMap((y) => [[0, y, 'left'], [ford.width - 1, y, 'right']] as const), ...[...Array(ford.width).keys()].flatMap((x) => [[x, 0, 'up'], [x, ford.height - 1, 'down']] as const)]
-  const outs = rim.filter(([x, y]) => W(one.f).walkable('ford', x, y) && W(one.f).partAt('ford', x, y) === bank)
-  for (const [x, y, dir] of outs) expect([x, y, cross(one.f, 'ford', x, y, dir)]).toEqual([x, y, 'ford'])
-  // with Part Two open the chapter goes on past the bridge (docs/chapter-1.md): no card here
-  expect(across(true).cards).toEqual([])
+    return false
+  })
+  expect(far(f)).toBe(true)
+  // no ending here: release 1 ends with the Crown home (C-chapter's `part_one`)
+  expect(cards).toEqual([])
+  // the road east is open: off the Ford's east edge by the road, into the Rest
+  expect(W(f).get('site.waystation')?.props?.opensWhen).toBeUndefined()
+  expect(cross(f, 'ford', W(f).map('ford')!.width - 2, EAST_ROAD.fordEast[1], 'right')).toBe('waystation')
+  // and the far bank's edge is woods but for the road's own way: nothing walks off it onto the world map east of the
+  // river (the continent there is Part Two's)
+  const ford = W(f).map('ford')!
+  const bank = W(f).partAt('ford', ...AT.farLanding)
+  const rim = [...[...Array(ford.height).keys()].flatMap((y) => [[0, y], [ford.width - 1, y]] as const), ...[...Array(ford.width).keys()].flatMap((x) => [[x, 0], [x, ford.height - 1]] as const)]
+  const outs = rim.filter(([x, y]) => W(f).walkable('ford', x, y) && W(f).partAt('ford', x, y) === bank && !ford.portals.some((p) => p.x === x && p.y === y))
+  expect(outs).toEqual([])
 })
 
 req('F1b', 'a story step begins on entering an authored region: the far bank is a thing, entering it is contact (in-region), and its scene starts on the next tick, not at a poll', ['region:far_bank'], () => {
@@ -1396,8 +1386,8 @@ req('W4', 'every map but the tutorial (and the floors under the barrow) lies on 
   expect(walk(f, 'up')).toMatchObject({ map: 'pass', x, y: 1 })
   for (let i = 0; i < 2; i++) run(f, 'use', x, 0)
   expect(walk(f, 'up')).toMatchObject({ map: 'pass', x, y: 0 })
-  // (open: the White Knight is beaten; a place the story has sealed is not stood on, so one would come out beside it)
-  author(f, () => W(f).setFact(CH1.knight, true))
+  // (open: Part Two; a place the story has sealed is not stood on, so one would come out beside it)
+  author(f, () => W(f).setFact(PART_TWO, 1))
   const out = walk(f, 'up')
   const site = W(f).map('pass')!.site!
   // the pass's own cell, not the one north of it: from there one chooses the way on
@@ -1465,12 +1455,10 @@ req('W6', 'the river is a barrier on the overworld too: the Ford\'s cell is the 
   const f = fresh()
   const ford = W(f).map('ford')!.site!
   expect(W(f).passable(OVERWORLD, ford.x, ford.y)).toBe(false)
-  // (the far bank's cell east of the Ford: the Pilgrims' Rest's, where the road east begins — sealed until Part Two,
-  // and then the barrier still holds)
+  // (the far bank's cell east of the Ford: the Pilgrims' Rest's, where the road east begins — open, and the barrier
+  // still holds)
   const road = W(f).map('waystation')!.site!
   expect(road).toMatchObject({ x: ford.x + 1, y: ford.y })
-  expect(W(f).passable(OVERWORLD, road.x, road.y)).toBe(false)
-  author(f, () => W(f).setFact(PART_TWO, 1))
   expect(W(f).passable(OVERWORLD, road.x, road.y)).toBe(true)
   const west = reach(f, ford.x - 1, ford.y)
   expect(west.has(`${road.x},${road.y}`)).toBe(false)
@@ -1491,19 +1479,20 @@ req('W6', 'the river is a barrier on the overworld too: the Ford\'s cell is the 
   }
 })
 
-req('W6b', 'the places beyond the White Knight are sealed on the world map until he falls: Emberfall\'s cell stops one like a wall, and bumping into it says why; stood on (an older save), E says why and does not go in; it is drawn sealed; once he is beaten, one walks onto it and in', [], () => {
+req('W6b', 'the places beyond the White Knight are Part Two\'s, sealed on the world map until it opens (release 1 ends with the Crown home: docs/release-1.md), he fallen or not: Emberfall\'s cell stops one like a wall, and bumping into it says why; stood on (an older save), E says why and does not go in; it is drawn sealed; once Part Two opens, one walks onto it and in', [], () => {
   const f = fresh()
   const w = W(f)
-  for (const id of ['emberfall', 'mine', 'pass', 'lair']) expect([id, w.get(`site.${id}`)!.props?.opensWhen]).toEqual([id, CH1.knight])
+  author(f, () => w.setFact(CH1.knight, true))
+  for (const id of ['emberfall', 'mine', 'pass', 'lair']) expect([id, w.get(`site.${id}`)!.props?.opensWhen]).toEqual([id, PART_TWO])
   const at = w.get('site.emberfall')!.place as { x: number; y: number }
   expect(w.passable(OVERWORLD, at.x, at.y)).toBe(false)
-  // from an open cell beside it, a step onto it: one stays, and the line says why (the knight's gate)
+  // from an open cell beside it, a step onto it: one stays, and the line says why (Part Two's gate)
   const DIR = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] } as const
   const [dir, d] = (Object.entries(DIR) as [Entity['facing'], readonly [number, number]][]).find(([, d]) => w.passable(OVERWORLD, at.x - d[0], at.y - d[1]))!
   stand(f, at.x - d[0], at.y - d[1], dir, OVERWORLD)
   w.fx = []
   expect(walk(f, dir)).toMatchObject({ map: OVERWORLD, x: at.x - d[0], y: at.y - d[1] })
-  expect(w.fx.filter((x) => x.t === 'log').map((x) => textOf((x as unknown as { text: { en: string; zh: string } }).text))).toContain('The White Knight still holds the East Road. There is no way past him yet.')
+  expect(w.fx.filter((x) => x.t === 'log').map((x) => textOf((x as unknown as { text: { en: string; zh: string } }).text))).toContain('The road on east to Emberfall is not open yet: its tale is told in Part Two.')
   stand(f, at.x, at.y, 'down', OVERWORLD)
   const plan = f.eng.controls.plan('hands')!
   expect(textOf(plan.label)).toMatch(/^Sealed: /)
@@ -1511,7 +1500,7 @@ req('W6b', 'the places beyond the White Knight are sealed on the world map until
   ticks(f, 5)
   expect(w.posOf(w.player)!.map).toBe(OVERWORLD)
   expect(snapshot(f.eng).entities.find((e) => e.id === 'site.emberfall')).toMatchObject({ sealed: true, leadsTo: 'emberfall' })
-  author(f, () => w.setFact(CH1.knight, true))
+  author(f, () => w.setFact(PART_TWO, 1))
   expect(snapshot(f.eng).entities.find((e) => e.id === 'site.emberfall')!.sealed).toBeUndefined()
   stand(f, at.x - d[0], at.y - d[1], dir, OVERWORLD)
   expect(walk(f, dir)).toMatchObject({ map: OVERWORLD, x: at.x, y: at.y })
@@ -2044,8 +2033,8 @@ const onMap = (f: Ford, type: string, map: string) => Object.values(W(f).state.e
 const fact = (f: Ford, key: string) => W(f).fact(key) ?? 0
 /** Where the main line past the knight stands, as the chapters number it (docs/main-quest.md): 3 Emberfall, 4 armed, 5 the pass, 6 the lair, 7 the end. */
 const quest = (f: Ford) => ({ 20: 3, 30: 4, 40: 5, 50: 6, 100: 7 } as Record<number, number>)[f.eng.quests.stage('dragon_road')] ?? 0
-/** The main line where a test past the knight wants it: the First Seal and the Crown behind, the road to Emberfall under way. */
-const toEmberfall = (f: Ford) => author(f, () => { for (const id of ['first_seal', 'crown_home']) f.eng.quests.put(id, 'done'); f.eng.quests.put('dragon_road', 10) })
+/** The main line where a test past the knight wants it: Part Two open, the First Seal and the Crown behind, the road to Emberfall under way. */
+const toEmberfall = (f: Ford) => author(f, () => { W(f).setFact(PART_TWO, 1); for (const id of ['first_seal', 'crown_home']) f.eng.quests.put(id, 'done'); f.eng.quests.put('dragon_road', 10) })
 /** Walk off a map's edge through its portal (the player's own step). */
 function cross(f: Ford, map: string, x: number, y: number, dir: Entity['facing']): string {
   stand(f, x, y, dir, map)
@@ -2077,10 +2066,8 @@ const give = (f: Ford, type: string, n: number) => {
   f.eng.controls.sync()
 }
 
-req('Q2', 'the road east: past the far bank the Pilgrim\'s Road, and past the Kneeling Field the East Road; the burned farm shows the dragon\'s mark; wolves and a boar on the road; it ends at Emberfall, once the White Knight has fallen', ['actor/creature/beast/wolf', 'actor/creature/beast/boar'], () => {
+req('Q2', 'the road east: past the far bank the Pilgrim\'s Road, and past the Kneeling Field the East Road; the burned farm shows the dragon\'s mark; wolves and a boar on the road; it ends at Emberfall, Part Two\'s (release 1 ends with the Crown home: docs/release-1.md)', ['actor/creature/beast/wolf', 'actor/creature/beast/boar'], () => {
   const f = fresh()
-  // Part Two's road (release 1 ends at the river: docs/release-1.md), opened
-  author(f, () => W(f).setFact(PART_TWO, 1))
   // past the far bank, the Pilgrim's Road (docs/chapter-1.md §14) first: the Rest; the Kneeling Field gives onto the road
   expect(cross(f, 'ford', W(f).map('ford')!.width - 2, EAST_ROAD.fordEast[1], 'right')).toBe('waystation')
   expect(cross(f, 'kneelfield', PILGRIM.field.w - 2, PILGRIM.field.east[1], 'right')).toBe('eastroad')
@@ -2091,9 +2078,10 @@ req('Q2', 'the road east: past the far bank the Pilgrim\'s Road, and past the Kn
   stand(f, 24, 10, 'up', 'eastroad')
   expect(ticks(f, 40, () => (f.eng.movePlayer('up'), W(f).posOf(W(f).player)!.y <= 9))).toBe(true)
   expect(ticks(f, 200, () => fact(f, 'mq.farm') === 1 && !W(f).scene)).toBe(true)
-  // the road ends at Emberfall — once the White Knight has fallen (docs/chapter-1.md): until then the way is shut
+  // the road ends at Emberfall — Part Two's: shut while the knight stands, and still shut once he has fallen
   expect(cross(f, 'eastroad', EAST_ROAD.w - 2, EAST_ROAD.east[1], 'right')).toBe('eastroad')
   author(f, () => (W(f).setFact('sins.defeated.alberic', 1), W(f).setFact('seen.crown', 1)))
+  expect(cross(f, 'eastroad', EAST_ROAD.w - 2, EAST_ROAD.east[1], 'right')).toBe('eastroad')
   toEmberfall(f)
   expect(cross(f, 'eastroad', EAST_ROAD.w - 2, EAST_ROAD.east[1], 'right')).toBe('emberfall')
   expect(ticks(f, 200, () => quest(f) === 3 && !W(f).scene)).toBe(true)
@@ -2411,8 +2399,8 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   author(f, () => { f.eng.quests.put('rescue', 'done'); f.eng.quests.put('vigil', 'done'); w.setFact('village.rescued', 1); w.setFact('ch1.vigil', 1); w.setFact('ch1.flame_stolen', 1); w.setFact('ch1.letter', 1); w.player.props!.hp = 10_000; w.player.props!.maxHp = 10_000 })
   setHour(f, 2, 9)
   ticks(f, 3)
-  // over the river (Q1's): the far bank — and past it, through the Ford's east edge, the Rest (Part Two's: opened)
-  author(f, () => (w.setFact('ford.crossed', 1), w.setFact(PART_TWO, 1)))
+  // over the river (Q1's): the far bank — and past it, through the Ford's east edge, the Rest
+  author(f, () => w.setFact('ford.crossed', 1))
   ticks(f, 3)
   expect(stage()).toBe(40)
   expect(cross(f, 'ford', w.map('ford')!.width - 2, EAST_ROAD.fordEast[1], 'right')).toBe('waystation')
@@ -3515,8 +3503,8 @@ req('C1', 'Chapter 1, offline: the night of the flame (the grey man takes it), t
   expect(w.num(knight, 'maxHp')).toBeLessThan(BOSS_BY_ID.alberic.hp)
   // his skills' blows are multiples of his attack: lower here
   expect(w.num(knight, 'atk')).toBeLessThan(BOSS_BY_ID.alberic.atk)
-  // the way to Emberfall shut while he stands
-  expect(w.map('eastroad')!.portals.filter((p) => p.to === 'emberfall').every((p) => p.opensWhen === 'sins.defeated.alberic')).toBe(true)
+  // the way on to Emberfall is Part Two's (release 1 ends with the Crown home: docs/release-1.md)
+  expect(w.map('eastroad')!.portals.filter((p) => p.to === 'emberfall').every((p) => p.opensWhen === PART_TWO)).toBe(true)
   f.eng.damage(knight, 10000, undefined, true, { e: 'player' })
   expect(w.fact('sins.defeated.alberic')).toBe(1)
   // the Crown, the fairy's first power, the grey man, a longer night
@@ -3531,12 +3519,21 @@ req('C1', 'Chapter 1, offline: the night of the flame (the grey man takes it), t
   setHour(f, 3, 20.5)
   expect(w.isNight()).toBe(true)
   expect(quest()).toBe(2.5)
-  // home: the village, Nessa's four minutes, the chapter's card
+  // home: the village, Nessa's four minutes, the chapter's card — and release 1's end with it (docs/release-1.md §1):
+  // the road on east waits for Part Two, and the Dragon Road with it
   f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow', x: 20, y: 14 }))
-  const cards: unknown[] = []
-  expect(ticks(f, 900, () => { cards.push(...w.fx.filter((x) => x.t === 'card')); w.fx = []; return w.fact('ch1.end') === 1 && !w.scene })).toBe(true)
+  const cards: { text: { en: string } }[] = []
+  expect(ticks(f, 900, () => { cards.push(...(w.fx.filter((x) => x.t === 'card') as unknown as { text: { en: string } }[])); w.fx = []; return w.fact('ch1.end') === 1 && !!w.fact('seen.part_one') && !w.scene })).toBe(true)
   expect(cards.length).toBe(1)
+  expect(cards[0].text.en).toMatch(/^CHAPTER ONE · THE FIRST SEAL[\s\S]*Part Two[\s\S]*the Held Ground/)
+  expect(w.fact('seen.chapter_end') ?? 0).toBeFalsy()
   expect(quest()).toBe(2.9)
+  ticks(f, 20)
+  expect(f.eng.quests.isDone('crown_home')).toBe(true)
+  expect(f.eng.quests.stage('dragon_road')).toBe(0)
+  // Part Two opened (the dev console's): the Dragon Road begins
+  author(f, () => w.setFact(PART_TWO, 1))
+  expect(ticks(f, 60, () => f.eng.quests.stage('dragon_road') === 10)).toBe(true)
 })
 
 req('C2', "Chapter 1's errands: Pell's drawings (four, where the grey man was), Nessa's measure of days (three statues), Fennick's old templar (three of the dead), Joss's ninth nail and Edda's ring (both in the knight's kingdom)", [

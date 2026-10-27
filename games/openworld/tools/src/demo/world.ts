@@ -10,7 +10,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@openworld/engine'
-import { PART_TWO, REGIONS, QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, GUIDE_BEATS, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, favouriteFor, generateLook, type RawChunk } from '@openworld-game/content'
+import { REGIONS, QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, GUIDE_BEATS, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, favouriteFor, generateLook, type RawChunk } from '@openworld-game/content'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
@@ -134,14 +134,16 @@ function buildMap(): MapBuilder {
   for (let y = 3; y < m.h; y++) for (let x = 0; x < 3; x++) if (!(y >= 18 && y <= 20) && (x < 2 || rng.chance(0.55))) m.set(x, y, rng.chance(0.25) ? 'pine' : 'tree')
   for (const [cx, cy, r, p] of [[2.5, 7, 2.4, 0.7], [3, 13, 2, 0.55], [8.5, 26, 3, 0.75], [3, 25, 3, 0.8], [14, 28.5, 2.2, 0.8], [21, 29, 2, 0.75], [26, 28, 1.4, 0.6], [17.5, 4, 1.4, 0.5]] as const) clump(m, cx, cy, r, p)
   for (let x = 0; x < 27; x++) for (let y = 28; y < m.h; y++) if (grass(m.get(x, y))) m.set(x, y, rng.chance(0.2) ? 'pine' : 'tree')
-  // the far bank: trees frame the road east, which leaves the map into the unwritten; they close its north, south and
-  // east edges but for the road, so the far bank leads on only by the road (sealed in release 1: docs/release-1.md)
+  // the far bank: trees frame the road east to the Pilgrims' Rest; they close its north, south and east edges but for
+  // the road's own way, so the far bank leads on only by the road, never off its edge onto the world map east of the
+  // river (docs/release-1.md §1)
   clump(m, 44, 4, 3.2, 0.8)
   clump(m, 44.5, 24.5, 3.5, 0.8)
   clump(m, 41.5, 9.5, 1.3, 0.5)
-  for (let x = FAR_BANK; x < m.w; x++)
-    for (let y = 0; y < m.h; y++) {
-      const edge = y < 2 || y > m.h - 3 || (x > m.w - 3 && (y < 11 || y > 15))
+  // (from the water's edge, row by row: the bank begins before FAR_BANK where the river narrows)
+  for (let y = 0; y < m.h; y++)
+    for (let x = FAR[y] + 1; x < m.w; x++) {
+      const edge = y < 2 || y > m.h - 3 || (x > m.w - 3 && !(EAST_ROAD.fordEast as readonly number[]).includes(y))
       if (edge && grass(m.get(x, y))) m.set(x, y, rng.chance(0.3) ? 'pine' : 'tree')
     }
   // ------------------------------------------------------------ the dry meadow (fire runs here)
@@ -177,10 +179,8 @@ function buildMap(): MapBuilder {
   // the open slope between the meadow and the river: a few boulders and bushes to break it up
   for (const [x, y] of [[20, 5], [21, 4], [17, 9]] as const) m.fixture('fixture/nature/boulder', x, y)
   clump(m, 22, 8, 1.2, 0.7)
-  // where the road east leaves the far bank, a signpost; past it the rider's thorns grown across the road (the way the
-  // story opens in its second part: release 1 ends here, docs/release-1.md)
-  m.fixture('fixture/sign', 40, 14, { props: { text: "EAST — the Pilgrims' Rest, and the Pilgrim's Road beyond it. Thorns have grown across the way since the rider passed.", text_zh: '往东——朝圣者驿站，再往前是朝圣者之路。那个骑手走过以后，路上长满了荆棘。' } })
-  for (const [x, y] of [[45, 12], [45, 13], [44, 14], [43, 12]] as const) m.fixture('fixture/nature/briar', x, y, { name: L("The rider's thorns", '骑手留下的荆棘') })
+  // where the road east leaves the far bank, a signpost
+  m.fixture('fixture/sign', 40, 14, { props: { text: "EAST — the Pilgrims' Rest, and the Pilgrim's Road beyond it.", text_zh: '往东——朝圣者驿站，再往前是朝圣者之路。' } })
   m.fixture('fixture/nature/haystack', ...AT.haystack)
   // the landing: the post the ferry line ran from, the boat on the water, a bucket, a coil of old line
   m.fixture('fixture/ferry/winch', ...AT.winch, { id: 'ford.winch', statuses: { broken: -1 } })
@@ -582,23 +582,6 @@ const scenes: StepDef[] = [
     when: { map: 'ford', region: 'far_bank', quest: { first_seal: { gte: 40 } } },
     facts: { 'ford.crossed': 1 },
   },
-  {
-    // Release 1 is Part One, the west bank (docs/release-1.md): across the river with the pilgrimage called, it ends
-    // on the far bank. The road east stays sealed (PART_TWO) and the west bank stays the player's.
-    id: 'part_one',
-    when: { map: 'ford', region: 'far_bank', quest: { first_seal: { gte: 40 } }, facts: { [PART_TWO]: 0 } },
-    script: [
-      { music: 'ending' },
-      { wait: 8 },
-      say('pip', 'The road goes on east from here, all the way to the Rest, and the rider, and wherever the grey man took our flame.', '路从这里一直往东，通到驿站，通到那个骑手，通到灰衣人带走圣火的地方。'),
-      {
-        card: L(
-          "PART ONE · THE FORD\n\nThe barrow is quiet, and the vigil was kept.\nThe flame went east in a grey man's lantern,\nand you stand on the far bank.\n\nThe road east opens in Part Two.\nUntil then, Firstlight and its country are yours.",
-          '第一部 · 渡口\n\n古墓安静了，守夜之备也做完了。\n圣火装在灰衣人的提灯里往东去了，\n而你站在了河的对岸。\n\n往东的路，在第二部开放。\n在那之前，初原村和它的山野都是你的。',
-        ),
-      },
-    ],
-  },
 ]
 
 // =================================================================== the world
@@ -713,8 +696,6 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   reseed(4283)
   const field = buildField()
   linkEdge(m, col(m, m.w - 1, EAST_ROAD.fordEast), [-1, 0], rest, col(rest, 0, PILGRIM.rest.west), [1, 0])
-  // release 1 is Part One (docs/release-1.md): the road east stays sealed until the story's second part
-  for (const p of m.portals) if (p.to === rest.id) p.opensWhen = PART_TWO
   linkEdge(rest, col(rest, rest.w - 1, PILGRIM.rest.east), [-1, 0], way, col(way, 0, PILGRIM.way.west), [1, 0])
   linkEdge(way, row(way, 0, PILGRIM.way.north), [0, 1], abbey, row(abbey, abbey.h - 1, PILGRIM.abbey.south), [0, -1])
   linkEdge(way, col(way, way.w - 1, PILGRIM.way.east), [-1, 0], field, col(field, 0, PILGRIM.field.west), [1, 0])

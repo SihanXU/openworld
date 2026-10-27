@@ -8,7 +8,7 @@
 
 import { readFileSync } from 'node:fs'
 import type { Entity, Text } from '@openworld/engine'
-import { CH1, PART_TWO, TERRAINS, TERRAIN_CHARS, UNTOLD, VALLEY, wildId, type RawChunk } from '@openworld-game/content'
+import { PART_TWO, TERRAINS, TERRAIN_CHARS, UNTOLD, VALLEY, wildId, type RawChunk } from '@openworld-game/content'
 import { MapBuilder } from './builder.ts'
 import { L } from './kit.ts'
 import { CONTINENT_FILE, FORD, HEIGHT, WIDTH, type Continent } from './continent/generate.ts'
@@ -37,16 +37,17 @@ const PLACES: Record<string, { ground: string; kind: string; opensWhen?: string 
   // the river's own cell (the barrier's, D22): a camp on the near bank, reached through the forest alone
   reedbend: { ground: 'ow_river', kind: 'camp' },
   barrow: { ground: 'ow_plain', kind: 'barrow' },
-  // east of the Ford: Part Two's (release 1 is Part One, the west bank: docs/release-1.md)
-  waystation: { ground: 'ow_road', kind: 'camp', opensWhen: PART_TWO },
-  pilgrimway: { ground: 'ow_road', kind: 'waystone', opensWhen: PART_TWO },
-  abbey: { ground: 'ow_forest', kind: 'shrine', opensWhen: PART_TWO },
-  kneelfield: { ground: 'ow_plain', kind: 'barrow', opensWhen: PART_TWO },
-  eastroad: { ground: 'ow_road', kind: 'waystone', opensWhen: PART_TWO },
-  emberfall: { ground: 'ow_plain', kind: 'town', opensWhen: CH1.knight },
-  mine: { ground: 'ow_plain', kind: 'mine', opensWhen: CH1.knight },
-  pass: { ground: 'ow_plain', kind: 'pass', opensWhen: CH1.knight },
-  lair: { ground: 'ow_plain', kind: 'lair', opensWhen: CH1.knight },
+  // east of the Ford, the Pilgrim's Road to the White Knight: Part One's, as the west bank is
+  waystation: { ground: 'ow_road', kind: 'camp' },
+  pilgrimway: { ground: 'ow_road', kind: 'waystone' },
+  abbey: { ground: 'ow_forest', kind: 'shrine' },
+  kneelfield: { ground: 'ow_plain', kind: 'barrow' },
+  eastroad: { ground: 'ow_road', kind: 'waystone' },
+  // past the knight: Part Two's (release 1 ends with the Crown home: docs/release-1.md)
+  emberfall: { ground: 'ow_plain', kind: 'town', opensWhen: PART_TWO },
+  mine: { ground: 'ow_plain', kind: 'mine', opensWhen: PART_TWO },
+  pass: { ground: 'ow_plain', kind: 'pass', opensWhen: PART_TWO },
+  lair: { ground: 'ow_plain', kind: 'lair', opensWhen: PART_TWO },
   summit: { ground: 'ow_snow', kind: 'summit' },
   mill: { ground: 'ow_plain', kind: 'watermill' },
   dawnhill: { ground: 'ow_plain', kind: 'shrine' },

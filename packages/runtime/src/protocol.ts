@@ -157,6 +157,8 @@ export type ToWorker =
   | { t: 'debug'; op: 'summon'; kit: string; map: string; x: number; y: number; from: [number, number] }
   /** Harm the one at the keys (as a blow nobody struck): to try a fall and the death screen. */
   | { t: 'debug'; op: 'hurt'; amount: number }
+  /** A fact of the story set (the dev's hand): a part of the tale opened, a gate lifted. */
+  | { t: 'debug'; op: 'fact'; key: string; value: number }
   | { t: 'debug'; op: 'god'; on?: boolean }
   /** development: play a story step now (`id`), or a scene written here (`script`): a CG, a line, looked at without playing to it */
   | { t: 'debug'; op: 'scene'; id?: string; script?: SceneCmd[] }

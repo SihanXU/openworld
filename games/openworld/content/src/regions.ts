@@ -91,9 +91,10 @@ export const REGION_BY_ID: Record<string, RegionDef> = Object.fromEntries(REGION
 export const UNTOLD = 'world.untold'
 
 /**
- * The fact the story's second part waits for (release 1, docs/release-1.md): the road east of the Ford — the
- * Pilgrim's Road, the abbey, the Kneeling Field, the East Road — and all beyond it. Release 1 is Part One, the
- * west bank: no rule sets it there, so the Ford's road east and the places beyond stay sealed (SITE_GATES, a
- * portal's `opensWhen`) after Part One's ending on the far bank. The dev console sets it to play on.
+ * The fact the story's second part waits for (release 1, docs/release-1.md §1): the road on east from the White
+ * Knight's field — Emberfall, its mine, Cinder Pass, the dragon's lair — and all beyond it. Release 1 is Part One, the
+ * west bank and the Pilgrim's Road to the knight, the Held Ground after him: no rule sets it there, so the East Road's
+ * way on and the places beyond stay sealed (SITE_GATES, a portal's `opensWhen`) after Part One's ending, the Crown
+ * home in Firstlight. The dev console sets it to play on.
  */
 export const PART_TWO = 'world.part2'

@@ -10,7 +10,7 @@ that fills them, the phases of scaling A–E (A–D built 2026-10-18): [docs/con
 places made by hand as models for all to come — a Gothic cathedral without and within, a concentric fortress, the grand
 square, the market, the inn's ward, the poor quarter on its canal — built from the project's own buildings drawn by the
 oblique renderer (2026-10-25): [docs/showcase.md](docs/showcase.md). Release 1 is
-Part One, the west bank — its ending at the Ford, the valley, the polished maps, the pictures fixed: [docs/release-1.md](docs/release-1.md). Paper draft lives in Notion ("Large Symbolic World").
+Part One, to the White Knight — the valley, the Ford, the Pilgrim's Road and the knight, the Held Ground after him; its ending the Crown home, the road on east to Emberfall sealed for Part Two; the polished maps, the pictures fixed: [docs/release-1.md](docs/release-1.md). Paper draft lives in Notion ("Large Symbolic World").
 OpenWorld is the engine and, for now, also the name of its first game: the engine side lives in `packages/`,
 each game in `games/<id>/` (this one `games/openworld/`), and the OpenWorld Editor, a game-making program in the
 manner of RPG Maker (a local server and page, or a desktop application, over projects in any folder) —

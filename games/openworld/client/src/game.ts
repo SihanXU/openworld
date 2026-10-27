@@ -42,6 +42,8 @@ import {
   migrateSmithy,
   migrateHaven,
   migrateHavenHeart,
+  migratePartTwo,
+  PART_TWO,
   migrateStats,
   STATS_LAYOUT,
   migrateGear,
@@ -141,6 +143,8 @@ export const CLIENT_GAME: ClientGame = {
     if (!w.fact(HAVEN_LAYOUT)) game.engine.author(() => migrateHaven(game))
     // its heart is the planted sword, not an altar
     game.engine.author(() => migrateHavenHeart(game))
+    // Part One ends with the Crown home: a Dragon Road begun before Part Two was sealed waits for it again
+    game.engine.author(() => migratePartTwo(game))
     // the plots at the Held Ground's heart (its buildings, the residents' tents) and Cass's loom on Firstlight's square
     // (only for maps a save has been to: the others come as built)
     if (!w.fact(PLOTS_LAYOUT)) {
@@ -176,6 +180,8 @@ export const CLIENT_GAME: ClientGame = {
     shortcuts: [
       { label: 'Emberfall, by the lit forge', debug: { op: 'teleport', map: 'emberfall', x: 31, y: 8 } },
       { label: '召唤白骑士 · Summon the White Knight (East Road)', debug: { op: 'summon', kit: 'alberic', map: 'eastroad', x: 40, y: 15, from: [30, 12] } },
+      // release 1 ends with the Crown home (docs/release-1.md): the road on east to Emberfall, and all beyond it
+      { label: '开启第二部 · Open Part Two', debug: { op: 'fact', key: PART_TWO, value: 1 } },
     ],
   },
   items: { forms: FORM_BY_ID, materials: MATERIALS, relics: RELICS, vows: VOWS, coin: COIN },

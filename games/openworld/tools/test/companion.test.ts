@@ -117,7 +117,7 @@ describe('waypoint statues', () => {
       return game.engine
     }
     const gate = SITE_GATES.find((g) => g.fact === PART_TWO)!
-    // the Ford's road east, sealed until Part Two (docs/release-1.md): its way off the map's east edge
+    // the East Road's way on east to Emberfall, sealed until Part Two (docs/release-1.md): off the map's east edge
     const off = (eng: ReturnType<typeof made>) => {
       const w = eng.world
       const m = Object.values(w.state.maps).find((m) => m.portals.some((p) => p.opensWhen === PART_TWO))!
@@ -151,17 +151,12 @@ describe('waypoint statues', () => {
     eng.author(() => w.setFact(PART_TWO, 1))
     for (let i = 0; i < 600; i++) eng.tick()
     expect(lines(step(eng, dir), 'say')).toEqual([])
-    // with no companion at hand, the gate's own words in the message line — off any cell of the far bank's edge, whose
-    // ways all lead to places not open yet, not only off the way itself
+    // with no companion at hand, the gate's own words in the message line
     const lone = made()
     const lw = lone.world
     const at = off(lone)
     lone.author(() => lw.place(lw.get('pip')!, { on: 'none' }))
-    const way = at.m.portals.find((p) => p.opensWhen === PART_TWO)!
-    const x = way.x
-    const y = Array.from({ length: at.m.height }, (_, y) => y).find((y) => !at.m.portals.some((p) => p.x === x && p.y === y) && lw.partAt(at.m.id, x, y) === lw.partAt(at.m.id, x, way.y) && lw.walkable(at.m.id, x, y, lw.player.id))!
-    expect(y).toBeDefined()
-    lone.author(() => lw.place(lw.player, { on: 'tile', map: at.m.id, x, y }))
+    const { x, y } = lw.posOf(lw.player)!
     const fx = step(lone, at.dir)
     expect(lw.posOf(lw.player)).toEqual({ map: at.m.id, x, y })
     expect(lines(fx, 'say')).toEqual([])
