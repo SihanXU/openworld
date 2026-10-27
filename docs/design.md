@@ -195,7 +195,18 @@ the act the press made (a blow, or the same rule's work: one tree after another,
 rules or a learned answer know it and it changes something, never one that asks first, and never one that undoes
 the last (a bucket filled is not poured back). An object used on oneself is made once a press, and where the world
 has never seen it, asked first (`Use {instrument} on yourself?`): a stone clicked on by a slip of the finger is no
-question for the modder.
+question for the modder. A sword or a bow (a weapon that is no tool, `pureWeapon`) at the bare ground the world has
+never seen struck is a swing at the air (`Plan.whiff`): the blade's arc or the bolt's flight, a body on its way struck
+(`Engine.attack`'s whiff), never the ground.
+
+**In a fight** (the one at the keys `fighting`, `World.fighting`: struck at an actor, struck by one, or chased by a
+hostile one in the last `FIGHT_TICKS` — the same moment the fight's music follows) a press makes no experiment: a
+click mid-blow is a slip of the finger, not a question, and the actor locked while the world is asked would stand
+there being struck. The left click's blow goes to a foe at the aim or a cell beside it (aim assist: one a cell off the
+pointer is still the one meant), else to what the base rules or a learned answer know at the aim (a tree still falls),
+else into the air (a whiff, with whatever is swung: a tool, the fist); an object used on oneself the world has never
+seen, and the right click's use the world has never seen, are not made (`Plan.idle`, labelled `Not mid-fight`, no
+`?`). The holes stay: the chooser (Alt, a layer chosen) is meant, and asks the world in a fight as out of it.
 
 **The right click** is `Controls.plan('secondary')`, the exact use: it chooses nothing. Every "use X on Y" the
 player makes is a right click, so the experiments — the world's one AI interface reached by hand (§5.11) — are a
