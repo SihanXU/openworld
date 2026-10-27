@@ -127,7 +127,7 @@ export type Sort = 'city' | 'market' | 'poor' | 'close'
 const PILES: Record<Sort, string[]> = {
   city: ['decor_flowerstand', 'decor_flowerstand', 'decor_orange', 'decor_orange', 'decor_planter', 'decor_planter', 'decor_casks', 'decor_crates', 'decor_column', 'decor_bollards', 'decor_amphorae', 'decor_pump', 'decor_signpost', 'decor_birdbath'],
   market: ['decor_casks', 'decor_casks_row', 'decor_crates', 'decor_crates_row', 'decor_sacks', 'decor_amphorae', 'decor_cart', 'decor_flowerstand', 'decor_hay', 'decor_orange'],
-  poor: ['decor_casks', 'decor_crates', 'decor_sacks', 'decor_firewood', 'decor_hay', 'decor_amphorae', 'decor_cart'],
+  poor: ['decor_casks', 'decor_crates', 'decor_sacks', 'decor_hay', 'decor_amphorae', 'decor_cart'],
   close: ['decor_orange', 'decor_planter', 'decor_birdbath', 'decor_amphorae', 'decor_flowerstand'],
 }
 

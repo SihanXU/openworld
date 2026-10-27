@@ -33,7 +33,8 @@ function log(x: number, z: number, r: number, y0: number, y1: number, seed: numb
     paint: (px, py, pz) => {
       if (py < y1 - 0.6) return undefined
       const d = Math.hypot(px - x, pz - z)
-      return d > r - 0.8 ? undefined : d < 0.8 || Math.abs(d - ring) < 0.35 ? 'endRing' : 'endGrain'
+      // (small as it is: a pale face, a darker rim of sapwood, the pith only on a big log)
+      return d > r - 0.8 ? undefined : d > r - 1.8 || (r > 4.5 && (d < 0.8 || Math.abs(d - ring) < 0.35)) ? 'endRing' : 'endGrain'
     },
   }
 }
@@ -58,13 +59,18 @@ function standing(): Record<string, () => Model> {
   out.decor_amphorae = () =>
     one('decor_amphorae', [3, 8, 13].flatMap((x, k) => [drum(x, 6 + k * 2, 2, 0, 3, 'tile'), drum(x, 6 + k * 2, 3.6, 3, 10, 'tile'), drum(x, 6 + k * 2, 2.6, 10, 13, 'tile'), drum(x, 6 + k * 2, 1.4, 13, 17, 'tile'), drum(x, 6 + k * 2, 2, 17, 18, 'tile')]))
   out.decor_firewood = () => {
-    // split logs stacked between two stakes, their cut ends to the street, each row laid in the gaps of the one below
+    // split logs stacked in a heap that narrows as it rises (four, three, two), each row in the gaps of the one below,
+    // their pale cut ends to the street, not flush: a log here and there pushed in or standing out
     const W = 2 * S
-    const r = (W - 7) / 8
-    const solids: Solid[] = [box(2, 7, 0, 3.5, 8.5, 19, 'darkwood'), box(W - 3.5, 7, 0, W - 2, 8.5, 19, 'darkwood')]
-    for (let row = 0; row < 3; row++) {
-      const z = r + row * (2 * r - 0.6)
-      for (let k = 0; k < (row % 2 ? 3 : 4); k++) solids.push(log(3.5 + r * (2 * k + 1 + (row % 2)), z, r, 3, 11.5, row * 7 + k))
+    const solids: Solid[] = []
+    for (const [row, n] of [[0, 4], [1, 3], [2, 2]] as const) {
+      const r = 3.7 - row * 0.15
+      const z = 3.7 + row * 6.4
+      const x0 = W / 2 - (n - 1) * 3.75
+      for (let k = 0; k < n; k++) {
+        const seed = row * 7 + k
+        solids.push(log(x0 + k * 7.5 + (hash(seed, 3) - 0.5), z, r + (hash(seed, 4) - 0.5) * 0.6, 7, 10.5 + (hash(seed, 5) < 0.3 ? -1 : hash(seed, 5) > 0.8 ? 1 : 0), seed))
+      }
     }
     return one('decor_firewood', solids, [], ['##'])
   }

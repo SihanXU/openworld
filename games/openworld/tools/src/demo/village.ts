@@ -141,7 +141,7 @@ export function villageLife(m: MapBuilder): void {
   piles(m, 0, 0, 16, 40, 'poor', 0.4)
   piles(m, 31, 0, 29, 17, 'poor', 0.45)
   piles(m, 25, 21, 35, 19, 'poor', 0.4)
-  for (const [name, x, y] of [['decor_firewood', 10, 15], ['decor_firewood', 2, 16], ['decor_hay', 47, 12], ['decor_casks', 36, 15], ['decor_crates', 47, 15], ['decor_sacks', 56, 13], ['decor_cart', 52, 20], ['decor_flowerstand', 18, 10], ['decor_birdbath', 21, 9], ['decor_planter', 11, 8], ['decor_hay', 14, 15], ['decor_amphorae', 33, 30], ['decor_cart', 10, 22], ['decor_hay', 45, 26], ['decor_cart', 45, 30], ['decor_firewood', 35, 32], ['decor_signpost', 52, 21], ['decor_sacks', 28, 33], ['decor_hay', 46, 13], ['decor_planter', 22, 9], ['decor_flowerstand', 37, 13]] as [string, number, number][])
+  for (const [name, x, y] of [['decor_firewood', 10, 15], ['decor_hay', 47, 12], ['decor_casks', 36, 15], ['decor_crates', 47, 15], ['decor_sacks', 56, 13], ['decor_cart', 52, 20], ['decor_flowerstand', 18, 10], ['decor_birdbath', 21, 9], ['decor_planter', 11, 8], ['decor_hay', 14, 15], ['decor_amphorae', 33, 30], ['decor_cart', 10, 22], ['decor_hay', 45, 26], ['decor_cart', 45, 30], ['decor_signpost', 52, 21], ['decor_sacks', 28, 33], ['decor_hay', 46, 13], ['decor_planter', 22, 9], ['decor_flowerstand', 37, 13]] as [string, number, number][])
     if (!open(x, y)) decor(m, name, x, y)
   festoons(m, 2, 9, 34, ['washing'], 0.8)
   festoons(m, 26, 36, 35, ['washing'], 0.8)
@@ -248,7 +248,7 @@ export function villageInteriors(): Interior[] {
     for (const [x, y] of [[K.x + 4, K.y + 4], [K.x + 8, K.y + 4], [K.x + 5, K.y + 5], [K.x + 7, K.y + 5], [K.x + 6, K.y + 3]] as const) cook.fixture('fixture/furniture/chair', x, y)
     cook.fixture('fixture/container/chest', K.x + 10, K.y + 7)
     cook.fixture('fixture/nature/plant', K.x, K.y + 5)
-    cook.building('decor_firewood', K.x + 1, K.y + 5)
+    cook.building('decor_firewood', K.x + 1, K.y)
     cook.building('decor_sacks', K.x + 8, K.y)
     const R = CK.marta
     bed(cook, R.x, R.y + 1, 'bed.0', [R.x, R.y + 2])
@@ -324,7 +324,6 @@ export function villageInteriors(): Interior[] {
     lane.fixture('fixture/furniture/table', S.x + 2, S.y + 4)
     lane.fixture('fixture/furniture/chair', S.x + 1, S.y + 4)
     lane.fixture('fixture/container/barrel', S.x, S.y + 6)
-    lane.building('decor_firewood', S.x + 6, S.y + 6)
     const R = LN.sleep
     bed(lane, R.x, R.y + 1, 'bed.0', [R.x + 1, R.y + 1])
     lane.fixture('fixture/container/drawers', R.x + 3, R.y)
