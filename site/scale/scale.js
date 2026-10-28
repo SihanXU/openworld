@@ -223,7 +223,7 @@ function film(t) {
   if (t >= T.items - 0.2 && t < T.scenes + 0.8) drawItems(t)
   if (t >= T.scenes && t < T.title + 0.4) drawScenes(t)
   ctx.setTransform(RES, 0, 0, RES, 0, 0)
-  if (t >= T.mapsSlam && t < T.people) slam(t, T.mapsSlam, '1,024', L('maps', '张地图'), L('59 hand-made, 965 across six regions', '59 张手工制作，965 张分布在六个地区'))
+  if (t >= T.mapsSlam && t < T.people) slam(t, T.mapsSlam, '1,024', L('maps', '张地图'), L('towns, villages, wilds and the rooms behind every door', '城镇、村庄、荒野和每扇门后的房间'))
   if (t >= T.peopleSlam && t < T.items) slam(t, T.peopleSlam, '1,654', L('people', '个人'), L('in 780 households, each with a look and a day of their own', '分属 780 户人家，各有自己的样子和一天的安排'))
   if (t >= T.itemsSlam && t < T.scenes) slam(t, T.itemsSlam, '40,562', L('items', '件物品'), L('of 1,013 kinds, in materials, qualities, elements', '共 1,013 种，分材质、品质和元素'))
   if (t >= T.scenesSlam && t < T.title + 0.4) { ctx.globalAlpha = 1 - smooth((t - (T.title - 0.4)) / 0.6); slam(t, T.scenesSlam, L('Infinite', '无限'), L('possibilities', '的可能性')); ctx.globalAlpha = 1 }
