@@ -131,7 +131,7 @@ schedules and keyed lines (about 16 each, English and Chinese).
 
 | | Hesper, the ferrykeeper | Tobin, the peddler |
 |---|---|---|
-| Who | 64; thirty-one years on the crossing; few words; stiff hands she will not mention | 34; charms and oddments from the east; talks; hungry since the storm cut him off |
+| Who | 52; thirty-one years on the crossing; few words; stiff hands she will not mention | 34; charms and oddments from the east; talks; hungry since the storm cut him off |
 | Tie | Tobin owes her last autumn's fare | the ferrykeeper he owes a fare |
 | Day | tends the fire at dawn, noon and evening (the fire must be **lit**); watches the water; mends nets; sleeps by the fire | minds his cart (it must not be **burning**); stares at the water; warms his hands at the fire in the evening |
 | Storm | waits it out at the tent's mouth | waits it out beside the tent |

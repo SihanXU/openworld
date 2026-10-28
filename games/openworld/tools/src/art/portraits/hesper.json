@@ -1,0 +1,302 @@
+{
+  "person": "npc.hesper",
+  "about": "Hesper's own portrait (docs/cast/hesper.md): the regions of her sprite the pipeline works in, in the sprite's pixels (1024x1536), and the words for each mood and each mood's blink and talk. portrait.py reads it.",
+  "sprite": "drawn by Qwen-Image-Edit from the user's revised sheet (seed 4 of eight, its own style), cut at mid-thigh, facing right; then her face made older by the model (the face alone, denoise 0.7, seed 2: 'a few years older, about fifty'), the user's choice of four; the picture before that kept as her younger self (game_pic/hesper/young.png; drafts are kept outside the repository)",
+  "sheet": "the user's online model's revised sheet: three views, a close-up, her things and twelve expressions in one row; `moodRefs` are its cells",
+  "keep": [
+    [
+      480,
+      130,
+      720,
+      420
+    ],
+    [
+      280,
+      200,
+      480,
+      460
+    ]
+  ],
+  "faceCrop": [
+    470,
+    130,
+    750,
+    410
+  ],
+  "face": [
+    520,
+    160,
+    700,
+    400
+  ],
+  "features": [
+    [
+      570,
+      240,
+      33,
+      15
+    ],
+    [
+      656,
+      258,
+      18,
+      15
+    ],
+    [
+      608,
+      341,
+      27,
+      12
+    ]
+  ],
+  "featuresBlur": 3,
+  "keepAlso": "her eyebrows exactly as they are, with no new eyebrows or lines drawn, the fine lines of her age at the eyes, mouth and forehead, the strands of hair over her face",
+  "mouth": [
+    [
+      608,
+      341,
+      27,
+      12
+    ]
+  ],
+  "eyes": [
+    [
+      570,
+      240,
+      33,
+      15
+    ],
+    [
+      656,
+      258,
+      18,
+      15
+    ]
+  ],
+  "brows": [
+    [
+      590,
+      211,
+      40,
+      10
+    ],
+    [
+      666,
+      226,
+      15,
+      8
+    ]
+  ],
+  "browsWhy": "a mood that moves the brows redraws them with the eyes and mouth, and says one eyebrow over each eye",
+  "bust": [
+    160,
+    4,
+    880,
+    724
+  ],
+  "out": 400,
+  "moods": {
+    "happy": "a gentle, wistful smile with the eyes closed: the eyelids lowered to soft closed curves, the corners of the closed mouth lifted a little, as in picture 2",
+    "sad": "sad: the eyes lowered, the upper lids heavy, the inner ends of her brows raised a little (one eyebrow over each eye, drawn once, the old eyebrow lines gone), the mouth closed with its corners a little down, as in picture 2",
+    "angry": "stern and cold: her brows drawn down and together (one eyebrow over each eye, drawn once, the old eyebrow lines gone), a hard, level stare, the lips pressed into a thin straight line",
+    "surprised": "restrained surprise: the eyes a little wider, the brows raised a little (one eyebrow over each eye, drawn once, the old eyebrow lines gone), the lips slightly parted, as in picture 2",
+    "shy": "shy and a little embarrassed: the eyes glancing down and aside, a small, faint smile, as in picture 2"
+  },
+  "moodRefs": {
+    "happy": [
+      423,
+      697,
+      560,
+      911
+    ],
+    "sad": [
+      705,
+      697,
+      839,
+      911
+    ],
+    "surprised": [
+      844,
+      697,
+      969,
+      911
+    ],
+    "shy": [
+      1251,
+      697,
+      1385,
+      911
+    ]
+  },
+  "moodSeeds": {
+    "shy": 4
+  },
+  "moodFeatures": {
+    "sad": [
+      [
+        570,
+        240,
+        33,
+        15
+      ],
+      [
+        656,
+        258,
+        18,
+        15
+      ],
+      [
+        590,
+        211,
+        40,
+        10
+      ],
+      [
+        666,
+        226,
+        15,
+        8
+      ],
+      [
+        608,
+        341,
+        27,
+        12
+      ]
+    ],
+    "angry": [
+      [
+        570,
+        240,
+        33,
+        15
+      ],
+      [
+        656,
+        258,
+        18,
+        15
+      ],
+      [
+        590,
+        211,
+        40,
+        10
+      ],
+      [
+        666,
+        226,
+        15,
+        8
+      ],
+      [
+        608,
+        341,
+        27,
+        12
+      ]
+    ],
+    "surprised": [
+      [
+        570,
+        240,
+        33,
+        15
+      ],
+      [
+        656,
+        258,
+        18,
+        15
+      ],
+      [
+        590,
+        211,
+        40,
+        10
+      ],
+      [
+        666,
+        226,
+        15,
+        8
+      ],
+      [
+        608,
+        341,
+        27,
+        12
+      ]
+    ]
+  },
+  "moodKeepAlso": {
+    "sad": "the fine lines of her age at the eyes, mouth and forehead, the strands of hair over her face, and exactly one eyebrow over each eye with no second line above or below it",
+    "angry": "the fine lines of her age at the eyes, mouth and forehead, the strands of hair over her face, and exactly one eyebrow over each eye with no second line above or below it",
+    "surprised": "the fine lines of her age at the eyes, mouth and forehead, the strands of hair over her face, and exactly one eyebrow over each eye with no second line above or below it"
+  },
+  "moodTouch": {
+    "happy": {
+      "words": "Lift the corners of her closed mouth into a small, gentle smile: both corners clearly curved upward, the lips closed and soft, a calm, warm smile.",
+      "features": [
+        [
+          608,
+          340,
+          33,
+          15
+        ]
+      ],
+      "seed": 2
+    },
+    "shy": {
+      "words": "Lift the corners of her closed mouth into a small, shy, embarrassed smile: the corners curved a little upward, the lips closed.",
+      "features": [
+        [
+          608,
+          340,
+          33,
+          15
+        ]
+      ],
+      "seed": 1
+    }
+  },
+  "seed": 7,
+  "frames": {
+    "blink": "Close her eyes as in a blink: the upper eyelids down and the lashes curved, keeping her expression.",
+    "talk": "Part her lips a little, as in the middle of a word, keeping her expression; no tongue."
+  },
+  "moodFrames": {
+    "happy": {
+      "blink": null,
+      "talk": {
+        "words": "Part her lips a little, as in the middle of a word, keeping her smile's shape and width and her closed eyes: a narrow opening along the smile; no tongue.",
+        "region": [
+          [
+            608,
+            341,
+            27,
+            12
+          ]
+        ],
+        "seed": 1
+      }
+    },
+    "surprised": {
+      "talk": {
+        "words": "Open her parted lips a little more, as in the middle of a quiet word: a modest, narrow opening only a little larger than now, the upper teeth just showing, no tongue; a restrained, calm mouth.",
+        "region": [
+          [
+            608,
+            342,
+            27,
+            13
+          ]
+        ],
+        "seed": 4
+      }
+    }
+  },
+  "blushes": [],
+  "negative": "deformed face, extra eyes, extra eyebrows, young girl, text, watermark",
+  "framesNote": "happy keeps its closed eyes (no blink) and talks along its smile; the smile of happy and shy is a second pass over the mouth (`moodTouch`: the first passes kept the sheet's faint mouths, barely a smile); the surprised face, already parted, opens a little more to talk (a wider ask opened it to a shout)"
+}
