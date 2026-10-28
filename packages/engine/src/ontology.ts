@@ -25,6 +25,8 @@ export interface ResolvedType {
   stage?: StageDef
   /** The order its goals are tried in (TypeDef.goals). */
   goals?: string[]
+  /** How much it minds each status, over the status's own (TypeDef.minds). */
+  minds: Record<string, number>
   name?: TypeDef['name']
   /** Ancestor chain from root to self (only registered ids). */
   chain: string[]
@@ -143,6 +145,7 @@ export class OntologyIndex {
     let yields: number | undefined
     let stage: StageDef | undefined
     let goals: string[] | undefined
+    const minds: Record<string, number> = {}
     let name: TypeDef['name']
     for (let i = 1; i <= parts.length; i++) {
       const p = parts.slice(0, i).join('/')
@@ -163,9 +166,10 @@ export class OntologyIndex {
       if (def.makeup) (makeup = def.makeup), (yields = def.yields)
       if (def.stage) stage = def.stage
       if (def.goals) goals = def.goals
+      Object.assign(minds, def.minds ?? {})
       if (def.name) name = def.name
     }
-    const r: ResolvedType = { id, tags: [...tags], props, sprite, solid, footprint, reach, occupies, terrain, makeup, yields, stage, goals, name, chain, depth: parts.length }
+    const r: ResolvedType = { id, tags: [...tags], props, sprite, solid, footprint, reach, occupies, terrain, makeup, yields, stage, goals, minds, name, chain, depth: parts.length }
     this.cache.set(id, r)
     return r
   }

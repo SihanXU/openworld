@@ -270,19 +270,20 @@ export const TERRAINS: TerrainDef[] = [
 
 export const STATUSES: StatusDef[] = [
   { id: 'burning', name: { en: 'burning', zh: '燃烧' }, duration: 45, clears: ['frozen'], overlay: 'fire' },
-  { id: 'wet', name: { en: 'wet', zh: '潮湿' }, duration: 400, clears: ['burning'], overlay: 'wet' },
+  // a discomfort (wellbeing.ts): one is rid of it under a roof, by a fire, or as it dries
+  { id: 'wet', name: { en: 'wet', zh: '潮湿' }, duration: 400, clears: ['burning'], overlay: 'wet', mind: 1 },
   // sitting in a warm spring: it mends (the spring's rules give it back while one stays), green crosses rising
   { id: 'soaking', name: { en: 'soaking', zh: '泡温泉' }, duration: 8, clears: ['burning', 'frozen'], overlay: 'mend' },
   // water a line was cast into: nothing bites there until it settles
   { id: 'stirred', name: { en: 'stirred up', zh: '搅浑' }, duration: 100 },
   // a mushroom ring picked, reeds cut, a hive's honey taken: none again until it grows back (life.ts)
   { id: 'picked', name: { en: 'picked', zh: '已采' }, duration: 14400 },
-  { id: 'frozen', name: { en: 'frozen', zh: '冰冻' }, duration: 40, clears: ['burning', 'wet'], immobilize: true, overlay: 'ice' },
+  { id: 'frozen', name: { en: 'frozen', zh: '冰冻' }, duration: 40, clears: ['burning', 'wet'], immobilize: true, overlay: 'ice', mind: 2 },
   // frozen a moment ago: it does not freeze again until this wears off (in the rain, a wet thing struck
   // by ice again and again was held frozen through a whole fight)
   { id: 'thawed', name: { en: 'thawing', zh: '刚解冻' }, duration: 80 },
   { id: 'electrified', name: { en: 'electrified', zh: '感电' }, duration: 8, immobilize: true, overlay: 'spark' },
-  { id: 'oiled', name: { en: 'oiled', zh: '油污' }, duration: 900, overlay: 'oil' },
+  { id: 'oiled', name: { en: 'oiled', zh: '油污' }, duration: 900, overlay: 'oil', mind: 1 },
   { id: 'lit', name: { en: 'lit', zh: '点燃' }, overlay: 'flame' },
   { id: 'open', name: { en: 'open', zh: '打开' } },
   /** A waypoint stone touched: it glows, and the world map can take you to it (docs/prologue.md). */
@@ -313,7 +314,7 @@ export const STATUSES: StatusDef[] = [
   { id: 'kneeling', name: { en: 'kneeling', zh: '跪着' }, pose: 'kneel', untilMove: true },
   { id: 'leaning', name: { en: 'leaning', zh: '倚着' }, pose: 'lean', untilMove: true },
   // under six tenths of a full food bar: hunger falls slowly now (a body goes days without food)
-  { id: 'hungry', name: { en: 'hungry', zh: '饿了' } },
+  { id: 'hungry', name: { en: 'hungry', zh: '饿了' }, mind: 3 },
   // a wound that bleeds 1 a second (Hemorrhage), and the rush of Adrenaline (the skills)
   { id: 'bleeding', name: { en: 'bleeding', zh: '流血' }, duration: 40, every: 10 },
   // a beast fed for the day, a cow milked for the day (homestead.ts)
@@ -358,6 +359,9 @@ const F = (id: string, en: string, zh: string, tags: string[], extra: Partial<Ty
   ...extra,
 })
 
+/** The roles whose work is out under the sky whatever it does: they do not mind getting wet (the rest go in out of the rain). */
+export const WEATHERED = ['farmer', 'guard', 'fisher', 'hunter', 'soldier', 'sailor', 'ferrykeeper']
+
 export const PERSON_ROLES: [string, string, string][] = [
   ['villager', 'villager', '村民'],
   ['farmer', 'farmer', '农夫'],
@@ -395,7 +399,8 @@ const actorTypes: TypeDef[] = [
     sprite: 'person',
   }),
   P('actor/person/player', 'you', '你', { tags: ['essential'], props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, hunger: 20, maxHunger: 20, hungerEvery: 480 } }),
-  ...PERSON_ROLES.map(([id, en, zh]) => P(`actor/person/${id}`, en, zh)),
+  // those whose work is out in the weather do not mind the rain at it (wellbeing.ts: StatusDef.mind, TypeDef.minds)
+  ...PERSON_ROLES.map(([id, en, zh]) => P(`actor/person/${id}`, en, zh, WEATHERED.includes(id) ? { minds: { wet: 0 } } : {})),
   // the profession trainer (engine/src/profession.ts): a profession is chosen within reach of one
   P('actor/person/trainer', 'profession trainer', '职业导师', { tags: ['trainer'] }),
   // a minor kind's health, attack and defence are not set here: they come from one curve through its role (levels.ts)
