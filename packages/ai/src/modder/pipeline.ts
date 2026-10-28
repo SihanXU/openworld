@@ -455,7 +455,7 @@ export class Modder {
         }
         asVariant = undefined
         try {
-          newKindIn(index, { ...d, type: t }, inventionId({ ...d, type: t }, 'check'), authored, (k) => (request.catalogue.crafted ?? request.catalogue.prototypes).includes(k))
+          newKindIn(index, { ...d, type: t }, inventionId({ ...d, type: t }, 'check'), authored, (k) => (request.catalogue.crafted ?? request.catalogue.prototypes).includes(k), (k) => request.catalogue.prototypes.includes(k))
           return []
         } catch (err) {
           return (err as Error).message.split('; ')

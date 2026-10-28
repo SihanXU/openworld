@@ -19,7 +19,7 @@ export class ResearchProblem extends Error {
   }
 }
 
-const form = /^(item\/(tool|weapon|armor|clothing|food))\//
+const form = /^(item\/(tool|weapon|armor|clothing|food|light))\//
 /** The families a new kind may join: what a craftsperson makes, never a key, a relic, a document or a valuable. */
 const NEW_FAMILIES = /^item\/(tool|weapon|armor|clothing|food|potion|vessel|light|misc)(\/|$)/
 const text = (x: unknown) => typeof x === 'string' ? x : ''
@@ -41,14 +41,28 @@ const GOODS = /^item\/(material|food|gem)\//
 /** An ordinary craft: of goods, making the plain kind (a named set piece, with its own numbers, is none). */
 const ordinary = (r: Recipe) => r.needs.length > 0 && r.needs.every((n) => GOODS.test(n.type)) && !r.make.props && !r.make.tags && !r.bonus
 
+/** Open to the player now: their skill, the story's unlock. */
+function open(eng: Engine, r: Recipe): boolean {
+  const w = eng.world
+  return (!r.skill || w.hasTag(w.player, `skill:${r.skill}`)) && (!r.unlockedBy || (!!w.story && w.num(w.story, r.unlockedBy.fact, 0) >= (r.unlockedBy.level ?? 1)))
+}
+
 function reference(eng: Engine, type: string, known?: Iterable<Recipe>): Recipe | undefined {
   const w = eng.world
   if (!form.test(type) || eng.lib.types.some((t) => t.id === type) || !w.onto.data.types[type]) return
   if (!w.onto.resolve(type).tags.includes('portable')) return
-  return recipesOf(eng, known).find((r) => r.make.type === type && ordinary(r) &&
-    (!r.skill || w.hasTag(w.player, `skill:${r.skill}`)) &&
-    (!r.unlockedBy || (w.story && w.num(w.story, r.unlockedBy.fact, 0) >= (r.unlockedBy.level ?? 1))) &&
-    r.needs.every((n) => price(eng, n.type) > 0))
+  return recipesOf(eng, known).find((r) => r.make.type === type && ordinary(r) && open(eng, r) && r.needs.every((n) => price(eng, n.type) > 0))
+}
+
+/** What the player can make already, as the crafting panel offers it: the plain kind (a purchase, paid in coin, and a named set piece are none). */
+function makesOf(eng: Engine, known?: Iterable<Recipe>): NonNullable<ResearchCatalogue['makes']> {
+  const onto = eng.world.onto
+  const seen = new Set<string>()
+  return recipesOf(eng, known).filter((r) => /^item\//.test(r.make.type) && open(eng, r) && r.needs.length > 0 && !r.make.props && !r.make.tags && !r.bonus &&
+    r.needs.every((n) => onto.data.types[n.type] && !onto.resolve(n.type).tags.includes('currency')))
+    .map((r) => ({ type: r.make.type, needs: r.needs.map((n) => ({ type: n.type, count: n.count })), station: r.station ?? 'hands' }))
+    .filter((m) => !seen.has(JSON.stringify(m)) && !!seen.add(JSON.stringify(m)))
+    .slice(0, 160)
 }
 
 /** Only actual inventory materials and currently unlocked craft families are offered. */
@@ -61,7 +75,7 @@ export function researchCatalogue(eng: Engine, known?: Iterable<Recipe>): Resear
   const prototypes = [...new Set(recipesOf(eng, known).map((r) => r.make.type))].filter((id) => reference(eng, id, known)).slice(0, 80)
   // every kind an ordinary craft makes, open to the player or not: a new kind is never one's child (it is made at that craft)
   const crafted = [...new Set(recipesOf(eng, known).filter(ordinary).map((r) => r.make.type))].filter((t) => /^item\//.test(t)).slice(0, 400)
-  return { materials, prototypes, stations: ['hands', ...w.stationsNear(w.player)], crafted, guidance: {
+  return { materials, prototypes, stations: ['hands', ...w.stationsNear(w.player)], crafted, makes: makesOf(eng, known), guidance: {
     materials: materials.map((type) => ({ type, value: price(eng, type), available: eng.controls.count(type) })),
     prototypes: prototypes.map((type) => {
       const r = reference(eng, type, known)!
@@ -122,7 +136,7 @@ function variant(eng: Engine, design: VariantDesign, id: string, known?: Iterabl
  */
 function newKind(eng: Engine, design: NewDesign, id: string, known?: Iterable<Recipe>): TypeDef {
   const recipes = recipesOf(eng, known)
-  return newKindIn(eng.world.onto, design, id, (k) => !eng.lib.types.some((l) => l.id === k), (k) => recipes.some((r) => r.make.type === k && ordinary(r)))
+  return newKindIn(eng.world.onto, design, id, (k) => !eng.lib.types.some((l) => l.id === k), (k) => recipes.some((r) => r.make.type === k && ordinary(r)), (k) => !!reference(eng, k, known))
 }
 
 /**
@@ -130,7 +144,7 @@ function newKind(eng: Engine, design: NewDesign, id: string, known?: Iterable<Re
  * offers nothing the game then refuses). `authored`: a kind the content made, not a library's; `crafted`: a kind the
  * game's recipes make (a thing of it is made at that craft, with its tools, skill and unlock: a variant of it).
  */
-export function newKindIn(onto: OntologyIndex, design: NewDesign, id: string, authored: (type: string) => boolean, crafted: (type: string) => boolean = () => false): TypeDef {
+export function newKindIn(onto: OntologyIndex, design: NewDesign, id: string, authored: (type: string) => boolean, crafted: (type: string) => boolean = () => false, offered: (type: string) => boolean = () => true): TypeDef {
   const t = design.type
   if (!t) throw new ResearchProblem('refused', 'The new thing has not been worked out yet')
   const parent = t.id.split('/').slice(0, -1).join('/')
@@ -140,7 +154,11 @@ export function newKindIn(onto: OntologyIndex, design: NewDesign, id: string, au
   const kind = onto.resolve(parent)
   if (!authored(parent) || kind.tags.includes('quality:legendary') || kind.props.relic !== undefined) throw new ResearchProblem('refused', `A new thing joins an ordinary family, not ${parent}`)
   // a kind of a thing the game crafts is made at that craft (its station, tools, skill, unlock): a variant of it, never around it
-  if (crafted(parent)) throw new ResearchProblem('refused', `A ${parent.split('/').pop()} is made at its own craft: make a variant of ${parent}`)
+  if (crafted(parent)) {
+    const name = parent.split('/').pop()
+    // a craft research may not build on (locked, or made of more than goods) has no variant either: say so, never send the designer there
+    throw new ResearchProblem('refused', offered(parent) ? `A ${name} is made at its own craft: make a variant of ${parent}` : `A ${name} is the game's own craft and only the game makes it: no new kind joins it`)
+  }
   const family = parent.split('/').slice(0, 2).join('/')
   // its ordinary kin: what the content made, never a legend or a relic (a new thing is measured against the common run)
   const kin = Object.keys(onto.data.types)

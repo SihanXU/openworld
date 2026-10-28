@@ -284,6 +284,36 @@ describe('research in the actual game', () => {
     expect(eng.controls.count(made.id)).toBe(1)
   })
 
+  it('tells the craftsperson what the player makes already (a torch of a stick and grass), never what is bought for coin; another make of it is its variant', () => {
+    const eng = buildSandbox({ entities: [
+      { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+      ...['stick', 'grass', 'cloth'].flatMap((m) => Array.from({ length: 4 }, (_, i) => ({ key: `${m}${i}`, type: `item/material/${m}`, inside: 'actor', x: 2, y: 2 }))),
+    ], event: {} }, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    const torch = 'item/light/torch'
+    const c = researchCatalogue(eng, RECIPES)
+    expect(c.makes).toContainEqual({ type: torch, needs: [{ type: 'item/material/stick', count: 1 }, { type: 'item/material/grass', count: 1 }], station: 'hands' })
+    expect(c.makes!.flatMap((m) => m.needs).some((n) => n.type === 'item/misc/thornmark')).toBe(false)
+    // the Starweave Robe is a set piece, not the plain robe one makes
+    expect(c.makes!.map((m) => m.type)).not.toContain('item/clothing/robe')
+    expect(readResearchRequest({ npc: 'Garrick', message: 'x', history: [], catalogue: c }).catalogue.makes).toEqual(c.makes)
+    expect(() => readResearchRequest({ npc: 'Garrick', message: 'x', history: [], catalogue: { ...c, makes: [{ type: torch, needs: [{ type: 'item/material/stick', count: 0 }], station: 'hands' }] } })).toThrow(/catalogue/)
+    // a torch of cloth for grass is the torch's variant, lit as a torch is
+    expect(c.prototypes).toContain(torch)
+    const made = trialResearch(eng, new ModPort(eng), { kind: 'variant', name: { en: 'Cloth Torch', zh: '布火把' }, prototype: torch, ingredients: [{ type: 'item/material/stick', count: 1 }, { type: 'item/material/cloth', count: 1 }] }, `${torch}/invention_c`, RECIPES)
+    expect(made.id).toBe(`${torch}/invention_c`)
+    expect(eng.world.onto.resolve(made.id).tags).toContain('fire-source')
+    expect(eng.controls.count(made.id)).toBe(1)
+  })
+
+  it('never sends a designer to a craft research may not build on: a locked candle is the game\'s own', () => {
+    const { eng, port } = world()
+    const candle = 'item/light/candle'
+    expect(researchCatalogue(eng, RECIPES).crafted).toContain(candle)
+    expect(researchCatalogue(eng, RECIPES).prototypes).not.toContain(candle)
+    const design: ResearchDesign = { kind: 'new', name: { en: 'Log Candle', zh: '木蜡烛' }, idea: 'a candle', type: { id: `${candle}/log_candle`, name: { en: 'Log Candle', zh: '木蜡烛' }, props: { material: 'wood' }, makeup: [{ type: 'item/material/log', count: 2 }], station: 'hands' } }
+    expect(() => trialResearch(eng, port, design, `${candle}/invention_l`, RECIPES)).toThrow(/the game's own craft/)
+  })
+
   it('says a variant needs a material to begin with, before anything is tried (berries hold no edge)', () => {
     const { eng, port } = pantry()
     const design: ResearchDesign = { name: { en: 'Berrybrand Axe', zh: 'Berrybrand Axe' }, prototype: 'item/weapon/blade/axe', ingredients: [{ type: 'item/food/berries', count: 10 }, { type: 'item/material/log', count: 4 }] }

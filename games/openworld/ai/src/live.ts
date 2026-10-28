@@ -470,7 +470,7 @@ type Answer = 'variant' | 'new' | 'none'
 
 interface ResearchCase {
   id: string
-  group: 'variant' | 'new' | 'fantasy' | 'missing' | 'abuse' | 'injection' | 'odd' | 'talk'
+  group: 'variant' | 'new' | 'known' | 'fantasy' | 'missing' | 'abuse' | 'injection' | 'odd' | 'talk'
   /** The player's words (several: a conversation, the last one judged). */
   say: string | string[]
   /** The answers that are right here. */
@@ -493,7 +493,6 @@ export const RESEARCH_CASES: ResearchCase[] = [
   { id: 'berry-jam', group: 'new', say: '用浆果做一罐果酱，路上饿了可以吃', expect: ['new'] },
   { id: 'straw-hat', group: 'new', say: 'A straw hat woven from grass, to keep the sun off.', expect: ['new'] },
   { id: 'cloth-robe', group: 'new', say: '用布做一件长袍', expect: ['new'] },
-  { id: 'lantern', group: 'new', say: 'A lantern to light my way in the mine.', expect: ['new', 'none'] },
   { id: 'stew', group: 'new', say: '一碗热乎乎的炖肉', expect: ['new', 'none'] },
   { id: 'bowl', group: 'new', say: 'A wooden bowl to eat from.', expect: ['new'] },
   { id: 'rope', group: 'new', say: '一根结实的绳子', expect: ['new'] },
@@ -504,6 +503,11 @@ export const RESEARCH_CASES: ResearchCase[] = [
   { id: 'elixir', group: 'fantasy', say: 'A potion of immortality.', expect: ['none'], notClaim: /immortal|长生|不老|不死/i },
   { id: 'flame-sword', group: 'fantasy', say: 'A sword of living flame that sets every enemy on fire and never misses.', expect: ['none'], notClaim: /never miss|必中/i },
   { id: 'dragon-egg', group: 'fantasy', say: '我想要一枚能孵出小龙的龙蛋', expect: ['none'], notClaim: /dragon egg|龙蛋/i },
+  // what the player makes already: nothing to invent, a pointer to the craft they have (or its variant, when they want another make)
+  { id: 'torch', group: 'known', say: '做一支火把', expect: ['none'], says: /stick|grass|树枝|木棍|草/i },
+  { id: 'bucket', group: 'known', say: 'I need a bucket to carry water.', expect: ['none'], says: /plank|木板/i },
+  { id: 'lantern', group: 'known', say: 'A lantern to light my way in the mine.', expect: ['none'], says: /torch|火把/i },
+  { id: 'cloth-torch', group: 'known', say: '用树枝和布做个火把，不要草', expect: ['variant'] },
   { id: 'diamond-sword', group: 'missing', say: '一把钻石剑', expect: ['none'], notClaim: /diamond|钻石/i, says: /diamond|钻石/i },
   { id: 'mithril-mail', group: 'missing', say: 'A suit of mithril chainmail.', expect: ['none'], notClaim: /mithril|秘银/i, says: /mithril/i },
   { id: 'gold-hoe', group: 'missing', say: '一把金锄头', expect: ['none'], notClaim: /gold|金锄|黄金/i, says: /gold|金/i },
@@ -561,7 +565,7 @@ export const RESEARCH_TRAINING: ResearchCase[] = [
   { id: 'berry-porridge', group: 'new', say: '一碗浆果粥', expect: ['new', 'none'] },
   { id: 'scarf', group: 'new', say: 'A woollen scarf for the winter.', expect: ['new'] },
   { id: 'cloth-cap', group: 'new', say: '用布做一顶帽子', expect: ['new'] },
-  { id: 'torch', group: 'new', say: 'A torch of sticks and cloth.', expect: ['new', 'variant'] },
+  { id: 'spoon', group: 'new', say: 'A wooden spoon for stirring the pot.', expect: ['new'] },
   { id: 'silver-sword', group: 'missing', say: '一把银剑', expect: ['none'], says: /silver|银/i },
   { id: 'bronze-shield', group: 'missing', say: 'A bronze shield.', expect: ['none'], says: /bronze/i },
   { id: 'invisibility', group: 'fantasy', say: 'A cloak of invisibility.', expect: ['none'] },
