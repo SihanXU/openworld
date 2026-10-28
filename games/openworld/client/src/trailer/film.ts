@@ -38,6 +38,8 @@ export interface Shot {
   warm?: number
   /** Other maps' files whose things stand on this map (a room's household, kept in its town's file). */
   also?: string[]
+  /** A map made for a film, not in the world: its file under the folder ?promo= names (site/scale/gen). */
+  src?: string
   /** The map's file changed before it is loaded (what stands where for this shot). */
   chunk?(chunk: ReturnType<typeof decodeChunk>): void
   setup?(c: Cut): void

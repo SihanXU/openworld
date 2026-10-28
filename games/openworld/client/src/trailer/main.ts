@@ -19,12 +19,11 @@ import { INTRO_FILM } from './intro.ts'
 import { SURVEY_FILM } from './survey.ts'
 import { EXPLAIN_FILM } from './explainfilm.ts'
 import { PLACES_FILM, TOUR_FILM } from './tour.ts'
-import { SCALE_FILM } from './scalefilm.ts'
-import { SCALE_MAPS_FILM, SCALE_SCENES_FILM } from './scalemaps.ts'
+import { SCALE_HERO_FILM, SCALE_MAPS_FILM, SCALE_SCENES_FILM } from './scalemaps.ts'
 
 // which film the stage plays (?film=): the trailer, the star map's event clips (each shot one clip, no music), or the
 // channel's opening (timed to its voiceover)
-const FILMS: Record<string, { shots: Shot[]; music?: typeof TRAILER_MUSIC }> = { trailer: { shots: TRAILER, music: TRAILER_MUSIC }, events: { shots: EVENTS_FILM }, intro: { shots: INTRO_FILM }, survey: { shots: SURVEY_FILM }, explain: { shots: EXPLAIN_FILM }, tour: { shots: TOUR_FILM }, places: { shots: PLACES_FILM }, scale: { shots: SCALE_FILM }, 'scale-maps': { shots: SCALE_MAPS_FILM }, 'scale-scenes': { shots: SCALE_SCENES_FILM } }
+const FILMS: Record<string, { shots: Shot[]; music?: typeof TRAILER_MUSIC }> = { trailer: { shots: TRAILER, music: TRAILER_MUSIC }, events: { shots: EVENTS_FILM }, intro: { shots: INTRO_FILM }, survey: { shots: SURVEY_FILM }, explain: { shots: EXPLAIN_FILM }, tour: { shots: TOUR_FILM }, places: { shots: PLACES_FILM }, 'scale-maps': { shots: SCALE_MAPS_FILM }, 'scale-hero': { shots: SCALE_HERO_FILM }, 'scale-scenes': { shots: SCALE_SCENES_FILM } }
 const CHOSEN = FILMS[new URLSearchParams(location.search).get('film') ?? 'trailer'] ?? FILMS.trailer
 const FILM = CHOSEN.shots
 const MUSIC = CHOSEN.music
@@ -42,8 +41,10 @@ let phaser: Phaser.Game
 let index: WorldIndex
 const maps = new Map<string, RawChunk>()
 const base = `${import.meta.env.BASE_URL}world/`
-const loadMap = async (id: string): Promise<RawChunk> => {
-  if (!maps.has(id)) maps.set(id, await fetch(`${base}maps/${id}.json`).then((r) => r.json()))
+// the maps made for a film are read from the folder ?promo= names (the dev server's /@fs/ path to var/scale/promo)
+const PROMO = new URLSearchParams(location.search).get('promo')
+const loadMap = async (id: string, src?: string): Promise<RawChunk> => {
+  if (!maps.has(id)) maps.set(id, await fetch(src ? `${PROMO}/${src}` : `${base}maps/${id}.json`).then((r) => r.json()))
   return maps.get(id)!
 }
 
@@ -61,7 +62,7 @@ async function makeGame(shot: Shot): Promise<Game> {
   settings.player.place = { on: 'tile', ...start }
   if (shot.facing) settings.player.facing = shot.facing
   const game = Game.create(settings, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
-  const chunk = decodeChunk(structuredClone(await loadMap(shot.map)))
+  const chunk = decodeChunk(structuredClone(await loadMap(shot.map, shot.src)))
   for (const id of shot.also ?? []) {
     // the people of this map kept in another's file, and what they carry: those standing here, and those whose day
     // brings them here at the shot's hour, where it puts them

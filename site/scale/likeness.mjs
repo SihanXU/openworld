@@ -29,8 +29,9 @@ export function distance(a, b) {
   for (let i = 0; i < 48; i++) col += Math.abs(a.colour[i] - b.colour[i])
   return { bits, colour: col / 48 }
 }
-/** Alike: within BITS of each other's layout and COLOUR of each other's colours. Measured on the stage's stills: two
- *  homes of one kind framed alike, empty or with a different person standing in the same place, come within 0–20 bits
- *  and 0–2 of colour; two homes with their own people in them, 34 bits or 4 of colour apart and more. */
-export const BITS = 24, COLOUR = 4
-export const alike = (a, b) => { const d = distance(a, b); return d.bits <= BITS && d.colour <= COLOUR }
+/** Alike: within BITS of each other's layout and COLOUR of each other's colours, or within SAME of each other's layout
+ *  whatever their colours (the same view in other light or another season). Measured on the film's own pictures: a hall
+ *  furnished twice alike with other people in it comes within 22–40 bits and 3–6 of colour, the same window of a place
+ *  in summer and in snow within 10 bits; two halls of different plans 44 bits or more apart, two places' windows more. */
+export const BITS = 40, COLOUR = 7, SAME = 16
+export const alike = (a, b) => { const d = distance(a, b); return (d.bits <= BITS && d.colour <= COLOUR) || d.bits <= SAME }

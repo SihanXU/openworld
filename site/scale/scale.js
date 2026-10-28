@@ -336,6 +336,8 @@ function drawScenes(t) {
   const z = t < T.scenesSplit + (SPLITS - 2) * BAR ? 1 : pullBack(t)
   const step = SIDE >> level
   ctx.imageSmoothingEnabled = true
+  // the many at night and in the rain lifted a little, so the mosaic reads as the bright world it is
+  ctx.filter = 'brightness(1.18) saturate(1.2)'
   for (let r = 0; r < SIDE; r += step) for (let c = 0; c < SIDE; c += step) {
     const k = SCENE_OF[r * SIDE + c], clip = CLIPS[k]
     if (!clip?.img?.naturalWidth) continue
@@ -352,6 +354,7 @@ function drawScenes(t) {
     tile(clip.img, sceneFrame(clip, t, k), inset(rect, g), clamp(fade) * (bornAt(r, c) === level && level > 0 ? smooth(u * 3) : 1), level < 2 ? 14 : level < 4 ? 6 : 2)
   }
   ctx.imageSmoothingEnabled = false
+  ctx.filter = 'none'
 }
 
 function drawTitle(t) {
