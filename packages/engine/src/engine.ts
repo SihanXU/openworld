@@ -15,6 +15,7 @@ import { plainCombat, weaponOf } from './blows.ts'
 import { Companions } from './companion.ts'
 import { Quests } from './quests.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
+import { Wellbeing } from './wellbeing.ts'
 import { scheduleFor } from './people.ts'
 import { OntologyIndex, isA } from './ontology.ts'
 import { appearFromForage } from './appear.ts'
@@ -109,6 +110,8 @@ export class Engine {
   private readonly write: Writer
   effects: EffectRunner
   npcs: NpcSim
+  /** What is wrong for an actor and what would put it right, read from the rules (wellbeing.ts). */
+  wellbeing: Wellbeing
   /** The maps' things kept as what differs from their files, and the maps put away (sparse.ts, docs/continent.md §9). */
   chunks: Chunks
   /** Everyone's goals (behaviour.ts). */
@@ -200,6 +203,7 @@ export class Engine {
     this.lib = lib
     this.effects = new EffectRunner(this)
     this.npcs = new NpcSim(this)
+    this.wellbeing = new Wellbeing(this)
     this.chunks = new Chunks(this)
     this.behaviour = new Behaviour(this)
     this.story = new Story(this)
