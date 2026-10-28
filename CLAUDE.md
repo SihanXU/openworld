@@ -50,7 +50,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - `packages/engine` — pure, deterministic, no DOM/AI. World state + indices (`world.ts`),
   rule matching/specificity/library (`rules.ts`), effect primitives (`effects.ts`), event
   dispatch + tick + movement + combat (`engine.ts`), one goal system for every actor (`behaviour.ts`:
-  goals in each type's order — encounter, threat, follow, schedule, home, idle; the people's goals and
+  goals in each type's order — encounter, danger, threat, follow, need, schedule, home, idle; danger and need are one's
+  wellbeing (`wellbeing.ts`, design.md §5.18: what weighs on one and what puts it right, read from the rules by dry runs —
+  a status's harm from its pulse, a place from its contacts, clocks and pulses about, an act from its outcome; `StatusDef.mind`,
+  `TypeDef.minds`, `endures:<id>`; away, toward a cure, an act, a thing made first; those one cares for); the people's goals and
   their real work in `npc.ts`, the creatures' in `creatures.ts`; a module's goals join them), Mod port: ModSpec / ModRequest / validatePatch / records
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`: what the view shows and round it),
   a map's things kept as what differs from its file and the maps far behind put away (`sparse.ts`, docs/continent.md §13:
