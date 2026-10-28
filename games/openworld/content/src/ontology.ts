@@ -105,7 +105,8 @@ export const CHAR_OF: Record<string, string> = Object.fromEntries(Object.entries
 const T = (id: string, zh: string, en: string, tags: string[], extra: Partial<TerrainDef> = {}): TerrainDef => ({
   id,
   name: { en, zh },
-  tags: [...tags, ...(extra.solid ? ['solid'] : []), ...(extra.liquid ? ['liquid'] : [])],
+  // `standing`: what takes the cell above its floor (a tree, a bush, rock, a wall, a stump), a thing a hand meets
+  tags: [...tags, ...(extra.solid ? ['solid'] : []), ...(extra.liquid ? ['liquid'] : []), ...(extra.space && extra.space !== 'floor' ? ['standing'] : [])],
   ...extra,
 })
 

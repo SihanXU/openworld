@@ -1,8 +1,8 @@
 {
  "totals": {
-  "specific": 56614,
+  "specific": 56486,
   "generic": 39332,
-  "undefined": 77623
+  "undefined": 77751
  },
  "byRule": {
   "board/read": 8,
@@ -73,7 +73,7 @@
   "station/forge": 16,
   "station/loom": 8,
   "station/workbench": 8,
-  "tile/handle": 412,
+  "tile/handle": 284,
   "use/blade": 834,
   "use/cook": 70,
   "use/drink": 22,
@@ -106,13 +106,14 @@
   "core/offered": 115,
   "core/strike": 8002,
   "core/use": 68142,
+  "tile/handle": 128,
   "use/weapon": 278
  },
  "byHand": {
   "(empty hand)": {
-   "specific": 154,
+   "specific": 138,
    "generic": 346,
-   "undefined": 338
+   "undefined": 354
   },
   "item/weapon/blade/sword": {
    "specific": 226,
@@ -315,9 +316,9 @@
    "undefined": 189
   },
   "item/tool/fishing_rod": {
-   "specific": 301,
+   "specific": 285,
    "generic": 127,
-   "undefined": 131
+   "undefined": 147
   },
   "item/tool/smith_hammer": {
    "specific": 233,
@@ -345,9 +346,9 @@
    "undefined": 280
   },
   "item/tool/lockpick": {
-   "specific": 298,
+   "specific": 282,
    "generic": 127,
-   "undefined": 134
+   "undefined": 150
   },
   "item/light/torch": {
    "specific": 431,
@@ -1040,9 +1041,9 @@
    "undefined": 277
   },
   "item/key": {
-   "specific": 285,
+   "specific": 269,
    "generic": 127,
-   "undefined": 147
+   "undefined": 163
   },
   "item/misc/bell": {
    "specific": 152,
@@ -1080,9 +1081,9 @@
    "undefined": 280
   },
   "item/misc/feather_quill": {
-   "specific": 298,
+   "specific": 282,
    "generic": 127,
-   "undefined": 134
+   "undefined": 150
   },
   "item/misc/ink": {
    "specific": 152,
@@ -1415,9 +1416,9 @@
    "undefined": 280
   },
   "item/tool/fishing_rod/tithe_canal_rod": {
-   "specific": 301,
+   "specific": 285,
    "generic": 127,
-   "undefined": 131
+   "undefined": 147
   },
   "item/light/torch/tithe_chaff_torch": {
    "specific": 431,
@@ -1610,9 +1611,9 @@
    "undefined": 280
   },
   "item/misc/feather_quill/altar_scriptorium_quill": {
-   "specific": 298,
+   "specific": 282,
    "generic": 127,
-   "undefined": 134
+   "undefined": 150
   },
   "item/misc/ink/holy_vermilion_ink": {
    "specific": 152,
@@ -1625,9 +1626,9 @@
    "undefined": 280
   },
   "item/key/altar_catacomb_key": {
-   "specific": 285,
+   "specific": 269,
    "generic": 127,
-   "undefined": 147
+   "undefined": 163
   },
   "item/potion/fire_resist/frostfang_seal_oil_draught": {
    "specific": 155,
@@ -2747,9 +2748,9 @@
    "undefined": 288
   },
   "tile:flowerbed": {
-   "specific": 25,
+   "specific": 17,
    "generic": 308,
-   "undefined": 288
+   "undefined": 296
   },
   "tile:lattice": {
    "specific": 25,
@@ -2802,64 +2803,64 @@
    "undefined": 291
   },
   "tile:tree": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:pine": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:bush": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:thornhedge": {
-   "specific": 25,
+   "specific": 17,
    "generic": 308,
-   "undefined": 288
+   "undefined": 296
   },
   "tile:rock": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:wall": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:woodwall": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:burnt_wall": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:canvaswall": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:thatchwall": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:snowwall": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:roof": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:floor_wood": {
    "specific": 25,
@@ -2897,9 +2898,9 @@
    "undefined": 288
   },
   "tile:cave_wall": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:lava": {
    "specific": 332,
@@ -2912,14 +2913,14 @@
    "undefined": 288
   },
   "tile:charred_tree": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:stump": {
-   "specific": 64,
+   "specific": 56,
    "generic": 309,
-   "undefined": 248
+   "undefined": 256
   },
   "tile:gravel": {
    "specific": 25,
