@@ -1433,6 +1433,19 @@ describe('a new thing an author asks for (the editor, M1)', () => {
     expect(reply.design).toMatchObject({ kind: 'new', type: { makeup: [{ type: 'item/material/log', count: 10 }] } })
   })
 
+  it('a new kind designed under a craft on offer becomes a variant of that craft, with the designer\'s makeup and picture', async () => {
+    const rod = 'item/tool/fishing_rod'
+    const model = new ScriptedModel((messages, opts) => {
+      if (opts.purpose === 'art') return ART
+      if (messages[0].content.startsWith('You are a craftsperson')) return { reply: 'A net, then.', design: { kind: 'new', name: { en: 'Grass Net', zh: '草网' }, idea: 'a fishing net of grass and wool' } }
+      return { patch: { artifacts: [{ kind: 'type', type: { id: `${rod}/grass_net`, name: { en: 'Grass Net', zh: '草网' }, props: { material: 'plant' }, makeup: [{ type: 'item/material/wool', count: 4 }, { type: 'item/material/grass', count: 6 }], station: 'hands' } }] }, look: 'a net' }
+    })
+    const { modder } = setup(model)
+    const catalogue = { materials: ['item/material/wool', 'item/material/grass'], prototypes: [rod], stations: ['hands'], guidance: { materials: [], prototypes: [{ type: rod, minCost: 5, station: 'hands' }] } }
+    const reply = await modder.research({ npc: 'Garrick', message: 'a net', history: [], catalogue })
+    expect(reply.design).toEqual({ kind: 'variant', name: { en: 'Grass Net', zh: '草网' }, prototype: rod, ingredients: [{ type: 'item/material/grass', count: 6 }, { type: 'item/material/wool', count: 4 }], art: ART })
+  })
+
   it('a variant begins with a material, whatever order the craftsperson said its ingredients in (wool gives no material)', async () => {
     const model = new ScriptedModel((messages, opts) => {
       if (opts.purpose === 'art') return ART

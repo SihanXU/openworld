@@ -349,6 +349,10 @@ export class Modder {
     const onto = this.opts.library.fullOntology()
     const index = new OntologyIndex(onto)
     const en = (t: Text) => (typeof t === 'string' ? t : t.en)
+    const materialFirst = <M extends { type: string }>(ms: M[]): M[] => {
+      const first = ms.findIndex((m) => m.type in onto.types && typeof index.resolve(m.type).props.material === 'string')
+      return first > 0 ? [ms[first], ...ms.filter((_, i) => i !== first)] : ms
+    }
     // a new kind: designed as an author's new thing is (its numbers, makeup, station, picture), from what the player carries where they stand
     if (d.kind === 'new') {
       const had = request.catalogue.materials.map((id) => ({ id, name: en(onto.types[id]?.name ?? id), props: onto.types[id]?.props }))
@@ -356,9 +360,20 @@ export class Modder {
       const theirs = (types: TypeDef[]) => types.find((t) => (t.makeup ?? []).length && t.makeup!.every((m) => request.catalogue.materials.includes(m.type)))
       // held to the game's own bounds for a new kind while it is designed: the craftsperson offers nothing the game refuses
       const authored = (k: string) => k in this.opts.library.ontology.types
+      // designed as a kind of a craft on offer (a net under the fishing rod): a variant of that craft, as the conversation should have said
+      let asVariant: { prototype: string; ingredients: { type: string; count: number }[] } | undefined
       const bounds = (types: TypeDef[]) => {
         const t = theirs(types)
         if (!t) return [`make it of what the player carries, at most: ${request.catalogue.materials.join(', ')}`]
+        const parent = t.id.split('/').slice(0, -1).join('/')
+        const craft = request.catalogue.guidance?.prototypes.find((p) => p.type === parent) ?? (request.catalogue.prototypes.includes(parent) ? { minCost: 0 } : undefined)
+        if (craft) {
+          const cost = (t.makeup ?? []).reduce((n, m) => n + (Number(index.resolve(m.type).props.value) || 0) * m.count, 0)
+          if (cost < craft.minCost) return [`A ${parent.split('/').pop()} is made of goods worth at least ${craft.minCost} (this makeup is worth ${cost})`]
+          asVariant = { prototype: parent, ingredients: t.makeup! }
+          return []
+        }
+        asVariant = undefined
         try {
           newKindIn(index, { ...d, type: t }, inventionId({ ...d, type: t }, 'check'), authored, (k) => (request.catalogue.crafted ?? request.catalogue.prototypes).includes(k))
           return []
@@ -371,11 +386,12 @@ export class Modder {
       const made = await this.createThing({ intent: `${en(d.name)}: ${d.idea.slice(0, 250)} ${among}`, had, stations: (request.catalogue.stations ?? []).filter((x) => x !== 'hands') }, bounds)
       const type = theirs((made.patch?.artifacts ?? []).flatMap((a) => (a.kind === 'type' ? [a.type] : [])))
       if (!type) throw new Error(made.diagnostics.join('; ') || 'the new thing could not be worked out from what you carry')
-      return { ...said, design: { ...d, type } }
+      if (!asVariant) return { ...said, design: { ...d, type } }
+      const ingredients = materialFirst(asVariant.ingredients)
+      return { ...said, design: { kind: 'variant', name: d.name, prototype: asVariant.prototype, ingredients, ...(type.art && { art: type.art }) } }
     }
     // a variant: its first ingredient gives its material, so one that is a material goes first (wool is none; grass is)
-    const first = d.ingredients.findIndex((m) => m.type in onto.types && typeof index.resolve(m.type).props.material === 'string')
-    if (first > 0) d.ingredients.unshift(...d.ingredients.splice(first, 1))
+    d.ingredients = materialFirst(d.ingredients)
     // its prototype's icon edited (an iron axe is the axe in iron's colours), else drawn as itself
     const material = index.resolve(d.ingredients[0].type).props.material
     const look = `${en(d.name)}: a ${typeof material === 'string' ? `${material} ` : ''}${en(onto.types[d.prototype]?.name ?? d.prototype.split('/').pop()!)}`
