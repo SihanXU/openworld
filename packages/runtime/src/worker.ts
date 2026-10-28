@@ -338,7 +338,7 @@ function keyViews(): Frame['keys'] {
   }
   // the act's own view: the '?' only where someone will be asked (the AI setting may leave it to the leaf's default)
   const view = (pl: Plan | undefined): KeyView | undefined =>
-    pl && { label: pl.label, unknown: (pl.unknown && !pl.quiet && asks()) || undefined, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(!pl.changes && { idle: true }), ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(c.ground(pl.target) && { ground: true }), ...(c.talksTo(pl.target) && { person: true }), ...(rect(pl) && { rect: rect(pl) }) }
+    pl && { label: pl.label, unknown: (pl.unknown && !pl.quiet && asks()) || undefined, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(!pl.changes && { idle: true }), ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(c.underfoot(pl.target) && { ground: true }), ...(c.talksTo(pl.target) && { person: true }), ...(rect(pl) && { rect: rect(pl) }) }
   // standing still, one turns to the spot beside one that the pointer is on (the input's own posture):
   // a person one points at sees one face them, and waits (npc.ts, attended)
   const stand = w.posOf(w.player)
