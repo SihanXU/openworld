@@ -7,6 +7,7 @@ const say = (en: string, zh: string) => locale.value === 'zh' ? zh : en
 
 /** Why not, in the craftsperson's words (never the engine's or the provider's diagnostics). */
 const PROBLEM: Record<NonNullable<Extract<FromWorker, { t: 'research' }>['problem']>, [string, string]> = {
+  away: ['Come over here, with your hands free, and we can try it.', '走近些，手头的事放一放，我们再试。'],
   busy: ['Give me a moment, I am still thinking over the last one.', '稍等，上一个想法我还在琢磨。'],
   off: ['Making new things is switched off in the AI settings.', '设置里关掉了 AI 造物，新配方研制用不了。'],
   offline: ['Connect an AI model in the settings, and we can talk it over.', '先在设置里连上 AI 模型，我们再细聊。'],

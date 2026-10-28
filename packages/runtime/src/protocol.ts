@@ -234,7 +234,7 @@ export type FromWorker =
   /** A talk over a new recipe: the craftsperson's words (`reply`), a draft, or why not (`problem`: the panel says it in the player's language). */
   /** The icons of these kinds, please (the page has the pictures; a research request carries them). */
   | { t: 'researchIcons'; types: string[] }
-  | { t: 'research'; who: string; reply?: string; design?: ResearchDesign; token?: string; problem?: ResearchProblemCode | 'busy' | 'off' | 'offline' | 'unreachable' | 'design'; made?: boolean }
+  | { t: 'research'; who: string; reply?: string; design?: ResearchDesign; token?: string; problem?: ResearchProblemCode | 'away' | 'busy' | 'off' | 'offline' | 'unreachable' | 'design'; made?: boolean }
   /** The modder is making things the world does not have yet; the act waits for them. */
   | { t: 'creating'; names: Text[] }
   | { t: 'error'; message: string }

@@ -64,7 +64,9 @@ function iconsOf(types: string[]): Promise<Record<string, PixelArt> | undefined>
 }
 
 async function askResearch(message: string): Promise<void> {
-  if (!game || !talk || !researchHere(game, talk.who)) return
+  if (!game || !talk) return
+  // (the panel waits on every ask: one it cannot take here is still told why)
+  if (!researchHere(game, talk.who)) return void post({ t: 'research', who: talk.who, problem: 'away' })
   if (researchBusy) {
     post({ t: 'research', who: talk.who, problem: 'busy' })
     return
@@ -105,7 +107,9 @@ async function askResearch(message: string): Promise<void> {
 
 function confirmResearch(token: string): void {
   const s = researchSession
-  if (!s || researchBusy || !s.draft || !s.token || token !== s.token || !researchHere(s.owner, s.who)) return
+  if (!s || !s.draft || !s.token || token !== s.token) return
+  // not now (walked away, or still thinking): the draft and its token stay, so it can be tried again
+  if (researchBusy || !researchHere(s.owner, s.who)) return void post({ t: 'research', who: s.who, problem: researchBusy ? 'busy' : 'away', design: s.draft, token: s.token })
   const design = s.draft
   // Consume the capability before doing work: double-clicks cannot manufacture twice.
   s.token = undefined
