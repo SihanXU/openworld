@@ -1,6 +1,6 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
-import { CRAFTSPERSON, INVENTION, ResearchProblem, researchCatalogue, researchPatch, trialResearch, readResearchReply, type ResearchDesign, type ResearchRequest } from '@openworld/engine'
+import { CRAFTSPERSON, ResearchProblem, inventionId, researchCatalogue, researchPatch, trialResearch, readResearchReply, type PixelArt, type ResearchDesign, type ResearchRequest } from '@openworld/engine'
 import { untilUp } from './untilUp.ts'
 import { portLink, serviceLink, resolveForSave, type ModderLink } from './modderLink.ts'
 import { FrameEncoder } from './frameDelta.ts'
@@ -53,6 +53,16 @@ function researchHere(owner: Game, who: string): boolean {
   return game === owner && talk?.who === who && !talk.arrest && !!npc && w.hasTag(npc, CRAFTSPERSON) && owner.engine.inReach('hands', w.player, { e: npc.id }, undefined) && !owner.engine.busy(w.player)
 }
 
+/** The page's icons of these kinds as pixel grids (what a variant's icon is edited from); none after a moment. */
+let iconsAnswer: ((icons: Record<string, PixelArt>) => void) | undefined
+function iconsOf(types: string[]): Promise<Record<string, PixelArt> | undefined> {
+  return new Promise((resolve) => {
+    const done = setTimeout(() => ((iconsAnswer = undefined), resolve(undefined)), 1500)
+    iconsAnswer = (icons) => (clearTimeout(done), (iconsAnswer = undefined), resolve(icons))
+    post({ t: 'researchIcons', types })
+  })
+}
+
 async function askResearch(message: string): Promise<void> {
   if (!game || !talk || !researchHere(game, talk.who)) return
   if (researchBusy) {
@@ -71,7 +81,8 @@ async function askResearch(message: string): Promise<void> {
     const catalogue = researchCatalogue(owner.engine)
     const npc = owner.engine.world.get(who)!
     const name = npc.name ?? owner.engine.world.onto.resolve(npc.type).name
-    const said = await link.research({ npc: typeof name === 'string' ? name : name?.en ?? 'Craftsperson', message, history: session.history.slice(-8), catalogue }).catch((err: Error) => {
+    const icons = await iconsOf(catalogue.prototypes)
+    const said = await link.research({ npc: typeof name === 'string' ? name : name?.en ?? 'Craftsperson', message, history: session.history.slice(-8), catalogue: { ...catalogue, ...(icons && Object.keys(icons).length && { icons }) } }).catch((err: Error) => {
       throw Object.assign(err, { unreachable: true })
     })
     const result = readResearchReply(said, catalogue)
@@ -80,7 +91,7 @@ async function askResearch(message: string): Promise<void> {
     session.history = session.history.slice(-8)
     if (result.design) {
       const token = crypto.randomUUID()
-      researchPatch(owner.engine, result.design, `${result.design.prototype}${INVENTION}${token.replaceAll('-', '_')}`)
+      researchPatch(owner.engine, result.design, inventionId(result.design, token))
       session.draft = result.design
       session.token = token
     }
@@ -98,11 +109,11 @@ function confirmResearch(token: string): void {
   // Consume the capability before doing work: double-clicks cannot manufacture twice.
   s.token = undefined
   try {
-    const id = `${design.prototype}${INVENTION}${token.replaceAll('-', '_')}`
+    const id = inventionId(design, token)
     trialResearch(s.owner.engine, s.owner.mods, design, id)
     kept.types.add(id)
     s.draft = undefined
-    sendRecords(); sendRecipes()
+    sendRecords(); sendRecipes(); sendArts()
     post({ t: 'research', who: s.who, made: true })
   } catch (err) {
     s.token = crypto.randomUUID()
@@ -1124,6 +1135,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'researchConfirm':
         confirmResearch(m.token)
+        break
+      case 'researchIcons':
+        iconsAnswer?.(m.icons)
         break
       case 'researchCancel':
         researchSession = undefined

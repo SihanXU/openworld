@@ -1,6 +1,9 @@
 // A research conversation proposes data, never executable patches. The caller supplies the
 // catalogue from the current game, and rechecks it at confirmation: a model is not authority.
-import type { Text } from './types.ts'
+// A proposal is a variant of a kind the world has (its prototype, the player's materials), or a new kind the
+// craftsperson thinks is needed; the service designs that kind (its numbers, makeup, station) and draws both.
+import { artProblems } from './mod.ts'
+import type { PixelArt, Text, TypeDef } from './types.ts'
 
 /** A researched kind is its prototype's child named apart: `<prototype>/invention_<id>`. */
 export const INVENTION = '/invention_'
@@ -12,6 +15,10 @@ export const isPrivateName = (id: string): boolean => id.startsWith(PRIVATE_RULE
 export interface ResearchCatalogue {
   prototypes: string[]
   materials: string[]
+  /** The stations within reach of the one who asks (`hands` is always one): where a new kind may be made. */
+  stations?: string[]
+  /** The prototypes' icons as the game draws them (the page has the pictures): a variant's icon is one of these, edited. */
+  icons?: Record<string, PixelArt>
   /** Planning hints only; confirmation recomputes all costs from the current game. */
   guidance?: {
     materials: { type: string; value: number; available: number }[]
@@ -19,11 +26,30 @@ export interface ResearchCatalogue {
   }
 }
 
-export interface ResearchDesign {
+export interface Ingredient {
+  type: string
+  count: number
+}
+
+/** A variant of a kind the world has: its prototype and the player's materials (the first gives its material), drawn by its own picture. */
+export interface VariantDesign {
+  kind?: 'variant'
   name: Text
   prototype: string
-  ingredients: { type: string; count: number }[]
+  ingredients: Ingredient[]
+  /** Its picture (the service draws it; none: the prototype's). */
+  art?: PixelArt
 }
+
+/** A new kind, as the craftsperson says it (`idea`); the service designs it as a type (`type`, with its picture). */
+export interface NewDesign {
+  kind: 'new'
+  name: Text
+  idea: string
+  type?: TypeDef
+}
+
+export type ResearchDesign = VariantDesign | NewDesign
 
 export interface ResearchReply {
   reply: string
@@ -41,7 +67,7 @@ export interface ResearchRequest {
 export function readResearchRequest(value: unknown): ResearchRequest {
   if (!record(value) || !keys(value, ['npc', 'message', 'history', 'catalogue']) || !words(value.npc, 100) || !words(value.message, 1000)) throw new Error('Invalid research request')
   const c = value.catalogue
-  if (!record(c) || !keys(c, ['prototypes', 'materials', 'guidance'])) throw new Error('Invalid research catalogue')
+  if (!record(c) || !keys(c, ['prototypes', 'materials', 'stations', 'icons', 'guidance'])) throw new Error('Invalid research catalogue')
   const ids = (x: unknown): string[] => {
     if (!Array.isArray(x) || x.length > 80 || !x.every((s) => typeof s === 'string' && s.length <= 160 && /^item\/[a-zA-Z0-9_/-]+$/.test(s))) throw new Error('Invalid research catalogue entries')
     return [...new Set(x as string[])]
@@ -52,6 +78,14 @@ export function readResearchRequest(value: unknown): ResearchRequest {
     return { player: turn.player, npc: turn.npc }
   })
   const catalogue: ResearchCatalogue = { prototypes: ids(c.prototypes), materials: ids(c.materials) }
+  if (c.stations !== undefined) {
+    if (!Array.isArray(c.stations) || c.stations.length > 40 || !c.stations.every((x) => words(x, 60))) throw new Error('Invalid research catalogue entries')
+    catalogue.stations = [...new Set(c.stations as string[])]
+  }
+  if (c.icons !== undefined) {
+    if (!record(c.icons) || Object.keys(c.icons).length > 80) throw new Error('Invalid research catalogue entries')
+    catalogue.icons = Object.fromEntries(Object.entries(c.icons).filter(([k]) => catalogue.prototypes.includes(k)).map(([k, v]) => [k, artOf(v)]))
+  }
   if (c.guidance !== undefined) {
     const g = c.guidance
     const positive = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0 && n <= 1e9
@@ -73,30 +107,65 @@ const record = (x: unknown): x is Record<string, unknown> => !!x && typeof x ===
 const keys = (x: Record<string, unknown>, allowed: string[]) => Object.keys(x).every((k) => allowed.includes(k))
 const words = (x: unknown, max: number): x is string => typeof x === 'string' && x.trim().length > 0 && x.length <= max && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(x)
 
-/** Strictly decode untrusted model output. Render the returned strings as text, never HTML.
- * Instructions hidden in names or conversation have no special meaning here. No property,
- * rule, status, story fact, price, tool call or unlock supplied by the model is accepted.
- * This is only structural validation; affordability, balance and NPC reach are game checks.
+/** Strictly decode untrusted model output (and the service's design built on it). Render the returned strings as text,
+ * never HTML. Instructions hidden in names or conversation have no special meaning here. No rule, status, story fact,
+ * price, tool call or unlock supplied by the model is accepted; a new kind's numbers are bounded by the game
+ * (researchCraft.ts). This is only structural validation; affordability, balance and reach are game checks.
  */
 export function readResearchReply(value: unknown, catalogue: ResearchCatalogue): ResearchReply {
   if (!record(value) || !keys(value, ['reply', 'design']) || !words(value.reply, 1600)) throw new Error('Invalid research reply')
   const reply = value.reply.trim()
   if (value.design === undefined || value.design === null) return { reply }
   const d = value.design
-  if (!record(d) || !keys(d, ['name', 'prototype', 'ingredients'])) throw new Error('Invalid recipe design')
+  if (!record(d) || !keys(d, ['kind', 'name', 'prototype', 'ingredients', 'art', 'idea', 'type'])) throw new Error('Invalid recipe design')
+  const name = nameOf(d.name)
+  if (d.kind === 'new') {
+    if (!words(d.idea, 300)) throw new Error('Say what the new thing is')
+    return { reply, design: { kind: 'new', name, idea: d.idea.trim(), ...(d.type !== undefined && { type: typeOf(d.type, catalogue) }) } }
+  }
+  if (d.kind !== undefined && d.kind !== 'variant') throw new Error('Invalid recipe design')
   if (typeof d.prototype !== 'string' || !catalogue.prototypes.includes(d.prototype)) throw new Error('Choose an available kind of item')
-  let name: Text
-  if (words(d.name, 80)) name = d.name.trim()
-  else if (record(d.name) && keys(d.name, ['en', 'zh']) && words(d.name.en, 80) && words(d.name.zh, 80)) name = { en: d.name.en.trim(), zh: d.name.zh.trim() }
-  else throw new Error('Give the item a short name')
-  if (!Array.isArray(d.ingredients) || d.ingredients.length < 1 || d.ingredients.length > 6) throw new Error('A recipe needs one to six ingredients')
+  return { reply, design: { name, prototype: d.prototype, ingredients: ingredientsOf(d.ingredients, catalogue), ...(d.art !== undefined && { art: artOf(d.art) }) } }
+}
+
+function nameOf(x: unknown): Text {
+  if (words(x, 80)) return x.trim()
+  if (record(x) && keys(x, ['en', 'zh']) && words(x.en, 80) && words(x.zh, 80)) return { en: x.en.trim(), zh: x.zh.trim() }
+  throw new Error('Give the item a short name')
+}
+
+function ingredientsOf(x: unknown, catalogue: ResearchCatalogue): Ingredient[] {
+  if (!Array.isArray(x) || x.length < 1 || x.length > 6) throw new Error('A recipe needs one to six ingredients')
   const seen = new Set<string>()
-  const ingredients = d.ingredients.map((m) => {
+  return x.map((m) => {
     if (!record(m) || !keys(m, ['type', 'count']) || typeof m.type !== 'string' || !catalogue.materials.includes(m.type)) throw new Error('Use materials available in this game')
     if (seen.has(m.type)) throw new Error('List each material once')
     if (typeof m.count !== 'number' || !Number.isSafeInteger(m.count) || m.count < 1 || m.count > 64) throw new Error('Invalid ingredient quantity')
     seen.add(m.type)
     return { type: m.type, count: m.count }
   })
-  return { reply, design: { name, prototype: d.prototype, ingredients } }
+}
+
+function artOf(x: unknown): PixelArt {
+  if (!record(x) || !Array.isArray(x.grid) || !record(x.palette) || artProblems(x as unknown as PixelArt).length) throw new Error('Invalid picture')
+  return { grid: (x.grid as unknown[]).map(String), palette: Object.fromEntries(Object.entries(x.palette).map(([k, v]) => [k, String(v)])) } as PixelArt
+}
+
+/** A new kind's shape: an item's id, a name, tags and numbers, what it is made of (the player's materials), where. */
+function typeOf(x: unknown, catalogue: ResearchCatalogue): TypeDef {
+  if (!record(x) || typeof x.id !== 'string' || !/^item\/[a-z0-9_]+(\/[a-z0-9_]+)+$/.test(x.id) || x.id.length > 160) throw new Error('Invalid new kind')
+  const props = record(x.props) ? x.props : {}
+  if (!Object.values(props).every((v) => typeof v === 'string' || (typeof v === 'number' && Number.isFinite(v)) || typeof v === 'boolean')) throw new Error('Invalid new kind')
+  const tags = Array.isArray(x.tags) && x.tags.every((t) => typeof t === 'string' && t.length <= 60) ? (x.tags as string[]) : []
+  const station = x.station === undefined ? 'hands' : x.station
+  if (!words(station, 60) || (station !== 'hands' && !(catalogue.stations ?? []).includes(station))) throw new Error('Make it where you are')
+  return {
+    id: x.id,
+    name: nameOf(x.name),
+    tags,
+    props: props as TypeDef['props'],
+    makeup: ingredientsOf(x.makeup, catalogue),
+    station,
+    ...(x.art !== undefined && { art: artOf(x.art) }),
+  }
 }

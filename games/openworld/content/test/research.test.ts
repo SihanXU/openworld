@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CRAFTSPERSON, OntologyIndex, ResearchProblem, buildSandbox, madeOf, ModPort, RuleLibrary, researchCatalogue, trialResearch, type ResearchDesign } from '@openworld/engine'
+import { CRAFTSPERSON, OntologyIndex, ResearchProblem, buildSandbox, inventionId, madeOf, ModPort, RuleLibrary, readResearchReply, readResearchRequest, researchCatalogue, trialResearch, type PixelArt, type ResearchDesign, type TypeDef } from '@openworld/engine'
 import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 function world() {
@@ -140,4 +140,118 @@ describe('research in the actual game', () => {
     expect(eng.world.onto.data.types[id]).toBeUndefined()
     expect(eng.lib.types).toHaveLength(0)
   })
+
+  // ---------------------------------------------------------------- a new kind, and a variant drawn as itself
+
+  /** A bag with berries and a log in it, as one who wants a jam carries. */
+  function pantry() {
+    const eng = buildSandbox({ entities: [
+      { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+      ...Array.from({ length: 12 }, (_, i) => ({ key: `berry${i}`, type: 'item/food/berries', inside: 'actor', x: 2, y: 2 })),
+      ...Array.from({ length: 6 }, (_, i) => ({ key: `log${i}`, type: 'item/material/log', inside: 'actor', x: 2, y: 2 })),
+    ], event: {} }, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    return { eng, port: new ModPort(eng) }
+  }
+  const DOT: PixelArt = { grid: Array.from({ length: 16 }, (_, y) => (y >= 5 && y < 11 ? '.....aaaaaa.....' : '................')), palette: { a: '#aa3355' } }
+  const jam = (over: Partial<TypeDef> = {}): TypeDef => ({
+    id: 'item/food/berry_jam', name: { en: 'Berry Jam', zh: '浆果酱' }, tags: ['edible', 'fruit', 'sticky', 'glowing'],
+    props: { food: 50, heal: 2, material: 'plant', value: 999 }, makeup: [{ type: 'item/food/berries', count: 6 }], station: 'hands', art: DOT, ...over,
+  })
+  const newDesign = (type: TypeDef): ResearchDesign => ({ kind: 'new', name: type.name as { en: string; zh: string }, idea: 'a jam of berries, to eat on the road', type })
+
+  it('makes a new kind the craftsperson thought needed, held to what its family has: numbers no higher, no tag it has not, worth what went in', () => {
+    const { eng, port } = pantry()
+    const design = newDesign(jam())
+    const id = inventionId(design, 'jam-1')
+    expect(id).toBe('item/food/invention_jam_1')
+    const made = trialResearch(eng, port, design, id)
+    // no more filling than the most filling food worth no more than six berries
+    const cost = 6 * Number(eng.world.onto.resolve('item/food/berries').props.value)
+    const foods = Object.keys(eng.world.onto.data.types).filter((k) => k.startsWith('item/food/') && k !== id).map((k) => eng.world.onto.resolve(k)).filter((r) => Number(r.props.value) <= cost)
+    expect(made.props?.food).toBe(Math.max(...foods.map((r) => Number(r.props.food) || 0)))
+    expect(made.props?.food).toBeLessThan(50)
+    expect(made.tags).not.toContain('glowing')
+    // worth no more than six berries
+    expect(made.props?.value).toBe(6 * Number(eng.world.onto.resolve('item/food/berries').props.value))
+    expect(made.art).toEqual(DOT)
+    expect(made.researched).toBe(true)
+    expect(eng.controls.count(id)).toBe(1)
+  })
+
+  it('refuses a new kind in a family no craftsperson makes, or with a number its family has none of', () => {
+    for (const [type, code] of [[jam({ id: 'item/key/berry_key' }), 'refused'], [jam({ props: { food: 3, material: 'plant', flight: 9 } }), 'refused']] as const) {
+      const { eng, port } = pantry()
+      const design = newDesign(type)
+      let caught: unknown
+      try {
+        trialResearch(eng, port, design, inventionId(design, 'x'))
+      } catch (err) {
+        caught = err
+      }
+      expect((caught as ResearchProblem).code).toBe(code)
+      expect(eng.lib.types).toHaveLength(0)
+    }
+  })
+
+  it('buys a new kind\'s numbers with what goes into it: two sticks make no dragon-slaying blade', () => {
+    const eng = buildSandbox({ entities: [
+      { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+      ...Array.from({ length: 4 }, (_, i) => ({ key: `stick${i}`, type: 'item/material/stick', inside: 'actor', x: 2, y: 2 })),
+      ...Array.from({ length: 60 }, (_, i) => ({ key: `log${i}`, type: 'item/material/log', inside: 'actor', x: 2, y: 2 })),
+    ], event: {} }, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    const blade = (makeup: TypeDef['makeup']): ResearchDesign => newDesign({ id: 'item/weapon/blade/stick_blade', name: { en: 'Stick Blade', zh: '棍刃' }, tags: ['sharp'], props: { power: 99, material: 'wood' }, makeup, station: 'hands' })
+    let caught: unknown
+    try {
+      trialResearch(eng, new ModPort(eng), blade([{ type: 'item/material/stick', count: 2 }]), 'item/weapon/blade/invention_s')
+    } catch (err) {
+      caught = err
+    }
+    expect((caught as ResearchProblem).code).toBe('cheap')
+    const made = trialResearch(eng, new ModPort(eng), blade([{ type: 'item/material/log', count: 10 }]), 'item/weapon/blade/invention_l')
+    const weapons = Object.keys(eng.world.onto.data.types).filter((k) => k.startsWith('item/weapon/') && !k.includes('invention')).map((k) => eng.world.onto.resolve(k)).filter((r) => !r.tags.includes('quality:legendary') && r.props.relic === undefined)
+    expect(made.props?.power).toBe(Math.max(...weapons.filter((r) => Number(r.props.value) <= 20).map((r) => Number(r.props.power) || 0)))
+    expect(made.props?.power).toBeLessThan(Math.max(...weapons.map((r) => Number(r.props.power) || 0)))
+    // nor, from any amount, a legend's numbers or a relic's name
+    const legend = trialResearch(eng, new ModPort(eng), newDesign({ id: 'item/weapon/blade/log_legend', name: { en: 'Log Legend', zh: '原木传奇' }, props: { power: 99, material: 'wood' }, makeup: [{ type: 'item/material/log', count: 30 }], station: 'hands' }), 'item/weapon/blade/invention_g')
+    expect(legend.props?.power).toBeLessThan(26)
+    expect(() => trialResearch(eng, new ModPort(eng), newDesign({ id: 'item/weapon/blade/fake_bane', name: { en: 'Fake Bane', zh: '假屠龙' }, props: { power: 1, material: 'wood', relic: 'dragonsbane' }, makeup: [{ type: 'item/material/log', count: 10 }], station: 'hands' }), 'item/weapon/blade/invention_r')).toThrow(/relic/)
+  })
+
+  it('says a variant needs a material to begin with, before anything is tried (berries hold no edge)', () => {
+    const { eng, port } = pantry()
+    const design: ResearchDesign = { name: 'Berrybrand Axe', prototype: 'item/weapon/blade/axe', ingredients: [{ type: 'item/food/berries', count: 10 }, { type: 'item/material/log', count: 4 }] }
+    let caught: unknown
+    try {
+      trialResearch(eng, port, design, inventionId(design, 'b'))
+    } catch (err) {
+      caught = err
+    }
+    expect((caught as ResearchProblem).code).toBe('material')
+  })
+
+  it('keeps a variant\'s own picture, and reads a new kind and its picture from a reply (a bad picture is refused)', () => {
+    const { eng, port } = world()
+    const design: ResearchDesign = { name: 'Drawn Pick', prototype: 'item/tool/pickaxe', ingredients: [{ type: 'item/material/stone', count: 14 }, { type: 'item/material/log', count: 3 }], art: DOT }
+    expect(trialResearch(eng, port, design, inventionId(design, 'd')).art).toEqual(DOT)
+    const catalogue = { prototypes: [], materials: ['item/food/berries'], stations: ['hands'] }
+    expect(readResearchReply({ reply: 'A jam!', design: newDesign(jam()) }, catalogue).design).toMatchObject({ kind: 'new', type: { id: 'item/food/berry_jam', art: DOT } })
+    expect(() => readResearchReply({ reply: 'A jam!', design: newDesign(jam({ art: { grid: ['x'], palette: {} } as PixelArt })) }, catalogue)).toThrow(/picture/)
+  })
+
+  it('carries the offered prototypes\' icons to the service (to be edited), and nothing else; a bad icon is refused', () => {
+    const body = (icons: unknown) => ({ npc: 'Garrick', message: 'an iron axe', history: [], catalogue: { prototypes: ['item/weapon/blade/axe'], materials: ['item/material/iron_ingot'], stations: ['hands'], icons } })
+    expect(readResearchRequest(body({ 'item/weapon/blade/axe': DOT, 'item/tool/hoe': DOT })).catalogue.icons).toEqual({ 'item/weapon/blade/axe': DOT })
+    expect(() => readResearchRequest(body({ 'item/weapon/blade/axe': { grid: ['.'], palette: {} } }))).toThrow(/picture/)
+  })
+
+  it('counts a thing made at one\'s feet, as any craft leaves it when the bag has no room', () => {
+    const { eng, port } = world()
+    const design: ResearchDesign = { name: 'Full Pick', prototype: 'item/tool/pickaxe', ingredients: [{ type: 'item/material/stone', count: 14 }, { type: 'item/material/log', count: 3 }] }
+    const id = inventionId(design, 'f')
+    const full = eng.controls.count.bind(eng.controls)
+    // a bag with no room: what is made is set down where one stands
+    eng.controls.count = (type: string) => (type === id ? 0 : full(type))
+    expect(() => trialResearch(eng, port, design, id)).not.toThrow()
+  })
 })
+

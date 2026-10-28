@@ -3,14 +3,14 @@
 import { Engine } from './engine.ts'
 import { ModPort, type Patch } from './mod.ts'
 import { RuleLibrary } from './rules.ts'
-import { INVENTION, readResearchReply, type ResearchCatalogue, type ResearchDesign } from './research.ts'
+import { INVENTION, readResearchReply, type NewDesign, type ResearchCatalogue, type ResearchDesign, type VariantDesign } from './research.ts'
 import type { Recipe, TypeDef } from './types.ts'
 
 /** The tag of a person one may talk a new recipe over with (the content says who: a smith, an innkeeper…). */
 export const CRAFTSPERSON = 'craftsperson'
 
 /** Why a recipe was refused, as a code: the panel says it in the player's language (runtime ui/research.ts). */
-export type ResearchProblemCode = 'locked' | 'identity' | 'cheap' | 'refused' | 'station' | 'needs' | 'unmade'
+export type ResearchProblemCode = 'locked' | 'identity' | 'cheap' | 'material' | 'refused' | 'station' | 'needs' | 'unmade'
 
 export class ResearchProblem extends Error {
   constructor(readonly code: ResearchProblemCode, message: string) {
@@ -19,6 +19,8 @@ export class ResearchProblem extends Error {
 }
 
 const form = /^(item\/(tool|weapon|armor|clothing|food))\//
+/** The families a new kind may join: what a craftsperson makes, never a key, a relic, a document or a valuable. */
+const NEW_FAMILIES = /^item\/(tool|weapon|armor|clothing|food|potion|vessel|light|misc)(\/|$)/
 const text = (x: unknown) => typeof x === 'string' ? x : ''
 
 function price(eng: Engine, type: string): number {
@@ -45,7 +47,7 @@ export function researchCatalogue(eng: Engine): ResearchCatalogue {
     return e && !e.frozenBy && /^(item\/material|item\/food)\//.test(e.type) && price(eng, e.type) > 0 ? [e.type] : []
   }))].slice(0, 80)
   const prototypes = [...new Set([...eng.recipes.values()].map((r) => r.make.type))].filter((id) => reference(eng, id)).slice(0, 80)
-  return { materials, prototypes, guidance: {
+  return { materials, prototypes, stations: ['hands', ...w.stationsNear(w.player)], guidance: {
     materials: materials.map((type) => ({ type, value: price(eng, type), available: eng.controls.count(type) })),
     prototypes: prototypes.map((type) => {
       const r = reference(eng, type)!
@@ -54,30 +56,100 @@ export function researchCatalogue(eng: Engine): ResearchCatalogue {
   } }
 }
 
+/** The id a proposal's kind takes: its prototype's (a variant) or its parent's (a new kind) child, named apart. */
+export function inventionId(design: ResearchDesign, token: string): string {
+  const parent = design.kind === 'new' ? (design.type?.id ?? 'item/misc/x').split('/').slice(0, -1).join('/') : design.prototype
+  return `${parent}${INVENTION}${token.replaceAll('-', '_')}`
+}
+
 /** Prepare a recipe, without changing the world. Recomputed at confirmation, not trusted from a UI. */
 export function researchPatch(eng: Engine, proposed: unknown, id: string): { patch: Patch; design: ResearchDesign } {
   const design = readResearchReply({ reply: 'draft', design: proposed }, researchCatalogue(eng)).design!
+  const type = design.kind === 'new' ? newKind(eng, design, id) : variant(eng, design, id)
+  return { design, patch: { artifacts: [{ kind: 'type', type }], author: 'player-research', note: 'A recipe developed in conversation and trial-crafted by the player.' } }
+}
+
+const nameText = (n: VariantDesign['name']) => (typeof n === 'string' ? { en: n, zh: n } : n)
+const costOf = (eng: Engine, ingredients: { type: string; count: number }[]) => ingredients.reduce((n, m) => n + price(eng, m.type) * m.count, 0)
+
+/** A variant: the prototype's behaviour, skill, station and unlock; the first ingredient's material; the inputs' worth. */
+function variant(eng: Engine, design: VariantDesign, id: string): TypeDef {
   const base = reference(eng, design.prototype)
   if (!base) throw new ResearchProblem('locked', 'This craft is not unlocked')
   if (!id.startsWith(`${design.prototype}${INVENTION}`) || eng.world.onto.data.types[id]) throw new ResearchProblem('identity', 'Invalid invention identity')
-  const cost = design.ingredients.reduce((n, m) => n + price(eng, m.type) * m.count, 0)
+  const cost = costOf(eng, design.ingredients)
   const baseline = base.needs.reduce((n, m) => n + price(eng, m.type) * m.count, 0) / (base.count ?? 1)
   // A new material combination may not cheaply bypass an established production chain.
   if (cost < Math.max(baseline, price(eng, design.prototype))) throw new ResearchProblem('cheap', 'The proposed materials are too cheap for this craft; add materials or choose a simpler item')
   const original = eng.world.onto.resolve(design.prototype)
   const first = eng.world.onto.resolve(design.ingredients[0].type)
-  const type: TypeDef = {
-    id, name: typeof design.name === 'string' ? { en: design.name, zh: design.name } : design.name, researched: true, makeup: design.ingredients,
+  const material = text(first.props.material || original.props.material)
+  if (!material) throw new ResearchProblem('material', 'The first ingredient gives the item its material: begin with wood, stone, metal, cloth or the like')
+  return {
+    id, name: nameText(design.name), researched: true, makeup: design.ingredients,
     station: base.station ?? 'hands', craftLevel: base.level ?? 1,
     ...(base.skill && { craftSkill: base.skill }),
     ...(base.unlockedBy && { unlockedBy: structuredClone(base.unlockedBy) }),
     ...(base.tools && { tools: [...base.tools] }),
     // Cap resale at both the original item's worth and the inputs. Effects are inherited;
     // the model cannot choose arbitrary properties, tags, scripts or story facts.
-    props: { value: Math.min(price(eng, design.prototype), cost), ...(text(first.props.material || original.props.material) && { material: text(first.props.material || original.props.material) }) },
+    props: { value: Math.min(price(eng, design.prototype), cost), material },
+    ...(design.art && { art: design.art }),
   }
-  return { design, patch: { artifacts: [{ kind: 'type', type }], author: 'player-research', note: 'A recipe developed in conversation and trial-crafted by the player.' } }
 }
+
+/**
+ * A new kind (the service designed it from the craftsperson's idea): a child of a family a craftsperson makes, held
+ * to what its family already has: every number no higher than the best of the family worth no more than what goes
+ * into it, no key and no tag the family has not, no more tools in one than one of the family is; worth no more than
+ * what goes into it. What it does
+ * beyond what it inherits is asked act by act, for this save alone.
+ */
+function newKind(eng: Engine, design: NewDesign, id: string): TypeDef {
+  const t = design.type
+  if (!t) throw new ResearchProblem('refused', 'The new thing has not been worked out yet')
+  const onto = eng.world.onto
+  const parent = t.id.split('/').slice(0, -1).join('/')
+  if (!NEW_FAMILIES.test(parent) || !onto.data.types[parent]) throw new ResearchProblem('refused', `A new thing joins a family a craftsperson makes, not ${parent}`)
+  if (!id.startsWith(`${parent}${INVENTION}`) || onto.data.types[id]) throw new ResearchProblem('identity', 'Invalid invention identity')
+  const family = parent.split('/').slice(0, 2).join('/')
+  // its ordinary kin: what the content made, never a legend or a relic (a new thing is measured against the common run)
+  const kin = Object.keys(onto.data.types)
+    .filter((k) => k.startsWith(`${family}/`) && !eng.lib.types.some((l) => l.id === k))
+    .map((k) => onto.resolve(k))
+    .filter((r) => !r.tags.includes('quality:legendary') && r.props.relic === undefined)
+  // what goes into it buys its numbers: none above the best of its family worth no more than that (a stick buys no dragon's bane)
+  const cost = costOf(eng, t.makeup ?? [])
+  const within = kin.filter((r) => typeof r.props.value === 'number' && r.props.value <= cost)
+  if (!within.length) throw new ResearchProblem('cheap', `Nothing of its sort is made from so little (${cost})`)
+  const props: TypeDef['props'] = {}
+  for (const [k, v] of Object.entries(t.props ?? {})) {
+    if (k === 'value') continue
+    // what it is made of: every new thing names it, and the engine holds it to the world's materials (newTypeProblems)
+    if (k === 'material') {
+      props[k] = v
+      continue
+    }
+    const seen = kin.map((r) => r.props[k]).filter((x) => x !== undefined)
+    if (!seen.length) throw new ResearchProblem('refused', `"${k}" is not something a ${family.split('/')[1]} has`)
+    if (typeof v === 'number') {
+      const most = Math.max(0, ...within.map((r) => r.props[k]).filter((x): x is number => typeof x === 'number'))
+      props[k] = Math.min(v, most)
+    } else props[k] = v
+  }
+  const kinTags = new Set(kin.flatMap((r) => r.tags))
+  const tags = (t.tags ?? []).filter((g) => kinTags.has(g))
+  const tools = (tags: string[]) => tags.filter((g) => g.startsWith('tool:')).length
+  if (tools(tags) > Math.max(0, ...kin.map((r) => tools(r.tags)))) throw new ResearchProblem('refused', 'One thing is one tool')
+  props.value = Math.min(typeof t.props?.value === 'number' && t.props.value > 0 ? t.props.value : cost, cost)
+  return {
+    id, name: nameText(design.name), researched: true, makeup: t.makeup, station: t.station ?? 'hands',
+    ...(tags.length && { tags }), props, ...(t.art && { art: t.art }),
+  }
+}
+
+/** Is one of it made: in the bag, or at one's feet when the bag had no room (as any craft leaves it)? */
+const madeOne = (eng: Engine, id: string) => eng.controls.count(id) > 0 || Object.values(eng.world.state.entities).some((e) => e.type === id)
 
 function stationReady(eng: Engine, r: Recipe): boolean {
   return !r.station || r.station === 'hands' || eng.world.stationsNear(eng.world.player).has(r.station)
@@ -101,11 +173,11 @@ export function trialResearch(eng: Engine, port: ModPort, proposed: unknown, id:
   const r = trial.recipes.get(id)!
   if (!stationReady(trial, r)) throw new ResearchProblem('station', 'Stand beside the required crafting station to try this recipe')
   if (!trial.controls.canCraft(r)) throw new ResearchProblem('needs', 'You need the recipe materials, tools and skills before trying it')
-  if (!trial.controls.craft(r) || trial.controls.count(id) < 1) throw new ResearchProblem('unmade', 'The trial did not produce an item; nothing was consumed')
+  if (!trial.controls.craft(r) || !madeOne(trial, id)) throw new ResearchProblem('unmade', 'The trial did not produce an item; nothing was consumed')
   // No await between replay and real submission/craft: inventory and unlocks cannot race.
   const committed = port.submit(undefined, patch)
   if (!committed.ok) throw new ResearchProblem('refused', committed.errors.join('; '))
-  if (!eng.controls.craft(eng.recipes.get(id)!) || eng.controls.count(id) < 1) {
+  if (!eng.controls.craft(eng.recipes.get(id)!) || !madeOne(eng, id)) {
     eng.lib.removeType(id)
     eng.world.onto.removeType(id)
     eng.recipes.delete(id)

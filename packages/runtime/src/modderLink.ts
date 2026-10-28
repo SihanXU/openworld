@@ -45,7 +45,8 @@ export function serviceLink(url: string): ModderLink {
     where: at,
     health: () => get('/health', 2500),
     research: async (body) => {
-      const r = await post('/research', body, 65_000)
+      // a new kind is designed and drawn before the reply: longer than a word
+      const r = await post('/research', body, 240_000)
       const data = await r.json()
       if (!r.ok || data.error) throw new Error(data.error || 'Research unavailable')
       return data as ResearchReply
@@ -82,7 +83,7 @@ export function portLink(port: MessagePort): ModderLink {
   return {
     where: LOCAL_MODDER,
     health: () => call({ op: 'health' }, 2500),
-    research: (body) => call({ op: 'research', body }, 65_000),
+    research: (body) => call({ op: 'research', body }, 240_000),
     resolve: (body) => call({ op: 'resolve', body }, 240_000),
     progress: (request) => call({ op: 'progress', request }, 2000),
     patches: (since) => call({ op: 'patches', since }, 5000),

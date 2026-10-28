@@ -5,7 +5,7 @@
 // harness replays it) is left out.
 
 import type { DraftContext, DraftKind } from './drafts.ts'
-import { isPatch, patchRules, ruleTier, tierOfRequest, type ModRequest, type ModSpec, type Patch, type Rule, type StatusDef, type TypeDef } from '@openworld/engine'
+import { isPatch, patchRules, ruleTier, tierOfRequest, type ModRequest, type ModSpec, type Patch, type PixelArt, type Rule, type StatusDef, type TypeDef } from '@openworld/engine'
 import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '../agent/state.ts'
 import { compactRule } from './tools.ts'
 import { reflectFormat } from '../agent/state.ts'
@@ -451,5 +451,18 @@ export function artUser(t: { id: string; name: { en: string; zh: string } }, wha
     '',
     'Style rules of the pack: a 1-pixel dark outline "k" = #141b1b around the whole shape; 3-4 tones of the object\'s colour plus a highlight; light from the top-left; flat colours, no dithering noise; the object fills about 12-14 px and is centred; transparent background.',
     'Answer with ONLY a JSON object: {"grid": [16 strings of exactly 16 characters], "palette": {"<char>": "#rrggbb", ...}} using at most 7 colours ("." not counted).',
+  ].join('\n')
+}
+
+/** Another make of a thing the pack draws: its icon edited, not drawn anew (an iron axe is the axe in iron's colours). */
+export function artEditUser(t: { id: string; name: { en: string; zh: string } }, what: string, base: PixelArt): string {
+  return [
+    `Edit this 16x16 pixel-art inventory icon into: ${t.name.en} (${t.id}) - ${what}.`,
+    'The icon as the game draws it now ("." is transparent, each other character is one palette colour):',
+    ...base.grid,
+    `palette ${JSON.stringify(base.palette)}`,
+    '',
+    'Keep its shape and outline. Change the colours of the part the new material makes (a head of iron is grey and steely, gold is yellow, a diamond is pale cyan with white glints); change a few pixels of detail only where the new thing calls for it (a wrapped grip, a notch). Keep the dark outline and the light from the top-left.',
+    'Answer with ONLY a JSON object: {"grid": [16 strings of exactly 16 characters], "palette": {"<char>": "#rrggbb", ...}} using at most 8 colours ("." not counted).',
   ].join('\n')
 }

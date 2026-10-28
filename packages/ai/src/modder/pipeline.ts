@@ -17,6 +17,9 @@
 import {
   artProblems,
   PRIVATE_RULES,
+  readResearchRequest,
+  type ResearchReply,
+  type Text,
   buildModSpec,
   buildRequest,
   buildSandbox,
@@ -55,7 +58,7 @@ import type { AgentTask, runAgent } from '../agent/loop.ts'
 import type { TaskSource } from '../agent/outer.ts'
 import type { materializeWorld } from '../service/repo.ts'
 import { mapProblems, personProblems, settleMap, summary, withoutThinking, type DraftContext, type DraftKind, type TraceStep } from './drafts.ts'
-import { ART_SYSTEM, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, againUser, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, reviseDraftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
+import { ART_SYSTEM, artEditUser, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, againUser, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, reviseDraftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
 import { WORLD_TERM, briefOf, coarseTerms, envelope, relatedRules, signatureOf, skillNodeOf, withoutChains, workloadNote, workloadOf, type Signature, type Workload } from './request.ts'
 import { auditOf, keepReflection, nodeSection, nodeStand, profileOf, reflectAfter, troubled, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '../agent/state.ts'
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
@@ -333,10 +336,30 @@ export class Modder {
   }
 
   /** A player conversation proposes bounded recipe data, without tools or library writes. */
-  async research(body: unknown) {
+  async research(body: unknown): Promise<ResearchReply> {
     const why = this.down()
     if (why || !this.backend) throw new Error(why || 'No model connected')
-    return researchConversation(this.backend, body)
+    const request = readResearchRequest(body)
+    const said = await researchConversation(this.backend, request)
+    const d = said.design
+    if (!d) return said
+    const onto = this.opts.library.fullOntology()
+    const en = (t: Text) => (typeof t === 'string' ? t : t.en)
+    // a new kind: designed as an author's new thing is (its numbers, makeup, station, picture), from what the player carries where they stand
+    if (d.kind === 'new') {
+      const had = request.catalogue.materials.map((id) => ({ id, name: en(onto.types[id]?.name ?? id), props: onto.types[id]?.props }))
+      const made = await this.createThing({ intent: `${en(d.name)}: ${d.idea}`, had, stations: (request.catalogue.stations ?? []).filter((x) => x !== 'hands') })
+      const types = (made.patch?.artifacts ?? []).flatMap((a) => (a.kind === 'type' ? [a.type] : []))
+      // one kind, made of what the player carries (a second new kind it would need is not theirs to make)
+      const type = types.find((t) => (t.makeup ?? []).length && t.makeup!.every((m) => request.catalogue.materials.includes(m.type)))
+      if (!type) throw new Error(made.diagnostics.join('; ') || 'the new thing could not be worked out from what you carry')
+      return { ...said, design: { ...d, type } }
+    }
+    // a variant: its prototype's icon edited (an iron axe is the axe in iron's colours), else drawn as itself
+    const material = onto.types[d.ingredients[0].type]?.props?.material
+    const look = `${en(d.name)}: a ${typeof material === 'string' ? `${material} ` : ''}${en(onto.types[d.prototype]?.name ?? d.prototype.split('/').pop()!)}`
+    const art = await this.drawOne(new Meter(this.backend), { id: `${d.prototype}/drawn`, name: d.name }, look, undefined, request.catalogue.icons?.[d.prototype]).catch(() => undefined)
+    return { ...said, design: { ...d, ...(art && { art }) } }
   }
 
   /**
@@ -1178,13 +1201,14 @@ export class Modder {
   }
 
   /** One new thing's picture, as the tier draws it (high: with more thought, and once more if it still has problems). */
-  private async drawOne(model: Model, t: TypeDef, why: string | undefined, wl?: Workload): Promise<PixelArt | undefined> {
+  /** A thing's icon: drawn anew, or (`base`: the icon of what it is another make of) that icon edited. */
+  private async drawOne(model: Model, t: TypeDef, why: string | undefined, wl?: Workload, base?: PixelArt): Promise<PixelArt | undefined> {
     const what = why ?? `a new kind of ${t.id.split('/').slice(-2, -1)[0] ?? 'thing'}`
     const high = wl?.create === 'high'
     const name = typeof t.name === 'object' && t.name ? (t.name as { en: string; zh: string }) : { en: String(t.name ?? t.id), zh: String(t.name ?? t.id) }
     const messages: ChatMessage[] = [
       { role: 'system', content: ART_SYSTEM },
-      { role: 'user', content: artUser({ id: t.id, name }, what) },
+      { role: 'user', content: base ? artEditUser({ id: t.id, name }, what, base) : artUser({ id: t.id, name }, what) },
     ]
     for (let i = 0; i < (high ? 3 : 2); i++) {
       const r = await model.chat(messages, { json: true, temperature: 0.4, purpose: 'art', reasoning: high ? 'high' : 'medium', deadlineMs: SLOW_MS })

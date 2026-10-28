@@ -1,11 +1,11 @@
-import { ResearchWindow } from './ui/research.ts'
+import { ResearchWindow, pixelArtOf } from './ui/research.ts'
 // Boot: Phaser (render) + engine Worker (simulation) + DOM UI, wired by messages. The input
 // (design.md §5.2): four inputs, one verb each — E hands, F take, left click use, right click
 // put — aimed at the pointed tile within two rings (E, F: else the tile in front); Esc menu, I
 // inventory, J journal, M map.
 
 import Phaser from 'phaser'
-import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type Text } from '@openworld/engine'
+import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type PixelArt, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, libraryKey, newWorker, savesKey, worldBase } from './game.ts'
 import { FishingInputLatch, routeFishingEscape, routeSpaceKeyDown, type FromWorker, type Tile, type ToWorker } from './protocol.ts'
 import { assetUrl, cssAssetUrl, registerArt } from './render/assets.ts'
@@ -607,6 +607,19 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     case 'research':
       research.receive(m)
       break
+    case 'researchIcons': {
+      // the icons the worker asked for, as pixel grids (a variant's icon is edited from its prototype's)
+      const icons: Record<string, PixelArt> = {}
+      for (const type of m.types) {
+        const sprite = game().items.forms[type]?.sprite
+        const d = sprite ? catalog().items[sprite] : undefined
+        const c = d && crop(d.img, d.x, d.y, d.w, d.h)
+        const art = c && pixelArtOf(c)
+        if (art) icons[type] = art
+      }
+      send({ t: 'researchIcons', icons })
+      break
+    }
     case 'recipes':
       setLearnedRecipes(m.recipes)
       setLearnedPlaceables(m.recipes)

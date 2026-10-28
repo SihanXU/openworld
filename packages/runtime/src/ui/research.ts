@@ -1,4 +1,4 @@
-import type { Frame, ItemInfo, ResearchDesign } from '@openworld/engine'
+import type { Frame, ItemInfo, PixelArt, ResearchDesign } from '@openworld/engine'
 import type { FromWorker } from '../protocol.ts'
 import { game, ontology } from '../game.ts'
 import { locale, tx } from './common.ts'
@@ -13,12 +13,69 @@ const PROBLEM: Record<NonNullable<Extract<FromWorker, { t: 'research' }>['proble
   unreachable: ['I cannot reach the AI service just now. Check the connection, then tell me your idea again.', '暂时连不上 AI 服务。检查连接后，可以重新说说你的想法。'],
   locked: ['We have not learned that craft yet. Let us try something we already know how to make.', '这门手艺还没学会。先试试我们已经会做的东西吧。'],
   cheap: ['That is too little to make it from. Use more, or think of something simpler.', '这点材料还不够做成它。多用些材料，或者换个简单些的设计吧。'],
+  material: ['It needs a material to begin with: wood, stone, metal, cloth. Berries will not hold an edge.', '得先有一样能当主材的东西：木头、石头、金属、布都行，浆果可撑不起刀刃。'],
   station: ['This needs its workbench nearby before we can try it.', '得在对应的工作台旁边，才能试做这个。'],
   needs: ['You are still short of materials, tools or the skill. Once you have them, we try again.', '还缺材料、工具或相应的手艺。准备齐了，我们再试。'],
   identity: ['This plan will not do as it stands. Try another idea.', '这张图纸还不能用。换个想法，再试一次吧。'],
   refused: ['This plan will not do as it stands. Try another idea.', '这张图纸还不能用。换个想法，再试一次吧。'],
   unmade: ['It did not come out, and nothing was used up. Try another idea.', '没做出来，材料一样没少。换个想法再试吧。'],
   design: ['This plan will not do as it stands. Try another idea.', '这张图纸还不能用。换个想法，再试一次吧。'],
+}
+
+/**
+ * An icon as a 16x16 pixel grid of at most 8 colours (the most used; the rest go to the nearest of them): what a
+ * variant's icon is edited from. Undefined for a picture with too little drawn in it.
+ */
+export function pixelArtOf(src: CanvasImageSource): PixelArt | undefined {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 16
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+  ctx.imageSmoothingEnabled = false
+  ctx.drawImage(src, 0, 0, 16, 16)
+  const px = ctx.getImageData(0, 0, 16, 16).data
+  const hex = (i: number) => `#${[px[i], px[i + 1], px[i + 2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`
+  const count = new Map<string, number>()
+  for (let i = 0; i < px.length; i += 4) if (px[i + 3] >= 128) count.set(hex(i), (count.get(hex(i)) ?? 0) + 1)
+  const kept = [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([c]) => c)
+  if (!kept.length) return undefined
+  const rgb = (c: string) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16))
+  const nearest = (c: string) => {
+    const [r, g, b] = rgb(c)
+    let best = 0
+    let d = Infinity
+    kept.forEach((k, n) => {
+      const [kr, kg, kb] = rgb(k)
+      const e = (kr - r) ** 2 + (kg - g) ** 2 + (kb - b) ** 2
+      if (e < d) (d = e), (best = n)
+    })
+    return best
+  }
+  const CH = 'abcdefgh'
+  const grid = Array.from({ length: 16 }, (_, y) =>
+    Array.from({ length: 16 }, (_, x) => {
+      const i = (y * 16 + x) * 4
+      return px[i + 3] < 128 ? '.' : CH[nearest(hex(i))]
+    }).join(''),
+  )
+  if (grid.join('').replace(/\./g, '').length < 20) return undefined
+  return { grid, palette: Object.fromEntries(kept.map((c, n) => [CH[n], c])) } as PixelArt
+}
+
+/** A drawn picture (16x16 pixels by a palette) as a canvas, for a thing no icon in the pack shows yet. */
+function picture(art: PixelArt): HTMLCanvasElement {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 16
+  canvas.className = 'research-icon'
+  const ctx = canvas.getContext('2d')!
+  art.grid.forEach((row, y) =>
+    [...row].forEach((ch, x) => {
+      const hex = art.palette[ch]
+      if (ch === '.' || !hex) return
+      ctx.fillStyle = hex
+      ctx.fillRect(x, y, 1, 1)
+    }),
+  )
+  return canvas
 }
 
 /** Lives inside the existing NPC dialogue, retaining its portrait and window/focus handling.
@@ -166,16 +223,23 @@ export class ResearchWindow {
       }
       return node
     }
+    // a new kind is its parent's child; a variant, its prototype's
+    const kind = d.kind === 'new' ? (d.type?.id ?? '').split('/').slice(0, -1).join('/') : d.prototype
+    const needs = d.kind === 'new' ? (d.type?.makeup ?? []) : d.ingredients
+    const art = d.kind === 'new' ? d.type?.art : d.art
     const heading = document.createElement('div')
     heading.className = 'research-recipe-head'
     const title = document.createElement('strong')
     title.textContent = tx(d.name)
-    heading.append(icon(d.prototype), title)
+    heading.append(art ? picture(art) : icon(kind), title)
     const subtitle = document.createElement('small')
-    subtitle.textContent = `${name(d.prototype)} · ${say('Main material: ', '主材：')}${name(d.ingredients[0].type)}`
+    subtitle.textContent =
+      d.kind === 'new'
+        ? `${say('Something new', '新东西')} · ${name(kind)} · ${d.type?.station && d.type.station !== 'hands' ? d.type.station : say('by hand', '徒手')}`
+        : `${name(d.prototype)} · ${say('Main material: ', '主材：')}${name(d.ingredients[0].type)}`
     const ingredients = document.createElement('div')
     ingredients.className = 'research-ingredients'
-    for (const m of d.ingredients) {
+    for (const m of needs) {
       const chip = document.createElement('span')
       const label = document.createElement('span')
       label.textContent = `${name(m.type)} × ${m.count}`
