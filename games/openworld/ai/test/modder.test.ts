@@ -1433,6 +1433,16 @@ describe('a new thing an author asks for (the editor, M1)', () => {
     expect(reply.design).toMatchObject({ kind: 'new', type: { makeup: [{ type: 'item/material/log', count: 10 }] } })
   })
 
+  it('a variant begins with a material, whatever order the craftsperson said its ingredients in (wool gives no material)', async () => {
+    const model = new ScriptedModel((messages, opts) => {
+      if (opts.purpose === 'art') return ART
+      return { reply: 'A net, then.', design: { kind: 'variant', name: { en: 'Grass Net', zh: '草网' }, prototype: 'item/tool/axe', ingredients: [{ type: 'item/material/wool', count: 4 }, { type: 'item/material/grass', count: 6 }] } }
+    })
+    const { modder } = setup(model)
+    const reply = await modder.research({ npc: 'Garrick', message: 'a net', history: [], catalogue: { materials: ['item/material/wool', 'item/material/grass'], prototypes: ['item/tool/axe'], stations: ['hands'] } })
+    expect(reply.design).toMatchObject({ ingredients: [{ type: 'item/material/grass', count: 6 }, { type: 'item/material/wool', count: 4 }] })
+  })
+
   it('draws each new thing by its own look: a part is not drawn as what it makes', async () => {
     const PELT = { id: 'item/material/leather/wolf_pelt', name: { en: 'Wolf Pelt', zh: '狼皮' }, tags: ['material'], props: { material: 'leather' }, makeup: [{ type: 'item/material/leather', count: 1 }], station: 'hands' }
     const CLOAK = { id: 'item/clothing/cloak/clasp_wolfcloak', name: { en: 'Iron-Clasp Wolfcloak', zh: '铁扣狼皮斗篷' }, tags: ['clothing'], props: { material: 'leather', slot: 'shoulders' }, makeup: [{ type: PELT.id, count: 2 }], station: 'hands' }

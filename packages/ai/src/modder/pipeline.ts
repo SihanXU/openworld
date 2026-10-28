@@ -347,6 +347,7 @@ export class Modder {
     const d = said.design
     if (!d) return said
     const onto = this.opts.library.fullOntology()
+    const index = new OntologyIndex(onto)
     const en = (t: Text) => (typeof t === 'string' ? t : t.en)
     // a new kind: designed as an author's new thing is (its numbers, makeup, station, picture), from what the player carries where they stand
     if (d.kind === 'new') {
@@ -354,7 +355,6 @@ export class Modder {
       // one kind, made of what the player carries (a second new kind it would need is not theirs to make)
       const theirs = (types: TypeDef[]) => types.find((t) => (t.makeup ?? []).length && t.makeup!.every((m) => request.catalogue.materials.includes(m.type)))
       // held to the game's own bounds for a new kind while it is designed: the craftsperson offers nothing the game refuses
-      const index = new OntologyIndex(onto)
       const authored = (k: string) => k in this.opts.library.ontology.types
       const bounds = (types: TypeDef[]) => {
         const t = theirs(types)
@@ -371,8 +371,11 @@ export class Modder {
       if (!type) throw new Error(made.diagnostics.join('; ') || 'the new thing could not be worked out from what you carry')
       return { ...said, design: { ...d, type } }
     }
-    // a variant: its prototype's icon edited (an iron axe is the axe in iron's colours), else drawn as itself
-    const material = onto.types[d.ingredients[0].type]?.props?.material
+    // a variant: its first ingredient gives its material, so one that is a material goes first (wool is none; grass is)
+    const first = d.ingredients.findIndex((m) => m.type in onto.types && typeof index.resolve(m.type).props.material === 'string')
+    if (first > 0) d.ingredients.unshift(...d.ingredients.splice(first, 1))
+    // its prototype's icon edited (an iron axe is the axe in iron's colours), else drawn as itself
+    const material = index.resolve(d.ingredients[0].type).props.material
     const look = `${en(d.name)}: a ${typeof material === 'string' ? `${material} ` : ''}${en(onto.types[d.prototype]?.name ?? d.prototype.split('/').pop()!)}`
     const art = await this.drawOne(new Meter(this.backend), { id: `${d.prototype}/drawn`, name: d.name }, look, undefined, request.catalogue.icons?.[d.prototype]).catch(() => undefined)
     return { ...said, design: { ...d, ...(art && { art }) } }
