@@ -1,5 +1,6 @@
 // Hesper, the ferrykeeper. Thirty-one years on this crossing; her husband Aldo built the winch
-// and the raft, and drowned the spring after. She stayed. Her hands have stiffened (she cannot
+// and the raft, and drowned the spring after. She stayed, in a widow's dark dress and the shawl he
+// brought her, his watch at her sash (docs/cast/hesper.md). Her hands have stiffened (she cannot
 // splice a rope any more and will not say so plainly), she speaks in few words, and she does
 // not take credit — which is why the peddler Tobin still owes her last autumn's fare.
 
@@ -15,8 +16,8 @@ export const hesper: PersonDef = {
   essential: true,
   name: { en: 'Hesper', zh: '赫斯珀' },
   gender: 'female',
-  look: { parts: { hair: 'hair.bun', face: 'face.weary', outfit: 'outfit.oilcloth', hat: 'hat.kerchief' }, colors: { hair: 'steelgrey', eyes: 'storm', skin: 'tan', 'outfit.1': 'ochre', 'outfit.2': 'umber', 'hat.1': 'slate' } },
-  age: 64,
+  look: { parts: { hair: 'hair.wavy', face: 'face.weary', outfit: 'outfit.shawl', hat: null }, colors: { hair: 'ash', eyes: 'storm', skin: 'fair', 'outfit.1': 'charcoal', 'outfit.2': 'linen' } },
+  age: 52,
   temperament: { personality: 'stubborn', manner: 'plain', social: 'reserved', outlook: 'wary' },
   ties: { 'npc.tobin': 'owes her last autumn\'s fare' },
   // what they sell (fits who they are; content items.ts prices it)
@@ -51,7 +52,7 @@ export const hesper: PersonDef = {
     line('greeting:first', "The storm took the ferry rope in the night. Nobody crosses till it's mended. … There's a spare in my chest. My hands won't splice it any more. Yours might.", '夜里起风暴，把渡绳扯断了。绳子不接上，谁也过不了河。……我箱子里有一根备用的。我这双手接不了绳了，你的手也许行。', { mood: 'neutral', once: true }),
     line('default', 'The rope is in my chest. The winch is on the landing. The rest is hands.', '绳子在我箱子里，绞盘在码头上。剩下的就看你的手了。'),
     line('default', 'Thirty-one years I\'ve kept this crossing. I know every snag between here and the narrows.', '这个渡口我守了三十一年。从这儿到窄口，水底下哪里有暗桩，我都知道。'),
-    line('default', "Aldo built that winch. Built the raft too. The river took him the spring after. I stayed.", '那个绞盘是阿尔多造的，筏子也是他造的。第二年开春，河把他带走了。我留了下来。'),
+    line('default', "Aldo built that winch. Built the raft too. The river took him the spring after. I stayed.", '那个绞盘是阿尔多造的，筏子也是他造的。第二年开春，河把他带走了。我留了下来。', { mood: 'sad' }),
     line('default', 'Aldo and Joss built the footbridge, twenty years back. A rider in white took it apart in one night, and laid the nails on my pier.', '那座小桥是阿尔多和乔斯二十年前一起搭的。有个白衣骑手，一夜之间就把它拆了，还把钉子一根根摆在我的码头上。'),
     line('hour:evening', 'The evenings come sooner every week. I light the lamp earlier and earlier.', '天黑得一个礼拜比一个礼拜早。我点灯也一回比一回早。'),
     line('fact:ch1.crown', 'The rider is down? ...Then I\'ll build the bridge again. Properly, this time.', '那个骑手倒了？……那我就把桥再修起来。这回要修结实些。', { once: true }),
@@ -66,7 +67,7 @@ export const hesper: PersonDef = {
     line('fact:ford.charm', 'Tobin gave you something off that cart? He must have been very hungry. He doesn\'t give things away.', '托宾从车上拿东西给你了？那他是真饿坏了。他那个人，平常什么都舍不得给。', { once: true }),
     line('topic:theft', 'I saw that. Put it back when you are done with it.', '我看见了。用完了放回去。', { mood: 'angry' }),
     line('topic:winch_mended', 'Good hands. Better than mine now.', '手巧。比我现在强。', { mood: 'happy' }),
-    line('given:item/food', 'Eat it yourself. … Fine. Thank you.', '你自己吃吧。……好吧，谢谢。'),
+    line('given:item/food', 'Eat it yourself. … Fine. Thank you.', '你自己吃吧。……好吧，谢谢。', { mood: 'shy' }),
     line('given:item/tool/rope', 'Not to me. To the winch.', '别给我。给绞盘。'),
     line('given', 'What would I do with that?', '我要这个干什么？'),
   ],

@@ -1,11 +1,11 @@
 # Character art: portraits and event CGs
 
 Status: **the direction agreed with the user (2026-10-24); the engine's part and the CG pipeline built, the CGs in
-progress; release 1's cast has portraits of their own (built 2026-10-25, §4c).** How the people of the story get their
+progress; release 1's cast has portraits of their own (built 2026-10-25, §4c; Hesper the seventh, 2026-10-28).** How the people of the story get their
 moments in a pixel world: the key people a portrait of their own in the dialogue box, and an illustration (a CG) where it
 matters, drawn as a shot. The cast: Nessa ([cast/nessa.md](cast/nessa.md)), Lumi ([cast/lumi.md](cast/lumi.md)), Lina
-([cast/lina.md](cast/lina.md)), Sister Ilse ([cast/ilse.md](cast/ilse.md)), Severin ([cast/severin.md](cast/severin.md)) and Tobin
-([cast/tobin.md](cast/tobin.md)).
+([cast/lina.md](cast/lina.md)), Sister Ilse ([cast/ilse.md](cast/ilse.md)), Severin ([cast/severin.md](cast/severin.md)), Tobin
+([cast/tobin.md](cast/tobin.md)) and Hesper ([cast/hesper.md](cast/hesper.md)).
 
 ## 1. What it is, and what it is not
 
@@ -116,7 +116,11 @@ the picture's own cut edge. A CG is where a person is seen large.
 2. **The sprite** drawn on white (knees up, or the whole figure for one who floats; three-quarter, even light), in the chosen colours.
    From a sheet, Qwen-Image-Edit draws it well locally (Lumi's: the sheet as picture 1, twelve tries). A neutral pose — a hand at the
    chest, not a wave — since the pose is kept under every mood. Every own portrait faces right, toward the dialogue's text; one drawn
-   facing left is turned by the cut (`mirror`), its regions written in the turned sprite's pixels.
+   facing left is turned by the cut (`mirror`), its regions written in the turned sprite's pixels. A sheet whose colouring is far
+   from the cast's (Hesper's first, a dark sepia) is drawn again by the online model, not graded: white balance and saturation turn
+   sepia orange, never clean. An age the sprite does not show is made by the model on the face alone (the face's crop at 3x, a soft
+   ellipse), its strength held down (denoise 0.6–0.7, "a few years older, very subtly"): at full strength the mildest words aged
+   Hesper fifteen years and drew her eyes realistically; the picture before is kept (her younger self).
 3. `games/openworld/tools/src/art/portraits/portrait.py cut <person>.json <sprite> <work>`: cut out, the white un-mixed from the
    edges and keyed out of black hair's edge; the person's `keep` boxes (a feather, earrings, the face) untouched.
 4. `portrait.py moods`: each mood the face alone edited, pasted back; then every face's blink and talk, the expression kept, taken
