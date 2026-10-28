@@ -39,6 +39,10 @@
 .banner .lang-btn:hover { background: transparent; opacity: 1; }
 .lang-icon { flex: none; width: 1.125rem; height: 1.125rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.8; }
 .lang-btn [data-lang-label] { min-width: 2em; text-align: left; }
+/* the repository: GitHub's mark, and its stars once GitHub will say (page.js) */
+.banner .gh-btn { display: inline-flex; flex: none; align-items: center; gap: 0.4rem; height: 2.75rem; padding: 0 0.375rem; font-size: 0.85rem; font-weight: 600; color: inherit; opacity: 0.85; border-radius: 6px; font-variant-numeric: tabular-nums; transition: opacity var(--motion-duration-short) var(--motion-ease-standard); }
+.banner .gh-btn:hover { opacity: 1; }
+.gh-icon { width: 1.15rem; height: 1.15rem; fill: currentColor; }
 .nav-toggle svg { width: 1.5rem; height: 1.5rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; image-rendering: auto; }
 .menu-line { transform-box: view-box; transition: none; }
 .menu-line.top { transform-origin: 12px 6px; }
