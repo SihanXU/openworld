@@ -109,6 +109,8 @@ export class MapBuilder {
   gearLevel = 1
   /** Where the map lies on the overworld (MapData.site): its open edges lead there. */
   site?: MapData['site']
+  /** The fact that opens the map's edges (MapData.edgesWhen). */
+  edgesWhen?: string
   /** Ground heights in half levels (MapData.heights): a level is two, a ramp is a column between. */
   heights: number[][] = []
   /** Background, not played yet (MapData.backdrop, docs/continent.md §1). */
@@ -718,6 +720,7 @@ export class MapBuilder {
         fish: this.fish || undefined,
         zone: this.zone,
         site: this.site,
+        ...(this.edgesWhen && { edgesWhen: this.edgesWhen }),
         ...(this.backdrop && { backdrop: true }),
       },
       entities: this.entities,
