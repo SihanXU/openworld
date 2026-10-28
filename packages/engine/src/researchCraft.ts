@@ -76,7 +76,7 @@ export function inventionId(design: ResearchDesign, token: string): string {
 /** Prepare a recipe, without changing the world. Recomputed at confirmation, not trusted from a UI. */
 export function researchPatch(eng: Engine, proposed: unknown, id: string, known?: Iterable<Recipe>): { patch: Patch; design: ResearchDesign } {
   const design = readResearchReply({ reply: 'draft', design: proposed }, researchCatalogue(eng, known)).design!
-  const type = design.kind === 'new' ? newKind(eng, design, id) : variant(eng, design, id, known)
+  const type = design.kind === 'new' ? newKind(eng, design, id, known) : variant(eng, design, id, known)
   return { design, patch: { artifacts: [{ kind: 'type', type }], author: 'player-research', note: 'A recipe developed in conversation and trial-crafted by the player.' } }
 }
 
@@ -117,15 +117,17 @@ function variant(eng: Engine, design: VariantDesign, id: string, known?: Iterabl
  * what goes into it. What it does
  * beyond what it inherits is asked act by act, for this save alone.
  */
-function newKind(eng: Engine, design: NewDesign, id: string): TypeDef {
-  return newKindIn(eng.world.onto, design, id, (k) => !eng.lib.types.some((l) => l.id === k))
+function newKind(eng: Engine, design: NewDesign, id: string, known?: Iterable<Recipe>): TypeDef {
+  const recipes = recipesOf(eng, known)
+  return newKindIn(eng.world.onto, design, id, (k) => !eng.lib.types.some((l) => l.id === k), (k) => recipes.some((r) => r.make.type === k && r.needs.length > 0 && r.needs.every((n) => GOODS.test(n.type))))
 }
 
 /**
  * The same bounds, of an ontology alone (the AI service holds its design to them before it answers, so a craftsperson
- * offers nothing the game then refuses). `authored`: a kind the content made, not a library's.
+ * offers nothing the game then refuses). `authored`: a kind the content made, not a library's; `crafted`: a kind the
+ * game's recipes make (a thing of it is made at that craft, with its tools, skill and unlock: a variant of it).
  */
-export function newKindIn(onto: OntologyIndex, design: NewDesign, id: string, authored: (type: string) => boolean): TypeDef {
+export function newKindIn(onto: OntologyIndex, design: NewDesign, id: string, authored: (type: string) => boolean, crafted: (type: string) => boolean = () => false): TypeDef {
   const t = design.type
   if (!t) throw new ResearchProblem('refused', 'The new thing has not been worked out yet')
   const parent = t.id.split('/').slice(0, -1).join('/')
@@ -134,6 +136,8 @@ export function newKindIn(onto: OntologyIndex, design: NewDesign, id: string, au
   // what it inherits is its parent's: never a legend's, a relic's or another invention's (a child of Dragonsbane is Dragonsbane)
   const kind = onto.resolve(parent)
   if (!authored(parent) || kind.tags.includes('quality:legendary') || kind.props.relic !== undefined) throw new ResearchProblem('refused', `A new thing joins an ordinary family, not ${parent}`)
+  // a kind of a thing the game crafts is made at that craft (its station, tools, skill, unlock): a variant of it, never around it
+  if (crafted(parent)) throw new ResearchProblem('refused', `A ${parent.split('/').pop()} is made at its own craft: make a variant of ${parent}`)
   const family = parent.split('/').slice(0, 2).join('/')
   // its ordinary kin: what the content made, never a legend or a relic (a new thing is measured against the common run)
   const kin = Object.keys(onto.data.types)

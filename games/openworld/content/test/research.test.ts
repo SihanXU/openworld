@@ -258,6 +258,9 @@ describe('research in the actual game', () => {
     const madeOfGoods = new Set(RECIPES.filter((r) => r.needs.every((n) => /^item\/(material|food|gem)\//.test(n.type))).map((r) => r.make.type))
     const bought = RECIPES.filter((r) => r.needs.some((n) => n.type === 'item/misc/thornmark') && !madeOfGoods.has(r.make.type)).map((r) => r.make.type)
     expect(offered.filter((t) => bought.includes(t))).toEqual([])
+    // and a new kind of a thing the anvil makes is no way around the anvil: it is a variant of the dagger
+    const around = { kind: 'new' as const, name: { en: 'Hand Dirk', zh: '手制短剑' }, idea: 'a dagger made by hand', type: { id: `${dagger}/hand_dirk`, name: { en: 'Hand Dirk', zh: '手制短剑' }, props: { material: 'steel' }, makeup: [{ type: 'item/material/steel_bar', count: 2 }], station: 'hands' } }
+    expect(() => trialResearch(eng, new ModPort(eng), around, `${dagger}/invention_h`, RECIPES)).toThrow(/made at its own craft/)
     const made = trialResearch(eng, new ModPort(eng), { kind: 'variant', name: { en: 'Steel Dirk', zh: '钢短剑' }, prototype: dagger, ingredients: [{ type: 'item/material/steel_bar', count: 2 }, { type: 'item/material/plank', count: 1 }] }, `${dagger}/invention_d`, RECIPES)
     expect(made.props?.material).toBe('steel')
     expect(eng.controls.count(made.id)).toBe(1)

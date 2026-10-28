@@ -360,7 +360,7 @@ export class Modder {
         const t = theirs(types)
         if (!t) return [`make it of what the player carries, at most: ${request.catalogue.materials.join(', ')}`]
         try {
-          newKindIn(index, { ...d, type: t }, inventionId({ ...d, type: t }, 'check'), authored)
+          newKindIn(index, { ...d, type: t }, inventionId({ ...d, type: t }, 'check'), authored, (k) => request.catalogue.prototypes.includes(k))
           return []
         } catch (err) {
           return [(err as Error).message]
