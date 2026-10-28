@@ -134,7 +134,8 @@ kind of task. It writes two places only:
 - **Global rules** (the lessons): one sentence that holds for every task of this kind (filed under
   `task:world` for world tasks, `kind:<kind>` for the others) or for engineering in any repository
   (`"scope": "general"`, no terms, shown on every task, an SWE instance's too). A rule about a time
-  limit or about answering fast is never general.
+  limit or about answering fast is never general. One rule is added a reflection at most; the code
+  keeps the first new one and files a timed rule under its kind.
 - **This kind of task** (its node): a world request's node is the event kind, the hole, and the
   host's class and the other role's (the target, else the source), each cut at depth 2 of the type
   tree (`skillNodeOf`; a terrain is `tile`). Being one depth, no node holds another. A task of
@@ -142,6 +143,7 @@ kind of task. It writes two places only:
   - With a skill, the reflection rewrites it whole when the task taught something about its kind
     (at most 40 lines, merged, not appended).
   - Without one, it keeps what the task taught as a note on the node (`memory/pending.json`).
+    Only the reflections read the notes: the design and the agent see the node's skill, not them.
   - A node is worth a skill once it has recurred (`reflect.skillMinRecurrence` tasks, 3 by
     default) and gone wrong (a note on file, or this task sent back or failed). The skill is
     written then, from the notes and this task, and the notes go.
@@ -203,7 +205,9 @@ modder-state/
 ```
 
 **Ablations** come from opening a state with parts left out: no memory, no skills, or the naive
-harness (`SelfState.open(dir, clock, ['memory' | 'skills' | 'harness'])`).
+harness (`SelfState.open(dir, clock, ['memory' | 'skills' | 'harness'])`). A part left out is
+neither read nor written: without skills, no skill falls due and the reflection writes none (one
+on file is left as it was, unread) while the notes stay; without memory, no rule or note is kept.
 
 ### 5.1 A craftsperson's notebook
 
