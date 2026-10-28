@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { HARM, RuleLibrary, buildSandbox, type Engine, type ScenarioEntity } from '@openworld/engine'
 import '@openworld/modules'
-import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
+import { BASE_RULES, SOCIAL_COIN, STORY_RULES, buildOntology } from '../src/index.ts'
 
 // What weighs on one and what puts it right, read from the game's own rules (engine wellbeing.ts, design.md §5.18):
 // nothing in the engine names rain, fire or hunger.
@@ -201,5 +201,33 @@ describe('the circle one keeps', () => {
     const w = eng.world
     const care = (o: string) => eng.wellbeing.careFor(w.get('nell')!, w.get(o)!)
     expect([care('odo'), care('ivo'), care('box') > 0, care('his')]).toEqual([0.8, 0, true, 0])
+  })
+})
+
+describe("the society's way: what cures it, bought", () => {
+  it('a hurt person with coin and nothing at hand buys a healing draught of a merchant and drinks it (the goal names no food)', () => {
+    const coins = Array.from({ length: 40 }, (_, i): ScenarioEntity => ({ key: `c${i}`, type: SOCIAL_COIN, x: 1, y: 2, inside: 'nell' }))
+    const eng = buildSandbox(
+      {
+        terrain: Array.from({ length: 5 }, () => Array(8).fill('grass')),
+        entities: [
+          { key: 'actor', type: 'actor/person/player', x: 7, y: 4 },
+          { key: 'nell', type: 'actor/person/villager', x: 1, y: 2, props: { hp: 6 } },
+          { key: 'mara', type: 'actor/person/merchant', x: 5, y: 2, tags: ['merchant'] },
+          { key: 'draught', type: 'item/potion/healing', x: 5, y: 2, inside: 'mara' },
+          ...coins,
+        ],
+        event: {},
+      },
+      onto,
+      lib(),
+    )
+    const w = eng.world
+    eng.author(() => {
+      for (const [id, x] of [['nell', 1], ['mara', 5]] as const) w.get(id)!.npc = { role: 'villager', schedule: [{ from: 0, to: 24, map: 'sandbox', x, y: 2, activity: 'stand' }] }
+    })
+    let done = false
+    for (let i = 0; i < 400 && !done; i++) (eng.tick(), (done = !w.get('draught') && w.num(w.get('nell')!, 'hp') > 6))
+    expect(done).toBe(true)
   })
 })
