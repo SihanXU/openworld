@@ -643,6 +643,8 @@ export class Engine {
   act(verb: Verb, actorId: Id, target: Ref, opts: { instrument?: Ref | null; params?: Record<string, PropValue>; reach?: number } = {}): Resolution {
     const w = this.world
     const actor = w.get(actorId)
+    // the one at the keys does something: a companion waiting to lead the way waits again
+    if (actorId === w.state.player) this.companions.stir()
     if (!actor || this.busy(actor)) return { defined: false }
     // the held item, unless the caller names another (an item from the bag) or none (talking while holding a tool)
     const instrument = opts.instrument === undefined ? (actor.held ? { e: actor.held } : undefined) : (opts.instrument ?? undefined)
@@ -1567,6 +1569,7 @@ export class Engine {
   /** Player movement request (held direction); respects speed. `walk` (Shift) is slower than the default run. */
   movePlayer(dir: Dir, walk = false): boolean {
     const p = this.world.player
+    this.companions.stir()
     // a lesson at hand that does not let the keys move (docs/prologue.md, the drills)
     if (!this.controls.allows('move')) return false
     if (!this.ready(p.id) || this.pendingTransition) {

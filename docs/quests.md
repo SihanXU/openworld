@@ -164,7 +164,10 @@ Accepting:
 - **Markers**, for the tracked quest's open objectives' targets:
   - on the minimap and the world map;
   - for a target on this map but off the screen, an arrow at the screen's edge;
-  - for one elsewhere, the map's name beside the objective.
+  - for one elsewhere, the map's name beside the objective, and a marker on the way off this map toward it (a
+    door, an edge: the portal graph's next hop; `QuestTarget.way`, left off the world map);
+  - for an objective to get a class of thing (its `carry`) from an area, the nearest one lying loose there (on a
+    map loaded now), not the area's middle; with no target named, the nearest on the taker's map.
 
   The options turn markers and the tracker off.
 - **Over heads**: a yellow **!** means an offer; a **?** means someone to speak to (a talk
@@ -173,6 +176,14 @@ Accepting:
   page shows the main quest under way and, beside it, her **guides** (kind `guide`, `quests/guides.ts`): the
   teaching quests she begins herself, each with her tip; a guide never takes the main quest's place as the one
   tracked by default.
+- **Lumi shows the way** (`companion.ts`, the game's `Ontology.guide`, `content/src/leading.ts`): when the player has
+  done nothing for five seconds (no act, no step; fishing counts as doing) with a quest tracked, she flies to where it
+  goes next (`Quests.lead`: the first open objective with a spot on this map, its nearest; else the way off the map
+  toward one) — just above it within eight cells, else eight cells out toward it, leading on while the player walks
+  after her — and calls out in a bubble (an objective's `nudge`, else the game's lines in turn, with `{thing}`,
+  `{place}`, `{dir}`); the spot breathes a ring of light (`Frame.guide`). She comes back when the player is there,
+  goes another way or she has shown it eight seconds, and shows it again twenty seconds later if they still do
+  nothing. Never in a scene, a question, a lesson or a fight; the options turn it off.
 
 ### 2.6 Rules of thumb
 

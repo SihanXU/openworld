@@ -200,6 +200,8 @@ export interface MenuSend {
   board(who: string, ref: string): void
   /** The AI setting changed (the options' AI section): to the engine. */
   setQuality(q: AiQuality): void
+  /** The player turned a companion's leading the way on or off (Options). */
+  guiding(on: boolean): void
 }
 
 type PickedStack = { slot: number; item: string; count: number; sourceCount: number }
@@ -926,6 +928,7 @@ export class Menu {
       ${volumeRows('o')}
       <div class="opt"><span>${t('optTracker')}</span><button id="oTracker">${prefs.get('tracker') ? t('on') : t('off')}</button></div>
       <div class="opt"><span>${t('optMarkers')}</span><button id="oMarkers">${prefs.get('markers') ? t('on') : t('off')}</button></div>
+      <div class="opt"><span>${t('optGuide')}</span><button id="oGuide">${prefs.get('guide') ? t('on') : t('off')}</button></div>
       ${game().worldFilter ? `<div class="opt"><span>${t('optFilter')}</span><button id="oFilter">${t({ off: 'filterOff', light: 'filterLight', full: 'filterFull' }[prefs.filter()])}</button></div>` : ''}
       <div class="opt-acts"><button id="oSave">${t('save')}</button><button id="oNew">${t('toTitle')}</button>${import.meta.env.DEV ? `<button id="oDev">${t('devConsole')}</button>` : ''}</div>
       ${this.ai.html()}
@@ -939,6 +942,7 @@ export class Menu {
     wireVolumes($('#menuSheet'), () => this.send.levels())
     $('#oTracker').onclick = () => (prefs.set('tracker', !prefs.get('tracker')), this.render())
     $('#oMarkers').onclick = () => (prefs.set('markers', !prefs.get('markers')), this.render())
+    $('#oGuide').onclick = () => (prefs.set('guide', !prefs.get('guide')), this.send.guiding(prefs.get('guide')), this.render())
     document.querySelector<HTMLButtonElement>('#oFilter')?.addEventListener('click', () => {
       const next = { off: 'light', light: 'full', full: 'off' } as const
       prefs.setFilter(next[prefs.filter()])

@@ -140,14 +140,16 @@ describe('the journal follows one quest', () => {
     const w = eng.world
     ticks(eng, 5)
     expect(eng.quests.tracked()?.id).toBe('quest.rescue')
-    expect(eng.quests.targets().every((t) => ['hollow', 'barrow', 'ossuary', 'sanctum'].includes(t.map))).toBe(true)
+    expect(eng.quests.targets().every((t) => ['hollow', 'barrow', 'ossuary', 'sanctum'].includes(t.map) || (t.way && t.map === 'meadow'))).toBe(true)
+    // and, from the village, the way off it toward them (the arrow at the screen's edge)
+    expect(eng.quests.targets().some((t) => t.way && t.map === 'meadow')).toBe(true)
     begin(eng, 't_letter')
     ticks(eng, 2)
     // a side quest begun does not take the place of the main one
     expect(eng.quests.tracked()?.id).toBe('quest.rescue')
     eng.controls.track('quest.t_letter')
     expect(eng.quests.tracked()?.id).toBe('quest.t_letter')
-    expect(eng.quests.targets().map((t) => t.objective).sort()).toEqual(['carry', 'tam'])
+    expect(eng.quests.targets().filter((t) => !t.way).map((t) => t.objective).sort()).toEqual(['carry', 'tam'])
     expect(JSON.stringify(eng.story.objective())).toContain('测试信')
     // a talk objective: '?' over the one to speak to; spoken to, they say their line and it is done
     expect(eng.quests.mark('npc.tam')).toBe('?')

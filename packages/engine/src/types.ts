@@ -268,6 +268,8 @@ export interface Ontology {
   protection?: ProtectionDef
   /** What a felled creature's kind leaves its feller beyond the rules' spoils: its own piece's pity and words (the loot module). */
   loot?: LootParams
+  /** A companion leading the way when its leader stands idle (companion.ts): when, and its words; none, it never leads. */
+  guide?: GuideParams
   /** The verbs of the talk panel (docs/npc-sandbox.md §2.9): each offered when its condition holds (host: the one spoken to; actor: the speaker). */
   talk?: TalkVerb[]
   statuses: Record<string, StatusDef>
@@ -887,6 +889,29 @@ export interface LootParams {
   pity?: number
   /** What the one at the keys is told when a piece comes to them (`{item}`: its name); none, only the piece's pickup is shown. */
   found?: Text
+}
+
+/**
+ * A companion leading the way (companion.ts): when its leader has done nothing for `after` ticks with a quest tracked, it
+ * flies to where the quest goes next — over the thing to get or the one to see, or out ahead toward one farther off, up
+ * to the way off the map toward another — and says so. Its lines are the game's, one picked in turn: `{thing}` what or
+ * whom it points at, `{place}` the map the way leads to, `{dir}` which way (from `dirs`). A line missing, it only flies.
+ */
+export interface GuideParams {
+  /** Ticks of the leader doing nothing before it leads (default 50). */
+  after?: number
+  /** Ticks it shows a spot before it comes back (default 80). */
+  show?: number
+  /** Ticks it rests after showing before it leads again while the leader still does nothing (default 200). */
+  every?: number
+  /** Over what is near: "{thing}: here!" */
+  here?: Text[]
+  /** Out ahead toward what is farther off on this map: "This way: {thing}, {dir}." */
+  way?: Text[]
+  /** At the way off this map, or out ahead toward it: "{place} is this way!" */
+  exit?: Text[]
+  /** Which way, the eight of the compass (`n`, `ne`, `e` … `nw`; north is up). */
+  dirs?: Record<string, Text>
 }
 
 /** The numbers of the people's social life (data, docs/npc-sandbox.md): the engine holds the mechanisms. */
@@ -2142,7 +2167,7 @@ export interface Rule {
 
 export type FxEvent =
   | { t: 'vfx'; fx: string; map: string; x: number; y: number; angle?: number; span?: number; /** who made it (a blow's swing, a bolt loosed): drawn wielding it wherever they are drawn now */ who?: Id }
-  | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean; /** said to another (one person telling another): heard in passing, not a talk with the one at the keys */ to?: Id }
+  | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean; /** said to another (one person telling another): heard in passing, not a talk with the one at the keys */ to?: Id; /** called out (a companion leading the way): a bubble, never the talk's box */ aside?: boolean }
   | { t: 'emote'; who: Id; mood: Mood }
   | { t: 'fade'; dir: 'out' | 'in' }
   | { t: 'card'; text: Text; art?: string }
