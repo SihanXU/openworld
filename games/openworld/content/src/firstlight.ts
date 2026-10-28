@@ -30,3 +30,5 @@ export const PART_ONE_MAPS = ['waystation', 'waystation.chapel', 'waystation.hos
 export const PROLOGUE_LAYOUT = 'content.prologue-maps-v1'
 /** The maps of the way down redrawn then (the tutorial's Clearing is in no save). */
 export const PROLOGUE_MAPS = ['summit', 'foot', 'ford']
+/** Set once a save has stepped off the walls of the Chapel of the First Dawn as it was redrawn (2026-10-28). */
+export const CHAPEL_LAYOUT = 'content.dawn-chapel-v1'

@@ -23,6 +23,8 @@ export interface Dress {
   solids?: Solid[]
   voids?: Solid[]
   ornaments?: Ornament[]
+  /** What its top is drawn in (default the ceiling's dark): a ruined wall's broken top is its own stone. */
+  top?: string
 }
 
 export interface ShellOpts {
@@ -71,7 +73,7 @@ export function shell(o: ShellOpts): Model {
     const x0 = f.x0 * S
     const x1 = (f.x1 + 1) * S
     const y1 = (f.y + 1) * S
-    solids.push({ ...box(x0, f.y * S, 0, x1, y1, h, o.wall), side: o.wall, mat: 'ceiling' })
+    solids.push({ ...box(x0, f.y * S, 0, x1, y1, h, o.wall), side: o.wall, mat: d.top ?? 'ceiling' })
     // the cornice along its top and the skirting along its foot, a little proud of the face
     solids.push(box(x0, y1 - 3, h - 4, x1, y1 + 2, h, trim), box(x0, y1 - 2, 0, x1, y1 + 2, 5, trim))
     solids.push(...(d.solids ?? []))
