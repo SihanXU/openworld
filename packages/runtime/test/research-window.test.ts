@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ResearchWindow } from '../src/ui/research.ts'
+import { ResearchWindow, fitIcon, missingLine } from '../src/ui/research.ts'
 
 vi.mock('../src/game.ts', () => ({ game: () => ({ items: { forms: {} } }), ontology: () => ({ types: {} }) }))
 vi.mock('../src/ui/common.ts', () => {
@@ -119,5 +119,23 @@ describe('a craftsperson thinking holds no one up', () => {
     const drawn = { ...design, art: { grid: [], palette: {} } }
     w.sketched({ t: 'researchSketched', who: 'npc.garrick', token: 't1', design: drawn })
     expect((w as unknown as { kept: Map<string, unknown> }).kept.get('npc.garrick')).toMatchObject({ design: drawn, sketching: false })
+  })
+})
+
+describe('a prototype\'s icon as the artist is given it', () => {
+  it('is never stretched: a narrow sprite keeps its shape, centred, and a tall one is scaled down whole', () => {
+    expect(fitIcon(16, 16)).toEqual({ x: 0, y: 0, w: 16, h: 16 })
+    expect(fitIcon(7, 14)).toEqual({ x: 4, y: 1, w: 7, h: 14 })
+    // the spear (7x21): 5x16, not 16x16
+    expect(fitIcon(7, 21)).toEqual({ x: 5, y: 0, w: 5, h: 16 })
+    expect(fitIcon(32, 16)).toEqual({ x: 0, y: 4, w: 16, h: 8 })
+  })
+})
+
+describe('what a trial lacks, said plainly', () => {
+  it('names the goods, the tool to carry and the skill; nothing known, the general line', () => {
+    expect(missingLine({ needs: [{ type: 'item/material/iron_ingot', count: 1 }], tools: ['hammer'] })).toBe('You still need: 1 iron ingot, a hammer to carry. Once you have everything, we try again.')
+    expect(missingLine({})).toBeUndefined()
+    expect(missingLine(undefined)).toBeUndefined()
   })
 })

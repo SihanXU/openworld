@@ -284,6 +284,36 @@ describe('research in the actual game', () => {
     expect(eng.controls.count(made.id)).toBe(1)
   })
 
+  it('says the tool an anvil wants when it is not carried (a smith\'s hammer), and tells the craftsperson which tools are', () => {
+    const anvilWorld = (hammer: boolean) => buildSandbox({ entities: [
+      { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+      { key: 'anvil', type: 'fixture/furniture/table', x: 3, y: 2, tags: ['station:anvil'] },
+      ...(hammer ? [{ key: 'hammer', type: 'item/tool/smith_hammer', inside: 'actor', x: 2, y: 2 }] : []),
+      ...Array.from({ length: 4 }, (_, i) => ({ key: `bar${i}`, type: 'item/material/steel_bar', inside: 'actor', x: 2, y: 2 })),
+      ...Array.from({ length: 4 }, (_, i) => ({ key: `plank${i}`, type: 'item/material/plank', inside: 'actor', x: 2, y: 2 })),
+    ], event: {} }, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    const dagger = 'item/weapon/blade/dagger'
+    const dirk = { kind: 'variant' as const, name: { en: 'Steel Dirk', zh: '钢短剑' }, prototype: dagger, ingredients: [{ type: 'item/material/steel_bar', count: 2 }, { type: 'item/material/plank', count: 1 }] }
+    const eng = anvilWorld(false)
+    const catalogue = researchCatalogue(eng, RECIPES)
+    expect(catalogue.tools).toEqual([])
+    expect(catalogue.guidance?.prototypes.find((p) => p.type === dagger)?.tools).toEqual(['hammer'])
+    expect(catalogue.makes?.find((m) => m.type === dagger)?.tools).toEqual(['hammer'])
+    expect(readResearchRequest({ npc: 'Garrick', message: 'x', history: [], catalogue }).catalogue.makes?.find((m) => m.type === dagger)?.tools).toEqual(['hammer'])
+    try {
+      trialResearch(eng, new ModPort(eng), dirk, `${dagger}/invention_n`, RECIPES)
+      expect.unreachable()
+    } catch (err) {
+      expect(err).toBeInstanceOf(ResearchProblem)
+      expect((err as ResearchProblem).code).toBe('needs')
+      expect((err as ResearchProblem).missing).toEqual({ tools: ['hammer'] })
+    }
+    expect(eng.controls.count('item/material/steel_bar')).toBe(4)
+    const engH = anvilWorld(true)
+    expect(researchCatalogue(engH, RECIPES).tools).toContain('hammer')
+    expect(engH.controls.count(trialResearch(engH, new ModPort(engH), dirk, `${dagger}/invention_h`, RECIPES).id)).toBe(1)
+  })
+
   it('tells the craftsperson what the player makes already (a torch of a stick and grass), never what is bought for coin; another make of it is its variant', () => {
     const eng = buildSandbox({ entities: [
       { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },

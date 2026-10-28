@@ -21,13 +21,15 @@ export interface ResearchCatalogue {
   /** Every kind an ordinary craft of the game makes, open to the player or not: no new kind is one's child. */
   crafted?: string[]
   /** What the player can make already (the crafting panel's offer): asked for as it is, nothing is new. */
-  makes?: { type: string; needs: { type: string; count: number }[]; station: string }[]
+  makes?: { type: string; needs: { type: string; count: number }[]; station: string; tools?: string[] }[]
+  /** The tools the player carries, by their tags (`hammer` for `tool:hammer`): a craft that needs one is made only with it. */
+  tools?: string[]
   /** The prototypes' icons as the game draws them (the page has the pictures): a variant's icon is one of these, edited. */
   icons?: Record<string, PixelArt>
   /** Planning hints only; confirmation recomputes all costs from the current game. */
   guidance?: {
     materials: { type: string; value: number; available: number }[]
-    prototypes: { type: string; minCost: number; station: string }[]
+    prototypes: { type: string; minCost: number; station: string; tools?: string[] }[]
   }
 }
 
@@ -94,7 +96,12 @@ export function readResearchOutcome(value: unknown): ResearchOutcome {
 export function readResearchRequest(value: unknown): ResearchRequest {
   if (!record(value) || !keys(value, ['npc', 'message', 'history', 'catalogue', 'draft']) || !words(value.npc, 100) || !words(value.message, 1000)) throw new Error('Invalid research request')
   const c = value.catalogue
-  if (!record(c) || !keys(c, ['prototypes', 'materials', 'stations', 'crafted', 'makes', 'icons', 'guidance'])) throw new Error('Invalid research catalogue')
+  if (!record(c) || !keys(c, ['prototypes', 'materials', 'stations', 'tools', 'crafted', 'makes', 'icons', 'guidance'])) throw new Error('Invalid research catalogue')
+  // a tool's tag (`hammer`): plain words, read into the craftsperson's system prompt
+  const toolTags = (x: unknown): string[] => {
+    if (!Array.isArray(x) || x.length > 40 || !x.every((t) => typeof t === 'string' && /^[a-z][a-z0-9_-]{0,40}$/.test(t))) throw new Error('Invalid research catalogue entries')
+    return [...new Set(x as string[])]
+  }
   const ids = (x: unknown): string[] => {
     if (!Array.isArray(x) || x.length > 80 || !x.every((s) => typeof s === 'string' && s.length <= 160 && /^item\/[a-zA-Z0-9_/-]+$/.test(s))) throw new Error('Invalid research catalogue entries')
     return [...new Set(x as string[])]
@@ -109,6 +116,7 @@ export function readResearchRequest(value: unknown): ResearchRequest {
     if (!Array.isArray(c.stations) || c.stations.length > 40 || !c.stations.every((x) => words(x, 60))) throw new Error('Invalid research catalogue entries')
     catalogue.stations = [...new Set(c.stations as string[])]
   }
+  if (c.tools !== undefined) catalogue.tools = toolTags(c.tools)
   if (c.crafted !== undefined) {
     if (!Array.isArray(c.crafted) || c.crafted.length > 400 || !c.crafted.every((s) => typeof s === 'string' && s.length <= 160 && /^item\/[a-zA-Z0-9_/-]+$/.test(s))) throw new Error('Invalid research catalogue entries')
     catalogue.crafted = [...new Set(c.crafted as string[])]
@@ -118,12 +126,12 @@ export function readResearchRequest(value: unknown): ResearchRequest {
     const count = (x: unknown) => typeof x === 'number' && Number.isSafeInteger(x) && x >= 1 && x <= 999
     if (!Array.isArray(c.makes) || c.makes.length > 160) throw new Error('Invalid research catalogue entries')
     catalogue.makes = c.makes.map((m) => {
-      if (!record(m) || !keys(m, ['type', 'needs', 'station']) || !id(m.type) || !words(m.station, 60) || !Array.isArray(m.needs) || m.needs.length < 1 || m.needs.length > 8) throw new Error('Invalid research catalogue entries')
+      if (!record(m) || !keys(m, ['type', 'needs', 'station', 'tools']) || !id(m.type) || !words(m.station, 60) || !Array.isArray(m.needs) || m.needs.length < 1 || m.needs.length > 8) throw new Error('Invalid research catalogue entries')
       const needs = m.needs.map((n) => {
         if (!record(n) || !keys(n, ['type', 'count']) || !id(n.type) || !count(n.count)) throw new Error('Invalid research catalogue entries')
         return { type: n.type, count: n.count as number }
       })
-      return { type: m.type, needs, station: m.station as string }
+      return { type: m.type, needs, station: m.station as string, ...(m.tools !== undefined && { tools: toolTags(m.tools) }) }
     })
   }
   if (c.icons !== undefined) {
@@ -139,8 +147,8 @@ export function readResearchRequest(value: unknown): ResearchRequest {
       return { type: m.type, value: m.value, available: m.available }
     })
     const prototypes = g.prototypes.map((p) => {
-      if (!record(p) || !keys(p, ['type', 'minCost', 'station']) || typeof p.type !== 'string' || !catalogue.prototypes.includes(p.type) || !positive(p.minCost) || !words(p.station, 100)) throw new Error('Invalid craft guidance')
-      return { type: p.type, minCost: p.minCost, station: p.station }
+      if (!record(p) || !keys(p, ['type', 'minCost', 'station', 'tools']) || typeof p.type !== 'string' || !catalogue.prototypes.includes(p.type) || !positive(p.minCost) || !words(p.station, 100)) throw new Error('Invalid craft guidance')
+      return { type: p.type, minCost: p.minCost, station: p.station, ...(p.tools !== undefined && { tools: toolTags(p.tools) }) }
     })
     catalogue.guidance = { materials, prototypes }
   }

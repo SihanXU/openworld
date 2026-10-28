@@ -155,7 +155,7 @@ function confirmResearch(token: string): void {
   } catch (err) {
     researchCame(s, 'refused', err instanceof ResearchProblem ? err.code : 'design')
     s.token = crypto.randomUUID()
-    post({ t: 'research', who: s.who, problem: err instanceof ResearchProblem ? err.code : 'design', design, token: s.token })
+    post({ t: 'research', who: s.who, problem: err instanceof ResearchProblem ? err.code : 'design', ...(err instanceof ResearchProblem && err.missing && { missing: err.missing }), design, token: s.token })
   }
 }
 let trade: string | undefined

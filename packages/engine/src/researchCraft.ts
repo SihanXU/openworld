@@ -13,10 +13,37 @@ export const CRAFTSPERSON = 'craftsperson'
 /** Why a recipe was refused, as a code: the panel says it in the player's language (runtime ui/research.ts). */
 export type ResearchProblemCode = 'locked' | 'identity' | 'cheap' | 'material' | 'refused' | 'station' | 'needs' | 'unmade'
 
+/** What a trial still lacks: goods (how many more), tools to carry (their tags, `hammer`), a skill. */
+export interface ResearchMissing {
+  needs?: { type: string; count: number }[]
+  tools?: string[]
+  skill?: string
+}
+
 export class ResearchProblem extends Error {
-  constructor(readonly code: ResearchProblemCode, message: string) {
+  constructor(readonly code: ResearchProblemCode, message: string, readonly missing?: ResearchMissing) {
     super(message)
   }
+}
+
+/** The tools a player carries, as their tags say (`tool:hammer` → `hammer`). */
+function toolsCarried(eng: Engine): Set<string> {
+  const w = eng.world
+  const out = new Set<string>()
+  for (const id of [w.player.held, ...(w.player.contents ?? [])]) {
+    const e = w.get(id)
+    if (e && !e.frozenBy) for (const t of [...(e.tags ?? []), ...w.onto.resolve(e.type).tags]) if (t.startsWith('tool:')) out.add(t.slice(5))
+  }
+  return out
+}
+
+/** What the player lacks for a recipe, as canCraft judges it (the story's unlock is `locked`, not a lack). */
+function lacking(eng: Engine, r: Recipe): ResearchMissing {
+  const w = eng.world
+  const tools = toolsCarried(eng)
+  const needs = r.needs.flatMap((n) => { const have = eng.controls.count(n.type); return have < n.count ? [{ type: n.type, count: n.count - have }] : [] })
+  const lackTools = (r.tools ?? []).filter((t) => !tools.has(t.replace(/^tool:/, ''))).map((t) => t.replace(/^tool:/, ''))
+  return { ...(needs.length && { needs }), ...(lackTools.length && { tools: lackTools }), ...(r.skill && !w.hasTag(w.player, `skill:${r.skill}`) && { skill: r.skill }) }
 }
 
 const form = /^(item\/(tool|weapon|armor|clothing|food|light))\//
@@ -60,7 +87,7 @@ function makesOf(eng: Engine, known?: Iterable<Recipe>): NonNullable<ResearchCat
   const seen = new Set<string>()
   return recipesOf(eng, known).filter((r) => /^item\//.test(r.make.type) && open(eng, r) && r.needs.length > 0 && !r.make.props && !r.make.tags && !r.bonus &&
     r.needs.every((n) => onto.data.types[n.type] && !onto.resolve(n.type).tags.includes('currency')))
-    .map((r) => ({ type: r.make.type, needs: r.needs.map((n) => ({ type: n.type, count: n.count })), station: r.station ?? 'hands' }))
+    .map((r) => ({ type: r.make.type, needs: r.needs.map((n) => ({ type: n.type, count: n.count })), station: r.station ?? 'hands', ...(r.tools?.length && { tools: r.tools.map((t) => t.replace(/^tool:/, '')) }) }))
     .filter((m) => !seen.has(JSON.stringify(m)) && !!seen.add(JSON.stringify(m)))
     .slice(0, 160)
 }
@@ -75,11 +102,11 @@ export function researchCatalogue(eng: Engine, known?: Iterable<Recipe>): Resear
   const prototypes = [...new Set(recipesOf(eng, known).map((r) => r.make.type))].filter((id) => reference(eng, id, known)).slice(0, 80)
   // every kind an ordinary craft makes, open to the player or not: a new kind is never one's child (it is made at that craft)
   const crafted = [...new Set(recipesOf(eng, known).filter(ordinary).map((r) => r.make.type))].filter((t) => /^item\//.test(t)).slice(0, 400)
-  return { materials, prototypes, stations: ['hands', ...w.stationsNear(w.player)], crafted, makes: makesOf(eng, known), guidance: {
+  return { materials, prototypes, stations: ['hands', ...w.stationsNear(w.player)], tools: [...toolsCarried(eng)].slice(0, 40), crafted, makes: makesOf(eng, known), guidance: {
     materials: materials.map((type) => ({ type, value: price(eng, type), available: eng.controls.count(type) })),
     prototypes: prototypes.map((type) => {
       const r = reference(eng, type, known)!
-      return { type, minCost: Math.max(price(eng, type), r.needs.reduce((n, m) => n + price(eng, m.type) * m.count, 0) / (r.count ?? 1)), station: r.station ?? 'hands' }
+      return { type, minCost: Math.max(price(eng, type), r.needs.reduce((n, m) => n + price(eng, m.type) * m.count, 0) / (r.count ?? 1)), station: r.station ?? 'hands', ...(r.tools?.length && { tools: r.tools.map((t) => t.replace(/^tool:/, '')) }) }
     }),
   } }
 }
@@ -229,7 +256,10 @@ export function trialResearch(eng: Engine, port: ModPort, proposed: unknown, id:
   if (!checked.ok) throw new ResearchProblem('refused', checked.errors.join('; '))
   const r = trial.recipes.get(id)!
   if (!stationReady(trial, r)) throw new ResearchProblem('station', 'Stand beside the required crafting station to try this recipe')
-  if (!trial.controls.canCraft(r)) throw new ResearchProblem('needs', 'You need the recipe materials, tools and skills before trying it')
+  if (!trial.controls.canCraft(r)) {
+    const missing = lacking(trial, r)
+    throw new ResearchProblem('needs', `You need the recipe materials, tools and skills before trying it${Object.keys(missing).length ? `: ${JSON.stringify(missing)}` : ''}`, missing)
+  }
   if (!trial.controls.craft(r) || !madeOne(trial, id)) throw new ResearchProblem('unmade', 'The trial did not produce an item; nothing was consumed')
   // No await between replay and real submission/craft: inventory and unlocks cannot race.
   const committed = port.submit(undefined, patch)

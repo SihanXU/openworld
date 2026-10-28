@@ -1,6 +1,6 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { ResearchDesign, ResearchProblemCode, AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SceneCmd, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
+import type { ResearchDesign, ResearchMissing, ResearchProblemCode, AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SceneCmd, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
 import type { TransferProgress } from './transferQueue.ts'
 import type { SaveWithQuestions } from './saves.ts'
 
@@ -234,7 +234,7 @@ export type FromWorker =
   /** A talk over a new recipe: the craftsperson's words (`reply`), a draft, or why not (`problem`: the panel says it in the player's language). */
   /** The icons of these kinds, please (the page has the pictures; a research request carries them). */
   | { t: 'researchIcons'; types: string[] }
-  | { t: 'research'; who: string; reply?: Text; design?: ResearchDesign; token?: string; problem?: ResearchProblemCode | 'away' | 'busy' | 'off' | 'offline' | 'unreachable' | 'design'; made?: boolean; sketching?: boolean }
+  | { t: 'research'; who: string; reply?: Text; design?: ResearchDesign; token?: string; problem?: ResearchProblemCode | 'away' | 'busy' | 'off' | 'offline' | 'unreachable' | 'design'; missing?: ResearchMissing; made?: boolean; sketching?: boolean }
   /** The picture of the draft on the table is drawn (or could not be: the draft as it was). */
   | { t: 'researchSketched'; who: string; token?: string; design: ResearchDesign }
   /** The modder is making things the world does not have yet; the act waits for them. */

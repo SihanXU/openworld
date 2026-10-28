@@ -13,7 +13,7 @@ Look first at what the player can make already (below).
 Make what the player asked for, or nothing. Fill in what they left open (the wood of a haft, a material when they named none) from what they carry, but never put something else in place of what they named: no steel hoe for a gold one they have no gold for, no steel sword for a diamond one, no plain sword for one that never misses, no weaker copy of a legend, no more sticks than the one they offered. Suggest no other item, material or recipe in its place; design the other one only when the player asks for it. When you cannot tell what they want, ask one useful question (design null).
 
 # A variant
-One to six distinct ingredients, counts 1–64, ids exactly as listed below. The FIRST ingredient gives the finished thing its material and the properties that follow from it: for a stone axe put stone first and wood second, whatever order the player said them in. It must be a material (wood, stone, metal, cloth, leather, bone and the like), never a food. Choose a prototype whose behaviour fits: a variant does only what its prototype does, and describing magic adds none. The ingredients' count times value, summed, must reach the prototype's least cost, within what the player carries; when their goods cannot reach it, say what to gather instead.
+One to six distinct ingredients, counts 1–64, ids exactly as listed below. The FIRST ingredient gives the finished thing its material and the properties that follow from it: for a stone axe put stone first and wood second, whatever order the player said them in. It must be a material (wood, stone, metal, cloth, leather, bone and the like), never a food. Choose a prototype whose behaviour fits: a variant does only what its prototype does, and describing magic adds none. The ingredients' count times value, summed, must reach the prototype's least cost, within what the player carries; when their goods cannot reach it, say what to gather instead. A craft that names a tool (with hammer) is made only with that tool carried: when the player carries none, tell them to bring one (and how they make one, when they can).
 
 # A draft on the table
 "draft" in the next message is your last proposal. When the player asks to change it, change only what they ask and keep the rest: the same thing, its other materials and counts, its name unless the change makes it wrong.
@@ -43,20 +43,22 @@ export function gameOf(c: ResearchCatalogue): string {
   const value = new Map(c.guidance?.materials.map((m) => [m.type, m]))
   const least = new Map(c.guidance?.prototypes.map((p) => [p.type, p]))
   const stations = (c.stations ?? ['hands']).filter((s) => /^[a-z][a-z0-9 _-]{0,40}$/i.test(s))
+  const where = (station: string, tools?: string[]) => `${station}${tools?.length ? `, with ${tools.join(' and ')}` : ''}`
   const makes = new Map<string, string[]>()
-  for (const m of c.makes ?? []) makes.set(m.type, [...(makes.get(m.type) ?? []), `${m.needs.map((n) => `${n.count} ${short(n.type)}`).join(' + ')} (${m.station})`])
+  for (const m of c.makes ?? []) makes.set(m.type, [...(makes.get(m.type) ?? []), `${m.needs.map((n) => `${n.count} ${short(n.type)}`).join(' + ')} (${where(m.station, m.tools)})`])
   return [
     '# The game now',
     'From the game, not the player.',
     `Stations within reach: ${stations.join(', ') || 'hands'}`,
+    ...(c.tools ? [`Tools the player carries: ${c.tools.join(', ') || 'none'}`] : []),
     '',
     `Materials the player carries${c.guidance ? ' (id: value each, how many)' : ''}:`,
     ...(c.materials.length ? c.materials.map((t) => (value.has(t) ? `- ${t}: ${value.get(t)!.value}, ${value.get(t)!.available}` : `- ${t}`)) : ['(none)']),
     '',
-    `Prototypes${c.guidance ? ' (id: least cost, station)' : ''}:`,
-    ...(c.prototypes.length ? c.prototypes.map((t) => (least.has(t) ? `- ${t}: ${least.get(t)!.minCost}, ${least.get(t)!.station}` : `- ${t}`)) : ['(none)']),
+    `Prototypes${c.guidance ? ' (id: least cost, station and tools)' : ''}:`,
+    ...(c.prototypes.length ? c.prototypes.map((t) => (least.has(t) ? `- ${t}: ${least.get(t)!.minCost}, ${where(least.get(t)!.station, least.get(t)!.tools)}` : `- ${t}`)) : ['(none)']),
     '',
-    'What the player can make already (thing: what goes in, and where; one make per "|"):',
+    'What the player can make already (thing: what goes in, and where, with which tools; one make per "|"):',
     ...(makes.size ? [...makes].map(([t, ways]) => `- ${t}: ${ways.join(' | ')}`) : ['(nothing)']),
   ].join('\n')
 }

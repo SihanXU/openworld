@@ -1,4 +1,4 @@
-import type { Frame, ItemInfo, PixelArt, ResearchDesign } from '@openworld/engine'
+import type { Frame, ItemInfo, PixelArt, ResearchDesign, ResearchMissing } from '@openworld/engine'
 import type { FromWorker } from '../protocol.ts'
 import { game, ontology } from '../game.ts'
 import { locale, tx } from './common.ts'
@@ -23,6 +23,35 @@ const PROBLEM: Record<NonNullable<Extract<FromWorker, { t: 'research' }>['proble
   design: ['This plan will not do as it stands. Try another idea.', '这张图纸还不能用。换个想法，再试一次吧。'],
 }
 
+/** What a trial still lacks, said plainly: "You still need: 1 Iron Ingot, a Smith Hammer to carry." (else the general line) */
+export function missingLine(m: ResearchMissing | undefined): string | undefined {
+  const types = ontology().types as Record<string, { name?: unknown; tags?: string[] } | undefined>
+  const name = (id: string) => tx(types[id]?.name as never) || id.split('/').pop()!.replace(/_/g, ' ')
+  // a tool by its tag: the plainest thing that carries it (a smith's hammer, not a warhammer)
+  const tool = (tag: string) => {
+    const ids = Object.keys(types).filter((id) => types[id]?.tags?.includes(`tool:${tag}`)).sort((a, b) => +!a.startsWith('item/tool/') - +!b.startsWith('item/tool/') || a.length - b.length)
+    return ids.length ? name(ids[0]) : tag
+  }
+  const parts = [
+    ...(m?.needs ?? []).map((n) => `${n.count} ${name(n.type)}`),
+    ...(m?.tools ?? []).map((t) => say(`a ${tool(t)} to carry`, `随身带一把${tool(t)}`)),
+    ...(m?.skill ? [say(`the ${m.skill} skill`, `${m.skill}手艺`)] : []),
+  ]
+  return parts.length ? say(`You still need: ${parts.join(', ')}. Once you have everything, we try again.`, `还缺：${parts.join('、')}。准备齐了，我们再试。`) : undefined
+}
+
+/**
+ * Where a sprite sits in the 16x16 grid: as it is, centred, when it fits; else scaled down whole. Never stretched
+ * (a 7x21 spear stretched to 16x16 is a hammer, and the artist keeps the shape it is given).
+ */
+export function fitIcon(w: number, h: number): { x: number; y: number; w: number; h: number } {
+  if (!(w > 0 && h > 0)) return { x: 0, y: 0, w: 16, h: 16 }
+  const k = Math.min(1, 16 / w, 16 / h)
+  const dw = Math.max(1, Math.round(w * k))
+  const dh = Math.max(1, Math.round(h * k))
+  return { x: Math.floor((16 - dw) / 2), y: Math.floor((16 - dh) / 2), w: dw, h: dh }
+}
+
 /**
  * An icon as a 16x16 pixel grid of at most 8 colours (the most used; the rest go to the nearest of them): what a
  * variant's icon is edited from. Undefined for a picture with too little drawn in it.
@@ -32,7 +61,9 @@ export function pixelArtOf(src: CanvasImageSource): PixelArt | undefined {
   canvas.width = canvas.height = 16
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!
   ctx.imageSmoothingEnabled = false
-  ctx.drawImage(src, 0, 0, 16, 16)
+  const { width, height } = src as { width: number; height: number }
+  const at = fitIcon(width, height)
+  ctx.drawImage(src, at.x, at.y, at.w, at.h)
   const px = ctx.getImageData(0, 0, 16, 16).data
   const hex = (i: number) => `#${[px[i], px[i + 1], px[i + 2]].map((v) => v.toString(16).padStart(2, '0')).join('')}`
   const count = new Map<string, number>()
@@ -259,7 +290,7 @@ export class ResearchWindow {
       }
       return
     }
-    this.setLine(() => (m.made ? say('There! Your new creation is in your bag. I’ve written down the recipe for you.', '成了！东西收好，配方也给你记下了。') : m.problem ? say(...PROBLEM[m.problem]) : tx(m.reply)))
+    this.setLine(() => (m.made ? say('There! Your new creation is in your bag. I’ve written down the recipe for you.', '成了！东西收好，配方也给你记下了。') : m.problem ? (m.problem === 'needs' && missingLine(m.missing)) || say(...PROBLEM[m.problem]) : tx(m.reply)))
     this.line.classList.toggle('research-error', !!m.problem)
     this.token = m.token
     this.design = m.design
