@@ -4,6 +4,7 @@ import { Engine } from './engine.ts'
 import { ModPort, type Patch } from './mod.ts'
 import { RuleLibrary } from './rules.ts'
 import { INVENTION, readResearchReply, type NewDesign, type ResearchCatalogue, type ResearchDesign, type VariantDesign } from './research.ts'
+import type { OntologyIndex } from './ontology.ts'
 import type { Recipe, TypeDef } from './types.ts'
 
 /** The tag of a person one may talk a new recipe over with (the content says who: a smith, an innkeeper…). */
@@ -23,10 +24,11 @@ const form = /^(item\/(tool|weapon|armor|clothing|food))\//
 const NEW_FAMILIES = /^item\/(tool|weapon|armor|clothing|food|potion|vessel|light|misc)(\/|$)/
 const text = (x: unknown) => typeof x === 'string' ? x : ''
 
-function price(eng: Engine, type: string): number {
-  const v = eng.world.onto.resolve(type).props.value
+const worth = (onto: OntologyIndex, type: string): number => {
+  const v = onto.resolve(type).props.value
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0
 }
+const price = (eng: Engine, type: string) => worth(eng.world.onto, type)
 
 function reference(eng: Engine, type: string): Recipe | undefined {
   const w = eng.world
@@ -71,6 +73,7 @@ export function researchPatch(eng: Engine, proposed: unknown, id: string): { pat
 
 const nameText = (n: VariantDesign['name']) => (typeof n === 'string' ? { en: n, zh: n } : n)
 const costOf = (eng: Engine, ingredients: { type: string; count: number }[]) => ingredients.reduce((n, m) => n + price(eng, m.type) * m.count, 0)
+const costIn = (onto: OntologyIndex, ingredients: { type: string; count: number }[]) => ingredients.reduce((n, m) => n + worth(onto, m.type) * m.count, 0)
 
 /** A variant: the prototype's behaviour, skill, station and unlock; the first ingredient's material; the inputs' worth. */
 function variant(eng: Engine, design: VariantDesign, id: string): TypeDef {
@@ -106,22 +109,32 @@ function variant(eng: Engine, design: VariantDesign, id: string): TypeDef {
  * beyond what it inherits is asked act by act, for this save alone.
  */
 function newKind(eng: Engine, design: NewDesign, id: string): TypeDef {
+  return newKindIn(eng.world.onto, design, id, (k) => !eng.lib.types.some((l) => l.id === k))
+}
+
+/**
+ * The same bounds, of an ontology alone (the AI service holds its design to them before it answers, so a craftsperson
+ * offers nothing the game then refuses). `authored`: a kind the content made, not a library's.
+ */
+export function newKindIn(onto: OntologyIndex, design: NewDesign, id: string, authored: (type: string) => boolean): TypeDef {
   const t = design.type
   if (!t) throw new ResearchProblem('refused', 'The new thing has not been worked out yet')
-  const onto = eng.world.onto
   const parent = t.id.split('/').slice(0, -1).join('/')
   if (!NEW_FAMILIES.test(parent) || !onto.data.types[parent]) throw new ResearchProblem('refused', `A new thing joins a family a craftsperson makes, not ${parent}`)
   if (!id.startsWith(`${parent}${INVENTION}`) || onto.data.types[id]) throw new ResearchProblem('identity', 'Invalid invention identity')
   const family = parent.split('/').slice(0, 2).join('/')
   // its ordinary kin: what the content made, never a legend or a relic (a new thing is measured against the common run)
   const kin = Object.keys(onto.data.types)
-    .filter((k) => k.startsWith(`${family}/`) && !eng.lib.types.some((l) => l.id === k))
+    .filter((k) => k.startsWith(`${family}/`) && authored(k))
     .map((k) => onto.resolve(k))
     .filter((r) => !r.tags.includes('quality:legendary') && r.props.relic === undefined)
   // what goes into it buys its numbers: none above the best of its family worth no more than that (a stick buys no dragon's bane)
-  const cost = costOf(eng, t.makeup ?? [])
+  const cost = costIn(onto, t.makeup ?? [])
   const within = kin.filter((r) => typeof r.props.value === 'number' && r.props.value <= cost)
-  if (!within.length) throw new ResearchProblem('cheap', `Nothing of its sort is made from so little (${cost})`)
+  if (!within.length) {
+    const least = Math.min(...kin.map((r) => r.props.value).filter((v): v is number => typeof v === 'number'))
+    throw new ResearchProblem('cheap', `Nothing of its sort is made from so little (its makeup is worth ${cost}; the least of its sort is worth ${least})`)
+  }
   const props: TypeDef['props'] = {}
   for (const [k, v] of Object.entries(t.props ?? {})) {
     if (k === 'value') continue

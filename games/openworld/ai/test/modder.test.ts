@@ -1417,6 +1417,22 @@ describe('a new thing an author asks for (the editor, M1)', () => {
     expect(library.lib.types.some((t) => t.id === BLADE.id)).toBe(false)
   })
 
+  it('a craftsperson\'s new kind is held to the game\'s bounds while it is designed: a stick buys no blade, so it goes back', async () => {
+    const asked: string[] = []
+    const blade = (makeup: { type: string; count: number }[]) => ({ id: 'item/weapon/blade/stick_blade', name: { en: 'Stick Blade', zh: '棍刃' }, tags: ['sharp'], props: { power: 99, material: 'wood' }, makeup, station: 'hands' })
+    const model = new ScriptedModel((messages, opts) => {
+      if (opts.purpose === 'art') return ART
+      if (messages[0].content.startsWith('You are a craftsperson')) return { reply: 'A blade, then.', design: { kind: 'new', name: { en: 'Stick Blade', zh: '棍刃' }, idea: 'a wooden blade' } }
+      asked.push(messages[messages.length - 1].content)
+      return { patch: { artifacts: [{ kind: 'type', type: blade(asked.length === 1 ? [{ type: 'item/material/stick', count: 1 }] : [{ type: 'item/material/log', count: 10 }]) }] }, look: 'a wooden blade' }
+    })
+    const { modder } = setup(model)
+    const reply = await modder.research({ npc: 'Garrick', message: 'a blade', history: [], catalogue: { materials: ['item/material/stick', 'item/material/log'], prototypes: [], stations: ['hands'] } })
+    expect(asked).toHaveLength(2)
+    expect(asked[1]).toMatch(/Nothing of its sort is made from so little.*the least of its sort is worth/)
+    expect(reply.design).toMatchObject({ kind: 'new', type: { makeup: [{ type: 'item/material/log', count: 10 }] } })
+  })
+
   it('draws each new thing by its own look: a part is not drawn as what it makes', async () => {
     const PELT = { id: 'item/material/leather/wolf_pelt', name: { en: 'Wolf Pelt', zh: '狼皮' }, tags: ['material'], props: { material: 'leather' }, makeup: [{ type: 'item/material/leather', count: 1 }], station: 'hands' }
     const CLOAK = { id: 'item/clothing/cloak/clasp_wolfcloak', name: { en: 'Iron-Clasp Wolfcloak', zh: '铁扣狼皮斗篷' }, tags: ['clothing'], props: { material: 'leather', slot: 'shoulders' }, makeup: [{ type: PELT.id, count: 2 }], station: 'hands' }

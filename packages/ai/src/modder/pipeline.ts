@@ -27,8 +27,11 @@ import {
   withAside,
   closestTypes,
   holeKey,
+  inventionId,
   isDo,
   isHole,
+  newKindIn,
+  OntologyIndex,
   leaves,
   patchKey,
   placePatch,
@@ -348,10 +351,23 @@ export class Modder {
     // a new kind: designed as an author's new thing is (its numbers, makeup, station, picture), from what the player carries where they stand
     if (d.kind === 'new') {
       const had = request.catalogue.materials.map((id) => ({ id, name: en(onto.types[id]?.name ?? id), props: onto.types[id]?.props }))
-      const made = await this.createThing({ intent: `${en(d.name)}: ${d.idea}`, had, stations: (request.catalogue.stations ?? []).filter((x) => x !== 'hands') })
-      const types = (made.patch?.artifacts ?? []).flatMap((a) => (a.kind === 'type' ? [a.type] : []))
       // one kind, made of what the player carries (a second new kind it would need is not theirs to make)
-      const type = types.find((t) => (t.makeup ?? []).length && t.makeup!.every((m) => request.catalogue.materials.includes(m.type)))
+      const theirs = (types: TypeDef[]) => types.find((t) => (t.makeup ?? []).length && t.makeup!.every((m) => request.catalogue.materials.includes(m.type)))
+      // held to the game's own bounds for a new kind while it is designed: the craftsperson offers nothing the game refuses
+      const index = new OntologyIndex(onto)
+      const authored = (k: string) => k in this.opts.library.ontology.types
+      const bounds = (types: TypeDef[]) => {
+        const t = theirs(types)
+        if (!t) return [`make it of what the player carries, at most: ${request.catalogue.materials.join(', ')}`]
+        try {
+          newKindIn(index, { ...d, type: t }, inventionId({ ...d, type: t }, 'check'), authored)
+          return []
+        } catch (err) {
+          return [(err as Error).message]
+        }
+      }
+      const made = await this.createThing({ intent: `${en(d.name)}: ${d.idea}`, had, stations: (request.catalogue.stations ?? []).filter((x) => x !== 'hands') }, bounds)
+      const type = theirs((made.patch?.artifacts ?? []).flatMap((a) => (a.kind === 'type' ? [a.type] : [])))
       if (!type) throw new Error(made.diagnostics.join('; ') || 'the new thing could not be worked out from what you carry')
       return { ...said, design: { ...d, type } }
     }
@@ -367,7 +383,7 @@ export class Modder {
    * can have (`had`, as the editor counts it in the author's game), with its icon. Nothing is committed: the author
    * reviews the draft with the engine's checks, and `adopt`s it.
    */
-  async createThing(body: ThingBody): Promise<ThingReply> {
+  async createThing(body: ThingBody, bounds?: (types: TypeDef[]) => string[]): Promise<ThingReply> {
     const why = this.down()
     if (why || !this.backend) return { patch: null, diagnostics: [why ? `model unavailable: ${why}` : 'no model'] }
     const intent = String(body?.intent ?? '').trim().slice(0, 500)
@@ -392,7 +408,10 @@ export class Modder {
         const made = (t: TypeDef) => `${t.station ?? 'hands'}, of ${t.makeup!.map((m) => `${m.count} ${m.type.split('/').pop()}`).join(' + ')}`
         const said = [patch.note, ...types.map((t) => `${enName(t)} (${t.id})${t.makeup?.length ? `: ${made(t)}` : ''}`)]
         step({ who: 'ai', text: said.filter(Boolean).join('\n') || 'no type in the answer', data: j })
-        const res = patch.artifacts.length ? library.validate(patch) : { ok: false, errors: ['no type artifact'], warnings: [] }
+        const checked = patch.artifacts.length ? library.validate(patch) : { ok: false, errors: ['no type artifact'], warnings: [] }
+        // a caller's own bounds besides (a craftsperson's new kind: research's)
+        const beyond = checked.ok && bounds ? bounds(types) : []
+        const res = beyond.length ? { ...checked, ok: false, errors: beyond } : checked
         if (!res.ok) {
           diagnostics.push(...res.errors)
           step({ who: 'engine', text: 'sent back to the AI', problems: res.errors })
