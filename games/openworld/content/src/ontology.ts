@@ -556,6 +556,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/counter/store', 'general store counter', '杂货铺柜台', ['shop', 'station:store'], { sprite: 'fixture:counter' }),
   F('fixture/furniture/bookstand', 'bookstand', '教堂书架', ['paper', 'shop', 'station:books'], { sprite: 'fixture:bookshelf' }),
   F('fixture/furniture/pew', 'pew', '教堂长椅', ['surface'], { footprint: [3, 1], props: { material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
+  // one left to the weather in a roofless chapel: grey, no cushion, its back split
+  F('fixture/furniture/pew/old', 'old pew', '旧长椅', ['surface'], { footprint: [3, 1], sprite: 'fixture:pew_old' }),
   F('fixture/furniture/desk', "copyist's desk", '抄写台', ['surface'], { props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
   F('fixture/furniture/throne', 'throne', '王座', [], { props: { material: 'wood', maxHp: 14, hp: 14 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
   F('fixture/furniture/stall', 'market stall', '市集摊位', ['cloth', 'surface']),
@@ -608,6 +610,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/craft/workbench', 'workbench', '工作台', ['wooden', 'flammable', 'surface', 'station:workbench', 'portable'], { makeup: [{ type: 'item/material/plank', count: 4 }], station: 'hands' }),
   F('fixture/sacred', 'sacred place', '圣所', ['stone'], { solid: true }),
   F('fixture/sacred/altar', 'altar', '祭坛', ['holy', 'surface']),
+  // a hearth of the Five, a ring of stones round its ash: the Chapel of the First Dawn's, where the Firstlight was kindled
+  F('fixture/sacred/altar/hearth', 'stone hearth', '石砌火坛', ['holy'], { footprint: [3, 1], sprite: 'fixture:firsthearth' }),
   // the Held Ground's heart: Alberic's longsword, point down in the earth (tools/src/art/planted-sword.ts)
   F('fixture/sacred/sword', 'planted sword', '插在地上的长剑', ['metal', 'conductive'], { sprite: 'fixture:planted_sword' }),
   F('fixture/sacred/statue', 'statue', '雕像', []),

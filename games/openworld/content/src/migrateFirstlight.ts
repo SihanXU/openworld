@@ -1,6 +1,6 @@
 // Authored-content migration, kept outside the generic engine. No inventory or quest reset.
 import { scheduleAt, scheduleFor, type Entity, type Game, type MapChunk, type WorldIndex } from '@openworld/engine'
-import { FIRSTLIGHT, FIRSTLIGHT_HOUSES, FIRSTLIGHT_LAYOUT, PART_ONE_LAYOUT, PROLOGUE_LAYOUT } from './firstlight.ts'
+import { CHAPEL_LAYOUT, FIRSTLIGHT, FIRSTLIGHT_HOUSES, FIRSTLIGHT_LAYOUT, PART_ONE_LAYOUT, PROLOGUE_LAYOUT } from './firstlight.ts'
 
 const gardenEntity = (e: Entity) => e.id.startsWith('ford.garden.') || (e.place.on === 'inside' && e.place.holder === 'ford.garden.supplies')
 const relocated = (e: Entity) => gardenEntity(e) || ['ford.cart', 'tobin.wand', 'tobin.oil'].includes(e.id)
@@ -128,6 +128,22 @@ export function migratePrologueMaps(game: Game, chunks: MapChunk[]): void {
   if (w.fact(PROLOGUE_LAYOUT)) return
   stepOffWalls(game, chunks)
   w.setFact(PROLOGUE_LAYOUT, true)
+}
+
+/**
+ * The Chapel of the First Dawn redrawn (2026-10-28): its nave, apse and tower's foot on a plan, the first hearth a stone
+ * hearth of its own. What an older save left where a wall now stands steps off it; the hearth it kept takes its kind.
+ */
+export function migrateDawnChapel(game: Game, chunks: MapChunk[]): void {
+  const w = game.engine.world
+  if (w.fact(CHAPEL_LAYOUT)) return
+  stepOffWalls(game, chunks)
+  for (const c of chunks)
+    for (const f of c.entities) {
+      const saved = w.get(f.id)
+      if (saved && saved.type !== f.type && f.type.startsWith(`${saved.type}/`)) w.transform(saved, f.type)
+    }
+  w.setFact(CHAPEL_LAYOUT, true)
 }
 
 /** The maps given loaded as they are now, and what of the save stands on a wall or the dark there moved to the nearest open cell. */

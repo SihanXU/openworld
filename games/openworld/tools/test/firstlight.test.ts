@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { Game, RuleLibrary, tickAt, type Entity } from '@openworld/engine'
-import { BASE_RULES, FIRSTLIGHT, FIRSTLIGHT_HOUSES, FIRSTLIGHT_LAYOUT, FIRSTLIGHT_ROOMS, PART_ONE_LAYOUT, PART_ONE_MAPS, PROLOGUE_LAYOUT, PROLOGUE_MAPS, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight, migrateFirstlightHouses, migratePartOneMaps, migratePrologueMaps } from '@openworld-game/content'
+import { BASE_RULES, CHAPEL_LAYOUT, FIRSTLIGHT, FIRSTLIGHT_HOUSES, FIRSTLIGHT_LAYOUT, FIRSTLIGHT_ROOMS, PART_ONE_LAYOUT, PART_ONE_MAPS, PROLOGUE_LAYOUT, PROLOGUE_MAPS, STORY_RULES, buildOntology, decodeChunk, migrateFirstlight, migrateFirstlightHouses, migratePartOneMaps, migratePrologueMaps, migrateDawnChapel } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 import { CANOPIES, reachingPlots } from '../src/demo/garden.ts'
 
@@ -269,5 +269,28 @@ describe('the hand-made maps walked to', () => {
       for (const [name, [x, y]] of Object.entries(map.anchors ?? {})) if (!reached(x, y)) shut.push(`${map.id} ${name} ${x},${y}`)
     }
     expect(shut).toEqual([])
+  })
+})
+
+describe('the Chapel of the First Dawn redrawn (2026-10-28)', () => {
+  it("moves what an older save left where a wall now stands, and its altar becomes the first hearth's kind", () => {
+    const { index, chunks } = buildFord()
+    const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    const w = game.engine.world
+    const maps = [decodeChunk(chunks.find((c) => c.map.id === 'chapel')!)]
+    for (const c of maps) game.loadChunk(c)
+    const hearth = Object.values(w.state.entities).find((e) => e.type === 'fixture/sacred/altar/hearth' && w.posOf(e)?.map === 'chapel')!
+    w.author(() => {
+      // the player where a wall now stands; the hearth as the save kept it, an altar
+      w.place(w.player, { on: 'tile', map: 'chapel', x: 2, y: 12 })
+      w.transform(hearth, 'fixture/sacred/altar')
+      w.setFact(CHAPEL_LAYOUT, false)
+    })
+    expect(w.isSolidTerrain(w.terrainAt('chapel', 2, 12))).toBe(true)
+    game.engine.author(() => migrateDawnChapel(game, maps))
+    const p = w.player.place as { map: string; x: number; y: number }
+    expect(w.isSolidTerrain(w.terrainAt(p.map, p.x, p.y))).toBe(false)
+    expect(w.get(hearth.id)?.type).toBe('fixture/sacred/altar/hearth')
+    expect(w.fact(CHAPEL_LAYOUT)).toBe(true)
   })
 })
