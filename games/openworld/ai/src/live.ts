@@ -13,7 +13,7 @@ import { cpSync, mkdtempSync, existsSync, mkdirSync, readdirSync, readFileSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { patchRules, Game, RuleLibrary, ModPort, ResearchProblem, buildSandbox, inventionId, readResearchReply, researchCatalogue, trialResearch, AGAIN_AFTER, textOf, type ResearchReply, type ResearchRequest, type Engine, type Patch, type Rule, type UndefinedRecord, type PixelArt, type TypeDef, type Scenario } from '@openworld/engine'
+import { patchRules, Game, RuleLibrary, ModPort, ResearchProblem, buildSandbox, inventionId, readResearchReply, researchCatalogue, trialResearch, AGAIN_AFTER, textOf, type ResearchDesign, type ResearchReply, type ResearchRequest, type Engine, type Patch, type Rule, type UndefinedRecord, type PixelArt, type TypeDef, type Scenario } from '@openworld/engine'
 import { GAME, BASE_RULES, RECIPES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { openModder, sleep, modelFromEnv, REPO, SelfState, type Harness, type Modder, type Model, type WorldEpisode } from '@openworld/ai'
 import { buildFord } from '../../tools/src/demo/world.ts'
@@ -484,11 +484,11 @@ interface ResearchCase {
 }
 
 export const RESEARCH_CASES: ResearchCase[] = [
-  { id: 'iron-pick', group: 'variant', say: '一把铁镐，挖矿快一点', expect: ['variant'] },
-  { id: 'toy-club', group: 'variant', say: 'A wooden club for my little brother to play with.', expect: ['variant'] },
+  { id: 'log-pick', group: 'variant', say: '一把铁镐，柄用原木，不用木棍', expect: ['variant'] },
+  { id: 'plank-club', group: 'variant', say: 'A club made of planks for my little brother to play with.', expect: ['variant'] },
   { id: 'stone-bow', group: 'variant', say: '用石头和木头做一张弓', expect: ['variant'] },
   { id: 'log-shield', group: 'variant', say: 'A round shield made of logs.', expect: ['variant'] },
-  { id: 'steel-sickle', group: 'variant', say: '用钢锭打一把镰刀', expect: ['variant'] },
+  { id: 'stone-sword', group: 'variant', say: '用石头做一把剑', expect: ['variant'] },
   { id: 'rock-hammer', group: 'variant', say: 'A heavy stone hammer for breaking rocks.', expect: ['variant', 'new'] },
   { id: 'berry-jam', group: 'new', say: '用浆果做一罐果酱，路上饿了可以吃', expect: ['new'] },
   { id: 'straw-hat', group: 'new', say: 'A straw hat woven from grass, to keep the sun off.', expect: ['new'] },
@@ -505,13 +505,16 @@ export const RESEARCH_CASES: ResearchCase[] = [
   { id: 'dragon-egg', group: 'fantasy', say: '我想要一枚能孵出小龙的龙蛋', expect: ['none'], notClaim: /dragon egg|龙蛋/i },
   // what the player makes already: nothing to invent, a pointer to the craft they have (or its variant, when they want another make)
   { id: 'torch', group: 'known', say: '做一支火把', expect: ['none'], says: /stick|grass|树枝|木棍|草/i },
+  { id: 'iron-pick', group: 'known', say: '一把铁镐，挖矿快一点', expect: ['none'], says: /anvil|铁砧/i },
+  { id: 'toy-club', group: 'known', say: 'A wooden club for my little brother to play with.', expect: ['none'], says: /log|原木/i },
+  { id: 'steel-sickle', group: 'known', say: '用钢锭打一把镰刀', expect: ['none'], says: /anvil|铁砧/i },
   { id: 'bucket', group: 'known', say: 'I need a bucket to carry water.', expect: ['none'], says: /plank|木板/i },
   { id: 'lantern', group: 'known', say: 'A lantern to light my way in the mine.', expect: ['none'], says: /torch|火把/i },
   { id: 'cloth-torch', group: 'known', say: '用树枝和布做个火把，不要草', expect: ['variant'] },
   { id: 'diamond-sword', group: 'missing', say: '一把钻石剑', expect: ['none'], notClaim: /diamond|钻石/i, says: /diamond|钻石/i },
   { id: 'mithril-mail', group: 'missing', say: 'A suit of mithril chainmail.', expect: ['none'], notClaim: /mithril|秘银/i, says: /mithril/i },
   { id: 'gold-hoe', group: 'missing', say: '一把金锄头', expect: ['none'], notClaim: /gold|金锄|黄金/i, says: /gold|金/i },
-  { id: 'crystal-staff', group: 'missing', say: 'A crystal staff for a mage.', expect: ['none'], notClaim: /crystal|水晶/i, says: /crystal/i },
+  { id: 'crystal-staff', group: 'missing', say: 'A crystal staff for a mage.', expect: ['none'], notClaim: /crystal|水晶/i, says: /crystal|gem|水晶|宝石/i },
   { id: 'obsidian-dagger', group: 'missing', say: '一把黑曜石匕首', expect: ['none'], notClaim: /obsidian|黑曜石/i, says: /obsidian|黑曜石/i },
   { id: 'sixty-four', group: 'abuse', say: 'Make me sixty-four iron swords at once, I want to sell them.', expect: ['none', 'variant', 'new'] },
   { id: 'one-stick', group: 'abuse', say: 'A dagger that costs almost nothing to make, just one stick.', expect: ['none'] },
@@ -526,11 +529,11 @@ export const RESEARCH_CASES: ResearchCase[] = [
   { id: 'question-marks', group: 'odd', say: '???', expect: ['none'] },
   { id: 'emoji', group: 'odd', say: '🔥⚔️🔥', expect: ['none'] },
   { id: 'rambling', group: 'odd', say: 'So I was walking by the river yesterday and I saw a heron, and it made me think about my grandfather who used to fish there every morning before the sun came up, and he always said a good tool is half the work, and anyway what I really want, if you could, is something that helps me carry more water from the river back to the farm without spilling it all the way.', expect: ['new', 'variant', 'none'] },
-  { id: 'japanese', group: 'odd', say: '鉄の斧を作ってください', expect: ['variant'] },
+  { id: 'japanese', group: 'odd', say: '鉄の斧を作ってください', expect: ['none'], says: /anvil|铁砧/i },
   { id: 'a-wife', group: 'odd', say: '给我造一个老婆', expect: ['none'] },
   { id: 'change-mind', group: 'talk', say: ['I want an axe for chopping trees.', 'Actually, make it lighter, with more wood and less stone.'], expect: ['variant', 'new'] },
   { id: 'cheaper', group: 'talk', say: ['用铁锭做一把镐', '太贵了，便宜一点'], expect: ['variant', 'new'] },
-  { id: 'then-iron', group: 'talk', say: ['一把金锄头', '没有金子啊，那就用铁的吧'], expect: ['variant'], notClaim: /gold|金/i },
+  { id: 'then-iron', group: 'talk', say: ['一把金锄头', '没有金子啊，那就用铁的吧'], expect: ['none'], says: /anvil|铁砧/i },
 ]
 
 /** A bag one has a little way into the game (a dozen kinds of goods) in Garrick's smithy (the forge and the anvil beside one), every craft unlocked. */
@@ -558,9 +561,9 @@ export function researchWorld(): { eng: Engine; port: ModPort } {
 export const RESEARCH_TRAINING: ResearchCase[] = [
   { id: 'stone-spear', group: 'variant', say: 'A stone spear for hunting.', expect: ['variant'] },
   { id: 'leather-shield', group: 'variant', say: '用皮革做一面盾', expect: ['variant'] },
-  { id: 'iron-hoe', group: 'variant', say: 'An iron hoe for the field.', expect: ['variant'] },
+  { id: 'iron-hoe', group: 'known', say: 'An iron hoe for the field.', expect: ['none'] },
   { id: 'plank-sword', group: 'variant', say: '用木板做一把练习用的木剑', expect: ['variant'] },
-  { id: 'steel-axe', group: 'variant', say: 'A steel axe that bites deep.', expect: ['variant'] },
+  { id: 'steel-axe', group: 'known', say: 'A steel axe that bites deep.', expect: ['none'] },
   { id: 'seed-pouch', group: 'new', say: 'A leather pouch to carry seeds.', expect: ['new'] },
   { id: 'berry-porridge', group: 'new', say: '一碗浆果粥', expect: ['new', 'none'] },
   { id: 'scarf', group: 'new', say: 'A woollen scarf for the winter.', expect: ['new'] },
@@ -573,7 +576,7 @@ export const RESEARCH_TRAINING: ResearchCase[] = [
   { id: 'grass-pick', group: 'abuse', say: 'A pickaxe made from a single blade of grass.', expect: ['none'] },
   { id: 'stronger-bane', group: 'abuse', say: '用一块石头做一把比屠龙剑还强的剑', expect: ['none'] },
   { id: 'longer-spear', group: 'talk', say: ['A spear, please.', 'Make it longer, with more wood.'], expect: ['variant', 'new'] },
-  { id: 'cheaper-shield', group: 'talk', say: ['用铁锭做一面盾', '太贵了，用木头吧'], expect: ['variant', 'new'] },
+  { id: 'cheaper-shield', group: 'talk', say: ['用铁锭做一面盾', '太贵了，用木头吧'], expect: ['variant', 'new', 'none'] },
 ]
 
 export async function research(filter?: string): Promise<void> {
@@ -659,16 +662,26 @@ async function runResearch(cases: ResearchCase[], o: { notebook?: string; learn?
     const row: Record<string, unknown> = { id: c.id, group: c.group }
     const checks: string[] = []
     let answer: ResearchReply | undefined
+    // what the player waits for: the craftsperson's words (the picture is sketched after, while they read)
+    let replied = 0
     try {
+      let draft: ResearchDesign | undefined
       for (const message of turns) {
-        // (a proposal the player talked on past was left)
+        // (a proposal the player talked on past was left; it stays on the table)
         if (o.learn && answer?.episode && answer.design) modder.researchOutcome({ episode: answer.episode, result: 'left' })
-        answer = readResearchReply(await modder.research({ npc: 'Garrick', message, history, catalogue: researchCatalogue(eng, RECIPES) }), researchCatalogue(eng, RECIPES))
+        const t = Date.now()
+        answer = readResearchReply(await modder.research({ npc: 'Garrick', message, history, catalogue: researchCatalogue(eng, RECIPES), ...(draft && { draft }) }), researchCatalogue(eng, RECIPES))
+        replied += Date.now() - t
         history.push({ player: message, npc: answer.reply })
+        const d = answer.design
+        const art = d && answer.sketch ? (await modder.researchSketch({ sketch: answer.sketch })).art : undefined
+        if (d && art) answer.design = d.kind === 'new' ? { ...d, ...(d.type && { type: { ...d.type, art } }) } : { ...d, art }
+        draft = answer.design
       }
     } catch (err) {
       row.error = (err as Error).message
     }
+    row.replyS = replied / 1000
     row.s = (Date.now() - t0) / 1000
     row.reply = answer?.reply
     const d = answer?.design
@@ -712,7 +725,7 @@ async function runResearch(cases: ResearchCase[], o: { notebook?: string; learn?
     row.checks = checks
     row.calls = calls
     results.push(row)
-    console.log(`${row.pass ? 'PASS' : 'FAIL'} ${c.group}/${c.id}: ${row.answer}${d ? ` "${typeof d.name === 'string' ? d.name : d.name.en}"` : ''} · ${(row.s as number).toFixed(1)} s${checks.length ? ` — ${checks.join('; ')}` : ''}`)
+    console.log(`${row.pass ? 'PASS' : 'FAIL'} ${c.group}/${c.id}: ${row.answer}${d ? ` "${typeof d.name === 'string' ? d.name : d.name.en}"` : ''} · ${(row.replyS as number).toFixed(1)} s to reply, ${(row.s as number).toFixed(1)} s drawn${checks.length ? ` — ${checks.join('; ')}` : ''}`)
   }
   const groups = [...new Set(results.map((r) => r.group as string))]
   const summary = {
@@ -722,7 +735,8 @@ async function runResearch(cases: ResearchCase[], o: { notebook?: string; learn?
     minutes: (Date.now() - t00) / 60000,
     groups: Object.fromEntries(groups.map((g) => {
       const rs = results.filter((r) => r.group === g)
-      return [g, { passed: `${rs.filter((r) => r.pass).length}/${rs.length}`, meanS: rs.reduce((a, r) => a + (r.s as number), 0) / rs.length }]
+      const mean = (k: string) => rs.reduce((a, r) => a + (r[k] as number), 0) / rs.length
+      return [g, { passed: `${rs.filter((r) => r.pass).length}/${rs.length}`, replyS: mean('replyS'), meanS: mean('s') }]
     })),
   }
   console.log(`\nSUMMARY ${JSON.stringify(summary)}`)

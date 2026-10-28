@@ -1,7 +1,7 @@
 // How the engine's worker reaches a modder: a service over HTTP (its address), or the player's own modder in a
 // worker of this page over a port (docs/byok.md). Both answer the same five questions.
 
-import type { Engine, ModRequest, Patch, ResearchOutcome, ResearchRequest, ResearchReply, ModProgress, PatchLogEntry, ResolveBody, ResolveReply } from '@openworld/engine'
+import type { Engine, ModRequest, Patch, PixelArt, ResearchOutcome, ResearchRequest, ResearchReply, ModProgress, PatchLogEntry, ResolveBody, ResolveReply } from '@openworld/engine'
 import { withAside } from '@openworld/engine'
 import { LOCAL_MODDER, type LinkCall, type LinkReply } from './modderProtocol.ts'
 
@@ -17,6 +17,8 @@ export interface ModderLink {
   research?(body: ResearchRequest): Promise<ResearchReply>
   /** What came of a craftsperson's proposal in the game (they learn from it): said, not waited on. */
   researched?(outcome: ResearchOutcome): void
+  /** A proposal's picture, drawn after its reply (none: it could not be). */
+  researchSketch?(sketch: string): Promise<PixelArt | undefined>
   health(): Promise<{ model?: string | null }>
   resolve(body: ResolveBody): Promise<ResolveReply>
   progress(request: string): Promise<ModProgress>
@@ -47,13 +49,14 @@ export function serviceLink(url: string): ModderLink {
     where: at,
     health: () => get('/health', 2500),
     research: async (body) => {
-      // a new kind is designed and drawn before the reply: longer than a word
+      // a new kind is designed before the reply (drawn after it): longer than a word
       const r = await post('/research', body, 240_000)
       const data = await r.json()
       if (!r.ok || data.error) throw new Error(data.error || 'Research unavailable')
       return data as ResearchReply
     },
     researched: (outcome) => void post('/research/outcome', outcome, 5000).catch(() => undefined),
+    researchSketch: async (sketch) => ((await (await post('/research/sketch', { sketch }, 240_000)).json()) as { art?: PixelArt }).art,
     resolve: async (body) => (await (await post('/resolve', body, 240_000)).json()) as ResolveReply,
     progress: (request) => get(`/progress?id=${encodeURIComponent(request)}`, 2000),
     patches: (since) => get(`/patches?since=${since}`, 5000),
@@ -88,6 +91,7 @@ export function portLink(port: MessagePort): ModderLink {
     health: () => call({ op: 'health' }, 2500),
     research: (body) => call({ op: 'research', body }, 240_000),
     researched: (outcome) => void call({ op: 'researched', outcome }, 5000).catch(() => undefined),
+    researchSketch: async (sketch) => (await call<{ art?: PixelArt }>({ op: 'researchSketch', sketch }, 240_000)).art,
     resolve: (body) => call({ op: 'resolve', body }, 240_000),
     progress: (request) => call({ op: 'progress', request }, 2000),
     patches: (since) => call({ op: 'patches', since }, 5000),

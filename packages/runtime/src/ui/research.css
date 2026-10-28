@@ -33,3 +33,8 @@
   #recipeResearch .research-composer { flex-wrap: wrap; }
   #recipeResearch textarea { flex-basis: 100%; }
 }
+/* the craftsperson sketching the picture after answering: the kind's icon, faded and breathing, until it is drawn */
+#recipeResearch .research-sketching { opacity: .45; animation: research-sketching 1.2s ease-in-out infinite alternate; }
+#recipeResearch .research-sketch-note { font-style: italic; color: #8a6a45; }
+@keyframes research-sketching { to { opacity: .8; } }
+@media (prefers-reduced-motion: reduce) { #recipeResearch .research-sketching { animation: none; } }

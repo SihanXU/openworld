@@ -1,6 +1,6 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
-import { CRAFTSPERSON, ResearchProblem, inventionId, researchCatalogue, researchPatch, trialResearch, readResearchReply, type PixelArt, type ResearchDesign, type ResearchOutcome, type ResearchRequest } from '@openworld/engine'
+import { CRAFTSPERSON, ResearchProblem, artProblems, inventionId, researchCatalogue, researchPatch, trialResearch, readResearchReply, type PixelArt, type ResearchDesign, type ResearchOutcome, type ResearchRequest } from '@openworld/engine'
 import { untilUp } from './untilUp.ts'
 import { portLink, serviceLink, resolveForSave, type ModderLink } from './modderLink.ts'
 import { FrameEncoder } from './frameDelta.ts'
@@ -84,8 +84,9 @@ async function askResearch(message: string): Promise<void> {
   const owner = game, who = talk.who
   if (!researchSession || researchSession.owner !== owner || researchSession.who !== who) researchSession = { owner, who, history: [] }
   const session = researchSession
-  // (a proposal not tried before the next idea: left)
-  if (session.draft) researchCame(session, 'left')
+  // (a proposal not tried before the next idea: left; it stays on the table, what a change of mind changes)
+  const draft = session.draft
+  if (draft) researchCame(session, 'left')
   session.draft = undefined
   session.token = undefined
   session.episode = undefined
@@ -97,7 +98,7 @@ async function askResearch(message: string): Promise<void> {
     const npc = owner.engine.world.get(who)!
     const name = npc.name ?? owner.engine.world.onto.resolve(npc.type).name
     const icons = await iconsOf(catalogue.prototypes)
-    const said = await link.research({ npc: typeof name === 'string' ? name : name?.en ?? 'Craftsperson', message, history: session.history.slice(-8), catalogue: { ...catalogue, ...(icons && Object.keys(icons).length && { icons }) } }).catch((err: Error) => {
+    const said = await link.research({ npc: typeof name === 'string' ? name : name?.en ?? 'Craftsperson', message, history: session.history.slice(-8), catalogue: { ...catalogue, ...(icons && Object.keys(icons).length && { icons }) }, ...(draft && { draft }) }).catch((err: Error) => {
       throw Object.assign(err, { unreachable: true })
     })
     const result = readResearchReply(said, catalogue)
@@ -118,11 +119,21 @@ async function askResearch(message: string): Promise<void> {
       session.draft = result.design
       session.token = token
     }
-    post({ t: 'research', who, ...result, token: session.token })
+    const sketching = !!(result.design && result.sketch && link.researchSketch)
+    post({ t: 'research', who, ...result, token: session.token, ...(sketching && { sketching }) })
+    if (sketching) void sketched(session, result.design!, result.sketch!)
   } catch (err) {
     const problem = err instanceof ResearchProblem ? err.code : (err as { unreachable?: boolean }).unreachable ? 'unreachable' : 'design'
     if (researchSession === session && game === owner) post({ t: 'research', who, problem })
   } finally { researchBusy = false }
+}
+
+/** The picture the craftsperson draws after answering: put on the draft (when it is still the one on the table) and shown. */
+async function sketched(session: NonNullable<typeof researchSession>, design: ResearchDesign, sketch: string): Promise<void> {
+  const art = await link?.researchSketch?.(sketch).catch(() => undefined)
+  if (researchSession !== session || session.draft !== design) return
+  if (art && !artProblems(art).length) session.draft = design.kind === 'new' ? { ...design, ...(design.type && { type: { ...design.type, art } }) } : { ...design, art }
+  post({ t: 'researchSketched', who: session.who, token: session.token, design: session.draft })
 }
 
 function confirmResearch(token: string): void {

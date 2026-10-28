@@ -62,6 +62,16 @@ describe('a craftsperson speaks both languages', () => {
     expect(() => readResearchReply({ reply: { en: 'An axe.', zh: '斧头。' }, design: { name: 'Axe', prototype: 'item/tool/axe', ingredients: [{ type: 'item/material/stone', count: 3 }] } }, catalogue)).toThrow(/short name in English and in Chinese/)
     expect(readResearchReply({ reply: { en: 'An axe.', zh: '斧头。' }, episode: 'ep-1' }, catalogue)).toEqual({ reply: { en: 'An axe.', zh: '斧头。' }, episode: 'ep-1' })
   })
+  it('keeps the draft on the table when it is still makeable here (dropped, not refused, when it is not), and a picture to come by a plain id', () => {
+    const request = { npc: 'Garrick', message: 'lighter', history: [], catalogue }
+    const axe = { name: { en: 'Stone Axe', zh: '石斧' }, prototype: 'item/tool/axe', ingredients: [{ type: 'item/material/stone', count: 3 }] }
+    expect(readResearchRequest({ ...request, draft: axe }).draft).toEqual(axe)
+    expect(readResearchRequest({ ...request, draft: { ...axe, ingredients: [{ type: 'item/material/gold', count: 3 }] } })).not.toHaveProperty('draft')
+    expect(readResearchReply({ reply: { en: 'An axe.', zh: '斧头。' }, design: axe, sketch: 's-1' }, catalogue).sketch).toBe('s-1')
+    // (no design, nothing to draw)
+    expect(readResearchReply({ reply: { en: 'An axe?', zh: '斧头？' }, sketch: 's-1' }, catalogue)).not.toHaveProperty('sketch')
+    expect(() => readResearchReply({ reply: { en: 'An axe.', zh: '斧头。' }, design: axe, sketch: '../x' }, catalogue)).toThrow(/Invalid research reply/)
+  })
   it('an empty translation shows the English, not a blank', () => {
     expect(textOf({ en: 'Hello', zh: '' }, 'zh')).toBe('Hello')
     expect(textOf({ en: 'Hello', zh: '你好' }, 'zh')).toBe('你好')

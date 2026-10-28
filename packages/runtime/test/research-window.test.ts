@@ -89,4 +89,35 @@ describe('a craftsperson thinking holds no one up', () => {
     expect(parts.backButton.textContent).toBe('先聊别的')
     locale.value = 'en'
   })
+
+  it('a draft whose picture is still being sketched is shown, and tried only once it is drawn', () => {
+    const { w } = panel(true, false)
+    const el = () => ({ disabled: false, hidden: false, textContent: '', setAttribute: vi.fn(), replaceChildren: vi.fn(), focus: vi.fn(), classList: { toggle: vi.fn() } })
+    const parts = { input: el(), sendButton: el(), changeButton: el(), makeButton: el(), backButton: el(), line: el(), card: el(), composer: el() }
+    Object.assign(w, parts)
+    const shown: unknown[] = []
+    Object.assign(w, { preview: (d: unknown) => shown.push(d) })
+    const design = { name: { en: 'Stone Axe', zh: '石斧' }, prototype: 'item/tool/axe', ingredients: [{ type: 'item/material/stone', count: 3 }] }
+    w.receive({ t: 'research', who: 'npc.garrick', reply: { en: 'A stone axe.', zh: '石斧。' }, design, token: 't1', sketching: true })
+    expect(parts.makeButton.disabled).toBe(true)
+    expect(parts.makeButton.textContent).toBe('Sketching…')
+    // (another draft's picture changes nothing)
+    w.sketched({ t: 'researchSketched', who: 'npc.garrick', token: 't0', design })
+    expect(parts.makeButton.disabled).toBe(true)
+    const drawn = { ...design, art: { grid: [], palette: {} } }
+    w.sketched({ t: 'researchSketched', who: 'npc.garrick', token: 't1', design: drawn })
+    expect(parts.makeButton.disabled).toBe(false)
+    expect(parts.makeButton.textContent).toBe('Try making it')
+    expect(shown.at(-1)).toBe(drawn)
+    expect(parts.line.textContent).toBe('A stone axe.')
+  })
+
+  it('a picture drawn after one walked away is kept with the reply', () => {
+    const { w } = panel(false, true)
+    const design = { name: { en: 'Stone Axe', zh: '石斧' }, prototype: 'item/tool/axe', ingredients: [{ type: 'item/material/stone', count: 3 }] }
+    w.receive({ t: 'research', who: 'npc.garrick', reply: { en: 'A stone axe.', zh: '石斧。' }, design, token: 't1', sketching: true })
+    const drawn = { ...design, art: { grid: [], palette: {} } }
+    w.sketched({ t: 'researchSketched', who: 'npc.garrick', token: 't1', design: drawn })
+    expect((w as unknown as { kept: Map<string, unknown> }).kept.get('npc.garrick')).toMatchObject({ design: drawn, sketching: false })
+  })
 })

@@ -1443,7 +1443,65 @@ describe('a new thing an author asks for (the editor, M1)', () => {
     const { modder } = setup(model)
     const catalogue = { materials: ['item/material/wool', 'item/material/grass'], prototypes: [rod], stations: ['hands'], guidance: { materials: [], prototypes: [{ type: rod, minCost: 5, station: 'hands' }] } }
     const reply = await modder.research({ npc: 'Garrick', message: 'a net', history: [], catalogue })
-    expect(reply.design).toEqual({ kind: 'variant', name: { en: 'Grass Net', zh: '草网' }, prototype: rod, ingredients: [{ type: 'item/material/grass', count: 6 }, { type: 'item/material/wool', count: 4 }], art: ART })
+    expect(reply.design).toEqual({ kind: 'variant', name: { en: 'Grass Net', zh: '草网' }, prototype: rod, ingredients: [{ type: 'item/material/grass', count: 6 }, { type: 'item/material/wool', count: 4 }] })
+    expect(await modder.researchSketch({ sketch: reply.sketch })).toEqual({ art: ART })
+  })
+
+  it('answers before the picture is drawn: the craftsperson\'s words come while the artist works, the picture after, once, drawn lightly', async () => {
+    let finish!: () => void
+    const drawing = new Promise<void>((resolve) => (finish = resolve))
+    const art: string[] = []
+    const model = new ScriptedModel(async (messages, opts) => {
+      if (opts.purpose === 'art') return (art.push(String(opts.reasoning)), await drawing, ART)
+      return { reply: { en: 'A stone axe, then.', zh: '那就做把石斧。' }, design: { kind: 'variant', name: { en: 'Stone Axe', zh: '石斧' }, prototype: 'item/tool/axe', ingredients: [{ type: 'item/material/stone', count: 3 }] } }
+    })
+    const { modder } = setup(model)
+    const reply = await modder.research({ npc: 'Garrick', message: 'a stone axe', history: [], catalogue: { materials: ['item/material/stone'], prototypes: ['item/tool/axe'], stations: ['hands'] } })
+    expect(reply.design).toMatchObject({ prototype: 'item/tool/axe' })
+    expect(reply.design).not.toHaveProperty('art')
+    expect(reply.sketch).toMatch(/^[A-Za-z0-9_-]+$/)
+    const sketch = modder.researchSketch({ sketch: reply.sketch })
+    finish()
+    expect(await sketch).toEqual({ art: ART })
+    expect(art).toEqual(['low'])
+    expect(await modder.researchSketch({ sketch: reply.sketch })).toEqual({})
+    await expect(modder.researchSketch({ sketch: '../x' })).rejects.toThrow(/Invalid research sketch/)
+  })
+
+  it('a change of mind changes the draft on the table: the craftsperson reads it (not its picture), the artist edits its picture', async () => {
+    const DRAWN = { grid: ART.grid.map((r) => r.replaceAll('k', 'q')), palette: { q: '#a0a0a0' } }
+    const told: string[] = []
+    const edited: string[] = []
+    const model = new ScriptedModel((messages, opts) => {
+      if (opts.purpose === 'art') return (edited.push(messages[1].content), ART)
+      told.push(messages[1].content)
+      return { reply: { en: 'Lighter, then.', zh: '那就轻一点。' }, design: { kind: 'variant', name: { en: 'Light Stone Axe', zh: '轻石斧' }, prototype: 'item/tool/axe', ingredients: [{ type: 'item/material/stone', count: 2 }] } }
+    })
+    const { modder } = setup(model)
+    const draft = { kind: 'variant', name: { en: 'Stone Axe', zh: '石斧' }, prototype: 'item/tool/axe', ingredients: [{ type: 'item/material/stone', count: 3 }], art: DRAWN }
+    const reply = await modder.research({ npc: 'Garrick', message: 'make it lighter', history: [], catalogue: { materials: ['item/material/stone'], prototypes: ['item/tool/axe'], stations: ['hands'] }, draft })
+    await modder.researchSketch({ sketch: reply.sketch })
+    expect(JSON.parse(told[0]).draft).toEqual({ kind: 'variant', name: { en: 'Stone Axe', zh: '石斧' }, prototype: 'item/tool/axe', ingredients: [{ type: 'item/material/stone', count: 3 }] })
+    expect(edited[0]).toContain(DRAWN.grid[5])
+    expect(edited[0]).toContain('#a0a0a0')
+  })
+
+  it('a change of mind about a new kind on the table goes to the designer as a revision of it', async () => {
+    const BOWL = { id: 'item/vessel/wood_bowl', name: { en: 'Wooden Bowl', zh: '木碗' }, props: { material: 'wood' }, makeup: [{ type: 'item/material/log', count: 2 }], station: 'hands' }
+    const designer: string[] = []
+    const model = new ScriptedModel((messages, opts) => {
+      if (opts.purpose === 'art') return ART
+      if (messages[0].content.startsWith('You are a craftsperson')) return { reply: { en: 'A deeper bowl.', zh: '深一点的碗。' }, design: { kind: 'new', name: { en: 'Deep Bowl', zh: '深碗' }, idea: 'a deeper wooden bowl' } }
+      designer.push(messages.map((m) => m.content).join('\n'))
+      return { patch: { artifacts: [{ kind: 'type', type: { ...BOWL, id: 'item/vessel/deep_bowl', makeup: [{ type: 'item/material/log', count: 3 }] } }] }, look: 'a deep bowl' }
+    })
+    const { modder } = setup(model)
+    const draft = { kind: 'new', name: BOWL.name, idea: 'a wooden bowl', type: { ...BOWL, art: ART } }
+    await modder.research({ npc: 'Garrick', message: 'deeper, please', history: [], catalogue: { materials: ['item/material/log'], prototypes: [], stations: ['hands'] }, draft })
+    expect(designer[0]).toContain('# A revision')
+    expect(designer[0]).toContain('"id":"item/vessel/wood_bowl"')
+    expect(designer[0]).toContain('deeper, please')
+    expect(designer[0]).not.toContain(ART.grid[5])
   })
 
   it('a variant begins with a material, whatever order the craftsperson said its ingredients in (wool gives no material)', async () => {

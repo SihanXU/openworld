@@ -126,10 +126,11 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
         return send(200, modder.fault(body.rule, String(body.reason ?? ''), client))
       }
       // an author's new thing: drafted on this service's account, and taken into the shared library without the AI (this host only)
-      const refused = ['POST /create', 'POST /adopt', 'POST /draft', 'POST /research', 'POST /research/outcome'].includes(route) ? hostOnly(req) : undefined
+      const refused = ['POST /create', 'POST /adopt', 'POST /draft', 'POST /research', 'POST /research/outcome', 'POST /research/sketch'].includes(route) ? hostOnly(req) : undefined
       if (refused) return send(refused[0], { error: `a new thing is asked for and taken in from the machine the service runs on: ${refused[1]}` })
       if (route === 'POST /research') return send(200, await modder.research(await readJson(req, maxBody)))
       if (route === 'POST /research/outcome') return send(200, modder.researchOutcome(await readJson(req, 4_000)))
+      if (route === 'POST /research/sketch') return send(200, await modder.researchSketch(await readJson(req, 4_000)))
       if (route === 'POST /draft') return send(200, await modder.draft((await readJson(req, maxBody)) as DraftBody))
       if (route === 'POST /create') return send(200, await modder.createThing((await readJson(req, maxBody)) as ThingBody))
       if (route === 'POST /adopt') {

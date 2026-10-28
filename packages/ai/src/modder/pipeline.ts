@@ -21,6 +21,7 @@ import {
   readResearchRequest,
   type ResearchRequest,
   type ResearchReply,
+  type NewDesign,
   type Text,
   buildModSpec,
   buildRequest,
@@ -344,6 +345,8 @@ export class Modder {
   private people = new Map<string, SelfState>()
   /** Proposals waiting to hear from the game what came of them (researched), by episode. */
   private proposed = new Map<string, { npc: string; ep: AgentEpisode }>()
+  /** The pictures of proposals being drawn after their reply went out (researchSketch), by id. */
+  private sketches = new Map<string, Promise<PixelArt | undefined>>()
 
   private craftsperson(npc: string): SelfState {
     const own = this.opts.state
@@ -369,8 +372,11 @@ export class Modder {
     const meter = new Meter(this.backend)
     const said = await researchConversation(meter, request, notebookOf(rules.map((l) => l.text), skill && state!.readSkill(skill.name)?.trim()))
     const workshop: string[] = []
-    const out = await this.researched(request, said, workshop)
-    if (!state) return out
+    const worked = await this.researched(request, said, workshop)
+    const out = worked.reply
+    // the reply goes out now; its picture is drawn meanwhile (the craftsperson sketches while the player reads)
+    const handed: ResearchReply = worked.sketch ? { ...out, sketch: this.sketching(worked.sketch) } : out
+    if (!state) return handed
     const ep: AgentEpisode = {
       id: state.newEpisodeId(), at: new Date().toISOString(), kind: 'research', node: RESEARCH_NODE,
       summary: `${request.npc}: "${request.message.slice(0, 120)}" → ${proposalOf(out.design)}`,
@@ -384,11 +390,30 @@ export class Modder {
       usage: { calls: meter.calls, input: meter.input, output: meter.output, cost: meter.cost }, ms: Date.now() - t0,
     }
     // talk alone (a question, a refusal): kept, nothing to hear back
-    if (!out.design) return (state.recordEpisode(ep), out)
+    if (!out.design) return (state.recordEpisode(ep), handed)
     this.proposed.set(ep.id, { npc: request.npc, ep })
     // (a game that never says: the oldest is kept as it stood)
     for (const [id, p] of this.proposed) if (this.proposed.size > 200) (this.proposed.delete(id), this.craftsperson(p.npc).recordEpisode({ ...p.ep, outcome: 'covered' }))
-    return { ...out, episode: ep.id }
+    return { ...handed, episode: ep.id }
+  }
+
+  private sketching(draw: () => Promise<PixelArt | undefined>): string {
+    const id = crypto.randomUUID()
+    this.sketches.set(id, draw().catch(() => undefined))
+    // (one never asked for: the oldest go)
+    for (const k of this.sketches.keys()) if (this.sketches.size > 50) this.sketches.delete(k)
+    return id
+  }
+
+  /** A proposal's picture, once drawn (none: it could not be, or it was asked for already). */
+  async researchSketch(body: unknown): Promise<{ art?: PixelArt }> {
+    const id = (body as { sketch?: unknown } | null)?.sketch
+    if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(id)) throw new Error('Invalid research sketch')
+    const drawing = this.sketches.get(id)
+    if (!drawing) return {}
+    const art = await drawing
+    this.sketches.delete(id)
+    return art ? { art } : {}
   }
 
   /** What came of a proposal in the game: kept in its craftsperson's memory, and reflected on after. */
@@ -422,10 +447,15 @@ export class Modder {
     state.note('reflect', { episode: ep.id, node: stand.node, lessons: kept.lessons, skill: kept.skill, notes: kept.notes, usage: model.usage })
   }
 
-  /** The conversation's design worked out: a new kind designed and drawn, a variant drawn (what went wrong on the way, in `workshop`). */
-  private async researched(request: ResearchRequest, said: ResearchReply, workshop: string[]): Promise<ResearchReply> {
+  /** The conversation's design worked out: a new kind designed (what went wrong on the way, in `workshop`), and how its picture is drawn after the reply. */
+  private async researched(request: ResearchRequest, said: ResearchReply, workshop: string[]): Promise<{ reply: ResearchReply; sketch?: () => Promise<PixelArt | undefined> }> {
     const d = said.design
-    if (!d) return said
+    if (!d) return { reply: said }
+    // drawn by the craftsperson after they answer, cheaply: the draft on the table's picture is the one changed, when it is of the same thing
+    const draw = (name: Text, id: string, look: string, base?: PixelArt) => () =>
+      this.drawOne(new Meter(this.backend!), { id, name } as TypeDef, look, undefined, base, 'low')
+    const draft = request.draft
+    const before = draft?.kind === 'new' ? draft.type?.art : draft?.art
     const onto = this.opts.library.fullOntology()
     const index = new OntologyIndex(onto)
     const en = (t: Text) => (typeof t === 'string' ? t : t.en)
@@ -463,22 +493,26 @@ export class Modder {
       }
       // the bounds said before they are met (each costs a round when found after): a player's craft, among its sort
       const among = 'A player crafts it: give it only properties the things of its family already have, never more than theirs, and a makeup worth at least the least of its family.'
-      const made = await this.createThing({ intent: `${en(d.name)}: ${d.idea.slice(0, 250)} ${among}`, had, stations: (request.catalogue.stations ?? []).filter((x) => x !== 'hands') }, bounds)
+      // a change of mind about a new kind on the table: the designer revises it (the rest as it was)
+      const revising = draft?.kind === 'new' && draft.type ? { previous: { patch: { artifacts: [{ kind: 'type', type: (withoutArt(draft) as NewDesign).type }] } }, feedback: request.message } : {}
+      const made = await this.createThing({ intent: `${en(d.name)}: ${d.idea.slice(0, 250)} ${among}`, had, stations: (request.catalogue.stations ?? []).filter((x) => x !== 'hands'), draw: false, ...revising }, bounds)
       workshop.push(...made.diagnostics)
       const type = theirs((made.patch?.artifacts ?? []).flatMap((a) => (a.kind === 'type' ? [a.type] : [])))
       if (!type) throw new Error(made.diagnostics.join('; ') || 'the new thing could not be worked out from what you carry')
-      if (!asVariant) return { ...said, design: { ...d, type } }
+      const look = made.look ?? d.idea
+      if (!asVariant) return { reply: { ...said, design: { ...d, type } }, sketch: draw(d.name, type.id, look, draft?.kind === 'new' ? before : undefined) }
       workshop.push(`designed as a kind of ${asVariant.prototype}, a craft on offer: made a variant of it`)
       const ingredients = materialFirst(asVariant.ingredients)
-      return { ...said, design: { kind: 'variant', name: d.name, prototype: asVariant.prototype, ingredients, ...(type.art && { art: type.art }) } }
+      const same = draft?.kind !== 'new' && draft?.prototype === asVariant.prototype
+      return { reply: { ...said, design: { kind: 'variant', name: d.name, prototype: asVariant.prototype, ingredients } }, sketch: draw(d.name, type.id, look, (same && before) || request.catalogue.icons?.[asVariant.prototype]) }
     }
     // a variant: its first ingredient gives its material, so one that is a material goes first (wool is none; grass is)
     d.ingredients = materialFirst(d.ingredients)
     // its prototype's icon edited (an iron axe is the axe in iron's colours), else drawn as itself
     const material = index.resolve(d.ingredients[0].type).props.material
     const look = `${en(d.name)}: a ${typeof material === 'string' ? `${material} ` : ''}${en(onto.types[d.prototype]?.name ?? d.prototype.split('/').pop()!)}`
-    const art = await this.drawOne(new Meter(this.backend!), { id: `${d.prototype}/drawn`, name: d.name }, look, undefined, request.catalogue.icons?.[d.prototype]).catch(() => undefined)
-    return { ...said, design: { ...d, ...(art && { art }) } }
+    const same = draft?.kind !== 'new' && draft?.prototype === d.prototype
+    return { reply: { ...said, design: d }, sketch: draw(d.name, `${d.prototype}/drawn`, look, (same && before) || request.catalogue.icons?.[d.prototype]) }
   }
 
   /**
@@ -528,7 +562,9 @@ export class Modder {
           return types.length === 1 ? (j?.look ?? patch.note ?? intent) : `${enName(t)}, ${t.id.split('/').slice(0, -1).join(' ')}`
         }
         const look = types.length ? lookOf(types[types.length - 1]) : undefined
-        for (const t of types) step({ who: 'artist', text: `drawing ${enName(t)}: ${lookOf(t)}` })
+        if (body.draw !== false) for (const t of types) step({ who: 'artist', text: `drawing ${enName(t)}: ${lookOf(t)}` })
+        // (a caller drawing later itself: the types alone, now)
+        if (body.draw === false) return { patch, diagnostics: [], ...(look && { look }), usage: model.usage }
         const drawn = await this.drawAll(model, patch, types.map((t) => ({ id: t.id, name: t.name as { en: string; zh: string }, why: lookOf(t) })))
         const shown = library.validate(drawn).ok ? drawn : patch
         const pictured = shown.artifacts.filter((a) => a.kind === 'type' && a.type.art).length
@@ -1324,7 +1360,7 @@ export class Modder {
 
   /** One new thing's picture, as the tier draws it (high: with more thought, and once more if it still has problems). */
   /** A thing's icon: drawn anew, or (`base`: the icon of what it is another make of) that icon edited. */
-  private async drawOne(model: Model, t: TypeDef, why: string | undefined, wl?: Workload, base?: PixelArt): Promise<PixelArt | undefined> {
+  private async drawOne(model: Model, t: TypeDef, why: string | undefined, wl?: Workload, base?: PixelArt, reasoning?: ChatOptions['reasoning']): Promise<PixelArt | undefined> {
     const what = why ?? `a new kind of ${t.id.split('/').slice(-2, -1)[0] ?? 'thing'}`
     const high = wl?.create === 'high'
     const name = typeof t.name === 'object' && t.name ? (t.name as { en: string; zh: string }) : { en: String(t.name ?? t.id), zh: String(t.name ?? t.id) }
@@ -1333,7 +1369,7 @@ export class Modder {
       { role: 'user', content: base ? artEditUser({ id: t.id, name }, what, base) : artUser({ id: t.id, name }, what) },
     ]
     for (let i = 0; i < (high ? 3 : 2); i++) {
-      const r = await model.chat(messages, { json: true, temperature: 0.4, purpose: 'art', reasoning: high ? 'high' : 'medium', deadlineMs: SLOW_MS })
+      const r = await model.chat(messages, { json: true, temperature: 0.4, purpose: 'art', reasoning: reasoning ?? (high ? 'high' : 'medium'), deadlineMs: SLOW_MS })
       const j = parseJson(r.content) as Partial<PixelArt> | undefined
       const art = { grid: j?.grid ?? [], palette: j?.palette ?? {} } as PixelArt
       const problems = artProblems(art)
@@ -1545,6 +1581,8 @@ export function unknownMade(patch: Patch, onto: Ontology): Creation[] {
 /** An author's new thing (POST /create): what it is, and what a player can have in their game. */
 export interface ThingBody {
   intent: string
+  /** false: the types alone, undrawn (the caller draws them after it answers). */
+  draw?: boolean
   /** The draft's id, for its steps (GET /trace). */
   id?: string
   /** The draft before (its patch), and what the author asked to change in it. */

@@ -64,6 +64,7 @@ export type LinkCall =
   | { id: number; op: 'health' }
   | { id: number; op: 'research'; body: ResearchRequest }
   | { id: number; op: 'researched'; outcome: ResearchOutcome }
+  | { id: number; op: 'researchSketch'; sketch: string }
   | { id: number; op: 'resolve'; body: ResolveBody }
   | { id: number; op: 'progress'; request: string }
   | { id: number; op: 'patches'; since: number }

@@ -616,6 +616,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     case 'research':
       research.receive(m)
       break
+    case 'researchSketched':
+      research.sketched(m)
+      break
     case 'researchIcons': {
       // the icons the worker asked for, as pixel grids (a variant's icon is edited from its prototype's)
       const icons: Record<string, PixelArt> = {}

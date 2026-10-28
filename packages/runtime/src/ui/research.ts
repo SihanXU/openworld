@@ -107,6 +107,8 @@ export class ResearchWindow {
   /** What the line says and the card shows, in whichever language is on (relabel says them again). */
   private lineOf?: () => string
   private design?: ResearchDesign
+  /** The craftsperson is drawing the draft's picture (it is tried once it is drawn). */
+  private sketching = false
   paintIcons?: (items: ItemInfo[]) => void
 
   constructor(private actions: { ask(message: string): void; confirm(token: string): void; cancel(): void }) {
@@ -169,6 +171,7 @@ export class ResearchWindow {
     this.token = undefined
     this.input.value = ''
     this.design = undefined
+    this.sketching = false
     this.made = false
     this.labels()
     this.setLine(() => say('Got something in mind? Let’s work out a design together.', '想做点什么新东西？说来听听，我们一起琢磨。'))
@@ -199,7 +202,7 @@ export class ResearchWindow {
     this.input.placeholder = say('What would you like to make?', '想做什么？说说你的想法……')
     this.backButton.textContent = say('Back', '先聊别的')
     this.changeButton.textContent = this.made ? say('Another idea', '再想一个') : say('Change the idea', '改改想法')
-    this.makeButton.textContent = say('Try making it', '试做')
+    this.makeButton.textContent = this.sketching ? say('Sketching…', '画图样中……') : say('Try making it', '试做')
     this.sendButton.textContent = this.waiting ? say('Thinking…', '琢磨中……') : say('Share your idea', '说说想法')
   }
 
@@ -227,7 +230,7 @@ export class ResearchWindow {
     this.waiting = value
     this.input.disabled = this.sendButton.disabled = this.changeButton.disabled = value
     this.labels()
-    this.makeButton.disabled = value || !this.token
+    this.makeButton.disabled = value || !this.token || this.sketching
     this.makeButton.hidden = !this.token
     this.changed?.()
   }
@@ -236,6 +239,7 @@ export class ResearchWindow {
     const message = this.input.value.trim()
     if (!message || this.waiting) return
     this.token = this.design = undefined
+    this.sketching = false
     this.card.hidden = true
     this.input.value = ''
     this.setLine(() => say('Hmm… let me think about that.', '嗯……让我想想。'))
@@ -259,6 +263,7 @@ export class ResearchWindow {
     this.line.classList.toggle('research-error', !!m.problem)
     this.token = m.token
     this.design = m.design
+    this.sketching = !!m.design && !!m.sketching
     this.made = !!m.made
     this.card.replaceChildren()
     this.card.hidden = !m.design
@@ -269,6 +274,19 @@ export class ResearchWindow {
     if (m.design) this.makeButton.focus()
     else if (m.made) this.backButton.focus()
     else this.input.focus()
+  }
+
+  /** The draft's picture is drawn: shown on its card, and it can be tried. */
+  sketched(m: Extract<FromWorker, { t: 'researchSketched' }>): void {
+    const kept = this.kept.get(m.who)
+    // (drawn while one was away: kept with the reply)
+    if (kept && kept.token === m.token) return void this.kept.set(m.who, { ...kept, design: m.design, sketching: false })
+    if (!this.open || m.who !== this.who || !this.sketching || m.token !== this.token) return
+    this.design = m.design
+    this.sketching = false
+    this.card.replaceChildren()
+    this.preview(m.design)
+    this.busy(this.waiting)
   }
 
   private preview(d: ResearchDesign): void {
@@ -295,7 +313,10 @@ export class ResearchWindow {
     heading.className = 'research-recipe-head'
     const title = document.createElement('strong')
     title.textContent = tx(d.name)
-    heading.append(art ? picture(art) : icon(kind), title)
+    // not drawn yet: its kind's icon, faded, while the craftsperson sketches
+    const shown = art ? picture(art) : icon(kind)
+    if (this.sketching) shown.classList.add('research-sketching')
+    heading.append(shown, title)
     const subtitle = document.createElement('small')
     subtitle.textContent =
       d.kind === 'new'
@@ -313,6 +334,12 @@ export class ResearchWindow {
     const note = document.createElement('small')
     note.textContent = say('Materials are used only when the trial succeeds. Tools and workshop requirements still apply.', '试制成功才会用掉材料；仍需对应的工具与工坊。')
     this.card.append(heading, subtitle, ingredients, note)
+    if (this.sketching) {
+      const sketch = document.createElement('small')
+      sketch.className = 'research-sketch-note'
+      sketch.textContent = say('Sketching the pattern…', '正在画图样……')
+      this.card.insertBefore(sketch, ingredients)
+    }
     this.paintIcons?.(icons)
   }
 }

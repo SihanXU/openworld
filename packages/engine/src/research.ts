@@ -1,7 +1,8 @@
 // A research conversation proposes data, never executable patches. The caller supplies the
 // catalogue from the current game, and rechecks it at confirmation: a model is not authority.
 // A proposal is a variant of a kind the world has (its prototype, the player's materials), or a new kind the
-// craftsperson thinks is needed; the service designs that kind (its numbers, makeup, station) and draws both.
+// craftsperson thinks is needed; the service designs that kind (its numbers, makeup, station) and draws both, after the
+// reply (`sketch`): the player reads the craftsperson while the picture is drawn.
 import { artProblems } from './mod.ts'
 import type { PixelArt, Text, TypeDef } from './types.ts'
 
@@ -61,6 +62,8 @@ export interface ResearchReply {
   design?: ResearchDesign
   /** The service's record of this turn (the craftsperson's own memory): what came of it is reported against it. */
   episode?: string
+  /** The design's picture is still being drawn: asked for by this id (the reply does not wait for it). */
+  sketch?: string
 }
 
 export interface ResearchRequest {
@@ -68,6 +71,8 @@ export interface ResearchRequest {
   message: string
   history: { player: string; npc: Text }[]
   catalogue: ResearchCatalogue
+  /** The draft on the table (the craftsperson's last proposal, its picture if drawn): what a change of mind changes. */
+  draft?: ResearchDesign
 }
 
 /** What came of a turn's design in the game: made, refused by the game (its problem's code), or left by the player. */
@@ -87,7 +92,7 @@ export function readResearchOutcome(value: unknown): ResearchOutcome {
 
 /** Bound even direct HTTP callers before their text reaches a model or is logged. */
 export function readResearchRequest(value: unknown): ResearchRequest {
-  if (!record(value) || !keys(value, ['npc', 'message', 'history', 'catalogue']) || !words(value.npc, 100) || !words(value.message, 1000)) throw new Error('Invalid research request')
+  if (!record(value) || !keys(value, ['npc', 'message', 'history', 'catalogue', 'draft']) || !words(value.npc, 100) || !words(value.message, 1000)) throw new Error('Invalid research request')
   const c = value.catalogue
   if (!record(c) || !keys(c, ['prototypes', 'materials', 'stations', 'crafted', 'makes', 'icons', 'guidance'])) throw new Error('Invalid research catalogue')
   const ids = (x: unknown): string[] => {
@@ -139,7 +144,14 @@ export function readResearchRequest(value: unknown): ResearchRequest {
     })
     catalogue.guidance = { materials, prototypes }
   }
-  return { npc: value.npc, message: value.message, history, catalogue }
+  // a draft no longer makeable here (a material spent, a craft out of reach) is no draft: the next idea starts afresh
+  let draft: ResearchDesign | undefined
+  if (value.draft !== undefined) {
+    try {
+      draft = readResearchReply({ reply: { en: 'draft', zh: 'draft' }, design: value.draft }, catalogue).design
+    } catch { /* dropped */ }
+  }
+  return { npc: value.npc, message: value.message, history, catalogue, ...(draft && { draft }) }
 }
 
 const record = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x) && (Object.getPrototypeOf(x) === Object.prototype || Object.getPrototypeOf(x) === null)
@@ -152,10 +164,11 @@ const words = (x: unknown, max: number): x is string => typeof x === 'string' &&
  * (researchCraft.ts). This is only structural validation; affordability, balance and reach are game checks.
  */
 export function readResearchReply(value: unknown, catalogue: ResearchCatalogue): ResearchReply {
-  if (!record(value) || !keys(value, ['reply', 'design', 'episode'])) throw new Error('Invalid research reply')
+  if (!record(value) || !keys(value, ['reply', 'design', 'episode', 'sketch'])) throw new Error('Invalid research reply')
   const reply = lineOf(value.reply, 1600, 'Say the reply in English and in Chinese: {"en": …, "zh": …}')
-  if (value.episode !== undefined && (typeof value.episode !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(value.episode))) throw new Error('Invalid research reply')
-  const episode = value.episode === undefined ? {} : { episode: value.episode as string }
+  const handle = (x: unknown) => x === undefined || (typeof x === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(x))
+  if (!handle(value.episode) || !handle(value.sketch)) throw new Error('Invalid research reply')
+  const episode = { ...(value.episode !== undefined && { episode: value.episode as string }), ...(value.sketch !== undefined && !!value.design && { sketch: value.sketch as string }) }
   if (value.design === undefined || value.design === null) return { reply, ...episode }
   const d = value.design
   if (!record(d) || !keys(d, ['kind', 'name', 'prototype', 'ingredients', 'art', 'idea', 'type'])) throw new Error('Invalid recipe design')
