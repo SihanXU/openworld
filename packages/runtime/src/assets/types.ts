@@ -226,6 +226,12 @@ export interface PortraitSet {
   talk?: boolean
   /** Every mood of `moods` has a wider picture for a panel of the game's own (`<mood>-panel.webp`: the figure with what spreads beside it, a fairy's wings). */
   panel?: boolean
+  /**
+   * The panel picture also in layers, so a game's panel can move it: `<mood>-panel-body.webp` (the figure without what
+   * spreads beside it), `<mood>-panel-blink.webp` (the closed eyes alone, to lay over the body) and the wings alone,
+   * `panel-wings-left.webp` and `panel-wings-right.webp` (behind; the same in every mood).
+   */
+  panelLayers?: boolean
 }
 
 /** When in the day and the weather a cue may have a version of its own for (MusicCue.at). */

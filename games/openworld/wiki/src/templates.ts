@@ -3,7 +3,7 @@
 // language (lang.ts `L`, game.ts `say`); a template and its keyword arguments answer to either language's name.
 
 import { gearProps, type CreatureSkill, type Effect, type Entity, type QuestDef, type QuestReward, type QuestTrigger, type Text } from '@openworld/engine'
-import { BASE_RULES, CREATURE_ROLES, REGION_BY_ID, REGIONS } from '@openworld-game/content'
+import { BASE_RULES, CREATURE_ROLES, RECIPE_BY_ID, REGION_BY_ID, REGIONS, priceOf as standardPrice, pricedFrom } from '@openworld-game/content'
 import {
   EFFICIENCY, ELEMENT_NAMES, ELEMENTS, LEGENDARY_ARMS, MATERIALS, QUALITIES, RELICS, VOWS, enOf, groupName, isAccessory, kindName, say, zh,
   type BossEnt, type CreatureEnt, type Ent, type Game, type ItemEnt, type MapEnt, type PersonEnt, type QuestEnt, type Sprite,
@@ -1024,6 +1024,27 @@ function lists(ctx: Ctx, name: string, args: string[], written: string): string 
     }
     case '元素表': return table([L('元素', 'Element'), L('武器名缀', 'Weapon affix'), L('代码', 'Code')], ELEMENTS.map((el) => [esc(T(ctx, '元素', el)), esc(say(ELEMENT_NAMES[el])), `<code>${el}</code>`]))
     case '地形表': return table(['', L('地形', 'Terrain'), L('性质', 'Properties'), L('耐久', 'Durability'), L('打坏后留下', 'Leaves when broken')], g.terrains.map((t) => [`<span class="swatch" style="background:${t.color ?? '#999'}"></span>`, `<b>${esc(say(t.name))}</b>`, join([t.solid ? L('挡路', 'solid') : L('可通行', 'passable'), t.liquid ? L('液体', 'liquid') : '', (t.tags ?? []).includes('flammable') ? L('可燃', 'flammable') : '', (t.tags ?? []).includes('slippery') ? L('滑', 'slippery') : '', (t.tags ?? []).includes('diggable') ? L('可开垦', 'tillable') : '', (t.tags ?? []).includes('overworld') ? L('大地图', 'world map') : '']), t.props?.maxHp ? String(t.props.maxHp) : L('打不坏', 'Unbreakable'), join((t.makeup ?? []).map((m) => typeLink(ctx, m.type, { count: m.count })))]), 'wikitable sortable')
+    case '价格表': {
+      // every item's standard price (docs/economy.md, content prices.ts): what the world gives at its own price, what is
+      // made at what it took and the work once; and what any merchant asks for one and pays
+      const coin = (n: number) => (Math.round(n * 100) / 100).toString()
+      const how = (e: ItemEnt) => {
+        const from = pricedFrom(e.id)
+        if (!from) return L('世界给出（采集、种植、钓、挖、掉落、只能找到）', 'Given by the world (gathered, grown, caught, mined, dropped, only found)')
+        const r = RECIPE_BY_ID[from]
+        if (r) return L(`做出来：${join(r.needs.map((n) => typeLink(ctx, n.type, { count: n.count })))}${(r.count ?? 1) > 1 ? `，一次 ${r.count} 个` : ''}`, `Made: ${join(r.needs.map((n) => typeLink(ctx, n.type, { count: n.count })))}${(r.count ?? 1) > 1 ? `, ${r.count} at a time` : ''}`)
+        const [kind, src] = from.split(' ')
+        if (src) return L(`${kind === 'cookedType' ? '烤' : kind === 'smelts' ? '熔炼' : '装满'}${typeLink(ctx, src)}`, `${kind === 'cookedType' ? 'Cooked from' : kind === 'smelts' ? 'Smelted from' : 'Filled from'} ${typeLink(ctx, src)}`)
+        return L(`${typeLink(ctx, 'item/vessel/bucket/milk')}在火上做成`, `${typeLink(ctx, 'item/vessel/bucket/milk')} over a fire`)
+      }
+      const items = g.items.filter((e) => e.kind === 'item' && !e.form?.base && e.id !== g.coin).sort((a, b) => a.group.localeCompare(b.group) || standardPrice(b.id) - standardPrice(a.id))
+      return table(['', L('物品', 'Item'), L('分类', 'Group'), L('标准价', 'Standard price'), L('怎么定的', 'Priced from'), L('商人卖', 'Merchants ask'), L('商人收', 'Merchants pay')], items.map((e) => {
+        // as a merchant reads it (social.ts): its worth rounded, at least one; a quarter on, half off; what fetches nothing is not bought
+        const worth = Math.max(1, Math.round(standardPrice(e.id)))
+        const pays = Math.floor(worth * 0.5)
+        return [fit(e.sprite, 32), entLink(ctx, e), esc(e.groupName), coin(standardPrice(e.id)), how(e), String(Math.max(1, Math.round(worth * 1.25))), pays ? String(pays) : L('不收', 'Not bought')]
+      }), 'wikitable sortable')
+    }
     case '材质表': return table([L('材质', 'Material'), L('攻击系数', 'Attack ×'), L('防御系数', 'Defence ×'), L('价值系数', 'Value ×'), L('类别', 'Category'), L('硬度', 'Hardness')], Object.values(MATERIALS).map((m) => [`<span class="swatch" style="background:${m.color}"></span> ${esc(say(m))}`, `×${m.attack}`, `×${m.defence}`, `×${m.value}`, esc(m.category), String(m.hardness)]), 'wikitable sortable')
     case '品质表': {
       const HOW: Record<string, [string, string]> = {
@@ -1137,7 +1158,7 @@ const BLOCK = new Set([
   '信息框', '引言', '小作品', '规划中', '待设计', '开发者', '主条目', '另见', '导航框', '日程表', '对话', '人际关系', '相关任务', '肖像', '来源', '用途', '配方', '变体',
   '出没', '掉落', '首领技能', '怪物技能', '地图', '相连地点', '居民', '生物', '物品分布', '任务目标', '任务奖励', '任务对话', '任务阶段', '物品表', '居民表', '怪物表', '掉落表', '首领表', '地点表', '任务表', '地区表', '地区地点',
   '配方表', '建造表', '技能树', '职业表', '恩赐表', '状态表', '元素表', '地形表', '材质表', '品质表', '装备栏表', '作物表', '食物表', '传送雕像表', '配乐表', '效率表',
-  '房间用途表', '夜行生物表', '传说武器表', '圣痕之力表', '誓言表', '货摊表', '地区物产', '版本历史', '数值表', '门户', '原文', '图', '剧透',
+  '房间用途表', '夜行生物表', '传说武器表', '圣痕之力表', '誓言表', '货摊表', '价格表', '地区物产', '版本历史', '数值表', '门户', '原文', '图', '剧透',
 ])
 
 /** The templates' English names (lower case, words by spaces) → the canonical Chinese ones: either works in either edition. */
@@ -1154,6 +1175,7 @@ export const TEMPLATE_EN: Record<string, string> = {
   'terrain table': '地形表', 'substance table': '材质表', 'quality table': '品质表', 'slot table': '装备栏表', 'crop table': '作物表', 'food table': '食物表',
   'waypoint table': '传送雕像表', 'music table': '配乐表', 'efficiency table': '效率表', 'room table': '房间用途表', 'night creature table': '夜行生物表',
   'legendary arms table': '传说武器表', 'stigma table': '圣痕之力表', 'vow table': '誓言表', 'version history': '版本历史', 'value table': '数值表', portal: '门户',
+  'price table': '价格表',
 }
 
 /** Keyword arguments in English (lower case) → the Chinese ones, by canonical template. */

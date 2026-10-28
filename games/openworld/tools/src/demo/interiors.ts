@@ -89,7 +89,7 @@ export function tentRoom(outer: MapBuilder, tent: Entity, id: string, en: string
 export function tentRooms(ford: MapBuilder, forest: MapBuilder, haven: MapBuilder): MapBuilder[] {
   const tentOf = (m: MapBuilder) => m.entities.find((e) => e.type.startsWith('fixture/tent'))!
   return [
-    tentRoom(ford, tentOf(ford), 'ford.tentroom', 'The Ferry Camp Tent', '渡口营地的帐篷', (m) => {
+    tentRoom(ford, tentOf(ford), 'ford.tentroom', 'The Ferry Camp Tent', '晚祷渡营地的帐篷', (m) => {
       m.fixture('fixture/furniture/bed', 1, 1, { name: L('A bedroll', '铺盖卷') })
       m.fixture('fixture/container/crate', 6, 1)
       m.fixture('fixture/light/candles', 4, 1, { statuses: { lit: -1 } })

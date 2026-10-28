@@ -8,6 +8,7 @@
 import { TICKS_PER_DAY, type Cond, type Effect, type Recipe, type Rule, type Text, type Tree } from '@openworld/engine'
 import { FORM_BY_ID } from './items.ts'
 import { VEGETABLE_CROPS } from './crops.ts'
+import { buyBackPrice, shelfPrice } from './prices.ts'
 import { stackKey } from '@openworld/engine'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
@@ -28,61 +29,60 @@ const nameOf = (type: string): Text => {
 }
 const spriteOf = (type: string) => FORM_BY_ID[type]?.sprite ?? 'item:bag'
 
-/** Seeds on the farming shelf: how many for how much (Stardew's dearer seeds give dearer crops, or keep bearing). */
-const SEED: Record<string, [number, number]> = {
-  carrot: [5, 8], turnip: [5, 6], tomato: [5, 12], pumpkin: [3, 15],
-  parsnip: [5, 5], potato: [5, 10], radish: [5, 8], cauliflower: [3, 20], melon: [3, 24],
-  corn: [3, 18], blueberry: [3, 24], strawberry: [3, 20], pepper: [3, 14], eggplant: [3, 16],
-}
-/** What the stall pays for one of a crop. */
-const CROP_PRICE: Record<string, number> = {
-  carrot: 5, turnip: 4, tomato: 6, pumpkin: 14, parsnip: 4, potato: 6, radish: 5, cauliflower: 18, melon: 22,
-  corn: 5, blueberry: 3, strawberry: 6, pepper: 4, eggplant: 6,
-}
-/** What it pays for one of a fish (the rarer, the dearer: the Dawnscale bites only at first light). */
-const FISH_PRICE: Record<string, number> = { sunfish: 6, perch: 8, catfish: 20, eel: 18, pike: 16, carp: 30, dawnscale: 80 }
+/** Seeds on the farming shelf: how many come at once (fewer of the dearer, which give dearer crops or keep bearing). */
+const SEEDS: Record<string, number> = { pumpkin: 3, cauliflower: 3, melon: 3, corn: 3, blueberry: 3, strawberry: 3, pepper: 3, eggplant: 3 }
+/** The fish the stall buys (the rarer, the dearer: the Dawnscale bites only at first light). */
+const FISH = ['sunfish', 'perch', 'catfish', 'eel', 'pike', 'carp', 'dawnscale']
 
-/** A shelf's offer: `count` of a thing for `price` Dawnmarks (seeds: more for a Seed Merchant, life.ts). */
-const buy = (group: string, type: string, count: number, price: number): Recipe => ({
+/** A shelf's offer: `count` of a thing at the standard price and a merchant's quarter (prices.ts; seeds: more for a Seed Merchant, life.ts). */
+const buy = (group: string, type: string, count: number): Recipe => ({
   id: `shop/buy/${type.split('/').slice(1).join('-')}`, group, name: nameOf(type), sprite: spriteOf(type),
-  needs: [{ type: COIN, count: price }], make: { type }, station: 'stall', count, ...(type.startsWith('item/seed/') && { bonus: 'buy:farm' }),
+  needs: [{ type: COIN, count: shelfPrice(type, count) }], make: { type }, station: 'stall', count, ...(type.startsWith('item/seed/') && { bonus: 'buy:farm' }),
 })
-/** What the stall buys back: one of a thing for `price` Dawnmarks (more for a Market Gardener's crops, a Rancher's goods: life.ts). */
-const sell = (type: string, price: number, bonus?: string): Recipe => ({
+/** What the stall buys back: one of a thing for half its standard price (more for a Market Gardener's crops, a Rancher's goods, an Ore Merchant's ore: life.ts). */
+const sell = (type: string, bonus?: string): Recipe => ({
   id: `shop/sell/${type.split('/').slice(1).join('-')}`, group: 'sell', name: nameOf(type), sprite: spriteOf(type),
-  needs: [{ type, count: 1 }], make: { type: COIN }, station: 'stall', count: price, ...(bonus && { bonus }),
+  needs: [{ type, count: 1 }], make: { type: COIN }, station: 'stall', count: buyBackPrice(type), ...(bonus && { bonus }),
 })
 
 export const SHOP_RECIPES: Recipe[] = [
   // farming: seeds, fertilizer, an acorn, a shovel (to lift a plant or a stump)
-  buy('farm', 'item/seed/wheat', 5, 5),
-  ...VEGETABLE_CROPS.map((c) => buy('farm', `item/seed/${c.id}`, SEED[c.id]?.[0] ?? 5, SEED[c.id]?.[1] ?? 8)),
-  buy('farm', 'item/seed/berry', 3, 10),
-  buy('farm', 'item/seed/herb', 3, 8),
-  buy('farm', 'item/material/fertilizer', 3, 10),
-  buy('farm', 'item/seed/acorn', 1, 4),
-  buy('farm', 'item/tool/shovel', 1, 15),
-  buy('farm', 'item/tool/hoe', 1, 12),
-  buy('farm', 'item/tool/sickle', 1, 10),
-  { ...buy('farm', 'item/vessel/bucket/empty', 1, 8), id: 'shop/buy/farm-bucket' },
+  buy('farm', 'item/seed/wheat', 5),
+  ...VEGETABLE_CROPS.map((c) => buy('farm', `item/seed/${c.id}`, SEEDS[c.id] ?? 5)),
+  buy('farm', 'item/seed/berry', 3),
+  buy('farm', 'item/seed/herb', 3),
+  buy('farm', 'item/material/fertilizer', 3),
+  buy('farm', 'item/seed/acorn', 1),
+  buy('farm', 'item/tool/shovel', 1),
+  buy('farm', 'item/tool/hoe', 1),
+  buy('farm', 'item/tool/sickle', 1),
+  { ...buy('farm', 'item/vessel/bucket/empty', 1), id: 'shop/buy/farm-bucket' },
   // ranching: feed, a bucket for milking, beasts in crates
-  buy('ranch', 'item/material/feed', 5, 6),
-  buy('ranch', 'item/vessel/bucket/empty', 1, 8),
-  buy('ranch', 'item/misc/crate_hen', 1, 40),
-  buy('ranch', 'item/misc/crate_calf', 1, 120),
+  buy('ranch', 'item/material/feed', 5),
+  buy('ranch', 'item/vessel/bucket/empty', 1),
+  buy('ranch', 'item/misc/crate_hen', 1),
+  buy('ranch', 'item/misc/crate_calf', 1),
   // fishing: bait, a rod
-  buy('fish', 'item/misc/bait', 5, 5),
-  buy('fish', 'item/tool/fishing_rod', 1, 25),
+  buy('fish', 'item/misc/bait', 5),
+  buy('fish', 'item/tool/fishing_rod', 1),
   // what the stall buys back
-  sell('item/material/wheat', 3, 'sell:farm'),
-  ...VEGETABLE_CROPS.map((c) => sell(`item/food/${c.id}`, CROP_PRICE[c.id] ?? 4, 'sell:farm')),
-  sell('item/food/berries', 1, 'sell:farm'),
-  sell('item/material/herb', 3, 'sell:farm'),
-  sell('item/food/egg/raw', 4, 'sell:ranch'),
-  sell('item/vessel/bucket/milk', 12, 'sell:ranch'),
-  sell('item/food/fish/raw', 6),
-  ...Object.entries(FISH_PRICE).map(([id, price]) => sell(`item/food/fish/${id}`, price)),
-  sell('item/misc/old_boot', 1),
+  sell('item/material/wheat', 'sell:farm'),
+  ...VEGETABLE_CROPS.map((c) => sell(`item/food/${c.id}`, 'sell:farm')),
+  sell('item/food/berries', 'sell:farm'),
+  sell('item/material/herb', 'sell:farm'),
+  sell('item/food/egg/raw', 'sell:ranch'),
+  sell('item/vessel/bucket/milk', 'sell:ranch'),
+  sell('item/food/fish/raw'),
+  ...FISH.map((id) => sell(`item/food/fish/${id}`)),
+  sell('item/misc/old_boot'),
+  // ore and coal (an Ore Merchant gets more), and the ranch's goods (a Rancher gets more)
+  sell('item/material/iron_ore', 'sell:smith'),
+  sell('item/material/gold_ore', 'sell:smith'),
+  sell('item/material/coal', 'sell:smith'),
+  sell('item/material/leather', 'sell:ranch'),
+  sell('item/material/feather', 'sell:ranch'),
+  sell('item/food/honey', 'sell:ranch'),
+  sell('item/food/cheese', 'sell:ranch'),
 ]
 
 const ANIMAL = { type: 'actor/creature/animal' }

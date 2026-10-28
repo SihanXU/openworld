@@ -154,7 +154,7 @@ const BY_ROLE: Record<string, LineDef[]> = {
 /** By where they live: the land, its weather and its work, never its tale. */
 const BY_REGION: Record<string, LineDef[]> = {
   frostfang: [
-    L('default', "They say there's a knight on the road past the Ford who stops everyone. Nobody gets by him.", '听说过了渡口的那条大路上，有个骑士把路拦住了，谁也过不去。'),
+    L('default', "They say there's a knight on the road past Vesper Ford who stops everyone. Nobody gets by him.", '听说过了晚祷渡的那条大路上，有个骑士把路拦住了，谁也过不去。'),
     L('weather:storm', 'Storm off the sea. Stack the wood high and keep the shutters shut.', '海上起风暴了。柴堆高，窗板关好。'),
   ],
   redmarch: [

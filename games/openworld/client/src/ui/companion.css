@@ -43,6 +43,37 @@
 /* her own portrait (docs/cast/lumi.md): its own wings, wider than the drawn ones, so the picture takes the whole stage's width */
 .lm-figure.own { left: 0; right: 0; width: auto; height: 400px; top: 34px; transform: none; display: flex; justify-content: center; animation-name: lmFloatOwn; }
 .lm-figure.own .lm-bust { width: 400px; height: 400px; flex: none; }
+/* her own portrait in layers (companion.ts drawLayered): the wings behind, fluttering about their roots now and then,
+   the body over them, her closed eyes over that for a moment — a blink; the glow round all of her together */
+.lm-own { position: relative; width: 100%; aspect-ratio: 1; filter: drop-shadow(0 0 14px rgba(224, 210, 255, 0.7)) drop-shadow(0 6px 10px rgba(10, 4, 30, 0.5)); }
+.lm-own img { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; pointer-events: none; }
+.lm-own .lm-portrait { filter: none; }
+.lm-own-wing.left { transform-origin: 32% 46%; animation: lmFlutterL 3.4s ease-in-out infinite; }
+.lm-own-wing.right { transform-origin: 62% 40%; animation: lmFlutterR 3.4s ease-in-out infinite; }
+.lm-own-blink { opacity: 0; }
+.lm-own.blink .lm-own-blink { opacity: 1; }
+/* at rest a slow sway; then two quick beats, the wings drawn in toward her back and out again */
+@keyframes lmFlutterL {
+  0%, 100% { transform: rotate(0deg) scaleX(1); }
+  30% { transform: rotate(1.2deg) scaleX(1); }
+  56% { transform: rotate(0deg) scaleX(1); }
+  61% { transform: rotate(-5deg) scaleX(0.84); }
+  66% { transform: rotate(1.5deg) scaleX(1.03); }
+  71% { transform: rotate(-5deg) scaleX(0.84); }
+  77% { transform: rotate(0.6deg) scaleX(1.01); }
+  84% { transform: rotate(0deg) scaleX(1); }
+}
+@keyframes lmFlutterR {
+  0%, 100% { transform: rotate(0deg) scaleX(1); }
+  30% { transform: rotate(-1.2deg) scaleX(1); }
+  56% { transform: rotate(0deg) scaleX(1); }
+  61% { transform: rotate(5deg) scaleX(0.8); }
+  66% { transform: rotate(-1.5deg) scaleX(1.03); }
+  71% { transform: rotate(5deg) scaleX(0.8); }
+  77% { transform: rotate(-0.6deg) scaleX(1.01); }
+  84% { transform: rotate(0deg) scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) { .lm-own-wing { animation: none; } }
 .lm-portrait {
   display: block; width: 100%; height: auto;
   filter: drop-shadow(0 0 14px rgba(224, 210, 255, 0.7)) drop-shadow(0 6px 10px rgba(10, 4, 30, 0.5));

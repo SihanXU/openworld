@@ -1073,6 +1073,10 @@ export const CATALOG: Catalog = {
     cornerJournal: ui('Items/Object/Book.png', 16, 16),
     cornerCraft: ui('Items/Tool/Anvil.png', 16, 16),
     cornerOptions: ui('lsw/Ui/Gear.png', 16, 16),
+    // Lumi's badge, left of the corner buttons: her panel — her portrait brought down to pixels in a gilt ring
+    // (tools/src/art/lumi-icon.py, the game's icon too); her happy face under the pointer
+    cornerCompanion: ui('lsw/Ui/LumiBadge.png', 60, 60),
+    cornerCompanionHover: ui('lsw/Ui/LumiBadgeHappy.png', 60, 60),
     // over a profession trainer's head (scene.ts): crossed blades
     trainerMark: ui('Ui/Skill Icon/Items & Weapon/Guard.png', 24, 24),
     // a smith's: an anvil and a raised hammer (tools/src/art/smith-mark.ts)
@@ -1162,7 +1166,8 @@ export const CATALOG: Catalog = {
     'npc.ilse': { dir: 'lsw/Portraits/ilse', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true },
     'npc.severin': { dir: 'lsw/Portraits/severin', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true },
     'npc.tobin': { dir: 'lsw/Portraits/tobin', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true },
-    pip: { dir: 'lsw/Portraits/lumi', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true, panel: true },
+    // (her panel picture in layers too: tools/src/art/portraits/panel-layers.py — her panel flutters her wings and blinks)
+    pip: { dir: 'lsw/Portraits/lumi', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true, panel: true, panelLayers: true },
   },
 
   sfx: {

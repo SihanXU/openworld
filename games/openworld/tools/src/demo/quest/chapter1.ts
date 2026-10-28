@@ -83,7 +83,7 @@ export function chapter1Village(m: MapBuilder): void {
 /** The Ford: a waypoint statue by the camp, Pell's drawing by the footbridge, thorns driven into the bridge's stumps. */
 export function chapter1Ford(m: MapBuilder): void {
   const a = CH1_AT.ford
-  statue(m, 'wp.ford', ...a.stone, 'The Ford', '渡口')
+  statue(m, 'wp.ford', ...a.stone, 'Vesper Ford', '晚祷渡')
   drawing(m, 'bridge', ...a.drawing, 'A bridge with its middle gone. A tall figure in white beside it, and a smaller grey one watching from the trees.', '一座中间断了的桥。桥边站着一个高高的白色人影，树林里还有一个小一点的灰色人影，在往这边看。')
   for (const [x, y] of a.briars) m.fixture('fixture/nature/briar', ...spot(m, x, y), { name: L('Thorns driven into the stump', '钉进桥桩的荆棘') })
 }
@@ -108,7 +108,7 @@ export function chapter1Barrow(m: MapBuilder): void {
 export function chapter1EastRoad(m: MapBuilder): void {
   const a = CH1_AT.road
   anchor(m, 'edda.barn', ...a.barn)
-  statue(m, 'wp.eastroad', ...a.stone, 'The East Road', '东大路')
+  statue(m, 'wp.eastroad', ...a.stone, 'The Sunrise Road', '朝阳大道')
   // the barn where Edda hides; the stretch of road before the thorns, where the grey man waits
   m.regions.barn = [18, 6, 7, 4]
   m.regions.thornroad = [27, 8, 5, 7]
@@ -507,7 +507,7 @@ export const CHAPTER1_SCENES: StepDef[] = [
     // (not once the knight has fallen: a player who went straight for him finds the night already past)
     when: { map: 'meadow', hour: { from: 21, to: 24 }, facts: { 'village.rescued': 1, 'ch1.vigil': 1, [CH1.knight]: 0 } },
     script: [
-      say('npc.rowan', 'Lina and Oskar are home. Tonight Firstlight gives thanks to the flame that has kept us, and to our guest, who went down into the barrow and brought them back.', '莉娜和奥斯卡回家了。今晚，初原村在这里感谢守护我们的圣火，也感谢这位客人——是你下到古墓里，把他们带了回来。'),
+      say('npc.rowan', 'Lina and Oskar are home. Tonight Firstlight gives thanks to the flame that has kept us, and to our guest, who went down into the barrow and brought them back.', '莉娜和奥斯卡回家了。今晚，初原村在这里感谢守护我们的圣火，也感谢这位客人——是你下到长眠冢里，把他们带了回来。'),
       say('npc.ilse', 'May Astra watch over us tonight. ...Go to your beds now. The flame keeps the night.', '愿阿斯特拉看顾今夜。……都回去睡吧，圣火会守着夜晚。'),
       { fade: 'out' },
       // the grey man's music as the dark falls (docs/music.md)

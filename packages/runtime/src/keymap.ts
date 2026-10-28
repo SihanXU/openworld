@@ -9,12 +9,12 @@
 
 /** What a key may do. */
 export const ACTIONS = [
-  'up', 'down', 'left', 'right', 'walk',
+  'up', 'down', 'left', 'right', 'run', 'walk',
   'hands', 'put', 'rotate',
   'attack', 'dash', 'draw', 'sneak',
   'cast1', 'cast2', 'cast3', 'cast4', 'cast5', 'cast6',
   'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot10', 'row',
-  'bag', 'craft', 'skills', 'skillPanel', 'quests', 'journal', 'map', 'build',
+  'bag', 'craft', 'skills', 'skillPanel', 'quests', 'journal', 'map', 'build', 'companion',
 ] as const
 export type Action = (typeof ACTIONS)[number]
 
@@ -42,7 +42,8 @@ export function defaultKeys(): Keymap {
     down: [k('KeyS'), k('ArrowDown')],
     left: [k('KeyA'), k('ArrowLeft')],
     right: [k('KeyD'), k('ArrowRight')],
-    walk: [k('ShiftLeft'), k('ShiftRight')],
+    run: [k('ShiftLeft')],
+    walk: [k('ShiftRight')],
     hands: [k('KeyE')],
     put: [k('KeyG')],
     rotate: [k('KeyR')],
@@ -59,6 +60,7 @@ export function defaultKeys(): Keymap {
     journal: [k('KeyJ')],
     map: [k('KeyM')],
     build: [k('KeyB')],
+    companion: [k('KeyP')],
   } as Partial<Keymap>
   for (let n = 1; n <= 6; n++) m[`cast${n}` as Action] = [k(digit(n), true)]
   for (let n = 1; n <= 10; n++) m[`slot${n}` as Action] = [k(digit(n))]
@@ -69,7 +71,7 @@ export const same = (a: Binding, b: Binding) => a.code === b.code && !!a.shift =
 
 /**
  * The action a key does: one bound with Shift only while Shift is held (Shift+1 casts), one bound without it whether
- * or not (Shift held to walk, W still walks up), the Shift-bound one first.
+ * or not (Shift held to run, W still walks up), the Shift-bound one first.
  */
 export function actionOf(map: Keymap, code: string, shift: boolean): Action | undefined {
   let plain: Action | undefined
@@ -253,6 +255,7 @@ export const ACTION_NAME: Record<Action, [string, string]> = {
   down: ['Move down', '向下走'],
   left: ['Move left', '向左走'],
   right: ['Move right', '向右走'],
+  run: ['Run (hold)', '跑步（按住）'],
   walk: ['Walk (hold)', '慢走（按住）'],
   hands: ['The hand: pick up what lies loose; talk, open, read', '手：拿起散落的东西；说话、打开、阅读'],
   put: ['Put down, put in, hand over', '放下、放进、交给别人'],
@@ -286,15 +289,16 @@ export const ACTION_NAME: Record<Action, [string, string]> = {
   journal: ['Codex', '图鉴'],
   map: ['World map', '世界地图'],
   build: ['Build mode', '建造模式'],
+  companion: ['Companion (her panel)', '小精灵面板'],
 }
 
 /** The actions in their groups, as the keys page lists them. */
 export const GROUPS: { name: [string, string]; actions: Action[] }[] = [
-  { name: ['Moving', '移动'], actions: ['up', 'down', 'left', 'right', 'walk'] },
+  { name: ['Moving', '移动'], actions: ['up', 'down', 'left', 'right', 'run', 'walk'] },
   { name: ['Acting', '交互'], actions: ['hands', 'put', 'rotate'] },
   { name: ['Fighting', '战斗'], actions: ['attack', 'dash', 'draw', 'sneak', 'cast1', 'cast2', 'cast3', 'cast4', 'cast5', 'cast6'] },
   { name: ['Toolbar', '快捷栏'], actions: ['slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot10', 'row'] },
-  { name: ['Panels', '面板'], actions: ['bag', 'craft', 'skills', 'skillPanel', 'quests', 'journal', 'map', 'build'] },
+  { name: ['Panels', '面板'], actions: ['bag', 'craft', 'skills', 'skillPanel', 'quests', 'journal', 'map', 'build', 'companion'] },
 ]
 
 /** An action's key as a text names it: its first, or a word that it has none. */

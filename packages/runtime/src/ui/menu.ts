@@ -27,6 +27,7 @@ import { $, SLOT_KEYS, controlsTable, esc, kbd, locale, prefs, t, tx, gearFrame,
 import type { Panel } from './paneltabs.ts'
 import { KeysPage } from './keyspage.ts'
 import type { Action } from '../keymap.ts'
+import { pixelIcon } from './components/icons.ts'
 
 export type Tab = 'inventory' | 'craft' | 'options' | 'shop' | 'keys' | 'station'
 /** The game's shops (a station each, its shelves); none, no shop panel. */
@@ -34,6 +35,15 @@ const shops = (): ShopDef[] => game().crafting.shops ?? []
 /** The runtime's own panels for a module a game uses, where the game has none of its own (ClientGame.panels). */
 const builtInPanels = (): Record<string, PanelFactory> => ({ restyle: restylePanel, ...(hasModule('boons') ? { boons: boonPanel } : {}) })
 const ROW = SLOT_KEYS.length
+
+/** The bag's keys, as its legend shows them: what is pressed (a word of STRINGS, or the action `row`'s key) and what it does. */
+const INV_KEYS: [string, string][] = [
+  ['invKeyClick', 'invDoPick'],
+  ['invKeyRight', 'invDoUse'],
+  ['invKeyShiftRight', 'invDoHalf'],
+  ['invKeyShiftClick', 'invDoMove'],
+  ['row', 'invDoRow'],
+]
 
 /** The body's slots as the bag shows them (a paper doll), by the `wear:` key, each with the glyph an empty one shows; the two hands last (the main hand: the weapon kept ready). Their names: STRINGS `slot:<key>`. */
 const EQUIP: [key: string, ghost: string][] = [
@@ -222,7 +232,11 @@ export class Menu {
   /** Set by main.ts: an item the tooltip should know that is not in the frame (the crafting panel's). */
   registerTip?: (key: string, info: ItemInfo) => void
   facesetOf?: (id: string) => HTMLCanvasElement | undefined
+  /** The character sheet's whole figure, head to foot (main.ts); else the sheet shows the bust. */
+  figureOf?: (id: string) => HTMLCanvasElement | undefined
   private frame?: Frame
+  /** The kind of thing the crafting panel shows (a crafting.categories id, or every kind). */
+  private craftKind = 'all'
   /** The shelf shown of the shop open (its group). */
   private shelf = ''
   /** The shop open (its station): a stall, a store's counter, a bookstand. */
@@ -578,6 +592,18 @@ export class Menu {
     this.profession.show(this.frame)
   }
 
+  /**
+   * The companion's panel (a game's `companion` panel: OpenWorld's Lumi), from its corner badge or its key: shut if it
+   * is the one open, else opened for the companion following the player (the one a word to her opens it for).
+   */
+  toggleCompanion(): void {
+    if (!this.panels.has('companion')) return
+    if (this.panels.isOpen('companion')) return this.close()
+    const f = this.frame
+    const who = f?.entities.find((e) => e.tags.includes('companion'))?.id
+    this.openPanel('companion', who)
+  }
+
   /** A rule opened a panel of the game's own (or the runtime's for a module it uses), for the host that did: false when none answers the key. */
   openPanel(key: string, by?: string): boolean {
     if (!this.panels.has(key)) return false
@@ -618,6 +644,8 @@ export class Menu {
       ? `<div class="muted small" role="status">${locale.value === 'zh' ? '批量处理' : 'Batch progress'} ${this.crafting.done}/${this.crafting.total} · ${locale.value === 'zh' ? '关闭面板可停止' : 'Close this panel to stop'}</div>` : ''
     $('#menuSheet').innerHTML = head + progress + `<div class="tab-body">${body}</div>`
     mountWindow($('#menuSheet'), { size: this.tab === 'inventory' ? 'lg' : 'md', view: this.tab, onClose: () => this.close() })
+    // (which page it is, for the page's own layout: the bag fits one screen, inventory.css)
+    $('#menuSheet').dataset.tab = this.tab
     $('#menuClose').onclick = () => this.close()
     if (this.tab === 'inventory') this.wireInventory(f)
     if (this.tab === 'options') this.wireOptions()
@@ -638,15 +666,20 @@ export class Menu {
     this.showCarried()
   }
 
-  /** The player's portrait in the character sheet (the anime bust; the sprite's head while its layers come). */
+  /**
+   * The player in the character sheet: the whole figure, head to foot, standing in its frame (the anime bust for one
+   * with a portrait of their own; the sprite's head while the layers come).
+   */
   private paintPortrait(f: Frame, tries = 12): void {
     const host = $('#menuSheet').querySelector<HTMLElement>('.cs-portrait')
-    const c = host && this.facesetOf?.(f.player.id)
+    const c = host && (this.figureOf?.(f.player.id) ?? this.facesetOf?.(f.player.id))
     if (!host || !c) return
-    host.classList.toggle('bust', c.dataset.bust === '1')
+    const whole = c.dataset.full === '1'
+    host.classList.toggle('full', whole)
+    host.classList.toggle('bust', !whole && c.dataset.bust === '1')
     host.replaceChildren(c)
-    // the bust's layers may still be coming: look again shortly
-    if (c.dataset.bust !== '1' && tries > 0) setTimeout(() => this.menuOpen && this.tab === 'inventory' && this.paintPortrait(f, tries - 1), 400)
+    // the layers may still be coming: look again shortly
+    if (!whole && tries > 0) setTimeout(() => this.menuOpen && this.tab === 'inventory' && this.paintPortrait(f, tries - 1), 400)
   }
 
   private sigOf(f: Frame): string {
@@ -676,9 +709,10 @@ export class Menu {
     if (!f) return ''
     const slots = this.displaySlots(f)
     // the toolbar row first (keys 1–0, set apart), then the rest of the bag
-    const rows = chunk(slots.map((s, j) => this.slotHtml(s, j, (j === this.picked?.slot ? ' picked' : '') + (j === f.player.selected ? ' sel' : ''))), ROW)
+    const rowsOf = chunk(slots.map((s, j) => this.slotHtml(s, j, (j === this.picked?.slot ? ' picked' : '') + (j === f.player.selected ? ' sel' : ''))), ROW)
       .map((r, k) => `<div class="grid-row${k === 0 ? ' toolbar-row' : ''}">${r.join('')}</div>`)
-      .join('')
+    // the toolbar's row held apart, the rest of the bag in a well of its own that scrolls when it runs long
+    const rows = `${rowsOf[0] ?? ''}<div class="inv-well" data-ui-scroll="bag">${rowsOf.slice(1).join('')}</div>`
     // what is worn beside the bag (world-model.md §6.8): ten slots of the body and the off hand, as a paper doll;
     // the off hand greyed while what is there does not work (another profession's shield)
     const worn = f.player.worn ?? {}
@@ -709,9 +743,11 @@ export class Menu {
     const society = hasModule('society')
     const karma = st('karma')
     const faith = st('faith')
+    // health and food as bars over the numbers
+    const bar = (label: string, now: number, most: number, cls: string) =>
+      `<div class="cs-bar ${cls}"><span class="cs-bar-name">${esc(label)}</span><span class="cs-bar-track"><i style="width:${Math.max(0, Math.min(100, most > 0 ? (now / most) * 100 : 0)).toFixed(1)}%"></i></span><b>${now} / ${most}</b></div>`
+    const vitals = [bar(t('csHealth'), p.hp, p.maxHp, 'cs-hp'), ...(p.maxHunger > 0 ? [bar(t('csFood'), p.hunger, p.maxHunger, 'cs-food')] : [])].join('')
     const stats = [
-      stat(t('csHealth'), `${p.hp} / ${p.maxHp}`, ' cs-hp'),
-      ...(p.maxHunger > 0 ? [stat(t('csFood'), `${p.hunger} / ${p.maxHunger}`, ' cs-food')] : []),
       stat(t('csAttack'), n(st('atk')), '', t('csAttackTip')),
       stat(t('csWeapon'), st('power') ? n(st('power')) : '—', '', t('csWeaponTip')),
       stat(t('csDefence'), n(st('def'))),
@@ -743,17 +779,20 @@ export class Menu {
         <div class="cs-head"><span class="cs-lv">${esc(t('csLevel'))} ${level}</span>${classes ? `<span class="cs-prof">${esc(prof ? tx(prof.name) : t('csNoProfession'))}</span>` : ''}</div>
         <div class="cs-doll">
           ${col(['head', 'ear', 'neck', 'shoulders', 'body'])}
-          <div class="cs-figure"><div class="cs-portrait" data-portrait="${p.id}"></div><div class="cs-hands">${cell(byKey.weapon)}${cell(byKey.arm)}</div></div>
+          <div class="cs-figure"><div class="cs-stage"><div class="cs-portrait" data-portrait="${p.id}"></div></div><div class="cs-hands">${cell(byKey.weapon)}${cell(byKey.arm)}</div></div>
           ${col(['hands', 'ring', 'ring.2', 'waist', 'feet'])}
         </div>
-        <div class="cs-stats">${stats}</div>
-      </div>`
-    return `<div class="inv-wrap">${sheet}<div class="inv-side"><div class="inv-title"><span>${esc(t('csPack'))}</span>${purse}</div><div class="inv">${rows}</div>
+        <div class="cs-vitals">${vitals}</div>
+      </div>
+      <div class="cs-sheet"><div class="inv-title"><span>${esc(t('csAttributes'))}</span></div><div class="cs-stats">${stats}</div></div>`
+    // what the hands do in the bag, as keys and what they do (the whole of it on hover)
+    const legend = INV_KEYS.map(([key, does]) => `<span class="inv-key">${key === 'row' ? `<kbd data-kbd="row">${esc(kbd('row'))}</kbd>` : `<kbd>${esc(t(key))}</kbd>`}${esc(t(does))}</span>`).join('')
+    return `<div class="inv-wrap">${sheet}<div class="inv-side"><div class="inv-title"><span>${esc(t('csPack'))}<span class="inv-count" title="${esc(t('invCountTip'))}">${slots.filter(Boolean).length} / ${slots.length}</span></span>${purse}</div><div class="inv">${rows}</div>
+      <div class="inv-help muted small" title="${esc(t('invHelp'))}">${legend}</div>
       <div class="inv-foot">
         <button id="bOrganize">⇅ ${t('organize')}</button>
         <button id="bDrop" ${this.picked === undefined ? 'disabled' : ''}>⤓ ${t('dropHere')}</button>
       </div>
-      <div class="inv-help muted small">${esc(t('invHelp'))}</div>
     </div></div>
 `
   }
@@ -877,7 +916,30 @@ export class Menu {
         ? allRecipes().filter((r) => r.station === station)
         : allRecipes().filter((r) => !r.station || r.station === 'hands')
     const verb = shelf?.sell ? t('shopSell') : shelf ? t('shopBuy') : t('craftIt')
-    const rows = list.map((r) => {
+    // the kinds of thing (the game's: crafting.categories), a shop's shelves aside: its own tabs are its kinds
+    const kinds = shelf ? [] : (game().crafting.categories ?? [])
+    const kindOf = (r: Recipe) => kinds.find((k) => k.types.some((p) => r.make.type === p || r.make.type.startsWith(p + '/')))?.id ?? 'other'
+    const makeable = (r: Recipe) => {
+      const here = !shelf || f.player.stations.includes(this.shopStation)
+      const knows = !r.skill || f.player.skills.includes(r.skill)
+      const unlocked = !r.unlockedBy || Number(f.facts?.[r.unlockedBy.fact] ?? 0) >= (r.unlockedBy.level ?? 1)
+      return knows && here && unlocked && (r.tools ?? []).every(tool) && r.needs.every((n) => have(n.type) >= n.count)
+    }
+    const present = kinds.length ? [...kinds.filter((k) => list.some((r) => kindOf(r) === k.id)), ...(list.some((r) => kindOf(r) === 'other') ? [{ id: 'other', name: { en: t('craftOther'), zh: t('craftOther') }, types: [] as string[] }] : [])] : []
+    // (what was chosen stays chosen, while there is anything of it here)
+    if (this.craftKind !== 'all' && !present.some((k) => k.id === this.craftKind)) this.craftKind = 'all'
+    const shown = present.length && this.craftKind !== 'all' ? list.filter((r) => kindOf(r) === this.craftKind) : list
+    const rail = present.length
+      ? `<nav class="cr-kinds" aria-label="${esc(t('craftKinds'))}">${[{ id: 'all', name: { en: t('craftEvery'), zh: t('craftEvery') }, types: [] as string[] }, ...present].map((k) => {
+          const of = k.id === 'all' ? list : list.filter((r) => kindOf(r) === k.id)
+          const can = of.filter(makeable).length
+          const first = of[0]
+          // (every kind: the crafting glyph; a kind: its first thing's picture)
+          const pic = k.id === 'all' ? pixelIcon('craft').outerHTML : first ? `<span class="icon" data-icon="recipe:${esc(first.id)}"></span>` : ''
+          return `<button class="cr-kind${k.id === this.craftKind ? ' on' : ''}" data-kind="${esc(k.id)}" aria-pressed="${k.id === this.craftKind}"><span class="cr-kind-icon${k.id === 'all' ? ' glyph' : ''}">${pic}</span><span class="cr-kind-name">${esc(tx(k.name))}</span><span class="cr-kind-n${can ? ' can' : ''}" title="${esc(t('craftCanTip'))}">${can ? can : of.length}</span></button>`
+        }).join('')}</nav>`
+      : ''
+    const rows = shown.map((r) => {
       // how many times what is carried makes it (the tools are not used up)
       // (a shop's offer is made beside its stall: away from it, nothing is traded however much is carried)
       const here = !shelf || f.player.stations.includes(this.shopStation)
@@ -906,7 +968,7 @@ export class Menu {
         <div class="acts">${times > 1 ? `<button class="all" data-craft-all="${r.id}" ${this.crafting ? 'disabled' : ''} title="${esc(t('craftAllTip'))}">${t('craftAll')} ×${times}</button>` : ''}<button data-craft="${r.id}" ${ok ? '' : `disabled title="${esc(why)}"`}>${verb}${shelf?.sell ? ` → ${r.count}` : r.count && r.count > 1 ? ` ×${r.count}` : ''}</button></div>
       </div>`
     }).join('')
-    return `<div class="recipes">${rows}</div>`
+    return rail ? `<div class="cr-wrap">${rail}<div class="recipes" data-ui-scroll="recipes">${rows}</div></div>` : `<div class="recipes">${rows}</div>`
   }
 
   private wireCraft(): void {
@@ -915,6 +977,12 @@ export class Menu {
     // Shift-click makes as many as one can, as the "all" button does
     $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-craft]').forEach((b) => (b.onclick = (e) => this.send.craft(b.dataset.craft!, e.shiftKey, at)))
     $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-craft-all]').forEach((b) => (b.onclick = () => this.send.craft(b.dataset.craftAll!, true, at)))
+    // a kind of thing chosen: its recipes, from the top
+    $('#menuSheet').querySelectorAll<HTMLButtonElement>('[data-kind]').forEach((b) => (b.onclick = () => {
+      this.craftKind = b.dataset.kind!
+      this.render()
+      $('#menuSheet').querySelector<HTMLElement>('.cr-wrap .recipes')?.scrollTo({ top: 0 })
+    }))
   }
 
   // ---------------------------------------------------------------- options

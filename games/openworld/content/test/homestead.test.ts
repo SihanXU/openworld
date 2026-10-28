@@ -31,7 +31,7 @@ describe('the homestead shelves', () => {
     eng.controls.sync()
     expect(eng.controls.craft(RECIPE_BY_ID['shop/buy/seed-turnip'])).toBe(true)
     expect(eng.controls.craft(RECIPE_BY_ID['shop/buy/farm-bucket'])).toBe(true)
-    expect(eng.controls.count('item/misc/thornmark')).toBe(16)
+    expect(eng.controls.count('item/misc/thornmark')).toBe(15)
     expect(eng.controls.count('item/seed/turnip')).toBe(5)
   })
 })

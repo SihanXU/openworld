@@ -27,7 +27,8 @@ describe('the keyboard map', () => {
     expect(actionOf(m, 'Digit1', false)).toBe('slot1')
     expect(actionOf(m, 'Digit7', true)).toBe('slot7')
     expect(actionOf(m, 'KeyW', true)).toBe('up')
-    expect(actionOf(m, 'ShiftLeft', true)).toBe('walk')
+    expect(actionOf(m, 'ShiftLeft', true)).toBe('run')
+    expect(actionOf(m, 'ShiftRight', true)).toBe('walk')
   })
 
   it('no key is two actions\'', () => {

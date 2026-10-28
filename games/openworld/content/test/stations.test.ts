@@ -129,7 +129,7 @@ describe('a building raised again unlocks more (its fact at a higher level), and
     expect(c.craft(candle)).toBe(false)
     eng.author(() => eng.world.setFact('haven.build.workshop', 2))
     expect(c.craft(candle)).toBe(true)
-    expect(c.count('item/light/candle')).toBe(2)
+    expect(c.count('item/light/candle')).toBe(6)
   })
 
   it('the arcane workbench opens by a hand on it; a wand, a draught and a spell book are made there once the workshop stands, a fire staff once it is raised again', () => {

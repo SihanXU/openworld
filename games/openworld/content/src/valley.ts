@@ -119,7 +119,7 @@ export const VALLEY: Record<string, ValleyPlace> = {
       '..  z.',
     ],
     things: {
-      x: { type: 'fixture/sign', props: { text: 'NORTH: Millbrook. EAST: the grassland, and Firstlight beyond. SOUTH: the Charcoal Dell.', text_zh: '北：水车磨坊。东：草原，再往前是初原村。南：烧炭谷。' } },
+      x: { type: 'fixture/sign', props: { text: 'NORTH: Millbrook. EAST: Dusklea, and Firstlight beyond. SOUTH: the Charcoal Dell.', text_zh: '北：水车磨坊。东：暮牧原，再往前是初原村。南：烧炭谷。' } },
       y: { type: 'fixture/furniture/bench/log' },
       z: { type: 'fixture/light/lantern', statuses: { lit: -1 } },
     },

@@ -24,6 +24,8 @@ export interface HudSend {
   toggleBuilding(): void
   toggleQuests(): void
   toggleSkillPanel(): void
+  /** The companion's panel (its corner badge). */
+  toggleCompanion(): void
   /** The talk panel (docs/npc-sandbox.md §2.9): a verb said, the talk closed. */
   talk(verb: string): void
   closeTalk(): void
@@ -36,6 +38,8 @@ export class Hud {
   frame?: Frame
   /** The development warning that no one learns (no model) is said once a session. */
   private warnedNoModder = false
+  /** The companion has been met (her badge shows from then on). */
+  private metCompanion = false
   muted = (() => {
     try {
       return localStorage.getItem('lsw.muted') === '1'
@@ -95,6 +99,7 @@ export class Hud {
         <div class="xpbar" id="xpBar"><div class="fill" id="xpFill"></div><span class="lv" id="xpLv"></span></div>
         <div class="barrow"><div class="toolbar wood" id="toolbar"></div><div class="toolbar wood offhand-bar" id="offhandBar"></div></div>
       </div>
+      ${catalog().ui.cornerCompanion && game().panels?.companion ? `<button class="companion-badge hidden" id="companionBtn" data-kbd-title="companion" title="${kbd('companion')}"><img class="cb-calm" src="${assetUrl(catalog().ui.cornerCompanion.img)}" alt=""><img class="cb-happy" src="${assetUrl((catalog().ui.cornerCompanionHover ?? catalog().ui.cornerCompanion).img)}" alt=""><kbd data-kbd="companion">${kbd('companion')}</kbd></button>` : ''}
       <div class="corner" id="corner">
         <button class="cbtn wood" id="questBtn" data-kbd-title="quests" title="${kbd('quests')}"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerQuests.img)}" alt=""><kbd data-kbd="quests">${kbd('quests')}</kbd><span class="badge hidden" id="questBadge"></span></button>
         <button class="cbtn wood" id="buildBtn" data-kbd-title="build" title="${kbd('build')}"><img class="cb-icon" src="${assetUrl(catalog().ui.cornerBuild.img)}" alt=""><kbd data-kbd="build">${kbd('build')}</kbd></button>
@@ -140,6 +145,8 @@ export class Hud {
     $('#skillBtn').onclick = () => this.send.toggleSkills()
     $('#questBtn').onclick = () => this.send.toggleQuests()
     $('#skPanelBtn').onclick = () => this.send.toggleSkillPanel()
+    const badge = document.getElementById('companionBtn')
+    if (badge) badge.onclick = () => this.send.toggleCompanion()
     $('#dialog').onclick = (e) => {
       if ((e.target as HTMLElement).closest('[data-yes]')) return
       this.advanceDialog()
@@ -150,6 +157,11 @@ export class Hud {
   // ---------------------------------------------------------------- per frame
 
   onFrame(f: Frame): void {
+    // the companion's badge: once she is met (a companion in view: she follows), there for the rest of the play
+    if (!this.metCompanion && f.entities.some((e) => e.tags.includes('companion'))) {
+      this.metCompanion = true
+      document.getElementById('companionBtn')?.classList.remove('hidden')
+    }
     // the quest button's badge: how many quests are under way (red while someone waits for a word: a '?' in view)
     const under = (f.quests?.journal ?? []).filter((q) => q.state === 'active').length
     const waits = Object.values(f.quests?.marks ?? {}).includes('?')

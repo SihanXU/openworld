@@ -1076,10 +1076,10 @@ export class Quests {
     return out.sort((a, b) => w.num(w.get(b.id)!, 'since') - w.num(w.get(a.id)!, 'since'))
   }
 
-  /** Where an objective points: its targets' places (an alias's thing, or what holds it; an area's middle). */
-  private targetsOf(q: Entity, o: ObjectiveDef): { map: string; x: number; y: number }[] {
+  /** Where an objective points: its targets' places (an alias's thing, or what holds it; an area's middle — a whole map's, and which). */
+  private targetsOf(q: Entity, o: ObjectiveDef): { map: string; x: number; y: number; area?: string }[] {
     const w = this.w
-    const out: { map: string; x: number; y: number }[] = []
+    const out: { map: string; x: number; y: number; area?: string }[] = []
     for (const a of typeof o.target === 'string' ? [o.target] : (o.target ?? [])) {
       const id = this.alias(q, a)
       if (!id) continue
@@ -1095,9 +1095,32 @@ export class Quests {
       const m = w.map(map) ?? this.eng.maps[map]
       if (!m) continue
       const r = i < 0 ? undefined : m.regions?.[id.slice(i + 1)]
-      out.push(r ? { map, x: r[0] + Math.floor(r[2] / 2), y: r[1] + Math.floor(r[3] / 2) } : { map, x: Math.floor(m.width / 2), y: Math.floor(m.height / 2) })
+      // (a named area's middle is the spot it names — the pond's water, the barrow's mouth; a whole map's is anywhere)
+      out.push(r ? { map, x: r[0] + Math.floor(r[2] / 2), y: r[1] + Math.floor(r[3] / 2) } : { map, x: Math.floor(m.width / 2), y: Math.floor(m.height / 2), area: map })
     }
     return out
+  }
+
+  /**
+   * A whole map the taker stands on has nothing at its middle to point at: what an objective counts felling there, the
+   * nearest of them still standing (the dead on the grassland), else nothing — the tracker says what is asked.
+   */
+  private quarry(o: ObjectiveDef, area: string): { map: string; x: number; y: number } | undefined {
+    const c = o.count
+    if (!c || !('kill' in c)) return undefined
+    const w = this.w
+    const me = w.posOf(w.player)
+    const map = area.split(':')[0]
+    if (!me || me.map !== map) return undefined
+    let best: { map: string; x: number; y: number } | undefined
+    let far = Infinity
+    for (const e of w.agentsOnMap(map)) {
+      if (w.num(e, 'hp', 1) <= 0 || w.hasStatus({ e: e.id }, 'down') || !this.matches(c.kill, e.id) || !this.within(e, area)) continue
+      const p = w.posOf(e)!
+      const d = Math.hypot(p.x - me.x, p.y - me.y)
+      if (d < far) (far = d), (best = { map, x: p.x, y: p.y })
+    }
+    return best
   }
 
   /** The markers: the tracked quest's open objectives' targets. */
@@ -1109,8 +1132,14 @@ export class Quests {
     const at = new Set<string>()
     for (const o of d.objectives ?? []) {
       if (!this.shown(q, o) || this.objectiveDone(q, o) || q.props?.[`obj.${o.id}`] === 'failed') continue
-      // one marker for one spot (the beef and the eggs on one grassland)
-      for (const t of this.targetsOf(q, o)) if (!at.has(`${t.map}:${t.x}:${t.y}`)) (at.add(`${t.map}:${t.x}:${t.y}`), out.push({ objective: o.id, text: this.fill(q, o.text), ...t }))
+      for (const target of this.targetsOf(q, o)) {
+        // a whole map is pointed at from elsewhere; on it, at what is to be felled there, if anything
+        const t = target.area && this.within(this.w.player, target.area) ? this.quarry(o, target.area) : target
+        // one marker for one spot (the beef and the eggs on one grassland)
+        if (!t || at.has(`${t.map}:${t.x}:${t.y}`)) continue
+        at.add(`${t.map}:${t.x}:${t.y}`)
+        out.push({ objective: o.id, text: this.fill(q, o.text), map: t.map, x: t.x, y: t.y })
+      }
     }
     return out
   }

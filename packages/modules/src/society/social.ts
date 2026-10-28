@@ -619,9 +619,13 @@ export class Social {
 
   // ---------------------------------------------------------------- trade (§2.10)
 
-  /** What a thing is worth: its `value`, times what its material, quality and level (a piece of gear's) make of it. */
+  /**
+   * What a thing is worth: its `value`, times what its material, quality and level (a piece of gear's) make of it — or,
+   * made, what its making fixed (`worth`: params.made, no more than what it took and the work).
+   */
   value(thing: Entity): number {
     const w = this.w
+    if (typeof thing.props?.worth === 'number') return Math.max(1, Math.round(thing.props.worth))
     let v = w.num(thing, 'value', 2)
     const m = w.materialOf(thing)
     if (m?.value) v *= m.value
@@ -663,15 +667,19 @@ export class Social {
     return Math.max(1, Math.round(this.value(thing) * f))
   }
 
-  /** What a buyer pays a seller for a thing: its worth less the markdown, better for one it likes (two thirds of its discount); a fence pays its share for what is not the seller's. */
+  /**
+   * What a buyer pays a seller for a thing: its worth less the markdown, better for one it likes (two thirds of its
+   * discount); a fence pays its share for what is not the seller's. A thing worth less than a coin to it fetches none
+   * (and it does not buy it: `buys`): a merchant never pays more than a thing is worth to it.
+   */
   priceToSell(thing: Entity, seller: Entity, buyer: Entity): number {
     const d = this.regardDiscount(buyer, seller.id)
     let f = this.params.markdown * (1 + (d > 0 ? (d * 2) / 3 : d))
     if (this.isAnothers(thing, seller)) f *= this.params.fence
-    return Math.max(1, Math.floor(this.value(thing) * f))
+    return Math.floor(this.value(thing) * f)
   }
 
-  /** Will a merchant buy this thing from this seller: the seller's to sell (or a fence's eye), not coin, not what binds or matters, not its own back? */
+  /** Will a merchant buy this thing from this seller: the seller's to sell (or a fence's eye), not coin, not what binds or matters, not its own back, worth a coin? */
   buys(merchant: Entity, thing: Entity, seller: Entity): boolean {
     const w = this.w
     if (!w.hasTag(merchant, 'merchant') || this.isCoin(thing) || thing.frozenBy) return false
@@ -680,7 +688,9 @@ export class Social {
     if (w.hasTag(thing, 'important') || w.hasTag(thing, 'bound') || w.hasTag(thing, 'relic')) return false
     if (w.worn(seller).some((x) => x.id === thing.id)) return false
     if (this.owns(merchant, thing) && !this.owns(seller, thing)) return false
-    return !this.isAnothers(thing, seller) || w.hasTag(merchant, 'fence')
+    if (this.isAnothers(thing, seller) && !w.hasTag(merchant, 'fence')) return false
+    // nor what is not worth a coin to it
+    return this.priceToSell(thing, seller, merchant) > 0
   }
 
   /**

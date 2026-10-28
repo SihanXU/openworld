@@ -96,6 +96,13 @@ export class PanelRegistry {
     return true
   }
 
+  /** The panel a key names is made and open now. */
+  isOpen(key: string): boolean {
+    const make = this.factories()[key]
+    const m = make && this.made.get(make)
+    return !!m && isOpen(m)
+  }
+
   /** Some panel of these is open. */
   get anyOpen(): boolean {
     for (const m of this.made.values()) if (isOpen(m)) return true

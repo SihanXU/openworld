@@ -174,6 +174,15 @@ export interface WorldParams {
    * reach; `affixCount` is how many extras a piece of each quality rolls (a quality not named: the table's count).
    */
   gearLevels?: { max: number; perLevel: number; affixPerLevel: number; affixCount?: Record<string, number> }
+  /**
+   * What a made thing may be worth (docs/economy.md): what its kind is worth, of the material it is made of, as a common
+   * piece of the first level — times its quality's share (`quality`: by the quality's id; one not named, 1). A made thing
+   * its maker's level and hand would make dearer is worth that (its `worth` prop, fixed as it is made): the world's
+   * standard prices hold however well one makes a thing. Absent: no bound.
+   */
+  made?: { quality?: Record<string, number> }
+  /** How many times as quick the player's steps are running (the run key held) as walking: 1.5 when absent. */
+  run?: number
 }
 
 /** The spaces of a cell (world-model.md §5.2): what one stands on, what fills it, what roots in it, a body. */

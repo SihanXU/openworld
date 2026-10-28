@@ -109,14 +109,15 @@ describe('a big bag in the trade panel', () => {
       merchant: w.create('actor/person', { on: 'tile', map: 'ford', x: AT.spawn[0] + 1, y: AT.spawn[1] }, {
         tags: ['merchant', 'fence'], npc: { role: 'merchant', schedule: [] }, props: { purse: 100 },
       }),
-      owned: Array.from({ length: 2 }, () => w.create('item/material/stone', { on: 'inside', holder: p.id }, { props: { value: 1, owner: p.id } })),
-      stolen: Array.from({ length: 2 }, () => w.create('item/material/stone', { on: 'inside', holder: p.id }, { props: { value: 1, owner: 'someone.else' } })),
+      // (a fence pays half for what is another's: the stolen worth twice as much fetch as much)
+      owned: Array.from({ length: 2 }, () => w.create('item/material/stone', { on: 'inside', holder: p.id }, { props: { value: 10, owner: p.id } })),
+      stolen: Array.from({ length: 2 }, () => w.create('item/material/stone', { on: 'inside', holder: p.id }, { props: { value: 20, owner: 'someone.else' } })),
     }))
     const offers = peopleViews(eng, { trade: merchant.id }).trade!.offers.filter((o) => o.item.type === 'item/material/stone')
     expect(offers).toHaveLength(2)
     expect(offers.map((o) => ({ id: o.item.id, steal: !!o.item.steal, price: o.price, count: o.count }))).toEqual([
-      { id: owned[0].id, steal: false, price: 1, count: 2 },
-      { id: stolen[0].id, steal: true, price: 1, count: 2 },
+      { id: owned[0].id, steal: false, price: 2, count: 2 },
+      { id: stolen[0].id, steal: true, price: 2, count: 2 },
     ])
   })
 

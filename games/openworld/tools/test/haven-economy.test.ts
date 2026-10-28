@@ -112,7 +112,7 @@ describe('the Held Ground production cycle', () => {
     f.stall()
     expect(c.craft(RECIPE_BY_ID['shop/buy/seed-turnip'])).toBe(true)
     expect(c.craft(RECIPE_BY_ID['shop/buy/farm-bucket'])).toBe(true)
-    expect(c.count('item/misc/thornmark')).toBe(16)
+    expect(c.count('item/misc/thornmark')).toBe(15)
     const plots = [17, 18, 19, 20, 21]
     for (const x of plots) {
       walk(x, 22)
@@ -141,7 +141,7 @@ describe('the Held Ground production cycle', () => {
     f.stall()
     for (let i = 0; i < 5; i++) expect(c.craft(RECIPE_BY_ID['shop/sell/food-turnip'])).toBe(true)
     expect(c.count('item/food/turnip')).toBe(0)
-    expect(c.count('item/misc/thornmark')).toBe(36)
+    expect(c.count('item/misc/thornmark')).toBe(35)
     expect(c.count('item/vessel/bucket/empty')).toBe(1)
   })
 
@@ -151,7 +151,7 @@ describe('the Held Ground production cycle', () => {
     f.stall()
     expect(c.craft(RECIPE_BY_ID['shop/buy/tool-fishing_rod'])).toBe(true)
     expect(c.craft(RECIPE_BY_ID['shop/buy/misc-bait'])).toBe(true)
-    expect(c.count('item/misc/thornmark')).toBe(0)
+    expect(c.count('item/misc/thornmark')).toBe(20)
     const rod = f.owned('item/tool/fishing_rod')
     hold('item/misc/bait')
     // This is the bag's use-an-item-on-another command.
@@ -175,7 +175,7 @@ describe('the Held Ground production cycle', () => {
     f.stall()
     expect(c.craft(sale)).toBe(true)
     expect(c.count(fish.type)).toBe(0)
-    expect(c.count('item/misc/thornmark')).toBe(sale.count)
+    expect(c.count('item/misc/thornmark')).toBe(20 + sale.count!)
     // Save/load keeps bait and the unlocked lake.
     f.eng.author(() => w.setFact('haven.zone.lake', 1))
     const save = structuredClone(f.game.save())

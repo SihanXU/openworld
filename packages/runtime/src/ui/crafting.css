@@ -1,0 +1,74 @@
+/* The crafting panel and a station's (2026-10-28): one screen, its recipes by kind of thing. Down the left the kinds the
+   game names (crafting.categories) and every kind, each with how many of it can be made now; on the right that kind's
+   recipes, a compact row each — the thing, its name and what it waits on, what it takes, the buttons — the list scrolling
+   on its own when it is longer than the window. Only where the kinds are shown (a shop keeps its shelves). */
+
+#menuSheet:is([data-tab='craft'], [data-tab='station']):has(.cr-wrap) { width: min(1040px, 100%); height: min(100%, 760px); }
+#menuSheet:is([data-tab='craft'], [data-tab='station']):has(.cr-wrap) > .ui-window-body { display: flex; overflow: hidden; padding: 14px 18px; scrollbar-gutter: auto; }
+#menuSheet:is([data-tab='craft'], [data-tab='station']):has(.cr-wrap) > .ui-window-body > .tab-body { display: flex; flex-direction: column; gap: 10px; flex: 1 1 auto; min-height: 0; min-width: 0; }
+
+#menuSheet:is([data-tab='craft'], [data-tab='station']) {
+  & .cr-wrap { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 16px; }
+
+  /* ---------------------------------------------------------------- the kinds */
+  & .cr-kinds {
+    display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow-y: auto; padding: 8px;
+    border: 2px solid #ab916a; background: linear-gradient(180deg, #f6dcaa, #ecc98f);
+    box-shadow: inset 0 0 0 1px var(--ui-paper-light), 0 2px 0 rgba(80, 46, 32, 0.18);
+    scrollbar-width: thin; scrollbar-color: var(--ui-wood) transparent;
+  }
+  & .cr-kind {
+    display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 8px;
+    width: 100%; min-height: 0; padding: 5px 8px 5px 5px; text-align: left;
+    font-size: 12px; line-height: 1.5; color: var(--ui-ink);
+    background: transparent; border: 1px solid transparent; box-shadow: none;
+  }
+  & .cr-kind:hover { background: rgba(255, 240, 199, 0.7); border-color: #c9a876; transform: none; }
+  & .cr-kind.on { color: var(--ui-paper-light); background: linear-gradient(180deg, #a56e3e, #8e5b31); border-color: #6e4424; box-shadow: inset 0 0 0 1px rgba(255, 224, 170, 0.3); }
+  & .cr-kind-icon { display: grid; place-items: center; width: 32px; height: 32px; background: #e9c58b; border: 1px solid #b17a44; line-height: 0; }
+  & .cr-kind.on .cr-kind-icon { background: #f0cf96; border-color: #6e4424; }
+  & .cr-kind-icon .icon { display: grid; place-items: center; line-height: 0; }
+  & .cr-kind-icon.glyph { color: var(--ui-frame); }
+  & .cr-kind-icon.glyph svg { width: 20px; height: 20px; }
+  & .cr-kind-icon canvas { display: block; width: 24px; height: 24px; image-rendering: pixelated; }
+  & .cr-kind-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  & .cr-kind-n { min-width: 22px; padding: 0 6px; text-align: center; font-size: 12px; line-height: 1.6; color: var(--ui-muted); background: rgba(255, 240, 199, 0.6); border: 1px solid rgba(171, 145, 106, 0.6); font-variant-numeric: tabular-nums; }
+  & .cr-kind-n.can { color: var(--ui-paper-light); background: var(--ui-green); border-color: #4d6631; }
+  & .cr-kind.on .cr-kind-n:not(.can) { color: #f0d9b0; background: rgba(0, 0, 0, 0.18); border-color: rgba(0, 0, 0, 0.2); }
+
+  /* ---------------------------------------------------------------- the recipes */
+  & .cr-wrap .recipes {
+    min-height: 0; overflow-y: auto; overscroll-behavior: contain; align-content: start;
+    grid-template-columns: 44px minmax(0, 1fr) auto auto; gap: 6px 12px; padding: 0 6px 2px 0;
+    scrollbar-width: thin; scrollbar-color: var(--ui-wood) var(--ui-inset);
+  }
+  & .cr-wrap .recipe {
+    align-items: center; column-gap: 12px; padding: 6px 10px; border: 2px solid #ab916a; border-radius: 0;
+    background: linear-gradient(180deg, #fff3d4, #f3d9a6); box-shadow: 0 2px 0 rgba(80, 46, 32, 0.14);
+    transition: none; transform: none;
+  }
+  & .cr-wrap .recipe:hover { border-color: var(--ui-gold); box-shadow: 0 2px 0 rgba(80, 46, 32, 0.18), inset 0 0 0 1px rgba(255, 240, 199, 0.8); transform: none; }
+  & .cr-wrap .recipe.off { opacity: 1; filter: none; background: linear-gradient(180deg, #f3e2bd, #e8cf9e); }
+  & .cr-wrap .recipe.off > :not(.acts) { opacity: 0.62; }
+  & .cr-wrap .recipe > .slot { width: 44px; height: 44px; min-height: 44px; }
+  & .cr-wrap .recipe > .slot .icon { display: grid; place-items: center; width: 100%; height: 100%; line-height: 0; }
+  & .cr-wrap .recipe > .slot canvas { display: block; width: 32px; height: 32px; }
+  & .cr-wrap .recipe .rname { display: flex; flex-direction: column; gap: 1px; min-width: 0; font-size: 12px; line-height: 1.5; color: var(--ui-ink); }
+  & .cr-wrap .recipe .rname .station { font-size: 12px; line-height: 1.4; color: var(--ui-muted); }
+  & .cr-wrap .recipe .rname .station.short { color: var(--ui-danger); }
+  & .cr-wrap .recipe .needs { gap: 4px 6px; }
+  & .cr-wrap .recipe .need { gap: 3px; padding: 0 6px 0 2px; font-size: 12px; line-height: 1.6; color: var(--ui-ink); background: rgba(255, 240, 199, 0.75); border: 1px solid #c9a876; font-variant-numeric: tabular-nums; }
+  & .cr-wrap .recipe .need .icon { display: grid; place-items: center; line-height: 0; }
+  & .cr-wrap .recipe .need .icon canvas { display: block; width: 20px; height: 20px; }
+  & .cr-wrap .recipe .need.short { color: var(--ui-danger); border-color: rgba(171, 78, 53, 0.55); background: rgba(255, 228, 214, 0.7); }
+  & .cr-wrap .recipe .acts { gap: 6px; }
+  & .cr-wrap .recipe .acts button { padding: 3px 12px; font-size: 12px; line-height: 1.6; min-height: 0; }
+}
+
+/* narrow: the kinds over the recipes, in a row */
+@media (max-width: 799px) {
+  #menuSheet:is([data-tab='craft'], [data-tab='station']) .cr-wrap { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  #menuSheet:is([data-tab='craft'], [data-tab='station']) .cr-kinds { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
+  #menuSheet:is([data-tab='craft'], [data-tab='station']) .cr-kind { width: auto; flex: 0 0 auto; }
+  #menuSheet:is([data-tab='craft'], [data-tab='station']) .cr-wrap .recipes { grid-template-columns: 44px minmax(0, 1fr) auto; }
+}

@@ -4,7 +4,7 @@
 // position, the waypoint stones (an attuned one takes you there with a click), dragged and zoomed like the
 // skill tree — and the minimap, the current map always on screen under the clock.
 
-import { canvasWindow } from './components/index.ts'
+import { canvasWindow, icon, mountCloseButton } from './components/index.ts'
 import type { EntitySnap, Frame, MapData } from '@openworld/engine'
 import { ontology } from '../game.ts'
 import type { Atlas, AtlasContinent } from '../protocol.ts'
@@ -21,6 +21,11 @@ const CRES = 32
 /** The continent's picture, kept: its grounds never move. */
 let painted: { key: string; canvas: Promise<HTMLCanvasElement> } | undefined
 const ZOOM: [number, number] = [0.25, 4]
+/** The room the floating chrome keeps clear when the whole continent is fitted (px): the chips above, the caption below. */
+const CLEAR_TOP = 64
+const CLEAR_BOTTOM = 40
+/** How long the hint stays under the map once it opens (ms). */
+const HINT_FOR = 5000
 
 /** A map's terrain as a canvas, one pixel per tile (scaled up by CSS, pixelated). */
 function terrainCanvas(width: number, height: number, terrain: string[]): HTMLCanvasElement {
@@ -66,10 +71,23 @@ export class WorldMap {
     private host: HTMLElement,
     private send: { atlas(): void; travel(id: string): void; close(): void },
   ) {
+    // the map fills the screen; what goes with it floats over it, small: where one is (top left), the tools (top
+    // right), how to use it (a caption under it, for a moment), Tab's tabs (top middle, paneltabs.ts)
     host.innerHTML = `
       <div class="wm-view" id="wmView"><div class="wm-world" id="wmWorld"></div></div>
-      <div class="sk-bar wood wm-bar"><span class="sk-title" id="wmTitle"></span><span class="sk-hint" id="wmHint"></span>
-        <button class="sk-btn" id="wmMode"></button><button class="sk-btn" id="wmHere"></button><button class="x" id="wmClose">✕</button></div>`
+      <div class="wm-shade" aria-hidden="true"></div>
+      <div class="wm-chip" id="wmChip"><span class="wm-chip-icon"></span><span class="wm-chip-text"><span class="wm-chip-label" id="wmTitle"></span><b class="wm-chip-place" id="wmPlace"></b></span></div>
+      <div class="wm-tools" role="toolbar">
+        <button type="button" class="wm-tool wm-mode" id="wmMode"></button>
+        <span class="wm-tool-group"><button type="button" class="wm-tool wm-icon" id="wmOut"></button><button type="button" class="wm-tool wm-icon" id="wmIn"></button></span>
+        <button type="button" class="wm-tool wm-here" id="wmHere"></button>
+        <button type="button" class="x wm-close" id="wmClose"></button>
+      </div>
+      <div class="wm-caption" id="wmHint"></div>`
+    $('#wmChip .wm-chip-icon').replaceChildren(icon('map'))
+    $('#wmOut').replaceChildren(icon('minus'))
+    $('#wmIn').replaceChildren(icon('plus'))
+    mountCloseButton($<HTMLButtonElement>('#wmClose'))
     const view = $('#wmView')
     view.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return
@@ -98,15 +116,22 @@ export class WorldMap {
       (e) => {
         e.preventDefault()
         const r = view.getBoundingClientRect()
-        const cx = e.clientX - r.left
-        const cy = e.clientY - r.top
-        const z = Math.min(ZOOM[1], Math.max(this.fit, this.zoom * Math.exp(-e.deltaY * 0.0015)))
-        this.pan = { x: cx - ((cx - this.pan.x) * z) / this.zoom, y: cy - ((cy - this.pan.y) * z) / this.zoom }
-        this.zoom = z
-        this.apply()
+        this.zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015))
       },
       { passive: false },
     )
+    // the buttons zoom about the middle of the view, a step at a time
+    const step = (by: number) => {
+      const r = view.getBoundingClientRect()
+      this.zoomAt(r.width / 2, r.height / 2, by)
+    }
+    $('#wmIn').onclick = () => step(1.4)
+    $('#wmOut').onclick = () => step(1 / 1.4)
+    // the caption comes back while the pointer is low on the map
+    host.addEventListener('pointermove', (e) => {
+      const r = host.getBoundingClientRect()
+      if (r.bottom - e.clientY <= 72) this.showHint(1800)
+    })
     $('#wmHere').onclick = () => this.centerOnPlayer()
     $('#wmMode').onclick = () => {
       this.mode = this.mode === 'continent' ? 'nearby' : 'continent'
@@ -115,10 +140,7 @@ export class WorldMap {
     $('#wmClose').onclick = () => this.send.close()
     canvasWindow(host, view, t('worldMap'), () => this.send.close(), (dx, dy) => {
       this.pan.x += dx; this.pan.y += dy
-      if (this.extent) {
-        const r = view.getBoundingClientRect()
-        this.fit = Math.min(ZOOM[1], Math.max(ZOOM[0], Math.min(r.width / this.extent.w, (r.height - 60) / this.extent.h) * 0.96))
-      }
+      if (this.extent) this.fit = this.fitted(view.getBoundingClientRect(), this.extent)
       this.apply()
     })
   }
@@ -130,16 +152,54 @@ export class WorldMap {
   show(): void {
     this.host.classList.remove('hidden')
     $('#wmTitle').textContent = t('worldMap')
+    $('#wmPlace').textContent = ''
     $('#wmHint').textContent = t('worldMapHint')
-    $('#wmHere').textContent = `◎ ${t('wmHere')}`
+    const here = $('#wmHere')
+    here.replaceChildren(icon('locate'), document.createTextNode(t('wmHere')))
+    here.title = t('wmHere')
+    for (const [id, key] of [['#wmIn', 'wmZoomIn'], ['#wmOut', 'wmZoomOut']] as const) {
+      $(id).title = t(key)
+      $(id).setAttribute('aria-label', t(key))
+    }
     $('#wmMode').classList.add('hidden')
     $('#wmWorld').innerHTML = `<div class="wm-loading">…</div>`
     this.atlas = undefined
+    this.showHint(HINT_FOR)
     this.send.atlas()
   }
 
   hide(): void {
     this.host.classList.add('hidden')
+  }
+
+  private hintUntil?: number
+  /** The caption under the map, for so long, then faded out. */
+  private showHint(ms: number): void {
+    const hint = $('#wmHint')
+    hint.classList.add('on')
+    clearTimeout(this.hintUntil)
+    this.hintUntil = window.setTimeout(() => hint.classList.remove('on'), ms)
+  }
+
+  /** Zoomed by a factor about a point of the view (the pointer's, the middle's), within the zoom's bounds. */
+  private zoomAt(cx: number, cy: number, by: number): void {
+    const z = Math.min(ZOOM[1], Math.max(this.fit, this.zoom * by))
+    this.pan = { x: cx - ((cx - this.pan.x) * z) / this.zoom, y: cy - ((cy - this.pan.y) * z) / this.zoom }
+    this.zoom = z
+    this.apply()
+  }
+
+  /** The zoom at which the whole continent fits the view, clear of the chips above and the caption below. */
+  private fitted(r: DOMRect, extent: { w: number; h: number }): number {
+    return Math.min(ZOOM[1], Math.max(ZOOM[0], Math.min(r.width / extent.w, (r.height - CLEAR_TOP - CLEAR_BOTTOM) / extent.h) * 0.96))
+  }
+
+  /** The chip's place: the map one is on, and the region it lies in (on the continent). */
+  private placeOf(a: Atlas): string {
+    const c = a.continent
+    const map = a.maps.find((m) => m.id === a.here.map)?.name ?? c?.places.find((p) => p.map === a.here.map)?.name
+    const r = c?.cell ? c.regions[c.regionOf[c.cell.y * c.width + c.cell.x]] : undefined
+    return [map && tx(map), r && !r.backdrop && tx(r.name)].filter((x, i, all) => x && all.indexOf(x) === i).join(' · ')
   }
 
   private apply(): void {
@@ -149,8 +209,10 @@ export class WorldMap {
       const r = $('#wmView').getBoundingClientRect()
       const w = this.extent.w * this.zoom
       const h = this.extent.h * this.zoom
+      // (fitted whole, it sits clear of the chips and the caption; closer in, it runs under them to the screen's edges)
+      const room = r.height - CLEAR_TOP - CLEAR_BOTTOM
       this.pan.x = w <= r.width ? (r.width - w) / 2 : Math.min(0, Math.max(r.width - w, this.pan.x))
-      this.pan.y = h <= r.height - 40 ? (r.height - 40 - h) / 2 + 40 : Math.min(40, Math.max(r.height - h, this.pan.y))
+      this.pan.y = h <= room ? (room - h) / 2 + CLEAR_TOP : h <= r.height ? Math.min(CLEAR_TOP, Math.max(r.height - CLEAR_BOTTOM - h, this.pan.y)) : Math.min(0, Math.max(r.height - h, this.pan.y))
     }
     world.style.transform = `translate(${this.pan.x}px, ${this.pan.y}px) scale(${this.zoom})`
     // the marks and names keep their size on the screen whatever the zoom
@@ -186,6 +248,7 @@ export class WorldMap {
 
   onAtlas(a: Atlas): void {
     this.atlas = a
+    $('#wmPlace').textContent = this.placeOf(a)
     const world = $('#wmWorld')
     world.innerHTML = ''
     const mode = $('#wmMode')
@@ -337,7 +400,7 @@ export class WorldMap {
     // as far out as the whole continent in view; opened close in on where one is
     const r = $('#wmView').getBoundingClientRect()
     this.extent = { w: c.width * CPX, h: c.height * CPX }
-    this.fit = Math.min(ZOOM[1], Math.max(ZOOM[0], Math.min(r.width / this.extent.w, (r.height - 60) / this.extent.h) * 0.96))
+    this.fit = this.fitted(r, this.extent)
     if (c.cell) return this.centerOnPlayer()
     this.zoom = this.fit
     this.apply()

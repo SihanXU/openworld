@@ -155,7 +155,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   pack): the kernel with no module plays it (`test/kernel.test.ts`); the editor's new project.
 - `games/openworld/content` — ontology (terrains, statuses, elements, types), item catalogue
   (forms × materials × qualities × elements; the continent's goods, `goods.ts`: each region's line, local kinds and named
-  pieces as variants of the base forms, and `stockFor` what a place of a region keeps — docs/continent.md §11), crafting recipes (`recipes.ts`), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
+  pieces as variants of the base forms, and `stockFor` what a place of a region keeps — docs/continent.md §11), crafting recipes (`recipes.ts`), every item's standard price (`prices.ts`, docs/economy.md: what the world gives at its listed price, what is made at what it took and the work once, every shop's price from it; `test/economy.test.ts` holds that nothing bought, made and sold again pays), the skill tree (`skills.ts`), the BASE RULE LIBRARY (`rules.ts`), the Ford's
   story rules and invariants (`ford.ts`), the prologue's beats and lessons (`prologue.ts`), the main quest's rules (`quest.ts`,
   docs/main-quest.md), the quests (`quests/`: the main line, the people's errands through `errand()`, the radiant favours, the fairy's guides — teaching quests of the kind `guide` she begins herself on the story's beats, `guides.ts`; docs/quests.md),
   Chapter 1's facts and rules (`chapter1.ts`; its maps and scenes in

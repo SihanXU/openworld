@@ -6,6 +6,7 @@
 
 import type { Recipe, Rule, Text } from '@openworld/engine'
 import { FORM_BY_ID } from './items.ts'
+import { buyBackPrice } from './prices.ts'
 
 const L = (en: string, zh: string) => ({ en, zh })
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
@@ -67,13 +68,13 @@ const formName = (type: string): Text => {
   return f ? L(f.en, f.zh) : type
 }
 
-/** What one's stall pays for what only monsters give (Recipe `group: 'sell'`, as the homestead's own goods). */
-const sell = (type: string, price: number): Recipe => ({
+/** What one's stall pays for what only monsters give (Recipe `group: 'sell'`, as the homestead's own goods): half its standard price. */
+const sell = (type: string): Recipe => ({
   id: `shop/sell/${type.split('/').slice(1).join('-')}`, group: 'sell', name: formName(type), sprite: FORM_BY_ID[type]?.sprite ?? 'item:bag',
-  needs: [{ type, count: 1 }], make: { type: 'item/misc/thornmark' }, station: 'stall', count: price,
+  needs: [{ type, count: 1 }], make: { type: 'item/misc/thornmark' }, station: 'stall', count: buyBackPrice(type),
 })
 
-export const DROP_SELLS: Recipe[] = [sell(GEL, 2), sell(VENOM, 4), sell(ECTO, 6)]
+export const DROP_SELLS: Recipe[] = [sell(GEL), sell(VENOM), sell(ECTO)]
 
 export const DROP_RULES: Rule[] = [
   rule({

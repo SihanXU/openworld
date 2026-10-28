@@ -28,7 +28,7 @@ export const HEDGE = { x: 34, west: 33, east: 36 } as const
 
 export function buildKingdom(): MapBuilder {
   const K = KINGDOM
-  const m = new MapBuilder('kingdom', L('The Kingdom', '荆棘王国'), 'field', K.w, K.h, 'drygrass', 'kneelfield', 'outdoor', 'frostfang')
+  const m = new MapBuilder('kingdom', L('The Kingdom of Thorns', '荆棘王国'), 'field', K.w, K.h, 'drygrass', 'kneelfield', 'outdoor', 'frostfang')
   m.gearLevel = 4
   // the field: dry grass, trodden bare in a wide ring where he has walked his round for three hundred years
   const [kx, ky] = K.knight
@@ -56,8 +56,8 @@ export function buildKingdom(): MapBuilder {
   // the gates: a portal on each cell, the fog on it (sealed while he stands); back out onto the East Road either side of his hedge
   for (const y of K.rows) {
     for (const x of [K.west, K.east]) m.set(x, y, 'path')
-    m.portal(K.west, y, 'eastroad', HEDGE.west, y, L('The East Road', '东大路'))
-    m.portal(K.east, y, 'eastroad', HEDGE.east, y, L('The East Road', '东大路'))
+    m.portal(K.west, y, 'eastroad', HEDGE.west, y, L('The Sunrise Road', '朝阳大道'))
+    m.portal(K.east, y, 'eastroad', HEDGE.east, y, L('The Sunrise Road', '朝阳大道'))
     for (const x of [K.west, K.east]) m.fixture('fixture/fog', x, y, { name: L("The knight's fog", '骑士的雾门'), props: { boss: 'alberic' } })
   }
   m.anchors.arrive = [K.arrive[0], K.arrive[1]]

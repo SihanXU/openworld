@@ -440,7 +440,7 @@ function completeness(g: Game, conf: SiteConf, pages: Map<string, Page>, resolve
   const allBodies = [...pages.values()].map((p) => p.scan).join('\n')
   for (const b of g.branches) check(`技能分支 ${b.name.zh}`, '技能', allBodies.includes(`{{技能树|${b.name.zh}}}`) || allBodies.includes(`{{技能树|${b.id}}}`), '要有 {{技能树|…}}')
   for (const p of g.professions) check(`职业 ${p.name.zh}`, p.name.zh, !!resolve(p.name.zh))
-  for (const t of ['配方表', '建造表', '状态表', '地形表', '材质表', '品质表', '食物表', '作物表', '首领表', '怪物表', '居民表', '地点表', '传送雕像表', '夜行生物表', '恩赐表', '职业表', '房间用途表', '效率表', '传说武器表', '圣痕之力表', '货摊表']) check(`数据表 {{${t}}}`, undefined, allBodies.includes(`{{${t}`), '要在某个页面上出现')
+  for (const t of ['配方表', '建造表', '状态表', '地形表', '材质表', '品质表', '食物表', '作物表', '首领表', '怪物表', '居民表', '地点表', '传送雕像表', '夜行生物表', '恩赐表', '职业表', '房间用途表', '效率表', '传说武器表', '圣痕之力表', '货摊表', '价格表']) check(`数据表 {{${t}}}`, undefined, allBodies.includes(`{{${t}`), '要在某个页面上出现')
   for (const k of ['main', 'side', 'repeat']) check(`任务表（${k}）`, '任务', /\{\{任务表(\|(主线|支线|重复))?\}\}/.test(body('任务')) || allBodies.includes('{{任务表}}'))
   const kinds: [string, Ent[]][] = [['物品', g.items], ['设施', g.fixtures], ['建筑件', g.structures], ['人物', g.people], ['怪物', g.creatures], ['首领', g.bosses], ['地点', g.maps], ['任务', g.quests]]
   for (const [k, list] of kinds) {

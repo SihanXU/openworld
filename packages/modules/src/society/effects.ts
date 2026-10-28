@@ -228,7 +228,12 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
     case 'buy': {
       const item = ev.roles.instrument ? w.get(ev.roles.instrument.e) : undefined
       if (!host || !actor || !item) return
-      if (!s.buys(host, item, actor)) return void w.fx.push({ t: 'say', who: host.id, text: s.isAnothers(item, actor) ? { en: "I don't touch what isn't yours.", zh: '不是你的东西我不收。' } : { en: "I've no use for that.", zh: '那东西我用不上。' } })
+      if (!s.buys(host, item, actor)) {
+        const text = s.isAnothers(item, actor) && !w.hasTag(host, 'fence') ? { en: "I don't touch what isn't yours.", zh: '不是你的东西我不收。' }
+          : s.priceToSell(item, actor, host) <= 0 ? { en: "That's not worth a coin to me.", zh: '这东西一个铜板都不值。' }
+          : { en: "I've no use for that.", zh: '那东西我用不上。' }
+        return void w.fx.push({ t: 'say', who: host.id, text })
+      }
       const price = s.priceToSell(item, actor, host)
       if (s.purse(host) < price) return void w.fx.push({ t: 'say', who: host.id, text: { en: "I can't pay what it's worth today.", zh: '今天我出不起这个价。' } })
       payCoins(fx, host, actor, price)

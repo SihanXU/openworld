@@ -31,7 +31,7 @@ describe('the goods (content goods.ts)', () => {
     for (const f of FORMS) expect([f.id, !!CATALOG.items[f.sprite]]).toEqual([f.id, true])
     for (const f of regional) {
       const base = onto.resolve(f.base!)
-      expect([f.id, Number(onto.resolve(f.id).props.value)]).toEqual([f.id, Math.round(Number(base.props.value) * (f.named ? 3 : 1))])
+      expect([f.id, Number(onto.resolve(f.id).props.value)]).toEqual([f.id, Math.round(Number(base.props.value) * (f.named ? 3 : 1) * 100) / 100])
       if (f.named && /^item\/(weapon|armor|clothing|tool|valuable)\//.test(f.id)) expect([f.id, onto.resolve(f.id).tags.includes('quality:fine'), JSON.stringify(makeItem(new Rng(1), f).name ?? '').includes('Fine')]).toEqual([f.id, true, false])
     }
   })

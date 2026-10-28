@@ -1,0 +1,185 @@
+/* The bag (2026-10-28): one screen, never scrolled. The window is as tall as the screen allows (and no taller than it
+   needs), in three columns: the character, standing whole in a lit frame between the body's slots, its bars below; the
+   numbers; the pack — the toolbar's row apart like a belt, the rest of the bag in a well that scrolls on its own when it
+   runs long, what the hands do as a line of keys at its foot (a thing pointed at says itself in the tooltip, as
+   everywhere). The buttons small in the window's foot. Only the bag's page: the chest and the other pages keep their own (menu.ts sets
+   #menuSheet's data-tab). */
+
+#menuSheet[data-tab='inventory'] { width: min(1280px, 100%); height: min(100%, 860px); }
+#menuSheet[data-tab='inventory'] > .ui-window-body { display: flex; overflow: hidden; padding: 14px 18px; scrollbar-gutter: auto; }
+#menuSheet[data-tab='inventory'] > .ui-window-body > .tab-body { display: flex; flex: 1 1 auto; min-height: 0; min-width: 0; }
+
+#menuSheet[data-tab='inventory'] {
+  --inv-slot: 48px;
+  --inv-gap: 6px;
+  --inv-line: #ab916a;
+  --inv-well: #e3bb7f;
+  --inv-deep: #d2a465;
+
+  & .inv-wrap { flex: 1 1 auto; display: grid; grid-template-columns: 320px 212px minmax(0, 1fr); gap: 16px; align-items: stretch; min-height: 0; }
+
+  /* the cards the columns sit on */
+  & :is(.cs, .cs-sheet) {
+    display: flex; flex-direction: column; gap: 10px; width: auto; min-height: 0; padding: 12px;
+    border: 2px solid var(--inv-line);
+    background: linear-gradient(180deg, #f6dcaa, #ecc98f);
+    box-shadow: inset 0 0 0 1px var(--ui-paper-light), 0 2px 0 rgba(80, 46, 32, 0.18);
+  }
+
+  /* ---------------------------------------------------------------- the character */
+  & .cs-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0; }
+  & .cs-lv { padding: 1px 10px; font-size: 12px; line-height: 1.6; color: var(--ui-paper-light); background: var(--ui-green); border: 1px solid #4d6631; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+  & .cs-prof { font-size: 12px; color: var(--ui-frame); letter-spacing: 0.04em; }
+
+  & .cs-doll { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: var(--inv-slot) minmax(0, 1fr) var(--inv-slot); gap: 10px; align-items: stretch; }
+  & .cs-col { display: flex; flex-direction: column; justify-content: space-between; gap: var(--inv-gap); min-height: 0; }
+  & .cs .eq-cell { display: block; }
+  /* the slot's name is its tooltip; its silhouette says what goes there */
+  & .cs .eq-name { display: none; }
+  & .cs .eq-slot { width: var(--inv-slot); height: var(--inv-slot); min-height: var(--inv-slot); }
+  & .cs .eq-slot canvas { width: 32px; height: 32px; }
+  & .cs .eq-slot .eq-sil { width: 28px; height: 28px; }
+
+  & .cs-figure { display: flex; flex-direction: column; align-items: stretch; gap: 10px; min-height: 0; min-width: 0; }
+  & .cs-hands { display: flex; justify-content: center; gap: 14px; }
+
+  /* the stage: warm light behind the figure, a floor under its feet, the frame sunk into the card */
+  & .cs-stage {
+    position: relative; flex: 1 1 auto; min-height: 120px; overflow: hidden;
+    border: 2px solid #9a6b3c;
+    background:
+      radial-gradient(ellipse 70% 55% at 50% 40%, rgba(255, 246, 214, 0.95), rgba(255, 246, 214, 0) 70%),
+      linear-gradient(180deg, #f1d29b 0%, #e6bd7e 62%, #d8a868 100%);
+    box-shadow: inset 0 0 0 2px var(--ui-paper-light), inset 0 0 0 3px rgba(154, 107, 60, 0.35), inset 0 14px 28px rgba(80, 46, 32, 0.18);
+  }
+  & .cs-stage::before {
+    /* the floor's shadow */
+    content: ''; position: absolute; left: 18%; right: 18%; bottom: 3%; height: 7%;
+    background: radial-gradient(ellipse at center, rgba(80, 46, 32, 0.34), rgba(80, 46, 32, 0) 70%);
+  }
+  & .cs-stage::after {
+    /* the frame's corners, brass */
+    content: ''; position: absolute; inset: 5px; pointer-events: none;
+    --c: linear-gradient(var(--ui-gold), var(--ui-gold));
+    background:
+      var(--c) left top / 10px 2px no-repeat, var(--c) left top / 2px 10px no-repeat,
+      var(--c) right top / 10px 2px no-repeat, var(--c) right top / 2px 10px no-repeat,
+      var(--c) left bottom / 10px 2px no-repeat, var(--c) left bottom / 2px 10px no-repeat,
+      var(--c) right bottom / 10px 2px no-repeat, var(--c) right bottom / 2px 10px no-repeat;
+  }
+  & .cs-portrait { position: absolute; inset: 0; width: auto; height: auto; max-width: none; border: 0; background: none; box-shadow: none; }
+  & .cs-portrait::after { display: none; }
+  & .cs-portrait canvas { position: absolute; left: 50%; transform: translateX(-50%); max-width: none; margin: 0; object-fit: initial; }
+  /* the whole figure, head to foot, as tall as the stage lets it stand */
+  & .cs-portrait.full canvas { bottom: 3%; height: 95%; width: auto; image-rendering: auto; filter: drop-shadow(0 2px 0 rgba(80, 46, 32, 0.22)); }
+  /* one's own portrait (a bust): filling the frame */
+  & .cs-portrait.bust canvas { bottom: 0; height: 100%; width: auto; image-rendering: auto; filter: drop-shadow(0 2px 0 rgba(80, 46, 32, 0.22)); }
+  /* the sprite's head while the layers come */
+  & .cs-portrait:not(.full):not(.bust) canvas { top: 50%; bottom: auto; transform: translate(-50%, -50%); width: 96px; height: 96px; image-rendering: pixelated; }
+
+  /* health and food: bars */
+  & .cs-vitals { display: grid; gap: 6px; }
+  & .cs-bar { display: grid; grid-template-columns: 4.5em minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 12px; line-height: 1.4; color: var(--ui-muted); }
+  & .cs-bar b { font-size: 12px; color: var(--ui-ink); font-variant-numeric: tabular-nums; }
+  & .cs-bar-track { position: relative; height: 10px; background: #6d4a2e; border: 1px solid var(--ui-frame-dark); box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.25); }
+  & .cs-bar-track i { position: absolute; left: 0; top: 0; bottom: 0; transition: width 0.25s steps(6, end); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.18); }
+  & .cs-hp .cs-bar-track i { background: #c8452f; }
+  & .cs-food .cs-bar-track i { background: #d99a2b; }
+
+  /* ---------------------------------------------------------------- the numbers */
+  & .cs-stats { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; padding: 2px 2px 0; background: none; border: 0; scrollbar-width: thin; scrollbar-color: var(--ui-wood) transparent; }
+  & .cs-stat { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; font-size: 12px; line-height: 2; color: var(--ui-muted); border-bottom: 1px dotted rgba(154, 107, 60, 0.38); }
+  & .cs-stat:last-child { border-bottom: 0; }
+  & .cs-stat > * { font-size: 12px; }
+  & .cs-stat b { color: var(--ui-ink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  /* the columns' titles */
+  & .inv-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 26px; padding: 0; font-size: 12px; color: var(--ui-frame); letter-spacing: 0.08em; }
+  & .inv-title > span:first-child { display: inline-flex; align-items: baseline; gap: 10px; }
+  & .inv-count { color: var(--ui-muted); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+  & .cs-sheet .inv-title { padding-bottom: 6px; border-bottom: 2px solid var(--inv-line); }
+
+  /* ---------------------------------------------------------------- the pack */
+  & .inv-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; container-type: inline-size; }
+  & .inv-title .purse { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 6px; border: 1px solid var(--inv-line); background: var(--ui-paper-light); color: var(--ui-ink); font-size: 12px; }
+  & .inv-title .purse b { font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  /* the pack's slots as wide as the column lets ten of them be: the belt, the well and the card one width */
+  & .inv-side > * { --pack-slot: clamp(36px, calc((100cqw - 24px - 9 * var(--inv-gap)) / 10), 60px); --pack-width: calc(10 * var(--pack-slot) + 9 * var(--inv-gap) + 24px); }
+  & .inv { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+  & .grid-row { display: grid; grid-template-columns: repeat(10, var(--pack-slot)); gap: var(--inv-gap); justify-content: start; }
+  & .inv .slot { width: var(--pack-slot); height: var(--pack-slot); min-height: var(--pack-slot); }
+  & .inv .slot canvas { width: calc(var(--pack-slot) * 0.64); height: calc(var(--pack-slot) * 0.64); }
+  & .inv .slot .key { position: absolute; left: 4px; top: 3px; }
+  /* a thing's picture in the middle of its slot, worn or carried (its box is the picture, not a line of text) */
+  & :is(.inv .slot, .cs .eq-slot) .icon { display: grid; place-items: center; width: 100%; height: 100%; line-height: 0; }
+  & :is(.inv .slot, .cs .eq-slot) :is(.icon, .eq-sil) canvas { display: block; }
+  & .cs .eq-slot .eq-sil { display: grid; place-items: center; line-height: 0; }
+  /* what is worn: its slot lit, framed in its quality's colour (a common piece in brass, not the tooltip's grey) */
+  & :is(.cs .eq-slot.has, .inv .slot.gear).q-common { --qc: #b8843f; }
+  & .cs .eq-slot.has {
+    background: radial-gradient(circle at 50% 42%, #fff6dc 0%, #f6dfa8 55%, #e8c27f 100%);
+    border: 2px solid var(--qc, var(--ui-gold));
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), inset 0 0 8px color-mix(in srgb, var(--qc, var(--ui-gold)) 35%, transparent), 0 0 0 1px rgba(80, 46, 32, 0.28), 0 2px 0 rgba(80, 46, 32, 0.18);
+  }
+  & .cs .eq-slot.has:hover { background: radial-gradient(circle at 50% 42%, #fffaf0 0%, #f9e6b8 55%, #edcb8c 100%); }
+  & .inv .slot.gear { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45); }
+
+  /* the toolbar's row: a belt, stitched */
+  & .grid-row.toolbar-row {
+    flex: 0 0 auto; align-self: flex-start; margin: 0; padding: 10px; border: 2px solid #8a5a32;
+    background: linear-gradient(180deg, #a56e3e, #8e5b31);
+    box-shadow: inset 0 0 0 1px rgba(255, 220, 160, 0.25), inset 0 0 0 4px #8e5b31, inset 0 0 0 5px rgba(255, 224, 170, 0.35), 0 2px 0 rgba(80, 46, 32, 0.25);
+  }
+  & .grid-row.toolbar-row .slot { background: #f0cf96; border-color: #6e4424; }
+  & .grid-row.toolbar-row .slot .key { color: #8a5a32; }
+
+  /* the rest of the bag: sunk into the page, scrolling on its own when it is longer than the room */
+  & .inv-well {
+    flex: 0 1 auto; min-height: calc(var(--pack-slot) + 24px); overflow-y: auto; overscroll-behavior: contain;
+    align-self: flex-start; display: flex; flex-direction: column; gap: var(--inv-gap);
+    padding: 10px; max-width: 100%;
+    background: var(--inv-well);
+    border: 2px solid var(--inv-line);
+    box-shadow: inset 0 3px 0 rgba(80, 46, 32, 0.12), inset 0 0 0 1px rgba(255, 240, 199, 0.4);
+    scrollbar-width: thin; scrollbar-color: var(--ui-wood) var(--inv-deep);
+  }
+  & .inv-well::-webkit-scrollbar { width: 10px; }
+  & .inv-well::-webkit-scrollbar-track { background: var(--inv-deep); }
+  & .inv-well::-webkit-scrollbar-thumb { background: var(--ui-wood); border: 2px solid var(--inv-deep); }
+  & .inv-well .grid-row { flex: 0 0 auto; }
+
+  /* what the hands do: keys and what each does */
+  & .inv-help { flex: 0 0 auto; align-self: flex-start; width: var(--pack-width); max-width: 100%; display: flex; flex-wrap: wrap; gap: 4px 14px; margin: auto 0 0; padding: 8px 0 0; border-top: 1px dashed rgba(154, 107, 60, 0.45); color: var(--ui-muted); font-size: 12px; line-height: 1.6; }
+  & .inv-key { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  & .inv-key kbd { display: inline-block; padding: 0 6px; font: inherit; font-size: 12px; line-height: 1.5; color: var(--ui-ink); background: var(--ui-paper-light); border: 1px solid var(--inv-line); border-bottom-width: 2px; }
+
+  /* the foot: the two buttons, small */
+  & > .ui-window-foot { padding: 8px 18px; gap: 10px; }
+  & > .ui-window-foot button { padding: 4px 14px; font-size: 12px; line-height: 1.6; min-height: 0; }
+}
+
+/* a short window: the slots smaller, the rows closer */
+@media (max-height: 720px) {
+  #menuSheet[data-tab='inventory'] { --inv-slot: 42px; --inv-gap: 5px; }
+  #menuSheet[data-tab='inventory'] > .ui-window-body { padding: 10px 14px; }
+  #menuSheet[data-tab='inventory'] :is(.cs, .cs-sheet) { gap: 8px; padding: 10px; }
+  #menuSheet[data-tab='inventory'] .cs-stat { line-height: 1.7; }
+  #menuSheet[data-tab='inventory'] .inv-side { gap: 8px; }
+}
+/* not wide enough for three: the numbers under the character */
+@media (max-width: 1099px) {
+  #menuSheet[data-tab='inventory'] .inv-wrap { grid-template-columns: 300px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  #menuSheet[data-tab='inventory'] .cs { grid-row: 1; grid-column: 1; }
+  #menuSheet[data-tab='inventory'] .cs-sheet { grid-row: 2; grid-column: 1; max-height: 34vh; }
+  #menuSheet[data-tab='inventory'] .inv-side { grid-row: 1 / span 2; grid-column: 2; }
+}
+/* narrow: one column, the page scrolled (as every page is at this width) */
+@media (max-width: 799px) {
+  #menuSheet[data-tab='inventory'] { height: auto; }
+  #menuSheet[data-tab='inventory'] > .ui-window-body { overflow: auto; display: block; }
+  #menuSheet[data-tab='inventory'] .inv-wrap { grid-template-columns: 1fr; grid-template-rows: none; }
+  #menuSheet[data-tab='inventory'] :is(.cs, .cs-sheet, .inv-side) { grid-row: auto; grid-column: auto; max-height: none; }
+  #menuSheet[data-tab='inventory'] .cs-stage { min-height: 260px; }
+  #menuSheet[data-tab='inventory'] .inv-well { overflow: visible; }
+}

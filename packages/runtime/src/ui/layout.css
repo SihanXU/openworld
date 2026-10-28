@@ -164,6 +164,18 @@ body.with-tabs :where(.sk-page,.wm-page) { padding-top: calc(var(--ui-measured-t
 .cbtn { width: 40px; height: 40px; min-height: 40px; padding: 4px; }
 .cbtn .cb-icon { width: 24px; height: 24px; }
 .cbtn kbd,.cbtn .badge { border-radius: 0; }
+/* the companion's badge (hud.ts, a game's ui.cornerCompanion): round, larger than the buttons, at their left, its ring
+   level with their middle; her happy face under the pointer, and a slow breath of her light */
+.companion-badge { position: absolute; right: calc(var(--hud-edge) + 184px + 6px); bottom: 4px; width: 120px; height: 120px; padding: 0; border: 0; background: none; cursor: pointer; pointer-events: auto; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45)); transition: transform 0.15s ease, filter 0.15s ease; animation: badgeBreath 4.2s ease-in-out infinite; }
+.companion-badge img { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; pointer-events: none; transition: opacity 0.15s ease; }
+.companion-badge .cb-happy { opacity: 0; }
+.companion-badge:hover { transform: translateY(-3px) scale(1.04); filter: drop-shadow(0 0 10px rgba(255, 226, 150, 0.7)) drop-shadow(0 6px 8px rgba(0, 0, 0, 0.5)); }
+.companion-badge:hover .cb-happy { opacity: 1; }
+.companion-badge:hover .cb-calm { opacity: 0; }
+.companion-badge:active { transform: translateY(-1px) scale(0.98); }
+.companion-badge kbd { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); min-width: 16px; padding: 0 4px; font: 600 10px/13px var(--pixel); text-align: center; color: var(--ink-warm); background: var(--paper); border: 1px solid var(--wood-dark); box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3); }
+@keyframes badgeBreath { 0%, 100% { filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45)); } 50% { filter: drop-shadow(0 0 8px rgba(214, 204, 244, 0.55)) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45)); } }
+@media (prefers-reduced-motion: reduce) { .companion-badge { animation: none; } }
 .skillbar { left: var(--hud-edge); bottom: 16px; max-width: 260px; }
 .sb-slot { width: 36px; height: 36px; min-height: 36px; }
 .msgs { left: var(--hud-edge); bottom: 124px; max-width: min(360px,32vw); }
@@ -244,6 +256,7 @@ body.with-tabs :where(.sk-page,.wm-page) { padding-top: calc(var(--ui-measured-t
   .hotbar,.hotbar.top { bottom: 12px; }
   .skillbar { bottom: 100px; }
   .corner { bottom: 100px; max-width: 184px; }
+  .companion-badge { bottom: 88px; }
   .dialog,.dialog.bust,.dialog.bust.own { bottom: 196px; max-height: calc(var(--ui-viewport-height) - 220px); }
   .msgs { bottom: 196px; }
 }
@@ -272,6 +285,7 @@ body.with-tabs :where(.sk-page,.wm-page) { padding-top: calc(var(--ui-measured-t
   .cbtn { width: 32px; height: 32px; min-height: 32px; padding: 2px; }
   .cbtn .cb-icon { width: 20px; height: 20px; }
   .cbtn kbd { font-size: 12px; left: 0; bottom: -12px; }
+  .companion-badge { right: 4px; bottom: 112px; width: 60px; height: 60px; }
   .msgs { bottom: 194px; max-width: calc(100% - 16px); max-height: 100px; overflow: hidden; }
   .dialog,.dialog.bust,.dialog.bust.own { bottom: 188px; width: calc(100% - 16px); padding: 12px; gap: 8px; max-height: calc(var(--ui-viewport-height) - 204px); flex-wrap: wrap; }
   .dialog .face,.dialog .face.bust,.dialog .face.bust.own { width: 64px; height: 64px; flex-basis: 64px; }

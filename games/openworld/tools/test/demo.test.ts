@@ -3341,7 +3341,7 @@ req('P3', "the main line never breaks: Rowan's rescue begins by itself at the we
   author(f, () => (q.put('vigil', 'done'), w.setFact('ch1.vigil', 1)))
   ticks(f, 20)
   expect(underWay(f)).toEqual([['first_seal', 'main']])
-  expect(q.def('first_seal')!.objectives!.at(-1)!.text).toMatchObject({ zh: '在东大路打倒白骑士阿尔贝里克' })
+  expect(q.def('first_seal')!.objectives!.at(-1)!.text).toMatchObject({ zh: '在朝阳大道打倒白骑士阿尔贝里克' })
   // the journal keeps what was done, and the log of each: the rescue's lines in order
   const rescue = q.journal().find((j) => j.quest === 'rescue')!
   expect(rescue.state).toBe('done')
@@ -4282,12 +4282,12 @@ req('H2', "the homestead: Alberic's stall sells seeds, fertilizer, feed, beasts 
   expect(f.eng.world.stationsNear(w.player).has('stall')).toBe(true)
   expect(c.craft(recipe('shop/buy/seed-wheat'))).toBe(true)
   expect(c.craft(recipe('shop/buy/material-fertilizer'))).toBe(true)
-  expect([c.count('item/seed/wheat'), c.count('item/material/fertilizer'), coins()]).toEqual([5, 3, 185])
+  expect([c.count('item/seed/wheat'), c.count('item/material/fertilizer'), coins()]).toEqual([5, 3, 186])
   // what one grows is bought back
   author(f, () => w.create('item/material/wheat', { on: 'inside', holder: 'player' }))
   c.sync()
   expect(c.craft(recipe('shop/sell/material-wheat'))).toBe(true)
-  expect([c.count('item/material/wheat'), coins()]).toEqual([0, 188])
+  expect([c.count('item/material/wheat'), coins()]).toEqual([0, 187])
   // a seed sown on the tilled earth; fertilizer worked into it: one more at harvest
   const soil = Object.values(w.state.entities).find(() => false)
   void soil

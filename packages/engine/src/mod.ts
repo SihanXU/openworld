@@ -1218,7 +1218,7 @@ function opsOf(onto: Ontology): { ops: Set<string>; residentOnly: Set<string>; c
 }
 
 /** The props of a thing's worth the kernel knows (types.ts: a material's and a quality's `value` are factors of it). */
-const WORTH: Record<string, string> = { value: 'what a thing of its kind is worth', material: 'what it is made of, a factor of its worth' }
+const WORTH: Record<string, string> = { value: 'what a thing of its kind is worth', material: 'what it is made of, a factor of its worth', worth: 'what a made thing is worth, fixed as it is made' }
 /** What to do instead, for the diagnostic and the ModSpec. */
 const WORTH_WAY = 'to make the host worth more, make it another thing ({op: "transform", into: <a type worth more>}); to give something, make it ({op: "spawn"}: the yield check counts what is made)'
 /**

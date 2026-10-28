@@ -94,7 +94,7 @@ export function buildFoot(): MapBuilder {
   // crags and the ledge of fallen rock under them, the cleft the trail comes down through, the scree at the foot of the
   // face; the old ground of the seal stone, paved and gone to flowers; the hunter's hut and its yard; the meadows and
   // the woods round them, open only where the trail runs out south to the top of the Ford's cliff.)
-  const m = new MapBuilder('foot', L('Mountain Foot', '山脚'), 'wild', 40, 30, 'grass', 'field', 'outdoor', 'frostfang')
+  const m = new MapBuilder('foot', L('Woundstone Foot', '伤石山麓'), 'wild', 40, 30, 'grass', 'field', 'outdoor', 'frostfang')
   m.paint('foot')
   // the heights, drawn by hand: the crags two levels above the ledge, the ledge two above the foot, its edge a face of
   // rock — a ramp runs down the cleft where the trail does (each row half a level lower), a drop anywhere else hurts
@@ -105,7 +105,7 @@ export function buildFoot(): MapBuilder {
   // pillars of whatever stood round it still standing
   m.fixture('fixture/sacred/seal_stone', ...PAT.relic)
   m.regions.relic = [14, 7, 13, 10]
-  m.fixture('fixture/sacred/waypoint', ...PAT.footStone, { id: 'wp.foot', name: L('Mountain Foot statue', '山脚传送雕像') })
+  m.fixture('fixture/sacred/waypoint', ...PAT.footStone, { id: 'wp.foot', name: L('Woundstone Foot statue', '伤石山麓传送雕像') })
   // the hunter's cabin, long left (its room: buildFootHut), built of wood and burning like it; its yard before the door:
   // a rail fence round the trodden ground, fallen in places, the block he split wood on, the wood he split stacked
   // against the wall, the rack he hung meat on, bones; a footpath from the door through the gate to the trail
@@ -121,7 +121,7 @@ export function buildFoot(): MapBuilder {
   m.fixture('fixture/nature/stump', 8, 16)
   m.fixture('fixture/furniture/rack', 4, 17)
   for (const [x, y] of [[5, 19], [9, 19]] as const) m.item('item/material/bone', x, y)
-  m.fixture('fixture/sign', 20, 25, { props: { text: 'The Ford ↓', text_zh: '渡口 ↓' } })
+  m.fixture('fixture/sign', 20, 25, { props: { text: 'Vesper Ford ↓', text_zh: '晚祷渡 ↓' } })
   // small things where they belong: stones shed under the face, tufts in the scree, flowers along the trail, leaves
   // under the woods
   const rock = (t: string) => t === 'rock' || t === 'cave_wall'
@@ -217,7 +217,7 @@ export function buildTutorial(): MapBuilder {
   // thick at its corners; a spring under the north trees, flowers in the sun beside it, the berry bushes round where one
   // comes to, the grove standing apart on the east side, and the woods opening south into a funnel where the path runs
   // out. The house goes up on open ground east of the berries, TUTORIAL_HOUSE.)
-  const m = new MapBuilder('tutorial', L('The Clearing', '林间空地'), 'wild', w, h, 'grass', 'forest', 'outdoor', 'frostfang')
+  const m = new MapBuilder('tutorial', L('The Waking Glade', '初醒林地'), 'wild', w, h, 'grass', 'forest', 'outdoor', 'frostfang')
   const exit = TUTORIAL.exit as readonly number[]
   m.paint('tutorial')
   for (const [x, y] of TUTORIAL.grove) if (m.get(x, y) !== 'tree') throw new Error(`tutorial: the grove's tree at ${x},${y} is not in the layout`)
@@ -225,7 +225,7 @@ export function buildTutorial(): MapBuilder {
   m.fixture('fixture/build/ring', 6, 17)
   m.fixture('fixture/furniture/bench/log', 6, 15)
   // where the path leaves the clearing, a weathered sign
-  m.fixture('fixture/sign', exit[1] + 1, h - 6, { props: { text: 'DOWN — the foot of the mountain.', text_zh: '往下——山脚。' } })
+  m.fixture('fixture/sign', exit[1] + 1, h - 6, { props: { text: 'DOWN — Woundstone Foot.', text_zh: '往下——伤石山麓。' } })
   // small things where they belong: reeds and stones round the spring, ferns and leaves under the woods' edge, mushrooms
   // in their shade — never on the ground the lessons work (where things lie, the house, the fire, the dummy)
   const water = (t: string) => t === 'water'
@@ -246,7 +246,7 @@ export function buildTutorial(): MapBuilder {
   m.fixture('fixture/dummy', TUTORIAL_DUMMY[0], TUTORIAL_DUMMY[1])
   m.regions.exit = [exit[0] - 3, h - 5, 8, 5]
   // the way out: only once the story has opened it
-  for (const [i, x] of exit.entries()) m.portals.push({ x, y: h - 1, to: 'foot', tx: TUTORIAL.arrive[0] + i, ty: TUTORIAL.arrive[1], label: L('Mountain Foot', '山脚'), opensWhen: TUTORIAL_OPEN })
+  for (const [i, x] of exit.entries()) m.portals.push({ x, y: h - 1, to: 'foot', tx: TUTORIAL.arrive[0] + i, ty: TUTORIAL.arrive[1], label: L('Woundstone Foot', '伤石山麓'), opensWhen: TUTORIAL_OPEN })
   m.anchors.spawn = [TUTORIAL.spawn[0], TUTORIAL.spawn[1]]
   // what was here before the woods: the spring rising under an old wall of the Five, its niche and its five marks
   // (art/arch/buildings/prologue.ts), columns of whatever stood round it, a saint fallen by the water; and the oak the
