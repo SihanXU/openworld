@@ -86,7 +86,8 @@ async function askResearch(message: string): Promise<void> {
       throw Object.assign(err, { unreachable: true })
     })
     const result = readResearchReply(said, catalogue)
-    if (researchSession !== session || !researchHere(owner, who)) return
+    // (the player may have walked away meanwhile: the answer is kept, and reach is held to when they try it)
+    if (researchSession !== session || game !== owner) return
     session.history.push({ player: message, npc: result.reply })
     session.history = session.history.slice(-8)
     if (result.design) {
@@ -98,7 +99,7 @@ async function askResearch(message: string): Promise<void> {
     post({ t: 'research', who, ...result, token: session.token })
   } catch (err) {
     const problem = err instanceof ResearchProblem ? err.code : (err as { unreachable?: boolean }).unreachable ? 'unreachable' : 'design'
-    if (researchSession === session && researchHere(owner, who)) post({ t: 'research', who, problem })
+    if (researchSession === session && game === owner) post({ t: 'research', who, problem })
   } finally { researchBusy = false }
 }
 
@@ -428,7 +429,9 @@ function keyViews(): Frame['keys'] {
 }
 
 /** Time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player). */
-const timeStopped = (g: Game) => (paused && !backdropOn) || batchBusy() || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets || !!gift
+const timeStopped = (g: Game) => (paused && !backdropOn) || batchBusy() || !!g.engine.world.state.question || !!panel || !!g.mods.asking || (!!talk && !thinking()) || !!trade || !!pockets || !!gift
+/** The craftsperson one talks with is thinking an idea over: the talk holds no one up meanwhile. */
+const thinking = () => researchBusy && !!talk && researchSession?.who === talk.who
 
 function cancelFishing(g: Game | undefined): void {
   if (g && fishingActive(g.engine)) {

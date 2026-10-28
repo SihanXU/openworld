@@ -94,6 +94,14 @@ export class ResearchWindow {
   private actionsRow = document.createElement('div')
   private who?: string
   private waiting = false
+  /** The craftsperson thinking over the last idea (the question outlives the panel: one may walk away meanwhile). */
+  private pending?: string
+  /** A reply that came after the player walked away, kept for that craftsperson until they talk again. */
+  private kept = new Map<string, Extract<FromWorker, { t: 'research' }>>()
+  /** Says that a craftsperson has an idea ready (the HUD's message line). */
+  announce?: (who: string, problem: boolean) => void
+  /** The thinking began or ended: the pause follows it (a paused world sends no frames to follow it by). */
+  changed?: () => void
   private token?: string
   paintIcons?: (items: ItemInfo[]) => void
 
@@ -135,9 +143,20 @@ export class ResearchWindow {
 
   get open(): boolean { return !this.root.hidden }
 
+  /** The craftsperson is thinking: the world goes on meanwhile (and one may walk away; the answer is kept). */
+  get thinking(): boolean { return this.open && !!this.pending && this.pending === this.who }
+
   show(frame: Frame): void {
     if (!frame.talk || frame.talk.arrest) return
-    this.actions.cancel()
+    const kept = this.kept.get(frame.talk.who)
+    // a draft worked out while one was away is taken up where it was; anything else starts afresh (one talk at a time:
+    // what another craftsperson kept goes with it)
+    const still = !kept && this.pending === frame.talk.who
+    if (!kept && !still) {
+      this.actions.cancel()
+      this.kept.clear()
+      this.pending = undefined
+    }
     this.who = frame.talk.who
     this.root.hidden = false
     document.getElementById('dialog')!.classList.add('researching')
@@ -154,8 +173,13 @@ export class ResearchWindow {
     this.line.classList.remove('research-error')
     this.composer.hidden = false
     this.changeButton.hidden = true
-    this.busy(false)
-    this.input.focus()
+    this.busy(still)
+    if (still) this.line.textContent = say('Still thinking it over…', '还在琢磨呢……')
+    else this.input.focus()
+    if (kept) {
+      this.kept.delete(kept.who)
+      this.receive(kept)
+    }
   }
 
   follow(frame: Frame): void {
@@ -163,10 +187,13 @@ export class ResearchWindow {
   }
 
   close(): void {
-    this.actions.cancel()
+    // walking away while the craftsperson thinks: the answer still comes, and is kept for when one talks again
+    if (!this.pending) this.actions.cancel()
     this.who = this.token = undefined
+    this.waiting = false
     this.root.hidden = true
     document.getElementById('dialog')!.classList.remove('researching')
+    this.changed?.()
     document.querySelector<HTMLButtonElement>('#dChoices [data-verb="research"]')?.focus()
   }
 
@@ -176,6 +203,7 @@ export class ResearchWindow {
     this.sendButton.textContent = value ? say('Thinking…', '琢磨中……') : say('Share your idea', '说说想法')
     this.makeButton.disabled = value || !this.token
     this.makeButton.hidden = !this.token
+    this.changed?.()
   }
 
   private ask(): void {
@@ -186,12 +214,21 @@ export class ResearchWindow {
     this.input.value = ''
     this.line.textContent = say('Hmm… let me think about that.', '嗯……让我想想。')
     this.line.classList.remove('research-error')
+    this.pending = this.who
     this.busy(true)
     this.actions.ask(message)
   }
 
   receive(m: Extract<FromWorker, { t: 'research' }>): void {
-    if (!this.open || m.who !== this.who) return
+    if (m.who === this.pending) this.pending = undefined
+    if (!this.open || m.who !== this.who) {
+      // (an answer for one who is not being talked to: kept, and said on the message line; a made thing needs no keeping)
+      if (!m.made) {
+        this.kept.set(m.who, m)
+        this.announce?.(m.who, !!m.problem)
+      }
+      return
+    }
     this.line.textContent = m.made ? say('There! Your new creation is in your bag. I’ve written down the recipe for you.', '成了！东西收好，配方也给你记下了。') : m.problem ? say(...PROBLEM[m.problem]) : (m.reply ?? '')
     this.line.classList.toggle('research-error', !!m.problem)
     this.token = m.token

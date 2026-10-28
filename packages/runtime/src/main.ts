@@ -411,6 +411,14 @@ const paintIcons = (items: ItemInfo[]) => {
 }
 hud.paintIcons = paintIcons
 research.paintIcons = paintIcons
+research.changed = () => syncPause()
+research.announce = (who, problem) => {
+  const e = lastFrame?.entities.find((x) => x.id === who)
+  const name = e ? tx(e.name) : locale.value === 'zh' ? '工匠' : 'The craftsperson'
+  const zh = problem ? `✦ ${name}琢磨你的想法时遇到了问题，去找对方聊聊吧。` : `✦ ${name}把你的想法琢磨好了，去找对方聊聊吧。`
+  const en = problem ? `✦ ${name} ran into trouble with your idea: talk to them about it.` : `✦ ${name} has worked out your idea: talk to them about it.`
+  hud.message(locale.value === 'zh' ? zh : en, 'ai')
+}
 fishingHud.paintIcon = (item) => paintIcons([item])
 menu.paintIcons = paintIcons
 people.paintIcons = paintIcons
@@ -754,7 +762,8 @@ const death = new DeathScreen({
 
 let pausedNow = false
 let fishingBlurPaused = false
-const pauseRequested = () => research.open || menu.anyOpen || hud.dialogOpen || hud.chooserOpen || dev.open || death.open || !document.getElementById('intro')!.classList.contains('hidden')
+// a craftsperson thinking over an idea holds no one up: the world goes on until the answer is there
+const pauseRequested = () => (!research.thinking && (research.open || hud.dialogOpen)) || menu.anyOpen || hud.chooserOpen || dev.open || death.open || !document.getElementById('intro')!.classList.contains('hidden')
 function syncPause(): void {
   const on = fishingBlurPaused || pauseRequested()
   if (on && building.open) building.toggle(false)
