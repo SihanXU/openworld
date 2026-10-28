@@ -81,3 +81,66 @@ describe('what puts it right', () => {
     expect(eng.wellbeing.cures(douse, 'burning')).toBe(true)
   })
 })
+
+describe('the goal: away, toward, an act', () => {
+  /** A person of the world (a round of their own: `npc`), on a map of `rows`, the one at the keys out of the way. */
+  function town(rows: string[][], people: (ScenarioEntity & { schedule?: [number, number, number, number][] })[], cells: NonNullable<Parameters<typeof buildSandbox>[0]['cells']> = []): Engine {
+    const eng = buildSandbox({ terrain: rows, entities: [{ key: 'actor', type: 'actor/person/player', x: rows[0].length - 1, y: rows.length - 1 }, ...people], event: {}, cells }, onto, lib())
+    eng.author(() => {
+      for (const p of people) {
+        const e = eng.world.get(p.key)!
+        e.npc = { role: 'villager', schedule: (p.schedule ?? [[0, 24, p.x, p.y]]).map(([from, to, x, y]) => ({ from, to, map: 'sandbox', x, y, activity: 'stand' })) }
+      }
+    })
+    return eng
+  }
+  const grass = (w: number, h: number) => Array.from({ length: h }, () => Array(w).fill('grass'))
+  const run = (eng: Engine, n: number, until?: () => boolean) => {
+    for (let i = 0; i < n; i++) {
+      eng.tick()
+      if (until?.()) return true
+    }
+    return false
+  }
+  const pos = (eng: Engine, id: string) => eng.world.get(id)!.place as { x: number; y: number }
+
+  it('one on fire runs to the wet ground that puts it out (the rules say mud wets what stands on it, and wet clears burning)', () => {
+    const rows = grass(7, 5)
+    rows[2][5] = 'mud'
+    const eng = town(rows, [{ key: 'nell', type: 'actor/person/villager', x: 1, y: 2 }])
+    eng.author(() => eng.applyStatus({ e: 'nell' }, 'burning', 200))
+    expect(run(eng, 200, () => !eng.world.hasStatus({ e: 'nell' }, 'burning'))).toBe(true)
+    expect(pos(eng, 'nell')).toMatchObject({ x: 5, y: 2 })
+  })
+
+  it('one standing where it burns steps off it', () => {
+    const eng = town(grass(7, 5), [{ key: 'nell', type: 'actor/person/villager', x: 3, y: 2 }], [{ x: 3, y: 2, statuses: ['burning'] }])
+    expect(run(eng, 60, () => pos(eng, 'nell').x !== 3 || pos(eng, 'nell').y !== 2)).toBe(true)
+  })
+
+  it('in the rain one goes in under a roof, a farmer works on; the sheltered stay in until it stops, then their day takes them out', () => {
+    const cover = [0, 1, 2].map((x) => ({ x, y: 0, z: 1, type: 'tile/floor_wood' }))
+    const eng = town(grass(8, 5), [
+      { key: 'nell', type: 'actor/person/villager', x: 6, y: 3 },
+      { key: 'odo', type: 'actor/person/farmer', x: 5, y: 3 },
+    ], cover)
+    const w = eng.world
+    expect(w.covered('sandbox', 1, 0)).toBe(true)
+    w.weather = [{ day: w.calendar().day, weather: 'rain' }]
+    expect(run(eng, 400, () => w.covered('sandbox', pos(eng, 'nell').x, pos(eng, 'nell').y))).toBe(true)
+    expect(pos(eng, 'odo')).toMatchObject({ x: 5, y: 3 })
+    run(eng, 200)
+    expect(w.covered('sandbox', pos(eng, 'nell').x, pos(eng, 'nell').y)).toBe(true)
+    w.weather = [{ day: w.calendar().day, weather: 'sun' }]
+    expect(run(eng, 400, () => pos(eng, 'nell').x === 6 && pos(eng, 'nell').y === 3)).toBe(true)
+  })
+
+  it('the hungry eat what they carry', () => {
+    const eng = town(grass(5, 5), [
+      { key: 'nell', type: 'actor/person/villager', x: 2, y: 2, statuses: ['hungry'], props: { hunger: 4 } },
+      { key: 'apple', type: 'item/food/apple', x: 2, y: 2, inside: 'nell' },
+    ])
+    expect(run(eng, 100, () => !eng.world.get('apple'))).toBe(true)
+    expect(eng.world.num(eng.world.get('nell')!, 'hunger')).toBeGreaterThan(4)
+  })
+})

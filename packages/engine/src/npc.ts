@@ -14,7 +14,7 @@
 
 import type { Engine } from './engine.ts'
 import { astar, wayTo } from './path.ts'
-import { scheduleFor } from './people.ts'
+import { dayForWeather, scheduleFor } from './people.ts'
 import { evalCond, matchSelector } from './rules.ts'
 import { TICKS_PER_HOUR } from './calendar.ts'
 import type { Ref, WorkDef } from './types.ts'
@@ -148,6 +148,8 @@ export class NpcSim {
     const last = this.lastOnTheWay(cur, active)
     const back = last !== undefined ? this.eng.graph[last]?.find((p) => p.to === active) : undefined
     const at: Pos = back ? { map: active, x: back.tx, y: back.ty } : { map: active, x: s.x, y: s.y }
+    // a day that would bring them into what they mind (the street in the rain): they stay where they are
+    if (this.eng.wellbeing.placeWeight(e, { map: s.map, x: s.x, y: s.y }) > 0) return
     const free = w.walkable(at.map, at.x, at.y, e.id) ? at : this.eng.nearestFree(at)
     if (free) this.eng.relocate(e, free)
   }
@@ -174,8 +176,10 @@ export class NpcSim {
     const w = this.eng.world
     const h = w.hour()
     const place = (e: Entity, s: ScheduleEntry) => {
-      const at = { map, x: s.x, y: s.y }
-      const free = w.walkable(map, s.x, s.y, e.id) ? at : this.eng.nearestFree(at)
+      // where their day has them, unless it brings what they mind there (wellbeing.ts): one of their own places that does not
+      const to = this.refuge(e, s) ?? s
+      const at = { map: to.map, x: to.x, y: to.y }
+      const free = w.walkable(at.map, at.x, at.y, e.id) ? at : this.eng.nearestFree(at)
       if (free) this.eng.relocate(e, free)
     }
     for (const id of this.ids()) {
@@ -194,10 +198,111 @@ export class NpcSim {
     for (const e of w.entitiesOnMap(map)) {
       if (e.npc?.fidelity !== 'local' || e.place.on !== 'tile' || e.props?.follow !== undefined) continue
       const s = scheduleAt(scheduleFor(this.eng, e), h)
-      if (s && s.map !== map && next.has(s.map)) this.eng.relocate(e, { map: s.map, x: s.x, y: s.y })
-      else if (s?.map === map && Math.abs(e.place.x - s.x) + Math.abs(e.place.y - s.y) > 3) place(e, s)
+      if (s && s.map !== map && next.has(s.map)) {
+        const to = this.refuge(e, s) ?? s
+        this.eng.relocate(e, { map: to.map, x: to.x, y: to.y })
+      } else if (s?.map === map && (Math.abs(e.place.x - s.x) + Math.abs(e.place.y - s.y) > 3 || this.refuge(e, s))) place(e, s)
     }
     this.rt.clear()
+    this.eng.wellbeing.forget()
+  }
+
+  /** Where one's day has one now: its anchor. */
+  anchor(e: Entity): Pos | undefined {
+    const s = scheduleAt(scheduleFor(this.eng, e), this.eng.world.hour())
+    return s && { map: s.map, x: s.x, y: s.y }
+  }
+
+  /** One's own places: every anchor of one's days (each variant's, a home ground's), the nearest maps first. */
+  anchors(e: Entity): Pos[] {
+    const n = e.npc
+    if (!n) return []
+    const all = [...n.schedule, ...(n.person?.schedules ?? []).flatMap((v) => v.entries), ...(n.resident?.schedule ?? [])]
+    const from = e.place.on === 'tile' ? e.place.map : ''
+    const hops = this.hops(from)
+    const seen = new Set<string>()
+    const out: Pos[] = []
+    for (const s of all) {
+      const k = `${s.map}:${s.x},${s.y}`
+      if (seen.has(k)) continue
+      seen.add(k)
+      out.push({ map: s.map, x: s.x, y: s.y })
+    }
+    return out.sort((a, b) => (hops.get(a.map) ?? 99) - (hops.get(b.map) ?? 99))
+  }
+
+  /**
+   * Where to put one whose day has them at `s`, if there they would bear what they mind (wellbeing.ts): one of their own
+   * places that brings nothing, else none (they go where their day has them).
+   */
+  refuge(e: Entity, s: Pos): Pos | undefined {
+    const wb = this.eng.wellbeing
+    const w = this.eng.world
+    if (!w.map(s.map) || dayForWeather(this.eng, e) || wb.placeWeight(e, { map: s.map, x: s.x, y: s.y }) <= 0) return undefined
+    return this.anchors(e).find((a) => w.map(a.map) && wb.placeWeight(e, a) <= 0)
+  }
+
+  /** How many maps away each map is from `from` (BFS over the portal graph). */
+  private hops(from: string): Map<string, number> {
+    const g = this.eng.graph
+    const out = new Map<string, number>([[from, 0]])
+    const q = [from]
+    while (q.length) {
+      const m = q.shift()!
+      for (const p of g[m] ?? []) if (!out.has(p.to)) (out.set(p.to, out.get(m)! + 1), q.push(p.to))
+    }
+    return out
+  }
+
+  /**
+   * Walk toward a place (wellbeing.ts's ways): onto it, or within `near` of it; across maps by the portal toward its
+   * map, as a day's round goes. 'unreachable' when no path is found.
+   */
+  walkTo(e: Entity, active: string, to: Pos, near = 0): 'arrived' | 'walking' | 'unreachable' {
+    const eng = this.eng
+    const w = eng.world
+    if (e.place.on !== 'tile') return 'unreachable'
+    const rt = this.runtime(e)
+    const { x, y } = e.place
+    let gx = to.x
+    let gy = to.y
+    let leaving: { to: string; tx: number; ty: number } | undefined
+    if (to.map !== active) {
+      const hop = this.nextHop(active, to.map)
+      const portal = hop && w.map(active)?.portals.find((p) => p.x === hop.x && p.y === hop.y)
+      if (!portal) return 'unreachable'
+      gx = portal.x
+      gy = portal.y
+      leaving = portal
+    }
+    const dist = Math.abs(gx - x) + Math.abs(gy - y)
+    if (leaving && dist <= 1) {
+      this.eng.relocate(e, { map: leaving.to, x: leaving.tx, y: leaving.ty })
+      this.rt.delete(e.id)
+      return 'walking'
+    }
+    if (!leaving && dist <= near) return 'arrived'
+    const goal = `${active}:${gx}:${gy}:${near}`
+    if (rt.path?.length && !wayTo(x, y, ...rt.path[0])) rt.path = undefined
+    if (!rt.path || rt.goal !== goal || !rt.path.length) {
+      if (this.budget <= 0) return 'walking'
+      this.budget--
+      const m = w.map(active)!
+      const free = (px: number, py: number) => w.passable(active, px, py) || ((near > 0 || !!leaving) && px === gx && py === gy)
+      rt.path = astar(m.width, m.height, free, x, y, gx, gy, undefined, (ax, ay, bx, by) => w.safeStep(e, active, ax, ay, bx, by)) ?? []
+      rt.goal = goal
+      if (!rt.path.length) return 'unreachable'
+    }
+    const [nx, ny] = rt.path[0]
+    if ((near > 0 || leaving) && nx === gx && ny === gy) {
+      rt.path = undefined
+      return leaving ? 'walking' : 'arrived'
+    }
+    const dir = wayTo(x, y, nx, ny)!
+    if (eng.step(e, dir)) (rt.path.shift(), (rt.blocked = 0))
+    else if (++rt.blocked > 6) (rt.path = undefined), (rt.blocked = 0)
+    eng.setCooldown(e.id, NPC_STEP_TICKS)
+    return 'walking'
   }
 
   /**

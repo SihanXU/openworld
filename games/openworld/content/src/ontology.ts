@@ -746,7 +746,8 @@ export function buildOntology(): Ontology {
     // theirs up in turn (docs/skills.md)
     kits: { ...KITS, ...ELITE_KITS, ...BOSS_KITS },
     encounters: BOSS_ENCOUNTERS,
-    goals: ['encounter', 'rout', 'kit', 'tactics', 'threat', 'social', 'follow', 'need', 'residentWork', 'schedule', 'home', 'idle'],
+    // danger first of all (but a boss's fight): what harms one is left or put right (engine wellbeing.ts)
+    goals: ['encounter', 'danger', 'rout', 'kit', 'tactics', 'threat', 'social', 'follow', 'need', 'residentWork', 'schedule', 'home', 'idle'],
     // the people's social life (docs/npc-sandbox.md): deeds and their fines, the watches, the numbers, the talk panel's verbs
     deeds: DEEDS,
     laws: LAWS,

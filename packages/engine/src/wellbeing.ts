@@ -10,6 +10,8 @@
 import type { Engine } from './engine.ts'
 import { isDo, matchSelector, rolesOf, type Roles } from './rules.ts'
 import type { Amount, Effect, Entity, GameEvent, Id, Pos, PropValue, Ref } from './types.ts'
+import { DIRS } from './types.ts'
+import { dayForWeather } from './people.ts'
 import type { View } from './world.ts'
 
 /** What an outcome does to one thing: the statuses it gives and takes, the health it costs or gives, the props it moves. */
@@ -48,12 +50,50 @@ export const LOW_HP = 0.5
 const PULSE_REACH = 2
 /** How long a place's reading is kept (ticks). */
 const PLACE_TTL = 20
+/** How often one reads the place one stands (ticks): a step onto another cell reads it at once. */
+const LOOK_EVERY = 15
+/** How far one looks for a better place (steps), and for how many cells at most. */
+const CELL_REACH = 8
+const CELLS_MAX = 80
+/** For what the place does not bring, how near a place that cures it is looked for. */
+const CURE_REACH = 3
+const CURE_CELLS = 20
+/** What a step costs against what is put right. */
+const STEP_COST = 0.1
+/** Going to one of one's own places on another map (home, out of the rain): about this much. */
+const AWAY_COST = 2
+/** How far round one looks for what to use, or to use something on (cells), and how many things. */
+const ACT_REACH = 6
+const ABOUT_MAX = 40
+/** How many things at hand are tried for making another (an empty bucket filled). */
+const MAKE_TOOLS = 4
+/** A way is let go and looked for again after this long (ticks). */
+const PLAN_TTL = 300
+/** Having found no way, one looks again after this long (ticks). */
+const TRY_AGAIN = 120
+/** Ways looked for each tick, over everyone. */
+const PLANS_PER_TICK = 3
+/** Ticks after an act, and between a creature's steps. */
+const ACT_TICKS = 10
+const CREATURE_STEP = 6
 
 /** A thing read as it would be: another kind (`type`: the bucket once filled), bearing statuses too (`bears`). */
 export interface Swap {
   id: Id
   type?: string
   bears?: string[]
+}
+
+/** A step of a way: walk to a place (onto it, or within `near`), or do an act there. */
+export type Step = { go: Pos; near?: number } | { act: 'use' | 'hands' | 'take'; target: Id; instrument?: Id; becomes?: string }
+
+/** A way to put a trouble right, in hand: its steps, when it was found, what it costs. */
+export interface Remedy {
+  trouble: Trouble
+  goal: 'danger' | 'need'
+  steps: Step[]
+  at: number
+  cost: number
 }
 
 const empty = (): Delta => ({ adds: new Set(), removes: new Set(), hp: 0, props: {}, gone: false, unknown: false })
@@ -63,10 +103,32 @@ const REVERSE: Record<string, string> = { on: 'under', 'in-region': 'encloses', 
 
 export class Wellbeing {
   private places = new Map<string, { at: number; d: Delta }>()
+  /** Each one's way in hand (behaviour memory: lost with a save, found again). */
+  private plans = new Map<Id, Remedy>()
+  /** When each may look for a way again, having found none. */
+  private tried = new Map<Id, number>()
+  /** Who has started at a danger (shown once, as one takes fright). */
+  private alarmed = new Set<Id>()
+  private budget = 0
+  private budgetAt = -1
+  private memos = new Map<string, boolean | string>()
+  private memoOf = -1
+  /** When each next reads the place it stands, and what it read there last. */
+  private lookedAt = new Map<Id, number>()
+  private lastPlace = new Map<Id, { key: string; troubles: Trouble[] }>()
   private harmCache = new Map<string, boolean>()
   private harmsOf = -1
 
   constructor(private eng: Engine) {}
+
+  /** The ways in hand let go (the player came onto another map: everyone is placed afresh). */
+  forget(): void {
+    this.plans.clear()
+    this.tried.clear()
+    this.alarmed.clear()
+    this.lookedAt.clear()
+    this.lastPlace.clear()
+  }
 
   // ---------------------------------------------------------------- reading an outcome
 
@@ -268,7 +330,8 @@ export class Wellbeing {
   placeAt(e: Entity, at: Pos): Delta {
     const eng = this.eng
     const w = eng.world
-    const key = `${e.id}|${Object.keys(e.statuses ?? {}).sort().join(',')}|${at.map}:${at.x},${at.y},${at.z ?? 0}|${w.calendar().weather}`
+    // read for the kind as it is (its statuses, its tags), so those alike share it
+    const key = `${e.type}|${(e.tags ?? []).join(',')}|${Object.keys(e.statuses ?? {}).sort().join(',')}|${at.map}:${at.x},${at.y},${at.z ?? 0}|${w.calendar().weather}`
     const hit = this.places.get(key)
     const t = w.state.tick
     if (hit && t - hit.at < PLACE_TTL) return hit.d
@@ -328,13 +391,21 @@ export class Wellbeing {
       if (weight > 0) out.push({ subject: e.id, status: s, weight, danger: weight >= HARM })
     }
     const at = w.posOf(e)
-    if (at && e.place.on === 'tile') {
+    // the place one stands, read now and then (what one bears is read every turn)
+    const look = at && e.place.on === 'tile' && w.state.tick >= (this.lookedAt.get(e.id) ?? -Infinity)
+    if (look) this.lookedAt.set(e.id, w.state.tick + LOOK_EVERY)
+    const here = look ? undefined : this.lastPlace.get(e.id)
+    if (here && here.key === `${at?.map}:${at?.x},${at?.y}`) out.push(...here.troubles)
+    else if (at && e.place.on === 'tile') {
+      const placed: Trouble[] = []
       const d = this.placeAt(e, at)
-      if (d.hp < 0 || d.gone) out.push({ subject: e.id, status: 'hp', weight: HARM, danger: true, place: true })
+      if (d.hp < 0 || d.gone) placed.push({ subject: e.id, status: 'hp', weight: HARM, danger: true, place: true })
       for (const s of d.adds) {
         const weight = this.weight(e, s)
-        if (weight > 0 && !out.some((t) => t.status === s && t.place)) out.push({ subject: e.id, status: s, weight, danger: weight >= HARM, place: true })
+        if (weight > 0 && !placed.some((t) => t.status === s)) placed.push({ subject: e.id, status: s, weight, danger: weight >= HARM, place: true })
       }
+      this.lastPlace.set(e.id, { key: `${at.map}:${at.x},${at.y}`, troubles: placed })
+      out.push(...placed)
     }
     const max = w.num(e, 'maxHp', 0)
     if (max > 0 && w.num(e, 'hp', max) < max * LOW_HP && !out.some((t) => t.status === 'hp')) out.push({ subject: e.id, status: 'hp', weight: HARM / 2, danger: false })
@@ -351,6 +422,271 @@ export class Wellbeing {
     }
     void w
     return out
+  }
+
+  // ---------------------------------------------------------------- what to do about it
+
+  /**
+   * The goal's turn (behaviour.ts: `danger` takes what harms, before everything but a boss's fight; `need` the rest,
+   * before the day's round): what is wrong for one, and a way to put it right — away from the place that brings it,
+   * to a place that cures it, or an act with what is at hand or can be made of it. A way found is kept and followed;
+   * none, and the goal gives the turn to the next.
+   */
+  turn(e: Entity, active: string, goal: 'danger' | 'need'): boolean {
+    const eng = this.eng
+    const w = eng.world
+    if (e.place.on !== 'tile' || e.place.map !== active || e.id === w.state.player || e.boss || eng.asleep(e)) return false
+    const danger = goal === 'danger'
+    const all = this.troublesFor(e).filter((t) => t.danger === danger)
+    const held = this.plans.get(e.id)
+    if (held && held.goal === goal) {
+      const still = all.find((t) => t.subject === held.trouble.subject && t.status === held.trouble.status)
+      if (still && w.state.tick - held.at < PLAN_TTL) {
+        const r = this.step(e, active, held)
+        if (r !== 'failed') return true
+      }
+      this.plans.delete(e.id)
+    }
+    if (!all.length) return !danger && this.holdOff(e, active)
+    // looked for a way a moment ago and found none: the next goal's turn
+    if ((this.tried.get(e.id) ?? -Infinity) > w.state.tick) return !danger && this.holdOff(e, active)
+    // ways are looked for a few at a time each tick (a street in the rain all at once is spread over a moment)
+    if (this.budgetAt !== w.state.tick) (this.budgetAt = w.state.tick), (this.budget = PLANS_PER_TICK)
+    if (this.budget <= 0) return false
+    this.budget--
+    for (const t of all.sort((a, b) => b.weight - a.weight)) {
+      const plan = this.plan(e, active, t, goal)
+      if (!plan) continue
+      this.plans.set(e.id, plan)
+      if (danger && !this.alarmed.has(e.id)) (this.alarmed.add(e.id), w.fx.push({ t: 'emote', who: e.id, mood: 'surprised' }))
+      this.step(e, active, plan)
+      return true
+    }
+    this.tried.set(e.id, w.state.tick + TRY_AGAIN)
+    this.alarmed.delete(e.id)
+    return !danger && this.holdOff(e, active)
+  }
+
+  /** What is wrong for one: about oneself, and (step 4) for those one cares for. */
+  troublesFor(e: Entity): Trouble[] {
+    // a day written for this weather says where one is in it: what its places bring is borne (but what harms)
+    const authored = !!e.npc && dayForWeather(this.eng, e)
+    return this.troubles(e).filter((t) => !(authored && t.place && !t.danger))
+  }
+
+  /**
+   * Out of what one minds already, one does not walk back into it: where one's day would take one now is a place that
+   * would bring it (the street in the rain) and here does not — one stays, until it passes.
+   */
+  private holdOff(e: Entity, active: string): boolean {
+    const eng = this.eng
+    const w = eng.world
+    if (!e.npc || e.place.on !== 'tile' || dayForWeather(eng, e)) return false
+    const s = eng.npcs.anchor(e)
+    if (!s || (s.map === e.place.map && s.x === e.place.x && s.y === e.place.y)) return false
+    if (!w.map(s.map) || this.placeWeight(e, s) <= 0 || this.placeWeight(e, e.place) > 0) return false
+    void active
+    return true
+  }
+
+  /** A way to put a trouble right: the cheapest that works. */
+  private plan(e: Entity, active: string, t: Trouble, goal: 'danger' | 'need'): Remedy | undefined {
+    const eng = this.eng
+    const w = eng.world
+    const at = e.place.on === 'tile' ? e.place : undefined
+    if (!at) return undefined
+    const self = t.subject === e.id
+    const options: Remedy[] = []
+    const plan = (steps: Step[], cost: number): Remedy => ({ trouble: t, goal, steps, at: w.state.tick, cost })
+    // a place: away from what brings it, or where it is cured
+    if (self) {
+      const here = this.placeWeight(e, at)
+      // a place that brings it, or a harm: anywhere within a walk; else only a place close by may cure it (a warm spring)
+      const near = t.place || t.danger ? this.cells(e, active, at, CELL_REACH, CELLS_MAX) : this.cells(e, active, at, CURE_REACH, CURE_CELLS)
+      let best: { pos: Pos; score: number; d: number } | undefined
+      for (const c of near) {
+        const pos = { map: active, x: c.x, y: c.y, z: at.z }
+        const there = this.placeWeight(e, pos)
+        const cures = this.cures(this.placeAt(e, pos), t.status)
+        const gain = (t.place ? here - there : 0) + (cures ? t.weight : 0) - (t.place ? 0 : there)
+        const score = gain - c.d * STEP_COST
+        if (gain > 0 && (!best || score > best.score)) best = { pos, score, d: c.d }
+      }
+      if (best) options.push(plan([{ go: best.pos }], best.d * STEP_COST))
+      // out of a place that brings it, with nowhere near: one of one's own places that does not (home, out of the rain)
+      if (!best && t.place && e.npc)
+        for (const s of eng.npcs.anchors(e)) {
+          if (s.map === active || !w.map(s.map)) continue
+          if (this.placeWeight(e, s) > 0) continue
+          options.push(plan([{ go: { map: s.map, x: s.x, y: s.y } }], AWAY_COST))
+          break
+        }
+    }
+    // an act: with what one has or may take, or with the hands on what is about; or with a thing once it is made
+    if (e.npc && !(self && t.place)) {
+      const subject = w.get(t.subject)
+      const sp = subject && w.posOf(subject)
+      const things = this.about(e, active, at)
+      const mine = (x: Entity) => x.place.on !== 'tile' || this.mayTake(e, x)
+      const tools = [...this.carried(e), ...things.filter((x) => w.isPortable(x) && mine(x))]
+      const kind = (x: Entity | undefined) => (x ? `${x.type}|${Object.keys(x.statuses ?? {}).sort().join(',')}` : '')
+      for (const i of tools) {
+        const ok = this.memo(`use|${kind(subject)}|${t.status}|${kind(i)}|${self}`, () => {
+          const ev = eng.actEvent('use', e.id, { e: t.subject }, { e: i.id })
+          return this.cures(this.outcome(ev, t.subject), t.status) && !this.hurtsSelf(e, ev, self)
+        })
+        if (!ok) continue
+        options.push(plan([...this.fetch(e, i), ...(self ? [] : [{ go: sp!, near: 1 } as Step]), { act: 'use', target: t.subject, instrument: i.id }], this.dist(at, i) * STEP_COST + (self ? 0 : this.dist(at, subject!) * STEP_COST)))
+      }
+      if (self)
+        for (const f of things) {
+          if (w.isPortable(f) || w.isAgent(f)) continue
+          if (!this.memo(`hands|${kind(e)}|${t.status}|${kind(f)}`, () => this.cures(this.outcome(eng.actEvent('hands', e.id, { e: f.id }), e.id), t.status))) continue
+          options.push(plan([{ go: w.posOf(f)!, near: 1 }, { act: 'hands', target: f.id }], this.dist(at, f) * STEP_COST))
+        }
+      // made: a thing at hand used on one of what is about becomes another kind, and that kind cures it
+      if (!options.length)
+        for (const i of tools.slice(0, MAKE_TOOLS)) {
+          const seen = new Set<string>()
+          for (const src of things) {
+            if (src.id === i.id || seen.has(src.type)) continue
+            seen.add(src.type)
+            const made = this.memo(`make|${kind(i)}|${kind(src)}`, () => this.outcome(eng.actEvent('use', e.id, { e: src.id }, { e: i.id }), i.id).becomes ?? '')
+            if (!made || made === i.type) continue
+            if (!this.memo(`made|${kind(subject)}|${t.status}|${made}`, () => this.cures(this.outcome(eng.actEvent('use', e.id, { e: t.subject }, { e: i.id }), t.subject, undefined, 3, { id: i.id, type: made }), t.status))) continue
+            options.push(
+              plan(
+                [...this.fetch(e, i), { go: w.posOf(src)!, near: 1 }, { act: 'use', target: src.id, instrument: i.id, becomes: made }, ...(self ? [] : [{ go: sp!, near: 1 } as Step]), { act: 'use', target: t.subject, instrument: i.id }],
+                (this.dist(at, i) + this.dist(at, src) * 2) * STEP_COST,
+              ),
+            )
+            break
+          }
+        }
+    }
+    return options.sort((a, b) => a.cost - b.cost)[0]
+  }
+
+  /** An answer read for kinds, kept until the rules change (what cures what is the same for every one alike). */
+  private memo<T extends boolean | string>(key: string, f: () => T): T {
+    if (this.memoOf !== this.eng.lib.version) (this.memos.clear(), (this.memoOf = this.eng.lib.version))
+    if (this.memos.has(key)) return this.memos.get(key) as T
+    if (this.memos.size > 20000) this.memos.clear()
+    const v = f()
+    this.memos.set(key, v)
+    return v
+  }
+
+  /** Does an act cost the one who does it more than it is worth (it hurts them, beyond the one it is for)? */
+  private hurtsSelf(e: Entity, ev: GameEvent, self: boolean): boolean {
+    if (self) return false
+    const d = this.outcome(ev, e.id)
+    return d.hp < 0 || d.adds.has('burning')
+  }
+
+  /** To have a thing in hand to use: take it where it lies first. */
+  private fetch(e: Entity, i: Entity): Step[] {
+    if (i.place.on !== 'tile') return []
+    return [{ go: this.eng.world.posOf(i)!, near: 1 }, { act: 'take', target: i.id }]
+  }
+
+  /** What one carries: in the hand and the bag. */
+  private carried(e: Entity): Entity[] {
+    const w = this.eng.world
+    return [...(e.held ? [e.held] : []), ...(e.contents ?? [])].map((id) => w.get(id)).filter((x): x is Entity => !!x && !e.residentWork?.cargoIds.includes(x.id))
+  }
+
+  /** May one take a thing lying about: one's own, one's household's, or nobody's (another's would be a theft). */
+  private mayTake(e: Entity, x: Entity): boolean {
+    const r = this.eng.society.relation(this.eng.ownerOf(x), e)
+    return r === 'mine' || r === 'ours' || r === 'nobody'
+  }
+
+  /** The things about one (within reach of a walk), and the cells' things: what one may use, or use something on. */
+  private about(e: Entity, active: string, at: Pos): Entity[] {
+    const w = this.eng.world
+    const out: Entity[] = []
+    for (let dy = -ACT_REACH; dy <= ACT_REACH; dy++)
+      for (let dx = -ACT_REACH; dx <= ACT_REACH; dx++) {
+        if (!w.inBounds(active, at.x + dx, at.y + dy)) continue
+        for (const o of w.entitiesAt(active, at.x + dx, at.y + dy, at.z ?? 0)) if (o.id !== e.id && !w.isAgent(o)) out.push(o)
+      }
+    return out.sort((a, b) => this.dist(at, a) - this.dist(at, b)).slice(0, ABOUT_MAX)
+  }
+
+  private dist(at: Pos, o: Entity): number {
+    const p = this.eng.world.posOf(o)
+    return p && p.map === at.map ? Math.abs(p.x - at.x) + Math.abs(p.y - at.y) : 50
+  }
+
+  /** The cells one can walk to within `reach` steps, with how many steps. */
+  private cells(e: Entity, map: string, at: Pos, reach: number, most: number): { x: number; y: number; d: number }[] {
+    const w = this.eng.world
+    const seen = new Map<string, number>([[`${at.x},${at.y}`, 0]])
+    const out: { x: number; y: number; d: number }[] = []
+    const q: [number, number, number][] = [[at.x, at.y, 0]]
+    while (q.length && out.length < most) {
+      const [x, y, d] = q.shift()!
+      if (d > 0) out.push({ x, y, d })
+      if (d >= reach) continue
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx
+        const ny = y + dy
+        const k = `${nx},${ny}`
+        if (seen.has(k) || !w.walkable(map, nx, ny, e.id) || w.safeStep(e, map, x, y, nx, ny) === false) continue
+        seen.set(k, d + 1)
+        q.push([nx, ny, d + 1])
+      }
+    }
+    return out
+  }
+
+  /** One step of a way: walk on, or do its act once there. */
+  private step(e: Entity, active: string, plan: Remedy): 'walking' | 'done' | 'failed' {
+    const eng = this.eng
+    const w = eng.world
+    const s = plan.steps[0]
+    if (!s) return 'done'
+    if ('go' in s) {
+      const r = e.npc ? eng.npcs.walkTo(e, active, s.go, s.near ?? 0) : this.edge(e, active, s.go)
+      if (r === 'arrived') {
+        plan.steps.shift()
+        return plan.steps.length ? this.step(e, active, plan) : 'done'
+      }
+      return r === 'unreachable' ? 'failed' : 'walking'
+    }
+    const target = w.get(s.target)
+    if (!target) return 'failed'
+    const tp = w.posOf(target)
+    if (tp && e.place.on === 'tile' && tp.map === e.place.map) {
+      const dx = tp.x - e.place.x
+      const dy = tp.y - e.place.y
+      if (dx || dy) e.facing = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up'
+    }
+    if (s.act === 'take') eng.act('take', e.id, { e: target.id }, { instrument: null, params: { into: 'contents' } })
+    else eng.act(s.act, e.id, { e: target.id }, { instrument: s.instrument ? { e: s.instrument } : null })
+    eng.setCooldown(e.id, ACT_TICKS)
+    plan.steps.shift()
+    // a thing made on the way must be what was looked for (the bucket full), else the way is let go
+    if (s.becomes && s.instrument && w.get(s.instrument)?.type !== s.becomes) return 'failed'
+    return 'walking'
+  }
+
+  /** A creature (no round of its own to walk): a step toward the place, the way that brings it nearest. */
+  private edge(e: Entity, active: string, to: Pos): 'walking' | 'arrived' | 'unreachable' {
+    const eng = this.eng
+    const w = eng.world
+    if (e.place.on !== 'tile' || to.map !== active) return 'unreachable'
+    const { x, y } = e.place
+    if (x === to.x && y === to.y) return 'arrived'
+    const dirs = (['up', 'down', 'left', 'right'] as const).filter((d) => {
+      const [dx, dy] = DIRS[d]
+      return w.walkable(active, x + dx, y + dy, e.id)
+    })
+    const best = dirs.sort((a, b) => Math.abs(x + DIRS[a][0] - to.x) + Math.abs(y + DIRS[a][1] - to.y) - (Math.abs(x + DIRS[b][0] - to.x) + Math.abs(y + DIRS[b][1] - to.y)))[0]
+    if (!best || !eng.step(e, best)) return 'unreachable'
+    eng.setCooldown(e.id, CREATURE_STEP)
+    return 'walking'
   }
 }
 
