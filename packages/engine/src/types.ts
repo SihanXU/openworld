@@ -72,6 +72,11 @@ export interface TypeDef {
   makeup?: MakeupPart[]
   /** How long it stays what it is, and what it becomes (world-model.md §6.5). */
   stage?: StageDef
+  /**
+   * How much this kind minds a status, by id, over the status's own `mind` (wellbeing.ts): a fish does not mind
+   * being wet. Its descendants take it, each key the nearest's.
+   */
+  minds?: Record<string, number>
   /** The order its goals are tried in (world-model.md §6.10): encounter, threat, follow, schedule, home, idle. */
   goals?: string[]
   /** Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station (a thing tagged `station:<x>`, opened or within reach). */
@@ -221,6 +226,12 @@ export interface StatusDef {
   untilMove?: boolean
   /** What it adds to its holder's stats while held (world-model.md §6.8): fireproof's resistance to fire. */
   props?: Record<string, number>
+  /**
+   * How much one minds bearing it beyond the harm it does (a discomfort: wet, hungry), for one's wellbeing
+   * (wellbeing.ts): what harms is read from the rules (its pulses hurt), never written here. A kind may mind it
+   * otherwise (TypeDef.minds); one tagged `endures:<id>` bears it without minding (a fisher in the rain).
+   */
+  mind?: number
 }
 
 export interface TerrainDef {

@@ -15,13 +15,14 @@ import { plainCombat, weaponOf } from './blows.ts'
 import { Companions } from './companion.ts'
 import { Quests } from './quests.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
+import { Wellbeing } from './wellbeing.ts'
 import { scheduleFor } from './people.ts'
 import { OntologyIndex, isA } from './ontology.ts'
 import { appearFromForage } from './appear.ts'
 import { Chunks } from './sparse.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
 import { DEFAULT_QUALITY, categoryOf, tierOfLevel, type AiQuality } from './quality.ts'
-import { modulesOf, noHooks, noSociety, type Combat, type Society, type EffectImpl, type EngineHooks, type EngineModule, type Goal } from './module.ts'
+import { modulesOf, noHooks, noSociety, type Combat, type Society, type EffectImpl, type EngineHooks, type EngineModule, type Goal, type EffectReading } from './module.ts'
 import type { Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Portal, Pos, PropValue, Recipe, Ref, Sin, SkillDef, Text, Tier, Verb, WorldState } from './types.ts'
 import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
 import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type View, type Writer } from './world.ts'
@@ -109,6 +110,8 @@ export class Engine {
   private readonly write: Writer
   effects: EffectRunner
   npcs: NpcSim
+  /** What is wrong for an actor and what would put it right, read from the rules (wellbeing.ts). */
+  wellbeing: Wellbeing
   /** The maps' things kept as what differs from their files, and the maps put away (sparse.ts, docs/continent.md §9). */
   chunks: Chunks
   /** Everyone's goals (behaviour.ts). */
@@ -165,6 +168,8 @@ export class Engine {
   residentOnly = new Set<string>()
   /** Every goal by id: the kernel's and the modules' (a goal several give is tried in their order). */
   goalImpls = new Map<string, Goal[]>()
+  /** What the modules' primitives do to their host, for one's wellbeing (module.ts EffectReading), by op. */
+  effectReads = new Map<string, EffectReading>()
   /** Resolution trace of the last dispatched events (for tests and the dev panel). */
   trace: { ev: GameEvent; rule?: string; defined: boolean }[] = []
   /** How many entries the trace has ever taken (it keeps only the last 300): what came after a mark is the last `traced - mark`. */
@@ -198,6 +203,7 @@ export class Engine {
     this.lib = lib
     this.effects = new EffectRunner(this)
     this.npcs = new NpcSim(this)
+    this.wellbeing = new Wellbeing(this)
     this.chunks = new Chunks(this)
     this.behaviour = new Behaviour(this)
     this.story = new Story(this)
@@ -222,6 +228,7 @@ export class Engine {
       for (const op of m.spec?.residentOnly ?? []) this.residentOnly.add(op)
       for (const [key, impl] of Object.entries(m.conds ?? {})) this.world.condImpls.push([key, impl])
       for (const [id, g] of Object.entries(m.goals ?? {})) this.goalImpls.set(id, [...(this.goalImpls.get(id) ?? []), g])
+      for (const [op, read] of Object.entries(m.reads ?? {})) this.effectReads.set(op, read)
     }
     for (const m of this.modules) m.install?.(this)
   }
