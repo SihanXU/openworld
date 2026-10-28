@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CRAFTSPERSON, OntologyIndex, ResearchProblem, buildSandbox, inventionId, madeOf, ModPort, RuleLibrary, readResearchReply, readResearchRequest, researchCatalogue, trialResearch, type PixelArt, type ResearchDesign, type TypeDef } from '@openworld/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '../src/index.ts'
+import { BASE_RULES, RECIPES, STORY_RULES, buildOntology } from '../src/index.ts'
 
 function world() {
   const eng = buildSandbox({ entities: [
@@ -215,6 +215,52 @@ describe('research in the actual game', () => {
     const legend = trialResearch(eng, new ModPort(eng), newDesign({ id: 'item/weapon/blade/log_legend', name: { en: 'Log Legend', zh: '原木传奇' }, props: { power: 99, material: 'wood' }, makeup: [{ type: 'item/material/log', count: 30 }], station: 'hands' }), 'item/weapon/blade/invention_g')
     expect(legend.props?.power).toBeLessThan(26)
     expect(() => trialResearch(eng, new ModPort(eng), newDesign({ id: 'item/weapon/blade/fake_bane', name: { en: 'Fake Bane', zh: '假屠龙' }, props: { power: 1, material: 'wood', relic: 'dragonsbane' }, makeup: [{ type: 'item/material/log', count: 10 }], station: 'hands' }), 'item/weapon/blade/invention_r')).toThrow(/relic/)
+  })
+
+  it('inherits nothing it has not bought: no child of a legend, and a parent\'s numbers held to what its makeup buys', () => {
+    const smithy = () => buildSandbox({ entities: [
+      { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+      ...Array.from({ length: 30 }, (_, i) => ({ key: `log${i}`, type: 'item/material/log', inside: 'actor', x: 2, y: 2 })),
+      ...Array.from({ length: 4 }, (_, i) => ({ key: `ingot${i}`, type: 'item/material/iron_ingot', inside: 'actor', x: 2, y: 2 })),
+    ], event: {} }, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    // twenty logs once bought a child of Dragonsbane: its power, its level, the relic and the legend, all inherited
+    const eng = smithy()
+    const copy = newDesign({ id: 'item/weapon/blade/dragonsbane/log_copy', name: { en: 'Log Copy', zh: '原木复制' }, props: { material: 'wood' }, makeup: [{ type: 'item/material/log', count: 20 }], station: 'hands' })
+    expect(() => trialResearch(eng, new ModPort(eng), copy, 'item/weapon/blade/dragonsbane/invention_c')).toThrow(/ordinary family/)
+    expect(eng.controls.count('item/material/log')).toBe(30)
+    // a sword of four logs: the sword's own power, above what four logs buy among weapons, is held down too
+    const eng2 = smithy()
+    const onto = eng2.world.onto
+    const sword = newDesign({ id: 'item/weapon/blade/sword/log_sword', name: { en: 'Log Sword', zh: '原木剑' }, props: { material: 'wood' }, makeup: [{ type: 'item/material/log', count: 4 }], station: 'hands' })
+    const made = trialResearch(eng2, new ModPort(eng2), sword, 'item/weapon/blade/sword/invention_i')
+    const cost = 4 * Number(onto.resolve('item/material/log').props.value)
+    const kin = Object.keys(onto.data.types).filter((k) => k.startsWith('item/weapon/') && !k.includes('invention')).map((k) => onto.resolve(k)).filter((r) => !r.tags.includes('quality:legendary') && r.props.relic === undefined && Number(r.props.value) <= cost)
+    const resolved = onto.resolve(made.id).props
+    expect(Number(resolved.power)).toBeLessThanOrEqual(Math.max(...kin.map((r) => Number(r.props.power) || 0)))
+    expect(Number(resolved.power)).toBeLessThan(Number(onto.resolve('item/weapon/blade/sword').props.power))
+    expect(Number(resolved.value)).toBeLessThanOrEqual(cost)
+  })
+
+  it('builds on the game\'s own crafts, not on what the engine happened to hold: an anvil\'s dagger, never a shop\'s offer', () => {
+    const eng = buildSandbox({ entities: [
+      { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
+      { key: 'anvil', type: 'fixture/furniture/table', x: 3, y: 2, tags: ['station:anvil'] },
+      { key: 'hammer', type: 'item/tool/smith_hammer', inside: 'actor', x: 2, y: 2 },
+      ...Array.from({ length: 4 }, (_, i) => ({ key: `bar${i}`, type: 'item/material/steel_bar', inside: 'actor', x: 2, y: 2 })),
+      ...Array.from({ length: 4 }, (_, i) => ({ key: `plank${i}`, type: 'item/material/plank', inside: 'actor', x: 2, y: 2 })),
+    ], event: {} }, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+    const dagger = 'item/weapon/blade/dagger'
+    // the engine holds a game recipe only once it is crafted: without the game's, the anvil's dagger is not on offer
+    expect(researchCatalogue(eng).prototypes).not.toContain(dagger)
+    const offered = researchCatalogue(eng, RECIPES).prototypes
+    expect(offered).toContain(dagger)
+    // what a shop sells for coin is no craft to build on (unless it is also made of goods)
+    const madeOfGoods = new Set(RECIPES.filter((r) => r.needs.every((n) => /^item\/(material|food|gem)\//.test(n.type))).map((r) => r.make.type))
+    const bought = RECIPES.filter((r) => r.needs.some((n) => n.type === 'item/misc/thornmark') && !madeOfGoods.has(r.make.type)).map((r) => r.make.type)
+    expect(offered.filter((t) => bought.includes(t))).toEqual([])
+    const made = trialResearch(eng, new ModPort(eng), { kind: 'variant', name: { en: 'Steel Dirk', zh: '钢短剑' }, prototype: dagger, ingredients: [{ type: 'item/material/steel_bar', count: 2 }, { type: 'item/material/plank', count: 1 }] }, `${dagger}/invention_d`, RECIPES)
+    expect(made.props?.material).toBe('steel')
+    expect(eng.controls.count(made.id)).toBe(1)
   })
 
   it('says a variant needs a material to begin with, before anything is tried (berries hold no edge)', () => {

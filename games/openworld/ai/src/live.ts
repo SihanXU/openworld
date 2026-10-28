@@ -12,8 +12,8 @@ import { mkdtempSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { patchRules, Game, RuleLibrary, ModPort, OntologyIndex, ResearchProblem, buildSandbox, deriveRecipes, inventionId, readResearchReply, researchCatalogue, trialResearch, AGAIN_AFTER, textOf, type ResearchReply, type Engine, type Patch, type Rule, type UndefinedRecord, type PixelArt, type TypeDef, type Scenario } from '@openworld/engine'
-import { GAME, BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
+import { patchRules, Game, RuleLibrary, ModPort, ResearchProblem, buildSandbox, inventionId, readResearchReply, researchCatalogue, trialResearch, AGAIN_AFTER, textOf, type ResearchReply, type Engine, type Patch, type Rule, type UndefinedRecord, type PixelArt, type TypeDef, type Scenario } from '@openworld/engine'
+import { GAME, BASE_RULES, RECIPES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { openModder, sleep, modelFromEnv, REPO, type Harness, type Modder, type Model, type WorldEpisode } from '@openworld/ai'
 import { buildFord } from '../../tools/src/demo/world.ts'
 import { SCENARIOS, W, ready, ticks, type Ford } from '../../tools/src/fordScenarios.ts'
@@ -525,21 +525,23 @@ export const RESEARCH_CASES: ResearchCase[] = [
   { id: 'cheaper', group: 'talk', say: ['用铁锭做一把镐', '太贵了，便宜一点'], expect: ['variant', 'new'] },
 ]
 
-/** A bag one has a little way into the game (a dozen kinds of goods), every craft unlocked, every station within reach. */
-function researchWorld(): { eng: Engine; port: ModPort } {
+/** A bag one has a little way into the game (a dozen kinds of goods) in Garrick's smithy (the forge and the anvil beside one), every craft unlocked. */
+export function researchWorld(): { eng: Engine; port: ModPort } {
   const data = buildOntology()
   const goods = ['stone', 'log', 'stick', 'plank', 'iron_ingot', 'steel_bar', 'cloth', 'leather', 'wool', 'grass', 'food/berries', 'fireweed', 'food/meat/raw']
     .map((t) => (t.startsWith('food/') ? `item/${t}` : `item/material/${t}`)).filter((t) => t in data.types)
-  const stations = [...new Set(deriveRecipes(new OntologyIndex(data)).map((r) => r.station).filter((x): x is string => !!x && x !== 'hands'))]
   const eng = buildSandbox({ entities: [
     { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
-    { key: 'bench', type: 'fixture/furniture/table', x: 3, y: 2, tags: stations.map((x) => `station:${x}`) },
+    { key: 'bench', type: 'fixture/furniture/table', x: 3, y: 2, tags: ['station:forge', 'station:anvil'] },
+    // the smith's tools: a hammer for the anvil, an axe for wood
+    { key: 'hammer', type: 'item/tool/smith_hammer', inside: 'actor', x: 2, y: 2 },
+    { key: 'axe', type: 'item/weapon/blade/axe', inside: 'actor', x: 2, y: 2 },
     ...goods.flatMap((t, i) => Array.from({ length: 20 }, (_, n) => ({ key: `g${i}_${n}`, type: t, inside: 'actor', x: 2, y: 2 }))),
   ], event: {} }, data, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
   const w = eng.world
   eng.author(() => {
-    for (const r of eng.recipes.values()) if (r.skill) w.addTag(w.player, `skill:${r.skill}`)
-    if (w.story) for (const r of eng.recipes.values()) if (r.unlockedBy) w.setProp(w.story, r.unlockedBy.fact, Math.max(w.num(w.story, r.unlockedBy.fact, 0), r.unlockedBy.level ?? 1))
+    for (const r of [...RECIPES, ...eng.recipes.values()]) if (r.skill) w.addTag(w.player, `skill:${r.skill}`)
+    if (w.story) for (const r of [...RECIPES, ...eng.recipes.values()]) if (r.unlockedBy) w.setProp(w.story, r.unlockedBy.fact, Math.max(w.num(w.story, r.unlockedBy.fact, 0), r.unlockedBy.level ?? 1))
   })
   return { eng, port: new ModPort(eng) }
 }
@@ -550,7 +552,15 @@ export async function research(filter?: string): Promise<void> {
   const results: Record<string, unknown>[] = []
   const t00 = Date.now()
   for (const c of cases) {
-    const modder = liveModder(model, 'lsw-research-', 'eval: research')
+    // every model call of the case, as it was asked and answered (what the craftsperson, the designer and the artist said)
+    const calls: Record<string, unknown>[] = []
+    const traced: Model = { ...model, name: model.name, chat: async (messages, opts) => {
+      const t = Date.now()
+      const said = await model.chat(messages, opts)
+      calls.push({ purpose: opts?.purpose, reasoning: opts?.reasoning, s: (Date.now() - t) / 1000, sent: messages.reduce((n, m) => n + m.content.length, 0), system: messages[0]?.content.slice(0, 60), asked: messages[messages.length - 1]?.content, answer: said.content })
+      return said
+    } }
+    const modder = liveModder(traced, 'lsw-research-', 'eval: research')
     const { eng, port } = researchWorld()
     const turns = Array.isArray(c.say) ? c.say : [c.say]
     const history: { player: string; npc: string }[] = []
@@ -560,7 +570,7 @@ export async function research(filter?: string): Promise<void> {
     let answer: ResearchReply | undefined
     try {
       for (const message of turns) {
-        answer = readResearchReply(await modder.research({ npc: 'Garrick', message, history, catalogue: researchCatalogue(eng) }), researchCatalogue(eng))
+        answer = readResearchReply(await modder.research({ npc: 'Garrick', message, history, catalogue: researchCatalogue(eng, RECIPES) }), researchCatalogue(eng, RECIPES))
         history.push({ player: message, npc: answer.reply })
       }
     } catch (err) {
@@ -586,7 +596,7 @@ export async function research(filter?: string): Promise<void> {
       row.drawn = !!(d.kind === 'new' ? d.type?.art : d.art)
       const before = new Map(needs.map((m) => [m.type, eng.controls.count(m.type)]))
       try {
-        const type = trialResearch(eng, port, d, id)
+        const type = trialResearch(eng, port, d, id, RECIPES)
         row.made = { id: type.id, props: type.props, tags: type.tags }
         if (!type.id.includes('/invention_')) checks.push('its kind is not named apart (a save-private name)')
         if (Number(type.props?.value) > cost) checks.push(`worth ${type.props?.value}, more than its inputs (${cost})`)
@@ -602,6 +612,7 @@ export async function research(filter?: string): Promise<void> {
     }
     row.pass = !checks.length
     row.checks = checks
+    row.calls = calls
     results.push(row)
     console.log(`${row.pass ? 'PASS' : 'FAIL'} ${c.group}/${c.id}: ${row.answer}${d ? ` "${typeof d.name === 'string' ? d.name : d.name.en}"` : ''} · ${(row.s as number).toFixed(1)} s${checks.length ? ` — ${checks.join('; ')}` : ''}`)
   }

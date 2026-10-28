@@ -9,7 +9,7 @@ import { scheduleTransferTurn } from './transferScheduler.ts'
 import { adoptDefinitions, artsToSend, forgetInvalid, holdForMaking, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, LogPosition, type Kept } from './learned.ts'
 import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModRequest, type Patch, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
-import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
+import { game as played, ontology, placementById, professionById, recipeById, skillById } from './game.ts'
 import { settleOpenQuestions, withOpenQuestions } from './saves.ts'
 import { routeFishingWorkerInput, type StoredLibrary, type Atlas, type AtlasContinent, type AtlasMap, type FromWorker, type LibraryView, type RecordView, type SaveSummary, type Tile, type ToWorker } from './protocol.ts'
 
@@ -63,6 +63,9 @@ function iconsOf(types: string[]): Promise<Record<string, PixelArt> | undefined>
   })
 }
 
+/** The game's recipes (the crafting panel's), what a craftsperson's variant may build on. */
+const gameRecipes = () => Object.values(recipeById())
+
 async function askResearch(message: string): Promise<void> {
   if (!game || !talk) return
   // (the panel waits on every ask: one it cannot take here is still told why)
@@ -80,7 +83,7 @@ async function askResearch(message: string): Promise<void> {
   try {
     if (owner.engine.quality.create === 'off') return void post({ t: 'research', who, problem: 'off' })
     if (!link?.research || !modderOnline) return void post({ t: 'research', who, problem: 'offline' })
-    const catalogue = researchCatalogue(owner.engine)
+    const catalogue = researchCatalogue(owner.engine, gameRecipes())
     const npc = owner.engine.world.get(who)!
     const name = npc.name ?? owner.engine.world.onto.resolve(npc.type).name
     const icons = await iconsOf(catalogue.prototypes)
@@ -94,7 +97,7 @@ async function askResearch(message: string): Promise<void> {
     session.history = session.history.slice(-8)
     if (result.design) {
       const token = crypto.randomUUID()
-      researchPatch(owner.engine, result.design, inventionId(result.design, token))
+      researchPatch(owner.engine, result.design, inventionId(result.design, token), gameRecipes())
       session.draft = result.design
       session.token = token
     }
@@ -115,7 +118,7 @@ function confirmResearch(token: string): void {
   s.token = undefined
   try {
     const id = inventionId(design, token)
-    trialResearch(s.owner.engine, s.owner.mods, design, id)
+    trialResearch(s.owner.engine, s.owner.mods, design, id, gameRecipes())
     kept.types.add(id)
     s.draft = undefined
     sendRecords(); sendRecipes(); sendArts()
