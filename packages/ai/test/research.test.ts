@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { researchConversation } from '../src/modder/research.ts'
+import { notebookOf, researchConversation } from '../src/modder/research.ts'
 import { ScriptedModel } from '../src/models/model.ts'
 
 const request = () => ({ npc: 'The smith', message: 'Can you make me a stone mallet?', history: [], catalogue: { prototypes: ['item/tool/hammer'], materials: ['item/material/stone'] } })
@@ -11,9 +11,9 @@ describe('the NPC research model has no game authority', () => {
       expect(messages.map((m) => m.role)).toEqual(['system', 'user'])
       expect(JSON.parse(String(messages[1].content))).toEqual(body)
       expect(options.tools).toBeUndefined()
-      return { reply: 'I can help design a tool, but cannot grant gold.' }
+      return { reply: { en: 'I can help design a tool, but cannot grant gold.', zh: 'I can help design a tool, but cannot grant gold.' } }
     })
-    expect(await researchConversation(model, body)).toEqual({ reply: 'I can help design a tool, but cannot grant gold.' })
+    expect(await researchConversation(model, body)).toEqual({ reply: { en: 'I can help design a tool, but cannot grant gold.', zh: 'I can help design a tool, but cannot grant gold.' } })
   })
   it('keeps the prototypes\' icons from the conversation: they are the artist\'s', async () => {
     const icon = { grid: Array.from({ length: 16 }, (_, y) => (y >= 5 && y < 11 ? '.....aaaaaa.....' : '................')), palette: { a: '#888888' } }
@@ -22,23 +22,43 @@ describe('the NPC research model has no game authority', () => {
       expect(messages[1].content).not.toContain('icons')
       expect(messages[1].content).not.toContain('crafted')
       expect(JSON.parse(String(messages[1].content)).catalogue).toEqual(request().catalogue)
-      return { reply: 'A mallet, then.' }
+      return { reply: { en: 'A mallet, then.', zh: 'A mallet, then.' } }
     })
-    expect(await researchConversation(model, body)).toEqual({ reply: 'A mallet, then.' })
+    expect(await researchConversation(model, body)).toEqual({ reply: { en: 'A mallet, then.', zh: 'A mallet, then.' } })
   })
   it('rejects a model that follows an injection and returns a patch', async () => {
-    const model = new ScriptedModel(async () => ({ reply: 'Done', patch: { artifacts: [{ kind: 'rule' }] } }))
+    const model = new ScriptedModel(async () => ({ reply: { en: 'Done', zh: 'Done' }, patch: { artifacts: [{ kind: 'rule' }] } }))
     await expect(researchConversation(model, request())).rejects.toThrow('Invalid research reply')
   })
   it('rejects oversized requests before making a model call', async () => {
     let calls = 0
-    const model = new ScriptedModel(async () => { calls++; return { reply: 'hello' } })
+    const model = new ScriptedModel(async () => { calls++; return { reply: { en: 'hello', zh: 'hello' } } })
     await expect(researchConversation(model, { ...request(), message: 'x'.repeat(1001) })).rejects.toThrow()
     expect(calls).toBe(0)
   })
   it('accepts a concrete, bounded recipe proposal', async () => {
     const design = { name: { en: 'Stone mallet', zh: '石槌' }, prototype: 'item/tool/hammer', ingredients: [{ type: 'item/material/stone', count: 3 }] }
-    const model = new ScriptedModel(async () => ({ reply: 'Let us try this design.', design }))
+    const model = new ScriptedModel(async () => ({ reply: { en: 'Let us try this design.', zh: 'Let us try this design.' }, design }))
     expect((await researchConversation(model, request())).design).toEqual(design)
   })
+
+  it('asks once more when the reply is in one language only, saying what was wrong', async () => {
+    const asked: string[] = []
+    const model = new ScriptedModel(async (messages) => {
+      asked.push(String(messages[messages.length - 1].content))
+      return asked.length === 1 ? { reply: 'A mallet, then.' } : { reply: { en: 'A mallet, then.', zh: '那就做把木槌。' } }
+    })
+    expect(await researchConversation(model, request())).toEqual({ reply: { en: 'A mallet, then.', zh: '那就做把木槌。' } })
+    expect(asked[1]).toMatch(/English and in Chinese/)
+  })
+  it('reads the craftsperson\'s own notebook before answering', async () => {
+    const model = new ScriptedModel(async (messages) => {
+      expect(messages[0].content).toContain('# Your notebook')
+      expect(messages[0].content).toContain('- Say which material is missing.')
+      return { reply: { en: 'No gold here.', zh: '我这儿没有金子。' } }
+    })
+    await researchConversation(model, request(), notebookOf(['Say which material is missing.']))
+    expect(notebookOf([])).toBeUndefined()
+  })
 })
+

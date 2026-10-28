@@ -294,7 +294,7 @@ const not = (c: Cond) => `!${JSON.stringify(c)}`
 const learned = (id: string, type?: object, at: string[] = []): Patch => ({
   artifacts: [
     ...(type ? [{ kind: 'type' as const, type: type as never }] : []),
-    { kind: 'rule', rule: { id, host: { type: STONE }, on: 'act/use', hole: USE_HOLE, at, label: { en: 'Use {instrument}', zh: '使用{instrument}' }, tree: { if: ON_DEAD_TREE, then: { do: [{ op: 'log', text: 'You knock the stone on it.' }] }, else: { undefined: true } } } },
+    { kind: 'rule', rule: { id, host: { type: STONE }, on: 'act/use', hole: USE_HOLE, at, label: { en: 'Use {instrument}', zh: '使用{instrument}' }, tree: { if: ON_DEAD_TREE, then: { do: [{ op: 'log', text: { en: 'You knock the stone on it.', zh: 'You knock the stone on it.' } }] }, else: { undefined: true } } } },
   ],
 })
 
@@ -463,14 +463,14 @@ describe('library prune', () => {
 const HIVE = 'fixture/nature/beehive'
 
 const is = (type: string): Cond => ({ is: { role: 'target', sel: { type } } })
-const rule = (id: string, tree: Rule['tree']): Patch => ({ artifacts: [{ kind: 'rule', rule: { id, host: { type: 'x' }, on: 'x', label: 'Use {instrument} on {target}', tree } }] })
+const rule = (id: string, tree: Rule['tree']): Patch => ({ artifacts: [{ kind: 'rule', rule: { id, host: { type: 'x' }, on: 'x', label: { en: 'Use {instrument} on {target}', zh: 'Use {instrument} on {target}' }, tree } }] })
 
 describe('one tree per (type, kind, hole)', () => {
   it('the first answer is the tree; the request for a case it left open says where the next goes', () => {
     const { port, req } = ask(DEAD_TREE)
     expect(req.hole.at).toEqual([])
     // the dead tree's case answered, the rest left open
-    const first = placePatch(rule('patch/stone-tree', { if: is(DEAD_TREE), then: { do: [{ op: 'log', text: 'tree' }] }, else: { undefined: true } }), req).patch
+    const first = placePatch(rule('patch/stone-tree', { if: is(DEAD_TREE), then: { do: [{ op: 'log', text: { en: 'tree', zh: 'tree' } }] }, else: { undefined: true } }), req).patch
     const r = (first.artifacts[0] as { rule: Rule }).rule
     expect(r).toMatchObject({ host: { type: STONE }, on: 'act/use', hole: holeKey(req.hole.rule, req.hole.path), at: [] })
     expect(port.submit(req.id, first).ok).toBe(true)
@@ -481,12 +481,12 @@ describe('one tree per (type, kind, hole)', () => {
     expect(hive.req.hole.at).toEqual(['!' + JSON.stringify(is(DEAD_TREE))])
     expect(hive.req.hole.at).toEqual(hive.res.open?.path)
     // the second answer replaces that leaf; the dead tree's answer is untouched
-    const second = placePatch(rule('patch/stone-hive', { do: [{ op: 'log', text: 'hive' }] }), hive.req).patch
+    const second = placePatch(rule('patch/stone-hive', { do: [{ op: 'log', text: { en: 'hive', zh: 'hive' } }] }), hive.req).patch
     expect(hive.port.submit(hive.req.id, second).ok).toBe(true)
     const key = patchKey(STONE, 'act/use', hive.req.hole.rule + (hive.req.hole.path.length ? '#' + hive.req.hole.path.join('&') : ''))
     const tree = hive.eng.lib.tree(key)!
     expect(locate(tree, [])).toBeUndefined() // the root is a branch now
-    expect(locate(tree, hive.req.hole.at)?.leaf).toEqual({ do: [{ op: 'log', text: 'hive' }] })
+    expect(locate(tree, hive.req.hole.at)?.leaf).toEqual({ do: [{ op: 'log', text: { en: 'hive', zh: 'hive' } }] })
     expect(hive.eng.resolveEvent(hive.eng.actEvent('use', 'actor', { e: 'it' }, { e: 'held' })).rule?.id).toBe('patch/stone-hive')
     const again = ask(DEAD_TREE, hive.eng.lib.clone())
     expect(again.res.defined).toBe(true)
@@ -495,7 +495,7 @@ describe('one tree per (type, kind, hole)', () => {
 
   it('an answer at a leaf already answered is refused; a first answer with a path is refused', () => {
     const { port, req, eng } = ask(DEAD_TREE)
-    const first = placePatch(rule('patch/a', { do: [{ op: 'log', text: 'a' }] }), req).patch
+    const first = placePatch(rule('patch/a', { do: [{ op: 'log', text: { en: 'a', zh: 'a' } }] }), req).patch
     expect(port.submit(req.id, first).ok).toBe(true)
     const again = { ...first, artifacts: [{ kind: 'rule' as const, rule: { ...(first.artifacts[0] as { rule: Rule }).rule, id: 'patch/b' } }] }
     expect(validatePatch(again, { ontology: onto, library: eng.lib }).errors.join()).toMatch(/already answered/)
@@ -524,7 +524,7 @@ describe('one tree per (type, kind, hole)', () => {
   it('composes in order, keeps each leaf\'s answer, and lists what lost its place', () => {
     const root: Rule = { id: 'r', host: { type: STONE }, on: 'act/use', hole: 'h', at: [], tree: { if: is(DEAD_TREE), then: { do: [] }, else: { undefined: true } }, source: { origin: 'patch' } }
     const no = ['!' + JSON.stringify(is(DEAD_TREE))]
-    const second: Rule = { id: 's', host: { type: STONE }, on: 'act/use', hole: 'h', at: no, tree: { do: [{ op: 'log', text: 's' }] }, source: { origin: 'patch' } }
+    const second: Rule = { id: 's', host: { type: STONE }, on: 'act/use', hole: 'h', at: no, tree: { do: [{ op: 'log', text: { en: 's', zh: 's' } }] }, source: { origin: 'patch' } }
     const third: Rule = { id: 't', host: { type: STONE }, on: 'act/use', hole: 'h', at: no, tree: { do: [] }, source: { origin: 'patch' } }
     const c = compose([root, second, third])
     expect(c.stale).toEqual([{ id: 't', why: 'its leaf is already answered by "s"' }])
@@ -543,7 +543,7 @@ describe('one tree per (type, kind, hole)', () => {
     const library = new WorldLibrary(onto, BASE)
     const { req } = ask(DEAD_TREE)
     // the dead tree's case answered, the rest left open: a beehive is not covered
-    expect(library.commit(placePatch(rule('patch/stone-tree', { if: is(DEAD_TREE), then: { do: [{ op: 'log', text: 'tree' }] }, else: { undefined: true } }), req).patch, req).ok).toBe(true)
+    expect(library.commit(placePatch(rule('patch/stone-tree', { if: is(DEAD_TREE), then: { do: [{ op: 'log', text: { en: 'tree', zh: 'tree' } }] }, else: { undefined: true } }), req).patch, req).ok).toBe(true)
     expect(library.covering(ask(DEAD_TREE).req)?.rule).toBe('patch/stone-tree')
     expect(library.covering(ask(HIVE).req)).toBeUndefined()
     expect(library.asked).toHaveLength(1)
@@ -551,7 +551,7 @@ describe('one tree per (type, kind, hole)', () => {
 
   it('a leaf cannot be open and an answer at once; at run time such a leaf is open', () => {
     const { req, eng, port } = ask(DEAD_TREE)
-    const both = placePatch({ artifacts: [{ kind: 'rule', rule: { id: 'patch/both', host: { type: 'x' }, on: 'x', label: 'x', tree: { undefined: true, do: [{ op: 'nosuchop' } as never] } } }] }, req).patch
+    const both = placePatch({ artifacts: [{ kind: 'rule', rule: { id: 'patch/both', host: { type: 'x' }, on: 'x', label: { en: 'x', zh: 'x' }, tree: { undefined: true, do: [{ op: 'nosuchop' } as never] } } }] }, req).patch
     expect(validatePatch(both, { ontology: onto, library: eng.lib, scenario: req.scenario }).errors.join()).toMatch(/never both/)
     // slipped in by hand: the engine reads it as open, so nothing it carries runs
     eng.lib.add({ ...(both.artifacts[0] as { rule: Rule }).rule, source: { origin: 'patch' } })
@@ -567,7 +567,7 @@ describe('one tree per (type, kind, hole)', () => {
     const a = placePatch(rule('patch/a', { if: is(DEAD_TREE), then: { do: [] }, else: { undefined: true } }), first.req).patch
     expect(first.port.submit(first.req.id, a).ok).toBe(true)
     // the library grew under the second question: its answer goes to the open leaf, not to the root
-    const b = placePatch(rule('patch/b', { do: [{ op: 'log', text: 'b' }] }), stale.req, { ontology: onto, library: first.eng.lib })
+    const b = placePatch(rule('patch/b', { do: [{ op: 'log', text: { en: 'b', zh: 'b' } }] }), stale.req, { ontology: onto, library: first.eng.lib })
     expect(b.fixes.join()).toMatch(/placed where the event falls undefined now/)
     expect((b.patch.artifacts[0] as { rule: Rule }).rule.at).toEqual(['!' + JSON.stringify(is(DEAD_TREE))])
     const v = validatePatch(b.patch, { ontology: onto, library: first.eng.lib, scenario: stale.req.scenario })
@@ -585,7 +585,7 @@ describe('one tree per (type, kind, hole)', () => {
 
   it('a learned rule set aside at run time leaves the library, and its leaf takes a new answer', () => {
     const { req, eng, port } = ask(DEAD_TREE)
-    expect(port.submit(req.id, placePatch(rule('patch/a', { do: [{ op: 'log', text: 'a' }] }), req).patch).ok).toBe(true)
+    expect(port.submit(req.id, placePatch(rule('patch/a', { do: [{ op: 'log', text: { en: 'a', zh: 'a' } }] }), req).patch).ok).toBe(true)
     expect(eng.fault('patch/a', 'it ran away', true)).toBe(true)
     expect(eng.lib.rules.has('patch/a')).toBe(false)
     expect(eng.world.state.quarantine?.['patch/a']).toBeDefined()
@@ -600,12 +600,12 @@ describe('one tree per (type, kind, hole)', () => {
     const no = ['!' + JSON.stringify(is(DEAD_TREE))]
     const root = (id: string): Rule => ({ id, host: { type: STONE }, on: 'act/use', hole: h, at: [], tree: { if: is(DEAD_TREE), then: { do: [] }, else: { undefined: true } }, source: { origin: 'patch' } })
     lib.add(root('r1'))
-    lib.add({ id: 's', host: { type: STONE }, on: 'act/use', hole: h, at: no, tree: { do: [{ op: 'log', text: 's' }] }, source: { origin: 'patch' } })
+    lib.add({ id: 's', host: { type: STONE }, on: 'act/use', hole: h, at: no, tree: { do: [{ op: 'log', text: { en: 's', zh: 's' } }] }, source: { origin: 'patch' } })
     lib.remove('r1')
     expect(lib.stale().map((x) => x.id)).toEqual(['s'])
     lib.add(root('r2'), undefined, 'r1')
     expect(lib.stale()).toEqual([])
-    expect(locate(lib.tree(patchKey(STONE, 'act/use', h))!, no)?.leaf).toEqual({ do: [{ op: 'log', text: 's' }] })
+    expect(locate(lib.tree(patchKey(STONE, 'act/use', h))!, no)?.leaf).toEqual({ do: [{ op: 'log', text: { en: 's', zh: 's' } }] })
     // a save restored without the root drops what grew below it, and says so
     const dropped: string[] = []
     const back = restoreLibrary(BASE, { ...lib.toJSON(), rules: lib.toJSON().rules.filter((r) => r.id !== 'r2') }, onto, [], (id, why) => dropped.push(`${id}: ${why}`))
@@ -646,8 +646,8 @@ describe('the lowest common ancestor', () => {
 
 describe('tree equivalence', () => {
   it('keeps the conditions and the effects, drops the wording, and abstracts the host\'s own type', () => {
-    const a: Tree = { if: { is: { role: 'item', sel: { type: STONE } } }, then: { do: [{ op: 'transform', into: `${SLIMES}/green_slime` }, { op: 'log', text: 'green' }, { op: 'vfx', fx: 'dust' }], label: 'Press' }, else: { undefined: true } }
-    const b: Tree = { if: { is: { role: 'item', sel: { type: STONE } } }, then: { do: [{ op: 'transform', into: `${SLIMES}/fire_slime` }, { op: 'log', text: { en: 'fire', zh: '火' } }, { op: 'vfx', fx: 'smoke' }], label: 'Push', confirm: 'Sure?' }, else: { undefined: true } }
+    const a: Tree = { if: { is: { role: 'item', sel: { type: STONE } } }, then: { do: [{ op: 'transform', into: `${SLIMES}/green_slime` }, { op: 'log', text: { en: 'green', zh: 'green' } }, { op: 'vfx', fx: 'dust' }], label: { en: 'Press', zh: 'Press' } }, else: { undefined: true } }
+    const b: Tree = { if: { is: { role: 'item', sel: { type: STONE } } }, then: { do: [{ op: 'transform', into: `${SLIMES}/fire_slime` }, { op: 'log', text: { en: 'fire', zh: '火' } }, { op: 'vfx', fx: 'smoke' }], label: { en: 'Push', zh: 'Push' }, confirm: 'Sure?' }, else: { undefined: true } }
     expect(normalKey(a, `${SLIMES}/green_slime`)).toBe(normalKey(b, `${SLIMES}/fire_slime`))
     expect(JSON.stringify(normalizeTree(a, `${SLIMES}/green_slime`))).toContain('"@host"')
     // the op of what is said stays: a silent rule is not an equivalent one
@@ -765,7 +765,7 @@ describe('faults and scenes', () => {
     state.setHarness({ ...state.harness(), revise: false, faults: { remove: 2 } }, 'test')
     const modder = new Modder({ library, state })
     const { req } = ask(DEAD_TREE)
-    const p = placePatch(rule('patch/wobbly', { do: [{ op: 'log', text: 'x' }] }), req).patch
+    const p = placePatch(rule('patch/wobbly', { do: [{ op: 'log', text: { en: 'x', zh: 'x' } }] }), req).patch
     expect(library.commit(p, req).ok).toBe(true)
     expect(modder.fault('patch/wobbly', 'a chain that does not end', 'client-a')).toMatchObject({ counted: 1, removed: false })
     expect(library.lib.rules.has('patch/wobbly')).toBe(true)

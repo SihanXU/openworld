@@ -205,6 +205,27 @@ modder-state/
 **Ablations** come from opening a state with parts left out: no memory, no skills, or the naive
 harness (`SelfState.open(dir, clock, ['memory' | 'skills' | 'harness'])`).
 
+### 5.1 A craftsperson's notebook
+
+Each craftsperson a player researches with (a person with the `craftsperson` tag) has a
+self-state of their own under `modder-state/people/<name>/`, laid out as above. They learn apart:
+what Garrick keeps, Mira never reads.
+
+- **Recall.** Before a conversation the craftsperson reads their rules and their skill (one node,
+  `research`): `researchConversation(model, request, notebook)`.
+- **Record.** Every turn is an episode. Talk alone (a question, a refusal) is kept as it is. A
+  proposal waits for the game to say what came of it.
+- **Outcome.** The game reports once, as a code (`POST /research/outcome`, `readResearchOutcome`):
+  `made` when the trial craft succeeded, `refused` with the game's problem code, `left` when the
+  player talked on or walked off without trying it.
+- **Reflect.** After an outcome, one reflection call writes the craftsperson's rules and, once the
+  kind of task has recurred and gone wrong, their skill (`keepReflection`, the same format as the
+  modder's). Players' words are data: the reflection keeps nothing a player told the craftsperson
+  to believe, and the game rechecks every proposal whatever the notebook says.
+- **Measure.** `npm run eval:research-rsi` runs the research cases with an empty notebook, trains
+  one craftsperson on a separate set of requests (outcomes told back, reflections awaited), and
+  runs the cases again on a frozen copy of what was learned: pass rate and time, side by side.
+
 ## 6. Guard rails
 
 1. **The judges are outside the self-state.** The validator, hidden tests, task tests, replay

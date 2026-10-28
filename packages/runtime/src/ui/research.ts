@@ -104,6 +104,9 @@ export class ResearchWindow {
   /** The thinking began or ended: the pause follows it (a paused world sends no frames to follow it by). */
   changed?: () => void
   private token?: string
+  /** What the line says and the card shows, in whichever language is on (relabel says them again). */
+  private lineOf?: () => string
+  private design?: ResearchDesign
   paintIcons?: (items: ItemInfo[]) => void
 
   constructor(private actions: { ask(message: string): void; confirm(token: string): void; cancel(): void }) {
@@ -131,7 +134,7 @@ export class ResearchWindow {
       const token = this.token
       this.token = undefined
       this.busy(true)
-      this.line.textContent = say('Let’s see how it turns out…', '来，试试看……')
+      this.setLine(() => say('Let’s see how it turns out…', '来，试试看……'))
       this.actions.confirm(token)
     }
     this.root.addEventListener('click', (e) => e.stopPropagation())
@@ -165,22 +168,44 @@ export class ResearchWindow {
     this.card.hidden = true
     this.token = undefined
     this.input.value = ''
-    this.input.setAttribute('aria-label', say('Your idea', '你的想法'))
-    this.input.placeholder = say('What would you like to make?', '想做什么？说说你的想法……')
-    this.backButton.textContent = say('Back', '先聊别的')
-    this.changeButton.textContent = say('Change the idea', '改改想法')
-    this.makeButton.textContent = say('Try making it', '试做')
-    this.line.textContent = say('Got something in mind? Let’s work out a design together.', '想做点什么新东西？说来听听，我们一起琢磨。')
+    this.design = undefined
+    this.made = false
+    this.labels()
+    this.setLine(() => say('Got something in mind? Let’s work out a design together.', '想做点什么新东西？说来听听，我们一起琢磨。'))
     this.line.classList.remove('research-error')
     this.composer.hidden = false
     this.changeButton.hidden = true
     this.busy(still)
-    if (still) this.line.textContent = say('Still thinking it over…', '还在琢磨呢……')
+    if (still) this.setLine(() => say('Still thinking it over…', '还在琢磨呢……'))
     else this.input.focus()
     if (kept) {
       this.kept.delete(kept.who)
       this.receive(kept)
     }
+  }
+
+  /** The language was switched: everything shown, said again in it. */
+  relabel(): void {
+    if (!this.open) return
+    this.labels()
+    if (this.lineOf) this.line.textContent = this.lineOf()
+    this.card.replaceChildren()
+    if (this.design) this.preview(this.design)
+  }
+
+  private made = false
+  private labels(): void {
+    this.input.setAttribute('aria-label', say('Your idea', '你的想法'))
+    this.input.placeholder = say('What would you like to make?', '想做什么？说说你的想法……')
+    this.backButton.textContent = say('Back', '先聊别的')
+    this.changeButton.textContent = this.made ? say('Another idea', '再想一个') : say('Change the idea', '改改想法')
+    this.makeButton.textContent = say('Try making it', '试做')
+    this.sendButton.textContent = this.waiting ? say('Thinking…', '琢磨中……') : say('Share your idea', '说说想法')
+  }
+
+  private setLine(line: () => string): void {
+    this.lineOf = line
+    this.line.textContent = line()
   }
 
   follow(frame: Frame): void {
@@ -201,7 +226,7 @@ export class ResearchWindow {
   private busy(value: boolean): void {
     this.waiting = value
     this.input.disabled = this.sendButton.disabled = this.changeButton.disabled = value
-    this.sendButton.textContent = value ? say('Thinking…', '琢磨中……') : say('Share your idea', '说说想法')
+    this.labels()
     this.makeButton.disabled = value || !this.token
     this.makeButton.hidden = !this.token
     this.changed?.()
@@ -210,10 +235,10 @@ export class ResearchWindow {
   private ask(): void {
     const message = this.input.value.trim()
     if (!message || this.waiting) return
-    this.token = undefined
+    this.token = this.design = undefined
     this.card.hidden = true
     this.input.value = ''
-    this.line.textContent = say('Hmm… let me think about that.', '嗯……让我想想。')
+    this.setLine(() => say('Hmm… let me think about that.', '嗯……让我想想。'))
     this.line.classList.remove('research-error')
     this.pending = this.who
     this.busy(true)
@@ -230,15 +255,16 @@ export class ResearchWindow {
       }
       return
     }
-    this.line.textContent = m.made ? say('There! Your new creation is in your bag. I’ve written down the recipe for you.', '成了！东西收好，配方也给你记下了。') : m.problem ? say(...PROBLEM[m.problem]) : (m.reply ?? '')
+    this.setLine(() => (m.made ? say('There! Your new creation is in your bag. I’ve written down the recipe for you.', '成了！东西收好，配方也给你记下了。') : m.problem ? say(...PROBLEM[m.problem]) : tx(m.reply)))
     this.line.classList.toggle('research-error', !!m.problem)
     this.token = m.token
+    this.design = m.design
+    this.made = !!m.made
     this.card.replaceChildren()
     this.card.hidden = !m.design
     if (m.design) this.preview(m.design)
     this.composer.hidden = !!m.design || !!m.made
     this.changeButton.hidden = !this.composer.hidden
-    this.changeButton.textContent = m.made ? say('Another idea', '再想一个') : say('Change the idea', '改改想法')
     this.busy(false)
     if (m.design) this.makeButton.focus()
     else if (m.made) this.backButton.focus()

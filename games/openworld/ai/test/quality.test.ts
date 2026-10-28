@@ -2,7 +2,7 @@
 // answers kept in their own trees — an answer serves its own tier and the lower ones, never a higher —
 // the workload of a tier over the harness, and the detection of what a model carries.
 
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -32,7 +32,7 @@ function ask(level: AiQuality['things'] = 'medium', lib = new RuleLibrary(BASE))
   return { eng, port, res, req: port.records[0]?.request as ModRequest }
 }
 
-const answer = (id: string, text: string): Patch => ({ artifacts: [{ kind: 'rule', rule: { id, host: { type: 'x' }, on: 'x', label: 'Tap {target}', doc: text, tree: { do: [{ op: 'log', text }] } } }] })
+const answer = (id: string, text: string): Patch => ({ artifacts: [{ kind: 'rule', rule: { id, host: { type: 'x' }, on: 'x', label: { en: 'Tap {target}', zh: 'Tap {target}' }, doc: text, tree: { do: [{ op: 'log', text: { en: text, zh: text } }] } } }] })
 const ruleOf = (p: Patch) => (p.artifacts[0] as { rule: Rule }).rule
 /** Which learned rule answers the stone on the tree at a setting, in this library. */
 const answeredBy = (lib: RuleLibrary, level: AiQuality['things']) => {
@@ -142,6 +142,22 @@ describe('answers kept by tier', () => {
     expect(library.covering(ask('medium').req)?.rule).toBe('patch/tap-high')
     expect(library.covering(low)?.rule).toBe('patch/tap-low')
   })
+
+  it('a new answer says its lines in both languages; one taken before that was asked is read back as it was', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lsw-lines-'))
+    const low = ask('low').req
+    const english = placePatch({ artifacts: [{ kind: 'rule', rule: { ...ruleOf(answer('patch/tap-en', 'low')), tree: { do: [{ op: 'log', text: 'You tap it.' }] } } }] }, low).patch
+    const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
+    const refused = library.commit(english, low)
+    expect(refused.ok).toBe(false)
+    expect(refused.result.errors.join('\n')).toMatch(/text: a line a player reads is \{"en": "…", "zh": "…"\}, both written/)
+    // an older log: the same answer, taken when one language was enough
+    writeFileSync(join(dir, 'library.jsonl'), JSON.stringify({ seq: 1, at: new Date().toISOString(), patch: english, rules: ['patch/tap-en'], request: low.id, scenario: low.scenario }) + '\n')
+    // (pruned as the service does when it starts: what the validator takes no longer goes)
+    const old = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))
+    expect(old.prune()).toEqual([])
+    expect(old.lib.rules.has('patch/tap-en')).toBe(true)
+  })
 })
 
 describe('the workload of a tier', () => {
@@ -162,7 +178,7 @@ describe('the workload of a tier', () => {
   })
 
   it('a low answer changes its host only: the impulses it sends elsewhere are taken out', () => {
-    const p: Patch = { artifacts: [{ kind: 'rule', rule: { id: 'patch/x', host: { type: STONE }, on: 'act/use', tree: { if: { chance: 0.5 }, then: { do: [{ op: 'emit', impulse: 'strike', to: 'target' }, { op: 'log', text: 'thud' }] }, else: { do: [] } } } }] }
+    const p: Patch = { artifacts: [{ kind: 'rule', rule: { id: 'patch/x', host: { type: STONE }, on: 'act/use', tree: { if: { chance: 0.5 }, then: { do: [{ op: 'emit', impulse: 'strike', to: 'target' }, { op: 'log', text: { en: 'thud', zh: 'thud' } }] }, else: { do: [] } } } }] }
     const { patch, fixes } = withoutChains(p)
     expect(fixes).toHaveLength(1)
     expect(JSON.stringify(patch)).not.toMatch(/emit/)
@@ -262,7 +278,7 @@ describe('detecting what a model carries', () => {
     const { library, state } = testModder({ harness: (h) => ({ reflect: { ...h.reflect, enabled: false } }) })
     const model = new ScriptedModel((_m, opts) => {
       if (opts.purpose === 'review') return { verdict: 'ship', notes: [] }
-      return { patch: { artifacts: [{ kind: 'rule', rule: { id: `patch/tap-${Math.random().toString(36).slice(2, 7)}`, host: { type: STONE }, on: 'act/use', label: 'Tap {target}', doc: 'tap', tree: { do: [{ op: 'log', text: 'tap' }] } } }] } }
+      return { patch: { artifacts: [{ kind: 'rule', rule: { id: `patch/tap-${Math.random().toString(36).slice(2, 7)}`, host: { type: STONE }, on: 'act/use', label: { en: 'Tap {target}', zh: 'Tap {target}' }, doc: 'tap', tree: { do: [{ op: 'log', text: { en: 'tap', zh: 'tap' } }] } } }] } }
     })
     const req = ask('medium').req
     const modder = new Modder({ library, state, model, probes: async () => [req] })

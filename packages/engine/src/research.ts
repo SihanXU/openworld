@@ -54,15 +54,33 @@ export interface NewDesign {
 export type ResearchDesign = VariantDesign | NewDesign
 
 export interface ResearchReply {
-  reply: string
+  /** In both languages: the game's language is switched at will, and the line follows it. */
+  reply: Text
   design?: ResearchDesign
+  /** The service's record of this turn (the craftsperson's own memory): what came of it is reported against it. */
+  episode?: string
 }
 
 export interface ResearchRequest {
   npc: string
   message: string
-  history: { player: string; npc: string }[]
+  history: { player: string; npc: Text }[]
   catalogue: ResearchCatalogue
+}
+
+/** What came of a turn's design in the game: made, refused by the game (its problem's code), or left by the player. */
+export interface ResearchOutcome {
+  episode: string
+  result: 'made' | 'refused' | 'left'
+  problem?: string
+}
+
+/** Bound what a game reports before it reaches a craftsperson's memory. */
+export function readResearchOutcome(value: unknown): ResearchOutcome {
+  if (!record(value) || !keys(value, ['episode', 'result', 'problem']) || typeof value.episode !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(value.episode)) throw new Error('Invalid research outcome')
+  if (value.result !== 'made' && value.result !== 'refused' && value.result !== 'left') throw new Error('Invalid research outcome')
+  if (value.problem !== undefined && (typeof value.problem !== 'string' || !/^[a-z]{1,24}$/.test(value.problem))) throw new Error('Invalid research outcome')
+  return { episode: value.episode, result: value.result, ...(value.problem !== undefined && { problem: value.problem as string }) }
 }
 
 /** Bound even direct HTTP callers before their text reaches a model or is logged. */
@@ -76,8 +94,8 @@ export function readResearchRequest(value: unknown): ResearchRequest {
   }
   if (!Array.isArray(value.history) || value.history.length > 8) throw new Error('Research conversation too long')
   const history = value.history.map((turn) => {
-    if (!record(turn) || !keys(turn, ['player', 'npc']) || !words(turn.player, 1000) || !words(turn.npc, 1600)) throw new Error('Invalid research conversation')
-    return { player: turn.player, npc: turn.npc }
+    if (!record(turn) || !keys(turn, ['player', 'npc']) || !words(turn.player, 1000)) throw new Error('Invalid research conversation')
+    return { player: turn.player, npc: lineOf(turn.npc, 1600, 'Invalid research conversation', true) }
   })
   const catalogue: ResearchCatalogue = { prototypes: ids(c.prototypes), materials: ids(c.materials) }
   if (c.stations !== undefined) {
@@ -119,26 +137,31 @@ const words = (x: unknown, max: number): x is string => typeof x === 'string' &&
  * (researchCraft.ts). This is only structural validation; affordability, balance and reach are game checks.
  */
 export function readResearchReply(value: unknown, catalogue: ResearchCatalogue): ResearchReply {
-  if (!record(value) || !keys(value, ['reply', 'design']) || !words(value.reply, 1600)) throw new Error('Invalid research reply')
-  const reply = value.reply.trim()
-  if (value.design === undefined || value.design === null) return { reply }
+  if (!record(value) || !keys(value, ['reply', 'design', 'episode'])) throw new Error('Invalid research reply')
+  const reply = lineOf(value.reply, 1600, 'Say the reply in English and in Chinese: {"en": …, "zh": …}')
+  if (value.episode !== undefined && (typeof value.episode !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(value.episode))) throw new Error('Invalid research reply')
+  const episode = value.episode === undefined ? {} : { episode: value.episode as string }
+  if (value.design === undefined || value.design === null) return { reply, ...episode }
   const d = value.design
   if (!record(d) || !keys(d, ['kind', 'name', 'prototype', 'ingredients', 'art', 'idea', 'type'])) throw new Error('Invalid recipe design')
   const name = nameOf(d.name)
   if (d.kind === 'new') {
     if (!words(d.idea, 300)) throw new Error('Say what the new thing is')
-    return { reply, design: { kind: 'new', name, idea: d.idea.trim(), ...(d.type !== undefined && { type: typeOf(d.type, catalogue) }) } }
+    return { reply, design: { kind: 'new', name, idea: d.idea.trim(), ...(d.type !== undefined && { type: typeOf(d.type, catalogue) }) }, ...episode }
   }
   if (d.kind !== undefined && d.kind !== 'variant') throw new Error('Invalid recipe design')
   if (typeof d.prototype !== 'string' || !catalogue.prototypes.includes(d.prototype)) throw new Error('Choose an available kind of item')
-  return { reply, design: { name, prototype: d.prototype, ingredients: ingredientsOf(d.ingredients, catalogue), ...(d.art !== undefined && { art: artOf(d.art) }) } }
+  return { reply, design: { name, prototype: d.prototype, ingredients: ingredientsOf(d.ingredients, catalogue), ...(d.art !== undefined && { art: artOf(d.art) }) }, ...episode }
 }
 
-function nameOf(x: unknown): Text {
-  if (words(x, 80)) return x.trim()
-  if (record(x) && keys(x, ['en', 'zh']) && words(x.en, 80) && words(x.zh, 80)) return { en: x.en.trim(), zh: x.zh.trim() }
-  throw new Error('Give the item a short name')
+/** A line a player reads: in both languages (one alone is taken only where `either` says, the game's own history). */
+function lineOf(x: unknown, max: number, problem: string, either = false): Text {
+  if (either && words(x, max)) return x.trim()
+  if (record(x) && keys(x, ['en', 'zh']) && words(x.en, max) && words(x.zh, max)) return { en: x.en.trim(), zh: x.zh.trim() }
+  throw new Error(problem)
 }
+
+const nameOf = (x: unknown): Text => lineOf(x, 80, 'Give the item a short name in English and in Chinese: {"en": …, "zh": …}')
 
 function ingredientsOf(x: unknown, catalogue: ResearchCatalogue): Ingredient[] {
   if (!Array.isArray(x) || x.length < 1 || x.length > 6) throw new Error('A recipe needs one to six ingredients')

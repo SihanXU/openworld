@@ -78,7 +78,7 @@ export function inventionId(design: ResearchDesign, token: string): string {
 
 /** Prepare a recipe, without changing the world. Recomputed at confirmation, not trusted from a UI. */
 export function researchPatch(eng: Engine, proposed: unknown, id: string, known?: Iterable<Recipe>): { patch: Patch; design: ResearchDesign } {
-  const design = readResearchReply({ reply: 'draft', design: proposed }, researchCatalogue(eng, known)).design!
+  const design = readResearchReply({ reply: { en: 'draft', zh: 'draft' }, design: proposed }, researchCatalogue(eng, known)).design!
   const type = design.kind === 'new' ? newKind(eng, design, id, known) : variant(eng, design, id, known)
   return { design, patch: { artifacts: [{ kind: 'type', type }], author: 'player-research', note: 'A recipe developed in conversation and trial-crafted by the player.' } }
 }

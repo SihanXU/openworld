@@ -256,6 +256,8 @@ export class LocalModder {
       case 'research':
         if (!modder) throw new Error('the modder has no game yet')
         return modder.research(c.body)
+      case 'researched':
+        return modder?.researchOutcome(c.outcome) ?? { ok: false }
       case 'resolve':
         if (!modder) throw new Error('the modder has no game yet')
         // the player's own modder works live (the offline profile is the service's)

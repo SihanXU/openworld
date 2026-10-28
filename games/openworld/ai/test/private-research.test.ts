@@ -35,7 +35,7 @@ describe('save-private research answers', () => {
     const request = port.records[0].request
     expect(request.event.host?.type).toBe('item/material/stone')
     const model = new ScriptedModel(() => ({ artifacts: [{ kind: 'rule', rule: {
-      id: 'patch/ordinary-stone-private-save', host: { type: 'item/material/stone' }, on: 'act/use', tree: { do: [{ op: 'log', text: 'You weigh the stone in your hand.' }] },
+      id: 'patch/ordinary-stone-private-save', host: { type: 'item/material/stone' }, on: 'act/use', tree: { do: [{ op: 'log', text: { en: 'You weigh the stone in your hand.', zh: 'You weigh the stone in your hand.' } }] },
     } }] }))
     const { modder, library, state } = testModder({ model, harness: h => ({ ...quiet(h), ...noAudit(h) }) })
     const reply = await modder.resolve({ request, workspace: { patches: { rules: lib.patches(), types: lib.types, statuses: lib.statuses } } })
@@ -52,7 +52,7 @@ describe('save-private research answers', () => {
     const patch: Patch = { scope: 'save', artifacts: [
       { kind: 'type', type: { id: 'item/material/private_reed_tie', name: { en: 'Private Reed Tie', zh: '私人苇绳' }, props: { material: 'plant' }, makeup: [{ type: 'item/material/grass', count: 1 }], station: 'hands' } },
       { kind: 'status', status: { id: 'private_reed_care', name: { en: 'Reed Care', zh: '苇绳养护' } } },
-      { kind: 'rule', rule: { id: 'patch/private-care-definitions', host: { type: invention.id }, on: 'act/use', tree: { do: [{ op: 'log', text: 'The edge is sound.' }] } } },
+      { kind: 'rule', rule: { id: 'patch/private-care-definitions', host: { type: invention.id }, on: 'act/use', tree: { do: [{ op: 'log', text: { en: 'The edge is sound.', zh: 'The edge is sound.' } }] } } },
     ] }
     const result = port.submit(body.request.id, patch)
     expect(result.errors).toEqual([])
@@ -65,7 +65,7 @@ describe('save-private research answers', () => {
     let draft: Patch = { artifacts: [{ kind: 'rule', rule: {
       id: 'patch/sickle-care', host: { type: invention.id }, on: 'act/use',
       label: { en: 'Inspect {instrument}', zh: '查看{instrument}' },
-      tree: { do: [{ op: 'log', text: 'The wooden edge is still sound.' }] },
+      tree: { do: [{ op: 'log', text: { en: 'The wooden edge is still sound.', zh: 'The wooden edge is still sound.' } }] },
     } }] }
     const model = new ScriptedModel(() => draft)
     const { modder, library, state } = testModder({ model, harness: h => ({ ...quiet(h), ...noAudit(h) }) })
@@ -81,7 +81,7 @@ describe('save-private research answers', () => {
     expect(own).toMatch(/^patch\/save-[0-9a-f]+\/sickle-care$/)
     expect(port.submit(body.request.id, reply.patch!).ok).toBe(true)
     expect(eng.lib.rules.get(own)?.source?.local).toEqual({ types: [], statuses: [] })
-    expect(eng.world.fx.some(f => f.t === 'log' && String(f.text).includes('wooden edge'))).toBe(true)
+    expect(eng.world.fx.some(f => f.t === 'log' && JSON.stringify(f.text).includes('wooden edge'))).toBe(true)
     expect(library.commit(reply.patch!, body.request).ok).toBe(false)
     // Reuse through the service must not write a covered episode containing private data either.
     body.workspace.patches.rules = eng.lib.patches()
@@ -92,7 +92,7 @@ describe('save-private research answers', () => {
     expect(library.seq).toBe(0)
     draft = { artifacts: [{ kind: 'rule', rule: {
       id: 'patch/sickle-care-revised', host: { type: invention.id }, on: 'act/use',
-      tree: { do: [{ op: 'log', text: 'The inspected edge remains sound.' }] },
+      tree: { do: [{ op: 'log', text: { en: 'The inspected edge remains sound.', zh: 'The inspected edge remains sound.' } }] },
     } }] }
     const revised = await modder.resolve({ ...body, request: { ...body.request, again: { rule: own, said: 'The wooden edge is still sound.', times: 3 } } })
     expect(revised.outcome, JSON.stringify(revised)).toBe('accepted')
@@ -105,7 +105,7 @@ describe('save-private research answers', () => {
     expect(body.request.event.host?.type).toBe('tile/path')
     const model = new ScriptedModel(() => ({ artifacts: [{ kind: 'rule', rule: {
       id: 'patch/private-road-scrape', host: { type: 'tile/path' }, on: 'impulse/strike',
-      tree: { do: [{ op: 'log', text: 'The wooden sickle brushes the hard road.' }] },
+      tree: { do: [{ op: 'log', text: { en: 'The wooden sickle brushes the hard road.', zh: 'The wooden sickle brushes the hard road.' } }] },
     } }] }))
     const { modder, library } = testModder({ model, harness: h => ({ ...quiet(h), ...noAudit(h) }) })
     const reply = await modder.resolve(body)
@@ -118,7 +118,7 @@ describe('save-private research answers', () => {
     const { eng, port, body } = asking()
     expect(port.submit(body.request.id, { scope: 'save', artifacts: [
       { kind: 'status', status: { id: 'private_reed_care', name: { en: 'Reed Care', zh: '苇绳养护' } } },
-      { kind: 'rule', rule: { id: 'patch/private-status-source', host: { type: invention.id }, on: 'act/use', tree: { do: [{ op: 'log', text: 'The edge is sound.' }] } } },
+      { kind: 'rule', rule: { id: 'patch/private-status-source', host: { type: invention.id }, on: 'act/use', tree: { do: [{ op: 'log', text: { en: 'The edge is sound.', zh: 'The edge is sound.' } }] } } },
     ] }).errors).toEqual([])
     const next = buildSandbox({ entities: [
       { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
@@ -130,7 +130,7 @@ describe('save-private research answers', () => {
     if (retired) next.lib.remove('patch/private-status-source')
     const model = new ScriptedModel(() => ({ artifacts: [{ kind: 'rule', rule: {
       id: 'patch/private-status-follow-up', host: { type: 'item/material/stone' }, on: 'act/use',
-      tree: { if: { is: { role: 'host', sel: { status: ['private_reed_care'] } } }, then: { do: [{ op: 'log', text: 'The cared-for stone is smooth.' }] }, else: { undefined: true } },
+      tree: { if: { is: { role: 'host', sel: { status: ['private_reed_care'] } } }, then: { do: [{ op: 'log', text: { en: 'The cared-for stone is smooth.', zh: 'The cared-for stone is smooth.' } }] }, else: { undefined: true } },
     } }] }))
     const { modder, library, state } = testModder({ model, harness: h => ({ ...quiet(h), ...noAudit(h) }) })
     const reply = await modder.resolve({ request, workspace: { patches: { rules: next.lib.patches(), types: next.lib.types, statuses: next.lib.statuses, ...(retired && { local: { types: [], statuses: ['private_reed_care'] } }) } } })
@@ -143,7 +143,7 @@ describe('save-private research answers', () => {
 
   it('the shared library never takes a name only one save may hold, so the two never meet', () => {
     const { library } = testModder()
-    const rule = { id: 'patch/save-0123abcd/sickle-care', host: { type: 'item/tool/sickle' }, on: 'act/use', tree: { do: [{ op: 'log', text: 'x' }] } }
+    const rule = { id: 'patch/save-0123abcd/sickle-care', host: { type: 'item/tool/sickle' }, on: 'act/use', tree: { do: [{ op: 'log', text: { en: 'x', zh: 'x' } }] } }
     expect(library.validate({ artifacts: [{ kind: 'rule', rule }] } as Patch).errors.join()).toMatch(/only one save may hold/)
     expect(library.validate({ artifacts: [{ kind: 'type', type: invention }] }).errors.join()).toMatch(/only one save may hold/)
   })

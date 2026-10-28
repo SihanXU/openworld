@@ -25,7 +25,7 @@ describe('research in the actual game', () => {
     const material = main === 'stone' ? 'stone' : 'wood'
     const second = main === 'stone' ? 'log' : 'stone'
     const id = `${prototype}/invention_${main}`
-    trialResearch(eng, port, { name: 'A material-aware pick', prototype, ingredients: [
+    trialResearch(eng, port, { name: { en: 'A material-aware pick', zh: 'A material-aware pick' }, prototype, ingredients: [
       { type: `item/material/${main}`, count: 10 }, { type: `item/material/${second}`, count: 10 },
     ] }, id)
     const item = Object.values(eng.world.state.entities).find((e) => e.type === id)!
@@ -57,14 +57,14 @@ describe('research in the actual game', () => {
   it('does not spend materials or learn a recipe when the proposal bypasses price or unlock checks', () => {
     const { eng, port } = world()
     const before = JSON.stringify(eng.world.state)
-    const proposal = { name: 'Free treasure', prototype: 'item/weapon/blade/dragonsbane', ingredients: [{ type: 'item/material/log', count: 1 }] }
+    const proposal = { name: { en: 'Free treasure', zh: 'Free treasure' }, prototype: 'item/weapon/blade/dragonsbane', ingredients: [{ type: 'item/material/log', count: 1 }] }
     expect(() => trialResearch(eng, port, proposal, `${proposal.prototype}/invention_cheat`)).toThrow()
     expect(JSON.stringify(eng.world.state)).toBe(before)
     expect(eng.lib.types).toHaveLength(0)
   })
   it('says why a recipe is refused as a code, for the panel to say in the player\'s language', () => {
     const { eng, port } = world()
-    const cheap = { name: 'A one-log pick', prototype: 'item/tool/pickaxe', ingredients: [{ type: 'item/material/log', count: 1 }] }
+    const cheap = { name: { en: 'A one-log pick', zh: 'A one-log pick' }, prototype: 'item/tool/pickaxe', ingredients: [{ type: 'item/material/log', count: 1 }] }
     let caught: unknown
     try {
       trialResearch(eng, port, cheap, `${cheap.prototype}/invention_cheap`)
@@ -78,7 +78,7 @@ describe('research in the actual game', () => {
     const { eng, port } = world()
     const prototype = researchCatalogue(eng).prototypes.find((id) => eng.recipes.get(id)?.station === 'hands')!
     const before = JSON.stringify(eng.world.state)
-    const design = { name: 'Oversized pack', prototype, ingredients: [{ type: 'item/material/log', count: 64 }, { type: 'item/material/stone', count: 64 }] }
+    const design = { name: { en: 'Oversized pack', zh: 'Oversized pack' }, prototype, ingredients: [{ type: 'item/material/log', count: 64 }, { type: 'item/material/stone', count: 64 }] }
     expect(() => trialResearch(eng, port, design, `${prototype}/invention_unaffordable`)).toThrow()
     expect(JSON.stringify(eng.world.state)).toBe(before)
     expect(eng.lib.types).toHaveLength(0)
@@ -86,7 +86,7 @@ describe('research in the actual game', () => {
   it('cannot learn the same invention twice or spend its materials a second time', () => {
     const { eng, port } = world()
     const prototype = researchCatalogue(eng).prototypes.find((id) => eng.recipes.get(id)?.station === 'hands')!
-    const design = { name: 'One trial', prototype, ingredients: [{ type: 'item/material/log', count: 10 }, { type: 'item/material/stone', count: 10 }] }
+    const design = { name: { en: 'One trial', zh: 'One trial' }, prototype, ingredients: [{ type: 'item/material/log', count: 10 }, { type: 'item/material/stone', count: 10 }] }
     const id = `${prototype}/invention_once`
     trialResearch(eng, port, design, id)
     const before = JSON.stringify(eng.world.state)
@@ -102,7 +102,7 @@ describe('research in the actual game', () => {
     expect(recipe).toBeTruthy()
     eng.recipes.set(prototype, { ...recipe, station: 'anvil' })
     const before = JSON.stringify(eng.world.state)
-    const design = { name: 'Workshop axe', prototype, ingredients: [{ type: 'item/material/stone', count: 10 }, { type: 'item/material/log', count: 10 }] }
+    const design = { name: { en: 'Workshop axe', zh: 'Workshop axe' }, prototype, ingredients: [{ type: 'item/material/stone', count: 10 }, { type: 'item/material/log', count: 10 }] }
     expect(() => trialResearch(eng, port, design, `${prototype}/invention_workshop`)).toThrow(/crafting station/)
     expect(JSON.stringify(eng.world.state)).toBe(before)
     expect(eng.lib.types).toHaveLength(0)
@@ -114,7 +114,7 @@ describe('research in the actual game', () => {
     expect(researchCatalogue(eng).prototypes).toContain(prototype)
     eng.recipes.set(prototype, { ...eng.recipes.get(prototype)!, skill: 'smithing' })
     const before = JSON.stringify(eng.world.state)
-    const design = { name: 'Skilled axe', prototype, ingredients: [{ type: 'item/material/stone', count: 10 }, { type: 'item/material/log', count: 10 }] }
+    const design = { name: { en: 'Skilled axe', zh: 'Skilled axe' }, prototype, ingredients: [{ type: 'item/material/stone', count: 10 }, { type: 'item/material/log', count: 10 }] }
     expect(researchCatalogue(eng).prototypes).not.toContain(prototype)
     expect(() => trialResearch(eng, port, design, `${prototype}/invention_skill`)).toThrow()
     expect(JSON.stringify(eng.world.state)).toBe(before)
@@ -131,7 +131,7 @@ describe('research in the actual game', () => {
     eng.author(() => eng.world.add({ id: 'quest.research-gate', type: 'resident/quest', place: { on: 'resident' }, props: { quest: 'research-gate', state: 'active', stage: 0, by: 'actor' } }))
     expect(eng.story.lesson()?.def.id).toBe('ordinary-axe')
     const id = `${prototype}/invention_tutorial_bypass`
-    const design = { name: 'A different axe', prototype, ingredients: [{ type: 'item/material/stone', count: 10 }, { type: 'item/material/log', count: 10 }] }
+    const design = { name: { en: 'A different axe', zh: 'A different axe' }, prototype, ingredients: [{ type: 'item/material/stone', count: 10 }, { type: 'item/material/log', count: 10 }] }
     const before = JSON.stringify(eng.world.state)
     expect(() => trialResearch(eng, port, design, id)).toThrow()
     expect(JSON.stringify(eng.world.state)).toBe(before)
@@ -286,7 +286,7 @@ describe('research in the actual game', () => {
 
   it('says a variant needs a material to begin with, before anything is tried (berries hold no edge)', () => {
     const { eng, port } = pantry()
-    const design: ResearchDesign = { name: 'Berrybrand Axe', prototype: 'item/weapon/blade/axe', ingredients: [{ type: 'item/food/berries', count: 10 }, { type: 'item/material/log', count: 4 }] }
+    const design: ResearchDesign = { name: { en: 'Berrybrand Axe', zh: 'Berrybrand Axe' }, prototype: 'item/weapon/blade/axe', ingredients: [{ type: 'item/food/berries', count: 10 }, { type: 'item/material/log', count: 4 }] }
     let caught: unknown
     try {
       trialResearch(eng, port, design, inventionId(design, 'b'))
@@ -298,11 +298,11 @@ describe('research in the actual game', () => {
 
   it('keeps a variant\'s own picture, and reads a new kind and its picture from a reply (a bad picture is refused)', () => {
     const { eng, port } = world()
-    const design: ResearchDesign = { name: 'Drawn Pick', prototype: 'item/tool/pickaxe', ingredients: [{ type: 'item/material/stone', count: 14 }, { type: 'item/material/log', count: 3 }], art: DOT }
+    const design: ResearchDesign = { name: { en: 'Drawn Pick', zh: 'Drawn Pick' }, prototype: 'item/tool/pickaxe', ingredients: [{ type: 'item/material/stone', count: 14 }, { type: 'item/material/log', count: 3 }], art: DOT }
     expect(trialResearch(eng, port, design, inventionId(design, 'd')).art).toEqual(DOT)
     const catalogue = { prototypes: [], materials: ['item/food/berries'], stations: ['hands'] }
-    expect(readResearchReply({ reply: 'A jam!', design: newDesign(jam()) }, catalogue).design).toMatchObject({ kind: 'new', type: { id: 'item/food/berry_jam', art: DOT } })
-    expect(() => readResearchReply({ reply: 'A jam!', design: newDesign(jam({ art: { grid: ['x'], palette: {} } as PixelArt })) }, catalogue)).toThrow(/picture/)
+    expect(readResearchReply({ reply: { en: 'A jam!', zh: 'A jam!' }, design: newDesign(jam()) }, catalogue).design).toMatchObject({ kind: 'new', type: { id: 'item/food/berry_jam', art: DOT } })
+    expect(() => readResearchReply({ reply: { en: 'A jam!', zh: 'A jam!' }, design: newDesign(jam({ art: { grid: ['x'], palette: {} } as PixelArt })) }, catalogue)).toThrow(/picture/)
   })
 
   it('carries the offered prototypes\' icons to the service (to be edited), and nothing else; a bad icon is refused', () => {
@@ -313,7 +313,7 @@ describe('research in the actual game', () => {
 
   it('counts a thing made at one\'s feet, as any craft leaves it when the bag has no room', () => {
     const { eng, port } = world()
-    const design: ResearchDesign = { name: 'Full Pick', prototype: 'item/tool/pickaxe', ingredients: [{ type: 'item/material/stone', count: 14 }, { type: 'item/material/log', count: 3 }] }
+    const design: ResearchDesign = { name: { en: 'Full Pick', zh: 'Full Pick' }, prototype: 'item/tool/pickaxe', ingredients: [{ type: 'item/material/stone', count: 14 }, { type: 'item/material/log', count: 3 }] }
     const id = inventionId(design, 'f')
     const full = eng.controls.count.bind(eng.controls)
     // a bag with no room: what is made is set down where one stands

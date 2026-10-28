@@ -1,6 +1,6 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
-import { CRAFTSPERSON, ResearchProblem, inventionId, researchCatalogue, researchPatch, trialResearch, readResearchReply, type PixelArt, type ResearchDesign, type ResearchRequest } from '@openworld/engine'
+import { CRAFTSPERSON, ResearchProblem, inventionId, researchCatalogue, researchPatch, trialResearch, readResearchReply, type PixelArt, type ResearchDesign, type ResearchOutcome, type ResearchRequest } from '@openworld/engine'
 import { untilUp } from './untilUp.ts'
 import { portLink, serviceLink, resolveForSave, type ModderLink } from './modderLink.ts'
 import { FrameEncoder } from './frameDelta.ts'
@@ -45,7 +45,14 @@ let panel: string | undefined
 /** The people's panels open (docs/npc-sandbox.md): the talk with someone (a guard's arrest), a merchant's trade, a person's pockets. */
 let talk: { who: string; arrest?: boolean } | undefined
 let researchBusy = false
-let researchSession: { owner: Game; who: string; history: ResearchRequest['history']; draft?: ResearchDesign; token?: string } | undefined
+let researchSession: { owner: Game; who: string; history: ResearchRequest['history']; draft?: ResearchDesign; token?: string; episode?: string } | undefined
+
+/** What came of the craftsperson's last proposal, said to the service once (they learn from it): made, refused, or left. */
+function researchCame(s: NonNullable<typeof researchSession>, result: ResearchOutcome['result'], problem?: string): void {
+  if (!s.episode) return
+  link?.researched?.({ episode: s.episode, result, ...(problem && { problem }) })
+  s.episode = undefined
+}
 
 function researchHere(owner: Game, who: string): boolean {
   const w = owner.engine.world
@@ -77,8 +84,11 @@ async function askResearch(message: string): Promise<void> {
   const owner = game, who = talk.who
   if (!researchSession || researchSession.owner !== owner || researchSession.who !== who) researchSession = { owner, who, history: [] }
   const session = researchSession
+  // (a proposal not tried before the next idea: left)
+  if (session.draft) researchCame(session, 'left')
   session.draft = undefined
   session.token = undefined
+  session.episode = undefined
   researchBusy = true
   try {
     if (owner.engine.quality.create === 'off') return void post({ t: 'research', who, problem: 'off' })
@@ -95,9 +105,16 @@ async function askResearch(message: string): Promise<void> {
     if (researchSession !== session || game !== owner) return
     session.history.push({ player: message, npc: result.reply })
     session.history = session.history.slice(-8)
+    session.episode = result.episode
     if (result.design) {
       const token = crypto.randomUUID()
-      researchPatch(owner.engine, result.design, inventionId(result.design, token), gameRecipes())
+      try {
+        researchPatch(owner.engine, result.design, inventionId(result.design, token), gameRecipes())
+      } catch (err) {
+        // offered, then refused by the game before the player saw it
+        researchCame(session, 'refused', err instanceof ResearchProblem ? err.code : 'design')
+        throw err
+      }
       session.draft = result.design
       session.token = token
     }
@@ -122,8 +139,10 @@ function confirmResearch(token: string): void {
     kept.types.add(id)
     s.draft = undefined
     sendRecords(); sendRecipes(); sendArts()
+    researchCame(s, 'made')
     post({ t: 'research', who: s.who, made: true })
   } catch (err) {
+    researchCame(s, 'refused', err instanceof ResearchProblem ? err.code : 'design')
     s.token = crypto.randomUUID()
     post({ t: 'research', who: s.who, problem: err instanceof ResearchProblem ? err.code : 'design', design, token: s.token })
   }
@@ -1150,6 +1169,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         iconsAnswer?.(m.icons)
         break
       case 'researchCancel':
+        if (researchSession?.draft) researchCame(researchSession, 'left')
         researchSession = undefined
         break
       case 'talk': {

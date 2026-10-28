@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ResearchWindow } from '../src/ui/research.ts'
 
 vi.mock('../src/game.ts', () => ({ game: () => ({ items: { forms: {} } }), ontology: () => ({ types: {} }) }))
-vi.mock('../src/ui/common.ts', () => ({ locale: { value: 'en' }, tx: (t: unknown) => (typeof t === 'string' ? t : (t as { en?: string })?.en ?? '') }))
+vi.mock('../src/ui/common.ts', () => {
+  const locale = { value: 'en' }
+  return { locale, tx: (t: unknown) => (typeof t === 'string' ? t : ((t as Record<string, string> | undefined)?.[locale.value] ?? (t as { en?: string })?.en ?? '')) }
+})
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -38,8 +41,8 @@ describe('a craftsperson thinking holds no one up', () => {
   it('the thinking beginning or ending is said, so the pause follows it', () => {
     const { w, changed } = panel(true, false)
     ;(w as unknown as { pending?: string }).pending = 'npc.garrick'
-    const button = () => ({ disabled: false, hidden: false, textContent: '' })
-    Object.assign(w, { input: button(), sendButton: button(), changeButton: button(), makeButton: button() })
+    const button = () => ({ disabled: false, hidden: false, textContent: '', setAttribute: vi.fn() })
+    Object.assign(w, { input: button(), sendButton: button(), changeButton: button(), makeButton: button(), backButton: button() })
     ;(w as unknown as { busy(v: boolean): void }).busy(true)
     expect(w.thinking).toBe(true)
     expect(changed).toHaveBeenCalledTimes(1)
@@ -57,18 +60,33 @@ describe('a craftsperson thinking holds no one up', () => {
 
   it('an answer that comes after one walked away is kept for that craftsperson and said on the message line', () => {
     const { w, announce, cancel } = panel(false, true)
-    w.receive({ t: 'research', who: 'npc.garrick', reply: 'An iron axe, then.' })
+    w.receive({ t: 'research', who: 'npc.garrick', reply: { en: 'An iron axe, then.', zh: 'An iron axe, then.' } })
     expect(announce).toHaveBeenCalledWith('npc.garrick', false)
     // answered: the next walk away ends the talk as before
     expect((w as unknown as { pending?: string }).pending).toBeUndefined()
     w.close()
     expect(cancel).toHaveBeenCalled()
-    expect((w as unknown as { kept: Map<string, unknown> }).kept.get('npc.garrick')).toMatchObject({ reply: 'An iron axe, then.' })
+    expect((w as unknown as { kept: Map<string, unknown> }).kept.get('npc.garrick')).toMatchObject({ reply: { en: 'An iron axe, then.', zh: 'An iron axe, then.' } })
   })
 
   it('a problem that comes after one walked away is said as one', () => {
     const { w, announce } = panel(false, true)
     w.receive({ t: 'research', who: 'npc.garrick', problem: 'unreachable' })
     expect(announce).toHaveBeenCalledWith('npc.garrick', true)
+  })
+
+  it('a reply is said again in the other language when the language is switched', async () => {
+    const { locale } = (await import('../src/ui/common.ts')) as unknown as { locale: { value: string } }
+    const { w } = panel(true, false)
+    const el = () => ({ disabled: false, hidden: false, textContent: '', setAttribute: vi.fn(), replaceChildren: vi.fn(), focus: vi.fn(), classList: { toggle: vi.fn() } })
+    const parts = { input: el(), sendButton: el(), changeButton: el(), makeButton: el(), backButton: el(), line: el(), card: el(), composer: el() }
+    Object.assign(w, parts)
+    w.receive({ t: 'research', who: 'npc.garrick', reply: { en: 'An iron axe, then.', zh: '那就打一把铁斧。' } })
+    expect(parts.line.textContent).toBe('An iron axe, then.')
+    locale.value = 'zh'
+    w.relabel()
+    expect(parts.line.textContent).toBe('那就打一把铁斧。')
+    expect(parts.backButton.textContent).toBe('先聊别的')
+    locale.value = 'en'
   })
 })

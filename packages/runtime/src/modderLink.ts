@@ -1,7 +1,7 @@
 // How the engine's worker reaches a modder: a service over HTTP (its address), or the player's own modder in a
 // worker of this page over a port (docs/byok.md). Both answer the same five questions.
 
-import type { Engine, ModRequest, Patch, ResearchRequest, ResearchReply, ModProgress, PatchLogEntry, ResolveBody, ResolveReply } from '@openworld/engine'
+import type { Engine, ModRequest, Patch, ResearchOutcome, ResearchRequest, ResearchReply, ModProgress, PatchLogEntry, ResolveBody, ResolveReply } from '@openworld/engine'
 import { withAside } from '@openworld/engine'
 import { LOCAL_MODDER, type LinkCall, type LinkReply } from './modderProtocol.ts'
 
@@ -15,6 +15,8 @@ export interface ModderLink {
   /** Where it is: the service's address, or `local:` (what the shared log's position is kept under). */
   readonly where: string
   research?(body: ResearchRequest): Promise<ResearchReply>
+  /** What came of a craftsperson's proposal in the game (they learn from it): said, not waited on. */
+  researched?(outcome: ResearchOutcome): void
   health(): Promise<{ model?: string | null }>
   resolve(body: ResolveBody): Promise<ResolveReply>
   progress(request: string): Promise<ModProgress>
@@ -51,6 +53,7 @@ export function serviceLink(url: string): ModderLink {
       if (!r.ok || data.error) throw new Error(data.error || 'Research unavailable')
       return data as ResearchReply
     },
+    researched: (outcome) => void post('/research/outcome', outcome, 5000).catch(() => undefined),
     resolve: async (body) => (await (await post('/resolve', body, 240_000)).json()) as ResolveReply,
     progress: (request) => get(`/progress?id=${encodeURIComponent(request)}`, 2000),
     patches: (since) => get(`/patches?since=${since}`, 5000),
@@ -84,6 +87,7 @@ export function portLink(port: MessagePort): ModderLink {
     where: LOCAL_MODDER,
     health: () => call({ op: 'health' }, 2500),
     research: (body) => call({ op: 'research', body }, 240_000),
+    researched: (outcome) => void call({ op: 'researched', outcome }, 5000).catch(() => undefined),
     resolve: (body) => call({ op: 'resolve', body }, 240_000),
     progress: (request) => call({ op: 'progress', request }, 2000),
     patches: (since) => call({ op: 'patches', since }, 5000),

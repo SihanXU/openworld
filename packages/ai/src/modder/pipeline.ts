@@ -17,7 +17,9 @@
 import {
   artProblems,
   PRIVATE_RULES,
+  readResearchOutcome,
   readResearchRequest,
+  type ResearchRequest,
   type ResearchReply,
   type Text,
   buildModSpec,
@@ -63,11 +65,11 @@ import type { materializeWorld } from '../service/repo.ts'
 import { mapProblems, personProblems, settleMap, summary, withoutThinking, type DraftContext, type DraftKind, type TraceStep } from './drafts.ts'
 import { ART_SYSTEM, artEditUser, AUDIT_SYSTEM, FINALIZE, NO_JSON, REFLECT_SYSTEM, REVIEW_SYSTEM, DRAFT_SYSTEM, THING_SYSTEM, againUser, artUser, auditNotes, auditRepairUser, auditUser, catalogueOf, createUser, designSystem, designUser, findUser, reflectUser, repairUser, reviewUser, reviseUser, revisionUser, draftUser, reviseDraftUser, thingUser, type Creation, type Had, type Need } from './prompts.ts'
 import { WORLD_TERM, briefOf, coarseTerms, envelope, relatedRules, signatureOf, skillNodeOf, withoutChains, workloadNote, workloadOf, type Signature, type Workload } from './request.ts'
-import { auditOf, keepReflection, nodeSection, nodeStand, profileOf, reflectAfter, troubled, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile, type SelfState } from '../agent/state.ts'
+import { auditOf, keepReflection, nodeSection, nodeStand, profileOf, reflectAfter, troubled, safeName, SelfState, type Attempt as AgentAttempt, type Episode as AgentEpisode, type Harness, type Profile } from '../agent/state.ts'
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
 import { audit, probe, type AuditResult } from '../checks/audit.ts'
 import { clipJson } from '../util.ts'
-import { researchConversation } from './research.ts'
+import { RESEARCH_NODE, RESEARCH_TERM, craftReflectSystem, craftReflectUser, notebookOf, proposalOf, researchConversation, researchTerms, withoutArt } from './research.ts'
 
 // (the backend's own failures are the models': kept exported here for the checks that read them from the pipeline)
 export { BACKEND_DOWN }
@@ -338,12 +340,90 @@ export class Modder {
     }
   }
 
-  /** A player conversation proposes bounded recipe data, without tools or library writes. */
+  /** Each craftsperson's own self-state (their notebook), beside the modder's under people/: they learn apart. */
+  private people = new Map<string, SelfState>()
+  /** Proposals waiting to hear from the game what came of them (researched), by episode. */
+  private proposed = new Map<string, { npc: string; ep: AgentEpisode }>()
+
+  private craftsperson(npc: string): SelfState {
+    const own = this.opts.state
+    const key = safeName(npc)
+    let s = this.people.get(key)
+    if (!s) this.people.set(key, (s = SelfState.open(own.fs.join(own.dir, 'people', key), undefined, [...own.ablated], own.fs)))
+    return s
+  }
+
+  /**
+   * A player conversation proposes bounded recipe data, without tools or library writes. The craftsperson reads
+   * their notebook first; the turn is kept in their memory, and a proposal is reflected on once the game says what
+   * came of it (researched).
+   */
   async research(body: unknown): Promise<ResearchReply> {
     const why = this.down()
     if (why || !this.backend) throw new Error(why || 'No model connected')
     const request = readResearchRequest(body)
-    const said = await researchConversation(this.backend, request)
+    const t0 = Date.now()
+    const state = this.opts.dry ? undefined : this.craftsperson(request.npc)
+    const rules = state?.relevantLessons([RESEARCH_TERM], 12) ?? []
+    const skill = state?.skillAt(RESEARCH_NODE)
+    const meter = new Meter(this.backend)
+    const said = await researchConversation(meter, request, notebookOf(rules.map((l) => l.text), skill && state!.readSkill(skill.name)?.trim()))
+    const workshop: string[] = []
+    const out = await this.researched(request, said, workshop)
+    if (!state) return out
+    const ep: AgentEpisode = {
+      id: state.newEpisodeId(), at: new Date().toISOString(), kind: 'research', node: RESEARCH_NODE,
+      summary: `${request.npc}: "${request.message.slice(0, 120)}" → ${proposalOf(out.design)}`,
+      request: { npc: request.npc, message: request.message, history: request.history },
+      key: request.message.slice(0, 200), terms: researchTerms(request.message, out.design),
+      outcome: out.design ? 'accepted' : 'covered',
+      attempts: workshop.length ? [{ phase: 'create', errors: workshop, warnings: [] }] : [],
+      tools: [], rules: [], patch: { reply: out.reply, design: out.design && withoutArt(out.design) },
+      shown: { lessons: rules.map((l) => l.id), episodes: [], skills: skill ? [skill.name] : [] }, skillsRead: skill ? [skill.name] : [],
+      harness: this.opts.state.harness().version, model: this.backend.name,
+      usage: { calls: meter.calls, input: meter.input, output: meter.output, cost: meter.cost }, ms: Date.now() - t0,
+    }
+    // talk alone (a question, a refusal): kept, nothing to hear back
+    if (!out.design) return (state.recordEpisode(ep), out)
+    this.proposed.set(ep.id, { npc: request.npc, ep })
+    // (a game that never says: the oldest is kept as it stood)
+    for (const [id, p] of this.proposed) if (this.proposed.size > 200) (this.proposed.delete(id), this.craftsperson(p.npc).recordEpisode({ ...p.ep, outcome: 'covered' }))
+    return { ...out, episode: ep.id }
+  }
+
+  /** What came of a proposal in the game: kept in its craftsperson's memory, and reflected on after. */
+  researchOutcome(body: unknown): { ok: boolean } {
+    const o = readResearchOutcome(body)
+    const p = this.proposed.get(o.episode)
+    if (!p) return { ok: false }
+    this.proposed.delete(o.episode)
+    const state = this.craftsperson(p.npc)
+    const ep: AgentEpisode = { ...p.ep, outcome: o.result === 'made' ? 'accepted' : 'failed', ...(o.result !== 'made' && { error: o.result === 'refused' ? `the game refused it (${o.problem ?? 'design'})` : 'the player left it' }) }
+    state.recordEpisode(ep)
+    state.noteSkillUse(ep.skillsRead, ep.outcome, ep.id)
+    this.later(`reflect ${p.npc} ${ep.id}`, () => this.reflectCraft(p.npc, state, ep))
+    return { ok: true }
+  }
+
+  /** A craftsperson's middle loop: one reflection on one proposal and what came of it. */
+  private async reflectCraft(npc: string, state: SelfState, ep: AgentEpisode): Promise<void> {
+    const h = this.opts.state.harness()
+    if (!h.reflect.enabled || !this.backend) return
+    const model = new Meter(this.backend)
+    const stand = nodeStand(state, RESEARCH_NODE, h, troubled(ep))
+    const r = await model.chat(
+      [
+        { role: 'system', content: craftReflectSystem(npc) },
+        { role: 'user', content: craftReflectUser(ep, state.relevantLessons([RESEARCH_TERM], 20), nodeSection(stand), state.similarEpisodes(ep.terms, 6, ep.id)) },
+      ],
+      { json: true, temperature: 0.2, purpose: 'reflect', reasoning: h.reflect.reasoning, provider: profileOf(h, 'offline').design.provider },
+    )
+    const kept = keepReflection(state, r.content, { cited: ep.id, kindTerm: RESEARCH_TERM, stand })
+    state.note('reflect', { episode: ep.id, node: stand.node, lessons: kept.lessons, skill: kept.skill, notes: kept.notes, usage: model.usage })
+  }
+
+  /** The conversation's design worked out: a new kind designed and drawn, a variant drawn (what went wrong on the way, in `workshop`). */
+  private async researched(request: ResearchRequest, said: ResearchReply, workshop: string[]): Promise<ResearchReply> {
     const d = said.design
     if (!d) return said
     const onto = this.opts.library.fullOntology()
@@ -384,9 +464,11 @@ export class Modder {
       // the bounds said before they are met (each costs a round when found after): a player's craft, among its sort
       const among = 'A player crafts it: give it only properties the things of its family already have, never more than theirs, and a makeup worth at least the least of its family.'
       const made = await this.createThing({ intent: `${en(d.name)}: ${d.idea.slice(0, 250)} ${among}`, had, stations: (request.catalogue.stations ?? []).filter((x) => x !== 'hands') }, bounds)
+      workshop.push(...made.diagnostics)
       const type = theirs((made.patch?.artifacts ?? []).flatMap((a) => (a.kind === 'type' ? [a.type] : [])))
       if (!type) throw new Error(made.diagnostics.join('; ') || 'the new thing could not be worked out from what you carry')
       if (!asVariant) return { ...said, design: { ...d, type } }
+      workshop.push(`designed as a kind of ${asVariant.prototype}, a craft on offer: made a variant of it`)
       const ingredients = materialFirst(asVariant.ingredients)
       return { ...said, design: { kind: 'variant', name: d.name, prototype: asVariant.prototype, ingredients, ...(type.art && { art: type.art }) } }
     }
@@ -395,7 +477,7 @@ export class Modder {
     // its prototype's icon edited (an iron axe is the axe in iron's colours), else drawn as itself
     const material = index.resolve(d.ingredients[0].type).props.material
     const look = `${en(d.name)}: a ${typeof material === 'string' ? `${material} ` : ''}${en(onto.types[d.prototype]?.name ?? d.prototype.split('/').pop()!)}`
-    const art = await this.drawOne(new Meter(this.backend), { id: `${d.prototype}/drawn`, name: d.name }, look, undefined, request.catalogue.icons?.[d.prototype]).catch(() => undefined)
+    const art = await this.drawOne(new Meter(this.backend!), { id: `${d.prototype}/drawn`, name: d.name }, look, undefined, request.catalogue.icons?.[d.prototype]).catch(() => undefined)
     return { ...said, design: { ...d, ...(art && { art }) } }
   }
 

@@ -53,7 +53,7 @@ function family(): { name: string; patch: Patch }[] {
   const bodies: { name: string; fx: Effect[]; flip?: boolean }[] = [
     { name: 'a stick', fx: [STICK] },
     { name: 'two sticks', fx: [STICK, STICK] },
-    { name: 'a line', fx: [{ op: 'log', text: 'It rings.' }] },
+    { name: 'a line', fx: [{ op: 'log', text: { en: 'It rings.', zh: 'It rings.' } }] },
     { name: 'echo', fx: [{ op: 'emit', impulse: 'strike', to: 'host' }] },
     { name: 'a stick and echo', fx: [STICK, { op: 'emit', impulse: 'strike', to: 'host' }] },
     { name: 'flip with a stick', fx: [STICK, { op: 'transform', into: ALTAR }], flip: true },

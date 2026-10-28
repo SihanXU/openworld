@@ -122,6 +122,7 @@ const menu = new Menu({
     hud.relabel()
     minimap.relabel()
     fishingHud.relabel()
+    research.relabel()
     relabelAll()
   },
   toggleSound: () => hud.toggleSound(),
@@ -707,6 +708,7 @@ const cover = new Cover(WORLD, {
     hud.relabel()
     minimap.relabel()
     fishingHud.relabel()
+    research.relabel()
     relabelAll()
   },
   toggleSound: () => (hud.toggleSound(), (menu.muted = hud.muted)),
