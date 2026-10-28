@@ -31,7 +31,14 @@ kept, as Part Two's promise; the Pilgrim's Road's maps and the Held Ground are p
   (`migratePartTwo`, run every load); it begins again when Part Two opens.
 - **The road east of the Ford is open**: the Ford's east portal to the Rest and the world map's places of the Pilgrim's
   Road carry no gate; the far bank's sign names the Rest. The far bank's north, south and east edges are woods but for
-  the road's own way, from the water's edge (`world.ts`), so nothing walks off it onto the world map east of the river.
+  the road's own way, from the water's edge (`world.ts`).
+- **The edges east of the river are shut** (2026-10-28): woods are only woods, felled with an axe, so what keeps one off
+  the world map east of the river is the story's. Every hand-made map there has `edgesWhen: world.part2` (`overworld.ts`
+  `PLACES` → `MapData.edgesWhen`): off its edge, cleared or not, one stays, and the story hears a bump with `edge`, which
+  `story/sealed` answers with the companion's "another time" (not the road to Emberfall's words). The Ford's far bank
+  takes it from the Rest its way leads to (`Engine.sealedEdge`: a part whose ways lead only to places whose edges are
+  shut); a place on the river's own cell, the Reed Bend, comes out only where its ways lead, the west bank
+  (`leaveByEdge`). With Part Two open, every one of those edges leads out.
 - **The road on east is sealed**: the East Road's way to Emberfall has `opensWhen: world.part2`, so does every place of
   Part Two on the world map (Emberfall, the Old Mine, Cinder Pass, the lair: `overworld.ts`), the knight fallen or not. A
   sealed way is plain ground and leads nowhere (`stepSelf`, `Engine.sealedEdge`); run off, Lumi says why in its gate's
@@ -39,11 +46,13 @@ kept, as Part Two's promise; the Pilgrim's Road's maps and the Held Ground are p
   the world map is solid and says why when bumped (`site/sealed`).
 - **The reach** is held by `tools/test/release.test.ts`: from the start, every way the engine gives — a map's ways and
   doors, its edges out onto the world map (a parted map's only where its part's ways lead), the world map's open cells
-  and places, the Oath-Thorn's pocket — with every other gate of the story opened, reaches the valley, the Ford and the
+  and places, the Oath-Thorn's pocket; an edge counted as open wherever there is floor, whatever stands on it that can be
+  broken (trees, rock) — with every other gate of the story opened, reaches the valley, the Ford and the
   Pilgrim's Road; past the knight the Held Ground besides; never Part Two's places or a backdrop place, and never a cell
   of the world map east of the river; with Part Two open, Emberfall and the dragon's country. A map whose edge opens
   onto the far side fails it, by name.
-- Also proved by demo F1 (the far bank: no card, the road on to the Rest, no edge but the road's), W6b (Part Two's places
+- Also proved by demo F1 (the far bank: no card, the road on to the Rest, no edge but the road's; an edge tree felled on
+  the far bank, the Rest and the East Road, one still stays until Part Two), W6b (Part Two's places
   sealed, he fallen or not), Q2 (the way on shut past the knight), C1 (the one card, the Dragon Road unbegun until Part
   Two), PR1 (the Pilgrim's Road walked without Part Two), and the companion's gate test.
 - Part Two's way onto the continent is no longer the far bank's edge (it was until 2026-10-26): it is the road on east,

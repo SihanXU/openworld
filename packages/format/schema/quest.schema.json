@@ -1679,6 +1679,19 @@
           "properties": {
             "op": {
               "type": "string",
+              "const": "rally"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
               "const": "panel"
             },
             "panel": {

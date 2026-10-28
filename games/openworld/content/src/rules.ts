@@ -1937,10 +1937,10 @@ const SITES: Rule[] = [
   }),
   rule({
     id: 'story/sealed',
-    doc: 'The one at the keys ran off an edge where the story has not opened the way (Engine.sealedEdge: a way sealed underfoot, or an edge whose ways all lead to places not open yet; the bump\'s `sealed` is the fact that opens it): their companion says so, at most once a minute — in the gate\'s words for that fact, else that it is for another time; with no companion at hand, the message line says it.',
+    doc: 'The one at the keys ran off an edge where the story has not opened the way (Engine.sealedEdge: a way sealed underfoot, an edge whose ways all lead to places not open yet, or a map whose edges are shut, `edge`; the bump\'s `sealed` is the fact that opens it): their companion says so, at most once a minute. Off a shut edge (woods felled on the Pilgrim\'s Road: the continent beyond is Part Two\'s), that it is for another time; at a way, in the gate\'s words for that fact, else that it is for another time; with no companion at hand, the message line says it.',
     host: { type: 'resident/story' },
     on: 'bump',
-    tree: SITE_GATES.reduceRight<Tree>((rest, g) => IF(param('sealed', g.fact), DO(gateRemark(g, SEALED_EVERY)), rest), DO(gateRemark(ANY_GATE, SEALED_EVERY))),
+    tree: IF(param('edge', 1), DO(gateRemark(ANY_GATE, SEALED_EVERY)), SITE_GATES.reduceRight<Tree>((rest, g) => IF(param('sealed', g.fact), DO(gateRemark(g, SEALED_EVERY)), rest), DO(gateRemark(ANY_GATE, SEALED_EVERY)))),
   }),
   rule({
     id: 'site/far',
