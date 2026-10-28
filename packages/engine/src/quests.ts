@@ -108,6 +108,8 @@ export interface ObjectiveDef {
   on?: QuestTrigger
   say?: Text
   optional?: boolean
+  /** What a companion says when it shows the way to it (companion.ts; else the game's `guide` lines). */
+  nudge?: Text
 }
 
 export interface QuestReward {
@@ -229,7 +231,29 @@ export interface QuestTarget {
   map: string
   x: number
   y: number
+  /** Not the objective's own spot but the way off the taker's map toward it (a door, an edge): the world map leaves it out. */
+  way?: boolean
 }
+
+/** Where the tracked quest goes next from where the taker stands, for a companion to lead the way (companion.ts). */
+export interface QuestLead {
+  objective: string
+  /** The spot as a key: one lead, shown once while it stays the same. */
+  key: string
+  map: string
+  x: number
+  y: number
+  /** A thing or person there; an area; the way off this map toward the objective (`to`: the map it leads into). */
+  kind: 'thing' | 'place' | 'exit'
+  /** The thing or person's name; for the way off, the map the objective is on. */
+  name?: Text
+  to?: string
+  /** The objective's own line for it (its `nudge`). */
+  nudge?: Text
+}
+
+/** A spot an objective points at: a thing's (`id`), or an area's middle. */
+type Mark = { map: string; x: number; y: number; id?: Id }
 
 const QUEST_TYPE = 'resident/quest'
 /** How many times a quest may move on from one look (a stage reached, then the next already holding …). */
@@ -1076,17 +1100,22 @@ export class Quests {
     return out.sort((a, b) => w.num(w.get(b.id)!, 'since') - w.num(w.get(a.id)!, 'since'))
   }
 
-  /** Where an objective points: its targets' places (an alias's thing, or what holds it; an area's middle). */
-  private targetsOf(q: Entity, o: ObjectiveDef): { map: string; x: number; y: number }[] {
+  /**
+   * Where an objective points: its targets' places (an alias's thing, or what holds it; an area's middle). An objective
+   * to get a class of thing points at the nearest one lying loose in its area (on a map loaded now; else anywhere on
+   * that map), not at the area's middle; with no target named, at the nearest on the taker's map.
+   */
+  private targetsOf(q: Entity, o: ObjectiveDef): Mark[] {
     const w = this.w
-    const out: { map: string; x: number; y: number }[] = []
+    const out: Mark[] = []
+    const sought = this.sought(o)
     for (const a of typeof o.target === 'string' ? [o.target] : (o.target ?? [])) {
       const id = this.alias(q, a)
       if (!id) continue
       const e = w.get(id)
       if (e) {
         const p = w.posOf(e)
-        if (p && e.place.on !== 'resident') out.push({ map: p.map, x: p.x, y: p.y })
+        if (p && e.place.on !== 'resident') out.push({ map: p.map, x: p.x, y: p.y, id: e.id })
         continue
       }
       const i = id.indexOf(':')
@@ -1095,9 +1124,77 @@ export class Quests {
       const m = w.map(map) ?? this.eng.maps[map]
       if (!m) continue
       const r = i < 0 ? undefined : m.regions?.[id.slice(i + 1)]
-      out.push(r ? { map, x: r[0] + Math.floor(r[2] / 2), y: r[1] + Math.floor(r[3] / 2) } : { map, x: Math.floor(m.width / 2), y: Math.floor(m.height / 2) })
+      const found = sought && this.lying(sought, map, r)
+      if (found) out.push(found)
+      else out.push(r ? { map, x: r[0] + Math.floor(r[2] / 2), y: r[1] + Math.floor(r[3] / 2) } : { map, x: Math.floor(m.width / 2), y: Math.floor(m.height / 2) })
+    }
+    const here = w.posOf(w.player)?.map
+    if (!out.length && sought && here) {
+      const found = this.lying(sought, here)
+      if (found) out.push(found)
     }
     return out
+  }
+
+  /** The class of thing an objective asks one to get (its count's or its trigger's `carry`), when it names a class. */
+  private sought(o: ObjectiveDef): Selector | undefined {
+    const c = o.count && 'carry' in o.count ? o.count.carry : o.on && 'carry' in o.on ? o.on.carry : undefined
+    return typeof c === 'object' ? c : undefined
+  }
+
+  /**
+   * The nearest thing of a class lying loose on a loaded map, to be picked up (never another's): in the area first, then
+   * anywhere on the map; nearest the taker when they stand on that map, else the area's middle.
+   */
+  private lying(sel: Selector, map: string, area?: [number, number, number, number]): Mark | undefined {
+    const w = this.w
+    const m = w.map(map)
+    if (!m) return undefined
+    const me = w.state.player
+    const at = w.posOf(w.player)
+    const from = at?.map === map ? at : area ? { x: area[0] + area[2] / 2, y: area[1] + area[3] / 2 } : { x: m.width / 2, y: m.height / 2 }
+    let best: Mark | undefined
+    let bestD = Infinity
+    for (const e of sel.type ? w.ofType(sel.type) : w.entitiesOnMap(map)) {
+      if (e.place.on !== 'tile' || e.place.map !== map || !w.isLoose(e)) continue
+      const owner = w.prop(e, 'owner')
+      if (owner && owner !== me) continue
+      if (!matchSelector(sel, this.itemView(e.id))) continue
+      const { x, y } = e.place
+      const inside = !area || (x >= area[0] && x < area[0] + area[2] && y >= area[1] && y < area[1] + area[3])
+      const d = Math.max(Math.abs(x - from.x), Math.abs(y - from.y)) + (inside ? 0 : 1e4)
+      if (d < bestD) (best = { map, x, y, id: e.id }), (bestD = d)
+    }
+    return best
+  }
+
+  /**
+   * Where the tracked quest goes next from where the taker stands (a companion leads the way there, companion.ts): the
+   * first open objective with a spot on this map, the nearest of them; else the first with one elsewhere, the way off
+   * this map toward it (the portal graph).
+   */
+  lead(): QuestLead | undefined {
+    const w = this.w
+    const q = this.tracked()
+    const d = q && this.defOf(q)
+    const at = w.posOf(w.player)
+    if (!q || !d || !at) return undefined
+    const far = (m: Mark) => Math.max(Math.abs(m.x - at.x), Math.abs(m.y - at.y))
+    const open = (d.objectives ?? []).filter((o) => !o.optional && this.shown(q, o) && !this.objectiveDone(q, o) && q.props?.[`obj.${o.id}`] !== 'failed').map((o) => ({ o, marks: this.targetsOf(q, o) }))
+    for (const { o, marks } of open) {
+      const here = marks.filter((m) => m.map === at.map).sort((a, b) => far(a) - far(b))[0]
+      if (!here) continue
+      const nudge = o.nudge && this.fill(q, o.nudge)
+      return { objective: o.id, key: `${o.id}:${here.map}:${here.x}:${here.y}`, map: here.map, x: here.x, y: here.y, kind: here.id ? 'thing' : 'place', ...(here.id && { name: { en: this.eng.nameOf({ e: here.id }, 'en'), zh: this.eng.nameOf({ e: here.id }, 'zh') } }), ...(nudge && { nudge }) }
+    }
+    for (const { o, marks } of open)
+      for (const m of marks) {
+        const hop = this.eng.npcs.nextHop(at.map, m.map)
+        if (!hop) continue
+        const place = w.map(m.map)?.name ?? this.eng.maps[m.map]?.name
+        return { objective: o.id, key: `${o.id}:${at.map}>${hop.to}`, map: at.map, x: hop.x, y: hop.y, kind: 'exit', to: hop.to, ...(place && { name: place }) }
+      }
+    return undefined
   }
 
   /** The markers: the tracked quest's open objectives' targets. */
@@ -1107,10 +1204,16 @@ export class Quests {
     if (!q || !d) return []
     const out: QuestTarget[] = []
     const at = new Set<string>()
+    const here = this.w.posOf(this.w.player)?.map
     for (const o of d.objectives ?? []) {
       if (!this.shown(q, o) || this.objectiveDone(q, o) || q.props?.[`obj.${o.id}`] === 'failed') continue
+      const marks = this.targetsOf(q, o)
       // one marker for one spot (the beef and the eggs on one grassland)
-      for (const t of this.targetsOf(q, o)) if (!at.has(`${t.map}:${t.x}:${t.y}`)) (at.add(`${t.map}:${t.x}:${t.y}`), out.push({ objective: o.id, text: this.fill(q, o.text), ...t }))
+      for (const { map, x, y } of marks) if (!at.has(`${map}:${x}:${y}`)) (at.add(`${map}:${x}:${y}`), out.push({ objective: o.id, text: this.fill(q, o.text), map, x, y }))
+      // none on this map: the way off it toward one too (the arrow at the screen's edge, the minimap)
+      if (!here || !marks.length || marks.some((m) => m.map === here)) continue
+      const hop = marks.map((m) => this.eng.npcs.nextHop(here, m.map)).find((h) => h)
+      if (hop && !at.has(`${here}:${hop.x}:${hop.y}`)) (at.add(`${here}:${hop.x}:${hop.y}`), out.push({ objective: o.id, text: this.fill(q, o.text), map: here, x: hop.x, y: hop.y, way: true }))
     }
     return out
   }

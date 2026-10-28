@@ -119,6 +119,8 @@ const PREFETCH: Record<Exclude<AiLevel, 'off'>, { dwell: number; cap: number }> 
 let prefetchAsked = false // the page's ?prefetch=1 (init)
 /** The player's AI setting (the engine's quality.ts): the main thread's stored one, sent at init and on every change. */
 let quality: AiQuality = { ...DEFAULT_QUALITY }
+/** Does a companion lead the way when the player stands still (the player's option, Options)? */
+let guiding = true
 const prefetchLevel = (): Exclude<AiLevel, 'off'> | undefined => (quality.prefetch !== 'off' ? quality.prefetch : prefetchAsked ? 'medium' : undefined)
 let probe: { key: string; spot: string; ev: GameEvent; res: Resolution; ticks: number } | undefined
 const prefetched = new Set<string>()
@@ -493,7 +495,8 @@ async function atlas(): Promise<Atlas | undefined> {
     }
     maps.push({ id: m.id, name: m.name, at: m.at, width: m.width, height: m.height, terrain })
   }
-  const targets = game.engine.quests.targets().map((x) => ({ map: x.map, x: x.x, y: x.y, text: x.text }))
+  // the objectives' own spots (not the way off this map toward one)
+  const targets = game.engine.quests.targets().filter((x) => !x.way).map((x) => ({ map: x.map, x: x.x, y: x.y, text: x.text }))
   const named = new Map((index.waypoints ?? []).map((x) => [x.id, x.name]))
   const stones = waypoints(game.engine).map(({ e, attuned }) => ({ id: e.id, map: (e.place as { map: string }).map, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: named.get(e.id) ?? e.name ?? { en: 'Waypoint', zh: '传送雕像' }, attuned }))
   const pos = w.posOf(w.player)!
@@ -606,7 +609,8 @@ function loop(): void {
   const stopped = timeStopped(game)
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
-    if (fishingActive(eng)) (attacking = false), (swinging = undefined)
+    // a line in the water is the player at work: a companion does not lead them off
+    if (fishingActive(eng)) (attacking = false), (swinging = undefined), eng.companions.stir()
     else {
       if (attacking) eng.controls.strike()
       // the left button held: its act again at the aim, as a swing's pace allows
@@ -712,6 +716,7 @@ async function backdrop(m: Extract<ToWorker, { t: 'backdrop' }>): Promise<void> 
   g.worldVersion = index.version
   g.keepMaps = KEEP_MAPS
   g.engine.quality = quality
+  g.engine.companions.guiding = false
   for (const s of played().skills.all) g.engine.skills.set(s.id, s)
   game = g
   backdropOn = true
@@ -755,6 +760,7 @@ async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, min
   base = init.base
   if (init.prefetch !== undefined) prefetchAsked = init.prefetch
   if (init.quality) quality = qualityOf(init.quality)
+  if (init.guiding !== undefined) guiding = init.guiding
   index = await fetchJson<WorldIndex>('index.json')
   if (mine !== generation) return
   const compatible = init.save?.world === index.version
@@ -796,6 +802,7 @@ async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, min
   view = undefined
   // the player's AI setting: which tier each kind of event is asked at, and takes learned answers from
   game.engine.quality = quality
+  game.engine.companions.guiding = guiding
   // what was learned past the checks of its time (an older client's copy) and nothing here needs is forgotten
   for (const id of forgetInvalid(game.engine, kept.types)) console.info(`[library] forgotten on loading (no longer valid): ${id}`)
   // a night's sleep (a long step) passes a game hour a tick: the screen keeps up, and one lies asleep all the while
@@ -1111,6 +1118,10 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'modder':
         // the player chose another modder (their own model in the settings, or none): asked from now on
         void connectModder(m.port ? portLink(m.port) : m.url ? serviceLink(m.url) : undefined)
+        break
+      case 'guiding':
+        guiding = m.on
+        if (game) game.engine.companions.guiding = guiding
         break
       case 'quality':
         // a change of setting holds from the next event: its tier asks, and takes the answers it reaches

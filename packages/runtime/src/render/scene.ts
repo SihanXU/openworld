@@ -727,6 +727,7 @@ export class WorldScene extends Phaser.Scene {
     for (const [id, v] of this.views) if (!seen.has(id)) (this.destroyView(v), this.views.delete(id))
     this.drawQuestMarks(f)
     this.drawQuestArrows(f)
+    this.guideAt = f.guide
     const me = this.views.get(this.playerId)
     // a free camera (the editor's, a film's) is never taken over by a boss fight
     if (!this.free && !this.cinema) this.frameBossFight(f, me)
@@ -777,6 +778,28 @@ export class WorldScene extends Phaser.Scene {
       }
       v.role?.setVisible(show)
       this.positionHeadMarks(v)
+    }
+  }
+
+  /** The spot a companion leading the way shows (Frame.guide): a ring of light that breathes on it, and motes rising. */
+  private guideAt?: Frame['guide']
+  private guideRing?: Phaser.GameObjects.Graphics
+  private drawGuide(time: number): void {
+    if (!this.guideAt && !this.guideRing?.visible) return
+    this.guideRing ??= this.add.graphics().setDepth(1e5 - 2)
+    const g = this.guideRing.clear().setVisible(!!this.guideAt)
+    if (!this.guideAt) return
+    const cx = this.guideAt.x * T + T / 2
+    const cy = this.guideAt.y * T + T / 2
+    const s = time / 1000
+    const breath = 0.5 + 0.5 * Math.sin(s * 4)
+    g.lineStyle(1.5, 0xfff1a8, 0.55 + 0.4 * breath).strokeEllipse(cx, cy + 3, T * (0.95 + 0.15 * breath), T * (0.45 + 0.08 * breath))
+    g.fillStyle(0xfff6c8, 0.12 + 0.12 * breath).fillEllipse(cx, cy + 3, T * 0.9, T * 0.4)
+    // four motes rising round it, each on its own beat
+    for (let i = 0; i < 4; i++) {
+      const p = (s * 0.7 + i / 4) % 1
+      const a = i * (Math.PI / 2) + s
+      g.fillStyle(0xfffbe0, 1 - p).fillCircle(cx + Math.cos(a) * 5, cy + 2 - p * 12, 1)
     }
   }
 
@@ -1833,6 +1856,7 @@ export class WorldScene extends Phaser.Scene {
   update(time: number): void {
     if (this.cinema) this.driftCinema(time)
     this.drawWeather(time)
+    this.drawGuide(time)
     this.swimFish(time)
     this.fadeOver()
     for (const v of this.views.values()) {

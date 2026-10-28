@@ -23,6 +23,7 @@ import { SKILL_PROFESSIONS } from './skills.ts'
 import { BOON_STATUSES } from './boons.ts'
 import { DEEDS, LAWS, SOCIAL, SOCIAL_STATUSES, SOCIAL_TYPES, TALK } from './social.ts'
 import { MINOR_SUBJECTS } from './protection.ts'
+import { LEADING } from './leading.ts'
 
 /** One char per terrain: maps are stored as strings. */
 export const TERRAIN_CHARS: Record<string, string> = {
@@ -783,6 +784,8 @@ export function buildOntology(): Ontology {
     affixes: AFFIX_TABLE,
     // each kind of monster's own piece: sure at the fiftieth, and what the finder is told (the loot module, trophies.ts)
     loot: LOOT,
+    // Lumi leading the way when the player stands idle (leading.ts)
+    guide: LEADING,
     efficiency: EFFICIENCY,
     params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 }, nightFact: 'night.shift', gearLevels: GEAR_LEVELS, restyle: { coin: 10, needs: [{ type: 'item/material/flower', count: 3 }] } },
     // what makes a room what it is: a bed a bedroom (a night there gives everything back), a cooking fire a
