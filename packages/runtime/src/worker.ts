@@ -48,9 +48,10 @@ let researchBusy = false
 let researchSession: { owner: Game; who: string; history: ResearchRequest['history']; draft?: ResearchDesign; token?: string; episode?: string } | undefined
 
 /** What came of the craftsperson's last proposal, said to the service once (they learn from it): made, refused, or left. */
-function researchCame(s: NonNullable<typeof researchSession>, result: ResearchOutcome['result'], problem?: string): void {
+function researchCame(s: NonNullable<typeof researchSession>, result: ResearchOutcome['result'], problem?: string, missing?: ResearchOutcome['missing']): void {
   if (!s.episode) return
-  link?.researched?.({ episode: s.episode, result, ...(problem && { problem }) })
+  // what the player lacked goes with the refusal: a craftsperson who hears only "needs" learns the recipe was wrong
+  link?.researched?.({ episode: s.episode, result, ...(problem && { problem }), ...(missing && { missing }) })
   s.episode = undefined
 }
 
@@ -153,7 +154,7 @@ function confirmResearch(token: string): void {
     researchCame(s, 'made')
     post({ t: 'research', who: s.who, made: true })
   } catch (err) {
-    researchCame(s, 'refused', err instanceof ResearchProblem ? err.code : 'design')
+    researchCame(s, 'refused', err instanceof ResearchProblem ? err.code : 'design', err instanceof ResearchProblem ? err.missing : undefined)
     s.token = crypto.randomUUID()
     post({ t: 'research', who: s.who, problem: err instanceof ResearchProblem ? err.code : 'design', ...(err instanceof ResearchProblem && err.missing && { missing: err.missing }), design, token: s.token })
   }

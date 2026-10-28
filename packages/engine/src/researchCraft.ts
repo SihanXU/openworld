@@ -3,7 +3,7 @@
 import { Engine } from './engine.ts'
 import { ModPort, type Patch } from './mod.ts'
 import { RuleLibrary } from './rules.ts'
-import { INVENTION, readResearchReply, type NewDesign, type ResearchCatalogue, type ResearchDesign, type VariantDesign } from './research.ts'
+import { INVENTION, readResearchReply, type NewDesign, type ResearchMissing, type ResearchCatalogue, type ResearchDesign, type VariantDesign } from './research.ts'
 import type { OntologyIndex } from './ontology.ts'
 import type { Recipe, TypeDef } from './types.ts'
 
@@ -12,13 +12,6 @@ export const CRAFTSPERSON = 'craftsperson'
 
 /** Why a recipe was refused, as a code: the panel says it in the player's language (runtime ui/research.ts). */
 export type ResearchProblemCode = 'locked' | 'identity' | 'cheap' | 'material' | 'refused' | 'station' | 'needs' | 'unmade'
-
-/** What a trial still lacks: goods (how many more), tools to carry (their tags, `hammer`), a skill. */
-export interface ResearchMissing {
-  needs?: { type: string; count: number }[]
-  tools?: string[]
-  skill?: string
-}
 
 export class ResearchProblem extends Error {
   constructor(readonly code: ResearchProblemCode, message: string, readonly missing?: ResearchMissing) {

@@ -77,19 +77,53 @@ export interface ResearchRequest {
   draft?: ResearchDesign
 }
 
-/** What came of a turn's design in the game: made, refused by the game (its problem's code), or left by the player. */
+/** What a trial still lacks: goods (how many more), tools to carry (their tags, `hammer`), a skill. */
+export interface ResearchMissing {
+  needs?: { type: string; count: number }[]
+  tools?: string[]
+  skill?: string
+}
+
+/**
+ * What came of a turn's design in the game: made, refused by the game (its problem's code, and what the player
+ * lacked when the code is `needs`), or left by the player.
+ */
 export interface ResearchOutcome {
   episode: string
   result: 'made' | 'refused' | 'left'
   problem?: string
+  missing?: ResearchMissing
+}
+
+/** What a trial lacked, bounded (ids, counts, tags, a skill's key): it reaches a craftsperson's memory. */
+export function readResearchMissing(value: unknown): ResearchMissing {
+  const tag = (t: unknown) => typeof t === 'string' && /^[a-z][a-z0-9_-]{0,40}$/.test(t)
+  if (!record(value) || !keys(value, ['needs', 'tools', 'skill'])) throw new Error('Invalid research outcome')
+  const out: ResearchMissing = {}
+  if (value.needs !== undefined) {
+    if (!Array.isArray(value.needs) || value.needs.length > 8) throw new Error('Invalid research outcome')
+    out.needs = value.needs.map((n) => {
+      if (!record(n) || !keys(n, ['type', 'count']) || typeof n.type !== 'string' || !/^item\/[a-zA-Z0-9_/-]{1,150}$/.test(n.type) || typeof n.count !== 'number' || !Number.isSafeInteger(n.count) || n.count < 1 || n.count > 999) throw new Error('Invalid research outcome')
+      return { type: n.type, count: n.count }
+    })
+  }
+  if (value.tools !== undefined) {
+    if (!Array.isArray(value.tools) || value.tools.length > 8 || !value.tools.every(tag)) throw new Error('Invalid research outcome')
+    out.tools = value.tools as string[]
+  }
+  if (value.skill !== undefined) {
+    if (!tag(value.skill)) throw new Error('Invalid research outcome')
+    out.skill = value.skill as string
+  }
+  return out
 }
 
 /** Bound what a game reports before it reaches a craftsperson's memory. */
 export function readResearchOutcome(value: unknown): ResearchOutcome {
-  if (!record(value) || !keys(value, ['episode', 'result', 'problem']) || typeof value.episode !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(value.episode)) throw new Error('Invalid research outcome')
+  if (!record(value) || !keys(value, ['episode', 'result', 'problem', 'missing']) || typeof value.episode !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(value.episode)) throw new Error('Invalid research outcome')
   if (value.result !== 'made' && value.result !== 'refused' && value.result !== 'left') throw new Error('Invalid research outcome')
   if (value.problem !== undefined && (typeof value.problem !== 'string' || !/^[a-z]{1,24}$/.test(value.problem))) throw new Error('Invalid research outcome')
-  return { episode: value.episode, result: value.result, ...(value.problem !== undefined && { problem: value.problem as string }) }
+  return { episode: value.episode, result: value.result, ...(value.problem !== undefined && { problem: value.problem as string }), ...(value.missing !== undefined && { missing: readResearchMissing(value.missing) }) }
 }
 
 /** Bound even direct HTTP callers before their text reaches a model or is logged. */

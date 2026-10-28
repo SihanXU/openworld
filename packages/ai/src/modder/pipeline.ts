@@ -18,6 +18,7 @@ import {
   artProblems,
   PRIVATE_RULES,
   readResearchOutcome,
+  type ResearchMissing,
   readResearchRequest,
   type ResearchRequest,
   type ResearchReply,
@@ -423,7 +424,7 @@ export class Modder {
     if (!p) return { ok: false }
     this.proposed.delete(o.episode)
     const state = this.craftsperson(p.npc)
-    const ep: AgentEpisode = { ...p.ep, outcome: o.result === 'made' ? 'accepted' : 'failed', ...(o.result !== 'made' && { error: o.result === 'refused' ? `the game refused it (${o.problem ?? 'design'})` : 'the player left it' }) }
+    const ep: AgentEpisode = { ...p.ep, outcome: o.result === 'made' ? 'accepted' : 'failed', ...(o.result !== 'made' && { error: o.result === 'refused' ? `the game refused it (${o.problem ?? 'design'})${lackOf(o.missing)}` : 'the player left it' }) }
     state.recordEpisode(ep)
     state.noteSkillUse(ep.skillsRead, ep.outcome, ep.id)
     this.later(`reflect ${p.npc} ${ep.id}`, () => this.reflectCraft(p.npc, state, ep))
@@ -1710,4 +1711,13 @@ function privateNames(patch: Patch): Patch {
       text = text.split(`"${a.rule.id}"`).join(`"${to}"`).split(`"${a.rule.id}#`).join(`"${to}#`)
     }
   return JSON.parse(text) as Patch
+}
+
+/**
+ * What the player lacked when a trial was refused, for the craftsperson's reflection: without it, "needs" reads as
+ * a wrong recipe, and a smith who was never told of the missing hammer learns that logs make no shaft.
+ */
+export function lackOf(m?: ResearchMissing): string {
+  const parts = [...(m?.needs ?? []).map((n) => `${n.count} more ${n.type.split('/').pop()}`), ...(m?.tools ?? []).map((t) => `a ${t} carried (a tool, not an ingredient)`), ...(m?.skill ? [`the ${m.skill} skill`] : [])]
+  return parts.length ? `: the player lacked ${parts.join(', ')}; the recipe itself was not refused` : ''
 }
