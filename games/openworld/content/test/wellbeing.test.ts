@@ -144,3 +144,62 @@ describe('the goal: away, toward, an act', () => {
     expect(eng.world.num(eng.world.get('nell')!, 'hunger')).toBeGreaterThan(4)
   })
 })
+
+describe('what one cares for', () => {
+  function town(rows: string[][], people: ScenarioEntity[], cells: NonNullable<Parameters<typeof buildSandbox>[0]['cells']> = []): Engine {
+    const eng = buildSandbox({ terrain: rows, entities: [{ key: 'actor', type: 'actor/person/player', x: rows[0].length - 1, y: rows.length - 1 }, ...people], event: {}, cells }, onto, lib())
+    eng.author(() => {
+      for (const p of people) {
+        const e = eng.world.get(p.key)!
+        if (!e.type.startsWith('actor/person/')) continue
+        e.npc = { role: 'villager', schedule: [{ from: 0, to: 24, map: 'sandbox', x: p.x, y: p.y, activity: 'stand' }] }
+      }
+    })
+    return eng
+  }
+  const grass = (w: number, h: number) => Array.from({ length: h }, () => Array(w).fill('grass'))
+  const run = (eng: Engine, n: number, until: () => boolean) => {
+    for (let i = 0; i < n; i++) {
+      eng.tick()
+      if (until()) return true
+    }
+    return false
+  }
+
+  it("one's own crate on fire: an empty bucket filled at the water, and the fire put out; another's is not one's to see to", () => {
+    const rows = grass(8, 5)
+    rows[2][0] = 'water'
+    const eng = town(rows, [
+      { key: 'nell', type: 'actor/person/villager', x: 3, y: 2 },
+      { key: 'pail', type: 'item/vessel/bucket/empty', x: 3, y: 2, inside: 'nell' },
+      { key: 'crate', type: 'fixture/container/crate', x: 6, y: 2, statuses: ['burning'], props: { owner: 'nell', hp: 60, maxHp: 60 } },
+    ])
+    const w = eng.world
+    expect(eng.wellbeing.troublesFor(w.get('nell')!).map((t) => [t.subject, t.status, t.danger])).toContainEqual(['crate', 'burning', true])
+    // kept burning while she sees to it (a fire left alone burns out by itself)
+    eng.author(() => eng.applyStatus({ e: 'crate' }, 'burning', 600))
+    expect(run(eng, 500, () => !w.hasStatus({ e: 'crate' }, 'burning'))).toBe(true)
+    expect(w.get('crate')).toBeDefined()
+
+    const other = town(rows, [
+      { key: 'nell', type: 'actor/person/villager', x: 3, y: 2 },
+      { key: 'crate', type: 'fixture/container/crate', x: 6, y: 2, statuses: ['burning'], props: { owner: 'npc.someone' } },
+    ])
+    expect(other.wellbeing.troublesFor(other.world.get('nell')!).some((t) => t.subject === 'crate')).toBe(false)
+  })
+})
+
+describe('the circle one keeps', () => {
+  it('one\'s household and one\'s own things are cared for, a stranger and his things not', () => {
+    const eng = world([
+      { key: 'nell', type: 'actor/person/villager', x: 1, y: 1, props: { household: 'mill' } },
+      { key: 'odo', type: 'actor/person/farmer', x: 2, y: 1, props: { household: 'mill' } },
+      { key: 'ivo', type: 'actor/person/villager', x: 3, y: 1, props: { household: 'inn' } },
+      { key: 'box', type: 'fixture/container/crate', x: 1, y: 3, props: { owner: 'household:mill' } },
+      { key: 'his', type: 'fixture/container/crate', x: 2, y: 3, props: { owner: 'ivo' } },
+    ])
+    const w = eng.world
+    const care = (o: string) => eng.wellbeing.careFor(w.get('nell')!, w.get(o)!)
+    expect([care('odo'), care('ivo'), care('box') > 0, care('his')]).toEqual([0.8, 0, true, 0])
+  })
+})

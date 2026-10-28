@@ -20,7 +20,8 @@ export interface Delta {
   removes: Set<string>
   /** Health given (above 0) or taken (below), as near as the rules say (an amount read in the event). */
   hp: number
-  props: Record<string, number>
+  /** The props it moves, by how much (food fills hunger). */
+  moves: Record<string, number>
   /** It is destroyed or broken down. */
   gone: boolean
   /** It becomes another kind (an empty bucket filled). */
@@ -50,6 +51,12 @@ export const LOW_HP = 0.5
 const PULSE_REACH = 2
 /** How long a place's reading is kept (ticks). */
 const PLACE_TTL = 20
+/** How far round one minds what harms those one cares for (steps), and how much: one's people, one's things. */
+const CARE_REACH = 12
+const CARE_KIN = 0.8
+const CARE_OWN = 0.5
+/** How often what is harmed on the active map is read again (ticks). */
+const HARMED_EVERY = 10
 /** How often one reads the place one stands (ticks): a step onto another cell reads it at once. */
 const LOOK_EVERY = 15
 /** How far one looks for a better place (steps), and for how many cells at most. */
@@ -96,7 +103,7 @@ export interface Remedy {
   cost: number
 }
 
-const empty = (): Delta => ({ adds: new Set(), removes: new Set(), hp: 0, props: {}, gone: false, unknown: false })
+const empty = (): Delta => ({ adds: new Set(), removes: new Set(), hp: 0, moves: {}, gone: false, unknown: false })
 
 /** The other side of a relation (World.relationsOf): what the touched thing feels of the toucher. */
 const REVERSE: Record<string, string> = { on: 'under', 'in-region': 'encloses', support: 'supports' }
@@ -112,6 +119,7 @@ export class Wellbeing {
   private budget = 0
   private budgetAt = -1
   private memos = new Map<string, boolean | string>()
+  private harmedAt?: { map: string; at: number; list: Entity[] }
   private memoOf = -1
   /** When each next reads the place it stands, and what it read there last. */
   private lookedAt = new Map<Id, number>()
@@ -264,13 +272,13 @@ export class Wellbeing {
         }
         case 'addProp': {
           const d = eng.effects.amount(ev, eff.delta)
-          out.props[eff.key] = (out.props[eff.key] ?? 0) + d
+          out.moves[eff.key] = (out.moves[eff.key] ?? 0) + d
           break
         }
         default: {
           const r = eng.effectReads.get(eff.op)?.(eff)
           if (r?.hp) out.hp += r.hp
-          for (const [k, d] of Object.entries(r?.props ?? {})) out.props[k] = (out.props[k] ?? 0) + d
+          for (const [k, d] of Object.entries(r?.props ?? {})) out.moves[k] = (out.moves[k] ?? 0) + d
         }
       }
     }
@@ -317,7 +325,7 @@ export class Wellbeing {
     if (status === 'hp') return d.hp > 0
     if (d.removes.has(status)) return true
     const t = this.threshold(status)
-    return !!t && (d.props[t.prop] ?? 0) > 0
+    return !!t && (d.moves[t.prop] ?? 0) > 0
   }
 
   // ---------------------------------------------------------------- places
@@ -412,16 +420,17 @@ export class Wellbeing {
     return out
   }
 
-  /** What is wrong for a thing one cares for (no place of its own to leave: only what it bears, and health low). */
+  /** What harms a thing one cares for (nothing of its place: it is not one's to leave), weighed by the care. */
   troublesOf(subject: Entity, care: number): Trouble[] {
-    const w = this.eng.world
     const out: Trouble[] = []
-    for (const s of Object.keys(subject.statuses ?? {})) {
-      if (!this.harms(subject, s)) continue
-      out.push({ subject: subject.id, status: s, weight: HARM * care, danger: true })
-    }
-    void w
+    for (const s of Object.keys(subject.statuses ?? {})) if (this.harms(subject, s)) out.push({ subject: subject.id, status: s, weight: HARM * care, danger: true })
     return out
+  }
+
+  /** Would using this thing on oneself put right something one minds (a meal, a draught)? For one who would get it. */
+  wouldCure(e: Entity, item: Entity, t: Trouble): boolean {
+    const kind = (x: Entity) => `${x.type}|${Object.keys(x.statuses ?? {}).sort().join(',')}`
+    return this.memo(`use|${kind(e)}|${t.status}|${kind(item)}|true`, () => this.cures(this.outcome(this.eng.actEvent('use', e.id, { e: e.id }, { e: item.id }), e.id), t.status))
   }
 
   // ---------------------------------------------------------------- what to do about it
@@ -467,11 +476,45 @@ export class Wellbeing {
     return !danger && this.holdOff(e, active)
   }
 
-  /** What is wrong for one: about oneself, and (step 4) for those one cares for. */
+  /**
+   * What is wrong for one: about oneself, and what harms those one cares for (the circle one keeps: one's companions and
+   * leader, one's household, one's own and one's household's things) — a burning house is its people's danger.
+   */
   troublesFor(e: Entity): Trouble[] {
     // a day written for this weather says where one is in it: what its places bring is borne (but what harms)
     const authored = !!e.npc && dayForWeather(this.eng, e)
-    return this.troubles(e).filter((t) => !(authored && t.place && !t.danger))
+    const own = this.troubles(e).filter((t) => !(authored && t.place && !t.danger))
+    if (!e.npc || e.place.on !== 'tile') return own
+    const at = e.place
+    for (const o of this.harmed(at.map)) {
+      if (o.id === e.id || o.place.on !== 'tile' || Math.abs(o.place.x - at.x) + Math.abs(o.place.y - at.y) > CARE_REACH) continue
+      const care = this.careFor(e, o)
+      if (care > 0) own.push(...this.troublesOf(o, care))
+    }
+    return own
+  }
+
+  /** How much one cares for another thing (0: not at all): those one goes with and one's household, one's things and theirs. */
+  careFor(e: Entity, o: Entity): number {
+    const eng = this.eng
+    const w = eng.world
+    if (w.isAgent(o)) {
+      if (w.allied(e, o)) return CARE_KIN
+      const h = w.prop(e, 'household')
+      return h && h === w.prop(o, 'household') ? CARE_KIN : 0
+    }
+    const r = eng.society.relation(eng.ownerOf(o), e)
+    return r === 'mine' || r === 'ours' ? CARE_OWN : 0
+  }
+
+  /** What bears a status that harms it on a map now (a burning crate, a wall, a person on fire): read once a moment. */
+  private harmed(map: string): Entity[] {
+    const w = this.eng.world
+    const t = w.state.tick
+    if (this.harmedAt?.map === map && t - this.harmedAt.at < HARMED_EVERY) return this.harmedAt.list
+    const list = w.entitiesOnMap(map).filter((o) => o.statuses && Object.keys(o.statuses).some((s) => this.harms(o, s)))
+    this.harmedAt = { map, at: t, list }
+    return list
   }
 
   /**
@@ -695,7 +738,7 @@ export function merge(a: Delta, b: Delta): void {
   for (const s of b.adds) (a.adds.add(s), a.removes.delete(s))
   for (const s of b.removes) (a.removes.add(s), a.adds.delete(s))
   a.hp += b.hp
-  for (const [k, v] of Object.entries(b.props)) a.props[k] = (a.props[k] ?? 0) + v
+  for (const [k, v] of Object.entries(b.moves)) a.moves[k] = (a.moves[k] ?? 0) + v
   a.gone ||= b.gone
   a.becomes ??= b.becomes
   a.unknown ||= b.unknown
