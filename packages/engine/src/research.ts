@@ -17,6 +17,8 @@ export interface ResearchCatalogue {
   materials: string[]
   /** The stations within reach of the one who asks (`hands` is always one): where a new kind may be made. */
   stations?: string[]
+  /** Every kind an ordinary craft of the game makes, open to the player or not: no new kind is one's child. */
+  crafted?: string[]
   /** The prototypes' icons as the game draws them (the page has the pictures): a variant's icon is one of these, edited. */
   icons?: Record<string, PixelArt>
   /** Planning hints only; confirmation recomputes all costs from the current game. */
@@ -67,7 +69,7 @@ export interface ResearchRequest {
 export function readResearchRequest(value: unknown): ResearchRequest {
   if (!record(value) || !keys(value, ['npc', 'message', 'history', 'catalogue']) || !words(value.npc, 100) || !words(value.message, 1000)) throw new Error('Invalid research request')
   const c = value.catalogue
-  if (!record(c) || !keys(c, ['prototypes', 'materials', 'stations', 'icons', 'guidance'])) throw new Error('Invalid research catalogue')
+  if (!record(c) || !keys(c, ['prototypes', 'materials', 'stations', 'crafted', 'icons', 'guidance'])) throw new Error('Invalid research catalogue')
   const ids = (x: unknown): string[] => {
     if (!Array.isArray(x) || x.length > 80 || !x.every((s) => typeof s === 'string' && s.length <= 160 && /^item\/[a-zA-Z0-9_/-]+$/.test(s))) throw new Error('Invalid research catalogue entries')
     return [...new Set(x as string[])]
@@ -81,6 +83,10 @@ export function readResearchRequest(value: unknown): ResearchRequest {
   if (c.stations !== undefined) {
     if (!Array.isArray(c.stations) || c.stations.length > 40 || !c.stations.every((x) => words(x, 60))) throw new Error('Invalid research catalogue entries')
     catalogue.stations = [...new Set(c.stations as string[])]
+  }
+  if (c.crafted !== undefined) {
+    if (!Array.isArray(c.crafted) || c.crafted.length > 400 || !c.crafted.every((s) => typeof s === 'string' && s.length <= 160 && /^item\/[a-zA-Z0-9_/-]+$/.test(s))) throw new Error('Invalid research catalogue entries')
+    catalogue.crafted = [...new Set(c.crafted as string[])]
   }
   if (c.icons !== undefined) {
     if (!record(c.icons) || Object.keys(c.icons).length > 80) throw new Error('Invalid research catalogue entries')

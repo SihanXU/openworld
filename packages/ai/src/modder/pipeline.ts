@@ -360,13 +360,15 @@ export class Modder {
         const t = theirs(types)
         if (!t) return [`make it of what the player carries, at most: ${request.catalogue.materials.join(', ')}`]
         try {
-          newKindIn(index, { ...d, type: t }, inventionId({ ...d, type: t }, 'check'), authored, (k) => request.catalogue.prototypes.includes(k))
+          newKindIn(index, { ...d, type: t }, inventionId({ ...d, type: t }, 'check'), authored, (k) => (request.catalogue.crafted ?? request.catalogue.prototypes).includes(k))
           return []
         } catch (err) {
-          return [(err as Error).message]
+          return (err as Error).message.split('; ')
         }
       }
-      const made = await this.createThing({ intent: `${en(d.name)}: ${d.idea}`, had, stations: (request.catalogue.stations ?? []).filter((x) => x !== 'hands') }, bounds)
+      // the bounds said before they are met (each costs a round when found after): a player's craft, among its sort
+      const among = 'A player crafts it: give it only properties the things of its family already have, never more than theirs, and a makeup worth at least the least of its family.'
+      const made = await this.createThing({ intent: `${en(d.name)}: ${d.idea.slice(0, 250)} ${among}`, had, stations: (request.catalogue.stations ?? []).filter((x) => x !== 'hands') }, bounds)
       const type = theirs((made.patch?.artifacts ?? []).flatMap((a) => (a.kind === 'type' ? [a.type] : [])))
       if (!type) throw new Error(made.diagnostics.join('; ') || 'the new thing could not be worked out from what you carry')
       return { ...said, design: { ...d, type } }

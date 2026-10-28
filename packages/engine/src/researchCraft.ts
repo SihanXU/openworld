@@ -38,13 +38,14 @@ const price = (eng: Engine, type: string) => worth(eng.world.onto, type)
 const recipesOf = (eng: Engine, known: Iterable<Recipe> = []) => [...known, ...eng.recipes.values()]
 /** A base recipe is made of goods: materials, food, gems (a shop's offer, paid for in coin, is no craft). */
 const GOODS = /^item\/(material|food|gem)\//
+/** An ordinary craft: of goods, making the plain kind (a named set piece, with its own numbers, is none). */
+const ordinary = (r: Recipe) => r.needs.length > 0 && r.needs.every((n) => GOODS.test(n.type)) && !r.make.props && !r.make.tags && !r.bonus
 
 function reference(eng: Engine, type: string, known?: Iterable<Recipe>): Recipe | undefined {
   const w = eng.world
   if (!form.test(type) || eng.lib.types.some((t) => t.id === type) || !w.onto.data.types[type]) return
   if (!w.onto.resolve(type).tags.includes('portable')) return
-  return recipesOf(eng, known).find((r) => r.make.type === type && r.needs.length > 0 && r.needs.every((n) => GOODS.test(n.type)) &&
-    !r.make.props && !r.make.tags && !r.bonus &&
+  return recipesOf(eng, known).find((r) => r.make.type === type && ordinary(r) &&
     (!r.skill || w.hasTag(w.player, `skill:${r.skill}`)) &&
     (!r.unlockedBy || (w.story && w.num(w.story, r.unlockedBy.fact, 0) >= (r.unlockedBy.level ?? 1))) &&
     r.needs.every((n) => price(eng, n.type) > 0))
@@ -58,7 +59,9 @@ export function researchCatalogue(eng: Engine, known?: Iterable<Recipe>): Resear
     return e && !e.frozenBy && /^(item\/material|item\/food)\//.test(e.type) && price(eng, e.type) > 0 ? [e.type] : []
   }))].slice(0, 80)
   const prototypes = [...new Set(recipesOf(eng, known).map((r) => r.make.type))].filter((id) => reference(eng, id, known)).slice(0, 80)
-  return { materials, prototypes, stations: ['hands', ...w.stationsNear(w.player)], guidance: {
+  // every kind an ordinary craft makes, open to the player or not: a new kind is never one's child (it is made at that craft)
+  const crafted = [...new Set(recipesOf(eng, known).filter(ordinary).map((r) => r.make.type))].filter((t) => /^item\//.test(t)).slice(0, 400)
+  return { materials, prototypes, stations: ['hands', ...w.stationsNear(w.player)], crafted, guidance: {
     materials: materials.map((type) => ({ type, value: price(eng, type), available: eng.controls.count(type) })),
     prototypes: prototypes.map((type) => {
       const r = reference(eng, type, known)!
@@ -119,7 +122,7 @@ function variant(eng: Engine, design: VariantDesign, id: string, known?: Iterabl
  */
 function newKind(eng: Engine, design: NewDesign, id: string, known?: Iterable<Recipe>): TypeDef {
   const recipes = recipesOf(eng, known)
-  return newKindIn(eng.world.onto, design, id, (k) => !eng.lib.types.some((l) => l.id === k), (k) => recipes.some((r) => r.make.type === k && r.needs.length > 0 && r.needs.every((n) => GOODS.test(n.type))))
+  return newKindIn(eng.world.onto, design, id, (k) => !eng.lib.types.some((l) => l.id === k), (k) => recipes.some((r) => r.make.type === k && ordinary(r)))
 }
 
 /**
@@ -147,9 +150,11 @@ export function newKindIn(onto: OntologyIndex, design: NewDesign, id: string, au
   // what goes into it buys its numbers: none above the best of its family worth no more than that (a stick buys no dragon's bane)
   const cost = costIn(onto, t.makeup ?? [])
   const within = kin.filter((r) => typeof r.props.value === 'number' && r.props.value <= cost)
+  // every problem at once (a designer mends them in one round, not one a round)
+  const problems: [ResearchProblemCode, string][] = []
   if (!within.length) {
     const least = Math.min(...kin.map((r) => r.props.value).filter((v): v is number => typeof v === 'number'))
-    throw new ResearchProblem('cheap', `Nothing of its sort is made from so little (its makeup is worth ${cost}; the least of its sort is worth ${least})`)
+    problems.push(['cheap', `Nothing of its sort is made from so little (its makeup is worth ${cost}, the least of its sort ${least})`])
   }
   const most = (k: string) => Math.max(0, ...within.map((r) => r.props[k]).filter((x): x is number => typeof x === 'number'))
   const props: TypeDef['props'] = {}
@@ -163,14 +168,18 @@ export function newKindIn(onto: OntologyIndex, design: NewDesign, id: string, au
       continue
     }
     const seen = kin.map((r) => r.props[k]).filter((x) => x !== undefined)
-    if (!seen.length) throw new ResearchProblem('refused', `"${k}" is not something a ${family.split('/')[1]} has`)
+    if (!seen.length) {
+      problems.push(['refused', `"${k}" is not something a ${family.split('/')[1]} has`])
+      continue
+    }
     if (typeof v === 'number') props[k] = Math.min(v, most(k))
     else props[k] = v
   }
   const kinTags = new Set(kin.flatMap((r) => r.tags))
   const tags = (t.tags ?? []).filter((g) => kinTags.has(g))
   const tools = (tags: string[]) => tags.filter((g) => g.startsWith('tool:')).length
-  if (tools(tags) > Math.max(0, ...kin.map((r) => tools(r.tags)))) throw new ResearchProblem('refused', 'One thing is one tool')
+  if (tools(tags) > Math.max(0, ...kin.map((r) => tools(r.tags)))) problems.push(['refused', 'One thing is one tool'])
+  if (problems.length) throw new ResearchProblem(problems[0][0], problems.map(([, m]) => m).join('; '))
   props.value = Math.min(typeof t.props?.value === 'number' && t.props.value > 0 ? t.props.value : cost, cost)
   return {
     id, name: nameText(design.name), researched: true, makeup: t.makeup, station: t.station ?? 'hands',

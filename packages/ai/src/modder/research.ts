@@ -16,8 +16,9 @@ For a variant: use one to six distinct ingredients with counts 1–64. The FIRST
 /** No agent, tools, memory writes or library commit: a conversation can only return a proposal. */
 export async function researchConversation(model: Model, body: unknown): Promise<ResearchReply> {
   const request = readResearchRequest(body)
-  // the prototypes' icons are the artist's (a variant's icon is edited from one), not the conversation's: kilobytes of pixels it has no use for
-  const { icons: _icons, ...catalogue } = request.catalogue
+  // the prototypes' icons are the artist's (a variant's icon is edited from one) and the crafted kinds the designer's, not
+  // the conversation's: kilobytes it has no use for
+  const { icons: _icons, crafted: _crafted, ...catalogue } = request.catalogue
   const answer = await model.chat([
     { role: 'system', content: SYSTEM },
     { role: 'user', content: JSON.stringify({ ...request, catalogue }) },

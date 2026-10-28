@@ -17,9 +17,10 @@ describe('the NPC research model has no game authority', () => {
   })
   it('keeps the prototypes\' icons from the conversation: they are the artist\'s', async () => {
     const icon = { grid: Array.from({ length: 16 }, (_, y) => (y >= 5 && y < 11 ? '.....aaaaaa.....' : '................')), palette: { a: '#888888' } }
-    const body = { ...request(), catalogue: { ...request().catalogue, icons: { 'item/tool/hammer': icon } } }
+    const body = { ...request(), catalogue: { ...request().catalogue, icons: { 'item/tool/hammer': icon }, crafted: ['item/tool/hammer'] } }
     const model = new ScriptedModel(async (messages) => {
       expect(messages[1].content).not.toContain('icons')
+      expect(messages[1].content).not.toContain('crafted')
       expect(JSON.parse(String(messages[1].content)).catalogue).toEqual(request().catalogue)
       return { reply: 'A mallet, then.' }
     })

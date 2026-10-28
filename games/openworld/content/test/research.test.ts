@@ -217,6 +217,19 @@ describe('research in the actual game', () => {
     expect(() => trialResearch(eng, new ModPort(eng), newDesign({ id: 'item/weapon/blade/fake_bane', name: { en: 'Fake Bane', zh: '假屠龙' }, props: { power: 1, material: 'wood', relic: 'dragonsbane' }, makeup: [{ type: 'item/material/log', count: 10 }], station: 'hands' }), 'item/weapon/blade/invention_r')).toThrow(/relic/)
   })
 
+  it('says every problem of a new kind at once, so a designer mends them in one round', () => {
+    const { eng, port } = pantry()
+    const hat = newDesign({ id: 'item/clothing/hat/grass_hat', name: { en: 'Grass Hat', zh: '草帽' }, props: { material: 'plant', defense: 1, warmth: 2 }, makeup: [{ type: 'item/food/berries', count: 1 }], station: 'hands' })
+    let caught: ResearchProblem | undefined
+    try {
+      trialResearch(eng, port, hat, 'item/clothing/hat/invention_g')
+    } catch (err) {
+      caught = err as ResearchProblem
+    }
+    expect(caught?.code).toBe('cheap')
+    expect(caught?.message).toMatch(/so little.*"defense" is not.*"warmth" is not/)
+  })
+
   it('inherits nothing it has not bought: no child of a legend, and a parent\'s numbers held to what its makeup buys', () => {
     const smithy = () => buildSandbox({ entities: [
       { key: 'actor', type: 'actor/person/player', x: 2, y: 2 },
@@ -261,6 +274,11 @@ describe('research in the actual game', () => {
     // and a new kind of a thing the anvil makes is no way around the anvil: it is a variant of the dagger
     const around = { kind: 'new' as const, name: { en: 'Hand Dirk', zh: '手制短剑' }, idea: 'a dagger made by hand', type: { id: `${dagger}/hand_dirk`, name: { en: 'Hand Dirk', zh: '手制短剑' }, props: { material: 'steel' }, makeup: [{ type: 'item/material/steel_bar', count: 2 }], station: 'hands' } }
     expect(() => trialResearch(eng, new ModPort(eng), around, `${dagger}/invention_h`, RECIPES)).toThrow(/made at its own craft/)
+    // the service is told which kinds a craft makes (to hold its design to it), the robe not among them: its one recipe is a set piece
+    const crafted = researchCatalogue(eng, RECIPES).crafted ?? []
+    expect(crafted).toContain(dagger)
+    expect(crafted).not.toContain('item/clothing/robe')
+    expect(readResearchRequest({ npc: 'Garrick', message: 'x', history: [], catalogue: researchCatalogue(eng, RECIPES) }).catalogue.crafted).toEqual(crafted)
     const made = trialResearch(eng, new ModPort(eng), { kind: 'variant', name: { en: 'Steel Dirk', zh: '钢短剑' }, prototype: dagger, ingredients: [{ type: 'item/material/steel_bar', count: 2 }, { type: 'item/material/plank', count: 1 }] }, `${dagger}/invention_d`, RECIPES)
     expect(made.props?.material).toBe('steel')
     expect(eng.controls.count(made.id)).toBe(1)

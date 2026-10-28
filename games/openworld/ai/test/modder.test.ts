@@ -1429,7 +1429,7 @@ describe('a new thing an author asks for (the editor, M1)', () => {
     const { modder } = setup(model)
     const reply = await modder.research({ npc: 'Garrick', message: 'a blade', history: [], catalogue: { materials: ['item/material/stick', 'item/material/log'], prototypes: [], stations: ['hands'] } })
     expect(asked).toHaveLength(2)
-    expect(asked[1]).toMatch(/Nothing of its sort is made from so little.*the least of its sort is worth/)
+    expect(asked[1]).toMatch(/- Nothing of its sort is made from so little \(its makeup is worth \d+, the least of its sort \d+\)/)
     expect(reply.design).toMatchObject({ kind: 'new', type: { makeup: [{ type: 'item/material/log', count: 10 }] } })
   })
 
