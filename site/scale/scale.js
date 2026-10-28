@@ -13,20 +13,76 @@ const VIDEO = params.has('export') || params.has('video')
 const W = 1920, H = 1080, FPS = 30, LENGTH = 44, BEAT = 0.5
 
 const canvas = document.getElementById('c')
-const ctx = canvas.getContext('2d')
+let ctx = canvas.getContext('2d')
+/** The canvas's pixels for the film's 1920 x 1080: all of them for the video; on the page only as many as it is shown at
+ *  (a small frame need not draw full size), never under half. */
+let RES = 1
+function fitCanvas() {
+  if (VIDEO) return
+  RES = Math.max(0.5, Math.min(1, (innerWidth * Math.min(devicePixelRatio || 1, 1.5)) / W))
+  canvas.width = Math.round(W * RES); canvas.height = Math.round(H * RES)
+  layers.clear()
+}
+/** Layers drawn once and kept while what they show stands still (the maps settled at their last level, the crowd at a
+ *  step): thousands of small pictures drawn as one. A few canvases made once and drawn over again (none made and let go
+ *  as the film plays, which the browser would stop to clear away). */
+const layers = { slots: [], keys: [] }
+layers.clear = () => { layers.keys = [] }
+/** A slot's canvas, the size the film is drawn at. */
+function slotOf(slot) {
+  let l = layers.slots[slot]
+  if (!l || l.width !== canvas.width || l.height !== canvas.height) { l = layers.slots[slot] = document.createElement('canvas'); l.width = canvas.width; l.height = canvas.height; layers.keys[slot] = undefined }
+  return l
+}
+/** Draws into a slot's canvas (cleared first if asked) as the film draws. */
+function into(l, clear, draw) {
+  const main = ctx
+  ctx = l.getContext('2d'); ctx.setTransform(1, 0, 0, 1, 0, 0)
+  if (clear) ctx.clearRect(0, 0, l.width, l.height)
+  ctx.imageSmoothingEnabled = false; ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0)
+  try { draw() } finally { ctx = main }
+}
+/** An act's layers let go once it is over (their memory given back before the next act's pictures need it). */
+function release(...slots) {
+  for (const k of slots) { const l = layers.slots[k]; if (l) { l.width = l.height = 0; layers.slots[k] = undefined; layers.keys[k] = undefined; progress[k] = undefined } }
+}
+function cached(slot, key, draw) {
+  const l = slotOf(slot)
+  if (layers.keys[slot] !== key) { into(l, true, draw); layers.keys[slot] = key }
+  ctx.drawImage(l, 0, 0, W, H)
+}
+/** A layer made a part at a time: `part(i0, i1)` draws the things from i0 to i1 of n into it; `budget` of them a call.
+ *  Drawn when asked (finished first if it is not yet). */
+const progress = []
+function built(slot, key, n, part, budget, show) {
+  const l = slotOf(slot)
+  if (layers.keys[slot] !== key) {
+    if (progress[slot]?.key !== key) progress[slot] = { key, i: 0 }
+    const pr = progress[slot], to = Math.min(n, pr.i + (show ? Infinity : budget))
+    into(l, pr.i === 0, () => part(pr.i, to))
+    pr.i = to
+    if (to >= n) layers.keys[slot] = key
+  }
+  if (show) ctx.drawImage(l, 0, 0, W, H)
+}
+fitCanvas()
+addEventListener('resize', fitCanvas)
 ctx.imageSmoothingEnabled = false
 
 const load = (src) => new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(im); im.src = src })
+/** A picture loaded and decoded once, kept decoded (an ImageBitmap: never thrown away and decoded again as it is drawn). */
+const bitmap = async (src) => { const im = await load(src); try { return await createImageBitmap(im) } catch { return im } }
 const json = (src) => fetch(src).then((r) => r.json())
 const [mapsInfo, peopleInfo, facesInfo, itemsInfo, clipsInfo] = await Promise.all(['assets/maps.json', 'assets/people.json', 'assets/faces.json', 'assets/items.json', 'assets/clips/clips.json'].map(json))
-const [MAPS, BIG, PEOPLE, FACES, ITEMS, LEAD] = await Promise.all(['assets/maps.jpg', 'assets/big.jpg', 'assets/people.png', 'assets/faces.png', 'assets/items.png', 'assets/lead.png'].map(load))
+const [MAPS, BIG, PEOPLE, FACES, ITEMS, LEAD] = await Promise.all(['assets/maps.jpg', 'assets/big.jpg', 'assets/people.png', 'assets/faces.png', 'assets/items.png', 'assets/lead.png'].map(bitmap))
 /** The scenes in the order the mosaic takes them up (site/scale/clips.mjs): the first 64 a sheet each, the rest 32 to a
- *  sheet. The sheets load in that order, the first levels' before the deep ones'. */
+ *  sheet. The sheets load and are decoded in that order, the first levels' before the deep ones', from the start of
+ *  the film: all of them are ready long before the scenes come. */
 const CLIPS = clipsInfo.map((c) => ({ ...c, img: null }))
 const SHEETS = [...new Set(CLIPS.map((c) => c.sheet))]
 async function loadClips() {
   for (let i = 0; i < SHEETS.length; i += 8) {
-    await Promise.all(SHEETS.slice(i, i + 8).map(async (name) => { const im = await load(`assets/clips/${name}`); for (const c of CLIPS) if (c.sheet === name) c.img = im }))
+    await Promise.all(SHEETS.slice(i, i + 8).map(async (name) => { const im = await bitmap(`assets/clips/${name}`); for (const c of CLIPS) if (c.sheet === name) c.img = im }))
   }
 }
 
@@ -64,6 +120,20 @@ const FACE_PICK = (() => { const own = facesInfo.own ?? 0, out = []; for (let k 
 const faceAt = (k) => { const i = FACE_PICK[k % facesInfo.count]; return [(i % facesInfo.cols) * facesInfo.size, Math.floor(i / facesInfo.cols) * facesInfo.size, facesInfo.size, facesInfo.size] }
 const itemAt = (k) => { const n = itemsInfo.keys.length, i = ((k % n) + n) % n; return [(i % itemsInfo.cols) * itemsInfo.size, Math.floor(i / itemsInfo.cols) * itemsInfo.size, itemsInfo.size, itemsInfo.size] }
 const CRATE = Math.max(0, itemsInfo.keys.indexOf('item:crate'))
+/** Each item's picture turned to SPIN angles, drawn once: a thing in the storm is drawn from the one nearest its turn
+ *  (turning each with a transform of its own costs more than the drawing). */
+const SPIN = 16, SP = 48
+const SPUN = (() => {
+  const n = itemsInfo.keys.length, c = document.createElement('canvas')
+  c.width = SPIN * SP; c.height = n * SP
+  const x = c.getContext('2d')
+  x.imageSmoothingEnabled = false
+  for (let i = 0; i < n; i++) for (let a = 0; a < SPIN; a++) {
+    x.setTransform(1, 0, 0, 1, a * SP + SP / 2, i * SP + SP / 2); x.rotate((a / SPIN) * Math.PI * 2)
+    x.drawImage(ITEMS, ...itemAt(i), -16, -16, 32, 32)
+  }
+  return c
+})()
 
 // ------------------------------------------------------------------ splitting: a rectangle halved again and again
 
@@ -125,17 +195,34 @@ const shake = (t, t0) => (t > t0 && t < t0 + 0.35 ? Math.sin((t - t0) * 90) * 14
 const T = { mapsSplit: 2, mapsSlam: 8, people: 10, peopleSplit: 11, peopleSlam: 18, items: 20, open: 20.5, itemsSlam: 26, scenes: 28, scenesSplit: 29, scenesSlam: 36, title: 38 }
 const PEOPLE_N = 1654
 
+/** The pictures each act draws, each drawn once small a little before the act (under the background, a few a frame),
+ *  so the browser readies them for drawing before they are seen, not in the middle of a split; and only then, so what
+ *  it holds ready is what is about to be drawn. */
+const warmed = new Set()
+function warm(t) {
+  let n = 0
+  const soon = t < 7 ? [MAPS, BIG, LEAD] : t < 17 ? [PEOPLE, FACES] : t < 26 ? [SPUN] : CLIPS.map((c) => c.img)
+  for (const im of soon) {
+    if (!im || warmed.has(im) || n++ > 2) continue
+    ctx.drawImage(im, 0, 0, 2, 2)
+    warmed.add(im)
+  }
+}
+
 function film(t) {
-  ctx.setTransform(1, 0, 0, 1, 0, 0)
+  ctx.setTransform(RES, 0, 0, RES, 0, 0)
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'
-  ctx.fillStyle = '#0b0d12'; ctx.fillRect(0, 0, W, H)
+  warm(t)
+  if (t > T.people + 1) release(0, 5)
+  if (t > T.items + 1.3) release(1, 2, 3, 4, 6, 7, 8, 9)
+  ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H)
   const sh = shake(t, T.mapsSlam) + shake(t, T.peopleSlam) + shake(t, T.itemsSlam) + shake(t, T.scenesSlam)
-  ctx.setTransform(1, 0, 0, 1, sh, sh * 0.4)
+  ctx.setTransform(RES, 0, 0, RES, sh * RES, sh * 0.4 * RES)
   if (t < T.people + 0.8) drawMaps(t)
   if (t >= T.people && t < T.items + 1.2) drawPeople(t)
   if (t >= T.items - 0.2 && t < T.scenes + 0.8) drawItems(t)
   if (t >= T.scenes && t < T.title + 0.4) drawScenes(t)
-  ctx.setTransform(1, 0, 0, 1, 0, 0)
+  ctx.setTransform(RES, 0, 0, RES, 0, 0)
   if (t >= T.mapsSlam && t < T.people) slam(t, T.mapsSlam, '1,024', L('maps', '张地图'), L('59 hand-made, 965 across six regions', '59 张手工制作，965 张分布在六个地区'))
   if (t >= T.peopleSlam && t < T.items) slam(t, T.peopleSlam, '1,654', L('people', '个人'), L('in 780 households, each with a look and a day of their own', '分属 780 户人家，各有自己的样子和一天的安排'))
   if (t >= T.itemsSlam && t < T.scenes) slam(t, T.itemsSlam, '40,562', L('items', '件物品'), L('of 1,013 kinds, in materials, qualities, elements', '共 1,013 种，分材质、品质和元素'))
@@ -150,23 +237,49 @@ function tile(src, [sx, sy, sw, sh], r, a = 1, round = 6) {
   if (r.w < 0.5 || r.h < 0.5 || a <= 0.01) return
   // the picture cut to the tile's shape (its middle kept)
   const k = Math.max(r.w / sw, r.h / sh), cw = r.w / k, ch = r.h / k
-  ctx.save(); ctx.globalAlpha = a
-  ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, Math.min(round, r.w / 4, r.h / 4)); ctx.clip()
+  ctx.globalAlpha = a
   ctx.drawImage(src, sx + (sw - cw) / 2, sy + (sh - ch) / 2, cw, ch, r.x, r.y, r.w, r.h)
-  ctx.restore()
+  // its corners rounded: the background laid over each, outside its curve
+  const q = Math.min(round, r.w / 4, r.h / 4)
+  if (q >= 1.5) {
+    const c = cornerOf(q), n = c.width / 2
+    ctx.drawImage(c, 0, 0, n, n, r.x, r.y, q, q)
+    ctx.drawImage(c, n, 0, n, n, r.x + r.w - q, r.y, q, q)
+    ctx.drawImage(c, 0, n, n, n, r.x, r.y + r.h - q, q, q)
+    ctx.drawImage(c, n, n, n, n, r.x + r.w - q, r.y + r.h - q, q, q)
+  }
+  ctx.globalAlpha = 1
+}
+/** A rounded corner's four quarters: the film's background outside a circle, drawn once for each radius (half cells).
+ *  Laid over a tile's corners, never a rounded clip: hundreds of clips of their own a frame overrun the browser's store
+ *  of paths and stall it. */
+const BG = '#0b0d12'
+const corners = new Map()
+function cornerOf(q) {
+  const key = Math.round(q * 2)
+  if (!corners.has(key)) {
+    const n = key * 4, c = document.createElement('canvas')
+    c.width = c.height = n * 2
+    const x = c.getContext('2d')
+    x.fillStyle = BG; x.fillRect(0, 0, n * 2, n * 2)
+    x.globalCompositeOperation = 'destination-out'
+    x.beginPath(); x.arc(n, n, n, 0, Math.PI * 2); x.fill()
+    corners.set(key, c)
+  }
+  return corners.get(key)
 }
 const inset = (r, g) => ({ x: r.x + g, y: r.y + g, w: Math.max(0, r.w - 2 * g), h: Math.max(0, r.h - 2 * g) })
 /** A map's picture in a tile: the first map from its own whole picture once it is drawn large, the first ones from
  *  their larger squares while they are large, the rest from the atlas. */
 function mapTile(k, r, a = 1, round = 6) {
-  if (k === 0 && LEAD.naturalWidth && Math.max(r.w, r.h) > mapsInfo.size) {
+  if (k === 0 && LEAD.width && Math.max(r.w, r.h) > mapsInfo.size) {
     // the atlas's square is the village's square of twelve cells: the whole picture, cut to the tile's shape, once larger
-    const s = Math.min(LEAD.naturalWidth, LEAD.naturalHeight)
+    const s = Math.min(LEAD.width, LEAD.height)
     const wide = clamp((Math.max(r.w, r.h) / Math.min(r.w, r.h) - 1) / 0.5)
-    const cw = lerp(s, LEAD.naturalWidth, wide)
-    return tile(LEAD, [(LEAD.naturalWidth - cw) / 2, (LEAD.naturalHeight - s) / 2, cw, s], r, a, round)
+    const cw = lerp(s, LEAD.width, wide)
+    return tile(LEAD, [(LEAD.width - cw) / 2, (LEAD.height - s) / 2, cw, s], r, a, round)
   }
-  if (k < mapsInfo.big.count && BIG.naturalWidth && Math.max(r.w, r.h) > mapsInfo.size * 1.2) return tile(BIG, bigAt(k), r, a, round)
+  if (k < mapsInfo.big.count && BIG.width && Math.max(r.w, r.h) > mapsInfo.size * 1.2) return tile(BIG, bigAt(k), r, a, round)
   tile(MAPS, mapAt(k), r, a, round)
 }
 
@@ -182,6 +295,18 @@ function fall(r, t) {
 }
 
 function drawMaps(t) {
+  // the last level, before the camera falls: its picture drawn once and faded in over the level before (a thousand
+  // tiles each sliding out of its own is too much to draw thirty times a second, and too small to see)
+  const last = T.mapsSplit + (LEVELS - 1) * BEAT
+  if (t >= last && t <= T.people) {
+    const u = smooth((t - last) / 0.3)
+    if (u < 1) cached(5, 'maps:before', () => mapTiles(last - 0.18))
+    ctx.globalAlpha = u
+    cached(0, 'maps', () => mapTiles(last + 0.4))
+    ctx.globalAlpha = 1
+  } else mapTiles(t)
+}
+function mapTiles(t) {
   // the first map comes up out of the dark
   const pop = easeBack((t - 0.25) / 0.5)
   for (let i = 0; i < COUNT; i++) {
@@ -196,7 +321,7 @@ function drawMaps(t) {
     r = fall(r, t)
     if (r.x > W || r.y > H || r.x + r.w < 0 || r.y + r.h < 0) continue
     const g = Math.min(4, r.w * 0.04)
-    mapTile(k, inset(r, g), k === 0 ? 1 : 1 - fallen(t), s.level < 4 ? 14 : s.level < 8 ? 4 : 2)
+    mapTile(k, inset(r, g), k === 0 ? 1 : 1 - fallen(t), s.level < 4 ? 14 : s.level < 8 ? 4 : 0)
   }
 }
 
@@ -218,13 +343,38 @@ function drawPeople(t) {
   const prev = Math.min(PEOPLE_N, 1 << Math.max(0, level - 1))
   const u = easeBack((t - (T.peopleSplit + (level - 1) * BEAT)) / 0.3)
   const first = easeBack((t - (T.people + 0.5)) / 0.4)
-  for (let i = 0; i < n; i++) {
+  // the two largest crowds standing still, but for their steps: the same picture for each step of four, kept as a layer
+  // (four for each); a new level faded in over the last, and the last level going as one picture
+  const step = Math.floor(t * 8)
+  const size = (l) => Math.min(PEOPLE_N, 1 << l)
+  const slot = (l, st) => (l === 10 ? 1 : 6) + (st % 4)
+  const layer = (l, st = step, show = true) => (l < 10 ? crowd(t, l, size(l), 0, 1, 1, 0, st)
+    : built(slot(l, st), `crowd:${l}:${st % 4}`, size(l), (i0, i1) => crowd(t, l, size(l), 0, 1, 1, 0, st, i0, i1), 300, show))
+  // both made ahead from the 256's level on, a few hundred figures a frame
+  if (level >= 8 && level < 11 && away === 0) {
+    const want = [10, 11].flatMap((l) => [0, 1, 2, 3].map((k) => [l, k])).find(([l, k]) => l > level && layers.keys[slot(l, k)] !== `crowd:${l}:${k}`)
+    if (want) layer(want[0], want[1], false)
+  }
+  if (level >= 9) {
+    const m = ctx.getTransform(), z = 1 + 1.6 * away
+    if (away > 0) ctx.transform(z, 0, 0, z, (W / 2) * (1 - z), (H / 2) * (1 - z))
+    if (u < 1) layer(level - 1)
+    ctx.globalAlpha = (1 - away) * (u < 1 ? smooth(u) : 1)
+    layer(level)
+    ctx.globalAlpha = 1
+    ctx.setTransform(m)
+  } else crowd(t, level, n, prev, u, first, away, step)
+  drawPeopleFaces(t)
+}
+/** The crowd's figures: n of them at a level, stepping out of the last level's by u, going as the chest comes by away. */
+function crowd(t, level, n, prev, u, first, away, step, i0 = 0, i1 = n) {
+  for (let i = i0; i < Math.min(n, i1); i++) {
     const at = level === 0 ? { x: W / 2, y: H / 2 + 60, s: 9 * first } : crowdCell(n, i)
     let p = at
     if (level > 0 && u < 1) { const from = i < prev ? crowdCell(prev, i) : crowdCell(prev, i >> 1); p = { x: lerp(from.x, at.x, u), y: lerp(from.y, at.y, u), s: lerp(level === 1 ? 9 : from.s, at.s, u) } }
     if (level === 1 && u < 1 && i === 0) p = { x: lerp(W / 2, at.x, u), y: lerp(H / 2 + 60, at.y, u), s: lerp(9, at.s, u) }
     // walking in place toward us, each in their own step
-    const f = Math.floor(t * 8 + hash(i) * 4) % 4
+    const f = (step + Math.floor(hash(i) * 4)) % 4
     const [sx, sy, sw, shh] = personAt(Math.floor(hash(i * 3 + 1) * PEOPLE_N), f)
     const dx = Math.sin(t * 2 + i) * 0, w = sw * p.s, h = shh * p.s
     // they part and go as the chest comes
@@ -234,7 +384,9 @@ function drawPeople(t) {
     ctx.drawImage(PEOPLE, sx, sy, sw, shh, p.x - w / 2 + dx + ox, p.y - h / 2 + oy, w, h)
   }
   ctx.globalAlpha = 1
-  // faces: some of them, up close, a moment each
+}
+/** Faces: some of them, up close, a moment each. */
+function drawPeopleFaces(t) {
   for (let k = 0; k < 14; k++) {
     const t0 = T.peopleSplit + 3.0 + k * 0.25
     const a = smooth((t - t0) / 0.08) * (1 - smooth((t - t0 - 0.45) / 0.15))
@@ -291,9 +443,9 @@ function drawItems(t) {
     }
     if (y > H + 60 || x < -60 || x > W + 60) continue
     const s = p.s * Math.min(1, k * 6)
-    ctx.save(); ctx.translate(x, y); ctx.rotate(p.w * k)
-    ctx.drawImage(ITEMS, ...itemAt(p.icon), -12 * s, -12 * s, 24 * s, 24 * s)
-    ctx.restore()
+    // (its picture is drawn 32 to the 48 of its cell: the cell drawn at 1.5 times the thing)
+    const a = (((Math.round(((p.w * k) / (Math.PI * 2)) * SPIN) % SPIN) + SPIN) % SPIN), d = 36 * s
+    ctx.drawImage(SPUN, a * SP, p.icon * SP, SP, SP, x - d / 2, y - d / 2, d, d)
   }
   ctx.globalAlpha = 1
 }
@@ -336,11 +488,11 @@ function drawScenes(t) {
   const z = t < T.scenesSplit + (SPLITS - 2) * BAR ? 1 : pullBack(t)
   const step = SIDE >> level
   ctx.imageSmoothingEnabled = true
-  // the many at night and in the rain lifted a little, so the mosaic reads as the bright world it is
-  ctx.filter = 'brightness(1.18) saturate(1.2)'
+  // (the many at night and in the rain are lifted a little in their sheets, so the mosaic reads as the bright world it
+  // is: clips.mjs)
   for (let r = 0; r < SIDE; r += step) for (let c = 0; c < SIDE; c += step) {
     const k = SCENE_OF[r * SIDE + c], clip = CLIPS[k]
-    if (!clip?.img?.naturalWidth) continue
+    if (!clip?.img?.width) continue
     let rect = windowAt(level, r, c)
     if (level === 0) { const e = easeBack((t - T.scenes) / 0.4); rect = { x: W / 2 - (FRAME.w * e) / 2, y: H / 2 - (FRAME.h * e) / 2, w: FRAME.w * e, h: FRAME.h * e } }
     else if (u < 1) {
@@ -351,10 +503,9 @@ function drawScenes(t) {
     if (z !== 1) rect = { x: W / 2 + (rect.x - W / 2) * z, y: H / 2 + (rect.y - H / 2) * z, w: rect.w * z, h: rect.h * z }
     if (rect.x > W || rect.y > H || rect.x + rect.w < 0 || rect.y + rect.h < 0) continue
     const g = Math.min(5, rect.w * 0.03)
-    tile(clip.img, sceneFrame(clip, t, k), inset(rect, g), clamp(fade) * (bornAt(r, c) === level && level > 0 ? smooth(u * 3) : 1), level < 2 ? 14 : level < 4 ? 6 : 2)
+    tile(clip.img, sceneFrame(clip, t, k), inset(rect, g), clamp(fade) * (bornAt(r, c) === level && level > 0 ? smooth(u * 3) : 1), level < 2 ? 14 : level < 4 ? 6 : 0)
   }
   ctx.imageSmoothingEnabled = false
-  ctx.filter = 'none'
 }
 
 function drawTitle(t) {
