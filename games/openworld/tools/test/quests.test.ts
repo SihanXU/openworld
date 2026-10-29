@@ -61,6 +61,7 @@ const ticks = (eng: Engine, n: number) => {
   }
 }
 /** The story begins a quest (as a rule of its would): its outcome. */
+const xy = (p: { x: number; y: number }) => ({ x: p.x, y: p.y })
 const begin = (eng: Engine, id: string) => eng.script([{ op: 'startQuest', id }], { actor: { e: 'player' } }, 'test')
 
 describe('a quest makes what it is about, and keeps the people it names', () => {
@@ -133,6 +134,32 @@ describe('the journal follows one quest', () => {
     expect(mouth.map).toBe('hollow')
     // the hollow's `mouth` area: [22, 22, 11, 6]
     expect(mouth.x >= 22 && mouth.x < 33 && mouth.y >= 22 && mouth.y < 28, `${mouth.x},${mouth.y}`).toBe(true)
+  })
+
+  it('points at a whole map from elsewhere, and on it at the nearest of what is to be felled there, else at nothing', () => {
+    const { eng } = world()
+    const w = eng.world
+    begin(eng, 'herd')
+    ticks(eng, 2)
+    eng.controls.track('quest.herd')
+    // from the village: the grassland, and the way off the village toward it
+    expect(eng.quests.targets().filter((t) => !t.way).map((t) => t.map)).toEqual(['pasture'])
+    expect(eng.quests.targets().filter((t) => t.way).map((t) => t.map)).toEqual(['meadow'])
+    // on the grassland by day: no dead walk it, and its middle has nothing to show
+    eng.author(() => eng.teleport(w.player, { map: 'pasture', x: 23, y: 20 }))
+    ticks(eng, 1)
+    expect(eng.quests.targets()).toEqual([])
+    // nor does a companion lead the way to it
+    expect(eng.quests.lead()).toBeUndefined()
+    // the dead come up: the nearest is marked, where it stands
+    const [near, far] = eng.author(() => [
+      w.create('actor/creature/undead/skeleton', { on: 'tile', map: 'pasture', x: 26, y: 24 }),
+      w.create('actor/creature/undead/zombie', { on: 'tile', map: 'pasture', x: 6, y: 27 }),
+    ])
+    expect(eng.quests.targets()).toEqual([expect.objectContaining({ map: 'pasture', ...xy(w.posOf(near)!) })])
+    // put down, the next one
+    eng.author(() => w.destroy(near))
+    expect(eng.quests.targets()).toEqual([expect.objectContaining({ map: 'pasture', ...xy(w.posOf(far)!) })])
   })
 
   it('tracks the latest main quest by default, the one chosen after; the markers and the companion follow it', () => {

@@ -122,5 +122,8 @@ describe('original skill illustrations', () => {
     const css = readFileSync(fileURLToPath(new URL('../../../../packages/runtime/src/ui/game.css', import.meta.url)), 'utf8')
     expect(css).not.toMatch(/\.sk-node\.(?:locked|waiting)[^{]*\{[^}]*grayscale/)
     expect(css).not.toContain('.sk-art.no-png svg')
+    // the page as it is drawn now (skilltree.css): a node's state is its frame and a lock, never its picture greyed
+    const page = readFileSync(fileURLToPath(new URL('../../../../packages/runtime/src/ui/skilltree.css', import.meta.url)), 'utf8')
+    expect(page).not.toMatch(/\.sk-node\.(?:locked|waiting)[^{]*\{[^}]*(?:grayscale|opacity)/)
   })
 })

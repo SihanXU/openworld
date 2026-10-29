@@ -78,7 +78,7 @@ export function villageTown(m: MapBuilder): void {
   for (const [x, y] of [[45, 20], [56, 16]] as const) m.fixture('fixture/light/lamppost', x, y, { id: `village.lamp.${x}`, statuses: { lit: -1 } })
   // the way in from the Ford: the village's green banners either side of the road, and its name
   for (const [x, y] of [[57, 16], [57, 21]] as const) m.scenery('banner_green', x, y)
-  m.fixture('fixture/sign', 55, 21, { id: 'village.gate.sign', props: { text: 'FIRSTLIGHT VILLAGE. West, the square and the chapel; the Ford behind you.', text_zh: '初原村。往西是广场和礼拜堂；身后是渡口。' } })
+  m.fixture('fixture/sign', 55, 21, { id: 'village.gate.sign', props: { text: 'FIRSTLIGHT VILLAGE. West, the square and the chapel; Vesper Ford behind you.', text_zh: '初原村。往西是广场和礼拜堂；身后是晚祷渡。' } })
 }
 
 /** The cells the village keeps open whatever is piled about: the square, the roads' crowns, every door's step. */

@@ -6,8 +6,9 @@ import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE } from '@o
 // the engine's official modules this game uses (docs/engine-split.md S3): loading them registers them
 import '@openworld/modules'
 import { LOOK_TABLE } from './looks.ts'
-import { ELEMENT_NAMES, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
+import { ELEMENT_NAMES, FORMS, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
 import { GEAR_LEVELS } from './gear.ts'
+import { MADE_QUALITY, valueOf } from './prices.ts'
 import { GEAR_SETS } from './sets.ts'
 import { AFFIX_TABLE, LOOT, TROPHY_OF, TROPHY_SETS } from './trophies.ts'
 import { PILGRIMAGE_TYPES } from './pilgrimage.ts'
@@ -726,6 +727,8 @@ export const MODULES = ['classes', 'waypoints', 'boons', 'needs', 'society', 'lo
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
   for (const t of [...actorTypes, ...fixtureTypes, ...PILGRIMAGE_TYPES, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES, ...SOCIAL_TYPES, ...KIT_TYPES]) types[t.id] = t
+  // what every item is worth: the world's price for what is not made, what it took for what is (prices.ts, docs/economy.md)
+  for (const f of FORMS) types[f.id] = { ...types[f.id], props: { ...types[f.id].props, value: valueOf(f.id) } }
   // each kind of monster with its own piece (trophies.ts): what it is and how often a felling gives it (rules.ts combat/defeat)
   for (const [kind, t] of Object.entries(TROPHY_OF)) types[kind] = { ...types[kind], props: { ...types[kind].props, trophy: t.type, trophyChance: t.chance } }
   // what each kind of monster is made of, so a felling leaves it (drops.ts; rules.ts combat/defeat breaks it down)
@@ -787,7 +790,7 @@ export function buildOntology(): Ontology {
     // Lumi leading the way when the player stands idle (leading.ts)
     guide: LEADING,
     efficiency: EFFICIENCY,
-    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 }, nightFact: 'night.shift', gearLevels: GEAR_LEVELS, restyle: { coin: 10, needs: [{ type: 'item/material/flower', count: 3 }] } },
+    params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 }, nightFact: 'night.shift', gearLevels: GEAR_LEVELS, made: { quality: MADE_QUALITY }, restyle: { coin: 10, needs: [{ type: 'item/material/flower', count: 3 }] } },
     // what makes a room what it is: a bed a bedroom (a night there gives everything back), a cooking fire a
     // kitchen, a workbench or forge a workshop, three chests and more a storeroom (world-model.md §5.4)
     roomRoles: [

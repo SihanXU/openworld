@@ -229,6 +229,23 @@
               ],
               "additionalProperties": false,
               "description": "Gear's levels (world-model.md §6.8, 2026-10-13): a piece of gear has a `level` from 1 to `max`; each level above the first adds `perLevel` to the factor on its main stats (power, defence, attack: ×(1 + perLevel·(level − 1)); its shares — a crit chance, a dodge — half as much), and `affixPerLevel` to the factor on what its rolled extras may reach; `affixCount` is how many extras a piece of each quality rolls (a quality not named: the table's count)."
+            },
+            "made": {
+              "type": "object",
+              "properties": {
+                "quality": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "description": "What a made thing may be worth (docs/economy.md): what its kind is worth, of the material it is made of, as a common piece of the first level — times its quality's share (`quality`: by the quality's id; one not named, 1). A made thing its maker's level and hand would make dearer is worth that (its `worth` prop, fixed as it is made): the world's standard prices hold however well one makes a thing. Absent: no bound."
+            },
+            "run": {
+              "type": "number",
+              "description": "How many times as quick the player's steps are running (the run key held) as walking: 1.5 when absent."
             }
           },
           "additionalProperties": false,

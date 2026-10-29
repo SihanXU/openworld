@@ -32,6 +32,7 @@ let index: WorldIndex
 let game: Game | undefined
 let moveDir: Dir | null = null
 let walk = false
+let run = false
 /** Space is held: the player strikes whenever the last blow's cooldown allows. */
 let attacking = false
 /** The left button is held: the act its press made, made again at the aim as a swing's pace allows (Controls.again). */
@@ -608,7 +609,7 @@ function loop(): void {
   if (batchBusy() && t0 < nextTransferFrame) return
   const stopped = timeStopped(game)
   if (!stopped) {
-    if (moveDir) eng.movePlayer(moveDir, walk)
+    if (moveDir) eng.movePlayer(moveDir, walk, run)
     // a line in the water is the player at work: a companion does not lead them off
     if (fishingActive(eng)) (attacking = false), (swinging = undefined), eng.companions.stir()
     else {
@@ -875,8 +876,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'move':
         moveDir = m.dir
         walk = !!m.walk
+        run = !!m.run
         if (m.dir && game && !timeStopped(game)) cancelFishing(game)
-        if (m.dir && !paused && !panel && !game?.engine.world.state.question) game?.engine.movePlayer(m.dir, walk) // a quick tap still moves one tile
+        if (m.dir && !paused && !panel && !game?.engine.world.state.question) game?.engine.movePlayer(m.dir, walk, run) // a quick tap still moves one tile
         break
       case 'primary': {
         if (!m.on) {

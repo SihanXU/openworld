@@ -105,8 +105,9 @@ export const LIFE_RECIPES: Recipe[] = [
   leather('item/armor/helmet', 2),
   leather('item/armor/pauldrons', 2),
   leather('item/armor/breastplate', 4),
-  // the workshop, better tooled (haven.ts workshop2): candles of honeycomb wax (a jar of honey, a wick of grass), a lantern of iron round a torch
-  { id: 'craft/candle', name: formName('item/light/candle'), sprite: sprite('item/light/candle'), needs: needs([M.honey, 1], [M.grass, 1]), make: { type: 'item/light/candle' }, station: 'hands', count: 2 },
+  // the workshop, better tooled (haven.ts workshop2): candles of honeycomb wax (a jar of honey's comb makes six, a wick
+  // of grass), a lantern of iron round a torch
+  { id: 'craft/candle', name: formName('item/light/candle'), sprite: sprite('item/light/candle'), needs: needs([M.honey, 1], [M.grass, 1]), make: { type: 'item/light/candle' }, station: 'hands', count: 6 },
   { id: 'craft/lantern', name: formName('item/light/lantern'), sprite: sprite('item/light/lantern'), needs: needs([INGOTS.iron, 1], ['item/light/torch', 1]), make: { type: 'item/light/lantern' }, station: 'hands' },
   // the ranch: feed from wheat (a feed-maker's hands make more of it), a bee box (Apiarist; once the Held Ground's workshop is Workshop II)
   { id: 'ranch/feed', name: formName(M.feed), sprite: sprite(M.feed), needs: needs([M.wheat, 2]), make: { type: M.feed, name: formName(M.feed) }, station: 'hands', count: 3, bonus: 'feedMaking' },
@@ -115,19 +116,6 @@ export const LIFE_RECIPES: Recipe[] = [
   { id: 'farm/compost', name: formName(M.fertilizer), sprite: sprite(M.fertilizer), needs: needs([M.grass, 3], [M.ash, 1]), make: { type: M.fertilizer, name: formName(M.fertilizer) }, station: 'hands', skill: 'composter' },
 ]
 
-/** What the stall buys that it did not: ore and coal (an ore merchant gets more), and the ranch's goods (a rancher gets more). */
-const sell = (type: string, price: number, bonus: string): Recipe => ({
-  id: `shop/sell/${type.split('/').slice(1).join('-')}`, group: 'sell', name: formName(type), sprite: sprite(type), needs: needs([type, 1]), make: { type: 'item/misc/thornmark' }, station: 'stall', count: price, bonus,
-})
-export const LIFE_SELLS: Recipe[] = [
-  sell(M.ironOre, 4, 'sell:smith'),
-  sell(M.goldOre, 12, 'sell:smith'),
-  sell(M.coal, 2, 'sell:smith'),
-  sell(M.leather, 8, 'sell:ranch'),
-  sell('item/material/feather', 1, 'sell:ranch'),
-  sell(M.honey, 10, 'sell:ranch'),
-  sell('item/food/cheese', 14, 'sell:ranch'),
-]
 
 // ---------------------------------------------------------------- rules: what the new content does
 

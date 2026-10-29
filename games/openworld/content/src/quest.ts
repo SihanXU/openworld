@@ -87,7 +87,7 @@ export const QUEST_RULES: Rule[] = [
   }),
   // ---------------------------------------------------------------- the herbalist: fireweed and frostcap, two draughts
   turnIn('herbalist-fireweed', ASKS.fireweed, ['Fireweed! The books say it only grows where there\'s been a fire.', '火焰草！书上说，它只长在着过火的地方。'], ['That\'s enough fireweed.', '火焰草够了。']),
-  turnIn('herbalist-frostcap', ASKS.frostcap, ['Frostcap, from the shady side of the forest. Good.', '霜盖菇，森林背阴那边长的。很好。'], ['That\'s enough frostcap.', '霜盖菇够了。']),
+  turnIn('herbalist-frostcap', ASKS.frostcap, ['Frostcap, from the shady side of Hushwood. Good.', '霜盖菇，噤声林背阴那边长的。很好。'], ['That\'s enough frostcap.', '霜盖菇够了。']),
   story({
     id: 'mq/herbalist-brew',
     label: L('Talk to {target}', '和{target}说话'),

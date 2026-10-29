@@ -10,6 +10,7 @@ import { hexRgb, installWorldFilter, signalCamera } from './worldfilter.ts'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
 import { faceFrame, personLook } from '../assets/looks.ts'
 import { crowdLook, figureDef, figureId, portraitOf, preparePortrait } from '../assets/figure/index.ts'
+import { RUN_ROW } from '../assets/figure/sprite.ts'
 import { GroundAtlas, T, groundBeneath, groundTile, hash2, objectAt } from '../assets/ground.ts'
 import { SLATE, paintRelief } from '../assets/relief.ts'
 /** What a room's frame is drawn over: its walls (a door or a doorway through them is left open). */
@@ -49,6 +50,10 @@ interface EView {
   glow?: Phaser.GameObjects.Image
   key: string
   movingUntil: number
+  /** The run's frame last shown (the player running), so a foot landing kicks up dust once. */
+  runRow?: number
+  /** How far the player's figure has gone (tiles, walk): the run's frames go by the ground covered, not the clock. */
+  stride?: number
   phase: number
   /** Drawn in a wind-up's pose this moment (windupPose): set back when it ends. */
   posed?: boolean
@@ -132,6 +137,8 @@ const OVERLAY_FX: [string, string][] = [
 /** The overlay each of the base statuses names (ontology.ts), for a cell whose snapshot names none. */
 const CELL_OVERLAY: Record<string, string> = { burning: 'fire', frozen: 'ice', electrified: 'spark', wet: 'wet', oiled: 'oil', lit: 'flame' }
 // The engine's DIRS, kept here so the main thread does not bundle the engine.
+/** The ground a run's four frames take (tiles): two strides, each foot landing once — as calm as the walk's frames. */
+const RUN_CYCLE = 3.2
 const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }
 
 /** The ground a stocked pond's fish shadows swim in. */
@@ -726,6 +733,8 @@ export class WorldScene extends Phaser.Scene {
     }
     for (const [id, v] of this.views) if (!seen.has(id)) (this.destroyView(v), this.views.delete(id))
     this.drawQuestMarks(f)
+    // (placed again every animation frame, as the camera glides: update)
+    this.questFrame = f
     this.drawQuestArrows(f)
     this.guideAt = f.guide
     const me = this.views.get(this.playerId)
@@ -818,6 +827,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private arrows?: HTMLElement
+  /** The last frame's quest targets, for the markers placed again as the camera moves (update). */
+  private questFrame?: Frame
   /**
    * The tracked quest's markers on this map (docs/quests.md §2.5): a diamond over a target in view, and an arrow
    * at the screen's edge pointing to one out of it (the options turn them off).
@@ -926,6 +937,8 @@ export class WorldScene extends Phaser.Scene {
   private movedAt = -1e9
   /** Set by main.ts: a key walks the player. */
   walking: () => boolean = () => false
+  /** Set by main.ts: the run key is held as a key walks the player (their figure runs). */
+  running: () => boolean = () => false
   /** The player has stopped a moment: the tip comes over the frame (ui/cursor.ts). */
   settled(): boolean {
     return this.time.now - this.movedAt >= 120
@@ -1656,7 +1669,9 @@ export class WorldScene extends Phaser.Scene {
         if (e.id === this.playerId) {
           // the player is not tweened step by step: walk() chases the tile at the walking pace
           v.walker = { x: px, y: py, t: v.walker?.t ?? now }
-          v.movingUntil = now + this.stepAvg
+          // (a little past the pace: a run's steps come unevenly in a world of ten ticks a second — one tick, one, two —
+          // and its figure keeps its stride across the long one rather than stand for a frame)
+          v.movingUntil = now + this.stepAvg + 90
         } else {
           const dur = e.tags.includes('companion') ? 110 : e.tags.includes('agent') && (e.look || e.tags.includes('person')) ? 380 : 330
           this.tweens.add({ targets: v.root, x: px, y: py, duration: dur, ease: 'Linear' })
@@ -1813,6 +1828,18 @@ export class WorldScene extends Phaser.Scene {
    * cadence); stepping a tween per step made it stop and lurch, this keeps it moving evenly and
    * never more than about a tile and a half behind.
    */
+  /** A foot landing at a run: a mote or two of dust at the heel, drifting back and up as it fades. */
+  private kickDust(v: EView, facing: string): void {
+    const [dx, dy] = STEP[facing as keyof typeof STEP] ?? [0, 1]
+    const n = 1 + Math.floor(Math.random() * 2)
+    for (let i = 0; i < n; i++) {
+      const x = v.root.x - dx * 4 + (Math.random() - 0.5) * 6
+      const y = v.root.y - dy * 2 - 1 + (Math.random() - 0.5) * 2
+      const mote = this.add.rectangle(x, y, 2, 2, 0xd9c8a4, 0.5).setDepth(v.root.depth - 1)
+      this.tweens.add({ targets: mote, x: x - dx * (3 + Math.random() * 3), y: y - 2 - Math.random() * 3, alpha: 0, scale: 1.6, duration: 320 + Math.random() * 120, ease: 'Quad.easeOut', onComplete: () => mote.destroy() })
+    }
+  }
+
   private walk(v: EView, time: number): void {
     const w = v.walker!
     const dt = Math.min(100, time - w.t)
@@ -1825,6 +1852,7 @@ export class WorldScene extends Phaser.Scene {
     const step = Math.min(lag, speed * dt)
     v.root.x += (dx / lag) * step
     v.root.y += (dy / lag) * step
+    v.stride = ((v.stride ?? 0) + step) % RUN_CYCLE
   }
 
   /**
@@ -1897,7 +1925,12 @@ export class WorldScene extends Phaser.Scene {
         const walkRows = Math.min(4, v.actor.rows)
         // working something out (an act the world is learning): busy hands in place, a little bob
         const working = e.frozen && !e.statuses.includes('down')
-        const row = moving ? Math.floor((time + v.phase) / 130) % walkRows : working ? Math.floor(time / 110) % walkRows : e.look || e.tags.includes('person') ? (v.actor.idleRow ?? 0) : Math.floor((time + v.phase) / 260) % walkRows
+        // the player running: the sheet's run (a look's figure has one), a frame for so much ground covered, a little
+        // dust as a foot lands
+        const run = moving && e.id === this.playerId && this.running() && v.actor.rows >= RUN_ROW + 4
+        const row = run ? RUN_ROW + (Math.floor(((v.stride ?? 0) / RUN_CYCLE) * 4) % 4) : moving ? Math.floor((time + v.phase) / 130) % walkRows : working ? Math.floor(time / 110) % walkRows : e.look || e.tags.includes('person') ? (v.actor.idleRow ?? 0) : Math.floor((time + v.phase) / 260) % walkRows
+        if (run && row !== v.runRow && (row - RUN_ROW) % 2 === 0) this.kickDust(v, e.facing)
+        v.runRow = run ? row : undefined
         v.body.setFrame(`${v.actor.key}:${col},${row}`)
         v.body.y = (working ? -Math.abs(Math.sin(time / 95)) * 1.5 : 0) + (v.poseDy ?? 0)
       }
@@ -1912,6 +1945,8 @@ export class WorldScene extends Phaser.Scene {
     if (this.walking() || (me?.walker && Math.hypot(me.root.x - me.walker.x, me.root.y - me.walker.y) > 0.05)) this.movedAt = time
     // the frame of the spot the inputs act on, after the player has moved this frame
     this.tickFocus(time)
+    // the quest's markers where the camera is now, not where it was at the last frame from the worker
+    if (this.questFrame) this.drawQuestArrows(this.questFrame)
   }
 
   /**
@@ -2018,6 +2053,13 @@ export class WorldScene extends Phaser.Scene {
     const look = e && this.lookRecord(e)
     // with what its statuses show (wet, burning, frozen…), as the sprite on the map shows them
     return look ? portraitOf(look, mood, e.overlays) : undefined
+  }
+
+  /** The whole figure of a look's portrait (the character sheet's), as its statuses show it; none while its layers come. */
+  figureOf(id: string, mood?: Mood): HTMLCanvasElement | undefined {
+    const e = this.views.get(id)?.snap
+    const look = e && this.lookRecord(e)
+    return look ? portraitOf(look, mood, e.overlays, 'full') : undefined
   }
 
   /** An actor's portrait for a mood (the plain faceset when its face has no such mood). */

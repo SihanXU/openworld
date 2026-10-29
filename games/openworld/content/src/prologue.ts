@@ -128,7 +128,7 @@ export const PROLOGUE_BEATS: StepDef[] = [
   {
     id: 'tut_out',
     when: { map: 'foot', quest: { awakening: TUTORIAL_DONE * 10 } },
-    say: L('The foot of the mountain! See the old stone in the flowers down there?', '到山脚了！你看，下面花丛里有块旧石头。'),
+    say: L('The foot of the mountain! See the old stone in the flowers down there?', '到伤石山麓了！你看，下面花丛里有块旧石头。'),
   },
   {
     // a new game: one comes round on Cloudtop (the tutorial run has its own line)
@@ -151,12 +151,12 @@ export const PROLOGUE_BEATS: StepDef[] = [
     id: 'tried',
     // after the stone was seen: an experiment anywhere before it is not the stone's lesson
     when: { after: 'relic', facts: { 'world.experiments': { gte: 1 } }, quest: { descent: { lt: 30 } } },
-    say: L('Did you see that? It answered! Whatever the world learns is kept in the Threadbook: {key:journal}. Come on, down to the Ford!', '你看到了吗？它回应了！世界学会的东西都记在织线簿里，按 {key:journal} 就能看。走吧，下山去渡口！'),
+    say: L('Did you see that? It answered! Whatever the world learns is kept in the Threadbook: {key:journal}. Come on, down to Vesper Ford!', '你看到了吗？它回应了！世界学会的东西都记在织线簿里，按 {key:journal} 就能看。走吧，下山去晚祷渡！'),
   },
   {
     // however they got here, the Ford ends the prologue
     id: 'ford',
     when: { map: 'ford', quest: { descent: { lt: 40 } } },
-    say: L("That's the Ford! Someone down there looks like they need help.", '是渡口！下面那个人好像遇到麻烦了。'),
+    say: L("That's Vesper Ford! Someone down there looks like they need help.", '是晚祷渡！下面那个人好像遇到麻烦了。'),
   },
 ]

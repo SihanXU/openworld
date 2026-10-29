@@ -43,7 +43,7 @@ export const EAST_ROAD = { w: 48, h: 24, west: [11, 12, 13], east: [10, 11, 12],
 export const EAST_FARM = { house: [24, 5] as const, barn: [17, 5] as const }
 
 export function buildEastRoad(): MapBuilder {
-  const m = new MapBuilder('eastroad', L('The East Road', '东大路'), 'wild', EAST_ROAD.w, EAST_ROAD.h, 'grass', 'field', 'outdoor', 'frostfang')
+  const m = new MapBuilder('eastroad', L('The Sunrise Road', '朝阳大道'), 'wild', EAST_ROAD.w, EAST_ROAD.h, 'grass', 'field', 'outdoor', 'frostfang')
   m.gearLevel = 4
   // meadow gone rank, dry where the noise swells; the knight's field a wide sweep of dry grass
   for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (noise(x, y, 6, 451) > 0.63) m.set(x, y, 'drygrass')
@@ -71,7 +71,7 @@ export function buildEastRoad(): MapBuilder {
     for (const x of [HEDGE.x, HEDGE.x + 1]) if (!(KINGDOM.rows as readonly number[]).includes(y)) m.set(x, y, 'thornhedge')
   m.rect(HEDGE.x - 2, KINGDOM.rows[0], 5, KINGDOM.rows.length, 'path')
   for (const y of KINGDOM.rows) {
-    m.portal(HEDGE.x, y, 'kingdom', KINGDOM.arrive[0], y, L('The Kingdom', '荆棘王国'))
+    m.portal(HEDGE.x, y, 'kingdom', KINGDOM.arrive[0], y, L('The Kingdom of Thorns', '荆棘王国'))
     m.fixture('fixture/fog', HEDGE.x, y, { name: L("The knight's fog", '骑士的雾门'), props: { boss: 'alberic', interior: 'kingdom', interiorX: KINGDOM.arrive[0], interiorY: y } })
   }
   for (let y = 1; y < m.h - 1; y += 2) if (m.free(HEDGE.x - 1, y) && Math.abs(y - KINGDOM.rows[1]) > 2) m.fixture('fixture/nature/briar', HEDGE.x - 1, y, { name: L("The knight's thorns", '骑士的荆棘') })
@@ -164,7 +164,7 @@ export const MINE = { w: 40, h: 30, south: [19, 20, 21] } as const
 export const DEEP = { x: 20, y: 5 } as const
 
 export function buildMine(): MapBuilder {
-  const m = new MapBuilder('mine', L('The Old Mine', '旧矿坑'), 'dungeon', MINE.w, MINE.h, 'cave_wall', 'cave', 'dark', 'frostfang')
+  const m = new MapBuilder('mine', L('The Embervein Mine', '烬脉旧矿'), 'dungeon', MINE.w, MINE.h, 'cave_wall', 'cave', 'dark', 'frostfang')
   m.gearLevel = 5
   const open = (t: string) => t === 'cave_wall'
   // the main shaft from the mouth north to the deep chamber, side galleries east and west
@@ -241,7 +241,7 @@ export const LAIR = { w: 30, h: 24, south: [14, 15, 16] } as const
 export const DRAGON_AT = { x: 15, y: 7 } as const
 
 export function buildLair(): MapBuilder {
-  const m = new MapBuilder('lair', L("The Dragon's Lair", '魔龙巢穴'), 'dungeon', LAIR.w, LAIR.h, 'cave_wall', 'cave', 'dark', 'frostfang')
+  const m = new MapBuilder('lair', L("The Cinderpeak Lair", '烬峰龙巢'), 'dungeon', LAIR.w, LAIR.h, 'cave_wall', 'cave', 'dark', 'frostfang')
   m.gearLevel = 8
   // an arena of scorched stone, rock pillars along its walls, the mouth in the south
   m.organic(15, 11, 12, 8.5, 'cave_floor', { only: (t) => t === 'cave_wall', rough: 0.15 })

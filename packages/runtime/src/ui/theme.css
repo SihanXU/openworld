@@ -6,3 +6,7 @@
 @import './cover.css' layer(layout);
 @import './building.css' layer(layout);
 @import './questlog.css' layer(layout);
+@import './worldmap.css' layer(layout);
+@import './inventory.css' layer(layout);
+@import './crafting.css' layer(layout);
+@import './skilltree.css' layer(layout);

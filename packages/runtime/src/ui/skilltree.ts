@@ -15,6 +15,8 @@ import { skillbarHint } from './skillbar.ts'
 export { layoutSkills } from './skillLayout.ts'
 
 const ZOOM: [number, number] = [0.12, 2]
+/** The least the tree opens at: its skills' pictures still read (smaller, one zooms out oneself). */
+const READABLE = 0.62
 
 export class SkillTree {
   private pan = { x: 0, y: 0 }
@@ -127,10 +129,17 @@ export class SkillTree {
     const maxX = Math.max(...panels.map((p) => p.x + p.w)) + 24
     const minY = Math.min(-70, ...panels.map((p) => p.y)) - 24
     const maxY = Math.max(...panels.map((p) => p.y + p.h)) + 24
-    // the whole tree below the branch tabs
+    // the whole tree below the branch tabs, if it can be read so; else the start in the middle at a size its skills
+    // can be read at, the branches a drag away
     const top = this.top(r)
-    this.zoom = Math.max(ZOOM[0], Math.min(1, (r.width - 32) / (maxX - minX), (r.height - top - 16) / (maxY - minY)))
-    this.pan = { x: r.width / 2 - ((minX + maxX) / 2) * this.zoom, y: top - minY * this.zoom }
+    const fit = Math.min(1, (r.width - 32) / (maxX - minX), (r.height - top - 16) / (maxY - minY))
+    if (fit >= READABLE) {
+      this.zoom = fit
+      this.pan = { x: r.width / 2 - ((minX + maxX) / 2) * this.zoom, y: top - minY * this.zoom }
+    } else {
+      this.zoom = READABLE
+      this.pan = { x: r.width / 2, y: top + (r.height - top) / 2 }
+    }
     this.focused = undefined
     this.markTabs()
     this.apply()

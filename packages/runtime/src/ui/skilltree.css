@@ -1,0 +1,141 @@
+/* The skill tree page, drawn anew (2026-10-28) over its one field (skilltree.ts: the start in the middle, its branches
+   growing out left, right, up and down, dragged and zoomed). The field fills the page under a night sky whose stars
+   drift slower than the tree; the page's chrome floats over it, small: the title and what one has to spend at the top
+   left and right, the directions as one switch at the top's middle, the branches' tabs under it, the zoom bottom right.
+   A node's illustration keeps its colours whatever its state: its frame, its light and a lock say it. */
+
+#skills.sk-page {
+  --sk-top: 16px;
+  background: radial-gradient(ellipse 80% 70% at 50% 50%, #2f2537 0%, #211a27 55%, #15111a 100%);
+}
+body.with-tabs #skills.sk-page { --sk-top: calc(var(--ui-measured-tabs, 56px) + 18px); }
+
+#skills {
+  /* the field: the whole page, the chrome over it */
+  & .sk-view {
+    inset: 0;
+    background-color: transparent;
+    background-image:
+      radial-gradient(1px 1px at 12px 18px, rgba(255, 240, 210, 0.5), transparent 60%),
+      radial-gradient(1px 1px at 61px 77px, rgba(255, 240, 210, 0.35), transparent 60%),
+      radial-gradient(1.5px 1.5px at 97px 33px, rgba(255, 228, 170, 0.45), transparent 60%),
+      radial-gradient(1px 1px at 140px 120px, rgba(255, 240, 210, 0.3), transparent 60%);
+    background-size: 160px 160px;
+  }
+
+  /* ---------------------------------------------------------------- the chrome */
+  & .sk-bar {
+    position: absolute; left: 16px; right: 16px; top: var(--sk-top); z-index: 3;
+    display: flex; align-items: center; gap: 8px; margin: 0; padding: 0; width: auto; max-width: none; flex-wrap: nowrap;
+    background: none; border: 0; box-shadow: none; pointer-events: none;
+  }
+  & .sk-bar > * { pointer-events: auto; }
+  & .sk-bar .sk-title { flex: 0 0 auto; padding: 4px 14px; font: 400 24px/1.3 var(--ui-font); color: var(--ui-ink); background: var(--ui-paper); border: 2px solid var(--ui-frame); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4); }
+  & .sk-bar .sk-points { margin-left: auto; padding: 3px 12px; font: 400 12px/1.6 var(--ui-font); color: var(--ui-muted); background: var(--ui-paper-light); border: 1px solid #ab916a; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35); }
+  & .sk-bar .sk-points b { color: var(--ui-ink); }
+  & .sk-bar .sk-points.has { color: var(--ui-paper-light); background: var(--ui-green); border-color: #4d6631; }
+  & .sk-bar .sk-points.has b { color: #fff8e0; }
+  & .sk-bar .sk-hint { font: 400 12px/1.6 var(--ui-font); color: rgba(240, 222, 190, 0.7); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+  & .sk-bar .x { margin-left: 0; }
+  & .sk-bar .sk-btn { padding: 3px 12px; font: 400 12px/1.6 var(--ui-font); border-radius: 0; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35); }
+
+  /* the directions: one switch at the top's middle */
+  & .sk-directions {
+    position: absolute; left: 50%; top: var(--sk-top); transform: translateX(-50%); z-index: 4;
+    display: flex; gap: 0; width: auto; max-width: calc(100% - 420px); margin: 0; overflow: visible;
+    border: 2px solid #6e4424; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
+  }
+  & .sk-direction { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; padding: 4px 18px 4px 8px; min-height: 0; color: var(--ui-ink); background: #f6dcaa; border: 0; border-radius: 0; box-shadow: none; }
+  & .sk-direction + .sk-direction { border-left: 2px solid #6e4424; }
+  & .sk-direction:hover { background: var(--ui-paper-light); transform: none; }
+  & .sk-direction.selected { color: var(--ui-paper-light); background: linear-gradient(180deg, #a56e3e, #8e5b31); }
+  & .sk-direction b { font: 400 12px/1.6 var(--ui-font); color: inherit; }
+  & .sk-direction small { display: none; }
+  & .sk-direction-icon { flex: 0 0 30px; width: 30px; height: 30px; }
+  & .sk-direction-icon .sk-art { border-radius: 0; }
+
+  /* the branches: small tabs under the switch */
+  & .sk-branches {
+    position: absolute; left: 50%; top: calc(var(--sk-top) + 50px); transform: translateX(-50%); z-index: 4;
+    display: flex; gap: 6px; width: max-content; max-width: calc(100% - 32px); margin: 0; overflow-x: auto;
+  }
+  & .sk-tab { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 4px; min-height: 0; font: 400 12px/1.6 var(--ui-font); color: #f0dfc0; background: rgba(33, 26, 39, 0.78); border: 1px solid rgba(217, 164, 65, 0.45); border-radius: 0; box-shadow: none; }
+  & .sk-tab:hover { color: #fff3dc; border-color: rgba(255, 209, 102, 0.8); transform: none; }
+  & .sk-tab.selected { color: var(--ui-paper-light); background: color-mix(in srgb, var(--c, #8e5b31) 70%, #211a27); border-color: var(--c, #d9a441); }
+  & .sk-tab-icon { display: inline-grid; place-items: center; width: 22px; height: 22px; }
+  & .sk-tab-icon .sk-art { border-radius: 0; }
+
+  /* the zoom */
+  & .sk-zoom { right: 18px; bottom: 18px; gap: 6px; }
+  & .sk-zoom .sk-btn { width: 40px; height: 40px; padding: 0; font: 400 24px/1 var(--ui-font); border-radius: 0; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45); }
+
+  /* ---------------------------------------------------------------- the field */
+  /* each branch's region: a faint pane in its colour, lit along its edge */
+  & .sk-panel {
+    border-radius: 0;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--c, #d9a441) 9%, transparent), color-mix(in srgb, var(--c, #d9a441) 4%, transparent));
+    border: 1px solid color-mix(in srgb, var(--c, #d9a441) 38%, transparent);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25), inset 0 0 40px color-mix(in srgb, var(--c, #d9a441) 8%, transparent);
+  }
+
+  /* the links: locked dotted and dim; one that can be taken next gold; learned in the branch's colour */
+  & .sk-line { stroke: #6a5464; stroke-width: 3; stroke-dasharray: 2 7; stroke-linecap: square; opacity: 1; }
+  & .sk-line.ready { stroke: #ffd166; stroke-width: 3; stroke-dasharray: none; filter: drop-shadow(0 0 3px rgba(255, 200, 80, 0.7)); }
+  & .sk-line.learned { stroke: var(--c, #d9a441); stroke-width: 5; stroke-dasharray: none; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--c, #d9a441) 70%, transparent)); }
+  & .sk-line.trunk { stroke: color-mix(in srgb, var(--c, #d9a441) 60%, #c9a35a); stroke-width: 5; stroke-dasharray: none; opacity: 0.75; }
+
+  /* the nodes: a passive skill square, an ability or an active one round; a capstone larger and ringed */
+  & .sk-node {
+    width: 64px; height: 64px; margin: -32px 0 0 -32px; padding: 0; overflow: visible;
+    background: radial-gradient(circle at 50% 40%, #4a3d52, #2c2333 75%);
+    border: 3px solid #7a6574; border-radius: 0; outline: none; color: #fff;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+    transition: transform 0.08s, box-shadow 0.12s; animation: none;
+  }
+  & .sk-node .sk-art { width: 54px; height: 54px; border-radius: 0; opacity: 1; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5)); }
+  & .sk-node.ability { border-radius: 50%; border-width: 3px; outline: none; }
+  & .sk-node.ability .sk-art { border-radius: 50%; }
+  & .sk-node.capstone { width: 78px; height: 78px; margin: -39px 0 0 -39px; outline: 2px solid color-mix(in srgb, var(--c, #d9a441) 75%, #000); outline-offset: 4px; }
+  & .sk-node.capstone .sk-art { width: 66px; height: 66px; }
+  & .sk-node:hover, & .sk-node:focus-visible { transform: translateY(-2px) scale(1.06); z-index: 5; }
+  & .sk-node:focus-visible { box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5), 0 0 0 3px var(--ui-paper-light); }
+  /* learned: lit in its branch's colour */
+  & .sk-node.learned { border-color: var(--c, #d9a441); background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--c, #d9a441) 55%, #fff4d6), color-mix(in srgb, var(--c, #d9a441) 35%, #2c2333) 80%); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5), 0 0 14px color-mix(in srgb, var(--c, #d9a441) 60%, transparent); }
+  /* ready: a point can go into it now — gold, breathing */
+  & .sk-node.ready { border-color: #ffd166; background: radial-gradient(circle at 50% 40%, #5f4d3c, #2c2333 75%); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(255, 209, 102, 0.35), 0 0 16px rgba(255, 200, 80, 0.55); animation: skReadyGlow 1.6s ease-in-out infinite; cursor: pointer; }
+  /* waiting: open, but no point to put in it */
+  & .sk-node.waiting { border-color: #a88a6a; border-style: solid; }
+  /* locked: what it needs is not learned — a darker frame and a lock, its picture as it is */
+  & .sk-node.locked { border-color: #45384a; border-style: solid; background: #231c28; box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(0, 0, 0, 0.35); }
+  & .sk-node.locked:not(.hub)::after { content: ''; position: absolute; right: -7px; bottom: -7px; width: 18px; height: 18px; background: #3d3140 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23d9c3a3' d='M2 1h4v1H2zM1 2h1v2H1zM6 2h1v2H6zM1 4h6v3H1z'/%3E%3Cpath fill='%233d3140' d='M3 5h2v1H3z'/%3E%3C/svg%3E") center / 10px 10px no-repeat; border: 1px solid #7a6574; }
+  & .sk-node.ability.locked::after { right: -4px; bottom: -4px; }
+  & .sk-cost { top: -10px; right: -10px; min-width: 22px; height: auto; padding: 0 5px; font: 400 12px/1.5 var(--ui-font); color: #2c2333; background: #ffd166; border: 1px solid #6e4424; border-radius: 0; }
+
+  /* a branch's hub: its emblem in its colour, its name under it */
+  & .sk-node.hub { width: 76px; height: 76px; margin: -38px 0 0 -38px; border: 3px solid var(--c, #d9a441); background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--c, #d9a441) 35%, #3a2e40), #241c29 80%); box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5), 0 0 18px color-mix(in srgb, var(--c, #d9a441) 45%, transparent); }
+  & .sk-node.hub .sk-art { width: 62px; height: 62px; }
+  & .sk-node.hub.pending { border-style: dashed; }
+  /* (drawn in the field, so at the size it opens at it still reads: twice the page's small words) */
+  & .sk-node-name { top: calc(100% + 12px); min-width: 0; padding: 2px 14px; font: 400 24px/1.4 var(--ui-font); color: #fff3dc; background: color-mix(in srgb, var(--c, #8e5b31) 55%, #211a27); border: 1px solid color-mix(in srgb, var(--c, #d9a441) 70%, #000); text-shadow: none; }
+  & .sk-node-name small { font: 400 12px/1.5 var(--ui-font); color: #e0cdb0; opacity: 1; }
+  & .sk-node-name { border-width: 2px; box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45); }
+
+  /* the start: a gilt medallion with one's level */
+  & .sk-node.origin { width: 100px; height: 100px; margin: -50px 0 0 -50px; border-radius: 50%; border: 4px solid #c48b36; background: radial-gradient(circle at 50% 38%, #fff3c4, #e2ad45 55%, #8a5a1c 100%); box-shadow: 0 5px 0 rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(196, 139, 54, 0.35), 0 0 30px rgba(255, 200, 90, 0.45); }
+  & .sk-node.origin .sk-art { width: 76px; height: 76px; border-radius: 50%; }
+  & .sk-node.origin .sk-node-name { background: #8e5b31; border-color: #6e4424; color: #fff3dc; }
+  & .sk-lv { right: -6px; bottom: -6px; min-width: 30px; height: 30px; font: 400 12px/26px var(--ui-font); color: #fff3dc; background: #6e4424; border: 2px solid #ffd166; border-radius: 50%; }
+}
+
+@keyframes skReadyGlow {
+  50% { box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(255, 209, 102, 0.55), 0 0 24px rgba(255, 200, 80, 0.8); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #skills .sk-node.ready { animation: none; }
+}
+/* narrow: the hint goes, the switch drops under the title */
+@media (max-width: 899px) {
+  #skills .sk-bar .sk-hint { display: none; }
+  #skills .sk-directions { top: calc(var(--sk-top) + 50px); max-width: calc(100% - 32px); }
+  #skills .sk-branches { top: calc(var(--sk-top) + 100px); }
+}

@@ -9,7 +9,7 @@ import { OntologyIndex, deriveRecipes, type Recipe } from '@openworld/engine'
 import { buildOntology } from './ontology.ts'
 import { HAVEN_UPGRADES } from './haven.ts'
 import { SHOP_RECIPES } from './homestead.ts'
-import { LIFE_RECIPES, LIFE_SELLS } from './life.ts'
+import { LIFE_RECIPES } from './life.ts'
 import { ARCANE_RECIPES } from './arcane.ts'
 import { VILLAGE_SHOP_RECIPES } from './village.ts'
 import { SET_RECIPES } from './sets.ts'
@@ -22,6 +22,6 @@ export const RECIPE_UNLOCKS: Record<string, NonNullable<Recipe['unlockedBy']>> =
 const unlocked = (r: Recipe): Recipe => (RECIPE_UNLOCKS[r.id] ? { ...r, unlockedBy: RECIPE_UNLOCKS[r.id] } : r)
 
 /** What is made, and (the homestead's stall) what is bought and sold there. */
-export const RECIPES: Recipe[] = [...deriveRecipes(new OntologyIndex(buildOntology())), ...LIFE_RECIPES, ...ARCANE_RECIPES, ...SHOP_RECIPES, ...LIFE_SELLS, ...VILLAGE_SHOP_RECIPES, ...SET_RECIPES, ...DROP_SELLS].map(unlocked)
+export const RECIPES: Recipe[] = [...deriveRecipes(new OntologyIndex(buildOntology())), ...LIFE_RECIPES, ...ARCANE_RECIPES, ...SHOP_RECIPES, ...VILLAGE_SHOP_RECIPES, ...SET_RECIPES, ...DROP_SELLS].map(unlocked)
 
 export const RECIPE_BY_ID: Record<string, Recipe> = Object.fromEntries(RECIPES.map((r) => [r.id, r]))

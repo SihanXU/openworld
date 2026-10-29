@@ -36,7 +36,7 @@ export const fennick: PersonDef = {
     line('default', 'I carried a lance in the Seal-bearers\' escort once. A long time ago.', '我年轻时在持印者的护卫队里扛过长枪。很久以前的事了。'),
     line('fact:ch1.letter', 'The White Knight. Alberic. When I served him, he would kneel to talk to children, so his face was level with theirs. Now everyone who passes must kneel to him. The crown did that to him.', '白骑士……阿尔贝里克。我跟着他的那些年，他跟孩子说话，总要单膝跪下来，好跟孩子一样高。现在过路的人，都得向他下跪。是那顶冠把他变成这样的。', { mood: 'sad' }),
     line('fact:ch1.flame_stolen', 'A grey cloak, ash on his hands? ...I knew a man like that. He would not rob a chapel. If it was him, he had a reason, and I do not like to think what it was.', '灰斗篷，手上沾着灰？……我认识一个这样的人。他不会去偷礼拜堂。要真是他，那他一定有他的理由。是什么理由，我不敢往下想。'),
-    line('fact:seen.barrow_mouth', 'You saw the carving at the barrow mouth? The Order of the Thorn buried its own there, before my time. The warden was one of us. Alberic\'s brothers, all of them, and none of them lying still.', '你看见古墓门口的刻纹了？荆棘骑士团的人死了，就葬在那里，比我入团还早。守墓的那位也是我们团里的。他们全是阿尔贝里克的弟兄，没有一个能安安稳稳地躺着。', { once: true, mood: 'sad' }),
+    line('fact:seen.barrow_mouth', 'You saw the carving at the barrow mouth? The Order of the Thorn buried its own there, before my time. The warden was one of us. Alberic\'s brothers, all of them, and none of them lying still.', '你看见长眠冢门口的刻纹了？荆棘骑士团的人死了，就葬在那里，比我入团还早。守墓的那位也是我们团里的。他们全是阿尔贝里克的弟兄，没有一个能安安稳稳地躺着。', { once: true, mood: 'sad' }),
     line('fact:ch1.crown', 'You brought him down. Was he — was he himself, at the end? ...Good. Good.', '你把他打倒了。他……到最后，他还是原来的他吗？……那就好。那就好。', { once: true, mood: 'sad' }),
   ],
 }

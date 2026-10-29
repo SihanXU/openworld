@@ -5,7 +5,8 @@
 // (`shop:<station>`); a bookstand that is a written thing (the Rest's litany) is read instead.
 
 import type { Recipe, Rule, Text } from '@openworld/engine'
-import { FORM_BY_ID, baseValue } from './items.ts'
+import { FORM_BY_ID } from './items.ts'
+import { buyBackPrice, shelfPrice } from './prices.ts'
 import { COIN } from './homestead.ts'
 import { ACTIVE_SKILLS, skillBook } from './skills.ts'
 
@@ -45,16 +46,11 @@ export const CHAPEL_SIGN = {
   text_zh: '初原村礼拜堂。圣火与阿斯特拉祭坛，由伊尔丝修女看守。堂内书架有技能书，请找安塞姆修士。',
 }
 
-/** A merchant's price for so many of a thing: its worth and the merchant's quarter (social.ts markup), as any trader asks. */
-const priced = (type: string, count: number) => Math.max(1, Math.round(baseValue(type) * count * 1.25))
-/** What a shop pays for one: half its worth (social.ts markdown). */
-const paid = (type: string) => Math.max(1, Math.floor(baseValue(type) / 2))
-
-const buy = (station: string, group: string, type: string, count: number, price = priced(type, count)): Recipe => ({
+const buy = (station: string, group: string, type: string, count: number, price = shelfPrice(type, count)): Recipe => ({
   id: `${station}/buy/${type.split('/').slice(1).join('-')}`, group, name: nameOf(type), sprite: spriteOf(type),
   needs: [{ type: COIN, count: price }], make: { type }, station, count,
 })
-const sell = (station: string, type: string, price = paid(type)): Recipe => ({
+const sell = (station: string, type: string, price = buyBackPrice(type)): Recipe => ({
   id: `${station}/sell/${type.split('/').slice(1).join('-')}`, group: `${station}-sell`, name: nameOf(type), sprite: spriteOf(type),
   needs: [{ type, count: 1 }], make: { type: COIN }, station, count: price,
 })

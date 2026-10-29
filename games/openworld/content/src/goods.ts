@@ -573,7 +573,7 @@ export const REGION_GOODS: Record<string, RegionGoods> = {
 }
 
 /** What a named piece is worth against its base, and how often it is stocked. */
-const NAMED_VALUE = 3
+export const NAMED_VALUE = 3
 const NAMED_STOCK = 0.25
 
 /** Where a regional form is kept when its base is kept nowhere (the sets' pieces, the off hands). */

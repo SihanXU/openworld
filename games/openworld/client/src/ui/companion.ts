@@ -172,6 +172,7 @@ class CompanionPanel implements GamePanel {
   private drawBust(mood?: Mood): void {
     const slot = this.host.querySelector('[data-bust]')
     if (!slot) return
+    if (this.own?.panelLayers) return this.drawLayered(slot, mood)
     if (this.own) {
       const img = new Image()
       img.className = 'lm-portrait'
@@ -188,6 +189,66 @@ class CompanionPanel implements GamePanel {
       void preparePortrait(COMPANION_LOOK, mood).then((ok) => {
         if (ok && this.open && this.frame) ((this.sig = ''), this.render(this.frame))
       })
+  }
+
+  /**
+   * Her own panel picture in its layers (the set's `panelLayers`): her wings behind, fluttering about their roots (the
+   * stylesheet's), her body, and her closed eyes over it, shown for a moment now and then — a blink. A mood changes only
+   * the body and the eyes, so the wings keep their beat.
+   */
+  private drawLayered(slot: Element, mood?: Mood): void {
+    const own = this.own!
+    const m = mood && own.moods.includes(mood) ? mood : 'neutral'
+    let box = slot.querySelector<HTMLElement>('.lm-own')
+    if (!box) {
+      box = document.createElement('div')
+      box.className = 'lm-own'
+      const layer = (cls: string, src: string) => {
+        const img = new Image()
+        img.className = cls
+        img.alt = ''
+        img.draggable = false
+        img.src = assetUrl(`${own.dir}/${src}`)
+        return img
+      }
+      box.append(layer('lm-own-wing left', 'panel-wings-left.webp'), layer('lm-own-wing right', 'panel-wings-right.webp'), layer('lm-portrait lm-own-body', `${m}-panel-body.webp`), layer('lm-own-blink', `${m}-panel-blink.webp`))
+      slot.replaceChildren(box)
+      // her other moods' pictures fetched now, so a mood is never a blank while it loads
+      for (const o of own.moods) for (const f of ['panel-body', 'panel-blink']) new Image().src = assetUrl(`${own.dir}/${o}-${f}.webp`)
+    } else {
+      const body = box.querySelector<HTMLImageElement>('.lm-own-body')!
+      const blink = box.querySelector<HTMLImageElement>('.lm-own-blink')!
+      const src = assetUrl(`${own.dir}/${m}-panel-body.webp`)
+      if (!body.src.endsWith(src.replace(/^\.\//, ''))) {
+        body.src = src
+        blink.src = assetUrl(`${own.dir}/${m}-panel-blink.webp`)
+        // the face's own little flash as it changes (the stylesheet's lmFace)
+        body.style.animation = 'none'
+        void body.offsetWidth
+        body.style.animation = ''
+      }
+    }
+    this.blinking()
+  }
+
+  private blinkTimer?: ReturnType<typeof setTimeout>
+  /** Now and then, while her panel is open, she blinks (sometimes twice). */
+  private blinking(): void {
+    if (this.blinkTimer || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const shut = (box: HTMLElement, ms: number) => {
+      box.classList.add('blink')
+      setTimeout(() => box.classList.remove('blink'), ms)
+    }
+    const next = () => {
+      this.blinkTimer = setTimeout(() => {
+        const box = this.host.querySelector<HTMLElement>('.lm-own')
+        if (!box || !this.open) return void (this.blinkTimer = undefined)
+        shut(box, 130)
+        if (Math.random() < 0.25) setTimeout(() => shut(box, 110), 290)
+        next()
+      }, 2600 + Math.random() * 2400)
+    }
+    next()
   }
 
   /** Her own panel picture in a mood (any it lacks, its neutral). */

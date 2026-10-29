@@ -6,6 +6,7 @@
 
 import { TICKS_PER_DAY, type Cond, type DeedDef, type Effect, type EmitTo, type LawDef, type PropValue, type Rule, type Selector, type SocialParams, type StatusDef, type TalkVerb, type Text, type Tree, type TypeDef } from '@openworld/engine'
 import { COIN } from './homestead.ts'
+import { DISCOUNT, MARKDOWN, MARKUP } from './prices.ts'
 import { MINOR } from './protection.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
@@ -70,13 +71,14 @@ export const SOCIAL: SocialParams = {
   fearTicks: 600,
   // a robbery takes twice the victim's might (level, arms, defence, body): one overwhelmed gives up what it has
   robEdge: 2,
-  markup: 0.25,
-  markdown: 0.5,
+  // a merchant sells at the standard price and a quarter and buys at half (prices.ts)
+  markup: MARKUP,
+  markdown: MARKDOWN,
   fence: 0.5,
   // a friend made stays one: a liking fades a hundredth of the way a day (a grudge a tenth); a merchant at full regard
   // asks three tenths less (and pays a fifth more)
   fadeUp: 0.01,
-  discount: 0.3,
+  discount: DISCOUNT,
   // the Held Ground's beds (haven.ts: one by the camp from the first; each residents' tent built, two more): one held
   // in full regard may be asked to come and live there — ten hearts in the talk panel, a mark a liking keeps five days
   // as it fades (a hundredth a day: 100 is 95 five days on), not one it holds only for the hour after the last gain

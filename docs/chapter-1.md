@@ -586,3 +586,29 @@ The overworld (world-model.md §5.1, D22): the dell is a woods cell west of the 
 own cell** east of it — a camp drawn there, but the cell is river ground and not stood on, so it is reached only through
 the forest and the river remains a barrier crossed by the Ford alone (demo W6, the overworld's mirrored-barriers check:
 the bend has one bank, its water reaching the map's edge).
+
+## 16. The places' own names (2026-10-28)
+
+The user's request: places named only by what they are — the ford, the grassland, the forest — are hard to tell apart.
+Each now has a name of its own, taken from what happens there. The map ids stay as they were (`ford`, `pasture`, …).
+A word kept generic in a line (Hesper's "this crossing", the steppe of other regions, the overworld's terrains) stays
+so. A quest's title keeps its words (*Lost in the Barrow*, *Night on the Grassland*), as does the barrow warden's name.
+
+| map | was | now | why |
+|---|---|---|---|
+| `ford` | 渡口 · The Ford | 晚祷渡 · Vesper Ford | the evenings come sooner every week; the ferry rang the evening office for travellers |
+| `pasture` | 草原 · The Grassland | 暮牧原 · Dusklea | Brin's herd kneels at dusk facing east; the dead come up after dark |
+| `forest` | 森林 · The Forest | 噤声林 · Hushwood | no birds sing in it since the bridge came down (`forest_quiet`) |
+| `barrow` | 古墓 · The Old Barrow | 长眠冢 · Longsleep Barrow | the Order buried its own there to sleep; they do not |
+| `eastroad` | 东大路 · The East Road | 朝阳大道 · The Sunrise Road | it runs east, toward a sun lower than it should be |
+| `mine` | 旧矿坑 · The Old Mine | 烬脉旧矿 · The Embervein Mine | Emberfall's old workings |
+| `foot` | 山脚 · Mountain Foot | 伤石山麓 · Woundstone Foot | the shrine stone of the five carved wounds, the first cracked |
+| `tutorial` | 林间空地 · The Clearing | 初醒林地 · The Waking Glade | where one first wakes |
+| `lair` | 魔龙巢穴 · The Dragon's Lair | 烬峰龙巢 · The Cinderpeak Lair | the dragon of Cinder Peak |
+| `kingdom` | 荆棘王国 · The Kingdom | 荆棘王国 · The Kingdom of Thorns | (the English alone) |
+| `haven.quarry` | 采石场 · The Quarry | 誓石采石场 · The Oathstone Quarry | the Order cut its kneeling stones there |
+| `haven.timber` | 林场 · The Timberland | 守林 · The Wardwood | the woods the Order kept |
+| `haven.lake` | 湖畔 · The Lakeside | 静镜湖 · Stillmere | a still, deep lake |
+| `haven.springs` | 温泉谷 · The Hot Springs | 愈泉谷 · The Mending Springs | its three springs mend |
+
+The wiki's pages took the new names; the old ones are their aliases, so a link by the old name still finds them.

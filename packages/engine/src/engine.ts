@@ -1567,7 +1567,14 @@ export class Engine {
   }
 
   /** Player movement request (held direction); respects speed. `walk` (Shift) is slower than the default run. */
-  movePlayer(dir: Dir, walk = false): boolean {
+  /** What of a tick the player's last step left over (a run's pace is no whole number of ticks). */
+  private moveCarry = 0
+
+  /**
+   * The player steps one tile at their pace: their `speed` (ticks a step), a tick more held to a walk, or `params.run`
+   * times as quick (one and a half by default) running; what is left of a tick is carried to the next step.
+   */
+  movePlayer(dir: Dir, walk = false, run = false): boolean {
     const p = this.world.player
     this.companions.stir()
     // a lesson at hand that does not let the keys move (docs/prologue.md, the drills)
@@ -1577,7 +1584,14 @@ export class Engine {
       return false
     }
     const moved = this.step(p, dir)
-    if (moved) this.setCooldown(p.id, this.combat.delay(p, this.world.num(p, 'speed', 2) + (walk ? 1 : 0), 'move'))
+    if (moved) {
+      const speed = this.world.num(p, 'speed', 2)
+      const base = walk ? speed + 1 : run ? speed / (this.world.onto.data.params?.run ?? 1.5) : speed
+      const ticks = this.combat.delay(p, base, 'move') + this.moveCarry
+      const whole = Math.max(1, Math.floor(ticks + 1e-9))
+      this.moveCarry = Math.max(0, ticks - whole)
+      this.setCooldown(p.id, whole)
+    }
     return moved
   }
 

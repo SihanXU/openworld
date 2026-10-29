@@ -28,7 +28,7 @@ import { LessonGuide } from './ui/lesson.ts'
 import { Menu, setLearnedRecipes } from './ui/menu.ts'
 import { PeoplePanels } from './ui/people.ts'
 import { SkillBar } from './ui/skillbar.ts'
-import { Tooltip, setLearnedStatuses } from './ui/tooltip.ts'
+import { Tooltip, setLearnedStatuses, type TipContext } from './ui/tooltip.ts'
 import { Minimap } from './ui/worldmap.ts'
 import { AfterSave } from './afterSave.ts'
 import { FrameDecoder } from './frameDelta.ts'
@@ -145,6 +145,7 @@ const hud = new Hud(
     toggleSkills: () => menu.toggleSkills(),
     toggleQuests: () => (menu.toggleQuests(), document.getElementById('questBtn')?.classList.remove('flash')),
     toggleSkillPanel: () => menu.toggleSkillPanel(),
+    toggleCompanion: () => menu.toggleCompanion(),
     toggleBuilding: () => toggleBuilding(),
     talk: (verb) => send({ t: 'talk', verb }),
     closeTalk: () => send({ t: 'closeTalk' }),
@@ -217,6 +218,8 @@ const panelTabs = new PanelTabs(
     menu.close()
     openTab(p)
   },
+  // the world map is a whole picture: they float over it
+  (p) => p === 'map',
 )
 /** Every key drawn on the screen, drawn again (the map changed, or the language). */
 function relabelAll(): void {
@@ -247,7 +250,7 @@ function toggleBuilding(): void {
 }
 
 /** Minecraft's tooltip over any item in the toolbar, the bag, a chest or the crafting panel. */
-const tooltip = new Tooltip(() => ({
+const tipContext = (): TipContext => ({
   atk: lastFrame?.player.stats.atk ?? 0,
   profession: typeof lastFrame?.player.props.profession === 'string' ? lastFrame.player.props.profession : undefined,
   // a set's pieces worn, one per slot (World.stat: two of its rings count once)
@@ -261,7 +264,8 @@ const tooltip = new Tooltip(() => ({
     return e ? tx(e.name) : undefined
   },
   paintIcon: (item) => paintIcons([item]),
-}))
+})
+const tooltip = new Tooltip(tipContext)
 menu.registerTip = (key, info) => tooltip.register(key, info)
 if (catalog().ui.drumstick) document.documentElement.style.setProperty('--drum-icon', cssAssetUrl(catalog().ui.drumstick.img))
 // what a new thread is called in the player's language: its doc is the model's English (the
@@ -370,6 +374,18 @@ const faceset = (id: string, mood?: Mood, frame?: 'blink' | 'talk') => {
 }
 hud.facesetOf = faceset
 menu.facesetOf = faceset
+// the character sheet's whole figure (a look's portrait from head to foot); one with a portrait of their own keeps it
+menu.figureOf = (id: string) => {
+  if (catalog().portraits?.[id]) return undefined
+  const fig = scene.figureOf(id)
+  if (!fig) return undefined
+  const c = document.createElement('canvas')
+  c.width = fig.width
+  c.height = fig.height
+  c.getContext('2d')!.drawImage(fig, 0, 0)
+  c.dataset.full = '1'
+  return c
+}
 
 const paintIcons = (items: ItemInfo[]) => {
   for (const it of items) {
@@ -753,15 +769,23 @@ const slotOf = (a?: Action) => (a?.startsWith('slot') ? Number(a.slice(4)) - 1 :
 const castOf = (a?: Action) => (a?.startsWith('cast') ? Number(a.slice(4)) - 1 : -1)
 const held: Dir[] = []
 scene.walking = () => held.length > 0
+// (a walk held over the run: the walk's pace, engine movePlayer)
+scene.running = () => held.length > 0 && runHeld && !walkHeld
 let sentDir: Dir | null = null
-/** The walk key is held (Shift by default): the steps go slower. */
+/** The walk key is held (right Shift by default): the steps go slower. The run key (left Shift): half again as quick. */
 let walkHeld = false
+let runHeld = false
 const syncMove = () => {
   const d = held.length ? held[held.length - 1] : null
   if (d !== sentDir) {
     sentDir = d
-    send({ t: 'move', dir: d, walk: walkHeld })
+    send({ t: 'move', dir: d, walk: walkHeld, run: runHeld })
   }
+}
+/** The pace changed under a key held: the worker is told again. */
+const repace = () => {
+  sentDir = null
+  syncMove()
 }
 let attacking = false
 const setAttack = (on: boolean) => {
@@ -801,6 +825,7 @@ const clearFishingInputs = () => {
 }
 const stopMoving = () => {
   held.length = 0
+  walkHeld = runHeld = false
   syncMove()
   setAttack(false)
   setSwing(false)
@@ -875,7 +900,11 @@ window.addEventListener('keydown', (e) => {
   const a = actOf(e)
   // the page's own use of these (focus, scrolling) never takes the game's keys
   if (e.code === 'Tab' || e.code === 'Space') e.preventDefault()
-  if (a === 'walk') walkHeld = true
+  if ((a === 'walk' && !walkHeld) || (a === 'run' && !runHeld)) {
+    if (a === 'walk') walkHeld = true
+    else runHeld = true
+    repace()
+  }
   // the layer chooser: a number picks, Esc closes
   if (hud.chooserOpen) {
     e.preventDefault()
@@ -932,6 +961,7 @@ window.addEventListener('keydown', (e) => {
   }
   // the panels (Tab's bag, whose tabs are the others; each its own key too)
   if (a && PANEL_OF[a] && !e.repeat) return openTab(PANEL_OF[a]!)
+  if (a === 'companion' && !e.repeat) return menu.toggleCompanion()
   if (a === 'dash' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'dash' })
   // draw one's weapon (a blow on a person is meant), or put it away; walk soft (docs/npc-sandbox.md)
   if (a === 'draw' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'toggle', what: 'drawn' })
@@ -1005,10 +1035,10 @@ window.addEventListener('keyup', (e) => {
   }
   // a press under way ends on its own key's release (whatever the map says of it now)
   if (pressing?.by === e.code) return release(e.code)
-  if (a === 'walk') {
-    walkHeld = false
-    sentDir = null
-    syncMove()
+  if (a === 'walk' || a === 'run') {
+    if (a === 'walk') walkHeld = false
+    else runHeld = false
+    repace()
   }
   const dir = a && DIR_OF[a]
   if (!dir) return

@@ -292,7 +292,7 @@ export const FLANKS_STORY: StepDef[] = [
     // The bend, first time: the Ford's river again, quiet.
     id: 'bend_first',
     when: { map: 'reedbend' },
-    say: L('The river! It\'s the same one as at the Ford. It bends round this way.', '是那条河！和渡口那条是同一条，它在这里拐了个弯。'),
+    say: L('The river! It\'s the same one as at Vesper Ford. It bends round this way.', '是那条河！和晚祷渡那条是同一条，它在这里拐了个弯。'),
   },
   {
     // The drowned stone: a carving with no suffering in it.

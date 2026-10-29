@@ -104,7 +104,7 @@ export const STAND = {
 } as const satisfies Record<string, readonly [number, number]>
 
 function buildMap(): MapBuilder {
-  const m = new MapBuilder('ford', L('The Ford', '渡口'), 'wild', 48, 30, 'grass', 'ford', 'outdoor', 'frostfang')
+  const m = new MapBuilder('ford', L('Vesper Ford', '晚祷渡'), 'wild', 48, 30, 'grass', 'ford', 'outdoor', 'frostfang')
   const grass = (t: string) => t === 'grass'
   // ------------------------------------------------------------ the river: a pool at the landing, narrows at the dead tree
   for (let y = 0; y < m.h; y++) for (let x = NEAR[y]; x <= FAR[y]; x++) m.set(x, y, 'water')
@@ -276,7 +276,7 @@ function buildMeadow(): MapBuilder {
   // the woodworker's bench in the woodcutter's yard, by the wood pile: what is made at a workbench is made here (world-model.md §6.4)
   m.fixture('fixture/craft/workbench', 12, 14, { id: 'village.workbench' })
   // the boards at the square's north-west corner, under the chapel: the village's notices, and the favours people want done (docs/quests.md §3)
-  m.fixture('fixture/sign/noticeboard', 19, 13, { id: 'village.notice', props: { text: 'FIRSTLIGHT VILLAGE. East: the Ford. West: Millbrook. North: Dawn Hill. South: the grassland, and the forest beyond.', text_zh: '初原村。东：渡口。西：水车磨坊。北：晨光丘。南：草原，再往南是森林。' } })
+  m.fixture('fixture/sign/noticeboard', 19, 13, { id: 'village.notice', props: { text: 'FIRSTLIGHT VILLAGE. East: Vesper Ford. West: Millbrook. North: Dawn Hill. South: Dusklea, and Hushwood beyond.', text_zh: '初原村。东：晚祷渡。西：水车磨坊。北：晨光丘。南：暮牧原，再往南是噤声林。' } })
   m.fixture('fixture/sign/questboard', 20, 13, { id: 'village.board' })
   for (const [x, y] of [[25, 13], [12, 16]] as const) m.fixture('fixture/light/lamppost', x, y, { id: `village.lamp.${x}`, statuses: { lit: -1 } })
   // Tobin and his stock move together, at the square's market corner where the road comes in. Stable IDs keep saved trades and inventories intact.
@@ -348,7 +348,7 @@ export const PASTURE_GAP = SOUTH_GAP
  * meadow and its stacks. The cows and hens, and more of them in time.
  */
 function buildPasture(): MapBuilder {
-  const m = new MapBuilder('pasture', L('The Grassland', '草原'), 'wild', 40, 30, 'grass', 'field', 'outdoor', 'frostfang')
+  const m = new MapBuilder('pasture', L('Dusklea', '暮牧原'), 'wild', 40, 30, 'grass', 'field', 'outdoor', 'frostfang')
   m.paint('pasture')
   // the fold: a dry-stone pen the herd is brought into, a gate east to Brin's post and one south to the pond; its hay
   // and its trough inside
@@ -409,7 +409,7 @@ function buildPasture(): MapBuilder {
  * over, to the pilgrims' camp deep in the south-east by the brook (quest/chapter1.ts).
  */
 function buildForest(): MapBuilder {
-  const m = new MapBuilder('forest', L('The Forest', '森林'), 'wild', 40, 30, 'grass', 'forest', 'outdoor', 'frostfang')
+  const m = new MapBuilder('forest', L('Hushwood', '噤声林'), 'wild', 40, 30, 'grass', 'forest', 'outdoor', 'frostfang')
   m.paint('forest')
   m.stumpsAsThings()
   // the woodcutters' clearing: stumps of old fellings round it (the layout's), the chopping block, split logs stacked
@@ -419,7 +419,7 @@ function buildForest(): MapBuilder {
   m.fixture('fixture/nature/logpile/stack', 25, 7)
   m.fixture('fixture/nature/logpile/stack', 20, 5)
   // the fork, where the trails part: a signpost that says where each goes
-  m.fixture('fixture/sign', 19, 13, { props: { text: 'NORTH — the grassland, and Firstlight. WEST — the Charcoal Dell. EAST — over the brook to the Reed Bend. SOUTH — Thornwood Hollow; keep to the path.', text_zh: '北——草原，再往前是初原村。西——烧炭谷。东——过了溪就是芦苇湾。南——荆棘谷，别离开小路。' } })
+  m.fixture('fixture/sign', 19, 13, { props: { text: 'NORTH — Dusklea, and Firstlight. WEST — the Charcoal Dell. EAST — over the brook to the Reed Bend. SOUTH — Thornwood Hollow; keep to the path.', text_zh: '北——暮牧原，再往前是初原村。西——烧炭谷。东——过了溪就是芦苇湾。南——荆棘谷，别离开小路。' } })
   // what the forest gives a forager and a beekeeper (content life.ts): mushroom rings in the frostcap glade's shade,
   // wild hives on the sunny side of the trees by the clearing and the spring
   for (const [x, y] of [[5, 20], [9, 19], [7, 21]] as const) m.fixture('fixture/nature/mushroom_ring', x, y)
@@ -837,7 +837,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   // guides last (one step plays at a poll: a lesson of hers never delays the story's own moment)
   const steps = [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...PILGRIMAGE_STORY, ...FLANKS_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES, ...GUIDE_BEATS]
   const index: WorldIndex = {
-    name: L('The Ford', '渡口'),
+    name: L('Vesper Ford', '晚祷渡'),
     version: VERSION,
     seed: 4242,
     // a new game begins on Cloudtop, the summit plateau, in its ruined shelter; the tutorial is a

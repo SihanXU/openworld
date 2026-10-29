@@ -84,6 +84,22 @@ import {
 import { CATALOG } from './catalog.ts'
 import { PANELS } from './ui/panels.ts'
 
+/**
+ * The crafting panel's and a station's kinds of thing (an anvil's arms, armour and trinkets apart), by what is made: in
+ * this order, each its type paths.
+ */
+const CRAFT_KINDS = [
+  { id: 'weapons', name: { en: 'Weapons', zh: '武器' }, types: ['item/weapon'] },
+  { id: 'armour', name: { en: 'Armour & clothes', zh: '护甲与衣物' }, types: ['item/armor', 'item/clothing'] },
+  { id: 'trinkets', name: { en: 'Trinkets', zh: '首饰' }, types: ['item/valuable'] },
+  { id: 'tools', name: { en: 'Tools & light', zh: '工具与照明' }, types: ['item/tool', 'item/light', 'item/vessel'] },
+  { id: 'potions', name: { en: 'Potions & food', zh: '药剂与食物' }, types: ['item/potion', 'item/food'] },
+  { id: 'books', name: { en: 'Books', zh: '书卷' }, types: ['item/document'] },
+  { id: 'materials', name: { en: 'Materials', zh: '材料' }, types: ['item/material', 'item/seed', 'item/misc'] },
+  { id: 'furniture', name: { en: 'Furniture & stations', zh: '家具与工作台' }, types: ['fixture'] },
+  { id: 'building', name: { en: 'Building', zh: '建造' }, types: ['structure'] },
+]
+
 export const CLIENT_GAME: ClientGame = {
   describeItem,
   itemIconDecoration: (item) => fishingRodIconDecoration(item, FORM_BY_ID),
@@ -225,7 +241,7 @@ export const CLIENT_GAME: ClientGame = {
     ],
   },
   items: { forms: FORM_BY_ID, materials: MATERIALS, relics: RELICS, vows: VOWS, coin: COIN },
-  crafting: { recipes: RECIPES, stationName, placements: PLACEMENTS, buildings: BUILDINGS, shops: SHOPS },
+  crafting: { recipes: RECIPES, stationName, placements: PLACEMENTS, buildings: BUILDINGS, shops: SHOPS, categories: CRAFT_KINDS },
   skills: {
     all: SKILLS,
     directions: SKILL_DIRECTIONS,

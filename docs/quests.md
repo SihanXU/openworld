@@ -169,6 +169,11 @@ Accepting:
   - for an objective to get a class of thing (its `carry`) from an area, the nearest one lying loose there (on a
     map loaded now), not the area's middle; with no target named, the nearest on the taker's map.
 
+  A target that is a person or a thing is marked where it is, and a named area of a map (the pond, the barrow's mouth)
+  at its middle. A whole map (Brin's grassland) is marked at its middle only from elsewhere. Once one is on it, the
+  marker moves to the nearest of what the objective counts felling there, while one still stands (the dead on the
+  grassland). Otherwise there is no marker on it: its middle is no particular spot (`quests.ts` `targets`, `quarry`).
+
   The options turn markers and the tracker off.
 - **Over heads**: a yellow **!** means an offer; a **?** means someone to speak to (a talk
   objective, or a hand-in ready now).

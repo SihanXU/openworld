@@ -4,12 +4,14 @@
 // asks first: the two trade, or nothing changes. The mouse's buttons (the two clicks), Esc and ` are not keys here.
 // Kept in this browser (keymap.ts).
 
-import { hasModule } from '../game.ts'
+import { game, hasModule } from '../game.ts'
 import { ACTION_NAME, GROUPS, bind, bindable, bindingLabel, changed, clone, codeLabel, defaultKeys, equal, holder, keys, reset, unbind, type Action, type Binding, type Keymap } from '../keymap.ts'
 import { esc, locale } from './common.ts'
 
 /** The actions only the classes module's games have (the skill bar, the skill tree and panel, the dash). */
 const CLASSES: Action[] = ['dash', 'cast1', 'cast2', 'cast3', 'cast4', 'cast5', 'cast6', 'skills', 'skillPanel']
+/** The game has a companion's panel (and the corner badge that opens it): its key is listed. */
+const hasCompanion = () => !!game().panels?.companion
 const MODIFIERS = new Set(['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight'])
 /** Held keys and steps: never with Shift (Shift is the walk's). */
 const PLAIN: Action[] = ['up', 'down', 'left', 'right', 'walk']
@@ -74,6 +76,7 @@ export class KeysPage {
     const groups = GROUPS.map((g) => {
       const rows = g.actions
         .filter((a) => classes || !CLASSES.includes(a))
+        .filter((a) => a !== 'companion' || hasCompanion())
         .map((a) => `<div class="kp-row${changed(m, a) ? ' changed' : ''}"><span>${esc(nameOf(a))}</span>${slotBtn(a, 0)}${slotBtn(a, 1)}${resetBtn(a)}</div>`)
         .join('')
       return `<h4>${esc(g.name[L === 'zh' ? 1 : 0])}</h4>${rows}`

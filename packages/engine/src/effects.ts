@@ -855,6 +855,16 @@ export class EffectRunner {
         }
         // how many: the recipe's, times what the maker's stat for it adds (a smelter's, a seller's)
         const count = Math.max(1, Math.round((r.count ?? 1) * (1 + (r.bonus ? Math.max(0, w.stat(host, r.bonus)) : 0))))
+        // worth what its kind is, of what it is made of, as a common piece of the first level — and its quality's share
+        // (params.made, docs/economy.md): the standard price, whatever the maker's level and hand would make of it
+        const bound = w.onto.data.params?.made
+        if (bound && r.make.type !== w.onto.data.social?.coin) {
+          const qualityTags = new Set((w.onto.data.qualities ?? []).flatMap((q) => (q.tag ? [q.tag] : [])))
+          const thing = (x: Omit<Entity, 'id' | 'place'>): Entity => ({ ...x, type: r.make.type, id: '', place: host.place })
+          const plain = thing({ ...look, tags: look.tags?.filter((t) => !qualityTags.has(t)), props: { ...look.props, level: 1 } })
+          const most = Math.max(1, Math.floor(eng.society.value(plain) * (bound.quality?.[quality ?? ''] ?? 1)))
+          if (eng.society.value(thing(look)) > most) look.props = { ...look.props, worth: most }
+        }
         let made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(look))
         eng.touch({ e: made.id })
         for (let i = 1; i < count; i++) (made = w.create(r.make.type, { on: 'inside', holder: host.id }, structuredClone(look))), eng.touch({ e: made.id })

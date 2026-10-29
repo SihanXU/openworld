@@ -32,9 +32,9 @@ export const QUEST_SCENES: StepDef[] = [
     manual: true,
     script: [
       { face: 'npc.mara', dir: 'down' },
-      say('npc.mara', 'You came up the east road. Then you saw the farm.', '你是从东大路上来的。那你看见那座农庄了。'),
+      say('npc.mara', 'You came up the Sunrise Road. Then you saw the farm.', '你是从朝阳大道上来的。那你看见那座农庄了。'),
       say('npc.mara', 'A dragon nests on Cinder Peak, up the pass east of here. It comes down every spring. This spring it has come down twice.', '顺着镇东的山道上去，烬峰上住着一头魔龙。它每年春天下山一回。今年春天，它已经下来两回了。'),
-      say('npc.mara', 'Garrick the smith has a pattern for a blade that can cut its hide. He needs iron and coal from the old mine.', '铁匠加里克手上有一张剑的图样，打出来能砍穿龙皮。他缺铁和煤，旧矿坑里有。'),
+      say('npc.mara', 'Garrick the smith has a pattern for a blade that can cut its hide. He needs iron and coal from the Embervein Mine.', '铁匠加里克手上有一张剑的图样，打出来能砍穿龙皮。他缺铁和煤，烬脉旧矿里有。'),
       say('npc.mara', 'And Wren, our herbalist, knows a draught against fire. Bring them what they ask for. And take this bread with you.', '我们的草药师雷恩会熬一种防火的药。他们要什么，你就给他们带去。这些面包你也拿上。'),
       { give: 'item/food/bread' },
       { give: 'item/food/bread' },

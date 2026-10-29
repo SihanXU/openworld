@@ -119,7 +119,7 @@ const brazier = (m: MapBuilder, x: number, y: number) => m.fixture('fixture/ligh
  * stone, and the two cells either side — Lina's, rough-cut (west), and the one with the stair cut down (east).
  */
 export function buildBarrow(): MapBuilder {
-  const m = new MapBuilder('barrow', L('The Old Barrow', '古墓'), 'dungeon', BARROW.w, BARROW.h, 'cave_wall', 'crypt', 'dark', 'frostfang')
+  const m = new MapBuilder('barrow', L('Longsleep Barrow', '长眠冢'), 'dungeon', BARROW.w, BARROW.h, 'cave_wall', 'crypt', 'dark', 'frostfang')
   m.gearLevel = 2
   m.paint('barrow')
   for (const [x, y] of [[9, 4], [20, 4], [11, 16], [18, 16]] as const) brazier(m, x, y)
@@ -173,7 +173,7 @@ export function buildOssuary(): MapBuilder {
   const [ux, uy] = OSSUARY.up
   const [dx, dy] = OSSUARY.down
   m.set(ux, uy, 'stairs_up')
-  m.portal(ux, uy, 'barrow', BARROW.down[0], BARROW.down[1] - 1, L('The Old Barrow', '古墓'))
+  m.portal(ux, uy, 'barrow', BARROW.down[0], BARROW.down[1] - 1, L('Longsleep Barrow', '长眠冢'))
   m.set(dx, dy, 'stairs_down')
   m.portal(dx, dy, 'sanctum', SANCTUM.up[0], SANCTUM.up[1] + 1, L("The Warden's Sanctum", '守墓者圣所'))
   for (const [x, y] of [[4, 4], [13, 11], [17, 11], [24, 5], [29, 18]] as const) brazier(m, x, y)

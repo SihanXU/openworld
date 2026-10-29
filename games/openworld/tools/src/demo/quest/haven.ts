@@ -147,7 +147,7 @@ function ground(id: string, en: string, zh: string, fill: string, music = 'field
 
 /** The quarry: a pit cut into grey rock, its faces round the north, gravel on its floor, boulders to break, veins of iron and coal and one of gold, spoil heaped, stone that comes back. */
 function buildQuarry(): MapBuilder {
-  const m = ground('haven.quarry', 'The Quarry', '采石场', 'dirt', 'field', 511)
+  const m = ground('haven.quarry', 'The Oathstone Quarry', '誓石采石场', 'dirt', 'field', 511)
   // the faces: rock in a ragged horseshoe round the pit, the floor gravel, the spoil heaped where the barrows tipped it
   for (let y = 1; y < m.h - 1; y++)
     for (let x = 1; x < m.w - 1; x++) {
@@ -161,7 +161,7 @@ function buildQuarry(): MapBuilder {
   for (const [x, y] of [[13, 4], [19, 4], [26, 15]] as const) (m.set(x, y, 'gravel'), m.fixture('fixture/nature/vein/coal', x, y))
   m.set(16, 4, 'gravel')
   m.fixture('fixture/nature/vein/gold', 16, 4)
-  m.fixture('fixture/sign', 14, 18, { props: { text: 'THE QUARRY — stone for building. Take what you need.', text_zh: '采石场——盖房砌墙的石头。用多少，取多少。' } })
+  m.fixture('fixture/sign', 14, 18, { props: { text: 'THE OATHSTONE QUARRY — the Order cut its kneeling stones here. Stone for building; take what you need.', text_zh: '誓石采石场——骑士团当年在这里凿出跪石。盖房砌墙的石头，用多少，取多少。' } })
   for (const [name, x, y] of [['decor_stones', 9, 11], ['decor_stones', 21, 10], ['decor_stones', 18, 13], ['decor_cart', 19, 17], ['decor_crates', 12, 17], ['decor_stones', 6, 10]] as [string, number, number][]) if (m.free(x, y)) m.building(name, x, y)
   wildFloor(m, 1.2, (x, y) => x >= 15 && x <= 17 && y >= 17)
   m.appear = [appears('item/material/stone', ['dirt', 'gravel'], 10)]
@@ -170,7 +170,7 @@ function buildQuarry(): MapBuilder {
 
 /** The timberland: old woods to fell (they grow back) round a clearing of stumps, a stack of logs and a sawing trestle, mushrooms and berries under the trees. */
 function buildTimber(): MapBuilder {
-  const m = ground('haven.timber', 'The Timberland', '林场', 'grass', 'forest', 521)
+  const m = ground('haven.timber', 'The Wardwood', '守林', 'grass', 'forest', 521)
   for (let y = 2; y < m.h - 3; y++)
     for (let x = 2; x < m.w - 2; x++) {
       if (Math.abs(x - 16) <= 1 && y > 12) continue
@@ -184,7 +184,7 @@ function buildTimber(): MapBuilder {
   m.fixture('fixture/nature/mushroom_ring', 22, 9)
   for (const [x, y] of [[8, 8], [24, 14], [10, 15]] as const) (m.set(x, y, 'grass'), m.item('item/food/berries', x, y))
   m.set(22, 9, 'grass')
-  m.fixture('fixture/sign', 14, 18, { props: { text: 'THE TIMBERLAND — fell what you need. The trees grow back.', text_zh: '林场——要多少就砍多少。砍了还会长回来。' } })
+  m.fixture('fixture/sign', 14, 18, { props: { text: 'THE WARDWOOD — the Order kept these woods. Fell what you need; the trees grow back.', text_zh: '守林——骑士团守过的林子。要多少就砍多少，砍了还会长回来。' } })
   for (const [name, x, y] of [['decor_firewood', 19, 15], ['decor_firewood', 11, 13], ['decor_cart', 20, 17]] as [string, number, number][]) if (m.free(x, y)) m.building(name, x, y)
   m.sprinkle('fixture/nature/leaves', 0.2, (x, y, t) => t === 'grass' && m.near(x, y, (u) => u === 'tree' || u === 'pine'))
   wildFloor(m, 1.2, (x, y) => x >= 15 && x <= 17 && y >= 17)
@@ -194,7 +194,7 @@ function buildTimber(): MapBuilder {
 
 /** The lakeside: a deep lake with its fish, a beach of sand along its south shore and a jetty out over it, reeds in the shallows. */
 function buildLake(): MapBuilder {
-  const m = ground('haven.lake', 'The Lakeside', '湖畔', 'grass', 'field', 531)
+  const m = ground('haven.lake', 'Stillmere', '静镜湖', 'grass', 'field', 531)
   for (let y = 1; y < m.h - 1; y++)
     for (let x = 1; x < m.w - 1; x++) {
       const d = Math.hypot((x - 16) / 11.5, (y - 8.5) / 6) + (noise(x, y, 3, 532) - 0.5) * 0.18
@@ -206,7 +206,7 @@ function buildLake(): MapBuilder {
   for (let y = 11; y <= 14; y++) m.set(16, y, 'bridge')
   m.fish = true
   m.sprinkle('fixture/nature/reeds', 0.45, (x, y, t) => (t === 'sand' || t === 'grass') && m.near(x, y, (u) => u === 'water') && Math.abs(x - 16) > 1)
-  m.fixture('fixture/sign', 14, 18, { props: { text: 'THE LAKESIDE — cast into deep water for pike and more golden carp. Eels at night, catfish in rain, a rare Dawnscale at first light. Stay on the bank: a rod reaches three cells.', text_zh: '湖畔——向深水甩竿能钓狗鱼，也更容易出金鳞鲤。夜里有鳗鱼，雨天有鲶鱼，清晨偶尔有晨鳞鱼。站在岸上就行：鱼竿够得着三格。' } })
+  m.fixture('fixture/sign', 14, 18, { props: { text: 'STILLMERE — cast into deep water for pike and more golden carp. Eels at night, catfish in rain, a rare Dawnscale at first light. Stay on the bank: a rod reaches three cells.', text_zh: '静镜湖——向深水甩竿能钓狗鱼，也更容易出金鳞鲤。夜里有鳗鱼，雨天有鲶鱼，清晨偶尔有晨鳞鱼。站在岸上就行：鱼竿够得着三格。' } })
   for (const [name, x, y] of [['decor_crates', 18, 16], ['decor_casks', 13, 16]] as [string, number, number][]) if (m.free(x, y)) m.building(name, x, y)
   wildFloor(m, 1, (x, y) => x >= 15 && x <= 17 && y >= 15)
   m.appear = GROUND_YIELD
@@ -215,7 +215,7 @@ function buildLake(): MapBuilder {
 
 /** The hot springs: warm pools on a green shelf in cold rock that mend whoever soaks in them; herbs and frostcap on the slopes. */
 function buildSprings(): MapBuilder {
-  const m = ground('haven.springs', 'The Hot Springs', '温泉谷', 'snow', 'field', 541)
+  const m = ground('haven.springs', 'The Mending Springs', '愈泉谷', 'snow', 'field', 541)
   for (let y = 1; y < 15; y++)
     for (let x = 1; x < m.w - 1; x++) {
       if (m.get(x, y) === 'tree' || m.get(x, y) === 'pine') continue
@@ -227,7 +227,7 @@ function buildSprings(): MapBuilder {
   m.regions.spring = [8, 6, 16, 10]
   for (const [x, y] of [[6, 12], [25, 12], [7, 16]] as const) (m.get(x, y) === 'rock' && m.set(x, y, 'snow'), m.item('item/material/herb', x, y))
   for (const [x, y] of [[24, 16], [5, 9]] as const) (m.get(x, y) === 'rock' && m.set(x, y, 'snow'), m.item('item/material/frostcap', x, y))
-  m.fixture('fixture/sign', 14, 18, { props: { text: 'THE HOT SPRINGS — sit a while, and it mends you.', text_zh: '温泉谷——泡一会儿，伤就好了。' } })
+  m.fixture('fixture/sign', 14, 18, { props: { text: 'THE MENDING SPRINGS — sit a while, and it mends you.', text_zh: '愈泉谷——泡一会儿，伤就好了。' } })
   for (const [name, x, y] of [['decor_stones', 22, 13], ['decor_stones', 10, 13]] as [string, number, number][]) if (m.free(x, y)) m.building(name, x, y)
   wildFloor(m, 1, (x, y) => x >= 15 && x <= 17 && y >= 17)
   m.appear = [appears('item/material/herb', ['grass'], 4)]

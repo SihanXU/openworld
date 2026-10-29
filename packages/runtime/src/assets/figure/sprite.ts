@@ -22,9 +22,15 @@ export const FW = BASE_W
 export const FH = BASE_H
 /** Where a frame's feet stand: the row the renderer puts on the bearer's place. */
 export const ANCHOR_Y = 35
-/** The sheet's rows: the four of the walk and the one a figure stands in when it is not walking. */
-export const ROWS = 5
+/**
+ * The sheet's rows: the four of the walk, the one a figure stands in when it is not walking, and the four of the run
+ * (RUN_ROW on: made of the walk's strides, `runFrames`).
+ */
+export const ROWS = 9
 export const IDLE_ROW = 4
+export const RUN_ROW = 5
+/** The rows drawn from the grids: the walk's and the standing one. */
+const DRAWN = 5
 
 /** The slots drawn over the body frame by frame, in order: the outfit, then what is worn over it. */
 const PIECE_SLOTS = ['outfit', 'armour', 'cloak'] as const
@@ -48,7 +54,7 @@ export function composeSprite(look: Look): Uint8Array {
     const frames = base[facing]
     // the 3/4 view faces left; right is it mirrored
     const flip = col === 3
-    for (let row = 0; row < ROWS; row++) {
+    for (let row = 0; row < DRAWN; row++) {
       const grid = row === IDLE_ROW ? frames.idle : frames.walk[row]
       const cells = grid.map((r) => [...r])
       // the head's top: row 3 for an adult standing (9 for a child), a row lower on a step; the head's parts follow it
@@ -67,8 +73,53 @@ export function composeSprite(look: Look): Uint8Array {
           out.set([c[0], c[1], c[2], 255], ((row * FH + y) * FW * 4 + col * FW + x) * 4)
         }
     }
+    runFrames(out, col)
   }
   return out
+}
+
+/**
+ * The run (RUN_ROW on), made of a facing's two strides as the walk draws them (rows 1 and 3: legs apart, the body a
+ * row down), so every outfit, hair and pair of shoes runs as it walks. Each stride is shown landing, as drawn, then in
+ * the air, a row up (the feet off the ground): a bound of a row, as the walk's, at the run's longer stride. Seen from
+ * the side the figure leans into the run from the hips (a pixel, the head and shoulders as one, so nothing shears) and
+ * its legs reach a pixel further fore and aft.
+ */
+function runFrames(out: Uint8Array, col: number): void {
+  // (the side view: into the way it faces — left in its own column, right in the mirrored one)
+  const ahead = col === 2 ? -1 : col === 3 ? 1 : 0
+  const at = (row: number, x: number, y: number) => ((row * FH + y) * FW * 4 + col * FW + x) * 4
+  const strides = [1, 1, 3, 3]
+  const lifts = [0, -1, 0, -1]
+  for (let i = 0; i < 4; i++) {
+    const from = strides[i]
+    const to = RUN_ROW + i
+    // where the figure is: its top row, its hips a little over half way down, its legs' middle column
+    let top = 0
+    const filled = (y: number) => [...Array(FW).keys()].some((x) => out[at(from, x, y) + 3])
+    while (top < FH - 1 && !filled(top)) top++
+    const hips = top + Math.round((ANCHOR_Y - top) * 0.55)
+    let left = FW
+    let right = 0
+    for (let y = hips; y < FH; y++) for (let x = 0; x < FW; x++) if (out[at(from, x, y) + 3]) (left = Math.min(left, x)), (right = Math.max(right, x))
+    const mid = (left + right) / 2
+    // the legs first, then the body over them
+    for (const upper of [false, true]) {
+      for (let sy = 0; sy < FH; sy++) {
+        if (sy < hips !== upper) continue
+        const y = sy + lifts[i]
+        if (y < 0 || y >= FH) continue
+        for (let sx = 0; sx < FW; sx++) {
+          const a = at(from, sx, sy)
+          if (!out[a + 3]) continue
+          // the stride: each leg a pixel further from the other, below the hips (seen from the side)
+          const reach = !upper && ahead && sy > hips + 1 ? (sx < mid ? -1 : sx > mid ? 1 : 0) : 0
+          const x = sx + (upper ? ahead : 0) + reach
+          if (x >= 0 && x < FW) out.set(out.subarray(a, a + 4), at(to, x, y))
+        }
+      }
+    }
+  }
 }
 
 /** A letter's tone, light (0) to dark (3): the skin's, the plain underclothes', and each piece's by its letters. */
