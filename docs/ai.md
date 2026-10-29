@@ -119,6 +119,7 @@ One harness, two profiles (`ai/src/agent/state.ts`, `profileOf`):
 |---|---|---|
 | OpenAI-compatible (OpenRouter by default) | `ai/src/models/model.ts` | `LSW_MODEL_URL`, `LSW_MODEL_KEY`, `LSW_MODEL` |
 | Claude Code's print mode (`claude -p`, signed in as the user) | `ai/src/models/model-node.ts` | `--backend claude-code` |
+| Codex's exec mode (`codex exec`, signed in as the user, its tools off) | `ai/src/models/model-node.ts` (`CodexModel`) | `--backend codex` |
 | Anthropic's API | `ai/src/models/model.ts` (`AnthropicModel`) | `--backend anthropic`, `ANTHROPIC_API_KEY` |
 | A player's own key, from the browser | `ai/src/models/providers.ts` | the game's options (`byok.md`) |
 | Scripted (tests, offline demos) | `ai/src/models/model.ts` `ScriptedModel` | `--script`, `LSW_MODEL_SCRIPT` |
