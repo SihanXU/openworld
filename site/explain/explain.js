@@ -261,7 +261,7 @@ function actOne(t) {
     if (t >= 17.4 && t < 22.8) checks(t, hx, hy)
     // and on: down to the world
     if (t >= 19.6 && t < 20.2) { const u = ease((t - 19.6) / 0.6); token(lerp(hx, GW_C[0], u), lerp(hy, GW_C[1], u), 'wait_by(fire)', C.amber, out) }
-    if (t > 20.4 && t < 22.8) { ctx.globalAlpha = smooth((t - 20.4) / 0.3) * out; text(L('kept in the shared library, for every player', '存入共享规则库，所有玩家共用'), GW.x, GW.y + GW.h + 50, 30, C.ink, { weight: 600 }); ctx.globalAlpha = 1 }
+    if (t > 20.4 && t < 22.8) { ctx.globalAlpha = smooth((t - 20.4) / 0.3) * out; text(L('kept in the rule library for every case like it', '存入规则库，以后同类的情况都照它处理'), GW.x, GW.y + GW.h + 50, 30, C.ink, { weight: 600 }); ctx.globalAlpha = 1 }
   }
 }
 
