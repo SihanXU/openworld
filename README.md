@@ -185,8 +185,8 @@ npm run test:ui       # browser tests of the interface (first run: npx playwrigh
 The interface components and their test page are described in [docs/ui.md](docs/ui.md).
 
 **Wiki.** An encyclopedia of the game with a page for every item, character, creature, place and quest, partly
-generated from the game data. It is written in Chinese, with an English edition. Live at
-<http://35.239.4.44:5175/wiki/>; editing guide: `wiki/pages/帮助/编辑入门.md`.
+generated from the game data. It is written in Chinese, with an English edition. Editing guide:
+`wiki/pages/帮助/编辑入门.md`.
 
 ```bash
 npm run wiki          # http://localhost:5180/wiki/
