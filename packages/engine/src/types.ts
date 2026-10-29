@@ -719,6 +719,12 @@ export interface ScheduleEntry {
   need?: Selector
   /** The work the activity is (world-model.md §6.10): real acts on what is about, tried in order. */
   work?: WorkDef[]
+  /**
+   * Wants this slot sees to before they come (design.md §5.18): a meal tends `hungry` — while in it, one puts the prop
+   * the status is drawn under up near its full with what is at hand (the larder's bread), hungry or not yet. A
+   * clock that brings the want starts again from such a slot passed while nobody watched (PeriodDef.tendedBy).
+   */
+  tends?: string[]
 }
 
 /**

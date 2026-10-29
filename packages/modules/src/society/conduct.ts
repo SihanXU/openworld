@@ -252,7 +252,8 @@ export class Conduct {
     const eng = this.eng
     const w = eng.world
     if (!e.npc || e.place.on !== 'tile' || e.ai || eng.asleep(e)) return false
-    const wants = eng.wellbeing.troublesFor(e).filter((t) => t.subject === e.id && !t.place && !t.danger)
+    // (what one minds now: a meal's want before it comes is the larder's to see to, never bought or taken for)
+    const wants = eng.wellbeing.troublesFor(e).filter((t) => t.subject === e.id && !t.place && !t.danger && !t.tended)
     if (!wants.length) return false
     const rt = this.runtime(e)
     if ((rt.meal ?? -1) > w.state.tick) return false

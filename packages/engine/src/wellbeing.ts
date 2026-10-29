@@ -11,7 +11,8 @@ import type { Engine } from './engine.ts'
 import { isDo, matchSelector, rolesOf, type Roles } from './rules.ts'
 import type { Amount, Effect, Entity, GameEvent, Id, Pos, PropValue, Ref } from './types.ts'
 import { DIRS } from './types.ts'
-import { dayForWeather } from './people.ts'
+import { dayForWeather, scheduleFor } from './people.ts'
+import { scheduleAt } from './npc.ts'
 import type { View } from './world.ts'
 
 /** What an outcome does to one thing: the statuses it gives and takes, the health it costs or gives, the props it moves. */
@@ -41,6 +42,8 @@ export interface Trouble {
   danger: boolean
   /** It is the place one stands that brings it (leaving is the cure). */
   place?: boolean
+  /** Not borne yet: the slot of one's day one is in sees to it before it comes (a meal, before one is hungry). */
+  tended?: boolean
 }
 
 /** Health lost by a pulse weighs this much (a danger), over any discomfort. */
@@ -76,6 +79,8 @@ const ABOUT_MAX = 40
 const MAKE_TOOLS = 4
 /** How many kinds put away (a larder's bread, its apples) are tried. */
 const STORED_MAX = 8
+/** A slot that tends a want sees to it until the prop it is drawn under is this far up its full (a meal: nine tenths). */
+const TENDED_TO = 0.9
 /** A way is let go and looked for again after this long (ticks). */
 const PLAN_TTL = 300
 /** Having found no way, one looks again after this long (ticks). */
@@ -316,9 +321,9 @@ export class Wellbeing {
   }
 
   /** A status drawn under a prop's line (hungry: hunger under six tenths): raising the prop puts it right. */
-  private threshold(status: string): { prop: string } | undefined {
+  private threshold(status: string): { prop: string; full?: string } | undefined {
     const t = this.eng.world.onto.data.thresholds?.find((t) => t.name === status && (!!t.below || t.lte !== undefined))
-    return t ? { prop: t.prop } : undefined
+    return t ? { prop: t.prop, full: t.below?.prop } : undefined
   }
 
   /** Does an outcome put a status right (takes it, or fills the prop it is drawn under: food for hunger)? */
@@ -419,7 +424,19 @@ export class Wellbeing {
     }
     const max = w.num(e, 'maxHp', 0)
     if (max > 0 && w.num(e, 'hp', max) < max * LOW_HP && !out.some((t) => t.status === 'hp')) out.push({ subject: e.id, status: 'hp', weight: HARM / 2, danger: false })
+    // the slot of one's day that sees to a want before it comes (a meal): wanted while the prop it is drawn under is short
+    for (const s of this.tends(e)) {
+      if (out.some((t) => t.status === s)) continue
+      const line = this.threshold(s)
+      if (line?.full && w.num(e, line.prop, 0) < w.num(e, line.full, 0) * TENDED_TO) out.push({ subject: e.id, status: s, weight: Math.max(1, this.weight(e, s)), danger: false, tended: true })
+    }
     return out
+  }
+
+  /** The wants the slot of one's day one is in now sees to (a meal: hungry). */
+  private tends(e: Entity): string[] {
+    if (!e.npc) return []
+    return scheduleAt(scheduleFor(this.eng, e), this.eng.world.hour())?.tends ?? []
   }
 
   /** What harms a thing one cares for (nothing of its place: it is not one's to leave), weighed by the care. */
