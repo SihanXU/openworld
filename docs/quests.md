@@ -211,8 +211,9 @@ Accepting:
 | `rescue` 古墓里的失踪者 | main | auto, at the village's welcome | the barrow mouth; Lina, Oskar, the warden; back to Rowan |
 | `vigil` 守夜之备 | main | auto, once `rescue` is done | oil, dawnbloom, the bell; to Ilse |
 | `first_seal` 第一印 | main | auto, once `vigil` is done | the night of thanks; the letter; the pilgrim's road and the river; the White Knight |
-| `crown_home` 荆棘冠 | main | auto, the knight down | bring the Crown home |
-| `dragon_road` 屠龙之路 | main | auto, `crown_home` done | to Emberfall; Mara; arm (ore, coal, fireweed, frostcap, blade, draught); the pass; the dragon |
+| `held_ground` 誓守之地 | main | auto, the Oath-Thorn given (the step `oath_thorn`) | into the Held Ground (the thorn in hand, a left click: `haven.met`); a word with its steward; out again by the thorn. An older save that had been there, or had the Crown home, finds it done |
+| `crown_home` 荆棘冠 | main | auto, `held_ground` done | bring the Crown home (the step `return` waits for `held_ground` too) |
+| `dragon_road` 屠龙之路 | main | auto, `crown_home` done and Part Two open | to Emberfall; Mara; arm (ore, coal, fireweed, frostcap, blade, draught); the pass; the dragon |
 | `pilgrim`, `stew`, `ring`, `thorns`, `drawings`, `measure`, `templar`, `nail`, `watch`, `herd`, `scallop`, `band` | side | offered | as before, each now with stages and a log (the Held Ground's widening errands `haven1–3` were removed 2026-10-11: the ground grows from its steward's panel, docs/homestead.md) |
 | `firewood` | favor (daily) | offered | four logs a day for Gus |
 | `recover` 失物 | favor (radiant) | news `deed`: a theft its victim saw and did not get back | get the thing back (from the thief, by talk, or however) and bring it to its owner |

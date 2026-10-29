@@ -3391,7 +3391,8 @@ req('P5', 'skipping ahead: whoever brings the White Knight down first finds ever
   expect(w.fact('village.rescued')).toBe(1)
   author(f, () => w.setFact('ch1.letter', 1))
   expect(q.offers('npc.ilse', w.player).map((o) => o.ref)).not.toContain('pilgrim')
-  expect(underWay(f)).toEqual([['crown_home', 'main']])
+  // and the Held Ground first, then the Crown home
+  expect(underWay(f)).toEqual([['held_ground', 'main']])
 })
 
 req('P4', 'the villagers\' errands: three side quests (stew, a lost ring, clearing the hollow) and a daily one (firewood); and the night: zombies and bats in the wild, never in the village, gone at dawn', ['npc.marta', 'actor/creature/slime/green_slime', 'npc.mia', 'npc.holt', 'npc.gus', 'item/valuable/ring'], () => {
@@ -3672,6 +3673,21 @@ req('C1', 'Chapter 1, offline: the night of the flame (the grey man takes it), t
   setHour(f, 3, 20.5)
   expect(w.isNight()).toBe(true)
   expect(quest()).toBe(2.5)
+  // the Held Ground first: the Crown is not home until one has been through the thorn (a walk home before it is only a walk)
+  expect(ticks(f, 900, () => !!w.fact('seen.oath_thorn') && !w.scene)).toBe(true)
+  expect(underWay(f)).toEqual([['held_ground', 'main']])
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow', x: 20, y: 14 }))
+  ticks(f, 60)
+  expect(w.fact('seen.return') ?? 0).toBeFalsy()
+  const thorn = Object.values(w.state.entities).find((e) => e.type === 'item/relic/oath_thorn')!
+  const useThorn = () => (f.eng.act('use', 'player', { e: 'player' }, { instrument: { e: thorn.id } }), ticks(f, 3))
+  ticks(f, FIGHT_TICKS)
+  useThorn()
+  expect(ticks(f, 900, () => !!w.fact('seen.haven_first') && !w.scene)).toBe(true)
+  talkTo(f, 'npc.alberic')
+  useThorn()
+  ticks(f, 3)
+  expect([qs(f, 'held_ground'), qs(f, 'crown_home')]).toEqual(['done', 'active'])
   // home: the village, Nessa's four minutes, the chapter's card — and release 1's end with it (docs/release-1.md §1):
   // the road on east waits for Part Two, and the Dragon Road with it
   f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow', x: 20, y: 14 }))
@@ -3878,7 +3894,7 @@ req('C7', "the barrow's dead lie in its walls (release 1, docs/release-1.md): bo
   }
 })
 
-req('H1',"the Held Ground: once the knight falls, a thorn of his crown is the Oath-Thorn; used on oneself it opens a camp ringed in mist, where Alberic, unhelmed, keeps it as steward; what he asks widens it — the first ring of mist lifts, the next waits; used again, it brings one back where one stood", [
+req('H1',"the Held Ground: once the knight falls, a thorn of his crown is the Oath-Thorn, and the main line's next quest is to go through it (the Crown is carried home after); used on oneself it opens a camp ringed in mist, where Alberic, unhelmed, keeps it as steward and is to be spoken to; what he asks widens it — the first ring of mist lifts, the next waits; used again, it brings one back where one stood, and the Crown home is next", [
   'fixture/nature/mist', 'npc.alberic',
 ], () => {
   const f = fresh()
@@ -3897,6 +3913,12 @@ req('H1',"the Held Ground: once the knight falls, a thorn of his crown is the Oa
   waitFor('oath_thorn')
   const thorn = Object.values(w.state.entities).find((e) => e.type === 'item/relic/oath_thorn')!
   expect(thorn.place).toMatchObject({ on: 'inside', holder: 'player' })
+  // the main line says so: the Held Ground first, its way in told (the thorn in hand, a right click on oneself); the Crown home after
+  const held = () => f.eng.quests.journal().find((j) => j.quest === 'held_ground')!
+  expect([qs(f, 'held_ground'), f.eng.quests.stage('held_ground'), held().kind]).toEqual(['active', 10, 'main'])
+  expect(held().objectives.map((o) => [o.id, o.state])).toEqual([['enter', 'open']])
+  expect(textOf(held().hint!, 'en')).toMatch(/left click: it is used on you/)
+  expect(f.eng.quests.stage('crown_home')).toBe(0)
   // used on oneself: into the Held Ground; the steward is there
   const useThorn = () => (f.eng.act('use', 'player', { e: 'player' }, { instrument: { e: thorn.id } }), ticks(f, 3))
   // not in the middle of a fight: struck just now, the thorn stays shut; a while after, it opens
@@ -3911,6 +3933,14 @@ req('H1',"the Held Ground: once the knight falls, a thorn of his crown is the Oa
   expect(w.posOf(w.player)).toMatchObject({ map: 'haven', x: HAVEN.arrive[0], y: HAVEN.arrive[1] })
   waitFor('haven_first')
   expect(w.posOf(w.get('npc.alberic')!)?.map).toBe('haven')
+  // in: the quest turns to its steward, marked to be spoken to; spoken to, he tells of the ground and the way out
+  ticks(f, 2)
+  expect(f.eng.quests.stage('held_ground')).toBe(20)
+  expect(markOf(f, 'npc.alberic')).toBe('?')
+  expect(talkTo(f, 'npc.alberic')).toContain('领地扩建')
+  ticks(f, 2)
+  expect(f.eng.quests.stage('held_ground')).toBe(30)
+  expect(held().objectives.find((o) => o.id === 'out')?.state).toBe('open')
   // the mist rings the ground: three rings, closed — nothing walks past the first
   const mist = (ring: number) => Object.values(w.state.entities).filter((e) => e.type === 'fixture/nature/mist' && w.posOf(e)?.map === 'haven' && e.props?.ring === ring).length
   expect([mist(1) > 20, mist(2) > 30, mist(3) > 40]).toEqual([true, true, true])
@@ -3962,9 +3992,32 @@ req('H1',"the Held Ground: once the knight falls, a thorn of his crown is the Oa
   ticks(f, 60)
   expect([mist(1), mist(2) > 30]).toEqual([0, true])
   expect(reachable()).toBeGreaterThan(small * 1.5)
-  // used again: back where one stood
+  // used again: back where one stood — the quest done, the Crown home next
   useThorn()
   expect(w.posOf(w.player)).toMatchObject({ map: from.map, x: from.x, y: from.y })
+  ticks(f, 3)
+  expect([qs(f, 'held_ground'), qs(f, 'crown_home')]).toEqual(['done', 'active'])
+})
+
+req('H2', "the Held Ground's quest in an older save: one who had been through the thorn finds it done and the Crown home next; one whose Crown was home already finds both done", [], () => {
+  // been there: met the steward, and out again
+  {
+    const f = fresh()
+    const w = W(f)
+    author(f, () => (w.setFact('sins.defeated.alberic', 1), w.setFact('haven.met', 1)))
+    expect(ticks(f, 900, () => !!w.fact('seen.oath_thorn') && !w.scene)).toBe(true)
+    ticks(f, 5)
+    expect([qs(f, 'held_ground'), f.eng.quests.stage('held_ground'), qs(f, 'crown_home')]).toEqual(['done', 105, 'active'])
+  }
+  // the Crown home already, the Held Ground never seen: nothing is asked again
+  {
+    const f = fresh()
+    const w = W(f)
+    author(f, () => (w.setFact('sins.defeated.alberic', 1), w.setFact('ch1.crown', 1), w.setFact('ch1.end', 1)))
+    expect(ticks(f, 900, () => !!w.fact('seen.oath_thorn') && !w.scene)).toBe(true)
+    ticks(f, 5)
+    expect([qs(f, 'held_ground'), f.eng.quests.stage('held_ground'), qs(f, 'crown_home')]).toEqual(['done', 110, 'done'])
+  }
 })
 
 req('V1', "Firstlight's vigil (the main line between the rescue and the night of thanks): oil from the cellar under Tam's mill (Millbrook, west), dawnbloom from Dawn Hill (north), the bell rung in the Chapel of the First Dawn on its top; handed in to Ilse, the night may come, and the First Seal is next", [

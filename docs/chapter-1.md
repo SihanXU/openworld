@@ -140,7 +140,7 @@ balance for a Chapter 1 player come with the chapter.
 
 ## 6. The chapter, beat by beat
 
-Quest stages are the quests' own (docs/quests.md, 2026-10-09: `rescue`, `vigil`, `first_seal`, `crown_home`), answering the story's facts below.
+Quest stages are the quests' own (docs/quests.md, 2026-10-09: `rescue`, `vigil`, `first_seal`, `held_ground` (2026-10-29), `crown_home`), answering the story's facts below.
 New stages are marked **new**.
 
 | # | Where | Beat | Goal (a state) | Clue planted |
@@ -316,7 +316,8 @@ Open: how Severin uses the dawn flame (marked [proposal]); Alberic's balance for
 | *Lost in the Barrow* (`rescue`, Rowan) | the welcome in Firstlight | the barrow mouth (through the grassland, the forest, the hollow), Lina (barrow), Oskar (ossuary), the warden (sanctum) | handed in to Rowan |
 | *The Vigil* (`vigil`, Ilse; §13) | the rescue handed in | lamp oil, dawnbloom, the bell; back to Ilse | handed in to Ilse |
 | *The First Seal* (`first_seal`) | the vigil handed in | the night of thanks, the letter, across the river, the oath at the Rest, the five shrines, the writ and the Order's seal, the Kneeling Field (§14), **the White Knight** | by itself |
-| *The Crown of Thorns* (`crown_home`) | the knight's fall | the Crown home (`ch1.end`) | by itself |
+| *The Held Ground* (`held_ground`, §12) | the Oath-Thorn, after the knight's fall | into the Held Ground by the thorn, a word with Alberic, out again | by itself |
+| *The Crown of Thorns* (`crown_home`) | the Held Ground done | the Crown home (`ch1.end`) | by itself |
 
 Whatever comes before the knight is done once he falls (`skipWhen: sins.defeated.alberic`): a player who
 goes straight for him finds the rescue (and its outcome: the foragers home), the First Seal and Ilse's road
@@ -452,6 +453,12 @@ Vowbound; the step `oath_thorn`, which also reaches a save whose knight fell bef
 (right click) it takes one into **the Held Ground** (誓守之地, map `haven`) and, used there, back where one stood
 (engine primitive `pocket`: the host keeps `pocket.return`; content `body/stage` answers the notice). It lies nowhere
 on the overworld.
+
+**The way in is the main line's** (2026-10-29): the Oath-Thorn begins the main quest *The Held Ground* (`held_ground`,
+content `quests/main.ts`): the thorn in hand and a left click (it is used on oneself), the steward spoken to (he tells of
+the ground's panel and the way out), the thorn again to come back where one stood. *The Crown of Thorns* begins once it is
+done, and the homecoming (`return`) waits for it, so the chapter's card, which gives the player the Held Ground, never comes
+before they have seen it. Demo H1 plays it, H2 an older save's (been there already; the Crown home already).
 
 The Held Ground is the player's camp: a peaceful field round **the planted sword** (Alberic's longsword, point down),
 his tent and post, a chest, tilled earth to sow, a pond (beasts are bought, crated, at the stall) — build, farm and keep animals there as

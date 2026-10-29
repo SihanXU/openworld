@@ -4,7 +4,7 @@ Status: **agreed 2026-10-21; re-scoped 2026-10-26 to run to the first boss.** Re
 the Frostfang Coast: from waking on Cloudtop, down the mountain, through Firstlight and its country — the grassland, the
 forest, Thornwood Hollow and the barrow, Millbrook and Dawn Hill, the Charcoal Dell and the Reed Bend — across the Ford,
 and east along the Pilgrim's Road — the Pilgrims' Rest, the five wayside shrines, the Abbey of the Thorn, the Kneeling
-Field — to the White Knight on the East Road; then the Crown carried home, and the Held Ground. Emberfall, its mine,
+Field — to the White Knight on the East Road; then the Held Ground, and the Crown carried home. Emberfall, its mine,
 Cinder Pass, the dragon's lair and the continent beyond the river are Part Two, already built and played by the team
 behind one fact.
 
@@ -20,6 +20,9 @@ kept, as Part Two's promise; the Pilgrim's Road's maps and the Held Ground are p
 - **`world.part2`** (content `regions.ts` `PART_TWO`) is the fact the second part waits for. No rule sets it in
   release 1; the dev console's World tab (its shortcut "Open Part Two", the debug op `fact`) or a test, by the author's
   hand, sets it to play on. `world.` is a protected prefix: no learned rule may set it.
+- **The Held Ground before the ending** (2026-10-29): after the knight the main line goes through the Oath-Thorn first —
+  the quest `held_ground` (docs/chapter-1.md §12): in, a word with Alberic, out — and the Crown home (`crown_home`, the
+  step `return`) waits for it, so the card that gives the player the Held Ground follows a visit to it.
 - **The ending** is the Crown home: the story step `return` (`tools/src/demo/quest/chapter1.ts`, the village, Nessa's
   four minutes, `ch1.end`) and after it, with Part Two unopened, `part_one`: the chapter's card — "CHAPTER ONE · THE
   FIRST SEAL" — with the release's last lines, the road on east opening in Part Two and Firstlight, its country and the
