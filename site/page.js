@@ -40,7 +40,7 @@ function setLang(to, chosen = false) {
         }
     }
     // a picture's words and a control's name, where they are written beside it (data-zh-alt, data-zh-label)
-    for (const [attr, key] of [['alt', 'Alt'], ['aria-label', 'Label']]) {
+    for (const [attr, key] of [['alt', 'Alt'], ['aria-label', 'Label'], ['data-soon', 'Soon']]) {
         for (const el of document.querySelectorAll(`[data-zh-${key.toLowerCase()}]`)) {
             if (el.dataset[`en${key}`] === undefined) el.dataset[`en${key}`] = el.getAttribute(attr) ?? ''
             el.setAttribute(attr, to === 'zh' ? el.dataset[`zh${key}`] : el.dataset[`en${key}`])
@@ -233,6 +233,7 @@ if (explain) {
 document.querySelectorAll('form.wl').forEach((form) => {
     form.addEventListener('submit', (e) => {
         e.preventDefault()
+        if (form.querySelector('[aria-disabled=true]')) return
         // the mailing list's subscribe address goes in data-endpoint once the list exists
         if (form.dataset.endpoint) fetch(form.dataset.endpoint, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).catch(() => {})
         form.classList.add('sent')
