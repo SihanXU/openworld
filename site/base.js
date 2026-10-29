@@ -7,11 +7,20 @@ document.querySelectorAll('.flip-container').forEach((card) => {
 
 // the waitlist: sent to the mailing list, thanked in place
 document.querySelectorAll('form.wl').forEach((form) => {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
         e.preventDefault()
-        // the mailing list's subscribe address goes in data-endpoint once the list exists
-        if (form.dataset.endpoint) fetch(form.dataset.endpoint, { method: 'POST', body: new FormData(form), mode: 'no-cors' }).catch(() => {})
-        form.classList.add('sent')
+        if (!form.dataset.endpoint) return
+        const button = form.querySelector('button[type=submit]')
+        button.disabled = true
+        form.classList.remove('failed')
+        // Kit answers in JSON when asked to: { status: 'success' | 'failed', errors }
+        let ok = false
+        try {
+            const r = await fetch(form.dataset.endpoint, { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' } })
+            ok = r.ok && (await r.json()).status !== 'failed'
+        } catch {}
+        button.disabled = false
+        form.classList.add(ok ? 'sent' : 'failed')
     })
 })
 

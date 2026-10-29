@@ -366,17 +366,20 @@
         <video class="backdrop" data-auto muted loop playsinline preload="metadata" poster="media/hero.jpg"><source src="media/hero.mp4#t=6.8" type="video/mp4"></video>
         <div class="container">
             <h2 data-zh="开放时第一个知道" data-zh-keep="开放时|第一个知道">Be there when it opens</h2>
-            <form class="wl" method="post" data-endpoint="">
+            <!-- the list is Kit's (form 10117307); a role is one of its tags, by the tag's id -->
+            <form class="wl" method="post" data-endpoint="https://app.kit.com/forms/10117307/subscriptions">
                 <div class="wl-row">
-                    <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
+                    <input type="email" name="email_address" placeholder="you@example.com" required aria-label="Email">
                     <button type="submit" data-zh="加入等候名单">Join the waitlist</button>
                 </div>
                 <div class="wl-roles"><span class="q" data-zh="我想">I'm here to</span>
-                    <input type="checkbox" id="j1" name="tag" value="player"><label for="j1" data-zh="玩">play</label>
-                    <input type="checkbox" id="j2" name="tag" value="research"><label for="j2" data-zh="看研究">read the research</label>
-                    <input type="checkbox" id="j3" name="tag" value="maker"><label for="j3" data-zh="做一个世界">make a world</label>
+                    <input type="checkbox" id="j1" name="tags[]" value="25173707"><label for="j1" data-zh="玩">play</label>
+                    <input type="checkbox" id="j2" name="tags[]" value="25173727"><label for="j2" data-zh="看研究">read the research</label>
+                    <input type="checkbox" id="j3" name="tags[]" value="25173747"><label for="j3" data-zh="做一个世界">make a world</label>
                 </div>
+                <p class="wl-note" data-zh="只用来告诉你开放的消息和项目的进展，不会转给别人，随时可以退订。">Only to tell you when it opens and how the project goes. Never passed on; unsubscribe any time.</p>
                 <p class="wl-done" data-zh="谢谢——请到邮箱里确认。">Thanks — check your inbox to confirm.</p>
+                <p class="wl-error" data-zh="没能加入，请稍后再试。">That didn't go through. Please try again in a moment.</p>
             </form>
         </div>
         <!-- the footer, over the same film -->

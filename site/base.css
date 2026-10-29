@@ -121,7 +121,10 @@ img { display: block; max-width: 100%; }
 .wl-roles input:checked + label { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 .wl-note { font-size: 0.8rem; color: var(--faint); margin-top: 0.6rem; }
 .wl-done { display: none; font-weight: 500; color: var(--ink); padding: 0.7rem 0; }
-.wl.sent .wl-row, .wl.sent .wl-roles { display: none; }
+.wl-error { display: none; font-size: 0.85rem; color: #e5484d; margin-top: 0.6rem; }
+.wl.failed .wl-error { display: block; }
+.wl button:disabled { opacity: 0.6; cursor: default; transform: none; }
+.wl.sent .wl-row, .wl.sent .wl-roles, .wl.sent .wl-note { display: none; }
 .wl.sent .wl-done { display: block; }
 
 /* pulse bar */

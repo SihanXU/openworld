@@ -123,6 +123,8 @@
 .on-dark .wl-roles label { color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.45); }
 .on-dark .wl-roles input:checked + label { color: var(--ink-strong); background: #fff; border-color: #fff; }
 .on-dark .wl-done { color: #fff; }
+.on-dark .wl-note { color: rgba(255,255,255,0.6); }
+.on-dark .wl-error { color: #ffb3ad; }
 .join .wl { margin: 1.75rem auto 0; }
 .join .wl-roles { justify-content: center; }
 
