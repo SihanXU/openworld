@@ -53,7 +53,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   goals in each type's order — encounter, danger, threat, follow, need, schedule, home, idle; danger and need are one's
   wellbeing (`wellbeing.ts`, design.md §5.18: what weighs on one and what puts it right, read from the rules by dry runs —
   a status's harm from its pulse, a place from its contacts, clocks and pulses about, an act from its outcome; `StatusDef.mind`,
-  `TypeDef.minds`, `endures:<id>`; away, toward a cure, an act, a thing made first; those one cares for); the people's goals and
+  `TypeDef.minds`, `endures:<id>`; away, toward a cure, an act, a thing made first; those one cares for; a slot of a day that
+  tends a want before it comes, `ScheduleEntry.tends`: a meal, eaten from what one carries or one's household's larder, and
+  had while nobody watched, `PeriodDef.tendedBy`; a clock `kept` for each host, the morning had when next seen); the people's goals and
   their real work in `npc.ts`, the creatures' in `creatures.ts`; a module's goals join them), Mod port: ModSpec / ModRequest / validatePatch / records
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`: what the view shows and round it),
   a map's things kept as what differs from its file and the maps far behind put away (`sparse.ts`, docs/continent.md §13:
@@ -192,7 +194,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   household's (`test/goods.test.ts`); `interiors.ts` the rooms behind the other doors and the tents (Emberfall's houses, the East Road
   farmhouse, the ferry camp's tent, the rotted one, Alberic's); `quest/haven.ts` the Held Ground, its plots and its four
   grounds;
-  `people/*.ts` one record per person (`person.ts`: a gender and the look pins the author chose; whether they fight, keep a watch, what they trade — every person does, what fits who they are —, their purse and honesty), `people.ts` `HOUSEHOLDS`; `check.ts` a headless two-day playtest;
+  `people/*.ts` one record per person (`person.ts`: a gender and the look pins the author chose; whether they fight, keep a watch, what they trade — every person does, what fits who they are —, their purse and honesty), `people.ts` `HOUSEHOLDS`; `meals.ts` a household's larder and everyone's meals, waking and before bed; `check.ts` a headless two-day playtest;
   `test/demo.test.ts` the completeness and minimality proof),
   `copyAssets.ts` (catalogue subset of the pack → `public/assets/na/`), `coverage.ts` (every item
   form × every target × every act through the rule library and the impulses it sends, counting

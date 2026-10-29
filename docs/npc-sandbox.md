@@ -199,6 +199,16 @@ goal eats what they carry (food is what the rules say cures `hungry`: it fills t
 under), and the society module's way comes after it for what it found no cure for at hand — whatever one minds,
 not only hunger: bought of a merchant whose stock holds something the rules say cures it, or taken as above.
 
+Since 2026-10-29 people have meals (design.md §5.18, `tools/src/demo/meals.ts`): everyone who sleeps eats on waking and
+before bed, a slot that tends `hungry` — at the side of their household's larder when they sleep at a home under a roof
+(a barrel or chest there kept each morning in bread and apples for its mouths, `store/morning`), else wherever the
+hour finds them, about what they were doing (Hesper at her fire).
+In it one short of a full belly eats what one carries or takes from one's own or one's household's containers (never
+another's, and never buying or stealing for a meal's want). A meal passed while the player was elsewhere was had: the
+hunger the player comes back to runs from it. The merchants' morning is kept too: one away at six o'clock has its
+stock and purse when next seen. The backdrop's people eat at their table at noon, their rooms' larders kept as they
+were stocked. Those with no meal to have (a traveller with nothing on them, watched) are hungry as before.
+
 ### 2.12 Followers
 `follow` (regard ≥ 25 or a `hireling`; never the essential) sets the person's `follow` prop: the `follow` goal
 keeps them within 2 cells, brings them at once when more than 12 behind, takes them along from map to map
