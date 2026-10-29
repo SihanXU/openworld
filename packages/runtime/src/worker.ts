@@ -93,13 +93,15 @@ async function askResearch(message: string): Promise<void> {
   session.episode = undefined
   researchBusy = true
   try {
-    if (owner.engine.quality.create === 'off') return void post({ t: 'research', who, problem: 'off' })
+    // the AI setting's level for making new things: off asks nothing, and the rest is how much the craftsperson does
+    const create = owner.engine.quality.create
+    if (create === 'off') return void post({ t: 'research', who, problem: 'off' })
     if (!link?.research || !modderOnline) return void post({ t: 'research', who, problem: 'offline' })
     const catalogue = researchCatalogue(owner.engine, gameRecipes())
     const npc = owner.engine.world.get(who)!
     const name = npc.name ?? owner.engine.world.onto.resolve(npc.type).name
     const icons = await iconsOf(catalogue.prototypes)
-    const said = await link.research({ npc: typeof name === 'string' ? name : name?.en ?? 'Craftsperson', message, history: session.history.slice(-8), catalogue: { ...catalogue, ...(icons && Object.keys(icons).length && { icons }) }, ...(draft && { draft }) }).catch((err: Error) => {
+    const said = await link.research({ npc: typeof name === 'string' ? name : name?.en ?? 'Craftsperson', message, history: session.history.slice(-8), catalogue: { ...catalogue, ...(icons && Object.keys(icons).length && { icons }) }, ...(draft && { draft }), create }).catch((err: Error) => {
       throw Object.assign(err, { unreachable: true })
     })
     const result = readResearchReply(said, catalogue)

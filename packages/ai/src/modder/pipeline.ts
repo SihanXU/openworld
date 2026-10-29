@@ -360,16 +360,19 @@ export class Modder {
   /**
    * A player conversation proposes bounded recipe data, without tools or library writes. The craftsperson reads
    * their notebook first; the turn is kept in their memory, and a proposal is reflected on once the game says what
-   * came of it (researched).
+   * came of it (researched). The player's level for making new things (`create`) is how much they do: low reads a
+   * few rules, draws nothing and keeps nothing; high draws with more thought.
    */
   async research(body: unknown): Promise<ResearchReply> {
     const why = this.down()
     if (why || !this.backend) throw new Error(why || 'No model connected')
     const request = readResearchRequest(body)
     const t0 = Date.now()
+    const level = request.create ?? 'medium'
     const state = this.opts.dry ? undefined : this.craftsperson(request.npc)
-    const rules = state?.relevantLessons([RESEARCH_TERM], 12) ?? []
-    const skill = state?.skillAt(RESEARCH_NODE)
+    // (at low, as a low request recalls: a few rules, no skill)
+    const rules = state?.relevantLessons([RESEARCH_TERM], level === 'low' ? 4 : 12) ?? []
+    const skill = level === 'low' ? undefined : state?.skillAt(RESEARCH_NODE)
     const meter = new Meter(this.backend)
     const said = await researchConversation(meter, request, notebookOf(rules.map((l) => l.text), skill && state!.readSkill(skill.name)?.trim()))
     const workshop: string[] = []
@@ -377,7 +380,8 @@ export class Modder {
     const out = worked.reply
     // the reply goes out now; its picture is drawn meanwhile (the craftsperson sketches while the player reads)
     const handed: ResearchReply = worked.sketch ? { ...out, sketch: this.sketching(worked.sketch) } : out
-    if (!state) return handed
+    // at low the notebook is read, never written: no episode, so nothing is reported back or reflected on
+    if (!state || level === 'low') return handed
     const ep: AgentEpisode = {
       id: state.newEpisodeId(), at: new Date().toISOString(), kind: 'research', node: RESEARCH_NODE,
       summary: `${request.npc}: "${request.message.slice(0, 120)}" → ${proposalOf(out.design)}`,
@@ -452,9 +456,12 @@ export class Modder {
   private async researched(request: ResearchRequest, said: ResearchReply, workshop: string[]): Promise<{ reply: ResearchReply; sketch?: () => Promise<PixelArt | undefined> }> {
     const d = said.design
     if (!d) return { reply: said }
-    // drawn by the craftsperson after they answer, cheaply: the draft on the table's picture is the one changed, when it is of the same thing
-    const draw = (name: Text, id: string, look: string, base?: PixelArt) => () =>
-      this.drawOne(new Meter(this.backend!), { id, name } as TypeDef, look, undefined, base, 'low')
+    // drawn by the craftsperson after they answer: the draft on the table's picture is the one changed, when it is of
+    // the same thing. As the setting draws: not at low (the kind's icon stands), cheaply at medium, with more thought
+    // and more tries at high
+    const level = request.create ?? 'medium'
+    const draw = (name: Text, id: string, look: string, base?: PixelArt) =>
+      level === 'low' ? undefined : () => this.drawOne(new Meter(this.backend!), { id, name } as TypeDef, look, level === 'high' ? ({ tier: 'high', create: 'high', find: true, chains: true } satisfies Workload) : undefined, base, level === 'high' ? undefined : 'low')
     const draft = request.draft
     const before = draft?.kind === 'new' ? draft.type?.art : draft?.art
     const onto = this.opts.library.fullOntology()

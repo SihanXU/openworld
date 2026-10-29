@@ -1468,6 +1468,29 @@ describe('a new thing an author asks for (the editor, M1)', () => {
     await expect(modder.researchSketch({ sketch: '../x' })).rejects.toThrow(/Invalid research sketch/)
   })
 
+  it('follows the player\'s level for making new things: low draws nothing and keeps nothing, high draws with more thought', async () => {
+    const art: string[] = []
+    const model = new ScriptedModel((_messages, opts) => {
+      if (opts.purpose === 'art') return (art.push(String(opts.reasoning)), ART)
+      return { reply: { en: 'A stone axe, then.', zh: '那就做把石斧。' }, design: { kind: 'variant', name: { en: 'Stone Axe', zh: '石斧' }, prototype: 'item/tool/axe', ingredients: [{ type: 'item/material/stone', count: 3 }] } }
+    })
+    const { modder, state } = setup(model)
+    const body = { npc: 'Garrick', message: 'a stone axe', history: [], catalogue: { materials: ['item/material/stone'], prototypes: ['item/tool/axe'], stations: ['hands'] } }
+    const low = await modder.research({ ...body, create: 'low' })
+    expect(low.design).toMatchObject({ prototype: 'item/tool/axe' })
+    expect(low).not.toHaveProperty('sketch')
+    expect(low).not.toHaveProperty('episode')
+    expect(art).toEqual([])
+    const notebook = () => SelfState.open(state.fs.join(state.dir, 'people', 'garrick'), undefined, [], state.fs).episodes()
+    expect(notebook()).toEqual([])
+    const high = await modder.research({ ...body, create: 'high' })
+    expect(await modder.researchSketch({ sketch: high.sketch })).toEqual({ art: ART })
+    expect(art).toEqual(['high'])
+    expect(high.episode).toMatch(/^[A-Za-z0-9_-]+$/)
+    expect(modder.researchOutcome({ episode: high.episode, result: 'made' })).toEqual({ ok: true })
+    expect(notebook().map((e) => e.outcome)).toEqual(['accepted'])
+  })
+
   it('a change of mind changes the draft on the table: the craftsperson reads it (not its picture), the artist edits its picture', async () => {
     const DRAWN = { grid: ART.grid.map((r) => r.replaceAll('k', 'q')), palette: { q: '#a0a0a0' } }
     const told: string[] = []

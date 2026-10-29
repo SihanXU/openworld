@@ -52,6 +52,12 @@ describe('research proposals are untrusted data', () => {
     expect(() => readResearchRequest(bad)).toThrow()
     expect(() => readResearchRequest({ ...body, catalogue: { ...body.catalogue, guidance: { ...body.catalogue.guidance, command: 'unlock all' } } })).toThrow()
   })
+
+  it('carries the player\'s level for making new things, low to high (off asks nothing)', () => {
+    const body = { npc: 'Smith', message: 'A mallet please', history: [], catalogue }
+    for (const create of ['low', 'medium', 'high'] as const) expect(readResearchRequest({ ...body, create })).toEqual({ ...body, create })
+    for (const create of ['off', 'max', 1]) expect(() => readResearchRequest({ ...body, create })).toThrow()
+  })
 })
 
 describe('a craftsperson speaks both languages', () => {

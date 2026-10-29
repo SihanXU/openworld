@@ -4,7 +4,7 @@
 // craftsperson thinks is needed; the service designs that kind (its numbers, makeup, station) and draws both, after the
 // reply (`sketch`): the player reads the craftsperson while the picture is drawn.
 import { artProblems } from './mod.ts'
-import type { PixelArt, Text, TypeDef } from './types.ts'
+import type { PixelArt, Text, Tier, TypeDef } from './types.ts'
 
 /** A researched kind is its prototype's child named apart: `<prototype>/invention_<id>`. */
 export const INVENTION = '/invention_'
@@ -75,6 +75,11 @@ export interface ResearchRequest {
   catalogue: ResearchCatalogue
   /** The draft on the table (the craftsperson's last proposal, its picture if drawn): what a change of mind changes. */
   draft?: ResearchDesign
+  /**
+   * The player's AI setting for making new things (design.md §13; never `off`, which asks nothing): low draws no
+   * picture and keeps nothing in the craftsperson's notebook, high draws with more thought. Unset: medium.
+   */
+  create?: Tier
 }
 
 /** What a trial still lacks: goods (how many more), tools to carry (their tags, `hammer`), a skill. */
@@ -128,7 +133,7 @@ export function readResearchOutcome(value: unknown): ResearchOutcome {
 
 /** Bound even direct HTTP callers before their text reaches a model or is logged. */
 export function readResearchRequest(value: unknown): ResearchRequest {
-  if (!record(value) || !keys(value, ['npc', 'message', 'history', 'catalogue', 'draft']) || !words(value.npc, 100) || !words(value.message, 1000)) throw new Error('Invalid research request')
+  if (!record(value) || !keys(value, ['npc', 'message', 'history', 'catalogue', 'draft', 'create']) || !words(value.npc, 100) || !words(value.message, 1000)) throw new Error('Invalid research request')
   const c = value.catalogue
   if (!record(c) || !keys(c, ['prototypes', 'materials', 'stations', 'tools', 'crafted', 'makes', 'icons', 'guidance'])) throw new Error('Invalid research catalogue')
   // a tool's tag (`hammer`): plain words, read into the craftsperson's system prompt
@@ -193,7 +198,8 @@ export function readResearchRequest(value: unknown): ResearchRequest {
       draft = readResearchReply({ reply: { en: 'draft', zh: 'draft' }, design: value.draft }, catalogue).design
     } catch { /* dropped */ }
   }
-  return { npc: value.npc, message: value.message, history, catalogue, ...(draft && { draft }) }
+  if (value.create !== undefined && value.create !== 'low' && value.create !== 'medium' && value.create !== 'high') throw new Error('Invalid research request')
+  return { npc: value.npc, message: value.message, history, catalogue, ...(draft && { draft }), ...(value.create !== undefined && { create: value.create as Tier }) }
 }
 
 const record = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x) && (Object.getPrototypeOf(x) === Object.prototype || Object.getPrototypeOf(x) === null)

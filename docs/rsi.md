@@ -229,6 +229,10 @@ what Garrick keeps, Mira never reads.
 - **Measure.** `npm run eval:research-rsi` runs the research cases with an empty notebook, trains
   one craftsperson on a separate set of requests (outcomes told back, reflections awaited), and
   runs the cases again on a frozen copy of what was learned: pass rate and time, side by side.
+- **The AI setting.** The player's level for making new things (design.md §13, `ResearchRequest.create`)
+  is how much the craftsperson does: off, no conversation at all; low, a few rules read, no skill, nothing
+  drawn and nothing written to the notebook (no episode, no outcome, no reflection); medium, as above with
+  the picture drawn lightly after the reply; high, the picture drawn with more thought and more tries.
 
 ## 6. Guard rails
 

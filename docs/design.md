@@ -481,7 +481,8 @@ lists where it fell short).
   every event is resolved the same way: if the rules define the outcome, it is used; if they do
   not, the AI is asked. A second interface was agreed on 2026-10-27, the player's own: a recipe talked
   over with a craftsperson (CLAUDE.md, the event model). It proposes data the game checks, and what it
-  makes stays in that save.
+  makes stays in that save. It follows the AI setting's level for making new things (§13): off asks nothing, low
+  draws no picture and keeps no notebook (rsi.md §5.1).
 - **Without an AI, nothing happens.** No modder, a failure or a time-out: the leaf's default
   runs, which is "no change" unless the author wrote one to keep the story playable. Undefined
   behaviour never stops the game.
