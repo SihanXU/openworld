@@ -106,6 +106,13 @@
 .hero h1.logo { font-size: clamp(3.6rem, 12vw, 9rem); line-height: 1; letter-spacing: 0.03em; color: #fff8e6; margin: 0 0 1.1rem;
     text-shadow: 0 0.05em 0 #6b3d1c, 0 0.09em 0 rgba(0,0,0,0.25), 0 0 0.35em rgba(255,210,140,0.35); }
 .nav-title .logo { font-size: 1.45rem; }
+.news-pill { display: inline-flex; align-items: center; gap: 0.6rem; max-width: 100%; margin-bottom: 1.6rem; padding: 0.35rem 0.95rem 0.35rem 0.4rem; border-radius: 999px; font-size: 0.92rem; font-weight: 500; color: #fff; text-decoration: none; background: rgba(15,17,21,0.45); border: 1px solid rgba(255,255,255,0.28); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); transition: background 0.2s, border-color 0.2s; }
+.news-pill b { flex: none; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #1d1d18; background: #f6d48a; border-radius: 999px; padding: 0.2rem 0.6rem; }
+.news-pill span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.news-pill .go { flex: none; transition: transform 0.2s; }
+.news-pill:hover { background: rgba(15,17,21,0.6); border-color: rgba(255,255,255,0.5); }
+.news-pill:hover .go { transform: translateX(3px); }
+.news-pill:focus-visible { outline: 2px solid rgba(255,255,255,0.85); outline-offset: 3px; }
 .hero-actions { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; margin-top: 2rem; }
 .btn { display: inline-flex; align-items: center; font-weight: 600; font-size: 1.05rem; color: #fff; border: 1.5px solid rgba(255,255,255,0.75); border-radius: 999px; padding: 0.75rem 1.6rem; background: rgba(255,255,255,0.1); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); transition: background var(--motion-duration-short) var(--motion-ease-standard), transform var(--motion-duration-medium) var(--motion-ease-standard); }
 .btn:hover { background: rgba(255,255,255,0.22); transform: translateY(-1px); }
