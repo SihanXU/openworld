@@ -3964,7 +3964,7 @@ req('H1',"the Held Ground: once the knight falls, a thorn of his crown is the Oa
 })
 
 req('V1', "Firstlight's vigil (the main line between the rescue and the night of thanks): oil from the cellar under Tam's mill (Millbrook, west), dawnbloom from Dawn Hill (north), the bell rung in the Chapel of the First Dawn on its top; handed in to Ilse, the night may come, and the First Seal is next", [
-  'npc.tam', 'item/material/herb', 'fixture/light/candles', 'fixture/furniture/bench',
+  'npc.tam', 'item/material/herb', 'fixture/light/candles', 'fixture/furniture/bench', 'fixture/sacred/altar/hearth', 'fixture/furniture/pew/old',
 ], () => {
   const f = fresh({ main: 'rescue' })
   const w = W(f)
@@ -4005,9 +4005,11 @@ req('V1', "Firstlight's vigil (the main line between the rescue and the night of
   expect(c.count('item/material/herb')).toBeGreaterThanOrEqual(3)
   through('dawnhill', 'chapel')
   expect(Object.values(w.state.entities).some((e) => e.type === 'fixture/light/candles' && w.posOf(e)?.map === 'chapel')).toBe(true)
-  expect(Object.values(w.state.entities).some((e) => e.type === 'fixture/furniture/bench' && w.posOf(e)?.map === 'chapel')).toBe(true)
+  expect(Object.values(w.state.entities).some((e) => e.type === 'fixture/furniture/pew/old' && w.posOf(e)?.map === 'chapel')).toBe(true)
+  expect(Object.values(w.state.entities).some((e) => e.type === 'fixture/sacred/altar/hearth' && w.posOf(e)?.map === 'chapel')).toBe(true)
   // the bell rope in the tower's corner
-  stand(f, 11, 4, 'up', 'chapel')
+  const [bx, by, , bh] = w.map('chapel')!.regions!.belfry
+  stand(f, bx + 1, by + bh + 1, 'up', 'chapel')
   expect(ticks(f, 60, () => (f.eng.movePlayer('up'), played('chapel_bell')))).toBe(true)
   ticks(f, 900, () => !w.scene)
   // handed in to Ilse: the vigil is kept, the night may come; the First Seal next

@@ -6,7 +6,7 @@
 
 import type { Model, Ornament } from '../oblique.ts'
 import { archNS, backOf, box, recess, type Solid } from '../shapes.ts'
-import { banner, door, lancet, picture, sconce, statue, window, type Glass } from '../ornaments.ts'
+import { banner, door, ivy, lancet, moss, picture, sconce, stains, statue, window, type Glass } from '../ornaments.ts'
 import { shell, type Dress, type Face } from '../shell.ts'
 import { HALLS, type HallPlan } from '../plans.ts'
 import { S } from '../kit.ts'
@@ -26,6 +26,8 @@ interface Style {
   /** The head face's feature. */
   feature: 'hearth' | 'canopy' | 'window' | 'books' | 'ossuary' | 'gate' | 'none'
   pilasters?: string
+  /** Roofless: every wall broken off at a ragged height, ivy up it, moss in its courses, the rain's stains. */
+  ruined?: boolean
 }
 
 /** A painting in its gilt frame: a landscape or a saint, by its seed. */
@@ -236,7 +238,21 @@ function dresser(st: Style, plan: HallPlan): (f: Face) => Dress {
       if (k % 2 && cx + S < x1) orn.push(sconce().at(cx + S - 3, y, Math.round(h * 0.36)))
       k++
     }
-    return { h, solids, voids, ornaments: orn }
+    if (st.ruined) {
+      // (its top smoothly up and down along the wall, never the same height twice: a soft noise over a cell or so)
+      const at = (x: number) => {
+        const u = x / 22
+        const i = Math.floor(u)
+        const e = (u - i) * (u - i) * (3 - 2 * (u - i))
+        const a = hash(i, 0, 71)
+        return a + (hash(i + 1, 0, 71) - a) * e
+      }
+      const top = (x: number) => h * (0.48 + 0.4 * at(x + seed * 5)) - (hash(Math.floor(x / 3), seed, 72) < 0.3 ? 3 : 0)
+      voids.push({ b: [x0 - 1, y - 2 * S, 0, x1 + 1, y + 4, h + 2], mat: st.wall, inside: (x, _y, z) => z > top(x) })
+      orn.push(stains(x1 - x0, Math.round(h * 0.3), 'g', seed).at(x0, y, 0), moss(Math.min(30, x1 - x0), 6, seed).at(x0 + 4, y, 6))
+      if (len > 2) orn.push(ivy(18, Math.round(h * 0.42), seed).at(x0 + ((seed * 13) % Math.max(1, x1 - x0 - 20)), y, 0))
+    }
+    return { h, solids, voids, ornaments: orn, ...(st.ruined && { top: st.wall }) }
   }
 }
 
@@ -296,6 +312,7 @@ const STYLES: Record<keyof typeof HALLS, Style> = {
   mbmill: { wall: 'timber', trim: 'darkwood', h: 80, windows: 'rect', hang: ['timbers', 'tools', 'shelves'], feature: 'none', pilasters: 'darkwood' },
   dlhut: { wall: 'darkwood', trim: 'darkwood', h: 64, windows: 'rect', hang: ['tools', 'none', 'jars'], feature: 'none' },
   rbcabin: { wall: 'timber', trim: 'darkwood', h: 64, windows: 'rect', hang: ['jars', 'painting', 'none'], feature: 'none', pilasters: 'darkwood' },
+  dhchapel: { wall: 'stone', trim: 'stone', h: 104, windows: 'lancet', glass: 'gold', hang: ['none', 'none', 'banner'], feature: 'window', pilasters: 'stone', ruined: true },
   prchapel: { wall: 'stone', trim: 'stone', h: 104, windows: 'lancet', glass: 'red', hang: ['tapestry', 'banner', 'painting'], feature: 'window', pilasters: 'stone' },
   prhostel: { wall: 'plaster', trim: 'timber', h: 72, windows: 'rect', hang: ['painting', 'jars', 'none'], feature: 'hearth', pilasters: 'timber' },
   abhall: { wall: 'granite', trim: 'darkwood', h: 96, windows: 'lancet', glass: 'blue', hang: ['banner', 'books', 'trophy'], feature: 'canopy', pilasters: 'granite' },

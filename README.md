@@ -37,6 +37,7 @@ OpenWorld is the research platform for the paper *Large Symbolic World* (in prep
 - [Development](#development)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
+- [Citation](#citation)
 - [Credits and license](#credits-and-license)
 
 ## Features
@@ -218,6 +219,19 @@ uses is committed in `games/openworld/public/assets/na/`. To update it, put the 
 - Write code, comments and documentation in English.
 
 Architecture notes and project conventions: [CLAUDE.md](CLAUDE.md).
+
+## Citation
+
+If you use OpenWorld in your research, please cite:
+
+```bibtex
+@misc{openworld2026,
+  title        = {OpenWorld: A Large Symbolic World},
+  author       = {{OpenWorld Team}},
+  year         = {2026},
+  howpublished = {\url{https://sihanxu.me/openworld/}}
+}
+```
 
 ## Credits and license
 

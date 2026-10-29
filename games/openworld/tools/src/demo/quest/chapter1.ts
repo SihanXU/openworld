@@ -271,7 +271,7 @@ export const CHAPTER1_STORY: StepDef[] = [
     id: 'ford_night',
     when: { map: 'ford', facts: { [CH1.flameStolen]: 1, [CH1.letter]: 0 } },
     script: [
-      say('npc.hesper', 'You saw him too? A man in grey walked across my river. The water froze under each step he took, and it had melted again behind him before I had my boots on.', '你也看见了？一个灰衣人从我的河上走过去了。他走一步，脚底下就结一层冰。我还没套上靴子，他身后的冰就化没了。'),
+      say('npc.hesper', 'You saw him too? A man in grey walked across my river. The water froze under each step he took, and it had melted again behind him before I had my boots on.', '你也看见了？一个灰衣人从我的河上走过去了。他走一步，脚底下就结一层冰。我还没套上靴子，他身后的冰就化没了。', 'surprised'),
       say('player', '(Far off to the east, beyond the far bank, a small light bobs along the road, and goes out.)', '（远远的东边，过了对岸，一点小小的灯光沿着大路晃着，后来灭了。）'),
       say('npc.hesper', 'Thirty-one years I have kept this water. I have never seen it hold a man up.', '我在这条河上守了三十一年，从没见它托住过一个人。'),
     ],
@@ -293,7 +293,7 @@ export const CHAPTER1_STORY: StepDef[] = [
     when: { map: 'ford', objectives: ['pilgrim.hesper'] },
     script: [
       say('npc.hesper', 'Look at the stumps by the bridge. Where the planks were, he drove thorns into the wood, like a man marking what is his.', '你去看桥边那几根桩子。原来搭木板的地方，他都钉上了荆棘，像是在自己的东西上做记号。'),
-      say('npc.hesper', 'Aldo and Joss built that bridge the year before the river took Aldo. Every board I walked on, he cut.', '那座桥是阿尔多和乔斯一起搭的，搭好的第二年，河就把阿尔多带走了。我脚下踩的每一块板子，都是他锯的。'),
+      say('npc.hesper', 'Aldo and Joss built that bridge the year before the river took Aldo. Every board I walked on, he cut.', '那座桥是阿尔多和乔斯一起搭的，搭好的第二年，河就把阿尔多带走了。我脚下踩的每一块板子，都是他锯的。', 'sad'),
       say('npc.hesper', 'Mend it. Then go and tell that knight whose bridge it was.', '把桥修好。然后去告诉那个骑士，那是谁的桥。'),
     ],
   },

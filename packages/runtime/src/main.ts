@@ -16,7 +16,7 @@ import { OwnModel, namedModder, ownModel } from './ownModel.ts'
 import { writeSlot, type Slot } from './saves.ts'
 import { Cover } from './ui/cover.ts'
 import { DeathScreen } from './ui/death.ts'
-import { locale, relabelKeys, t, tx } from './ui/common.ts'
+import { locale, prefs, relabelKeys, t, tx } from './ui/common.ts'
 import { actionOf, codeLabel, keys, setLayout, type Action } from './keymap.ts'
 import { PanelTabs, type Panel } from './ui/paneltabs.ts'
 import { Cursor } from './ui/cursor.ts'
@@ -64,7 +64,7 @@ const modderWhere = (): string => (!NAMED && ownModel.ready ? LOCAL_MODDER : (MO
 /** A game begun or loaded: the engine's worker is told the modder with it. */
 function sendInit(m: Extract<ToWorker, { t: 'init' }>): void {
   const link = modderNow()
-  worker.postMessage({ ...m, ...link }, 'modderPort' in link ? [link.modderPort] : [])
+  worker.postMessage({ ...m, guiding: prefs.get('guide'), ...link }, 'modderPort' in link ? [link.modderPort] : [])
 }
 // the player chose another model, or none: the engine asks the modder that is now (a model of the same name: nothing to tell)
 ownModel.listen((s, before) => {
@@ -128,6 +128,7 @@ const menu = new Menu({
   keyOnItem: (key, item) => send({ t: 'keyOnItem', key, item }),
   useItemOnHeldItem: (instrument, target) => send({ t: 'useItemOnHeldItem', instrument, target }),
   setQuality: (quality) => send({ t: 'quality', quality }),
+  guiding: (on) => send({ t: 'guiding', on }),
 })
 // (dev: the panels, for checking them by hand)
 if (import.meta.env.DEV) Object.assign((window as unknown as { lsw: object }).lsw, { menu })

@@ -1166,6 +1166,7 @@ export const CATALOG: Catalog = {
     'npc.ilse': { dir: 'lsw/Portraits/ilse', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true },
     'npc.severin': { dir: 'lsw/Portraits/severin', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true },
     'npc.tobin': { dir: 'lsw/Portraits/tobin', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true },
+    'npc.hesper': { dir: 'lsw/Portraits/hesper', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true },
     // (her panel picture in layers too: tools/src/art/portraits/panel-layers.py — her panel flutters her wings and blinks)
     pip: { dir: 'lsw/Portraits/lumi', moods: ['neutral', 'happy', 'sad', 'angry', 'surprised', 'shy'], blink: true, talk: true, panel: true, panelLayers: true },
   },

@@ -291,6 +291,8 @@ export interface Frame {
   quests: { marks: Record<Id, '!' | '?'>; journal: JournalQuest[]; tracked?: Id; targets: QuestTarget[]; board: QuestOffer[] }
   /** The lesson at hand (docs/prologue.md, the drills): what to spotlight, the key to draw, what the keys may do. */
   lesson?: LessonView
+  /** The spot a companion leading the way shows now, on this map (companion.ts): who, and where. */
+  guide?: { who: Id; x: number; y: number }
 }
 
 /** Render-only fishing state; the client sends input edges and never submits progress or a catch. */
@@ -747,6 +749,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
     ...(fallen(eng) && { fallen: fallen(eng) }),
     facts: { ...(w.story?.props ?? {}) },
     ...(questView.lesson && { lesson: questView.lesson }),
+    ...((g) => g && { guide: g })(eng.companions.pointing()),
     container: box && {
       id: box.id,
       name: box.name ?? w.onto.resolve(box.type).name ?? box.type.split('/').pop()!,

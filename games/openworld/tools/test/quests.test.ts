@@ -142,12 +142,15 @@ describe('the journal follows one quest', () => {
     begin(eng, 'herd')
     ticks(eng, 2)
     eng.controls.track('quest.herd')
-    // from the village: the grassland
-    expect(eng.quests.targets().map((t) => t.map)).toEqual(['pasture'])
+    // from the village: the grassland, and the way off the village toward it
+    expect(eng.quests.targets().filter((t) => !t.way).map((t) => t.map)).toEqual(['pasture'])
+    expect(eng.quests.targets().filter((t) => t.way).map((t) => t.map)).toEqual(['meadow'])
     // on the grassland by day: no dead walk it, and its middle has nothing to show
     eng.author(() => eng.teleport(w.player, { map: 'pasture', x: 23, y: 20 }))
     ticks(eng, 1)
     expect(eng.quests.targets()).toEqual([])
+    // nor does a companion lead the way to it
+    expect(eng.quests.lead()).toBeUndefined()
     // the dead come up: the nearest is marked, where it stands
     const [near, far] = eng.author(() => [
       w.create('actor/creature/undead/skeleton', { on: 'tile', map: 'pasture', x: 26, y: 24 }),
@@ -164,14 +167,16 @@ describe('the journal follows one quest', () => {
     const w = eng.world
     ticks(eng, 5)
     expect(eng.quests.tracked()?.id).toBe('quest.rescue')
-    expect(eng.quests.targets().every((t) => ['hollow', 'barrow', 'ossuary', 'sanctum'].includes(t.map))).toBe(true)
+    expect(eng.quests.targets().every((t) => ['hollow', 'barrow', 'ossuary', 'sanctum'].includes(t.map) || (t.way && t.map === 'meadow'))).toBe(true)
+    // and, from the village, the way off it toward them (the arrow at the screen's edge)
+    expect(eng.quests.targets().some((t) => t.way && t.map === 'meadow')).toBe(true)
     begin(eng, 't_letter')
     ticks(eng, 2)
     // a side quest begun does not take the place of the main one
     expect(eng.quests.tracked()?.id).toBe('quest.rescue')
     eng.controls.track('quest.t_letter')
     expect(eng.quests.tracked()?.id).toBe('quest.t_letter')
-    expect(eng.quests.targets().map((t) => t.objective).sort()).toEqual(['carry', 'tam'])
+    expect(eng.quests.targets().filter((t) => !t.way).map((t) => t.objective).sort()).toEqual(['carry', 'tam'])
     expect(JSON.stringify(eng.story.objective())).toContain('测试信')
     // a talk objective: '?' over the one to speak to; spoken to, they say their line and it is done
     expect(eng.quests.mark('npc.tam')).toBe('?')

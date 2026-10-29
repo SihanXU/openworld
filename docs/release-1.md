@@ -202,6 +202,18 @@ Every hand-made map of the west bank to the same standard, its ground drawn by h
   which throws on a way, the water, a door or a thing: no story position, id or test moves. An older save steps off the
   new walls (`migratePrologueMaps`).
 
+- **The Chapel of the First Dawn, redrawn as the ruin it is** (2026-10-28): inside, a hall on its plan (`plans.ts`
+  `dhchapel`: the nave, the apse at its head, the bell tower's foot through an arch) in a new hall style, `ruined` (every
+  wall broken off at a soft ragged height, its broken top its own stone, ivy, moss and the rain's stains: `halls.ts`,
+  `shell.ts` `Dress.top`); the first hearth a thing of its own kind with its own picture (`fixture/sacred/altar/hearth`,
+  a ring of stones round old ash, prop `firsthearth`) in place of the altar that looked like a waypoint statue; old pews
+  (`fixture/furniture/pew/old`, prop `pew_old`) for the pack's benches; the east side where the roof fell gone to grass
+  under the fallen stone, a beam and slates, lying pictures in place of the moss, leaves and tufts that were things; the
+  morning sun through the apse's window onto the hearth and the sky's light where the roof is gone (`MapData.lights`).
+  Outside (`dh_chapel`), the nave roofless to its bare rafters, the chancel still slated, slates fallen in the forecourt
+  and the churchyard (`decor_slates`). An older save steps off the new walls and its altar becomes the hearth
+  (`migrateDawnChapel`).
+
 ## 5. The pictures
 
 What the game drew wrong, fixed where it was wrong, for every map that uses it:

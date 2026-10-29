@@ -242,6 +242,10 @@
               },
               "additionalProperties": false,
               "description": "What a made thing may be worth (docs/economy.md): what its kind is worth, of the material it is made of, as a common piece of the first level — times its quality's share (`quality`: by the quality's id; one not named, 1). A made thing its maker's level and hand would make dearer is worth that (its `worth` prop, fixed as it is made): the world's standard prices hold however well one makes a thing. Absent: no bound."
+            },
+            "run": {
+              "type": "number",
+              "description": "How many times as quick the player's steps are running (the run key held) as walking: 1.5 when absent."
             }
           },
           "additionalProperties": false,

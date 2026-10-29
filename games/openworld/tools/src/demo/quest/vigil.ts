@@ -7,7 +7,7 @@
 import type { AiData } from '@openworld/engine'
 import { MapBuilder } from '../builder.ts'
 import { L, GROUND_YIELD, appears } from '../kit.ts'
-import { flHouse, house } from '../village.ts'
+import { flHouse } from '../village.ts'
 import { wildFloor } from '../wildfloor.ts'
 
 /** Edge openings: Firstlight's new west gap (rows) and north gap (columns), and where they meet the new maps. */
@@ -203,6 +203,8 @@ export function buildDawnHill(): MapBuilder {
   m.sprinkle('fixture/nature/tuft', 0.08, (x, y, t) => grass(t) && !east(x) && !m.near(x, y, tree, 1) && !m.near(x, y, road, 1))
   m.sprinkle('fixture/nature/pebbles', 0.3, (x, y, t) => grass(t) && m.face(x, y - 1))
   m.sprinkle('fixture/nature/leaves', 0.16, (x, y, t) => grass(t) && m.near(x, y, tree))
+  // the slates the chapel's roof shed into its forecourt and the churchyard
+  for (const [x, y] of [[18, 4], [24, 3], [22, 6], [24, 5], [18, 2]] as const) if (m.free(x, y)) m.building('decor_slates', x, y)
   wildFloor(m, 1, (x, y) => x >= 12 && x <= 30 && y <= 7)
   m.appear = [...GROUND_YIELD, appears('item/material/herb', ['flowers', 'grass'], 3, 1200)]
   return m
@@ -264,19 +266,34 @@ export function buildHillMine(): MapBuilder {
  * in, a fallen stone) and, through a doorway at its head, the foot of the bell tower, the rope hanging in it.
  */
 export function buildChapel(): MapBuilder {
-  const m = house('chapel', 'Chapel of the First Dawn', '初晓礼拜堂', 14, 12, 'stone', [[0, 0, 10, 12], [10, 0, 4, 7]], [[9, 4], [10, 4]], [5, 11], { floor: 'floor_stone', music: 'temple' })
-  m.fixture('fixture/sacred/altar', 5, 2, { name: L('The first hearth', '最初的火坛'), tags: ['readable'], props: { text: 'The chapel\'s first hearth, a ring of stone, cold for centuries. Old soot is still packed deep in its cracks.', text_zh: '礼拜堂最早的火坛，一圈石头砌成，已经冷了几百年。裂缝深处还塞着陈年的烟灰。' } })
-  for (const [x, y] of [[3, 2], [7, 2]] as const) m.fixture('fixture/light/candles', x, y)
-  // what is left of the benches, two either side of the aisle, one tipped over by the wall
-  for (const [x, y] of [[3, 5], [7, 5], [3, 7], [7, 8]] as const) m.fixture('fixture/furniture/bench', x, y)
-  // where the roof fell in: weeds through the flags, a fallen stone, moss, leaves blown in
-  m.fixture('fixture/nature/boulder', 1, 6, { name: L('A fallen stone', '坠落的石块') })
-  for (const [x, y] of [[1, 7], [8, 3], [4, 9], [2, 9], [8, 10]] as const) m.fixture('fixture/nature/moss', x, y)
-  for (const [x, y] of [[6, 9], [2, 4], [8, 7], [5, 7]] as const) m.fixture('fixture/nature/leaves', x, y)
-  for (const [x, y] of [[3, 9], [2, 8], [7, 6], [1, 10]] as const) m.fixture('fixture/nature/tuft', x, y)
-  // the bell tower: the rope down its north wall, rung from the floor below it
-  m.scenery('bell_rope', 11, 0)
-  m.regions.belfry = [10, 1, 3, 2]
-  m.creature('beast/bat', 6, 4, HUNT(4))
+  // (a hall of its plan, plans.ts dhchapel: the nave, the apse at its head, the tower's foot through the arch east; its
+  // walls broken off where the roof went, halls.ts `ruined`)
+  const { m, P } = flHouse('dhchapel', 'chapel', 'Chapel of the First Dawn', '初晓礼拜堂', 'floor_stone', ['tower'], { music: 'temple' })
+  const A = P.apse
+  const N = P.nave
+  const T = P.tower
+  // (the apse and the nave one room: the apse opens on the nave its whole width, no doorway between them)
+  m.rooms.push({ style: 'shell', x: N.x - 1, y: A.y - 1, w: N.w + 2, h: N.y + N.h - A.y + 2 })
+  // the first hearth in the apse, where the Firstlight was kindled: a ring of stones round old ash (its own picture,
+  // art/arch/buildings/chapter1.ts), candles either side
+  m.fixture('fixture/sacred/altar/hearth', A.x + 2, A.y, { name: L('The first hearth', '最初的火坛'), tags: ['readable'], props: { text: 'The chapel\'s first hearth, a ring of stone, cold for centuries. Old soot is still packed deep in its cracks.', text_zh: '礼拜堂最早的火坛，一圈石头砌成，已经冷了几百年。裂缝深处还塞着陈年的烟灰。' } })
+  for (const x of [A.x, A.x + 4]) m.fixture('fixture/light/candles', x, A.y)
+  // the pews either side of the aisle up to the hearth; on the east, where the roof came down, the rest are gone
+  const ax = A.x + 2
+  for (const y of [N.y + 2, N.y + 4]) m.fixture('fixture/furniture/pew/old', ax - 3, y)
+  m.fixture('fixture/furniture/pew/old', ax + 3, N.y + 2)
+  // where the roof fell in: the nave's east side open to the sky, grass up through its flags, the fallen stone, a beam,
+  // the slates, the stones of the wall's top
+  for (let y = N.y + 3; y < N.y + N.h; y++)
+    for (let x = ax + 1; x < N.x + N.w; x++) if (Math.hypot((x - (ax + 4)) / 3.2, (y - (N.y + 6)) / 2.6) < 1 + (((x * 7 + y * 13) % 5) - 2) * 0.08 && m.free(x, y)) m.set(x, y, 'grass')
+  m.fixture('fixture/nature/boulder', ax + 4, N.y + 5, { name: L('A fallen stone', '坠落的石块') })
+  for (const [name, x, y] of [['decor_beams', ax + 2, N.y + 7], ['decor_slates', ax + 3, N.y + 3], ['decor_slates', ax + 5, N.y + 7], ['decor_stones', N.x + N.w - 1, N.y + 4], ['decor_stones', N.x, N.y + 7], ['decor_cracks_0', ax - 1, N.y + 6], ['decor_cracks_2', ax - 4, N.y + 7], ['decor_leaves_1', ax, N.y + 1], ['decor_leaves_2', ax - 2, N.y + 6]] as [string, number, number][]) m.building(name, x, y)
+  // the bell tower's foot through the arch: the rope down its north wall, rung from the floor below it
+  m.scenery('bell_rope', T.x + 1, T.y - 1)
+  m.regions.belfry = [T.x, T.y, 3, 2]
+  m.creature('beast/bat', ax, N.y + 3, HUNT(4))
+  // the light: the sun through the window at its head onto the hearth, and where the roof is gone, the sky's
+  m.lights.push({ x: A.x + 2.5, y: A.y + 2.2, w: 3, h: 4.5, color: '#ffd9a0', shape: 'lancet', when: 'sun', strength: 0.6 })
+  m.lights.push({ x: ax + 4, y: N.y + 5.5, w: 6.5, h: 5, color: '#fff1c8', shape: 'glow', when: 'sun', strength: 0.35 })
   return m
 }

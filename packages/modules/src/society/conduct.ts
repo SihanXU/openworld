@@ -3,14 +3,15 @@
 // - social: a guard goes after one its watch wants and stops them (an act of the hands, `say: arrest`); an
 //   owner goes after one they saw take what is theirs and asks for it back (`say: demand`); one afraid keeps
 //   away from who frightened them; a fight over, one calms down;
-// - need: the hungry eat what they carry, buy a meal of one who sells food, or — the poor, the loose of
-//   conscience, the starving — take one (an act seen and judged as anyone's);
+// - need: what one minds and has no cure for at hand (the kernel's need, wellbeing.ts, found none — the hungry
+//   with nothing to eat, one soaked with nothing to dry by): bought of one who sells a thing the rules say
+//   cures it, or — the poor, the loose of conscience, the starving — taken (an act seen and judged as anyone's);
 // - follow, for people: one who follows another walks after them, keeps near, fights beside them, and comes
 //   along from map to map.
 // Every move is a step and every deed an act, as the player's are; what a goal sets going it does by events
 // (behaviour may make them, as a day that cannot go on makes `stuck`): the answers are the people's rules.
 
-import { DIRS, astar, wayTo, type Dir, type Engine, type Entity, type Id, type Pos, type Scene } from '@openworld/engine'
+import { DIRS, HARM, astar, wayTo, type Dir, type Engine, type Entity, type Id, type Pos, type Scene } from '@openworld/engine'
 import { socialOf } from './state.ts'
 
 const NPC_STEP_TICKS = 4
@@ -18,9 +19,9 @@ const NPC_STEP_TICKS = 4
 const ARREST_EVERY = 120
 /** How long an owner waits between asking for what was taken (ticks); the `demanded` status keeps them from asking twice. */
 const DEMAND_NEAR = 6
-/** How far a hungry person goes for a meal (cells). */
+/** How far a person goes for what would put them right (cells): a meal, a draught. */
 const MEAL_REACH = 14
-/** How long one who found no meal waits before looking again (ticks: an hour). */
+/** How long one who found none waits before looking again (ticks: an hour). */
 const MEAL_AGAIN = 600
 /** Below this conscience, the hungry with no coin pick a pocket for a meal. */
 const POCKET_HONESTY = 0.3
@@ -242,22 +243,28 @@ export class Conduct {
 
   // ---------------------------------------------------------------- need
 
-  /** The need goal: one hungry eats, buys a meal, or takes one (docs/npc-sandbox.md §2.11). */
+  /**
+   * The need goal, the society's way (docs/npc-sandbox.md §2.11): what one minds that the kernel's need found no cure
+   * for at hand (wellbeing.ts) — bought, or taken. A thing cures it as the rules say (food the hungry, a draught the
+   * hurt), read by the one who would use it: the goal names no food.
+   */
   need(e: Entity, sc: Scene): boolean {
     const eng = this.eng
     const w = eng.world
-    if (!e.npc || e.place.on !== 'tile' || e.ai || !w.hasStatus({ e: e.id }, 'hungry') || eng.asleep(e)) return false
+    if (!e.npc || e.place.on !== 'tile' || e.ai || eng.asleep(e)) return false
+    const wants = eng.wellbeing.troublesFor(e).filter((t) => t.subject === e.id && !t.place && !t.danger)
+    if (!wants.length) return false
     const rt = this.runtime(e)
     if ((rt.meal ?? -1) > w.state.tick) return false
-    const edible = (x: Entity | undefined) => !!x && !e.residentWork?.cargoIds.includes(x.id) && w.hasTag(x, 'edible') && !x.frozenBy
-    // what they carry: eaten
+    const edible = (x: Entity | undefined) => !!x && !e.residentWork?.cargoIds.includes(x.id) && !x.frozenBy && wants.some((t) => eng.wellbeing.wouldCure(e, x, t))
+    // what they carry: used (the kernel's need does it where its way is at hand; here, as a last resort)
     const food = [...(e.held ? [e.held] : []), ...(e.contents ?? [])].map((id) => w.get(id)).find(edible)
     if (food) {
       eng.act('use', e.id, { e: e.id }, { instrument: { e: food.id } })
       eng.setCooldown(e.id, 20)
       return true
     }
-    // coin for a meal: the nearest who sells food they can pay for
+    // coin for it: the nearest who sells what would put them right, that they can pay for
     const purse = socialOf(eng).purse(e)
     let seller: { who: Entity; item: Entity } | undefined
     let near = Infinity
@@ -278,9 +285,10 @@ export class Conduct {
       }
       return this.go(e, seller.who.place.x, seller.who.place.y) || this.giveUp(rt, e)
     }
-    // none to buy with: the loose of conscience, or the starving, take one lying about or put away
+    // none to buy with: the loose of conscience, or the starving (what they mind harms them now), take one lying
+    // about or put away
     const honest = w.num(e, 'honesty', 1)
-    const starving = w.num(e, 'hunger', 1) <= 0
+    const starving = w.num(e, 'hunger', 1) <= 0 || wants.some((t) => t.weight >= HARM)
     if (honest >= 0.5 && !starving) return this.giveUp(rt, e)
     const at = e.place
     let take: Entity | undefined
@@ -312,7 +320,7 @@ export class Conduct {
   private giveUp(rt: Runtime, e: Entity): boolean {
     rt.meal = this.eng.world.state.tick + MEAL_AGAIN
     // hungry with no coin and nothing found: news for the quests (a favour: bring them something to eat)
-    if (socialOf(this.eng).purse(e) === 0) this.eng.quests.news({ kind: 'hungry', target: e.id })
+    if (socialOf(this.eng).purse(e) === 0 && this.eng.world.hasStatus({ e: e.id }, 'hungry')) this.eng.quests.news({ kind: 'hungry', target: e.id })
     return false
   }
 

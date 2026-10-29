@@ -128,9 +128,9 @@ const vigil: QuestDef = {
   summary: L('When someone comes home safe, Firstlight keeps a vigil at its flame, and Sister Ilse has asked you to help her prepare it. She needs lamp oil from the cellar at Millbrook, west of the village, dawnbloom from Dawn Hill to the north, and the old bell rung in the Chapel of the First Dawn on the hill\'s top.', '初原村有个规矩：有人平安归来，就在圣火前守夜。伊尔丝修女托你帮她准备：村子西边水车磨坊地窖里的灯油，北边晨光丘上的晨光花，还要去丘顶的初晓礼拜堂敲响那口旧钟。'),
   aliases: { giver: { id: 'npc.ilse', essential: true }, mill: { place: 'millcellar' }, hill: { place: 'dawnhill' }, belfry: { place: 'chapel:belfry' } },
   objectives: [
-    { id: 'oil', text: L('Fetch the lamp oil from the mill cellar at Millbrook (west)', '去西边水车磨坊的地窖取灯油'), target: 'mill', count: { carry: { type: 'item/vessel/flask/oil' } }, need: 2 },
-    { id: 'bloom', text: L('Pick dawnbloom on Dawn Hill (north)', '去北边的晨光丘采晨光花'), target: 'hill', count: { carry: { type: 'item/material/herb' } }, need: 3 },
-    { id: 'bell', text: L('Ring the bell in the Chapel of the First Dawn, on top of Dawn Hill', '敲响晨光丘顶初晓礼拜堂里的钟'), target: 'belfry', on: { step: 'chapel_bell' } },
+    { id: 'oil', text: L('Fetch the lamp oil from the mill cellar at Millbrook (west)', '去西边水车磨坊的地窖取灯油'), target: 'mill', count: { carry: { type: 'item/vessel/flask/oil' } }, need: 2, nudge: L('The oil! Here, before the shelves at the back. Two flasks!', '灯油！在这儿，后面架子前头。要两瓶哦！') },
+    { id: 'bloom', text: L('Pick dawnbloom on Dawn Hill (north)', '去北边的晨光丘采晨光花'), target: 'hill', count: { carry: { type: 'item/material/herb' } }, need: 3, nudge: L('Hi, here! This one is dawnbloom — not the little flowers round it. Pick three!', '嗨，在这里！这朵就是晨光花——不是旁边那些小花哦。要摘三朵！') },
+    { id: 'bell', text: L('Ring the bell in the Chapel of the First Dawn, on top of Dawn Hill', '敲响晨光丘顶初晓礼拜堂里的钟'), target: 'belfry', on: { step: 'chapel_bell' }, nudge: L('The bell is up here! Ring it!', '钟就在这上面！敲响它吧！') },
     { id: 'back', text: L('Back to Sister Ilse', '回去找伊尔丝修女'), target: 'giver', talk: true },
   ],
   stages: [
