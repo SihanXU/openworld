@@ -74,6 +74,8 @@ const ACT_REACH = 6
 const ABOUT_MAX = 40
 /** How many things at hand are tried for making another (an empty bucket filled). */
 const MAKE_TOOLS = 4
+/** How many kinds put away (a larder's bread, its apples) are tried. */
+const STORED_MAX = 8
 /** A way is let go and looked for again after this long (ticks). */
 const PLAN_TTL = 300
 /** Having found no way, one looks again after this long (ticks). */
@@ -452,6 +454,8 @@ export class Wellbeing {
       const still = all.find((t) => t.subject === held.trouble.subject && t.status === held.trouble.status)
       if (still && w.state.tick - held.at < PLAN_TTL) {
         const r = this.step(e, active, held)
+        // (a way gone through and the trouble still there — a bite short of full — is looked for again next turn)
+        if (r === 'done') return this.plans.delete(e.id), true
         if (r !== 'failed') return true
       }
       this.plans.delete(e.id)
@@ -570,8 +574,7 @@ export class Wellbeing {
       const subject = w.get(t.subject)
       const sp = subject && w.posOf(subject)
       const things = this.about(e, active, at)
-      const mine = (x: Entity) => x.place.on !== 'tile' || this.mayTake(e, x)
-      const tools = [...this.carried(e), ...things.filter((x) => w.isPortable(x) && mine(x))]
+      const tools = [...this.carried(e), ...things.filter((x) => w.isPortable(x) && this.mayTake(e, x)), ...this.stored(e, things)]
       const kind = (x: Entity | undefined) => (x ? `${x.type}|${Object.keys(x.statuses ?? {}).sort().join(',')}` : '')
       for (const i of tools) {
         const ok = this.memo(`use|${kind(subject)}|${t.status}|${kind(i)}|${self}`, () => {
@@ -627,10 +630,27 @@ export class Wellbeing {
     return d.hp < 0 || d.adds.has('burning')
   }
 
-  /** To have a thing in hand to use: take it where it lies first. */
+  /** To have a thing in hand to use: take it where it lies, or out of what keeps it, first. */
   private fetch(e: Entity, i: Entity): Step[] {
-    if (i.place.on !== 'tile') return []
+    if ((i.place.on === 'inside' || i.place.on === 'hand') && i.place.holder === e.id) return []
     return [{ go: this.eng.world.posOf(i)!, near: 1 }, { act: 'take', target: i.id }]
+  }
+
+  /** What is put away in the things about one that one may take from (one's own chest, one's household's larder): a kind each, the nearest. */
+  private stored(e: Entity, things: Entity[]): Entity[] {
+    const w = this.eng.world
+    const out: Entity[] = []
+    const kinds = new Set<string>()
+    for (const box of things) {
+      if (!box.contents?.length || w.isPortable(box)) continue
+      for (const id of box.contents) {
+        const x = w.get(id)
+        if (!x || kinds.has(x.type) || !w.isPortable(x) || !this.mayTake(e, x)) continue
+        kinds.add(x.type)
+        out.push(x)
+      }
+    }
+    return out.slice(0, STORED_MAX)
   }
 
   /** What one carries: in the hand and the bag. */
