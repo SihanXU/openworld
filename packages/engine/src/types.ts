@@ -1268,6 +1268,13 @@ export interface MapData {
   scale?: number
   /** Where the map lies on the overworld: the top left of its cell's block there (world-model.md §5.1). Its open edges lead to it. */
   site?: { map: string; x: number; y: number; size: number }
+  /**
+   * The story's fact that opens this map's edges (world-model.md §5.1, docs/release-1.md §1): until it is set, no edge
+   * leads off the map onto the overworld, whatever is cleared from it (a felled tree, mined rock), and running off one
+   * is a bump on the story (`Engine.sealedEdge`). A map a barrier parts takes it from the places its part's ways lead
+   * to: off that part's edge one would come out on their side. Without it, the edges are open.
+   */
+  edgesWhen?: string
   portals: Portal[]
   /** Render hints (the engine ignores them): prefab stamps, room wall frames, music, light. */
   stamps?: { key: string; x: number; y: number }[]

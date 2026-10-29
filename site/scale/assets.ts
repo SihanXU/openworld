@@ -1,14 +1,17 @@
-// The scale film's material, drawn by the game's own code (npm run gen:world first):
-//   maps.png      every map (the hand-made and the backdrop's), as the game draws it, cut to a square, 64 x 64 each
-//   lead.png      the map the film opens on (Firstlight), whole, at the game's own size
-//   big.jpg       the places it splits into first (the showcase's and the hand-made country by turns), 256 x 256 each
-//   people.png    every person's map figure from their look, walking toward us (4 frames) and standing, 24 x 36 each
-//   faces.png     some of them as the dialogue shows them: the cast's own portraits first, then others' busts, 128 x 128 each
-//   items.png     every item picture in the catalogue, in a 24 x 24 cell each
-// with a .json beside each saying what is where.  npx tsx site/scale/assets.ts
+// The scale film's material, from the game's own code and its stage (npm run gen:world first):
+//   maps.jpg       the 1,024 maps the film splits into, each a still the trailer stage took (site/scale/gen/main.ts
+//                  made the list: the showcase's places and halls, those places in winter, autumn, spring and on festival
+//                  days, the hall plans furnished anew, every window unlike the others): Firstlight and the showcase's
+//                  best first, then every sort spread through the order, 96 x 96 each
+//   big.jpg        the first 64 of them at 192 x 192, for the first levels, where they are drawn large
+//   lead.png       the map the film opens on (Firstlight), whole
+//   people.png     every person's map figure from their look, walking toward us (4 frames) and standing, 24 x 36 each
+//   faces.png      some of them as the dialogue shows them: the cast's own portraits first, then others' busts, 128 x 128
+//   items.png      every item picture in the catalogue, in a 24 x 24 cell each
+// with a .json beside each saying what is where.  npx tsx site/scale/assets.ts [maps] [people] [items]  (all by default)
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Look } from '@openworld/engine'
 import { generateLook } from '@openworld-game/content'
@@ -18,11 +21,16 @@ import { CATALOG } from '../../games/openworld/wiki/src/bundle.ts'
 import { decodePng, encodePng, type Image } from '../../games/openworld/wiki/src/png.ts'
 import { FH, FW, IDLE_ROW, composeSprite } from '../../packages/runtime/src/assets/figure/sprite.ts'
 import { composePortrait } from '../../packages/runtime/src/assets/figure/portrait.ts'
+import { alike, signature } from './likeness.mjs'
+import { compOf, rectOf, sameView } from './views.mjs'
 import { bustOf, layerFromDisk, loadManifest, peopleLooks } from '../../games/openworld/tools/src/art/looks/review.ts'
 
 const OUT = 'site/scale/assets'
 const PUB = 'games/openworld/public'
 mkdirSync(OUT, { recursive: true })
+const asked = process.argv.slice(2)
+const want = (part: string) => !asked.length || asked.includes(part)
+const hashOf = (s: string) => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return ((h >>> 0) % 10000) / 10000 }
 
 /** An empty RGBA canvas and a way to put pixels in it. */
 function sheet(w: number, h: number) {
@@ -40,69 +48,84 @@ function sheet(w: number, h: number) {
   }
 }
 
-/** A picture cut to its middle square and brought down to `size` (each output pixel the average of what it covers). */
-function square(img: Image, size: number): Uint8Array {
-  const s = Math.min(img.w, img.h), ox = Math.floor((img.w - s) / 2), oy = Math.floor((img.h - s) / 2)
-  const out = new Uint8Array(size * size * 4)
-  const k = s / size
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    let r = 0, g = 0, b = 0, n = 0
-    for (let yy = Math.floor(y * k); yy < Math.floor((y + 1) * k); yy++) for (let xx = Math.floor(x * k); xx < Math.floor((x + 1) * k); xx++) {
-      const i = ((oy + yy) * img.w + ox + xx) * 4
-      r += img.rgba[i]; g += img.rgba[i + 1]; b += img.rgba[i + 2]; n++
-    }
-    out.set([r / n, g / n, b / n, 255], (y * size + x) * 4)
-  }
-  return out
-}
-
 // ------------------------------------------------------------------ maps
 
-const files = readdirSync(join(PUB, 'world/maps')).filter((f) => f.endsWith('.json') && f !== 'overworld.json' && f !== 'offstage.json')
-const index = JSON.parse(readFileSync(join(PUB, 'world/index.json'), 'utf8'))
-const info = new Map(index.maps.map((m: { id: string }) => [m.id, m]))
+const files = readdirSync(join(PUB, 'world/maps')).filter((f) => f.endsWith('.json') && f !== 'offstage.json')
 const g = loadGame()
 const chunks = files.map((f) => JSON.parse(readFileSync(join(PUB, 'world/maps', f), 'utf8')))
 // every map, the backdrop's too, where the renderer looks for them
 g.maps = chunks.map((c) => ({ kind: 'map', id: c.map.id, zh: '', en: c.map.id, title: '', group: c.map.kind, map: c.map, entities: c.entities })) as never
-// what the film shows first as the one map splits, in this order: the showcase places (docs/showcase.md) and the
-// hand-made country by turns
-const SHOWCASE = ['holy.quarter-2', 'holy.sunwell-abbey', 'frostfang.rimeholm', 'holy.quarter-3', 'redmarch.warcombe', 'tithe.weighmarket', 'holy.quarter-1', 'palefen.dusk-moorings', 'altar.highheath-abbey', 'holy.quarter-4', 'tithe.barleyridge-farm', 'redmarch.brandby-mine', 'holy.quarter-5', 'altar.bellwick-farm', 'palefen.ashengate-ruins', 'frostfang.northmoor-cave', 'tithe.goldmere-tower', 'redmarch.scarwell-camp', 'frostfang.frostbarrow-camp']
-const LEAD = 'meadow'
-const handMade = index.maps.filter((m: { id: string; backdrop?: boolean; kind: string }) => !m.backdrop && ['wild', 'village', 'field'].includes(m.kind) && m.id !== LEAD && m.id !== 'tutorial' && m.id !== 'offstage').map((m: { id: string }) => m.id)
-const SHOWN: string[] = []
-for (let k = 0; k < Math.max(SHOWCASE.length, handMade.length); k++) for (const id of [SHOWCASE[k], handMade[k]]) if (id) SHOWN.push(id)
-{
-  const M = 64, cols = 32
-  const list = chunks.map((c) => c.map.id)
-  const s = sheet(cols * M, Math.ceil(list.length / cols) * M)
-  // the first 31 (the tiles of the first five splits, drawn larger than the atlas's squares)
-  const BIG = 256, bigCols = 8, bigN = Math.min(31, SHOWN.length), big = sheet(bigCols * BIG, Math.ceil(bigN / bigCols) * BIG)
-  const out: { id: string; region?: string; kind?: string; made: boolean; show?: number }[] = []
-  let n = 0
-  const t0 = Date.now()
-  for (const id of list) {
-    let img: Image
-    try { img = decodePng(renderMap(g, id, 1).png) } catch (e) { console.warn('cannot draw', id, (e as Error).message); continue }
-    s.put(square(img, M), M, 0, 0, M, M, (n % cols) * M, Math.floor(n / cols) * M)
-    const m = info.get(id) as { region?: string; kind?: string; backdrop?: boolean } | undefined
-    const show = SHOWN.indexOf(id)
-    out.push({ id, region: m?.region, kind: m?.kind, made: !m?.backdrop, ...(show >= 0 ? { show } : {}) })
-    if (show >= 0 && show < bigN) big.put(square(img, BIG), BIG, 0, 0, BIG, BIG, (show % bigCols) * BIG, Math.floor(show / bigCols) * BIG)
-    if (++n % 100 === 0) console.log(`  maps ${n}/${list.length} (${((Date.now() - t0) / 1000).toFixed(0)} s)`)
+if (want('maps')) {
+  const LEAD = 'meadow'
+  const COUNT = 1024
+  // every still the stage took (site/scale/gen/main.ts made the list, every window unlike the others as drawn;
+  // ?film=scale-maps, export.mjs --clip-w 192, in parts, into var/scale/stills/p<n>)
+  type Entry = { id: string; map: string; src?: string; family: string; variant?: string; inside: boolean; region?: string; x: number; y: number; w: number; h: number }
+  const { stills } = JSON.parse(readFileSync('games/openworld/client/src/trailer/scaleshots.json', 'utf8')) as { stills: Entry[] }
+  const frameOf = new Map<string, string>()
+  for (const part of readdirSync('var/scale/stills').filter((d) => !d.endsWith('.log'))) {
+    const cues = join('var/scale/stills', part, 'cues.json')
+    if (!existsSync(cues)) continue
+    for (const s of JSON.parse(readFileSync(cues, 'utf8')).shots) { const f = join('var/scale/stills', part, 'frames', `${String(s.start).padStart(5, '0')}.png`); if (existsSync(f)) frameOf.set(s.id, f) }
   }
-  s.save('maps.png')
+  const sortOf = (e: Entry) => (e.inside ? (e.src ? 'made hall' : 'hall') : e.variant ?? 'place')
+  const have = stills.filter((e) => frameOf.has(e.id))
+  // the first: Firstlight; then each place's best window (its first) and each hall's by turns, so the first levels are
+  // the showcase's own; then every sort spread evenly through the order, the places of a sort taking turns in it
+  const firstOf = (e: Entry) => e.id.endsWith('#0')
+  const lead = have.find((e) => e.map === LEAD && firstOf(e))!
+  const places = have.filter((e) => firstOf(e) && !e.inside && !e.variant && e !== lead)
+  const halls = have.filter((e) => firstOf(e) && e.inside && !e.src)
+  const opening: Entry[] = [lead]
+  for (let k = 0; opening.length < 32 && (places[k] || halls[k]); k++) for (const e of [places[k], places[k + 20], halls[k]]) if (e && opening.length < 32 && !opening.includes(e)) opening.push(e)
+  const rest = have.filter((e) => !opening.includes(e))
+  const bySort = new Map<string, Entry[]>()
+  for (const e of rest) bySort.set(sortOf(e), [...(bySort.get(sortOf(e)) ?? []), e])
+  const placed: [number, Entry][] = []
+  for (const [, l] of bySort) {
+    const fam = new Map<string, Entry[]>()
+    for (const e of l) fam.set(e.family, [...(fam.get(e.family) ?? []), e])
+    const turns: Entry[] = []
+    for (let k = 0; turns.length < l.length; k++) for (const f of fam.values()) if (f[k]) turns.push(f[k])
+    turns.forEach((e, k) => placed.push([(k + 0.5 + hashOf(e.id) * 0.3) / turns.length, e]))
+  }
+  placed.sort((a, b) => a[0] - b[0])
+  // taken in that order, none like one taken before it as the stage drew it (likeness.mjs)
+  // and none a view of what one taken before it is a view of (views.mjs)
+  const order: Entry[] = [], sigs: ReturnType<typeof signature>[] = [], views: { comp: string; rect: number[] }[] = []
+  let passed = 0
+  for (const e of [...opening, ...placed.map(([, e]) => e)]) {
+    if (order.length === COUNT) break
+    const sig = signature(frameOf.get(e.id)!)
+    const view = { comp: compOf(e), rect: rectOf(e) }
+    if (sigs.some((t) => alike(t, sig)) || views.some((v) => sameView(v, view))) { passed++; continue }
+    order.push(e)
+    sigs.push(sig)
+    views.push(view)
+  }
+  if (order.length < COUNT) throw new Error(`only ${order.length} stills unlike each other`)
+  console.log(`  passed over as like one taken: ${passed}`)
+  // the atlas at half the still (96 px), the first 64 whole (192 px) for the first levels, where they are drawn large
+  const M = 96, cols = 32, BIG = 192, bigCols = 8, bigN = 64
+  const tiles = join(OUT, 'tiles.txt')
+  const sheetOf = (es: Entry[], size: number, c: number, name: string) => {
+    writeFileSync(tiles, es.map((e) => `file '${resolve(frameOf.get(e.id)!).replace(/\\/g, '/')}'`).join('\n'))
+    const r = spawnSync('ffmpeg', ['-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', tiles, '-vf', `scale=${size}:${size}:flags=area,tile=${c}x${Math.ceil(es.length / c)}`, '-frames:v', '1', '-q:v', '3', join(OUT, name)], { stdio: 'inherit' })
+    if (r.status !== 0) throw new Error(`cannot make ${name}`)
+  }
+  sheetOf(order, M, cols, 'maps.jpg')
+  sheetOf(order.slice(0, bigN), BIG, bigCols, 'big.jpg')
+  rmSync(tiles)
   writeFileSync(join(OUT, 'lead.png'), renderMap(g, LEAD, 1).png)
-  big.save('big.png')
-  spawnSync('ffmpeg', ['-v', 'error', '-y', '-i', join(OUT, 'big.png'), '-q:v', '5', join(OUT, 'big.jpg')], { stdio: 'inherit' })
-  rmSync(join(OUT, 'big.png'))
-  writeFileSync(join(OUT, 'maps.json'), JSON.stringify({ size: M, cols, lead: LEAD, big: { size: BIG, cols: bigCols, count: bigN }, maps: out }))
-  console.log(`${out.length} maps`)
+  writeFileSync(join(OUT, 'maps.json'), JSON.stringify({ size: M, cols, lead: LEAD, big: { size: BIG, cols: bigCols, count: bigN }, maps: order.map((e) => ({ id: e.id, sort: sortOf(e), region: e.region, comp: compOf(e), rect: rectOf(e) })) }))
+  const tally = new Map<string, number>()
+  for (const e of order) tally.set(sortOf(e), (tally.get(sortOf(e)) ?? 0) + 1)
+  console.log(`${order.length} maps:`, Object.fromEntries(tally))
 }
 
 // ------------------------------------------------------------------ people
 
-{
+if (want('people')) {
   const people: { id: string; look: Look }[] = []
   const seen = new Set<string>()
   for (const p of peopleLooks()) if (p.id !== 'player') (people.push(p), seen.add(p.id))
@@ -170,7 +193,7 @@ for (let k = 0; k < Math.max(SHOWCASE.length, handMade.length); k++) for (const 
 
 // ------------------------------------------------------------------ items
 
-{
+if (want('items')) {
   const ASSETS = fileURLToPath(new URL('../../games/openworld/public/assets/', import.meta.url))
   const imgs = new Map<string, Image | null>()
   const load = (p: string) => {
@@ -187,22 +210,4 @@ for (let k = 0; k < Math.max(SHOWCASE.length, handMade.length); k++) for (const 
   s.save('items.png')
   writeFileSync(join(OUT, 'items.json'), JSON.stringify({ size: C, cols, keys }))
   console.log(`${keys.length} item pictures`)
-}
-
-// ------------------------------------------------------------------ the continent's shape
-
-{
-  // every land cell of the world map, the most inland first (the most land among its neighbours, then a fixed order)
-  const ow = JSON.parse(readFileSync(join(PUB, 'world/maps/overworld.json'), 'utf8')).map
-  const land = (x: number, y: number) => y >= 0 && y < ow.height && x >= 0 && x < ow.width && ow.rows[y][x] !== '0'
-  const cells: [number, number, number][] = []
-  for (let y = 0; y < ow.height; y++) for (let x = 0; x < ow.width; x++) {
-    if (!land(x, y)) continue
-    let n = 0
-    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (land(x + dx, y + dy)) n++
-    cells.push([x, y, n])
-  }
-  cells.sort((a, b) => b[2] - a[2] || a[1] - b[1] || a[0] - b[0])
-  writeFileSync(join(OUT, 'continent.json'), JSON.stringify({ w: ow.width, h: ow.height, cells: cells.map(([x, y]) => [x, y]) }))
-  console.log(`${cells.length} land cells`)
 }

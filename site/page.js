@@ -352,3 +352,11 @@ const HERO_PLACES = [
         sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.close() })
     }
 }
+
+// the repository's stars, when GitHub will say (while the repository is private it does not: the mark alone)
+fetch('https://api.github.com/repos/SihanXU/openworld').then((r) => (r.ok ? r.json() : null)).then((d) => {
+    const n = d?.stargazers_count
+    if (typeof n !== 'number') return
+    const text = n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K` : String(n)
+    document.querySelectorAll('[data-gh-stars]').forEach((el) => { el.textContent = text; el.hidden = false })
+}).catch(() => {})

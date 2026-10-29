@@ -301,7 +301,11 @@ aside naming a key the map leaves unbound goes). The wiki fills them with the de
   anything in front. The Ford's cell is the river's (`site/place/crossing`, hands' reach 1): one
   goes in with E from the cell beside it. A press of E that only touches the ground (the floor
   brushed, said by `tile/handle`) does nothing: it would say so at every step; the chooser still
-  touches it (`Controls.planFor`, 2026-10-20).
+  touches it (`Controls.planFor`, 2026-10-20). The ground is what one stands on (`Controls.underfoot`:
+  a floor): what stands in the cell — a tree, a bush, rock, a wall, a stump (a terrain whose space is
+  the volume or the soil, tagged `standing`) — is a thing a hand meets, said in the tip and pressed;
+  `tile/handle` leaves it a hole whose default is the touch, so the world says what comes of it and
+  with no model it is only touched (2026-10-28).
 - **Oneself is never E's or G's target**: on one's own place they meet what is there (the
   floor, what lies at one's feet, the bed one stands on). The right click on one's own place is on oneself (or
   sets up the built thing in hand there); the left click's swing never is.
@@ -1125,7 +1129,8 @@ took the class-level answers the curriculum had been learning one patch at a tim
 a creature lashed down by anything fibrous and fed by anything edible, else its own kind's to
 answer (`creature/offered`, still a hole at the root); a wild creature snapping at a bare hand,
 animals left to their own rules (`creature/handle`); a cell only touched by a bare hand, but a
-place of the overworld entered (`tile/handle`); a lit fire drying and thawing who warms their
+place of the overworld entered, and what stands in a cell (`standing`: a tree, rock, a wall) left to the world,
+the touch its default (`tile/handle`); a lit fire drying and thawing who warms their
 hands at it (`fire/warm-hands`); ore smelted in a lit forge into its bar (`smelt/ore`, the ore's
 `smelts`; iron and gold ingots are forms now); a down companion waiting (`companion/stuck`); and
 anything swung as a blow striking. What §5.2 calls the player's experiments — a thing used on the

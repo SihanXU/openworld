@@ -20,7 +20,7 @@ import { QUEST_SCENES } from './quest/scenes.ts'
 import { PAT, PROLOGUE, TUTORIAL, buildFoot, buildFootHut, buildSummit, buildTutorial } from './prologue.ts'
 import { BARROW, HOLLOW, buildBarrow, buildHollow, buildOssuary, buildSanctum } from './hollow.ts'
 import type { PersonDef, Slot } from './person.ts'
-import { buildOverworld, placeCells, readContinent, siteOf } from './overworld.ts'
+import { buildOverworld, edgesWhen, placeCells, readContinent, siteOf } from './overworld.ts'
 import { backdropMeta, buildBackdrop } from './continent/backdrop.ts'
 import { peopleBackdrop } from './continent/people.ts'
 import { ownShells } from './shells.ts'
@@ -800,6 +800,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   for (const b of builders) {
     const c = cells.get(b.id)
     if (c) b.site = siteOf(c)
+    b.edgesWhen = edgesWhen(b.id)
   }
   // bushes are walked through (2026-10-27): one on a map's edge would be a way off it onto the world map, so there it is a tree
   for (const b of builders) {

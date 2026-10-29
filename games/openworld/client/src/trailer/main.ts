@@ -19,10 +19,11 @@ import { INTRO_FILM } from './intro.ts'
 import { SURVEY_FILM } from './survey.ts'
 import { EXPLAIN_FILM } from './explainfilm.ts'
 import { PLACES_FILM, TOUR_FILM } from './tour.ts'
+import { SCALE_HERO_FILM, SCALE_MAPS_FILM, SCALE_SCENES_FILM } from './scalemaps.ts'
 
 // which film the stage plays (?film=): the trailer, the star map's event clips (each shot one clip, no music), or the
 // channel's opening (timed to its voiceover)
-const FILMS: Record<string, { shots: Shot[]; music?: typeof TRAILER_MUSIC }> = { trailer: { shots: TRAILER, music: TRAILER_MUSIC }, events: { shots: EVENTS_FILM }, intro: { shots: INTRO_FILM }, survey: { shots: SURVEY_FILM }, explain: { shots: EXPLAIN_FILM }, tour: { shots: TOUR_FILM }, places: { shots: PLACES_FILM } }
+const FILMS: Record<string, { shots: Shot[]; music?: typeof TRAILER_MUSIC }> = { trailer: { shots: TRAILER, music: TRAILER_MUSIC }, events: { shots: EVENTS_FILM }, intro: { shots: INTRO_FILM }, survey: { shots: SURVEY_FILM }, explain: { shots: EXPLAIN_FILM }, tour: { shots: TOUR_FILM }, places: { shots: PLACES_FILM }, 'scale-maps': { shots: SCALE_MAPS_FILM }, 'scale-hero': { shots: SCALE_HERO_FILM }, 'scale-scenes': { shots: SCALE_SCENES_FILM } }
 const CHOSEN = FILMS[new URLSearchParams(location.search).get('film') ?? 'trailer'] ?? FILMS.trailer
 const FILM = CHOSEN.shots
 const MUSIC = CHOSEN.music
@@ -40,8 +41,10 @@ let phaser: Phaser.Game
 let index: WorldIndex
 const maps = new Map<string, RawChunk>()
 const base = `${import.meta.env.BASE_URL}world/`
-const loadMap = async (id: string): Promise<RawChunk> => {
-  if (!maps.has(id)) maps.set(id, await fetch(`${base}maps/${id}.json`).then((r) => r.json()))
+// the maps made for a film are read from the folder ?promo= names (the dev server's /@fs/ path to var/scale/promo)
+const PROMO = new URLSearchParams(location.search).get('promo')
+const loadMap = async (id: string, src?: string): Promise<RawChunk> => {
+  if (!maps.has(id)) maps.set(id, await fetch(src ? `${PROMO}/${src}` : `${base}maps/${id}.json`).then((r) => r.json()))
   return maps.get(id)!
 }
 
@@ -59,7 +62,20 @@ async function makeGame(shot: Shot): Promise<Game> {
   settings.player.place = { on: 'tile', ...start }
   if (shot.facing) settings.player.facing = shot.facing
   const game = Game.create(settings, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
-  const chunk = decodeChunk(structuredClone(await loadMap(shot.map)))
+  const chunk = decodeChunk(structuredClone(await loadMap(shot.map, shot.src)))
+  for (const id of shot.also ?? []) {
+    // the people of this map kept in another's file, and what they carry: those standing here, and those whose day
+    // brings them here at the shot's hour, where it puts them
+    const theirs = decodeChunk(structuredClone(await loadMap(id))).entities, on = new Set<string>(), h = shot.hour ?? 10
+    for (const e of theirs) {
+      if (game.engine.world.get(e.id)) continue
+      const stint = (e.npc as { schedule?: { from: number; to: number; map: string; x: number; y: number }[] } | undefined)?.schedule?.find((s) => (s.from <= s.to ? h >= s.from && h < s.to : h >= s.from || h < s.to))
+      if (stint) { if (stint.map === shot.map) (e.place = { on: 'tile', map: shot.map, x: stint.x, y: stint.y }), on.add(e.id) }
+      else if (e.place?.on === 'tile' && e.place.map === shot.map) on.add(e.id)
+    }
+    for (let more = true; more; ) { more = false; for (const e of theirs) if (!on.has(e.id) && e.place?.on === 'inside' && on.has((e.place as { holder: string }).holder)) (on.add(e.id), (more = true)) }
+    chunk.entities.push(...theirs.filter((e) => on.has(e.id)))
+  }
   if (shot.chunk) shot.chunk(chunk)
   game.loadChunk(chunk)
   // the player takes no harm on the stage
@@ -192,6 +208,8 @@ function loop(t = performance.now()): void {
     await show(Number(new URLSearchParams(location.search).get('f') ?? 0))
   })(),
   render: (f: number) => render(f),
+  /** The part of the frame the shot on the stage takes, if it says (export.mjs --clip-w). */
+  clip: () => (cur?.shot.clip ? cur.shot.clip(cur) : null),
   /** The shot on the stage (for looking into it from the console). */
   get cut() { return cur },
 }

@@ -579,7 +579,7 @@ function sources(ctx: Ctx, e: ItemEnt): string {
   }
   if (e.form?.origin) {
     const where = `${regionLink(ctx, e.form.origin)}${e.form.origin === 'holy' ? '' : L(`和${regionLink(ctx, 'holy')}`, ` and ${regionLink(ctx, 'holy')}`)}`
-    out.push(`<li>${L(`${where}的背景地点里有存货：人家、店铺、铁匠铺、旅店、神殿和箱子（${ctx.link('地区物产')}）`, `In stock at the backdrop places of ${where}: homes, shops, smithies, inns, temples and chests (${ctx.link('地区物产')})`)}</li>`)
+    out.push(`<li>${L(`${where}尚未开放的地点里有存货：人家、店铺、铁匠铺、旅店、神殿和箱子（${ctx.link('地区物产')}）`, `In stock at the places of ${where} not yet open: homes, shops, smithies, inns, temples and chests (${ctx.link('地区物产')})`)}</li>`)
   }
   if (!out.length) out.push(`<li>${L('游戏里目前没有固定的获得方式。', 'There is no set way to get it in the game yet.')}</li>`)
   return `<ul class="facts">${out.join('')}</ul>`
@@ -966,7 +966,7 @@ function lists(ctx: Ctx, name: string, args: string[], written: string): string 
       const regions = (g.index.regions ?? []) as { id: string; name: { zh?: string; en: string }; backdrop?: boolean }[]
       const sum = (r: string, k: 'rooms' | 'people' | 'goods') => g.backdrop.filter((p) => p.region === r).reduce((n, p) => n + p[k], 0)
       const n = (v: number) => v.toLocaleString('en')
-      return table([L('地区', 'Region'), L('English', 'Chinese'), L('背景地点', 'Backdrop places'), L('房间', 'Rooms'), L('居民', 'Residents'), L('货物', 'Goods'), L('剧情', 'Story')], regions.map((r) => [ctx.has(zh(r.name)) ? ctx.link(zh(r.name)) : esc(say(r.name)), esc(L(r.name.en, zh(r.name))), n(g.backdrop.filter((p) => p.region === r.id).length), n(sum(r.id, 'rooms')), n(sum(r.id, 'people')), n(sum(r.id, 'goods')), r.backdrop ? `<span class="muted">${L('尚未开放', 'Not open yet')}</span>` : L('可玩', 'Playable')]), 'wikitable')
+      return table([L('地区', 'Region'), L('English', 'Chinese'), L('未开放的地点', 'Places not yet open'), L('房间', 'Rooms'), L('居民', 'Residents'), L('货物', 'Goods'), L('剧情', 'Story')], regions.map((r) => [ctx.has(zh(r.name)) ? ctx.link(zh(r.name)) : esc(say(r.name)), esc(L(r.name.en, zh(r.name))), n(g.backdrop.filter((p) => p.region === r.id).length), n(sum(r.id, 'rooms')), n(sum(r.id, 'people')), n(sum(r.id, 'goods')), r.backdrop ? `<span class="muted">${L('尚未开放', 'Not open yet')}</span>` : L('可玩', 'Playable')]), 'wikitable')
     }
     case '地区地点': {
       const region = args[0] ?? ''
@@ -977,8 +977,8 @@ function lists(ctx: Ctx, name: string, args: string[], written: string): string 
       const rows = places.map((p) => [esc(p.name), esc(L(p.en, p.zh)), esc(L(KIND[p.kind] ?? p.kind, KIND_EN[p.kind] ?? p.kind)) + (p.depths ? L('（下有深处）', ' (with depths below)') : ''), `${p.width}×${p.height}`, n(p.rooms), n(p.households), n(p.people), n(p.goods)])
       const total = (k: 'rooms' | 'people' | 'goods') => places.reduce((s, p) => s + p[k], 0).toLocaleString('en')
       return rows.length
-        ? `<p>${L(`${places.length} 个背景地点，${total('rooms')} 个房间，${total('people')} 位居民，${total('goods')} 件货物。`, `${places.length} backdrop places, ${total('rooms')} rooms, ${total('people')} residents, ${total('goods')} goods.`)}</p>${table([L('名称', 'Name'), L('English', 'Chinese'), L('种类', 'Kind'), L('大小', 'Size'), L('房间', 'Rooms'), L('住户', 'Households'), L('居民', 'Residents'), L('货物', 'Goods')], rows, 'wikitable sortable')}`
-        : `<p class="muted">${L('这个地区还没有背景地点。', 'This region has no backdrop places yet.')}</p>`
+        ? `<p>${L(`${places.length} 个未开放的地点，${total('rooms')} 个房间，${total('people')} 位居民，${total('goods')} 件货物。`, `${places.length} places not yet open, ${total('rooms')} rooms, ${total('people')} residents, ${total('goods')} goods.`)}</p>${table([L('名称', 'Name'), L('English', 'Chinese'), L('种类', 'Kind'), L('大小', 'Size'), L('房间', 'Rooms'), L('住户', 'Households'), L('居民', 'Residents'), L('货物', 'Goods')], rows, 'wikitable sortable')}`
+        : `<p class="muted">${L('这个地区还没有地点。', 'This region has no places yet.')}</p>`
     }
     case '任务表': {
       const kind = ({ 主线: 'main', 支线: 'side', 委托: 'favor', 指引: 'guide' } as Record<string, string>)[argOf(name, args[0])] ?? ''
