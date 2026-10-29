@@ -8,11 +8,10 @@ const SRC = 'site'
 const OUT = process.argv[2] ?? 'var/site'
 const FILES = [
   'index.html', 'base.css', 'page.css', 'base.js', 'page.js', 'motion.js', 'snippets.js', 'embed.js', 'lang.js',
-  'news/post.css', 'news/launch/index.html', 'team/index.html', 'team/zh.html', 'news/launch/zh.html', 'news/launch/ai-en.webp', 'news/launch/ai-zh.webp', 'news/launch/places',
+  'news/launch/index.html', 'team/index.html', 'team/zh.html', 'news/launch/zh.html', 'news/launch/ai-en.webp', 'news/launch/ai-zh.webp',
   'starmap/index.html', 'starmap/starmap.js', 'starmap/story.js', 'starmap/graph.json', 'starmap/ev', 'starmap/clips',
   'scale/index.html', 'scale/scale.js', 'scale/assets',
   'explain/index.html', 'explain/explain.js', 'explain/clips',
-  'research/index.html', 'research/research.js', 'research/clips',
   'media/hero.mp4', 'media/hero.jpg', 'media/places', 'media/cast',
 ]
 
