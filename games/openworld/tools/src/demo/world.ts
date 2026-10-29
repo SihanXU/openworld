@@ -24,6 +24,7 @@ import { buildOverworld, edgesWhen, placeCells, readContinent, siteOf } from './
 import { backdropMeta, buildBackdrop } from './continent/backdrop.ts'
 import { peopleBackdrop } from './continent/people.ts'
 import { ownShells } from './shells.ts'
+import { provision, withMeals } from './meals.ts'
 import { CATALOG } from '../../../client/src/catalog.ts'
 import { HOUSEHOLDS, PEOPLE, householdOf } from './people.ts'
 import { buildHaven, buildHavenGrounds } from './quest/haven.ts'
@@ -468,9 +469,11 @@ function slots(p: PersonDef, key: string, list: Slot[], at: (name: string) => Po
   return list.map(([from, to, anchor, activity, needs]) => ({ from, to, ...at(anchor), activity, ...(needs?.uses && { uses: needs.uses, need: needs.need }), ...(needs?.work && { work: needs.work }) }))
 }
 
-function person(p: PersonDef, at: (name: string) => Pos): Entity {
-  const schedule = slots(p, 'default', p.schedules.default, at)
-  const schedules: ScheduleVariant[] = Object.entries(p.schedules).map(([key, list]) => ({ key, entries: slots(p, key, list, at) }))
+function person(p: PersonDef, at: (name: string) => Pos, meal?: Pos): Entity {
+  // (meals waking and before bed: at their household's larder for one who sleeps at its home, else where they sleep; meals.ts)
+  const day = (entries: ScheduleEntry[]) => withMeals(entries, meal)
+  const schedule = day(slots(p, 'default', p.schedules.default, at))
+  const schedules: ScheduleVariant[] = Object.entries(p.schedules).map(([key, list]) => ({ key, entries: day(slots(p, key, list, at)) }))
   const hourIn = (s: ScheduleEntry, h: number) => (s.from <= s.to ? h >= s.from && h < s.to : h >= s.from || h < s.to)
   const first = schedule.find((s) => hourIn(s, START_HOUR)) ?? schedule[0]
   // their social life (docs/npc-sandbox.md): their house, whether they fight, the watch they keep, their trade and coin
@@ -776,10 +779,10 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
     if (!b || !a) throw new Error(`unknown anchor ${name}`)
     return { map: b.id, x: a[0], y: a[1] }
   }
-  const npcs = PEOPLE.map((p) => person(p, anchorAt))
   // a household's home is theirs (docs/npc-sandbox.md §2.1): found where its first sleeps — the room behind its door,
   // or a doorstep outdoors — unless others sleep there too (a room or a door that is a shelter as well is nobody's)
   // (where one sleeps in any of one's days: Edda's cabin is hers from the day she comes)
+  const meals = new Map<string, Pos>()
   const bedOf = (p: PersonDef) => Object.values(p.schedules).flat().find((s) => s[3] === 'sleep')?.[2]
   for (const [h, ids] of Object.entries(HOUSEHOLDS)) {
     const p = PEOPLE.find((x) => x.id === ids[0])
@@ -792,7 +795,11 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
     if (PEOPLE.some((o) => !ids.includes(o.id) && bedOf(o) && near(anchorAt(bedOf(o)!)))) continue
     b.regions[`home.${h}`] = indoors ? [0, 0, b.w, b.h] : [a.x - 1, a.y, 3, 1]
     b.regionProps[`home.${h}`] = { owner: `household:${h}` }
+    // a home under a roof keeps a larder, and its people eat at its side (meals.ts)
+    const at = indoors ? provision(b, ids.length) : undefined
+    if (at) for (const id of ids) meals.set(id, at)
   }
+  const npcs = PEOPLE.map((p) => person(p, anchorAt, meals.get(p.id)))
   // a house's walls are whose its rooms are (docs/building.md §10): breaking into them is a deed against them
   ownShells(builders, CATALOG.prefabs)
   // the overworld (world-model.md §5.1): each map on its cell, the rest of the continent wild
