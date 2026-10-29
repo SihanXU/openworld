@@ -12,6 +12,7 @@ const FILES = [
   'starmap/index.html', 'starmap/starmap.js', 'starmap/story.js', 'starmap/graph.json', 'starmap/ev', 'starmap/clips',
   'scale/index.html', 'scale/scale.js', 'scale/assets',
   'explain/index.html', 'explain/explain.js', 'explain/clips',
+  'research/index.html', 'research/research.js', 'research/clips',
   'media/hero.mp4', 'media/hero.jpg', 'media/places', 'media/cast',
 ]
 
