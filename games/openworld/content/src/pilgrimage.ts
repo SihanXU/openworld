@@ -51,24 +51,24 @@ const offering = (sel: Selector): Selector => ({ ...sel, notTags: [...(sel.notTa
 
 export const WAYSHRINES: Wayshrine[] = [
   {
-    id: 'crown', name: L('Shrine of the Crown', '荆棘冠之龛'), takes: offering({ tags: ['wearable'], props: { slot: 'head' } }), asks: L('something worn on the head: pride laid down', '一件戴在头上的东西：放下骄傲'),
-    text: L('THE FIRST SUFFERING: THE CROWN. He let them press the thorns into his brow, and did not lift his hand. — Lay down what you wear on your head, and be lowly.', '第一苦：戴冠。他任由荆棘刺进额头，没有抬手。——放下你头上戴的东西，谦卑下来。'),
+    id: 'crown', name: L('Shrine of the Crown', '荆棘冠之龛'), takes: offering({ tags: ['wearable'], props: { slot: 'head' } }), asks: L('something worn on the head', '一件戴在头上的东西'),
+    text: L('THE FIRST SUFFERING: THE CROWN. They pressed the thorns into his brow, and he did not lift his hand. Pilgrim, lay down what you wear upon your head, and your pride with it.', '第一苦：戴冠。荆棘刺入他的额头，他不曾抬手。朝圣者，卸下你头上所戴之物，一并放下你的骄傲。'),
   },
   {
-    id: 'scourge', name: L('Shrine of the Pillar', '鞭刑柱之龛'), takes: offering({ tags: ['fiber'] }), asks: L('a rope or a cord: the scourge', '一根绳索：鞭子'),
-    text: L('THE SECOND SUFFERING: THE SCOURGE. Bound to the pillar, he bled for every one of us. — Lay down a cord, the scourge you were spared.', '第二苦：受鞭。他被绑在刑柱上，为我们每一个人流血。——放下一根绳，那是你被免去的鞭子。'),
+    id: 'scourge', name: L('Shrine of the Pillar', '鞭刑柱之龛'), takes: offering({ tags: ['fiber'] }), asks: L('a rope or a cord', '一根绳索'),
+    text: L('THE SECOND SUFFERING: THE SCOURGE. Bound to the pillar, he bled for every one of us. Pilgrim, lay down a cord: the scourge that was spared you.', '第二苦：受鞭。他缚于刑柱之上，为众人流尽鲜血。朝圣者，献上一根绳索，那是你得以免受的鞭笞。'),
   },
   {
-    id: 'scales', name: L('Shrine of the Scales', '饥刑之秤之龛'), takes: offering({ tags: ['edible'] }), asks: L('something to eat: a meal fasted', '一样吃的：斋戒一餐'),
-    text: L('THE THIRD SUFFERING: HUNGER. Upon the scales his flesh grew lighter than sin. — Lay down a meal you will not eat.', '第三苦：受饥。在天平上，他的肉身变得比罪还轻。——放下一顿你不吃的饭。'),
+    id: 'scales', name: L('Shrine of the Scales', '饥刑之秤之龛'), takes: offering({ tags: ['edible'] }), asks: L('something to eat', '一样吃的'),
+    text: L('THE THIRD SUFFERING: HUNGER. He took no food, and was weighed upon the scales. His flesh at last weighed less than sin. Pilgrim, lay down a meal you will not eat.', '第三苦：受饥。他断绝饮食，置身天平之上。他的肉身最终轻于罪。朝圣者，献上一餐，今日不食。'),
   },
   {
-    id: 'nails', name: L('Shrine of the Nails', '钉刑圣木之龛'), takes: offering({ tags: ['metal'] }), asks: L('something of iron or metal: the nails', '一件铁器或金属：圣钉'),
-    text: L('THE FOURTH SUFFERING: THE NAILS. Nailed to the holy wood, he accepted death. — Lay down metal, as he laid down his life.', '第四苦：受钉。他被钉在圣木上，接受了死亡。——放下金属，如同他放下了生命。'),
+    id: 'nails', name: L('Shrine of the Nails', '钉刑圣木之龛'), takes: offering({ tags: ['metal'] }), asks: L('something made of metal', '一件金属的东西'),
+    text: L('THE FOURTH SUFFERING: THE NAILS. Nailed by his hands and feet to the holy wood, he accepted death. Pilgrim, lay down metal, as he laid down his life.', '第四苦：受钉。圣钉贯穿他的手足，将他钉于圣木之上，他接受了死亡。朝圣者，献上金属，如他献上生命。'),
   },
   {
-    id: 'lance', name: L('Shrine of the Lance', '穿心圣枪之龛'), takes: offering({ tags: ['light'] }), asks: L('a light — a torch or a candle: the dawn', '一盏光——火把或蜡烛：黎明'),
-    text: L('THE FIFTH SUFFERING: THE LANCE. When it pierced his heart, the sun rose. — Lay down a light, and the dawn will remember you.', '第五苦：受枪。圣枪刺穿他心口的那一刻，太阳升起了。——放下一盏光，黎明会记得你。'),
+    id: 'lance', name: L('Shrine of the Lance', '穿心圣枪之龛'), takes: offering({ tags: ['light'] }), asks: L('a torch or a candle', '火把或蜡烛'),
+    text: L('THE FIFTH SUFFERING: THE LANCE. The lance pierced his heart, and the sun rose. Pilgrim, lay down a light, and the dawn will remember you.', '第五苦：受枪。圣枪穿透他的心，太阳于是升起。朝圣者，献上一点光，黎明将记得你。'),
   },
 ]
 
@@ -88,10 +88,10 @@ const lit = 'lit'
  */
 const OFFERED = (s: Wayshrine): Tree => ({
   if: { has: { role: 'host', status: lit } },
-  then: { do: [{ op: 'log', text: L('{host} already burns.', '{host}已经亮着了。') }] },
+  then: { do: [{ op: 'log', text: L('{host} is already lit.', '{host}已经亮着了。') }] },
   else: {
     if: { any: KEPT.map((tag) => ({ has: { role: 'item' as const, tag } })) },
-    then: { do: [{ op: 'log', text: L('{host} stays dark. {item} is not a thing to give away.', '{host}没有亮起来。{item}不是能献出去的东西。') }] },
+    then: { do: [{ op: 'log', text: L('{host} stays dark. {item} is not something to give away.', '{host}没有亮起来。{item}不是能献出去的东西。') }] },
     else: {
       if: { is: { role: 'item', sel: s.takes } },
       then: {
@@ -99,7 +99,7 @@ const OFFERED = (s: Wayshrine): Tree => ({
           { op: 'emit', impulse: 'notify', to: 'item', params: { what: 'consumed' } },
           { op: 'addStatus', status: lit },
           { op: 'vfx', fx: 'sparkle' },
-          { op: 'log', text: L(`{item} is laid on {host}. A light kindles in the carving.`, `{item}被放在{host}上。刻痕里亮起了一点光。`) },
+          { op: 'log', text: L(`You lay {item} on {host}. A light kindles in the carving.`, `你把{item}放在{host}上。刻痕里亮起了一点光。`) },
           { op: 'emit', impulse: 'notify', to: 'story', params: { what: 'facts', [`fact.${shrineFact(s.id)}`]: 1 } },
           // an offering made as the Church asks: the one who made it keeps the faith a little more
           { op: 'emit', impulse: 'notify', to: 'actor', params: { what: 'faith', delta: 5 } },

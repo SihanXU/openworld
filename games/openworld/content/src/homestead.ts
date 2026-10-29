@@ -89,7 +89,7 @@ const ANIMAL = { type: 'actor/creature/animal' }
 /** What a beast fed does: fed for a day (two, fed by a Herdsman: life.ts), and glad of it. */
 const fedFor = (days: number): Effect[] => [{ op: 'addStatus', status: 'fed', duration: FED_FOR * days }, { op: 'emote', mood: 'happy' }, { op: 'log', text: L('{host} eats happily.', '{host}吃得很开心。') }]
 const FED = fedFor(1)
-const BAIT_MISMATCH: Tree = { do: [{ op: 'log', text: L('Use up the bait already on this rod before changing bait.', '先用完鱼竿上现有的鱼饵，才能更换。') }] }
+const BAIT_MISMATCH: Tree = { do: [{ op: 'log', text: L('Use up the bait already on this rod before changing bait.', '鱼竿上的鱼饵还没用完，用完才能换别的。') }] }
 const APPLY_BAIT: Tree = { do: [{ op: 'emit', impulse: 'notify', to: 'item', params: { what: 'bait', casts: { param: 'casts' }, baitKey: { param: 'baitKey' } } }, { op: 'destroy' }] }
 const tagged = (id: string): Cond => ({ has: { role: 'actor', tag: `skill:${id}` } })
 /** Fed: for a day, or two for a Herdsman; with what else the feeding brings (a hen's egg, the call to a mate). */
@@ -188,7 +188,7 @@ export const HOMESTEAD_RULES: Rule[] = [
       then: {
         if: { all: [{ has: { role: 'target', status: 'fed' } }, { not: { has: { role: 'target', status: 'milked' } } }] },
         then: { do: [{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'milked' } }, { op: 'transform', into: 'item/vessel/bucket/milk' }, { op: 'vfx', fx: 'splash' }, { op: 'log', text: L('You milk {target}.', '你给{target}挤了奶。') }] },
-        else: { do: [{ op: 'log', text: L('{target} will not give milk — feed it first, and only once a day.', '{target}不肯产奶——先喂饱它，而且一天只能挤一次。') }] },
+        else: { do: [{ op: 'log', text: L('{target} gives no milk. Feed it first; it can be milked once a day.', '{target}挤不出奶。先把它喂饱；一天只能挤一次。') }] },
       },
       else: 'inherit',
     },

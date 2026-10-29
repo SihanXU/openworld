@@ -11,6 +11,7 @@ import { GEAR_LEVELS } from './gear.ts'
 import { GEAR_SETS } from './sets.ts'
 import { AFFIX_TABLE, LOOT, TROPHY_OF, TROPHY_SETS } from './trophies.ts'
 import { PILGRIMAGE_TYPES } from './pilgrimage.ts'
+import { FOG, FOG_EVERY } from './bossrooms.ts'
 import { FAITH_STATUSES } from './faith.ts'
 import { VEGETABLE_CROPS, cropHours } from './crops.ts'
 import { BOSSES, BOSS_ENCOUNTERS, BOSS_KITS, BOSS_TYPES } from './bosses.ts'
@@ -22,6 +23,7 @@ import { SKILL_PROFESSIONS } from './skills.ts'
 import { BOON_STATUSES } from './boons.ts'
 import { DEEDS, LAWS, SOCIAL, SOCIAL_STATUSES, SOCIAL_TYPES, TALK } from './social.ts'
 import { MINOR_SUBJECTS } from './protection.ts'
+import { LEADING } from './leading.ts'
 
 /** One char per terrain: maps are stored as strings. */
 export const TERRAIN_CHARS: Record<string, string> = {
@@ -39,6 +41,7 @@ export const TERRAIN_CHARS: Record<string, string> = {
   T: 'tree',
   P: 'pine',
   b: 'bush',
+  '%': 'thornhedge',
   R: 'rock',
   X: 'wall',
   H: 'woodwall',
@@ -103,7 +106,8 @@ export const CHAR_OF: Record<string, string> = Object.fromEntries(Object.entries
 const T = (id: string, zh: string, en: string, tags: string[], extra: Partial<TerrainDef> = {}): TerrainDef => ({
   id,
   name: { en, zh },
-  tags: [...tags, ...(extra.solid ? ['solid'] : []), ...(extra.liquid ? ['liquid'] : [])],
+  // `standing`: what takes the cell above its floor (a tree, a bush, rock, a wall, a stump), a thing a hand meets
+  tags: [...tags, ...(extra.solid ? ['solid'] : []), ...(extra.liquid ? ['liquid'] : []), ...(extra.space && extra.space !== 'floor' ? ['standing'] : [])],
   ...extra,
 })
 
@@ -200,7 +204,10 @@ export const TERRAINS: TerrainDef[] = [
   // what fills a cell can be broken (world-model.md §6.3): its durability, what it is made of
   T('tree', '树', 'tree', ['plant', 'tree', 'flammable', 'wooden'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/log', count: 4 }, { type: 'item/material/stick', count: 2 }], color: '#2f6b33' }),
   T('pine', '松树', 'pine tree', ['plant', 'tree', 'flammable', 'wooden', 'cold'], { space: 'volume', solid: true, props: { material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/log', count: 4 }, { type: 'item/material/stick', count: 2 }], color: '#23553a' }),
-  T('bush', '灌木', 'bush', ['plant', 'flammable'], { space: 'volume', solid: true, props: { material: 'plant', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 2 }], color: '#4f8f3a' }),
+  // (low enough to push through: one walks into a bush as into tall grass)
+  T('bush', '灌木', 'bush', ['plant', 'flammable'], { space: 'volume', solid: false, props: { material: 'plant', maxHp: 4, hp: 4 }, makeup: [{ type: 'item/material/stick', count: 2 }], color: '#4f8f3a' }),
+  // the White Knight's hedge across the East Road (docs/boss-rooms.md): thorns that close again, no blade or fire opens them
+  T('thornhedge', '荆棘篱', 'thorn hedge', ['plant', 'thorn'], { space: 'volume', solid: true, color: '#3b4a2a' }),
   T('rock', '岩石', 'rock', ['rock', 'stone', 'mineable'], { space: 'volume', solid: true, props: { material: 'stone', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/stone', count: 2 }], color: '#7d7a74' }),
   // the walls the maps are built of (houses, chapels, keeps, ruins, fences: docs/building.md §10) are `enduring`: hit,
   // they show it, crack by crack, but never give way (wall/endure) — the way into a house is its door. What one builds
@@ -264,19 +271,20 @@ export const TERRAINS: TerrainDef[] = [
 
 export const STATUSES: StatusDef[] = [
   { id: 'burning', name: { en: 'burning', zh: '燃烧' }, duration: 45, clears: ['frozen'], overlay: 'fire' },
-  { id: 'wet', name: { en: 'wet', zh: '潮湿' }, duration: 400, clears: ['burning'], overlay: 'wet' },
+  // a discomfort (wellbeing.ts): one is rid of it under a roof, by a fire, or as it dries
+  { id: 'wet', name: { en: 'wet', zh: '潮湿' }, duration: 400, clears: ['burning'], overlay: 'wet', mind: 1 },
   // sitting in a warm spring: it mends (the spring's rules give it back while one stays), green crosses rising
   { id: 'soaking', name: { en: 'soaking', zh: '泡温泉' }, duration: 8, clears: ['burning', 'frozen'], overlay: 'mend' },
   // water a line was cast into: nothing bites there until it settles
   { id: 'stirred', name: { en: 'stirred up', zh: '搅浑' }, duration: 100 },
   // a mushroom ring picked, reeds cut, a hive's honey taken: none again until it grows back (life.ts)
   { id: 'picked', name: { en: 'picked', zh: '已采' }, duration: 14400 },
-  { id: 'frozen', name: { en: 'frozen', zh: '冰冻' }, duration: 40, clears: ['burning', 'wet'], immobilize: true, overlay: 'ice' },
+  { id: 'frozen', name: { en: 'frozen', zh: '冰冻' }, duration: 40, clears: ['burning', 'wet'], immobilize: true, overlay: 'ice', mind: 2 },
   // frozen a moment ago: it does not freeze again until this wears off (in the rain, a wet thing struck
   // by ice again and again was held frozen through a whole fight)
   { id: 'thawed', name: { en: 'thawing', zh: '刚解冻' }, duration: 80 },
   { id: 'electrified', name: { en: 'electrified', zh: '感电' }, duration: 8, immobilize: true, overlay: 'spark' },
-  { id: 'oiled', name: { en: 'oiled', zh: '油污' }, duration: 900, overlay: 'oil' },
+  { id: 'oiled', name: { en: 'oiled', zh: '油污' }, duration: 900, overlay: 'oil', mind: 1 },
   { id: 'lit', name: { en: 'lit', zh: '点燃' }, overlay: 'flame' },
   { id: 'open', name: { en: 'open', zh: '打开' } },
   /** A waypoint stone touched: it glows, and the world map can take you to it (docs/prologue.md). */
@@ -307,7 +315,7 @@ export const STATUSES: StatusDef[] = [
   { id: 'kneeling', name: { en: 'kneeling', zh: '跪着' }, pose: 'kneel', untilMove: true },
   { id: 'leaning', name: { en: 'leaning', zh: '倚着' }, pose: 'lean', untilMove: true },
   // under six tenths of a full food bar: hunger falls slowly now (a body goes days without food)
-  { id: 'hungry', name: { en: 'hungry', zh: '饿了' } },
+  { id: 'hungry', name: { en: 'hungry', zh: '饿了' }, mind: 3 },
   // a wound that bleeds 1 a second (Hemorrhage), and the rush of Adrenaline (the skills)
   { id: 'bleeding', name: { en: 'bleeding', zh: '流血' }, duration: 40, every: 10 },
   // a beast fed for the day, a cow milked for the day (homestead.ts)
@@ -322,7 +330,8 @@ export const STATUSES: StatusDef[] = [
   { id: 'stunned', name: { en: 'stunned', zh: '眩晕' }, duration: 15, immobilize: true },
 ]
 
-export const ELEMENTS = ['fire', 'water', 'ice', 'lightning', 'wind', 'earth']
+import { ELEMENTS } from './elements.ts'
+export { ELEMENTS }
 
 export const VFX = [
   'steam',
@@ -350,6 +359,9 @@ const F = (id: string, en: string, zh: string, tags: string[], extra: Partial<Ty
   sprite: 'fixture:' + id.split('/').pop(),
   ...extra,
 })
+
+/** The roles whose work is out under the sky whatever it does: they do not mind getting wet (the rest go in out of the rain). */
+export const WEATHERED = ['farmer', 'guard', 'fisher', 'hunter', 'soldier', 'sailor', 'ferrykeeper']
 
 export const PERSON_ROLES: [string, string, string][] = [
   ['villager', 'villager', '村民'],
@@ -388,7 +400,8 @@ const actorTypes: TypeDef[] = [
     sprite: 'person',
   }),
   P('actor/person/player', 'you', '你', { tags: ['essential'], props: { hp: 40, maxHp: 40, atk: 2, def: 0, speed: 2, hunger: 20, maxHunger: 20, hungerEvery: 480 } }),
-  ...PERSON_ROLES.map(([id, en, zh]) => P(`actor/person/${id}`, en, zh)),
+  // those whose work is out in the weather do not mind the rain at it (wellbeing.ts: StatusDef.mind, TypeDef.minds)
+  ...PERSON_ROLES.map(([id, en, zh]) => P(`actor/person/${id}`, en, zh, WEATHERED.includes(id) ? { minds: { wet: 0 } } : {})),
   // the profession trainer (engine/src/profession.ts): a profession is chosen within reach of one
   P('actor/person/trainer', 'profession trainer', '职业导师', { tags: ['trainer'] }),
   // a minor kind's health, attack and defence are not set here: they come from one curve through its role (levels.ts)
@@ -544,6 +557,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/furniture/counter/store', 'general store counter', '杂货铺柜台', ['shop', 'station:store'], { sprite: 'fixture:counter' }),
   F('fixture/furniture/bookstand', 'bookstand', '教堂书架', ['paper', 'shop', 'station:books'], { sprite: 'fixture:bookshelf' }),
   F('fixture/furniture/pew', 'pew', '教堂长椅', ['surface'], { footprint: [3, 1], props: { material: 'wood', maxHp: 10, hp: 10 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
+  // one left to the weather in a roofless chapel: grey, no cushion, its back split
+  F('fixture/furniture/pew/old', 'old pew', '旧长椅', ['surface'], { footprint: [3, 1], sprite: 'fixture:pew_old' }),
   F('fixture/furniture/desk', "copyist's desk", '抄写台', ['surface'], { props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/plank', count: 2 }] }),
   F('fixture/furniture/throne', 'throne', '王座', [], { props: { material: 'wood', maxHp: 14, hp: 14 }, makeup: [{ type: 'item/material/plank', count: 3 }] }),
   F('fixture/furniture/stall', 'market stall', '市集摊位', ['cloth', 'surface']),
@@ -572,6 +587,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/tent', 'tent', '帐篷', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3] }),
   // a tent left to rot, drawn torn (the forest's pilgrims' camp: docs/release-1.md)
   F('fixture/tent/torn', 'torn tent', '破帐篷', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3], sprite: 'fixture:tent_torn' }),
+  // the knight's own pavilion in the Held Ground, white and red, its pennant up (docs/release-1.md §7)
+  F('fixture/tent/pavilion', 'pavilion', '骑士营帐', ['cloth', 'flammable', 'shelter', 'opaque'], { solid: true, footprint: [3, 3], sprite: 'fixture:pavilion' }),
   F('fixture/sign/noticeboard', 'notice board', '布告栏', ['paper']),
   // the village's board of favours (docs/quests.md §3): what people want done, to take on
   F('fixture/sign/questboard', 'commission board', '委托板', ['paper']),
@@ -594,6 +611,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/craft/workbench', 'workbench', '工作台', ['wooden', 'flammable', 'surface', 'station:workbench', 'portable'], { makeup: [{ type: 'item/material/plank', count: 4 }], station: 'hands' }),
   F('fixture/sacred', 'sacred place', '圣所', ['stone'], { solid: true }),
   F('fixture/sacred/altar', 'altar', '祭坛', ['holy', 'surface']),
+  // a hearth of the Five, a ring of stones round its ash: the Chapel of the First Dawn's, where the Firstlight was kindled
+  F('fixture/sacred/altar/hearth', 'stone hearth', '石砌火坛', ['holy'], { footprint: [3, 1], sprite: 'fixture:firsthearth' }),
   // the Held Ground's heart: Alberic's longsword, point down in the earth (tools/src/art/planted-sword.ts)
   F('fixture/sacred/sword', 'planted sword', '插在地上的长剑', ['metal', 'conductive'], { sprite: 'fixture:planted_sword' }),
   F('fixture/sacred/statue', 'statue', '雕像', []),
@@ -634,6 +653,8 @@ const fixtureTypes: TypeDef[] = [
   // briars: the White Knight's thorns, a hedge that stands where he set it (docs/chapter-1.md §4)
   // a bank of mist at the Held Ground's edge (haven.ts): it holds the ground in until the steward widens it
   F('fixture/nature/mist', 'bank of mist', '雾墙', ['mist'], { solid: true }),
+  // the fog at a boss's door (docs/boss-rooms.md): through it one comes into the arena; sealed inside while the boss stands
+  F('fixture/fog', 'wall of fog', '雾门', ['mist', 'opaque'], { solid: true, sprite: 'fixture:fog' }),
   F('fixture/nature/briar', 'briar', '荆棘丛', ['plant', 'sharp', 'thorny', 'flammable'], { props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/stick', count: 1 }] }),
   F('fixture/nature/boulder', 'boulder', '巨石', ['stone', 'rock', 'mineable'], { props: { material: 'stone', maxHp: 12, hp: 12 }, makeup: [{ type: 'item/material/stone', count: 8 }] }),
   // the mines' veins: a pickaxe breaks them like a boulder, into the ore they hold (half of it, as anything broken); what
@@ -730,7 +751,8 @@ export function buildOntology(): Ontology {
     // theirs up in turn (docs/skills.md)
     kits: { ...KITS, ...ELITE_KITS, ...BOSS_KITS },
     encounters: BOSS_ENCOUNTERS,
-    goals: ['encounter', 'rout', 'kit', 'tactics', 'threat', 'social', 'follow', 'need', 'residentWork', 'schedule', 'home', 'idle'],
+    // danger first of all (but a boss's fight): what harms one is left or put right (engine wellbeing.ts)
+    goals: ['encounter', 'danger', 'rout', 'kit', 'tactics', 'threat', 'social', 'follow', 'need', 'residentWork', 'schedule', 'home', 'idle'],
     // the people's social life (docs/npc-sandbox.md): deeds and their fines, the watches, the numbers, the talk panel's verbs
     deeds: DEEDS,
     laws: LAWS,
@@ -762,6 +784,8 @@ export function buildOntology(): Ontology {
     affixes: AFFIX_TABLE,
     // each kind of monster's own piece: sure at the fiftieth, and what the finder is told (the loot module, trophies.ts)
     loot: LOOT,
+    // Lumi leading the way when the player stands idle (leading.ts)
+    guide: LEADING,
     efficiency: EFFICIENCY,
     params: { recovery: RECOVERY, safeFall: SAFE_FALL, fallDamage: FALL_DAMAGE, rainCost: RAIN_COST, storeys: STOREYS, roomSize: ROOM_SIZE, riseHour: 6, rest: 0.5, reach: 1, carry: 1, slotCount: { ring: 2 }, nightFact: 'night.shift', gearLevels: GEAR_LEVELS, restyle: { coin: 10, needs: [{ type: 'item/material/flower', count: 3 }] } },
     // what makes a room what it is: a bed a bedroom (a night there gives everything back), a cooking fire a
@@ -781,6 +805,8 @@ export function buildOntology(): Ontology {
       { name: 'weather', every: 60, host: 'world' },
       // the Held Ground's mist looks now and then whether the ground has grown past it (haven.ts)
       { name: 'mist', every: 30, host: { type: 'fixture/nature/mist' } },
+      // a boss's fog looks now and then whether its boss has fallen (bossrooms.ts)
+      { name: 'fog', every: FOG_EVERY, host: { type: FOG } },
       // a plot staked at the Held Ground's heart looks whether its building has been built (haven.ts)
       { name: 'plot', every: 30, host: { type: 'fixture/build/plot' } },
       { name: 'storm', every: 300, host: 'world' },

@@ -42,8 +42,8 @@ export interface NewGame {
 export interface CoverHandlers {
   /** Start a slot: from its save, or a new game in it (any save there is overwritten). */
   start(slot: Slot, data: SlotData | undefined, game?: NewGame): void
-  /** The tutorial, on its own: no slot is written, and walking out of it ends it (back to the title). */
-  tutorial(): void
+  /** The tutorial, on its own: no slot is written, and walking out of it ends it (back to the title); it starts from the panel's choices like any new game. */
+  tutorial(game?: NewGame): void
   /** The world behind the title: at this place (its people, never the traveller). */
   backdrop(scene: CoverScene, at: [number, number]): void
   toggleLocale(): void
@@ -83,6 +83,8 @@ export class Cover {
   private offerWaits = false
   private boot?: ReturnType<typeof setTimeout>
   private keysPage = new KeysPage(() => ((this.panel = 'settings'), this.render()))
+  /** The AI service was asked as the settings opened: once each time (its answer draws them again, which must not ask again). */
+  private asked = false
   /** The place behind the title now (an index into the game's scenes), and the timer that moves to the next. */
   private scene = -1
   private next?: ReturnType<typeof setTimeout>
@@ -174,7 +176,8 @@ export class Cover {
 
   /** The world behind has drawn: the veil over it lifts (once each time the title opens). */
   worldShown(): void {
-    if (this.drawn) return
+    // (while a slot loads the title's places stand still: a next one would cancel the start)
+    if (this.drawn || this.loading) return
     this.drawn = this.lit = true
     document.querySelector('#intro .cover')?.classList.add('lit')
     this.reveal()
@@ -182,11 +185,16 @@ export class Cover {
     const n = game().cover?.scenes?.length ?? 0
     clearTimeout(this.next)
     this.next = setTimeout(() => {
-      if (!this.open) return
+      if (!this.open || this.loading) return
       this.lit = false
       document.querySelector('#intro .cover')?.classList.remove('lit')
-      this.next = setTimeout(() => this.open && this.backdrop((this.scene + 1) % n), VEIL_MS)
+      this.next = setTimeout(() => this.open && !this.loading && this.backdrop((this.scene + 1) % n), VEIL_MS)
     }, SCENE_MS)
+  }
+
+  /** A word on the title's status line (what the game behind has to say as the title opens). */
+  note(text: string): void {
+    $('#intro').querySelector('.cv-status')!.textContent = text
   }
 
   /** The game behind could not start the chosen slot: say why, and give the buttons back. */
@@ -201,6 +209,7 @@ export class Cover {
   /** The game behind is loading the chosen slot: the menu goes, the world behind darkens, the bar shows. */
   busy(): void {
     this.loading = true
+    clearTimeout(this.next)
     this.mark()
     $('#intro').querySelectorAll<HTMLButtonElement>('button').forEach((b) => (b.disabled = true))
     $('#intro').querySelector('.cv-status')!.textContent = t('cvLoading')
@@ -219,7 +228,7 @@ export class Cover {
   /** One of the game's places behind the title (the `n`th). */
   private backdrop(n: number): void {
     const scene = game().cover?.scenes?.[n]
-    if (!scene) return
+    if (!scene || this.loading) return
     clearTimeout(this.next)
     this.scene = n
     this.drawn = false
@@ -264,6 +273,8 @@ export class Cover {
       b.onclick = () => this.act(b.dataset.item as Item)
     })
     this.placePip()
+    // (the keys page is the settings' own: back from it they are not opened anew)
+    if (this.panel !== 'settings' && this.panel !== 'keys') this.asked = false
     if (this.panel) {
       mountWindow($('#intro').querySelector<HTMLElement>('.cv-panel')!, { size: 'lg', view: this.panel === 'new' ? `new-${this.newStep}` : this.panel, onClose: () => { this.panel = undefined; this.render() } })
       this.wirePanel()
@@ -285,6 +296,8 @@ export class Cover {
   }
 
   private act(i: Item): void {
+    // one start at a time: a second Enter while a slot is loading must not start it again
+    if (this.loading) return
     const latest = this.latest()
     if (i === 'continue' && latest) return this.busy(), this.on.start(latest, this.slots[latest - 1])
     if (i === 'load' && !this.slots.some(Boolean)) return
@@ -298,7 +311,7 @@ export class Cover {
 
   /** The keys on the cover: up and down choose a line, Enter (or Space) takes it, Esc closes a panel. */
   private key(e: KeyboardEvent): void {
-    if (!this.open || (e.target as HTMLElement)?.closest?.('input, textarea, select')) return
+    if (!this.open || this.loading || (e.target as HTMLElement)?.closest?.('input, textarea, select')) return
     if (this.panel) {
       // (the keys page listens for keys itself, and leaves by its own buttons)
       if (e.key === 'Escape' && this.panel !== 'keys') (e.preventDefault(), (this.panel = undefined), this.render())
@@ -414,7 +427,7 @@ export class Cover {
       })
       $('#cvKeysBtn').onclick = () => ((this.panel = 'keys'), this.render())
       this.on.ai.wire(host)
-      void this.on.ai.refresh()
+      if (!this.asked) (this.asked = true), void this.on.ai.refresh()
       return
     }
     if (this.panel === 'model') {
@@ -424,7 +437,7 @@ export class Cover {
       $('#cvSkipModel').onclick = () => (OwnModel.skip(), (this.panel = undefined), this.render())
       return
     }
-    document.querySelector<HTMLButtonElement>('#cvTutorial')?.addEventListener('click', () => (this.busy(), this.on.tutorial()))
+    document.querySelector<HTMLButtonElement>('#cvTutorial')?.addEventListener('click', () => (this.busy(), this.on.tutorial({ difficulty: this.difficulty, look: this.look })))
     const showStep = (step: 'look' | 'journey') => {
       this.newStep = step
       this.render()

@@ -30,13 +30,13 @@ export const fennick: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'Armour is heavy the first year. After that you forget you wear it. Then one day you take it off, and fall over.', '盔甲第一年很沉。之后你就忘了身上穿着它。然后有一天你脱下来，人就倒了。'),
-    line('chat', 'He asked my name every morning for a month before I understood. I kept answering. What else do you do?', '他连着一个月每天早上问我的名字，我才明白过来。我一直回答。还能怎么办呢？'),
-    line('greeting:first', 'Sit if you like. Don\'t ask about the armour.', '想坐就坐。别问盔甲的事。'),
-    line('default', 'I carried a lance for the Seal-bearers once. Long time ago. Long enough.', '我曾经为持印者扛过长枪。很久以前了。久到够了。'),
-    line('fact:ch1.letter', 'The White Knight. Alberic. He used to kneel to children. Now he makes the world kneel to him. That is what the crown does.', '白骑士。阿尔贝里克。他以前会对孩子单膝下跪。现在他要整个世界向他下跪。那顶冠冕就是这样改变人的。', { mood: 'sad' }),
-    line('fact:ch1.flame_stolen', 'A grey cloak, ash on his hands? ...No. I knew a man like that. He would not. Unless he had a reason, and that scares me more.', '灰斗篷，手上有灰？……不。我认识一个那样的人。他不会的。除非他有理由——那就更让我害怕了。'),
-    line('fact:seen.barrow_mouth', 'You saw the carving at the barrow mouth? The Order of the Thorn buried its own there, before my time. The warden was one of us. Alberic\'s brothers, all of them, and none of them lying still.', '你看到古墓门口的刻纹了？荆棘骑士团在那里埋葬自己的人，比我入团还早。那个守墓者是我们的人。全都是阿尔贝里克的兄弟，一个都没能安息。', { once: true, mood: 'sad' }),
-    line('fact:ch1.crown', 'You brought him down. Did he — was he himself, at the end? ...Good. Good.', '你打倒了他。他……最后，他还是他自己吗？……那就好。那就好。', { once: true, mood: 'sad' }),
+    line('chat', 'The first year, armour is heavy. After that you stop noticing it. I wore mine six years, and when I took it off for good I did not know what to do with my hands.', '头一年穿盔甲，只觉得沉。后来就不觉得了。我穿了六年，等到真脱下来不再穿了，两只手都不知道往哪儿放。'),
+    line('chat', 'Every morning for a month he asked me my name, and it took me that long to understand why. I answered him every time. What else could I do?', '他连着一个月，每天早上都问我叫什么名字。过了那么久，我才明白是怎么回事。我每次都答了。不答，又能怎么样呢。'),
+    line('greeting:first', 'Sit if you like. I\'m Fennick. Don\'t ask about the armour.', '想坐就坐吧。我叫芬尼克。盔甲的事别问。'),
+    line('default', 'I carried a lance in the Seal-bearers\' escort once. A long time ago.', '我年轻时在持印者的护卫队里扛过长枪。很久以前的事了。'),
+    line('fact:ch1.letter', 'The White Knight. Alberic. When I served him, he would kneel to talk to children, so his face was level with theirs. Now everyone who passes must kneel to him. The crown did that to him.', '白骑士……阿尔贝里克。我跟着他的那些年，他跟孩子说话，总要单膝跪下来，好跟孩子一样高。现在过路的人，都得向他下跪。是那顶冠把他变成这样的。', { mood: 'sad' }),
+    line('fact:ch1.flame_stolen', 'A grey cloak, ash on his hands? ...I knew a man like that. He would not rob a chapel. If it was him, he had a reason, and I do not like to think what it was.', '灰斗篷，手上沾着灰？……我认识一个这样的人。他不会去偷礼拜堂。要真是他，那他一定有他的理由。是什么理由，我不敢往下想。'),
+    line('fact:seen.barrow_mouth', 'You saw the carving at the barrow mouth? The Order of the Thorn buried its own there, before my time. The warden was one of us. Alberic\'s brothers, all of them, and none of them lying still.', '你看见古墓门口的刻纹了？荆棘骑士团的人死了，就葬在那里，比我入团还早。守墓的那位也是我们团里的。他们全是阿尔贝里克的弟兄，没有一个能安安稳稳地躺着。', { once: true, mood: 'sad' }),
+    line('fact:ch1.crown', 'You brought him down. Was he — was he himself, at the end? ...Good. Good.', '你把他打倒了。他……到最后，他还是原来的他吗？……那就好。那就好。', { once: true, mood: 'sad' }),
   ],
 }

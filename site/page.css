@@ -39,6 +39,10 @@
 .banner .lang-btn:hover { background: transparent; opacity: 1; }
 .lang-icon { flex: none; width: 1.125rem; height: 1.125rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.8; }
 .lang-btn [data-lang-label] { min-width: 2em; text-align: left; }
+/* the repository: GitHub's mark, and its stars once GitHub will say (page.js) */
+.banner .gh-btn { display: inline-flex; flex: none; align-items: center; gap: 0.4rem; height: 2.75rem; padding: 0 0.375rem; font-size: 0.85rem; font-weight: 600; color: inherit; opacity: 0.85; border-radius: 6px; font-variant-numeric: tabular-nums; transition: opacity var(--motion-duration-short) var(--motion-ease-standard); }
+.banner .gh-btn:hover { opacity: 1; }
+.gh-icon { width: 1.15rem; height: 1.15rem; fill: currentColor; }
 .nav-toggle svg { width: 1.5rem; height: 1.5rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; image-rendering: auto; }
 .menu-line { transform-box: view-box; transition: none; }
 .menu-line.top { transform-origin: 12px 6px; }
@@ -91,9 +95,8 @@
 .hero-inner { position: relative; z-index: 1; padding: calc(var(--nav-h) + 2rem) 1rem 6rem; max-width: 880px; width: 100%; min-width: 0; }
 .hero .label { color: rgba(255,255,255,0.8); }
 .hero h1 { font-size: clamp(3.5rem, 11vw, 8.5rem); line-height: 0.95; font-weight: 800; letter-spacing: -0.05em; margin: 0.6rem 0 1rem; text-shadow: 0 2px 30px rgba(0,0,0,0.25); }
-.hero .sub { font-size: clamp(1.1rem, 2.2vw, 1.45rem); color: rgba(255,255,255,0.92); margin: 0 auto; white-space: nowrap; }
-/* a phone has no room for it on one line: there it breaks, evenly */
-@media (max-width: 760px) { .hero .sub { white-space: normal; text-wrap: balance; max-width: 30ch; } }
+/* the line under the wordmark, big as Minecraft's */
+.hero .tagline { font-size: clamp(2rem, 4.6vw, 3.3rem); font-weight: 800; line-height: 1.1; letter-spacing: -0.03em; margin: 0 auto; text-shadow: 0 2px 24px rgba(0,0,0,0.35); }
 /* the pulse bar under the hero (base.css .scroll-bar), above the film */
 .hero .scroll-bar { z-index: 1; }
 .hero .scroll-bar:focus-visible { outline: 2px solid rgba(255,255,255,0.85); outline-offset: 4px; }
@@ -210,13 +213,81 @@ section.night { background: #05070d; color: #c9d4ea; }
 
 /* Chinese copy: retain the authored spaces and use the same web fonts across platforms. */
 html:lang(zh) [data-zh] { text-autospace: no-autospace; line-break: strict; }
-html:lang(zh) :is(.hero .sub, .band h2, .step h3, .post h3, .join h2) { letter-spacing: normal; line-height: 1.4; text-wrap: balance; }
+html:lang(zh) :is(.hero .tagline, .band h2, .step h3, .post h3, .join h2) { letter-spacing: normal; line-height: 1.4; text-wrap: balance; }
 html:lang(zh) :is(.label, .fact dt) { letter-spacing: normal; }
 html:lang(zh) :is(.intro .text p, .step p, .post p:not(.meta), .footer) { line-height: 1.8; text-wrap: pretty; }
 html:lang(zh) .intro .text { max-width: 32em; }
-html:lang(zh) .hero .sub { max-width: none; white-space: normal; }
+html:lang(zh) .hero .tagline { letter-spacing: 0.02em; }
 /* An inline block keeps a phrase together, but can reflow inside at enlarged text sizes. */
 .zh-unit { display: inline-block; max-width: 100%; vertical-align: bottom; }
 
 @media (max-width: 760px) { html:lang(zh) .post h3 { font-size: 1.8rem; } }
 @media (max-width: 400px) { .hero h1.logo { font-size: min(3.6rem, 16vw); } }
+
+/* ------------------------------------------------------------------ the title as the game writes it (game.css .cv-title):
+   gold pixel letters over a dark edge and a warm glow */
+.hero h1.logo { color: transparent; background: linear-gradient(180deg, #fff6dc 0%, #f6d48a 46%, #c98a3c 54%, #e9b25e 100%); -webkit-background-clip: text; background-clip: text;
+    text-shadow: none; filter: drop-shadow(0 0.04em 0 #2a160b) drop-shadow(0 0 40px rgba(255, 180, 90, 0.35)); font-weight: 700; letter-spacing: -0.012em; }
+
+/* which of the six is behind the words */
+.now-showing { position: absolute; z-index: 1; left: clamp(1rem, 4vw, 2.5rem); bottom: clamp(1.25rem, 5vh, 2.5rem); margin: 0; display: flex; flex-direction: column; gap: 0.15rem; text-align: left; color: rgba(255,248,230,0.92); transition: opacity 600ms var(--motion-ease-standard); pointer-events: none; }
+.now-showing .region { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(246,212,138,0.8); }
+.now-showing b { font: 600 1.2rem/1.2 'Pixelify Sans', 'Segoe UI', sans-serif; letter-spacing: 0.02em; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
+.now-showing.changing { opacity: 0; }
+@media (max-width: 760px) { .now-showing { display: none; } }
+
+/* ------------------------------------------------------------------ the places: one at a time, drifting, the rest a row below */
+section.places { background: #0d0c0a; color: #d8cfbd; }
+.places .label { color: #b8955a; }
+.places .intro .text p { color: #a99c84; }
+.viewer { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; background: #000; box-shadow: 0 0 0 1px rgba(246,212,138,0.12), 0 30px 80px rgba(0,0,0,0.55); }
+.viewer .slide { position: absolute; inset: 0; margin: 0; opacity: 0; visibility: hidden; transition: opacity 900ms var(--motion-ease-standard), visibility 0s 900ms; }
+.viewer .slide.on { opacity: 1; visibility: visible; transition-delay: 0s; z-index: 1; }
+.viewer .slide img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; transform-origin: 50% 45%; }
+/* a slow drift while it is shown, as a camera would */
+.viewer .slide.on img { animation: drift 9s linear both; }
+@keyframes drift { from { transform: scale(1.02) translate(0.8%, 0.4%); } to { transform: scale(1.09) translate(-0.8%, -0.4%); } }
+.viewer figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 4rem clamp(1rem, 3vw, 2rem) clamp(1rem, 2.5vw, 1.75rem); display: flex; flex-direction: column; gap: 0.3rem; background: linear-gradient(180deg, rgba(8,7,5,0), rgba(8,7,5,0.82) 55%); color: #f3ead6; }
+.viewer figcaption .region { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: #d9a75a; }
+.viewer figcaption b { font: 600 clamp(1.5rem, 3vw, 2.2rem)/1.15 'Pixelify Sans', 'Segoe UI', sans-serif; letter-spacing: 0.01em; color: #fff6dc; }
+.viewer figcaption .what { max-width: 62ch; font-size: 1rem; line-height: 1.55; color: rgba(243,234,214,0.88); }
+.step-btn { position: absolute; z-index: 2; top: 50%; width: 2.75rem; height: 2.75rem; margin-top: -1.375rem; display: grid; place-items: center; border: 0; border-radius: 50%; color: #fff6dc; background: rgba(8,7,5,0.45); box-shadow: inset 0 0 0 1px rgba(246,212,138,0.3); cursor: pointer; opacity: 0; transition: opacity var(--motion-duration-short) var(--motion-ease-standard), background var(--motion-duration-short) var(--motion-ease-standard); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.step-btn svg { width: 1.3rem; height: 1.3rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.step-btn.prev { left: 1rem; } .step-btn.next { right: 1rem; }
+.viewer:hover .step-btn, .step-btn:focus-visible { opacity: 1; }
+.step-btn:hover { background: rgba(8,7,5,0.7); }
+@media (hover: none) { .step-btn { opacity: 1; } }
+.thumbs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(8.5rem, 1fr); gap: 0.6rem; margin-top: 1rem; overflow-x: auto; padding-bottom: 0.4rem; scrollbar-width: thin; scrollbar-color: #3a3428 transparent; }
+.thumb { position: relative; padding: 0; border: 0; border-radius: 8px; overflow: hidden; aspect-ratio: 16 / 9; background: #1a1712; cursor: pointer; opacity: 0.55; transition: opacity var(--motion-duration-short) var(--motion-ease-standard), box-shadow var(--motion-duration-short) var(--motion-ease-standard); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.thumb:hover { opacity: 0.85; }
+.thumb.on { opacity: 1; box-shadow: 0 0 0 2px #d9a75a; }
+.thumb:focus-visible { outline: 2px solid #f6d48a; outline-offset: 2px; }
+
+/* ------------------------------------------------------------------ the people: their own portraits, on the portraits' paper */
+section.cast { background: #f4eee1; }
+.cast .intro .text p { color: #6d6252; }
+.people { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1.25rem; }
+.person { display: flex; flex-direction: column; gap: 0.35rem; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.person .face { position: relative; display: block; aspect-ratio: 1; border-radius: var(--radius); overflow: hidden; background: radial-gradient(ellipse 70% 70% at 50% 35%, #fbf7ec, #e8dfcb); box-shadow: 0 1px 2px rgba(60,40,10,0.06), 0 10px 26px rgba(60,40,10,0.08); transition: transform var(--motion-duration-medium) var(--motion-ease-standard), box-shadow var(--motion-duration-medium) var(--motion-ease-standard); }
+.person .face img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 15%; }
+.person:hover .face, .person:focus-visible .face { transform: translateY(-4px); box-shadow: 0 2px 4px rgba(60,40,10,0.08), 0 18px 36px rgba(60,40,10,0.14); }
+.person:focus-visible { outline: none; }
+.person:focus-visible .face { outline: 2px solid #b8955a; outline-offset: 3px; }
+.person .who { margin-top: 0.5rem; }
+.person .who b { font-size: 1.1rem; color: var(--ink-strong); }
+.person .who small { margin-left: 0.35rem; font-size: 0.85rem; color: #8a7d68; }
+.person .role { font-size: 0.92rem; line-height: 1.5; color: #6d6252; }
+dialog.sheet { margin: auto; border: 0; padding: 0; background: #f4eee1; border-radius: var(--radius); width: min(94vw, 1300px); max-width: none; max-height: 94vh; overflow: auto; box-shadow: 0 30px 90px rgba(0,0,0,0.45); }
+dialog.sheet::backdrop { background: rgba(10,9,6,0.72); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+dialog.sheet img { display: block; width: 100%; height: auto; }
+dialog.sheet .close { position: sticky; top: 0.75rem; float: right; margin: 0.75rem 0.75rem -3.5rem 0; width: 2.5rem; height: 2.5rem; border: 0; border-radius: 50%; font-size: 1.6rem; line-height: 1; color: #3d3427; background: rgba(255,255,255,0.85); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+
+@media (max-width: 1100px) { .people { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem 1.25rem; } }
+@media (max-width: 760px) {
+    .people { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem 1rem; }
+    .viewer { aspect-ratio: 4 / 3; }
+    .viewer figcaption { padding-top: 3rem; }
+    .viewer figcaption .what { font-size: 0.9rem; }
+}
+html:lang(zh) :is(.viewer figcaption .what, .person .role) { line-height: 1.7; }

@@ -303,7 +303,7 @@ describe('Alberic visual timing and locked effects', () => {
 describe('boss encounter assets and compatibility', () => {
   it('ships the delivered animation strips and legacy body/effect atlases as RGBA PNGs', () => {
     expect(Object.values(SIN_ACTORS).reduce((n, a) => n + (a.clips
-      ? Object.values(a.clips).reduce((sum, clip) => sum + clip.frames, 0) : a.cols * a.rows), 0)).toBe(98)
+      ? Object.values(a.clips).reduce((sum, clip) => sum + clip.frames, 0) : a.cols * a.rows), 0)).toBe(130)
     expect(Object.values(SIN_FX).reduce((n, f) => n + f.frames, 0)).toBe(54)
     for (const b of BOSSES.filter((b) => b.type.startsWith('actor/creature/sin/'))) {
       const actor = SIN_ACTORS[`boss:sin:${b.id}`], cell = b.id === 'envy' ? 32 : 96

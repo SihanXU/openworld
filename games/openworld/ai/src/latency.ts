@@ -13,16 +13,14 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { changesNothing, modelFromEnv, openModder, type ChatOptions, type WorldEpisode } from '@openworld/ai'
+import { changesNothing, modelFromEnv, openModder, flags, type ChatOptions, type WorldEpisode } from '@openworld/ai'
 import { GAME } from '@openworld-game/content'
 import { sweep } from '../../tools/src/coverage.ts'
 import { cellRequest, pick } from './curriculum.ts'
+import { pct } from './eval/common.ts'
 
 function args(argv: string[]) {
-  const get = (k: string) => {
-    const i = argv.indexOf(`--${k}`)
-    return i < 0 ? undefined : argv[i + 1]
-  }
+  const get = flags(argv)
   return {
     model: get('model'),
     n: Number(get('n') ?? 5),
@@ -38,12 +36,10 @@ function args(argv: string[]) {
   }
 }
 
-const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(p * xs.length))] ?? 0
 
 async function main(): Promise<void> {
   const a = args(process.argv.slice(2))
-  // load .env (via open.ts), then build the model with this run's overrides
-  openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-warm-')), model: null })
+  // the model with this run's overrides (.env is loaded by @openworld/ai)
   const model = modelFromEnv({ ...process.env, ...(a.model ? { LSW_MODEL: a.model } : {}), ...(a.sort ? { LSW_MODEL_SORT: a.sort } : {}), ...(a.providers ? { LSW_MODEL_PROVIDERS: a.providers } : {}) })
   if (!model) throw new Error('no model: set LSW_MODEL_KEY (in .env) and --model')
   const modder = openModder({ game: GAME, data: mkdtempSync(join(tmpdir(), 'lsw-latency-')), model })
@@ -94,7 +90,7 @@ async function main(): Promise<void> {
   const firstValid = eps.filter((e) => e.attempts[0] && !e.attempts[0].errors.length).length
   const cost = eps.reduce((s, e) => s + (e.usage.cost ?? 0), 0)
   console.log(
-    `\nSUMMARY ${label}: accepted ${ok.length}/${eps.length} · first answer valid ${firstValid}/${eps.length} · median ${pct(ms, 0.5).toFixed(1)} s · max ${Math.max(...ms).toFixed(1)} s · calls/ep ${(eps.reduce((s, e) => s + e.usage.calls, 0) / eps.length).toFixed(1)} · $${(cost / eps.length).toFixed(3)}/ep`,
+    `\nSUMMARY ${label}: accepted ${ok.length}/${eps.length} · first answer valid ${firstValid}/${eps.length} · median ${(pct(ms, 0.5) ?? 0).toFixed(1)} s · max ${Math.max(...ms).toFixed(1)} s · calls/ep ${(eps.reduce((s, e) => s + e.usage.calls, 0) / eps.length).toFixed(1)} · $${(cost / eps.length).toFixed(3)}/ep`,
   )
 }
 

@@ -1,8 +1,8 @@
 // the game handed to the runtime first, as its pages do (client/src/register.ts)
 import '../../client/src/register.ts'
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, type Dir } from '@openworld/engine'
-import { BASE_RULES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
+import { Game, RuleLibrary, textOf, type Dir } from '@openworld/engine'
+import { BASE_RULES, PART_TWO, SITE_GATES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 // Lumi keeps up (docs/prologue.md): however the player runs — straight or diagonally, changing
@@ -17,6 +17,8 @@ describe('the companion', () => {
     const eng = game.engine
     const w = eng.world
     const p = w.player
+    // how it keeps up and settles (leading the way, when the player stands still a while, is leading.test.ts)
+    eng.companions.guiding = false
     // the foot's open ground below its high ground, from west to east and back, zig-zagging
     eng.author(() => eng.teleport(p, { map: 'foot', x: 8, y: 8 }))
     for (let i = 0; i < 10; i++) eng.tick()
@@ -107,5 +109,59 @@ describe('waypoint statues', () => {
     // and no map places a statue for show
     const { chunks } = buildFord()
     expect(chunks.flatMap((c) => c.entities).filter((e) => e.type === 'fixture/sacred/statue').map((e) => e.id)).toEqual([])
+  })
+
+  it("a way the story has not opened, run off: Lumi says so in its gate's words, once a minute, shorter the next time; alone, the message line says it", () => {
+    const made = () => {
+      const { index, chunks } = buildFord()
+      const game = Game.create(index, buildOntology(), new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
+      for (const c of chunks) game.loadChunk(decodeChunk(c))
+      return game.engine
+    }
+    const gate = SITE_GATES.find((g) => g.fact === PART_TWO)!
+    // the East Road's way on east to Emberfall, sealed until Part Two (docs/release-1.md): off the map's east edge
+    const off = (eng: ReturnType<typeof made>) => {
+      const w = eng.world
+      const m = Object.values(w.state.maps).find((m) => m.portals.some((p) => p.opensWhen === PART_TWO))!
+      const way = m.portals.find((p) => p.opensWhen === PART_TWO)!
+      const dir: Dir = way.x === m.width - 1 ? 'right' : way.x === 0 ? 'left' : way.y === 0 ? 'up' : 'down'
+      eng.author(() => eng.teleport(w.player, { map: m.id, x: way.x, y: way.y }))
+      // (what the story plays on arriving there, played through)
+      for (let i = 0; i < 400 && (i < 20 || w.scene); i++) (eng.tick(), w.scene?.waiting === 'advance' && eng.story.advance())
+      return { m, dir }
+    }
+    const step = (eng: ReturnType<typeof made>, dir: Dir) => {
+      eng.world.fx = []
+      eng.setCooldown(eng.world.player.id, 0)
+      eng.movePlayer(dir)
+      for (let i = 0; i < 3; i++) eng.tick()
+      return eng.world.fx
+    }
+    const lines = (fx: { t: string; who?: string; text?: unknown }[], t: string) => fx.filter((x) => x.t === t).map((x) => [x.who, (x.text as { zh: string } | undefined)?.zh])
+    const eng = made()
+    const w = eng.world
+    const { m, dir } = off(eng)
+    expect(w.get('pip')!.props!.companion).toBe(w.player.id)
+    expect(lines(step(eng, dir), 'say')).toContainEqual(['pip', textOf(gate.remark, 'zh')])
+    expect(w.posOf(w.player)!.map).toBe(m.id)
+    // walked into on and on: nothing more for a minute
+    expect(lines(step(eng, dir), 'say')).not.toContainEqual(['pip', textOf(gate.remark, 'zh')])
+    expect(lines(step(eng, dir), 'say')).not.toContainEqual(['pip', textOf(gate.again, 'zh')])
+    for (let i = 0; i < 600; i++) eng.tick()
+    expect(lines(step(eng, dir), 'say')).toContainEqual(['pip', textOf(gate.again, 'zh')])
+    // an edge that is only an edge (the way open): nothing is said, one goes on
+    eng.author(() => w.setFact(PART_TWO, 1))
+    for (let i = 0; i < 600; i++) eng.tick()
+    expect(lines(step(eng, dir), 'say')).toEqual([])
+    // with no companion at hand, the gate's own words in the message line
+    const lone = made()
+    const lw = lone.world
+    const at = off(lone)
+    lone.author(() => lw.place(lw.get('pip')!, { on: 'none' }))
+    const { x, y } = lw.posOf(lw.player)!
+    const fx = step(lone, at.dir)
+    expect(lw.posOf(lw.player)).toEqual({ map: at.m.id, x, y })
+    expect(lines(fx, 'say')).toEqual([])
+    expect(lines(fx, 'log')).toContainEqual([undefined, textOf(gate.say, 'zh')])
   })
 })

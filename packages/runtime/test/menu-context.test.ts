@@ -5,12 +5,13 @@ import { ContextMenu } from '../src/ui/context-menu.ts'
 
 vi.mock('phaser', () => ({ default: { Scene: class {} } }))
 
-type Clickable = { onclick?: ((event: MouseEvent) => void) | null }
+type Clickable = { onclick?: ((event: MouseEvent) => void) | null; onmousedown?: ((event: MouseEvent) => void) | null; oncontextmenu?: ((event: MouseEvent) => void) | null }
 
 class FakeElement implements Clickable {
   readonly children: FakeElement[] = []
   readonly dataset: Record<string, string> = {}
   readonly style: Record<string, string> = {}
+  private readonly matches = new Map<string, FakeElement[]>()
   readonly classList = {
     add: (name: string) => this.classes.add(name),
     remove: (name: string) => this.classes.delete(name),
@@ -23,6 +24,8 @@ class FakeElement implements Clickable {
     },
   }
   onclick?: ((event: MouseEvent) => void) | null
+  onmousedown?: ((event: MouseEvent) => void) | null
+  oncontextmenu?: ((event: MouseEvent) => void) | null
   textContent: string | null = null
   parent?: { children: FakeElement[] }
   private readonly classes = new Set<string>()
@@ -59,7 +62,11 @@ class FakeElement implements Clickable {
   }
 
   querySelectorAll(selector: string): FakeElement[] {
-    return selector === '[data-k]' ? this.children.filter((child) => child.dataset.k !== undefined) : []
+    return this.matches.get(selector) ?? (selector === '[data-k]' ? this.children.filter((child) => child.dataset.k !== undefined) : [])
+  }
+
+  setMatches(selector: string, elements: FakeElement[]): void {
+    this.matches.set(selector, elements)
   }
 
   querySelector(selector: string): FakeElement | null {
@@ -128,12 +135,19 @@ function domHarness() {
 type MenuInternals = {
   contextMenu(x: number, y: number, item: string, extra?: [string, () => void][]): void
   keysPage: { hide: ReturnType<typeof vi.fn> }
+  wireInventory(frame?: Frame): void
+  onMoveSlotResult(request: number, moved: boolean): void
+  displaySlots(frame: Frame): Frame['player']['slots']
+  slotHtml(slot: Frame['player']['slots'][number], index: number): string
+  carried: { style: Record<string, string> }
+  picked?: { slot: number; item: string; count: number; sourceCount: number }
+  pendingMove?: { request: number }
 }
 
 function bareMenu(): Menu {
   const menu = Object.create(Menu.prototype) as Menu
   Object.assign(menu, {
-    send: { closePanel: vi.fn(), cancelCraft: vi.fn() },
+    send: { closePanel: vi.fn(), cancelCraft: vi.fn(), moveSlot: vi.fn(), drop: vi.fn(), quickMove: vi.fn(), wear: vi.fn() },
     panels: { close: vi.fn(), onFrame: vi.fn() },
     ai: { stop: vi.fn() },
     contextPopup: new ContextMenu(),
@@ -144,6 +158,8 @@ function bareMenu(): Menu {
     showCarried: vi.fn(),
     render: vi.fn(),
     renderJournal: vi.fn(),
+    moveRequest: 0,
+    carried: new FakeElement(),
     picked: undefined,
     drag: undefined,
   })
@@ -157,6 +173,230 @@ async function settleContextMenuTimer(): Promise<void> {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('inventory context menu lifecycle', () => {
+  it.each([
+    { sourceCount: 5, pickedCount: 3, remainder: '2' },
+    { sourceCount: 6, pickedCount: 3, remainder: '3' },
+    { sourceCount: 1, pickedCount: 1, remainder: undefined },
+  ])('renders only the unpicked source remainder for $sourceCount items', ({ sourceCount, pickedCount, remainder }) => {
+    const menu = bareMenu() as unknown as MenuInternals
+    const frame = { player: { slots: [
+      { item: { id: 'stone-0', type: 'item/material/stone', stackKey: 'stone-key', tags: [], props: {} }, count: sourceCount },
+    ] } } as unknown as Frame
+    menu.picked = { slot: 0, item: 'stone-0', count: pickedCount, sourceCount }
+
+    const html = menu.slotHtml(menu.displaySlots(frame)[0]!, 10)
+
+    if (remainder) expect(html).toContain(`<span class="count">${remainder}</span>`)
+    else expect(html).not.toContain('data-icon=')
+    expect(frame.player.slots[0]?.count).toBe(sourceCount)
+  })
+
+  it('Shift+right click picks the rounded-up half, while right click keeps the context menu', () => {
+    const dom = domHarness()
+    vi.stubGlobal('document', dom.document)
+    const sheet = dom.document.querySelector('#menuSheet') as FakeElement
+    const slot = new FakeElement()
+    slot.dataset.i = '0'
+    sheet.setMatches('.inv [data-i]', [slot])
+    sheet.setMatches('[data-wear]', [])
+    const menu = bareMenu()
+    const contextMenu = vi.fn()
+    const drop = vi.fn()
+    Object.assign(menu, {
+      send: { closePanel: vi.fn(), cancelCraft: vi.fn(), moveSlot: vi.fn(), drop, quickMove: vi.fn(), wear: vi.fn() },
+      frame: { player: { slots: [{ item: { id: 'stone', type: 'item/material/stone', stackKey: 'stone-key', props: {} }, count: 5 }], worn: {} } } as Frame,
+      contextMenu,
+    })
+    ;(menu as unknown as MenuInternals).wireInventory((menu as unknown as { frame: Frame }).frame)
+
+    slot.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: true, clientX: 10, clientY: 20 } as unknown as MouseEvent)
+
+    expect((menu as unknown as MenuInternals).picked).toEqual({ slot: 0, item: 'stone', count: 3, sourceCount: 5 })
+    expect((menu as unknown as MenuInternals).carried.style.transform).toBe('translate(-6px, 4px)')
+    expect(contextMenu).not.toHaveBeenCalled()
+
+    slot.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: false, clientX: 10, clientY: 20 } as unknown as MouseEvent)
+
+    expect(contextMenu).toHaveBeenCalledOnce()
+    expect((menu as unknown as MenuInternals).picked).toBeUndefined()
+    const extras = contextMenu.mock.calls[0]?.[3] as [string, () => void][]
+    extras.at(-1)?.[1]()
+    expect(drop).toHaveBeenCalledWith(0, true, { item: 'stone', count: 5, sourceCount: 5 })
+
+    slot.onmousedown?.({ button: 0, preventDefault: vi.fn(), clientX: 100, clientY: 200 } as unknown as MouseEvent)
+    expect((menu as unknown as MenuInternals).picked).toEqual({ slot: 0, item: 'stone', count: 5, sourceCount: 5 })
+    expect((menu as unknown as MenuInternals).carried.style.transform).toBe('translate(84px, 184px)')
+  })
+
+  it('sends the picked count to an empty slot and cancels when the source is clicked', () => {
+    const dom = domHarness()
+    vi.stubGlobal('document', dom.document)
+    const sheet = dom.document.querySelector('#menuSheet') as FakeElement
+    const source = new FakeElement()
+    const target = new FakeElement()
+    source.dataset.i = '0'
+    target.dataset.i = '1'
+    sheet.setMatches('.inv [data-i]', [source, target])
+    sheet.setMatches('[data-wear]', [])
+    const menu = bareMenu()
+    const moveSlot = vi.fn()
+    Object.assign(menu, {
+      send: { closePanel: vi.fn(), cancelCraft: vi.fn(), moveSlot, drop: vi.fn(), quickMove: vi.fn(), wear: vi.fn() },
+      frame: { player: { slots: [
+        { item: { id: 'stone', type: 'item/material/stone', stackKey: 'stone-key', props: {} }, count: 5 },
+        null,
+      ], worn: {} } } as Frame,
+    })
+    ;(menu as unknown as MenuInternals).wireInventory((menu as unknown as { frame: Frame }).frame)
+
+    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: true } as unknown as MouseEvent)
+    target.onmousedown?.({ button: 0, preventDefault: vi.fn() } as unknown as MouseEvent)
+
+    expect(moveSlot).toHaveBeenCalledWith(1, 0, 1, 'stone', 3, 5)
+    expect((menu as unknown as MenuInternals).picked).toMatchObject({ slot: 0, item: 'stone', count: 3, sourceCount: 5 })
+
+    source.onmousedown?.({ button: 0, preventDefault: vi.fn() } as unknown as MouseEvent)
+    expect((menu as unknown as MenuInternals).picked).toBeUndefined()
+  })
+
+  it('keeps an incompatible partial selection on the cursor and returns it when the bag closes', () => {
+    const dom = domHarness()
+    vi.stubGlobal('document', dom.document)
+    const sheet = dom.document.querySelector('#menuSheet') as FakeElement
+    const source = new FakeElement()
+    const target = new FakeElement()
+    source.dataset.i = '0'
+    target.dataset.i = '1'
+    sheet.setMatches('.inv [data-i]', [source, target])
+    sheet.setMatches('[data-wear]', [])
+    const menu = bareMenu()
+    const moveSlot = vi.fn()
+    Object.assign(menu, {
+      send: { closePanel: vi.fn(), cancelCraft: vi.fn(), moveSlot, drop: vi.fn(), quickMove: vi.fn(), wear: vi.fn() },
+      frame: { player: { slots: [
+        { item: { id: 'stone', type: 'item/material/stone', stackKey: 'stone-key', props: {} }, count: 5 },
+        { item: { id: 'bread', type: 'item/food/bread', stackKey: 'bread-key', props: {} }, count: 1 },
+      ], worn: {} } } as Frame,
+    })
+    ;(menu as unknown as MenuInternals).wireInventory((menu as unknown as { frame: Frame }).frame)
+
+    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: true } as unknown as MouseEvent)
+    target.onmousedown?.({ button: 0, preventDefault: vi.fn() } as unknown as MouseEvent)
+
+    expect(moveSlot).not.toHaveBeenCalled()
+    expect((menu as unknown as MenuInternals).picked).toMatchObject({ item: 'stone', count: 3, sourceCount: 5 })
+
+    menu.close()
+    expect((menu as unknown as MenuInternals).picked).toBeUndefined()
+    expect(moveSlot).not.toHaveBeenCalled()
+  })
+
+  it('waits for the matching acknowledgement, then settles on the first authoritative frame', () => {
+    const dom = domHarness()
+    vi.stubGlobal('document', dom.document)
+    const sheet = dom.document.querySelector('#menuSheet') as FakeElement
+    const source = new FakeElement()
+    const target = new FakeElement()
+    source.dataset.i = '0'
+    target.dataset.i = '1'
+    sheet.setMatches('.inv [data-i]', [source, target])
+    sheet.setMatches('[data-wear]', [])
+    const menu = bareMenu()
+    const moveSlot = vi.fn()
+    const sword = { id: 'sword', type: 'item/weapon/blade/sword', stackKey: 'sword-key', props: { slot: 'weapon' }, tags: [] }
+    const initial = { player: { slots: [
+      { item: sword, count: 1 },
+      null,
+    ], worn: {} } } as unknown as Frame
+    Object.assign(menu, {
+      send: { closePanel: vi.fn(), cancelCraft: vi.fn(), moveSlot, drop: vi.fn(), quickMove: vi.fn(), wear: vi.fn() },
+      frame: initial,
+    })
+    ;(menu as unknown as MenuInternals).wireInventory(initial)
+
+    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: true } as unknown as MouseEvent)
+    target.onmousedown?.({ button: 0, preventDefault: vi.fn() } as unknown as MouseEvent)
+    expect(moveSlot).toHaveBeenCalledWith(1, 0, 1, 'sword', 1, 1)
+
+    const stale = { player: { slots: [...initial.player.slots], worn: {} } } as Frame
+    menu.onFrame(stale)
+    expect((menu as unknown as MenuInternals).picked).toMatchObject({ item: 'sword', count: 1 })
+    expect((menu as unknown as MenuInternals).pendingMove).toMatchObject({ request: 1 })
+
+    ;(menu as unknown as MenuInternals).onMoveSlotResult(1, true)
+    expect((menu as unknown as MenuInternals).picked).toMatchObject({ item: 'sword', count: 1 })
+    const laterAction = { player: { slots: [null, null], worn: { weapon: sword } } } as unknown as Frame
+    menu.onFrame(laterAction)
+
+    expect((menu as unknown as MenuInternals).picked).toBeUndefined()
+    expect((menu as unknown as MenuInternals).pendingMove).toBeUndefined()
+  })
+
+  it('keeps a rejected move on the cursor and ignores acknowledgements for older requests', () => {
+    const dom = domHarness()
+    vi.stubGlobal('document', dom.document)
+    const sheet = dom.document.querySelector('#menuSheet') as FakeElement
+    const source = new FakeElement()
+    const target = new FakeElement()
+    source.dataset.i = '0'
+    target.dataset.i = '1'
+    sheet.setMatches('.inv [data-i]', [source, target])
+    sheet.setMatches('[data-wear]', [])
+    const menu = bareMenu()
+    const moveSlot = vi.fn()
+    const initial = { player: { slots: [
+      { item: { id: 'stone', type: 'item/material/stone', stackKey: 'stone-key', props: {} }, count: 5 },
+      null,
+    ], worn: {} } } as Frame
+    Object.assign(menu, {
+      send: { closePanel: vi.fn(), cancelCraft: vi.fn(), moveSlot, drop: vi.fn(), quickMove: vi.fn(), wear: vi.fn() },
+      frame: initial,
+    })
+    const internals = menu as unknown as MenuInternals
+    internals.wireInventory(initial)
+
+    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: true } as unknown as MouseEvent)
+    target.onmousedown?.({ button: 0, preventDefault: vi.fn() } as unknown as MouseEvent)
+    menu.onFrame({ player: { slots: [...initial.player.slots], worn: {} } } as Frame)
+    internals.onMoveSlotResult(99, true)
+    expect(internals.pendingMove).toMatchObject({ request: 1 })
+
+    internals.onMoveSlotResult(1, false)
+    expect(internals.picked).toMatchObject({ item: 'stone', count: 3, sourceCount: 5 })
+    expect(internals.pendingMove).toBeUndefined()
+  })
+
+  it('clears a pending cursor selection before organizing slot indices', () => {
+    const dom = domHarness()
+    vi.stubGlobal('document', dom.document)
+    const sheet = dom.document.querySelector('#menuSheet') as FakeElement
+    const source = new FakeElement()
+    const target = new FakeElement()
+    source.dataset.i = '0'
+    target.dataset.i = '1'
+    sheet.setMatches('.inv [data-i]', [source, target])
+    sheet.setMatches('[data-wear]', [])
+    const menu = bareMenu()
+    const organize = vi.fn()
+    Object.assign(menu, {
+      send: { closePanel: vi.fn(), cancelCraft: vi.fn(), moveSlot: vi.fn(), drop: vi.fn(), quickMove: vi.fn(), wear: vi.fn(), organize },
+      frame: { player: { slots: [
+        { item: { id: 'stone', type: 'item/material/stone', stackKey: 'stone-key', props: {} }, count: 5 },
+        null,
+      ], worn: {} } } as Frame,
+    })
+    const internals = menu as unknown as MenuInternals
+    internals.wireInventory((menu as unknown as { frame: Frame }).frame)
+
+    source.oncontextmenu?.({ preventDefault: vi.fn(), shiftKey: true } as unknown as MouseEvent)
+    target.onmousedown?.({ button: 0, preventDefault: vi.fn() } as unknown as MouseEvent)
+    dom.document.querySelector('#bOrganize')!.click()
+
+    expect(internals.picked).toBeUndefined()
+    expect(internals.pendingMove).toBeUndefined()
+    expect(organize).toHaveBeenCalledOnce()
+  })
+
   it.each(['close', 'open', 'openJournal'] as const)('cancels a batch on %s even before its first progress frame', (action) => {
     const dom = domHarness()
     vi.stubGlobal('document', dom.document)

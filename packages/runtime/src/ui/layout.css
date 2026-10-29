@@ -15,6 +15,14 @@
 .cs-lv,.purse { border-radius: 0; background: var(--ui-paper); color: var(--ui-ink); border-color: #ab916a; box-shadow: none; }
 .inv { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
 .grid-row { display: grid; grid-template-columns: repeat(auto-fill,48px); gap: 8px; flex-wrap: wrap; }
+/* a chest's rows and the bag's under it, in a panel that is as wide as they are: each row's slots on one line
+   (auto-fill in a shrink-to-fit column has room for one, and stacked every slot in a single column), as wide as the
+   window lets them, never wider than a slot */
+.chest-body .inv { align-self: center; width: 100%; max-width: calc(10 * 48px + 9 * 8px); }
+.chest-body .grid-row { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 48px); justify-content: center; }
+.chest-body .grid-row .slot { width: 100%; height: auto; min-height: 0; aspect-ratio: 1; }
+/* the chest above, one's own bag below: kept apart, now the buttons between them sit in the window's foot */
+.chest-body .bag-grid { margin-top: 12px; padding-top: 16px; border-top: 2px solid #ab916a; }
 .grid-row.toolbar-row { border-bottom: 2px solid #ab916a; padding-bottom: 12px; margin: 0; background: none; }
 .inv-foot { display: flex; flex-wrap: wrap; gap: 8px; }
 .inv-help { margin-top: 8px; }

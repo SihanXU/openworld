@@ -2,10 +2,9 @@
 
 import { nightHours, type Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
-import type { BossState, Look, Dir, FxEvent, Id, LessonInput, PropValue, SceneState, Text } from './types.ts'
-import { FIGHT_TICKS } from './types.ts'
+import type { BossState, Look, Dir, Entity, FxEvent, Id, LessonInput, PropValue, SceneState, Sin, Text } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
-import { stackKey } from './stacks.ts'
+import { oldStackKey, stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
 import { LOOSE } from './world.ts'
 import { skillsOf } from './progression.ts'
@@ -222,7 +221,7 @@ export interface Frame {
     actives: KnownActive[]
     /** What is in the bag, a stack each (things alike as one, by their bag identity): how many, and which. */
     inventory: (ItemInfo & { count: number; ids: Id[] })[]
-    /** The bag's slots (row 1 is the toolbar): a stack each, or empty. */
+    /** The bag's slots (row 1 is the toolbar): one physical stack group each, or empty; same-kind groups may be separate. */
     slots: ({ item: ItemInfo; count: number; worn?: boolean } | null)[]
     selected: number
     /** The boons the companion following the player has been given, the one it carries, and whether a waypoint is near (the boons module). */
@@ -242,8 +241,8 @@ export interface Frame {
     /** The coin one carries. */
     purse: number
   }
-  /** A yes/no question waiting for the player (time is stopped). */
-  question?: { text: Text }
+  /** A yes/no question waiting for the player (time is stopped); `sin`: what the act would weigh on their conscience. */
+  question?: { text: Text; sin?: Sin }
   /** The world's facts (the story's counts: what the smith has been given…), for the HUD's objective. */
   facts: Record<string, PropValue>
   /**
@@ -292,6 +291,8 @@ export interface Frame {
   quests: { marks: Record<Id, '!' | '?'>; journal: JournalQuest[]; tracked?: Id; targets: QuestTarget[]; board: QuestOffer[] }
   /** The lesson at hand (docs/prologue.md, the drills): what to spotlight, the key to draw, what the keys may do. */
   lesson?: LessonView
+  /** The spot a companion leading the way shows now, on this map (companion.ts): who, and where. */
+  guide?: { who: Id; x: number; y: number }
 }
 
 /** Render-only fishing state; the client sends input edges and never submits progress or a catch. */
@@ -613,24 +614,79 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
   const panel = opts.panel ? w.get(opts.panel) : undefined
   const box = panel && w.hasStatus({ e: panel.id }, 'open') ? panel : undefined
   const capacity = box && w.prop(box, 'capacity')
-  // the bag's slots: each the stack of carried items with that key — what is worn is on the body, not in the bag
+  // the bag's slots: each the physical stack group it holds — what is worn is on the body, not in the bag
   const carried = new Map<string, Id[]>()
+  const keyById = new Map<Id, string>()
+  const entityById = new Map<Id, Entity>()
   const onBody = eng.controls.wornIds()
-  for (const id of [...(p.held ? [p.held] : []), ...(p.contents ?? [])]) {
+  for (const id of [...(p.contents ?? []), ...(p.held ? [p.held] : [])]) {
     const e = w.get(id)
-    if (!e || onBody.has(id)) continue
+    const place = e?.place
+    if (!e || onBody.has(id) || !((place?.on === 'inside' || place?.on === 'hand') && place.holder === p.id)) continue
     const k = eng.controls.key(e)
+    keyById.set(id, k)
+    entityById.set(id, e)
     const ids = carried.get(k)
     if (ids) ids.push(id)
     else carried.set(k, [id])
   }
+  const slotMembers: (Id[] | undefined)[] = Array(Math.max(SLOT_COUNT, p.slots?.length ?? 0, p.slotItems?.length ?? 0))
+  if (p.slotItems) {
+    const claimed = new Set<Id>()
+    for (let i = 0; i < slotMembers.length; i++) {
+      const key = p.slots?.[i]
+      if (!key) continue
+      const members = p.slotItems[i] ?? []
+      const valid: Id[] = []
+      for (const id of members) if (!claimed.has(id) && keyById.get(id) === key) valid.push(id), claimed.add(id)
+      slotMembers[i] = valid
+    }
+  } else {
+    // Read old saves as one physical group per key without migrating them during a snapshot.
+    const claimed = new Set<string>()
+    const heirsByOldKey = new Map<string, string[]>()
+    for (const [candidate, ids] of carried) {
+      const entity = entityById.get(ids[0]!)
+      if (!entity) continue
+      const old = oldStackKey(entity)
+      const heirs = heirsByOldKey.get(old)
+      if (heirs) heirs.push(candidate)
+      else heirsByOldKey.set(old, [candidate])
+    }
+    const nextHeir = new Map<string, number>()
+    for (let i = 0; i < slotMembers.length; i++) {
+      const original = p.slots?.[i]
+      if (!original) continue
+      let key = original
+      if (!carried.has(key)) {
+        const heirs = heirsByOldKey.get(original) ?? []
+        let at = nextHeir.get(original) ?? 0
+        while (at < heirs.length && claimed.has(heirs[at]!)) at++
+        nextHeir.set(original, at + 1)
+        if (heirs[at]) key = heirs[at]!
+      }
+      if (claimed.has(key)) continue
+      const members = carried.get(key)
+      if (members) slotMembers[i] = members, claimed.add(key)
+    }
+    // Old saves could only name one stack per key. A type that became per-entity (axes, for example)
+    // may now have more carried groups than saved slots; show the remaining groups in virtual free slots.
+    let free = 0
+    for (const [key, members] of carried) {
+      if (claimed.has(key)) continue
+      while (free < slotMembers.length && slotMembers[free]?.length) free++
+      if (free >= slotMembers.length) break
+      slotMembers[free] = members
+      claimed.add(key)
+      free++
+    }
+  }
   const wearing = new Set(w.worn(p).map((e) => e.id))
-  const slots = Array.from({ length: Math.max(SLOT_COUNT, p.slots?.length ?? 0) }, (_, i) => {
-    const k = p.slots?.[i]
-    const ids = k ? carried.get(k) : undefined
-    const first = ids && itemInfo(eng, ids[0])
+  const slots = Array.from({ length: slotMembers.length }, (_, i) => {
+    const ids = slotMembers[i]
+    const first = ids?.length ? itemInfo(eng, ids[0]) : undefined
     // what of the stack the player wears (world-model.md §6.8)
-    const worn = !!ids && ids.some((id) => wearing.has(id))
+    const worn = !!ids?.length && ids.some((id) => wearing.has(id))
     return first ? { item: first, count: ids!.length, ...(worn && { worn }) } : null
   })
   const fx = w.drainFx()
@@ -654,7 +710,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
       ...((room) => room && { room })(roomCells(eng, pos)),
       facing: p.facing ?? 'down',
       ...(typeof p.look === 'object' && { look: p.look }),
-      ...(w.state.tick - (p.combat?.fightTick ?? -Infinity) < FIGHT_TICKS && { fighting: true }),
+      ...(w.fighting(p) && { fighting: true }),
       hp: w.num(p, 'hp'),
       maxHp: w.num(p, 'maxHp', 1),
       // hunger: a module's (needs), none without one
@@ -688,11 +744,12 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
       // what one owes the watch here, and the coin one carries: a module's (society)
       purse: 0,
     },
-    question: w.state.question ? { text: w.state.question.text } : undefined,
+    question: w.state.question ? { text: w.state.question.text, ...(w.state.question.sin && { sin: w.state.question.sin }) } : undefined,
     quests: questView.quests,
     ...(fallen(eng) && { fallen: fallen(eng) }),
     facts: { ...(w.story?.props ?? {}) },
     ...(questView.lesson && { lesson: questView.lesson }),
+    ...((g) => g && { guide: g })(eng.companions.pointing()),
     container: box && {
       id: box.id,
       name: box.name ?? w.onto.resolve(box.type).name ?? box.type.split('/').pop()!,

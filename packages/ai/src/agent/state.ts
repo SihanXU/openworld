@@ -17,8 +17,8 @@
 // browser's worker (the player's own modder, docs/byok.md), which keeps them where it likes.
 
 import { defaultFiles, type Files } from './files.ts'
-import type { CallRecord, ChatOptions } from '../models/model.ts'
-import { similarity } from '../util.ts'
+import { BACKEND_DOWN, Meter, parseJson, type CallRecord, type ChatOptions, type Model } from '../models/model.ts'
+import { clip, similarity } from '../util.ts'
 
 // ---------------------------------------------------------------- records
 
@@ -30,9 +30,9 @@ export interface Attempt<P = unknown> {
   patch?: P
   errors: string[]
   warnings: string[]
-  /** Deterministic repairs the harness applied before validating (fixes.ts). */
+  /** Deterministic repairs the harness applied before validating (answer.ts). */
   fixes?: string[]
-  /** The harness-derived generalization test, or why there is none (derive.ts). */
+  /** The harness-derived generalization test, or why there is none (answer.ts). */
   derived?: string[]
   /** Reviewer verdict on a valid draft, when the review stage ran. */
   review?: { verdict: string; notes: string[] }
@@ -70,6 +70,8 @@ export interface Episode<Req = unknown, P = unknown> {
   request: Req
   key: string
   terms: string[]
+  /** The kind of task it is, for its skill: one skill a node (a world request's, request.ts `skillNodeOf`; else `kind:<kind>`). */
+  node?: string
   outcome: Outcome
   attempts: Attempt<P>[]
   tools: { name: string; args: unknown; ms: number }[]
@@ -101,6 +103,7 @@ export interface EpisodeEntry {
   kind?: string
   key: string
   terms: string[]
+  node?: string
   summary: string
   outcome: Outcome
   rules: string[]
@@ -124,8 +127,10 @@ export interface Lesson {
 export interface SkillMeta {
   name: string
   description: string
-  /** Signature terms that suggest the skill. */
+  /** Signature terms that suggest the skill (a skill of a node has none: its node says where it applies). */
   triggers: string[]
+  /** The kind of task it is the skill of (one a node); none: an older skill, shown by its triggers. */
+  node?: string
   version: number
   status: 'active' | 'retired'
   created: string
@@ -144,13 +149,13 @@ export interface DesignConfig {
   /** 0 = one call, no tools: answer from the brief */
   toolRounds: number
   temperature: number
-  /** prepare the roles and related rules up front (brief.ts) */
+  /** prepare the roles and related rules up front (request.ts) */
   brief?: boolean
   reasoning?: Reasoning
-  /** who writes the generalization test: the model, or the harness (derive.ts) */
+  /** who writes the generalization test: the model, or the harness (answer.ts) */
   tests?: 'model' | 'harness'
   /**
-   * The deterministic repairs of an answer's mechanical slips (fixes.ts: its shape, bare terrains, a recipe's station;
+   * The deterministic repairs of an answer's mechanical slips (answer.ts: its shape, bare terrains, a recipe's station;
    * brackets): on unless false. Off (an ablation, paper §7.1), an answer that needed one is an invalid attempt.
    */
   fixes?: boolean
@@ -166,12 +171,6 @@ export interface DesignConfig {
 
 export type Profile = 'live' | 'offline'
 
-/**
- * The base settings are the LIVE profile: a player is waiting, so one call from a prepared
- * brief, little reasoning, review after the fact. `offline` overrides them for work nobody
- * waits on — the curriculum, escalations of failed live requests, revisions — where quality
- * comes first.
- */
 /**
  * The SWE-style agent loop (loop.ts): the part of the harness that transfers. The same loop works
  * a world task in repo form, an engine issue, and a benchmark repository.
@@ -247,6 +246,12 @@ export const NAIVE_AGENT: AgentConfig = {
   provider: { order: ['moonshotai', 'parasail', 'together'], allow_fallbacks: true },
 }
 
+/**
+ * The base settings are the LIVE profile: a player is waiting, so one call from a prepared
+ * brief, little reasoning, review after the fact. `offline` overrides them for work nobody
+ * waits on — the curriculum, escalations of failed live requests, revisions — where quality
+ * comes first.
+ */
 export const DEFAULT_HARNESS: Harness = {
   version: 1,
   agent: NAIVE_AGENT,
@@ -286,6 +291,24 @@ export function auditOf(h: Harness): AuditConfig {
 
 /** A skill is retired once it has been used this often and does clearly worse than the average episode. */
 const RETIRE_AFTER_USES = 6
+/** Notes kept on a kind of task with no skill yet (the latest). */
+const PENDING_MAX = 10
+/** A skill is rewritten whole each time: at most this many lines (merged, not appended to). */
+export const SKILL_MAX_LINES = 40
+
+/** A note on a kind of task with no skill yet. */
+export interface PendingNote {
+  text: string
+  episode: string
+  at: string
+}
+
+/** The name of a node's skill: the node as a file name, with a hash of it (names are cut short: two nodes never share one). */
+export function nodeSkillName(node: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < node.length; i++) h = Math.imul(h ^ node.charCodeAt(i), 0x01000193) >>> 0
+  return `${safeName(node.replace(/[|/:]+/g, '-')).slice(0, 39).replace(/-+$/, '')}-${h.toString(36).padStart(7, '0').slice(-7)}`
+}
 const RETIRE_MARGIN = 0.2
 
 // ---------------------------------------------------------------- the store
@@ -294,48 +317,46 @@ export class SelfState {
   private index: EpisodeEntry[] = []
   private lessonList: Lesson[] = []
   private skillIndex: Record<string, SkillMeta> = {}
+  private pending: Record<string, PendingNote[]> = {}
   private harnessData: Harness = structuredClone(DEFAULT_HARNESS)
   /** USD spent after replies: reviews, reflections, the outer loop (episodes carry their own). */
   private backgroundSpend = 0
+  /** JSON-lines files this instance has appended to: their tails are whole lines (appendLine). */
+  private whole = new Set<string>()
+  /** A throwaway copy (fork) whose directory goes when it is disposed. */
+  private temporary = false
 
   private constructor(
     readonly dir: string,
     private clock: () => Date,
-    readonly ablated: Set<Ablation> = new Set(),
+    readonly ablated: Set<Ablation>,
     /** Where its files are (Node's disk unless another is given). */
-    readonly fs: Files = defaultFiles(),
+    readonly fs: Files,
   ) {}
 
   /** A throwaway copy (in a temp directory) to try a different harness or skill set on. */
   fork(): SelfState {
     const to = this.fs.tempDir('lsw-state-fork-')
-    for (const d of ['memory', 'skills', 'harness']) this.fs.copy(this.fs.join(this.dir, d), this.fs.join(to, d))
-    return SelfState.open(to, this.clock, [...this.ablated], this.fs)
+    for (const d of COPIED) this.fs.copy(this.fs.join(this.dir, d), this.fs.join(to, d))
+    const fork = SelfState.open(to, this.clock, [...this.ablated], this.fs)
+    fork.temporary = true
+    return fork
+  }
+
+  /** Remove a fork's directory (whoever forked calls it when done); a state that is not a fork is kept. */
+  dispose(): void {
+    if (this.temporary) this.fs.remove(this.dir)
   }
 
   static open(dir: string, clock: () => Date = () => new Date(), ablate: Ablation[] = [], fs: Files = defaultFiles()): SelfState {
     const s = new SelfState(dir, clock, new Set(ablate), fs)
     for (const d of ['memory/episodes', 'skills', 'harness', 'snapshots']) fs.mkdir(fs.join(dir, d))
-    const idx = fs.join(dir, 'memory/index.jsonl')
-    if (fs.exists(idx))
-      for (const line of fs.read(idx).split('\n'))
-        if (line.trim())
-          try {
-            s.index.push(JSON.parse(line))
-          } catch {
-            /* torn line */
-          }
-    const journal = fs.join(dir, 'journal.jsonl')
-    if (fs.exists(journal))
-      for (const line of fs.read(journal).split('\n'))
-        if (line.includes('"usage"'))
-          try {
-            s.backgroundSpend += JSON.parse(line).usage?.cost ?? 0
-          } catch {
-            /* torn line */
-          }
+    s.index = readLines<EpisodeEntry>(fs, fs.join(dir, 'memory/index.jsonl'), (line) => !!line.trim())
+    for (const j of readLines<{ usage?: { cost?: number } }>(fs, fs.join(dir, 'journal.jsonl'), (line) => line.includes('"usage"')))
+      s.backgroundSpend += j.usage?.cost ?? 0
     s.lessonList = readJson(fs, fs.join(dir, 'memory/lessons.json'), [])
     s.skillIndex = readJson(fs, fs.join(dir, 'skills/index.json'), {})
+    s.pending = readJson(fs, fs.join(dir, 'memory/pending.json'), {})
     const h = fs.join(dir, 'harness/pipeline.json')
     if (fs.exists(h)) s.harnessData = mergeHarness(readJson<Partial<Harness>>(fs, h, {}))
     else {
@@ -353,7 +374,22 @@ export class SelfState {
   /** Append to the journal (every write to the self-state goes through here). */
   note(kind: string, data: Record<string, unknown>): void {
     this.backgroundSpend += (data.usage as { cost?: number } | undefined)?.cost ?? 0
-    this.fs.append(this.fs.join(this.dir, 'journal.jsonl'), JSON.stringify({ at: this.now(), kind, ...data }) + '\n')
+    this.appendLine('journal.jsonl', { at: this.now(), kind, ...data })
+  }
+
+  /**
+   * One record onto a JSON-lines file. A crash may have left the file's last line torn (no newline):
+   * the record starts on a line of its own, so the torn one costs only itself.
+   */
+  private appendLine(name: string, record: unknown): void {
+    const p = this.fs.join(this.dir, name)
+    let text = JSON.stringify(record) + '\n'
+    if (!this.whole.has(p) && this.fs.exists(p)) {
+      const was = this.fs.read(p)
+      if (was && !was.endsWith('\n')) text = '\n' + text
+    }
+    this.fs.append(p, text)
+    this.whole.add(p)
   }
 
   // ---------------------------------------------------------------- harness
@@ -384,6 +420,7 @@ export class SelfState {
       at: ep.at,
       key: ep.key,
       terms: ep.terms,
+      ...(ep.node && { node: ep.node }),
       kind: ep.kind,
       summary: ep.summary,
       outcome: ep.outcome,
@@ -394,7 +431,7 @@ export class SelfState {
       ms: ep.ms,
     }
     this.index.push(entry)
-    this.fs.append(this.fs.join(this.dir, 'memory/index.jsonl'), JSON.stringify(entry) + '\n')
+    this.appendLine('memory/index.jsonl', entry)
     this.note('episode', { id: ep.id, outcome: ep.outcome, rules: ep.rules })
   }
 
@@ -404,17 +441,7 @@ export class SelfState {
 
   /** Journal entries of one kind (proposals, reviews, reflections…), oldest first. */
   journalOf(kind: string): Record<string, unknown>[] {
-    const p = this.fs.join(this.dir, 'journal.jsonl')
-    if (!this.fs.exists(p)) return []
-    const out: Record<string, unknown>[] = []
-    for (const line of this.fs.read(p).split('\n'))
-      if (line.includes(`"kind":"${kind}"`))
-        try {
-          out.push(JSON.parse(line))
-        } catch {
-          /* torn line */
-        }
-    return out
+    return readLines(this.fs, this.fs.join(this.dir, 'journal.jsonl'), (line) => line.includes(`"kind":"${kind}"`))
   }
 
   /** A small JSON document kept with the memory (e.g. the outer loop's replay sets). */
@@ -458,12 +485,15 @@ export class SelfState {
       .slice(0, k)
   }
 
-  /** Apply a reflection: new lessons, revised ones, dropped ones; each change cites the episode. */
-  /** `episode`: the episode the reflection was on, or the episodes of a batch (each is cited). */
-  applyLessons(ops: { add?: { text: string; terms?: string[] }[]; revise?: { id: string; text: string }[]; drop?: string[]; support?: string[] }, episode: string | string[], defaultTerms: string[]): string[] {
+  /**
+   * Apply a reflection: new lessons, revised ones, dropped ones; each change cites the episode.
+   * `episode`: the episode the reflection was on, or the episodes of a batch (each is cited).
+   */
+  applyLessons(ops: { add?: { text: string; terms?: string[]; general?: boolean }[]; revise?: { id: string; text: string }[]; drop?: string[]; support?: string[] }, episode: string | string[], defaultTerms: string[]): string[] {
     const now = this.now()
     const touched: string[] = []
     const eps = Array.isArray(episode) ? episode : [episode]
+    const active = (id: unknown) => this.lessonList.find((l) => l.id === id && l.status === 'active')
     const cite = (l: Lesson) => {
       let added = false
       for (const e of eps) if (!l.episodes.includes(e)) (l.episodes.push(e), (added = true))
@@ -473,13 +503,14 @@ export class SelfState {
       const text = String(a?.text ?? '').trim()
       if (!text || this.lessonList.some((l) => l.status === 'active' && l.text === text)) continue
       const id = `L${this.lessonList.length + 1}`
-      const terms = Array.isArray(a.terms) && a.terms.length ? a.terms.map(String) : defaultTerms
+      // a general lesson (engineering anywhere, not this codebase) has no terms: every task is shown it
+      const terms = a.general === true ? [] : Array.isArray(a.terms) && a.terms.length ? a.terms.map(String) : defaultTerms
       this.lessonList.push({ id, text, terms, episodes: [...eps], status: 'active', created: now, updated: now })
       touched.push(id)
       this.note('lesson.add', { id, episode })
     }
     for (const r of ops.revise ?? []) {
-      const l = this.lessonList.find((x) => x.id === r?.id && x.status === 'active')
+      const l = active(r?.id)
       const text = String(r?.text ?? '').trim()
       if (!l || !text) continue
       l.text = text
@@ -489,11 +520,11 @@ export class SelfState {
       this.note('lesson.revise', { id: l.id, episode })
     }
     for (const id of ops.support ?? []) {
-      const l = this.lessonList.find((x) => x.id === id && x.status === 'active')
+      const l = active(id)
       if (l && cite(l)) touched.push(l.id)
     }
     for (const id of ops.drop ?? []) {
-      const l = this.lessonList.find((x) => x.id === id && x.status === 'active')
+      const l = active(id)
       if (!l) continue
       l.status = 'dropped'
       l.updated = now
@@ -520,6 +551,51 @@ export class SelfState {
     return Object.values(this.skillIndex).filter((s) => all || s.status === 'active')
   }
 
+  /**
+   * The active skills a task is shown: its node's (one at most), the general ones (no node, no triggers), and an
+   * older skill (no node) whose triggers it has.
+   */
+  relevantSkills(terms: string[], node?: string): SkillMeta[] {
+    const set = new Set(terms)
+    return this.skills().filter((s) => (s.node ? s.node === node : !s.triggers?.length || s.triggers.some((t) => set.has(t))))
+  }
+
+  /** The skill of a kind of task, if it has one. */
+  skillAt(node: string): SkillMeta | undefined {
+    return this.skills().find((s) => s.node === node)
+  }
+
+  /** The tasks of a node so far (cache hits aside). */
+  nodeEpisodes(node: string): number {
+    return this.index.filter((e) => e.node === node && e.outcome !== 'covered').length
+  }
+
+  // ---------------------------------------------------------------- notes on a kind of task with no skill yet
+
+  /** What was learned about a kind of task before it has a skill: kept on its node, written into the skill when one is made. */
+  pendingAt(node: string): PendingNote[] {
+    if (this.ablated.has('memory')) return []
+    return this.pending[node] ?? []
+  }
+
+  addPending(node: string, texts: string[], episode: string): void {
+    const now = this.now()
+    const kept = this.pending[node] ?? []
+    for (const t of texts.map((x) => String(x ?? '').trim()).filter(Boolean)) if (!kept.some((k) => k.text === t)) kept.push({ text: t, episode, at: now })
+    this.pending[node] = kept.slice(-PENDING_MAX)
+    this.savePending()
+  }
+
+  clearPending(node: string): void {
+    if (!this.pending[node]) return
+    delete this.pending[node]
+    this.savePending()
+  }
+
+  private savePending(): void {
+    writeJson(this.fs, this.fs.join(this.dir, 'memory/pending.json'), this.pending)
+  }
+
   skill(name: string): SkillMeta | undefined {
     return this.skillIndex[name]
   }
@@ -532,16 +608,18 @@ export class SelfState {
   }
 
   /** Write a new skill or a new version of one. */
-  writeSkill(s: { name: string; description: string; triggers: string[]; body: string; files?: Record<string, string> }, episode?: string): SkillMeta {
+  writeSkill(s: { name: string; description: string; triggers: string[]; node?: string; body: string; files?: Record<string, string> }, episode?: string): SkillMeta {
     const name = safeName(s.name)
     const now = this.now()
     const prev = this.skillIndex[name]
+    // (written again after it was retired: the new text is judged on its own uses, not the retired one's)
+    const fresh = prev?.status === 'retired' ? { uses: 0, accepted: 0, failed: 0, recent: [], origin: episode } : {}
     const meta: SkillMeta = prev
-      ? { ...prev, description: s.description, triggers: s.triggers, version: prev.version + 1, status: 'active', updated: now }
-      : { name, description: s.description, triggers: s.triggers, version: 1, status: 'active', created: now, updated: now, origin: episode, uses: 0, accepted: 0, failed: 0, recent: [] }
+      ? { ...prev, ...fresh, description: s.description, triggers: s.triggers, ...(s.node && { node: s.node }), version: prev.version + 1, status: 'active', updated: now }
+      : { name, description: s.description, triggers: s.triggers, ...(s.node && { node: s.node }), version: 1, status: 'active', created: now, updated: now, origin: episode, uses: 0, accepted: 0, failed: 0, recent: [] }
     this.skillIndex[name] = meta
     this.fs.mkdir(this.fs.join(this.dir, 'skills', name))
-    const front = ['---', `name: ${name}`, `description: ${s.description.replace(/\n/g, ' ')}`, `triggers: ${s.triggers.join(', ')}`, `version: ${meta.version}`, '---', ''].join('\n')
+    const front = ['---', `name: ${name}`, `description: ${s.description.replace(/\n/g, ' ')}`, ...(s.node ? [`node: ${s.node}`] : [`triggers: ${s.triggers.join(', ')}`]), `version: ${meta.version}`, '---', ''].join('\n')
     this.fs.write(this.fs.join(this.dir, 'skills', name, 'SKILL.md'), front + s.body.trim() + '\n')
     // scripts the skill runs (in the task sandbox, through the agent's run tool)
     for (const [file, code] of Object.entries(s.files ?? {}).slice(0, MAX_SKILL_FILES))
@@ -610,6 +688,7 @@ export class SelfState {
     const tried = this.index.filter((e) => e.outcome !== 'covered')
     const accepted = tried.filter((e) => e.outcome === 'accepted')
     const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : 0)
+    const spent = this.index.reduce((a, e) => a + (e.cost ?? 0), 0) + this.backgroundSpend
     return {
       episodes: this.index.length,
       covered: this.index.length - tried.length,
@@ -620,8 +699,8 @@ export class SelfState {
       callsPerEpisode: avg(tried.map((e) => e.calls)),
       msPerEpisode: Math.round(avg(tried.map((e) => e.ms))),
       /** USD: everything the model cost, and per accepted patch (reflection included) */
-      spend: Math.round((this.index.reduce((a, e) => a + (e.cost ?? 0), 0) + this.backgroundSpend) * 10000) / 10000,
-      costPerAccepted: accepted.length ? Math.round(((this.index.reduce((a, e) => a + (e.cost ?? 0), 0) + this.backgroundSpend) / accepted.length) * 10000) / 10000 : 0,
+      spend: Math.round(spent * 10000) / 10000,
+      costPerAccepted: accepted.length ? Math.round((spent / accepted.length) * 10000) / 10000 : 0,
       lessons: this.lessons().length,
       skills: this.skills().length,
       retiredSkills: this.skills(true).length - this.skills().length,
@@ -635,8 +714,9 @@ export class SelfState {
     const to = this.fs.join(this.dir, 'snapshots', name)
     if (this.fs.exists(to)) throw new Error(`snapshot "${name}" exists`)
     this.fs.mkdir(to)
-    for (const d of ['memory', 'skills', 'harness']) this.fs.copy(this.fs.join(this.dir, d), this.fs.join(to, d))
-    for (const f of ['journal.jsonl']) if (this.fs.exists(this.fs.join(this.dir, f))) this.fs.copy(this.fs.join(this.dir, f), this.fs.join(to, f))
+    for (const d of COPIED) this.fs.copy(this.fs.join(this.dir, d), this.fs.join(to, d))
+    const journal = this.fs.join(this.dir, 'journal.jsonl')
+    if (this.fs.exists(journal)) this.fs.copy(journal, this.fs.join(to, 'journal.jsonl'))
     writeJson(this.fs, this.fs.join(to, 'meta.json'), { label: name, at: this.now(), stats: this.stats(), ...extra })
     this.fs.write(this.fs.join(to, 'SELF.md'), this.render())
     this.note('snapshot', { label: name })
@@ -674,6 +754,20 @@ function mergeHarness(file: Partial<Harness>): Harness {
   return d as unknown as Harness
 }
 
+/** The parsed lines of a JSON-lines file that `keep` passes (a torn line is skipped). */
+function readLines<T = Record<string, unknown>>(fs: Files, path: string, keep: (line: string) => boolean): T[] {
+  if (!fs.exists(path)) return []
+  const out: T[] = []
+  for (const line of fs.read(path).split('\n'))
+    if (keep(line))
+      try {
+        out.push(JSON.parse(line))
+      } catch {
+        /* torn line */
+      }
+  return out
+}
+
 function readJson<T>(fs: Files, path: string, fallback: T): T {
   try {
     return JSON.parse(fs.read(path)) as T
@@ -694,6 +788,8 @@ export type HookStage = 'start' | 'presubmit'
 /** Parts of the self-state an ablation run leaves out (docs/rsi.md §6). */
 export type Ablation = 'memory' | 'skills' | 'harness'
 
+/** What a fork and a snapshot copy. */
+const COPIED = ['memory', 'skills', 'harness']
 const MAX_SKILL_FILES = 6
 const MAX_SCRIPT_BYTES = 40_000
 
@@ -704,4 +800,149 @@ export function safeFile(s: string): string {
 
 export function safeName(s: string): string {
   return String(s).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'unnamed'
+}
+
+// ---------------------------------------------------------------- reflection
+// The middle loop: after an episode, what is worth keeping. A reflection writes two places only:
+// - the global rules (lessons): one sentence that holds for every task of this kind, or for engineering anywhere;
+// - this kind of task (its node): its skill, rewritten whole, when it has one; else a note kept on the node, until
+//   the node has recurred and gone wrong enough to be worth a skill, which is then written from its notes.
+// One node has one skill at most, named from the node, so two reflections at once never write two.
+
+/** What every reflection answers, and how (the agent's and the modder's alike). `general` says what a general rule is about. */
+export const reflectFormat = (general: string): string => `Respond with JSON only:
+{
+  "rules": { "add": [{"text": "...", "scope": "kind"}], "revise": [{"id": "L3", "text": "..."}], "support": ["L2"], "drop": ["L5"] },
+  "notes": [],
+  "skill": null
+}
+
+Rules (yours on file are listed with their ids):
+- A rule is one sentence that holds for every task of this kind ("scope": "kind"), or ${general} ("scope": "general"). Never a retelling of this task, never about one kind of thing in it: that goes to the skill or the notes below.
+- A rule about a time limit, or about answering fast, is never general.
+- The most valuable rules come from what went wrong. Add at most one; often none is right. "support" rules this task confirmed; "revise" or "drop" rules it contradicted.
+
+This kind of task (the last section says which it is, and what you keep on it):
+- If it has a skill and this task taught something about this kind of task, rewrite the skill whole in "skill": {"description": "when to use it, one line", "body": "markdown: when it applies, the steps, the checks, the pitfalls"}, at most ${SKILL_MAX_LINES} lines, merging what you learned into it, not appending. Otherwise "skill": null.
+- If you are asked to write its skill, write it the same way, from the notes and this task.
+- Otherwise put in "notes" what this task taught about this kind of task: at most two one-line pitfalls or patterns, or []. They are kept until its skill is written.`
+
+export const AGENT_REFLECT_SYSTEM = `You keep your own memory as a software engineer who works tasks in repositories. After every task you decide what is worth keeping, so that the next task goes better. Your memory is read only by you.
+
+${reflectFormat('for engineering in any repository: how to find code, test, read a failure, scope a change')}
+- A skill may carry scripts in "files": {"script.mjs": "…"}, which you run with your run tool from .agent/skills/<name>/.`
+
+/** Where a kind of task stands when it is reflected on: its skill, or its notes and whether it is due for a skill. */
+export interface NodeStand {
+  node: string
+  skill?: SkillMeta
+  body?: string
+  notes: PendingNote[]
+  /** its tasks so far, this one among them */
+  count: number
+  /** no skill yet, recurred often enough, and something went wrong (a note on file, or this task) */
+  due: boolean
+}
+
+export function nodeStand(state: SelfState, node: string, h: Harness, troubled: boolean): NodeStand {
+  const skill = state.skillAt(node)
+  const notes = state.pendingAt(node)
+  const count = state.nodeEpisodes(node)
+  return { node, skill, body: skill && state.readSkill(skill.name)?.trim(), notes, count, due: !skill && count >= h.reflect.skillMinRecurrence && (notes.length > 0 || troubled) }
+}
+
+/** The prompt's section on this kind of task. */
+export function nodeSection(s: NodeStand): string[] {
+  const head = `## This kind of task: ${s.node} (${s.count} task(s) so far)`
+  if (s.skill) return [head, `Your skill for it (v${s.skill.version}, used ${s.skill.uses}×, ${s.skill.accepted} accepted):`, '', s.body ?? '']
+  const notes = s.notes.length ? s.notes.map((n) => `- ${n.text}`) : ['(none)']
+  return s.due ? [head, 'No skill yet. It has recurred and gone wrong; your notes on it:', ...notes, '', 'Write its skill now, in "skill".'] : [head, 'No skill yet. Your notes on it:', ...notes]
+}
+
+/** An episode's node: the world's, else its kind's. */
+export const nodeOf = (ep: Pick<Episode, 'node' | 'kind'>): string => ep.node ?? `kind:${ep.kind ?? 'task'}`
+
+/** Something went wrong in it: a failure, or an attempt sent back. */
+export const troubled = (ep: Episode): boolean => ep.outcome === 'failed' || ep.attempts.some((a) => a.errors.length > 0)
+
+export async function reflectAgent(ep: Episode, o: { model: Model; state: SelfState; harness?: Harness; kindTerm?: string }): Promise<void> {
+  const { state } = o
+  const h = o.harness ?? state.harness()
+  if (!h.reflect.enabled) return
+  const model = new Meter(o.model)
+  const kindTerm = o.kindTerm ?? `kind:${ep.kind}`
+  const stand = nodeStand(state, nodeOf(ep), h, troubled(ep))
+  const similar = state.similarEpisodes(ep.terms, 8, ep.id).filter((e) => e.kind === ep.kind)
+  const tools: Record<string, number> = {}
+  for (const t of ep.tools) tools[t.name] = (tools[t.name] ?? 0) + 1
+  const user = [
+    `# Task ${ep.id} (${ep.kind}): ${ep.summary}`,
+    `outcome: ${ep.outcome} after ${ep.usage.calls} model calls${ep.error ? ` — ${ep.error}` : ''}`,
+    '',
+    '## Test runs and verdict',
+    ...(ep.attempts.length ? ep.attempts.map((a, i) => `${i + 1}. ${a.errors.length ? `failed: ${clip(a.errors[0], 600)}` : 'passed'}`) : ['(no test runs)']),
+    '',
+    '## Tools used',
+    Object.entries(tools).map(([k, v]) => `${k}×${v}`).join(', ') || '(none)',
+    `skills read: ${ep.skillsRead.join(', ') || '(none)'}`,
+    '',
+    '## Your rules on file (relevant)',
+    ...state.relevantLessons([...ep.terms, kindTerm], 20).map((l) => `- [${l.id}] ${l.text}`),
+    '',
+    `## Similar past tasks (${similar.length})`,
+    ...similar.map((e) => `- ${e.summary} → ${e.outcome}`),
+    '',
+    ...nodeSection(stand),
+  ].join('\n')
+  const r = await model.chat(
+    [
+      { role: 'system', content: AGENT_REFLECT_SYSTEM },
+      { role: 'user', content: user },
+    ],
+    { json: true, temperature: 0.2, purpose: 'reflect', reasoning: h.reflect.reasoning, provider: h.agent.provider },
+  )
+  const kept = keepReflection(state, r.content, { cited: ep.id, kindTerm, stand, files: true })
+  state.note('reflect', { episode: ep.id, kind: ep.kind, node: stand.node, lessons: kept.lessons, skill: kept.skill, notes: kept.notes, usage: model.usage })
+}
+
+/**
+ * Reflect after a task an unattended agent worked and recorded (a world task, an engine task, a task from the
+ * history, an upstream proposal): every recorded task feeds the middle loop. A failure that is the backend's is
+ * no lesson.
+ */
+export async function reflectAfter(ep: Episode, o: { model: Model; state: SelfState; harness?: Harness; kindTerm?: string }): Promise<void> {
+  if (ep.outcome === 'failed' && BACKEND_DOWN.test(ep.error ?? '')) return
+  await reflectAgent(ep, o)
+}
+
+type RuleOps = { add?: { text: string; scope?: unknown; general?: unknown; terms?: string[] }[]; revise?: { id: string; text: string }[]; support?: string[]; drop?: string[] }
+
+/**
+ * A reflection's reply kept in the self-state: its rules applied to the lessons (filed under the task's kind,
+ * `kindTerm`, or general; citing the episodes), and this kind of task (`stand`; none for a batch of several kinds)
+ * to its skill or its notes. Scripts are kept only where the reflection may write them (`files`).
+ */
+export function keepReflection(state: SelfState, reply: string, o: { cited: string | string[]; kindTerm: string; stand?: NodeStand; files?: boolean }): { lessons: string[]; skill?: string; notes: number } {
+  const j = parseJson(reply) as { rules?: RuleOps; lessons?: RuleOps; notes?: unknown; skill?: { description?: unknown; body?: unknown; files?: unknown } | null } | undefined
+  const by = Array.isArray(o.cited) ? o.cited[o.cited.length - 1] : o.cited
+  // (an older reply's "lessons" keep their own terms)
+  const ops = j?.rules && typeof j.rules === 'object' ? { ...j.rules, add: (Array.isArray(j.rules.add) ? j.rules.add : []).map((a) => ({ text: a?.text, general: a?.scope === 'general' || a?.general === true, terms: [o.kindTerm] })) } : j?.lessons && typeof j.lessons === 'object' ? j.lessons : undefined
+  const lessons = ops ? state.applyLessons(ops as Parameters<SelfState['applyLessons']>[0], o.cited, [o.kindTerm]) : []
+  const s = o.stand
+  if (!s) return { lessons, notes: 0 }
+  const sk = j?.skill
+  // (another reflection on this node wrote its skill since this one read it: that one stands, this one's is not kept)
+  if (state.skillAt(s.node)?.version !== s.skill?.version) return { lessons, notes: 0 }
+  if (sk && typeof sk.body === 'string' && sk.body.trim() && (s.skill || s.due)) {
+    const body = sk.body.trim().split('\n').slice(0, SKILL_MAX_LINES + 10).join('\n')
+    const files = o.files && sk.files && typeof sk.files === 'object' ? (Object.fromEntries(Object.entries(sk.files as Record<string, unknown>).filter(([, v]) => typeof v === 'string')) as Record<string, string>) : undefined
+    const name = s.skill?.name ?? nodeSkillName(s.node)
+    state.writeSkill({ name, node: s.node, triggers: [], description: String(sk.description ?? s.skill?.description ?? s.node), body, ...(files && { files }) }, by)
+    // what was kept on the node is in the skill now
+    if (!s.skill) state.clearPending(s.node)
+    return { lessons, skill: name, notes: 0 }
+  }
+  const notes = !s.skill && Array.isArray(j?.notes) ? j!.notes.filter((n): n is string => typeof n === 'string' && !!n.trim()).slice(0, 2) : []
+  if (notes.length) state.addPending(s.node, notes, by)
+  return { lessons, notes: notes.length }
 }

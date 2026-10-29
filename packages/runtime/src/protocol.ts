@@ -43,7 +43,7 @@ export class FishingInputLatch {
 
 export type ToWorker =
   | { t: 'skipLearning' }
-  | { t: 'init'; base: string; save?: SaveWithQuestions; library?: StoredLibrary; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any ('': none) */ modder?: string; /** the player's own modder, over this port (docs/byok.md; sent with the message) */ modderPort?: MessagePort; /** true: prefetch undefined acts the pointer rests on (?prefetch=1: at least the medium setting's) */ prefetch?: boolean; /** the player's AI setting (the engine's quality.ts) */ quality?: AiQuality; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos; /** a step of the story begun at once in a new game (the editor's "play from this scene") */ scene?: string }
+  | { t: 'init'; base: string; save?: SaveWithQuestions; library?: StoredLibrary; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any ('': none) */ modder?: string; /** the player's own modder, over this port (docs/byok.md; sent with the message) */ modderPort?: MessagePort; /** true: prefetch undefined acts the pointer rests on (?prefetch=1: at least the medium setting's) */ prefetch?: boolean; /** the player's AI setting (the engine's quality.ts) */ quality?: AiQuality; /** does a companion lead the way when the player stands still (Options) */ guiding?: boolean; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos; /** a step of the story begun at once in a new game (the editor's "play from this scene") */ scene?: string }
   /**
    * The world behind the title (the cover's backdrop): a world of its own at a place of the game's and an hour, with no
    * story, nothing asked of the modder and nothing saved; its frames are only drawn. An `init` replaces it.
@@ -86,8 +86,9 @@ export type ToWorker =
   | { t: 'cycle'; dir: 1 | -1 }
   | { t: 'row'; dir: 1 | -1 }
   | { t: 'swap'; a: number; b: number }
+  | { t: 'moveSlot'; request: number; from: number; to: number; item: string; count: number; sourceCount: number }
   | { t: 'quickMove'; slot: number }
-  | { t: 'drop'; slot: number; all: boolean }
+  | { t: 'drop'; slot: number; all: boolean; item?: string; count?: number; sourceCount?: number }
   | { t: 'organize' }
   /** The off hand: wear a carried item there (a shield), or take off what is worn (no item). */
   | { t: 'wear'; item?: string; /** from the bag: put on (another of a stack), never take off */ putOn?: boolean }
@@ -140,6 +141,8 @@ export type ToWorker =
   | { t: 'pause'; on: boolean }
   /** The player changed the AI setting (the options' AI section): it holds from the next event. */
   | { t: 'quality'; quality: AiQuality }
+  /** The player's option: does a companion lead the way when they stand still (the engine's companion.ts)? */
+  | { t: 'guiding'; on: boolean }
   /** Ask another modder from now on: the player's own over this port (sent with the message), a service, or none. */
   | { t: 'modder'; port?: MessagePort; url?: string }
   | { t: 'patch'; id?: string; patch: Patch }
@@ -156,6 +159,8 @@ export type ToWorker =
   | { t: 'debug'; op: 'summon'; kit: string; map: string; x: number; y: number; from: [number, number] }
   /** Harm the one at the keys (as a blow nobody struck): to try a fall and the death screen. */
   | { t: 'debug'; op: 'hurt'; amount: number }
+  /** A fact of the story set (the dev's hand): a part of the tale opened, a gate lifted. */
+  | { t: 'debug'; op: 'fact'; key: string; value: number }
   | { t: 'debug'; op: 'god'; on?: boolean }
   /** development: play a story step now (`id`), or a scene written here (`script`): a CG, a line, looked at without playing to it */
   | { t: 'debug'; op: 'scene'; id?: string; script?: SceneCmd[] }
@@ -201,8 +206,12 @@ export type FromWorker =
   | { t: 'synced'; url: string; seq: number; /** the library changed: the position is stored with it, not before it */ changed: boolean }
   | { t: 'placement'; preview: PlacementPreview }
   | { t: 'ready'; stats: WorldIndex['stats']; name: WorldIndex['name']; resumed: boolean }
+  /** The slot's save is from another version of the world: nothing was started, and the slot is kept as it was. */
+  | { t: 'incompatible' }
   | { t: 'map'; map: MapData; /** the look of the region it lies in (RegionMeta.look) */ look?: RegionLook }
   | { t: 'frame'; frame: Frame; /** the frame's things are only those that changed; these left it (frameDelta.ts) */ gone?: string[]; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number }; transfer?: TransferProgress; crafting?: TransferProgress<'craft'> }
+  /** A bag group move finished: request identifies the pending cursor action. */
+  | { t: 'slotMove'; request: number; moved: boolean }
   /** What the keys would do now, sent as soon as the pointer aims somewhere else (between frames). */
   | { t: 'keys'; keys: Frame['keys']; /** the aim they answer */ n?: number }
   | { t: 'records'; records: RecordView[]; library: LibraryView }
@@ -248,7 +257,8 @@ export interface AtlasContinent {
   /** Each cell's region, an index into `regions` (-1: none, the sea). */
   regionOf: number[]
   regions: { id: string; name: Text; color?: string; backdrop?: boolean }[]
-  places: { x: number; y: number; name: Text; kind: string; map: string; sealed?: boolean; backdrop?: boolean; visited?: boolean; capital?: boolean }[]
+  /** Its places: where, named, of what kind, drawn with what (the sprite its type names, as the overworld draws it). */
+  places: { x: number; y: number; name: Text; kind: string; map: string; sprite?: string; sealed?: boolean; backdrop?: boolean; visited?: boolean; capital?: boolean }[]
   /** The cell one is at, where the world map can tell. */
   cell?: { x: number; y: number }
 }

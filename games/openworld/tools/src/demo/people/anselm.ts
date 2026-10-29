@@ -27,12 +27,12 @@ export const anselm: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'A book is only paper until a hand that can do the thing holds it. Mine cannot. Yours might.', '书只是纸，直到一双能做成那件事的手拿起它。我的手不行。你的也许行。'),
-    line('chat', 'The monastery over the pass copied by candlelight. You can tell the winter books by the wax drops.', '山口那边的修道院是点着蜡烛抄书的。冬天抄的书，从蜡滴就能认出来。'),
-    line('greeting:first', 'Welcome to Firstlight\'s chapel. Sister Ilse keeps the flame; I keep the books. They teach what the hands can learn: a strike, a step, a word of fire. Take one to the light and read it — it will stay with you.', '欢迎来到初原村的礼拜堂。伊尔丝修女守着圣火，我守着这些书。书教的是手能学会的东西：一击、一步、一句火焰的咒语。拿一本到光下读，它就会留在你身上。', { once: true }),
-    line('default', 'The common books are for anyone. The ones for a road — dagger, shield, bow or staff — are dearer, and teach only those who walk it.', '普通的书谁都能学。走某条路的书——匕首、盾、弓或法杖——贵一些，也只教走那条路的人。'),
-    line('default', 'I have read every book on that stand. I cannot do a single thing in them. Reading is not the same as learning; remember that.', '那个书架上的书我每一本都读过。书里的东西我一样也做不到。读了不等于学会，记住这一点。'),
-    line('hour:evening', 'The candles are lit at dusk. Sit, if you like. The benches do not ask why you came.', '黄昏时点上蜡烛。想坐就坐吧。长椅不会问你为什么来。'),
-    line('given', 'Thank you. The chapel will put it to use.', '谢谢你。礼拜堂会派上用场的。'),
+    line('chat', 'These books were copied at the monastery over the pass, before the storms, and carried down. I ask only what the carrying cost. Whether any more will come, I do not know.', '这些书都是起风暴以前，山口那边的修道院抄好送下山来的。我卖的价钱，只够抵运下来的路费。往后还有没有新的，我也不知道。'),
+    line('chat', 'The monastery copied by candlelight. The winter books have drops of wax on their pages; you can tell them at a glance.', '修道院是点着蜡烛抄书的。冬天抄的那几本，书页上落着蜡点，一翻就认得出来。'),
+    line('greeting:first', 'Welcome to Firstlight\'s chapel. Sister Ilse keeps the flame; I keep the books. They teach what the hands can learn: a strike, a step, a word of fire. Take one to the light and read it through, and it will stay with you.', '欢迎来到初原村的礼拜堂。圣火由伊尔丝修女照看，书由我照看。这些书教的都是手上的功夫：怎么出一击，怎么走一步，怎么念一句火焰的咒语。拿一本到亮处读完，学到的就是你的了。', { once: true }),
+    line('default', 'The common books are for anyone. The ones for a road — dagger, shield, bow or staff — cost more, and teach only those who walk it.', '普通的书谁都能学。专讲一条路的——匕首、盾、弓、法杖——要贵一些，也只有走那条路的人学得会。'),
+    line('default', 'I have read every book on that stand, and I cannot do a single thing that is in them. My hands were slow when I was young, and they are slower now.', '架子上的书，我每一本都读过，可书里的本事，我一样也使不出来。年轻时手脚就慢，现在更慢了。'),
+    line('hour:evening', 'I light the candles at dusk. Sit a while if you like; the chapel is not locked at night.', '黄昏了，我去把蜡烛点上。你想坐就坐一会儿吧，礼拜堂夜里也不锁门。'),
+    line('given', 'Thank you. The chapel will put it to use.', '谢谢你。礼拜堂用得着它。'),
   ],
 }

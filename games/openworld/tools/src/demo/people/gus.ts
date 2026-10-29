@@ -40,10 +40,10 @@ export const gus: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'Pine splits clean. Oak argues. Birch — birch just wants to be left alone.', '松木劈得干脆。橡木跟你较劲。桦木——桦木只想被放过。'),
-    line('chat', 'Cass says I talk to the trees. I say the trees started it.', '卡丝说我跟树说话。我说是树先开的口。'),
+    line('chat', 'Pine splits with one blow. Oak takes three, and twists the axe. I leave the birches; they burn too fast.', '松木一斧子就劈开了。橡木得砍三下，还别斧头。桦木我不砍，烧得太快。'),
+    line('chat', 'Cass says I talk to the trees. I do, a bit. I\'m out there on my own all morning.', '卡丝说我跟树说话。是会说几句。一上午就我一个人在林子里。'),
     // the news the story spreads (its topics), said once while fresh
-    line('topic:flame_stolen', "The fire is out at the shrine. Mine is not. I will keep it so.", "神龛那边的火灭了。我这儿的没灭。我会让它一直烧着。"),
-    line('default', 'Every day the fire eats. Every day I feed it. My back has opinions about this.', '火天天都要吃，我天天都得喂。我的腰对此很有意见。'),
+    line('topic:flame_stolen', "The fire at the shrine is out. Mine isn't, and I won't let it go out.", "神龛那边的火灭了。我家的火还烧着，我不会让它灭。"),
+    line('default', 'The fire eats every day, so I cut every day. My back isn\'t what it was. The wood I stack by the square is for anyone who needs it.', '火每天都要烧，我就每天都得砍。腰不比从前了。劈好的柴我都码在广场边上，谁要用就自己拿。'),
   ],
 }

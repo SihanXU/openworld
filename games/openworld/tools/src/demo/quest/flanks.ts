@@ -15,7 +15,8 @@
 import type { AiData, StepDef } from '@openworld/engine'
 import { MapBuilder, rng } from '../builder.ts'
 import { L, GROUND_YIELD, appears, lay } from '../kit.ts'
-import { house } from '../village.ts'
+import { flHouse } from '../village.ts'
+import { wildFloor } from '../wildfloor.ts'
 
 /** Edge openings: the forest's new west and east gaps (rows), and the rows they meet on the new maps. */
 export const FLANKS = {
@@ -86,9 +87,9 @@ export function buildDell(): MapBuilder {
   m.regions.dell = [10, 6, 22, 13]
   // his hut east of the yard, its own yard before the door: his firewood against its wall, the water butt, a bench,
   // the lantern he walks to the kilns by at night (its room: buildDellHut)
-  m.house('hut_straw', 30, 16, 'hut')
+  m.building('dl_hut', 30, 16, ['hut'])
   m.fixture('fixture/container/woodpile', 28, 17, { statuses: { open: -1 } })
-  m.fixture('fixture/container/barrel', 33, 17, { name: L('Water butt', '接雨水的桶') })
+  m.fixture('fixture/container/barrel', 34, 17, { name: L('Water butt', '接雨水的桶') })
   m.fixture('fixture/furniture/bench/log', 29, 19)
   m.fixture('fixture/light/lantern', 29, 16)
   // the felled ring: the stumps of the trees that went into the kilns, round the clearing's edge; older ones in the coppice
@@ -102,8 +103,8 @@ export function buildDell(): MapBuilder {
   m.fixture('fixture/sign', rx + 2, ry, {
     name: L("Orrin's tally board", '奥林的刻痕板'),
     props: {
-      text: 'Notches cut in a board, in fives. Under them, in charcoal: DAYS SINCE THE BIRDS CAME. They come at dusk, every one in the forest, and sit in the old oak till dawn. They do not sing.',
-      text_zh: '板子上刻着一道道痕，五道一组。下面用炭写着：鸟来了多少天。它们每天黄昏都来，整座森林的鸟一只不少，在老橡树上一直待到天亮。它们不叫。',
+      text: 'Notches cut in a board, in fives. Over them, in charcoal: DAYS SINCE THE BIRDS CAME. Under them, smaller: come at dusk, all of them, sit in the old oak till light. not a sound.',
+      text_zh: '木板上刻着一道道痕，五道一组。上面用炭写着：鸟来了的天数。下面还有一行小字：黄昏来，一只不少，蹲在老橡树上，天亮才走。一声不吭。',
     },
   })
   m.regions.roost = [rx - 4, ry - 3, 9, 7]
@@ -116,28 +117,35 @@ export function buildDell(): MapBuilder {
   m.sprinkle('fixture/nature/pebbles', 0.05, (x, y, t) => t === 'dirt' && !m.near(x, y, (u) => u === 'wall', 1))
   lay(m, 'item/material/stick', 3, [4, 2, 6, 3])
   lay(m, 'item/material/stone', 2, [29, 3, 6, 3])
+  wildFloor(m, 1, (x, y) => x >= 10 && x <= 31 && y >= 6 && y <= 18)
   m.appear = [...GROUND_YIELD, appears('actor/creature/beast/boar', ['grass'], 3, 1500, { ai: HUNT(4) })]
   return m
 }
 
 /** The charcoal burner's hut: his room (the bed, the hearth, his table), and the store behind it where the coal is sacked. */
 export function buildDellHut(): MapBuilder {
-  const m = house('charcoal.hut', "Orrin's Hut", '奥林的小屋', 15, 7, 'wood', [[0, 0, 9, 7], [9, 1, 6, 6]], [[8, 3], [9, 3]], [4, 6])
-  bed(m, 1, 2, 'orrin.bed', [1, 3])
-  m.fixture('fixture/container/drawers', 2, 2)
-  m.fixture('fixture/light/fireplace', 5, 1, { statuses: { lit: -1 } })
-  rug(m, 4, 3, 3, 2)
-  m.fixture('fixture/furniture/table', 5, 3)
-  m.fixture('fixture/furniture/chair', 4, 3)
-  m.fixture('fixture/container/chest', 1, 5)
-  m.fixture('fixture/container/barrel', 7, 5)
+  // (a hall of its plan, plans.ts dlhut: his room, and the store through the side)
+  const { m, P } = flHouse('dlhut', 'charcoal.hut', "Orrin's Hut", '奥林的小屋', 'floor_wood', ['room', 'store'])
+  m.zone = 'combat'
+  const R = P.room
+  bed(m, R.x, R.y + 1, 'orrin.bed', [R.x, R.y + 2])
+  m.fixture('fixture/container/drawers', R.x + 2, R.y)
+  m.fixture('fixture/light/fireplace', R.x + 5, R.y, { statuses: { lit: -1 } })
+  rug(m, R.x + 4, R.y + 2, 3, 2)
+  m.fixture('fixture/furniture/table', R.x + 5, R.y + 2)
+  m.fixture('fixture/furniture/chair', R.x + 4, R.y + 2)
+  m.fixture('fixture/container/chest', R.x, R.y + 5)
+  m.fixture('fixture/container/barrel', R.x + 8, R.y + 5)
+  m.building('decor_firewood', R.x + 7, R.y)
   // the store: the coal sacked for Firstlight's smithy and hearths, the kindling, a barrel of water against a spark
-  m.fixture('fixture/container/sack', 10, 2, { name: L('A sack of charcoal', '一袋木炭') }, [{ form: 'item/material/coal' }, { form: 'item/material/coal' }])
-  m.fixture('fixture/container/sack', 11, 2, { name: L('A sack of charcoal', '一袋木炭') })
-  m.fixture('fixture/container/crate', 13, 2)
-  m.fixture('fixture/container/crate', 13, 3)
-  m.fixture('fixture/nature/logpile/stack', 11, 5)
-  m.fixture('fixture/container/barrel', 13, 5)
+  const S = P.store
+  m.fixture('fixture/container/sack', S.x, S.y, { name: L('A sack of charcoal', '一袋木炭') }, [{ form: 'item/material/coal' }, { form: 'item/material/coal' }])
+  m.fixture('fixture/container/sack', S.x + 1, S.y, { name: L('A sack of charcoal', '一袋木炭') })
+  m.fixture('fixture/container/crate', S.x + 5, S.y)
+  m.fixture('fixture/container/crate', S.x + 5, S.y + 1)
+  m.fixture('fixture/nature/logpile/stack', S.x + 1, S.y + 5)
+  m.fixture('fixture/container/barrel', S.x + 5, S.y + 5)
+  m.building('decor_sacks', S.x + 3, S.y)
   return m
 }
 
@@ -166,9 +174,9 @@ export function buildBend(): MapBuilder {
   m.creature('crab', bankAt(25) - 2, 25, HUNT(3))
   m.regions.spit = [26, 19, 9, 5]
   // her cabin up the bank, its yard before the door (its rooms: buildBendCabin): the salt barrel, her catch crated, a bench
-  m.house('cabin', 20, 8, 'cabin')
+  m.building('rb_cabin', 20, 8, ['cabin'])
   m.fixture('fixture/container/barrel', 19, 10, { name: L('Salt barrel', '盐桶') })
-  m.fixture('fixture/container/crate', 23, 10, { name: L("Hilde's catch", '希尔德的渔获') })
+  m.fixture('fixture/container/crate', 24, 10, { name: L("Hilde's catch", '希尔德的渔获') })
   m.fixture('fixture/furniture/bench/log', 23, 13)
   // the jetty on its beach, her boat tied alongside, a lantern at its foot; she fishes from its end
   const [px, py] = FAT.pier
@@ -185,8 +193,8 @@ export function buildBend(): MapBuilder {
   m.fixture('fixture/sacred/gravestone', tx, ty, {
     name: L('A drowned stone', '沉在水边的石头'),
     props: {
-      text: 'A standing stone, tilted, the river up to its waist. The carving is worn soft: a boat; a figure in it handing a fish down to a child on the bank. No thorns. No wounds. Nobody kneeling.',
-      text_zh: '一块歪倒的立石，河水淹到它半腰。刻纹已经磨得很柔和：一条船；船上的人把一条鱼递给岸边的孩子。没有荆棘。没有伤口。没有人下跪。',
+      text: 'A standing stone, tilted, the river up to its waist. The carving is worn soft: a boat, and a figure in it handing a fish down to a child on the bank. The five wounds are nowhere on it.',
+      text_zh: '一块歪斜的立石，河水没到它的腰间。刻纹已经磨圆了：一条船，船上的人弯下腰，把一条鱼递给岸上的孩子。石头上哪里都找不到五道圣伤。',
     },
   })
   m.regions.stone = [tx - 2, ty - 2, 5, 5]
@@ -214,6 +222,7 @@ export function buildBend(): MapBuilder {
   m.sprinkle('fixture/nature/leaves', 0.2, (x, y, t) => grassy(t) && m.near(x, y, wood))
   lay(m, 'item/material/stick', 3, [4, 6, 8, 5])
   lay(m, 'item/material/stone', 2, [4, 9, 12, 4])
+  wildFloor(m, 1, (x, y) => x >= 17 && x <= 28 && y >= 6 && y <= 24)
   // fish shadows in the river: a stocked water (eels at night, pike in the deep: content rules.ts)
   m.fish = true
   m.appear = [...GROUND_YIELD, appears('actor/creature/slime/water_slime', ['sand'], 2, 1800, { ai: HUNT(4) })]
@@ -222,11 +231,14 @@ export function buildBend(): MapBuilder {
 
 /** The fisher's cabin: the room by the door (her hearth, her table and its tally), her room, the store where the nets and the smoked fish are kept. */
 export function buildBendCabin(): MapBuilder {
-  const m = house('reedbend.cabin', "Hilde's Cabin", '希尔德的小屋', 16, 9, 'wood', [[0, 0, 10, 9], [10, 0, 6, 5], [10, 5, 6, 4]], [[9, 2], [10, 2], [9, 6], [10, 6]], [4, 8])
-  m.fixture('fixture/light/fireplace', 6, 1, { statuses: { lit: -1 } })
-  m.fixture('fixture/container/cupboard', 1, 2, { name: L("Hilde's cupboard", '希尔德的橱柜') })
-  rug(m, 3, 4, 3, 2)
-  m.fixture('fixture/furniture/table', 4, 4, {
+  // (a hall of its plan, plans.ts rbcabin: the room by the door, her bedroom and the store side by side)
+  const { m, P } = flHouse('rbcabin', 'reedbend.cabin', "Hilde's Cabin", '希尔德的小屋', 'floor_wood', ['room', 'bedroom', 'store'])
+  m.zone = 'combat'
+  const R = P.room
+  m.fixture('fixture/light/fireplace', R.x + 5, R.y, { statuses: { lit: -1 } })
+  m.fixture('fixture/container/cupboard', R.x, R.y + 1, { name: L("Hilde's cupboard", '希尔德的橱柜') })
+  rug(m, R.x + 2, R.y + 3, 3, 2)
+  m.fixture('fixture/furniture/table', R.x + 3, R.y + 3, {
     name: L("Hilde's table", '希尔德的桌子'),
     tags: ['readable'],
     props: {
@@ -234,18 +246,22 @@ export function buildBendCabin(): MapBuilder {
       text_zh: '一年一年的渔获记录，字迹方方正正。九个冬天前有一行不是记录："船回来了。他没有。雾。"那一年再没有写别的。',
     },
   })
-  m.fixture('fixture/furniture/chair', 3, 4)
-  m.fixture('fixture/nature/plant', 8, 7)
-  m.fixture('fixture/container/barrel', 1, 7)
+  m.fixture('fixture/furniture/chair', R.x + 2, R.y + 3)
+  m.fixture('fixture/nature/plant', R.x + 9, R.y + 6)
+  m.fixture('fixture/container/barrel', R.x, R.y + 6)
+  m.building('decor_firewood', R.x + 8, R.y)
   // her room: one bed (his side of it empty nine winters), her drawers, the chest
-  bed(m, 14, 2, 'hilde.bed', [14, 3])
-  m.fixture('fixture/container/drawers', 12, 2)
-  m.fixture('fixture/container/chest', 11, 3)
+  const B = P.bedroom
+  bed(m, B.x + 3, B.y + 1, 'hilde.bed', [B.x + 3, B.y + 2])
+  m.fixture('fixture/container/drawers', B.x + 1, B.y)
+  m.fixture('fixture/container/chest', B.x, B.y + 5)
   // the store: the smoked eels crated, the salt, a sack of bait-meal — along its walls, the row from the doorway left free
-  m.fixture('fixture/container/crate', 14, 6, { name: L('Smoked eels', '熏鳗鱼箱') }, [{ form: 'item/food/fish/cooked' }, { form: 'item/food/fish/cooked' }])
-  m.fixture('fixture/container/barrel', 14, 7, { name: L('Salt', '盐') })
-  m.fixture('fixture/container/barrel', 12, 7)
-  m.fixture('fixture/container/sack', 11, 7)
+  const S = P.store
+  m.fixture('fixture/container/crate', S.x + 2, S.y, { name: L('Smoked eels', '熏鳗鱼箱') }, [{ form: 'item/food/fish/cooked' }, { form: 'item/food/fish/cooked' }])
+  m.fixture('fixture/container/barrel', S.x + 3, S.y + 2, { name: L('Salt', '盐') })
+  m.fixture('fixture/container/barrel', S.x + 2, S.y + 6)
+  m.fixture('fixture/container/sack', S.x + 3, S.y + 6)
+  m.building('decor_sacks', S.x, S.y)
   return m
 }
 
@@ -259,16 +275,16 @@ export const FLANKS_STORY: StepDef[] = [
     // The dell, first time: smoke that has been burning for days.
     id: 'dell_first',
     when: { map: 'charcoal' },
-    say: L('Smoke. Somebody is burning something slow — it smells like a fire that has been going for days. ...And listen: still no birds.', '有烟。有人在慢慢地烧什么东西——闻起来像一堆烧了好几天的火。……你听：还是没有鸟叫。'),
+    say: L('Smoke... It smells like a fire that has been burning for days.', '有烟味……闻起来像是一堆烧了好几天的火。'),
   },
   {
     // The roost at dusk: every bird of the forest, silent, facing east.
     id: 'roost_dusk',
     when: { map: 'charcoal', region: 'roost', hour: { from: 17, to: 21 } },
     script: [
-      say('player', '(The old oak is black with birds. Hundreds of them, wing to wing on every branch. Not one makes a sound.)', '（老橡树上落满了鸟，黑压压一片。几百只，翅膀挨着翅膀，挤满了每一根枝条。没有一只出声。）', 'surprised'),
-      say('pip', 'So THAT\'s where they went. Every bird in the forest, and they all came here. ...They\'re facing east. Like the cows.', '原来它们都到这儿来了。整座森林的鸟，全都飞到了这里。……它们朝着东边。和那些牛一样。', 'sad'),
-      say('pip', 'Birds know when something is wrong before people do. They won\'t sleep in the forest. What walked through it?', '鸟比人先知道出了事。它们不肯在森林里过夜。到底是什么从那片林子里走过去了？', 'shy'),
+      say('player', '(The old oak is black with birds. Hundreds of them, wing to wing on every branch, all facing east. Not one makes a sound.)', '（老橡树上落满了鸟，黑压压一片。几百只，翅膀挨着翅膀，挤满了每一根枝条，全都朝着东边。没有一只出声。）', 'surprised'),
+      say('pip', 'So this is where they all went...', '原来它们都在这里……', 'sad'),
+      say('pip', 'Don\'t make a sound. I don\'t want them all to fly up at once.', '别出声。我怕它们一下子全飞起来。', 'shy'),
       { fact: FLANKS_FACTS.roost, value: 1 },
     ],
   },
@@ -276,15 +292,15 @@ export const FLANKS_STORY: StepDef[] = [
     // The bend, first time: the Ford's river again, quiet.
     id: 'bend_first',
     when: { map: 'reedbend' },
-    say: L('The river! It\'s the Ford\'s river, I\'m sure — it bends down this way. ...Even the water is quiet here.', '是那条河！我敢肯定是渡口那条河——它拐到这边来了。……这里连水都是安静的。'),
+    say: L('The river! It\'s the same one as at the Ford. It bends round this way.', '是那条河！和渡口那条是同一条，它在这里拐了个弯。'),
   },
   {
     // The drowned stone: a carving with no suffering in it.
     id: 'drowned_stone',
     when: { map: 'reedbend', region: 'stone' },
     script: [
-      say('player', '(A standing stone half in the river, older than anything in the village. A boat; a figure handing a fish down to a child. No thorns, no wounds. Nobody kneeling.)', '（一块半泡在河里的立石，比村里任何东西都古老。一条船；船上的人把一条鱼递给岸边的孩子。没有荆棘，没有伤口。没有人下跪。）'),
-      say('pip', 'Nobody\'s suffering on this one. Somebody\'s just... giving somebody a fish. ...Why does that feel so strange to look at?', '这块石头上没有人在受苦。只是有人……在给另一个人一条鱼。……为什么看着会觉得这么奇怪？', 'shy'),
+      say('player', '(A standing stone half in the river. On it, a boat, and a figure in it handing a fish down to a child. The carving is worn almost smooth.)', '（一块半泡在河里的立石。上面刻着一条船，船上的人把一条鱼递给岸上的孩子。刻纹几乎磨平了。）'),
+      say('pip', 'Who carved this? It looks older than the village.', '这是谁刻的呀？看上去比村子还老。', 'shy'),
       { fact: FLANKS_FACTS.stone, value: 1 },
     ],
   },

@@ -3,7 +3,7 @@
 // inside a container that has the workspace mounted (benchmark repositories: the isolation
 // boundary). Neither ever sees the model key.
 
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -32,6 +32,11 @@ export interface Env {
   /** the node that runs the agent's hooks where its commands run (default: `node` on the PATH) */
   readonly node?: string
   exec(cmd: string, o?: ExecOptions): Promise<ExecResult>
+  /**
+   * Stop everything still running where the commands ran (a container: frozen at once), so the workspace holds still
+   * while the host reads it; `dispose` still works after. None where nothing can be left running.
+   */
+  halt?(): void
   dispose?(): Promise<void>
 }
 
@@ -54,10 +59,42 @@ export function defaultShell(): string {
   return 'bash'
 }
 
-function run(file: string, args: string[], o: ExecOptions & { cwd?: string; env?: Record<string, string> }): Promise<ExecResult> {
+/** Process groups of commands still running, killed if this process exits first (a group outlives its leader). */
+const groups = new Set<number>()
+let reaper = false
+
+/** Kill a command and everything it started: on POSIX its process group (a child holding its output would keep it open). */
+function killTree(pid: number | undefined, fallback: () => void): void {
+  if (process.platform === 'win32' && pid) return void spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true })
+  try {
+    if (!pid) throw new Error('no pid')
+    process.kill(-pid, 'SIGKILL')
+  } catch {
+    fallback()
+  }
+}
+
+function run(file: string, args: string[], o: ExecOptions & { cwd?: string }): Promise<ExecResult> {
   return new Promise((resolve) => {
     const t0 = Date.now()
-    const child = spawn(file, args, { cwd: o.cwd, env: o.env, windowsHide: true })
+    // its own process group on POSIX, so the deadline reaches every process the command started
+    const group = process.platform !== 'win32'
+    const child = spawn(file, args, { cwd: o.cwd, env: o.env, windowsHide: true, detached: group })
+    const pid = group ? child.pid : undefined
+    if (pid) {
+      groups.add(pid)
+      if (!reaper) {
+        reaper = true
+        const reap = () => groups.forEach((g) => killTree(g, () => undefined))
+        process.on('exit', reap)
+        // a detached group no longer gets the terminal's Ctrl-C: pass it on, then end as the signal would
+        for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const)
+          process.once(sig, () => {
+            reap()
+            if (!process.listenerCount(sig)) process.kill(process.pid, sig)
+          })
+      }
+    }
     let stdout = ''
     let stderr = ''
     let timedOut = false
@@ -65,15 +102,16 @@ function run(file: string, args: string[], o: ExecOptions & { cwd?: string; env?
     child.stderr.on('data', (d: Buffer) => stderr.length < OUTPUT_CAP && (stderr += d.toString('utf8')))
     const timer = setTimeout(() => {
       timedOut = true
-      if (process.platform === 'win32' && child.pid) spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true })
-      else child.kill('SIGKILL')
+      killTree(child.pid, () => child.kill('SIGKILL'))
     }, o.timeoutMs ?? DEFAULT_TIMEOUT)
     child.on('error', (err) => {
       clearTimeout(timer)
+      if (pid) groups.delete(pid)
       resolve({ code: 127, stdout, stderr: stderr + String(err.message), ms: Date.now() - t0, timedOut })
     })
     child.on('close', (code) => {
       clearTimeout(timer)
+      if (pid) groups.delete(pid)
       resolve({ code: timedOut ? 124 : (code ?? 1), stdout, stderr, ms: Date.now() - t0, timedOut })
     })
     if (o.input !== undefined) child.stdin.end(o.input)
@@ -103,9 +141,9 @@ export class LocalEnv implements Env {
 /** The docker CLI: an executable, or an executable and its first arguments (tests drive a stand-in). */
 export type DockerCli = string | string[]
 
-function docker(cli: DockerCli | undefined, args: string[], timeoutMs: number): Promise<ExecResult> {
+function docker(cli: DockerCli | undefined, args: string[], timeoutMs: number, input?: string): Promise<ExecResult> {
   const [file, ...pre] = Array.isArray(cli) ? cli : [cli ?? 'docker']
-  return run(file, [...pre, ...args], { timeoutMs, env: process.env as Record<string, string> })
+  return run(file, [...pre, ...args], { timeoutMs, input, env: process.env as Record<string, string> })
 }
 
 /** Where a mounted node sits in a container: the agent's hooks run with it, its own commands never see it. */
@@ -198,11 +236,22 @@ export class DockerEnv implements Env {
     const secs = Math.ceil((o.timeoutMs ?? DEFAULT_TIMEOUT) / 1000)
     const envArgs = Object.entries(o.env ?? {}).flatMap(([k, v]) => ['-e', `${k}=${v}`])
     const script = this.init ? `${this.init}\n${cmd}` : cmd
+    return docker(this.cli, ['exec', '-i', ...envArgs, '-w', this.cwd, this.id, 'timeout', String(secs), 'bash', '-lc', script], (secs + 15) * 1000, o.input)
+  }
+
+  private halted = false
+
+  halt(): void {
+    if (this.halted) return
     const [file, ...pre] = Array.isArray(this.cli) ? this.cli : [this.cli ?? 'docker']
-    return run(file, [...pre, 'exec', '-i', ...envArgs, '-w', this.cwd, this.id, 'timeout', String(secs), 'bash', '-lc', script], { ...o, timeoutMs: (secs + 15) * 1000, env: process.env as Record<string, string> })
+    const r = spawnSync(file, [...pre, 'pause', this.id], { env: process.env, timeout: 60_000, windowsHide: true })
+    if (r.status !== 0) throw new Error(`could not pause the container: ${String(r.stderr ?? r.error ?? '').slice(-300)}`)
+    this.halted = true
   }
 
   async dispose(): Promise<void> {
+    // (a halted container is let go again, for the last command; it is removed right after)
+    if (this.halted) await docker(this.cli, ['unpause', this.id], 60_000)
     if (this.owner) await this.exec(`chown -R ${sh(this.owner)} ${sh(this.mount)} 2>/dev/null; true`, { timeoutMs: 300_000 })
     await docker(this.cli, ['rm', '-f', this.id], 60_000)
   }
@@ -210,8 +259,8 @@ export class DockerEnv implements Env {
 
 let dockerAnswer: Promise<boolean> | undefined
 /** Is there a Docker daemon this user can reach? Asked once per process. */
-export function dockerAvailable(docker = 'docker'): Promise<boolean> {
-  dockerAnswer ??= run(docker, ['version', '--format', '{{.Server.Version}}'], { timeoutMs: 15_000, env: process.env as Record<string, string> }).then((r) => r.code === 0 && !!r.stdout.trim())
+export function dockerAvailable(cli = 'docker'): Promise<boolean> {
+  dockerAnswer ??= docker(cli, ['version', '--format', '{{.Server.Version}}'], 15_000).then((r) => r.code === 0 && !!r.stdout.trim())
   return dockerAnswer
 }
 
@@ -232,17 +281,19 @@ export async function chooseIsolation(): Promise<Isolation> {
 const SANDBOX_DIR = fileURLToPath(new URL('../../sandbox', import.meta.url))
 let imageAnswer: Promise<string> | undefined
 /** The sandbox image (LSW_SANDBOX_IMAGE, default `lsw-sandbox`, built from packages/ai/sandbox when missing). */
-export function sandboxImage(docker = 'docker'): Promise<string> {
+export function sandboxImage(cli = 'docker'): Promise<string> {
   imageAnswer ??= (async () => {
     const name = process.env.LSW_SANDBOX_IMAGE ?? 'lsw-sandbox'
-    const env = process.env as Record<string, string>
-    if ((await run(docker, ['image', 'inspect', name], { timeoutMs: 30_000, env })).code === 0) return name
+    if ((await docker(cli, ['image', 'inspect', name], 30_000)).code === 0) return name
     if (name !== 'lsw-sandbox') throw new Error(`sandbox image ${name} not found`)
-    const b = await run(docker, ['build', '-t', name, SANDBOX_DIR], { timeoutMs: 900_000, env })
+    const b = await docker(cli, ['build', '-t', name, SANDBOX_DIR], 900_000)
     if (b.code !== 0) throw new Error(`could not build the sandbox image: ${b.stderr.slice(-800)}`)
     return name
   })()
-  return imageAnswer
+  // a failure (the daemon restarting) is asked again next time, not kept for the life of the process
+  const asked = imageAnswer
+  asked.catch(() => imageAnswer === asked && (imageAnswer = undefined))
+  return asked
 }
 
 /** This process's uid:gid, so files a container writes into a mounted workspace stay the host user's. */
@@ -250,6 +301,36 @@ export const hostUser = (): string | undefined => (typeof process.getuid === 'fu
 
 /** The caps every sandbox gets: a runaway command cannot take the host down. */
 export const SANDBOX_LIMITS = { memory: '1g', cpus: '1', pids: 256 }
+
+/**
+ * Where a workspace task runs (an engine task, a ladder or upstream task, a world repository): the isolation the task
+ * asks for, else the one chosen; on this machine only when a person started it there (`localRun`). None otherwise.
+ */
+export async function taskIsolation(o: { isolation?: Isolation; localRun?: boolean }): Promise<Isolation | undefined> {
+  const iso = o.isolation ?? (await chooseIsolation())
+  return iso === 'none' && !o.localRun ? undefined : iso
+}
+
+/** A workspace's environment: this machine, or the sandbox image (its limits, no network) with `root` at `mount`. */
+export async function sandboxEnv(iso: Isolation, root: string, o: { mount?: string; mounts?: { host: string; container: string }[] } = {}): Promise<Env> {
+  if (iso === 'none') return new LocalEnv(root)
+  return DockerEnv.start({ image: await sandboxImage(), root, mount: o.mount ?? root, mounts: o.mounts, user: hostUser(), limits: SANDBOX_LIMITS })
+}
+
+/** git here, synchronously, line endings as written: its output (it throws when git fails). */
+export function git(args: string[], o: { cwd: string; input?: string | Buffer; binary?: boolean }): string {
+  const r = spawnSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd: o.cwd, input: o.input, maxBuffer: 1 << 30, encoding: o.binary ? 'buffer' : 'utf8' })
+  if (r.status !== 0) throw new Error(`git ${args.slice(0, 3).join(' ')}: ${String(r.stderr).slice(0, 400)}`)
+  return String(r.stdout)
+}
+
+/** A repository of what `dir` holds, all of it committed as its base (line endings kept as written, every later command too). */
+export function commitBase(dir: string, message = 'base'): void {
+  git(['init', '-q'], { cwd: dir })
+  git(['config', 'core.autocrlf', 'false'], { cwd: dir })
+  git(['add', '-A'], { cwd: dir })
+  git(['-c', 'user.email=lsw@local', '-c', 'user.name=lsw', 'commit', '-qm', message], { cwd: dir })
+}
 
 /** Quote a string for a POSIX shell. */
 export function sh(s: string): string {

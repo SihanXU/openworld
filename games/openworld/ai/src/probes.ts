@@ -33,11 +33,17 @@ const frozen = (req: ModRequest, id: string): ModRequest => {
   return { ...rest, id, scenario }
 }
 
-// the Ford's six kinds of hole, as a player meets them
-for (const [i, sc] of SCENARIOS.entries()) {
+/** The Ford as the game starts it, with no model connected. */
+function ford(): Game {
   const { index, chunks } = buildFord()
   const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
   for (const c of chunks) game.loadChunk(decodeChunk(c))
+  return game
+}
+
+// the Ford's six kinds of hole, as a player meets them
+for (const [i, sc] of SCENARIOS.entries()) {
+  const game = ford()
   const f = ready({ game, eng: game.engine })
   try {
     sc.act(f)
@@ -62,9 +68,7 @@ for (const cell of open) {
 
 // the world's own: a day in Firstlight with nobody at the keys (the headless check's), what it would have asked
 {
-  const { index, chunks } = buildFord()
-  const game = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
-  for (const c of chunks) game.loadChunk(decodeChunk(c))
+  const game = ford()
   const eng = game.engine
   eng.author(() => eng.teleport(eng.world.player, { map: 'meadow', x: 20, y: 14 }))
   for (let t = 0; t < TICKS_PER_HOUR * 24 && count('world') < PER; t++) {

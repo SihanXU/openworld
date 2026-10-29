@@ -276,7 +276,6 @@ export function tavernHall(p: Place): MapBuilder {
   }
   m.fixture('fixture/furniture/bench/log', M.x + 5, M.y + 1)
   m.building('decor_sacks', M.x, M.y)
-  m.building('decor_firewood', M.x + 1, M.y + M.h - 1)
   for (const x of [N.x, N.x + 2]) m.fixture('fixture/furniture/bed', x, N.y)
   m.fixture('fixture/container/chest', N.x + 3, N.y + 3)
   m.fixture('fixture/furniture/table', N.x + 1, N.y + 3)

@@ -64,6 +64,91 @@
         "idle/idle_08.png"
       ]
     },
+    "walk_down": {
+      "sheet": "walk_down.png",
+      "frames": 8,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 100,
+      "loop": true,
+      "preview_gif": "walk_down_preview_x8.gif",
+      "on_end": null,
+      "frame_files": [
+        "walk_down/walk_down_01.png",
+        "walk_down/walk_down_02.png",
+        "walk_down/walk_down_03.png",
+        "walk_down/walk_down_04.png",
+        "walk_down/walk_down_05.png",
+        "walk_down/walk_down_06.png",
+        "walk_down/walk_down_07.png",
+        "walk_down/walk_down_08.png"
+      ],
+      "in_place": true
+    },
+    "walk_up": {
+      "sheet": "walk_up.png",
+      "frames": 8,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 100,
+      "loop": true,
+      "preview_gif": "walk_up_preview_x8.gif",
+      "on_end": null,
+      "frame_files": [
+        "walk_up/walk_up_01.png",
+        "walk_up/walk_up_02.png",
+        "walk_up/walk_up_03.png",
+        "walk_up/walk_up_04.png",
+        "walk_up/walk_up_05.png",
+        "walk_up/walk_up_06.png",
+        "walk_up/walk_up_07.png",
+        "walk_up/walk_up_08.png"
+      ],
+      "in_place": true
+    },
+    "walk_left": {
+      "sheet": "walk_left.png",
+      "frames": 8,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 100,
+      "loop": true,
+      "preview_gif": "walk_left_preview_x8.gif",
+      "on_end": null,
+      "frame_files": [
+        "walk_left/walk_left_01.png",
+        "walk_left/walk_left_02.png",
+        "walk_left/walk_left_03.png",
+        "walk_left/walk_left_04.png",
+        "walk_left/walk_left_05.png",
+        "walk_left/walk_left_06.png",
+        "walk_left/walk_left_07.png",
+        "walk_left/walk_left_08.png"
+      ],
+      "note": "由 walk_right 全部帧水平镜像 (x'=60-x)",
+      "in_place": true
+    },
+    "walk_right": {
+      "sheet": "walk_right.png",
+      "frames": 8,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 100,
+      "loop": true,
+      "preview_gif": "walk_right_preview_x8.gif",
+      "on_end": null,
+      "frame_files": [
+        "walk_right/walk_right_01.png",
+        "walk_right/walk_right_02.png",
+        "walk_right/walk_right_03.png",
+        "walk_right/walk_right_04.png",
+        "walk_right/walk_right_05.png",
+        "walk_right/walk_right_06.png",
+        "walk_right/walk_right_07.png",
+        "walk_right/walk_right_08.png"
+      ],
+      "in_place": true
+    },
     "attack_right": {
       "sheet": "attack_right.png",
       "frames": 10,
@@ -198,5 +283,6 @@
       }
     }
   },
-  "chain_rule": "攻击动画播到 chain.at_frame (main 段最后一帧) 结束时: 若有新的攻击输入, 跳到目标攻击动画的 chain.goto_frame 继续, 不播 recover 段; 若没有输入, 播 recover 段 (正面 idle 第1帧) 后回 idle。hit_frame 为命中帧, 可用于触发伤害判定。帧号从 0 开始。"
+  "chain_rule": "攻击动画播到 chain.at_frame (main 段最后一帧) 结束时: 若有新的攻击输入, 跳到目标攻击动画的 chain.goto_frame 继续, 不播 recover 段; 若没有输入, 播 recover 段 (正面 idle 第1帧) 后回 idle。hit_frame 为命中帧, 可用于触发伤害判定。帧号从 0 开始。",
+  "walk_rule": "走路为原地踏步: 动画本身不位移, 角色移动由游戏逻辑控制; 靴底行 y=71 与 pivot 不变, 侧面走路时两脚在 x=30 前后交替移动属于动作本身"
 }

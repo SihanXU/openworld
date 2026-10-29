@@ -12,14 +12,15 @@ import { ELITE_RULES, KIT_RULES, WEB_RULES } from './kits.ts'
 import { DROP_RULES } from './drops.ts'
 import { AFFLICTION_RULES } from './afflictions.ts'
 import { BOSS_KIT_RULES } from './bosses.ts'
-import { CH1 } from './chapter1.ts'
 import { PART_TWO, UNTOLD } from './regions.ts'
+import { TUTORIAL_OPEN } from './prologue.ts'
 import { VILLAGE_SHOP_RULES } from './village.ts'
 import { PERSON_NEWS, SOCIAL_RULES } from './social.ts'
 import { DRESSER_RULES } from './dresser.ts'
 import { FAITH_RULES } from './faith.ts'
 import { LOOSE, type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@openworld/engine'
 import { HUNGRY_BELOW } from '@openworld/modules'
+import { ELEMENTAL, unlessElemental } from './elements.ts'
 
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
 const L = (en: string, zh: string) => ({ en, zh })
@@ -278,17 +279,27 @@ const ESSENTIAL: Selector = { type: 'actor', tags: ['essential'] }
 /** What one carried, bundled where one fell (body/rise). */
 const BUNDLE = 'item/misc/bundle'
 
+/** What falls at no health that is not essential: the striker learns from it, it breaks down and spills what it carried. */
+const DEFEAT: Effect[] = [
+  // the striker learns from it, and may find the kind's own piece (trophies.ts) in their bag
+  emit('notify', 'actor', { what: 'defeat', xp: { prop: 'maxHp', of: 'host' }, trophy: { prop: 'trophy', of: 'host' }, trophyChance: { prop: 'trophyChance', of: 'host' } }),
+  // the story hears what fell, and to whom (quests count it)
+  vfx('poof', 'tileOf:host'),
+  log('{host} is defeated.', '{host}被打倒了。'),
+  { op: 'breakdown', still: true },
+]
+
 const BODIES: Rule[] = [
   rule({
     id: 'body/rise',
-    doc: 'One who has fallen, told by the story to rise (the death screen\'s choice): one gets up, whole — leaving what one carried bundled where one fell (one\'s coin loose beside it), when one rises at home (but what one wears, the weapon in one\'s hand and what is important stay with one). Told of a home (a bed slept in, a waypoint woken), one keeps it.',
+    doc: 'One who has fallen, told by the story to rise (the death screen\'s choice): one gets up, whole — leaving what one carried bundled where one fell (one\'s coin loose beside it) and telling the bosses there that one is gone (each is whole again), when one rises at home (but what one wears, the weapon in one\'s hand and what is important stay with one). Told of a home (a bed slept in, a waypoint woken), one keeps it.',
     host: ESSENTIAL,
     on: 'impulse/notify',
     tree: IF(
       param('what', 'respawn'),
       IF(
         param('drop', true),
-        DO({ op: 'dropContents', keepWorn: true, keep: ['important'], bundle: BUNDLE, loose: ['currency'] }, remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, log('You rise again. What you carried lies bundled where you fell, your coin scattered beside it; what you wore and what matters most are still with you.', '你重新站了起来。身上的东西打成一包留在了倒下的地方，钱撒在旁边；穿戴的装备和重要物品还在身上。')),
+        DO({ op: 'dropContents', keepWorn: true, keep: ['important'], bundle: BUNDLE, loose: ['currency'] }, remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, emit('notify', { map: true }, { what: 'foe-fell' }, { filter: { type: 'actor', tags: ['boss'] } }), log('You rise again. What you carried lies bundled where you fell, your coin scattered beside it; what you wore and what matters most are still with you.', '你重新站了起来。身上的东西打成一包留在了倒下的地方，钱撒在旁边；穿戴的装备和重要物品还在身上。')),
         DO(remove('down'), { op: 'setProp', key: 'hp', value: 1 }, { op: 'heal', amount: { prop: 'maxHp', of: 'host' } }, log('You get up again.', '你重新站了起来。')),
       ),
       IF(param('what', 'home'), DO({ op: 'setProp', key: 'home', value: { param: 'value' } }), 'inherit'),
@@ -385,7 +396,7 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'combat/defeat',
-    doc: 'At no health: the essential (people, the player) go down for a while (as anything essential); the rest break down into what they are made of and spill what they carried (lying still: taken with F), and the one who struck learns from it (world-model.md §6.8, D9).',
+    doc: 'At no health: the essential (people, the player) go down for a while (as anything essential); the rest break down into what they are made of and spill what they carried (lying still: taken with F), and the one who struck learns from it (world-model.md §6.8, D9); a boss tells the story which boss fell (the fogs of its room lift, docs/boss-rooms.md).',
     host: ACTOR,
     on: 'threshold/cross',
     tree: IF(
@@ -393,14 +404,8 @@ const BODIES: Rule[] = [
       IF(
         tag('host', 'essential'),
         'inherit',
-        DO(
-          // the striker learns from it, and may find the kind's own piece (trophies.ts) in their bag
-          emit('notify', 'actor', { what: 'defeat', xp: { prop: 'maxHp', of: 'host' }, trophy: { prop: 'trophy', of: 'host' }, trophyChance: { prop: 'trophyChance', of: 'host' } }),
-          // the story hears what fell, and to whom (quests count it)
-          vfx('poof', 'tileOf:host'),
-          log('{host} is defeated.', '{host}被打倒了。'),
-          { op: 'breakdown', still: true },
-        ),
+        // a boss tells the story which boss fell (docs/boss-rooms.md: its room's fogs lift)
+        IF(tag('host', 'boss'), DO(...DEFEAT, emit('notify', 'story', { what: 'boss-fell', who: { idOf: 'host' } })), DO(...DEFEAT)),
       ),
     ),
   }),
@@ -603,7 +608,7 @@ const INSTRUMENTS: Rule[] = [
     doc: 'A document with something written in it (its text, text_zh), used on oneself, is read; one with nothing written is the world\'s to answer.',
     host: { type: 'item/document', tags: ['readable'] },
     on: 'act/use',
-    tree: IF(all({ same: ['actor', 'target'] }, { prop: { role: 'host', key: 'text' } }), DO({ op: 'log', text: '@line' }), 'inherit'),
+    tree: IF(all({ same: ['actor', 'target'] }, { prop: { role: 'host', key: 'text' } }), unlessElemental(ELEMENTAL('host'), DO({ op: 'log', text: '@line' })), 'inherit'),
   }),
   rule({
     id: 'use/read-skillbook',
@@ -728,21 +733,21 @@ const INSTRUMENTS: Rule[] = [
     doc: 'A blade used on something strikes it with a cutting edge — on a person only with the blade drawn (X: a blow on a person is meant).',
     host: { type: 'item/weapon/blade' },
     on: 'act/use',
-    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'cut', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', unlessElemental(ELEMENTAL('host'), DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'cut', ...WOUND })))),
   }),
   rule({
     id: 'use/polearm',
     doc: 'A spear or a halberd used on something strikes it with a point — on a person only with it drawn.',
     host: { type: 'item/weapon/polearm' },
     on: 'act/use',
-    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'pierce', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', unlessElemental(ELEMENTAL('host'), DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'pierce', ...WOUND })))),
   }),
   rule({
     id: 'use/weapon',
     doc: 'A weapon used on something strikes it — on a person only with it drawn.',
     host: { type: 'item/weapon' },
     on: 'act/use',
-    tree: IF(HANDLE_WEAPON, 'inherit', DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND }))),
+    tree: IF(HANDLE_WEAPON, 'inherit', unlessElemental(ELEMENTAL('host'), DO(emit('strike', 'target', { power: POWER, element: ELEMENT, edge: 'blunt', ...WOUND })))),
   }),
   rule({
     id: 'use/spell',
@@ -1838,17 +1843,60 @@ const BUILDING: Rule[] = [
 ]
 
 /**
- * The ways the story opens on the world map: a place whose `opensWhen` is the fact is sealed until the story
- * sets it (as a portal's `opensWhen`), and says why. East of the Ford: Part Two's (release 1 ends at the river);
- * beyond the White Knight on the East Road: Emberfall and all east of it.
+ * A gate the story keeps shut (its fact unset): the gate's words (`say`, the message line's and the label's), and what
+ * the companion says when one runs up against it (`remark` the first time, `again` after: the `remark` primitive).
  */
-export const SITE_GATES: { fact: string; say: { en: string; zh: string } }[] = [
-  // release 1 is Part One (regions.ts PART_TWO): the road east of the Ford and all beyond it, until the story's second part
-  { fact: PART_TWO, say: L('The road east of the Ford is not open yet: its tale is told in Part Two.', '渡口以东的路还没有开放：那里的故事在第二部。') },
-  { fact: CH1.knight, say: L('The White Knight still holds the East Road. There is no way past him yet.', '白骑士还守在东大路上，暂时过不去。') },
+interface Gate {
+  fact: string
+  say: Text
+  remark: Text
+  again: Text
+}
+
+/**
+ * The ways the story opens on the world map: a place whose `opensWhen` is the fact is sealed until the story
+ * sets it (as a portal's `opensWhen`), and says why. Past the White Knight on the East Road: Emberfall and all east of
+ * it, Part Two's (release 1 ends with the Crown home).
+ */
+export const SITE_GATES: Gate[] = [
+  // release 1 is Part One (regions.ts PART_TWO): the road on east from the knight's field and all beyond it, until the
+  // story's second part
+  {
+    fact: PART_TWO,
+    say: L('The road on east to Emberfall is not open yet: its tale is told in Part Two.', '往东去余烬镇的路还没有开放：那里的故事在第二部。'),
+    remark: L("The road goes on east to Emberfall, but it isn't open yet. Let's come back and explore it another time!", '路一直往东通到余烬镇，可现在还没通呢。以后再来探索吧！'),
+    again: L('Emberfall — another time.', '余烬镇，以后再去吧。'),
+  },
   // a place whose tale is not told yet (regions.ts UNTOLD): a Seal-bearer's seat beyond the first, the Most Holy Hall
-  { fact: UNTOLD, say: L('The way in is shut. Its tale is not yet told.', '入口紧闭。此地的故事尚未开放。') },
+  {
+    fact: UNTOLD,
+    say: L('The way in is shut. Its tale is not yet told.', '入口紧闭。此地的故事尚未开放。'),
+    remark: L("Shut tight... its tale isn't told yet. Let's come back and explore it later.", '关得紧紧的……这里的故事还没到讲的时候，以后再来探索吧。'),
+    again: L('This one is for later.', '这里以后再来吧。'),
+  },
+  // the clearing's way down, before its last morning (prologue.ts)
+  {
+    fact: TUTORIAL_OPEN,
+    say: L('The way down is not open yet.', '下山的路还没开。'),
+    remark: L("Not yet — let's settle in here first. We go at first light.", '先别走——先在这儿安顿下来，天一亮就出发。'),
+    again: L('At first light.', '等天亮。'),
+  },
 ]
+
+/** A way the story has not opened whose fact no gate names: the companion's words all the same. */
+const ANY_GATE: Pick<Gate, 'remark' | 'again'> = {
+  remark: L("We can't go on that way yet. Let's come back and explore it another time!", '前面的区域以后再来探索吧！'),
+  again: L('Another time.', '以后再来吧。'),
+}
+
+/** A way run up against again and again: the companion says so at most once in this long (ticks: a minute). */
+const SEALED_EVERY = 600
+
+/** The companion's line at a gate (`remark`); with no companion at hand, the gate's own words in the message line. */
+const gateRemark = (g: Pick<Gate, 'remark' | 'again'> & { say?: Text }, every?: number): Effect => ({ op: 'remark', text: g.remark, again: g.again, ...(g.say && { alone: g.say }), ...(every && { every }) })
+
+/** A hand that only brushes a cell: the dust it raises and the line that says nothing came of it (tile/handle). */
+const TOUCH: Effect[] = [vfx('dust'), log('Your hand brushes {host}. Nothing comes of it.', '你的手拂过{host}。什么也没有发生。')]
 
 /** A tent with a room behind its flap (its `interior`, `interiorX`, `interiorY`): a hand on it, and in one goes. */
 const TENTS: Rule[] = [
@@ -1869,7 +1917,8 @@ const TENTS: Rule[] = [
 /** A place of the overworld, sealed by one of the gates (its `opensWhen` fact unset): the gate's words; open, `open`. */
 const sealedSite = (open: Tree, label = true): Tree =>
   SITE_GATES.reduceRight<Tree>((rest, g) => {
-    const say = DO(log(g.say.en, g.say.zh))
+    // run up against (a bump, `label` false), a companion says it at most once a minute; asked (a hand on it), always
+    const say = DO(gateRemark(g, label ? undefined : SEALED_EVERY))
     return IF({ all: [{ prop: { role: 'host', key: 'opensWhen', cmp: g.fact } }, { prop: { role: 'story', key: g.fact, cmp: 0, default: 0 } }] }, label ? AS(L('Sealed: {target}', '未开放：{target}'), say) : say, rest)
   }, open)
 
@@ -1888,6 +1937,13 @@ const SITES: Rule[] = [
     host: SITE,
     on: 'bump',
     tree: sealedSite(NOTHING, false),
+  }),
+  rule({
+    id: 'story/sealed',
+    doc: 'The one at the keys ran off an edge where the story has not opened the way (Engine.sealedEdge: a way sealed underfoot, an edge whose ways all lead to places not open yet, or a map whose edges are shut, `edge`; the bump\'s `sealed` is the fact that opens it): their companion says so, at most once a minute. Off a shut edge (woods felled on the Pilgrim\'s Road: the continent beyond is Part Two\'s), that it is for another time; at a way, in the gate\'s words for that fact, else that it is for another time; with no companion at hand, the message line says it.',
+    host: { type: 'resident/story' },
+    on: 'bump',
+    tree: IF(param('edge', 1), DO(gateRemark(ANY_GATE, SEALED_EVERY)), SITE_GATES.reduceRight<Tree>((rest, g) => IF(param('sealed', g.fact), DO(gateRemark(g, SEALED_EVERY)), rest), DO(gateRemark(ANY_GATE, SEALED_EVERY)))),
   }),
   rule({
     id: 'site/far',
@@ -1918,10 +1974,11 @@ const GENERAL: Rule[] = [
       'inherit',
       IF(
         all(tag('item', 'fiber'), not(has('host', 'frozen'))),
-        AS(L('Bind {target} with {instrument}', '用{instrument}捆住{target}'), DO(add('frozen', 30), taken('contents'), vfx('dust'), log('{host} is lashed down with {item}.', '{host}被{item}捆住了。'))),
+        // (a creature of an element, a fire slime held out a rope: its own to answer, lashed down meanwhile)
+        unlessElemental(ELEMENTAL('host'), AS(L('Bind {target} with {instrument}', '用{instrument}捆住{target}'), DO(add('frozen', 30), taken('contents'), vfx('dust'), log('{host} is lashed down with {item}.', '{host}被{item}捆住了。')))),
         IF(
           tag('item', 'edible'),
-          AS(L('Feed {instrument} to {target}', '给{target}吃{instrument}'), DO(emit('notify', 'item', { what: 'eaten' }), { op: 'emote', mood: 'happy' }, vfx('sparkle'), log('{host} snaps up {item}.', '{host}一口吞下了{item}。'))),
+          unlessElemental(ELEMENTAL('host'), AS(L('Feed {instrument} to {target}', '给{target}吃{instrument}'), DO(emit('notify', 'item', { what: 'eaten' }), { op: 'emote', mood: 'happy' }, vfx('sparkle'), log('{host} snaps up {item}.', '{host}一口吞下了{item}。')))),
           'inherit',
         ),
       ),
@@ -1943,16 +2000,16 @@ const GENERAL: Rule[] = [
     tree: IF(
       any({ same: ['host', 'actor'] }, tag('host', 'animal')),
       'inherit',
-      DO(emit('strike', 'actor', { power: { prop: 'atk', of: 'host' }, edge: 'pierce' }), { op: 'foe' }, { op: 'emote', mood: 'angry' }, vfx('hit', 'actor'), log('{host} snaps at the outstretched hand!', '{host}朝伸来的手猛咬一口！')),
+      unlessElemental(ELEMENTAL('host'), DO(emit('strike', 'actor', { power: { prop: 'atk', of: 'host' }, edge: 'pierce' }), { op: 'foe' }, { op: 'emote', mood: 'angry' }, vfx('hit', 'actor'), log('{host} snaps at the outstretched hand!', '{host}朝伸来的手猛咬一口！'))),
     ),
   }),
   rule({
     id: 'tile/handle',
     label: L('Touch {target}', '摸摸{target}'),
-    doc: 'A bare hand on the ground, a floor or any other cell with no answer of its own: it is only touched (a place of the overworld is entered instead: site/enter).',
+    doc: 'A bare hand on a cell with no answer of its own (a place of the overworld is entered instead: site/enter). On the ground or a floor it is only touched. On what stands in the cell (`standing`: a tree, a bush, rock, a wall, a stump) the hand is a deliberate act the base does not answer: the world says what comes of it, and with no model it is only touched.',
     host: { type: 'tile' },
     on: 'impulse/handle',
-    tree: IF(tag('host', 'overworld'), 'inherit', DO(vfx('dust'), log('Your hand brushes {host}. Nothing comes of it.', '你的手拂过{host}。什么也没有发生。'))),
+    tree: IF(tag('host', 'overworld'), 'inherit', IF(tag('host', 'standing'), HOLE(...TOUCH), DO(...TOUCH))),
   }),
   rule({
     id: 'fire/warm-hands',

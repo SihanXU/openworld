@@ -344,7 +344,7 @@ The miner is a generalization of `engineWorkspace` and `engineTask`: the same wo
 verdict, at any commit.
 
 **As built (2026-10-14)** — `games/openworld/ai/src/ladder.ts` (`npm run ladder -- candidates | validate |
-issues | status`), tested in `games/openworld/ai/test/ladder.test.ts`:
+issues | status`), tested in `games/openworld/ai/test/drivers.test.ts`:
 - **candidates**: 144 commits on `origin/main` (R1 4, R2 29, R3 47, R4 64; 11 lockfiles), each with its parent,
   test files, code files, rung and the parent's lockfile.
 - **the workspace** of a parent: `git archive` of what tests need (the packages and games and their configs —
@@ -436,7 +436,7 @@ world posed.
 ### 6.4 As built (2026-10-14)
 
 `games/openworld/ai/src/rsi.ts` (`npm run rsi -- plan | milestone | heldout <tag> --arm G|F`), its plan tested in
-`games/openworld/ai/test/rsi.test.ts`:
+`games/openworld/ai/test/drivers.test.ts`:
 - the milestones are the tags `world-v*`, by their commits' dates; a milestone's window is the ladder tasks dated
   after the previous tag and up to this one;
 - **held-out**: the arm's previous snapshot and the naive start (the naive harness, no memory, no skills), each a

@@ -130,7 +130,7 @@
         <article>
             <section id="s0">
                 <p class="lede">Ask a pixel world model to pour water on a campfire and it will mostly draw a puff of steam and call that the effect. There is another problem. Look away for a moment and look back, and the whole scene may have changed. It does not hold the state, and it cannot keep a continuous process going.</p>
-                <p>A game written by hand is different. Pour water on the fire and it goes out, whoever is playing, however long you wait. Same result every time. Unless the person who made the game never wrote the rule “water puts out fire.” Then you can pour all you want and the fire does not react.</p>
+                <p>A traditional game is different. Pour water on the fire and it goes out, whoever is playing, however long you wait. Same result every time. Unless the person who made the game never wrote the rule “water puts out fire.” Then you can pour all you want and the fire does not react.</p>
                 <p>OpenWorld is us trying to have both. We want a world that stays put, with rules you can trust, the way a real game does, so you can actually role-play in it. We also want it to catch the strange things players try, the ones the authors never thought of.</p>
                 <p>So we fix the world’s basic state and the core rules in code. After that, if the code does not cover a case, or nobody wrote it ahead of time, a model writes the rule on the spot. It writes it once. Everyone plays with it after that.</p>
                 <p>This post is about how that works, and what we expect from here.</p>
@@ -139,7 +139,7 @@
                 <h2><span class="n">01</span>The two roads we already had</h2>
                 <p>An open world, for us, means you can do something nobody planned, and the world gives you an answer that holds together. There are two ways people have been going after that. Each one is strong exactly where the other is weak.</p>
                 <p>One way is learned world models: Genie, GameNGen, Oasis, and what came after them. They generate the picture frame by frame from what you do, and they will take any input, so in that sense they are open. The world only lives in pixels and a short window, though. GameNGen remembers about three seconds. Genie keeps sixteen frames. Genie 3’s visual memory tops out around a minute. Stay with something for longer than that and you come back to a place that has already changed. Add the cost of running the model, and it is hard to see this as a game people pay to play. You get demos and papers.</p>
-                <p>The other way is the hand-built game, which is what studios have been making all along. <i>Dwarf Fortress</i>, the Elder Scrolls, the simulation in <i>Zelda: Breath of the Wild</i>: a lot of space, state that sticks, cause and effect that stay consistent, and almost nothing to run. Closed, though. If the designers did not think of an interaction and write it down, it does not happen.</p>
+                <p>The other way is the traditional game, which is what studios have been making all along. <i>Dwarf Fortress</i>, the Elder Scrolls, the simulation in <i>Zelda: Breath of the Wild</i>: a lot of space, state that sticks, cause and effect that stay consistent, and almost nothing to run. Closed, though. If the designers did not think of an interaction and write it down, it does not happen.</p>
             </section>
             <section id="s2">
                 <h2><span class="n">02</span>We think openness is a sparse problem</h2>
@@ -195,7 +195,7 @@
             <section id="s6">
                 <h2><span class="n">06</span>A thousand maps, and what comes next</h2>
                 <p>Because the loop that runs every frame has no model in it, the world can be as big as the content.</p>
-                <p>OpenWorld currently has 1,024 maps: 59 made by hand, 965 spread across six regions around the Holy City, 1,654 people in 780 households, each with their own look and their own day, and 40,562 items of 1,013 kinds. Scenes the player has left do not have to keep running at full cost. When they come back, we write down what changed in the meantime. Cheap, and it works.</p>
+                <p>OpenWorld currently has 1,024 maps, from towns and villages to the rooms behind their doors; 1,654 people in 780 households, each with their own look and their own day, and 40,562 items of 1,013 kinds. Scenes the player has left do not have to keep running at full cost. When they come back, we write down what changed in the meantime. Cheap, and it works.</p>
                 <div class="figure">
                     <div class="piece night"><iframe src="../../scale/index.html?embed" title="The world, in numbers" loading="lazy"></iframe></div>
                     <div class="caption">The size of the world: one map, then a thousand; one person, then a crowd; a chest that does not run out.</div>

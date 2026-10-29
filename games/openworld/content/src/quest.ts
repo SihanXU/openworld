@@ -66,8 +66,8 @@ export const QUEST_RULES: Rule[] = [
     tree: IF(all(fact('mq.council', 0), { none: 'instrument' }, { not: { param: { key: 'say', cmp: { ne: '' } } } }), DO(notify('council'))),
   }),
   // ---------------------------------------------------------------- the smith: ore and coal, a blade
-  turnIn('smith-ore', ASKS.ore, ['Good iron. Five ore and three coal, and you will have your blade.', '好铁。五块矿石、三块煤，你的剑就有了。'], ['That is iron enough. Coal, now — if you have not brought it.', '铁够了。现在要煤——如果你还没带来的话。']),
-  turnIn('smith-coal', ASKS.coal, ['Coal for the forge. It will burn hot enough for dragon-steel.', '炉子用的煤。烧得够旺，能炼屠龙的钢。'], ['That is coal enough.', '煤够了。']),
+  turnIn('smith-ore', ASKS.ore, ['Good iron, that! Five ore and three coal, and you\'ll have your blade.', '好铁！五块矿石、三块煤，你的剑就有了。'], ['That\'s iron enough. Now the coal, if you haven\'t brought it yet.', '铁够了。还差煤，你要是还没拿来的话。']),
+  turnIn('smith-coal', ASKS.coal, ['Coal! That\'ll burn hot enough to work dragon-steel.', '煤！这下炉子能烧到炼屠龙钢的火候了。'], ['That\'s coal enough.', '煤够了。']),
   story({
     id: 'mq/smith-forge',
     label: L('Talk to {target}', '和{target}说话'),
@@ -80,14 +80,14 @@ export const QUEST_RULES: Rule[] = [
         { op: 'spawn', type: BLADE, at: 'actor', into: 'contents' },
         notify('blade'),
         { op: 'vfx', fx: 'sparkle' },
-        say('There. Dragonsbane. Twelve generations of my family have waited to forge that one. Bring it back red.', '拿着。屠龙剑。我家十二代人都在等着锻这一把。带着它沾满龙血回来。'),
+        say('There it is. Dragonsbane. My family has waited twelve generations to forge that blade. Come back with the dragon\'s blood on it!', '好了，屠龙剑！我们家等了十二代，才等到锻这把剑。带着龙血回来见我！'),
         log('Garrick hands you Dragonsbane.', '加里克把屠龙剑交到你手里。'),
       ),
     ),
   }),
   // ---------------------------------------------------------------- the herbalist: fireweed and frostcap, two draughts
-  turnIn('herbalist-fireweed', ASKS.fireweed, ['Fireweed. It only grows where the ground remembers fire.', '火焰草。只长在记得火的地方。'], ['Fireweed enough.', '火焰草够了。']),
-  turnIn('herbalist-frostcap', ASKS.frostcap, ['Frostcap, from the cold side of the forest. Good.', '霜盖菇，长在森林背阴那边的。很好。'], ['Frostcap enough.', '霜盖菇够了。']),
+  turnIn('herbalist-fireweed', ASKS.fireweed, ['Fireweed! The books say it only grows where there\'s been a fire.', '火焰草！书上说，它只长在着过火的地方。'], ['That\'s enough fireweed.', '火焰草够了。']),
+  turnIn('herbalist-frostcap', ASKS.frostcap, ['Frostcap, from the shady side of the forest. Good.', '霜盖菇，森林背阴那边长的。很好。'], ['That\'s enough frostcap.', '霜盖菇够了。']),
   story({
     id: 'mq/herbalist-brew',
     label: L('Talk to {target}', '和{target}说话'),
@@ -100,7 +100,7 @@ export const QUEST_RULES: Rule[] = [
         { op: 'spawn', type: DRAUGHT, at: 'actor', into: 'contents', count: 2 },
         notify('draught'),
         { op: 'vfx', fx: 'sparkle' },
-        say("Two draughts. Drink one at the lair's mouth: for a few minutes the fire will barely warm you. The other is for when the first runs out.", '两瓶药剂。在巢穴门口喝一瓶：接下来几分钟，火只会让你觉得有点暖。另一瓶留着第一瓶失效时用。'),
+        say("Two draughts. Drink one at the lair's mouth, and for a few minutes the fire will barely warm you. The other is for when the first wears off.", '两瓶药剂。到了巢穴门口喝一瓶，之后几分钟里，火烧到身上也只是有点暖。第一瓶药效过了，就喝另一瓶。'),
         log('Wren gives you two fireproof draughts.', '雷恩给了你两瓶防火药剂。'),
       ),
     ),

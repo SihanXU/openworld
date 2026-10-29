@@ -24,11 +24,11 @@ export const maud: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'Wynn asks why the sun is tired. I tell her it is not. Then I lie awake wondering if I lied.', '温恩问我太阳为什么累了。我说它没有。然后我整夜睡不着，想我是不是撒了谎。'),
-    line('chat', 'Packing for a pilgrimage is easy. It is the unpacking you never plan for.', '为朝圣收拾行李很容易。从来没人计划过怎么拆开它。'),
-    line('greeting:first', 'Another pilgrim? You\'re braver than me. We were meant to go on to the Holy City. Then we heard about the knight.', '又一个朝圣者？你比我勇敢。我们本来要去圣城的。后来听说了那个骑士的事。'),
-    line('default', 'Wynn\'s grandmother taught her a rhyme about the White Knight. It used to be a nice rhyme.', '温的奶奶教过她一首关于白骑士的童谣。以前那是首好听的童谣。'),
-    line('default', 'The hostel book has a page of names that went east. I read it every night. I shouldn\'t.', '客舍的名册里有一页，全是往东去了的人名。我每晚都翻。我不该翻的。', { mood: 'sad' }),
-    line('fact:sins.defeated.alberic', 'The road\'s open? Then we can go on. ...Thank you. I\'ll teach Wynn the last verse of that rhyme now. The one about him kneeling.', '路通了？那我们可以继续上路了。……谢谢你。现在我可以教温那首童谣的最后一段了。讲他下跪的那段。', { mood: 'happy' }),
+    line('chat', "Wynn asked me if the sun is tired. I told her no. But it really does get dark earlier every day, and I don't know what to tell her.", '温问我，太阳是不是累了。我跟她说没有。可天确实一天比一天黑得早，我也不知道该怎么跟她说。'),
+    line('chat', 'We only packed enough food to reach the Holy City. Every day we stay here is a day of it gone.', '我们带的干粮只够走到圣城。在这儿多住一天，就少一天的口粮。'),
+    line('greeting:first', "Are you a pilgrim too? I'm Maud, and this is my daughter, Wynn. We were meant to go all the way to the Holy City. When we got here, we heard there's a knight on the road east who lets no one past. So we stopped.", '你也是朝圣的吧？我叫莫德，这是我女儿温。我们本来要一路走到圣城去的。到了这儿才听说，东边的路上有个骑士拦着，谁也过不去。我们就停下来了。'),
+    line('default', "Wynn's grandmother taught her a rhyme about the White Knight. It used to be sung to get children to sleep. Now when she sings it, the grown-ups go quiet.", '温的奶奶教过她一首白骑士的童谣。那首歌以前是哄孩子睡觉唱的。现在她一唱，旁边的大人就都不说话了。'),
+    line('default', "The hostel book has a page of the names of people who went east. I read it every night. I know I shouldn't.", '客舍的名册里有一页，记的都是往东去的人。我每天晚上都去翻。我知道不该翻。', { mood: 'sad' }),
+    line('fact:sins.defeated.alberic', "The road's open? Then we can go on. ...Thank you. Now I can teach Wynn the last verse of that rhyme. The one where he kneels.", '路通了？那我们可以接着走了。……谢谢你。现在我可以教温那首童谣的最后一段了，就是他跪下的那段。', { mood: 'happy' }),
   ],
 }

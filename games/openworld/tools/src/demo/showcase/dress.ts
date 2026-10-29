@@ -98,7 +98,7 @@ export function pavement(b: MapBuilder, x0: number, x1: number, y: number, rows 
 // What stands keeps to the walls' feet and the squares' edges, never a doorstep, an anchor or the cells beside a door;
 // what hangs stands on two posts along the fronts; what lies on the ground lies anywhere one walks.
 
-const SOLID_GROUND = new Set(['wall', 'water', 'tree', 'bush', 'flowerbed', 'void', 'door'])
+const SOLID_GROUND = new Set(['wall', 'water', 'tree', 'thornhedge', 'flowerbed', 'void', 'door'])
 const PAVED = new Set(['flags', 'paving', 'plaza', 'cobble', 'flagstone', 'dirt', 'mud', 'path'])
 /** The cells a map's decals already lie on (a cell takes one). */
 const strewn = new WeakMap<MapBuilder, Set<string>>()
@@ -127,7 +127,7 @@ export type Sort = 'city' | 'market' | 'poor' | 'close'
 const PILES: Record<Sort, string[]> = {
   city: ['decor_flowerstand', 'decor_flowerstand', 'decor_orange', 'decor_orange', 'decor_planter', 'decor_planter', 'decor_casks', 'decor_crates', 'decor_column', 'decor_bollards', 'decor_amphorae', 'decor_pump', 'decor_signpost', 'decor_birdbath'],
   market: ['decor_casks', 'decor_casks_row', 'decor_crates', 'decor_crates_row', 'decor_sacks', 'decor_amphorae', 'decor_cart', 'decor_flowerstand', 'decor_hay', 'decor_orange'],
-  poor: ['decor_casks', 'decor_crates', 'decor_sacks', 'decor_firewood', 'decor_hay', 'decor_amphorae', 'decor_cart'],
+  poor: ['decor_casks', 'decor_crates', 'decor_sacks', 'decor_hay', 'decor_amphorae', 'decor_cart'],
   close: ['decor_orange', 'decor_planter', 'decor_birdbath', 'decor_amphorae', 'decor_flowerstand'],
 }
 

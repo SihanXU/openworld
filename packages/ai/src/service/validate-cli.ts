@@ -5,7 +5,7 @@
 
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { RuleLibrary, tierOfRequest, validatePatch } from '@openworld/engine'
+import { RuleLibrary, tierOfRequest, validatePatch, ontologyWith } from '@openworld/engine'
 // the engine's official modules, which a world's ontology may name (docs/engine-split.md S3)
 import '@openworld/modules'
 import { collectPatch, type WorldRepoState } from './repo.ts'
@@ -32,10 +32,7 @@ if (patch) {
   for (const e of res.errors) out.push(`FAIL: ${e}`)
   for (const w of res.warnings) out.push(`warning: ${w}`)
   if (!res.errors.length) {
-    const onto = { ...ontology, types: { ...ontology.types }, statuses: { ...ontology.statuses } }
-    for (const t of lib.types) onto.types[t.id] = t
-    for (const s of lib.statuses) onto.statuses[s.id] = s
-    out.push('', 'What the triggering event does now:', describeOutcome(state.request.scenario, patch, { library: lib, ontology: onto }))
+    out.push('', 'What the triggering event does now:', describeOutcome(state.request.scenario, patch, { library: lib, ontology: ontologyWith(ontology, lib) }))
   }
 }
 const failed = out.some((l) => l.startsWith('FAIL'))

@@ -231,7 +231,9 @@ on entering a library; the map builder clears the volume under a solid fixture s
 - **Maps below**: caves, deep mine levels, the barrow, interiors hang below a local map and are
   reached through portals (D28).
 - **Edges are open**: leaving a local map by any edge returns the traveller to the overworld,
-  on that map's cell. No ring of rock bounds a map; rock is ordinary rock.
+  on that map's cell. No ring of rock bounds a map; rock is ordinary rock. Where the story keeps a country shut, the
+  map says so, not its woods: its `edgesWhen` is the fact that opens its edges (`Engine.sealedEdge`; release 1 shuts
+  those east of the river until Part Two, docs/release-1.md §1).
 - **Entering**: on the overworld, empty hands on one's own cell (E) acts on its site, whose
   rule sends the actor a `push` to the local map; one arrives on the side one came from, or in
   the middle if one entered where one stood.
@@ -907,9 +909,8 @@ too, so a lottery that loses on average is no free lunch and one that wins on av
 repeat check, which has no cost to weigh, forces every chance instead). A condition on the state is
 the player's choice, so each way of it is a step of its own. When there is no free lunch, the
 simplex's dual gives the proof: prices, each at least 1, under which no step gives more value than
-it takes. The base content has none, and its prices check (any length; tools/test/economy.test.ts;
-the simplex against strong duality, Chvátal's degenerate example and Bellman-Ford in
-modder/test/economy.test.ts). **A type the AI creates** names `props.material` and a
+it takes. The base content has none, and its prices check (any length; the simplex against strong
+duality, Chvátal's degenerate example and Bellman-Ford; games/openworld/ai/test/economy.test.ts). **A type the AI creates** names `props.material` and a
 makeup (a breakable one may give a rule of its own on `broken` instead), and never a new ground
 (`tile/*`); one with a station is craftable as soon as the patch applies.
 

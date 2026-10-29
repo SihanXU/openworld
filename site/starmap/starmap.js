@@ -38,16 +38,25 @@ const COLOR = Array.from({ length: N }, (_, i) => (KIND[i] === K.place && REGION
 const RAD = Float32Array.from({ length: N }, (_, i) => SIZE[KINDS[KIND[i]]] * (KIND[i] === K.place ? 0.8 + Math.min(1.2, deg[i] / 40) : 1) * (KIND[i] === K.kind || KIND[i] === K.rule ? 0.8 + Math.min(1.5, deg[i] / 30) : 1))
 const AMBER = '#f0a040', ICE = '#cfe0ff'
 
+/** A star's glow, drawn once for each colour into one sheet: thousands of stars a frame drawn from one picture can be
+ *  drawn together, where a picture of its own for each colour makes the browser stop and change pictures at almost every
+ *  star. */
+const GLOW = 64, GLOWS = document.createElement('canvas')
+GLOWS.width = GLOW * 48; GLOWS.height = GLOW
 const glows = new Map()
-function glow(color) {
+function glowAt(color) {
   if (glows.has(color)) return glows.get(color)
-  const c = document.createElement('canvas'); c.width = c.height = 64
-  const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32)
+  const at = glows.size * GLOW
+  const x = GLOWS.getContext('2d'), gr = x.createRadialGradient(at + 32, 32, 0, at + 32, 32, 32)
   gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.12, color); gr.addColorStop(0.35, color + '55'); gr.addColorStop(1, color + '00')
-  x.fillStyle = gr; x.fillRect(0, 0, 64, 64)
-  glows.set(color, c)
-  return c
+  x.fillStyle = gr; x.fillRect(at, 0, GLOW, GLOW)
+  glows.set(color, at)
+  return at
 }
+/** A glow of a colour drawn at a rect. */
+const drawGlow = (color, x, y, w, h, c = ctx) => c.drawImage(GLOWS, glowAt(color), 0, GLOW, GLOW, x, y, w, h)
+// every colour the film draws, laid in before it begins (the sheet changed while it plays would be sent again)
+for (const c of new Set([...COLOR, ...Object.values(KIND_COLOR), AMBER, ICE, '#ffffff', '#9fd0ff', '#e6eeff'])) glowAt(c)
 const hash = (i) => { let h = (i * 2654435761) >>> 0; h ^= h >>> 16; h = Math.imul(h, 2246822507) >>> 0; h ^= h >>> 13; return (h % 10000) / 10000 }
 const smooth = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x) }
 const ease = (x) => { x = Math.max(0, Math.min(1, x)); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2 }
@@ -202,6 +211,12 @@ const BIRTHS = (() => {
 
 const canvas = document.getElementById('c')
 const ctx = canvas.getContext('2d')
+/** The shades of brightness the threads are gathered in (a stroke for each, not one for each thread); the sparks
+ *  travelling; the film's layer of the web, how much larger than the frame, and when and from where it was drawn. */
+const SHADES = 8, sparks = [], WEB = document.createElement('canvas'), MARGIN = 0.25
+let webT = 0, webCam = null
+/** From when every star is lit and its flash over: the stars drawn with the web, as still as it is. */
+const STILL = ACT3 + 2
 const DUST = Array.from({ length: 300 }, (_, k) => [hash(k * 13 + 1), hash(k * 31 + 5), 0.1 + 0.3 * hash(k * 17 + 2), 0.5 + hash(k * 7)])
 
 /**
@@ -218,7 +233,6 @@ function draw(t, view, ex) {
   const sx = (x, y) => (W / 2 + (x - cx) * zoom * cos - (y - cy) * zoom * sin) * dpr
   const sy = (x, y) => (H / 2 + (x - cx) * zoom * sin + (y - cy) * zoom * cos) * dpr
   const film = !ex
-  const lit = (i) => (film ? smooth((t - LIGHT[i]) / 0.35) : 1)
 
   // the sky's dust, drifting a little with the camera
   ctx.globalCompositeOperation = 'lighter'
@@ -227,50 +241,40 @@ function draw(t, view, ex) {
     ctx.globalAlpha = a; ctx.fillStyle = '#aabfff'; ctx.fillRect(x * dpr, y * dpr, 1.3 * dpr, 1.3 * dpr)
   }
 
-  // the world's links: faint where both ends are lit
+  // the world's links: faint where both ends are lit; and how each star was lit, a thread from the one that lit it,
+  // while it travels a spark. Lines no wider than a pixel (the browser draws those as hairlines; a wider line's path is
+  // made and kept anew), the threads gathered by how bright they still are (a stroke for each shade, not for each).
   if (!film || t > ACT2 - 1) {
-    ctx.strokeStyle = '#7d9ae6'; ctx.lineWidth = 0.8 * dpr
-    ctx.globalAlpha = 0.07
-    ctx.beginPath()
-    for (const [a, b] of DRAWN) {
-      if (film && (t < LIGHT[a] + 0.5 || t < LIGHT[b] + 0.5)) continue
-      ctx.moveTo(sx(X[a], Y[a]), sy(X[a], Y[a])); ctx.lineTo(sx(X[b], Y[b]), sy(X[b], Y[b]))
-    }
-    ctx.stroke()
-    // how each star was lit: a thread from the one that lit it, and while it travels, a spark
     if (film) {
-      ctx.lineWidth = 1.1 * dpr
-      for (let i = 0; i < N; i++) {
-        const p = PARENT[i]
-        if (p < 0 || KIND[i] === K.event || KIND[i] === K.region || KIND[p] === K.region) continue
-        const t0 = LIGHT[i] - TRAVEL[i]
-        if (t < t0) continue
-        const u = Math.min(1, (t - t0) / TRAVEL[i])
-        const ax = sx(X[p], Y[p]), ay = sy(X[p], Y[p]), bx = sx(X[i], Y[i]), by = sy(X[i], Y[i])
-        const hx = ax + (bx - ax) * u, hy = ay + (by - ay) * u
-        const fresh = Math.exp(-Math.max(0, t - LIGHT[i]) * 1.5)
-        ctx.globalAlpha = 0.06 + 0.4 * fresh
-        ctx.strokeStyle = '#a9c2ff'
-        ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(hx, hy); ctx.stroke()
-        if (u < 1) { const r = 5 * dpr; ctx.globalAlpha = 0.9; ctx.drawImage(glow(ICE), hx - r, hy - r, r * 2, r * 2) }
+      // in the film the web of what has landed is drawn on a layer a little larger than the frame, again only every few
+      // frames (fourteen thousand lines in new places every frame, as the camera turns, stall the browser now and then),
+      // and between, moved as the camera has moved since; what is still travelling is drawn every frame
+      const cam = camMatrix(view, dpr)
+      const every = t < ACT3 ? 3 / FPS : 10 / FPS
+      if (!webCam || t < webT || t - webT >= every || WEB.width !== Math.round(canvas.width * (1 + 2 * MARGIN))) {
+        WEB.width = Math.round(canvas.width * (1 + 2 * MARGIN)); WEB.height = Math.round(canvas.height * (1 + 2 * MARGIN))
+        const w = WEB.getContext('2d'), mx = canvas.width * MARGIN, my = canvas.height * MARGIN
+        w.clearRect(0, 0, WEB.width, WEB.height)
+        w.globalCompositeOperation = 'lighter'
+        web(w, t, sx, sy, mx, my, dpr, false)
+        if (t >= STILL) stars(w, t, sx, sy, mx, my, view.zoom, dpr, true)
+        webT = t; webCam = cam
       }
-    }
+      const d = cam.multiply(webCam.inverse())
+      ctx.globalAlpha = 1
+      ctx.setTransform(d.a, d.b, d.c, d.d, d.e, d.f)
+      ctx.drawImage(WEB, -canvas.width * MARGIN, -canvas.height * MARGIN)
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      web(ctx, t, sx, sy, 0, 0, dpr, true)
+    } else (web(ctx, t, sx, sy, 0, 0, dpr, false, true), (sparks.length = 0))
+    // the sparks on their way, over the lines
+    const r = 5 * dpr
+    ctx.globalAlpha = 0.9
+    for (let j = 0; j < sparks.length; j += 2) drawGlow(ICE, sparks[j] - r, sparks[j + 1] - r, r * 2, r * 2)
   }
 
-  // the world's stars
-  const hl = ex?.highlight
-  for (let i = 0; i < N; i++) {
-    if (KIND[i] === K.event) continue
-    const l = lit(i)
-    if (l <= 0.01) continue
-    const x = sx(X[i], Y[i]), y = sy(X[i], Y[i])
-    if (x < -40 || y < -40 || x > canvas.width + 40 || y > canvas.height + 40) continue
-    const flash = film && t > LIGHT[i] ? Math.exp(-(t - LIGHT[i]) * 2.5) : 0
-    const h = hl?.has(i) ? 1 : 0
-    const r = Math.max(1.1 * dpr, Math.min((KIND[i] === K.region ? 9 : 5) * dpr, RAD[i] * zoom * dpr)) * (1 + flash * 1.2 + h * 0.6) * (0.5 + 0.5 * l)
-    ctx.globalAlpha = Math.min(1, l * (hl && !h ? 0.35 : 1))
-    ctx.drawImage(glow(COLOR[i]), x - r * 2.5, y - r * 2.5, r * 5, r * 5)
-  }
+  // the world's stars (in the film's last act, all of them lit and still, in the web's layer)
+  if (!(film && t >= STILL)) stars(ctx, t, sx, sy, 0, 0, zoom, dpr, film, ex?.highlight)
   // a clicked star's ripple
   for (const rp of ex?.ripples ?? []) {
     const front = (ex.now - rp.t0) / 380
@@ -279,7 +283,7 @@ function draw(t, view, ex) {
       if (k < 0 || k > 2.2) continue
       const x = sx(X[j], Y[j]), y = sy(X[j], Y[j]), r = (2 + 5 * Math.max(0, 1 - k)) * dpr * (d === 0 ? 2 : 1)
       ctx.globalAlpha = Math.max(0, 1 - k / 2.2) * 0.55
-      ctx.drawImage(glow(d === 0 ? '#ffffff' : '#9fd0ff'), x - r * 2, y - r * 2, r * 4, r * 4)
+      drawGlow(d === 0 ? '#ffffff' : '#9fd0ff', x - r * 2, y - r * 2, r * 4, r * 4)
     }
   }
 
@@ -300,7 +304,7 @@ function draw(t, view, ex) {
     ctx.beginPath()
     for (let s = 0; s <= u + 1e-6; s += 0.04) { const [x, y] = pt(Math.min(s, u)); s ? ctx.lineTo(x, y) : ctx.moveTo(x, y) }
     ctx.stroke()
-    if (u < 1) { const [x, y] = pt(u), r = 10 * dpr; ctx.globalAlpha = 1; ctx.drawImage(glow(o.model ? AMBER : ICE), x - r, y - r, r * 2, r * 2) }
+    if (u < 1) { const [x, y] = pt(u), r = 10 * dpr; ctx.globalAlpha = 1; drawGlow(o.model ? AMBER : ICE, x - r, y - r, r * 2, r * 2) }
   }
   ctx.globalCompositeOperation = 'source-over'
   // each event: a circle with its moment in it, or the point it closed into
@@ -320,7 +324,7 @@ function draw(t, view, ex) {
       const later = film && t > ACT2 ? Math.exp(-(t - ACT2) / 2) : 1
       const r = (6 + 18 * arrive) * dpr * (0.45 + 0.55 * later)
       ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.max(pointA, arrive) * (0.55 + 0.45 * later)
-      ctx.drawImage(glow(ring), x - r * 2, y - r * 2, r * 4, r * 4)
+      drawGlow(ring, x - r * 2, y - r * 2, r * 4, r * 4)
       ctx.globalCompositeOperation = 'source-over'
     }
     if (R < 1) continue
@@ -383,7 +387,7 @@ function draw(t, view, ex) {
       const x = sx(bx, by), y = sy(bx, by), age = t - bt
       const r = (3 + 16 * Math.exp(-age * 2.2)) * dpr
       ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = Math.min(1, age * 4)
-      ctx.drawImage(glow(amber ? AMBER : '#e6eeff'), x - r * 2.5, y - r * 2.5, r * 5, r * 5)
+      drawGlow(amber ? AMBER : '#e6eeff', x - r * 2.5, y - r * 2.5, r * 5, r * 5)
       ctx.globalCompositeOperation = 'source-over'
     }
     // the counts, in the middle, counted up; then gone
@@ -405,7 +409,7 @@ function draw(t, view, ex) {
         if (a <= 0.01) return
         const value = Math.round(count * (1 - Math.pow(1 - Math.max(0, Math.min(1, (t - t0) / 1.4)), 3)))
         ctx.globalAlpha = a
-        ctx.drawImage(glow(KIND_COLOR[k]), left - 6 * dpr, y - 26 * dpr, 52 * dpr, 52 * dpr)
+        drawGlow(KIND_COLOR[k], left - 6 * dpr, y - 26 * dpr, 52 * dpr, 52 * dpr)
         ctx.textAlign = 'left'
         ctx.font = `700 ${nf}px 'Segoe UI', system-ui, sans-serif`; ctx.fillStyle = '#ffffff'
         const num = value.toLocaleString('en')
@@ -438,6 +442,62 @@ function draw(t, view, ex) {
 }
 
 /** A picture filling a box, cut to its shape (the middle kept). */
+/** The stars into a canvas, moved by (mx, my). */
+function stars(c, t, sx, sy, mx, my, zoom, dpr, film, hl) {
+  for (let i = 0; i < N; i++) {
+    if (KIND[i] === K.event) continue
+    const l = film ? smooth((t - LIGHT[i]) / 0.35) : 1
+    if (l <= 0.01) continue
+    const x = sx(X[i], Y[i]) + mx, y = sy(X[i], Y[i]) + my
+    if (x < -40 || y < -40 || x > c.canvas.width + 40 || y > c.canvas.height + 40) continue
+    const flash = film && t > LIGHT[i] ? Math.exp(-(t - LIGHT[i]) * 2.5) : 0
+    const h = hl?.has(i) ? 1 : 0
+    const r = Math.max(1.1 * dpr, Math.min((KIND[i] === K.region ? 9 : 5) * dpr, RAD[i] * zoom * dpr)) * (1 + flash * 1.2 + h * 0.6) * (0.5 + 0.5 * l)
+    c.globalAlpha = Math.min(1, l * (hl && !h ? 0.35 : 1))
+    drawGlow(COLOR[i], x - r * 2.5, y - r * 2.5, r * 5, r * 5, c)
+  }
+}
+/** The camera as a matrix: a point of the world to the canvas. */
+const camMatrix = ({ cx, cy, zoom, rot = 0 }, dpr) => new DOMMatrix().translate((W / 2) * dpr, (H / 2) * dpr).scale(zoom * dpr).rotate((rot * 180) / Math.PI).translate(-cx, -cy)
+/** The web of links and threads at t into a canvas, moved by (mx, my): what has landed (`moving` false), or only the
+ *  threads still travelling (`moving` true, their sparks kept for drawing); `all` the explorer's, every link. */
+function web(c, t, sx, sy, mx, my, dpr, moving, all = false) {
+  if (!moving) {
+    c.strokeStyle = '#7d9ae6'; c.lineWidth = 0.8 * dpr
+    c.globalAlpha = 0.07
+    c.beginPath()
+    for (const [a, b] of DRAWN) {
+      if (!all && (t < LIGHT[a] + 0.5 || t < LIGHT[b] + 0.5)) continue
+      c.moveTo(sx(X[a], Y[a]) + mx, sy(X[a], Y[a]) + my); c.lineTo(sx(X[b], Y[b]) + mx, sy(X[b], Y[b]) + my)
+    }
+    c.stroke()
+  }
+  if (all) return
+  c.lineWidth = 1 * dpr
+  c.strokeStyle = '#a9c2ff'
+  const threads = Array.from({ length: SHADES }, () => [])
+  if (moving) sparks.length = 0
+  for (let i = 0; i < N; i++) {
+    const p = PARENT[i]
+    if (p < 0 || KIND[i] === K.event || KIND[i] === K.region || KIND[p] === K.region) continue
+    const t0 = LIGHT[i] - TRAVEL[i]
+    if (t < t0 || (t >= LIGHT[i]) === moving) continue
+    const u = Math.min(1, (t - t0) / TRAVEL[i])
+    const ax = sx(X[p], Y[p]) + mx, ay = sy(X[p], Y[p]) + my, bx = sx(X[i], Y[i]) + mx, by = sy(X[i], Y[i]) + my
+    const hx = ax + (bx - ax) * u, hy = ay + (by - ay) * u
+    const fresh = Math.exp(-Math.max(0, t - LIGHT[i]) * 1.5)
+    threads[Math.min(SHADES - 1, Math.round(fresh * (SHADES - 1)))].push(ax, ay, hx, hy)
+    if (moving) sparks.push(hx, hy)
+  }
+  threads.forEach((l, k) => {
+    if (!l.length) return
+    c.globalAlpha = 0.06 + (0.4 * k) / (SHADES - 1)
+    c.beginPath()
+    for (let j = 0; j < l.length; j += 4) (c.moveTo(l[j], l[j + 1]), c.lineTo(l[j + 2], l[j + 3]))
+    c.stroke()
+  })
+}
+
 function drawCover(im, x, y, w, h) {
   if (!im?.naturalWidth) return
   const s = Math.max(w / im.naturalWidth, h / im.naturalHeight), sw = w / s, sh = h / s
@@ -479,7 +539,7 @@ function drawSmall(o, x, y, dpr, ex) {
   const near = smooth((ex.zoom - 3) / 4)
   const r0 = 7 * dpr
   ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 1
-  ctx.drawImage(glow(ring), x - r0 * 2, y - r0 * 2, r0 * 4, r0 * 4)
+  drawGlow(ring, x - r0 * 2, y - r0 * 2, r0 * 4, r0 * 4)
   ctx.globalCompositeOperation = 'source-over'
   if (near <= 0.01) return
   const R = (o.size === 'flash' ? 30 : 42) * dpr * near * (ex.hover === o.i ? 1.6 : 1)

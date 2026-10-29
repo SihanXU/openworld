@@ -161,6 +161,7 @@
 .dialog .dline { font-size: 17px; line-height: 1.5; min-height: 50px; }
 .dialog .dmore { position: absolute; right: 12px; bottom: 6px; font-size: 12px; color: #8a6a44; animation: pulse 1s infinite; }
 .dchoices { display: flex; gap: 10px; margin-top: 8px; }
+.dialog .dsin { margin-top: 4px; font-size: 14px; font-weight: 600; color: #a3242a; }
 .dchoices button { min-width: 80px; }
 @keyframes pulse { 50% { filter: brightness(1.35); } }
 
@@ -520,7 +521,8 @@
 /* the death screen (Minecraft's): a red veil over the stopped world */
 .death { position: absolute; inset: 0; z-index: 60; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(120, 10, 10, 0.45), rgba(40, 0, 0, 0.82)); }
 .death.hidden { display: none; }
-.death-box { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 20px; text-align: center; }
+/* (centred inside the window's body: the box is a window now, and a body centred in it shrinks to nothing, its width contained) */
+.death-box > .ui-window-body { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
 .death-title { margin: 0; font: 600 52px var(--pixel); color: #fff; text-shadow: 3px 3px 0 #3a0000; letter-spacing: 1px; }
 .death-cause { font: 18px var(--text); color: #ffd7cf; text-shadow: 1px 1px 0 #000; }
 .death-note { font: 15px var(--text); color: #ffe9a8; }

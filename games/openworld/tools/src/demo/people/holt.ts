@@ -27,11 +27,11 @@ export const holt: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'A quiet night is a good night. I have stopped wishing for interesting ones.', '安静的夜就是好夜。我已经不盼着有意思的夜了。'),
-    line('chat', 'Fennick taught me to stand still. Harder than it sounds. Try it for an hour.', '芬尼克教我站着不动。比听起来难。你站一个钟头试试。'),
-    line('default', 'Peace inside the fence. Past the grassland, keep your blade out — and after dark, keep it out everywhere.', '围栏里是太平的。过了草原就把刀拔出来——天黑以后，哪儿都得拔着。'),
-    line('hour:night', 'Hear that shuffling? The dead walk the wild at night. Not here, though. Never here.', '听见那拖着脚的声音没？夜里荒野上有亡灵游荡。不过不会进村，从来不会。'),
-    line('fact:ch1.flame_stolen', 'I had him. I had him at the length of my spear, and he looked at me like I was a child, and walked away on the water.', '我差点就抓住他了。他就在我长矛够得着的地方，他看我的眼神像在看个孩子，然后踩着水走了。', { mood: 'angry' }),
-    line('fact:ch1.end', 'When you go on east, I want to come. Someone has to catch that thief.', '你接着往东走的时候，我想跟着去。总得有人抓住那个贼。'),
+    line('chat', 'A quiet night is a good night. I\'ve had three this week. That\'s more than last week.', '夜里安安静静的就是好夜。这个礼拜有三个，比上个礼拜多。'),
+    line('chat', 'Fennick taught me to stand still. It\'s harder than it sounds. Try it for an hour.', '站着一动不动，是芬尼克教我的。听着容易，你站上一个钟头就知道了。'),
+    line('default', 'It\'s safe inside the fence. Past the grassland, keep your blade out. After dark, keep it out everywhere.', '围栏里头太平。出了草原就把刀拿在手上。天黑以后，在哪儿都别收刀。'),
+    line('hour:night', 'Hear that shuffling? The dead walk the wild at night. None has got past the fence yet. That\'s what I\'m here for.', '听见那拖着脚走路的声音了吗？夜里荒野上有死人在走。到现在还没有一个过得了围栏。我站在这儿，就是为了这个。'),
+    line('fact:ch1.flame_stolen', 'I had him. I had him at the length of my spear, and he looked at me like I was a child, and walked away on the water.', '我差一点就抓住他了。他就在我长矛够得着的地方。他看我的样子，像在看一个小孩。然后他就踩着水走了。', { mood: 'angry' }),
+    line('fact:ch1.end', 'When you go on east, I want to come. Someone has to catch that thief.', '你往东走的时候，我想跟你一起去。那个贼，总得有人去抓。'),
   ],
 }

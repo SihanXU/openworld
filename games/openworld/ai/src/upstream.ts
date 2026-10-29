@@ -16,11 +16,11 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSyn
 import { tmpdir } from 'node:os'
 import { join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DockerEnv, LocalEnv, SANDBOX_LIMITS, SelfState, applyPreset, chooseIsolation, hostUser, modelFromEnv, runAgent, sandboxImage, type AgentTask, type Env, type Isolation, type Model, type Preset } from '@openworld/ai'
+import { REPO, SelfState, applyPreset, modelFromEnv, reflectAfter, runAgent, taskIsolation, type AgentTask, type Isolation, type Model, type Preset } from '@openworld/ai'
 import { PROMOTE, WorldLibrary, askedCounts, candidates, effectsOf, type Candidate } from '@openworld/ai'
 import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
 import { isA, placed, type Expectation, type Ontology, type Scenario } from '@openworld/engine'
-import { REPO, engineWorkspace } from './engine-tasks.ts'
+import { engineWorkspace, taskEnv, walk } from './engine-tasks.ts'
 import { sweep, type Cell, type Outcome } from '../../tools/src/coverage.ts'
 
 /** The thresholds (docs/upstream.md §8, decided): K, S, N from the detector; L changed lines; proposals a day. */
@@ -37,14 +37,6 @@ const JUDGE = '.upstream'
 const TESTS = 'npx vitest run games/openworld/content'
 
 // ------------------------------------------------------------------ the workspace
-
-const walk = (dir: string, f: (p: string) => void): void => {
-  for (const n of readdirSync(dir, { withFileTypes: true })) {
-    const p = join(dir, n.name)
-    if (n.isDirectory()) walk(p, f)
-    else f(p)
-  }
-}
 
 /** One hash over a directory's files (paths and contents): the engine as it was when the task was made. */
 export function hashDir(dir: string): string {
@@ -218,7 +210,7 @@ export interface PromotionCase {
 
 /**
  * What each learned rule of the candidate did in the scene that asked for it, as expectations
- * (derive.ts's, `resolvedBy` aside: the base, not the learned rule, is to answer now).
+ * (answer.ts's, `resolvedBy` aside: the base, not the learned rule, is to answer now).
  */
 export function promotionCases(c: Candidate, library: WorldLibrary): PromotionCase[] {
   const onto = library.fullOntology()
@@ -341,8 +333,8 @@ export interface UpstreamTask {
  * container; `localRun`: a person started it by hand. Without either there is no task.
  */
 export async function upstreamTask(c: Candidate, o: { library: WorldLibrary; isolation?: Isolation; localRun?: boolean; note?: string; cellsByRule?: Record<string, number>; L?: number }): Promise<UpstreamTask | undefined> {
-  const iso = o.isolation ?? (await chooseIsolation())
-  if (iso === 'none' && !o.localRun) return undefined
+  const iso = await taskIsolation(o)
+  if (!iso) return undefined
   const onto = o.library.fullOntology()
   const scenes = Object.fromEntries(o.library.asked.filter((a) => c.rules.some((r) => r.id === a.rule)).map((a) => [a.rule, a.scenario]))
   const cases = promotionCases(c, o.library)
@@ -353,16 +345,7 @@ export async function upstreamTask(c: Candidate, o: { library: WorldLibrary; iso
   const ws = contentWorkspace()
   const rulesPath = join(ws.dir, WRITABLE[0])
   const rulesBefore = countRules(readFileSync(rulesPath, 'utf8'))
-  let env: Env
-  try {
-    env =
-      iso === 'docker'
-        ? await DockerEnv.start({ image: await sandboxImage(), root: ws.dir, mount: ws.dir, mounts: [{ host: join(REPO, 'node_modules'), container: join(REPO, 'node_modules') }], user: hostUser(), limits: SANDBOX_LIMITS })
-        : new LocalEnv(ws.dir)
-  } catch (err) {
-    ws.dispose()
-    throw err
-  }
+  const env = await taskEnv(iso, ws.dir, join(REPO, 'node_modules'), ws.dispose)
   const id = `upstream:${c.hole}:${c.ancestor}`
   return {
     cases,
@@ -557,7 +540,6 @@ export interface ProposeOptions {
   L?: number
   note?: string
   cellsByRule?: Record<string, number>
-  isolation?: Isolation
   localRun?: boolean
   /** build the task and print its issue; no model, no agent run */
   dry?: boolean
@@ -574,7 +556,7 @@ export async function propose(c: Candidate, o: ProposeOptions): Promise<{ outcom
   if (open) return { outcome: 'skipped', reason: `an open proposal for ${c.ancestor} at ${c.hole} already: ${open.url ?? open.branch}` }
   const max = o.max ?? UPSTREAM.MAX_PER_DAY
   if (book.madeToday() >= max) return { outcome: 'skipped', reason: `${max} proposal(s) made today already (--max)` }
-  const t = await upstreamTask(c, { library: o.library, isolation: o.isolation, localRun: o.localRun, note: o.note, cellsByRule: o.cellsByRule, L: o.L })
+  const t = await upstreamTask(c, { library: o.library, localRun: o.localRun, note: o.note, cellsByRule: o.cellsByRule, L: o.L })
   if (!t) return { outcome: 'skipped', reason: 'no container here, and not a local run: an unattended agent gets no shell on this machine' }
   try {
     if (o.dry) {
@@ -601,6 +583,8 @@ export async function propose(c: Candidate, o: ProposeOptions): Promise<{ outcom
     }
     o.state.recordEpisode(ep)
     o.state.noteSkillUse(ep.skillsRead, ep.outcome, ep.id)
+    // a recorded task feeds the middle loop, as every other kind does
+    await reflectAfter(ep, { model: o.model, state: o.state })
     return { outcome: r.outcome, url, episode: ep.id, reason: r.verdict?.output.slice(-600) }
   } finally {
     await t.dispose()
@@ -608,19 +592,18 @@ export async function propose(c: Candidate, o: ProposeOptions): Promise<{ outcom
 }
 
 /** The proposals and how they stand: `gh` says which closed, merged or declined; without it, the record as it is. */
-export function status(data: string, o: { gh?: boolean } = {}): Proposal[] {
+export function status(data: string): Proposal[] {
   const book = new Proposals(data)
-  if (o.gh !== false)
-    for (const p of book.proposals) {
-      if (p.status !== 'open' || !p.url) continue
-      try {
-        const s = JSON.parse(execSync(`gh pr view ${p.url} --json state`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })) as { state: string }
-        if (s.state === 'MERGED') p.status = 'merged'
-        else if (s.state === 'CLOSED') p.status = 'declined'
-      } catch {
-        /* no gh, or offline: the record stands */
-      }
+  for (const p of book.proposals) {
+    if (p.status !== 'open' || !p.url) continue
+    try {
+      const s = JSON.parse(execSync(`gh pr view ${p.url} --json state`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })) as { state: string }
+      if (s.state === 'MERGED') p.status = 'merged'
+      else if (s.state === 'CLOSED') p.status = 'declined'
+    } catch {
+      /* no gh, or offline: the record stands */
     }
+  }
   book.save()
   return book.proposals
 }
@@ -635,7 +618,6 @@ async function main(): Promise<void> {
     const i = argv.indexOf(`--${k}`)
     return i < 0 ? false : (argv.splice(i, 1), true)
   }
-  if (existsSync(join(REPO, '.env'))) process.loadEnvFile(join(REPO, '.env'))
   const data = resolve(REPO, flag('data') ?? process.env.LSW_DATA ?? 'var')
   const withSweep = has('sweep')
   const dry = has('dry')

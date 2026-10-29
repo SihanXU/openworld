@@ -10,15 +10,17 @@
 import { describe, expect, it } from 'vitest'
 import { textOf, isPatch, restoreLibrary, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
 import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf, kitsOf } from '@openworld/modules'
-import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, PART_TWO, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP } from '@openworld-game/content'
+import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, PART_TWO, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP, BOSS_ROOMS } from '@openworld-game/content'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { CH1_AT } from '../src/demo/quest/chapter1.ts'
 import { PEOPLE } from '../src/demo/people.ts'
 import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts'
 import { PILGRIM } from '../src/demo/quest/pilgrimage.ts'
+import { HEDGE, KINGDOM } from '../src/demo/quest/kingdom.ts'
 import { FAT, FLANKS } from '../src/demo/quest/flanks.ts'
 import { GARDEN } from '../src/demo/garden.ts'
+import { FL_COTTAGES, FL_HOMES } from '../src/art/arch/buildings/firstlight.ts'
 import { BARROW, HOLLOW, OSSUARY, UNDER_BARROW } from '../src/demo/hollow.ts'
 import { PAT, TUTORIAL } from '../src/demo/prologue.ts'
 import { HILL_MINE, MILL } from '../src/demo/quest/vigil.ts'
@@ -117,7 +119,15 @@ function hold(f: Ford, e: Entity | undefined): void {
   const c = f.eng.controls
   author(f, () => W(f).place(e, { on: 'inside', holder: 'player' }))
   c.sync()
-  c.select(W(f).player.slots!.indexOf(c.key(e)))
+  // A physical group may hold several of a kind; the hand takes the group's first. The test puts the one it means first.
+  const p = W(f).player
+  const slot = p.slots!.indexOf(c.key(e))
+  const members = p.slotItems?.[slot]
+  if (members && members[0] !== e.id) author(f, () => {
+    const at = members.indexOf(e.id)
+    if (at > 0) members.splice(at, 1), members.unshift(e.id)
+  })
+  c.select(slot)
   expect(W(f).player.held).toBe(e.id)
 }
 /**
@@ -525,42 +535,57 @@ req('D2', 'every layer a target can be: a person, a creature, a fixture, a loose
 
 // ------------------------------------------------------------------ F. what a game needs at the least
 
-req('F1', 'the goal is a state: the far bank ends the bridge stage, however the player got there — and release 1 with it (Part One, docs/release-1.md): its card, the road east sealed', ['region:far_bank'], () => {
-  /** Across onto the far bank with the pilgrimage called; the cards shown until the story rests. */
-  const across = (part2: boolean) => {
-    const f = fresh()
-    if (part2) author(f, () => W(f).setFact(PART_TWO, 1))
-    // set down on the landing, then a step on it: arriving is an outcome (the author's hand makes no contact)
-    stand(f, ...AT.farLanding, 'right')
-    walk(f, 'right')
+req('F1', 'the goal is a state: the far bank ends the bridge stage, however the player got there; the road goes on east to the Pilgrims\' Rest (release 1 runs to the White Knight: docs/release-1.md), and the far bank leads nowhere but by it', ['region:far_bank'], () => {
+  const f = fresh()
+  // set down on the landing, then a step on it: arriving is an outcome (the author's hand makes no contact)
+  stand(f, ...AT.farLanding, 'right')
+  walk(f, 'right')
+  W(f).fx = []
+  const cards: unknown[] = []
+  expect(ticks(f, 400, () => f.eng.quests.stage('first_seal') === 40 && !W(f).scene)).toBe(true)
+  ticks(f, 300, () => {
+    cards.push(...W(f).fx.filter((x) => x.t === 'card'))
     W(f).fx = []
-    const cards: { text: { en: string } }[] = []
-    const rest = (n: number) => ticks(f, n, () => {
-      cards.push(...(W(f).fx.filter((x) => x.t === 'card') as unknown as { text: { en: string } }[]))
-      W(f).fx = []
-      return false
-    })
-    expect(ticks(f, 400, () => f.eng.quests.stage('first_seal') === 40 && !W(f).scene)).toBe(true)
-    rest(300)
-    expect(far(f)).toBe(true)
-    return { f, cards }
+    return false
+  })
+  expect(far(f)).toBe(true)
+  // no ending here: release 1 ends with the Crown home (C-chapter's `part_one`)
+  expect(cards).toEqual([])
+  // the road east is open: off the Ford's east edge by the road, into the Rest
+  expect(W(f).get('site.waystation')?.props?.opensWhen).toBeUndefined()
+  expect(cross(f, 'ford', W(f).map('ford')!.width - 2, EAST_ROAD.fordEast[1], 'right')).toBe('waystation')
+  // and the far bank's edge is woods but for the road's own way: nothing walks off it onto the world map east of the
+  // river (the continent there is Part Two's)
+  const ford = W(f).map('ford')!
+  const bank = W(f).partAt('ford', ...AT.farLanding)
+  const rim = [...[...Array(ford.height).keys()].flatMap((y) => [[0, y], [ford.width - 1, y]] as const), ...[...Array(ford.width).keys()].flatMap((x) => [[x, 0], [x, ford.height - 1]] as const)]
+  const outs = rim.filter(([x, y]) => W(f).walkable('ford', x, y) && W(f).partAt('ford', x, y) === bank && !ford.portals.some((p) => p.x === x && p.y === y))
+  expect(outs).toEqual([])
+  // and felled, still none: the woods are only woods, and the story keeps the edges east of the river shut until Part
+  // Two (MapData.edgesWhen, Engine.sealedEdge): off the far bank's edge and the Pilgrim's Road's alike one stays, and the
+  // companion says it is for another time (not the road to Emberfall's words); with Part Two open, out onto the world map
+  const offFelled = (map: string, part?: number) => {
+    const m = W(f).map(map)!
+    const edges = [...[...Array(m.height).keys()].flatMap((y) => [[0, y, 'left'], [m.width - 1, y, 'right']] as const), ...[...Array(m.width).keys()].flatMap((x) => [[x, 0, 'up'], [x, m.height - 1, 'down']] as const)]
+    const wooded = (x: number, y: number) => W(f).entitiesAt(map, x, y).filter((e) => W(f).hasTag(e, 'tree'))
+    const [x, y, dir] = edges.find(([x, y]) => (part === undefined || W(f).partAt(map, x, y) === part) && !m.portals.some((p) => p.x === x && p.y === y) && wooded(x, y).length > 0)!
+    author(f, () => { for (const e of wooded(x, y)) W(f).destroy(e) })
+    expect([map, W(f).walkable(map, x, y)]).toEqual([map, true])
+    const off = () => (stand(f, x, y, dir, map), f.eng.setCooldown(W(f).player.id, 0), walk(f, dir))
+    W(f).fx = []
+    const to = off()
+    const said = W(f).fx.filter((x) => x.t === 'say' || x.t === 'log').map((x) => JSON.stringify((x as { text?: unknown }).text))
+    return { to, said, again: off }
   }
-  // release 1: Part One ends on the far bank, once
-  const one = across(false)
-  expect(one.cards.map((c) => c.text.en.split('\n')[0])).toEqual(['PART ONE · THE FORD'])
-  // the road east is sealed: off the Ford's east edge one stays on the Ford, and the Rest's place on the world map is shut
-  expect(cross(one.f, 'ford', W(one.f).map('ford')!.width - 1, EAST_ROAD.fordEast[1], 'right')).toBe('ford')
-  expect(W(one.f).posOf(W(one.f).player)!.x).toBe(W(one.f).map('ford')!.width - 1)
-  expect(W(one.f).get('site.waystation')?.props?.opensWhen).toBe(PART_TWO)
-  // nor by any other edge of the far bank: its ways all lead east, sealed, so none of them goes out onto the world map
-  // (never onto the east bank's ground beside the Rest)
-  const ford = W(one.f).map('ford')!
-  const bank = W(one.f).partAt('ford', ...AT.farLanding)
-  const rim = [...[...Array(ford.height).keys()].flatMap((y) => [[0, y, 'left'], [ford.width - 1, y, 'right']] as const), ...[...Array(ford.width).keys()].flatMap((x) => [[x, 0, 'up'], [x, ford.height - 1, 'down']] as const)]
-  const outs = rim.filter(([x, y]) => W(one.f).walkable('ford', x, y) && W(one.f).partAt('ford', x, y) === bank)
-  for (const [x, y, dir] of outs) expect([x, y, cross(one.f, 'ford', x, y, dir)]).toEqual([x, y, 'ford'])
-  // with Part Two open the chapter goes on past the bridge (docs/chapter-1.md): no card here
-  expect(across(true).cards).toEqual([])
+  for (const [map, part] of [['ford', bank], ['waystation', undefined], ['eastroad', undefined]] as const) {
+    const out = offFelled(map, part)
+    expect([map, out.to.map]).toEqual([map, map])
+    // (said once a minute: the first time)
+    if (map === 'ford') expect(out.said.some((t) => /another time/i.test(t) && !/Emberfall/.test(t))).toBe(true)
+    author(f, () => W(f).setFact(PART_TWO, 1))
+    expect([map, out.again().map]).toEqual([map, OVERWORLD])
+    author(f, () => W(f).setFact(PART_TWO, 0))
+  }
 })
 
 req('F1b', 'a story step begins on entering an authored region: the far bank is a thing, entering it is contact (in-region), and its scene starts on the next tick, not at a poll', ['region:far_bank'], () => {
@@ -1374,8 +1399,8 @@ function reach(f: Ford, x: number, y: number): Set<string> {
 
 req('W4', 'every map but the tutorial (and the floors under the barrow) lies on the overworld, a place to a cell drawn as what it is, and its edges are open: mined through the rock at the pass\'s north edge, one walks out onto the pass\'s own cell and stands there (as off the village\'s west edge onto the village\'s); in again at once, one comes in where one left; a step north and back onto it, in on the north side', [...['village', 'town', 'farm', 'watermill', 'woods', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'crossing'].map((k) => `site/place/${k}`)], () => {
   const f = fresh()
-  // (the floors under the barrow are reached by its stairs: they lie under its cell; the Held Ground is carried in a thorn)
-  for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD && id !== 'tutorial' && id !== 'offstage' && id !== 'haven' && !id.startsWith('haven.') && W(f).map(id)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(id))) {
+  // (the floors under the barrow are reached by its stairs: they lie under its cell; a boss's arena through its fog; the Held Ground is carried in a thorn)
+  for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD && id !== 'tutorial' && id !== 'offstage' && id !== 'haven' && !id.startsWith('haven.') && !BOSS_ROOMS.some((r) => r.arena === id) && W(f).map(id)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(id))) {
     const site = W(f).map(m)!.site!
     expect([m, site.map]).toEqual([m, OVERWORLD])
     expect([m, W(f).entitiesAt(OVERWORLD, site.x, site.y).some((e) => e.type.startsWith('site/place/') && e.props?.map === m)]).toEqual([m, true])
@@ -1388,8 +1413,8 @@ req('W4', 'every map but the tutorial (and the floors under the barrow) lies on 
   expect(walk(f, 'up')).toMatchObject({ map: 'pass', x, y: 1 })
   for (let i = 0; i < 2; i++) run(f, 'use', x, 0)
   expect(walk(f, 'up')).toMatchObject({ map: 'pass', x, y: 0 })
-  // (open: the White Knight is beaten; a place the story has sealed is not stood on, so one would come out beside it)
-  author(f, () => W(f).setFact(CH1.knight, true))
+  // (open: Part Two; a place the story has sealed is not stood on, so one would come out beside it)
+  author(f, () => W(f).setFact(PART_TWO, 1))
   const out = walk(f, 'up')
   const site = W(f).map('pass')!.site!
   // the pass's own cell, not the one north of it: from there one chooses the way on
@@ -1457,12 +1482,10 @@ req('W6', 'the river is a barrier on the overworld too: the Ford\'s cell is the 
   const f = fresh()
   const ford = W(f).map('ford')!.site!
   expect(W(f).passable(OVERWORLD, ford.x, ford.y)).toBe(false)
-  // (the far bank's cell east of the Ford: the Pilgrims' Rest's, where the road east begins — sealed until Part Two,
-  // and then the barrier still holds)
+  // (the far bank's cell east of the Ford: the Pilgrims' Rest's, where the road east begins — open, and the barrier
+  // still holds)
   const road = W(f).map('waystation')!.site!
   expect(road).toMatchObject({ x: ford.x + 1, y: ford.y })
-  expect(W(f).passable(OVERWORLD, road.x, road.y)).toBe(false)
-  author(f, () => W(f).setFact(PART_TWO, 1))
   expect(W(f).passable(OVERWORLD, road.x, road.y)).toBe(true)
   const west = reach(f, ford.x - 1, ford.y)
   expect(west.has(`${road.x},${road.y}`)).toBe(false)
@@ -1483,19 +1506,20 @@ req('W6', 'the river is a barrier on the overworld too: the Ford\'s cell is the 
   }
 })
 
-req('W6b', 'the places beyond the White Knight are sealed on the world map until he falls: Emberfall\'s cell stops one like a wall, and bumping into it says why; stood on (an older save), E says why and does not go in; it is drawn sealed; once he is beaten, one walks onto it and in', [], () => {
+req('W6b', 'the places beyond the White Knight are Part Two\'s, sealed on the world map until it opens (release 1 ends with the Crown home: docs/release-1.md), he fallen or not: Emberfall\'s cell stops one like a wall, and bumping into it says why; stood on (an older save), E says why and does not go in; it is drawn sealed; once Part Two opens, one walks onto it and in', [], () => {
   const f = fresh()
   const w = W(f)
-  for (const id of ['emberfall', 'mine', 'pass', 'lair']) expect([id, w.get(`site.${id}`)!.props?.opensWhen]).toEqual([id, CH1.knight])
+  author(f, () => w.setFact(CH1.knight, true))
+  for (const id of ['emberfall', 'mine', 'pass', 'lair']) expect([id, w.get(`site.${id}`)!.props?.opensWhen]).toEqual([id, PART_TWO])
   const at = w.get('site.emberfall')!.place as { x: number; y: number }
   expect(w.passable(OVERWORLD, at.x, at.y)).toBe(false)
-  // from an open cell beside it, a step onto it: one stays, and the line says why (the knight's gate)
+  // from an open cell beside it, a step onto it: one stays, and the line says why (Part Two's gate)
   const DIR = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] } as const
   const [dir, d] = (Object.entries(DIR) as [Entity['facing'], readonly [number, number]][]).find(([, d]) => w.passable(OVERWORLD, at.x - d[0], at.y - d[1]))!
   stand(f, at.x - d[0], at.y - d[1], dir, OVERWORLD)
   w.fx = []
   expect(walk(f, dir)).toMatchObject({ map: OVERWORLD, x: at.x - d[0], y: at.y - d[1] })
-  expect(w.fx.filter((x) => x.t === 'log').map((x) => textOf((x as unknown as { text: { en: string; zh: string } }).text))).toContain('The White Knight still holds the East Road. There is no way past him yet.')
+  expect(w.fx.filter((x) => x.t === 'log').map((x) => textOf((x as unknown as { text: { en: string; zh: string } }).text))).toContain('The road on east to Emberfall is not open yet: its tale is told in Part Two.')
   stand(f, at.x, at.y, 'down', OVERWORLD)
   const plan = f.eng.controls.plan('hands')!
   expect(textOf(plan.label)).toMatch(/^Sealed: /)
@@ -1503,7 +1527,7 @@ req('W6b', 'the places beyond the White Knight are sealed on the world map until
   ticks(f, 5)
   expect(w.posOf(w.player)!.map).toBe(OVERWORLD)
   expect(snapshot(f.eng).entities.find((e) => e.id === 'site.emberfall')).toMatchObject({ sealed: true, leadsTo: 'emberfall' })
-  author(f, () => w.setFact(CH1.knight, true))
+  author(f, () => w.setFact(PART_TWO, 1))
   expect(snapshot(f.eng).entities.find((e) => e.id === 'site.emberfall')!.sealed).toBeUndefined()
   stand(f, at.x - d[0], at.y - d[1], dir, OVERWORLD)
   expect(walk(f, dir)).toMatchObject({ map: OVERWORLD, x: at.x, y: at.y })
@@ -1917,9 +1941,9 @@ req('F17', 'Firstlight Village is the former meadow: homes, a well, a lit square
   const ford = w.map('ford')!
   expect(village.name).toEqual(FIRSTLIGHT.name)
   expect(village.kind).toBe('village')
-  // the four cottages (Marta's, the elder's, the watch house, the woodcutter's), the lane's cabin and Edda's hut beside them
-  expect(village.stamps?.filter((s) => s.key.startsWith('house_'))).toHaveLength(4)
-  expect(village.stamps?.filter((s) => s.key === 'cabin' || s.key === 'hut_straw')).toHaveLength(2)
+  // the four cottages (Marta's, the elder's, the watch house, the woodcutter's), the lane's house and Edda's hut beside
+  // them: the village's own buildings (village.ts TOWN, art/arch/buildings/firstlight.ts)
+  for (const b of [...FL_COTTAGES, ...FL_HOMES]) expect([b, village.stamps?.some((s) => s.key.startsWith(`${b}@`))]).toEqual([b, true])
   expect(Object.values(w.state.entities).filter((e) => e.npc && e.place.on === 'tile' && e.place.map === 'ford').map((e) => e.id)).toEqual(['npc.hesper'])
   expect(w.posOf(w.get('npc.tobin'))?.map).toBe(FIRSTLIGHT.map)
   expect(w.posOf(w.get('ford.cart'))).toEqual({ map: FIRSTLIGHT.map, x: FIRSTLIGHT.cart[0], y: FIRSTLIGHT.cart[1] })
@@ -1933,8 +1957,10 @@ req('F17', 'Firstlight Village is the former meadow: homes, a well, a lit square
     expect(w.walkable(s.map, s.x, s.y, tobin.id, true)).toBe(true)
     expect(astar(village.width, village.height, (x, y) => !w.blocked(FIRSTLIGHT.map, x, y), 39, 19, s.x, s.y)).toBeDefined()
   }
-  for (const s of village.stamps!.filter((s) => s.key.startsWith('house_'))) {
-    const x = s.x + 1, y = s.y + 3
+  // each home's door with a step one stands on before it, reached from the road
+  for (const to of ['meadow.cook', 'meadow.elder', 'meadow.guards', 'meadow.woodhouse', 'meadow.lane', 'meadow.cabin']) {
+    const d = village.portals.find((p) => p.to === to)!
+    const x = d.x, y = d.y + 1
     expect(w.terrainAt(FIRSTLIGHT.map, x, y - 1)).toBe('door')
     expect(w.isSolidTerrain(w.terrainAt(FIRSTLIGHT.map, x, y))).toBe(false)
     expect(astar(village.width, village.height, (x, y) => !w.blocked(FIRSTLIGHT.map, x, y), 39, 19, x, y)).toBeDefined()
@@ -2036,8 +2062,8 @@ const onMap = (f: Ford, type: string, map: string) => Object.values(W(f).state.e
 const fact = (f: Ford, key: string) => W(f).fact(key) ?? 0
 /** Where the main line past the knight stands, as the chapters number it (docs/main-quest.md): 3 Emberfall, 4 armed, 5 the pass, 6 the lair, 7 the end. */
 const quest = (f: Ford) => ({ 20: 3, 30: 4, 40: 5, 50: 6, 100: 7 } as Record<number, number>)[f.eng.quests.stage('dragon_road')] ?? 0
-/** The main line where a test past the knight wants it: the First Seal and the Crown behind, the road to Emberfall under way. */
-const toEmberfall = (f: Ford) => author(f, () => { for (const id of ['first_seal', 'crown_home']) f.eng.quests.put(id, 'done'); f.eng.quests.put('dragon_road', 10) })
+/** The main line where a test past the knight wants it: Part Two open, the First Seal and the Crown behind, the road to Emberfall under way. */
+const toEmberfall = (f: Ford) => author(f, () => { W(f).setFact(PART_TWO, 1); for (const id of ['first_seal', 'crown_home']) f.eng.quests.put(id, 'done'); f.eng.quests.put('dragon_road', 10) })
 /** Walk off a map's edge through its portal (the player's own step). */
 function cross(f: Ford, map: string, x: number, y: number, dir: Entity['facing']): string {
   stand(f, x, y, dir, map)
@@ -2069,10 +2095,108 @@ const give = (f: Ford, type: string, n: number) => {
   f.eng.controls.sync()
 }
 
-req('Q2', 'the road east: past the far bank the Pilgrim\'s Road, and past the Kneeling Field the East Road; the burned farm shows the dragon\'s mark; wolves and a boar on the road; it ends at Emberfall, once the White Knight has fallen', ['actor/creature/beast/wolf', 'actor/creature/beast/boar'], () => {
+/** A fog of a boss's room on a map (docs/boss-rooms.md), at a row. */
+const fogAt = (f: Ford, map: string, y = KINGDOM.rows[1], x?: number) => Object.values(W(f).state.entities).find((e) => e.type === 'fixture/fog' && e.place.on === 'tile' && e.place.map === map && e.place.y === y && (x === undefined || e.place.x === x))
+/** To the knight's hedge on the East Road, and a hand on his fog: through it into his kingdom. */
+function throughFog(f: Ford): void {
+  // (a scene the road plays as one comes up to the hedge — the statue's rest, the grey man — plays out first)
+  stand(f, HEDGE.x - 1, KINGDOM.rows[1], 'right', 'eastroad')
+  ticks(f, 900, () => !W(f).scene)
+  stand(f, HEDGE.x - 1, KINGDOM.rows[1], 'right', 'eastroad')
+  f.eng.act('hands', 'player', { e: fogAt(f, 'eastroad')!.id }, { instrument: null })
+  ticks(f, 3)
+}
+
+req('BR1', "a boss's room (docs/boss-rooms.md): past the burned farm the knight's hedge closes the East Road but for his fog; a hand on it and one is in his kingdom, the fog one's home, the ways out sealed while he stands; falling there one rises at the fog, and he is whole again when one comes back; once he falls every fog of his room lifts, and the road goes on out of its far side onto the East Road beyond his hedge", ['fixture/fog'], () => {
   const f = fresh()
-  // Part Two's road (release 1 ends at the river: docs/release-1.md), opened
-  author(f, () => W(f).setFact(PART_TWO, 1))
+  const w = W(f)
+  // nothing walks round his hedge: the road's only way east is his fog, on the ways into his arena
+  const road = w.map('eastroad')!
+  for (let y = 0; y < road.height; y++) expect([y, w.passable('eastroad', HEDGE.x, y)]).toEqual([y, false])
+  expect(road.portals.filter((p) => p.to === 'kingdom').map((p) => p.y)).toEqual([...KINGDOM.rows])
+  throughFog(f)
+  expect(w.posOf(w.player)).toMatchObject({ map: 'kingdom', x: KINGDOM.arrive[0] })
+  // from either gate one walks into his field, up to his post
+  const reached = new Set<string>()
+  const queue: [number, number][] = [[KINGDOM.arrive[0], KINGDOM.arrive[1]]]
+  while (queue.length) {
+    const [x, y] = queue.pop()!
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const k = `${x + dx},${y + dy}`
+      if (reached.has(k) || !w.inBounds('kingdom', x + dx, y + dy) || !w.passable('kingdom', x + dx, y + dy)) continue
+      reached.add(k)
+      queue.push([x + dx, y + dy])
+    }
+  }
+  expect([reached.has(`${KINGDOM.knight[0] - 2},${KINGDOM.knight[1]}`), reached.has(`${KINGDOM.east - 1},${KINGDOM.rows[1]}`)]).toEqual([true, true])
+  ticks(f, 400, () => !w.scene)
+  // the fog is one's home now (one rises beside it); the fogs inside are sealed while he stands
+  expect(w.player.props?.home).toBe(fogAt(f, 'eastroad')!.id)
+  stand(f, KINGDOM.west + 1, KINGDOM.rows[1], 'left', 'kingdom')
+  w.fx = []
+  f.eng.act('hands', 'player', { e: fogAt(f, 'kingdom', KINGDOM.rows[1], KINGDOM.west)!.id }, { instrument: null })
+  ticks(f, 2)
+  expect(w.posOf(w.player)!.map).toBe('kingdom')
+  expect(w.fx.some((x) => x.t === 'log' && JSON.stringify(x.text).includes('雾不会散开'))).toBe(true)
+  // wounded and falling there: one rises at his fog outside, and he is whole again, at his post, when one comes back
+  const knight = w.get(ALBERIC_ID)!
+  author(f, () => w.setProp(knight, 'hp', 50))
+  f.eng.author(() => f.eng.hurt(w.player, 100000, undefined, true))
+  ticks(f, 2)
+  f.eng.respawn(true)
+  ticks(f, 3)
+  expect(w.posOf(w.player)!.map).toBe('eastroad')
+  expect(Math.abs(w.posOf(w.player)!.x - HEDGE.x)).toBeLessThanOrEqual(2)
+  throughFog(f)
+  ticks(f, 5)
+  expect([w.num(knight, 'hp'), knight.boss?.phase]).toEqual([w.num(knight, 'maxHp'), 1])
+  // he falls: every fog of his room lifts, and out of its far side one is on the East Road beyond his hedge
+  author(f, () => w.setFact(CH1.knight, 1))
+  const fogs = (map: string) => Object.values(w.state.entities).filter((e) => e.type === 'fixture/fog' && e.place.on === 'tile' && e.place.map === map).length
+  ticks(f, 30)
+  expect(fogs('kingdom')).toBe(0)
+  ticks(f, 1500, () => !w.scene)
+  expect(cross(f, 'kingdom', KINGDOM.east - 1, KINGDOM.rows[1], 'right')).toBe('eastroad')
+  expect(w.posOf(w.player)!.x).toBe(HEDGE.east)
+  // (the East Road's fog, on a map asleep while one fought, lifts as it wakes)
+  ticks(f, 30)
+  expect(fogs('eastroad')).toBe(0)
+})
+
+req('BR2', "the warden's room and the last keeper's (docs/boss-rooms.md): the fog on the ossuary's stair takes one down into the sanctum, the fog at the crypt's head into the priors' tomb; in each the way back is sealed while its boss stands; felled, each tells the story it fell and the fogs of its room lift", [], () => {
+  for (const [outer, arena, who, fact] of [['ossuary', 'sanctum', 'barrow.warden', 'boss.fell.warden'], ['abbey.crypt', 'abbey.tomb', ABBOT_ID, 'boss.fell.wendel']] as const) {
+    const f = fresh()
+    const w = W(f)
+    const fogOn = (map: string) => Object.values(w.state.entities).filter((e) => e.type === 'fixture/fog' && e.place.on === 'tile' && e.place.map === map)
+    author(f, () => (w.player.props!.hp = 100000, w.player.props!.maxHp = 100000))
+    f.eng.author(() => f.eng.teleport(w.player, { map: outer, x: 2, y: 2 }))
+    ticks(f, 3)
+    const gate = fogOn(outer)[0]
+    expect([outer, !!gate]).toEqual([outer, true])
+    const g = gate.place as { x: number; y: number }
+    const [sx, sy, dir] = beside(f, g.x, g.y, outer)
+    stand(f, sx, sy, dir, outer)
+    f.eng.act('hands', 'player', { e: gate.id }, { instrument: null })
+    ticks(f, 3)
+    expect([outer, w.posOf(w.player)!.map]).toEqual([outer, arena])
+    expect(w.player.props?.home).toBe(gate.id)
+    // sealed behind: a hand on it (one comes in on the cell before it), and one is still in
+    const back = fogOn(arena)[0]
+    f.eng.act('hands', 'player', { e: back.id }, { instrument: null })
+    ticks(f, 3)
+    expect([arena, w.posOf(w.player)!.map]).toEqual([arena, arena])
+    // felled: the story knows it, and the fogs of its room lift
+    const boss = w.get(who)!
+    f.eng.damage(boss, 100000, undefined, true, { e: 'player' })
+    ticks(f, 5)
+    expect([who, w.fact(fact)]).toEqual([who, 1])
+    ticks(f, 900, () => !w.scene && fogOn(arena).length === 0)
+    expect([arena, fogOn(arena).length]).toEqual([arena, 0])
+  }
+})
+
+req('Q2', 'the road east: past the far bank the Pilgrim\'s Road, and past the Kneeling Field the East Road; the burned farm shows the dragon\'s mark; wolves and a boar on the road; it ends at Emberfall, Part Two\'s (release 1 ends with the Crown home: docs/release-1.md)', ['actor/creature/beast/wolf', 'actor/creature/beast/boar'], () => {
+  const f = fresh()
   // past the far bank, the Pilgrim's Road (docs/chapter-1.md §14) first: the Rest; the Kneeling Field gives onto the road
   expect(cross(f, 'ford', W(f).map('ford')!.width - 2, EAST_ROAD.fordEast[1], 'right')).toBe('waystation')
   expect(cross(f, 'kneelfield', PILGRIM.field.w - 2, PILGRIM.field.east[1], 'right')).toBe('eastroad')
@@ -2083,9 +2207,10 @@ req('Q2', 'the road east: past the far bank the Pilgrim\'s Road, and past the Kn
   stand(f, 24, 10, 'up', 'eastroad')
   expect(ticks(f, 40, () => (f.eng.movePlayer('up'), W(f).posOf(W(f).player)!.y <= 9))).toBe(true)
   expect(ticks(f, 200, () => fact(f, 'mq.farm') === 1 && !W(f).scene)).toBe(true)
-  // the road ends at Emberfall — once the White Knight has fallen (docs/chapter-1.md): until then the way is shut
+  // the road ends at Emberfall — Part Two's: shut while the knight stands, and still shut once he has fallen
   expect(cross(f, 'eastroad', EAST_ROAD.w - 2, EAST_ROAD.east[1], 'right')).toBe('eastroad')
   author(f, () => (W(f).setFact('sins.defeated.alberic', 1), W(f).setFact('seen.crown', 1)))
+  expect(cross(f, 'eastroad', EAST_ROAD.w - 2, EAST_ROAD.east[1], 'right')).toBe('eastroad')
   toEmberfall(f)
   expect(cross(f, 'eastroad', EAST_ROAD.w - 2, EAST_ROAD.east[1], 'right')).toBe('emberfall')
   expect(ticks(f, 200, () => quest(f) === 3 && !W(f).scene)).toBe(true)
@@ -2303,7 +2428,8 @@ req('S3', 'each profession\'s forged gear covers the whole body (head, ear, neck
   expect(f.eng.controls.craft(RECIPE_BY_ID['weave/cloth'])).toBe(true)
   expect(f.eng.controls.count('item/material/cloth')).toBe(1)
   // forged at the smithy's anvil, the Held Ground's smithy hardened (haven.build.smithy 2): Shadowfang's jerkin, of its leather, named for its set
-  f.eng.author(() => (f.eng.teleport(w.player, { map: 'meadow.smithy', x: 5, y: 4 }), w.setFact('haven.build.smithy', 2)))
+  const anvilAt = w.posOf(w.get('smithy.anvil')!)!
+  f.eng.author(() => (f.eng.teleport(w.player, { map: 'meadow.smithy', x: anvilAt.x - 1, y: anvilAt.y + 1 }), w.setFact('haven.build.smithy', 2)))
   carryN(f, 'item/tool/smith_hammer', 1)
   const forge = (slot: string) => {
     const r = RECIPE_BY_ID[`set/shadowfang/${slot}`]
@@ -2403,8 +2529,8 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   author(f, () => { f.eng.quests.put('rescue', 'done'); f.eng.quests.put('vigil', 'done'); w.setFact('village.rescued', 1); w.setFact('ch1.vigil', 1); w.setFact('ch1.flame_stolen', 1); w.setFact('ch1.letter', 1); w.player.props!.hp = 10_000; w.player.props!.maxHp = 10_000 })
   setHour(f, 2, 9)
   ticks(f, 3)
-  // over the river (Q1's): the far bank — and past it, through the Ford's east edge, the Rest (Part Two's: opened)
-  author(f, () => (w.setFact('ford.crossed', 1), w.setFact(PART_TWO, 1)))
+  // over the river (Q1's): the far bank — and past it, through the Ford's east edge, the Rest
+  author(f, () => w.setFact('ford.crossed', 1))
   ticks(f, 3)
   expect(stage()).toBe(40)
   expect(cross(f, 'ford', w.map('ford')!.width - 2, EAST_ROAD.fordEast[1], 'right')).toBe('waystation')
@@ -2415,13 +2541,13 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   expect(talkTo(f, 'npc.wynn')).toContain('童谣')
   // the Holy See's notice: the pilgrimage as proclaimed — seek out the Seal-bearers, overcome them, bring the instruments home
   const notice = read(things('waystation', 'fixture/sign/noticeboard')[0])
-  expect(notice).toContain('击败他们')
+  expect(notice).toContain('胜之')
   expect(notice).not.toContain('下跪')
   // into the chapel of the Five: the litany on its bookstand, read (E)
   expect(door('waystation', 'waystation.chapel')).toBe('waystation.chapel')
   expect(read(things('waystation.chapel', 'fixture/furniture/bookstand')[0])).toContain('极夜便不会归来')
   // the oath at the altar of the five wounds; the pilgrim's own scallop
-  enter('waystation.chapel', [5, 3, 7, 3], 'pilgrim_oath')
+  enter('waystation.chapel', w.map('waystation.chapel')!.regions!.altar, 'pilgrim_oath')
   expect(w.fact('ch1.oath')).toBe(1)
   ticks(f, 2)
   expect(stage()).toBe(50)
@@ -2469,12 +2595,12 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   enter('abbey', [10, 6, 20, 14], 'abbey_yard')
   expect(door('abbey', 'abbey.hall')).toBe('abbey.hall')
   expect(read(things('abbey.hall', 'fixture/furniture/table').find((e) => textOf(e.name ?? { en: '', zh: '' }) === 'The Roll of the Order')!)).toContain('四十一个名字')
-  enter('abbey.hall', [13, 7, 8, 5], 'alberic_cell')
+  enter('abbey.hall', w.map('abbey.hall')!.regions!.cell, 'alberic_cell')
   const leaf = pick(things('abbey.hall', 'item/document/letter').find((e) => textOf(e.name!).endsWith('Leaf II'))!)
   hold(f, leaf)
   w.fx = []
   c.run(c.plan('self')!, true)
-  expect(w.fx.some((x) => x.t === 'log' && JSON.stringify(x.text).includes('我兄弟休说这是判决'))).toBe(true)
+  expect(w.fx.some((x) => x.t === 'log' && JSON.stringify(x.text).includes('我兄弟休说这是刑罚'))).toBe(true)
   // the writ of relief on the scriptorium's desk, never sent: taken (F)
   const writ = things('abbey.hall', 'item/document/writ_of_relief')[0]
   expect(writ).toBeTruthy()
@@ -2483,7 +2609,14 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   // the crypt under the abbey church: the Order's last keeper rises, and is fought down with blows
   expect(door('abbey.hall', 'abbey')).toBe('abbey')
   expect(door('abbey', 'abbey.crypt')).toBe('abbey.crypt')
-  enter('abbey.crypt', [10, 1, 10, 5], 'crypt_keeper')
+  // at the crypt's head the priors' tomb, his room behind its fog (docs/boss-rooms.md): a hand on it, and one is in with him
+  settle()
+  const keeperFog = Object.values(w.state.entities).find((e) => e.type === 'fixture/fog' && e.place.on === 'tile' && e.place.map === 'abbey.crypt')!
+  stand(f, keeperFog.place.on === 'tile' ? keeperFog.place.x : 0, keeperFog.place.on === 'tile' ? keeperFog.place.y + 1 : 0, 'up', 'abbey.crypt')
+  f.eng.act('hands', 'player', { e: keeperFog.id }, { instrument: null })
+  ticks(f, 3)
+  expect(w.posOf(w.player)!.map).toBe('abbey.tomb')
+  enter('abbey.tomb', w.map('abbey.tomb')!.regions!.tomb, 'crypt_keeper')
   const keeper = w.get(ABBOT_ID)!
   expect(textOf(keeper.name!)).toBe('Prior Wendel, the Last Keeper')
   give(f, 'item/weapon/blunt/mace', 1)
@@ -2491,8 +2624,8 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   const k0 = w.posOf(keeper)!
   let blows = 0
   for (; blows < 200 && w.get(ABBOT_ID); blows++) {
-    author(f, () => w.place(keeper, { on: 'tile', map: 'abbey.crypt', x: k0.x, y: k0.y }))
-    stand(f, k0.x, k0.y + 1, 'up', 'abbey.crypt')
+    author(f, () => w.place(keeper, { on: 'tile', map: 'abbey.tomb', x: k0.x, y: k0.y }))
+    stand(f, k0.x, k0.y + 1, 'up', 'abbey.tomb')
     f.eng.setCooldown('atk:player', 0)
     c.strike()
     ticks(f, 1)
@@ -2500,12 +2633,16 @@ req('PR1', "the Pilgrim's Road (docs/chapter-1.md §14), played through the play
   expect(w.get(ABBOT_ID)).toBeUndefined()
   expect(blows).toBeGreaterThan(1)
   // his seal, where he fell: taken (F)
-  const seal = things('abbey.crypt', 'item/valuable/order_seal')[0]
+  const seal = things('abbey.tomb', 'item/valuable/order_seal')[0]
   expect(seal).toBeTruthy()
   pick(seal)
   expect(ticks(f, 600, () => w.fact('ch1.order_seal') === 1 && !w.scene)).toBe(true)
   ticks(f, 2)
   expect(stage()).toBe(70)
+  // he fallen, the fog of his room lifts: down through its door to the crypt
+  expect(w.fact('boss.fell.wendel')).toBe(1)
+  ticks(f, 20)
+  expect(door('abbey.tomb', 'abbey.crypt')).toBe('abbey.crypt')
   // back down to the road, and east into the Kneeling Field: the stones of those who would not kneel; straw subjects on their knees
   expect(door('abbey.crypt', 'abbey')).toBe('abbey')
   expect(cross(f, 'abbey', PILGRIM.abbey.south[1], PILGRIM.abbey.h - 2, 'down')).toBe('pilgrimway')
@@ -2771,7 +2908,7 @@ req('T3', 'a lesson of the tutorial can be skipped (Esc held): it is done, and w
   expect(plain.engine.controls.allows('take')).toBe(true)
 })
 
-req('T4', 'every building can be walked into: each house, shop, smithy, temple and hut stamped on any map has a door that leads into a room and back; each tent is gone into with a hand on it, and left by its flap in front of it — the rotted one too, drawn torn', ['fixture/tent/torn'], () => {
+req('T4', 'every building can be walked into: each house, shop, smithy, temple and hut stamped on any map has a door that leads into a room and back; each tent is gone into with a hand on it, and left by its flap in front of it — the rotted one too, drawn torn, and the knight\'s pavilion in the Held Ground', ['fixture/tent/torn', 'fixture/tent/pavilion'], () => {
   const f = fresh()
   const w = W(f)
   const { index, chunks } = buildFord()
@@ -2946,14 +3083,16 @@ req('S1', 'a smithy in Firstlight Village, a house on the east road: inside, a l
   expect(Math.max(Math.abs(at.x - anvil[0]), Math.abs(at.y - anvil[1]))).toBeLessThanOrEqual(2)
   expect(w.hasTag(haldor, 'smith')).toBe(true)
   expect(PEOPLE.find((p) => p.id === 'npc.haldor')!.trade!.stock.map(([t]) => t)).toEqual(expect.arrayContaining(['item/tool/smith_hammer', 'item/material/coal', 'item/material/iron_ingot']))
-  // smelt and forge between the forge and the anvil
-  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: 4, y: 3 }))
+  // smelt and forge between the forge and the anvil (a step off each, below and beside it)
+  const forgeAt = w.posOf(w.get('smithy.forge')!)!
+  const anvilAt = w.posOf(w.get('smithy.anvil')!)!
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: forgeAt.x + 1, y: forgeAt.y + 1 }))
   carryN(f, 'item/material/iron_ore', 2)
   carryN(f, 'item/material/coal', 1)
   expect(f.eng.controls.craft(RECIPE_BY_ID['smith/smelt-iron'])).toBe(true)
   const bars = () => [w.player.held, ...(w.player.contents ?? [])].filter((id) => w.get(id ?? '')?.type === 'item/material/iron_ingot').length
   expect(bars()).toBe(2)
-  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: 5, y: 4 }))
+  f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow.smithy', x: anvilAt.x - 1, y: anvilAt.y + 1 }))
   // no hammer, no gear
   carryN(f, 'item/material/plank', 1)
   expect(f.eng.controls.craft(RECIPE_BY_ID['smith/dagger-iron'])).toBe(false)
@@ -3196,11 +3335,16 @@ req('P3', "the main line never breaks: Rowan's rescue begins by itself at the we
   stair('barrow', BARROW.down, 'ossuary')
   // the second floor: the Order's dead, Oskar in his cell, the roll; the stair further down
   expect(w.posOf(w.get('npc.oskar')!)?.map).toBe('ossuary')
-  expect(talkTo(f, 'npc.oskar')).toContain('守墓者在下面')
+  expect(talkTo(f, 'npc.oskar')).toContain('守墓者在楼梯最底下')
   expect(w.get('ossuary.roll')?.props?.text).toContain('ALBERIC')
   // the Order's dead do not lie still: a ghost among the niches
   expect(Object.values(w.state.entities).some((e) => e.type === 'actor/creature/undead/ghost' && w.posOf(e)?.map === 'ossuary')).toBe(true)
-  stair('ossuary', OSSUARY.down, 'sanctum')
+  // the stair further down holds the warden's fog (docs/boss-rooms.md): a hand on it, and one is in the sanctum
+  const wardenFog = Object.values(w.state.entities).find((e) => e.type === 'fixture/fog' && e.place.on === 'tile' && e.place.map === 'ossuary')!
+  stand(f, OSSUARY.down[0] - 1, OSSUARY.down[1], 'right', 'ossuary')
+  f.eng.act('hands', 'player', { e: wardenFog.id }, { instrument: null })
+  ticks(f, 3)
+  expect(w.posOf(w.player)?.map).toBe('sanctum')
   // the bottom: the warden before the Commander's vow
   expect(w.posOf(w.get('barrow.warden')!)?.map).toBe('sanctum')
   expect(w.get('sanctum.vow')?.props?.text).toContain('I WILL HOLD UNTIL I AM RELIEVED')
@@ -3211,7 +3355,7 @@ req('P3', "the main line never breaks: Rowan's rescue begins by itself at the we
   // all the experience one has had: what each level took (20, 40, 60 …) and what is carried toward the next
   const total = () => w.num(w.player, 'xp') + Array.from({ length: w.num(w.player, 'level', 1) - 1 }, (_, i) => xpToNext(i + 1)).reduce((a, b) => a + b, 0)
   const xp = total()
-  expect(talkTo(f, 'npc.rowan')).toContain('在圣火前感恩')
+  expect(talkTo(f, 'npc.rowan')).toContain('在圣火前为他们感恩')
   ticks(f, 2)
   expect(qs(f, 'rescue')).toBe('done')
   expect(w.fact('rescue.lina')).toBe(1)
@@ -3497,9 +3641,10 @@ req('C1', 'Chapter 1, offline: the night of the flame (the grey man takes it), t
   author(f, () => w.setFact('ford.crossed', 1))
   ticks(f, 2)
   expect(quest()).toBe(2)
-  // into the ring of thorns: the knight speaks once
-  stand(f, 32, 11, 'right', 'eastroad')
-  expect(ticks(f, 60, () => (f.eng.movePlayer('right'), !!w.fact('seen.kingdom')))).toBe(true)
+  // to the knight's hedge, and through his fog into his kingdom (docs/boss-rooms.md): the knight speaks once
+  throughFog(f)
+  expect(w.posOf(w.player)!.map).toBe('kingdom')
+  expect(ticks(f, 60, () => !!w.fact('seen.kingdom'))).toBe(true)
   ticks(f, 200, () => !w.scene)
   // the First Seal-bearer: softer here than in the Boss Challenge
   const knight = w.get(ALBERIC_ID)!
@@ -3507,8 +3652,8 @@ req('C1', 'Chapter 1, offline: the night of the flame (the grey man takes it), t
   expect(w.num(knight, 'maxHp')).toBeLessThan(BOSS_BY_ID.alberic.hp)
   // his skills' blows are multiples of his attack: lower here
   expect(w.num(knight, 'atk')).toBeLessThan(BOSS_BY_ID.alberic.atk)
-  // the way to Emberfall shut while he stands
-  expect(w.map('eastroad')!.portals.filter((p) => p.to === 'emberfall').every((p) => p.opensWhen === 'sins.defeated.alberic')).toBe(true)
+  // the way on to Emberfall is Part Two's (release 1 ends with the Crown home: docs/release-1.md)
+  expect(w.map('eastroad')!.portals.filter((p) => p.to === 'emberfall').every((p) => p.opensWhen === PART_TWO)).toBe(true)
   f.eng.damage(knight, 10000, undefined, true, { e: 'player' })
   expect(w.fact('sins.defeated.alberic')).toBe(1)
   // the Crown, the fairy's first power, the grey man, a longer night
@@ -3523,12 +3668,21 @@ req('C1', 'Chapter 1, offline: the night of the flame (the grey man takes it), t
   setHour(f, 3, 20.5)
   expect(w.isNight()).toBe(true)
   expect(quest()).toBe(2.5)
-  // home: the village, Nessa's four minutes, the chapter's card
+  // home: the village, Nessa's four minutes, the chapter's card — and release 1's end with it (docs/release-1.md §1):
+  // the road on east waits for Part Two, and the Dragon Road with it
   f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow', x: 20, y: 14 }))
-  const cards: unknown[] = []
-  expect(ticks(f, 900, () => { cards.push(...w.fx.filter((x) => x.t === 'card')); w.fx = []; return w.fact('ch1.end') === 1 && !w.scene })).toBe(true)
+  const cards: { text: { en: string } }[] = []
+  expect(ticks(f, 900, () => { cards.push(...(w.fx.filter((x) => x.t === 'card') as unknown as { text: { en: string } }[])); w.fx = []; return w.fact('ch1.end') === 1 && !!w.fact('seen.part_one') && !w.scene })).toBe(true)
   expect(cards.length).toBe(1)
+  expect(cards[0].text.en).toMatch(/^CHAPTER ONE · THE FIRST SEAL[\s\S]*Part Two[\s\S]*the Held Ground/)
+  expect(w.fact('seen.chapter_end') ?? 0).toBeFalsy()
   expect(quest()).toBe(2.9)
+  ticks(f, 20)
+  expect(f.eng.quests.isDone('crown_home')).toBe(true)
+  expect(f.eng.quests.stage('dragon_road')).toBe(0)
+  // Part Two opened (the dev console's): the Dragon Road begins
+  author(f, () => w.setFact(PART_TWO, 1))
+  expect(ticks(f, 60, () => f.eng.quests.stage('dragon_road') === 10)).toBe(true)
 })
 
 req('C2', "Chapter 1's errands: Pell's drawings (four, where the grey man was), Nessa's measure of days (three statues), Fennick's old templar (three of the dead), Joss's ninth nail and Edda's ring (both in the knight's kingdom)", [
@@ -3573,8 +3727,8 @@ req('C2', "Chapter 1's errands: Pell's drawings (four, where the grey man was), 
   for (const type of ['item/misc/ninth_nail', 'item/valuable/band']) {
     const it = Object.values(w.state.entities).find((e) => e.type === type)!
     const at = w.posOf(it)!
-    expect(at.map).toBe('eastroad')
-    stand(f, at.x, at.y + 1, 'up', 'eastroad')
+    expect(at.map).toBe('kingdom')
+    stand(f, at.x, at.y + 1, 'up', 'kingdom')
     run(f, 'take', at.x, at.y)
     expect(c.count(type)).toBe(1)
   }
@@ -3665,7 +3819,7 @@ req('C6', "Chapter 1's gear: worn pieces lie along the whole road to the knight 
   // found along the road: each where the story put it, in its tier
   for (const [zh, map, q] of [
     ['守夜人的斗篷', 'summit', 'fine'], ['猎人的手套', 'foot', 'common'], ['防刺长靴', 'hollow', 'fine'], ['生锈的荆棘骑士团头盔', 'barrow', 'crude'],
-    ['奥多修士的护肩', 'ossuary', 'vowed'], ['玛伦修女的戒指', 'ossuary', 'vowed'], ['跪石旁的朝圣耳环', 'eastroad', 'fine'], ['白骑士扈从的护手', 'eastroad', 'masterwork'],
+    ['奥多修士的护肩', 'ossuary', 'vowed'], ['玛伦修女的戒指', 'ossuary', 'vowed'], ['跪石旁的朝圣耳环', 'kingdom', 'fine'], ['白骑士扈从的护手', 'kingdom', 'masterwork'],
   ] as const) {
     const e = named(zh)
     expect([zh, w.posOf(e!)?.map, tier(e), typeof w.prop(e!, 'slot')]).toEqual([zh, map, q, 'string'])
@@ -3810,7 +3964,7 @@ req('H1',"the Held Ground: once the knight falls, a thorn of his crown is the Oa
 })
 
 req('V1', "Firstlight's vigil (the main line between the rescue and the night of thanks): oil from the cellar under Tam's mill (Millbrook, west), dawnbloom from Dawn Hill (north), the bell rung in the Chapel of the First Dawn on its top; handed in to Ilse, the night may come, and the First Seal is next", [
-  'npc.tam', 'item/material/herb', 'fixture/light/candles', 'fixture/furniture/bench',
+  'npc.tam', 'item/material/herb', 'fixture/light/candles', 'fixture/furniture/bench', 'fixture/sacred/altar/hearth', 'fixture/furniture/pew/old',
 ], () => {
   const f = fresh({ main: 'rescue' })
   const w = W(f)
@@ -3851,9 +4005,11 @@ req('V1', "Firstlight's vigil (the main line between the rescue and the night of
   expect(c.count('item/material/herb')).toBeGreaterThanOrEqual(3)
   through('dawnhill', 'chapel')
   expect(Object.values(w.state.entities).some((e) => e.type === 'fixture/light/candles' && w.posOf(e)?.map === 'chapel')).toBe(true)
-  expect(Object.values(w.state.entities).some((e) => e.type === 'fixture/furniture/bench' && w.posOf(e)?.map === 'chapel')).toBe(true)
+  expect(Object.values(w.state.entities).some((e) => e.type === 'fixture/furniture/pew/old' && w.posOf(e)?.map === 'chapel')).toBe(true)
+  expect(Object.values(w.state.entities).some((e) => e.type === 'fixture/sacred/altar/hearth' && w.posOf(e)?.map === 'chapel')).toBe(true)
   // the bell rope in the tower's corner
-  stand(f, 11, 4, 'up', 'chapel')
+  const [bx, by, , bh] = w.map('chapel')!.regions!.belfry
+  stand(f, bx + 1, by + bh + 1, 'up', 'chapel')
   expect(ticks(f, 60, () => (f.eng.movePlayer('up'), played('chapel_bell')))).toBe(true)
   ticks(f, 900, () => !w.scene)
   // handed in to Ilse: the vigil is kept, the night may come; the First Seal next

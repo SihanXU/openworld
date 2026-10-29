@@ -61,7 +61,7 @@ verdict   = the task's own: the validator, hidden tests, the visible tests
 6. **Verdict and record.** The task's verdict decides the outcome. The episode is recorded
    with the diff, every test run, the tool calls, and per-call time, tokens and cost.
 
-Two starting points (`presets.ts`):
+Two starting points (`outer.ts` `applyPreset`):
 - **naive** — the bare loop: no notes, no hooks, no skills. Every self-improvement run starts
   here.
 - **tuned** — the human reference arm. A start hook finds the files that mention the issue's
@@ -120,19 +120,36 @@ When a request needs a new primitive, condition or expectation, the task is the 
 
 ```
 inner   task → agent → verdict → (world: commit to the shared library)
-middle  episode → lessons, skills (reflect.ts)
+middle  episode → lessons, skills (state.ts reflectAgent)
 outer   evidence → one proposal → replay base vs candidate → keep or reject (outer.ts)
 ```
 
 ### 4.1 Middle: reflection
 
-After every task, the model reads the episode: test runs, failures, tools used, its lessons
-and skills, and similar past tasks. It may then:
-- add, support, revise or drop lessons (each cites its episodes);
-- write or revise a skill with scripts — only once that kind of work has recurred, or to
-  improve a skill it used.
+After every recorded task (a world task, an engine task, a task from the history, an upstream
+proposal; `reflectAfter`, not after a failure that is the backend's), the model reads the episode:
+test runs, failures, tools used, its rules on file, similar past tasks, and what it keeps on this
+kind of task. It writes two places only:
 
-Skills are booked against outcomes and retired when they keep doing worse than average.
+- **Global rules** (the lessons): one sentence that holds for every task of this kind (filed under
+  `task:world` for world tasks, `kind:<kind>` for the others) or for engineering in any repository
+  (`"scope": "general"`, no terms, shown on every task, an SWE instance's too). A rule about a time
+  limit or about answering fast is never general.
+- **This kind of task** (its node): a world request's node is the event kind, the hole, and the
+  host's class and the other role's (the target, else the source), each cut at depth 2 of the type
+  tree (`skillNodeOf`; a terrain is `tile`). Being one depth, no node holds another. A task of
+  another kind is its own node, `kind:<kind>`. A node has one skill at most, named from the node.
+  - With a skill, the reflection rewrites it whole when the task taught something about its kind
+    (at most 40 lines, merged, not appended).
+  - Without one, it keeps what the task taught as a note on the node (`memory/pending.json`).
+  - A node is worth a skill once it has recurred (`reflect.skillMinRecurrence` tasks, 3 by
+    default) and gone wrong (a note on file, or this task sent back or failed). The skill is
+    written then, from the notes and this task, and the notes go.
+
+A batch of clean live episodes (several kinds) writes rules only. A task is shown its node's skill
+whole in a one-call design (which has no `read_skill`), first in an agent's list otherwise; older
+skills without a node are shown by their triggers. Skills are booked against outcomes and retired
+when they keep doing worse than average; nothing is replayed before a skill is kept.
 
 ### 4.2 Outer: the agent improves its own loop
 
@@ -173,9 +190,10 @@ modder-state/
   memory/
     episodes/<id>.json          # task, every test run, tools, recall, calls (time, tokens, cost), diff or patch
     index.jsonl                 # what retrieval reads
-    lessons.json / lessons.md   # rules of thumb, each linked to its episodes
+    lessons.json / lessons.md   # the global rules, each linked to its episodes
+    pending.json                # notes on a kind of task with no skill yet, by node
     replay-sets.json            # the outer loop's fixed selection and confirmation sets
-  skills/<name>/SKILL.md (+ scripts), skills/index.json
+  skills/<name>/SKILL.md (+ scripts), skills/index.json   # one skill a node (its name from the node)
   harness/
     pipeline.json               # agent.* settings, notes; the patch pipeline's live/offline profiles
     hooks/<stage>/<name>.mjs    # code the agent wrote for its own loop
@@ -216,6 +234,25 @@ harness (`SelfState.open(dir, clock, ['memory' | 'skills' | 'harness'])`).
   instances and evaluates the predictions.
 - **Ablations and reference arms:** the naive harness, the tuned harness, and the self-state
   with memory, skills or harness left out.
+
+### The rule bench (`npm run rulebench`)
+
+Whether the reflection helps, in the world's own work: 200 holes of the sweep frozen at a commit
+(`games/openworld/ai/bench/rulebench.json`), 20 kinds of task (nodes, §4.1) of 10 holes each. Every hole is a
+place of its own (no two share a `type|kind|hole`), so none is answered by another's patch: what recurs is the kind,
+never the hole. Two arms work the same holes in the same order, live, each from an empty library and self-state:
+`on` reflects and recalls; `off` has memory and skills left out and does not reflect. A rep shuffles the nodes'
+order. The report gives, per arm and paired hole by hole, how many were accepted and whose first answer held
+(McNemar exact), the calls, the tokens (the design's, and with the reflections'), the time; and each of these by the
+hole's place among its kind (the first of its node … the tenth): with reflection the later ones should be better,
+without it the curve should be flat.
+
+```bash
+npm run rulebench -- build                       # choose and freeze the holes (no model)
+npm run rulebench -- run --arm on --rep 1        # LSW_MODEL_BACKEND=claude-code, or a pinned model
+npm run rulebench -- run --arm off --rep 1
+npm run rulebench -- report
+```
 
 ## 8. Commands
 

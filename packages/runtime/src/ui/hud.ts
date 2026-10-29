@@ -643,7 +643,7 @@ export class Hud {
   private qChoice = 0
   private renderQuestion(f: Frame): void {
     const q = f.question
-    const sig = q ? `${locale.value}|${tx(q.text)}` : ''
+    const sig = q ? `${locale.value}|${tx(q.text)}|${q.sin?.toll ?? ''}` : ''
     if (sig === this.qSig) return
     this.qSig = sig
     this.questionOpen = !!q
@@ -657,6 +657,13 @@ export class Hud {
     $('#dMore').classList.add('hidden')
     clearInterval(this.typer)
     $('#dLine').textContent = tx(q.text)
+    // an act that would weigh on one's conscience says what it would be, and how far it darkens one
+    if (q.sin) {
+      const sin = document.createElement('div')
+      sin.className = 'dsin'
+      sin.textContent = t('sinWarn').replace('{deed}', q.sin.deeds.map(tx).join(locale.value === 'zh' ? '、' : ', ')).replace('{n}', String(q.sin.toll))
+      $('#dLine').append(sin)
+    }
     this.typedAll = true
     this.renderChoices()
     $('#dialog').classList.remove('hidden')
@@ -783,6 +790,8 @@ export class Hud {
         const p = frame?.player
         if (fx.mood && fx.mood !== 'neutral') this.bubble(fx.who, MOOD_GLYPH[fx.mood])
         if (fx.scene) return this.openDialog(fx.who, who ? tx(who.name) : '', text, true, fx.mood)
+        // called out (a companion leading the way): over its head, never a box to close
+        if (fx.aside) return this.bubble(fx.who, text)
         const near = who && p && who.id !== p.id && Math.abs(who.x - p.x) + Math.abs(who.y - p.y) <= 2 && (who.look || who.tags.includes('person'))
         // the one the talk is with answers in the talk's box, wherever they stand; one person telling
         // another is heard in passing (a bubble), however near

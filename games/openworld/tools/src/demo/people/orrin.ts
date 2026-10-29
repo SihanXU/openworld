@@ -26,13 +26,13 @@ export const orrin: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'A kiln is like a sleeping dog. Leave it be, and check it every hour anyway.', '炭窑像一条睡着的狗。别去打扰它，但每个钟头还是要看一眼。'),
-    line('chat', 'Forty years of smoke. My wife said I smelt of autumn. She was being kind.', '四十年的烟。我妻子说我身上是秋天的味道。她是在客气。'),
+    line('chat', 'Once a clamp is sealed you leave it be, but you still get up every hour to look at the smoke. Yellow smoke is good. Black means it wants more earth on it.', '炭窑封上以后就别去动它，可每个钟头还是得起来看一眼烟。冒黄烟是好的，冒黑烟就得往上补土。'),
+    line('chat', "Forty years of charcoal, and the smoke won't wash out of me. When my wife was alive she made me shake my clothes out at the door before I came in.", '烧了四十年炭，身上的烟味是洗不掉了。我老婆在的时候，总要我在门外把衣服抖干净了才准进屋。'),
     line('greeting:first', 'Orrin. I burn charcoal. A clamp takes four days and you sleep next to it or you lose it, so I sleep next to it. You want coal, I have coal.', '我叫奥林，烧炭的。一窑炭要烧四天，不睡在旁边就得废掉，所以我就睡在旁边。你要炭，我这儿有炭。'),
     line('default', 'Gus brings me logs when his back lets him. His back lets him less and less. Mine too.', '格斯腰还行的时候会给我送木头来。他的腰越来越不行了。我的也是。'),
     line('default', 'The birds came the night the bridge went. Every one in the forest, into my oak, and not a note out of them since. I cut a notch for every day. The board is getting full.', '桥没了的那天晚上，鸟就来了。整座林子的鸟，全落在我那棵橡树上，从那以后一声都没叫过。我每天刻一道痕。板子快刻满了。'),
     line('default', 'Boars. They root up the coppice stools and the young shoots never come. Six years of growing, gone in a night.', '野猪。它们把矮林的树桩拱翻，新芽就再也发不出来了。六年的功夫，一夜就没了。'),
-    line('fact:ch1.roost', 'You saw them. Facing east, all of them, like they\'re waiting for something to come down that road. ...I don\'t cut notches for the birds any more. I cut them for whatever they\'re waiting for.', '你看到它们了。全朝着东边，像是在等什么东西从那条路上过来。……我现在刻痕不是为了鸟了。是为了它们等的那个东西。', { mood: 'sad', once: true }),
+    line('fact:ch1.roost', "You saw them too. Every one of them facing east, like they're waiting for something to come down that road. I still cut a notch every day. When the board's full I'll find another.", '你也看见了。它们全都朝着东边，像是在等什么东西从那条路上过来。我还是每天刻一道痕。板子刻满了，我就再找一块。', { mood: 'sad', once: true }),
     line('given', 'For the clamp? Good. It all burns.', '给窑里的？好。什么都能烧。'),
   ],
 }

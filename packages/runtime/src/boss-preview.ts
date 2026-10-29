@@ -1,19 +1,20 @@
 import type { EntitySnap } from '@openworld/engine'
 import { ALBERIC_CLIPS } from './assets/bosses.ts'
-import { albericAttackClip } from './render/boss-animation.ts'
+import { albericAttackClip, albericWalkClip } from './render/boss-animation.ts'
 
 export type BossPreviewMode = 'live' | 'idle' | 'walk' | 'attack' | 'cast' | 'volley' | 'hurt' | 'death'
 
 /** Shared by the visible controls and the snapshot-only animation preview. */
 export function bossPreviewModes(kit: string): { value: BossPreviewMode; label: string }[] {
   if (kit === 'alberic') {
-    const idle = ALBERIC_CLIPS.idle, attack = ALBERIC_CLIPS.attack_down
+    const idle = ALBERIC_CLIPS.idle, walk = ALBERIC_CLIPS.walk_down, attack = ALBERIC_CLIPS.attack_down
     const idleTiming = `${idle.frames} 帧 · ${idle.frame_ms} ms/帧`
+    const walkTiming = `四向 ${walk.frames} 帧 · ${walk.frame_ms} ms/帧`
     const attackTiming = `${attack.frames} 帧 · ${attack.frame_ms} ms/帧`
     return [
       { value: 'live', label: '实战 · 完整循环' },
       { value: 'idle', label: `待机 · ${idleTiming}` },
-      { value: 'walk', label: `移动 · 借用待机 ${idleTiming}` },
+      { value: 'walk', label: `移动 · ${walkTiming}` },
       { value: 'attack', label: `攻击 · ${attackTiming}` },
       { value: 'cast', label: `征服之矢 · 借用攻击 ${attackTiming}` },
       { value: 'volley', label: `白羽箭雨 · 借用攻击 ${attackTiming}` },
@@ -45,7 +46,8 @@ export function previewBoss(entity: EntitySnap | undefined, mode: BossPreviewMod
   const elapsed = Math.max(0, elapsedMs)
   if (boss.kit === 'alberic') {
     const strike = boss.action === 'attack' || boss.action === 'cast'
-    const clip = strike ? ALBERIC_CLIPS[albericAttackClip(entity!.facing)] : ALBERIC_CLIPS.idle
+    const clip = strike ? ALBERIC_CLIPS[albericAttackClip(entity!.facing)]
+      : mode === 'walk' ? ALBERIC_CLIPS[albericWalkClip(entity!.facing)] : ALBERIC_CLIPS.idle
     const duration = clip.frames * clip.frame_ms
     const cycle = mode === 'death' ? Math.min(elapsed, duration) : elapsed % duration
     if (strike && 'hit_frame' in clip) {

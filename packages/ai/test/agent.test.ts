@@ -1,39 +1,15 @@
-import { execSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+// The SWE-style agent (agent/): its environment and tools, the loop, the outer loop, SWE-bench instances and a
+// frozen model; then its machinery under crashes, races and deadlines.
+
+import { execSync, spawnSync } from 'node:child_process'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync, appendFileSync, chmodSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import {
-  CONTAINER_SETUP,
-  HOOK_NODE,
-  IMAGE_INIT,
-  LocalEnv,
-  OpenAICompatModel,
-  PIN_BREACH,
-  ScriptedModel,
-  SelfState,
-  agentTools,
-  applyPreset,
-  better,
-  checkProposal,
-  improve,
-  inside,
-  jsSearch,
-  manifestOf,
-  modelFromEnv,
-  pinFromEnv,
-  recordsOf,
-  repositoryIn,
-  runAgent,
-  runInstances,
-  solve,
-  type AgentTask,
-  type ChatMessage,
-  type Episode,
-  type TaskSource,
-} from '../src/index.ts'
+import { DEFAULT_HARNESS, keepReflection, nodeStand } from '../src/agent/state.ts'
+import { CONTAINER_SETUP, HOOK_NODE, IMAGE_INIT, LocalEnv, OpenAICompatModel, PIN_BREACH, ScriptedModel, SelfState, agentTools, applyPreset, better, checkProposal, improve, AGENT_REFLECT_SYSTEM, nodeSkillName, reflectAfter, reflectAgent, inside, jsSearch, manifestOf, modelFromEnv, pinFromEnv, recordsOf, repositoryIn, runAgent, runInstances, solve, RELATED_CODE_HOOK, TESTS_PASS_HOOK, nodeFiles, sandboxImage, REPO, type AgentTask, type ChatMessage, type Episode, type TaskSource, type Files } from '../src/index.ts'
 
 /** A stand-in for the docker CLI (an image is a directory; exec runs here): the container path without Docker. */
 const FAKE_DOCKER = fileURLToPath(new URL('./fake-docker.mjs', import.meta.url))
@@ -189,6 +165,94 @@ describe('the agent loop', () => {
   })
 })
 
+describe('the middle loop: global rules, and one skill a kind of task', () => {
+  /** The prompt each step of a task was given (the intro, where the rules and skills are). */
+  const intros = (seen: string[], o: { fix?: boolean } = {}) => {
+    const base = engineer(o)
+    return new ScriptedModel((messages, opts) => (seen.push(messages[1].content), base.chat(messages, opts)))
+  }
+  const section = (intro: string, title: string) => intro.split(`# ${title}`)[1].split('\n#')[0]
+
+  it('files a rule under its kind of task, or as general for every task; never one about answering fast', { timeout: 30_000 }, async () => {
+    const state = freshState()
+    const r = await runAgent(task(bugRepo(), { kind: 'world-repo' }), { model: engineer(), state })
+    const reflection = { rules: { add: [{ text: 'Run the whole test suite before submitting, not only the test you changed.', scope: 'general' }, { text: 'A rule writes only its host.', scope: 'kind' }] }, notes: [], skill: null }
+    await reflectAgent(r.episode, { model: new ScriptedModel(() => reflection), state, kindTerm: 'task:world' })
+    expect(state.lessons().map((l) => l.terms)).toEqual([[], ['task:world']])
+    const seen: string[] = []
+    await runAgent(task(bugRepo(), { kind: 'swe' }), { model: intros(seen), state, record: false })
+    const shown = section(seen[0], 'Lessons from your past work')
+    expect(shown).toContain('Run the whole test suite')
+    expect(shown).not.toContain('writes only its host')
+    expect(AGENT_REFLECT_SYSTEM).toMatch(/A rule about a time limit, or about answering fast, is never general/)
+  })
+
+  it('keeps notes on a kind of task until it has recurred and gone wrong, then writes its one skill from them', { timeout: 60_000 }, async () => {
+    const state = freshState()
+    const asked: string[] = []
+    const model = new ScriptedModel((messages) => (asked.push(messages[1].content), { rules: {}, notes: ['add() lives in src/add.mjs.'], skill: { description: 'arithmetic bugs in src', body: '1. Read src/add.mjs.\n2. Fix the operator.\n3. Run the tests.' } }))
+    // a first submission that fails its tests each time: something went wrong to learn from
+    for (let i = 0; i < 3; i++) {
+      const r = await runAgent(task(bugRepo()), { model: engineer({ submitEarly: true }), state })
+      await reflectAgent(r.episode, { model, state })
+      if (i < 2) expect(state.skills()).toEqual([]) // fewer than three of its kind: the note waits on the node
+    }
+    expect(asked[0]).toContain('## This kind of task: kind:mini (1 task(s) so far)')
+    expect(asked[2]).toContain('Write its skill now')
+    expect(asked[2]).toContain('- add() lives in src/add.mjs.')
+    expect(state.skills().map((s) => [s.name, s.node, s.triggers])).toEqual([[nodeSkillName('kind:mini'), 'kind:mini', []]])
+    expect(state.pendingAt('kind:mini')).toEqual([])
+    // its own kind of task lists it first; another kind does not see it
+    const mine: string[] = []
+    await runAgent(task(bugRepo()), { model: intros(mine), state, record: false })
+    expect(section(mine[0], 'Your skills (read_skill)')).toContain(`${nodeSkillName('kind:mini')} (this kind of task's own: read it first)`)
+    const swe: string[] = []
+    await runAgent(task(bugRepo(), { kind: 'swe' }), { model: intros(swe), state, record: false })
+    expect(section(swe[0], 'Your skills (read_skill)')).not.toContain(nodeSkillName('kind:mini'))
+  })
+
+  it('lists a general skill on every task, and an older skill by its triggers', () => {
+    const state = freshState()
+    state.writeSkill({ name: 'item-on-ground', description: 'a portable item used on a ground tile', triggers: ['kind:act/use', 'target#ground'], body: '1. lay it down' }, 'E1')
+    state.writeSkill({ name: 'bisect-a-failure', description: 'narrow a failing test to the change that broke it', triggers: [], body: '1. git bisect' }, 'E2')
+    state.writeSkill({ name: nodeSkillName('kind:engine'), node: 'kind:engine', description: 'engine tasks', triggers: [], body: '1. types first' }, 'E3')
+    expect(state.relevantSkills(['kind:swe'], 'kind:swe').map((s) => s.name)).toEqual(['bisect-a-failure'])
+    expect(state.relevantSkills(['kind:act/use', 'target#ground'], 'x').map((s) => s.name)).toEqual(['item-on-ground', 'bisect-a-failure'])
+    expect(state.relevantSkills(['kind:engine'], 'kind:engine').map((s) => s.name)).toEqual(['bisect-a-failure', nodeSkillName('kind:engine')])
+    expect(nodeSkillName('impulse/strike|core/strike|fixture/furniture|actor/person')).not.toBe(nodeSkillName('impulse/strike|core/strike|fixture/furniture|actor/creature'))
+  })
+
+  it("a node's skill written again after it was retired is judged afresh; a reflection read before another wrote the skill keeps none", () => {
+    const state = freshState()
+    const node = 'kind:mini'
+    const name = nodeSkillName(node)
+    state.writeSkill({ name, node, description: 'd', triggers: [], body: '1. old' }, 'E1')
+    for (let i = 0; i < 8; i++) state.noteSkillUse([name], 'failed', `F${i}`)
+    expect(state.skill(name)?.status).toBe('retired')
+    // two reflections on the node, both read while it had no skill
+    const h = { ...DEFAULT_HARNESS, reflect: { ...DEFAULT_HARNESS.reflect, skillMinRecurrence: 0 } }
+    const a = nodeStand(state, node, h, true), b = nodeStand(state, node, h, true)
+    const reply = (body: string) => JSON.stringify({ rules: { add: 'not a list' }, skill: { description: 'd', body } })
+    expect(keepReflection(state, reply('1. new'), { cited: 'E9', kindTerm: node, stand: a }).skill).toBe(name)
+    expect(state.skill(name)).toMatchObject({ status: 'active', uses: 0, accepted: 0, failed: 0 })
+    // the second, read before the first wrote, does not write over it
+    expect(keepReflection(state, reply('1. stale'), { cited: 'E10', kindTerm: node, stand: b }).skill).toBeUndefined()
+    expect(state.readSkill(name)).toContain('1. new')
+  })
+
+  it('reflects after a recorded task, unless the backend failed it', async () => {
+    const state = freshState()
+    let asked = 0
+    const model = new ScriptedModel(() => (asked++, { rules: { add: [{ text: 'Read the failing assertion first.', scope: 'general' }] }, notes: [], skill: null }))
+    const r = await runAgent(task(bugRepo()), { model: engineer(), state })
+    await reflectAfter({ ...r.episode, outcome: 'failed', error: 'HTTP 429: rate limit' }, { model, state })
+    expect(asked).toBe(0)
+    await reflectAfter(r.episode, { model, state })
+    expect(asked).toBe(1)
+    expect(state.lessons().map((l) => l.text)).toEqual(['Read the failing assertion first.'])
+  })
+})
+
 describe('the outer loop', () => {
   const source: TaskSource = { kinds: ['mini'], replay: async () => task(bugRepo()) }
 
@@ -200,7 +264,7 @@ describe('the outer loop', () => {
 
   it('keeps a hook that removes wasted steps, after selection and confirmation', { timeout: 120_000 }, async () => {
     const state = await withHistory(4)
-    const { RELATED_CODE_HOOK } = await import('../src/agent/presets.ts')
+    const { RELATED_CODE_HOOK } = await import('../src/agent/outer.ts')
     const proposal = { kind: 'hook', stage: 'start', name: 'related-code', code: RELATED_CODE_HOOK, rationale: 'every task starts with three list_dir calls' }
     const work = engineer({ wander: 3, latencyMs: 300 })
     const model = new ScriptedModel((messages, opts) => (opts.purpose === 'propose' ? proposal : work.chat(messages, opts)))
@@ -410,3 +474,158 @@ describe('a frozen model', () => {
 
 // keep the Episode type in use for readers of this file
 export type { Episode }
+
+// The agent's machinery under crashes, races and deadlines: a command stops at its deadline with everything it
+// started; a torn line in a JSON-lines file costs only itself; forks go when they are done; instances of one
+// repository share one clone; the outer loop's bounds reject what they promise to, without a crash; a failed
+// look for the sandbox image is asked again.
+
+const TSX = join(REPO, 'node_modules/tsx/dist/cli.mjs')
+
+/** Files on disk that remember every temp directory made through them. */
+function trackedFiles(): { files: Files; made: string[] } {
+  const made: string[] = []
+  return { made, files: { ...nodeFiles, tempDir: (p) => (made.push(nodeFiles.tempDir(p)), made.at(-1)!) } }
+}
+const submitter = () => new ScriptedModel((m: ChatMessage[]) => ({ content: '', toolCalls: [{ id: `s${m.length}`, name: 'submit', args: { summary: 'x' } }] }))
+const alive = (pid: number) => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+describe('a command at its deadline', () => {
+  it('stops with everything it started, though a child holds its output; ordinary commands, input and exit as before', { timeout: 60_000 }, async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lsw-durable-env-'))
+    const env = new LocalEnv(dir)
+    // a command, its own process group: output, exit code and input as they were
+    expect(await env.exec('echo out; echo err >&2; exit 3')).toMatchObject({ code: 3, stdout: 'out\n', stderr: 'err\n', timedOut: false })
+    expect((await env.exec('cat', { input: 'from stdin' })).stdout).toBe('from stdin')
+    // a process that ran one ends when it is done (nothing detached keeps it alive)
+    const script = join(mkdtempSync(join(tmpdir(), 'lsw-durable-exit-')), 'exit.mts')
+    writeFileSync(script, `import { LocalEnv } from ${JSON.stringify(join(REPO, 'packages/ai/src/agent/env.ts'))}\nconsole.log((await new LocalEnv(process.cwd()).exec('echo done')).stdout.trim())\n`)
+    const p = spawnSync(process.execPath, [TSX, script], { encoding: 'utf8', timeout: 30_000 })
+    expect([p.status, p.stdout.trim()]).toEqual([0, 'done'])
+    // the deadline: the shell and the child it left behind both go, at the deadline
+    const t0 = Date.now()
+    const r = await env.exec('sleep 30 & echo $! > child.pid; wait', { timeoutMs: 500 })
+    expect(r.timedOut).toBe(true)
+    expect(Date.now() - t0).toBeLessThan(3000)
+    const child = Number(readFileSync(join(dir, 'child.pid'), 'utf8'))
+    await new Promise((res) => setTimeout(res, 200))
+    expect(alive(child)).toBe(false)
+  })
+})
+
+describe('a line torn by a crash', () => {
+  const episode = (id: string): Episode => ({ id, at: new Date().toISOString(), summary: 's', request: {}, key: 'k', terms: [], outcome: 'accepted', attempts: [], tools: [], rules: [], shown: { lessons: [], episodes: [], skills: [] }, skillsRead: [], harness: 1, usage: { calls: 1, input: 0, output: 0 }, ms: 1 })
+
+  it('costs only itself in the episode index and the journal: the next record is kept', () => {
+    const dir = freshState().dir
+    appendFileSync(join(dir, 'memory/index.jsonl'), '{"id":"ep-torn","at":"2026') // killed mid-append: no newline
+    appendFileSync(join(dir, 'journal.jsonl'), '{"at":"2026","kind":"proposal","acc')
+    const state = SelfState.open(dir)
+    state.recordEpisode(episode('ep-next'))
+    state.note('proposal', { accepted: false })
+    const again = SelfState.open(dir)
+    expect(again.episodes().map((e) => e.id)).toEqual(['ep-next'])
+    expect(again.journalOf('proposal')).toMatchObject([{ accepted: false }])
+  })
+
+  it('in predictions.jsonl: the run resumes, works the torn instance again, and its new line is whole', { timeout: 60_000 }, async () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'lsw-durable-swe-'))
+    const repo = bugRepo()
+    const base = execSync('git rev-parse HEAD', { cwd: repo, encoding: 'utf8' }).trim()
+    const items = [1, 2].map((n) => ({ instance_id: `local__add-${n}`, repo, base_commit: base, problem_statement: 'x' }))
+    const out = join(tmp, 'preds.jsonl')
+    const o = { model: submitter(), state: freshState(), cache: join(tmp, 'cache'), work: join(tmp, 'work'), out, manifest: { m: 1 } }
+    await runInstances(items.slice(0, 1), o)
+    appendFileSync(out, '{"instance_id":"local__add-2","model_name_or_path":"x","model_patch":"diff --git') // killed mid-append
+    expect(await runInstances(items, { ...o, resume: true })).toMatchObject({ done: 1, skipped: 1, failed: 0 })
+    const whole = readFileSync(out, 'utf8').split('\n').filter((l) => l.startsWith('{') && l.endsWith('}'))
+    expect(whole.map((l) => JSON.parse(l).instance_id)).toEqual(['local__add-1', 'local__add-2'])
+  })
+})
+
+describe('forks', () => {
+  it('the outer loop removes the forks its trial made', async () => {
+    const { files, made } = trackedFiles()
+    const state = SelfState.open(mkdtempSync(join(tmpdir(), 'lsw-durable-state-')), undefined, [], files)
+    const model = new ScriptedModel(() => ({ kind: 'note', text: 'Read the tests first.', rationale: 'r' }))
+    const source: TaskSource = { kinds: ['mini'], replay: async () => undefined }
+    await improve({ model, state, sources: [source], select: 1, confirm: 1 })
+    expect(made.length).toBe(2)
+    expect(made.filter((d) => existsSync(d))).toEqual([])
+    expect(existsSync(state.dir)).toBe(true) // the state itself is no fork: dispose keeps it
+    state.dispose()
+    expect(existsSync(state.dir)).toBe(true)
+  })
+
+  it('a SWE instance removes the fork it worked with', { timeout: 60_000 }, async () => {
+    const { files, made } = trackedFiles()
+    const tmp = mkdtempSync(join(tmpdir(), 'lsw-durable-swe-'))
+    const repo = bugRepo()
+    const base = execSync('git rev-parse HEAD', { cwd: repo, encoding: 'utf8' }).trim()
+    const state = SelfState.open(mkdtempSync(join(tmpdir(), 'lsw-durable-state-')), undefined, [], files)
+    await solve({ instance_id: 'local__add-1', repo, base_commit: base, problem_statement: 'x' }, { model: submitter(), state, cache: join(tmp, 'cache'), work: join(tmp, 'work') })
+    expect(made.length).toBe(1)
+    expect(made.filter((d) => existsSync(d))).toEqual([])
+  })
+})
+
+describe('instances of one repository at once', () => {
+  it('share one clone of its mirror instead of racing to make it', { timeout: 120_000 }, async () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'lsw-durable-swe-'))
+    const repo = bugRepo()
+    const base = execSync('git rev-parse HEAD', { cwd: repo, encoding: 'utf8' }).trim()
+    const items = [1, 2, 3].map((n) => ({ instance_id: `local__add-${n}`, repo, base_commit: base, problem_statement: 'x' }))
+    const out = join(tmp, 'preds.jsonl')
+    const r = await runInstances(items, { model: submitter(), state: freshState(), cache: join(tmp, 'cache'), work: join(tmp, 'work'), out, workers: 3, manifest: { m: 1 } })
+    expect(r).toMatchObject({ done: 3, failed: 0 })
+  })
+})
+
+describe("the outer loop's bounds", () => {
+  it('reject a skill without a description or triggers, recorded as a rejected proposal, not a crash', async () => {
+    const state = freshState()
+    expect(checkProposal({ kind: 'skill', skill: { name: 'x', body: 'do it', triggers: [] } as never, rationale: '' }, state)).toMatch(/description/)
+    const model = new ScriptedModel(() => ({ kind: 'skill', skill: { name: 'x', body: 'do it', triggers: [] }, rationale: 'r' }))
+    const source: TaskSource = { kinds: ['mini'], replay: async () => undefined }
+    const r = await improve({ model, state, sources: [source], select: 1, confirm: 1 })
+    expect(r).toMatchObject({ accepted: false, reason: expect.stringMatching(/description/) })
+    expect(state.journalOf('proposal')).toHaveLength(1)
+  })
+
+  it('keep hooks off the network by the ordinary ways to reach it, and pass the hooks the presets ship', () => {
+    const state = freshState()
+    const hook = (code: string) => checkProposal({ kind: 'hook', stage: 'start', name: 'x', code, rationale: '' }, state)
+    for (const code of [
+      "import http from 'http'\nhttp.get('http://example.com/x')",
+      "import { connect } from 'node:tls'",
+      "const net = require('net')",
+      "import dgram from 'dgram'",
+      "const h = await import('node:' + 'https'); h.get('https://example.com/x')",
+      "import { execSync } from 'node:child_process'\nexecSync('curl https://example.com/x')",
+      "import { execFileSync } from 'node:child_process'\nexecFileSync('wget', ['https://example.com/x'])",
+    ])
+      expect(hook(code)).toMatch(/network/)
+    expect(hook(RELATED_CODE_HOOK)).toBeUndefined()
+    expect(hook(TESTS_PASS_HOOK)).toBeUndefined()
+    expect(hook("import { readFileSync } from 'node:fs'\nconst local = await import('./helper.mjs')")).toBeUndefined()
+  })
+})
+
+describe('the sandbox image', () => {
+  it('is looked for again after a failure (the daemon restarting), not refused for the life of the process', async () => {
+    delete process.env.LSW_SANDBOX_IMAGE
+    const bin = mkdtempSync(join(tmpdir(), 'lsw-durable-docker-'))
+    await expect(sandboxImage(join(bin, 'no-docker-here'))).rejects.toThrow(/could not build/)
+    const docker = join(bin, 'docker')
+    writeFileSync(docker, '#!/bin/sh\nexit 0\n') // the daemon is back: the image is there
+    chmodSync(docker, 0o755)
+    await expect(sandboxImage(docker)).resolves.toBe('lsw-sandbox')
+  })
+})

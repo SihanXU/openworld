@@ -29,8 +29,9 @@ function fileOf(from: string, spec: string): string | undefined {
 }
 
 describe('what runs in a browser imports no Node (docs/byok.md)', () => {
-  it('all browser entry files exist', () => {
-    expect(IN_A_BROWSER.filter((f) => !existsSync(join(ROOT, f)))).toEqual([])
+  it('all browser entry files exist (the AI\'s only while the AI is in the tree: the game plays without it)', () => {
+    const ai = existsSync(join(ROOT, 'packages', 'ai'))
+    expect(IN_A_BROWSER.filter((f) => (ai || !f.startsWith('packages/ai/')) && !existsSync(join(ROOT, f)))).toEqual([])
   })
 
   it('the player\'s own modder and its settings reach no Node module', () => {

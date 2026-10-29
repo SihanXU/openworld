@@ -8,8 +8,8 @@ import { join } from 'node:path'
 import type { Env } from './env.ts'
 import { Meter, type ChatMessage, type Model } from '../models/model.ts'
 import type { Episode, Harness, HookStage, SelfState } from './state.ts'
-import { agentTools, type AgentTool } from './tools.ts'
-import { clip, wordsOf } from '../util.ts'
+import { agentTools } from './tools.ts'
+import { clip, clipJson, wordsOf } from '../util.ts'
 
 export interface AgentTask {
   id: string
@@ -24,6 +24,8 @@ export interface AgentTask {
   verdict?: (env: Env) => Promise<{ ok: boolean; output: string }>
   /** retrieval terms; default: the words of the statement */
   terms?: string[]
+  /** the kind of task it is, for its skill (one skill a node); default `kind:<kind>` */
+  node?: string
   /** recorded with the episode (what a replay needs to rebuild the task) */
   request?: unknown
   /** notes about this family of tasks, shown after the statement */
@@ -65,13 +67,13 @@ Call submit only when the task is solved and the tests you can run pass. You hav
 const NUDGE = 'Continue with your tools; call submit when the task is done.'
 
 /** Write the agent's own material into the workspace: the issue, its skills, its hooks. */
-function prepare(task: AgentTask, state: SelfState, h: Harness): string[] {
+function prepare(task: AgentTask, state: SelfState, h: Harness, terms: string[], node: string): string[] {
   const root = task.env.root
   const dir = join(root, '.agent')
   rmSync(dir, { recursive: true, force: true })
   mkdirSync(join(dir, 'skills'), { recursive: true })
   writeFileSync(join(dir, 'ISSUE.md'), task.statement)
-  const skills = state.skills().map((s) => s.name)
+  const skills = state.relevantSkills(terms, node).map((s) => s.name)
   for (const name of skills) {
     mkdirSync(join(dir, 'skills', name), { recursive: true })
     for (const [f, body] of Object.entries(state.skillFiles(name))) writeFileSync(join(dir, 'skills', name, f), body)
@@ -124,6 +126,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
     request: task.request ?? { id: task.id, statement: task.statement },
     key: `${task.kind}|${task.id}`,
     terms,
+    node: task.node ?? `kind:${task.kind}`,
     outcome: 'failed',
     attempts: [],
     tools: [],
@@ -135,14 +138,14 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
     usage: { calls: 0, input: 0, output: 0 },
     ms: 0,
   }
-  const skills = prepare(task, state, h)
+  const skills = prepare(task, state, h, terms, ep.node!)
   const lessons = state.relevantLessons(terms, cfg.recall.lessons)
   const similar = state.similarEpisodes(terms, cfg.recall.episodes, ep.id)
   ep.shown = { lessons: lessons.map((l) => l.id), episodes: similar.map((e) => e.id), skills }
 
   const started = await hooks(task, h, 'start')
   let submitted = false
-  const tools: AgentTool[] = agentTools(task.env, {
+  const tools = agentTools(task.env, {
     localRun: task.localRun,
     testCommand: task.tests?.command,
     testTimeoutMs: task.tests?.timeoutMs,
@@ -166,7 +169,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
     ...(task.tests ? ['', `Tests: \`${task.tests.command}\` (run_tests).`] : []),
     '',
     '# Your skills (read_skill)',
-    ...(skills.length ? state.skills().map((s) => `- ${s.name}: ${s.description}`) : ['(none yet)']),
+    ...(skills.length ? state.relevantSkills(terms, ep.node).map((s) => `- ${s.name}${s.node === ep.node ? ' (this kind of task\'s own: read it first)' : ''}: ${s.description}`) : ['(none yet)']),
     '',
     '# Lessons from your past work',
     ...(lessons.length ? lessons.map((l) => `- ${l.text}`) : ['(none yet)']),
@@ -213,7 +216,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
         } catch (err) {
           out = `error: ${(err as Error).message}`
         }
-        ep.tools.push({ name: c.name, args: compactArgs(c.args), ms: Date.now() - t1 })
+        ep.tools.push({ name: c.name, args: clipJson(c.args, 600), ms: Date.now() - t1 })
         messages.push({ role: 'tool', toolCallId: c.id, name: c.name, content: clip(out, cfg.maxToolOutput) })
         if (submitted) break
       }
@@ -237,7 +240,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
   if (submitted && verdict && !verdict.ok) ep.attempts.push({ phase: 'repair', errors: [`verdict: ${clip(verdict.output, 1500)}`], warnings: [] })
   const diff = existsSync(join(task.env.root, '.git')) ? await gitDiff(task.env) : undefined
   if (diff !== undefined) ep.patch = diff
-  ep.usage = { calls: model.calls, input: model.input, output: model.output, cost: model.cost }
+  ep.usage = model.usage
   ep.calls = model.log
   ep.ms = Date.now() - t0
   if (o.record !== false) {
@@ -257,11 +260,6 @@ export async function gitDiff(env: Env): Promise<string> {
   // against where the workspace began: what the agent changed, committed or not
   const r = await env.exec(`git -c core.autocrlf=false diff --no-color $(git rev-parse -q --verify ${BASE_REF} || true)`, { timeoutMs: 60_000 })
   return r.stdout
-}
-
-function compactArgs(x: unknown): unknown {
-  const s = JSON.stringify(x ?? {})
-  return s.length > 600 ? `${s.slice(0, 600)}…` : x
 }
 
 /** Keep the conversation bounded: old tool results are cut first. */

@@ -24,14 +24,14 @@ export const marta: PersonDef = {
   },
   lines: [
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
-    line('chat', 'Salt last, never first. Half the cooks in the world have it backwards.', '盐最后放，别一开始就放。世上一半的厨子都弄反了。'),
-    line('chat', 'Mia eats the crust and leaves the middle. Her father did the same. I never told her that.', '米娅只吃面包皮，不吃芯。她爸爸也这样。我从没告诉过她。'),
+    line('chat', 'Salt goes in last. Put it in at the start and the beans never go soft, however long you cook them.', '盐要最后放。一开始就放的话，豆子怎么煮都煮不烂。'),
+    line('chat', 'Mia eats the crust and leaves the middle. Her father used to do the same. I never told her that.', '米娅吃面包只吃皮，把芯剩下。她爹以前也是这样。这个我没跟她说过。'),
     // the news the story spreads (its topics), said once while fresh
-    line('topic:dragon_slain', "A dragon! And you still come back for my stew. Sit. You have earned a second bowl.", "一条龙！你倒还记得回来喝我的汤。坐吧，你配得上第二碗。"),
-    line('topic:crossed', "Across the river already? Eat first. The far bank has no kitchens.", "已经过河了？先吃饭。对岸可没有厨房。"),
-    line('topic:flame_stolen', "The Firstlight is gone and the hearths still burn. Somehow that is worse.", "初火没了，家家的灶火却还在烧。不知怎的，这更叫人难受。"),
-    line('default', 'A pot with nothing in it is just a hat for the fire.', '锅里没东西，就只是给火戴的帽子。'),
+    line('topic:dragon_slain', "You killed a dragon, and you still come back for my stew! Sit down. Today you get two bowls.", '杀了一条龙，还记得回来喝我的汤！坐，今天给你盛两碗。'),
+    line('topic:crossed', "You've been across the river already? Eat first, then. Nobody over there will cook for you.", '你已经过了河了？那先吃饭。对岸可没人给你做饭。'),
+    line('topic:flame_stolen', "The Firstlight's gone. I still lit my fire this morning and cooked like always, but I've felt uneasy all day.", '圣火没了。我早上照样生火做饭，可这一整天心里都不踏实。'),
+    line('default', "Since the storm nothing's come in from the fields or up the road. The stew gets thinner every day.", '起了风暴以后，地里的东西收不上来，路上的货也进不来。我这锅汤一天比一天稀。'),
     line('hour:evening', "Sit, eat. It isn't much, but it's hot.", '坐下吃吧。东西不多，但是热乎。'),
-    line('default', 'Pell and his grey man. Stories, stories. He got that from his father, who went east and did not write.', '佩尔和他的灰衣人。故事，全是故事。他这毛病是跟他爹学的——他爹往东去了，再没来过信。'),
+    line('default', 'Pell and his grey man again. Stories all day long. He gets that from his father, who went east and never wrote.', '佩尔又在说他那个灰衣人，整天编故事。这毛病随他爹——他爹往东去了，一封信也没寄回来过。'),
   ],
 }

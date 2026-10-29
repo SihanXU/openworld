@@ -105,8 +105,8 @@ export const STRINGS: Record<string, [string, string]> = {
   'slot:feet': ['Feet', '脚'],
   'slot:arm': ['Off hand', '副手'],
   invHelp: [
-    'Click to pick up, again to swap · Shift+click: toolbar ↔ bag · {key:row}: next row to the toolbar · pick up something wearable and click its slot on the left to put it on (or right click), click a worn piece to take it off · right click: use or put the held thing on it, or use it',
-    '点击拿起、再点击交换 · Shift+点击：快捷栏↔背包 · {key:row}：换一行到快捷栏 · 拿起装备点左边的装备栏穿上（右键也可以），点装备栏卸下 · 右键：对它用手上的东西、放进去、空手摆弄',
+    'Click to pick up a whole stack, then click to place or swap · right click: use, equip or drop menu · Shift+right click: pick up half (rounded up) · Shift+click: toolbar ↔ bag · {key:row}: next row to the toolbar · click a worn piece to take it off',
+    '左键拿起整堆，再点放置或交换 · 右键打开使用、装备或丢弃菜单 · Shift+右键拿起一半（向上取整） · Shift+左键：快捷栏↔背包 · {key:row}：换一行到快捷栏 · 点击已装备物品可卸下',
   ],
   // the tooltip: a creature's own piece (its kind's `trophy`), and whose
   tipTrophy: ['Trophy', '战利品'],
@@ -158,7 +158,7 @@ export const STRINGS: Record<string, [string, string]> = {
   cvConfirmOverwrite: ['Slot {n} already holds a game. Replace it?', '存档 {n} 已经有进度了，要覆盖吗？'],
   cvConfirmDelete: ['Delete slot {n}? This cannot be undone (unless you exported it).', '删除存档 {n}？删除后无法恢复（除非你导出过）。'],
   cvBadFile: ['That file is not an OpenWorld save.', '这个文件不是 OpenWorld 的存档。'],
-  cvIncompatible: ['That save is from another version of the world: a new game began in its slot.', '这个存档来自另一个版本的世界，已在该存档位开始新游戏。'],
+  cvIncompatible: ['That save is from another version of the world. It was kept: export it, or start a new game in another slot.', '这个存档来自另一个版本的世界。它已被保留：可以导出它，或在别的存档位开始新游戏。'],
   cvNote: ['Saves live in this browser (it autosaves as you play). Export one to keep it as a file, or to carry it to another browser.', '存档保存在这个浏览器里（游戏中会自动保存）。导出可以存成文件，或带到别的浏览器。'],
   skillNoProfession: ['No profession yet: a trainer sets you on one once you are ready.', '还没有职业：时候到了，会有导师为你指点。'],
   boonTitle: ['The Companion\'s Powers', '同伴的力量'],
@@ -199,6 +199,7 @@ export const STRINGS: Record<string, [string, string]> = {
   qBoardEmpty: ['Nobody wants anything done just now. Come back later.', '眼下没人有事相托。过些时候再来看看。'],
   qTake: ['Take it on', '接下'],
   optMarkers: ['Quest markers (map and screen edge)', '任务标记（地图和屏幕边缘）'],
+  optGuide: ['Companion shows the way when you stand still', '站着不动时同伴带路'],
   optFilter: ['World filter', '画面滤镜'],
   filterOff: ['Off', '关'],
   filterLight: ['Light', '轻'],
@@ -316,6 +317,8 @@ export const STRINGS: Record<string, [string, string]> = {
   empty: ['empty', '空'],
   yes: ['Yes', '是'],
   no: ['No', '否'],
+  // under a question whose act would weigh on one's conscience: what it would be, and how far it darkens one
+  sinWarn: ['This would be {deed}: evil +{n}.', '这是{deed}：恶 +{n}。'],
   health: ['Health', '生命'],
   hunger: ['Hunger', '饱食度'],
   day: ['Day', '第'],
@@ -375,14 +378,14 @@ export const STRINGS: Record<string, [string, string]> = {
 
 /** The player's view preferences (docs/quests.md §2.5): kept in this browser, read with care (it may be blocked). */
 export const prefs = {
-  get(k: 'markers' | 'tracker'): boolean {
+  get(k: 'markers' | 'tracker' | 'guide'): boolean {
     try {
       return localStorage.getItem(`lsw.${k}`) !== 'off'
     } catch {
       return true
     }
   },
-  set(k: 'markers' | 'tracker', on: boolean): void {
+  set(k: 'markers' | 'tracker' | 'guide', on: boolean): void {
     try {
       localStorage.setItem(`lsw.${k}`, on ? 'on' : 'off')
     } catch {

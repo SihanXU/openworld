@@ -13,6 +13,7 @@ import { QUEST_RULES } from './quest.ts'
 import { BOSS_RULES } from './bosses.ts'
 import { CH1_RULES } from './chapter1.ts'
 import { HAVEN_RULES } from './haven.ts'
+import { BOSS_ROOM_RULES } from './bossrooms.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 
@@ -83,14 +84,14 @@ const FORD_RULES: Rule[] = [
         then: {
           do: [
             { op: 'vfx', fx: 'dust' },
-            log('The dead tree groans, leans… and falls with a crash.', '枯树呻吟着，倾斜……轰然倒下。'),
+            log('The dead tree creaks, leans, and comes down with a crash.', '枯树嘎吱作响，慢慢歪向一边，轰的一声倒了下去。'),
             { op: 'emit', impulse: 'receive', to: { line: { from: 'host', away: 'actor', length: 8, over: ['water'] } }, params: { what: 'trunk' } },
             notify('tree'),
             // what stands is its stump
             { op: 'transform', into: 'tile/stump' },
           ],
         },
-        else: { do: [{ op: 'addProp', key: 'cuts', delta: 1 }, { op: 'vfx', fx: 'dust' }, log('The axe bites into the dead wood. It creaks.', '斧头砍进了枯木。它嘎吱作响。')] },
+        else: { do: [{ op: 'addProp', key: 'cuts', delta: 1 }, { op: 'vfx', fx: 'dust' }, log('The axe bites into the dead wood. The trunk creaks.', '斧头砍进枯木，树身嘎吱响了一声。')] },
       },
     },
   }),
@@ -108,7 +109,7 @@ const FORD_RULES: Rule[] = [
           { op: 'emit', impulse: 'taken', to: 'item', params: { into: 'contents' }, other: 'host' },
           notify('charm'),
           { op: 'emit', impulse: 'notify', to: { named: 'tobin.wand' }, params: { what: 'yours' } },
-          say('Bless you. The wand on my cart — the blue one — it is yours. Frost from the tip, if you point it right.', '谢天谢地。我车上那根魔杖——蓝的那根——归你了。指准了，杖尖会冒寒气。'),
+          say("Bless you, friend. The wand on my cart, the blue one, it's yours. Point it right and frost comes off the tip.", '谢天谢地，朋友。我车上那根魔杖，蓝的那根，归你了。指准了，杖尖就会冒出寒气来。'),
           { op: 'emote', mood: 'happy' },
         ],
       },
@@ -122,7 +123,7 @@ const FORD_RULES: Rule[] = [
     on: 'seen',
     tree: {
       if: { all: [{ param: { key: 'act', cmp: 'take' } }, { param: { key: 'owner', cmp: 'mine' } }, is('target', { type: WAND }), fact('ford.charm', 1)] },
-      then: { do: [say('That one is yours now. Mind the cold: it bites the hand that holds it.', '那根现在是你的了。小心寒气，它咬拿着它的手。'), { op: 'emit', impulse: 'notify', to: 'target', params: { what: 'yours' } }] },
+      then: { do: [say("That one's yours now. Mind the cold, though. It gets into the hand that holds it.", '那根现在是你的了。不过小心点，那股寒气连握着它的手都会冻着。'), { op: 'emit', impulse: 'notify', to: 'target', params: { what: 'yours' } }] },
       else: 'inherit',
     },
   }),
@@ -156,7 +157,7 @@ const FORD_RULES: Rule[] = [
 ]
 
 /** The story's rules: the Ford's, then the main quest's (quest.ts). */
-export const STORY_RULES: Rule[] = [...FORD_RULES, ...QUEST_RULES, ...BOSS_RULES, ...CH1_RULES, ...PILGRIMAGE_RULES, ...HAVEN_RULES]
+export const STORY_RULES: Rule[] = [...FORD_RULES, ...QUEST_RULES, ...BOSS_RULES, ...CH1_RULES, ...PILGRIMAGE_RULES, ...HAVEN_RULES, ...BOSS_ROOM_RULES]
 
 const RIVER_CROSSED: Effect = { op: 'scene', id: 'ferry' }
 /** The story speaks through the person the content belongs to. */
@@ -179,7 +180,7 @@ export const INVARIANTS: Invariant[] = [
     holds: { exists: { type: ROPE } },
     fallback: [
       { op: 'spawn', type: ROPE, at: 'tileOf:target' },
-      sayAs( 'That was my last good rope. … No — there is the old one off the raft. Frayed, but it will splice.', '那是我最后一根好绳子。……不对——筏子上还拆下来一根旧的。磨毛了，但还能接。'),
+      sayAs("That was my last good rope. ...No, wait. There's the old one off the raft. It's frayed, but it'll splice.", '那是我最后一根好绳子。……不对，筏子上还拆下来一根旧的。磨毛了，接一接还能用。'),
     ],
   },
   {
@@ -199,6 +200,6 @@ export const INVARIANTS: Invariant[] = [
         { prop: { role: 'story', key: 'ford.tree', cmp: 1, default: 0 } },
       ],
     },
-    fallback: [sayAs('The water is dropping. Come, I will take you over on the raft myself, line or no line.', '水在退了。来，不管有没有渡绳，我亲自撑筏送你过去。'), RIVER_CROSSED],
+    fallback: [sayAs("The water's going down. Come on, I'll pole you over on the raft myself, line or no line.", '水退下去了。来吧，有没有渡绳都一样，我自己撑筏子送你过去。'), RIVER_CROSSED],
   },
 ]

@@ -200,6 +200,8 @@ class Conversions {
     const o = empty()
     const usedUp = ctx.broken || fx.some((e) => e.op === 'destroy' || e.op === 'transform' || e.op === 'breakdown')
     if (usedUp) add(o.takes, ctx.host, 1)
+    // an input is counted: the host used up, a link of a chain, or a spawn
+    const counted = usedUp || stack.length > 0 || fx.some((e) => e.op === 'spawn')
     let out = [o]
     for (const e of fx) {
       if (e.op === 'transform' || e.op === 'spawn') {
@@ -219,8 +221,8 @@ class Conversions {
           continue
         }
         // Pure emissions have no input here; durable receivers' breaks are separate steps.
-        if (!usedUp && !stack.length && !fx.some((e) => e.op === 'spawn')) {
-          if (!stack.length && this.rules.some((r) => isPatch(r) && path.startsWith(`rule ${r.id}`))) this.warn(path, 'emitted outcomes without a statically counted input')
+        if (!counted) {
+          if (this.rules.some((r) => isPatch(r) && path.startsWith(`rule ${r.id}`))) this.warn(path, 'emitted outcomes without a statically counted input')
           continue
         }
         const sel = typeof e.to === 'string' ? ctx.roles[e.to as Reader] ?? (e.to === 'story' || e.to === 'world' ? { type: `resident/${e.to}` } : undefined) : undefined
@@ -237,7 +239,9 @@ class Conversions {
         if (!receivers.length) this.warn(path, 'an emitted class with no statically matching type')
         const choices = this.unique(receivers.flatMap((host) => this.resolve(`impulse/${e.impulse}`, { host, roles: { host: { ...sel, type: host }, source: ctx.roles.host, actor: ctx.roles.actor, instrument: ctx.roles.instrument, item: e.item ? ctx.roles[e.item] : undefined, other: e.other ? ctx.roles[e.other] : undefined }, params, complete: true }, path, stack)), path)
         out = this.unique(out.flatMap((a) => (choices.length ? choices : [empty()]).map((b) => combine(a, mix(b, empty(), e.chance ?? 1, b.path)))), path)
-      } else if ((usedUp || stack.length || fx.some((e) => e.op === 'spawn')) && ['hurt', 'addStatus', 'removeStatus', 'setProp', 'addProp', 'craft', 'build', 'grow', 'quests', 'appear', 'fall'].includes(e.op)) this.warn(path, `${e.op}'s state-dependent consequences`)
+      } else if (counted && ['hurt', 'addStatus', 'removeStatus', 'setProp', 'addProp', 'craft', 'build', 'grow', 'quests', 'appear', 'fall'].includes(e.op)) {
+        this.warn(path, `${e.op}'s state-dependent consequences`)
+      }
     }
     return out
   }
@@ -353,8 +357,8 @@ export function freeLunch(steps: Step[]): FreeLunch | undefined {
  * Undefined when there is a free lunch.
  */
 export function prices(steps: Step[]): Map<string, number> | undefined {
+  if (!steps.length) return new Map()
   const { items, A, b, c } = programme(steps)
-  if (!steps.length) return new Map(items.map((t) => [t, 1]))
   const { value, y } = simplexMax(A, b, c)
   if (value > GAIN) return undefined
   const p = new Map(items.map((t, i) => [t, 1 + y[i]]))

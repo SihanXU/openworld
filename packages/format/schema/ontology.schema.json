@@ -104,6 +104,10 @@
           "$ref": "#/definitions/LootParams",
           "description": "What a felled creature's kind leaves its feller beyond the rules' spoils: its own piece's pity and words (the loot module)."
         },
+        "guide": {
+          "$ref": "#/definitions/GuideParams",
+          "description": "A companion leading the way when its leader stands idle (companion.ts): when, and its words; none, it never leads."
+        },
         "talk": {
           "type": "array",
           "items": {
@@ -340,6 +344,13 @@
         "stage": {
           "$ref": "#/definitions/StageDef",
           "description": "How long it stays what it is, and what it becomes (world-model.md §6.5)."
+        },
+        "minds": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "How much this kind minds a status, by id, over the status's own `mind` (wellbeing.ts): a fish does not mind being wet. Its descendants take it, each key the nearest's."
         },
         "goals": {
           "type": "array",
@@ -1512,6 +1523,10 @@
             "type": "number"
           },
           "description": "What it adds to its holder's stats while held (world-model.md §6.8): fireproof's resistance to fire."
+        },
+        "mind": {
+          "type": "number",
+          "description": "How much one minds bearing it beyond the harm it does (a discomfort: wet, hungry), for one's wellbeing (wellbeing.ts): what harms is read from the rules (its pulses hurt), never written here. A kind may mind it otherwise (TypeDef.minds); one tagged `endures:<id>` bears it without minding (a fisher in the rain)."
         }
       },
       "required": [
@@ -1939,6 +1954,53 @@
       },
       "additionalProperties": false,
       "description": "The loot module's numbers and words (packages/modules/src/loot): a creature kind's own piece of gear (its type's `trophy` prop, found by its `trophyChance`) comes to the one who fells it by that chance, or surely after so many."
+    },
+    "GuideParams": {
+      "type": "object",
+      "properties": {
+        "after": {
+          "type": "number",
+          "description": "Ticks of the leader doing nothing before it leads (default 50)."
+        },
+        "show": {
+          "type": "number",
+          "description": "Ticks it shows a spot before it comes back (default 80)."
+        },
+        "every": {
+          "type": "number",
+          "description": "Ticks it rests after showing before it leads again while the leader still does nothing (default 200)."
+        },
+        "here": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Text"
+          },
+          "description": "Over what is near: \"{thing}: here!\""
+        },
+        "way": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Text"
+          },
+          "description": "Out ahead toward what is farther off on this map: \"This way: {thing}, {dir}.\""
+        },
+        "exit": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Text"
+          },
+          "description": "At the way off this map, or out ahead toward it: \"{place} is this way!\""
+        },
+        "dirs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Text"
+          },
+          "description": "Which way, the eight of the compass (`n`, `ne`, `e` … `nw`; north is up)."
+        }
+      },
+      "additionalProperties": false,
+      "description": "A companion leading the way (companion.ts): when its leader has done nothing for `after` ticks with a quest tracked, it flies to where the quest goes next — over the thing to get or the one to see, or out ahead toward one farther off, up to the way off the map toward another — and says so. Its lines are the game's, one picked in turn: `{thing}` what or whom it points at, `{place}` the map the way leads to, `{dir}` which way (from `dirs`). A line missing, it only flies."
     },
     "TalkVerb": {
       "type": "object",

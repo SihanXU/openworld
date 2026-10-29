@@ -72,6 +72,11 @@ export interface TypeDef {
   makeup?: MakeupPart[]
   /** How long it stays what it is, and what it becomes (world-model.md §6.5). */
   stage?: StageDef
+  /**
+   * How much this kind minds a status, by id, over the status's own `mind` (wellbeing.ts): a fish does not mind
+   * being wet. Its descendants take it, each key the nearest's.
+   */
+  minds?: Record<string, number>
   /** The order its goals are tried in (world-model.md §6.10): encounter, threat, follow, schedule, home, idle. */
   goals?: string[]
   /** Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station (a thing tagged `station:<x>`, opened or within reach). */
@@ -221,6 +226,12 @@ export interface StatusDef {
   untilMove?: boolean
   /** What it adds to its holder's stats while held (world-model.md §6.8): fireproof's resistance to fire. */
   props?: Record<string, number>
+  /**
+   * How much one minds bearing it beyond the harm it does (a discomfort: wet, hungry), for one's wellbeing
+   * (wellbeing.ts): what harms is read from the rules (its pulses hurt), never written here. A kind may mind it
+   * otherwise (TypeDef.minds); one tagged `endures:<id>` bears it without minding (a fisher in the rain).
+   */
+  mind?: number
 }
 
 export interface TerrainDef {
@@ -257,6 +268,8 @@ export interface Ontology {
   protection?: ProtectionDef
   /** What a felled creature's kind leaves its feller beyond the rules' spoils: its own piece's pity and words (the loot module). */
   loot?: LootParams
+  /** A companion leading the way when its leader stands idle (companion.ts): when, and its words; none, it never leads. */
+  guide?: GuideParams
   /** The verbs of the talk panel (docs/npc-sandbox.md §2.9): each offered when its condition holds (host: the one spoken to; actor: the speaker). */
   talk?: TalkVerb[]
   statuses: Record<string, StatusDef>
@@ -466,8 +479,10 @@ export interface Entity {
   frozenBy?: string
   /** Items a rule dropped on the ground (a harvest, logs, loot): the player's magnet pulls them in. */
   dropped?: boolean
-  /** The player: inventory slots (design.md §5.3), each the stack key of what it holds; row 1 is the toolbar. */
+  /** The player: inventory slots (design.md §5.3), each a physical stack's key; duplicate keys may occupy separate slots. */
   slots?: (string | null)[]
+  /** Stable membership of each physical bag stack. Optional in older saves; aligned with `slots` when present. */
+  slotItems?: (Id[] | null)[]
   /** The skill bar (the one at the keys): the active skills set in its six slots (Shift+1–6), by id. */
   skillbar?: (string | null)[]
   /** The player: the selected slot (what is held). */
@@ -876,6 +891,29 @@ export interface LootParams {
   found?: Text
 }
 
+/**
+ * A companion leading the way (companion.ts): when its leader has done nothing for `after` ticks with a quest tracked, it
+ * flies to where the quest goes next — over the thing to get or the one to see, or out ahead toward one farther off, up
+ * to the way off the map toward another — and says so. Its lines are the game's, one picked in turn: `{thing}` what or
+ * whom it points at, `{place}` the map the way leads to, `{dir}` which way (from `dirs`). A line missing, it only flies.
+ */
+export interface GuideParams {
+  /** Ticks of the leader doing nothing before it leads (default 50). */
+  after?: number
+  /** Ticks it shows a spot before it comes back (default 80). */
+  show?: number
+  /** Ticks it rests after showing before it leads again while the leader still does nothing (default 200). */
+  every?: number
+  /** Over what is near: "{thing}: here!" */
+  here?: Text[]
+  /** Out ahead toward what is farther off on this map: "This way: {thing}, {dir}." */
+  way?: Text[]
+  /** At the way off this map, or out ahead toward it: "{place} is this way!" */
+  exit?: Text[]
+  /** Which way, the eight of the compass (`n`, `ne`, `e` … `nw`; north is up). */
+  dirs?: Record<string, Text>
+}
+
 /** The numbers of the people's social life (data, docs/npc-sandbox.md): the engine holds the mechanisms. */
 export interface SocialParams {
   /** The coin trade and fines are paid in. */
@@ -1257,6 +1295,13 @@ export interface MapData {
   scale?: number
   /** Where the map lies on the overworld: the top left of its cell's block there (world-model.md §5.1). Its open edges lead to it. */
   site?: { map: string; x: number; y: number; size: number }
+  /**
+   * The story's fact that opens this map's edges (world-model.md §5.1, docs/release-1.md §1): until it is set, no edge
+   * leads off the map onto the overworld, whatever is cleared from it (a felled tree, mined rock), and running off one
+   * is a bump on the story (`Engine.sealedEdge`). A map a barrier parts takes it from the places its part's ways lead
+   * to: off that part's edge one would come out on their side. Without it, the edges are open.
+   */
+  edgesWhen?: string
   portals: Portal[]
   /** Render hints (the engine ignores them): prefab stamps, room wall frames, music, light. */
   stamps?: { key: string; x: number; y: number }[]
@@ -1502,8 +1547,12 @@ export interface WorldState {
   reported?: string[]
   /** Learned rules set aside for misbehaving at runtime (the engine's guards): their holes are open again. */
   quarantine?: Record<string, { tick: number; reason: string }>
-  /** A yes/no question waiting for the player (Action: "Eat the apple?"); time stops while it is open. */
-  question?: { text: Text; plan: Plan }
+  /**
+   * A yes/no question waiting for the player (Action: "Eat the apple?"); time stops while it is open. Its plan runs on
+   * a yes (a panel's act asked first has none: the controls keep what it makes); `sin`: what the act would weigh on
+   * the one at the keys' conscience, said under the question.
+   */
+  question?: { text: Text; plan?: Plan; sin?: Sin }
   /**
    * How far each period on a host's own pace (hunger, asleep or hungry slower) has come toward its next, as of a tick:
    * `period|id` → done (0..1) and at. Kept with the state so a loaded save keeps each clock's phase (it was the
@@ -1563,6 +1612,10 @@ export interface Plan {
   sets?: boolean
   /** It takes what is another's (docs/npc-sandbox.md §2.1): the HUD says so. */
   steal?: boolean
+  /** A swing at the air (in a fight, where the aim meets no foe and nothing the world knows): it strikes a body on its way, never the ground. */
+  whiff?: boolean
+  /** Not made (in a fight, an experiment the world has never seen: a slip of the finger mid-blow): the label says so, the press does nothing. */
+  idle?: boolean
 }
 
 // ------------------------------------------------------------------ events (design.md §5.7)
@@ -1573,6 +1626,16 @@ export type Verb = 'use' | 'put' | 'take' | 'hands' | 'move' | 'craft' | 'learn'
 /** A reference to anything that can host or fill an event role: an entity or a map tile. */
 /** The one reference form (world-model.md §4.6): every thing has an id; a thing of a map's cells has one derived from its place. */
 export type Ref = { e: Id }
+
+/**
+ * What an act would weigh on its doer's conscience, foreseen before it is made (Engine.guilt, docs/npc-sandbox.md
+ * §2.2): the deeds it would be, and how far the doer's own answer to them (the society's `conscience`) would bring
+ * its karma down. Every such act of the one at the keys is asked first.
+ */
+export interface Sin {
+  deeds: Text[]
+  toll: number
+}
 
 /**
  * The closed tree of event kinds. A rule answers a kind or a whole branch (`impulse` answers
@@ -1797,7 +1860,7 @@ export type EmitTo =
  * yourself), spawns, or presents; `emit` sends an event to others, which answer for themselves.
  */
 /** The primitives the engine's official modules carry (packages/modules): typed here, worked by their module (module.ts). */
-export type ModuleOp = 'unleash' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'plunder' | 'beaten' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy' | 'fishing/start' | 'fishing/step' | 'fishing/input' | 'fishing/land' | 'residentWork/order' | 'residentWork/update'
+export type ModuleOp = 'unleash' | 'rally' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'plunder' | 'beaten' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy' | 'fishing/start' | 'fishing/step' | 'fishing/input' | 'fishing/land' | 'residentWork/order' | 'residentWork/update'
 
 export type Effect =
   | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean; owner?: RoleName; ownerFrom?: RoleName }
@@ -1886,6 +1949,8 @@ export type Effect =
    * `leaveStatus` from the start: embers already burning).
    */
   | { op: 'unleash'; power?: Amount; element?: PropValue | Amount; edge?: string; coat?: string; push?: number; pull?: number; heal?: Amount; leave?: string; leaveStatus?: string }
+  /** A boss whole again (the kits module; docs/boss-rooms.md): its health full, its fight begun again from the first phase, back at its post. */
+  | { op: 'rally' }
   /** Open one of the panels the game's client shows, by its id (profession, board, haven, …), for the one at the keys who spoke to the host. */
   | { op: 'panel'; panel: string }
   | { op: 'scene'; id: string }
@@ -1901,6 +1966,7 @@ export type Effect =
   /** A line said by the host (or, for the story and the world, by one of the event's roles). */
   | { op: 'say'; text: Text; who?: RoleName }
   | { op: 'log'; text: Text }
+  | { op: 'remark'; text: Text; again?: Text; alone?: Text; every?: number }
   | { op: 'emote'; mood: Mood }
   | { op: 'restyle'; parts?: Record<string, string | null>; colors?: Record<string, string | null> }
   // the people's social life (docs/npc-sandbox.md): each writes its host only
@@ -2101,7 +2167,7 @@ export interface Rule {
 
 export type FxEvent =
   | { t: 'vfx'; fx: string; map: string; x: number; y: number; angle?: number; span?: number; /** who made it (a blow's swing, a bolt loosed): drawn wielding it wherever they are drawn now */ who?: Id }
-  | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean; /** said to another (one person telling another): heard in passing, not a talk with the one at the keys */ to?: Id }
+  | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean; /** said to another (one person telling another): heard in passing, not a talk with the one at the keys */ to?: Id; /** called out (a companion leading the way): a bubble, never the talk's box */ aside?: boolean }
   | { t: 'emote'; who: Id; mood: Mood }
   | { t: 'fade'; dir: 'out' | 'in' }
   | { t: 'card'; text: Text; art?: string }

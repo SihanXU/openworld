@@ -4,13 +4,13 @@ A web-playable 2D JRPG world whose state and rules are code; an LLM modder (late
 patches undefined interactions at runtime. Successor to BardOS (`C:\Users\chica\文字游戏`).
 Story and world: [docs/lore.md](docs/lore.md) (the user's canonical setting: the Five Sufferings, the
 First Night, the five Seal-bearers; every chapter follows it) and [docs/chapter-1.md](docs/chapter-1.md).
-Design: [docs/design.md](docs/design.md); the AI side at a glance (what runs where, who checks what, which file does which job): [docs/ai.md](docs/ai.md); the key people's own portraits and event CGs (release 1's cast of six, each designed to a sheet; the CGs drawn as shots): [docs/character-art.md](docs/character-art.md), [docs/cast/](docs/cast/); the agreed world model and base gameplay (not yet built,
+Design: [docs/design.md](docs/design.md); the AI side at a glance (what runs where, who checks what, which file does which job): [docs/ai.md](docs/ai.md); the key people's own portraits and event CGs (release 1's cast of seven, each designed to a sheet; the CGs drawn as shots): [docs/character-art.md](docs/character-art.md), [docs/cast/](docs/cast/); the agreed world model and base gameplay (not yet built,
 steps W1–W10): [docs/world-model.md](docs/world-model.md); the continent — six regions round the Holy City, the backdrop
 that fills them, the phases of scaling A–E (A–D built 2026-10-18): [docs/continent.md](docs/continent.md); six of the Holy City's
 places made by hand as models for all to come — a Gothic cathedral without and within, a concentric fortress, the grand
 square, the market, the inn's ward, the poor quarter on its canal — built from the project's own buildings drawn by the
 oblique renderer (2026-10-25): [docs/showcase.md](docs/showcase.md). Release 1 is
-Part One, the west bank — its ending at the Ford, the valley, the polished maps, the pictures fixed: [docs/release-1.md](docs/release-1.md). Paper draft lives in Notion ("Large Symbolic World").
+Part One, to the White Knight — the valley, the Ford, the Pilgrim's Road and the knight, the Held Ground after him; its ending the Crown home, the road on east to Emberfall sealed for Part Two; the polished maps, the pictures fixed: [docs/release-1.md](docs/release-1.md). Paper draft lives in Notion ("Large Symbolic World").
 OpenWorld is the engine and, for now, also the name of its first game: the engine side lives in `packages/`,
 each game in `games/<id>/` (this one `games/openworld/`), and the OpenWorld Editor, a game-making program in the
 manner of RPG Maker (a local server and page, or a desktop application, over projects in any folder) —
@@ -19,6 +19,8 @@ manner of RPG Maker (a local server and page, or a desktop application, over pro
 ## Working agreements
 
 - Converse with the user in Chinese; write code, comments and docs in English.
+- The game's words (people's lines, scenes, quests, readable things) follow [docs/writing.md](docs/writing.md): FromSoftware's
+  manner, whole plain sentences, each person telling only what they know, the world's history through hearsay and things.
 - Build order: a small, polished demo first, then scale. The target is hundreds of maps,
   thousands of NPCs, tens of thousands of items; the demo (the Ford and the maps growing around
   it) is the development scaffold, never an argument against growth. Every element it holds
@@ -48,7 +50,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - `packages/engine` — pure, deterministic, no DOM/AI. World state + indices (`world.ts`),
   rule matching/specificity/library (`rules.ts`), effect primitives (`effects.ts`), event
   dispatch + tick + movement + combat (`engine.ts`), one goal system for every actor (`behaviour.ts`:
-  goals in each type's order — encounter, threat, follow, schedule, home, idle; the people's goals and
+  goals in each type's order — encounter, danger, threat, follow, need, schedule, home, idle; danger and need are one's
+  wellbeing (`wellbeing.ts`, design.md §5.18: what weighs on one and what puts it right, read from the rules by dry runs —
+  a status's harm from its pulse, a place from its contacts, clocks and pulses about, an act from its outcome; `StatusDef.mind`,
+  `TypeDef.minds`, `endures:<id>`; away, toward a cure, an act, a thing made first; those one cares for); the people's goals and
   their real work in `npc.ts`, the creatures' in `creatures.ts`; a module's goals join them), Mod port: ModSpec / ModRequest / validatePatch / records
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`: what the view shows and round it),
   a map's things kept as what differs from its file and the maps far behind put away (`sparse.ts`, docs/continent.md §13:
@@ -81,7 +86,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
   (`controls.ts`; a recipe's `madeOf` keeps the material and quality under the name it gives), gear's rolled extras (`affixes.ts`, `Ontology.affixes`) and sets
   (`Ontology.sets`), read by `World.stat` — mechanisms configured by data, kept in the kernel by decision (docs/engine-split.md §9), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`; a skill book asks no points but holds to the tree's `requires`); companions that follow a
-  leader (`companion.ts`) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); postures (design.md §5.17: `POSES` a status may draw its bearer in, `untilMove`, the `settle` impulse every actor answers with the `posture` primitive); the inputs X (draw) and V (sneak) are statuses the input keeps; the AI setting (`quality.ts`, design.md §13: off/low/medium/high for
+  leader, and lead the way to where the tracked quest goes next when it stands idle (`companion.ts`, `Ontology.guide`, docs/quests.md §2.5) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); postures (design.md §5.17: `POSES` a status may draw its bearer in, `untilMove`, the `settle` impulse every actor answers with the `posture` primitive); the inputs X (draw) and V (sneak) are statuses the input keeps; the AI setting (`quality.ts`, design.md §13: off/low/medium/high for
   things, people, the world, making new kinds and asking ahead — the same wait at every level, a level is how much the AI does in it;
   `Engine.quality` is the player's, never saved; learned rules keep their `tier`, each tier its own trees, a higher answer serving
   the lower settings). What a game hands the
@@ -255,40 +260,44 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   still typechecks, tests, plays and builds (`engine/test/boundaries.test.ts`, the `no-ai` CI job). Its entry is
   `packages/ai/docs/AGENTS.md`; the design is docs/ai.md. It imports no game: it is handed one (`openModder({ game })`;
   the command line's `--game <module>`, which the root script passes); a world repository carries its own ontology.
-  `browser.ts` is what runs anywhere, a browser's worker too; `index.ts` adds Node's. Its folders:
+  `browser.ts` is what runs anywhere, a browser's worker too; `index.ts` adds Node's (`node.ts`: the repository and
+  its `.env`, the self-state on disk, a library's log in a file); `util.ts` small shared helpers. Its folders:
   - `models/`: `model.ts` (OpenAI-compatible / scripted; `LSW_MODEL_PIN` freezes the provider for an experiment;
-    `LSW_NO_ANTHROPIC=1` makes the claude-code backend and `anthropic/*` models refuse on a machine), `anthropic.ts`
-    Anthropic's API, `model-node.ts` Claude Code, `providers.ts` + `providerList.ts` the services a player brings a key for.
+    `LSW_NO_ANTHROPIC=1` makes the claude-code backend and `anthropic/*` models refuse on a machine; Anthropic's API),
+    `model-node.ts` Claude Code, `providers.ts` + `providerList.ts` the services a player brings a key for.
   - `modder/`: `pipeline.ts`: comprehend → recall → design (tools) → verify/repair → audit → review → commit →
     record → reflect. Live designs are routed (design.md §13, the router): local (the request's
     own types) → find (the catalogue) → create (a new type with its 16x16 picture as data).
-    `affordance.ts`: what the host affords for the act (design.md §5.17): the answer's judgment (use, words, none),
-    a use held to changing the scene that asked, the verdict on the rule (`Rule.affords`); words are provisional,
-    asked again on the player's third try (`ModRequest.again`, the port's `again`), and the answer is final.
-    `tools.ts` the design tools; `prompts.ts`, `brief.ts`, `fixes.ts`, `derive.ts`, `drafts.ts`, `signature.ts`;
-    `quality.ts` a request's tier as a workload over the harness (medium the harness; low less, high more; never more time).
+    `request.ts` what it reads of a request: the signature, the brief, and the tier as a workload over the harness
+    (medium the harness; low less, high more; never more time). `answer.ts` what the harness does to an answer by
+    itself: repairs, derived tests, and what the host affords for the act (design.md §5.17): the answer's judgment
+    (use, words, none), a use held to changing the scene that asked, the verdict on the rule (`Rule.affords`); words
+    are provisional, asked again on the player's third try (`ModRequest.again`, the port's `again`), and the answer
+    is final. `tools.ts` the design tools; `prompts.ts`; `drafts.ts` an author's drafts.
+    `detect.ts`: what the connected model carries — the history's questions and the game's probes (`GameDef.probes`)
+    played at every tier by a dry modder, a recommendation per kind of work (`GET /quality`, `POST /quality/detect`).
   - `checks/`: the auditor (`audit.ts`) plays against a patch in the sandbox; only what it reproduces there, with the
-    patch and not without it, counts. `economy.ts` the economy LP. `detect.ts`: what the connected model carries — the
-    history's questions and the game's probes (`GameDef.probes`) played at every tier by a dry modder, a
-    recommendation per kind of work (`GET /quality`, `POST /quality/detect`).
-  - `library/`: `library.ts` the shared library as an append-only patch log, `library-file.ts` its log in a file,
-    `promote.ts` promotion candidates (docs/upstream.md).
+    patch and not without it, counts. `economy.ts` the economy LP.
+  - `library/`: `library.ts` the shared library as an append-only patch log, `promote.ts` promotion candidates
+    (docs/upstream.md).
   - `agent/`: the SWE-style agent and its self-state, task-agnostic (no engine, no content):
-    `state.ts` (memory, skills + scripts, harness, hooks, journal, snapshots, ablations) over `files.ts` (the disk
+    `state.ts` (memory, skills + scripts, harness, hooks, journal, snapshots, ablations, reflection) over `files.ts` (the disk
     or `MemFiles`), `env.ts` (local / docker: a benchmark image's `/testbed` copied out and mounted back, a node
-    mounted for the hooks), `tools.ts`, `loop.ts` (the agent loop), `reflect.ts`, `outer.ts` (proposals +
-    meta-validation), `presets.ts` (naive / tuned), `swe.ts` (SWE-bench instances → predictions.jsonl, N at a
+    mounted for the hooks; the sandbox and the git of a task's workspace), `tools.ts`, `loop.ts` (the agent loop),
+    `outer.ts` (proposals + meta-validation; the presets naive / tuned), `swe.ts` (SWE-bench instances → predictions.jsonl, N at a
     time, a record per instance, the run's manifest, resumable). See docs/rsi.md and, for the experiments,
     docs/rsi-experiments.md.
-  - `service/`: `server.ts` the HTTP API, `repo.ts` + `validate-cli.ts` a world request as a repository for the agent
-    (the offline profile), `offline.ts` that profile's repo agent, `open.ts` `openModder`.
+  - `service/`: `server.ts` the HTTP API, `openModder` and the offline profile's repo agent; `repo.ts` +
+    `validate-cli.ts` a world request as a repository for the agent (the offline profile).
   - `player/`: the player's own modder in a browser worker (docs/byok.md) and the plugin the runtime finds through
     one glob (`runtime/src/ai.ts`).
   - `scripts/modder.ts`, `scripts/agent.ts`: the command lines (`npm run modder`, `npm run agent`).
 - `games/openworld/ai` — OpenWorld's own AI drivers and their tests: the offline driver `src/curriculum.ts`;
   engine tasks (hidden fail-to-pass tests) `src/engine-tasks.ts` + `tasks/engine/<id>/`; the ladder — this
   repository's own commits as fail-to-pass tasks at their parents — `src/ladder.ts` + `tasks/history/<sha>/`; one
-  outer-loop turn `src/improve.ts`; `src/upstream.ts`, `src/rsi.ts`, the latency and evaluation drivers.
+  outer-loop turn and a run's report (`curriculum.ts improve | report`); `src/upstream.ts`, `src/rsi.ts`,
+  `src/latency.ts`, the live evaluations (`src/live.ts`) and the paper's runs (`src/eval/`). Its tests share one
+  fixture (`test/fixtures.ts`), a file per module tested.
 - RSI design changes (what the outer loop may change, how it is judged, the benchmark interface)
   are discussed with the user before they are coded.
 - Game mechanics are designed reference-first: read how Elin (installed; decompile
@@ -301,7 +310,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   return 403 from here. Never hard-code a provider; tests use `ScriptedModel`. A second backend,
   `claude-code`, calls `claude -p` signed in as the user (Opus 5.5, effort low by default — the least: a call asking for
   more reasoning, the high AI setting's or the offline profile's, gets medium or high; `ClaudeCodeModel`, `effortOf`).
-  A third, `anthropic`, calls Anthropic's API with `ANTHROPIC_API_KEY` from `.env` (`anthropic.ts`: the system prompt cached,
+  A third, `anthropic`, calls Anthropic's API with `ANTHROPIC_API_KEY` from `.env` (`model.ts` `AnthropicModel`: the system prompt cached,
   tools as tools, effort per call, the default fallback; the paper's world-side experiments, docs/paper-eval.md).
   `npm run dev` asks which backend to use (or `--backend openrouter|claude-code|anthropic|none`, `LSW_MODEL_BACKEND`).
 - Two harness profiles: **live** (a player waits: brief, one call, low reasoning, deterministic fixes,

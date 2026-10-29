@@ -10,10 +10,9 @@ const FILES = [
   'index.html', 'base.css', 'page.css', 'base.js', 'page.js', 'motion.js', 'snippets.js', 'embed.js', 'lang.js',
   'news/launch/index.html', 'team/index.html', 'team/zh.html', 'news/launch/zh.html', 'news/launch/ai-en.webp', 'news/launch/ai-zh.webp',
   'starmap/index.html', 'starmap/starmap.js', 'starmap/story.js', 'starmap/graph.json', 'starmap/ev', 'starmap/clips',
-  'scale/index.html', 'scale/scale.js', 'scale/assets/maps.png', 'scale/assets/maps.json', 'scale/assets/people.png', 'scale/assets/people.json',
-  'scale/assets/faces.png', 'scale/assets/faces.json', 'scale/assets/items.png', 'scale/assets/items.json', 'scale/assets/continent.json',
-  'explain/index.html', 'explain/explain.js',
-  'media/hero.mp4', 'media/hero.jpg',
+  'scale/index.html', 'scale/scale.js', 'scale/assets',
+  'explain/index.html', 'explain/explain.js', 'explain/clips',
+  'media/hero.mp4', 'media/hero.jpg', 'media/places', 'media/cast',
 ]
 
 const missing = FILES.filter((f) => !existsSync(join(SRC, f)))

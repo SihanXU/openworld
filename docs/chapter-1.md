@@ -145,7 +145,7 @@ New stages are marked **new**.
 
 | # | Where | Beat | Goal (a state) | Clue planted |
 |---|---|---|---|---|
-| P | Mountain | The prologue, unchanged, except: the seal stone at the Mountain Foot is a wayside shrine of the Five Sufferings, five carved wounds, the first cracked and weeping black, fresh ash on it; Lumi: "It's colder near it." | reach the Ford | the cracked first wound; the ash |
+| P | Mountain | The prologue, unchanged, except: the seal stone at the Mountain Foot is a wayside shrine of the Five Sufferings, five carved wounds, the first cracked and weeping black, fresh ash on it; Lumi: "It's cold near it." | reach the Ford | the cracked first wound; the ash |
 | 0a | The Ford | Hesper's arrival scene: the bridge was *taken* by a white rider in a crown of thorns; the nails laid like a toll; "the evenings come sooner every week." She sends you to the village | enter Firstlight | thorns in the stumps (things; E reads them) |
 | 0b | Firstlight | The chapel and its flame, Ilse's litany, Rowan's request (the barrow), new people about the square | take on *Lost in the Barrow* | Pell's chalk drawing of a grey man; Nessa's sunset table |
 | 0c | The barrow | Lina and Oskar in the side cells; the restless warden behind a door shut from outside | the warden down; both found | the marked loaf; "the grey man shut the door" |
@@ -180,8 +180,8 @@ one thing they do not say.
 - **Unsaid**: she raised Severin, left on the chapel's step when she was a novice of sixteen, until the Watch took him at ten;
   she recognised his walk in the chapel and told no one. She once
   read a Watch book the Church burned.
-- Lines (sample): "The flame is older than the houses. The houses were built to keep it company." /
-  "火比房子还老。房子是为了陪它才盖起来的。" — after the theft: "Some people take a thing to keep
+- Lines (sample): "The flame is older than any house in Firstlight. The old keeper told me the first houses were built around it, so that someone would always be near to tend it." /
+  "这团火比村里任何一间房子都老。从前的守火人告诉我，最早的几间房子就是围着它盖的，好让身边总有人照看它。" — after the theft: "Some people take a thing to keep
   it." / "有些人拿走一样东西，是为了守住它。"
 
 ### Joss (乔斯), the bridgewright
@@ -220,8 +220,8 @@ one thing they do not say.
   hundred and fifty years and was still "the gentlest man who ever wore armour" (§14's three hundred years), and saw
   the crown take more of him every year. When the village says *knight*, he goes quiet.
 - **Unsaid**: he left the escort the night Alberic did not know his name. He also knew Severin.
-- Lines (sample): "He used to kneel to children. Now he makes the world kneel to him. That is what
-  the crown does." / "他以前会对孩子单膝下跪。现在他要整个世界向他下跪。那顶冠冕就是这样改变人的。"
+- Lines (sample): "When I served him, he would kneel to talk to children, so his face was level with theirs. Now
+  everyone who passes must kneel to him. The crown did that to him." / "我跟着他的那些年，他跟孩子说话，总要单膝跪下来，好跟孩子一样高。现在过路的人，都得向他下跪。是那顶冠把他变成这样的。"
 
 ### Edda (艾达), the farmstead's survivor
 
@@ -405,14 +405,14 @@ demo C4): each place and step has its scene.
 | `road_east` (a beat) | first onto the East Road | Lumi: the sun is lower than it should be; thorns planted along the road |
 | `burned_farm` | the farmstead | the dragon's claw marks (Chapter 2's hook) |
 | `edda_barn` | the barn | Edda: the knight took all that shone; the grey man pulled her out |
-| `severin_warning` | the road before the thorns, after the letter | the grey man tries to turn the pilgrim back: the seals hold Astra, the First Night wears his face; to Lumi: "You of all of them should know… No. You would not remember." No fight |
+| `severin_warning` | the road before the thorns, after the letter | the grey man tries to turn the pilgrim back: "Pilgrim, go back. There is nothing at the end of this road that you are looking for." The knight is a good man; when the crown comes off, "something will come out of it. That, I will take with me." He looks at Lumi a long time and says nothing. No fight |
 | `statue_rest` (a beat) | the statue before the thorns | Lumi: rest here; it is colder past the thorns than at the shrine stone |
 | `watch_log` | Cloudtop, beside the shelter's table | the Church's sunset watch: years of earlier sunsets nobody read; the last page, a light asleep in the snow that asked how old it was (Lumi does not remember) |
 | `pasture_first` (a beat) | first onto the grassland | the herd keeps to the north, away from the trees |
 | `kneeling_herd` | the grassland at dusk (17–20) | the cows kneel, all facing east; Brin: since the bridge went; the dead come up at night |
 | `forest_quiet` (a beat) | first into the forest | no birds |
 | `pilgrim_camp` | the forest's south-east clearing | the cold camp of the pilgrim before you: the same proclamation, thirty-one years old, another name; his scallop by the cairn |
-| `pilgrim_ghost` | the camp after dark | a pale shape kneels: "I knelt to him. Do not kneel." |
+| `pilgrim_ghost` | the camp after dark | a pale shape kneels: "Do not kneel to him." |
 | `hollow_first`, `barrow_mouth` (beats) | Thornwood Hollow; the barrow mouth | the dead below sleep badly; the carved stones of the Order of the Thorn (Fennick: the warden was one of Alberic's brothers) |
 | `far_bank_early` (a beat) | the far bank before stage 1 | across early: `ford.crossed`, but the stage waits for the pilgrim's road (`far_bank` needs stage 1) |
 | `ossuary_enter`, `niches` (beats) | the ossuary; its hall of niches | a whole order of knights buried together, not sleeping; Fennick's empty niche, swept |
@@ -460,7 +460,7 @@ grove and stones, beyond the second a meadow and water, beyond the third boundar
 
 **Alberic, freed of the crown, is its steward** (`npc.alberic`; human form `lsw/Characters/Alberic`, the pack's Master
 recoloured by `tools/src/art/alberic-human.swift`: white hair, the knight's steel, the Order's gold, the thorns' scar on
-his brow). He keeps his vow turned round — "You relieved me. So I hold for you now." He does not remember names and asks
+his brow). He keeps his vow turned round — "You relieved me. So now I hold for you." He does not remember names and asks
 yours; he remembers a squire he cannot see. He grows the ground three ways in its panel (content `haven.ts`, since
 fb7bb3a; his errands `haven1`–`haven3` are gone, and an older save's are closed by `migrateHaven`): the land (what each
 ring asks is handed into the ground's stock; it sets the story's `haven.size`, and every bank of mist looks now and then,
@@ -485,7 +485,7 @@ The maps (`tools/src/demo/quest/vigil.ts`), through two new gaps in Firstlight's
 | **The Mill** (磨坊, `millhouse`, release 1) | the mill's door | the mill floor (the millstones under their hopper, the grain, the bagging table, the stair down to the cellar) and Tam's own room, where he sleeps |
 | **The Mill Cellar** (`millcellar`) | the stair in the mill floor | a vault on two pillars: the two flasks of vigil oil before the shelves at the back, barrels racked along one wall, sacks and crates along the other, the damp corner where the brook seeps in; slimes and a spider come in from the night |
 | **Dawn Hill** (晨光丘, `dawnhill`) | Firstlight's north edge | a hill drawn by hand with its heights (release 1): the foot, the shoulder two levels up behind its rock face and the stair cut in it, the east slope where the dawnbloom faces the sunrise, the crown a level higher up a ramp, the chapel on it in its old churchyard, the Dawnstone ("HERE THE SUN ROSE AGAIN") on its east brow; the mine's mouth at the foot of the west flank; wolves, spark slimes, a waypoint statue |
-| **Chapel of the First Dawn** (初晓礼拜堂, `chapel`) | the temple's door on the crown | the nave, roofless, weeds through its flags: the cold first hearth where the Firstlight was kindled; through a doorway at its head the foot of the bell tower, the rope hanging in it (`chapel_bell`) |
+| **Chapel of the First Dawn** (初晓礼拜堂, `chapel`) | the temple's door on the crown | the nave, roofless, its walls broken off half-way, grass where the roof came down on its east side: the cold first hearth (a ring of stones round old ash, `fixture/sacred/altar/hearth`) in the apse at its head, the morning sun on it through the window there; three old pews; through an arch in its east wall the foot of the bell tower, the rope hanging in it (`chapel_bell`). Redrawn 2026-10-28 on a plan (`plans.ts` `dhchapel`, the hall style `ruined`) |
 | **Dawn Hill Mine** (晨光丘矿洞, `hillmine`, 2026-10-14) | Dawn Hill's west edge (a track and a sign, the mouth in the flank) | the first chapter's ore for the village's smithy: an adit and the miners' store off it, a hall round a pillar of rock, a north chamber and the coal chamber below; five iron veins, four coal seams, three boulders, braziers, a worn stone pickaxe at the mouth, bats that come back; no gold (the Old Mine's and the quarry's) |
 
 **Veins grow back where they were** (2026-10-14, every mine's): a vein mined spills half its ore and leaves its
@@ -512,7 +512,7 @@ foreshadowed. Between the far bank and the knight the First Seal now runs throug
 
 | Place | What it is | What it shows |
 |---|---|---|
-| **The Pilgrims' Rest** (`waystation`; its chapel `waystation.chapel`, hostel `waystation.hostel`) | the Church's halt on the far bank; Father Caius (`npc.caius`) takes the pilgrim's oath at the altar of the five wounds; Maud and Wynn, pilgrims who stopped here | the Church as it means itself: the Five recited in full, as the Church reads them (the Nails: "upon the holy wood he accepted death", lore.md §4's first layer); the litany ("as long as one bears the Five, the Long Night shall not return", §5); the Holy See's notice, which speaks of the pilgrimage as it is proclaimed (§7): seek out the five Seal-bearers, overcome them, bring the five instruments home; the hostel book of pilgrims who "went east, did not come back"; Caius: the knight "was due relief, once"; Wynn's rhyme of the knight who knelt to children |
+| **The Pilgrims' Rest** (`waystation`; its chapel `waystation.chapel`, hostel `waystation.hostel`) | the Church's halt on the far bank; Father Caius (`npc.caius`) takes the pilgrim's oath at the altar of the five wounds; Maud and Wynn, pilgrims who stopped here | the Church as it means itself: the Five recited in full, as the Church reads them (the Nails: "upon the holy wood he accepted death", lore.md §4's first layer); the litany ("as long as one bears the Five, the Long Night shall not return", §5); the Holy See's notice, which speaks of the pilgrimage as it is proclaimed (§7): seek out the five Seal-bearers, overcome them, bring the five instruments home; the hostel book of pilgrims who "went east, did not come back"; Caius: the knight "was due to be relieved, once"; Wynn's rhyme of the knight who knelt to children |
 | **The Pilgrim's Road** (`pilgrimway`) | five wayside shrines, one per suffering (`fixture/sacred/wayshrine/<id>`), each lit by what it asks laid on it (G): something for the head, a cord, a meal, metal, a light — the road itself holds one of each (a hat, a plaited cord, a loaf in an abandoned cart, a dented helm, a candle); Brother Ezra (`npc.ezra`), a penitent | the Five as acts; the knight's mark on the signposts ("none cross that do not kneel"); white pennants mended less the further east they hang; Ezra saw the knight mending a flag |
 | **The Abbey of the Thorn** (`abbey`; `abbey.hall`, `abbey.crypt`) | the Order's ruined house, north of the road; its dead still keep the hours; Prior Wendel, the last keeper (`abbey.abbot`), in the crypt among the abbey's priors | Alberic made a knight (the statue: kneeling to a child); the Order's roll, forty-one names ending with him, as the ossuary's (no knight was made after him); memorial stones for Brother Odo, Sister Maren and Brother Tomas, who lie in the ossuary under Thornwood Hollow (§11); his journal (the kite, the forty years, the forty-first, "hold"; his brother by blood is Hugh — Tomas, the warden, is a sworn brother of the Order, buried a century ago, §3); the **writ of relief**, never sent: "Let him hold. He will not know the difference."; the Order's seal (`item/valuable/order_seal`) |
 | **The Kneeling Field** (`kneelfield`) | the kingdom's outskirts, before the East Road, where pilgrims knelt to pray before they went on | the stones, as on the East Road (§6), of those who went on and would not kneel to him, carved on their knees all the same, each with a name and a year of the Crown; straw subjects tied kneeling, facing east; the newest stone uncut (the selection, lore.md §13, stays unseen: nobody says what it is for) |

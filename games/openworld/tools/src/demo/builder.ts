@@ -18,7 +18,7 @@ export function reseed(seed: number): void {
   rng = new Rng(seed)
 }
 
-const SOLID_TERRAIN = new Set(['water', 'deepwater', 'tree', 'pine', 'bush', 'rock', 'wall', 'woodwall', 'burnt_wall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
+const SOLID_TERRAIN = new Set(['water', 'deepwater', 'tree', 'pine', 'thornhedge', 'rock', 'wall', 'woodwall', 'burnt_wall', 'roof', 'cave_wall', 'lava', 'charred_tree', 'void'])
 /** The content's types, for what the builder must know of a thing: its footprint, whether it is solid. */
 const ONTO = new OntologyIndex(buildOntology())
 
@@ -109,6 +109,8 @@ export class MapBuilder {
   gearLevel = 1
   /** Where the map lies on the overworld (MapData.site): its open edges lead there. */
   site?: MapData['site']
+  /** The fact that opens the map's edges (MapData.edgesWhen). */
+  edgesWhen?: string
   /** Ground heights in half levels (MapData.heights): a level is two, a ramp is a column between. */
   heights: number[][] = []
   /** Background, not played yet (MapData.backdrop, docs/continent.md §1). */
@@ -246,7 +248,7 @@ export class MapBuilder {
     return !this.entities.some((e) => this.under(e, x, y))
   }
 
-  /** The cells a house's roof hides that were walled for it (MapBuilder.building's `block`), with the ground they had. */
+  /** The cells a house's roof hides, held while the map is made (MapBuilder.building's `block`), with the ground they had. */
   covered = new Map<string, string>()
 
   /** Can one walk here as the game will judge it: no solid terrain (the ontology's), no solid thing's base on it. */
@@ -403,7 +405,8 @@ export class MapBuilder {
   building(name: string, x: number, y: number, doors: string[] = [], block = false): Cell[] {
     const b = BUILDINGS[name]
     if (!b) throw new Error(`building ${name} not in the catalog`)
-    // (a house's roof hides the ground behind it: that ground is the house's, as a roof's tiles are in the pack's towns)
+    // (the ground a house's roof hides is held while the map is made, so nothing is laid where no one would see it, and
+    // given back walkable as the map is written: chunk())
     if (block)
       b.cover?.forEach((row, k) =>
         [...row].forEach((c, i) => {
@@ -631,9 +634,58 @@ export class MapBuilder {
     for (const l of this.lights) l.y += rows
   }
 
+  /**
+   * The ids the map's things had before it was redrawn, given back (a save keeps a map as what differs from its file,
+   * by id: a thing taken, a creature felled, a chest emptied). Each thing whose id is the map's own is matched to a
+   * thing of the same type and name the map had, in the order they were made, and takes its id; the rest take ids none
+   * of those spelled, so nothing new answers to what a save says of something old.
+   */
+  keepIds(before: readonly (readonly [id: string, type: string, name: string])[] | undefined): void {
+    if (!before?.length) return
+    const nameOf = (e: Entity) => (typeof e.name === 'string' ? e.name : (e.name as { en?: string } | undefined)?.en ?? '')
+    const queue = new Map<string, string[]>()
+    for (const [id, type, name] of before) queue.set(`${type}|${name}`, [...(queue.get(`${type}|${name}`) ?? []), id])
+    const old = new Set(before.map(([id]) => id))
+    const own = (e: Entity) => e.id.startsWith(`${this.id}~`)
+    const renamed = new Map<string, string>()
+    for (const e of this.entities) {
+      const id = own(e) ? queue.get(`${e.type}|${nameOf(e)}`)?.shift() : undefined
+      if (id) renamed.set(e.id, id)
+    }
+    // a thing made a kind of what it was (Alberic's tent, now a pavilion) keeps its id too, by its name
+    for (const e of this.entities) {
+      if (!own(e) || renamed.has(e.id)) continue
+      const at = [...queue].find(([k, ids]) => ids.length && k.endsWith(`|${nameOf(e)}`) && nameOf(e) && e.type.startsWith(`${k.slice(0, k.indexOf('|'))}/`))
+      const id = at?.[1].shift()
+      if (id) renamed.set(e.id, id)
+    }
+    for (const id of renamed.values()) this.given.add(id)
+    for (const e of this.entities) {
+      if (!own(e) || renamed.has(e.id) || !old.has(e.id)) continue
+      const prefix = e.type.startsWith('item/') ? 'i' : e.type.startsWith('actor/creature/') ? 'c' : ''
+      let id: string
+      do id = this.newId(prefix)
+      while (old.has(id))
+      renamed.set(e.id, id)
+    }
+    for (const e of this.entities) {
+      const id = renamed.get(e.id)
+      if (id) e.id = id
+      const p = e.place
+      if ((p.on === 'inside' || p.on === 'hand') && renamed.has(p.holder)) e.place = { ...p, holder: renamed.get(p.holder)! }
+    }
+  }
+
   chunk(): RawChunk {
     this.clearVolumes()
     this.joinFences()
+    // the ground a roof hides is walked as any other, one goes behind the house and out of sight (the user's call,
+    // 2026-10-27): walled while the map was made, so nothing was laid where no one would see it, given back now
+    for (const [key, ground] of this.covered) {
+      const [x, y] = key.split(',').map(Number)
+      if (this.get(x, y) === 'wall') this.set(x, y, ground)
+    }
+    this.covered.clear()
     const rows = this.cells.map((r) =>
       r
         .map((t) => {
@@ -668,6 +720,7 @@ export class MapBuilder {
         fish: this.fish || undefined,
         zone: this.zone,
         site: this.site,
+        ...(this.edgesWhen && { edgesWhen: this.edgesWhen }),
         ...(this.backdrop && { backdrop: true }),
       },
       entities: this.entities,

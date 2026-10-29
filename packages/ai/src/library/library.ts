@@ -1,7 +1,7 @@
 // The shared rule library (design.md §9): base rules from content plus every accepted patch,
 // kept as an append-only log (one JSON line per patch or removal) so the library at any point
 // can be rebuilt, rolled back or ablated. Clients pull the log; the modder validates against it.
-// The log is kept by a `LogStore`: a file under Node (library-file.ts, named by its path), or none (in memory:
+// The log is kept by a `LogStore`: a file under Node (node.ts, named by its path), or none (in memory:
 // a fork, or the player's own modder in a browser — docs/byok.md — whose answers the client's library keeps).
 
 import { connected, economySteps, freeLunch } from '../checks/economy.ts'
@@ -22,6 +22,9 @@ import {
   newTypeProblems,
   namesClash,
   withTerrainTypes,
+  ontologyWith,
+  patchRules,
+  withArtifacts,
   type ModRequest,
   type ModSpec,
   type ModWorkspace,
@@ -50,8 +53,8 @@ export interface LogStore {
 }
 
 let openFile: ((path: string) => LogStore) | undefined
-/** The validation cache's key of a text: `digest` in a browser, Node's own sha256 under Node (library-file.ts). */
-let keyOf: (text: string) => string = (text) => digest(text)
+/** The validation cache's key of a text: `digest` in a browser, Node's own sha256 under Node (node.ts). */
+let keyOf: (text: string) => string = digest
 
 export function useKeyHash(hash: (text: string) => string): void {
   keyOf = hash
@@ -71,7 +74,7 @@ export function newLogId(): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`
 }
 
-/** How a log named by a file's path is opened (library-file.ts, loaded by the package's Node entry). */
+/** How a log named by a file's path is opened (node.ts, loaded by the package's Node entry). */
 export function useLogFiles(open: (path: string) => LogStore): void {
   openFile = open
 }
@@ -137,8 +140,9 @@ export class WorldLibrary {
   }
 
   /** The library a request is judged against: the shared one plus the client's own local patches. */
-  workspace(ws?: ModWorkspace, without: string[] = [], redefines?: Patch): RuleLibrary {
+  workspace(ws?: ModWorkspace, without: string[] = [], redefines?: Patch, req?: ModRequest): RuleLibrary {
     const lib = this.lib.clone()
+    without = this.replaceable(without, redefines, req)
     for (const id of without) lib.remove(id)
     // a revision may define again what the patches it replaces made (a jam that was not edible): the types
     // and statuses it brings anew leave with the patches they came with, unless a patch that stays brought
@@ -173,10 +177,7 @@ export class WorldLibrary {
 
   /** The ontology with patch-introduced types and statuses folded in. */
   fullOntology(lib: RuleLibrary = this.lib): Ontology {
-    const onto: Ontology = { ...this.ontology, types: { ...this.ontology.types }, statuses: { ...this.ontology.statuses } }
-    for (const t of lib.types) onto.types[t.id] = t
-    for (const s of lib.statuses) onto.statuses[s.id] = s
-    return onto
+    return ontologyWith(this.ontology, lib)
   }
 
   /**
@@ -218,6 +219,26 @@ export class WorldLibrary {
     return rule && this.lib.rules.get(rule)?.source?.origin !== 'patch' ? rule : undefined
   }
 
+  /**
+   * Of the rules a patch says it takes the place of, those it may: patch rules the log took, never a base rule. The one
+   * id a client names, its request's `again.rule` (the provisional answer it asks about again), only when that rule
+   * answers an event the patch answers (the same host, kind and hole): else a client could retire another question's
+   * answer. The others come from the modder's own revisions, which replace every rule of the answer they revise.
+   */
+  private replaceable(ids: string[], patch?: Patch, req?: ModRequest): string[] {
+    if (!ids.length) return ids
+    const place = (r: Rule) => JSON.stringify([r.host?.type, r.on, r.hole])
+    const places = new Set((patch?.artifacts ?? []).flatMap((a) => (a?.kind === 'rule' && a.rule ? [place(a.rule)] : [])))
+    return ids.filter((id) => {
+      if (this.lib.rules.has(id) && this.lib.rules.get(id)!.source?.origin !== 'patch') return false
+      // the version the log took last (still in force, or rolled back since: a revision is judged in its place)
+      const e = [...this.log].reverse().find((x) => 'patch' in x && x.rules.includes(id))
+      const r = e && 'patch' in e ? e.patch.artifacts.find((a) => a?.kind === 'rule' && a.rule?.id === id) : undefined
+      if (!r || r.kind !== 'rule') return false
+      return id !== req?.again?.rule || !patch || places.has(place(r.rule))
+    })
+  }
+
   /** The rule that answers the request's event in the shared library, if any. */
   private answering(req: ModRequest): string | undefined {
     try {
@@ -241,7 +262,7 @@ export class WorldLibrary {
     const tests = rules.map((r) => (r.tests ?? []).map((t) => JSON.stringify(t)))
     const proof = this.proofs.get(key)
     if (proof && tests.every((ts, i) => ts.length === proof.tests[i].length && ts.every((t, j) => t === proof.tests[i][j]))) return structuredClone(proof.result)
-    const lib = this.workspace(ws, replaces, patch)
+    const lib = this.workspace(ws, replaces, patch, req)
     if (proof && tests.every((ts, i) => proof.tests[i].every((t, j) => t === ts[j]))) {
       const result = this.addedTests(patch, lib, proof)
       if (result.ok) this.proofs.set(key, { tests, result: structuredClone(result) })
@@ -259,14 +280,9 @@ export class WorldLibrary {
   }
 
   private addedTests(patch: Patch, lib: RuleLibrary, proof: { tests: string[][]; result: ValidationResult }): ValidationResult {
-    const cand = lib.clone()
-    for (const a of patch.artifacts) {
-      if (a.kind === 'type') cand.types = cand.types.filter((t) => t.id !== a.type.id).concat(a.type)
-      if (a.kind === 'status') cand.statuses = cand.statuses.filter((s) => s.id !== a.status.id).concat(a.status)
-      if (a.kind === 'rule') cand.add({ ...a.rule, source: { origin: 'patch' } })
-    }
+    const cand = withArtifacts(lib, patch)
     const result = structuredClone(proof.result)
-    const rules = patch.artifacts.flatMap((a) => a.kind === 'rule' ? [a.rule] : [])
+    const rules = patchRules(patch)
     for (const [i, r] of rules.entries()) {
       if (r.tests?.length) result.warnings = result.warnings.filter((w) => w !== `rule[${i}] "${r.id}": no tests`)
       for (const [j, t] of (r.tests ?? []).entries()) {
@@ -327,14 +343,15 @@ export class WorldLibrary {
    * here (and its diagnostics go back to the design as a repair).
    */
   commit(patch: Patch, req?: ModRequest, now = new Date(), replaces: string[] = []): CommitResult {
+    // (only what it may take the place of: the rest stays, and the validator sees what it clashes with)
+    replaces = this.replaceable(replaces, patch, req)
     const result = this.validate(patch, req, undefined, replaces)
     if (!result.ok) return { ok: false, result, rules: [] }
     // a revision: the old rules leave the log first, so every client sees remove-then-add
     for (const id of replaces) if (this.lib.rules.get(id)?.source?.origin === 'patch') this.remove(id, now)
-    const rules = patch.artifacts.flatMap((a) => (a.kind === 'rule' ? [a.rule.id] : []))
+    const rules = patchRules(patch).map((r) => r.id)
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), patch, rules, request: req?.id, scenario: req?.scenario, ...(replaces.length && { replaces }) }
-    this.apply(entry)
-    this.persist(entry)
+    this.record(entry)
     return { ok: true, result, rules, seq: entry.seq }
   }
 
@@ -380,7 +397,8 @@ export class WorldLibrary {
     const gone = new Set<number>()
     for (const e of [...this.log]) {
       if (!('patch' in e)) continue
-      const live = e.rules.filter((id) => this.lib.rules.get(id)?.source?.origin === 'patch')
+      // (the version of each rule this entry added: one revised under its id since is judged with its own entry)
+      const live = e.rules.filter((id) => this.seqOf(id) === e.seq)
       if (!live.length) continue
       const req = e.scenario ? ({ scenario: e.scenario, origin: e.patch.trigger ?? 'player' } as ModRequest) : undefined
       let res: ValidationResult
@@ -447,23 +465,20 @@ export class WorldLibrary {
   /** Forget a learned status (the log keeps both its addition and its removal). */
   removeStatus(id: string, now = new Date()): void {
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), removeStatus: id }
-    this.apply(entry)
-    this.persist(entry)
+    this.record(entry)
   }
 
   /** Forget a learned type (the log keeps both its addition and its removal). */
   removeType(id: string, now = new Date()): void {
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), removeType: id }
-    this.apply(entry)
-    this.persist(entry)
+    this.record(entry)
   }
 
   /** Roll a patch rule back (the log keeps both the addition and the removal). */
   remove(ruleId: string, now = new Date()): boolean {
     if (this.lib.rules.get(ruleId)?.source?.origin !== 'patch') return false
     const entry: PatchLogEntry = { seq: this.seq + 1, at: now.toISOString(), remove: ruleId }
-    this.apply(entry)
-    this.persist(entry)
+    this.record(entry)
     return true
   }
 
@@ -500,8 +515,10 @@ export class WorldLibrary {
     if (first && sc) this.asked.push({ scenario: sc, rule: first })
   }
 
-  private persist(e: PatchLogEntry): void {
+  /** Write an entry, then put it in force: one the log could not keep is not in force (nor served, nor its seq taken). */
+  private record(e: PatchLogEntry): void {
     this.store?.append(JSON.stringify(e))
+    this.apply(e)
   }
 }
 

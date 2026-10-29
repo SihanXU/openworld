@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary } from '@openworld/engine'
-import { BASE_RULES, CH1, PART_TWO, VALLEY, HAVEN_LAYOUT, OVERWORLD_LAYOUT, SITE_GATES, migrateHaven, migrateHavenHeart, STORY_RULES, WILD_GROUNDS, buildOntology, decodeChunk, migrateOverworld, wildChunk } from '@openworld-game/content'
+import { Game, RuleLibrary, textOf } from '@openworld/engine'
+import { BOSS_ROOMS, BASE_RULES, CH1, PART_TWO, VALLEY, HAVEN_LAYOUT, OVERWORLD_LAYOUT, SITE_GATES, migrateHaven, migrateHavenHeart, STORY_RULES, WILD_GROUNDS, buildOntology, decodeChunk, migrateOverworld, wildChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { UNDER_BARROW } from '../src/demo/hollow.ts'
@@ -56,9 +56,9 @@ describe('the overworld (world-model.md §5.1, §10.2)', () => {
     expect(split).toEqual([])
   })
 
-  it('every map but the overworld (and the tutorial, which lies nowhere, the floors under the barrow, reached by its stairs, and the Held Ground and its grounds, carried in a thorn) lies on a cell of land, and that cell holds the site that leads into it', () => {
+  it('every map but the overworld (and the tutorial, which lies nowhere, the floors under the barrow, reached by its stairs, a boss arena, reached through its fog, and the Held Ground and its grounds, carried in a thorn) lies on a cell of land, and that cell holds the site that leads into it', () => {
     const w = world()
-    for (const id of w.state.loadedMaps.filter((m) => m !== OVERWORLD && m !== 'tutorial' && m !== 'offstage' && m !== 'haven' && !m.startsWith('haven.') && w.map(m)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(m))) {
+    for (const id of w.state.loadedMaps.filter((m) => m !== OVERWORLD && m !== 'tutorial' && m !== 'offstage' && m !== 'haven' && !m.startsWith('haven.') && !BOSS_ROOMS.some((r) => r.arena === m) && w.map(m)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(m))) {
       const s = w.map(id)!.site!
       const site = w.entitiesAt(OVERWORLD, s.x, s.y).find((e) => e.props?.map === id)
       expect([id, !!site]).toEqual([id, true])
@@ -144,8 +144,9 @@ describe('the overworld (world-model.md §5.1, §10.2)', () => {
       return w.posOf(w.player)!.map
     }
     for (const e of sealed) expect([e.id, enter(e)]).toEqual([e.id, OVERWORLD])
-    // nor is it walked onto or across: from an open cell beside it, a step into it is a bump, and the line says why in
-    // its gate's words; and no one else walks it either (it is not passable)
+    // nor is it walked onto or across: from an open cell beside it, a step into it is a bump, and it is said why in its
+    // gate's words — the companion's, or the message line's with none at hand; and no one else walks it either (it is
+    // not passable)
     const DIRS = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] } as const
     let bumped = 0
     for (const e of sealed) {
@@ -160,8 +161,9 @@ describe('the overworld (world-model.md §5.1, §10.2)', () => {
       g.engine.movePlayer(dir)
       for (let i = 0; i < 3; i++) g.engine.tick()
       expect([e.id, w.posOf(w.player)]).toEqual([e.id, { map: OVERWORLD, x: x - d[0], y: y - d[1] }])
-      const said = SITE_GATES.find((s) => s.fact === e.props!.opensWhen)!.say.en
-      expect([e.id, w.fx.some((x) => x.t === 'log' && (x.text as { en: string }).en === said)]).toEqual([e.id, true])
+      const gate = SITE_GATES.find((s) => s.fact === e.props!.opensWhen)!
+      const said = (x: (typeof w.fx)[number]) => (x.t === 'log' && (x.text as { en: string }).en === textOf(gate.say)) || (x.t === 'say' && [textOf(gate.remark), textOf(gate.again)].includes((x.text as { en: string }).en))
+      expect([e.id, w.fx.some(said)]).toEqual([e.id, true])
       bumped++
     }
     expect(bumped).toBeGreaterThan(0)

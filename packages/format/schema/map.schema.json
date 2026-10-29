@@ -236,6 +236,10 @@
           "additionalProperties": false,
           "description": "Where the map lies on the overworld: the top left of its cell's block there (world-model.md §5.1). Its open edges lead to it."
         },
+        "edgesWhen": {
+          "type": "string",
+          "description": "The story's fact that opens this map's edges (world-model.md §5.1, docs/release-1.md §1): until it is set, no edge leads off the map onto the overworld, whatever is cleared from it (a felled tree, mined rock), and running off one is a bump on the story (`Engine.sealedEdge`). A map a barrier parts takes it from the places its part's ways lead to: off that part's edge one would come out on their side. Without it, the edges are open."
+        },
         "backdrop": {
           "type": "boolean",
           "description": "Background: a place made to fill the world, not played yet (no story, no one's errand) — held to the checks every map is, but none of a played map's (the engine ignores it)."
@@ -933,7 +937,24 @@
               "null"
             ]
           },
-          "description": "The player: inventory slots (design.md §5.3), each the stack key of what it holds; row 1 is the toolbar."
+          "description": "The player: inventory slots (design.md §5.3), each a physical stack's key; duplicate keys may occupy separate slots."
+        },
+        "slotItems": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/Id"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Stable membership of each physical bag stack. Optional in older saves; aligned with `slots` when present."
         },
         "skillbar": {
           "type": "array",

@@ -47,7 +47,7 @@ red eyes) — for us only; no prompt names her, a work or an artist. The ink on 
 
 The player soaked in the rain, the doors she counts closing on a storm night, Oskar's knees before rain (a warm stone at his
 door; he thinks it was Marta), Nessa's candles, Pell's drawings of the road east his father took; and every pilgrim she blessed she
-remembers by their step: "Come back, so that I may hear yours again."
+remembers by their step: "Please come back, so that I may hear yours again."
 
 ### What she does not say *(canon, chapter-1.md §7)*
 
@@ -94,8 +94,8 @@ seat kept by the fire); small lapses of attention that never cost her poise; the
 unlatched for Lina, Oskar's warm stone, Nessa's candle, Pell's drawings, the dawnbloom on the altar), lines for morning, evening,
 night, rain and storm, the rescue, the flame taken ("My hands are slower than my heart to believe the flame is gone"; "The way you
 stand reminds me of someone I knew", once), the letter ("I remember every pilgrim I have blessed by their footsteps"), the crown's
-lullaby and a gift; three scene lines in `tools/src/demo/quest/chapter1.ts` (the arrival, the tale's end, the letter: "Astra never
-errs, pilgrim, even if I often do") and the Vigil's hand-in in `content/src/quests/main.ts` ("this time, I didn't lose a single
+lullaby and a gift; three scene lines in `tools/src/demo/quest/chapter1.ts` (the arrival, the tale's end, the letter: "...When you are
+ready, pilgrim, come to me") and the Vigil's hand-in in `content/src/quests/main.ts` ("this time I did not lose a single
 wick"). The tale of the First Night, the litany, "Some people take a thing to keep it", Cassian's and the chapter's end are kept.
 Lina has six lines about her (`lina.ts`).
 

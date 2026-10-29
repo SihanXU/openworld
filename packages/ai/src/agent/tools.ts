@@ -3,8 +3,7 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
-import type { Env } from './env.ts'
-import { sh } from './env.ts'
+import { sh, type Env, type ExecResult } from './env.ts'
 import type { ToolSpec } from '../models/model.ts'
 
 export interface AgentTool extends ToolSpec {
@@ -28,6 +27,8 @@ export interface ToolHooks {
 
 const SKIP_DIRS = new Set(['.git', 'node_modules', '.venv', '__pycache__', 'dist', '.tox', '.mypy_cache'])
 const str = (v: unknown, d = '') => (typeof v === 'string' ? v : v === undefined || v === null ? d : String(v))
+const exited = (r: ExecResult) => `exit ${r.code}${r.timedOut ? ' (timed out)' : ''}`
+const output = (r: ExecResult) => `${r.stdout}${r.stderr ? `\n[stderr]\n${r.stderr}` : ''}`
 
 export function inside(root: string, p: string): string {
   const abs = resolve(root, p || '.')
@@ -174,7 +175,7 @@ export function agentTools(env: Env, hooks: ToolHooks = {}): AgentTool[] {
       parameters: { type: 'object', properties: { command: { type: 'string' }, timeout_sec: { type: 'number' } }, required: ['command'] },
       run: async (a) => {
         const r = await env.exec(str(a.command), { timeoutMs: Math.min(600, Number(a.timeout_sec) || 120) * 1000 })
-        return `exit ${r.code}${r.timedOut ? ' (timed out)' : ''}\n${r.stdout}${r.stderr ? `\n[stderr]\n${r.stderr}` : ''}`
+        return `${exited(r)}\n${output(r)}`
       },
     },
   ]
@@ -187,9 +188,9 @@ export function agentTools(env: Env, hooks: ToolHooks = {}): AgentTool[] {
       parameters: { type: 'object', properties: {} },
       run: async () => {
         const r = await env.exec(hooks.testCommand!, { timeoutMs: hooks.testTimeoutMs ?? 300_000 })
-        const out = `${r.stdout}${r.stderr ? `\n[stderr]\n${r.stderr}` : ''}`
+        const out = output(r)
         hooks.onTests?.(r.code === 0, out)
-        return `exit ${r.code}${r.timedOut ? ' (timed out)' : ''}\n${out}`
+        return `${exited(r)}\n${out}`
       },
     })
   tools.push(
@@ -198,11 +199,12 @@ export function agentTools(env: Env, hooks: ToolHooks = {}): AgentTool[] {
       description: 'Read one of your skills (listed in the task) in full; its scripts are in .agent/skills/<name>/.',
       parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
       run: (a) => {
-        const p = inside(root, `.agent/skills/${str(a.name)}/SKILL.md`)
-        if (!existsSync(p)) return `(no skill "${str(a.name)}")`
-        hooks.onSkillRead?.(str(a.name))
+        const name = str(a.name)
+        const p = inside(root, `.agent/skills/${name}/SKILL.md`)
+        if (!existsSync(p)) return `(no skill "${name}")`
+        hooks.onSkillRead?.(name)
         const files = readdirSync(dirname(p)).filter((f) => f !== 'SKILL.md')
-        return readFileSync(p, 'utf8') + (files.length ? `\n\nScripts: ${files.map((f) => `.agent/skills/${str(a.name)}/${f}`).join(', ')}` : '')
+        return readFileSync(p, 'utf8') + (files.length ? `\n\nScripts: ${files.map((f) => `.agent/skills/${name}/${f}`).join(', ')}` : '')
       },
     },
     {

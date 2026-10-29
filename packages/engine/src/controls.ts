@@ -27,11 +27,11 @@
 
 import { isPatch, isRoot } from './rules.ts'
 import { categoryOf } from './quality.ts'
-import { oldStackKey, splitStacks, stackKey } from './stacks.ts'
+import { isPiece, oldStackKey, splitStacks, stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
 import type { Engine } from './engine.ts'
 import { NO_EXPIRY, isBuilt, type Writer } from './world.ts'
-import { FIGHT_TICKS, type Aim, type Dir, type Entity, type Id, type LessonInput, type Place, type Plan, type Pos, type PropValue, type Recipe, type Ref, type SkillDef, type Text, type Verb } from './types.ts'
+import { FIGHT_TICKS, type Aim, type Dir, type Entity, type Id, type LessonInput, type Place, type Plan, type Pos, type PropValue, type Recipe, type Ref, type Sin, type SkillDef, type Text, type Verb } from './types.ts'
 import { cannotLearn, skillsOf } from './progression.ts'
 import { OFFHAND, isTool, weaponOf } from './blows.ts'
 
@@ -49,6 +49,20 @@ export const MAGNET_PER_TICK = 25
 const isWeapon = (type: string) => type.startsWith('item/weapon/')
 const textEn = (t: Text) => (typeof t === 'string' ? t : t.en)
 const textZh = (t: Text) => (typeof t === 'string' ? t : t.zh ?? t.en)
+/** A label asked as a question ("Give the apple to Hesper?"). */
+const asked = (label: Text): Text => ({ en: `${textEn(label)}?`, zh: `${textZh(label)}？` })
+
+/** What several acts together would weigh on a conscience: every deed once, the tolls added. */
+export function joinSins(sins: (Sin | undefined)[]): Sin | undefined {
+  const deeds: Text[] = []
+  let toll = 0
+  for (const s of sins) {
+    if (!s) continue
+    toll += s.toll
+    for (const d of s.deeds) if (!deeds.some((x) => textEn(x) === textEn(d))) deeds.push(d)
+  }
+  return toll > 0 ? { deeds, toll } : undefined
+}
 
 /**
  * What an input does where no rule says (the labels are the rules' own: a rule, or one of its
@@ -70,6 +84,10 @@ const GENERIC: Record<string, Text> = {
   steal: { en: 'Steal {target}', zh: '偷走{target}' },
   punch: { en: 'Punch {target}', zh: '一拳打向{target}' },
   cast: { en: 'Cast {instrument}', zh: '施放{instrument}' },
+  // in a fight (design.md §5.2): a swing where nothing is struck, and an experiment left for later
+  swing: { en: 'Swing {instrument}', zh: '挥动{instrument}' },
+  punchAir: { en: 'Punch', zh: '挥拳' },
+  notInFight: { en: 'Not mid-fight', zh: '战斗中不尝试' },
 }
 
 /** The chooser's layer for the ceiling over the spot (docs/building.md §5): never a default. */
@@ -169,6 +187,16 @@ export class Controls {
   ground(r: Ref): boolean {
     const e = this.w.get(r.e)
     return e ? this.w.isTerrain(e) || this.w.spacesOf(e).includes('floor') : !!parseCellId(r.e)
+  }
+
+  /**
+   * What one stands on: a floor, the cell's ground or one laid there — never what stands in the cell (a tree, a bush,
+   * rock, a wall: the ground's terrain too, but a thing a hand meets). E that only touches it goes unsaid and does
+   * nothing on a press; a hand on what stands is said, and done (tile/handle asks the world there).
+   */
+  underfoot(r: Ref): boolean {
+    const e = this.w.get(r.e)
+    return e ? this.w.spacesOf(e).includes('floor') : parseCellId(r.e)?.space === 'floor'
   }
 
   layers(at: Pos, stack?: Ref[]): Ref[] {
@@ -341,7 +369,7 @@ export class Controls {
     const aligned = !here || !there || here.x === there.x || here.y === there.y
     if (!this.reaches('use', target, held ?? (main && { e: main.id }))) return undefined
     if (heldE) {
-      const pure = isWeapon(heldE.type) && !w.hasTag(heldE, 'tool:axe') && !(heldE.tags ?? []).some((g) => g.startsWith('tool:'))
+      const pure = this.pureWeapon(heldE)
       // a person is struck by the right click only with the blade drawn (X: the blow is meant, docs/npc-sandbox.md);
       // the left click's swing is a blow on them either way (someone friendly is asked first: make)
       const drawn = w.hasStatus({ e: p.id }, 'drawn')
@@ -391,9 +419,10 @@ export class Controls {
     if (!r.unknown && plan.rule && this.eng.lib.rules.get(plan.rule)?.on === 'impulse/receive') plan.sets = true
     if (r.confirm && !r.unknown) plan.confirm = this.label(r.confirm, target, instrument)
     // a blow, a use or a gift on someone friendly is asked first (a use or a gift in the words of its label: "Give the apple to
-    // Hesper?", "Slip the apple into her pocket?"); a blow with the blade drawn (X) is meant, and never asks
+    // Hesper?", "Slip the apple into her pocket?"); a blow with the blade drawn (X) is meant, and asks only what the
+    // conscience asks (run: every act that would weigh on it)
     if (!plan.confirm && (verb === 'use' || verb === 'put') && this.friendly(target) && !(attack && this.w.hasStatus({ e: this.w.state.player }, 'drawn')))
-      plan.confirm = attack ? this.label(GENERIC.attackAsk, target) : { en: `${textEn(plan.label)}?`, zh: `${textZh(plan.label)}？` }
+      plan.confirm = attack ? this.label(GENERIC.attackAsk, target) : asked(plan.label)
     const e = this.entity(target)
     if (e && this.w.hasTag(e, 'container') && (r.rules.includes('core/open-close') || this.w.hasTag(e, 'remains'))) plan.panel = e.id
     // taking what is another's (docs/npc-sandbox.md §2.1): the label says it is a theft
@@ -454,8 +483,12 @@ export class Controls {
    * over what only a choice makes (a blow on oneself, a fist on the bare ground the world has never seen struck).
    */
   plan(key: Key, aim?: Aim, layer?: number): Plan | undefined {
-    // the right click: the held thing used on what is aimed at (nothing held, nothing)
-    if (key === 'secondary') return this.w.player.held ? this.plan('use', aim, layer) : undefined
+    // the right click: the held thing used on what is aimed at (nothing held, nothing); in a fight, what the world
+    // has never seen is not tried by a press (a layer chosen is meant)
+    if (key === 'secondary') {
+      const p = this.w.player.held ? this.plan('use', aim, layer) : undefined
+      return p?.unknown && layer === undefined && this.w.fighting(this.w.player) ? this.idle(p) : p
+    }
     // the left click: a press swings (or uses an object on oneself); a layer chosen is the swing's on that layer
     if (key === 'primary') return layer === undefined ? this.primary(aim) : this.swings() ? this.plan('use', aim, layer) : undefined
     const a = this.aim(aim, key)
@@ -477,12 +510,12 @@ export class Controls {
     // pointer — unless what is there has no answer of its own, or is only the ground touched, and
     // what one stands on has one that does something (the bed one lies on, a place of the
     // overworld; never the ground's "touched" itself)
-    if (key === 'hands' && !layer && !a.pointed && (!p || p.unknown || (!p.changes && this.ground(p.target)))) {
+    if (key === 'hands' && !layer && !a.pointed && (!p || p.unknown || (!p.changes && this.underfoot(p.target)))) {
       const pos = this.w.posOf(this.w.player)
       const own = pos && this.planAt(key, pos, undefined)
       // what one stands on answers even when its answer changes nothing (a place the story has not opened
       // says why), where in front there is only the ground
-      if (own && !own.unknown && (own.changes || ((!p || this.ground(p.target)) && !this.ground(own.target)))) return own
+      if (own && !own.unknown && (own.changes || ((!p || this.underfoot(p.target)) && !this.underfoot(own.target)))) return own
     }
     return p
   }
@@ -496,7 +529,7 @@ export class Controls {
    */
   planFor(key: Key, aim: Aim | undefined, layer?: number, shown?: Ref): Plan | undefined {
     const made = this.plan(key, aim, layer)
-    const p = layer === undefined && made?.key === 'hands' && !made.unknown && !made.changes && this.ground(made.target) ? undefined : made
+    const p = layer === undefined && made?.key === 'hands' && !made.unknown && !made.changes && this.underfoot(made.target) ? undefined : made
     if (!shown || !('e' in shown) || (p && 'e' in p.target && p.target.e === shown.e)) return p
     const e = this.w.get(shown.e)
     const at = e && this.w.isAgent(e) && e.id !== this.w.state.player ? this.w.posOf(e) : undefined
@@ -534,6 +567,11 @@ export class Controls {
   /** Planning the left click's swing: a weapon swung at a person is a blow, drawn or not. */
   private swinging = false
 
+  /** A weapon that is no tool as well (a sword, a bow; not an axe): what it does to the ground is a blow at nothing. */
+  private pureWeapon(e: Entity): boolean {
+    return isWeapon(e.type) && !this.w.hasTag(e, 'tool:axe') && !(e.tags ?? []).some((g) => g.startsWith('tool:'))
+  }
+
   /** A tool or a weapon in hand (`isTool`, Stardew's line). */
   private toolInHand(): boolean {
     const held = this.w.get(this.w.player.held)
@@ -562,8 +600,13 @@ export class Controls {
     const pos = w.posOf(w.player)
     const held = w.get(w.player.held)
     if (!pos) return undefined
+    // in a fight (the `fighting` condition, the fight's music) a press makes no experiment: the blow goes to a foe
+    // near the pointer, else to what the world knows there, else into the air; a sword or a bow at the bare ground
+    // is a swing at the air in or out of a fight (a tool at it is a tool's experiment)
+    const fight = w.fighting(w.player)
     if (held && !isTool(held.type)) {
       const s = this.planOn('self', pos, { e: w.state.player })
+      if (s?.unknown && fight) return this.idle(s)
       if (s?.unknown && !s.confirm) s.confirm = this.label(GENERIC.selfAsk, s.target, s.instrument)
       return s
     }
@@ -572,8 +615,15 @@ export class Controls {
     this.bare = !held
     this.swinging = true
     try {
+      if (fight)
+        for (const foe of this.foesNear(a.at)) {
+          const plan = this.planOn('use', w.posOf(foe)!, { e: foe.id })
+          if (plan?.attack) return plan
+        }
       const struck = this.targets(a.at, a.stack, 'use').filter((r) => {
         const e = w.get(r.e)
+        // (one's own side, in a fight, is not struck: Engine.spares; the press is a swing at the air past them)
+        if (e && this.eng.spares(w.player, e)) return false
         // the fist strikes bodies and what stands; a tool works on anything, a loose log split as a tree felled
         return !e || w.isAgent(e) || !!held || !w.isPortable(e)
       })
@@ -581,13 +631,48 @@ export class Controls {
       const bodies = struck.filter((r) => { const e = w.get(r.e); return !!e && w.isAgent(e) && (!held || this.talksTo(r)) })
       for (const r of [...bodies, ...struck.filter((r) => !bodies.includes(r))]) {
         const plan = this.planOn('use', a.at, r)
-        if (plan) return plan
+        const tried = !!plan?.unknown && !bodies.includes(r) && (fight || (!!held && this.pureWeapon(held) && this.ground(r)))
+        if (plan && !tried) return plan
       }
-      return undefined
+      return fight || (held && this.pureWeapon(held)) ? this.whiff(a.at) : undefined
     } finally {
       this.bare = false
       this.swinging = false
     }
+  }
+
+  /**
+   * Those near the aim one fights now (in reach of the blow or not: planOn holds it to the reach), the aim's own cell
+   * first, then the four beside it: a foe a cell off the pointer is still the one meant (aim assist, design.md §5.2).
+   */
+  private foesNear(at: Pos): Entity[] {
+    const w = this.w
+    const me = w.player
+    const z = at.z ?? w.posOf(me)?.z
+    const out: Entity[] = []
+    for (const [dx, dy] of [[0, 0], [0, -1], [1, 0], [0, 1], [-1, 0]] as const) {
+      const e = w.actorAt(at.map, at.x + dx, at.y + dy, me.id, z)
+      if (e && (this.eng.hostileTo(e, me) || this.eng.hostileTo(me, e))) out.push(e)
+    }
+    return out
+  }
+
+  /** The left click in a fight where nothing it knows is struck: a swing at the air toward the aim (Engine.attack's whiff). */
+  private whiff(at: Pos): Plan {
+    const w = this.w
+    const p = w.player
+    const weapon = weaponOf(w, p)
+    const instrument = weapon ? { e: weapon.id } : undefined
+    const target = w.cellRef(at.map, at.x, at.y, w.posOf(p)?.z ?? 0)
+    const plan: Plan = { key: 'use', at, verb: 'use', target, instrument, attack: true, whiff: true, changes: true, label: weapon ? this.label(GENERIC.swing, target, instrument) : GENERIC.punchAir }
+    const why = weapon && this.eng.combat.refuses(p, weapon, 'aim')
+    if (why) plan.label = why
+    return plan
+  }
+
+  /** A press that makes no experiment now (in a fight): it says so, and does nothing. */
+  private idle(plan: Plan): Plan {
+    return { key: plan.key, at: plan.at, verb: plan.verb, target: plan.target, instrument: plan.instrument, label: GENERIC.notInFight, idle: true }
   }
 
   /**
@@ -614,10 +699,33 @@ export class Controls {
   again(first: Plan, aim?: Aim): void {
     if (first.key === 'self') return
     const plan = this.plan('primary', aim)
-    if (!plan || plan.key === 'self' || plan.unknown || plan.confirm || !plan.changes || !!plan.attack !== !!first.attack) return
+    if (!plan || plan.key === 'self' || plan.unknown || plan.idle || plan.confirm || !plan.changes || !!plan.attack !== !!first.attack) return
     if (!plan.attack && plan.rule !== first.rule) return
+    // nor goes on to what would weigh on one's conscience (a blow on someone new, a neighbour's fence): that is asked of a press
+    if (this.sinOf(plan)) return
     this.swing(plan)
   }
+
+  /**
+   * What a plan would weigh on the conscience of the one at the keys (Engine.guilt): a blow by what it lands on and its
+   * sweep's sides, any other act by what it is made on. Every act that would is asked first, its toll said (run).
+   */
+  private sinOf(plan: Plan): Sin | undefined {
+    const p = this.w.player
+    // (a swing at the air weighs by the body on its way, if any)
+    if (plan.attack) return this.eng.blowGuilt(p, plan.whiff ? undefined : plan.target, plan.whiff)
+    if (!plan.verb) return undefined
+    return this.eng.guilt(plan.verb, p.id, plan.target, { instrument: plan.instrument ?? null })
+  }
+
+  /** Ask first: the question, and what its yes makes (an act of a panel's: its plan is the panel's to say). */
+  private askFirst(text: Text, sin: Sin | undefined, go: () => void): void {
+    this.w.state.question = { text, ...(sin && { sin }) }
+    this.pending = go
+  }
+
+  /** What the open question's yes makes, when it has no plan of its own. */
+  private pending?: () => void
 
   /** May the keys make this act now? A lesson's gate asked without a refusal shown. */
   private permits(key: Plan['key']): boolean {
@@ -671,9 +779,21 @@ export class Controls {
     return ok
   }
 
-  /** The attack key: a blow in the facing direction (the engine's cooldown paces a held key). */
+  /**
+   * The attack key: a blow in the facing direction (the engine's cooldown paces a held key) — asked first where it
+   * would weigh on one's conscience (someone who has not fought one, a neighbour's door), as any act is (run).
+   */
   strike(): void {
-    if (this.eng.busy(this.w.player) || !this.allows('use')) return
+    const w = this.w
+    const p = w.player
+    if (this.eng.busy(p) || !this.allows('use')) return
+    const sin = this.eng.ready('atk:' + p.id) ? this.eng.blowGuilt(p) : undefined
+    const at = sin && w.refPos(sin.target)
+    if (sin && at) {
+      const plan: Plan = { key: 'use', at, verb: 'use', target: sin.target, attack: true, label: this.label(GENERIC.attack, sin.target) }
+      w.state.question = { text: this.label(GENERIC.attackAsk, sin.target), plan, sin: { deeds: sin.deeds, toll: sin.toll } }
+      return
+    }
     this.eng.playerAttack()
   }
 
@@ -684,16 +804,21 @@ export class Controls {
     const p = w.player
     // a lesson at hand: only what it teaches (setting a thing down, only that thing, only where it says)
     if (!this.answering && !this.allows(plan.key, plan.key === 'put' || plan.sets ? { type: this.entity(plan.instrument)?.type, at: plan.at } : undefined)) return {}
-    if (eng.busy(p)) return {}
+    if (eng.busy(p) || plan.idle) return {}
     this.face(plan.at)
     // the build palette's turn (R): one faces that way setting it down (stairs go up that way)
     if (facing) p.facing = facing
-    if (plan.confirm && !confirmed) {
-      w.state.question = { text: plan.confirm, plan }
-      return {}
+    // what asks first: the plan's own question, and every act that would weigh on one's conscience (its toll said under it)
+    if (!confirmed) {
+      const sin = this.sinOf(plan)
+      if (plan.confirm || sin) {
+        const struck = plan.whiff && sin && 'target' in sin ? (sin.target as Ref) : plan.target
+        w.state.question = { text: plan.confirm ?? (plan.attack ? this.label(GENERIC.attackAsk, struck) : asked(plan.label)), plan, ...(sin && { sin }) }
+        return {}
+      }
     }
     if (plan.attack) {
-      eng.playerAttack(plan.target)
+      eng.playerAttack(plan.whiff ? undefined : plan.target, plan.whiff)
       return {}
     }
     // a container left open: just show its panel
@@ -707,12 +832,14 @@ export class Controls {
   /** The player answers the open question. */
   answer(yes: boolean): void {
     const q = this.w.state.question
+    const go = this.pending
+    this.pending = undefined
     if (!q) return
     delete this.w.state.question
     // what was asked was let through the lesson's gate when it was asked
     this.answering = true
     try {
-      if (yes) this.run(q.plan, true)
+      if (yes) q.plan ? this.run(q.plan, true) : go?.()
     } finally {
       this.answering = false
     }
@@ -765,7 +892,8 @@ export class Controls {
     const by = new Map<string, Entity[]>()
     for (const id of [...(p.contents ?? []), ...(p.held ? [p.held] : [])]) {
       const e = w.get(id)
-      if (!e || worn?.has(id)) continue
+      const place = e?.place
+      if (!e || worn?.has(id) || !((place?.on === 'inside' || place?.on === 'hand') && place.holder === p.id)) continue
       const k = this.key(e)
       const s = by.get(k)
       if (s) s.push(e)
@@ -788,12 +916,22 @@ export class Controls {
   }
 
   private bagSig = ''
+  /** What is carried, each by its stack key: a thing that became another where it is (cooked, spoiled, filled) is a change too. */
   private bagNow(): string {
-    const p = this.w.state.player ? this.w.get(this.w.state.player) : undefined
-    return p ? `${(p.contents ?? []).join(',')}|${p.held ?? ''}` : ''
+    const w = this.w
+    const p = w.state.player ? w.get(w.state.player) : undefined
+    if (!p) return ''
+    const sig = (id: Id) => {
+      const e = w.get(id)
+      return e ? `${id}=${this.key(e)}` : id
+    }
+    return `${(p.contents ?? []).map(sig).join(',')}|${p.held ? sig(p.held) : ''}`
   }
 
-  /** What reached the bag without an input (a scene's gift, a reward, a trade someone else began) takes its slot (each tick). */
+  /**
+   * What reached the bag without an input (a scene's gift, a reward, a trade someone else began), or changed in it
+   * without one (food spoiled, a held thing an outcome turned into another), takes its slot (each tick).
+   */
   keep(): void {
     const now = this.bagNow()
     if (now && now !== this.bagSig) this.sync()
@@ -804,47 +942,117 @@ export class Controls {
     const p = w.player
     const slots = (p.slots ??= Array(this.slotCount()).fill(null))
     while (slots.length < this.slotCount()) slots.push(null)
+    const hadLayout = Array.isArray(p.slotItems)
+    const slotItems: (Id[] | null)[] = (p.slotItems ??= Array<Id[] | null>(slots.length).fill(null))
+    while (slotItems.length < slots.length) slotItems.push(null)
+    if (slotItems.length > slots.length) slotItems.length = slots.length
     p.selected ??= 0
     // what is worn is on the body: the hand lets go of it, and it takes no bag slot
     if (p.held && this.wornIds().has(p.held)) this.posture(w.get(p.held)!, { on: 'inside', holder: p.id })
     const by = this.carried(true)
-    // a slot of an older save holds the key every piece of a kind once shared (all its axes one stack): the first
-    // piece it now means takes that slot back, the others the free ones below
+    const keyById = new Map<string, string>()
+    const entityById = new Map<string, Entity>()
+    for (const [k, items] of by) for (const e of items) keyById.set(e.id, k), entityById.set(e.id, e)
+    // Older saves stored a key that may now have split into several kinds (axes with individual wear, for example).
+    // Give its first current heir that slot. Physical layouts already carry explicit membership and skip this migration.
+    const represented = new Set(slots.filter((k): k is string => !!k))
+    const heirsByOldKey = new Map<string, string[]>()
+    for (const [current, items] of by) {
+      const old = oldStackKey(items[0]!)
+      const heirs = heirsByOldKey.get(old)
+      if (heirs) heirs.push(current)
+      else heirsByOldKey.set(old, [current])
+    }
+    const nextHeir = new Map<string, number>()
     for (let i = 0; i < slots.length; i++) {
       const k = slots[i]
       if (!k || by.has(k)) continue
-      const heir = [...by.keys()].find((n) => !slots.includes(n) && oldStackKey(by.get(n)![0]!) === k)
-      if (heir) slots[i] = heir
+      const heirs = heirsByOldKey.get(k) ?? []
+      let at = nextHeir.get(k) ?? 0
+      while (at < heirs.length && represented.has(heirs[at]!)) at++
+      nextHeir.set(k, at + 1)
+      const heir = heirs[at]
+      if (heir) slots[i] = heir, represented.add(heir)
+    }
+    // An older save had one physical group for each key. Materialize that grouping once, while leaving
+    // duplicate-key groups in a newer save exactly where the player placed them.
+    if (!hadLayout) {
+      const seen = new Set<string>()
+      for (let i = 0; i < slots.length; i++) {
+        const k = slots[i]
+        if (!k || seen.has(k)) slots[i] = null, slotItems[i] = null
+        else {
+          seen.add(k)
+          slotItems[i] = (by.get(k) ?? []).map((e) => e.id)
+        }
+      }
     }
     const held = w.get(p.held)
     if (held) {
       const hk = this.key(held)
       const sel = slots[p.selected]
-      if (sel !== hk) {
-        const selLeft = sel ? (by.get(sel) ?? []).filter((e) => e.id !== held.id).length : 0
+      const heldSlot = slotItems.findIndex((members, i) => slots[i] === hk && members?.includes(held.id))
+      if (heldSlot >= 0) {
+        if (heldSlot !== p.selected) this.posture(held, { on: 'inside', holder: p.id }) // do not move a known member between split groups
+      } else if (sel === hk) {
+        // A fresh same-kind replacement keeps its selected slot before other newly carried kinds take free slots.
+        slotItems[p.selected] = [...(slotItems[p.selected] ?? []).filter((id) => keyById.get(id) === hk), held.id]
+      } else {
+        const selectedItems = slotItems[p.selected] ?? []
+        const selLeft = selectedItems.filter((id) => id !== held.id && keyById.get(id) === sel).length
         if (!sel || !selLeft) {
           // the held thing changed in the hand: it keeps the selected slot
-          const other = slots.indexOf(hk)
-          if (other >= 0) slots[other] = null
+          for (let i = 0; i < slots.length; i++) if (i !== p.selected && slots[i] === hk) {
+            const members = (slotItems[i] ?? []).filter((id) => id !== held.id)
+            slotItems[i] = members.length ? members : null
+            if (!members.length) slots[i] = null
+          }
           slots[p.selected] = hk
+          slotItems[p.selected] = [held.id]
         } else this.posture(held, { on: 'inside', holder: p.id }) // it belongs elsewhere; the hand takes the selected stack below
       }
     }
-    for (let i = 0; i < slots.length; i++) if (slots[i] && !by.has(slots[i]!)) slots[i] = null
+    // Keep only currently carried entities whose live key still matches the slot. This validates both ownership
+    // and stack identity and bounds the pass by the number of carried entities, even for very large inventories.
+    const assigned = new Set<string>()
+    for (let i = 0; i < slots.length; i++) {
+      const k = slots[i]
+      const members = k ? slotItems[i] : null
+      if (!k || !Array.isArray(members)) {
+        slots[i] = null
+        slotItems[i] = null
+        continue
+      }
+      const valid: string[] = []
+      for (const id of members) if (!assigned.has(id) && keyById.get(id) === k) valid.push(id), assigned.add(id)
+      slotItems[i] = valid.length ? valid : null
+      if (!valid.length) slots[i] = null
+    }
     const here = w.posOf(p)
     for (const [k, items] of by) {
-      if (slots.includes(k)) continue
+      const missing = items.filter((e) => !assigned.has(e.id))
+      if (!missing.length) continue
+      const preferred = p.selected !== undefined && slots[p.selected] === k && !!slotItems[p.selected]?.length ? p.selected : -1
+      const existing = preferred >= 0 ? preferred : slots.findIndex((s, i) => s === k && !!slotItems[i]?.length)
+      if (existing >= 0) {
+        slotItems[existing]!.push(...missing.map((e) => e.id))
+        for (const e of missing) assigned.add(e.id)
+        continue
+      }
       const other = spare ? slots.findIndex((s, i) => s === null && i !== p.selected) : -1
       const free = other >= 0 ? other : slots.indexOf(null)
-      if (free >= 0) slots[free] = k
-      else if (here) for (const e of items) this.posture(e, { on: 'tile', ...here })
+      if (free >= 0) {
+        slots[free] = k
+        slotItems[free] = missing.map((e) => e.id)
+        for (const e of missing) assigned.add(e.id)
+      } else if (here) for (const e of missing) this.posture(e, { on: 'tile', ...here })
     }
     // the hand holds one of the selected stack (or nothing)
     const want = slots[p.selected]
     const inHand = w.get(p.held)
-    if (inHand && (!want || this.key(inHand) !== want)) this.posture(inHand, { on: 'inside', holder: p.id })
+    if (inHand && (!want || this.key(inHand) !== want || !slotItems[p.selected]?.includes(inHand.id))) this.posture(inHand, { on: 'inside', holder: p.id })
     if (want && !w.get(p.held)) {
-      const next = (this.carried(true).get(want) ?? [])[0]
+      const next = w.get(slotItems[p.selected]?.[0])
       if (next && !next.frozenBy) this.posture(next, { on: 'hand', holder: p.id })
     }
   }
@@ -892,6 +1100,7 @@ export class Controls {
     this.stow()
     const n = dir === 1 ? ROW : slots.length - ROW
     p.slots = [...slots.slice(n), ...slots.slice(0, n)]
+    if (p.slotItems) p.slotItems = [...p.slotItems.slice(n), ...p.slotItems.slice(0, n)]
     this.sync()
   }
 
@@ -905,36 +1114,103 @@ export class Controls {
 
   /** Move or swap two slots (the inventory menu). */
   swap(a: number, b: number): void {
-    const slots = this.w.player.slots
+    const p = this.w.player
+    const slots = p.slots
     if (!slots || a === b || a < 0 || b < 0 || a >= slots.length || b >= slots.length) return
     this.stow()
     ;[slots[a], slots[b]] = [slots[b], slots[a]]
+    if (p.slotItems) [p.slotItems[a], p.slotItems[b]] = [p.slotItems[b], p.slotItems[a]]
     this.sync()
+  }
+
+  /** Place a cursor-picked portion of one physical stack in another bag slot. `item` and
+   * `sourceCount` bind the request to the frame the player picked up, so a stale click cannot
+   * move a different stack after the bag changes. */
+  moveSlot(from: number, to: number, item: Id, count: number, sourceCount: number): boolean {
+    const w = this.w
+    const p = w.player
+    if (
+      this.eng.busy(p) || !Number.isSafeInteger(from) || !Number.isSafeInteger(to) || !Number.isSafeInteger(count) || !Number.isSafeInteger(sourceCount) ||
+      count < 1 || sourceCount < 1 || from === to || from < 0 || to < 0 || from >= this.slotCount() || to >= this.slotCount()
+    ) return false
+    // Refuse a known frozen cursor or held stack before sync can normalize any layout around it.
+    if (w.get(item)?.frozenBy || (p.held && w.get(p.held)?.frozenBy)) return false
+    if (p.slotItems?.[from]?.some((id) => w.get(id)?.frozenBy) || p.slotItems?.[to]?.some((id) => w.get(id)?.frozenBy)) return false
+    this.sync()
+    const slots = p.slots ?? []
+    const groups = p.slotItems ?? []
+    if (from < 0 || to < 0 || from >= slots.length || to >= slots.length) return false
+    const key = slots[from]
+    const source = groups[from]
+    const targetKey = slots[to]
+    const target = groups[to]
+    const targetGroup = target ?? []
+    if (!key || !source?.length || source[0] !== item || source.length !== sourceCount || count > sourceCount) return false
+    const sourceEntity = w.get(item)
+    const owned = (id: Id) => {
+      const place = w.get(id)?.place
+      return !!place && (place.on === 'inside' || place.on === 'hand') && place.holder === p.id
+    }
+    if (!sourceEntity || this.key(sourceEntity) !== key || source.some((id) => !owned(id) || w.get(id)?.frozenBy)) return false
+    if (isPiece(sourceEntity.type) && sourceCount !== 1) return false
+    if (targetKey && targetKey !== key && count !== sourceCount) return false
+    if (targetKey && !target) return false
+    if (targetKey && targetGroup.some((id) => !owned(id) || w.get(id)?.frozenBy)) return false
+
+    this.stow()
+    const moved = source.slice(0, count)
+    const remaining = source.slice(count)
+    if (!targetKey) {
+      slots[to] = key
+      groups[to] = moved
+      slots[from] = remaining.length ? key : null
+      groups[from] = remaining.length ? remaining : null
+    } else if (targetKey === key) {
+      groups[to] = [...targetGroup, ...moved]
+      slots[from] = remaining.length ? key : null
+      groups[from] = remaining.length ? remaining : null
+    } else {
+      slots[from] = targetKey
+      groups[from] = targetGroup
+      slots[to] = key
+      groups[to] = moved
+    }
+    this.sync()
+    return true
   }
 
   /** The organize button: tools first, then everything else, each by type; empty slots last. */
   organize(): void {
+    this.sync()
     const p = this.w.player
     const slots = p.slots ?? []
+    const slotItems = p.slotItems ?? []
     const typeOf = (k: string) => (JSON.parse(k) as [string])[0]
-    const keys = slots.filter((k): k is string => !!k).sort((a, b) => Number(!isTool(typeOf(a))) - Number(!isTool(typeOf(b))) || typeOf(a).localeCompare(typeOf(b)))
-    const held = p.selected !== undefined ? slots[p.selected] : null
+    const groups = slots.flatMap((key, i) => key ? [{ key, items: [...(slotItems[i] ?? [])] }] : [])
+      .sort((a, b) => Number(!isTool(typeOf(a.key))) - Number(!isTool(typeOf(b.key))) || typeOf(a.key).localeCompare(typeOf(b.key)))
+    const selectedItem = p.selected !== undefined ? slotItems[p.selected]?.[0] : undefined
     this.stow()
-    p.slots = [...keys, ...Array(this.slotCount() - keys.length).fill(null)]
-    if (held) p.selected = Math.min(ROW - 1, p.slots.indexOf(held)) === p.slots.indexOf(held) ? p.slots.indexOf(held) : p.selected
+    p.slots = [...groups.map((g) => g.key), ...Array(this.slotCount() - groups.length).fill(null)]
+    p.slotItems = [...groups.map((g) => g.items), ...Array(this.slotCount() - groups.length).fill(null)]
+    const selectedAt = selectedItem ? p.slotItems.findIndex((members) => members?.includes(selectedItem)) : -1
+    if (selectedAt >= 0 && selectedAt < ROW) p.selected = selectedAt
     this.sync()
   }
 
   /** Drop a slot's stack (or one of it) in front of the player, or at their feet when that is blocked (the menu's Drop): an act of putting each. */
-  drop(i: number, all = true): void {
+  drop(i: number, all = true, selection?: { item: Id; count: number; sourceCount: number }): void {
     const w = this.w
     const p = w.player
+    this.sync()
     const k = p.slots?.[i]
     const here = w.posOf(p)
     if (!k || !here) return
+    const members = p.slotItems?.[i] ?? []
+    if (selection && (members[0] !== selection.item || members.length !== selection.sourceCount || !Number.isSafeInteger(selection.count) || selection.count < 1 || selection.count > members.length)) return
     const front = w.front(p)
     const to = front && w.inBounds(front.map, front.x, front.y) && !w.blocked(front.map, front.x, front.y, undefined, front.z) ? front : here
-    const items = this.carried(true).get(k) ?? []
+    const chosen = selection ? members.slice(0, selection.count) : all ? members : members.slice(0, 1)
+    const items = chosen.map((id) => w.get(id)).filter((e): e is Entity => !!e)
     // put on the cell: on what is on top of it there
     const onto = w.cellTop(to.map, to.x, to.y, to.z)
     if (!onto) return
@@ -954,16 +1230,9 @@ export class Controls {
     const eng = this.eng
     const p = w.player
     const box = w.get(container)
-    const it = w.get(item)
-    if (!box || !it || !w.hasStatus({ e: box.id }, 'open')) return
-    const k = this.key(it)
-    const pool = from === 'chest' ? (box.contents ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : this.carried(true).get(k) ?? []
-    const chunks = from === 'chest' ? splitStacks(pool) : [pool]
-    // A panel may still name the representative just moved; the remaining first slot is then its kind.
-    const slot = chunks.find((s) => s.some((e) => e.id === item)) ?? chunks[0] ?? []
-    const one = slot.find((e) => e.id === item) ?? slot[0]
-    const items = all ? slot : one ? [one] : []
-    if (!items.length) return
+    if (from === 'bag') this.sync()
+    const items = this.transferItems(container, from, item, all)
+    if (!box || !items.length) return
     try {
       yield { done: 0, total: items.length }
       for (const [i, e] of items.entries()) {
@@ -979,6 +1248,38 @@ export class Controls {
     } finally {
       this.sync()
     }
+  }
+
+  /** What a transfer moves: the item, or all of its slot (the chest's stacks as the panel shows them; the bag's kind). */
+  private transferItems(container: Id, from: 'chest' | 'bag', item: Id, all: boolean): Entity[] {
+    const w = this.w
+    const box = w.get(container)
+    const it = w.get(item)
+    if (!box || !it || !w.hasStatus({ e: box.id }, 'open')) return []
+    const k = this.key(it)
+    const p = w.player
+    const bagSlot = from === 'bag' ? (p.slotItems ?? []).findIndex((members) => members?.includes(item)) : -1
+    const pool = from === 'chest' ? (box.contents ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : bagSlot >= 0 ? (p.slotItems?.[bagSlot] ?? []).map((id) => w.get(id)!).filter((e) => e && this.key(e) === k) : []
+    const chunks = from === 'chest' ? splitStacks(pool) : [pool]
+    // A panel may still name the representative just moved; the remaining first slot is then its kind.
+    const slot = chunks.find((s) => s.some((e) => e.id === item)) ?? chunks[0] ?? []
+    const one = slot.find((e) => e.id === item) ?? slot[0]
+    return all ? slot : one ? [one] : []
+  }
+
+  /**
+   * The chest panel's taking, asked first where it would weigh on one's conscience (what is another's: a theft, each
+   * thing taken one): true when it is asked, `go` making the transfer on a yes.
+   */
+  asksBeforeTransfer(container: Id, from: 'chest' | 'bag', item: Id, all: boolean, go: () => void): boolean {
+    if (from !== 'chest') return false
+    const p = this.w.player
+    const items = this.transferItems(container, from, item, all)
+    const sin = joinSins(items.map((e) => this.eng.guilt('take', p.id, { e: e.id }, { instrument: null })))
+    if (!sin) return false
+    const text = this.label(GENERIC.stealAsk, { e: items[0].id })
+    this.askFirst(items.length > 1 ? { en: `${textEn(text).replace(/\?$/, '')} ×${items.length}?`, zh: `${textZh(text).replace(/？$/, '')} ×${items.length}？` } : text, sin, go)
+    return true
   }
 
   /**
@@ -1075,10 +1376,15 @@ export class Controls {
     this.sync()
   }
 
-  /** The pockets panel: take a thing from a person's pockets, or slip one into them (acts of taking and putting, seen or not). */
-  pocket(who: Id, item: Id, take: boolean): void {
+  /**
+   * The pockets panel: take a thing from a person's pockets, or slip one into them (acts of taking and putting, seen or
+   * not) — a taking asked first where it would weigh on one's conscience (a pocket picked).
+   */
+  pocket(who: Id, item: Id, take: boolean, confirmed = false): void {
     const p = this.w.player
     if (this.eng.busy(p)) return
+    const sin = take && !confirmed ? this.eng.guilt('take', p.id, { e: item }, { instrument: null, params: { into: 'contents' } }) : undefined
+    if (sin) return this.askFirst(this.label(GENERIC.stealAsk, { e: item }), sin, () => this.pocket(who, item, take, true))
     if (take) this.eng.act('take', p.id, { e: item }, { instrument: null, params: { into: 'contents' } })
     else {
       this.stow()

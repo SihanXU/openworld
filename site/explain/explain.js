@@ -18,12 +18,14 @@ const C = { bg: '#f7f8fb', ink: '#1f2937', muted: '#6b7280', faint: '#a3adbd', l
 const MONO = "Consolas, 'Cascadia Code', monospace", SANS = "'Segoe UI', system-ui, sans-serif"
 
 const load = (src) => new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(im); im.src = src })
-const clipsInfo = await fetch('../starmap/clips/clips.json').then((r) => r.json())
+// the explainer's own clips (site/explain/clips.mjs, from the stage's ?film=explain)
+const clipsInfo = await fetch('clips/clips.json').then((r) => r.json())
 const CLIP = {}
 async function loadClips(ids) {
-  await Promise.all(ids.map(async (id) => { CLIP[id] = await Promise.all(Array.from({ length: clipsInfo[id].frames }, (_, n) => load(`../starmap/clips/${id}/${String(n + 1).padStart(3, '0')}.jpg`))) }))
+  await Promise.all(ids.map(async (id) => { CLIP[id] = await Promise.all(Array.from({ length: clipsInfo[id].frames }, (_, n) => load(`clips/${id}/${String(n + 1).padStart(3, '0')}.jpg`))) }))
 }
-const USED = ['camp', 'lit', 'grass', 'out', 'hesper', 'theft', 'bounty', 'hay', 'slime', 'marta', 'pell', 'cells', 'tree']
+// in the order the film first needs them: the first chapter's four, Hesper, then the players' windows
+const USED = ['camp', 'lit', 'grass', 'out', 'hesper', 'tree', 'theft', 'hay', 'slime', 'street', 'north', 'market', 'bell', 'gate', 'canal', 'haven', 'road']
 
 const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x))
 const smooth = (x) => { x = clamp(x); return x * x * (3 - 2 * x) }
@@ -314,6 +316,8 @@ function checks(t, hx, hy) {
   ctx.globalAlpha = 1
 }
 
+/** The first players' windows, drawn large before the grid fills: clips shot large. */
+const FIRST = ['theft', 'market', 'tree', 'gate']
 /** Learned once, for everyone: more players meet it and run it; acts by thousands, hardly a call. */
 function actThree(t) {
   const a = smooth((t - 22.8) / 0.4)
@@ -325,7 +329,7 @@ function actThree(t) {
   const cw = area.w / cols, ch = area.h / rows
   for (let i = 0; i < n; i++) {
     const r = { x: area.x + (i % cols) * cw + 4, y: area.y + Math.floor(i / cols) * ch + 4, w: cw - 8, h: ch - 8 }
-    const id = USED[Math.floor(hash(i * 7 + 1) * USED.length)]
+    const id = FIRST[i] ?? USED[Math.floor(hash(i * 7 + 1) * USED.length)]
     world(r, id, (t * FPS + hash(i) * 60) % clipsInfo[id].frames, a * smooth((t - (23.1 + (Math.log2(Math.max(1, i)) | 0) * 0.5)) / 0.3))
   }
   label(L('players', '玩家'), area.x, area.y - 34, a)

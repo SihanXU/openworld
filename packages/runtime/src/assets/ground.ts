@@ -6,7 +6,7 @@
 // "outside" (the ground around it). A map cell then asks for the tile whose signature
 // matches its neighbourhood.
 
-import type { Catalog } from './types.ts'
+import type { Catalog, SpriteDef } from './types.ts'
 
 // ---------------------------------------------------------------------------------------------
 // Blob autotile layout (verified)
@@ -157,7 +157,8 @@ export class GroundAtlas {
   ) {
     this.canvas = document.createElement('canvas')
     this.canvas.width = this.cols * T
-    this.canvas.height = 64 * T
+    // (the overworld's laid grounds take a tile for each ground they meet: room for them)
+    this.canvas.height = 128 * T
     this.g = this.canvas.getContext('2d')!
     this.g.imageSmoothingEnabled = false
     void catalog
@@ -297,11 +298,16 @@ export function groundTile(atlas: GroundAtlas, catalog: Catalog, terrainAt: (x: 
     const snow = t === 'snow'
     // a block whose edges show grass (sand, mud: `edgeOn`) has an edge only against grass; beside water or a road it runs on
     const apart = (n: string) => !b.edgeOn || b.edgeOn.includes(n)
+    // a laid ground runs on under a ground laid higher, a water and a road: their edges are drawn over it
+    const above = (n: string) => b.layer !== undefined && layerOf(catalog, n) > b.layer
     const joins = (n: string, nx: number, ny: number) =>
-      groupOf(catalog, n) === g || (water && n === 'ice') || !apart(n) || (snow && (SNOW_BANKS.has(n) || (groupOf(catalog, n) === way && inSnow(catalog, terrainAt, nx, ny))))
+      groupOf(catalog, n) === g || (water && n === 'ice') || !apart(n) || above(n) || (snow && (SNOW_BANKS.has(n) || (groupOf(catalog, n) === way && inSnow(catalog, terrainAt, nx, ny))))
     const sig = shoreless && water ? 255 : wantSig((dx, dy) => joins(terrainAt(x + dx, y + dy), x + dx, y + dy))
-    const [dc, dr] = BLOB47[sig] ?? nearestBlob(sig)
-    return atlas.tile(b.img, b.col + dc, b.row + dr, tint, under)
+    // the whole tile, or one of its other looks
+    const [dc, dr] = sig === 255 && b.fills ? fillOf(b.fills, h) : (BLOB47[sig] ?? nearestBlob(sig))
+    // a laid ground's open edge shows the ground beside it that lies below it
+    const beneath = b.over !== undefined && sig !== 255 ? fullTile(() => {}, catalog, drawnAs(catalog, laidOn(catalog, terrainAt, x, y, g, b.layer ?? Infinity, b.over))) : under
+    return atlas.tile(b.img, b.col + dc, b.row + dr, tint, beneath)
   }
   // Cave walls: only the row facing open floor shows a rock face; deeper rock is dark void.
   if (t === 'cave_wall' && terrainAt(x, y + 1) === 'cave_wall') {
@@ -312,6 +318,35 @@ export function groundTile(atlas: GroundAtlas, catalog: Catalog, terrainAt: (x: 
   if (!list?.length) return 0
   const v = h % 10 < 6 ? list[0] : list[h % list.length]
   return atlas.tile(v[0], v[1], v[2], tint, under)
+}
+
+/** Where a laid ground lies among the laid ones (a plain ground 0, a block with no layer above them all). */
+function layerOf(catalog: Catalog, terrain: string): number {
+  const b = catalog.blobs[drawnAs(catalog, terrain)]
+  return b ? (b.layer ?? Infinity) : 0
+}
+
+/** The ground a laid one at (x, y) lies on: the commonest of its neighbours' grounds below `layer`, else `fallback`. */
+function laidOn(catalog: Catalog, terrainAt: (x: number, y: number) => string, x: number, y: number, group: string, layer: number, fallback: string): string {
+  const count = new Map<string, number>()
+  for (let dy = -1; dy <= 1; dy++)
+    for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue
+      const n = terrainAt(x + dx, y + dy)
+      if (groupOf(catalog, n) === group || layerOf(catalog, n) >= layer) continue
+      // the sides weigh more than the corners
+      count.set(n, (count.get(n) ?? 0) + (dx && dy ? 1 : 2))
+    }
+  let best = fallback
+  let most = 0
+  for (const [n, c] of count) if (c > most) (best = n), (most = c)
+  return best
+}
+
+/** A blob's whole tile by position: its own, or one of the `fills` others in its fifth row. */
+function fillOf(fills: number, h: number): [number, number] {
+  const i = (h >>> 3) % (fills + 1)
+  return i === fills ? BLOB47[255] : [i, 4]
 }
 
 function nearestBlob(sig: number): [number, number] {
@@ -325,7 +360,7 @@ function nearestBlob(sig: number): [number, number] {
 }
 
 /** What stands, rather than lies: a cell of these is never the ground drawn under a building. */
-const STANDING = new Set(['wall', 'woodwall', 'door', 'roof', 'tree', 'pine', 'bush', 'rock', 'cave_wall', 'burnt_wall', 'charred_tree', 'void', 'stump'])
+const STANDING = new Set(['wall', 'woodwall', 'door', 'roof', 'tree', 'pine', 'bush', 'thornhedge', 'rock', 'cave_wall', 'burnt_wall', 'charred_tree', 'void', 'stump'])
 
 /**
  * The ground under a map's buildings and fences (its prefab stamps): a stamp's solid cells are wall terrain, so the
@@ -376,8 +411,29 @@ export function groundBeneath(catalog: Catalog, stamps: { key: string; x: number
   return (x, y) => (covered.has(`${x},${y}`) ? under(x, y) : ground(x, y))
 }
 
+/** Terrains whose objects sit off the grid when the catalogue does not say (`looseObjects`). */
+const LOOSE = ['drygrass', 'flowers', 'bush']
+
+/**
+ * What stands on a cell, as both renderers draw it (scene.ts placeObject, the wiki's render-map): the terrain's object
+ * in the look its ground gives it, its heart's look deep inside a mass of its own kind (`<terrain>_inner`), picked by
+ * position, a loose one nudged off the grid. `key` names the look and the pick.
+ */
+export function objectAt(catalog: Catalog, terrainAt: (x: number, y: number) => string, groundAt: (x: number, y: number) => string, x: number, y: number): { key: string; def: SpriteDef; dx: number; dy: number } | undefined {
+  const t = terrainAt(x, y)
+  let look = objectLook(catalog, t, groundAt(x, y))
+  if (catalog.terrainObjects[`${look}_inner`]?.length && terrainAt(x, y - 1) === t && terrainAt(x + 1, y) === t && terrainAt(x, y + 1) === t && terrainAt(x - 1, y) === t) look = `${look}_inner`
+  const list = catalog.terrainObjects[look]
+  if (!list?.length) return undefined
+  // tall grass is a meadow, not a crop: a third of its tiles stay bare
+  if (t === 'drygrass' && hash2(x, y, 13) % 100 < 35) return undefined
+  const i = hash2(x, y, 11) % list.length
+  const loose = (catalog.looseObjects ?? LOOSE).includes(t)
+  return { key: `${look}:${i}`, def: list[i], dx: loose ? (hash2(x, y, 17) % 9) - 4 : 0, dy: loose ? (hash2(x, y, 19) % 5) - 2 : 0 }
+}
+
 /** Terrains drawn as a thing standing on the ground (scene.ts placeObject): a tree, a pine, a bush, a rock, a stump. */
-const OBJECTS = new Set(['tree', 'pine', 'bush', 'rock', 'stump', 'charred_tree'])
+const OBJECTS = new Set(['tree', 'pine', 'bush', 'thornhedge', 'rock', 'stump', 'charred_tree'])
 
 /**
  * The look a terrain's standing thing takes from the ground it stands in: in snow, its winter one where the catalogue

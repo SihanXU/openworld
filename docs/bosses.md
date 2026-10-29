@@ -1,7 +1,7 @@
 # Boss encounters
 
-Status (2026-10-26): Alberic's body now uses the user-delivered `boss01_01` pixel strips:
-8-frame idle and 10-frame left/right/down attacks. The shared foot pivot, frame timings,
+Status (2026-10-27): Alberic's body now uses the user-delivered `boss01_01` pixel strips:
+8-frame idle, 10-frame left/right/down attacks and 8-frame four-way walks. The shared foot pivot, frame timings,
 direction handling and explicit fallbacks are documented in [alberic-art.md](alberic-art.md).
 The earlier generated body descriptions below are historical; the encounter and skill kit remain in place.
 

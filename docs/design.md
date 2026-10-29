@@ -195,7 +195,22 @@ the act the press made (a blow, or the same rule's work: one tree after another,
 rules or a learned answer know it and it changes something, never one that asks first, and never one that undoes
 the last (a bucket filled is not poured back). An object used on oneself is made once a press, and where the world
 has never seen it, asked first (`Use {instrument} on yourself?`): a stone clicked on by a slip of the finger is no
-question for the modder.
+question for the modder. A sword or a bow (a weapon that is no tool, `pureWeapon`) at the bare ground the world has
+never seen struck is a swing at the air (`Plan.whiff`): the blade's arc or the bolt's flight, a body on its way struck
+(`Engine.attack`'s whiff), never the ground.
+
+**In a fight** (the one at the keys `fighting`, `World.fighting`: struck at an actor, struck by one, or chased by a
+hostile one in the last `FIGHT_TICKS` — the same moment the fight's music follows) a press makes no experiment: a
+click mid-blow is a slip of the finger, not a question, and the actor locked while the world is asked would stand
+there being struck. The left click's blow goes to a foe at the aim or a cell beside it (aim assist: one a cell off the
+pointer is still the one meant), else to what the base rules or a learned answer know at the aim (a tree still falls),
+else into the air (a whiff, with whatever is swung: a tool, the fist); an object used on oneself the world has never
+seen, and the right click's use the world has never seen, are not made (`Plan.idle`, labelled `Not mid-fight`, no
+`?`). The holes stay: the chooser (Alt, a layer chosen) is meant, and asks the world in a fight as out of it. And in a
+fight one's blows pass over one's own side (`Engine.spares`, `World.allied`: one's companion and followers, whom one
+follows, who follow the same one — data any actor carries): a blow along the facing goes on past them to what is
+beyond (an arrow over the fairy to the wolf), a sweep's sides leave them, and a press on one of them is a swing at the
+air, asked nothing. Out of a fight a blow on someone friendly is still asked first ("Attack Lumi?").
 
 **The right click** is `Controls.plan('secondary')`, the exact use: it chooses nothing. Every "use X on Y" the
 player makes is a right click, so the experiments — the world's one AI interface reached by hand (§5.11) — are a
@@ -286,7 +301,11 @@ aside naming a key the map leaves unbound goes). The wiki fills them with the de
   anything in front. The Ford's cell is the river's (`site/place/crossing`, hands' reach 1): one
   goes in with E from the cell beside it. A press of E that only touches the ground (the floor
   brushed, said by `tile/handle`) does nothing: it would say so at every step; the chooser still
-  touches it (`Controls.planFor`, 2026-10-20).
+  touches it (`Controls.planFor`, 2026-10-20). The ground is what one stands on (`Controls.underfoot`:
+  a floor): what stands in the cell — a tree, a bush, rock, a wall, a stump (a terrain whose space is
+  the volume or the soil, tagged `standing`) — is a thing a hand meets, said in the tip and pressed;
+  `tile/handle` leaves it a hole whose default is the touch, so the world says what comes of it and
+  with no model it is only touched (2026-10-28).
 - **Oneself is never E's or G's target**: on one's own place they meet what is there (the
   floor, what lies at one's feet, the bed one stands on). The right click on one's own place is on oneself (or
   sets up the built thing in hand there); the left click's swing never is.
@@ -1110,7 +1129,8 @@ took the class-level answers the curriculum had been learning one patch at a tim
 a creature lashed down by anything fibrous and fed by anything edible, else its own kind's to
 answer (`creature/offered`, still a hole at the root); a wild creature snapping at a bare hand,
 animals left to their own rules (`creature/handle`); a cell only touched by a bare hand, but a
-place of the overworld entered (`tile/handle`); a lit fire drying and thawing who warms their
+place of the overworld entered, and what stands in a cell (`standing`: a tree, rock, a wall) left to the world,
+the touch its default (`tile/handle`); a lit fire drying and thawing who warms their
 hands at it (`fire/warm-hands`); ore smelted in a lit forge into its bar (`smelt/ore`, the ore's
 `smelts`; iron and gold ingots are forms now); a down companion waiting (`companion/stuck`); and
 anything swung as a blow striking. What §5.2 calls the player's experiments — a thing used on the
@@ -1136,7 +1156,7 @@ does not). Things with a common use (a chair: sit; hay: lie; a well: draw water)
 get a short in-world line, or nothing. It is not "every act must change the world".
 
 - **The judgment.** The design answers `{"affords": "use" | "words" | "none", "patch": …}`, the judgment first. The
-  harness holds the answer to it (`packages/ai/src/modder/affordance.ts`): words or nothing that change the world are a
+  harness holds the answer to it (`packages/ai/src/modder/answer.ts`): words or nothing that change the world are a
   use; a use it said that changes nothing in the scene that asked (only words, or an impulse its receiver does not
   answer) is sent back once, and kept as words if it comes back the same; an answer that says nothing is judged by
   its rule, and never sent back. The verdict is written on the answering rule
@@ -1163,7 +1183,7 @@ get a short in-world line, or nothing. It is not "every act must change the worl
 - **No model.** The `?` is shown only while a modder with a model is up (`worker.ts` `asks`), and the default of a
   bare hand on what nothing answers says what was done ("You run a hand over the chair.").
 
-**The evaluation** (`npm run eval:affordance`, `tools/src/eval/affordanceSet.ts`): a bare hand on sixteen things the
+**The evaluation** (`npm run eval:affordance`, `games/openworld/ai/src/live.ts`): a bare hand on sixteen things the
 base rules leave open, eight with a common use (chair, bench, log bench, stump, haystack, well, fountain, someone's
 chair with its owner by) and eight with none (boulder, fence, statue, lamppost, mist, dead tree, table, counter). A
 use passes when it was judged a use and the scene changed; a thing with none when it was judged words or nothing and
@@ -1187,6 +1207,52 @@ re-ask now says trying again is no sign of a use and a use made up is worse than
 posture is a thing's use only where that is what it is for. The two misses are the well and the fountain, judged
 words both times ("drawing it needs a vessel, which a hand is not"): defensible for a bare hand, so the labels, not
 only the model, are in question there. A larger set and other models are for later.
+
+### 5.18 Wellbeing: what weighs on one, read from the rules (2026-10-28)
+
+People stood in the rain and burned where they stood: their goals knew their day, threats and hunger, and
+nothing of what the world does to them. Writing a goal for rain and another for fire would close the
+world's own model off from them: a rule learned tomorrow (a cloak that keeps the rain off, a herb that
+stops a bleed) would change nothing they do. So the actor reads its own trouble, and its cure, from the
+rule library — the same dry runs that label the player's inputs (`Engine.resolveEvent`), with the dice
+left as they were and a chance read as what may happen. `packages/engine/src/wellbeing.ts` names no rain,
+fire or hunger.
+
+- **What weighs.** A status weighs by its harm and by how much one minds it. The harm is read: the status's
+  pulse (`time/period` with its `status`) is resolved on its bearer, as it would be bearing it, and costs
+  health or breaks it (burning wears a body: `fire/wear`). How much one minds it is data: `StatusDef.mind`
+  (wet 1, oiled 1, frozen 2, hungry 3), a kind's own over it (`TypeDef.minds`: the roles out in the weather,
+  `WEATHERED`, do not mind wet), nothing to one tagged `endures:<id>`. Harm (`HARM`) makes it a danger.
+- **What a place does.** Standing at a cell is its contacts there, answered both ways (the floor, what one
+  stands among, the regions), the world's clocks there (the weather's rain falls on what the sky reaches),
+  and the pulses of what bears a status about it (a burning neighbour's reach). What it brings that one
+  minds is the place's weight; a place that brings it is a trouble left by leaving.
+- **What an act does.** An act's outcome on the one it is for, followed down the impulses it sends — to a
+  role, or to those an area, a map or its sky would reach where they would stand. A thing may be read as
+  another kind (the bucket once filled at the water) or as bearing a status. It cures a trouble when it
+  takes the status, or fills the prop the status is drawn under (`Ontology.thresholds`: food fills the
+  hunger `hungry` is drawn on; a module says what its primitives do, `EngineModule.reads`). An outcome no
+  rule answers is never counted a cure: behaviour asks the world nothing.
+- **What is wrong.** What one bears that weighs, the place one stands, health under half; and what harms
+  those one cares for: one's companions and leader and one's household (0.8 of one's own), one's own and
+  one's household's things (0.5) — a burning house is its people's danger.
+- **The goals.** `danger` takes what harms, first of all but a boss's fight; `need` the rest one minds,
+  before the day's round. A way is the cheapest of: a place (away from what it brings, to one that cures
+  it, within a walk; or one of one's own places on another map that brings nothing — home, out of the
+  rain); an act with what one carries or may take (one's own, one's household's, nobody's) on the one it is
+  for, or the hands on what is about (a fire to warm at); or a thing made first whose made kind cures it.
+  It is kept and followed, let go when the trouble is or when the thing made is not what was looked for.
+  The society module's need is the way after it: what one minds with no cure at hand is bought of one who
+  sells something that cures it, or taken by the poor and the loose of conscience.
+- **Not walking back in.** Out of what one minds, one stays while one's day would take one into it; a map
+  entered places people in their own place that brings nothing rather than where the day would put them
+  in it (`NpcSim.refuge`). A day written for the weather (Hesper's storm) says where one is in it.
+- **Cost.** Readings are kept a moment for kinds and places, the cures of kinds until the rules change;
+  ways are looked for a few a tick. On Firstlight the goals cost about 0.15 ms a tick in sun.
+
+References: The Sims' objects advertise what need they meet; RimWorld's pawns flee danger, seek a safe
+temperature and beat out fires in their home area; F.E.A.R.'s planner (GOAP) chains actions by their
+effects. Here the effects are not written for the planner: they are the world's own rules.
 
 ## 6. Rule system
 
@@ -1616,10 +1682,10 @@ checkpoints are produced between benchmark runs.
 
 | Measure | Effect |
 |---|---|
-| **Brief** (`brief.ts`): the roles' types and the rules that already speak about this target or instrument, assembled by code | the model answers in one call, with no tools |
+| **Brief** (`request.ts`): the roles' types and the rules that already speak about this target or instrument, assembled by code | the model answers in one call, with no tools |
 | **Low reasoning** | ~1,800 → ~50–150 reasoning tokens per call |
-| **Deterministic repairs** (`fixes.ts`): a right rule in the wrong wrapper is re-wrapped; a conflict caused only by an extra verb is narrowed to the verb used | first answers valid 0/5 → 4/4 |
-| **Derived tests** (`derive.ts`): the harness replays the rule on another instance of its class and keeps that as its test | fewer output tokens; a rule that does not generalize is flagged |
+| **Deterministic repairs** (`answer.ts`): a right rule in the wrong wrapper is re-wrapped; a conflict caused only by an extra verb is narrowed to the verb used | first answers valid 0/5 → 4/4 |
+| **Derived tests** (`answer.ts`): the harness replays the rule on another instance of its class and keeps that as its test | fewer output tokens; a rule that does not generalize is flagged |
 | **Tail guard**: providers pinned by measurement (`LSW_MODEL_PROVIDERS`); a hedge request to the next provider after 7 s; a 15 s deadline with one retry | stalls of 20–180 s seen before; OpenRouter's own throughput sort picked the slowest provider |
 | **Review after shipping**: rules that only narrate, or did not generalize, are always reviewed. A "revise" verdict sends the rule to one offline revision, which *replaces* it in the shared library (remove-then-add in the log) | quality without a model turn on the critical path |
 | **Escalation**: a live request that fails is worked again offline in the background | the player gets the fallback now; the world still learns it |
@@ -1917,7 +1983,7 @@ The offline profile (escalations, revisions, the curriculum, the editor's offlin
 it always did, and keeps its answer in the tier the question was asked at. The editor asks at the
 high tier, so an answer an author takes into the game serves every setting.
 
-**Detection** (`packages/ai/src/checks/detect.ts`; `GET /quality`, `POST /quality/detect`, this
+**Detection** (`packages/ai/src/modder/detect.ts`; `GET /quality`, `POST /quality/detect`, this
 machine only). As a game detects the hardware and recommends a preset, the service plays a set of
 questions at each tier and recommends, for each kind of work, the highest tier the model answers in
 time at least three times in four (below that: low at one in two, else off). The questions are the

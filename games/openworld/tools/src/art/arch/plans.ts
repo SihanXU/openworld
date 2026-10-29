@@ -147,5 +147,39 @@ export const HALLS = {
   chieflodge: hallPlan(24, 15, 5, { lodge: [3, 3, 18, 9], entry: [9, 12, 6, 2] }, [[11, 14]]),
   burrow: cavePlan(36, 26, 5, 11, [[18, 21, 5, 4], [18, 12, 10, 6], [6, 9, 5, 4], [30, 9, 5, 4]], [[17, 15, 3, 6], [9, 9, 6, 3], [25, 9, 5, 3], [17, 23, 3, 2]], { entry: [16, 20, 5, 4], den: [13, 10, 10, 5], hoard: [27, 7, 6, 4], cells: [3, 7, 6, 4] }, [[18, 25]]),
   garrison: hallPlan(28, 16, 7, { hall: [2, 3, 24, 10], armoury: [2, 1, 6, 2], entry: [11, 13, 6, 2] }, [[13, 15]]),
+  // Firstlight's houses (docs/release-1.md §3, the redo of 2026-10-26): each household's rooms, its anchors' cells
+  // kept by village.ts — Marta's kitchen and the two bedrooms over it, the watch house's guard room and bunks, the
+  // elder's study and bedroom, the woodcutter's hearth room and bedroom, Joss's workshop and his narrow room, Edda's
+  // room and pantry, the store with its storeroom and Greta's room, the smithy and Haldor's room, the chapel and its cells
+  // (a house's rooms side by side: a room behind another would be hidden by the wall between, as tall as the house)
+  flcook: hallPlan(27, 13, 6, { kitchen: [2, 2, 11, 9], marta: [14, 2, 5, 9], kids: [20, 2, 5, 9], a1: [13, 5, 1, 2], a2: [19, 5, 1, 2], entry: [6, 11, 3, 1] }, [[7, 12]]),
+  flwatch: hallPlan(22, 12, 6, { guard: [2, 2, 10, 8], bunks: [13, 2, 7, 8], arch: [12, 5, 1, 2], entry: [5, 10, 3, 1] }, [[6, 11]]),
+  flelder: hallPlan(22, 12, 6, { study: [2, 2, 11, 8], bedroom: [14, 2, 6, 6], arch: [13, 4, 1, 2], entry: [6, 10, 3, 1] }, [[7, 11]]),
+  flwood: hallPlan(22, 12, 6, { hearth: [2, 2, 11, 8], bedroom: [14, 4, 6, 6], arch: [13, 6, 1, 2], entry: [5, 10, 3, 1] }, [[6, 11]]),
+  fllane: hallPlan(18, 12, 6, { shop: [2, 2, 9, 8], sleep: [12, 2, 4, 8], arch: [11, 5, 1, 1], entry: [5, 10, 3, 1] }, [[6, 11]]),
+  flcabin: hallPlan(18, 12, 6, { room: [2, 2, 9, 8], pantry: [12, 4, 4, 5], arch: [11, 6, 1, 1], entry: [5, 10, 3, 1] }, [[6, 11]]),
+  flstore: hallPlan(28, 13, 6, { shop: [2, 2, 12, 9], store: [15, 2, 5, 9], room: [21, 2, 5, 9], a1: [14, 4, 1, 1], a2: [20, 6, 1, 1], entry: [7, 11, 3, 1] }, [[8, 12]]),
+  flsmithy: hallPlan(22, 13, 6, { forge: [2, 2, 12, 9], room: [15, 5, 5, 6], arch: [14, 7, 1, 1], entry: [6, 11, 3, 1] }, [[7, 12]]),
+  flchurch: hallPlan(26, 16, 8, { nave: [6, 2, 14, 11], cellW: [2, 3, 3, 5], cellE: [21, 3, 3, 5], aW: [5, 5, 1, 1], aE: [20, 5, 1, 1], entry: [11, 13, 4, 1] }, [[12, 14]]),
+  // the first chapter's houses outside the village (the same redo): the hunter's cabin and its lean-to, the mill floor
+  // with Tam's room beside it, Orrin's room and his coal store, Hilde's room by the door, her bedroom and her store
+  fthut: hallPlan(16, 11, 6, { room: [2, 2, 8, 7], store: [11, 3, 3, 5], arch: [10, 5, 1, 1], entry: [5, 9, 3, 1] }, [[6, 10]]),
+  mbmill: hallPlan(26, 13, 6, { floor: [2, 2, 14, 9], room: [17, 3, 7, 7], arch: [16, 6, 1, 1], entry: [6, 11, 3, 1] }, [[7, 12]]),
+  dlhut: hallPlan(20, 11, 6, { room: [2, 2, 9, 7], store: [12, 2, 6, 7], arch: [11, 5, 1, 1], entry: [5, 9, 3, 1] }, [[6, 10]]),
+  rbcabin: hallPlan(25, 11, 6, { room: [2, 2, 10, 7], bedroom: [13, 2, 5, 7], store: [19, 2, 4, 7], a1: [12, 5, 1, 1], a2: [18, 5, 1, 1], entry: [5, 9, 3, 1] }, [[6, 10]]),
+  // the Pilgrim's Road's (docs/release-1.md §7, the redo of 2026-10-27): the Rest's chapel of the Five and the priest's
+  // cell beside it; the hostel's common room and the pilgrims' dormitory; the abbey's chapter hall between its scriptorium
+  // and Alberic's cell; the crypt under the church, its vault before the priors' tomb; the burned farmhouse's kitchen and
+  // its bedroom
+  // the Chapel of the First Dawn on Dawn Hill (2026-10-28): its nave, the apse at its head where the first hearth stands,
+  // and through an arch in its east wall the foot of the bell tower
+  dhchapel: hallPlan(21, 14, 7, { apse: [6, 1, 5, 2], nave: [3, 3, 11, 9], arch: [14, 5, 1, 1], tower: [15, 3, 4, 5], entry: [7, 12, 3, 1] }, [[8, 13]]),
+  prchapel: hallPlan(21, 13, 7, { nave: [2, 2, 11, 9], cell: [14, 3, 5, 6], arch: [13, 5, 1, 1], entry: [6, 11, 3, 1] }, [[7, 12]]),
+  prhostel: hallPlan(23, 12, 6, { common: [2, 2, 9, 8], dorm: [12, 2, 9, 8], arch: [11, 5, 1, 2], entry: [5, 10, 3, 1] }, [[6, 11]]),
+  abhall: hallPlan(28, 13, 7, { scriptorium: [2, 4, 5, 6], hall: [8, 2, 11, 9], cell: [20, 4, 6, 6], aW: [7, 6, 1, 1], aE: [19, 6, 1, 1], entry: [12, 11, 3, 1] }, [[13, 12]]),
+  abcrypt: hallPlan(28, 20, 5, { vault: [3, 7, 22, 8], arch: [13, 6, 2, 1], entry: [12, 15, 4, 3] }, [[13, 18]]),
+  // the priors' tomb behind its fog at the crypt's head (docs/boss-rooms.md): Prior Wendel's room, its dais and its bones
+  abtomb: hallPlan(24, 15, 6, { tomb: [3, 2, 18, 9], dais: [8, 1, 8, 1], entry: [10, 11, 4, 2] }, [[11, 13]]),
+  erfarm: hallPlan(20, 11, 6, { kitchen: [2, 2, 9, 7], bedroom: [12, 3, 6, 5], arch: [11, 5, 1, 1], entry: [5, 9, 3, 1] }, [[6, 10]]),
   catacombs: hallPlan(30, 20, 5, { north: [3, 2, 24, 3], south: [3, 13, 24, 3], west: [3, 5, 3, 8], east: [24, 5, 3, 8], spine: [13, 5, 4, 8], tombW: [7, 7, 5, 4], passW: [6, 8, 1, 2], tombE: [18, 7, 5, 4], passE: [23, 8, 1, 2], entry: [13, 16, 4, 3] }, []),
 }

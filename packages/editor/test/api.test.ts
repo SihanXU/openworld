@@ -120,6 +120,15 @@ describe.skipIf(!existsSync(STARTER))('projects anywhere', () => {
     expect(c.chunks.map((x) => x.entities.length)).toEqual(s.chunks.map((x) => x.entities.length))
   })
 
+  it('makes a project written in a language the template has no words in, with the template\'s own words under it', () => {
+    const w = ws()
+    const j = w.create({ template: 'starter', id: 'nihon', name: '日本', source: 'ja', folder: join(tmp, 'ja') })
+    expect(JSON.parse(readFileSync(join(j.dir, 'game.json'), 'utf8'))).toMatchObject({ languages: { source: 'ja' } })
+    // a language it does have (the starter's Chinese) still turns the project round
+    const z = w.create({ template: 'starter', id: 'nihon-zh', name: '日本', source: 'zh', folder: join(tmp, 'ja') })
+    expect(JSON.parse(readFileSync(join(z.dir, 'game.json'), 'utf8'))).toMatchObject({ languages: { source: 'zh', translations: ['en'] } })
+  })
+
   it('opens a folder as a project under a key of its own, refuses one that is not, and forgets one without touching it', () => {
     const other = join(tmp, 'x', 'forest')
     cpSync(join(elsewhere, 'forest'), other, { recursive: true })

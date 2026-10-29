@@ -24,6 +24,12 @@ export interface Goal {
 /** An effect primitive's work: in its host's outcome, as the kernel's own are (effects.ts). */
 export type EffectImpl = (fx: EffectRunner, eff: any, ev: GameEvent) => void
 
+/**
+ * What a module's effect primitive does to its host, as one's wellbeing reads an outcome (wellbeing.ts): the props it
+ * raises or lowers (feed: hunger up), the health it gives or takes. The kernel reads its own primitives itself.
+ */
+export type EffectReading = (eff: any) => { props?: Record<string, number>; hp?: number } | undefined
+
 /** A condition's reading (rules.ts `evalCond`): it applies when its key is in the condition. */
 export type CondImpl = (c: any, roles: Roles, world: World, ev?: GameEvent) => boolean
 
@@ -53,6 +59,8 @@ export interface EngineModule {
   effects?: Record<string, EffectImpl>
   conds?: Record<string, CondImpl>
   goals?: Record<string, Goal>
+  /** What its primitives do to their host, for one's wellbeing (EffectReading). */
+  reads?: Record<string, EffectReading>
   spec?: ModuleSpec
   /** With every engine made over an ontology that names it: its own state, and the slots it fills. */
   install?(eng: Engine): void
@@ -186,6 +194,8 @@ export interface Society {
   brief(e: Entity, toward: Id): { regard: number; knows: string[] } | undefined
   /** The deed a seen event holds, if any: its name. */
   deedName(seen: GameEvent): Text | undefined
+  /** One's own deed (a seen event with params own, hosted by its doer): its name, and how far its conscience would bring its karma down — nothing written. */
+  guilt(seen: GameEvent): { deed: Text; toll: number } | undefined
 }
 
 export const noSociety = (): Society => ({
@@ -200,4 +210,5 @@ export const noSociety = (): Society => ({
   watchOf: () => undefined,
   brief: () => undefined,
   deedName: () => undefined,
+  guilt: () => undefined,
 })

@@ -5,8 +5,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, isAbsolute, join } from 'node:path'
-import { AnthropicModel } from './anthropic.ts'
-import { OpenAICompatModel, ScriptedModel, effortOf, noAnthropicHere, parseJson, type ChatMessage, type ChatOptions, type Model, type ModelReply, type ProviderPin, type ToolCall, type ToolSpec } from './model.ts'
+import { AnthropicModel, OpenAICompatModel, ScriptedModel, effortOf, noAnthropicHere, parseJson, type ChatMessage, type ChatOptions, type Model, type ModelReply, type ProviderPin, type ToolCall, type ToolSpec } from './model.ts'
 
 // ---------------------------------------------------------------- Claude Code (headless)
 
@@ -59,8 +58,8 @@ export class ClaudeCodeModel implements Model {
     const turns = messages.filter((m) => m.role !== 'system').map(transcriptLine)
     // a step of a tool conversation: one block per turn, so the next step only appends (the class comment)
     const stream = !!opts.tools?.length
-    const tail = opts.json ? 'Reply with one JSON object and nothing else.' : ''
-    const prompt = stream ? conversationInput(opts.tools!, turns) : [...turns, ...(tail ? [`[instructions]\n${tail}`] : [])].join('\n\n')
+    const tail = opts.json ? ['[instructions]\nReply with one JSON object and nothing else.'] : []
+    const prompt = stream ? conversationInput(opts.tools!, turns) : [...turns, ...tail].join('\n\n')
     const dir = mkdtempSync(join(tmpdir(), 'lsw-claude-'))
     const systemFile = join(dir, 'system.txt')
     writeFileSync(systemFile, system)
@@ -127,6 +126,7 @@ interface ClaudeResult {
  */
 export function commandFor(bin: string, args: string[]): { file: string; args: string[]; shell: boolean } {
   if (process.platform !== 'win32') return { file: bin, args, shell: false }
+  const isFile = (p: string) => existsSync(p) && statSync(p).isFile()
   const isScript = (p: string) => {
     try {
       return /^#!.*\bnode\b/.test(readFileSync(p, 'utf8').slice(0, 200))
@@ -142,15 +142,15 @@ export function commandFor(bin: string, args: string[]): { file: string; args: s
     return undefined
   }
   if (/[\\/]/.test(bin) || isAbsolute(bin)) {
-    for (const p of [bin, `${bin}.exe`, `${bin}.cmd`]) if (existsSync(p) && statSync(p).isFile()) return found(p) ?? { file: p, args, shell: false }
+    for (const p of [bin, `${bin}.exe`, `${bin}.cmd`]) if (isFile(p)) return found(p) ?? { file: p, args, shell: false }
     return { file: bin, args, shell: false }
   }
   for (const dir of (process.env.PATH ?? '').split(delimiter).filter(Boolean))
-    for (const ext of ['.exe', '.cmd', '.bat', ''])
-      if (existsSync(join(dir, bin + ext)) && statSync(join(dir, bin + ext)).isFile()) {
-        const f = found(join(dir, bin + ext))
-        if (f) return f
-      }
+    for (const ext of ['.exe', '.cmd', '.bat', '']) {
+      const p = join(dir, bin + ext)
+      const f = isFile(p) && found(p)
+      if (f) return f
+    }
   return { file: bin, args, shell: false }
 }
 
@@ -235,7 +235,6 @@ function toolCallsOf(text: string): ToolCall[] {
     .map((c, i) => ({ id: `call_${Date.now().toString(36)}_${i}`, name: c.name as string, args: c.args ?? {} }))
 }
 
-
 /**
  * A script file: entries tried in order; the first whose `purpose` matches the stage and whose
  * `contains` occurs in the last user message answers with `reply` (JSON). Unmatched calls
@@ -268,7 +267,7 @@ export function scriptFromFile(path: string): ScriptedModel {
  * - `claude-code`: `claude -p`, signed in as the user. LSW_CLAUDE_MODEL (default claude-opus-5-5),
  *   LSW_CLAUDE_EFFORT (default low), LSW_CLAUDE_BIN (default `claude`). LSW_CLAUDE_FAST=1 (`--fast`)
  *   asks for fast mode; it applies to this backend only.
- * - `anthropic`: Anthropic's API with ANTHROPIC_API_KEY (anthropic.ts). LSW_CLAUDE_MODEL (default claude-opus-5-5) and
+ * - `anthropic`: Anthropic's API with ANTHROPIC_API_KEY (model.ts `AnthropicModel`). LSW_CLAUDE_MODEL (default claude-opus-5-5) and
  *   LSW_CLAUDE_EFFORT (default low), as for claude-code.
  * - `none`: no model; the modder answers from the shared library only.
  */

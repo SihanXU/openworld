@@ -51,6 +51,8 @@ let paused = false
 let backdropOn = false
 /** Which start is the latest: one begun before another finished loading gives way to it. */
 let generation = 0
+/** A start is loading: a backdrop asked meanwhile is not made. */
+let starting = false
 let buildAim: { id: string; tile: Tile; up?: boolean } | undefined
 let lastMap = ''
 let fetching = new Set<string>()
@@ -117,6 +119,8 @@ const PREFETCH: Record<Exclude<AiLevel, 'off'>, { dwell: number; cap: number }> 
 let prefetchAsked = false // the page's ?prefetch=1 (init)
 /** The player's AI setting (the engine's quality.ts): the main thread's stored one, sent at init and on every change. */
 let quality: AiQuality = { ...DEFAULT_QUALITY }
+/** Does a companion lead the way when the player stands still (the player's option, Options)? */
+let guiding = true
 const prefetchLevel = (): Exclude<AiLevel, 'off'> | undefined => (quality.prefetch !== 'off' ? quality.prefetch : prefetchAsked ? 'medium' : undefined)
 let probe: { key: string; spot: string; ev: GameEvent; res: Resolution; ticks: number } | undefined
 const prefetched = new Set<string>()
@@ -336,7 +340,7 @@ function keyViews(): Frame['keys'] {
   }
   // the act's own view: the '?' only where someone will be asked (the AI setting may leave it to the leaf's default)
   const view = (pl: Plan | undefined): KeyView | undefined =>
-    pl && { label: pl.label, unknown: (pl.unknown && !pl.quiet && asks()) || undefined, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(!pl.changes && { idle: true }), ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(c.ground(pl.target) && { ground: true }), ...(c.talksTo(pl.target) && { person: true }), ...(rect(pl) && { rect: rect(pl) }) }
+    pl && { label: pl.label, unknown: (pl.unknown && !pl.quiet && asks()) || undefined, confirm: !!pl.confirm, x: pl.at.x, y: pl.at.y, ...(!pl.changes && { idle: true }), ...(pl.sets && { sets: true }), ...(pl.steal && { steal: true }), ...(c.underfoot(pl.target) && { ground: true }), ...(c.talksTo(pl.target) && { person: true }), ...(rect(pl) && { rect: rect(pl) }) }
   // standing still, one turns to the spot beside one that the pointer is on (the input's own posture):
   // a person one points at sees one face them, and waits (npc.ts, attended)
   const stand = w.posOf(w.player)
@@ -441,6 +445,7 @@ async function continent(): Promise<{ continent: AtlasContinent; cells: Record<s
       name: s.name ?? { en: s.props.map, zh: s.props.map },
       kind: s.type.split('/').pop()!,
       map: s.props.map,
+      sprite: w.onto.resolve(s.type).sprite ?? s.type,
       ...(opens && !w.fact(opens) && { sealed: true }),
       ...(s.props.backdrop === true && { backdrop: true }),
       ...(w.prop(w.player, `visited.${s.props.map}`) !== undefined && { visited: true }),
@@ -490,7 +495,8 @@ async function atlas(): Promise<Atlas | undefined> {
     }
     maps.push({ id: m.id, name: m.name, at: m.at, width: m.width, height: m.height, terrain })
   }
-  const targets = game.engine.quests.targets().map((x) => ({ map: x.map, x: x.x, y: x.y, text: x.text }))
+  // the objectives' own spots (not the way off this map toward one)
+  const targets = game.engine.quests.targets().filter((x) => !x.way).map((x) => ({ map: x.map, x: x.x, y: x.y, text: x.text }))
   const named = new Map((index.waypoints ?? []).map((x) => [x.id, x.name]))
   const stones = waypoints(game.engine).map(({ e, attuned }) => ({ id: e.id, map: (e.place as { map: string }).map, x: (e.place as { x: number }).x, y: (e.place as { y: number }).y, name: named.get(e.id) ?? e.name ?? { en: 'Waypoint', zh: '传送雕像' }, attuned }))
   const pos = w.posOf(w.player)!
@@ -603,7 +609,8 @@ function loop(): void {
   const stopped = timeStopped(game)
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk)
-    if (fishingActive(eng)) (attacking = false), (swinging = undefined)
+    // a line in the water is the player at work: a companion does not lead them off
+    if (fishingActive(eng)) (attacking = false), (swinging = undefined), eng.companions.stir()
     else {
       if (attacking) eng.controls.strike()
       // the left button held: its act again at the aim, as a swing's pace allows
@@ -686,6 +693,8 @@ function loop(): void {
  * but is not drawn (loop). Its frames are only drawn.
  */
 async function backdrop(m: Extract<ToWorker, { t: 'backdrop' }>): Promise<void> {
+  // a start under way is the player's choice: the title's next place never cancels it
+  if (starting) return
   const mine = ++generation
   // the world before stops at once: nothing of it is sent while the next is made
   if (timer) clearInterval(timer)
@@ -707,6 +716,7 @@ async function backdrop(m: Extract<ToWorker, { t: 'backdrop' }>): Promise<void> 
   g.worldVersion = index.version
   g.keepMaps = KEEP_MAPS
   g.engine.quality = quality
+  g.engine.companions.guiding = false
   for (const s of played().skills.all) g.engine.skills.set(s.id, s)
   game = g
   backdropOn = true
@@ -731,6 +741,15 @@ async function backdrop(m: Extract<ToWorker, { t: 'backdrop' }>): Promise<void> 
 
 async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Promise<void> {
   const mine = ++generation
+  starting = true
+  try {
+    await begin(init, fresh, mine)
+  } finally {
+    if (mine === generation) starting = false
+  }
+}
+
+async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, mine: number): Promise<void> {
   backdropOn = false
   if (timer) clearInterval(timer)
   timer = undefined
@@ -741,9 +760,16 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   base = init.base
   if (init.prefetch !== undefined) prefetchAsked = init.prefetch
   if (init.quality) quality = qualityOf(init.quality)
+  if (init.guiding !== undefined) guiding = init.guiding
   index = await fetchJson<WorldIndex>('index.json')
   if (mine !== generation) return
   const compatible = init.save?.world === index.version
+  if (init.save && !fresh && !compatible) {
+    // a save from another version of the world is never replaced by a new game: the title keeps it and says so
+    game = undefined
+    post({ t: 'incompatible' })
+    return
+  }
   // the shared library, with what the save loaded keeps of its own though another game's sync forgot it
   const taken = withKept(init.library, init.save && !fresh && compatible ? init.save : undefined)
   kept = { types: new Set(taken.kept.types), statuses: new Set(taken.kept.statuses) }
@@ -776,6 +802,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
   view = undefined
   // the player's AI setting: which tier each kind of event is asked at, and takes learned answers from
   game.engine.quality = quality
+  game.engine.companions.guiding = guiding
   // what was learned past the checks of its time (an older client's copy) and nothing here needs is forgotten
   for (const id of forgetInvalid(game.engine, kept.types)) console.info(`[library] forgotten on loading (no longer valid): ${id}`)
   // a night's sleep (a long step) passes a game hour a tick: the screen keeps up, and one lies asleep all the while
@@ -937,6 +964,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         post({ t: 'keys', keys: game ? keysNow(game) : undefined, n: m.n })
         break
       case 'answer':
+        // a key or a button held when the question came is not taken for a second press after it (it would ask again)
+        attacking = false
+        swinging = undefined
         game?.engine.controls.answer(m.yes)
         break
       case 'select':
@@ -953,12 +983,15 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'swap':
         game?.engine.controls.swap(m.a, m.b)
         break
+      case 'moveSlot':
+        post({ t: 'slotMove', request: m.request, moved: game?.engine.controls.moveSlot(m.from, m.to, m.item, m.count, m.sourceCount) ?? false })
+        break
       case 'quickMove':
         game?.engine.controls.quickMove(m.slot)
         break
       case 'drop':
         cancelFishing(game)
-        game?.engine.controls.drop(m.slot, m.all)
+        game?.engine.controls.drop(m.slot, m.all, m.item !== undefined && m.count !== undefined && m.sourceCount !== undefined ? { item: m.item, count: m.count, sourceCount: m.sourceCount } : undefined)
         break
       case 'organize':
         game?.engine.controls.organize()
@@ -1021,10 +1054,15 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'transfer':
         if (game && panel && !crafts.busy) {
-          if (!transfers.busy) nextTransferFrame = 0
           const owner = game, container = panel
-          transfers.enqueue(owner.engine.controls.transferSteps(container, m.from, m.item, m.all), m.from,
-            () => game === owner && panel === container && !owner.engine.world.state.question && !owner.mods.asking)
+          const go = () => {
+            if (game !== owner || panel !== container) return
+            if (!transfers.busy) nextTransferFrame = 0
+            transfers.enqueue(owner.engine.controls.transferSteps(container, m.from, m.item, m.all), m.from,
+              () => game === owner && panel === container && !owner.engine.world.state.question && !owner.mods.asking)
+          }
+          // taking what is another's is asked first (a theft: it would weigh on one's conscience)
+          if (!owner.engine.controls.asksBeforeTransfer(container, m.from, m.item, m.all, go)) go()
         }
         break
       case 'toggle':
@@ -1080,6 +1118,10 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'modder':
         // the player chose another modder (their own model in the settings, or none): asked from now on
         void connectModder(m.port ? portLink(m.port) : m.url ? serviceLink(m.url) : undefined)
+        break
+      case 'guiding':
+        guiding = m.on
+        if (game) game.engine.companions.guiding = guiding
         break
       case 'quality':
         // a change of setting holds from the next event: its tier asks, and takes the answers it reaches
@@ -1140,6 +1182,8 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
           w.state.tick = today >= w.state.tick ? today : tickAt(w.calendar().day + 1, m.hour)
         }
         if (m.op === 'hurt') eng.author(() => eng.hurt(w.player, m.amount, undefined, true))
+        // a fact of the story set (a part of the tale opened, a gate lifted)
+        if (m.op === 'fact') eng.author(() => w.setFact(m.key, m.value))
         // a boss again (the dev's hand): to its map first; it is set down once that map is loaded (`loop`)
         if (m.op === 'summon') {
           summon = { kit: m.kit, map: m.map, x: m.x, y: m.y }

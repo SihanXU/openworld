@@ -1,5 +1,5 @@
 import type { Dir, EntitySnap } from '@openworld/engine'
-import { ALBERIC_CLIPS, type AlbericClip, type AlbericAttackClip } from '../assets/bosses.ts'
+import { ALBERIC_CLIPS, type AlbericClip, type AlbericAttackClip, type AlbericWalkClip } from '../assets/bosses.ts'
 
 export interface BossAnimationFrame {
   col: number
@@ -13,6 +13,9 @@ export interface BossAnimationFrame {
 export const albericAttackClip = (facing: Dir): AlbericAttackClip =>
   facing === 'left' ? 'attack_left' : facing === 'right' ? 'attack_right' : 'attack_down'
 
+export const albericWalkClip = (facing: Dir): AlbericWalkClip =>
+  facing === 'left' ? 'walk_left' : facing === 'right' ? 'walk_right' : facing === 'up' ? 'walk_up' : 'walk_down'
+
 /** Pure atlas selection: wind-up is [0,.5), release/recovery [.5,1], never an early shot. */
 export function bossAnimationFrame(boss: NonNullable<EntitySnap['boss']>, time: number, offset = 0, facing: Dir = 'down'): BossAnimationFrame {
   const { action } = boss
@@ -20,10 +23,11 @@ export function bossAnimationFrame(boss: NonNullable<EntitySnap['boss']>, time: 
   if (boss.kit === 'alberic') {
     const elapsed = Number.isFinite(boss.animationElapsedMs) ? Math.max(0, boss.animationElapsedMs!) : undefined
     if (action === 'idle' || action === 'walk') {
-      // Only a frontal idle was delivered. Movement borrows it without inventing a stride/back view.
+      // Delivered strips already face each direction (left included), so they are never mirrored.
       // Loops run on the screen's clock, independently of the simulation's 10 Hz snapshots.
-      const clip = ALBERIC_CLIPS.idle
-      return { col: Math.floor(Math.max(0, time + offset) / clip.frame_ms) % clip.frames, row: 0, clip: 'idle', flipX: false }
+      const clipName = action === 'walk' ? albericWalkClip(facing) : 'idle'
+      const clip = ALBERIC_CLIPS[clipName]
+      return { col: Math.floor(Math.max(0, time + offset) / clip.frame_ms) % clip.frames, row: 0, clip: clipName, flipX: false }
     }
     if (action === 'attack' || action === 'cast') {
       const id = albericAttackClip(facing), clip = ALBERIC_CLIPS[id]

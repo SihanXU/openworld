@@ -8,7 +8,7 @@
 
 import { readFileSync } from 'node:fs'
 import type { Entity, Text } from '@openworld/engine'
-import { CH1, PART_TWO, TERRAINS, TERRAIN_CHARS, UNTOLD, VALLEY, wildId, type RawChunk } from '@openworld-game/content'
+import { PART_TWO, TERRAINS, TERRAIN_CHARS, UNTOLD, VALLEY, wildId, type RawChunk } from '@openworld-game/content'
 import { MapBuilder } from './builder.ts'
 import { L } from './kit.ts'
 import { CONTINENT_FILE, FORD, HEIGHT, WIDTH, type Continent } from './continent/generate.ts'
@@ -24,10 +24,12 @@ export const FORD_CELL = FORD
 export const OVERWORLD_STEP = 30
 
 /**
- * Each hand-made map's cell on the world map: its ground, what it is drawn as (its site's kind), and the story's
- * fact that opens it (content SITE_GATES; unset, it is sealed: the way the East Road's portal is).
+ * Each hand-made map's cell on the world map: its ground, what it is drawn as (its site's kind), the story's fact
+ * that opens it (content SITE_GATES; unset, it is sealed: the way the East Road's portal is), and the one that opens
+ * its edges (`edgesWhen`, MapData: east of the river the continent is Part Two's, so until then no edge of the
+ * Pilgrim's Road leads onto it, whatever woods are felled there; docs/release-1.md §1).
  */
-const PLACES: Record<string, { ground: string; kind: string; opensWhen?: string }> = {
+const PLACES: Record<string, { ground: string; kind: string; opensWhen?: string; edgesWhen?: string }> = {
   ford: { ground: 'ow_river', kind: 'crossing' },
   meadow: { ground: 'ow_plain', kind: 'village' },
   pasture: { ground: 'ow_plain', kind: 'farm' },
@@ -37,16 +39,17 @@ const PLACES: Record<string, { ground: string; kind: string; opensWhen?: string 
   // the river's own cell (the barrier's, D22): a camp on the near bank, reached through the forest alone
   reedbend: { ground: 'ow_river', kind: 'camp' },
   barrow: { ground: 'ow_plain', kind: 'barrow' },
-  // east of the Ford: Part Two's (release 1 is Part One, the west bank: docs/release-1.md)
-  waystation: { ground: 'ow_road', kind: 'camp', opensWhen: PART_TWO },
-  pilgrimway: { ground: 'ow_road', kind: 'waystone', opensWhen: PART_TWO },
-  abbey: { ground: 'ow_forest', kind: 'shrine', opensWhen: PART_TWO },
-  kneelfield: { ground: 'ow_plain', kind: 'barrow', opensWhen: PART_TWO },
-  eastroad: { ground: 'ow_road', kind: 'waystone', opensWhen: PART_TWO },
-  emberfall: { ground: 'ow_plain', kind: 'town', opensWhen: CH1.knight },
-  mine: { ground: 'ow_plain', kind: 'mine', opensWhen: CH1.knight },
-  pass: { ground: 'ow_plain', kind: 'pass', opensWhen: CH1.knight },
-  lair: { ground: 'ow_plain', kind: 'lair', opensWhen: CH1.knight },
+  // east of the Ford, the Pilgrim's Road to the White Knight: Part One's, as the west bank is
+  waystation: { ground: 'ow_road', kind: 'camp', edgesWhen: PART_TWO },
+  pilgrimway: { ground: 'ow_road', kind: 'waystone', edgesWhen: PART_TWO },
+  abbey: { ground: 'ow_forest', kind: 'shrine', edgesWhen: PART_TWO },
+  kneelfield: { ground: 'ow_plain', kind: 'barrow', edgesWhen: PART_TWO },
+  eastroad: { ground: 'ow_road', kind: 'waystone', edgesWhen: PART_TWO },
+  // past the knight: Part Two's (release 1 ends with the Crown home: docs/release-1.md)
+  emberfall: { ground: 'ow_plain', kind: 'town', opensWhen: PART_TWO, edgesWhen: PART_TWO },
+  mine: { ground: 'ow_plain', kind: 'mine', opensWhen: PART_TWO, edgesWhen: PART_TWO },
+  pass: { ground: 'ow_plain', kind: 'pass', opensWhen: PART_TWO, edgesWhen: PART_TWO },
+  lair: { ground: 'ow_plain', kind: 'lair', opensWhen: PART_TWO, edgesWhen: PART_TWO },
   summit: { ground: 'ow_snow', kind: 'summit' },
   mill: { ground: 'ow_plain', kind: 'watermill' },
   dawnhill: { ground: 'ow_plain', kind: 'shrine' },
@@ -84,6 +87,9 @@ const wildName = (ground: string): Text => {
   return { en: `The wild ${n.en}`, zh: `${n.zh ?? n.en}荒野` }
 }
 
+
+/** The fact that opens a hand-made map's edges (PLACES), where the story keeps them shut. */
+export const edgesWhen = (map: string): string | undefined => PLACES[map]?.edgesWhen
 
 /** Where a hand-made map lies on the overworld: its cell. */
 export const siteOf = (cell: { x: number; y: number }) => ({ map: OVERWORLD, x: (FORD_CELL.x + cell.x) * BLOCK, y: (FORD_CELL.y + cell.y) * BLOCK, size: BLOCK })

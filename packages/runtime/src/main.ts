@@ -4,7 +4,7 @@
 // inventory, J journal, M map.
 
 import Phaser from 'phaser'
-import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type SaveData, type Text } from '@openworld/engine'
+import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, libraryKey, newWorker, savesKey, worldBase } from './game.ts'
 import { FishingInputLatch, routeFishingEscape, routeSpaceKeyDown, type FromWorker, type Tile, type ToWorker } from './protocol.ts'
 import { assetUrl, cssAssetUrl, registerArt } from './render/assets.ts'
@@ -16,7 +16,7 @@ import { OwnModel, namedModder, ownModel } from './ownModel.ts'
 import { writeSlot, type Slot } from './saves.ts'
 import { Cover } from './ui/cover.ts'
 import { DeathScreen } from './ui/death.ts'
-import { locale, relabelKeys, t, tx } from './ui/common.ts'
+import { locale, prefs, relabelKeys, t, tx } from './ui/common.ts'
 import { actionOf, codeLabel, keys, setLayout, type Action } from './keymap.ts'
 import { PanelTabs, type Panel } from './ui/paneltabs.ts'
 import { Cursor } from './ui/cursor.ts'
@@ -64,7 +64,7 @@ const modderWhere = (): string => (!NAMED && ownModel.ready ? LOCAL_MODDER : (MO
 /** A game begun or loaded: the engine's worker is told the modder with it. */
 function sendInit(m: Extract<ToWorker, { t: 'init' }>): void {
   const link = modderNow()
-  worker.postMessage({ ...m, ...link }, 'modderPort' in link ? [link.modderPort] : [])
+  worker.postMessage({ ...m, guiding: prefs.get('guide'), ...link }, 'modderPort' in link ? [link.modderPort] : [])
 }
 // the player chose another model, or none: the engine asks the modder that is now (a model of the same name: nothing to tell)
 ownModel.listen((s, before) => {
@@ -89,8 +89,9 @@ const dev = new ModConsole({
 
 const menu = new Menu({
   swap: (a, b) => send({ t: 'swap', a, b }),
+  moveSlot: (request, from, to, item, count, sourceCount) => send({ t: 'moveSlot', request, from, to, item, count, sourceCount }),
   quickMove: (slot) => send({ t: 'quickMove', slot }),
-  drop: (slot, all) => send({ t: 'drop', slot, all }),
+  drop: (slot, all, selection) => send({ t: 'drop', slot, all, ...(selection && { item: selection.item, count: selection.count, sourceCount: selection.sourceCount }) }),
   organize: () => send({ t: 'organize' }),
   wear: (item, putOn) => send({ t: 'wear', item, putOn }),
   craft: (id, all, at) => send({ t: 'craft', id, all, at }),
@@ -127,6 +128,7 @@ const menu = new Menu({
   keyOnItem: (key, item) => send({ t: 'keyOnItem', key, item }),
   useItemOnHeldItem: (instrument, target) => send({ t: 'useItemOnHeldItem', instrument, target }),
   setQuality: (quality) => send({ t: 'quality', quality }),
+  guiding: (on) => send({ t: 'guiding', on }),
 })
 // (dev: the panels, for checking them by hand)
 if (import.meta.env.DEV) Object.assign((window as unknown as { lsw: object }).lsw, { menu })
@@ -461,11 +463,19 @@ function onBackdrop(m: FromWorker): void {
 
 worker.onmessage = (ev: MessageEvent<FromWorker>) => {
   const m = ev.data
-  if (backdropOn && m.t !== 'ready') return onBackdrop(m)
+  // the title's live backdrop owns the messages it draws, except a game starting (ready) or refusing to (incompatible)
+  if (backdropOn && m.t !== 'ready' && m.t !== 'incompatible') return onBackdrop(m)
   switch (m.t) {
     case 'placement':
       building.onPreview(m.preview)
       break
+    case 'incompatible': {
+      // the chosen slot holds a save from another version of the world: nothing starts, and nothing is written over it
+      slot = undefined
+      quietSave = false
+      void cover.show().then(() => cover.failed(t('cvIncompatible')))
+      break
+    }
     case 'ready':
       dev.stats = m.stats
       // (the title's camera gives way to the player's)
@@ -474,8 +484,6 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       // (no place's music until the game's first map is drawn: not the backdrop's for a moment)
       scene.audio?.music.setPlace(undefined, '')
       cover.hide()
-      // a slot's save from another version of the world cannot be played on: a new game began instead
-      if (startingFrom && !m.resumed) hud.message(t('cvIncompatible'), 'warn')
       // the slot is filled at once (a new game) or refreshed (a loaded one)
       send({ t: 'save' })
       if (import.meta.env.DEV && PARAMS.get('god') === '1') send({ t: 'debug', op: 'god', on: true })
@@ -492,6 +500,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     case 'codex':
       menu.onCodex(m.codex)
       break
+    case 'slotMove':
+      menu.onMoveSlotResult(m.request, m.moved)
+      break
     case 'frame':
       m.frame = frameThings.decode(m.frame, m.gone)
       {
@@ -502,8 +513,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       // the tutorial on its own ends where its way out leads: back to the title
       if (tutorialRun && m.frame.map !== 'tutorial' && !cover.open) {
         tutorialRun = false
-        hud.message(locale.value === 'zh' ? '教程完成！从标题页开始新游戏，进入主线。' : 'Tutorial complete! Start a new game from the title for the story.', 'good')
-        void cover.show()
+        // the note belongs to the title, which is drawn over the HUD: put it where the player can read it
+        const note = locale.value === 'zh' ? '教程完成！从标题页开始新游戏，进入主线。' : 'Tutorial complete! Start a new game from the title for the story.'
+        void cover.show().then(() => cover.note(note))
         break
       }
       hud.setLearning(m.learning)
@@ -626,8 +638,6 @@ async function librarySeq(): Promise<number | undefined> {
   const s = await kvGet<{ url: string; seq: number }>(`${libraryKey()}Seq`)
   return s && s.url && s.url === modderWhere() ? s.seq : undefined
 }
-/** The save the slot started from (undefined: a new game). */
-let startingFrom: SaveData | undefined
 /** The save right after loading is not announced. */
 let quietSave = false
 /** The tutorial played on its own (from the title): no slot, and walking out of the clearing ends it. */
@@ -639,21 +649,19 @@ const cover = new Cover(WORLD, {
   start: async (s, data, game) => {
     slot = s
     tutorialRun = false
-    startingFrom = data?.save
     quietSave = true
     const library = await kvGet<LibraryData>(libraryKey())
     const base = worldBase()
     sendInit({ t: 'init', base, save: data?.save, library, librarySeq: await librarySeq(), prefetch: PARAMS.get('prefetch') === '1', quality: menu.ai.quality, difficulty: game?.difficulty, start: game?.start, look: game?.look })
   },
-  tutorial: async () => {
+  tutorial: async (game) => {
     // its own run: nothing is saved, and the story's main line is not reached from it
     slot = undefined
     tutorialRun = true
-    startingFrom = undefined
     quietSave = true
     const library = await kvGet<LibraryData>(libraryKey())
     const base = worldBase()
-    sendInit({ t: 'init', base, library, librarySeq: await librarySeq(), quality: menu.ai.quality, start: 'tutorial' })
+    sendInit({ t: 'init', base, library, librarySeq: await librarySeq(), quality: menu.ai.quality, start: 'tutorial', difficulty: game?.difficulty, look: game?.look })
   },
   backdrop: async (s, at) => {
     backdropOn = true

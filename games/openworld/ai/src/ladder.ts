@@ -25,8 +25,8 @@ import { appendFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFile
 import { tmpdir } from 'node:os'
 import { join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { DockerEnv, LocalEnv, SANDBOX_LIMITS, chooseIsolation, hostUser, modelFromEnv, sandboxImage, type AgentTask, type Env, type Isolation, type TaskSource } from '@openworld/ai'
-import { REPO } from './engine-tasks.ts'
+import { REPO, commitBase, git as gitAt, modelFromEnv, flags, taskIsolation, type Isolation, type Model, type TaskSource } from '@openworld/ai'
+import { taskEnv, taskSource, toLF, type WorkspaceTask } from './engine-tasks.ts'
 
 export const DATA = join(REPO, 'var', 'ladder')
 const RUNS = 3
@@ -78,11 +78,8 @@ export function rungOf(lines: number, areas: Set<string>): Rung | undefined {
   return lines <= 300 ? 'R2' : 'R3'
 }
 
-function git(args: string[], o: { cwd?: string; input?: string | Buffer; binary?: boolean } = {}): string {
-  const r = spawnSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd: o.cwd ?? REPO, input: o.input, maxBuffer: 1 << 30, encoding: o.binary ? 'buffer' : 'utf8' })
-  if (r.status !== 0) throw new Error(`git ${args.slice(0, 3).join(' ')}: ${String(r.stderr).slice(0, 400)}`)
-  return String(r.stdout)
-}
+/** git in this repository (or `cwd`): its output. */
+export const git = (args: string[], o: { cwd?: string; input?: string | Buffer; binary?: boolean } = {}): string => gitAt(args, { cwd: REPO, ...o })
 
 /** The non-merge commits of `ref` that change code and tests, with their rungs (the largest left out). */
 export function candidates(ref = 'origin/main'): Candidate[] {
@@ -123,21 +120,9 @@ export function workspace(parent: string, dir: string): void {
   mkdirSync(dir, { recursive: true })
   const x = spawnSync('tar', ['-xf', '-', '-C', dir], { input: tar.stdout, maxBuffer: 1 << 20 })
   if (x.status !== 0) throw new Error(`tar: ${String(x.stderr).slice(0, 300)}`)
-  const lf = (d: string): void => {
-    for (const e of readdirSync(d, { withFileTypes: true })) {
-      const p = join(d, e.name)
-      if (e.isDirectory()) lf(p)
-      else if (/\.(ts|json|md|mjs|js)$/.test(e.name)) {
-        const t = readFileSync(p, 'utf8')
-        if (t.includes('\r\n')) writeFileSync(p, t.replace(/\r\n/g, '\n'))
-      }
-    }
-  }
-  lf(dir)
+  toLF(dir)
   writeFileSync(join(dir, '.gitignore'), 'node_modules/\n')
-  git(['init', '-q'], { cwd: dir })
-  git(['add', '-A'], { cwd: dir })
-  git(['-c', 'user.email=lsw@local', '-c', 'user.name=lsw', 'commit', '-qm', 'base'], { cwd: dir })
+  commitBase(dir)
 }
 
 /** The workspace directories of a commit's package.json ("packages/*", "games/*\/*"). */
@@ -258,6 +243,8 @@ export interface Validated extends Candidate {
 
 export function validate(c: Candidate): Validated {
   const t0 = Date.now()
+  const secs = () => Math.round((Date.now() - t0) / 1000)
+  const failed = (why: string): Validated => ({ ...c, ok: false, why, FAIL_TO_PASS: [], PASS_TO_PASS: [], secs: secs() })
   const ws = mkdtempSync(join(tmpdir(), 'lsw-ladder-'))
   try {
     workspace(c.parent, ws)
@@ -274,15 +261,15 @@ export function validate(c: Candidate): Validated {
       return out
     }
     const before = runs()
-    if (!before) return { ...c, ok: false, why: 'slow', FAIL_TO_PASS: [], PASS_TO_PASS: [], secs: Math.round((Date.now() - t0) / 1000) }
+    if (!before) return failed('slow')
     apply(ws, c, c.code)
     const after = runs()
-    if (!after) return { ...c, ok: false, why: 'slow', FAIL_TO_PASS: [], PASS_TO_PASS: [], secs: Math.round((Date.now() - t0) / 1000) }
+    if (!after) return failed('slow')
     const { f2p, p2p, regressions } = classify(before, after)
     const why = !Object.keys(after[0]).length ? 'tests-do-not-run' : !f2p.length ? 'no-fail-to-pass' : regressions.length ? 'regression' : undefined
-    return { ...c, ok: !why, ...(why ? { why } : {}), FAIL_TO_PASS: f2p, PASS_TO_PASS: p2p, secs: Math.round((Date.now() - t0) / 1000) }
+    return { ...c, ok: !why, ...(why ? { why } : {}), FAIL_TO_PASS: f2p, PASS_TO_PASS: p2p, secs: secs() }
   } catch (err) {
-    return { ...c, ok: false, why: `error: ${(err as Error).message.slice(0, 300)}`, FAIL_TO_PASS: [], PASS_TO_PASS: [], secs: Math.round((Date.now() - t0) / 1000) }
+    return failed(`error: ${(err as Error).message.slice(0, 300)}`)
   } finally {
     rmSync(ws, { recursive: true, force: true })
   }
@@ -338,13 +325,8 @@ Write the issue in Markdown, in English:
 
 Do not quote or paraphrase the change's code beyond names and signatures. Do not name the tests or say how they are written. Do not say how to implement it unless the requirement itself is about the implementation. Reply with the issue only.`
 
-interface IssueModel {
-  readonly name: string
-  chat(m: { role: 'system' | 'user'; content: string }[], o?: { reasoning?: 'low' | 'medium' | 'high'; purpose?: string }): Promise<{ content: string }>
-}
-
 /** The issue for a validated commit, by a model shown the change; kept only if it does not give the change away. */
-export async function writeIssue(v: Validated, model: IssueModel): Promise<string | undefined> {
+export async function writeIssue(v: Validated, model: Model): Promise<string | undefined> {
   const message = git(['log', '-1', '--format=%B', v.sha])
   const r = spawnSync('gh', ['api', `repos/{owner}/{repo}/commits/${v.sha}/pulls`, '--jq', '.[0].body // ""'], { cwd: REPO, encoding: 'utf8' })
   const pr = r.status === 0 ? r.stdout.trim() : ''
@@ -379,26 +361,24 @@ const vitestCmd = (files: string[], report?: string) => `node node_modules/vites
  * (the commit's test files as they were), and the verdict: the hidden test changes applied, every
  * FAIL_TO_PASS and PASS_TO_PASS test passing. Unattended, it runs only in a container (the engine tasks' rule).
  */
-export async function historyTask(def: HistoryDef, o: { isolation?: Isolation; localRun?: boolean } = {}): Promise<{ task: AgentTask; dispose: () => Promise<void> } | undefined> {
-  const iso = o.isolation ?? (await chooseIsolation())
-  if (iso === 'none' && !o.localRun) return undefined
+export async function historyTask(def: HistoryDef, o: { isolation?: Isolation; localRun?: boolean } = {}): Promise<WorkspaceTask | undefined> {
+  const iso = await taskIsolation(o)
+  if (!iso) return undefined
   const ws = mkdtempSync(join(tmpdir(), 'lsw-history-'))
-  let env: Env
+  let depsDir: string
   let visible: string[]
   // the workspace goes again whatever fails before the task exists: the checkout, the dependencies, the container
+  const cleanup = () => rmSync(ws, { recursive: true, force: true })
   try {
     workspace(def.parent, ws)
-    const depsDir = deps(def)
+    depsDir = deps(def)
     linkDeps(ws, depsDir, workspaceDirs(def.parent))
     visible = def.tests.filter((f) => existsSync(join(ws, f)))
-    env =
-      iso === 'docker'
-        ? await DockerEnv.start({ image: await sandboxImage(), root: ws, mount: ws, mounts: [{ host: depsDir, container: depsDir }], user: hostUser(), limits: SANDBOX_LIMITS })
-        : new LocalEnv(ws)
   } catch (err) {
-    rmSync(ws, { recursive: true, force: true })
+    cleanup()
     throw err
   }
+  const env = await taskEnv(iso, ws, depsDir, cleanup)
   const dispose = async () => {
     await env.dispose?.()
     rmSync(ws, { recursive: true, force: true })
@@ -434,21 +414,13 @@ export async function historyTask(def: HistoryDef, o: { isolation?: Isolation; l
 }
 
 /** The ladder's tasks for the outer loop's replays (unattended: only where they can run in a container). */
-export function historySource(): TaskSource {
-  return {
-    kinds: ['history'],
-    replay: async (ep) => {
-      const def = historyDefs().find((d) => d.id === (ep.request as { id?: string })?.id)
-      if (!def) return undefined
-      const t = await historyTask(def)
-      if (!t) return undefined
-      return { ...t.task, dispose: t.dispose }
-    },
-    cleanup: async (task: AgentTask) => task.dispose?.(),
-  }
-}
+export const historySource = (): TaskSource => taskSource('history', historyDefs, historyTask)
 
 // ------------------------------------------------------------------ the command line
+
+/** How many of each key, by key. */
+const tally = <T>(xs: T[], k: (x: T) => string) =>
+  Object.fromEntries([...xs.reduce((m, x) => m.set(k(x), (m.get(k(x)) ?? 0) + 1), new Map<string, number>())].sort())
 
 const readJsonl = <T>(f: string): T[] => (existsSync(f) ? readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l) as T) : [])
 
@@ -462,14 +434,13 @@ export function shards(name: 'results' | 'validated'): Validated[] {
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2)
-  const flag = (k: string) => (argv.includes(`--${k}`) ? argv[argv.indexOf(`--${k}`) + 1] : undefined)
+  const flag = flags(argv)
   mkdirSync(DATA, { recursive: true })
   const cmd = argv[0]
   if (cmd === 'candidates') {
     const cs = candidates(flag('ref') ?? 'origin/main')
     writeFileSync(join(DATA, 'candidates.jsonl'), cs.map((c) => JSON.stringify(c)).join('\n') + '\n')
-    const by = (k: (c: Candidate) => string) => Object.fromEntries([...cs.reduce((m, c) => m.set(k(c), (m.get(k(c)) ?? 0) + 1), new Map<string, number>())].sort())
-    console.log(`${cs.length} candidates → ${join(DATA, 'candidates.jsonl')}`, by((c) => c.rung), `${new Set(cs.map((c) => c.lock)).size} lockfiles`)
+    console.log(`${cs.length} candidates → ${join(DATA, 'candidates.jsonl')}`, tally(cs, (c) => c.rung), `${new Set(cs.map((c) => c.lock)).size} lockfiles`)
     return
   }
   if (cmd === 'validate') {
@@ -491,7 +462,6 @@ async function main(): Promise<void> {
     return
   }
   if (cmd === 'issues') {
-    if (existsSync(join(REPO, '.env'))) process.loadEnvFile(join(REPO, '.env'))
     const model = modelFromEnv()
     if (!model) throw new Error('no model (LSW_MODEL_BACKEND=claude-code, or LSW_MODEL_KEY + LSW_MODEL)')
     const rewrite = argv.includes('--rewrite')
@@ -499,12 +469,11 @@ async function main(): Promise<void> {
     let todo = shards('validated').filter((v) => !have.has(v.sha))
     if (flag('limit')) todo = todo.slice(0, Number(flag('limit')))
     console.log(`${have.size} tasks written before, ${todo.length} to go, with ${model.name}`)
-    await (async () => {
-      for (const [i, v] of todo.entries()) {
-        const issue = await writeIssue(v, model as unknown as IssueModel)
-        console.log(`[${i + 1}/${todo.length}] ${v.sha.slice(0, 7)} ${v.rung}: ${issue ? writeTask(v, issue, model.name) : 'no issue that keeps the change to itself: skipped'}`)
-      }
-    })()
+    for (const [i, v] of todo.entries()) {
+      const issue = await writeIssue(v, model)
+      const done = issue ? writeTask(v, issue, model.name) : 'no issue that keeps the change to itself: skipped'
+      console.log(`[${i + 1}/${todo.length}] ${v.sha.slice(0, 7)} ${v.rung}: ${done}`)
+    }
     return
   }
   if (cmd === 'review') {
@@ -522,7 +491,6 @@ async function main(): Promise<void> {
   }
   if (cmd === 'status') {
     const rs = shards('results')
-    const tally = (xs: Validated[], k: (v: Validated) => string) => Object.fromEntries([...xs.reduce((m, v) => m.set(k(v), (m.get(k(v)) ?? 0) + 1), new Map<string, number>())].sort())
     console.log(JSON.stringify({ results: rs.length, validated: tally(rs.filter((r) => r.ok), (r) => r.rung), dropped: tally(rs.filter((r) => !r.ok), (r) => (r.why ?? '').replace(/:.*/, '')) }, null, 1))
     return
   }

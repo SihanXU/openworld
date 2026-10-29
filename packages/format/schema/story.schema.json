@@ -2382,6 +2382,19 @@
           "properties": {
             "op": {
               "type": "string",
+              "const": "rally"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
               "const": "panel"
             },
             "panel": {
@@ -2598,6 +2611,32 @@
             },
             "text": {
               "$ref": "#/definitions/Text"
+            }
+          },
+          "required": [
+            "op",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "remark"
+            },
+            "text": {
+              "$ref": "#/definitions/Text"
+            },
+            "again": {
+              "$ref": "#/definitions/Text"
+            },
+            "alone": {
+              "$ref": "#/definitions/Text"
+            },
+            "every": {
+              "type": "number"
             }
           },
           "required": [

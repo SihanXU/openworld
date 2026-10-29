@@ -36,6 +36,10 @@ export interface Shot {
   facing?: Dir
   /** Ticks the world runs before the shot begins (people under way). */
   warm?: number
+  /** Other maps' files whose things stand on this map (a room's household, kept in its town's file). */
+  also?: string[]
+  /** A map made for a film, not in the world: its file under the folder ?promo= names (site/scale/gen). */
+  src?: string
   /** The map's file changed before it is loaded (what stands where for this shot). */
   chunk?(chunk: ReturnType<typeof decodeChunk>): void
   setup?(c: Cut): void
@@ -51,6 +55,8 @@ export interface Shot {
   /** Just before the frame is drawn: the scene's own pictures touched (someone rising out of the ground). */
   before?(c: Cut): void
   overlay?(o: Overlay, c: Cut): void
+  /** The part of the frame taken (stage pixels: x, y, w, h), when not all of it. */
+  clip?(c: Cut): [number, number, number, number]
   sounds?: Cue[]
 }
 
@@ -488,7 +494,8 @@ export function corner(id: string, map: string, at: [number, number], who: [numb
   }
 }
 const corners: Shot[] = [
-  corner('forge', 'meadow', [46, 19], [48, 17], '✓ anvil × use · fish', 3, 41, 18, { x: 45.4, y: 17, zoom: 4.2 }),
+  // (Haldor's anvil in his smithy, village.ts: the forge's room at 2,8 of its plan, the anvil four cells in and one down)
+  corner('forge', 'meadow.smithy', [6, 10], [6, 9], '✓ anvil × use · fish', 3, 41, 18, { x: 6.5, y: 9, zoom: 4.2 }),
   corner('ferry', 'ford', [25, 17], [28, 16], '✓ raft × put · lantern', 41, 318, 12),
   corner('wheel', 'mill', [18, 16], [12, 13], '✓ waterwheel × use · bell', 318, 2147, 9),
   corner('kiln', 'charcoal', [20, 14], [17, 10], '✓ kiln × use · pumpkin', 2147, 12408, 15),

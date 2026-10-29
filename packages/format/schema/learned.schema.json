@@ -1060,6 +1060,19 @@
           "properties": {
             "op": {
               "type": "string",
+              "const": "rally"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
               "const": "panel"
             },
             "panel": {
@@ -1276,6 +1289,32 @@
             },
             "text": {
               "$ref": "#/definitions/Text"
+            }
+          },
+          "required": [
+            "op",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
+              "const": "remark"
+            },
+            "text": {
+              "$ref": "#/definitions/Text"
+            },
+            "again": {
+              "$ref": "#/definitions/Text"
+            },
+            "alone": {
+              "$ref": "#/definitions/Text"
+            },
+            "every": {
+              "type": "number"
             }
           },
           "required": [
@@ -3746,6 +3785,13 @@
           "$ref": "#/definitions/StageDef",
           "description": "How long it stays what it is, and what it becomes (world-model.md §6.5)."
         },
+        "minds": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "How much this kind minds a status, by id, over the status's own `mind` (wellbeing.ts): a fish does not mind being wet. Its descendants take it, each key the nearest's."
+        },
         "goals": {
           "type": "array",
           "items": {
@@ -3964,6 +4010,10 @@
             "type": "number"
           },
           "description": "What it adds to its holder's stats while held (world-model.md §6.8): fireproof's resistance to fire."
+        },
+        "mind": {
+          "type": "number",
+          "description": "How much one minds bearing it beyond the harm it does (a discomfort: wet, hungry), for one's wellbeing (wellbeing.ts): what harms is read from the rules (its pulses hurt), never written here. A kind may mind it otherwise (TypeDef.minds); one tagged `endures:<id>` bears it without minding (a fisher in the rain)."
         }
       },
       "required": [

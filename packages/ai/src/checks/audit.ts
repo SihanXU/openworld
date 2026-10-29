@@ -10,6 +10,7 @@ import {
   SANDBOX_MAP,
   buildSandbox,
   textOf,
+  withArtifacts,
   type Engine,
   type ModRequest,
   type Ontology,
@@ -72,17 +73,6 @@ export interface AuditResult {
 const VERBS = new Set<Verb>(['use', 'put', 'take', 'hands', 'move', 'craft', 'learn'])
 /** The most the sandbox runs for one finding: acts, ticks, repeats (an audit is bounded too). */
 const MOST = { acts: 2000, ticks: 6000, repeat: 500, findings: 5 }
-
-/** The library with the patch in it (as the validator builds its candidate). */
-export function withPatch(lib: RuleLibrary, patch: Patch): RuleLibrary {
-  const cand = lib.clone()
-  for (const a of patch.artifacts) {
-    if (a.kind === 'type') cand.types = cand.types.filter((t) => t.id !== a.type.id).concat(a.type)
-    if (a.kind === 'status') cand.statuses = cand.statuses.filter((s) => s.id !== a.status.id).concat(a.status)
-    if (a.kind === 'rule') cand.add({ ...a.rule, source: { origin: 'patch' } })
-  }
-  return cand
-}
 
 /** A cell (`tile:x,y`) or a thing by its key. */
 function refOf(eng: Engine, key: string): Ref {
@@ -157,10 +147,8 @@ export function holds(eng: Engine, c: Claim): boolean {
   const w = eng.world
   if ('count' in c) return countOf(eng, c.count.type, c.count.in) >= c.count.atLeast
   if ('prop' in c) {
-    const e = w.get(c.prop.key)
-    const v = e && w.prop(e, c.prop.name)
-    if (typeof v !== 'number') return false
-    return (c.prop.atLeast === undefined || v >= c.prop.atLeast) && (c.prop.atMost === undefined || v <= c.prop.atMost)
+    const v = measure(eng, c)
+    return v !== undefined && (c.prop.atLeast === undefined || v >= c.prop.atLeast) && (c.prop.atMost === undefined || v <= c.prop.atMost)
   }
   if ('status' in c) return w.hasStatus({ e: c.status.key }, c.status.has)
   if ('gone' in c) return !w.get(c.gone)
@@ -178,8 +166,7 @@ function refused(f: Engine['world']['fx'][number]): boolean {
 /** What changed in the sandbox: things by type (made, gone), the actors' numbers, what was said wrong. */
 function summary(r: Run, sc: Scenario): string {
   const w = r.eng.world
-  const now = new Map<string, number>()
-  for (const e of Object.values(w.state.entities)) if (e.place.on !== 'none' && !e.type.startsWith('tile/') && !e.type.startsWith('resident')) now.set(e.type, (now.get(e.type) ?? 0) + 1)
+  const now = things(r.eng)
   const was = new Map<string, number>()
   for (const e of sc.entities) was.set(e.type, (was.get(e.type) ?? 0) + 1)
   const delta = [...new Set([...now.keys(), ...was.keys()])].map((t) => [t, (now.get(t) ?? 0) - (was.get(t) ?? 0)] as const).filter(([, d]) => d !== 0)
@@ -226,14 +213,18 @@ export function confirm(f: Finding, sc: Scenario, onto: Ontology, base: RuleLibr
   // what a rule that wets stones is for): it must be one of the harms below, shown in the sandbox
   const harm = harmOf(f, sc, onto, base, patched, withIt, without)
   if (!harm) return { why: 'it happens with the patch and not without it, but it is no harm by construction (no farm, value, harm to what the story needs, softlock or runaway)', reproduced: true }
-  return { ...f, proven: harm.kind, evidence: `harm by construction, ${harm.kind}: ${harm.why}\nwith the patch:\n${summary(withIt, sc)}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` }
+  return { ...f, proven: harm.kind, evidence: `harm by construction, ${harm.kind}: ${harm.why}\n${evidenceOf(sc, withIt, without)}` }
+}
+
+/** What the sandbox showed with the patch (`extra` after it) and without it. */
+function evidenceOf(sc: Scenario, withIt: Run, without?: Run, extra = ''): string {
+  return `with the patch:\n${summary(withIt, sc)}${extra}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}`
 }
 
 /** A finding's steps with every repeat done twice as often (the steps twice over when they repeat nothing). */
 function doubled(steps: AuditStep[]): AuditStep[] {
-  const has = (list: AuditStep[]): boolean => list.some((x) => 'repeat' in x || false)
-  const twice = (list: AuditStep[]): AuditStep[] => list.map((x) => ('repeat' in x ? { repeat: x.repeat * 2, steps: x.steps } : x))
-  return has(steps) ? twice(steps) : [{ repeat: 2, steps }]
+  if (!steps.some((x) => 'repeat' in x)) return [{ repeat: 2, steps }]
+  return steps.map((x) => ('repeat' in x ? { repeat: x.repeat * 2, steps: x.steps } : x))
 }
 
 /** What a claim measures: how many things, or a number (undefined for a claim that measures nothing). */
@@ -280,7 +271,7 @@ export function harmOf(f: Finding, sc: Scenario, onto: Ontology, base: RuleLibra
     const e = r.eng.world.get(key)
     return !e || e.place.on === 'none' || r.eng.world.hasStatus({ e: key }, 'down')
   }
-  const fresh = buildSandbox({ ...structuredClone(sc), entities: [...structuredClone(sc.entities), ...structuredClone(f.setup ?? [])] }, onto, base)
+  const fresh = run(sc, onto, base, f.setup).eng
   for (const key of keys) {
     const at = fresh.world.get(key)
     if (!at || !(at.type.startsWith('resident') || fresh.world.hasTag(at, 'essential'))) continue
@@ -386,15 +377,9 @@ const PROBE_GAINS = ['xp', 'hunger'] as const
 /** The scene's own act, done PROBE_REPEATS times: what it made, and what the actor's numbers gained. */
 function gains(r: Run, sc: Scenario, actorKey: string): { things: number; nums: number[] } {
   const w = r.eng.world
-  const was = new Map<string, number>()
-  for (const e of sc.entities) was.set(e.type, (was.get(e.type) ?? 0) + 1)
-  let things = 0
-  for (const e of Object.values(w.state.entities)) {
-    if (e.place.on === 'none' || e.type.startsWith('tile/') || e.type.startsWith('resident')) continue
-    things++
-  }
+  const now = [...things(r.eng).values()].reduce((a, n) => a + n, 0)
   const a = w.get(actorKey)
-  return { things: things - sc.entities.filter((e) => !e.type.startsWith('tile/')).length, nums: a ? PROBE_GAINS.map((k) => w.num(a, k)) : [] }
+  return { things: now - sc.entities.filter((e) => !e.type.startsWith('tile/')).length, nums: a ? PROBE_GAINS.map((k) => w.num(a, k)) : [] }
 }
 
 /** The keys of the things the scene's event names (its host and roles): the act's participants. */
@@ -462,23 +447,21 @@ export function probe(req: ModRequest, onto: Ontology, base: RuleLibrary, patche
   }
   const a = gains(withIt, sc, ev.actor)
   const b = without ? gains(without, sc, ev.actor) : { things: 0, nums: a.nums.map(() => 0) }
-  const start = (() => {
-    const fresh = buildSandbox(sc, onto, base).world
-    const e = fresh.get(ev.actor!)
-    return e ? PROBE_GAINS.map((k) => fresh.num(e, k)) : []
-  })()
+  const fresh = buildSandbox(sc, onto, base).world
+  const actorAtStart = fresh.get(ev.actor)
+  const start = actorAtStart ? PROBE_GAINS.map((k) => fresh.num(actorAtStart, k)) : []
   const out: Confirmed[] = []
   // things: more than one per repeat is a faucet pressed PROBE_REPEATS times (one made, consumed, is a trade)
   if (a.things - b.things >= PROBE_REPEATS) {
     const f: Finding = { title: `the act done ${PROBE_REPEATS} times leaves ${a.things - b.things} more things than without the patch`, kind: 'farm', steps, expect: [{ events: { atLeast: 1 } }] }
-    out.push({ ...f, proven: 'farm', evidence: `with the patch:\n${summary(withIt, sc)}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` })
+    out.push({ ...f, proven: 'farm', evidence: evidenceOf(sc, withIt, without) })
   }
   for (const [i, k] of PROBE_GAINS.entries()) {
     const gained = (a.nums[i] ?? 0) - (start[i] ?? 0)
     const gainedWithout = (b.nums[i] ?? 0) - (start[i] ?? 0)
     if (gained - gainedWithout >= PROBE_REPEATS) {
       const f: Finding = { title: `the act done ${PROBE_REPEATS} times gains ${gained - gainedWithout} ${k} for nothing`, kind: 'farm', steps, expect: [{ prop: { key: ev.actor, name: k, atLeast: (start[i] ?? 0) + gained } }] }
-      out.push({ ...f, proven: 'farm', evidence: `with the patch:\n${summary(withIt, sc)}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` })
+      out.push({ ...f, proven: 'farm', evidence: evidenceOf(sc, withIt, without) })
     }
   }
   // any participant's number that goes up every time the act is done again, as it did not without the patch
@@ -489,14 +472,14 @@ export function probe(req: ModRequest, onto: Ontology, base: RuleLibrary, patche
     const end = withIt.eng.world.get(key)
     const now = end ? withIt.eng.world.num(end, name) : by
     const f: Finding = { title: `the act done ${PROBE_REPEATS} times raises ${key}'s ${name} every time (+${by})`, kind: 'farm', steps, expect: [{ prop: { key, name, atLeast: now } }] }
-    out.push({ ...f, proven: 'farm', evidence: `with the patch:\n${summary(withIt, sc)}\n  ${key} ${name} ${now}${without ? `\nwithout it:\n${summary(without, sc)}` : ''}` })
+    out.push({ ...f, proven: 'farm', evidence: evidenceOf(sc, withIt, without, `\n  ${key} ${name} ${now}`) })
   }
   return out
 }
 
 /** One audit of a patch: tool rounds, a final answer, every finding checked in the sandbox. */
 export async function audit(model: Model, system: string, user: string, req: ModRequest, onto: Ontology, base: RuleLibrary, patch: Patch, o: AuditOptions): Promise<AuditResult> {
-  const patched = withPatch(base, patch)
+  const patched = withArtifacts(base, patch)
   const tools = auditTools(req.scenario, onto, base, patched)
   const specs = tools.map(({ name, description, parameters }) => ({ name, description, parameters }))
   const messages: ChatMessage[] = [
@@ -529,7 +512,13 @@ export async function audit(model: Model, system: string, user: string, req: Mod
   const findings = (Array.isArray(j?.findings) ? j!.findings : []).slice(0, MOST.findings) as Finding[]
   const out: AuditResult = { confirmed: [], unconfirmed: [] }
   for (const f of findings) {
-    const c = confirm(f, req.scenario, onto, base, patched)
+    // each finding judged on its own: one the sandbox cannot judge (a claim of no known shape) is no reason to lose the rest
+    let c: ReturnType<typeof confirm>
+    try {
+      c = confirm(f, req.scenario, onto, base, patched)
+    } catch (err) {
+      c = { why: `the finding could not be judged: ${(err as Error)?.message ?? String(err)}` }
+    }
     if ('evidence' in c) out.confirmed.push(c)
     else {
       out.unconfirmed.push({ finding: f, why: c.why })

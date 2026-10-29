@@ -67,6 +67,11 @@ export interface PrefabDef {
   base?: number
   /** Drawn in front of whoever stands in its base row (an arcade, a gateway one walks under), not behind them. */
   front?: boolean
+  /**
+   * A strip of a building drawn as one picture: the building, and where the strip is laid from where the building is
+   * (in cells). Its strips are one building: they fade together over whoever is behind it.
+   */
+  part?: { of: string; dx: number; dy: number }
 }
 
 /** A named animation strip, with its original frame size and cadence. */
@@ -130,8 +135,13 @@ export interface Catalog {
    * (10x4 block + a 5-tile 5th row). `img` is the tileset file. `edgeOn`: the terrains its
    * edge pieces are drawn against (what their outside pixels show, grass for a block on grass);
    * beside anything else the block runs on as itself. Without it, an edge against every other ground.
+   * `over`: its edge pieces are open outside, and the block is laid over the ground beside it — the commonest of its
+   * neighbours' grounds that lie below it (`layer`), drawn under it; `over` names the ground when none does. `layer`:
+   * where it lies among the laid grounds — it runs on under any ground of a higher layer (that one's edge is drawn
+   * over it) and any block with no layer (water, a road); without one it lies over every laid ground.
+   * `fills`: how many other whole tiles the block keeps in its fifth row's first cells, picked by position.
    */
-  blobs: Record<string, { img: string; col: number; row: number; w?: number; h?: number; edgeOn?: string[] }>
+  blobs: Record<string, { img: string; col: number; row: number; w?: number; h?: number; edgeOn?: string[]; over?: string; layer?: number; fills?: number }>
   /** Plain ground tiles (variants chosen per position): terrain -> list of [img, col, row]. */
   plain: Record<string, [string, number, number][]>
   /** Small decals scattered on plain ground for variety (flowers, pebbles, leaves). */
@@ -142,6 +152,12 @@ export interface Catalog {
    * The renderer picks a variant per position.
    */
   terrainObjects: Record<string, SpriteDef[]>
+  /**
+   * Terrains whose objects sit a little off the grid, never in rows (tall grass, a wood's trees). A terrain's
+   * `<id>_inner` objects, where it has them, are drawn where all four of its sides are the same terrain: a wood's heart,
+   * a range's high peaks.
+   */
+  looseObjects?: string[]
   /** Buildings and cliffs stamped by the map author: the look of the terrain under them. */
   prefabs: Record<string, PrefabDef>
   /**

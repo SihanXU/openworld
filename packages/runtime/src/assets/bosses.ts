@@ -17,7 +17,8 @@ export const SIN_FX: Record<string, FxDef> = Object.fromEntries(Object.entries(S
 export const ALBERIC_DELIVERY = delivery
 export const ALBERIC_CLIPS = ALBERIC_DELIVERY.animations
 export type AlbericClip = keyof typeof ALBERIC_CLIPS
-export type AlbericAttackClip = Exclude<AlbericClip, 'idle'>
+export type AlbericWalkClip = 'walk_down' | 'walk_up' | 'walk_left' | 'walk_right'
+export type AlbericAttackClip = 'attack_down' | 'attack_left' | 'attack_right'
 export const albericFrameMs = (clip: AlbericClip): number => ALBERIC_CLIPS[clip].frame_ms
 const ALBERIC_DIR = 'lsw/Bosses/alberic/v3' // Existing effects are unchanged.
 SIN_ACTORS['boss:sin:alberic'] = {
