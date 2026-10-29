@@ -127,6 +127,7 @@
 .on-dark .wl-error { color: #ffb3ad; }
 .join .wl { margin: 1.75rem auto 0; }
 .join .wl-roles { justify-content: center; }
+.join .wl-note, .join .wl-error { font-size: 0.8rem; max-width: none; margin-top: 0.9rem; }
 
 section.band { padding: 6rem 0; }
 section.alt { background: var(--bg-alt); }
