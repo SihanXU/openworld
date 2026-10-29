@@ -428,6 +428,12 @@ export interface PeriodDef {
    * merchant away at six o'clock still has its morning). The rules guard what must come once a day.
    */
   kept?: boolean
+  /**
+   * The want a slot of a host's day sees to that this clock brings (hunger: `hungry`, ScheduleEntry.tends): when the
+   * host comes back to the active map, its time away runs from the last such slot it passed there (it had its meal),
+   * and the clock's event comes first with the param `tended` (its rule: what the meal did).
+   */
+  tendedBy?: string
 }
 
 export interface FactionDef {

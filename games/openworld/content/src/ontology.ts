@@ -800,8 +800,9 @@ export function buildOntology(): Ontology {
       { role: 'storeroom', needs: { type: 'fixture/container' }, count: 3 },
     ],
     periods: [
-      // fed it falls fast, between meals; hungry (under six tenths) slowly, over days; asleep slower still
-      { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', paceBy: { asleep: 4, hungry: HUNGRY_PACE }, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
+      // fed it falls fast, between meals; hungry (under six tenths) slowly, over days; asleep slower still; a person's meal
+      // (a slot of their day that tends hungry) passed while nobody watched was had, and the time away runs from it
+      { name: 'hunger', every: HUNGER_EVERY, everyProp: 'hungerEvery', paceBy: { asleep: 4, hungry: HUNGRY_PACE }, tendedBy: 'hungry', host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
       { name: 'vitals', every: HUNGER_EFFECT_EVERY, host: { type: 'actor', props: { maxHunger: { gt: 0 } } } },
       // what appears by itself: the ground's yield, creatures that come back, the night's walkers (world-model.md §6.9)
       { name: 'appear', every: APPEAR_TICK, host: 'world' },

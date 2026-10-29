@@ -13,6 +13,7 @@ import type { Amount, Effect, Entity, GameEvent, Id, Pos, PropValue, Ref } from 
 import { DIRS } from './types.ts'
 import { dayForWeather, scheduleFor } from './people.ts'
 import { scheduleAt } from './npc.ts'
+import { TICKS_PER_HOUR } from './calendar.ts'
 import type { View } from './world.ts'
 
 /** What an outcome does to one thing: the statuses it gives and takes, the health it costs or gives, the props it moves. */
@@ -437,6 +438,24 @@ export class Wellbeing {
   private tends(e: Entity): string[] {
     if (!e.npc) return []
     return scheduleAt(scheduleFor(this.eng, e), this.eng.world.hour())?.tends ?? []
+  }
+
+  /**
+   * When one last began a slot of one's day that sees to a want, after `since` and up to now (a meal had while
+   * nobody watched: the clock that brings the want starts again from it, Engine.periodTick); none, undefined.
+   */
+  tendedSince(e: Entity, status: string, since: number): number | undefined {
+    if (!e.npc) return undefined
+    const w = this.eng.world
+    const t = w.state.tick
+    const h = w.hour()
+    let last: number | undefined
+    for (const s of scheduleFor(this.eng, e)) {
+      if (!s.tends?.includes(status)) continue
+      const at = t - Math.round((((h - s.from) % 24) + 24) % 24 * TICKS_PER_HOUR)
+      if (at > since && (last === undefined || at > last)) last = at
+    }
+    return last
   }
 
   /** What harms a thing one cares for (nothing of its place: it is not one's to leave), weighed by the care. */

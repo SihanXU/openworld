@@ -2039,6 +2039,8 @@ export class Engine {
       // once on a change, never a stretch at the old pace after it; the first on the clock's own beat
       const own = !!p.everyProp || !!p.paceBy || !!p.kept
       if (!own && t % p.every !== 0) continue
+      // hosts back from away that had the slot of their day that sees to what this clock brings (a meal)
+      const tended: Ref[] = []
       const comes = (e: Entity): boolean => {
         const every = Math.max(1, Math.round((p.everyProp ? w.num(e, p.everyProp, p.every) : p.every) * this.paceOf(p, e)))
         const k = `${p.name}|${e.id}`
@@ -2047,7 +2049,10 @@ export class Engine {
         // how far it has come toward its next: the ticks gone by since, over its interval as its pace is now (kept
         // with the state, `paces`, so a loaded save keeps its phase)
         const paces = (w.state.paces ??= {})
-        const was = paces[k] ?? { done: (((t - 1) % every) + every) % every / every, at: t - 1 }
+        let was = paces[k] ?? { done: (((t - 1) % every) + every) % every / every, at: t - 1 }
+        // back from away past a slot of its day that sees to it (a meal had at home): the time away runs from there
+        const fed = p.tendedBy && paces[k] && t - was.at > 1 ? this.wellbeing.tendedSince(e, p.tendedBy, was.at) : undefined
+        if (fed !== undefined) (tended.push({ e: e.id }), (was = { done: 0, at: fed }))
         const done = was.done + (t - was.at) / every
         if (done < 1 - 1e-9) return ((paces[k] = { done, at: t }), false)
         paces[k] = { done: Math.max(0, done - 1), at: t }
@@ -2061,6 +2066,7 @@ export class Engine {
               .filter((e) => e.place.on === 'tile' && (!(p.host as import('./types.ts').Selector).type || isA(e.type, (p.host as import('./types.ts').Selector).type!)) && matchSelector(p.host as import('./types.ts').Selector, w.view({ e: e.id })))
               .filter((e) => (own ? comes(e) : true))
               .map((e) => ({ e: e.id }))
+      for (const h of tended) this.offer({ kind: 'time/period', host: h, roles: {}, params: { name: p.name, tended: p.tendedBy! }, origin: 'world' })
       for (const h of hosts) this.offer({ kind: 'time/period', host: h, roles: {}, params: { name: p.name }, origin: 'world' })
     }
   }
