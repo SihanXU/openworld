@@ -813,8 +813,10 @@ export function buildOntology(): Ontology {
       // a plot staked at the Held Ground's heart looks whether its building has been built (haven.ts)
       { name: 'plot', every: 30, host: { type: 'fixture/build/plot' } },
       { name: 'storm', every: 300, host: 'world' },
-      // each morning one has one's purse again, and a merchant its stock (people/morning)
-      { name: 'morning', every: TICKS_PER_DAY, host: { type: 'actor/person' } },
+      // each morning one has one's purse again, and a merchant its stock (people/morning), a household's larder its
+      // provisions (store/morning): kept, so one away at six o'clock has it when next seen
+      { name: 'morning', every: TICKS_PER_DAY, kept: true, host: { type: 'actor/person' } },
+      { name: 'morning', every: TICKS_PER_DAY, kept: true, host: { type: 'fixture/container', tags: ['larder'] } },
       // the night's walkers crumble at dawn (their own)
       { name: 'dawn', every: 5, host: { type: 'actor', tags: ['nightborn'] } },
       // the dragon's whelps, their mother slain, scatter into the dark (quest.ts, mq/whelps-scatter)

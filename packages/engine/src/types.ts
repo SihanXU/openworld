@@ -423,6 +423,11 @@ export interface PeriodDef {
   everyProp?: string
   /** Statuses that slow it for a host that has them: its interval times this (asleep, hunger comes four times slower). */
   paceBy?: Record<string, number>
+  /**
+   * Kept for each host as a paced one is: a host off the active map when it came has it once it is seen again (a
+   * merchant away at six o'clock still has its morning). The rules guard what must come once a day.
+   */
+  kept?: boolean
 }
 
 export interface FactionDef {

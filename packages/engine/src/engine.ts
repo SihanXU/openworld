@@ -2037,7 +2037,7 @@ export class Engine {
       // a host may keep its own pace (everyProp, paceBy): the period comes on as its pace is each tick
       // (hunger: hungry, or asleep, slower), what it has come carried over a change of pace — never at
       // once on a change, never a stretch at the old pace after it; the first on the clock's own beat
-      const own = !!p.everyProp || !!p.paceBy
+      const own = !!p.everyProp || !!p.paceBy || !!p.kept
       if (!own && t % p.every !== 0) continue
       const comes = (e: Entity): boolean => {
         const every = Math.max(1, Math.round((p.everyProp ? w.num(e, p.everyProp, p.every) : p.every) * this.paceOf(p, e)))
