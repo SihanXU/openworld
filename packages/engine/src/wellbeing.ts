@@ -11,7 +11,9 @@ import type { Engine } from './engine.ts'
 import { isDo, matchSelector, rolesOf, type Roles } from './rules.ts'
 import type { Amount, Effect, Entity, GameEvent, Id, Pos, PropValue, Ref } from './types.ts'
 import { DIRS } from './types.ts'
-import { dayForWeather } from './people.ts'
+import { dayForWeather, scheduleFor } from './people.ts'
+import { scheduleAt } from './npc.ts'
+import { TICKS_PER_HOUR } from './calendar.ts'
 import type { View } from './world.ts'
 
 /** What an outcome does to one thing: the statuses it gives and takes, the health it costs or gives, the props it moves. */
@@ -41,6 +43,8 @@ export interface Trouble {
   danger: boolean
   /** It is the place one stands that brings it (leaving is the cure). */
   place?: boolean
+  /** Not borne yet: the slot of one's day one is in sees to it before it comes (a meal, before one is hungry). */
+  tended?: boolean
 }
 
 /** Health lost by a pulse weighs this much (a danger), over any discomfort. */
@@ -74,6 +78,10 @@ const ACT_REACH = 6
 const ABOUT_MAX = 40
 /** How many things at hand are tried for making another (an empty bucket filled). */
 const MAKE_TOOLS = 4
+/** How many kinds put away (a larder's bread, its apples) are tried. */
+const STORED_MAX = 8
+/** A slot that tends a want sees to it until the prop it is drawn under is this far up its full (a meal: nine tenths). */
+const TENDED_TO = 0.9
 /** A way is let go and looked for again after this long (ticks). */
 const PLAN_TTL = 300
 /** Having found no way, one looks again after this long (ticks). */
@@ -314,9 +322,9 @@ export class Wellbeing {
   }
 
   /** A status drawn under a prop's line (hungry: hunger under six tenths): raising the prop puts it right. */
-  private threshold(status: string): { prop: string } | undefined {
+  private threshold(status: string): { prop: string; full?: string } | undefined {
     const t = this.eng.world.onto.data.thresholds?.find((t) => t.name === status && (!!t.below || t.lte !== undefined))
-    return t ? { prop: t.prop } : undefined
+    return t ? { prop: t.prop, full: t.below?.prop } : undefined
   }
 
   /** Does an outcome put a status right (takes it, or fills the prop it is drawn under: food for hunger)? */
@@ -417,7 +425,37 @@ export class Wellbeing {
     }
     const max = w.num(e, 'maxHp', 0)
     if (max > 0 && w.num(e, 'hp', max) < max * LOW_HP && !out.some((t) => t.status === 'hp')) out.push({ subject: e.id, status: 'hp', weight: HARM / 2, danger: false })
+    // the slot of one's day that sees to a want before it comes (a meal): wanted while the prop it is drawn under is short
+    for (const s of this.tends(e)) {
+      if (out.some((t) => t.status === s)) continue
+      const line = this.threshold(s)
+      if (line?.full && w.num(e, line.prop, 0) < w.num(e, line.full, 0) * TENDED_TO) out.push({ subject: e.id, status: s, weight: Math.max(1, this.weight(e, s)), danger: false, tended: true })
+    }
     return out
+  }
+
+  /** The wants the slot of one's day one is in now sees to (a meal: hungry). */
+  private tends(e: Entity): string[] {
+    if (!e.npc) return []
+    return scheduleAt(scheduleFor(this.eng, e), this.eng.world.hour())?.tends ?? []
+  }
+
+  /**
+   * When one last began a slot of one's day that sees to a want, after `since` and up to now (a meal had while
+   * nobody watched: the clock that brings the want starts again from it, Engine.periodTick); none, undefined.
+   */
+  tendedSince(e: Entity, status: string, since: number): number | undefined {
+    if (!e.npc) return undefined
+    const w = this.eng.world
+    const t = w.state.tick
+    const h = w.hour()
+    let last: number | undefined
+    for (const s of scheduleFor(this.eng, e)) {
+      if (!s.tends?.includes(status)) continue
+      const at = t - Math.round((((h - s.from) % 24) + 24) % 24 * TICKS_PER_HOUR)
+      if (at > since && (last === undefined || at > last)) last = at
+    }
+    return last
   }
 
   /** What harms a thing one cares for (nothing of its place: it is not one's to leave), weighed by the care. */
@@ -452,6 +490,8 @@ export class Wellbeing {
       const still = all.find((t) => t.subject === held.trouble.subject && t.status === held.trouble.status)
       if (still && w.state.tick - held.at < PLAN_TTL) {
         const r = this.step(e, active, held)
+        // (a way gone through and the trouble still there — a bite short of full — is looked for again next turn)
+        if (r === 'done') return this.plans.delete(e.id), true
         if (r !== 'failed') return true
       }
       this.plans.delete(e.id)
@@ -570,8 +610,7 @@ export class Wellbeing {
       const subject = w.get(t.subject)
       const sp = subject && w.posOf(subject)
       const things = this.about(e, active, at)
-      const mine = (x: Entity) => x.place.on !== 'tile' || this.mayTake(e, x)
-      const tools = [...this.carried(e), ...things.filter((x) => w.isPortable(x) && mine(x))]
+      const tools = [...this.carried(e), ...things.filter((x) => w.isPortable(x) && this.mayTake(e, x)), ...this.stored(e, things)]
       const kind = (x: Entity | undefined) => (x ? `${x.type}|${Object.keys(x.statuses ?? {}).sort().join(',')}` : '')
       for (const i of tools) {
         const ok = this.memo(`use|${kind(subject)}|${t.status}|${kind(i)}|${self}`, () => {
@@ -627,10 +666,27 @@ export class Wellbeing {
     return d.hp < 0 || d.adds.has('burning')
   }
 
-  /** To have a thing in hand to use: take it where it lies first. */
+  /** To have a thing in hand to use: take it where it lies, or out of what keeps it, first. */
   private fetch(e: Entity, i: Entity): Step[] {
-    if (i.place.on !== 'tile') return []
+    if ((i.place.on === 'inside' || i.place.on === 'hand') && i.place.holder === e.id) return []
     return [{ go: this.eng.world.posOf(i)!, near: 1 }, { act: 'take', target: i.id }]
+  }
+
+  /** What is put away in the things about one that one may take from (one's own chest, one's household's larder): a kind each, the nearest. */
+  private stored(e: Entity, things: Entity[]): Entity[] {
+    const w = this.eng.world
+    const out: Entity[] = []
+    const kinds = new Set<string>()
+    for (const box of things) {
+      if (!box.contents?.length || w.isPortable(box)) continue
+      for (const id of box.contents) {
+        const x = w.get(id)
+        if (!x || kinds.has(x.type) || !w.isPortable(x) || !this.mayTake(e, x)) continue
+        kinds.add(x.type)
+        out.push(x)
+      }
+    }
+    return out.slice(0, STORED_MAX)
   }
 
   /** What one carries: in the hand and the bag. */

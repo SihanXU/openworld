@@ -1249,10 +1249,27 @@ fire or hunger.
   in it (`NpcSim.refuge`). A day written for the weather (Hesper's storm) says where one is in it.
 - **Cost.** Readings are kept a moment for kinds and places, the cures of kinds until the rules change;
   ways are looked for a few a tick. On Firstlight the goals cost about 0.15 ms a tick in sun.
+- **Meals (2026-10-29).** People starved: hunger caught up on a map the player came back to and eating never
+  did, Firstlight's homes kept no food, and nobody's day had a meal in it. A slot of a day may tend a want
+  before it comes (`ScheduleEntry.tends`: a meal tends `hungry`): while in it, one short of nine tenths of
+  the prop the status is drawn under has it as a want (`Trouble.tended`), seen to with what is at hand —
+  what one carries, and what one's own or one's household's containers about keep (the larder's bread) — and
+  never bought or taken for (the society's need passes it by). A clock that brings the want names it
+  (`PeriodDef.tendedBy`: hunger, `hungry`): a host back on the active map past such a slot had its meal there
+  — the clock's event comes first with the param `tended` (its rule feeds it), and the time away runs from the
+  slot. A clock may be `kept` for each host as a paced one is, so one away at its beat has it when next
+  seen: the morning that gives a merchant its stock and a household's larder its provisions
+  (`store/morning`). The game's builders give every household under a roof a larder (`larder` tag, its
+  `stock`) and everyone who sleeps a meal on waking and before bed, at the larder's side, else wherever the hour
+  finds them about what they were doing (`tools/src/demo/meals.ts`); the backdrop's people their noon meal at their table. What a meal had away
+  takes from the larder is made good by its next morning, so it is not counted. A life goes on unseen as its
+  day says; one watched with nothing at hand stays hungry, and buys or takes.
 
 References: The Sims' objects advertise what need they meet; RimWorld's pawns flee danger, seek a safe
 temperature and beat out fires in their home area; F.E.A.R.'s planner (GOAP) chains actions by their
-effects. Here the effects are not written for the planner: they are the world's own rules.
+effects. Here the effects are not written for the planner: they are the world's own rules. Meals as part of
+a day eaten from what one's home keeps are Skyrim's (its eat packages, food owned or at home); a larder kept by
+its household's work stands where RimWorld's stockpile, filled by its cooks and farmers, would come later.
 
 ## 6. Rule system
 

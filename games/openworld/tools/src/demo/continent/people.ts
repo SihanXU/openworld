@@ -16,6 +16,7 @@ import { GIVEN, familyName, linesFor } from './folk.ts'
 import type { Continent, Place } from './generate.ts'
 import type { Role } from './rooms.ts'
 import { CASTS, castPeople } from '../showcase/cast.ts'
+import { MEAL, isFood, larder, stockOf } from '../meals.ts'
 
 type Cell = [number, number]
 const key = (x: number, y: number) => `${x},${y}`
@@ -298,12 +299,13 @@ export function peoplePlace(chunk: RawChunk, rooms: RawChunk[], p: Place, onto: 
     const schedule: ScheduleEntry[] = night
       ? [
           { from: 8, to: 16, ...bed, activity: 'sleep' },
-          { from: 16, to: 8, ...work, activity: 'watch' },
+          { from: 16, to: 17, ...meal, ...MEAL },
+          { from: 17, to: 8, ...work, activity: 'watch' },
         ]
       : [
           { from: sleep, to: wake, ...bed, activity: 'sleep' },
           { from: wake, to: 12, ...work, activity: doing },
-          { from: 12, to: 13, ...meal, activity: 'eat' },
+          { from: 12, to: 13, ...meal, ...MEAL },
           { from: 13, to: 18, ...work, activity: doing },
           { from: 18, to: sleep, ...evening, activity: 'rest' },
         ]
@@ -350,6 +352,8 @@ export function peoplePlace(chunk: RawChunk, rooms: RawChunk[], p: Place, onto: 
     const m = room.g.chunk.map
     m.regions = { ...m.regions, home: [0, 0, m.width, m.height] }
     m.regionProps = { ...m.regionProps, home: { owner: `household:${house.id}` } }
+    // what keeps its food is its larder, kept each morning in what it was stocked with (meals.ts, store/morning)
+    for (const box of room.g.chunk.entities) if (box.place.on === 'tile' && box.type.startsWith('fixture/container/')) larder(box, stockOf(room.g.chunk, box, isFood))
   })
   // a shrine keeps its keeper and the pilgrims who sleep by it (no roof over them)
   if (!rs.length && p.kind === 'shrine') {

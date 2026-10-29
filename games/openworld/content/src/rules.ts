@@ -471,10 +471,14 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'body/hunger',
-    doc: 'Hunger (Minecraft\'s food bar): it drains — fast while fed, slowly once hungry; well fed (90 % and up) the body heals, starving (0) it loses health, but never the last point.',
+    doc: 'Hunger (Minecraft\'s food bar): it drains — fast while fed, slowly once hungry; well fed (90 % and up) the body heals, starving (0) it loses health, but never the last point. A meal had while nobody watched (the clock\'s `tended`) feeds one.',
     host: { type: 'actor', props: { maxHunger: { gt: 0 } }, notStatus: ['down'] },
     on: 'time/period',
     tree: IF(
+      all(param('name', 'hunger'), param('tended', 'hungry')),
+      // a meal had while nobody watched (a slot of one's day that tends hungry, passed away from the active map): fed
+      DO({ op: 'feed', amount: { prop: 'maxHunger', of: 'host' } }),
+      IF(
       param('name', 'hunger'),
       // under the line without the status (a save from before it, a thing made hungry): it is put right
       IF(
@@ -497,6 +501,7 @@ const BODIES: Rule[] = [
           DO({ op: 'heal', amount: 1 }),
           IF(all({ prop: { role: 'host', key: 'hunger', cmp: { lte: 0 } } }, { prop: { role: 'host', key: 'hp', cmp: { gt: 1 } } }), DO({ op: 'hurt', amount: 1, pierce: true }), NOTHING),
         ),
+      ),
       ),
     ),
   }),

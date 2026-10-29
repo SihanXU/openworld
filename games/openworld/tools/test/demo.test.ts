@@ -763,10 +763,14 @@ req('F5', 'the world acts alone: a storm strikes, the slimes come out of their b
   const h = W(f).posOf(W(f).get('npc.hesper')!)!
   const fire = W(f).map('ford')!.anchors!['camp.fire']
   expect(Math.abs(h.x - fire[0]) + Math.abs(h.y - fire[1])).toBeLessThanOrEqual(2)
-  // 22:00: the fire slime has left the hollow by its burrow
-  ticks(f, Math.round(1.17 * TICKS_PER_HOUR), watch)
-  const slime = W(f).posOf(W(f).get('ford.fire_slime')!)!
-  expect(Math.abs(slime.x - AT.fireSlime[0]) + Math.abs(slime.y - AT.fireSlime[1])).toBeGreaterThan(3)
+  // by 22:00: the fire slime has left the hollow by its burrow (the farthest it went in the hour: it wanders)
+  let far = 0
+  ticks(f, Math.round(1.17 * TICKS_PER_HOUR), () => {
+    const sl = W(f).posOf(W(f).get('ford.fire_slime')!)!
+    far = Math.max(far, Math.abs(sl.x - AT.fireSlime[0]) + Math.abs(sl.y - AT.fireSlime[1]))
+    return watch()
+  })
+  expect(far).toBeGreaterThan(3)
   expect(Math.abs(AT.burrow[0] - AT.fireSlime[0]) + Math.abs(AT.burrow[1] - AT.fireSlime[1])).toBeLessThanOrEqual(3)
 })
 
@@ -4622,6 +4626,26 @@ req('N3', 'the people have needs of their own, and anyone may be wanted: Vigo, h
   stand(f, v.x, v.y + 1, 'up', v.map)
   f.eng.controls.talk('npc.vigo', 'follow')
   expect(W(f).prop(W(f).get('npc.vigo')!, 'follow')).toBe('player')
+})
+
+req('N5', "a household's meals: Marta's house keeps a larder of bread and apples; at his hour before bed Pell, who carries nothing to eat, eats from it, short of a full belly, and the next morning it is kept again", ['item/food/apple', 'npc.pell'], () => {
+  const f = fresh()
+  const w = W(f)
+  const larder = Object.values(w.state.entities).find((e) => e.tags?.includes('larder') && e.place.on === 'tile' && e.place.map === 'meadow.cook')!
+  const held = () => (larder.contents ?? []).map((id) => w.get(id)!.type)
+  expect(held()).toContain('item/food/apple')
+  expect(held()).toContain('item/food/bread')
+  const full = held().length
+  const supper = w.get('npc.pell')!.npc!.schedule.find((s) => s.tends?.includes('hungry') && s.from >= 12)!
+  setHour(f, 1, supper.from + 0.1)
+  stand(f, supper.x + 1, supper.y, 'left', supper.map)
+  placeNpc(f, 'npc.pell', supper.x, supper.y, 'up', supper.map)
+  author(f, () => w.setProp(w.get('npc.pell')!, 'hunger', 10))
+  expect(ticks(f, 400, () => held().length < full && w.num(w.get('npc.pell')!, 'hunger') >= 18)).toBe(true)
+  // the next morning, its provisions are back
+  author(f, () => (w.state.tick = tickAt(2, 6.2)))
+  ticks(f, 3)
+  expect(held().length).toBe(full)
 })
 
 req('N4', 'trade: a merchant sells at its price and pays for what is yours; a peddler who is a fence buys what is not, for less; the talk names what each thinks of you', ['npc.tobin'], () => {

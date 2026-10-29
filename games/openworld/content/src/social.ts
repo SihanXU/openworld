@@ -528,6 +528,13 @@ export const SOCIAL_RULES: Rule[] = [
     tree: IF(param('name', 'morning'), DO({ op: 'restock' }), 'inherit'),
   }),
   rule({
+    id: 'store/morning',
+    doc: "Each morning a household's larder has its provisions again (its `stock`): what its people's work brings in.",
+    host: { type: 'fixture/container', tags: ['larder'] },
+    on: 'time/period',
+    tree: IF(param('name', 'morning'), DO({ op: 'restock' }), 'inherit'),
+  }),
+  rule({
     id: 'people/death',
     doc: 'A person at no health who is not essential dies (the essential go down): one who struck learns from it, people will talk of it, and they become their body, a container of what they carried (§2.8).',
     host: PERSON,

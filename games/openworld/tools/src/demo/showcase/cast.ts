@@ -9,6 +9,7 @@ import { SOCIAL_COIN, TERRAIN_CHARS, favouriteFor, generateLook, type RawChunk }
 import { facesOf, itemOf, reseed, rng } from '../builder.ts'
 import { GIVEN, familyName, linesFor } from '../continent/folk.ts'
 import type { Place } from '../continent/generate.ts'
+import { MEAL } from '../meals.ts'
 
 type Cell = [number, number]
 
@@ -123,7 +124,7 @@ export function castPeople(chunk: RawChunk, rooms: RawChunk[], p: Place, onto: O
       .sort((a, b) => a.from - b.from)
       .map((h) => {
         const [x, y] = floor(h.map).spot([h.x, h.y], h.r ?? 0)
-        return { from: h.from, to: h.to % 24, map: h.map, x, y, activity: h.activity }
+        return { from: h.from, to: h.to % 24, map: h.map, x, y, activity: h.activity, ...(h.activity === MEAL.activity && { tends: MEAL.tends }) }
       })
     // asleep in the hours the day leaves (the longest run of them: a night watch sleeps by day)
     const awake = Array.from({ length: 24 }, (_, hr) => day.some((s) => (s.from <= s.to ? hr >= s.from && hr < s.to : hr >= s.from || hr < s.to)))

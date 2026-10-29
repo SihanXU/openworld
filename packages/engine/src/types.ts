@@ -423,6 +423,17 @@ export interface PeriodDef {
   everyProp?: string
   /** Statuses that slow it for a host that has them: its interval times this (asleep, hunger comes four times slower). */
   paceBy?: Record<string, number>
+  /**
+   * Kept for each host as a paced one is: a host off the active map when it came has it once it is seen again (a
+   * merchant away at six o'clock still has its morning). The rules guard what must come once a day.
+   */
+  kept?: boolean
+  /**
+   * The want a slot of a host's day sees to that this clock brings (hunger: `hungry`, ScheduleEntry.tends): when the
+   * host comes back to the active map, its time away runs from the last such slot it passed there (it had its meal),
+   * and the clock's event comes first with the param `tended` (its rule: what the meal did).
+   */
+  tendedBy?: string
 }
 
 export interface FactionDef {
@@ -719,6 +730,12 @@ export interface ScheduleEntry {
   need?: Selector
   /** The work the activity is (world-model.md §6.10): real acts on what is about, tried in order. */
   work?: WorkDef[]
+  /**
+   * Wants this slot sees to before they come (design.md §5.18): a meal tends `hungry` — while in it, one puts the prop
+   * the status is drawn under up near its full with what is at hand (the larder's bread), hungry or not yet. A
+   * clock that brings the want starts again from such a slot passed while nobody watched (PeriodDef.tendedBy).
+   */
+  tends?: string[]
 }
 
 /**
