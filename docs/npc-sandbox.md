@@ -194,6 +194,11 @@ meal of a merchant within 14 cells they can pay; else, with honesty under 0.5 or
 or in a container within 14 cells; under 0.3, from a pocket too (not a guard's). Nothing found, they wait an
 hour. Vigo (no coin, honesty 0.2) steals; the village sees and judges him as it would anyone.
 
+Since 2026-10-28 hunger is one of the things one minds (design.md §5.18, engine `wellbeing.ts`): the kernel's `need`
+goal eats what they carry (food is what the rules say cures `hungry`: it fills the hunger the status is drawn
+under), and the society module's way comes after it for what it found no cure for at hand — whatever one minds,
+not only hunger: bought of a merchant whose stock holds something the rules say cures it, or taken as above.
+
 ### 2.12 Followers
 `follow` (regard ≥ 25 or a `hireling`; never the essential) sets the person's `follow` prop: the `follow` goal
 keeps them within 2 cells, brings them at once when more than 12 behind, takes them along from map to map

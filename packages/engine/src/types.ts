@@ -72,6 +72,11 @@ export interface TypeDef {
   makeup?: MakeupPart[]
   /** How long it stays what it is, and what it becomes (world-model.md §6.5). */
   stage?: StageDef
+  /**
+   * How much this kind minds a status, by id, over the status's own `mind` (wellbeing.ts): a fish does not mind
+   * being wet. Its descendants take it, each key the nearest's.
+   */
+  minds?: Record<string, number>
   /** The order its goals are tried in (world-model.md §6.10): encounter, threat, follow, schedule, home, idle. */
   goals?: string[]
   /** Where it is made from its makeup (world-model.md §6.4): `hands` (anywhere), or a station (a thing tagged `station:<x>`, opened or within reach). */
@@ -225,6 +230,12 @@ export interface StatusDef {
   untilMove?: boolean
   /** What it adds to its holder's stats while held (world-model.md §6.8): fireproof's resistance to fire. */
   props?: Record<string, number>
+  /**
+   * How much one minds bearing it beyond the harm it does (a discomfort: wet, hungry), for one's wellbeing
+   * (wellbeing.ts): what harms is read from the rules (its pulses hurt), never written here. A kind may mind it
+   * otherwise (TypeDef.minds); one tagged `endures:<id>` bears it without minding (a fisher in the rain).
+   */
+  mind?: number
 }
 
 export interface TerrainDef {
@@ -261,6 +272,8 @@ export interface Ontology {
   protection?: ProtectionDef
   /** What a felled creature's kind leaves its feller beyond the rules' spoils: its own piece's pity and words (the loot module). */
   loot?: LootParams
+  /** A companion leading the way when its leader stands idle (companion.ts): when, and its words; none, it never leads. */
+  guide?: GuideParams
   /** The verbs of the talk panel (docs/npc-sandbox.md §2.9): each offered when its condition holds (host: the one spoken to; actor: the speaker). */
   talk?: TalkVerb[]
   statuses: Record<string, StatusDef>
@@ -882,6 +895,29 @@ export interface LootParams {
   found?: Text
 }
 
+/**
+ * A companion leading the way (companion.ts): when its leader has done nothing for `after` ticks with a quest tracked, it
+ * flies to where the quest goes next — over the thing to get or the one to see, or out ahead toward one farther off, up
+ * to the way off the map toward another — and says so. Its lines are the game's, one picked in turn: `{thing}` what or
+ * whom it points at, `{place}` the map the way leads to, `{dir}` which way (from `dirs`). A line missing, it only flies.
+ */
+export interface GuideParams {
+  /** Ticks of the leader doing nothing before it leads (default 50). */
+  after?: number
+  /** Ticks it shows a spot before it comes back (default 80). */
+  show?: number
+  /** Ticks it rests after showing before it leads again while the leader still does nothing (default 200). */
+  every?: number
+  /** Over what is near: "{thing}: here!" */
+  here?: Text[]
+  /** Out ahead toward what is farther off on this map: "This way: {thing}, {dir}." */
+  way?: Text[]
+  /** At the way off this map, or out ahead toward it: "{place} is this way!" */
+  exit?: Text[]
+  /** Which way, the eight of the compass (`n`, `ne`, `e` … `nw`; north is up). */
+  dirs?: Record<string, Text>
+}
+
 /** The numbers of the people's social life (data, docs/npc-sandbox.md): the engine holds the mechanisms. */
 export interface SocialParams {
   /** The coin trade and fines are paid in. */
@@ -1263,6 +1299,13 @@ export interface MapData {
   scale?: number
   /** Where the map lies on the overworld: the top left of its cell's block there (world-model.md §5.1). Its open edges lead to it. */
   site?: { map: string; x: number; y: number; size: number }
+  /**
+   * The story's fact that opens this map's edges (world-model.md §5.1, docs/release-1.md §1): until it is set, no edge
+   * leads off the map onto the overworld, whatever is cleared from it (a felled tree, mined rock), and running off one
+   * is a bump on the story (`Engine.sealedEdge`). A map a barrier parts takes it from the places its part's ways lead
+   * to: off that part's edge one would come out on their side. Without it, the edges are open.
+   */
+  edgesWhen?: string
   portals: Portal[]
   /** Render hints (the engine ignores them): prefab stamps, room wall frames, music, light. */
   stamps?: { key: string; x: number; y: number }[]
@@ -2130,7 +2173,7 @@ export interface Rule {
 
 export type FxEvent =
   | { t: 'vfx'; fx: string; map: string; x: number; y: number; angle?: number; span?: number; /** who made it (a blow's swing, a bolt loosed): drawn wielding it wherever they are drawn now */ who?: Id }
-  | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean; /** said to another (one person telling another): heard in passing, not a talk with the one at the keys */ to?: Id }
+  | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean; /** said to another (one person telling another): heard in passing, not a talk with the one at the keys */ to?: Id; /** called out (a companion leading the way): a bubble, never the talk's box */ aside?: boolean }
   | { t: 'emote'; who: Id; mood: Mood }
   | { t: 'fade'; dir: 'out' | 'in' }
   | { t: 'card'; text: Text; art?: string }

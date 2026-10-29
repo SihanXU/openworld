@@ -17,6 +17,8 @@ describe('the companion', () => {
     const eng = game.engine
     const w = eng.world
     const p = w.player
+    // how it keeps up and settles (leading the way, when the player stands still a while, is leading.test.ts)
+    eng.companions.guiding = false
     // the foot's open ground below its high ground, from west to east and back, zig-zagging
     eng.author(() => eng.teleport(p, { map: 'foot', x: 8, y: 8 }))
     for (let i = 0; i < 10; i++) eng.tick()

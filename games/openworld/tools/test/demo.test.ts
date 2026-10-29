@@ -561,6 +561,31 @@ req('F1', 'the goal is a state: the far bank ends the bridge stage, however the 
   const rim = [...[...Array(ford.height).keys()].flatMap((y) => [[0, y], [ford.width - 1, y]] as const), ...[...Array(ford.width).keys()].flatMap((x) => [[x, 0], [x, ford.height - 1]] as const)]
   const outs = rim.filter(([x, y]) => W(f).walkable('ford', x, y) && W(f).partAt('ford', x, y) === bank && !ford.portals.some((p) => p.x === x && p.y === y))
   expect(outs).toEqual([])
+  // and felled, still none: the woods are only woods, and the story keeps the edges east of the river shut until Part
+  // Two (MapData.edgesWhen, Engine.sealedEdge): off the far bank's edge and the Pilgrim's Road's alike one stays, and the
+  // companion says it is for another time (not the road to Emberfall's words); with Part Two open, out onto the world map
+  const offFelled = (map: string, part?: number) => {
+    const m = W(f).map(map)!
+    const edges = [...[...Array(m.height).keys()].flatMap((y) => [[0, y, 'left'], [m.width - 1, y, 'right']] as const), ...[...Array(m.width).keys()].flatMap((x) => [[x, 0, 'up'], [x, m.height - 1, 'down']] as const)]
+    const wooded = (x: number, y: number) => W(f).entitiesAt(map, x, y).filter((e) => W(f).hasTag(e, 'tree'))
+    const [x, y, dir] = edges.find(([x, y]) => (part === undefined || W(f).partAt(map, x, y) === part) && !m.portals.some((p) => p.x === x && p.y === y) && wooded(x, y).length > 0)!
+    author(f, () => { for (const e of wooded(x, y)) W(f).destroy(e) })
+    expect([map, W(f).walkable(map, x, y)]).toEqual([map, true])
+    const off = () => (stand(f, x, y, dir, map), f.eng.setCooldown(W(f).player.id, 0), walk(f, dir))
+    W(f).fx = []
+    const to = off()
+    const said = W(f).fx.filter((x) => x.t === 'say' || x.t === 'log').map((x) => JSON.stringify((x as { text?: unknown }).text))
+    return { to, said, again: off }
+  }
+  for (const [map, part] of [['ford', bank], ['waystation', undefined], ['eastroad', undefined]] as const) {
+    const out = offFelled(map, part)
+    expect([map, out.to.map]).toEqual([map, map])
+    // (said once a minute: the first time)
+    if (map === 'ford') expect(out.said.some((t) => /another time/i.test(t) && !/Emberfall/.test(t))).toBe(true)
+    author(f, () => W(f).setFact(PART_TWO, 1))
+    expect([map, out.again().map]).toEqual([map, OVERWORLD])
+    author(f, () => W(f).setFact(PART_TWO, 0))
+  }
 })
 
 req('F1b', 'a story step begins on entering an authored region: the far bank is a thing, entering it is contact (in-region), and its scene starts on the next tick, not at a poll', ['region:far_bank'], () => {
@@ -3939,7 +3964,7 @@ req('H1',"the Held Ground: once the knight falls, a thorn of his crown is the Oa
 })
 
 req('V1', "Firstlight's vigil (the main line between the rescue and the night of thanks): oil from the cellar under Tam's mill (Millbrook, west), dawnbloom from Dawn Hill (north), the bell rung in the Chapel of the First Dawn on its top; handed in to Ilse, the night may come, and the First Seal is next", [
-  'npc.tam', 'item/material/herb', 'fixture/light/candles', 'fixture/furniture/bench',
+  'npc.tam', 'item/material/herb', 'fixture/light/candles', 'fixture/furniture/bench', 'fixture/sacred/altar/hearth', 'fixture/furniture/pew/old',
 ], () => {
   const f = fresh({ main: 'rescue' })
   const w = W(f)
@@ -3980,9 +4005,11 @@ req('V1', "Firstlight's vigil (the main line between the rescue and the night of
   expect(c.count('item/material/herb')).toBeGreaterThanOrEqual(3)
   through('dawnhill', 'chapel')
   expect(Object.values(w.state.entities).some((e) => e.type === 'fixture/light/candles' && w.posOf(e)?.map === 'chapel')).toBe(true)
-  expect(Object.values(w.state.entities).some((e) => e.type === 'fixture/furniture/bench' && w.posOf(e)?.map === 'chapel')).toBe(true)
+  expect(Object.values(w.state.entities).some((e) => e.type === 'fixture/furniture/pew/old' && w.posOf(e)?.map === 'chapel')).toBe(true)
+  expect(Object.values(w.state.entities).some((e) => e.type === 'fixture/sacred/altar/hearth' && w.posOf(e)?.map === 'chapel')).toBe(true)
   // the bell rope in the tower's corner
-  stand(f, 11, 4, 'up', 'chapel')
+  const [bx, by, , bh] = w.map('chapel')!.regions!.belfry
+  stand(f, bx + 1, by + bh + 1, 'up', 'chapel')
   expect(ticks(f, 60, () => (f.eng.movePlayer('up'), played('chapel_bell')))).toBe(true)
   ticks(f, 900, () => !w.scene)
   // handed in to Ilse: the vigil is kept, the night may come; the First Seal next

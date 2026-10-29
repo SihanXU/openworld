@@ -456,6 +456,10 @@
         },
         "optional": {
           "type": "boolean"
+        },
+        "nudge": {
+          "$ref": "#/definitions/Text",
+          "description": "What a companion says when it shows the way to it (companion.ts; else the game's `guide` lines)."
         }
       },
       "required": [

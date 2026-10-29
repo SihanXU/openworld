@@ -1895,6 +1895,9 @@ const SEALED_EVERY = 600
 /** The companion's line at a gate (`remark`); with no companion at hand, the gate's own words in the message line. */
 const gateRemark = (g: Pick<Gate, 'remark' | 'again'> & { say?: Text }, every?: number): Effect => ({ op: 'remark', text: g.remark, again: g.again, ...(g.say && { alone: g.say }), ...(every && { every }) })
 
+/** A hand that only brushes a cell: the dust it raises and the line that says nothing came of it (tile/handle). */
+const TOUCH: Effect[] = [vfx('dust'), log('Your hand brushes {host}. Nothing comes of it.', '你的手拂过{host}。什么也没有发生。')]
+
 /** A tent with a room behind its flap (its `interior`, `interiorX`, `interiorY`): a hand on it, and in one goes. */
 const TENTS: Rule[] = [
   rule({
@@ -1937,10 +1940,10 @@ const SITES: Rule[] = [
   }),
   rule({
     id: 'story/sealed',
-    doc: 'The one at the keys ran off an edge where the story has not opened the way (Engine.sealedEdge: a way sealed underfoot, or an edge whose ways all lead to places not open yet; the bump\'s `sealed` is the fact that opens it): their companion says so, at most once a minute — in the gate\'s words for that fact, else that it is for another time; with no companion at hand, the message line says it.',
+    doc: 'The one at the keys ran off an edge where the story has not opened the way (Engine.sealedEdge: a way sealed underfoot, an edge whose ways all lead to places not open yet, or a map whose edges are shut, `edge`; the bump\'s `sealed` is the fact that opens it): their companion says so, at most once a minute. Off a shut edge (woods felled on the Pilgrim\'s Road: the continent beyond is Part Two\'s), that it is for another time; at a way, in the gate\'s words for that fact, else that it is for another time; with no companion at hand, the message line says it.',
     host: { type: 'resident/story' },
     on: 'bump',
-    tree: SITE_GATES.reduceRight<Tree>((rest, g) => IF(param('sealed', g.fact), DO(gateRemark(g, SEALED_EVERY)), rest), DO(gateRemark(ANY_GATE, SEALED_EVERY))),
+    tree: IF(param('edge', 1), DO(gateRemark(ANY_GATE, SEALED_EVERY)), SITE_GATES.reduceRight<Tree>((rest, g) => IF(param('sealed', g.fact), DO(gateRemark(g, SEALED_EVERY)), rest), DO(gateRemark(ANY_GATE, SEALED_EVERY)))),
   }),
   rule({
     id: 'site/far',
@@ -2003,10 +2006,10 @@ const GENERAL: Rule[] = [
   rule({
     id: 'tile/handle',
     label: L('Touch {target}', '摸摸{target}'),
-    doc: 'A bare hand on the ground, a floor or any other cell with no answer of its own: it is only touched (a place of the overworld is entered instead: site/enter).',
+    doc: 'A bare hand on a cell with no answer of its own (a place of the overworld is entered instead: site/enter). On the ground or a floor it is only touched. On what stands in the cell (`standing`: a tree, a bush, rock, a wall, a stump) the hand is a deliberate act the base does not answer: the world says what comes of it, and with no model it is only touched.',
     host: { type: 'tile' },
     on: 'impulse/handle',
-    tree: IF(tag('host', 'overworld'), 'inherit', DO(vfx('dust'), log('Your hand brushes {host}. Nothing comes of it.', '你的手拂过{host}。什么也没有发生。'))),
+    tree: IF(tag('host', 'overworld'), 'inherit', IF(tag('host', 'standing'), HOLE(...TOUCH), DO(...TOUCH))),
   }),
   rule({
     id: 'fire/warm-hands',

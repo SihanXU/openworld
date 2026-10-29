@@ -301,7 +301,11 @@ aside naming a key the map leaves unbound goes). The wiki fills them with the de
   anything in front. The Ford's cell is the river's (`site/place/crossing`, hands' reach 1): one
   goes in with E from the cell beside it. A press of E that only touches the ground (the floor
   brushed, said by `tile/handle`) does nothing: it would say so at every step; the chooser still
-  touches it (`Controls.planFor`, 2026-10-20).
+  touches it (`Controls.planFor`, 2026-10-20). The ground is what one stands on (`Controls.underfoot`:
+  a floor): what stands in the cell — a tree, a bush, rock, a wall, a stump (a terrain whose space is
+  the volume or the soil, tagged `standing`) — is a thing a hand meets, said in the tip and pressed;
+  `tile/handle` leaves it a hole whose default is the touch, so the world says what comes of it and
+  with no model it is only touched (2026-10-28).
 - **Oneself is never E's or G's target**: on one's own place they meet what is there (the
   floor, what lies at one's feet, the bed one stands on). The right click on one's own place is on oneself (or
   sets up the built thing in hand there); the left click's swing never is.
@@ -1127,7 +1131,8 @@ took the class-level answers the curriculum had been learning one patch at a tim
 a creature lashed down by anything fibrous and fed by anything edible, else its own kind's to
 answer (`creature/offered`, still a hole at the root); a wild creature snapping at a bare hand,
 animals left to their own rules (`creature/handle`); a cell only touched by a bare hand, but a
-place of the overworld entered (`tile/handle`); a lit fire drying and thawing who warms their
+place of the overworld entered, and what stands in a cell (`standing`: a tree, rock, a wall) left to the world,
+the touch its default (`tile/handle`); a lit fire drying and thawing who warms their
 hands at it (`fire/warm-hands`); ore smelted in a lit forge into its bar (`smelt/ore`, the ore's
 `smelts`; iron and gold ingots are forms now); a down companion waiting (`companion/stuck`); and
 anything swung as a blow striking. What §5.2 calls the player's experiments — a thing used on the
@@ -1204,6 +1209,52 @@ re-ask now says trying again is no sign of a use and a use made up is worse than
 posture is a thing's use only where that is what it is for. The two misses are the well and the fountain, judged
 words both times ("drawing it needs a vessel, which a hand is not"): defensible for a bare hand, so the labels, not
 only the model, are in question there. A larger set and other models are for later.
+
+### 5.18 Wellbeing: what weighs on one, read from the rules (2026-10-28)
+
+People stood in the rain and burned where they stood: their goals knew their day, threats and hunger, and
+nothing of what the world does to them. Writing a goal for rain and another for fire would close the
+world's own model off from them: a rule learned tomorrow (a cloak that keeps the rain off, a herb that
+stops a bleed) would change nothing they do. So the actor reads its own trouble, and its cure, from the
+rule library — the same dry runs that label the player's inputs (`Engine.resolveEvent`), with the dice
+left as they were and a chance read as what may happen. `packages/engine/src/wellbeing.ts` names no rain,
+fire or hunger.
+
+- **What weighs.** A status weighs by its harm and by how much one minds it. The harm is read: the status's
+  pulse (`time/period` with its `status`) is resolved on its bearer, as it would be bearing it, and costs
+  health or breaks it (burning wears a body: `fire/wear`). How much one minds it is data: `StatusDef.mind`
+  (wet 1, oiled 1, frozen 2, hungry 3), a kind's own over it (`TypeDef.minds`: the roles out in the weather,
+  `WEATHERED`, do not mind wet), nothing to one tagged `endures:<id>`. Harm (`HARM`) makes it a danger.
+- **What a place does.** Standing at a cell is its contacts there, answered both ways (the floor, what one
+  stands among, the regions), the world's clocks there (the weather's rain falls on what the sky reaches),
+  and the pulses of what bears a status about it (a burning neighbour's reach). What it brings that one
+  minds is the place's weight; a place that brings it is a trouble left by leaving.
+- **What an act does.** An act's outcome on the one it is for, followed down the impulses it sends — to a
+  role, or to those an area, a map or its sky would reach where they would stand. A thing may be read as
+  another kind (the bucket once filled at the water) or as bearing a status. It cures a trouble when it
+  takes the status, or fills the prop the status is drawn under (`Ontology.thresholds`: food fills the
+  hunger `hungry` is drawn on; a module says what its primitives do, `EngineModule.reads`). An outcome no
+  rule answers is never counted a cure: behaviour asks the world nothing.
+- **What is wrong.** What one bears that weighs, the place one stands, health under half; and what harms
+  those one cares for: one's companions and leader and one's household (0.8 of one's own), one's own and
+  one's household's things (0.5) — a burning house is its people's danger.
+- **The goals.** `danger` takes what harms, first of all but a boss's fight; `need` the rest one minds,
+  before the day's round. A way is the cheapest of: a place (away from what it brings, to one that cures
+  it, within a walk; or one of one's own places on another map that brings nothing — home, out of the
+  rain); an act with what one carries or may take (one's own, one's household's, nobody's) on the one it is
+  for, or the hands on what is about (a fire to warm at); or a thing made first whose made kind cures it.
+  It is kept and followed, let go when the trouble is or when the thing made is not what was looked for.
+  The society module's need is the way after it: what one minds with no cure at hand is bought of one who
+  sells something that cures it, or taken by the poor and the loose of conscience.
+- **Not walking back in.** Out of what one minds, one stays while one's day would take one into it; a map
+  entered places people in their own place that brings nothing rather than where the day would put them
+  in it (`NpcSim.refuge`). A day written for the weather (Hesper's storm) says where one is in it.
+- **Cost.** Readings are kept a moment for kinds and places, the cures of kinds until the rules change;
+  ways are looked for a few a tick. On Firstlight the goals cost about 0.15 ms a tick in sun.
+
+References: The Sims' objects advertise what need they meet; RimWorld's pawns flee danger, seek a safe
+temperature and beat out fires in their home area; F.E.A.R.'s planner (GOAP) chains actions by their
+effects. Here the effects are not written for the planner: they are the world's own rules.
 
 ## 6. Rule system
 

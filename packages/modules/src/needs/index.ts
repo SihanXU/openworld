@@ -20,6 +20,8 @@ export const needsModule: EngineModule = {
       return
     },
   },
+  // food read as one's wellbeing reads it (wellbeing.ts): it fills the hunger the `hungry` threshold is drawn on
+  reads: { feed: (eff) => ({ props: { hunger: typeof eff.amount === 'number' ? eff.amount : 1 } }) },
   spec: { primitives: { feed: 'feed {amount} — the host\'s hunger rises by amount, up to its maxHunger' } },
   install(eng) {
     const w = eng.world

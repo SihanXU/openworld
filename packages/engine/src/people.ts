@@ -45,6 +45,14 @@ export function scheduleFor(eng: Engine, e: Entity, cal: Calendar = eng.world.ca
   return best ?? e.npc?.schedule ?? []
 }
 
+/** Is the day a person keeps now one written for this weather (a storm's)? Then it says where they are in it. */
+export function dayForWeather(eng: Engine, e: Entity, cal: Calendar = eng.world.calendar()): boolean {
+  const v = e.npc?.person?.schedules
+  if (!v?.length || e.npc?.override || e.npc?.resident) return false
+  const now = scheduleFor(eng, e, cal)
+  return v.some((x) => x.entries === now && x.key.split('+').some((k) => k === cal.weather || (k === 'rain' && cal.weather === 'storm')))
+}
+
 const truthy = (v: PropValue | undefined) => v !== undefined && v !== false && v !== 0 && v !== ''
 
 // ------------------------------------------------------------------ topics

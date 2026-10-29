@@ -189,6 +189,16 @@ export class Controls {
     return e ? this.w.isTerrain(e) || this.w.spacesOf(e).includes('floor') : !!parseCellId(r.e)
   }
 
+  /**
+   * What one stands on: a floor, the cell's ground or one laid there — never what stands in the cell (a tree, a bush,
+   * rock, a wall: the ground's terrain too, but a thing a hand meets). E that only touches it goes unsaid and does
+   * nothing on a press; a hand on what stands is said, and done (tile/handle asks the world there).
+   */
+  underfoot(r: Ref): boolean {
+    const e = this.w.get(r.e)
+    return e ? this.w.spacesOf(e).includes('floor') : parseCellId(r.e)?.space === 'floor'
+  }
+
   layers(at: Pos, stack?: Ref[]): Ref[] {
     const w = this.w
     // only the storey aimed at (the one the player stands on): what is above or below is out of the
@@ -506,12 +516,12 @@ export class Controls {
     // pointer — unless what is there has no answer of its own, or is only the ground touched, and
     // what one stands on has one that does something (the bed one lies on, a place of the
     // overworld; never the ground's "touched" itself)
-    if (key === 'hands' && !layer && !a.pointed && (!p || p.unknown || (!p.changes && this.ground(p.target)))) {
+    if (key === 'hands' && !layer && !a.pointed && (!p || p.unknown || (!p.changes && this.underfoot(p.target)))) {
       const pos = this.w.posOf(this.w.player)
       const own = pos && this.planAt(key, pos, undefined)
       // what one stands on answers even when its answer changes nothing (a place the story has not opened
       // says why), where in front there is only the ground
-      if (own && !own.unknown && (own.changes || ((!p || this.ground(p.target)) && !this.ground(own.target)))) return own
+      if (own && !own.unknown && (own.changes || ((!p || this.underfoot(p.target)) && !this.underfoot(own.target)))) return own
     }
     return p
   }
@@ -525,7 +535,7 @@ export class Controls {
    */
   planFor(key: Key, aim: Aim | undefined, layer?: number, shown?: Ref): Plan | undefined {
     const made = this.plan(key, aim, layer)
-    const p = layer === undefined && made?.key === 'hands' && !made.unknown && !made.changes && this.ground(made.target) ? undefined : made
+    const p = layer === undefined && made?.key === 'hands' && !made.unknown && !made.changes && this.underfoot(made.target) ? undefined : made
     if (!shown || !('e' in shown) || (p && 'e' in p.target && p.target.e === shown.e)) return p
     const e = this.w.get(shown.e)
     const at = e && this.w.isAgent(e) && e.id !== this.w.state.player ? this.w.posOf(e) : undefined

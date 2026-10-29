@@ -20,7 +20,7 @@ import { QUEST_SCENES } from './quest/scenes.ts'
 import { PAT, PROLOGUE, TUTORIAL, buildFoot, buildFootHut, buildSummit, buildTutorial } from './prologue.ts'
 import { BARROW, HOLLOW, buildBarrow, buildHollow, buildOssuary, buildSanctum } from './hollow.ts'
 import type { PersonDef, Slot } from './person.ts'
-import { buildOverworld, placeCells, readContinent, siteOf } from './overworld.ts'
+import { buildOverworld, edgesWhen, placeCells, readContinent, siteOf } from './overworld.ts'
 import { backdropMeta, buildBackdrop } from './continent/backdrop.ts'
 import { peopleBackdrop } from './continent/people.ts'
 import { ownShells } from './shells.ts'
@@ -266,7 +266,7 @@ function buildMeadow(): MapBuilder {
   // (60 x 40 since 2026-10-11; redrawn to the showcase's standard on 2026-10-26, docs/release-1.md §3: the ground laid in
   // code — the woods round it, the square before the chapel, the east road from the Ford and the lanes north, west and
   // south, the pond — the village's own buildings on it. What stands on it is placed here and in village.ts.)
-  const m = new MapBuilder(FIRSTLIGHT.map, FIRSTLIGHT.name, 'village', 60, 40, 'grass', 'village', 'outdoor', 'frostfang')
+  const m = new MapBuilder(FIRSTLIGHT.map, FIRSTLIGHT.name, 'village', 60, 40, 'grass', 'firstlight', 'outdoor', 'frostfang')
   firstlightGround(m)
   // the houses with their doors (every one has a room behind it: village.ts), their yards and what the village uses
   villageTown(m)
@@ -800,6 +800,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   for (const b of builders) {
     const c = cells.get(b.id)
     if (c) b.site = siteOf(c)
+    b.edgesWhen = edgesWhen(b.id)
   }
   // bushes are walked through (2026-10-27): one on a map's edge would be a way off it onto the world map, so there it is a tree
   for (const b of builders) {

@@ -4,7 +4,7 @@ A web-playable 2D JRPG world whose state and rules are code; an LLM modder (late
 patches undefined interactions at runtime. Successor to BardOS (`C:\Users\chica\文字游戏`).
 Story and world: [docs/lore.md](docs/lore.md) (the user's canonical setting: the Five Sufferings, the
 First Night, the five Seal-bearers; every chapter follows it) and [docs/chapter-1.md](docs/chapter-1.md).
-Design: [docs/design.md](docs/design.md); the AI side at a glance (what runs where, who checks what, which file does which job): [docs/ai.md](docs/ai.md); the key people's own portraits and event CGs (release 1's cast of six, each designed to a sheet; the CGs drawn as shots): [docs/character-art.md](docs/character-art.md), [docs/cast/](docs/cast/); the agreed world model and base gameplay (not yet built,
+Design: [docs/design.md](docs/design.md); the AI side at a glance (what runs where, who checks what, which file does which job): [docs/ai.md](docs/ai.md); the key people's own portraits and event CGs (release 1's cast of seven, each designed to a sheet; the CGs drawn as shots): [docs/character-art.md](docs/character-art.md), [docs/cast/](docs/cast/); the agreed world model and base gameplay (not yet built,
 steps W1–W10): [docs/world-model.md](docs/world-model.md); the continent — six regions round the Holy City, the backdrop
 that fills them, the phases of scaling A–E (A–D built 2026-10-18): [docs/continent.md](docs/continent.md); six of the Holy City's
 places made by hand as models for all to come — a Gothic cathedral without and within, a concentric fortress, the grand
@@ -50,7 +50,10 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - `packages/engine` — pure, deterministic, no DOM/AI. World state + indices (`world.ts`),
   rule matching/specificity/library (`rules.ts`), effect primitives (`effects.ts`), event
   dispatch + tick + movement + combat (`engine.ts`), one goal system for every actor (`behaviour.ts`:
-  goals in each type's order — encounter, threat, follow, schedule, home, idle; the people's goals and
+  goals in each type's order — encounter, danger, threat, follow, need, schedule, home, idle; danger and need are one's
+  wellbeing (`wellbeing.ts`, design.md §5.18: what weighs on one and what puts it right, read from the rules by dry runs —
+  a status's harm from its pulse, a place from its contacts, clocks and pulses about, an act from its outcome; `StatusDef.mind`,
+  `TypeDef.minds`, `endures:<id>`; away, toward a cure, an act, a thing made first; those one cares for); the people's goals and
   their real work in `npc.ts`, the creatures' in `creatures.ts`; a module's goals join them), Mod port: ModSpec / ModRequest / validatePatch / records
   (`mod.ts`), sandbox replay (`sandbox.ts`), snapshots for rendering (`snapshot.ts`: what the view shows and round it),
   a map's things kept as what differs from its file and the maps far behind put away (`sparse.ts`, docs/continent.md §13:
@@ -83,7 +86,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
   (`controls.ts`; a recipe's `madeOf` keeps the material and quality under the name it gives), gear's rolled extras (`affixes.ts`, `Ontology.affixes`) and sets
   (`Ontology.sets`), read by `World.stat` — mechanisms configured by data, kept in the kernel by decision (docs/engine-split.md §9), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`; a skill book asks no points but holds to the tree's `requires`); companions that follow a
-  leader (`companion.ts`) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); postures (design.md §5.17: `POSES` a status may draw its bearer in, `untilMove`, the `settle` impulse every actor answers with the `posture` primitive); the inputs X (draw) and V (sneak) are statuses the input keeps; the AI setting (`quality.ts`, design.md §13: off/low/medium/high for
+  leader, and lead the way to where the tracked quest goes next when it stands idle (`companion.ts`, `Ontology.guide`, docs/quests.md §2.5) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); postures (design.md §5.17: `POSES` a status may draw its bearer in, `untilMove`, the `settle` impulse every actor answers with the `posture` primitive); the inputs X (draw) and V (sneak) are statuses the input keeps; the AI setting (`quality.ts`, design.md §13: off/low/medium/high for
   things, people, the world, making new kinds and asking ahead — the same wait at every level, a level is how much the AI does in it;
   `Engine.quality` is the player's, never saved; learned rules keep their `tier`, each tier its own trees, a higher answer serving
   the lower settings). What a game hands the

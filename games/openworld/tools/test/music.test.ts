@@ -20,6 +20,42 @@ const MOMENTS: Moment[] = [
 ]
 
 describe('music', () => {
+  it('plays Firstlight’s own daytime theme and keeps its old evening, night and rainy music', () => {
+    const { chunks } = buildFord()
+    const village = chunks.find((c) => c.map.id === 'meadow')!.map
+    const day = { hour: 12, dusk: 19, dawn: 6, weather: 'sun' }
+    const theme = 'lsw/Audio/Musics/che-shui-ma-long.ogg'
+    expect(resolveCue(cues, village.music!, day)?.cue.tracks).toEqual([theme])
+    for (const moment of [
+      { ...day, hour: 18 },
+      { ...day, hour: 23 },
+      { ...day, weather: 'rain' },
+      { ...day, hour: 23, weather: 'rain' },
+      { ...day, weather: 'storm' },
+    ]) expect(resolveCue(cues, village.music!, moment)).toEqual(resolveCue(cues, 'village', moment))
+    const store = chunks.find((c) => c.map.id === 'meadow.store')!.map
+    // The same mood keeps the playing strand (or its rest) when entering and leaving the shop.
+    expect(store.music).toBe(village.music)
+    for (const moment of MOMENTS) expect(resolveCue(cues, store.music!, moment)).toEqual(resolveCue(cues, village.music!, moment))
+    for (const id of ['waystation', 'emberfall', 'mill', 'meadow.church']) {
+      const map = chunks.find((c) => c.map.id === id)!.map
+      expect(resolveCue(cues, map.music!, day)?.cue.tracks).not.toContain(theme)
+    }
+    const haven = chunks.find((c) => c.map.id === 'haven')!.map
+    for (const moment of [day, { ...day, hour: 23 }, { ...day, weather: 'rain' }]) {
+      const cue = resolveCue(cues, haven.music!, moment)?.cue
+      expect(cue?.tracks).toEqual([theme])
+      expect(cue?.rest).toEqual([5, 5])
+    }
+  })
+
+  it('gives the dragon Battle Thrill without replacing the other bosses or ordinary fights', () => {
+    expect(resolveCue(cues, 'boss:dragon')?.cue.tracks).toEqual(['lsw/Audio/Musics/battle-thrill.ogg'])
+    expect(resolveCue(cues, 'boss:alberic')?.cue.tracks).toEqual(['Audio/Musics/24 - Final Area.ogg'])
+    expect(resolveCue(cues, 'boss:alberic:2')?.cue.tracks).toEqual(['Audio/Musics/10 - Dark Castle.ogg'])
+    expect(resolveCue(cues, 'battle')?.cue.tracks).toEqual(['Audio/Musics/17 - Fight.ogg', 'Audio/Musics/34  - Fight.ogg'])
+  })
+
   it('every map plays a cue the client has, whatever the hour and the weather', () => {
     const { chunks } = buildFord()
     const bad: string[] = []

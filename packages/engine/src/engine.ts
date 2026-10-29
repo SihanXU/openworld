@@ -15,14 +15,15 @@ import { plainCombat, weaponOf } from './blows.ts'
 import { Companions } from './companion.ts'
 import { Quests } from './quests.ts'
 import { NpcSim, scheduleAt } from './npc.ts'
+import { Wellbeing } from './wellbeing.ts'
 import { scheduleFor } from './people.ts'
 import { OntologyIndex, isA } from './ontology.ts'
 import { appearFromForage } from './appear.ts'
 import { Chunks } from './sparse.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
 import { DEFAULT_QUALITY, categoryOf, tierOfLevel, type AiQuality } from './quality.ts'
-import { modulesOf, noHooks, noSociety, type Combat, type Society, type EffectImpl, type EngineHooks, type EngineModule, type Goal } from './module.ts'
-import type { Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Pos, PropValue, Recipe, Ref, Sin, SkillDef, Text, Tier, Verb, WorldState } from './types.ts'
+import { modulesOf, noHooks, noSociety, type Combat, type Society, type EffectImpl, type EngineHooks, type EngineModule, type Goal, type EffectReading } from './module.ts'
+import type { Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Portal, Pos, PropValue, Recipe, Ref, Sin, SkillDef, Text, Tier, Verb, WorldState } from './types.ts'
 import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
 import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type View, type Writer } from './world.ts'
 import { seedOf } from './rng.ts'
@@ -109,6 +110,8 @@ export class Engine {
   private readonly write: Writer
   effects: EffectRunner
   npcs: NpcSim
+  /** What is wrong for an actor and what would put it right, read from the rules (wellbeing.ts). */
+  wellbeing: Wellbeing
   /** The maps' things kept as what differs from their files, and the maps put away (sparse.ts, docs/continent.md §9). */
   chunks: Chunks
   /** Everyone's goals (behaviour.ts). */
@@ -165,6 +168,8 @@ export class Engine {
   residentOnly = new Set<string>()
   /** Every goal by id: the kernel's and the modules' (a goal several give is tried in their order). */
   goalImpls = new Map<string, Goal[]>()
+  /** What the modules' primitives do to their host, for one's wellbeing (module.ts EffectReading), by op. */
+  effectReads = new Map<string, EffectReading>()
   /** Resolution trace of the last dispatched events (for tests and the dev panel). */
   trace: { ev: GameEvent; rule?: string; defined: boolean }[] = []
   /** How many entries the trace has ever taken (it keeps only the last 300): what came after a mark is the last `traced - mark`. */
@@ -198,6 +203,7 @@ export class Engine {
     this.lib = lib
     this.effects = new EffectRunner(this)
     this.npcs = new NpcSim(this)
+    this.wellbeing = new Wellbeing(this)
     this.chunks = new Chunks(this)
     this.behaviour = new Behaviour(this)
     this.story = new Story(this)
@@ -222,6 +228,7 @@ export class Engine {
       for (const op of m.spec?.residentOnly ?? []) this.residentOnly.add(op)
       for (const [key, impl] of Object.entries(m.conds ?? {})) this.world.condImpls.push([key, impl])
       for (const [id, g] of Object.entries(m.goals ?? {})) this.goalImpls.set(id, [...(this.goalImpls.get(id) ?? []), g])
+      for (const [op, read] of Object.entries(m.reads ?? {})) this.effectReads.set(op, read)
     }
     for (const m of this.modules) m.install?.(this)
   }
@@ -636,6 +643,8 @@ export class Engine {
   act(verb: Verb, actorId: Id, target: Ref, opts: { instrument?: Ref | null; params?: Record<string, PropValue>; reach?: number } = {}): Resolution {
     const w = this.world
     const actor = w.get(actorId)
+    // the one at the keys does something: a companion waiting to lead the way waits again
+    if (actorId === w.state.player) this.companions.stir()
     if (!actor || this.busy(actor)) return { defined: false }
     // the held item, unless the caller names another (an item from the bag) or none (talking while holding a tool)
     const instrument = opts.instrument === undefined ? (actor.held ? { e: actor.held } : undefined) : (opts.instrument ?? undefined)
@@ -1258,12 +1267,13 @@ export class Engine {
     // off the edge of a map that lies on the overworld: out onto its cell there (world-model.md §5.1) — but never
     // from a way the story has not opened yet (one stands on it, so it is sealed): it leads nowhere until it opens
     const sealedHere = !!w.map(map)?.portals.some((p) => p.x === x && p.y === y)
-    if (!w.inBounds(map, nx, ny) && isPlayer && w.map(map)?.site && !sealedHere && this.leaveByEdge(e, x, y, dir)) return true
-    // off an edge where the way is one the story has not opened (a way sealed underfoot, or an edge whose ways all lead
-    // to places not open yet): the story hears that one ran up against it — a bump on it, its `sealed` the fact that
-    // opens the way — and its rules answer (a companion's remark); the step is refused below as at any edge
+    // off an edge where the way is one the story has not opened (a way sealed underfoot, an edge whose ways all lead
+    // to places not open yet, or a map whose edges the story keeps shut): the story hears that one ran up against it —
+    // a bump on it, its `sealed` the fact that opens the way (`edge` when it is the map's edges that are shut, not a
+    // way) — and its rules answer (a companion's remark); the step is refused below as at any edge
     const sealed = !w.inBounds(map, nx, ny) && isPlayer ? this.sealedEdge(map, x, y) : undefined
-    if (sealed && w.story) this.offer({ kind: 'bump', host: { e: w.story.id }, roles: { other: { e: e.id } }, params: { dir, sealed }, cause: ev.cause ?? e.id, origin: ev.origin })
+    if (!w.inBounds(map, nx, ny) && isPlayer && w.map(map)?.site && !sealedHere && !sealed && this.leaveByEdge(e, x, y, dir)) return true
+    if (sealed && w.story) this.offer({ kind: 'bump', host: { e: w.story.id }, roles: { other: { e: e.id } }, params: { dir, sealed: sealed.fact, ...(sealed.edge && { edge: 1 }) }, cause: ev.cause ?? e.id, origin: ev.origin })
     // storeys (world-model.md §5.2, §5.5): on a floor one walks; from stairs up onto the floor above;
     // onto the stairs below from above them; off a floor's edge one falls to the first below
     const z = e.place.z ?? 0
@@ -1402,20 +1412,27 @@ export class Engine {
    */
   /**
    * The fact that opens the way off a map's edge at (x, y), where the story has not opened it: a way (a portal) there
-   * sealed by its `opensWhen`, or, on a map a barrier parts, an edge whose part's ways all lead to places not open
-   * yet (the far bank before Part Two). Undefined where the edge is only an edge, or open.
+   * sealed by its `opensWhen`; a map whose edges the story keeps shut (its `edgesWhen`: `edge`); or, on a map a barrier
+   * parts, an edge whose part's ways all lead to places not open yet (the far bank before Part Two), or to places whose
+   * own edges are shut (off this part's edge one would come out on their side: `edge`). Undefined where the edge is only
+   * an edge, or open.
    */
-  private sealedEdge(map: string, x: number, y: number): string | undefined {
+  sealedEdge(map: string, x: number, y: number): { fact: string; edge?: boolean } | undefined {
     const w = this.world
     const m = w.map(map)
     if (!m) return undefined
     const shut = (p: { opensWhen?: string }) => !!p.opensWhen && !w.fact(p.opensWhen)
     const here = m.portals.find((p) => p.x === x && p.y === y && shut(p))
-    if (here) return here.opensWhen
+    if (here) return { fact: here.opensWhen! }
+    if (m.edgesWhen && !w.fact(m.edgesWhen)) return { fact: m.edgesWhen, edge: true }
     if (!m.site || new Set(w.partsOf(map)?.filter((p) => p >= 0)).size <= 1) return undefined
     const part = w.partAt(map, x, y)
     const ways = m.portals.filter((p) => w.partAt(map, p.x, p.y) === part)
-    return ways.length && ways.every(shut) ? ways[0].opensWhen : undefined
+    if (!ways.length) return undefined
+    if (ways.every(shut)) return { fact: ways[0].opensWhen! }
+    const edgesShut = (p: Portal) => { const to = w.map(p.to)?.edgesWhen; return !!to && !w.fact(to) }
+    const beyond = ways.find((p) => !shut(p) && edgesShut(p))
+    return beyond && ways.every((p) => shut(p) || edgesShut(p)) ? { fact: w.map(beyond.to)!.edgesWhen!, edge: true } : undefined
   }
 
   private leaveByEdge(e: Entity, x: number, y: number, dir: Dir): boolean {
@@ -1427,10 +1444,11 @@ export class Engine {
     // a place of one cell: out onto that cell, standing on the place one left — from there one chooses where to go
     // (a step to a neighbour, or in again). A place one cannot stand on — a barrier runs through it (its cell the
     // barrier's, or two parts to the map), or the story has sealed it — out onto the cell beside it the way one
-    // left; through a barrier only onto a cell its part's ways lead to, nearest where one left.
+    // left; through a barrier only onto a cell its part's ways lead to, nearest where one left (a place on the barrier's
+    // own cell, the Reed Bend on the river's, as a map two parts to: never out on the far side of it).
     if (site.size === 1) {
       const open = (tx: number, ty: number) => !w.map(site.map) || w.walkable(site.map, tx, ty, e.id)
-      const parted = new Set(w.partsOf(map.id)?.filter((p) => p >= 0)).size > 1
+      const parted = new Set(w.partsOf(map.id)?.filter((p) => p >= 0)).size > 1 || !open(site.x, site.y)
       const linked = new Set(map.portals.filter((p) => w.partAt(map.id, p.x, p.y) === part).map((p) => p.to))
       const leads = (tx: number, ty: number) => w.entitiesAt(site.map, tx, ty).some((s) => linked.has(String(s.props?.map)))
       const ahead = { x: site.x + DIRS[dir][0], y: site.y + DIRS[dir][1] }
@@ -1551,6 +1569,7 @@ export class Engine {
   /** Player movement request (held direction); respects speed. `walk` (Shift) is slower than the default run. */
   movePlayer(dir: Dir, walk = false): boolean {
     const p = this.world.player
+    this.companions.stir()
     // a lesson at hand that does not let the keys move (docs/prologue.md, the drills)
     if (!this.controls.allows('move')) return false
     if (!this.ready(p.id) || this.pendingTransition) {

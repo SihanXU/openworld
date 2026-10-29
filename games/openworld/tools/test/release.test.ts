@@ -57,19 +57,21 @@ function reach(g: Game, start: string): { maps: Set<string>; cells: Set<string> 
       if (w.fact(CH1.knight)) toMap('haven')
       const site = m.site
       if (site?.map !== OVERWORLD) continue
-      // off an edge (engine.ts leaveByEdge): from a cell one can stand on that is no way of the map's own
+      // off an edge (engine.ts leaveByEdge): from a cell one could stand on once what can be broken is broken (a tree
+      // felled, rock mined: the woods that frame a map are only woods), that is no way of the map's own, and whose way
+      // off the story has not shut (Engine.sealedEdge: a map's `edgesWhen`, a part whose ways lead only there)
       const parts = new Set(w.partsOf(id)?.filter((p) => p >= 0))
       for (let y = 0; y < m.height; y++)
         for (let x = 0; x < m.width; x++) {
           if (x !== 0 && y !== 0 && x !== m.width - 1 && y !== m.height - 1) continue
-          if (!w.passable(id, x, y) || m.portals.some((p) => p.x === x && p.y === y)) continue
-          if (parts.size <= 1) {
-            // onto the place's own cell, or one beside it if it cannot be stood on
-            if (w.passable(OVERWORLD, site.x, site.y)) toCell(site.x, site.y)
-            else for (const [dx, dy] of STEPS) toCell(site.x + dx, site.y + dy)
+          if (w.partAt(id, x, y) < 0 || m.portals.some((p) => p.x === x && p.y === y) || g.engine.sealedEdge(id, x, y)) continue
+          // onto the place's own cell
+          if (parts.size <= 1 && w.passable(OVERWORLD, site.x, site.y)) {
+            toCell(site.x, site.y)
             continue
           }
-          // a map a barrier parts: only onto a cell beside it that this part's ways lead to
+          // a map a barrier parts, or a place on the barrier's own cell (the Reed Bend on the river's): only onto a cell
+          // beside it that this part's ways lead to
           const part = w.partAt(id, x, y)
           for (const p of m.portals) {
             if (w.partAt(id, p.x, p.y) !== part) continue

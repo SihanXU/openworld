@@ -498,6 +498,28 @@ describe('E: the hand — what lies loose is picked up, anything else handled', 
     expect(chest.controls.planFor('hands', at)).toMatchObject({ rule: 'core/open-close' })
   })
 
+  it('a hand on what stands in a cell (a tree, a bush, rock, a wall, a stump) is said and done: the world says what comes of it, and with no model it is only touched; the grass and flowers underfoot stay unsaid', () => {
+    const cell = (t: string) => Array.from({ length: 5 }, (_, y) => Array.from({ length: 5 }, (_, x) => (x === 2 && y === 1 ? t : 'grass')))
+    for (const t of ['tree', 'bush', 'rock', 'wall', 'stump']) {
+      const eng = world(undefined, [], cell(t))
+      const plan = eng.controls.plan('hands', at)
+      expect([t, plan]).toMatchObject([t, { key: 'hands', rule: 'tile/handle', unknown: true }])
+      expect(eng.controls.underfoot(plan!.target)).toBe(false)
+      // said (the tip shows it) and pressed
+      expect(eng.controls.planFor('hands', at)).toMatchObject({ rule: 'tile/handle' })
+      // no model: the hole's default, a touch
+      eng.world.fx = []
+      eng.controls.run(plan!)
+      expect([t, eng.world.fx.some((x) => x.t === 'log' && /brushes/.test(textOf((x as { text?: Parameters<typeof textOf>[0] }).text)))]).toEqual([t, true])
+    }
+    for (const t of ['grass', 'flowers']) {
+      const eng = world(undefined, [], cell(t))
+      const plan = eng.controls.plan('hands', at)
+      expect([t, plan?.rule, !!plan?.unknown, eng.controls.underfoot(plan!.target)]).toEqual([t, 'tile/handle', false, true])
+      expect(eng.controls.planFor('hands', at)).toBeUndefined()
+    }
+  })
+
   it("the '?' goes where the AI setting turns the kind of work off: the leaf's default comes, no one is asked", () => {
     const eng = world(undefined, [{ key: 'rock', type: 'fixture/nature/boulder', x: 2, y: 1 }])
     expect(eng.controls.plan('hands', at)).toMatchObject({ unknown: true })

@@ -70,6 +70,17 @@ a fire up close −35.5, a cave −41.8 — the ambience sits under the music, l
 
 ## 5. OpenWorld's table
 
+Firstlight's outdoor daytime cue (`firstlight`) uses the user-selected `车水马龙.wav`, encoded as
+`public/assets/lsw/Audio/Musics/che-shui-ma-long.ogg` (Vorbis quality 6, 44.1 kHz stereo, about 92 seconds).
+It keeps the village's 15–40 second rests and its existing dusk, night and rain cues. The Held Ground (`haven`)
+uses the same theme throughout the day and weather, with a fixed five-second rest after each play. Firstlight's
+general store also uses `firstlight`: entering or leaving keeps the current piece and its position (or its rest),
+including the square's dusk, night and rain versions. Music uses the world's weather indoors too; the ambience
+still follows the roof. Other towns and interiors keep their existing tables. The dragon uses `战斗爽.wav`,
+encoded as `public/assets/lsw/Audio/Musics/battle-thrill.ogg` (about 61.5 seconds), looping without a rest;
+ordinary fights and the White Knight keep their music. Rebuild the world after changing a map's cue; loaded saves fetch
+the map data again, so the new cue also applies to existing characters.
+
 Moods: `cloudtop`, `field` (dawn, dusk, night, rain versions), `village` (dusk by the fire, an almost silent night,
 rain), `millbrook`, `river` (the Reed Bend), `ford`, `forest` / `dark_forest`, `hollow`, `dell`, `ruins`, `kneelfield`,
 `interior` (and its night), `shop`, `temple`, `cave`, `crypt` (the barrow, its crypts), `dungeon`, `worldmap`, `haven`.

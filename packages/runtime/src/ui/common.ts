@@ -199,6 +199,7 @@ export const STRINGS: Record<string, [string, string]> = {
   qBoardEmpty: ['Nobody wants anything done just now. Come back later.', '眼下没人有事相托。过些时候再来看看。'],
   qTake: ['Take it on', '接下'],
   optMarkers: ['Quest markers (map and screen edge)', '任务标记（地图和屏幕边缘）'],
+  optGuide: ['Companion shows the way when you stand still', '站着不动时同伴带路'],
   optFilter: ['World filter', '画面滤镜'],
   filterOff: ['Off', '关'],
   filterLight: ['Light', '轻'],
@@ -377,14 +378,14 @@ export const STRINGS: Record<string, [string, string]> = {
 
 /** The player's view preferences (docs/quests.md §2.5): kept in this browser, read with care (it may be blocked). */
 export const prefs = {
-  get(k: 'markers' | 'tracker'): boolean {
+  get(k: 'markers' | 'tracker' | 'guide'): boolean {
     try {
       return localStorage.getItem(`lsw.${k}`) !== 'off'
     } catch {
       return true
     }
   },
-  set(k: 'markers' | 'tracker', on: boolean): void {
+  set(k: 'markers' | 'tracker' | 'guide', on: boolean): void {
     try {
       localStorage.setItem(`lsw.${k}`, on ? 'on' : 'off')
     } catch {
