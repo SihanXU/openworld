@@ -134,7 +134,8 @@ kind of task. It writes two places only:
 - **Global rules** (the lessons): one sentence that holds for every task of this kind (filed under
   `task:world` for world tasks, `kind:<kind>` for the others) or for engineering in any repository
   (`"scope": "general"`, no terms, shown on every task, an SWE instance's too). A rule about a time
-  limit or about answering fast is never general.
+  limit or about answering fast is never general. One rule is added a reflection at most; the code
+  keeps the first new one and files a timed rule under its kind.
 - **This kind of task** (its node): a world request's node is the event kind, the hole, and the
   host's class and the other role's (the target, else the source), each cut at depth 2 of the type
   tree (`skillNodeOf`; a terrain is `tile`). Being one depth, no node holds another. A task of
@@ -142,6 +143,7 @@ kind of task. It writes two places only:
   - With a skill, the reflection rewrites it whole when the task taught something about its kind
     (at most 40 lines, merged, not appended).
   - Without one, it keeps what the task taught as a note on the node (`memory/pending.json`).
+    Only the reflections read the notes: the design and the agent see the node's skill, not them.
   - A node is worth a skill once it has recurred (`reflect.skillMinRecurrence` tasks, 3 by
     default) and gone wrong (a note on file, or this task sent back or failed). The skill is
     written then, from the notes and this task, and the notes go.
@@ -203,7 +205,34 @@ modder-state/
 ```
 
 **Ablations** come from opening a state with parts left out: no memory, no skills, or the naive
-harness (`SelfState.open(dir, clock, ['memory' | 'skills' | 'harness'])`).
+harness (`SelfState.open(dir, clock, ['memory' | 'skills' | 'harness'])`). A part left out is
+neither read nor written: without skills, no skill falls due and the reflection writes none (one
+on file is left as it was, unread) while the notes stay; without memory, no rule or note is kept.
+
+### 5.1 A craftsperson's notebook
+
+Each craftsperson a player researches with (a person with the `craftsperson` tag) has a
+self-state of their own under `modder-state/people/<name>/`, laid out as above. They learn apart:
+what Garrick keeps, Mira never reads.
+
+- **Recall.** Before a conversation the craftsperson reads their rules and their skill (one node,
+  `research`): `researchConversation(model, request, notebook)`.
+- **Record.** Every turn is an episode. Talk alone (a question, a refusal) is kept as it is. A
+  proposal waits for the game to say what came of it.
+- **Outcome.** The game reports once, as a code (`POST /research/outcome`, `readResearchOutcome`):
+  `made` when the trial craft succeeded, `refused` with the game's problem code, `left` when the
+  player talked on or walked off without trying it.
+- **Reflect.** After an outcome, one reflection call writes the craftsperson's rules and, once the
+  kind of task has recurred and gone wrong, their skill (`keepReflection`, the same format as the
+  modder's). Players' words are data: the reflection keeps nothing a player told the craftsperson
+  to believe, and the game rechecks every proposal whatever the notebook says.
+- **Measure.** `npm run eval:research-rsi` runs the research cases with an empty notebook, trains
+  one craftsperson on a separate set of requests (outcomes told back, reflections awaited), and
+  runs the cases again on a frozen copy of what was learned: pass rate and time, side by side.
+- **The AI setting.** The player's level for making new things (design.md §13, `ResearchRequest.create`)
+  is how much the craftsperson does: off, no conversation at all; low, a few rules read, no skill, nothing
+  drawn and nothing written to the notebook (no episode, no outcome, no reflection); medium, as above with
+  the picture drawn lightly after the reply; high, the picture drawn with more thought and more tries.
 
 ## 6. Guard rails
 

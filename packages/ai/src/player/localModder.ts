@@ -253,6 +253,13 @@ export class LocalModder {
     switch (c.op) {
       case 'health':
         return { model: modder?.model?.name ?? null }
+      case 'research':
+        if (!modder) throw new Error('the modder has no game yet')
+        return modder.research(c.body)
+      case 'researched':
+        return modder?.researchOutcome(c.outcome) ?? { ok: false }
+      case 'researchSketch':
+        return modder?.researchSketch({ sketch: c.sketch }) ?? {}
       case 'resolve':
         if (!modder) throw new Error('the modder has no game yet')
         // the player's own modder works live (the offline profile is the service's)

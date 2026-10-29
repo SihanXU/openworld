@@ -8,6 +8,7 @@ import { connected, economySteps, freeLunch } from '../checks/economy.ts'
 import {
   RuleLibrary,
   holeKey,
+  isPrivateName,
   ruleTier,
   tierOfRequest,
   tiersFrom,
@@ -97,6 +98,8 @@ export class WorldLibrary {
    * judged with them as a client judges the patch it syncs, so the log holds nothing every client would refuse.
    */
   protectedFacts: string[]
+  /** A copy answering one save's own question (pipeline.ts privateEpisode): it may hold that save's names. */
+  forOneSave = false
 
   private readonly store?: LogStore
 
@@ -249,15 +252,22 @@ export class WorldLibrary {
     }
   }
 
-  /** replaces: patch rules this patch takes the place of (a revision), judged as if they were gone. */
-  validate(patch: Patch, req?: ModRequest, ws?: ModWorkspace, replaces: string[] = []): ValidationResult {
+  /**
+   * replaces: patch rules this patch takes the place of (a revision), judged as if they were gone. A replay (the log
+   * read again) judges an entry as it was taken: lines written in one language before both were asked for stay.
+   */
+  validate(patch: Patch, req?: ModRequest, ws?: ModWorkspace, replaces: string[] = [], replay = false): ValidationResult {
+    if (patch?.scope === 'save') return { ok: false, errors: ['a save-only patch cannot enter the shared library'], warnings: [] }
+    // names only one save may hold (research.ts isPrivateName): the shared library never takes one, so a save's own never meets it
+    const taken = (patch?.artifacts ?? []).flatMap((a) => (a?.kind === 'rule' ? [a.rule?.id] : a?.kind === 'type' ? [a.type?.id] : a?.kind === 'status' ? [a.status?.id] : [])).filter((id): id is string => typeof id === 'string' && isPrivateName(id))
+    if (taken.length && !this.forOneSave) return { ok: false, errors: [`a name only one save may hold cannot enter the shared library: ${taken.join(', ')}`], warnings: [] }
     withTerrainTypes(this.ontology)
     // Public ontology and workspace data can change without a mutator or sequence bump.
     const artifacts = patch?.artifacts?.map((a) => a?.kind === 'rule' && a.rule ? { ...a, rule: { ...a.rule, tests: undefined } } : a)
     // (the library's version moves with every add and removal, so its rules need not be hashed)
     // judged as the client judges it: a world event's answer within the world's boundaries, the story's facts its own
     const world = (req?.origin ?? patch?.trigger) === 'world'
-    const key = keyOf(JSON.stringify([this.lib.version, this.lib.types, this.lib.statuses, this.ontology, ws, req?.scenario, replaces, artifacts, world, this.protectedFacts]))
+    const key = keyOf(JSON.stringify([this.lib.version, this.lib.types, this.lib.statuses, this.ontology, ws, req?.scenario, replaces, artifacts, world, this.protectedFacts, replay]))
     const rules = patch?.artifacts?.flatMap((a) => a?.kind === 'rule' && a.rule ? [a.rule] : []) ?? []
     const tests = rules.map((r) => (r.tests ?? []).map((t) => JSON.stringify(t)))
     const proof = this.proofs.get(key)
@@ -268,7 +278,7 @@ export class WorldLibrary {
       if (result.ok) this.proofs.set(key, { tests, result: structuredClone(result) })
       return result
     }
-    const result = validatePatch(patch, { ontology: this.ontology, library: lib, scenario: req?.scenario, world, protectedFacts: this.protectedFacts })
+    const result = validatePatch(patch, { ontology: this.ontology, library: lib, scenario: req?.scenario, world, protectedFacts: this.protectedFacts, bilingual: !replay })
     if (!result.ok) return result
     // what the patch costs the world (a free lunch refused): its warnings are part of the proof
     const economy = this.economy(patch, lib)
@@ -410,7 +420,7 @@ export class WorldLibrary {
         for (const t of [...before.lib.types]) if (!this.lib.types.some((x) => x.id === t.id)) before.lib.removeType(t.id)
         for (const st of [...before.lib.statuses]) if (!this.lib.statuses.some((x) => x.id === st.id)) before.lib.removeStatus(st.id)
         // a revision is judged in the place of what it replaced (it may define that patch's things again)
-        res = before.validate(e.patch, req, undefined, e.replaces ?? [])
+        res = before.validate(e.patch, req, undefined, e.replaces ?? [], true)
       } catch (err) {
         res = { ok: false, errors: [(err as Error).message], warnings: [] }
       }

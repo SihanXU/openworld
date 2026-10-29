@@ -331,8 +331,13 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 - **The event model** (design.md §5.4–5.14, agreed and built 2026-10-02; §5.14 records what the
   implementation refined):
   - The game is an ordinary, complete game. It plays to the end without AI.
-  - The one AI interface is **the outcome of an event**. Defined: use it. Undefined: ask the
+  - The world's AI interface is **the outcome of an event**. Defined: use it. Undefined: ask the
     AI. No AI, a failure or a time-out: the leaf's default, normally nothing.
+  - The second AI interface is **a recipe talked over with a craftsperson** (NPC recipe research,
+    agreed 2026-10-27: engine `research.ts`, `researchCraft.ts`; AI `modder/research.ts`). The player's words
+    are data; the model proposes only a name, an existing craft and the player's materials; the game prices
+    it, trial-crafts it and keeps the new kind in that save alone. A question about a researched thing is
+    answered for that save alone (`patch/save-<n>/…`, never in the shared library); every other is shared.
   - Rules belong to a **host** type (`host × event kind → condition tree`). They **read
     anything and write only their host**; to affect another thing they emit an event (an
     impulse) to it, and it answers.

@@ -540,6 +540,19 @@ describe('the right click: the held thing used on what is aimed at', () => {
     expect(right(apple)).toEqual(apple.controls.plan('use', at))
   })
 
+  it('a quick pickup followed by right click ignores the item in the previous frame after it enters the hand', () => {
+    const eng = world(undefined, [
+      { key: 'berry', type: 'item/food/berries', x: 2, y: 1 },
+      { key: 'well', type: 'fixture/water/well', x: 2, y: 1 },
+    ])
+    const staleAim = { x: 2, y: 1, stack: [{ e: 'berry' }, { e: 'well' }] }
+    eng.controls.run(eng.controls.planFor('hands', staleAim)!)
+    expect(eng.world.get('berry')!.place).toMatchObject({ on: 'hand', holder: 'actor' })
+    expect(eng.controls.planFor('secondary', staleAim)).toMatchObject({
+      verb: 'use', target: { e: 'well' }, instrument: { e: 'berry' },
+    })
+  })
+
   it('what an object does to a thing: raw meat cooks over a lit fire, a key turns in a locked chest, wheat feeds a cow, a seed is sown', () => {
     const meat = world('item/food/meat/raw', [{ key: 'fire', type: 'fixture/light/campfire', x: 2, y: 1 }])
     meat.author(() => meat.applyStatus({ e: 'fire' }, 'lit', 999))

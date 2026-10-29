@@ -1,7 +1,8 @@
 // How the engine's worker reaches a modder: a service over HTTP (its address), or the player's own modder in a
 // worker of this page over a port (docs/byok.md). Both answer the same five questions.
 
-import type { ModProgress, PatchLogEntry, ResolveBody, ResolveReply } from '@openworld/engine'
+import type { Engine, ModRequest, Patch, PixelArt, ResearchOutcome, ResearchRequest, ResearchReply, ModProgress, PatchLogEntry, ResolveBody, ResolveReply } from '@openworld/engine'
+import { withAside } from '@openworld/engine'
 import { LOCAL_MODDER, type LinkCall, type LinkReply } from './modderProtocol.ts'
 
 export interface PatchLog {
@@ -13,11 +14,30 @@ export interface PatchLog {
 export interface ModderLink {
   /** Where it is: the service's address, or `local:` (what the shared log's position is kept under). */
   readonly where: string
+  research?(body: ResearchRequest): Promise<ResearchReply>
+  /** What came of a craftsperson's proposal in the game (they learn from it): said, not waited on. */
+  researched?(outcome: ResearchOutcome): void
+  /** A proposal's picture, drawn after its reply (none: it could not be). */
+  researchSketch?(sketch: string): Promise<PixelArt | undefined>
   health(): Promise<{ model?: string | null }>
   resolve(body: ResolveBody): Promise<ResolveReply>
   progress(request: string): Promise<ModProgress>
   patches(since: number): Promise<PatchLog>
   fault(rule: string, reason: string): void
+}
+
+/** A late answer belongs to the save and connection that asked, never the next one loaded. */
+export async function resolveForSave(owner: Engine, to: Pick<ModderLink, 'resolve'>, current: () => boolean, request: ModRequest): Promise<Patch | null> {
+  if (!current()) return null
+  const lib = owner.lib
+  const data = lib.toJSON()
+  // Definitions keep their ownership even after the rule that brought them was retired.
+  const local = [...withAside(data).rules, ...data.log.flatMap(e => e.rule ? [e.rule] : [])].flatMap(r => r.source?.local ? [r.source.local] : [])
+  const reply = await to.resolve({ request, workspace: { patches: {
+    rules: lib.patches(), aside: data.aside, types: lib.types, statuses: lib.statuses,
+    local: { types: [...new Set(local.flatMap(p => p.types))], statuses: [...new Set(local.flatMap(p => p.statuses))] },
+  } } })
+  return current() ? reply.patch : null
 }
 
 /** A modder service at `url` (the modder's server.ts). */
@@ -28,6 +48,15 @@ export function serviceLink(url: string): ModderLink {
   return {
     where: at,
     health: () => get('/health', 2500),
+    research: async (body) => {
+      // a new kind is designed before the reply (drawn after it): longer than a word
+      const r = await post('/research', body, 240_000)
+      const data = await r.json()
+      if (!r.ok || data.error) throw new Error(data.error || 'Research unavailable')
+      return data as ResearchReply
+    },
+    researched: (outcome) => void post('/research/outcome', outcome, 5000).catch(() => undefined),
+    researchSketch: async (sketch) => ((await (await post('/research/sketch', { sketch }, 240_000)).json()) as { art?: PixelArt }).art,
     resolve: async (body) => (await (await post('/resolve', body, 240_000)).json()) as ResolveReply,
     progress: (request) => get(`/progress?id=${encodeURIComponent(request)}`, 2000),
     patches: (since) => get(`/patches?since=${since}`, 5000),
@@ -60,6 +89,9 @@ export function portLink(port: MessagePort): ModderLink {
   return {
     where: LOCAL_MODDER,
     health: () => call({ op: 'health' }, 2500),
+    research: (body) => call({ op: 'research', body }, 240_000),
+    researched: (outcome) => void call({ op: 'researched', outcome }, 5000).catch(() => undefined),
+    researchSketch: async (sketch) => (await call<{ art?: PixelArt }>({ op: 'researchSketch', sketch }, 240_000)).art,
     resolve: (body) => call({ op: 'resolve', body }, 240_000),
     progress: (request) => call({ op: 'progress', request }, 2000),
     patches: (since) => call({ op: 'patches', since }, 5000),

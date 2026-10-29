@@ -92,7 +92,10 @@ export class ModConsole {
       ['world', zh ? '世界' : 'World'],
     ]
     const dev = $('#dev')
-    const keepText = (dev.querySelector('#patchText') as HTMLTextAreaElement | null)?.value
+    const editor = dev.querySelector<HTMLTextAreaElement>('#patchText')
+    // Preserve a hand-edited draft only for its own event. An untouched editor should refresh
+    // when the model's answer arrives, and selecting another event must show that event's patch.
+    const keepText = editor && editor.dataset.record === this.selected && editor.value !== editor.defaultValue ? editor.value : undefined
     const m = this.modder
     const chip = m.online
       ? `<span class="modder on" title="${esc(m.url ?? '')}">● ${zh ? '模组师' : 'modder'}: ${esc(m.model ?? '—')}</span>`
@@ -122,11 +125,12 @@ export class ModConsole {
     body.innerHTML = `
       <div class="split">
         <div class="list">${list || `<div class="muted pad">${zh ? '还没有未定义的事件。' : 'No undefined events yet.'}</div>`}</div>
-        <div class="detail">${rec ? this.recordDetail(rec, keepText) : ''}</div>
+        <div class="detail">${rec ? this.recordDetail(rec) : ''}</div>
       </div>`
     body.querySelectorAll<HTMLElement>('[data-rec]').forEach((el) => (el.onclick = () => ((this.selected = el.dataset.rec), this.render())))
     if (!rec) return
     const ta = body.querySelector<HTMLTextAreaElement>('#patchText')!
+    if (keepText !== undefined) ta.value = keepText
     body.querySelector<HTMLButtonElement>('#bTemplate')!.onclick = () => (ta.value = JSON.stringify(template(rec), null, 2))
     body.querySelector<HTMLButtonElement>('#bSubmit')!.onclick = () => {
       try {
@@ -143,12 +147,12 @@ export class ModConsole {
     }
   }
 
-  private recordDetail(r: RecordView, keepText?: string): string {
+  private recordDetail(r: RecordView): string {
     const zh = locale.value === 'zh'
     const req = r.request
     const ent = (e?: { name: string; type: string; tags: string[]; statuses: string[] }) =>
       e ? `<b>${esc(e.name)}</b> <code>${esc(e.type)}</code> ${e.tags.map((t) => `<span class="tag">${esc(t)}</span>`).join('')}${e.statuses.map((t) => `<span class="tag st">${esc(t)}</span>`).join('')}` : '—'
-    const text = keepText ?? (r.patch ? JSON.stringify(r.patch, null, 2) : '')
+    const text = r.patch ? JSON.stringify(r.patch, null, 2) : ''
     const params = Object.entries(req.event.params ?? {}).filter(([k]) => !['power'].includes(k)).map(([k, v]) => `${k}=${v}`).join(' ')
     const what = `${req.event.kind}${params ? ` · ${params}` : ''}`
     return `
@@ -168,7 +172,7 @@ export class ModConsole {
           <span class="grow"></span>
           ${r.status === 'pending' ? `<button id="bDismiss">${zh ? '什么也不发生' : 'Nothing happens'}</button>` : ''}
           <button id="bSubmit" class="primary">${zh ? '校验并应用' : 'Validate & apply'}</button></div>
-        <textarea id="patchText" spellcheck="false" placeholder='{ "artifacts": [ { "kind": "rule", "rule": { … } } ] }'>${esc(text)}</textarea>
+        <textarea id="patchText" data-record="${esc(r.id)}" spellcheck="false" placeholder='{ "artifacts": [ { "kind": "rule", "rule": { … } } ] }'>${esc(text)}</textarea>
         <div id="valOut">${this.lastValidation?.id === r.id ? this.lastValidation.html : r.diagnostics?.length ? `<div class="warn">${r.diagnostics.map((d) => esc(d)).join('<br>')}</div>` : ''}</div>
       </div>`
   }

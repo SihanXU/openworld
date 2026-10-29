@@ -1,6 +1,6 @@
 // The people's panels (docs/npc-sandbox.md): a talk, a trade, a person's pockets, as the client draws them.
 
-import { itemInfo, matchSelector, splitStacks, stackKey, type Engine, type Entity, type Frame, type GiftView, type Id, type ResidenceView, type ResidenceWorkDef, type ResidenceWorkView, type Selector, type TradeView } from '@openworld/engine'
+import { CRAFTSPERSON, itemInfo, matchSelector, splitStacks, stackKey, type Engine, type Entity, type Frame, type GiftView, type Id, type ResidenceView, type ResidenceWorkDef, type ResidenceWorkView, type Selector, type TradeView } from '@openworld/engine'
 import { socialOf } from './state.ts'
 import { residentWorkEligibility, residentWorkOrderView, residentWorkView } from './resident-work.ts'
 
@@ -11,7 +11,7 @@ export function peopleViews(eng: Engine, open: { talk?: { who: Id; arrest?: bool
   const s = socialOf(eng)
   const out: Pick<Frame, 'talk' | 'trade' | 'pockets' | 'gift'> = {}
   const talkTo = open.talk && w.get(open.talk.who)
-  if (talkTo?.npc) out.talk = { name: talkTo.name ?? w.onto.resolve(talkTo.type).name ?? talkTo.id, ...s.talkView(talkTo, p, open.talk!.arrest) }
+  if (talkTo?.npc) out.talk = { name: talkTo.name ?? w.onto.resolve(talkTo.type).name ?? talkTo.id, ...s.talkView(talkTo, p, open.talk!.arrest), ...(w.hasTag(talkTo, CRAFTSPERSON) && { crafts: true }) }
   const m = open.trade ? w.get(open.trade) : undefined
   if (m?.npc) {
     const carried = [...(p.contents ?? []), ...(p.held ? [p.held] : [])].map((id) => w.get(id)).filter((e): e is NonNullable<typeof e> => !!e)

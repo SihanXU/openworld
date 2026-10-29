@@ -33,11 +33,13 @@ describe.skipIf(!here)('the shared library sync', () => {
       { seq: 3, at: '', patch: { artifacts: null }, rules: [] },
       { seq: 4, at: '', patch: { artifacts: [{ kind: 'rule', rule: { id: 'r1', host: { type: 'item' }, on: 'act/use', tree: null } }] }, rules: [] },
       { seq: 5, at: '', somethingNew: 'x' },
+      { seq: 6, at: '', patch: { ...typePatch(twine), scope: 'save' }, rules: [] },
       null,
     ]
     expect(() => takeLogEntries(eng, mods, kept, [...bad, { seq: 7, at: '', patch: typePatch(twine), rules: [] }], (m) => said.push(m))).not.toThrow()
     expect(said).toHaveLength(bad.length)
     expect(eng.lib.types.map((t) => t.id)).toEqual(['item/material/twine'])
+    expect(kept.types.size).toBe(0)
   })
 
   it('puts back a learned kind it set aside for an entry whose judging throws', () => {

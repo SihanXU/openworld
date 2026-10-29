@@ -5,7 +5,7 @@
 // harness replays it) is left out.
 
 import type { DraftContext, DraftKind } from './drafts.ts'
-import { patchRules, type ModRequest, type ModSpec, type Patch, type Rule, type StatusDef, type TypeDef } from '@openworld/engine'
+import { isPatch, patchRules, ruleTier, tierOfRequest, type ModRequest, type ModSpec, type Patch, type PixelArt, type Rule, type StatusDef, type TypeDef } from '@openworld/engine'
 import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '../agent/state.ts'
 import { compactRule } from './tools.ts'
 import { reflectFormat } from '../agent/state.ts'
@@ -56,6 +56,7 @@ export function designSystem(spec: ModSpec, h: Harness, router = false): string 
     '',
     'Requirements:',
     '- Rule ids start with "patch/" and must be new.',
+    '- Add rules only for the current request\'s host, event and hole. Do not add a second receiver\'s rule in this answer: emit to that receiver, whose own missing outcome is asked separately.',
     h.design.tests === 'harness'
       ? '- Every rule has a one-line `doc` and player-visible feedback (vfx and/or log/say). Do not write tests: the harness keeps the scene that asked as the rule\'s test.'
       : '- Every rule has a one-line `doc`, player-visible feedback (vfx and/or log/say), and at least one test (the triggering event is replayed automatically).',
@@ -63,6 +64,7 @@ export function designSystem(spec: ModSpec, h: Harness, router = false): string 
     '- Nothing for nothing: if the outcome makes something (a stick shaken from a tree, food), let it cost or run out — use the instrument up, or change or spend the host (a status that clears with time, a prop that counts down) — so it is not a faucet pressed forever.',
     '- Your rule writes only its host; to affect anything else, emit an impulse to it and its receiver answers. Player-facing text is {"en": "...", "zh": "..."}; {host}, {actor}, {target}, {instrument}, {item} insert names.',
     '- Give a rule the player reaches a `label`: what their input does there, as the game shows it before the press ("label": {"en": "Tame {target}", "zh": "驯服{target}"}), naming {target}, {instrument} or {actor}; when its branches do different things, put a label on each {"do"} leaf instead. Without one the player sees a generic line.',
+    '- Labels, including leaf labels, allow only {target}, {instrument} and {actor}. The {host} and {item} substitutions above are for log/say messages, never for labels.',
     ...(router ? [ROUTER_RULES] : []),
     '',
     '# ModSpec',
@@ -156,6 +158,7 @@ The rule was written because an event reached an outcome no rule defined (a play
 - plausibility: would a player find this outcome believable and satisfying in this world?
 - scope: does it answer the right cases of this host type — not one target only (too narrow), not unrelated targets or params (too broad)?
 - consistency with the neighbouring rules shown;
+- AI tier: base rules apply at every tier. Learned rules answer their own tier and lower ones, never higher ones. A lower-tier neighbour does not cover a higher-tier request: matching its behavior is not by itself a duplicate or conflict. Do not ask a higher-tier draft to reuse or overwrite the lower-tier rule's id; rule ids remain unique across tiers;
 - feedback: does the player see what happened?
 - no destructive surprises (destroying or taking things the player values without reason);
 - no free repeatable gain: an outcome that makes something (a stick, food, a resource) must cost something or run out — the instrument used up, the host changed or spent (a status, a prop) — or the world gains a faucet the player can press forever;
@@ -209,19 +212,20 @@ export function reviewUser(req: ModRequest, patch: Patch, outcome: string, neigh
   return [
     `# What happened (${req.origin === 'player' ? 'the player\'s act' : 'the world by itself'})\n${req.summary}`,
     `event: ${req.event.kind} ${JSON.stringify(req.event.params)}`,
+    `AI tier: ${tierOfRequest(req)}`,
     ent('host', req.event.host),
     ...Object.entries(req.event.roles).map(([k, e]) => ent(k, e)),
     `map: ${req.context.map.name} (${req.context.map.kind})`,
     '',
     '# The new rule(s)',
-    ...rules.map((r) => JSON.stringify({ id: r.id, doc: r.doc, host: r.host, on: r.on, tree: r.tree })),
+    ...rules.map((r) => JSON.stringify({ id: r.id, tier: ruleTier(r), doc: r.doc, host: r.host, on: r.on, tree: r.tree })),
     '',
     '# What happens now when it happens',
     outcome,
     '',
     ...(flags.length ? ['# Flags from the harness (look at these first)', ...flags.map((f) => `- ${f}`), ''] : []),
     '# Neighbouring rules',
-    ...(neighbours.length ? neighbours.slice(0, 12).map(compactRule) : ['(none)']),
+    ...(neighbours.length ? neighbours.slice(0, 12).map((r) => `${compactRule(r)} [${isPatch(r) ? `AI tier: ${ruleTier(r)}` : 'base: all AI tiers'}]`) : ['(none)']),
   ].join('\n')
 }
 
@@ -315,6 +319,7 @@ export function createUser(creations: Creation[], materials: string[] = []): str
     '# Create',
     `The world is making ${creations.length === 1 ? 'a new thing' : 'new things'}: ${creations.map((c) => `${c.id} (${[c.name.en, c.name.zh].filter(Boolean).join(' / ')})`).join(', ')}.`,
     'Write the patch with, for each, a type artifact beside your rule(s):',
+    'Your rule is still only for the CURRENT request\'s host, event and hole. Do not include a second receiver\'s rule, even if that receiver will turn into your new type: emit to it and let its own missing outcome be asked separately. Creating a type does not authorize rules at other holes. Labels still allow only {target}, {instrument} and {actor}.',
     '{"kind": "type", "type": {"id": "<parent>/<snake_case>", "name": {"en": "...", "zh": "..."}, "tags": ["what the world uses it by"], "props": {"material": "<one of the materials>"}, "makeup": [{"type": "<a type the world has>", "count": 1}], "station": "hands | workbench (optional)"}}',
     '- The parent must exist; the new type inherits its rules and the few tags its parent has, so choose the parent whose behaviour fits (an ingot under item/material, a dish under item/food).',
     '- tags: the world uses a thing by its tags, and a parent carries few of them (item/food has only portable and food): a food that can be eaten has "edible" (and props.food, how much it fills), a drink "drinkable", something that binds "fiber"; give the ones it is used by, as the things beside it have them. A tag some rule turns it by names what it becomes: a "plantable" seed props.cropType, raw "cookable" food props.cookedType, an "empty-vessel" props.waterType, an "ore" props.smelts, a drink in a vessel props.emptyType. Made at hand or a station, a fixture is "portable". Something worn (under item/clothing or item/armor) names where in props.slot (head, body, shoulders, waist, feet, hands, ring, neck, ear, arm).',
@@ -446,5 +451,18 @@ export function artUser(t: { id: string; name: { en: string; zh: string } }, wha
     '',
     'Style rules of the pack: a 1-pixel dark outline "k" = #141b1b around the whole shape; 3-4 tones of the object\'s colour plus a highlight; light from the top-left; flat colours, no dithering noise; the object fills about 12-14 px and is centred; transparent background.',
     'Answer with ONLY a JSON object: {"grid": [16 strings of exactly 16 characters], "palette": {"<char>": "#rrggbb", ...}} using at most 7 colours ("." not counted).',
+  ].join('\n')
+}
+
+/** Another make of a thing the pack draws: its icon edited, not drawn anew (an iron axe is the axe in iron's colours). */
+export function artEditUser(t: { id: string; name: { en: string; zh: string } }, what: string, base: PixelArt): string {
+  return [
+    `Edit this 16x16 pixel-art inventory icon into: ${t.name.en} (${t.id}) - ${what}.`,
+    'The icon as the game draws it now ("." is transparent, each other character is one palette colour):',
+    ...base.grid,
+    `palette ${JSON.stringify(base.palette)}`,
+    '',
+    'Keep its shape and outline. Change the colours of the part the new material makes (a head of iron is grey and steely, gold is yellow, a diamond is pale cyan with white glints); change a few pixels of detail only where the new thing calls for it (a wrapped grip, a notch). Keep the dark outline and the light from the top-left.',
+    'Answer with ONLY a JSON object: {"grid": [16 strings of exactly 16 characters], "palette": {"<char>": "#rrggbb", ...}} using at most 8 colours ("." not counted).',
   ].join('\n')
 }

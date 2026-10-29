@@ -15,7 +15,7 @@
 //
 // Arms: `on`, the self-state as it is (rules, notes, skills); `off`, memory and skills left out (SelfState ablation)
 // and no reflection, the same harness otherwise; `rules`, the reflection with its skills left out (what the nodes'
-// skills add over the global rules). The audit, the review and revisions after an answer ships are off in
+// skills add over the global rules: the notes are kept too, but only the reflections read them, never an answer). The audit, the review and revisions after an answer ships are off in
 // every arm (they are not what is measured, and the validator's economy and repeat checks stay). A rep shuffles the nodes' order (seeded), so a rep is a different stream of the same holes.
 
 import { execSync } from 'node:child_process'
@@ -165,7 +165,7 @@ async function run(argv: string[]): Promise<void> {
   mkdirSync(data, { recursive: true })
   const model = modelFromEnv()
   if (!model) throw new Error('no model: LSW_MODEL_BACKEND=claude-code, or LSW_MODEL_KEY + LSW_MODEL')
-  // rules: the global rules and the notes kept, the skills left out (what the nodes' skills add)
+  // rules: the global rules kept (and the notes, which only the reflections read), the skills left out: none falls due
   const ablate: Ablation[] = arm === 'off' ? ['memory', 'skills'] : arm === 'rules' ? ['skills'] : []
   // an empty library and an empty self-state of the arm's own
   const library = new WorldLibrary(GAME.ontology(), GAME.rules, join(data, 'library.jsonl'))

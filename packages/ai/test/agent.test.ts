@@ -176,8 +176,9 @@ describe('the middle loop: global rules, and one skill a kind of task', () => {
   it('files a rule under its kind of task, or as general for every task; never one about answering fast', { timeout: 30_000 }, async () => {
     const state = freshState()
     const r = await runAgent(task(bugRepo(), { kind: 'world-repo' }), { model: engineer(), state })
-    const reflection = { rules: { add: [{ text: 'Run the whole test suite before submitting, not only the test you changed.', scope: 'general' }, { text: 'A rule writes only its host.', scope: 'kind' }] }, notes: [], skill: null }
-    await reflectAgent(r.episode, { model: new ScriptedModel(() => reflection), state, kindTerm: 'task:world' })
+    // one rule a reflection (it is asked for at most one, and the rest are not kept)
+    for (const add of [{ text: 'Run the whole test suite before submitting, not only the test you changed.', scope: 'general' }, { text: 'A rule writes only its host.', scope: 'kind' }])
+      await reflectAgent(r.episode, { model: new ScriptedModel(() => ({ rules: { add: [add] }, notes: [], skill: null })), state, kindTerm: 'task:world' })
     expect(state.lessons().map((l) => l.terms)).toEqual([[], ['task:world']])
     const seen: string[] = []
     await runAgent(task(bugRepo(), { kind: 'swe' }), { model: intros(seen), state, record: false })
@@ -218,7 +219,7 @@ describe('the middle loop: global rules, and one skill a kind of task', () => {
     state.writeSkill({ name: nodeSkillName('kind:engine'), node: 'kind:engine', description: 'engine tasks', triggers: [], body: '1. types first' }, 'E3')
     expect(state.relevantSkills(['kind:swe'], 'kind:swe').map((s) => s.name)).toEqual(['bisect-a-failure'])
     expect(state.relevantSkills(['kind:act/use', 'target#ground'], 'x').map((s) => s.name)).toEqual(['item-on-ground', 'bisect-a-failure'])
-    expect(state.relevantSkills(['kind:engine'], 'kind:engine').map((s) => s.name)).toEqual(['bisect-a-failure', nodeSkillName('kind:engine')])
+    expect(state.relevantSkills(['kind:engine'], 'kind:engine').map((s) => s.name)).toEqual([nodeSkillName('kind:engine'), 'bisect-a-failure'])
     expect(nodeSkillName('impulse/strike|core/strike|fixture/furniture|actor/person')).not.toBe(nodeSkillName('impulse/strike|core/strike|fixture/furniture|actor/creature'))
   })
 
@@ -238,6 +239,51 @@ describe('the middle loop: global rules, and one skill a kind of task', () => {
     // the second, read before the first wrote, does not write over it
     expect(keepReflection(state, reply('1. stale'), { cited: 'E10', kindTerm: node, stand: b }).skill).toBeUndefined()
     expect(state.readSkill(name)).toContain('1. new')
+  })
+
+  it('a run with the skills left out writes none, keeps its notes, and leaves a skill on file unread and unchanged', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lsw-agent-state-'))
+    const node = 'kind:mini'
+    const name = nodeSkillName(node)
+    SelfState.open(dir).writeSkill({ name, node, description: 'd', triggers: [], body: '1. the real one' }, 'E1')
+    const state = SelfState.open(dir, undefined, ['skills'])
+    const ep = (i: number): Episode => ({ id: `E${i}`, node, at: new Date().toISOString(), summary: 's', request: {}, key: `k${i}`, terms: [], outcome: 'failed', attempts: [], tools: [], rules: [], shown: { lessons: [], episodes: [], skills: [] }, skillsRead: [], harness: 1, usage: { calls: 1, input: 0, output: 0 }, ms: 1 })
+    // six troubled tasks of one kind, each reflected on with a skill offered and a note
+    for (let i = 2; i < 8; i++) {
+      state.recordEpisode(ep(i))
+      const stand = nodeStand(state, node, DEFAULT_HARNESS, true)
+      expect(stand.due).toBe(false)
+      const kept = keepReflection(state, JSON.stringify({ notes: [`note ${i}`], skill: { description: 'd', body: `1. version ${i}` } }), { cited: `E${i}`, kindTerm: node, stand })
+      expect(kept.skill).toBeUndefined()
+    }
+    // the notes stay (none are cleared by a skill written in their place)
+    expect(state.pendingAt(node).map((n) => n.text)).toEqual(['note 2', 'note 3', 'note 4', 'note 5', 'note 6', 'note 7'].slice(-state.pendingAt(node).length))
+    expect(state.pendingAt(node).at(-1)?.text).toBe('note 7')
+    expect(state.pendingAt(node).length).toBeGreaterThan(2)
+    const real = SelfState.open(dir)
+    expect(real.skill(name)?.version).toBe(1)
+    expect(real.readSkill(name)).toContain('1. the real one')
+  })
+
+  it('a run with the memory left out writes no rules and no notes', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'lsw-agent-state-'))
+    const state = SelfState.open(dir, undefined, ['memory'])
+    expect(state.applyLessons({ add: [{ text: 'Read the failing test first.' }] }, 'E1', ['kind:mini'])).toEqual([])
+    state.addPending('kind:mini', ['a note'], 'E1')
+    const real = SelfState.open(dir)
+    expect(real.lessons()).toEqual([])
+    expect(real.pendingAt('kind:mini')).toEqual([])
+    expect(existsSync(join(dir, 'memory/pending.json'))).toBe(false)
+  })
+
+  it('adds one rule from a reflection at most, and none about time as general', () => {
+    const state = freshState()
+    const added = state.applyLessons({ add: [{ text: 'Answer within the time limit.', general: true }, { text: 'Read the failing test first.' }, { text: 'Run the whole suite.' }] }, 'E1', ['kind:mini'])
+    expect(added).toHaveLength(1)
+    expect(state.lessons()).toMatchObject([{ text: 'Answer within the time limit.', terms: ['kind:mini'] }])
+    state.applyLessons({ add: [{ text: 'Run the whole suite before submitting.', general: true }] }, 'E2', ['kind:mini'])
+    expect(state.lessons()[1]).toMatchObject({ terms: [] })
+    expect(state.applyLessons({ add: 'not a list' } as never, 'E3', ['kind:mini'])).toEqual([])
   })
 
   it('reflects after a recorded task, unless the backend failed it', async () => {

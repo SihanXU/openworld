@@ -490,6 +490,8 @@ export class SelfState {
    * `episode`: the episode the reflection was on, or the episodes of a batch (each is cited).
    */
   applyLessons(ops: { add?: { text: string; terms?: string[]; general?: boolean }[]; revise?: { id: string; text: string }[]; drop?: string[]; support?: string[] }, episode: string | string[], defaultTerms: string[]): string[] {
+    // an ablated part is neither read nor written: a run without memory leaves the memory on file as it was
+    if (this.ablated.has('memory')) return []
     const now = this.now()
     const touched: string[] = []
     const eps = Array.isArray(episode) ? episode : [episode]
@@ -499,12 +501,14 @@ export class SelfState {
       for (const e of eps) if (!l.episodes.includes(e)) (l.episodes.push(e), (added = true))
       return added
     }
-    for (const a of ops.add ?? []) {
-      const text = String(a?.text ?? '').trim()
-      if (!text || this.lessonList.some((l) => l.status === 'active' && l.text === text)) continue
+    // one rule added at most (the first new one): the reflection is asked for no more
+    for (const a of (Array.isArray(ops.add) ? ops.add : []).filter((a) => { const t = String(a?.text ?? '').trim(); return t && !this.lessonList.some((l) => l.status === 'active' && l.text === t) }).slice(0, 1)) {
+      const text = String(a.text).trim()
       const id = `L${this.lessonList.length + 1}`
-      // a general lesson (engineering anywhere, not this codebase) has no terms: every task is shown it
-      const terms = a.general === true ? [] : Array.isArray(a.terms) && a.terms.length ? a.terms.map(String) : defaultTerms
+      // a general lesson (engineering anywhere, not this codebase) has no terms: every task is shown it; one about a
+      // time limit or answering fast is never general (it held under one kind of task's clock)
+      const general = a.general === true && !TIMED.test(text)
+      const terms = general ? [] : Array.isArray(a.terms) && a.terms.length ? a.terms.map(String) : defaultTerms
       this.lessonList.push({ id, text, terms, episodes: [...eps], status: 'active', created: now, updated: now })
       touched.push(id)
       this.note('lesson.add', { id, episode })
@@ -557,7 +561,9 @@ export class SelfState {
    */
   relevantSkills(terms: string[], node?: string): SkillMeta[] {
     const set = new Set(terms)
-    return this.skills().filter((s) => (s.node ? s.node === node : !s.triggers?.length || s.triggers.some((t) => set.has(t))))
+    const shown = this.skills().filter((s) => (s.node ? s.node === node : !s.triggers?.length || s.triggers.some((t) => set.has(t))))
+    // its own kind of task's skill first (docs/rsi.md §4.1)
+    return [...shown.filter((s) => s.node), ...shown.filter((s) => !s.node)]
   }
 
   /** The skill of a kind of task, if it has one. */
@@ -579,6 +585,7 @@ export class SelfState {
   }
 
   addPending(node: string, texts: string[], episode: string): void {
+    if (this.ablated.has('memory')) return
     const now = this.now()
     const kept = this.pending[node] ?? []
     for (const t of texts.map((x) => String(x ?? '').trim()).filter(Boolean)) if (!kept.some((k) => k.text === t)) kept.push({ text: t, episode, at: now })
@@ -587,7 +594,7 @@ export class SelfState {
   }
 
   clearPending(node: string): void {
-    if (!this.pending[node]) return
+    if (this.ablated.has('memory') || !this.pending[node]) return
     delete this.pending[node]
     this.savePending()
   }
@@ -788,6 +795,9 @@ export type HookStage = 'start' | 'presubmit'
 /** Parts of the self-state an ablation run leaves out (docs/rsi.md §6). */
 export type Ablation = 'memory' | 'skills' | 'harness'
 
+/** A rule about a time limit or about answering fast (never general, docs/rsi.md §4.1). */
+const TIMED = /\b(time[- ]?limits?|timeouts?|deadlines?|time budget|in time|within \d+|seconds?|minutes?|fast(er|est)?|quick(ly|er)?|speed|latency|hurry)\b/i
+
 /** What a fork and a snapshot copy. */
 const COPIED = ['memory', 'skills', 'harness']
 const MAX_SKILL_FILES = 6
@@ -848,7 +858,9 @@ export function nodeStand(state: SelfState, node: string, h: Harness, troubled: 
   const skill = state.skillAt(node)
   const notes = state.pendingAt(node)
   const count = state.nodeEpisodes(node)
-  return { node, skill, body: skill && state.readSkill(skill.name)?.trim(), notes, count, due: !skill && count >= h.reflect.skillMinRecurrence && (notes.length > 0 || troubled) }
+  // with the skills left out (an ablation) none is due: nothing written would be read, and the notes are kept
+  const due = !state.ablated.has('skills') && !skill && count >= h.reflect.skillMinRecurrence && (notes.length > 0 || troubled)
+  return { node, skill, body: skill && state.readSkill(skill.name)?.trim(), notes, count, due }
 }
 
 /** The prompt's section on this kind of task. */
@@ -933,7 +945,8 @@ export function keepReflection(state: SelfState, reply: string, o: { cited: stri
   const sk = j?.skill
   // (another reflection on this node wrote its skill since this one read it: that one stands, this one's is not kept)
   if (state.skillAt(s.node)?.version !== s.skill?.version) return { lessons, notes: 0 }
-  if (sk && typeof sk.body === 'string' && sk.body.trim() && (s.skill || s.due)) {
+  // (with the skills left out, none is written: it would be read by no one, and would overwrite one on file unread)
+  if (sk && typeof sk.body === 'string' && sk.body.trim() && (s.skill || s.due) && !state.ablated.has('skills')) {
     const body = sk.body.trim().split('\n').slice(0, SKILL_MAX_LINES + 10).join('\n')
     const files = o.files && sk.files && typeof sk.files === 'object' ? (Object.fromEntries(Object.entries(sk.files as Record<string, unknown>).filter(([, v]) => typeof v === 'string')) as Record<string, string>) : undefined
     const name = s.skill?.name ?? nodeSkillName(s.node)

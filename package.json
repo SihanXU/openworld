@@ -43,6 +43,8 @@
     "probes": "tsx games/openworld/ai/src/probes.ts",
     "eval:objects": "tsx games/openworld/ai/src/live.ts objects",
     "eval:affordance": "tsx games/openworld/ai/src/live.ts affordance",
+    "eval:research": "tsx games/openworld/ai/src/live.ts research",
+    "eval:research-rsi": "tsx games/openworld/ai/src/live.ts research-rsi",
     "test": "vitest run",
     "typecheck": "npm run typecheck:game --silent && tsc -p packages/ai && tsc -p games/openworld/ai",
     "typecheck:game": "tsc -p packages/engine && tsc -p packages/engine/test && tsc -p packages/stdlib && tsc -p packages/format && tsc -p games/starter && tsc -p packages/modules && tsc -p packages/runtime && tsc -p packages/editor && tsc -p games/openworld/content && tsc -p games/openworld/client && tsc -p games/openworld/tools && tsc -p games/openworld/wiki",

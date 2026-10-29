@@ -90,7 +90,9 @@ describe('a page on another site', () => {
     const post = (path: string, headers: Record<string, string>, body?: unknown) => call(server, { method: 'POST', path, headers, body })
     const EVIL = { origin: 'https://example.com', 'content-type': 'text/plain' }
     // a page elsewhere, through the browser of someone on this machine: a simple POST, no preflight
-    for (const path of ['/quality/detect', '/create', '/adopt']) expect((await post(path, EVIL, { patch: { artifacts: [] }, intent: 'a thing' })).status).toBe(403)
+    for (const path of ['/quality/detect', '/create', '/adopt', '/research']) expect((await post(path, EVIL, { patch: { artifacts: [] }, intent: 'a thing' })).status).toBe(403)
+    expect((await post('/research', { ...EVIL, 'content-type': 'application/json' }, {})).status).toBe(403)
+    expect((await post('/research', { 'content-type': 'text/plain' }, {})).status).toBe(415)
     expect((await post('/adopt', { ...EVIL, 'content-type': 'application/json' }, { patch: { artifacts: [] } })).status).toBe(403)
     // no Origin, but not JSON (a page whose browser leaves the Origin out sends the same)
     expect((await post('/adopt', { 'content-type': 'text/plain' }, { patch: { artifacts: [] } })).status).toBe(415)

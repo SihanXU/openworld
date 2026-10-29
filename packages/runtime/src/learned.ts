@@ -1,7 +1,7 @@
 // What the world learned that the main thread shows: the recipes of learned things (a patch's type
 // with a station and a makeup is crafted like the content's own, world-model.md §6.4).
 
-import { deriveRecipes, everyThing, namesClash, newStatusProblems, newTypeProblems, type Engine, type Entity, type LibraryData, type ModPort, type Patch, type PatchLogEntry, type Recipe, type SaveData, type StatusDef, type TypeDef, type ValidationResult } from '@openworld/engine'
+import { isPrivateName, withAside, deriveRecipes, everyThing, namesClash, newStatusProblems, newTypeProblems, type Engine, type Entity, type LibraryData, type ModPort, type Patch, type PatchLogEntry, type Recipe, type SaveData, type StatusDef, type TypeDef, type ValidationResult } from '@openworld/engine'
 import { recipeById } from './game.ts'
 import type { StoredLibrary } from './protocol.ts'
 
@@ -120,25 +120,62 @@ export function forgetStatus(eng: Engine, id: string): boolean {
 export function withKept(shared: LibraryData | undefined, save: SaveData | undefined): { library: LibraryData | undefined; kept: { types: string[]; statuses: string[] } } {
   const own = save?.library
   const none = { types: [], statuses: [] }
-  if (!shared || !own) return { library: shared ?? own, kept: none }
+  if (!own) return { library: shared, kept: none }
+  const local = [...withAside(own).rules, ...own.log.flatMap(e => e.rule ? [e.rule] : [])].filter(r => r.source?.local)
+  const privateTypes = new Set([
+    ...own.types.filter(t => t.researched).map(t => t.id),
+    ...local.flatMap(r => r.source!.local!.types),
+  ])
+  const localTypes = new Set(privateTypes)
+  const localStatuses = new Set(local.flatMap(r => r.source!.local!.statuses))
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const t of own.types) if (localTypes.has(t.id)) for (const k of named(t).flatMap(kinds)) if (!localTypes.has(k)) (localTypes.add(k), (grew = true))
+  }
+  if (!shared) return { library: own, kept: {
+    types: own.types.filter(t => localTypes.has(t.id)).map(t => t.id),
+    statuses: own.statuses.filter(s => localStatuses.has(s.id)).map(s => s.id),
+  } }
   const entities = everyThing(save.state)
-  const missing = (own.types ?? []).filter((t) => !shared.types.some((x) => x.id === t.id))
-  const want = new Set(entities.flatMap((e) => kinds(e.type)))
+  const missing = own.types.filter(t => privateTypes.has(t.id) || !shared.types.some(x => x.id === t.id))
+  const want = new Set([...entities.flatMap(e => kinds(e.type)), ...[...localTypes].flatMap(kinds)])
   for (let grew = true; grew; ) {
     grew = false
     for (const t of missing) if (want.has(t.id)) for (const k of named(t).flatMap(kinds)) if (!want.has(k)) (want.add(k), (grew = true))
   }
-  const types = missing.filter((t) => want.has(t.id))
-  const had = new Set(entities.flatMap((e) => Object.keys(e.statuses ?? {})))
-  const statuses = (own.statuses ?? []).filter((s) => had.has(s.id) && !shared.statuses.some((x) => x.id === s.id))
-  if (!types.length && !statuses.length) return { library: shared, kept: none }
-  return { library: { ...shared, types: [...shared.types, ...types], statuses: [...shared.statuses, ...statuses] }, kept: { types: types.map((t) => t.id), statuses: statuses.map((s) => s.id) } }
+  const types = missing.filter(t => want.has(t.id))
+  const had = new Set([...entities.flatMap(e => Object.keys(e.statuses ?? {})), ...localStatuses])
+  const statuses = own.statuses.filter(s => had.has(s.id) && (localStatuses.has(s.id) || !shared.statuses.some(x => x.id === s.id)))
+  const privateIds = new Set(local.map(r => r.id))
+  const rules = own.rules.filter(r => privateIds.has(r.id))
+  const aside = (own.aside ?? []).filter(a => privateIds.has(a.rule.id))
+  const privateEntry = (e: LibraryData['log'][number]) => !!((e.ruleId && privateIds.has(e.ruleId)) || (e.type && localTypes.has(e.type.id)) || (e.typeId && localTypes.has(e.typeId)) || (e.status && localStatuses.has(e.status.id)) || (e.statusId && localStatuses.has(e.statusId)))
+  if (!types.length && !statuses.length && !local.length) return { library: shared, kept: none }
+  return { library: {
+    ...shared,
+    rules: [...shared.rules.filter(r => !privateIds.has(r.id)), ...rules],
+    aside: [...(shared.aside ?? []).filter(a => !privateIds.has(a.rule.id)), ...aside],
+    types: [...shared.types.filter(t => !privateTypes.has(t.id)), ...types],
+    statuses: [...shared.statuses.filter(s => !localStatuses.has(s.id)), ...statuses],
+    log: [...shared.log.filter(e => !privateEntry(e)), ...own.log.filter(privateEntry)],
+    version: Math.max(shared.version, own.version),
+  }, kept: { types: types.map(t => t.id), statuses: statuses.map(s => s.id) } }
 }
 
-/** The library as the shared store keeps it: without what only this save keeps (`withKept`). */
-export function sharedPart(lib: LibraryData, kept: { types: Set<string>; statuses: Set<string> }): LibraryData {
-  if (!kept.types.size && !kept.statuses.size) return lib
-  return { ...lib, types: lib.types.filter((t) => !kept.types.has(t.id)), statuses: lib.statuses.filter((s) => !kept.statuses.has(s.id)) }
+/** The shared snapshot excludes save-private rules, definitions and their history. */
+export function sharedPart(lib: LibraryData, kept: Kept): LibraryData {
+  const local = [...withAside(lib).rules, ...lib.log.flatMap(e => e.rule ? [e.rule] : [])].filter(r => r.source?.local)
+  const rules = new Set(local.map(r => r.id))
+  const types = new Set([...kept.types, ...lib.types.filter(t => t.researched).map(t => t.id), ...local.flatMap(r => r.source!.local!.types)])
+  const statuses = new Set([...kept.statuses, ...local.flatMap(r => r.source!.local!.statuses)])
+  if (!rules.size && !types.size && !statuses.size) return lib
+  return {
+    ...lib,
+    rules: lib.rules.filter(r => !rules.has(r.id)),
+    aside: lib.aside?.filter(a => !rules.has(a.rule.id)).map(a => rules.has(a.after ?? '') ? { ...a, after: undefined } : a),
+    types: lib.types.filter(t => !types.has(t.id)), statuses: lib.statuses.filter(s => !statuses.has(s.id)),
+    log: lib.log.filter(e => !(e.ruleId && rules.has(e.ruleId)) && !(e.type && types.has(e.type.id)) && !(e.typeId && types.has(e.typeId)) && !(e.status && statuses.has(e.status.id)) && !(e.statusId && statuses.has(e.statusId))),
+  }
 }
 
 /** An answer taken brings definitions from the library: what it brings that only this save kept is the library's again. Returns how to undo it, should the answer be refused. */
@@ -211,6 +248,16 @@ export type Kept = { types: Set<string>; statuses: Set<string> }
 /** Take a learned definition an answer brings anew, and make what it brings shared; both undone should the answer be refused. */
 export function adoptDefinitions(eng: Engine, kept: Kept, patch: Patch): { restore: () => void; done: () => void } {
   const took = takeDefinitions(eng, patch)
+  if (patch.scope === 'save') return {
+    restore: took.restore,
+    done: () => {
+      took.done().forEach(id => kept.types.add(id))
+      for (const a of patch.artifacts) {
+        if (a.kind === 'type') kept.types.add(a.type.id)
+        else if (a.kind === 'status') kept.statuses.add(a.status.id)
+      }
+    },
+  }
   const unshare = shareKept(kept, patch)
   return {
     restore: () => (took.restore(), unshare()),
@@ -291,6 +338,16 @@ export function takeLogEntries(eng: Engine, mods: Pick<ModPort, 'submit'>, kept:
     }
     const e = raw as PatchLogEntry
     try {
+      if ('patch' in e && e.patch.scope === 'save') {
+        warn(`[library] a save-private patch cannot arrive through the shared log (${String(seq)})`)
+        continue
+      }
+      // a name only one save may hold is never the shared log's (research.ts isPrivateName; the service refuses one)
+      const names = 'patch' in e ? [...e.patch.artifacts.map((a) => (a.kind === 'rule' ? a.rule.id : a.kind === 'type' ? a.type.id : a.status.id)), ...(e.replaces ?? [])] : ['remove' in e ? e.remove : 'removeType' in e ? e.removeType : e.removeStatus]
+      if (names.some(isPrivateName)) {
+        warn(`[library] a shared log entry naming what only a save may hold is passed over (${String(seq)})`)
+        continue
+      }
       // what the library forgot but a thing here needs is this save's from now on: not written back to the shared store
       if ('removeType' in e) forgetType(eng, e.removeType) || (lib.types.some((t) => t.id === e.removeType) && kept.types.add(e.removeType))
       else if ('removeStatus' in e) forgetStatus(eng, e.removeStatus) || (lib.statuses.some((s) => s.id === e.removeStatus) && kept.statuses.add(e.removeStatus))

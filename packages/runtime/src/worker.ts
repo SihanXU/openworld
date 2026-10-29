@@ -1,14 +1,15 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
+import { CRAFTSPERSON, ResearchProblem, artProblems, inventionId, researchCatalogue, researchPatch, trialResearch, readResearchReply, type PixelArt, type ResearchDesign, type ResearchOutcome, type ResearchRequest } from '@openworld/engine'
 import { untilUp } from './untilUp.ts'
-import { portLink, serviceLink, type ModderLink } from './modderLink.ts'
+import { portLink, serviceLink, resolveForSave, type ModderLink } from './modderLink.ts'
 import { FrameEncoder } from './frameDelta.ts'
 import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
 import { adoptDefinitions, artsToSend, forgetInvalid, holdForMaking, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, LogPosition, type Kept } from './learned.ts'
-import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModRequest, type Patch, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type ResolveBody, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look } from '@openworld/engine'
+import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModRequest, type Patch, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
-import { game as played, ontology, placementById, professionById, skillById } from './game.ts'
+import { game as played, ontology, placementById, professionById, recipeById, skillById } from './game.ts'
 import { settleOpenQuestions, withOpenQuestions } from './saves.ts'
 import { routeFishingWorkerInput, type StoredLibrary, type Atlas, type AtlasContinent, type AtlasMap, type FromWorker, type LibraryView, type RecordView, type SaveSummary, type Tile, type ToWorker } from './protocol.ts'
 
@@ -44,6 +45,123 @@ let handUp = false
 let panel: string | undefined
 /** The people's panels open (docs/npc-sandbox.md): the talk with someone (a guard's arrest), a merchant's trade, a person's pockets. */
 let talk: { who: string; arrest?: boolean } | undefined
+let researchBusy = false
+let researchSession: { owner: Game; who: string; history: ResearchRequest['history']; draft?: ResearchDesign; token?: string; episode?: string } | undefined
+
+/** What came of the craftsperson's last proposal, said to the service once (they learn from it): made, refused, or left. */
+function researchCame(s: NonNullable<typeof researchSession>, result: ResearchOutcome['result'], problem?: string, missing?: ResearchOutcome['missing']): void {
+  if (!s.episode) return
+  // what the player lacked goes with the refusal: a craftsperson who hears only "needs" learns the recipe was wrong
+  link?.researched?.({ episode: s.episode, result, ...(problem && { problem }), ...(missing && { missing }) })
+  s.episode = undefined
+}
+
+function researchHere(owner: Game, who: string): boolean {
+  const w = owner.engine.world
+  const npc = w.get(who)
+  return game === owner && talk?.who === who && !talk.arrest && !!npc && w.hasTag(npc, CRAFTSPERSON) && owner.engine.inReach('hands', w.player, { e: npc.id }, undefined) && !owner.engine.busy(w.player)
+}
+
+/** The page's icons of these kinds as pixel grids (what a variant's icon is edited from); none after a moment. */
+let iconsAnswer: ((icons: Record<string, PixelArt>) => void) | undefined
+function iconsOf(types: string[]): Promise<Record<string, PixelArt> | undefined> {
+  return new Promise((resolve) => {
+    const done = setTimeout(() => ((iconsAnswer = undefined), resolve(undefined)), 1500)
+    iconsAnswer = (icons) => (clearTimeout(done), (iconsAnswer = undefined), resolve(icons))
+    post({ t: 'researchIcons', types })
+  })
+}
+
+/** The game's recipes (the crafting panel's), what a craftsperson's variant may build on. */
+const gameRecipes = () => Object.values(recipeById())
+
+async function askResearch(message: string): Promise<void> {
+  if (!game || !talk) return
+  // (the panel waits on every ask: one it cannot take here is still told why)
+  if (!researchHere(game, talk.who)) return void post({ t: 'research', who: talk.who, problem: 'away' })
+  if (researchBusy) {
+    post({ t: 'research', who: talk.who, problem: 'busy' })
+    return
+  }
+  const owner = game, who = talk.who
+  if (!researchSession || researchSession.owner !== owner || researchSession.who !== who) researchSession = { owner, who, history: [] }
+  const session = researchSession
+  // (a proposal not tried before the next idea: left; it stays on the table, what a change of mind changes)
+  const draft = session.draft
+  if (draft) researchCame(session, 'left')
+  session.draft = undefined
+  session.token = undefined
+  session.episode = undefined
+  researchBusy = true
+  try {
+    // the AI setting's level for making new things: off asks nothing, and the rest is how much the craftsperson does
+    const create = owner.engine.quality.create
+    if (create === 'off') return void post({ t: 'research', who, problem: 'off' })
+    if (!link?.research || !modderOnline) return void post({ t: 'research', who, problem: 'offline' })
+    const catalogue = researchCatalogue(owner.engine, gameRecipes())
+    const npc = owner.engine.world.get(who)!
+    const name = npc.name ?? owner.engine.world.onto.resolve(npc.type).name
+    const icons = await iconsOf(catalogue.prototypes)
+    const said = await link.research({ npc: typeof name === 'string' ? name : name?.en ?? 'Craftsperson', message, history: session.history.slice(-8), catalogue: { ...catalogue, ...(icons && Object.keys(icons).length && { icons }) }, ...(draft && { draft }), create }).catch((err: Error) => {
+      throw Object.assign(err, { unreachable: true })
+    })
+    const result = readResearchReply(said, catalogue)
+    // (the player may have walked away meanwhile: the answer is kept, and reach is held to when they try it)
+    if (researchSession !== session || game !== owner) return
+    session.history.push({ player: message, npc: result.reply })
+    session.history = session.history.slice(-8)
+    session.episode = result.episode
+    if (result.design) {
+      const token = crypto.randomUUID()
+      try {
+        researchPatch(owner.engine, result.design, inventionId(result.design, token), gameRecipes())
+      } catch (err) {
+        // offered, then refused by the game before the player saw it
+        researchCame(session, 'refused', err instanceof ResearchProblem ? err.code : 'design')
+        throw err
+      }
+      session.draft = result.design
+      session.token = token
+    }
+    const sketching = !!(result.design && result.sketch && link.researchSketch)
+    post({ t: 'research', who, ...result, token: session.token, ...(sketching && { sketching }) })
+    if (sketching) void sketched(session, result.design!, result.sketch!)
+  } catch (err) {
+    const problem = err instanceof ResearchProblem ? err.code : (err as { unreachable?: boolean }).unreachable ? 'unreachable' : 'design'
+    if (researchSession === session && game === owner) post({ t: 'research', who, problem })
+  } finally { researchBusy = false }
+}
+
+/** The picture the craftsperson draws after answering: put on the draft (when it is still the one on the table) and shown. */
+async function sketched(session: NonNullable<typeof researchSession>, design: ResearchDesign, sketch: string): Promise<void> {
+  const art = await link?.researchSketch?.(sketch).catch(() => undefined)
+  if (researchSession !== session || session.draft !== design) return
+  if (art && !artProblems(art).length) session.draft = design.kind === 'new' ? { ...design, ...(design.type && { type: { ...design.type, art } }) } : { ...design, art }
+  post({ t: 'researchSketched', who: session.who, token: session.token, design: session.draft })
+}
+
+function confirmResearch(token: string): void {
+  const s = researchSession
+  if (!s || !s.draft || !s.token || token !== s.token) return
+  // not now (walked away, or still thinking): the draft and its token stay, so it can be tried again
+  if (researchBusy || !researchHere(s.owner, s.who)) return void post({ t: 'research', who: s.who, problem: researchBusy ? 'busy' : 'away', design: s.draft, token: s.token })
+  const design = s.draft
+  // Consume the capability before doing work: double-clicks cannot manufacture twice.
+  s.token = undefined
+  try {
+    const id = inventionId(design, token)
+    trialResearch(s.owner.engine, s.owner.mods, design, id, gameRecipes())
+    kept.types.add(id)
+    s.draft = undefined
+    sendRecords(); sendRecipes(); sendArts()
+    researchCame(s, 'made')
+    post({ t: 'research', who: s.who, made: true })
+  } catch (err) {
+    researchCame(s, 'refused', err instanceof ResearchProblem ? err.code : 'design', err instanceof ResearchProblem ? err.missing : undefined)
+    s.token = crypto.randomUUID()
+    post({ t: 'research', who: s.who, problem: err instanceof ResearchProblem ? err.code : 'design', ...(err instanceof ResearchProblem && err.missing && { missing: err.missing }), design, token: s.token })
+  }
+}
 let trade: string | undefined
 let pockets: string | undefined
 let gift: string | undefined
@@ -153,13 +271,13 @@ async function probeModder(live: () => boolean): Promise<boolean> {
     // a service with no model answers only from the shared library, which syncs here anyway:
     // asking it would only pause the world before the default, so the default runs at once
     if (health.model) {
-      game.mods.provider = { resolve: resolveRemote }
-      // an answer to our own question wins over a learned definition kept here, as a synced one does
-      game.mods.adopt = adoptAnswer
-      // a learned rule set aside here is reported: the service counts, and past its bound retires the rule for everyone
-      const to = link!
-      game.engine.onFault = (rule, reason) => to.fault(rule.id, reason)
-      game.mods.timeoutTicks = MODDER_TIMEOUT_TICKS
+      const owner = game, to = link!, ownKept = kept
+      owner.mods.provider = { resolve: request => resolveRemote(request, owner, to) }
+      // An answer and its definitions stay bound to the save that asked.
+      owner.mods.adopt = patch => adoptDefinitions(owner.engine, ownKept, patch)
+      // Private faults cannot retire a similarly named rule in another save's shared library.
+      owner.engine.onFault = (rule, reason) => { if (!rule.source?.local) to.fault(rule.id, reason) }
+      owner.mods.timeoutTicks = MODDER_TIMEOUT_TICKS
     }
     modderOnline = true
     post({ t: 'modder', online: true, url: link!.where, model: health.model })
@@ -179,16 +297,10 @@ function asks(): boolean {
   return modderOnline && !!game?.mods.provider
 }
 
-async function resolveRemote(request: ModRequest): Promise<Patch | null> {
-  const lib = game!.engine.lib
-  const body: ResolveBody = {
-    request,
-    workspace: { patches: { rules: lib.patches(), types: lib.types, statuses: lib.statuses } },
-  }
-  const watching = watchProgress(request.id)
+async function resolveRemote(request: ModRequest, owner = game!, to = link!): Promise<Patch | null> {
+  const watching = watchProgress(request.id, owner, to)
   try {
-    const reply = await link!.resolve(body)
-    return reply.patch
+    return await resolveForSave(owner.engine, to, () => game === owner && link === to, request)
   } finally {
     watching.stop()
   }
@@ -198,15 +310,15 @@ async function resolveRemote(request: ModRequest): Promise<Patch | null> {
  * While a request waits, ask the modder where it is. Once it is making things the world does not
  * have yet, the player's own act waits for them past the time-out (the player is told), until the patch comes.
  */
-function watchProgress(id: string): { stop: () => void } {
+function watchProgress(id: string, owner: Game, to: ModderLink): { stop: () => void } {
   let told = false
   const timer = setInterval(async () => {
     try {
-      const p = await link!.progress(id)
-      if (told || !game || (p.stage !== 'create' && p.stage !== 'art')) return
+      const p = await to.progress(id)
+      if (told || game !== owner || link !== to || (p.stage !== 'create' && p.stage !== 'art')) return
       told = true
       // (the player's own act only: a question of the world's keeps its time-out)
-      if (holdForMaking(game.mods, id)) post({ t: 'creating', names: p.creating ?? [] })
+      if (holdForMaking(owner.mods, id)) post({ t: 'creating', names: p.creating ?? [] })
     } catch {
       /* the reply still comes, or the request fails: either ends the wait */
     }
@@ -216,9 +328,6 @@ function watchProgress(id: string): { stop: () => void } {
 
 /** What only the save loaded keeps (learned kinds its things are of that the shared library forgot): never written back to it. */
 let kept: Kept = { types: new Set(), statuses: new Set() }
-
-/** Take a learned definition an answer brings anew, and make what it brings shared; both undone should the answer be refused. */
-const adoptAnswer = (patch: Patch): { restore: () => void; done: () => void } => adoptDefinitions(game!.engine, kept, patch)
 
 /** The recipes of learned things (derived from their makeup when a patch brings a type with a station), sent when they change. */
 let recipesSent = ''
@@ -255,14 +364,13 @@ function maybePrefetch(): void {
   if (++probe.ticks < PREFETCH[level].dwell || prefetched.has(probe.key) || game.engine.quality[categoryOf(game.engine.world, probe.ev)] === 'off') return
   prefetched.add(probe.key)
   prefetching = true
-  const eng = game.engine
+  const owner = game, to = link, ownKept = kept
+  const eng = owner.engine
   const request = buildRequest(eng, probe.ev, probe.res, `pre-${eng.world.state.tick.toString(36)}`)
-  resolveRemote(request)
+  resolveRemote(request, owner, to)
     .then((patch) => {
-      if (patch && game) {
-        // as any answer: a learned definition it brings anew replaces the one kept here
-        const mods = game.mods
-        takePatch(game.engine, kept, patch, (p) => mods.submit(undefined, p, request.scenario))
+      if (patch && game === owner && link === to) {
+        takePatch(owner.engine, ownKept, patch, p => owner.mods.submit(undefined, p, request.scenario))
       }
     })
     .catch(() => undefined)
@@ -272,8 +380,10 @@ function maybePrefetch(): void {
 /** Pull the shared library's patch log; every patch still goes through this engine's validator. */
 async function syncLibrary(): Promise<void> {
   if (!game || !link) return
+  const owner = game, to = link
   try {
-    const log = await link.patches(synced.seq)
+    const log = await to.patches(synced.seq)
+    if (game !== owner || link !== to) return
     // (a reply this client cannot read at all is as no reply: the next sync asks again)
     if (typeof log?.seq !== 'number' || !Array.isArray(log.entries)) throw new Error('not a patch log')
     // another log than the one we were in (the service started anew: it names another, or it is shorter than where we were): sync it from the start
@@ -362,7 +472,9 @@ function keyViews(): Frame['keys'] {
 }
 
 /** Time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player). */
-const timeStopped = (g: Game) => (paused && !backdropOn) || batchBusy() || !!g.engine.world.state.question || !!panel || !!g.mods.asking || !!talk || !!trade || !!pockets || !!gift
+const timeStopped = (g: Game) => (paused && !backdropOn) || batchBusy() || !!g.engine.world.state.question || !!panel || !!g.mods.asking || (!!talk && !thinking()) || !!trade || !!pockets || !!gift
+/** The craftsperson one talks with is thinking an idea over: the talk holds no one up meanwhile. */
+const thinking = () => researchBusy && !!talk && researchSession?.who === talk.who
 
 function cancelFishing(g: Game | undefined): void {
   if (g && fishingActive(g.engine)) {
@@ -1069,6 +1181,19 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'toggle':
         game?.engine.controls.toggle(m.what)
+        break
+      case 'researchAsk':
+        void askResearch(m.message)
+        break
+      case 'researchConfirm':
+        confirmResearch(m.token)
+        break
+      case 'researchIcons':
+        iconsAnswer?.(m.icons)
+        break
+      case 'researchCancel':
+        if (researchSession?.draft) researchCame(researchSession, 'left')
+        researchSession = undefined
         break
       case 'talk': {
         if (!game || !talk) break

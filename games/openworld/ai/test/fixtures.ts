@@ -104,7 +104,7 @@ export function testModder(o: TestModderOptions = {}) {
 }
 
 /** A slime seizing up around a stone held out to it (`impulse/offered`, the stone in its `item` role). */
-export const SEIZE: Tree = { if: { is: { role: 'item', sel: { type: STONE } } }, then: { do: [{ op: 'addStatus', status: 'frozen', duration: 30 }, { op: 'log', text: 'It seizes up around the stone.' }] }, else: { undefined: true } }
+export const SEIZE: Tree = { if: { is: { role: 'item', sel: { type: STONE } } }, then: { do: [{ op: 'addStatus', status: 'frozen', duration: 30 }, { op: 'log', text: { en: 'It seizes up around the stone.', zh: 'It seizes up around the stone.' } }] }, else: { undefined: true } }
 
 /** The shared library with one learned answer per slime type at the offered hole, each placed in the scene that asked. */
 export function slimeLibrary(answers: Record<string, Tree>): WorldLibrary {

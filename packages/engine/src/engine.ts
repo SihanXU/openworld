@@ -2161,5 +2161,6 @@ export class Engine {
 export function textOf(t: Text | undefined, locale: 'en' | 'zh' = 'en'): string {
   if (t === undefined) return ''
   if (typeof t === 'string') return t
-  return (locale === 'zh' ? t.zh : undefined) ?? t.en
+  // (an empty translation is none: the English stands in, not a blank)
+  return (locale === 'zh' && t.zh?.trim() ? t.zh : undefined) ?? t.en
 }

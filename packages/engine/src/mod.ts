@@ -28,6 +28,8 @@ export type Artifact =
 
 export interface Patch {
   artifacts: Artifact[]
+  /** An answer owned by one save: never promoted into a shared library. */
+  scope?: 'save'
   note?: string
   author?: string
   /** Who started the chain it answers (the Threadbook's "you" or "the world"). */
@@ -133,7 +135,7 @@ export interface ModProvider {
 
 /** What the client knows that the service may not: its local patches. */
 export interface ModWorkspace {
-  patches?: { rules: Rule[]; types?: TypeDef[]; statuses?: StatusDef[] }
+  patches?: { rules: Rule[]; aside?: LibraryData['aside']; types?: TypeDef[]; statuses?: StatusDef[]; local?: { types: string[]; statuses: string[] } }
 }
 
 /** POST /resolve */
@@ -746,11 +748,12 @@ export class ModPort implements UndefinedSink {
     // a new thing made at hand or at a station from its makeup can be crafted at once (world-model.md §6.4)
     if (patch.artifacts.some((a) => a.kind === 'type')) for (const r of deriveRecipes(w.onto)) eng.recipes.set(r.id, r)
     const trigger = rec?.origin ?? patch.trigger ?? a0trigger(patch)
+    const local = patch.scope === 'save' ? { types: patch.artifacts.flatMap(a => a.kind === 'type' ? [a.type.id] : []), statuses: patch.artifacts.flatMap(a => a.kind === 'status' ? [a.status.id] : []) } : undefined
     for (const a of patch.artifacts) {
       if (a.kind !== 'rule') continue
       // a shared patch that answers a request of this game's (a revision of one's own) is credited to it
       const request = id ?? (answers && this.get(answers) ? answers : undefined)
-      const rule: Rule = { ...a.rule, source: { origin: 'patch', request, author: patch.author ?? 'manual', at: now, note: patch.note, trigger } }
+      const rule: Rule = { ...a.rule, source: { origin: 'patch', request, author: patch.author ?? 'manual', at: now, note: patch.note, trigger, ...(local && { local }) } }
       eng.lib.add(rule, now, replaces.find((old) => !eng.lib.rules.has(old)))
       ruleIds.push(rule.id)
     }
@@ -786,7 +789,7 @@ export class ModPort implements UndefinedSink {
   dismiss(id: string): void {
     const r = this.get(id)
     if (r) this.failed.add(askedAt(r))
-    this.fallback(id)
+    this.fallback(id, true)
   }
 }
 
@@ -1261,6 +1264,8 @@ interface ValidateCtx {
   world?: boolean
   /** Fact-key prefixes only the story may change. */
   protectedFacts?: string[]
+  /** A new answer, written by a model: every line a player reads is in both languages (a restored one is taken as it was). */
+  bilingual?: boolean
 }
 
 /**
@@ -1534,6 +1539,7 @@ function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
     if ((e as { op?: string })?.op === 'setTerrain') return errors.push(`${where}: there is no setTerrain — a cell is made of things; the host becomes another with {op: "transform", into: "tile/<terrain>"}`)
     if (!e || !worldOps.ops.has(e.op)) return errors.push(`${where}: unknown primitive "${(e as { op?: string })?.op}"`)
     const any = e as Record<string, unknown>
+    if (e.op === 'say' || e.op === 'log' || e.op === 'remark') for (const k of ['text', 'again', 'alone'] as const) if (any[k] !== undefined) checkBoth(any[k], `${where}.${k}`)
     if ('of' in any) errors.push(`${where}: effects act on the host only (no "of"): to affect another thing, emit an impulse to it`)
     for (const k of ['at', 'to'] as const) if (k in any && typeof any[k] === 'string' && e.op !== 'emit' && !ROLE_REFS.has(any[k] as string)) errors.push(`${where}.${k}: role ref must be one of ${[...ROLE_REFS].join('|')}`)
     if (e.op === 'spawn') {
@@ -1605,10 +1611,17 @@ function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
     if (e.op === 'emit')
       for (const k of Object.keys(e.params ?? {})) if (k.startsWith('fact.') && isProtected(k.slice(5), ctx.protectedFacts)) errors.push(`${where}.params.${k}: only the story's own rules change its fact "${k.slice(5)}"`)
   }
+  /** The game's language is switched at will: a new line is written in both, or a player of the other reads nothing of it. */
+  const checkBoth = (t: unknown, where: string) => {
+    if (!ctx.bilingual) return
+    const o = t as { en?: unknown; zh?: unknown }
+    if (!o || typeof o !== 'object' || typeof o.en !== 'string' || typeof o.zh !== 'string' || !o.en.trim() || !o.zh.trim()) errors.push(`${where}: a line a player reads is {"en": "…", "zh": "…"}, both written`)
+  }
   /** A label is Text naming only the roles an input has: {target}, {instrument}, {actor}. */
   const checkLabel = (l: unknown, where: string) => {
     const texts = typeof l === 'string' ? [l] : l && typeof l === 'object' ? Object.values(l as object) : []
     if (!texts.length || texts.some((s) => typeof s !== 'string')) return void errors.push(`${where}: a label is Text: a string, or {en, zh}`)
+    checkBoth(l, where)
     for (const s of texts as string[]) for (const m of s.matchAll(/\{(\w+)\}/g)) if (!['target', 'instrument', 'actor'].includes(m[1])) errors.push(`${where}: a label names {target}, {instrument} or {actor}, not {${m[1]}}`)
   }
   /** Does a tree say what it does anywhere (a leaf's label)? */
@@ -1629,6 +1642,7 @@ function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
     }
     if (!('do' in t) || !Array.isArray(t.do)) return void errors.push(`${where}: a leaf is {do: Effect[]}`)
     if (t.label !== undefined) checkLabel(t.label, `${where}.label`)
+    if (t.confirm !== undefined) checkBoth(t.confirm, `${where}.confirm`)
     t.do.forEach((e, j) => checkEffect(e, `${where}.do[${j}]`, resident))
     // a world event's people are never harmed by what it learns
     if (ctx.world && host && (host.type ? isA(host.type, 'actor/person') || isA('actor/person', host.type) : !host.type))

@@ -1,10 +1,11 @@
+import { ResearchWindow, pixelArtOf } from './ui/research.ts'
 // Boot: Phaser (render) + engine Worker (simulation) + DOM UI, wired by messages. The input
 // (design.md §5.2): four inputs, one verb each — E hands, F take, left click use, right click
 // put — aimed at the pointed tile within two rings (E, F: else the tile in front); Esc menu, I
 // inventory, J journal, M map.
 
 import Phaser from 'phaser'
-import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type Text } from '@openworld/engine'
+import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type PixelArt, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, libraryKey, newWorker, savesKey, worldBase } from './game.ts'
 import { FishingInputLatch, routeFishingEscape, routeSpaceKeyDown, type FromWorker, type Tile, type ToWorker } from './protocol.ts'
 import { assetUrl, cssAssetUrl, registerArt } from './render/assets.ts'
@@ -38,6 +39,7 @@ import './styles.css'
 import './ui/game.css'
 import './ui/polish.css'
 import './ui/fishing.css'
+import './ui/research.css'
 
 const PARAMS = new URLSearchParams(location.search)
 /** Where this game's saves are kept (its own, beside other games' on the same page). */
@@ -120,6 +122,7 @@ const menu = new Menu({
     hud.relabel()
     minimap.relabel()
     fishingHud.relabel()
+    research.relabel()
     relabelAll()
   },
   toggleSound: () => hud.toggleSound(),
@@ -148,11 +151,13 @@ const hud = new Hud(
     toggleCompanion: () => menu.toggleCompanion(),
     toggleBuilding: () => toggleBuilding(),
     talk: (verb) => send({ t: 'talk', verb }),
+    research: () => lastFrame && research.show(lastFrame),
     closeTalk: () => send({ t: 'closeTalk' }),
   },
   (id) => scene.screenOf(id),
   (x, y) => scene.screenOfTile(x, y),
 )
+const research = new ResearchWindow({ ask: (message) => send({ t: 'researchAsk', message }), confirm: (token) => send({ t: 'researchConfirm', token }), cancel: () => send({ t: 'researchCancel' }) })
 const fishingHud = new FishingHud()
 menu.muted = hud.muted
 /** A merchant's trade and a person's pockets (docs/npc-sandbox.md §2.10). */
@@ -286,6 +291,7 @@ scene.hooks = {
     // (the world behind the title is only drawn: the game's panels hear nothing of it)
     if (backdropOn) return
     lastFrame = f
+    research.follow(f)
     const was = death.open
     // the title or the load panel is over the world (one chose to load a save, or to go back): the
     // world behind it may still lie fallen, but the death screen is not shown over them
@@ -422,6 +428,15 @@ const paintIcons = (items: ItemInfo[]) => {
   })
 }
 hud.paintIcons = paintIcons
+research.paintIcons = paintIcons
+research.changed = () => syncPause()
+research.announce = (who, problem) => {
+  const e = lastFrame?.entities.find((x) => x.id === who)
+  const name = e ? tx(e.name) : locale.value === 'zh' ? '工匠' : 'The craftsperson'
+  const zh = problem ? `✦ ${name}琢磨你的想法时遇到了问题，去找对方聊聊吧。` : `✦ ${name}把你的想法琢磨好了，去找对方聊聊吧。`
+  const en = problem ? `✦ ${name} ran into trouble with your idea: talk to them about it.` : `✦ ${name} has worked out your idea: talk to them about it.`
+  hud.message(locale.value === 'zh' ? zh : en, 'ai')
+}
 fishingHud.paintIcon = (item) => paintIcons([item])
 menu.paintIcons = paintIcons
 people.paintIcons = paintIcons
@@ -615,6 +630,25 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     case 'art':
       for (const a of m.arts) registerArt(scene, a.id, a.art)
       break
+    case 'research':
+      research.receive(m)
+      break
+    case 'researchSketched':
+      research.sketched(m)
+      break
+    case 'researchIcons': {
+      // the icons the worker asked for, as pixel grids (a variant's icon is edited from its prototype's)
+      const icons: Record<string, PixelArt> = {}
+      for (const type of m.types) {
+        const sprite = game().items.forms[type]?.sprite
+        const d = sprite ? catalog().items[sprite] : undefined
+        const c = d && crop(d.img, d.x, d.y, d.w, d.h)
+        const art = c && pixelArtOf(c)
+        if (art) icons[type] = art
+      }
+      send({ t: 'researchIcons', icons })
+      break
+    }
     case 'recipes':
       setLearnedRecipes(m.recipes)
       setLearnedPlaceables(m.recipes)
@@ -684,13 +718,17 @@ const cover = new Cover(WORLD, {
     backdropHere = false
     scene.setCinema({ x: s.x, y: s.y, zoom: s.zoom, at })
     const [x, y] = s.stand ?? [s.x, s.y]
-    send({ t: 'backdrop', base: worldBase(), at: { map: s.map, x, y }, hour: s.hour, library: await kvGet<LibraryData>(libraryKey()) })
+    const library = await kvGet<LibraryData>(libraryKey())
+    // A title scene already reading storage must not replace the slot the player has since chosen.
+    if (!cover.open || cover.starting) return
+    send({ t: 'backdrop', base: worldBase(), at: { map: s.map, x, y }, hour: s.hour, library })
   },
   toggleLocale: () => {
     locale.set(locale.value === 'en' ? 'zh' : 'en')
     hud.relabel()
     minimap.relabel()
     fishingHud.relabel()
+    research.relabel()
     relabelAll()
   },
   toggleSound: () => (hud.toggleSound(), (menu.muted = hud.muted)),
@@ -746,7 +784,8 @@ const death = new DeathScreen({
 
 let pausedNow = false
 let fishingBlurPaused = false
-const pauseRequested = () => menu.anyOpen || hud.dialogOpen || hud.chooserOpen || dev.open || death.open || !document.getElementById('intro')!.classList.contains('hidden')
+// a craftsperson thinking over an idea holds no one up: the world goes on until the answer is there
+const pauseRequested = () => (!research.thinking && (research.open || hud.dialogOpen)) || menu.anyOpen || hud.chooserOpen || dev.open || death.open || !document.getElementById('intro')!.classList.contains('hidden')
 function syncPause(): void {
   const on = fishingBlurPaused || pauseRequested()
   if (on && building.open) building.toggle(false)
@@ -888,6 +927,7 @@ function aimFront(): Tile {
 }
 
 window.addEventListener('keydown', (e) => {
+  if (research.open) return
   if (typing()) {
     if (e.key === 'Escape') (document.activeElement as HTMLElement).blur()
     return

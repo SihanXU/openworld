@@ -1,6 +1,6 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SceneCmd, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
+import type { ResearchDesign, ResearchMissing, ResearchProblemCode, AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SceneCmd, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
 import type { TransferProgress } from './transferQueue.ts'
 import type { SaveWithQuestions } from './saves.ts'
 
@@ -43,6 +43,11 @@ export class FishingInputLatch {
 
 export type ToWorker =
   | { t: 'skipLearning' }
+  | { t: 'researchAsk'; message: string }
+  | { t: 'researchConfirm'; token: string }
+  | { t: 'researchCancel' }
+  /** The icons the worker asked for (`researchIcons`), as pixel grids: what a variant's icon is edited from. */
+  | { t: 'researchIcons'; icons: Record<string, PixelArt> }
   | { t: 'init'; base: string; save?: SaveWithQuestions; library?: StoredLibrary; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any ('': none) */ modder?: string; /** the player's own modder, over this port (docs/byok.md; sent with the message) */ modderPort?: MessagePort; /** true: prefetch undefined acts the pointer rests on (?prefetch=1: at least the medium setting's) */ prefetch?: boolean; /** the player's AI setting (the engine's quality.ts) */ quality?: AiQuality; /** does a companion lead the way when the player stands still (Options) */ guiding?: boolean; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos; /** a step of the story begun at once in a new game (the editor's "play from this scene") */ scene?: string }
   /**
    * The world behind the title (the cover's backdrop): a world of its own at a place of the game's and an hour, with no
@@ -228,6 +233,12 @@ export type FromWorker =
   | { t: 'art'; arts: { id: string; art: PixelArt }[] }
   /** The recipes of learned things (a patch's type made at hand or at a workbench from its makeup): the crafting panel lists them beside the content's. */
   | { t: 'recipes'; recipes: Recipe[] }
+  /** A talk over a new recipe: the craftsperson's words (`reply`), a draft, or why not (`problem`: the panel says it in the player's language). */
+  /** The icons of these kinds, please (the page has the pictures; a research request carries them). */
+  | { t: 'researchIcons'; types: string[] }
+  | { t: 'research'; who: string; reply?: Text; design?: ResearchDesign; token?: string; problem?: ResearchProblemCode | 'away' | 'busy' | 'off' | 'offline' | 'unreachable' | 'design'; missing?: ResearchMissing; made?: boolean; sketching?: boolean }
+  /** The picture of the draft on the table is drawn (or could not be: the draft as it was). */
+  | { t: 'researchSketched'; who: string; token?: string; design: ResearchDesign }
   /** The modder is making things the world does not have yet; the act waits for them. */
   | { t: 'creating'; names: Text[] }
   | { t: 'error'; message: string }

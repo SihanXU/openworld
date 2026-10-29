@@ -948,7 +948,9 @@ export class Menu {
       // (a recipe a skill teaches: known only once it is learned; one a building unlocks: once it stands)
       const knows = !r.skill || f.player.skills.includes(r.skill)
       const unlocked = !r.unlockedBy || Number(f.facts?.[r.unlockedBy.fact] ?? 0) >= (r.unlockedBy.level ?? 1)
-      const times = knows && here && unlocked && (r.tools ?? []).every(tool) ? (r.needs.length ? Math.min(...r.needs.map((n) => Math.floor(have(n.type) / n.count))) : 1) : 0
+      const lesson = f.lesson
+      const taught = !lesson?.allow || lesson.allow.includes('craft') && (!lesson.only || lesson.only.includes(r.make.type))
+      const times = taught && knows && here && unlocked && (r.tools ?? []).every(tool) ? (r.needs.length ? Math.min(...r.needs.map((n) => Math.floor(have(n.type) / n.count))) : 1) : 0
       const ok = times > 0 && !this.crafting
       const needs = r.needs
         .map((n) => {
@@ -962,7 +964,7 @@ export class Menu {
         }).join('')
       const unlock = r.unlockedBy ? ` <span class="station${unlocked ? '' : ' short'}">${esc(t('unlockNeeds').replace('{name}', tx(r.unlockedBy.name)))}</span>` : ''
       const skill = r.skill ? ` <span class="station${knows ? '' : ' short'}">${esc(tx({ en: `skill: ${tx(game().skills.all.find((d) => d.id === r.skill)?.name)}`, zh: `需学会${tx(game().skills.all.find((d) => d.id === r.skill)?.name)}` }))}</span>` : ''
-      const why = !here ? t('shopAway').replace('{station}', tx(game().crafting.stationName(this.shopStation))) : !unlocked ? t('unlockNeeds').replace('{name}', tx(r.unlockedBy!.name)) : t('needMore')
+      const why = !taught ? tx({ en: 'Follow the current crafting lesson first.', zh: '先按当前教学要求制作。' }) : !here ? t('shopAway').replace('{station}', tx(game().crafting.stationName(this.shopStation))) : !unlocked ? t('unlockNeeds').replace('{name}', tx(r.unlockedBy!.name)) : t('needMore')
       return `<div class="recipe${ok ? '' : ' off'}">
         <div class="slot" data-item="recipe:${r.id}"><div class="icon" data-icon="recipe:${r.id}"></div></div>
         <div class="rname">${esc(tx(r.name))}${unlock}${skill}</div>

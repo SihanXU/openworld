@@ -28,6 +28,22 @@ describe.skipIf(!here)('the compiler', () => {
     expect(c.index.npcs[0].npc?.schedule[0]).toMatchObject({ map: 'cottage', x: 5, y: 2, activity: 'sleep' })
   })
 
+  it('recognizes shipped learned types in map references without turning them into base types', () => {
+    const p = fresh()
+    const type = { id: 'item/misc/wooden_bookmark', name: 'Woodland Bookmark', tags: ['portable'], makeup: [{ type: 'item/material/log', count: 1 }], station: 'hands' }
+    p.learned = [{ file: 'learned/bookmark.json', data: { rules: [], types: [type] } }]
+    p.maps.find((m) => m.data.map.id === 'glade')!.data.entities.push({
+      id: 'glade.bookmark', type: type.id, place: { on: 'tile', map: 'glade', x: 12, y: 8 },
+    })
+    p.rules.push({ file: 'rules/bookmark.json', data: [{
+      id: 'bookmark/read', host: { type: type.id }, on: 'act/hands', tree: { do: [{ op: 'log', text: 'A little wooden bookmark.' }] },
+    }] })
+    const result = compile(p)
+    expect(result.problems).toEqual([])
+    expect(result.bundle.ontology.types[type.id]).toBeUndefined()
+    expect(result.bundle.learned?.types?.some((t) => t.id === type.id)).toBe(true)
+  })
+
   it('finds what is wrong: unknown types, portals to nowhere, anchors on rock, rows of the wrong width, a person\'s day at no anchor', () => {
     const p = fresh()
     const glade = p.maps.find((m) => m.data.map.id === 'glade')!.data

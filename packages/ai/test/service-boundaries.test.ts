@@ -46,7 +46,7 @@ function request(): ModRequest {
 
 /** The stone used on a tree does `effects`, placed where the request fell undefined. */
 const answer = (id: string, req: ModRequest, effects: unknown[] = [{ op: 'log', text: { en: 'The stone knocks on {target}.', zh: '石头敲了敲{target}。' } }]): Patch =>
-  placePatch({ artifacts: [{ kind: 'rule', rule: { id, host: { type: 'x' }, on: 'x', label: 'Use {instrument} on {target}', tree: { if: { is: { role: 'target', sel: { type: TREE } } }, then: { do: effects as never }, else: { undefined: true } } } as Rule }] }, req).patch
+  placePatch({ artifacts: [{ kind: 'rule', rule: { id, host: { type: 'x' }, on: 'x', label: { en: 'Use {instrument} on {target}', zh: 'Use {instrument} on {target}' }, tree: { if: { is: { role: 'target', sel: { type: TREE } } }, then: { do: effects as never }, else: { undefined: true } } } as Rule }] }, req).patch
 
 const scratch = (prefix: string) => mkdtempSync(join(tmpdir(), prefix))
 

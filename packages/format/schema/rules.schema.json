@@ -3679,6 +3679,29 @@
             "patch"
           ]
         },
+        "local": {
+          "type": "object",
+          "properties": {
+            "types": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "statuses": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "types",
+            "statuses"
+          ],
+          "additionalProperties": false,
+          "description": "Save-private rule and the definitions its patch brought, retained even without specimens."
+        },
         "trigger": {
           "type": "string",
           "enum": [

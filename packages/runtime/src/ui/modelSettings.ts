@@ -86,6 +86,8 @@ export class ModelSection {
   private stateHtml(s: ModelStatus | undefined): string {
     const lines: string[] = []
     if (this.said) lines.push(`<div class="${this.said.ok ? 'good' : 'warn'}">${esc(this.said.text)}</div>`)
+    // A named service takes precedence; personal model status does not describe the active connection.
+    if (this.named) return lines.join('')
     if (s?.model) {
       const sp = s.spend
       const unpriced = sp.unpriced ? t('aiSpentUnpriced').replace('{n}', String(sp.unpriced)) : ''

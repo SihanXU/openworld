@@ -23,6 +23,7 @@ export function deriveRecipes(onto: OntologyIndex): Recipe[] {
       station: def.station,
       ...(def.unlockedBy && { unlockedBy: def.unlockedBy }),
       level: def.craftLevel ?? 1,
+      ...(def.craftSkill && { skill: def.craftSkill }),
       ...(def.tools?.length && { tools: def.tools }),
       ...(def.yields && def.yields > 1 && { count: def.yields }),
     })
@@ -86,8 +87,11 @@ export function gearProps(form: Record<string, PropValue>, m?: MaterialDef, q?: 
 
 export function madeOf(data: Ontology, onto: OntologyIndex, type: string, material?: string, quality?: string, level?: number): Omit<Entity, 'id' | 'place'> {
   const r = onto.resolve(type)
+  const researched = !!onto.data.types[type]?.researched
   // a material that is the thing's own (a plank is wood) does not name it again: one kind of plank
-  const m = material && r.props.material !== material ? data.materials?.[material] : undefined
+  // A researched form declares its material for admission but inherits unscaled prototype
+  // stats. Its crafted entities must still receive the normal material factor and tags.
+  const m = material && (researched || r.props.material !== material) ? data.materials?.[material] : undefined
   const q = quality ? data.qualities?.find((x) => x.id === quality) : undefined
   const tags = [...(m ? [`material:${m.id}`, ...(m.tags ?? [])] : []), ...(q?.tag ? [q.tag] : [])]
   const props: Record<string, PropValue> = {}
@@ -96,7 +100,7 @@ export function madeOf(data: Ontology, onto: OntologyIndex, type: string, materi
   const base = r.name ?? { en: type.split('/').pop()!, zh: type.split('/').pop()! }
   const say = (x: Text | undefined, l: 'en' | 'zh') => (x === undefined ? '' : typeof x === 'string' ? x : (x[l] ?? x.en))
   // nor when its name already begins with it (a 木桶 of wood is not a 木木桶)
-  const of = (l: 'en' | 'zh') => { const mn = say(m?.name, l); return mn && say(base, l).toLowerCase().startsWith(mn.toLowerCase()) ? '' : mn }
+  const of = (l: 'en' | 'zh') => { const mn = say(m?.name, l); return researched || mn && say(base, l).toLowerCase().startsWith(mn.toLowerCase()) ? '' : mn }
   const en = [say(q?.name, 'en'), of('en'), say(base, 'en')].filter(Boolean).join(' ')
   const zh = [say(q?.name, 'zh'), of('zh'), say(base, 'zh')].filter(Boolean).join('')
   const named = !!(m?.name || say(q?.name, 'en'))

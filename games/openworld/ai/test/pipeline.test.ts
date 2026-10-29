@@ -485,7 +485,7 @@ describe('narration in place of a default that does something is a change', () =
     const words: Rule = { id: 'patch/pot-creaks', host: { type: 'item/container/pot' }, on: 'threshold/cross', doc: 'd', tree: { do: [{ op: 'log', text: { en: '{host} creaks.', zh: '{host}吱呀作响。' } }] } }
     // nothing it says changes the world by itself...
     expect(changesNothing(words)).toBe(true)
-    expect(changesNothing(words, [{ op: 'log', text: 'Nothing happens.' }])).toBe(true)
+    expect(changesNothing(words, [{ op: 'log', text: { en: 'Nothing happens.', zh: 'Nothing happens.' } }])).toBe(true)
     // ...but in place of the thing breaking (core/break) or the story's fallback (core/broken), it keeps them from happening
     expect(changesNothing(words, [{ op: 'dropContents' }, { op: 'destroy' }] as never)).toBe(false)
     expect(changesNothing(words, [{ op: 'fallback' }] as never)).toBe(false)
