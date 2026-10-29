@@ -103,7 +103,7 @@
             <section id="s0">
                 <p>Anyone who has played a sandbox game knows the frustration: every interaction in it was written by the authors in advance. Pour water on a campfire and it goes out, because the authors wrote a rule for “water puts out fire.” But have a sudden idea, say tipping a pot of hot soup over a snowman, and the game does not respond… Programmers call this <b>undefined behavior</b> (UB), and a traditional game usually handles it by doing nothing at all.</p>
                 <p>Making new things is just as limited. You might want more dishes from the kitchen, a few wines with their own flavour, or tools and armour of your own design, but if <b>the authors never defined those items</b>, they cannot happen.</p>
-                <p>What OpenWorld wants is a world that keeps running steadily while it encourages players to think of anything and try it, with AI in the background taking care of whatever you need! When an interaction is undefined, <b>the AI fills it in on the spot</b>; when an item is undefined, <b>the AI makes it</b>. And each new rule or item is <b>written only once</b>, and every player after that simply uses it.</p>
+                <p>What OpenWorld wants is a world that keeps running steadily while it encourages players to think of anything and try it, with AI in the background taking care of whatever you need! When an interaction is undefined, <b>the AI fills it in on the spot</b>; when an item is undefined, <b>the AI makes it</b>. And each new rule or item is <b>written only once</b>, and every case like it after that simply uses it.</p>
                 <p>This blog is about how that works, and what we want to do next.</p>
             </section>
             <section id="s1">
@@ -119,7 +119,7 @@
                 <p>A few working ideas follow from that:</p>
                 <div class="principles">
                 <p><b>Code still simulates everything</b>, every frame. People go about their day. Fire runs along dry grass and rain puts it out. The story stays on its track.</p>
-                <p><b>The model writes code only when it has to</b>, when the world hits a gap in the rules. And <b>what it writes stays</b>. It goes into a rule library every player shares, so a special situation is paid for once. New items work the same way: the model makes a new kind only when nothing in the world fits.</p>
+                <p><b>The model writes code only when it has to</b>, when the world hits a gap in the rules. And <b>what it writes stays</b>. It goes into the rule library and answers every case like it from then on, so a special situation is paid for once. New items work the same way: the model makes a new kind only when nothing in the world fits.</p>
                 </div>
                 <div class="figure">
                     <div class="piece"><iframe src="../../explain/index.html?embed" title="How it works" loading="lazy"></iframe></div>
@@ -172,7 +172,7 @@
             </section>
             <section id="s6">
                 <h2><span class="n">06</span>A thousand maps, and what comes next</h2>
-                <p><b>Because the loop that runs every frame has no model in it, the world can be as big as the content.</b></p>
+                <p><b>Because a frame does not need an extra video model in the render, the world can be as big as the content allows.</b></p>
                 <p>OpenWorld currently has:</p>
                 <dl class="stats">
                     <div><dt>from towns and villages to the rooms behind their doors</dt><dd>1,024<small>maps</small></dd></div>
@@ -184,13 +184,7 @@
                     <div class="piece night"><iframe src="../../scale/index.html?embed" title="The world, in numbers" loading="lazy"></iframe></div>
                     <div class="caption">The size of the world: one map, then a thousand; one person, then a crowd; a chest that does not run out.</div>
                 </div>
-                <figure class="lore">
-                    <p class="lore-head">The world remembers the Long Night</p>
-                    <blockquote>The sun went out, until the saint Astra bore the five holy torments and it rose again. Now the days are getting shorter, and a pilgrim is coming down the mountain with a fairy beside them.</blockquote>
-                </figure>
-                <p>There is something else we will write about later. The modder keeps improving while the world it works on gets bigger: it keeps a memory, writes skills for itself, and revises how it works.</p>
-                <p>We expect a post about every two weeks: how the rules get built, how the modder answers, what players try first, and what the world picks up from them.</p>
-                <p>Come play, or come talk to us about the work.</p>
+                <p>We hope the modder can become more automated: as the world grows, it changes itself, remembers what it has seen, writes its own skills, and revises how it works, and so improves itself recursively. That may be the furthest an open world goes.</p>
                 <p class="post-cta"><a class="primary" href="http://35.239.4.44:5175/">Play the demo</a><a href="../../?lang=en#join">Join the waitlist</a></p>
                 <div class="cite" id="cite">
                     <div class="cite-head"><h3>Cite</h3><button class="copy" type="button" data-copied="Copied">Copy</button></div>

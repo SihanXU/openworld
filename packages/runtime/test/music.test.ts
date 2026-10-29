@@ -118,6 +118,25 @@ afterEach(() => {
 const pass = (ms: number) => vi.advanceTimersByTime(ms)
 
 describe('the music director', () => {
+  it('continues the same piece and its rest when a shop shares the outdoor mood', () => {
+    dir.setPlace('field', 'outdoor')
+    const first = made[made.length - 1]
+    first.currentTime = 23
+    dir.setPlace('field', 'indoor')
+    pass(3000)
+    expect(playing()).toEqual([first.src])
+    expect(first.currentTime).toBe(23)
+    expect(made).toHaveLength(1)
+    first.end()
+    pass(20_000)
+    dir.setPlace('field', 'outdoor')
+    pass(39_000)
+    expect(playing()).toEqual([])
+    pass(1500)
+    expect(playing()).toHaveLength(1)
+    expect(made).toHaveLength(2)
+  })
+
   it('plays the place, and the title over it while the cover is up', () => {
     dir.setPlace('village', 'outdoor')
     expect(playing()).toEqual(['village.ogg'])

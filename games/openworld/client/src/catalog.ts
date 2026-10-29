@@ -1107,10 +1107,12 @@ export const CATALOG: Catalog = {
     storm: { tracks: [M('28 - Tension')], rest: [20, 60] },
     // a village: plays on with short rests; its dusk by the fire, its night all but silent
     village: { tracks: [M('33 - Calm Village'), M('36 - Village'), M('4 - Village')], rest: [15, 40], at: { dusk: 'village_dusk', night: 'village_night', rain: 'village_rain', storm: 'village_rain' } },
+    // Firstlight's selected daytime theme; the evening, night and rain keep the village's existing music.
+    firstlight: { tracks: ['lsw/Audio/Musics/che-shui-ma-long.ogg'], rest: [15, 40], at: { dusk: 'village_dusk', night: 'village_night', rain: 'village_rain', storm: 'village_rain' } },
     village_dusk: { tracks: [M('27 - Chill'), M('6 - Story')], rest: [20, 60] },
     village_night: { tracks: [M('9 - Quiet'), M('22 - Dream')], rest: [120, 260] },
     village_rain: { tracks: [M('27 - Chill'), M('16 - Melancholia')], rest: [30, 80] },
-    haven: { like: 'village' },
+    haven: { tracks: ['lsw/Audio/Musics/che-shui-ma-long.ogg'], rest: [5, 5] },
     // the mill on its brook, the river at the Reed Bend, the Ford
     millbrook: { tracks: [M('31 - Sunny'), M('39 - Boat'), M('33 - Calm Village')], rest: [30, 90], at: { dusk: 'village_dusk', night: 'village_night', rain: 'village_rain', storm: 'village_rain' } },
     river: { tracks: [M('39 - Boat'), M('18 - Aquatic')], rest: [40, 110], at: { dusk: 'river_dusk', night: 'field_night', rain: 'field_rain', storm: 'storm' } },
@@ -1145,7 +1147,7 @@ export const CATALOG: Catalog = {
     boss: { tracks: [M('24 - Final Area')] },
     'boss:alberic': { tracks: [M('24 - Final Area')] },
     'boss:alberic:2': { tracks: [M('10 - Dark Castle')] },
-    'boss:dragon': { tracks: [M('34  - Fight')] },
+    'boss:dragon': { tracks: ['lsw/Audio/Musics/battle-thrill.ogg'] },
     // the scenes' music (a scene's `music` command)
     severin: { tracks: [M('14 - Curse')] },
     sorrow: { tracks: [M('7 - Sad Theme'), M('29 - Lament')] },
