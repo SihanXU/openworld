@@ -99,7 +99,7 @@
         <div class="container">
             <p class="label">News · Post 01</p>
             <h1>A world that learns as it goes</h1>
-            <p class="dek">OpenWorld is a role-playing world, and its state and rules are code. The interesting part is what happens when play needs a rule or an item nobody wrote: a language model can make it, and then everyone shares it.</p>
+            <p class="dek">OpenWorld is a role-playing world whose entire state and rule set are represented as code. When play reaches an interaction or an item that no author defined, a language model supplies it once, and every comparable case thereafter uses the result.</p>
             <dl class="byline">
                 <div class="fact"><dt>Written by</dt><dd>OpenWorld Team</dd></div>
                 <div class="fact"><dt>Published</dt><dd>October 2026</dd></div>
@@ -118,94 +118,93 @@
         <aside class="context-bar">
             <p class="label">In this post</p>
             <ol data-spy>
-                <li><a href="#s1"><span class="n">01</span>Two roads</a></li>
+                <li><a href="#s1"><span class="n">01</span>Two approaches</a></li>
                 <li><a href="#s2"><span class="n">02</span>A sparse problem</a></li>
                 <li><a href="#s3"><span class="n">03</span>Rules from events</a></li>
-                <li><a href="#s4"><span class="n">04</span>14 million futures</a></li>
-                <li><a href="#s5"><span class="n">05</span>The far side</a></li>
-                <li><a href="#s6"><span class="n">06</span>What comes next</a></li>
+                <li><a href="#s4"><span class="n">04</span>Divergent futures</a></li>
+                <li><a href="#s5"><span class="n">05</span>Beyond the rules</a></li>
+                <li><a href="#s6"><span class="n">06</span>Next steps</a></li>
             </ol>
             <p class="lang"><a href="zh.html">中文 ↗</a></p>
         </aside>
 
         <article>
             <section id="s0">
-                <p>Anyone who has played a sandbox game knows the frustration: every interaction in it was written by the authors in advance. Pour water on a campfire and it goes out, because the authors wrote a rule for “water puts out fire.” But have a sudden idea, say tipping a pot of hot soup over a snowman, and the game does not respond… Programmers call this <b>undefined behavior</b> (UB), and a traditional game usually handles it by doing nothing at all.</p>
-                <p>Making new things is just as limited. You might want more dishes from the kitchen, a few wines with their own flavour, or tools and armour of your own design, but if <b>the authors never defined those items</b>, they cannot happen.</p>
-                <p>What OpenWorld wants is a world that keeps running steadily while it encourages players to think of anything and try it, with AI in the background taking care of whatever you need! When an interaction is undefined, <b>the AI fills it in on the spot</b>; when an item is undefined, <b>the AI makes it</b>. And each new rule or item is <b>written only once</b>, and every case like it after that simply uses it.</p>
-                <p>This blog is about how that works, and what we want to do next.</p>
+                <p>In a sandbox game, every interaction is authored in advance. Pouring water on a campfire extinguishes it because a designer wrote a rule to that effect. Tipping a pot of hot soup over a snowman, by contrast, usually produces no response at all, since no rule covers the case. Programmers call such a case <b>undefined behavior</b> (UB), and conventional games resolve it by doing nothing.</p>
+                <p>Creation is constrained in the same way. A player may wish to cook new dishes, brew wines of distinct character, or forge tools and armour of their own design; if the authors never defined the item, it cannot exist in the game.</p>
+                <p>With OpenWorld we want the stability of a conventional game and the freedom to try whatever a player imagines. When an interaction is undefined, a language model writes the missing rule the first time it occurs. When an item is undefined, the model creates it on request. Either way, the work is done once, and every comparable case afterwards uses the result.</p>
+                <p>Below we explain how this works and what we plan to do next.</p>
             </section>
             <section id="s1">
-                <h2><span class="n">01</span>The two roads we already had</h2>
-                <p>An open world, for us, means you can do something nobody planned, and the world gives you an answer that holds together. There are two ways people have been going after that. Each one is strong exactly where the other is weak.</p>
-                <p>One way is learned world models: Genie, GameNGen, Oasis, and what came after them. They generate the picture frame by frame from what you do, and they will take any input, so in that sense they are open. The world only lives in pixels and a short window, though. GameNGen remembers about three seconds. Genie keeps sixteen frames. Genie 3’s visual memory tops out around a minute. Stay with something for longer than that and you come back to a place that has already changed. It can also draw something new out of nowhere, but not long after, that thing may simply be gone. Add the cost of running the model, and it is hard to see this as a game people pay to play. You get demos and papers.</p>
-                <p>The other way is the traditional game, which is what studios have been making all along. <i>Dwarf Fortress</i>, the Elder Scrolls, the simulation in <i>Zelda: Breath of the Wild</i>: a lot of space, state that sticks, cause and effect that stay consistent, and almost nothing to run. Closed, though. <b>An interaction nobody wrote into the rules does not happen; an item nobody planned for does not appear.</b></p>
+                <h2><span class="n">01</span>Two existing approaches</h2>
+                <p>We take an open world to be one in which a player can take an action that no one anticipated and still receive a coherent response. Two lines of work currently pursue this goal, and the strengths of each correspond closely to the weaknesses of the other.</p>
+                <p>The first is the learned world model, exemplified by Genie, GameNGen, Oasis and their successors. These models generate each frame conditioned on the player&rsquo;s input and accept arbitrary actions, so in one important sense they are open. Their world, however, exists only in pixels and a bounded context window: GameNGen retains roughly three seconds of history, Genie sixteen frames, and Genie 3 about one minute of visual memory. Over longer horizons, the surroundings a player returns to may no longer match what they left. Such a model can render a new object from nothing, but the object may vanish shortly afterwards. Together with the inference cost of serving the model, these properties make commercial play difficult, and the approach has so far yielded mainly demonstrations and research results.</p>
+                <p>The second is the conventional game, the approach the industry has long pursued. <i>Dwarf Fortress</i>, the <i>Elder Scrolls</i> series and the simulation in <i>The Legend of Zelda: Breath of the Wild</i> are engines built on pre-authored rules. They offer large spaces, persistent state, strictly consistent causality and a negligible marginal cost of running. They are, however, closed: <b>an interaction absent from the rules does not occur, and an item no designer anticipated does not appear.</b></p>
             </section>
             <section id="s2">
-                <h2><span class="n">02</span>We think openness is a sparse problem</h2>
-                <p>The starting point is simple. <b>Open does not mean generating everything as you go.</b> What a player can try looks infinite, but the interactions that actually come up, the interesting ones, sit in a long tail. Solve a situation once and the next time it should just run. The model can also look at what people keep doing and improve along that trail. In a sense that is recursive.</p>
-                <p>So you only need the open part the first time a situation comes up. After that, code is the better place for it: exact, persistent, something you can compose, something you can read, and free to run again.</p>
-                <p>A few working ideas follow from that:</p>
-                <p><b>Code still simulates everything</b>, every frame. People go about their day. Fire runs along dry grass and rain puts it out. The story stays on its track.</p>
-                <p><b>The model writes code only when it has to</b>, when the world hits a gap in the rules. And <b>what it writes stays</b>. It goes into the rule library and answers every case like it from then on, so a special situation is paid for once. New items work the same way: the model makes a new kind only when nothing in the world fits.</p>
+                <h2><span class="n">02</span>Openness as a sparse problem</h2>
+                <p>Our premise is that openness does not require generating everything at run time. The space of possible player actions is effectively unbounded, but the interactions players actually attempt follow a long-tailed distribution. Once a situation has been resolved, its recurrence should be handled as ordinary execution. The model can also analyse the requests that accumulate and refine its answers along the trajectories players follow, which makes the process recursive.</p>
+                <p>Generation is therefore needed only the first time a situation arises. Thereafter code is the better medium: it is exact, persistent, composable and inspectable, and executing it again costs nothing.</p>
+                                <p>In OpenWorld, code performs all of the simulation, on every frame. Inhabitants follow their daily schedules, fire spreads through dry grass and is put out by rain, and the story advances along its authored course.</p>
+                <p>The model writes code only when the world reaches a situation the rules deliberately leave open. What it writes is kept in the rule library and governs every comparable case thereafter, so the cost of each novel situation is incurred once. New items are handled in the same way: the model introduces a new kind only when nothing in the existing world is suitable.</p>
                 <div class="figure">
                     <div class="piece"><iframe src="../../explain/index.html?embed" title="How it works" loading="lazy"></iframe></div>
-                    <div class="caption">How it works: if a rule exists, the rule answers. If it does not, we ask the model once. After that, everyone just runs the rule.</div>
+                    <div class="caption">Overview. Where a rule exists, the rule determines the outcome. Where none exists, the model is queried once, and every later occurrence executes the resulting rule.</div>
                 </div>
-                <p>For new items, we keep a kind of NPC in the game: makers, like Garrick the smith. You can chat with one and ask whether something new could be made, say “hollow a log into a bowl for stew.” He answers in a few seconds with a recipe, and the picture follows; if it is something you can already make, he tells you how.</p>
+                <p>For new items, the game provides a class of non-player characters, the makers, such as Garrick the smith. In conversation, a player can ask a maker whether a new object could be made, for example &ldquo;hollow out a log to make a bowl for stew.&rdquo; Within a few seconds the maker replies with a recipe, and the item&rsquo;s picture follows shortly after. If the item can already be made, the maker explains how.</p>
                 <div class="figure">
-                    <div class="piece"><iframe src="../../research/index.html?embed&lang=en" title="Something new" loading="lazy"></iframe></div>
-                    <div class="caption">Making a wooden bowl with Garrick the smith: the idea, the checks, made, then put to use.</div>
+                    <div class="piece"><iframe src="../../research/index.html?embed&lang=en" title="Making a new item" loading="lazy"></iframe></div>
+                    <div class="caption">Making a wooden bowl with Garrick the smith: the request, the checks, the finished item, and its first use.</div>
                 </div>
             </section>
             <section id="s3">
-                <h2><span class="n">03</span>A rule is what you get when things interact</h2>
-                <p>In this world, change comes from events. What an event does is decided by the rules of the thing it happens to. A campfire has its own rules for what rain does. A slime has its own rules for what fire does. <b>A rule can read anything in the world, but it can only change the thing it belongs to.</b> To affect something else, it sends that thing an event, and the other thing answers with its own rules.</p>
+                <h2><span class="n">03</span>Rules as the outcome of events</h2>
+                <p>All change in OpenWorld originates in events, and the effect of an event is determined by the rules of the entity that receives it. A campfire carries rules defining its response to rain; a slime carries rules defining its response to fire. A rule may read any part of the world state, but it may modify only the entity to which it belongs. To affect another entity, it emits an event to that entity, which responds according to its own rules.</p>
                 <div class="figure">
                     <div class="block"><div class="code" data-code="fire"></div></div>
-                    <div class="caption">From the base library: what happens when fire touches something. Same tag, same status, same kind of thing: write it once.</div>
+                    <div class="caption">An excerpt from the base rule library: how entities respond to contact with fire. One rule covers every entity of the same kind, tag and status.</div>
                 </div>
-                <p>Rules should be about the groups we already use (types, tags, and statuses), not one particular object. Not one special slime, and not a bed that only exists in one scene. Write the rule and every thing of that kind gets it. The events themselves come from a fixed, limited set: the player doing something, a hit from outside, contact, a bump, time passing, a number crossing a line, coming into view, getting stuck, taking damage.</p>
-                <p>So a rule is basically a tree of conditions, and the result usually sits on a leaf. Some leaves we leave blank on purpose. We have not said yet what this thing does when that condition hits. A fire slime that gets burned. A player who decides an axe should pry a winch. Someone trying to hand a rope to a wolf. That is a lot of room we did not have to fill in ahead of time.</p>
+                <p>Rules are written for classes (the types, tags and statuses of the world&rsquo;s ontology), so a rule never names one particular slime or a bed that appears in a single scene. Once written, it applies to every member of its class. Events are drawn from a fixed, closed set of kinds: a deliberate action, an impulse from another entity, contact, collision, the passage of time, a quantity crossing a threshold, coming into view, becoming stuck, and taking damage.</p>
+                <p>A rule is thus a condition tree whose outcomes reside at its leaves. Some leaves are intentionally left undefined, recording that the entity&rsquo;s response under that condition has not yet been specified: a fire slime touched by fire, a player who tries to pry a winch open with an axe, someone offering a rope to a wolf. We leave these open on purpose, because they are where the world can take in situations no one planned for.</p>
                 <div class="figure">
                     <div class="block"><div class="code" data-code="coat"></div></div>
-                    <div class="caption">A blank leaf. The library says what oil does to most things. The rest is left open.</div>
+                    <div class="caption">An undefined leaf. The library specifies how oil affects most entities and leaves the remaining cases open.</div>
                 </div>
-                <div class="note"><b>So the game itself does not depend on a large model.</b> With no model connected, a blank leaf takes the default, which is usually nothing. You can still play it through, the same as any other game.</div>
+                <div class="note"><b>The game therefore does not depend on a language model.</b> Without a connected model, an undefined leaf falls back to its default, which in most cases is no change. The game remains fully playable to its conclusion, as any conventional game is.</div>
             </section>
             <section id="s4">
-                <h2><span class="n">04</span>We might be looking at Doctor Strange’s 14 million futures</h2>
-                <p>Everything has a nature of its own, so nothing happens on its own. Lightning hits dead wood and it burns. Rain falls and the campfire goes out. Someone steals under cover of the storm, and a bounty goes up around the Ford. A new thing is no different. The first time a freshly made wooden bowl is knocked on an anvil, the world gains a rule for it, and from then on it is caught up in these chains too. Each thing that happens stirs the people and objects nearby, and that stirs more. The futures do not all come out the same. That is the appeal of an open world.</p>
+                <h2><span class="n">04</span>Divergent futures</h2>
+                <p>Every entity carries its own nature, so no event occurs in isolation. Lightning striking dead wood starts a fire; rain extinguishes a campfire; a theft committed under cover of a storm leads to a bounty posted throughout the Ford. Newly created items take part in the same way. The first time a freshly made wooden bowl is struck against an anvil, the world acquires a rule for that interaction, and from then on the bowl participates in the same causal chains as everything else. Each event perturbs the people and objects around it, and those perturbations propagate further, so no two playthroughs unfold the same way. For us, that is much of the appeal of an open world.</p>
                 <div class="figure">
                     <div class="piece night"><iframe src="../../starmap/index.html?embed" title="Butterfly effect" loading="lazy"></iframe></div>
-                    <div class="caption">A storm at the Ford, and what it sets off: the place, the people passing through, the objects, the rules already there, and the quests that come out of it.</div>
+                    <div class="caption">A storm at the Ford and its consequences: the place, the people passing through, the objects present, the rules already in force, and the quests that arise from them.</div>
                 </div>
-                <p><b>A rule can sit in the logic that is already running.</b> Once the ferry keeper learns to stay by the fire when she is stuck in the rain, the fire, the rain, and everything around her keep going as they did.</p>
+                <p>A learned rule slots into the logic that is already running. Once the ferry keeper has learned to stay by the fire when caught in a storm, the fire, the rain and everything around her continue to behave exactly as before.</p>
             </section>
             <section id="s5">
-                <h2><span class="n">05</span>When we reach the far side</h2>
-                <p>When an event lands on a blank branch, we do not want the engine to freeze the whole world. We pause only the thing that was hit. Everything else keeps moving.</p>
-                <p>The model looks first at natures the world already has: the types on the event, then the catalogue of creatures and objects. If nothing fits, it adds a new kind, and a small picture of it. What comes back is a rule for that type, written into the blank.</p>
+                <h2><span class="n">05</span>Beyond the authored rules</h2>
+                <p>When an event reaches an undefined branch, the engine does not halt the world. Only the affected entity is suspended; the rest of the simulation continues.</p>
+                <p>The model first attempts to answer from the natures the world already contains, examining the types involved in the event and then the existing catalogue of creatures and objects. Only when none of these is suitable does it introduce a new kind, together with a picture of it. The output is a rule for the relevant type, which fills the undefined leaf.</p>
                 <div class="figure">
                     <div class="block"><div class="code" data-code="learned"></div></div>
-                    <div class="caption">A rule it learned: what happens when you pour a liquid. One definition covers that kind of fluid.</div>
+                    <div class="caption">A learned rule: the outcome of pouring a liquid. A single definition covers every fluid of that kind.</div>
                 </div>
-                <p>The model can propose new rules and create new items, but the engine does not take them as they come: every change passes three checks in turn. The first is static: is the format valid, do the things it names exist, and does a rule stay within the thing it belongs to. The second is the economy check, there to stop resource farming. It writes every conversion in the world as a linear programme, and <b>if any combination can make something from nothing, the patch is refused before it ever goes live</b>. The third is a sandbox audit, which looks for safety problems such as the game getting stuck or chains running out of control. Some rules we wrote as standing orders, and the engine cannot change those either. Open does not mean anything goes. Freedom is not a blank check.</p>
-                <p>Right now a request is about ten seconds and about five cents, and you do not pay that forever. The library is shared. The next player who hits the same situation just runs it as ordinary code. Players can also turn the model up or down by kind of interaction, from off to a lot.</p>
+                <p>The model may propose new rules and new items, but the engine does not accept them directly: every change must pass three checks in sequence. The first is static validation, which confirms that the format is well formed, that every referenced entity exists, and that a rule modifies nothing beyond its own host. The second is an economy check that guards against resource exploits. It encodes every resource conversion in the world as a linear program, and <b>if any combination of conversions produces resources from nothing, the patch is rejected before it reaches players</b>. The third is a sandbox audit, which tests the rule for failures that would compromise the game, such as deadlocks or runaway chain reactions. Beyond these checks, a set of foundational rules is fixed by design, and nothing the model writes can override them.</p>
+                <p>At present a single request takes about ten seconds and costs about five US cents, and each situation is paid for only once. The rule library is shared, so when another player later meets the same situation, the learned rule runs as ordinary code. Players can also set the degree of model involvement for each kind of interaction, from fully disabled to extensive generation.</p>
                 <div class="figure">
-                    <img src="ai-en.webp" alt="The in-game AI panel: how much the model joins in, by kind of interaction, from off to high. The wait is the same on every setting." loading="lazy" width="1290">
-                    <div class="caption">The in-game AI panel. You set how much the model joins in, by kind of interaction, from off to high. The wait is the same on every setting.</div>
+                    <img src="ai-en.webp" alt="The in-game AI settings panel: the degree of model involvement per kind of interaction, from off to high, with the same response time at every level." loading="lazy" width="1290">
+                    <div class="caption">The in-game AI settings panel. Model involvement is set per kind of interaction, from off to high; the response time is the same at every level.</div>
                 </div>
             </section>
             <section id="s6">
-                <h2><span class="n">06</span>A thousand maps, and what comes next</h2>
-                <p><b>Because a frame does not need an extra video model in the render, the world can be as big as the content allows.</b></p>
-                <p>OpenWorld currently has 1,024 maps, from towns and villages to the rooms behind their doors; 1,654 people in 780 households, each with their own look and their own day, and 40,562 items of 1,013 kinds, a number that grows as players and the AI make new ones. Scenes the player has left do not have to keep running at full cost. When they come back, we write down what changed in the meantime. Cheap, and it works.</p>
+                <h2><span class="n">06</span>A thousand maps, and next steps</h2>
+                <p>Because rendering does not involve a video model, the world can be as large as its content allows.</p>
+                <p>OpenWorld currently has 1,024 maps, from towns and villages to the rooms behind their doors; 1,654 inhabitants in 780 households, each with an individual appearance and daily schedule; and 40,562 items of 1,013 kinds, a number that grows as players and the model create new ones. Areas the player has left are not simulated continuously; when the player returns, the engine works out what changed in the meantime in a single step. That is what keeps a world this size cheap to run.</p>
                 <div class="figure">
                     <div class="piece night"><iframe src="../../scale/index.html?embed" title="The world, in numbers" loading="lazy"></iframe></div>
-                    <div class="caption">The size of the world: one map, then a thousand; one person, then a crowd; a chest that does not run out.</div>
+                    <div class="caption">The scale of the world: one map, then a thousand; one person, then a crowd; a chest that never runs out.</div>
                 </div>
-                <p>We hope the modder can become more automated: as the world grows, it changes itself, remembers what it has seen, writes its own skills, and revises how it works, and so improves itself recursively. That may be the furthest an open world goes.</p>
+                <p>Our longer-term aim is a more autonomous modder. As the world grows, we want it to improve itself recursively: to remember what it has encountered, write its own skills and revise its own workflow. We think this may be the most direct route to a world that is genuinely open.</p>
                 <div class="cite" id="cite">
                     <div class="cite-head"><h3>Cite</h3><button class="copy" type="button" data-copied="Copied">Copy</button></div>
                     <pre><code>@misc{openworld2026,
