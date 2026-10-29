@@ -8,81 +8,7 @@
     <link rel="icon" href="data:,">
     <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@600&display=block" rel="stylesheet">
     <link rel="stylesheet" href="../../base.css">
-    <style>
-        /* a news post: NEPA's blog (a context bar, numbered figures, code blocks) in the homepage's tokens; its figures the pieces' films, round and round */
-        .piece { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; background: #f7f8fb; }
-        .piece.night { background: #05070d; }
-        .piece iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
-        .cover .piece { box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); }
-        body { counter-reset: figure; }
-        .post-hero { background: var(--bg-alt); padding: calc(var(--nav-h) + 4.5rem) 0 3.5rem; }
-        .post-hero .container { max-width: 980px; }
-        .post-hero h1 { font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.04em; color: var(--ink-strong); margin: 0.75rem 0 1rem; }
-        .post-hero .dek { font-size: 1.3rem; color: var(--muted); max-width: 46ch; line-height: 1.5; }
-        .byline { display: flex; flex-wrap: wrap; gap: 0.5rem 2.5rem; margin-top: 2rem; }
-        .byline .fact dd { font-size: 1rem; }
-        .cover { max-width: 980px; margin: -0.5rem auto 0; padding: 0 2rem; }
-        .cover .flip-front, .cover .flip-back { box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); }
-        .cover .code { font-size: 0.85rem; }
-
-        .content { display: flex; align-items: flex-start; max-width: 1200px; margin: 0 auto; padding: 4rem 2rem 2rem; }
-        .context-bar { position: sticky; top: calc(var(--nav-h) + 2.5rem); width: 240px; flex-shrink: 0; padding-right: 2.5rem; }
-        .context-bar .label { margin-bottom: 0.75rem; }
-        .context-bar ol { list-style: none; border-left: 1px solid var(--line); }
-        .context-bar a { display: flex; gap: 0.75rem; align-items: baseline; padding: 0.4rem 0 0.4rem 1rem; margin-left: -1px; border-left: 2px solid transparent; color: var(--muted); font-size: 0.95rem; transition: color var(--motion-duration-short) var(--motion-ease-standard), border-color var(--motion-duration-short) var(--motion-ease-standard); }
-        .context-bar .n { font-size: 0.8rem; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; }
-        .context-bar a:hover { color: var(--ink-strong); }
-        .context-bar a.active { color: var(--ink-strong); font-weight: 600; border-left-color: var(--accent); }
-        .context-bar a.active .n { color: var(--accent); }
-        .context-bar .lang { margin-top: 1.5rem; font-size: 0.9rem; }
-
-        article { flex: 1; min-width: 0; max-width: 760px; }
-        article section { margin-bottom: 3.5rem; }
-        article h2 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; color: var(--ink-strong); margin-bottom: 1rem; }
-        article h2 .n { color: var(--faint); font-weight: 600; font-size: 0.75em; margin-right: 0.6rem; font-variant-numeric: tabular-nums; }
-        article p { font-size: 1.15rem; line-height: 1.8; margin-bottom: 1.25rem; }
-        article p.lede { font-size: 1.3rem; line-height: 1.7; color: var(--ink-strong); }
-        article ul { margin: 0 0 1.25rem 1.25rem; font-size: 1.1rem; line-height: 1.75; }
-        article li { margin-bottom: 0.35rem; }
-        article code { font-family: var(--mono); font-size: 0.88em; background: var(--bg-alt); padding: 0.1em 0.35em; border-radius: 4px; }
-        .figure { margin: 2rem 0; }
-        .figure img { border-radius: var(--radius); width: 100%; }
-        .figure .caption { margin-top: 0.6rem; font-size: 0.9rem; color: var(--faint); display: flex; gap: 0.5rem; align-items: center; }
-        .figure .caption .ph { margin: 0; width: 55%; }
-        .figure .caption::before { counter-increment: figure; content: "Figure " counter(figure) ": "; font-weight: 500; color: var(--muted); }
-        .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; }
-        .block { background: var(--bg-alt); border-radius: var(--radius); padding: 1.1rem 1.3rem; overflow-x: auto; }
-        .block .code { font-size: 0.82rem; }
-        .note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 1rem 1.25rem; border-radius: 0 var(--radius) var(--radius) 0; margin: 1.75rem 0; font-size: 1.05rem; }
-        .note b { color: var(--ink-strong); }
-        .chart { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; }
-        .chart svg { width: 100%; height: auto; display: block; }
-
-        .cite { margin: 3rem 0 1rem; padding: 1.5rem 1.75rem; border-radius: var(--radius); background: var(--bg-alt); }
-        .cite-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-        .cite h3 { font-size: 1.5rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.25; }
-        .cite .copy { font: inherit; font-size: 0.9rem; font-weight: 600; color: var(--accent); background: #fff; border: 1px solid #d6e0f8; border-radius: 999px; padding: 0.3rem 0.9rem; cursor: pointer; }
-        .cite .copy:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
-        .cite pre { margin: 0; overflow-x: auto; }
-        .cite code { font-family: var(--mono); font-size: 0.85rem; line-height: 1.65; color: var(--ink); background: none; padding: 0; }
-
-        @media (max-width: 1100px) { .context-bar { display: none; } article { margin: 0 auto; } }
-        @media (max-width: 760px) {
-            .post-hero { padding: calc(var(--nav-h) + 2.5rem) 0 2.5rem; }
-            .post-hero .dek { font-size: 1.1rem; }
-            .cover { padding: 0 1rem; }
-            .content { padding: 2.5rem 1rem 1rem; }
-            article h2 { font-size: 1.5rem; }
-            article p { font-size: 1.05rem; }
-            article p.lede { font-size: 1.15rem; }
-            .pair { grid-template-columns: minmax(0, 1fr); }
-            .cite { padding: 1.25rem; }
-        }
-        .nav-title .logo { font-family: 'Pixelify Sans', 'Segoe UI', sans-serif; font-weight: 600; letter-spacing: 0.02em; font-size: 1.45rem; }
-        .cover video { width: 100%; display: block; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius); box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); image-rendering: pixelated; }
-        .figure .caption::before { white-space: nowrap; }
-        .figure .caption::before { content: "图 " counter(figure) "："; }
-    </style>
+    <link rel="stylesheet" href="../post.css">
 </head>
 <body>
     <nav class="banner">
@@ -95,7 +21,12 @@
         </div>
     </nav>
 
+    <div class="progress" aria-hidden="true"></div>
+
+    <!-- the game itself, silent, behind the title (held still for those who ask for less motion) -->
     <header class="post-hero">
+        <video class="backdrop" muted loop playsinline autoplay preload="metadata" poster="../../media/hero.jpg"><source src="../../media/hero.mp4" type="video/mp4"></video>
+        <script>if (matchMedia('(prefers-reduced-motion: reduce)').matches) { const v = document.currentScript.previousElementSibling; v.removeAttribute('autoplay'); v.pause() }</script>
         <div class="container">
             <p class="label">新闻 · 第 01 篇</p>
             <h1>一个可自我学习的进化世界</h1>
@@ -108,11 +39,6 @@
             </dl>
         </div>
     </header>
-
-    <!-- the game itself, silent -->
-    <div class="cover">
-        <video muted loop playsinline autoplay preload="metadata" poster="../../media/hero.jpg"><source src="../../media/hero.mp4" type="video/mp4"></video>
-    </div>
 
     <main class="content">
         <aside class="context-bar">
@@ -147,8 +73,10 @@
                 <p>我们的出发点非常简单：开放不是所有内容都要实时生成。玩家能试的东西看着无限，但高频有趣的交互其实是长尾分布。同一个场景只要解决过一次，再出现就该正常跑。同时模型还可以进一步分析总结内容需求，按照用户的交互轨迹进行改进，某种意义也是递归式的。</p>
                 <p>所以只有在某个情境第一次被触及的时候才需要开放。在这之后的一切最好交给代码：精确、持久、可组合、可读，而且重新运行不花任何代价。</p>
                 <p>我们可以根据这样的预设有以下想法：</p>
+                <div class="principles">
                 <p><b>模拟一切的依旧是代码</b>，每一帧都是：人们过着各自的日子，火沿着干草蔓延、被雨浇灭，故事按它的轨道推进。</p>
                 <p><b>模型只在需要的时候写代码</b>，也就是世界遇到规则留空的情境时。同时，<b>它写下的东西会被保留</b>，放进所有玩家共享的规则库，每个特殊情境只付一次代价。</p>
+                </div>
                 <div class="figure">
                     <div class="piece"><iframe src="../../explain/index.html?embed&lang=zh" title="工作原理" loading="lazy"></iframe></div>
                     <div class="caption">工作原理：有规则时规则作答；没有规则时只问一次模型；之后所有人都直接运行这条规则。</div>
@@ -161,17 +89,17 @@
                     <div class="block"><div class="code" data-code="fire"></div></div>
                     <div class="caption">基础规则库示例：火焰接触物体的交互规则，同一标签以及同一状态的同类事物，只需要重新写入一次。</div>
                 </div>
-                <p>规则面向的应该是具体的分类集合，也就是我们所划分的类型、标签和状态，而不是单独某一个客体（一只特殊的史莱姆，不同场景的床只）。只要一条规则写完，那么同类所有客体全部生效。事件本身来自一个有限并且固定的集合：玩家主动操作、外物冲击、接触、碰撞、时间流逝、数值触达阈值、进入视野、卡住、受损。</p>
+                <p>规则面向的应该是具体的分类集合，也就是我们所划分的类型、标签和状态，而不是单独某一个客体（一只特殊的史莱姆，或只在某个场景里出现的一张床）。只要一条规则写完，那么同类所有客体全部生效。事件本身来自一个有限并且固定的集合：玩家主动操作、外物冲击、接触、碰撞、时间流逝、数值触达阈值、进入视野、卡住、受损。</p>
                 <p>所以某种意义来说，一条规则就是一棵条件判断树，我们的最终的结果往往写在树的叶子节点。有些叶子是故意不写一些内容作为留白：这里还没有定义这个事物遇到该条件时的反应。比如火焰史莱姆被火碰到，或者玩家突发奇想斧头拿去撬绞盘，又或者有人尝试拿绳子递给狼，这些内容大幅度增加了开放性的潜在边界。</p>
                 <div class="figure">
                     <div class="block"><div class="code" data-code="coat"></div></div>
                     <div class="caption">空白叶子示例：规则库写好了油和大部分物体的交互，剩下的情况预留空白。</div>
                 </div>
-                <div class="note"><b>因此，我们说我们的游戏本身完全不依赖大模型。</b>不接入模型的时候，碰到这些空白叶子就走默认逻辑——大多是什么都不发生。游戏依旧可以正常游玩、通关，和传统游戏没有区别。</div>
+                <div class="note"><b>因此，我们说我们的游戏本身完全不依赖大模型。</b>不接入模型的时候，碰到这些空白叶子就走默认逻辑，大多是什么都不发生。游戏依旧可以正常游玩、通关，和传统游戏没有区别。</div>
             </section>
             <section id="s4">
                 <h2><span class="n">04</span>我们可能有着奇异博士看到的1400万种未来</h2>
-                <p>一切事物都自带一套本性，所以没有任何一件事是孤立的。闪电劈中枯木便燃起明火，大雨落下就熄掉篝火；有人借着风雨掩护行窃，悬赏告示随之传遍渡口。每一件发生的事，都会搅动周遭的人和物，涟漪再向外扩散，牵出一连串新的变化，所以我们的未来不可能是绝对一致的，这一生开放世界的魅力所在。</p>
+                <p>一切事物都自带一套本性，所以没有任何一件事是孤立的。闪电劈中枯木便燃起明火，大雨落下就熄掉篝火；有人借着风雨掩护行窃，悬赏告示随之传遍渡口。每一件发生的事，都会搅动周遭的人和物，涟漪再向外扩散，牵出一连串新的变化，所以每一次的未来都不会完全一样，这正是开放世界的魅力所在。</p>
                 <div class="figure">
                     <div class="piece night"><iframe src="../../starmap/index.html?embed&lang=zh" title="蝴蝶效应" loading="lazy"></iframe></div>
                     <div class="caption">渡口的暴风雨，以及它荡开的层层影响：此地的环境、往来的人、各样物件、固有规则与衍生任务。</div>
@@ -196,16 +124,25 @@
             <section id="s6">
                 <h2><span class="n">06</span>一千张地图，以及接下来</h2>
                 <p>因为每一帧的循环里完全没有模型，世界可以做到内容允许的任何大小。</p>
-                <p>目前，OpenWorld 有 1,024 张地图，从城镇、村庄到每扇门后的房间；780 户人家里的 1,654 个人，各有自己的样子和一天的安排，还有 1,013 种、共 40,562 件物品。而玩家远离的场景则不需要不计成本的一直运行，我们最后等玩家再次访问把这段时间变化的结果写出来就好，经济又实惠。</p>
+                <p>目前，OpenWorld 有：</p>
+                <dl class="stats">
+                    <div><dt>从城镇、村庄到每扇门后的房间</dt><dd>1,024<small>张地图</small></dd></div>
+                    <div><dt>住在 780 户人家里，各有自己的样子和一天的安排</dt><dd>1,654<small>个人</small></dd></div>
+                    <div><dt>共 1,013 种</dt><dd>40,562<small>件物品</small></dd></div>
+                </dl>
+                <p>玩家离开的场景不必一直全速运行：等玩家回来时，再把这段时间里的变化一次补算出来，省钱也省事。</p>
                 <div class="figure">
                     <div class="piece night"><iframe src="../../scale/index.html?embed&lang=zh" title="世界的规模" loading="lazy"></iframe></div>
                     <div class="caption">世界的规模：一张地图，然后是一千张；一个人，然后是一群人；一只倒不完的箱子。</div>
                 </div>
-                <p>我们的世界本身记得「极夜」：</p>
-                <p>那时太阳消失了，直到圣者阿斯特拉承受了五种圣刑，太阳才重新升起。如今白昼又一天天变短，一位朝圣者带着身边的妖精，从山上走了下来。</p>
+                <figure class="lore">
+                    <p class="lore-head">我们的世界本身记得「极夜」</p>
+                    <blockquote>那时太阳消失了，直到圣者阿斯特拉承受了五种圣刑，太阳才重新升起。如今白昼又一天天变短，一位朝圣者带着身边的妖精，从山上走了下来。</blockquote>
+                </figure>
                 <p>还有一件很重要的事情我们之后会更新：modder 在它所工作的世界不断变大的同时改进自己：保留记忆、为自己编写技能、修订自己的工作流程。</p>
                 <p>之后我们会预期每两周就发一篇相关内容：规则是怎么搭起来的，modder 怎么作答，玩家最先尝试什么，以及世界从他们身上学到了什么。</p>
                 <p>欢迎大家游玩和学术交流～</p>
+                <p class="post-cta"><a class="primary" href="http://35.239.4.44:5175/">试玩 Demo</a><a href="../../?lang=zh#join">加入等候名单</a></p>
                 <div class="cite" id="cite">
                     <div class="cite-head"><h3>引用</h3><button class="copy" type="button" data-copied="已复制">复制</button></div>
                     <pre><code>@misc{openworld2026,

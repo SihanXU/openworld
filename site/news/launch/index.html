@@ -8,80 +8,7 @@
     <link rel="icon" href="data:,">
     <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@600&display=block" rel="stylesheet">
     <link rel="stylesheet" href="../../base.css">
-    <style>
-        /* a news post: NEPA's blog (a context bar, numbered figures, code blocks) in the homepage's tokens; its figures the pieces' films, round and round */
-        .piece { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; background: #f7f8fb; }
-        .piece.night { background: #05070d; }
-        .piece iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
-        .cover .piece { box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); }
-        body { counter-reset: figure; }
-        .post-hero { background: var(--bg-alt); padding: calc(var(--nav-h) + 4.5rem) 0 3.5rem; }
-        .post-hero .container { max-width: 980px; }
-        .post-hero h1 { font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.04em; color: var(--ink-strong); margin: 0.75rem 0 1rem; }
-        .post-hero .dek { font-size: 1.3rem; color: var(--muted); max-width: 46ch; line-height: 1.5; }
-        .byline { display: flex; flex-wrap: wrap; gap: 0.5rem 2.5rem; margin-top: 2rem; }
-        .byline .fact dd { font-size: 1rem; }
-        .cover { max-width: 980px; margin: -0.5rem auto 0; padding: 0 2rem; }
-        .cover .flip-front, .cover .flip-back { box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); }
-        .cover .code { font-size: 0.85rem; }
-
-        .content { display: flex; align-items: flex-start; max-width: 1200px; margin: 0 auto; padding: 4rem 2rem 2rem; }
-        .context-bar { position: sticky; top: calc(var(--nav-h) + 2.5rem); width: 240px; flex-shrink: 0; padding-right: 2.5rem; }
-        .context-bar .label { margin-bottom: 0.75rem; }
-        .context-bar ol { list-style: none; border-left: 1px solid var(--line); }
-        .context-bar a { display: flex; gap: 0.75rem; align-items: baseline; padding: 0.4rem 0 0.4rem 1rem; margin-left: -1px; border-left: 2px solid transparent; color: var(--muted); font-size: 0.95rem; transition: color var(--motion-duration-short) var(--motion-ease-standard), border-color var(--motion-duration-short) var(--motion-ease-standard); }
-        .context-bar .n { font-size: 0.8rem; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; }
-        .context-bar a:hover { color: var(--ink-strong); }
-        .context-bar a.active { color: var(--ink-strong); font-weight: 600; border-left-color: var(--accent); }
-        .context-bar a.active .n { color: var(--accent); }
-        .context-bar .lang { margin-top: 1.5rem; font-size: 0.9rem; }
-
-        article { flex: 1; min-width: 0; max-width: 760px; }
-        article section { margin-bottom: 3.5rem; }
-        article h2 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; color: var(--ink-strong); margin-bottom: 1rem; }
-        article h2 .n { color: var(--faint); font-weight: 600; font-size: 0.75em; margin-right: 0.6rem; font-variant-numeric: tabular-nums; }
-        article p { font-size: 1.15rem; line-height: 1.8; margin-bottom: 1.25rem; }
-        article p.lede { font-size: 1.3rem; line-height: 1.7; color: var(--ink-strong); }
-        article ul { margin: 0 0 1.25rem 1.25rem; font-size: 1.1rem; line-height: 1.75; }
-        article li { margin-bottom: 0.35rem; }
-        article code { font-family: var(--mono); font-size: 0.88em; background: var(--bg-alt); padding: 0.1em 0.35em; border-radius: 4px; }
-        .figure { margin: 2rem 0; }
-        .figure img { border-radius: var(--radius); width: 100%; }
-        .figure .caption { margin-top: 0.6rem; font-size: 0.9rem; color: var(--faint); display: flex; gap: 0.5rem; align-items: center; }
-        .figure .caption .ph { margin: 0; width: 55%; }
-        .figure .caption::before { counter-increment: figure; content: "Figure " counter(figure) ": "; font-weight: 500; color: var(--muted); }
-        .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; }
-        .block { background: var(--bg-alt); border-radius: var(--radius); padding: 1.1rem 1.3rem; overflow-x: auto; }
-        .block .code { font-size: 0.82rem; }
-        .note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 1rem 1.25rem; border-radius: 0 var(--radius) var(--radius) 0; margin: 1.75rem 0; font-size: 1.05rem; }
-        .note b { color: var(--ink-strong); }
-        .chart { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; }
-        .chart svg { width: 100%; height: auto; display: block; }
-
-        .cite { margin: 3rem 0 1rem; padding: 1.5rem 1.75rem; border-radius: var(--radius); background: var(--bg-alt); }
-        .cite-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-        .cite h3 { font-size: 1.5rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.25; }
-        .cite .copy { font: inherit; font-size: 0.9rem; font-weight: 600; color: var(--accent); background: #fff; border: 1px solid #d6e0f8; border-radius: 999px; padding: 0.3rem 0.9rem; cursor: pointer; }
-        .cite .copy:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
-        .cite pre { margin: 0; overflow-x: auto; }
-        .cite code { font-family: var(--mono); font-size: 0.85rem; line-height: 1.65; color: var(--ink); background: none; padding: 0; }
-
-        @media (max-width: 1100px) { .context-bar { display: none; } article { margin: 0 auto; } }
-        @media (max-width: 760px) {
-            .post-hero { padding: calc(var(--nav-h) + 2.5rem) 0 2.5rem; }
-            .post-hero .dek { font-size: 1.1rem; }
-            .cover { padding: 0 1rem; }
-            .content { padding: 2.5rem 1rem 1rem; }
-            article h2 { font-size: 1.5rem; }
-            article p { font-size: 1.05rem; }
-            article p.lede { font-size: 1.15rem; }
-            .pair { grid-template-columns: minmax(0, 1fr); }
-            .cite { padding: 1.25rem; }
-        }
-        .nav-title .logo { font-family: 'Pixelify Sans', 'Segoe UI', sans-serif; font-weight: 600; letter-spacing: 0.02em; font-size: 1.45rem; }
-        .cover video { width: 100%; display: block; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius); box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); image-rendering: pixelated; }
-        .figure .caption::before { white-space: nowrap; }
-    </style>
+    <link rel="stylesheet" href="../post.css">
 </head>
 <body>
     <nav class="banner">
@@ -94,7 +21,12 @@
         </div>
     </nav>
 
+    <div class="progress" aria-hidden="true"></div>
+
+    <!-- the game itself, silent, behind the title (held still for those who ask for less motion) -->
     <header class="post-hero">
+        <video class="backdrop" muted loop playsinline autoplay preload="metadata" poster="../../media/hero.jpg"><source src="../../media/hero.mp4" type="video/mp4"></video>
+        <script>if (matchMedia('(prefers-reduced-motion: reduce)').matches) { const v = document.currentScript.previousElementSibling; v.removeAttribute('autoplay'); v.pause() }</script>
         <div class="container">
             <p class="label">News · Post 01</p>
             <h1>A world that learns as it goes</h1>
@@ -107,11 +39,6 @@
             </dl>
         </div>
     </header>
-
-    <!-- the game itself, silent -->
-    <div class="cover">
-        <video muted loop playsinline autoplay preload="metadata" poster="../../media/hero.jpg"><source src="../../media/hero.mp4" type="video/mp4"></video>
-    </div>
 
     <main class="content">
         <aside class="context-bar">
@@ -146,8 +73,10 @@
                 <p>The starting point is simple. Open does not mean generating everything as you go. What a player can try looks infinite, but the interactions that actually come up, the interesting ones, sit in a long tail. Solve a situation once and the next time it should just run. The model can also look at what people keep doing and improve along that trail. In a sense that is recursive.</p>
                 <p>So you only need the open part the first time a situation comes up. After that, code is the better place for it: exact, persistent, something you can compose, something you can read, and free to run again.</p>
                 <p>A few working ideas follow from that:</p>
+                <div class="principles">
                 <p><b>Code still simulates everything</b>, every frame. People go about their day. Fire runs along dry grass and rain puts it out. The story stays on its track.</p>
                 <p><b>The model writes code only when it has to</b>, when the world hits a gap in the rules. And <b>what it writes stays</b>. It goes into a rule library every player shares, so a special situation is paid for once.</p>
+                </div>
                 <div class="figure">
                     <div class="piece"><iframe src="../../explain/index.html?embed" title="How it works" loading="lazy"></iframe></div>
                     <div class="caption">How it works: if a rule exists, the rule answers. If it does not, we ask the model once. After that, everyone just runs the rule.</div>
@@ -160,7 +89,7 @@
                     <div class="block"><div class="code" data-code="fire"></div></div>
                     <div class="caption">From the base library: what happens when fire touches something. Same tag, same status, same kind of thing: write it once.</div>
                 </div>
-                <p>Rules should be about the groups we already use — types, tags, and statuses — not one particular object. Not one special slime, and not a bed that only exists in one scene. Write the rule and every thing of that kind gets it. The events themselves come from a fixed, limited set: the player doing something, a hit from outside, contact, a bump, time passing, a number crossing a line, coming into view, getting stuck, taking damage.</p>
+                <p>Rules should be about the groups we already use (types, tags, and statuses), not one particular object. Not one special slime, and not a bed that only exists in one scene. Write the rule and every thing of that kind gets it. The events themselves come from a fixed, limited set: the player doing something, a hit from outside, contact, a bump, time passing, a number crossing a line, coming into view, getting stuck, taking damage.</p>
                 <p>So a rule is basically a tree of conditions, and the result usually sits on a leaf. Some leaves we leave blank on purpose. We have not said yet what this thing does when that condition hits. A fire slime that gets burned. A player who decides an axe should pry a winch. Someone trying to hand a rope to a wolf. That is a lot of room we did not have to fill in ahead of time.</p>
                 <div class="figure">
                     <div class="block"><div class="code" data-code="coat"></div></div>
@@ -195,16 +124,25 @@
             <section id="s6">
                 <h2><span class="n">06</span>A thousand maps, and what comes next</h2>
                 <p>Because the loop that runs every frame has no model in it, the world can be as big as the content.</p>
-                <p>OpenWorld currently has 1,024 maps, from towns and villages to the rooms behind their doors; 1,654 people in 780 households, each with their own look and their own day, and 40,562 items of 1,013 kinds. Scenes the player has left do not have to keep running at full cost. When they come back, we write down what changed in the meantime. Cheap, and it works.</p>
+                <p>OpenWorld currently has:</p>
+                <dl class="stats">
+                    <div><dt>from towns and villages to the rooms behind their doors</dt><dd>1,024<small>maps</small></dd></div>
+                    <div><dt>in 780 households, each with their own look and their own day</dt><dd>1,654<small>people</small></dd></div>
+                    <div><dt>of 1,013 kinds</dt><dd>40,562<small>items</small></dd></div>
+                </dl>
+                <p>Scenes the player has left do not have to keep running at full cost. When they come back, we write down what changed in the meantime. Cheap, and it works.</p>
                 <div class="figure">
                     <div class="piece night"><iframe src="../../scale/index.html?embed" title="The world, in numbers" loading="lazy"></iframe></div>
                     <div class="caption">The size of the world: one map, then a thousand; one person, then a crowd; a chest that does not run out.</div>
                 </div>
-                <p>The world remembers the Long Night:</p>
-                <p>The sun went out, until the saint Astra bore the five holy torments and it rose again. Now the days are getting shorter, and a pilgrim is coming down the mountain with a fairy beside them.</p>
+                <figure class="lore">
+                    <p class="lore-head">The world remembers the Long Night</p>
+                    <blockquote>The sun went out, until the saint Astra bore the five holy torments and it rose again. Now the days are getting shorter, and a pilgrim is coming down the mountain with a fairy beside them.</blockquote>
+                </figure>
                 <p>There is something else we will write about later. The modder keeps improving while the world it works on gets bigger: it keeps a memory, writes skills for itself, and revises how it works.</p>
                 <p>We expect a post about every two weeks: how the rules get built, how the modder answers, what players try first, and what the world picks up from them.</p>
                 <p>Come play, or come talk to us about the work.</p>
+                <p class="post-cta"><a class="primary" href="http://35.239.4.44:5175/">Play the demo</a><a href="../../?lang=en#join">Join the waitlist</a></p>
                 <div class="cite" id="cite">
                     <div class="cite-head"><h3>Cite</h3><button class="copy" type="button" data-copied="Copied">Copy</button></div>
                     <pre><code>@misc{openworld2026,
