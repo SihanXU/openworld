@@ -10,6 +10,7 @@ import { ALBERIC_ID, CH1 } from '../chapter1.ts'
 import { ASKS, BLADE, DRAGON } from '../quest.ts'
 import { ABBOT_ID, PILGRIMAGE, SWORN_SCALLOP, WAYSHRINES, shrineFact } from '../pilgrimage.ts'
 import { PART_TWO } from '../regions.ts'
+import { HAVEN } from '../haven.ts'
 
 /** The White Knight is down: what comes before him is behind you. */
 export const PAST_KNIGHT: QuestTrigger = { fact: { [CH1.knight]: { ne: 0 } } }
@@ -190,6 +191,47 @@ const firstSeal: QuestDef = {
   start: { auto: { done: 'vigil' } },
 }
 
+// ------------------------------------------------------------------ the Held Ground (docs/chapter-1.md §12)
+
+/** The steward of the Held Ground: the knight, freed of the crown (tools/src/demo/people). */
+const STEWARD_ID = 'npc.alberic'
+
+/**
+ * Into the Held Ground once the knight has fallen: the Oath-Thorn used on oneself, a word with its steward, and
+ * the thorn again to come back where one stood. Begun with the thorn (the story's `oath_thorn`); the Crown is carried
+ * home after it, and the homecoming waits for it (the step `return`). A save that had been there already finds it
+ * done; one past the homecoming, too.
+ */
+const heldGround: QuestDef = {
+  id: 'held_ground',
+  kind: 'main',
+  title: L('The Held Ground', '誓守之地'),
+  summary: L('Where the White Knight fell, one thorn of his crown stayed green. Lumi says there is a field on the other side of it, and someone waiting.', '白骑士倒下的地方，荆棘冠上有一根刺还是绿的。露米说，它的另一边有一片田野，还有人在等。'),
+  aliases: { steward: { id: STEWARD_ID } },
+  objectives: [
+    { id: 'enter', text: L('Hold the Oath-Thorn ({key:slots}) and left click to enter the Held Ground', '把誓约之棘拿在手上（{key:slots}），按左键，进入誓守之地'), on: { fact: { 'haven.met': 1 } } },
+    {
+      id: 'steward',
+      text: L('Speak to Alberic by the planted sword', '到插在地上的那把剑旁边，和阿尔贝里克说话'),
+      target: 'steward',
+      talk: true,
+      on: { talk: 'steward' },
+      say: L('The ground is yours, but the mist still holds most of it. Ask me of the Held Ground, and I will show you what each ring of mist asks before it lifts, and what may be built here. When you would leave, use the thorn on yourself again. It returns you to where you stood.', '这片土地归你了，只是大半还在雾里。问我「领地扩建」的事，我便告诉你每一圈雾退开之前要些什么，这里又能盖些什么。要走的时候，再对自己用一次那根刺，它会送你回到原来站的地方。'),
+    },
+    { id: 'out', text: L('Hold the Oath-Thorn and left click again to go back where you stood', '再拿着誓约之棘按一次左键，回到原来的地方'), on: { not: { enter: HAVEN.map } } },
+  ],
+  stages: [
+    { n: 10, show: ['enter'], hint: L('The Oath-Thorn is in your bag. Take it in hand ({key:slots}) and left click: it is used on you. It does not open in the middle of a fight.', '誓约之棘在你的背包里。把它拿在手上（{key:slots}），按左键，它就用在你自己身上。打斗中它打不开。'), log: L('Where the knight fell, one thorn of his crown was still green, and warm to the touch. I took it. Lumi says it wants to be used on me.', '骑士倒下的地方，荆棘冠上有一根刺还是绿的，摸着是温的。我把它收下了。露米说，它想让我对自己用一下。') },
+    // (in the Held Ground: a save that met him there before finds the quest done instead, below)
+    { n: 20, on: { all: [{ fact: { 'haven.met': 1 } }, { enter: HAVEN.map }] }, from: [10], done: ['enter'], show: ['steward'], hint: L('Alberic keeps the Held Ground now. He stands by the sword planted at its heart; speak to him with {key:hands}.', '如今阿尔贝里克替你守着誓守之地。他就在正中那把插在地上的剑旁边，按 {key:hands} 和他说话。'), log: L('Beyond the thorn is a field ringed by mist. The White Knight is there, without his helm. He says he holds this ground for me now.', '棘刺的另一边是一片被雾围着的田野。白骑士也在那里，没戴头盔。他说，如今换他替我守着这片土地。') },
+    { n: 30, on: { objectives: ['steward'] }, done: ['steward'], show: ['out'], hint: L('To go back, take the Oath-Thorn in hand and left click again. It takes you back to where you were standing.', '要回去的话，把誓约之棘拿在手上，再按一次左键。它会把你送回原来站的地方。'), log: L('Alberic will push the mist back if I bring what the ground asks. He keeps a stall by the sword, too.', '只要把扩地要的东西带来，阿尔贝里克就会把雾推远些。剑旁边还有他的货摊。') },
+    { n: 100, on: { objectives: ['out'] }, from: [30], done: ['out'], complete: true, reward: { xp: 30, regard: { steward: 10 } }, log: L('The thorn brought me back to where I had stood. I can go back to the Held Ground whenever I want. The Crown is still to be carried home to Firstlight.', '棘刺把我送回了原来站的地方。以后想回誓守之地，随时都能回去。荆棘冠还得带回初原村。') },
+    { n: 105, on: { all: [{ fact: { 'haven.met': 1 } }, { not: { enter: HAVEN.map } }] }, from: [10], done: ['enter', 'steward', 'out'], complete: true, log: L('I had been to the Held Ground already.', '誓守之地，我已经去过了。') },
+    { n: 110, on: { fact: { [CH1.end]: 1 } }, from: [10], complete: true, log: L('I carried the Crown home before I went through the thorn.', '我没穿过那根刺，就先把荆棘冠带回了家。') },
+  ],
+  start: { auto: { step: 'oath_thorn' } },
+}
+
 const crownHome: QuestDef = {
   id: 'crown_home',
   kind: 'main',
@@ -201,7 +243,8 @@ const crownHome: QuestDef = {
     { n: 10, show: ['home'], hint: L('Carry the Crown of Thorns back west across the river, to Firstlight.', '往西过河，把荆棘冠带回初原村。'), log: L('I carry the Crown now. The man in grey drew the rest of its light into his lantern and went east.', '荆棘冠现在由我带着。那个灰衣人把剩下的光收进了他的灯里，往东走了。') },
     { n: 100, on: { fact: { [CH1.end]: 1 } }, done: ['home'], complete: true, reward: { xp: 30 }, log: L('I brought the Crown home to Firstlight. Nessa says the sun set four minutes early tonight.', '我把荆棘冠带回了初原村。奈莎说，今晚太阳早落了四分钟。') },
   ],
-  start: { auto: PAST_KNIGHT },
+  // after the Held Ground (an older save had it under way already, and keeps it)
+  start: { auto: { done: 'held_ground' } },
 }
 
 // ------------------------------------------------------------------ Emberfall and the dragon (docs/main-quest.md)
@@ -244,4 +287,4 @@ const dragonRoad: QuestDef = {
 }
 void BLADE
 
-export const MAIN_QUESTS: QuestDef[] = [awakening, descent, rescue, vigil, firstSeal, crownHome, dragonRoad]
+export const MAIN_QUESTS: QuestDef[] = [awakening, descent, rescue, vigil, firstSeal, heldGround, crownHome, dragonRoad]

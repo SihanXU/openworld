@@ -470,7 +470,7 @@ export const HAVEN_STORY: StepDef[] = [
       say('player', '(Among the thorns where the knight fell, one is still green. It is warm to the touch, and it hums, very faintly, like a door left open.)', '（骑士倒下的荆棘丛里，有一根还是绿的。摸上去是温的，还在很轻很轻地嗡嗡响，像一扇没关严的门。）'),
       { give: 'item/relic/oath_thorn' },
       { fact: 'haven.token', value: 1 },
-      say('pip', 'I think it wants to be used, on you. Hold it and right-click yourself. I can hear a field on the other side of it. And... someone waiting.', '它好像想让你用一下——对你自己用。拿着它，右键点你自己。我听见它另一边有一片田野。还有……有人在等。', 'surprised'),
+      say('pip', 'I think it wants to be used, on you. Hold it and left click. I can hear a field on the other side of it. And... someone waiting.', '它好像想让你用一下——对你自己用。拿着它，按左键。我听见它另一边有一片田野。还有……有人在等。', 'surprised'),
     ],
   },
   {
@@ -586,9 +586,10 @@ export const CHAPTER1_SCENES: StepDef[] = [
     ],
   },
   {
-    // The return: the village rejoices at the Crown; Nessa counts the minutes; the chapter ends.
+    // The return: the village rejoices at the Crown; Nessa counts the minutes; the chapter ends. After the Held Ground
+    // (the quest `held_ground`, over: the chapter's card gives it to the player), so the way into it is never missed.
     id: 'return',
-    when: { map: 'meadow', facts: { [CH1.crown]: 1 } },
+    when: { map: 'meadow', facts: { [CH1.crown]: 1 }, quest: { held_ground: { gte: 100 } } },
     script: [
       say('npc.rowan', 'The Crown of Thorns, here in Firstlight. ...And that heretic still has our flame.', '荆棘冠到了初原村。……可我们的圣火，还在那个异端手里。', 'angry'),
       say('npc.ilse', 'He always did carry things that were too heavy for him.', '他从小就总是背着对他来说太重的东西。', 'sad'),
