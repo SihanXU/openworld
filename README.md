@@ -136,12 +136,18 @@ and put its settings in `.env` (not committed):
 | --- | --- |
 | `openrouter` | `LSW_MODEL_KEY`, `LSW_MODEL` (e.g. `moonshotai/kimi-k3`); `LSW_MODEL_URL` for another OpenAI-compatible endpoint |
 | `anthropic` | `ANTHROPIC_API_KEY` |
-| `claude-code` | None; uses the signed-in Claude Code CLI |
-| `codex` | None; uses the signed-in Codex CLI (`LSW_CODEX_MODEL`, default `gpt-6.1-sol`) |
+| `claude-code` | None; uses the signed-in Claude Code CLI (default `claude-opus-5-5`) |
+| `codex` | None; uses the signed-in Codex CLI (default `gpt-6.1-sol`), with Codex's own tools off |
 | `none` | None; only rules already learned are used |
 
-`--model <id>` and `--effort <level>` pick the chosen backend's model and effort (for example
-`npm run dev -- --backend codex --model gpt-6-luna`); left out, the backend's default or `.env` is used.
+`--model <id>` and `--effort <level>` pick the chosen backend's model and effort; left out, the backend's
+default or `.env` is used. `--fast` asks `claude-code` for fast mode and `codex` for its fast tier.
+
+```bash
+npm run dev -- --backend codex --fast                      # Codex, gpt-6.1-sol, fast tier
+npm run dev -- --backend codex --model gpt-6-luna --effort medium
+npm run dev -- --backend claude-code --model claude-sonnet-5-5
+```
 
 ```bash
 npm run modder -- serve                    # run the service on its own, on port 8787
