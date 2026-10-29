@@ -1,3 +1,9 @@
+/* Type, as ByteDance Seed sets it (Seedream 5.0 Pro): Stack Sans Headline for titles, Stack Sans Text for the
+   rest, the system's Chinese face (PingFang) behind both; titles at 500-600, never heavy; Latin display a little
+   tight, Chinese never; the body a softened ink, 17px, in a column of about 680px. The pixel letters are the logo's. */
+body { font-family: 'Stack Sans Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif; }
+:is(.post-hero h1, article h2, .cite h3, .stats dd, .lore blockquote) { font-family: 'Stack Sans Headline', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif; }
+
 /* A news post: NEPA's blog (a context bar, numbered figures, code blocks) in the homepage's tokens, under the
    homepage's own head: the game running behind the title, the night for what the world remembers. */
 .piece { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; background: #f7f8fb; }
@@ -5,8 +11,6 @@
 .piece iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
 body { counter-reset: figure; }
 .post-hero .container { max-width: 980px; }
-.post-hero h1 { font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.04em; color: var(--ink-strong); margin: 0.75rem 0 1rem; }
-.post-hero .dek { font-size: 1.3rem; color: var(--muted); max-width: 46ch; line-height: 1.5; }
 .byline { display: flex; flex-wrap: wrap; gap: 0.5rem 2.5rem; margin-top: 2rem; }
 .byline .fact dd { font-size: 1rem; }
 
@@ -21,12 +25,11 @@ body { counter-reset: figure; }
 .context-bar a.active .n { color: var(--accent); }
 .context-bar .lang { margin-top: 1.5rem; font-size: 0.9rem; }
 
-article { flex: 1; min-width: 0; max-width: 760px; }
+article { flex: 1; min-width: 0; max-width: 680px; }
 article section { margin-bottom: 3.5rem; }
-article h2 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; color: var(--ink-strong); margin-bottom: 1rem; }
-article h2 .n { color: var(--faint); font-weight: 600; font-size: 0.75em; margin-right: 0.6rem; font-variant-numeric: tabular-nums; }
-article p { font-size: 1.15rem; line-height: 1.8; margin-bottom: 1.25rem; }
-article p.lede { font-size: 1.3rem; line-height: 1.7; color: var(--ink-strong); }
+article h2 { font-size: 2rem; line-height: 1.2; font-weight: 500; letter-spacing: -0.018em; color: var(--ink-strong); margin-bottom: 1rem; }
+article p { font-size: 1.0625rem; line-height: 1.7; margin-bottom: 1.25rem; color: #3c4043; }
+
 article ul { margin: 0 0 1.25rem 1.25rem; font-size: 1.1rem; line-height: 1.75; }
 article li { margin-bottom: 0.35rem; }
 article code { font-family: var(--mono); font-size: 0.88em; background: var(--bg-alt); padding: 0.1em 0.35em; border-radius: 4px; }
@@ -45,7 +48,7 @@ article code { font-family: var(--mono); font-size: 0.88em; background: var(--bg
 
 .cite { margin: 3rem 0 1rem; padding: 1.5rem 1.75rem; border-radius: var(--radius); background: var(--bg-alt); }
 .cite-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-.cite h3 { font-size: 1.5rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.25; }
+.cite h3 { font-size: 1.5rem; font-weight: 500; letter-spacing: -0.015em; color: var(--ink-strong); line-height: 1.25; }
 .cite .copy { font: inherit; font-size: 0.9rem; font-weight: 600; color: var(--accent); background: #fff; border: 1px solid #d6e0f8; border-radius: 999px; padding: 0.3rem 0.9rem; cursor: pointer; }
 .cite .copy:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
 .cite pre { margin: 0; overflow-x: auto; }
@@ -53,25 +56,56 @@ article code { font-family: var(--mono); font-size: 0.88em; background: var(--bg
 
 @media (max-width: 1100px) { .context-bar { display: none; } article { margin: 0 auto; } }
 @media (max-width: 760px) {
-    .post-hero .dek { font-size: 1.1rem; }
     .content { padding: 2.5rem 1rem 1rem; }
     article h2 { font-size: 1.5rem; }
     article p { font-size: 1.05rem; }
-    article p.lede { font-size: 1.15rem; }
     .pair { grid-template-columns: minmax(0, 1fr); }
     .cite { padding: 1.25rem; }
 }
 .nav-title .logo { font-family: 'Pixelify Sans', 'Segoe UI', sans-serif; font-weight: 600; letter-spacing: 0.02em; font-size: 1.45rem; }
 .figure .caption::before { white-space: nowrap; }
 
-/* the head: the game itself behind the words (the homepage's hero, shorter); a still of the camp when the film is not there */
-.post-hero { position: relative; overflow: hidden; display: flex; align-items: flex-end; min-height: min(80vh, 780px); padding: calc(var(--nav-h) + 6rem) 0 4rem; color: #fff; background: #1d1d18 url('../starmap/clips/camp/001.jpg') center / cover; image-rendering: pixelated; }
-.post-hero .backdrop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
-.post-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,10,16,0.35) 0%, rgba(8,10,16,0.12) 38%, rgba(8,10,16,0.86) 100%); }
-.post-hero .container { position: relative; z-index: 1; }
-.post-hero .label { font-family: 'Pixelify Sans', 'Segoe UI', sans-serif; font-weight: 600; font-size: 1rem; letter-spacing: 0.06em; text-transform: none; color: #ffe3a1; }
+/* the head: the world behind the words (the homepage's hero, shorter), its places one after another; the first
+   still under them until they come */
+.post-hero { position: relative; overflow: hidden; display: flex; align-items: flex-end; min-height: 100vh; min-height: 100svh; padding: calc(var(--nav-h) + 6rem) 0 3.5rem; color: #fff; background: #1d1d18 url('launch/places/sunwell-abbey.webp') center 35% / cover; image-rendering: pixelated; }
+.post-hero .slides { position: absolute; inset: 0; }
+/* the stills are the game's pixels at a whole number each (trailer stage, ?film=places at a whole zoom), kept whole: drawn
+   without smoothing, and never drifting (a pixel drawn at a moving fraction shimmers) */
+.post-hero .slide { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; image-rendering: pixelated; opacity: 0; transition: opacity 1.4s var(--motion-ease-standard); }
+.post-hero .slide.on { opacity: 1; }
+.post-hero .now { position: absolute; right: clamp(1.25rem, 5vw, 4.5rem); top: calc(var(--nav-h) + 1.25rem); z-index: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; text-shadow: 0 1px 10px rgba(0,0,0,0.5); transition: opacity 0.4s var(--motion-ease-standard); }
+.post-hero .now span { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.7); }
+.post-hero .now b { font-weight: 500; font-size: 1rem; color: #fff; }
+.post-hero .now.changing { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .post-hero .slide { transition: none; } }
+.post-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6,8,12,0.45) 0%, rgba(6,8,12,0) 22%, rgba(6,8,12,0) 42%, rgba(6,8,12,0.78) 100%), linear-gradient(90deg, rgba(6,8,12,0.35) 0%, rgba(6,8,12,0) 60%); }
+.post-hero .container { position: relative; z-index: 1; max-width: 1360px; padding: 0 clamp(1.25rem, 5vw, 4.5rem); }
+/* the launch page's head (Seedream's): the title large at the foot of the picture, the words and the ways on beneath it */
+.post-hero h1 { font-size: clamp(2.75rem, 6.4vw, 6rem); line-height: 1.02; font-weight: 600; letter-spacing: -0.02em; margin: 0.6rem 0 1.5rem; max-width: 14em; }
+.hero-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem 3rem; flex-wrap: wrap; }
+.hero-text { flex: 1 1 32rem; min-width: 0; }
+.post-hero .dek { font-size: 1.05rem; line-height: 1.6; max-width: 40em; }
+.post-hero .byline { margin-top: 1.25rem; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.pill { display: inline-flex; align-items: center; padding: 0.8rem 1.25rem; border-radius: 999px; font-size: 1rem; font-weight: 500; line-height: 1.2; color: #fff; background: rgba(255,255,255,0.2); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); transition: background var(--motion-duration-short) var(--motion-ease-standard); }
+.pill:hover { background: rgba(255,255,255,0.3); }
+.pill.primary { background: #fff; color: #111; }
+.pill.primary:hover { background: #eef3fe; }
+
+/* the bar: clear over the picture, white text; white again below it */
+.banner { transition: background var(--motion-duration-medium) var(--motion-ease-standard), box-shadow var(--motion-duration-medium) var(--motion-ease-standard); }
+.banner.over { background: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.banner.over .nav-title, .banner.over .nav-links a { color: rgba(255,255,255,0.85); }
+.banner.over .nav-title small { color: rgba(255,255,255,0.6); }
+.banner.over .nav-links a:hover { color: #fff; }
+.banner.over .nav-links a.cta { color: #fff; padding: 0.35rem 0.9rem; margin: -0.35rem 0; border-radius: 999px; background: rgba(255,255,255,0.2); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+.banner.over ~ .progress { opacity: 0; }
+/* one left edge for the bar, the head and the page below (the bar's logo over the title, the contents under both) */
+.banner .container, .post-hero .container { max-width: 1360px; padding: 0 clamp(1.25rem, 5vw, 4.5rem); }
+.content { max-width: 1360px; padding-left: clamp(1.25rem, 5vw, 4.5rem); padding-right: clamp(1.25rem, 5vw, 4.5rem); }
+.post-hero .label { color: rgba(255,255,255,0.75); }
 .post-hero h1 { color: #fff; text-shadow: 0 2px 30px rgba(0,0,0,0.35); }
-.post-hero .dek { color: rgba(255,255,255,0.88); max-width: 38em; text-shadow: 0 1px 12px rgba(0,0,0,0.35); }
+.post-hero .dek { color: rgba(255,255,255,0.88); text-shadow: 0 1px 12px rgba(0,0,0,0.35); }
 .post-hero .fact dt { color: rgba(255,255,255,0.6); }
 .post-hero .fact dd { color: #fff; }
 .post-hero .fact a { color: #cfdcff; }
@@ -82,9 +116,11 @@ article code { font-family: var(--mono); font-size: 0.88em; background: var(--bg
 @supports not (animation-timeline: scroll()) { .progress { display: none; } }
 @keyframes read { to { transform: scaleX(1); } }
 
-/* a section's number, in the game's letters */
-article h2 .n { display: inline-flex; align-items: center; justify-content: center; min-width: 2.1em; height: 1.55em; padding: 0 0.35em; margin-right: 0.7rem; border-radius: 6px; background: var(--accent); color: #fff; font-family: 'Pixelify Sans', 'Segoe UI', sans-serif; font-size: 0.62em; font-weight: 600; letter-spacing: 0.04em; vertical-align: 0.22em; }
+/* a section's number: small, in the accent, its figures even */
+article h2 .n { display: block; margin: 0 0 0.5rem; font-size: 0.8rem; font-weight: 500; letter-spacing: 0.08em; color: var(--accent); font-variant-numeric: tabular-nums; }
 article p { text-wrap: pretty; }
+/* a phrase in bold, as Seed's posts set it: semibold, a step darker than the text */
+article p b { font-weight: 600; color: var(--ink-strong); }
 
 /* what follows from the start: side by side */
 .principles { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; margin: 1.5rem 0 1.75rem; }
@@ -94,32 +130,34 @@ article p { text-wrap: pretty; }
 /* the size of the world, as numbers */
 .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin: 1.75rem 0 2rem; }
 .stats > div { padding: 1.25rem 1.35rem; border: 1px solid var(--line); border-radius: var(--radius); }
-.stats dd { order: -1; white-space: nowrap; font-size: clamp(1.7rem, 2.9vw, 2.25rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; color: var(--ink-strong); font-variant-numeric: tabular-nums; }
-.stats dd small { font-size: 0.45em; font-weight: 600; letter-spacing: 0; margin-left: 0.3em; color: var(--muted); }
+.stats dd { order: -1; white-space: nowrap; font-size: clamp(1.7rem, 2.9vw, 2.25rem); font-weight: 500; letter-spacing: -0.025em; line-height: 1.05; color: var(--ink-strong); font-variant-numeric: tabular-nums; }
+.stats dd small { font-size: 0.45em; font-weight: 400; letter-spacing: 0; margin-left: 0.3em; color: var(--muted); }
 .stats > div { display: flex; flex-direction: column; gap: 0.5rem; }
 .stats dt { font-size: 0.95rem; line-height: 1.55; color: var(--muted); }
 
 /* what the world remembers: the night */
 .lore { position: relative; overflow: hidden; margin: 2.5rem 0; padding: 2.25rem 2.25rem 2.4rem; border-radius: var(--radius); background: radial-gradient(1px 1px at 12% 22%, #fff8, transparent 60%), radial-gradient(1px 1px at 78% 18%, #fff9, transparent 60%), radial-gradient(1.5px 1.5px at 64% 70%, #fff6, transparent 60%), radial-gradient(1px 1px at 30% 82%, #fff7, transparent 60%), radial-gradient(1px 1px at 90% 55%, #fff5, transparent 60%), radial-gradient(ellipse 70% 90% at 85% 0%, #1b2440, transparent 70%), #05070d; color: #c9d4ea; }
-.lore .lore-head { margin: 0 0 1rem; font-family: 'Pixelify Sans', 'Segoe UI', sans-serif; font-weight: 600; font-size: 1rem; letter-spacing: 0.06em; color: #ffe3a1; }
-.lore blockquote { margin: 0; font-size: 1.3rem; line-height: 1.8; color: #e6ecf8; }
+.lore .lore-head { margin: 0 0 1rem; font-size: 0.8rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #8fa0c0; }
+.lore blockquote { margin: 0; font-size: 1.35rem; font-weight: 400; line-height: 1.7; letter-spacing: -0.01em; color: #e6ecf8; }
 
 /* the end: the game and the list, as on the homepage */
 .post-cta { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1.75rem 0 0.5rem; }
-.post-cta a { display: inline-flex; align-items: center; font-weight: 600; font-size: 1rem; border-radius: 999px; padding: 0.7rem 1.5rem; border: 1.5px solid var(--accent); color: var(--accent); transition: background var(--motion-duration-short) var(--motion-ease-standard), transform var(--motion-duration-medium) var(--motion-ease-standard); }
+.post-cta a { display: inline-flex; align-items: center; font-weight: 500; font-size: 1rem; border-radius: 999px; padding: 0.7rem 1.5rem; border: 1.5px solid var(--accent); color: var(--accent); transition: background var(--motion-duration-short) var(--motion-ease-standard), transform var(--motion-duration-medium) var(--motion-ease-standard); }
 .post-cta a:hover { background: var(--accent-soft); transform: translateY(-1px); }
 .post-cta a.primary { background: var(--accent); color: #fff; }
 .post-cta a.primary:hover { background: #1d4fd8; }
 
-/* Chinese: its own spacing (no tightened letters), a caption's own words, the remembered lines in a serif */
-html:lang(zh) .post-hero h1 { letter-spacing: 0.01em; line-height: 1.2; }
-html:lang(zh) article h2 { letter-spacing: 0.01em; }
-html:lang(zh) article p { line-height: 1.95; }
+/* Chinese: PingFang first in the text, as Seed's Chinese pages set it (a Latin word in a Chinese line then matches it),
+   no tightened letters, a little more leading, a caption's own words */
+html:lang(zh) body { font-family: 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif; }
+html:lang(zh) .post-hero h1 { letter-spacing: 0.01em; line-height: 1.15; }
+html:lang(zh) :is(article h2, .stats dd, .lore blockquote, .cite h3) { letter-spacing: 0.01em; }
+html:lang(zh) article p { line-height: 1.85; }
 html:lang(zh) .figure .caption::before { content: "图 " counter(figure) "："; }
-html:lang(zh) .lore blockquote { font-family: var(--serif-zh); letter-spacing: 0.04em; }
 
 @media (max-width: 760px) {
-    .post-hero { min-height: 70vh; padding: calc(var(--nav-h) + 4rem) 0 2.75rem; }
+    .post-hero { min-height: 88svh; padding: calc(var(--nav-h) + 4rem) 0 2.25rem; }
+    .pill { padding: 0.65rem 1rem; font-size: 0.95rem; }
     .principles, .stats { grid-template-columns: minmax(0, 1fr); }
     .lore { padding: 1.6rem 1.4rem 1.75rem; }
     .lore blockquote { font-size: 1.12rem; }
