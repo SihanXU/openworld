@@ -3,7 +3,8 @@
 shoulders, the yellow five-petal flower in her hair. Not redrawn: her face is the portrait's, so it is the same beauty
 the dialogue and her panel show. Brought down in 5x5 blocks (each the block's mean, but her eyes' line art kept where a
 block holds a lash), its colours to an adaptive palette of 48 with no dither, the flower held to its own three yellows,
-a short line for her mouth, a glint in each eye; her wing behind her taken out. Two faces: calm, and shy (a blush, eyes open, mouth shut) for the button under the pointer.
+a short line for her mouth, a glint in each eye; her wing behind her taken out. Two faces: calm, and for the button
+under the pointer the same face with a faint smile (the line's ends lifted a pixel; no blush).
 
     python games/openworld/tools/src/art/lumi-icon.py [preview-dir]
 
@@ -177,8 +178,9 @@ FACE_LINES = ((160, 118, 204, 150), (221, 118, 265, 150))
 FLOWER_AT = (130, 90, 34)
 
 
-def portrait(mood: str) -> Image.Image:
-    """Her bust brought down to the ring's inside, its own colours kept (an adaptive palette), no dither: pixels."""
+def portrait(mood: str, smile: bool = False) -> Image.Image:
+    """Her bust brought down to the ring's inside, its own colours kept (an adaptive palette), no dither: pixels; `smile`: the
+    mouth's ends lifted a pixel."""
     from PIL import ImageDraw, ImageEnhance, ImageFilter
     im = Image.open(os.path.join(PORTRAITS, f"{mood}.webp")).convert("RGBA")
     a = np.array(im).astype(np.float32)
@@ -236,11 +238,15 @@ def portrait(mood: str) -> Image.Image:
     tones = np.array([PAL["g"][:3], PAL["G"][:3], PAL["c"][:3], PAL["f"][:3]], np.int32)
     d = ((sm[..., None, :3] - tones[None, None]) ** 2).sum(-1)
     fl[yellow, :3] = tones[d.argmin(-1)][yellow]
-    # her mouth: a short soft line where it is (the bust's own is too fine to come down)
+    # her mouth: a short soft line where it is (the bust's own is too fine to come down); smiling, its ends a pixel up
     mx, my = MOUTH
     y = int((my - CROP[1]) * k)
-    for x in (int((mx - CROP[0]) * k) - 1, int((mx - CROP[0]) * k)):
+    x0 = int((mx - CROP[0]) * k)
+    for x in (x0 - 1, x0):
         fl[y, x, :3] = (204, 120, 140)
+    if smile:
+        for x in (x0 - 2, x0 + 1):
+            fl[y - 1, x, :3] = (214, 136, 152)
     # a glint in each eye, at the top of the iris toward the light (the bust's own are too small to come down)
     if "blink" not in mood:
         for cx, cy, _, _ in EYES:
@@ -254,9 +260,9 @@ def portrait(mood: str) -> Image.Image:
     return flat
 
 
-def her(mood: str) -> tuple[np.ndarray, np.ndarray]:
+def her(mood: str, smile: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """Her pixels on the badge's canvas (RGBA), and where she is."""
-    p = portrait(mood)
+    p = portrait(mood, smile)
     layer = Image.new("RGBA", (N, N), (0, 0, 0, 0))
     ox = round(CX - p.width / 2)
     oy = round(CY - p.height / 2)
@@ -270,7 +276,7 @@ def compose(happy: bool) -> Image.Image:
     badge(cv)
     base = cv.png()
     out = np.array(base)
-    rgba, solid = her("shy" if happy else "neutral")
+    rgba, solid = her("neutral", smile=happy)
     inside = ring(R_IN)
     # her crown and the flower break out over the ring's top (her pixels there, above its middle, that are hair or petal)
     r, g, b = rgba[..., 0].astype(int), rgba[..., 1].astype(int), rgba[..., 2].astype(int)
