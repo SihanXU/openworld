@@ -2121,7 +2121,9 @@ export class WorldScene extends Phaser.Scene {
     const map = this.base
     const light = (map.light ?? 'outdoor') as 'outdoor' | 'indoor' | 'dark'
     // the hour and the weather first: a new map's music is chosen for them, not for the map before
-    a.music.setMoment({ hour: f.hour, dusk: f.night.dusk, dawn: f.night.dawn, weather: this.weather })
+    // Music follows the world's weather even under a roof: a shop sharing its square's cue keeps playing it.
+    // The ambience and rain drawn on screen still use this.weather (clear indoors).
+    a.music.setMoment({ hour: f.hour, dusk: f.night.dusk, dawn: f.night.dawn, weather: f.calendar.weather })
     a.music.setPlace(map.music, light)
     a.music.setFight(!!f.player.fighting)
     a.music.setScene(f.scene?.music)

@@ -266,7 +266,7 @@ function buildMeadow(): MapBuilder {
   // (60 x 40 since 2026-10-11; redrawn to the showcase's standard on 2026-10-26, docs/release-1.md §3: the ground laid in
   // code — the woods round it, the square before the chapel, the east road from the Ford and the lanes north, west and
   // south, the pond — the village's own buildings on it. What stands on it is placed here and in village.ts.)
-  const m = new MapBuilder(FIRSTLIGHT.map, FIRSTLIGHT.name, 'village', 60, 40, 'grass', 'village', 'outdoor', 'frostfang')
+  const m = new MapBuilder(FIRSTLIGHT.map, FIRSTLIGHT.name, 'village', 60, 40, 'grass', 'firstlight', 'outdoor', 'frostfang')
   firstlightGround(m)
   // the houses with their doors (every one has a room behind it: village.ts), their yards and what the village uses
   villageTown(m)
