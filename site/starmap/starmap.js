@@ -74,7 +74,7 @@ async function loadClips(ids) {
   await Promise.all(ids.map((id) => {
     const info = clipsInfo[id]
     if (!info || clipFrames[id]) return
-    clipFrames[id] = Array.from({ length: info.frames }, (_, n) => { const im = new Image(); im.src = `clips/${id}/${String(n + 1).padStart(3, '0')}.jpg`; return im })
+    clipFrames[id] = Array.from({ length: info.frames }, (_, n) => { const im = new Image(); im.src = `clips/${id}/${String(n + 1).padStart(3, '0')}.webp`; return im })
     return Promise.all(clipFrames[id].map((im) => im.decode().catch(() => {})))
   }))
 }

@@ -21,7 +21,7 @@ for (const s of shots) {
   const [ow, oh] = LARGE.has(s.id) ? [640, 360] : [320, 180]
   // the middle half of the picture, both ways
   const vf = `crop=${w / 2}:${h / 2}:${w / 4}:${h / 4},scale=${ow}:${oh}:flags=lanczos`
-  const r = spawnSync('ffmpeg', ['-v', 'error', '-y', '-start_number', String(s.start), '-i', join(FROM, 'frames', '%05d.png'), '-frames:v', String(s.frames), '-vf', vf, '-q:v', LARGE.has(s.id) ? '4' : '5', join(dir, '%03d.jpg')], { stdio: 'inherit' })
+  const r = spawnSync('ffmpeg', ['-v', 'error', '-y', '-start_number', String(s.start), '-i', join(FROM, 'frames', '%05d.png'), '-frames:v', String(s.frames), '-vf', vf, '-c:v', 'libwebp', '-quality', '80', join(dir, '%03d.webp')], { stdio: 'inherit' })
   if (r.status !== 0) process.exit(1)
   list[s.id] = { frames: s.frames, fps, w: ow, h: oh }
 }

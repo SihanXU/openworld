@@ -22,7 +22,7 @@ const load = (src) => new Promise((res) => { const im = new Image(); im.onload =
 const clipsInfo = await fetch('clips/clips.json').then((r) => r.json())
 const CLIP = {}
 async function loadClips(ids) {
-  await Promise.all(ids.map(async (id) => { CLIP[id] = await Promise.all(Array.from({ length: clipsInfo[id].frames }, (_, n) => load(`clips/${id}/${String(n + 1).padStart(3, '0')}.jpg`))) }))
+  await Promise.all(ids.map(async (id) => { CLIP[id] = await Promise.all(Array.from({ length: clipsInfo[id].frames }, (_, n) => load(`clips/${id}/${String(n + 1).padStart(3, '0')}.webp`))) }))
 }
 // each language its own recording (the game in that language: the maker's words, the thing's name, its picture)
 const TALK = L('talk-en', 'talk'), USE = L('use-en', 'use')
