@@ -50,6 +50,20 @@ export class ModelSection {
     }
   }
 
+  /** A key is kept for this very service (the one chosen now). */
+  private keptFor(d: Draft): boolean {
+    const s = this.own.status
+    return !!s?.keyHint && s.choice?.provider === d.provider && (s.choice.baseUrl ?? '') === d.baseUrl.trim()
+  }
+
+  /** What the form lacks before a model can be asked: a key (unless the service needs none, or one is kept), a model. */
+  private missing(d: Draft, what: 'use' | 'test' | 'models'): string | undefined {
+    const p = providerOf(d.provider)
+    if (!p?.keyless && !d.key.trim() && !this.keptFor(d)) return t('aiNeedKey').replace('{service}', p?.name ?? d.provider)
+    if (what !== 'models' && !d.model.trim()) return t('aiNeedModel')
+    return undefined
+  }
+
   private choice(d: Draft): ModelChoice {
     return { provider: d.provider, model: d.model.trim(), ...(d.baseUrl.trim() && { baseUrl: d.baseUrl.trim() }) }
   }
@@ -60,7 +74,7 @@ export class ModelSection {
     const s = this.own.status
     const p = providerOf(d.provider)
     // the kept key is shown only for the service it was kept for
-    const keptHere = s?.keyHint && s.choice?.provider === d.provider && (s.choice.baseUrl ?? '') === d.baseUrl.trim()
+    const keptHere = this.keptFor(d)
     const options = (ai?.providers ?? []).map((x) => `<option value="${x.id}" ${x.id === d.provider ? 'selected' : ''}>${esc(x.id === 'custom' ? t('aiCustomProvider') : x.name)}</option>`).join('')
     const getKey = p?.keys ? ` <a href="${esc(p.keys)}" target="_blank" rel="noopener noreferrer">${t('aiGetKey')}</a>` : ''
     const list = this.models.length ? `<datalist id="aiOwnModels">${this.models.map((m) => `<option value="${esc(m)}"></option>`).join('')}</datalist>` : ''
@@ -122,6 +136,11 @@ export class ModelSection {
     })
     act('use', () => {
       const f = d()
+      const lacks = this.missing(f, 'use')
+      if (lacks) {
+        this.said = { ok: false, text: lacks }
+        return this.redraw()
+      }
       this.own.set(this.choice(f), f.key.trim() || undefined, f.remember, Number(f.cap) || 0)
       // the key is the modder's now: not kept on the page
       this.draft = undefined
@@ -141,6 +160,11 @@ export class ModelSection {
 
   private async run(what: 'test' | 'models'): Promise<void> {
     const f = (this.draft ??= this.form())
+    const lacks = this.missing(f, what)
+    if (lacks) {
+      this.said = { ok: false, text: lacks }
+      return this.redraw()
+    }
     this.busy = what
     this.said = undefined
     this.redraw()
@@ -151,17 +175,21 @@ export class ModelSection {
         this.said = { ok: true, text: t('aiModelsFound').replace('{n}', String(this.models.length)) }
       } else {
         const r = v as { ok: true; ms: number } | { ok: false; error: string }
-        this.said = r.ok ? { ok: true, text: t('aiTestOk').replace('{s}', (r.ms / 1000).toFixed(1)) } : { ok: false, text: hint(r.error) }
+        this.said = r.ok ? { ok: true, text: t('aiTestOk').replace('{s}', (r.ms / 1000).toFixed(1)) } : { ok: false, text: hint(r.error, f.model) }
       }
     } catch (err) {
-      this.said = { ok: false, text: hint((err as Error).message) }
+      this.said = { ok: false, text: hint((err as Error).message, f.model) }
     }
     this.busy = undefined
     this.redraw()
   }
 }
 
-/** A failure as the player can act on it: a browser that could not reach the service at all is said plainly. */
-function hint(error: string): string {
-  return /failed to fetch|networkerror|load failed|cors/i.test(error) ? `${t('aiUnreachable')} (${error})` : error
+/** A failure as the player can act on it: a service it could not reach, a key refused, a model it has not, said
+ *  plainly, with what the service said after. */
+function hint(error: string, model: string): string {
+  if (/failed to fetch|networkerror|load failed|cors/i.test(error)) return `${t('aiUnreachable')} (${error})`
+  if (/HTTP 40[13]|authentication|api key|auth credentials/i.test(error)) return `${t('aiKeyRefused')} (${error})`
+  if (/HTTP 404|not[_ ]found|does not exist|no such model|invalid model/i.test(error)) return `${t('aiNoSuchModel').replace('{model}', model.trim())} (${error})`
+  return error
 }
