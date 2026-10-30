@@ -663,7 +663,7 @@ export class Hud {
     this.questionOpen = !!q
     if (!q) {
       if (!this.sceneDialog && !$('#dChoices').classList.contains('hidden')) $('#dialog').classList.add('hidden')
-      return
+      return this.lift(false)
     }
     this.qChoice = 0
     $('#dFace').classList.add('hidden')
@@ -680,8 +680,27 @@ export class Hud {
     }
     this.typedAll = true
     this.renderChoices()
+    this.lift(true)
     $('#dialog').classList.remove('hidden')
   }
+
+  /** A question is asked over whatever window is open (a chest one takes from, a shop): the box leaves the HUD,
+   *  whose page is one layer under every window, for a layer of its own over them, and comes back once answered. */
+  private lift(on: boolean): void {
+    const box = $('#dialog')
+    if (on && !this.dialogHome) {
+      this.dialogHome = document.createComment('dialog')
+      box.before(this.dialogHome)
+      let layer = document.querySelector<HTMLElement>('.ask-layer')
+      if (!layer) document.body.append((layer = Object.assign(document.createElement('div'), { className: 'ask-layer' })))
+      layer.append(box)
+    } else if (!on && this.dialogHome) {
+      this.dialogHome.replaceWith(box)
+      this.dialogHome = undefined
+    }
+  }
+  /** Where the box stands in the HUD while a question has it over the windows. */
+  private dialogHome?: Comment
 
   private renderChoices(): void {
     const ch = $('#dChoices')
@@ -704,6 +723,7 @@ export class Hud {
     if (!this.questionOpen) return
     this.questionOpen = false
     $('#dialog').classList.add('hidden')
+    this.lift(false)
     this.send.answer(yes)
   }
 
