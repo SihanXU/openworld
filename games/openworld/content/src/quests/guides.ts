@@ -1,7 +1,8 @@
 // The fairy's guides (docs/quests.md §3, the guides): quests of the kind `guide`, each teaching one of the game's
-// systems the clearing did not — the skill tree, the professions, fishing, the garden. Lumi begins them herself:
-// a beat of the story notices the moment (a skill point unspent, level five without a profession, the first steps
-// onto the pond's bank or into the garden) and the quest answers it, as the main line answers the story's steps;
+// systems the clearing did not — the skill tree, the professions, fishing, the garden, an offering laid on a shrine.
+// Lumi begins them herself: a beat of the story notices the moment (a skill point unspent, level five without a
+// profession, the first steps onto the pond's bank, into the garden, onto the Pilgrim's Road after the oath) and the
+// quest answers it, as the main line answers the story's steps;
 // she tells the player in her own words (the stages' lines are hers, `by: 'pip'`) and her panel shows them beside
 // the main road. Every objective is a state of the world (what is carried, a crop standing, a status, a word with
 // the trainer), never a path.
@@ -9,6 +10,7 @@
 import type { QuestDef, StepDef } from '@openworld/engine'
 import { L } from './kit.ts'
 import { FIRSTLIGHT } from '../firstlight.ts'
+import { PILGRIMAGE, WAYSHRINES, shrineFact } from '../pilgrimage.ts'
 
 /** The companion's id (tools/src/demo/world.ts): the one who speaks the guides' lines. */
 export const LUMI_ID = 'pip'
@@ -204,4 +206,50 @@ const farm: QuestDef = {
   start: { auto: { all: [{ enter: GARDEN }, { quest: IN_GAME }] } },
 }
 
-export const GUIDE_QUESTS: QuestDef[] = [skill, profession, fish, farm]
+/** Each wayside shrine as the demo places it (tools/src/demo/quest/pilgrimage.ts): the guide's markers. */
+const shrineAlias = (id: string) => `shrine_${id}`
+const LIT = Object.fromEntries(WAYSHRINES.map((s) => [shrineFact(s.id), 1]))
+
+const shrines: QuestDef = {
+  id: 'guide_shrines',
+  kind: 'guide',
+  title: L('Offerings on the Road', '路边的供品'),
+  summary: L('Five wayside shrines stand along the Pilgrim\'s Road, one for each of the Five Sufferings, each on its square of flagstones. Hold what a shrine asks, face it and put it down ({key:put}): it takes the offering and lights. The words cut on it ({key:hands}) say what it asks.', '朝圣者之路上立着五座路边圣龛，五苦各一座，每座都立在一小块石板地上。拿着它要的东西，面对它放下（{key:put}），它就收下供品亮起来。石上刻的字（{key:hands}）写着它要什么。'),
+  aliases: { pip: { id: LUMI_ID }, ...Object.fromEntries(WAYSHRINES.map((s) => [shrineAlias(s.id), { id: `way.shrine.${s.id}` }])) },
+  objectives: WAYSHRINES.map((s) => ({
+    id: s.id,
+    text: L(`Lay ${s.asks.en} on the ${s.name.en} (hold it, face the shrine, {key:put})`, `给${s.name.zh}献上${s.asks.zh}（拿在手上，面对圣龛按 {key:put}）`),
+    target: shrineAlias(s.id),
+    on: { fact: { [shrineFact(s.id)]: 1 } },
+  })),
+  stages: [
+    {
+      n: 10,
+      show: WAYSHRINES.map((s) => s.id),
+      say: L('See the dark stone on the flagstones by the road? That\'s one of the shrines the priest talked about! Each one asks for something different; read the carving ({key:hands}) and it tells you. Hold what it asks, face the shrine and put it down ({key:put}). I\'ll mark all five for you.', '看见路边石板地上那块深色的石头了吗？那就是司铎说的圣龛！每座要的东西不一样，读一读上面刻的字（{key:hands}）就知道了。把它要的东西拿在手上，面对圣龛放下（{key:put}）。五座我都给你标出来了。'),
+      by: 'pip',
+      hint: L('The five shrines, west to east: the Crown asks for something worn on the head (a hat, a hood, a helmet); the Pillar a rope or a cord (cut grass will do); the Scales something to eat; the Nails something made of metal (iron ore will do); the Lance a torch or a candle. The road itself holds one of each: a pilgrim\'s hat, a plaited cord, a loaf in the abandoned cart, a dented helm and a candle ({key:hands} picks them up). Hold the offering, face the shrine and press {key:put}. It will not take a relic, a keepsake, or anything that matters most.', '五座圣龛从西往东：荆棘冠之龛要戴在头上的（帽子、兜帽、头盔）；鞭刑柱之龛要一根绳索（干草也行）；饥刑之秤之龛要一样吃的；钉刑圣木之龛要金属的东西（铁矿石也行）；穿心圣枪之龛要火把或蜡烛。这条路上就各有一样：朝圣者的帽子、苦修者编的草绳、被丢下的推车里的面包、一顶凹陷的头盔、一支蜡烛（按 {key:hands} 捡起来）。拿着供品，面对圣龛按 {key:put}。遗物、纪念品和最要紧的东西，它不收。'),
+      log: L('Five shrines along the Pilgrim\'s Road, each asking its own offering. Lumi marked them for me.', '朝圣者之路上有五座圣龛，各要一样供品。露米替我标出来了。'),
+    },
+    {
+      n: 20,
+      on: { any: WAYSHRINES.map((s) => ({ fact: { [shrineFact(s.id)]: 1 } })) },
+      say: L('It lit! See the little light in the carving? The others work the same way. Pilgrims left things all along this road; what the others ask for is lying about if you look.', '亮了！看见刻痕里那点小光了吗？别的几座也是这样。以前的朝圣者在这条路上丢下了不少东西，别的几座要的，仔细找找都能捡到。'),
+      by: 'pip',
+      hint: L('Hold the offering, face the shrine and press {key:put}. A shrine that asks for something else says what it wants. The markers show the ones still dark.', '拿着供品，面对圣龛按 {key:put}。献错了，圣龛会说它要什么。标记指着还没亮的那几座。'),
+      log: L('The first shrine took my offering and lit.', '第一座圣龛收下供品，亮了。'),
+    },
+    {
+      n: 100,
+      on: { fact: LIT },
+      done: WAYSHRINES.map((s) => s.id),
+      complete: true,
+      reward: { xp: 15 },
+      log: L('All five shrines took their offerings.', '五座圣龛都收下了供品。'),
+    },
+  ],
+  // after the oath, the first steps onto the road while a shrine is still dark
+  start: { auto: { all: [{ enter: 'pilgrimway' }, { quest: { first_seal: { gte: 50 } } }, { fact: { [PILGRIMAGE.shrines]: 0 } }, { quest: IN_GAME }] } },
+}
+
+export const GUIDE_QUESTS: QuestDef[] = [skill, profession, fish, farm, shrines]
