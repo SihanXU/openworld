@@ -23,23 +23,12 @@ does not show this; it is a paper thread.
 
 - The game runs on its own. When an interaction **is** defined, no AI is involved.
 - The one AI interface is **the outcome of an event** (§5.4). When an outcome is
-  **undefined**, the engine raises it through the **Mod port**; a modder (an LLM service
-  descended from BardOS) returns a **patch** — a type-level rule that fills that hole — which
+  **undefined**, the engine raises it through the **Mod port**; a modder (an LLM service)
+  returns a **patch** — a type-level rule that fills that hole — which
   the engine validates, applies immediately, and keeps forever. Without a modder, nothing
   happens and the game plays on.
 - The subject is the **world**, not agents. NPCs are world content with their own behaviour,
   as in any game; no LLM runs in the per-frame loop.
-
-Predecessor: **BardOS** (`C:\Users\chica\文字游戏`) — a text RPG engine (Loom) plus an
-engine-agnostic LLM modder speaking an `event + context + ModSpec → artifacts`
-contract. We keep that contract and its three-layer discipline. What changes:
-
-| | BardOS | Large Symbolic World |
-|---|---|---|
-| What the AI writes | content (scripts, entities) | **rules** (mechanics) as well as content |
-| Form | text feed | 2D tile world, real-time |
-| Scale | 31 locations / 41 NPCs / 25 items | dozens of maps / thousands of NPCs / tens of thousands of items |
-| Delivery | local dev servers | public static web page + one API service |
 
 ## 2. Locked decisions
 
@@ -61,7 +50,7 @@ contract. We keep that contract and its three-layer discipline. What changes:
 
 ## 3. Architecture
 
-Strict dependency direction, as in BardOS:
+Strict dependency direction:
 
 ```
 client (Phaser + UI)  ──▶  engine (pure TS, in a Worker)  ──Mod port──▶  modder (HTTP service)
@@ -85,7 +74,7 @@ packages/
   client/     Phaser app + UI; boots the engine Worker; Vite build → static site
   content/    ontology, items, NPCs, base rule library, the Ford's story and invariants
   tools/      the map builder and the hand-made maps, the project's own art, coverage, curriculum
-  modder/     the modder service, descended from BardOS: pipeline, shared library, self-state (§13)
+  modder/     the modder service: pipeline, shared library, self-state (§13)
 docs/
 ```
 
@@ -1020,9 +1009,6 @@ Sources:
 - Minecraft: [chunk loading and lazy chunks](https://ggservers.com/knowledgebase/article/chunk-loading-and-lazy-chunks-in-minecraft-java-edition/);
   [spawn chunks](https://minecraft.fandom.com/wiki/Spawn_chunk).
 - RimWorld: [Caravan](https://rimworldwiki.com/wiki/Caravan).
-- BardOS: `docs/overview.md`, `demo/loom/src/interact.ts` (free action, conversation,
-  examine/trigger, ambient arrival, opening), `demo/loom/docs/quests.md` (the stage
-  invariant).
 
 ### 5.16 Learned rules take one leaf (2026-10-09)
 

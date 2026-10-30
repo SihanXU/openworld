@@ -1,7 +1,7 @@
 # CLAUDE.md — OpenWorld (paper: Large Symbolic World)
 
 A web-playable 2D JRPG world whose state and rules are code; an LLM modder (later)
-patches undefined interactions at runtime. Successor to BardOS (`C:\Users\chica\文字游戏`).
+patches undefined interactions at runtime.
 Story and world: [docs/lore.md](docs/lore.md) (the user's canonical setting: the Five Sufferings, the
 First Night, the five Seal-bearers; every chapter follows it) and [docs/chapter-1.md](docs/chapter-1.md).
 Design: [docs/design.md](docs/design.md); the AI side at a glance (what runs where, who checks what, which file does which job): [docs/ai.md](docs/ai.md); the key people's own portraits and event CGs (release 1's cast of seven, each designed to a sheet; the CGs drawn as shots): [docs/character-art.md](docs/character-art.md), [docs/cast/](docs/cast/); the agreed world model and base gameplay (not yet built,

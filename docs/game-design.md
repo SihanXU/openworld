@@ -165,7 +165,7 @@ goes on after it.
 
 ## 7. Content that must stay playable (invariants)
 
-BardOS's stage invariant, as data (`content/src/ford.ts`): while `when` holds, `holds` must hold.
+A stage invariant, as data (`content/src/ford.ts`): while `when` holds, `holds` must hold.
 If state breaks one, the world raises `invalid` for the modder; with no answer, the fallback
 keeps the Ford winnable.
 
