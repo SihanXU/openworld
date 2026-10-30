@@ -207,9 +207,10 @@ describe('research in the actual game', () => {
       caught = err
     }
     expect((caught as ResearchProblem).code).toBe('cheap')
-    const made = trialResearch(eng, new ModPort(eng), blade([{ type: 'item/material/log', count: 10 }]), 'item/weapon/blade/invention_l')
+    const made = trialResearch(eng, new ModPort(eng), blade([{ type: 'item/material/log', count: 4 }]), 'item/weapon/blade/invention_l')
     const weapons = Object.keys(eng.world.onto.data.types).filter((k) => k.startsWith('item/weapon/') && !k.includes('invention')).map((k) => eng.world.onto.resolve(k)).filter((r) => !r.tags.includes('quality:legendary') && r.props.relic === undefined)
-    expect(made.props?.power).toBe(Math.max(...weapons.filter((r) => Number(r.props.value) <= 20).map((r) => Number(r.props.power) || 0)))
+    const cost = 4 * Number(eng.world.onto.resolve('item/material/log').props.value)
+    expect(made.props?.power).toBe(Math.max(...weapons.filter((r) => Number(r.props.value) <= cost).map((r) => Number(r.props.power) || 0)))
     expect(made.props?.power).toBeLessThan(Math.max(...weapons.map((r) => Number(r.props.power) || 0)))
     // nor, from any amount, a legend's numbers or a relic's name
     const legend = trialResearch(eng, new ModPort(eng), newDesign({ id: 'item/weapon/blade/log_legend', name: { en: 'Log Legend', zh: '原木传奇' }, props: { power: 99, material: 'wood' }, makeup: [{ type: 'item/material/log', count: 30 }], station: 'hands' }), 'item/weapon/blade/invention_g')
@@ -241,16 +242,16 @@ describe('research in the actual game', () => {
     const copy = newDesign({ id: 'item/weapon/blade/dragonsbane/log_copy', name: { en: 'Log Copy', zh: '原木复制' }, props: { material: 'wood' }, makeup: [{ type: 'item/material/log', count: 20 }], station: 'hands' })
     expect(() => trialResearch(eng, new ModPort(eng), copy, 'item/weapon/blade/dragonsbane/invention_c')).toThrow(/ordinary family/)
     expect(eng.controls.count('item/material/log')).toBe(30)
-    // a sword of four logs: the sword's own power, above what four logs buy among weapons, is held down too
+    // a halberd of four logs: the halberd's own power, above what four logs buy among weapons, is held down too
     const eng2 = smithy()
     const onto = eng2.world.onto
-    const sword = newDesign({ id: 'item/weapon/blade/sword/log_sword', name: { en: 'Log Sword', zh: '原木剑' }, props: { material: 'wood' }, makeup: [{ type: 'item/material/log', count: 4 }], station: 'hands' })
-    const made = trialResearch(eng2, new ModPort(eng2), sword, 'item/weapon/blade/sword/invention_i')
+    const halberd = newDesign({ id: 'item/weapon/polearm/halberd/log_halberd', name: { en: 'Log Halberd', zh: '原木长戟' }, props: { material: 'wood' }, makeup: [{ type: 'item/material/log', count: 4 }], station: 'hands' })
+    const made = trialResearch(eng2, new ModPort(eng2), halberd, 'item/weapon/polearm/halberd/invention_i')
     const cost = 4 * Number(onto.resolve('item/material/log').props.value)
     const kin = Object.keys(onto.data.types).filter((k) => k.startsWith('item/weapon/') && !k.includes('invention')).map((k) => onto.resolve(k)).filter((r) => !r.tags.includes('quality:legendary') && r.props.relic === undefined && Number(r.props.value) <= cost)
     const resolved = onto.resolve(made.id).props
     expect(Number(resolved.power)).toBeLessThanOrEqual(Math.max(...kin.map((r) => Number(r.props.power) || 0)))
-    expect(Number(resolved.power)).toBeLessThan(Number(onto.resolve('item/weapon/blade/sword').props.power))
+    expect(Number(resolved.power)).toBeLessThan(Number(onto.resolve('item/weapon/polearm/halberd').props.power))
     expect(Number(resolved.value)).toBeLessThanOrEqual(cost)
   })
 
