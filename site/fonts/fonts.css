@@ -1,0 +1,4 @@
+/* Pixelify Sans (SIL OFL 1.1, OFL.txt), the Latin subset, served with the page: Google's fonts are slow or
+   out of reach from mainland China, and a stylesheet that never answers holds the whole page back. */
+@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 400; font-display: block; src: url(pixelify-sans-400.woff2) format('woff2'); }
+@font-face { font-family: 'Pixelify Sans'; font-style: normal; font-weight: 600; font-display: block; src: url(pixelify-sans-600.woff2) format('woff2'); }

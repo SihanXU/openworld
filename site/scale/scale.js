@@ -74,7 +74,7 @@ const load = (src) => new Promise((res) => { const im = new Image(); im.onload =
 const bitmap = async (src) => { const im = await load(src); try { return await createImageBitmap(im) } catch { return im } }
 const json = (src) => fetch(src).then((r) => r.json())
 const [mapsInfo, peopleInfo, facesInfo, itemsInfo, clipsInfo] = await Promise.all(['assets/maps.json', 'assets/people.json', 'assets/faces.json', 'assets/items.json', 'assets/clips/clips.json'].map(json))
-const [MAPS, BIG, PEOPLE, FACES, ITEMS, LEAD] = await Promise.all(['assets/maps.jpg', 'assets/big.jpg', 'assets/people.png', 'assets/faces.png', 'assets/items.png', 'assets/lead.png'].map(bitmap))
+const [MAPS, BIG, PEOPLE, FACES, ITEMS, LEAD] = await Promise.all(['assets/maps.webp', 'assets/big.webp', 'assets/people.webp', 'assets/faces.webp', 'assets/items.webp', 'assets/lead.webp'].map(bitmap))
 /** The scenes in the order the mosaic takes them up (site/scale/clips.mjs): the first 64 a sheet each, the rest 32 to a
  *  sheet. The sheets load and are decoded in that order, the first levels' before the deep ones', from the start of
  *  the film: all of them are ready long before the scenes come. */

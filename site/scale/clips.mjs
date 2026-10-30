@@ -1,12 +1,12 @@
 // The scale film's scenes, 1,024 of them, cut from the stage's frames (site/scale/gen/main.ts made the list, every
 // window unlike the others as drawn), none like another nor a view of the same (likeness.mjs, views.mjs):
 //   the first 64, the scenes act's large ones (?film=scale-hero; export.mjs --every 2 --clip-w 960 --out
-//   var/scale/hero), half a second to a second at 15 frames a second, one sheet each (assets/clips/<n>.jpg) about the
+//   var/scale/hero), half a second to a second at 15 frames a second, one sheet each (assets/clips/<n>.webp) about the
 //   size its window is when it is largest: the one the film opens on large, the three it splits into and the twelve
 //   after smaller, the next forty-eight smaller still;
 //   the other 960 (?film=scale-scenes; --every 3 --clip-w 240, in parts, into var/scale/scenes/<part>), four frames
 //   each played at 8 a second: 112 x 63 for the 256 level's windows, 64 x 36 for the 1,024's, 32 to a sheet
-//   (assets/clips/deep-<n>.jpg, a clip a row), their sorts — the places, their seasons and festivals, the halls, the
+//   (assets/clips/deep-<n>.webp, a clip a row), their sorts — the places, their seasons and festivals, the halls, the
 //   halls made anew — spread through the order so every level holds them all.
 // clips.json says which, in the film's order.  node site/scale/clips.mjs
 import { spawnSync } from 'node:child_process'
@@ -49,8 +49,8 @@ for (const s of JSON.parse(readFileSync(join(HERO, 'cues.json'), 'utf8')).shots)
   const sig = signature(all[Math.floor(all.length / 2)]), view = viewOf(e)
   if (taken.some((t) => alike(t, sig)) || views.some((v) => sameView(v, view))) continue
   const k = list.length, [w, h] = size(k), fs = all.slice(0, framesFor(k)), cols = 4, rows = Math.ceil(fs.length / cols)
-  ffmpeg(['-f', 'concat', '-safe', '0', '-i', listOf(fs), '-vf', `scale=${w}:${h}:flags=lanczos,${LIFT},tile=${cols}x${rows}`, '-frames:v', '1', '-q:v', k === 0 ? '4' : k < 16 ? '6' : '5', join(OUT, `${k}.jpg`)])
-  list.push({ id: s.id, sheet: `${k}.jpg`, y: 0, frames: fs.length, fps: 15, w, h, cols, ...view })
+  ffmpeg(['-f', 'concat', '-safe', '0', '-i', listOf(fs), '-vf', `scale=${w}:${h}:flags=lanczos,${LIFT},tile=${cols}x${rows}`, '-frames:v', '1', '-c:v', 'libwebp', '-quality', '80', join(OUT, `${k}.webp`)])
+  list.push({ id: s.id, sheet: `${k}.webp`, y: 0, frames: fs.length, fps: 15, w, h, cols, ...view })
   taken.push(sig)
   views.push(view)
 }
@@ -92,8 +92,8 @@ for (const [, m] of placed) {
 if (chosen.length < COUNT - list.length) throw new Error(`only ${list.length + chosen.length} scenes`)
 const PER = 32
 for (let b = 0; b < chosen.length; b += PER) {
-  const batch = chosen.slice(b, b + PER), [w, h] = size(list.length), name = `deep-${b / PER}.jpg`
-  ffmpeg(['-reinit_filter', '0', '-f', 'concat', '-safe', '0', '-i', listOf(batch.flatMap((m) => m.frames.slice(0, N))), '-vf', `scale=${w}:${h}:flags=lanczos:eval=frame,${LIFT},tile=${N}x${batch.length}`, '-frames:v', '1', '-q:v', '6', join(OUT, name)])
+  const batch = chosen.slice(b, b + PER), [w, h] = size(list.length), name = `deep-${b / PER}.webp`
+  ffmpeg(['-reinit_filter', '0', '-f', 'concat', '-safe', '0', '-i', listOf(batch.flatMap((m) => m.frames.slice(0, N))), '-vf', `scale=${w}:${h}:flags=lanczos:eval=frame,${LIFT},tile=${N}x${batch.length}`, '-frames:v', '1', '-c:v', 'libwebp', '-quality', '80', join(OUT, name)])
   batch.forEach((m, r) => list.push({ id: m.id, sheet: name, y: r * h, frames: N, fps: 8, w, h, cols: N, ...viewOf(m.e) }))
 }
 rmSync(join(OUT, 'frames.txt'), { force: true })

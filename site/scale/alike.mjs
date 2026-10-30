@@ -1,4 +1,4 @@
-// The scale film's "no picture twice", checked on what the page shows: every map's tile cut from maps.jpg, a frame of
+// The scale film's "no picture twice", checked on what the page shows: every map's tile cut from maps.webp, a frame of
 // every scene cut from its sheet, each pair compared — how alike they look (likeness.mjs) and whether they are one view
 // of one place (views.mjs). Prints the closest pairs; fails if any are alike or one view.
 //   node site/scale/alike.mjs
@@ -11,7 +11,7 @@ const A = 'site/scale/assets'
 const maps = JSON.parse(readFileSync(join(A, 'maps.json'), 'utf8'))
 const clips = JSON.parse(readFileSync(join(A, 'clips/clips.json'), 'utf8'))
 const sigs = (items) => items.map((it) => ({ ...it, sig: signature(it.file, it.crop) }))
-const mapSigs = sigs(maps.maps.map((m, k) => ({ id: m.id, comp: m.comp, rect: m.rect, file: join(A, 'maps.jpg'), crop: [(k % maps.cols) * maps.size, Math.floor(k / maps.cols) * maps.size, maps.size, maps.size] })))
+const mapSigs = sigs(maps.maps.map((m, k) => ({ id: m.id, comp: m.comp, rect: m.rect, file: join(A, 'maps.webp'), crop: [(k % maps.cols) * maps.size, Math.floor(k / maps.cols) * maps.size, maps.size, maps.size] })))
 // the middle frame of each scene
 const clipSigs = sigs(clips.map((c) => { const f = Math.floor(c.frames / 2); return { id: c.id, comp: c.comp, rect: c.rect, file: join(A, 'clips', c.sheet), crop: [(f % c.cols) * c.w, c.y + Math.floor(f / c.cols) * c.h, c.w, c.h] } }))
 let bad = 0

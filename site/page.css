@@ -182,7 +182,7 @@ section.night { background: #05070d; color: #c9d4ea; }
 .join .ph-h { color: rgba(255,255,255,0.45); }
 
 /* A checked-in game frame stays visible when the generated poster and video are absent. */
-.hero, .join, .post .cover { background-image: url('starmap/clips/camp/001.jpg'); background-position: center; background-size: cover; image-rendering: pixelated; }
+.hero, .join, .post .cover { background-image: url('starmap/clips/camp/001.webp'); background-position: center; background-size: cover; image-rendering: pixelated; }
 
 @media (max-width: 900px) {
     .intro, .post { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
