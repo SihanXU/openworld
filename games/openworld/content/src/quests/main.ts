@@ -160,6 +160,8 @@ const firstSeal: QuestDef = {
     bank: { place: 'ford:far_bank' },
     rest: { place: 'waystation.chapel' },
     way: { place: 'pilgrimway' },
+    // each wayside shrine (the demo's): optional, as its map is seldom loaded when the quest begins; named, it is itself
+    ...Object.fromEntries(WAYSHRINES.map((w) => [`shrine_${w.id}`, { id: `way.shrine.${w.id}`, optional: true }])),
     hall: { place: 'abbey.hall' },
     keeper: { id: ABBOT_ID, optional: true },
     field: { place: 'kneelfield' },
@@ -171,7 +173,7 @@ const firstSeal: QuestDef = {
     { id: 'ilse', text: L('Ask Sister Ilse where the pilgrimage begins', '问伊尔丝修女朝圣从哪里开始'), target: 'giver', talk: true, optional: true, on: { any: [{ quest: { pilgrim: { gte: 10 } } }, { fact: { 'ford.crossed': 1 } }] } },
     { id: 'river', text: L('Cross the river at Vesper Ford', '在晚祷渡过河'), target: 'bank', on: { fact: { 'ford.crossed': 1 } } },
     { id: 'oath', text: L("Take the pilgrim's oath at the Pilgrims' Rest: kneel at the altar of the five wounds", '到朝圣者驿站立朝圣者之誓：在五伤祭坛前跪下'), target: 'rest', on: { fact: { [PILGRIMAGE.oath]: 1 } } },
-    ...WAYSHRINES.map((w, i) => ({ id: SHRINES[i], text: L(`Light the ${w.name.en} with ${w.asks.en}`, `点亮${w.name.zh}（献上${w.asks.zh}）`), target: 'way', on: { fact: { [shrineFact(w.id)]: 1 } } })),
+    ...WAYSHRINES.map((w, i) => ({ id: SHRINES[i], text: L(`Light the ${w.name.en} with ${w.asks.en}`, `点亮${w.name.zh}（献上${w.asks.zh}）`), target: [`shrine_${w.id}`, 'way'], on: { fact: { [shrineFact(w.id)]: 1 } } })),
     { id: 'writ', text: L('At the Abbey of the Thorn, north of the road, find out what became of the knight', '到大路北边的荆棘修道院，查明骑士后来怎么了'), target: 'hall', on: { fact: { [PILGRIMAGE.writ]: 1 } } },
     { id: 'seal', text: L("Take the Order's seal from its last keeper, in the abbey's crypt", '从修道院墓室里最后一位看守手中取得骑士团的印章'), target: 'keeper', on: { fact: { [PILGRIMAGE.seal]: 1 } } },
     { id: 'field', text: L('Go on east to the Kneeling Field', '继续往东，到跪石原'), target: 'field', on: { fact: { [PILGRIMAGE.field]: 1 } } },
