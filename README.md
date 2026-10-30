@@ -10,6 +10,8 @@ on. Everything in the world follows rules written as data. When a player tries s
 language model can propose a new rule, which the engine validates before applying it. The game is fully playable
 without a model.
 
+**Play it at [openworldrpg.ai](https://openworldrpg.ai/play/)** · [project page](https://openworldrpg.ai/)
+
 <table>
   <tr>
     <td width="33%"><img src="docs/figures/readme/north-gate.webp" alt="A fortified city gate with a moat"></td>
@@ -229,7 +231,7 @@ If you use OpenWorld in your research, please cite:
   title        = {OpenWorld: A Large Symbolic World},
   author       = {{OpenWorld Team}},
   year         = {2026},
-  howpublished = {\url{https://sihanxu.me/openworld/}}
+  howpublished = {\url{https://openworldrpg.ai/}}
 }
 ```
 
