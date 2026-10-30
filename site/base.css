@@ -119,13 +119,12 @@ img { display: block; max-width: 100%; }
 .wl-roles label { font-size: 0.85rem; color: var(--muted); border: 1px solid #dcdfe3; border-radius: 999px; padding: 0.15rem 0.75rem; cursor: pointer; user-select: none; transition: color var(--motion-duration-short) var(--motion-ease-standard), border-color var(--motion-duration-short) var(--motion-ease-standard), background var(--motion-duration-short) var(--motion-ease-standard); }
 .wl-roles input { display: none; }
 .wl-roles input:checked + label { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
-.wl-note { font-size: 0.8rem; color: var(--faint); margin-top: 0.6rem; }
 .wl-done { display: none; font-weight: 500; color: var(--ink); padding: 0.7rem 0; }
 .wl-error { display: none; font-size: 0.85rem; color: #e5484d; margin-top: 0.6rem; }
 .wl.failed .wl-error { display: block; }
 .wl-hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 .wl button:disabled { opacity: 0.6; cursor: default; transform: none; }
-.wl.sent .wl-row, .wl.sent .wl-roles, .wl.sent .wl-note { display: none; }
+.wl.sent .wl-row, .wl.sent .wl-roles { display: none; }
 .wl.sent .wl-done { display: block; }
 
 /* pulse bar */
