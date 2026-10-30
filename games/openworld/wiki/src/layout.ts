@@ -75,7 +75,7 @@ ${p.other ? `<link rel="alternate" hreflang="${en ? 'zh' : 'en'}" href="${p.othe
 <aside class="sidebar" id="sidebar">
   <a class="logo" href="${home}"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>${L('中文维基', 'Wiki')}</small></span></a>
   ${side}
-  <nav class="portlet"><h3>${L('游戏', 'Game')}</h3><ul><li><a href="/">${L('开始游戏', 'Play the game')}</a></li><li><a href="https://github.com/${repo}">${L('GitHub 仓库', 'GitHub repository')}</a></li><li><a href="${otherHref}" hreflang="${en ? 'zh' : 'en'}">${en ? '中文维基' : 'English wiki'}</a></li></ul></nav>
+  <nav class="portlet"><h3>${L('游戏', 'Game')}</h3><ul><li><a href="/play/">${L('开始游戏', 'Play the game')}</a></li><li><a href="https://github.com/${repo}">${L('GitHub 仓库', 'GitHub repository')}</a></li><li><a href="${otherHref}" hreflang="${en ? 'zh' : 'en'}">${en ? '中文维基' : 'English wiki'}</a></li></ul></nav>
 </aside>
 <div class="main">
 <header class="topbar">
