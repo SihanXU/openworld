@@ -137,6 +137,9 @@
 .on-dark .wl-roles label { color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.45); }
 .on-dark .wl-roles input:checked + label { color: var(--ink-strong); background: #fff; border-color: #fff; }
 .on-dark .wl-done { color: #fff; }
+.on-dark .wl-note { color: rgba(255,255,255,0.6); }
+.on-dark .wl-error { color: #ffb3ad; }
+.join .wl-note, .join .wl-error { font-size: 0.8rem; max-width: none; margin-top: 0.9rem; }
 .join .wl { margin: 1.75rem auto 0; max-width: 640px; }
 .join .wl-roles { justify-content: center; }
 
