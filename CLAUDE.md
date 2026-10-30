@@ -314,7 +314,9 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   more reasoning, the high AI setting's or the offline profile's, gets medium or high; `ClaudeCodeModel`, `effortOf`).
   A third, `anthropic`, calls Anthropic's API with `ANTHROPIC_API_KEY` from `.env` (`model.ts` `AnthropicModel`: the system prompt cached,
   tools as tools, effort per call, the default fallback; the paper's world-side experiments, docs/paper-eval.md).
-  `npm run dev` asks which backend to use (or `--backend openrouter|claude-code|anthropic|none`, `LSW_MODEL_BACKEND`).
+  Another, `codex`, calls `codex exec` signed in as the user (`CodexModel`: gpt-6.1-sol, effort low by default, as for
+  claude-code; Codex's own tools are off, so it is a model call, never an agent with a shell).
+  `npm run dev` asks which backend to use (or `--backend openrouter|claude-code|codex|anthropic|none`, `LSW_MODEL_BACKEND`).
 - Two harness profiles: **live** (a player waits: brief, one call, low reasoning, deterministic fixes,
   derived tests, hedged calls, review after shipping) and **offline** (curriculum, escalations,
   revisions: tools, more reasoning, blocking review). Measure live changes with `npm run latency`.
@@ -392,6 +394,8 @@ npm run assets           # copy the catalogue's subset of the asset pack into pu
 npm run loudness         # every music file's loudness measured → client/src/loudness.json (docs/music.md)
 npm run dev              # client at http://localhost:5173 + the modder on :8787 (asks for its model; dev:client for the client alone)
 npm run dev -- --backend claude-code   # the modder through claude -p (Opus 5.5, effort low)
+npm run dev -- --backend codex         # the modder through codex exec (gpt-6.1-sol, effort low)
+npm run dev -- --backend codex --model gpt-6-luna --effort medium   # any backend's model and effort
 npm test                 # vitest (engine + base rules + Mod port)
 npm run typecheck
 npm run check            # both, as CI runs them on every PR and push to main (.github/workflows/check.yml)
