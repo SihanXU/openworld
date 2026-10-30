@@ -32,7 +32,9 @@ for (let t = 0; t < TICKS_PER_HOUR * 48; t++) {
   if (w.state.tick % TICKS_PER_HOUR === TICKS_PER_HOUR - 1) {
     for (const n of index.npcs) {
       const e = w.get(n.id)!
-      const s = scheduleAt(scheduleFor(eng, e), w.hour())
+      const day = scheduleAt(scheduleFor(eng, e), w.hour())
+      // where their day has them, unless it brings what they mind there: then their refuge (home, out of the rain)
+      const s = day && (eng.npcs.refuge(e, day) ?? day)
       const p = w.posOf(e)
       // an hour with a threat at hand (or flat on the ground, or held in the cells) is not the schedule's to keep
       const threatened = w.entitiesOnMap(p?.map ?? '').some((o) => o.place.on === 'tile' && p && eng.hostileTo(o, e) && Math.abs(o.place.x - p.x) + Math.abs(o.place.y - p.y) <= 6)
@@ -42,7 +44,7 @@ for (let t = 0; t < TICKS_PER_HOUR * 48; t++) {
       if (away) offAll++
       if (p?.map !== eng.activeMap && s?.map !== eng.activeMap) continue
       total++
-      if (away) (off++, (report[n.id] = (report[n.id] ?? 0) + 1), process.env.CHECK_VERBOSE && console.log(n.id, Math.floor(w.hour()), s?.activity, s && [s.x, s.y], p && [p.x, p.y], w.calendar().weather))
+      if (away) (off++, (report[n.id] = (report[n.id] ?? 0) + 1), process.env.CHECK_VERBOSE && console.log(n.id, Math.floor(w.hour()), day?.activity, s && [s.x, s.y], p && [p.x, p.y], w.calendar().weather))
     }
   }
 }
