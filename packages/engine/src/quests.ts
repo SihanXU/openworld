@@ -345,7 +345,10 @@ export class Quests {
   alias(q: Entity, name: string): string | undefined {
     if (name === 'player') return typeof q.props?.by === 'string' ? q.props.by : this.w.state.player
     const v = q.props?.[`alias.${name}`]
-    return typeof v === 'string' && v ? v : undefined
+    if (typeof v === 'string' && v) return v
+    // an alias that names one thing is that thing, filled or not: one not about when the quest began (on a map not
+    // loaded then, an optional alias left empty), or one a later version of the quest added to a quest under way
+    return this.defOf(q)?.aliases?.[name]?.id
   }
 
   /** An alias's thing (none for a place). */
