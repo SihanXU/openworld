@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-CN" data-base="/wiki/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>界面 - OpenWorld 中文维基</title>
+<meta name="description" content="游戏画面上的每一样东西：时钟、任务追踪栏、心和鸡腿、经验条、快捷栏、技能栏、右下角按钮、小地图、任务标记、消息、动作提示、物品提示框、对话框、头顶的气泡和数字、剧情卡片和首领血条。">
+<link rel="alternate" hreflang="en" href="/wiki/en/Interface">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>中文维基</small></span></a>
+  <nav class="portlet"><h3>导航</h3><ul><li><a href="/wiki/">首页</a></li><li><a href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">新手指南</a></li><li><a href="/wiki/%E4%B8%BB%E7%BA%BF%E6%B5%81%E7%A8%8B">主线流程</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%9C%80%E8%BF%91%E6%9B%B4%E6%94%B9">最近更改</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E9%9A%8F%E6%9C%BA%E9%A1%B5%E9%9D%A2">随机页面</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%BE%85%E5%AE%8C%E5%96%84">待完善</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%89%80%E6%9C%89%E9%A1%B5%E9%9D%A2">所有页面</a></li></ul></nav><nav class="portlet"><h3>参与编辑</h3><ul><li><a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a></li><li><a href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C">格式手册</a></li><li><a href="/wiki/%E9%A3%8E%E6%A0%BC%E6%8C%87%E5%8D%97">风格指南</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%AE%8C%E5%A4%87%E6%80%A7">完备性</a></li></ul></nav><nav class="portlet"><h3>企划</h3><ul><li><a href="/wiki/%E5%85%B3%E4%BA%8E%E6%9C%AC%E7%BB%B4%E5%9F%BA">关于本维基</a></li><li><a href="/wiki/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1">设计支柱</a></li><li><a href="/wiki/%E8%B7%AF%E7%BA%BF%E5%9B%BE">路线图</a></li><li><a href="/wiki/%E7%89%88%E6%9C%AC%E5%8E%86%E5%8F%B2">版本历史</a></li><li><a href="/wiki/%E5%B7%B2%E7%9F%A5%E9%97%AE%E9%A2%98">已知问题</a></li></ul></nav>
+  <nav class="portlet"><h3>游戏</h3><ul><li><a href="/play/">开始游戏</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub 仓库</a></li><li><a href="/wiki/en/Interface" hreflang="en">English wiki</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="菜单" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/%E7%95%8C%E9%9D%A2">页面</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22%E7%95%8C%E9%9D%A2%22" title="这一页的讨论（GitHub 议题）">讨论</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5B%E7%BB%B4%E5%9F%BA%5D%20%E7%95%8C%E9%9D%A2&body=%E9%A1%B5%E9%9D%A2%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2F%25E7%2595%258C%25E9%259D%25A2%0A%0A" title="就这一页开一个新的讨论">＋</a></div>
+  <form class="search" action="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%90%9C%E7%B4%A2" method="get" role="search"><input name="q" id="q" type="search" placeholder="搜索 OpenWorld 维基" autocomplete="off" aria-label="搜索"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/%E7%95%8C%E9%9D%A2">阅读</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/pages/%E5%9F%BA%E6%9C%AC/%E7%95%8C%E9%9D%A2.md" title="在 GitHub 上编辑这一页">编辑</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/pages/%E5%9F%BA%E6%9C%AC/%E7%95%8C%E9%9D%A2.md">查看历史</a><a class="tab lang" href="/wiki/en/Interface" hreflang="en" lang="en" title="English edition">English</a><button class="tab theme" id="theme" title="切换明暗">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">界面</h1><div class="subtitle">来自OpenWorld 中文维基 · 玩法</div>
+  
+  <div class="body"><p>本页介绍游戏画面上的界面元素。界面仿照几款游戏的做法：时钟和右下角按钮学星露谷物语，心、鸡腿、经验条和物品提示框学 Minecraft。界面文字随<a href="/wiki/%E9%80%89%E9%A1%B9">选项</a>里的语言切换。</p>
+<nav class="toc"><div class="toc-title">目录</div><ol><li class="toc-l2"><a href="#%E5%B8%83%E5%B1%80"><span class="tocnum">1</span> 布局</a></li><li class="toc-l2"><a href="#%E6%97%B6%E9%92%9F"><span class="tocnum">2</span> 时钟</a></li><li class="toc-l2"><a href="#%E5%BF%83%E3%80%81%E9%B8%A1%E8%85%BF%E5%92%8C%E7%BB%8F%E9%AA%8C%E6%9D%A1"><span class="tocnum">3</span> 心、鸡腿和经验条</a></li><li class="toc-l2"><a href="#%E5%BF%AB%E6%8D%B7%E6%A0%8F%E4%B8%8E%E5%89%AF%E6%89%8B"><span class="tocnum">4</span> 快捷栏与副手</a></li><li class="toc-l2"><a href="#%E6%8A%80%E8%83%BD%E6%A0%8F"><span class="tocnum">5</span> 技能栏</a></li><li class="toc-l2"><a href="#%E5%8F%B3%E4%B8%8B%E8%A7%92%E6%8C%89%E9%92%AE"><span class="tocnum">6</span> 右下角按钮</a></li><li class="toc-l2"><a href="#%E9%9D%A2%E6%9D%BF%E9%A1%B5%E7%AD%BE"><span class="tocnum">7</span> 面板页签</a></li><li class="toc-l2"><a href="#%E5%B0%8F%E5%9C%B0%E5%9B%BE%E4%B8%8E%E5%8C%BA%E5%9F%9F"><span class="tocnum">8</span> 小地图与区域</a></li><li class="toc-l2"><a href="#%E4%BB%BB%E5%8A%A1%E8%BF%BD%E8%B8%AA%E6%A0%8F%E4%B8%8E%E6%A0%87%E8%AE%B0"><span class="tocnum">9</span> 任务追踪栏与标记</a></li><li class="toc-l2"><a href="#%E6%B6%88%E6%81%AF"><span class="tocnum">10</span> 消息</a></li><li class="toc-l2"><a href="#%E5%9C%B0%E5%90%8D"><span class="tocnum">11</span> 地名</a></li><li class="toc-l2"><a href="#%E5%8A%A8%E4%BD%9C%E6%8F%90%E7%A4%BA"><span class="tocnum">12</span> 动作提示</a></li><li class="toc-l2"><a href="#%E6%8F%90%E7%A4%BA%E6%A1%86"><span class="tocnum">13</span> 提示框</a></li><li class="toc-l2"><a href="#%E5%A4%B4%E9%A1%B6%E7%9A%84%E4%B8%9C%E8%A5%BF"><span class="tocnum">14</span> 头顶的东西</a></li><li class="toc-l2"><a href="#%E5%AF%B9%E8%AF%9D%E6%A1%86"><span class="tocnum">15</span> 对话框</a></li><li class="toc-l2"><a href="#%E6%98%AF%E5%90%A6%E6%8F%90%E9%97%AE"><span class="tocnum">16</span> 是/否提问</a></li><li class="toc-l2"><a href="#%E5%89%A7%E6%83%85%E5%8D%A1%E7%89%87%E4%B8%8E%E9%BB%91%E5%9C%BA"><span class="tocnum">17</span> 剧情卡片与黑场</a></li><li class="toc-l2"><a href="#%E4%B8%96%E7%95%8C%E5%AD%A6%E4%B9%A0%E4%B8%AD"><span class="tocnum">18</span> 世界学习中</a></li><li class="toc-l2"><a href="#%E9%A6%96%E9%A2%86%E8%A1%80%E6%9D%A1"><span class="tocnum">19</span> 首领血条</a></li><li class="toc-l2"><a href="#%E6%96%B0%E6%89%8B%E6%95%99%E7%A8%8B%E7%9A%84%E8%A6%86%E7%9B%96%E5%B1%82"><span class="tocnum">20</span> 新手教程的覆盖层</a></li><li class="toc-l2"><a href="#%E8%B4%A7%E6%91%8A%E9%9D%A2%E6%9D%BF"><span class="tocnum">21</span> 货摊面板</a></li><li class="toc-l2"><a href="#%E5%8E%86%E5%8F%B2"><span class="tocnum">22</span> 历史</a></li></ol></nav><h2 id="布局"><span class="mw-headline">布局</span></h2>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>左上</td>
+<td><a href="/wiki/%E4%B8%96%E7%95%8C%E5%9C%B0%E5%9B%BE#%E5%B0%8F%E5%9C%B0%E5%9B%BE">小地图</a>，下方写着区域</td>
+</tr>
+<tr>
+<td>右上</td>
+<td>时钟：日期、表盘、天气、时间；下面是任务追踪栏</td>
+</tr>
+<tr>
+<td>上方正中</td>
+<td>首领血条（靠近首领时）；进入地图时淡入的地名</td>
+</tr>
+<tr>
+<td>正中</td>
+<td>世界正在学习时的提示</td>
+</tr>
+<tr>
+<td>左下</td>
+<td>技能栏（贴着屏幕底边），上面是消息</td>
+</tr>
+<tr>
+<td>下方正中</td>
+<td>心、鸡腿、经验条、快捷栏、副手</td>
+</tr>
+<tr>
+<td>右下</td>
+<td>八个按钮</td>
+</tr>
+<tr>
+<td>正中偏上，人物头顶</td>
+<td>动作提示</td>
+</tr>
+</tbody></table>
+<p>人物走到屏幕下边缘附近时，快捷栏一组会挪到屏幕上方。</p>
+<h2 id="时钟"><span class="mw-headline">时钟</span></h2>
+<p>右上角的木框。第一行是日期（“第 N 天”）；中间是表盘，指针从 06:00（左）扫到 02:00（右），旁边是天气图标（☀ ☾ ☁ ☂ ⚡ ≋），鼠标停在图标上显示天气名；最下面是时间，每 10 游戏分钟跳一次。见<a href="/wiki/%E6%B8%B8%E6%88%8F%E5%86%85%E6%97%B6%E9%97%B4">游戏内时间</a>、<a href="/wiki/%E5%A4%A9%E6%B0%94">天气</a>。</p>
+<p>晴天时，从入夜前 2 个游戏小时到天亮后 1 个游戏小时，天气图标是月亮 ☾，其余时候是太阳 ☀。一开始是 19:00–06:00；故事推进、夜晚变长后，月亮跟着提前出来（见<a href="/wiki/%E6%98%BC%E5%A4%9C">昼夜</a>）。</p>
+<h2 id="心、鸡腿和经验条"><span class="mw-headline">心、鸡腿和经验条</span></h2>
+<p>快捷栏上方，左边十颗心是<a href="/wiki/%E7%94%9F%E5%91%BD%E5%80%BC">生命值</a>，右边十个鸡腿是<a href="/wiki/%E9%A5%B1%E9%A3%9F%E5%BA%A6">饱食度</a>。饱食度为 0 时鸡腿会闪动。下面一条细长的经验条，写着当前等级。鼠标停在上面会显示具体数字。见<a href="/wiki/%E7%AD%89%E7%BA%A7%E4%B8%8E%E7%BB%8F%E9%AA%8C">等级与经验</a>。</p>
+<h2 id="快捷栏与副手"><span class="mw-headline">快捷栏与副手</span></h2>
+<p>十个格子，左上角标着 1–0，选中的那格有框。格子里显示物品图标和数量。右边单独一格是副手，空着时是灰色盾牌轮廓，装着别的职业的盾牌时变灰。点格子可以选中。见<a href="/wiki/%E8%83%8C%E5%8C%85">背包</a>、<a href="/wiki/%E8%A3%85%E5%A4%87">装备</a>。</p>
+<h2 id="技能栏"><span class="mw-headline">技能栏</span></h2>
+<p>屏幕最左下角一排六个方形的技能格，深色底、带斜面的边框，每格角上标着 ⇧1–⇧6。还没学会主动技能时不显示，学会第一个后出现。放着主动技能的格子显示技能图标；空格是暗的。</p>
+<ul>
+<li>按 <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>6</kbd> 或点格子，施放那一格的技能。</li>
+<li>技能冷却时，一圈暗色像钟面一样扫过格子，中间写着剩余的秒数（不到 10 秒时带一位小数）；冷却好了，格子闪一下。</li>
+<li>装备借来的技能，脱下装备后还留在格子里，但变灰、放不出来。</li>
+<li>鼠标停在格子上，显示技能名、冷却秒数、说明和“右键移出技能栏”；停在空格上，提示怎样放技能进来。</li>
+<li>拖动格子换位置，右键清空。完整的管理在技能面板（<kbd>U</kbd>）里。</li>
+</ul>
+<p>见<a href="/wiki/%E6%8A%80%E8%83%BD#%E4%B8%BB%E5%8A%A8%E6%8A%80%E8%83%BD%E4%B8%8E%E6%8A%80%E8%83%BD%E6%A0%8F">主动技能与技能栏</a>。</p>
+<h2 id="右下角按钮"><span class="mw-headline">右下角按钮</span></h2>
+<table>
+<thead>
+<tr>
+<th>按钮</th>
+<th>按键</th>
+<th>打开</th>
+<th>角标</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>任务</td>
+<td><kbd>L</kbd></td>
+<td><a href="/wiki/%E4%BB%BB%E5%8A%A1">任务</a>日志</td>
+<td>进行中的任务数（眼前有人头上是「?」时红底，否则棕底）；任务进入新阶段时整个按钮闪烁，打开日志就停</td>
+</tr>
+<tr>
+<td>建造</td>
+<td><kbd>B</kbd></td>
+<td><a href="/wiki/%E5%BB%BA%E9%80%A0">建造模式</a></td>
+<td></td>
+</tr>
+<tr>
+<td>背包</td>
+<td><kbd>Tab</kbd> · <kbd>I</kbd></td>
+<td><a href="/wiki/%E8%83%8C%E5%8C%85">背包</a></td>
+<td></td>
+</tr>
+<tr>
+<td>技能</td>
+<td><kbd>K</kbd></td>
+<td><a href="/wiki/%E6%8A%80%E8%83%BD">技能</a>树</td>
+<td>没花的技能点数（红色）</td>
+</tr>
+<tr>
+<td>图鉴</td>
+<td><kbd>J</kbd></td>
+<td><a href="/wiki/%E5%9B%BE%E9%89%B4">图鉴</a></td>
+<td></td>
+</tr>
+<tr>
+<td>制作</td>
+<td><kbd>C</kbd></td>
+<td><a href="/wiki/%E5%88%B6%E4%BD%9C">制作</a></td>
+<td></td>
+</tr>
+<tr>
+<td>技能面板</td>
+<td><kbd>U</kbd></td>
+<td><a href="/wiki/%E6%8A%80%E8%83%BD#%E6%8A%80%E8%83%BD%E9%9D%A2%E6%9D%BF">技能面板</a>（图标是旋风斩）</td>
+<td></td>
+</tr>
+<tr>
+<td>选项</td>
+<td><kbd>Esc</kbd></td>
+<td><a href="/wiki/%E9%80%89%E9%A1%B9">选项</a></td>
+<td></td>
+</tr>
+</tbody></table>
+<p>这排按钮左边是一枚圆形的<strong>露米徽章</strong>：金边圆框里是<a href="/wiki/%E9%9C%B2%E7%B1%B3">露米</a>的像素头像，由她的立绘缩成像素画而来（淡紫长发、紫色眼睛、发间的黄花），比别的按钮大一圈。这枚徽章也是游戏的图标（浏览器标签页、手机主屏）。点它或按 <kbd>P</kbd> 打开她的面板（和对她按 <kbd>E</kbd> 一样），再点或再按一次关上；鼠标移上去，她会换成笑脸。遇到露米之前它不出现。</p>
+<p>按钮角上的键跟着<a href="/wiki/%E6%93%8D%E4%BD%9C#%E6%94%B9%E9%94%AE">改键</a>变；某个面板在当前键位下没有键时，角上不显示。</p>
+<h2 id="面板页签"><span class="mw-headline">面板页签</span></h2>
+<p>背包、制作、技能树、技能面板、任务、图鉴、世界地图打开时，屏幕顶部正中有一排页签，当前打开的那个高亮，每个页签上写着它的键。点一个页签就关掉现在的面板、打开那一个。没有职业模块的游戏里不显示技能树和技能面板两页。</p>
+<p><a href="/wiki/%E4%B8%96%E7%95%8C%E5%9C%B0%E5%9B%BE">世界地图</a>打开时，页签浮在地图上、不占地方：平时半透明，约两秒半不碰就完全隐去；鼠标移到屏幕顶部附近、或停在页签上时再出现。其他面板上的页签照旧一直显示。</p>
+<h2 id="小地图与区域"><span class="mw-headline">小地图与区域</span></h2>
+<p>左上角，画着当前地图和地图上的人、动物、怪物、传送雕像。下方一条写着“和平区域”（绿底）或“战斗区域 · 夜间有怪物”（红底）。点小地图打开世界地图。见<a href="/wiki/%E4%B8%96%E7%95%8C%E5%9C%B0%E5%9B%BE#%E5%B0%8F%E5%9C%B0%E5%9B%BE">小地图</a>、<a href="/wiki/%E5%92%8C%E5%B9%B3%E5%8C%BA%E5%9F%9F%E4%B8%8E%E6%88%98%E6%96%97%E5%8C%BA%E5%9F%9F">和平区域与战斗区域</a>。</p>
+<h2 id="任务追踪栏与标记"><span class="mw-headline">任务追踪栏与标记</span></h2>
+<p>时钟下面一块半透明的小框是<strong>任务追踪栏</strong>：第一行是追踪中的<a href="/wiki/%E4%BB%BB%E5%8A%A1">任务</a>名（黄字），下面是它没做完的目标，最多四个，带着进度（如「木头 2/4」）；目标在别的地图上时后面写着「→ 地图名」。追踪哪个任务在任务日志（<kbd>L</kbd>）里选；没选时是最近开始的主线任务。</p>
+<p>追踪中的任务里没做完的目标指向的人或地方，画在这些地方：</p>
+<ul>
+<li>小地图上一个黄色的菱形；</li>
+<li><a href="/wiki/%E4%B8%96%E7%95%8C%E5%9C%B0%E5%9B%BE">世界地图</a>上一颗黄色的 ★；</li>
+<li>在当前地图上、但不在屏幕里的，屏幕边缘一个箭头指着它的方向；进了屏幕，变成浮在它上方的菱形。</li>
+</ul>
+<p>追踪栏和标记都可以在<a href="/wiki/%E9%80%89%E9%A1%B9">选项</a>里关掉。想知道该做什么，也可以对<a href="/wiki/%E9%9C%B2%E7%B1%B3">露米</a>按 <kbd>E</kbd>：她会说「现在要：……」，后面是目标、进度和做法。见<a href="/wiki/%E4%BB%BB%E5%8A%A1#%E8%BF%BD%E8%B8%AA%E4%B8%8E%E6%A0%87%E8%AE%B0">追踪与标记</a>。</p>
+<h2 id="消息"><span class="mw-headline">消息</span></h2>
+<p>屏幕左下角的一条条小纸条，最多同时 6 条，5 秒后淡去。</p>
+<table>
+<thead>
+<tr>
+<th>边框颜色</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>绿</td>
+<td>好消息：捡到东西（“+1 浆果”，连续捡同一种会累加）、升级、接受和完成任务、织入新线</td>
+</tr>
+<tr>
+<td>橙</td>
+<td>和<a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">世界学习</a>有关的：“✦ 世界停顿了一下……”“✦ 世界正在创造新物体：……”</td>
+</tr>
+<tr>
+<td>红</td>
+<td>警告；任务失败</td>
+</tr>
+<tr>
+<td>无</td>
+<td>普通的叙述：“你吃掉了面包。”“树倒了！”等</td>
+</tr>
+</tbody></table>
+<p>捡起东西时，物品图标还会从原地画一道弧线飞进人物身上。</p>
+<h2 id="地名"><span class="mw-headline">地名</span></h2>
+<p>走进一张地图时，地图名在屏幕上方正中淡入，停留片刻后淡出。</p>
+<h2 id="动作提示"><span class="mw-headline">动作提示</span></h2>
+<p>鼠标指着（或面前）的格子用四个小角框出来，框会滑到下一格。光标显示 <kbd>E</kbd> 会做什么：能拿起、打开、阅读的东西上是一只手，人身上是一个对话气泡；那里 <kbd>E</kbd> 没事可做、而手上的墙、床这类东西能用右键建在那里时，也是一只手。右键的用法世界从没见过时带一个「?」，<kbd>E</kbd> 会拿走别人的东西（偷）时带一个红色「!」。框的上方有一个小提示框，一行一个输入（用鼠标时是左键、右键，再加上 <kbd>E</kbd>、<kbd>G</kbd>），写着按下去会发生什么；人物停下、框停稳一小会儿才出现，走路时不显示，所以不会跟着脚步乱跳。世界还没定义过的动作，这一项颜色变淡，后面跟一个橙色的「?」。对话、提问、剧情演出时不显示。见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E5%8A%A8%E4%BD%9C%E6%8F%90%E7%A4%BA%E4%B8%8E%E3%80%8C%E3%80%8D">动作提示与「?」</a>。</p>
+<p>长按 <kbd>E</kbd>、<kbd>G</kbd> 或 Alt+点击弹出的“对哪一个？”列表也显示在那个格子下方，每行一个编号。见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E9%80%89%E6%8B%A9%E5%8F%A0%E7%9D%80%E7%9A%84%E4%B8%9C%E8%A5%BF">长按：选择对象</a>。</p>
+<h2 id="提示框"><span class="mw-headline">提示框</span></h2>
+<p>鼠标停在快捷栏、背包、箱子或制作面板里的一件物品上，会出现一个深色的提示框，跟着鼠标走：</p>
+<table>
+<thead>
+<tr>
+<th>行</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>名字</td>
+<td>颜色按<a href="/wiki/%E5%93%81%E8%B4%A8">品质</a>：粗制灰、普通白、精良黄、大师青、遗誓紫、圣痕橙红</td>
+</tr>
+<tr>
+<td>品质说明</td>
+<td>遗誓、圣痕两档各有一句来历</td>
+</tr>
+<tr>
+<td>种类</td>
+<td>武器、工具、食物、药水、材料、种子、护甲、衣物、照明、容器、贵重品、读物</td>
+</tr>
+<tr>
+<td>拿在手上时</td>
+<td>攻击伤害（已加上你自己的攻击）、攻击距离、元素、暴击率、攻击速度、每次命中吸取的生命</td>
+</tr>
+<tr>
+<td>装备在副手时</td>
+<td>防御、格挡率</td>
+</tr>
+<tr>
+<td>穿戴在某处时</td>
+<td>防御、攻击、经验加成；负数（代价）写成红色</td>
+</tr>
+<tr>
+<td>特性</td>
+<td>紫色：闪避、移速、入夜加成等</td>
+</tr>
+<tr>
+<td>誓言</td>
+<td>紫色：遗誓装备的“✦ 誓言名 · 誓言”和一句效果说明</td>
+</tr>
+<tr>
+<td>圣痕之力</td>
+<td>“✦ 力量名 · 唯一”和它的说明</td>
+</tr>
+<tr>
+<td>职业</td>
+<td>“X专属”（自己的职业为橙色，否则红色），或“通用武器：不受职业天赋加成”</td>
+</tr>
+<tr>
+<td>食物</td>
+<td>一排小鸡腿和“+N 饱食度”；能回血的写“+N 生命”</td>
+</tr>
+<tr>
+<td>用途</td>
+<td>蓝色：砍树、劈木头；凿开岩石；耕地；收割作物；能点燃东西；可以用火烤熟；可以种下；着火就会炸开等</td>
+</tr>
+<tr>
+<td>材质与性质</td>
+<td>紫色斜体：材料名，以及易燃、易碎、沉重、锋利、导电、生的、熟的等</td>
+</tr>
+<tr>
+<td>状态</td>
+<td>红色：这件东西身上的状态，比如潮湿、燃烧</td>
+</tr>
+<tr>
+<td>主人</td>
+<td>红色：“属于X”</td>
+</tr>
+</tbody></table>
+<h2 id="头顶的东西"><span class="mw-headline">头顶的东西</span></h2>
+<ul>
+<li><strong>说话的气泡</strong>：离你较远的人说话时，话显示在他头顶的气泡里，过几秒消失。</li>
+<li><strong>心情符号</strong>：♥ 高兴、… 难过、!! 生气、! 吃惊、♡ 害羞。</li>
+<li><strong>任务标记</strong>：黄色的“！”（有任务托付给你）和“？”（现在和他说话能让你的任务往前走：交付，或者任务让你来找他），上下浮动。见<a href="/wiki/%E4%BB%BB%E5%8A%A1#%E5%A4%B4%E9%A1%B6%E7%9A%84%E6%A0%87%E8%AE%B0">头顶的标记</a>。</li>
+<li><strong>职业导师的标记</strong>：<a href="/wiki/%E8%81%8C%E4%B8%9A">职业</a>导师（初原村的<a href="/wiki/%E5%B8%83%E6%8B%89%E5%A7%86">布拉姆</a>）头顶有一个上下浮动的剑形图标，好找。他头上有任务标记时，先显示任务标记。</li>
+<li><strong>生命条</strong>：受了伤的东西和对你有敌意的生物头顶有细细的生命条：红色会攻击你，绿色是人和露米，琥珀色是其余的。见<a href="/wiki/%E7%94%9F%E5%91%BD%E5%80%BC#%E5%88%AB%E4%BA%BA%E7%9A%84%E7%94%9F%E5%91%BD%E6%9D%A1">别人的生命条</a>。</li>
+<li><strong>飘字</strong>：受到伤害时飘出“-N”，颜色按元素；回血时飘出绿色的“+N”。</li>
+<li><strong>世界学习中</strong>：世界在学习一个动作的结果时，做这个动作的人头顶有一个转动的 ✦ 和三个点，被作用的东西半透明闪烁，头顶有“…”。</li>
+</ul>
+<p>任务标记、职业导师的标记和生命条画在世界里所有东西的上面：人站在树或房子后面，这些标记照样看得见。</p>
+<h2 id="对话框"><span class="mw-headline">对话框</span></h2>
+<p>身边 2 格以内的人说话时，屏幕下方出现对话框：左边是头像，上面是名字，文字一个个打出来，右下角的 ▼ 表示还有下文。有<a href="/wiki/%E5%A4%96%E8%A7%82#%E4%B8%93%E5%B1%9E%E7%AB%8B%E7%BB%98">专属立绘</a>的人（如<a href="/wiki/%E5%A5%88%E8%8E%8E%C2%B7%E5%A5%8E%E5%B0%94">奈莎·奎尔</a>、<a href="/wiki/%E9%9C%B2%E7%B1%B3">露米</a>、<a href="/wiki/%E8%8E%89%E5%A8%9C">莉娜</a>、<a href="/wiki/%E4%BC%8A%E5%B0%94%E4%B8%9D%E4%BF%AE%E5%A5%B3">伊尔丝修女</a>、<a href="/wiki/%E7%81%B0%E8%A1%A3%E4%BA%BA">灰衣人</a>、<a href="/wiki/%E6%89%98%E5%AE%BE">托宾</a>、<a href="/wiki/%E8%B5%AB%E6%96%AF%E7%8F%80">赫斯珀</a>），头像是装在框里的半身立绘：表情跟着台词换；每句话开始后不久先眨一次眼（翻得快也看得到），之后每隔三四秒眨一次；说话时嘴会一张一合。按 <kbd>E</kbd>、<kbd>Esc</kbd> 或点一下：第一下把字显示完，第二下翻页。普通的一句话可以按 <kbd>G</kbd> 直接收起。剧情演出里的对话要一句句翻完。见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E5%AF%B9%E8%AF%9D%E3%80%81%E6%8F%90%E9%97%AE%E4%B8%8E%E5%89%A7%E6%83%85">对话、提问与剧情</a>。</p>
+<h2 id="是否提问"><span class="mw-headline">是/否提问</span></h2>
+<p>吃东西、喝东西前会问“要吃掉X吗？”这类问题。对话框里出现“是”“否”两个按钮。见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E5%AF%B9%E8%AF%9D%E3%80%81%E6%8F%90%E9%97%AE%E4%B8%8E%E5%89%A7%E6%83%85">对话、提问与剧情</a>。</p>
+<h2 id="剧情卡片与黑场"><span class="mw-headline">剧情卡片与黑场</span></h2>
+<p>剧情演出中，画面可能整个黑下去再亮起来（黑场），也可能出现一张全屏的文字卡片，比如第一章结尾的那张；卡片可以叠在一张插图上。重要的时刻还可能出现一张<strong>剧情插图</strong>（CG）：插图盖住地图和界面，对话照常在插图上推进，场景结束时插图撤下。按 <kbd>E</kbd> 或点一下继续。读档时如果正停在插图、卡片或黑场上，会照原样显示。</p>
+<h2 id="世界学习中"><span class="mw-headline">世界学习中</span></h2>
+<p>你做了一件世界没见过的事、世界正在学习它的结果时，屏幕中间显示：“✦ 世界正在学习这件事…… N 秒（最多 20 秒）· Esc 不等了”。见<a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">世界会学</a>。</p>
+<h2 id="首领血条"><span class="mw-headline">首领血条</span></h2>
+<p>靠近<a href="/wiki/%E9%A6%96%E9%A2%86">首领</a> 12 格以内时，屏幕上方正中出现首领血条：</p>
+<ul>
+<li>顶上一顶小王冠和“首  领”字样，下面是首领的名字；</li>
+<li>当前阶段“Ⅰ / 降临”或“Ⅱ / 觉醒”，以及生命的具体数字；</li>
+<li>一条宽血条，受伤时先掉一截亮色、再慢慢落下一截暗色；血条上有一道刻度，标着进入第二阶段的生命线；</li>
+<li>最下面一行是招式条：首领蓄力时写着招式名和“蓄势 / 离开标记区域”，平时写着“观察起手 · 抓住收招空隙”。</li>
+</ul>
+<p>剧情演出时首领血条隐藏。</p>
+<h2 id="新手教程的覆盖层"><span class="mw-headline">新手教程的覆盖层</span></h2>
+<p><a href="/wiki/%E6%96%B0%E6%89%8B%E6%95%99%E7%A8%8B">新手教程</a>里，屏幕会压暗，只留要操作的东西亮着；要按的键画在它上方，旁边写着“第几课/共几课”；按了被锁的键，按键图标会抖一下；一课完成时屏幕中间弹出一个绿色的 ✓。</p>
+<h2 id="货摊面板"><span class="mw-headline">货摊面板</span></h2>
+<p>在<a href="/wiki/%E8%AA%93%E5%AE%88%E4%B9%8B%E5%9C%B0">誓守之地</a>对<a href="/wiki/%E8%B4%A7%E6%91%8A">货摊</a>按 <kbd>E</kbd> 打开，标题是「🏪 货摊」。上方四个标签页（农业、牧业、渔业、出售），右边是身上的<a href="/wiki/%E6%99%A8%E8%BE%89%E5%B8%81">晨辉币</a>数；下面一行一样东西，左边是图标，中间是要给的东西和数量（不够的显示成红色），右边是「购买 ×N」或「出售 → N」按钮，能连做时多一个「全部 ×次数」。离开货摊一格以外，面板上写着“站到货摊旁边才能交易。”。见<a href="/wiki/%E9%87%91%E9%92%B1">金钱</a>。</p>
+<h2 id="历史"><span class="mw-headline">历史</span></h2>
+<ul>
+<li><p>2026-10-27：右下角按钮左边加入露米的像素徽章，点它或按 <kbd>P</kbd> 打开露米的面板；它也是游戏的图标。</p>
+</li>
+<li><p>2026-10-28：世界地图上的面板页签改为浮着、半透明，不碰就隐去，鼠标移到屏幕顶部再出现。</p>
+</li>
+<li><p>2026-10-01：界面改照星露谷物语的布局：右上时钟、物品栏、箱子面板、动作提示。</p>
+</li>
+<li><p>2026-10-02：心、鸡腿和经验条改成 Minecraft 的样式，放在快捷栏上方；物品提示框改成 Minecraft 的样式。</p>
+</li>
+<li><p>2026-10-03：加入小地图、任务日志、首领血条和右下角的像素图标按钮；当前目标改由露米和日志告诉玩家，不再显示在屏幕上。</p>
+</li>
+<li><p>2026-10-04：动作提示重新显示在目标格子上方，说法由规则给出。</p>
+</li>
+<li><p>2026-10-06：右下角改为七个按钮，加入图鉴按钮；世界学习时屏幕中间显示等待的秒数。</p>
+</li>
+<li><p>2026-10-07：加入新手教程的聚光、按键图标和对勾。</p>
+</li>
+<li><p>2026-10-08：加入誓守之地的货摊面板。</p>
+</li>
+<li><p>2026-10-08：左下角加入技能栏，右下角加入技能面板按钮（<kbd>U</kbd>），共八个按钮；职业导师头顶有了标记。</p>
+</li>
+<li><p>2026-10-08：晴天的月亮图标改为跟着真正的入夜、天亮时刻走；标题页和选项里的按键表更新为现行版本。</p>
+</li>
+<li><p>2026-10-09：时钟下面加入任务追踪栏；小地图、世界地图和屏幕边缘加入任务标记；任务按钮的角标改为进行中的任务数，任务进入新阶段时闪烁（不再是图鉴按钮闪烁）。</p>
+</li>
+<li><p>2026-10-08：任务标记、职业导师的标记和生命条画在最上层，不再被前面的树和房子挡住。</p>
+</li>
+<li><p>2026-10-08：物品提示框去掉「可以当燃料」，会炸的东西写「着火就会炸开」。</p>
+</li>
+<li><p>2026-10-12：动作提示改成人物头顶固定的一行半透明提示条，不再浮在目标上方。</p>
+</li>
+<li><p>2026-10-20：还没学会主动技能时不显示技能栏。</p>
+</li>
+<li><p>2026-10-20：<kbd>Tab</kbd> 改为打开背包，背包上方有一排页签切到其他面板（<kbd>I</kbd> 等原来的键照样能用）；换快捷栏一行改成 <kbd>Shift</kbd>+<kbd>Tab</kbd> 或 <kbd>Shift</kbd>+滚轮；所有按键都能在<a href="/wiki/%E9%80%89%E9%A1%B9">选项</a>里改，有方案 A、B 两套预设。</p>
+</li>
+<li><p>2026-10-24：剧情演出能显示插图（CG），卡片能叠在插图上，黑场在读档后保留；有专属立绘的人在对话框里显示自己的立绘，会眨眼、说话时嘴会动；立绘随台词心情做小动作（开心轻跳、惊讶一抖、难过下沉）。</p>
+</li>
+<li><p>2026-10-25：专属立绘每句话开始后不久先眨一次眼（翻得快的玩家也看得到），之后每隔三四秒一次，说话时也照样眨；<a href="/wiki/%E4%BC%8A%E5%B0%94%E4%B8%9D%E4%BF%AE%E5%A5%B3">伊尔丝修女</a>有了专属立绘。</p>
+</li>
+<li><p>2026-10-21：操作定为四个输入：拿着物件对东西用改成右键（左键是手上东西本身的用法：工具、武器挥，别的东西对自己用），拿起散落的东西改成 <kbd>E</kbd>（见<a href="/wiki/%E6%93%8D%E4%BD%9C">操作</a>）。</p>
+</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title"><a href="/wiki/%E7%95%8C%E9%9D%A2">界面</a></th></tr><tr><td colspan="2"><a href="/wiki/%E8%83%8C%E5%8C%85">背包</a> • <a href="/wiki/%E5%AD%98%E6%A1%A3">存档</a> • <a href="/wiki/%E7%95%8C%E9%9D%A2">界面</a> • <a href="/wiki/%E4%B8%96%E7%95%8C%E5%9C%B0%E5%9B%BE">世界地图</a> • <a href="/wiki/%E5%9B%BE%E9%89%B4">图鉴</a> • <a href="/wiki/%E7%AE%B1%E5%AD%90%E4%B8%8E%E5%AE%B9%E5%99%A8">箱子与容器</a> • <a href="/wiki/%E9%80%89%E9%A1%B9">选项</a> • <a href="/wiki/%E7%BB%87%E7%BA%BF%E7%B0%BF">织线簿</a></td></tr></table>
+</div>
+  <div class="catlinks">分类：<a href="/wiki/%E5%88%86%E7%B1%BB%EF%BC%9A%E7%8E%A9%E6%B3%95">玩法</a></div>
+</main>
+<footer class="footer">
+  <p>本站内容由 OpenWorld 项目组编写，数据表从游戏代码 <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a>（main）生成于 2026-10-30 06:19。</p>
+  <p>项目组成员都能在 GitHub 上编辑：见<a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a>。游戏素材来自 Ninja Adventure（CC0）与项目自绘。</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

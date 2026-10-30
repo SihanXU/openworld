@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="zh-CN" data-base="/wiki/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>新手指南 - OpenWorld 中文维基</title>
+<meta name="description" content="第一次玩 OpenWorld 的人从这里读起：游戏是什么、标题页、开局第一个小时怎么走、怎样活下去，以及各个系统页的入口。">
+<link rel="alternate" hreflang="en" href="/wiki/en/Beginner's_Guide">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>中文维基</small></span></a>
+  <nav class="portlet"><h3>导航</h3><ul><li><a href="/wiki/">首页</a></li><li><a href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">新手指南</a></li><li><a href="/wiki/%E4%B8%BB%E7%BA%BF%E6%B5%81%E7%A8%8B">主线流程</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%9C%80%E8%BF%91%E6%9B%B4%E6%94%B9">最近更改</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E9%9A%8F%E6%9C%BA%E9%A1%B5%E9%9D%A2">随机页面</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%BE%85%E5%AE%8C%E5%96%84">待完善</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%89%80%E6%9C%89%E9%A1%B5%E9%9D%A2">所有页面</a></li></ul></nav><nav class="portlet"><h3>参与编辑</h3><ul><li><a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a></li><li><a href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C">格式手册</a></li><li><a href="/wiki/%E9%A3%8E%E6%A0%BC%E6%8C%87%E5%8D%97">风格指南</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%AE%8C%E5%A4%87%E6%80%A7">完备性</a></li></ul></nav><nav class="portlet"><h3>企划</h3><ul><li><a href="/wiki/%E5%85%B3%E4%BA%8E%E6%9C%AC%E7%BB%B4%E5%9F%BA">关于本维基</a></li><li><a href="/wiki/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1">设计支柱</a></li><li><a href="/wiki/%E8%B7%AF%E7%BA%BF%E5%9B%BE">路线图</a></li><li><a href="/wiki/%E7%89%88%E6%9C%AC%E5%8E%86%E5%8F%B2">版本历史</a></li><li><a href="/wiki/%E5%B7%B2%E7%9F%A5%E9%97%AE%E9%A2%98">已知问题</a></li></ul></nav>
+  <nav class="portlet"><h3>游戏</h3><ul><li><a href="/play/">开始游戏</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub 仓库</a></li><li><a href="/wiki/en/Beginner's_Guide" hreflang="en">English wiki</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="菜单" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">页面</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97%22" title="这一页的讨论（GitHub 议题）">讨论</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5B%E7%BB%B4%E5%9F%BA%5D%20%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97&body=%E9%A1%B5%E9%9D%A2%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2F%25E6%2596%25B0%25E6%2589%258B%25E6%258C%2587%25E5%258D%2597%0A%0A" title="就这一页开一个新的讨论">＋</a></div>
+  <form class="search" action="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%90%9C%E7%B4%A2" method="get" role="search"><input name="q" id="q" type="search" placeholder="搜索 OpenWorld 维基" autocomplete="off" aria-label="搜索"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">阅读</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/pages/%E5%9F%BA%E6%9C%AC/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97.md" title="在 GitHub 上编辑这一页">编辑</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/pages/%E5%9F%BA%E6%9C%AC/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97.md">查看历史</a><a class="tab lang" href="/wiki/en/Beginner's_Guide" hreflang="en" lang="en" title="English edition">English</a><button class="tab theme" id="theme" title="切换明暗">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">新手指南</h1><div class="subtitle">来自OpenWorld 中文维基 · 玩法</div>
+  
+  <div class="body"><blockquote class="quote"><p>「这个世界从没见过的事，它会学会，并且记住。」</p><footer>— 预告片</footer></blockquote>
+<p><strong>OpenWorld</strong> 是一款可以在浏览器里直接玩的 2D 像素角色扮演游戏。世界里的每样东西、每条规则都是写好的代码：砍树会掉木头，雨会浇灭燃烧的东西，夜里会有亡灵出来游荡。玩家可以对任何东西做任何事。碰到世界从没定义过的事，连着 AI 时世界会当场学会它的结果，并且永远记住；没连 AI 时按默认处理，游戏照样能从头玩到尾。见<a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">世界会学</a>。</p>
+<p>故事发生在<a href="/wiki/%E4%BA%94%E5%8D%B0%E4%B9%8B%E5%9C%B0">五印之地</a>。<a href="/wiki/%E4%BA%94%E8%8B%A6%E5%9C%A3%E6%95%99">五苦圣教</a>的<a href="/wiki/%E6%8C%81%E5%8D%B0%E8%80%85">持印者</a>正在衰弱，夜晚一年比一年长。玩家在山顶的<a href="/wiki/%E4%BA%91%E9%A1%B6%E5%8F%B0%E5%9C%B0">云顶台地</a>醒来，身边多了一个叫<a href="/wiki/%E9%9C%B2%E7%B1%B3">露米</a>的精灵，下山后被卷进<a href="/wiki/%E5%88%9D%E5%8E%9F%E6%9D%91">初原村</a>的事件，踏上朝圣之路。剧情见<a href="/wiki/%E4%B8%BB%E7%BA%BF%E5%89%A7%E6%83%85">主线剧情</a>和<a href="/wiki/%E7%AC%AC%E4%B8%80%E7%AB%A0">第一章</a>，一步步的流程见<a href="/wiki/%E4%B8%BB%E7%BA%BF%E6%B5%81%E7%A8%8B">主线流程</a>。</p>
+<nav class="toc"><div class="toc-title">目录</div><ol><li class="toc-l2"><a href="#%E6%A0%87%E9%A2%98%E9%A1%B5"><span class="tocnum">1</span> 标题页</a></li><li class="toc-l2"><a href="#%E5%BC%80%E5%A7%8B%E6%96%B0%E6%B8%B8%E6%88%8F"><span class="tocnum">2</span> 开始新游戏</a></li><li class="toc-l2"><a href="#%E7%AC%AC%E4%B8%80%E4%B8%AA%E5%B0%8F%E6%97%B6"><span class="tocnum">3</span> 第一个小时</a></li><li class="toc-l3"><a href="#1._%E5%9C%A8%E4%BA%91%E9%A1%B6%E5%8F%B0%E5%9C%B0%E9%86%92%E6%9D%A5"><span class="tocnum">3.1</span> 1. 在云顶台地醒来</a></li><li class="toc-l3"><a href="#2._%E5%90%83%E4%B8%9C%E8%A5%BF"><span class="tocnum">3.2</span> 2. 吃东西</a></li><li class="toc-l3"><a href="#3._%E5%81%9A%E4%B8%80%E6%8A%8A%E7%9F%B3%E6%96%A7"><span class="tocnum">3.3</span> 3. 做一把石斧</a></li><li class="toc-l3"><a href="#4._%E5%94%A4%E9%86%92%E4%BC%A0%E9%80%81%E9%9B%95%E5%83%8F"><span class="tocnum">3.4</span> 4. 唤醒传送雕像</a></li><li class="toc-l3"><a href="#5._%E4%B8%8B%E5%B1%B1%E5%88%B0%E4%BC%A4%E7%9F%B3%E5%B1%B1%E9%BA%93"><span class="tocnum">3.5</span> 5. 下山到伤石山麓</a></li><li class="toc-l3"><a href="#6._%E6%99%9A%E7%A5%B7%E6%B8%A1"><span class="tocnum">3.6</span> 6. 晚祷渡</a></li><li class="toc-l3"><a href="#7._%E5%88%9D%E5%8E%9F%E6%9D%91"><span class="tocnum">3.7</span> 7. 初原村</a></li><li class="toc-l2"><a href="#%E6%80%8E%E6%A0%B7%E6%B4%BB%E4%B8%8B%E5%8E%BB"><span class="tocnum">4</span> 怎样活下去</a></li><li class="toc-l2"><a href="#%E9%9C%B2%E7%B1%B3"><span class="tocnum">5</span> 露米</a></li><li class="toc-l2"><a href="#%E5%B0%8F%E8%B4%B4%E5%A3%AB"><span class="tocnum">6</span> 小贴士</a></li><li class="toc-l2"><a href="#%E7%B3%BB%E7%BB%9F%E4%B8%80%E8%A7%88"><span class="tocnum">7</span> 系统一览</a></li><li class="toc-l2"><a href="#%E5%8E%86%E5%8F%B2"><span class="tocnum">8</span> 历史</a></li></ol></nav><h2 id="标题页"><span class="mw-headline">标题页</span></h2>
+<p>标题页的背景就是游戏世界本身，不是一张图：引擎在一个地点实时跑着那里的世界，人们照常走动、干活，镜头慢慢漂移。每过十秒左右，画面淡入黑场，换到下一个地点，依次是<a href="/wiki/%E5%9C%A3%E5%9F%8E">圣城</a>的六处地点：黄昏的日泉修道院正门、清晨的北门、上午的钟楼、正热闹的市集、点起灯的灯区、傍晚的下城码头。背景里只有那里的人，不出现玩家和露米。画面左边是大字标题和四个选项，露米在选中的那一项旁边飞。</p>
+<table>
+<thead>
+<tr>
+<th>选项</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>继续游戏</td>
+<td>读取最近保存的存档。下面写着地点、天数、时间、等级和追踪中的任务目标。只有存在可继续的存档时才出现</td>
+</tr>
+<tr>
+<td>新游戏</td>
+<td>捏好角色、选<a href="/wiki/%E9%9A%BE%E5%BA%A6">难度</a>和存档位，从云顶台地开始主线。面板最上面是“先玩新手教程”：在<a href="/wiki/%E5%88%9D%E9%86%92%E6%9E%97%E5%9C%B0">初醒林地</a>用一天一夜学会基本玩法，不存档，见<a href="/wiki/%E6%96%B0%E6%89%8B%E6%95%99%E7%A8%8B">新手教程</a></td>
+</tr>
+<tr>
+<td>读取存档</td>
+<td>三个存档位的读取、导出、导入和删除。没有存档时是灰的。见<a href="/wiki/%E5%AD%98%E6%A1%A3">存档</a></td>
+</tr>
+<tr>
+<td>设置</td>
+<td>语言、声音、画面滤镜、改键、AI 设置，以及美术与音乐的致谢</td>
+</tr>
+</tbody></table>
+<p>用鼠标点，或用 <kbd>↑</kbd> <kbd>↓</kbd>（<kbd>W</kbd> <kbd>S</kbd>）选、<kbd>Enter</kbd> 确认，<kbd>Esc</kbd> 关掉打开的面板。</p>
+<p>第一次打开时游戏是英文的。在标题页的“设置”或游戏里的<a href="/wiki/%E9%80%89%E9%A1%B9">选项</a>切换。语言会记在浏览器里。</p>
+<h2 id="开始新游戏"><span class="mw-headline">开始新游戏</span></h2>
+<ol>
+<li>点“新游戏”，先选难度：<strong>简单</strong>（倒下后原地起身）、<strong>普通</strong>（默认，在落脚处复活，身上的东西打成包裹留在倒下的地方，装备和重要物品不掉）、<strong>极限</strong>（只有一条命）。见<a href="/wiki/%E9%9A%BE%E5%BA%A6">难度</a>。</li>
+<li>在三个存档位里选一个，点“在此开始”。存档位已有进度时按钮是“覆盖并开始”，会先确认。</li>
+<li>游戏会自动保存，见<a href="/wiki/%E5%AD%98%E6%A1%A3">存档</a>。</li>
+</ol>
+<p>没玩过同类游戏的人，可以先玩一遍<a href="/wiki/%E6%96%B0%E6%89%8B%E6%95%99%E7%A8%8B">新手教程</a>。</p>
+<h2 id="第一个小时"><span class="mw-headline">第一个小时</span></h2>
+<p>以下是不走弯路的开局。顺序不是硬性的：游戏的目标都是“状态”，用什么办法达到都算。</p>
+<h3 id="1._在云顶台地醒来"><span class="mw-headline">1. 在云顶台地醒来</span></h3>
+<ul>
+<li>时间是第 1 天 13:00。玩家在台地西北角一间破败的哨所里醒来，露米在旁边，告诉你这里是云顶台地，下山只有南边岩壁上的那道豁口。第一个主线任务<a href="/wiki/%E4%B8%8B%E5%B1%B1">下山</a>开始：右上角的任务追踪栏写着眼下的目标，小地图上的黄色菱形指着要去的地方。</li>
+<li>身上什么都没有，饱食度 12/20，生命 40/40。见<a href="/wiki/%E9%A5%B1%E9%A3%9F%E5%BA%A6">饱食度</a>、<a href="/wiki/%E7%94%9F%E5%91%BD%E5%80%BC">生命值</a>。</li>
+<li>哨所的桌上摊着守夜人的日志，按 <kbd>E</kbd> 阅读。挂钩上留着一件守夜人的斗篷。以后初原村的<span class="ent"><span class="spr inline" style="width:18px;height:18px;background-image:url('/wiki/_/looks/1bkygcu-head.png');background-position:-0px -0px;background-size:18px 18px"></span><a href="/wiki/%E5%A5%88%E8%8E%8E%C2%B7%E5%A5%8E%E5%B0%94">奈莎·奎尔</a></span>会托你来读这本日志（支线任务<a href="/wiki/%E5%AE%88%E5%A4%9C%E4%BA%BA%E7%9A%84%E6%97%A5%E5%BF%97">守夜人的日志</a>）。</li>
+<li>门前的空地上有 3 颗浆果、2 根树枝、2 块石块和 2 把干草。</li>
+<li>云顶台地是<a href="/wiki/%E5%92%8C%E5%B9%B3%E5%8C%BA%E5%9F%9F%E4%B8%8E%E6%88%98%E6%96%97%E5%8C%BA%E5%9F%9F">和平区域</a>，夜里不会刷怪。</li>
+</ul>
+<h3 id="2._吃东西"><span class="mw-headline">2. 吃东西</span></h3>
+<ol>
+<li>走到浆果旁，按 <kbd>E</kbd> 捡起来。</li>
+<li>按快捷栏上浆果那一格的数字（<kbd>1</kbd>–<kbd>0</kbd>），把它拿到手上。</li>
+<li>左键，确认“要吃掉浆果吗？”。一颗浆果补 2 点饱食度。</li>
+</ol>
+<p>饱食度九成以上才会自动回血，见<a href="/wiki/%E9%A5%B1%E9%A3%9F%E5%BA%A6">饱食度</a>。</p>
+<h3 id="3._做一把石斧"><span class="mw-headline">3. 做一把石斧</span></h3>
+<p>按 <kbd>C</kbd> 打开<a href="/wiki/%E5%88%B6%E4%BD%9C">制作</a>面板。<a href="/wiki/%E6%96%A7">石斧</a>要 1 根树枝、1 块石块、1 把干草，徒手就能做。石斧能砍树，也是一把武器。见<a href="/wiki/%E4%BC%90%E6%9C%A8">伐木</a>。</p>
+<h3 id="4._唤醒传送雕像"><span class="mw-headline">4. 唤醒传送雕像</span></h3>
+<p>哨所东边不远有一座<a href="/wiki/%E4%BC%A0%E9%80%81%E9%9B%95%E5%83%8F">传送雕像</a>。走近时露米会提醒你。按 <kbd>E</kbd> 唤醒它，雕像会亮起来，成为你的<strong>落脚处</strong>：普通难度下倒下后会在这里复活。以后在<a href="/wiki/%E4%B8%96%E7%95%8C%E5%9C%B0%E5%9B%BE">世界地图</a>（<kbd>M</kbd>）上点它，就能从任何地方传送回来。</p>
+<h3 id="5._下山到伤石山麓"><span class="mw-headline">5. 下山到伤石山麓</span></h3>
+<p>从台地南边的豁口顺着小路下去，就到了<a href="/wiki/%E4%BC%A4%E7%9F%B3%E5%B1%B1%E9%BA%93">伤石山麓</a>。伤石山麓是战斗区域，入夜后会有怪物。</p>
+<p>小路走到平地的地方，花丛中间立着一块古老的<a href="/wiki/%E4%BA%94%E4%BC%A4%E8%B7%AF%E7%A2%91">五伤路碑</a>。世界里没有任何规则定义过它。对它做点什么：拿着东西右键点它、用 <kbd>G</kbd> 放点东西上去、或者打它一下。动作提示后面会出现「?」，这就是世界会学习的地方。做过一次之后，露米会告诉你，世界学会的事都记在<a href="/wiki/%E7%BB%87%E7%BA%BF%E7%B0%BF">织线簿</a>里（<kbd>J</kbd>）。</p>
+<p>路碑下方还有一座伤石山麓的传送雕像，记得唤醒。</p>
+<h3 id="6._晚祷渡"><span class="mw-headline">6. 晚祷渡</span></h3>
+<p>顺着小路往南，走下悬崖台阶，就到了<a href="/wiki/%E6%99%9A%E7%A5%B7%E6%B8%A1">晚祷渡</a>。摆渡人<span class="ent"><span class="spr inline" style="width:18px;height:18px;background-image:url('/wiki/_/looks/ihjqba-head.png');background-position:-0px -0px;background-size:18px 18px"></span><a href="/wiki/%E8%B5%AB%E6%96%AF%E7%8F%80">赫斯珀</a></span>会告诉你：风暴扯断了渡绳，一个浑身雪白的骑手拆走了小桥的木板。她让你先往西去初原村帮忙。这时你发现行囊里还剩半块路上吃的面包（得到一块<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetElement.png');background-position:-128px -32px;background-size:256px 240px"></span><a href="/wiki/%E9%9D%A2%E5%8C%85">面包</a></span>）。</p>
+<h3 id="7._初原村"><span class="mw-headline">7. 初原村</span></h3>
+<p>往西走到<a href="/wiki/%E5%88%9D%E5%8E%9F%E6%9D%91">初原村</a>。<span class="ent"><span class="spr inline" style="width:18px;height:18px;background-image:url('/wiki/_/looks/1mlxqpm-head.png');background-position:-0px -0px;background-size:18px 18px"></span><a href="/wiki/%E4%BC%8A%E5%B0%94%E4%B8%9D%E4%BF%AE%E5%A5%B3">伊尔丝修女</a></span>、<span class="ent"><span class="spr inline" style="width:18px;height:18px;background-image:url('/wiki/_/looks/1u2qwih-head.png');background-position:-0px -0px;background-size:18px 18px"></span><a href="/wiki/%E4%BD%A9%E5%B0%94">佩尔</a></span>和长老<span class="ent"><span class="spr inline" style="width:18px;height:18px;background-image:url('/wiki/_/looks/gjp3pe-head.png');background-position:-0px -0px;background-size:18px 18px"></span><a href="/wiki/%E7%BD%97%E4%B8%87">罗万</a></span>会迎接你。</p>
+<ul>
+<li>到这里，主线任务<a href="/wiki/%E4%B8%8B%E5%B1%B1">下山</a>完成，奖励 15 点经验和一双旅人的靴子。见<a href="/wiki/%E4%BB%BB%E5%8A%A1">任务</a>。</li>
+<li>罗万的主线任务<a href="/wiki/%E5%8F%A4%E5%A2%93%E9%87%8C%E7%9A%84%E5%A4%B1%E8%B8%AA%E8%80%85">古墓里的失踪者</a>随即开始：村里有两个人在风暴中失踪了。</li>
+<li>村里有一处冒着热气的疗伤温泉，泡进去能回血。露米第一次看到时会提醒你。</li>
+<li>初原村是和平区域。有事托付给你的人头顶有黄色的“！”：对他按 <kbd>E</kbd> 听他说，在对话框里选「接受」。广场上的<a href="/wiki/%E5%A7%94%E6%89%98%E6%9D%BF">委托板</a>列着村里眼下的委托。</li>
+</ul>
+<p>之后的流程见<a href="/wiki/%E4%B8%BB%E7%BA%BF%E6%B5%81%E7%A8%8B">主线流程</a>。</p>
+<h2 id="怎样活下去"><span class="mw-headline">怎样活下去</span></h2>
+<table>
+<thead>
+<tr>
+<th>系统</th>
+<th>要点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="/wiki/%E7%94%9F%E5%91%BD%E5%80%BC">生命值</a></td>
+<td>十颗心。吃饱（饱食度九成以上）时慢慢回血；也能睡觉、泡温泉、喝药水</td>
+</tr>
+<tr>
+<td><a href="/wiki/%E9%A5%B1%E9%A3%9F%E5%BA%A6">饱食度</a></td>
+<td>十个鸡腿。吃饱后大约 6 个半游戏小时掉到六成，之后“饿了”，掉得很慢；空到 0 会掉血</td>
+</tr>
+<tr>
+<td><a href="/wiki/%E6%98%BC%E5%A4%9C">昼夜</a></td>
+<td>21:00 入夜，05:00 天亮。战斗区域的野外入夜后会出亡灵和蝙蝠</td>
+</tr>
+<tr>
+<td><a href="/wiki/%E7%9D%A1%E8%A7%89">睡觉</a></td>
+<td>站在床上按 <kbd>E</kbd>，睡到 06:00。床成为落脚处</td>
+</tr>
+<tr>
+<td><a href="/wiki/%E8%90%A5%E7%81%AB">营火</a></td>
+<td>点着的营火 2 格以内，怕火的生物不会靠近</td>
+</tr>
+<tr>
+<td><a href="/wiki/%E5%92%8C%E5%B9%B3%E5%8C%BA%E5%9F%9F%E4%B8%8E%E6%88%98%E6%96%97%E5%8C%BA%E5%9F%9F">和平区域与战斗区域</a></td>
+<td>小地图下方写着当前地图是哪一种</td>
+</tr>
+<tr>
+<td><a href="/wiki/%E9%9A%BE%E5%BA%A6">死亡</a></td>
+<td>生命归零时出现死亡界面，可以复活、读档或回到标题</td>
+</tr>
+</tbody></table>
+<p>游戏里的 1 分钟等于现实 1 秒，一整天是现实 24 分钟。打开菜单、对话时时间暂停。见<a href="/wiki/%E6%B8%B8%E6%88%8F%E5%86%85%E6%97%B6%E9%97%B4">游戏内时间</a>。</p>
+<h2 id="露米"><span class="mw-headline">露米</span></h2>
+<p><a href="/wiki/%E9%9C%B2%E7%B1%B3">露米</a>是一直跟着你的精灵。她会飞，不占地方，不参与战斗，跨地图也会跟着。对她按 <kbd>E</kbd>，她会告诉你“现在要”做什么以及怎么做。当前目标也写在右上角的任务追踪栏里；忘了该做什么就看一眼追踪栏、问她，或打开<a href="/wiki/%E4%BB%BB%E5%8A%A1">任务</a>日志（<kbd>L</kbd>）。</p>
+<p>她还会看准时机主动教你新玩法——<strong>指引任务</strong>：第一次有没花的技能点（<a href="/wiki/%E7%AC%AC%E4%B8%80%E4%B8%AA%E6%8A%80%E8%83%BD%E7%82%B9">第一个技能点</a>）、升到 5 级还没职业（<a href="/wiki/%E9%80%89%E4%B8%80%E6%9D%A1%E8%B7%AF">选一条路</a>）、第一次走到村里池塘边（<a href="/wiki/%E7%AC%AC%E4%B8%80%E7%AB%BF">第一竿</a>）、第一次走进菜圃（<a href="/wiki/%E8%8F%9C%E5%9C%83%E7%9A%84%E4%B8%80%E8%AF%BE">菜圃的一课</a>）、立誓以后第一次走上朝圣者之路（<a href="/wiki/%E8%B7%AF%E8%BE%B9%E7%9A%84%E4%BE%9B%E5%93%81">路边的供品</a>）。她先说一句话，任务就开始了，在她面板的「主线指引」页和主线并排列着。</p>
+<h2 id="小贴士"><span class="mw-headline">小贴士</span></h2>
+<ul>
+<li>先看格子上方的动作提示再按键。带「?」的是世界从没见过的事，大胆去试。见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E5%8A%A8%E4%BD%9C%E6%8F%90%E7%A4%BA%E4%B8%8E%E3%80%8C%E3%80%8D">动作提示</a>。</li>
+<li>每到一个有<a href="/wiki/%E4%BC%A0%E9%80%81%E9%9B%95%E5%83%8F">传送雕像</a>的地方都唤醒它，既能传送，又能当落脚处。</li>
+<li>天黑前回到和平区域，或者关上门待在屋里，或者守在点着的营火旁。</li>
+<li>普通难度下倒下，身上的东西（穿着的装备、手里的武器和重要物品除外）打成一个<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Object/Bag.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E9%81%97%E8%90%BD%E7%9A%84%E5%8C%85%E8%A3%B9">遗落的包裹</a></span>留在原地。回去按 <kbd>E</kbd>，一次全部拿回。</li>
+<li>背包满了，新捡的东西会掉在脚下。用<a href="/wiki/%E7%AE%B1%E5%AD%90%E4%B8%8E%E5%AE%B9%E5%99%A8">箱子</a>存放用不着的东西。</li>
+<li>想多走几步看看世界，打开<a href="/wiki/%E4%B8%96%E7%95%8C%E5%9C%B0%E5%9B%BE">世界地图</a>（<kbd>M</kbd>）；走出地图边缘还能到<a href="/wiki/%E4%BA%94%E5%8D%B0%E4%B9%8B%E5%9C%B0">五印之地</a>的大地图上。</li>
+</ul>
+<h2 id="系统一览"><span class="mw-headline">系统一览</span></h2>
+<ul>
+<li><strong>操作与界面</strong>：<a href="/wiki/%E6%93%8D%E4%BD%9C">操作</a>、<a href="/wiki/%E7%95%8C%E9%9D%A2">界面</a>、<a href="/wiki/%E9%80%89%E9%A1%B9">选项</a>、<a href="/wiki/%E5%AD%98%E6%A1%A3">存档</a>、<a href="/wiki/%E9%9A%BE%E5%BA%A6">难度</a></li>
+<li><strong>角色</strong>：<a href="/wiki/%E7%8E%A9%E5%AE%B6%E8%A7%92%E8%89%B2">玩家角色</a>、<a href="/wiki/%E7%94%9F%E5%91%BD%E5%80%BC">生命值</a>、<a href="/wiki/%E9%A5%B1%E9%A3%9F%E5%BA%A6">饱食度</a>、<a href="/wiki/%E7%AD%89%E7%BA%A7%E4%B8%8E%E7%BB%8F%E9%AA%8C">等级与经验</a>、<a href="/wiki/%E6%8A%80%E8%83%BD">技能</a>、<a href="/wiki/%E8%81%8C%E4%B8%9A">职业</a>、<a href="/wiki/%E6%81%A9%E8%B5%90">恩赐</a></li>
+<li><strong>物品</strong>：<a href="/wiki/%E8%83%8C%E5%8C%85">背包</a>、<a href="/wiki/%E7%AE%B1%E5%AD%90%E4%B8%8E%E5%AE%B9%E5%99%A8">箱子与容器</a>、<a href="/wiki/%E8%A3%85%E5%A4%87">装备</a>、<a href="/wiki/%E5%93%81%E8%B4%A8">品质</a>、<a href="/wiki/%E5%88%B6%E4%BD%9C">制作</a>、<a href="/wiki/%E7%89%A9%E5%93%81">物品</a></li>
+<li><strong>时间与天气</strong>：<a href="/wiki/%E6%B8%B8%E6%88%8F%E5%86%85%E6%97%B6%E9%97%B4">游戏内时间</a>、<a href="/wiki/%E6%98%BC%E5%A4%9C">昼夜</a>、<a href="/wiki/%E5%A4%A9%E6%B0%94">天气</a></li>
+<li><strong>生活</strong>：<a href="/wiki/%E9%87%87%E9%9B%86">采集</a>、<a href="/wiki/%E4%BC%90%E6%9C%A8">伐木</a>、<a href="/wiki/%E9%87%87%E7%9F%BF">采矿</a>、<a href="/wiki/%E5%BB%BA%E9%80%A0">建造</a>、<a href="/wiki/%E6%A5%BC%E5%B1%82">楼层</a>、<a href="/wiki/%E6%88%BF%E9%97%B4">房间</a>、<a href="/wiki/%E5%86%9C%E8%80%95">农耕</a>、<a href="/wiki/%E5%8A%A8%E7%89%A9">动物</a>、<a href="/wiki/%E9%92%93%E9%B1%BC">钓鱼</a>、<a href="/wiki/%E7%83%B9%E9%A5%AA">烹饪</a>、<a href="/wiki/%E7%9D%A1%E8%A7%89">睡觉</a>、<a href="/wiki/%E9%87%91%E9%92%B1">金钱</a></li>
+<li><strong>战斗</strong>：<a href="/wiki/%E6%88%98%E6%96%97">战斗</a>、<a href="/wiki/%E9%98%B5%E8%90%A5%E4%B8%8E%E8%84%BE%E6%80%A7">阵营与脾性</a>、<a href="/wiki/%E5%A4%9C%E8%A1%8C%E7%94%9F%E7%89%A9">夜行生物</a>、<a href="/wiki/%E9%A6%96%E9%A2%86">首领</a>、<a href="/wiki/%E5%85%83%E7%B4%A0">元素</a>、<a href="/wiki/%E7%8A%B6%E6%80%81">状态</a></li>
+<li><strong>地图与记录</strong>：<a href="/wiki/%E4%B8%96%E7%95%8C%E5%9C%B0%E5%9B%BE">世界地图</a>、<a href="/wiki/%E4%BC%A0%E9%80%81%E9%9B%95%E5%83%8F">传送雕像</a>、<a href="/wiki/%E4%BB%BB%E5%8A%A1">任务</a>、<a href="/wiki/%E5%9B%BE%E9%89%B4">图鉴</a>、<a href="/wiki/%E7%BB%87%E7%BA%BF%E7%B0%BF">织线簿</a></li>
+<li><strong>世界会学</strong>：<a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">世界会学</a>、<a href="/wiki/%E6%A8%A1%E7%BB%84%E6%8E%A7%E5%88%B6%E5%8F%B0">模组控制台</a></li>
+<li><strong>这个游戏没有的系统</strong>：<a href="/wiki/%E8%83%BD%E9%87%8F">能量</a>、<a href="/wiki/%E5%AD%A3%E8%8A%82">季节</a>、<a href="/wiki/%E8%8A%82%E6%97%A5">节日</a>、<a href="/wiki/%E5%8F%8B%E8%B0%8A">友谊</a>、<a href="/wiki/%E6%88%90%E5%B0%B1">成就</a>、<a href="/wiki/%E5%90%88%E4%BD%9C">合作</a></li>
+</ul>
+<h2 id="历史"><span class="mw-headline">历史</span></h2>
+<ul>
+<li>2026-10-03：开局改为从山顶一路下山到渡口的序章，加入传送雕像和世界地图。</li>
+<li>2026-10-04：新游戏改为先进入林间空地的新手教程，可以跳过；云顶台地暂时删除。</li>
+<li>2026-10-04：新游戏可以选择难度。</li>
+<li>2026-10-06：云顶台地恢复为新游戏的起点，新手教程改成标题页上的独立模式。</li>
+<li>2026-10-07：开局接上第一章的主线：从云顶台地到初原村是主线任务“下山”，到达后罗万的任务自动开始。</li>
+<li>2026-10-08：普通难度下倒下，留在原地的东西打成一个包裹，一次拿回。系统一览加上钓鱼和金钱。</li>
+<li>2026-10-09：任务改为在对话框里接受；屏幕右上角有了任务追踪栏，地图上有任务标记；初原村立起委托板。</li>
+<li>2026-10-21：操作定为四个输入：拿着物件对东西用改成右键（左键是手上东西本身的用法：工具、武器挥，别的东西对自己用），拿起散落的东西改成 <kbd>E</kbd>（见<a href="/wiki/%E6%93%8D%E4%BD%9C">操作</a>）。</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title">基本</th></tr><tr><td colspan="2"><a href="/wiki/%E9%A5%B1%E9%A3%9F%E5%BA%A6">饱食度</a> • <a href="/wiki/%E6%93%8D%E4%BD%9C">操作</a> • <a href="/wiki/%E6%88%90%E5%B0%B1">成就</a> • <a href="/wiki/%E4%BC%A0%E9%80%81%E9%9B%95%E5%83%8F">传送雕像</a> • <a href="/wiki/%E7%AD%89%E7%BA%A7%E4%B8%8E%E7%BB%8F%E9%AA%8C">等级与经验</a> • <a href="/wiki/%E5%AF%B9%E8%AF%9D">对话</a> • <a href="/wiki/%E7%8A%AF%E7%BD%AA">犯罪</a> • <a href="/wiki/%E8%B7%9F%E9%9A%8F%E4%B8%8E%E9%9B%87%E4%BD%A3">跟随与雇佣</a> • <a href="/wiki/%E5%90%88%E4%BD%9C">合作</a> • <a href="/wiki/%E5%AD%A3%E8%8A%82">季节</a> • <a href="/wiki/%E4%BB%B7%E5%80%BC">价值</a> • <a href="/wiki/%E4%BA%A4%E6%98%93">交易</a> • <a href="/wiki/%E8%8A%82%E6%97%A5">节日</a> • <a href="/wiki/%E9%87%91%E9%92%B1">金钱</a> • <a href="/wiki/%E6%A8%A1%E7%BB%84%E6%8E%A7%E5%88%B6%E5%8F%B0">模组控制台</a> • <a href="/wiki/%E9%9A%BE%E5%BA%A6">难度</a> • <a href="/wiki/%E8%83%BD%E9%87%8F">能量</a> • <a href="/wiki/%E5%93%81%E8%B4%A8">品质</a> • <a href="/wiki/%E6%BD%9C%E8%A1%8C%E4%B8%8E%E6%89%92%E7%AA%83">潜行与扒窃</a> • <a href="/wiki/%E4%BA%BA%E4%BB%AC%E7%9A%84%E9%9C%80%E6%B1%82">人们的需求</a> • <a href="/wiki/%E4%BA%BA%E7%89%A9%E7%9A%84%E5%AE%89%E5%8D%B1">人物的安危</a> • <a href="/wiki/%E4%BA%BA%E7%89%A9%E4%B9%8B%E6%AD%BB">人物之死</a> • <a href="/wiki/%E4%BB%BB%E5%8A%A1">任务</a> • <a href="/wiki/%E5%96%84%E6%81%B6%E4%B8%8E%E4%BF%A1%E5%BF%B5">善恶与信念</a> • <a href="/wiki/%E7%94%9F%E5%91%BD%E5%80%BC">生命值</a> • <a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">世界会学</a> • <a href="/wiki/%E5%AE%88%E5%8D%AB%E4%B8%8E%E6%82%AC%E8%B5%8F">守卫与悬赏</a> • <a href="/wiki/%E5%A4%A9%E6%B0%94">天气</a> • <a href="/wiki/%E5%A4%96%E8%A7%82">外观</a> • <a href="/wiki/%E7%8E%A9%E5%AE%B6%E8%A7%92%E8%89%B2">玩家角色</a> • <a href="/wiki/%E6%96%B0%E6%89%8B%E6%95%99%E7%A8%8B">新手教程</a> • <a href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">新手指南</a> • <a href="/wiki/%E6%B8%B8%E6%88%8F%E5%86%85%E6%97%B6%E9%97%B4">游戏内时间</a> • <a href="/wiki/%E5%8F%8B%E8%B0%8A">友谊</a> • <a href="/wiki/%E6%98%BC%E5%A4%9C">昼夜</a> • <a href="/wiki/%E8%A3%85%E5%A4%87">装备</a></td></tr></table>
+</div>
+  <div class="catlinks">分类：<a href="/wiki/%E5%88%86%E7%B1%BB%EF%BC%9A%E7%8E%A9%E6%B3%95">玩法</a></div>
+</main>
+<footer class="footer">
+  <p>本站内容由 OpenWorld 项目组编写，数据表从游戏代码 <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a>（main）生成于 2026-10-30 06:19。</p>
+  <p>项目组成员都能在 GitHub 上编辑：见<a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a>。游戏素材来自 Ninja Adventure（CC0）与项目自绘。</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

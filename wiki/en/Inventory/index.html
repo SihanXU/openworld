@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en" data-base="/wiki/en/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Inventory - OpenWorld Wiki</title>
+<meta name="description" content="The 30-slot inventory, its first row (the toolbar) and the off-hand slot, the mouse controls of the inventory panel (the character sheet on the left, the pack and the money you carry on the right), and the rules for a full inventory, stacking and drawing in dropped things.">
+<link rel="alternate" hreflang="zh" href="/wiki/%E8%83%8C%E5%8C%85">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/en/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>Wiki</small></span></a>
+  <nav class="portlet"><h3>Navigation</h3><ul><li><a href="/wiki/en/">Main page</a></li><li><a href="/wiki/en/Beginner's_Guide">Beginner's Guide</a></li><li><a href="/wiki/en/Main_Quest_Walkthrough">Main Quest Walkthrough</a></li><li><a href="/wiki/en/Special/Recent_changes">Recent changes</a></li><li><a href="/wiki/en/Special/Random_page">Random page</a></li><li><a href="/wiki/en/Special/Stubs">Stubs</a></li><li><a href="/wiki/en/Special/All_pages">All pages</a></li></ul></nav><nav class="portlet"><h3>Contributing</h3><ul><li><a href="/wiki/en/Editing_Basics">Editing Basics</a></li><li><a href="/wiki/en/Format_Manual">Format Manual</a></li><li><a href="/wiki/en/Style_Guide">Style Guide</a></li><li><a href="/wiki/en/Special/Completeness">Completeness</a></li></ul></nav><nav class="portlet"><h3>Design</h3><ul><li><a href="/wiki/en/About_This_Wiki">About This Wiki</a></li><li><a href="/wiki/en/Design_Pillars">Design Pillars</a></li><li><a href="/wiki/en/Roadmap">Roadmap</a></li><li><a href="/wiki/en/Version_History">Version History</a></li><li><a href="/wiki/en/Known_Issues">Known Issues</a></li></ul></nav>
+  <nav class="portlet"><h3>Game</h3><ul><li><a href="/play/">Play the game</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub repository</a></li><li><a href="/wiki/%E8%83%8C%E5%8C%85" hreflang="zh">中文维基</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/en/Inventory">Page</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22Inventory%22" title="Discussion of this page (GitHub issues)">Talk</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5Bwiki%5D%20Inventory&body=Page%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2Fen%2FInventory%0A%0A" title="Start a discussion of this page">＋</a></div>
+  <form class="search" action="/wiki/en/Special/Search" method="get" role="search"><input name="q" id="q" type="search" placeholder="Search the OpenWorld Wiki" autocomplete="off" aria-label="Search"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/en/Inventory">Read</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/en/pages/%E5%9F%BA%E6%9C%AC/%E8%83%8C%E5%8C%85.md" title="Edit this page on GitHub">Edit</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/en/pages/%E5%9F%BA%E6%9C%AC/%E8%83%8C%E5%8C%85.md">History</a><a class="tab lang" href="/wiki/%E8%83%8C%E5%8C%85" hreflang="zh" lang="zh" title="中文版">中文</a><button class="tab theme" id="theme" title="Light or dark">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">Inventory</h1><div class="subtitle">From the OpenWorld Wiki · Gameplay</div>
+  
+  <div class="body"><div class="banner outdated">The <a href="/wiki/%E8%83%8C%E5%8C%85" lang="zh">Chinese page</a> has changed since this translation was made: some of this may be out of date.</div><p>The <strong>inventory</strong> holds everything the player carries. It has 30 slots in three rows of ten. The first row is the <strong>toolbar</strong> at the bottom of the screen, on the keys <kbd>1</kbd>–<kbd>0</kbd>; whatever is in the selected slot is what you hold in your hand. Press <kbd>Tab</kbd> (or <kbd>I</kbd>) or click the inventory button at the lower right to open the inventory panel; the tabs above the panel switch to the other panels, such as crafting, the skill tree and quests.</p>
+<nav class="toc"><div class="toc-title">Contents</div><ol><li class="toc-l2"><a href="#Slots_and_stacking"><span class="tocnum">1</span> Slots and stacking</a></li><li class="toc-l2"><a href="#Toolbar"><span class="tocnum">2</span> Toolbar</a></li><li class="toc-l2"><a href="#The_inventory_panel"><span class="tocnum">3</span> The inventory panel</a></li><li class="toc-l3"><a href="#Character_sheet"><span class="tocnum">3.1</span> Character sheet</a></li><li class="toc-l3"><a href="#Pack"><span class="tocnum">3.2</span> Pack</a></li><li class="toc-l3"><a href="#Right-click_menu"><span class="tocnum">3.3</span> Right-click menu</a></li><li class="toc-l2"><a href="#Drawing_things_in"><span class="tocnum">4</span> Drawing things in</a></li><li class="toc-l2"><a href="#What_happens_to_the_things_in_your_inventory"><span class="tocnum">5</span> What happens to the things in your inventory</a></li><li class="toc-l2"><a href="#Tips"><span class="tocnum">6</span> Tips</a></li><li class="toc-l2"><a href="#History"><span class="tocnum">7</span> History</a></li></ol></nav><h2 id="Slots_and_stacking"><span class="mw-headline">Slots and stacking</span></h2>
+<ul>
+<li>30 slots in three rows. Learning <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/pack.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Skills#skill-Big%20Pack" title="Skills">Big Pack</a></span> in the <a href="/wiki/en/Skills#Gathering">Gathering</a> branch adds a row, making 40 slots.</li>
+<li>Things of the same kind stack in one slot: they count as the same only when their type, name, tags, statuses and the properties they carry themselves are all alike (so a wet Plank and a dry Plank are kept apart, and so are two letters with different words). Whose a thing is does not matter: a loaf you bought and a loaf you found stack together.</li>
+<li><strong>Tools, weapons and anything you can wear take one slot each</strong> and never stack: two axes take two slots, each with its own wear and affixes. The same holds in a chest.</li>
+<li>A slot can hold any number; there is no cap, and no weight.</li>
+<li>When the inventory is full (no empty slot), a new kind of thing you get falls at your feet. Kinds you already have still stack in.</li>
+</ul>
+<h2 id="Toolbar"><span class="mw-headline">Toolbar</span></h2>
+<ul>
+<li>The ten slots at the bottom of the screen, labeled 1–0 in their top left corners. Choose one with the number keys, by clicking a slot or by scrolling the mouse wheel. The wheel only jumps between slots that hold something.</li>
+<li>One of the stack in the selected slot is held in your hand, and it is what the left and right clicks use: the left click is its own use (a weapon strikes, a tool works, anything else is used on yourself: eaten, drunk, put on), and the right click uses it on what you point at; empty-handed, the left click uses your main-hand weapon or your fist. What you hold is not drawn on the character; when a sword, bow or staff is used to attack, the swing, the drawn bow or the raised staff is drawn in the moment of the strike. See <a href="/wiki/en/Controls">Controls</a>.</li>
+<li>Press <kbd>Shift</kbd>+<kbd>Tab</kbd> to bring the next row of the inventory up as the toolbar; holding <kbd>Shift</kbd> and turning the wheel works too, and scrolling back brings up the last row. The selected column stays the same.</li>
+<li>When the character walks near the bottom edge of the screen, the toolbar moves to the top of the screen so it does not cover the character.</li>
+<li>The single slot to the right of the toolbar is the <strong>off hand</strong>, which normally shows a gray shield outline. With a shield in it, it shows the shield; another profession&#39;s shield can be put in but does nothing, and the slot is grayed out. See <a href="/wiki/en/Equipment">Equipment</a>.</li>
+</ul>
+<h2 id="The_inventory_panel"><span class="mw-headline">The inventory panel</span></h2>
+<p>The panel is in two halves: the <strong>character sheet</strong> on the left and the <strong>pack</strong> on the right. When the window is too narrow, the character sheet goes above the pack. Time stops while the panel is open.</p>
+<h3 id="Character_sheet"><span class="mw-headline">Character sheet</span></h3>
+<p>The left side is like a character card:</p>
+<ul>
+<li><strong>Top line</strong>: a green “Level N” on the left, and the <a href="/wiki/en/Professions">profession</a> name on the right (“No profession” before you have chosen one).</li>
+<li><strong>Middle</strong>: the player&#39;s anime-style portrait (the face made in <a href="/wiki/en/Looks">Looks</a>) in a copper-edged frame. The column to the left of the portrait is head, earring, necklace, shoulders and armour; the column to the right is hands, ring, ring, belt and feet; below the portrait, side by side, are the main hand and the off hand. Each slot has its name written below it.</li>
+<li><strong>An empty slot</strong> shows a relief outline of that slot (helmet, earring, necklace, pauldron, breastplate, glove, ring, belt, sword, boots, shield); once something is worn there the slot turns gold and shows it. When another profession&#39;s off-hand piece is in the off-hand slot, the slot is grayed out.</li>
+<li><strong>The stats below</strong>, six in two columns: Health (current / maximum), Food (current / maximum), Attack, Weapon (the power of the main-hand weapon, or “—” without one), Defense and Critical. Attack, Defense and Critical are the character&#39;s own numbers plus the numbers written on the equipment worn.</li>
+</ul>
+<p>For how to put things on and take them off, see the table below and <a href="/wiki/en/Equipment#Putting_on_and_taking_off">Equipment</a>.</p>
+<h3 id="Pack"><span class="mw-headline">Pack</span></h3>
+<p>On the right are three rows of slots (with the toolbar row set apart). The title line reads “Pack” on the left and shows the money you carry on the right: a <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/Items/Thornmark.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Dawnmark">Dawnmark</a></span> icon, the amount and the word “Dawnmarks” (see <a href="/wiki/en/Money">Money</a>). Below the slots are two buttons, “⇅ Organize” and “⤓ Drop”, and a line of instructions.</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Click a slot</td>
+<td>Picks up this stack, which follows the mouse</td>
+</tr>
+<tr>
+<td>Click another slot while holding a stack</td>
+<td>Puts it down or swaps</td>
+</tr>
+<tr>
+<td>Drag a slot onto another</td>
+<td>Puts it down or swaps</td>
+</tr>
+<tr>
+<td>Drag something wearable onto the character sheet on the left</td>
+<td>Puts it on</td>
+</tr>
+<tr>
+<td>Drag a slot out of the panel</td>
+<td>Drops the whole stack in front of you</td>
+</tr>
+<tr>
+<td>Click empty space outside the panel while holding a stack</td>
+<td>Drops the whole stack in front of you</td>
+</tr>
+<tr>
+<td><kbd>Shift</kbd>+click</td>
+<td>Moves this stack between the toolbar and the other rows of the inventory</td>
+</tr>
+<tr>
+<td>⇅ Organize</td>
+<td>Tools go first, everything else is sorted by kind, and empty slots move to the end</td>
+</tr>
+<tr>
+<td>⤓ Drop</td>
+<td>Drops the stack you have picked up in front of you (at your feet if there is no room in front)</td>
+</tr>
+<tr>
+<td>Pick up something wearable and click a slot on the character sheet on the left</td>
+<td>Puts it on (in its own slot)</td>
+</tr>
+<tr>
+<td>Click something worn on the character sheet</td>
+<td>Takes it off</td>
+</tr>
+<tr>
+<td>Right-click a slot</td>
+<td>Opens a menu; see below</td>
+</tr>
+<tr>
+<td>Hover over a slot</td>
+<td>Shows this thing&#39;s tooltip; see <a href="/wiki/en/Interface#Tooltips">Tooltips</a></td>
+</tr>
+</tbody></table>
+<h3 id="Right-click_menu"><span class="mw-headline">Right-click menu</span></h3>
+<p>Right-click something in the inventory or a chest and you can use several inputs on it, just as if it lay on the ground:</p>
+<ul>
+<li><strong>Use X on it</strong>: uses what is in your hand on this thing (the same as the right click).</li>
+<li><strong>Put X into / onto it</strong>: puts what is in your hand into or onto it (the same as <kbd>G</kbd>).</li>
+<li><strong>Handle it</strong>: the same as pressing <kbd>E</kbd> on it.</li>
+<li><strong>Wear / Wear in the off hand / Take off</strong>: only for things that can be worn.</li>
+<li><strong>Drop</strong>: drops it in front of you.</li>
+</ul>
+<p>This way you can use what is in your hand on another thing in your inventory without first putting it on the ground. A combination no rule defines makes <a href="/wiki/en/The_World_Learns">the world learn</a> here too.</p>
+<h2 id="Drawing_things_in"><span class="mw-headline">Drawing things in</span></h2>
+<ul>
+<li>Things dropped by rules (Logs from a felled tree, Planks from a smashed crate and so on) that land within 2 tiles fly into your inventory by themselves, and “+1 name” shows at the lower left of the screen. Picking up the same kind of thing in a row adds up the number.</li>
+<li><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/magnet.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Skills#skill-Long%20Reach" title="Skills">Long Reach</a></span> widens the range by another 2 tiles.</li>
+<li>Things lying quietly are not drawn in: what you leave behind when you collapse on Normal difficulty and what a defeated creature scatters both have to be walked to and picked up with <kbd>E</kbd>.</li>
+<li>Nothing is drawn in while the character is busy (sleeping or collapsed, for example).</li>
+<li>A new thing drawn in does not go into the empty slot you have selected (as long as there is another empty slot): fighting empty-handed, you will not suddenly find a dropped thing in your hand. Things picked up with <kbd>E</kbd> still go straight into your hand.</li>
+</ul>
+<h2 id="What_happens_to_the_things_in_your_inventory"><span class="mw-headline">What happens to the things in your inventory</span></h2>
+<ul>
+<li>Equipment you wear is on you and takes no inventory slot: the slot empties when you put it on, and it comes back to the inventory when you take it off. See <a href="/wiki/en/Equipment">Equipment</a>.</li>
+<li>When you collapse on Normal difficulty, the things in your inventory are bundled into <a href="/wiki/en/Lost_Belongings">Lost Belongings</a> left where you fell (the equipment you wear, the weapon in your hand and important items stay with you). Go back and press <kbd>E</kbd> to take it all back at once. See <a href="/wiki/en/Difficulty">Difficulty</a>.</li>
+<li>The things in your inventory are kept in the <a href="/wiki/en/Saving">save</a>.</li>
+</ul>
+<h2 id="Tips"><span class="mw-headline">Tips</span></h2>
+<ul>
+<li>Keep the tools and weapons you use often on the toolbar and materials in the rows below, and bring them up with <kbd>Shift</kbd>+<kbd>Tab</kbd> when you need them.</li>
+<li>When your inventory is nearly full, put a <a href="/wiki/en/Chests_and_Containers">chest</a> at home.</li>
+<li>The organize button puts tools first, so after pressing it the toolbar may have changed; watch what is in your hand.</li>
+</ul>
+<h2 id="History"><span class="mw-headline">History</span></h2>
+<ul>
+<li>2026-10-01: The inventory, the toolbar and switching rows with <kbd>Tab</kbd> were added, with dropped things drawn in automatically.</li>
+<li>2026-10-01: Things in the inventory can be right-clicked to use each input on them.</li>
+<li>2026-10-02: The inventory grew to 30 slots in three rows.</li>
+<li>2026-10-03: <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/pack.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Skills#skill-Big%20Pack" title="Skills">Big Pack</a></span> was added, giving the inventory another row.</li>
+<li>2026-10-05: The off-hand slot was added.</li>
+<li>2026-10-20: New things drawn in automatically no longer go into the selected empty slot.</li>
+<li>2026-10-07: An equipment panel with ten slots was added beside the inventory.</li>
+<li>2026-10-08: When you collapse on Normal difficulty, the things in your inventory are left as a bundle, taken back in one go; the equipment panel gained the main hand.</li>
+<li>2026-10-11: The inventory panel became the character sheet plus the pack: the equipment slots moved to the left, on either side of the portrait, with the stats below; the pack&#39;s title line shows the money you carry.</li>
+<li>2026-10-11: Empty slots show a relief outline.</li>
+<li>2026-10-12: What you hold is no longer drawn on the character; swords, bows and staves are drawn in motion when they strike.</li>
+<li>2026-10-21: The controls were set as four inputs: using a held thing on something moved to the right click (the left click is the held thing&#39;s own use: a tool or weapon is swung, anything else is used on yourself), and picking up loose things moved to <kbd>E</kbd> (see <a href="/wiki/en/Controls">Controls</a>).</li>
+<li>2026-10-20: <kbd>Tab</kbd> now opens the inventory, with a row of tabs above it switching to the other panels (the old keys such as <kbd>I</kbd> still work); switching the toolbar row moved to <kbd>Shift</kbd>+<kbd>Tab</kbd> or <kbd>Shift</kbd>+wheel; every key can be changed in <a href="/wiki/en/Options">Options</a>, with two presets, scheme A and scheme B.</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title"><a href="/wiki/en/Interface">Interface</a></th></tr><tr><td colspan="2"><a href="/wiki/en/Chests_and_Containers">Chests and Containers</a> • <a href="/wiki/en/Codex">Codex</a> • <a href="/wiki/en/Interface">Interface</a> • <a href="/wiki/en/Inventory">Inventory</a> • <a href="/wiki/en/Options">Options</a> • <a href="/wiki/en/Saving">Saving</a> • <a href="/wiki/en/Threadbook">Threadbook</a> • <a href="/wiki/en/World_Map">World Map</a></td></tr></table>
+</div>
+  <div class="catlinks">Categories: <a href="/wiki/en/Category/Gameplay">Gameplay</a></div>
+</main>
+<footer class="footer">
+  <p>Written by the OpenWorld team and translated from the Chinese edition; the tables are generated from the game’s code <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a> (main) at 2026-10-30 06:19.</p>
+  <p>Everyone on the team can edit it on GitHub: see <a href="/wiki/en/Editing_Basics">Editing Basics</a>. Game art from Ninja Adventure (CC0) and the project's own.</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

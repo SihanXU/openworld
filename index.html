@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenWorld</title>
+    <meta name="description" content="OpenWorld: a pixel-art open-world RPG you play in the browser. Try anything: what nobody wrote, the world works out and keeps.">
+    <meta property="og:title" content="OpenWorld">
+    <meta property="og:description" content="A pixel-art open-world RPG you play in the browser. Try anything: what nobody wrote, the world works out and keeps.">
+    <meta property="og:image" content="media/hero.jpg">
+    <link rel="preload" href="fonts/pixelify-sans-600.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="fonts/fonts.css">
+    <link rel="icon" type="image/png" sizes="60x60" href="icons/favicon.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
+    <link rel="stylesheet" href="base.css">
+    <link rel="stylesheet" href="page.css">
+</head>
+<body>
+    <nav class="banner" id="nav">
+        <div class="container">
+            <a class="nav-title" href="#top" inert aria-hidden="true"><span class="logo">OpenWorld</span><small>Large Symbolic World</small></a>
+            <div class="nav-links" id="nav-links" data-spy>
+                <a href="#how" data-zh="工作原理">How it works</a>
+                <a href="#news" data-zh="新闻">News</a>
+                <a href="team/" data-href-zh="team/zh.html" data-zh="团队">Team</a>
+                <a href="#join" class="cta" data-zh="等候名单">Waitlist</a>
+            </div>
+            <div class="nav-actions">
+                <a class="gh-btn" href="https://github.com/SihanXU/openworld" target="_blank" rel="noopener" aria-label="OpenWorld on GitHub" data-zh-label="GitHub 上的 OpenWorld"><svg class="gh-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span class="gh-stars" data-gh-stars hidden></span></a>
+                <button class="lang-btn" type="button" data-lang-toggle aria-label="Switch to Chinese"><svg class="lang-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg><span data-lang-label lang="zh-Hans">中文</span></button>
+                <button class="nav-toggle" type="button" aria-controls="nav-links" aria-expanded="false">
+                    <span class="sr-only" data-zh="切换导航菜单">Toggle navigation menu</span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path class="menu-line top" d="M5 6h14"/><path class="menu-line middle" d="M5 12h14"/><path class="menu-line bottom" d="M5 18h14"/></svg>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- the Holy City's six places behind the head, as the title shows them, silent (trailer stage ?film=tour) -->
+    <section class="hero on-dark" id="top">
+        <video class="backdrop" data-auto muted loop playsinline preload="auto" poster="media/hero.jpg"><source src="media/hero.mp4" type="video/mp4"></video>
+        <div class="hero-inner">
+            <!-- the latest post, above the name: the news band below keeps them all -->
+            <a class="news-pill" href="news/launch/" data-href-zh="news/launch/zh.html"><b data-zh="新">New</b><span data-zh="一个可自我学习的进化世界">A world that learns as it goes</span><span class="go" aria-hidden="true">&rarr;</span></a>
+            <h1 class="logo">OpenWorld</h1>
+            <p class="tagline" data-zh="想到什么，就试什么" data-zh-keep="想到什么，|就试什么">Try anything</p>
+            <div class="hero-actions">
+                <a class="btn primary" href="play/" data-zh="试玩 Demo">Play the demo</a>
+                <!-- the waitlist is not open yet: shown, not followed -->
+                <span class="btn soon" role="link" aria-disabled="true" tabindex="0" data-soon="Coming soon" data-zh-soon="即将开放" data-zh="加入等候名单">Join the waitlist</span>
+                <a class="btn" href="https://github.com/SihanXU/openworld" target="_blank" rel="noopener"><svg class="gh-mark" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span data-zh="代码">Code</span></a>
+                <a class="btn" href="https://x.com/intent/follow?screen_name=SihanXuOfficial" target="_blank" rel="noopener"><svg class="x-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span data-zh="在 X 上关注">Follow on X</span></a>
+            </div>
+        </div>
+        <!-- which of the six is behind the words now, kept in step with the film (page.js) -->
+        <p class="now-showing" aria-hidden="true"><span class="region" data-zh="圣城">The Holy City</span><b data-now data-zh="日泉修道院">Sunwell Abbey</b></p>
+        <a class="scroll-bar light" href="#places"><span class="sr-only" data-zh="向下浏览地点">Explore the places below</span></a>
+    </section>
+
+    <!-- the places: the showcase places (docs/showcase.md), each from where it shows best (trailer stage ?film=places) -->
+    <section class="band night places" id="places">
+        <div class="container">
+            <div class="intro">
+                <div>
+                    <p class="label" data-zh="地点">Places</p>
+                    <h2 data-zh="路的前方">Further down the road</h2>
+                </div>
+                <div class="text"><p data-zh="朝圣之路的尽头是圣城，这些是圣城和它周围六个地区里等着你去的地方。">The pilgrimage ends in the Holy City, and these are the places waiting for you there and in the six regions around it.</p></div>
+            </div>
+            <div class="viewer" data-viewer>
+                <figure class="slide on" data-place="sunwell-abbey">
+                    <img src="media/places/sunwell-abbey.webp" alt="Sunwell Abbey" data-zh-alt="日泉修道院" width="1920" height="1080" loading="eager" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="圣城">The Holy City</span>
+                        <b data-zh="日泉修道院">Sunwell Abbey</b>
+                        <span class="what" data-zh="一座有玫瑰窗和回廊的大教堂，地下还有墓穴。">A cathedral with its rose window and cloister, and a crypt below.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="north-gate">
+                    <img src="media/places/north-gate.webp" alt="The North Gate" data-zh-alt="北门区" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="圣城">The Holy City</span>
+                        <b data-zh="北门区">The North Gate</b>
+                        <span class="what" data-zh="城门之上的同心圆要塞：两重城墙、护城河和外堡。">A fortress in two rings over the city&#x27;s gate, its moat and its barbican.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="bell-ward">
+                    <img src="media/places/bell-ward.webp" alt="The Bell Ward" data-zh-alt="钟楼区" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="圣城">The Holy City</span>
+                        <b data-zh="钟楼区">The Bell Ward</b>
+                        <span class="what" data-zh="钟楼下的大广场，议事厅坐落在广场尽头。">A grand square under its belfry, the council hall at its head.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="market">
+                    <img src="media/places/market.webp" alt="The Market" data-zh-alt="市集区" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="圣城">The Holy City</span>
+                        <b data-zh="市集区">The Market</b>
+                        <span class="what" data-zh="摊位挤满了广场，旁边是市集大厅、过秤所和卖布的拱廊。">Stalls fill the square beside the market hall, the weigh-house and the cloth arcade.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="lamp-ward">
+                    <img src="media/places/lamp-ward.webp" alt="The Lamp Ward" data-zh-alt="灯区" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="圣城">The Holy City</span>
+                        <b data-zh="灯区">The Lamp Ward</b>
+                        <span class="what" data-zh="小广场上的朝圣者客栈，每走几步就有一盏灯。">The pilgrims&#x27; inn on its little square, and a lamp every few steps.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="lower-town">
+                    <img src="media/places/lower-town.webp" alt="The Lower Town" data-zh-alt="下城区" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="圣城">The Holy City</span>
+                        <b data-zh="下城区">The Lower Town</b>
+                        <span class="what" data-zh="运河边的穷人区，码头上停着小船，巷子里晾满了衣服。">The poor quarter on the canal, with boats at its quays and washing over its lanes.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="rimeholm">
+                    <img src="media/places/rimeholm.webp" alt="Rimeholm" data-zh-alt="凇洲村" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="霜牙海岸">Frostfang Coast</span>
+                        <b data-zh="凇洲村">Rimeholm</b>
+                        <span class="what" data-zh="峡湾里的渔港，码头上有鱼市，岬角上立着灯塔。">A harbour on a fjord with a fish market on the quay and a lighthouse on the spit.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="warcombe">
+                    <img src="media/places/warcombe.webp" alt="Warcombe" data-zh-alt="战坳镇" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="赤痕边境">The Scarred March</span>
+                        <b data-zh="战坳镇">Warcombe</b>
+                        <span class="what" data-zh="红色峡谷里的要塞小镇，战厅建在岩台上，下面是最后一战的战场。">A fort town in a red canyon with its war hall on a ledge above the field of the last battle.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="weighmarket">
+                    <img src="media/places/weighmarket.webp" alt="Weighmarket" data-zh-alt="秤市城" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="衡谷平原">The Vale of Scales</span>
+                        <b data-zh="秤市城">Weighmarket</b>
+                        <span class="what" data-zh="粮仓之城，风车立在坡上，大广场中央摆着公秤。">The granary city, its mills on the rise and the public scales in its great square.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="dusk-moorings">
+                    <img src="media/places/dusk-moorings.webp" alt="Dusk Moorings" data-zh-alt="暮泊镇" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="苍白林沼">The Pale Fens</span>
+                        <b data-zh="暮泊镇">Dusk Moorings</b>
+                        <span class="what" data-zh="建在木桩上的水镇，雾灯整天亮着，集市就开在水上。">A town on stilts over the water where the fog lamps burn all day and the market floats.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="barleyridge">
+                    <img src="media/places/barleyridge.webp" alt="Barleyridge Farm" data-zh-alt="麦脊农庄" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="衡谷平原">The Vale of Scales</span>
+                        <b data-zh="麦脊农庄">Barleyridge Farm</b>
+                        <span class="what" data-zh="围着草地的农村，溪上有水磨，果园里摆着蜂箱。">A farm village round its green with a mill on the stream and hives in the orchard.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="brandby-mine">
+                    <img src="media/places/brandby-mine.webp" alt="Brandby Mine" data-zh-alt="烙屯矿坑" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="赤痕边境">The Scarred March</span>
+                        <b data-zh="烙屯矿坑">Brandby Mine</b>
+                        <span class="what" data-zh="台地崖下的矿场，铁轨一直通进矿洞，洞口旁边就是冶炼炉。">A mine under a mesa where the rails run into the adit beside the smelter&#x27;s hearths.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="bellwick">
+                    <img src="media/places/bellwick.webp" alt="Bellwick Farm" data-zh-alt="钟坞农庄" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="白坛高地">The White Altar Heights</span>
+                        <b data-zh="钟坞农庄">Bellwick Farm</b>
+                        <span class="what" data-zh="花坛环绕的庄园，远处还有一座树篱迷宫。">A manor among its flower beds with a hedge maze beyond.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="ashengate">
+                    <img src="media/places/ashengate.webp" alt="Ashengate Ruins" data-zh-alt="烬门遗迹" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="苍白林沼">The Pale Fens</span>
+                        <b data-zh="烬门遗迹">Ashengate Ruins</b>
+                        <span class="what" data-zh="沉进沼泽的修道院废墟，学者们正在长满树的中殿里发掘。">A ruined abbey sinking into the fen where scholars dig in a nave grown full of trees.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="goldmere-tower">
+                    <img src="media/places/goldmere-tower.webp" alt="Goldmere Tower" data-zh-alt="金湖塔" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="衡谷平原">The Vale of Scales</span>
+                        <b data-zh="金湖塔">Goldmere Tower</b>
+                        <span class="what" data-zh="立在石环中的法师塔，水晶正从地里长出来。">A mage&#x27;s tower in a ring of stones, crystals pushing out of the ground.</span>
+                    </figcaption>
+                </figure>
+                <figure class="slide" data-place="frostbarrow">
+                    <img src="media/places/frostbarrow.webp" alt="Frostbarrow Camp" data-zh-alt="霜丘营地" width="1920" height="1080" loading="lazy" decoding="async">
+                    <figcaption>
+                        <span class="region" data-zh="霜牙海岸">Frostfang Coast</span>
+                        <b data-zh="霜丘营地">Frostbarrow Camp</b>
+                        <span class="what" data-zh="山口上的边境要塞，四座圆塔立在雪里。">A border fort on the pass with four round towers standing in the snow.</span>
+                    </figcaption>
+                </figure>
+                <button class="step-btn prev" type="button" data-step="-1" aria-label="Previous place" data-zh-label="上一个地点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+                <button class="step-btn next" type="button" data-step="1" aria-label="Next place" data-zh-label="下一个地点"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+            </div>
+            <div class="thumbs" role="group" aria-label="Places" data-zh-label="地点">
+                <button class="thumb on" type="button" data-to="0" aria-label="Sunwell Abbey" data-zh-label="日泉修道院"><img src="media/places/sunwell-abbey-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="1" aria-label="The North Gate" data-zh-label="北门区"><img src="media/places/north-gate-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="2" aria-label="The Bell Ward" data-zh-label="钟楼区"><img src="media/places/bell-ward-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="3" aria-label="The Market" data-zh-label="市集区"><img src="media/places/market-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="4" aria-label="The Lamp Ward" data-zh-label="灯区"><img src="media/places/lamp-ward-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="5" aria-label="The Lower Town" data-zh-label="下城区"><img src="media/places/lower-town-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="6" aria-label="Rimeholm" data-zh-label="凇洲村"><img src="media/places/rimeholm-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="7" aria-label="Warcombe" data-zh-label="战坳镇"><img src="media/places/warcombe-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="8" aria-label="Weighmarket" data-zh-label="秤市城"><img src="media/places/weighmarket-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="9" aria-label="Dusk Moorings" data-zh-label="暮泊镇"><img src="media/places/dusk-moorings-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="10" aria-label="Barleyridge Farm" data-zh-label="麦脊农庄"><img src="media/places/barleyridge-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="11" aria-label="Brandby Mine" data-zh-label="烙屯矿坑"><img src="media/places/brandby-mine-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="12" aria-label="Bellwick Farm" data-zh-label="钟坞农庄"><img src="media/places/bellwick-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="13" aria-label="Ashengate Ruins" data-zh-label="烬门遗迹"><img src="media/places/ashengate-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="14" aria-label="Goldmere Tower" data-zh-label="金湖塔"><img src="media/places/goldmere-tower-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+                <button class="thumb" type="button" data-to="15" aria-label="Frostbarrow Camp" data-zh-label="霜丘营地"><img src="media/places/frostbarrow-s.webp" alt="" width="480" height="270" loading="lazy" decoding="async"></button>
+            </div>
+        </div>
+    </section>
+
+    <!-- the people: release 1's cast, each with a portrait of their own (docs/character-art.md, docs/cast/) -->
+    <section class="band cast" id="people">
+        <div class="container">
+            <div class="intro">
+                <div>
+                    <p class="label" data-zh="人物">People</p>
+                    <h2 data-zh="最先遇见的人" data-zh-keep="最先遇见的人">The people you meet first</h2>
+                </div>
+                <div class="text"><p data-zh="几百年前极夜吞掉了太阳，直到圣者阿斯特拉受完五种圣刑它才重新升起。如今白昼又在一天天变短，你被派上了朝圣之路，下面六位是你最先遇见的人。">Centuries ago the Long Night swallowed the sun until the saint Astra bore five holy torments and it rose again. Now the days are growing short once more and you are sent out on the pilgrimage, and these six are the first people you meet.</p></div>
+            </div>
+            <div class="people">
+                <button class="person" type="button" data-person="lumi">
+                    <span class="face"><img src="media/cast/lumi/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
+                    <span class="who"><b data-zh="露米">Lumi</b></span>
+                    <span class="role" data-zh="一个手掌高的妖精，你去哪里她就跟到哪里。">A fairy as tall as a hand, who goes wherever you go.</span>
+                </button>
+                <button class="person" type="button" data-person="ilse">
+                    <span class="face"><img src="media/cast/ilse/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
+                    <span class="who"><b data-zh="伊尔丝修女">Sister Ilse</b></span>
+                    <span class="role" data-zh="守着初原村圣火的修女，是她送你踏上了朝圣之路。">Keeper of Firstlight&#x27;s flame, who sends you on the pilgrimage.</span>
+                </button>
+                <button class="person" type="button" data-person="nessa">
+                    <span class="face"><img src="media/cast/nessa/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
+                    <span class="who"><b data-zh="奈莎·奎尔">Nessa Quill</b></span>
+                    <span class="role" data-zh="为教会历书测量天空的人，桥断之后被困在了初原村。">She measures the sky for the Church&#x27;s almanacs, stranded in Firstlight since the bridge went.</span>
+                </button>
+                <button class="person" type="button" data-person="lina">
+                    <span class="face"><img src="media/cast/lina/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
+                    <span class="who"><b data-zh="莉娜">Lina</b></span>
+                    <span class="role" data-zh="谁也不信、自食其力的采集者。">A forager who trusts no one and pays her own way.</span>
+                </button>
+                <button class="person" type="button" data-person="severin">
+                    <span class="face"><img src="media/cast/severin/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
+                    <span class="who"><b data-zh="塞弗林">Severin</b> <small data-zh="灰誓者">the Greyvowed</small></span>
+                    <span class="role" data-zh="异端修会的修士，提着一盏黄铜灯从不多说一句。">A brother of an order named heretic, who carries a brass lantern and says no more than he must.</span>
+                </button>
+                <button class="person" type="button" data-person="tobin">
+                    <span class="face"><img src="media/cast/tobin/neutral.webp" alt="" width="400" height="400" loading="lazy" decoding="async"></span>
+                    <span class="who"><b data-zh="托宾">Tobin</b></span>
+                    <span class="role" data-zh="东路上的行商，他讲的故事有一半是真的。">The peddler of the eastern road. Half his stories are true.</span>
+                </button>
+            </div>
+        </div>
+        <dialog class="sheet" id="sheet">
+            <button class="close" type="button" aria-label="Close" data-zh-label="关闭">&times;</button>
+            <img alt="" width="1300" height="1000">
+        </dialog>
+    </section>
+
+    <!-- 3 · the scale: maps, people, items, scenes -->
+    <section class="band" id="world">
+        <div class="container">
+            <div class="intro">
+                <div>
+                    <p class="label" data-zh="世界">The world</p>
+                    <h2 data-zh="一千张地图">A thousand maps</h2>
+                </div>
+                <div class="text"><p data-zh="这个世界有一千多张地图和一千六百多个人，每个人都有自己的家和自己的一天，而这些只要一个浏览器标签页就能打开。">The world has over a thousand maps and more than sixteen hundred people with homes and days of their own, and all of it opens in a single browser tab.</p></div>
+            </div>
+            <div class="stage"><iframe data-src="scale/index.html?embed" title="The world, in numbers" data-zh-title="世界的规模" loading="lazy"></iframe></div>
+            <dl class="facts wide">
+                <div class="fact"><dt data-zh="地图">Maps</dt><dd class="big">1,024</dd></div>
+                <div class="fact"><dt data-zh="人物">People</dt><dd class="big">1,654</dd></div>
+                <div class="fact"><dt data-zh="物品">Items</dt><dd class="big">40,562</dd></div>
+                <div class="fact"><dt data-zh="户人家">Households</dt><dd class="big">780</dd></div>
+            </dl>
+        </div>
+    </section>
+
+    <!-- 2 · the butterfly effect: one event, then the star map of everything it touches -->
+    <section class="band night" id="web">
+        <div class="container">
+            <div class="intro">
+                <div>
+                    <p class="label" data-zh="关联">Connections</p>
+                    <h2 data-zh="渡口的一场暴雨">One storm at the Ford</h2>
+                </div>
+                <div class="text"><p data-zh="渡口下暴雨的那天，雷劈着了枯树，雨淋湿了赫斯珀的篝火。维戈趁乱拿走玛尔塔的面包时被霍尔特看见了，于是悬赏贴了出来。下面这张图把这一天牵动的所有事都连在了一起。">On the day of the storm at the Ford, lightning sets the dead tree alight and rain soaks Hesper's campfire. Holt sees Vigo take Marta's bread in the confusion, and a bounty goes up. The map below links everything that day set in motion.</p></div>
+            </div>
+            <div class="stage"><iframe data-src="starmap/index.html?embed" title="One storm at the Ford" data-zh-title="渡口的一场暴雨" loading="lazy"></iframe></div>
+        </div>
+    </section>
+
+    <!-- 4 · how it works: a rule answers; no rule yet, the model asked once; learned once, for everyone -->
+    <section class="band alt" id="how">
+        <div class="container">
+            <div class="intro">
+                <div>
+                    <p class="label" data-zh="工作原理">How it works</p>
+                    <h2 data-zh="只问一次">Asked once</h2>
+                </div>
+                <div class="text"><p data-zh="你做的大多数事游戏里早就有规则，照着运行就行。只有碰到没有规则的事，游戏才会去问一次语言模型，模型交回的新规则检查通过后收进规则库，以后谁再碰到都直接照它来。">Most of what you do already has a rule and the game just runs it. Only when you try something no rule covers does the game ask a language model, and the new rule it writes back is checked, added to the library and simply run for whoever meets the same thing after.</p></div>
+            </div>
+            <div class="stage light" id="explain"><iframe data-src="explain/index.html?embed" title="How it works" data-zh-title="工作原理" loading="lazy"></iframe></div>
+            <div class="steps">
+                <button class="step" type="button" data-at="0.6">
+                    <div class="n">1</div>
+                    <h3 data-zh="有规则">There is a rule</h3>
+                    <p data-zh="雨落在篝火上时，篝火的规则让它熄灭。">Rain falls on a campfire, and the campfire's rule puts it out.</p>
+                </button>
+                <button class="step" type="button" data-at="8.8">
+                    <div class="n">2</div>
+                    <h3 data-zh="还没有规则">No rule yet</h3>
+                    <p data-zh="摆渡人被困在雨里该怎么办没人写过，于是问一次模型。">Nobody wrote what a ferrykeeper stuck in the rain should do, so the model is asked once.</p>
+                </button>
+                <button class="step" type="button" data-at="23">
+                    <div class="n">3</div>
+                    <h3 data-zh="现在有了">Now there is</h3>
+                    <p data-zh="模型答的“守到火边”成了一条规则，之后谁遇到都直接照办。">Its answer, wait by the fire, is a rule now, and everyone after just runs it.</p>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <section class="band" id="news">
+        <div class="container">
+            <h2 class="news-title" data-zh="新闻">News</h2>
+            <div class="post">
+                <a class="cover" href="news/launch/" data-href-zh="news/launch/zh.html"><video class="backdrop" data-auto muted loop playsinline preload="metadata" poster="media/hero.jpg"><source src="media/hero.mp4#t=4" type="video/mp4"></video></a>
+                <div>
+                    <p class="meta" data-zh="第 01 篇 · 2026 年 10 月">Post 01 · October 2026</p>
+                    <h3 data-zh="一个可自我学习的进化世界" data-zh-keep="一个可自我学习的|进化世界">A world that learns as it goes</h3>
+                    <p data-zh="OpenWorld 是一个基于角色扮演的智能化世界，它的全部状态和规则都是基于代码构建的。比较有趣的是，当这个世界在与玩家交互时需要全新的规则或物品，大语言模型就可以自动更新并且共享这个功能。">OpenWorld is a role-playing world whose entire state and rule set are represented as code. When play reaches an interaction or an item that no author defined, a language model supplies it once, and every comparable case thereafter uses the result.</p>
+                    <div class="arrow-links"><a href="news/launch/" data-href-zh="news/launch/zh.html" data-zh="阅读">Read</a><a href="news/launch/zh.html" data-href-zh="news/launch/" data-zh="English">中文</a></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- the citation: the same as the news posts' (news/launch/), under the paper's title -->
+    <section class="band alt" id="cite">
+        <div class="container">
+            <h2 data-zh="引用">Cite</h2>
+            <div class="cite">
+                <button class="copy" type="button" data-zh="复制" data-copied="Copied" data-copied-zh="已复制">Copy</button>
+                <pre><code>@misc{openworld2026,
+  title        = {OpenWorld: A Large Symbolic World},
+  author       = {{OpenWorld Team}},
+  year         = {2026},
+  howpublished = {\url{https://openworldrpg.ai/}}
+}</code></pre>
+            </div>
+        </div>
+    </section>
+
+    <section class="join on-dark" id="join">
+        <video class="backdrop" data-auto muted loop playsinline preload="metadata" poster="media/hero.jpg"><source src="media/hero.mp4#t=6.8" type="video/mp4"></video>
+        <div class="container">
+            <h2 data-zh="开放时第一个知道" data-zh-keep="开放时|第一个知道">Be there when it opens</h2>
+            <form class="wl" method="post" data-endpoint="">
+                <div class="wl-row">
+                    <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
+                    <button type="submit" class="soon" aria-disabled="true" data-soon="Coming soon" data-zh-soon="即将开放" data-zh="加入等候名单">Join the waitlist</button>
+                    <a class="btn" href="https://github.com/SihanXU/openworld" target="_blank" rel="noopener"><svg class="gh-mark" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span data-zh="代码">Code</span></a>
+                </div>
+                <div class="wl-roles"><span class="q" data-zh="我想">I'm here to</span>
+                    <input type="checkbox" id="j1" name="tag" value="player"><label for="j1" data-zh="玩">play</label>
+                    <input type="checkbox" id="j2" name="tag" value="research"><label for="j2" data-zh="看研究">read the research</label>
+                    <input type="checkbox" id="j3" name="tag" value="maker"><label for="j3" data-zh="做一个世界">make a world</label>
+                </div>
+                <p class="wl-done" data-zh="谢谢——请到邮箱里确认。">Thanks — check your inbox to confirm.</p>
+            </form>
+        </div>
+        <!-- the footer, over the same film -->
+        <footer class="footer">
+            <div class="container">
+                <span><span data-zh="设计：">Designed by </span><a href="https://sihanxu.me/">Si.X</a><span data-zh=" · 美术：Ninja Adventure（CC0）与我们自己的作品 · 音乐：Ninja Adventure（CC0）"> · Art: Ninja Adventure (CC0) and our own · Music: Ninja Adventure (CC0)</span></span>
+                <span>OpenWorld &copy; 2026</span>
+            </div>
+        </footer>
+    </section>
+
+    <script src="motion.js"></script>
+    <script src="page.js"></script>
+</body>
+</html>

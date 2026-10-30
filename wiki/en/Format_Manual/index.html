@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en" data-base="/wiki/en/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Format Manual - OpenWorld Wiki</title>
+<meta name="description" content="How a page file is written: the front matter, links, templates, and the fixed structure of each kind of page.">
+<link rel="alternate" hreflang="zh" href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-帮助">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/en/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>Wiki</small></span></a>
+  <nav class="portlet"><h3>Navigation</h3><ul><li><a href="/wiki/en/">Main page</a></li><li><a href="/wiki/en/Beginner's_Guide">Beginner's Guide</a></li><li><a href="/wiki/en/Main_Quest_Walkthrough">Main Quest Walkthrough</a></li><li><a href="/wiki/en/Special/Recent_changes">Recent changes</a></li><li><a href="/wiki/en/Special/Random_page">Random page</a></li><li><a href="/wiki/en/Special/Stubs">Stubs</a></li><li><a href="/wiki/en/Special/All_pages">All pages</a></li></ul></nav><nav class="portlet"><h3>Contributing</h3><ul><li><a href="/wiki/en/Editing_Basics">Editing Basics</a></li><li><a href="/wiki/en/Format_Manual">Format Manual</a></li><li><a href="/wiki/en/Style_Guide">Style Guide</a></li><li><a href="/wiki/en/Special/Completeness">Completeness</a></li></ul></nav><nav class="portlet"><h3>Design</h3><ul><li><a href="/wiki/en/About_This_Wiki">About This Wiki</a></li><li><a href="/wiki/en/Design_Pillars">Design Pillars</a></li><li><a href="/wiki/en/Roadmap">Roadmap</a></li><li><a href="/wiki/en/Version_History">Version History</a></li><li><a href="/wiki/en/Known_Issues">Known Issues</a></li></ul></nav>
+  <nav class="portlet"><h3>Game</h3><ul><li><a href="/play/">Play the game</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub repository</a></li><li><a href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C" hreflang="zh">中文维基</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/en/Format_Manual">Page</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22Format%20Manual%22" title="Discussion of this page (GitHub issues)">Talk</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5Bwiki%5D%20Format%20Manual&body=Page%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2Fen%2FFormat_Manual%0A%0A" title="Start a discussion of this page">＋</a></div>
+  <form class="search" action="/wiki/en/Special/Search" method="get" role="search"><input name="q" id="q" type="search" placeholder="Search the OpenWorld Wiki" autocomplete="off" aria-label="Search"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/en/Format_Manual">Read</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/en/pages/%E5%B8%AE%E5%8A%A9/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C.md" title="Edit this page on GitHub">Edit</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/en/pages/%E5%B8%AE%E5%8A%A9/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C.md">History</a><a class="tab lang" href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C" hreflang="zh" lang="zh" title="中文版">中文</a><button class="tab theme" id="theme" title="Light or dark">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">Format Manual</h1><div class="subtitle">From the OpenWorld Wiki · Help</div>
+  
+  <div class="body"><blockquote class="quote"><p>“The basic format and wording of content of the same kind should be kept consistent.”</p><footer>— This wiki follows the editing conventions of the Stardew Valley Wiki</footer></blockquote>
+<p>This page explains how a page file is written, for the English edition. If you have not read <a href="/wiki/en/Editing_Basics">Editing Basics</a> yet, read that page first: its last section explains how an English page follows its Chinese one.</p>
+<nav class="toc"><div class="toc-title">Contents</div><ol><li class="toc-l2"><a href="#Where_files_go"><span class="tocnum">1</span> Where files go</a></li><li class="toc-l2"><a href="#Front_matter"><span class="tocnum">2</span> Front matter</a></li><li class="toc-l2"><a href="#Links"><span class="tocnum">3</span> Links</a></li><li class="toc-l2"><a href="#Templates"><span class="tocnum">4</span> Templates</a></li><li class="toc-l3"><a href="#Inline_templates"><span class="tocnum">4.1</span> Inline templates</a></li><li class="toc-l3"><a href="#Banners_and_quotations"><span class="tocnum">4.2</span> Banners and quotations</a></li><li class="toc-l3"><a href="#Spoilers"><span class="tocnum">4.3</span> Spoilers</a></li><li class="toc-l3"><a href="#Data_templates"><span class="tocnum">4.4</span> Data templates</a></li><li class="toc-l3"><a href="#Navboxes"><span class="tocnum">4.5</span> Navboxes</a></li><li class="toc-l3"><a href="#Names_in_both_languages"><span class="tocnum">4.6</span> Names in both languages</a></li><li class="toc-l2"><a href="#Fixed_structure_of_each_kind_of_page"><span class="tocnum">5</span> Fixed structure of each kind of page</a></li><li class="toc-l2"><a href="#The_History_section"><span class="tocnum">6</span> The History section</a></li><li class="toc-l2"><a href="#Value_table"><span class="tocnum">7</span> Value table</a></li></ol></nav><h2 id="Where_files_go"><span class="mw-headline">Where files go</span></h2>
+<p>Every English page is a Markdown file under <code>wiki/en/pages/</code>, at <strong>the same path, with the same Chinese file name,</strong> as the Chinese page it translates: <code>wiki/pages/人物/伊尔丝修女.md</code> is translated by <code>wiki/en/pages/人物/伊尔丝修女.md</code>. The two are paired by their path, not by their titles, so an English file is never renamed or moved on its own. The subfolders only sort the files and do not affect the address.</p>
+<p>The address depends only on the English title: <code>/wiki/en/Sister_Ilse</code>, with spaces written as <code>_</code>. The English title is the <code>title:</code> in the front matter, or, for a page about a game thing, the game&#39;s English name.</p>
+<p>Titles are unique across the edition; if two pages end up with the same title, the build reports an error.</p>
+<h2 id="Front_matter"><span class="mw-headline">Front matter</span></h2>
+<p>The very top of the file is a few lines of &quot;key: value&quot;, between two <code>---</code> lines:</p>
+<pre><code>---
+summary: The keeper of the fire in Firstlight Village&#39;s chapel.
+categories: Firstlight Village
+aliases: Ilse
+source: 3f9a1c0b7d2e
+---
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>title</td>
+<td>For a page not about a game thing</td>
+<td>The page&#39;s English title. A page about a game thing (a person, an item, a monster, a location, a quest…) takes the game&#39;s English name as its title, and a <code>title:</code> there is ignored.</td>
+</tr>
+<tr>
+<td>summary</td>
+<td>Recommended</td>
+<td>One sentence, used in search results and lists.</td>
+</tr>
+<tr>
+<td>categories</td>
+<td>No</td>
+<td>Comma-separated, in English. The page&#39;s type already adds its default category (a person goes into &quot;Residents&quot;, a location into &quot;Locations&quot;…); write only the extra ones, as the Chinese page&#39;s 分类. Each category has its page, <code>Category:Firstlight Village</code>.</td>
+</tr>
+<tr>
+<td>aliases</td>
+<td>No</td>
+<td>Other words that also find this page in a search; a <code>[[alias]]</code> link also leads here. English alternatives a reader might look for, never the page&#39;s own title.</td>
+</tr>
+<tr>
+<td>source</td>
+<td>Set by a command</td>
+<td>The version of the Chinese text this page translates (a hash). Never written by hand: <code>npm run wiki:translate -- stamp &lt;file&gt;</code> sets it. When the Chinese page changes, the build sees that it no longer matches and marks the translation as out of date.</td>
+</tr>
+<tr>
+<td>object</td>
+<td>Only for an English-only page</td>
+<td>The id of the game thing the page is about (a person <code>npc.ilse</code>, an item <code>item/weapon/blade/axe</code>, a monster <code>actor/creature/beast/wolf</code>, a boss <code>alberic</code>, a location <code>meadow</code>, a quest <code>stew</code>, a skill branch <code>swiftness</code>). Written only on a page about a game thing that has no Chinese file yet.</td>
+</tr>
+</tbody></table>
+<p>The type, the game object and the status (Implemented, Planned, To be designed) are taken from the Chinese page and are not repeated here. Chinese keys (类型, 对象, 摘要…) are also understood, but an English page uses the English ones.</p>
+<h2 id="Links"><span class="mw-headline">Links</span></h2>
+<ul>
+<li><code>[[Sister Ilse]]</code>: links to this page.</li>
+<li><code>[[Sister Ilse|Ilse]]</code>: links to this page, shown as &quot;Ilse&quot;.</li>
+<li><code>[[Controls#Inputs|inputs]]</code>: links to a section of a page (the section&#39;s name is the text after its <code>##</code>).</li>
+<li><code>[[伊尔丝修女]]</code>: a Chinese title works too and leads to the English page; so does a Chinese section name. <code>npm run wiki:translate -- relink &lt;file&gt;</code> rewrites them into English.</li>
+<li>Category pages are <code>[[Category:Firstlight Village]]</code>; the special pages are <code>[[Special:Recent changes]]</code>, <code>[[Special:Stubs]]</code>, <code>[[Special:All pages]]</code>, <code>[[Special:Random page]]</code>, <code>[[Special:Values]]</code>, <code>[[Special:Completeness]]</code> and <code>[[Special:Search]]</code>.</li>
+<li>A link to a page that does not exist yet shows in red and is listed on Special:Stubs when the wiki is built, but it is not an error. A link to a section that does not exist is an error.</li>
+</ul>
+<h2 id="Templates"><span class="mw-headline">Templates</span></h2>
+<p>A template is written <code>{{template name|argument|argument}}</code>. Arguments may contain links as well. Every template has an English name and a Chinese one; both work in either edition, and the names are not case-sensitive (<code>{{Infobox}}</code> is <code>{{infobox}}</code> is <code>{{信息框}}</code>). The English pages use the English names. Below are all the templates.</p>
+<h3 id="Inline_templates"><span class="mw-headline">Inline templates</span></h3>
+<table>
+<thead>
+<tr>
+<th>Written as</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>{{key|E}}</code></td>
+<td>A key icon <kbd>E</kbd></td>
+</tr>
+<tr>
+<td><code>{{item|Plank}}</code>, <code>{{item|Plank|3}}</code></td>
+<td>An item&#39;s icon with a link, optionally with a count. The argument is the game&#39;s name for it (English or Chinese) or its type id.</td>
+</tr>
+<tr>
+<td><code>{{person|Sister Ilse}}</code></td>
+<td>A portrait with a link</td>
+</tr>
+<tr>
+<td><code>{{monster|wolf}}</code></td>
+<td>A monster&#39;s icon with a link</td>
+</tr>
+<tr>
+<td><code>{{place|Firstlight Village}}</code></td>
+<td>A link to a location</td>
+</tr>
+<tr>
+<td><code>{{status|burning}}</code></td>
+<td>A status&#39;s name, linked to <a href="/wiki/en/Statuses">Statuses</a></td>
+</tr>
+<tr>
+<td><code>{{skill|Dash}}</code></td>
+<td>A skill&#39;s icon, linked to its branch</td>
+</tr>
+<tr>
+<td><code>{{value|name}}</code></td>
+<td>One number from the game, read straight from the code: when the code changes, so does this. The names are the Chinese ones listed in the <a href="/wiki/en/Format_Manual#Value_table">value table</a> at the end of this page (and on <a href="/wiki/en/Special/Values">Special:Values</a>).</td>
+</tr>
+</tbody></table>
+<h3 id="Banners_and_quotations"><span class="mw-headline">Banners and quotations</span></h3>
+<table>
+<thead>
+<tr>
+<th>Written as</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>{{stub}}</code></td>
+<td>This page is not finished. It is listed on Special:Stubs.</td>
+</tr>
+<tr>
+<td><code>{{planned}}</code></td>
+<td>The design is settled, but it is not in the game yet.</td>
+</tr>
+<tr>
+<td><code>{{tbd}}</code></td>
+<td>Not designed yet; the page records only what is known.</td>
+</tr>
+<tr>
+<td><code>{{dev}}</code></td>
+<td>A feature that exists only in the development build (such as the developer console).</td>
+</tr>
+<tr>
+<td><code>{{main|Building}}</code></td>
+<td>&quot;Main article: Building&quot; at the start of a section.</td>
+</tr>
+<tr>
+<td><code>{{see also|Rooms|Stairs}}</code></td>
+<td>&quot;See also: Rooms, Stairs&quot;.</td>
+</tr>
+<tr>
+<td><code>{{quote|text|source}}</code></td>
+<td>A quotation at the top of a page, such as one of a person&#39;s lines.</td>
+</tr>
+</tbody></table>
+<h3 id="Spoilers"><span class="mw-headline">Spoilers</span></h3>
+<p>What a person leaves unsaid, and the twists of the story, go in a spoiler block. Readers see it only when they open it.</p>
+<pre><code>{{spoiler|What she leaves unsaid}}
+What is here is folded away by default.
+{{/spoiler}}
+</code></pre>
+
+<h3 id="Data_templates"><span class="mw-headline">Data templates</span></h3>
+<p>These templates make their content from the game&#39;s data, in the game&#39;s own English. Never copy their content out as text: a copied number goes stale, the template does not.</p>
+<p><strong>Lists that any page can use</strong></p>
+<table>
+<thead>
+<tr>
+<th>Written as</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>{{item table|weapons}}</code></td>
+<td>The full table of one kind of item (the regions&#39; own variants are not listed here, but on the base item&#39;s page and on <a href="/wiki/en/Regional_Goods">Regional Goods</a>). Kinds: weapons, tools, armor, accessories, food, materials, seeds, structures, furniture, containers, light sources, story items, documents, misc, all</td>
+</tr>
+<tr>
+<td><code>{{resident table}}</code>, <code>{{monster table}}</code>, <code>{{drop table}}</code>, <code>{{boss table}}</code>, <code>{{location table}}</code></td>
+<td>The corresponding full table</td>
+</tr>
+<tr>
+<td><code>{{quest table|main}}</code></td>
+<td>One of main, side, favor; with no argument, all of them</td>
+</tr>
+<tr>
+<td><code>{{recipe table}}</code>, <code>{{building table}}</code></td>
+<td>Every entry of the crafting panel (C) and of the building panel (B)</td>
+</tr>
+<tr>
+<td><code>{{skill tree|Swiftness}}</code></td>
+<td>Every skill of one skill branch</td>
+</tr>
+<tr>
+<td><code>{{profession table}}</code>, <code>{{boon table}}</code>, <code>{{status table}}</code>, <code>{{element table}}</code>, <code>{{terrain table}}</code>, <code>{{substance table}}</code>, <code>{{quality table}}</code>, <code>{{slot table}}</code>, <code>{{crop table}}</code>, <code>{{food table}}</code>, <code>{{waypoint table}}</code>, <code>{{music table}}</code>, <code>{{efficiency table}}</code>, <code>{{room table}}</code>, <code>{{night creature table}}</code>, <code>{{legendary arms table}}</code>, <code>{{stigma table}}</code></td>
+<td>The table of that name</td>
+</tr>
+<tr>
+<td><code>{{stall table}}</code>, <code>{{stall table|farm}}</code></td>
+<td>What the stall at <a href="/wiki/en/The_Held_Ground">The Held Ground</a> sells and what it pays. Arguments: farm, ranch, fish (one shelf), buy (the three shelves together), sell (what it pays); with no argument, all of them</td>
+</tr>
+<tr>
+<td><code>{{look parts}}</code>, <code>{{look parts|hair}}</code></td>
+<td>The parts of <a href="/wiki/en/Looks">looks</a>, each with a sample portrait and map sprite. Arguments: hair, face, beard, age, mark, glasses, hat, outfit (one slot); with no argument, all of them</td>
+</tr>
+<tr>
+<td><code>{{regional goods}}</code>, <code>{{regional goods|The Pale Fens}}</code></td>
+<td>Each region&#39;s own goods: its named pieces, its local produce, the gear and tools made there (see <a href="/wiki/en/Regional_Goods">Regional Goods</a>). Argument: one region; with no argument, all of them</td>
+</tr>
+<tr>
+<td><code>{{version history}}</code></td>
+<td>Every change merged into the main branch</td>
+</tr>
+</tbody></table>
+<p><strong>Only for a page about a game thing</strong> (one whose game object is set: on the Chinese page, or by <code>object:</code>)</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Templates</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Person</td>
+<td><code>{{infobox}}</code> <code>{{schedule}}</code> <code>{{relationships}}</code> <code>{{dialogue}}</code> <code>{{related quests}}</code> <code>{{portrait}}</code></td>
+</tr>
+<tr>
+<td>Item</td>
+<td><code>{{infobox}}</code> <code>{{sources}}</code> <code>{{uses}}</code> <code>{{recipe}}</code> <code>{{variants}}</code></td>
+</tr>
+<tr>
+<td>Monster</td>
+<td><code>{{infobox}}</code> <code>{{habitat}}</code> <code>{{drops}}</code></td>
+</tr>
+<tr>
+<td>Boss</td>
+<td><code>{{infobox}}</code> <code>{{boss skills}}</code> <code>{{habitat}}</code> <code>{{drops}}</code></td>
+</tr>
+<tr>
+<td>Location</td>
+<td><code>{{infobox}}</code> <code>{{map}}</code> <code>{{connections}}</code> <code>{{residents}}</code> <code>{{creatures}}</code> <code>{{map items}}</code></td>
+</tr>
+<tr>
+<td>Quest</td>
+<td><code>{{infobox}}</code> <code>{{objectives}}</code> <code>{{stages}}</code> <code>{{rewards}}</code> <code>{{quest dialogue}}</code></td>
+</tr>
+</tbody></table>
+<h3 id="Navboxes"><span class="mw-headline">Navboxes</span></h3>
+<p>At the very bottom of a page goes <code>{{navbox|name}}</code>, which lists every page of the same group. Names: residents, items, fixtures, monsters, locations, quests (lists the game makes), and the hand-made groups Basics, Interface, Life, Combat, Lore, Design, People, Help (every English page carrying the same name is listed; the Chinese pages write their groups&#39; Chinese names, and <code>npm run wiki:translate -- relink</code> turns those into these).</p>
+<h3 id="Names_in_both_languages"><span class="mw-headline">Names in both languages</span></h3>
+<p>Every template&#39;s English name and Chinese name, side by side. The arguments that are keywords (<code>{{quest table|main}}</code>, <code>{{navbox|residents}}</code>, <code>{{stall table|buy}}</code>…) also have English forms, used as shown above; the Chinese ones work too. <code>npm run wiki:translate -- relink &lt;file&gt;</code> turns the Chinese names and keywords into English.</p>
+<table>
+<thead>
+<tr>
+<th>English</th>
+<th>Chinese</th>
+<th>English</th>
+<th>Chinese</th>
+<th>English</th>
+<th>Chinese</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>key</td>
+<td>键</td>
+<td>item</td>
+<td>物品</td>
+<td>person</td>
+<td>人物</td>
+</tr>
+<tr>
+<td>monster</td>
+<td>怪物</td>
+<td>place</td>
+<td>地点</td>
+<td>status</td>
+<td>状态</td>
+</tr>
+<tr>
+<td>skill</td>
+<td>技能</td>
+<td>value</td>
+<td>数值</td>
+<td>image</td>
+<td>图</td>
+</tr>
+<tr>
+<td>stub</td>
+<td>小作品</td>
+<td>planned</td>
+<td>规划中</td>
+<td>tbd</td>
+<td>待设计</td>
+</tr>
+<tr>
+<td>dev</td>
+<td>开发者</td>
+<td>main</td>
+<td>主条目</td>
+<td>see also</td>
+<td>另见</td>
+</tr>
+<tr>
+<td>quote</td>
+<td>引言</td>
+<td>navbox</td>
+<td>导航框</td>
+<td>original</td>
+<td>原文</td>
+</tr>
+<tr>
+<td>spoiler</td>
+<td>剧透</td>
+<td>infobox</td>
+<td>信息框</td>
+<td>schedule</td>
+<td>日程表</td>
+</tr>
+<tr>
+<td>dialogue</td>
+<td>对话</td>
+<td>relationships</td>
+<td>人际关系</td>
+<td>related quests</td>
+<td>相关任务</td>
+</tr>
+<tr>
+<td>look parts</td>
+<td>外观部件</td>
+<td>portrait</td>
+<td>肖像</td>
+<td>sources</td>
+<td>来源</td>
+</tr>
+<tr>
+<td>uses</td>
+<td>用途</td>
+<td>recipe</td>
+<td>配方</td>
+<td>variants</td>
+<td>变体</td>
+</tr>
+<tr>
+<td>habitat</td>
+<td>出没</td>
+<td>drops</td>
+<td>掉落</td>
+<td>boss skills</td>
+<td>首领技能</td>
+</tr>
+<tr>
+<td>monster skills</td>
+<td>怪物技能</td>
+<td>map</td>
+<td>地图</td>
+<td>connections</td>
+<td>相连地点</td>
+</tr>
+<tr>
+<td>residents</td>
+<td>居民</td>
+<td>creatures</td>
+<td>生物</td>
+<td>map items</td>
+<td>物品分布</td>
+</tr>
+<tr>
+<td>objectives</td>
+<td>任务目标</td>
+<td>rewards</td>
+<td>任务奖励</td>
+<td>quest dialogue</td>
+<td>任务对话</td>
+</tr>
+<tr>
+<td>stages</td>
+<td>任务阶段</td>
+<td>item table</td>
+<td>物品表</td>
+<td>regional goods</td>
+<td>地区物产</td>
+</tr>
+<tr>
+<td>resident table</td>
+<td>居民表</td>
+<td>monster table</td>
+<td>怪物表</td>
+<td>drop table</td>
+<td>掉落表</td>
+</tr>
+<tr>
+<td>boss table</td>
+<td>首领表</td>
+<td>location table</td>
+<td>地点表</td>
+<td>region table</td>
+<td>地区表</td>
+</tr>
+<tr>
+<td>region places</td>
+<td>地区地点</td>
+<td>quest table</td>
+<td>任务表</td>
+<td>stall table</td>
+<td>货摊表</td>
+</tr>
+<tr>
+<td>recipe table</td>
+<td>配方表</td>
+<td>building table</td>
+<td>建造表</td>
+<td>skill tree</td>
+<td>技能树</td>
+</tr>
+<tr>
+<td>profession table</td>
+<td>职业表</td>
+<td>boon table</td>
+<td>恩赐表</td>
+<td>status table</td>
+<td>状态表</td>
+</tr>
+<tr>
+<td>element table</td>
+<td>元素表</td>
+<td>terrain table</td>
+<td>地形表</td>
+<td>substance table</td>
+<td>材质表</td>
+</tr>
+<tr>
+<td>quality table</td>
+<td>品质表</td>
+<td>slot table</td>
+<td>装备栏表</td>
+<td>crop table</td>
+<td>作物表</td>
+</tr>
+<tr>
+<td>food table</td>
+<td>食物表</td>
+<td>waypoint table</td>
+<td>传送雕像表</td>
+<td>music table</td>
+<td>配乐表</td>
+</tr>
+<tr>
+<td>efficiency table</td>
+<td>效率表</td>
+<td>room table</td>
+<td>房间用途表</td>
+<td>night creature table</td>
+<td>夜行生物表</td>
+</tr>
+<tr>
+<td>legendary arms table</td>
+<td>传说武器表</td>
+<td>stigma table</td>
+<td>圣痕之力表</td>
+<td>vow table</td>
+<td>誓言表</td>
+</tr>
+<tr>
+<td>version history</td>
+<td>版本历史</td>
+<td>value table</td>
+<td>数值表</td>
+<td>portal</td>
+<td>门户</td>
+</tr>
+</tbody></table>
+<h2 id="Fixed_structure_of_each_kind_of_page"><span class="mw-headline">Fixed structure of each kind of page</span></h2>
+<p>Pages of the same kind order their sections the same way, so that readers find the same content in the same place on any page. An English page keeps the sections of its Chinese page, one for one, in the same order; the skeletons below are what they look like in English. When a page is created, the &quot;Edit&quot; or &quot;Translate&quot; button on the site gives this skeleton.</p>
+<p><strong>Person</strong></p>
+<p><pre><code>{{infobox}}
+{{quote|A line that is like them|The person&#39;s name}}
+An opening paragraph: who they are, where they live, what they do.
+## Schedule
+{{schedule}}
+## Relationships
+(text){{relationships}}
+## Dialogue
+{{dialogue}}
+## Quests
+{{related quests}}
+## Portrait
+{{portrait}}
+## Background
+(their place in the story; what they leave unsaid goes in a spoiler block)
+## Trivia
+## History
+{{navbox|residents}}
+</code></pre>
+
+<strong>Item</strong>: infobox → opening paragraph → <code>## Sources</code> → <code>## Uses</code> → <code>## Crafting</code> (only if it can be made) → <code>## Variants</code> (only if it comes in materials and qualities) → <code>## Trivia</code> → <code>## History</code> → navbox.</p>
+<p><strong>Monster, boss</strong>: infobox → opening paragraph → <code>## Habitat</code> → <code>## Behavior</code> → <code>## Strategy</code> → <code>## Drops</code> → (a boss has one more section, <code>## Skills</code>, placed before Behavior) → <code>## Background</code> → <code>## History</code> → navbox.</p>
+<p><strong>Location</strong>: infobox → opening paragraph → <code>## Map</code> → <code>## Areas</code> (the named areas on the map) → <code>## Residents</code> → <code>## Creatures</code> → <code>## Items and resources</code> → <code>## Connections</code> → <code>## Background</code> → <code>## History</code> → navbox.</p>
+<p><strong>Quest</strong>: infobox → opening paragraph → <code>## Objectives</code> → <code>## Walkthrough</code> (how to complete it, step by step) → <code>## Stages and journal</code> (<code>{{stages}}</code>: what the journal says at each stage, and when each begins) → <code>## Rewards</code> → <code>## Dialogue</code> → <code>## History</code> → navbox.</p>
+<p><strong>System</strong> (gameplay pages such as Controls and Satiety): opening paragraph → rules (in as many sections as needed; numbers through <code>{{value}}</code> or data tables) → <code>## Tips</code> (optional) → <code>## History</code> → navbox.</p>
+<p><strong>Lore, chapter</strong>: opening paragraph → body → <code>## Sources</code> (which original text or which discussion this lore was written in) → navbox. Lore pages record only what has been settled; what has not is marked &quot;to be designed&quot;, and nobody invents it for the team.</p>
+<h2 id="The_History_section"><span class="mw-headline">The History section</span></h2>
+<p>When the game changes something, add a line to the &quot;History&quot; section of its page:</p>
+<p><pre><code>## History
+- 2026-10-05: The tutorial now teaches one action per lesson; keys not yet taught are locked.
+</code></pre>
+
+On an English page, the History section follows the Chinese one: translate its lines as they are, with the same dates.</p>
+<h2 id="Value_table"><span class="mw-headline">Value table</span></h2>
+<p>The names <code>{{value|name}}</code> can use. They are read from the game&#39;s code when the wiki is built; the table is on <a href="/wiki/en/Special/Values">Special:Values</a>. The names stay in Chinese in both editions.</p>
+<table class="wikitable sortable"><thead><tr><th>Name</th><th>Value</th><th>Meaning</th><th>Code</th></tr></thead><tbody><tr><td><code>玩家生命上限</code></td><td>40</td><td>the player's maximum health</td><td><small>content/src/ontology.ts</small></td></tr><tr><td><code>玩家攻击</code></td><td>2</td><td>the player's base attack bare-handed</td><td><small>content/src/ontology.ts</small></td></tr><tr><td><code>饱食度上限</code></td><td>20</td><td>full satiety</td><td><small>content/src/ontology.ts</small></td></tr><tr><td><code>初始饱食度</code></td><td>12</td><td>satiety when a new game begins</td><td><small>tools/src/demo/world.ts</small></td></tr><tr><td><code>饱食度下降间隔</code></td><td>48</td><td>game minutes between each −1 satiety while fed</td><td><small>engine/src/hunger.ts HUNGER_EVERY</small></td></tr><tr><td><code>饿了阈值</code></td><td>60%</td><td>below this share of full satiety you are “hungry”</td><td><small>engine/src/hunger.ts HUNGRY_BELOW</small></td></tr><tr><td><code>饿了减速</code></td><td>7.5</td><td>how many times slower satiety falls once “hungry”</td><td><small>engine/src/hunger.ts HUNGRY_PACE</small></td></tr><tr><td><code>睡眠减速</code></td><td>4</td><td>how many times slower satiety falls while asleep</td><td><small>content/src/ontology.ts periods</small></td></tr><tr><td><code>回血间隔</code></td><td>8</td><td>real seconds (game minutes) between each healing or hunger damage</td><td><small>engine/src/hunger.ts HUNGER_EFFECT_EVERY</small></td></tr><tr><td><code>背包格数</code></td><td>30</td><td>slots in the inventory</td><td><small>engine/src/controls.ts SLOT_COUNT</small></td></tr><tr><td><code>快捷栏格数</code></td><td>10</td><td>slots in the toolbar (the inventory’s first row)</td><td><small>engine/src/controls.ts ROW</small></td></tr><tr><td><code>磁吸距离</code></td><td>2</td><td>distance (cells) at which dropped things fly into the inventory</td><td><small>engine/src/controls.ts MAGNET</small></td></tr><tr><td><code>每游戏分钟tick</code></td><td>10</td><td>ticks in one game minute (one real second)</td><td><small>engine/src/calendar.ts</small></td></tr><tr><td><code>一天现实分钟</code></td><td>24</td><td>real minutes in one game day</td><td><small>engine/src/calendar.ts</small></td></tr><tr><td><code>入夜</code></td><td>21:00</td><td>night begins (earlier as the story goes on)</td><td><small>engine/src/calendar.ts nightHours</small></td></tr><tr><td><code>天亮</code></td><td>05:00</td><td>night ends</td><td><small>engine/src/calendar.ts nightHours</small></td></tr><tr><td><code>新游戏时刻</code></td><td>13:00</td><td>the hour a new game begins</td><td><small>tools/src/demo/world.ts START_HOUR</small></td></tr><tr><td><code>回收比例</code></td><td>50%</td><td>share of its materials a thing leaves when broken</td><td><small>content/src/ontology.ts RECOVERY</small></td></tr><tr><td><code>安全落差</code></td><td>1</td><td>storeys you can fall without harm</td><td><small>content/src/ontology.ts SAFE_FALL</small></td></tr><tr><td><code>坠落伤害</code></td><td>6</td><td>damage for each storey beyond a safe fall</td><td><small>content/src/ontology.ts FALL_DAMAGE</small></td></tr><tr><td><code>楼层上限</code></td><td>4</td><td>most storeys you can build above the ground</td><td><small>content/src/ontology.ts STOREYS</small></td></tr><tr><td><code>房间最大格数</code></td><td>256</td><td>more cells than this is no room (it is outdoors)</td><td><small>content/src/ontology.ts ROOM_SIZE</small></td></tr><tr><td><code>夜行生物上限</code></td><td>4</td><td>most night creatures roaming one map at once</td><td><small>content/src/ontology.ts NIGHT_CAP</small></td></tr><tr><td><code>夜行生物间隔</code></td><td>6</td><td>real seconds between chances of another night creature</td><td><small>content/src/ontology.ts NIGHT_EVERY</small></td></tr><tr><td><code>树木再生</code></td><td>2</td><td>game days for a stump or sapling to grow into a tree</td><td><small>content/src/ontology.ts TREE_GROWS</small></td></tr><tr><td><code>下蛋间隔</code></td><td>3</td><td>game hours between a hen’s eggs</td><td><small>content/src/ontology.ts LAYS_EVERY</small></td></tr><tr><td><code>地面产出间隔</code></td><td>15</td><td>real seconds between each new branch, stone or tuft of grass on the ground</td><td><small>engine/src/appear.ts APPEAR_EVERY</small></td></tr><tr><td><code>职业等级</code></td><td>5</td><td>the level at which you may choose a profession</td><td><small>engine/src/profession.ts PROFESSION_LEVEL</small></td></tr><tr><td><code>升级经验系数</code></td><td>20</td><td>the next level takes this × your level in experience</td><td><small>engine/src/progression.ts xpToNext</small></td></tr><tr><td><code>恩赐切换距离</code></td><td>3</td><td>cells from an awakened waypoint statue within which you may change Lumi’s boon</td><td><small>engine/src/boons.ts BOON_REACH</small></td></tr><tr><td><code>图鉴视距</code></td><td>6</td><td>cells within which a person or creature counts as “seen”</td><td><small>engine/src/codex.ts CODEX_SIGHT</small></td></tr><tr><td><code>交互距离</code></td><td>1</td><td>the default reach of E (cells)</td><td><small>content/src/ontology.ts params.reach</small></td></tr><tr><td><code>拿放距离</code></td><td>1</td><td>the reach of taking and putting (cells)</td><td><small>content/src/ontology.ts params.carry</small></td></tr><tr><td><code>休息系数</code></td><td>0.5</td><td>share of lost health restored by sleeping outside a bedroom</td><td><small>content/src/ontology.ts params.rest</small></td></tr><tr><td><code>喂饱时长</code></td><td>24</td><td>game hours a fed animal stays “fed”; “milked” and “just bred” last as long</td><td><small>content/src/homestead.ts FED_FOR</small></td></tr><tr><td><code>幼崽长大</code></td><td>48</td><td>game hours for a calf or chick to grow up</td><td><small>content/src/ontology.ts GROWS_UP</small></td></tr><tr><td><code>鱼饵次数</code></td><td>5</td><td>casts one bait lasts on a rod</td><td><small>content/src/items.ts item/misc/bait</small></td></tr><tr><td><code>鱼竿距离</code></td><td>3</td><td>how far a rod casts (cells)</td><td><small>content/src/items.ts item/tool/fishing_rod</small></td></tr><tr><td><code>首领二阶段</code></td><td>50%</td><td>a boss enters its second phase below this share of health</td><td><small>content/src/bosses.ts encounter.phases</small></td></tr></tbody></table>
+</div>
+  <div class="catlinks">Categories: <a href="/wiki/en/Category/Help">Help</a></div>
+</main>
+<footer class="footer">
+  <p>Written by the OpenWorld team and translated from the Chinese edition; the tables are generated from the game’s code <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a> (main) at 2026-10-30 06:19.</p>
+  <p>Everyone on the team can edit it on GitHub: see <a href="/wiki/en/Editing_Basics">Editing Basics</a>. Game art from Ninja Adventure (CC0) and the project's own.</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

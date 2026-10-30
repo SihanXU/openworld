@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="zh-CN" data-base="/wiki/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>领地扩建 - OpenWorld 中文维基</title>
+<meta name="description" content="誓守之地的领地经营面板：三条扩建线——土地（推开迷雾）、新区域（采石场、林场、湖畔、温泉谷）、建筑（工坊、厨房灶台、储物棚、织坊、药房、三座居民营帐）；材料交给阿尔贝里克存进领地库存。">
+<link rel="alternate" hreflang="en" href="/wiki/en/Expanding_the_Held_Ground">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>中文维基</small></span></a>
+  <nav class="portlet"><h3>导航</h3><ul><li><a href="/wiki/">首页</a></li><li><a href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">新手指南</a></li><li><a href="/wiki/%E4%B8%BB%E7%BA%BF%E6%B5%81%E7%A8%8B">主线流程</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%9C%80%E8%BF%91%E6%9B%B4%E6%94%B9">最近更改</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E9%9A%8F%E6%9C%BA%E9%A1%B5%E9%9D%A2">随机页面</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%BE%85%E5%AE%8C%E5%96%84">待完善</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%89%80%E6%9C%89%E9%A1%B5%E9%9D%A2">所有页面</a></li></ul></nav><nav class="portlet"><h3>参与编辑</h3><ul><li><a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a></li><li><a href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C">格式手册</a></li><li><a href="/wiki/%E9%A3%8E%E6%A0%BC%E6%8C%87%E5%8D%97">风格指南</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%AE%8C%E5%A4%87%E6%80%A7">完备性</a></li></ul></nav><nav class="portlet"><h3>企划</h3><ul><li><a href="/wiki/%E5%85%B3%E4%BA%8E%E6%9C%AC%E7%BB%B4%E5%9F%BA">关于本维基</a></li><li><a href="/wiki/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1">设计支柱</a></li><li><a href="/wiki/%E8%B7%AF%E7%BA%BF%E5%9B%BE">路线图</a></li><li><a href="/wiki/%E7%89%88%E6%9C%AC%E5%8E%86%E5%8F%B2">版本历史</a></li><li><a href="/wiki/%E5%B7%B2%E7%9F%A5%E9%97%AE%E9%A2%98">已知问题</a></li></ul></nav>
+  <nav class="portlet"><h3>游戏</h3><ul><li><a href="/play/">开始游戏</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub 仓库</a></li><li><a href="/wiki/en/Expanding_the_Held_Ground" hreflang="en">English wiki</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="菜单" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/%E9%A2%86%E5%9C%B0%E6%89%A9%E5%BB%BA">页面</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22%E9%A2%86%E5%9C%B0%E6%89%A9%E5%BB%BA%22" title="这一页的讨论（GitHub 议题）">讨论</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5B%E7%BB%B4%E5%9F%BA%5D%20%E9%A2%86%E5%9C%B0%E6%89%A9%E5%BB%BA&body=%E9%A1%B5%E9%9D%A2%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2F%25E9%25A2%2586%25E5%259C%25B0%25E6%2589%25A9%25E5%25BB%25BA%0A%0A" title="就这一页开一个新的讨论">＋</a></div>
+  <form class="search" action="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%90%9C%E7%B4%A2" method="get" role="search"><input name="q" id="q" type="search" placeholder="搜索 OpenWorld 维基" autocomplete="off" aria-label="搜索"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/%E9%A2%86%E5%9C%B0%E6%89%A9%E5%BB%BA">阅读</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/pages/%E7%94%9F%E6%B4%BB/%E9%A2%86%E5%9C%B0%E6%89%A9%E5%BB%BA.md" title="在 GitHub 上编辑这一页">编辑</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/pages/%E7%94%9F%E6%B4%BB/%E9%A2%86%E5%9C%B0%E6%89%A9%E5%BB%BA.md">查看历史</a><a class="tab lang" href="/wiki/en/Expanding_the_Held_Ground" hreflang="en" lang="en" title="English edition">English</a><button class="tab theme" id="theme" title="切换明暗">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">领地扩建</h1><div class="subtitle">来自OpenWorld 中文维基 · 玩法</div>
+  
+  <div class="body"><p><strong>领地扩建</strong>是让<a href="/wiki/%E8%AA%93%E5%AE%88%E4%B9%8B%E5%9C%B0">誓守之地</a>长大的办法。它有三条线，都在<a href="/wiki/%E9%98%BF%E5%B0%94%E8%B4%9D%E9%87%8C%E5%85%8B">阿尔贝里克</a>那里办：</p>
+<ul>
+<li><strong>土地</strong>：推开迷雾，领地变大。</li>
+<li><strong>新区域</strong>：开辟一片有专门用处的地方，比如采石场、湖。</li>
+<li><strong>建筑</strong>：在长剑周围打好木桩的地基上建起设施，和给搬来住的人的居民营帐。</li>
+</ul>
+<nav class="toc"><div class="toc-title">目录</div><ol><li class="toc-l2"><a href="#%E6%89%93%E5%BC%80%E9%9D%A2%E6%9D%BF"><span class="tocnum">1</span> 打开面板</a></li><li class="toc-l2"><a href="#%E6%94%BE%E6%9D%90%E6%96%99"><span class="tocnum">2</span> 放材料</a></li><li class="toc-l2"><a href="#%E5%BB%BA%E9%80%A0"><span class="tocnum">3</span> 建造</a></li><li class="toc-l3"><a href="#%E5%9C%9F%E5%9C%B0"><span class="tocnum">3.1</span> 土地</a></li><li class="toc-l3"><a href="#%E6%96%B0%E5%8C%BA%E5%9F%9F"><span class="tocnum">3.2</span> 新区域</a></li><li class="toc-l3"><a href="#%E5%BB%BA%E7%AD%91"><span class="tocnum">3.3</span> 建筑</a></li><li class="toc-l2"><a href="#%E5%8E%86%E5%8F%B2"><span class="tocnum">4</span> 历史</a></li></ol></nav><h2 id="打开面板"><span class="mw-headline">打开面板</span></h2>
+<p>对阿尔贝里克按 <kbd>E</kbd> 说话，选「领地扩建……」，打开<strong>领地经营</strong>面板（标题「誓守之地 · 领地经营」）。打开时时间暂停。正中插在地上的长剑只能读，不再打开面板。</p>
+<ul>
+<li><strong>左边</strong>：一张圆形的领地图（已守住的范围是绿色，没推开的迷雾圈是灰色虚线）、&quot;土地等级 N / 3&quot;，以及<strong>领地库存</strong>（每种材料存了多少）。</li>
+<li><strong>右边</strong>：三个标签页「土地」「新区域」「建筑」，标签上写着完成了几项；有能马上建的，标签角上亮一个小点。每张卡片写着：<ul>
+<li>建成后有什么；</li>
+<li>要哪些材料，每样一个材料槽、一条进度条（库存 / 需要）和“身上有几个”；</li>
+<li>状态：<strong>已完成</strong>、<strong>可建造</strong>（库存够了，卡片发金光）、<strong>收集中</strong>、<strong>未解锁</strong>（土地等级不够，卡片上写着“需要土地 N 级”）。</li>
+</ul>
+</li>
+<li><strong>下方</strong>：「行囊」，列出身上的东西，扩建用得上的会亮起来。</li>
+</ul>
+<h2 id="放材料"><span class="mw-headline">放材料</span></h2>
+<p>材料不是交给某一个项目，而是交给阿尔贝里克存进<strong>领地库存</strong>，所有项目都从库存里扣。</p>
+<ul>
+<li><strong>拖</strong>：把行囊里的材料拖到某张卡片的材料槽上，放进这张卡片还缺的数量。</li>
+<li><strong>点</strong>：直接点行囊里的材料，把所有正在收集的项目还缺的数量一起放进去；点卡片上的材料槽也行。</li>
+<li>放进库存的东西就交出去了，不会再回到背包，但库存一直留着，可以分很多次放。</li>
+<li>不在任何项目清单里的东西，交给他就只是普通的送礼。</li>
+<li>平时用 <kbd>G</kbd> 把清单里的材料递给他，也会进库存。</li>
+</ul>
+<h2 id="建造"><span class="mw-headline">建造</span></h2>
+<p>库存够了，卡片按钮亮起：土地是「扩建！」，区域是「开辟！」，建筑是「建造！」。按下后从库存扣掉材料，阿尔贝里克说一句话。</p>
+<h3 id="土地"><span class="mw-headline">土地</span></h3>
+<table>
+<thead>
+<tr>
+<th>等级</th>
+<th>名字</th>
+<th>材料</th>
+<th>奖励</th>
+<th>推开后</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>I</td>
+<td>林地</td>
+<td>10 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/tileset_camp.png');background-position:-128px -128px;background-size:368px 144px"></span><a href="/wiki/%E6%9C%A8%E5%A4%B4">木头</a></span>、10 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Resource/Rock.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E7%9F%B3%E5%9D%97">石块</a></span></td>
+<td>20 晨辉币</td>
+<td>第一圈迷雾散去：小树林、散落的石块、更多空地</td>
+</tr>
+<tr>
+<td>II</td>
+<td>草甸</td>
+<td>20 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetHouse.png');background-position:-496px -272px;background-size:528px 368px"></span><a href="/wiki/%E6%9C%A8%E6%9D%BF">木板</a></span>、5 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetNature.png');background-position:-96px -224px;background-size:384px 336px"></span><a href="/wiki/%E9%93%81%E7%9F%BF%E7%9F%B3">铁矿石</a></span></td>
+<td>40 晨辉币</td>
+<td>第二圈：开花的草甸和水边</td>
+</tr>
+<tr>
+<td>III</td>
+<td>古老界石</td>
+<td>30 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetHouse.png');background-position:-496px -272px;background-size:528px 368px"></span><a href="/wiki/%E6%9C%A8%E6%9D%BF">木板</a></span>、30 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Resource/Rock.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E7%9F%B3%E5%9D%97">石块</a></span>、3 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetNature.png');background-position:-64px -224px;background-size:384px 336px"></span><a href="/wiki/%E9%87%91%E7%9F%BF%E7%9F%B3">金矿石</a></span></td>
+<td>60 晨辉币</td>
+<td>最后一圈：古老界石、岩石里的铁矿脉</td>
+</tr>
+</tbody></table>
+<p>土地要一级一级来。</p>
+<h3 id="新区域"><span class="mw-headline">新区域</span></h3>
+<p>每个区域都是一片单独的地方。开辟后在它的卡片上按「前往 ➜」，阿尔贝里克就把你送过去；区域南边有一条路，走出去回到长剑旁。</p>
+<table>
+<thead>
+<tr>
+<th>区域</th>
+<th>需要土地</th>
+<th>材料</th>
+<th>有什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><a href="/wiki/%E8%AA%93%E7%9F%B3%E9%87%87%E7%9F%B3%E5%9C%BA">誓石采石场</a></td>
+<td>I</td>
+<td>15 木板、10 石块</td>
+<td>可以凿开的巨石，铁矿脉、煤层和一处金矿脉，地上会重新冒出石块</td>
+</tr>
+<tr>
+<td><a href="/wiki/%E5%AE%88%E6%9E%97">守林</a></td>
+<td>I</td>
+<td>15 木头、5 石块</td>
+<td>一片密林（砍了会长回来），蘑菇圈和浆果，地上的树枝和干草</td>
+</tr>
+<tr>
+<td><a href="/wiki/%E9%9D%99%E9%95%9C%E6%B9%96">静镜湖</a></td>
+<td>II</td>
+<td>20 石块、10 木板</td>
+<td>一片深湖：可以钓鱼（湖心有狗鱼，夜里有鳗鱼），岸边有沙滩和芦苇</td>
+</tr>
+<tr>
+<td><a href="/wiki/%E6%84%88%E6%B3%89%E8%B0%B7">愈泉谷</a></td>
+<td>III</td>
+<td>25 石块、2 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/Items/Ingot.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E9%93%81%E9%94%AD">铁锭</a></span></td>
+<td>三眼温泉，泡进去会疗伤（和<a href="/wiki/%E5%88%9D%E5%8E%9F%E6%9D%91">初原村</a>的温泉一样），山坡上有草药和霜盖菇</td>
+</tr>
+</tbody></table>
+<h3 id="建筑"><span class="mw-headline">建筑</span></h3>
+<p>长剑周围预先打好了九块<a href="/wiki/%E5%9C%B0%E5%9F%BA">地基</a>（一圈木桩，名字是“××地基”）。建好后，地基过一会儿就变成那样东西，冒一阵闪光。有的建筑建好后还能在同一页<strong>升级</strong>（工坊 II、魔法工坊 II；铁匠铺的两次升级不占地基），升级要先建好上一级。</p>
+<table>
+<thead>
+<tr>
+<th>建筑</th>
+<th>地基在哪</th>
+<th>需要土地</th>
+<th>材料</th>
+<th>变成</th>
+<th>奖励</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>工坊</td>
+<td>长剑西边</td>
+<td>—</td>
+<td>8 木头、4 石块</td>
+<td>一张<a href="/wiki/%E5%B7%A5%E4%BD%9C%E5%8F%B0">工作台</a>；解锁<a href="/wiki/%E5%88%B6%E4%BD%9C">制作</a>配方：<span class="ent"><span class="spr inline" style="width:8px;height:14px;background-image:url('/assets/na/Items/Weapons/Club/Sprite.png');background-position:-0px -0px;background-size:8px 14px"></span><a href="/wiki/%E6%A3%8D%E6%A3%92">棍棒</a></span>、<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/Items/Gear/Shield.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E7%9B%BE%E7%89%8C">盾牌</a></span>、<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/Items/Bow.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E5%BC%93">弓</a></span>，随时在背包里做</td>
+<td>—</td>
+</tr>
+<tr>
+<td>工坊 II</td>
+<td>（升级）</td>
+<td>I</td>
+<td>16 木板、4 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/Items/Ingot.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E9%93%81%E9%94%AD">铁锭</a></span></td>
+<td>解锁配方：<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/tileset_camp.png');background-position:-208px -112px;background-size:368px 144px"></span><a href="/wiki/%E8%9C%A1%E7%83%9B">蜡烛</a></span>、<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetHouse.png');background-position:-480px -272px;background-size:528px 368px"></span><a href="/wiki/%E6%8F%90%E7%81%AF">提灯</a></span>；筑炉者的<a href="/wiki/%E9%93%81%E5%8C%A0%E7%82%89">铁匠炉</a>、蜂农的蜂箱</td>
+<td>—</td>
+</tr>
+<tr>
+<td>铁匠铺·风箱</td>
+<td>（升级，不占地基）</td>
+<td>I</td>
+<td>4 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Object/Bag.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E7%9A%AE%E9%9D%A9">皮革</a></span>、8 木板、3 铁锭</td>
+<td>学了技能的铁匠能在任何<a href="/wiki/%E9%93%81%E7%A0%A7">铁砧</a>上打战锤、戟、护肩、胸甲、金属工具、戒指和护符</td>
+<td>—</td>
+</tr>
+<tr>
+<td>铁匠铺·淬硬铁砧</td>
+<td>（升级）</td>
+<td>II</td>
+<td>2 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/Items/Ingot.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E9%92%A2%E6%9D%A1">钢条</a></span>、12 石块、6 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetNature.png');background-position:-112px -192px;background-size:384px 336px"></span><a href="/wiki/%E7%85%A4%E7%82%AD">煤炭</a></span></td>
+<td>能在铁砧上锻造四个职业的<a href="/wiki/%E5%A5%97%E8%A3%85">套装</a></td>
+<td>—</td>
+</tr>
+<tr>
+<td>魔法工坊</td>
+<td>长剑东南</td>
+<td>I</td>
+<td>12 木板、4 <span class="ent"><span class="spr inline" style="width:14px;height:14px;background-image:url('/assets/na/Items/Scroll/Scroll.png');background-position:-0px -0px;background-size:14px 14px"></span><a href="/wiki/%E5%B8%83%E5%8C%B9">布匹</a></span>、2 <span class="ent"><span class="spr inline" style="width:15px;height:15px;background-image:url('/assets/na/Items/Resource/GemRed.png');background-position:-0px -0px;background-size:15px 15px"></span><a href="/wiki/%E5%AE%9D%E7%9F%B3">宝石</a></span></td>
+<td>一张<a href="/wiki/%E9%AD%94%E6%B3%95%E5%B7%A5%E4%BD%9C%E5%8F%B0">魔法工作台</a>：魔杖、法杖、治疗药水、防火药剂、法师的入门法术书</td>
+<td>—</td>
+</tr>
+<tr>
+<td>魔法工坊 II</td>
+<td>（升级）</td>
+<td>II</td>
+<td>4 宝石、4 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Actor/Monster/Mushroom2/mushroom2.png');background-position:-0px -0px;background-size:64px 64px"></span><a href="/wiki/%E9%9C%9C%E7%9B%96%E8%8F%87">霜盖菇</a></span>、4 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetFloorDetail.png');background-position:-80px -32px;background-size:256px 80px"></span><a href="/wiki/%E7%81%AB%E7%84%B0%E8%8D%89">火焰草</a></span>、2 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetNature.png');background-position:-64px -224px;background-size:384px 336px"></span><a href="/wiki/%E9%87%91%E9%94%AD">金锭</a></span></td>
+<td>火焰、冰霜法杖，进阶法术书</td>
+<td>—</td>
+</tr>
+<tr>
+<td>厨房灶台</td>
+<td>长剑南边</td>
+<td>—</td>
+<td>10 石块、4 木头</td>
+<td>一堆一直燃着的<a href="/wiki/%E8%90%A5%E7%81%AB">营火</a>，可以做饭</td>
+<td>—</td>
+</tr>
+<tr>
+<td>储物棚</td>
+<td>长剑南边</td>
+<td>I</td>
+<td>12 木板、6 木头</td>
+<td>一个 40 格的<a href="/wiki/%E5%82%A8%E7%89%A9%E6%A3%9A">储物棚</a></td>
+<td>—</td>
+</tr>
+<tr>
+<td>织坊</td>
+<td>长剑南边</td>
+<td>I</td>
+<td>8 木板、6 树枝</td>
+<td>一架<a href="/wiki/%E7%BB%87%E5%B8%83%E6%9C%BA">织布机</a>；解锁配方：<span class="ent"><span class="spr inline" style="width:14px;height:14px;background-image:url('/assets/na/Items/Scroll/Scroll.png');background-position:-0px -0px;background-size:14px 14px"></span><a href="/wiki/%E5%B8%83%E5%8C%B9">布匹</a></span>（皮匠的皮甲），随时在背包里做</td>
+<td>—</td>
+</tr>
+<tr>
+<td>药房</td>
+<td>长剑西北</td>
+<td>II</td>
+<td>8 石块、6 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Resource/Grass.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E8%8D%89%E8%8D%AF">草药</a></span></td>
+<td>一口<a href="/wiki/%E5%9D%A9%E5%9F%9A">坩埚</a></td>
+<td>—</td>
+</tr>
+<tr>
+<td>居民营帐</td>
+<td>长剑东北</td>
+<td>I</td>
+<td>6 <span class="ent"><span class="spr inline" style="width:14px;height:14px;background-image:url('/assets/na/Items/Scroll/Scroll.png');background-position:-0px -0px;background-size:14px 14px"></span><a href="/wiki/%E5%B8%83%E5%8C%B9">布匹</a></span>、10 木板</td>
+<td>一顶<a href="/wiki/%E5%B8%90%E7%AF%B7">帐篷</a>，前面两个床位</td>
+<td>30 晨辉币</td>
+</tr>
+<tr>
+<td>第二座居民营帐</td>
+<td>长剑东边</td>
+<td>I</td>
+<td>8 布匹、14 木板、6 木头</td>
+<td>一顶帐篷，再两个床位</td>
+<td>50 晨辉币</td>
+</tr>
+<tr>
+<td>第三座居民营帐</td>
+<td>长剑西北</td>
+<td>II</td>
+<td>10 布匹、18 木板、2 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/Items/Ingot.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E9%93%81%E9%94%AD">铁锭</a></span></td>
+<td>一顶帐篷，再两个床位</td>
+<td>80 晨辉币</td>
+</tr>
+</tbody></table>
+<p>居民营帐是给搬来住的人的：营地旁本来有一个床位，三座营帐建齐后一共七个。谁能请来住，见<a href="/wiki/%E9%A2%86%E5%9C%B0%E5%B1%85%E6%B0%91">领地居民</a>。</p>
+<h2 id="历史"><span class="mw-headline">历史</span></h2>
+<ul>
+<li>2026-10-07：三次扩建是阿尔贝里克的三个任务（扩建誓守之地 I、II、III），材料交给他。</li>
+<li>2026-10-11：扩建改成长剑的面板，当场放材料、当场扩建。</li>
+<li>2026-10-11：面板移到阿尔贝里克的对话里（「领地扩建……」），材料存进领地库存；除了土地，又加了新区域（采石场、林场、湖畔、温泉谷）和功能建筑（工坊、厨房灶台、储物棚、织坊、药房）。旧存档里进行中的扩建任务会被取消，已扩建的土地等级保留。</li>
+<li>2026-10-12：建筑里加入三座居民营帐，给搬来住的人；旧存档里的誓守之地也会打好它们的地基。</li>
+<li>2026-10-21：建筑开始解锁制作配方：工坊解锁棍棒、盾牌、弓，织坊解锁布匹和皮甲；解锁后随时在制作面板里做，不用站在工作台或织布机旁。</li>
+<li>2026-10-21：建筑可以升级：工坊 II（蜡烛、提灯、铁匠炉、蜂箱）、铁匠铺的风箱和淬硬铁砧（技能配方与职业套装要先升级）；新增魔法工坊和它的 II 级（魔杖、法杖、药水、法术书）。</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title">生活</th></tr><tr><td colspan="2"><a href="/wiki/%E9%87%87%E9%9B%86">采集</a> • <a href="/wiki/%E9%87%87%E7%9F%BF">采矿</a> • <a href="/wiki/%E5%9C%B0%E5%BD%A2">地形</a> • <a href="/wiki/%E9%92%93%E9%B1%BC">钓鱼</a> • <a href="/wiki/%E5%8A%A8%E7%89%A9">动物</a> • <a href="/wiki/%E4%BC%90%E6%9C%A8">伐木</a> • <a href="/wiki/%E6%88%BF%E9%97%B4">房间</a> • <a href="/wiki/%E5%B7%A5%E4%BD%9C%E5%8F%B0">工作台</a> • <a href="/wiki/%E5%BB%BA%E9%80%A0">建造</a> • <a href="/wiki/%E9%A2%86%E5%9C%B0%E5%B1%85%E6%B0%91">领地居民</a> • <a href="/wiki/%E9%A2%86%E5%9C%B0%E6%89%A9%E5%BB%BA">领地扩建</a> • <a href="/wiki/%E6%A5%BC%E5%B1%82">楼层</a> • <a href="/wiki/%E8%80%90%E4%B9%85%E4%B8%8E%E7%A0%B4%E5%9D%8F">耐久与破坏</a> • <a href="/wiki/%E5%86%9C%E8%80%95">农耕</a> • <a href="/wiki/%E7%83%B9%E9%A5%AA">烹饪</a> • <a href="/wiki/%E7%9D%A1%E8%A7%89">睡觉</a> • <a href="/wiki/%E8%90%A5%E7%81%AB">营火</a> • <a href="/wiki/%E5%85%83%E7%B4%A0">元素</a> • <a href="/wiki/%E5%88%B6%E4%BD%9C">制作</a> • <a href="/wiki/%E7%8A%B6%E6%80%81">状态</a> • <a href="/wiki/%E4%BD%9C%E7%89%A9">作物</a></td></tr></table>
+</div>
+  <div class="catlinks">分类：<a href="/wiki/%E5%88%86%E7%B1%BB%EF%BC%9A%E7%8E%A9%E6%B3%95">玩法</a></div>
+</main>
+<footer class="footer">
+  <p>本站内容由 OpenWorld 项目组编写，数据表从游戏代码 <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a>（main）生成于 2026-10-30 06:19。</p>
+  <p>项目组成员都能在 GitHub 上编辑：见<a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a>。游戏素材来自 Ninja Adventure（CC0）与项目自绘。</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

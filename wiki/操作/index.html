@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="zh-CN" data-base="/wiki/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>操作 - OpenWorld 中文维基</title>
+<meta name="description" content="全部按键和鼠标操作：四个输入（左键、右键、E、G）各管一件事，东西在地上的两种形态（散落的拿起、立着的交互），工具敲松建好的东西，距离、Alt 选择层、动作提示、快捷栏、技能栏、潜行与拔刀、面板键、建造模式和对话中的按键。">
+<link rel="alternate" hreflang="en" href="/wiki/en/Controls">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>中文维基</small></span></a>
+  <nav class="portlet"><h3>导航</h3><ul><li><a href="/wiki/">首页</a></li><li><a href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">新手指南</a></li><li><a href="/wiki/%E4%B8%BB%E7%BA%BF%E6%B5%81%E7%A8%8B">主线流程</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%9C%80%E8%BF%91%E6%9B%B4%E6%94%B9">最近更改</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E9%9A%8F%E6%9C%BA%E9%A1%B5%E9%9D%A2">随机页面</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%BE%85%E5%AE%8C%E5%96%84">待完善</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%89%80%E6%9C%89%E9%A1%B5%E9%9D%A2">所有页面</a></li></ul></nav><nav class="portlet"><h3>参与编辑</h3><ul><li><a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a></li><li><a href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C">格式手册</a></li><li><a href="/wiki/%E9%A3%8E%E6%A0%BC%E6%8C%87%E5%8D%97">风格指南</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%AE%8C%E5%A4%87%E6%80%A7">完备性</a></li></ul></nav><nav class="portlet"><h3>企划</h3><ul><li><a href="/wiki/%E5%85%B3%E4%BA%8E%E6%9C%AC%E7%BB%B4%E5%9F%BA">关于本维基</a></li><li><a href="/wiki/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1">设计支柱</a></li><li><a href="/wiki/%E8%B7%AF%E7%BA%BF%E5%9B%BE">路线图</a></li><li><a href="/wiki/%E7%89%88%E6%9C%AC%E5%8E%86%E5%8F%B2">版本历史</a></li><li><a href="/wiki/%E5%B7%B2%E7%9F%A5%E9%97%AE%E9%A2%98">已知问题</a></li></ul></nav>
+  <nav class="portlet"><h3>游戏</h3><ul><li><a href="/play/">开始游戏</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub 仓库</a></li><li><a href="/wiki/en/Controls" hreflang="en">English wiki</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="菜单" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/%E6%93%8D%E4%BD%9C">页面</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22%E6%93%8D%E4%BD%9C%22" title="这一页的讨论（GitHub 议题）">讨论</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5B%E7%BB%B4%E5%9F%BA%5D%20%E6%93%8D%E4%BD%9C&body=%E9%A1%B5%E9%9D%A2%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2F%25E6%2593%258D%25E4%25BD%259C%0A%0A" title="就这一页开一个新的讨论">＋</a></div>
+  <form class="search" action="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%90%9C%E7%B4%A2" method="get" role="search"><input name="q" id="q" type="search" placeholder="搜索 OpenWorld 维基" autocomplete="off" aria-label="搜索"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/%E6%93%8D%E4%BD%9C">阅读</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/pages/%E5%9F%BA%E6%9C%AC/%E6%93%8D%E4%BD%9C.md" title="在 GitHub 上编辑这一页">编辑</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/pages/%E5%9F%BA%E6%9C%AC/%E6%93%8D%E4%BD%9C.md">查看历史</a><a class="tab lang" href="/wiki/en/Controls" hreflang="en" lang="en" title="English edition">English</a><button class="tab theme" id="theme" title="切换明暗">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">操作</h1><div class="subtitle">来自OpenWorld 中文维基 · 玩法</div>
+  
+  <div class="body"><p>OpenWorld 用键盘和鼠标操作，左手放在键盘上，右手拿鼠标，没有手柄支持。按键可以在<a href="/wiki/%E9%80%89%E9%A1%B9">选项</a>里改，见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E6%94%B9%E9%94%AE">改键</a>；本页写的都是默认键位。对世界里的东西做事有<strong>四个输入</strong>，每个只管一件事：</p>
+<ul>
+<li><strong>左键</strong>：手上东西<strong>本身的用法</strong>。工具、武器就挥它（打、砍、挖、锄、打水、点火），空手用拳头；拿着别的东西（吃的、药、衣服、信）就是对自己用（吃、喝、穿上、读）。</li>
+<li><strong>右键</strong>：把手上的东西<strong>用在指着的东西上</strong>（播种、喂牛、开锁、烤肉，还有世界没见过的各种试验）。拿着墙、床这类东西就是把它建在那里。</li>
+<li><kbd>E</kbd>：<strong>手</strong>。地上散落的东西就捡起来；立着的东西就交互（说话、开门、读告示、睡觉、摘熟了的作物）。</li>
+<li><kbd>G</kbd>：<strong>放</strong>。把手上的东西放下、放进去、放到上面，或交给别人；放下的东西都是散落的，不会建起来。</li>
+</ul>
+<p>其余按键用来移动、攻击、放技能、切换手上的东西和打开面板。</p>
+<nav class="toc"><div class="toc-title">目录</div><ol><li class="toc-l2"><a href="#%E5%85%A8%E9%83%A8%E6%8C%89%E9%94%AE"><span class="tocnum">1</span> 全部按键</a></li><li class="toc-l2"><a href="#%E7%A7%BB%E5%8A%A8"><span class="tocnum">2</span> 移动</a></li><li class="toc-l2"><a href="#%E8%BE%93%E5%85%A5"><span class="tocnum">3</span> 输入</a></li><li class="toc-l2"><a href="#%E5%B7%A6%E9%94%AE"><span class="tocnum">4</span> 左键</a></li><li class="toc-l2"><a href="#%E5%8F%B3%E9%94%AE"><span class="tocnum">5</span> 右键</a></li><li class="toc-l2"><a href="#%E5%AF%B9%E5%8F%8B%E5%A5%BD%E7%9A%84%E4%BA%BA%E5%85%88%E9%97%AE%E4%B8%80%E5%8F%A5"><span class="tocnum">6</span> 对友好的人先问一句</a></li><li class="toc-l2"><a href="#E%EF%BC%9A%E6%89%8B"><span class="tocnum">7</span> E：手</a></li><li class="toc-l2"><a href="#%E4%B8%9C%E8%A5%BF%E7%9A%84%E4%B8%A4%E7%A7%8D%E5%BD%A2%E6%80%81"><span class="tocnum">8</span> 东西的两种形态</a></li><li class="toc-l2"><a href="#%E6%8C%87%E5%90%91%E4%B8%8E%E7%9B%AE%E6%A0%87"><span class="tocnum">9</span> 指向与目标</a></li><li class="toc-l2"><a href="#%E9%80%89%E6%8B%A9%E5%8F%A0%E7%9D%80%E7%9A%84%E4%B8%9C%E8%A5%BF"><span class="tocnum">10</span> 选择叠着的东西</a></li><li class="toc-l2"><a href="#%E5%8A%A8%E4%BD%9C%E6%8F%90%E7%A4%BA%E4%B8%8E%E3%80%8C%E3%80%8D"><span class="tocnum">11</span> 动作提示与「?」</a></li><li class="toc-l2"><a href="#%E6%94%BB%E5%87%BB%E4%B8%8E%E5%86%B2%E5%88%BA"><span class="tocnum">12</span> 攻击与冲刺</a></li><li class="toc-l2"><a href="#%E6%BD%9C%E8%A1%8C%E4%B8%8E%E6%8B%94%E5%88%80"><span class="tocnum">13</span> 潜行与拔刀</a></li><li class="toc-l2"><a href="#%E6%89%8B%E4%B8%8A%E7%9A%84%E4%B8%9C%E8%A5%BF%E4%B8%8E%E5%BF%AB%E6%8D%B7%E6%A0%8F"><span class="tocnum">14</span> 手上的东西与快捷栏</a></li><li class="toc-l2"><a href="#%E9%9D%A2%E6%9D%BF%E4%B8%8E%E8%8F%9C%E5%8D%95"><span class="tocnum">15</span> 面板与菜单</a></li><li class="toc-l2"><a href="#%E5%BB%BA%E9%80%A0%E6%A8%A1%E5%BC%8F"><span class="tocnum">16</span> 建造模式</a></li><li class="toc-l2"><a href="#%E5%AF%B9%E8%AF%9D%E3%80%81%E6%8F%90%E9%97%AE%E4%B8%8E%E5%89%A7%E6%83%85"><span class="tocnum">17</span> 对话、提问与剧情</a></li><li class="toc-l2"><a href="#%E7%AD%89%E5%BE%85%E4%B8%96%E7%95%8C%E5%AD%A6%E4%B9%A0%E6%97%B6"><span class="tocnum">18</span> 等待世界学习时</a></li><li class="toc-l2"><a href="#%E4%B8%8D%E6%8E%A5%E5%8F%97%E6%8C%89%E9%94%AE%E7%9A%84%E6%97%B6%E5%80%99"><span class="tocnum">19</span> 不接受按键的时候</a></li><li class="toc-l2"><a href="#%E6%B8%B8%E6%88%8F%E9%87%8C%E7%9A%84%E6%8C%89%E9%94%AE%E8%A1%A8"><span class="tocnum">20</span> 游戏里的按键表</a></li><li class="toc-l2"><a href="#%E6%94%B9%E9%94%AE"><span class="tocnum">21</span> 改键</a></li><li class="toc-l2"><a href="#%E6%8F%90%E7%A4%BA"><span class="tocnum">22</span> 提示</a></li><li class="toc-l2"><a href="#%E5%8E%86%E5%8F%B2"><span class="tocnum">23</span> 历史</a></li></ol></nav><h2 id="全部按键"><span class="mw-headline">全部按键</span></h2>
+<table>
+<thead>
+<tr>
+<th>按键</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或方向键</td>
+<td>移动（跑）</td>
+</tr>
+<tr>
+<td>按住左 <kbd>Shift</kbd></td>
+<td>跑步，比走路快一半</td>
+</tr>
+<tr>
+<td>按住右 <kbd>Shift</kbd></td>
+<td>慢走</td>
+</tr>
+<tr>
+<td>左键</td>
+<td>手上东西本身的用法：武器攻击，工具干活（砍树、挖矿、锄地、打水、点火；斧头、镐、锤子敲床、墙这类东西会把它整个敲下来），空手是主手武器或拳头，拿着别的东西就对自己用（吃、喝、穿上）；按住连续。见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E5%B7%A6%E9%94%AE">左键</a></td>
+</tr>
+<tr>
+<td>右键</td>
+<td>把手上的东西用在指着的东西上；指着自己就是对自己用；拿着墙、地板、床这类东西就建在那里（按住拖动建一排）；空手什么也不做。见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E5%8F%B3%E9%94%AE">右键</a></td>
+</tr>
+<tr>
+<td><kbd>E</kbd></td>
+<td>手：捡起散落的东西；和人说话、开门、开箱子、阅读、唤醒、睡觉、进入、在火旁取暖、摘熟了的作物。见<a href="/wiki/%E6%93%8D%E4%BD%9C#E%EF%BC%9A%E6%89%8B">E：手</a></td>
+</tr>
+<tr>
+<td><kbd>G</kbd></td>
+<td>放：放下、放进、放到上面、交给别人</td>
+</tr>
+<tr>
+<td>长按 <kbd>E</kbd> 或 <kbd>G</kbd>（约 0.4 秒）· <kbd>Alt</kbd>+左键 · <kbd>Alt</kbd>+右键</td>
+<td>列出那一格叠着的每一样，选一样再做（包括头顶的天花板）</td>
+</tr>
+<tr>
+<td><kbd>空格</kbd></td>
+<td>朝面前攻击，按住连续攻击</td>
+</tr>
+<tr>
+<td><kbd>Q</kbd></td>
+<td>冲刺（学会<a href="/wiki/%E6%8A%80%E8%83%BD#%E8%BF%85%E6%8D%B7">迅捷</a>分支的<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/dash.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%8A%80%E8%83%BD#%E6%8A%80%E8%83%BD-%E5%86%B2%E5%88%BA">冲刺</a></span>之后）</td>
+</tr>
+<tr>
+<td><kbd>X</kbd></td>
+<td>拔出或收起武器：拔着时，左键打人不再先问（见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E5%AF%B9%E5%8F%8B%E5%A5%BD%E7%9A%84%E4%BA%BA%E5%85%88%E9%97%AE%E4%B8%80%E5%8F%A5">对友好的人先问一句</a>、<a href="/wiki/%E6%93%8D%E4%BD%9C#%E6%BD%9C%E8%A1%8C%E4%B8%8E%E6%8B%94%E5%88%80">潜行与拔刀</a>）</td>
+</tr>
+<tr>
+<td><kbd>V</kbd></td>
+<td>开始或停止<a href="/wiki/%E6%BD%9C%E8%A1%8C%E4%B8%8E%E6%89%92%E7%AA%83">潜行</a></td>
+</tr>
+<tr>
+<td><kbd>R</kbd></td>
+<td>建造模式里转动楼梯；手上拿着地板时，在“本层”和“天花板”之间切换右键</td>
+</tr>
+<tr>
+<td><kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>6</kbd></td>
+<td>施放<a href="/wiki/%E6%8A%80%E8%83%BD#%E6%8A%80%E8%83%BD%E6%A0%8F">技能栏</a>那一格的主动技能；在技能树上，把鼠标指着的主动技能放进那一格</td>
+</tr>
+<tr>
+<td><kbd>1</kbd>–<kbd>0</kbd></td>
+<td>选快捷栏的一格拿在手上</td>
+</tr>
+<tr>
+<td>鼠标滚轮</td>
+<td>切到快捷栏里下一格（上一格）有东西的格子</td>
+</tr>
+<tr>
+<td><kbd>Shift</kbd>+<kbd>Tab</kbd> · <kbd>Shift</kbd>+滚轮</td>
+<td>把背包的下一行换到快捷栏（滚轮往回滚是上一行）</td>
+</tr>
+<tr>
+<td><kbd>B</kbd></td>
+<td>打开或关闭<a href="/wiki/%E5%BB%BA%E9%80%A0">建造模式</a></td>
+</tr>
+<tr>
+<td><kbd>P</kbd></td>
+<td>打开或关闭<a href="/wiki/%E9%9C%B2%E7%B1%B3">露米</a>的面板（右下角的露米徽章也是）</td>
+</tr>
+<tr>
+<td><kbd>Tab</kbd> · <kbd>I</kbd></td>
+<td><a href="/wiki/%E8%83%8C%E5%8C%85">背包</a>；背包上方有一排页签，点一下切到制作、技能树、技能面板、任务、图鉴、世界地图</td>
+</tr>
+<tr>
+<td><kbd>C</kbd></td>
+<td><a href="/wiki/%E5%88%B6%E4%BD%9C">制作</a></td>
+</tr>
+<tr>
+<td><kbd>K</kbd></td>
+<td><a href="/wiki/%E6%8A%80%E8%83%BD">技能</a>树</td>
+</tr>
+<tr>
+<td><kbd>U</kbd></td>
+<td><a href="/wiki/%E6%8A%80%E8%83%BD#%E6%8A%80%E8%83%BD%E9%9D%A2%E6%9D%BF">技能面板</a>（管理主动技能和技能栏）</td>
+</tr>
+<tr>
+<td><kbd>M</kbd></td>
+<td><a href="/wiki/%E4%B8%96%E7%95%8C%E5%9C%B0%E5%9B%BE">世界地图</a></td>
+</tr>
+<tr>
+<td><kbd>L</kbd></td>
+<td><a href="/wiki/%E4%BB%BB%E5%8A%A1">任务</a>日志：进行中、已完成、失败三页，可以选一个任务追踪</td>
+</tr>
+<tr>
+<td><kbd>J</kbd></td>
+<td><a href="/wiki/%E5%9B%BE%E9%89%B4">图鉴</a>（含<a href="/wiki/%E7%BB%87%E7%BA%BF%E7%B0%BF">织线簿</a>）</td>
+</tr>
+<tr>
+<td><kbd>Esc</kbd></td>
+<td>关掉打开的东西；什么都没开时打开<a href="/wiki/%E9%80%89%E9%A1%B9">选项</a></td>
+</tr>
+<tr>
+<td>按住 <kbd>Esc</kbd> 两秒</td>
+<td>跳过<a href="/wiki/%E6%96%B0%E6%89%8B%E6%95%99%E7%A8%8B">新手教程</a>当前这一课</td>
+</tr>
+<tr>
+<td><kbd>`</kbd></td>
+<td><a href="/wiki/%E6%A8%A1%E7%BB%84%E6%8E%A7%E5%88%B6%E5%8F%B0">模组控制台</a>（只在开发版里有）</td>
+</tr>
+</tbody></table>
+<p>屏幕右下角的八个按钮（<kbd>L</kbd> <kbd>B</kbd> <kbd>I</kbd> <kbd>K</kbd> <kbd>J</kbd> <kbd>C</kbd> <kbd>U</kbd> <kbd>Esc</kbd>）和对应按键作用相同。点左上角的小地图也会打开世界地图，点左下角技能栏的格子也会施放技能。</p>
+<h2 id="移动"><span class="mw-headline">移动</span></h2>
+<ul>
+<li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或方向键移动，同时按几个方向时以最后按下的为准。</li>
+<li>按住左 <kbd>Shift</kbd> 跑步：每格约 0.13 秒，比走路（0.2 秒）快一半。</li>
+<li>按住右 <kbd>Shift</kbd> 慢走，每走一格多花一点时间（0.3 秒）。</li>
+<li>走进一个人身上会先转身面对他；顶着他继续走约 0.8 秒，两人互换位置。</li>
+<li>不移动时，鼠标指着身边相邻的一格，人物会转身面向那一格。站在一个人旁边面对着他，他会停下手上的日程等一会儿，方便说话或递东西。</li>
+<li>只有玩家能走进地图边缘的出口；走出有<a href="/wiki/%E4%BA%94%E5%8D%B0%E4%B9%8B%E5%9C%B0">大地图</a>位置的地图边缘，就到了大地图上（见<a href="/wiki/%E4%B8%96%E7%95%8C%E5%9C%B0%E5%9B%BE">世界地图</a>）。</li>
+<li>高低只能从石阶和坡道上下；一层高的崖边能往下跳，只能下不能上，两层以上跳不下去。见<a href="/wiki/%E5%9C%B0%E5%BD%A2#%E9%AB%98%E4%BD%8E">地形</a>。</li>
+</ul>
+<h2 id="输入"><span class="mw-headline">输入</span></h2>
+<table>
+<thead>
+<tr>
+<th>输入</th>
+<th>叫法</th>
+<th>做什么</th>
+<th>距离</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>左键</td>
+<td>本身的用法</td>
+<td>工具、武器挥向指着的东西；空手用主手武器或拳头；拿着别的东西对自己用</td>
+<td>看<strong>手上的东西</strong>：大多数 1 格；<span class="ent"><span class="spr inline" style="width:3.5px;height:10.5px;background-image:url('/assets/na/Items/Weapons/Lance2/Sprite.png');background-position:-0px -0px;background-size:3.5px 10.5px"></span><a href="/wiki/%E9%95%BF%E7%9F%9B">长矛</a></span>、<span class="ent"><span class="spr inline" style="width:3.5px;height:10.5px;background-image:url('/assets/na/Items/Weapons/Lance2/Sprite.png');background-position:-0px -0px;background-size:3.5px 10.5px"></span><a href="/wiki/%E6%88%9F">戟</a></span> 2 格；<span class="ent"><span class="spr inline" style="width:10px;height:14px;background-image:url('/assets/na/Items/Weapons/Fishing Rod/Sprite.png');background-position:-0px -0px;background-size:10px 14px"></span><a href="/wiki/%E9%B1%BC%E7%AB%BF">鱼竿</a></span> 3 格；<span class="ent"><span class="spr inline" style="width:5px;height:18px;background-image:url('/assets/na/Items/Weapons/MagicWand/Sprite.png');background-position:-0px -0px;background-size:5px 18px"></span><a href="/wiki/%E6%B3%95%E6%9D%96">法杖</a></span> 4 格；<span class="ent"><span class="spr inline" style="width:10px;height:20px;background-image:url('/assets/na/Items/Weapons/MagicWand/SpriteInHand.png');background-position:-0px -0px;background-size:10px 20px"></span><a href="/wiki/%E9%AD%94%E6%9D%96">魔杖</a></span> 5 格；<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/Items/Bow.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E5%BC%93">弓</a></span> 6 格</td>
+</tr>
+<tr>
+<td>右键</td>
+<td>用在上面</td>
+<td>把手上的东西用在指着的东西上：拿种子播种、拿钥匙开锁、拿生肉对着营火烤、拿麦子喂牛、给别人吃东西或穿衣服；拿着别的东西点生物，是把它递给生物（绳索、干草把它捆住，能吃的它吞下）；拿着可以建造的东西就建在那里</td>
+<td>同左键</td>
+</tr>
+<tr>
+<td><kbd>E</kbd></td>
+<td>手</td>
+<td>散落的东西捡起来；立着的东西用手碰：和人说话、打开箱子和门、阅读告示、唤醒<a href="/wiki/%E4%BC%A0%E9%80%81%E9%9B%95%E5%83%8F">传送雕像</a>、站在床上睡觉、进入大地图上的地点、在点着的火旁取暖、摘熟了的作物；对地面、水、树这些地形按了什么也不发生；对野生的怪物伸手会被咬</td>
+<td>看<strong>对象</strong>：大多数东西 1 格；床和大地图上的地点 0 格（要站上去）；告示牌 2 格；捡东西 1 格</td>
+</tr>
+<tr>
+<td><kbd>G</kbd></td>
+<td>放</td>
+<td>把手上的东西放到地上、台面上、开着的容器里、火里，或交给一个人；铺木板过河也是放</td>
+<td>固定 1 格</td>
+</tr>
+</tbody></table>
+<p>几条要点：</p>
+<ul>
+<li>距离按格数算，斜着也算 1 格（以自己为中心的方形）。所有角色都受同样的距离限制，NPC 也一样。</li>
+<li>远程攻击（距离大于 1 的弓、法杖、魔杖、长矛）只能打在自己所在的那一行或那一列上。鱼竿不是武器，甩竿不受这个限制：3 格内哪一格水都行，斜着也行（见<a href="/wiki/%E9%92%93%E9%B1%BC">钓鱼</a>）。</li>
+<li><a href="/wiki/%E6%B8%B8%E4%BE%A0">游侠</a>的<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/ranger-archery.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%B8%B8%E4%BE%A0#%E6%8A%80%E8%83%BD-%E7%AE%AD%E6%9C%AF">箭术</a></span>和<a href="/wiki/%E6%B3%95%E5%B8%88">法师</a>的<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/archmage.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%B3%95%E5%B8%88#%E6%8A%80%E8%83%BD-%E5%A4%A7%E6%B3%95%E5%B8%88">大法师</a></span>让本职业武器的距离再加 1。</li>
+<li>指着<strong>人</strong>和同伴，作用的就是这个人，不会落到他脚下的地面上。对友好的人，左键、右键、<kbd>G</kbd> 都会先问一句，见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E5%AF%B9%E5%8F%8B%E5%A5%BD%E7%9A%84%E4%BA%BA%E5%85%88%E9%97%AE%E4%B8%80%E5%8F%A5">对友好的人先问一句</a>。拿着武器右键点人是把武器“用在他身上”，拔出武器后才是砍他。<kbd>空格</kbd>朝面前挥击时，挡在面前的人也会挨打。</li>
+<li>别的职业的专属武器挥不出去，会提示“只有X会用Y战斗”。见<a href="/wiki/%E8%81%8C%E4%B8%9A">职业</a>。</li>
+<li><kbd>E</kbd> 捡东西和 <kbd>G</kbd> 放东西是物理动作，结果永远是确定的：能拿就拿，放得下就放下。它们不会触发<a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">世界学习</a>。只有会改变什么的时候，才会显示 <kbd>G</kbd> 的提示。</li>
+<li>右键（以及 <kbd>E</kbd> 碰立着的东西）碰到没有规则定义的事，就是让世界学习的地方，提示后面会出现「?」。见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E5%8A%A8%E4%BD%9C%E6%8F%90%E7%A4%BA%E4%B8%8E%E3%80%8C%E3%80%8D">动作提示与「?」</a>。</li>
+<li>空手左键点一块世界没见过被打的空地（草地、泥地），什么也不做，免得随手一点就去问世界。拿着剑、弓这类不兼作工具的武器左键点这样的空地，是朝那边空挥一下（挥击路线上撞到的生物照样挨打），也不问世界。拿着工具左键点地面就是用它：世界没见过的（比如镐挖草地）提示带「?」，按下去会去问世界。</li>
+<li><strong>战斗中</strong>（有敌人追着你、你刚打过谁或刚挨过打，五秒内都算，战斗音乐也是这时响起）随手一点不会去问世界：<ul>
+<li>左键先打指着那格或旁边一格的敌人（指偏一格也能打中）；没有敌人，就做世界已经会的事（照样能砍树）；都没有，就朝那边空挥。</li>
+<li>拿着食物之类对自己用、或者右键用东西，世界没见过的就不做，提示写着“战斗中不尝试”，不带「?」。</li>
+<li>真想在战斗中试，用 <kbd>Alt</kbd>+左键 / 右键 选层，照样会去问世界。</li>
+<li>没有友军伤害：<a href="/wiki/%E9%9C%B2%E7%B1%B3">露米</a>、跟着你的同伴，你的攻击会从他们身上穿过去，打到后面的敌人（箭也一样）；点在他们身上就是朝那边空挥，不会问“攻击露米？”。不在战斗中时，对友善的人动手仍然会先问一句。</li>
+</ul>
+</li>
+</ul>
+<h2 id="左键"><span class="mw-headline">左键</span></h2>
+<p>左键只看手上拿的是什么：</p>
+<ul>
+<li><strong>手上是武器或工具</strong>（剑、弓、斧头、镐、锄头、镰刀、鱼竿、火把、桶、水壶……）：挥向指着的东西，做它的本职——武器打，斧头砍树，镐挖矿，锄头锄地，镰刀收割，桶打水、浇水，火把点火，鱼竿甩竿。<ul>
+<li><strong>斧头、镐、锤子敲建好的东西</strong>（床、工作台、箱子、板条箱、铁匠砧、铁匠炉、蜂箱、墙、门、地板、楼梯）：它会<strong>整个松脱</strong>，掉在原地成了散落的一件，走近了会自动吸进背包，也可以按 <kbd>E</kbd> 捡起。箱子里的东西先撒出来。上了锁的箱子、门敲不下来，只会掉耐久。剑这类武器只会把它打坏（耐久见<a href="/wiki/%E8%80%90%E4%B9%85%E4%B8%8E%E7%A0%B4%E5%9D%8F">耐久与破坏</a>）。搬不动的东西（桌子、栅栏）不会被敲下来。</li>
+</ul>
+</li>
+<li><strong>空手</strong>：用装备在主手的武器打，没有就是一拳。</li>
+<li><strong>手上是别的东西</strong>（面包、药水、头盔、信、石块……）：<strong>对自己用</strong>，指着哪里都一样——吃、喝、穿上、读。世界没见过的用法（比如对自己用一块石头）会先问一句“对自己用石块？”，确定了才去问世界。</li>
+<li><strong>打什么</strong>：空手时先打指着那格里的人或生物，再打搬不动的东西（树、箱子、墙、巨石），不打地上散落的东西；拿着工具时，先打指着的人和同伴，再打最上面那一样。拿着武器（斧头也算）左键点人就是打他，拿着火把这类工具就是对他用它（点火）；对友好的人先问「攻击某某？」，拔出武器（<kbd>X</kbd>）后打人不再问。</li>
+<li><strong>挥从不对自己</strong>。要选叠在下面的东西，用 <kbd>Alt</kbd>+左键。</li>
+<li><strong>按下就生效，按住接着来</strong>：打怪按攻击速度一下接一下；干活按同样的节奏，挪动鼠标就一格接一格（锄一排地、砍一片树）。按住时只重复同一种已知的事：世界没见过的事（带「?」的）、要先确认的事不会重复，也不会把刚做的事做回去（舀满的水桶不会又倒掉）；对自己用的东西一次按一下只用一个。</li>
+</ul>
+<h2 id="右键"><span class="mw-headline">右键</span></h2>
+<p>右键把手上的东西用在指着的东西上，不替你挑别的（用在友好的人身上先问一句，见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E5%AF%B9%E5%8F%8B%E5%A5%BD%E7%9A%84%E4%BA%BA%E5%85%88%E9%97%AE%E4%B8%80%E5%8F%A5">对友好的人先问一句</a>）：</p>
+<ul>
+<li><strong>用在东西上</strong>：拿种子点空着的耕地是播种，拿灰烬、肥料点还没成熟的作物是施肥，拿钥匙点锁着的箱子是开锁，拿生肉点生着的火是烤肉，拿矿石点生着的熔炉是熔炼，拿麦子点牛是喂牛，拿鱼饵点鱼竿是挂饵，拿药水点别人是给他喝。</li>
+<li><strong>试验</strong>：世界没见过的用法（拿苹果点井、拿石块点史莱姆），提示后面带「?」，按下去会去问世界（见<a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">世界会学</a>）。右键是做试验的地方。</li>
+<li><strong>指着自己</strong>：用在自己身上，和左键拿着它一样（吃、喝、穿上）；拿着武器指着自己是装备到主手。</li>
+<li><strong>建造</strong>：拿着墙、地板、门、楼梯、床、工作台、栅栏这类东西，右键点空地、地板或建好的东西，就把它<strong>建在那里</strong>，按住拖动一格一个建一排；拿着地板时按 <kbd>R</kbd> 改为铺头顶的<a href="/wiki/%E6%A5%BC%E5%B1%82#%E5%A4%A9%E8%8A%B1%E6%9D%BF">天花板</a>，或用 <kbd>Alt</kbd>+右键在列表里选“天花板”。点水里、树上、人身上仍然是让世界学习的地方。也可以用建造模式（<kbd>B</kbd>）。</li>
+<li><strong>空手</strong>：右键什么也不做。</li>
+</ul>
+<h2 id="对友好的人先问一句"><span class="mw-headline">对友好的人先问一句</span></h2>
+<p>就像对自己用世界没见过的东西会先问一句，对一个<strong>友好的人</strong>（或同伴）动手、用东西、递东西也先问，免得手一滑：</p>
+<table>
+<thead>
+<tr>
+<th>输入</th>
+<th>提示</th>
+<th>先问</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>左键（打）</td>
+<td>用石斧打赫斯珀（需确认）</td>
+<td>攻击赫斯珀？</td>
+</tr>
+<tr>
+<td>右键（用在他身上）</td>
+<td>点燃赫斯珀（需确认）</td>
+<td>点燃赫斯珀？</td>
+</tr>
+<tr>
+<td><kbd>G</kbd>（递给他）</td>
+<td>把苹果送给赫斯珀（需确认）</td>
+<td>把苹果送给赫斯珀？</td>
+</tr>
+</tbody></table>
+<ul>
+<li>选“是”，就和平常一样做下去；选“否”，什么也不发生。按住左键连续挥时不会挥到要先问的人身上。</li>
+<li><strong>友好</strong>是说双方现在都不会攻击对方：他没把你当成敌人（你没打过他，他的阵营也不和你为敌），你们也不在打斗中。刚打过他、或刚被他打过（约 5 秒内），就不再问；正在追打你的人也不问。</li>
+<li><strong>拔出武器</strong>（<kbd>X</kbd>）时，左键打人不再先问：拔刀就是要打，打斗中不会被打断。右键对他用东西、<kbd>G</kbd> 递东西照样先问。</li>
+<li>生物（史莱姆、狼、牲口）不问。</li>
+<li><kbd>E</kbd> 和人说话从不问。</li>
+</ul>
+<h2 id="E：手"><span class="mw-headline">E：手</span></h2>
+<p><kbd>E</kbd> 看指着的东西是什么<strong>形态</strong>：</p>
+<ul>
+<li><strong>散落的东西</strong>：地上的物品、桌上的东西、怪物的掉落，还有被敲下来或用 <kbd>G</kbd> 放下的床、墙这类东西。按 <kbd>E</kbd> 捡起来，拿到手上。<strong>别人的东西</strong>会先问“偷走……？”，确定了才拿，那是<a href="/wiki/%E7%8A%AF%E7%BD%AA">偷窃</a>。</li>
+<li><strong>立着的东西</strong>：人、门、箱子、床、告示牌、熟了的作物、工作台……按 <kbd>E</kbd> 用手碰它：说话、开关、打开、阅读、睡觉、摘下熟了的作物。</li>
+<li><strong>潜行时对人</strong>：翻他的口袋（「扒某某的口袋」），见<a href="/wiki/%E6%BD%9C%E8%A1%8C%E4%B8%8E%E6%89%92%E7%AA%83">潜行与扒窃</a>。</li>
+<li>对空着的地面按 <kbd>E</kbd> 什么也不做。</li>
+</ul>
+<p>世界学会了“空手翻一翻石块”也不会改变 <kbd>E</kbd> 对石块做什么：散落的石块永远是捡起来。</p>
+<h2 id="东西的两种形态"><span class="mw-headline">东西的两种形态</span></h2>
+<p>和 Minecraft 的方块、掉落物一样，可以建造的东西在地上有两种样子：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>散落的</th>
+<th>立着的</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>哪些</td>
+<td>所有物品；被敲下来、用 <kbd>G</kbd> 放下的床、墙、工作台、箱子</td>
+<td>用右键或建造模式建起来的东西；作物、树、岩石</td>
+</tr>
+<tr>
+<td>样子</td>
+<td>画成物品的小图标，不挡路</td>
+<td>立着，挡路，能当工作台、能当容器</td>
+</tr>
+<tr>
+<td><kbd>E</kbd></td>
+<td>捡起</td>
+<td>交互</td>
+</tr>
+<tr>
+<td>怎么变</td>
+<td>右键或建造模式建起来 → 立着</td>
+<td>斧头、镐、锤子左键敲 → 整个松脱，散落在原地</td>
+</tr>
+</tbody></table>
+<p>箱子被敲下来时，里面的东西先撒出来。</p>
+<h2 id="指向与目标"><span class="mw-headline">指向与目标</span></h2>
+<p>所有输入都作用于鼠标指着的那一格。</p>
+<ul>
+<li><strong>默认对最上面的一层。</strong> 一格里可能叠着好几样东西：人、桌上的东西、桌子、树冠、地面。短按作用于画在最上面的那一样（<kbd>E</kbd> 先捡桌上的东西，捡完了才是桌子本身）。站在东西上面时指着自己，左键和右键作用于自己，<kbd>E</kbd>、<kbd>G</kbd> 作用于脚下那一格最上面的东西（比如浆果）。</li>
+<li><strong>只能指够得着的格子。</strong> 一个格子只有至少一个输入能在那里起作用，才能被选中。远一点的格子只显示够得着的那几个输入，比如只剩一行“左键 用弓打狼”。</li>
+<li><strong>鼠标超出距离时</strong>，沿着自己到鼠标的连线往回找，选中最远的一个够得着的格子。</li>
+<li><strong>不用鼠标时</strong>（上一次是用键盘走路的），<kbd>E</kbd>、<kbd>G</kbd> 作用于面前的一格；左键和右键是鼠标键，总是作用于它指着的那一格。<kbd>E</kbd> 有个例外：面前那格对 <kbd>E</kbd> 没有定义（提示带「?」），或者只是空着的地面、地板，而脚下有一样按了会起作用的东西（床、大地图上的地点）时，<kbd>E</kbd> 作用于脚下。面前只是空地时，脚下的东西哪怕按了什么也不改变，<kbd>E</kbd> 也作用于它：比如站在大地图上一个还没开放的地点上，按 <kbd>E</kbd> 会说为什么进不去（见<a href="/wiki/%E4%B8%96%E7%95%8C%E5%9C%B0%E5%9B%BE#%E8%BF%98%E6%B2%A1%E5%BC%80%E6%94%BE%E7%9A%84%E5%9C%B0%E7%82%B9">还没开放的地点</a>）。<ul>
+<li>在大地图的地点上，朝哪个方向按 <kbd>E</kbd> 都行：大地图上的地形不会被「摸一摸」。</li>
+<li>站在床上，面前是空着的地面或地板时，<kbd>E</kbd> 就是睡觉；面前有别的东西（箱子、门、一个人），<kbd>E</kbd> 先对着它，想睡觉就用鼠标指着床。</li>
+</ul>
+</li>
+<li><strong>只对自己这一层楼。</strong> 在<a href="/wiki/%E6%A5%BC%E5%B1%82">楼上</a>时，只能对这一层的东西操作。上一层的地板（也就是头顶的天花板）只有在选择列表或建造模式里专门选中时才能操作。</li>
+<li>被选中的格子会画出框。大地图上的地点占 3×3 格，会整块框出来。</li>
+</ul>
+<h2 id="选择叠着的东西"><span class="mw-headline">选择叠着的东西</span></h2>
+<p>长按 <kbd>E</kbd> 或 <kbd>G</kbd> 约 0.4 秒，或者按住 <kbd>Alt</kbd> 点左键、右键，会弹出“对哪一个？”的列表：</p>
+<ul>
+<li>列出那一格叠着的每一样（这个输入够得着的），每行写着按下去会做什么。没有规则定义的行后面带「?」。在自己脚下用右键选时，第一行是“自己”；空手 <kbd>Alt</kbd>+左键指着自己，可以选“自己”打自己一拳。</li>
+<li>按 <kbd>1</kbd>–<kbd>9</kbd> 或点一行来选，按 <kbd>Esc</kbd> 或点别处关掉。</li>
+<li>拿着地板 <kbd>Alt</kbd>+右键，最后一行是“天花板”：在头顶铺一块地板。拿着斧头、镐、锤子 <kbd>Alt</kbd>+左键，头顶铺着地板时最后一行也是“天花板”：把它敲下来，它会整块掉到脚下这一层。见<a href="/wiki/%E6%A5%BC%E5%B1%82">楼层</a>。</li>
+<li>列表只包括自己这一层楼的东西。</li>
+<li>列表打开时时间暂停。普通的点击不会弹出它，所以打架时按得慢也不会停下来。</li>
+</ul>
+<h2 id="动作提示与「」"><span class="mw-headline">动作提示与「?」</span></h2>
+<p>要作用的那一格在地图上用四个小角框出来：框会滑到下一格，空地上很淡，世界没定义过的动作是橙色。</p>
+<p><strong>光标</strong>跟着 <kbd>E</kbd> 和右键变：指着能捡、能开、能读的东西是一只手，指着人是一个对话气泡，拿着墙、床指着能建的地方也是一只手；右键的用法世界从没见过时带橙色「?」（按下去会去问世界），<kbd>E</kbd> 会拿走别人的东西时带红色「!」（那是偷），够不着时光标变淡（动作会落到框住的那一格）。按下去会先问一句的动作，提示后面写着「（需确认）」。</p>
+<p><strong>提示框</strong>停在框的上方，写着每个输入按下去会发生什么。人物停下、框停稳一小会儿才出现，所以走路时、鼠标扫过去时都不会乱跳：</p>
+<ul>
+<li>用鼠标时：左键、右键（和左键做的事一样时不重复写），再加上 <kbd>E</kbd>、<kbd>G</kbd>。</li>
+<li>不用鼠标时：面前那一格的 <kbd>E</kbd>、<kbd>G</kbd>。空手摸世界没见过的空地这一行不写（每走一步都会有，框的橙色已经说了）。</li>
+</ul>
+<p>例如指着一块石头、手上拿着面包：</p>
+<ul>
+<li>左键 吃掉面包（需确认）</li>
+<li>右键 把面包用在石块上 ?</li>
+<li><kbd>E</kbd> 拿起石块</li>
+</ul>
+<p>提示的说法来自世界的<a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">规则</a>。同一件东西在不同情况下说法不同：一顶头盔对自己是“穿上头盔”，对别人是“给托宾穿上头盔”；大地图上的地点是“进入森林荒野”。</p>
+<p><strong>「?」</strong> 表示这个动作的结果世界还没定义过。这一行颜色变淡，后面跟一个橙色的「?」。按下去，世界会学会这件事（有 AI 连着时），或者按默认处理（通常什么也不发生）。在<a href="/wiki/%E9%80%89%E9%A1%B9">选项</a>里把这类事的 AI 关掉时，不再显示「?」：按下去只按默认处理，不会去问。见<a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">世界会学</a>。</p>
+<p>人物不能行动时（剧情演出中、倒地、世界正在学习时）不显示提示；对话框、是/否提问打开时也不显示。</p>
+<h2 id="攻击与冲刺"><span class="mw-headline">攻击与冲刺</span></h2>
+<ul>
+<li><kbd>空格</kbd>：朝面向的方向攻击一次，打到距离内第一个挡路的东西。按住连续攻击，两次之间至少隔 0.5 秒，攻击速度的加成会缩短间隔。手上拿的不是武器、主手也没装备武器时：手上是工具（火把、锄头、桶……）就挥它，是别的东西（石块、绳子、面包……）就出拳，不会拿捡来的杂物去打。手上拿着吃的也能直接按空格打架。</li>
+<li>左键对着生物也是攻击，打在指着的那一个上：拿着武器用武器，空手用主手武器或拳头。要把东西递给生物，用右键（它知道怎么接的，比如喂牛的麦子），见<a href="/wiki/%E6%80%AA%E7%89%A9#%E9%80%92%E4%B8%9C%E8%A5%BF%E7%BB%99%E7%94%9F%E7%89%A9">递东西给生物</a>。</li>
+<li>空手攻击是拳头，能慢慢打掉植物和木头；对石头会提示“太硬了”。见<a href="/wiki/%E8%80%90%E4%B9%85%E4%B8%8E%E7%A0%B4%E5%9D%8F">耐久与破坏</a>。</li>
+<li><kbd>Q</kbd>：学会<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/dash.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%8A%80%E8%83%BD#%E6%8A%80%E8%83%BD-%E5%86%B2%E5%88%BA">冲刺</a></span>后，朝面向冲出最多 3 格，不能穿过实体障碍，冷却 4 秒。</li>
+<li><kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>6</kbd>：施放左下角技能栏里那一格的主动技能，放完要等冷却。打开着面板时不施放；打开着技能树时，这几个键把鼠标指着的、已经学会的主动技能放进那一格。见<a href="/wiki/%E6%8A%80%E8%83%BD#%E4%B8%BB%E5%8A%A8%E6%8A%80%E8%83%BD%E4%B8%8E%E6%8A%80%E8%83%BD%E6%A0%8F">主动技能与技能栏</a>。</li>
+<li>详细规则见<a href="/wiki/%E6%88%98%E6%96%97">战斗</a>。</li>
+</ul>
+<h2 id="潜行与拔刀"><span class="mw-headline">潜行与拔刀</span></h2>
+<ul>
+<li><kbd>V</kbd>：开始或停止<strong>潜行</strong>。潜行时走得慢，只有面前不远的人才可能看见你。潜行时对人按 <kbd>E</kbd>（「扒某某的口袋」）打开他的口袋，按 <kbd>G</kbd> 把手上的东西悄悄塞进他的口袋。见<a href="/wiki/%E6%BD%9C%E8%A1%8C%E4%B8%8E%E6%89%92%E7%AA%83">潜行与扒窃</a>。</li>
+<li><kbd>X</kbd>：拔出或收起武器。拔着武器时，左键打人不再先问（打伤人是<a href="/wiki/%E7%8A%AF%E7%BD%AA">袭击</a>，打死人是谋杀）；没拔时对友好的人会先问「攻击某某？」（见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E5%AF%B9%E5%8F%8B%E5%A5%BD%E7%9A%84%E4%BA%BA%E5%85%88%E9%97%AE%E4%B8%80%E5%8F%A5">对友好的人先问一句</a>）。走到守卫跟前，他会叫你收起来。被守卫追打时收起武器、不再还手，他会停手。见<a href="/wiki/%E5%AE%88%E5%8D%AB%E4%B8%8E%E6%82%AC%E8%B5%8F">守卫与悬赏</a>。</li>
+<li>潜行和拔刀时，屏幕左上角各有一个小标签提醒你。被通缉时那里也写着悬赏。</li>
+</ul>
+<h2 id="手上的东西与快捷栏"><span class="mw-headline">手上的东西与快捷栏</span></h2>
+<ul>
+<li>快捷栏是<a href="/wiki/%E8%83%8C%E5%8C%85">背包</a>的第一行，十格，对应 <kbd>1</kbd>–<kbd>0</kbd>。选中的那一格就是拿在手上的东西。手上的东西不画在人物身上；剑、弓、法杖出手攻击时，会画出挥剑、拉弓、举杖的那一下。</li>
+<li>鼠标滚轮跳到下一格（上一格）有东西的格子。点快捷栏的格子也能选中。</li>
+<li><kbd>Shift</kbd>+<kbd>Tab</kbd> 让背包的下一行换上来当快捷栏；按住 <kbd>Shift</kbd> 滚滚轮也行，往回滚是上一行。选中的列不变。</li>
+<li>自动吸进背包的掉落物放进空着的格子，不会塞进选中的那一格：空着手打怪，打完手还是空的。</li>
+<li>快捷栏旁边单独一格是副手，放着盾牌一类的东西。见<a href="/wiki/%E8%A3%85%E5%A4%87">装备</a>。</li>
+</ul>
+<h2 id="面板与菜单"><span class="mw-headline">面板与菜单</span></h2>
+<ul>
+<li><kbd>Tab</kbd> 打开<a href="/wiki/%E8%83%8C%E5%8C%85">背包</a>。面板上方有一排页签：背包、制作、技能树、技能、任务、图鉴、世界地图，每个页签上写着它自己的键，点一下就切过去。</li>
+<li>也可以直接按各自的键：<kbd>I</kbd> <a href="/wiki/%E8%83%8C%E5%8C%85">背包</a>、<kbd>C</kbd> <a href="/wiki/%E5%88%B6%E4%BD%9C">制作</a>、<kbd>K</kbd> <a href="/wiki/%E6%8A%80%E8%83%BD">技能</a>树、<kbd>U</kbd> <a href="/wiki/%E6%8A%80%E8%83%BD#%E6%8A%80%E8%83%BD%E9%9D%A2%E6%9D%BF">技能面板</a>、<kbd>M</kbd> <a href="/wiki/%E4%B8%96%E7%95%8C%E5%9C%B0%E5%9B%BE">世界地图</a>、<kbd>L</kbd> <a href="/wiki/%E4%BB%BB%E5%8A%A1">任务</a>、<kbd>J</kbd> <a href="/wiki/%E5%9B%BE%E9%89%B4">图鉴</a>。再按一次同一个键，或按 <kbd>Esc</kbd>、点 ✕、点面板外的空白处，就关上。</li>
+<li><a href="/wiki/%E8%B4%A7%E6%91%8A">货摊</a>面板没有按键：在<a href="/wiki/%E8%AA%93%E5%AE%88%E4%B9%8B%E5%9C%B0">誓守之地</a>对货摊按 <kbd>E</kbd> 打开。</li>
+<li><a href="/wiki/%E4%BA%A4%E6%98%93">交易</a>面板和口袋面板也没有按键：和商人说话选「做点买卖吧。」打开交易；潜行时对人按 <kbd>E</kbd> 打开他的口袋（见<a href="/wiki/%E6%BD%9C%E8%A1%8C%E4%B8%8E%E6%89%92%E7%AA%83">潜行与扒窃</a>）。</li>
+<li><kbd>Esc</kbd> 依次关掉：建造模式、开发者控制台、打开的面板。什么都没开时打开<a href="/wiki/%E9%80%89%E9%A1%B9">选项</a>。</li>
+<li>面板打开时时间暂停，建造模式除外。见<a href="/wiki/%E6%B8%B8%E6%88%8F%E5%86%85%E6%97%B6%E9%97%B4">游戏内时间</a>。</li>
+<li>背包和箱子面板里的鼠标操作见<a href="/wiki/%E8%83%8C%E5%8C%85">背包</a>和<a href="/wiki/%E7%AE%B1%E5%AD%90%E4%B8%8E%E5%AE%B9%E5%99%A8">箱子与容器</a>。</li>
+</ul>
+<h2 id="建造模式"><span class="mw-headline">建造模式</span></h2>
+<p>按 <kbd>B</kbd> 或点右下角的建造按钮进入。</p>
+<div class="hatnote">主条目：<a href="/wiki/%E5%BB%BA%E9%80%A0">建造</a></div>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>左键或 <kbd>E</kbd></td>
+<td>在指着的格子建起选中的东西</td>
+</tr>
+<tr>
+<td>按住左键拖动</td>
+<td>沿途每一格都建一个，一次建一排</td>
+</tr>
+<tr>
+<td><kbd>R</kbd></td>
+<td>楼梯换方向；选着地板时，在“本层”和“天花板”之间切换</td>
+</tr>
+<tr>
+<td><kbd>B</kbd>、<kbd>Esc</kbd> 或右键</td>
+<td>退出建造模式</td>
+</tr>
+<tr>
+<td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td>
+<td>照常移动</td>
+</tr>
+</tbody></table>
+<p>建造模式里 <kbd>G</kbd>、<kbd>空格</kbd>、数字键和滚轮都不起作用；<kbd>Tab</kbd> 照样打开背包（同时退出建造模式）。时间照常流动。打开任何面板会自动退出建造模式。</p>
+<h2 id="对话、提问与剧情"><span class="mw-headline">对话、提问与剧情</span></h2>
+<table>
+<thead>
+<tr>
+<th>情况</th>
+<th>按键</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>对话框</td>
+<td><kbd>E</kbd>、<kbd>Esc</kbd> 或点一下：第一下把字显示完，第二下翻到下一句</td>
+</tr>
+<tr>
+<td>对话框下面的选项（见<a href="/wiki/%E5%AF%B9%E8%AF%9D">对话</a>）</td>
+<td>点一下，或按 <kbd>1</kbd>–<kbd>9</kbd> 选对应的一行；<kbd>Esc</kbd> 或「再见。」结束对话</td>
+</tr>
+<tr>
+<td>被守卫拦住</td>
+<td>只能选守卫队的选项（交罚金、坐牢……），用 <kbd>1</kbd>–<kbd>9</kbd> 或点选，<kbd>Esc</kbd> 关不掉</td>
+</tr>
+<tr>
+<td>一个人随口说的话</td>
+<td><kbd>G</kbd> 直接收起，并且照常执行这次的放</td>
+</tr>
+<tr>
+<td>是/否提问（比如“要吃掉面包吗？”“偷走面包？”“攻击赫斯珀？”）</td>
+<td>方向键或 <kbd>A</kbd><kbd>D</kbd><kbd>W</kbd><kbd>S</kbd> 切换，<kbd>E</kbd> 确认，<kbd>Esc</kbd> 选“否”；也可以直接点按钮</td>
+</tr>
+<tr>
+<td>全屏剧情卡片</td>
+<td><kbd>E</kbd> 或点一下继续</td>
+</tr>
+</tbody></table>
+<p>对话、提问、剧情卡片打开时时间暂停。</p>
+<h2 id="等待世界学习时"><span class="mw-headline">等待世界学习时</span></h2>
+<p>按下一个带「?」的动作、而世界正在学习它的结果时，屏幕中间显示“世界正在学习这件事……”和已等的秒数。这时世界暂停，按 <kbd>Esc</kbd> 就不等了，马上按默认结果处理。见<a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">世界会学</a>。</p>
+<h2 id="不接受按键的时候"><span class="mw-headline">不接受按键的时候</span></h2>
+<ul>
+<li>标题页只接受 <kbd>↑</kbd> <kbd>↓</kbd>（<kbd>W</kbd> <kbd>S</kbd>）、<kbd>Enter</kbd>（<kbd>Space</kbd>）和 <kbd>Esc</kbd>；读档面板和死亡界面只接受鼠标点按钮。见<a href="/wiki/%E9%9A%BE%E5%BA%A6">难度</a>、<a href="/wiki/%E5%AD%98%E6%A1%A3">存档</a>。</li>
+<li>剧情演出中，人物不能行动，也不显示动作提示。</li>
+<li><a href="/wiki/%E6%96%B0%E6%89%8B%E6%95%99%E7%A8%8B">新手教程</a>的前几课会锁住没教到的操作：按了没反应，屏幕上的按键图标会抖一下。</li>
+</ul>
+<h2 id="游戏里的按键表"><span class="mw-headline">游戏里的按键表</span></h2>
+<p><a href="/wiki/%E9%80%89%E9%A1%B9">选项</a>里有一张简短的按键表，按你现在的键位生成，改了键表也跟着变。默认键位下内容和本页一致：左键是手上东西本身的用法、右键把它用在指着的东西上、<kbd>E</kbd> 捡起或交互、<kbd>G</kbd> 放、<kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>6</kbd> 施放技能，最后一行是“<kbd>Esc</kbd> · <kbd>I</kbd> · <kbd>C</kbd> · <kbd>K</kbd> · <kbd>U</kbd> · <kbd>M</kbd> · <kbd>L</kbd> · <kbd>J</kbd>：菜单 · 背包 · 制作 · 技能树 · 技能面板 · 地图 · 任务 · 图鉴（含织线簿）”。开发版里多一行 <kbd>`</kbd> 模组控制台。</p>
+<h2 id="改键"><span class="mw-headline">改键</span></h2>
+<p>在<a href="/wiki/%E9%80%89%E9%A1%B9">选项</a>里点“改键…”打开按键页：</p>
+<ul>
+<li>每个动作一行，有<strong>按键</strong>和<strong>备用键</strong>两栏，两个键都能用（比如向上走默认是 <kbd>W</kbd> 和 ↑）。点其中一个，再按新键；按 <kbd>Esc</kbd> 取消，按退格键清掉这个键。</li>
+<li>改动先是草稿：页面顶上写着“有改动还没保存”，点<strong>保存</strong>才生效，点<strong>放弃改动</strong>就回到改之前。没保存就点“返回选项”，会问你保存还是放弃。</li>
+<li>新键已经被别的动作占用时，会先问“G 已经是「……」的键。两边互换吗？”，点“互换”两边交换，点“取消”什么也不变。</li>
+<li>和默认不一样的那一行会标出来，右边有“↺ 默认 E”，点一下这一行就恢复默认（被它占用了键的动作也会尽量换回自己的默认键）。顶上的<strong>全部恢复默认</strong>把所有键都改回默认（同样要保存）。</li>
+<li>技能可以设成 <kbd>Shift</kbd>+某键；移动、跑步和慢走不能带 <kbd>Shift</kbd>（<kbd>Shift</kbd> 是跑步和慢走的键）。</li>
+<li>改不了的：鼠标左右键（左键和右键只在鼠标上，没有键盘版）、<kbd>Esc</kbd>、<kbd>`</kbd>，以及 <kbd>Ctrl</kbd>、<kbd>Alt</kbd>、<kbd>F5</kbd>、<kbd>F11</kbd>、<kbd>F12</kbd> 这些浏览器自己的键（比如 <kbd>Ctrl</kbd>+<kbd>W</kbd> 会直接关掉网页）。</li>
+<li>改了键以后，游戏里说到按键的地方都跟着变：动作提示、按键表、右下角按钮和快捷栏上的键、技能栏、教程和任务里的“按 X”。</li>
+<li>键位记在这台电脑的浏览器里，不进<a href="/wiki/%E5%AD%98%E6%A1%A3">存档</a>；换浏览器或清掉网站数据就回到默认。</li>
+</ul>
+<h2 id="提示"><span class="mw-headline">提示</span></h2>
+<ul>
+<li>不确定按下去会怎样时，先看人物头顶的提示条。带「?」的动作是这个世界从没见过的事，正适合拿来试：拿着东西右键点一下。</li>
+<li>想对叠在下面的东西操作（比如桌子而不是桌上的杯子），长按 <kbd>E</kbd>，或者 <kbd>Alt</kbd>+点击。</li>
+<li>想把床搬个地方：拿斧头左键敲一下，它整个掉下来，捡起来再右键建到别处。</li>
+<li>远程武器打不中斜方向的目标，先走到同一行或同一列。</li>
+</ul>
+<h2 id="历史"><span class="mw-headline">历史</span></h2>
+<ul>
+<li><p>2026-10-27：<kbd>P</kbd> 打开露米的面板。</p>
+</li>
+<li><p>2026-10-01：第一版输入：<kbd>E</kbd> 用手、<kbd>F</kbd> 拿、左键用、右键放；长按选择叠着的东西。</p>
+</li>
+<li><p>2026-10-02：加入空格攻击和 30 格背包。</p>
+</li>
+<li><p>2026-10-04：改成五个输入：<kbd>G</kbd> 负责放下，右键改为对自己用。每个输入有自己的距离，拿和放成为不会触发世界学习的物理动作。动作提示的说法改由规则自己给出。</p>
+</li>
+<li><p>2026-10-04：鼠标超出距离时选中连线上最远的够得着的格子；指着自己时作用于脚下最上面的东西。</p>
+</li>
+<li><p>2026-10-05：加入建造模式（<kbd>B</kbd>）和 <kbd>R</kbd>；输入只作用于自己这一层楼。</p>
+</li>
+<li><p>2026-10-06：世界学习时可以按 <kbd>Esc</kbd> 不等了。</p>
+</li>
+<li><p>2026-10-07：新手教程的课程会锁住没教到的按键；按住 <kbd>Esc</kbd> 两秒跳过一课。</p>
+</li>
+<li><p>2026-10-08：加入技能栏（<kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>6</kbd>）和技能面板（<kbd>U</kbd>），右下角多了一个 U 按钮。</p>
+</li>
+<li><p>2026-10-08：标题页和选项里的按键表改成五个输入的现行版本，补上 <kbd>G</kbd>、<kbd>U</kbd> 和技能栏；新手教程第二阶段露米的提示改成“I 打开背包”。</p>
+</li>
+<li><p>2026-10-09：加入 <kbd>X</kbd> 拔出武器和 <kbd>V</kbd> 潜行；潜行时 <kbd>F</kbd> 对人是扒窃、<kbd>G</kbd> 是往他口袋里塞东西；对话框下面有了选项。</p>
+</li>
+<li><p>2026-10-08：左键可以建造：拿着墙、地板、床这类东西，左键点哪儿就放在哪儿，按住拖动放一排；手上拿着地板时 <kbd>R</kbd> 切换铺天花板。<kbd>G</kbd> 照旧放下。</p>
+</li>
+<li><p>2026-10-09：空手对地面、水、树这些地形按 <kbd>E</kbd> 只是摸一摸，不再带「?」，也不会抢走面前那样东西的 <kbd>E</kbd>；空手对点着的火按 <kbd>E</kbd> 取暖，对野生的怪物伸手会被咬。拿着不是武器的东西左键点生物是把它递过去；<kbd>空格</kbd>挥出手上的任何东西都算一下钝击。</p>
+</li>
+<li><p>2026-10-11：面前只是空地时，脚下的东西即使按了不改变什么也接 <kbd>E</kbd>（大地图上还没开放的地点会说为什么）。</p>
+</li>
+<li><p>2026-10-12：动作提示改成人物头顶固定的一行半透明提示条，不再浮在目标上方；手上的东西不再画在人物手里，剑、弓、法杖出手时画出挥动的那一下。</p>
+</li>
+<li><p>2026-10-21：操作定为四个输入，每个只管一件事。左键是手上东西本身的用法（工具、武器挥，空手是拳头，别的东西对自己用），按下就生效、按住接着来；右键把手上的东西用在指着的东西上，也负责建造；<kbd>E</kbd> 看东西的形态，散落的捡起、立着的交互，潜行时对人是扒窃；<kbd>G</kbd> 只放下，放下的床、墙是散落的。<kbd>F</kbd> 和“<kbd>R</kbd> 用手上的东西”取消，原来的右键“行动”也取消。</p>
+</li>
+<li><p>2026-10-21：东西有了两种形态：斧头、镐、锤子左键敲床、工作台、箱子、墙、地板这类东西，它会整个松脱掉下来，代替原来 <kbd>F</kbd> 拆下（箱子不再被劈成一半木板，里面的东西撒出来，箱子整个留着）；天花板也这样敲下来。熟了的作物改用 <kbd>E</kbd> 摘；播种、施肥、给桶装水改用右键（<kbd>G</kbd> 不再做）。</p>
+</li>
+<li><p>2026-10-21：长按左键不再弹出选择列表（打架时按得慢会让游戏停住），改成 <kbd>Alt</kbd>+点击；长按 <kbd>E</kbd>、<kbd>G</kbd> 照旧。</p>
+</li>
+<li><p>2026-10-21：<kbd>空格</kbd>不再挥出手上的杂物（石块、面包……），改为出拳，工具照旧挥出；对空地按 <kbd>E</kbd> 不再有反应（以前每按一次都提示“你的手拂过……”）；自动吸取的掉落物不再放进选中的空格；没学主动技能时不显示技能栏；按键表里的“左键”“右键”“空格”“滚轮”也翻译了。</p>
+</li>
+<li><p>2026-10-25：指着人时作用的就是这个人，不再落到他脚下的地面上（以前拿着石斧左键点村民，提示是“把石斧用在草地上？”）；对友好的人，左键打、右键用东西、<kbd>G</kbd> 递东西都先问一句，提示后面写着「（需确认）」；拔出武器后左键打人不问，打起来以后也不再问。</p>
+</li>
+<li><p>2026-10-27：战斗中没有友军伤害：攻击从露米和同伴身上穿过去，点在他们身上就是空挥，不再询问。</p>
+</li>
+<li><p>2026-10-26：战斗中随手一点不再去问世界：左键打指着那格或旁边一格的敌人，没有就做世界会的事，再没有就空挥；世界没见过的对自己用和右键用法不做，提示“战斗中不尝试”。拿着剑、弓左键点没见过被打的空地也只是空挥。</p>
+</li>
+<li><p>2026-10-21：所有按键都能在<a href="/wiki/%E9%80%89%E9%A1%B9">选项</a>里改，按键页有“按键 / 备用键”两栏、保存与放弃、占用时先询问、单行和全部恢复默认；<kbd>Tab</kbd> 改为打开背包，背包上方有一排页签切到其他面板（<kbd>I</kbd> 等原来的键照样能用）；换快捷栏一行改成 <kbd>Shift</kbd>+<kbd>Tab</kbd> 或 <kbd>Shift</kbd>+滚轮。</p>
+</li>
+<li><p>2026-10-28：空手对树、灌木、岩石、墙、树桩按 <kbd>E</kbd> 会在提示里写出「摸摸X」，按下去交给世界判断（接了模型带「?」，没有就摸一摸）；草地、花丛这类脚下的地面照旧不提示。</p>
+</li>
+<li><p>2026-10-27：加入跑步键（默认左 <kbd>Shift</kbd>，按住时比走路快一半）；慢走改到右 <kbd>Shift</kbd>。</p>
+</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title">基本</th></tr><tr><td colspan="2"><a href="/wiki/%E9%A5%B1%E9%A3%9F%E5%BA%A6">饱食度</a> • <a href="/wiki/%E6%93%8D%E4%BD%9C">操作</a> • <a href="/wiki/%E6%88%90%E5%B0%B1">成就</a> • <a href="/wiki/%E4%BC%A0%E9%80%81%E9%9B%95%E5%83%8F">传送雕像</a> • <a href="/wiki/%E7%AD%89%E7%BA%A7%E4%B8%8E%E7%BB%8F%E9%AA%8C">等级与经验</a> • <a href="/wiki/%E5%AF%B9%E8%AF%9D">对话</a> • <a href="/wiki/%E7%8A%AF%E7%BD%AA">犯罪</a> • <a href="/wiki/%E8%B7%9F%E9%9A%8F%E4%B8%8E%E9%9B%87%E4%BD%A3">跟随与雇佣</a> • <a href="/wiki/%E5%90%88%E4%BD%9C">合作</a> • <a href="/wiki/%E5%AD%A3%E8%8A%82">季节</a> • <a href="/wiki/%E4%BB%B7%E5%80%BC">价值</a> • <a href="/wiki/%E4%BA%A4%E6%98%93">交易</a> • <a href="/wiki/%E8%8A%82%E6%97%A5">节日</a> • <a href="/wiki/%E9%87%91%E9%92%B1">金钱</a> • <a href="/wiki/%E6%A8%A1%E7%BB%84%E6%8E%A7%E5%88%B6%E5%8F%B0">模组控制台</a> • <a href="/wiki/%E9%9A%BE%E5%BA%A6">难度</a> • <a href="/wiki/%E8%83%BD%E9%87%8F">能量</a> • <a href="/wiki/%E5%93%81%E8%B4%A8">品质</a> • <a href="/wiki/%E6%BD%9C%E8%A1%8C%E4%B8%8E%E6%89%92%E7%AA%83">潜行与扒窃</a> • <a href="/wiki/%E4%BA%BA%E4%BB%AC%E7%9A%84%E9%9C%80%E6%B1%82">人们的需求</a> • <a href="/wiki/%E4%BA%BA%E7%89%A9%E7%9A%84%E5%AE%89%E5%8D%B1">人物的安危</a> • <a href="/wiki/%E4%BA%BA%E7%89%A9%E4%B9%8B%E6%AD%BB">人物之死</a> • <a href="/wiki/%E4%BB%BB%E5%8A%A1">任务</a> • <a href="/wiki/%E5%96%84%E6%81%B6%E4%B8%8E%E4%BF%A1%E5%BF%B5">善恶与信念</a> • <a href="/wiki/%E7%94%9F%E5%91%BD%E5%80%BC">生命值</a> • <a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">世界会学</a> • <a href="/wiki/%E5%AE%88%E5%8D%AB%E4%B8%8E%E6%82%AC%E8%B5%8F">守卫与悬赏</a> • <a href="/wiki/%E5%A4%A9%E6%B0%94">天气</a> • <a href="/wiki/%E5%A4%96%E8%A7%82">外观</a> • <a href="/wiki/%E7%8E%A9%E5%AE%B6%E8%A7%92%E8%89%B2">玩家角色</a> • <a href="/wiki/%E6%96%B0%E6%89%8B%E6%95%99%E7%A8%8B">新手教程</a> • <a href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">新手指南</a> • <a href="/wiki/%E6%B8%B8%E6%88%8F%E5%86%85%E6%97%B6%E9%97%B4">游戏内时间</a> • <a href="/wiki/%E5%8F%8B%E8%B0%8A">友谊</a> • <a href="/wiki/%E6%98%BC%E5%A4%9C">昼夜</a> • <a href="/wiki/%E8%A3%85%E5%A4%87">装备</a></td></tr></table>
+</div>
+  <div class="catlinks">分类：<a href="/wiki/%E5%88%86%E7%B1%BB%EF%BC%9A%E7%8E%A9%E6%B3%95">玩法</a></div>
+</main>
+<footer class="footer">
+  <p>本站内容由 OpenWorld 项目组编写，数据表从游戏代码 <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a>（main）生成于 2026-10-30 06:19。</p>
+  <p>项目组成员都能在 GitHub 上编辑：见<a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a>。游戏素材来自 Ninja Adventure（CC0）与项目自绘。</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

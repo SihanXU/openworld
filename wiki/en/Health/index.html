@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en" data-base="/wiki/en/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Health - OpenWorld Wiki</title>
+<meta name="description" content="The ten hearts above the toolbar: how health goes down and comes back, how maximum health is raised, and what happens when it reaches zero.">
+<link rel="alternate" hreflang="zh" href="/wiki/%E7%94%9F%E5%91%BD%E5%80%BC">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/en/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>Wiki</small></span></a>
+  <nav class="portlet"><h3>Navigation</h3><ul><li><a href="/wiki/en/">Main page</a></li><li><a href="/wiki/en/Beginner's_Guide">Beginner's Guide</a></li><li><a href="/wiki/en/Main_Quest_Walkthrough">Main Quest Walkthrough</a></li><li><a href="/wiki/en/Special/Recent_changes">Recent changes</a></li><li><a href="/wiki/en/Special/Random_page">Random page</a></li><li><a href="/wiki/en/Special/Stubs">Stubs</a></li><li><a href="/wiki/en/Special/All_pages">All pages</a></li></ul></nav><nav class="portlet"><h3>Contributing</h3><ul><li><a href="/wiki/en/Editing_Basics">Editing Basics</a></li><li><a href="/wiki/en/Format_Manual">Format Manual</a></li><li><a href="/wiki/en/Style_Guide">Style Guide</a></li><li><a href="/wiki/en/Special/Completeness">Completeness</a></li></ul></nav><nav class="portlet"><h3>Design</h3><ul><li><a href="/wiki/en/About_This_Wiki">About This Wiki</a></li><li><a href="/wiki/en/Design_Pillars">Design Pillars</a></li><li><a href="/wiki/en/Roadmap">Roadmap</a></li><li><a href="/wiki/en/Version_History">Version History</a></li><li><a href="/wiki/en/Known_Issues">Known Issues</a></li></ul></nav>
+  <nav class="portlet"><h3>Game</h3><ul><li><a href="/play/">Play the game</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub repository</a></li><li><a href="/wiki/%E7%94%9F%E5%91%BD%E5%80%BC" hreflang="zh">中文维基</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/en/Health">Page</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22Health%22" title="Discussion of this page (GitHub issues)">Talk</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5Bwiki%5D%20Health&body=Page%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2Fen%2FHealth%0A%0A" title="Start a discussion of this page">＋</a></div>
+  <form class="search" action="/wiki/en/Special/Search" method="get" role="search"><input name="q" id="q" type="search" placeholder="Search the OpenWorld Wiki" autocomplete="off" aria-label="Search"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/en/Health">Read</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/en/pages/%E5%9F%BA%E6%9C%AC/%E7%94%9F%E5%91%BD%E5%80%BC.md" title="Edit this page on GitHub">Edit</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/en/pages/%E5%9F%BA%E6%9C%AC/%E7%94%9F%E5%91%BD%E5%80%BC.md">History</a><a class="tab lang" href="/wiki/%E7%94%9F%E5%91%BD%E5%80%BC" hreflang="zh" lang="zh" title="中文版">中文</a><button class="tab theme" id="theme" title="Light or dark">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">Health</h1><div class="subtitle">From the OpenWorld Wiki · Gameplay</div>
+  
+  <div class="body"><p><strong>Health</strong> is shown as ten hearts at the upper left of the toolbar. The player starts with 40 health; each heart stands for a tenth of maximum health (4 points each at the start), is drawn in quarters, and empties from right to left. Hover the mouse over the hearts to see “Health current / maximum”. When health reaches zero the player collapses and the death screen appears; see <a href="/wiki/en/Difficulty">Difficulty</a>.</p>
+<nav class="toc"><div class="toc-title">Contents</div><ol><li class="toc-l2"><a href="#Taking_damage"><span class="tocnum">1</span> Taking damage</a></li><li class="toc-l2"><a href="#Recovery"><span class="tocnum">2</span> Recovery</a></li><li class="toc-l3"><a href="#Skills"><span class="tocnum">2.1</span> Skills</a></li><li class="toc-l2"><a href="#Maximum_health"><span class="tocnum">3</span> Maximum health</a></li><li class="toc-l2"><a href="#At_zero"><span class="tocnum">4</span> At zero</a></li><li class="toc-l2"><a href="#Other_health_bars"><span class="tocnum">5</span> Other health bars</a></li><li class="toc-l2"><a href="#Tips"><span class="tocnum">6</span> Tips</a></li><li class="toc-l2"><a href="#History"><span class="tocnum">7</span> History</a></li></ol></nav><h2 id="Taking_damage"><span class="mw-headline">Taking damage</span></h2>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Attacks</td>
+<td>The attacker&#39;s attack plus the weapon&#39;s power, minus your defense, at least 1 point. Dodge (capped at 50%) can make an attack miss entirely, and a shield in the off hand blocks attacks at its block rate (capped at 50%). See <a href="/wiki/en/Combat">Combat</a> for details</td>
+</tr>
+<tr>
+<td>Elements</td>
+<td>An attack with an element also has that element&#39;s effect; elemental resistance reduces the damage by a percentage. See <a href="/wiki/en/Elements">Elements</a></td>
+</tr>
+<tr>
+<td><span class="status"><a href="/wiki/en/Statuses" title="Statuses">burning</a></span></td>
+<td>While you are on fire you lose about 1 point per second, and the fire spreads to flammable things nearby. Becoming <span class="status"><a href="/wiki/en/Statuses" title="Statuses">wet</a></span> (rain, a splash of water, walking into a mud pool) puts it out</td>
+</tr>
+<tr>
+<td><span class="status"><a href="/wiki/en/Statuses" title="Statuses">bleeding</a></span></td>
+<td>1 point per second, ignoring defense</td>
+</tr>
+<tr>
+<td>Falls</td>
+<td>Falling from an upper storey: a drop of up to one storey does no harm; every storey beyond that costs 6 points. See <a href="/wiki/en/Storeys">Storeys</a>. On the ground, you can only jump down a cliff one level high, and it does no harm (see <a href="/wiki/en/Terrain#Height">Terrain</a>)</td>
+</tr>
+<tr>
+<td>Starving</td>
+<td>At 0 <a href="/wiki/en/Satiety">satiety</a> you lose 1 point every 8 seconds, but it never takes the last point</td>
+</tr>
+<tr>
+<td>Lightning</td>
+<td>In a thunderstorm, lightning strikes things nearby. See <a href="/wiki/en/Weather">Weather</a></td>
+</tr>
+</tbody></table>
+<h2 id="Recovery"><span class="mw-headline">Recovery</span></h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Amount</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Being well fed</td>
+<td>With satiety at nine tenths or more (18/20) and health not full, 1 point every 8 seconds</td>
+</tr>
+<tr>
+<td><a href="/wiki/en/Sleeping">Sleeping</a></td>
+<td>Lying down at once restores half the missing health; in a bed in a <a href="/wiki/en/Rooms">bedroom</a>, all of it</td>
+</tr>
+<tr>
+<td>Healing spring</td>
+<td>The hot spring in <a href="/wiki/en/Firstlight_Village">Firstlight Village</a>: stepping in restores 1 point, and you keep healing while you soak in it (<span class="status"><a href="/wiki/en/Statuses" title="Statuses">soaking</a></span>)</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:13.5px;height:16.5px;background-image:url('/assets/na/Items/Potion/LifePot.png');background-position:-0px -0px;background-size:13.5px 16.5px"></span><a href="/wiki/en/Healing_Potion">Healing Potion</a></span></td>
+<td>16</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetHouse.png');background-position:-336px -224px;background-size:528px 368px"></span><a href="/wiki/en/Antidote">Antidote</a></span></td>
+<td>5</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/tileset_camp.png');background-position:-192px -112px;background-size:368px 144px"></span><a href="/wiki/en/Wine_Bottle">Wine Bottle</a></span></td>
+<td>4</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:14px;height:14px;background-image:url('/assets/na/Items/Resource/Water.png');background-position:-0px -0px;background-size:14px 14px"></span><a href="/wiki/en/Mug_of_Ale">Mug of Ale</a></span></td>
+<td>3</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetHouse.png');background-position:-336px -208px;background-size:528px 368px"></span><a href="/wiki/en/Murky_Potion">Murky Potion</a></span></td>
+<td>1</td>
+</tr>
+<tr>
+<td>Drinking water (<span class="ent"><span class="spr inline" style="width:13.5px;height:16.5px;background-image:url('/assets/na/Items/Potion/WaterPot.png');background-position:-0px -0px;background-size:13.5px 16.5px"></span><a href="/wiki/en/Flask_of_Water">Flask of Water</a></span>, <span class="ent"><span class="spr inline" style="width:14px;height:14px;background-image:url('/assets/na/Items/Object/Gourd.png');background-position:-0px -0px;background-size:14px 14px"></span><a href="/wiki/en/Waterskin">Waterskin</a></span>, a Water Bucket)</td>
+<td>2, and the container is emptied</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/Items/Milk.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Bucket_of_Milk">Bucket of Milk</a></span></td>
+<td>4, plus 4 satiety; the bucket is emptied</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Resource/Grass.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Herb">Herb</a></span></td>
+<td>Eaten, restores 4 points, plus 1 satiety</td>
+</tr>
+<tr>
+<td>Revival</td>
+<td>On Easy and Normal difficulty, health is full again after revival</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>Ordinary food does not heal.</strong> Food such as Bread and Steak only restores <a href="/wiki/en/Satiety">satiety</a>; once you are well fed, health comes back slowly through “being well fed”. See <a href="/wiki/en/Food">Food</a>.</li>
+<li>Drinks and herbs first ask “Drink the X?” or “Eat the X?” and are used up only once you confirm.</li>
+<li>Hold a potion or drink and right-click someone else to give it to them; it restores their health.</li>
+<li>Campfires do not heal.</li>
+</ul>
+<h3 id="Skills"><span class="mw-headline">Skills</span></h3>
+<table>
+<thead>
+<tr>
+<th>Skill</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/renew.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Skills#skill-Second%20Wind" title="Skills">Second Wind</a></span></td>
+<td>Health regenerates on its own once satiety is above half</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/regeneration.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Skills#skill-Regeneration" title="Skills">Regeneration</a></span></td>
+<td>Health regenerates on its own as long as satiety is at least a quarter</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/adrenaline.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Skills#skill-Adrenaline" title="Skills">Adrenaline</a></span></td>
+<td>When an attack leaves you at 30% health or less, you regain 1 point per second for 5 seconds and move 30% faster; at most once a minute</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/shadow-recovery.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Assassin#skill-Shadow%20Recovery">Shadow Recovery</a></span> (<a href="/wiki/en/Assassin">Assassin</a>)</td>
+<td>Defeating an enemy with a dagger restores a tenth of your maximum health</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/arcane-recovery.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Mage#skill-Arcane%20Recovery">Arcane Recovery</a></span> (<a href="/wiki/en/Mage">Mage</a>)</td>
+<td>Defeating an enemy with a staff restores 3 points (wands do not count)</td>
+</tr>
+</tbody></table>
+<p>Weapons and <a href="/wiki/en/Vowbound">Vowbound</a> equipment with the “lifesteal” property draw back health with every hit; see <a href="/wiki/en/Equipment">Equipment</a>.</p>
+<h2 id="Maximum_health"><span class="mw-headline">Maximum health</span></h2>
+<p>Maximum health can only be raised through <a href="/wiki/en/Skills">skills</a>:</p>
+<table>
+<thead>
+<tr>
+<th>Skill</th>
+<th>Maximum health</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/heart.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Skills#skill-Vitality" title="Skills">Vitality</a></span></td>
+<td>+4</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/hardy.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Skills#skill-Hardy" title="Skills">Hardy</a></span></td>
+<td>+6</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/iron-will.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Skills#skill-Iron%20Will" title="Skills">Iron Will</a></span></td>
+<td>+8</td>
+</tr>
+<tr>
+<td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/unbreakable.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/en/Warrior#skill-Unbreakable">Unbreakable</a></span> (<a href="/wiki/en/Warrior">Warrior</a>)</td>
+<td>+10</td>
+</tr>
+</tbody></table>
+<p>The extra health is filled in at once when you learn the skill. There are always ten hearts; the higher the maximum, the more health each heart stands for.</p>
+<h2 id="At_zero"><span class="mw-headline">At zero</span></h2>
+<ul>
+<li>When the player&#39;s health reaches zero, they collapse, the whole world stops, and the death screen appears. See <a href="/wiki/en/Difficulty">Difficulty</a>.</li>
+<li>Villagers and Lumi collapse for 30 seconds at zero, then get up with half their health.</li>
+<li>Monsters and animals at zero are defeated, and whoever defeated them earns experience. See <a href="/wiki/en/Levels_and_Experience">Levels and Experience</a>.</li>
+</ul>
+<h2 id="Other_health_bars"><span class="mw-headline">Other health bars</span></h2>
+<p>A thin health bar appears above anything that is hurt (creatures hostile to you show it even unhurt):</p>
+<table>
+<thead>
+<tr>
+<th>Color</th>
+<th>Whose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Red</td>
+<td>Those who will attack you</td>
+</tr>
+<tr>
+<td>Green</td>
+<td>People and Lumi</td>
+</tr>
+<tr>
+<td>Amber</td>
+<td>Everything else: creatures that do not mean to attack you, and things such as a tree that has been chopped or a wall (showing durability)</td>
+</tr>
+</tbody></table>
+<p>A boss&#39;s health bar is shown at the top of the screen. See <a href="/wiki/en/Bosses">Bosses</a>.</p>
+<h2 id="Tips"><span class="mw-headline">Tips</span></h2>
+<ul>
+<li>To recover health, first eat until satiety is at nine tenths or more, then find a safe place and wait a while.</li>
+<li>A night&#39;s sleep in a bedroom restores all of it at once. Build a house with a bed, a door and a ceiling; see <a href="/wiki/en/Rooms">Rooms</a>.</li>
+<li>The healing spring in Firstlight Village costs nothing; when you are hurt, go back and soak in it.</li>
+</ul>
+<h2 id="History"><span class="mw-headline">History</span></h2>
+<ul>
+<li>2026-10-02: Health became ten hearts above the toolbar; satiety and “being well fed” healing were added.</li>
+<li>2026-10-04: Damage taken is reckoned from the weapon&#39;s efficiency against the material and from elemental resistance; things that are defeated break into materials.</li>
+<li>2026-10-05: The health restored by sleeping depends on whether you are in a bedroom.</li>
+<li>2026-10-08: The Fireproof Draught lost its healing (drinking it only gives fireproofing); a Bucket of Milk restores health as well as satiety; Shadow Recovery only counts daggers, and Arcane Recovery only counts staves.</li>
+<li>2026-10-21: The controls were set as four inputs: using a held thing on something moved to the right click (the left click is the held thing&#39;s own use: a tool or weapon is swung, anything else is used on yourself), and picking up loose things moved to <kbd>E</kbd> (see <a href="/wiki/en/Controls">Controls</a>).</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title">Basics</th></tr><tr><td colspan="2"><a href="/wiki/en/Achievements">Achievements</a> • <a href="/wiki/en/Beginner's_Guide">Beginner's Guide</a> • <a href="/wiki/en/Co-op">Co-op</a> • <a href="/wiki/en/Controls">Controls</a> • <a href="/wiki/en/Crime">Crime</a> • <a href="/wiki/en/Day_and_Night">Day and Night</a> • <a href="/wiki/en/Death_of_Characters">Death of Characters</a> • <a href="/wiki/en/Dialogue">Dialogue</a> • <a href="/wiki/en/Difficulty">Difficulty</a> • <a href="/wiki/en/Energy">Energy</a> • <a href="/wiki/en/Equipment">Equipment</a> • <a href="/wiki/en/Festivals">Festivals</a> • <a href="/wiki/en/Followers_and_Hiring">Followers and Hiring</a> • <a href="/wiki/en/Friendship">Friendship</a> • <a href="/wiki/en/Guards_and_Bounties">Guards and Bounties</a> • <a href="/wiki/en/Health">Health</a> • <a href="/wiki/en/In-game_Time">In-game Time</a> • <a href="/wiki/en/Karma_and_Faith">Karma and Faith</a> • <a href="/wiki/en/Keeping_Safe">Keeping Safe</a> • <a href="/wiki/en/Levels_and_Experience">Levels and Experience</a> • <a href="/wiki/en/Looks">Looks</a> • <a href="/wiki/en/Mod_Console">Mod Console</a> • <a href="/wiki/en/Money">Money</a> • <a href="/wiki/en/People's_Needs">People's Needs</a> • <a href="/wiki/en/Player_Character">Player Character</a> • <a href="/wiki/en/Quality">Quality</a> • <a href="/wiki/en/Quests">Quests</a> • <a href="/wiki/en/Satiety">Satiety</a> • <a href="/wiki/en/Seasons">Seasons</a> • <a href="/wiki/en/Sneaking_and_Pickpocketing">Sneaking and Pickpocketing</a> • <a href="/wiki/en/The_World_Learns">The World Learns</a> • <a href="/wiki/en/Trading">Trading</a> • <a href="/wiki/en/Tutorial">Tutorial</a> • <a href="/wiki/en/Waypoint_statue">Waypoint statue</a> • <a href="/wiki/en/Weather">Weather</a></td></tr></table>
+</div>
+  <div class="catlinks">Categories: <a href="/wiki/en/Category/Gameplay">Gameplay</a></div>
+</main>
+<footer class="footer">
+  <p>Written by the OpenWorld team and translated from the Chinese edition; the tables are generated from the game’s code <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a> (main) at 2026-10-30 06:19.</p>
+  <p>Everyone on the team can edit it on GitHub: see <a href="/wiki/en/Editing_Basics">Editing Basics</a>. Game art from Ninja Adventure (CC0) and the project's own.</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

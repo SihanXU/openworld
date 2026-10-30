@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="zh-CN" data-base="/wiki/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>格式手册 - OpenWorld 中文维基</title>
+<meta name="description" content="页面文件的写法：开头的信息、链接、模板，以及每类页面的固定结构。">
+<link rel="alternate" hreflang="en" href="/wiki/en/Format_Manual">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-帮助">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>中文维基</small></span></a>
+  <nav class="portlet"><h3>导航</h3><ul><li><a href="/wiki/">首页</a></li><li><a href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">新手指南</a></li><li><a href="/wiki/%E4%B8%BB%E7%BA%BF%E6%B5%81%E7%A8%8B">主线流程</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%9C%80%E8%BF%91%E6%9B%B4%E6%94%B9">最近更改</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E9%9A%8F%E6%9C%BA%E9%A1%B5%E9%9D%A2">随机页面</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%BE%85%E5%AE%8C%E5%96%84">待完善</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%89%80%E6%9C%89%E9%A1%B5%E9%9D%A2">所有页面</a></li></ul></nav><nav class="portlet"><h3>参与编辑</h3><ul><li><a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a></li><li><a href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C">格式手册</a></li><li><a href="/wiki/%E9%A3%8E%E6%A0%BC%E6%8C%87%E5%8D%97">风格指南</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%AE%8C%E5%A4%87%E6%80%A7">完备性</a></li></ul></nav><nav class="portlet"><h3>企划</h3><ul><li><a href="/wiki/%E5%85%B3%E4%BA%8E%E6%9C%AC%E7%BB%B4%E5%9F%BA">关于本维基</a></li><li><a href="/wiki/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1">设计支柱</a></li><li><a href="/wiki/%E8%B7%AF%E7%BA%BF%E5%9B%BE">路线图</a></li><li><a href="/wiki/%E7%89%88%E6%9C%AC%E5%8E%86%E5%8F%B2">版本历史</a></li><li><a href="/wiki/%E5%B7%B2%E7%9F%A5%E9%97%AE%E9%A2%98">已知问题</a></li></ul></nav>
+  <nav class="portlet"><h3>游戏</h3><ul><li><a href="/play/">开始游戏</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub 仓库</a></li><li><a href="/wiki/en/Format_Manual" hreflang="en">English wiki</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="菜单" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C">页面</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C%22" title="这一页的讨论（GitHub 议题）">讨论</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5B%E7%BB%B4%E5%9F%BA%5D%20%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C&body=%E9%A1%B5%E9%9D%A2%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2F%25E6%25A0%25BC%25E5%25BC%258F%25E6%2589%258B%25E5%2586%258C%0A%0A" title="就这一页开一个新的讨论">＋</a></div>
+  <form class="search" action="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%90%9C%E7%B4%A2" method="get" role="search"><input name="q" id="q" type="search" placeholder="搜索 OpenWorld 维基" autocomplete="off" aria-label="搜索"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C">阅读</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/pages/%E5%B8%AE%E5%8A%A9/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C.md" title="在 GitHub 上编辑这一页">编辑</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/pages/%E5%B8%AE%E5%8A%A9/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C.md">查看历史</a><a class="tab lang" href="/wiki/en/Format_Manual" hreflang="en" lang="en" title="English edition">English</a><button class="tab theme" id="theme" title="切换明暗">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">格式手册</h1><div class="subtitle">来自OpenWorld 中文维基 · 帮助</div>
+  
+  <div class="body"><blockquote class="quote"><p>「同类内容的基本格式和措辞需要保持一致。」</p><footer>— 本站沿用星露谷物语维基的编辑约定</footer></blockquote>
+<p>本页说明一个页面文件怎么写。还没读过<a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a>的话，先读那一页。</p>
+<nav class="toc"><div class="toc-title">目录</div><ol><li class="toc-l2"><a href="#%E6%96%87%E4%BB%B6%E6%94%BE%E5%9C%A8%E5%93%AA"><span class="tocnum">1</span> 文件放在哪</a></li><li class="toc-l2"><a href="#%E5%BC%80%E5%A4%B4%E7%9A%84%E4%BF%A1%E6%81%AF"><span class="tocnum">2</span> 开头的信息</a></li><li class="toc-l2"><a href="#%E9%93%BE%E6%8E%A5"><span class="tocnum">3</span> 链接</a></li><li class="toc-l2"><a href="#%E6%A8%A1%E6%9D%BF"><span class="tocnum">4</span> 模板</a></li><li class="toc-l3"><a href="#%E8%A1%8C%E5%86%85%E6%A8%A1%E6%9D%BF"><span class="tocnum">4.1</span> 行内模板</a></li><li class="toc-l3"><a href="#%E6%A8%AA%E5%B9%85%E4%B8%8E%E5%BC%95%E7%94%A8"><span class="tocnum">4.2</span> 横幅与引用</a></li><li class="toc-l3"><a href="#%E5%89%A7%E9%80%8F"><span class="tocnum">4.3</span> 剧透</a></li><li class="toc-l3"><a href="#%E6%95%B0%E6%8D%AE%E6%A8%A1%E6%9D%BF"><span class="tocnum">4.4</span> 数据模板</a></li><li class="toc-l3"><a href="#%E5%AF%BC%E8%88%AA%E6%A1%86"><span class="tocnum">4.5</span> 导航框</a></li><li class="toc-l3"><a href="#%E8%8B%B1%E6%96%87%E5%90%8D"><span class="tocnum">4.6</span> 英文名</a></li><li class="toc-l2"><a href="#%E6%AF%8F%E7%B1%BB%E9%A1%B5%E9%9D%A2%E7%9A%84%E5%9B%BA%E5%AE%9A%E7%BB%93%E6%9E%84"><span class="tocnum">5</span> 每类页面的固定结构</a></li><li class="toc-l2"><a href="#%E5%8E%86%E5%8F%B2%E5%B0%8F%E8%8A%82"><span class="tocnum">6</span> 历史小节</a></li><li class="toc-l2"><a href="#%E6%95%B0%E5%80%BC%E8%A1%A8"><span class="tocnum">7</span> 数值表</a></li></ol></nav><h2 id="文件放在哪"><span class="mw-headline">文件放在哪</span></h2>
+<p>每个页面是 <code>wiki/pages/</code> 下的一个 Markdown 文件，文件名就是页面标题，比如 <code>wiki/pages/人物/伊尔丝修女.md</code> 就是页面「伊尔丝修女」。子目录只用来分门别类，不影响网址，网址只看标题：<code>/wiki/伊尔丝修女</code>。</p>
+<p>标题全站唯一；两个文件同名，构建会报错。</p>
+<h2 id="开头的信息"><span class="mw-headline">开头的信息</span></h2>
+<p>文件最开头用两行 <code>---</code> 包住几行「键: 值」：</p>
+<pre><code>---
+类型: 人物
+对象: npc.ilse
+分类: 初原村
+别名: 伊尔丝, Ilse, Sister Ilse
+摘要: 初原村礼拜堂的守火人。
+---
+</code></pre>
+
+<table>
+<thead>
+<tr>
+<th>键</th>
+<th>必填</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>类型</td>
+<td>是</td>
+<td>系统、人物、物品、怪物、首领、地点、任务、设定、章节、列表、帮助 之一。类型决定页面的固定结构，见下文。</td>
+</tr>
+<tr>
+<td>对象</td>
+<td>写游戏里的东西时必填</td>
+<td>这一页对应的游戏对象的编号：人物 <code>npc.ilse</code>，物品 <code>item/weapon/blade/axe</code>，怪物 <code>actor/creature/beast/wolf</code>，首领 <code>alberic</code>，地点 <code>meadow</code>，任务 <code>stew</code>，技能分支 <code>swiftness</code>。信息框和各个数据小节都从这个对象读出来。</td>
+</tr>
+<tr>
+<td>标题</td>
+<td>否</td>
+<td>不写就用文件名。</td>
+</tr>
+<tr>
+<td>分类</td>
+<td>否</td>
+<td>逗号分隔。类型本身会带上默认分类（人物进「居民」，地点进「地点」……），这里只写额外的。</td>
+</tr>
+<tr>
+<td>状态</td>
+<td>否</td>
+<td>已实现（默认）、规划中、待设计。不是「已实现」的页面顶部会自动出现对应的横幅。</td>
+</tr>
+<tr>
+<td>别名</td>
+<td>否</td>
+<td>搜索时也能用这些词找到这一页；<code>[[别名]]</code> 链接也会指向这里。</td>
+</tr>
+<tr>
+<td>摘要</td>
+<td>建议</td>
+<td>一句话，用在搜索结果和列表里。</td>
+</tr>
+</tbody></table>
+<h2 id="链接"><span class="mw-headline">链接</span></h2>
+<ul>
+<li><code>[[伊尔丝修女]]</code>：链到这一页。</li>
+<li><code>[[伊尔丝修女|伊尔丝]]</code>：链到这一页，显示成「伊尔丝」。</li>
+<li><code>[[操作#输入|输入]]</code>：链到页面里的某个小节（小节名就是 <code>##</code> 后面的文字）。</li>
+<li>链到还不存在的页面会显示成红色，构建时列在「特殊：待完善」里，但不算错误。链到不存在的小节算错误。</li>
+</ul>
+<h2 id="模板"><span class="mw-headline">模板</span></h2>
+<p>模板写成 <code>{{模板名|参数|参数}}</code>。参数里也可以有链接。下面是全部模板。</p>
+<h3 id="行内模板"><span class="mw-headline">行内模板</span></h3>
+<table>
+<thead>
+<tr>
+<th>写法</th>
+<th>效果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>{{键|E}}</code></td>
+<td>一个按键图标 <kbd>E</kbd></td>
+</tr>
+<tr>
+<td><code>{{物品|木板}}</code>、<code>{{物品|木板|3}}</code></td>
+<td>物品图标加链接，可带数量。参数用游戏里的中文名或类型编号。</td>
+</tr>
+<tr>
+<td><code>{{人物|伊尔丝修女}}</code></td>
+<td>头像加链接</td>
+</tr>
+<tr>
+<td><code>{{怪物|狼}}</code></td>
+<td>怪物图标加链接</td>
+</tr>
+<tr>
+<td><code>{{地点|初原村}}</code></td>
+<td>链到地点</td>
+</tr>
+<tr>
+<td><code>{{状态|燃烧}}</code></td>
+<td>状态名加链接到<a href="/wiki/%E7%8A%B6%E6%80%81">状态</a></td>
+</tr>
+<tr>
+<td><code>{{技能|冲刺}}</code></td>
+<td>技能图标加链接到所在分支</td>
+</tr>
+<tr>
+<td><code>{{数值|名字}}</code></td>
+<td>游戏里的一个数值，直接从代码读，代码改了这里跟着变。可用的名字见本页末尾的<a href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C#%E6%95%B0%E5%80%BC%E8%A1%A8">数值表</a>。</td>
+</tr>
+</tbody></table>
+<h3 id="横幅与引用"><span class="mw-headline">横幅与引用</span></h3>
+<table>
+<thead>
+<tr>
+<th>写法</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>{{小作品}}</code></td>
+<td>这一页还没写完。页面会进「特殊：待完善」。</td>
+</tr>
+<tr>
+<td><code>{{规划中}}</code></td>
+<td>设计已经定了，游戏里还没做。</td>
+</tr>
+<tr>
+<td><code>{{待设计}}</code></td>
+<td>还没有设计，页面只记已知的部分。</td>
+</tr>
+<tr>
+<td><code>{{开发者}}</code></td>
+<td>只在开发版里有的功能（比如开发者控制台）。</td>
+</tr>
+<tr>
+<td><code>{{主条目|建造}}</code></td>
+<td>小节开头的「主条目：建造」。</td>
+</tr>
+<tr>
+<td><code>{{另见|房间|楼梯}}</code></td>
+<td>「另见：房间、楼梯」。</td>
+</tr>
+<tr>
+<td><code>{{引言|文字|出处}}</code></td>
+<td>页首的引语，比如人物的一句台词。</td>
+</tr>
+</tbody></table>
+<h3 id="剧透"><span class="mw-headline">剧透</span></h3>
+<p>人物没说出口的事、剧情的反转，放进剧透块。读者点开才看得到。</p>
+<pre><code>{{剧透|她没说出口的事}}
+这里的内容默认折叠。
+{{/剧透}}
+</code></pre>
+
+<h3 id="数据模板"><span class="mw-headline">数据模板</span></h3>
+<p>这些模板从游戏数据生成内容，不要把它们的内容抄成文字：抄下来的数字会过时，模板不会。</p>
+<p><strong>任何页面都能用的列表</strong></p>
+<table>
+<thead>
+<tr>
+<th>写法</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>{{物品表|武器}}</code></td>
+<td>一类物品的总表（各地区的变体不列在这里，列在原型页面和<a href="/wiki/%E5%9C%B0%E5%8C%BA%E7%89%A9%E4%BA%A7">地区物产</a>）。类别：武器、工具、防具、饰品、食物、材料、种子、建筑件、家具、容器、光源、剧情物品、文书、杂物、全部</td>
+</tr>
+<tr>
+<td><code>{{居民表}}</code>、<code>{{怪物表}}</code>、<code>{{掉落表}}</code>、<code>{{首领表}}</code>、<code>{{地点表}}</code></td>
+<td>对应的总表</td>
+</tr>
+<tr>
+<td><code>{{任务表|主线}}</code></td>
+<td>主线、支线、委托 三选一，不写就是全部</td>
+</tr>
+<tr>
+<td><code>{{配方表}}</code>、<code>{{建造表}}</code></td>
+<td>制作面板（C）和建造面板（B）里的全部条目</td>
+</tr>
+<tr>
+<td><code>{{技能树|迅捷}}</code></td>
+<td>一个技能分支的全部技能</td>
+</tr>
+<tr>
+<td><code>{{职业表}}</code>、<code>{{恩赐表}}</code>、<code>{{状态表}}</code>、<code>{{元素表}}</code>、<code>{{地形表}}</code>、<code>{{材质表}}</code>、<code>{{品质表}}</code>、<code>{{装备栏表}}</code>、<code>{{作物表}}</code>、<code>{{食物表}}</code>、<code>{{传送雕像表}}</code>、<code>{{配乐表}}</code>、<code>{{效率表}}</code>、<code>{{房间用途表}}</code>、<code>{{夜行生物表}}</code>、<code>{{传说武器表}}</code>、<code>{{圣痕之力表}}</code></td>
+<td>同名的表</td>
+</tr>
+<tr>
+<td><code>{{货摊表}}</code>、<code>{{货摊表|农业}}</code></td>
+<td><a href="/wiki/%E8%AA%93%E5%AE%88%E4%B9%8B%E5%9C%B0">誓守之地</a>货摊卖的东西和收购价。参数：农业、牧业、渔业（一个货架）、买（三个货架一起）、出售（收购价），不写就是全部</td>
+</tr>
+<tr>
+<td><code>{{外观部件}}</code>、<code>{{外观部件|发型}}</code></td>
+<td><a href="/wiki/%E5%A4%96%E8%A7%82">外观</a>的部件，每个配示例立绘和地图形象。参数：发型、五官、胡子、年纪、印记、眼镜、帽子、服装（一个槽位），不写就是全部</td>
+</tr>
+<tr>
+<td><code>{{地区物产}}</code>、<code>{{地区物产|苍白林沼}}</code></td>
+<td>各地区自己的物品：名品、地方物产、本地做的装备与工具（见<a href="/wiki/%E5%9C%B0%E5%8C%BA%E7%89%A9%E4%BA%A7">地区物产</a>）。参数：一个地区，不写就是全部</td>
+</tr>
+<tr>
+<td><code>{{版本历史}}</code></td>
+<td>每个合并进主线的改动</td>
+</tr>
+</tbody></table>
+<p><strong>写游戏对象的页面专用</strong>（要在开头写了 <code>对象:</code>）</p>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>模板</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>人物</td>
+<td><code>{{信息框}}</code> <code>{{日程表}}</code> <code>{{人际关系}}</code> <code>{{对话}}</code> <code>{{相关任务}}</code> <code>{{肖像}}</code></td>
+</tr>
+<tr>
+<td>物品</td>
+<td><code>{{信息框}}</code> <code>{{来源}}</code> <code>{{用途}}</code> <code>{{配方}}</code> <code>{{变体}}</code></td>
+</tr>
+<tr>
+<td>怪物</td>
+<td><code>{{信息框}}</code> <code>{{出没}}</code> <code>{{掉落}}</code></td>
+</tr>
+<tr>
+<td>首领</td>
+<td><code>{{信息框}}</code> <code>{{首领技能}}</code> <code>{{出没}}</code> <code>{{掉落}}</code></td>
+</tr>
+<tr>
+<td>地点</td>
+<td><code>{{信息框}}</code> <code>{{地图}}</code> <code>{{相连地点}}</code> <code>{{居民}}</code> <code>{{生物}}</code> <code>{{物品分布}}</code></td>
+</tr>
+<tr>
+<td>任务</td>
+<td><code>{{信息框}}</code> <code>{{任务目标}}</code> <code>{{任务阶段}}</code> <code>{{任务奖励}}</code> <code>{{任务对话}}</code></td>
+</tr>
+</tbody></table>
+<h3 id="导航框"><span class="mw-headline">导航框</span></h3>
+<p>页面最底下放 <code>{{导航框|名字}}</code>，列出同一组的所有页面。名字：基本、界面、生活、战斗、物品、居民、怪物、地点、任务、世界观、帮助。</p>
+<h3 id="英文名"><span class="mw-headline">英文名</span></h3>
+<p>每个模板也有英文名，中文版和英文版里都能用，大小写不论：<code>{{信息框}}</code>、<code>{{infobox}}</code>、<code>{{Infobox}}</code> 是同一个模板。作关键字的参数也有英文写法，比如 <code>{{任务表|主线}}</code> 就是 <code>{{quest table|main}}</code>，<code>{{导航框|居民}}</code> 就是 <code>{{navbox|residents}}</code>，<code>{{货摊表|买}}</code> 就是 <code>{{stall table|buy}}</code>。中文页面照常用中文名；英文页面用英文名，怎么写见<a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8#%E8%8B%B1%E6%96%87%E7%89%88">编辑入门</a>。</p>
+<table>
+<thead>
+<tr>
+<th>中文</th>
+<th>英文</th>
+<th>中文</th>
+<th>英文</th>
+<th>中文</th>
+<th>英文</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>键</td>
+<td>key</td>
+<td>物品</td>
+<td>item</td>
+<td>人物</td>
+<td>person</td>
+</tr>
+<tr>
+<td>怪物</td>
+<td>monster</td>
+<td>地点</td>
+<td>place</td>
+<td>状态</td>
+<td>status</td>
+</tr>
+<tr>
+<td>技能</td>
+<td>skill</td>
+<td>数值</td>
+<td>value</td>
+<td>图</td>
+<td>image</td>
+</tr>
+<tr>
+<td>小作品</td>
+<td>stub</td>
+<td>规划中</td>
+<td>planned</td>
+<td>待设计</td>
+<td>tbd</td>
+</tr>
+<tr>
+<td>开发者</td>
+<td>dev</td>
+<td>主条目</td>
+<td>main</td>
+<td>另见</td>
+<td>see also</td>
+</tr>
+<tr>
+<td>引言</td>
+<td>quote</td>
+<td>导航框</td>
+<td>navbox</td>
+<td>原文</td>
+<td>original</td>
+</tr>
+<tr>
+<td>剧透</td>
+<td>spoiler</td>
+<td>信息框</td>
+<td>infobox</td>
+<td>日程表</td>
+<td>schedule</td>
+</tr>
+<tr>
+<td>对话</td>
+<td>dialogue</td>
+<td>人际关系</td>
+<td>relationships</td>
+<td>相关任务</td>
+<td>related quests</td>
+</tr>
+<tr>
+<td>外观部件</td>
+<td>look parts</td>
+<td>肖像</td>
+<td>portrait</td>
+<td>来源</td>
+<td>sources</td>
+</tr>
+<tr>
+<td>用途</td>
+<td>uses</td>
+<td>配方</td>
+<td>recipe</td>
+<td>变体</td>
+<td>variants</td>
+</tr>
+<tr>
+<td>出没</td>
+<td>habitat</td>
+<td>掉落</td>
+<td>drops</td>
+<td>首领技能</td>
+<td>boss skills</td>
+</tr>
+<tr>
+<td>怪物技能</td>
+<td>monster skills</td>
+<td>地图</td>
+<td>map</td>
+<td>相连地点</td>
+<td>connections</td>
+</tr>
+<tr>
+<td>居民</td>
+<td>residents</td>
+<td>生物</td>
+<td>creatures</td>
+<td>物品分布</td>
+<td>map items</td>
+</tr>
+<tr>
+<td>任务目标</td>
+<td>objectives</td>
+<td>任务奖励</td>
+<td>rewards</td>
+<td>任务对话</td>
+<td>quest dialogue</td>
+</tr>
+<tr>
+<td>任务阶段</td>
+<td>stages</td>
+<td>物品表</td>
+<td>item table</td>
+<td>地区物产</td>
+<td>regional goods</td>
+</tr>
+<tr>
+<td>居民表</td>
+<td>resident table</td>
+<td>怪物表</td>
+<td>monster table</td>
+<td>掉落表</td>
+<td>drop table</td>
+</tr>
+<tr>
+<td>首领表</td>
+<td>boss table</td>
+<td>地点表</td>
+<td>location table</td>
+<td>地区表</td>
+<td>region table</td>
+</tr>
+<tr>
+<td>地区地点</td>
+<td>region places</td>
+<td>任务表</td>
+<td>quest table</td>
+<td>货摊表</td>
+<td>stall table</td>
+</tr>
+<tr>
+<td>配方表</td>
+<td>recipe table</td>
+<td>建造表</td>
+<td>building table</td>
+<td>技能树</td>
+<td>skill tree</td>
+</tr>
+<tr>
+<td>职业表</td>
+<td>profession table</td>
+<td>恩赐表</td>
+<td>boon table</td>
+<td>状态表</td>
+<td>status table</td>
+</tr>
+<tr>
+<td>元素表</td>
+<td>element table</td>
+<td>地形表</td>
+<td>terrain table</td>
+<td>材质表</td>
+<td>substance table</td>
+</tr>
+<tr>
+<td>品质表</td>
+<td>quality table</td>
+<td>装备栏表</td>
+<td>slot table</td>
+<td>作物表</td>
+<td>crop table</td>
+</tr>
+<tr>
+<td>食物表</td>
+<td>food table</td>
+<td>传送雕像表</td>
+<td>waypoint table</td>
+<td>配乐表</td>
+<td>music table</td>
+</tr>
+<tr>
+<td>效率表</td>
+<td>efficiency table</td>
+<td>房间用途表</td>
+<td>room table</td>
+<td>夜行生物表</td>
+<td>night creature table</td>
+</tr>
+<tr>
+<td>传说武器表</td>
+<td>legendary arms table</td>
+<td>圣痕之力表</td>
+<td>stigma table</td>
+<td>誓言表</td>
+<td>vow table</td>
+</tr>
+<tr>
+<td>版本历史</td>
+<td>version history</td>
+<td>数值表</td>
+<td>value table</td>
+<td>门户</td>
+<td>portal</td>
+</tr>
+</tbody></table>
+<h2 id="每类页面的固定结构"><span class="mw-headline">每类页面的固定结构</span></h2>
+<p>同类页面按同样的顺序排小节，读者在哪一页都能在同一个位置找到同样的内容。新建页面时，网站上「编辑」按钮会给出这个骨架。</p>
+<p><strong>人物</strong></p>
+<p><pre><code>{{信息框}}
+{{引言|一句代表性的台词|人物名}}
+开头一段：是谁、住在哪、做什么。
+## 日程表
+{{日程表}}
+## 人际关系
+（文字）{{人际关系}}
+## 对话
+{{对话}}
+## 任务
+{{相关任务}}
+## 肖像
+{{肖像}}
+## 设定
+（剧情里的位置；没说出口的事放剧透块）
+## 趣闻
+## 历史
+{{导航框|居民}}
+</code></pre>
+
+<strong>物品</strong>：信息框 → 开头一段 → <code>## 来源</code> → <code>## 用途</code> → <code>## 制作</code>（能做的才有）→ <code>## 变体</code>（有材质、品质的才有）→ <code>## 趣闻</code> → <code>## 历史</code> → 导航框。</p>
+<p><strong>怪物、首领</strong>：信息框 → 开头一段 → <code>## 出没</code> → <code>## 行为</code> → <code>## 策略</code> → <code>## 掉落</code> →（首领多一节 <code>## 技能</code>，放在行为前面）→ <code>## 设定</code> → <code>## 历史</code> → 导航框。</p>
+<p><strong>地点</strong>：信息框 → 开头一段 → <code>## 地图</code> → <code>## 区域</code>（地图里有名字的区域）→ <code>## 居民</code> → <code>## 生物</code> → <code>## 物品与资源</code> → <code>## 相连地点</code> → <code>## 设定</code> → <code>## 历史</code> → 导航框。</p>
+<p><strong>任务</strong>：信息框 → 开头一段 → <code>## 目标</code> → <code>## 流程</code>（一步步怎么完成）→ <code>## 阶段与日志</code>（<code>{{任务阶段}}</code>：每个阶段在日志里写什么、什么时候进入）→ <code>## 奖励</code> → <code>## 对话</code> → <code>## 历史</code> → 导航框。</p>
+<p><strong>系统</strong>（操作、饱食度这类玩法页）：开头一段 → 规则（按需要分小节，数字用 <code>{{数值}}</code> 或数据表）→ <code>## 提示</code>（可选）→ <code>## 历史</code> → 导航框。</p>
+<p><strong>设定、章节</strong>：开头一段 → 正文 → <code>## 出处</code>（这段设定写在哪份原文、哪次讨论里）→ 导航框。设定页只写已经定下来的内容；还没定的写成「待设计」，不替团队编。</p>
+<h2 id="历史小节"><span class="mw-headline">历史小节</span></h2>
+<p>游戏改动了某个东西，就在它的页面「历史」小节加一行：</p>
+<pre><code>## 历史
+- 2026-10-05：教程改成一课一个动作，没教的键锁住。
+</code></pre>
+
+<h2 id="数值表"><span class="mw-headline">数值表</span></h2>
+<p><code>{{数值|名字}}</code> 能用的名字。构建时从游戏代码读出，表格在<a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%95%B0%E5%80%BC">特殊：数值</a>。</p>
+<table class="wikitable sortable"><thead><tr><th>名字</th><th>值</th><th>含义</th><th>代码</th></tr></thead><tbody><tr><td><code>玩家生命上限</code></td><td>40</td><td>玩家的最大生命值</td><td><small>content/src/ontology.ts</small></td></tr><tr><td><code>玩家攻击</code></td><td>2</td><td>玩家空手的基础攻击</td><td><small>content/src/ontology.ts</small></td></tr><tr><td><code>饱食度上限</code></td><td>20</td><td>饱食度满值</td><td><small>content/src/ontology.ts</small></td></tr><tr><td><code>初始饱食度</code></td><td>12</td><td>新游戏开始时的饱食度</td><td><small>tools/src/demo/world.ts</small></td></tr><tr><td><code>饱食度下降间隔</code></td><td>48</td><td>吃饱时每隔多少游戏分钟饱食度 −1</td><td><small>engine/src/hunger.ts HUNGER_EVERY</small></td></tr><tr><td><code>饿了阈值</code></td><td>60%</td><td>饱食度低于满值的这个比例时变为「饿了」</td><td><small>engine/src/hunger.ts HUNGRY_BELOW</small></td></tr><tr><td><code>饿了减速</code></td><td>7.5</td><td>「饿了」之后饱食度下降慢多少倍</td><td><small>engine/src/hunger.ts HUNGRY_PACE</small></td></tr><tr><td><code>睡眠减速</code></td><td>4</td><td>睡着时饱食度下降慢多少倍</td><td><small>content/src/ontology.ts periods</small></td></tr><tr><td><code>回血间隔</code></td><td>8</td><td>每隔多少现实秒（游戏分钟）结算一次回血或饥饿伤害</td><td><small>engine/src/hunger.ts HUNGER_EFFECT_EVERY</small></td></tr><tr><td><code>背包格数</code></td><td>30</td><td>背包的格数</td><td><small>engine/src/controls.ts SLOT_COUNT</small></td></tr><tr><td><code>快捷栏格数</code></td><td>10</td><td>快捷栏（背包第一行）的格数</td><td><small>engine/src/controls.ts ROW</small></td></tr><tr><td><code>磁吸距离</code></td><td>2</td><td>掉落物自动飞进背包的距离（格）</td><td><small>engine/src/controls.ts MAGNET</small></td></tr><tr><td><code>每游戏分钟tick</code></td><td>10</td><td>1 游戏分钟 = 多少 tick（1 现实秒）</td><td><small>engine/src/calendar.ts</small></td></tr><tr><td><code>一天现实分钟</code></td><td>24</td><td>一个游戏日相当于多少现实分钟</td><td><small>engine/src/calendar.ts</small></td></tr><tr><td><code>入夜</code></td><td>21:00</td><td>夜晚开始（故事推进后会提前）</td><td><small>engine/src/calendar.ts nightHours</small></td></tr><tr><td><code>天亮</code></td><td>05:00</td><td>夜晚结束</td><td><small>engine/src/calendar.ts nightHours</small></td></tr><tr><td><code>新游戏时刻</code></td><td>13:00</td><td>新游戏开始的时刻</td><td><small>tools/src/demo/world.ts START_HOUR</small></td></tr><tr><td><code>回收比例</code></td><td>50%</td><td>东西被打坏时，构成它的材料留下的比例</td><td><small>content/src/ontology.ts RECOVERY</small></td></tr><tr><td><code>安全落差</code></td><td>1</td><td>掉下这么多层不受伤</td><td><small>content/src/ontology.ts SAFE_FALL</small></td></tr><tr><td><code>坠落伤害</code></td><td>6</td><td>超过安全落差后每多一层的伤害</td><td><small>content/src/ontology.ts FALL_DAMAGE</small></td></tr><tr><td><code>楼层上限</code></td><td>4</td><td>地面以上最多能建几层</td><td><small>content/src/ontology.ts STOREYS</small></td></tr><tr><td><code>房间最大格数</code></td><td>256</td><td>超过这么多格就不算房间（算屋外）</td><td><small>content/src/ontology.ts ROOM_SIZE</small></td></tr><tr><td><code>夜行生物上限</code></td><td>4</td><td>一张地图同时游荡的夜行生物上限</td><td><small>content/src/ontology.ts NIGHT_CAP</small></td></tr><tr><td><code>夜行生物间隔</code></td><td>6</td><td>每隔多少现实秒可能再出现一只夜行生物</td><td><small>content/src/ontology.ts NIGHT_EVERY</small></td></tr><tr><td><code>树木再生</code></td><td>2</td><td>树墩或树苗长成树要几个游戏日</td><td><small>content/src/ontology.ts TREE_GROWS</small></td></tr><tr><td><code>下蛋间隔</code></td><td>3</td><td>母鸡每隔几个游戏小时下一个蛋</td><td><small>content/src/ontology.ts LAYS_EVERY</small></td></tr><tr><td><code>地面产出间隔</code></td><td>15</td><td>树枝、石头、草这类地面产出每隔多少现实秒长出一份</td><td><small>engine/src/appear.ts APPEAR_EVERY</small></td></tr><tr><td><code>职业等级</code></td><td>5</td><td>可以选择职业的等级</td><td><small>engine/src/profession.ts PROFESSION_LEVEL</small></td></tr><tr><td><code>升级经验系数</code></td><td>20</td><td>升到下一级需要 这个数 × 当前等级 的经验</td><td><small>engine/src/progression.ts xpToNext</small></td></tr><tr><td><code>恩赐切换距离</code></td><td>3</td><td>在已唤醒的传送雕像多少格内可以更换露米的恩赐</td><td><small>engine/src/boons.ts BOON_REACH</small></td></tr><tr><td><code>图鉴视距</code></td><td>6</td><td>人物或生物来到多少格内就算「见过」</td><td><small>engine/src/codex.ts CODEX_SIGHT</small></td></tr><tr><td><code>交互距离</code></td><td>1</td><td>默认的 E 交互距离（格）</td><td><small>content/src/ontology.ts params.reach</small></td></tr><tr><td><code>拿放距离</code></td><td>1</td><td>F 拿、G 放的距离（格）</td><td><small>content/src/ontology.ts params.carry</small></td></tr><tr><td><code>休息系数</code></td><td>0.5</td><td>不在卧室睡觉时恢复损失生命的比例</td><td><small>content/src/ontology.ts params.rest</small></td></tr><tr><td><code>喂饱时长</code></td><td>24</td><td>喂过饲料的动物「吃饱了」持续几个游戏小时；「挤过奶」「刚生过崽」也持续这么久</td><td><small>content/src/homestead.ts FED_FOR</small></td></tr><tr><td><code>幼崽长大</code></td><td>48</td><td>小牛、小鸡长成牛、鸡要几个游戏小时</td><td><small>content/src/ontology.ts GROWS_UP</small></td></tr><tr><td><code>鱼饵次数</code></td><td>5</td><td>一份鱼饵挂到鱼竿上能用几竿</td><td><small>content/src/items.ts item/misc/bait</small></td></tr><tr><td><code>鱼竿距离</code></td><td>3</td><td>鱼竿能甩到几格远（格）</td><td><small>content/src/items.ts item/tool/fishing_rod</small></td></tr><tr><td><code>首领二阶段</code></td><td>50%</td><td>首领生命降到这个比例进入第二阶段</td><td><small>content/src/bosses.ts encounter.phases</small></td></tr></tbody></table>
+</div>
+  <div class="catlinks">分类：<a href="/wiki/%E5%88%86%E7%B1%BB%EF%BC%9A%E5%B8%AE%E5%8A%A9">帮助</a></div>
+</main>
+<footer class="footer">
+  <p>本站内容由 OpenWorld 项目组编写，数据表从游戏代码 <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a>（main）生成于 2026-10-30 06:19。</p>
+  <p>项目组成员都能在 GitHub 上编辑：见<a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a>。游戏素材来自 Ninja Adventure（CC0）与项目自绘。</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

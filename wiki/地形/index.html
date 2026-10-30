@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN" data-base="/wiki/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>地形 - OpenWorld 中文维基</title>
+<meta name="description" content="地图每一格的地面：哪些能走、能锄、能铺地板，哪些挡路、能砍能凿，水、冰、泥潭、温泉、熔岩各有什么规矩。">
+<link rel="alternate" hreflang="en" href="/wiki/en/Terrain">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>中文维基</small></span></a>
+  <nav class="portlet"><h3>导航</h3><ul><li><a href="/wiki/">首页</a></li><li><a href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">新手指南</a></li><li><a href="/wiki/%E4%B8%BB%E7%BA%BF%E6%B5%81%E7%A8%8B">主线流程</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%9C%80%E8%BF%91%E6%9B%B4%E6%94%B9">最近更改</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E9%9A%8F%E6%9C%BA%E9%A1%B5%E9%9D%A2">随机页面</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%BE%85%E5%AE%8C%E5%96%84">待完善</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%89%80%E6%9C%89%E9%A1%B5%E9%9D%A2">所有页面</a></li></ul></nav><nav class="portlet"><h3>参与编辑</h3><ul><li><a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a></li><li><a href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C">格式手册</a></li><li><a href="/wiki/%E9%A3%8E%E6%A0%BC%E6%8C%87%E5%8D%97">风格指南</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%AE%8C%E5%A4%87%E6%80%A7">完备性</a></li></ul></nav><nav class="portlet"><h3>企划</h3><ul><li><a href="/wiki/%E5%85%B3%E4%BA%8E%E6%9C%AC%E7%BB%B4%E5%9F%BA">关于本维基</a></li><li><a href="/wiki/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1">设计支柱</a></li><li><a href="/wiki/%E8%B7%AF%E7%BA%BF%E5%9B%BE">路线图</a></li><li><a href="/wiki/%E7%89%88%E6%9C%AC%E5%8E%86%E5%8F%B2">版本历史</a></li><li><a href="/wiki/%E5%B7%B2%E7%9F%A5%E9%97%AE%E9%A2%98">已知问题</a></li></ul></nav>
+  <nav class="portlet"><h3>游戏</h3><ul><li><a href="/play/">开始游戏</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub 仓库</a></li><li><a href="/wiki/en/Terrain" hreflang="en">English wiki</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="菜单" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/%E5%9C%B0%E5%BD%A2">页面</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22%E5%9C%B0%E5%BD%A2%22" title="这一页的讨论（GitHub 议题）">讨论</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5B%E7%BB%B4%E5%9F%BA%5D%20%E5%9C%B0%E5%BD%A2&body=%E9%A1%B5%E9%9D%A2%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2F%25E5%259C%25B0%25E5%25BD%25A2%0A%0A" title="就这一页开一个新的讨论">＋</a></div>
+  <form class="search" action="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%90%9C%E7%B4%A2" method="get" role="search"><input name="q" id="q" type="search" placeholder="搜索 OpenWorld 维基" autocomplete="off" aria-label="搜索"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/%E5%9C%B0%E5%BD%A2">阅读</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/pages/%E7%94%9F%E6%B4%BB/%E5%9C%B0%E5%BD%A2.md" title="在 GitHub 上编辑这一页">编辑</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/pages/%E7%94%9F%E6%B4%BB/%E5%9C%B0%E5%BD%A2.md">查看历史</a><a class="tab lang" href="/wiki/en/Terrain" hreflang="en" lang="en" title="English edition">English</a><button class="tab theme" id="theme" title="切换明暗">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">地形</h1><div class="subtitle">来自OpenWorld 中文维基 · 玩法</div>
+  
+  <div class="body"><p>地形是地图每一格最底下的那一层：草地、泥土、水、树、岩石……有的能站人，有的挡路；有的能锄成农田，有的能砍倒、凿碎。地形本身也是世界里的东西，和别的东西用同一套规则。</p>
+<nav class="toc"><div class="toc-title">目录</div><ol><li class="toc-l2"><a href="#%E5%85%A8%E9%83%A8%E5%9C%B0%E5%BD%A2"><span class="tocnum">1</span> 全部地形</a></li><li class="toc-l2"><a href="#%E8%83%BD%E8%B5%B0%E7%9A%84%E5%9C%B0%E9%9D%A2"><span class="tocnum">2</span> 能走的地面</a></li><li class="toc-l2"><a href="#%E6%8C%A1%E8%B7%AF%E7%9A%84%E4%B8%9C%E8%A5%BF"><span class="tocnum">3</span> 挡路的东西</a></li><li class="toc-l3"><a href="#%E6%88%BF%E5%AD%90%E7%9A%84%E5%A2%99"><span class="tocnum">3.1</span> 房子的墙</a></li><li class="toc-l2"><a href="#%E7%94%A8%E6%89%8B%E6%91%B8"><span class="tocnum">4</span> 用手摸</a></li><li class="toc-l2"><a href="#%E4%BC%9A%E9%95%BF%E5%9B%9E%E5%8E%BB%E7%9A%84"><span class="tocnum">5</span> 会长回去的</a></li><li class="toc-l2"><a href="#%E6%B0%B4%E5%92%8C%E5%86%B0"><span class="tocnum">6</span> 水和冰</a></li><li class="toc-l2"><a href="#%E7%89%B9%E5%88%AB%E7%9A%84%E5%9C%B0%E9%9D%A2"><span class="tocnum">7</span> 特别的地面</a></li><li class="toc-l2"><a href="#%E5%A4%A7%E5%9C%B0%E5%9B%BE%E4%B8%8A%E7%9A%84%E5%9C%B0%E5%BD%A2"><span class="tocnum">8</span> 大地图上的地形</a></li><li class="toc-l2"><a href="#%E9%AB%98%E4%BD%8E"><span class="tocnum">9</span> 高低</a></li><li class="toc-l2"><a href="#%E6%8F%90%E7%A4%BA"><span class="tocnum">10</span> 提示</a></li><li class="toc-l2"><a href="#%E5%8E%86%E5%8F%B2"><span class="tocnum">11</span> 历史</a></li></ol></nav><h2 id="全部地形"><span class="mw-headline">全部地形</span></h2>
+<table class="wikitable sortable"><thead><tr><th></th><th>地形</th><th>性质</th><th>耐久</th><th>打坏后留下</th></tr></thead><tbody><tr><td><span class="swatch" style="background:#6ab04c"></span></td><td><b>草地</b></td><td>可通行、可开垦</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#b6b94f"></span></td><td><b>枯草</b></td><td>可通行、可燃</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#7cc05a"></span></td><td><b>花丛</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#9a7b52"></span></td><td><b>泥土</b></td><td>可通行、可开垦</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#c9a86a"></span></td><td><b>土路</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#9ea3a8"></span></td><td><b>石板路</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#efd6c0"></span></td><td><b>石板铺地</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#5d5660"></span></td><td><b>灰石板地</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#6a646e"></span></td><td><b>城墙步道</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#6f7377"></span></td><td><b>广场石地</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#d3c3a2"></span></td><td><b>石板街</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#7fb24d"></span></td><td><b>花坛</b></td><td>挡路</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#b9573d"></span></td><td><b>菱纹地砖</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#f4f2ee"></span></td><td><b>大理石地面</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#a3754e"></span></td><td><b>人字拼木地板</b></td><td>可通行、可燃</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#a72f39"></span></td><td><b>金边红毯</b></td><td>可通行、可燃</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#2f5aa6"></span></td><td><b>蓝色长毯</b></td><td>可通行、可燃</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#e3cf8f"></span></td><td><b>沙地</b></td><td>可通行、可开垦</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#eef3f6"></span></td><td><b>雪地</b></td><td>可通行、可开垦</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#bfe6f5"></span></td><td><b>冰面</b></td><td>可通行、滑</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#3d7fd6"></span></td><td><b>浅水</b></td><td>挡路、液体</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#2c5fae"></span></td><td><b>深水</b></td><td>挡路、液体</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#2f6b33"></span></td><td><b>树</b></td><td>挡路、可燃</td><td>10</td><td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/tileset_camp.png');background-position:-128px -128px;background-size:368px 144px"></span><a href="/wiki/%E6%9C%A8%E5%A4%B4">木头</a><span class="count">×4</span></span>、<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Resource/Branch.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%A0%91%E6%9E%9D">树枝</a><span class="count">×2</span></span></td></tr><tr><td><span class="swatch" style="background:#23553a"></span></td><td><b>松树</b></td><td>挡路、可燃</td><td>10</td><td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/tileset_camp.png');background-position:-128px -128px;background-size:368px 144px"></span><a href="/wiki/%E6%9C%A8%E5%A4%B4">木头</a><span class="count">×4</span></span>、<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Resource/Branch.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%A0%91%E6%9E%9D">树枝</a><span class="count">×2</span></span></td></tr><tr><td><span class="swatch" style="background:#4f8f3a"></span></td><td><b>灌木</b></td><td>可通行、可燃</td><td>4</td><td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Resource/Branch.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%A0%91%E6%9E%9D">树枝</a><span class="count">×2</span></span></td></tr><tr><td><span class="swatch" style="background:#3b4a2a"></span></td><td><b>荆棘篱</b></td><td>挡路</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#7d7a74"></span></td><td><b>岩石</b></td><td>挡路</td><td>10</td><td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Resource/Rock.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E7%9F%B3%E5%9D%97">石块</a><span class="count">×2</span></span></td></tr><tr><td><span class="swatch" style="background:#6b6e75"></span></td><td><b>石墙</b></td><td>挡路</td><td>24</td><td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Resource/Rock.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E7%9F%B3%E5%9D%97">石块</a><span class="count">×4</span></span></td></tr><tr><td><span class="swatch" style="background:#8a5a33"></span></td><td><b>木墙</b></td><td>挡路、可燃</td><td>12</td><td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetHouse.png');background-position:-496px -272px;background-size:528px 368px"></span><a href="/wiki/%E6%9C%A8%E6%9D%BF">木板</a><span class="count">×2</span></span></td></tr><tr><td><span class="swatch" style="background:#3a2e28"></span></td><td><b>焦黑的木墙</b></td><td>挡路</td><td>4</td><td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetNature.png');background-position:-112px -192px;background-size:384px 336px"></span><a href="/wiki/%E7%85%A4%E7%82%AD">煤炭</a><span class="count">×2</span></span></td></tr><tr><td><span class="swatch" style="background:#c9a46a"></span></td><td><b>帆布墙</b></td><td>挡路、可燃</td><td>6</td><td><span class="ent"><span class="spr inline" style="width:14px;height:14px;background-image:url('/assets/na/Items/Scroll/Scroll.png');background-position:-0px -0px;background-size:14px 14px"></span><a href="/wiki/%E5%B8%83%E5%8C%B9">布匹</a><span class="count">×2</span></span>、<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Resource/Branch.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%A0%91%E6%9E%9D">树枝</a></span></td></tr><tr><td><span class="swatch" style="background:#b59a55"></span></td><td><b>草泥墙</b></td><td>挡路、可燃</td><td>6</td><td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetNature.png');background-position:-64px -160px;background-size:384px 336px"></span><a href="/wiki/%E5%B9%B2%E8%8D%89">干草</a><span class="count">×3</span></span>、<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Resource/Branch.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%A0%91%E6%9E%9D">树枝</a><span class="count">×2</span></span></td></tr><tr><td><span class="swatch" style="background:#e8f0f4"></span></td><td><b>雪砖墙</b></td><td>挡路</td><td>10</td><td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetNature.png');background-position:-80px -192px;background-size:384px 336px"></span><a href="/wiki/%E9%9B%AA%E7%90%83">雪球</a><span class="count">×3</span></span></td></tr><tr><td><span class="swatch" style="background:#a8432f"></span></td><td><b>屋顶</b></td><td>挡路</td><td>8</td><td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetHouse.png');background-position:-496px -272px;background-size:528px 368px"></span><a href="/wiki/%E6%9C%A8%E6%9D%BF">木板</a></span></td></tr><tr><td><span class="swatch" style="background:#9c7a4c"></span></td><td><b>木地板</b></td><td>可通行、可燃</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#8d8f94"></span></td><td><b>石地板</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#8e3b46"></span></td><td><b>地毯</b></td><td>可通行、可燃</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#6b4226"></span></td><td><b>门</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#4a4d52"></span></td><td><b>下行阶梯</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#77797e"></span></td><td><b>上行阶梯</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#5a5550"></span></td><td><b>洞穴地面</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#34302c"></span></td><td><b>洞壁</b></td><td>挡路</td><td>16</td><td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Resource/Rock.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E7%9F%B3%E5%9D%97">石块</a><span class="count">×2</span></span></td></tr><tr><td><span class="swatch" style="background:#e2541b"></span></td><td><b>熔岩</b></td><td>挡路、液体</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#5b5550"></span></td><td><b>灰烬</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#3a2e28"></span></td><td><b>焦木</b></td><td>挡路</td><td>4</td><td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetNature.png');background-position:-112px -192px;background-size:384px 336px"></span><a href="/wiki/%E7%85%A4%E7%82%AD">煤炭</a><span class="count">×2</span></span></td></tr><tr><td><span class="swatch" style="background:#7a5a3a"></span></td><td><b>树桩</b></td><td>可通行、可燃</td><td>6</td><td><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/tileset_camp.png');background-position:-128px -128px;background-size:368px 144px"></span><a href="/wiki/%E6%9C%A8%E5%A4%B4">木头</a><span class="count">×2</span></span></td></tr><tr><td><span class="swatch" style="background:#8b8680"></span></td><td><b>碎石</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#a07a4a"></span></td><td><b>木桥</b></td><td>可通行、可燃</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#7a5634"></span></td><td><b>农田</b></td><td>可通行、可开垦</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#5e4a33"></span></td><td><b>泥潭</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#5fb8d6"></span></td><td><b>疗伤温泉</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#000000"></span></td><td><b>虚空</b></td><td>挡路</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#cfe6f7"></span></td><td><b>空中</b></td><td>可通行</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#2c5fae"></span></td><td><b>海</b></td><td>挡路、液体、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#6ab04c"></span></td><td><b>平原</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#2f6b33"></span></td><td><b>森林</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#8a9a52"></span></td><td><b>丘陵</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#7d7a74"></span></td><td><b>山脉</b></td><td>挡路、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#eef3f6"></span></td><td><b>雪原</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#c9a86a"></span></td><td><b>大道</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#3d7fd6"></span></td><td><b>河流</b></td><td>挡路、液体、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#b4a868"></span></td><td><b>草原</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#b0583c"></span></td><td><b>赤岩荒原</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#c8b070"></span></td><td><b>田野</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#d8c49a"></span></td><td><b>尘原</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#ece6d8"></span></td><td><b>盐滩</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#56705a"></span></td><td><b>沼泽</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#6a6252"></span></td><td><b>死林</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#d4cfc0"></span></td><td><b>白石高原</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#b8a48a"></span></td><td><b>城郊</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr><tr><td><span class="swatch" style="background:#a07a4a"></span></td><td><b>桥</b></td><td>可通行、大地图</td><td>打不坏</td><td>—</td></tr></tbody></table>
+<h2 id="能走的地面"><span class="mw-headline">能走的地面</span></h2>
+<ul>
+<li><strong>草地、泥土、沙地、雪地</strong>：能用锄头翻成农田（见<a href="/wiki/%E5%86%9C%E8%80%95">农耕</a>），也能种橡子。草地上会长出树枝、石块和干草（见<a href="/wiki/%E9%87%87%E9%9B%86">采集</a>）。</li>
+<li><strong>枯草</strong>：干的，很容易着火，火在上面蔓延得很快（每半秒 30% 几率传给旁边）。地上也会长出干草。</li>
+<li><strong>花丛、碎石、灰烬、洞穴地面</strong>：普通的地面。</li>
+<li><strong>土路、石板路</strong>：路。</li>
+<li><strong>农田</strong>：锄过的地，可以播种。</li>
+<li><strong>木地板、石地板、地毯</strong>：地图上屋里的地面。</li>
+<li><strong>灌木</strong>：矮，能直接走过去，像穿过高草。耐久 4，打碎掉 1 根树枝。能烧。</li>
+<li><strong>木桥</strong>：木头的，能烧。一块木板放在浅水上就铺成一格木桥；砍倒的枯树倒在河上也会变成木桥（见<a href="/wiki/%E4%BC%90%E6%9C%A8">伐木</a>）。</li>
+</ul>
+<p>所有能站人的地面都能铺一块<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/Interior/TilesetInteriorFloor.png');background-position:-192px -16px;background-size:352px 272px"></span><a href="/wiki/%E5%9C%B0%E6%9D%BF">地板</a></span>盖住（见<a href="/wiki/%E6%A5%BC%E5%B1%82">楼层</a>）。地面本身没有耐久，打不坏。</p>
+<h2 id="挡路的东西"><span class="mw-headline">挡路的东西</span></h2>
+<ul>
+<li><strong>树、松树</strong>：耐久 10，斧头两下砍倒，留下树桩（见<a href="/wiki/%E4%BC%90%E6%9C%A8">伐木</a>）。能烧，烧完变成焦木。</li>
+<li><strong>荆棘篱</strong>：<a href="/wiki/%E7%99%BD%E9%AA%91%E5%A3%AB%C2%B7%E9%98%BF%E5%B0%94%E8%B4%9D%E9%87%8C%E5%85%8B">白骑士·阿尔贝里克</a>拦断<a href="/wiki/%E6%9C%9D%E9%98%B3%E5%A4%A7%E9%81%93">朝阳大道</a>的荆棘，也围着<a href="/wiki/%E8%8D%86%E6%A3%98%E7%8E%8B%E5%9B%BD">荆棘王国</a>。没有耐久，砍不开、烧不着，什么工具都打不开；只能从它的雾门进出（见<a href="/wiki/%E9%A6%96%E9%A2%86%E6%88%BF">首领房</a>）。</li>
+<li><strong>岩石</strong>：耐久 10，镐两下凿碎，掉 1 块石块（见<a href="/wiki/%E9%87%87%E7%9F%BF">采矿</a>）。</li>
+<li><strong>洞壁</strong>：洞穴的墙，耐久 16，掉 1 块石块。</li>
+<li><strong>石墙</strong>：耐久 24，掉 2 块石块。托得住上一层的地板。</li>
+<li><strong>木墙</strong>：耐久 12，掉 1 块木板。托得住上一层的地板。能烧，烧完是焦黑的木墙（耐久 4，碎了有煤炭）。</li>
+<li><strong>帆布墙</strong>：帐篷和铁匠铺的帆布，耐久 6，刀斧一划就是一道口子。能烧，烧完是焦黑的墙。</li>
+<li><strong>草泥墙</strong>：草屋的墙，耐久 6，斧头砍得深。能烧，烧完是焦黑的墙。</li>
+<li><strong>雪砖墙</strong>：雪屋的墙，耐久 10，用镐凿。</li>
+</ul>
+<p>石墙、木墙、帆布墙、草泥墙、雪砖墙和焦黑的木墙是地图上建筑的墙：打了会裂，但打不倒，见下面的<a href="/wiki/%E5%9C%B0%E5%BD%A2#%E6%88%BF%E5%AD%90%E7%9A%84%E5%A2%99">房子的墙</a>。</p>
+<ul>
+<li><strong>屋顶</strong>：地图上房子的屋顶，耐久 8。</li>
+<li><strong>焦木</strong>：烧过的树，耐久 4。斧头砍一下碎成 1 块煤炭。</li>
+<li><strong>虚空</strong>：地图外面的黑色，挡路。</li>
+</ul>
+<p>能打碎的地形（树、岩石、洞壁……）碎了以后，下面露出能走的地面：周围街上、草地上是什么，它就是什么，不会是门或楼梯。</p>
+<h3 id="房子的墙"><span class="mw-headline">房子的墙</span></h3>
+<p>地图上的房子（<a href="/wiki/%E5%88%9D%E5%8E%9F%E6%9D%91">初原村</a>的人家、商店、帐篷、雪屋……）是一整块墙格子，上面画着房子的样子。每一格墙都是真的墙，用什么材料造的就是什么墙：灰泥和石头的小屋、神殿是石墙，木屋、杂货铺、茶馆、旅店、长屋、塔楼是木墙，帐篷是帆布墙，草屋是草泥墙，雪屋是雪砖墙。打它会掉耐久，画上会裂开，但墙打不倒：裂到最深就停住，不开洞，进房子只有走门（见<a href="/wiki/%E8%80%90%E4%B9%85%E4%B8%8E%E7%A0%B4%E5%9D%8F#%E6%88%BF%E5%AD%90%E7%9A%84%E5%A2%99">房子的墙</a>）。打的是别人家的房子，就是<a href="/wiki/%E7%8A%AF%E7%BD%AA">破坏</a>。</p>
+<h2 id="用手摸"><span class="mw-headline">用手摸</span></h2>
+<p>空手对脚下的地面按 <kbd>E</kbd>（「摸摸草地」），只是摸一摸：「你的手拂过草地。什么也没有发生。」扬起一点尘土，什么也不改变。草地、花丛、泥土、水、屋里的木地板……都一样，这是定义好的，不会问 AI；因为每走一步都会碰到，提示里不写这一行，按 <kbd>E</kbd> 也什么都不做。</p>
+<p>立在格子里的地形不一样：树、灌木、岩石、墙、树桩。空手对它们按 <kbd>E</kbd>，提示里写「摸摸树」，按下去交给世界判断：接了模型就问 AI（提示带「?」），没有模型就照样摸一摸，扬一点土。自己铺的<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/Interior/TilesetInteriorFloor.png');background-position:-192px -16px;background-size:352px 272px"></span><a href="/wiki/%E5%9C%B0%E6%9D%BF">地板</a></span>、搭的墙不是地形，空手按 <kbd>E</kbd> 规则没写会怎样。</p>
+<ul>
+<li><a href="/wiki/%E4%BA%94%E5%8D%B0%E4%B9%8B%E5%9C%B0">五印之地</a>（大地图）上的地形不算：那里空手按 <kbd>E</kbd> 规则没写会怎样（「与平原互动 ?」）；地点本身按 <kbd>E</kbd> 是进入。</li>
+<li>摸一摸地面不会抢走 <kbd>E</kbd>：不用鼠标时，面前那样东西没有定义 <kbd>E</kbd>，<kbd>E</kbd> 也不会落到脚下的地面上（见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E6%8C%87%E5%90%91%E4%B8%8E%E7%9B%AE%E6%A0%87">指向与目标</a>）。</li>
+</ul>
+<h2 id="会长回去的"><span class="mw-headline">会长回去的</span></h2>
+<ul>
+<li><strong>树桩</strong>：树砍倒后留下的，耐久 6。露天、上面没人站着，两个游戏日后长回一棵树。把树桩也砍掉，就不会再长了。</li>
+</ul>
+<h2 id="水和冰"><span class="mw-headline">水和冰</span></h2>
+<ul>
+<li><strong>浅水、深水</strong>：不能走进去。拿着空容器左键点水能装水。水能导电：雷打到水面，会传给周围 2 格内导电的和湿的东西。水上不会着火。放进水里的东西会被拒绝（「会沉下去的。」），不会丢。</li>
+<li><strong>冰面</strong>：能走。冰元素把浅水冻成的薄冰，150 秒后化回水，站在上面的人被送上岸；地图上原本就有的冰面不会化。火能把任何冰面化成水。</li>
+</ul>
+<h2 id="特别的地面"><span class="mw-headline">特别的地面</span></h2>
+<ul>
+<li><strong>泥潭</strong>：踩进去会被弄湿。</li>
+<li><strong>疗伤温泉</strong>：<a href="/wiki/%E5%88%9D%E5%8E%9F%E6%9D%91">初原村</a>有一处。走进去回复 1 点生命，泡在里面时每半秒再回 1 点，还会去掉燃烧和冰冻（<span class="status"><a href="/wiki/%E7%8A%B6%E6%80%81">泡温泉</a></span>）。</li>
+<li><strong>熔岩</strong>：不能走进去。站在上面或掉进去的东西会被火力 6 的火持续地烧。放进熔岩的东西会被它收下，能烧的就烧掉。游戏里目前没有地图用到熔岩。</li>
+<li><strong>空中</strong>：楼上没铺地板的格子。只有放东西、拿东西时会碰到它：在这里铺地板、在下面一层的墙上接墙（见<a href="/wiki/%E6%A5%BC%E5%B1%82">楼层</a>）。</li>
+</ul>
+<h2 id="大地图上的地形"><span class="mw-headline">大地图上的地形</span></h2>
+<p><a href="/wiki/%E4%BA%94%E5%8D%B0%E4%B9%8B%E5%9C%B0">五印之地</a>是整片大陆的地图，每一格代表一张本地地图。在上面走一格要花 30 游戏分钟，再乘上地形的系数：</p>
+<table>
+<thead>
+<tr>
+<th>地形</th>
+<th>能不能走</th>
+<th>系数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>大道、城郊、桥</td>
+<td>能</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>平原、暮牧原、田野、盐滩</td>
+<td>能</td>
+<td>1</td>
+</tr>
+<tr>
+<td>噤声林、丘陵、雪原、赤岩荒原、尘原、死林、白石高原</td>
+<td>能</td>
+<td>1.5</td>
+</tr>
+<tr>
+<td>沼泽</td>
+<td>能</td>
+<td>2</td>
+</tr>
+<tr>
+<td>海、山脉、河流</td>
+<td>不能</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>桥是大道过河的那一格：画成河，上面横着木板。各地区有哪些地形见<a href="/wiki/%E4%BA%94%E5%8D%B0%E4%B9%8B%E5%9C%B0#%E5%9C%B0%E5%8C%BA">五印之地</a>。</p>
+<p>下雨、雷暴时每一步再慢一半。见<a href="/wiki/%E4%B8%96%E7%95%8C%E5%9C%B0%E5%9B%BE">世界地图</a>。</p>
+<h2 id="高低"><span class="mw-headline">高低</span></h2>
+<p>有些地图有高低差：<a href="/wiki/%E4%BA%91%E9%A1%B6%E5%8F%B0%E5%9C%B0">云顶台地</a>、<a href="/wiki/%E4%BC%A4%E7%9F%B3%E5%B1%B1%E9%BA%93">伤石山麓</a>、<a href="/wiki/%E6%99%A8%E5%85%89%E4%B8%98">晨光丘</a>的山崖，<a href="/wiki/%E8%8D%86%E6%A3%98%E8%B0%B7">荆棘谷</a>的坡台。高低只能从石阶和坡道上下，规则对玩家、居民和怪物都一样，它们找路时也照这个走。</p>
+<ul>
+<li><strong>石阶、坡道</strong>：每一级高半层，上下都照常走。画成凿在岩壁上的台阶。</li>
+<li><strong>岩壁</strong>：画面是从南边斜着往下看的，所以地面往南落下去的地方，能看到一道岩壁，画在下面那块低地上，每高一层占一格（一层的崖一格高，两层的两格高）。岩壁那几格是石头，谁也站不上去，也不能贴着它走，只能站在它脚下。</li>
+<li><strong>往上</strong>：高半层以上就上不去，崖壁爬不上去。</li>
+<li><strong>往下跳</strong>：只有一层高的崖边可以往下跳，而且只能下不能上（像塞尔达的崖台）。从崖顶朝南走，会跳过下面那一格岩壁，落在崖脚；朝东、西、北走，就落在旁边那一格。跳下来不受伤。</li>
+<li><strong>两层以上</strong>：往下也是墙，跳不下去，要找石阶。</li>
+<li>会飞的东西不受高低影响，但岩壁那几格它们也进不去。</li>
+<li>高处挡住视线。</li>
+<li>岩壁、崖边和石阶的颜色随地区：霜牙海岸是带一点绿的青灰石。高处积雪的地方，崖边垂着一圈雪檐；长草的地方，崖边是一圈草边。</li>
+</ul>
+<p>从楼上掉下来另有规则，见<a href="/wiki/%E6%A5%BC%E5%B1%82">楼层</a>。</p>
+<h2 id="提示"><span class="mw-headline">提示</span></h2>
+<ul>
+<li>下雨天的露天地面会把人淋湿；站到有遮盖的地方就干了。</li>
+<li>想过河，在浅水上铺木板就是桥。</li>
+<li>别在枯草地上生火。</li>
+</ul>
+<h2 id="历史"><span class="mw-headline">历史</span></h2>
+<ul>
+<li>2026-09-30：游戏第一版就有草地、枯草、水、冰、树、灌木、岩石、墙、屋顶、洞穴、熔岩、灰烬、焦木、树桩、木桥、农田、泥潭等地形。</li>
+<li>2026-10-02：冰把水冻成会化的薄冰。</li>
+<li>2026-10-04：树、岩石、洞壁、墙有了耐久和材质；树桩两天长回树（W2b、W7）。地形有了高低，坡道、崖壁和摔落（W2d）。加入霜牙海岸的地形（W3）。</li>
+<li>2026-10-07：加入疗伤温泉。</li>
+<li>2026-10-09：空手对地形按 <kbd>E</kbd> 只是摸一摸，不再问 AI。</li>
+<li>2026-10-25：高低改成真的挡路：岩壁那几格站不上去，只能走石阶和坡道上下；一层高的崖边可以往下跳（只能下不能上），两层以上是墙，不再能摔下去。岩壁重画成有层理、裂缝、亮边和碎石的山岩。</li>
+<li>2026-10-25：地图上的房子按画上的材料有了各自的墙：石墙、木墙，以及新的帆布墙、草泥墙、雪砖墙。墙碎了露出的是周围的地面，不再可能是旁边的门。</li>
+<li>2026-10-25：同一天改定：建筑的墙打不倒，只留下裂痕；着火只会烧黑。</li>
+<li>2026-10-27：灌木改成能走过去；新加荆棘篱，白骑士拦路用，打不开、烧不着。</li>
+<li>2026-10-28：树、灌木、岩石、墙、树桩这些立着的地形，空手按 <kbd>E</kbd> 会在提示里写出来，按下去交给世界判断（没有模型就是摸一摸）；草地、花丛这类脚下的地面照旧不提示。</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title">生活</th></tr><tr><td colspan="2"><a href="/wiki/%E9%87%87%E9%9B%86">采集</a> • <a href="/wiki/%E9%87%87%E7%9F%BF">采矿</a> • <a href="/wiki/%E5%9C%B0%E5%BD%A2">地形</a> • <a href="/wiki/%E9%92%93%E9%B1%BC">钓鱼</a> • <a href="/wiki/%E5%8A%A8%E7%89%A9">动物</a> • <a href="/wiki/%E4%BC%90%E6%9C%A8">伐木</a> • <a href="/wiki/%E6%88%BF%E9%97%B4">房间</a> • <a href="/wiki/%E5%B7%A5%E4%BD%9C%E5%8F%B0">工作台</a> • <a href="/wiki/%E5%BB%BA%E9%80%A0">建造</a> • <a href="/wiki/%E9%A2%86%E5%9C%B0%E5%B1%85%E6%B0%91">领地居民</a> • <a href="/wiki/%E9%A2%86%E5%9C%B0%E6%89%A9%E5%BB%BA">领地扩建</a> • <a href="/wiki/%E6%A5%BC%E5%B1%82">楼层</a> • <a href="/wiki/%E8%80%90%E4%B9%85%E4%B8%8E%E7%A0%B4%E5%9D%8F">耐久与破坏</a> • <a href="/wiki/%E5%86%9C%E8%80%95">农耕</a> • <a href="/wiki/%E7%83%B9%E9%A5%AA">烹饪</a> • <a href="/wiki/%E7%9D%A1%E8%A7%89">睡觉</a> • <a href="/wiki/%E8%90%A5%E7%81%AB">营火</a> • <a href="/wiki/%E5%85%83%E7%B4%A0">元素</a> • <a href="/wiki/%E5%88%B6%E4%BD%9C">制作</a> • <a href="/wiki/%E7%8A%B6%E6%80%81">状态</a> • <a href="/wiki/%E4%BD%9C%E7%89%A9">作物</a></td></tr></table>
+</div>
+  <div class="catlinks">分类：<a href="/wiki/%E5%88%86%E7%B1%BB%EF%BC%9A%E7%8E%A9%E6%B3%95">玩法</a></div>
+</main>
+<footer class="footer">
+  <p>本站内容由 OpenWorld 项目组编写，数据表从游戏代码 <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a>（main）生成于 2026-10-30 06:19。</p>
+  <p>项目组成员都能在 GitHub 上编辑：见<a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a>。游戏素材来自 Ninja Adventure（CC0）与项目自绘。</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

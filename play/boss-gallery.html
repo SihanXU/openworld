@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Boss Studio</title>  <script type="module" crossorigin src="./assets/bosses-CIAsf9qd.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/relief-7jXhEFnC.js">
+  <link rel="modulepreload" crossorigin href="./assets/register-DhynRwK1.js">
+  <link rel="modulepreload" crossorigin href="./assets/scene-BrMWBA5x.js">
+  <link rel="modulepreload" crossorigin href="./assets/components-GbYgxGyi.js">
+  <link rel="modulepreload" crossorigin href="./assets/hud-V--xOzCA.js">
+  <link rel="stylesheet" crossorigin href="./assets/bosses-vQeCPKJR.css">
+  <link rel="stylesheet" crossorigin href="./assets/game-tpLG9-jA.css">
+</head>
+  <body>
+    <div id="app"><div id="game"></div><div id="labels"></div><div id="hud"></div><div id="intro" class="hidden"></div></div>
+    <aside id="bossStudio">
+      <div class="studio-kicker">SYMBOLIC WORLD / ORIGINAL ART</div><h1>首领 · 试战台</h1>
+      <p>独立沙盒 · 不读取或写入游戏存档</p>
+      <label>领主<select id="bossSelect"></select></label>
+      <section id="modeControl" class="studio-control"><div id="modeLabel">查看模式</div><div id="modeSelect" class="studio-modes" role="group" aria-labelledby="modeLabel"></div></section>
+      <div class="studio-actions"><button id="resetFight">重新开始</button><button id="enrageBoss">进入第二阶段</button><button id="pauseFight">暂停</button></div>
+      <label id="facingControl" class="hidden">攻击朝向<select id="facingSelect"><option value="auto">跟随战斗</option><option value="down">朝下 · 正面</option><option value="right">朝右 · 侧面</option><option value="up">朝上 · 借用正面</option><option value="left">朝左 · 侧面</option></select></label>
+      <div id="bossInfo"></div><div id="skillButtons"></div>
+      <p class="studio-help">WASD / 方向键移动<br>空格攻击（面向目标）<br>点击技能可单独试招<br>测试角色生命 200，不会影响正式角色</p>
+      <output id="studioStatus">加载资源…</output><a href="./">返回游戏 →</a>
+    </aside>
+    <section id="challengeLobby" class="challenge-overlay hidden" aria-labelledby="challengeTitle"></section>
+    <section id="challengeResult" class="challenge-overlay hidden" aria-labelledby="resultTitle" aria-live="polite"></section>
+  </body>
+</html>

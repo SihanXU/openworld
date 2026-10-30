@@ -1,0 +1,1 @@
+import{n as e}from"./worker-F5GNjKe7.js";function t(t){return new Proxy({},{get(n,r){if(typeof r!=`symbol`)throw new e(`\`${t}.${r}\` is not available in this environment; it needs a Node.js-compatible runtime`)}})}const n=/* @__PURE__ */ t(`fs`),r=/* @__PURE__ */ t(`path`);export{n as fs,r as path};

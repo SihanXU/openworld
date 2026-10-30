@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" sizes="60x60" href="../icons/favicon.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="../icons/icon-192.png">
+    <title>Scale · OpenWorld</title>
+    <link rel="stylesheet" href="../fonts/fonts.css">
+    <style>
+        html, body { margin: 0; height: 100%; background: #0b0d12; overflow: hidden; color: #e6ebf5; font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; }
+        canvas { display: block; width: 100vw; height: 100vh; object-fit: contain; image-rendering: pixelated; touch-action: none; }
+        body.loading::after { content: 'loading…'; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); color: #8f9ab0; font-size: 14px; letter-spacing: 0.1em; }
+    </style>
+</head>
+<body class="loading">
+    <canvas id="c" width="1920" height="1080"></canvas>
+    <script type="module" src="scale.js"></script>
+</body>
+</html>

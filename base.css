@@ -1,0 +1,169 @@
+/* The project page's shared language: sihanxu.me's tokens (system fonts, #333 ink, #2563eb accent, white and
+   #f8f9fa grounds, 12px corners), its labels, arrow links, flip cards and pulse bar; the game's pictures carry the rest. */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    --ink: #333;
+    --ink-strong: #111;
+    --muted: #666;
+    --faint: #999;
+    --line: #e9ecef;
+    --bg: #fff;
+    --bg-alt: #f8f9fa;
+    --accent: #2563eb;
+    --accent-soft: #eef3fe;
+    --radius: 12px;
+    --nav-h: 64px;
+    --mono: SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+    --serif-zh: 'Songti SC', 'STSong', 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', serif;
+    /* Google Material 3: shared state, entrance and exit curves. */
+    --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --motion-ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+    --motion-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+    --motion-duration-short: 150ms;
+    --motion-duration-medium: 250ms;
+    --motion-duration-long: 400ms;
+    --motion-duration-enter: 300ms;
+    --motion-duration-exit: 200ms;
+}
+
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--nav-h) + 16px); }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    line-height: 1.6;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+img { display: block; max-width: 100%; }
+.px { image-rendering: pixelated; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 2rem; width: 100%; }
+
+/* top bar */
+.banner {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);
+    background: rgba(255, 255, 255, 0.88);
+    -webkit-backdrop-filter: saturate(180%) blur(12px); backdrop-filter: saturate(180%) blur(12px);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06); z-index: 1000;
+}
+.banner .container { height: 100%; display: flex; justify-content: space-between; align-items: center; }
+.nav-title { font-size: 1.35rem; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
+.nav-title small { font-size: 0.8rem; font-weight: 500; color: var(--faint); margin-left: 0.6rem; letter-spacing: 0; }
+.nav-links { display: flex; gap: 2rem; }
+.nav-links a { color: var(--muted); font-weight: 500; transition: color var(--motion-duration-short) var(--motion-ease-standard); }
+.nav-links a:hover, .nav-links a.active { color: #000; }
+.nav-links a.cta { color: var(--accent); }
+
+/* small uppercase label */
+.label { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+.kw { color: var(--accent); }
+
+/* links with an arrow */
+.arrow-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.75rem; font-weight: 500; }
+.arrow-links a { color: var(--ink); border-bottom: 1.5px solid #dcdfe3; padding-bottom: 2px; transition: color var(--motion-duration-short) var(--motion-ease-standard), border-color var(--motion-duration-short) var(--motion-ease-standard); }
+.arrow-links a::after { content: " \2197"; color: var(--faint); transition: color var(--motion-duration-short) var(--motion-ease-standard); }
+.arrow-links a:hover { color: var(--accent); border-color: var(--accent); }
+.arrow-links a:hover::after { color: var(--accent); }
+.arrow-links .soon { color: var(--faint); border-bottom: 1.5px dashed #dcdfe3; padding-bottom: 2px; }
+
+/* facts */
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, auto)); gap: 0.75rem 3rem; justify-content: start; }
+.fact dt { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+.fact dd { font-size: 1.05rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* flip card: the front is what the game shows, the back the code behind it */
+.flip-container { position: relative; width: 100%; perspective: 1400px; cursor: pointer; }
+.flip-inner { position: relative; width: 100%; transition: transform 600ms var(--motion-ease-standard); transform-style: preserve-3d; }
+@media (hover: hover) { .flip-container:hover .flip-inner { transform: rotateY(180deg); } }
+.flip-container.is-flipped .flip-inner { transform: rotateY(180deg); }
+.flip-front, .flip-back {
+    width: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden;
+    border-radius: var(--radius); overflow: hidden;
+}
+.flip-front img { width: 100%; height: 100%; object-fit: cover; }
+.flip-back {
+    position: absolute; inset: 0; transform: rotateY(180deg);
+    background: #fff; border: 1px solid var(--line);
+    display: flex; flex-direction: column; justify-content: center; padding: 1.25rem 1.5rem;
+}
+.flip-hint { position: absolute; right: 0.75rem; bottom: 0.6rem; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.9); background: rgba(0,0,0,0.35); padding: 0.1rem 0.55rem; border-radius: 999px; pointer-events: none; }
+.ratio { aspect-ratio: 16 / 10; }
+
+/* code: the rules as the game holds them (NEPA's algorithm colours) */
+.code { font-family: var(--mono); font-size: 0.8rem; line-height: 1.65; color: #333; white-space: pre; overflow-x: auto; }
+.code .c { color: #3a9696; }
+.code .k { color: #c0265b; font-weight: 600; }
+.code .f { color: #0057b7; }
+.code .b { color: #8b5cf6; }
+.code .h { background: #fff4d6; border-radius: 3px; padding: 0 0.15em; }
+.code-cap { display: block; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); margin-bottom: 0.6rem; font-family: inherit; }
+
+/* the waitlist form */
+.wl { max-width: 520px; }
+.wl-row { display: flex; gap: 0.6rem; }
+.wl input[type=email] {
+    flex: 1; min-width: 0; font: inherit; font-size: 1rem; color: var(--ink);
+    padding: 0.7rem 1.1rem; border: 1.5px solid #dcdfe3; border-radius: 999px; background: #fff; outline: none;
+    transition: border-color var(--motion-duration-short) var(--motion-ease-standard), box-shadow var(--motion-duration-short) var(--motion-ease-standard);
+}
+.wl input[type=email]:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.wl button {
+    font: inherit; font-weight: 600; font-size: 1rem; color: #fff; background: var(--accent);
+    border: 0; border-radius: 999px; padding: 0.7rem 1.4rem; cursor: pointer; white-space: nowrap;
+    transition: transform var(--motion-duration-medium) var(--motion-ease-standard), background var(--motion-duration-short) var(--motion-ease-standard);
+}
+.wl button:hover { background: #1d4fd7; transform: translateY(-1px); }
+.wl-roles { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; align-items: center; }
+.wl-roles span.q { font-size: 0.85rem; color: var(--faint); margin-right: 0.25rem; }
+.wl-roles label { font-size: 0.85rem; color: var(--muted); border: 1px solid #dcdfe3; border-radius: 999px; padding: 0.15rem 0.75rem; cursor: pointer; user-select: none; transition: color var(--motion-duration-short) var(--motion-ease-standard), border-color var(--motion-duration-short) var(--motion-ease-standard), background var(--motion-duration-short) var(--motion-ease-standard); }
+.wl-roles input { display: none; }
+.wl-roles input:checked + label { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.wl-note { font-size: 0.8rem; color: var(--faint); margin-top: 0.6rem; }
+.wl-done { display: none; font-weight: 500; color: var(--ink); padding: 0.7rem 0; }
+.wl.sent .wl-row, .wl.sent .wl-roles { display: none; }
+.wl.sent .wl-done { display: block; }
+
+/* pulse bar */
+.scroll-bar {
+    position: absolute; bottom: 5vh; left: 50%; transform: translateX(-50%);
+    width: max(5vw, 60px); height: max(1vh, 8px);
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.12); border-radius: 50px; cursor: pointer;
+}
+.scroll-bar::after {
+    content: ""; width: max(3vw, 40px); height: max(0.5vh, 3px);
+    background: rgba(0, 0, 0, 0.7); border-radius: 50px; animation: pulse 1.8s var(--motion-ease-standard) infinite;
+}
+.scroll-bar.light { background: rgba(255, 255, 255, 0.18); }
+.scroll-bar.light::after { background: rgba(255, 255, 255, 0.85); }
+@keyframes pulse { 0%, 100% { opacity: 1; transform: translateY(0); } 50% { opacity: 0.5; transform: translateY(max(0.8vh, 8px)); } }
+
+/* footer */
+.footer { padding: 2rem 0 2.5rem; border-top: 1px solid var(--line); }
+.footer .container { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; color: var(--muted); font-size: 0.9rem; }
+.footer a { color: var(--muted); }
+.footer a:hover { color: var(--accent); }
+
+@media (max-width: 768px) {
+    .container { padding: 0 1rem; }
+    .nav-links { gap: 1.1rem; }
+    .nav-links .hide-sm { display: none; }
+    .nav-title { font-size: 1.15rem; }
+    .nav-title small { display: none; }
+    .facts { grid-template-columns: repeat(3, minmax(0, auto)); gap: 0.5rem 1.5rem; }
+    .wl-row { flex-direction: column; }
+    .wl button { width: 100%; }
+}
+
+/* placeholders: where the words will go */
+.ph { display: grid; gap: 0.6em; margin-bottom: 1rem; width: 100%; }
+.ph i { display: block; height: 0.62em; border-radius: 4px; background: #e3e7ec; }
+.ph i:last-child { width: 60%; }
+.ph i:only-child { width: 45%; }
+.ph-h { color: #b9c0c9; }
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+}

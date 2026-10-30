@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN" data-base="/wiki/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>采矿 - OpenWorld 中文维基</title>
+<meta name="description" content="用镐凿开岩石、巨石、洞壁和矿脉，得到石块、铁矿石、煤炭和金矿石；矿脉凿完原地留下挖空的矿面，一个游戏日后长回。">
+<link rel="alternate" hreflang="en" href="/wiki/en/Mining">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>中文维基</small></span></a>
+  <nav class="portlet"><h3>导航</h3><ul><li><a href="/wiki/">首页</a></li><li><a href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">新手指南</a></li><li><a href="/wiki/%E4%B8%BB%E7%BA%BF%E6%B5%81%E7%A8%8B">主线流程</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%9C%80%E8%BF%91%E6%9B%B4%E6%94%B9">最近更改</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E9%9A%8F%E6%9C%BA%E9%A1%B5%E9%9D%A2">随机页面</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%BE%85%E5%AE%8C%E5%96%84">待完善</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%89%80%E6%9C%89%E9%A1%B5%E9%9D%A2">所有页面</a></li></ul></nav><nav class="portlet"><h3>参与编辑</h3><ul><li><a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a></li><li><a href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C">格式手册</a></li><li><a href="/wiki/%E9%A3%8E%E6%A0%BC%E6%8C%87%E5%8D%97">风格指南</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%AE%8C%E5%A4%87%E6%80%A7">完备性</a></li></ul></nav><nav class="portlet"><h3>企划</h3><ul><li><a href="/wiki/%E5%85%B3%E4%BA%8E%E6%9C%AC%E7%BB%B4%E5%9F%BA">关于本维基</a></li><li><a href="/wiki/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1">设计支柱</a></li><li><a href="/wiki/%E8%B7%AF%E7%BA%BF%E5%9B%BE">路线图</a></li><li><a href="/wiki/%E7%89%88%E6%9C%AC%E5%8E%86%E5%8F%B2">版本历史</a></li><li><a href="/wiki/%E5%B7%B2%E7%9F%A5%E9%97%AE%E9%A2%98">已知问题</a></li></ul></nav>
+  <nav class="portlet"><h3>游戏</h3><ul><li><a href="/play/">开始游戏</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub 仓库</a></li><li><a href="/wiki/en/Mining" hreflang="en">English wiki</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="菜单" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/%E9%87%87%E7%9F%BF">页面</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22%E9%87%87%E7%9F%BF%22" title="这一页的讨论（GitHub 议题）">讨论</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5B%E7%BB%B4%E5%9F%BA%5D%20%E9%87%87%E7%9F%BF&body=%E9%A1%B5%E9%9D%A2%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2F%25E9%2587%2587%25E7%259F%25BF%0A%0A" title="就这一页开一个新的讨论">＋</a></div>
+  <form class="search" action="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%90%9C%E7%B4%A2" method="get" role="search"><input name="q" id="q" type="search" placeholder="搜索 OpenWorld 维基" autocomplete="off" aria-label="搜索"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/%E9%87%87%E7%9F%BF">阅读</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/pages/%E7%94%9F%E6%B4%BB/%E9%87%87%E7%9F%BF.md" title="在 GitHub 上编辑这一页">编辑</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/pages/%E7%94%9F%E6%B4%BB/%E9%87%87%E7%9F%BF.md">查看历史</a><a class="tab lang" href="/wiki/en/Mining" hreflang="en" lang="en" title="English edition">English</a><button class="tab theme" id="theme" title="切换明暗">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">采矿</h1><div class="subtitle">来自OpenWorld 中文维基 · 玩法</div>
+  
+  <div class="body"><p>采矿是用镐（<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Tool/Pickaxe.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E9%95%90">镐</a></span>）凿开石头一类的东西。岩石和巨石给 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Items/Resource/Rock.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E7%9F%B3%E5%9D%97">石块</a></span>，矿脉给 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetNature.png');background-position:-96px -224px;background-size:384px 336px"></span><a href="/wiki/%E9%93%81%E7%9F%BF%E7%9F%B3">铁矿石</a></span>、<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetNature.png');background-position:-112px -192px;background-size:384px 336px"></span><a href="/wiki/%E7%85%A4%E7%82%AD">煤炭</a></span> 和 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetNature.png');background-position:-64px -224px;background-size:384px 336px"></span><a href="/wiki/%E9%87%91%E7%9F%BF%E7%9F%B3">金矿石</a></span>。第一章就能去的矿区是<a href="/wiki/%E5%88%9D%E5%8E%9F%E6%9D%91">初原村</a>北边<a href="/wiki/%E6%99%A8%E5%85%89%E4%B8%98">晨光丘</a>西坡的<a href="/wiki/%E6%99%A8%E5%85%89%E4%B8%98%E7%9F%BF%E6%B4%9E">晨光丘矿洞</a>（铁和煤，入口有一把石镐）；之后还有<a href="/wiki/%E7%83%AC%E8%84%89%E6%97%A7%E7%9F%BF">烬脉旧矿</a>和<a href="/wiki/%E8%AA%93%E5%AE%88%E4%B9%8B%E5%9C%B0">誓守之地</a>的<a href="/wiki/%E8%AA%93%E7%9F%B3%E9%87%87%E7%9F%B3%E5%9C%BA">誓石采石场</a>。地上本来就会长出石块（见<a href="/wiki/%E9%87%87%E9%9B%86">采集</a>），采矿是石块更多、更快的来源，也是铁矿石唯一的来源之一。</p>
+<p><strong>矿脉会长回来</strong>：凿开一处矿脉，掉出 2 块矿石，原地留下一块<a href="/wiki/%E6%8C%96%E7%A9%BA%E7%9A%84%E9%93%81%E7%9F%BF%E8%84%89">挖空的矿面</a>——基岩，什么工具都敲不动——一个游戏日（24 游戏小时，约 24 分钟）之后它变回矿脉，位置不变。不在那张地图上时计时照走。巨石和岩石凿完就没了。</p>
+<nav class="toc"><div class="toc-title">目录</div><ol><li class="toc-l2"><a href="#%E6%80%8E%E4%B9%88%E5%87%BF"><span class="tocnum">1</span> 怎么凿</a></li><li class="toc-l2"><a href="#%E8%83%BD%E5%87%BF%E7%9A%84%E4%B8%9C%E8%A5%BF"><span class="tocnum">2</span> 能凿的东西</a></li><li class="toc-l2"><a href="#%E7%83%AC%E8%84%89%E6%97%A7%E7%9F%BF"><span class="tocnum">3</span> 烬脉旧矿</a></li><li class="toc-l2"><a href="#%E7%9F%BF%E7%9F%B3%E6%8B%BF%E6%9D%A5%E5%81%9A%E4%BB%80%E4%B9%88"><span class="tocnum">4</span> 矿石拿来做什么</a></li><li class="toc-l2"><a href="#%E6%8F%90%E7%A4%BA"><span class="tocnum">5</span> 提示</a></li><li class="toc-l2"><a href="#%E7%9B%B8%E5%85%B3%E6%8A%80%E8%83%BD"><span class="tocnum">6</span> 相关技能</a></li><li class="toc-l2"><a href="#%E5%8E%86%E5%8F%B2"><span class="tocnum">7</span> 历史</a></li></ol></nav><h2 id="怎么凿"><span class="mw-headline">怎么凿</span></h2>
+<p>拿着镐，鼠标指向岩石，按左键。头顶提示条上写着「开采某某」，岩石那一格画着框。</p>
+<ul>
+<li>每一下的伤害是自己的攻击加上镐的威力。镐对石头和矿石的效率都是 1。</li>
+<li>刚开始的玩家攻击 2，<a href="/wiki/%E9%95%90">石镐</a>威力 4，一下 6 点。</li>
+<li>耐久打到 0，它就碎了，按「组成 × 一半」掉出材料（见<a href="/wiki/%E8%80%90%E4%B9%85%E4%B8%8E%E7%A0%B4%E5%9D%8F">耐久与破坏</a>）。掉出来的东西会弹出来，走近就飞进背包。</li>
+</ul>
+<p><strong>拳头凿不动石头。</strong> 身体的材质比石头软，打上去只显示「太硬了。」，没有伤害。斧头能凿，但效率只有 0.25，石斧每下 2 点。</p>
+<h2 id="能凿的东西"><span class="mw-headline">能凿的东西</span></h2>
+<table>
+<thead>
+<tr>
+<th>东西</th>
+<th>在哪</th>
+<th>耐久</th>
+<th>石镐几下</th>
+<th>碎了掉什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>岩石</td>
+<td>各地图，地图边缘常有</td>
+<td>10</td>
+<td>2</td>
+<td>1 块石块</td>
+</tr>
+<tr>
+<td>巨石</td>
+<td><a href="/wiki/%E6%99%9A%E7%A5%B7%E6%B8%A1">晚祷渡</a>北坡等处</td>
+<td>12</td>
+<td>2</td>
+<td>4 块石块</td>
+</tr>
+<tr>
+<td>洞壁</td>
+<td>洞穴地图的墙</td>
+<td>16</td>
+<td>3</td>
+<td>1 块石块</td>
+</tr>
+<tr>
+<td>石墙</td>
+<td>地图上的石砌墙</td>
+<td>24</td>
+<td>4</td>
+<td>2 块石块</td>
+</tr>
+<tr>
+<td>铁矿脉</td>
+<td><a href="/wiki/%E7%83%AC%E8%84%89%E6%97%A7%E7%9F%BF">烬脉旧矿</a></td>
+<td>12</td>
+<td>2</td>
+<td>2 块铁矿石</td>
+</tr>
+<tr>
+<td>煤层</td>
+<td><a href="/wiki/%E7%83%AC%E8%84%89%E6%97%A7%E7%9F%BF">烬脉旧矿</a></td>
+<td>12</td>
+<td>2</td>
+<td>2 块煤炭</td>
+</tr>
+<tr>
+<td><a href="/wiki/%E9%87%91%E7%9F%BF%E8%84%89">金矿脉</a></td>
+<td><a href="/wiki/%E7%83%AC%E8%84%89%E6%97%A7%E7%9F%BF">烬脉旧矿</a>最深处</td>
+<td>12</td>
+<td>2</td>
+<td>2 块金矿石</td>
+</tr>
+</tbody></table>
+<p>掉落的数量是它的组成乘以回收率 0.5：巨石由 8 块石块组成，碎了掉 4 块。</p>
+<h2 id="烬脉旧矿"><span class="mw-headline">烬脉旧矿</span></h2>
+<p><a href="/wiki/%E7%83%AC%E8%84%89%E6%97%A7%E7%9F%BF">烬脉旧矿</a>在<a href="/wiki/%E4%BD%99%E7%83%AC%E9%95%87">余烬镇</a>北边，是一张黑暗的洞穴地图。</p>
+<ul>
+<li>主坑道两侧有四处煤层、四处铁矿脉，最深处的铁矿脉旁守着 <span class="ent"><span class="spr inline" style="width:20px;height:20px;background-image:url('/assets/na/Actor/Boss/DemonCyclop/Idle.png');background-position:-0px -0px;background-size:100px 20px"></span><a href="/wiki/%E7%8B%AC%E7%9C%BC%E5%B7%A8%E4%BA%BA">独眼巨人</a></span>。最深处的矿室里还有两处<a href="/wiki/%E9%87%91%E7%9F%BF%E8%84%89">金矿脉</a>，就在独眼巨人守着的铁矿脉下面；整个世界只有这里有金矿。</li>
+<li>矿坑入口地上放着一把「旧镐」（铁镐），没有镐的话可以先拿它用。</li>
+<li>矿脉会长回来：铁矿脉和煤层各自最多 4 处，每 3 游戏小时（现实 3 分钟）在空着的洞穴地面上再出现一处；金矿脉最多 2 处，每 6 游戏小时再出现一处。只有人在矿坑里时才会长。</li>
+<li>矿坑里有 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Actor/Monster/BlueBat/SpriteSheet.png');background-position:-0px -0px;background-size:64px 64px"></span><a href="/wiki/%E8%9D%99%E8%9D%A0">蝙蝠</a></span>、<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Actor/Monster/SpiderRed/SpriteSheet.png');background-position:-0px -0px;background-size:64px 64px"></span><a href="/wiki/%E6%B4%9E%E7%A9%B4%E8%9C%98%E8%9B%9B">洞穴蜘蛛</a></span> 和 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Actor/Character/Skeleton/SpriteSheet.png');background-position:-0px -0px;background-size:64px 112px"></span><a href="/wiki/%E9%AA%B7%E9%AB%85">骷髅</a></span>，蜘蛛和蝙蝠也会再来。</li>
+</ul>
+<p>其他铁矿石来源：独眼巨人身上带着 2 块，打倒它就掉出来；每位持印者倒下时掉 4 块（见<a href="/wiki/%E9%A6%96%E9%A2%86">首领</a>）。</p>
+<h2 id="矿石拿来做什么"><span class="mw-headline">矿石拿来做什么</span></h2>
+<ul>
+<li><strong>铁矿石</strong>：<a href="/wiki/%E9%A2%86%E5%9C%B0%E6%89%A9%E5%BB%BA" title="领地扩建">扩建誓守之地 II</a> 要 5 块；<a href="/wiki/%E4%BD%99%E7%83%AC%E9%95%87">余烬镇</a>的铁匠<a href="/wiki/%E5%8A%A0%E9%87%8C%E5%85%8B">加里克</a>要 5 块铁矿石和 3 块煤炭，替你铸<a href="/wiki/%E5%B1%A0%E9%BE%99%E5%89%91">屠龙剑</a>（见<a href="/wiki/%E4%BD%99%E7%83%AC%E9%95%87%E4%B8%8E%E9%AD%94%E9%BE%99">余烬镇与魔龙</a>）。</li>
+<li><strong>煤炭</strong>：只有加里克铸屠龙剑时要用（3 块）。</li>
+<li><strong><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetNature.png');background-position:-64px -224px;background-size:384px 336px"></span><a href="/wiki/%E9%87%91%E7%9F%BF%E7%9F%B3">金矿石</a></span></strong>：<a href="/wiki/%E9%A2%86%E5%9C%B0%E6%89%A9%E5%BB%BA" title="领地扩建">扩建誓守之地 III</a> 要 3 块。两处金矿脉凿完得 4 块，够用。</li>
+<li><strong>熔炼</strong>：拿着铁矿石或金矿石右键点余烬镇点着的<a href="/wiki/%E7%86%94%E7%82%89">熔炉</a>，一块矿石熔成一块 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/Items/Ingot.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E9%93%81%E9%94%AD">铁锭</a></span> 或 <span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/na/Backgrounds/Tilesets/TilesetNature.png');background-position:-64px -224px;background-size:384px 336px"></span><a href="/wiki/%E9%87%91%E9%94%AD">金锭</a></span>（见<a href="/wiki/%E7%86%94%E7%82%89#%E7%86%94%E7%82%BC">熔炼</a>）。锭在<a href="/wiki/%E9%94%BB%E9%80%A0">铁砧</a>上打成武器、护甲、工具和首饰，也能卖给商人：铁锭值 15、金锭值 75，比矿石（6、20）值钱。任务和加里克要的都是矿石，先留够再炼。</li>
+</ul>
+<p>锭怎么打成东西见<a href="/wiki/%E9%94%BB%E9%80%A0">锻造</a>；<a href="/wiki/%E6%8A%80%E8%83%BD#%E9%94%BB%E9%80%A0">锻造</a>分支的技能让炼得更多、打得更好。</p>
+<h2 id="提示"><span class="mw-headline">提示</span></h2>
+<ul>
+<li>想走出地图边缘到<a href="/wiki/%E4%BA%94%E5%8D%B0%E4%B9%8B%E5%9C%B0">五印之地</a>上，常常要先凿开边缘的岩石。</li>
+<li>石镐两下一块岩石，和石斧砍树一样快；但凿洞壁要三下。</li>
+<li>空手对着岩石只会「太硬了」，先做一把石镐：2 块石块、2 根树枝、1 把干草（见<a href="/wiki/%E5%88%B6%E4%BD%9C">制作</a>）。</li>
+</ul>
+<h2 id="相关技能"><span class="mw-headline">相关技能</span></h2>
+<p><span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/prospector.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%8A%80%E8%83%BD#%E6%8A%80%E8%83%BD-%E6%8E%A2%E7%9F%BF%E8%80%85">探矿者</a></span>、<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/deep-vein.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%8A%80%E8%83%BD#%E6%8A%80%E8%83%BD-%E7%9F%BF%E8%84%89%E4%B8%93%E5%AE%B6">矿脉专家</a></span> 让矿脉多掉矿石，<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/heavy-pick.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%8A%80%E8%83%BD#%E6%8A%80%E8%83%BD-%E9%87%8D%E9%95%90">重镐</a></span> 让镐更有力，<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/stonecutter.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%8A%80%E8%83%BD#%E6%8A%80%E8%83%BD-%E7%A2%8E%E7%9F%B3%E5%B7%A5">碎石工</a></span> 让石头多掉，<span class="ent"><span class="spr inline" style="width:16px;height:16px;background-image:url('/assets/lsw/skills/gem-finder.png');background-position:-0px -0px;background-size:16px 16px"></span><a href="/wiki/%E6%8A%80%E8%83%BD#%E6%8A%80%E8%83%BD-%E5%AF%BB%E5%AE%9D%E8%80%85">寻宝者</a></span> 偶尔挖出宝石（见<a href="/wiki/%E6%8A%80%E8%83%BD#%E9%87%87%E9%9B%86">采集技能</a>）。挖到的矿石可以拿去<a href="/wiki/%E9%94%BB%E9%80%A0">锻造</a>。</p>
+<h2 id="历史"><span class="mw-headline">历史</span></h2>
+<ul>
+<li>2026-10-03：<a href="/wiki/%E7%83%AC%E8%84%89%E6%97%A7%E7%9F%BF">烬脉旧矿</a>随主线地图加入，有铁矿脉、煤层和独眼巨人。</li>
+<li>2026-10-04：岩石、矿脉、洞壁有了耐久和材质；去掉了镐可以无限凿出石头的旧规则，凿碎后按组成返还一半（W2b）。矿脉改用「出现」规则慢慢长回来（W7）。</li>
+<li>2026-10-08：旧矿坑最深处加入两处金矿脉，金矿石能挖到了。</li>
+<li>2026-10-09：矿石能在点着的熔炉里炼成铁锭、金锭。</li>
+<li>2026-10-21：操作定为四个输入：拿着物件对东西用改成右键（左键是手上东西本身的用法：工具、武器挥，别的东西对自己用），拿起散落的东西改成 <kbd>E</kbd>（见<a href="/wiki/%E6%93%8D%E4%BD%9C">操作</a>）。</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title">生活</th></tr><tr><td colspan="2"><a href="/wiki/%E9%87%87%E9%9B%86">采集</a> • <a href="/wiki/%E9%87%87%E7%9F%BF">采矿</a> • <a href="/wiki/%E5%9C%B0%E5%BD%A2">地形</a> • <a href="/wiki/%E9%92%93%E9%B1%BC">钓鱼</a> • <a href="/wiki/%E5%8A%A8%E7%89%A9">动物</a> • <a href="/wiki/%E4%BC%90%E6%9C%A8">伐木</a> • <a href="/wiki/%E6%88%BF%E9%97%B4">房间</a> • <a href="/wiki/%E5%B7%A5%E4%BD%9C%E5%8F%B0">工作台</a> • <a href="/wiki/%E5%BB%BA%E9%80%A0">建造</a> • <a href="/wiki/%E9%A2%86%E5%9C%B0%E5%B1%85%E6%B0%91">领地居民</a> • <a href="/wiki/%E9%A2%86%E5%9C%B0%E6%89%A9%E5%BB%BA">领地扩建</a> • <a href="/wiki/%E6%A5%BC%E5%B1%82">楼层</a> • <a href="/wiki/%E8%80%90%E4%B9%85%E4%B8%8E%E7%A0%B4%E5%9D%8F">耐久与破坏</a> • <a href="/wiki/%E5%86%9C%E8%80%95">农耕</a> • <a href="/wiki/%E7%83%B9%E9%A5%AA">烹饪</a> • <a href="/wiki/%E7%9D%A1%E8%A7%89">睡觉</a> • <a href="/wiki/%E8%90%A5%E7%81%AB">营火</a> • <a href="/wiki/%E5%85%83%E7%B4%A0">元素</a> • <a href="/wiki/%E5%88%B6%E4%BD%9C">制作</a> • <a href="/wiki/%E7%8A%B6%E6%80%81">状态</a> • <a href="/wiki/%E4%BD%9C%E7%89%A9">作物</a></td></tr></table>
+</div>
+  <div class="catlinks">分类：<a href="/wiki/%E5%88%86%E7%B1%BB%EF%BC%9A%E7%8E%A9%E6%B3%95">玩法</a></div>
+</main>
+<footer class="footer">
+  <p>本站内容由 OpenWorld 项目组编写，数据表从游戏代码 <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a>（main）生成于 2026-10-30 06:19。</p>
+  <p>项目组成员都能在 GitHub 上编辑：见<a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a>。游戏素材来自 Ninja Adventure（CC0）与项目自绘。</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

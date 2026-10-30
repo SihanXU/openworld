@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en" data-base="/wiki/en/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Mod Console - OpenWorld Wiki</title>
+<meta name="description" content="The Mod Console, found only in the development build: it lists the undefined events the world has met, lets you write a patch by hand that goes through the same checks as the AI's, and has debugging tools for giving items, teleporting, setting the time and more.">
+<link rel="alternate" hreflang="zh" href="/wiki/%E6%A8%A1%E7%BB%84%E6%8E%A7%E5%88%B6%E5%8F%B0">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/en/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>Wiki</small></span></a>
+  <nav class="portlet"><h3>Navigation</h3><ul><li><a href="/wiki/en/">Main page</a></li><li><a href="/wiki/en/Beginner's_Guide">Beginner's Guide</a></li><li><a href="/wiki/en/Main_Quest_Walkthrough">Main Quest Walkthrough</a></li><li><a href="/wiki/en/Special/Recent_changes">Recent changes</a></li><li><a href="/wiki/en/Special/Random_page">Random page</a></li><li><a href="/wiki/en/Special/Stubs">Stubs</a></li><li><a href="/wiki/en/Special/All_pages">All pages</a></li></ul></nav><nav class="portlet"><h3>Contributing</h3><ul><li><a href="/wiki/en/Editing_Basics">Editing Basics</a></li><li><a href="/wiki/en/Format_Manual">Format Manual</a></li><li><a href="/wiki/en/Style_Guide">Style Guide</a></li><li><a href="/wiki/en/Special/Completeness">Completeness</a></li></ul></nav><nav class="portlet"><h3>Design</h3><ul><li><a href="/wiki/en/About_This_Wiki">About This Wiki</a></li><li><a href="/wiki/en/Design_Pillars">Design Pillars</a></li><li><a href="/wiki/en/Roadmap">Roadmap</a></li><li><a href="/wiki/en/Version_History">Version History</a></li><li><a href="/wiki/en/Known_Issues">Known Issues</a></li></ul></nav>
+  <nav class="portlet"><h3>Game</h3><ul><li><a href="/play/">Play the game</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub repository</a></li><li><a href="/wiki/%E6%A8%A1%E7%BB%84%E6%8E%A7%E5%88%B6%E5%8F%B0" hreflang="zh">中文维基</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/en/Mod_Console">Page</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22Mod%20Console%22" title="Discussion of this page (GitHub issues)">Talk</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5Bwiki%5D%20Mod%20Console&body=Page%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2Fen%2FMod_Console%0A%0A" title="Start a discussion of this page">＋</a></div>
+  <form class="search" action="/wiki/en/Special/Search" method="get" role="search"><input name="q" id="q" type="search" placeholder="Search the OpenWorld Wiki" autocomplete="off" aria-label="Search"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/en/Mod_Console">Read</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/en/pages/%E5%9F%BA%E6%9C%AC/%E6%A8%A1%E7%BB%84%E6%8E%A7%E5%88%B6%E5%8F%B0.md" title="Edit this page on GitHub">Edit</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/en/pages/%E5%9F%BA%E6%9C%AC/%E6%A8%A1%E7%BB%84%E6%8E%A7%E5%88%B6%E5%8F%B0.md">History</a><a class="tab lang" href="/wiki/%E6%A8%A1%E7%BB%84%E6%8E%A7%E5%88%B6%E5%8F%B0" hreflang="zh" lang="zh" title="中文版">中文</a><button class="tab theme" id="theme" title="Light or dark">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">Mod Console</h1><div class="subtitle">From the OpenWorld Wiki · Gameplay</div>
+  
+  <div class="body"><div class="banner outdated">The <a href="/wiki/%E6%A8%A1%E7%BB%84%E6%8E%A7%E5%88%B6%E5%8F%B0" lang="zh">Chinese page</a> has changed since this translation was made: some of this may be out of date.</div><div class="banner dev"><b>Developer feature</b>: only in development builds, not in the released game.</div>
+<p>The <strong>Mod Console</strong> is a window for developers, present only in the development build and not in the released game. It lists every <a href="/wiki/en/The_World_Learns">undefined event</a> the world has met, shows the request the AI would receive, and lets a person write a patch by hand. A hand-written patch goes through the same checking, applying and saving as one written by the AI, so you can use it to teach the world new things even without an AI connected.</p>
+<nav class="toc"><div class="toc-title">Contents</div><ol><li class="toc-l2"><a href="#Opening_it"><span class="tocnum">1</span> Opening it</a></li><li class="toc-l2"><a href="#The_four_tabs"><span class="tocnum">2</span> The four tabs</a></li><li class="toc-l3"><a href="#Undefined"><span class="tocnum">2.1</span> Undefined</a></li><li class="toc-l3"><a href="#Rule_library"><span class="tocnum">2.2</span> Rule library</a></li><li class="toc-l3"><a href="#ModSpec"><span class="tocnum">2.3</span> ModSpec</a></li><li class="toc-l3"><a href="#World"><span class="tocnum">2.4</span> World</a></li><li class="toc-l2"><a href="#Other_development_features"><span class="tocnum">3</span> Other development features</a></li><li class="toc-l2"><a href="#History"><span class="tocnum">4</span> History</a></li></ol></nav><h2 id="Opening_it"><span class="mw-headline">Opening it</span></h2>
+<ul>
+<li>Press <kbd>`</kbd> (the key to the left of 1) to open or close it.</li>
+<li>Or click “Mod Console (dev)” in the <a href="/wiki/en/Options">Options</a>.</li>
+<li>Click ✕ or press <kbd>Esc</kbd> to close it. Time pauses while it is open.</li>
+</ul>
+<p>The right side of the top bar shows the AI service&#39;s status: “● Modder: model name” when connected, “○ No modder: patch by hand” when not.</p>
+<h2 id="The_four_tabs"><span class="mw-headline">The four tabs</span></h2>
+<h3 id="Undefined"><span class="mw-headline">Undefined</span></h3>
+<ul>
+<li>On the left, the undefined events the world has met, newest first, each preceded by a status: pending (waiting), patched (learned), fallback (handled by default), rejected (the patch was refused).</li>
+<li>Choose one and the right side shows what event it is, the tick it happened on, the map, the hour, and the full request sent to the AI.</li>
+<li>Below is a text box for writing a patch:<ul>
+<li><strong>Fill template</strong>: fills in a starting point for a patch: the host is the kind of thing that hosted this event (its exact type), the event kind, the hole (<code>hole</code>) and the place (<code>at</code>) filled in from this event, plus one visible result, a few notes to fill in, and this event as a test;</li>
+<li><strong>Copy as LLM prompt</strong>: copies the request, together with the spec, as a prompt you can hand straight to a large language model;</li>
+<li><strong>Nothing happens</strong>: appears only while the event is still waiting, and applies the default directly;</li>
+<li><strong>Validate &amp; apply</strong>: checks the patch, and if it passes it takes effect at once. The result shows “✓ Validated and applied”, or lists the errors and warnings.</li>
+</ul>
+</li>
+</ul>
+<p>A hand-written patch, like one written by the AI, belongs to a single kind of thing and fills a single hole (see <a href="/wiki/en/The_World_Learns#One_rule_covers_one_gap_in_one_kind_of_thing">one rule for one hole of one kind of thing</a>):</p>
+<ul>
+<li>The host must be exactly <code>{&quot;type&quot;: 种类}</code> (a kind&#39;s type id); it cannot be a tag or a whole class; cases go in the rule&#39;s tree.</li>
+<li><code>on</code> must be an exact event kind, not a broad class.</li>
+<li><code>hole</code> is required (which hole it fills); <code>at</code> is where it attaches in this kind&#39;s tree, on which open branch (empty for the first answer).</li>
+<li>No <code>inherit</code>; every <code>if</code> needs an <code>else</code>; a case it does not answer is written <code>{&quot;undefined&quot;: true}</code>, left open to be asked later. At least one place must give a result.</li>
+<li>When submitted against the chosen event, the host, event kind, <code>hole</code> and <code>at</code> are filled in by the game from that event, and branches written as <code>inherit</code> or missing an <code>else</code> are turned into open leaves, so by hand you need only write the tree.</li>
+</ul>
+<h3 id="Rule_library"><span class="mw-headline">Rule library</span></h3>
+<p>Shows the rule library&#39;s version number, the number of base rules, the number of patches and the number of rules for each event kind, and below lists the patches one by one: number, event kind, author and time, each with a remove button to delete it.</p>
+<h3 id="ModSpec"><span class="mw-headline">ModSpec</span></h3>
+<p>The full specification the AI follows when it writes a patch: which events, effects, statuses, terrains and item kinds exist, and the guidelines for writing rules. Copy JSON copies it.</p>
+<h3 id="World"><span class="mw-headline">World</span></h3>
+<p>Debugging tools, plus the world&#39;s statistics and performance figures (the numbers of maps, people, creatures and items, time per tick, number of entities, maps loaded, frame rate):</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Give</td>
+<td>Gives yourself one thing by its item kind&#39;s id (such as <code>item/material/iron_ore</code>); the input box suggests the ids available</td>
+</tr>
+<tr>
+<td>Teleport</td>
+<td>Teleports to a coordinate on a map (the current map if left blank)</td>
+</tr>
+<tr>
+<td>Emberfall, by the lit forge</td>
+<td>Teleports straight to the lit forge in <a href="/wiki/en/Emberfall">Emberfall</a></td>
+</tr>
+<tr>
+<td>Set hour</td>
+<td>Sets the clock to a given hour</td>
+</tr>
+<tr>
+<td>Summon the White Knight</td>
+<td>Summons <a href="/wiki/en/The_White_Knight_Alberic">The White Knight Alberic</a> on <a href="/wiki/en/The_Sunrise_Road" title="The Sunrise Road">The East Road</a>, for testing the boss fight again and again</td>
+</tr>
+</tbody></table>
+<h2 id="Other_development_features"><span class="mw-headline">Other development features</span></h2>
+<ul>
+<li><strong>Invulnerability</strong>: in the development build, type <code>lsw.god()</code> in the browser console to toggle invulnerability, or add <code>?god=1</code> to the address; when it is on, the message “Invulnerable (dev).” appears.</li>
+<li><strong>Choosing the AI service</strong>: add <code>?modder=地址</code> (an address) to the URL to connect to another AI service, or <code>?modder=off</code> to connect to none. The development build connects to the service on this machine by default.</li>
+<li><strong>Prefetch</strong>: with <code>?prefetch=1</code> added to the address, resting the mouse on an act with a “?” for a moment makes the game ask the AI ahead of time. It is off by default, because it spends model calls on acts the player never actually performs.</li>
+<li><strong>Boss · test stage</strong>: remove the <code>?challenge=1</code> parameter from the page where the “Boss Challenge” lives (<code>boss-gallery.html</code>), and you have the bosses&#39; test stage for development. See <a href="/wiki/en/Boss_Challenge">Boss Challenge</a>.</li>
+<li><strong>Pruning the shared rule library</strong>: on the command line, <code>npm run modder -- library prune</code> lists and withdraws the patches that no longer pass the checks, such as patches written for a whole class before 2026-10-09, or patches whose hole the game&#39;s rules have since changed; the AI service also prunes this way every time it starts. <code>npm run modder -- library</code> lists every patch, and <code>npm run modder -- library remove &lt;编号&gt;</code> deletes one.</li>
+</ul>
+<h2 id="History"><span class="mw-headline">History</span></h2>
+<ul>
+<li>2026-10-01: Added the Mod Console, for viewing undefined events and writing patches by hand.</li>
+<li>2026-10-02: Rebuilt on the event model: it shows requests, the rule library and the ModSpec.</li>
+<li>2026-10-04: The World tab gained giving items, teleporting and setting the time.</li>
+<li>2026-10-06: The development build gained an invulnerability toggle.</li>
+<li>2026-10-07: Added summoning the White Knight; prefetch became off by default.</li>
+<li>2026-10-09: A patch belongs to a single kind of thing and fills a single hole: the template fills in the host, event kind, <code>hole</code> and <code>at</code> from the chosen event; validation results no longer list older patches that are covered over; the command line can prune old patches written for whole classes.</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title">Basics</th></tr><tr><td colspan="2"><a href="/wiki/en/Achievements">Achievements</a> • <a href="/wiki/en/Beginner's_Guide">Beginner's Guide</a> • <a href="/wiki/en/Co-op">Co-op</a> • <a href="/wiki/en/Controls">Controls</a> • <a href="/wiki/en/Crime">Crime</a> • <a href="/wiki/en/Day_and_Night">Day and Night</a> • <a href="/wiki/en/Death_of_Characters">Death of Characters</a> • <a href="/wiki/en/Dialogue">Dialogue</a> • <a href="/wiki/en/Difficulty">Difficulty</a> • <a href="/wiki/en/Energy">Energy</a> • <a href="/wiki/en/Equipment">Equipment</a> • <a href="/wiki/en/Festivals">Festivals</a> • <a href="/wiki/en/Followers_and_Hiring">Followers and Hiring</a> • <a href="/wiki/en/Friendship">Friendship</a> • <a href="/wiki/en/Guards_and_Bounties">Guards and Bounties</a> • <a href="/wiki/en/Health">Health</a> • <a href="/wiki/en/In-game_Time">In-game Time</a> • <a href="/wiki/en/Karma_and_Faith">Karma and Faith</a> • <a href="/wiki/en/Keeping_Safe">Keeping Safe</a> • <a href="/wiki/en/Levels_and_Experience">Levels and Experience</a> • <a href="/wiki/en/Looks">Looks</a> • <a href="/wiki/en/Mod_Console">Mod Console</a> • <a href="/wiki/en/Money">Money</a> • <a href="/wiki/en/People's_Needs">People's Needs</a> • <a href="/wiki/en/Player_Character">Player Character</a> • <a href="/wiki/en/Quality">Quality</a> • <a href="/wiki/en/Quests">Quests</a> • <a href="/wiki/en/Satiety">Satiety</a> • <a href="/wiki/en/Seasons">Seasons</a> • <a href="/wiki/en/Sneaking_and_Pickpocketing">Sneaking and Pickpocketing</a> • <a href="/wiki/en/The_World_Learns">The World Learns</a> • <a href="/wiki/en/Trading">Trading</a> • <a href="/wiki/en/Tutorial">Tutorial</a> • <a href="/wiki/en/Waypoint_statue">Waypoint statue</a> • <a href="/wiki/en/Weather">Weather</a></td></tr></table>
+</div>
+  <div class="catlinks">Categories: <a href="/wiki/en/Category/Gameplay">Gameplay</a></div>
+</main>
+<footer class="footer">
+  <p>Written by the OpenWorld team and translated from the Chinese edition; the tables are generated from the game’s code <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a> (main) at 2026-10-30 06:19.</p>
+  <p>Everyone on the team can edit it on GitHub: see <a href="/wiki/en/Editing_Basics">Editing Basics</a>. Game art from Ninja Adventure (CC0) and the project's own.</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

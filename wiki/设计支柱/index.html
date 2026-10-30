@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN" data-base="/wiki/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>设计支柱 - OpenWorld 中文维基</title>
+<meta name="description" content="OpenWorld 的设计原则：世界即代码、目标是状态、地方会教、通用的系统、看得懂、学品质不抄内容、先小后大、完备要证明。">
+<link rel="alternate" hreflang="en" href="/wiki/en/Design_Pillars">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>中文维基</small></span></a>
+  <nav class="portlet"><h3>导航</h3><ul><li><a href="/wiki/">首页</a></li><li><a href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">新手指南</a></li><li><a href="/wiki/%E4%B8%BB%E7%BA%BF%E6%B5%81%E7%A8%8B">主线流程</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%9C%80%E8%BF%91%E6%9B%B4%E6%94%B9">最近更改</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E9%9A%8F%E6%9C%BA%E9%A1%B5%E9%9D%A2">随机页面</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%BE%85%E5%AE%8C%E5%96%84">待完善</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%89%80%E6%9C%89%E9%A1%B5%E9%9D%A2">所有页面</a></li></ul></nav><nav class="portlet"><h3>参与编辑</h3><ul><li><a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a></li><li><a href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C">格式手册</a></li><li><a href="/wiki/%E9%A3%8E%E6%A0%BC%E6%8C%87%E5%8D%97">风格指南</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%AE%8C%E5%A4%87%E6%80%A7">完备性</a></li></ul></nav><nav class="portlet"><h3>企划</h3><ul><li><a href="/wiki/%E5%85%B3%E4%BA%8E%E6%9C%AC%E7%BB%B4%E5%9F%BA">关于本维基</a></li><li><a href="/wiki/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1">设计支柱</a></li><li><a href="/wiki/%E8%B7%AF%E7%BA%BF%E5%9B%BE">路线图</a></li><li><a href="/wiki/%E7%89%88%E6%9C%AC%E5%8E%86%E5%8F%B2">版本历史</a></li><li><a href="/wiki/%E5%B7%B2%E7%9F%A5%E9%97%AE%E9%A2%98">已知问题</a></li></ul></nav>
+  <nav class="portlet"><h3>游戏</h3><ul><li><a href="/play/">开始游戏</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub 仓库</a></li><li><a href="/wiki/en/Design_Pillars" hreflang="en">English wiki</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="菜单" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1">页面</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1%22" title="这一页的讨论（GitHub 议题）">讨论</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5B%E7%BB%B4%E5%9F%BA%5D%20%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1&body=%E9%A1%B5%E9%9D%A2%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2F%25E8%25AE%25BE%25E8%25AE%25A1%25E6%2594%25AF%25E6%259F%25B1%0A%0A" title="就这一页开一个新的讨论">＋</a></div>
+  <form class="search" action="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%90%9C%E7%B4%A2" method="get" role="search"><input name="q" id="q" type="search" placeholder="搜索 OpenWorld 维基" autocomplete="off" aria-label="搜索"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1">阅读</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/pages/%E4%BC%81%E5%88%92/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1.md" title="在 GitHub 上编辑这一页">编辑</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/pages/%E4%BC%81%E5%88%92/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1.md">查看历史</a><a class="tab lang" href="/wiki/en/Design_Pillars" hreflang="en" lang="en" title="English edition">English</a><button class="tab theme" id="theme" title="切换明暗">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">设计支柱</h1><div class="subtitle">来自OpenWorld 中文维基 · 玩法</div>
+  
+  <div class="body"><p>这一页记录 OpenWorld 做设计时遵守的原则。每条后面写了它从哪次决定来。具体系统怎么做，见各系统页。</p>
+<nav class="toc"><div class="toc-title">目录</div><ol><li class="toc-l2"><a href="#%E4%B8%96%E7%95%8C%E5%8D%B3%E4%BB%A3%E7%A0%81%EF%BC%8C%E6%B2%A1%E8%A7%81%E8%BF%87%E7%9A%84%E4%BA%8B%E5%AE%83%E4%BC%9A%E5%AD%A6"><span class="tocnum">1</span> 世界即代码，没见过的事它会学</a></li><li class="toc-l2"><a href="#%E7%9B%AE%E6%A0%87%E6%98%AF%E7%8A%B6%E6%80%81%EF%BC%8C%E4%B8%8D%E6%98%AF%E8%B7%AF%E5%BE%84"><span class="tocnum">2</span> 目标是状态，不是路径</a></li><li class="toc-l2"><a href="#%E5%9C%B0%E6%96%B9%E4%BC%9A%E6%95%99%EF%BC%8C%E4%B8%8D%E9%9D%A0%E6%96%87%E5%AD%97"><span class="tocnum">3</span> 地方会教，不靠文字</a></li><li class="toc-l2"><a href="#%E4%B8%96%E7%95%8C%E5%85%88%E4%BA%8E%E4%BD%A0%E5%AD%98%E5%9C%A8"><span class="tocnum">4</span> 世界先于你存在</a></li><li class="toc-l2"><a href="#%E7%BB%9F%E4%B8%80%E7%9A%84%E7%B3%BB%E7%BB%9F%EF%BC%8C%E4%B8%8D%E5%86%99%E7%89%B9%E4%BE%8B"><span class="tocnum">5</span> 统一的系统，不写特例</a></li><li class="toc-l2"><a href="#%E7%9C%8B%E5%BE%97%E6%87%82"><span class="tocnum">6</span> 看得懂</a></li><li class="toc-l2"><a href="#%E5%AD%A6%E5%93%81%E8%B4%A8%EF%BC%8C%E4%B8%8D%E6%8A%84%E5%86%85%E5%AE%B9"><span class="tocnum">7</span> 学品质，不抄内容</a></li><li class="toc-l2"><a href="#%E5%85%88%E5%81%9A%E5%B0%8F%E8%80%8C%E7%B2%BE%E7%9A%84%EF%BC%8C%E5%86%8D%E6%89%A9%E5%A4%A7"><span class="tocnum">8</span> 先做小而精的，再扩大</a></li><li class="toc-l2"><a href="#%E5%AE%8C%E5%A4%87%E8%A6%81%E8%AF%81%E6%98%8E"><span class="tocnum">9</span> 完备要证明</a></li></ol></nav><h2 id="世界即代码，没见过的事它会学"><span class="mw-headline">世界即代码，没见过的事它会学</span></h2>
+<p>游戏的状态和规则都是代码，本身是一个完整的普通游戏：没有 AI 也能从头玩到尾。玩家做了规则没有定义的事，世界去问 AI，把答案写成一条规则留下来，以后所有玩家的世界都会这样回应。见<a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">世界会学</a>。</p>
+<ul>
+<li><strong>只有一个 AI 接口：事件的结果。</strong> 定义了就照规则来；没定义就问 AI；没有 AI、出错或超时，就按这一处的默认结果（通常是什么也不发生）。</li>
+<li><strong>规则只写自己。</strong> 一条规则属于一类东西（它的「宿主」），能读任何东西，只能改自己；要影响别的东西，就给它发一个事件，由对方自己回应。岩浆的规则是「上面有东西就给它发灼热」，人的规则是「受到灼热就掉血」，火史莱姆受到灼热怎么样，由它自己的规则决定，没定义就问 AI。</li>
+<li><strong>补丁只补空缺，不改已经定义的行为。</strong> 学到的规则只属于一种东西，只填它被问到的那一处；对一整类东西都成立的事，写进游戏自己的规则。同样的问题只问一次。</li>
+<li><strong>拿和放是物理，不问 AI；用一样东西作用于另一样东西，才是 AI 回答的地方。</strong> 见<a href="/wiki/%E6%93%8D%E4%BD%9C">操作</a>。</li>
+<li><strong>没有 AI 时也按有 AI 来设计。</strong> 新行为走事件和规则，不在引擎里绕过去；规则没覆盖的刻意行为留成空缺，留给 AI。</li>
+</ul>
+<p>来源：2026-10-02 定下的事件模型；2026-10-05 关于五个输入的讨论；2026-10-09 定下学到的规则只占一处（docs/design.md §5.16）。</p>
+<h2 id="目标是状态，不是路径"><span class="mw-headline">目标是状态，不是路径</span></h2>
+<p>每一步的目标写成「世界应该变成什么样」：站到对岸、桥能过、骑士倒下、荆棘冠在身上。世界允许的任何办法都算，包括世界从玩家那里学会的办法。晚祷渡有三条教给你的过河方法（修绞盘、砍倒枯树搭桥、冻住河面），别的办法只要能过去也算。</p>
+<p>来源：<a href="/wiki/%E6%99%9A%E7%A5%B7%E6%B8%A1">晚祷渡</a>的设计（2026-10-02）；<a href="/wiki/%E7%AC%AC%E4%B8%80%E7%AB%A0">第一章</a>沿用。</p>
+<h2 id="地方会教，不靠文字"><span class="mw-headline">地方会教，不靠文字</span></h2>
+<p>做法先由场地本身展示：河边结冰的地方守着冰霜史莱姆，枯树孤零零立在窄处，断掉的绳子挂在绞盘上。人物说的是自己的生活，不是操作说明。新手教程一课只教一个动作，没教的键锁住（见<a href="/wiki/%E6%96%B0%E6%89%8B%E6%95%99%E7%A8%8B">新手教程</a>）。</p>
+<h2 id="世界先于你存在"><span class="mw-headline">世界先于你存在</span></h2>
+<p>人物有自己的日子、关系和没说出口的事（见<a href="/wiki/%E5%B1%85%E6%B0%91">居民</a>）。他们按日程生活，会注意你对他们的东西做了什么。世界也会自己变化：傍晚的风暴、夜里的怪物、白昼一天天变短（见<a href="/wiki/%E6%98%BC%E5%A4%9C">昼夜</a>）。</p>
+<h2 id="统一的系统，不写特例"><span class="mw-headline">统一的系统，不写特例</span></h2>
+<ul>
+<li><strong>任何判断都不看「是不是玩家」。</strong> 谁打谁看阵营和脾性，谁看见什么看目击，谁会倒下而不死看「必要」标签，对自己使用看「自己」这个目标。这些都是任何角色都能带的数据。只有输入知道键盘控制的是哪个角色。来源：2026-10-02。</li>
+<li><strong>一种概念只有一套机制。</strong> 所有东西都有耐久，坏了留下构成它的材料；任何东西都可以按时间分阶段变化（作物生长、树桩长回树、母鸡下蛋）；人、怪物、同伴、首领用同一套行为目标；故事只有一套脚本。见<a href="/wiki/%E8%80%90%E4%B9%85%E4%B8%8E%E7%A0%B4%E5%9D%8F">耐久与破坏</a>。来源：2026-10-04 世界模型。</li>
+<li><strong>数值是世界的参数，不写死在引擎里。</strong> 见<a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%95%B0%E5%80%BC">特殊：数值</a>。</li>
+</ul>
+<h2 id="看得懂"><span class="mw-headline">看得懂</span></h2>
+<p>每个输入按下去会做什么，按之前就显示在人物头顶的提示条上，目标那一格画着框；世界没见过的做法标「?」。世界学会的每一条，都记在<a href="/wiki/%E7%BB%87%E7%BA%BF%E7%B0%BF">织线簿</a>里，写明是谁教的。</p>
+<h2 id="学品质，不抄内容"><span class="mw-headline">学品质，不抄内容</span></h2>
+<p>参考别的游戏学的是手艺：让场地自己教、人物有生活、界面温暖、手感好。不照搬别的游戏的故事、玩法循环和系统。曾经的「炉谷」原型照搬了星露谷的出货箱、好感度、送礼、节日、季节、体力，2026-10-02 整个删掉了。所以本作没有<a href="/wiki/%E8%83%BD%E9%87%8F">能量</a>、<a href="/wiki/%E5%AD%A3%E8%8A%82">季节</a>、<a href="/wiki/%E8%8A%82%E6%97%A5">节日</a>、<a href="/wiki/%E5%8F%8B%E8%B0%8A">友谊</a>。背包、合成、等级、饱食度这类基础玩法可以有。</p>
+<p>设计每个机制之前，先看别的游戏怎么做（尤其是 Elin），再按本作的原则改；只有别人都没做过的地方才自己设计。</p>
+<h2 id="先做小而精的，再扩大"><span class="mw-headline">先做小而精的，再扩大</span></h2>
+<p>目标规模是几百张地图、几千个人物、几万种物品。现在这片世界（晚祷渡和它周围长出来的地图）是开发用的脚手架，先把它做小、做精，再扩大。小不是拒绝增长的理由：新地图、新人物、新系统只要通用、质量好就欢迎。来源：2026-09-30、2026-10-02。</p>
+<h2 id="完备要证明"><span class="mw-headline">完备要证明</span></h2>
+<p>「完备」不是举几个例子，而是证明：</p>
+<ul>
+<li>输入的完备性：每个键 × 每个手持物 × 每个目标 × 每一层，都有确定的行为或明确的空缺（2026-10-02）。</li>
+<li>开发用的世界里每样东西都要对应一条需求，由测试在真实地图上检查（<code>tools/test/demo.test.ts</code>）。</li>
+<li>维基也一样：游戏里每样东西、每个系统都要有页面，见<a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%AE%8C%E5%A4%87%E6%80%A7">特殊：完备性</a>。</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title">企划</th></tr><tr><td colspan="2"><a href="/wiki/%E7%89%88%E6%9C%AC%E5%8E%86%E5%8F%B2">版本历史</a> • <a href="/wiki/%E5%85%B3%E4%BA%8E%E6%9C%AC%E7%BB%B4%E5%9F%BA">关于本维基</a> • <a href="/wiki/%E8%B7%AF%E7%BA%BF%E5%9B%BE">路线图</a> • <a href="/wiki/%E7%BE%8E%E6%9C%AF">美术</a> • <a href="/wiki/%E9%85%8D%E4%B9%90">配乐</a> • <a href="/wiki/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1">设计支柱</a> • <a href="/wiki/%E5%B7%B2%E7%9F%A5%E9%97%AE%E9%A2%98">已知问题</a></td></tr></table>
+</div>
+  <div class="catlinks">分类：<a href="/wiki/%E5%88%86%E7%B1%BB%EF%BC%9A%E4%BC%81%E5%88%92">企划</a> | <a href="/wiki/%E5%88%86%E7%B1%BB%EF%BC%9A%E7%8E%A9%E6%B3%95">玩法</a></div>
+</main>
+<footer class="footer">
+  <p>本站内容由 OpenWorld 项目组编写，数据表从游戏代码 <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a>（main）生成于 2026-10-30 06:19。</p>
+  <p>项目组成员都能在 GitHub 上编辑：见<a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a>。游戏素材来自 Ninja Adventure（CC0）与项目自绘。</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

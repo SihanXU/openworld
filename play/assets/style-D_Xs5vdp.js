@@ -1,0 +1,1 @@
+var e=new Set;function t(t,n){if(e.has(t)||typeof document>`u`)return;e.add(t);let r=document.createElement(`style`);r.dataset.panelStyle=t,r.textContent=n,document.head.appendChild(r)}export{t};

@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./main-D83k7Y8i.js","./register-DhynRwK1.js","./relief-7jXhEFnC.js","./scene-BrMWBA5x.js","./components-GbYgxGyi.js","./hud-V--xOzCA.js","./creator-BvwHvJE9.js","./main-YAGTFjIq.css","./game-tpLG9-jA.css"])))=>i.map(i=>d[i]);
+import{n as e}from"./register-DhynRwK1.js";import{Dt as t}from"./relief-7jXhEFnC.js";t(()=>new Worker(new URL(new URL(`worker-C4SYTnad.js`,import.meta.url).href,``+import.meta.url),{type:`module`})),e(()=>import(`./main-D83k7Y8i.js`),__vite__mapDeps([0,1,2,3,4,5,6,7,8]),import.meta.url);

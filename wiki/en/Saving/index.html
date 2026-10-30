@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en" data-base="/wiki/en/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Saving - OpenWorld Wiki</title>
+<meta name="description" content="The three save slots in the browser, when the game autosaves, saving by hand, exporting and importing save files, and what happens to saves from a different version.">
+<link rel="alternate" hreflang="zh" href="/wiki/%E5%AD%98%E6%A1%A3">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/en/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>Wiki</small></span></a>
+  <nav class="portlet"><h3>Navigation</h3><ul><li><a href="/wiki/en/">Main page</a></li><li><a href="/wiki/en/Beginner's_Guide">Beginner's Guide</a></li><li><a href="/wiki/en/Main_Quest_Walkthrough">Main Quest Walkthrough</a></li><li><a href="/wiki/en/Special/Recent_changes">Recent changes</a></li><li><a href="/wiki/en/Special/Random_page">Random page</a></li><li><a href="/wiki/en/Special/Stubs">Stubs</a></li><li><a href="/wiki/en/Special/All_pages">All pages</a></li></ul></nav><nav class="portlet"><h3>Contributing</h3><ul><li><a href="/wiki/en/Editing_Basics">Editing Basics</a></li><li><a href="/wiki/en/Format_Manual">Format Manual</a></li><li><a href="/wiki/en/Style_Guide">Style Guide</a></li><li><a href="/wiki/en/Special/Completeness">Completeness</a></li></ul></nav><nav class="portlet"><h3>Design</h3><ul><li><a href="/wiki/en/About_This_Wiki">About This Wiki</a></li><li><a href="/wiki/en/Design_Pillars">Design Pillars</a></li><li><a href="/wiki/en/Roadmap">Roadmap</a></li><li><a href="/wiki/en/Version_History">Version History</a></li><li><a href="/wiki/en/Known_Issues">Known Issues</a></li></ul></nav>
+  <nav class="portlet"><h3>Game</h3><ul><li><a href="/play/">Play the game</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub repository</a></li><li><a href="/wiki/%E5%AD%98%E6%A1%A3" hreflang="zh">中文维基</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/en/Saving">Page</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22Saving%22" title="Discussion of this page (GitHub issues)">Talk</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5Bwiki%5D%20Saving&body=Page%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2Fen%2FSaving%0A%0A" title="Start a discussion of this page">＋</a></div>
+  <form class="search" action="/wiki/en/Special/Search" method="get" role="search"><input name="q" id="q" type="search" placeholder="Search the OpenWorld Wiki" autocomplete="off" aria-label="Search"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/en/Saving">Read</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/en/pages/%E5%9F%BA%E6%9C%AC/%E5%AD%98%E6%A1%A3.md" title="Edit this page on GitHub">Edit</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/en/pages/%E5%9F%BA%E6%9C%AC/%E5%AD%98%E6%A1%A3.md">History</a><a class="tab lang" href="/wiki/%E5%AD%98%E6%A1%A3" hreflang="zh" lang="zh" title="中文版">中文</a><button class="tab theme" id="theme" title="Light or dark">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">Saving</h1><div class="subtitle">From the OpenWorld Wiki · Gameplay</div>
+  
+  <div class="body"><div class="banner outdated">The <a href="/wiki/%E5%AD%98%E6%A1%A3" lang="zh">Chinese page</a> has changed since this translation was made: some of this may be out of date.</div><p>OpenWorld keeps its saves <strong>in the browser</strong>, in three save slots. The game saves automatically, and you can also save by hand in the <a href="/wiki/en/Options">Options</a>. A save can be exported as a file on your computer and imported again in another browser or on another computer. The <a href="/wiki/en/Threadbook">threads</a> the world has learned belong to no single save: all saves share them.</p>
+<nav class="toc"><div class="toc-title">Contents</div><ol><li class="toc-l2"><a href="#Save_slots"><span class="tocnum">1</span> Save slots</a></li><li class="toc-l2"><a href="#Autosave"><span class="tocnum">2</span> Autosave</a></li><li class="toc-l2"><a href="#Saving_by_hand"><span class="tocnum">3</span> Saving by hand</a></li><li class="toc-l2"><a href="#Export_and_import"><span class="tocnum">4</span> Export and import</a></li><li class="toc-l2"><a href="#What_a_save_holds"><span class="tocnum">5</span> What a save holds</a></li><li class="toc-l2"><a href="#Versions"><span class="tocnum">6</span> Versions</a></li><li class="toc-l2"><a href="#Modes_that_do_not_save"><span class="tocnum">7</span> Modes that do not save</a></li><li class="toc-l2"><a href="#Tips"><span class="tocnum">8</span> Tips</a></li><li class="toc-l2"><a href="#History"><span class="tocnum">9</span> History</a></li></ol></nav><h2 id="Save_slots"><span class="mw-headline">Save slots</span></h2>
+<ul>
+<li>There are three save slots: Slot 1, Slot 2 and Slot 3.</li>
+<li>Each slot&#39;s card shows: location · day and time · level · current objective (the first unfinished objective of the <a href="/wiki/en/Quests">quest</a> you are tracking, or the quest&#39;s name when there is none), for example “Cloudtop · Day 1 13:00 · Lv 1 · The shrine stone at the mountain&#39;s foot”, with the date and time it was saved below. An empty slot reads “Empty”.</li>
+<li>On Hardcore difficulty, a save that has ended reads “Hardcore · ended · location · day N” and can no longer be loaded. See <a href="/wiki/en/Difficulty">Difficulty</a>.</li>
+<li>“Continue” on the title page loads the most recently saved slot (skipping any that have ended).</li>
+</ul>
+<p>Starting a new game means choosing a slot. When the slot already holds progress, the button reads “Overwrite &amp; start”, and the game first asks “Slot N already has progress. Overwrite it?”.</p>
+<h2 id="Autosave"><span class="mw-headline">Autosave</span></h2>
+<p>The game saves to the current slot automatically, without a message, at these times:</p>
+<table>
+<thead>
+<tr>
+<th>When</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>About once every real minute</td>
+<td>Postponed while you are in danger, and made once you are safe</td>
+</tr>
+<tr>
+<td>After you walk onto a new map</td>
+<td>Likewise waits until you are safe</td>
+</tr>
+<tr>
+<td>Whenever any quest reaches a new stage</td>
+<td>Likewise waits until you are safe</td>
+</tr>
+<tr>
+<td>When you switch to another browser tab or minimize the window</td>
+<td></td>
+</tr>
+<tr>
+<td>After starting or loading a save</td>
+<td>A new game takes the slot at once</td>
+</tr>
+</tbody></table>
+<p>“In danger” means: you were hurt within the last 15 seconds, or something hostile to you is within 8 cells. That way loading a save never drops you back into a fight you are losing.</p>
+<p>The game does not autosave while the player is down, so a load always takes you back to before you fell. Hardcore is the exception: the moment you fall, the “ended” state is saved.</p>
+<h2 id="Saving_by_hand"><span class="mw-headline">Saving by hand</span></h2>
+<ul>
+<li>Press <kbd>Esc</kbd> to open the <a href="/wiki/en/Options">Options</a> and click “Save”; the message “Saved to slot N” appears.</li>
+<li>Click “Save &amp; back to title” to save and then return to the title page. From the title page you can switch slots or start a new game.</li>
+</ul>
+<h2 id="Export_and_import"><span class="mw-headline">Export and import</span></h2>
+<p>In the “Load game” panel on the title page:</p>
+<ul>
+<li><strong>Export</strong>: saves this slot as a <code>.json</code> file on your computer, with a name like <code>openworld-slot1-day3-2026-10-08.json</code>.</li>
+<li><strong>Import</strong>: pick a save file from your computer and load it into this slot. If the slot already holds progress, you are asked to confirm first. If the file you pick is not an OpenWorld save, the message reads “That file is not an OpenWorld save.”</li>
+<li><strong>Delete</strong>: asks first, “Delete slot N? This cannot be undone (unless you exported it).”</li>
+</ul>
+<p>The note at the bottom of the panel: saves are kept in this browser; exporting stores one as a file, or carries it to another browser. Clearing the browser&#39;s data clears the saves with it.</p>
+<h2 id="What_a_save_holds"><span class="mw-headline">What a save holds</span></h2>
+<table>
+<thead>
+<tr>
+<th>Travels with the save</th>
+<th>Does not travel with the save</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>The state of the whole world: every map you have visited, every thing, where every person is</td>
+<td>The threads the world has learned (the shared rule library, common to every save and every player)</td>
+</tr>
+<tr>
+<td>The player&#39;s inventory, equipment, level, skills and quest progress</td>
+<td>Language and sound settings (kept in the browser)</td>
+</tr>
+<tr>
+<td>The time, the weather, the story&#39;s progress, the difficulty</td>
+<td></td>
+</tr>
+<tr>
+<td>What you have seen in the <a href="/wiki/en/Codex">Codex</a></td>
+<td></td>
+</tr>
+</tbody></table>
+<p>A new game does not erase the threads the world has learned. See <a href="/wiki/en/The_World_Learns">The World Learns</a>.</p>
+<h2 id="Versions"><span class="mw-headline">Versions</span></h2>
+<ul>
+<li>After the game updates, an older save from the same version of the world is upgraded to the present form as it loads (for example, the bird in an old save becomes the fairy Lumi).</li>
+<li>A save from a different version of the world cannot be continued. Loading it starts a new game in that slot, with the message “That save is from another version of the world: a new game began in its slot.” The old progress is overwritten, so export an important save first.</li>
+<li>Earlier versions had only one save; it is moved into Slot 1 automatically when you open the game.</li>
+<li>A save card without a summary reads “A save from an earlier version”.</li>
+</ul>
+<h2 id="Modes_that_do_not_save"><span class="mw-headline">Modes that do not save</span></h2>
+<ul>
+<li>The <a href="/wiki/en/Tutorial">Tutorial</a> writes to no save slot. Clicking “Save” in the tutorial only shows “The tutorial keeps no save.”</li>
+<li>The <a href="/wiki/en/Boss_Challenge">Boss Challenge</a> is separate from saves.</li>
+</ul>
+<h2 id="Tips"><span class="mw-headline">Tips</span></h2>
+<ul>
+<li>To keep your progress at a particular moment, export a file; this is also a way to back up when three slots are not enough.</li>
+<li>When you change computers or browsers, export in the old browser first, then import in the new one.</li>
+<li>When a private (incognito) window is closed, the browser clears the saves made in it.</li>
+</ul>
+<h2 id="History"><span class="mw-headline">History</span></h2>
+<ul>
+<li>2026-10-03: Added three save slots, the save panel on the title page, and export and import. The old single save moves into Slot 1 automatically.</li>
+<li>2026-10-04: Added difficulty; on Hardcore the save ends when you fall.</li>
+<li>2026-10-06: Autosaves happen only when you are safe, and never while you are down; autosaves and saves on switching tabs no longer show a message.</li>
+<li>2026-10-06: The tutorial became a separate mode that does not save.</li>
+<li>2026-10-09: The objective on save cards is now the tracked quest&#39;s objective; any quest reaching a new stage triggers an autosave.</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title"><a href="/wiki/en/Interface">Interface</a></th></tr><tr><td colspan="2"><a href="/wiki/en/Chests_and_Containers">Chests and Containers</a> • <a href="/wiki/en/Codex">Codex</a> • <a href="/wiki/en/Interface">Interface</a> • <a href="/wiki/en/Inventory">Inventory</a> • <a href="/wiki/en/Options">Options</a> • <a href="/wiki/en/Saving">Saving</a> • <a href="/wiki/en/Threadbook">Threadbook</a> • <a href="/wiki/en/World_Map">World Map</a></td></tr></table>
+</div>
+  <div class="catlinks">Categories: <a href="/wiki/en/Category/Gameplay">Gameplay</a></div>
+</main>
+<footer class="footer">
+  <p>Written by the OpenWorld team and translated from the Chinese edition; the tables are generated from the game’s code <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a> (main) at 2026-10-30 06:19.</p>
+  <p>Everyone on the team can edit it on GitHub: see <a href="/wiki/en/Editing_Basics">Editing Basics</a>. Game art from Ninja Adventure (CC0) and the project's own.</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

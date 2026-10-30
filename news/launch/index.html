@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A world that learns as it goes · OpenWorld</title>
+    
+    <link rel="icon" type="image/png" sizes="60x60" href="../../icons/favicon.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="../../icons/icon-192.png">
+    <link rel="stylesheet" href="../../fonts/fonts.css">
+    <link rel="stylesheet" href="../../base.css">
+    <style>
+        /* a news post: NEPA's blog (a context bar, numbered figures, code blocks) in the homepage's tokens; its figures the pieces' films, round and round */
+        .piece { position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden; background: #f7f8fb; }
+        .piece.night { background: #05070d; }
+        .piece iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+        .cover .piece { box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); }
+        body { counter-reset: figure; }
+        .post-hero { background: var(--bg-alt); padding: calc(var(--nav-h) + 4.5rem) 0 3.5rem; }
+        .post-hero .container { max-width: 980px; }
+        .post-hero h1 { font-size: clamp(2.4rem, 6vw, 4.2rem); line-height: 1.05; font-weight: 800; letter-spacing: -0.04em; color: var(--ink-strong); margin: 0.75rem 0 1rem; }
+        .post-hero .dek { font-size: 1.3rem; color: var(--muted); max-width: 46ch; line-height: 1.5; }
+        .byline { display: flex; flex-wrap: wrap; gap: 0.5rem 2.5rem; margin-top: 2rem; }
+        .byline .fact dd { font-size: 1rem; }
+        .cover { max-width: 980px; margin: -0.5rem auto 0; padding: 0 2rem; }
+        .cover .flip-front, .cover .flip-back { box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); }
+        .cover .code { font-size: 0.85rem; }
+
+        .content { display: flex; align-items: flex-start; max-width: 1200px; margin: 0 auto; padding: 4rem 2rem 2rem; }
+        .context-bar { position: sticky; top: calc(var(--nav-h) + 2.5rem); width: 240px; flex-shrink: 0; padding-right: 2.5rem; }
+        .context-bar .label { margin-bottom: 0.75rem; }
+        .context-bar ol { list-style: none; border-left: 1px solid var(--line); }
+        .context-bar a { display: flex; gap: 0.75rem; align-items: baseline; padding: 0.4rem 0 0.4rem 1rem; margin-left: -1px; border-left: 2px solid transparent; color: var(--muted); font-size: 0.95rem; transition: color var(--motion-duration-short) var(--motion-ease-standard), border-color var(--motion-duration-short) var(--motion-ease-standard); }
+        .context-bar .n { font-size: 0.8rem; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; }
+        .context-bar a:hover { color: var(--ink-strong); }
+        .context-bar a.active { color: var(--ink-strong); font-weight: 600; border-left-color: var(--accent); }
+        .context-bar a.active .n { color: var(--accent); }
+        .context-bar .lang { margin-top: 1.5rem; font-size: 0.9rem; }
+
+        article { flex: 1; min-width: 0; max-width: 760px; }
+        article section { margin-bottom: 3.5rem; }
+        article h2 { font-size: 1.9rem; line-height: 1.25; letter-spacing: -0.02em; color: var(--ink-strong); margin-bottom: 1rem; }
+        article h2 .n { color: var(--faint); font-weight: 600; font-size: 0.75em; margin-right: 0.6rem; font-variant-numeric: tabular-nums; }
+        article p { font-size: 1.15rem; line-height: 1.8; margin-bottom: 1.25rem; }
+        article p.lede { font-size: 1.3rem; line-height: 1.7; color: var(--ink-strong); }
+        article ul { margin: 0 0 1.25rem 1.25rem; font-size: 1.1rem; line-height: 1.75; }
+        article li { margin-bottom: 0.35rem; }
+        article code { font-family: var(--mono); font-size: 0.88em; background: var(--bg-alt); padding: 0.1em 0.35em; border-radius: 4px; }
+        .figure { margin: 2rem 0; }
+        .figure img { border-radius: var(--radius); width: 100%; }
+        .figure .caption { margin-top: 0.6rem; font-size: 0.9rem; color: var(--faint); display: flex; gap: 0.5rem; align-items: center; }
+        .figure .caption .ph { margin: 0; width: 55%; }
+        .figure .caption::before { counter-increment: figure; content: "Figure " counter(figure) ": "; font-weight: 500; color: var(--muted); }
+        .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; }
+        .block { background: var(--bg-alt); border-radius: var(--radius); padding: 1.1rem 1.3rem; overflow-x: auto; }
+        .block .code { font-size: 0.82rem; }
+        .note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 1rem 1.25rem; border-radius: 0 var(--radius) var(--radius) 0; margin: 1.75rem 0; font-size: 1.05rem; }
+        .note b { color: var(--ink-strong); }
+        .chart { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; }
+        .chart svg { width: 100%; height: auto; display: block; }
+
+        .cite { margin: 3rem 0 1rem; padding: 1.5rem 1.75rem; border-radius: var(--radius); background: var(--bg-alt); }
+        .cite-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .cite h3 { font-size: 1.5rem; letter-spacing: -0.02em; color: var(--ink-strong); line-height: 1.25; }
+        .cite .copy { font: inherit; font-size: 0.9rem; font-weight: 600; color: var(--accent); background: #fff; border: 1px solid #d6e0f8; border-radius: 999px; padding: 0.3rem 0.9rem; cursor: pointer; }
+        .cite .copy:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .cite pre { margin: 0; overflow-x: auto; }
+        .cite code { font-family: var(--mono); font-size: 0.85rem; line-height: 1.65; color: var(--ink); background: none; padding: 0; }
+
+        @media (max-width: 1100px) { .context-bar { display: none; } article { margin: 0 auto; } }
+        @media (max-width: 760px) {
+            .post-hero { padding: calc(var(--nav-h) + 2.5rem) 0 2.5rem; }
+            .post-hero .dek { font-size: 1.1rem; }
+            .cover { padding: 0 1rem; }
+            .content { padding: 2.5rem 1rem 1rem; }
+            article h2 { font-size: 1.5rem; }
+            article p { font-size: 1.05rem; }
+            article p.lede { font-size: 1.15rem; }
+            .pair { grid-template-columns: minmax(0, 1fr); }
+            .cite { padding: 1.25rem; }
+        }
+        .nav-title .logo { font-family: 'Pixelify Sans', 'Segoe UI', sans-serif; font-weight: 600; letter-spacing: 0.02em; font-size: 1.45rem; }
+        .cover video { width: 100%; display: block; aspect-ratio: 16 / 9; object-fit: cover; border-radius: var(--radius); box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 24px 60px rgba(0,0,0,.10); image-rendering: pixelated; }
+        .figure .caption::before { white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <nav class="banner">
+        <div class="container">
+            <div class="nav-title"><a href="../../?lang=en" style="color:inherit" class="logo">OpenWorld</a><small>News</small></div>
+            <div class="nav-links">
+                <a href="../../?lang=en#news" class="hide-sm">News</a>
+                <a href="../../?lang=en#join" class="cta">Waitlist</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="post-hero">
+        <div class="container">
+            <p class="label">News · Post 01</p>
+            <h1>A world that learns as it goes</h1>
+            <p class="dek">OpenWorld is a role-playing world whose entire state and rule set are represented as code. When play reaches an interaction or an item that no author defined, a language model supplies it once, and every comparable case thereafter uses the result.</p>
+            <dl class="byline">
+                <div class="fact"><dt>Written by</dt><dd>OpenWorld Team</dd></div>
+                <div class="fact"><dt>Published</dt><dd>October 2026</dd></div>
+                <div class="fact"><dt>Reading</dt><dd>8 min</dd></div>
+                <div class="fact"><dt>Also in</dt><dd><a href="zh.html">中文</a></dd></div>
+            </dl>
+        </div>
+    </header>
+
+    <!-- the game itself, silent -->
+    <div class="cover">
+        <video muted loop playsinline autoplay preload="metadata" poster="../../media/hero.jpg"><source src="../../media/hero.mp4" type="video/mp4"></video>
+    </div>
+
+    <main class="content">
+        <aside class="context-bar">
+            <p class="label">In this post</p>
+            <ol data-spy>
+                <li><a href="#s1"><span class="n">01</span>Two approaches</a></li>
+                <li><a href="#s2"><span class="n">02</span>A sparse problem</a></li>
+                <li><a href="#s3"><span class="n">03</span>Rules from events</a></li>
+                <li><a href="#s4"><span class="n">04</span>Divergent futures</a></li>
+                <li><a href="#s5"><span class="n">05</span>Beyond the rules</a></li>
+                <li><a href="#s6"><span class="n">06</span>Next steps</a></li>
+            </ol>
+            <p class="lang"><a href="zh.html">中文 ↗</a></p>
+        </aside>
+
+        <article>
+            <section id="s0">
+                <p>In a sandbox game, every interaction is authored in advance. Pouring water on a campfire extinguishes it because a designer wrote a rule to that effect. Tipping a pot of hot soup over a snowman, by contrast, usually produces no response at all, since no rule covers the case. Programmers call such a case <b>undefined behavior</b> (UB), and conventional games resolve it by doing nothing.</p>
+                <p>Creation is constrained in the same way. A player may wish to cook new dishes, brew wines of distinct character, or forge tools and armour of their own design; if the authors never defined the item, it cannot exist in the game.</p>
+                <p>With OpenWorld we want the stability of a conventional game and the freedom to try whatever a player imagines. When an interaction is undefined, a language model writes the missing rule the first time it occurs. When an item is undefined, the model creates it on request. Either way, the work is done once, and every comparable case afterwards uses the result.</p>
+                <p>Below we explain how this works and what we plan to do next.</p>
+            </section>
+            <section id="s1">
+                <h2><span class="n">01</span>Two existing approaches</h2>
+                <p>We take an open world to be one in which a player can take an action that no one anticipated and still receive a coherent response. Two lines of work currently pursue this goal, and the strengths of each correspond closely to the weaknesses of the other.</p>
+                <p>The first is the learned world model, exemplified by Genie, GameNGen, Oasis and their successors. These models generate each frame conditioned on the player&rsquo;s input and accept arbitrary actions, so in one important sense they are open. Their world, however, exists only in pixels and a bounded context window: GameNGen retains roughly three seconds of history, Genie sixteen frames, and Genie 3 about one minute of visual memory. Over longer horizons, the surroundings a player returns to may no longer match what they left. Such a model can render a new object from nothing, but the object may vanish shortly afterwards. Together with the inference cost of serving the model, these properties make commercial play difficult, and the approach has so far yielded mainly demonstrations and research results.</p>
+                <p>The second is the conventional game, the approach the industry has long pursued. <i>Dwarf Fortress</i>, the <i>Elder Scrolls</i> series and the simulation in <i>The Legend of Zelda: Breath of the Wild</i> are engines built on pre-authored rules. They offer large spaces, persistent state, strictly consistent causality and a negligible marginal cost of running. They are, however, closed: <b>an interaction absent from the rules does not occur, and an item no designer anticipated does not appear.</b></p>
+            </section>
+            <section id="s2">
+                <h2><span class="n">02</span>Openness as a sparse problem</h2>
+                <p>Our premise is that openness does not require generating everything at run time. The space of possible player actions is effectively unbounded, but the interactions players actually attempt follow a long-tailed distribution. Once a situation has been resolved, its recurrence should be handled as ordinary execution. The model can also analyse the requests that accumulate and refine its answers along the trajectories players follow, which makes the process recursive.</p>
+                <p>Generation is therefore needed only the first time a situation arises. Thereafter code is the better medium: it is exact, persistent, composable and inspectable, and executing it again costs nothing.</p>
+                                <p>In OpenWorld, code performs all of the simulation, on every frame. Inhabitants follow their daily schedules, fire spreads through dry grass and is put out by rain, and the story advances along its authored course.</p>
+                <p>The model writes code only when the world reaches a situation the rules deliberately leave open. What it writes is kept in the rule library and governs every comparable case thereafter, so the cost of each novel situation is incurred once. New items are handled in the same way: the model introduces a new kind only when nothing in the existing world is suitable.</p>
+                <div class="figure">
+                    <div class="piece"><iframe src="../../explain/index.html?embed" title="How it works" loading="lazy"></iframe></div>
+                    <div class="caption">Overview. Where a rule exists, the rule determines the outcome. Where none exists, the model is queried once, and every later occurrence executes the resulting rule.</div>
+                </div>
+                <p>For new items, the game provides a class of non-player characters, the makers, such as Garrick the smith. In conversation, a player can ask a maker whether a new object could be made, for example &ldquo;hollow out a log to make a bowl for stew.&rdquo; Within a few seconds the maker replies with a recipe, and the item&rsquo;s picture follows shortly after. If the item can already be made, the maker explains how.</p>
+                <div class="figure">
+                    <div class="piece"><iframe src="../../research/index.html?embed&lang=en" title="Making a new item" loading="lazy"></iframe></div>
+                    <div class="caption">Making a wooden bowl with Garrick the smith: the request, the checks, the finished item, and its first use.</div>
+                </div>
+            </section>
+            <section id="s3">
+                <h2><span class="n">03</span>Rules as the outcome of events</h2>
+                <p>All change in OpenWorld originates in events, and the effect of an event is determined by the rules of the entity that receives it. A campfire carries rules defining its response to rain; a slime carries rules defining its response to fire. A rule may read any part of the world state, but it may modify only the entity to which it belongs. To affect another entity, it emits an event to that entity, which responds according to its own rules.</p>
+                <div class="figure">
+                    <div class="block"><div class="code" data-code="fire"></div></div>
+                    <div class="caption">An excerpt from the base rule library: how entities respond to contact with fire. One rule covers every entity of the same kind, tag and status.</div>
+                </div>
+                <p>Rules are written for classes (the types, tags and statuses of the world&rsquo;s ontology), so a rule never names one particular slime or a bed that appears in a single scene. Once written, it applies to every member of its class. Events are drawn from a fixed, closed set of kinds: a deliberate action, an impulse from another entity, contact, collision, the passage of time, a quantity crossing a threshold, coming into view, becoming stuck, and taking damage.</p>
+                <p>A rule is thus a condition tree whose outcomes reside at its leaves. Some leaves are intentionally left undefined, recording that the entity&rsquo;s response under that condition has not yet been specified: a fire slime touched by fire, a player who tries to pry a winch open with an axe, someone offering a rope to a wolf. We leave these open on purpose, because they are where the world can take in situations no one planned for.</p>
+                <div class="figure">
+                    <div class="block"><div class="code" data-code="coat"></div></div>
+                    <div class="caption">An undefined leaf. The library specifies how oil affects most entities and leaves the remaining cases open.</div>
+                </div>
+                <div class="note"><b>The game therefore does not depend on a language model.</b> Without a connected model, an undefined leaf falls back to its default, which in most cases is no change. The game remains fully playable to its conclusion, as any conventional game is.</div>
+            </section>
+            <section id="s4">
+                <h2><span class="n">04</span>Divergent futures</h2>
+                <p>Every entity carries its own nature, so no event occurs in isolation. Lightning striking dead wood starts a fire; rain extinguishes a campfire; a theft committed under cover of a storm leads to a bounty posted throughout the Ford. Newly created items take part in the same way. The first time a freshly made wooden bowl is struck against an anvil, the world acquires a rule for that interaction, and from then on the bowl participates in the same causal chains as everything else. Each event perturbs the people and objects around it, and those perturbations propagate further, so no two playthroughs unfold the same way. For us, that is much of the appeal of an open world.</p>
+                <div class="figure">
+                    <div class="piece night"><iframe src="../../starmap/index.html?embed" title="Butterfly effect" loading="lazy"></iframe></div>
+                    <div class="caption">A storm at the Ford and its consequences: the place, the people passing through, the objects present, the rules already in force, and the quests that arise from them.</div>
+                </div>
+                <p>A learned rule slots into the logic that is already running. Once the ferry keeper has learned to stay by the fire when caught in a storm, the fire, the rain and everything around her continue to behave exactly as before.</p>
+            </section>
+            <section id="s5">
+                <h2><span class="n">05</span>Beyond the authored rules</h2>
+                <p>When an event reaches an undefined branch, the engine does not halt the world. Only the affected entity is suspended; the rest of the simulation continues.</p>
+                <p>The model first attempts to answer from the natures the world already contains, examining the types involved in the event and then the existing catalogue of creatures and objects. Only when none of these is suitable does it introduce a new kind, together with a picture of it. The output is a rule for the relevant type, which fills the undefined leaf.</p>
+                <div class="figure">
+                    <div class="block"><div class="code" data-code="learned"></div></div>
+                    <div class="caption">A learned rule: the outcome of pouring a liquid. A single definition covers every fluid of that kind.</div>
+                </div>
+                <p>The model may propose new rules and new items, but the engine does not accept them directly: every change must pass three checks in sequence. The first is static validation, which confirms that the format is well formed, that every referenced entity exists, and that a rule modifies nothing beyond its own host. The second is an economy check that guards against resource exploits. It encodes every resource conversion in the world as a linear program, and <b>if any combination of conversions produces resources from nothing, the patch is rejected before it reaches players</b>. The third is a sandbox audit, which tests the rule for failures that would compromise the game, such as deadlocks or runaway chain reactions. Beyond these checks, a set of foundational rules is fixed by design, and nothing the model writes can override them.</p>
+                <p>At present a single request takes about ten seconds and costs about five US cents, and each situation is paid for only once. The rule library is shared, so when another player later meets the same situation, the learned rule runs as ordinary code. Players can also set the degree of model involvement for each kind of interaction, from fully disabled to extensive generation.</p>
+                <div class="figure">
+                    <img src="ai-en.webp" alt="The in-game AI settings panel: the degree of model involvement per kind of interaction, from off to high, with the same response time at every level." loading="lazy" width="1290">
+                    <div class="caption">The in-game AI settings panel. Model involvement is set per kind of interaction, from off to high; the response time is the same at every level.</div>
+                </div>
+            </section>
+            <section id="s6">
+                <h2><span class="n">06</span>A thousand maps, and next steps</h2>
+                <p>Because rendering does not involve a video model, the world can be as large as its content allows.</p>
+                <p>OpenWorld currently has 1,024 maps, from towns and villages to the rooms behind their doors; 1,654 inhabitants in 780 households, each with an individual appearance and daily schedule; and 40,562 items of 1,013 kinds, a number that grows as players and the model create new ones. Areas the player has left are not simulated continuously; when the player returns, the engine works out what changed in the meantime in a single step. That is what keeps a world this size cheap to run.</p>
+                <div class="figure">
+                    <div class="piece night"><iframe src="../../scale/index.html?embed" title="The world, in numbers" loading="lazy"></iframe></div>
+                    <div class="caption">The scale of the world: one map, then a thousand; one person, then a crowd; a chest that never runs out.</div>
+                </div>
+                <p>Our longer-term aim is a more autonomous modder. As the world grows, we want it to improve itself recursively: to remember what it has encountered, write its own skills and revise its own workflow. We think this may be the most direct route to a world that is genuinely open.</p>
+                <div class="cite" id="cite">
+                    <div class="cite-head"><h3>Cite</h3><button class="copy" type="button" data-copied="Copied">Copy</button></div>
+                    <pre><code>@misc{openworld2026,
+  title        = {OpenWorld: A Large Symbolic World},
+  author       = {{OpenWorld Team}},
+  year         = {2026},
+  howpublished = {\url{https://openworldrpg.ai/}}
+}</code></pre>
+                </div>
+            </section>
+        </article>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <span>Designed by <a href="https://sihanxu.me/">Si.X</a> · Art: Ninja Adventure (CC0) and our own</span>
+            <span>OpenWorld &copy; 2026</span>
+        </div>
+    </footer>
+    <script src="../../snippets.js"></script>
+    <script src="../../motion.js"></script>
+    <script src="../../base.js"></script>
+</body>
+</html>

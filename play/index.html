@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- scripts from this origin only: the player's own model key lives in this page's workers (docs/byok.md) -->
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self'; object-src 'none'; base-uri 'self'" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenWorld</title>
+    <!-- the game's icon: Lumi in pixels (tools/src/art/lumi-icon.py) -->
+    <link rel="icon" type="image/png" sizes="60x60" href="./icons/favicon.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png" />
+    <link rel="manifest" href="./icons/manifest.webmanifest" />
+    <meta name="theme-color" content="#221d46" />
+    <meta name="description" content="A web-playable 2D JRPG world made of code, which an AI modder extends at runtime." />
+    <!-- black from the first paint, as the loading that follows (no white page before the styles arrive) -->
+    <style>html,body{background:#05060a}</style>
+    <script type="module" crossorigin src="./assets/game-dk_Psq3m.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/relief-7jXhEFnC.js">
+    <link rel="modulepreload" crossorigin href="./assets/register-DhynRwK1.js">
+  </head>
+  <body>
+    <div id="app">
+      <div id="game"></div>
+      <div id="labels"></div>
+      <div id="hud"></div>
+      <div id="dev" class="panel dev hidden"></div>
+      <div id="intro" class="hidden"></div>
+      <div id="loading"><i class="loadbar"></i></div>
+    </div>
+  </body>
+</html>

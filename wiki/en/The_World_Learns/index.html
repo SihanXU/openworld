@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en" data-base="/wiki/en/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>The World Learns - OpenWorld Wiki</title>
+<meta name="description" content="The heart of OpenWorld: when something happens that the world has never seen, a world connected to an AI learns its outcome on the spot and remembers it for good; without an AI it is handled by default. What “?” means, what happens after you press, how far a learned rule reaches, and what the AI can and cannot do.">
+<link rel="alternate" hreflang="zh" href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/en/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>Wiki</small></span></a>
+  <nav class="portlet"><h3>Navigation</h3><ul><li><a href="/wiki/en/">Main page</a></li><li><a href="/wiki/en/Beginner's_Guide">Beginner's Guide</a></li><li><a href="/wiki/en/Main_Quest_Walkthrough">Main Quest Walkthrough</a></li><li><a href="/wiki/en/Special/Recent_changes">Recent changes</a></li><li><a href="/wiki/en/Special/Random_page">Random page</a></li><li><a href="/wiki/en/Special/Stubs">Stubs</a></li><li><a href="/wiki/en/Special/All_pages">All pages</a></li></ul></nav><nav class="portlet"><h3>Contributing</h3><ul><li><a href="/wiki/en/Editing_Basics">Editing Basics</a></li><li><a href="/wiki/en/Format_Manual">Format Manual</a></li><li><a href="/wiki/en/Style_Guide">Style Guide</a></li><li><a href="/wiki/en/Special/Completeness">Completeness</a></li></ul></nav><nav class="portlet"><h3>Design</h3><ul><li><a href="/wiki/en/About_This_Wiki">About This Wiki</a></li><li><a href="/wiki/en/Design_Pillars">Design Pillars</a></li><li><a href="/wiki/en/Roadmap">Roadmap</a></li><li><a href="/wiki/en/Version_History">Version History</a></li><li><a href="/wiki/en/Known_Issues">Known Issues</a></li></ul></nav>
+  <nav class="portlet"><h3>Game</h3><ul><li><a href="/play/">Play the game</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub repository</a></li><li><a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6" hreflang="zh">中文维基</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/en/The_World_Learns">Page</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22The%20World%20Learns%22" title="Discussion of this page (GitHub issues)">Talk</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5Bwiki%5D%20The%20World%20Learns&body=Page%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2Fen%2FThe_World_Learns%0A%0A" title="Start a discussion of this page">＋</a></div>
+  <form class="search" action="/wiki/en/Special/Search" method="get" role="search"><input name="q" id="q" type="search" placeholder="Search the OpenWorld Wiki" autocomplete="off" aria-label="Search"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/en/The_World_Learns">Read</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/en/pages/%E5%9F%BA%E6%9C%AC/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6.md" title="Edit this page on GitHub">Edit</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/en/pages/%E5%9F%BA%E6%9C%AC/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6.md">History</a><a class="tab lang" href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6" hreflang="zh" lang="zh" title="中文版">中文</a><button class="tab theme" id="theme" title="Light or dark">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">The World Learns</h1><div class="subtitle">From the OpenWorld Wiki · Gameplay</div>
+  
+  <div class="body"><div class="banner outdated">The <a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6" lang="zh">Chinese page</a> has changed since this translation was made: some of this may be out of date.</div><blockquote class="quote"><p>“Did you see that? It answered!”</p><footer>— Lumi</footer></blockquote>
+<p><strong>The world learns</strong> is the heart of OpenWorld. Everything in this world is decided by written rules: an axe chops a tree, fire lights dry grass, rain puts out what is burning, a person takes the bread you hand them. But no one can write everything in advance. When the player does something whose outcome no rule has defined, and the game is connected to an AI, the world pauses for a moment while the AI writes a new rule for what happens when this kind of thing meets this event; once it checks out, it is woven into the world. From then on the same kind of thing meeting the same event has a definite outcome, and no one who does it again needs to ask the AI. Every rule the world learns is recorded in the <a href="/wiki/en/Threadbook">Threadbook</a>, shared by every save and every player.</p>
+<p>Without an AI, the game is still a complete game that can be played from start to finish. Anything undefined is handled by default, which usually means nothing happens.</p>
+<nav class="toc"><div class="toc-title">Contents</div><ol><li class="toc-l2"><a href="#What_%E2%80%9Csomething_it_has_never_seen%E2%80%9D_means"><span class="tocnum">1</span> What “something it has never seen” means</a></li><li class="toc-l2"><a href="#%E2%80%9C%E2%80%9D"><span class="tocnum">2</span> “?”</a></li><li class="toc-l2"><a href="#After_you_press"><span class="tocnum">3</span> After you press</a></li><li class="toc-l2"><a href="#What_a_thing_is_for"><span class="tocnum">4</span> What a thing is for</a></li><li class="toc-l2"><a href="#AI_settings"><span class="tocnum">5</span> AI settings</a></li><li class="toc-l2"><a href="#One_rule_covers_one_gap_in_one_kind_of_thing"><span class="tocnum">6</span> One rule covers one gap in one kind of thing</a></li><li class="toc-l2"><a href="#What_the_game_already_knows"><span class="tocnum">7</span> What the game already knows</a></li><li class="toc-l2"><a href="#What_the_AI_can_and_cannot_do"><span class="tocnum">8</span> What the AI can and cannot do</a></li><li class="toc-l2"><a href="#When_there_is_no_AI"><span class="tocnum">9</span> When there is no AI</a></li><li class="toc-l2"><a href="#The_shared_rule_library"><span class="tocnum">10</span> The shared rule library</a></li><li class="toc-l2"><a href="#Old_threads"><span class="tocnum">11</span> Old threads</a></li><li class="toc-l2"><a href="#Why_it_is_designed_this_way"><span class="tocnum">12</span> Why it is designed this way</a></li><li class="toc-l2"><a href="#Tips"><span class="tocnum">13</span> Tips</a></li><li class="toc-l2"><a href="#History"><span class="tocnum">14</span> History</a></li></ol></nav><h2 id="What_“something_it_has_never_seen”_means"><span class="mw-headline">What “something it has never seen” means</span></h2>
+<p>Everything in the world carries its own rules, which say how it responds when others do something to it. For example:</p>
+<ul>
+<li>a tree states what happens when an axe chops it: it loses durability, and when felled becomes a stump and logs;</li>
+<li>dry grass states that it catches fire when fire touches it;</li>
+<li>a person states that they talk when someone presses <kbd>E</kbd> on them, and accept something handed to them with <kbd>G</kbd>.</li>
+</ul>
+<p>One action sets off a chain of responses. If any link in that chain is a rule that says “not defined,” the outcome of the action is something the world has never seen. Common cases:</p>
+<ul>
+<li>right-clicking one thing while holding another (or left-clicking while holding a tool), when neither says what happens;</li>
+<li>left-clicking to use on yourself something that is neither a tool nor a weapon, when the world has never seen that use (the game asks you first before it goes ahead);</li>
+<li>pressing <kbd>E</kbd> on something with no rules;</li>
+<li>something the world does on its own running into an undefined combination, such as fire reaching something that has never burned before.</li>
+</ul>
+<p>A careless left or right click in a fight does not count: what the world has never seen is not done (or is a swing at the air), and only a layer chosen with <kbd>Alt</kbd> goes to ask; see <a href="/wiki/en/Controls#Left_click">Controls</a>.</p>
+<p>Some things make sense for a whole class of things, and the game&#39;s own rules already cover them, so the AI is never asked: touching the ground bare-handed, tying up a creature with rope, feeding a creature something edible, warming yourself by a lit fire, smelting ore in a forge… See <a href="/wiki/en/The_World_Learns#What_the_game_already_knows">What the game already knows</a> below.</p>
+<p>Picking up loose things with <kbd>E</kbd> and putting things down with <kbd>G</kbd> are physical actions; their outcome is always definite, and the AI is never asked. To do something creative with a thing, right-click it while holding something: “use what is in your hand on it.”</p>
+<h2 id="“”"><span class="mw-headline">“?”</span></h2>
+<p>In the action prompt above a cell, a line whose outcome is undefined is shown faded and followed by an orange “?”, for example “Interact with the five-wound shrine stone ?” or “Use Stone on the five-wound shrine stone ?”. The “?” only ever appears on <kbd>E</kbd>, the left click and the right click. In the choice list that comes up when you hold a key, such lines carry a “?” too.</p>
+<p>When you see a “?”, the world is waiting for you to teach it. With no AI connected (or with that kind of event set to “Off” in the <a href="/wiki/en/The_World_Learns#AI_settings">AI settings</a>) there is no “?”: the act is only handled by default, and the world does not learn. Touching something no rule covers with an empty hand then only says “You run a hand over the something.”</p>
+<h2 id="After_you_press"><span class="mw-headline">After you press</span></h2>
+<ol>
+<li><strong>The world pauses.</strong> Your action waits for its outcome, and the whole world pauses with it; nothing can sneak up on you meanwhile. A spinning ✦ appears above your character&#39;s head, and the thing being acted on flickers half-transparent. The lower left says “✦ The world pauses…”, and the middle of the screen shows “✦ The world is learning this… N s (up to 20 s) · Esc to stop waiting”.</li>
+<li><strong>The AI writes a rule.</strong> The AI sees the circumstances of the event (who, to what, with what, where, at what hour) and writes a rule for <strong>this one kind of thing</strong>: when you right-click something while holding a thing, it is usually the rule of the thing in your hand; when you press <kbd>E</kbd> bare-handed, it is the rule of the thing touched; for something handed to a creature, it is that kind of creature&#39;s. The rule is placed at the exact spot where the event fell through, and the AI writes only how that one spot responds.</li>
+<li><strong>The check.</strong> The new rule first replays the event in a small, isolated world, confirming that it sits where the event fell through, that it really gives an outcome, and that it breaks none of the limits below. A rule that fails never enters the world.</li>
+<li><strong>It takes effect.</strong> Your action happens by the new rule. The lower left says “✦ A new thread is woven,” followed by what the thread says. The action prompt for this cell changes to the new rule&#39;s own wording, and the “?” disappears.</li>
+<li><strong>It is remembered.</strong> The thread is saved to the shared rule library and written into the Threadbook, signed “you.”</li>
+</ol>
+<p>If the AI decides it needs something the world does not yet have (a new item, a new status), the lower left says “✦ The world is making something new: …”, and the wait can be up to 120 seconds. The new thing comes with a 16×16 pixel picture the AI draws.</p>
+<p><strong>If you don&#39;t want to wait</strong>, press <kbd>Esc</kbd>: the default outcome is applied at once and the world goes on. The rule the AI sends later is still learned and will be used next time; it just doesn&#39;t go back and replay this one.</p>
+<p><strong>If no answer comes within 20 seconds</strong> (the same at every AI level), the default outcome is applied first and the world goes on. When the AI&#39;s rule arrives later, the world learns it and, as long as the circumstances still hold, replays your action by the new rule.</p>
+<p>Undefined events the world causes on its own (not your actions) don&#39;t pause the world; they are learned in the background and signed “the world” in the Threadbook.</p>
+<h2 id="What_a_thing_is_for"><span class="mw-headline">What a thing is for</span></h2>
+<p>Before the AI writes a rule it judges whether the thing has a common use for this act, and what a player would reasonably expect here.</p>
+<ul>
+<li><strong>A use</strong>: a chair, a bench or a stump to sit on, a haystack to lie in, a well or a fountain to draw water and drink. The rule must then really change the world: you sit down, you gain a status, you get something. A line alone does not count, and neither does a stand-in for the use (sitting down is not healing). When the AI says there is a use and its rule changes nothing, it is sent back to write it again once; if it still changes nothing, it counts as “only a line”.</li>
+<li><strong>No use</strong>: touching a boulder, a fence or a statue only gives a line true to the thing, with no mechanics made up.</li>
+<li><strong>Nothing happens.</strong></li>
+</ul>
+<p>The AI weighs the situation too: whose the thing is, whose house it stands in, who is nearby. Knocking on a stranger&#39;s house wall may matter to someone; knocking on a cliff matters to no one.</p>
+<p><strong>Postures.</strong> Sitting, lying, kneeling and leaning are four postures the world already has. When a thing&#39;s use is a posture, it asks whoever uses it to take that posture, and anyone (the player or a resident) does: they go onto its cell, are drawn sitting (lying, kneeling, leaning) with a status such as <span class="status"><a href="/wiki/en/Statuses" title="Statuses">seated</a></span>, and stand up as soon as they walk away.</p>
+<p><strong>An answer that only gives a line is provisional.</strong> If you do the same thing to the same kind of thing a third time within two minutes (you heard the line and kept trying), the world asks the AI again, telling it you are still trying, and pauses for the answer as it did the first time. That answer replaces the line and is final; it is never asked again. An answer of “nothing happens” is settled the first time.</p>
+<h2 id="AI_settings"><span class="mw-headline">AI settings</span></h2>
+<p>The “AI” section of <a href="/wiki/en/Options">Options</a> grades the AI the way graphics settings do. Five kinds of event are each set to “Off / Low / Medium / High”; the top row is a preset that sets all five to the same level in one click, and once they have been set separately the preset shows “Custom.” The default is “Medium,” which is how things were before this setting existed.</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>What it governs</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Things</td>
+<td>You do something to a thing that no rule covers (including using it on yourself)</td>
+</tr>
+<tr>
+<td>People and creatures</td>
+<td>You do something to a person or creature that no rule covers</td>
+</tr>
+<tr>
+<td>The world</td>
+<td>Things that happen in the world on their own with no rule: someone gets stuck, something breaks, a chain reaction</td>
+</tr>
+<tr>
+<td>New things</td>
+<td>When a new thing the world does not yet have is needed: Off = nothing is made, Low = made but not drawn (a picture of its own kind is used for now), Medium = made and drawn, High = drawn and then checked, redrawn once if it fails</td>
+</tr>
+<tr>
+<td>Asking ahead</td>
+<td>Asking early when you point at something and wait a moment: Off = never asks, Low = after 3 s, at most 4 times a game, Medium = 1.5 s, 12 times, High = 1 s, 30 times</td>
+</tr>
+</tbody></table>
+<p><strong>The world waits the same time at every level</strong> (up to 20 seconds). The level decides how much the AI does in that time, so the stronger the model, the higher the level you can turn on:</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>What the AI sees</th>
+<th>What the AI can use</th>
+<th>How deep it thinks</th>
+<th>Check before sending</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Low</td>
+<td>Only the event itself and the things present, the 3×3 cells around</td>
+<td>Only the things present; it changes only the thing acted on (no chain reactions)</td>
+<td>No reasoning</td>
+<td>Basic checks only, no rework</td>
+</tr>
+<tr>
+<td>Medium</td>
+<td>The 7×7 cells around, things within 2 cells, recent dialogue, related rules</td>
+<td>The whole item catalogue; it can set off chain reactions</td>
+<td>A little reasoning</td>
+<td>Checked once, one rework allowed, reviewed again after sending</td>
+</tr>
+<tr>
+<td>High</td>
+<td>Also more things within 4 cells, more related rules, more past experience</td>
+<td>Same as “Medium”</td>
+<td>Deeper reasoning</td>
+<td>Two reworks allowed, reviewed before sending</td>
+</tr>
+</tbody></table>
+<p>“Off”: the AI is not asked about this kind of event, which is handled by default straight away; threads already learned still work.</p>
+<p><strong>Threads learned at each level are kept separately.</strong> Every thread records the level at which it was learned. When an event comes up, the threads learned at your level are used first, and failing those, threads from a higher level: threads learned at a higher level serve the lower levels too, but a higher level does not use threads learned at a lower one, and asks again. Threads learned at Low are not reviewed again.</p>
+<p><strong>Detection.</strong> When an AI is connected, the “AI” section shows the connected model and a “Detect” button: the AI service answers a set of questions (things players have asked, plus the game&#39;s own probe questions) once each at Low, Medium and High, sees how many each level can answer well within 20 seconds, and then recommends a level per category; click “Apply the recommendation” to change to it (asking ahead is not included). Detection costs model calls and can only be started on the computer running the AI service; the result is remembered per model, and changing the model prompts you to detect again.</p>
+<h2 id="One_rule_covers_one_gap_in_one_kind_of_thing"><span class="mw-headline">One rule covers one gap in one kind of thing</span></h2>
+<p>A rule the AI writes belongs to <strong>one</strong> kind of thing (a kind in the game, such as “Stone,” “green slime” or “five-wound shrine stone”), and fills only the one spot where the event fell through. So:</p>
+<ul>
+<li><strong>Every one of a kind is the same.</strong> A rule is not aimed at one particular thing: once “Stone used on the five-wound shrine stone” is learned, any stone used on any shrine stone follows it. Material, quality and element don&#39;t make different kinds: an iron sword and a steel sword are both “Sword,” and the same rule covers them (a rule can branch by material).</li>
+<li><strong>Other kinds are each asked for themselves.</strong> After teaching the green slime how to treat a stone handed to it, the frost slime meeting the same event is asked again, and the two answers can differ. Having tried a stone on the shrine stone, trying a log instead is a new event too.</li>
+<li><strong>Cases left unanswered are asked later.</strong> A rule can answer only the case that was asked and leave the others blank: a blank spot still shows a “?” in the prompt and is asked the next time it comes up, and until it is answered it is handled by default. Answers learned later attach at the same spot of the same kind of thing, filling the blank branches, and what was learned before stays as it is.</li>
+<li><strong>It never changes what is already defined.</strong> The game&#39;s own rules are worked out first, and only where they land on “not defined” do learned rules get their turn. A learned rule cannot take back any outcome already defined.</li>
+<li><strong>The same question is asked only once.</strong> The same kind of thing, the same kind of target, falling through at the same spot: the second time it comes up it follows the rule directly, with no pause.</li>
+<li><strong>What one player teaches, every player gains.</strong> Threads synced from the shared rule library are signed “another player (shared rule library)” in the Threadbook.</li>
+</ul>
+<p>What holds for a whole class of things (such as “creatures can be tied up with rope”) is not learned by the AI one kind at a time but written into the game&#39;s own rules.</p>
+<h2 id="What_the_game_already_knows"><span class="mw-headline">What the game already knows</span></h2>
+<p>The following hold for a whole class of things and are written in the game&#39;s own rules: their outcome is definite, the prompt carries no “?”, and the AI is never asked.</p>
+<table>
+<thead>
+<tr>
+<th>What you do</th>
+<th>Outcome</th>
+<th>See</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Right-click a creature while holding something that is not a weapon</td>
+<td>You hand it the thing: fibers such as rope and cut grass tie it up for 3 seconds, something edible it swallows in one gulp, and a boss takes nothing. Handing it anything else is still answered by that kind of creature itself (with a “?”)</td>
+<td><a href="/wiki/en/Monsters#Handing_things_to_creatures">Handing things to creatures</a></td>
+</tr>
+<tr>
+<td>Swing whatever is in your hand with <kbd>Space</kbd></td>
+<td>A blunt blow</td>
+<td><a href="/wiki/en/Combat">Combat</a></td>
+</tr>
+<tr>
+<td>Press <kbd>E</kbd> bare-handed on a wild monster</td>
+<td>It bites your hand and takes you for an enemy; animals don&#39;t bite (no rule says so)</td>
+<td><a href="/wiki/en/Monsters#Reaching_out_empty-handed">Reaching out bare-handed</a></td>
+</tr>
+<tr>
+<td>Press <kbd>E</kbd> bare-handed on the terrain underfoot, such as the ground or water</td>
+<td>You just touch it, and nothing happens; a place on the world map is entered</td>
+<td><a href="/wiki/en/Terrain#Touching_by_hand">Touching by hand</a></td>
+</tr>
+<tr>
+<td>Press <kbd>E</kbd> bare-handed on standing terrain, such as a tree, rock or a wall</td>
+<td>No rule says what happens: it is left to the world; with no AI you just touch it</td>
+<td><a href="/wiki/en/Terrain#Touching_by_hand">Touching by hand</a></td>
+</tr>
+<tr>
+<td>Press <kbd>E</kbd> bare-handed on a lit fire</td>
+<td>You warm yourself: being wet is dried off</td>
+<td><a href="/wiki/en/Campfire#Warming_up" title="Campfire">Warming up</a></td>
+</tr>
+<tr>
+<td>Right-click a lit forge while holding ore</td>
+<td>It is smelted into an ingot</td>
+<td><a href="/wiki/en/Forge#Smelting" title="Forge">Smelting</a></td>
+</tr>
+<tr>
+<td>Lumi falls and can&#39;t keep up</td>
+<td>She stays where she is and follows again when she wakes</td>
+<td><a href="/wiki/en/Lumi">Lumi</a></td>
+</tr>
+</tbody></table>
+<p>Players&#39; own experiments are still left to the AI: right-clicking the ground, an item, a person or yourself while holding something, or right-clicking a fixture that has no use. This is exactly where the world learns is most interesting.</p>
+<h2 id="What_the_AI_can_and_cannot_do"><span class="mw-headline">What the AI can and cannot do</span></h2>
+<table>
+<thead>
+<tr>
+<th>It can</th>
+<th>It cannot</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Decide an outcome that is undefined</td>
+<td>Change any behavior that is already defined: a new rule is only ever used where something is “not defined”</td>
+</tr>
+<tr>
+<td>Make this kind of thing change itself: catch fire, break, turn into something else, yield things</td>
+<td>Change other things directly. A rule can only write the thing it belongs to; to affect others, it can only send them an event, which they answer by their own rules</td>
+</tr>
+<tr>
+<td>Add a new status or a new thing, and draw a picture for it</td>
+<td>Let a thing yield without limit at no cost: the check repeats the same event 12 times, and a rule that yields without limit fails</td>
+</tr>
+<tr>
+<td>Make people speak, show expressions, talk about the event</td>
+<td>Answer for other kinds: a rule belongs only to the one kind of thing asked about and sits only at the spot where the event fell through</td>
+</tr>
+<tr>
+<td>Answer only the case asked and leave other cases blank, to be asked later</td>
+<td>Answer nothing at all: the event asked about must get an outcome</td>
+</tr>
+</tbody></table>
+<p>Events the world causes on its own (not the player&#39;s actions) are held to stricter limits: a learned rule cannot hurt people and cannot change the story&#39;s progress or the records the story protects.</p>
+<p>These limits are enforced by the game&#39;s own checker, not left to the AI&#39;s good conduct. A rule that fails the check is simply discarded, and this time the default applies. The story also has its own safety net: if something needed to advance the main story is broken by accident, the story finds another way for you to go on, such as the ferryman at the ford taking you across the river himself.</p>
+<h2 id="When_there_is_no_AI"><span class="mw-headline">When there is no AI</span></h2>
+<ul>
+<li>The game is complete: every quest, fight, building job and the story can be played through.</li>
+<li>Actions with a “?” can still be pressed; pressing one applies the default outcome at once, with no pause. The default outcome is usually that nothing happens (“Nothing happened.”), and pressing <kbd>E</kbd> on something with no rules only says what it is (“This is X.”). Terrain such as the ground, water and trees does not count as having no rules: pressing <kbd>E</kbd> bare-handed touches it (“Your hand brushes the grass. Nothing happens.”).</li>
+<li>Threads learned before still work.</li>
+<li>The development build shows a notice the first time this happens: “⚠ No modder online, nothing learned.”</li>
+</ul>
+<h2 id="The_shared_rule_library"><span class="mw-headline">The shared rule library</span></h2>
+<ul>
+<li>Threads the world learns belong to no save. The three save slots share one rule library, and threads learned in a new game or in the tutorial are kept too.</li>
+<li>Players connected to the same AI service share the same rule library. The game syncs about every 15 seconds, and threads others have taught appear in your world.</li>
+<li>Every thread that comes from elsewhere is checked again in your world before it takes effect.</li>
+<li>The rule library is also kept in the browser and is still there the next time you open the game.</li>
+</ul>
+<h2 id="Old_threads"><span class="mw-headline">Old threads</span></h2>
+<p>Rules learned before 2026-10-09 were written for a whole class of things (such as “all weapons” or “all edible things”). The game no longer uses such rules: when the rule library is read they fail the check and are dropped (the development build gives the reason in the browser console), so they no longer appear in the Threadbook; the same goes for those synced from the shared rule library. When the AI service starts, it withdraws them from the shared rule library, and developers can also list and withdraw them with <code>npm run modder -- library prune</code> (see <a href="/wiki/en/Mod_Console">Mod Console</a>).</p>
+<p>After a game update, if the spot where a thread sits has been changed by the game&#39;s own rules (it is no longer a gap, or the branches of that rule have changed), the thread is dropped the same way, and the threads attached below it are dropped with it.</p>
+<h2 id="Why_it_is_designed_this_way"><span class="mw-headline">Why it is designed this way</span></h2>
+<p>In OpenWorld&#39;s design, the AI has only one interface: <strong>the outcome of an event</strong>. What the rules define follows the rules; what they don&#39;t, the AI is asked; with no AI, or when the AI fails, the default applies. How people and monsters “decide what to do” comes from their own schedules and behavior and has nothing to do with the AI. So the game is first of all an ordinary, complete game; the AI appears only when the world truly meets something new, and the older the world, the less there is to ask. See <a href="/wiki/en/Design_Pillars">Design Pillars</a>.</p>
+<h2 id="Tips"><span class="mw-headline">Tips</span></h2>
+<ul>
+<li>To teach the world something new, right-click everything around you while holding something, and look for actions with a “?”. The five-wound shrine stone at the foot of the mountain was left there just for you to try.</li>
+<li>A rule belongs to one kind of thing, so one try per kind is enough: teach one five-wound shrine stone, and every five-wound shrine stone follows it. But what you taught with a stone has to be taught again with a log.</li>
+<li>What the world has learned can be looked up at any time in the Threadbook (<kbd>J</kbd>).</li>
+<li>When you don&#39;t want to be interrupted, press <kbd>Esc</kbd> to skip the wait; the world still learns afterwards.</li>
+</ul>
+<h2 id="History"><span class="mw-headline">History</span></h2>
+<ul>
+<li>2026-10-01: What the world learns started to be written into the Threadbook, with a rule library shared by all saves.</li>
+<li>2026-10-02: The only AI interface was fixed as “the outcome of an event”: a rule writes only itself, an undefined outcome is asked of the AI, and with no AI the default applies. Events the world causes on its own are learned too.</li>
+<li>2026-10-02: While waiting for the AI, only the person waiting on the outcome is locked; with no AI there is no pause.</li>
+<li>2026-10-04: <kbd>F</kbd> and <kbd>G</kbd> became physical actions and are no longer asked of the AI; rules carry their own wording for the action prompt, and rules the AI writes can carry it too.</li>
+<li>2026-10-04: The AI can create new kinds of item and draw a 16×16 pixel picture for each.</li>
+<li>2026-10-06: While waiting for the outcome of the player&#39;s action the whole world pauses; the screen shows the seconds waited, and <kbd>Esc</kbd> stops waiting.</li>
+<li>2026-10-08: The Threadbook signs “you” and “another player (shared rule library)” separately; in Chinese a thread&#39;s Chinese wording is shown first.</li>
+<li>2026-10-09: A learned rule belongs to one kind of thing and fills only one gap: other kinds are each asked for themselves, and cases left unanswered are asked later. Things that hold for a whole class (handing things to creatures, touching the ground, warming up, smelting…) were written into the game&#39;s own rules. Rules written for whole classes are no longer used.</li>
+<li>2026-10-13: AI settings were added: five kinds of event each set to “Off / Low / Medium / High,” the same wait at every level, the AI doing more the higher the level; threads learned at each level are kept separately, and a higher level&#39;s threads serve the lower levels too; the connected model can be detected and a level recommended.</li>
+<li>2026-10-21: The controls were fixed as four inputs: using a held object on something moved to the right click (the left click is the held thing&#39;s own use: a tool or weapon is swung, anything else is used on yourself), and picking up loose things moved to <kbd>E</kbd> (see <a href="/wiki/en/Controls">Controls</a>).</li>
+<li>2026-10-25: The AI first judges whether a thing has a common use for the act: a use must really change the world (sitting, lying, kneeling and leaning became postures the world has), no use gets only a line; an answer that only gives a line is provisional and is asked again when the player keeps trying. Without AI there is no “?”, and the default line for touching something empty-handed became “You run a hand over the something.”</li>
+<li>2026-10-28: Pressing <kbd>E</kbd> bare-handed on standing terrain such as a tree, rock or a wall is now left to the world; with no AI it is still just a touch.</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title">Basics</th></tr><tr><td colspan="2"><a href="/wiki/en/Achievements">Achievements</a> • <a href="/wiki/en/Beginner's_Guide">Beginner's Guide</a> • <a href="/wiki/en/Co-op">Co-op</a> • <a href="/wiki/en/Controls">Controls</a> • <a href="/wiki/en/Crime">Crime</a> • <a href="/wiki/en/Day_and_Night">Day and Night</a> • <a href="/wiki/en/Death_of_Characters">Death of Characters</a> • <a href="/wiki/en/Dialogue">Dialogue</a> • <a href="/wiki/en/Difficulty">Difficulty</a> • <a href="/wiki/en/Energy">Energy</a> • <a href="/wiki/en/Equipment">Equipment</a> • <a href="/wiki/en/Festivals">Festivals</a> • <a href="/wiki/en/Followers_and_Hiring">Followers and Hiring</a> • <a href="/wiki/en/Friendship">Friendship</a> • <a href="/wiki/en/Guards_and_Bounties">Guards and Bounties</a> • <a href="/wiki/en/Health">Health</a> • <a href="/wiki/en/In-game_Time">In-game Time</a> • <a href="/wiki/en/Karma_and_Faith">Karma and Faith</a> • <a href="/wiki/en/Keeping_Safe">Keeping Safe</a> • <a href="/wiki/en/Levels_and_Experience">Levels and Experience</a> • <a href="/wiki/en/Looks">Looks</a> • <a href="/wiki/en/Mod_Console">Mod Console</a> • <a href="/wiki/en/Money">Money</a> • <a href="/wiki/en/People's_Needs">People's Needs</a> • <a href="/wiki/en/Player_Character">Player Character</a> • <a href="/wiki/en/Quality">Quality</a> • <a href="/wiki/en/Quests">Quests</a> • <a href="/wiki/en/Satiety">Satiety</a> • <a href="/wiki/en/Seasons">Seasons</a> • <a href="/wiki/en/Sneaking_and_Pickpocketing">Sneaking and Pickpocketing</a> • <a href="/wiki/en/The_World_Learns">The World Learns</a> • <a href="/wiki/en/Trading">Trading</a> • <a href="/wiki/en/Tutorial">Tutorial</a> • <a href="/wiki/en/Waypoint_statue">Waypoint statue</a> • <a href="/wiki/en/Weather">Weather</a></td></tr></table>
+</div>
+  <div class="catlinks">Categories: <a href="/wiki/en/Category/Gameplay">Gameplay</a></div>
+</main>
+<footer class="footer">
+  <p>Written by the OpenWorld team and translated from the Chinese edition; the tables are generated from the game’s code <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a> (main) at 2026-10-30 06:19.</p>
+  <p>Everyone on the team can edit it on GitHub: see <a href="/wiki/en/Editing_Basics">Editing Basics</a>. Game art from Ninja Adventure (CC0) and the project's own.</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

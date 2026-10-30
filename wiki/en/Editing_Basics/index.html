@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en" data-base="/wiki/en/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Editing Basics - OpenWorld Wiki</title>
+<meta name="description" content="Edit a page in three steps; create a page; discuss big changes first; preview locally; how the English edition follows the Chinese one.">
+<link rel="alternate" hreflang="zh" href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-帮助">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/en/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>Wiki</small></span></a>
+  <nav class="portlet"><h3>Navigation</h3><ul><li><a href="/wiki/en/">Main page</a></li><li><a href="/wiki/en/Beginner's_Guide">Beginner's Guide</a></li><li><a href="/wiki/en/Main_Quest_Walkthrough">Main Quest Walkthrough</a></li><li><a href="/wiki/en/Special/Recent_changes">Recent changes</a></li><li><a href="/wiki/en/Special/Random_page">Random page</a></li><li><a href="/wiki/en/Special/Stubs">Stubs</a></li><li><a href="/wiki/en/Special/All_pages">All pages</a></li></ul></nav><nav class="portlet"><h3>Contributing</h3><ul><li><a href="/wiki/en/Editing_Basics">Editing Basics</a></li><li><a href="/wiki/en/Format_Manual">Format Manual</a></li><li><a href="/wiki/en/Style_Guide">Style Guide</a></li><li><a href="/wiki/en/Special/Completeness">Completeness</a></li></ul></nav><nav class="portlet"><h3>Design</h3><ul><li><a href="/wiki/en/About_This_Wiki">About This Wiki</a></li><li><a href="/wiki/en/Design_Pillars">Design Pillars</a></li><li><a href="/wiki/en/Roadmap">Roadmap</a></li><li><a href="/wiki/en/Version_History">Version History</a></li><li><a href="/wiki/en/Known_Issues">Known Issues</a></li></ul></nav>
+  <nav class="portlet"><h3>Game</h3><ul><li><a href="/play/">Play the game</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub repository</a></li><li><a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8" hreflang="zh">中文维基</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/en/Editing_Basics">Page</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22Editing%20Basics%22" title="Discussion of this page (GitHub issues)">Talk</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5Bwiki%5D%20Editing%20Basics&body=Page%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2Fen%2FEditing_Basics%0A%0A" title="Start a discussion of this page">＋</a></div>
+  <form class="search" action="/wiki/en/Special/Search" method="get" role="search"><input name="q" id="q" type="search" placeholder="Search the OpenWorld Wiki" autocomplete="off" aria-label="Search"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/en/Editing_Basics">Read</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/en/pages/%E5%B8%AE%E5%8A%A9/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8.md" title="Edit this page on GitHub">Edit</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/en/pages/%E5%B8%AE%E5%8A%A9/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8.md">History</a><a class="tab lang" href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8" hreflang="zh" lang="zh" title="中文版">中文</a><button class="tab theme" id="theme" title="Light or dark">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">Editing Basics</h1><div class="subtitle">From the OpenWorld Wiki · Help</div>
+  
+  <div class="body"><p>Welcome to editing the OpenWorld Wiki. The wiki is written in Chinese first: the Chinese pages are the source, and this English edition is their translation. Every page is a file in the GitHub repository <a href="https://github.com/SihanXU/symbolic-world">SihanXU/symbolic-world</a>: a Chinese page lives under <code>wiki/pages/</code>, its English translation under <code>wiki/en/pages/</code> at the same path. Everyone on the project team can edit them. A minute or two after a change is merged into the main branch (main), the site updates by itself.</p>
+<p>This page is about editing the English pages. How the English edition follows the Chinese one is explained in full in the last section, <a href="/wiki/en/Editing_Basics#The_English_edition">The English edition</a>.</p>
+<nav class="toc"><div class="toc-title">Contents</div><ol><li class="toc-l2"><a href="#Editing_a_page"><span class="tocnum">1</span> Editing a page</a></li><li class="toc-l2"><a href="#Creating_a_page"><span class="tocnum">2</span> Creating a page</a></li><li class="toc-l2"><a href="#Discussion"><span class="tocnum">3</span> Discussion</a></li><li class="toc-l2"><a href="#Previewing_locally"><span class="tocnum">4</span> Previewing locally</a></li><li class="toc-l2"><a href="#The_generated_parts"><span class="tocnum">5</span> The generated parts</a></li><li class="toc-l2"><a href="#Completeness"><span class="tocnum">6</span> Completeness</a></li><li class="toc-l2"><a href="#The_English_edition"><span class="tocnum">7</span> The English edition</a></li></ol></nav><h2 id="Editing_a_page"><span class="mw-headline">Editing a page</span></h2>
+<ol>
+<li>Open the page on the site and click &quot;Edit&quot; at the top right. You land on GitHub&#39;s editor for this file (you need to be signed in to GitHub and be a collaborator on the repository). If the page has not been translated yet, the button says &quot;Translate&quot; instead: it starts the English file on GitHub with the Chinese text already in it, ready to be translated (see <a href="/wiki/en/Editing_Basics#The_English_edition">The English edition</a>).</li>
+<li>Edit the text. For the format, see <a href="/wiki/en/Format_Manual">Format Manual</a>; for how to write, see <a href="/wiki/en/Style_Guide">Style Guide</a>.</li>
+<li>At the bottom of the page, write one line saying what you changed, then:<ul>
+<li><strong>Small changes</strong> (a typo, a missing sentence, a wrong number, a better wording): choose &quot;Commit directly to the main branch&quot; and commit.</li>
+<li><strong>Big changes</strong> (rewriting a section, changing the structure, a whole new translation): choose &quot;Create a new branch … and start a pull request&quot;, and wait for someone to look at it before it is merged.</li>
+</ul>
+</li>
+</ol>
+<p>After you commit, the repository&#39;s automatic check builds the whole wiki, both editions. If a link or a template is wrong, the check fails and tells you, in the pull request, which line is the problem. This holds for English pages too: a broken link or template in an English page fails the build, while a translation that is merely missing or out of date never does.</p>
+<p>If what is wrong is the content itself (a fact, a number, a section that should not be there), fix the Chinese page: the English page follows it. An English page should say what its Chinese page says, no more and no less.</p>
+<h2 id="Creating_a_page"><span class="mw-headline">Creating a page</span></h2>
+<ul>
+<li>New pages are written in Chinese first. The English edition already has a page for every Chinese page, translated or not, so there is rarely a reason to create an English page from nothing.</li>
+<li>A link to a page that does not exist yet shows in red. In the English edition this usually means the Chinese page does not exist either, or the link&#39;s target is misspelled: check the target against the English title of the page you meant (or write its Chinese title, which also works).</li>
+<li>Every person, item, monster, location and quest in the game has a page generated for it automatically (marked as a stub). Clicking &quot;Edit&quot; or &quot;Translate&quot; on such a page creates the corresponding file; its skeleton already holds the data templates it should have, so you only add the text. A page about a game thing may be written in English before anyone writes the Chinese one: keep the <code>object:</code> line and the path the button gives, so that the Chinese page, once written at the same path, pairs with it.</li>
+</ul>
+<h2 id="Discussion"><span class="mw-headline">Discussion</span></h2>
+<p>The &quot;Talk&quot; tab at the top of each page lists that page&#39;s GitHub issues (labelled <code>wiki</code>, titled with the page&#39;s name), and &quot;＋&quot; next to it opens a new one. Discuss first, then edit, when you want to:</p>
+<ul>
+<li>change the structure or templates of a whole kind of page;</li>
+<li>write lore or story that has not been settled;</li>
+<li>delete a page or a large part of one.</li>
+</ul>
+<p>Because the Chinese pages are the source, these discussions are about both editions at once. A question about a translation only (a term, a wording) can be raised on the English page.</p>
+<h2 id="Previewing_locally"><span class="mw-headline">Previewing locally</span></h2>
+<p>With the dependencies installed (<code>npm install</code>), run this in the repository&#39;s root folder:</p>
+<p><pre><code class="language-bash">npm run wiki
+</code></pre>
+
+Open <code>http://localhost:5180/wiki/en/</code> in your browser for the English edition (<code>http://localhost:5180/wiki/</code> is the Chinese one). Change a file under <code>wiki/en/pages/</code> (or <code>wiki/pages/</code>) and refresh the page to see it. If you only want to check for errors:</p>
+<pre><code class="language-bash">npm run wiki:check
+</code></pre>
+
+<h2 id="The_generated_parts"><span class="mw-headline">The generated parts</span></h2>
+<p>Infoboxes, tables, schedules, dialogue and recipes are read from the game&#39;s code when the wiki is built (see <a href="/wiki/en/Format_Manual#Data_templates">data templates</a>). In the English edition they come out in the game&#39;s own English: names, lines and descriptions are those the game shows when it is set to English. If they are wrong, what needs fixing is the game&#39;s code, not the wiki page. Once someone changes the game&#39;s code and commits it, the wiki updates with it.</p>
+<p>A few words of the game&#39;s data have no English term yet; they are listed on <a href="/wiki/en/Special/Completeness">Special:Completeness</a> under &quot;Missing terms&quot;, and are added to <code>wiki/en/terms.json</code>.</p>
+<h2 id="Completeness"><span class="mw-headline">Completeness</span></h2>
+<p>Everything in the game must have a page, and every system must be explained. The build checks this on the Chinese edition: every person, item, monster, boss, location, quest, skill branch, recipe and status in the game&#39;s data, and every key and every panel of the controls, needs a page or a section. When the game adds something and the wiki has not caught up, the build reports it.</p>
+<p>The English edition follows the Chinese one page by page. <a href="/wiki/en/Special/Completeness">Special:Completeness</a> shows how far it has got: how many pages are up to date, how many are out of date and how many are not translated yet, each with its list. Pages not finished yet, and pages linked to but missing, are listed on <a href="/wiki/en/Special/Stubs">Special:Stubs</a>.</p>
+<h2 id="The_English_edition"><span class="mw-headline">The English edition</span></h2>
+<p>The English edition (served at <code>/wiki/en/…</code>, with <a href="/wiki/">中文</a> as the link to the other edition at the top of every page) is a translation of the Chinese one. Chinese is the source: the team writes in Chinese as usual, and the English pages follow.</p>
+<p><strong>Where the files are.</strong> Each English page is a file under <code>wiki/en/pages/</code> with <strong>the same path and the same (Chinese) file name</strong> as its Chinese page: the translation of <code>wiki/pages/人物/伊尔丝修女.md</code> is <code>wiki/en/pages/人物/伊尔丝修女.md</code>. Pages are paired by path, never by title, so never rename or move an English file on its own. A page is served at <code>/wiki/en/&lt;Title&gt;</code>, with spaces written as <code>_</code> (<code>/wiki/en/Editing_Basics</code>).</p>
+<p><strong>Front matter.</strong> An English file starts with its own block:</p>
+<p><pre><code>---
+summary: The keeper of the fire in Firstlight Village&#39;s chapel.
+categories: Firstlight Village
+aliases: Ilse
+source: 3f9a1c0b7d2e
+---
+</code></pre>
+
+and, for a page that is not about a game thing:</p>
+<pre><code>---
+title: Satiety
+summary: How full you are, and what hunger does.
+source: 8c41e07a2b95
+---
+</code></pre>
+
+<ul>
+<li><code>title:</code> the English title, for a page that is not about a game thing. A page about a game thing (a person, an item, a location…) takes the game&#39;s English name as its title by itself, and needs no <code>title:</code>.</li>
+<li><code>summary:</code> one sentence, used in search results and lists.</li>
+<li><code>categories:</code> and <code>aliases:</code> comma-separated, in English, as the Chinese page&#39;s 分类 and 别名.</li>
+<li><code>source:</code> which version of the Chinese text this translates (a hash). Do not write it by hand: it is set by <code>npm run wiki:translate -- stamp &lt;file&gt;</code>.</li>
+<li>The type, the game object and the status are taken from the Chinese page; an English file does not repeat them. The one exception is a page about a game thing written in English with no Chinese file yet: it carries <code>object: &lt;id&gt;</code> itself.</li>
+</ul>
+<p><strong>When the Chinese page changes.</strong> The build compares the Chinese text with the <code>source:</code> of its translation. When they differ, the English page shows a banner saying the Chinese page has changed since the translation was made, and is listed as out of date on <a href="/wiki/en/Special/Completeness">Special:Completeness</a>. To bring it up to date, compare the Chinese page&#39;s history since the translation (the &quot;History&quot; tab on the Chinese page), change the English text to match, then stamp it again.</p>
+<p><strong>Pages not translated yet.</strong> They still exist in English. A page about a game thing shows what the game&#39;s own data says, in English (its infobox and tables); any other page shows the Chinese text. Both carry a banner and a &quot;Translate&quot; button that starts the English file on GitHub with the Chinese text in it. For a page that is not about a game thing, the file the button starts has <code>title:</code> set to the Chinese title: replace it with the English one. The file also already carries <code>source:</code> for the Chinese text as it is now.</p>
+<p><strong>How to translate a page.</strong></p>
+<ol>
+<li>Click &quot;Translate&quot; (or &quot;Edit&quot; on an out-of-date page), or copy the Chinese file to the same path under <code>wiki/en/pages/</code>.</li>
+<li>Translate everything a reader reads, fully and faithfully, following the <a href="/wiki/en/Style_Guide">Style Guide</a>. Keep every heading, in the same order and at the same level: sections are matched between the editions by their position, so a heading added, dropped or moved breaks the links into the page. New material goes under an existing heading, and only if the Chinese page has it too.</li>
+<li>Links and template arguments may stay in Chinese (<code>[[露米]]</code>, <code>{{物品|木头}}</code>): the build finds the English page they mean. Templates have English names as well (<code>{{infobox}}</code> is <code>{{信息框}}</code>), and either name works in either edition; see <a href="/wiki/en/Format_Manual#Templates">templates</a>.</li>
+<li>In the repository&#39;s root folder, run <code>npm run wiki:translate -- relink &lt;file&gt;</code>, then <code>npm run wiki:translate -- stamp &lt;file&gt;</code> (for example <code>npm run wiki:translate -- stamp wiki/en/pages/人物/伊尔丝修女.md</code>). <code>relink</code> rewrites what you left in Chinese into the English edition&#39;s own words: link targets and their <code>#sections</code>, raw <code>/wiki/…</code> addresses, template names, and the template arguments that name pages, things or keys. <code>stamp</code> records which version of the Chinese page the file translates. With no file named, both work on every English page.</li>
+<li>Check the page in the local preview, then commit as in <a href="/wiki/en/Editing_Basics#Editing_a_page">Editing a page</a>.</li>
+</ol>
+<p><strong>What is left to do.</strong> <code>npm run wiki:translate -- status</code> lists the pages not translated yet and the pages out of date, each with its Chinese file; <a href="/wiki/en/Special/Completeness">Special:Completeness</a> shows the same on the site. None of this fails the build. What does fail it, in English pages as in Chinese ones, is a broken link, a link to a section that does not exist, or a template the build cannot run.</p>
+</div>
+  <div class="catlinks">Categories: <a href="/wiki/en/Category/Help">Help</a></div>
+</main>
+<footer class="footer">
+  <p>Written by the OpenWorld team and translated from the Chinese edition; the tables are generated from the game’s code <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a> (main) at 2026-10-30 06:19.</p>
+  <p>Everyone on the team can edit it on GitHub: see <a href="/wiki/en/Editing_Basics">Editing Basics</a>. Game art from Ninja Adventure (CC0) and the project's own.</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

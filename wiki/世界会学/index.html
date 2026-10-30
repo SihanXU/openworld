@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="zh-CN" data-base="/wiki/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>世界会学 - OpenWorld 中文维基</title>
+<meta name="description" content="OpenWorld 的核心：世界从没见过的事，连着 AI 时世界当场学会它的结果并永远记住；没有 AI 时按默认处理。「?」的含义、按下去之后发生什么、学到的规则管多宽、AI 能做和不能做的事。">
+<link rel="alternate" hreflang="en" href="/wiki/en/The_World_Learns">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>中文维基</small></span></a>
+  <nav class="portlet"><h3>导航</h3><ul><li><a href="/wiki/">首页</a></li><li><a href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">新手指南</a></li><li><a href="/wiki/%E4%B8%BB%E7%BA%BF%E6%B5%81%E7%A8%8B">主线流程</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%9C%80%E8%BF%91%E6%9B%B4%E6%94%B9">最近更改</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E9%9A%8F%E6%9C%BA%E9%A1%B5%E9%9D%A2">随机页面</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%BE%85%E5%AE%8C%E5%96%84">待完善</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%89%80%E6%9C%89%E9%A1%B5%E9%9D%A2">所有页面</a></li></ul></nav><nav class="portlet"><h3>参与编辑</h3><ul><li><a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a></li><li><a href="/wiki/%E6%A0%BC%E5%BC%8F%E6%89%8B%E5%86%8C">格式手册</a></li><li><a href="/wiki/%E9%A3%8E%E6%A0%BC%E6%8C%87%E5%8D%97">风格指南</a></li><li><a href="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E5%AE%8C%E5%A4%87%E6%80%A7">完备性</a></li></ul></nav><nav class="portlet"><h3>企划</h3><ul><li><a href="/wiki/%E5%85%B3%E4%BA%8E%E6%9C%AC%E7%BB%B4%E5%9F%BA">关于本维基</a></li><li><a href="/wiki/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1">设计支柱</a></li><li><a href="/wiki/%E8%B7%AF%E7%BA%BF%E5%9B%BE">路线图</a></li><li><a href="/wiki/%E7%89%88%E6%9C%AC%E5%8E%86%E5%8F%B2">版本历史</a></li><li><a href="/wiki/%E5%B7%B2%E7%9F%A5%E9%97%AE%E9%A2%98">已知问题</a></li></ul></nav>
+  <nav class="portlet"><h3>游戏</h3><ul><li><a href="/play/">开始游戏</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub 仓库</a></li><li><a href="/wiki/en/The_World_Learns" hreflang="en">English wiki</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="菜单" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">页面</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6%22" title="这一页的讨论（GitHub 议题）">讨论</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5B%E7%BB%B4%E5%9F%BA%5D%20%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6&body=%E9%A1%B5%E9%9D%A2%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2F%25E4%25B8%2596%25E7%2595%258C%25E4%25BC%259A%25E5%25AD%25A6%0A%0A" title="就这一页开一个新的讨论">＋</a></div>
+  <form class="search" action="/wiki/%E7%89%B9%E6%AE%8A%EF%BC%9A%E6%90%9C%E7%B4%A2" method="get" role="search"><input name="q" id="q" type="search" placeholder="搜索 OpenWorld 维基" autocomplete="off" aria-label="搜索"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">阅读</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/pages/%E5%9F%BA%E6%9C%AC/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6.md" title="在 GitHub 上编辑这一页">编辑</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/pages/%E5%9F%BA%E6%9C%AC/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6.md">查看历史</a><a class="tab lang" href="/wiki/en/The_World_Learns" hreflang="en" lang="en" title="English edition">English</a><button class="tab theme" id="theme" title="切换明暗">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">世界会学</h1><div class="subtitle">来自OpenWorld 中文维基 · 玩法</div>
+  
+  <div class="body"><blockquote class="quote"><p>「你看到了吗？它回应了！」</p><footer>— 露米</footer></blockquote>
+<p><strong>世界会学</strong>是 OpenWorld 的核心。这个世界里的一切都由写好的规则决定：斧头砍树、火点燃干草、雨浇灭燃烧的东西、人接过你递来的面包。但没有人能事先写好每一件事。当玩家做了一件规则没有定义过结果的事，而游戏连着 AI 时，世界会停顿一下，由 AI 为这一种东西遇到这件事时的结果写出一条新规则，检查无误后织进世界。从此同一种东西遇到同样的事就有了确定的结果，以后谁再做都不用再问 AI。世界学会的每一条规则都记在<a href="/wiki/%E7%BB%87%E7%BA%BF%E7%B0%BF">织线簿</a>里，所有存档、所有玩家共用。</p>
+<p>没有 AI 时，游戏照样是一个完整的游戏，可以从头玩到尾。没定义的事按默认处理，通常是什么也不发生。</p>
+<nav class="toc"><div class="toc-title">目录</div><ol><li class="toc-l2"><a href="#%E4%BB%80%E4%B9%88%E6%98%AF%E2%80%9C%E6%B2%A1%E8%A7%81%E8%BF%87%E7%9A%84%E4%BA%8B%E2%80%9D"><span class="tocnum">1</span> 什么是“没见过的事”</a></li><li class="toc-l2"><a href="#%E3%80%8C%E3%80%8D"><span class="tocnum">2</span> 「?」</a></li><li class="toc-l2"><a href="#%E6%8C%89%E4%B8%8B%E5%8E%BB%E4%B9%8B%E5%90%8E"><span class="tocnum">3</span> 按下去之后</a></li><li class="toc-l2"><a href="#%E8%BF%99%E6%A0%B7%E4%B8%9C%E8%A5%BF%E5%AF%B9%E8%BF%99%E4%BB%B6%E4%BA%8B%E6%84%8F%E5%91%B3%E7%9D%80%E4%BB%80%E4%B9%88"><span class="tocnum">4</span> 这样东西对这件事意味着什么</a></li><li class="toc-l2"><a href="#AI_%E8%AE%BE%E7%BD%AE"><span class="tocnum">5</span> AI 设置</a></li><li class="toc-l2"><a href="#%E4%BD%A0%E7%9A%84%E6%A8%A1%E5%9E%8B"><span class="tocnum">6</span> 你的模型</a></li><li class="toc-l2"><a href="#%E4%B8%80%E6%9D%A1%E8%A7%84%E5%88%99%E7%AE%A1%E4%B8%80%E7%A7%8D%E4%B8%9C%E8%A5%BF%E7%9A%84%E4%B8%80%E5%A4%84%E7%A9%BA%E7%BC%BA"><span class="tocnum">7</span> 一条规则管一种东西的一处空缺</a></li><li class="toc-l2"><a href="#%E6%B8%B8%E6%88%8F%E8%87%AA%E5%B7%B1%E4%BC%9A%E7%9A%84%E9%80%9A%E7%94%A8%E6%83%85%E5%BD%A2"><span class="tocnum">8</span> 游戏自己会的通用情形</a></li><li class="toc-l2"><a href="#AI_%E8%83%BD%E5%81%9A%E4%BB%80%E4%B9%88%E3%80%81%E4%B8%8D%E8%83%BD%E5%81%9A%E4%BB%80%E4%B9%88"><span class="tocnum">9</span> AI 能做什么、不能做什么</a></li><li class="toc-l2"><a href="#%E6%B2%A1%E6%9C%89_AI_%E7%9A%84%E6%97%B6%E5%80%99"><span class="tocnum">10</span> 没有 AI 的时候</a></li><li class="toc-l2"><a href="#%E5%85%B1%E4%BA%AB%E8%A7%84%E5%88%99%E5%BA%93"><span class="tocnum">11</span> 共享规则库</a></li><li class="toc-l2"><a href="#%E6%97%A7%E7%9A%84%E7%BA%BF"><span class="tocnum">12</span> 旧的线</a></li><li class="toc-l2"><a href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E8%BF%99%E6%A0%B7%E8%AE%BE%E8%AE%A1"><span class="tocnum">13</span> 为什么这样设计</a></li><li class="toc-l2"><a href="#%E6%8F%90%E7%A4%BA"><span class="tocnum">14</span> 提示</a></li><li class="toc-l2"><a href="#%E5%8E%86%E5%8F%B2"><span class="tocnum">15</span> 历史</a></li></ol></nav><h2 id="什么是“没见过的事”"><span class="mw-headline">什么是“没见过的事”</span></h2>
+<p>世界里每样东西都带着自己的规则，说明别人对它做什么时它怎样回应。例如：</p>
+<ul>
+<li>树规定了被斧头砍时会怎样：掉耐久，砍倒变成树桩和木头；</li>
+<li>干草规定了碰到火时会烧起来；</li>
+<li>人规定了别人对他按 <kbd>E</kbd> 时会说话、别人用 <kbd>G</kbd> 递东西时会收下。</li>
+</ul>
+<p>一个动作会引起一连串的反应。只要这串反应里有一环，规则写的是“没有定义”，这个动作的结果就是世界没见过的事。常见的有：</p>
+<ul>
+<li>拿着一样东西右键点另一样东西（或拿着工具按左键），而两者都没有说明会怎样；</li>
+<li>拿着一样不是工具、也不是武器的东西按左键对自己用，而世界没见过这种用法（按下去之前游戏会先问你一句）；</li>
+<li>对一样没有规则的东西按 <kbd>E</kbd>；</li>
+<li>世界自己发生的事碰到了没定义的组合，比如火烧到了一样从没烧过的东西。</li>
+</ul>
+<p>战斗中随手的左键、右键不算在内：世界没见过的就不做（或者空挥），只有用 <kbd>Alt</kbd> 选层才会去问，见<a href="/wiki/%E6%93%8D%E4%BD%9C#%E5%B7%A6%E9%94%AE">操作</a>。</p>
+<p>有些事对一整类东西都说得通，游戏自己的规则已经写好了，不会问 AI：空手摸地面、拿绳子捆生物、拿吃的喂生物、在点着的火旁取暖、在熔炉里炼矿石……见下文<a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6#%E6%B8%B8%E6%88%8F%E8%87%AA%E5%B7%B1%E4%BC%9A%E7%9A%84%E9%80%9A%E7%94%A8%E6%83%85%E5%BD%A2">游戏自己会的通用情形</a>。</p>
+<p>用 <kbd>E</kbd> 拿起散落的东西和用 <kbd>G</kbd> 放下东西是物理动作，结果永远确定，从不问 AI。想对一样东西做点有创意的事，拿着手上的东西右键点它，“把手上的东西用在它上面”。</p>
+<h2 id="「」"><span class="mw-headline">「?」</span></h2>
+<p>格子上方的动作提示里，结果没定义的那一行颜色变淡，后面跟一个橙色的「?」，比如“与五伤路碑互动 ?”“把石块用在五伤路碑上 ?”。「?」只会出现在 <kbd>E</kbd>、左键和右键上。长按出来的选择列表里，这类行也带「?」。</p>
+<p>看到「?」，就是世界在等你教它。没连 AI（或这一类事在 <a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6#AI_%E8%AE%BE%E7%BD%AE">AI 设置</a>里是「关」）时不显示「?」：这件事只按默认处理，世界不会学。没连 AI 时空手按 <kbd>E</kbd> 摸一样没有规则的东西，只会说「你伸手摸了摸某某。」</p>
+<h2 id="按下去之后"><span class="mw-headline">按下去之后</span></h2>
+<ol>
+<li><strong>世界停顿。</strong> 你的动作等着它的结果，整个世界跟着暂停，没有东西会趁机走过来。人物头顶出现一个转动的 ✦，被作用的东西半透明闪烁。左下角提示“✦ 世界停顿了一下……”，屏幕中间显示“✦ 世界正在学习这件事…… N 秒（最多 20 秒）· Esc 不等了”。</li>
+<li><strong>AI 写规则。</strong> AI 看到这件事的情况（谁、对什么、用什么、在哪、几点），为<strong>这一种东西</strong>写一条规则：拿着东西右键点别的东西时，多半是手上那样东西的规则；空手按 <kbd>E</kbd> 时，是被摸的那样东西的；递给生物的东西，是那种生物的。规则放在这件事落空的那一处，AI 只写这一处怎么回应。</li>
+<li><strong>检查。</strong> 新规则先在一个隔离的小世界里重放这件事，确认它放在了这件事落空的地方、真的给出了结果、没有违反下面的限制。不合格的规则不会进入世界。</li>
+<li><strong>生效。</strong> 你的动作按新规则发生。左下角提示“✦ 织入了一根新线”，后面是这条线的说法。这一格的动作提示换成新规则自己的说法，「?」消失。</li>
+<li><strong>记住。</strong> 这条线存进共享规则库，写进织线簿，署名“你”。</li>
+</ol>
+<p>如果 AI 判断需要世界上还没有的新东西（新的物品、新的状态），左下角会提示“✦ 世界正在创造新物体：……”，最多等 120 秒。新东西带着 AI 画的 16×16 像素图。</p>
+<p><strong>不想等时</strong>按 <kbd>Esc</kbd>：马上按默认结果处理，世界继续。AI 之后送来的规则照样会被学会，下次就用得上，只是不会回头重演你这一次。</p>
+<p><strong>等满 20 秒还没有答复时</strong>（每个 AI 档位都一样），先按默认结果处理，世界继续。AI 的规则之后才到时，世界学会它，并且只要情况还成立，就把你这次的动作按新规则补演一遍。</p>
+<p>世界自己引起的未定义事件（不是你的动作）不会让世界暂停，在后台学习，织线簿里署名“世界”。</p>
+<h2 id="这样东西对这件事意味着什么"><span class="mw-headline">这样东西对这件事意味着什么</span></h2>
+<p>AI 写规则之前先判断：这样东西对这个动作有没有常见的用途，玩家在这里会合理地期待什么。</p>
+<ul>
+<li><strong>有用途</strong>：椅子、长凳、树桩可以坐，干草堆可以躺，井和泉水可以打水、喝水。这时规则必须真的改变世界：人坐上去、身上多一个状态、得到东西。只说一句话不算，拿别的效果冒充也不行（坐下不是回血）。AI 说有用途、规则却什么也没改变时，系统让它重写一次；还是没改变，就当成“只有一句话”。</li>
+<li><strong>没有用途</strong>：摸巨石、篱笆、雕像，只得到一句贴合这样东西的描写，不凭空编出机关。</li>
+<li><strong>什么也不发生</strong>。</li>
+</ul>
+<p>判断时也看场合：东西是谁的、在谁家屋里、旁边站着谁。敲陌生人家的墙可能有人在意，敲悬崖没有人在意。</p>
+<p><strong>姿势。</strong> 坐、躺、跪、倚是世界现成的四种姿势：一样东西的用途是姿势时，它请用它的人摆出这个姿势，任何人（玩家、居民）都会照做：走到它那一格，画成坐着（躺着、跪着、倚着），身上带着<span class="status"><a href="/wiki/%E7%8A%B6%E6%80%81">坐着</a></span>这样的状态，一走开就站起来。</p>
+<p><strong>只给一句话的答案是临时的。</strong> 如果你在两分钟内对同一种东西第三次做同一件事（听了那句话还在试），世界会带着“玩家还在试”再问 AI 一次，像第一次那样停顿等答复。这次的回答取代原来那句话，是最终结论，不会再问。判定为“什么也不发生”的答案一次就定下来。</p>
+<h2 id="AI_设置"><span class="mw-headline">AI 设置</span></h2>
+<p><a href="/wiki/%E9%80%89%E9%A1%B9">选项</a>里的「AI」一节像画质设置一样给 AI 分档。五类事各自调「关 / 低 / 中 / 高」，最上面一行是预设，一键把五类调到同一档；分开调过之后预设显示「自定义」。默认是「中」，就是没有这项设置之前的样子。</p>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>管什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>物件互动</td>
+<td>你对东西做了规则没写的事（包括对自己用）</td>
+</tr>
+<tr>
+<td>人与生物</td>
+<td>你对人或生物做了规则没写的事</td>
+</tr>
+<tr>
+<td>世界自发</td>
+<td>世界自己发生、规则没写的事：有人卡住、东西坏了、连锁反应</td>
+</tr>
+<tr>
+<td>造物</td>
+<td>需要世界上还没有的新东西时：关＝不造，低＝造但不画图（先用同类的图），中＝造并画图，高＝画完再检查，不合格重画一次</td>
+</tr>
+<tr>
+<td>预判</td>
+<td>你指着东西停一会儿时提前去问：关＝不问，低＝停 3 秒、每局最多 4 次，中＝1.5 秒、12 次，高＝1 秒、30 次</td>
+</tr>
+</tbody></table>
+<p><strong>每一档世界等的时间都一样</strong>（最多 20 秒）。档位决定的是 AI 在这段时间里做多少事，所以模型越强，能开的档越高：</p>
+<table>
+<thead>
+<tr>
+<th>档位</th>
+<th>AI 看到的</th>
+<th>AI 能用的</th>
+<th>想得多深</th>
+<th>发出前检查</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>低</td>
+<td>只看这件事本身和在场的东西，周围 3×3 格</td>
+<td>只用在场的东西，只改被作用的那样东西本身（不引起连锁）</td>
+<td>不推理</td>
+<td>只做基本检查，不返工</td>
+</tr>
+<tr>
+<td>中</td>
+<td>周围 7×7 格、2 格内的东西、最近的对白、相关规则</td>
+<td>整个物品目录，可以引起连锁</td>
+<td>少量推理</td>
+<td>检查一次，可返工一次，发出后再复审</td>
+</tr>
+<tr>
+<td>高</td>
+<td>再看 4 格内更多的东西和更多相关规则、更多以往的经验</td>
+<td>同「中」</td>
+<td>更深的推理</td>
+<td>可返工两次，发出前先复审</td>
+</tr>
+</tbody></table>
+<p>「关」：这类事不问 AI，直接按默认处理；已经学会的线照样起作用。</p>
+<p><strong>各档学到的线分开保存。</strong> 每条线记着它是在哪一档学会的。遇到一件事时，先用你这一档学会的线，没有再用更高档的：高档学会的线低档也能用，低档学会的线高档不用，高档会重新问一次。低档学会的线不再复审。</p>
+<p><strong>检测。</strong> 连着 AI 时，「AI」一节显示所连的模型和一个「检测」按钮：AI 服务把一组题目（玩家问过的事，加上游戏自带的探针题）在低、中、高三档各答一遍，看每档有多少题能在 20 秒内答好，然后按类别推荐档位，点「应用推荐」就照着改（预判不在其中）。检测要花模型调用：连的是 AI 服务时，只能在运行它的那台电脑上发起；用的是<a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6#%E4%BD%A0%E7%9A%84%E6%A8%A1%E5%9E%8B">你自己的模型</a>时，先确认一次再开始，花的是你的 key。结果按模型记住，换了模型会提示重新检测。</p>
+<h2 id="你的模型"><span class="mw-headline">你的模型</span></h2>
+<p><a href="/wiki/%E9%80%89%E9%A1%B9">选项</a>里「AI」上面的「你的模型」一节让玩家用自己的模型和 key：选服务商（OpenRouter、Anthropic、OpenAI、DeepSeek、Moonshot、Google Gemini、本机的 Ollama，或任何 OpenAI 兼容的地址），填模型名（「获取模型列表」从服务商那里列出可选的），粘贴自己的 API key，点「使用这个模型」。「测试」先发一次很小的请求，看 key、地址和模型能不能用。</p>
+<ul>
+<li><strong>key 只留在你的浏览器里。</strong> 它只发给你选的服务商，不发到游戏的服务器，不进存档，换了服务商也不会带过去。选「这个浏览器」就记在浏览器里，下次打开还在；选「仅到关闭页面」，关掉页面就忘了。「删除 key」马上删掉；清除网站数据也会一起删掉。设置里只显示 key 的开头和最后四位。</li>
+<li><strong>AI 在你的浏览器里工作。</strong> 写规则、检查、试演都在这个页面里完成，调用记在你的账户上。设置里显示今天花了多少（服务商报价的才有金额）；可以设每日上限（美元），花完后到明天之前只用默认结果。</li>
+<li><strong>学到的线是你自己的。</strong> 用自己的模型学会的线记在你的浏览器里，跟存档一起用，不会传给别的玩家。</li>
+<li>页面地址里指定了 AI 服务（<code>?modder=</code>）时，由那个服务回答，不用你的模型。</li>
+<li><strong>第一次打开游戏时</strong>，如果没有可以问的模型（没选过模型，也没有连着带模型的 AI 服务），标题页会先弹出「选择世界要问的模型」。选好模型就关掉；点「不用 AI，直接玩」就不再弹出，游戏照样能玩到底，只是规则没写的事什么也不发生、世界不学新东西，以后还能在“设置”里再选。点 ✕ 或按 <kbd>Esc</kbd> 只是这次先不选，下次打开还会问。</li>
+</ul>
+<h2 id="一条规则管一种东西的一处空缺"><span class="mw-headline">一条规则管一种东西的一处空缺</span></h2>
+<p>AI 写的规则属于<strong>一种</strong>东西（游戏里的一个种类，比如「石块」「绿史莱姆」「五伤路碑」），只填这件事落空的那一处。所以：</p>
+<ul>
+<li><strong>同一种的每一个都一样。</strong> 规则不针对某一个东西：「石块用在五伤路碑上」学会了，任何一块石块用在路碑上都按它来。材质、品质、元素不分种类：铁剑和钢剑都是「剑」，同一条规则管它们（规则里可以按材质分情况）。</li>
+<li><strong>别的种类各问各的。</strong> 教会了绿史莱姆怎样对待递过去的石块，冰霜史莱姆遇到同样的事还要再问一次，两边的回答可以不一样。用石块在路碑上试过了，换成木头再试，也是一件新事。</li>
+<li><strong>没回答的情况以后再问。</strong> 一条规则可以只回答问到的情况，别的情况留空：留空的地方提示里仍然带「?」，下次遇到时再问，回答之前按默认处理。后来学到的回答接在同一种东西的同一处，填进留空的分支，之前学会的照旧。</li>
+<li><strong>不会改掉已经定义好的事。</strong> 游戏自己的规则先算，只有落到「没有定义」的地方，才轮到学到的规则。学到的规则收不回任何已经定义好的结果。</li>
+<li><strong>同样的问题只问一次。</strong> 同一种东西、对同一种目标、在同一处落空，第二次遇到时直接按规则来，没有停顿。</li>
+<li><strong>一个玩家教会的事，所有玩家都受益。</strong> 从共享规则库同步来的线，在织线簿里署名“别的玩家（共享规则库）”。</li>
+</ul>
+<p>对一整类东西都成立的事（比如「生物会被绳子捆住」），不靠 AI 一种一种地学，而是写进游戏自己的规则。</p>
+<h2 id="游戏自己会的通用情形"><span class="mw-headline">游戏自己会的通用情形</span></h2>
+<p>下面这些事对一整类东西都成立，写在游戏自己的规则里：结果是确定的，提示里不带「?」，不会问 AI。</p>
+<table>
+<thead>
+<tr>
+<th>做什么</th>
+<th>结果</th>
+<th>详见</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>拿着不是武器的东西右键点生物</td>
+<td>把东西递给它：绳索、干草这类纤维把它捆住 3 秒，能吃的它一口吞下，首领什么都不接。递别的东西，仍然由那种生物自己回答（带「?」）</td>
+<td><a href="/wiki/%E6%80%AA%E7%89%A9#%E9%80%92%E4%B8%9C%E8%A5%BF%E7%BB%99%E7%94%9F%E7%89%A9">递东西给生物</a></td>
+</tr>
+<tr>
+<td><kbd>空格</kbd>挥出手上的任何东西</td>
+<td>一下钝击</td>
+<td><a href="/wiki/%E6%88%98%E6%96%97">战斗</a></td>
+</tr>
+<tr>
+<td>空手对野生的怪物按 <kbd>E</kbd></td>
+<td>它朝你的手咬一口，把你当成仇人；动物不咬（规则没写）</td>
+<td><a href="/wiki/%E6%80%AA%E7%89%A9#%E7%A9%BA%E6%89%8B%E4%BC%B8%E6%89%8B">空手伸手</a></td>
+</tr>
+<tr>
+<td>空手对地面、水这些脚下的地形按 <kbd>E</kbd></td>
+<td>只是摸一摸，什么也不发生；大地图上的地点是进入</td>
+<td><a href="/wiki/%E5%9C%B0%E5%BD%A2#%E7%94%A8%E6%89%8B%E6%91%B8">用手摸</a></td>
+</tr>
+<tr>
+<td>空手对树、岩石、墙这些立着的地形按 <kbd>E</kbd></td>
+<td>规则没写会怎样，交给世界；没有模型就是摸一摸</td>
+<td><a href="/wiki/%E5%9C%B0%E5%BD%A2#%E7%94%A8%E6%89%8B%E6%91%B8">用手摸</a></td>
+</tr>
+<tr>
+<td>空手对点着的火按 <kbd>E</kbd></td>
+<td>取暖：身上潮湿的被烤干</td>
+<td><a href="/wiki/%E8%90%A5%E7%81%AB#%E5%8F%96%E6%9A%96">取暖</a></td>
+</tr>
+<tr>
+<td>拿着矿石右键点点着的熔炉</td>
+<td>熔成一块锭</td>
+<td><a href="/wiki/%E7%86%94%E7%82%89#%E7%86%94%E7%82%BC">熔炼</a></td>
+</tr>
+<tr>
+<td>露米倒地跟不上</td>
+<td>留在原地，醒来再跟上</td>
+<td><a href="/wiki/%E9%9C%B2%E7%B1%B3">露米</a></td>
+</tr>
+</tbody></table>
+<p>玩家自己的试验仍然留给 AI：拿着东西右键点地面、物品、人、自己，或者右键点一件没有用途的设施。这正是世界会学最有意思的地方。</p>
+<h2 id="AI_能做什么、不能做什么"><span class="mw-headline">AI 能做什么、不能做什么</span></h2>
+<table>
+<thead>
+<tr>
+<th>可以</th>
+<th>不可以</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>决定一个没定义的结果</td>
+<td>改变任何已经定义好的行为：新规则只在“没有定义”的地方才会被用到</td>
+</tr>
+<tr>
+<td>让这一种东西自身改变：着火、碎掉、变成别的东西、产出东西</td>
+<td>直接改动别的东西。规则只能写它所属的那样东西；要影响别人，只能向对方发一个事件，由对方按自己的规则回应</td>
+</tr>
+<tr>
+<td>加一种新的状态或新的东西，并给它画图</td>
+<td>让一样东西不付出任何代价就无限产出：检查时会把同一件事连做 12 次，无限产出的规则不合格</td>
+</tr>
+<tr>
+<td>让人说话、做表情、议论这件事</td>
+<td>替别的种类回答：规则只属于问到的那一种东西，只放在这件事落空的那一处</td>
+</tr>
+<tr>
+<td>只回答问到的情况，把别的情况留空，以后再问</td>
+<td>什么都不回答：问到的这件事必须得到一个结果</td>
+</tr>
+</tbody></table>
+<p>世界自己引起的事（不是玩家的动作）限制更严：学来的规则不能伤害人，不能改动剧情的进度和剧情受保护的记录。</p>
+<p>这些限制由游戏自己的检查器执行，不靠 AI 自觉。检查不过的规则直接丢弃，这次按默认处理。此外，剧情有自己的兜底：要是推进主线必需的东西被意外弄坏，剧情会换一种办法让你继续，比如晚祷渡的摆渡人亲自把你送过河。</p>
+<h2 id="没有_AI_的时候"><span class="mw-headline">没有 AI 的时候</span></h2>
+<ul>
+<li>游戏是完整的：所有任务、战斗、建造、剧情都能玩通。</li>
+<li>带「?」的动作照样能按，按下去立刻按默认结果处理，不会暂停。默认结果通常是什么也不发生（“什么也没有发生。”），对没有规则的东西按 <kbd>E</kbd> 只会说出它是什么（“这是X。”）。地面、水、树这些地形不算没有规则：空手按 <kbd>E</kbd> 是摸一摸（“你的手拂过草地。什么也没有发生。”）。</li>
+<li>之前学会的线照样有效。</li>
+<li>开发版第一次遇到时会提示一次“⚠ 没有连上 modder，这次没学到”。</li>
+</ul>
+<h2 id="共享规则库"><span class="mw-headline">共享规则库</span></h2>
+<ul>
+<li>世界学会的线不属于任何存档。三个存档位共用同一个规则库，开新游戏、在新手教程里学会的线也都留着。</li>
+<li>连着同一个 AI 服务的玩家共用同一个规则库。游戏大约每 15 秒同步一次，别人教会的线会出现在你的世界里。</li>
+<li>每条从别处来的线，在你的世界里会重新检查一遍再生效。</li>
+<li>规则库也存在浏览器里，下次打开时还在。</li>
+</ul>
+<h2 id="旧的线"><span class="mw-headline">旧的线</span></h2>
+<p>2026-10-09 以前学到的规则是按一整类东西写的（比如「所有武器」「所有能吃的东西」）。这样的规则游戏不再使用：读规则库时它们通不过检查，被丢掉（开发版会在浏览器控制台里写明原因），织线簿里也就不再出现；从共享规则库同步来的也一样。AI 服务启动时会把它们从共享规则库里撤回，开发者也可以用 <code>npm run modder -- library prune</code> 列出并撤回（见<a href="/wiki/%E6%A8%A1%E7%BB%84%E6%8E%A7%E5%88%B6%E5%8F%B0">模组控制台</a>）。</p>
+<p>游戏更新以后，如果一根线所在的那一处被游戏自己的规则改掉了（那里不再是空缺，或者那条规则的分支变了），这根线也会这样被丢掉，接在它下面的线跟着丢掉。</p>
+<h2 id="为什么这样设计"><span class="mw-headline">为什么这样设计</span></h2>
+<p>OpenWorld 的设计里，AI 只有一个接口：<strong>一件事的结果</strong>。规则定义了的，照规则来；没定义的，问 AI；没有 AI 或 AI 失败，按默认。人和怪物“决定做什么”靠它们自己的日程和行为，和 AI 无关。所以游戏首先是一个普通的、完整的游戏，AI 只在世界真正遇到新事时出场，世界越老，需要问的就越少。见<a href="/wiki/%E8%AE%BE%E8%AE%A1%E6%94%AF%E6%9F%B1">设计支柱</a>。</p>
+<h2 id="提示"><span class="mw-headline">提示</span></h2>
+<ul>
+<li>想教世界新东西，就拿着手上的东西去右键点周围的一切，找带「?」的动作。伤石山麓的五伤路碑就是专门留给你试的。</li>
+<li>规则属于一种东西，所以一种东西试一次就够了：教会了一块五伤路碑，每一块五伤路碑都按它来。但用石块教会的事，换成木头还得再教一次。</li>
+<li>世界学会的事在织线簿（<kbd>J</kbd>）里随时可查。</li>
+<li>不想被打断时按 <kbd>Esc</kbd> 跳过等待，世界之后仍会学会。</li>
+</ul>
+<h2 id="历史"><span class="mw-headline">历史</span></h2>
+<ul>
+<li>2026-10-01：世界学会的事开始写进织线簿，所有存档共用规则库。</li>
+<li>2026-10-02：确定唯一的 AI 接口是“一件事的结果”：规则只写自己，没定义的结果问 AI，没有 AI 按默认。世界自己引起的事也会学习。</li>
+<li>2026-10-02：等待 AI 时只锁住正在等结果的人；没有 AI 时不暂停。</li>
+<li>2026-10-04：<kbd>F</kbd> 和 <kbd>G</kbd> 改为物理动作，不再问 AI；规则自带动作提示的说法，AI 写的规则也可以带。</li>
+<li>2026-10-04：AI 可以创造新的物品种类，并为它画 16×16 的像素图。</li>
+<li>2026-10-06：等待玩家动作的结果时整个世界暂停，屏幕上显示等待的秒数，按 <kbd>Esc</kbd> 不等了。</li>
+<li>2026-10-08：织线簿里分开署名“你”和“别的玩家（共享规则库）”，中文下先显示线的中文说法。</li>
+<li>2026-10-09：学到的规则只属于一种东西、只填一处空缺：别的种类各问各的，没回答的情况以后再问。对一整类都成立的事（递东西给生物、摸地面、取暖、熔炼……）写进了游戏自己的规则。以前按整类写的规则不再使用。</li>
+<li>2026-10-13：加入 AI 设置：五类事各自分「关 / 低 / 中 / 高」，每档等待时间一样，档位越高 AI 做得越多；各档学到的线分开保存，高档的线低档也能用；可以检测所连模型并推荐档位。</li>
+<li>2026-10-21：操作定为四个输入：拿着物件对东西用改成右键（左键是手上东西本身的用法：工具、武器挥，别的东西对自己用），拿起散落的东西改成 <kbd>E</kbd>（见<a href="/wiki/%E6%93%8D%E4%BD%9C">操作</a>）。</li>
+<li>2026-10-25：AI 先判断一样东西对这件事有没有常见用途：有用途就必须真的改变世界（坐、躺、跪、倚成为世界现成的姿势），没有用途只给一句描写；只给一句话的答案是临时的，玩家连续再试时会再问一次。没连 AI 时不显示「?」，空手摸东西的默认台词改成「你伸手摸了摸某某。」</li>
+<li>2026-10-28：空手对树、岩石、墙这些立着的地形按 <kbd>E</kbd> 改为交给世界判断，没有模型时还是摸一摸。</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title">基本</th></tr><tr><td colspan="2"><a href="/wiki/%E9%A5%B1%E9%A3%9F%E5%BA%A6">饱食度</a> • <a href="/wiki/%E6%93%8D%E4%BD%9C">操作</a> • <a href="/wiki/%E6%88%90%E5%B0%B1">成就</a> • <a href="/wiki/%E4%BC%A0%E9%80%81%E9%9B%95%E5%83%8F">传送雕像</a> • <a href="/wiki/%E7%AD%89%E7%BA%A7%E4%B8%8E%E7%BB%8F%E9%AA%8C">等级与经验</a> • <a href="/wiki/%E5%AF%B9%E8%AF%9D">对话</a> • <a href="/wiki/%E7%8A%AF%E7%BD%AA">犯罪</a> • <a href="/wiki/%E8%B7%9F%E9%9A%8F%E4%B8%8E%E9%9B%87%E4%BD%A3">跟随与雇佣</a> • <a href="/wiki/%E5%90%88%E4%BD%9C">合作</a> • <a href="/wiki/%E5%AD%A3%E8%8A%82">季节</a> • <a href="/wiki/%E4%BB%B7%E5%80%BC">价值</a> • <a href="/wiki/%E4%BA%A4%E6%98%93">交易</a> • <a href="/wiki/%E8%8A%82%E6%97%A5">节日</a> • <a href="/wiki/%E9%87%91%E9%92%B1">金钱</a> • <a href="/wiki/%E6%A8%A1%E7%BB%84%E6%8E%A7%E5%88%B6%E5%8F%B0">模组控制台</a> • <a href="/wiki/%E9%9A%BE%E5%BA%A6">难度</a> • <a href="/wiki/%E8%83%BD%E9%87%8F">能量</a> • <a href="/wiki/%E5%93%81%E8%B4%A8">品质</a> • <a href="/wiki/%E6%BD%9C%E8%A1%8C%E4%B8%8E%E6%89%92%E7%AA%83">潜行与扒窃</a> • <a href="/wiki/%E4%BA%BA%E4%BB%AC%E7%9A%84%E9%9C%80%E6%B1%82">人们的需求</a> • <a href="/wiki/%E4%BA%BA%E7%89%A9%E7%9A%84%E5%AE%89%E5%8D%B1">人物的安危</a> • <a href="/wiki/%E4%BA%BA%E7%89%A9%E4%B9%8B%E6%AD%BB">人物之死</a> • <a href="/wiki/%E4%BB%BB%E5%8A%A1">任务</a> • <a href="/wiki/%E5%96%84%E6%81%B6%E4%B8%8E%E4%BF%A1%E5%BF%B5">善恶与信念</a> • <a href="/wiki/%E7%94%9F%E5%91%BD%E5%80%BC">生命值</a> • <a href="/wiki/%E4%B8%96%E7%95%8C%E4%BC%9A%E5%AD%A6">世界会学</a> • <a href="/wiki/%E5%AE%88%E5%8D%AB%E4%B8%8E%E6%82%AC%E8%B5%8F">守卫与悬赏</a> • <a href="/wiki/%E5%A4%A9%E6%B0%94">天气</a> • <a href="/wiki/%E5%A4%96%E8%A7%82">外观</a> • <a href="/wiki/%E7%8E%A9%E5%AE%B6%E8%A7%92%E8%89%B2">玩家角色</a> • <a href="/wiki/%E6%96%B0%E6%89%8B%E6%95%99%E7%A8%8B">新手教程</a> • <a href="/wiki/%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97">新手指南</a> • <a href="/wiki/%E6%B8%B8%E6%88%8F%E5%86%85%E6%97%B6%E9%97%B4">游戏内时间</a> • <a href="/wiki/%E5%8F%8B%E8%B0%8A">友谊</a> • <a href="/wiki/%E6%98%BC%E5%A4%9C">昼夜</a> • <a href="/wiki/%E8%A3%85%E5%A4%87">装备</a></td></tr></table>
+</div>
+  <div class="catlinks">分类：<a href="/wiki/%E5%88%86%E7%B1%BB%EF%BC%9A%E7%8E%A9%E6%B3%95">玩法</a></div>
+</main>
+<footer class="footer">
+  <p>本站内容由 OpenWorld 项目组编写，数据表从游戏代码 <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a>（main）生成于 2026-10-30 06:19。</p>
+  <p>项目组成员都能在 GitHub 上编辑：见<a href="/wiki/%E7%BC%96%E8%BE%91%E5%85%A5%E9%97%A8">编辑入门</a>。游戏素材来自 Ninja Adventure（CC0）与项目自绘。</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>

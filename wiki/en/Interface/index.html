@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en" data-base="/wiki/en/">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Interface - OpenWorld Wiki</title>
+<meta name="description" content="Everything on the game screen: the clock, the quest tracker, hearts and drumsticks, the experience bar, the toolbar, the skill bar, the buttons at the lower right, the minimap, quest markers, messages, action prompts, item tooltips, the dialogue box, bubbles and numbers overhead, story cards and the boss health bar.">
+<link rel="alternate" hreflang="zh" href="/wiki/%E7%95%8C%E9%9D%A2">
+<link rel="icon" href="/assets/lsw/Items/CrownOfThorns.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Noto+Sans+SC:wght@400;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wiki/_/wiki.css?v=5a88af52">
+<script>try{var t=localStorage.getItem('wiki.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body class=" type-系统">
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <a class="logo" href="/wiki/en/"><img src="/assets/lsw/Items/CrownOfThorns.png" alt=""><span class="logo-text">OpenWorld<small>Wiki</small></span></a>
+  <nav class="portlet"><h3>Navigation</h3><ul><li><a href="/wiki/en/">Main page</a></li><li><a href="/wiki/en/Beginner's_Guide">Beginner's Guide</a></li><li><a href="/wiki/en/Main_Quest_Walkthrough">Main Quest Walkthrough</a></li><li><a href="/wiki/en/Special/Recent_changes">Recent changes</a></li><li><a href="/wiki/en/Special/Random_page">Random page</a></li><li><a href="/wiki/en/Special/Stubs">Stubs</a></li><li><a href="/wiki/en/Special/All_pages">All pages</a></li></ul></nav><nav class="portlet"><h3>Contributing</h3><ul><li><a href="/wiki/en/Editing_Basics">Editing Basics</a></li><li><a href="/wiki/en/Format_Manual">Format Manual</a></li><li><a href="/wiki/en/Style_Guide">Style Guide</a></li><li><a href="/wiki/en/Special/Completeness">Completeness</a></li></ul></nav><nav class="portlet"><h3>Design</h3><ul><li><a href="/wiki/en/About_This_Wiki">About This Wiki</a></li><li><a href="/wiki/en/Design_Pillars">Design Pillars</a></li><li><a href="/wiki/en/Roadmap">Roadmap</a></li><li><a href="/wiki/en/Version_History">Version History</a></li><li><a href="/wiki/en/Known_Issues">Known Issues</a></li></ul></nav>
+  <nav class="portlet"><h3>Game</h3><ul><li><a href="/play/">Play the game</a></li><li><a href="https://github.com/SihanXU/symbolic-world">GitHub repository</a></li><li><a href="/wiki/%E7%95%8C%E9%9D%A2" hreflang="zh">中文维基</a></li></ul></nav>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button class="menu-btn" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')">☰</button>
+  <div class="tabs left"><a class="tab sel" href="/wiki/en/Interface">Page</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/issues?q=is%3Aissue%20label%3Awiki%20%22Interface%22" title="Discussion of this page (GitHub issues)">Talk</a><a class="tab tab-new" href="https://github.com/SihanXU/symbolic-world/issues/new?labels=wiki&title=%5Bwiki%5D%20Interface&body=Page%3A%20http%3A%2F%2F35.239.4.44%3A5175%2Fwiki%2Fen%2FInterface%0A%0A" title="Start a discussion of this page">＋</a></div>
+  <form class="search" action="/wiki/en/Special/Search" method="get" role="search"><input name="q" id="q" type="search" placeholder="Search the OpenWorld Wiki" autocomplete="off" aria-label="Search"><div class="suggest" id="suggest"></div></form>
+  <div class="tabs right"><a class="tab sel" href="/wiki/en/Interface">Read</a><a class="tab" id="edit" href="https://github.com/SihanXU/symbolic-world/edit/main/wiki/en/pages/%E5%9F%BA%E6%9C%AC/%E7%95%8C%E9%9D%A2.md" title="Edit this page on GitHub">Edit</a><a class="tab" href="https://github.com/SihanXU/symbolic-world/commits/main/wiki/en/pages/%E5%9F%BA%E6%9C%AC/%E7%95%8C%E9%9D%A2.md">History</a><a class="tab lang" href="/wiki/%E7%95%8C%E9%9D%A2" hreflang="zh" lang="zh" title="中文版">中文</a><button class="tab theme" id="theme" title="Light or dark">◐</button></div>
+</header>
+<main class="content">
+  <h1 class="firstHeading">Interface</h1><div class="subtitle">From the OpenWorld Wiki · Gameplay</div>
+  
+  <div class="body"><div class="banner outdated">The <a href="/wiki/%E7%95%8C%E9%9D%A2" lang="zh">Chinese page</a> has changed since this translation was made: some of this may be out of date.</div><p>This page describes the interface elements on the game screen. The interface follows the practice of a few games: the clock and the buttons at the lower right take after Stardew Valley; the hearts, drumsticks, experience bar and item tooltips take after Minecraft. The interface text follows the language set in <a href="/wiki/en/Options">Options</a>.</p>
+<nav class="toc"><div class="toc-title">Contents</div><ol><li class="toc-l2"><a href="#Layout"><span class="tocnum">1</span> Layout</a></li><li class="toc-l2"><a href="#Clock"><span class="tocnum">2</span> Clock</a></li><li class="toc-l2"><a href="#Hearts%2C_drumsticks_and_the_experience_bar"><span class="tocnum">3</span> Hearts, drumsticks and the experience bar</a></li><li class="toc-l2"><a href="#Toolbar_and_off_hand"><span class="tocnum">4</span> Toolbar and off hand</a></li><li class="toc-l2"><a href="#Skill_bar"><span class="tocnum">5</span> Skill bar</a></li><li class="toc-l2"><a href="#Buttons_at_the_lower_right"><span class="tocnum">6</span> Buttons at the lower right</a></li><li class="toc-l2"><a href="#Panel_tabs"><span class="tocnum">7</span> Panel tabs</a></li><li class="toc-l2"><a href="#Minimap_and_zone"><span class="tocnum">8</span> Minimap and zone</a></li><li class="toc-l2"><a href="#Quest_tracker_and_markers"><span class="tocnum">9</span> Quest tracker and markers</a></li><li class="toc-l2"><a href="#Messages"><span class="tocnum">10</span> Messages</a></li><li class="toc-l2"><a href="#Place_names"><span class="tocnum">11</span> Place names</a></li><li class="toc-l2"><a href="#Action_prompt"><span class="tocnum">12</span> Action prompt</a></li><li class="toc-l2"><a href="#Tooltips"><span class="tocnum">13</span> Tooltips</a></li><li class="toc-l2"><a href="#Things_overhead"><span class="tocnum">14</span> Things overhead</a></li><li class="toc-l2"><a href="#Dialogue_box"><span class="tocnum">15</span> Dialogue box</a></li><li class="toc-l2"><a href="#Yesno_questions"><span class="tocnum">16</span> Yes/no questions</a></li><li class="toc-l2"><a href="#Story_cards_and_fades_to_black"><span class="tocnum">17</span> Story cards and fades to black</a></li><li class="toc-l2"><a href="#The_world_is_learning"><span class="tocnum">18</span> The world is learning</a></li><li class="toc-l2"><a href="#Boss_health_bar"><span class="tocnum">19</span> Boss health bar</a></li><li class="toc-l2"><a href="#The_tutorials_overlay"><span class="tocnum">20</span> The tutorial's overlay</a></li><li class="toc-l2"><a href="#Stall_panel"><span class="tocnum">21</span> Stall panel</a></li><li class="toc-l2"><a href="#History"><span class="tocnum">22</span> History</a></li></ol></nav><h2 id="Layout"><span class="mw-headline">Layout</span></h2>
+<table>
+<thead>
+<tr>
+<th>Position</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Top left</td>
+<td>The <a href="/wiki/en/World_Map#The_minimap">minimap</a>, with the zone written below it</td>
+</tr>
+<tr>
+<td>Top right</td>
+<td>The clock: date, dial, weather, time; the quest tracker below it</td>
+</tr>
+<tr>
+<td>Top center</td>
+<td>The boss health bar (when near a boss); the place name that fades in when you enter a map</td>
+</tr>
+<tr>
+<td>Center</td>
+<td>The notice shown while the world is learning</td>
+</tr>
+<tr>
+<td>Bottom left</td>
+<td>The skill bar (against the bottom edge of the screen), with messages above it</td>
+</tr>
+<tr>
+<td>Bottom center</td>
+<td>Hearts, drumsticks, the experience bar, the toolbar, the off hand</td>
+</tr>
+<tr>
+<td>Bottom right</td>
+<td>Eight buttons</td>
+</tr>
+<tr>
+<td>Above center, over the character&#39;s head</td>
+<td>The action prompt</td>
+</tr>
+</tbody></table>
+<p>When the character walks near the bottom edge of the screen, the toolbar group moves to the top of the screen.</p>
+<h2 id="Clock"><span class="mw-headline">Clock</span></h2>
+<p>The wooden frame in the top right corner. The first line is the date (“Day N”); in the middle is the dial, whose hand sweeps from 06:00 (left) to 02:00 (right), with the weather icon beside it (☀ ☾ ☁ ☂ ⚡ ≋); hover over the icon to see the weather&#39;s name. At the bottom is the time, which ticks every 10 game minutes. See <a href="/wiki/en/In-game_Time">In-game Time</a>, <a href="/wiki/en/Weather">Weather</a>.</p>
+<p>In clear weather the weather icon is the moon ☾ from 2 game hours before nightfall until 1 game hour after dawn, and the sun ☀ the rest of the time. At first that is 19:00–06:00; as the story moves on and the nights grow longer, the moon comes out earlier with them (see <a href="/wiki/en/Day_and_Night">Day and Night</a>).</p>
+<h2 id="Hearts,_drumsticks_and_the_experience_bar"><span class="mw-headline">Hearts, drumsticks and the experience bar</span></h2>
+<p>Above the toolbar, the ten hearts on the left are <a href="/wiki/en/Health">health</a> and the ten drumsticks on the right are <a href="/wiki/en/Satiety">satiety</a>. The drumsticks shake when satiety is 0. Below them is a thin, long experience bar showing your current level. Hover over any of these to see the exact numbers. See <a href="/wiki/en/Levels_and_Experience">Levels and Experience</a>.</p>
+<h2 id="Toolbar_and_off_hand"><span class="mw-headline">Toolbar and off hand</span></h2>
+<p>Ten slots, labeled 1–0 in the top left corner; the selected slot has a frame. Each slot shows the item&#39;s icon and count. The single slot on the right is the off hand: empty, it shows a gray shield outline, and it is grayed out when it holds another profession&#39;s shield. Click a slot to select it. See <a href="/wiki/en/Inventory">Inventory</a>, <a href="/wiki/en/Equipment">Equipment</a>.</p>
+<h2 id="Skill_bar"><span class="mw-headline">Skill bar</span></h2>
+<p>In the very bottom left corner of the screen is a row of six square skill slots, with a dark background and beveled frames, each labeled ⇧1–⇧6 in its corner. It is not shown until you have learned an active skill, and appears once you learn the first. A slot holding an active skill shows the skill&#39;s icon; an empty slot is dark.</p>
+<ul>
+<li>Press <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>6</kbd> or click a slot to cast the skill in it.</li>
+<li>While a skill is cooling down, a dark sweep passes over the slot like a clock face, with the seconds remaining written in the middle (with one decimal place under 10 seconds); when the cooldown ends, the slot flashes.</li>
+<li>A skill lent by a piece of equipment stays in its slot after you take the equipment off, but is grayed out and cannot be cast.</li>
+<li>Hover over a slot to see the skill&#39;s name, its cooldown in seconds, its description and “Right click: take it out”; hover over an empty slot for a hint on how to put a skill in.</li>
+<li>Drag slots to swap them; right-click to clear one. Full management is in the skill panel (<kbd>U</kbd>).</li>
+</ul>
+<p>See <a href="/wiki/en/Skills#Active_skills_and_the_skill_bar">Active skills and the skill bar</a>.</p>
+<h2 id="Buttons_at_the_lower_right"><span class="mw-headline">Buttons at the lower right</span></h2>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Key</th>
+<th>Opens</th>
+<th>Badge</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Quests</td>
+<td><kbd>L</kbd></td>
+<td>The <a href="/wiki/en/Quests">quest</a> journal</td>
+<td>The number of quests under way (on red when someone in view has a “?” overhead, otherwise on brown); when a quest reaches a new stage the whole button flashes, stopping once you open the journal</td>
+</tr>
+<tr>
+<td>Build</td>
+<td><kbd>B</kbd></td>
+<td><a href="/wiki/en/Building">Build mode</a></td>
+<td></td>
+</tr>
+<tr>
+<td>Inventory</td>
+<td><kbd>Tab</kbd> · <kbd>I</kbd></td>
+<td><a href="/wiki/en/Inventory">Inventory</a></td>
+<td></td>
+</tr>
+<tr>
+<td>Skills</td>
+<td><kbd>K</kbd></td>
+<td>The <a href="/wiki/en/Skills">skill</a> tree</td>
+<td>Unspent skill points (red)</td>
+</tr>
+<tr>
+<td>Codex</td>
+<td><kbd>J</kbd></td>
+<td><a href="/wiki/en/Codex">Codex</a></td>
+<td></td>
+</tr>
+<tr>
+<td>Crafting</td>
+<td><kbd>C</kbd></td>
+<td><a href="/wiki/en/Crafting">Crafting</a></td>
+<td></td>
+</tr>
+<tr>
+<td>Skill panel</td>
+<td><kbd>U</kbd></td>
+<td>The <a href="/wiki/en/Skills#The_skills_panel">skill panel</a> (its icon is Whirlwind)</td>
+<td></td>
+</tr>
+<tr>
+<td>Options</td>
+<td><kbd>Esc</kbd></td>
+<td><a href="/wiki/en/Options">Options</a></td>
+<td></td>
+</tr>
+</tbody></table>
+<p>The keys in the buttons&#39; corners follow your <a href="/wiki/en/Controls#Rebinding_keys">rebinding</a>; when a panel has no key in the current bindings, nothing is shown in the corner.</p>
+<h2 id="Panel_tabs"><span class="mw-headline">Panel tabs</span></h2>
+<p>When the inventory, crafting, the skill tree, the skill panel, quests, the codex or the world map is open, a row of tabs runs across the top center of the screen; the one that is open is highlighted, and each tab shows its key. Click a tab to close the current panel and open that one. In a game without the classes module, the skill tree and skill panel tabs are not shown.</p>
+<h2 id="Minimap_and_zone"><span class="mw-headline">Minimap and zone</span></h2>
+<p>At the top left, showing the current map and the people, animals, monsters and waypoint statues on it. A strip below it reads “Peaceful zone” (on green) or “Combat zone · monsters at night” (on red). Click the minimap to open the world map. See <a href="/wiki/en/World_Map#The_minimap">Minimap</a>, <a href="/wiki/en/Peaceful_and_Combat_Zones">Peaceful and Combat Zones</a>.</p>
+<h2 id="Quest_tracker_and_markers"><span class="mw-headline">Quest tracker and markers</span></h2>
+<p>The small translucent box under the clock is the <strong>quest tracker</strong>: its first line is the name of the <a href="/wiki/en/Quests">quest</a> being tracked (in yellow), and below it are its unfinished objectives, up to four, with their progress (such as “Log 2/4”); an objective on another map is followed by “→ map name”. You choose which quest to track in the quest journal (<kbd>L</kbd>); if you have chosen none, it is the main quest begun most recently.</p>
+<p>The people or places that the unfinished objectives of the tracked quest point to are drawn here:</p>
+<ul>
+<li>a yellow diamond on the minimap;</li>
+<li>a yellow ★ on the <a href="/wiki/en/World_Map">world map</a>;</li>
+<li>one on the current map but off screen gets an arrow at the edge of the screen pointing its way; once on screen, it becomes a diamond floating above it.</li>
+</ul>
+<p>The tracker and the markers can both be turned off in <a href="/wiki/en/Options">Options</a>. To find out what to do, you can also press <kbd>E</kbd> on <a href="/wiki/en/Lumi">Lumi</a>: she says “Now: …” followed by the objective, its progress and how to do it. See <a href="/wiki/en/Quests#Tracking_and_markers">Tracking and markers</a>.</p>
+<h2 id="Messages"><span class="mw-headline">Messages</span></h2>
+<p>Little paper slips in the bottom left corner of the screen, up to 6 at a time, fading after 5 seconds.</p>
+<table>
+<thead>
+<tr>
+<th>Border color</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Green</td>
+<td>Good news: picking something up (“+1 Berries”; picking up the same kind in a row adds up), leveling up, accepting and completing quests, a new thread woven in</td>
+</tr>
+<tr>
+<td>Orange</td>
+<td>Anything to do with <a href="/wiki/en/The_World_Learns">the world learning</a>: “✦ The world pauses…”, “✦ The world is making something new: …”</td>
+</tr>
+<tr>
+<td>Red</td>
+<td>Warnings; a quest failed</td>
+</tr>
+<tr>
+<td>None</td>
+<td>Plain narration: “You eat the Bread.”, “The tree falls!” and so on</td>
+</tr>
+</tbody></table>
+<p>When you pick something up, the item&#39;s icon also flies in an arc from where it lay into the character.</p>
+<h2 id="Place_names"><span class="mw-headline">Place names</span></h2>
+<p>When you walk into a map, the map&#39;s name fades in at the top center of the screen, stays a moment, and fades out.</p>
+<h2 id="Action_prompt"><span class="mw-headline">Action prompt</span></h2>
+<p>The tile the mouse points at (or the one you face) is framed by four small corner brackets, and the frame slides to the next tile. The cursor shows what <kbd>E</kbd> will do: over something that can be picked up, opened or read it is a hand, and over a person a speech bubble; it is also a hand where <kbd>E</kbd> has nothing to do but a wall, bed or similar thing in your hand can be built there with the right click. When the world has never seen the right click&#39;s use there, it carries a “?”; when <kbd>E</kbd> would take someone else&#39;s things (stealing), it carries a red “!”. Above the frame is a small prompt box, one line per input (with the mouse: the left click and the right click, plus <kbd>E</kbd> and <kbd>G</kbd>), saying what pressing it will do; it appears only once the character stops and the frame has settled a moment, and it is hidden while you walk, so it does not jump about with every step. An action the world has not yet defined is shown faded, followed by an orange “?”. It is not shown during dialogue, questions and cutscenes. See <a href="/wiki/en/Controls#Action_prompts_and_%E2%80%9C%E2%80%9D">Action prompts and the “?”</a>.</p>
+<p>The “On which?” list that a long press of <kbd>E</kbd> or <kbd>G</kbd>, or Alt+click, brings up is also shown below that tile, with a number on each line. See <a href="/wiki/en/Controls#Choosing_among_stacked_things">Long press: choosing a target</a>.</p>
+<h2 id="Tooltips"><span class="mw-headline">Tooltips</span></h2>
+<p>Hover the mouse over an item in the toolbar, inventory, a chest or the crafting panel and a dark tooltip appears, following the mouse:</p>
+<table>
+<thead>
+<tr>
+<th>Line</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Name</td>
+<td>Colored by <a href="/wiki/en/Quality">quality</a>: Crude gray, Common white, Fine yellow, Masterwork cyan, Vowbound purple, Stigmata orange-red</td>
+</tr>
+<tr>
+<td>Quality note</td>
+<td>Vowbound and Stigmata each have a line about where they come from</td>
+</tr>
+<tr>
+<td>Kind</td>
+<td>Weapon, tool, food, potion, material, seed, armour, clothing, light, container, valuable, reading</td>
+</tr>
+<tr>
+<td>When held</td>
+<td>Attack damage (your own attack already added), attack range, element, critical chance, attack speed, health drawn back per hit</td>
+</tr>
+<tr>
+<td>When in the off hand</td>
+<td>Defense, block rate</td>
+</tr>
+<tr>
+<td>When worn somewhere</td>
+<td>Defense, attack, experience bonus; negative numbers (costs) are written in red</td>
+</tr>
+<tr>
+<td>Traits</td>
+<td>Purple: dodge, movement speed, bonuses after dark and so on</td>
+</tr>
+<tr>
+<td>Vow</td>
+<td>Purple: a Vowbound piece&#39;s “✦ vow name · Vow” and a line describing its effect</td>
+</tr>
+<tr>
+<td>Stigma power</td>
+<td>“✦ power name · Unique” and its description</td>
+</tr>
+<tr>
+<td>Profession</td>
+<td>“X only” (orange for your own profession, otherwise red), or “Common weapon: no profession talents”</td>
+</tr>
+<tr>
+<td>Food</td>
+<td>A row of small drumsticks and “+N satiety”; one that heals says “+N Health”</td>
+</tr>
+<tr>
+<td>Uses</td>
+<td>Blue: fells trees, splits logs; breaks rock; tills the soil; harvests crops; sets things alight; can be cooked over a fire; can be planted; goes off when it catches fire, and so on</td>
+</tr>
+<tr>
+<td>Material and properties</td>
+<td>Purple italics: the material&#39;s name, and flammable, fragile, heavy, sharp, conductive, raw, cooked and so on</td>
+</tr>
+<tr>
+<td>Statuses</td>
+<td>Red: the statuses on this thing, such as wet or burning</td>
+</tr>
+<tr>
+<td>Owner</td>
+<td>Red: “Belongs to X”</td>
+</tr>
+</tbody></table>
+<h2 id="Things_overhead"><span class="mw-headline">Things overhead</span></h2>
+<ul>
+<li><strong>Speech bubbles</strong>: when someone farther from you speaks, the words appear in a bubble over their head and vanish after a few seconds.</li>
+<li><strong>Mood symbols</strong>: ♥ happy, … sad, !! angry, ! surprised, ♡ shy.</li>
+<li><strong>Quest markers</strong>: a yellow “!” (someone has a quest to entrust to you) and “?” (talking to them now moves your quest forward: handing something in, or a quest has sent you to find them), bobbing up and down. See <a href="/wiki/en/Quests#Markers_over_heads">Markers overhead</a>.</li>
+<li><strong>The profession master&#39;s marker</strong>: the <a href="/wiki/en/Professions">profession</a> master (<a href="/wiki/en/Bram">Bram</a> in Firstlight Village) has a sword-shaped icon bobbing over his head, so he is easy to find. When he has a quest marker, the quest marker is shown first.</li>
+<li><strong>Health bars</strong>: things that are hurt and creatures hostile to you have a thin health bar overhead: red for those who will attack you, green for people and Lumi, amber for everything else. See <a href="/wiki/en/Health#Other_health_bars">Other health bars</a>.</li>
+<li><strong>Floating numbers</strong>: taking damage floats up a “-N”, colored by element; healing floats up a green “+N”.</li>
+<li><strong>The world is learning</strong>: while the world learns the outcome of an action, the one doing it has a spinning ✦ and three dots overhead, and the thing acted on flickers translucent with a “…” overhead.</li>
+</ul>
+<p>Quest markers, the profession master&#39;s marker and health bars are drawn above everything else in the world: when someone stands behind a tree or a house, these markers can still be seen.</p>
+<h2 id="Dialogue_box"><span class="mw-headline">Dialogue box</span></h2>
+<p>When someone within 2 tiles of you speaks, the dialogue box appears at the bottom of the screen: a portrait on the left, the name above, the text typed out letter by letter, and a ▼ at the lower right meaning there is more. Press <kbd>E</kbd> or <kbd>Esc</kbd>, or click: the first press shows the whole text, the second turns the page. An ordinary single line can be dismissed at once with <kbd>G</kbd>. Dialogue in a cutscene has to be paged through line by line. See <a href="/wiki/en/Controls#Dialogue%2C_questions_and_cutscenes">Dialogue, questions and the story</a>. Someone with a <a href="/wiki/en/Looks#Portraits_of_their_own">portrait of their own</a> (such as <a href="/wiki/en/Nessa_Quill">Nessa Quill</a>, <a href="/wiki/en/Lumi">Lumi</a>, <a href="/wiki/en/Lina">Lina</a>, <a href="/wiki/en/Sister_Ilse">Sister Ilse</a>, <a href="/wiki/en/The_Grey_Man">The Grey Man</a>, <a href="/wiki/en/Tobin">Tobin</a> or <a href="/wiki/en/Hesper">Hesper</a>) is shown as a bust set inside the box: the expression follows the line; they blink once soon after each line begins (so one who reads fast sees it too), then every three or four seconds; and their mouth opens and closes as they speak.</p>
+<h2 id="Yesno_questions"><span class="mw-headline">Yes/no questions</span></h2>
+<p>Before you eat or drink something, the game asks a question such as “Eat X?”. Two buttons, “Yes” and “No”, appear in the dialogue box. See <a href="/wiki/en/Controls#Dialogue%2C_questions_and_cutscenes">Dialogue, questions and the story</a>.</p>
+<h2 id="Story_cards_and_fades_to_black"><span class="mw-headline">Story cards and fades to black</span></h2>
+<p>During a cutscene the screen may go entirely dark and then light up again (a fade to black), or a full-screen card of text may appear, such as the one at the end of Chapter 1; a card can lie over an illustration. At the moments that matter a <strong>story illustration</strong> (a CG) may appear: it covers the map and the interface, the lines go on over it, and it is taken away when the scene ends. Press <kbd>E</kbd> or click to continue. A save loaded in the middle of an illustration, a card or a fade shows it again as it was.</p>
+<h2 id="The_world_is_learning"><span class="mw-headline">The world is learning</span></h2>
+<p>When you have done something the world has never seen and the world is learning its outcome, the center of the screen shows: “✦ The world is learning this… N seconds (20 at most) · Esc to stop waiting”. See <a href="/wiki/en/The_World_Learns">The World Learns</a>.</p>
+<h2 id="Boss_health_bar"><span class="mw-headline">Boss health bar</span></h2>
+<p>Within 12 tiles of a <a href="/wiki/en/Bosses">boss</a>, the boss health bar appears at the top center of the screen:</p>
+<ul>
+<li>at the top, a small crown and the word “B O S S”, with the boss&#39;s name below;</li>
+<li>the current phase, “I / ARRIVED” or “II / AWAKENED”, and the exact health numbers;</li>
+<li>a wide health bar: when the boss is hurt, a bright segment drops first and a dark segment then slowly falls after it; a notch on the bar marks the health line at which the second phase begins;</li>
+<li>the bottom line is the move bar: while the boss winds up, it shows the move&#39;s name and “WIND-UP / EVADE”; otherwise it reads “Watch the wind-up · Strike during recovery”.</li>
+</ul>
+<p>The boss health bar is hidden during cutscenes.</p>
+<h2 id="The_tutorials_overlay"><span class="mw-headline">The tutorial&#39;s overlay</span></h2>
+<p>In the <a href="/wiki/en/Tutorial">tutorial</a> the screen is dimmed, leaving only the thing to be used lit; the key to press is drawn above it, with “Lesson N of M” beside it; pressing a locked key makes the key icon shake; when a lesson is complete, a green ✓ pops up in the center of the screen.</p>
+<h2 id="Stall_panel"><span class="mw-headline">Stall panel</span></h2>
+<p>Opened by pressing <kbd>E</kbd> on the <a href="/wiki/en/Trading_stall" title="Trading stall">trading stall</a> in <a href="/wiki/en/The_Held_Ground">the Held Ground</a>, titled “🏪 Stall”. Along the top are four tabs (Farming, Ranching, Fishing, Sell), with the number of <a href="/wiki/en/Dawnmark">Dawnmarks</a> you carry on the right; below is one row per thing, with its icon on the left, what you give and how much in the middle (shown in red when you do not have enough), and a “Buy ×N” or “Sell → N” button on the right, plus an “All ×times” button when it can be done several times over. More than one tile away from the stall, the panel reads “Stand beside the trading stall to trade.”. See <a href="/wiki/en/Money">Money</a>.</p>
+<h2 id="History"><span class="mw-headline">History</span></h2>
+<ul>
+<li>2026-10-01: The interface was redone after Stardew Valley&#39;s layout: the clock at the top right, the toolbar, the chest panel, the action prompt.</li>
+<li>2026-10-02: Hearts, drumsticks and the experience bar were redone in Minecraft&#39;s style, above the toolbar; the item tooltip was redone in Minecraft&#39;s style.</li>
+<li>2026-10-03: The minimap, the quest journal, the boss health bar and the pixel-icon buttons at the lower right were added; the current objective is now told to the player by Lumi and the journal, no longer shown on screen.</li>
+<li>2026-10-04: The action prompt is shown above the target tile again, in words the rules give.</li>
+<li>2026-10-06: The lower right became seven buttons, with a codex button added; while the world learns, the center of the screen shows the seconds of waiting.</li>
+<li>2026-10-07: The tutorial&#39;s spotlight, key icons and check mark were added.</li>
+<li>2026-10-08: The Held Ground&#39;s stall panel was added.</li>
+<li>2026-10-08: The skill bar was added at the lower left, and a skill panel button (<kbd>U</kbd>) at the lower right, eight buttons in all; the profession master got a marker overhead.</li>
+<li>2026-10-08: The moon icon in clear weather now follows the real times of nightfall and dawn; the key tables on the title page and in the options were updated to the current version.</li>
+<li>2026-10-09: The quest tracker was added under the clock; quest markers were added to the minimap, the world map and the edge of the screen; the quest button&#39;s badge became the number of quests under way, flashing when a quest reaches a new stage (instead of the codex button flashing).</li>
+<li>2026-10-08: Quest markers, the profession master&#39;s marker and health bars are drawn on the top layer, no longer hidden by trees and houses in front.</li>
+<li>2026-10-08: The item tooltip dropped “can be used as fuel”, and things that explode say “goes off when it catches fire”.</li>
+<li>2026-10-12: The action prompt became a fixed, translucent prompt bar over the character&#39;s head, no longer floating above the target.</li>
+<li>2026-10-20: The skill bar is hidden until you have learned an active skill.</li>
+<li>2026-10-20: <kbd>Tab</kbd> now opens the inventory, with a row of tabs above it switching to the other panels (the old keys such as <kbd>I</kbd> still work); switching the toolbar row moved to <kbd>Shift</kbd>+<kbd>Tab</kbd> or <kbd>Shift</kbd>+wheel; every key can be changed in <a href="/wiki/en/Options">Options</a>, with two presets, scheme A and scheme B.</li>
+<li>2026-10-24: Cutscenes can show illustrations (CGs), a card can lie over an illustration, and a fade to black survives loading a save; someone with a portrait of their own is shown with it in the dialogue box, blinking and moving their mouth as they speak; a portrait makes a small motion with the mood of its line (a hop for joy, a start for surprise, a sink for sorrow).</li>
+<li>2026-10-25: A portrait of one&#39;s own blinks once soon after each line begins (so a player who pages fast sees it too), then every three or four seconds, speaking or not; <a href="/wiki/en/Sister_Ilse">Sister Ilse</a> has a portrait of her own.</li>
+<li>2026-10-21: The controls were set as four inputs: using a held thing on something moved to the right click (the left click is the held thing&#39;s own use: a tool or weapon is swung, anything else is used on yourself), and picking up loose things moved to <kbd>E</kbd> (see <a href="/wiki/en/Controls">Controls</a>).</li>
+</ul>
+<table class="navbox"><tr><th colspan="2" class="nb-title"><a href="/wiki/en/Interface">Interface</a></th></tr><tr><td colspan="2"><a href="/wiki/en/Chests_and_Containers">Chests and Containers</a> • <a href="/wiki/en/Codex">Codex</a> • <a href="/wiki/en/Interface">Interface</a> • <a href="/wiki/en/Inventory">Inventory</a> • <a href="/wiki/en/Options">Options</a> • <a href="/wiki/en/Saving">Saving</a> • <a href="/wiki/en/Threadbook">Threadbook</a> • <a href="/wiki/en/World_Map">World Map</a></td></tr></table>
+</div>
+  <div class="catlinks">Categories: <a href="/wiki/en/Category/Gameplay">Gameplay</a></div>
+</main>
+<footer class="footer">
+  <p>Written by the OpenWorld team and translated from the Chinese edition; the tables are generated from the game’s code <a href="https://github.com/SihanXU/symbolic-world/commit/5a88af52">5a88af52</a> (main) at 2026-10-30 06:19.</p>
+  <p>Everyone on the team can edit it on GitHub: see <a href="/wiki/en/Editing_Basics">Editing Basics</a>. Game art from Ninja Adventure (CC0) and the project's own.</p>
+</footer>
+</div>
+</div>
+<script src="/wiki/_/wiki.js?v=5a88af52" defer></script>
+</body>
+</html>
