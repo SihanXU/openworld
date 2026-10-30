@@ -1145,7 +1145,7 @@ export interface StepDef {
 }
 
 /**
- * Content the world must keep playable (BardOS's stage invariant): while `when` holds, `holds`
+ * Content the world must keep playable (a stage invariant): while `when` holds, `holds`
  * must hold. When state breaks it (the rope she asked for burned), the story receives a `broken`
  * event (`invariant` = id, target = the giver); its outcome is undefined, and `fallback` (run
  * by the story) is the default while nobody answers.

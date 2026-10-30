@@ -3,11 +3,11 @@
 // Chinese at /wiki/, the English at /wiki/en/. With --strict a build with errors writes nothing and exits 1, so a
 // server keeps the last good version.
 
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { TERRAIN_CHARS } from '@openworld-game/content'
-import { decodePng, encodePng, shrink } from './png.ts'
+import { encodePng } from './png.ts'
 import { lookPngs, lookUrls } from './looks.ts'
 import { pageHtml } from './layout.ts'
 import { renderMap } from './render-map.ts'
@@ -80,19 +80,10 @@ export function writeSite(editions: Built[], out: string): void {
     writeFileSync(join(out, urls.body.replace('/wiki/', '')), body)
     writeFileSync(join(out, urls.head.replace('/wiki/', '')), head)
   }
-  // the team's images (wiki/images), and the setting's illustrations (assets/concept), scaled for the web
+  // the team's images (wiki/images): the setting's illustrations among them
   const img = join(out, '_', 'img')
   mkdirSync(img, { recursive: true })
   if (existsSync(join(WIKI, 'images'))) cpSync(join(WIKI, 'images'), img, { recursive: true })
-  const CONCEPT = join(ROOT, 'assets', 'concept')
-  for (const f of existsSync(CONCEPT) ? readdirSync(CONCEPT).filter((f) => f.endsWith('.png')) : []) {
-    const target = join(img, f)
-    if (existsSync(target)) continue
-    try {
-      const im = shrink(decodePng(readFileSync(join(CONCEPT, f))), 640)
-      writeFileSync(target, encodePng(im.w, im.h, im.rgba))
-    } catch { cpSync(join(CONCEPT, f), target) }
-  }
   for (const f of ['wiki.css', 'wiki.js']) cpSync(join(HERE, '..', 'assets', f), join(out, '_', f))
 }
 

@@ -3,9 +3,8 @@ dist/
 games/openworld/public/world/
 games/openworld/public/bundle.json
 *.log
-# the asset pack (assets/ninja-adventure) stays local; the concept material in assets/concept is kept
+# the asset pack (assets/ninja-adventure) stays local
 /assets/*
-!/assets/concept/
 *.zip
 .DS_Store
 /var/
