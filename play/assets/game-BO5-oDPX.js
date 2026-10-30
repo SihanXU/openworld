@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./main-By_Eiulk.js","./register-DHZtNucH.js","./relief-C95EJq8E.js","./scene-BgfipcgJ.js","./components-ytJwVis6.js","./hud-Bm8R5QeF.js","./creator-B4r0En7X.js","./main-YAGTFjIq.css","./game-tpLG9-jA.css"])))=>i.map(i=>d[i]);
+import{n as e}from"./register-DHZtNucH.js";import{Dt as t}from"./relief-C95EJq8E.js";t(()=>new Worker(new URL(new URL(`worker-arc2etq8.js`,import.meta.url).href,``+import.meta.url),{type:`module`})),e(()=>import(`./main-By_Eiulk.js`),__vite__mapDeps([0,1,2,3,4,5,6,7,8]),import.meta.url);
