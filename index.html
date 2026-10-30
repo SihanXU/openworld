@@ -46,8 +46,7 @@
             <p class="tagline" data-zh="想到什么，就试什么" data-zh-keep="想到什么，|就试什么">Try anything</p>
             <div class="hero-actions">
                 <a class="btn primary" href="play/" data-zh="试玩 Demo">Play the demo</a>
-                <!-- the waitlist is not open yet: shown, not followed -->
-                <span class="btn soon" role="link" aria-disabled="true" tabindex="0" data-soon="Coming soon" data-zh-soon="即将开放" data-zh="加入等候名单">Join the waitlist</span>
+                <a class="btn" href="#join" data-zh="加入等候名单">Join the waitlist</a>
                 <a class="btn" href="https://github.com/SihanXU/openworld" target="_blank" rel="noopener"><svg class="gh-mark" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span data-zh="代码">Code</span></a>
                 <a class="btn" href="https://x.com/intent/follow?screen_name=SihanXuOfficial" target="_blank" rel="noopener"><svg class="x-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg><span data-zh="在 X 上关注">Follow on X</span></a>
             </div>
@@ -369,10 +368,13 @@
         <video class="backdrop" data-auto muted loop playsinline preload="metadata" poster="media/hero.jpg"><source src="media/hero.mp4#t=6.8" type="video/mp4"></video>
         <div class="container">
             <h2 data-zh="开放时第一个知道" data-zh-keep="开放时|第一个知道">Be there when it opens</h2>
-            <form class="wl" method="post" data-endpoint="">
+            <!-- the list is kept on the team's own server (the openworld-waitlist API); a role is one of its tags -->
+            <form class="wl" method="post" data-endpoint="https://waitlist.openworldrpg.ai/v1/waitlist">
                 <div class="wl-row">
                     <input type="email" name="email" placeholder="you@example.com" required aria-label="Email">
-                    <button type="submit" class="soon" aria-disabled="true" data-soon="Coming soon" data-zh-soon="即将开放" data-zh="加入等候名单">Join the waitlist</button>
+                    <!-- left empty by people, filled by bots -->
+                    <input type="text" name="website" class="wl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+                    <button type="submit" data-zh="加入等候名单">Join the waitlist</button>
                     <a class="btn" href="https://github.com/SihanXU/openworld" target="_blank" rel="noopener"><svg class="gh-mark" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span data-zh="代码">Code</span></a>
                 </div>
                 <div class="wl-roles"><span class="q" data-zh="我想">I'm here to</span>
@@ -380,7 +382,9 @@
                     <input type="checkbox" id="j2" name="tag" value="research"><label for="j2" data-zh="看研究">read the research</label>
                     <input type="checkbox" id="j3" name="tag" value="maker"><label for="j3" data-zh="做一个世界">make a world</label>
                 </div>
-                <p class="wl-done" data-zh="谢谢——请到邮箱里确认。">Thanks — check your inbox to confirm.</p>
+                <p class="wl-note" data-zh="只用来告诉你开放的消息和项目的进展，不会转给别人。">Only to tell you when it opens and how the project goes. Never passed on.</p>
+                <p class="wl-done" data-zh="谢谢——你已在名单上，开放时我们会写信告诉你。">Thanks — you're on the list. We'll write when it opens.</p>
+                <p class="wl-error" data-zh="没能加入，请稍后再试。">That didn't go through. Please try again in a moment.</p>
             </form>
         </div>
         <!-- the footer, over the same film -->
