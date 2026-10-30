@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest'
 import { socialOf, takeProfession } from '@openworld/modules'
 import { Game, RuleLibrary, tickAt, validatePatch, type Engine, type QuestDef } from '@openworld/engine'
-import { BASE_RULES, CH1, FIRSTLIGHT, GARDEN_BARE_ROW, PROFESSION_BY_ID, QUESTS, SKILLS, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
+import { BASE_RULES, CH1, FIRSTLIGHT, GARDEN_BARE_ROW, PROFESSION_BY_ID, QUESTS, SKILLS, STORY_RULES, WAYSHRINES, buildOntology, decodeChunk, shrineFact } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 const onto = buildOntology()
@@ -394,6 +394,41 @@ describe("the fairy's guides", () => {
     ticks(eng, 6)
     expect(state(eng, 'guide_farm')).toBe('done')
     expect(carries(eng, 'item/seed/turnip')).toBe(2)
+  })
+
+  it("the Pilgrim's Road after the oath: she marks the five shrines and says how to offer; one lit, a word; all five, it is done — not before the oath", () => {
+    const { eng } = world()
+    const w = eng.world
+    ticks(eng, 5)
+    const onRoad = () => eng.author(() => eng.teleport(w.player, { map: 'pilgrimway', x: 3, y: 12 }))
+    // on the road before the oath: nothing yet
+    onRoad()
+    ticks(eng, 3)
+    expect(state(eng, 'guide_shrines')).toBeUndefined()
+    eng.author(() => eng.quests.put('first_seal', 50))
+    w.fx.length = 0
+    ticks(eng, 3)
+    expect(state(eng, 'guide_shrines')).toBe('active')
+    expect(lumiSaid(eng, '圣龛')).toBe(true)
+    // a marker on each shrine
+    eng.controls.track('quest.guide_shrines')
+    const shrines = WAYSHRINES.map((s) => w.posOf(w.get(`way.shrine.${s.id}`)!)!)
+    expect(eng.quests.targets().map((t) => [t.map, t.x, t.y])).toEqual(shrines.map((p) => ['pilgrimway', p.x, p.y]))
+    // iron ore laid on the Nails: it lights, she says a word, its marker goes
+    const ore = eng.author(() => w.create('item/material/iron_ore', { on: 'inside', holder: 'player' }))
+    const nails = shrines[WAYSHRINES.findIndex((s) => s.id === 'nails')]
+    eng.author(() => eng.teleport(w.player, { map: 'pilgrimway', x: nails.x, y: nails.y + 1 }))
+    w.fx.length = 0
+    eng.act('put', w.player.id, { e: 'way.shrine.nails' }, { instrument: { e: ore.id } })
+    ticks(eng, 3)
+    expect(w.hasStatus({ e: 'way.shrine.nails' }, 'lit')).toBe(true)
+    expect(eng.quests.stage('guide_shrines')).toBe(20)
+    expect(lumiSaid(eng, '亮了')).toBe(true)
+    expect(eng.quests.targets()).toHaveLength(4)
+    // the other four lit: done
+    eng.author(() => { for (const s of WAYSHRINES) w.setFact(shrineFact(s.id), 1) })
+    ticks(eng, 3)
+    expect(state(eng, 'guide_shrines')).toBe('done')
   })
 })
 

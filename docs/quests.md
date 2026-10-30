@@ -224,12 +224,14 @@ Accepting:
 | `guide_profession` 选一条路 | guide | auto, the beat `guide_profession` (level 5, no profession) | a word with Bram; a profession chosen (the beat `guide_profession_chosen`) |
 | `guide_fish` 第一竿 | guide | auto, entering `meadow:pond` | a rod carried; a fish carried; bait paid |
 | `guide_farm` 菜圃的一课 | guide | auto, entering `meadow:garden` | the hoe, the sickle and seeds from the crate; a vegetable carried, a crop on the bare row (the beat `guide_sowed`), a crop watered near (`guide_watered`) |
+| `guide_shrines` 路边的供品 | guide | auto, on `pilgrimway` once `first_seal` has the oath (stage 50) and a shrine is still dark | each wayside shrine lit (its fact), a marker on each; a word from her at the first |
 
 **The guides** (2026-10-13) are Lumi's own: a beat of the story notices the moment (`StepCond`: the leader's
 props, a skill learned, a crop on cells, a status near) and the quest answers it as the main line answers steps;
 her lines are the stages' `say`, `by: 'pip'`, and her panel lists them beside the main road. Their beats come last
 among the story's steps (one step plays at a poll: a lesson never delays the story's own moment). Their regions
-(`meadow:pond`, `meadow:garden`) are the map's (`FIRSTLIGHT.regions`), witnessed by the demo test (W20).
+(`meadow:pond`, `meadow:garden`) are the map's (`FIRSTLIGHT.regions`), witnessed by the demo test (W20). The shrines' guide (2026-10-30) points each objective at its shrine (`way.shrine.<id>`),
+so the markers stand on the five shrines the main line's objectives only send one to the road for.
 
 The notice board in Firstlight Village (E) lists the radiant favours on offer, and accepts them.
 
