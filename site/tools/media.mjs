@@ -18,12 +18,10 @@ const H264 = (crf) => ['-c:v', 'libx264', '-preset', 'slow', '-crf', String(crf)
 // ------------------------------------------------------------------ the hero: the tour, silent, looped
 {
   const frames = 'var/video/tour/frames'
-  // pixel art compresses well as animation; behind the hero's shade 480p at 24 frames reads as 720p does, and a slow
-  // line (mainland China's to this server) can play it as it comes: about 1.7 MB for the 36 seconds
-  ff('-framerate', '30', '-i', join(frames, '%05d.png'), '-an', '-vf', 'scale=854:480:flags=area,fps=24', '-tune', 'animation', ...H264(33),
-    '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv', join(OUT, 'hero.mp4'))
-  // the poster: the abbey's front, fully up out of the dark, from the frames at their full size
-  ff('-i', join(frames, '00061.png'), '-frames:v', '1', '-q:v', '3', join(OUT, 'hero.jpg'))
+  // pixel art compresses well as animation; under the hero's shade 32 looks as 24 does, at a quarter of the size
+  ff('-framerate', '30', '-i', join(frames, '%05d.png'), '-an', '-tune', 'animation', ...H264(32), join(OUT, 'hero.mp4'))
+  // the poster: the abbey's front, fully up out of the dark
+  ff('-ss', '2', '-i', join(OUT, 'hero.mp4'), '-frames:v', '1', '-q:v', '3', join(OUT, 'hero.jpg'))
 }
 
 // ------------------------------------------------------------------ the places: one still each, in the order tour.ts films them
