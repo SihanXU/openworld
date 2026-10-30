@@ -755,9 +755,9 @@ if (playtest) {
   const scene = PARAMS.get('scene') ?? undefined
   void (async () => sendInit({ t: 'init', base: worldBase(), library: await kvGet<LibraryData>(libraryKey()), prefetch: PARAMS.get('prefetch') === '1', quality: menu.ai.quality, ...(at && { at }), ...(scene && { scene }) }))()
 } else {
-  void cover.show()
-  // no model to ask: the first thing the title offers is to choose one, or to play without AI (docs/byok.md)
-  void needsModel().then((needs) => needs && cover.offerModel())
+  // no model to ask: the first thing the title offers is to choose one, or to play without AI (docs/byok.md). Asked
+  // once the title is up: with no service to ask the answer comes at once, and an offer before the title is lost
+  void cover.show().then(needsModel).then((needs) => needs && cover.offerModel())
 }
 
 /** Is there no model to ask: none chosen here, no service named, none skipped, the default service (if any) without one? */
