@@ -5,9 +5,9 @@
 // with those who follow.
 
 import { describe, expect, it } from 'vitest'
-import { Game, RuleLibrary, cannotLearn, textOf, type Engine, type Entity, type MapData } from '@openworld/engine'
-import { ADVANCE_LEVELS, ADVANCE_POINTS, advanceProfession, cast, combatDamage, combatStrike, effectiveActive, setSkill, thirdOf } from '@openworld/modules'
-import { ADVANCEMENT_SKILLS, BASE_RULES, HAZARDS, MASTERIES, PATHS, SKILLS, SKILL_BY_ID, SKILL_PROFESSIONS, STORY_RULES, SUMMONS, branchesForProfession, buildOntology, decodeChunk } from '@openworld-game/content'
+import { Game, RuleLibrary, cannotLearn, onPath, textOf, type Engine, type Entity, type MapData } from '@openworld/engine'
+import { ADVANCE_LEVELS, ADVANCE_POINTS, advance, advanceProfession, cast, combatDamage, combatStrike, effectiveActive, setSkill, thirdOf } from '@openworld/modules'
+import { ADVANCEMENT_SKILLS, BASE_RULES, HAZARDS, MASTERIES, PATHS, SKILLS, SKILL_BY_ID, SKILL_PROFESSIONS, STORY_RULES, SUMMONS, branchesForProfession, buildOntology, decodeChunk, skillsForProfession } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 function field(): { eng: Engine; p: Entity; x: number; y: number } {
@@ -35,7 +35,7 @@ function know(eng: Engine, id: string): void {
   const def = SKILL_BY_ID[id]
   eng.author(() => {
     if (def.profession) w.setProp(w.player, 'profession', def.profession)
-    if (def.path) w.setProp(w.player, 'path', def.path)
+    if (def.path) w.setProp(w.player, 'path', [def.path].flat()[0])
     w.addTag(w.player, `skill:${id}`)
   })
   if (def.active) expect(setSkill(eng, 0, id)).toBe(true)
@@ -44,40 +44,50 @@ const slime = (eng: Engine, x: number, y: number, props: Record<string, number> 
 const lost = (eng: Engine, e: Entity) => 200 - eng.world.num(e, 'hp')
 
 describe('the advancements (docs/advancement.md)', () => {
-  it('every profession has three paths of six skills (three active, three passive), a mastery of five (two active), and four more first skills', () => {
+  it('every profession has three paths (at least three active and three passive skills each, one ultimate), a third of five or more on each path, and four more first skills', () => {
     for (const prof of SKILL_PROFESSIONS) {
       expect(prof.paths?.map((p) => p.id), prof.id).toEqual(PATHS[prof.id].map((p) => p.id))
       expect(prof.paths).toHaveLength(3)
       for (const path of prof.paths!) {
-        const own = ADVANCEMENT_SKILLS.filter((s) => s.path === path.id)
-        expect(own, path.id).toHaveLength(6)
-        expect(own.filter((s) => s.active).length, path.id).toBe(3)
+        const own = ADVANCEMENT_SKILLS.filter((s) => s.path === path.id && !s.tier)
+        expect(own.filter((s) => s.active).length, path.id).toBeGreaterThanOrEqual(3)
+        expect(own.filter((s) => !s.active).length, path.id).toBeGreaterThanOrEqual(3)
         expect(own.every((s) => s.profession === prof.id && s.branch === 'path'), path.id).toBe(true)
         // one ultimate, two points, after the rest
         expect(own.filter((s) => (s.cost ?? 1) === 2 && s.active).length, path.id).toBe(1)
+        // the third on this path: the profession's mastery, or the path's own
+        const third = ADVANCEMENT_SKILLS.filter((s) => s.profession === prof.id && s.tier === 3 && onPath(s, path.id))
+        expect(third.length, path.id).toBeGreaterThanOrEqual(5)
+        expect(third.filter((s) => s.active).length, path.id).toBeGreaterThanOrEqual(2)
+        expect(third.every((s) => s.branch === 'mastery'), path.id).toBe(true)
       }
-      const mastery = ADVANCEMENT_SKILLS.filter((s) => s.profession === prof.id && s.tier === 3)
-      expect(mastery, prof.id).toHaveLength(5)
-      expect(mastery.filter((s) => s.active).length).toBe(2)
       expect(prof.mastery?.name).toEqual(MASTERIES[prof.id].name)
       expect(ADVANCEMENT_SKILLS.filter((s) => s.profession === prof.id && s.branch === 'profession')).toHaveLength(4)
     }
-    // every requirement is a skill of the same profession
-    for (const s of ADVANCEMENT_SKILLS) for (const r of s.requires ?? []) expect(SKILL_BY_ID[r]?.profession, `${s.id} ← ${r}`).toBe(s.profession)
+    // every requirement is a skill of the same profession, learnable wherever the skill is
+    for (const s of ADVANCEMENT_SKILLS)
+      for (const r of s.requires ?? []) {
+        expect(SKILL_BY_ID[r]?.profession, `${s.id} ← ${r}`).toBe(s.profession)
+        for (const path of [s.path ?? []].flat()) expect(onPath(SKILL_BY_ID[r], path), `${s.id} ← ${r} on ${path}`).toBe(true)
+      }
   })
 
-  it('the assassin\'s third takes its path\'s name — Hell Sovereign, Phantom, Ghostwail — its skills the assassin\'s own whatever the path', () => {
+  it('the assassin\'s third takes its path\'s name — Hell Sovereign, Phantom, Ghostwail; the Necromancer\'s its own skills, the other two the assassin\'s', () => {
     const assassin = SKILL_PROFESSIONS.find((p) => p.id === 'assassin')!
     expect(assassin.paths!.map((p) => [p.id, textOf(p.name, 'zh'), p.third && textOf(p.third.name, 'zh')])).toEqual([['necromancer', '死灵术士', '地狱支配者'], ['shadowdancer', '影舞者', '幻影'], ['demonhunter', '猎魔人', '鬼泣']])
     expect(textOf(thirdOf(assassin, 'demonhunter')!.name, 'zh')).toBe('鬼泣')
     expect(thirdOf(assassin, 'demonhunter')?.doc).toEqual(MASTERIES.assassin.doc)
+    expect(thirdOf(assassin, 'necromancer')?.doc).not.toEqual(MASTERIES.assassin.doc)
     expect(branchesForProfession('assassin', 'necromancer').find((b) => b.id === 'mastery')?.name.zh).toBe('地狱支配者')
     // (a profession whose paths name no third keeps its mastery's name)
     expect(branchesForProfession('warrior', 'berserker').find((b) => b.id === 'mastery')?.name.zh).toBe('典范')
-    expect(ADVANCEMENT_SKILLS.filter((s) => s.profession === 'assassin' && s.tier === 3).every((s) => !s.path)).toBe(true)
+    const thirdOn = (path: string) => skillsForProfession('assassin', path).filter((s) => s.tier === 3).map((s) => s.id)
+    expect(thirdOn('necromancer')).toEqual(['hell-pact', 'hell-guard', 'pestilence', 'soul-harvest', 'plague-lord', 'gate-of-the-styx', 'dominion-of-hell'])
+    expect(thirdOn('shadowdancer')).toEqual(['lethality', 'death-mark', 'ghost', 'assassinate', 'shadow-lord'])
+    expect(thirdOn('demonhunter')).toEqual(thirdOn('shadowdancer'))
   })
 
-  it('a path\'s skill is learned only on that path, a mastery\'s only once advanced to the third', () => {
+  it('a path\'s skill is learned only on that path, a mastery\'s only once advanced to the third (and only where that path has it)', () => {
     const { eng, p } = field()
     const w = eng.world
     eng.author(() => (w.setProp(p, 'profession', 'assassin'), w.setProp(p, 'skillPoints', 20)))
@@ -85,9 +95,29 @@ describe('the advancements (docs/advancement.md)', () => {
     eng.author(() => w.setProp(p, 'path', 'necromancer'))
     expect(cannotLearn(p, SKILL_BY_ID['shadow-poise'])).toBe('path')
     expect(cannotLearn(p, SKILL_BY_ID['grave-pact'])).toBeUndefined()
-    expect(cannotLearn(p, SKILL_BY_ID.lethality)).toBe('tier')
+    expect(cannotLearn(p, SKILL_BY_ID['hell-pact'])).toBe('tier')
+    expect(cannotLearn(p, SKILL_BY_ID.lethality)).toBe('path')
     eng.author(() => w.setProp(p, 'advancement', 3))
+    expect(cannotLearn(p, SKILL_BY_ID['hell-pact'])).toBeUndefined()
+    eng.author(() => w.setProp(p, 'path', 'shadowdancer'))
     expect(cannotLearn(p, SKILL_BY_ID.lethality)).toBeUndefined()
+    expect(cannotLearn(p, SKILL_BY_ID['hell-pact'])).toBe('path')
+  })
+
+  it('a change of path gives back what the new path has not: the Necromancer\'s third goes, a mastery two paths share stays', () => {
+    const { eng, p } = field()
+    const w = eng.world
+    eng.author(() => {
+      w.setProp(p, 'profession', 'assassin')
+      w.setProp(p, 'path', 'necromancer')
+      w.setProp(p, 'advancement', 3)
+      for (const id of ['grave-pact', 'hell-pact', 'lethality']) w.addTag(p, `skill:${id}`)
+      w.setProp(p, 'skillPoints', 0)
+    })
+    eng.author(() => advance(w, p, 2, 'shadowdancer', SKILLS))
+    expect([w.hasTag(p, 'skill:grave-pact'), w.hasTag(p, 'skill:hell-pact'), w.hasTag(p, 'skill:lethality'), w.num(p, 'skillPoints')]).toEqual([false, false, true, 2])
+    eng.author(() => advance(w, p, 2, 'demonhunter', SKILLS))
+    expect(w.hasTag(p, 'skill:lethality')).toBe(true)
   })
 
   it('at a trainer: the second advancement at level 10 sets one on a path (+3 points), a change of path gives its points back, the third opens the mastery', () => {
@@ -231,6 +261,58 @@ describe('the advancements (docs/advancement.md)', () => {
     eng.tick()
     expect(w.get(weak.id) === undefined || w.num(weak, 'hp') <= 0).toBe(true)
     expect([lost(eng, near) > 0, w.hasStatus({ e: near.id }, 'poisoned')]).toEqual([true, true])
+  })
+
+  it('the Necromancer drives up to four of its dead at a foe; Hell Sovereign: a Hell Pact makes them stronger again, a Soul Harvest feeds on their fellings', () => {
+    const { eng, p, x, y } = field()
+    const w = eng.world
+    const dead = [1, -1, 2].map((dy) => eng.author(() => w.create(SUMMONS.skeleton, { on: 'tile', map: 'arena', x: x - 1, y: y + dy }, { props: { summoner: p.id, companion: p.id } })))
+    const s = slime(eng, x + 4, y)
+    know(eng, 'drive-the-dead')
+    expect(cast(eng, 0)).toBe(true)
+    expect(dead.every((d) => Math.max(Math.abs(w.posOf(d)!.x - (x + 4)), Math.abs(w.posOf(d)!.y - y)) === 1)).toBe(true)
+    expect([lost(eng, s) > 0, w.hasStatus({ e: s.id }, 'poisoned')]).toEqual([true, true])
+    // a Hell Pact on top of the Grave Pact
+    know(eng, 'grave-pact')
+    know(eng, 'raise-dead')
+    eng.setCooldown(`skill:raise-dead:${p.id}`, 0)
+    expect(cast(eng, 0)).toBe(true)
+    const bound = w.entitiesOnMap('arena').filter((e) => e.type === SUMMONS.skeleton && !dead.includes(e))
+    know(eng, 'hell-pact')
+    eng.setCooldown(`skill:raise-dead:${p.id}`, 0)
+    know(eng, 'raise-dead')
+    expect(cast(eng, 0)).toBe(true)
+    const hellbound = w.entitiesOnMap('arena').find((e) => e.type === SUMMONS.skeleton && !dead.includes(e) && !bound.includes(e))!
+    expect(w.num(hellbound, 'maxHp')).toBe(Math.round(22 * 1.5 * 1.3))
+    // a felling by the dead brings the raiser's skills nearer
+    know(eng, 'soul-harvest')
+    eng.setCooldown(`skill:raise-dead:${p.id}`, 100)
+    const weak = slime(eng, x + 8, y + 8, { hp: 1, maxHp: 1 })
+    eng.author(() => eng.teleport(hellbound, { map: 'arena', x: x + 7, y: y + 8 }))
+    hellbound.facing = 'right'
+    eng.setCooldown(`atk:${hellbound.id}`, 0)
+    expect(eng.attack(hellbound, { e: weak.id })).toBe(true)
+    eng.tick()
+    expect(eng.cooldown(`skill:raise-dead:${p.id}`) - w.state.tick).toBeLessThanOrEqual(90)
+  })
+
+  it('a skill\'s effects are drawn in its colours: the cast\'s ring, the ground opening for the raised, a shockwave, its blows landing', () => {
+    const { eng, x, y } = field()
+    const w = eng.world
+    const drawn = () => w.fx.flatMap((f) => (f.t === 'vfx' ? [f.fx] : []))
+    expect(SKILL_BY_ID['raise-dead'].active?.look).toBe('necro')
+    expect(SKILL_BY_ID['hell-guard'].active?.look).toBe('hell')
+    expect(SKILL_BY_ID.miasma.active?.look).toBe('poison')
+    know(eng, 'raise-dead')
+    w.fx.length = 0
+    expect(cast(eng, 0)).toBe(true)
+    expect(drawn().filter((f) => f === 'cast:necro')).toHaveLength(1)
+    expect(drawn().filter((f) => f === 'rise:necro')).toHaveLength(2)
+    slime(eng, x + 1, y + 1)
+    know(eng, 'army-of-the-dead')
+    w.fx.length = 0
+    expect(cast(eng, 0)).toBe(true)
+    expect(drawn()).toEqual(expect.arrayContaining(['cast:necro', 'burst:necro:2', 'impact:necro', 'rise:necro']))
   })
 
   it('the Demon Hunter: a sigil hexes the foe that walks in (weaker, softer); the Call of the Hunt and the Vigil are shared with those who follow', () => {

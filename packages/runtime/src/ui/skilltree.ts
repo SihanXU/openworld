@@ -18,6 +18,9 @@ const ZOOM: [number, number] = [0.12, 2]
 /** The least the tree opens at: its skills' pictures still read (smaller, one zooms out oneself). */
 const READABLE = 0.62
 
+/** What a branch with no skills says: the advancements' open with a path (the profession's own hub has its own words). */
+const empty = (branch: string) => (branch === 'path' || branch === 'mastery' ? 'skillAfterPath' : 'skillPending')
+
 export class SkillTree {
   private pan = { x: 0, y: 0 }
   private zoom = 1
@@ -263,7 +266,7 @@ export class SkillTree {
       const p = this.branches.get(b.id)!
       const own = visible.filter((s) => s.branch === b.id)
       const pending = own.length === 0
-      return `<button class="sk-node hub ${b.id}${pending ? ' pending' : ''}" data-branch="${b.id}" data-way="${this.tree.ways.get(b.id)}" style="left:${p.x}px;top:${p.y}px" aria-label="${esc(tx(b.name))}">${skillArt(b.icon)}<span class="sk-node-name">${esc(tx(b.name))}${pending ? `<small>${t('skillPending')}</small>` : ''}</span></button>`
+      return `<button class="sk-node hub ${b.id}${pending ? ' pending' : ''}" data-branch="${b.id}" data-way="${this.tree.ways.get(b.id)}" style="left:${p.x}px;top:${p.y}px" aria-label="${esc(tx(b.name))}">${skillArt(b.icon)}<span class="sk-node-name">${esc(tx(b.name))}${pending ? `<small>${t(empty(b.id))}</small>` : ''}</span></button>`
     }).join('')
     // the trunk: out from the start to each hub, its way (a branch after another: out of that one's last skill)
     const trunks = branchDefs.filter((b) => b.direction === this.direction).map((b) => `<path class="sk-line trunk ${b.id}" d="${elbow(this.tree.trunks.get(b.id) ?? { x: 0, y: 0 }, this.branches.get(b.id)!, this.tree.ways.get(b.id)!)}"/>`).join('')
@@ -308,7 +311,7 @@ export class SkillTree {
       const own = game().skills.forProfession(this.profession, this.path).filter((s) => s.branch === branch.id)
       // no profession yet: where to get one
       if (branch.id === 'profession' && !own.length) return `<span class="sk-path">${esc(tx(direction.name))} / ${t('skillBranch')}</span><b>${esc(tx(branch.name))}</b><span class="sk-doc">${t('skillNoProfession')}</span>`
-      return `<span class="sk-path">${esc(tx(direction.name))} / ${t('skillBranch')}</span><b>${esc(tx(branch.name))}</b><span class="sk-doc">${own.length ? own.map((s) => esc(tx(s.name))).join(' · ') : t('skillPending')}</span>${own.length ? `<span class="sk-foot">${own.filter((s) => f.player.skills.includes(s.id)).length} / ${own.length} ${t('learnedSkill')}</span>` : ''}`
+      return `<span class="sk-path">${esc(tx(direction.name))} / ${t('skillBranch')}</span><b>${esc(tx(branch.name))}</b><span class="sk-doc">${own.length ? own.map((s) => esc(tx(s.name))).join(' · ') : t(empty(branch.id))}</span>${own.length ? `<span class="sk-foot">${own.filter((s) => f.player.skills.includes(s.id)).length} / ${own.length} ${t('learnedSkill')}</span>` : ''}`
     }
     const s = skillById()[b.dataset.skill!]
     const have = new Set(f.player.skills)

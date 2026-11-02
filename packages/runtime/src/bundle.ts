@@ -5,7 +5,7 @@
 // here in the page and in the worker alike.
 
 import { gameDefOf, type Bundle } from '@openworld/format'
-import type { Look, LookTable, PlacementRecipe, Recipe, SkillDef, Text } from '@openworld/engine'
+import { onPath, type Look, type LookTable, type PlacementRecipe, type Recipe, type SkillDef, type Text } from '@openworld/engine'
 import { thirdOf } from '@openworld/modules'
 import type { Catalog } from './assets/types.ts'
 import { pageUrl } from './game.ts'
@@ -91,7 +91,7 @@ export function clientGameOf(b: Bundle, url: string): ClientGame {
           : x.id === 'mastery' && third ? { ...x, icon: third.icon ?? x.icon, name: third.name as typeof x.name }
           : x)
       },
-      forProfession: (p, path) => (skills.all ?? []).filter((s) => (!s.profession || s.profession === p) && (!s.path || s.path === path)),
+      forProfession: (p, path) => (skills.all ?? []).filter((s) => (!s.profession || s.profession === p) && onPath(s, path)),
     },
     boons: c.boons ?? {},
     looks: {

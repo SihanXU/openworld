@@ -26,7 +26,7 @@ export const HAZARDS = {
   caltrops: 'fixture/hazard/caltrops',
   sigil: 'fixture/hazard/binding_sigil',
 } as const
-export const SUMMONS = { hound: 'actor/summon/hound', wolf: 'actor/summon/wolf', skeleton: 'actor/summon/skeleton' } as const
+export const SUMMONS = { hound: 'actor/summon/hound', wolf: 'actor/summon/wolf', skeleton: 'actor/summon/skeleton', hellguard: 'actor/summon/hell_guard' } as const
 
 const hazard = (id: string, en: string, zh: string, lasts: number, tags: string[] = []): TypeDef => ({ id, name: L(en, zh), tags: ['hazard', ...tags], sprite: `fixture:${id.split('/').pop()}`, stage: { lasts } })
 
@@ -46,6 +46,7 @@ export const ADVANCEMENT_TYPES: TypeDef[] = [
   { id: SUMMONS.hound, name: L('hound', '猎犬'), sprite: 'creature:wolf', stage: { lasts: 400 }, props: { hp: 30, maxHp: 30, atk: 4 } },
   { id: SUMMONS.wolf, name: L('wolf of the pack', '狼群之狼'), sprite: 'creature:wolf', stage: { lasts: 200 }, props: { hp: 24, maxHp: 24, atk: 4 } },
   { id: SUMMONS.skeleton, name: L('raised skeleton', '亡者骷髅'), sprite: 'creature:skeleton', tags: ['bone'], stage: { lasts: 300 }, props: { hp: 22, maxHp: 22, atk: 4 } },
+  { id: SUMMONS.hellguard, name: L('guard of hell', '冥狱守卫'), sprite: 'creature:skeleton_demon', tags: ['bone'], stage: { lasts: 400 }, props: { hp: 60, maxHp: 60, atk: 8, def: 2 } },
 ]
 
 /** Who steps onto a hazard and is not its owner (the caster: a trap is never one's own undoing) nor of the caster's side. */
@@ -78,15 +79,17 @@ export const ADVANCEMENT_RULES: Rule[] = [
 // ------------------------------------------------------------------ the skills
 
 const cd = (a: ActiveDef) => `${a.cooldown / 10}`
+/** Where a skill stands: on a path, the mastery (`tier: 3`, on a path when the path's third is its own), the first tree. */
+type Where = { path?: string | string[]; tier?: number }
 /** An active skill of a path (or the mastery, `tier: 3`; or the first tree, neither). */
-const A = (id: string, profession: string, where: { path?: string; tier?: number }, requires: string[], active: ActiveDef, en: string, zh: string, docEn: string, docZh: string, cost = 1): SkillDef => ({
-  id, branch: where.path ? 'path' : where.tier ? 'mastery' : 'profession', profession, ...(where.path && { path: where.path }), ...(where.tier && { tier: where.tier }),
+const A = (id: string, profession: string, where: Where, requires: string[], active: ActiveDef, en: string, zh: string, docEn: string, docZh: string, cost = 1): SkillDef => ({
+  id, branch: where.tier ? 'mastery' : where.path ? 'path' : 'profession', profession, ...(where.path && { path: where.path }), ...(where.tier && { tier: where.tier }),
   icon: id, requires, ability: true, active, ...(cost > 1 && { cost }), name: L(en, zh),
   doc: L(`${cost > 1 ? 'Ultimate: ' : ''}${docEn} Cooldown ${cd(active)} s.`, `${cost > 1 ? '终极：' : ''}${docZh}冷却 ${cd(active)} 秒。`),
 })
 /** A passive: in data (`passive`), a number granted (`grant`), or a talent the module answers by its id (neither). */
-const T = (id: string, profession: string, where: { path?: string; tier?: number }, requires: string[], en: string, zh: string, docEn: string, docZh: string, extra: { passive?: SkillPassive; grant?: Record<string, number>; modifies?: SkillDef['modifies']; cost?: number } = {}): SkillDef => ({
-  id, branch: where.path ? 'path' : where.tier ? 'mastery' : 'profession', profession, ...(where.path && { path: where.path }), ...(where.tier && { tier: where.tier }),
+const T = (id: string, profession: string, where: Where, requires: string[], en: string, zh: string, docEn: string, docZh: string, extra: { passive?: SkillPassive; grant?: Record<string, number>; modifies?: SkillDef['modifies']; cost?: number } = {}): SkillDef => ({
+  id, branch: where.tier ? 'mastery' : where.path ? 'path' : 'profession', profession, ...(where.path && { path: where.path }), ...(where.tier && { tier: where.tier }),
   icon: id, requires, ...(extra.grant || extra.modifies ? {} : { ability: true }), ...extra, name: L(en, zh), doc: L(`${(extra.cost ?? 1) > 1 ? 'Capstone: ' : ''}${docEn}`, `${(extra.cost ?? 1) > 1 ? '终极天赋：' : ''}${docZh}`),
 })
 
@@ -96,17 +99,27 @@ const OWN = { weapon: 'own' } as const
 const NE = { path: 'necromancer' }
 const SD = { path: 'shadowdancer' }
 const DH = { path: 'demonhunter' }
+/** The Necromancer's third (Hell Sovereign) is its own; the other two paths share the assassin's mastery. */
+const HS = { path: 'necromancer', tier: 3 }
+const AM = { path: ['shadowdancer', 'demonhunter'], tier: 3 }
+/** A mastery every path of the profession shares. */
 const MS = { tier: 3 }
 /** What the Demon Hunter's lore reads as a foe afflicted. */
 const AFFLICTED = ['hexed', 'poisoned', 'bleeding', 'burning', 'frozen', 'stunned', 'mired', 'webbed', 'knelt']
 const ASSASSIN: SkillDef[] = [
-  // (the Necromancer stands back: the dead it raises and the poison do the killing)
+  // (the Necromancer stands back: the dead it raises and the poison do the killing — an arm of each, an army at the end)
   T('grave-pact', 'assassin', NE, [], 'Grave Pact', '亡者契约', 'The dead you raise have half again their health and strike 30% harder.', '你唤起的亡者生命 +50%，伤害 +30%。'),
   A('raise-dead', 'assassin', NE, ['grave-pact'], { kind: 'summon', creature: SUMMONS.skeleton, cooldown: 400, count: 2 }, 'Raise Dead', '亡者复苏', 'Two skeletons climb out of the ground and fight at your side for 30 s.', '两具骷髅从地下爬出，在你身边战斗 30 秒。'),
   A('miasma', 'assassin', NE, ['grave-pact'], { kind: 'field', leaves: HAZARDS.miasma, pattern: 'square', cooldown: 160 }, 'Miasma', '瘴气', 'A poison cloud on the 3×3 two cells ahead for 5 s: the foes in it are poisoned.', '在前方两格处的 3×3 范围放出毒雾，持续 5 秒：进入的敌人中毒。'),
+  A('drive-the-dead', 'assassin', NE, ['raise-dead'], { kind: 'command', cooldown: 120, power: 1.5, range: 6, count: 4, afflict: 'poisoned', ticks: 30 }, 'Drive the Dead', '驱使亡者', 'Up to four of the dead you raised leap on the first foe ahead within 6 cells, each striking it (×1.5 of its own), and poison it.', '离你最近的至多四个亡者扑向前方 6 格内的第一个敌人，各按自身攻击打 1.5 倍，并让它中毒。'),
   T('grave-toxin', 'assassin', NE, ['raise-dead'], 'Grave Toxin', '尸毒', 'Every blow of the dead you raise poisons the struck for 3 s.', '你唤起的亡者每次攻击都会让目标中毒 3 秒。'),
   T('corpse-burst', 'assassin', NE, ['miasma'], 'Corpse Burst', '尸爆', 'A poisoned foe felled by you or the dead you raise bursts: every foe within 2 cells is struck (×0.6) and poisoned.', '你或你唤起的亡者击倒中毒的敌人时，尸体会爆开：2 格内的敌人受到攻击（0.6 倍伤害）并中毒。'),
-  A('army-of-the-dead', 'assassin', NE, ['grave-toxin', 'corpse-burst'], { kind: 'summon', creature: SUMMONS.skeleton, cooldown: 500, count: 4, power: 0.6, radius: 2, afflict: 'poisoned', ticks: 50 }, 'Army of the Dead', '亡者大军', 'The ground opens round you: every foe within 2 cells is struck (×0.6) and poisoned, and four skeletons climb out to fight at your side for 30 s.', '你周围的地面裂开：2 格内的敌人受到攻击（0.6 倍伤害）并中毒，四具骷髅爬出来，在你身边战斗 30 秒。', 2),
+  A('toxic-burst', 'assassin', NE, ['miasma'], { kind: 'detonate', status: 'poisoned', cooldown: 140, power: 2, range: 5 }, 'Toxic Burst', '毒爆', 'The poison in every foe within 5 cells bursts (×2.0): the poison in it is spent.', '5 格内所有中毒的敌人体内的毒爆开（2.0 倍伤害），毒随之耗尽。'),
+  T('bone-ward', 'assassin', NE, ['drive-the-dead'], 'Bone Ward', '骨盾', 'With a companion near: combat damage taken −15%.', '有同伴在身边时，受到的战斗伤害 −15%。', { passive: { when: { companion: true }, taken: -0.15 } }),
+  T('raise-dead-plus', 'assassin', NE, ['grave-toxin'], 'Raise Dead: Mastery', '亡者复苏·精通', 'Raise Dead: one more skeleton, cooldown −5 s.', '亡者复苏：多唤起一具骷髅，冷却 −5 秒。', { modifies: { skill: 'raise-dead', count: 1, cooldown: -50 } }),
+  T('rot', 'assassin', NE, ['corpse-burst'], 'Rot', '腐毒', 'You and the companions within 6 cells: damage +20% against the poisoned.', '你和身边 6 格内的同伴对中毒的敌人伤害 +20%。', { passive: { party: true, when: { target: { status: ['poisoned'] } }, damage: 0.2 } }),
+  T('toxic-burst-plus', 'assassin', NE, ['toxic-burst'], 'Toxic Burst: Mastery', '毒爆·精通', 'Toxic Burst: reach +2 cells, damage +0.5×.', '毒爆：范围 +2 格，伤害 +0.5 倍。', { modifies: { skill: 'toxic-burst', range: 2, power: 0.5 } }),
+  A('army-of-the-dead', 'assassin', NE, ['raise-dead-plus', 'rot'], { kind: 'summon', creature: SUMMONS.skeleton, cooldown: 500, count: 4, power: 0.6, radius: 2, afflict: 'poisoned', ticks: 50 }, 'Army of the Dead', '亡者大军', 'The ground opens round you: every foe within 2 cells is struck (×0.6) and poisoned, and four skeletons climb out to fight at your side for 30 s.', '你周围的地面裂开：2 格内的敌人受到攻击（0.6 倍伤害）并中毒，四具骷髅爬出来，在你身边战斗 30 秒。', 2),
 
   T('shadow-poise', 'assassin', SD, [], 'Shadow Poise', '影舞', 'With a dagger: dodge +8%, critical chance +5%; a Backstab deals 30% more.', '持匕首时闪避 +8%，暴击率 +5%；背刺伤害再 +30%。', { passive: { when: OWN, dodge: 0.08, crit: 0.05 } }),
   A('umbral-step', 'assassin', SD, ['shadow-poise'], { kind: 'veil', cooldown: 140, ticks: 20, sure: true }, 'Umbral Step', '影遁', 'Vanish for 2 s: no creature sees you, and your next blow is a sure critical.', '隐去身形 2 秒：怪物看不见你，下一击必定暴击。'),
@@ -122,11 +135,20 @@ const ASSASSIN: SkillDef[] = [
   T('hunters-vigil', 'assassin', DH, ['hunt-call'], "Hunter's Vigil", '猎魔守望', 'You and the companions within 6 cells take 10% less combat damage.', '你和身边 6 格内的同伴受到的战斗伤害 −10%。', { passive: { party: true, taken: -0.1 } }),
   A('demon-prison', 'assassin', DH, ['hex-edge', 'hunters-vigil'], { kind: 'field', leaves: HAZARDS.sigil, pattern: 'ring', cooldown: 380, power: 1, radius: 2, afflict: 'stunned', ticks: 15 }, 'Demon Prison', '镇魔结界', 'Every foe within 2 cells is struck (×1.0) and stunned for 1.5 s, and a ring of binding sigils is drawn round you.', '周围 2 格内的敌人受到攻击（1.0 倍伤害）并眩晕 1.5 秒，同时在你周围画下一圈封魔阵。', 2),
 
-  T('lethality', 'assassin', MS, [], 'Lethality', '致命', 'With a dagger: critical damage +30%.', '持匕首时暴击伤害 +30%。', { passive: { when: OWN, critDamage: 0.3 } }),
-  A('death-mark', 'assassin', MS, ['lethality'], { kind: 'mark', cooldown: 200, range: 6, ticks: 80, buff: { damage: 0.3 } }, 'Death Mark', '死亡印记', 'Mark the nearest foe within 6 cells: it takes 30% more from you for 8 s; if it falls marked, every skill is ready again.', '标记 6 格内最近的敌人：8 秒内它受到你的伤害 +30%；它在标记中倒下时，你的所有技能立即冷却完毕。'),
-  T('ghost', 'assassin', MS, ['lethality'], 'Ghost', '幽灵', 'Dodge +8%.', '闪避 +8%。', { passive: { dodge: 0.08 } }),
-  A('assassinate', 'assassin', MS, ['death-mark', 'ghost'], { kind: 'shadow-strike', cooldown: 360, power: 5, range: 6, count: 1, sure: true }, 'Assassinate', '刺杀', 'Step behind the nearest foe within 6 cells and strike once (×5), a sure critical.', '闪到 6 格内最近敌人的背后刺出一击（5 倍伤害），必定暴击。', 2),
-  T('shadow-lord', 'assassin', MS, ['assassinate'], 'Shadow Lord', '影之主', 'Every fifth blow you strike is a critical.', '每第五次攻击必定暴击。', { cost: 2 }),
+  // Hell Sovereign (the Necromancer's third): the dead stronger, a guard of hell, a plague round one, the gate of the Styx
+  T('hell-pact', 'assassin', HS, [], 'Hell Pact', '地狱契约', 'The dead you raise have 30% more health and strike 30% harder again; you and your companions within 6 cells draw back 1 health with each blow.', '你唤起的亡者生命、伤害再 +30%；你和身边 6 格内的同伴每次命中吸取 1 点生命。', { passive: { party: true, drain: 1 } }),
+  A('hell-guard', 'assassin', HS, ['hell-pact'], { kind: 'summon', creature: SUMMONS.hellguard, cooldown: 600, count: 1 }, 'Guard of Hell', '冥狱守卫', 'A guard of hell steps out of the ground, far stronger than a skeleton, and fights at your side for 40 s.', '一名冥狱守卫从地下走出，比骷髅强得多，在你身边战斗 40 秒。'),
+  A('pestilence', 'assassin', HS, ['hell-pact'], { kind: 'rain', pattern: 'around', cooldown: 360, power: 0.4, count: 5, radius: 2, afflict: 'poisoned', ticks: 30 }, 'Pestilence', '瘟疫降临', 'A plague falls on the 5×5 round you, once a second for 5 s (×0.4 each), poisoning.', '在你周围 5×5 范围降下瘟疫，每秒一轮，持续 5 秒（每轮 0.4 倍伤害），并让敌人中毒。'),
+  T('soul-harvest', 'assassin', HS, ['hell-guard'], 'Soul Harvest', '灵魂收割', 'Whenever the dead you raise fell a foe: you mend 3 health, and every skill is a second nearer.', '你唤起的亡者每击倒一个敌人，你恢复 3 点生命，所有技能冷却缩短 1 秒。'),
+  T('plague-lord', 'assassin', HS, ['pestilence'], 'Plague Lord', '瘟疫领主', 'You and the companions within 6 cells: critical chance +15% against the poisoned.', '你和身边 6 格内的同伴攻击中毒的敌人时暴击率 +15%。', { passive: { party: true, when: { target: { status: ['poisoned'] } }, crit: 0.15 } }),
+  A('gate-of-the-styx', 'assassin', HS, ['soul-harvest', 'plague-lord'], { kind: 'summon', creature: SUMMONS.hellguard, cooldown: 600, count: 2, power: 1, radius: 3, afflict: 'poisoned', ticks: 50 }, 'Gate of the Styx', '冥河之门', 'The gate of the Styx opens beside you: every foe within 3 cells is struck (×1.0) and poisoned, and two guards of hell step out to fight at your side for 40 s.', '冥河之门在你身边打开：3 格内的敌人受到攻击（1.0 倍伤害）并中毒，两名冥狱守卫走出来，在你身边战斗 40 秒。', 2),
+  T('dominion-of-hell', 'assassin', HS, ['gate-of-the-styx'], 'Dominion of Hell', '地狱支配', 'You and the companions within 6 cells: damage +25%, attack speed +15%.', '你和身边 6 格内的同伴伤害 +25%，攻击速度 +15%。', { passive: { party: true, damage: 0.25, attackHaste: 0.15 }, cost: 2 }),
+
+  T('lethality', 'assassin', AM, [], 'Lethality', '致命', 'With a dagger: critical damage +30%.', '持匕首时暴击伤害 +30%。', { passive: { when: OWN, critDamage: 0.3 } }),
+  A('death-mark', 'assassin', AM, ['lethality'], { kind: 'mark', cooldown: 200, range: 6, ticks: 80, buff: { damage: 0.3 } }, 'Death Mark', '死亡印记', 'Mark the nearest foe within 6 cells: it takes 30% more from you for 8 s; if it falls marked, every skill is ready again.', '标记 6 格内最近的敌人：8 秒内它受到你的伤害 +30%；它在标记中倒下时，你的所有技能立即冷却完毕。'),
+  T('ghost', 'assassin', AM, ['lethality'], 'Ghost', '幽灵', 'Dodge +8%.', '闪避 +8%。', { passive: { dodge: 0.08 } }),
+  A('assassinate', 'assassin', AM, ['death-mark', 'ghost'], { kind: 'shadow-strike', cooldown: 360, power: 5, range: 6, count: 1, sure: true }, 'Assassinate', '刺杀', 'Step behind the nearest foe within 6 cells and strike once (×5), a sure critical.', '闪到 6 格内最近敌人的背后刺出一击（5 倍伤害），必定暴击。', 2),
+  T('shadow-lord', 'assassin', AM, ['assassinate'], 'Shadow Lord', '影之主', 'Every fifth blow you strike is a critical.', '每第五次攻击必定暴击。', { cost: 2 }),
 
   A('garrote', 'assassin', {}, ['backstab'], { kind: 'bash', cooldown: 120, power: 2, afflict: 'stunned', ticks: 10 }, 'Garrote', '锁喉', 'Seize the foe ahead (×2; Backstab applies) and stun it for 1 s.', '扼住前方的敌人（2 倍伤害，可触发背刺）并使其眩晕 1 秒。'),
   A('caltrops', 'assassin', {}, ['ambush'], { kind: 'field', leaves: HAZARDS.caltrops, pattern: 'square', cooldown: 160 }, 'Caltrops', '铁蒺藜', 'Scatter caltrops on the 3×3 two cells ahead for 6 s: foes who step on them are pricked and mired.', '在前方两格处的 3×3 范围撒下铁蒺藜，持续 6 秒：踩上去的敌人被刺伤并陷足。'),
@@ -201,10 +223,10 @@ const RANGER: SkillDef[] = [
   T('hawks-patience', 'ranger', MS, [], "Hawk's Patience", '鹰之耐心', 'With a bow: critical chance +10%.', '持弓时暴击率 +10%。', { passive: { when: OWN, crit: 0.1 } }),
   A('wind-arrow', 'ranger', MS, ['hawks-patience'], { kind: 'pierce', cooldown: 120, power: 1.5, range: 7, afflict: 'stunned', ticks: 5 }, 'Wind Arrow', '风之矢', 'An arrow through every foe in its line (×1.5) that staggers them.', '一箭贯穿直线上的所有敌人（1.5 倍伤害），使其踉跄。'),
   T('fletcher', 'ranger', MS, ['hawks-patience'], 'Fletcher', '制箭师', 'Multishot: 1 more arrow.', '多重箭：箭数 +1。', { modifies: { skill: 'multishot', count: 1 } }),
-  A('thousand-arrows', 'ranger', MS, ['wind-arrow', 'fletcher'], { kind: 'rain', cooldown: 360, power: 0.8, range: 6, count: 5, radius: 3 }, 'Thousand Arrows', '千矢之雨', 'Arrows fall on the 7×7 round the first foe ahead, once a second for 5 s (×0.8 each).', '在前方第一个敌人周围 7×7 范围落下箭雨，每秒一轮，持续 5 秒（每轮 0.8 倍伤害）。', 2),
+  A('thousand-arrows', 'ranger', MS, ['wind-arrow', 'fletcher'], { kind: 'rain', missile: 'arrow', cooldown: 360, power: 0.8, range: 6, count: 5, radius: 3 }, 'Thousand Arrows', '千矢之雨', 'Arrows fall on the 7×7 round the first foe ahead, once a second for 5 s (×0.8 each).', '在前方第一个敌人周围 7×7 范围落下箭雨，每秒一轮，持续 5 秒（每轮 0.8 倍伤害）。', 2),
   T('eagles-grace', 'ranger', MS, ['thousand-arrows'], "Eagle's Grace", '鹰之优雅', 'Dodge +10%, attack speed +10%.', '闪避 +10%，攻击速度 +10%。', { passive: { dodge: 0.1, attackHaste: 0.1 }, cost: 2 }),
 
-  A('volley', 'ranger', {}, ['ranger-archery'], { kind: 'rain', cooldown: 90, power: 1, range: 6, count: 1 }, 'Volley', '齐射', 'One volley on the 3×3 round the first foe ahead (×1.0).', '向前方第一个敌人周围 3×3 范围齐射一轮（1.0 倍伤害）。'),
+  A('volley', 'ranger', {}, ['ranger-archery'], { kind: 'rain', missile: 'arrow', cooldown: 90, power: 1, range: 6, count: 1 }, 'Volley', '齐射', 'One volley on the 3×3 round the first foe ahead (×1.0).', '向前方第一个敌人周围 3×3 范围齐射一轮（1.0 倍伤害）。'),
   A('disengage', 'ranger', {}, ['fleet-archer'], { kind: 'leap-shot', cooldown: 140, power: 0.8, range: 6, count: 3, afflict: 'mired', ticks: 30 }, 'Disengage', '脱身', 'Leap 3 cells back and loose an arrow ahead (×0.8) that mires the foe it strikes.', '向后跃 3 格，同时向前射出一箭（0.8 倍伤害），使命中的敌人陷足。'),
   T('keen-arrows', 'ranger', {}, ['steady-aim'], 'Keen Arrows', '锐箭', 'With a bow: critical damage +15%.', '持弓时暴击伤害 +15%。', { passive: { when: OWN, critDamage: 0.15 } }),
   T('fleet-foot', 'ranger', {}, ['fleet-archer'], 'Fleet Foot', '疾足', 'Movement speed +5%, dodge +5%.', '移动速度 +5%，闪避 +5%。', { passive: { moveHaste: 0.05, dodge: 0.05 } }),
@@ -248,18 +270,44 @@ const MAGE: SkillDef[] = [
   T('spell-power', 'mage', {}, ['elemental-attunement'], 'Spell Power', '法术强化', 'Active skills strike 10% harder.', '主动技能伤害 +10%。', { passive: { skillDamage: 0.1 } }),
 ]
 
+// ------------------------------------------------------------------ the colours their effects are drawn in
+
+/** Each path's colours (ActiveDef.look: the renderer's skill effects); the Necromancer's third its own hellfire. */
+const PATH_LOOK: Record<string, string> = {
+  necromancer: 'necro', shadowdancer: 'shadow', demonhunter: 'hex',
+  sentinel: 'steel', berserker: 'blood', thornknight: 'thorn',
+  sharpshooter: 'wind', trapper: 'earth', beastmaster: 'beast',
+  pyromancer: 'fire', cryomancer: 'frost', dawnbringer: 'holy',
+}
+const MASTERY_LOOK: Record<string, string> = { assassin: 'shadow', warrior: 'war', ranger: 'wind', mage: 'arcane' }
+/** A skill's own colours over its path's: the poison of a Necromancer, a mark's blood, an Aegis's light. */
+const OWN_LOOK: Record<string, string> = {
+  miasma: 'poison', 'toxic-burst': 'poison', pestilence: 'poison',
+  'death-mark': 'blood', garrote: 'blood', caltrops: 'steel',
+  aegis: 'holy', hamstring: 'blood', sunder: 'steel',
+  'snare-trap': 'earth', 'spike-trap': 'earth', 'killing-field': 'fire',
+  'mana-ward': 'arcane', 'arcane-missiles': 'arcane',
+}
+const looked = (s: SkillDef): SkillDef => {
+  if (!s.active) return s
+  const path = [s.path ?? []].flat()[0]
+  const look = OWN_LOOK[s.id] ?? (s.tier === 3 ? (path === 'necromancer' ? 'hell' : MASTERY_LOOK[s.profession ?? '']) : path ? PATH_LOOK[path] : undefined)
+  return look ? { ...s, active: { ...s.active, look } } : s
+}
+
 /** Every skill the advancements add (and the first trees' four more each). */
-export const ADVANCEMENT_SKILLS: SkillDef[] = [...ASSASSIN, ...WARRIOR, ...RANGER, ...MAGE]
+export const ADVANCEMENT_SKILLS: SkillDef[] = [...ASSASSIN, ...WARRIOR, ...RANGER, ...MAGE].map(looked)
 
 // ------------------------------------------------------------------ the paths and masteries, as the trainer offers them
 
-const path = (id: string, en: string, zh: string, docEn: string, docZh: string, third?: [string, string]): PathDef => ({
-  id, name: L(en, zh), doc: L(docEn, docZh), icon: `path-${id}`, ...(third && { third: { name: L(...third), icon: `mastery-${id}` } }),
+const path = (id: string, en: string, zh: string, docEn: string, docZh: string, third?: [string, string, string?, string?]): PathDef => ({
+  id, name: L(en, zh), doc: L(docEn, docZh), icon: `path-${id}`,
+  ...(third && { third: { name: L(third[0], third[1]), icon: `mastery-${id}`, ...(third[2] && { doc: L(third[2], third[3]!) }) } }),
 })
 
 export const PATHS: Record<string, PathDef[]> = {
   assassin: [
-    path('necromancer', 'Necromancer', '死灵术士', 'The dead and the poison: you stand back while the dead you raise fight for you, every blow of theirs poisoned, the poisoned fallen made to burst.', '召唤与毒：自己站在后面，唤起亡者替你厮杀，亡者的每一击都带着尸毒，中毒的敌人倒下时尸体爆开。', ['Hell Sovereign', '地狱支配者']),
+    path('necromancer', 'Necromancer', '死灵术士', 'The dead and the poison: you stand back while the dead you raise fight for you, every blow of theirs poisoned, the poisoned fallen made to burst.', '召唤与毒：自己站在后面，唤起亡者替你厮杀，亡者的每一击都带着尸毒，中毒的敌人倒下时尸体爆开。', ['Hell Sovereign', '地狱支配者', 'The Necromancer\'s own third: the dead stronger again, a guard of hell, a plague round you, the gate of the Styx.', '死灵术士自己的第三转：亡者更强，唤出冥狱守卫，降下瘟疫，打开冥河之门。']),
     path('shadowdancer', 'Shadowdancer', '影舞者', 'The veil and the back: gone into shadow, the blow from behind, criticals, and hard to strike.', '隐匿与背刺：遁入阴影，从背后出手，刀刀暴击，很难被打中。', ['Phantom', '幻影']),
     path('demonhunter', 'Demon Hunter', '猎魔人', 'The sigil and the hex: binding circles drawn on the ground, foes hexed and held, companions roused.', '法阵与咒印：在地上画下封魔阵，给敌人打上咒印、把它定在原地，鼓舞身边的同伴。', ['Ghostwail', '鬼泣']),
   ],
@@ -281,8 +329,8 @@ export const PATHS: Record<string, PathDef[]> = {
 }
 
 export const MASTERIES: Record<string, { name: Text; doc: Text; icon: string }> = {
-  // (its name is the path's: Hell Sovereign, Phantom, Ghostwail)
-  assassin: { name: L('Third Advancement', '三转'), doc: L('The assassin\'s own third, whatever the path: the mark, the assassination, every fifth blow true.', '刺客自己的第三转，与分支无关：印记、刺杀，每第五击必中。'), icon: 'mastery-assassin' },
+  // (its name is the path's: Hell Sovereign — the Necromancer's own skills —, Phantom, Ghostwail)
+  assassin: { name: L('Third Advancement', '三转'), doc: L('The assassin\'s own third, the Shadowdancer\'s and the Demon Hunter\'s: the mark, the assassination, every fifth blow true.', '刺客的第三转，影舞者和猎魔人共用：印记、刺杀，每第五击必中。'), icon: 'mastery-assassin' },
   warrior: { name: L('Paragon', '典范'), doc: L('The warrior\'s own third: an iron body, an unbreakable will, the blow that slays gods.', '战士的第三转：铁躯、不灭意志、弑神一击。'), icon: 'mastery-warrior' },
   ranger: { name: L('Master Archer', '箭圣'), doc: L('The ranger\'s own third: the hawk\'s patience, the wind\'s arrow, a thousand arrows falling.', '游侠的第三转：鹰之耐心、风之矢、千矢之雨。'), icon: 'mastery-ranger' },
   mage: { name: L('Archmage', '大魔导'), doc: L('The mage\'s own third: time bent, the elements converging, power that climbs with every cast.', '法师的第三转：扭曲时间、元素汇流、随施法攀升的力量。'), icon: 'mastery-mage' },

@@ -94,6 +94,25 @@ const ADVANCED_CASES: Record<string, (eng: Engine, p: Entity, x: number, y: numb
   // the assassin
   miasma: (eng) => () => expect(onArena(eng, HAZARDS.miasma)).toHaveLength(9),
   'raise-dead': (eng, p) => () => expect(onArena(eng, SUMMONS.skeleton).filter((e) => e.props?.companion === p.id)).toHaveLength(2),
+  'drive-the-dead': (eng, p, x, y) => {
+    for (const dy of [1, -1]) eng.author(() => eng.world.create(SUMMONS.skeleton, { on: 'tile', map: 'arena', x, y: y + dy }, { props: { summoner: p.id, companion: p.id } }))
+    const s = slime(eng, x + 3, y)
+    return () => expect([hurt(eng, s), status(eng, s, 'poisoned')]).toEqual([true, true])
+  },
+  'toxic-burst': (eng, _p, x, y) => {
+    const s = slime(eng, x + 3, y)
+    eng.author(() => eng.applyStatus({ e: s.id }, 'poisoned', 50))
+    return () => expect([hurt(eng, s), status(eng, s, 'poisoned')]).toEqual([true, false])
+  },
+  'hell-guard': (eng, p) => () => expect(onArena(eng, SUMMONS.hellguard).filter((e) => e.props?.companion === p.id)).toHaveLength(1),
+  pestilence: (eng, _p, x, y) => {
+    const s = slime(eng, x + 2, y + 1)
+    return () => (after(eng, 15), expect([hurt(eng, s), status(eng, s, 'poisoned')]).toEqual([true, true]))
+  },
+  'gate-of-the-styx': (eng, p, x, y) => {
+    const s = slime(eng, x + 3, y)
+    return () => expect([hurt(eng, s), status(eng, s, 'poisoned'), onArena(eng, SUMMONS.hellguard).filter((e) => e.props?.companion === p.id).length]).toEqual([true, true, 2])
+  },
   'army-of-the-dead': (eng, p, x, y) => {
     const s = slime(eng, x + 2, y)
     return () => expect([hurt(eng, s), status(eng, s, 'poisoned'), onArena(eng, SUMMONS.skeleton).filter((e) => e.props?.companion === p.id).length]).toEqual([true, true, 4])

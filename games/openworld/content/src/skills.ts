@@ -4,7 +4,7 @@
 // Existing ids/grants remain save-compatible. Combat talents are automatic: moving, attacking
 // and defeating creatures trigger them without introducing another input/hotbar.
 
-import { Rng, type Entity, type SkillDef } from '@openworld/engine'
+import { Rng, onPath, type Entity, type SkillDef } from '@openworld/engine'
 import { thirdOf, type ProfessionDef } from '@openworld/modules'
 import { FORM_BY_ID, makeItem } from './items.ts'
 import { LIFE_SKILLS } from './life.ts'
@@ -258,4 +258,4 @@ export const skillBook = (id: string): Omit<Entity, 'id' | 'place'> => {
 export const SKILL_BY_ID: Record<string, SkillDef> = Object.fromEntries(SKILLS.map((s) => [s.id, s]))
 
 /** The skills one of a profession (and on a path of it) may learn: the shared, the profession's, its path's. */
-export const skillsForProfession = (profession: string, path?: string): SkillDef[] => SKILLS.filter((s) => (!s.profession || s.profession === profession) && (!s.path || s.path === path))
+export const skillsForProfession = (profession: string, path?: string): SkillDef[] => SKILLS.filter((s) => (!s.profession || s.profession === profession) && onPath(s, path))

@@ -259,6 +259,7 @@ export const STRINGS: Record<string, [string, string]> = {
   skillDirections: ['Skill directions', '技能方向'],
   skillBranch: ['Branch', '分支'],
   skillPending: ['Skills to be designed', '技能待设计'],
+  skillAfterPath: ['Opens with the second advancement', '二转后开放'],
   levelUp: ['Level up! Level {n} · +1 skill point', '升级了！等级 {n} · 技能点 +1'],
   threads: ['Threadbook', '织线簿'],
   options: ['Options', '选项'],

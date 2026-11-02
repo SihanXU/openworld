@@ -37,7 +37,8 @@ export const SKILL_ART_KEYS = [
   // the advancements: paths, masteries, the first trees' four more (tools/src/art/skill-adv-*.ts, docs/advancement.md)
   'grave-toxin', 'miasma', 'raise-dead', 'corpse-burst', 'grave-pact', 'army-of-the-dead', 'shadow-poise', 'umbral-step',
   'blur', 'unseen', 'riposte', 'thousand-shadows', 'hunters-lore', 'binding-sigil', 'hunt-call', 'hex-edge',
-  'hunters-vigil', 'demon-prison', 'lethality', 'death-mark', 'ghost', 'assassinate',
+  'hunters-vigil', 'demon-prison', 'drive-the-dead', 'toxic-burst', 'bone-ward', 'raise-dead-plus', 'rot', 'toxic-burst-plus',
+  'hell-pact', 'hell-guard', 'pestilence', 'soul-harvest', 'plague-lord', 'gate-of-the-styx', 'dominion-of-hell', 'lethality', 'death-mark', 'ghost', 'assassinate',
   'shadow-lord', 'garrote', 'caltrops', 'light-step', 'cut-deep', 'shieldbearer', 'bastion', 'challenge',
   'retort', 'unyielding', 'aegis', 'blood-fury', 'blood-rage', 'reaving-spin', 'carnage', 'pain-eater', 'leap-of-ruin',
   'thorned-mail', 'kneel', 'briar-line', 'crowns-due', 'hold-the-line', 'crown-of-thorns', 'iron-body', 'unbreakable-will',

@@ -10,7 +10,8 @@ paths become the **Necromancer** (poison, necromancy, the dead raised), the **Sh
 criticals, dodge) and the **Demon Hunter** (sigils on the ground, hexes, buffs shared with one's companions, control) —
 the Necromancer fighting through the dead it raises and its poison, never with its own blows —
 and its third takes a name after the path — **Hell Sovereign** 地狱支配者, **Phantom** 幻影, **Ghostwail** 鬼泣 — its
-skills still the assassin's own (`PathDef.third`; `thirdOf` gives the mastery under the path's name). In the skill
+skills the assassin's own for the Shadowdancer and the Demon Hunter, the Necromancer's its own (Hell Sovereign: summons
+and poison too; `SkillDef.path` may name several paths, `onPath`; `PathDef.third`, `thirdOf`). In the skill
 tree the path goes on after the profession's own tree, out of its last skill, and the mastery after the path
 (`SkillBranchDef.after`).
 
@@ -38,13 +39,20 @@ tree the path goes on after the profession's own tree, out of its last skill, an
 
 | Path | Root (passive) | Actives | Passives | Ultimate (2) |
 | --- | --- | --- | --- | --- |
-| **Necromancer** 死灵术士 — the dead and the poison, the body standing back; third: Hell Sovereign 地狱支配者 | Grave Pact: the raised +50% health, +30% harder | Raise Dead (two skeletons fight at your side 30 s); Miasma (a cloud on the 3×3 ahead, 5 s: poisons) | Grave Toxin (every blow of the raised poisons 3 s); Corpse Burst (a poisoned foe felled by you or the raised bursts: those within 2 struck ×0.6 and poisoned) | Army of the Dead (those within 2 struck ×0.6 and poisoned; four skeletons rise) |
+| **Necromancer** 死灵术士 — the dead and the poison, the body standing back; third: Hell Sovereign 地狱支配者 (its own) | Grave Pact: the raised +50% health, +30% harder | Raise Dead (two skeletons fight at your side 30 s); Miasma (a cloud on the 3×3 ahead, 5 s: poisons); Drive the Dead (up to four of the raised leap on the foe ahead, ×1.5 of their own, poisoning); Toxic Burst (the poison in every foe within 5 bursts, ×2) | Grave Toxin (every blow of the raised poisons 3 s); Corpse Burst (a poisoned foe felled by you or the raised bursts: those within 2 struck ×0.6 and poisoned); Bone Ward (a companion near, −15% taken); Rot (you and your companions +20% on the poisoned); two masteries: Raise Dead one more skeleton and −5 s, Toxic Burst +2 reach and +0.5× | Army of the Dead (those within 2 struck ×0.6 and poisoned; four skeletons rise) |
 | **Shadowdancer** 影舞者 — the veil and the back; third: Phantom 幻影 | Shadow Poise: with a dagger, dodge +8%, critical +5%; a Backstab +30% more | Umbral Step (vanish 2 s; the next blow is a sure critical); Blur (4 s: dodge +35%, movement +20%) | Unseen (the first blow out of a veil +50%); Riposte (a dodge readies +80% on the next blow) | Thousand Shadows (behind up to five foes within 4, ×1.4 each) |
 | **Demon Hunter** 猎魔人 — the sigil and the hex; third: Ghostwail 鬼泣 | Hunter's Lore: +15% on a foe under any affliction | Binding Sigil (a sigil on the 3×3 ahead, 8 s: who walks in is hexed 4 s — attack −2, defence −3, slower); Call of the Hunt (6 s: you and your companions within 6, +20% damage, +15% attack speed) | Hexing Edge (with a dagger, one blow in five hexes 4 s); Hunter's Vigil (you and your companions within 6, −10% taken) | Demon Prison (those within 2 struck ×1.0 and stunned 1.5 s; a ring of sigils round you) |
 
 (First built the same day as the Nightblade, the Venomancer and the Bladedancer; replaced before release.)
 
-**Mastery — the assassin's third** (named for the path): Lethality (passive: critical damage +30% with a dagger); **Death Mark** (active:
+**Hell Sovereign** 地狱支配者 — the Necromancer's own third (tier-3 skills on its path): Hell Pact (the raised +30% health
+and harder again; you and your companions draw back 1 a blow); **Guard of Hell** (a guard far stronger than a skeleton,
+40 s); **Pestilence** (the 5×5 round you, five plagues ×0.4, poisoning); Soul Harvest (a felling by the raised mends 3 and
+brings every skill a second nearer); Plague Lord (you and your companions critical +15% on the poisoned); **Gate of the
+Styx** (ultimate: those within 3 struck ×1.0 and poisoned, two guards of hell); Dominion of Hell (capstone: you and your
+companions +25% damage, +15% attack speed).
+
+**Mastery — the assassin's third**, the Shadowdancer's (Phantom) and the Demon Hunter's (Ghostwail): Lethality (passive: critical damage +30% with a dagger); **Death Mark** (active:
 the nearest foe takes +30% from you for 8 s; if it falls marked, every skill is ready); Ghost (passive: dodge +8%);
 **Assassinate** (ultimate: behind the marked, or the nearest, foe within 6: ×5, a sure critical); Shadow Lord (capstone:
 every fifth blow is a critical).
@@ -118,6 +126,14 @@ the next 30% of your health in harm, 6 s), Focus (cooldowns −5%), Spell Power 
   who stands in it of the caster's side), the binding sigil (hexes: the status `hexed`, attack −2, defence −3, slower)
   — each with its own rule.
 - **Icons**: each new skill its own 64×64, drawn by code in the look of the others (tools/src/art/skill-paths-*.ts).
+- **Effects** (runtime `render/skillfx.ts`, drawn by code, not sheets): every cast a ring at the caster's feet; a
+  shockwave for a burst, a nova, a taunt, a leap's landing; a sigil flaring on each cell a field lays; the ground opening
+  for what is summoned; an afterimage and a streak along every dash (a leap of the caster's or a beast's); a mark closing
+  on its foe; an aura breathing round one who takes a buff, a ward, a rest; a plague's drops; a skill's blows landing; a
+  soul flown home (Soul Harvest). Each in the skill's colours, `ActiveDef.look` — necro, poison, hell, shadow, hex,
+  holy, fire, frost, storm, blood, steel, war, thorn, beast, wind, earth, arcane —, set by path in content
+  (advancement.ts: a path's, a skill's own over it, the Necromancer's third hellfire), else by element, kind or
+  profession (actives.ts `lookOf`). The worker names them as vfx (`cast:necro`, `burst:hell:2`, `trail:shadow:3:0`).
 
 ## 5. As built (2026-11-01)
 

@@ -66,7 +66,7 @@ export class ProfessionPanel {
       const third = ADVANCE_LEVELS[3]
       const pathCards = prof.paths.map((p) => {
         const mine = p.id === path
-        const nodes = game().skills.all.filter((s) => s.path === p.id)
+        const nodes = game().skills.all.filter((s) => s.path === p.id && !s.tier)
         const action = mine
           ? `<span class="pf-current">✓ ${t('advCurrent')}</span>`
           : `<button class="cv-btn primary small" data-path="${p.id}" ${level >= second ? '' : 'disabled'}>${path ? t('advChange') : t('advChoose')}</button>`

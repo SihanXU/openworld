@@ -5,7 +5,7 @@
 // centred over the skills that grow from it, a capstone that joins two arms between them. Branch hubs exist even
 // before their skills are designed; learning starts at a branch's first skill, not at its hub.
 
-import type { SkillDef } from '@openworld/engine'
+import { onPath, type SkillDef } from '@openworld/engine'
 import { game } from '../game.ts'
 
 /** Across one column of a branch, and down one row. */
@@ -100,7 +100,7 @@ const GAP = 40
 export function layoutTree(skills: SkillDef[] = game().skills.all, direction: string = 'combat', profession = '', path = ''): TreeLayout {
   const branches = game().skills.branches.filter((b) => b.direction === direction)
   // (a path's skills only for one on it: docs/advancement.md)
-  const allowed = skills.filter((s) => (!s.profession || s.profession === profession) && (!s.path || s.path === path))
+  const allowed = skills.filter((s) => (!s.profession || s.profession === profession) && onPath(s, path))
   const named = new Set(branches.map((b) => b.way))
   const free = WAYS.filter((w) => !named.has(w))
   let k = 0

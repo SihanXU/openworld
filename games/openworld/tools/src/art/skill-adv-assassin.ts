@@ -153,6 +153,25 @@ function skull(r: Raster, cx: number, cy: number, s: number, ramp: Ramp, glow?: 
   r.poly([[cx, cy + s * 0.3], [cx - s * 0.13, cy + s * 0.52], [cx + s * 0.13, cy + s * 0.52]], 'b1')
 }
 
+/** A ring of gold with the marks of a binding round it. */
+function sigilRing(r: Raster, cx: number, cy: number, rad: number): void {
+  arc(r, cx, cy, rad, 0, 360, 'g1', 2)
+  arc(r, cx, cy, rad, 0, 360, 'g2', 1)
+  for (let i = 0; i < 8; i++) {
+    const t = (i * Math.PI) / 4
+    r.rect(cx + Math.cos(t) * rad - 1, cy + Math.sin(t) * rad - 1, 3, 3, 'g3')
+  }
+}
+
+/** A demon's horned skull (crimson), its eyes alight. */
+function demonSkull(r: Raster, cx: number, cy: number, s: number): void {
+  for (const d of [-1, 1]) {
+    r.poly([[cx + d * s * 0.5, cy - s * 0.5], [cx + d * s * 1.4, cy - s * 1.5], [cx + d * s * 0.95, cy - s * 0.2]], 'c1')
+    r.poly([[cx + d * s * 0.6, cy - s * 0.55], [cx + d * s * 1.3, cy - s * 1.35], [cx + d * s * 0.9, cy - s * 0.35]], 'c2')
+  }
+  skull(r, cx, cy, s, ['c1', 'c2', 'c3'], 'f3')
+}
+
 /** A smooth path through points (Catmull-Rom), sampled. */
 function curve(pts: P[], steps = 6): P[] {
   const out: P[] = []
@@ -298,6 +317,181 @@ icon('army-of-the-dead', (r) => {
   for (const [x, y] of [[8, 14], [32, 8], [56, 16]] as const) sparkle(r, x, y, 2, 'p3', 'p4')
 })
 
+// Drive the Dead: two skulls of the raised and a green arrow thrown on ahead of them
+icon('drive-the-dead', (r) => {
+  skull(r, 16, 22, 8, ['o1', 'o2', 'o3'], 'p3')
+  skull(r, 16, 44, 8, ['o1', 'o2', 'o3'], 'p3')
+  r.outline('k')
+  r.poly([[28, 26], [44, 26], [44, 16], [60, 33], [44, 50], [44, 40], [28, 40]], 'p1')
+  r.poly([[30, 28], [46, 28], [46, 21], [57, 33], [46, 44], [46, 38], [30, 38]], 'p2')
+  r.line(31, 29, 45, 29, 'p3')
+  r.outline('k', ['o1', 'o2', 'o3'])
+})
+
+// Toxic Burst: a drop of poison bursting, its rays and spatter thrown out
+icon('toxic-burst', (r) => {
+  for (let i = 0; i < 12; i++) {
+    const t = (i * Math.PI) / 6
+    const len = i % 2 ? 20 : 28
+    thick(r, [32 + Math.cos(t) * 10, 34 + Math.sin(t) * 10], [32 + Math.cos(t) * len, 34 + Math.sin(t) * len], i % 2 ? 'q2' : 'q3', 2)
+  }
+  ball(r, 32, 34, 12, ['p1', 'p2', 'p3', 'p4'])
+  r.outline('k')
+  for (const [x, y, s] of [[10, 12, 2.5], [54, 14, 2], [8, 54, 2], [56, 52, 2.5]] as const) ball(r, x, y, s, ['p1', 'p2', 'p3'])
+  r.outline('k', ['q2', 'q3'])
+})
+
+// Bone Ward: a round shield of bone, two bones crossed on it
+icon('bone-ward', (r) => {
+  ball(r, 32, 32, 25, ['o1', 'o2', 'o2', 'o3'])
+  arc(r, 32, 32, 21, 0, 360, 'o1', 1)
+  r.outline('k')
+  for (const [a, b] of [[[16, 16], [48, 48]], [[48, 16], [16, 48]]] as [P, P][]) {
+    thick(r, a, b, 'w1', 5)
+    thick(r, a, b, 'o3', 3)
+    for (const q of [a, b]) ball(r, q[0], q[1], 3.5, ['w1', 'o3', 'o3'])
+  }
+  r.outline('k', ['o1', 'o2'])
+  sparkle(r, 54, 8, 2, 'p3', 'p4')
+})
+
+/** A gold badge in the corner: a skill's mastery. */
+function badge(r: Raster): void {
+  ball(r, 50, 50, 9, ['g1', 'g2', 'g3'])
+  r.outline('k')
+  r.rect(48, 44, 4, 12, 'f4')
+  r.rect(44, 48, 12, 4, 'f4')
+}
+
+// Raise Dead: Mastery — the bony hand out of the ground, a gold badge
+icon('raise-dead-plus', (r) => {
+  r.ellipse(28, 54, 22, 7, 'w1')
+  r.ellipse(28, 53, 17, 4, 'b1')
+  thick(r, [25, 52], [24, 34], 'o1', 3)
+  thick(r, [31, 52], [30, 34], 'o2', 3)
+  r.ellipse(27, 30, 7, 5, 'o2')
+  for (const [x0, x1, y1] of [[22, 17, 16], [26, 24, 12], [30, 31, 12], [33, 37, 16]] as const) thick(r, [x0, 27], [x1, y1], 'o2', 2)
+  r.outline('k')
+  badge(r)
+})
+
+// Rot: a skull gone green with rot, flies about it
+icon('rot', (r) => {
+  skull(r, 30, 30, 15, ['q1', 'p1', 'p2'], 'q3')
+  for (const [x, y] of [[24, 22], [36, 18], [30, 36]] as const) r.ellipse(x, y, 2, 1.5, 'q1')
+  r.outline('k')
+  for (const [x, y] of [[50, 12], [56, 22], [10, 16]] as const) {
+    r.rect(x, y, 2, 2, 'b1')
+    r.set(x - 1, y - 1, 'm4')
+    r.set(x + 2, y - 1, 'm4')
+  }
+  drop(r, 48, 50, 2.6, ['p1', 'p2', 'p4'])
+  drop(r, 14, 52, 2, ['p1', 'p2', 'p4'])
+  r.outline('k', ['m4', 'b1'])
+})
+
+// Toxic Burst: Mastery — the bursting drop, a gold badge
+icon('toxic-burst-plus', (r) => {
+  for (let i = 0; i < 12; i++) {
+    const t = (i * Math.PI) / 6
+    thick(r, [28 + Math.cos(t) * 8, 28 + Math.sin(t) * 8], [28 + Math.cos(t) * (i % 2 ? 16 : 23), 28 + Math.sin(t) * (i % 2 ? 16 : 23)], i % 2 ? 'q2' : 'q3', 2)
+  }
+  ball(r, 28, 28, 10, ['p1', 'p2', 'p3', 'p4'])
+  r.outline('k', ['q2', 'q3'])
+  badge(r)
+})
+
+// ================================================================ Hell Sovereign (the Necromancer's own third): crimson, hellfire, the grave's green
+
+// Hell Pact: a scroll of crimson, sealed with a horned skull
+icon('hell-pact', (r) => {
+  r.rect(12, 12, 38, 34, 'r1')
+  r.rect(12, 12, 38, 4, 'c1')
+  r.rect(12, 12, 6, 34, 'r2')
+  r.ellipse(12, 29, 4, 17, 'c1')
+  r.ellipse(50, 29, 4, 17, 'c1')
+  for (const y of [22, 27, 32]) r.line(20, y, 44, y, 'f3')
+  r.outline('k')
+  ball(r, 40, 44, 11, ['g1', 'g2', 'g3'])
+  demonSkull(r, 40, 45, 7)
+  r.outline('k', ['r1', 'r2', 'c1'])
+  sparkle(r, 56, 8, 2, 'f3', 'f4')
+})
+
+// Guard of Hell: a horned skull in a crimson helm, a great blade behind it
+icon('hell-guard', (r) => {
+  blade(r, [14, 58], [54, 8], 3.5, ['s1', 's2', 's3', 's4'])
+  r.outline('k')
+  demonSkull(r, 30, 36, 12)
+  // the helm's brow and cheek guards
+  r.poly([[18, 30], [42, 30], [44, 26], [30, 20], [16, 26]], 'b2')
+  r.line(17, 27, 43, 27, 'b3')
+  r.outline('k')
+  sparkle(r, 54, 54, 2, 'r3', 'f4')
+})
+
+// Pestilence: a dark green cloud raining poison on the ground
+icon('pestilence', (r) => {
+  cloud(r, [[18, 20, 10], [32, 16, 12], [46, 20, 10], [26, 26, 9], [40, 26, 9]], ['q1', 'p1', 'p2'])
+  r.outline('k')
+  for (const [x, y] of [[16, 40], [26, 46], [36, 40], [46, 46], [22, 54], [42, 56]] as const) drop(r, x, y, 2, ['p1', 'p2', 'p4'])
+  r.rect(6, 60, 52, 2, 'w1')
+  r.outline('k', ['w1'])
+})
+
+// Soul Harvest: a scythe, a pale soul drawn up its blade
+icon('soul-harvest', (r) => {
+  thick(r, [14, 58], [40, 10], 'w2', 4)
+  r.line(15, 56, 39, 11, 'w3')
+  arc(r, 26, 14, 18, -20, 110, 's2', 4)
+  arc(r, 26, 14, 18, -10, 100, 's4', 1)
+  r.outline('k')
+  // the soul: a pale flame rising
+  r.poly([[44, 52], [40, 42], [44, 34], [46, 26], [50, 34], [54, 42], [50, 52]], 'd3')
+  r.poly([[46, 50], [43, 42], [46, 36], [47, 30], [49, 36], [51, 42], [49, 50]], 'd4')
+  r.ellipse(47, 46, 2, 2, 's4')
+  r.outline('k', ['w2', 'w3', 's2', 's4'])
+  sparkle(r, 56, 20, 2, 'd4', 's4')
+})
+
+// Plague Lord: a skull green with plague under a gold crown
+icon('plague-lord', (r) => {
+  skull(r, 32, 38, 14, ['q1', 'p1', 'p2'], 'q3')
+  r.outline('k')
+  r.poly([[18, 26], [20, 12], [25, 20], [32, 8], [39, 20], [44, 12], [46, 26]], 'g2')
+  r.poly([[18, 26], [20, 14], [25, 21], [27, 26]], 'g3')
+  r.rect(18, 23, 29, 4, 'g1')
+  r.set(32, 15, 'p4')
+  r.outline('k')
+  drop(r, 54, 52, 2.2, ['p1', 'p2', 'p4'])
+})
+
+// Gate of the Styx: a dark arch of stone, the river's green-red light within, eyes looking out
+icon('gate-of-the-styx', (r) => {
+  r.poly([[8, 60], [8, 26], [14, 12], [32, 4], [50, 12], [56, 26], [56, 60]], 'b2')
+  r.poly([[10, 60], [10, 27], [15, 14], [32, 6], [32, 60]], 'b3')
+  r.poly([[16, 60], [16, 30], [21, 18], [32, 13], [43, 18], [48, 30], [48, 60]], 'r1')
+  r.poly([[20, 60], [20, 32], [24, 22], [32, 18], [40, 22], [44, 32], [44, 60]], 'p1')
+  r.poly([[24, 60], [24, 36], [32, 26], [40, 36], [40, 60]], 'p2')
+  r.outline('k')
+  for (const [x, y] of [[28, 40], [36, 40], [26, 50], [34, 52]] as const) r.rect(x, y, 2, 1, 'r3')
+  for (const y of [20, 34, 48]) r.line(9, y, 15, y, 'b1')
+  for (const y of [20, 34, 48]) r.line(49, y, 55, y, 'b1')
+})
+
+// Dominion of Hell: a black sceptre crowned with a horned skull, hellfire round its head
+icon('dominion-of-hell', (r) => {
+  r.poly([[18, 30], [22, 12], [27, 20], [32, 4], [37, 20], [42, 12], [46, 30]], 'r1')
+  r.poly([[22, 30], [25, 16], [29, 22], [32, 10], [35, 22], [39, 16], [42, 30]], 'r2')
+  r.outline('k')
+  thick(r, [32, 34], [32, 60], 'b2', 4)
+  r.line(31, 36, 31, 59, 'b3')
+  r.rect(26, 40, 13, 3, 'g2')
+  r.outline('k', ['r1', 'r2'])
+  demonSkull(r, 32, 28, 8)
+  r.outline('k', ['r1', 'r2'])
+})
+
 // ================================================================ the Shadowdancer: indigo, a silver moon
 
 // The path: a crescent moon on an indigo night, a dagger crossed before it
@@ -393,25 +587,6 @@ icon('thousand-shadows', (r) => {
 })
 
 // ================================================================ the Demon Hunter: crimson, gold sigils, violet hexes
-
-/** A ring of gold with the marks of a binding round it. */
-function sigilRing(r: Raster, cx: number, cy: number, rad: number): void {
-  arc(r, cx, cy, rad, 0, 360, 'g1', 2)
-  arc(r, cx, cy, rad, 0, 360, 'g2', 1)
-  for (let i = 0; i < 8; i++) {
-    const t = (i * Math.PI) / 4
-    r.rect(cx + Math.cos(t) * rad - 1, cy + Math.sin(t) * rad - 1, 3, 3, 'g3')
-  }
-}
-
-/** A demon's horned skull (crimson), its eyes alight. */
-function demonSkull(r: Raster, cx: number, cy: number, s: number): void {
-  for (const d of [-1, 1]) {
-    r.poly([[cx + d * s * 0.5, cy - s * 0.5], [cx + d * s * 1.4, cy - s * 1.5], [cx + d * s * 0.95, cy - s * 0.2]], 'c1')
-    r.poly([[cx + d * s * 0.6, cy - s * 0.55], [cx + d * s * 1.3, cy - s * 1.35], [cx + d * s * 0.9, cy - s * 0.35]], 'c2')
-  }
-  skull(r, cx, cy, s, ['c1', 'c2', 'c3'], 'f3')
-}
 
 // The path: a demon's horned skull inside a gold binding ring, a dagger through it
 icon('path-demonhunter', (r) => {

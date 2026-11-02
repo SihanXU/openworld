@@ -43,9 +43,14 @@ export function skillsOf(e: Entity): string[] {
 
 export type LearnRefusal = 'learned' | 'profession' | 'path' | 'tier' | 'requires' | 'points'
 
+/** Is a skill one of this path's (or of no path)? */
+export function onPath(def: Pick<SkillDef, 'path'>, path: unknown): boolean {
+  return !def.path || (Array.isArray(def.path) ? def.path.includes(path as string) : def.path === path)
+}
+
 /** A path's skill, or the mastery's, for one not on that path or not advanced so far (docs/advancement.md). */
 function advancementRefusal(e: Entity, def: SkillDef): LearnRefusal | undefined {
-  if (def.path && def.path !== e.props?.path) return 'path'
+  if (!onPath(def, e.props?.path)) return 'path'
   if (def.tier && Number(e.props?.advancement ?? 1) < def.tier) return 'tier'
   return undefined
 }

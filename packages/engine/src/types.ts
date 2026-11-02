@@ -727,7 +727,7 @@ export interface CombatState {
   /** Envenom: so many more blows open a bleed. */
   envenomHits?: number
   /** Arrow Rain: volleys still to fall on a 3×3 around (x, y), the next at tick `next`. */
-  rain?: { map: string; x: number; y: number; next: number; left: number; power: number; element?: string; radius?: number; afflict?: string; ticks?: number }
+  rain?: { map: string; x: number; y: number; next: number; left: number; power: number; element?: string; look?: string; radius?: number; afflict?: string; ticks?: number }
   /** Iron Guard: blows taken much lighter, steps slower, until this tick. Hawk Eye: reach and criticals, until this tick. */
   ironUntil?: number
   aimUntil?: number
@@ -1452,8 +1452,9 @@ export interface SkillDef {
   branch: string
   /** Only this profession may learn/use the node; absent means a shared skill. */
   profession?: string
-  /** Only one on this path of its profession (the second advancement, docs/advancement.md) may learn it. */
-  path?: string
+  /** Only one on this path of its profession (the second advancement, docs/advancement.md) may learn it; or on one of
+   * these paths (a mastery some paths share, another path having a third of its own). */
+  path?: string | string[]
   /** Only one advanced this far (the actor's `advancement`: 1 a profession, 2 a path, 3 the mastery) may learn it. */
   tier?: number
   /** A passive that pays under a condition (docs/advancement.md §4): read by the classes module's combat, no code of its own. */
@@ -1570,6 +1571,9 @@ export interface ActiveDef {
   sure?: boolean
   /** How far its blow drives the struck back (a Wind Arrow). */
   push?: number
+  /** The colours its effects are drawn in (the renderer's skill effects: necro, poison, hell, shadow, hex, holy, fire,
+   * frost, storm, blood, steel, war, thorn, beast, wind, earth, arcane); by its element or profession when none. */
+  look?: string
 }
 
 /** A set of gear: its pieces carry `props.set: id`; worn together they give its bonuses. */
