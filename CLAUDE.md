@@ -12,7 +12,7 @@ The gear and the professions grown for it (2026-11-01): [docs/sets.md](docs/sets
 `tools/test/gearsets.test.ts`) and [docs/advancement.md](docs/advancement.md) (the second advancement's three paths a profession, the third its mastery, 108 more skills, passives in data;
 `tools/test/advancement.test.ts`).
 Design: [docs/design.md](docs/design.md); the AI side at a glance (what runs where, who checks what, which file does which job): [docs/ai.md](docs/ai.md); the key people's own portraits and event CGs (release 1's cast of seven, each designed to a sheet; the CGs drawn as shots): [docs/character-art.md](docs/character-art.md), [docs/cast/](docs/cast/); the agreed world model and base gameplay (not yet built,
-steps W1–W10): [docs/world-model.md](docs/world-model.md); the continent — six regions round the Holy City, the backdrop
+steps W1–W10): [docs/world-model.md](docs/world-model.md); agents as players, seated beside a person and playing through the same keys (built in part 2026-11-02): [docs/agent-players.md](docs/agent-players.md); the continent — six regions round the Holy City, the backdrop
 that fills them, the phases of scaling A–E (A–D built 2026-10-18): [docs/continent.md](docs/continent.md); six of the Holy City's
 places made by hand as models for all to come — a Gothic cathedral without and within, a concentric fortress, the grand
 square, the market, the inn's ward, the poor quarter on its canal — built from the project's own buildings drawn by the
@@ -47,7 +47,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
 ```
 
 - **The engine side imports no game** (docs/engine-split.md S1): `games/*` may import `packages/*`, never
-  the reverse, and no game imports another; among the packages, engine ← modules ← runtime, engine ← stdlib ←
+  the reverse, and no game imports another; among the packages, engine ← modules ← runtime, engine ← bridge, engine ← stdlib ←
   format, modules ← modder → agent, runtime → modder (the player's own, in a worker; what a browser runs of them reaches
   no Node module). `packages/engine/test/boundaries.test.ts` holds it. A game is handed over instead: the engine's
   `GameDef` (`gamedef.ts`: ontology, base rules, terrain characters) to the modder (`openModder({ game })`,
@@ -92,7 +92,7 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   tool knocks one set up loose, the `loosen` primitive;
   each as far as its reach: the target's `handsRange`, the world's `carry`, the held thing's `range`,
   held to by the engine for every actor), layers, slots and magnet
-  (`controls.ts`, design.md §5.2, with a completeness test); crafting from recipes
+  (`controls.ts`, design.md §5.2, with a completeness test), one for each seat (`seat.ts`: an actor whose keys a person or an agent holds, `Controls(eng, hand, actor)`, `SeatInput` the one list of inputs; `observe.ts` what a seat sees; `agents.ts` + `inputDocs.ts` the agent protocol's host, docs/agent-players.md); crafting from recipes
   (`controls.ts`; a recipe's `madeOf` keeps the material and quality under the name it gives), gear's rolled extras (`affixes.ts`, `Ontology.affixes`) and sets
   (`Ontology.sets`), read by `World.stat` — mechanisms configured by data, kept in the kernel by decision (docs/engine-split.md §9), what appears by itself — the ground's yield, creatures that come back, the night's walkers (`appear.ts`), experience and levels (`progression.ts`; a skill book asks no points but holds to the tree's `requires`); companions that follow a
   leader, and lead the way to where the tracked quest goes next when it stands idle (`companion.ts`, `Ontology.guide`, docs/quests.md §2.5) — docs/prologue.md; the codex (`codex.ts`: every item kind, person and creature kind, the ones the player carried or saw marked — the reader's record beside the state, saved with the game; its entries `content/src/codex.ts`, its panel J); looks (`looks.ts`, docs/looks.md: a look is a body, a part per slot and a colour per key, on `Entity.look`; the engine checks it against `Ontology.looks`, derives its `look:*` tags (never stored) and its words for the modder; `restyle` changes the host's); postures (design.md §5.17: `POSES` a status may draw its bearer in, `untilMove`, the `settle` impulse every actor answers with the `posture` primitive); the inputs X (draw) and V (sneak) are statuses the input keeps; the AI setting (`quality.ts`, design.md §13: off/low/medium/high for
@@ -118,6 +118,11 @@ client (Phaser 4 + DOM HUD)  →  engine (pure TS, in a Web Worker)  →  Mod po
   a boss fight's director (`Ontology.encounters`: phases with a rotation, an opening skill, answering skills; its saved
   memory `Entity.boss`; its plate in the frame, docs/bosses.md); `Frame.telegraphs` for every caster; the act a wind-up
   ends in, `use` with the param `kit`, is the caster's own rule's to answer).
+- `packages/bridge` — the transports of the agent protocol (docs/agent-players.md; imports the engine alone, and is not
+  part of `packages/ai`): `http.ts` the protocol as plain HTTP and JSON on 127.0.0.1 (`npm run agents` hosts a page-less
+  Ford with it, `games/openworld/tools/src/agent-host.ts`), `relay.ts` + `cli.ts` a relay for a game in a page (`npm run
+  agents:relay`, the page opened with `?agents=<relay>`, `runtime/src/agentLink.ts`), `clock.ts` the page-less world's ticks.
+  What an agent reads: docs/agent-play-guide.md. Its skins, `games/openworld/tools/src/art/skins/`.
 - `packages/stdlib` — the standard library, data (`ontology.json`, `rules.json`): the types and statuses the
   kernel names, the roots of the rule library, the Story Manager's and a quest's rules. A project takes it
   unless its game.json says not.
@@ -413,6 +418,8 @@ npm run editor:build     # the editor as a program → packages/editor/dist (pag
 npm run editor:start     # that build run alone (node packages/editor/dist/server/cli.js --open)
 npm run desktop          # the desktop application from the repository (Electron, installed on first run)
 npm run desktop:dist     # its installers → packages/editor/desktop/release (NSIS/zip, dmg, AppImage)
+npm run agents           # OpenWorld with no page, the agent protocol on http://127.0.0.1:8788 (docs/agent-play-guide.md)
+npm run agents:relay     # the relay on :8789 for a game in a page opened with ?agents=http://127.0.0.1:8789
 npm run play             # the engine's player on :5174 (?game=/games/starter/ or /games/openworld/)
 npm run build:player     # the player alone → packages/runtime/dist, the starter built beside it
 npm run game -- check games/starter   # a project's problems (build <project> --out <dir>: a bundle)
