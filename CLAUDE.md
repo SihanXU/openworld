@@ -3,7 +3,14 @@
 A web-playable 2D JRPG world whose state and rules are code; an LLM modder (later)
 patches undefined interactions at runtime.
 Story and world: [docs/lore.md](docs/lore.md) (the user's canonical setting: the Five Sufferings, the
-First Night, the five Seal-bearers; every chapter follows it) and [docs/chapter-1.md](docs/chapter-1.md).
+First Night, the five Seal-bearers; every chapter follows it), [docs/chapter-1.md](docs/chapter-1.md) and
+[docs/chapter-2.md](docs/chapter-2.md) (the Second Seal: Emberfall and the dragon, the Scarred March, Matthias; built 2026-10-30, opened by the Crown home);
+the rest of the main line, built 2026-11-01, each chapter opened by the one before's end (`world.ch3` … `world.fin`): [docs/chapter-3.md](docs/chapter-3.md) (the Third Seal: the Vale of Scales, Ele; §2 the plan all four share),
+[docs/chapter-4.md](docs/chapter-4.md) (the Fourth Seal: the Pale Fens, Nacht; the pilgrim comes to Severin's belief), [docs/chapter-5.md](docs/chapter-5.md) (the Fifth Seal: the White Altar Heights, the Witnesses; the selection, Lumi's niche),
+[docs/finale.md](docs/finale.md) (the Holy City, Astra, the preview ending: the pilgrim takes up the Five and stays in the Holiest). Each chapter is proved offline by `tools/test/demo.test.ts` (CH2 … CH5, FIN).
+The gear and the professions grown for it (2026-11-01): [docs/sets.md](docs/sets.md) (thirty-two sets over the main line, a type and a picture per piece, the sets' own powers;
+`tools/test/gearsets.test.ts`) and [docs/advancement.md](docs/advancement.md) (the second advancement's three paths a profession, the third its mastery, 108 more skills, passives in data;
+`tools/test/advancement.test.ts`).
 Design: [docs/design.md](docs/design.md); the AI side at a glance (what runs where, who checks what, which file does which job): [docs/ai.md](docs/ai.md); the key people's own portraits and event CGs (release 1's cast of seven, each designed to a sheet; the CGs drawn as shots): [docs/character-art.md](docs/character-art.md), [docs/cast/](docs/cast/); the agreed world model and base gameplay (not yet built,
 steps W1–W10): [docs/world-model.md](docs/world-model.md); the continent — six regions round the Holy City, the backdrop
 that fills them, the phases of scaling A–E (A–D built 2026-10-18): [docs/continent.md](docs/continent.md); six of the Holy City's

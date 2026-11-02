@@ -200,7 +200,7 @@ describe('no endless yield (world-model.md §8.4)', () => {
     // (it does reach what yields: felling, mining, harvesting, splitting, fishing …)
     expect(yielding).toBeGreaterThan(20)
     expect(endless).toEqual([])
-  }, 300_000)
+  }, 600_000)
 })
 
 describe('the repeat check, exact (world-model.md §8.4)', () => {

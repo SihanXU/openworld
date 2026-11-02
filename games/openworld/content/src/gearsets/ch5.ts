@@ -1,0 +1,131 @@
+// Chapter 5's sets (docs/sets.md §4): the White Altar Heights and the Witnesses; levels 17–18. The Chalk Stair (the
+// brothers who carry the fallen up the White Stair, and Tomas's rope), the Turned Back (Ysolde's old hood and ring, and
+// what others who turned back wore on the way down), the Restless (the catacombs' niches), the Elect (what Whiteveil
+// gives the one the road has chosen: Agathe's robe, the abbot's circlet, the robing house, the church, the cells) and
+// the White-Robed (what the Witnesses wore, in the catacombs and beneath the altar).
+
+import { F, P, type SetDef } from './kit.ts'
+
+export const CH5_SETS: SetDef[] = [
+  {
+    id: 'chalkstair', en: 'Chalk Stair', zh: '白阶', chapter: 'ch5', level: 17, lean: 'ranger', look: 'linen',
+    palette: ['#c8ccc8', '#6e7672', '#7a5132', '#eef0ec'],
+    pieces: [
+      P('shoulders', F.cloak, "Bearer's Mantle", '抬灵人的披肩',
+        'A chalk-white mantle with pads sewn in at the shoulders, for the poles of a bier. The brothers of Whiteveil carry up the stair any pilgrim who falls on it. They have never carried one down.',
+        '一件白垩色的披肩，肩上缝着垫子，是垫棺杠用的。白纱修道院的修士们，把倒在石阶上的朝圣者抬上山去。他们从没往山下抬过一个。', 'map:whitestair', { moveHaste: 0.03 }),
+      P('hands', F.gloves, "Bearer's Gloves", '抬灵人的手套',
+        'Thick gloves, the palms worn glassy on the poles of a bier. The brothers who carry on the stair know every step of it by the way it takes the weight, and count them under their breath.',
+        '厚手套，掌心被棺杠磨得发亮。在石阶上抬灵的修士，凭分量落下去的感觉就能认出每一级台阶，嘴里低声数着。', 'map:whitestair', { atk: 1 }),
+      P('waist', F.belt, "Novice's Rope", '见习修士的绳带',
+        'A novice\'s rope belt, the knot tied by someone still learning how. Brother Tomas wore it to carry the dead down to the catacombs. He would not wear it down the stair.',
+        '一条见习修士的绳带，结是一个还没学会打结的人打的。托马斯修士系着它，把死人抬进墓窟。下山的时候，他不肯再系它。', 'quest:leaving', { critChance: 0.02 }, { shape: 'rope' }),
+      P('feet', F.boots, 'Stair Sandals', '白阶草鞋',
+        'Rope-soled sandals, white with chalk to the ankle. Whoever wore them climbed the stair more times than anyone can count. The last time, they were carried.',
+        '绳底的草鞋，从鞋底到脚踝全是白垩粉。穿它的人爬这道石阶的次数，谁也数不清。最后一次，是被抬上去的。', 'map:whitestair', { moveHaste: 0.04 }),
+    ],
+    bonuses: [
+      { pieces: 2, props: { moveHaste: 0.06 } },
+      { pieces: 4, props: { atk: 3, critChance: 0.06 } },
+    ],
+  },
+  {
+    id: 'turnedback', en: 'Turned Back', zh: '回头者', chapter: 'ch5', level: 17, lean: 'assassin', look: 'slate',
+    palette: ['#6f7480', '#3c3f48', '#b5a585', '#b9bec8'],
+    pieces: [
+      P('head', F.hood, 'Hood of One Who Turned Back', '回头者的兜帽',
+        'A grey pilgrim\'s hood. The scallop has been unpicked from it; the holes of the stitches are still there. Ysolde wore it as far as the third seal, and keeps it in the chest under her cot.',
+        '一顶灰色的朝圣者兜帽。上面的扇贝被拆掉了，针脚留下的孔还在。伊索尔德戴着它走到了第三道印，如今把它收在床底的箱子里。', 'map:whitestair', { dodge: 0.02 }),
+      P('shoulders', F.cloak, 'Cloak of One Who Turned Back', '回头者的斗篷',
+        'A travelling cloak worn the wrong way round, as the old tales say pilgrims wore them who gave up the road, so that the road would not know them going home. Its wearer lies facing downhill.',
+        '一件反过来披的旅行斗篷。老故事里说，放弃朝圣的人要这样披，好让道路认不出回家的他们。穿它的人躺在那里，脸朝着山下。', 'map:whitestair', { dodge: 0.02 }),
+      P('feet', F.boots, 'Boots of One Who Turned Back', '回头者的靴子',
+        'Good boots, the soles worn down evenly at toe and heel: the same road, walked there and back again. Their wearer had nearly reached the foot of the stair.',
+        '一双好靴子，鞋底前后磨得一样平：同一条路，走去，又走回来。穿它的人，差一点就走到石阶脚下了。', 'map:whitestair', { moveHaste: 0.04 }),
+      P('ring', F.ring, "Ysolde's Ring", '伊索尔德的戒指',
+        'A plain iron ring, given to Ysolde when she was named pilgrim forty years ago. She keeps it on a nail by the door of her cell, and will part with it only to another pilgrim.',
+        '一枚朴素的铁戒指，四十年前伊索尔德被点为朝圣者时领到的。她把它挂在小屋门边的一根钉子上，只肯把它让给另一个朝圣者。', 'npc:npc.ysolde', { critChance: 0.03 }),
+    ],
+    bonuses: [
+      { pieces: 2, props: { dodge: 0.05 } },
+      { pieces: 4, vow: 'lone' },
+    ],
+  },
+  {
+    id: 'restless', en: 'The Restless', zh: '不安者', chapter: 'ch5', level: 18, lean: 'any',
+    palette: ['#b8c8d8', '#5a6878', '#c8a860', '#eef4fa'],
+    pieces: [
+      P('neck', F.amulet, 'Locket of the Restless', '不安者的小盒坠',
+        'A tin locket taken from a niche, a curl of hair inside gone the colour of dust. The brothers who lay the dead in say its owner\'s was the first voice they learned to tell apart.',
+        '从一个壁龛里取出的锡制小盒坠，里面有一绺头发，已经变成了灰土的颜色。把死人放进壁龛的修士们说，它主人的声音，是他们最先分辨得出的一个。', 'map:catacombs', { cdr: 0.03 }),
+      P('ear', F.earring, 'Restless Earring', '不安者的耳坠',
+        'An earring of white glass from the catacombs. It is cold even after it has been held a while, and in a quiet room it can be heard, very faintly, asking.',
+        '墓窟里找到的白玻璃耳坠。握在手里很久，它还是凉的。在安静的屋子里，能听见它很轻很轻地在问。', 'map:catacombs', { critDamage: 0.1 }, { shape: 'bone' }),
+      P('ring', F.ring, 'Ring of the Niches', '壁龛之戒',
+        'A ring found on a hand in the catacombs, the fingers curled round it so long that it would not come away. Engraved inside: HOW LONG. It was engraved after.',
+        '在墓窟里一只手上找到的戒指，手指蜷着攥住它太久，怎么也取不下来。戒指内侧刻着：还要多久。字是后来刻上去的。', 'map:catacombs', { critChance: 0.02 }),
+    ],
+    bonuses: [
+      { pieces: 2, props: { cdr: 0.08 } },
+      { pieces: 3, props: { lifesteal: 1, critDamage: 0.25 } },
+    ],
+  },
+  {
+    id: 'elect', en: 'The Elect', zh: '选民', chapter: 'ch5', level: 18, lean: 'warrior', look: 'snow',
+    palette: ['#f2efe6', '#a89870', '#e2c070', '#ffffff'],
+    pieces: [
+      P('head', F.circlet, 'Circlet of the Elect', '选民金环',
+        'A thin ring of gold, made to sit on the brow without pressing. Each of the white-robed in the niches has one at their head. The abbot set it on yours with both hands, and said a blessing that had no amen.',
+        '一圈细细的金环，做得戴在额上不会压着。壁龛里的每一个白袍者，头边都有一圈。院长用双手把它戴在你头上，念了一段没有“阿门”的祝福。', 'quest:white_stair'),
+      P('shoulders', F.cloak, 'Stole of the Elect', '选民圣带',
+        'A white stole worked with gold thread, kept folded in a chest in Whiteveil\'s church. It is aired every spring against the next pilgrim to be named, and put back.',
+        '一条白色的圣带，用金线绣过，叠好收在白纱修道院教堂的箱子里。每年春天拿出来晾一晾，等下一个被点名的朝圣者，再放回去。', 'map:whiteveil.church', { def: 2 }),
+      P('body', F.robe, 'Robe Cut to Your Measure', '照你身量裁的白袍',
+        'A robe of the finest linen on the mountain. Sister Agathe took its measure by eye the day you came up the stair, and finished it with the linen you brought her. The hem is weighted, so that it lies straight on one who does not move.',
+        '山上最好的麻布做的白袍。你爬上石阶那天，阿加特修女用眼睛量了你的身量，又用你给她带来的布把它缝完了。下摆缝了坠子，好让它在一个不动的人身上垂得笔直。', 'quest:thread', { def: 3 }),
+      P('hands', F.gloves, 'Gloves of the Elect', '选民手套',
+        'White gloves that have never been worn, laid out in the robing house. The fingers are stitched a little curled, the way hands rest when they are folded.',
+        '一双从没戴过的白手套，摆在白袍房里。手指缝得微微弯着，像一双手交叠着放好时的样子。', 'map:whiteveil.robing', { atk: 1 }),
+      P('waist', F.belt, 'Cincture of the Elect', '选民束带',
+        'A white cord with five knots, tied by the abbot\'s own hand. The knot at the end is of a kind that is not meant to be untied.',
+        '一条打了五个结的白绳，是院长亲手打的。末端那个结，是不打算再解开的那种。', 'map:whiteveil.robing', undefined, { shape: 'cord' }),
+      P('feet', F.boots, 'Slippers of the Elect', '选民软鞋',
+        'Soft white slippers, their soles unmarked, set beside a made bed in the cells. They are made for a short walk down a stair, and no farther.',
+        '一双白色软鞋，鞋底干干净净，放在僧舍里一张铺好的床边。它是为了走一小段楼梯做的，走下去，就不用再走了。', 'map:whiteveil.cells'),
+    ],
+    bonuses: [
+      { pieces: 2, props: { def: 3 } },
+      { pieces: 4, props: { atk: 3 } },
+      { pieces: 6, power: 'elect' },
+    ],
+  },
+  {
+    id: 'whiterobed', en: 'White-Robed', zh: '白衣', chapter: 'ch5', level: 18, lean: 'mage', look: 'ivory',
+    palette: ['#e0ddd2', '#86847a', '#8c2e2a', '#f6f4ee'],
+    pieces: [
+      P('head', F.hood, 'Veil of the White-Robed', '白袍者的面纱',
+        'A white veil from the face of one of the white-robed. The cloth is worn thin over the mouth, where the lips moved beneath it for a hundred years and more.',
+        '从一个白袍者脸上取下的白面纱。嘴的那块布磨得很薄，底下的嘴唇在那里动了一百多年。', 'map:catacombs', { cdr: 0.02 }),
+      P('shoulders', F.cloak, 'Mantle of the White-Robed', '白袍者的披肩',
+        'A white mantle laid over the shoulders of the dead at the robing. Four hundred years of brothers have folded them the same way, with the same three turns.',
+        '入殓时披在死者肩上的白披肩。四百年来，一代代修士都用同样的叠法，折三道。', 'map:catacombs', { cdr: 0.02 }),
+      P('body', F.robe, 'Robe of the White-Robed', '白袍者的白袍',
+        'A white robe from the heap beneath the altar. The left side is stained through from within, below the ribs, where a lance goes in. Every robe there has the same stain, and none of their wearers was ever struck.',
+        '从祭坛下那堆人身上取下的白袍。左边肋下，有一块从里面渗出来的污迹，正是长枪刺进去的地方。那里的每一件袍子都有同一块污迹，可穿它们的人，没有一个被刺过。', 'map:beneathaltar', { cdr: 0.03 }, { shape: 'habit' }),
+      P('hands', F.gloves, 'Wrappings of the White-Robed', '白袍者的裹手布',
+        'Linen wrappings from hands that were raised under the altar for a long time. They keep the shape of the raising, the fingers open.',
+        '从一双在祭坛下举了很久的手上解下来的麻布。它们还保持着举起来的样子，五指张开。', 'map:catacombs', { atk: 1 }),
+      P('waist', F.belt, 'Girdle of the White-Robed', '白袍者的腰绳',
+        'A plain girdle tied at the left side. The brothers tie it there so that it does not lie over the wound. They were never told why; they were told where.',
+        '一条素腰绳，系在左边。修士们系在那里，好让它不压着伤口。从来没人告诉他们为什么，只告诉他们系在哪儿。', 'map:beneathaltar', { critChance: 0.02 }),
+      P('feet', F.boots, 'Foot-wrappings of the White-Robed', '白袍者的裹脚布',
+        'White wrappings for the feet of the dead, the soles clean. Only the carried come to the catacombs, and none of them has walked since.',
+        '缠在死者脚上的白布，脚底是干净的。进墓窟的都是被抬进来的，那以后他们谁也没有再走过路。', 'map:beneathaltar', { moveHaste: 0.03 }),
+    ],
+    bonuses: [
+      { pieces: 2, props: { cdr: 0.06 } },
+      { pieces: 4, props: { atk: 3, critChance: 0.05 } },
+      { pieces: 6, relic: 'lance' },
+    ],
+  },
+]

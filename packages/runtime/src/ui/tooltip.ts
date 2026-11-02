@@ -180,6 +180,11 @@ export function tooltipHtml(it: ItemInfo, ctx: TipContext): string {
     out.push('<div class="gap"></div>', line(`✦ ${esc(L(relic.en, relic.zh))} · ${L('Unique', '唯一')}`, QUALITY_COLOR.legendary))
     out.push(line(esc(L(relic.text.en, relic.text.zh)), '#ffb199', 'lore'))
   }
+  // what a piece one wears says of itself (a set's piece, a relic: its `text`), in the margin's colour
+  if (typeof p.slot === 'string' && typeof p.text === 'string') {
+    const said = L(p.text, typeof p.text_zh === 'string' ? p.text_zh : p.text)
+    out.push('<div class="gap"></div>', line(esc(said), '#b8a98a', 'lore'))
+  }
   // whose it is to fight with: a profession's own, or common to all (and no profession's talents)
   const need = it.tags.find((g) => g.startsWith('profession:'))?.slice(11)
   if (need) {

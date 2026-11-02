@@ -1,5 +1,6 @@
 // The boss fights (docs/bosses.md, docs/skills.md): the White Knight Alberic (the First Seal-bearer, Chapter 1's boss),
-// the dragon of Cinder Peak (the main quest's end), and three kept for later — the Crown Without a King, the Velvet Lure
+// the dragon of Cinder Peak (Chapter 2's gate to the March), Matthias the War-Giver (the Second Seal-bearer, Chapter 2's
+// boss), and three kept for later — the Crown Without a King, the Velvet Lure
 // and the Face Thief. Each is a kit (its skills, the kits module's one definition) and an encounter (the phases that
 // take them up in turn); what each skill does where it lands is the boss's own rule (`boss/<id>`). The minor monsters'
 // kits are kits.ts; what both share (the helpers, the colours, what clings) is afflictions.ts.
@@ -7,6 +8,8 @@ import type { Effect, EncounterDef, Entity, KitSkill, Pos, Rule, Text, Tree, Typ
 import { CALL, CLING, DO, HARM, POWER, kitRule, skill, unleash } from './afflictions.ts'
 import { LEGENDARY_ARMS } from './items.ts'
 import { BOSS_ROOMS } from './bossrooms.ts'
+import { GRAVE_HANDS } from './chapter4.ts'
+import { NIGHT_POOL } from './finale.ts'
 
 const L = (en: string, zh: string) => ({ en, zh })
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
@@ -134,6 +137,203 @@ const DRAGON_RULES = kitRule('boss/dragon', DRAGON, 'The dragon\'s skills: its b
   ['ashfall_again', FIRE(1)],
 ])
 
+// ------------------------------------------------------------------ the War-Giver
+
+// The Second Seal-bearer (docs/chapter-2.md §4, docs/lore.md §4, §6): chained to the broken Scourging Post, he draws his
+// soldiers' pain into himself along threads of red light. His great sword sweeps before him; the post's chains lash out in a
+// cross and leave the struck bleeding; he charges down the yard dragging the chain; the threads strike down where his foe
+// stands. At half health he puts his back to the post and the chains whip out round him: he can carry more.
+const MATTHIAS = 'actor/creature/sin/matthias'
+const BLOOD = 0xb3262b
+const fxM = (id: string) => `sin:matthias:${id}`
+const LASH = { shape: 'cross', aim: 'self', radius: 5, action: 'attack', fx: fxM('lash'), fxPlacement: 'pattern', color: BLOOD } as const
+const MATTHIAS_SKILLS: KitSkill[] = [
+  skill('sword', 'The Given Sword', '赐战之剑', { shape: 'cone', aim: 'self', radius: 3, windup: 16, recovery: 12, action: 'attack', fx: fxM('sword'), fxPlacement: 'pattern', color: HARM }),
+  skill('lash', 'The Lash', '鞭笞', { ...LASH, windup: 18, recovery: 12 }),
+  skill('lash_twice', 'The Lash', '鞭笞', { ...LASH, windup: 16, recovery: 0, then: 'lash_again' }),
+  skill('lash_again', 'The Lash, Again', '鞭笞·再', { ...LASH, radius: 6, windup: 8, recovery: 12 }),
+  skill('charge', 'The Red Charge', '赤骑冲锋', { shape: 'line', aim: 'target', radius: 8, width: 3, move: 'dash', windup: 18, recovery: 16, action: 'attack', fx: fxM('charge'), fxPlacement: 'pattern', color: HARM }),
+  skill('threads', 'The Red Threads', '赤线', { shape: 'spots', aim: 'target', radius: 4, windup: 18, recovery: 12, action: 'cast', fx: fxM('threads'), color: BLOOD }),
+  skill('shove', 'Chain Sweep', '锁链横扫', { shape: 'circle', aim: 'self', radius: 2, range: [1, 2], cooldown: 60, windup: 8, recovery: 8, action: 'attack', fx: 'dust', fxPlacement: 'pattern', color: HARM }),
+  skill('post', 'At the Post', '柱下', { shape: 'ring', aim: 'self', radius: 4, windup: 24, recovery: 10, steady: true, action: 'attack', fx: fxM('post'), fxPlacement: 'pattern', color: CALL }),
+]
+const MATTHIAS_FIGHT: EncounterDef = {
+  sight: 12, leash: 12, plate: { color: BLOOD, seal: 2 }, reactive: ['shove'],
+  phases: [
+    { at: 1, rotation: ['sword', 'threads', 'lash', 'sword', 'charge'] },
+    { at: 0.5, enter: 'post', rotation: ['lash_twice', 'threads', 'charge', 'sword'], windupMul: 0.85, recoveryMul: 0.7, powerMul: 1.25 },
+  ],
+}
+const SCOURGED = DO(unleash({ power: POWER(1.1), edge: 'cut', coat: 'bleeding' }))
+const MATTHIAS_RULES = kitRule('boss/matthias', MATTHIAS, 'The War-Giver\'s skills: his great sword cuts the cone before him; the post\'s chains lash out in a cross and leave the struck bleeding; his charge down the yard knocks back what it meets; the red threads strike where his foe stood; his chains sweep away one who stands too close; at the post the ring of chains whips out round him.', [
+  ['sword', DO(unleash({ power: POWER(1.5), edge: 'cut' }))],
+  ['lash', SCOURGED],
+  ['lash_twice', SCOURGED],
+  ['lash_again', SCOURGED],
+  ['charge', DO(unleash({ power: POWER(1.4), edge: 'blunt', push: 2 }))],
+  ['threads', DO(unleash({ power: POWER(1), edge: 'magic' }))],
+  ['shove', DO(unleash({ power: POWER(0.8), edge: 'blunt', push: 2 }))],
+  ['post', DO(unleash({ power: POWER(1.2), edge: 'cut', coat: 'bleeding' }), { op: 'say', text: L('I can carry more.', '我还拿得动。') })],
+])
+
+// ------------------------------------------------------------------ the Priest of the Black Scales
+
+// The Third Seal-bearer (docs/chapter-3.md §4, docs/lore.md §4, §6): Ele has not eaten in three hundred years and weighs the
+// Vale, so much grain against so much hunger. The beam of the balance swings down and makes the struck heavy; the great pan
+// comes down on them; grain pours from the hanging pans; the famine drains them hungry. At half health Ele rises off the
+// floor, weightless: lighter than sin.
+const ELE = 'actor/creature/sin/ele'
+const BLACK_GOLD = 0xc9a24a
+const fxE = (id: string) => `sin:ele:${id}`
+const PAN = { shape: 'circle', aim: 'target', radius: 2, action: 'attack', fx: fxE('pan'), fxPlacement: 'pattern', color: HARM } as const
+const ELE_SKILLS: KitSkill[] = [
+  skill('weigh', 'The Weighing', '衡量', { shape: 'line', aim: 'target', radius: 10, width: 1, windup: 16, recovery: 12, action: 'cast', fx: fxE('weigh'), fxPlacement: 'beam', color: BLACK_GOLD }),
+  skill('pan', 'The Pan Falls', '秤盘坠落', { ...PAN, windup: 20, recovery: 14 }),
+  skill('pan_twice', 'The Pan Falls', '秤盘坠落', { ...PAN, windup: 18, recovery: 0, then: 'pan_again' }),
+  skill('pan_again', 'The Other Pan', '秤盘坠落·另一只', { ...PAN, windup: 10, recovery: 14 }),
+  skill('grain', 'Grain Rain', '谷雨', { shape: 'spots', aim: 'target', radius: 4, windup: 18, recovery: 12, action: 'cast', fx: fxE('grain'), color: BLACK_GOLD }),
+  skill('famine', 'Famine', '饥馑', { shape: 'ring', aim: 'self', radius: 4, windup: 20, recovery: 12, action: 'cast', fx: fxE('famine'), fxPlacement: 'pattern', color: CLING }),
+  skill('shove', 'The Beam Swings', '秤杆横扫', { shape: 'circle', aim: 'self', radius: 2, range: [1, 2], cooldown: 60, windup: 8, recovery: 8, action: 'attack', fx: 'dust', fxPlacement: 'pattern', color: HARM }),
+  skill('lighter', 'Lighter Than Sin', '轻于罪', { shape: 'ring', aim: 'self', radius: 5, windup: 24, recovery: 10, steady: true, action: 'cast', fx: fxE('lighter'), fxPlacement: 'pattern', color: CALL }),
+]
+const ELE_FIGHT: EncounterDef = {
+  sight: 12, leash: 12, plate: { color: BLACK_GOLD, seal: 3 }, reactive: ['shove'],
+  phases: [
+    { at: 1, rotation: ['weigh', 'grain', 'pan', 'weigh', 'famine'] },
+    { at: 0.5, enter: 'lighter', rotation: ['pan_twice', 'grain', 'famine', 'weigh'], windupMul: 0.85, recoveryMul: 0.7, powerMul: 1.25 },
+  ],
+}
+const PAN_FALLS = DO(unleash({ power: POWER(1.6), edge: 'blunt' }))
+const ELE_RULES = kitRule('boss/ele', ELE, 'The Priest of the Black Scales\' skills: the beam of the balance swings down along a line and makes the struck heavy; the great pan comes down on the foe; grain pours from the hanging pans; the famine leaves the struck hungrier by the second; the beam sweeps away one who stands too close; risen, weightless, Ele drives everything back.', [
+  ['weigh', DO(unleash({ power: POWER(1.2), edge: 'blunt', coat: 'mired' }))],
+  ['pan', PAN_FALLS],
+  ['pan_twice', PAN_FALLS],
+  ['pan_again', PAN_FALLS],
+  ['grain', DO(unleash({ power: POWER(1), edge: 'blunt' }))],
+  ['famine', DO(unleash({ power: POWER(0.8), edge: 'magic', coat: 'famished' }))],
+  ['shove', DO(unleash({ power: POWER(0.8), edge: 'blunt', push: 2 }))],
+  ['lighter', DO(unleash({ power: POWER(1.2), edge: 'magic', push: 2 }), { op: 'say', text: L('Lighter than sin.', '轻于罪。') })],
+])
+
+// ------------------------------------------------------------------ the Reinholder of Death
+
+// The Fourth Seal-bearer (docs/chapter-4.md §4, docs/lore.md §4, §6): Nacht holds the reins of Death's horse and will not
+// let it go out; none of his goes into the dark. His scythe reaps the cone before him; the pale horse rides through; iron
+// nails rain down and pin the struck to the ground; the horse's bells toll and slow them. At half health he pulls the
+// reins, and the dead's hands come up out of the ford all round him.
+const NACHT = 'actor/creature/sin/nacht'
+const PALE = 0xd9dccf
+const fxN = (id: string) => `sin:nacht:${id}`
+const NAILS = { shape: 'spots', aim: 'target', radius: 4, action: 'cast', fx: fxN('nails'), color: CLING } as const
+const NACHT_SKILLS: KitSkill[] = [
+  skill('reap', 'The Reaping', '镰刈', { shape: 'cone', aim: 'self', radius: 3, windup: 16, recovery: 12, action: 'attack', fx: fxN('reap'), fxPlacement: 'pattern', color: HARM }),
+  skill('charge', 'The Pale Charge', '苍白冲锋', { shape: 'line', aim: 'target', radius: 9, width: 3, move: 'dash', windup: 18, recovery: 16, action: 'attack', fx: fxN('charge'), fxPlacement: 'pattern', color: HARM }),
+  skill('nails', 'The Nails Fall', '钉落', { ...NAILS, windup: 18, recovery: 12 }),
+  skill('nails_twice', 'The Nails Fall', '钉落', { ...NAILS, windup: 16, recovery: 0, then: 'nails_again' }),
+  skill('nails_again', 'The Nails Fall, Again', '钉落·再', { ...NAILS, windup: 10, recovery: 12 }),
+  skill('knell', 'The Knell', '丧钟', { shape: 'ring', aim: 'self', radius: 4, windup: 20, recovery: 12, action: 'cast', fx: fxN('knell'), fxPlacement: 'pattern', color: PALE }),
+  skill('shove', 'The Horse Rears', '惊马扬蹄', { shape: 'circle', aim: 'self', radius: 2, range: [1, 2], cooldown: 60, windup: 8, recovery: 8, action: 'attack', fx: 'dust', fxPlacement: 'pattern', color: HARM }),
+  skill('reins', 'The Reins of the Dead', '亡者之辔', { shape: 'ring', aim: 'self', radius: 6, windup: 24, recovery: 10, steady: true, action: 'cast', fx: fxN('reins'), fxPlacement: 'pattern', color: CALL }),
+]
+const NACHT_FIGHT: EncounterDef = {
+  sight: 12, leash: 12, plate: { color: PALE, seal: 4 }, reactive: ['shove'],
+  phases: [
+    { at: 1, rotation: ['reap', 'nails', 'knell', 'reap', 'charge'] },
+    { at: 0.5, enter: 'reins', rotation: ['charge', 'nails_twice', 'reap', 'knell'], windupMul: 0.85, recoveryMul: 0.7, powerMul: 1.25 },
+  ],
+}
+const PINNED = DO(unleash({ power: POWER(1), edge: 'pierce', coat: 'knelt' }))
+const NACHT_RULES = kitRule('boss/nacht', NACHT, 'The Reinholder of Death\'s skills: his scythe reaps the cone before him; the pale horse rides through and knocks back what it meets; iron nails rain down and pin the struck kneeling; the horse\'s bells toll and leave the struck slow; the horse rears at one who stands too close; when he pulls the reins the dead\'s hands come up out of the ford all round him and stay a while.', [
+  ['reap', DO(unleash({ power: POWER(1.5), edge: 'cut' }))],
+  ['charge', DO(unleash({ power: POWER(1.4), edge: 'blunt', push: 2 }))],
+  ['nails', PINNED],
+  ['nails_twice', PINNED],
+  ['nails_again', PINNED],
+  ['knell', DO(unleash({ power: POWER(0.8), edge: 'magic', coat: 'mired' }))],
+  ['shove', DO(unleash({ power: POWER(0.8), edge: 'blunt', push: 2 }))],
+  ['reins', DO(unleash({ power: POWER(1), edge: 'magic', leave: GRAVE_HANDS }), { op: 'say', text: L('None of mine go into the dark.', '我的人，一个也不进黑暗。') })],
+])
+
+// ------------------------------------------------------------------ the White-Robed Witnesses
+
+// The Fifth Seal-bearer (docs/chapter-5.md §4, docs/lore.md §4, §6, §13): every pilgrim named in four hundred years who
+// died on the road, robed in white under the altar, carrying the lance's wound together. Their cry, "How long?", drives
+// back what stands near; robes fall like shrouds and slow the struck; hands reach out of the heap in a cross; a beam from
+// the altar along a line. At half health all of them rise: the myriad.
+const WITNESSES = 'actor/creature/sin/witnesses'
+const ROBE_WHITE = 0xf1ecd9
+const fxW = (id: string) => `sin:witnesses:${id}`
+const HANDS = { shape: 'cross', aim: 'self', radius: 5, action: 'attack', fx: fxW('hands'), fxPlacement: 'pattern', color: CLING } as const
+const WITNESSES_SKILLS: KitSkill[] = [
+  skill('howlong', 'How Long?', '何时', { shape: 'ring', aim: 'self', radius: 5, windup: 18, recovery: 12, action: 'cast', fx: fxW('howlong'), fxPlacement: 'pattern', color: ROBE_WHITE }),
+  skill('robes', 'The Robes Fall', '白袍坠落', { shape: 'spots', aim: 'target', radius: 4, windup: 18, recovery: 12, action: 'cast', fx: fxW('robes'), color: ROBE_WHITE }),
+  skill('hands', 'The Martyrs\' Hands', '殉者之手', { ...HANDS, windup: 18, recovery: 12 }),
+  skill('hands_twice', 'The Martyrs\' Hands', '殉者之手', { ...HANDS, windup: 16, recovery: 0, then: 'hands_again' }),
+  skill('hands_again', 'The Martyrs\' Hands, Again', '殉者之手·再', { ...HANDS, radius: 6, windup: 8, recovery: 12 }),
+  skill('lance', 'The Lance\'s Shadow', '圣枪之影', { shape: 'line', aim: 'target', radius: 12, width: 1, windup: 16, recovery: 12, action: 'cast', fx: fxW('lance'), fxPlacement: 'beam', color: HARM }),
+  skill('shove', 'They Press Close', '万众簇拥', { shape: 'circle', aim: 'self', radius: 2, range: [1, 2], cooldown: 60, windup: 8, recovery: 8, action: 'attack', fx: 'dust', fxPlacement: 'pattern', color: HARM }),
+  skill('myriad', 'The Myriad', '万证', { shape: 'ring', aim: 'self', radius: 6, windup: 24, recovery: 10, steady: true, action: 'cast', fx: fxW('myriad'), fxPlacement: 'pattern', color: CALL }),
+]
+const WITNESSES_FIGHT: EncounterDef = {
+  sight: 12, leash: 12, plate: { color: ROBE_WHITE, seal: 5 }, reactive: ['shove'],
+  phases: [
+    { at: 1, rotation: ['lance', 'robes', 'hands', 'howlong', 'lance'] },
+    { at: 0.5, enter: 'myriad', rotation: ['hands_twice', 'lance', 'robes', 'howlong'], windupMul: 0.85, recoveryMul: 0.7, powerMul: 1.25 },
+  ],
+}
+const REACHING = DO(unleash({ power: POWER(1.1), edge: 'blunt', coat: 'mired' }))
+const WITNESSES_RULES = kitRule('boss/witnesses', WITNESSES, 'The White-Robed Witnesses\' skills: their cry drives back what stands round them; robes fall like shrouds and leave the struck slow; hands reach out of the heap in a cross and hold; the lance\'s shadow strikes along a line from the altar; they press on one who stands too close; risen together, the myriad\'s ring makes the struck kneel.', [
+  ['howlong', DO(unleash({ power: POWER(1), edge: 'magic', push: 2 }))],
+  ['robes', DO(unleash({ power: POWER(0.9), edge: 'magic', coat: 'mired' }))],
+  ['hands', REACHING],
+  ['hands_twice', REACHING],
+  ['hands_again', REACHING],
+  ['lance', DO(unleash({ power: POWER(1.6), edge: 'pierce' }))],
+  ['shove', DO(unleash({ power: POWER(0.8), edge: 'blunt', push: 2 }))],
+  ['myriad', DO(unleash({ power: POWER(1.2), edge: 'magic', coat: 'knelt' }), { op: 'say', text: L('How long?', '还要多久？') })],
+])
+
+// ------------------------------------------------------------------ the First Martyr
+
+// The last trial (docs/finale.md §4, docs/lore.md §14–§15): Astra, bound by the five as they return to him, a suffering a
+// phase. Bound, the crown's thorns ring him and the welts lash out in a cross; at two thirds he rises — "You do not know
+// what you are asking" — and the scale's weight comes down and the nails fall; at a third he is unbound, the lance strikes
+// through the crypt and the Night falls out of his wounds and stays burning on the floor.
+const ASTRA = 'actor/creature/sin/astra'
+const GREY = 0xcfcfd6
+const NIGHT = 0x3b2a5a
+const fxS = (id: string) => `sin:astra:${id}`
+const ASTRA_SKILLS: KitSkill[] = [
+  skill('crown', 'The Crown', '荆冠', { shape: 'ring', aim: 'self', radius: 4, windup: 20, recovery: 12, action: 'attack', fx: fxS('crown'), fxPlacement: 'pattern', color: CLING }),
+  skill('welts', 'The Welts', '鞭痕', { shape: 'cross', aim: 'self', radius: 5, windup: 18, recovery: 12, action: 'attack', fx: fxS('welts'), fxPlacement: 'pattern', color: HARM }),
+  skill('weight', 'The Weight', '秤压', { shape: 'circle', aim: 'target', radius: 2, windup: 18, recovery: 12, action: 'attack', fx: fxS('weight'), fxPlacement: 'pattern', color: HARM }),
+  skill('nails', 'The Nails', '圣钉', { shape: 'spots', aim: 'target', radius: 4, windup: 16, recovery: 12, action: 'cast', fx: fxS('nails'), color: CLING }),
+  skill('lance', 'The Lance', '圣枪', { shape: 'line', aim: 'target', radius: 13, width: 1, windup: 18, recovery: 14, action: 'cast', fx: fxS('lance'), fxPlacement: 'beam', color: HARM }),
+  skill('night', 'The First Night', '原夜', { shape: 'spots', aim: 'target', radius: 5, windup: 20, recovery: 12, action: 'cast', fx: fxS('night'), color: NIGHT }),
+  skill('shove', 'Leave', '退下', { shape: 'circle', aim: 'self', radius: 2, range: [1, 2], cooldown: 60, windup: 8, recovery: 8, action: 'attack', fx: 'dust', fxPlacement: 'pattern', color: HARM }),
+  skill('rise', 'He Rises', '起身', { shape: 'ring', aim: 'self', radius: 5, windup: 24, recovery: 10, steady: true, action: 'cast', fx: fxS('weight'), fxPlacement: 'pattern', color: CALL }),
+  skill('unbound', 'Unbound', '挣脱', { shape: 'ring', aim: 'self', radius: 6, windup: 24, recovery: 10, steady: true, action: 'cast', fx: fxS('night'), fxPlacement: 'pattern', color: CALL }),
+]
+const ASTRA_FIGHT: EncounterDef = {
+  sight: 12, leash: 14, plate: { color: GREY }, reactive: ['shove'],
+  phases: [
+    { at: 1, rotation: ['crown', 'welts', 'crown', 'welts'] },
+    { at: 0.66, enter: 'rise', rotation: ['weight', 'nails', 'welts', 'crown', 'weight'], windupMul: 0.9, powerMul: 1.15 },
+    { at: 0.33, enter: 'unbound', rotation: ['lance', 'night', 'nails', 'lance', 'weight'], windupMul: 0.8, recoveryMul: 0.7, powerMul: 1.3 },
+  ],
+}
+const ASTRA_RULES = kitRule('boss/astra', ASTRA, 'The First Martyr\'s skills, a suffering each: the crown\'s thorns ring him and make the struck kneel; the welts lash out in a cross and leave them bleeding; the scale\'s weight comes down on the foe; the nails fall and pin; the lance strikes along a line through the crypt; the First Night falls out of his wounds and stays burning on the floor; rising, unbound, he drives everything back.', [
+  ['crown', DO(unleash({ power: POWER(1.2), edge: 'cut', coat: 'knelt' }))],
+  ['welts', DO(unleash({ power: POWER(1.2), edge: 'cut', coat: 'bleeding' }))],
+  ['weight', DO(unleash({ power: POWER(1.7), edge: 'blunt' }))],
+  ['nails', DO(unleash({ power: POWER(1), edge: 'pierce', coat: 'knelt' }))],
+  ['lance', DO(unleash({ power: POWER(1.8), edge: 'pierce' }))],
+  ['night', DO(unleash({ power: POWER(0.9), edge: 'magic', leave: NIGHT_POOL }))],
+  ['shove', DO(unleash({ power: POWER(0.8), edge: 'blunt', push: 2 }))],
+  ['rise', DO(unleash({ power: POWER(1), edge: 'magic', push: 2 }), { op: 'say', text: L('You do not know what you are asking.', '你不知道自己正在请求什么。') })],
+  ['unbound', DO(unleash({ power: POWER(1.2), edge: 'magic', push: 2, leave: NIGHT_POOL }), { op: 'say', text: L('...', '……') })],
+])
+
 // ------------------------------------------------------------------ the three kept for later (unchanged)
 
 // The Velvet Lure, the Face Thief and the Crown Without a King: no campaign place yet; in the Boss Studio and the
@@ -177,6 +377,11 @@ const SINS = [
 export const BOSSES: BossDef[] = [
   { id: 'alberic', type: ALBERIC, name: L('The White Knight Alberic · First Seal', '白骑士·阿尔贝里克 · 第一印'), footprint: [3, 2], hp: 1200, defense: 2, atk: 24, skills: ALBERIC_SKILLS, encounter: ALBERIC_FIGHT },
   { id: 'dragon', type: DRAGON, name: L('The Dragon of Cinder Peak', '烬峰魔龙'), footprint: [2, 2], hp: 1600, defense: 3, atk: 22, skills: DRAGON_SKILLS, encounter: DRAGON_FIGHT },
+  { id: 'matthias', type: MATTHIAS, name: L('Matthias the War-Giver · Second Seal', '赐战者·马提亚 · 第二印'), footprint: [3, 2], hp: 1400, defense: 3, atk: 26, skills: MATTHIAS_SKILLS, encounter: MATTHIAS_FIGHT },
+  { id: 'nacht', type: NACHT, name: L('Nacht, Reinholder of Death · Fourth Seal', '死之执辔者·纳赫特 · 第四印'), footprint: [3, 2], hp: 1800, defense: 3, atk: 30, skills: NACHT_SKILLS, encounter: NACHT_FIGHT },
+  { id: 'witnesses', type: WITNESSES, name: L('The White-Robed Witnesses Beneath the Altar · Fifth Seal', '祭坛之下的白衣万证 · 第五印'), footprint: [3, 2], hp: 2000, defense: 3, atk: 32, skills: WITNESSES_SKILLS, encounter: WITNESSES_FIGHT },
+  { id: 'astra', type: ASTRA, name: L('Astra, the First Martyr', '初殉者·阿斯特拉'), footprint: [3, 2], hp: 2600, defense: 4, atk: 34, skills: ASTRA_SKILLS, encounter: ASTRA_FIGHT },
+  { id: 'ele', type: ELE, name: L('Ele, Priest of the Black Scales · Third Seal', '黑衡司铎·厄勒 · 第三印'), footprint: [3, 2], hp: 1600, defense: 3, atk: 28, skills: ELE_SKILLS, encounter: ELE_FIGHT },
   ...SINS.map((s) => s.def),
 ]
 export const BOSS_BY_ID: Record<string, BossDef> = Object.fromEntries(BOSSES.map((b) => [b.id, b]))
@@ -237,7 +442,7 @@ const LEFT_RULES: Rule[] = [
 ]
 
 /** The bosses' skills, answered (base rules: what lands is the boss's own outcome), and what they leave. */
-export const BOSS_KIT_RULES: Rule[] = [...ALBERIC_RULES, ...DRAGON_RULES, ...SINS.flatMap((s) => s.rules), ...LEFT_RULES]
+export const BOSS_KIT_RULES: Rule[] = [...ALBERIC_RULES, ...DRAGON_RULES, ...MATTHIAS_RULES, ...ELE_RULES, ...NACHT_RULES, ...WITNESSES_RULES, ...ASTRA_RULES, ...SINS.flatMap((s) => s.rules), ...LEFT_RULES]
 
 /** The fact a legendary's handing over sets: each exists once in a world. */
 const legendFact = (type: string) => `legend.${type.split('/').pop()}`

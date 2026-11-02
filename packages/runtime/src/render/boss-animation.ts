@@ -1,5 +1,5 @@
 import type { Dir, EntitySnap } from '@openworld/engine'
-import { ALBERIC_CLIPS, type AlbericClip, type AlbericAttackClip, type AlbericWalkClip } from '../assets/bosses.ts'
+import { ALBERIC_CLIPS, isStripBoss, type AlbericClip, type AlbericAttackClip, type AlbericWalkClip } from '../assets/bosses.ts'
 
 export interface BossAnimationFrame {
   col: number
@@ -20,7 +20,8 @@ export const albericWalkClip = (facing: Dir): AlbericWalkClip =>
 export function bossAnimationFrame(boss: NonNullable<EntitySnap['boss']>, time: number, offset = 0, facing: Dir = 'down'): BossAnimationFrame {
   const { action } = boss
   const progress = Math.max(0, Math.min(1, Number.isFinite(boss.progress) ? boss.progress : 0))
-  if (boss.kit === 'alberic') {
+  // Alberic's delivered strips, and Matthias's drawn over them (one layout, assets/bosses.ts STRIP_BOSSES)
+  if (isStripBoss(boss.kit)) {
     const elapsed = Number.isFinite(boss.animationElapsedMs) ? Math.max(0, boss.animationElapsedMs!) : undefined
     if (action === 'idle' || action === 'walk') {
       // Delivered strips already face each direction (left included), so they are never mirrored.

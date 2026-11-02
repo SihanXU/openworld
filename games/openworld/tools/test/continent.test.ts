@@ -5,7 +5,7 @@ import { Game, RuleLibrary, lookProblems, scheduleAt, type Entity } from '@openw
 import { socialOf } from '@openworld/modules'
 import { BASE_RULES, REGIONS, SOCIAL_COIN, STORY_RULES, TERRAIN_CHARS, UNTOLD, WILD_GROUNDS, buildOntology, decodeChunk, wildChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
-import { OVERWORLD, handmadeGrounds, readContinent } from '../src/demo/overworld.ts'
+import { OVERWORLD, REPLACED, handmadeGrounds, readContinent } from '../src/demo/overworld.ts'
 import { CONTINENT_FILE, FORD, continentJson, generateContinent, inPocket } from '../src/demo/continent/generate.ts'
 import { CATALOG } from '../../client/src/catalog.ts'
 import { scaleRun } from '../src/demo/scale.ts'
@@ -121,6 +121,11 @@ describe('the continent (docs/continent.md)', () => {
     const at = new Map(c.places.map((p) => [`${p.x},${p.y}`, p]))
     for (const p of c.places) {
       expect([p.id, SOLID.has(ground(p.x, p.y))]).toEqual([p.id, false])
+      // (a place a hand-made one stands for: the March's seat is the War-Giver's Bastion, Chapter 2's — drawn as the wild)
+      if (REPLACED.has(p.id)) {
+        expect(overworld.entities.find((e) => e.id === `site.${p.id}`)).toBeUndefined()
+        continue
+      }
       const m = maps.get(p.id)
       expect([p.id, m?.map.site]).toEqual([p.id, { map: OVERWORLD, x: p.x, y: p.y, size: 1 }])
       expect(m!.map).toMatchObject({ backdrop: true, region: p.region })

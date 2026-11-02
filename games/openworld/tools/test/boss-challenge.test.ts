@@ -2,7 +2,7 @@
 import '../../client/src/register.ts'
 import { describe, expect, it } from 'vitest'
 import { skillsOf } from '@openworld/engine'
-import { BOSSES, BOSS_BY_ID, BOSS_ARENA, SKILLS, SKILL_PROFESSIONS } from '@openworld-game/content'
+import { ADVANCEMENT_SKILLS, BOSSES, BOSS_BY_ID, BOSS_ARENA, SKILLS, SKILL_PROFESSIONS } from '@openworld-game/content'
 import { CHALLENGE_LOADOUTS, challengeOutcome, createBossChallenge } from '../../client/src/boss-challenge.ts'
 import { CATALOG } from '../../client/src/catalog.ts'
 import { buildFord } from '../src/demo/world.ts'
@@ -18,7 +18,9 @@ describe('isolated profession boss challenges', () => {
     expect(w.num(p, 'level')).toBe(20)
     expect(w.num(p, 'hp')).toBe(w.num(p, 'maxHp'))
     expect(w.num(p, 'maxHp')).toBeGreaterThan(CHALLENGE_LOADOUTS[id].hp)
-    const own = SKILLS.filter((s) => s.profession === id)
+    // its first tree as the challenge was balanced on it (not the advancements': docs/advancement.md)
+    const later = new Set(ADVANCEMENT_SKILLS.map((s) => s.id))
+    const own = SKILLS.filter((s) => s.profession === id && !later.has(s.id))
     expect(skillsOf(p)).toEqual(expect.arrayContaining(own.map((s) => s.id)))
     expect(SKILLS.filter((s) => s.profession && s.profession !== id).some((s) => skillsOf(p).includes(s.id))).toBe(false)
     const weapon = w.get(p.held)!

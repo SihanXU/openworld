@@ -27,6 +27,7 @@ export const wren: PersonDef = {
     ],
   },
   lines: [
+    line('default', 'My book says a dragon like this one is written down only once before, in the annals of the First Night. I did not believe the book until it burned the Kettles\' barn.', '我的书上说，像这样的龙，以前只被记下过一回，是在初夜年鉴里。直到它烧了凯特尔家的谷仓，我才信了那本书。'),
     // a chat (the talk's `chat` verb, docs/npc-sandbox.md §2.15): small talk in their own voice; what they like best is said beside these
     line('chat', "Fresh fireweed stings — that's what these red spots on my hands are. It only works while it still stings. Once it's dried it stops, and it's not half as strong.", '新鲜的火焰草会蜇手，我手上这些红点就是这么来的。蜇手的才有药性，晒干了就不蜇了，药性也差了一大半。'),
     line('chat', "When Mara taught me my letters, the first book I finished was about dragons. It's the only one in town, and I've read it more times than I can count.", '玛拉教我认字的时候，我读完的第一本书就是讲龙的。镇上就那么一本，我翻了不知道多少遍。'),

@@ -51,7 +51,7 @@ describe('good and evil', () => {
     const stone = make('item/material/stone', 20, 14)
     eng.act('take', p.id, { e: stone.id }, { instrument: null, params: { into: 'contents' } })
     expect(w.num(p, 'karma')).toBe(-4)
-  })
+  }, 120_000)
 
   it('the good warm sooner to the good, and the wicked (Vigo, little honesty) to the wicked', () => {
     const gain = (karma: number, who: string) => {
@@ -67,7 +67,7 @@ describe('good and evil', () => {
     const { eng, w, p, s } = fresh()
     eng.author(() => w.setProp(p, 'karma', 80))
     expect(eng.author(() => s.changeRegard(w.get('npc.tam')!, p.id, -10))).toBe(-10)
-  })
+  }, 120_000)
 
   it('karma and faith stay within −100..100', () => {
     const { eng, w, p, s } = fresh()

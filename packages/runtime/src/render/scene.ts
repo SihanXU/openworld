@@ -24,6 +24,7 @@ const STOREY_LIFT = T
 import type { ActorDef, Catalog, SpriteDef } from '../assets/types.ts'
 import { DIR_COL, actorFrames, assetUrl, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
 import { BossAnimationClock, bossAnimationFrame } from './boss-animation.ts'
+import { isStripBoss } from '../assets/bosses.ts'
 import { previewBoss, type BossPreviewMode } from '../boss-preview.ts'
 
 export interface SceneHooks {
@@ -1617,7 +1618,7 @@ export class WorldScene extends Phaser.Scene {
   private updateView(v: EView, e: EntitySnap, first = false): void {
     const prev = v.snap
     v.snap = e
-    if (e.boss?.kit === 'alberic') {
+    if (e.boss && isStripBoss(e.boss.kit)) {
       v.bossAnimation ??= new BossAnimationClock()
       v.bossAnimation.receive(e.boss, this.time.now)
     }

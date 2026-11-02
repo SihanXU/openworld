@@ -44,9 +44,10 @@ describe('the skill tree', () => {
     for (const b of new Set(SKILLS.map((s) => s.branch))) expect(SKILLS.filter((s) => s.branch === b).at(-1)!.ability).toBe(true)
   })
 
-  it('has two directions and eight branch entrances, including a profession slot', () => {
-    expect(SKILL_DIRECTIONS.map((d) => d.id)).toEqual(['combat', 'life'])
-    expect(SKILL_BRANCHES.filter((b) => b.direction === 'combat').map((b) => b.id)).toEqual(['swiftness', 'survival', 'damage', 'profession'])
+  it('has three directions and ten branch entrances: general combat, the profession\'s own tree with its path and mastery, and life', () => {
+    expect(SKILL_DIRECTIONS.map((d) => d.id)).toEqual(['combat', 'profession', 'life'])
+    expect(SKILL_BRANCHES.filter((b) => b.direction === 'combat').map((b) => b.id)).toEqual(['swiftness', 'survival', 'damage'])
+    expect(SKILL_BRANCHES.filter((b) => b.direction === 'profession').map((b) => b.id)).toEqual(['profession', 'path', 'mastery'])
     expect(SKILL_BRANCHES.filter((b) => b.direction === 'life').map((b) => b.id)).toEqual(['gathering', 'agriculture', 'husbandry', 'smithing'])
     for (const direction of SKILL_DIRECTIONS) {
       const hubs = layoutBranches(direction.id)
@@ -56,7 +57,9 @@ describe('the skill tree', () => {
       // the start in the middle, each branch growing its own way: a skill lies farther out that way than what it needs
       const ways = layoutTree(SKILLS, direction.id, 'assassin').ways
       const out = (p: { x: number; y: number }, branch: string) => ({ up: -p.y, down: p.y, left: -p.x, right: p.x })[ways.get(branch)!]
-      expect(new Set(ways.values())).toEqual(new Set(['left', 'right', 'up', 'down']))
+      // (each its own way, but a branch after another goes on its way)
+      const after = new Set(SKILL_BRANCHES.filter((b) => b.after).map((b) => b.id))
+      expect(new Set([...ways].filter(([b]) => !after.has(b)).map(([, w]) => w)).size).toBe([...hubs.keys()].filter((b) => !after.has(b)).length)
       for (const b of hubs.keys()) expect(out(hubs.get(b)!, b)).toBeGreaterThan(0)
       for (const s of SKILLS.filter((s) => nodes.has(s.id))) {
         const child = nodes.get(s.id)!
@@ -64,12 +67,23 @@ describe('the skill tree', () => {
           expect(out(child, s.branch)).toBeGreaterThan(out(parent, s.branch))
       }
     }
-    const combat = skillsForProfession('assassin').filter((s) => layoutBranches('combat').has(s.branch))
-    // the shared talents and the assassin's tree: the active skills are everyone's four and the profession's seven (actives.ts)
+    // the profession's own tree grows up; the path goes on beyond it out of its last skill, the mastery beyond the path
+    const tower = layoutTree(SKILLS, 'profession', 'assassin', 'necromancer')
+    expect(Object.fromEntries(tower.ways)).toEqual({ profession: 'up', path: 'up', mastery: 'up' })
+    const top = (b: string) => tower.panels.get(b)!.y
+    expect(tower.hubs.get('path')!.y).toBeLessThan(top('profession'))
+    expect(tower.hubs.get('mastery')!.y).toBeLessThan(top('path'))
+    const lastOf = (b: string) => Math.min(...SKILLS.filter((s) => s.branch === b && tower.nodes.has(s.id)).map((s) => tower.nodes.get(s.id)!.y))
+    expect(tower.trunks.get('profession')).toEqual({ x: 0, y: 0 })
+    expect(tower.trunks.get('path')!.y).toBe(lastOf('profession'))
+    expect(tower.trunks.get('mastery')!.y).toBe(lastOf('path'))
+    const combat = skillsForProfession('assassin').filter((s) => layoutBranches('combat').has(s.branch) || s.branch === 'profession')
+    // the shared talents and the assassin's tree: the active skills are everyone's four and the profession's nine (actives.ts;
+    // two of its four more since docs/advancement.md §3)
     expect(combat.filter((s) => !s.active && !s.profession)).toHaveLength(42)
-    expect(combat.filter((s) => s.profession)).toHaveLength(22)
-    expect(combat.filter((s) => s.active)).toHaveLength(11)
-    for (const b of layoutBranches('combat').keys()) expect(combat.some((s) => s.branch === b && (s.requires?.length ?? 0) > 1 && s.cost === 2)).toBe(true)
+    expect(combat.filter((s) => s.profession)).toHaveLength(26)
+    expect(combat.filter((s) => s.active)).toHaveLength(13)
+    for (const b of [...layoutBranches('combat').keys(), 'profession']) expect(combat.some((s) => s.branch === b && (s.requires?.length ?? 0) > 1 && s.cost === 2)).toBe(true)
   })
 
   it('has no cycles and no overlapping icon positions', () => {
@@ -108,8 +122,8 @@ describe('the skill tree', () => {
     expect(skillsForProfession('warrior').filter((s) => s.profession).every((s) => s.profession === 'warrior')).toBe(true)
     for (const profession of ['warrior', '', 'unknown']) {
       expect(skillsForProfession(profession).some((s) => s.profession && s.profession !== profession)).toBe(false)
-      expect(layoutSkills(SKILLS, 'combat', profession).has('assassin-training')).toBe(false)
-      expect(layoutBranches('combat').has('profession')).toBe(true)
+      expect(layoutSkills(SKILLS, 'profession', profession).has('assassin-training')).toBe(false)
+      expect(layoutBranches('profession').has('profession')).toBe(true)
     }
     expect(branchesForProfession('assassin').find((b) => b.id === 'profession')!.name.zh).toBe('刺客')
   })

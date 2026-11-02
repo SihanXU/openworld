@@ -2,7 +2,7 @@
 import '../../client/src/register.ts'
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, textOf, type Dir } from '@openworld/engine'
-import { BASE_RULES, PART_TWO, SITE_GATES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
+import { BASE_RULES, CHAPTER_TWO, PART_TWO, SITE_GATES, STORY_RULES, buildOntology, decodeChunk } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 // Lumi keeps up (docs/prologue.md): however the player runs — straight or diagonally, changing
@@ -118,12 +118,12 @@ describe('waypoint statues', () => {
       for (const c of chunks) game.loadChunk(decodeChunk(c))
       return game.engine
     }
-    const gate = SITE_GATES.find((g) => g.fact === PART_TWO)!
-    // the East Road's way on east to Emberfall, sealed until Part Two (docs/release-1.md): off the map's east edge
+    const gate = SITE_GATES.find((g) => g.fact === CHAPTER_TWO)!
+    // the East Road's way on east to Emberfall, sealed until the Crown is home (docs/chapter-2.md §12): off the map's east edge
     const off = (eng: ReturnType<typeof made>) => {
       const w = eng.world
-      const m = Object.values(w.state.maps).find((m) => m.portals.some((p) => p.opensWhen === PART_TWO))!
-      const way = m.portals.find((p) => p.opensWhen === PART_TWO)!
+      const m = Object.values(w.state.maps).find((m) => m.portals.some((p) => p.opensWhen === CHAPTER_TWO))!
+      const way = m.portals.find((p) => p.opensWhen === CHAPTER_TWO)!
       const dir: Dir = way.x === m.width - 1 ? 'right' : way.x === 0 ? 'left' : way.y === 0 ? 'up' : 'down'
       eng.author(() => eng.teleport(w.player, { map: m.id, x: way.x, y: way.y }))
       // (what the story plays on arriving there, played through)
@@ -149,8 +149,8 @@ describe('waypoint statues', () => {
     expect(lines(step(eng, dir), 'say')).not.toContainEqual(['pip', textOf(gate.again, 'zh')])
     for (let i = 0; i < 600; i++) eng.tick()
     expect(lines(step(eng, dir), 'say')).toContainEqual(['pip', textOf(gate.again, 'zh')])
-    // an edge that is only an edge (the way open): nothing is said, one goes on
-    eng.author(() => w.setFact(PART_TWO, 1))
+    // an edge that is only an edge (the way open, and the continent's edges past the river with it): nothing is said, one goes on
+    eng.author(() => (w.setFact(CHAPTER_TWO, 1), w.setFact(PART_TWO, 1)))
     for (let i = 0; i < 600; i++) eng.tick()
     expect(lines(step(eng, dir), 'say')).toEqual([])
     // with no companion at hand, the gate's own words in the message line

@@ -1,25 +1,33 @@
 // The skill tree: each level brings a skill point (engine/src/progression.ts), and these nodes
-// spend them. Combat and life contain eight branches, including a profession-specific tree.
+// spend them. General combat and life hold four and three branches everyone shares; the profession direction holds
+// the profession's own tree, its path and its mastery.
 // Existing ids/grants remain save-compatible. Combat talents are automatic: moving, attacking
 // and defeating creatures trigger them without introducing another input/hotbar.
 
 import { Rng, type Entity, type SkillDef } from '@openworld/engine'
-import { type ProfessionDef } from '@openworld/modules'
+import { thirdOf, type ProfessionDef } from '@openworld/modules'
 import { FORM_BY_ID, makeItem } from './items.ts'
 import { LIFE_SKILLS } from './life.ts'
+import { ADVANCEMENT_SKILLS, MASTERIES, PATHS } from './advancement.ts'
 
 export const SKILL_DIRECTIONS = [
-  { id: 'combat', icon: 'sword', name: { en: 'Combat', zh: '战斗' } },
+  // the talents every fighter shares, whatever their profession
+  { id: 'combat', icon: 'sword', name: { en: 'General Combat', zh: '战斗通用' } },
+  // the profession's own tree, then its second and third advancements (docs/advancement.md): one's path, and the mastery
+  { id: 'profession', icon: 'advance', name: { en: 'Profession', zh: '职业' } },
   { id: 'life', icon: 'pack', name: { en: 'Life', zh: '生活' } },
 ] as const
 
 export type SkillDirection = (typeof SKILL_DIRECTIONS)[number]['id']
 
-export const SKILL_BRANCHES: { id: string; direction: SkillDirection; icon: string; name: { en: string; zh: string } }[] = [
+// (the profession's own tree grows up; its path goes on after it, the mastery after the path: ui/skillLayout.ts)
+export const SKILL_BRANCHES: { id: string; direction: SkillDirection; icon: string; name: { en: string; zh: string }; way?: 'left' | 'right' | 'up' | 'down'; after?: string }[] = [
   { id: 'swiftness', direction: 'combat', icon: 'swift', name: { en: 'Swiftness', zh: '迅捷' } },
   { id: 'survival', direction: 'combat', icon: 'shield', name: { en: 'Survival', zh: '生存' } },
   { id: 'damage', direction: 'combat', icon: 'sweep', name: { en: 'Damage', zh: '伤害' } },
-  { id: 'profession', direction: 'combat', icon: 'origin', name: { en: 'Profession', zh: '职业' } },
+  { id: 'profession', direction: 'profession', icon: 'origin', name: { en: 'Profession', zh: '职业' }, way: 'up' },
+  { id: 'path', direction: 'profession', icon: 'path', name: { en: 'Path (Second)', zh: '二转分支' }, after: 'profession' },
+  { id: 'mastery', direction: 'profession', icon: 'mastery', name: { en: 'Mastery (Third)', zh: '三转' }, after: 'path' },
   { id: 'gathering', direction: 'life', icon: 'axe', name: { en: 'Gathering', zh: '采集' } },
   { id: 'agriculture', direction: 'life', icon: 'farming', name: { en: 'Agriculture', zh: '农业' } },
   { id: 'husbandry', direction: 'life', icon: 'ranching', name: { en: 'Animal Husbandry', zh: '牧业' } },
@@ -33,18 +41,25 @@ const kit = (form: string, material: string) => makeItem(new Rng(0), FORM_BY_ID[
  * The professions a trainer teaches (docs/skill-tree.md), from level 5 (engine/src/profession.ts).
  * Every profession and skill has its own illustrated pixel-art PNG.
  */
-export const SKILL_PROFESSIONS: (ProfessionDef & { icon: string; name: { en: string; zh: string } })[] = [
+export const SKILL_PROFESSIONS: (ProfessionDef & { icon: string; name: { en: string; zh: string } })[] = ([
   { id: 'assassin', icon: 'assassin', name: { en: 'Assassin', zh: '刺客' }, doc: { en: 'Daggers, theirs alone; openers from the quiet and from behind, combos that end in a finisher.', zh: '专精匕首；从暗处、从背后先手，连击收尾。' }, weapon: kit('item/weapon/blade/dagger', 'iron') },
   { id: 'warrior', icon: 'warrior', name: { en: 'Warrior', zh: '战士' }, doc: { en: 'Sword and shield, theirs alone; takes blows, answers them, and grows fiercer with each foe felled.', zh: '专精剑盾，独有副手盾牌；扛得住打，挨打必还手，越战越勇。' }, weapon: kit('item/weapon/blade/sword', 'iron'), offhand: kit('item/armor/shield', 'wood') },
   { id: 'ranger', icon: 'ranger', name: { en: 'Ranger', zh: '游侠' }, doc: { en: 'Bows, theirs alone; a steady aim from afar, quick feet between shots.', zh: '专精弓箭；站稳了打得准、打得远，射完就走。' }, weapon: kit('item/weapon/ranged/bow', 'wood') },
   { id: 'mage', icon: 'mage', name: { en: 'Mage', zh: '法师' }, doc: { en: 'Staves, theirs alone; elemental spells that echo, a shield of mana, strength drawn from the fallen.', zh: '专精法杖；元素法术会回响，法力护盾护身，击倒敌人回复生命。' }, weapon: kit('item/weapon/magic/staff', 'wood') },
-]
+  // each with its three paths and its mastery (advancement.ts, docs/advancement.md)
+] as (ProfessionDef & { icon: string; name: { en: string; zh: string } })[]).map((p) => ({ ...p, paths: PATHS[p.id], mastery: MASTERIES[p.id] }))
 export const PROFESSION_BY_ID: Record<string, (typeof SKILL_PROFESSIONS)[number]> = Object.fromEntries(SKILL_PROFESSIONS.map((p) => [p.id, p]))
 
-/** Unknown professions keep the profession hub, but never fall back to assassin skills. */
-export function branchesForProfession(profession: string) {
+/** Unknown professions keep the profession hub, but never fall back to assassin skills; the path's and the mastery's hubs under their own names (the mastery's under the path's name for it). */
+export function branchesForProfession(profession: string, path?: string) {
   const role = SKILL_PROFESSIONS.find((p) => p.id === profession)
-  return SKILL_BRANCHES.map((b) => b.id === 'profession' && role ? { ...b, icon: role.icon, name: role.name } : b)
+  const way = role?.paths?.find((x) => x.id === path)
+  const third = thirdOf(role, path)
+  return SKILL_BRANCHES.map((b) =>
+    b.id === 'profession' && role ? { ...b, icon: role.icon, name: role.name }
+    : b.id === 'path' && way ? { ...b, icon: way.icon ?? b.icon, name: way.name as { en: string; zh: string } }
+    : b.id === 'mastery' && third ? { ...b, icon: third.icon ?? b.icon, name: third.name as { en: string; zh: string } }
+    : b)
 }
 
 export const SKILLS: SkillDef[] = [
@@ -231,7 +246,7 @@ export const PROFESSION_DEEPER: SkillDef[] = [
   TALENT('elemental-master', 'mage', ['archmage', 'meteor'], 'Elemental Master', '元素大师', 'Capstone: every third skill you cast does not rest.', '终极天赋：每第 3 次施放的技能不进入冷却。', { cost: 2 }),
 ]
 
-SKILLS.push(...ACTIVE_SKILLS, ...PROFESSION_DEEPER, ...LIFE_SKILLS)
+SKILLS.push(...ACTIVE_SKILLS, ...PROFESSION_DEEPER, ...ADVANCEMENT_SKILLS, ...LIFE_SKILLS)
 
 /** A skill book that teaches one active skill (read: used on oneself), named for it: for loot, shops and quests to hand out. */
 export const skillBook = (id: string): Omit<Entity, 'id' | 'place'> => {
@@ -242,4 +257,5 @@ export const skillBook = (id: string): Omit<Entity, 'id' | 'place'> => {
 
 export const SKILL_BY_ID: Record<string, SkillDef> = Object.fromEntries(SKILLS.map((s) => [s.id, s]))
 
-export const skillsForProfession = (profession: string): SkillDef[] => SKILLS.filter((s) => !s.profession || s.profession === profession)
+/** The skills one of a profession (and on a path of it) may learn: the shared, the profession's, its path's. */
+export const skillsForProfession = (profession: string, path?: string): SkillDef[] => SKILLS.filter((s) => (!s.profession || s.profession === profession) && (!s.path || s.path === path))

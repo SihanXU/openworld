@@ -7,7 +7,7 @@
 // brink); what a defeat gives back is the striker's rule (content: combat/learn). The memory of
 // one's own blows and steps (`Entity.combat`) is written only by its owner.
 
-import { DIRS, offhandOf, weaponOf, type Engine, type Entity, type World } from '@openworld/engine'
+import { DIRS, offhandOf, weaponOf, type Engine, type Entity, type SkillDef, type SkillPassive, type World } from '@openworld/engine'
 import { ownWeapon } from './profession.ts'
 
 const skill = (w: World, e: Entity, id: string): boolean => w.hasTag(e, `skill:${id}`)
@@ -48,7 +48,14 @@ export function relicsOf(w: World, e: Entity): Set<string> {
 export function vowsOf(w: World, e: Entity): Set<string> {
   return powersOf(w, e, 'vow')
 }
-function powersOf(w: World, e: Entity, key: string): Set<string> {
+/**
+ * The powers a set worn together grants of its own (content SET_POWERS: a bonus's `power`, World.setBonuses), each
+ * answered here as a talent is. Two sets of one power are one power.
+ */
+export function setPowersOf(w: World, e: Entity): Set<string> {
+  return new Set(w.setBonuses(e).flatMap((b) => (b.power ? [b.power] : [])))
+}
+function powersOf(w: World, e: Entity, key: 'relic' | 'vow'): Set<string> {
   const out = new Set<string>()
   const held = w.get(e.held)
   const weapon = weaponOf(w, e)
@@ -57,8 +64,74 @@ function powersOf(w: World, e: Entity, key: string): Set<string> {
     const r = w.prop(it, key)
     if (typeof r === 'string') out.add(r)
   }
+  // and what a set worn together grants (World.setBonuses: a bonus's `vow`, `relic`)
+  for (const b of w.setBonuses(e)) if (b[key]) out.add(b[key]!)
   return out
 }
+/** Below this share of one's food, one is hungry (Light as Chaff). */
+const hungry = (w: World, e: Entity): boolean => w.num(e, 'hunger', w.num(e, 'maxHunger', 1)) < w.num(e, 'maxHunger', 1) * 0.5
+/** How many relics one carries (Chosen of the Road): the things in one's bag, held and worn that carry a relic's power. */
+// ---------------------------------------------------------------- the passives and buffs in data (docs/advancement.md §4)
+
+/** Each world's skills (the engine's), so a passive's numbers are read where a talent's are: bound as the module installs. */
+const skillBooks = new WeakMap<World, Map<string, SkillDef>>()
+export function bindSkills(w: World, skills: Map<string, SkillDef>): void {
+  skillBooks.set(w, skills)
+}
+type Pay = Exclude<keyof SkillPassive, 'when' | 'party'>
+/** The passives an actor has learned, and the buffs it has up (an active `buff` while it lasts). */
+function ownPassives(w: World, e: Entity, book: Map<string, SkillDef>): SkillPassive[] {
+  const out: SkillPassive[] = []
+  for (const t of e.tags ?? []) if (t.startsWith('skill:')) { const d = book.get(t.slice(6)); if (d?.passive) out.push(d.passive) }
+  for (const [id, until] of Object.entries(e.combat?.buffs ?? {})) if (until > w.state.tick) { const b = book.get(id)?.active?.buff; if (b) out.push(b) }
+  return out
+}
+/** One's own, and what the one it follows shares with those near it (`party`: a Demon Hunter's call and vigil). */
+function passivesOf(w: World, e: Entity): SkillPassive[] {
+  const book = skillBooks.get(w)
+  if (!book) return []
+  const out = ownPassives(w, e, book)
+  const lead = typeof e.props?.companion === 'string' ? w.get(e.props.companion) : undefined
+  const a = lead && w.posOf(lead)
+  const b = a && w.posOf(e)
+  if (lead && a && b && a.map === b.map && Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) <= 6) for (const p of ownPassives(w, lead, book)) if (p.party) out.push(p)
+  return out
+}
+/** Does a passive's condition hold now, for this blow's target (if it asks one)? */
+function holds(w: World, e: Entity, p: SkillPassive, target?: Entity): boolean {
+  const c = p.when
+  if (!c) return true
+  if (c.night !== undefined && w.isNight() !== c.night) return false
+  const hp = w.num(e, 'hp') / w.num(e, 'maxHp', 1)
+  if (c.wounded !== undefined && hp > c.wounded) return false
+  if (c.hale && hp < 1) return false
+  if (c.standing && !standing(w, e)) return false
+  if (c.moving && !recentlyMoved(w, e)) return false
+  if (c.companion && alone(w, e)) return false
+  if (c.alone && !alone(w, e)) return false
+  if (c.weapon === 'own' && !own(w, e, weaponOf(w, e))) return false
+  if (c.weapon === 'shield' && !offhandOf(w, e)) return false
+  if (c.buff && (e.combat?.buffs?.[c.buff] ?? 0) <= w.state.tick) return false
+  if (c.target) {
+    if (!target) return false
+    if (c.target.status && !c.target.status.some((s) => w.hasStatus({ e: target.id }, s))) return false
+    if (c.target.tag && !c.target.tag.some((t) => w.hasTag(target, t) || target.type.includes(`/${t}/`))) return false
+    if (c.target.wounded !== undefined && w.num(target, 'hp') / w.num(target, 'maxHp', 1) > c.target.wounded) return false
+  }
+  return true
+}
+/** What an actor's passives and buffs pay of one kind now (a sum: +0.1 is 10% more; a `cap` the least). */
+export function paid(w: World, e: Entity, key: Pay, target?: Entity): number {
+  let n = key === 'cap' ? Infinity : 0
+  for (const p of passivesOf(w, e)) {
+    const v = p[key]
+    if (typeof v !== 'number' || !holds(w, e, p, target)) continue
+    n = key === 'cap' ? Math.min(n, v) : n + v
+  }
+  return n
+}
+
+const relicsCarried = (w: World, e: Entity): number => [...(e.contents ?? []), ...(e.held ? [e.held] : [])].filter((id) => { const it = w.get(id); return !!it && typeof w.prop(it, 'relic') === 'string' }).length
 
 const recentlyMoved = (w: World, e: Entity): boolean => e.combat?.lastMoveTick !== undefined && w.state.tick - e.combat.lastMoveTick < 6
 /** Standing one's ground: no step this second (one who never stepped stands). */
@@ -69,10 +142,13 @@ const onRoad = (w: World, e: Entity): boolean => {
   return !!at && e.place.on === 'tile' && !!w.onto.terrain(w.terrainAt(at.map, at.x, at.y))?.tags?.includes('road')
 }
 /** With no companion following (companion.ts: a follower's `companion` names its leader). */
-const alone = (w: World, e: Entity): boolean => {
+export const alone = (w: World, e: Entity): boolean => {
   const at = w.posOf(e)
   return !at || !w.entitiesOnMap(at.map).some((c) => c.props?.companion === e.id)
 }
+
+/** Who called this creature up (a summon's `summoner`), if anyone still is. */
+export const summonerOf = (w: World, e: Entity): Entity | undefined => (typeof e.props?.summoner === 'string' ? w.get(e.props.summoner) : undefined)
 
 /** Successful steps, not failed bumps/turning/teleports, charge mobility talents. */
 export function recordCombatStep(w: World, e: Entity): void {
@@ -97,12 +173,18 @@ export function combatDelay(w: World, e: Entity, base: number, kind: 'move' | 'a
   // the vows: the Vigil's night stride, the Road's on a road
   if (kind === 'move' && vows.has('vigil') && w.isNight()) haste += 0.15
   if (kind === 'move' && vows.has('pilgrim') && onRoad(w, e)) haste += 0.3
+  // a set's power: Light as Chaff, the hungry quick on their feet
+  if (kind === 'move' && hungry(w, e) && setPowersOf(w, e).has('chaff')) haste += 0.1
+  // the advancements' passives and buffs (docs/advancement.md §4)
+  haste += paid(w, e, kind === 'move' ? 'moveHaste' : 'attackHaste')
   if (kind === 'move' && (e.combat?.galeUntil ?? 0) > w.state.tick) haste += 0.3
   if (kind === 'move' && skill(w, e, 'pursuit') && (e.combat?.pursuitUntil ?? 0) > w.state.tick) haste += 0.25
   if (kind === 'attack' && skill(w, e, 'battle-tempo') && recentlyMoved(w, e)) haste += 0.1
   if (kind === 'move' && ranger(w, e, 'fleet-archer') && (e.combat?.fleetUntil ?? 0) > w.state.tick) haste += 0.2
   if (kind === 'move' && skill(w, e, 'slipstream') && (e.combat?.slipUntil ?? 0) > w.state.tick) haste += 0.3
   if (kind === 'move' && skill(w, e, 'adrenaline') && w.hasStatus({ e: e.id }, 'adrenaline')) haste += 0.3
+  // the Scale of Hunger (the relic `scales`): the hungrier, the quicker, up to +30% on an empty belly
+  if (relicsOf(w, e).has('scales')) haste += 0.3 * Math.max(0, 1 - w.num(e, 'hunger', w.num(e, 'maxHunger', 1)) / w.num(e, 'maxHunger', 1))
   // Gale Step (actives.ts)
   if (kind === 'move' && (e.combat?.hasteUntil ?? 0) > w.state.tick) haste += 0.5
   if (kind === 'attack' && ranger(w, e, 'quick-draw') && own(w, e, weaponOf(w, e))) haste += 0.2
@@ -129,12 +211,18 @@ export interface Strike {
   drain: number
   /** A status the struck takes if the blow lands, for so many ticks (a relic's: kneeling, burning, frozen). */
   afflict?: { status: string; ticks: number }
+  /** A status the blow ends on the struck (Shatter breaks a freeze; a detonation ends what it burst). */
+  ends?: string
+  /** Where the struck stood as the blow fell (felled, it may be gone from the world when the blow is answered). */
+  at?: { map: string; x: number; y: number }
 }
 
 /** Contextual bonuses are additive, then the critical multiplier applies before defence. */
 export function combatStrike(w: World, a: Entity, target: Entity | undefined, base: number, range: number, weapon: Entity | undefined, primary: boolean): Strike {
   const out: Strike = { power: base, critical: false, charged: false, comboHits: 0, bleed: 0, drain: 0 }
   if (!target || !w.isAgent(target) || w.num(target, 'hp') <= 0 || w.hasStatus({ e: target.id }, 'down')) return out
+  const there = w.posOf(target)
+  if (there) out.at = { map: there.map, x: there.x, y: there.y }
   const melee = range <= 1
   // the professions' weapon training, each with its own weapons only: dagger, sword, bow, staff
   const mine = own(w, a, weapon)
@@ -200,6 +288,8 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
     const [dx, dy] = DIRS[target.facing ?? 'down']
     behind = mine && assassin(w, a, 'backstab') && !!ap && !!tp && ap.map === tp.map && (ap.x - tp.x) * dx + (ap.y - tp.y) * dy < 0
     if (behind) bonus += 0.4
+    // (Shadow Poise: a Shadowdancer's Backstab cuts deeper)
+    if (behind && skill(w, a, 'shadow-poise')) bonus += 0.3
     if (mine && assassin(w, a, 'relentless')) {
       const continuing = state?.comboTarget === target.id && state.comboTick !== undefined && w.state.tick - state.comboTick <= 20
       const hits = (continuing ? state.comboHits ?? 0 : 0) + 1
@@ -210,15 +300,40 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
   const relics = relicsOf(w, a)
   // Dragonsbane: what it was forged for
   if (relics.has('dragonsbane') && /\/(dragon|whelp)$/.test(target.type)) bonus += 1
+  // the Chain of the Scourging Post: the more its bearer is hurt, the harder they strike (to +50% at the last of their health)
+  if (relics.has('scourge')) bonus += 0.5 * Math.max(0, 1 - w.num(a, 'hp') / w.num(a, 'maxHp', 1))
   // the vows (content items.ts VOWS), each a condition and what it pays: the Held Ground strikes harder from where one
   // stands, the Lone Road with no companion by; the Hunt's blow on an unhurt foe falls true; Mercy draws back from
   // one near its end, Dawn from every blow by day
   const vows = vowsOf(w, a)
   if (vows.has('holdfast') && standing(w, a)) bonus += 0.25
   if (vows.has('lone') && alone(w, a)) bonus += 0.15
+  // the sets' own powers (content SET_POWERS): the blows one has taken (Blood Price), a foe less hurt than oneself (the
+  // Measure), the undead (Lamplight), each relic one carries (Chosen of the Road), a boss (Those Who Came This Far), the
+  // night (the Night Kept)
+  const powers = setPowersOf(w, a)
+  if (powers.has('bloodprice') && (a.combat?.bloodUntil ?? 0) > w.state.tick) bonus += 0.06 * Math.min(5, a.combat?.bloodStacks ?? 0)
+  if (powers.has('measure') && w.num(target, 'hp') / w.num(target, 'maxHp', 1) > w.num(a, 'hp') / w.num(a, 'maxHp', 1)) bonus += 0.25
+  if (powers.has('lamplight') && (w.hasTag(target, 'undead') || target.type.includes('/undead/'))) bonus += 0.3
+  if (powers.has('elect')) bonus += 0.1 * Math.min(5, relicsCarried(w, a))
+  if (powers.has('lastdoor') && w.hasTag(target, 'boss')) bonus += 0.3
+  if (powers.has('nightkept') && w.isNight()) bonus += 0.2
+  // the advancements (docs/advancement.md): the passives and buffs in data, a mark on the struck, and the talents coded
+  // here — the fury of the hurt, the first blow out of a veil, a dodge's riposte, the archer's patience, a freeze
+  // shattered, the element mastered, Ascendance's stacks
+  bonus += paid(w, a, 'damage', target)
+  const mark = a.combat?.mark
+  if (mark && mark.target === target.id && mark.until > w.state.tick) bonus += mark.damage
+  if (mine && skill(w, a, 'blood-fury')) bonus += 0.3 * Math.max(0, 1 - w.num(a, 'hp') / w.num(a, 'maxHp', 1))
+  if (primary && skill(w, a, 'unseen') && (a.combat?.veilUntil ?? 0) > w.state.tick) bonus += 0.5
+  if (primary && skill(w, a, 'riposte') && w.state.tick - (a.combat?.dodgeTick ?? -Infinity) <= 20) bonus += 0.8
+  if (mine && skill(w, a, 'patience')) bonus += 0.1 * Math.min(4, Math.floor((w.state.tick - (a.combat?.lastMoveTick ?? -Infinity)) / 10))
+  if (skill(w, a, 'shatter') && w.hasStatus({ e: target.id }, 'frozen')) (bonus += 1), (out.ends = 'frozen')
+  if (skill(w, a, 'arcane-mastery') && weapon && w.prop(weapon, 'element')) bonus += 0.2
+  if ((a.combat?.ascUntil ?? 0) > w.state.tick) bonus += 0.1 * Math.min(3, a.combat?.ascStacks ?? 0)
   const unhurt = w.num(target, 'hp') >= w.num(target, 'maxHp', 1)
   // Starfall: every fifth hit falls true
-  const guaranteed = (primary && melee && assassin(w, a, 'death-dance') && (opening || behind)) || marked || (primary && relics.has('starfall') && (a.combat?.starHits ?? 0) >= 4) || (primary && vows.has('hunt') && unhurt)
+  const guaranteed = (primary && melee && assassin(w, a, 'death-dance') && (opening || behind)) || marked || (primary && relics.has('starfall') && (a.combat?.starHits ?? 0) >= 4) || (primary && vows.has('hunt') && unhurt) || !!a.combat?.sureNext || (primary && skill(w, a, 'shadow-lord') && (a.combat?.shadowHits ?? 0) >= 4)
   // a weapon that drinks: its lifesteal is health drawn back when the blow lands; and what is worn that drinks (a Vowbound ring)
   if (weapon && w.num(weapon, 'lifesteal') > 0) out.drain += w.num(weapon, 'lifesteal')
   out.drain += Math.max(0, w.stat(a, 'lifesteal'))
@@ -230,12 +345,13 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
   const quiet = vows.has('silence') && w.hasStatus({ e: a.id }, 'sneaking') ? 0.25 : 0
   // Hawk Eye's keen sight (actives.ts)
   const aimed = (a.combat?.aimUntil ?? 0) > w.state.tick ? 0.2 : 0
-  const chance = Math.max(0, Math.min(1, w.stat(a, 'critChance') + (weapon ? w.num(weapon, 'critChance') : 0) + (berserk ? 0.1 : 0) + night + quiet + aimed))
+  const chance = Math.max(0, Math.min(1, w.stat(a, 'critChance') + (weapon ? w.num(weapon, 'critChance') : 0) + (berserk ? 0.1 : 0) + night + quiet + aimed + paid(w, a, 'crit', target)))
   out.critical = guaranteed || (chance > 0 && w.rand() < chance)
   // a critical: ×1.5 (Deadly Focus ×2), and what critDamage adds (Lethal Edge, Brutal)
   // Deadly Shot: the ranger's bow's criticals cut deeper
   const deadly = mine && ranger(w, a, 'deadly-shot') ? 0.25 : 0
-  out.power *= (1 + bonus) * (out.critical ? (skill(w, a, 'deadly-focus') ? 2 : 1.5) + Math.max(0, w.stat(a, 'critDamage')) + deadly : 1)
+  out.power *= (1 + bonus) * (out.critical ? (skill(w, a, 'deadly-focus') ? 2 : 1.5) + Math.max(0, w.stat(a, 'critDamage')) + deadly + paid(w, a, 'critDamage', target) : 1)
+  out.drain += paid(w, a, 'drain', target)
   // the relics' own: the Mirrorshard steals with a critical, the Oathbrand drinks deep near the end; the
   // Crown makes the struck kneel, the Emberheart sets them burning, the Rimecrown freezes them
   if (relics.has('mirrorshard') && out.critical) out.drain += 3
@@ -243,6 +359,12 @@ export function combatStrike(w: World, a: Entity, target: Entity | undefined, ba
   if (relics.has('crown') && w.rand() < 0.2) out.afflict = { status: 'knelt', ticks: 10 }
   else if (relics.has('emberheart') && w.rand() < 0.25) out.afflict = { status: 'burning', ticks: 30 }
   else if (relics.has('rimecrown') && w.rand() < 0.2) out.afflict = { status: 'frozen', ticks: 10 }
+  // Undertow (a set's power): a critical drags the struck to their knees
+  if (!out.afflict && out.critical && powers.has('undertow')) out.afflict = { status: 'knelt', ticks: 10 }
+  // the advancements' edges: the dead a Necromancer raised poison every blow (Grave Toxin), a Hexing Edge hexes one in five
+  const raiser = summonerOf(w, a)
+  if (!out.afflict && raiser && skill(w, raiser, 'grave-toxin')) out.afflict = { status: 'poisoned', ticks: 30 }
+  else if (!out.afflict && mine && skill(w, a, 'hex-edge') && w.rand() < 0.2) out.afflict = { status: 'hexed', ticks: 40 }
   // a critical opens a wound that bleeds 1 a second for 4 seconds (Hemorrhage)
   if (primary && out.critical && skill(w, a, 'hemorrhage')) out.bleed = 40
   // an envenomed edge (actives.ts): so many more blows open a bleed
@@ -275,7 +397,12 @@ export function finishCombatStrike(w: World, a: Entity, target: Entity | undefin
     const relics = relicsOf(w, a)
     if (relics.has('starfall')) state.starHits = strike.critical && (state.starHits ?? 0) >= 4 ? 0 : (state.starHits ?? 0) + 1
     if (relics.has('galestring')) state.galeUntil = w.state.tick + 20
+    // Shadow Lord counts to five; a riposte is spent
+    if (skill(w, a, 'shadow-lord')) state.shadowHits = strike.critical && (state.shadowHits ?? 0) >= 4 ? 0 : (state.shadowHits ?? 0) + 1
+    if (skill(w, a, 'riposte')) delete state.dodgeTick
   }
+  // a sure critical readied (an Umbral Step, a Heartseeker) is spent by the blow that took it
+  if (landed && strike.critical && a.combat?.sureNext) delete a.combat.sureNext
   if (primary) {
     const state = (a.combat ??= {})
     state.lastAttackTick = w.state.tick
@@ -296,8 +423,11 @@ export function finishCombatStrike(w: World, a: Entity, target: Entity | undefin
   if (!landed || !target || !w.hasTag(target, 'creature')) return
   const defeated = !w.get(target.id) || w.num(target, 'hp') <= 0 || w.hasStatus({ e: target.id }, 'down')
   if (!defeated || !w.get(a.id) || w.num(a, 'hp') <= 0 || w.hasStatus({ e: a.id }, 'down')) return
-  // a defeat counted: the talents that answer one (actives.ts onDefeat) see it go up
+  // a defeat counted: the talents that answer one (actives.ts onDefeat) see it go up, and what was felled (a Corpse
+  // Burst, a Death Mark: read off the body itself, which may already be gone from the world)
   ;(a.combat ??= {}).defeats = (a.combat.defeats ?? 0) + 1
+  const tp = w.posOf(target) ?? strike.at
+  if (tp) a.combat.felled = { id: target.id, map: tp.map, x: tp.x, y: tp.y, poisoned: target.statuses?.poisoned !== undefined, marked: a.combat.mark?.target === target.id && a.combat.mark.until > w.state.tick, tick: w.state.tick }
   if (skill(w, a, 'pursuit')) (a.combat ??= {}).pursuitUntil = w.state.tick + 30
   if (mine && range <= 1 && warrior(w, a, 'rampage')) {
     const state = (a.combat ??= {})
@@ -322,18 +452,35 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
   // the vows (content items.ts VOWS): the Road's keeper slips blows on the move, the Lone Road's with no companion by
   const vows = vowsOf(w, e)
   const sworn = (vows.has('pilgrim') && recentlyMoved(w, e) ? 0.1 : 0) + (vows.has('lone') && alone(w, e) ? 0.1 : 0)
-  const dodge = Math.min(0.5, Math.max(0, w.stat(e, 'dodge') + nimble + sworn))
+  // the sets' own: the hungry slip blows (Light as Chaff), and one with a companion at their side (Went Small)
+  const powers = setPowersOf(w, e)
+  const kept = (powers.has('chaff') && hungry(w, e) ? 0.12 : 0) + (powers.has('second') && !alone(w, e) ? 0.1 : 0)
+  const dodge = Math.min(0.5, Math.max(0, w.stat(e, 'dodge') + nimble + sworn + kept + paid(w, e, 'dodge')))
   if (dodge > 0 && w.rand() < dodge) {
     state.dodgeTick = w.state.tick
     w.fx.push({ t: 'say', who: e.id, text: { en: 'Dodged!', zh: '闪避！' } })
     return 0
   }
+  // a Bastion (docs/advancement.md): a blow from the front turned aside; a Retort answers what is turned
+  const ep = w.posOf(e)
+  const ap = w.posOf(attacker)
+  const [fx, fy] = DIRS[e.facing ?? 'down']
+  const fromFront = !!ep && !!ap && (ap.x - ep.x) * fx + (ap.y - ep.y) * fy > 0
+  const front = paid(w, e, 'front')
+  if (front > 0 && fromFront && w.rand() < front) {
+    w.fx.push({ t: 'say', who: e.id, text: { en: 'Blocked!', zh: '格挡！' } })
+    retort(eng, e, attacker, damage)
+    return 0
+  }
   // a shield worn in the off hand turns a blow aside by its block (its defence, like all worn things', is `World.stat`'s)
   const shield = offhandOf(w, e)
-  // (a Shield Wall: the warrior's shield turns a twentieth more)
-  const block = shield ? Math.min(0.5, Math.max(0, w.num(shield, 'block') + (warrior(w, e, 'shield-wall') ? 0.05 : 0))) : 0
+  // (a Shield Wall: the warrior's shield turns a twentieth more; what else is worn may add to it — a set's — but only with a shield)
+  // (World.stat counts the shield's own block once it is worn: one not worn adds its own)
+  const turned = shield ? (w.worn(e).includes(shield) ? 0 : w.num(shield, 'block')) + w.stat(e, 'block') : 0
+  const block = shield ? Math.min(0.5, Math.max(0, turned + (warrior(w, e, 'shield-wall') ? 0.05 : 0))) : 0
   if (block > 0 && w.rand() < block) {
     w.fx.push({ t: 'say', who: e.id, text: { en: 'Blocked!', zh: '格挡！' } })
+    retort(eng, e, attacker, damage)
     return 0
   }
   // (the Vow of the Shield: a fight's first blow — ten seconds out of the fray — is turned half aside)
@@ -341,9 +488,20 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
   state.lastHurtTick = w.state.tick
   state.fightTick = w.state.tick
   if (vows.has('ward') && calm) damage *= 0.5
+  // the Lance (the relic `lance`): its wielder's blows pass through armour (the engine took the struck's defence off: it
+  // is put back); its own wound does not close, and it takes a tenth more
+  if (relicsOf(w, attacker).has('lance')) damage += Math.max(0, w.stat(e, 'def'))
+  const relics = relicsOf(w, e)
+  if (relics.has('lance')) damage *= 1.1
+  // the Holy Wood (the relic `nails`): fixed to the world, below a quarter of its health its bearer takes half
+  if (relics.has('nails') && w.num(e, 'hp') <= w.num(e, 'maxHp', 1) * 0.25) damage *= 0.5
   // the Held Ground takes less from where one stands, Dawn's keeper by day
   if (vows.has('holdfast') && standing(w, e)) damage *= 0.7
   if (vows.has('dawn') && !w.isNight()) damage *= 0.9
+  // the sets' own: the Shroud's keeper near the end, the Night Kept at night; a blow taken is a Blood Price paid
+  if (powers.has('shroudward') && w.num(e, 'hp') <= w.num(e, 'maxHp', 1) * 0.5) damage *= 0.85
+  if (powers.has('nightkept') && w.isNight()) damage *= 0.85
+  if (powers.has('bloodprice')) (state.bloodStacks = (state.bloodUntil ?? 0) > w.state.tick ? Math.min(5, (state.bloodStacks ?? 0) + 1) : 1), (state.bloodUntil = w.state.tick + 60)
   // a War Cry's guard, an Iron Guard's (actives.ts)
   if ((state.rallyUntil ?? 0) > w.state.tick) damage *= 0.7
   if ((state.ironUntil ?? 0) > w.state.tick) damage *= 0.4
@@ -355,7 +513,22 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
   const hold = Math.min(0.5, Math.max(0, w.stat(e, 'holdFast')))
   if (hold > 0 && w.state.tick - (state.lastMoveTick ?? -Infinity) >= 10) damage *= 1 - hold
   if (warrior(w, e, 'retaliation')) state.retaliateUntil = w.state.tick + 20
+  // the advancements' passives and buffs: less taken, no blow above a cap (an Aegis)
+  const taken = paid(w, e, 'taken')
+  if (taken) damage *= Math.max(0.1, 1 + taken)
   damage = Math.max(1, Math.round(damage))
+  const cap = paid(w, e, 'cap')
+  if (cap < Infinity) damage = Math.min(damage, Math.max(1, cap))
+  // a ward (Mana Ward) takes harm before one does, while it lasts
+  if ((state.ward ?? 0) > 0 && (state.wardUntil ?? 0) > w.state.tick) {
+    const soak = Math.min(state.ward!, damage)
+    state.ward! -= soak
+    damage -= soak
+    if (damage <= 0) {
+      w.fx.push({ t: 'say', who: e.id, text: { en: 'Warded!', zh: '结界！' } })
+      return 0
+    }
+  }
   const hp = w.num(e, 'hp', 1)
   // adrenaline: a blow that leaves you at the brink, once a minute
   if (skill(w, e, 'adrenaline') && hp - damage > 0 && hp - damage <= w.num(e, 'maxHp', 1) * 0.3 && w.state.tick - (state.adrenalineTick ?? -Infinity) >= 600) {
@@ -369,6 +542,12 @@ export function combatDamage(eng: Engine, e: Entity, damage: number, attacker: E
     state.unfallenTick = w.state.tick
     w.fx.push({ t: 'say', who: e.id, text: { en: 'Unfallen!', zh: '不陷！' } })
     return 0
+  }
+  // Living Legend: once a minute, a blow that would fell one leaves three tenths of one's health
+  if (hp > 0 && damage >= hp && skill(w, e, 'living-legend') && w.state.tick - (state.legendTick ?? -Infinity) >= 600) {
+    state.legendTick = w.state.tick
+    w.fx.push({ t: 'say', who: e.id, text: { en: 'Living Legend!', zh: '传奇不朽！' } })
+    return Math.max(0, hp - Math.max(1, Math.ceil(w.num(e, 'maxHp', 1) * 0.3)))
   }
   if (skill(w, e, 'last-stand') && hp > 0 && damage >= hp && w.state.tick - (state.lastStandTick ?? -Infinity) >= 300) {
     state.lastStandTick = w.state.tick
@@ -409,4 +588,11 @@ export function dash(eng: Engine, e: Entity): boolean {
   if (through) state.guardUntil = w.state.tick + 5
   eng.setCooldown('dash:' + e.id, skill(w, e, 'tailwind') ? 25 : 40)
   return true
+}
+
+/** A Retort (the Sentinel's): a blow turned aside by a block strikes back at the one who struck, for half its weight. */
+function retort(eng: Engine, e: Entity, attacker: Entity, damage: number): void {
+  const w = eng.world
+  if (!skill(w, e, 'retort') || !w.get(attacker.id)) return
+  eng.queue({ kind: 'impulse/strike', host: { e: attacker.id }, roles: { actor: { e: e.id } }, params: { power: Math.max(1, Math.round(damage * 0.5)), thorn: true }, origin: 'world' })
 }

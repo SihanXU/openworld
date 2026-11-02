@@ -8,6 +8,8 @@ import { GEAR_LEVELS } from './gear.ts'
 import { regionalForms } from './goods.ts'
 import { AFFIX_TABLE, TROPHIES } from './trophies.ts'
 import { unlockedBy } from './haven.ts'
+import { VOW_IDS } from './powers.ts'
+import { SET_PIECES } from './gearsets/index.ts'
 
 export interface Form {
   id: string // full type path
@@ -118,42 +120,7 @@ export const QUALITIES = [
   { id: 'legendary', en: 'Stigmatic', zh: '圣痕', factor: 2, value: 9, w: 0 },
 ]
 
-/**
- * The Stigmatic pieces' powers (engine combat.ts `relicsOf`): one of each in the world, each its own. What the
- * tooltip names and tells.
- */
-export const RELICS: Record<string, { en: string; zh: string; text: { en: string; zh: string } }> = {
-  crown: { en: 'None Cross That Do Not Kneel', zh: '不跪者不得过', text: { en: 'Your blows have a 20% chance to force the struck to their knees (1 second, unable to move).', zh: '你的攻击有 20% 几率令目标跪地（1 秒内无法移动）。' } },
-  nightfang: { en: 'Tooth of the Night', zh: '夜之牙', text: { en: '+25% critical chance at night.', zh: '入夜后暴击率 +25%。' } },
-  mirrorshard: { en: 'Stolen Face', zh: '窃面', text: { en: 'A critical hit draws back 3 more health.', zh: '暴击时额外吸取 3 点生命。' } },
-  oathbrand: { en: 'Oath Kept', zh: '守誓', text: { en: 'Below 30% health, the health it draws back is tripled.', zh: '生命低于 30% 时，吸取的生命变为三倍。' } },
-  galestring: { en: 'Running Wind', zh: '逐风', text: { en: 'Each hit: +30% movement speed for 2 seconds.', zh: '每次命中：2 秒内移动速度 +30%。' } },
-  starfall: { en: 'Falling Star', zh: '坠星', text: { en: 'Every fifth hit is a critical.', zh: '每第五次命中必定暴击。' } },
-  emberheart: { en: 'Heart of Embers', zh: '余烬之心', text: { en: 'Hits have a 25% chance to set the struck burning.', zh: '命中有 25% 几率点燃目标。' } },
-  rimecrown: { en: 'Crown of Rime', zh: '霜冕', text: { en: 'Hits have a 20% chance to freeze the struck for a moment.', zh: '命中有 20% 几率令目标短暂冰冻。' } },
-  unfallen: { en: 'Unfallen', zh: '不陷', text: { en: 'Once a minute, a blow that would fell you is turned aside.', zh: '每分钟一次：将致命一击完全挡下。' } },
-  dragonsbane: { en: 'Dragonslayer', zh: '屠龙', text: { en: 'Double damage against dragons and their whelps.', zh: '对巨龙与幼龙造成双倍伤害。' } },
-}
-
-/**
- * What a Vowbound piece keeps of the vow it was made under (the classes module's combat.ts `vowsOf`, answered as
- * a talent is): each a promise with a condition and what it pays, far beyond a number — a rolled piece takes one
- * (`vow`: QualityDef.vows, the craft primitive; makeItem), the story's own name theirs (hollow.ts, quests/side.ts;
- * the Order's seal and the scallop below). What the tooltip names and tells. Two pieces of one vow are one vow.
- */
-export const VOWS: Record<string, { en: string; zh: string; text: { en: string; zh: string } }> = {
-  vigil: { en: 'Vow of Vigil', zh: '守夜之誓', text: { en: 'At night: +20% critical chance and +15% movement speed.', zh: '入夜后：暴击率 +20%，移动速度 +15%。' } },
-  dawn: { en: 'Vow of Dawn', zh: '黎明之誓', text: { en: 'By day: every blow that lands draws back 1 health, and you take 10% less harm.', zh: '白天：每次命中吸取 1 点生命，受到的伤害 −10%。' } },
-  holdfast: { en: 'Vow of the Held Ground', zh: '坚守之誓', text: { en: 'Standing your ground (no step this second): your blows deal 25% more, and you take 30% less.', zh: '站定不动满 1 秒：攻击伤害 +25%，受到的伤害 −30%。' } },
-  thorn: { en: 'Vow of the Thorn', zh: '荆棘之誓', text: { en: 'Whoever strikes you hand to hand is pricked for 3.', zh: '近身击中你的敌人被荆棘刺伤，损失 3 点生命。' } },
-  mercy: { en: 'Vow of Mercy', zh: '怜悯之誓', text: { en: 'A blow on a foe below a third of its health draws back 2 health.', zh: '击中生命不足三成的敌人时，吸取 2 点生命。' } },
-  silence: { en: 'Vow of Silence', zh: '缄默之誓', text: { en: 'Sneaking slows you no more, and a blow struck while sneaking has +25% critical chance.', zh: '潜行不再减速；潜行中攻击的暴击率 +25%。' } },
-  pilgrim: { en: 'Vow of the Road', zh: '朝圣之誓', text: { en: 'On a road, +30% movement speed; on the move, +10% dodge.', zh: '走在路上移动速度 +30%；移动中闪避 +10%。' } },
-  ward: { en: 'Vow of the Shield', zh: '庇护之誓', text: { en: "A fight's first blow against you is turned half aside (ten seconds out of the fray).", zh: '脱战 10 秒后受到的第一击伤害减半。' } },
-  hunt: { en: 'Vow of the Hunt', zh: '狩猎之誓', text: { en: 'Your blow on an unhurt foe is always a critical.', zh: '对未受伤的敌人出手必定暴击。' } },
-  lone: { en: 'Vow of the Lone Road', zh: '独行之誓', text: { en: 'With no companion at your side: your blows deal 15% more, and +10% dodge.', zh: '身边没有同伴跟随时：攻击伤害 +15%，闪避 +10%。' } },
-}
-export const VOW_IDS = Object.keys(VOWS)
+export { RELICS, VOWS, VOW_IDS } from './powers.ts'
 
 /** A piece's main stats as its form, quality and level make them (the engine's gearProps, with this world's levels). */
 export const leveled = (form: Record<string, PropValue>, quality: string | undefined, level: number, material?: string): Record<string, number> =>
@@ -395,6 +362,24 @@ const BASE_FORMS: Form[] = [
   W('item/valuable/scallop', "Pilgrim's Scallop", '朝圣者的扇贝', 'item:amulet', { tags: ['holy', 'keepsake', 'wearable', 'quality:vowed'], props: { slot: 'neck', def: 1, xpRate: 0.1, moveHaste: 0.15, vow: 'pilgrim' }, where: {} }),
   // the pilgrim's own scallop, given at the Pilgrims' Rest for the oath (pilgrimage.ts SWORN_SCALLOP): a scallop, but not
   // the one the pilgrim before left in the forest, which Sister Ilse asks after (quests/side.ts, `sworn` tells them apart)
+  // Chapter 2 (docs/chapter-2.md): the second of the five instruments, the Chain of the Scourging Post (lore.md §4).
+  // Stigmatic: worn, the flesh bears what it is dealt and strikes the harder the more it is hurt — and no longer steps aside
+  W('item/relic/post_chain', 'Chain of the Scourging Post', '鞭刑柱之链', 'item:post_chain', { tags: ['holy', 'relic', 'metal', 'iron', 'wearable', 'quality:legendary', 'wound:scourge'], props: { slot: 'waist', ...stigmatic({ def: 2 }, { atk: 2, dodge: -0.1, relic: 'scourge' }), text: 'An iron chain as long as a man is tall, with a ring at one end as wide as a hand. The ring was set in the Scourging Post, and the links are worn bright where they were gripped. Matthias wore it wound round himself for three hundred years.', text_zh: '一条一人长的铁链，一端是一只巴掌宽的铁环。铁环原本嵌在鞭刑柱上，链节被手攥过的地方磨得发亮。马提亚把它缠在身上，缠了三百年。' }, where: {} }),
+  // the Red Host's drummer's drum, lost in the Lashmarks' ravine; an old brother's scourge; the Left Company's banner
+  W('item/valuable/war_drum', "Wil's Drum", '威尔的鼓', 'item:war_drum', { tags: ['wooden', 'keepsake', 'flammable'], props: { value: 6, text: 'A small side drum with red hoops, its skin scuffed grey. The Left Company beats the advance on it at dusk. Inside the hoop someone has scratched a name in a child\'s letters: WIL.', text_zh: '一面红箍的小军鼓，鼓皮磨得发灰。左营每天黄昏用它擂进军鼓。鼓箍内侧有人用小孩的字刻了一个名字：威尔。' }, where: {} }),
+  W('item/valuable/novice_scourge', "Odran's Scourge", '奥德兰的鞭子', 'item:novice_scourge', { tags: ['fiber', 'wooden', 'wearable', 'quality:vowed'], props: { slot: 'waist', def: 2, vow: 'holdfast', value: 30, text: 'A short scourge, five knotted cords on a worn wooden handle. Every novice of the Red Order is given one and uses it on himself at dusk. Two of the cords are stiff and dark down to the knots.', text_zh: '一条短鞭，木柄磨得光滑，上面系着五股打了结的绳子。红衣修会的见习修士每人领一条，每天黄昏抽打自己。其中两股绳子从头到结都发硬发黑。' }, where: {} }),
+  W('item/valuable/left_banner', "The Left Company's Banner", '左营的军旗', 'item:left_banner', { tags: ['cloth', 'flammable', 'important'], props: { value: 10, text: 'A red banner, folded, on a pole broken off at the height of a man\'s hand. A white pillar is stitched on it, and under the pillar a short row of stitches for the Left Company. But for that row, it is the banner the Right Company carries.', text_zh: '一面叠起来的红旗，旗杆在齐手高的地方断了。旗上绣着一根白色的柱子，柱子下面一小排针脚，标着左营。除了这排针脚，它和右营扛的那面一模一样。' }, where: {} }),
+  // Chapter 3's (docs/chapter-3.md §9, §10): the Scale of Hunger, the blue scarf on the salt, the Grain Guild's key
+  W('item/relic/scale_of_hunger', 'Scale of Hunger', '饥刑之秤', 'item:scale_of_hunger', { tags: ['holy', 'relic', 'metal', 'iron', 'wearable', 'quality:legendary', 'wound:scales'], props: { slot: 'neck', ...stigmatic({ def: 1 }, { atk: 2, relic: 'scales' }), text: 'A small balance of black iron on a cord, its pans no wider than a palm. One pan is worn through. Ele held it for three hundred years and never ate from it.', text_zh: '一杆黑铁小秤，系在一根绳上，秤盘只有巴掌大。其中一只盘子磨穿了。厄勒把它拿在手里三百年，从没用它称过一口吃的。' }, where: {} }),
+  W('item/valuable/blue_scarf', 'A Blue Scarf', '一条蓝围巾', 'item:blue_scarf', { tags: ['cloth', 'keepsake', 'flammable'], props: { value: 4, text: 'A blue wool scarf, faded, grey with salt and dust. It was lying at the feet of one of the Standing on the White Pans.', text_zh: '一条褪了色的蓝羊毛围巾，沾满了盐和灰土。它落在白盐滩上一个站着的人脚边。' }, where: {} }),
+  W('item/key/granary', "The Grain Guild's Key", '谷物行会的钥匙', 'item:granary_key', { tags: ['key', 'metal', 'iron', 'important'], props: { value: 8, text: 'A long iron key on a ring of the Grain Guild. It opens the granary in Fairweight.', text_zh: '一把长长的铁钥匙，挂在谷物行会的钥匙环上。它能打开公秤镇的粮仓。' }, where: {} }),
+  // Chapter 4's (docs/chapter-4.md §9, §10): the Holy Wood of the Nails, the ferryman's coin, Jory's kite
+  W('item/relic/holy_wood', 'The Holy Wood of the Nails', '钉刑圣木', 'item:holy_wood', { tags: ['holy', 'relic', 'wooden', 'wearable', 'quality:legendary', 'wound:nails'], props: { slot: 'arm', ...stigmatic({ def: 2 }, { atk: 2, moveHaste: -0.1, relic: 'nails' }), text: 'A board of black wood the length of a forearm, from the tree the First Martyr was nailed to, three great nails still through it. Nacht carried it on his saddle for three hundred years. It is heavier than wood should be.', text_zh: '一块小臂长的黑木板，取自初殉者被钉的那棵树，三根大钉还穿在上面。纳赫特把它挂在马鞍上三百年。它比木头该有的分量要重。' }, where: {} }),
+  W('item/valuable/ferry_coin', "A Ferryman's Coin", '一枚渡钱', 'item:ferry_coin', { tags: ['metal', 'bronze', 'keepsake'], props: { value: 3, text: 'An old bronze coin with a square hole, green with age. The dead of the Fens used to carry one to the ferryman. Nobody has needed one in forty years.', text_zh: '一枚方孔老铜钱，生满了铜绿。林沼的死人从前都要带一枚给渡人。四十年来，没人用得上它了。' }, where: {} }),
+  W('item/valuable/kite', "Jory's Kite", '乔里的风筝', 'item:jory_kite', { tags: ['cloth', 'wooden', 'flammable', 'keepsake'], props: { value: 2, text: 'A small diamond kite of patched cloth, its tail torn off. Someone has written JORY on it in charcoal, in a child\'s hand.', text_zh: '一只补过的小菱形风筝，尾巴断了。上面有人用炭笔写着“乔里”，是小孩子的字。' }, where: {} }),
+  // Chapter 5's (docs/chapter-5.md §9): the Lance that pierced the heart
+  W('item/weapon/polearm/spear/holy_lance', 'The Lance That Pierced the Heart', '穿心圣枪', 'item:holy_lance', { tags: ['holy', 'relic', 'metal', 'iron', 'quality:legendary', 'wound:lance'], props: { ...stigmatic({ power: 6 }, { relic: 'lance', range: 2 }), text: 'A plain spear of old iron, the blade black to the socket. It stood in the altar under the Heights for four hundred years with the dead heaped round it. Nothing about it says what it did.', text_zh: '一杆普通的老铁矛，矛头一直黑到銎口。它在高地之下的祭坛里立了四百年，死人堆在它四周。它身上没有一处说得出它做过什么。' }, where: {} }),
+  W('item/document/road_pass', 'A Road Pass', '路条', 'item:scroll', { tags: ['paper', 'flammable', 'readable', 'keepsake'], props: { value: 2, text: 'A pass under the abbot\'s seal: let the bearer go down from Whiteveil by any road, and none stop them. The name is left blank.', text_zh: '一张盖着院长印章的路条：准持此条者由白纱修道院任取一路下山，沿途不得阻拦。名字一栏空着。' }, where: {} }),
   W('item/valuable/scallop/sworn', 'Sworn Scallop', '立誓扇贝', 'item:amulet', { tags: ['holy', 'keepsake', 'wearable', 'sworn', 'quality:fine'], props: { slot: 'neck', def: 1, moveHaste: 0.1 }, where: {} }),
   // keys
   W('item/key', 'Key', '钥匙', 'item:key', { tags: ['key', 'metal'], materials: ['iron', 'bronze', 'silver', 'gold'], where: { home: 0.3, dungeon: 0.5, npc: 0.2 } }),
@@ -414,6 +399,8 @@ const BASE_FORMS: Form[] = [
   W('item/misc/snowball', 'Snowball', '雪球', 'item:snowball', { tags: ['icy', 'cold', 'water', 'fragile'], where: {} }),
   // each kind of monster's own piece (trophies.ts): found in the bag of the one who fells it, never made nor sold
   ...TROPHIES.map((t) => W(t.type, t.en, t.zh, t.sprite, { tags: ['wearable', 'trophy'], props: { ...t.props, ...(t.set && { set: t.set }), value: t.value }, where: {} })),
+  // the main line's sets (docs/sets.md): a type per piece, its main stats fixed at its level, its own picture and words
+  ...SET_PIECES.map((p) => W(p.type, p.piece.en, p.piece.zh, p.sprite, { tags: ['wearable', 'setpiece', 'quality:fine'], props: p.props, where: {} })),
 ]
 
 /** Types derived from the catalogue (plus the roots). */
@@ -666,14 +653,16 @@ export function makeItem(rng: Rng, form: Form, opts: { material?: string; qualit
     }
     quality = q.id
   }
-  // what the material, the quality and the level make of its stats (world-model.md §6.8): a level only on what is worn or wielded
+  // what the material, the quality and the level make of its stats (world-model.md §6.8): a level only on what is worn or wielded;
+  // a form that names its own level (a set's piece, a trophy) is made as it is, at that level, wherever it is made
   const slot = form.props?.slot ?? (form.id.startsWith('item/weapon') ? 'weapon' : undefined)
-  Object.assign(props, gearProps(form.props ?? {}, matId ? MATERIAL_DEFS[matId] : undefined, QUALITY_DEFS().find((x) => x.id === quality), typeof slot === 'string' ? (opts.level ?? 1) : undefined, GEAR_LEVELS))
+  const fixed = typeof form.props?.level === 'number' ? form.props.level : undefined
+  if (fixed === undefined) Object.assign(props, gearProps(form.props ?? {}, matId ? MATERIAL_DEFS[matId] : undefined, QUALITY_DEFS().find((x) => x.id === quality), typeof slot === 'string' ? (opts.level ?? 1) : undefined, GEAR_LEVELS))
   const own = opts.extras ?? (() => rng.next())
   // a Vowbound piece keeps its vow beyond its numbers (VOWS): the one given, else one rolled, unless its form names its own
   if (quality === 'vowed' && typeof slot === 'string' && opts.vow !== false && typeof form.props?.vow !== 'string') props.vow = opts.vow ?? VOW_IDS[Math.floor(own() * VOW_IDS.length)]
   // a piece one wears or wields rolls its small extras (trophies.ts AFFIX_TABLE: as many as its quality gives, as wide as its level)
-  if (typeof slot === 'string' && opts.affixes !== false) Object.assign(props, rollAffixes({ affixes: AFFIX_TABLE, params: { gearLevels: GEAR_LEVELS } as never }, slot, own, { quality, level: opts.level ?? 1 }))
+  if (typeof slot === 'string' && opts.affixes !== false) Object.assign(props, rollAffixes({ affixes: AFFIX_TABLE, params: { gearLevels: GEAR_LEVELS } as never }, slot, own, { quality, level: fixed ?? opts.level ?? 1 }))
   const el = opts.element === null ? undefined : (opts.element ?? (form.elemental && rng.chance(0.28) ? rng.pick(Object.keys(ELEMENT_NAMES)) : undefined))
   if (el && form.elemental) {
     tags.push(`element:${el}`)

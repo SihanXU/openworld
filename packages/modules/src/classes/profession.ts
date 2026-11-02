@@ -14,6 +14,23 @@ import { OFFHAND, grantBase, offhandOf, skillTag, skillsOf, type Entity, type Sk
 
 /** The level from which a trainer will take you on. */
 export const PROFESSION_LEVEL = 5
+/**
+ * The advancements after the first (docs/advancement.md): the level each asks, and the skill points each brings. The
+ * second sets one on a path of the profession (one of its `paths`), the third opens the profession's mastery (under the
+ * path's own name, when the path gives its third one).
+ */
+export const ADVANCE_LEVELS: Record<number, number> = { 2: 10, 3: 16 }
+export const ADVANCE_POINTS = 3
+
+/** A path of a profession (the second advancement): its words and its picture, and what its third is called. */
+export interface PathDef {
+  id: string
+  name: Text
+  doc: Text
+  icon?: string
+  /** The third advancement's name and picture on this path (its skills stay the profession's mastery). */
+  third?: { name: Text; icon?: string }
+}
 
 export interface ProfessionDef {
   id: string
@@ -24,9 +41,48 @@ export interface ProfessionDef {
   weapon?: Omit<Entity, 'id' | 'place'>
   /** Handed over with it and worn in the off hand (the warrior's shield). */
   offhand?: Omit<Entity, 'id' | 'place'>
+  /** Its three paths (the second advancement), and its mastery (the third: not a path, the profession's own). */
+  paths?: PathDef[]
+  mastery?: { name: Text; doc: Text; icon?: string }
+}
+
+/** The third advancement as one on this path sees it: the mastery, under the path's name for it if it gives one. */
+export function thirdOf(def: ProfessionDef | undefined, path?: string): { name: Text; doc: Text; icon?: string } | undefined {
+  if (!def?.mastery) return undefined
+  const third = def.paths?.find((p) => p.id === path)?.third
+  return third ? { ...def.mastery, name: third.name, icon: third.icon ?? def.mastery.icon } : def.mastery
 }
 
 export type ProfessionRefusal = 'unknown' | 'same' | 'level' | 'trainer'
+export type AdvanceRefusal = 'profession' | 'order' | 'path' | 'level' | 'trainer'
+
+/** How far an actor has advanced: 1 with a profession (0 with none), 2 on a path, 3 with its mastery. */
+export function advancementOf(w: World, e: Entity): number {
+  if (!professionOf(w, e)) return 0
+  return Math.max(1, w.num(e, 'advancement', 1))
+}
+/** The path an actor is on, if any. */
+export function pathOf(w: World, e: Entity): string | undefined {
+  const p = w.prop(e, 'path')
+  return typeof p === 'string' && p ? p : undefined
+}
+
+/**
+ * Why an actor may not advance to this tier (on this path, for the second) now: no profession, the tier before not
+ * reached (or this one already), a path not of its profession, the level, no trainer by. A path already taken may be
+ * changed at the second tier: the old path's skills come back as points.
+ */
+export function cannotAdvance(w: World, e: Entity, def: ProfessionDef | undefined, tier: number, path?: string): AdvanceRefusal | undefined {
+  if (!def || professionOf(w, e) !== def.id) return 'profession'
+  const now = advancementOf(w, e)
+  if (tier === 2) {
+    if (!path || !def.paths?.some((p) => p.id === path)) return 'path'
+    if (path === pathOf(w, e)) return 'order'
+  } else if (tier !== 3 || now !== 2) return 'order'
+  if (w.num(e, 'level', 1) < (ADVANCE_LEVELS[tier] ?? Infinity)) return 'level'
+  if (!nearTrainer(w, e)) return 'trainer'
+  return undefined
+}
 
 /** The profession an item fights for (its `profession:<id>` tag), or none: a common item. */
 export function itemProfession(w: World, item: Entity): string | undefined {
@@ -74,12 +130,12 @@ export function cannotChoose(w: World, e: Entity, def: ProfessionDef | undefined
 }
 
 /** Undo the profession branch (in the actor's own outcome): every skill of any profession is unlearned and its points come back. */
-export function refundProfessionSkills(w: World, e: Entity, skills: SkillDef[]): number {
+export function refundProfessionSkills(w: World, e: Entity, skills: SkillDef[], which: (def: SkillDef) => boolean = (def) => !!def.profession): number {
   const by = new Map(skills.map((s) => [s.id, s]))
   let refunded = 0
   for (const id of skillsOf(e)) {
     const def = by.get(id)
-    if (!def?.profession) continue
+    if (!def || !which(def)) continue
     w.removeTag(e, skillTag(id))
     refunded += def.cost ?? 1
     for (const [key, delta] of Object.entries(def.grant ?? {})) {
@@ -99,6 +155,8 @@ export function refundProfessionSkills(w: World, e: Entity, skills: SkillDef[]):
 export function chooseProfession(w: World, e: Entity, def: ProfessionDef, skills: SkillDef[]): number {
   const refunded = refundProfessionSkills(w, e, skills)
   w.setProp(e, 'profession', def.id)
+  // a new profession's paths are its own: the old path goes (one advanced chooses one of the new profession's)
+  w.setProp(e, 'path', undefined)
   // what the old profession wore comes off (it stays in the bag)
   for (const [key, id] of Object.entries(e.props ?? {})) {
     const item = key.startsWith('wear:') && typeof id === 'string' ? w.get(id) : undefined
@@ -114,4 +172,23 @@ export function chooseProfession(w: World, e: Entity, def: ProfessionDef, skills
     }
   }
   return refunded
+}
+
+/**
+ * Advance (in the actor's own outcome; the checks are the caller's: cannotAdvance): the second tier sets the actor on a
+ * path (a change of path unlearns the old path's skills and gives their points back), the third opens the mastery. The
+ * first time each tier is reached it brings ADVANCE_POINTS. Returns the points given.
+ */
+export function advance(w: World, e: Entity, tier: number, path: string | undefined, skills: SkillDef[]): number {
+  let given = 0
+  if (tier === 2) {
+    if (pathOf(w, e)) given += refundProfessionSkills(w, e, skills, (def) => !!def.path)
+    w.setProp(e, 'path', path)
+  }
+  if (advancementOf(w, e) < tier) {
+    w.setProp(e, 'advancement', tier)
+    w.setProp(e, 'skillPoints', Number(e.props?.skillPoints ?? 0) + ADVANCE_POINTS)
+    given += ADVANCE_POINTS
+  }
+  return given
 }

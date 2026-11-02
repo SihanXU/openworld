@@ -6,6 +6,7 @@ import { Rng, gearProps, rollAffixes, type AliasDef, type ObjectiveDef, type Pro
 import { FORM_BY_ID, MATERIAL_DEFS, QUALITY_DEFS, VOW_IDS } from '../items.ts'
 import { GEAR_LEVELS } from '../gear.ts'
 import { AFFIX_TABLE } from '../trophies.ts'
+import { SET_PIECE_BY_TYPE } from '../gearsets/index.ts'
 
 export const L = (en: string, zh: string): Text => ({ en, zh })
 
@@ -36,6 +37,19 @@ export const gear = (type: string, slot: string, en: string, zh: string, quality
   const sworn = quality === 'vowed' ? { vow: vow ?? VOW_IDS[Math.floor(rng.next() * VOW_IDS.length)] } : {}
   const subs = rollAffixes({ affixes: AFFIX_TABLE, params: { gearLevels: GEAR_LEVELS } } as never, slot, () => rng.next(), { quality, level })
   return { type, count: 1, name: L(en, zh), tags: [...(quality === 'common' ? [] : [`quality:${quality}`]), ...(mat ? [`material:${mat}`, ...(MATERIAL_DEFS[mat]?.tags ?? [])] : [])], props: { slot, ...main, ...extras, ...sworn, ...subs } as Record<string, PropValue> }
+}
+
+/**
+ * A piece of one of the main line's sets a quest pays (docs/sets.md): the piece as its type is (its main stats fixed at
+ * its level), rolling its four extras seeded by its name, as a named piece does. A piece content does not name as this
+ * quest's is refused: the set's file says where each piece is found.
+ */
+export const setPiece = (type: string, quest: string) => {
+  const p = SET_PIECE_BY_TYPE[type]
+  if (!p) throw new Error(`setPiece: ${type} is no set's piece`)
+  if (p.piece.from !== `quest:${quest}`) throw new Error(`setPiece: ${type} is found at ${p.piece.from}, not quest:${quest}`)
+  const rng = new Rng(seedOf(p.piece.en))
+  return { type, count: 1, props: rollAffixes({ affixes: AFFIX_TABLE, params: { gearLevels: GEAR_LEVELS } } as never, p.piece.slot, () => rng.next(), { quality: 'fine', level: Number(p.props.level) }) as Record<string, PropValue> }
 }
 
 /** What an errand asks, each an objective. */

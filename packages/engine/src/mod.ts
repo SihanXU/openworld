@@ -1546,6 +1546,7 @@ function check(patch: Patch, ctx: ValidateCtx): ValidationResult {
       if (e.owner !== undefined) role(e.owner, `${where}.owner`)
       if (e.ownerFrom !== undefined) role(e.ownerFrom, `${where}.ownerFrom`)
       if (e.owner !== undefined && e.ownerFrom !== undefined) errors.push(`${where}: choose owner or ownerFrom, not both`)
+      if (e.props !== undefined) errors.push(`${where}: a spawned thing comes as its type is (no props)`)
     }
     if (worldOps.residentOnly.has(e.op) && !resident) errors.push(`${where}: ${e.op} is the story's and the world's only — notify the story instead`)
     if (e.op === 'spawn' && !/^@prop:(host|actor|target|instrument|other|item|source)\.\w+$/.test(e.type) && !(e.type in onto.types)) errors.push(`${where}: unknown type "${e.type}"${closest(e.type, onto)}`)

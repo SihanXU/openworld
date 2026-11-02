@@ -44,7 +44,7 @@ export const ilse: PersonDef = {
     line('chat', 'Some mornings there is dawnbloom on the altar before I get there, with the dew still on it. I have never asked who leaves it.', '有几个早上，我还没到，祭坛上就已经放好了晨光花，花瓣上的露水都还没干。是谁放的，我从来没有问过。', { mood: 'happy' }),
     line('favourite', "I'm a little ashamed to say it, but even a nun has a fondness. Mine is {favourite}. ...Please keep it from Brother Anselm.", '说来有些难为情，修女也有偏爱的东西。我喜欢的是{favourite}。……请别让安塞姆修士知道。', { mood: 'shy' }),
     // the news the story spreads (its topics), said once while fresh
-    line('topic:crown', 'We laid the crown beneath the altar. Nessa says it hums at night, so I sang it a hymn for sleeping. ...It does seem a little quieter.', '我们把荆棘冠放在祭坛底下了。奈莎说它夜里会嗡嗡地响，我就给它唱了一首安眠的圣歌。……好像是安静了一点。'),
+    line('topic:crown', 'You keep the Crown with you, then. Nessa says it hums at night, so I sang a hymn for sleeping over your pack while you were at the well. ...It did seem a little quieter.', '那荆棘冠就由你带着吧。奈莎说它夜里会嗡嗡地响，你去井边的时候，我对着你的行囊唱了一首安眠的圣歌。……好像是安静了一点。'),
     line('greeting:first', 'Welcome to Firstlight, traveller. Your hands are cold; please, come closer. This flame was lit from the first dawn after the First Night, and it is glad to warm anyone who has come far.', '欢迎来到初原村，旅人。你的手很凉，请靠近些。这团火是从初夜之后的第一道晨光里取来的，远道而来的人，它都乐意温暖。'),
     line('default', "Suffering is not God's abandonment. It is the proof the debt is being paid. That is what the Five teach us.", '苦难并非神的遗弃。苦难，是灾厄得以被偿还的证明。这是五苦圣教的教诲。'),
     line('default', 'The flame is older than any house in Firstlight. The old keeper told me the first houses were built around it, so that someone would always be near to tend it.', '这团火比村里任何一间房子都老。从前的守火人告诉我，最早的几间房子就是围着它盖的，好让身边总有人照看它。'),
@@ -61,6 +61,9 @@ export const ilse: PersonDef = {
     line('fact:ch1.letter', 'Astra bore five sufferings so the sun would rise. The Seal-bearers carry them still. Go to the first of them, pilgrim. ...And before you set out, please, eat a proper meal.', '阿斯特拉承受了五苦，太阳才重新升起。如今这五苦，由持印者替他担着。去找第一位持印者吧，朝圣者。……还有，出发之前，请一定好好吃顿饭。'),
     line('fact:ch1.letter', 'I remember every pilgrim I have blessed by their footsteps. Please come back, so that I may hear yours again.', '我祝福过的每一位朝圣者，我都记得他们的脚步声。请一定回来，让我再听一听你的。'),
     line('fact:ch1.crown', 'The Crown of Thorns, here in our village. I never thought I would see it with my own eyes. Keep it close to you, please, but not against your heart.', '荆棘冠，竟然来到了我们村里。我从没想过这辈子能亲眼见到它。请把它贴身收好。只是……别让它太靠近你的心。', { once: true }),
+    line('fact:ch3.scale', 'The sun set at six tonight. I rang the bell for vespers in the dark. The children have started asking what the bell is for.', '今晚太阳六点就落了。我是摸黑敲的晚祷钟。孩子们开始问我，这钟是为什么敲的。'),
+    line('fact:ch4.wood', 'Nessa wrote to me from the Fens. She says a grey man walks with you now, with a lantern. ...If he is who I think he is, tell him the chapel door is not locked. It never was.', '奈莎从林沼给我写了信。她说现在有个提着灯的灰衣人跟你一起走。……要真是我想的那个人，告诉他，礼拜堂的门没锁。从来都没锁过。', { once: true, mood: 'sad' }),
+    line('fact:ch5.lance', 'I light the taper at four now. I have stopped telling people it will be better soon. I tell them the morning will come. It always has.', '我现在四点就点蜡烛了。我不再跟人说很快就会好起来。我跟他们说，早晨总会来的。它向来都会来。'),
     line('fact:ch1.end', 'He always did carry things that were too heavy for him.', '他从小就是这样，总要背些他背不动的东西。', { mood: 'sad' }),
     line('given', "Is this for me? ...Thank you. I'll set it by the altar first, so Astra may see it too, and quietly take it back tonight.", '这是给我的吗？……谢谢你。我先把它供在祭坛边，让阿斯特拉也看一看，晚上再悄悄拿回来。', { mood: 'happy' }),
   ],

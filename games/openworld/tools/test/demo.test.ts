@@ -10,12 +10,17 @@
 import { describe, expect, it } from 'vitest'
 import { textOf, isPatch, restoreLibrary, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
 import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf, kitsOf } from '@openworld/modules'
-import { ALBERIC_ID, ACTIVE_SKILLS, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, PART_TWO, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP, BOSS_ROOMS } from '@openworld-game/content'
+import { ALBERIC_ID, ACTIVE_SKILLS, SET_PIECES, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, PART_TWO, CHAPTER_TWO, CHAPTER_THREE, CHAPTER_FOUR, CHAPTER_FIVE, FINALE, CH3, CH4, CH5, FIN, THE_FIVE, DUST_HEAP, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP, BOSS_ROOMS } from '@openworld-game/content'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { CH1_AT } from '../src/demo/quest/chapter1.ts'
 import { PEOPLE } from '../src/demo/people.ts'
 import { DRAGON_AT, EAST_ROAD, EMBERFALL, PASS } from '../src/demo/quest/maps.ts'
+import { MARCH } from '../src/demo/quest/chapter2.ts'
+import { VALE } from '../src/demo/quest/chapter3.ts'
+import { FEN } from '../src/demo/quest/chapter4.ts'
+import { HEIGHTS } from '../src/demo/quest/chapter5.ts'
+import { FIN_AT } from '../src/demo/quest/finale.ts'
 import { PILGRIM } from '../src/demo/quest/pilgrimage.ts'
 import { HEDGE, KINGDOM } from '../src/demo/quest/kingdom.ts'
 import { FAT, FLANKS } from '../src/demo/quest/flanks.ts'
@@ -1401,7 +1406,7 @@ function reach(f: Ford, x: number, y: number): Set<string> {
   return seen
 }
 
-req('W4', 'every map but the tutorial (and the floors under the barrow) lies on the overworld, a place to a cell drawn as what it is, and its edges are open: mined through the rock at the pass\'s north edge, one walks out onto the pass\'s own cell and stands there (as off the village\'s west edge onto the village\'s); in again at once, one comes in where one left; a step north and back onto it, in on the north side', [...['village', 'town', 'farm', 'watermill', 'woods', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'crossing'].map((k) => `site/place/${k}`)], () => {
+req('W4', 'every map but the tutorial (and the floors under the barrow) lies on the overworld, a place to a cell drawn as what it is, and its edges are open: mined through the rock at the pass\'s north edge, one walks out onto the pass\'s own cell and stands there (as off the village\'s west edge onto the village\'s); in again at once, one comes in where one left; a step north and back onto it, in on the north side', [...['village', 'town', 'farm', 'watermill', 'woods', 'hollow', 'barrow', 'mine', 'lair', 'pass', 'summit', 'shrine', 'camp', 'waystone', 'crossing', 'battlefield', 'seat'].map((k) => `site/place/${k}`)], () => {
   const f = fresh()
   // (the floors under the barrow are reached by its stairs: they lie under its cell; a boss's arena through its fog; the Held Ground is carried in a thorn)
   for (const m of W(f).state.loadedMaps.filter((id) => id !== OVERWORLD && id !== 'tutorial' && id !== 'offstage' && id !== 'haven' && !id.startsWith('haven.') && !BOSS_ROOMS.some((r) => r.arena === id) && W(f).map(id)!.kind !== 'interior' && !(UNDER_BARROW as readonly string[]).includes(id))) {
@@ -1417,8 +1422,8 @@ req('W4', 'every map but the tutorial (and the floors under the barrow) lies on 
   expect(walk(f, 'up')).toMatchObject({ map: 'pass', x, y: 1 })
   for (let i = 0; i < 2; i++) run(f, 'use', x, 0)
   expect(walk(f, 'up')).toMatchObject({ map: 'pass', x, y: 0 })
-  // (open: Part Two; a place the story has sealed is not stood on, so one would come out beside it)
-  author(f, () => W(f).setFact(PART_TWO, 1))
+  // (open: Chapter 2's road and Part Two's continent; a place the story has sealed is not stood on, so one would come out beside it)
+  author(f, () => (W(f).setFact(CHAPTER_TWO, 1), W(f).setFact(PART_TWO, 1)))
   const out = walk(f, 'up')
   const site = W(f).map('pass')!.site!
   // the pass's own cell, not the one north of it: from there one chooses the way on
@@ -1440,7 +1445,7 @@ req('W4', 'every map but the tutorial (and the floors under the barrow) lies on 
   expect(W(f).posOf(W(f).player)!.y).toBeLessThan(W(f).map('pass')!.height / 4)
   // every map one can walk off by an edge (the story open): out onto its own cell, never the neighbour the way one
   // went — but for a place one cannot stand on (a barrier's cell: the Ford, the Reed Bend), out beside it
-  author(f, () => W(f).setFact(PART_TWO, 1))
+  author(f, () => { for (const k of [CHAPTER_TWO, CHAPTER_THREE, CHAPTER_FOUR, CHAPTER_FIVE, FINALE, PART_TWO]) W(f).setFact(k, 1) })
   const left: string[] = []
   for (const id of W(f).state.loadedMaps) {
     const m = W(f).map(id)!
@@ -1510,20 +1515,20 @@ req('W6', 'the river is a barrier on the overworld too: the Ford\'s cell is the 
   }
 })
 
-req('W6b', 'the places beyond the White Knight are Part Two\'s, sealed on the world map until it opens (release 1 ends with the Crown home: docs/release-1.md), he fallen or not: Emberfall\'s cell stops one like a wall, and bumping into it says why; stood on (an older save), E says why and does not go in; it is drawn sealed; once Part Two opens, one walks onto it and in', [], () => {
+req('W6b', 'the places beyond the White Knight are Chapter 2\'s, sealed on the world map until the Crown is home (docs/chapter-2.md §12), he fallen or not: Emberfall\'s cell stops one like a wall, and bumping into it says why; stood on (an older save), E says why and does not go in; it is drawn sealed; once the road east opens, one walks onto it and in', [], () => {
   const f = fresh()
   const w = W(f)
   author(f, () => w.setFact(CH1.knight, true))
-  for (const id of ['emberfall', 'mine', 'pass', 'lair']) expect([id, w.get(`site.${id}`)!.props?.opensWhen]).toEqual([id, PART_TWO])
+  for (const id of ['emberfall', 'mine', 'pass', 'lair', 'lashmarks', 'redcamp', 'scourgehouse', 'bastion']) expect([id, w.get(`site.${id}`)!.props?.opensWhen]).toEqual([id, CHAPTER_TWO])
   const at = w.get('site.emberfall')!.place as { x: number; y: number }
   expect(w.passable(OVERWORLD, at.x, at.y)).toBe(false)
-  // from an open cell beside it, a step onto it: one stays, and the line says why (Part Two's gate)
+  // from an open cell beside it, a step onto it: one stays, and the line says why (Chapter 2's gate)
   const DIR = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] } as const
   const [dir, d] = (Object.entries(DIR) as [Entity['facing'], readonly [number, number]][]).find(([, d]) => w.passable(OVERWORLD, at.x - d[0], at.y - d[1]))!
   stand(f, at.x - d[0], at.y - d[1], dir, OVERWORLD)
   w.fx = []
   expect(walk(f, dir)).toMatchObject({ map: OVERWORLD, x: at.x - d[0], y: at.y - d[1] })
-  expect(w.fx.filter((x) => x.t === 'log').map((x) => textOf((x as unknown as { text: { en: string; zh: string } }).text))).toContain('The road on east to Emberfall is not open yet: its tale is told in Part Two.')
+  expect(w.fx.filter((x) => x.t === 'log').map((x) => textOf((x as unknown as { text: { en: string; zh: string } }).text))).toContain('The road on east to Emberfall opens once the Crown of Thorns is home in Firstlight.')
   stand(f, at.x, at.y, 'down', OVERWORLD)
   const plan = f.eng.controls.plan('hands')!
   expect(textOf(plan.label)).toMatch(/^Sealed: /)
@@ -1531,7 +1536,7 @@ req('W6b', 'the places beyond the White Knight are Part Two\'s, sealed on the wo
   ticks(f, 5)
   expect(w.posOf(w.player)!.map).toBe(OVERWORLD)
   expect(snapshot(f.eng).entities.find((e) => e.id === 'site.emberfall')).toMatchObject({ sealed: true, leadsTo: 'emberfall' })
-  author(f, () => w.setFact(PART_TWO, 1))
+  author(f, () => w.setFact(CHAPTER_TWO, 1))
   expect(snapshot(f.eng).entities.find((e) => e.id === 'site.emberfall')!.sealed).toBeUndefined()
   stand(f, at.x - d[0], at.y - d[1], dir, OVERWORLD)
   expect(walk(f, dir)).toMatchObject({ map: OVERWORLD, x: at.x, y: at.y })
@@ -2067,7 +2072,7 @@ const fact = (f: Ford, key: string) => W(f).fact(key) ?? 0
 /** Where the main line past the knight stands, as the chapters number it (docs/main-quest.md): 3 Emberfall, 4 armed, 5 the pass, 6 the lair, 7 the end. */
 const quest = (f: Ford) => ({ 20: 3, 30: 4, 40: 5, 50: 6, 100: 7 } as Record<number, number>)[f.eng.quests.stage('dragon_road')] ?? 0
 /** The main line where a test past the knight wants it: Part Two open, the First Seal and the Crown behind, the road to Emberfall under way. */
-const toEmberfall = (f: Ford) => author(f, () => { W(f).setFact(PART_TWO, 1); for (const id of ['first_seal', 'crown_home']) f.eng.quests.put(id, 'done'); f.eng.quests.put('dragon_road', 10) })
+const toEmberfall = (f: Ford) => author(f, () => { W(f).setFact(CHAPTER_TWO, 1); for (const id of ['first_seal', 'crown_home']) f.eng.quests.put(id, 'done'); f.eng.quests.put('dragon_road', 10) })
 /** Walk off a map's edge through its portal (the player's own step). */
 function cross(f: Ford, map: string, x: number, y: number, dir: Entity['facing']): string {
   stand(f, x, y, dir, map)
@@ -2199,7 +2204,7 @@ req('BR2', "the warden's room and the last keeper's (docs/boss-rooms.md): the fo
   }
 })
 
-req('Q2', 'the road east: past the far bank the Pilgrim\'s Road, and past the Kneeling Field the East Road; the burned farm shows the dragon\'s mark; wolves and a boar on the road; it ends at Emberfall, Part Two\'s (release 1 ends with the Crown home: docs/release-1.md)', ['actor/creature/beast/wolf', 'actor/creature/beast/boar'], () => {
+req('Q2', 'the road east: past the far bank the Pilgrim\'s Road, and past the Kneeling Field the East Road; the burned farm shows the dragon\'s mark; wolves and a boar on the road; it ends at Emberfall, Chapter 2\'s (opened by the Crown home: docs/chapter-2.md §12)', ['actor/creature/beast/wolf', 'actor/creature/beast/boar'], () => {
   const f = fresh()
   // past the far bank, the Pilgrim's Road (docs/chapter-1.md §14) first: the Rest; the Kneeling Field gives onto the road
   expect(cross(f, 'ford', W(f).map('ford')!.width - 2, EAST_ROAD.fordEast[1], 'right')).toBe('waystation')
@@ -2211,7 +2216,7 @@ req('Q2', 'the road east: past the far bank the Pilgrim\'s Road, and past the Kn
   stand(f, 24, 10, 'up', 'eastroad')
   expect(ticks(f, 40, () => (f.eng.movePlayer('up'), W(f).posOf(W(f).player)!.y <= 9))).toBe(true)
   expect(ticks(f, 200, () => fact(f, 'mq.farm') === 1 && !W(f).scene)).toBe(true)
-  // the road ends at Emberfall — Part Two's: shut while the knight stands, and still shut once he has fallen
+  // the road ends at Emberfall — Chapter 2's: shut while the knight stands, and still shut once he has fallen, until the Crown is home
   expect(cross(f, 'eastroad', EAST_ROAD.w - 2, EAST_ROAD.east[1], 'right')).toBe('eastroad')
   author(f, () => (W(f).setFact('sins.defeated.alberic', 1), W(f).setFact('seen.crown', 1)))
   expect(cross(f, 'eastroad', EAST_ROAD.w - 2, EAST_ROAD.east[1], 'right')).toBe('eastroad')
@@ -2350,7 +2355,7 @@ req('Q5', 'chapter 5, fire and frost: fireweed grows in the meadow and frostcap 
   expect(ticks(f, 200, () => quest(f) === 5 && !W(f).scene)).toBe(true)
 })
 
-req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem on the way up, a fire to rest by; the dragon wakes at the mouth, a boss fight that calls its whelps as its second phase begins, and its fall ends the story', ['actor/creature/beast/frost_wolf', 'actor/creature/imp/fire_imp', 'actor/creature/golem/stone_golem', 'actor/creature/dragon'], () => {
+req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem on the way up, a fire to rest by; the dragon wakes at the mouth, a boss fight that calls its whelps as its second phase begins, and its fall opens the way down off the pass into the Scarred March', ['actor/creature/beast/frost_wolf', 'actor/creature/imp/fire_imp', 'actor/creature/golem/stone_golem', 'actor/creature/dragon'], () => {
   const f = fresh()
   toEmberfall(f)
   const p = W(f).player
@@ -2388,7 +2393,7 @@ req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem
   expect(whelps.every((w) => w.ai?.temper === 'aggressive')).toBe(true)
   // they come out around it, never on it
   expect(whelps.every((w) => JSON.stringify(W(f).posOf(w)) !== JSON.stringify(W(f).posOf(dragon)))).toBe(true)
-  // its fall ends the story
+  // its fall opens the way down into the March: no ending, the Second Seal next
   dragon.props!.hp = 1
   strike()
   expect(W(f).get(dragon.id)).toBeUndefined()
@@ -2402,7 +2407,9 @@ req('Q6', 'chapter 6, the pass and the lair: frost wolves, fire imps and a golem
     }),
   ).toBe(true)
   expect(fact(f, 'mq.dragon')).toBe(1)
-  expect(cards.length).toBe(1)
+  expect(cards.length).toBe(0)
+  expect(ticks(f, 60, () => f.eng.quests.stage('second_seal') >= 10)).toBe(true)
+  expect(W(f).map('pass')!.portals.filter((x) => x.to === 'lashmarks').every((x) => x.opensWhen === 'mq.dragon')).toBe(true)
   expect(W(f).num(p, 'level')).toBeGreaterThan(1)
 })
 
@@ -3060,7 +3067,7 @@ req('P1', "the prologue's end, offline: from Cloudtop (where a new game begins) 
   const at = new Map(index.maps.map((m) => [m.id, m.at]))
   expect(at.get('ford')).toEqual({ x: 0, y: 0 })
   expect(at.get('foot')!.y).toBe(-30)
-  expect(index.waypoints!.map((x) => x.id).sort()).toEqual(['wp.dawnhill', 'wp.eastroad', 'wp.foot', 'wp.ford', 'wp.hollow', 'wp.village'])
+  expect(index.waypoints!.map((x) => x.id).sort()).toEqual(['wp.bastion', 'wp.blackbalance', 'wp.boneisle', 'wp.catacombs', 'wp.causeway', 'wp.chaffroad', 'wp.confluence', 'wp.dawnhill', 'wp.eastroad', 'wp.foot', 'wp.ford', 'wp.hollow', 'wp.lashmarks', 'wp.village', 'wp.whitestair'])
   expect(travelToWaypoint(f.eng, 'wp.foot')).toBe(true)
   expect(w.posOf(p)).toMatchObject({ map: 'foot', x: PAT.footStone[0], y: PAT.footStone[1] + 1 })
 })
@@ -3657,8 +3664,8 @@ req('C1', 'Chapter 1, offline: the night of the flame (the grey man takes it), t
   expect(w.num(knight, 'maxHp')).toBeLessThan(BOSS_BY_ID.alberic.hp)
   // his skills' blows are multiples of his attack: lower here
   expect(w.num(knight, 'atk')).toBeLessThan(BOSS_BY_ID.alberic.atk)
-  // the way on to Emberfall is Part Two's (release 1 ends with the Crown home: docs/release-1.md)
-  expect(w.map('eastroad')!.portals.filter((p) => p.to === 'emberfall').every((p) => p.opensWhen === PART_TWO)).toBe(true)
+  // the way on to Emberfall is Chapter 2's, opened by the Crown home (docs/chapter-2.md §12)
+  expect(w.map('eastroad')!.portals.filter((p) => p.to === 'emberfall').every((p) => p.opensWhen === CHAPTER_TWO)).toBe(true)
   f.eng.damage(knight, 10000, undefined, true, { e: 'player' })
   expect(w.fact('sins.defeated.alberic')).toBe(1)
   // the Crown, the fairy's first power, the grey man, a longer night
@@ -3688,20 +3695,16 @@ req('C1', 'Chapter 1, offline: the night of the flame (the grey man takes it), t
   useThorn()
   ticks(f, 3)
   expect([qs(f, 'held_ground'), qs(f, 'crown_home')]).toEqual(['done', 'active'])
-  // home: the village, Nessa's four minutes, the chapter's card — and release 1's end with it (docs/release-1.md §1):
-  // the road on east waits for Part Two, and the Dragon Road with it
+  // home: the village, Nessa's four minutes, the chapter's card — and the road on east opens with it, Chapter 2's
+  // (docs/chapter-2.md §12): the Dragon Road begins
   f.eng.author(() => f.eng.teleport(w.player, { map: 'meadow', x: 20, y: 14 }))
   const cards: { text: { en: string } }[] = []
-  expect(ticks(f, 900, () => { cards.push(...(w.fx.filter((x) => x.t === 'card') as unknown as { text: { en: string } }[])); w.fx = []; return w.fact('ch1.end') === 1 && !!w.fact('seen.part_one') && !w.scene })).toBe(true)
+  expect(ticks(f, 900, () => { cards.push(...(w.fx.filter((x) => x.t === 'card') as unknown as { text: { en: string } }[])); w.fx = []; return w.fact('ch1.end') === 1 && !!w.fact('seen.chapter_end') && !w.scene })).toBe(true)
   expect(cards.length).toBe(1)
-  expect(cards[0].text.en).toMatch(/^CHAPTER ONE · THE FIRST SEAL[\s\S]*Part Two[\s\S]*the Held Ground/)
-  expect(w.fact('seen.chapter_end') ?? 0).toBeFalsy()
-  expect(quest()).toBe(2.9)
+  expect(cards[0].text.en).toMatch(/^CHAPTER ONE · THE FIRST SEAL[\s\S]*The road east to Emberfall is open\./)
+  expect(w.fact(CHAPTER_TWO)).toBe(1)
   ticks(f, 20)
   expect(f.eng.quests.isDone('crown_home')).toBe(true)
-  expect(f.eng.quests.stage('dragon_road')).toBe(0)
-  // Part Two opened (the dev console's): the Dragon Road begins
-  author(f, () => w.setFact(PART_TWO, 1))
   expect(ticks(f, 60, () => f.eng.quests.stage('dragon_road') === 10)).toBe(true)
 })
 
@@ -4217,6 +4220,617 @@ req('FL1', "the forest's flanks (docs/chapter-1.md §15): west, by the side trai
 
 /** What the flanks are made of (release 1, docs/release-1.md): FL2's. */
 const FLANK_THINGS = ['fixture/nature/soot', 'fixture/furniture/rack/nets', 'fixture/furniture/rack/fish', 'fixture/boat']
+req('CH2', "Chapter 2, the Second Seal (docs/chapter-2.md), offline: the road east open with the Crown home; Odran in Emberfall asks after Lucan; the way down off the pass shut while the dragon lives, open once it is dead; the Lashmarks — red ground cut by ravines, a cut that does not hurt, Dunn with an arrow in him; the camp of the Red Host, Holt signed on, Captain Brannoc; the dusk on the Lashmarks, the Left and the Right under one banner, Dunn dead on his feet; the Scourging House and its Prior, the channels under it and the grey man; the Bastion's old guard and the Left's banner; Matthias in the Pillar Yard, the Chain of the Scourging Post and Lumi's second power, the grey man again, a longer night; the quiet dusk at the camp and the chapter's card; the March's errands: Vera's bandages, Wil's drum, a word for Lucan, the stolen banner", [
+  'npc.odran', 'npc.brannoc', 'npc.vera', 'npc.wil', 'npc.lucan', 'npc.ivo', 'npc.kell', 'npc.dunn', 'npc.roderick', 'npc.osric',
+  'actor/creature/sin/matthias', 'fixture/sacred/scourging_post', 'fixture/sacred/whipping_post', 'fixture/sacred/red_channel', 'fixture/standard/red', 'fixture/sacred/tomb', 'fixture/furniture/throne', 'fixture/light/candelabrum',
+  'item/valuable/war_drum', 'item/valuable/left_banner', 'item/weapon/polearm/spear',
+], () => {
+  const f = fresh()
+  const w = W(f)
+  const c = f.eng.controls
+  const q = f.eng.quests
+  const played = (id: string) => !!w.fact(`seen.${id}`)
+  const waitFor = (id: string) => expect([id, ticks(f, 1500, () => played(id) && !w.scene)]).toEqual([id, true])
+  const go = (map: string, x: number, y: number) => f.eng.author(() => f.eng.teleport(w.player, { map, x, y }))
+  const give = (type: string, n: number) => { author(f, () => { for (let i = 0; i < n; i++) w.create(type, { on: 'inside', holder: 'player' }) }); c.sync() }
+  const pickUp = (id: string) => {
+    const at = w.posOf(w.get(id)!)!
+    const [x, y, dir] = beside(f, at.x, at.y, at.map)
+    stand(f, x, y, dir, at.map)
+    run(f, 'take', at.x, at.y)
+    expect([id, holderOf(f, id)]).toEqual([id, 'player'])
+  }
+  // Chapter 1 behind: the knight down, the Crown home, and with it the road east open (C1 plays the homecoming)
+  author(f, () => {
+    for (const id of ['first_seal', 'held_ground', 'crown_home']) q.put(id, 'done')
+    for (const k of [CH1.knight, CH1.crown, CH1.end, CHAPTER_TWO, 'seen.crown', 'seen.oath_thorn', 'seen.return', 'seen.chapter_end']) w.setFact(k, 1)
+    w.setFact('night.shift', 1)
+  })
+  ticks(f, 5)
+  expect(q.stage('dragon_road')).toBe(10)
+  // Emberfall: its arrival, an old brother of the Red Order on its square; his errand, a word for Lucan
+  setHour(f, 1, 9)
+  go('emberfall', 2, EMBERFALL.west[1])
+  waitFor('emberfall_arrival')
+  waitFor('odran_first')
+  take(f, 'npc.odran', 'odran')
+  // the way down off the pass: shut while the dragon lives (Q6 plays the fight), open once it is dead
+  expect(cross(f, 'pass', PASS.south[1], PASS.h - 2, 'down')).toBe('pass')
+  author(f, () => { q.put('dragon_road', 'done'); w.setFact('mq.dragon', 1) })
+  ticks(f, 5)
+  expect(q.stage('second_seal')).toBe(10)
+  go('pass', 20, 30)
+  waitFor('pass_south')
+  expect(cross(f, 'pass', PASS.south[1], PASS.h - 2, 'down')).toBe('lashmarks')
+  // the Lashmarks: red ground, the ravines two levels down, a cut that does not hurt, Dunn with an arrow in him
+  waitFor('march_descent')
+  expect([w.fact('ch2.march'), q.stage('second_seal')]).toEqual([1, 20])
+  expect(w.map('lashmarks')!.region).toBe('redmarch')
+  const drum = w.posOf(w.get('quest.wil.drum')!)!
+  expect(w.heightAt('lashmarks', drum.x, drum.y)).toBe(0)
+  expect(w.heightAt('lashmarks', 20, 14)).toBe(4)
+  expect(onMap(f, 'fixture/standard/red', 'lashmarks').length).toBe(2)
+  expect(onMap(f, 'item/weapon/polearm/spear', 'lashmarks').length).toBe(3)
+  // the camp of the Red Host: Holt has signed on; Captain Brannoc says where the Rider is
+  expect(cross(f, 'lashmarks', MARCH.lash.w - 2, MARCH.lash.east[1], 'right')).toBe('redcamp')
+  waitFor('camp_arrival')
+  expect(q.stage('second_seal')).toBe(30)
+  expect(talkTo(f, 'npc.brannoc')).toContain('骑者')
+  ticks(f, 3)
+  expect([q.stage('second_seal'), w.fact('ch2.camp')]).toEqual([40, 1])
+  expect(w.map('redcamp.warhall')!.kind).toBe('interior')
+  expect(Object.values(w.state.entities).filter((e) => e.type === 'fixture/furniture/throne' && e.place.on === 'tile' && e.place.map === 'redcamp.warhall').length).toBe(1)
+  // the camp's errands: Vera's bandages, Wil's drum (down in the middle ravine), the Left's banner
+  take(f, 'npc.vera', 'bandages')
+  give('item/material/cloth', 3)
+  give('item/material/herb', 3)
+  talkTo(f, 'npc.vera')
+  ticks(f, 2)
+  expect(qs(f, 'bandages')).toBe('done')
+  take(f, 'npc.wil', 'drum')
+  pickUp('quest.wil.drum')
+  talkTo(f, 'npc.wil')
+  ticks(f, 2)
+  expect(qs(f, 'drum')).toBe('done')
+  take(f, 'npc.brannoc', 'banner')
+  expect(talkTo(f, 'npc.kell')).not.toBe('')
+  // the dusk on the Lashmarks: the Left and the Right under one banner; Dunn sits down and does not get up
+  setHour(f, 1, 18)
+  go('lashmarks', 24, 15)
+  waitFor('dusk_battle')
+  expect(w.fact('ch2.dusk')).toBe(1)
+  expect(w.posOf(w.get('npc.dunn')!)?.map).toBe('offstage')
+  for (const id of ['npc.roderick', 'npc.osric']) expect(w.posOf(w.get(id)!)?.map).toBe('offstage')
+  // the Scourging House: its court of posts, its graves (one for a novice who is not dead), its Prior; a word for Lucan
+  expect(cross(f, 'redcamp', MARCH.camp.w - 2, MARCH.camp.east[1], 'right')).toBe('scourgehouse')
+  expect(onMap(f, 'fixture/sacred/whipping_post', 'scourgehouse').length).toBe(6)
+  expect(onMap(f, 'fixture/sacred/tomb', 'scourgehouse').some((e) => /ODRAN/.test(String(e.props?.text)))).toBe(true)
+  // (two words with him: the Second Seal's and Odran's, in the order the talk takes them)
+  const lucan = [talkTo(f, 'npc.lucan'), (ticks(f, 3), talkTo(f, 'npc.lucan'))]
+  ticks(f, 3)
+  expect(q.stage('second_seal')).toBe(50)
+  expect(lucan.some((t) => t.includes('替他受鞭'))).toBe(true)
+  expect(talkTo(f, 'npc.ivo')).not.toBe('')
+  expect(onMap(f, 'fixture/light/candelabrum', 'scourgehouse.hall').length).toBe(2)
+  // the undercroft: the channels run west under the wall; the grey man has been reading them
+  go('scourgehouse.undercroft', 12, 14)
+  waitFor('undercroft')
+  expect(w.fact('ch2.channels')).toBe(1)
+  expect(onMap(f, 'fixture/sacred/red_channel', 'scourgehouse.undercroft').length).toBeGreaterThan(20)
+  expect(w.posOf(w.get('npc.severin')!)?.map).toBe('offstage')
+  // the Bastion: the old guard at their posts, the Left's banner by the keep's gate
+  expect(cross(f, 'scourgehouse', MARCH.house.w - 2, MARCH.house.east[1], 'right')).toBe('bastion')
+  waitFor('bastion_ward')
+  expect(onMap(f, 'actor/creature/undead/skeleton', 'bastion').length).toBe(6)
+  ticks(f, 3)
+  expect(q.stage('second_seal')).toBe(60)
+  pickUp('quest.brannoc.banner')
+  // the Pillar Yard behind the keep's fog: Matthias at the post, softer here than in the Boss Challenge
+  go('pillaryard', 14, 26)
+  walk(f, 'up')
+  waitFor('pillar_yard')
+  const matthias = w.get('pillaryard.matthias')!
+  expect(matthias.type).toBe(BOSS_BY_ID.matthias.type)
+  expect(w.num(matthias, 'maxHp')).toBeLessThan(BOSS_BY_ID.matthias.hp)
+  expect(onMap(f, 'fixture/sacred/scourging_post', 'pillaryard').length).toBe(1)
+  f.eng.damage(matthias, 10000, undefined, true, { e: 'player' })
+  expect(w.fact('sins.defeated.matthias')).toBe(1)
+  // the Chain, the fairy's second power, the grey man, a longer night
+  expect(ticks(f, 1500, () => w.fact('ch2.chain') === 1 && !w.scene)).toBe(true)
+  expect(c.count('item/relic/post_chain')).toBe(1)
+  // (Chapter 1 here is facts, not its scenes: the first power is C1's to give)
+  expect(boonsOf(w, w.get('pip')!)).toContain('endure')
+  expect(w.stat(w.player, 'def')).toBeGreaterThanOrEqual(3)
+  expect(w.posOf(w.get('npc.severin')!)?.map).toBe('offstage')
+  expect(w.fact('night.shift')).toBe(2)
+  setHour(f, 2, 19.5)
+  expect(w.isNight()).toBe(true)
+  ticks(f, 5)
+  expect([qs(f, 'second_seal'), qs(f, 'march_quiet')]).toEqual(['done', 'active'])
+  // the quiet dusk at the camp: the chapter's card
+  go('redcamp', 20, 14)
+  const cards: { text: { en: string } }[] = []
+  expect(ticks(f, 1500, () => { cards.push(...(w.fx.filter((x) => x.t === 'card') as unknown as { text: { en: string } }[])); w.fx = []; return !!w.fact('seen.chapter2_end') && !w.scene })).toBe(true)
+  expect(cards.map((x) => x.text.en)).toEqual([expect.stringMatching(/^CHAPTER TWO · THE SECOND SEAL/)])
+  expect([w.fact('ch2.end'), qs(f, 'march_quiet')]).toEqual([1, 'done'])
+  // the errands handed in: the banner to Brannoc, the word to Odran
+  talkTo(f, 'npc.brannoc')
+  ticks(f, 2)
+  expect(qs(f, 'banner')).toBe('done')
+  talkTo(f, 'npc.odran')
+  ticks(f, 2)
+  expect([qs(f, 'odran'), c.count('item/valuable/novice_scourge')]).toEqual(['done', 1])
+})
+
+req('CH3', "Chapter 3, the Third Seal (docs/chapter-3.md), offline: the grain road open with the March quiet, out of the camp's south gate, eight days on the card; the Chaff Road's dead fields and a Lightened man at work at noon; Nessa at the waystone; Fairweight's weighing day, a widow found light against the Church's black weight; Sister Berthe at the poorhouse; the White Pans, the Standing in rows, one gone to dust in the wind, the salt-works' scale that does not move under Lumi; the Black Balance's dead clerks, the ledger of five columns and the grey man; Ele on the Scale Floor, the Scale of Hunger and Lumi's third power, the grey man again, a longer night; the Lightened hungry again, the granary opened with the Guild's key, the supper and the chapter's card, the road to the Fens; the Vale's errands: bread for the poorhouse, Elsie's mother's scarf, Corwin's wife's name, one more grinding", [
+  'npc.haskel', 'npc.berthe', 'npc.elsie', 'npc.corwin', 'npc.edith', 'npc.ottilie', 'npc.godwin',
+  'actor/creature/sin/ele', 'fixture/scale/wayside', 'fixture/scale/great', 'fixture/sacred/weight_of_sin', 'fixture/sacred/hanging_pan', 'fixture/furniture/ledger', 'fixture/nature/salt_pan', 'fixture/remains/dust',
+  'fixture/remains/standing/a', 'fixture/remains/standing/b', 'fixture/remains/standing/c', 'fixture/door/granary', 'fixture/nature/dead_wheat',
+  'item/valuable/blue_scarf', 'fixture/light/lamppost/street', 'fixture/water/well/square', 'fixture/garden/bench', 'fixture/furniture/desk', 'fixture/container/bookcase',
+], () => {
+  const f = fresh()
+  const w = W(f)
+  const c = f.eng.controls
+  const q = f.eng.quests
+  const played = (id: string) => !!w.fact(`seen.${id}`)
+  const waitFor = (id: string) => expect([id, ticks(f, 1500, () => played(id) && !w.scene)]).toEqual([id, true])
+  const go = (map: string, x: number, y: number) => f.eng.author(() => f.eng.teleport(w.player, { map, x, y }))
+  const give = (type: string, n: number) => { author(f, () => { for (let i = 0; i < n; i++) w.create(type, { on: 'inside', holder: 'player' }) }); c.sync() }
+  const pickUp = (id: string) => {
+    const at = w.posOf(w.get(id)!)!
+    const [x, y, dir] = beside(f, at.x, at.y, at.map)
+    stand(f, x, y, dir, at.map)
+    run(f, 'take', at.x, at.y)
+    expect([id, holderOf(f, id)]).toEqual([id, 'player'])
+  }
+  // Chapter 2 behind: Matthias down, the quiet dusk played, and with it the grain road open (CH2 plays the March)
+  author(f, () => {
+    for (const id of ['first_seal', 'held_ground', 'crown_home', 'dragon_road', 'second_seal', 'march_quiet']) q.put(id, 'done')
+    for (const k of [CH1.knight, CH1.crown, CH1.end, CHAPTER_TWO, 'mq.dragon', 'ch2.march', 'ch2.camp', 'ch2.chain', 'ch2.end', 'sins.defeated.matthias', CHAPTER_THREE, 'seen.chapter2_end', 'seen.quiet_dusk']) w.setFact(k, 1)
+    w.setFact('night.shift', 2)
+  })
+  ticks(f, 5)
+  expect(q.stage('grain_road')).toBe(10)
+  // the camp's south gate: the grain road, eight days on a card; the Chaff Road's dead fields and a Lightened man at noon
+  setHour(f, 3, 11)
+  const cards: string[] = []
+  const watchCards = () => { cards.push(...(w.fx.filter((x) => x.t === 'card') as unknown as { text: { en: string } }[]).map((x) => x.text.en)); w.fx = [] }
+  expect(cross(f, 'redcamp', MARCH.camp.south[0], MARCH.camp.h - 2, 'down')).toBe('chaffroad')
+  expect(ticks(f, 1500, () => (watchCards(), played('vale_arrival') && !w.scene))).toBe(true)
+  expect(cards).toEqual([expect.stringMatching(/^The grain road ran south and east for eight days/)])
+  expect([w.fact(CH3.road), q.stage('grain_road')]).toEqual([1, 20])
+  expect(w.map('chaffroad')!.region).toBe('tithe')
+  expect(onMap(f, 'fixture/nature/dead_wheat', 'chaffroad').length).toBeGreaterThan(60)
+  expect(onMap(f, 'fixture/scale/wayside', 'chaffroad').length).toBe(1)
+  // the almanac-maker at the waystone
+  go('chaffroad', 38, 11)
+  waitFor('nessa_vale')
+  // Fairweight's weighing day: the widow found light against the Church's black weight
+  expect(cross(f, 'chaffroad', VALE.road.w - 2, VALE.road.east[1], 'right')).toBe('fairweight')
+  ticks(f, 3)
+  expect(q.stage('grain_road')).toBe(30)
+  go('fairweight', 15, 12)
+  waitFor('weighing')
+  expect([w.fact(CH3.weighing), qs(f, 'grain_road'), q.stage('third_seal')]).toEqual([1, 'done', 10])
+  expect(onMap(f, 'fixture/sacred/weight_of_sin', 'fairweight.weighhouse').length).toBe(1)
+  // the town's errands: bread for the poorhouse, Corwin's wife's name (the Weighmaster remembers), one more grinding
+  // Sister Berthe: hunger is how the body asks to live
+  expect(talkTo(f, 'npc.berthe')).toContain('白盐滩')
+  ticks(f, 3)
+  expect([q.stage('third_seal'), w.fact(CH3.maud)]).toEqual([20, 1])
+  take(f, 'npc.berthe', 'poorbread')
+  give('item/food/bread', 4)
+  talkTo(f, 'npc.berthe')
+  ticks(f, 2)
+  expect(qs(f, 'poorbread')).toBe('done')
+  take(f, 'npc.corwin', 'wifename')
+  expect(talkTo(f, 'npc.haskel')).toContain('阿格尼丝')
+  ticks(f, 2)
+  talkTo(f, 'npc.corwin')
+  ticks(f, 2)
+  expect(qs(f, 'wifename')).toBe('done')
+  take(f, 'npc.godwin', 'grinding')
+  give('item/material/wheat', 6)
+  talkTo(f, 'npc.godwin')
+  ticks(f, 2)
+  expect(qs(f, 'grinding')).toBe('done')
+  take(f, 'npc.elsie', 'scarf')
+  // the White Pans: the salt-works' scale under Lumi; the Standing, and one gone to dust; Elsie's mother's scarf
+  expect(cross(f, 'fairweight', VALE.town.w - 2, VALE.town.east[1], 'right')).toBe('saltpans')
+  go('saltpans', 10, 8)
+  waitFor('lumi_pan')
+  expect(onMap(f, 'fixture/remains/standing/a', 'saltpans').length + onMap(f, 'fixture/remains/standing/b', 'saltpans').length).toBeGreaterThan(20)
+  go('saltpans', 26, 15)
+  waitFor('standing')
+  expect([w.get('saltpans.crumbling')!.type, w.fact(CH3.pans), q.stage('third_seal')]).toEqual([DUST_HEAP, 1, 30])
+  pickUp('quest.elsie.scarf')
+  // the Black Balance: the dead clerks at their desks; the counting room, the ledger of five columns, the grey man
+  expect(cross(f, 'saltpans', VALE.pans.w - 2, VALE.pans.east[1], 'right')).toBe('blackbalance')
+  waitFor('balance_court')
+  ticks(f, 3)
+  expect(q.stage('third_seal')).toBe(40)
+  expect(onMap(f, 'actor/creature/undead/ghost', 'blackbalance').length).toBe(6)
+  go('blackbalance.counting', 12, 12)
+  waitFor('ledger')
+  expect([w.fact(CH3.ledger), q.stage('third_seal')]).toEqual([1, 50])
+  expect(String(w.get('blackbalance.ledger')!.props?.text)).toMatch(/THE HALL/)
+  expect(w.posOf(w.get('npc.severin')!)?.map).toBe('offstage')
+  // the Scale Floor behind the fog: Ele, softer here than in the Boss Challenge
+  go('scalefloor', 14, 26)
+  walk(f, 'up')
+  waitFor('scale_floor')
+  const ele = w.get('scalefloor.ele')!
+  expect(ele.type).toBe(BOSS_BY_ID.ele.type)
+  expect(w.num(ele, 'maxHp')).toBeLessThan(BOSS_BY_ID.ele.hp)
+  f.eng.damage(ele, 10000, undefined, true, { e: 'player' })
+  expect(w.fact('sins.defeated.ele')).toBe(1)
+  // the Scale, the fairy's third power, the grey man, a longer night
+  expect(ticks(f, 1500, () => w.fact(CH3.scale) === 1 && !w.scene)).toBe(true)
+  expect(c.count('item/relic/scale_of_hunger')).toBe(1)
+  expect(boonsOf(w, w.get('pip')!)).toContain('fast')
+  expect(w.fact('night.shift')).toBe(3)
+  setHour(f, 4, 18.5)
+  expect(w.isNight()).toBe(true)
+  ticks(f, 5)
+  expect([qs(f, 'third_seal'), qs(f, 'granary')]).toEqual(['done', 'active'])
+  // Fairweight hungry: the granary sealed; the Guild's key from Ottilie, worked at its doors
+  setHour(f, 5, 10)
+  go('fairweight', 20, 16)
+  waitFor('hunger')
+  expect(q.stage('granary')).toBe(20)
+  expect(talkTo(f, 'npc.ottilie')).toContain('钥匙')
+  ticks(f, 3)
+  expect([q.stage('granary'), c.count('item/key/granary')]).toEqual([30, 1])
+  const doors = w.get('fairweight.granary.doors')!
+  const dp = w.posOf(doors)!
+  hold(f, Object.values(w.state.entities).find((e) => e.type === 'item/key/granary' && e.place.on === 'inside'))
+  stand(f, dp.x, dp.y + 1, 'up', 'fairweight')
+  run(f, 'secondary', dp.x, dp.y)
+  ticks(f, 3)
+  expect([w.get('fairweight.granary.doors'), w.fact(CH3.granary), q.stage('granary')]).toEqual([undefined, 1, 40])
+  // the supper at dusk, the chapter's card, the road south to the Fens
+  setHour(f, 5, 17.2)
+  go('fairweight', 22, 18)
+  cards.length = 0
+  expect(ticks(f, 1500, () => (watchCards(), played('chapter3_end') && !w.scene))).toBe(true)
+  expect(cards).toEqual([expect.stringMatching(/^CHAPTER THREE · THE THIRD SEAL/)])
+  expect([w.fact(CH3.end), w.fact(CHAPTER_FOUR), qs(f, 'granary')]).toEqual([1, 1, 'done'])
+  // Elsie's errand handed in
+  talkTo(f, 'npc.elsie')
+  ticks(f, 2)
+  expect(qs(f, 'scarf')).toBe('done')
+})
+
+req('CH4', "Chapter 4, the Fourth Seal (docs/chapter-4.md), offline: the fen road open with the Vale fed, out of Fairweight's fields, five days on the card; the Long Causeway's nailed graves; Nailgate on its piles, the sexton's nail, Liese at Piet's door not knowing his name; Nessa's sunset table beside the Church's chronicle of the Holy Body; the Drowned Graves at dusk and the Rider gathering the Pale; the Ossuary of the Holy Wood, the black Shroud and the grey man on his knees; Nacht at the Ford of the Dead, the Holy Wood and Lumi's fourth power, the dead knowing her, the pilgrim's hand on the lantern, a longer night; the ferry at Nailgate, the dead lying down, the chapter's card and the road west; the Fens' errands: the ferryman's coin, Jory's kite, nails", [
+  'npc.klaas', 'npc.hedda', 'npc.piet', 'npc.liese', 'npc.sanne', 'npc.jory', 'npc.barnaby',
+  'actor/creature/sin/nacht', 'fixture/sacred/nail_post', 'fixture/sacred/grave_post', 'fixture/sacred/shroud', 'fixture/sacred/holy_wood', 'item/valuable/kite',
+  'actor/creature/wisp', 'actor/creature/undead/zombie', 'fixture/sacred/cross', 'fixture/sacred/sarcophagus', 'site/place/graveyard',
+], () => {
+  const f = fresh()
+  const w = W(f)
+  const c = f.eng.controls
+  const q = f.eng.quests
+  const played = (id: string) => !!w.fact(`seen.${id}`)
+  const waitFor = (id: string) => expect([id, ticks(f, 1500, () => played(id) && !w.scene)]).toEqual([id, true])
+  const go = (map: string, x: number, y: number) => f.eng.author(() => f.eng.teleport(w.player, { map, x, y }))
+  const give = (type: string, n: number) => { author(f, () => { for (let i = 0; i < n; i++) w.create(type, { on: 'inside', holder: 'player' }) }); c.sync() }
+  const pickUp = (id: string) => {
+    const at = w.posOf(w.get(id)!)!
+    const [x, y, dir] = beside(f, at.x, at.y, at.map)
+    stand(f, x, y, dir, at.map)
+    run(f, 'take', at.x, at.y)
+    expect([id, holderOf(f, id)]).toEqual([id, 'player'])
+  }
+  const cards: string[] = []
+  const watchCards = () => { cards.push(...(w.fx.filter((x) => x.t === 'card') as unknown as { text: { en: string } }[]).map((x) => x.text.en)); w.fx = [] }
+  // Chapters 2 and 3 behind: Ele down, the supper eaten, and with it the fen road open (CH3 plays the Vale)
+  author(f, () => {
+    for (const id of ['first_seal', 'held_ground', 'crown_home', 'dragon_road', 'second_seal', 'march_quiet', 'grain_road', 'third_seal', 'granary']) q.put(id, 'done')
+    for (const k of [CH1.knight, CH1.crown, CH1.end, CHAPTER_TWO, 'mq.dragon', 'ch2.end', 'sins.defeated.matthias', CHAPTER_THREE, CH3.road, CH3.scale, CH3.end, 'sins.defeated.ele', CHAPTER_FOUR, 'seen.chapter3_end', 'seen.supper']) w.setFact(k, 1)
+    w.setFact('night.shift', 3)
+  })
+  ticks(f, 5)
+  expect(q.stage('fen_road')).toBe(10)
+  // Fairweight's fields: the fen road south, five days on a card; the causeway's nailed graves
+  setHour(f, 6, 11)
+  expect(cross(f, 'fairweight', VALE.town.south[0], VALE.town.h - 2, 'down')).toBe('causeway')
+  expect(ticks(f, 1500, () => (watchCards(), played('fen_arrival') && !w.scene))).toBe(true)
+  expect(cards).toEqual([expect.stringMatching(/^The road went down into the fens for five days/)])
+  expect([w.fact(CH4.road), q.stage('fen_road'), w.map('causeway')!.region]).toEqual([1, 20, 'palefen'])
+  expect(onMap(f, 'fixture/sacred/grave_post', 'causeway').length).toBeGreaterThanOrEqual(8)
+  // Nailgate: the sexton's nail in Piet's doorpost, Liese at the door not knowing his name
+  expect(cross(f, 'causeway', FEN.road.south[0], FEN.road.h - 2, 'down')).toBe('nailgate')
+  waitFor('kept')
+  expect([w.fact(CH4.kept), q.stage('fen_road')]).toEqual([1, 30])
+  expect(w.posOf(w.get('npc.liese')!)?.map).toBe('nailgate.piet')
+  expect(onMap(f, 'fixture/sacred/nail_post', 'nailgate').length).toBeGreaterThanOrEqual(6)
+  // the village's errands: the ferryman's coin for Hedda, nails for the sexton, Jory's kite
+  // (her house first woken: a word with her as one comes in)
+  talkTo(f, 'npc.hedda')
+  take(f, 'npc.hedda', 'ferrycoin')
+  expect(talkTo(f, 'npc.klaas')).toContain('海达')
+  ticks(f, 2)
+  talkTo(f, 'npc.hedda')
+  ticks(f, 2)
+  expect([qs(f, 'ferrycoin'), c.count('item/valuable/ferry_coin')]).toEqual(['done', 1])
+  take(f, 'npc.barnaby', 'nails')
+  give('item/material/iron_ingot', 3)
+  talkTo(f, 'npc.barnaby')
+  ticks(f, 2)
+  expect(qs(f, 'nails')).toBe('done')
+  take(f, 'npc.sanne', 'kite')
+  // the chapel: Nessa's table beside the Church's chronicle of the Holy Body
+  go('nailgate.chapel', 8, 9)
+  waitFor('quickening')
+  expect([w.fact(CH4.nessa), qs(f, 'fen_road'), q.stage('fourth_seal')]).toEqual([1, 'done', 10])
+  expect(String(w.get('nailgate.chronicle')!.props?.text)).toMatch(/QUICKENING/)
+  // the Drowned Graves: Jory's kite in the dead tree; at dusk the Rider gathers the Pale
+  expect(cross(f, 'nailgate', FEN.village.south[0], FEN.village.h - 2, 'down')).toBe('drowned')
+  pickUp('quest.sanne.kite')
+  setHour(f, 6, 18)
+  go('drowned', 22, 4)
+  waitFor('rider')
+  expect(w.fact(CH4.rider)).toBe(1)
+  expect(onMap(f, 'actor/creature/undead/zombie', 'drowned').length).toBeGreaterThanOrEqual(4)
+  expect(onMap(f, 'actor/creature/wisp', 'drowned').length + onMap(f, 'fixture/sacred/cross', 'drowned').length + onMap(f, 'fixture/sacred/sarcophagus', 'drowned').length).toBeGreaterThan(3)
+  expect(w.get('site.drowned')!.type).toBe('site/place/graveyard')
+  // the kite to Sanne before the ferry
+  go('nailgate', 9, 24)
+  talkTo(f, 'npc.sanne')
+  ticks(f, 2)
+  expect(qs(f, 'kite')).toBe('done')
+  // the Ossuary of the Holy Wood: the black Shroud, the grey man on his knees, the pilgrim's belief
+  go('drowned', 40, 16)
+  expect(cross(f, 'drowned', FEN.graves.w - 2, FEN.graves.east[0], 'right')).toBe('boneisle')
+  ticks(f, 3)
+  expect(q.stage('fourth_seal')).toBe(20)
+  go('boneisle.reliquary', 10, 12)
+  waitFor('shroud')
+  expect([w.fact(CH4.shroud), q.stage('fourth_seal')]).toEqual([1, 30])
+  expect(w.get('boneisle.shroud')!.type).toBe('fixture/sacred/shroud')
+  expect(w.posOf(w.get('npc.severin')!)?.map).toBe('offstage')
+  // the Ford of the Dead behind the fog: Nacht, softer here than in the Boss Challenge
+  go('deadford', 14, 26)
+  walk(f, 'up')
+  waitFor('dead_ford')
+  const nacht = w.get('deadford.nacht')!
+  expect(nacht.type).toBe(BOSS_BY_ID.nacht.type)
+  expect(w.num(nacht, 'maxHp')).toBeLessThan(BOSS_BY_ID.nacht.hp)
+  expect(onMap(f, 'fixture/sacred/holy_wood', 'deadford').length).toBe(1)
+  f.eng.damage(nacht, 10000, undefined, true, { e: 'player' })
+  expect(w.fact('sins.defeated.nacht')).toBe(1)
+  // the Holy Wood, the fairy's fourth power, the grey man and the pilgrim's hand on the lantern, a longer night
+  expect(ticks(f, 1500, () => w.fact(CH4.wood) === 1 && !w.scene)).toBe(true)
+  expect(c.count('item/relic/holy_wood')).toBe(1)
+  expect(boonsOf(w, w.get('pip')!)).toContain('hold')
+  expect(w.fact('night.shift')).toBe(4)
+  expect(w.posOf(w.get('npc.severin')!)?.map).toBe('nailgate')
+  setHour(f, 7, 17.5)
+  expect(w.isNight()).toBe(true)
+  ticks(f, 5)
+  expect([qs(f, 'fourth_seal'), qs(f, 'ferry')]).toEqual(['done', 'active'])
+  // the ferry at Nailgate: the dead lie down, the chapter's card, the road west
+  go('nailgate', 23, 14)
+  cards.length = 0
+  expect(ticks(f, 1500, () => (watchCards(), played('chapter4_end') && !w.scene))).toBe(true)
+  expect(cards).toEqual([expect.stringMatching(/^CHAPTER FOUR · THE FOURTH SEAL/)])
+  expect([w.fact(CH4.end), w.fact(CHAPTER_FIVE), qs(f, 'ferry')]).toEqual([1, 1, 'done'])
+  for (const id of ['npc.liese', 'npc.jory', 'npc.hedda']) expect([id, w.posOf(w.get(id)!)?.map]).toEqual([id, 'offstage'])
+})
+
+req('CH5', "Chapter 5, the Fifth Seal (docs/chapter-5.md), offline: the road west open with the Fens at rest, out of Nailgate's west walk, six days on the card; the White Stair's robes over the graves, Severin beside the pilgrim, the hermit who turned back; Whiteveil Abbey and its abbot; the roll in the robing house, a robe sewn to the pilgrim's measure, Severin's reading; the catacombs, the white-robed murmuring, Cassian's empty niche and the second's, Lumi reading her own name; the Witnesses beneath the altar, the Lance and Lumi's fifth power, the flame burning white, a longer night; the bells at four, the abbot kneeling, the chapter's card and the road to the Holy City; the Heights' errands: Cassian's scallop laid in his niche, thread for Agathe, a road pass for Tomas", [
+  'npc.benedek', 'npc.agathe', 'npc.tomas', 'npc.ysolde',
+  'actor/creature/sin/witnesses', 'fixture/sacred/robe_pole', 'fixture/sacred/niche', 'fixture/sacred/niche/empty', 'fixture/sacred/lance_altar', 'fixture/remains/robed', 'fixture/remains/robed/kneeling', 'fixture/craft/sewing_frame', 'item/document/road_pass',
+  'actor/creature/beast/frost_wolf', 'fixture/garden/cypress', 'fixture/garden/topiary', 'fixture/sacred/altar/high', 'fixture/sacred/statue/martyr', 'fixture/furniture/pew',
+], () => {
+  const f = fresh()
+  const w = W(f)
+  const c = f.eng.controls
+  const q = f.eng.quests
+  const played = (id: string) => !!w.fact(`seen.${id}`)
+  const waitFor = (id: string) => expect([id, ticks(f, 1500, () => played(id) && !w.scene)]).toEqual([id, true])
+  const go = (map: string, x: number, y: number) => f.eng.author(() => f.eng.teleport(w.player, { map, x, y }))
+  const give = (type: string, n: number) => { author(f, () => { for (let i = 0; i < n; i++) w.create(type, { on: 'inside', holder: 'player' }) }); c.sync() }
+  const pickUp = (id: string) => {
+    const at = w.posOf(w.get(id)!)!
+    const [x, y, dir] = beside(f, at.x, at.y, at.map)
+    stand(f, x, y, dir, at.map)
+    run(f, 'take', at.x, at.y)
+    expect([id, holderOf(f, id)]).toEqual([id, 'player'])
+  }
+  const cards: string[] = []
+  const watchCards = () => { cards.push(...(w.fx.filter((x) => x.t === 'card') as unknown as { text: { en: string } }[]).map((x) => x.text.en)); w.fx = [] }
+  // Chapters 2 to 4 behind: Nacht down, the ferry gone out, and with it the road west open (CH4 plays the Fens)
+  author(f, () => {
+    for (const id of ['first_seal', 'held_ground', 'crown_home', 'dragon_road', 'second_seal', 'march_quiet', 'grain_road', 'third_seal', 'granary', 'fen_road', 'fourth_seal', 'ferry']) q.put(id, 'done')
+    for (const k of [CH1.knight, CH1.crown, CH1.end, CHAPTER_TWO, 'mq.dragon', 'ch2.end', 'sins.defeated.matthias', CHAPTER_THREE, CH3.end, 'sins.defeated.ele', CHAPTER_FOUR, CH4.wood, CH4.end, 'sins.defeated.nacht', CHAPTER_FIVE, 'seen.chapter4_end', 'seen.ferry']) w.setFact(k, 1)
+    w.setFact('night.shift', 4)
+  })
+  ticks(f, 5)
+  expect(q.stage('white_stair')).toBe(10)
+  // Nailgate's west walk: the road west, six days on a card; the robes over the stair's graves, Severin beside
+  setHour(f, 8, 10)
+  expect(cross(f, 'nailgate', 1, FEN.village.west[0], 'left')).toBe('whitestair')
+  expect(ticks(f, 1500, () => (watchCards(), played('stair_arrival') && !w.scene))).toBe(true)
+  expect(cards).toEqual([expect.stringMatching(/^West, the land climbed out of the fens/)])
+  expect([w.fact(CH5.road), q.stage('white_stair'), w.map('whitestair')!.region]).toEqual([1, 20, 'altar'])
+  expect(w.posOf(w.get('npc.severin')!)?.map).toBe('whitestair')
+  expect(onMap(f, 'fixture/sacred/robe_pole', 'whitestair').length).toBeGreaterThanOrEqual(8)
+  // the hermit on the heath, who turned back at the third seal
+  go('whitestair', 9, 20)
+  waitFor('hermit')
+  // up to Whiteveil, its abbot
+  expect(cross(f, 'whitestair', HEIGHTS.stair.north[0], 1, 'up')).toBe('whiteveil')
+  ticks(f, 3)
+  expect(q.stage('white_stair')).toBe(30)
+  expect(talkTo(f, 'npc.benedek')).toContain('名册')
+  ticks(f, 3)
+  expect([qs(f, 'white_stair'), w.fact(CH5.abbot), q.stage('fifth_seal')]).toEqual(['done', 1, 10])
+  // the abbey's errands: Cassian's niche, thread for Agathe, a road pass for Tomas
+  take(f, 'npc.benedek', 'cassian')
+  take(f, 'npc.agathe', 'thread')
+  give('item/material/cloth', 3)
+  talkTo(f, 'npc.agathe')
+  ticks(f, 2)
+  expect(qs(f, 'thread')).toBe('done')
+  take(f, 'npc.tomas', 'leaving')
+  pickUp('quest.tomas.pass')
+  talkTo(f, 'npc.tomas')
+  ticks(f, 2)
+  expect(qs(f, 'leaving')).toBe('done')
+  // the robing house: the roll, the robe on the frame, Severin's reading
+  go('whiteveil.robing', 10, 10)
+  waitFor('roll')
+  expect([w.fact(CH5.roll), q.stage('fifth_seal')]).toEqual([1, 20])
+  expect(String(w.get('whiteveil.roll')!.props?.text)).toMatch(/A BEARER NEW/)
+  // the abbey's church: its high altar over the white-robed, the martyrs' statues, the pews; the garth's cypresses and box
+  for (const type of ['fixture/sacred/altar/high', 'fixture/sacred/statue/martyr', 'fixture/furniture/pew']) expect([type, onMap(f, type, 'whiteveil.church').length > 0]).toEqual([type, true])
+  for (const type of ['fixture/garden/cypress', 'fixture/garden/topiary']) expect([type, onMap(f, type, 'whiteveil').length > 0]).toEqual([type, true])
+  // the catacombs: Cassian's scallop laid in his niche (the scallop Ilse let the pilgrim keep, Chapter 1)
+  const niche = w.posOf(w.get('catacombs.cassian')!)!
+  give('item/valuable/scallop', 1)
+  hold(f, Object.values(w.state.entities).find((e) => e.type === 'item/valuable/scallop' && e.place.on === 'inside'))
+  stand(f, niche.x + 1, niche.y, 'left', 'catacombs')
+  run(f, 'secondary', niche.x, niche.y)
+  ticks(f, 3)
+  expect([w.fact(CH5.cassian), c.count('item/valuable/scallop')]).toEqual([1, 0])
+  expect(String(w.get('catacombs.cassian')!.props?.text)).toMatch(/BROUGHT/)
+  // the north gallery: the white-robed murmuring; the second's niche, Lumi reading her own name
+  go('catacombs', 15, 4)
+  waitFor('the_niches')
+  expect([w.fact(CH5.niches), q.stage('fifth_seal')]).toEqual([1, 30])
+  expect(String(w.get('catacombs.second')!.props?.text)).toMatch(/THE SECOND/)
+  expect(onMap(f, 'fixture/sacred/niche', 'catacombs').length).toBeGreaterThan(40)
+  // beneath the altar behind the fog: the Witnesses, softer here than in the Boss Challenge
+  go('beneathaltar', 14, 26)
+  walk(f, 'up')
+  waitFor('beneath_altar')
+  const wit = w.get('beneathaltar.witnesses')!
+  expect(wit.type).toBe(BOSS_BY_ID.witnesses.type)
+  expect(w.num(wit, 'maxHp')).toBeLessThan(BOSS_BY_ID.witnesses.hp)
+  expect(onMap(f, 'fixture/remains/robed', 'beneathaltar').length + onMap(f, 'fixture/remains/robed/kneeling', 'beneathaltar').length).toBeGreaterThan(40)
+  f.eng.damage(wit, 10000, undefined, true, { e: 'player' })
+  expect(w.fact('sins.defeated.witnesses')).toBe(1)
+  // the Lance, the fairy's fifth power, the flame white, a longer night
+  expect(ticks(f, 1500, () => w.fact(CH5.lance) === 1 && !w.scene)).toBe(true)
+  expect(c.count('item/weapon/polearm/spear/holy_lance')).toBe(1)
+  expect(boonsOf(w, w.get('pip')!)).toContain('pierce')
+  expect(w.fact('night.shift')).toBe(5)
+  setHour(f, 9, 16.5)
+  expect(w.isNight()).toBe(true)
+  ticks(f, 5)
+  expect([qs(f, 'fifth_seal'), qs(f, 'bells')]).toEqual(['done', 'active'])
+  // the Cassian errand handed in, the robe that waited thirty-one years
+  talkTo(f, 'npc.benedek')
+  ticks(f, 2)
+  expect(qs(f, 'cassian')).toBe('done')
+  // the bells at four, the abbot kneeling, the chapter's card, the road down to the Holy City
+  setHour(f, 10, 15)
+  go('whiteveil', 22, 30)
+  cards.length = 0
+  expect(ticks(f, 1500, () => (watchCards(), played('chapter5_end') && !w.scene))).toBe(true)
+  expect(cards).toEqual([expect.stringMatching(/^CHAPTER FIVE · THE FIFTH SEAL/)])
+  expect([w.fact(CH5.end), w.fact(FINALE), qs(f, 'bells')]).toEqual([1, 1, 'done'])
+})
+
+// the main line's sets (docs/sets.md): what lies on the maps of them — the rest are sold, paid by quests or dropped by the
+// Seal-bearers (tools/test/gearsets.test.ts holds every piece to where its set's file says)
+const LAID_PIECES = SET_PIECES.filter((p) => p.piece.from.startsWith('map:'))
+req('SETS', "the main line's sets (docs/sets.md): every piece a set lays on a map lies there, in someone's bones or a chest — the Order of the Thorn's dead on the Pilgrim's Road, the vigil-keeper's things, the miners, the dragon's hoard, Severin's brothers, the Red Order, the tithe riders, the Lightened, the Black Balance, the Fens' drowned and sexton's lamps, the reliquary, the riders nailed down, the stair's bearers, those who turned back, the restless, the Elect's honours, the white-robed, the wardens, the Curia, the last door, the second's relics, and a pilgrim before you in every chapter", LAID_PIECES.map((p) => p.type), () => {
+  const { chunks } = buildFord({ overworld: false })
+  for (const p of LAID_PIECES) {
+    const map = p.piece.from.slice('map:'.length)
+    const c = chunks.find((x) => x.map.id === map)!
+    const it = c.entities.find((e) => e.type === p.type)
+    expect(it?.place.on, p.type).toBe('inside')
+    const holder = c.entities.find((e) => it?.place.on === 'inside' && e.id === it.place.holder)
+    expect(['fixture/remains/bones', 'fixture/container/chest'], p.type).toContain(holder?.type)
+  }
+}, 120_000)
+
+req('FIN', "the finale (docs/finale.md), offline: the road down to the Holy City open with the fifth seal down, out of Whiteveil's close, the bells on the card; the close of the Most Holy Hall, the avenue of the five bearers' statues, Severin going in under; Nessa on the parvis; the Primate at the altar, the truth not believed, the floor opened; the Confluence, the five lands' channels meeting, Severin waiting; the Rite and Astra waking, the way up open; Astra down, his last words, the Night out of him, the lantern out, the way up the Night's; the Five taken up at the bier, Lumi going up to the morning, the sun risen whole, the last sentence; after it the pilgrim kept in the Holiest, Severin at its door", [
+  'npc.primate', 'npc.warden_w', 'npc.warden_e',
+  'actor/creature/sin/astra', 'fixture/sacred/bier', 'fixture/sacred/instrument_niche', 'fixture/sacred/bearer_statue',
+  'fixture/sacred/red_channel/dust', 'fixture/sacred/red_channel/black', 'fixture/sacred/red_channel/white', 'fixture/sacred/red_channel/thorn',
+  'fixture/standard', 'fixture/sacred/saint', 'fixture/sacred/rail', 'fixture/sacred/font', 'item/weapon/blade/sword', 'site/place/cathedral',
+], () => {
+  const f = fresh()
+  const w = W(f)
+  const c = f.eng.controls
+  const q = f.eng.quests
+  const played = (id: string) => !!w.fact(`seen.${id}`)
+  const waitFor = (id: string) => expect([id, ticks(f, 2500, () => played(id) && !w.scene)]).toEqual([id, true])
+  const go = (map: string, x: number, y: number) => f.eng.author(() => f.eng.teleport(w.player, { map, x, y }))
+  const cards: string[] = []
+  const watchCards = () => { cards.push(...(w.fx.filter((x) => x.t === 'card') as unknown as { text: { en: string } }[]).map((x) => x.text.en)); w.fx = [] }
+  // the five seals down, the five instruments carried, the bells rung at four (CH5 plays the Heights)
+  author(f, () => {
+    for (const id of ['first_seal', 'held_ground', 'crown_home', 'dragon_road', 'second_seal', 'march_quiet', 'grain_road', 'third_seal', 'granary', 'fen_road', 'fourth_seal', 'ferry', 'white_stair', 'fifth_seal', 'bells']) q.put(id, 'done')
+    for (const k of [CH1.knight, CH1.crown, CH1.end, CHAPTER_TWO, 'ch2.end', 'sins.defeated.matthias', CHAPTER_THREE, CH3.end, 'sins.defeated.ele', CHAPTER_FOUR, CH4.end, 'sins.defeated.nacht', CHAPTER_FIVE, CH5.lance, CH5.end, 'sins.defeated.witnesses', FINALE, 'seen.chapter5_end', 'seen.bells_at_four']) w.setFact(k, 1)
+    w.setFact('night.shift', 5)
+    for (const type of THE_FIVE) w.create(type, { on: 'inside', holder: 'player' })
+  })
+  c.sync()
+  ticks(f, 5)
+  expect(q.stage('great_rite')).toBe(10)
+  // down from Whiteveil into the Holy City: the bells on the card; the avenue of the bearers; Severin goes in under
+  setHour(f, 11, 10)
+  expect(cross(f, 'whiteveil', HEIGHTS.abbey.w - 2, HEIGHTS.abbey.east[0], 'right')).toBe('holyhall')
+  expect(ticks(f, 2500, () => (watchCards(), played('holy_arrival') && !w.scene))).toBe(true)
+  expect(cards).toEqual([expect.stringMatching(/^The road went down out of the white hills into the Holy City/)])
+  expect([w.fact(FIN.road), q.stage('great_rite'), w.map('holyhall')!.region]).toEqual([1, 20, 'holy'])
+  expect(w.posOf(w.get('npc.severin')!)?.map).toBe('offstage')
+  expect(onMap(f, 'fixture/sacred/bearer_statue', 'holyhall').length).toBe(10)
+  expect([onMap(f, 'fixture/standard', 'holyhall').length, w.get('site.holyhall')!.type]).toEqual([2, 'site/place/cathedral'])
+  // the nave: the saints at the choir, the rail before it, the font at the door
+  for (const t of ['fixture/sacred/saint', 'fixture/sacred/rail', 'fixture/sacred/font']) expect([t, onMap(f, t, 'holyhall.nave').length > 0]).toEqual([t, true])
+  // the weapons pilgrims who came this far left at the Holiest's door
+  expect(onMap(f, 'item/weapon/blade/sword', 'confluence').length + onMap(f, 'item/weapon/polearm/spear', 'confluence').length).toBe(2)
+  go('holyhall', 25, 66)
+  waitFor('nessa_city')
+  // the nave: the Primate's truth, not believed; the floor behind the altar opened
+  go('holyhall.nave', 17, 29)
+  waitFor('primate')
+  expect([w.fact(FIN.primate), q.stage('great_rite')]).toEqual([1, 30])
+  expect(w.map('holyhall.nave')!.portals.find((p) => p.to === 'confluence')?.opensWhen).toBe(FIN.primate)
+  // the Confluence: the channels of the five lands meeting; Severin waiting
+  go('confluence', 20, 12)
+  waitFor('confluence')
+  expect([w.fact(FIN.confluence), q.stage('great_rite')]).toEqual([1, 40])
+  for (const t of ['fixture/sacred/red_channel', 'fixture/sacred/red_channel/dust', 'fixture/sacred/red_channel/black', 'fixture/sacred/red_channel/white', 'fixture/sacred/red_channel/thorn']) expect([t, onMap(f, t, 'confluence').length > 5]).toEqual([t, true])
+  // the Holiest: the Rite, Astra waking, the way up open behind
+  go('holiest', 14, 26)
+  walk(f, 'up')
+  waitFor('rite')
+  expect([w.fact(FIN.rite), w.fact(FIN.way)]).toEqual([1, 1])
+  const astra = w.get('holiest.astra')!
+  expect(astra.type).toBe(BOSS_BY_ID.astra.type)
+  expect(w.num(astra, 'maxHp')).toBeLessThan(BOSS_BY_ID.astra.hp)
+  expect(onMap(f, 'fixture/sacred/instrument_niche', 'holiest').length).toBe(5)
+  // the instruments stay the pilgrim's through the fight
+  for (const type of THE_FIVE) expect([type, c.count(type)]).toEqual([type, 1])
+  f.eng.damage(astra, 10000, undefined, true, { e: 'player' })
+  expect(w.fact('sins.defeated.astra')).toBe(1)
+  // the Night out of him; the way up the Night's
+  waitFor('the_night')
+  expect([w.fact(FIN.night), w.fact(FIN.way), q.stage('great_rite')]).toEqual([1, 0, 50])
+  expect(cross(f, 'holiest', FIN_AT.holiest.gate[0][0], FIN_AT.holiest.gate[0][1] - 1, 'down')).toBe('holiest')
+  // the Five taken up at the bier: the ending
+  const bier = w.posOf(w.get('holiest.bier')!)!
+  stand(f, bier.x, bier.y + 1, 'up', 'holiest')
+  expect(run(f, 'hands', bier.x, bier.y).rule).toBe('fin/bier')
+  cards.length = 0
+  expect(ticks(f, 4000, () => (watchCards(), played('dawn') && !w.scene))).toBe(true)
+  expect(cards).toEqual([expect.stringMatching(/^As long as someone bears the Five/)])
+  expect([w.fact(FIN.five), w.fact(FIN.end), w.fact('night.shift'), qs(f, 'great_rite')]).toEqual([1, 1, 0, 'done'])
+  // after the end: Lumi gone up to the morning; the pilgrim kept in the Holiest; Severin at its door
+  expect([w.posOf(w.get('pip')!)?.map, w.prop(w.get('pip')!, 'companion')]).toEqual(['offstage', ''])
+  ticks(f, 30)
+  expect(w.posOf(w.get('npc.severin')!)?.map).toBe('holiest')
+  expect(w.posOf(w.player)?.map).toBe('holiest')
+  expect(w.isNight()).toBe(false)
+})
+
 req('FL2', "the flanks are what their names say (release 1, docs/release-1.md): the dell a felled clearing — soot before every kiln's mouth, the cordwood stacked by them, a ring of stumps, the burner's hut a house of rooms; the bend a river bank — reed beds on the mud and in the shallows, sand at the jetty and on the spit, the fisher's nets drying, her fish drying by the lit smoke-fire, her boat moored at the jetty, her cabin a house of rooms; each a thing an input reaches", FLANK_THINGS, () => {
   const f = fresh()
   const w = W(f)

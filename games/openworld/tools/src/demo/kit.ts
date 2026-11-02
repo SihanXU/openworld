@@ -2,6 +2,7 @@
 // the main quest's maps under quest/).
 
 import { APPEAR_EVERY, type AppearDef, type Text } from '@openworld/engine'
+import { CREATURE_ROLES, ROLES, creatureStats } from '@openworld-game/content'
 import { MapBuilder, rng } from './builder.ts'
 
 export const L = (en: string, zh: string): Text => ({ en, zh })
@@ -27,4 +28,16 @@ export function clump(m: MapBuilder, cx: number, cy: number, r: number, p = 0.7)
   for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++)
     for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++)
       if (Math.hypot(x - cx, y - cy) <= r && m.get(x, y) === 'grass' && m.free(x, y) && rng.chance(p)) m.set(x, y, rng.chance(0.12) ? 'bush' : rng.chance(0.25) ? 'pine' : 'tree')
+}
+
+/**
+ * The minor monsters of a map met later in the story, at the map's own level (its `gearLevel`): a kind's numbers are its
+ * trophy's level everywhere else (content levels.ts), but a wolf on the White Stair is not a wolf of Hushwood. Its role
+ * keeps how it plays; the curve gives its health, attack and defence at the level.
+ */
+export function levelCreatures(m: MapBuilder): void {
+  for (const e of m.entities) {
+    const role = CREATURE_ROLES[e.type]
+    if (role && e.type.startsWith('actor/creature/') && !e.type.startsWith('actor/creature/sin/')) e.props = { ...e.props, ...creatureStats(m.gearLevel, ROLES[role]) }
+  }
 }

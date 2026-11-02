@@ -32,6 +32,8 @@ export const pell: PersonDef = {
     line('default', "I saw the grey man. Three times! Nobody believes me. He gave me a stone that's warm at night.", '我见过那个灰衣人。见过三次！没人信我。他给了我一块晚上会发热的石头。'),
     line('default', "Since I got the stone, the night things don't come near my window. Auntie says that's nonsense.", '自从有了那块石头，夜里的东西就不靠近我的窗户了。姑姑说那是瞎说。'),
     line('fact:ch1.flame_stolen', "I TOLD them! I told everyone there was a grey man! Now they believe me, but nobody will talk to me. The grown-ups are all arguing.", '我早就说了！我早就跟大家说过有个灰衣人！现在他们信了，可是谁都不理我，大人们都在吵架。', { once: true }),
+    line('fact:ch3.scale', "It's dark when I get up AND dark when I go to bed. I've been drawing the sun so I don't forget what it looks like.", '我起床的时候天是黑的，睡觉的时候天也是黑的。我一直在画太阳，免得忘了它长什么样。'),
+    line('fact:ch5.lance', 'When you come back, will you show me a real morning? A whole one, from the start?', '你回来的时候，能带我看一个真正的早晨吗？一整个的，从头开始那种？', { mood: 'sad' }),
     line('fact:ch1.end', "Was he bad? The grey man? He didn't look bad. He looked tired.", '他是坏人吗？那个灰衣人？他看起来不像坏人。他看起来很累。'),
   ],
 }

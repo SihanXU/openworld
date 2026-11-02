@@ -62,7 +62,7 @@ export function restyled(look: Look, change: { body?: string; parts?: Record<str
  * (its type's `look` prop) takes that part's slot, painted in its material's colour (the table's `materials`) — an
  * iron helmet is the helm, iron-grey. The bearer's own look is unchanged; this is what is seen.
  */
-export function wornLook(look: Look, worn: { part: string; material?: string }[], table: LookTable): Look {
+export function wornLook(look: Look, worn: { part: string; material?: string; color?: string }[], table: LookTable): Look {
   if (!worn.length) return look
   const parts = { ...look.parts }
   const colors = { ...look.colors }
@@ -70,7 +70,8 @@ export function wornLook(look: Look, worn: { part: string; material?: string }[]
     const p = table.parts[w.part]
     if (!p || (p.bodies && !p.bodies.includes(look.body))) continue
     parts[p.slot] = w.part
-    const c = w.material && table.materials?.[w.material]
+    // (a piece's own colour — a set's, `lookColor` — before its material's)
+    const c = (w.color && table.colors[w.color] ? w.color : undefined) ?? (w.material && table.materials?.[w.material])
     if (c) colors[`${p.slot}.1`] = c
     else delete colors[`${p.slot}.1`]
   }

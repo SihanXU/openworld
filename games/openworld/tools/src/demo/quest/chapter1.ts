@@ -4,7 +4,7 @@
 // The quests and objectives are content (content/src/chapter1.ts).
 
 import type { Entity, StepDef } from '@openworld/engine'
-import { ALBERIC_CAMPAIGN, ALBERIC_ID, CH1, HAVEN, PART_TWO, createBoss } from '@openworld-game/content'
+import { ALBERIC_CAMPAIGN, ALBERIC_ID, CH1, CHAPTER_TWO, HAVEN, createBoss } from '@openworld-game/content'
 
 const HAVEN_MAP = HAVEN.map
 import { L } from '../kit.ts'
@@ -113,7 +113,7 @@ export function chapter1EastRoad(m: MapBuilder): void {
   m.regions.barn = [18, 6, 7, 4]
   m.regions.thornroad = [27, 8, 5, 7]
   // the road on to Emberfall is Part Two's (release 1 ends with the Crown home: docs/release-1.md)
-  for (const p of m.portals) if (p.to === 'emberfall') p.opensWhen = PART_TWO
+  for (const p of m.portals) if (p.to === 'emberfall') p.opensWhen = CHAPTER_TWO
 }
 
 /**
@@ -494,7 +494,7 @@ export const HAVEN_STORY: StepDef[] = [
   })),
 ]
 
-/** The first chapter's card (`chapter_end`, and release 1's own `part_one`). */
+/** The first chapter's card (`chapter_end`). */
 const CHAPTER_END = {
   en: 'CHAPTER ONE · THE FIRST SEAL\n\nThe White Knight knelt, and gave up the Crown.\nThe grey man took the light east.\nAnd the night came a little sooner.',
   zh: '第一章 · 第一印\n\n白骑士跪下，交出了荆棘冠。\n灰衣人带着光往东去了。\n夜晚来得更早了一些。',
@@ -595,27 +595,15 @@ export const CHAPTER1_SCENES: StepDef[] = [
       say('npc.ilse', 'He always did carry things that were too heavy for him.', '他从小就总是背着对他来说太重的东西。', 'sad'),
       say('npc.nessa', 'Four minutes. The sun set four minutes early tonight. I am sure it means nothing.', '四分钟。今晚太阳早落了四分钟。……我想这应该不代表什么。'),
       { fact: CH1.end, value: 1 },
+      // the road on east opens: Chapter 2's (docs/chapter-2.md §12)
+      { fact: CHAPTER_TWO, value: 1 },
       { music: 'ending' },
     ],
   },
   {
-    // The chapter's card, with Part Two open (the dev console's, or a later release's): the road goes on east.
+    // The chapter's card: the road goes on east, Chapter 2's (docs/chapter-2.md §12).
     id: 'chapter_end',
-    when: { after: 'return', facts: { [PART_TWO]: 1 } },
-    script: [{ card: L(CHAPTER_END.en, CHAPTER_END.zh) }],
-  },
-  {
-    // Release 1 is Part One (docs/release-1.md §1): it ends here, with the Crown home. The road on east to Emberfall
-    // waits for Part Two (PART_TWO); Firstlight, its country, the Pilgrim's Road and the Held Ground stay the player's.
-    id: 'part_one',
-    when: { after: 'return', facts: { [PART_TWO]: 0 } },
-    script: [
-      {
-        card: L(
-          `${CHAPTER_END.en}\n\nThe road on east opens in Part Two.\nUntil then, Firstlight, its country and the Held Ground are yours.`,
-          `${CHAPTER_END.zh}\n\n继续往东的路，在第二部开放。\n在那之前，初原村、它周围的山野和誓守之地都是你的。`,
-        ),
-      },
-    ],
+    when: { after: 'return' },
+    script: [{ card: L(`${CHAPTER_END.en}\n\nThe road east to Emberfall is open.`, `${CHAPTER_END.zh}\n\n往东去余烬镇的路通了。`) }],
   },
 ]

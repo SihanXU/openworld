@@ -108,6 +108,7 @@ export type ToWorker =
   | { t: 'setSkill'; slot: number; id: string | null }
   /** Take up (or change to) a profession at a trainer. */
   | { t: 'profession'; id: string }
+  | { t: 'promote'; tier: number; path?: string }
   /** The dresser's: keep this look as one's own, for the price the world's params name (docs/looks.md §5). */
   | { t: 'restyle'; look: Look }
   /** A word said to someone without the talk panel (a game's panel: a choice made on it, said to the one who opened it). */
@@ -166,6 +167,7 @@ export type ToWorker =
   | { t: 'debug'; op: 'hurt'; amount: number }
   /** A fact of the story set (the dev's hand): a part of the tale opened, a gate lifted. */
   | { t: 'debug'; op: 'fact'; key: string; value: number }
+  | { t: 'debug'; op: 'level'; level: number }
   | { t: 'debug'; op: 'god'; on?: boolean }
   /** development: play a story step now (`id`), or a scene written here (`script`): a CG, a line, looked at without playing to it */
   | { t: 'debug'; op: 'scene'; id?: string; script?: SceneCmd[] }

@@ -17,6 +17,18 @@ kept, as Part Two's promise; the Pilgrim's Road's maps and the Held Ground are p
 
 ## 1. The ending and the sealed road
 
+> 2026-10-30 (docs/chapter-2.md §12): Chapter 2 is built and opens with the Crown home. The homecoming (`return`) sets
+> **`world.ch2`** (content `CHAPTER_TWO`), which opens the East Road's way on to Emberfall and Chapter 2's places — Emberfall,
+> its mine, Cinder Pass, the lair and the March over the pass (their `opensWhen`); the chapter's card says the road east is
+> open, and the Dragon Road begins. `world.part2` now opens only the edges of the maps east of the river onto the continent
+> (`edgesWhen`): beyond Chapter 2's chain the world map is still later chapters'. What follows is release 1 as it was.
+>
+> 2026-11-01 (docs/chapter-3.md §2.4): the rest of the main line is built. Each chapter's end opens the next one's road:
+> **`world.ch3`** (Chapter 2's quiet dusk: the camp's south gate to the Vale of Scales), **`world.ch4`** (Chapter 3's supper:
+> Fairweight's fields to the Pale Fens), **`world.ch5`** (Chapter 4's ferry: Nailgate's west walk to the White Altar
+> Heights), **`world.fin`** (Chapter 5's bells: Whiteveil's road down to the Holy City). Each chapter's chain lies on its
+> region's road, its first map's cell fixed; its edges onto the world map still wait for `world.part2`.
+
 - **`world.part2`** (content `regions.ts` `PART_TWO`) is the fact the second part waits for. No rule sets it in
   release 1; the dev console's World tab (its shortcut "Open Part Two", the debug op `fact`) or a test, by the author's
   hand, sets it to play on. `world.` is a protected prefix: no learned rule may set it.

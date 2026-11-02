@@ -34,6 +34,8 @@ export interface TreeLayout {
   panels: Map<string, Panel>
   /** Which way each branch grows. */
   ways: Map<string, Way>
+  /** Where each branch's trunk comes from: the start, or (a branch after another) the last skill of the one before. */
+  trunks: Map<string, Placed>
 }
 
 /** How deep a skill lies in its branch: its first skills 0, the next row 1, a skill after two the row below the deeper. */
@@ -85,7 +87,9 @@ function columns(own: SkillDef[], depth: Map<string, number>): Map<string, numbe
 
 /**
  * Which way a branch grows from the start: the narrow two left and right, near it; the wide two up and down, beyond
- * them. A direction of more than four branches goes round again, each further one beyond the one before on its side.
+ * them. A branch may name its way; the rest take the free ways in order. A direction of more than four branches goes
+ * round again, each further one beyond the one before on its side. A branch after another (`after`: the second
+ * advancement after the profession's own tree, the third after it) goes on beyond it, its trunk out of its last skill.
  */
 export type Way = 'left' | 'right' | 'up' | 'down'
 const WAYS: Way[] = ['left', 'right', 'up', 'down']
@@ -93,10 +97,19 @@ const WAYS: Way[] = ['left', 'right', 'up', 'down']
 const GAP = 40
 
 /** One direction of the tree laid out: the start in the middle, its four branches growing out from it like a cross. */
-export function layoutTree(skills: SkillDef[] = game().skills.all, direction: string = 'combat', profession = ''): TreeLayout {
+export function layoutTree(skills: SkillDef[] = game().skills.all, direction: string = 'combat', profession = '', path = ''): TreeLayout {
   const branches = game().skills.branches.filter((b) => b.direction === direction)
-  const allowed = skills.filter((s) => !s.profession || s.profession === profession)
-  const per = branches.map((b, i) => {
+  // (a path's skills only for one on it: docs/advancement.md)
+  const allowed = skills.filter((s) => (!s.profession || s.profession === profession) && (!s.path || s.path === path))
+  const named = new Set(branches.map((b) => b.way))
+  const free = WAYS.filter((w) => !named.has(w))
+  let k = 0
+  const wayOf = (b: (typeof branches)[number]): Way => {
+    const before = b.after && per.find((p) => p.b.id === b.after)
+    return before ? before.way : b.way ?? free[k++] ?? WAYS[(k - 1) % 4]
+  }
+  const per: { b: (typeof branches)[number]; own: SkillDef[]; depth: Map<string, number>; col: Map<string, number>; min: number; span: number; rows: number; way: Way }[] = []
+  for (const b of branches) {
     const own = allowed.filter((s) => s.branch === b.id)
     const depth = depths(own)
     const col = columns(own, depth)
@@ -104,8 +117,8 @@ export function layoutTree(skills: SkillDef[] = game().skills.all, direction: st
     const min = cols.length ? Math.min(...cols) : 0
     const span = cols.length ? Math.max(...cols) - min : 0
     const rows = own.length ? Math.max(...depth.values()) + 1 : 0
-    return { b, own, depth, col, min, span, rows, way: WAYS[i % 4] }
-  })
+    per.push({ b, own, depth, col, min, span, rows, way: wayOf(b) })
+  }
   // how far out a branch's hub stands: left and right near the start; up and down past the side branches' panels
   const half = (p: (typeof per)[number]) => (Math.max(1, p.span) * COL) / 2 + PAD
   const side = Math.max(0, ...per.filter((p) => p.way === 'left' || p.way === 'right').map(half))
@@ -114,6 +127,7 @@ export function layoutTree(skills: SkillDef[] = game().skills.all, direction: st
   const nodes = new Map<string, Placed>()
   const panels = new Map<string, Panel>()
   const ways = new Map<string, Way>()
+  const trunks = new Map<string, Placed>()
   // how far out each side's panels already reach (a fifth branch and after stand beyond the one before them)
   const reached = new Map<Way, number>()
   for (const p of per) {
@@ -132,8 +146,14 @@ export function layoutTree(skills: SkillDef[] = game().skills.all, direction: st
     const b2 = turn(half(p), d + ROW * Math.max(1, p.rows) + 70)
     panels.set(p.b.id, { x: Math.min(a.x, b2.x), y: Math.min(a.y, b2.y), w: Math.abs(a.x - b2.x), h: Math.abs(a.y - b2.y) })
     ways.set(p.b.id, p.way)
+    // its trunk: from the start; after another branch, from that one's last row (the skill nearest in line), or its hub
+    const before = p.b.after ? per.find((q) => q.b.id === p.b.after) : undefined
+    const hub = hubs.get(p.b.id)!
+    const last = before?.own.filter((s) => before.depth.get(s.id) === before.rows - 1).map((s) => nodes.get(s.id)!)
+    const gap = (q: Placed) => (p.way === 'up' || p.way === 'down' ? Math.abs(q.x - hub.x) : Math.abs(q.y - hub.y))
+    trunks.set(p.b.id, before ? (last?.length ? last.reduce((m, q) => (gap(q) < gap(m) ? q : m)) : hubs.get(before.b.id)!) : { x: 0, y: 0 })
   }
-  return { hubs, nodes, panels, ways }
+  return { hubs, nodes, panels, ways, trunks }
 }
 
 export function layoutBranches(direction: string, skills: SkillDef[] = game().skills.all, profession = ''): Map<string, Placed> {

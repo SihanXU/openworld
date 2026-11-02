@@ -59,6 +59,7 @@ import {
   BOSS_ROOMS_LAYOUT,
   BOSS_ROOMS,
   PART_TWO,
+  CHAPTER_FIVE, CHAPTER_FOUR, CHAPTER_THREE, CHAPTER_TWO, FINALE,
   migrateStats,
   STATS_LAYOUT,
   migrateGear,
@@ -236,7 +237,20 @@ export const CLIENT_GAME: ClientGame = {
     shortcuts: [
       { label: 'Emberfall, by the lit forge', debug: { op: 'teleport', map: 'emberfall', x: 31, y: 8 } },
       { label: '召唤白骑士 · Summon the White Knight (the Kingdom)', debug: { op: 'summon', kit: 'alberic', map: 'kingdom', x: 18, y: 12, from: [3, 11] } },
-      // release 1 ends with the Crown home (docs/release-1.md): the road on east to Emberfall, and all beyond it
+      // Chapter 2's road opens with the Crown home (docs/chapter-2.md §12); Part Two, the whole continent east of the river
+      { label: '开启第二章 · Open Chapter 2', debug: { op: 'fact', key: CHAPTER_TWO, value: 1 } },
+      // the later chapters' roads, each the chapter before's end (docs/chapter-3.md §2.4), and where each begins
+      { label: '开启第三章 · Open Chapter 3', debug: { op: 'fact', key: CHAPTER_THREE, value: 1 } },
+      { label: 'The Chaff Road (Chapter 3)', debug: { op: 'teleport', map: 'chaffroad', x: 4, y: 14 } },
+      { label: '开启第四章 · Open Chapter 4', debug: { op: 'fact', key: CHAPTER_FOUR, value: 1 } },
+      { label: 'The Long Causeway (Chapter 4)', debug: { op: 'teleport', map: 'causeway', x: 17, y: 3 } },
+      { label: '开启第五章 · Open Chapter 5', debug: { op: 'fact', key: CHAPTER_FIVE, value: 1 } },
+      { label: 'The White Stair (Chapter 5)', debug: { op: 'teleport', map: 'whitestair', x: 37, y: 33 } },
+      { label: '开启终章 · Open the Finale', debug: { op: 'fact', key: FINALE, value: 1 } },
+      // the advancements (docs/advancement.md): the levels the second and third ask
+      { label: '等级 10 · Level 10 (second advancement)', debug: { op: 'level', level: 10 } },
+      { label: '等级 16 · Level 16 (third advancement)', debug: { op: 'level', level: 16 } },
+      { label: 'The Most Holy Hall (Finale)', debug: { op: 'teleport', map: 'holyhall', x: 25, y: 80 } },
       { label: '开启第二部 · Open Part Two', debug: { op: 'fact', key: PART_TWO, value: 1 } },
     ],
   },

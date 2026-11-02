@@ -14,12 +14,16 @@ import { BOSS_RULES } from './bosses.ts'
 import { CH1_RULES } from './chapter1.ts'
 import { HAVEN_RULES } from './haven.ts'
 import { BOSS_ROOM_RULES } from './bossrooms.ts'
+import { CH3_RULES } from './chapter3.ts'
+import { CH4_RULES } from './chapter4.ts'
+import { CH5_RULES } from './chapter5.ts'
+import { FIN_RULES } from './finale.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 
 
 /** Fact prefixes only the story's rules and scenes may change. */
-export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'sins.', 'game.', 'ch1.', 'night.', 'legend.', 'rescue.', 'village.', 'haven.', 'waypoints.', 'lesson.', 'step.', 'world.']
+export const PROTECTED_FACTS = ['ford.', 'mq.', 'seen.', 'sins.', 'game.', 'ch1.', 'ch2.', 'ch3.', 'ch4.', 'ch5.', 'fin.', 'night.', 'legend.', 'rescue.', 'village.', 'haven.', 'waypoints.', 'lesson.', 'step.', 'world.']
 
 const story = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base', note: 'story' } })
 const log = (en: string, zh: string): Effect => ({ op: 'log', text: { en, zh } })
@@ -157,7 +161,7 @@ const FORD_RULES: Rule[] = [
 ]
 
 /** The story's rules: the Ford's, then the main quest's (quest.ts). */
-export const STORY_RULES: Rule[] = [...FORD_RULES, ...QUEST_RULES, ...BOSS_RULES, ...CH1_RULES, ...PILGRIMAGE_RULES, ...HAVEN_RULES, ...BOSS_ROOM_RULES]
+export const STORY_RULES: Rule[] = [...FORD_RULES, ...QUEST_RULES, ...BOSS_RULES, ...CH1_RULES, ...PILGRIMAGE_RULES, ...HAVEN_RULES, ...BOSS_ROOM_RULES, ...CH3_RULES, ...CH4_RULES, ...CH5_RULES, ...FIN_RULES]
 
 const RIVER_CROSSED: Effect = { op: 'scene', id: 'ferry' }
 /** The story speaks through the person the content belongs to. */

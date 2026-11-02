@@ -1,0 +1,212 @@
+{
+  "source": "derived from alberic/boss01_01 by games/openworld/tools/src/art/ele.py",
+  "canvas": [
+    60,
+    76
+  ],
+  "original_offset_in_canvas": [
+    0,
+    16
+  ],
+  "anchor": [
+    30,
+    71
+  ],
+  "anchor_note": "the sole (or hoof) line, the same in every frame of every clip",
+  "fx_colors": [
+    "#FFF4D0",
+    "#E8C46A"
+  ],
+  "palette": [
+    "101014",
+    "1C1A21",
+    "1E1B22",
+    "231B1C",
+    "24212A",
+    "281E12",
+    "2A2020",
+    "2A2631",
+    "2B2732",
+    "2E2A35",
+    "332F3B",
+    "381F14",
+    "382020",
+    "3E2F1C",
+    "3E3A47",
+    "3F1E12",
+    "4A4556",
+    "4C4756",
+    "554B3F",
+    "5C5666",
+    "685D4E",
+    "6C4C26",
+    "6C5A3A",
+    "7A5A2C",
+    "7E7A72",
+    "7F7461",
+    "8A6A3A",
+    "8C6C3A",
+    "A08A60",
+    "A57C38",
+    "ABA18D",
+    "B3AFA6",
+    "B88E42",
+    "C49A48",
+    "C8C0AE",
+    "CCA552",
+    "DEDBD3",
+    "E2C064",
+    "E8C46A",
+    "E8C870",
+    "F0D27A",
+    "FFF4D0"
+  ],
+  "animations": {
+    "idle": {
+      "sheet": "idle.png",
+      "frames": 8,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 150,
+      "loop": true,
+      "on_end": null
+    },
+    "walk_down": {
+      "sheet": "walk_down.png",
+      "frames": 8,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 100,
+      "loop": true,
+      "on_end": null,
+      "in_place": true
+    },
+    "walk_up": {
+      "sheet": "walk_up.png",
+      "frames": 8,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 100,
+      "loop": true,
+      "on_end": null,
+      "in_place": true
+    },
+    "walk_left": {
+      "sheet": "walk_left.png",
+      "frames": 8,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 100,
+      "loop": true,
+      "on_end": null,
+      "note": "由 walk_right 全部帧水平镜像 (x'=60-x)",
+      "in_place": true
+    },
+    "walk_right": {
+      "sheet": "walk_right.png",
+      "frames": 8,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 100,
+      "loop": true,
+      "on_end": null,
+      "in_place": true
+    },
+    "attack_right": {
+      "sheet": "attack_right.png",
+      "frames": 10,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 80,
+      "loop": false,
+      "on_end": {
+        "goto": "idle",
+        "frame": 0
+      },
+      "segments": {
+        "main": [
+          0,
+          8
+        ],
+        "recover": [
+          9
+        ]
+      },
+      "hit_frame": 5,
+      "chain": {
+        "at_frame": 8,
+        "goto_frame": 0,
+        "can_chain_to": [
+          "attack_right",
+          "attack_left",
+          "attack_down"
+        ]
+      }
+    },
+    "attack_left": {
+      "sheet": "attack_left.png",
+      "frames": 10,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 80,
+      "loop": false,
+      "on_end": {
+        "goto": "idle",
+        "frame": 0
+      },
+      "segments": {
+        "main": [
+          0,
+          8
+        ],
+        "recover": [
+          9
+        ]
+      },
+      "hit_frame": 5,
+      "chain": {
+        "at_frame": 8,
+        "goto_frame": 0,
+        "can_chain_to": [
+          "attack_right",
+          "attack_left",
+          "attack_down"
+        ]
+      },
+      "note": "由 attack_right 第1-9帧水平镜像 (x'=60-x), 第10帧为 idle 第1帧"
+    },
+    "attack_down": {
+      "sheet": "attack_down.png",
+      "frames": 10,
+      "frame_w": 60,
+      "frame_h": 76,
+      "frame_ms": 80,
+      "loop": false,
+      "on_end": {
+        "goto": "idle",
+        "frame": 0
+      },
+      "segments": {
+        "main": [
+          0,
+          8
+        ],
+        "recover": [
+          9
+        ]
+      },
+      "hit_frame": 5,
+      "chain": {
+        "at_frame": 8,
+        "goto_frame": 0,
+        "can_chain_to": [
+          "attack_right",
+          "attack_left",
+          "attack_down"
+        ]
+      }
+    }
+  },
+  "chain_rule": "攻击动画播到 chain.at_frame (main 段最后一帧) 结束时: 若有新的攻击输入, 跳到目标攻击动画的 chain.goto_frame 继续, 不播 recover 段; 若没有输入, 播 recover 段 (正面 idle 第1帧) 后回 idle。hit_frame 为命中帧, 可用于触发伤害判定。帧号从 0 开始。",
+  "walk_rule": "走路为原地踏步: 动画本身不位移, 角色移动由游戏逻辑控制; 靴底行 y=71 与 pivot 不变, 侧面走路时两脚在 x=30 前后交替移动属于动作本身"
+}

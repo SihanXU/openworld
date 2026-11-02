@@ -47,12 +47,16 @@ export const SKILL_STATUSES: StatusDef[] = [
   { id: 'frenzied', name: L('frenzied', '狂热'), duration: 80, moveDelay: 0.6, props: { atk: 1 } },
   // a crab drawn into its shell: hard to hurt, slow to move
   { id: 'shelled', name: L('shelled', '缩壳'), duration: 40, moveDelay: 2, props: { def: 4 } },
+  // the Black Balance's famine (Ele, docs/chapter-3.md §4): hunger drains a little each second for three (body/famine)
+  { id: 'famished', name: L('Famished', '饥馑'), duration: 30, every: 10 },
+  // a Demon Hunter's hex (advancement.ts): weaker, softer and slower while it lasts
+  { id: 'hexed', name: L('hexed', '咒印'), duration: 40, moveDelay: 1.3, props: { atk: -2, def: -3 } },
   // just come back to one's feet: a skill cannot hold one again for a while (no hold follows a hold)
   { id: 'steadied', name: L('steadied', '定神'), duration: 45, wards: ['entranced', 'knelt', 'stunned'] },
 ]
 
 /** Every coat a body takes as a status of its own (body/afflict): the bosses' and the minor monsters'. */
-export const AFFLICTIONS = ['mired', 'entranced', 'webbed', 'poisoned', 'bleeding', 'stunned', 'frenzied', 'knelt']
+export const AFFLICTIONS = ['mired', 'entranced', 'webbed', 'poisoned', 'bleeding', 'stunned', 'frenzied', 'knelt', 'famished']
 /** The coats that hold a body where it is: once it is held, it is steadied a while after. */
 export const HOLDS = ['entranced', 'knelt', 'stunned']
 
@@ -67,6 +71,13 @@ export const AFFLICTION_RULES: Rule[] = [
       then: DO({ op: 'addStatus', status }, ...(HOLDS.includes(status) ? [{ op: 'addStatus', status: 'steadied' } as Effect] : [])),
       else: rest,
     }), 'inherit'),
+  }),
+  rule({
+    id: 'body/famine',
+    doc: 'A famished body grows hungrier each second it lasts: 2 of its hunger a pulse (the Black Balance\'s famine; one with no hunger is untouched).',
+    host: { type: 'actor', status: ['famished'] },
+    on: 'time/period',
+    tree: { if: { param: { key: 'status', cmp: 'famished' } }, then: DO({ op: 'feed', amount: -2 }), else: 'inherit' },
   }),
   rule({
     id: 'body/poison',

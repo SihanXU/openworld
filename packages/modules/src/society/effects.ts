@@ -323,8 +323,10 @@ export function socialEffect(fx: EffectRunner, eff: SocialEffect, ev: GameEvent)
         // recipes.ts), and rolls its extras as it is made (engine affixes.ts)
         const def = w.onto.resolve(type)
         const slot = def.props.slot
-        const level = gearLevel(w.onto.data.params?.gearLevels, w.num(host, 'gearLevel', 1))
-        const gear = () => (typeof slot === 'string' ? { props: { ...gearProps(def.props, undefined, undefined, level, w.onto.data.params?.gearLevels), ...rollAffixes(w.onto.data, slot, () => w.rand(), { level }) } } : {})
+        // (a piece whose kind names its own level — a set's piece, a trophy — comes as its kind is, at that level)
+        const own = typeof def.props.level === 'number' ? def.props.level : undefined
+        const level = own ?? gearLevel(w.onto.data.params?.gearLevels, w.num(host, 'gearLevel', 1))
+        const gear = () => (typeof slot === 'string' ? { props: { ...(own === undefined && gearProps(def.props, undefined, undefined, level, w.onto.data.params?.gearLevels)), ...rollAffixes(w.onto.data, slot, () => w.rand(), { level }) } } : {})
         for (let n = have(type); n < fx.most(Math.max(1, Number(count) || 1), 'a restock'); n++) eng.touch({ e: w.create(type, { on: 'inside', holder: host.id }, gear()).id })
       }
       const purse = w.num(host, 'purse', 0)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Game, Rng, RuleLibrary, gearProps, levelFactor, rollAffixes, tickAt, type Entity } from '@openworld/engine'
 import { socialOf } from '@openworld/modules'
-import { BASE_RULES, FORMS, FORM_BY_ID, GEAR_LAYOUT, GEAR_LEVELS, MATERIAL_DEFS, NAMED_VOWS, QUALITIES, QUALITY_DEFS, QUESTS, RECIPE_BY_ID, STORY_RULES, TROPHIES, VOWS_LAYOUT, VOW_IDS, buildOntology, decodeChunk, makeItem, migrateGear, migrateVows } from '@openworld-game/content'
+import { BASE_RULES, FORMS, FORM_BY_ID, GEAR_LAYOUT, GEAR_LEVELS, MATERIAL_DEFS, NAMED_VOWS, QUALITIES, QUALITY_DEFS, QUESTS, RECIPE_BY_ID, SET_PIECE_BY_TYPE, STORY_RULES, TROPHIES, VOWS_LAYOUT, VOW_IDS, buildOntology, decodeChunk, makeItem, migrateGear, migrateVows } from '@openworld-game/content'
 import { buildFord } from '../src/demo/world.ts'
 
 // Gear's levels (world-model.md §6.8, content gear.ts): every piece worn or wielded has a level, 1 to 20; its main stats
@@ -120,11 +120,15 @@ describe('where a piece gets its level', () => {
 
   it('a quest\'s gear: the author\'s level, its form\'s main stats in its first material at its quality', () => {
     const items = QUESTS.flatMap((qd) => qd.stages.flatMap((s) => s.reward?.items ?? [])).filter((it) => typeof it.props?.slot === 'string')
-    expect(items.length).toBeGreaterThan(15)
+    expect(items.length).toBeGreaterThan(10)
     for (const it of items) expect([it.type, typeof it.props?.level]).toEqual([it.type, 'number'])
-    const hauberk = items.find((it) => JSON.stringify(it.name ?? '').includes('Rowan'))!
-    expect(hauberk.props).toMatchObject({ level: 2, def: gearProps({ def: 3 }, MATERIAL_DEFS.iron, q('fine'), 2, GEAR_LEVELS).def })
-    expect(hauberk.tags).toContain('material:iron')
+    const sash = items.find((it) => JSON.stringify(it.name ?? '').includes('Marta'))!
+    expect(sash.props).toMatchObject({ level: 1, def: gearProps({ def: 1 }, MATERIAL_DEFS.leather, q('fine'), 1, GEAR_LEVELS).def })
+    expect(sash.tags).toContain('material:leather')
+    // a set's piece a quest pays (docs/sets.md: setPiece) keeps its kind's level and main stats, and rolls only its extras
+    const sets = QUESTS.flatMap((qd) => qd.stages.flatMap((s) => s.reward?.items ?? [])).filter((it) => SET_PIECE_BY_TYPE[it.type])
+    expect(sets.length).toBeGreaterThan(15)
+    for (const it of sets) expect([it.type, typeof onto.types[it.type].props?.level, it.props?.level, it.props?.def]).toEqual([it.type, 'number', undefined, undefined])
   })
 
   it('what is forged: the maker\'s level, no lower than the recipe\'s; its quality by the maker\'s level against the recipe\'s', () => {

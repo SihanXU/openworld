@@ -251,7 +251,8 @@ describe('the main line when the road runs ahead of it', () => {
     expect(q.stateOf(vigil)).toBe('done')
     expect(w.num(vigil, 'stage')).toBe(105)
     expect(eng.controls.count('item/vessel/flask/oil')).toBe(0)
-    expect(eng.controls.count('item/clothing/cloak')).toBe(1)
+    // (the vigil's cloak, now a piece of the Dawn Vigil set: docs/sets.md)
+    expect(eng.controls.count('item/clothing/cloak/vigil')).toBe(1)
   })
 })
 

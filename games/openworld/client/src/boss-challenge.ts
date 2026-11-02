@@ -1,6 +1,6 @@
 // A fresh, disposable game per challenge. No persistence and no campaign/trainer changes.
 import { Game, OFFHAND, RuleLibrary, learnSkill, type Text, type WorldIndex } from '@openworld/engine'
-import { BASE_RULES, BOSS_BY_ID, BOSS_ARENA, PROFESSION_BY_ID, SKILLS, STORY_RULES, buildOntology, createBoss, decodeChunk, type RawChunk } from '@openworld-game/content'
+import { ADVANCEMENT_SKILLS, BASE_RULES, BOSS_BY_ID, BOSS_ARENA, PROFESSION_BY_ID, SKILLS, STORY_RULES, buildOntology, createBoss, decodeChunk, type RawChunk } from '@openworld-game/content'
 
 export const CHALLENGE_LOADOUTS: Record<string, { hp: number; atk: number; def: number; icon: string; tip: Text }> = {
   assassin: { hp: 110, atk: 5, def: 1, icon: 'assassin', tip: { en: 'Iron dagger · openers, backstabs and three-hit finishers.', zh: '铁匕首 · 绕后背刺，抓住先手，三连击收尾。' } },
@@ -27,7 +27,9 @@ export function createBossChallenge(index: WorldIndex, raw: RawChunk, profession
   game.loadChunk(chunk)
   const w = game.engine.world, player = w.player
   const shared = new Set(['light-footed', 'quick-hands', 'strength', 'vitality'])
-  const pending = SKILLS.filter((s) => shared.has(s.id) || s.profession === profession)
+  // (the profession's tree as the challenge was balanced on it: not the advancements' paths, mastery and four more, docs/advancement.md)
+  const later = new Set(ADVANCEMENT_SKILLS.map((s) => s.id))
+  const pending = SKILLS.filter((s) => (shared.has(s.id) || s.profession === profession) && !later.has(s.id))
   // the trial is built by its author, not played into being
   game.engine.author(() => {
     while (pending.length) {
