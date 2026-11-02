@@ -10,7 +10,8 @@
 // The game: --game <game> or $OPENWORLD_GAME — a bundle (bundle.json, or its folder), a project's folder (its
 // game.json), or a module whose default export is its GameDef (the root script passes games/openworld's). Data: --data <dir> or $LSW_DATA (default <repo>/var). Model: LSW_MODEL_URL + LSW_MODEL_KEY +
 // LSW_MODEL (OpenAI-compatible), --backend claude-code (claude -p; LSW_CLAUDE_MODEL, LSW_CLAUDE_EFFORT;
-// --fast for fast mode), --backend none, or --script <file> / LSW_MODEL_SCRIPT (scripted, no network). See modelFromEnv.
+// --fast for fast mode), --backend codex (codex exec; LSW_CODEX_MODEL, LSW_CODEX_EFFORT; --fast for the fast tier), --backend none; --model <id> and --effort <level>
+// name the backend's model and effort whichever it is (chooseModel), or --script <file> / LSW_MODEL_SCRIPT (scripted, no network). See modelFromEnv.
 // The story's protected facts (a commit is judged with them, as every client judges what it syncs): a project's
 // folder or a bundle's own world index, or --world <index.json> / $LSW_WORLD (a game given as a module has none).
 
@@ -19,7 +20,7 @@ import type { AddressInfo } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
 import type { GameDef, WorldIndex } from '@openworld/engine'
 import { compileProject } from '@openworld/format/src/node.ts'
-import { scriptFromFile } from '../src/index.ts'
+import { chooseModel, scriptFromFile } from '../src/index.ts'
 import { REPO } from '../src/node.ts'
 import { createModderServer, loadGame, openModder } from '../src/service/server.ts'
 
@@ -31,7 +32,8 @@ const flag = (name: string): string | undefined => {
 const script = flag('script')
 const backend = flag('backend')
 if (backend) process.env.LSW_MODEL_BACKEND = backend
-if (argv.includes('--fast')) (argv.splice(argv.indexOf('--fast'), 1), (process.env.LSW_CLAUDE_FAST = '1'))
+if (argv.includes('--fast')) (argv.splice(argv.indexOf('--fast'), 1), (process.env.LSW_FAST = '1'))
+chooseModel(process.env, flag('model'), flag('effort'))
 const data = flag('data')
 const host = flag('host') ?? process.env.LSW_HOST ?? '127.0.0.1'
 const gameModule = flag('game') ?? process.env.OPENWORLD_GAME

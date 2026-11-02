@@ -10,7 +10,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AnthropicModel, ClaudeCodeModel, MemFiles, Meter, OpenAICompatModel, PROVIDERS, SelfState, baseUrlOf, commandFor, configProblem, keyHint, listModels, modelFromEnv, modelOf, providerOf, scrub, testModel, type ChatMessage } from '../src/index.ts'
+import { AnthropicModel, BACKEND_DOWN, ClaudeCodeModel, CodexModel, chooseModel, MemFiles, Meter, OpenAICompatModel, PROVIDERS, SelfState, baseUrlOf, commandFor, configProblem, keyHint, listModels, modelFromEnv, modelOf, providerOf, scrub, testModel, type ChatMessage } from '../src/index.ts'
 
 type Handler = (n: number, body: Record<string, unknown>, req: IncomingMessage, res: ServerResponse) => void
 const servers: { close(): void }[] = []
@@ -354,7 +354,8 @@ describe('the Claude Code backend (claude -p)', () => {
   it('is chosen by LSW_MODEL_BACKEND, Opus 5.5 at low effort by default', () => {
     expect(modelFromEnv({ LSW_MODEL_BACKEND: 'claude-code' })?.name).toBe('claude-code:claude-opus-5-5@low')
     expect(modelFromEnv({ LSW_MODEL_BACKEND: 'claude-code', LSW_CLAUDE_FAST: '1' })?.name).toBe('claude-code:claude-opus-5-5@low+fast')
-    expect(() => modelFromEnv({ LSW_CLAUDE_FAST: '1', LSW_MODEL_KEY: 'k', LSW_MODEL: 'm' })).toThrow(/claude-code backend only/)
+    expect(() => modelFromEnv({ LSW_CLAUDE_FAST: '1', LSW_MODEL_KEY: 'k', LSW_MODEL: 'm' })).toThrow(/claude-code and codex backends only/)
+    expect(modelFromEnv({ LSW_MODEL_BACKEND: 'claude-code', LSW_FAST: '1' })?.name).toBe('claude-code:claude-opus-5-5@low+fast')
     expect(modelFromEnv({ LSW_MODEL_BACKEND: 'none', LSW_MODEL_KEY: 'k', LSW_MODEL: 'm' })).toBeUndefined()
     expect(modelFromEnv({ LSW_MODEL_KEY: 'k', LSW_MODEL: 'moonshotai/kimi-k3' })?.name).toBe('moonshotai/kimi-k3')
     expect(() => modelFromEnv({ LSW_MODEL_BACKEND: 'nope' })).toThrow(/unknown backend/)
@@ -366,6 +367,101 @@ describe('the Claude Code backend (claude -p)', () => {
     const model = new ClaudeCodeModel({ model: 'claude-opus-5-5', effort: 'low', bin })
     const r = await model.chat([{ role: 'system', content: 's' }, { role: 'user', content: 'u' }], { json: true, deadlineMs: 0 })
     expect(r.content).toBe('{"ok":true}')
+  })
+})
+
+/**
+ * A stand-in for `codex exec`: it answers by what its instructions file and stdin say, as exec mode's
+ * events (a notice as an error item first, as the real one gives), and logs each call beside itself.
+ */
+function fakeCodex(): { bin: string; calls: () => FakeCall[] } {
+  let log = ''
+  const bin = claudeBin((dir) => {
+    log = join(dir, 'calls.jsonl')
+    writeFileSync(log, '')
+    return `#!/usr/bin/env node
+const fs = require('fs')
+const args = process.argv.slice(2)
+const conf = (k) => { const c = args.find((a, i) => args[i - 1] === '-c' && a.startsWith(k + '=')); return c && JSON.parse(c.slice(k.length + 1)) }
+let stdin = ''
+process.stdin.on('data', (c) => (stdin += c))
+process.stdin.on('end', () => {
+  const system = fs.readFileSync(conf('model_instructions_file'), 'utf8')
+  fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ args, stdin, system }) + '\\n')
+  const say = (o) => console.log(JSON.stringify(o))
+  say({ type: 'thread.started', thread_id: 't' })
+  say({ type: 'item.completed', item: { id: 'item_0', type: 'error', message: 'Code Mode is unavailable because code-mode host is disabled.' } })
+  if (stdin.includes('FAIL')) return say({ type: 'turn.failed', error: { message: 'Not logged in: run codex login' } })
+  let text
+  if (stdin.includes('## Tools') && !stdin.includes('[tool result: ')) text = JSON.stringify({ tool_calls: [{ name: 'get_rule', args: { id: 'core/use' } }] })
+  else text = JSON.stringify({ model: args[args.indexOf('--model') + 1], effort: conf('model_reasoning_effort'), sawResult: stdin.includes('[tool result: get_rule'), json: stdin.includes('one JSON object') })
+  say({ type: 'item.completed', item: { id: 'item_1', type: 'agent_message', text } })
+  say({ type: 'turn.completed', usage: { input_tokens: 100, cached_input_tokens: 90, output_tokens: 5, reasoning_output_tokens: 2 } })
+})
+`
+  })
+  return { bin, calls: () => readFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l) as FakeCall) }
+}
+
+describe('the Codex backend (codex exec)', () => {
+  it('answers a JSON call with the configured model and effort, the system prompt as its instructions', async () => {
+    const { bin, calls } = fakeCodex()
+    const m = new CodexModel({ model: 'gpt-6-astra', effort: 'low', bin })
+    const r = await m.chat([{ role: 'system', content: 'sys' }, { role: 'user', content: 'hi' }], { json: true })
+    expect(JSON.parse(r.content)).toEqual({ model: 'gpt-6-astra', effort: 'low', sawResult: false, json: true })
+    expect(r.usage).toEqual({ input: 100, output: 5, reasoning: 2 })
+    expect(r.provider).toBe('codex')
+    expect(calls()[0].system).toBe('sys')
+    // a call that asks for more reasoning gets it; max is Codex's xhigh
+    expect(JSON.parse((await m.chat(user, { reasoning: 'high' })).content).effort).toBe('high')
+    expect(JSON.parse((await new CodexModel({ model: 'm', effort: 'max', bin }).chat(user)).content).effort).toBe('xhigh')
+  })
+
+  it('asks for the fast tier when fast, and says so', async () => {
+    const { bin, calls } = fakeCodex()
+    expect((await new CodexModel({ model: 'gpt-6-astra', bin }).chat(user)).provider).toBe('codex')
+    expect((await new CodexModel({ model: 'gpt-6-astra', fast: true, bin }).chat(user)).provider).toBe('codex fast')
+    expect(calls().map((c) => c.args.includes('service_tier="fast"'))).toEqual([false, true])
+  })
+
+  it('is a model call, never an agent: no shell, no tools of its own, no user config, a read-only sandbox', async () => {
+    const { bin, calls } = fakeCodex()
+    await new CodexModel({ model: 'gpt-6-astra', bin }).chat(user)
+    const a = calls()[0].args
+    const off = a.flatMap((x, i) => (a[i - 1] === '--disable' ? [x] : []))
+    expect(off).toEqual(expect.arrayContaining(['shell_tool', 'unified_exec', 'code_mode_host', 'multi_agent', 'browser_use', 'computer_use', 'plugins', 'hooks']))
+    expect(a).toEqual(expect.arrayContaining(['exec', '--ephemeral', '--ignore-user-config', '--ignore-rules']))
+    expect(a[a.indexOf('--sandbox') + 1]).toBe('read-only')
+    expect(a).toContain('web_search="disabled"')
+  })
+
+  it('offers tools as the text protocol: a tool call comes back, and its result is read on the next turn', async () => {
+    const { bin } = fakeCodex()
+    const m = new CodexModel({ model: 'gpt-6-astra', bin })
+    const first = await m.chat([{ role: 'system', content: 'sys' }, { role: 'user', content: 'design' }], { tools })
+    expect(first.toolCalls).toMatchObject([{ name: 'get_rule', args: { id: 'core/use' } }])
+    const c = first.toolCalls[0]
+    const second = await m.chat(
+      [{ role: 'system', content: 'sys' }, { role: 'user', content: 'design' }, { role: 'assistant', content: '', toolCalls: [c] }, { role: 'tool', toolCallId: c.id, name: c.name, content: '{"id":"core/use"}' }],
+      { tools },
+    )
+    expect(second.toolCalls).toEqual([])
+    expect(JSON.parse(second.content).sawResult).toBe(true)
+  })
+
+  it('a failed turn says why, in words the modder reads as the backend being down; a notice alone is no failure', async () => {
+    const { bin } = fakeCodex()
+    const err = await new CodexModel({ model: 'gpt-6-astra', bin }).chat([{ role: 'user', content: 'FAIL' }]).catch((e: Error) => e)
+    expect((err as Error).message).toBe('codex: Not logged in: run codex login')
+    expect(BACKEND_DOWN.test((err as Error).message)).toBe(true)
+  })
+
+  it('is chosen by LSW_MODEL_BACKEND, gpt-6.1-sol at low effort by default', () => {
+    expect(modelFromEnv({ LSW_MODEL_BACKEND: 'codex' })?.name).toBe('codex:gpt-6.1-sol@low')
+    expect(modelFromEnv({ LSW_MODEL_BACKEND: 'codex', LSW_CODEX_MODEL: 'gpt-6-luna', LSW_CODEX_EFFORT: 'medium' })?.name).toBe('codex:gpt-6-luna@medium')
+    // not an Anthropic model: a machine that refuses those still has it
+    expect(modelFromEnv({ LSW_MODEL_BACKEND: 'codex', LSW_NO_ANTHROPIC: '1' })?.name).toBe('codex:gpt-6.1-sol@low')
+    expect(modelFromEnv({ LSW_MODEL_BACKEND: 'codex', LSW_FAST: '1' })?.name).toBe('codex:gpt-6.1-sol@low+fast')
   })
 })
 
@@ -489,5 +585,25 @@ describe('the self-state over files in memory (a browser has no disk)', () => {
     expect(f.exists('/a/b')).toBe(true)
     expect(f.exists('/q')).toBe(false)
     expect(f.join('/a\\b', 'c')).toBe('/a/b/c')
+  })
+})
+
+describe('--model and --effort', () => {
+  it('name the chosen backend\'s own model and effort, OpenRouter by default', () => {
+    const env: Record<string, string | undefined> = { LSW_MODEL_BACKEND: 'codex' }
+    chooseModel(env, 'gpt-6-luna', 'medium')
+    expect(modelFromEnv(env)?.name).toBe('codex:gpt-6-luna@medium')
+    const claude: Record<string, string | undefined> = { LSW_MODEL_BACKEND: 'claude-code' }
+    chooseModel(claude, 'claude-sonnet-5-5')
+    expect(modelFromEnv(claude)?.name).toBe('claude-code:claude-sonnet-5-5@low')
+    const or: Record<string, string | undefined> = { LSW_MODEL_KEY: 'k' }
+    chooseModel(or, 'moonshotai/kimi-k3')
+    expect(modelFromEnv(or)?.name).toBe('moonshotai/kimi-k3')
+    // nothing given: the environment as it was
+    const same = { LSW_MODEL_BACKEND: 'codex', LSW_CODEX_MODEL: 'gpt-6-luna' }
+    chooseModel(same)
+    expect(same).toEqual({ LSW_MODEL_BACKEND: 'codex', LSW_CODEX_MODEL: 'gpt-6-luna' })
+    expect(() => chooseModel({}, undefined, 'high')).toThrow(/not "openrouter"/)
+    expect(() => chooseModel({ LSW_MODEL_BACKEND: 'none' }, 'm')).toThrow(/has none/)
   })
 })
