@@ -151,6 +151,8 @@ export type ToWorker =
   | { t: 'guiding'; on: boolean }
   /** Ask another modder from now on: the player's own over this port (sent with the message), a service, or none. */
   | { t: 'modder'; port?: MessagePort; url?: string }
+  /** Host agent players for the relay at this address (the page's `?agents=`, docs/agent-players.md). */
+  | { t: 'agents'; url: string }
   | { t: 'patch'; id?: string; patch: Patch }
   | { t: 'dismiss'; id: string }
   | { t: 'removeRule'; id: string }

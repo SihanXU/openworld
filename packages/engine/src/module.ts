@@ -125,9 +125,13 @@ export interface EngineHooks {
   frame: ((f: Frame) => void)[]
   /** Why one asleep woke, when it was hurt in its sleep: the first that has a word. */
   woke: ((e: Entity) => { en: string; zh: string } | undefined)[]
+  /** The inputs a module adds to a seat (`cast`, `dash`). */
+  seat: Record<string, (e: Entity, arg?: number) => void>
+  /** The wind-ups under way on a map. */
+  telegraphs: ((map: string) => NonNullable<Frame['telegraphs']>)[]
 }
 
-export const noHooks = (): EngineHooks => ({ tick: [], enterMap: [], residents: [], learn: [], learned: [], frame: [], woke: [] })
+export const noHooks = (): EngineHooks => ({ tick: [], enterMap: [], residents: [], learn: [], learned: [], frame: [], woke: [], seat: {}, telegraphs: [] })
 
 /**
  * A blow as the striker's talents shape it: its power, and what the act carries beyond it (a critical, a

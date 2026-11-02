@@ -6,7 +6,7 @@
 
 import { registerModule, type EngineModule } from '@openworld/engine'
 import { Kits } from './cast.ts'
-import { encounter, kitFrame } from './encounter.ts'
+import { encounter, kitFrame, telegraphsOn } from './encounter.ts'
 import { kitGoal } from './kit.ts'
 import { tacticsGoal } from './tactics.ts'
 import { unleash } from './unleash.ts'
@@ -45,6 +45,7 @@ export const kitsModule: EngineModule = {
     eng.world.ext.set('kits', new Kits(eng))
     // the HUD's marks (the cells each caster on the map winds up on) and each boss's plate and pose
     eng.hooks.frame.push((f) => kitFrame(eng, f))
+    eng.hooks.telegraphs.push((map) => telegraphsOn(eng, map))
   },
   upgrade(eng) {
     // an older save's boss memory (the bosses module's: a kit by id, its skills by index, a wind-up) becomes the director's;

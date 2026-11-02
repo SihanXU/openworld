@@ -61,7 +61,7 @@ export class Behaviour {
     const w = eng.world
     eng.npcs.begin(active)
     const sc = sceneOf(eng, active)
-    const movers = w.entitiesOnMap(active).filter((e) => e.place.on === 'tile' && e.id !== w.state.player && (e.npc || e.ai || e.boss || e.props?.companion !== undefined))
+    const movers = w.entitiesOnMap(active).filter((e) => e.place.on === 'tile' && e.id !== w.state.player && !eng.seats.has(e.id) && (e.npc || e.ai || e.boss || e.props?.companion !== undefined))
     for (const id of w.companionIds) {
       const e = w.state.entities[id]
       if (typeof e.props?.companion === 'string' && !(e.place.on === 'tile' && e.place.map === active)) movers.push(e)
