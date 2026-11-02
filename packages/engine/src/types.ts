@@ -703,6 +703,22 @@ export interface CombatState {
   /** Relics (a Stigmatic piece's power): Starfall's hits toward the fifth, the gale's speed until, the Unfallen Wall's last turned blow. */
   starHits?: number
   galeUntil?: number
+  /** Blood Price (a set's power): blows taken this while, each a share more damage. */
+  bloodStacks?: number
+  bloodUntil?: number
+  /** The advancements' skills (docs/advancement.md): the buffs up (a skill's id → until), a mark on a foe, a ward, a
+   * sure critical readied, Ascendance's stacks, Shadow Lord's count, the last felled, Living Legend's minute. */
+  buffs?: Record<string, number>
+  mark?: { target: string; until: number; damage: number; skill: string }
+  ward?: number
+  wardUntil?: number
+  sureNext?: boolean
+  ascStacks?: number
+  ascUntil?: number
+  shadowHits?: number
+  felled?: { id: string; map: string; x: number; y: number; poisoned: boolean; marked: boolean; tick: number }
+  legendTick?: number
+  regenTick?: number
   unfallenTick?: number
   /** Active skills (actives.ts): Gale Step's speed, a War Cry's guard and strength, a Smoke Bomb's veil — until these ticks. */
   hasteUntil?: number
@@ -711,7 +727,7 @@ export interface CombatState {
   /** Envenom: so many more blows open a bleed. */
   envenomHits?: number
   /** Arrow Rain: volleys still to fall on a 3×3 around (x, y), the next at tick `next`. */
-  rain?: { map: string; x: number; y: number; next: number; left: number; power: number; element?: string }
+  rain?: { map: string; x: number; y: number; next: number; left: number; power: number; element?: string; radius?: number; afflict?: string; ticks?: number }
   /** Iron Guard: blows taken much lighter, steps slower, until this tick. Hawk Eye: reach and criticals, until this tick. */
   ironUntil?: number
   aimUntil?: number
@@ -1436,6 +1452,12 @@ export interface SkillDef {
   branch: string
   /** Only this profession may learn/use the node; absent means a shared skill. */
   profession?: string
+  /** Only one on this path of its profession (the second advancement, docs/advancement.md) may learn it. */
+  path?: string
+  /** Only one advanced this far (the actor's `advancement`: 1 a profession, 2 a path, 3 the mastery) may learn it. */
+  tier?: number
+  /** A passive that pays under a condition (docs/advancement.md §4): read by the classes module's combat, no code of its own. */
+  passive?: SkillPassive
   /** Skills learned first. */
   requires?: string[]
   /** Skill points it costs (default 1). */
@@ -1456,6 +1478,51 @@ export interface SkillDef {
 }
 
 /**
+ * A passive's condition and what it pays while the condition holds (docs/advancement.md §4), and a buff's payments
+ * while it lasts (an active `buff`). Shares are fractions (+0.1 is +10%); `taken` lessens harm taken (−0.2 is 20% less).
+ */
+export interface SkillPassive {
+  when?: {
+    night?: boolean
+    /** At or below this share of one's health. */
+    wounded?: number
+    /** At full health. */
+    hale?: boolean
+    /** No step this second; or a step within it. */
+    standing?: boolean
+    moving?: boolean
+    /** A companion following near; or none. */
+    companion?: boolean
+    alone?: boolean
+    /** One's own profession's weapon held (a dagger for an assassin …), or a worn shield. */
+    weapon?: 'own' | 'shield'
+    /** The one struck: in any of these statuses, of any of these tags, at or below this share of its health. */
+    target?: { status?: string[]; tag?: string[]; wounded?: number }
+    /** A buff of one's own up (an active skill's id). */
+    buff?: string
+  }
+  damage?: number
+  crit?: number
+  critDamage?: number
+  dodge?: number
+  taken?: number
+  moveHaste?: number
+  attackHaste?: number
+  /** Health drawn back by each blow that lands. */
+  drain?: number
+  cdr?: number
+  /** Active skills' blows only. */
+  skillDamage?: number
+  /** No blow takes more than this (an Aegis); blows from the front turned aside by this chance (a Bastion). */
+  cap?: number
+  front?: number
+  /** Health mended each second (a Sanctuary). */
+  regen?: number
+  /** Shared with those who follow one (their `companion` names one), within 6 cells (a Demon Hunter's call and vigil). */
+  party?: boolean
+}
+
+/**
  * What an active skill does when cast (engine/src/actives.ts implements each kind; content sets the numbers).
  * `power` multiplies the caster's blow (its atk and its weapon's power); `ticks` is how long what it leaves lasts.
  */
@@ -1467,6 +1534,8 @@ export interface ActiveDef {
     | 'multishot' | 'leap-shot' | 'pierce' | 'rain'
     | 'fireball' | 'nova' | 'chain' | 'blink'
     | 'shot' | 'arc' | 'guard' | 'aim' | 'slam'
+    // the advancements' (docs/advancement.md §4)
+    | 'buff' | 'field' | 'detonate' | 'leap' | 'summon' | 'command' | 'mark' | 'taunt' | 'ward' | 'rest'
   /** Ticks before it can be cast again (10 a second). */
   cooldown: number
   power?: number
@@ -1481,12 +1550,26 @@ export interface ActiveDef {
   element?: string
   /** Ticks a blow of it makes the struck bleed (a Fan of Knives). */
   bleed?: number
-  /** A burst's half-width: a Fireball's (1: 3×3) or a Meteor's (2: 5×5). */
+  /** A burst's half-width: a Fireball's (1: 3×3) or a Meteor's (2: 5×5); round the caster as a `summon` or a `field`
+   * is cast, when it has a `power` (an Army of the Dead, a Demon Prison). */
   radius?: number
   /** Its arrows fly through every body in their line (an Arrow Storm). */
   through?: boolean
   /** What is drawn in flight (a shot's): arrow, knife, ice. */
   missile?: string
+  /** A buff's payments while it lasts (`buff`), and its price in a share of the caster's health. */
+  buff?: SkillPassive
+  cost?: number
+  /** What a `field` lays (a hazard's type), on what pattern; a `summon`'s creature. */
+  leaves?: string
+  pattern?: 'line' | 'square' | 'ring' | 'cell' | 'around'
+  creature?: string
+  /** The status a `detonate` ends for its blow (bleeding, burning, frozen). */
+  status?: string
+  /** Its blow is a sure critical (a Heartseeker, an Assassinate). */
+  sure?: boolean
+  /** How far its blow drives the struck back (a Wind Arrow). */
+  push?: number
 }
 
 /** A set of gear: its pieces carry `props.set: id`; worn together they give its bonuses. */
@@ -1495,7 +1578,20 @@ export interface GearSet {
   name: Text
   /** How many pieces it has. */
   pieces: number
-  bonuses: { pieces: number; props: Record<string, number>; text: Text }[]
+  bonuses: GearSetBonus[]
+}
+
+/**
+ * What a set gives once so many of its pieces are worn (a piece per slot): numbers (`night:<key>` only at night, as a
+ * piece's), and a power beyond them — a vow, a relic's power or the set's own, answered as a piece carrying it is.
+ */
+export interface GearSetBonus {
+  pieces: number
+  props: Record<string, number>
+  text: Text
+  vow?: string
+  relic?: string
+  power?: string
 }
 
 /** A recipe for the crafting panel: the carried items it uses up, and the item it makes. */
@@ -1893,7 +1989,7 @@ export type EmitTo =
 export type ModuleOp = 'unleash' | 'rally' | 'boon' | 'feed' | 'own' | 'witness' | 'tell' | 'hear' | 'regard' | 'settle' | 'fear' | 'report' | 'charge' | 'surrender' | 'die' | 'pay' | 'give' | 'plunder' | 'beaten' | 'sell' | 'buy' | 'follow' | 'talk' | 'fine' | 'imprison' | 'jail' | 'arrest' | 'restock' | 'calm' | 'moveIn' | 'conscience' | 'moral' | 'trophy' | 'fishing/start' | 'fishing/step' | 'fishing/input' | 'fishing/land' | 'residentWork/order' | 'residentWork/update'
 
 export type Effect =
-  | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean; owner?: RoleName; ownerFrom?: RoleName }
+  | { op: 'spawn'; type: string; at: RoleRef; into?: 'tile' | 'contents' | 'hand'; count?: Amount; still?: boolean; owner?: RoleName; ownerFrom?: RoleName; /** The game's own (a summon's master): never a patch's. */ props?: Record<string, PropValue> }
   | { op: 'destroy' }
   | { op: 'transform'; into: string }
   | { op: 'move'; to: RoleRef; into?: 'tile' | 'contents' | 'hand' }

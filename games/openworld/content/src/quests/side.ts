@@ -3,9 +3,13 @@
 // accepted or declined in the talk panel, handed back to them.
 
 import type { QuestDef } from '@openworld/engine'
-import { L, errand, gear } from './kit.ts'
+import { L, errand, gear, setPiece } from './kit.ts'
 import { CH1, DRAWINGS } from '../chapter1.ts'
 import { PAST_KNIGHT } from './main.ts'
+import { CH2, LEFT_BANNER, NOVICE_SCOURGE, WAR_DRUM } from '../chapter2.ts'
+import { BLUE_SCARF } from '../chapter3.ts'
+import { CH4, JORY_KITE } from '../chapter4.ts'
+import { CH5, ROAD_PASS } from '../chapter5.ts'
 
 const LETTER = { fact: { [CH1.letter]: 1 } } as const
 
@@ -46,7 +50,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('Six. Slimes, spiders, wolves, whatever moves in the hollow.', '六只。史莱姆、蜘蛛、狼，荆棘谷里会动的都算。'),
     done: L("It's quieter already. Take this spear. I keep a spare, and you'll use it more than I will.", '已经安静多了。这杆矛你拿着。我多备了一杆，你比我用得上。'),
     asks: [{ id: 'kills', text: L('Creatures felled in the hollow', '在荆棘谷打倒的怪物'), kill: { type: 'actor/creature' }, map: 'hollow', count: 6, where: 'hollow' }],
-    reward: { xp: 40, items: [{ type: 'item/weapon/polearm/spear', count: 1 }, gear('item/armor/pauldrons', 'shoulders', 'Militia Pauldrons', '民兵护肩', 'fine', {}, 2)], regard: { giver: 10 } },
+    reward: { xp: 40, items: [{ type: 'item/weapon/polearm/spear', count: 1 }, setPiece('item/armor/pauldrons/watch', 'thorns')], regard: { giver: 10 } },
   }),
   errand({
     id: 'firewood',
@@ -77,7 +81,7 @@ export const SIDE_QUESTS: QuestDef[] = [
       { id: 'joss', text: L('Ask Joss about the bridge', '问乔斯桥的事'), talk: 'npc.joss', line: L("The gap is three planks wide. Fell a tree with an axe, split the logs into planks, and lay them on the water where the boards were. Or find some other way across.", '缺口要三块木板才补得上。用斧头砍棵树，把木头劈成木板，铺在原来桥板的位置上。要不然，你就另找办法过河。') },
       { id: 'hesper', text: L('Ask Hesper what she saw', '问赫斯珀她看到了什么'), talk: 'npc.hesper', line: L('White, all of him. A crown of thorns grown through his helm. He pulled my bridge up board by board and laid the nails out on the pier, like a toll paid. He never looked at me once.', '他从头到脚都是白的，头上戴着一顶荆棘冠，荆棘是从头盔里面长穿出来的。他把我的桥一块一块拆了，钉子整整齐齐摆在码头上，像是付了过桥钱。从头到尾，他没看我一眼。') },
     ],
-    reward: { xp: 40, items: [{ type: 'item/food/bread', count: 2 }, gear('item/valuable/amulet', 'neck', 'Amulet of the Five Wounds', '五伤护符', 'masterwork', {}, 3)], facts: { [CH1.pilgrim]: 1 }, regard: { giver: 5 } },
+    reward: { xp: 40, items: [{ type: 'item/food/bread', count: 2 }, setPiece('item/valuable/amulet/fivewounds', 'pilgrim')], facts: { [CH1.pilgrim]: 1 }, regard: { giver: 5 } },
   }),
   errand({
     id: 'drawings',
@@ -104,7 +108,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('Three statues. The one at Woundstone Foot, ours by the square, Vesper Ford\'s... They are all humming the same note, and it is lower every week.', '三座雕像。伤石山麓那座，广场边我们这座，晚祷渡那座……它们哼的都是同一个音，一个礼拜比一个礼拜低。'),
     done: L('Lower every week, and faster than the old almanac says. Take it; I have copied what I need. Read the last pages. I cannot make sense of them.', '一个礼拜比一个礼拜低，比旧历书上算的还快。这本你拿去吧，我要的都抄下来了。你看看最后几页，我怎么也看不明白。'),
     asks: [{ id: 'statues', text: L('Waypoint statues woken', '唤醒的传送雕像'), fact: 'waypoints.attuned', count: 3 }],
-    reward: { xp: 30, items: [{ type: 'item/document/almanac', count: 1 }, gear('item/valuable/ring', 'ring', "Surveyor's Ring", '测天者的戒指', 'fine', {}, 2)], regard: { giver: 10 } },
+    reward: { xp: 30, items: [{ type: 'item/document/almanac', count: 1 }, setPiece('item/valuable/ring/fivewounds', 'measure')], regard: { giver: 10 } },
   }),
   errand({
     id: 'templar',
@@ -139,7 +143,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('Cloudtop, above Woundstone Foot. A shelter on the snow. He kept his log on the table, if I know watchmen.', '云顶台地，在伤石山麓上面。雪地里有间小屋。守夜的人都把日志放在桌上，他应该也一样。'),
     done: L('Eleven years. The sunsets were coming early eleven years ago, and he wrote it down every night, and nobody read it. ...A sleeping light in the snow. I do not know what he meant by that. I am sure it means nothing.', '十一年。十一年前日落就开始提前了，他每天晚上都记下来，可是没有人读过。……雪里有一点睡着的光。我不明白他写的是什么意思。应该没什么吧。'),
     asks: [{ id: 'log', text: L("Read the watchman's log on Cloudtop", '读云顶台地上守夜人的日志'), step: 'watch_log', where: 'summit' }],
-    reward: { xp: 30, items: [{ type: 'item/food/bread', count: 2 }, gear('item/valuable/earring', 'ear', 'Star-glass Earring', '星玻璃耳环', 'masterwork', {}, 2)], regard: { giver: 10 } },
+    reward: { xp: 30, items: [{ type: 'item/food/bread', count: 2 }, setPiece('item/valuable/earring/fivewounds', 'watch')], regard: { giver: 10 } },
   }),
   errand({
     id: 'herd',
@@ -186,7 +190,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('Six logs. Any tree will do; the coppice is nearest.', '六根木头。哪棵树都行，矮林最近。'),
     done: L('That is a clamp\'s worth. Four days and it is charcoal. Here, coal from the last burn, and a cap. The ash gets in your hair.', '够一窑了。烧四天就成炭。给，这是上一窑的炭，还有一顶帽子。烧炭的灰会落进头发里。'),
     asks: [{ id: 'logs', text: L('Logs', '木头'), carry: { type: 'item/material/log' }, count: 6, where: 'charcoal' }],
-    reward: { xp: 25, items: [{ type: 'item/material/coal', count: 4 }, gear('item/clothing/hat', 'head', "Burner's Felt Cap", '炭工的毡帽', 'fine', {}, 2)], regard: { giver: 10 } },
+    reward: { xp: 25, items: [{ type: 'item/material/coal', count: 4 }, setPiece('item/clothing/hat/wildwood', 'clamp')], regard: { giver: 10 } },
   }),
   errand({
     id: 'boars',
@@ -198,7 +202,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('Four boars, in the woods round the dell. They come out of the undergrowth at you. Stand your ground.', '四头野猪，就在谷地周围的林子里。它们会从矮树丛里朝你冲出来，站稳了。'),
     done: L('Quieter. The stools might come back now. Take these, the boots I cut the coppice in before my knees went.', '安静了。树桩兴许能重新发芽了。这双靴子给你，是我膝盖还没坏的时候，在矮林里干活穿的。'),
     asks: [{ id: 'kills', text: L('Boars felled in the dell', '在烧炭谷打倒的野猪'), kill: { type: 'actor/creature/beast/boar' }, map: 'charcoal', count: 4, where: 'charcoal' }],
-    reward: { xp: 40, items: [gear('item/clothing/boots', 'feet', 'Coppice Boots', '矮林靴', 'fine', { moveHaste: 0.05 }, 2)], regard: { giver: 10 } },
+    reward: { xp: 40, items: [setPiece('item/clothing/boots/wildwood', 'boars')], regard: { giver: 10 } },
   }),
   errand({
     id: 'birds',
@@ -212,7 +216,7 @@ export const SIDE_QUESTS: QuestDef[] = [
       { id: 'gus', text: L('Ask Gus about the quiet', '问格斯噤声林为什么安静'), talk: 'npc.gus', line: L('Quiet? ...It went quiet the night the bridge came down. Every bird in it got up at once and flew west. I never told anyone. Nobody wants to hear a woodcutter go on about birds.', '安静？……桥塌的那天晚上就安静了。林子里的鸟一下子全飞起来，往西去了。我没跟人说过。谁会听一个砍柴的讲鸟的事。') },
       { id: 'feathers', text: L('Feathers from under the roost', '栖鸟橡树下的羽毛'), carry: { type: 'item/material/feather' }, count: 3, where: 'charcoal:roost' },
     ],
-    reward: { xp: 30, items: [{ type: 'item/misc/feather_quill', count: 1 }, gear('item/valuable/earring', 'ear', "Fowler's Earring", '捕鸟人的耳坠', 'fine', { luck: 0.05 }, 2)], regard: { giver: 15 }, facts: { 'ch1.birds': 1 } },
+    reward: { xp: 30, items: [{ type: 'item/misc/feather_quill', count: 1 }, setPiece('item/valuable/earring/wildwood', 'birds')], regard: { giver: 15 }, facts: { 'ch1.birds': 1 } },
   }),
   // ------------------------------------------------------------------ the Reed Bend, east
   errand({
@@ -224,7 +228,7 @@ export const SIDE_QUESTS: QuestDef[] = [
     waiting: L('Three fish. The pier, the shallows, anywhere there is water. Eels come after dark.', '三条鱼。码头、浅滩，有水的地方都行。鳗鱼天黑以后才出来。'),
     done: L('Those will smoke. Here, bait, and my spare oilskin. You will want it on this river.', '这几条能熏。给，鱼饵，还有我多出来的那件油布斗篷。在这条河上你用得着。'),
     asks: [{ id: 'fish', text: L('Fish', '鱼'), carry: { type: 'item/food/fish' }, count: 3, where: 'reedbend' }],
-    reward: { xp: 25, items: [{ type: 'item/misc/bait', count: 5 }, gear('item/clothing/cloak', 'shoulders', "Hilde's Oilskin", '希尔德的油布斗篷', 'fine', {}, 2)], regard: { giver: 10 } },
+    reward: { xp: 25, items: [{ type: 'item/misc/bait', count: 5 }, setPiece('item/clothing/cloak/wildwood', 'catch')], regard: { giver: 10 } },
   }),
   errand({
     id: 'boatbell',
@@ -238,4 +242,171 @@ export const SIDE_QUESTS: QuestDef[] = [
     reward: { xp: 35, items: [{ type: 'item/food/fish/cooked', count: 2 }, gear('item/valuable/ring', 'ring', "Rolf's Net Ring", '罗尔夫的结网戒', 'fine', { luck: 0.05 }, 2)], regard: { giver: 20 }, facts: { 'ch1.boatbell': 1 } },
   }),
   // (the Held Ground's widenings are its steward's panel now, not errands: haven.ts HAVEN_UPGRADES)
+  // ------------------------------------------------------------------ Chapter 2: Emberfall and the March (docs/chapter-2.md §10)
+  errand({
+    id: 'bandages',
+    title: L('Bandages Nobody Asks For', '没人来要的绷带'),
+    summary: L('Vera, the Red Host\'s surgeon, keeps asking for bandages, though no one ever comes to her tent. She wants 3 cloth and 3 herbs.', '赤军的军医薇拉一直在要绷带，虽然从来没人到她帐篷里来。她要 3 块布和 3 株草药。'),
+    giver: 'npc.vera',
+    offer: L('Nobody comes to my tent. They walk about with things in them that should have killed them, and they ask me for nothing. I keep asking the quartermaster for linen anyway, and he laughs. If you have cloth and herbs, bring me three of each. Someone will need them one day.', '我的帐篷没人来。他们身上带着本该要命的伤到处走，什么也不跟我要。我还是一直找军需官要麻布，他就笑。你要是有布和草药，各给我带三份来。总有一天会有人用得上。'),
+    waiting: L('Three cloth and three herbs. Bring them when you can.', '三块布，三株草药。有了就拿来。'),
+    done: L('Thank you. I will roll them tonight and put them on the shelf with the others. Take these gloves. I have two pairs, and I have never needed the second.', '谢谢。我今晚就把它们卷好，跟别的放在一个架子上。这副手套你拿着。我有两副，第二副从来没用上过。'),
+    asks: [
+      { id: 'cloth', text: L('Cloth', '布'), carry: { type: 'item/material/cloth' }, count: 3 },
+      { id: 'herbs', text: L('Herbs', '草药'), carry: { type: 'item/material/herb' }, count: 3 },
+    ],
+    reward: { xp: 35, items: [setPiece('item/clothing/gloves/lashmark', 'bandages')], regard: { giver: 15 } },
+  }),
+  errand({
+    id: 'drum',
+    title: L('The Drum in the Ravine', '掉进沟里的鼓'),
+    summary: L('Wil, the Left Company\'s drummer, dropped his drum into the middle ravine of the Lashmarks. He wants it back.', '左营的小鼓手威尔把鼓掉进了鞭痕原中间那道沟里，想把它拿回来。'),
+    giver: 'npc.wil',
+    offer: L("I'm Wil. I beat the drum for the Left. Yesterday it rolled off the edge into the big ravine on the Lashmarks, the middle one, and I couldn't climb down after it. The captain says the Left can advance without a drum. It can't. Will you get it?", '我叫威尔，给左营打鼓。昨天鼓从边上滚下去了，掉进鞭痕原中间那条大沟里，我爬不下去。队长说没有鼓左营也能冲锋。根本不行。你能帮我拿回来吗？'),
+    waiting: L("It's in the middle ravine. It has red hoops, and my name is on the inside.", '在中间那条沟里。红箍的，里面刻着我的名字。'),
+    done: L("That's it! That's my drum. Thank you, thank you. You can have my cord, the one I tie my sticks with. I'll find another.", '就是它！是我的鼓。谢谢你，谢谢你。我系鼓槌的那根绳子给你吧，我再找一根。'),
+    asks: [{ id: 'drum', text: L("Wil's drum, in the middle ravine of the Lashmarks", '威尔的鼓（鞭痕原中间那道沟里）'), carry: { type: WAR_DRUM }, count: 1, where: 'lashmarks:ravine' }],
+    reward: { xp: 30, items: [setPiece('item/valuable/amulet/lashmark', 'drum')], regard: { giver: 20 } },
+  }),
+  errand({
+    id: 'odran',
+    title: L('A Word for Brother Lucan', '带给卢坎修士的话'),
+    summary: L('Odran, an old brother of the Red Order who lives in Emberfall, asks whether Lucan, a novice with him long ago, is still alive in the Scourging House.', '住在余烬镇的红衣修会老修士奥德兰，想知道当年和他一起做见习修士的卢坎，还在不在鞭笞院。'),
+    giver: 'npc.odran',
+    offer: L("If you're going over the pass, I'll ask you one thing. There was a novice with me at the Scourging House, Lucan. We took our first strokes on the same evening. Find out whether he's still alive. If he is, tell him Odran is too.", '你要是翻山过去，我只求你一件事。当年在鞭笞院跟我一起做见习修士的，有个叫卢坎的。我们是同一个晚上挨的第一鞭。替我看看他还活着没有。要是还活着，告诉他，奥德兰也还活着。'),
+    waiting: L("Lucan. At the Scourging House, east of the Red Host's camp. He'll be old now, like me.", '卢坎。在赤旗营东边的鞭笞院。他现在也该老了，跟我一样。'),
+    done: L("He's alive. ...And he has been taking my strokes for forty years. I never asked him to. Here, take my old scourge. I kept it all this time and never used it again. You'll have more use for it than I will.", '他还活着。……他替我受了四十年的鞭。我从来没让他这么做。拿着吧，这是我的旧鞭子。这些年我一直留着，再也没用过。你用得上，我用不上了。'),
+    asks: [{ id: 'lucan', text: L('Give Prior Lucan word of Odran, in the Scourging House', '到鞭笞院，把奥德兰的话带给卢坎院长'), talk: 'npc.lucan', line: L('Odran? He left us forty years ago. We prayed for him for a year, and then we stopped. ...Tell him I still take his strokes at dusk. I began the evening he left, and I have not missed one since.', '奥德兰？他四十年前就离开我们了。我们为他祷告了一年，后来就不再祷告了。……告诉他，每到黄昏，我还在替他受鞭。他走的那个晚上我就开始了，一晚都没落下过。') }],
+    reward: { xp: 40, items: [{ type: NOVICE_SCOURGE, count: 1 }], regard: { giver: 20 } },
+  }),
+  errand({
+    id: 'banner',
+    title: L('The Stolen Banner', '被抢走的军旗'),
+    summary: L("Sixty-one years ago the Right Company took the Left's banner. Captain Brannoc says it hangs in the War-Giver's Bastion, by the inner gate, and wants it back.", '六十一年前，右营抢走了左营的军旗。布兰诺克队长说它挂在赐战者堡垒的内门边上，想把它拿回来。'),
+    giver: 'npc.brannoc',
+    when: { fact: { [CH2.camp]: 1 } },
+    offer: L("Sixty-one years ago the Right took our banner. That is how it started; my sergeant told me so, and his sergeant told him. They say it hangs in the Bastion now, by the inner gate, among the Rider's old guard. If you are going there anyway, bring it back. The Left has carried a spare for sixty-one years.", '六十一年前，右营抢走了我们的军旗。我的军士是这么跟我说的，他的军士也是这么跟他说的：事情就是从那儿开始的。听说那面旗现在挂在堡垒里，就在内门边上，骑者那些老卫兵中间。你反正要去那儿，就把它带回来。左营扛了六十一年备用的旗。'),
+    waiting: L("Our banner. In the Bastion, by the inner gate. You'll know it: a white pillar on red.", '我们的旗。在堡垒内门边上。你一看就认得：红底，一根白柱子。'),
+    done: L("This is it? ...This is the same as theirs. The same as ours. There is one row of stitches on it, and nothing else. ...Keep these pauldrons. They were the last captain's. I don't want them on my shoulders tonight.", '就是它？……这和他们的一样，和我们的也一样。上面就多了一排针脚，别的什么都没有。……这副护肩你拿着，是上一任队长的。今晚我不想把它扛在肩上。'),
+    asks: [{ id: 'banner', text: L("The Left Company's banner, in the Bastion by the inner gate", '左营的军旗（堡垒内门边上）'), carry: { type: LEFT_BANNER }, count: 1, where: 'bastion:gate' }],
+    reward: { xp: 45, items: [setPiece('item/armor/pauldrons/lashmark', 'banner')], regard: { giver: 20 } },
+  }),
+  // ------------------------------------------------------------------ Chapter 3: the Vale of Scales (docs/chapter-3.md §10)
+  errand({
+    id: 'poorbread',
+    title: L('Bread for the Poorhouse', '济贫院的面包'),
+    summary: L('Sister Berthe feeds the poorhouse children from almost nothing, and has been giving away her own share. She asks for 4 bread.', '贝尔特修女几乎是拿空手在喂济贫院的孩子，自己那份也早就分出去了。她要 4 个面包。'),
+    giver: 'npc.berthe',
+    offer: L('I have eleven children and a sack of bran. If you have bread, bring me four loaves. I will not ask what you paid for them, and you will not ask whether I eat any.', '我这儿有十一个孩子，一袋麸皮。你要是有面包，给我带四个来。我不问你花了多少钱，你也别问我自己吃没吃。'),
+    waiting: L('Four loaves. For the children.', '四个面包。给孩子们的。'),
+    done: L('Four. Tonight they will go to sleep full, and wake up hungry, the way children should. Take this shawl. It was the last almoner\'s, and I have no one to give alms to but my own.', '四个。今晚他们能吃饱了睡，明早饿着醒，孩子就该这样。这条披肩你拿着，是上一任施赈人留下的。如今我除了自己这些孩子，也没别人可施了。'),
+    asks: [{ id: 'bread', text: L('Bread', '面包'), carry: { type: 'item/food/bread' }, count: 4 }],
+    reward: { xp: 40, items: [setPiece('item/clothing/cloak/almoner', 'poorbread')], regard: { giver: 20 } },
+  }),
+  errand({
+    id: 'scarf',
+    title: L('Where Mama Is', '妈妈在哪儿'),
+    summary: L('Elsie\'s mother was Lightened and walked out onto the White Pans last spring. She wore a blue scarf.', '艾尔西的妈妈被称轻了，去年春天走到了白盐滩上。她戴着一条蓝围巾。'),
+    giver: 'npc.elsie',
+    offer: L('Are you going out on the salt? My mama is out there. She had a blue scarf. If you see her, will you bring me something of hers? I have a jar. I put the dust in it so she is somewhere.', '你要到盐滩上去吗？我妈妈在那儿。她戴着一条蓝围巾。你要是看见她，能给我带一样她的东西回来吗？我有个罐子。我把灰装在里面，这样她就有个地方待着了。'),
+    waiting: L('A blue scarf. She was the one with the blue scarf.', '蓝围巾。戴蓝围巾的那个就是她。'),
+    done: L('That\'s hers. ...It smells like salt now. I\'ll keep it with the jar. You can have my ribbon. It was red before.', '是她的。……现在它闻起来是咸的了。我把它跟罐子放在一起。我的发带给你吧，它以前是红的。'),
+    asks: [{ id: 'scarf', text: L('Something of Elsie\'s mother\'s, on the White Pans', '艾尔西妈妈的东西（白盐滩上）'), carry: { type: BLUE_SCARF }, count: 1, where: 'saltpans:mother' }],
+    reward: { xp: 40, items: [setPiece('item/valuable/amulet/almoner', 'scarf')], regard: { giver: 25 } },
+  }),
+  errand({
+    id: 'wifename',
+    title: L("Corwin's Wife", '科温的妻子'),
+    summary: L('Corwin, one of the Lightened, works the dead fields at night. He has forgotten his wife\'s name. The weigh-house keeps the names of everyone it has weighed.', '科温是被称轻的人，夜里在死田里干活。他忘了妻子的名字。称量所记着每一个过过秤的人的名字。'),
+    giver: 'npc.corwin',
+    offer: L('I had a wife. I know I did. She was weighed the same day as me, and she went out on the salt in the winter. I cannot think of her name. The Weighmaster writes every name down. Would you ask him? I would like to say it once.', '我有过一个老婆。这我知道。她跟我是同一天过的秤，冬天的时候走到盐滩上去了。我想不起她叫什么。称量官会把每个名字都记下来。你能替我问问他吗？我想说一遍她的名字。'),
+    waiting: L('Her name. The Weighmaster will have it in his book.', '她的名字。称量官的本子上会有。'),
+    done: L('Agnes. Agnes. ...Yes. That is it. I have said it twice now. Take my lantern; I will not need it, I think. I am going to sit down a while.', '阿格尼丝。阿格尼丝。……对。就是这个。我已经说了两遍了。我的灯你拿去吧，我想我用不着了。我要坐下来歇一会儿。'),
+    asks: [{ id: 'name', text: L('Ask Weighmaster Haskel for the name of Corwin\'s wife', '向称量官哈斯克尔打听科温妻子的名字'), talk: 'npc.haskel', line: L('Corwin? His wife was Agnes. Weighed the same day as him, three years ago this harvest. Found light, both of them. ...I remember every one. I do not need the book.', '科温？他老婆叫阿格尼丝。跟他同一天过的秤，到今年秋收正好三年。两个人都称轻了。……每一个我都记得，用不着翻本子。') }],
+    reward: { xp: 40, items: [{ type: 'item/light/lantern', count: 1 }], regard: { giver: 25 } },
+  }),
+  errand({
+    id: 'grinding',
+    title: L('One More Grinding', '再磨一回'),
+    summary: L('Godwin the miller has ground nothing but salt for two years. He wants 6 wheat, to grind flour once more for the poorhouse.', '磨坊主戈德温两年来只磨盐。他想要 6 捆麦子，再给济贫院磨一回面粉。'),
+    giver: 'npc.godwin',
+    offer: L('Two years I have been grinding salt. Salt! A mill. Bring me six sheaves of wheat from wherever there is still wheat, and I will grind them for the poorhouse, and Berthe can stop looking at me like that.', '我磨了两年的盐。盐！一座磨坊。你从还有麦子的地方给我弄六捆来，我磨了给济贫院，贝尔特就不会再那样看着我了。'),
+    waiting: L('Six wheat. Not barley, not bran. Wheat.', '六捆麦子。不要大麦，也不要麸子。要麦子。'),
+    done: L('Hear that? That is the stones on wheat. I had forgotten the sound. Take the apron, and two loaves of the first baking. The rest goes to Berthe.', '听见没有？这是磨盘碾麦子的声音。我都忘了是什么动静了。围裙你拿着，再拿两个头一炉的面包。剩下的都给贝尔特。'),
+    asks: [{ id: 'wheat', text: L('Wheat', '麦子'), carry: { type: 'item/material/wheat' }, count: 6 }],
+    reward: { xp: 40, items: [setPiece('item/clothing/belt/almoner', 'grinding'), { type: 'item/food/bread', count: 2 }], regard: { giver: 20 } },
+  }),
+  // ------------------------------------------------------------------ Chapter 4: the Pale Fens (docs/chapter-4.md §10)
+  errand({
+    id: 'ferrycoin',
+    title: L("The Ferryman's Coin", '渡钱'),
+    summary: L('Old Hedda of Nailgate is a hundred and nine, and cannot die. She wants a ferryman\'s coin, for when she goes. Klaas the ferryman keeps a box of them.', '钉门村的老海达一百零九岁了，却死不了。她想要一枚渡钱，等她走的时候用。渡人克拉斯有一盒。'),
+    giver: 'npc.hedda',
+    // (Hedda goes with the ferry: too late after it)
+    skip: { fact: { [CH4.end]: 1 } },
+    offer: L('Come here, where I can see you. I have been dying for forty years, and the Keeper will not let me finish. When he does, I want a coin for the ferry. Klaas has a box of them. Ask him for one. Tell him it is for Hedda, and that I have not forgotten the fare.', '过来，到我看得见的地方。我死了四十年了，守护者就是不让我死完。等他放我走，我要一枚渡钱。克拉斯有一盒。去跟他要一枚。告诉他是给海达的，就说车钱我还没忘。'),
+    waiting: L('A coin for the ferry. From Klaas, at the landing.', '一枚渡钱。去渡口找克拉斯要。'),
+    done: L('There. In my hand, where I can feel it. ...Take my shawl. I will not be cold where I am going, and if I am, it is no matter.', '好了。放在我手里，让我摸得着。……我的披肩你拿去吧。我要去的地方不会冷，就算冷，也不要紧了。'),
+    asks: [{ id: 'coin', text: L('Ask Klaas the ferryman for a coin for Hedda', '向渡人克拉斯要一枚给海达的渡钱'), talk: 'npc.klaas', line: L('For Hedda? ...She paid her fare forty years ago, and I sent her home again because the boat would not leave the landing. Here. Tell her this one is on me.', '给海达的？……四十年前她就付过船钱了，可船离不开渡口，我只好把她送回家。拿去吧。告诉她，这一枚算我请的。') }],
+    reward: { xp: 45, items: [{ type: 'item/valuable/ferry_coin', count: 1 }, setPiece('item/clothing/cloak/ferryman', 'ferrycoin')], regard: { giver: 25 } },
+  }),
+  errand({
+    id: 'kite',
+    title: L("Jory's Kite", '乔里的风筝'),
+    summary: L('Sanne\'s brother Jory has been eight for eight years. His kite is caught in a dead tree in the Drowned Graves.', '桑娜的弟弟乔里八年来一直是八岁。他的风筝挂在沉墓地的一棵枯树上。'),
+    giver: 'npc.sanne',
+    // (Jory lies down with the ferry: too late after it, but for a kite already found)
+    skip: { fact: { [CH4.end]: 1 } },
+    offer: L('Jory lost his kite in the Drowned Graves. He keeps asking for it. He asks for it every day, the same way, because he does not remember asking yesterday. Would you get it down? It is in a dead tree, out past the leaning stones.', '乔里把风筝丢在沉墓地了。他一直要。每天都要，说的都是一样的话，因为他不记得昨天已经要过了。你能帮我拿下来吗？就挂在一棵枯树上，在那些歪斜的墓碑后面。'),
+    waiting: L('His kite. Past the leaning stones, in a dead tree.', '他的风筝。在歪墓碑后面，一棵枯树上。'),
+    done: L('Jory! Look! ...He says thank you. He will say it again tomorrow. Take this; it was our mother\'s. I was going to give it to him when he was older.', '乔里！你看！……他说谢谢你。明天他还会再说一遍。这个你拿着，是我们妈妈的。我本来想等他长大了再给他。'),
+    asks: [{ id: 'kite', text: L("Jory's kite, in a dead tree in the Drowned Graves", '乔里的风筝（沉墓地的枯树上）'), carry: { type: JORY_KITE }, count: 1, where: 'drowned:kite' }],
+    reward: { xp: 45, items: [setPiece('item/valuable/ring/ferryman', 'kite')], regard: { giver: 25 } },
+  }),
+  errand({
+    id: 'nails',
+    title: L('Nails', '钉子'),
+    summary: L('Barnaby, the sexton of Nailgate, drives a nail into a doorpost for each of the dead a house keeps. He is running out of nails. He wants 3 iron ingots.', '钉门村的司事巴纳比，一户人家留住一个死人，他就往门柱上钉一颗钉子。他的钉子快用完了。他要 3 块铁锭。'),
+    giver: 'npc.barnaby',
+    offer: L('A nail for each one kept. None of ours goes into the dark. But I have nine nails left and the fen has given me eleven dead this month. Bring me iron, three ingots, and I will draw more.', '留一个，钉一颗。我们的人，一个也不进黑暗。可我只剩九颗钉子了，这个月林沼给了我十一个死人。给我带三块铁锭来，我再打一些。'),
+    waiting: L('Three ingots of iron. For the nails.', '三块铁锭。打钉子用的。'),
+    done: L('Good iron. I will draw them tonight. ...Take my gloves. I have worn through two pairs on the posts this year.', '好铁。我今晚就打。……我的手套你拿着。今年我在门柱上磨穿了两副了。'),
+    asks: [{ id: 'iron', text: L('Iron ingots', '铁锭'), carry: { type: 'item/material/iron_ingot' }, count: 3 }],
+    reward: { xp: 40, items: [setPiece('item/clothing/gloves/gravelamp', 'nails')], regard: { giver: 20 } },
+  }),
+  // ------------------------------------------------------------------ Chapter 5: the White Altar Heights (docs/chapter-5.md §10)
+  errand({
+    id: 'cassian',
+    title: L('Not Yet Brought', '尚未带来'),
+    summary: L('In the catacombs under Whiteveil there is an empty niche: CASSIAN OF FIRSTLIGHT. THE 380TH YEAR. NOT YET BROUGHT. His scallop is the pilgrim\'s, from his camp in Hushwood.', '白纱修道院地下的墓窟里有一个空壁龛：初原村的卡西安。三百八十年。尚未带来。他的扇贝在朝圣者手里，是从噤声林他的营地里找到的。'),
+    giver: 'npc.benedek',
+    when: { fact: { [CH5.abbot]: 1 } },
+    offer: L('Cassian of Firstlight? We keep his niche swept. He was named in the three hundred and eightieth year and never came; the brothers who went down for him found nothing. If you know where he lies, or have anything of his, lay it in the niche. The empty ones are the hardest to keep.', '初原村的卡西安？他的壁龛我们一直扫着。他是三百八十年被点的名，却一直没来；下山去找他的修士什么也没找到。你要是知道他躺在哪里，或者手里有他的东西，就放进那个壁龛吧。空着的壁龛最难守。'),
+    waiting: L('His niche is in the catacombs, on the west gallery. Anything of his will do.', '他的壁龛在墓窟的西廊。他的任何东西都行。'),
+    done: L('Brought. ...I will write it in the roll myself. Take this robe. It was sewn for him, and has waited thirty-one years.', '带来了。……我亲手把这件事写进名册。这件白袍你拿去吧。它是给他缝的，等了三十一年。'),
+    asks: [{ id: 'niche', text: L("Lay Cassian's scallop in his niche in the catacombs", '把卡西安的扇贝放进墓窟里他的壁龛'), fact: CH5.cassian }],
+    reward: { xp: 60, items: [gear('item/clothing/robe', 'body', "Cassian's Robe", '卡西安的白袍', 'vowed', {}, 15, 'cloth', 'pilgrim')], regard: { giver: 25 } },
+  }),
+  errand({
+    id: 'thread',
+    title: L('Thread', '丝线'),
+    summary: L('Sister Agathe sews the robes of the white-robed. She is short of linen. She wants 3 cloth.', '阿加特修女给白袍者缝袍子。她的麻布不够了。她要 3 块布。'),
+    giver: 'npc.agathe',
+    offer: L('I have sewn two thousand and eleven robes. I am sewing one now. I will not say for whom. I am short of linen; bring me three lengths of cloth, and I will finish it sooner. Or later, if you like. That is up to you.', '我缝过两千零十一件白袍。现在手上还在缝一件，给谁的我不说。我的麻布不够了；给我带三块布来，我就能早点缝完。或者晚点，你想要晚点也行。这由你。'),
+    waiting: L('Three lengths of cloth. White, if you can find it.', '三块布。最好是白的。'),
+    done: L('Thank you. ...It is finished. It is yours. I have never sewn one twice.', '谢谢你。……缝好了。是你的。我从没给同一个人缝过两次。'),
+    asks: [{ id: 'cloth', text: L('Cloth', '布'), carry: { type: 'item/material/cloth' }, count: 3 }],
+    reward: { xp: 45, items: [setPiece('item/clothing/robe/elect', 'thread')], regard: { giver: 20 } },
+  }),
+  errand({
+    id: 'leaving',
+    title: L('Leaving', '离开'),
+    summary: L('Brother Tomas, a novice of Whiteveil, carries the dead down to the catacombs and wants to leave. He needs a road pass from the abbot\'s desk.', '白纱修道院的见习修士托马斯，负责把死人抬进墓窟。他想离开。他需要院长桌上的一张路条。'),
+    giver: 'npc.tomas',
+    offer: L('I carry them down. Every one the stair gives us, I carry down and lay in a niche, and they whisper at me. I want to go home. The abbot keeps road passes on his desk in the robing house, sealed and blank. I cannot take one. You could.', '我负责把他们抬下去。石阶送来一个，我就抬下去一个，放进壁龛里，他们就冲我低声说话。我想回家。院长在白袍房的桌上放着路条，盖好了印，名字空着。我不能拿。你能。'),
+    waiting: L('A road pass. On the abbot\'s desk, in the robing house.', '一张路条。在白袍房院长的桌上。'),
+    done: L('My name, here. ...Thank you. Take my belt; a novice\'s rope. I will not wear it down the stair.', '我的名字，写在这儿。……谢谢你。我的腰带你拿去吧，见习修士的绳带。下山的时候我不系它了。'),
+    asks: [{ id: 'pass', text: L("A road pass, from the abbot's desk in the robing house", '一张路条（白袍房院长的桌上）'), carry: { type: ROAD_PASS }, count: 1, where: 'whiteveil.robing:desk' }],
+    reward: { xp: 40, items: [setPiece('item/clothing/belt/chalkstair', 'leaving')], regard: { giver: 25 } },
+  }),
 ]

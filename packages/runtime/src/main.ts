@@ -103,6 +103,7 @@ const menu = new Menu({
   atlas: () => send({ t: 'atlas' }),
   travel: (waypoint) => send({ t: 'travel', waypoint }),
   profession: (id) => send({ t: 'profession', id }),
+  advance: (tier, path) => send({ t: 'promote', tier, path }),
   restyle: (look) => send({ t: 'restyle', look }),
   speak: (who, verb, choice) => send({ t: 'speak', who, verb, ...(choice && { choice }) }),
   offer: (target, item, count) => send({ t: 'offer', target, item, count }),

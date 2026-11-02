@@ -183,6 +183,8 @@ export interface MenuSend {
   travel(waypoint: string): void
   /** Take up (or change to) a profession at a trainer. */
   profession(id: string): void
+  /** The second advancement (a path) or the third (docs/advancement.md), at a trainer. */
+  advance(tier: number, path?: string): void
   /** The dresser's: keep this look as one's own, for her price (docs/looks.md §5). */
   restyle(look: Look): void
   /** A word said to someone without the talk panel (the haven panel's widenings). */
@@ -289,7 +291,7 @@ export class Menu {
     $('#questlog').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
     this.skillPanel = new SkillPanel($('#skillpanel'), (slot, id) => this.send.setSkill(slot, id), () => this.close())
     $('#skillpanel').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
-    this.profession = new ProfessionPanel($('#profession'), (id) => this.send.profession(id), () => this.close())
+    this.profession = new ProfessionPanel($('#profession'), (id) => this.send.profession(id), () => this.close(), (tier, path) => this.send.advance(tier, path))
     $('#profession').addEventListener('mousedown', (e) => e.target === e.currentTarget && this.close())
     this.panels = new PanelRegistry(
       () => ({ ...builtInPanels(), ...game().panels }),

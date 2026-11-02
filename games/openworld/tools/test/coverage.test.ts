@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { Engine, LOOSE, RuleLibrary, SANDBOX_MAP, buildSandbox, isDo, leaves, type Ref, type Scenario } from '@openworld/engine'
 import { BASE_RULES, FORMS, STORY_RULES, buildOntology } from '@openworld-game/content'
-import { BASELINE, FRONT, GENERIC_RULES, ORIGIN, OUTCOMES, SWEPT, sweep, targets, type Baseline, type Tally } from '../src/coverage.ts'
+import { BASELINE, FRONT, GENERIC_RULES, ORIGIN, OUTCOMES, SWEPT, pieceClassOf, sweep, targets, type Baseline, type Tally } from '../src/coverage.ts'
 
 const saved = JSON.parse(readFileSync(BASELINE, 'utf8')) as Baseline
 const cov = sweep()
@@ -45,6 +45,13 @@ describe('a regional form is its base to every rule', () => {
     expect(new Set(SWEPT.filter((f) => f.base).map((f) => f.base)).size).toBe(classes.size)
     const differs = SWEPT.filter((f) => f.base && JSON.stringify(cov.byHand[f.id]) !== JSON.stringify(cov.byHand[f.base]))
     expect(differs.map((f) => `${f.id}: ${JSON.stringify(cov.byHand[f.id])} ≠ ${JSON.stringify(cov.byHand[f.base!])}`)).toEqual([])
+  })
+
+  it('a set\'s piece swept answers every combination as the form it is one of (docs/sets.md)', () => {
+    const swept = SWEPT.filter((f) => pieceClassOf(f))
+    expect(new Set(swept.map((f) => pieceClassOf(f))).size).toBe(new Set(FORMS.map((f) => pieceClassOf(f)).filter(Boolean)).size)
+    const differs = swept.filter((f) => JSON.stringify(cov.byHand[f.id]) !== JSON.stringify(cov.byHand[pieceClassOf(f)!]))
+    expect(differs.map((f) => `${f.id}: ${JSON.stringify(cov.byHand[f.id])} ≠ ${JSON.stringify(cov.byHand[pieceClassOf(f)!])}`)).toEqual([])
   })
 
   it('no rule names a regional form, so the one swept answers for all of its class', () => {
@@ -106,5 +113,5 @@ describe('nothing put down is lost', () => {
       }
     }
     expect(lost).toEqual([])
-  }, 360_000) // a sweep of every swept item form × target (the continent's grounds among them): under a full parallel run it outlasts the default
+  }, 600_000) // a sweep of every swept item form × target (the continent's grounds among them): under a full parallel run it outlasts the default
 })

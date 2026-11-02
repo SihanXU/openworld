@@ -11,6 +11,7 @@ import { skillPng } from '@openworld/runtime/src/ui/skillIcons.ts'
 import { CHALLENGE_LOADOUTS, challengeOutcome, createBossChallenge } from './boss-challenge.ts'
 import { CATALOG } from './catalog.ts'
 import { bossPreviewMode, bossPreviewModes, previewBoss, type BossPreviewMode } from '@openworld/runtime/src/boss-preview.ts'
+import { isStripBoss } from '@openworld/runtime/src/assets/bosses.ts'
 import { createBossStudio } from './boss-studio.ts'
 import '@openworld/runtime/src/styles.css'
 import '@openworld/runtime/src/ui/game.css'
@@ -59,7 +60,7 @@ if (import.meta.env.DEV) Object.assign(window, { bossStudio: { scene, advance: (
 function render(): void {
   currentFrame = snapshot(game.engine)
   const previewEntity = currentFrame.entities.find((e) => e.id === BOSS_ARENA.id)
-  if (!challenge && previewEntity?.boss?.kit === 'alberic' && facing.value !== 'auto') previewEntity.facing = facing.value as Dir
+  if (!challenge && previewEntity?.boss && isStripBoss(previewEntity.boss.kit) && facing.value !== 'auto') previewEntity.facing = facing.value as Dir
   // Clear combat warnings in the displayed snapshot. The scene advances the isolated clip.
   previewBoss(previewEntity, mode, 0)
   scene.applyFrame(currentFrame)

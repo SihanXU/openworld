@@ -5,6 +5,11 @@
 
 import type { Cond, Effect, Rule, Text, Tree } from '@openworld/engine'
 import { ALBERIC_ID, CH1 } from './chapter1.ts'
+import { CH2, MATTHIAS_ID } from './chapter2.ts'
+import { CH3, ELE_ID } from './chapter3.ts'
+import { CH4, NACHT_ID } from './chapter4.ts'
+import { CH5, WITNESSES_ID } from './chapter5.ts'
+import { ASTRA_ID, FIN } from './finale.ts'
 import { ABBOT_ID } from './pilgrimage.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
@@ -18,6 +23,11 @@ export const BOSS_ROOMS = [
   { boss: 'alberic', who: ALBERIC_ID, fact: CH1.knight, arena: 'kingdom' },
   { boss: 'warden', who: 'barrow.warden', fact: 'boss.fell.warden', arena: 'sanctum' },
   { boss: 'wendel', who: ABBOT_ID, fact: 'boss.fell.wendel', arena: 'abbey.tomb' },
+  { boss: 'matthias', who: MATTHIAS_ID, fact: CH2.matthias, arena: 'pillaryard' },
+  { boss: 'ele', who: ELE_ID, fact: CH3.ele, arena: 'scalefloor' },
+  { boss: 'nacht', who: NACHT_ID, fact: CH4.nacht, arena: 'deadford' },
+  { boss: 'witnesses', who: WITNESSES_ID, fact: CH5.witnesses, arena: 'beneathaltar' },
+  { boss: 'astra', who: ASTRA_ID, fact: FIN.astra, arena: 'holiest' },
 ] as const
 
 /** The fog's type, and its period: how often it looks whether its boss has fallen. */

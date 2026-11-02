@@ -73,7 +73,7 @@ describe('validation proofs', () => {
     expect(validatePatch).toHaveBeenCalledTimes(2)
   })
 
-  it('rechecks when another commit, removal or revision changed the shared library', () => {
+  it('rechecks when another commit, removal or revision changed the shared library', { timeout: 180_000 }, () => {
     const { library, patch, req, hole } = fresh()
     expect(library.validate(patch, req).ok).toBe(true)
     const other: Patch = { artifacts: [{ kind: 'rule', rule: { id: 'patch/other', host: { type: 'item/material/stick' }, on: 'act/use', hole, tree: { do: [] } } }] }

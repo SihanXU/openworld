@@ -91,10 +91,26 @@ export const REGION_BY_ID: Record<string, RegionDef> = Object.fromEntries(REGION
 export const UNTOLD = 'world.untold'
 
 /**
- * The fact the story's second part waits for (release 1, docs/release-1.md §1): the road on east from the White
- * Knight's field — Emberfall, its mine, Cinder Pass, the dragon's lair — and all beyond it. Release 1 is Part One, the
- * west bank and the Pilgrim's Road to the knight, the Held Ground after him: no rule sets it there, so the East Road's
- * way on and the places beyond stay sealed (SITE_GATES, a portal's `opensWhen`) after Part One's ending, the Crown
- * home in Firstlight. The dev console sets it to play on.
+ * The fact the continent east of the river waits for (release 1, docs/release-1.md §1): the edges of every hand-made
+ * map there (`edgesWhen`), out onto the world map and every place beyond the story's chain. No rule sets it; the dev
+ * console does.
  */
 export const PART_TWO = 'world.part2'
+
+/**
+ * The fact Chapter 2's road waits for (docs/chapter-2.md §12): set by Chapter 1's homecoming (the story step `return`),
+ * it opens the East Road's way on east and Chapter 2's places — Emberfall, its mine, Cinder Pass, the dragon's lair and
+ * the March's maps over the pass (a portal's and a site's `opensWhen`). Their edges onto the world map wait for
+ * PART_TWO still.
+ */
+export const CHAPTER_TWO = 'world.ch2'
+
+/**
+ * The facts each later chapter's road waits for (docs/chapter-3.md §2.4): each set by the chapter before's end, each
+ * opening its chapter's places and the long road to them (a portal's and a site's `opensWhen`). Their edges onto the
+ * world map wait for PART_TWO still.
+ */
+export const CHAPTER_THREE = 'world.ch3'
+export const CHAPTER_FOUR = 'world.ch4'
+export const CHAPTER_FIVE = 'world.ch5'
+export const FINALE = 'world.fin'

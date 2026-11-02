@@ -1,12 +1,12 @@
 import type { EntitySnap } from '@openworld/engine'
-import { ALBERIC_CLIPS } from './assets/bosses.ts'
+import { ALBERIC_CLIPS, isStripBoss } from './assets/bosses.ts'
 import { albericAttackClip, albericWalkClip } from './render/boss-animation.ts'
 
 export type BossPreviewMode = 'live' | 'idle' | 'walk' | 'attack' | 'cast' | 'volley' | 'hurt' | 'death'
 
 /** Shared by the visible controls and the snapshot-only animation preview. */
 export function bossPreviewModes(kit: string): { value: BossPreviewMode; label: string }[] {
-  if (kit === 'alberic') {
+  if (isStripBoss(kit)) {
     const idle = ALBERIC_CLIPS.idle, walk = ALBERIC_CLIPS.walk_down, attack = ALBERIC_CLIPS.attack_down
     const idleTiming = `${idle.frames} 帧 · ${idle.frame_ms} ms/帧`
     const walkTiming = `四向 ${walk.frames} 帧 · ${walk.frame_ms} ms/帧`
@@ -16,8 +16,10 @@ export function bossPreviewModes(kit: string): { value: BossPreviewMode; label: 
       { value: 'idle', label: `待机 · ${idleTiming}` },
       { value: 'walk', label: `移动 · ${walkTiming}` },
       { value: 'attack', label: `攻击 · ${attackTiming}` },
-      { value: 'cast', label: `征服之矢 · 借用攻击 ${attackTiming}` },
-      { value: 'volley', label: `白羽箭雨 · 借用攻击 ${attackTiming}` },
+      ...(kit === 'alberic' ? [
+        { value: 'cast' as const, label: `征服之矢 · 借用攻击 ${attackTiming}` },
+        { value: 'volley' as const, label: `白羽箭雨 · 借用攻击 ${attackTiming}` },
+      ] : [{ value: 'cast' as const, label: `施法 · 借用攻击 ${attackTiming}` }]),
       { value: 'hurt', label: '受击 · 待机静帧回退' },
       { value: 'death', label: '死亡 · 待机静帧回退' },
     ]
@@ -44,7 +46,7 @@ export function previewBoss(entity: EntitySnap | undefined, mode: BossPreviewMod
   boss.action = mode === 'volley' ? 'cast' : mode
   if (boss.kit === 'alberic') boss.skill = boss.clip = mode === 'volley' ? 'volley' : mode === 'cast' ? 'arrow' : 'thorns'
   const elapsed = Math.max(0, elapsedMs)
-  if (boss.kit === 'alberic') {
+  if (isStripBoss(boss.kit)) {
     const strike = boss.action === 'attack' || boss.action === 'cast'
     const clip = strike ? ALBERIC_CLIPS[albericAttackClip(entity!.facing)]
       : mode === 'walk' ? ALBERIC_CLIPS[albericWalkClip(entity!.facing)] : ALBERIC_CLIPS.idle

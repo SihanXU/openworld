@@ -1,0 +1,131 @@
+// Chapter 3's sets (docs/sets.md §4): the Vale of Scales, Ele; levels 11–12. The Grain Guild's trinkets (Ottilie sells
+// them), the Almoner's (the Vale's errands, and the last almoner's box in the Chapel of the Measure), the Tithe Riders
+// (the Church's riders who died with the tithe: by their carts on the Chaff Road, one on the salt), the Lightened (what
+// the wind left of the Standing on the White Pans) and the Black Balance (Ele's priests and clerks: the court, the
+// counting room, the Scale Floor).
+
+import { F, P, type SetDef } from './kit.ts'
+
+export const CH3_SETS: SetDef[] = [
+  {
+    id: 'grainguild', en: 'Grain Guild', zh: '粮行', chapter: 'ch3', level: 11, lean: 'any',
+    palette: ['#b3912f', '#4a3a1a', '#8c6a2a', '#f0e2a0'],
+    pieces: [
+      P('neck', F.amulet, 'Guild Chain', '粮行链',
+        'A chain of brass links, each stamped with a sheaf and a number. A factor of the Grain Guild adds a link for every year of service. This one has nineteen. The Guild sells the chains of those who no longer need them, by weight.',
+        '一条黄铜链子，每一节上都打着一捆麦穗和一个数字。粮行的经纪人每干满一年，就添一节。这一条有十九节。用不着它的人留下的链子，行会都按分量卖掉。', 'npc:npc.ottilie', { luck: 0.04 }),
+      P('ear', F.earring, "Factor's Earring", '经纪人耳坠',
+        'A brass earring in the shape of a scale\'s pan. Factors of the Guild wear it to market, so that a farmer knows whom to haggle with, and gives up sooner.',
+        '一枚做成秤盘形状的黄铜耳坠。行会的经纪人戴着它去赶集，农人一看就知道该跟谁讨价还价，也就早早松了口。', 'npc:npc.ottilie'),
+      P('ring', F.ring, 'Guild Signet', '粮行印戒',
+        'The signet that seals the Grain Guild\'s tallies: a sheaf inside a ring of letters worn too smooth to read. The seal has not changed in two hundred years, only the hands.',
+        '粮行盖账用的印戒：一捆麦穗外面围着一圈字，磨得认不出了。这枚印两百年没变过，变的只是戴它的手。', 'npc:npc.ottilie', { critChance: 0.02 }),
+    ],
+    bonuses: [
+      { pieces: 2, props: { luck: 0.1 } },
+      { pieces: 3, props: { xpRate: 0.15, critChance: 0.04 } },
+    ],
+  },
+  {
+    id: 'almoner', en: "Almoner's", zh: '施赈', chapter: 'ch3', level: 11, lean: 'warrior', look: 'russet',
+    palette: ['#94492c', '#4a2418', '#d9cfb6', '#d98a5a'],
+    pieces: [
+      P('shoulders', F.cloak, "Almoner's Shawl", '施赈人的披肩',
+        'A brown wool shawl with deep pockets sewn inside, for bread. It was the last almoner\'s of Fairweight, from before alms were weighed. Berthe has never worn it. She says the pockets are for giving, and she has nothing to put in them.',
+        '一条棕色羊毛披肩，里面缝着很深的口袋，是装面包用的。它是公秤镇上一任施赈人的，那时候施舍还不用过秤。贝尔特从没披过。她说口袋是用来给人东西的，她没有东西可装。', 'quest:poorbread'),
+      P('neck', F.amulet, "Elsie's Ribbon", '艾尔西的发带',
+        'A ribbon gone the colour of salt. It was red before. Elsie kept it tied round her jar of dust, until she had her mother\'s scarf to tie there instead.',
+        '一条褪成盐色的发带，从前是红的。艾尔西一直把它系在装着灰的罐子上，直到她有了妈妈的围巾可以系在那里。', 'quest:scarf'),
+      P('hands', F.gloves, "Almoner's Mittens", '施赈人的手套',
+        'Grey wool mittens darned at the palms, from the box the last almoner kept in the chapel. Bread was given into bare hands then. The almoner wore these to carry it through the snow.',
+        '灰色的羊毛手套，掌心补过，是上一任施赈人留在礼拜堂箱子里的。那时候面包是直接递到人手里的。施赈人戴着它，把面包从雪地里送过去。', 'map:fairweight.chapel'),
+      P('waist', F.belt, "Miller's Apron", '磨坊主的围裙',
+        'A miller\'s apron white with dust. Two years of it is salt, which does not wash out. Godwin tied it on to grind wheat once more, for the poorhouse, and took it off after.',
+        '一条磨坊主的围裙，沾满白粉。其中两年的是盐，洗不掉。戈德温系着它又给济贫院磨了一回麦子，磨完就解下来了。', 'quest:grinding'),
+    ],
+    bonuses: [
+      { pieces: 2, props: { def: 2 } },
+      { pieces: 4, vow: 'mercy' },
+    ],
+  },
+  {
+    id: 'tithe', en: 'Tithe Riders', zh: '什一骑手', chapter: 'ch3', level: 12, lean: 'ranger', look: 'ochre',
+    palette: ['#c0993c', '#5a4220', '#a23a3a', '#ecd8a0'],
+    pieces: [
+      P('head', F.hood, "Tithe Rider's Hood", '什一骑手兜帽',
+        'An ochre riding hood, the Church\'s seal of the five wounds on the brow. The riders took the Vale\'s tithe to the Holy City twice a year, and on the Chaff Road they were feared more than wolves. The carts stopped coming three seasons ago. This rider was on the last of them.',
+        '一顶赭色的骑行兜帽，额前缝着教会的五伤之印。骑手们一年两回把衡谷的什一税押往圣城，在糠路上，人们怕他们胜过怕狼。三季以前，车就不来了。这顶兜帽的主人在最后一趟车上。', 'map:chaffroad', { critChance: 0.02 }),
+      P('shoulders', F.cloak, "Tithe Rider's Mantle", '什一骑手斗篷',
+        'A riding mantle weighted at the hem with lead shot, so that the wind on the flats would not lift it. Whoever wore it lay down beside an empty cart, facing the way the cart had come.',
+        '一件骑行斗篷，下摆缝着铅砂，平原上的风掀不起来。穿它的人躺在一辆空车旁边，脸朝着车来的方向。', 'map:chaffroad'),
+      P('hands', F.gloves, "Tithe Rider's Bracers", '什一骑手护腕',
+        'Leather bracers scored by bowstrings. A rider of the tithe carried a short bow and a writ. The writ was shown first, and the bow was seldom needed. ALL THAT COMES INTO THE VALE IS WEIGHED.',
+        '被弓弦勒出道道痕迹的皮护腕。什一骑手身上带着一张短弓和一纸文书。先亮文书，很少用得着弓。凡入衡谷者，皆须过秤。', 'map:chaffroad'),
+      P('feet', F.boots, "Tithe Rider's Boots", '什一骑手马靴',
+        'Riding boots crusted white to the knee. Their rider walked the last of the way across the salt, the horse gone or eaten. The spurs are still bright.',
+        '一双马靴，到膝盖都结满了白盐。骑手最后一段路是走过盐滩的，马不是跑了就是被吃了。马刺还亮着。', 'map:saltpans', { moveHaste: 0.04 }, { shape: 'spur' }),
+    ],
+    bonuses: [
+      { pieces: 2, props: { critChance: 0.04 } },
+      { pieces: 4, relic: 'galestring' },
+    ],
+  },
+  {
+    id: 'lightened', en: 'The Lightened', zh: '称轻者', chapter: 'ch3', level: 12, lean: 'assassin', look: 'steelgrey',
+    palette: ['#c8c6be', '#76746e', '#9fb4bf', '#f6f6f2'],
+    pieces: [
+      P('head', F.hat, 'Lightened Kerchief', '称轻者的头巾',
+        'A headscarf grey with dust, still knotted. It was lying where someone had stood on the salt for a long time. There was no one inside it.',
+        '一条被尘土染灰的头巾，结还系着。它落在一个人在盐滩上站了很久的地方。头巾里已经没有人了。', 'map:saltpans', { dodge: 0.01 }, { shape: 'cap' }),
+      P('shoulders', F.cloak, 'Lightened Shawl', '称轻者的披巾',
+        'A shawl worn thin at the shoulders by a basket\'s strap. The Lightened carried baskets in the dead fields day and night, and never set them down to rest. They did not need to.',
+        '一条披巾，肩上被筐带磨薄了。称轻的人日日夜夜在死田里背着筐，从不放下来歇一歇。他们用不着歇。', 'map:saltpans'),
+      P('body', F.robe, 'Lightened Smock', '称轻者的罩衫',
+        'A field smock, very light. Those found light at the scale went on growing lighter, and their clothes grew loose on them, and then the wind took the rest. The smock was what stayed.',
+        '一件下地穿的罩衫，很轻。在秤上称轻的人，后来越来越轻，衣服在身上越来越宽，再后来风把剩下的带走了。留下来的就是这件罩衫。', 'map:saltpans', { dodge: 0.02 }),
+      P('hands', F.gloves, 'Lightened Gloves', '称轻者的手套',
+        'Work gloves worn through at every fingertip. The Lightened worked until their hands went to dust inside them, and did not notice.',
+        '每个指尖都磨穿了的干活手套。称轻的人一直干到手在手套里化成了灰，自己也没察觉。', 'map:saltpans'),
+      P('waist', F.belt, 'Lightened Cord', '称轻者的腰绳',
+        'A cord tied round a waist that is no longer there, still in its knot. On the salt the wind blows from the Black Balance, and the Standing face into it.',
+        '一根腰绳，系着的那截腰身已经没有了，结还在。盐滩上的风是从黑衡殿那边吹来的，站在盐滩上的人都迎着它。', 'map:saltpans', { dodge: 0.01 }, { shape: 'rope' }),
+      P('feet', F.boots, 'Lightened Shoes', '称轻者的鞋',
+        'A pair of shoes set side by side on the salt, facing the Black Balance, as if someone had stepped out of them and gone on.',
+        '一双鞋并排放在盐滩上，脸朝着黑衡殿，像是有人从里面走了出来，继续往前走了。', 'map:saltpans', { moveHaste: 0.04 }),
+    ],
+    bonuses: [
+      { pieces: 2, props: { dodge: 0.04 } },
+      { pieces: 4, props: { moveHaste: 0.06, critChance: 0.05 } },
+      { pieces: 6, power: 'chaff' },
+    ],
+  },
+  {
+    id: 'blackbalance', en: 'Black Balance', zh: '黑衡', chapter: 'ch3', level: 12, lean: 'mage', look: 'charcoal',
+    palette: ['#393940', '#1e1e24', '#e2c070', '#7a7a88'],
+    pieces: [
+      P('head', F.hood, 'Black Balance Cowl', '黑衡兜帽',
+        'A black cowl stitched with gold wheat. The clerks of the Black Balance wore it at their desks, entering the Vale\'s grain and the Vale\'s hunger in the same hand. They are at their desks still.',
+        '一顶黑兜帽，用金线绣着麦穗。黑衡殿的书记们戴着它坐在桌前，用同一只手记下衡谷的粮食和衡谷的饥饿。他们现在还坐在桌前。', 'map:blackbalance.counting', { cdr: 0.02 }),
+      P('shoulders', F.cloak, 'Black Balance Stole', '黑衡圣带',
+        'A stole of black silk embroidered with a pair of scales, worn by those who read the litany of the Measure. The gold of its last line is worn away: THE FLESH AT LAST WAS LIGHTER THAN SIN.',
+        '一条黑绸圣带，绣着一架天秤，诵读衡量连祷的人披的。最后一句的金线已经磨掉了：其肉身终轻于罪。', 'map:blackbalance'),
+      P('body', F.robe, 'Black Balance Cassock', '黑衡法衣',
+        'A black cassock heavy with gold thread, heavier than its wearer by the end. The priests of the Scales fasted as Ele fasted. None of them lasted as long.',
+        '一件绣满金线的黑法衣，到最后比穿它的人还重。天秤的司铎们学着厄勒斋戒，没有一个撑得像厄勒那么久。', 'map:scalefloor', { cdr: 0.03 }),
+      P('hands', F.gloves, 'Black Balance Gloves', '黑衡手套',
+        'Black gloves with ink worked into the fingertips. In the counting room the columns are five, and every total is carried to one account. These did the carrying.',
+        '一副黑手套，指尖浸透了墨水。在算账房里，账有五栏，每一栏的总数都转进同一个账户。转账的就是这双手套。', 'map:blackbalance.counting', { cdr: 0.02 }),
+      P('waist', F.belt, 'Black Balance Cincture', '黑衡束绳',
+        'A black cord with a little iron weight at each end. A priest of the Scales tied it so that it always pulled a little, to remind the body that it had weight.',
+        '一根黑绳，两头各坠着一小块铁砣。天秤的司铎系上它，让它一直往下坠着一点，好提醒身子它还有分量。', 'map:blackbalance', undefined, { shape: 'cord' }),
+      P('feet', F.boots, 'Black Balance Slippers', '黑衡软鞋',
+        'Soft black slippers for crossing the Scale Floor without a sound. The floor remembers every step; for each, the great pans move a hair\'s breadth.',
+        '在衡台上走路不出声的黑软鞋。衡台记得每一步，每踩一步，那两只大秤盘就动一丝。', 'map:scalefloor'),
+    ],
+    bonuses: [
+      { pieces: 2, props: { cdr: 0.05 } },
+      { pieces: 4, props: { atk: 3 } },
+      { pieces: 6, power: 'measure' },
+    ],
+  },
+]

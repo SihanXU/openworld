@@ -199,7 +199,7 @@ export function buildMine(): MapBuilder {
 
 // =================================================================== Cinder Pass (chapter 5)
 
-export const PASS = { w: 30, h: 40, west: [34, 35, 36], north: [14, 15, 16] } as const
+export const PASS = { w: 30, h: 40, west: [34, 35, 36], north: [14, 15, 16], south: [19, 20, 21] } as const
 
 export function buildPass(): MapBuilder {
   const m = new MapBuilder('pass', L('Cinder Pass', '烬岭山道'), 'wild', PASS.w, PASS.h, 'snow', 'field', 'outdoor', 'frostfang')

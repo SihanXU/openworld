@@ -41,13 +41,22 @@ export function skillsOf(e: Entity): string[] {
   return (e.tags ?? []).filter((t) => t.startsWith('skill:')).map((t) => t.slice(6))
 }
 
-export type LearnRefusal = 'learned' | 'profession' | 'requires' | 'points'
+export type LearnRefusal = 'learned' | 'profession' | 'path' | 'tier' | 'requires' | 'points'
+
+/** A path's skill, or the mastery's, for one not on that path or not advanced so far (docs/advancement.md). */
+function advancementRefusal(e: Entity, def: SkillDef): LearnRefusal | undefined {
+  if (def.path && def.path !== e.props?.path) return 'path'
+  if (def.tier && Number(e.props?.advancement ?? 1) < def.tier) return 'tier'
+  return undefined
+}
 
 /** Why an actor cannot learn a skill now, or undefined if it can. */
 export function cannotLearn(e: Entity, def: SkillDef, profession = e.props?.profession): LearnRefusal | undefined {
   const have = new Set(skillsOf(e))
   if (have.has(def.id)) return 'learned'
   if (def.profession && def.profession !== profession) return 'profession'
+  const adv = advancementRefusal(e, def)
+  if (adv) return adv
   if ((def.requires ?? []).some((r) => !have.has(r))) return 'requires'
   if (Number(e.props?.skillPoints ?? 0) < (def.cost ?? 1)) return 'points'
   return undefined
@@ -61,6 +70,8 @@ export function cannotRead(e: Entity, def: SkillDef, profession = e.props?.profe
   const have = new Set(skillsOf(e))
   if (have.has(def.id)) return 'learned'
   if (def.profession && def.profession !== profession) return 'profession'
+  const adv = advancementRefusal(e, def)
+  if (adv) return adv
   if ((def.requires ?? []).some((r) => !have.has(r))) return 'requires'
   return undefined
 }

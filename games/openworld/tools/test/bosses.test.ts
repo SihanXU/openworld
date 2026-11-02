@@ -43,8 +43,8 @@ const mulOf = (u: Extract<Effect, { op: 'unleash' }> | undefined) => (u?.power &
 const SINS = BOSSES.filter((b) => ['lust', 'envy', 'pride'].includes(b.id))
 
 describe('the boss fights', () => {
-  it('fields five bosses — four multi-tile bodies and one single-tile assassin — each a kit and a fight of its type', () => {
-    expect(BOSSES.map((b) => b.id).sort()).toEqual(['alberic', 'dragon', 'envy', 'lust', 'pride'])
+  it('fields the Seal-bearers, the dragon and the three kept for later — every body multi-tile but one single-tile assassin — each a kit and a fight of its type', () => {
+    expect(BOSSES.map((b) => b.id).sort()).toEqual(['alberic', 'astra', 'dragon', 'ele', 'envy', 'lust', 'matthias', 'nacht', 'pride', 'witnesses'])
     expect(BOSSES.filter((b) => b.footprint[0] * b.footprint[1] === 1).map((b) => b.id)).toEqual(['envy'])
     for (const b of BOSSES) {
       expect(onto.types[b.type].footprint ?? onto.types[b.type.split('/').slice(0, -1).join('/')]?.footprint).toEqual(b.footprint)
@@ -52,9 +52,9 @@ describe('the boss fights', () => {
       expect(onto.encounters![b.type]).toBe(b.encounter)
       for (const skill of b.skills) if (skill.fx) expect(onto.vfx).toContain(skill.fx)
     }
-    // the three kept for later are as they were: three skills each, twelve effect sheets among the sins with Alberic's
+    // the three kept for later are as they were: three skills each; thirty-eight effect sheets among the sins with the Seal-bearers' (Alberic's three, Matthias's, Ele's, Nacht's and the Witnesses' five each) and Astra's six
     for (const b of SINS) expect(b.skills).toHaveLength(3)
-    expect(new Set(BOSSES.flatMap((b) => b.skills.flatMap((s) => s.fx?.startsWith('sin:') ? [s.fx] : []))).size).toBe(12)
+    expect(new Set(BOSSES.flatMap((b) => b.skills.flatMap((s) => s.fx?.startsWith('sin:') ? [s.fx] : []))).size).toBe(38)
   })
 
   it('indexes the entire body, blocks movement at its edge, and accepts an edge attack', () => {
@@ -303,8 +303,8 @@ describe('Alberic visual timing and locked effects', () => {
 describe('boss encounter assets and compatibility', () => {
   it('ships the delivered animation strips and legacy body/effect atlases as RGBA PNGs', () => {
     expect(Object.values(SIN_ACTORS).reduce((n, a) => n + (a.clips
-      ? Object.values(a.clips).reduce((sum, clip) => sum + clip.frames, 0) : a.cols * a.rows), 0)).toBe(130)
-    expect(Object.values(SIN_FX).reduce((n, f) => n + f.frames, 0)).toBe(54)
+      ? Object.values(a.clips).reduce((sum, clip) => sum + clip.frames, 0) : a.cols * a.rows), 0)).toBe(480)
+    expect(Object.values(SIN_FX).reduce((n, f) => n + f.frames, 0)).toBe(198)
     for (const b of BOSSES.filter((b) => b.type.startsWith('actor/creature/sin/'))) {
       const actor = SIN_ACTORS[`boss:sin:${b.id}`], cell = b.id === 'envy' ? 32 : 96
       expect(actor.scale).toBeGreaterThanOrEqual(b.id === 'envy' ? 1.25 : 1.75)

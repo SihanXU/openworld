@@ -1,5 +1,14 @@
 # Skill tree and icon brief
 
+The second and third advancements (three paths a profession at level 10, its mastery at 16, 108 more skills) are
+[advancement.md](advancement.md) (2026-11-01).
+
+The tree's three directions since 2026-11-01: **General Combat** (Swiftness, Survival, Damage), **Profession** (the
+profession's own tree growing up, its path going on after its last skill, the mastery after the path) and **Life**. A
+branch may name the way it grows (`way`, content `skills.ts`; `skillLayout.ts` gives the rest the free ways in order),
+or the branch it goes on after (`after`: its way, beyond it, its trunk out of that branch's last row). The history
+below still speaks of the profession branch under Combat, where it was until then.
+
 ## Icon completion (2026-10-04)
 
 All **70 implemented skills** now reference distinct illustrated icons. The library has

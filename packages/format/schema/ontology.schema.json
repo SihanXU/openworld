@@ -2215,27 +2215,7 @@
         "bonuses": {
           "type": "array",
           "items": {
-            "type": "object",
-            "properties": {
-              "pieces": {
-                "type": "number"
-              },
-              "props": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "number"
-                }
-              },
-              "text": {
-                "$ref": "#/definitions/Text"
-              }
-            },
-            "required": [
-              "pieces",
-              "props",
-              "text"
-            ],
-            "additionalProperties": false
+            "$ref": "#/definitions/GearSetBonus"
           }
         }
       },
@@ -2247,6 +2227,39 @@
       ],
       "additionalProperties": false,
       "description": "A set of gear: its pieces carry `props.set: id`; worn together they give its bonuses."
+    },
+    "GearSetBonus": {
+      "type": "object",
+      "properties": {
+        "pieces": {
+          "type": "number"
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "text": {
+          "$ref": "#/definitions/Text"
+        },
+        "vow": {
+          "type": "string"
+        },
+        "relic": {
+          "type": "string"
+        },
+        "power": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "pieces",
+        "props",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "What a set gives once so many of its pieces are worn (a piece per slot): numbers (`night:<key>` only at night, as a piece's), and a power beyond them — a vow, a relic's power or the set's own, answered as a piece carrying it is."
     },
     "AffixTable": {
       "type": "object",

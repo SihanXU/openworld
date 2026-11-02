@@ -17,6 +17,7 @@ import FACES from './faces.json'
 import BUILDINGS_JSON from './buildings.json'
 import LOUDNESS from './loudness.json'
 import { CROP_FIXTURES, CROP_ITEMS } from './crops.ts'
+import { SET_PIECES } from '@openworld-game/content'
 
 // ---------------------------------------------------------------------------------------------
 // Sheet paths
@@ -268,6 +269,8 @@ export const CATALOG: Catalog = {
     // White snow drifts. Outside: TRANSPARENT — whatever the renderer draws under the tile
     // (grass, dirt…) shows around the drift edges.
     snow: { img: FLOORB, col: 0, row: 0 },
+    // the Vale's salt crust (docs/chapter-3.md §11): drawn as the snow's drifts, a white the region's straw grade warms
+    salt: { img: FLOORB, col: 0, row: 0 },
     // Wooden deck / jetty (front edge with posts on the south side). Outside: TRANSPARENT — draw
     // the water (or ground) under it. Plain plank tiles are also listed in `plain.bridge`.
     bridge: { img: WATER, col: 0, row: 12 },
@@ -316,6 +319,7 @@ export const CATALOG: Catalog = {
     sand: [[FLOOR, 1, 1], [FLOOR, 1, 1], [FLOOR, 0, 4], [FLOOR, 1, 4]],
     // White snow (+ stick / pebble variants) from the snow group.
     snow: [[FLOOR, 1, 15], [FLOOR, 1, 15], [FLOOR, 0, 18], [FLOOR, 1, 18]],
+    salt: [[FLOOR, 1, 15], [FLOOR, 1, 15], [FLOOR, 1, 15], [FLOOR, 0, 18]],
     // Glassy ice sheet.
     ice: [[FLOORB, 0, 5], [FLOOR, 1, 22]],
     // Burnt ground: the dark grey-brown soil of the (11,14) group (+ twig / pebble).
@@ -661,6 +665,54 @@ export const CATALOG: Catalog = {
     'fixture:altar': { base: px(HOUSE, 48, 240, 32, 32, 16, 32) },
     // the Held Ground's heart: a longsword point down in a mound of earth (tools/src/art/planted-sword.ts)
     'fixture:planted_sword': { base: px('lsw/Fixtures/PlantedSword.png', 0, 0, 16, 32, 8, 31) },
+    // the Pillar Yard's broken Scourging Post, and the red channel cut across the undercroft's floor (tools/src/art/chapter2.py)
+    'fixture:scourging_post': { base: px('lsw/Fixtures/ScourgingPost.png', 0, 0, 16, 32, 8, 31) },
+    'fixture:red_channel': { base: px('lsw/Fixtures/RedChannel.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:red_standard': { base: px('lsw/Fixtures/RedStandard.png', 0, 0, 16, 32, 8, 31) },
+    // Chapter 3's (tools/src/art/chapter3.py): Fairweight's great scale (footprint 3x1, its beam and pans drawn above the base
+    // row; the type's cell is the middle one), the Church's black weight, the Standing on the salt, grain-dust, the great pan
+    // over the Scale Floor (footprint 2x1, drawn from its west cell), the wayside scale, a salt pan, the ledger on its stand
+    'fixture:great_scale': { base: px('lsw/Fixtures/GreatScale.png', 0, 0, 48, 56, 24, 56) },
+    'fixture:weight_of_sin': { base: px('lsw/Fixtures/WeightOfSin.png', 0, 0, 16, 16, 8, 15) },
+    'fixture:standing_a': { base: px('lsw/Fixtures/StandingA.png', 0, 0, 16, 26, 8, 25) },
+    'fixture:standing_b': { base: px('lsw/Fixtures/StandingB.png', 0, 0, 16, 26, 8, 25) },
+    'fixture:standing_c': { base: px('lsw/Fixtures/StandingC.png', 0, 0, 16, 26, 8, 25) },
+    'fixture:dust_heap': { base: px('lsw/Fixtures/DustHeap.png', 0, 0, 16, 16, 8, 15) },
+    'fixture:hanging_pan': { base: px('lsw/Fixtures/HangingPan.png', 0, 0, 32, 48, 8, 48) },
+    'fixture:wayside_scale': { base: px('lsw/Fixtures/WaysideScale.png', 0, 0, 16, 32, 8, 31) },
+    'fixture:salt_pan': { base: px('lsw/Fixtures/SaltPan.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:ledger': { base: px('lsw/Fixtures/Ledger.png', 0, 0, 16, 20, 8, 19) },
+    // the Vale's dead wheat, laid out and anchored as the ripe wheat is (fixture:wheat_ripe)
+    'fixture:dead_wheat': { base: px('lsw/Fixtures/DeadWheat.png', 0, 0, 16, 24, 8, 24) },
+    // what the later bosses leave on the floor (tools/src/art/nacht.py, astra.py): Nacht's grave-hands, Astra's dark
+    'fixture:grave_hands': { base: px('lsw/Fixtures/GraveHands.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:night_pool': { base: px('lsw/Fixtures/NightPool.png', 0, 0, 16, 16, 8, 15), ground: true },
+    // Chapter 4's (tools/src/art/chapter4.py): Nailgate's nailed doorpost, a grave post by the causeway, the Shroud in its
+    // reliquary, the Holy Wood standing in the Ford of the Dead (32x48 over one cell, anchored at its foot's middle)
+    'fixture:nail_post': { base: px('lsw/Fixtures/NailPost.png', 0, 0, 16, 24, 8, 23) },
+    'fixture:grave_post': { base: px('lsw/Fixtures/GravePost.png', 0, 0, 16, 24, 8, 23) },
+    'fixture:shroud': { base: px('lsw/Fixtures/Shroud.png', 0, 0, 16, 24, 8, 23) },
+    'fixture:holy_wood_tree': { base: px('lsw/Fixtures/HolyWoodTree.png', 0, 0, 32, 48, 16, 47) },
+    // Chapter 5's (tools/src/art/chapter5.py): a robe on a pole over a pilgrim's grave, a burial niche (a piece of wall face)
+    // with its white-robed body and empty, the altar with the Lance in it (two cells, drawn from its west cell like the
+    // hanging pan), the white-robed lying and kneeling (dark-inked to stand off a white floor), the robe-sewer's frame
+    'fixture:robe_pole': { base: px('lsw/Fixtures/RobePole.png', 0, 0, 16, 32, 8, 31) },
+    'fixture:niche': { base: px('lsw/Fixtures/Niche.png', 0, 0, 16, 16, 8, 15) },
+    'fixture:niche_empty': { base: px('lsw/Fixtures/NicheEmpty.png', 0, 0, 16, 16, 8, 15) },
+    'fixture:lance_altar': { base: px('lsw/Fixtures/LanceAltar.png', 0, 0, 32, 56, 8, 56) },
+    'fixture:robed_sleeper': { base: px('lsw/Fixtures/RobedSleeper.png', 0, 0, 16, 16, 8, 15) },
+    'fixture:robed_kneeling': { base: px('lsw/Fixtures/RobedKneeling.png', 0, 0, 16, 24, 8, 23) },
+    'fixture:sewing_frame': { base: px('lsw/Fixtures/SewingFrame.png', 0, 0, 16, 24, 8, 23) },
+    // the finale's (tools/src/art/finale.py): Astra's bier (three cells, drawn from its middle one like the great scale), an
+    // instrument's niche in the Holiest's wall, the Confluence's other four channels (the red channel recoloured), a
+    // Seal-bearer's statue on the Processional Way
+    'fixture:bier': { base: px('lsw/Fixtures/Bier.png', 0, 0, 48, 32, 24, 32) },
+    'fixture:instrument_niche': { base: px('lsw/Fixtures/InstrumentNiche.png', 0, 0, 16, 24, 8, 23) },
+    'fixture:channel_dust': { base: px('lsw/Fixtures/ChannelDust.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:channel_black': { base: px('lsw/Fixtures/ChannelBlack.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:channel_white': { base: px('lsw/Fixtures/ChannelWhite.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:channel_thorn': { base: px('lsw/Fixtures/ChannelThorn.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:bearer_statue': { base: px('lsw/Fixtures/BearerStatue.png', 0, 0, 16, 40, 8, 39) },
     'fixture:statue': { base: t(HOUSE, 5, 15, 2, 2) },
     'fixture:gravestone': { base: t(ELEM, 4, 2) },
     // what a person leaves (docs/npc-sandbox.md §2.8): a body is drawn from its look, lying (scene.ts); bones, a skull
@@ -675,6 +727,15 @@ export const CATALOG: Catalog = {
     'fixture:briar': { base: px('lsw/Fixtures/Briar.png', 0, 0, 16, 16, 8, 15) },
     // a spider's web left on the ground (tools/src/art/drops.ts)
     'fixture:web': { base: px('lsw/Fixtures/Web.png', 0, 0, 16, 16, 8, 15), ground: true },
+    // what the advancements' skills lay (content advancement.ts HAZARDS; tools/src/art/hazards.ts)
+    'fixture:miasma': { base: px('lsw/Fixtures/Miasma.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:snare': { base: px('lsw/Fixtures/Snare.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:spikes': { base: px('lsw/Fixtures/Spikes.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:blast_trap': { base: px('lsw/Fixtures/BlastTrap.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:flame_wall': { base: px('lsw/Fixtures/FlameWall.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:holy_ground': { base: px('lsw/Fixtures/HolyGround.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:caltrops': { base: px('lsw/Fixtures/Caltrops.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:binding_sigil': { base: px('lsw/Fixtures/BindingSigil.png', 0, 0, 16, 16, 8, 15), ground: true },
     // what the dragon's fire leaves on the ground: a scorch of ash, its flames the burning overlay
     'fixture:embers': { base: t(NATURE, 8, 13), ground: true },
     // the Held Ground's edge (tools/src/art/haven.ts)
@@ -854,6 +915,8 @@ export const CATALOG: Catalog = {
     'item:seed': icon('Items/Food/Seed1.png', 8, 8),
     'item:wheat': t(ELEM, 12, 4),
     ...CROP_ITEMS,
+    // the main line's sets (docs/sets.md): a picture for every piece (tools/src/art/sets.ts)
+    ...Object.fromEntries(SET_PIECES.map((p) => [p.sprite, icon(`lsw/Items/Sets/${p.set.id}/${p.piece.slot}.png`, 16, 16)])),
     'item:gem': icon('Items/Resource/GemRed.png', 15, 15),
     'item:coins': icon('Items/Object/MoneyBag.png', 14, 15),
     'item:ring': icon('lsw/Items/Gear/Ring.png', 24, 24),
@@ -865,6 +928,22 @@ export const CATALOG: Catalog = {
     'item:scroll': icon('Items/Scroll/ScrollEmpty.png', 16, 16),
     'item:letter': icon('Items/Other/Letter.png', 12, 9),
     'item:crown_of_thorns': icon('lsw/Items/CrownOfThorns.png', 16, 16),
+    // Chapter 2's (tools/src/art/chapter2.py)
+    'item:post_chain': icon('lsw/Items/ChainOfThePost.png', 16, 16),
+    'item:war_drum': icon('lsw/Items/WarDrum.png', 16, 16),
+    'item:novice_scourge': icon('lsw/Items/NoviceScourge.png', 16, 16),
+    'item:left_banner': icon('lsw/Items/LeftBanner.png', 16, 16),
+    'item:surgeon_ledger': icon('lsw/Items/SurgeonLedger.png', 16, 16),
+    'item:offering_register': icon('lsw/Items/OfferingRegister.png', 16, 16),
+    // Chapter 3's (tools/src/art/chapter3.py)
+    'item:scale_of_hunger': icon('lsw/Items/ScaleOfHunger.png', 16, 16),
+    'item:blue_scarf': icon('lsw/Items/BlueScarf.png', 16, 16),
+    'item:granary_key': icon('lsw/Items/GranaryKey.png', 16, 16),
+    // Chapter 4's (tools/src/art/chapter4.py) and Chapter 5's (chapter5.py)
+    'item:holy_wood': icon('lsw/Items/HolyWood.png', 16, 16),
+    'item:ferry_coin': icon('lsw/Items/FerryCoin.png', 16, 16),
+    'item:jory_kite': icon('lsw/Items/JoryKite.png', 16, 16),
+    'item:holy_lance': icon('lsw/Items/HolyLance.png', 16, 16),
     // the project's own (tools/src/art/gear.ts): what the pack has no picture of
     'item:pauldrons': icon('lsw/Items/Pauldrons.png', 16, 16),
     'item:belt': icon('lsw/Items/Belt.png', 16, 16),
@@ -1151,6 +1230,19 @@ export const CATALOG: Catalog = {
     boss: { tracks: [M('24 - Final Area')] },
     'boss:alberic': { tracks: [M('24 - Final Area')] },
     'boss:alberic:2': { tracks: [M('10 - Dark Castle')] },
+    'boss:matthias': { tracks: [M('10 - Dark Castle')] },
+    'boss:matthias:2': { tracks: [M('34  - Fight')] },
+    // the later Seal-bearers and Astra (docs/chapter-3.md, chapter-4.md, chapter-5.md, finale.md): the weighing's unease,
+    // the crypt's dead, the temple's choir, the last hall; each later phase a fight
+    'boss:ele': { tracks: [M('13 - Mystical')] },
+    'boss:ele:2': { tracks: [M('17 - Fight')] },
+    'boss:nacht': { tracks: [M('40 - Crypt')] },
+    'boss:nacht:2': { tracks: [M('34  - Fight')] },
+    'boss:witnesses': { tracks: [M('12 - Temple')] },
+    'boss:witnesses:2': { tracks: [M('19 - Ascension')] },
+    'boss:astra': { tracks: [M('24 - Final Area')] },
+    'boss:astra:2': { tracks: [M('10 - Dark Castle')] },
+    'boss:astra:3': { tracks: [M('28 - Tension')] },
     'boss:dragon': { tracks: ['lsw/Audio/Musics/battle-thrill.ogg'] },
     // the scenes' music (a scene's `music` command)
     severin: { tracks: [M('14 - Curse')] },

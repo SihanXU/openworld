@@ -199,7 +199,7 @@ export class GroundAtlas {
  */
 // ice is drawn as the snow's sheet, its soft edges over open water (UNDER), icy blue: it joins the rime on the bank,
 // and open water draws no shore against it (groundTile)
-const ALIAS: Record<string, string> = { ice: 'snow', spring: 'grass', dirt: 'path', ow_sea: 'deepwater', ow_river: 'water', ow_road: 'path', ow_plain: 'grass', ow_forest: 'grass', ow_hills: 'drygrass', ow_mountain: 'grass', ow_snow: 'snow' }
+const ALIAS: Record<string, string> = { ice: 'snow', salt: 'snow', spring: 'grass', dirt: 'path', ow_sea: 'deepwater', ow_river: 'water', ow_road: 'path', ow_plain: 'grass', ow_forest: 'grass', ow_hills: 'drygrass', ow_mountain: 'grass', ow_snow: 'snow' }
 /** Tints composited over a terrain's tiles. */
 // (dry grass is not tinted: a tinted ground tile is a hard square, and its tall clumps are tinted gold already — scene.ts)
 const TINT: Record<string, string> = {
@@ -207,11 +207,14 @@ const TINT: Record<string, string> = {
   charred_tree: 'rgba(40,34,30,0.45)',
   burnt_wall: 'rgba(30,24,20,0.6)',
   ice: 'rgba(150,205,240,0.45)',
+  // salt crust: the snow's sheet, a little warmer and greyer
+  salt: 'rgba(214,204,182,0.3)',
 }
 /** Tiles with transparent parts are drawn over a full tile of this terrain. */
 const UNDER: Record<string, string> = {
   bridge: 'water',
   ice: 'water',
+  salt: 'sand',
   door: 'floor_wood',
   stairs_down: 'cave_floor',
   stairs_up: 'cave_floor',

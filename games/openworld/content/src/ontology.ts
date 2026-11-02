@@ -11,7 +11,14 @@ import { GEAR_LEVELS } from './gear.ts'
 import { MADE_QUALITY, valueOf } from './prices.ts'
 import { GEAR_SETS } from './sets.ts'
 import { AFFIX_TABLE, LOOT, TROPHY_OF, TROPHY_SETS } from './trophies.ts'
+import { MAIN_GEAR_SETS, SEAL_DROPS } from './gearsets/index.ts'
+import { ADVANCEMENT_TYPES } from './advancement.ts'
 import { PILGRIMAGE_TYPES } from './pilgrimage.ts'
+import { CH2_TYPES } from './chapter2.ts'
+import { CH3_TYPES } from './chapter3.ts'
+import { CH4_TYPES } from './chapter4.ts'
+import { CH5_TYPES } from './chapter5.ts'
+import { FIN_TYPES } from './finale.ts'
 import { FOG, FOG_EVERY } from './bossrooms.ts'
 import { FAITH_STATUSES } from './faith.ts'
 import { VEGETABLE_CROPS, cropHours } from './crops.ts'
@@ -101,6 +108,8 @@ export const TERRAIN_CHARS: Record<string, string> = {
   d: 'parquet',
   y: 'carpet_royal',
   j: 'runner',
+  // the Vale's salt pans (docs/chapter-3.md §11)
+  v: 'salt',
 }
 export const CHAR_OF: Record<string, string> = Object.fromEntries(Object.entries(TERRAIN_CHARS).map(([c, t]) => [t, c]))
 
@@ -238,6 +247,8 @@ export const TERRAINS: TerrainDef[] = [
   T('bridge', '木桥', 'wooden bridge', ['wooden', 'flammable', 'road'], { color: '#a07a4a' }),
   T('farmland', '农田', 'farmland', ['ground', 'diggable', 'soil'], { color: '#7a5634' }),
   T('mud', '泥潭', 'mud', ['ground', 'wet-ground'], { color: '#5e4a33' }),
+  // the crust of the Vale's salt pans (docs/chapter-3.md §11): white, dry, crunching underfoot
+  T('salt', '盐壳', 'salt crust', ['ground', 'salty', 'diggable'], { color: '#efece4' }),
   // a warm spring, shallow enough to wade into and sit in: soaking mends (content rules.ts, spring/soak)
   T('spring', '疗伤温泉', 'healing spring', ['spring', 'warm'], { color: '#5fb8d6' }),
   T('void', '虚空', 'void', [], { solid: true, color: '#000000' }),
@@ -729,11 +740,16 @@ export const MODULES = ['classes', 'waypoints', 'boons', 'needs', 'society', 'lo
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
-  for (const t of [...actorTypes, ...fixtureTypes, ...PILGRIMAGE_TYPES, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES, ...SOCIAL_TYPES, ...KIT_TYPES]) types[t.id] = t
+  for (const t of [...actorTypes, ...fixtureTypes, ...PILGRIMAGE_TYPES, ...CH2_TYPES, ...CH3_TYPES, ...CH4_TYPES, ...CH5_TYPES, ...FIN_TYPES, ...itemTypes(), ...RESIDENTS, ...BOSS_TYPES, ...SOCIAL_TYPES, ...KIT_TYPES, ...ADVANCEMENT_TYPES]) types[t.id] = t
   // what every item is worth: the world's price for what is not made, what it took for what is (prices.ts, docs/economy.md)
   for (const f of FORMS) types[f.id] = { ...types[f.id], props: { ...types[f.id].props, value: valueOf(f.id) } }
   // each kind of monster with its own piece (trophies.ts): what it is and how often a felling gives it (rules.ts combat/defeat)
   for (const [kind, t] of Object.entries(TROPHY_OF)) types[kind] = { ...types[kind], props: { ...types[kind].props, trophy: t.type, trophyChance: t.chance } }
+  // each Seal-bearer's own piece of the Five Seals (docs/sets.md): surely dropped when it falls
+  for (const [boss, piece] of Object.entries(SEAL_DROPS)) {
+    const kind = BOSSES.find((b) => b.id === boss)!.type
+    types[kind] = { ...types[kind], props: { ...types[kind].props, trophy: piece, trophyChance: 1 } }
+  }
   // what each kind of monster is made of, so a felling leaves it (drops.ts; rules.ts combat/defeat breaks it down)
   for (const [kind, makeup] of Object.entries(CREATURE_DROPS)) types[kind] = { ...types[kind], makeup }
   // each minor kind's level and numbers, from one curve through its role (levels.ts)
@@ -767,7 +783,9 @@ export function buildOntology(): Ontology {
     // who attacks whom: the wild attacks folk (when a creature's temper says so); folk attack no one
     factions: {
       folk: { name: { en: 'folk', zh: '人们' }, hostile: [] },
-      wild: { name: { en: 'the wild', zh: '野物' }, hostile: ['folk'] },
+      wild: { name: { en: 'the wild', zh: '野物' }, hostile: ['folk', 'ally'] },
+      // what a Beastmaster calls (advancement.ts): of the caller's side, against the wild
+      ally: { name: { en: 'called beasts', zh: '召唤兽' }, hostile: ['wild'] },
     },
     terrains: Object.fromEntries(TERRAINS.map((t) => [t.id, t])),
     // the looks bodies are drawn from: bodies, parts, colours (docs/looks.md)
@@ -784,8 +802,8 @@ export function buildOntology(): Ontology {
     // what things are made of, and how well each instrument works on each (world-model.md §4.5, §6.1)
     materials: MATERIAL_DEFS,
     qualities: QUALITY_DEFS(),
-    // the four forged sets and the monster families' sets, and what each gives worn together (sets.ts, trophies.ts)
-    sets: [...GEAR_SETS, ...TROPHY_SETS],
+    // the four forged sets, the monster families' sets and the main line's (sets.ts, trophies.ts, gearsets/), and what each gives worn together
+    sets: [...GEAR_SETS, ...TROPHY_SETS, ...MAIN_GEAR_SETS],
     // the small extras a piece of gear rolls as it is made (trophies.ts)
     affixes: AFFIX_TABLE,
     // each kind of monster's own piece: sure at the fiftieth, and what the finder is told (the loot module, trophies.ts)

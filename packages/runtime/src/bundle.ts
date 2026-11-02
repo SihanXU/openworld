@@ -6,6 +6,7 @@
 
 import { gameDefOf, type Bundle } from '@openworld/format'
 import type { Look, LookTable, PlacementRecipe, Recipe, SkillDef, Text } from '@openworld/engine'
+import { thirdOf } from '@openworld/modules'
 import type { Catalog } from './assets/types.ts'
 import { pageUrl } from './game.ts'
 import type { BoonInfo, ClientGame, CoverDef, DevShortcut, FormInfo, LookPartInfo, ProfessionCard, ShopDef, SkillBranchDef, SkillDirectionDef } from './game.ts'
@@ -78,9 +79,19 @@ export function clientGameOf(b: Bundle, url: string): ClientGame {
       directions: skills.directions ?? [],
       branches,
       professions,
-      // a profession's tree: its own branch named for it
-      branchesFor: (p) => { const role = professions.find((x) => x.id === p); return branches.map((x) => (x.id === 'profession' && role ? { ...x, icon: role.icon, name: role.name } : x)) },
-      forProfession: (p) => (skills.all ?? []).filter((s) => !s.profession || s.profession === p),
+      // a profession's tree: its own branch named for it; the advancements' path and mastery branches for the path one is on
+      // and the profession's mastery, under the path's name for it (docs/advancement.md)
+      branchesFor: (p, path) => {
+        const role = professions.find((x) => x.id === p)
+        const way = role?.paths?.find((x) => x.id === path)
+        const third = thirdOf(role, path)
+        return branches.map((x) =>
+          x.id === 'profession' && role ? { ...x, icon: role.icon, name: role.name }
+          : x.id === 'path' && way ? { ...x, icon: way.icon ?? x.icon, name: way.name as typeof x.name }
+          : x.id === 'mastery' && third ? { ...x, icon: third.icon ?? x.icon, name: third.name as typeof x.name }
+          : x)
+      },
+      forProfession: (p, path) => (skills.all ?? []).filter((s) => (!s.profession || s.profession === p) && (!s.path || s.path === path)),
     },
     boons: c.boons ?? {},
     looks: {

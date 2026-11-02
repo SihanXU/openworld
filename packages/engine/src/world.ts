@@ -11,6 +11,7 @@ import type {
   Dir,
   Entity,
   FxEvent,
+  GearSetBonus,
   Id,
   Look,
   MapData,
@@ -1220,16 +1221,8 @@ export class World {
     for (const w of pieces) v += this.num(w, `sub:${key}`)
     const arm = weaponOf(this, e)
     if (arm && !pieces.includes(arm) && (this.hasTag(arm, 'weapon') || this.prop(arm, 'slot') === 'weapon')) v += this.num(arm, `sub:${key}`)
-    // a set worn together: each bonus its count of pieces reaches, a piece per slot (two of its rings count once)
-    const sets = this.onto.data.sets
-    if (sets?.length) {
-      const slots = new Map<string, Set<string>>()
-      for (const w of worn) {
-        const s = this.prop(w, 'set')
-        if (typeof s === 'string') slots.set(s, (slots.get(s) ?? new Set<string>()).add(String(this.prop(w, 'slot'))))
-      }
-      for (const [id, n] of slots) for (const b of sets.find((s) => s.id === id)?.bonuses ?? []) if (n.size >= b.pieces) v += b.props[key] ?? 0
-    }
+    // a set worn together: each bonus its count of pieces reaches (and at night what it gives only then)
+    for (const b of this.setBonuses(e, worn)) v += (b.props[key] ?? 0) + (night ? (b.props[`night:${key}`] ?? 0) : 0)
     // what the companions following it give their leader (boons.ts): their statuses' `lead:<key>`
     // (read from the companions' own index: never every thing on the map)
     const at = this.posOf(e)
@@ -1240,6 +1233,23 @@ export class World {
         for (const id of Object.keys(c.statuses ?? {})) v += this.onto.status(id)?.props?.[`lead:${key}`] ?? 0
       }
     return v
+  }
+
+  /**
+   * The bonuses of the sets a thing wears that its pieces reach: counted by slot (two rings of one set count once), every
+   * bonus whose `pieces` the count reaches (they add up). `World.stat` adds their numbers; a module reads their powers.
+   */
+  setBonuses(e: Entity, worn = this.worn(e)): GearSetBonus[] {
+    const sets = this.onto.data.sets
+    if (!sets?.length) return []
+    const slots = new Map<string, Set<string>>()
+    for (const w of worn) {
+      const s = this.prop(w, 'set')
+      if (typeof s === 'string') slots.set(s, (slots.get(s) ?? new Set<string>()).add(String(this.prop(w, 'slot'))))
+    }
+    const out: GearSetBonus[] = []
+    for (const [id, n] of slots) for (const b of sets.find((s) => s.id === id)?.bonuses ?? []) if (n.size >= b.pieces) out.push(b)
+    return out
   }
 
   /** The props a slot of this kind is kept in: `wear:<slot>`, and `wear:<slot>.2` … where the world gives more than one (params.slotCount). */
@@ -1286,12 +1296,13 @@ export class World {
   }
 
   /** What a thing wears that shows on its look: each worn thing's part (its `look` prop) and material. */
-  private wornParts(e: Entity): { part: string; material?: string }[] {
+  private wornParts(e: Entity): { part: string; material?: string; color?: string }[] {
     if (!e.props || !Object.keys(e.props).some((k) => k.startsWith('wear:'))) return []
-    const out: { part: string; material?: string }[] = []
+    const out: { part: string; material?: string; color?: string }[] = []
     for (const w of this.worn(e)) {
       const part = this.prop(w, 'look')
-      if (typeof part === 'string') out.push({ part, material: this.materialOf(w)?.id })
+      const color = this.prop(w, 'lookColor')
+      if (typeof part === 'string') out.push({ part, material: this.materialOf(w)?.id, ...(typeof color === 'string' && { color }) })
     }
     return out
   }

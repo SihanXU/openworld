@@ -2856,6 +2856,104 @@
         "galeUntil": {
           "type": "number"
         },
+        "bloodStacks": {
+          "type": "number",
+          "description": "Blood Price (a set's power): blows taken this while, each a share more damage."
+        },
+        "bloodUntil": {
+          "type": "number"
+        },
+        "buffs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "The advancements' skills (docs/advancement.md): the buffs up (a skill's id → until), a mark on a foe, a ward, a sure critical readied, Ascendance's stacks, Shadow Lord's count, the last felled, Living Legend's minute."
+        },
+        "mark": {
+          "type": "object",
+          "properties": {
+            "target": {
+              "type": "string"
+            },
+            "until": {
+              "type": "number"
+            },
+            "damage": {
+              "type": "number"
+            },
+            "skill": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "target",
+            "until",
+            "damage",
+            "skill"
+          ],
+          "additionalProperties": false
+        },
+        "ward": {
+          "type": "number"
+        },
+        "wardUntil": {
+          "type": "number"
+        },
+        "sureNext": {
+          "type": "boolean"
+        },
+        "ascStacks": {
+          "type": "number"
+        },
+        "ascUntil": {
+          "type": "number"
+        },
+        "shadowHits": {
+          "type": "number"
+        },
+        "felled": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "map": {
+              "type": "string"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "poisoned": {
+              "type": "boolean"
+            },
+            "marked": {
+              "type": "boolean"
+            },
+            "tick": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "id",
+            "map",
+            "x",
+            "y",
+            "poisoned",
+            "marked",
+            "tick"
+          ],
+          "additionalProperties": false
+        },
+        "legendTick": {
+          "type": "number"
+        },
+        "regenTick": {
+          "type": "number"
+        },
         "unfallenTick": {
           "type": "number"
         },
@@ -2896,6 +2994,15 @@
             },
             "element": {
               "type": "string"
+            },
+            "radius": {
+              "type": "number"
+            },
+            "afflict": {
+              "type": "string"
+            },
+            "ticks": {
+              "type": "number"
             }
           },
           "required": [

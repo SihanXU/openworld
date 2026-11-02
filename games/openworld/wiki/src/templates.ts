@@ -1009,11 +1009,19 @@ function lists(ctx: Ctx, name: string, args: string[], written: string): string 
       const named = (x: { id: string; name: Text }) => x.id === key || zh(x.name) === key || enOf(x.name).toLowerCase() === key.toLowerCase()
       const branch = g.branches.find(named)
       const prof = g.professions.find(named)
-      const list = prof ? g.skills.filter((s) => s.profession === prof.id) : branch ? g.skills.filter((s) => s.branch === branch.id && !s.profession) : []
+      // a branch's shared skills; a branch whose skills are all professions' own (the advancements' path and mastery), all of
+      // them, with whose each is (the profession, and its path)
+      const own = branch ? g.skills.filter((s) => s.branch === branch.id) : []
+      const shared = own.filter((s) => !s.profession)
+      const whose = !prof && !!branch && !shared.length && own.length > 0
+      const list = prof ? g.skills.filter((s) => s.profession === prof.id) : whose ? own : shared
       if (!branch && !prof) { ctx.error(L(`{{${written}|${key}}}：没有这个分支或职业`, `{{${written}|${key}}}: no such branch or profession`)); return '' }
       if (!list.length) return `<p class="empty">${L('这个分支还没有技能（游戏里显示「技能待设计」）。', 'This branch has no skills yet (the game shows “Skills to be designed”).')}</p>`
       const nameOf = (id: string) => say(g.skills.find((s) => s.id === id)?.name) || id
-      return table(['', L('技能', 'Skill'), L('前置', 'Requires'), L('点数', 'Points'), L('类型', 'Type'), L('效果', 'Effect')], list.map((s) => [fit(iconOf(s.icon), 40), `<b id="${escapeAttr(skillAnchor(say(s.name)))}">${esc(say(s.name))}</b>`, join((s.requires ?? []).map(nameOf)), String(s.cost ?? 1), s.active ? L('主动', 'Active') : s.ability ? L('能力', 'Ability') : L('加成', 'Bonus'), esc(say(s.doc))]))
+      const profName = (id?: string) => say(g.professions.find((p) => p.id === id)?.name) || ''
+      const pathName = (s: { profession?: string; path?: string }) => say(g.professions.find((p) => p.id === s.profession)?.paths?.find((x) => x.id === s.path)?.name) || ''
+      const head = ['', L('技能', 'Skill'), ...(whose ? [L('职业', 'Profession'), L('分支', 'Path')] : []), L('前置', 'Requires'), L('点数', 'Points'), L('类型', 'Type'), L('效果', 'Effect')]
+      return table(head, list.map((s) => [fit(iconOf(s.icon), 40), `<b id="${escapeAttr(skillAnchor(say(s.name)))}">${esc(say(s.name))}</b>`, ...(whose ? [esc(profName(s.profession)), esc(pathName(s))] : []), join((s.requires ?? []).map(nameOf)), String(s.cost ?? 1), s.active ? L('主动', 'Active') : s.ability ? L('能力', 'Ability') : L('加成', 'Bonus'), esc(say(s.doc))]))
     }
     case '职业表': return table(['', L('职业', 'Profession'), L('说明', 'Description'), L('起始装备', 'Starting gear')], g.professions.map((p) => [fit(iconOf(p.icon), 40), ctx.link(say(p.name)), esc(say(p.doc)), join([p.weapon, (p as any).offhand].filter(Boolean).map((w: any) => `${typeLink(ctx, w.type)}${par(esc(say(w.name)))}`))]))
     case '恩赐表': return table([L('恩赐', 'Boon'), L('效果', 'Effect'), L('来源', 'Source')], g.boons.map((b: any) => [`<b>${esc(say(b.name))}</b>`, esc(say(b.doc ?? b.text ?? b.description) || JSON.stringify(b.lead ?? {})), b.from ? esc(String(b.from)) : ctx.link('白骑士·阿尔贝里克')]))

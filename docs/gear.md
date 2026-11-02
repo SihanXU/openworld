@@ -54,6 +54,11 @@ and the **set** it belongs to, worn with others of it. All three are read by `Wo
 - (First built 2026-10-11 as one set of twelve pieces per profession, the weapon among them, with bonuses at 3, 6,
   9 and 12 pieces counted per piece; split into armour and trinkets, counted by slot, 2026-10-12.)
 
+## 3a. The main line's sets
+
+Thirty-two more sets, five or six to a chapter and two across the line, a type and a picture per piece, their
+bonuses' powers (vows, relics' powers, the sets' own): [sets.md](sets.md) (2026-11-01).
+
 ## 4. Where it lives
 
 Engine: `affixes.ts`, `World.stat` (`world.ts`), the `trophy` primitive and `craft` (`effects.ts`), the types

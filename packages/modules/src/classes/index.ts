@@ -4,11 +4,11 @@
 
 import { DIRS, registerModule, weaponOf, type Combat, type Engine, type EngineModule, type Entity, type SkillDef, type Strike as KernelStrike, type Text } from '@openworld/engine'
 import { castCooldown, castLeft, castSkill, cannotCast, knownActives, onDefeat, rainTick, SKILLBAR_SLOTS } from './actives.ts'
-import { combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep, vowsOf, type Strike } from './combat.ts'
+import { bindSkills, combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep, vowsOf, type Strike } from './combat.ts'
 
 /** What the Vow of the Thorn pricks the one who struck its keeper for (before their defence). */
 const THORN_PRICK = 3
-import { PROFESSION_LEVEL, canWield, cannotChoose, chooseProfession, itemProfession, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
+import { ADVANCE_LEVELS, PROFESSION_LEVEL, advance, advancementOf, canWield, cannotAdvance, cannotChoose, chooseProfession, itemProfession, pathOf, type AdvanceRefusal, type ProfessionDef, type ProfessionRefusal } from './profession.ts'
 
 export * from './actives.ts'
 export * from './combat.ts'
@@ -43,7 +43,7 @@ function classCombat(eng: Engine): Combat {
     strike(a, victim, base, range, weapon, primary) {
       const s = combatStrike(w, a, victim, base, range, weapon, primary)
       // what the act carries beyond its power: the struck one reads it again (wounded)
-      return Object.assign(s, { params: { ...(s.critical && { critical: true }), ...(s.bleed && { bleed: s.bleed }), ...(s.drain && { drain: s.drain }), ...(s.afflict && { afflict: s.afflict.status, afflictFor: s.afflict.ticks }) } })
+      return Object.assign(s, { params: { ...(s.critical && { critical: true }), ...(s.bleed && { bleed: s.bleed }), ...(s.drain && { drain: s.drain }), ...(s.afflict && { afflict: s.afflict.status, afflictFor: s.afflict.ticks }), ...(s.ends && { ends: s.ends }) } })
     },
     struck(a, victim, strike, before, range, primary) {
       const s: Strike = { critical: false, charged: false, comboHits: 0, bleed: 0, drain: 0, ...(strike as KernelStrike & Partial<Strike>) }
@@ -79,17 +79,31 @@ function classCombat(eng: Engine): Combat {
       // a wound that bleeds (from the one who struck), and health drawn back to them — a restore they answer for themselves
       const bleed = by?.params?.bleed
       if (typeof bleed === 'number' && bleed > 0 && w.get(e.id)) eng.applyStatus({ e: e.id }, 'bleeding', bleed, attacker?.id)
+      // what the blow ends on the struck (Shatter breaks a freeze; a detonation ends what it burst)
+      const ends = by?.params?.ends
+      if (typeof ends === 'string' && w.get(e.id)) eng.removeStatus({ e: e.id }, ends)
       // a relic's affliction (kneeling, burning, frozen): the struck takes it as its own status
       const afflict = by?.params?.afflict
       const afflictFor = by?.params?.afflictFor
       // (Fortitude: what holds one still — a stun, a freeze, kneeling — holds half as long)
-      const held = typeof afflict === 'string' && !!w.onto.status(afflict)?.immobilize && w.hasTag(e, 'skill:fortitude')
-      if (typeof afflict === 'string' && typeof afflictFor === 'number' && afflictFor > 0 && w.get(e.id) && w.num(e, 'hp') > 0) eng.applyStatus({ e: e.id }, afflict, held ? Math.max(1, Math.round(afflictFor / 2)) : afflictFor, attacker?.id)
+      const holds = typeof afflict === 'string' && !!w.onto.status(afflict)?.immobilize
+      const held = holds && w.hasTag(e, 'skill:fortitude')
+      // (Unbreakable Will: while it lasts nothing holds one still)
+      const unheld = holds && (e.combat?.buffs?.['unbreakable-will'] ?? 0) > w.state.tick
+      if (!unheld && typeof afflict === 'string' && typeof afflictFor === 'number' && afflictFor > 0 && w.get(e.id) && w.num(e, 'hp') > 0) eng.applyStatus({ e: e.id }, afflict, held ? Math.max(1, Math.round(afflictFor / 2)) : afflictFor, attacker?.id)
       const drain = by?.params?.drain
       if (typeof drain === 'number' && drain > 0 && attacker && attacker.id !== e.id)
         eng.queue({ kind: 'impulse/restore', host: { e: attacker.id }, roles: { source: { e: e.id }, actor: { e: attacker.id } }, params: { which: 'hp', amount: drain }, cause: by?.cause, origin: by?.origin, depth: (by?.depth ?? 0) + 1 })
       // the Vow of the Thorn (content items.ts VOWS): whoever struck its keeper hand to hand is pricked — a blow of the
       // keeper's back at them, the piece its instrument; a thorn's blow is not answered with thorns (`thorn`)
+      // Thorned Mail and Frost Armour (docs/advancement.md): who strikes hand to hand is pricked, or frozen a moment one time in five
+      if (by?.kind === 'impulse/strike' && !by.params?.thorn && attacker && attacker.id !== e.id && w.get(e.id) && w.get(attacker.id)) {
+        const ap = w.posOf(e)
+        const tp = w.posOf(attacker)
+        const near = !!ap && !!tp && ap.map === tp.map && Math.max(Math.abs(ap.x - tp.x), Math.abs(ap.y - tp.y)) <= 1
+        if (near && w.hasTag(e, 'skill:thorned-mail')) eng.queue({ kind: 'impulse/strike', host: { e: attacker.id }, roles: { actor: { e: e.id } }, params: { power: 2, thorn: true }, cause: by.cause, origin: by.origin, depth: (by.depth ?? 0) + 1 })
+        if (near && w.hasTag(e, 'skill:frost-armour') && w.rand() < 0.2) eng.queue({ kind: 'impulse/strike', host: { e: attacker.id }, roles: { actor: { e: e.id } }, params: { power: 1, thorn: true, afflict: 'frozen', afflictFor: 5, element: 'ice' }, cause: by.cause, origin: by.origin, depth: (by.depth ?? 0) + 1 })
+      }
       if (by?.kind === 'impulse/strike' && !by.params?.thorn && attacker && attacker.id !== e.id && w.get(e.id) && w.get(attacker.id) && vowsOf(w, e).has('thorn')) {
         const ap = w.posOf(e)
         const tp = w.posOf(attacker)
@@ -169,6 +183,32 @@ export function takeProfession(eng: Engine, def: ProfessionDef | undefined, skil
   return undefined
 }
 
+/**
+ * Advance at a trainer (docs/advancement.md): the second tier sets one on a path of one's profession (or changes it,
+ * giving the old path's points back), the third opens the profession's mastery. An act of learning, the actor's own
+ * outcome. Returns why not, or undefined when done.
+ */
+export function advanceProfession(eng: Engine, tier: number, path: string | undefined, defs: ProfessionDef[], skills: SkillDef[]): AdvanceRefusal | undefined {
+  const w = eng.world
+  const p = w.player
+  const def = defs.find((d) => d.id === w.prop(p, 'profession'))
+  const why = cannotAdvance(w, p, def, tier, path)
+  if (why === 'level') w.fx.push({ t: 'log', text: { en: `Come back at level ${ADVANCE_LEVELS[tier]}.`, zh: `等你到 ${ADVANCE_LEVELS[tier]} 级再来。` }, tone: 'warn' })
+  if (why === 'trainer') w.fx.push({ t: 'log', text: { en: 'Only a trainer can see you advance.', zh: '只有职业导师能为你转职。' }, tone: 'warn' })
+  if (why || !def || eng.busy(p)) return why
+  const points = w.num(p, 'skillPoints')
+  for (const s of skills) eng.skills.set(s.id, s)
+  professionsOf(eng).set(def.id, def)
+  eng.act('learn', p.id, { e: p.id }, { instrument: null, params: { advance: tier, ...(path && { path }) } })
+  if (advancementOf(w, p) < tier || (tier === 2 && pathOf(w, p) !== path)) return 'order'
+  const back = w.num(p, 'skillPoints') - points
+  const named = tier === 2 ? def.paths?.find((x) => x.id === path)?.name : def.mastery?.name
+  const name = named ? words(named) : { en: '', zh: '' }
+  w.fx.push({ t: 'log', text: { en: `You advance: ${name.en}.${back ? ` ${back} skill points.` : ''}`, zh: `转职成功：${name.zh}。${back ? `获得 ${back} 技能点。` : ''}` }, tone: 'good' })
+  eng.controls.sync()
+  return undefined
+}
+
 export const classesModule: EngineModule = {
   id: 'classes',
   spec: {
@@ -179,12 +219,23 @@ export const classesModule: EngineModule = {
   install(eng) {
     const w = eng.world
     eng.combat = classCombat(eng)
+    // the passives in data read the engine's skills (combat.ts paid)
+    bindSkills(w, eng.skills)
     // a profession's piece (the warrior's shield) works only for its own
     w.wears.push((e, item) => canWield(w, e, item))
     // what a cast leaves falling (an Arrow Rain's volleys)
     eng.hooks.tick.push({ phase: 'status', run: (active) => rainTick(eng, active) })
     // an act of learning a profession (at a trainer): the host's own outcome
     eng.hooks.learn.push((host, ev) => {
+      // an act of advancing (docs/advancement.md): the second tier on a path, the third the mastery
+      if (typeof ev.params?.advance === 'number') {
+        const prof = professionsOf(eng).get(String(w.prop(host, 'profession') ?? ''))
+        const tier = ev.params.advance
+        const path = typeof ev.params.path === 'string' ? ev.params.path : undefined
+        if (cannotAdvance(w, host, prof, tier, path)) return true
+        advance(w, host, tier, path, [...eng.skills.values()])
+        return true
+      }
       const prof = professionsOf(eng).get(String(ev.params?.profession ?? ''))
       if (!prof) return false
       if (cannotChoose(w, host, prof)) return true

@@ -1172,7 +1172,7 @@ describe('the live profile', () => {
     expect(readFileSync(join(state.dir, 'journal.jsonl'), 'utf8')).toMatch(/"kind":"review"/)
   })
 
-  it('reflects on live episodes that went cleanly a batch at a time, citing each', async () => {
+  it('reflects on live episodes that went cleanly a batch at a time, citing each', SLOW, async () => {
     const classes = [
       ['slime', 'green_slime', 'frost_slime'],
       ['beast', 'wolf', 'boar'],
@@ -1201,7 +1201,7 @@ describe('the live profile', () => {
     expect(state.lessons().find((l) => l.text === 'Still by the stone tag.')!.episodes).toEqual(ids)
   })
 
-  it.each(['find', 'create'] as const)('batches four clean %s routes into one reflection', async (route) => {
+  it.each(['find', 'create'] as const)('batches four clean %s routes into one reflection', SLOW, async (route) => {
     const classes = [['slime', 'green_slime'], ['beast', 'wolf'], ['undead', 'zombie'], ['golem', 'stone_golem']]
     let index = 0, reflections = 0, batch = ''
     const model = new ScriptedModel((messages, opts) => {
@@ -1231,7 +1231,7 @@ describe('the live profile', () => {
     for (const id of ids) expect(batch).toContain(id)
   })
 
-  it('reflects immediately on repaired or flagged live outcomes', async () => {
+  it('reflects immediately on repaired or flagged live outcomes', SLOW, async () => {
     for (const kind of ['errors', 'fixes', 'flags']) {
       const { model, n } = liveModel({ live: (i) => {
         if (kind === 'errors' && i === 0) return 'not JSON'

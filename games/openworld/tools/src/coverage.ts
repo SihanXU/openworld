@@ -11,7 +11,7 @@
 import { writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { OntologyIndex, RuleLibrary, SANDBOX_MAP, buildSandbox, isRoot, matchSelector, textOf, type Cond, type Ontology, type Ref, type Rule, type Scenario, type Selector, type Tree, type Verb, type View } from '@openworld/engine'
-import { BASE_RULES, FORMS, MATERIALS, RECIPES, TERRAINS, buildOntology, type Form } from '@openworld-game/content'
+import { BASE_RULES, FORMS, MATERIALS, RECIPES, SET_PIECE_BY_TYPE, TERRAINS, buildOntology, type Form } from '@openworld-game/content'
 
 // ------------------------------------------------------------------ definitions
 
@@ -129,6 +129,11 @@ export function targets(onto: Ontology): Target[] {
 
 /** A form's class: the base form a regional one varies (content goods.ts), else itself. */
 export const classOf = (f: Form): string => f.base ?? f.id
+/**
+ * A set's piece (content gearsets/: docs/sets.md) is the wearable form it is one of to every rule — no rule names a piece —
+ * so the pieces of one form are swept one at a time, as the regional forms of a class are.
+ */
+export const pieceClassOf = (f: Form): string | undefined => SET_PIECE_BY_TYPE[f.id]?.piece.form
 
 /**
  * The forms swept, sampled by class (docs/continent.md §10): every base form, and of each class's regional forms one
@@ -139,7 +144,10 @@ export const classOf = (f: Form): string => f.base ?? f.id
 export const SWEPT: Form[] = (() => {
   const variants = new Map<string, Form[]>()
   for (const f of FORMS) if (f.base) variants.set(f.base, [...(variants.get(f.base) ?? []), f])
-  return [...FORMS.filter((f) => !f.base), ...[...variants.values()].map((vs, i) => vs[i % vs.length])]
+  const pieces = new Map<string, Form[]>()
+  for (const f of FORMS) { const c = pieceClassOf(f); if (c) pieces.set(c, [...(pieces.get(c) ?? []), f]) }
+  const pick = (m: Map<string, Form[]>) => [...m.values()].map((vs, i) => vs[i % vs.length])
+  return [...FORMS.filter((f) => !f.base && !pieceClassOf(f)), ...pick(variants), ...pick(pieces)]
 })()
 
 /** Held forms are swept as their bare type: material, quality and element vary per instance. */

@@ -20,7 +20,7 @@ export interface FormInfo {
   props?: Record<string, PropValue>
 }
 
-/** A side of the skill tree (combat, life). */
+/** A side of the skill tree (general combat, profession, life). */
 export interface SkillDirectionDef {
   id: string
   icon: string
@@ -32,6 +32,10 @@ export interface SkillBranchDef {
   direction: string
   icon: string
   name: Words
+  /** Which way it grows from the start, when not simply the next free one (ui/skillLayout.ts). */
+  way?: 'left' | 'right' | 'up' | 'down'
+  /** The branch it goes on after, beyond it (the second advancement after the profession's own tree). */
+  after?: string
 }
 
 /** A profession as its card shows it. */
@@ -65,7 +69,7 @@ export interface LookPartInfo extends LookPartDef {
 /** A button of the dev console's World tab: a place to go, a boss to set down there, or a fact of the story set. */
 export interface DevShortcut {
   label: string
-  debug: { op: 'teleport'; map: string; x: number; y: number } | { op: 'summon'; kit: string; map: string; x: number; y: number; from: [number, number] } | { op: 'fact'; key: string; value: number }
+  debug: { op: 'teleport'; map: string; x: number; y: number } | { op: 'summon'; kit: string; map: string; x: number; y: number; from: [number, number] } | { op: 'fact'; key: string; value: number } | { op: 'level'; level: number }
 }
 
 /** What the title screen shows of the game. */
@@ -181,10 +185,10 @@ export interface ClientGame extends GameDef {
     directions: readonly SkillDirectionDef[]
     branches: SkillBranchDef[]
     professions: ProfessionCard[]
-    /** The branches a profession's tree shows (its own branch named for it). */
-    branchesFor(profession: string): SkillBranchDef[]
-    /** The skills open to a profession: the common ones and its own. */
-    forProfession(profession: string): SkillDef[]
+    /** The branches a profession's tree shows (its own branch named for it; a path's and a mastery's for theirs). */
+    branchesFor(profession: string, path?: string): SkillBranchDef[]
+    /** The skills open to a profession (and to a path of it): the common ones, its own, its path's. */
+    forProfession(profession: string, path?: string): SkillDef[]
   }
   boons: Record<string, BoonInfo>
   /**

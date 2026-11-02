@@ -8,7 +8,7 @@ import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
 import { adoptDefinitions, artsToSend, forgetInvalid, holdForMaking, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, LogPosition, type Kept } from './learned.ts'
 import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModRequest, type Patch, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look } from '@openworld/engine'
-import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, chooseBoon } from '@openworld/modules'
+import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, advanceProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, recipeById, skillById } from './game.ts'
 import { settleOpenQuestions, withOpenQuestions } from './saves.ts'
 import { routeFishingWorkerInput, type StoredLibrary, type Atlas, type AtlasContinent, type AtlasMap, type FromWorker, type LibraryView, type RecordView, type SaveSummary, type Tile, type ToWorker } from './protocol.ts'
@@ -1152,6 +1152,9 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'profession':
         if (game) takeProfession(game.engine, professionById()[m.id], played().skills.all)
         break
+      case 'promote':
+        if (game) advanceProfession(game.engine, m.tier, m.path, played().skills.professions, played().skills.all)
+        break
       case 'restyle':
         if (game) restyle(game.engine, m.look)
         break
@@ -1311,6 +1314,12 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (m.op === 'hurt') eng.author(() => eng.hurt(w.player, m.amount, undefined, true))
         // a fact of the story set (a part of the tale opened, a gate lifted)
         if (m.op === 'fact') eng.author(() => w.setFact(m.key, m.value))
+        // the player at a level (the dev's hand), with the points the levels between would have brought
+        if (m.op === 'level') eng.author(() => {
+          const p = w.player
+          w.setProp(p, 'skillPoints', w.num(p, 'skillPoints') + Math.max(0, m.level - w.num(p, 'level', 1)))
+          w.setProp(p, 'level', m.level)
+        })
         // a boss again (the dev's hand): to its map first; it is set down once that map is loaded (`loop`)
         if (m.op === 'summon') {
           summon = { kit: m.kit, map: m.map, x: m.x, y: m.y }

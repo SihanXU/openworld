@@ -12,7 +12,9 @@ import { ELITE_RULES, KIT_RULES, WEB_RULES } from './kits.ts'
 import { DROP_RULES } from './drops.ts'
 import { AFFLICTION_RULES } from './afflictions.ts'
 import { BOSS_KIT_RULES } from './bosses.ts'
-import { PART_TWO, UNTOLD } from './regions.ts'
+import { ADVANCEMENT_RULES } from './advancement.ts'
+import { CHAPTER_FIVE, CHAPTER_FOUR, CHAPTER_THREE, CHAPTER_TWO, FINALE, UNTOLD } from './regions.ts'
+import { FIN } from './finale.ts'
 import { TUTORIAL_OPEN } from './prologue.ts'
 import { VILLAGE_SHOP_RULES } from './village.ts'
 import { PERSON_NEWS, SOCIAL_RULES } from './social.ts'
@@ -50,8 +52,8 @@ const POWER: Amount = { param: 'power' }
 /** The tools that knock a built thing loose whole (core/strike): it can be picked up and set up again elsewhere. */
 const KNOCKS_LOOSE = ['tool:axe', 'tool:pickaxe', 'tool:hammer']
 const ELEMENT = { param: 'element' }
-/** What a blow carries beyond its power, passed on to the strike (combat.ts): a bleed it opens, health it draws back, a relic's affliction. */
-const WOUND = { bleed: { param: 'bleed' }, drain: { param: 'drain' }, afflict: { param: 'afflict' }, afflictFor: { param: 'afflictFor' } }
+/** What a blow carries beyond its power, passed on to the strike (combat.ts): a bleed it opens, health it draws back, a relic's affliction, a status it ends (Shatter, a detonation). */
+const WOUND = { bleed: { param: 'bleed' }, drain: { param: 'drain' }, afflict: { param: 'afflict' }, afflictFor: { param: 'afflictFor' }, ends: { param: 'ends' } }
 /** What burning takes from a thing with durability (nothing from one without: it cannot break). */
 const WEAR: Effect = { op: 'hurt', amount: 1, element: 'fire', pierce: true }
 const spread = (chance: number): Effect => emit('element', { area: { radius: 1 } }, { element: 'fire', power: 1 }, { chance, filter: { tags: ['flammable'], notStatus: ['wet', 'burning', 'frozen'] } })
@@ -507,7 +509,7 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'body/stage',
-    doc: 'The story tells a person where it stands (the player\'s stage): they keep it. Told to step into a pocket place (what = pocket: the Oath-Thorn\'s Held Ground), they go — or, in it, come back out. Told to mend (what = mend: the Mend skill), they mend by as much. Told to pay, to hand something over, to give back what is not theirs, to go to the cells; told the news, reminded to chat, told to calm down, called to help (docs/npc-sandbox.md).',
+    doc: 'The story tells a person where it stands (the player\'s stage): they keep it. Told to step into a pocket place (what = pocket: the Oath-Thorn\'s Held Ground), they go — or, in it, come back out. Told to mend (what = mend: the Mend skill), they mend by as much; told a price in health (what = price: Blood Rage), they pay it. Told to pay, to hand something over, to give back what is not theirs, to go to the cells; told the news, reminded to chat, told to calm down, called to help (docs/npc-sandbox.md).',
     host: PERSON,
     on: 'impulse/notify',
     tree: IF(
@@ -521,8 +523,12 @@ const BODIES: Rule[] = [
       // told to mend (the Mend skill, actives.ts): one mends by as much
       param('what', 'mend'),
       DO({ op: 'heal', amount: { param: 'amount' } }, vfx('heal')),
+      IF(
+      // told of a price in health (Blood Rage, actives.ts buff): one pays it, through one's defence
+      param('what', 'price'),
+      DO({ op: 'hurt', amount: { param: 'amount' }, pierce: true }),
       PERSON_NEWS('inherit'),
-    ))),
+    )))),
   }),
 ]
 
@@ -1679,10 +1685,10 @@ const JOURNEY: Rule[] = [
   }),
   rule({
     id: 'companion/boon',
-    doc: 'A companion told it is given a boon (notify what = boon, param unlock: its id) keeps it, and carries it if it carries none (boons.ts).',
+    doc: 'A companion told it is given a boon (notify what = boon, param unlock: its id) keeps it, and carries it if it carries none (boons.ts); told farewell (the finale\'s end, docs/finale.md §7), it follows no one any more.',
     host: COMPANION,
     on: 'impulse/notify',
-    tree: IF(param('what', 'boon'), DO({ op: 'boon' }), 'inherit'),
+    tree: IF(param('what', 'boon'), DO({ op: 'boon' }), IF(param('what', 'farewell'), DO({ op: 'setProp', key: 'companion', value: '' }), 'inherit')),
   }),
   rule({
     id: 'companion/witness',
@@ -1861,16 +1867,54 @@ interface Gate {
 /**
  * The ways the story opens on the world map: a place whose `opensWhen` is the fact is sealed until the story
  * sets it (as a portal's `opensWhen`), and says why. Past the White Knight on the East Road: Emberfall and all east of
- * it, Part Two's (release 1 ends with the Crown home).
+ * it, Chapter 2's (opened by the Crown home: docs/chapter-2.md §12).
  */
 export const SITE_GATES: Gate[] = [
-  // release 1 is Part One (regions.ts PART_TWO): the road on east from the knight's field and all beyond it, until the
-  // story's second part
+  // Chapter 2's road (regions.ts CHAPTER_TWO): the road on east from the knight's field, opened once the Crown is home
   {
-    fact: PART_TWO,
-    say: L('The road on east to Emberfall is not open yet: its tale is told in Part Two.', '往东去余烬镇的路还没有开放：那里的故事在第二部。'),
-    remark: L("The road goes on east to Emberfall, but it isn't open yet. Let's come back and explore it another time!", '路一直往东通到余烬镇，可现在还没通呢。以后再来探索吧！'),
-    again: L('Emberfall — another time.', '余烬镇，以后再去吧。'),
+    fact: CHAPTER_TWO,
+    say: L('The road on east to Emberfall opens once the Crown of Thorns is home in Firstlight.', '往东去余烬镇的路，要等荆棘冠送回初原村以后才走得通。'),
+    remark: L("The Crown first. Let's take it home to Firstlight, then we can go on east.", '先把荆棘冠送回初原村吧，回来再往东走。'),
+    again: L('Firstlight first.', '先回初原村。'),
+  },
+  // the way down off Cinder Pass into the Scarred March, under the dragon's nest (docs/chapter-2.md §2)
+  {
+    fact: 'mq.dragon',
+    say: L('The way down into the Scarred March runs under Cinder Peak. Nobody gets past while the dragon lives.', '下到赤痕边境的路正从烬峰底下过。魔龙还活着，谁也过不去。'),
+    remark: L("That path runs right under the dragon's nest. Not while it's up there!", '那条路正好从龙巢底下过。它还在上面，可不能走！'),
+    again: L("Not while the dragon's up there.", '魔龙还在上面呢。'),
+  },
+  // the later chapters' long roads (regions.ts CHAPTER_THREE…FINALE; docs/chapter-3.md §2.4): each opened by the chapter before's end
+  {
+    fact: CHAPTER_THREE,
+    say: L('The grain road to the Vale of Scales opens once the Second Seal has fallen.', '去衡谷平原的运粮路，要等第二印倒下以后才走得通。'),
+    remark: L("Let's finish in the March first. Then we can go on.", '先把边境这边的事办完吧，然后再往前走。'),
+    again: L('The March first.', '先办边境的事。'),
+  },
+  {
+    fact: CHAPTER_FOUR,
+    say: L('The road down into the Pale Fens opens once the Third Seal has fallen.', '下到苍白林沼的路，要等第三印倒下以后才走得通。'),
+    remark: L("The Vale isn't done with us yet.", '衡谷这边还没完呢。'),
+    again: L('The Vale first.', '先办衡谷的事。'),
+  },
+  {
+    fact: CHAPTER_FIVE,
+    say: L('The road west into the White Altar Heights opens once the Fourth Seal has fallen.', '往西去白坛高地的路，要等第四印倒下以后才走得通。'),
+    remark: L("Not yet. The Fens first.", '还不行。先办林沼的事。'),
+    again: L('The Fens first.', '先办林沼的事。'),
+  },
+  {
+    fact: FINALE,
+    say: L('The road down to the Holy City opens once the Fifth Seal has fallen.', '下到圣城的路，要等第五印倒下以后才走得通。'),
+    remark: L("Not yet. There's still one seal left.", '还不行，还剩一道印。'),
+    again: L('One seal left.', '还剩一道印。'),
+  },
+  // the way up out of the Holiest, once the Night is out of Astra (docs/finale.md §2): the dark's, for good
+  {
+    fact: FIN.way,
+    say: L('The way up is black. The dark comes up the stair from below, and does not stop.', '往上的路一片漆黑。黑暗从底下顺着楼梯涌上来，没有停。'),
+    remark: L("We can't go back up. ...I don't think we were ever going to.", '我们回不去了。……我想，我们本来也没打算回去。'),
+    again: L('The way up is dark.', '往上的路是黑的。'),
   },
   // a place whose tale is not told yet (regions.ts UNTOLD): a Seal-bearer's seat beyond the first, the Most Holy Hall
   {
@@ -2048,4 +2092,4 @@ const GENERAL: Rule[] = [
   }),
 ]
 
-export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...FAITH_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...TENTS, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...AFFLICTION_RULES, ...KIT_RULES, ...ELITE_RULES, ...WEB_RULES, ...DROP_RULES, ...BOSS_KIT_RULES, ...VILLAGE_SHOP_RULES, ...FISHING_RULES, ...DRESSER_RULES]
+export const BASE_RULES: Rule[] = [...ROOTS, ...BODIES, ...PEOPLE, ...SOCIAL_RULES, ...FAITH_RULES, ...INSTRUMENTS, ...PLACING, ...GROUND, ...FIRE, ...BUILD, ...FARM, ...WORLD_RULES, ...JOURNEY, ...SITES, ...TENTS, ...BUILDING, ...HOMESTEAD_RULES, ...GENERAL, ...LIFE_RULES, ...AFFLICTION_RULES, ...KIT_RULES, ...ELITE_RULES, ...WEB_RULES, ...DROP_RULES, ...BOSS_KIT_RULES, ...ADVANCEMENT_RULES, ...VILLAGE_SHOP_RULES, ...FISHING_RULES, ...DRESSER_RULES]

@@ -38,9 +38,44 @@ import { wynn } from './people/wynn.ts'
 import { orrin } from './people/orrin.ts'
 import { hilde } from './people/hilde.ts'
 import { odette } from './people/odette.ts'
+import { odran } from './people/odran.ts'
+import { brannoc } from './people/brannoc.ts'
+import { vera } from './people/vera.ts'
+import { wil } from './people/wil.ts'
+import { lucan } from './people/lucan.ts'
+import { ivo } from './people/ivo.ts'
+import { kell } from './people/kell.ts'
+import { dunn } from './people/dunn.ts'
+import { roderick } from './people/roderick.ts'
+import { osric } from './people/osric.ts'
+import { haskel } from './people/haskel.ts'
+import { berthe } from './people/berthe.ts'
+import { elsie } from './people/elsie.ts'
+import { corwin } from './people/corwin.ts'
+import { edith } from './people/edith.ts'
+import { ottilie } from './people/ottilie.ts'
+import { godwin } from './people/godwin.ts'
+import { klaas } from './people/klaas.ts'
+import { hedda } from './people/hedda.ts'
+import { piet } from './people/piet.ts'
+import { liese } from './people/liese.ts'
+import { sanne } from './people/sanne.ts'
+import { jory } from './people/jory.ts'
+import { barnaby } from './people/barnaby.ts'
+import { benedek } from './people/benedek.ts'
+import { agathe } from './people/agathe.ts'
+import { tomas } from './people/tomas.ts'
+import { ysolde } from './people/ysolde.ts'
+import { primate } from './people/primate.ts'
+import { wardenE, wardenW } from './people/wardens.ts'
 
-// Chapter 1's (docs/chapter-1.md): the village's six, and the two the scenes bring on; the forest's flanks' two (§15)
-export const PEOPLE: PersonDef[] = [hesper, tobin, mara, garrick, wren, bram, rowan, marta, mia, holt, gus, lina, oskar, ilse, joss, pell, nessa, fennick, edda, brin, tam, alberic, severin, courier, cass, vigo, haldor, greta, anselm, caius, ezra, maud, wynn, orrin, hilde, odette]
+// Chapter 1's (docs/chapter-1.md): the village's six, and the two the scenes bring on; the forest's flanks' two (§15);
+// Chapter 2's (docs/chapter-2.md §7): Odran in Emberfall, the Left Company's camp, the Red Order, the Right's two the scenes bring on;
+// Chapter 3's (docs/chapter-3.md §7): Fairweight's Weighmaster, poorhouse, Lightened, Guild and miller;
+// Chapter 4's (docs/chapter-4.md §7): Nailgate's ferryman, its living and its kept dead, its sexton;
+// Chapter 5's (docs/chapter-5.md §7): Whiteveil's abbot, robe-sewer and novice, the hermit of the stair;
+// the finale's (docs/finale.md §5): the Primate and the Hall's wardens
+export const PEOPLE: PersonDef[] = [hesper, tobin, mara, garrick, wren, bram, rowan, marta, mia, holt, gus, lina, oskar, ilse, joss, pell, nessa, fennick, edda, brin, tam, alberic, severin, courier, cass, vigo, haldor, greta, anselm, caius, ezra, maud, wynn, orrin, hilde, odette, odran, brannoc, vera, wil, lucan, ivo, kell, dunn, roderick, osric, haskel, berthe, elsie, corwin, edith, ottilie, godwin, klaas, hedda, piet, liese, sanne, jory, barnaby, benedek, agathe, tomas, ysolde, primate, wardenW, wardenE]
 
 /**
  * Who keeps house together (docs/npc-sandbox.md §2.1): what one of them owns, all of them do; a theft from one
@@ -63,6 +98,22 @@ export const HOUSEHOLDS: Record<string, string[]> = {
   pilgrims: ['npc.maud', 'npc.wynn'],
   charcoal: ['npc.orrin'],
   bend: ['npc.hilde'],
+  odran: ['npc.odran'],
+  leftcompany: ['npc.brannoc', 'npc.kell', 'npc.dunn', 'npc.wil'],
+  surgery: ['npc.vera'],
+  order: ['npc.lucan', 'npc.ivo'],
+  weighhouse: ['npc.haskel'],
+  poorhouse: ['npc.berthe', 'npc.elsie'],
+  guild: ['npc.ottilie'],
+  miller: ['npc.godwin'],
+  ferryman: ['npc.klaas'],
+  hedda: ['npc.hedda'],
+  piet: ['npc.piet', 'npc.liese'],
+  sanne: ['npc.sanne', 'npc.jory'],
+  sexton: ['npc.barnaby'],
+  whiteveil: ['npc.benedek'],
+  abbeycells: ['npc.agathe', 'npc.tomas'],
+  hermit: ['npc.ysolde'],
 }
 /** The household one keeps, if any. */
 export const householdOf = (id: string): string | undefined => Object.entries(HOUSEHOLDS).find(([, ids]) => ids.includes(id))?.[0]

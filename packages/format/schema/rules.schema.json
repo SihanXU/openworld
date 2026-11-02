@@ -269,6 +269,12 @@
             },
             "ownerFrom": {
               "$ref": "#/definitions/RoleName"
+            },
+            "props": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/PropValue"
+              }
             }
           },
           "required": [

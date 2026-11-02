@@ -249,7 +249,8 @@ export class EffectRunner {
         for (let i = 0; i < n; i++) {
           let place = this.placeFor(at, carried)
           if (!place) continue
-          const made = w.create(type, place, owner ? { props: { owner } } : {})
+          // (what it comes with besides: the game's own script's, a summon's master — never a patch's: mod.ts refuses it)
+          const made = w.create(type, place, owner || eff.props ? { props: { ...(owner && { owner }), ...eff.props } } : {})
           // an actor never appears on top of another, or in a wall: it takes the nearest free tile
           if (place.on === 'tile' && w.isAgent(made) && !w.walkable(place.map, place.x, place.y, made.id)) {
             const free = eng.nearestFree({ map: place.map, x: place.x, y: place.y })
@@ -725,6 +726,8 @@ export class EffectRunner {
             const text =
               why === 'learned' ? { en: `You know ${name('en')} already.`, zh: `你已经会${name('zh')}了。` }
               : why === 'requires' ? { en: `You must learn ${first('en')} before ${name('en')}.`, zh: `要先学会${first('zh')}，才能学${name('zh')}。` }
+              : why === 'path' ? { en: 'This book is for another path.', zh: '这本书是别的分支的。' }
+              : why === 'tier' ? { en: 'You have not advanced far enough to read this book.', zh: '你的转职阶段还不够，读不懂这本书。' }
               : { en: 'This book is for another profession.', zh: '这本书是别的职业的。' }
             w.fx.push({ t: 'log', text, tone: 'warn' })
             return

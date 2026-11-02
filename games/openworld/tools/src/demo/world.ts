@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { storyTopics, tickAt, type AiData, type Entity, type MapMeta, type Pos, type StepDef, type ScheduleEntry, type ScheduleVariant, type Text, type WorldIndex } from '@openworld/engine'
-import { REGIONS, QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, GUIDE_BEATS, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, favouriteFor, generateLook, type RawChunk } from '@openworld-game/content'
+import { CH2, CHAPTER_FIVE, CHAPTER_FOUR, CHAPTER_THREE, FIN, FINALE, REGIONS, QUESTS, STORY_RULES, SOCIAL_COIN, codexEntries, FIRSTLIGHT, GUIDE_BEATS, INVARIANTS, PROLOGUE_BEATS, PROTECTED_FACTS, PLAYER_LOOK, favouriteFor, generateLook, piecesSoldBy, type RawChunk } from '@openworld-game/content'
 import { MapBuilder, itemOf, linkEdge, reseed, rng } from './builder.ts'
 import { GROUND_YIELD, appears, clump, lay } from './kit.ts'
 import { plantGarden } from './garden.ts'
@@ -34,7 +34,13 @@ import { HILL_MINE, VIGIL, buildChapel, buildDawnHill, buildHillMine, buildMillC
 import { buildKingdom } from './quest/kingdom.ts'
 import { PILGRIM, PILGRIMAGE_STORY, buildAbbey, buildAbbeyCrypt, buildAbbeyHall, buildAbbeyTomb, buildField, buildHostel, buildRest, buildRestChapel, buildWay } from './quest/pilgrimage.ts'
 import { FLANKS, FLANKS_STORY, buildBend, buildBendCabin, buildDell, buildDellHut } from './quest/flanks.ts'
+import { FINALE_STORY, HOLY, buildConfluence, buildHoliest, buildHolyClose, finaleOffstage, holyInteriors } from './quest/finale.ts'
+import { CHAPTER5_STORY, HEIGHTS, buildBeneathAltar, buildCatacombs, buildWhiteStair, buildWhiteveil, heightsInteriors } from './quest/chapter5.ts'
+import { CHAPTER4_STORY, FEN, buildBoneIsle, buildCauseway, buildDeadFord, buildDrownedGraves, buildNailgate, chapter4Offstage, fenInteriors } from './quest/chapter4.ts'
+import { CHAPTER3_STORY, VALE, buildBlackBalance, buildChaffRoad, buildFairweight, buildSaltPans, buildScaleFloor, valeInteriors } from './quest/chapter3.ts'
+import { CHAPTER2_STORY, MARCH, buildBastion, buildLashmarks, buildPillarYard, buildRedCamp, buildScourgeHouse, chapter2Emberfall, chapter2Offstage, chapter2Pass, marchInteriors } from './quest/chapter2.ts'
 import { CHAPTER1_SCENES, CHAPTER1_STORY, HAVEN_STORY, buildOffstage, chapter1Barrow, chapter1EastRoad, chapter1Kingdom, chapter1Foot, chapter1Ford, chapter1Forest, chapter1Hollow, chapter1Pasture, chapter1Summit, chapter1Village } from './quest/chapter1.ts'
+import { laySetPieces } from './sets/index.ts'
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../public/world')
 export const VERSION = 'ford-4'
@@ -479,7 +485,8 @@ function person(p: PersonDef, at: (name: string) => Pos, meal?: Pos): Entity {
   // their social life (docs/npc-sandbox.md): their house, whether they fight, the watch they keep, their trade and coin
   const household = householdOf(p.id)
   const purse = p.purse ?? (p.role === 'child' ? 2 : 10)
-  const stock = p.trade?.stock ?? []
+  // what they sell, and the pieces of the main line's sets content says they sell (docs/sets.md: one of each)
+  const stock: [string, number][] = [...(p.trade?.stock ?? []), ...piecesSoldBy(p.id).map((x): [string, number] => [x.type, 1])]
   // (their age's tag: a child under eighteen is `minor` — never robbed, stolen from or preached unbelief, social.ts)
   const tags = [...(p.tags ?? []), ...(p.age < 18 ? ['minor'] : []), ...(p.watch ? ['watchman'] : []), ...(p.trade ? ['merchant'] : []), ...(p.trade?.fence ? ['fence'] : []), ...(p.hireling ? ['hireling'] : []), ...(p.essential ? ['essential'] : [])]
   const carried = [
@@ -728,6 +735,93 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   linkEdge(ember, row(ember, 0, EMBERFALL.north), [0, 1], mine, row(mine, mine.h - 1, MINE.south), [0, -1])
   linkEdge(ember, col(ember, ember.w - 1, EMBERFALL.east), [-1, 0], pass, col(pass, 0, PASS.west), [1, 0])
   linkEdge(pass, row(pass, 0, PASS.north), [0, 1], lair, row(lair, lair.h - 1, LAIR.south), [0, -1])
+  // Chapter 2's March over the pass (docs/chapter-2.md §11): down off its south side once the dragon is dead, then east —
+  // the Lashmarks, the Red Host's camp, the Scourging House, the War-Giver's Bastion; the Pillar Yard behind the keep's fog
+  reseed(4290)
+  chapter2Pass(pass)
+  const lash = buildLashmarks()
+  reseed(4291)
+  const camp = buildRedCamp()
+  reseed(4292)
+  const house = buildScourgeHouse()
+  reseed(4293)
+  const bastion = buildBastion()
+  reseed(4294)
+  const yard = buildPillarYard()
+  const marchRooms = marchInteriors(camp, house)
+  linkEdge(pass, row(pass, pass.h - 1, PASS.south), [0, -1], lash, row(lash, 0, MARCH.lash.north), [0, 1])
+  for (const p of pass.portals) if (p.to === 'lashmarks') p.opensWhen = CH2.dragon
+  linkEdge(lash, col(lash, lash.w - 1, MARCH.lash.east), [-1, 0], camp, col(camp, 0, MARCH.camp.west), [1, 0])
+  linkEdge(camp, col(camp, camp.w - 1, MARCH.camp.east), [-1, 0], house, col(house, 0, MARCH.house.west), [1, 0])
+  linkEdge(house, col(house, house.w - 1, MARCH.house.east), [-1, 0], bastion, col(bastion, 0, MARCH.bastion.west), [1, 0])
+  const march = [lash, camp, house, bastion, yard, ...marchRooms]
+  // Chapter 3 (docs/chapter-3.md): the Vale of Scales down the grain road from the camp's south gate — the Chaff Road, Fairweight,
+  // the White Pans, the Black Balance, and behind its fog the Scale Floor
+  reseed(4301)
+  const chaff = buildChaffRoad()
+  reseed(4302)
+  const [town, ...townRooms] = buildFairweight()
+  reseed(4303)
+  const pans = buildSaltPans()
+  reseed(4304)
+  const balance = buildBlackBalance()
+  reseed(4305)
+  const scalefloor = buildScaleFloor()
+  const valeRooms = valeInteriors(town, balance)
+  linkEdge(camp, row(camp, camp.h - 1, MARCH.camp.south), [0, -1], chaff, col(chaff, 0, VALE.road.west), [1, 0])
+  for (const p of camp.portals) if (p.to === 'chaffroad') p.opensWhen = CHAPTER_THREE
+  linkEdge(chaff, col(chaff, chaff.w - 1, VALE.road.east), [-1, 0], town, col(town, 0, VALE.town.west), [1, 0])
+  linkEdge(town, col(town, town.w - 1, VALE.town.east), [-1, 0], pans, col(pans, 0, VALE.pans.west), [1, 0])
+  linkEdge(pans, col(pans, pans.w - 1, VALE.pans.east), [-1, 0], balance, col(balance, 0, VALE.balance.west), [1, 0])
+  const vale = [chaff, town, pans, balance, scalefloor, ...townRooms, ...valeRooms]
+  // Chapter 4 (docs/chapter-4.md): the Pale Fens down the fen road from Fairweight's fields — the Long Causeway, Nailgate, the
+  // Drowned Graves, the Ossuary of the Holy Wood, and behind its fog the Ford of the Dead
+  reseed(4401)
+  const causeway = buildCauseway()
+  reseed(4402)
+  const [nailgate, ...nailgateRooms] = buildNailgate()
+  reseed(4403)
+  const drowned = buildDrownedGraves()
+  reseed(4404)
+  const boneisle = buildBoneIsle()
+  reseed(4405)
+  const deadford = buildDeadFord()
+  const fenRooms = fenInteriors(nailgate, boneisle)
+  linkEdge(town, row(town, town.h - 1, VALE.town.south), [0, -1], causeway, row(causeway, 0, FEN.road.north), [0, 1])
+  for (const p of town.portals) if (p.to === 'causeway') p.opensWhen = CHAPTER_FOUR
+  linkEdge(causeway, row(causeway, causeway.h - 1, FEN.road.south), [0, -1], nailgate, row(nailgate, 0, FEN.village.north), [0, 1])
+  linkEdge(nailgate, row(nailgate, nailgate.h - 1, FEN.village.south), [0, -1], drowned, row(drowned, 0, FEN.graves.north), [0, 1])
+  linkEdge(drowned, col(drowned, drowned.w - 1, FEN.graves.east), [-1, 0], boneisle, col(boneisle, 0, FEN.isle.west), [1, 0])
+  const fens = [causeway, nailgate, drowned, boneisle, deadford, ...nailgateRooms, ...fenRooms]
+  // Chapter 5 (docs/chapter-5.md): the White Altar Heights up the road west from Nailgate — the White Stair, Whiteveil Abbey,
+  // the catacombs under its church, and behind their fog the vault beneath the altar
+  reseed(4501)
+  const whitestair = buildWhiteStair()
+  reseed(4502)
+  const whiteveil = buildWhiteveil()
+  reseed(4503)
+  const catacombs = buildCatacombs()
+  reseed(4504)
+  const beneathaltar = buildBeneathAltar()
+  const heightsRooms = heightsInteriors(whiteveil, catacombs)
+  linkEdge(nailgate, col(nailgate, 0, FEN.village.west), [1, 0], whitestair, col(whitestair, whitestair.w - 1, HEIGHTS.stair.east), [-1, 0])
+  for (const p of nailgate.portals) if (p.to === 'whitestair') p.opensWhen = CHAPTER_FIVE
+  linkEdge(whitestair, row(whitestair, 0, HEIGHTS.stair.north), [0, 1], whiteveil, row(whiteveil, whiteveil.h - 1, HEIGHTS.abbey.south), [0, -1])
+  const heights = [whitestair, whiteveil, catacombs, beneathaltar, ...heightsRooms]
+  // the finale (docs/finale.md): the Holy City down the road from Whiteveil's close — the close of the Most Holy Hall and its
+  // nave, the Confluence under it, and behind their fog the Holiest
+  reseed(4601)
+  const [holyhall, holynave] = buildHolyClose()
+  reseed(4602)
+  const confluence = buildConfluence()
+  reseed(4603)
+  const holiest = buildHoliest()
+  holyInteriors(holynave, confluence)
+  linkEdge(whiteveil, col(whiteveil, whiteveil.w - 1, HEIGHTS.abbey.east), [-1, 0], holyhall, row(holyhall, holyhall.h - 1, HOLY.close.south), [0, -1])
+  for (const p of whiteveil.portals) if (p.to === 'holyhall') p.opensWhen = FINALE
+  // the way up out of the Holiest is the Night's once Astra is dead (the story's `fin.way` back to nought)
+  for (const p of holiest.portals) p.opensWhen = FIN.way
+  const holy = [holyhall, holynave, confluence, holiest]
   // the prologue north of the Ford (docs/prologue.md): Cloudtop, the foot of the mountain, the cliff stair
   reseed(4250)
   const summit = buildSummit()
@@ -758,13 +852,17 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   chapter1EastRoad(road)
   chapter1Kingdom(kingdom)
   const offstage = buildOffstage()
+  chapter2Offstage(offstage)
+  chapter4Offstage(offstage)
+  finaleOffstage(offstage)
+  chapter2Emberfall(ember)
   // the Held Ground the Oath-Thorn opens (docs/chapter-1.md §12): linked to nothing
   const haven = buildHaven()
   // its grounds, opened by its steward: places of their own, a way back to the heart from each
   const grounds = buildHavenGrounds()
   // every building walked into (interiors.ts): Emberfall's, the East Road farmhouse; the tents, gone into by hand
   const elsewhere = [...emberfallRooms().map((r) => (ember.linkInterior(r.door, r.map), r.map)), ...eastRoadRooms().map((r) => (road.linkInterior(r.door, r.map), r.map)), ...tentRooms(m, forest, haven)]
-  const builders = [m, meadow, ...rooms.map((r) => r.map), pasture, forest, hollow, barrow, ossuary, sanctum, ...flanks, mill, millhouse, millcellar, dawnhill, hillmine, chapel, ...pilgrimage, road, ember, mine, pass, lair, summit, foot, footHut, tutorial, offstage, haven, ...grounds, ...elsewhere]
+  const builders = [m, meadow, ...rooms.map((r) => r.map), pasture, forest, hollow, barrow, ossuary, sanctum, ...flanks, mill, millhouse, millcellar, dawnhill, hillmine, chapel, ...pilgrimage, road, ember, mine, pass, lair, ...march, ...vale, ...fens, ...heights, ...holy, summit, foot, footHut, tutorial, offstage, haven, ...grounds, ...elsewhere]
   const at = placeMaps(builders, m)
   for (const b of builders)
     for (const [name, [x, y]] of Object.entries(b.anchors)) {
@@ -800,6 +898,8 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
     if (at) for (const id of ids) meals.set(id, at)
   }
   const npcs = PEOPLE.map((p) => person(p, anchorAt, meals.get(p.id)))
+  // the main line's sets (docs/sets.md): each piece that lies on a map, on someone's bones or in a chest
+  laySetPieces(builders)
   // a house's walls are whose its rooms are (docs/building.md §10): breaking into them is a deed against them
   ownShells(builders, CATALOG.prefabs)
   // the overworld (world-model.md §5.1): each map on its cell, the rest of the continent wild
@@ -842,7 +942,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
   const metaOf = (b: MapBuilder, c: RawChunk): MapMeta => ({ id: b.id, name: b.name, kind: b.kind, region: b.region, width: b.w, height: b.h, portals: b.portals, npcs: npcs.filter((n) => n.place.on === 'tile' && n.place.map === b.id).length, items: c.entities.filter((e) => e.type.startsWith('item/')).length, at: at.get(b.id), ...(Object.keys(b.regions).length && { regions: b.regions }) })
   // the story's one script (world-model.md §6.12): the tutorial's beats and Firstlight's, then the scenes; the fairy's
   // guides last (one step plays at a poll: a lesson of hers never delays the story's own moment)
-  const steps = [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...PILGRIMAGE_STORY, ...FLANKS_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES, ...GUIDE_BEATS]
+  const steps = [...PROLOGUE_BEATS, ...FIRSTLIGHT_BEATS, ...scenes, ...CHAPTER1_STORY, ...PILGRIMAGE_STORY, ...FLANKS_STORY, ...CHAPTER1_SCENES, ...HAVEN_STORY, ...QUEST_SCENES, ...CHAPTER2_STORY, ...CHAPTER3_STORY, ...CHAPTER4_STORY, ...CHAPTER5_STORY, ...FINALE_STORY, ...GUIDE_BEATS]
   const index: WorldIndex = {
     name: L('Vesper Ford', '晚祷渡'),
     version: VERSION,
