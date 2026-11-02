@@ -10,7 +10,7 @@
 // shield in the off hand: the `arm` slot). Every other weapon is common to all and takes no
 // profession's talents.
 
-import { OFFHAND, grantBase, offhandOf, skillTag, skillsOf, type Entity, type SkillDef, type Text, type World } from '@openworld/engine'
+import { OFFHAND, grantBase, offhandOf, onPath, skillTag, skillsOf, type Entity, type SkillDef, type Text, type World } from '@openworld/engine'
 
 /** The level from which a trainer will take you on. */
 export const PROFESSION_LEVEL = 5
@@ -28,8 +28,9 @@ export interface PathDef {
   name: Text
   doc: Text
   icon?: string
-  /** The third advancement's name and picture on this path (its skills stay the profession's mastery). */
-  third?: { name: Text; icon?: string }
+  /** The third advancement's name and picture on this path (its skills the profession's mastery, or the path's own:
+   * tier-3 skills on this path). */
+  third?: { name: Text; doc?: Text; icon?: string }
 }
 
 export interface ProfessionDef {
@@ -50,7 +51,7 @@ export interface ProfessionDef {
 export function thirdOf(def: ProfessionDef | undefined, path?: string): { name: Text; doc: Text; icon?: string } | undefined {
   if (!def?.mastery) return undefined
   const third = def.paths?.find((p) => p.id === path)?.third
-  return third ? { ...def.mastery, name: third.name, icon: third.icon ?? def.mastery.icon } : def.mastery
+  return third ? { name: third.name, doc: third.doc ?? def.mastery.doc, icon: third.icon ?? def.mastery.icon } : def.mastery
 }
 
 export type ProfessionRefusal = 'unknown' | 'same' | 'level' | 'trainer'
@@ -182,7 +183,8 @@ export function chooseProfession(w: World, e: Entity, def: ProfessionDef, skills
 export function advance(w: World, e: Entity, tier: number, path: string | undefined, skills: SkillDef[]): number {
   let given = 0
   if (tier === 2) {
-    if (pathOf(w, e)) given += refundProfessionSkills(w, e, skills, (def) => !!def.path)
+    // (what is not the new path's: a mastery the new path shares is kept)
+    if (pathOf(w, e)) given += refundProfessionSkills(w, e, skills, (def) => !!def.path && !onPath(def, path))
     w.setProp(e, 'path', path)
   }
   if (advancementOf(w, e) < tier) {

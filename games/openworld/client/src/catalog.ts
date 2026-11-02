@@ -1040,6 +1040,8 @@ export const CATALOG: Catalog = {
     'creature:boar': mon('Bear'),
     'creature:bat': mon('BlueBat'),
     'creature:skeleton': charCreature('Skeleton'),
+    // a Necromancer's guard of hell (content advancement.ts SUMMONS)
+    'creature:skeleton_demon': charCreature('SkeletonDemon', 0xff8070),
     // a zombie: the caveman, tinted the green of the grave
     'creature:zombie': own('Zombie'),
     'creature:ghost': mon('Spirit'),

@@ -24,6 +24,7 @@ const STOREY_LIFT = T
 import type { ActorDef, Catalog, SpriteDef } from '../assets/types.ts'
 import { DIR_COL, actorFrames, assetUrl, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
 import { BossAnimationClock, bossAnimationFrame } from './boss-animation.ts'
+import { SkillFx } from './skillfx.ts'
 import { isStripBoss } from '../assets/bosses.ts'
 import { previewBoss, type BossPreviewMode } from '../boss-preview.ts'
 
@@ -193,6 +194,8 @@ export class WorldScene extends Phaser.Scene {
   private rainG?: Phaser.GameObjects.Graphics
   private fogR?: Phaser.GameObjects.Rectangle
   private flash?: Phaser.GameObjects.Rectangle
+  /** The skills' own effects, drawn by code (skillfx.ts). */
+  private skillFx = new SkillFx({ scene: this, viewOf: (id) => (id ? this.views.get(id) : undefined), sfx: (name, volume) => this.sfx(name, volume) })
   private drops: { x: number; y: number; v: number; len: number }[] = []
   private weather = 'sun'
   private playerId = 'player'
@@ -2590,6 +2593,8 @@ export class WorldScene extends Phaser.Scene {
         this.tweens.add({ targets: p, x: x + dx * len * T, y: y + dy * len * T, duration: 45 * len + 40, onComplete: () => p.destroy() })
         return
       }
+      // the skills' own (skillfx.ts): a cast's ring, a shockwave, a sigil, the ground opening, an afterimage …
+      if (this.skillFx.play(kind, [a, b, c, d], fx.x, fx.y, fx.who)) return
       // Authored effects may have a namespaced key (sin:greed:stamp); keep the
       // complete key before falling back to the legacy colon-argument convention.
       const definition = catalog().fx[fx.fx]

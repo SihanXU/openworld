@@ -1019,7 +1019,10 @@ function lists(ctx: Ctx, name: string, args: string[], written: string): string 
       if (!list.length) return `<p class="empty">${L('这个分支还没有技能（游戏里显示「技能待设计」）。', 'This branch has no skills yet (the game shows “Skills to be designed”).')}</p>`
       const nameOf = (id: string) => say(g.skills.find((s) => s.id === id)?.name) || id
       const profName = (id?: string) => say(g.professions.find((p) => p.id === id)?.name) || ''
-      const pathName = (s: { profession?: string; path?: string }) => say(g.professions.find((p) => p.id === s.profession)?.paths?.find((x) => x.id === s.path)?.name) || ''
+      const pathName = (s: { profession?: string; path?: string | string[] }) => {
+        const paths = g.professions.find((p) => p.id === s.profession)?.paths ?? []
+        return [s.path ?? []].flat().map((id) => say(paths.find((x) => x.id === id)?.name)).filter(Boolean).join('、')
+      }
       const head = ['', L('技能', 'Skill'), ...(whose ? [L('职业', 'Profession'), L('分支', 'Path')] : []), L('前置', 'Requires'), L('点数', 'Points'), L('类型', 'Type'), L('效果', 'Effect')]
       return table(head, list.map((s) => [fit(iconOf(s.icon), 40), `<b id="${escapeAttr(skillAnchor(say(s.name)))}">${esc(say(s.name))}</b>`, ...(whose ? [esc(profName(s.profession)), esc(pathName(s))] : []), join((s.requires ?? []).map(nameOf)), String(s.cost ?? 1), s.active ? L('主动', 'Active') : s.ability ? L('能力', 'Ability') : L('加成', 'Bonus'), esc(say(s.doc))]))
     }

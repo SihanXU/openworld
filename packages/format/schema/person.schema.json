@@ -2583,6 +2583,9 @@
             "element": {
               "type": "string"
             },
+            "look": {
+              "type": "string"
+            },
             "radius": {
               "type": "number"
             },
