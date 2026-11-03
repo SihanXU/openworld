@@ -8,6 +8,10 @@
 // commit, force-pushed, which uploads the whole site but drops the history the branch has piled up.
 // --wiki: the wiki (games/openworld/wiki/src/build.ts --out <dir>) under wiki/. Its pages ask for the game's pictures at
 // /assets/ (where the game was once served, at a host's root): the ones they name are copied there from the game's build.
+// --cloudflare: the same folder also to openworld.lmms-lab.com, the static Worker of site/wrangler.jsonc (a copy of its
+// own: saves and the player's key are kept per host), with CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN from the
+// environment. An assembled folder alone: npx wrangler@4.149.0 deploy --config site/wrangler.jsonc; its versions:
+// `deployments status`, and `rollback` to the one before, with the same --config.
 import { execFileSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, extname, join, resolve } from 'node:path'
@@ -18,12 +22,14 @@ const WIKI = at >= 0 ? argv[at + 1] : undefined
 const args = argv.filter((a, i) => !a.startsWith('--') && !(at >= 0 && i === at + 1))
 const [GAME, OUT = 'var/pages'] = args
 const DOMAIN = 'openworldrpg.ai'
-if (!GAME || !existsSync(join(GAME, 'index.html'))) throw new Error('usage: node site/tools/pages.mjs <game dist> [outDir] [--wiki <wiki build>] [--push]')
+if (!GAME || !existsSync(join(GAME, 'index.html'))) throw new Error('usage: node site/tools/pages.mjs <game dist> [outDir] [--wiki <wiki build>] [--push] [--cloudflare]')
 
 execFileSync(process.execPath, ['site/tools/publish.mjs', OUT], { stdio: 'inherit' })
 rmSync(join(OUT, 'play'), { recursive: true, force: true })
 cpSync(GAME, join(OUT, 'play'), { recursive: true })
 writeFileSync(join(OUT, 'CNAME'), `${DOMAIN}\n`)
+// what the Worker leaves out: the branch's checkout and the files only Pages reads
+writeFileSync(join(OUT, '.assetsignore'), '.git\n.assetsignore\nCNAME\n.nojekyll\n')
 console.log(`${OUT}: the page, the game under play/, CNAME ${DOMAIN}`)
 
 if (WIKI) {
@@ -65,4 +71,10 @@ if (process.argv.includes('--push') || process.argv.includes('--fresh')) {
   git('add', '-A')
   git('commit', '-q', '--allow-empty', '-m', message)
   git('push', ...(fresh ? ['-f'] : []), remote, 'HEAD:gh-pages')
+}
+
+if (process.argv.includes('--cloudflare')) {
+  if (!process.env.CLOUDFLARE_ACCOUNT_ID || !process.env.CLOUDFLARE_API_TOKEN) throw new Error('--cloudflare: CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN in the environment')
+  const assets = resolve(OUT) === resolve('var/pages') ? [] : ['--assets', resolve(OUT)]
+  execFileSync('npx', ['--yes', 'wrangler@4.149.0', 'deploy', '--config', 'site/wrangler.jsonc', ...assets], { stdio: 'inherit', shell: process.platform === 'win32' })
 }

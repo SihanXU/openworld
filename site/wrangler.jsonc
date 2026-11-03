@@ -1,0 +1,20 @@
+{
+  // The project page, the game and the wiki at openworld.lmms-lab.com: the same folder site/tools/pages.mjs makes for
+  // GitHub Pages (openworldrpg.ai), served by a static Worker on a Custom Domain of the lmms-lab.com zone, as The
+  // Harness's and The Simulator's sites are. The two hosts are separate copies: saves and the player's model key are
+  // kept per host. No secrets, no backend (the game asks the player's own model, docs/byok.md).
+  //   node site/tools/pages.mjs <game dist> --wiki <wiki build> --push --cloudflare
+  // The folder's .git and the Pages-only files are left out by the .assetsignore pages.mjs writes there.
+  "name": "openworld-site",
+  "compatibility_date": "2026-09-25",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "../var/pages",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  },
+  "routes": [
+    { "pattern": "openworld.lmms-lab.com", "custom_domain": true }
+  ]
+}

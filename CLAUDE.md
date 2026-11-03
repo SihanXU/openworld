@@ -419,6 +419,7 @@ npm run game -- check games/starter   # a project's problems (build <project> --
 npm run bake             # OpenWorld as a project in the format → games/openworld/project/
 npm run schema           # the project's JSON Schemas from the engine's types
 npm run wiki             # the wiki on http://localhost:5180/wiki/, English at /wiki/en/ (wiki:check, wiki:build)
+node site/tools/pages.mjs <game dist> --wiki <wiki build> --push --cloudflare   # page, game, wiki → openworldrpg.ai (gh-pages) + openworld.lmms-lab.com (site/wrangler.jsonc)
 npx tsx games/openworld/tools/src/art/arch/main.ts [name …]   # the showcase's buildings drawn (docs/showcase.md §7)
 npm run wiki:translate -- status | stamp [file…] | relink [file…]   # the English edition's upkeep
 npx tsx games/openworld/tools/src/art/looks/review.ts out.png [mood]   # everyone's portrait and sprite (docs/looks.md)
