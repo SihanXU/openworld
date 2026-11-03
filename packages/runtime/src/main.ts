@@ -49,6 +49,8 @@ const MODDER = PARAMS.get('modder') === 'off' ? undefined : PARAMS.get('modder')
 const scene = new WorldScene()
 const worker = newWorker()
 const send = (m: ToWorker) => worker.postMessage(m)
+const AGENTS = PARAMS.get('agents')
+if (AGENTS) send({ t: 'agents', url: AGENTS })
 
 // The modder the engine asks (docs/byok.md): a service the page names (?modder=) first; else the player's own model,
 // chosen in the options (its worker starts with the page when a model is kept in this browser); else the default

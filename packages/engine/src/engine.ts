@@ -8,6 +8,7 @@
 import { TICKS_PER_HOUR, TICKS_PER_MINUTE } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
 import { Controls, joinSins } from './controls.ts'
+import { Seat } from './seat.ts'
 import { Story } from './story.ts'
 import { deriveRecipes } from './recipes.ts'
 import { Behaviour, KERNEL_GOALS } from './behaviour.ts'
@@ -23,7 +24,7 @@ import { Chunks } from './sparse.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
 import { DEFAULT_QUALITY, categoryOf, tierOfLevel, type AiQuality } from './quality.ts'
 import { modulesOf, noHooks, noSociety, type Combat, type Society, type EffectImpl, type EngineHooks, type EngineModule, type Goal, type EffectReading } from './module.ts'
-import type { Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, MapData, Ontology, Portal, Pos, PropValue, Recipe, Ref, Sin, SkillDef, Text, Tier, Verb, WorldState } from './types.ts'
+import type { Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, Look, MapData, Ontology, Portal, Pos, PropValue, Recipe, Ref, Sin, SkillDef, Text, Tier, Verb, WorldState } from './types.ts'
 import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
 import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type View, type Writer } from './world.ts'
 import { seedOf } from './rng.ts'
@@ -124,6 +125,8 @@ export class Engine {
   story: Story
   /** The player's inputs, slots and magnet (design.md §5.2–5.3). */
   controls: Controls
+  /** Actors whose keys somebody else holds (seat.ts). Not saved: a seat is the host's. */
+  readonly seats = new Map<Id, Seat>()
   /** Content the world must keep playable (game-design: the Ford's invariants). */
   invariants: Invariant[] = []
   /** Fact keys (prefixes) only the story's rules change (design.md §5.11). */
@@ -1567,19 +1570,23 @@ export class Engine {
   }
 
   /** Player movement request (held direction); respects speed. `walk` (Shift) is slower than the default run. */
-  /** What of a tick the player's last step left over (a run's pace is no whole number of ticks). */
-  private moveCarry = 0
+  private moveCarry = new Map<Id, number>()
 
   /**
    * The player steps one tile at their pace: their `speed` (ticks a step), a tick more held to a walk, or `params.run`
    * times as quick (one and a half by default) running; what is left of a tick is carried to the next step.
    */
   movePlayer(dir: Dir, walk = false, run = false): boolean {
-    const p = this.world.player
-    this.companions.stir()
+    return this.moveSeat(this.world.state.player, dir, walk, run)
+  }
+
+  moveSeat(actor: Id, dir: Dir, walk = false, run = false): boolean {
+    const p = this.world.get(actor)!
+    const primary = actor === this.world.state.player
+    if (primary) this.companions.stir()
     // a lesson at hand that does not let the keys move (docs/prologue.md, the drills)
-    if (!this.controls.allows('move')) return false
-    if (!this.ready(p.id) || this.pendingTransition) {
+    if (primary && !this.controls.allows('move')) return false
+    if (!this.ready(p.id) || (primary && this.pendingTransition)) {
       if (!this.busy(p)) p.facing = dir
       return false
     }
@@ -1587,9 +1594,9 @@ export class Engine {
     if (moved) {
       const speed = this.world.num(p, 'speed', 2)
       const base = walk ? speed + 1 : run ? speed / (this.world.onto.data.params?.run ?? 1.5) : speed
-      const ticks = this.combat.delay(p, base, 'move') + this.moveCarry
+      const ticks = this.combat.delay(p, base, 'move') + (this.moveCarry.get(actor) ?? 0)
       const whole = Math.max(1, Math.floor(ticks + 1e-9))
-      this.moveCarry = Math.max(0, ticks - whole)
+      this.moveCarry.set(actor, Math.max(0, ticks - whole))
       this.setCooldown(p.id, whole)
     }
     return moved
@@ -1756,9 +1763,9 @@ export class Engine {
   // ---------------------------------------------------------------- combat
 
   /** The player attacks with the held item (or bare hands): at a chosen target next to them, or along the facing direction. */
-  playerAttack(target?: Ref, whiff = false): void {
+  playerAttack(target?: Ref, whiff = false, actor?: Id): void {
     const w = this.world
-    const p = w.player
+    const p = actor ? w.get(actor)! : w.player
     if (this.busy(p) || !this.ready('atk:' + p.id)) return
     if (!this.attack(p, target, whiff)) {
       // a weapon that is not one's to fight with (another profession's): said once per press, then the key rests a moment
@@ -1913,9 +1920,42 @@ export class Engine {
 
   // ---------------------------------------------------------------- the clock
 
+  /** The player's own seat is the world's and is never taken. */
+  sit(actor: Id): Seat {
+    const have = this.seats.get(actor)
+    if (have) return have
+    const e = this.world.get(actor)
+    if (!e || actor === this.world.state.player || e.place.on !== 'tile') throw new Error(`no one can sit at ${actor}`)
+    const seat = new Seat(this, actor, this.write)
+    this.seats.set(actor, seat)
+    return seat
+  }
+
+  leave(actor: Id): void {
+    this.seats.delete(actor)
+    this.moveCarry.delete(actor)
+  }
+
+  visit(at: Pos, who: { name: string; look?: string | Look }): Id {
+    let id!: Id
+    this.author(() => {
+      const body = this.world.create(this.world.player.type, { on: 'tile', ...at }, { name: { en: who.name, zh: who.name }, ...(who.look && { look: who.look }) })
+      id = body.id
+    })
+    this.sit(id)
+    return id
+  }
+
+  dismiss(actor: Id): void {
+    this.leave(actor)
+    const body = this.world.get(actor)
+    if (body) this.author(() => this.world.destroy(body))
+  }
+
   tick(): void {
     const w = this.world
     const s = w.state
+    for (const [id, seat] of this.seats) w.get(id) ? seat.press() : this.seats.delete(id)
     s.tick += 1
     const active = this.activeMap
     if (this.later.length) {

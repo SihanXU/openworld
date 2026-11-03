@@ -4,7 +4,7 @@
 
 import { DIRS, registerModule, weaponOf, type Combat, type Engine, type EngineModule, type Entity, type SkillDef, type Strike as KernelStrike, type Text } from '@openworld/engine'
 import { castCooldown, castLeft, castSkill, cannotCast, knownActives, onDefeat, rainTick, SKILLBAR_SLOTS } from './actives.ts'
-import { bindSkills, combatDamage, combatDelay, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep, vowsOf, type Strike } from './combat.ts'
+import { bindSkills, combatDamage, combatDelay, dash, combatStrike, finishCombatStrike, rangeBonus, recordCombatStep, vowsOf, type Strike } from './combat.ts'
 
 /** What the Vow of the Thorn pricks the one who struck its keeper for (before their defence). */
 const THORN_PRICK = 3
@@ -119,8 +119,8 @@ function classCombat(eng: Engine): Combat {
 // ---------------------------------------------------------------- the inputs (the one at the keys)
 
 /** The skill bar's six slots: the active skill set in each, by id. */
-export function skillbar(eng: Engine): (string | null)[] {
-  const bar = eng.world.player.skillbar ?? []
+export function skillbar(eng: Engine, e: Entity = eng.world.player): (string | null)[] {
+  const bar = e.skillbar ?? []
   return Array.from({ length: SKILLBAR_SLOTS }, (_, i) => bar[i] ?? null)
 }
 
@@ -142,11 +142,11 @@ export function setSkill(eng: Engine, slot: number, id: string | null): boolean 
 }
 
 /** Cast the skill in a slot of the skill bar (Shift+1–6); a cast that cannot be made says why (once a press). */
-export function cast(eng: Engine, slot: number): boolean {
+export function cast(eng: Engine, slot: number, p: Entity = eng.world.player): boolean {
   const w = eng.world
-  const p = w.player
-  const id = skillbar(eng)[slot]
-  if (!id || !eng.controls.allows('use')) return false
+  const id = skillbar(eng, p)[slot]
+  const keys = eng.seats.get(p.id)?.controls ?? eng.controls
+  if (!id || !keys.allows('use')) return false
   const def = eng.skills.get(id)
   const why = cannotCast(eng, p, def)
   if (why === 'profession') w.fx.push({ t: 'log', text: { en: 'That skill belongs to another profession.', zh: '这是别的职业的技能。' }, tone: 'warn' })
@@ -154,7 +154,7 @@ export function cast(eng: Engine, slot: number): boolean {
   if (why) return false
   const done = castSkill(eng, p, id)
   if (!done) w.fx.push({ t: 'log', text: { en: 'Nothing to use it on.', zh: '附近没有可以施放的目标。' }, tone: 'warn' })
-  eng.controls.sync()
+  keys.sync()
   return done
 }
 
@@ -244,6 +244,8 @@ export const classesModule: EngineModule = {
       for (const id of host.contents ?? []) if (!before.has(id)) eng.touch({ e: id })
       return true
     })
+    eng.hooks.seat.cast = (e, slot) => void cast(eng, slot ?? 0, e)
+    eng.hooks.seat.dash = (e) => void dash(eng, e)
     // a skill learned in the tree: an active one goes in the skill bar's first empty slot
     eng.hooks.learned.push((def) => {
       const free = skillbar(eng).indexOf(null)

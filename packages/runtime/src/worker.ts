@@ -7,10 +7,11 @@ import { FrameEncoder } from './frameDelta.ts'
 import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
 import { adoptDefinitions, artsToSend, forgetInvalid, holdForMaking, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, LogPosition, type Kept } from './learned.ts'
-import { lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModRequest, type Patch, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look } from '@openworld/engine'
+import { AgentHost, lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModRequest, type Patch, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, advanceProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, recipeById, skillById } from './game.ts'
 import { settleOpenQuestions, withOpenQuestions } from './saves.ts'
+import { linkAgents } from './agentLink.ts'
 import { routeFishingWorkerInput, type StoredLibrary, type Atlas, type AtlasContinent, type AtlasMap, type FromWorker, type LibraryView, type RecordView, type SaveSummary, type Tile, type ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
@@ -31,6 +32,8 @@ let nextTransferFrame = 0
 let base = ''
 let index: WorldIndex
 let game: Game | undefined
+let agentHost: AgentHost | undefined
+let agentsLink: { stop(): void } | undefined
 let moveDir: Dir | null = null
 let walk = false
 let run = false
@@ -730,6 +733,7 @@ function loop(): void {
       if (swinging) eng.controls.again(swinging, aimTile)
     }
     eng.tick()
+    agentHost?.tick()
   }
   if (game.neededMaps().length) void ensureMaps()
   const w = eng.world
@@ -880,6 +884,7 @@ async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, min
   if (init.save && !fresh && !compatible) {
     // a save from another version of the world is never replaced by a new game: the title keeps it and says so
     game = undefined
+    agentHost = undefined
     post({ t: 'incompatible' })
     return
   }
@@ -928,6 +933,7 @@ async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, min
   lastRecordsVersion = -1
   await ensureMaps()
   if (mine !== generation) return
+  agentHost = new AgentHost(game.engine)
   post({ t: 'ready', stats: index.stats, name: index.name, resumed: !!init.save && !fresh && compatible })
   artSent.clear()
   sendArts()
@@ -1244,6 +1250,10 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'pause':
         paused = m.on
         if (!m.on) crafts.cancel()
+        break
+      case 'agents':
+        agentsLink?.stop()
+        agentsLink = linkAgents(m.url, () => agentHost)
         break
       case 'modder':
         // the player chose another modder (their own model in the settings, or none): asked from now on

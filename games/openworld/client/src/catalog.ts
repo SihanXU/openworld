@@ -106,6 +106,8 @@ function charDef(name: string): ActorDef {
 }
 const characters: Record<string, ActorDef> = Object.fromEntries(CHAR_NAMES.map((n) => [n, charDef(n)]))
 // Alberic's human form, the steward of the Held Ground (tools/src/art/alberic-human.swift: the pack's Master, recoloured)
+for (const id of ['whale', 'gpt', 'claude']) characters[`skin.${id}`] = { dir: `lsw/Characters/Skins/${id}`, sheet: 'SpriteSheet.png', cols: 4, rows: 4, anchorY: 62, scale: 0.55 }
+characters['skin.muse'] = characters['skin.whale']
 characters.AlbericHuman = { dir: 'lsw/Characters/Alberic', sheet: 'SpriteSheet.png', faceset: 'Faceset.png', cols: 4, rows: 7 }
 
 /** 4-direction monster sheet (64x64: cols = down/up/left/right, rows = 4 walk frames). */

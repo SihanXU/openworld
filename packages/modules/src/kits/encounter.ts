@@ -197,15 +197,22 @@ export function castNow(eng: Engine, e: Entity, id: string): boolean {
  * What the kits put in the frame: the cells every caster on the map is winding up on, and each boss's plate and pose
  * (its phase, its skill, how far along).
  */
-export function kitFrame(eng: Engine, f: Frame): void {
+/** The wind-ups under way on a map: the cells each will strike, how far along it is, its colour. */
+export function telegraphsOn(eng: Engine, map: string): NonNullable<Frame['telegraphs']> {
   const w = eng.world, kits = kitsOf(eng), now = w.state.tick
   const marks: NonNullable<Frame['telegraphs']> = []
   for (const [who, p] of kits.pending) {
     const e = w.get(who)
-    if (!e || e.place.on !== 'tile' || e.place.map !== f.map) continue
+    if (!e || e.place.on !== 'tile' || e.place.map !== map) continue
     const enc = p.boss && kits.encounterOf(e)
     marks.push({ who, tiles: p.tiles, progress: Math.min(1, (now - p.start) / Math.max(1, p.releaseAt - p.start)), color: p.skill.color ?? enc?.def.plate.color ?? TELEGRAPH_RED, ...(p.boss ? { boss: true } : { pose: windupPose(p.skill) }) })
   }
+  return marks
+}
+
+export function kitFrame(eng: Engine, f: Frame): void {
+  const w = eng.world, kits = kitsOf(eng), now = w.state.tick
+  const marks = telegraphsOn(eng, f.map)
   if (marks.length) f.telegraphs = marks
   for (const snap of f.entities) {
     const e = w.get(snap.id)
