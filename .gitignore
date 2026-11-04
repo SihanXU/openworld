@@ -17,5 +17,7 @@ games/openworld/wiki/out.old/
 __pycache__/
 games/openworld/project/
 packages/editor/desktop/release/
+# wrangler's cache when the site is deployed (site/wrangler.jsonc)
+.wrangler/
 
 # the project page's media, made by site/tools/media.mjs
