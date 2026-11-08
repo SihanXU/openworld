@@ -4,8 +4,8 @@ import { mountWindow, itemSlotHtml } from './components/index.ts'
 // every thread the world has learned, and whose act taught it) and the chest panel: the chest's
 // grid above the bag, a click moving a stack to the other side.
 
-import type { AiQuality, CodexEntry, CodexView, Frame, ItemInfo, Look, Plan, Recipe, Rule, Text, Tree } from '@openworld/engine'
-import { splitStacks, stackKey } from '@openworld/engine'
+import type { AiQuality, CodexEntry, CodexView, Frame, ItemInfo, Look, Plan, Recipe, RecipeKeep, Rule, Text, Tree } from '@openworld/engine'
+import { matchesRecipeKeep, splitStacks, stackKey } from '@openworld/engine'
 import { catalog, game, hasModule, itemIconSignature, ontology, professionById, type ShopDef } from '../game.ts'
 import { personLook } from '../assets/looks.ts'
 import { FH, FW, IDLE_ROW, composeSprite } from '../assets/figure/sprite.ts'
@@ -914,6 +914,10 @@ export class Menu {
     if (!f) return ''
     const have = (type: string) => f.player.slots.reduce((n, s) => n + (s && s.item.type === type ? s.count : 0), 0)
     const tool = (tag: string) => f.player.slots.some((s) => s?.item.tags.includes(tag))
+    const carried = [...f.player.inventory, ...(f.player.held ? [f.player.held] : [])]
+    const keeps = (need: RecipeKeep) => carried.some((item) => item.type === need.type && matchesRecipeKeep(need, item.type,
+      item.tags.reduce((material, tag) => tag.startsWith('material:') ? tag.slice(9) : material, String(item.props.material ?? '')),
+    ))
     const list = shelf
       ? game().crafting.recipes.filter((r) => r.station === this.shopStation && r.group === shelf.group)
       : station
@@ -927,7 +931,7 @@ export class Menu {
       const here = !shelf || f.player.stations.includes(this.shopStation)
       const knows = !r.skill || f.player.skills.includes(r.skill)
       const unlocked = !r.unlockedBy || Number(f.facts?.[r.unlockedBy.fact] ?? 0) >= (r.unlockedBy.level ?? 1)
-      return knows && here && unlocked && (r.tools ?? []).every(tool) && r.needs.every((n) => have(n.type) >= n.count)
+      return knows && here && unlocked && (r.tools ?? []).every(tool) && (r.keeps ?? []).every(keeps) && r.needs.every((n) => have(n.type) >= n.count)
     }
     const present = kinds.length ? [...kinds.filter((k) => list.some((r) => kindOf(r) === k.id)), ...(list.some((r) => kindOf(r) === 'other') ? [{ id: 'other', name: { en: t('craftOther'), zh: t('craftOther') }, types: [] as string[] }] : [])] : []
     // (what was chosen stays chosen, while there is anything of it here)
@@ -952,7 +956,7 @@ export class Menu {
       const unlocked = !r.unlockedBy || Number(f.facts?.[r.unlockedBy.fact] ?? 0) >= (r.unlockedBy.level ?? 1)
       const lesson = f.lesson
       const taught = !lesson?.allow || lesson.allow.includes('craft') && (!lesson.only || lesson.only.includes(r.make.type))
-      const times = taught && knows && here && unlocked && (r.tools ?? []).every(tool) ? (r.needs.length ? Math.min(...r.needs.map((n) => Math.floor(have(n.type) / n.count))) : 1) : 0
+      const times = taught && knows && here && unlocked && (r.tools ?? []).every(tool) && (r.keeps ?? []).every(keeps) ? (r.needs.length ? Math.min(...r.needs.map((n) => Math.floor(have(n.type) / n.count))) : 1) : 0
       const ok = times > 0 && !this.crafting
       const needs = r.needs
         .map((n) => {
@@ -963,6 +967,13 @@ export class Menu {
         (r.tools ?? []).map((tag) => {
           const form = toolForm(tag)
           return form ? `<span class="need tool${tool(tag) ? '' : ' short'}" data-item="need:${form}" title="${esc(t('toolKept'))}"><span class="icon" data-icon="need:${form}"></span>${tool(tag) ? '✓' : '✗'}</span>` : ''
+        }).join('') +
+        (r.keeps ?? []).map((need) => {
+          const found = keeps(need)
+          const form = game().items.forms[need.type]
+          const material = need.material ? tx(game().items.materials[need.material]) : ''
+          const name = [material, form ? tx(form) : need.type].filter(Boolean).join(locale.value === 'zh' ? '' : ' ')
+          return `<span class="need tool${found ? '' : ' short'}" title="${esc(t('itemKept'))}"><span class="icon" data-icon="need:${esc(need.type)}"></span>${esc(name)} ${found ? '✓' : '✗'}</span>`
         }).join('')
       const unlock = r.unlockedBy ? ` <span class="station${unlocked ? '' : ' short'}">${esc(t('unlockNeeds').replace('{name}', tx(r.unlockedBy.name)))}</span>` : ''
       const skill = r.skill ? ` <span class="station${knows ? '' : ' short'}">${esc(tx({ en: `skill: ${tx(game().skills.all.find((d) => d.id === r.skill)?.name)}`, zh: `需学会${tx(game().skills.all.find((d) => d.id === r.skill)?.name)}` }))}</span>` : ''
@@ -1165,7 +1176,7 @@ export function craftInfos(): ItemInfo[] {
     return { id, type, sprite: f.sprite, name: extra.name ?? { en: f.en, zh: f.zh }, tags: [...(f.tags ?? []), ...(extra.tags ?? [])], statuses: [], props: { ...(f.props ?? {}), ...(extra.props ?? {}) } }
   }
   const recipes = allRecipes()
-  const needs = [...new Set([...recipes.flatMap((r) => r.needs.map((n) => n.type)), ...recipes.flatMap((r) => (r.tools ?? []).map(toolForm)).filter((x): x is string => !!x)])]
+  const needs = [...new Set([...recipes.flatMap((r) => [...r.needs, ...(r.keeps ?? [])].map((n) => n.type)), ...recipes.flatMap((r) => (r.tools ?? []).map(toolForm)).filter((x): x is string => !!x)])]
   // a learned thing a recipe needs shows the picture and name of the recipe that makes it
   const made = (n: string) => recipes.find((r) => r.make.type === n)
   return [...recipes.map((r) => of(`recipe:${r.id}`, r.make.type, { name: r.name, tags: r.make.tags, props: r.make.props, sprite: r.sprite })), ...needs.map((n) => of(`need:${n}`, n, made(n) ? { name: made(n)!.name, sprite: made(n)!.sprite } : {}))].filter((x): x is ItemInfo => !!x)

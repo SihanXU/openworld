@@ -3,9 +3,10 @@
 // status overlays, VFX and day/night. It only renders engine snapshots.
 
 import Phaser from 'phaser'
-import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type LightPool, type Look, type MapData, type Mood, type Ref, type RegionLook, type Text, type Vista, type WindupPose } from '@openworld/engine'
+import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type LightPool, type Look, type MapData, type Mood, type Ref, type RegionLook, type Text, type Vista, type WeaponFx, type WindupPose } from '@openworld/engine'
 import { catalog, game, hasLooks, ontology } from '../game.ts'
 import { Soundscape } from '../audio/soundscape.ts'
+import { PrismAudio } from '../audio/prism.ts'
 import { hexRgb, installWorldFilter, signalCamera } from './worldfilter.ts'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
 import { faceFrame, personLook } from '../assets/looks.ts'
@@ -25,6 +26,7 @@ import type { ActorDef, Catalog, SpriteDef } from '../assets/types.ts'
 import { DIR_COL, actorFrames, assetUrl, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
 import { BossAnimationClock, bossAnimationFrame } from './boss-animation.ts'
 import { SkillFx } from './skillfx.ts'
+import { WeaponFxView } from './weaponfx.ts'
 import { isStripBoss } from '../assets/bosses.ts'
 import { previewBoss, type BossPreviewMode } from '../boss-preview.ts'
 
@@ -196,6 +198,18 @@ export class WorldScene extends Phaser.Scene {
   private flash?: Phaser.GameObjects.Rectangle
   /** The skills' own effects, drawn by code (skillfx.ts). */
   private skillFx = new SkillFx({ scene: this, viewOf: (id) => (id ? this.views.get(id) : undefined), sfx: (name, volume) => this.sfx(name, volume) })
+  private weaponFx = new WeaponFxView({
+    scene: this,
+    mark: (g) => this.signals?.mark(g),
+    bladeOf: (who) => {
+      const v = this.views.get(who)
+      const key = (v?.snap.heldTags?.includes('weapon') ? v.snap.held : undefined) ?? (who === this.playerId ? this.mainHand : undefined)
+      const art = key ? catalog().items[key] : undefined
+      if (!key || !art || !this.textures.exists(art.img)) return undefined
+      const [frame] = spriteFrames(this, `ico:${key}`, art)
+      return { texture: art.img, frame }
+    },
+  })
   private drops: { x: number; y: number; v: number; len: number }[] = []
   private weather = 'sun'
   private playerId = 'player'
@@ -267,7 +281,9 @@ export class WorldScene extends Phaser.Scene {
     if (!this.free && sm.context) {
       this.audio = new Soundscape(sm.context, sm.destination)
       this.audio.music.setTitle(this.titleMusic)
+      this.weaponFx.audio = new PrismAudio(sm.context, sm.destination)
     }
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.weaponFx.dispose())
     this.scale.on('resize', () => {
       this.cameras.main.setZoom(this.bossCam ? this.bossZoom() : this.viewZoom())
       this.fitBounds()
@@ -377,6 +393,7 @@ export class WorldScene extends Phaser.Scene {
       return
     }
     if (!this.free) this.cameras.main.fadeIn(220, 8, 10, 16)
+    this.weaponFx.clear()
     for (const v of this.views.values()) this.destroyView(v)
     this.views.clear()
     for (const t of this.tileFx.values()) t.sprites.forEach((s) => s.destroy())
@@ -649,6 +666,11 @@ export class WorldScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- frames
 
+  /** Small worker updates keep weapon traces independent of the full world-frame cadence. */
+  setWeaponFx(map: string, views: WeaponFx[]): void {
+    if (this.ready && map === this.base?.id) this.weaponFx.sync(views, this.playerId)
+  }
+
   applyFrame(f: Frame): void {
     if (!this.ready || !this.base) {
       this.pending.frames = [f]
@@ -757,6 +779,7 @@ export class WorldScene extends Phaser.Scene {
     }
     this.focusOn(f)
     this.drawMarks()
+    this.setWeaponFx(f.map, f.weaponFx ?? [])
     for (const fx of f.fx) this.playFx(fx)
     this.weather = (this.base.light ?? 'outdoor') === 'outdoor' ? f.calendar.weather : 'sun'
     this.updateNight(f)
@@ -1019,7 +1042,7 @@ export class WorldScene extends Phaser.Scene {
    * what fills it, which the engine takes for whatever makes up that cell on top. The
    * test is the picture's own pixels, so a thing is met wherever it shows and nowhere else.
    */
-  aimAtScreen(sx: number, sy: number): Aim | undefined {
+  aimAtScreen(sx: number, sy: number, precise = false): Aim | undefined {
     if (!this.base) return undefined
     const cam = this.cameras.main
     const wx = cam.worldView.x + sx / cam.zoom
@@ -1041,7 +1064,10 @@ export class WorldScene extends Phaser.Scene {
     // the cell under the point on the storey the player stands on (drawn a storey higher for each)
     // the cell of the player's storey under the point, and the cell whose ceiling (a storey up, drawn a
     // tile higher) is drawn there (docs/building.md §5)
-    return { x, y, stack: hits.map((h) => h.ref), over: { x, y: Math.floor((wy + (z + 1) * STOREY_LIFT) / T) } }
+    return {
+      x, y, stack: hits.map((h) => h.ref), over: { x, y: Math.floor((wy + (z + 1) * STOREY_LIFT) / T) },
+      ...(precise ? { point: { x: wx / T - 0.5, y: (wy + z * STOREY_LIFT) / T - 0.5 } } : {}),
+    }
   }
 
   /** Is a picture's own (not transparent) pixel at this world point? */
@@ -1066,6 +1092,8 @@ export class WorldScene extends Phaser.Scene {
       this.muted = true
       this.audio?.disable()
       this.audio = undefined
+      this.weaponFx.audio?.sync()
+      this.weaponFx.audio = undefined
     }
   }
 
@@ -1891,6 +1919,7 @@ export class WorldScene extends Phaser.Scene {
     this.drawGuide(time)
     this.swimFish(time)
     this.fadeOver()
+    this.weaponFx.update(time)
     for (const v of this.views.values()) {
       const e = v.snap
       if (v.flyer) this.glide(v, time)
@@ -2566,6 +2595,13 @@ export class WorldScene extends Phaser.Scene {
       return this.sfx('thunder', 0.7)
     }
     if (fx.t === 'vfx') {
+      if (fx.fx === 'prism-impact' || fx.fx === 'prism-wall') {
+        if (fx.map === this.base?.id) {
+          const z = fx.who ? this.views.get(fx.who)?.snap.z ?? 0 : 0
+          this.weaponFx.impact(fx.x, fx.y, z, fx.angle ?? 0, fx.fx === 'prism-wall')
+        }
+        return
+      }
       const x = fx.x * T + 8
       const y = fx.y * T + 8
       const [kind, a, b, c, d] = fx.fx.split(':')

@@ -9,7 +9,7 @@ import type { Scene } from './creatures.ts'
 import type { EffectRunner } from './effects.ts'
 import type { Roles } from './rules.ts'
 import type { Frame } from './snapshot.ts'
-import type { Entity, GameEvent, Id, PropValue, Ref, SkillDef, Text } from './types.ts'
+import type { Entity, GameEvent, Id, PropValue, Ref, SkillDef, Text, WeaponFx, WeaponTechniqueInput } from './types.ts'
 import type { World } from './world.ts'
 
 /** A goal of the behaviour system (behaviour.ts): the first of an actor's goals that applies takes its turn. */
@@ -111,6 +111,14 @@ export type TickPhase = 'status' | 'behaviour' | 'end'
  * leaves the kernel's own behaviour.
  */
 export interface EngineHooks {
+  /** A game's optional high-frequency, equipped-weapon input and deterministic substep. */
+  weaponTechnique?: {
+    supports: (actor: Id) => boolean
+    input: (actor: Id, input: WeaponTechniqueInput) => boolean
+    clear: (actor: Id) => void
+    step: () => boolean
+    effects: (map: string) => WeaponFx[]
+  }
   /** A step of every tick, after the kernel's own of that phase. */
   tick: { phase: TickPhase; run: (active: string) => void }[]
   /** The player has come onto a map (after the map is the active one). */

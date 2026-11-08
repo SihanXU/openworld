@@ -12,7 +12,7 @@ import { TICKS_PER_HOUR } from './calendar.ts'
 import { cannotRead, gainXp, learnSkill, readSkill, skillsOf } from './progression.ts'
 import { appear } from './appear.ts'
 import { LOOSE, WriteError, isBuilt } from './world.ts'
-import { gearLevel, madeOf, qualityFor } from './recipes.ts'
+import { gearLevel, madeOf, matchesRecipeKeep, qualityFor } from './recipes.ts'
 import { restyled } from './looks.ts'
 import { stackKey } from './stacks.ts'
 
@@ -793,10 +793,11 @@ export class EffectRunner {
           w.fx.push({ t: 'log', text: { en: 'You need the right tool for that.', zh: '缺少需要的工具。' } })
           return
         }
-        // what a building raised on one's ground unlocks is made only once it stands (the story's fact)
+        if (!(r.keeps ?? []).every((keep) => carried.some((e) => !e.frozenBy && matchesRecipeKeep(keep, e.type, w.materialOf(e)?.id)))) return
+        // A recipe unlocked by the story is made once its fact holds.
         if (r.unlockedBy && (!w.story || w.num(w.story, r.unlockedBy.fact, 0) < (r.unlockedBy.level ?? 1))) {
           const name = r.unlockedBy.name
-          w.fx.push({ t: 'log', text: { en: `That is made once the ${typeof name === 'string' ? name : name.en} stands.`, zh: `要先建好${typeof name === 'string' ? name : (name.zh ?? name.en)}。` } })
+          w.fx.push({ t: 'log', text: { en: `That requires ${typeof name === 'string' ? name : name.en}.`, zh: `需要${typeof name === 'string' ? name : (name.zh ?? name.en)}。` } })
           return
         }
         // a station's recipe is made at one: the station the act names (its panel open, within the hand's reach) or one

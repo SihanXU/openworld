@@ -815,6 +815,7 @@ export const CATALOG: Catalog = {
     'item:acorn': icon('Items/Food/Nut.png', 15, 15),
     // a weapon's swing (scene.ts swingWeapon): the sword sweeps, the bow shoots, the staff points
     'item:sword': { ...icon('Items/Weapons/Sword2/Sprite.png', 6, 15), swing: 'sweep' },
+    'item:chronoflow_sword': { ...icon('lsw/Items/ChronoflowSword.png', 25, 58), swing: 'sweep' },
     'item:dagger': icon('Items/Projectile/Kunai.png', 16, 16),
     'item:axe': icon('Items/Tool/Axe.png', 16, 16),
     'item:club': icon('Items/Weapons/Club/Sprite.png', 8, 14),

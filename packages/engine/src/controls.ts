@@ -34,6 +34,7 @@ import { NO_EXPIRY, isBuilt, type Writer } from './world.ts'
 import { FIGHT_TICKS, type Aim, type Dir, type Entity, type Id, type LessonInput, type Place, type Plan, type Pos, type PropValue, type Recipe, type Ref, type Sin, type SkillDef, type Text, type Verb } from './types.ts'
 import { cannotLearn, skillsOf } from './progression.ts'
 import { OFFHAND, isTool, weaponOf } from './blows.ts'
+import { matchesRecipeKeep } from './recipes.ts'
 
 /** The inputs (design.md §5.2): the acts' own (a plan's key), and the two clicks that make one of them: the left's `primary`, the right's `secondary`. */
 export type Key = Plan['key'] | 'primary' | 'secondary'
@@ -1454,7 +1455,9 @@ export class Controls {
     const carried = [p.held, ...(p.contents ?? [])].map((id) => this.w.get(id)).filter((e): e is Entity => !!e && !e.frozenBy)
     if (r.skill && !this.w.hasTag(p, `skill:${r.skill}`)) return false
     if (r.unlockedBy && (!this.w.story || this.w.num(this.w.story, r.unlockedBy.fact, 0) < (r.unlockedBy.level ?? 1))) return false
-    return r.needs.every((n) => this.count(n.type) >= n.count) && (r.tools ?? []).every((tag) => carried.some((e) => this.w.hasTag(e, tag)))
+    return r.needs.every((n) => this.count(n.type) >= n.count)
+      && (r.tools ?? []).every((tag) => carried.some((e) => this.w.hasTag(e, tag)))
+      && (r.keeps ?? []).every((keep) => carried.some((e) => matchesRecipeKeep(keep, e.type, this.w.materialOf(e)?.id)))
   }
 
   /**

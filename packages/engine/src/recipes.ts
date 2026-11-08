@@ -5,7 +5,11 @@
 // the recipe's, and its power from its form, material and quality.
 
 import type { OntologyIndex } from './ontology.ts'
-import type { Entity, MaterialDef, Ontology, PropValue, QualityDef, Recipe, Text, WorldParams } from './types.ts'
+import type { Entity, MaterialDef, Ontology, PropValue, QualityDef, Recipe, RecipeKeep, Text, WorldParams } from './types.ts'
+
+export function matchesRecipeKeep(keep: RecipeKeep, type: string, material?: string): boolean {
+  return keep.type === type && (keep.material === undefined || keep.material === material)
+}
 
 /** Every recipe the types give: those with a station and a makeup. */
 export function deriveRecipes(onto: OntologyIndex): Recipe[] {

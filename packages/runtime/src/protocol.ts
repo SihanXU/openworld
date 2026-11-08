@@ -1,6 +1,6 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { ResearchDesign, ResearchMissing, ResearchProblemCode, AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SceneCmd, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
+import type { ResearchDesign, ResearchMissing, ResearchProblemCode, AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SceneCmd, StatusDef, Text, UndefinedRecord, ValidationResult, WeaponFx, WeaponModeSelection, WorldIndex } from '@openworld/engine'
 import type { TransferProgress } from './transferQueue.ts'
 import type { SaveWithQuestions } from './saves.ts'
 
@@ -68,6 +68,8 @@ export type ToWorker =
   | { t: 'key'; key: Key; tile?: Tile; layer?: number; /** the right button dragged over a new cell: only if it sets something up */ drag?: boolean }
   /** The left button pressed (its act at once) or let go; held, its act again at the aim as a swing's pace allows (Controls.again). */
   | { t: 'primary'; on: boolean; tile?: Tile }
+  /** Choose a technique of the equipped weapon. The engine accepts it only for a weapon that has one. */
+  | { t: 'weaponMode'; mode: WeaponModeSelection }
   | { t: 'handUp'; up: boolean }
   /** The same on an item in the bag or in the open chest (the inventory's context menu). */
   | { t: 'keyOnItem'; key: Plan['key']; item: string }
@@ -76,7 +78,7 @@ export type ToWorker =
   /** The layer chooser (a long press): what each layer of the tile would give. */
   | { t: 'choices'; key: Key; tile?: Tile }
   /** Where the mouse points (for the key labels). */
-  | { t: 'aim'; tile?: Tile; /** its number, answered with the keys for it */ n?: number }
+  | { t: 'aim'; tile?: Tile; /** its number, answered with the keys for it */ n?: number; /** A sub-tile technique aim keeps the same key targets. */ updateKeys?: false }
   /** What the camera shows (cells, on a map): frames carry what lies there and round it (docs/continent.md §9). */
   | { t: 'view'; map: string; x: number; y: number; w: number; h: number }
   /** A panel opened (the bag, crafting, the build palette, the map) or a choice made from the chooser: the story notes it, for a lesson that waits on it. */
@@ -219,6 +221,8 @@ export type FromWorker =
   | { t: 'incompatible' }
   | { t: 'map'; map: MapData; /** the look of the region it lies in (RegionMeta.look) */ look?: RegionLook }
   | { t: 'frame'; frame: Frame; /** the frame's things are only those that changed; these left it (frameDelta.ts) */ gone?: string[]; perf: { tickMs: number; entities: number; loaded: number }; /** the codex's version: something new was met */ codex: number; /** the world waits for the outcome of the player's act: for how long so far, and at most */ learning?: { seconds: number; limit: number }; transfer?: TransferProgress; crafting?: TransferProgress<'craft'> }
+  /** A fast weapon substep's geometry. Entity and combat events still come in the regular frame. */
+  | { t: 'weaponFx'; map: string; weaponFx: WeaponFx[] }
   /** A bag group move finished: request identifies the pending cursor action. */
   | { t: 'slotMove'; request: number; moved: boolean }
   /** What the keys would do now, sent as soon as the pointer aims somewhere else (between frames). */

@@ -1310,6 +1310,8 @@ export interface AiData {
 export interface Aim {
   x: number
   y: number
+  /** Continuous tile-centred aim for held weapon techniques. Ordinary actions use the cell above. */
+  point?: { x: number; y: number }
   stack?: Ref[]
   /**
    * The cell whose ceiling (the floor of the storey above) is drawn at the point: the view's to say,
@@ -1317,6 +1319,29 @@ export interface Aim {
    * (docs/building.md §5); without it, over the cell aimed at.
    */
   over?: { x: number; y: number }
+}
+
+export type WeaponMode = 'pierce' | 'wave' | 'beam'
+export type WeaponModeSelection = WeaponMode | 'toggleNormal' | 'toggleBeam'
+
+export type WeaponTechniqueInput =
+  | { t: 'mode'; mode: WeaponModeSelection }
+  | { t: 'aim'; aim: Aim }
+  | { t: 'hold'; on: boolean; aim?: Aim }
+
+/** Authoritative geometry in tile-centred coordinates. The renderer may interpolate between samples. */
+export interface WeaponFx {
+  id: string
+  who: Id
+  kind: 'aim' | 'charge' | 'beam' | 'tail' | 'piercer' | 'echo' | 'wave'
+  x: number
+  y: number
+  endX: number
+  endY: number
+  z?: number
+  progress: number
+  color?: number
+  wall?: boolean
 }
 
 export interface MapData {
@@ -1598,6 +1623,14 @@ export interface GearSetBonus {
   power?: string
 }
 
+/** A carried item that remains with the maker. */
+export interface RecipeKeep {
+  /** Exact item type. */
+  type: string
+  /** The item's material, when the recipe calls for a particular one. */
+  material?: string
+}
+
 /** A recipe for the crafting panel: the carried items it uses up, and the item it makes. */
 export interface Recipe {
   id: string
@@ -1625,6 +1658,8 @@ export interface Recipe {
   level?: number
   /** Tools it needs carried (tags), not used up. */
   tools?: string[]
+  /** Specific items the maker must carry; they remain in the bag. */
+  keeps?: RecipeKeep[]
   /** How many one making gives (default 1). */
   count?: number
   /** The shelf of a shop it is offered on (a shelf's `group`: the runtime's ClientGame.crafting.shops, which says whether the shelf buys). */

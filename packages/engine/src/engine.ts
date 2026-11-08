@@ -24,7 +24,7 @@ import { Chunks } from './sparse.ts'
 import { RuleLibrary, evalCond, isDo, isPatch, matchSelector, rolesOf, type Resolution } from './rules.ts'
 import { DEFAULT_QUALITY, categoryOf, tierOfLevel, type AiQuality } from './quality.ts'
 import { modulesOf, noHooks, noSociety, type Combat, type Society, type EffectImpl, type EngineHooks, type EngineModule, type Goal, type EffectReading } from './module.ts'
-import type { Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, Look, MapData, Ontology, Portal, Pos, PropValue, Recipe, Ref, Sin, SkillDef, Text, Tier, Verb, WorldState } from './types.ts'
+import type { Dir, Effect, Entity, EventKind, GameEvent, Id, Invariant, Look, MapData, Ontology, Portal, Pos, PropValue, Recipe, Ref, Sin, SkillDef, Text, Tier, Verb, WeaponFx, WeaponTechniqueInput, WorldState } from './types.ts'
 import { DIRS, FIRE_RADIUS, OPPOSITE } from './types.ts'
 import { NO_EXPIRY, REVERSE, World, refKey, regionId, tileKey, type View, type Writer } from './world.ts'
 import { seedOf } from './rng.ts'
@@ -518,6 +518,7 @@ export class Engine {
     const w = this.world
     const p = w.player
     if (!w.hasStatus({ e: p.id }, 'down')) return
+    this.hooks.weaponTechnique?.clear(p.id)
     const effects: Effect[] = [{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'respawn', drop: home } }]
     if (home) {
       const at = this.homeOf(p)
@@ -1761,6 +1762,22 @@ export class Engine {
   }
 
   // ---------------------------------------------------------------- combat
+
+  hasWeaponTechnique(actor: Id): boolean {
+    return this.hooks.weaponTechnique?.supports(actor) ?? false
+  }
+
+  weaponTechniqueInput(actor: Id, input: WeaponTechniqueInput): boolean {
+    return this.hooks.weaponTechnique?.input(actor, input) ?? false
+  }
+
+  stepWeaponTechniques(): boolean {
+    return this.hooks.weaponTechnique?.step() ?? false
+  }
+
+  weaponFx(map: string): WeaponFx[] {
+    return this.hooks.weaponTechnique?.effects(map) ?? []
+  }
 
   /** The player attacks with the held item (or bare hands): at a chosen target next to them, or along the facing direction. */
   playerAttack(target?: Ref, whiff = false, actor?: Id): void {
