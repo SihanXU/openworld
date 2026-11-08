@@ -59,7 +59,23 @@ and the **set** it belongs to, worn with others of it. All three are read by `Wo
 Thirty-two more sets, five or six to a chapter and two across the line, a type and a picture per piece, their
 bonuses' powers (vows, relics' powers, the sets' own): [sets.md](sets.md) (2026-11-01).
 
-## 4. Where it lives
+## 4. The Chronoflow Sword
+
+After reaching the Confluence, a warrior can forge the sword at an anvil with two steel bars and two
+ancient ring shards. A bronze sword, Dragonsbane, and Oathbrand must be carried. The three swords are
+kept. The new sword has 144 base power.
+
+When the sword is readied, press F to switch between puncture and sword waves. Press Z to enter or
+leave beam aim. Both keys can be rebound under Fighting. Hold the left button on the aimed position
+to attack. A puncture cycles its elemental pattern automatically. Punctures and sword waves also
+send seven tracking echoes at intervals. The beam charges for 0.6 seconds and follows the pointer
+while held. It ends its damage on release and leaves a short light trail.
+
+The weapon's 60 Hz clock runs in the game worker. Puncture and beam damage can pulse once per step per
+target. A wave hits each target once. Walls bound the attacks. The sword is saved as regular gear, and
+loading ends any unfinished cast.
+
+## 5. Where it lives
 
 Engine: `affixes.ts`, `World.stat` (`world.ts`), the `trophy` primitive and `craft` (`effects.ts`), the types
 (`types.ts`: `AffixTable`, `GearSet`, `WorldParams.trophyPity`). Modules: `society` `restock`. Content:

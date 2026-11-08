@@ -2,7 +2,7 @@
 
 import { nightHours, type Calendar } from './calendar.ts'
 import type { Engine } from './engine.ts'
-import type { BossState, Look, Dir, Entity, FxEvent, Id, LessonInput, PropValue, SceneState, Sin, Text } from './types.ts'
+import type { BossState, Look, Dir, Entity, FxEvent, Id, LessonInput, PropValue, SceneState, Sin, Text, WeaponFx, WeaponMode } from './types.ts'
 import { SLOT_COUNT } from './controls.ts'
 import { oldStackKey, stackKey } from './stacks.ts'
 import { parseCellId } from './cells.ts'
@@ -178,6 +178,8 @@ export interface ResidenceWarehouseView {
 }
 
 export interface Frame {
+  weaponTechnique?: { mode: WeaponMode }
+  weaponFx?: WeaponFx[]
   tick: number
   hour: number
   /** When night falls and ends now (clock hours): later dawns and earlier dusks as the story's night lengthens. */

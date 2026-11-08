@@ -1,0 +1,38 @@
+#hud > #weapon-technique {
+  position: absolute;
+  bottom: var(--hud-bottom, 100px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 16px);
+  padding: 3px;
+  border: 1px solid var(--ui-frame, #93754e);
+  background: #30271fed;
+  box-shadow: var(--ui-shadow, 0 3px 8px #0c0a0780);
+}
+#hud > #weapon-technique[hidden] { display: none; }
+#weapon-technique button {
+  min-height: 27px;
+  border: 1px solid var(--ui-frame, #93754e);
+  padding: 3px 8px;
+  background: var(--ui-inset, #c4a977);
+  color: var(--ui-ink, #342819);
+  font: 400 12px/1.25 var(--ui-font, sans-serif);
+  white-space: nowrap;
+  cursor: pointer;
+}
+#weapon-technique button[aria-pressed='true'] {
+  border-color: var(--ui-gold, #d2a451);
+  background: var(--ui-paper-light, #f8e0a4);
+}
+#weapon-technique kbd {
+  padding: 1px 3px;
+  color: var(--ui-paper-light, #f8e0a4);
+  font: 400 10px/1.2 var(--ui-font, sans-serif);
+}
+#weapon-technique kbd:empty { display: none; }
+@media (max-width: 719px) {
+  #hud > #weapon-technique { bottom: 180px; }
+}

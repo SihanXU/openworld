@@ -5,6 +5,7 @@ import { APPEAR_TICK, CRAFTSPERSON, TICKS_PER_DAY, type Cond, type Ontology, typ
 import { HUNGER_EFFECT_EVERY, HUNGER_EVERY, HUNGRY_BELOW, HUNGRY_PACE } from '@openworld/modules'
 // the engine's official modules this game uses (docs/engine-split.md S3): loading them registers them
 import '@openworld/modules'
+import './chronoflow.ts'
 import { LOOK_TABLE } from './looks.ts'
 import { ELEMENT_NAMES, FORMS, MATERIALS, MATERIAL_DEFS, QUALITIES, QUALITY_DEFS, itemTypes } from './items.ts'
 import { GEAR_LEVELS } from './gear.ts'
@@ -736,7 +737,7 @@ const fixtureTypes: TypeDef[] = [
 ]
 
 /** The engine's modules this game uses (docs/engine-split.md S3). */
-export const MODULES = ['classes', 'waypoints', 'boons', 'needs', 'society', 'loot', 'kits', 'fishing']
+export const MODULES = ['classes', 'waypoints', 'boons', 'needs', 'society', 'loot', 'kits', 'fishing', 'chronoflow']
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}

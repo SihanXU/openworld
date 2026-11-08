@@ -1,0 +1,34 @@
+name: Weapon technique
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  weapon:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck:game
+      - run: >-
+          npm test -- games/openworld/content/test/chronoflow.test.ts games/openworld/content/test/stations.test.ts
+          games/openworld/content/test/research.test.ts packages/runtime/test/keymap.test.ts
+  weapon-gate:
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [weapon]
+    steps:
+      - name: Require all platform checks
+        shell: bash
+        run: test "${{ needs.weapon.result }}" = success

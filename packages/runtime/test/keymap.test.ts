@@ -18,7 +18,9 @@ describe('the keyboard map', () => {
 
   it('the clicks are the mouse\'s alone: no key takes, uses or stands in for a click', () => {
     for (const gone of ['take', 'use', 'action', 'primary', 'secondary']) expect(ACTIONS as readonly string[]).not.toContain(gone)
-    expect(actionOf(A(), 'KeyF', false)).toBeUndefined()
+    expect(actionOf(A(), 'KeyF', false)).toBe('weaponMode')
+    expect(actionOf(A(), 'KeyZ', false)).toBe('weaponBeam')
+    expect(actionOf(A(), 'KeyQ', false)).toBe('dash')
   })
 
   it('Shift held: a Shift-bound key first (Shift+1 casts), else the plain one (Shift+W still walks up)', () => {
@@ -43,9 +45,9 @@ describe('the keyboard map', () => {
     expect(actionOf(map, 'KeyG', false)).toBe('hands')
     expect(actionOf(map, 'KeyE', false)).toBe('put')
     // a free key: nothing traded
-    const free = bind(A(), 'dash', 1, { code: 'KeyZ' })
+    const free = bind(A(), 'dash', 1, { code: 'KeyY' })
     expect(free.swapped).toBeUndefined()
-    expect(free.map.dash.map((b) => b.code)).toEqual(['KeyQ', 'KeyZ'])
+    expect(free.map.dash.map((b) => b.code)).toEqual(['KeyQ', 'KeyY'])
     // the action's own other key into this slot: the two slots trade
     const own = bind(A(), 'up', 0, { code: 'ArrowUp' })
     expect(own.map.up.map((b) => b.code)).toEqual(['ArrowUp', 'KeyW'])
@@ -93,6 +95,11 @@ describe('the keyboard map', () => {
     const twice = parse({ keys: { hands: [{ code: 'KeyQ' }] } })
     expect(holder(twice, { code: 'KeyQ' })).toBe('hands')
     expect(twice.dash).toEqual([])
+    const beforeTechniques = parse({ keys: { dash: [{ code: 'KeyF' }], draw: [{ code: 'KeyZ' }] } })
+    expect(beforeTechniques.dash).toEqual([{ code: 'KeyF' }])
+    expect(beforeTechniques.draw).toEqual([{ code: 'KeyZ' }])
+    expect(beforeTechniques.weaponMode).toEqual([])
+    expect(beforeTechniques.weaponBeam).toEqual([])
   })
 
   it('a text\'s keys are the keys that do it now; a lesson\'s key, written as the default\'s, is shown as the key now', () => {

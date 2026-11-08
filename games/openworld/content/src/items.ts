@@ -144,6 +144,8 @@ const WEAPON_METALS = ['bronze', 'iron', 'steel', 'silver', 'obsidian', 'mithril
 const TOOL_METALS = ['bronze', 'iron', 'steel']
 const W = (id: string, en: string, zh: string, sprite: string, rest: Partial<Form> = {}): Form => ({ id, en, zh, sprite, ...rest })
 
+export const CHRONOFLOW_SWORD = 'item/weapon/blade/sword/chronoflow'
+
 /** The base forms: every kind the played world lays, and what the regions' goods vary (goods.ts). */
 const BASE_FORMS: Form[] = [
   // weapons
@@ -168,6 +170,7 @@ const BASE_FORMS: Form[] = [
   W('item/weapon/blade/dagger/nightfang', 'Nightfang', '夜牙', 'item:dagger', { tags: ['quality:legendary', 'legend'], props: stigmatic({ power: 2 }, { relic: 'nightfang', critChance: 0.15 }), where: {} }),
   W('item/weapon/blade/dagger/mirrorshard', 'Mirrorshard', '镜中刃', 'item:dagger', { tags: ['quality:legendary', 'legend', 'glass'], props: stigmatic({ power: 2 }, { relic: 'mirrorshard', lifesteal: 1 }), where: {} }),
   W('item/weapon/blade/sword/oathbrand', 'Oathbrand', '誓约之刃', 'item:sword', { tags: ['quality:legendary', 'legend', 'metal', 'conductive', 'holy'], props: stigmatic({ power: 4 }, { relic: 'oathbrand', lifesteal: 1 }), where: {} }),
+  W(CHRONOFLOW_SWORD, 'Chronoflow Sword', '光阴时流剑', 'item:chronoflow_sword', { tags: ['quality:legendary', 'legend', 'metal', 'conductive'], props: { power: 144, level: 20, material: 'steel' }, where: {} }),
   W('item/weapon/ranged/bow/galestring', 'Galestring', '疾风之弦', 'item:bow', { tags: ['quality:legendary', 'legend', 'element:wind'], props: stigmatic({ power: 3 }, { relic: 'galestring', range: 7, element: 'wind', attackHaste: 0.2 }), where: {} }),
   W('item/weapon/ranged/bow/starfall', 'Starfall', '坠星', 'item:bow', { tags: ['quality:legendary', 'legend'], props: stigmatic({ power: 3 }, { relic: 'starfall', range: 8, critChance: 0.1 }), where: {} }),
   W('item/weapon/magic/staff/emberheart', 'Emberheart', '烬心法杖', 'item:staff', { tags: ['quality:legendary', 'legend', 'element:fire'], props: stigmatic({ power: 5 }, { relic: 'emberheart', range: 5, element: 'fire' }), where: {} }),

@@ -346,7 +346,14 @@ const BODIES: Rule[] = [
     doc: 'An actor struck takes the blow as anything with durability does — as well as what struck works on what it is made of (world-model.md §6.1, §6.8; a frozen one shatters under a blunt or earthen blow); the one who struck becomes its foe; the element of the blow reaches it.',
     host: ACTOR,
     on: 'impulse/strike',
-    tree: IF(
+    tree: IF(param('weaponTechnique', true),
+      IF(param('pierce', true),
+        DO({ op: 'hurt', amount: POWER, pierce: true }, { op: 'foe' }),
+        IF(param('element', ''),
+          DO({ op: 'hurt', amount: POWER }, { op: 'foe' }),
+          DO({ op: 'hurt', amount: POWER }, { op: 'foe' }, emit('element', 'host', { element: ELEMENT, power: POWER }))),
+      ),
+    IF(
       all(has('host', 'frozen'), any(param('edge', 'blunt'), param('element', 'earth'))),
       DO(remove('frozen'), { op: 'hurt', amount: { param: 'power', mul: 1.5 }, blow: true }, { op: 'foe' }, vfx('shatter')),
       IF(
@@ -354,7 +361,7 @@ const BODIES: Rule[] = [
         DO({ op: 'hurt', amount: POWER, blow: true }, { op: 'foe' }, vfx('hit'), emit('element', 'host', { element: ELEMENT, power: POWER })),
         DO({ op: 'hurt', amount: POWER, blow: true }, { op: 'foe' }, vfx('hit')),
       ),
-    ),
+    )),
   }),
   rule({
     id: 'element/actor',

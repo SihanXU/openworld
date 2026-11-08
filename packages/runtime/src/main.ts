@@ -5,7 +5,7 @@ import { ResearchWindow, pixelArtOf } from './ui/research.ts'
 // inventory, J journal, M map.
 
 import Phaser from 'phaser'
-import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type PixelArt, type Text } from '@openworld/engine'
+import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type PixelArt, type Text, type WeaponModeSelection } from '@openworld/engine'
 import { catalog, game, hasModule, libraryKey, newWorker, savesKey, worldBase } from './game.ts'
 import { FishingInputLatch, routeFishingEscape, routeSpaceKeyDown, type FromWorker, type Tile, type ToWorker } from './protocol.ts'
 import { assetUrl, cssAssetUrl, registerArt } from './render/assets.ts'
@@ -29,6 +29,7 @@ import { LessonGuide } from './ui/lesson.ts'
 import { Menu, setLearnedRecipes } from './ui/menu.ts'
 import { PeoplePanels } from './ui/people.ts'
 import { SkillBar } from './ui/skillbar.ts'
+import { WeaponTechniqueHud } from './ui/weaponTechnique.ts'
 import { Tooltip, setLearnedStatuses, type TipContext } from './ui/tooltip.ts'
 import { Minimap } from './ui/worldmap.ts'
 import { AfterSave } from './afterSave.ts'
@@ -40,6 +41,7 @@ import './ui/game.css'
 import './ui/polish.css'
 import './ui/fishing.css'
 import './ui/research.css'
+import './ui/weaponTechnique.css'
 
 const PARAMS = new URLSearchParams(location.search)
 /** Where this game's saves are kept (its own, beside other games' on the same page). */
@@ -174,6 +176,7 @@ const people = new PeoplePanels({
 })
 /** The skill bar, bottom left (Shift+1–6). */
 const skillbar = new SkillBar({ cast: (slot) => send({ t: 'cast', slot }), set: (slot, id) => send({ t: 'setSkill', slot, id }) })
+const weaponTechniqueHud = new WeaponTechniqueHud(chooseWeaponMode)
 const minimap = new Minimap(() => openPanel('map', () => menu.toggleMap()))
 /** The tutorial's lessons (docs/prologue.md, the drills): the spotlight, the key to press, the tick. */
 const lessons = new LessonGuide({ of: (id) => scene.screenOf(id), ofTile: (x, y) => scene.screenOfTile(x, y), cells: (c) => scene.setLessonCells(c) })
@@ -234,6 +237,7 @@ function relabelAll(): void {
   relabelKeys()
   panelTabs.relabel()
   skillbar.relabel()
+  weaponTechniqueHud.relabel()
 }
 keys.onChange(relabelAll)
 relabelAll()
@@ -293,6 +297,10 @@ scene.hooks = {
   onFrame: (f) => {
     // (the world behind the title is only drawn: the game's panels hear nothing of it)
     if (backdropOn) return
+    if (lastFrame?.weaponTechnique && !f.weaponTechnique) {
+      setAttack(false)
+      setSwing(false)
+    }
     lastFrame = f
     research.follow(f)
     const was = death.open
@@ -307,6 +315,7 @@ scene.hooks = {
     if (was !== death.open) scene.setDeathMusic(death.open)
     hud.onFrame(f)
     skillbar.onFrame(f)
+    weaponTechniqueHud.render(f.fishing || f.fallen || f.scene || pauseRequested() || cover.open || building.open || people.open ? undefined : f.weaponTechnique?.mode)
     menu.onFrame(f)
     tooltip.onFrame(f)
     dev.onFrame(f)
@@ -527,6 +536,9 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       scene.setLook(m.look)
       scene.setMap(m.map)
       minimap.setMap(m.map)
+      break
+    case 'weaponFx':
+      scene.setWeaponFx(m.map, m.weaponFx)
       break
     case 'atlas':
       menu.worldmap.onAtlas(m.atlas)
@@ -842,6 +854,12 @@ const setSwing = (on: boolean, tile?: Tile) => {
   swingingNow = on
   send({ t: 'primary', on, tile })
 }
+function chooseWeaponMode(mode: WeaponModeSelection): void {
+  if (!lastFrame?.weaponTechnique || lastFrame.fishing || lastFrame.fallen || lastFrame.scene || pausedNow || pauseRequested() || cover.open || building.open || people.open) return
+  setAttack(false)
+  setSwing(false)
+  send({ t: 'weaponMode', mode })
+}
 const fishingInputs = new FishingInputLatch()
 let fishingWasActive = false
 let fishingEscapeHeld = false
@@ -1038,6 +1056,11 @@ window.addEventListener('keydown', (e) => {
     if (a === 'hands' || a === 'put' || a === 'attack' || a === 'row' || a === 'rotate') e.preventDefault()
     return
   }
+  if (lastFrame?.weaponTechnique && (a === 'weaponMode' || a === 'weaponBeam') && !e.repeat) {
+    e.preventDefault()
+    chooseWeaponMode(a === 'weaponBeam' ? 'toggleBeam' : 'toggleNormal')
+    return
+  }
   // the turn key with a floor in hand: the right click lays it in the ceiling (as the palette's), and back
   if (a === 'rotate' && !e.repeat && laysInHand(lastFrame)) return void setHandUp(!handUp)
   // the attack key: a blow ahead on the press and again while it is held
@@ -1104,6 +1127,7 @@ const resumeFishingBlurPause = () => {
 }
 window.addEventListener('focus', resumeFishingBlurPause)
 document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && lastFrame?.weaponTechnique) stopMoving()
   // the tab going to the background saves, said to no one (it comes and goes with every switch)
   if (document.visibilityState === 'hidden' && slot && !cover.open) (quietSave = true), send({ t: 'save' })
   else resumeFishingBlurPause()
@@ -1122,12 +1146,15 @@ let mouseAt: { x: number; y: number } | undefined
  */
 let pointerStill = false
 const aimSig = (a?: Tile) => (a ? `${a.x},${a.y}|${(a.stack ?? []).map((r) => r.e).join(' ')}` : '')
+const fineAimSig = (a?: Tile) => a?.point ? `${a.point.x.toFixed(2)},${a.point.y.toFixed(2)}` : ''
 /** Aim at what is drawn under the pointer: it changes as things move, not only as the mouse does. */
 function reaim(): void {
-  const a = mouseAt && !pointerStill ? scene.aimAtScreen(mouseAt.x, mouseAt.y) : undefined
+  const a = mouseAt && !pointerStill ? scene.aimAtScreen(mouseAt.x, mouseAt.y, !!lastFrame?.weaponTechnique) : undefined
   building.setAim(a)
-  if (aimSig(a) === aimSig(mouseTile)) return
+  const sameTargets = aimSig(a) === aimSig(mouseTile)
+  if (sameTargets && fineAimSig(a) === fineAimSig(mouseTile)) return
   mouseTile = a
+  if (sameTargets) return send({ t: 'aim', tile: a, updateKeys: false })
   send({ t: 'aim', tile: a, n: ++aimsSent })
   // building by hand, the right button held: each new cell the pointer enters gets one too
   if (handDrag && a) {
@@ -1171,6 +1198,12 @@ window.addEventListener('mousemove', (e) => {
   reaim()
 })
 gameEl.addEventListener('contextmenu', (e) => e.preventDefault())
+gameEl.addEventListener('mouseleave', () => {
+  if (lastFrame?.weaponTechnique) setSwing(false)
+})
+window.addEventListener('pointercancel', () => {
+  if (lastFrame?.weaponTechnique) setSwing(false)
+})
 gameEl.addEventListener('mousedown', (e) => {
   if (hud.chooserOpen) return hud.closeChooser()
   if (hud.questionShown) return
@@ -1182,7 +1215,7 @@ gameEl.addEventListener('mousedown', (e) => {
   }
   // a click points, as a move of the pointer does
   if (pointerStill) ((pointerStill = false), reaim())
-  const tile = scene.aimAtScreen(e.clientX, e.clientY)
+  const tile = scene.aimAtScreen(e.clientX, e.clientY, !!lastFrame?.weaponTechnique)
   if (building.open) {
     if (e.button === 0 && tile) building.press(tile)
     if (e.button === 2) building.toggle(false)

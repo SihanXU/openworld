@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { RuleLibrary, buildSandbox, type Engine, type ScenarioEntity } from '@openworld/engine'
-import { BASE_RULES, HAVEN_UPGRADES, RECIPES, RECIPE_BY_ID, RECIPE_UNLOCKS, SKILL_BY_ID, buildOntology } from '../src/index.ts'
+import { BASE_RULES, CHRONOFLOW_SWORD, FIN, HAVEN_UPGRADES, RECIPES, RECIPE_BY_ID, RECIPE_UNLOCKS, SKILL_BY_ID, buildOntology } from '../src/index.ts'
 
 const onto = buildOntology()
 const lib = () => new RuleLibrary(BASE_RULES)
@@ -113,6 +113,53 @@ describe('a station is opened by a hand on it, and what is made there is made at
     c.sync()
     expect(c.craft(RECIPE_BY_ID['smith/dagger-iron'], 'anvil')).toBe(true)
     expect(c.count('item/weapon/blade/dagger')).toBe(1)
+  })
+
+  it('forges Chronoflow at an anvil after the Confluence and keeps the three swords', () => {
+    const eng = world([
+      { key: 'anvil', type: 'fixture/craft/anvil', x: 2, y: 1 },
+      { key: 'bronze', type: 'item/weapon/blade/sword', tags: ['material:bronze'], inside: 'actor', x: 2, y: 2 },
+      { key: 'iron', type: 'item/weapon/blade/sword', tags: ['material:iron'], inside: 'actor', x: 2, y: 2 },
+      { key: 'dragonsbane', type: 'item/weapon/blade/dragonsbane', inside: 'actor', x: 2, y: 2 },
+      { key: 'oathbrand', type: 'item/weapon/blade/sword/oathbrand', inside: 'actor', x: 2, y: 2 },
+    ])
+    const { world: w, controls: c } = eng
+    const recipe = RECIPE_BY_ID[CHRONOFLOW_SWORD]
+    const steel = 'item/material/steel_bar'
+    const shard = 'item/valuable/ancient_ring_shard'
+    give(eng, steel, 2)
+    give(eng, shard, 2)
+    c.sync()
+    expect(c.craft(recipe, 'anvil')).toBe(false)
+
+    const anvil = w.get('anvil')!
+    const bronze = w.get('bronze')!
+    eng.author(() => {
+      w.setFact(FIN.confluence, 1)
+      w.place(bronze, { on: 'tile', map: 'sandbox', x: 2, y: 2 })
+    })
+    expect(c.craft(recipe, 'anvil')).toBe(false)
+    // The effect also checks the required swords when a craft act reaches it directly.
+    eng.recipes.set(recipe.id, recipe)
+    eng.act('craft', 'actor', { e: 'actor' }, { params: { recipe: recipe.id, at: 'anvil' } })
+    expect(c.count(CHRONOFLOW_SWORD)).toBe(0)
+
+    eng.author(() => {
+      w.place(bronze, { on: 'hand', holder: 'actor' })
+      w.place(anvil, { on: 'tile', map: 'sandbox', x: 2, y: 6 })
+    })
+    c.craft(recipe, 'anvil')
+    expect(c.count(CHRONOFLOW_SWORD)).toBe(0)
+    expect([c.count(steel), c.count(shard)]).toEqual([2, 2])
+
+    eng.author(() => w.place(anvil, { on: 'tile', map: 'sandbox', x: 2, y: 1 }))
+    c.run(c.plan('hands', { x: 2, y: 1 })!)
+    expect(w.fx).toContainEqual({ t: 'panel', panel: 'station:anvil', by: anvil.id })
+    expect(c.craft(recipe, 'anvil')).toBe(true)
+    const forged = w.ofType(CHRONOFLOW_SWORD).find((e) => e.place.on === 'inside' && e.place.holder === 'actor')
+    expect(forged && w.prop(forged, 'power')).toBe(144)
+    expect([c.count(steel), c.count(shard)]).toEqual([0, 0])
+    for (const id of ['bronze', 'iron', 'dragonsbane', 'oathbrand']) expect(w.get(id)?.place).toMatchObject({ holder: 'actor' })
   })
 })
 

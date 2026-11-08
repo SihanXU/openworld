@@ -15,6 +15,7 @@ export const ACTIONS = [
   'cast1', 'cast2', 'cast3', 'cast4', 'cast5', 'cast6',
   'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot10', 'row',
   'bag', 'craft', 'skills', 'skillPanel', 'quests', 'journal', 'map', 'build', 'companion',
+  'weaponMode', 'weaponBeam',
 ] as const
 export type Action = (typeof ACTIONS)[number]
 
@@ -61,6 +62,8 @@ export function defaultKeys(): Keymap {
     map: [k('KeyM')],
     build: [k('KeyB')],
     companion: [k('KeyP')],
+    weaponMode: [k('KeyF')],
+    weaponBeam: [k('KeyZ')],
   } as Partial<Keymap>
   for (let n = 1; n <= 6; n++) m[`cast${n}` as Action] = [k(digit(n), true)]
   for (let n = 1; n <= 10; n++) m[`slot${n}` as Action] = [k(digit(n))]
@@ -290,13 +293,15 @@ export const ACTION_NAME: Record<Action, [string, string]> = {
   map: ['World map', '世界地图'],
   build: ['Build mode', '建造模式'],
   companion: ['Companion (her panel)', '小精灵面板'],
+  weaponMode: ['Switch weapon technique', '切换武器技法'],
+  weaponBeam: ['Aim or put away the weapon beam', '瞄准或退出武器光束'],
 }
 
 /** The actions in their groups, as the keys page lists them. */
 export const GROUPS: { name: [string, string]; actions: Action[] }[] = [
   { name: ['Moving', '移动'], actions: ['up', 'down', 'left', 'right', 'run', 'walk'] },
   { name: ['Acting', '交互'], actions: ['hands', 'put', 'rotate'] },
-  { name: ['Fighting', '战斗'], actions: ['attack', 'dash', 'draw', 'sneak', 'cast1', 'cast2', 'cast3', 'cast4', 'cast5', 'cast6'] },
+  { name: ['Fighting', '战斗'], actions: ['attack', 'dash', 'draw', 'sneak', 'cast1', 'cast2', 'cast3', 'cast4', 'cast5', 'cast6', 'weaponMode', 'weaponBeam'] },
   { name: ['Toolbar', '快捷栏'], actions: ['slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot10', 'row'] },
   { name: ['Panels', '面板'], actions: ['bag', 'craft', 'skills', 'skillPanel', 'quests', 'journal', 'map', 'build', 'companion'] },
 ]

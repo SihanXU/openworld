@@ -7,7 +7,7 @@ import { FrameEncoder } from './frameDelta.ts'
 import { TransferQueue } from './transferQueue.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
 import { adoptDefinitions, artsToSend, forgetInvalid, holdForMaking, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, LogPosition, type Kept } from './learned.ts'
-import { AgentHost, lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModRequest, type Patch, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look } from '@openworld/engine'
+import { AgentHost, lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModRequest, type Patch, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look, weaponOf } from '@openworld/engine'
 import { peopleViews, travelToWaypoint, waypoints, cast, dash, fishingActive, fishingInput, setSkill, takeProfession, advanceProfession, chooseBoon } from '@openworld/modules'
 import { game as played, ontology, placementById, professionById, recipeById, skillById } from './game.ts'
 import { settleOpenQuestions, withOpenQuestions } from './saves.ts'
@@ -15,6 +15,7 @@ import { linkAgents } from './agentLink.ts'
 import { routeFishingWorkerInput, type StoredLibrary, type Atlas, type AtlasContinent, type AtlasMap, type FromWorker, type LibraryView, type RecordView, type SaveSummary, type Tile, type ToWorker } from './protocol.ts'
 
 const TICK_MS = 100
+const TECHNIQUE_STEP_MS = 1000 / 60
 /**
  * How many maps keep their things in memory (docs/continent.md §9): the player's and the last ones left; the rest are put
  * away, to come back as they were when one goes there again (its file is fetched again).
@@ -179,6 +180,9 @@ let buildAim: { id: string; tile: Tile; up?: boolean } | undefined
 let lastMap = ''
 let fetching = new Set<string>()
 let timer: ReturnType<typeof setInterval> | undefined
+let techniqueTimer: ReturnType<typeof setTimeout> | undefined
+let techniqueWork = false
+const techniqueHolds = new Set<'primary' | 'attack'>()
 let lastTickMs = 0
 let lastRecordsVersion = -1
 let saveEvery = 0
@@ -462,6 +466,12 @@ function keyViews(): Frame['keys'] {
   const out: NonNullable<Frame['keys']> = {}
   // E and G (a press: no layer chosen), the left click and the right click (a floor in hand: in the ceiling, as chosen)
   for (const k of ['hands', 'put', 'primary', 'secondary'] as const) {
+    if (k === 'primary' && stand && canUseTechnique(eng, k)) {
+      shownTarget[k] = undefined
+      const aim = aimTile ?? stand
+      out[k] = { label: { en: 'Use weapon technique', zh: '施展武器技法' }, x: aim.x, y: aim.y }
+      continue
+    }
     const pl = c.plan(k, aimTile, k === 'secondary' && handUp ? CEILING : undefined)
     shownTarget[k] = pl?.target
     const v = view(pl)
@@ -488,6 +498,93 @@ function cancelFishing(g: Game | undefined): void {
 
 /** What the keys would do now, as a frame says it: nothing while time stands or the player cannot act. */
 const keysNow = (g: Game): Frame['keys'] => (timeStopped(g) || g.engine.busy(g.engine.world.player) ? undefined : keyViews())
+
+function canUseTechnique(eng: Engine, source: 'primary' | 'attack'): boolean {
+  const w = eng.world
+  if (!eng.hasWeaponTechnique(w.state.player)) return false
+  // Space strikes with the readied weapon. Left click still uses the food or tool in hand first.
+  return source === 'attack' || !w.get(w.player.held) || w.player.held === weaponOf(w, w.player)?.id
+}
+
+function canStepTechnique(g: Game): boolean {
+  const eng = g.engine
+  const w = eng.world
+  return !starting && !backdropOn && !timeStopped(g) && !fishingActive(eng) && w.num(w.player, 'hp') > 0 && !eng.busy(w.player)
+}
+
+function publishTechniqueFx(eng: Engine): void {
+  const pos = eng.world.posOf(eng.world.player)
+  if (pos) post({ t: 'weaponFx', map: pos.map, weaponFx: eng.weaponFx(pos.map) })
+}
+
+function stopTechniqueHold(g: Game | undefined): void {
+  if (!techniqueHolds.size) return
+  techniqueHolds.clear()
+  if (g) {
+    const eng = g.engine
+    eng.weaponTechniqueInput(eng.world.state.player, { t: 'hold', on: false })
+    publishTechniqueFx(eng)
+  }
+}
+
+function resetTechnique(): void {
+  stopTechniqueHold(game)
+  if (techniqueTimer !== undefined) clearTimeout(techniqueTimer)
+  techniqueTimer = undefined
+  techniqueWork = false
+}
+
+/** Step live weapon paths independently of the world's 100 ms tick, without replaying a throttled tab's backlog. */
+function scheduleTechnique(owner: Game): void {
+  if (!techniqueWork || techniqueTimer !== undefined || !canStepTechnique(owner)) return
+  let due = performance.now() + TECHNIQUE_STEP_MS
+  const step = () => {
+    techniqueTimer = undefined
+    if (game !== owner) return
+    if (!canStepTechnique(owner)) return stopTechniqueHold(owner)
+    const eng = owner.engine
+    try {
+      for (const source of techniqueHolds) if (!canUseTechnique(eng, source)) techniqueHold(owner, source, false)
+      techniqueWork = eng.stepWeaponTechniques()
+      publishTechniqueFx(eng)
+      if (!techniqueWork) return
+      const now = performance.now()
+      due += TECHNIQUE_STEP_MS
+      if (due < now) due = now + TECHNIQUE_STEP_MS
+      techniqueTimer = setTimeout(step, due - now)
+    } catch (err) {
+      resetTechnique()
+      post({ t: 'error', message: (err as Error).stack ?? String(err) })
+    }
+  }
+  techniqueTimer = setTimeout(step, TECHNIQUE_STEP_MS)
+}
+
+/** Capture the press and release of either attack input while this weapon owns it. */
+function techniqueHold(g: Game | undefined, source: 'primary' | 'attack', on: boolean, aim?: Tile): boolean {
+  if (!on) {
+    if (!techniqueHolds.has(source)) return false
+    if (techniqueHolds.size === 1) stopTechniqueHold(g)
+    else techniqueHolds.delete(source)
+    return true
+  }
+  if (!g || !canUseTechnique(g.engine, source)) return false
+  if (!canStepTechnique(g)) return true
+  const eng = g.engine
+  const actor = eng.world.state.player
+  if (techniqueHolds.size) {
+    techniqueHolds.add(source)
+    if (aim) eng.weaponTechniqueInput(actor, { t: 'aim', aim })
+    return true
+  }
+  if (eng.weaponTechniqueInput(actor, { t: 'hold', on, aim })) {
+    techniqueHolds.add(source)
+    techniqueWork = true
+    publishTechniqueFx(eng)
+    scheduleTechnique(g)
+  }
+  return true
+}
 
 /** What each key's label last named: the target a key pressed now acts on, if it still reaches it. */
 const shownTarget: Partial<Record<Key, Ref>> = {}
@@ -735,6 +832,8 @@ function loop(): void {
     eng.tick()
     agentHost?.tick()
   }
+  if (canStepTechnique(game)) scheduleTechnique(game)
+  else stopTechniqueHold(game)
   if (game.neededMaps().length) void ensureMaps()
   const w = eng.world
   const summonOf = played().summon
@@ -813,6 +912,7 @@ async function backdrop(m: Extract<ToWorker, { t: 'backdrop' }>): Promise<void> 
   // a start under way is the player's choice: the title's next place never cancels it
   if (starting) return
   const mine = ++generation
+  resetTechnique()
   // the world before stops at once: nothing of it is sent while the next is made
   if (timer) clearInterval(timer)
   timer = undefined
@@ -867,6 +967,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
 }
 
 async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, mine: number): Promise<void> {
+  resetTechnique()
   backdropOn = false
   if (timer) clearInterval(timer)
   timer = undefined
@@ -974,10 +1075,18 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'attack':
         {
+          if (!m.on && techniqueHold(game, 'attack', false)) {
+            attacking = false
+            break
+          }
           const route = routeFishingWorkerInput(!!game && fishingActive(game.engine), m)
           if (route.kind === 'fishing') {
             attacking = false
             if (route.action !== 'press' || (game && !timeStopped(game))) game && fishingInput(game.engine, route.action)
+            break
+          }
+          if (m.on && techniqueHold(game, 'attack', true, aimTile)) {
+            attacking = false
             break
           }
           attacking = m.on
@@ -1000,11 +1109,16 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'primary': {
         if (!m.on) {
+          techniqueHold(game, 'primary', false)
           swinging = undefined
           break
         }
         if (!game || routeFishingWorkerInput(fishingActive(game.engine), { t: 'key', key: 'primary' }).kind === 'ignore') break
         if (paused || panel || game.engine.world.state.question) break
+        if (techniqueHold(game, 'primary', true, m.tile)) {
+          swinging = undefined
+          break
+        }
         const c = game.engine.controls
         // the target the left click's label named (one who walked a step off since stays it)
         const plan = c.planFor('primary', m.tile, undefined, shownTarget.primary)
@@ -1012,6 +1126,18 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         if (!plan) break
         const out = c.swing(plan)
         if (out.panel) panel = out.panel
+        break
+      }
+      case 'weaponMode': {
+        if (!game || !canStepTechnique(game)) break
+        const eng = game.engine
+        const actor = eng.world.state.player
+        if (!eng.hasWeaponTechnique(actor)) break
+        stopTechniqueHold(game)
+        if (eng.weaponTechniqueInput(actor, { t: 'mode', mode: m.mode })) {
+          if (aimTile) eng.weaponTechniqueInput(actor, { t: 'aim', aim: aimTile })
+          publishTechniqueFx(eng)
+        }
         break
       }
       case 'key': {
@@ -1079,6 +1205,11 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       case 'aim':
         aimTile = m.tile
+        if (game && m.tile && canStepTechnique(game)) {
+          const eng = game.engine
+          if (eng.hasWeaponTechnique(eng.world.state.player) && eng.weaponTechniqueInput(eng.world.state.player, { t: 'aim', aim: m.tile }) && techniqueTimer === undefined) publishTechniqueFx(eng)
+        }
+        if (m.updateKeys === false) break
         // what the keys would do there, at once: the pointer's mark follows the hand, not the tick (always
         // answered, with the aim's number: the page waits for it before it acts on what the keys would do)
         post({ t: 'keys', keys: game ? keysNow(game) : undefined, n: m.n })
@@ -1087,6 +1218,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         // a key or a button held when the question came is not taken for a second press after it (it would ask again)
         attacking = false
         swinging = undefined
+        stopTechniqueHold(game)
         game?.engine.controls.answer(m.yes)
         break
       case 'select':
@@ -1249,6 +1381,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       case 'pause':
         paused = m.on
+        if (m.on) stopTechniqueHold(game)
         if (!m.on) crafts.cancel()
         break
       case 'agents':
@@ -1291,7 +1424,11 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         doSave()
         break
       case 'respawn':
-        game?.engine.respawn(m.home)
+        if (game) {
+          stopTechniqueHold(game)
+          game.engine.respawn(m.home)
+          publishTechniqueFx(game.engine)
+        }
         break
       case 'advance':
         game?.engine.story.advance()
