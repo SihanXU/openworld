@@ -14,6 +14,7 @@ import { ModPort, RuleLibrary, buildModSpec, buildSandbox, placePatch, type ModR
 import { STDLIB_ONTOLOGY, STDLIB_RULES } from '@openworld/stdlib'
 import { DockerEnv, Modder, ScriptedModel, SelfState, WorldLibrary, collectPatch, createModderServer, materializeWorld, type ChatMessage } from '../src/index.ts'
 import { LocalModder, type ModderStore, type StoreKey } from '../src/player/localModder.ts'
+import { discussCreator } from '../src/modder/creator-discussion.ts'
 
 vi.mock('phaser', () => ({ default: { Scene: class {} } }))
 
@@ -71,6 +72,23 @@ function call(server: Server, c: { method?: string; path: string; headers?: Reco
 }
 
 describe('a page on another site, through the browser of someone on this machine', () => {
+  it('keeps creator discussion local and separate from job creation', async () => {
+    const dir = scratch('lsw-creator-discussion-')
+    let modelCalls = 0
+    const model = new ScriptedModel(() => { modelCalls++; return { ready: false, reply: { en: 'What would you like to grow?', zh: '想种什么呢？' } } })
+    const start = vi.fn(() => { throw new Error('Discussion must not create a job') })
+    const unsupported = () => { throw new Error('Not used by discussion') }
+    const server = createModderServer(new Modder({ library: new WorldLibrary(onto, BASE), state: SelfState.open(dir), model }), {
+      creator: { start, status: unsupported, resume: unsupported, approve: unsupported, discuss: body => discussCreator(model, body) },
+    })
+    const body = { message: '做个花园', kind: 'map', history: [] }
+    const post = (origin: string) => call(server, { method: 'POST', path: '/creator/discuss', headers: { origin, 'content-type': 'application/json' }, body })
+    expect((await post('https://elsewhere.example')).status).toBe(403)
+    expect(modelCalls).toBe(0)
+    expect((await post('http://127.0.0.1:5191')).body).toMatchObject({ ready: false })
+    expect(modelCalls).toBe(1)
+    expect(start).not.toHaveBeenCalled()
+  })
   it('is one client for /fault whatever client ids it sends (it cannot retire a learned rule alone)', SLOW, async () => {
     const dir = scratch('lsw-boundaries-')
     const library = new WorldLibrary(onto, BASE, join(dir, 'library.jsonl'))

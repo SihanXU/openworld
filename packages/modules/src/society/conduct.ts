@@ -77,7 +77,7 @@ export class Conduct {
     const dir = wayTo(x, y, nx, ny)!
     if (eng.step(e, dir)) rt.path.shift()
     else rt.path = undefined
-    eng.setCooldown(e.id, NPC_STEP_TICKS)
+    eng.setCooldown(e.id, eng.combat.delay(e, NPC_STEP_TICKS, 'move'))
     return true
   }
 
@@ -96,7 +96,7 @@ export class Conduct {
       if (s > far) (far = s), (best = d)
     }
     if (best) eng.step(e, best)
-    eng.setCooldown(e.id, NPC_STEP_TICKS - 1)
+    eng.setCooldown(e.id, eng.combat.delay(e, NPC_STEP_TICKS - 1, 'move'))
     return true
   }
 

@@ -7,19 +7,20 @@ import { ResearchWindow, pixelArtOf } from './ui/research.ts'
 import Phaser from 'phaser'
 import { CEILING, type Dir, type Frame, type FxEvent, type ItemInfo, type Key, type LibraryData, type Mood, type PixelArt, type Text } from '@openworld/engine'
 import { catalog, game, hasModule, libraryKey, newWorker, savesKey, worldBase } from './game.ts'
-import { FishingInputLatch, routeFishingEscape, routeSpaceKeyDown, type FromWorker, type Tile, type ToWorker } from './protocol.ts'
+import { FishingInputLatch, routeFishingEscape, routeSpaceKeyDown, type FromWorker, type Tile, type ToWorker, type WorkshopView } from './protocol.ts'
 import { assetUrl, cssAssetUrl, registerArt } from './render/assets.ts'
 import { WorldScene } from './render/scene.ts'
-import { kvGet, kvSet } from './storage.ts'
+import { kvDel, kvGet, kvSet } from './storage.ts'
 import { LOCAL_MODDER } from './modderProtocol.ts'
 import { ai } from './ai.ts'
 import { OwnModel, namedModder, ownModel } from './ownModel.ts'
-import { writeSlot, type Slot } from './saves.ts'
+import { readSlot, writeSlot, type Slot } from './saves.ts'
 import { Cover } from './ui/cover.ts'
 import { DeathScreen } from './ui/death.ts'
 import { locale, prefs, relabelKeys, t, tx } from './ui/common.ts'
-import { actionOf, codeLabel, keys, setLayout, type Action } from './keymap.ts'
+import { actionOf, codeLabel, keyOf, keys, setLayout, type Action } from './keymap.ts'
 import { PanelTabs, type Panel } from './ui/paneltabs.ts'
+import { cycleAbility, keepSelection, quickAbilities, type Ability } from './ui/abilities.ts'
 import { Cursor } from './ui/cursor.ts'
 import { ModConsole } from './ui/dev.ts'
 import { Hud } from './ui/hud.ts'
@@ -44,13 +45,70 @@ import './ui/research.css'
 const PARAMS = new URLSearchParams(location.search)
 /** Where this game's saves are kept (its own, beside other games' on the same page). */
 const WORLD = savesKey()
+const CREATOR_RELOAD = `${WORLD}:creatorReload`
+type CreatorReload = { init: Extract<ToWorker, { t: 'init' }>; slot?: Slot; token: string }
 /** The modder service: ?modder=<url> (or =off), else VITE_MODDER_URL, else a local one in development. */
 const MODDER = PARAMS.get('modder') === 'off' ? undefined : PARAMS.get('modder') || import.meta.env.VITE_MODDER_URL || (import.meta.env.DEV ? 'http://localhost:8787' : undefined)
 const scene = new WorldScene()
-const worker = newWorker()
-const send = (m: ToWorker) => worker.postMessage(m)
 const AGENTS = PARAMS.get('agents')
-if (AGENTS) send({ t: 'agents', url: AGENTS })
+function createWorker(): Worker {
+  const engineWorker = newWorker()
+  if (AGENTS) engineWorker.postMessage({ t: 'agents', url: AGENTS } satisfies ToWorker)
+  return engineWorker
+}
+let worker = createWorker()
+let lastInit: Extract<ToWorker, { t: 'init' }> | undefined
+let creationAim: { id: string; use: string; target: string; item?: string } | undefined
+const send = (m: ToWorker) => {
+  if (creationAim && m.t === 'primary' && m.on && m.tile) {
+    worker.postMessage({ t: 'workshopUse', id: creationAim.id, use: creationAim.use, item: creationAim.item, tile: m.tile } satisfies ToWorker)
+    creationAim = undefined
+    menu.creationTarget = undefined
+    return
+  }
+  if (m.t === 'select' && selectedAbility) {
+    selectedAbility = undefined
+    syncAbilities()
+  }
+  worker.postMessage(m)
+}
+// abilities the workshop offers as quick actions; a channel is chosen and kept between frames
+let workshopViews: WorkshopView[] = []
+let abilities: Ability[] = []
+let selectedAbility: Ability | undefined
+/** Gameplay-only gate: quick abilities must not fire over the UI, a scene, or an input. */
+function abilityPlayReady(): boolean {
+  if (typing()) return false
+  if (menu.anyOpen || dev.open || building.open) return false
+  if (fishingIsActive() || hud.dialogOpen || hud.talkOpen || hud.questionShown || hud.chooserOpen) return false
+  if (people.open) return false
+  if (death.open || cover.open || lessons.active) return false
+  if (hud.learning) return false
+  if (!document.getElementById('intro')!.classList.contains('hidden')) return false
+  if (lastFrame?.scene) return false
+  return true
+}
+function syncAbilities(): void {
+  abilities = quickAbilities(lastFrame, workshopViews, locale.value === 'zh')
+  selectedAbility = keepSelection(abilities, selectedAbility)
+  const cycleKey = keyOf(keys.map, 'ability', locale.value)
+  hud.setAbilities(
+    abilities.map((x) => ({
+      label: x.label,
+      detail: x.detail,
+      family: x.family,
+      chosen: x === selectedAbility,
+    })),
+    cycleKey,
+  )
+}
+function pickAbility(a: Ability): void {
+  selectedAbility = a
+  creationAim = undefined
+  menu.creationTarget = undefined
+  hud.message(locale.value === 'zh' ? '点击目标，或按 Esc 取消。' : 'Click a target, or press Esc to cancel.', 'ai')
+  syncAbilities()
+}
 
 // The modder the engine asks (docs/byok.md): a service the page names (?modder=) first; else the player's own model,
 // chosen in the options (its worker starts with the page when a model is kept in this browser); else the default
@@ -67,6 +125,7 @@ function modderNow(): { modder: string } | { modderPort: MessagePort } {
 const modderWhere = (): string => (!NAMED && ownModel.ready ? LOCAL_MODDER : (MODDER ?? '').replace(/\/+$/, ''))
 /** A game begun or loaded: the engine's worker is told the modder with it. */
 function sendInit(m: Extract<ToWorker, { t: 'init' }>): void {
+  lastInit = m
   const link = modderNow()
   worker.postMessage({ ...m, guiding: prefs.get('guide'), ...link }, 'modderPort' in link ? [link.modderPort] : [])
 }
@@ -78,7 +137,7 @@ ownModel.listen((s, before) => {
 })
 // dev-only hook for scripted testing from the console
 // development: lsw.god() toggles the player's invulnerability (lsw.god(true) / lsw.god(false)); ?god=1 turns it on at start
-if (import.meta.env.DEV) (window as unknown as { lsw: unknown }).lsw = { send, scene, god: (on?: boolean) => send({ t: 'debug', op: 'god', on }) }
+if (import.meta.env.DEV) (window as unknown as { lsw: unknown }).lsw = { send, scene, get keymap() { return structuredClone(keys.map) }, god: (on?: boolean) => send({ t: 'debug', op: 'god', on }) }
 document.documentElement.lang = locale.value === 'zh' ? 'zh-CN' : 'en'
 
 const dev = new ModConsole({
@@ -133,6 +192,7 @@ const menu = new Menu({
   devConsole: () => dev.toggle(true),
   keyOnItem: (key, item) => send({ t: 'keyOnItem', key, item }),
   useItemOnHeldItem: (instrument, target) => send({ t: 'useItemOnHeldItem', instrument, target }),
+  workshopUse: (id, use, target, item, to) => chooseCreationUse(id, use, target, item, to),
   setQuality: (quality) => send({ t: 'quality', quality }),
   guiding: (on) => send({ t: 'guiding', on }),
 })
@@ -160,7 +220,51 @@ const hud = new Hud(
   (id) => scene.screenOf(id),
   (x, y) => scene.screenOfTile(x, y),
 )
-const research = new ResearchWindow({ ask: (message) => send({ t: 'researchAsk', message }), confirm: (token) => send({ t: 'researchConfirm', token }), cancel: () => send({ t: 'researchCancel' }) })
+hud.onAbility = (index: number) => {
+  if (!abilityPlayReady()) return
+  const a = abilities[index]
+  if (!a) return
+  if (a.family === 'empower') {
+    send({ t: 'workshopUse', id: a.id, use: a.use, item: a.item })
+    return
+  }
+  pickAbility(a)
+}
+const research = new ResearchWindow({
+  ask: (message) => send({ t: 'researchAsk', message }), confirm: (token) => send({ t: 'researchConfirm', token }), cancel: () => send({ t: 'researchCancel' }),
+  trial: (id, revision) => send({ t: 'workshopTrial', id, revision }), adopt: (id, revision) => send({ t: 'workshopAdopt', id, revision }),
+  list: () => send({ t: 'workshopList' }), open: (id) => send({ t: 'workshopOpen', id }),
+  kind: (kind) => send({ t: 'workshopKind', kind }), extend: () => send({ t: 'workshopExtend' }),
+  export: (id) => send({ t: 'workshopExport', id }), disable: (id) => send({ t: 'workshopDisable', id }),
+  import: () => {
+    const input = document.createElement('input'); input.type = 'file'; input.accept = '.json,application/json'
+    input.onchange = async () => {
+      const file = input.files?.[0]; if (!file) return
+      try {
+        if (file.size > 512_000) throw new Error('Creation files must be smaller than 512 KB')
+        send({ t: 'workshopImport', file: JSON.parse(await file.text()) })
+      } catch (err) { hud.message((err as Error).message, 'warn') }
+    }
+    input.click()
+  },
+  use: chooseCreationUse,
+})
+function chooseCreationUse(id: string, use: string, target: string, item?: string, to?: string): void {
+  research.hide(); send({ t: 'closeTalk' })
+  selectedAbility = undefined
+  creationAim = undefined; menu.creationTarget = undefined
+  if (target === 'self' || to) {
+    menu.close(); send({ t: 'workshopUse', id, use, item, target: to })
+    return
+  }
+  creationAim = { id, use, target, item }
+  if (target === 'item') {
+    const source = item ?? menu.creationItem(id)
+    if (source) menu.creationTarget = { id, use, item: source, label: locale.value === 'zh' ? '用在这件物品上' : 'Apply here' }
+    if (!menu.anyOpen) openTab('bag')
+    hud.message(locale.value === 'zh' ? '右键选择包里的目标物品，或点击地图上的物品。' : 'Right-click a target in your bag, or click an item in the world.', 'ai')
+  } else { menu.close(); hud.message(locale.value === 'zh' ? '点击要使用的目标。' : 'Click the target for this use.', 'ai') }
+}
 const fishingHud = new FishingHud()
 menu.muted = hud.muted
 /** A merchant's trade and a person's pockets (docs/npc-sandbox.md §2.10). */
@@ -500,6 +604,57 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
   // the title's live backdrop owns the messages it draws, except a game starting (ready) or refusing to (incompatible)
   if (backdropOn && m.t !== 'ready' && m.t !== 'incompatible') return onBackdrop(m)
   switch (m.t) {
+    case 'creatorRestart': {
+      const init = lastInit, old = worker
+      if (!init) {
+        const reason = 'The source update needs a loaded game.'
+        old.postMessage({ t: 'creatorRestartFailed', job: m.job, reason } satisfies ToWorker)
+        hud.message(reason, 'warn')
+        break
+      }
+      // Persist the live checkpoint before the fresh worker resumes the retained job.
+      const handler = old.onmessage
+      void (async () => {
+        const checkpointSlot = slot
+        if (checkpointSlot) {
+          const savedAt = m.checkpoint.save.savedAt
+          await writeSlot(WORLD, checkpointSlot, { save: m.checkpoint.save, summary: m.checkpoint.summary, savedAt })
+          if ((await readSlot(WORLD, checkpointSlot))?.savedAt !== savedAt) throw new Error('The live checkpoint could not be saved. Repeat the order to retry.')
+        }
+        await kvSet(libraryKey(), m.checkpoint.library)
+        if (lastInit !== init) return
+        const { modderPort: _port, ...serializable } = init
+        const next = { ...serializable, save: m.checkpoint.save, library: m.checkpoint.library, pendingCreatorJob: m.job, quality: menu.ai.quality, librarySeq: await librarySeq() }
+        if (m.page) {
+          const token = crypto.randomUUID()
+          const key = `${CREATOR_RELOAD}:${token}`
+          await kvSet(key, { init: next, slot: checkpointSlot, token } satisfies CreatorReload)
+          if ((await kvGet<CreatorReload>(key))?.token !== token) throw new Error('The live checkpoint could not be persisted; the autonomous job remains saved for resuming.')
+          sessionStorage.setItem(CREATOR_RELOAD, token)
+          location.reload()
+        } else {
+          const fresh = createWorker()
+          fresh.onmessage = handler
+          worker = fresh
+          research.hide(); creationAim = undefined; menu.creationTarget = undefined; selectedAbility = undefined
+          viewSent = ''
+          try { sendInit(next) }
+          catch (error) { fresh.terminate(); worker = old; throw error }
+          old.terminate()
+        }
+      })().catch(err => {
+        const reason = err instanceof Error ? err.message : String(err)
+        old.postMessage({ t: 'creatorRestartFailed', job: m.job, reason } satisfies ToWorker)
+        hud.message(reason, 'warn')
+      })
+      break
+    }
+    case 'creatorApplied':
+      hud.message(locale.value === 'zh' ? `更新好了，${m.additions}项内容已经接入。` : `The update is ready: ${m.additions} additions.`, 'good')
+      break
+    case 'creatorBlocked':
+      hud.message(typeof m.reply === 'string' ? m.reply : m.reply[locale.value] ?? m.reply.en, 'warn')
+      break
     case 'placement':
       building.onPreview(m.preview)
       break
@@ -511,6 +666,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       break
     }
     case 'ready':
+      creationAim = undefined; menu.creationTarget = undefined
       dev.stats = m.stats
       // (the title's camera gives way to the player's)
       backdropOn = false
@@ -587,6 +743,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       }
       reaim()
       dev.setPerf(m.perf, fps)
+      syncAbilities()
       // the open codex follows what is met
       if (menu.journalOpen && m.codex !== codexSeen) ((codexSeen = m.codex), send({ t: 'codex' }))
       break
@@ -636,6 +793,21 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
     case 'research':
       research.receive(m)
       break
+    case 'workshop':
+      research.workshop(m.view)
+      break
+    case 'workshopSaved':
+      workshopViews = m.views
+      research.saved(m.views)
+      menu.workshop(m.views)
+      syncAbilities()
+      break
+    case 'workshopExport': {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(m.file, null, 2)], { type: 'application/json' }))
+      const a = document.createElement('a'); a.href = url; a.download = m.name; a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      break
+    }
     case 'researchSketched':
       research.sketched(m)
       break
@@ -669,7 +841,7 @@ worker.onmessage = (ev: MessageEvent<FromWorker>) => {
       console.error(m.message)
       // a slot that could not start leaves the cover up: it says why, instead of loading for ever
       if (!document.getElementById('intro')!.classList.contains('hidden')) cover.failed(m.message.split('\n')[0].replace(/^Error: /, ''))
-      else if (import.meta.env.DEV) hud.message(m.message.split('\n')[0], 'warn')
+      else hud.message(m.message.split('\n')[0], 'warn')
       break
   }
 }
@@ -748,7 +920,19 @@ if (import.meta.env.DEV) Object.assign((window as unknown as { lsw: object }).ls
  * (§16 E2, "play from this scene").
  */
 const playtest = PARAMS.get('playtest') === '1'
-if (playtest) {
+const reloadToken = sessionStorage.getItem(CREATOR_RELOAD)
+if (reloadToken) {
+  void (async () => {
+    const key = `${CREATOR_RELOAD}:${reloadToken}`
+    const resumed = await kvGet<CreatorReload>(key)
+    sessionStorage.removeItem(CREATOR_RELOAD)
+    if (resumed?.token !== reloadToken || !resumed.init.save || !resumed.init.pendingCreatorJob) { await cover.show(); return }
+    void kvDel(key)
+    document.getElementById('loading')?.remove()
+    slot = resumed.slot; quietSave = true
+    sendInit(resumed.init)
+  })().catch(err => cover.failed(String(err)))
+} else if (playtest) {
   // (no cover: the page's loading note goes as the cover's would)
   document.getElementById('loading')?.remove()
   const [map, x, y] = (PARAMS.get('at') ?? '').split(',')
@@ -985,6 +1169,8 @@ window.addEventListener('keydown', (e) => {
   // Esc closes what is open, else opens the menu
   if (e.code === 'Escape') {
     e.preventDefault()
+    if (selectedAbility) { selectedAbility = undefined; creationAim = undefined; menu.creationTarget = undefined; syncAbilities(); return }
+    if (creationAim) { creationAim = undefined; menu.creationTarget = undefined; return }
     if (building.open) return building.toggle(false)
     if (dev.open) return dev.toggle(false)
     if (menu.anyOpen) return menu.close()
@@ -1009,6 +1195,14 @@ window.addEventListener('keydown', (e) => {
   // draw one's weapon (a blow on a person is meant), or put it away; walk soft (docs/npc-sandbox.md)
   if (a === 'draw' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'toggle', what: 'drawn' })
   if (a === 'sneak' && !e.repeat && !menu.anyOpen && !dev.open) return send({ t: 'toggle', what: 'sneaking' })
+  // quick abilities: the key cycles channels (never the self-empower button)
+  if (a === 'ability' && !e.repeat && abilityPlayReady() && abilities.length) {
+    e.preventDefault()
+    selectedAbility = cycleAbility(abilities, selectedAbility)
+    creationAim = undefined; menu.creationTarget = undefined
+    syncAbilities()
+    return
+  }
   // the skill bar — over the skill tree, set the active skill under the pointer in that slot; else cast it
   const bar = e.repeat ? -1 : castOf(a)
   if (bar >= 0) {
@@ -1192,6 +1386,11 @@ gameEl.addEventListener('mousedown', (e) => {
   if (e.altKey && (e.button === 0 || e.button === 2)) {
     chooserBy = `mouse${e.button}`
     return send({ t: 'choices', key: e.button === 0 ? 'primary' : 'secondary', ...(tile && { tile }) })
+  }
+  // a chosen quick ability fires at the clicked cell instead of the held thing
+  if (e.button === 0 && selectedAbility && tile && abilityPlayReady()) {
+    send({ t: 'workshopUse', id: selectedAbility.id, use: selectedAbility.use, item: selectedAbility.item, tile })
+    return
   }
   // the left click: the held thing's own use, at once, and while held a swing again at the pace of one
   if (e.button === 0) return setSwing(true, tile)

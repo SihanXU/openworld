@@ -11,7 +11,8 @@ import { personLook } from '../assets/looks.ts'
 import { FH, FW, IDLE_ROW, composeSprite } from '../assets/figure/sprite.ts'
 import { artEpoch, assetUrl } from '../render/assets.ts'
 import { EQUIP_SLOT_FRAMES } from '../assets/types.ts'
-import type { LibraryView } from '../protocol.ts'
+import type { LibraryView, WorkshopView } from '../protocol.ts'
+import { canUseWorkshop } from './research.ts'
 import type { TransferProgress } from '../transferQueue.ts'
 import { SkillTree } from './skilltree.ts'
 import { WorldMap } from './worldmap.ts'
@@ -206,6 +207,7 @@ export interface MenuSend {
   keyOnItem(key: Plan['key'], item: string): void
   /** A game's explicit chooser uses one carried item on another after confirmation. */
   useItemOnHeldItem(instrument: string, target: string): void
+  workshopUse?(id: string, use: string, target: string, item: string, targetItem?: string): void
   /** The journal: the quest followed (none: the latest main quest). */
   track(id: string | undefined): void
   /** The commission board: a favour on it taken on. */
@@ -239,6 +241,13 @@ export class Menu {
   /** The character sheet's whole figure, head to foot (main.ts); else the sheet shows the bust. */
   figureOf?: (id: string) => HTMLCanvasElement | undefined
   private frame?: Frame
+  private creationViews: WorkshopView[] = []
+  creationTarget?: { id: string; use: string; item: string; label: string }
+  workshop(views: WorkshopView[]): void { this.creationViews = views; this.contextPopup.close() }
+  creationItem(id: string): string | undefined {
+    const type = this.creationViews.find(view => view.id === id)?.typeId, player = this.frame?.player
+    return type && player ? [player.held, ...player.slots.map(slot => slot?.item), ...Object.values(player.worn ?? {})].find(item => item?.type === type)?.id : undefined
+  }
   /** The kind of thing the crafting panel shows (a crafting.categories id, or every kind). */
   private craftKind = 'all'
   /** The shelf shown of the shop open (its group). */
@@ -826,6 +835,13 @@ export class Menu {
         this.clearPicked()
         this.render()
       }
+      el.oncontextmenu = (e) => {
+        e.preventDefault()
+        const it = f.player.worn?.[el.dataset.wear!]
+        if (!it) return
+        if (this.picked !== undefined) { this.clearPicked(); this.render() }
+        this.contextMenu(e.clientX, e.clientY, it.id, [[locale.value === 'zh' ? '卸下' : 'Take off', () => this.send.wear(it.id)]])
+      }
     })
     $('#menuSheet').querySelectorAll<HTMLElement>('.inv [data-i]').forEach((el) => {
       const i = Number(el.dataset.i)
@@ -870,6 +886,14 @@ export class Menu {
     const target = this.frame && [this.frame.player.held, ...this.frame.player.slots.map((s) => s?.item), ...Object.values(this.frame.player.worn ?? {}), ...(this.frame.container?.contents ?? [])].find((it) => it?.id === item)
     const heldName = held ? tx(held.name) : ''
     const rows: [string, () => void][] = []
+    if (target && this.send.workshopUse) {
+      const aimed = this.creationTarget
+      if (aimed && aimed.item !== item) rows.push([`${aimed.label} → ${tx(target.name)}`, () => this.send.workshopUse!(aimed.id, aimed.use, 'item', aimed.item, item)])
+      for (const view of this.creationViews ?? []) if (view.typeId === target.type) for (const use of view.uses) {
+        if (!canUseWorkshop(view, use) || use.capability === 'wear' && target.props.slot) continue
+        rows.push([tx(use.label), () => this.send.workshopUse!(view.id, use.id, use.targetId ?? 'self', item)])
+      }
+    }
     if (held && held.id !== item) {
       const use = target && game().itemContextAction?.('use', held, target)
       if (use !== false) rows.push([use ? tx(use) : t('useOn').replace('{held}', heldName), () => this.send.keyOnItem('use', item)])

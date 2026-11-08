@@ -76,6 +76,39 @@ export class Hud {
     this.build()
   }
 
+  // ---------------------------------------------------------------- the ability strip (ui/abilities.ts)
+
+  /** The strip's buttons are clicked: choose that ability (and cast it if it needs no target). */
+  onAbility?: (index: number) => void
+  private abilitySig = ''
+
+  /**
+   * Draw the abilities offered now, the one chosen, and the cycle key. Nothing offered: the strip goes, and the
+   * selection with it (the caller clears it by the same list).
+   */
+  setAbilities(list: { label: string; detail: string; family: string; chosen: boolean }[], cycleKey: string): void {
+    const el = document.getElementById('abilityStrip')
+    if (!el) return
+    const sig = JSON.stringify([list, cycleKey])
+    if (sig === this.abilitySig) return
+    this.abilitySig = sig
+    el.classList.toggle('hidden', !list.length)
+    el.replaceChildren(
+      ...list.map((a, i) => {
+        const b = document.createElement('button')
+        b.className = `ab-slot fam-${a.family}${a.chosen ? ' chosen' : ''}`
+        b.dataset.ability = String(i)
+        b.title = `${a.label} — ${a.detail}`
+        b.innerHTML = `<span class="ab-name"></span><span class="ab-detail"></span>`
+        b.querySelector('.ab-name')!.textContent = a.label
+        b.querySelector('.ab-detail')!.textContent = a.detail
+        b.onclick = () => this.onAbility?.(i)
+        return b
+      }),
+      ...(list.length > 1 ? [Object.assign(document.createElement('kbd'), { className: 'ab-cycle', textContent: cycleKey })] : []),
+    )
+  }
+
   // ---------------------------------------------------------------- skeleton
 
   private build(): void {
@@ -96,6 +129,7 @@ export class Hud {
         <div class="sin-cast-row"><span id="sinCast"></span><span id="sinCastState"></span></div>
         <div class="sin-cast-track"><div id="sinCastProgress"></div></div>
       </div>
+      <div class="ability-strip hidden" id="abilityStrip"></div>
       <div class="hotbar" id="hotbar">
         <div class="vitals"><div class="hearts" id="hearts"></div><div class="food" id="food"></div></div>
         <div class="xpbar" id="xpBar"><div class="fill" id="xpFill"></div><span class="lv" id="xpLv"></span></div>
@@ -761,7 +795,7 @@ export class Hud {
     // their regard as ten hearts (hearts.ts): how near one is to their full regard
     const hearts = tk.affection === undefined ? '' : `<span class="hearts" title="${zh ? '好感' : 'Regard'} ${Math.round(tk.affection)}/100">${heartsOf(tk.affection).map((h) => `<i class="${h}"></i>`).join('')}</span>`
     $('#dName').innerHTML = `${esc(who ? tx(who.name) : tx(tk.name))} <span class="regard r-${esc(tx(tk.regard).replace(/\s/g, ''))}">${esc(tx(tk.regard))}</span>${hearts}${tk.grudge ? ` <span class="grudge">${esc(tx(tk.grudge))}</span>` : ''}${tk.bounty ? ` <span class="grudge">${zh ? '悬赏' : 'bounty'} ${tk.bounty}</span>` : ''}`
-    const verbs: TalkOption[] = [...tk.verbs, ...(!tk.arrest && tk.crafts && this.send.research ? [{ id: 'research', group: 'other', label: { en: 'Discuss a new invention…', zh: '聊聊新配方……' } }] : []), ...(tk.arrest ? [] : [{ id: 'bye', group: 'bye', label: { en: 'Goodbye.', zh: '再见。' } }])]
+    const verbs: TalkOption[] = [...tk.verbs, ...(!tk.arrest && tk.crafts && this.send.research ? [{ id: 'research', group: 'other', label: { en: 'Make something together…', zh: '一起琢磨点新东西……' } }] : []), ...(tk.arrest ? [] : [{ id: 'bye', group: 'bye', label: { en: 'Goodbye.', zh: '再见。' } }])]
     // the verbs in one grid of equal cells, each group's together in the order they come (the quests' first), the
     // numbers running on; goodbye takes the last cell, and the whole last row when it would sit there alone
     const cols = 2

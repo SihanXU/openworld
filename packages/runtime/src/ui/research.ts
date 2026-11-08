@@ -1,9 +1,43 @@
 import type { Frame, ItemInfo, PixelArt, ResearchDesign, ResearchMissing } from '@openworld/engine'
-import type { FromWorker } from '../protocol.ts'
+import type { FromWorker, WorkshopView } from '../protocol.ts'
 import { game, ontology } from '../game.ts'
 import { locale, tx } from './common.ts'
 
 const say = (en: string, zh: string) => locale.value === 'zh' ? zh : en
+
+export interface ResearchActions {
+  ask(message: string): void
+  confirm(token: string): void
+  cancel(): void
+  trial?(id: string, revision: number): void
+  adopt?(id: string, revision: number): void
+  list?(): void
+  open?(id: string): void
+  kind?(kind: 'item' | 'map'): void
+  extend?(): void
+  use?(id: string, use: string, target: string): void
+  export?(id: string): void
+  import?(): void
+  disable?(id: string): void
+}
+
+/** Only an actual report for this revision establishes what has been tried. */
+export function workshopTrial(view: WorkshopView): WorkshopView['trial'] {
+  return view.trial?.revision === view.revision ? view.trial : undefined
+}
+
+export function canAdoptWorkshop(view: WorkshopView): boolean {
+  return !view.adopted && workshopTrial(view)?.passed === true
+}
+
+export function workshopUseState(view: WorkshopView, use: WorkshopView['uses'][number]): WorkshopView['uses'][number]['status'] {
+  const checked = workshopTrial(view)?.checks.find((check) => check.id === use.id)
+  return checked ? (checked.passed ? 'tested' : 'failed') : use.status === 'tested' ? 'ready' : use.status
+}
+
+export function canUseWorkshop(view: WorkshopView, use: WorkshopView['uses'][number]): boolean {
+  return !!view.adopted && use.status === 'tested' && workshopUseState(view, use) === 'tested'
+}
 
 /** Why not, in the craftsperson's words (never the engine's or the provider's diagnostics). */
 const PROBLEM: Record<NonNullable<Extract<FromWorker, { t: 'research' }>['problem']>, [string, string]> = {
@@ -124,10 +158,26 @@ export class ResearchWindow {
   private card = document.createElement('div')
   private composer = document.createElement('div')
   private actionsRow = document.createElement('div')
+  private tools = document.createElement('div')
+  private itemButton = document.createElement('button')
+  private mapButton = document.createElement('button')
+  private extendButton = document.createElement('button')
+  private trialButton = document.createElement('button')
+  private notebook = document.createElement('details')
+  private notebookTitle = document.createElement('summary')
+  private notebookList = document.createElement('div')
+  private bookTools = document.createElement('div')
+  private importButton = document.createElement('button')
+  private plan?: WorkshopView
+  private planWho?: string
+  private savedViews: WorkshopView[] = []
+  private selectedKind: 'item' | 'map' = 'item'
+  private hasHeld = false
   private who?: string
   private waiting = false
   /** The craftsperson thinking over the last idea (the question outlives the panel: one may walk away meanwhile). */
   private pending?: string
+  private creatorProgress?: NonNullable<Extract<FromWorker, { t: 'research' }>['creatorProgress']>
   /** A reply that came after the player walked away, kept for that craftsperson until they talk again. */
   private kept = new Map<string, Extract<FromWorker, { t: 'research' }>>()
   /** Says that a craftsperson has an idea ready (the HUD's message line). */
@@ -142,7 +192,7 @@ export class ResearchWindow {
   private sketching = false
   paintIcons?: (items: ItemInfo[]) => void
 
-  constructor(private actions: { ask(message: string): void; confirm(token: string): void; cancel(): void }) {
+  constructor(private actions: ResearchActions) {
     this.root.id = 'recipeResearch'
     this.root.hidden = true
     this.line.className = 'research-line'
@@ -151,9 +201,42 @@ export class ResearchWindow {
     this.input.rows = 2
     this.composer.className = 'research-composer'
     this.composer.append(this.input, this.sendButton)
+    this.tools.className = 'research-tools'
+    this.itemButton.dataset.researchKind = 'item'
+    this.mapButton.dataset.researchKind = 'map'
+    this.extendButton.className = 'research-extend'
+    this.tools.append(this.itemButton, this.mapButton, this.extendButton)
+    this.itemButton.onclick = () => this.chooseKind('item')
+    this.mapButton.onclick = () => this.chooseKind('map')
+    this.extendButton.onclick = () => {
+      if (this.waiting || !this.actions.extend || !this.hasHeld) return
+      this.clearPlan()
+      this.selectedKind = 'item'
+      this.labels()
+      this.setLine(() => say('What else could the thing in your hand do?', '手里的东西还能做些什么？一起想想。'))
+      this.actions.extend()
+      this.input.focus()
+    }
+    this.trialButton.className = 'research-trial'
+    this.trialButton.dataset.researchAction = 'trial'
+    this.makeButton.dataset.researchAction = 'adopt'
+    this.trialButton.onclick = () => {
+      if (!this.plan || this.waiting || !this.actions.trial) return
+      this.busy(true)
+      this.setLine(() => say('Let’s try the design before we keep it.', '先试一遍，看看会发生什么。'))
+      this.actions.trial(this.plan.id, this.plan.revision)
+    }
+    this.notebook.className = 'research-notebook'
+    this.notebookTitle.onclick = () => { if (!this.notebook.open) this.actions.list?.() }
+    this.notebookList.className = 'research-notebook-list'
+    this.bookTools.className = 'research-book-tools'
+    this.importButton.dataset.researchImport = ''
+    this.importButton.onclick = () => { if (!this.waiting) this.actions.import?.() }
+    this.bookTools.append(this.importButton)
+    this.notebook.append(this.notebookTitle, this.bookTools, this.notebookList)
     this.actionsRow.className = 'dchoices research-actions'
-    this.actionsRow.append(this.backButton, this.changeButton, this.makeButton)
-    this.root.append(this.line, this.card, this.composer, this.actionsRow)
+    this.actionsRow.append(this.backButton, this.changeButton, this.trialButton, this.makeButton)
+    this.root.append(this.tools, this.line, this.card, this.composer, this.actionsRow, this.notebook)
     document.querySelector('#dialog .dtext')!.append(this.root)
     this.backButton.onclick = () => this.close()
     this.sendButton.onclick = () => this.ask()
@@ -163,11 +246,18 @@ export class ResearchWindow {
       this.input.focus()
     }
     this.makeButton.onclick = () => {
+      if (this.plan && !this.creatorOffer) {
+        if (this.waiting || !this.actions.adopt || !canAdoptWorkshop(this.plan)) return
+        this.busy(true)
+        this.setLine(() => say('Let’s keep this design.', '就把这张图纸记下来。'))
+        this.actions.adopt(this.plan.id, this.plan.revision)
+        return
+      }
       if (!this.token || this.waiting) return
       const token = this.token
       this.token = undefined
       this.busy(true)
-      this.setLine(() => say('Let’s see how it turns out…', '来，试试看……'))
+      this.setLine(() => this.creatorOffer ? say('Loading the design into your save…', '正在把这份设计接入你的存档……') : say('Let’s see how it turns out…', '来，试试看……'))
       this.actions.confirm(token)
     }
     this.root.addEventListener('click', (e) => e.stopPropagation())
@@ -185,11 +275,14 @@ export class ResearchWindow {
 
   show(frame: Frame): void {
     if (!frame.talk || frame.talk.arrest) return
+    this.hasHeld = !!frame.player?.held
+    const plan = this.planWho === frame.talk.who ? this.plan : undefined
+    const design = plan ? this.design : undefined
     const kept = this.kept.get(frame.talk.who)
     // a draft worked out while one was away is taken up where it was; anything else starts afresh (one talk at a time:
     // what another craftsperson kept goes with it)
     const still = !kept && this.pending === frame.talk.who
-    if (!kept && !still) {
+    if (!kept && !still && !plan) {
       this.actions.cancel()
       this.kept.clear()
       this.pending = undefined
@@ -200,8 +293,10 @@ export class ResearchWindow {
     this.card.replaceChildren()
     this.card.hidden = true
     this.token = undefined
+    this.creatorOffer = false
     this.input.value = ''
     this.design = undefined
+    this.plan = undefined
     this.sketching = false
     this.made = false
     this.labels()
@@ -210,12 +305,18 @@ export class ResearchWindow {
     this.composer.hidden = false
     this.changeButton.hidden = true
     this.busy(still)
-    if (still) this.setLine(() => say('Still thinking it over…', '还在琢磨呢……'))
+    if (still && this.creatorProgress) this.showCreatorProgress()
+    else if (still) this.setLine(() => say('Still thinking it over…', '还在琢磨呢……'))
     else this.input.focus()
     if (kept) {
       this.kept.delete(kept.who)
       this.receive(kept)
     }
+    if (plan) {
+      this.design = design
+      this.workshop(plan)
+    }
+    this.renderSaved()
   }
 
   /** The language was switched: everything shown, said again in it. */
@@ -224,17 +325,45 @@ export class ResearchWindow {
     this.labels()
     if (this.lineOf) this.line.textContent = this.lineOf()
     this.card.replaceChildren()
-    if (this.design) this.preview(this.design)
+    if (this.plan) this.renderWorkshop()
+    else if (this.design) this.preview(this.design)
+    this.renderSaved()
   }
 
   private made = false
+  private creatorOffer = false
   private labels(): void {
     this.input.setAttribute('aria-label', say('Your idea', '你的想法'))
-    this.input.placeholder = say('What would you like to make?', '想做什么？说说你的想法……')
-    this.backButton.textContent = say('Back', '先聊别的')
+    this.input.placeholder = this.selectedKind === 'map' ? say('A place to explore, a path, a little workshop…', '想去怎样的地方？小路、工坊、树林……') : say('“Make jam”, or tell me what else it could do…', '“做果酱”，或者说说你希望它还能做什么……')
+    this.backButton.textContent = this.creatorOffer ? say('Load later', '暂不加载')
+      : this.creatorProgress && this.pending === this.who ? say('Come back later', '先去忙，稍后回来') : say('Back', '先聊别的')
     this.changeButton.textContent = this.made ? say('Another idea', '再想一个') : say('Change the idea', '改改想法')
-    this.makeButton.textContent = this.sketching ? say('Sketching…', '画图样中……') : say('Try making it', '试做')
+    this.makeButton.textContent = this.creatorOffer ? say('Load into this save', '加载到当前存档') : this.plan
+      ? this.plan.adopted ? say('Adopted', '已采用')
+        : this.plan.kind === 'map' ? say('Adopt & enter', '采用并进入')
+        : this.plan.kind === 'uses' ? say('Adopt new uses', '采用新用途')
+        : say('Adopt & make', '采用并制作')
+      : this.sketching ? say('Sketching…', '画图样中……') : say('Try making it', '试做')
     this.sendButton.textContent = this.waiting ? say('Thinking…', '琢磨中……') : say('Share your idea', '说说想法')
+    if (this.itemButton) {
+      this.itemButton.textContent = say('Things', '物件')
+      this.mapButton.textContent = say('Places', '地图')
+      this.extendButton.textContent = say('Add uses to what I hold', '给手里的东西添用途')
+      this.itemButton.setAttribute('aria-pressed', String(this.selectedKind === 'item'))
+      this.mapButton.setAttribute('aria-pressed', String(this.selectedKind === 'map'))
+      this.tools.hidden = !this.actions.kind && !this.actions.extend
+      this.itemButton.hidden = this.mapButton.hidden = !this.actions.kind
+      this.extendButton.hidden = !this.actions.extend
+      this.itemButton.disabled = this.mapButton.disabled = this.waiting
+      this.extendButton.disabled = this.waiting || !this.hasHeld
+      this.extendButton.title = this.hasHeld ? '' : say('Hold the thing you want to improve.', '先把想改进的东西拿在手里。')
+      this.trialButton.textContent = say('Try it out', '试验')
+      this.notebookTitle.textContent = say('Idea book', '创意册')
+      this.notebook.hidden = !this.actions.list && !this.actions.open && !this.actions.import && !this.actions.export && !this.actions.disable
+      this.importButton.textContent = say('Import an idea', '导入创意')
+      this.importButton.disabled = this.waiting || !this.actions.import
+      this.bookTools.hidden = !this.actions.import
+    }
   }
 
   private setLine(line: () => string): void {
@@ -243,26 +372,39 @@ export class ResearchWindow {
   }
 
   follow(frame: Frame): void {
+    this.hasHeld = !!frame.player?.held
+    if (this.extendButton) this.extendButton.disabled = this.waiting || !this.hasHeld
     if (this.open && (!frame.talk || frame.talk.who !== this.who || frame.talk.arrest || frame.question)) this.close()
   }
 
   close(): void {
     // walking away while the craftsperson thinks: the answer still comes, and is kept for when one talks again
     if (!this.pending) this.actions.cancel()
+    this.hide()
+    document.querySelector<HTMLButtonElement>('#dChoices [data-verb="research"]')?.focus()
+  }
+
+  /** Return to world targeting without cancelling or altering a kept design. */
+  hide(): void {
     this.who = this.token = undefined
     this.waiting = false
     this.root.hidden = true
     document.getElementById('dialog')!.classList.remove('researching')
     this.changed?.()
-    document.querySelector<HTMLButtonElement>('#dChoices [data-verb="research"]')?.focus()
   }
 
   private busy(value: boolean): void {
     this.waiting = value
+    this.root.classList.toggle('creator-working', value && !!this.creatorProgress)
     this.input.disabled = this.sendButton.disabled = this.changeButton.disabled = value
     this.labels()
-    this.makeButton.disabled = value || !this.token || this.sketching
-    this.makeButton.hidden = !this.token
+    this.makeButton.disabled = this.plan && !this.creatorOffer ? value || !this.actions.adopt || !canAdoptWorkshop(this.plan) : value || !this.token || this.sketching
+    this.makeButton.hidden = this.plan && !this.creatorOffer ? false : !this.token
+    if (this.trialButton) {
+      this.trialButton.hidden = !this.plan
+      this.trialButton.disabled = value || !this.actions.trial || !!this.plan?.adopted
+    }
+    this.notebookList?.querySelectorAll<HTMLButtonElement>('button').forEach((button) => { button.disabled = value || (!!button.dataset.researchSaved && !this.actions.open) })
     this.changed?.()
   }
 
@@ -275,12 +417,241 @@ export class ResearchWindow {
     this.input.value = ''
     this.setLine(() => say('Hmm… let me think about that.', '嗯……让我想想。'))
     this.line.classList.remove('research-error')
+    this.creatorProgress = undefined
     this.pending = this.who
     this.busy(true)
     this.actions.ask(message)
   }
 
+  private clearPlan(): void {
+    this.plan = this.design = undefined
+    this.token = undefined
+    this.creatorOffer = false
+    this.sketching = false
+    this.made = false
+    this.card.replaceChildren()
+    this.card.hidden = true
+    this.composer.hidden = false
+    this.changeButton.hidden = true
+    this.busy(false)
+  }
+
+  private chooseKind(kind: 'item' | 'map'): void {
+    if (this.waiting || !this.actions.kind) return
+    this.clearPlan()
+    this.selectedKind = kind
+    this.labels()
+    this.setLine(() => kind === 'map'
+      ? say('What sort of place shall we make?', '想造一处怎样的地方？')
+      : say('What shall we make, and what might it do?', '想做什么？也可以一起想想它的用途。'))
+    this.actions.kind(kind)
+    this.input.focus()
+  }
+
+  /** A structured draft or an actual trial result for its current revision. */
+  workshop(view: WorkshopView): void {
+    if (this.plan?.id === view.id && this.plan.revision > view.revision) return
+    this.planWho = this.who ?? this.pending ?? this.planWho
+    this.plan = view
+    this.selectedKind = view.kind === 'map' ? 'map' : 'item'
+    this.pending = undefined
+    this.waiting = false
+    if (!this.open) return
+    this.card.hidden = false
+    this.composer.hidden = false
+    this.changeButton.hidden = true
+    if (view.adopted) this.setLine(() => view.kind === 'map'
+      ? say('The place is ready. Let’s go and see it.', '地方准备好了，去看看吧。')
+      : view.kind === 'uses' ? say('Those uses are part of it now. Try them in the world.', '新用途记好了，回到世界里试试吧。')
+      : say('Made, and written in your recipe book.', '做出来了，配方也记好了。'))
+    this.renderWorkshop()
+    this.busy(false)
+  }
+
+  saved(views: WorkshopView[]): void {
+    this.savedViews = [...views]
+    this.renderSaved()
+  }
+
+  private renderSaved(): void {
+    if (!this.notebookList) return
+    this.notebookList.replaceChildren()
+    if (!this.savedViews.length) {
+      const empty = document.createElement('small')
+      empty.textContent = say('Kept designs will be waiting here.', '记下来的创意会放在这里。')
+      this.notebookList.append(empty)
+      return
+    }
+    for (const view of this.savedViews) {
+      const entry = document.createElement('div')
+      entry.className = 'research-saved-entry'
+      const button = document.createElement('button')
+      button.className = 'research-saved'
+      button.dataset.researchSaved = view.id
+      const title = document.createElement('strong')
+      title.textContent = tx(view.title)
+      const note = document.createElement('small')
+      note.textContent = (view.kind === 'map' ? say('Place', '地图') : view.kind === 'uses' ? say('New uses', '用途') : say('Thing', '物件')) + ' · ' + say('draft ', '第') + view.revision + say('', '稿') + ' · ' + (view.adopted ? say('adopted', '已采用') : say('in progress', '琢磨中'))
+      button.append(title, note)
+      button.disabled = !this.actions.open || this.waiting
+      button.onclick = () => {
+        if (this.waiting || !this.actions.open) return
+        this.busy(true)
+        this.actions.open(view.id)
+      }
+      entry.append(button)
+      if (view.adopted && (this.actions.export || this.actions.disable)) {
+        const tools = document.createElement('div')
+        tools.className = 'research-book-actions'
+        if (this.actions.export) {
+          const send = document.createElement('button')
+          send.dataset.researchExport = view.id
+          send.textContent = say('Export', '导出')
+          send.disabled = this.waiting
+          send.onclick = () => { if (!this.waiting) this.actions.export?.(view.id) }
+          tools.append(send)
+        }
+        if (this.actions.disable) {
+          const disable = document.createElement('button')
+          disable.dataset.researchDisable = view.id
+          disable.textContent = say('Disable', '停用')
+          disable.disabled = this.waiting
+          disable.onclick = () => { if (!this.waiting) this.actions.disable?.(view.id) }
+          tools.append(disable)
+        }
+        entry.append(tools)
+      }
+      this.notebookList.append(entry)
+    }
+  }
+
+  private renderWorkshop(): void {
+    const view = this.plan
+    if (!view) return
+    this.card.replaceChildren()
+    this.card.className = 'research-recipe research-workshop'
+    if (this.design && view.kind !== 'map') {
+      this.preview(this.design)
+      this.card.classList.add('research-workshop')
+    } else {
+      const title = document.createElement('strong')
+      title.className = 'research-recipe-head'
+      title.textContent = tx(view.title)
+      if (view.picture) title.prepend(picture(view.picture))
+      this.card.append(title)
+    }
+    const version = document.createElement('small')
+    version.className = 'research-version'
+    version.textContent = say('Draft ', '第') + view.revision + say('', '稿') + (view.adopted ? say(' · kept', ' · 已采用') : '')
+    this.card.append(version)
+    if (view.summary) {
+      const summary = document.createElement('p')
+      summary.className = 'research-summary'
+      summary.textContent = tx(view.summary)
+      this.card.append(summary)
+    }
+    if (view.map) this.mapPreview(view)
+    const uses = document.createElement('ul')
+    uses.className = 'research-uses'
+    uses.setAttribute('aria-label', say('What it could do', '用途'))
+    for (const use of view.uses) {
+      const state = workshopUseState(view, use)
+      const row = document.createElement('li')
+      row.className = 'research-use research-use--' + state
+      const top = document.createElement('div')
+      top.className = 'research-use-head'
+      const title = document.createElement('strong')
+      title.textContent = tx(use.label)
+      const badge = document.createElement('span')
+      badge.className = 'research-use-state'
+      badge.textContent = state === 'tested' ? say('Verified', '已验证') : state === 'failed' ? say('Needs changes', '需修改') : state === 'pending' ? say('To develop', '待补全') : say('To try', '待试验')
+      top.append(title, badge)
+      row.append(top)
+      const target = document.createElement('small')
+      target.textContent = say('On: ', '对象：') + tx(use.target)
+      row.append(target)
+      if (use.effect) { const line = document.createElement('p'); line.textContent = tx(use.effect); row.append(line) }
+      if (use.feedback) { const line = document.createElement('small'); line.textContent = tx(use.feedback); row.append(line) }
+      if (this.actions.use && canUseWorkshop(view, use)) {
+        const act = document.createElement('button')
+        act.className = 'research-use-action'
+        act.dataset.researchUse = use.id
+        act.textContent = say('Use', '使用')
+        act.disabled = this.waiting
+        act.onclick = () => {
+          if (this.waiting || !this.plan?.adopted || this.plan.id !== view.id || this.plan.revision !== view.revision || !canUseWorkshop(this.plan, use)) return
+          this.actions.use?.(view.id, use.id, use.targetId ?? 'self')
+        }
+        row.append(act)
+      }
+      uses.append(row)
+    }
+    this.card.append(uses)
+    const trial = workshopTrial(view)
+    if (trial) {
+      const report = document.createElement('details')
+      report.open = !trial.passed
+      report.className = 'research-trial-report ' + (trial.passed ? 'passed' : 'failed')
+      report.setAttribute('aria-live', 'polite')
+      const title = document.createElement('summary')
+      title.textContent = trial.passed ? say('The trial worked', '试验通过') : say('The trial needs changes', '试验还没通过')
+      report.append(title)
+      for (const check of trial.checks) {
+        const line = document.createElement('p')
+        line.className = check.passed ? 'passed' : 'failed'
+        const label = document.createElement('strong')
+        label.textContent = (check.passed ? '✓ ' : '× ') + tx(check.label)
+        const observed = document.createElement('span')
+        observed.textContent = tx(check.observed)
+        line.append(label, observed)
+        report.append(line)
+      }
+      this.card.append(report)
+    }
+    const note = document.createElement('small')
+    note.className = 'research-adopt-note'
+    note.textContent = view.adopted ? say('You can come back to develop this idea further.', '以后还可以拿着这份创意，继续添用途。')
+      : trial?.passed ? say('Keep this version when you are happy with the result.', '满意这次结果，就采用这份设计。')
+      : say('Try the design first. Adopting it keeps it in your world.', '先试验，再采用；采用后才会记进你的世界。')
+    this.card.append(note)
+  }
+
+  private mapPreview(view: WorkshopView): void {
+    const map = view.map!
+    const canvas = document.createElement('canvas')
+    const w = Math.max(1, Math.min(96, map.width)), h = Math.max(1, Math.min(96, map.height))
+    canvas.width = w * 4
+    canvas.height = h * 4
+    canvas.className = 'research-map-preview'
+    canvas.setAttribute('role', 'img')
+    canvas.setAttribute('aria-label', say('A sketch of the place', '地方的布局草图'))
+    const ctx = canvas.getContext('2d')
+    if (ctx) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const c = map.rows[y]?.[x] ?? ' '
+      ctx.fillStyle = /[~w]/.test(c) ? '#7297aa' : /[#^]/.test(c) ? '#8b7964' : /[Tt]/.test(c) ? '#55734f' : /[+:dD]/.test(c) ? '#c1aa76' : c === ' ' ? '#e6d5ad' : '#91a16b'
+      ctx.fillRect(x * 4, y * 4, 4, 4)
+    }
+    this.card.append(canvas)
+  }
+
+  private showCreatorProgress(): void {
+    const phase = this.creatorProgress
+    this.setLine(() => phase === 'queued'
+      ? say('I’ve written down your order. You can come back while I work.', '订单记下了。你可以先去忙，晚点再回来。')
+      : phase === 'repairing'
+        ? say('The first try turned up a problem. I’m adjusting the design.', '试做时发现了点问题，我正在调整。')
+        : say('I’m working on the design and trying it out. Come back whenever you like.', '我正在做设计和试验。你可以先去忙，随时回来看看。'))
+    this.busy(true)
+  }
+
   receive(m: Extract<FromWorker, { t: 'research' }>): void {
+    if (m.creatorProgress) {
+      if (this.pending !== m.who) return
+      this.creatorProgress = m.creatorProgress
+      if (this.open && m.who === this.who) this.showCreatorProgress()
+      return
+    }
+    if (m.who === this.pending) this.creatorProgress = undefined
     if (m.who === this.pending) this.pending = undefined
     if (!this.open || m.who !== this.who) {
       // (an answer for one who is not being talked to: kept, and said on the message line; a made thing needs no keeping)
@@ -293,16 +664,18 @@ export class ResearchWindow {
     this.setLine(() => (m.made ? say('There! Your new creation is in your bag. I’ve written down the recipe for you.', '成了！东西收好，配方也给你记下了。') : m.problem ? (m.problem === 'needs' && missingLine(m.missing)) || say(...PROBLEM[m.problem]) : tx(m.reply)))
     this.line.classList.toggle('research-error', !!m.problem)
     this.token = m.token
-    this.design = m.design
+    this.creatorOffer = !!m.creatorOffer
+    this.design = m.design ?? (this.plan ? this.design : undefined)
     this.sketching = !!m.design && !!m.sketching
     this.made = !!m.made
     this.card.replaceChildren()
-    this.card.hidden = !m.design
-    if (m.design) this.preview(m.design)
-    this.composer.hidden = !!m.design || !!m.made
+    this.card.hidden = !m.design && !this.plan
+    if (this.plan) this.renderWorkshop()
+    else if (m.design) this.preview(m.design)
+    this.composer.hidden = this.plan ? false : !!m.design || !!m.made
     this.changeButton.hidden = !this.composer.hidden
     this.busy(false)
-    if (m.design) this.makeButton.focus()
+    if (m.design || m.creatorOffer) this.makeButton.focus()
     else if (m.made) this.backButton.focus()
     else this.input.focus()
   }
@@ -316,7 +689,8 @@ export class ResearchWindow {
     this.design = m.design
     this.sketching = false
     this.card.replaceChildren()
-    this.preview(m.design)
+    if (this.plan) this.renderWorkshop()
+    else this.preview(m.design)
     this.busy(this.waiting)
   }
 
@@ -363,7 +737,7 @@ export class ResearchWindow {
       ingredients.append(chip)
     }
     const note = document.createElement('small')
-    note.textContent = say('Materials are used only when the trial succeeds. Tools and workshop requirements still apply.', '试制成功才会用掉材料；仍需对应的工具与工坊。')
+    note.textContent = this.plan ? say('Adopting and making it uses these materials. The trial leaves your bag unchanged.', '采用并制作时才用掉这些材料；试验不会动你的背包。') : say('Materials are used only when the trial succeeds. Tools and workshop requirements still apply.', '试制成功才会用掉材料；仍需对应的工具与工坊。')
     this.card.append(heading, subtitle, ingredients, note)
     if (this.sketching) {
       const sketch = document.createElement('small')

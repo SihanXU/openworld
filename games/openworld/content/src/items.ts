@@ -3,7 +3,7 @@
 // whole classes while the world still holds tens of thousands of distinct items.
 
 import { gearProps, rollAffixes, type Entity, type MaterialDef, type PropValue, type QualityDef, type Rng, type TypeDef } from '@openworld/engine'
-import { VEGETABLE_CROPS, cropHours } from './crops.ts'
+import { FLOWER_CROPS, VEGETABLE_CROPS, cropHours } from './crops.ts'
 import { GEAR_LEVELS } from './gear.ts'
 import { regionalForms } from './goods.ts'
 import { AFFIX_TABLE, TROPHIES } from './trophies.ts'
@@ -289,6 +289,12 @@ const BASE_FORMS: Form[] = [
   W('item/seed/wheat', 'Wheat Seeds', '麦种', 'item:seed', { tags: ['plantable'], props: { cropType: 'fixture/crop/wheat/sprout', growHours: cropHours('wheat') }, where: { farm: 3, shop: 0.5 } }),
   W('item/seed/herb', 'Herb Seeds', '草药种子', 'item:seed', { tags: ['plantable'], props: { cropType: 'fixture/crop/herb/sprout', growHours: cropHours('herb') }, where: { farm: 1, temple: 0.3, shop: 0.3 } }),
   W('item/seed/berry', 'Berry Seeds', '浆果种子', 'item:seed', { tags: ['plantable'], props: { cropType: 'fixture/crop/berry/sprout', growHours: cropHours('berry'), regrows: true }, where: { farm: 1, wild: 0.3 } }),
+  ...FLOWER_CROPS.flatMap(c => [
+    W('item/seed/' + c.id, c.en + ' Seeds', c.zh + '种子', 'item:' + c.id + '_seed', {
+      tags: ['plantable'], props: { cropType: 'fixture/crop/' + c.id + '/sprout', growHours: cropHours(c.id), ...(c.perennial && { regrows: true }) }, where: { farm: 1 },
+    }),
+    W('item/flower/' + c.id, c.en, c.zh, 'item:' + c.id, { tags: ['plant', 'flower', 'flammable'], where: {} }),
+  ]),
   ...VEGETABLE_CROPS.map((c) => W(`item/seed/${c.id}`, `${c.en} Seeds`, `${c.zh}种子`, `item:${c.id}_seed`, {
     tags: ['plantable'], props: { cropType: `fixture/crop/${c.id}/sprout`, growHours: cropHours(c.id), ...(c.perennial && { regrows: true }) }, where: { farm: 2, shop: 0.5 },
   })),

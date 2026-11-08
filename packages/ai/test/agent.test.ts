@@ -2,11 +2,11 @@
 // frozen model; then its machinery under crashes, races and deadlines.
 
 import { execSync, spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync, appendFileSync, chmodSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync, appendFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_HARNESS, keepReflection, nodeStand } from '../src/agent/state.ts'
 import { CONTAINER_SETUP, HOOK_NODE, IMAGE_INIT, LocalEnv, OpenAICompatModel, PIN_BREACH, ScriptedModel, SelfState, agentTools, applyPreset, better, checkProposal, improve, AGENT_REFLECT_SYSTEM, nodeSkillName, reflectAfter, reflectAgent, inside, jsSearch, manifestOf, modelFromEnv, pinFromEnv, recordsOf, repositoryIn, runAgent, runInstances, solve, RELATED_CODE_HOOK, TESTS_PASS_HOOK, nodeFiles, sandboxImage, REPO, type AgentTask, type ChatMessage, type Episode, type TaskSource, type Files } from '../src/index.ts'
@@ -552,7 +552,7 @@ describe('a command at its deadline', () => {
     expect((await env.exec('cat', { input: 'from stdin' })).stdout).toBe('from stdin')
     // a process that ran one ends when it is done (nothing detached keeps it alive)
     const script = join(mkdtempSync(join(tmpdir(), 'lsw-durable-exit-')), 'exit.mts')
-    writeFileSync(script, `import { LocalEnv } from ${JSON.stringify(join(REPO, 'packages/ai/src/agent/env.ts'))}\nconsole.log((await new LocalEnv(process.cwd()).exec('echo done')).stdout.trim())\n`)
+    writeFileSync(script, `import { LocalEnv } from ${JSON.stringify(pathToFileURL(join(REPO, 'packages/ai/src/agent/env.ts')).href)}\nconsole.log((await new LocalEnv(process.cwd()).exec('echo done')).stdout.trim())\n`)
     const p = spawnSync(process.execPath, [TSX, script], { encoding: 'utf8', timeout: 30_000 })
     expect([p.status, p.stdout.trim()]).toEqual([0, 'done'])
     // the deadline: the shell and the child it left behind both go, at the deadline
@@ -669,9 +669,8 @@ describe('the sandbox image', () => {
     delete process.env.LSW_SANDBOX_IMAGE
     const bin = mkdtempSync(join(tmpdir(), 'lsw-durable-docker-'))
     await expect(sandboxImage(join(bin, 'no-docker-here'))).rejects.toThrow(/could not build/)
-    const docker = join(bin, 'docker')
-    writeFileSync(docker, '#!/bin/sh\nexit 0\n') // the daemon is back: the image is there
-    chmodSync(docker, 0o755)
-    await expect(sandboxImage(docker)).resolves.toBe('lsw-sandbox')
+    const docker = join(bin, 'docker.mjs')
+    writeFileSync(docker, 'process.exit(0)\n') // the daemon is back: the image is there
+    await expect(sandboxImage([process.execPath, docker])).resolves.toBe('lsw-sandbox')
   })
 })

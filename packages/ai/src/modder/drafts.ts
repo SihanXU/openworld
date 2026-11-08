@@ -3,6 +3,9 @@
 // the draft is held to that shape here before the author sees it, and the editor compiles it with the project before
 // it is taken in. Pure: the pipeline asks and repairs, the prompts describe.
 
+import { paintPath, type Cell } from '@openworld/format/src/brushes.ts'
+import type { RawChunk } from '@openworld/engine'
+
 export type DraftKind = 'person' | 'map'
 
 /** What the game has, as the editor tells it. */
@@ -20,6 +23,8 @@ export interface DraftContext {
   chars?: { char: string; terrain: string; name?: string }[]
   /** The kinds of things a map may hold. */
   things?: { id: string; name?: string }[]
+  environment?: { palette: string[]; water: string[]; fireflies: string }
+  activities?: Record<string, string>
   /** The largest map to draft (width, height). */
   maxSize?: [number, number]
   /** The language the game is written in (its words are written in it). */
@@ -57,9 +62,58 @@ export function personProblems(p: unknown, ctx: DraftContext): string[] {
   return out
 }
 
+/** Compile bounded model-owned strokes with the existing editor brush; old rows are never padded or cropped. */
+export function compileMapPaint(c: Record<string, unknown>, ctx: DraftContext = {}): Record<string, unknown> {
+  if (!obj(c.map) || c.map.paint === undefined) return c
+  const m = c.map, p = m.paint
+  if (m.rows !== undefined) throw new Error('choose paint or rows, not both')
+  if (!obj(p) || Object.keys(p).some(k => !['base', 'strokes'].includes(k))) throw new Error('paint: {base, strokes}')
+  const w = m.width, h = m.height, [mw, mh] = ctx.maxSize ?? [48, 36]
+  if (!Number.isSafeInteger(w) || !Number.isSafeInteger(h) || Number(w) < 8 || Number(h) < 8 || Number(w) > Math.min(64, mw) || Number(h) > Math.min(64, mh)) throw new Error('paint dimensions must be bounded integer map dimensions')
+  const width = Number(w), height = Number(h), known = new Set((ctx.chars ?? []).map(c => c.char))
+  const char = (v: unknown): string => {
+    if (typeof v !== 'string' || v.length !== 1 || known.size && !known.has(v)) throw new Error('paint uses an unknown ground character')
+    return v
+  }
+  const base = char(p.base)
+  if (!Array.isArray(p.strokes) || p.strokes.length > 64) throw new Error('paint.strokes must hold at most 64 strokes')
+  const point = (x: unknown, y: unknown): Cell => {
+    if (!Number.isSafeInteger(x) || !Number.isSafeInteger(y) || Number(x) < 0 || Number(y) < 0 || Number(x) >= width || Number(y) >= height) throw new Error('paint coordinates must be integer cells inside the map')
+    return [Number(x), Number(y)]
+  }
+  const chunk = { map: { ...m, rows: Array.from({ length: height }, () => base.repeat(width)) }, entities: [] } as unknown as RawChunk
+  for (const [index, s] of p.strokes.entries()) {
+    if (!obj(s)) throw new Error('paint stroke must be an object')
+    const ch = char(s.char)
+    if (s.op === 'rect') {
+      if (Object.keys(s).some(k => !['op', 'char', 'x', 'y', 'w', 'h'].includes(k))) throw new Error('rect has unknown fields')
+      const [x, y] = point(s.x, s.y), rw = Number(s.w), rh = Number(s.h)
+      if (!Number.isSafeInteger(s.w) || !Number.isSafeInteger(s.h) || rw < 1 || rh < 1 || x + rw > width || y + rh > height) throw new Error('rect must fit entirely inside the map')
+      for (let row = y; row < y + rh; row++) {
+        const old = chunk.map.rows[row]
+        chunk.map.rows[row] = old.slice(0, x) + ch.repeat(rw) + old.slice(x + rw)
+      }
+    } else if (s.op === 'path') {
+      if (Object.keys(s).some(k => !['op', 'char', 'points', 'width'].includes(k))) throw new Error('path has unknown fields')
+      if (!Array.isArray(s.points) || s.points.length < 2 || s.points.length > 32) throw new Error('path needs 2 to 32 points')
+      const points = s.points.map(v => {
+        if (!Array.isArray(v) || v.length !== 2) throw new Error('path point is [x,y]')
+        return point(v[0], v[1])
+      })
+      const size = s.width ?? 1
+      if (!Number.isSafeInteger(size) || Number(size) < 1 || Number(size) > 6) throw new Error('path width must be 1 to 6')
+      paintPath(chunk, points, ch, index, { width: Number(size) })
+    } else throw new Error('paint supports rect or path strokes')
+  }
+  const { paint: _paint, ...map } = m
+  return { ...c, map: { ...map, rows: chunk.map.rows } }
+}
+
 /** Why a drafted map is not yet a map file of this game (none: it is). */
 export function mapProblems(c: unknown, ctx: DraftContext): string[] {
   if (!obj(c) || !obj(c.map)) return ['the answer is not a map file ({"map": {...}, "entities": [...]})']
+  try { c = compileMapPaint(c, ctx) } catch (error) { return ['map.paint: ' + (error as Error).message] }
+  if (!obj(c) || !obj(c.map)) return ['the map could not be compiled']
   const m = c.map
   const out: string[] = []
   if (typeof m.id !== 'string' || !/^[a-z][a-z0-9_-]*$/.test(m.id)) out.push('map.id: lower case letters, digits, - and _')
@@ -93,7 +147,8 @@ export function mapProblems(c: unknown, ctx: DraftContext): string[] {
 }
 
 /** A drafted map as a map file: what the draft leaves out filled in (no portals: they are the author's to make). */
-export function settleMap(c: Record<string, unknown>): Record<string, unknown> {
+export function settleMap(c: Record<string, unknown>, ctx: DraftContext = {}): Record<string, unknown> {
+  c = compileMapPaint(c, ctx)
   const m = c.map as Record<string, unknown>
   const id = m.id as string
   return {

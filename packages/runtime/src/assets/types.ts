@@ -129,6 +129,8 @@ export interface FxDef {
 }
 
 export interface Catalog {
+  /** Registered source rectangles assembled once into a single ordinary sprite texture. */
+  composites?: Record<string, { width: number; height: number; parts: { sprite: SpriteDef; x: number; y: number }[] }>
   /**
    * Ground terrains drawn by the renderer's blob autotiler: the top-left tile (col,row)
    * of a 47-tile blob block laid out like TilesetFloor.png cols 0-9 rows 7-11
@@ -176,7 +178,7 @@ export interface Catalog {
    * Fixtures by sprite key. `variants`: looks picked per thing (by its id); `ground`: drawn flat
    * on the ground, under whatever stands there; `loose`: set a little off the grid, never in rows.
    */
-  fixtures: Record<string, { base: SpriteDef; open?: SpriteDef; lit?: SpriteDef; variants?: SpriteDef[]; ground?: boolean; loose?: boolean; /** its picture turned east or west (a fence running north-south) */ across?: SpriteDef }>
+  fixtures: Record<string, { base: SpriteDef; open?: SpriteDef; lit?: SpriteDef; variants?: SpriteDef[]; ground?: boolean; loose?: boolean; /** Reuse an authored prop at the world's tile scale. */ scale?: number; /** its picture turned east or west (a fence running north-south) */ across?: SpriteDef }>
   /** Item sprite keys used by the ontology ('item:sword', …) -> 16x16 icon; a weapon's, how it is seen as it strikes (`swing`). */
   items: Record<string, ItemSpriteDef>
   /** Character looks for NPCs and the player: key -> sheet. */

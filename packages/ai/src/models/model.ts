@@ -22,7 +22,7 @@ export interface ToolCall {
 
 export type ChatMessage =
   | { role: 'system' | 'user'; content: string }
-  | { role: 'assistant'; content: string; toolCalls?: ToolCall[] }
+  | { role: 'assistant'; content: string; toolCalls?: ToolCall[]; /** Provider continuation metadata, not user-facing prose. */ reasoningContent?: string }
   | { role: 'tool'; toolCallId: string; name: string; content: string }
 
 export interface ChatOptions {
@@ -45,6 +45,10 @@ export interface ChatOptions {
 export interface ModelReply {
   content: string
   toolCalls: ToolCall[]
+  /** Preserve a provider's reasoning continuation when a subsequent tool round requires it. */
+  reasoningContent?: string
+  /** The provider's stop cause, including length when its output budget was exhausted. */
+  finishReason?: string
   /** cost in USD and reasoning tokens (part of output), when the provider reports them */
   usage?: { input: number; output: number; cost?: number; reasoning?: number }
   /** wall time of the call and who served it */
@@ -209,6 +213,8 @@ export class OpenAICompatModel implements Model {
     return {
       content: m.content ?? '',
       toolCalls: (m.tool_calls ?? []).map((c) => ({ id: c.id, name: c.function?.name ?? '', args: parseArgs(c.function?.arguments) })),
+      ...(typeof m.reasoning_content === 'string' && { reasoningContent: m.reasoning_content }),
+      ...(choice?.finish_reason && { finishReason: choice.finish_reason }),
       usage: data.usage
         ? { input: data.usage.prompt_tokens ?? 0, output: data.usage.completion_tokens ?? 0, cost: data.usage.cost, reasoning: data.usage.completion_tokens_details?.reasoning_tokens }
         : undefined,
@@ -228,17 +234,18 @@ function rotated(body: Record<string, unknown>): Record<string, unknown> {
 interface WireReply {
   provider?: string
   error?: unknown
-  choices?: { message?: { content?: string | null; tool_calls?: { id: string; function?: { name?: string; arguments?: string } }[] }; error?: unknown; finish_reason?: string }[]
+  choices?: { message?: { content?: string | null; reasoning_content?: string | null; tool_calls?: { id: string; function?: { name?: string; arguments?: string } }[] }; error?: unknown; finish_reason?: string }[]
   usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number; completion_tokens_details?: { reasoning_tokens?: number } }
 }
 
 function toWire(m: ChatMessage): Record<string, unknown> {
   if (m.role === 'tool') return { role: 'tool', tool_call_id: m.toolCallId, content: m.content }
-  if (m.role === 'assistant' && m.toolCalls?.length)
+  if (m.role === 'assistant')
     return {
       role: 'assistant',
       content: m.content,
-      tool_calls: m.toolCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: JSON.stringify(c.args ?? {}) } })),
+      ...(m.reasoningContent !== undefined && { reasoning_content: m.reasoningContent }),
+      ...(m.toolCalls?.length && { tool_calls: m.toolCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: JSON.stringify(c.args ?? {}) } })) }),
     }
   return { role: m.role, content: m.content }
 }

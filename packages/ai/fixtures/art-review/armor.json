@@ -1,0 +1,102 @@
+{
+  "reference": {
+    "type": "item/armor/breastplate",
+    "art": {
+      "grid": [
+        "................",
+        "..........bb....",
+        ".........baab...",
+        "......baaccaaab.",
+        ".....baccaacaab.",
+        "..baacabbbaacab.",
+        ".beaaacbbaaaab..",
+        ".aaaaacaccaaaab.",
+        ".aaaaacaacaaab..",
+        ".baaaaaaacccb...",
+        ".bbccaaaaaadb...",
+        "..baacccaaab....",
+        "...bbddaaaa.....",
+        ".....bbbb.......",
+        "................",
+        "................"
+      ],
+      "palette": {
+        "a": "#abc2bc",
+        "b": "#131b1b",
+        "c": "#5f7160",
+        "d": "#ba8b6a",
+        "e": "#ffffff"
+      }
+    }
+  },
+  "original": {
+    "grid": [
+      "................",
+      "..........bb....",
+      ".........baab...",
+      "......baaccaaab.",
+      ".....baccaacaab.",
+      "..baacabbbaacab.",
+      ".beaaacbbaaaab..",
+      ".aaaaacaccaaaab.",
+      ".aaaaacaacaaab..",
+      ".baaaaaaacccb...",
+      ".bbccaaaaaadb...",
+      "..baacccaaab....",
+      "...bbddaaaa.....",
+      ".....bbbb.......",
+      "................",
+      "................"
+    ],
+    "palette": {
+      "a": "#8a5a34",
+      "b": "#131b1b",
+      "c": "#5e3a20",
+      "d": "#d9c9a8",
+      "e": "#e8dcc0"
+    }
+  },
+  "answer": {
+    "accepted": false,
+    "issues": [
+      "Silhouette is a diagonal blob rather than a readable torso garment: no clear neck opening, shoulder line, or arm openings.",
+      "The 'e' highlight pixels at row 6 col 2 and row 7 col 1 sit on the outer edge, reading as stray bright specks rather than cloth lining at the neck.",
+      "Cross-lacing at shoulders is not legible; the 'b' dark pixels inside the mass read as holes, not cord.",
+      "Waist shaping is absent — the lower body tapers to a point (rows 12-13) like a hanging sack, not a fitted jerkin.",
+      "Material reads as a mottled green-grey mass; brown leather tones are not dominant and cloth lining is not distinguishable."
+    ],
+    "repaired": {
+      "grid": [
+        "................",
+        ".....bbbbbb.....",
+        "....baaaaaab....",
+        "...baaaaaaaab...",
+        "...baacccaaab...",
+        "...baacccaaab...",
+        "...baaaaaaaab...",
+        "...baaaaaaaab...",
+        "...baaaaaaaab...",
+        "...baaaaaaaab...",
+        "...baaaaaaaab...",
+        "...baaaaaaaab...",
+        "...bbaaaaaabb...",
+        "....bbbbbbbb....",
+        "................",
+        "................"
+      ],
+      "palette": {
+        "a": "#8a5a34",
+        "b": "#131b1b",
+        "c": "#5e3a20",
+        "d": "#d9c9a8",
+        "e": "#e8dcc0"
+      }
+    },
+    "finalChecks": {
+      "recognizable": true,
+      "structure": true,
+      "style": true,
+      "material": true
+    }
+  }
+}

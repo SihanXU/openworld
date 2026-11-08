@@ -1,0 +1,111 @@
+{
+  "reference": {
+    "type": "item/weapon/blade/sword",
+    "art": {
+      "grid": [
+        "......aa........",
+        "......aba.......",
+        "......abba......",
+        "......acba......",
+        "......acba......",
+        "......acba......",
+        "......acca......",
+        "......acba......",
+        "......affa......",
+        ".....adddda.....",
+        ".....aeeeea.....",
+        "......aaga......",
+        ".......aha......",
+        ".......ada......",
+        ".......aaa......",
+        "................"
+      ],
+      "palette": {
+        "a": "#141b1b",
+        "b": "#f2eaf1",
+        "c": "#abc2bc",
+        "d": "#d14b34",
+        "e": "#8f3e56",
+        "f": "#8d977f",
+        "g": "#4e484a",
+        "h": "#5f7160"
+      }
+    }
+  },
+  "original": {
+    "grid": [
+      "......aa........",
+      "......aba.......",
+      "......abba......",
+      "......acba......",
+      "......acba......",
+      "......acba......",
+      "......acca......",
+      "......acba......",
+      "......affa......",
+      ".....adddda.....",
+      ".....aeeeea.....",
+      "......aaga......",
+      ".......aha......",
+      ".......ada......",
+      ".......aaa......",
+      "................"
+    ],
+    "palette": {
+      "a": "#141b1b",
+      "b": "#f4f7f8",
+      "c": "#9aa7ad",
+      "d": "#6b4a2f",
+      "e": "#8a5a34",
+      "f": "#c3ccd1",
+      "g": "#4e484a",
+      "h": "#5f7160"
+    }
+  },
+  "answer": {
+    "accepted": false,
+    "issues": [
+      "Blade is not continuous: the tip at rows 0-1 uses 'b' (white) but the body rows 2-7 use 'c' (grey) with 'b' only as a thin left highlight, so the blade reads as a pale sliver rather than a solid steel blade.",
+      "Guard (row 9 'd' red) and grip (row 10 'e' maroon) use warm red/brown tones that contradict the steel material and read as leather/wood, not steel.",
+      "Pommel rows 12-14 use 'h' green and 'd' red, giving a non-steel colored end cap; material is inconsistent.",
+      "Blade width is only 1-2px for most of its length (rows 3-7 are 'acba' = 2px of blade), making it read as a thin stick rather than a longsword blade at inventory size.",
+      "Row 8 'affa' introduces a green-grey 'f' band that breaks the blade-to-guard transition and looks like a separate blob."
+    ],
+    "repaired": {
+      "grid": [
+        "......aa........",
+        "......aba.......",
+        "......abba......",
+        "......abba......",
+        "......abba......",
+        "......abba......",
+        "......abba......",
+        "......abba......",
+        "......abba......",
+        ".....adddda.....",
+        ".....aeeeea.....",
+        "......aaga......",
+        ".......aha......",
+        ".......ada......",
+        ".......aaa......",
+        "................"
+      ],
+      "palette": {
+        "a": "#141b1b",
+        "b": "#c3ccd1",
+        "c": "#9aa7ad",
+        "d": "#8d977f",
+        "e": "#5f7160",
+        "f": "#f4f7f8",
+        "g": "#4e484a",
+        "h": "#6b4a2f"
+      }
+    },
+    "finalChecks": {
+      "recognizable": true,
+      "structure": true,
+      "style": true,
+      "material": true
+    }
+  }
+}

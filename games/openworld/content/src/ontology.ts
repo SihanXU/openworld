@@ -21,7 +21,7 @@ import { CH5_TYPES } from './chapter5.ts'
 import { FIN_TYPES } from './finale.ts'
 import { FOG, FOG_EVERY } from './bossrooms.ts'
 import { FAITH_STATUSES } from './faith.ts'
-import { VEGETABLE_CROPS, cropHours } from './crops.ts'
+import { FLOWER_CROPS, GARDEN_SPECIES, VEGETABLE_CROPS, cropHours } from './crops.ts'
 import { BOSSES, BOSS_ENCOUNTERS, BOSS_KITS, BOSS_TYPES } from './bosses.ts'
 import { CREATURE_TACTICS, ELITE_KITS, KIT_TYPES, KITS } from './kits.ts'
 import { CREATURE_DROPS } from './drops.ts'
@@ -479,8 +479,9 @@ const CROP_KIND: Record<string, string> = {
 /** A crop: sprout → young → ripe, siblings under one plant that names its yield and seed. */
 function crop(id: string, en: string, zh: string, yieldType: string, young: [string, string], ripe: [string, string], ripeTags: string[] = [], tags: string[] = []): TypeDef[] {
   const base = `fixture/crop/${id}`
+  const aliases = GARDEN_SPECIES.find(c => c.id === id)?.aliases.join(' ')
   return [
-    F(base, en, zh, tags, { props: { yieldType, seedType: `item/seed/${id}`, growHours: cropHours(id), ...(tags.includes('perennial') && { regrowType: `${base}/young` }) } }),
+    F(base, en, zh, tags, { props: { yieldType, seedType: `item/seed/${id}`, growHours: cropHours(id), ...(aliases && { mapAliases: aliases }), ...(tags.includes('perennial') && { regrowType: `${base}/young` }) } }),
     // Water starts a full stage; a dry plant waits. Irrigation supplies another stage without slowing either one.
     F(`${base}/sprout`, `${en} sprout`, `${zh}嫩芽`, ['growing'], { sprite: `fixture:${id}_sprout`, stage: { into: `${base}/young`, lasts: cropHours(id) * 600, needs: { all: [LIGHT, { has: { role: 'host', status: 'watered' } }] }, wait: 600, fx: 'leaves' } }),
     F(`${base}/young`, young[0], young[1], ['growing', 'ripening'], { sprite: `fixture:${id}_young`, stage: { into: `${base}/ripe`, lasts: cropHours(id) * 600, needs: { all: [LIGHT, { has: { role: 'host', status: 'watered' } }] }, wait: 600, fx: 'leaves' } }),
@@ -692,6 +693,8 @@ const fixtureTypes: TypeDef[] = [
   F('fixture/nature/stump', 'stump', '树墩', ['wooden', 'flammable', 'surface'], { props: { material: 'wood', maxHp: 6, hp: 6 }, makeup: [{ type: 'item/material/log', count: 2 }] }),
   // the small things of the ground: each a thing, never a picture
   F('fixture/nature/flowers', 'wildflowers', '野花', ['plant', 'flower', 'flammable'], { solid: false }),
+  F('fixture/nature/waterfall', 'waterfall', '瀑布', ['waterfall', 'water-source'], { solid: false, sprite: 'fixture:waterfall', props: { handsRange: 3 } }),
+  F('fixture/furniture/pavilion', 'garden pavilion', '花园凉亭', ['wooden', 'surface', 'shelter'], { solid: false, footprint: [4, 3], sprite: 'fixture:garden_pavilion' }),
   F('fixture/nature/reeds', 'reeds', '芦苇', ['plant', 'flammable'], { solid: false }),
   F('fixture/nature/ferns', 'ferns', '蕨草', ['plant', 'flammable'], { solid: false }),
   F('fixture/nature/tuft', 'grass tuft', '草丛', ['plant', 'flammable'], { solid: false }),
@@ -717,6 +720,9 @@ const fixtureTypes: TypeDef[] = [
   ...crop('wheat', 'wheat', '麦子', 'item/material/wheat', ['young wheat', '青麦'], ['ripe wheat', '熟麦'], ['dry', 'flammable'], ['crop:grain']),
   ...crop('herb', 'herb', '草药', 'item/material/herb', ['herb plant', '草药苗'], ['ripe herbs', '成熟的草药'], [], ['crop:herb']),
   ...crop('berry', 'berry bush', '浆果丛', 'item/food/berries', ['berry bush', '浆果丛'], ['berry bush in fruit', '结果的浆果丛'], [], ['perennial', 'crop:berry']),
+  ...FLOWER_CROPS.flatMap(c => crop(c.id, c.en.toLowerCase(), c.zh, 'item/flower/' + c.id,
+    ['young ' + c.en.toLowerCase(), c.zh + '幼株'], ['blooming ' + c.en.toLowerCase(), '盛开的' + c.zh], ['flower'],
+    ['crop:flower', ...(c.perennial ? ['perennial'] : [])])),
   ...VEGETABLE_CROPS.flatMap((c) => crop(c.id, c.en.toLowerCase(), c.zh, `item/food/${c.id}`,
     [`young ${c.en.toLowerCase()}`, `${c.zh}幼株`], [`ripe ${c.en.toLowerCase()}`, `成熟的${c.zh}`],
     [], [...(c.perennial ? ['perennial'] : []), `crop:${CROP_KIND[c.id] ?? 'fruit'}`])),

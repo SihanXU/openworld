@@ -36,6 +36,7 @@ import type { Model } from '../models/model.ts'
 import { Detector } from '../modder/detect.ts'
 import { Modder, useOffline, type DraftBody, type ThingBody } from '../modder/pipeline.ts'
 import { materializeWorld } from './repo.ts'
+import type { CreatorCoordinator, CreatorOrder } from './creator.ts'
 
 // the offline profile's repo agent, handed to the modder under Node (pipeline.ts `useOffline`)
 useOffline({ runAgent, materializeWorld })
@@ -46,6 +47,8 @@ export interface ServerOptions {
   maxBody?: number
   /** The game this modder patches (its id, said at /health: the editor checks it asks the right one). */
   game?: string
+  /** Explicit local autonomous authoring service. Ordinary modder behavior is unchanged when absent. */
+  creator?: Pick<CreatorCoordinator, 'start' | 'status' | 'resume' | 'approve'> & Partial<Pick<CreatorCoordinator, 'discuss'>>
 }
 
 export function createModderServer(modder: Modder, opts: ServerOptions = {}): Server {
@@ -87,7 +90,32 @@ export function createModderServer(modder: Modder, opts: ServerOptions = {}): Se
       if (route === 'GET /health') {
         const last = detector.last
         const detected = last ? { model: last.model, at: last.at, recommend: last.recommend } : null
-        return send(200, { ok: true, game: opts.game ?? null, model: modder.model?.name ?? null, library: libraryInfo(), state: state.stats(), detected })
+        return send(200, { ok: true, game: opts.game ?? null, model: modder.model?.name ?? null, library: libraryInfo(), state: state.stats(), detected,
+          creator: opts.creator ? { enabled: true, protocol: 2, endpoint: '/creator/jobs', discussion: !!opts.creator.discuss } : null })
+      }
+      if (route === 'POST /creator/discuss') {
+        const refused = hostOnly(req)
+        if (refused) return send(refused[0], { error: `creator discussion is local to this host: ${refused[1]}` })
+        if (!opts.creator?.discuss) return send(404, { error: 'Creator discussion is not configured' })
+        return send(200, await opts.creator.discuss(await readJson(req, 48_000)))
+      }
+      if (route === 'POST /creator/jobs' || route === 'GET /creator/jobs' || route === 'POST /creator/jobs/resume' || route === 'POST /creator/jobs/approve') {
+        const refused = hostOnly(req, req.method === 'GET')
+        if (refused) return send(refused[0], { error: `autonomous authoring is local to this host: ${refused[1]}` })
+        if (!opts.creator) return send(404, { error: 'Autonomous authoring is not configured' })
+        if (route === 'POST /creator/jobs/resume' || route === 'POST /creator/jobs/approve') {
+          const body = await readJson(req, 4_000) as { id?: string }
+          if (!body?.id || !/^[a-z][a-z0-9_-]{0,79}$/.test(body.id)) return send(400, { error: 'A valid job id is required' })
+          return route.endsWith('/approve') ? send(200, opts.creator.approve(body.id)) : send(202, opts.creator.resume(body.id))
+        }
+        if (req.method === 'POST') {
+          const body = await readJson(req, maxBody) as CreatorOrder
+          if (!body || typeof body.order !== 'string' || !body.order.trim() || body.save?.version !== 1) return send(400, { error: 'An order and native SaveData are required' })
+          return send(202, opts.creator.start(body))
+        }
+        const id = url.searchParams.get('id')
+        if (!id || !/^[a-z][a-z0-9_-]{0,79}$/.test(id)) return send(400, { error: 'A valid job id is required' })
+        return send(200, opts.creator.status(id))
       }
       if (route === 'GET /quality')
         return send(200, {

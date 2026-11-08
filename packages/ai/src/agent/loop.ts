@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import type { Env } from './env.ts'
 import { Meter, type ChatMessage, type Model } from '../models/model.ts'
 import type { Episode, Harness, HookStage, SelfState } from './state.ts'
-import { agentTools } from './tools.ts'
+import { agentTools, type AgentTool } from './tools.ts'
 import { clip, clipJson, wordsOf } from '../util.ts'
 
 export interface AgentTask {
@@ -57,6 +57,8 @@ export interface AgentOptions {
   /** write the episode to the state (default true) */
   record?: boolean
   log?: (line: string) => void
+  /** Additional domain tools, using the same history, budgets and execution loop as native file tools. */
+  extraTools?: AgentTool[]
 }
 
 export const AGENT_SYSTEM = `You are a software engineer working on a task in a repository, through tools.
@@ -160,6 +162,10 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
       return 'submitted'
     },
   })
+  for (const tool of o.extraTools ?? []) {
+    if (tools.some(t => t.name === tool.name)) throw new Error(`Duplicate agent tool: ${tool.name}`)
+    tools.push(tool)
+  }
   const specs = tools.map(({ name, description, parameters }) => ({ name, description, parameters }))
 
   const intro = [
@@ -197,16 +203,22 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
         deadlineMs: cfg.deadlineMs,
         retries: cfg.retries,
       })
-      // an empty turn is a provider failure, not an answer: ask again (a few times per task)
-      if (!r.toolCalls.length && !r.content.trim() && empties++ < 3) continue
+      // A truncated answer may contain partial edits/tool arguments; never execute it as a completed action.
+      if (r.finishReason === 'length') { ep.error = 'model output limit reached (finish_reason=length); no truncated tool calls executed'; break }
+      // Empty/thinking-only turns are not valid assistant messages in a tool conversation.
+      if (!r.toolCalls.length && !r.content.trim()) {
+        if (++empties <= 3) continue
+        ep.error = `model returned ${empties} empty replies without an executable action`
+        break
+      }
       if (!r.toolCalls.length) {
-        messages.push({ role: 'assistant', content: r.content })
+        messages.push({ role: 'assistant', content: r.content, ...(r.reasoningContent !== undefined && { reasoningContent: r.reasoningContent }) })
         silent = `${r.provider ?? '?'}: ${clip(r.content.replace(/\s+/g, ' ').trim(), 300)}`
         if (++nudges > 3) break
         messages.push({ role: 'user', content: NUDGE })
         continue
       }
-      messages.push({ role: 'assistant', content: r.content, toolCalls: r.toolCalls })
+      messages.push({ role: 'assistant', content: r.content, toolCalls: r.toolCalls, ...(r.reasoningContent !== undefined && { reasoningContent: r.reasoningContent }) })
       for (const c of r.toolCalls) {
         const tool = tools.find((t) => t.name === c.name)
         const t1 = Date.now()
@@ -222,7 +234,7 @@ export async function runAgent(task: AgentTask, o: AgentOptions): Promise<AgentR
       }
       trim(messages)
     }
-    if (!submitted) ep.error = nudges > 3 ? `stopped: answered without a tool call ${nudges} times (last, via ${silent})` : `no submission within ${cfg.maxSteps} steps`
+    if (!submitted && !ep.error) ep.error = nudges > 3 ? `stopped: answered without a tool call ${nudges} times (last, via ${silent})` : `no submission within ${cfg.maxSteps} steps`
   } catch (err) {
     ep.error = (err as Error).message
   }

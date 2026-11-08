@@ -38,3 +38,77 @@
 #recipeResearch .research-sketch-note { font-style: italic; color: #8a6a45; }
 @keyframes research-sketching { to { opacity: .8; } }
 @media (prefers-reduced-motion: reduce) { #recipeResearch .research-sketching { animation: none; } }
+
+/* One craftsperson's worktable: ideas, a small trial, then a design kept in the world. */
+.dialog.researching { width: min(980px, calc(100vw - 32px)); }
+#recipeResearch { display: flex; flex-direction: column; min-height: 0; max-height: calc(100dvh - 220px); }
+#recipeResearch .research-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-bottom: 7px; border-bottom: 1px solid #bd9d6d80; }
+#recipeResearch .research-tools button { padding: 5px 11px; font-size: 13px; box-shadow: none; background: #f5e5bf80; }
+#recipeResearch .research-tools button[aria-pressed="true"] { color: #fff6df; background: #89562d; border-color: #74401e; }
+#recipeResearch .research-tools .research-extend { margin-left: auto; }
+#recipeResearch .research-line { flex: 0 0 auto; margin: 8px 0 10px; max-height: 80px; }
+#recipeResearch .research-recipe { overflow: auto; flex: 0 1 auto; max-height: min(40dvh, 365px); scrollbar-color: #ab8651 #e9d6af; }
+#recipeResearch .research-summary { margin: 8px 0 11px; font-size: 14px; line-height: 1.5; }
+#recipeResearch .research-version { margin-top: 5px; letter-spacing: .02em; }
+#recipeResearch .research-uses { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; list-style: none; padding: 0 0 0 12px; margin: 12px 0; border-left: 2px solid #b0915e; }
+#recipeResearch .research-use { position: relative; min-width: 0; padding: 9px 11px; background: #fffdf180; border: 1px solid #c4ac7d; border-radius: 3px; }
+#recipeResearch .research-use::before { content: ""; position: absolute; left: -14px; top: 18px; width: 12px; height: 2px; background: #b0915e; }
+#recipeResearch .research-use-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; font-size: 15px; }
+#recipeResearch .research-use-state { flex: 0 0 auto; padding: 1px 5px; background: #ead9b0; color: #735126; border-radius: 2px; font-size: 11px; white-space: nowrap; }
+#recipeResearch .research-use p { margin: 5px 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+#recipeResearch .research-use small { margin-top: 3px; overflow-wrap: anywhere; }
+#recipeResearch .research-use .research-use-action { margin-top: 7px; padding: 4px 12px; font-size: 12px; background: #e9efd7; border-color: #8b9a6b; box-shadow: 0 1px 0 #82905f; color: #415333; }
+#recipeResearch .research-use--tested { border-color: #819467; }
+#recipeResearch .research-use--tested .research-use-state { color: #395432; background: #dce6c8; }
+#recipeResearch .research-use--pending { border-style: dashed; background: #f4e5c14d; }
+#recipeResearch .research-use--failed { border-color: #b7836b; }
+#recipeResearch .research-use--failed .research-use-state { color: #873c2c; background: #efd7c8; }
+#recipeResearch .research-trial-report { padding: 10px 12px; margin-top: 10px; border: 1px solid #8a9a6d; border-radius: 3px; background: #e7ecd17a; }
+#recipeResearch .research-trial-report.failed { border-color: #ba8468; background: #efdfce80; }
+#recipeResearch .research-trial-report > summary { font-size: 15px; font-weight: 500; cursor: pointer; }
+#recipeResearch .research-trial-report p { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 0; font-size: 13px; }
+#recipeResearch .research-trial-report p strong { font-weight: 500; color: #4c653e; }
+#recipeResearch .research-trial-report p.failed strong { color: #914a34; }
+#recipeResearch .research-trial-report p span { padding-left: 15px; color: #756044; overflow-wrap: anywhere; }
+#recipeResearch .research-adopt-note { margin-top: 10px; }
+#recipeResearch [data-research-action="adopt"] { color: #fff7dc; background: linear-gradient(#9b703c, #775028); border-color: #70441e; box-shadow: 0 2px 0 #523316; }
+#recipeResearch [data-research-action="adopt"]:hover:not(:disabled) { background: #9a6b35; }
+#recipeResearch .research-trial { border-color: #9b804c; background: #fff6dd; }
+#recipeResearch .research-notebook { margin-top: 10px; border-top: 1px solid #bfa57588; font-size: 13px; }
+#recipeResearch .research-notebook summary { padding: 7px 0 2px; color: #78552e; cursor: pointer; }
+#recipeResearch .research-notebook-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; padding-top: 6px; max-height: 130px; overflow: auto; }
+#recipeResearch .research-notebook-list > small { grid-column: 1 / -1; }
+#recipeResearch .research-saved { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left; padding: 7px 9px; box-shadow: none; }
+#recipeResearch .research-saved strong { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+#recipeResearch .research-saved small { font-size: 11px; }
+#recipeResearch .research-saved-entry { display: flex; flex-direction: column; min-width: 0; gap: 5px; }
+#recipeResearch .research-saved-entry > .research-saved { width: 100%; }
+#recipeResearch .research-book-tools { padding: 5px 0 0; }
+#recipeResearch .research-book-tools button, #recipeResearch .research-book-actions button { padding: 3px 9px; font-size: 12px; box-shadow: none; background: #f7eacb; }
+#recipeResearch .research-book-actions { display: flex; gap: 6px; padding: 0 2px 4px; }
+#recipeResearch [data-research-disable] { color: #87503b; }
+#recipeResearch .research-map-preview { display: block; width: auto; max-width: 100%; max-height: 160px; margin: 9px auto; border: 3px solid #aa8e5e; background: #e6d5ad; image-rendering: pixelated; }
+@media (max-width: 760px), (max-height: 650px) {
+  .dialog.researching { bottom: 80px; max-height: calc(100dvh - 100px); }
+  #recipeResearch { max-height: calc(100dvh - 155px); }
+  #recipeResearch .research-uses { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  #recipeResearch .research-recipe { max-height: 34dvh; padding: 9px; }
+  #recipeResearch .research-tools { gap: 4px; }
+  #recipeResearch .research-tools .research-extend { margin-left: 0; }
+  #recipeResearch .research-tools button { padding: 4px 7px; font-size: 12px; }
+  #recipeResearch .research-line { max-height: 55px; font-size: 14px; margin: 5px 0; }
+  #recipeResearch .research-actions { margin-top: 9px; gap: 6px; }
+  #recipeResearch .research-actions button { padding: 7px 9px; font-size: 12px; }
+  #recipeResearch .research-notebook-list { grid-template-columns: minmax(0, 1fr); max-height: 100px; }
+}
+
+#recipeResearch.creator-working .research-line::after {
+  content: '';
+  display: block;
+  width: 36px;
+  height: 3px;
+  margin-top: 8px;
+  background: repeating-linear-gradient(90deg, #9a6c36 0 6px, transparent 6px 12px);
+  animation: research-work .75s steps(3) infinite;
+}
+@keyframes research-work { to { background-position: 12px 0; } }

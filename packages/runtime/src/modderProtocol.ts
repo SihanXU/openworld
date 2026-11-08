@@ -3,7 +3,21 @@
 // from the page to the modder's worker and nowhere else — the engine's worker reaches the modder only through a
 // port that carries requests and answers, as it reaches a service over HTTP (modderLink.ts).
 
-import type { ResearchOutcome, ResearchRequest, ModRequest, Ontology, ResolveBody, Rule } from '@openworld/engine'
+import type { ResearchOutcome, ResearchRequest, ModRequest, Ontology, ResolveBody, Rule, SaveData, Recipe, Text, WorkshopDraft, CreationMapDraft } from '@openworld/engine'
+
+/** Pure data contract for an explicitly configured local coding-agent service. */
+export interface CreatorOrderRequest { order: string; save: SaveData; kind?: 'item' | 'uses' | 'map'; subject?: string; operation?: 'append' | 'revise'; deferSource?: boolean; recipes?: Recipe[]; assets?: Record<string, unknown> }
+export interface CreatorDiscussionRequest {
+  message: string; kind: 'item' | 'uses' | 'map'; subject?: string
+  history: { player: string; npc: Text }[]
+}
+export interface CreatorDiscussionReply { ready: boolean; reply: Text }
+export interface CreatorDraft { kind: 'item' | 'uses' | 'map'; title: Text; item?: WorkshopDraft; map?: CreationMapDraft; adopted?: boolean }
+export interface CreatorJobStatus {
+  id: string; status: 'queued' | 'running' | 'repairing' | 'ready' | 'failed'; order: string; baseDigest: string; createdAt: string; error?: string
+  candidate?: { save: SaveData; drafts: Record<string, CreatorDraft>; sourceChanged: boolean; runtimeChanged?: boolean; pageChanged?: boolean; needsPublication?: boolean }
+}
+export interface ModderHealth { model?: string | null; creator?: { enabled: boolean; protocol?: number; endpoint?: string; discussion?: boolean } | null }
 
 /** Where the key is kept: this page's life only, or this browser (its storage, until the player forgets it). */
 export type Remember = 'session' | 'device'
@@ -61,6 +75,7 @@ export type FromModder = { t: 'status'; status: ModelStatus } | { t: 'reply'; id
 
 /** The engine's worker to the modder, over the port: what it asks a service at /health, /resolve, /progress, /patches, /fault. */
 export type LinkCall =
+  | { id: number; op: 'draft'; body: WorkshopMapRequest }
   | { id: number; op: 'health' }
   | { id: number; op: 'research'; body: ResearchRequest }
   | { id: number; op: 'researched'; outcome: ResearchOutcome }
@@ -78,3 +93,13 @@ export interface LinkReply {
 
 /** The engine's worker names the player's own modder so (in the place a service's address goes). */
 export const LOCAL_MODDER = 'local:'
+
+/** The runtime's map authoring request; pure data shared by HTTP and browser-owned models. */
+export interface WorkshopMapRequest {
+  kind: 'map'
+  intent: string
+  context?: { chars?: { char: string; terrain: string; name?: string }[]; things?: { id: string; name?: string }[]; maxSize?: [number, number]; taken?: string[]; lang?: string; environment?: { palette: string[]; water: string[]; fireflies: string }; activities?: { garden: string; crossing: string } }
+  previous?: unknown
+  feedback?: string
+}
+export interface WorkshopMapReply { draft: Record<string, unknown> | null; diagnostics: string[] }

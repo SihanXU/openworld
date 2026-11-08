@@ -1,11 +1,26 @@
 // Messages between the main thread (render + UI) and the engine Worker.
 
-import type { ResearchDesign, ResearchMissing, ResearchProblemCode, AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SceneCmd, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
+import type { ResearchArtReview, ResearchDesign, ResearchMissing, ResearchProblemCode, AiQuality, Aim, CodexView, Difficulty, Dir, Frame, Key, LibraryData, Look, MapData, ModSpec, Patch, PixelArt, Plan, PlacementPreview, Pos, Recipe, RegionLook, Rule, SceneCmd, StatusDef, Text, UndefinedRecord, ValidationResult, WorldIndex } from '@openworld/engine'
 import type { TransferProgress } from './transferQueue.ts'
 import type { SaveWithQuestions } from './saves.ts'
 
 /** Where the mouse points: its tile, and what is drawn at the point, top first (the keys act there when it is next to the player). */
 export type Tile = Aim
+
+/** Player-facing projection of a local creation draft and its observed trial. */
+export interface WorkshopView {
+  id: string
+  revision: number
+  kind: 'item' | 'uses' | 'map'
+  title: Text
+  typeId?: string
+  summary?: Text
+  picture?: PixelArt
+  uses: { id: string; label: Text; target: Text; targetId?: string; capability?: string; status: 'ready' | 'pending' | 'tested' | 'failed'; effect?: Text; feedback?: Text; /** the use's bounded parameters (element, cost, cooldown, variantChance): what the ability strip shows */ params?: Record<string, string | number | boolean> }[]
+  trial?: { revision: number; passed: boolean; checks: { id: string; label: Text; passed: boolean; observed: Text }[] }
+  adopted?: boolean
+  map?: { width: number; height: number; rows: string[] }
+}
 
 /**
  * The shared library as the browser stores it: with the service's log it was synced from and how far (GET /patches
@@ -44,11 +59,22 @@ export class FishingInputLatch {
 export type ToWorker =
   | { t: 'skipLearning' }
   | { t: 'researchAsk'; message: string }
+  | { t: 'creatorRestartFailed'; job: string; reason: string }
   | { t: 'researchConfirm'; token: string }
   | { t: 'researchCancel' }
+  | { t: 'workshopKind'; kind: 'item' | 'map' }
+  | { t: 'workshopTrial'; id: string; revision: number }
+  | { t: 'workshopAdopt'; id: string; revision: number }
+  | { t: 'workshopList' }
+  | { t: 'workshopOpen'; id: string }
+  | { t: 'workshopExtend' }
+  | { t: 'workshopUse'; id: string; use: string; item?: string; target?: string; tile?: Tile }
+  | { t: 'workshopDisable'; id: string }
+  | { t: 'workshopExport'; id: string }
+  | { t: 'workshopImport'; file: unknown }
   /** The icons the worker asked for (`researchIcons`), as pixel grids: what a variant's icon is edited from. */
   | { t: 'researchIcons'; icons: Record<string, PixelArt> }
-  | { t: 'init'; base: string; save?: SaveWithQuestions; library?: StoredLibrary; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any ('': none) */ modder?: string; /** the player's own modder, over this port (docs/byok.md; sent with the message) */ modderPort?: MessagePort; /** true: prefetch undefined acts the pointer rests on (?prefetch=1: at least the medium setting's) */ prefetch?: boolean; /** the player's AI setting (the engine's quality.ts) */ quality?: AiQuality; /** does a companion lead the way when the player stands still (Options) */ guiding?: boolean; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos; /** a step of the story begun at once in a new game (the editor's "play from this scene") */ scene?: string }
+  | { t: 'init'; base: string; /** A verified autonomous job continued after loading fresh source. */ pendingCreatorJob?: string; save?: SaveWithQuestions; library?: StoredLibrary; /** how far `library` has synced the modder's shared log (the same service's) */ librarySeq?: number; /** the modder service, if any ('': none) */ modder?: string; /** the player's own modder, over this port (docs/byok.md; sent with the message) */ modderPort?: MessagePort; /** true: prefetch undefined acts the pointer rests on (?prefetch=1: at least the medium setting's) */ prefetch?: boolean; /** the player's AI setting (the engine's quality.ts) */ quality?: AiQuality; /** does a companion lead the way when the player stands still (Options) */ guiding?: boolean; /** a new game's difficulty */ difficulty?: Difficulty; /** where a new game begins: one of the world's other starts (the tutorial skipped) */ start?: string; /** how a new game's traveller looks (docs/looks.md) */ look?: Look; /** a new game begun at this cell instead of a start (the editor's playtest) */ at?: Pos; /** a step of the story begun at once in a new game (the editor's "play from this scene") */ scene?: string }
   /**
    * The world behind the title (the cover's backdrop): a world of its own at a place of the game's and an hour, with no
    * story, nothing asked of the modder and nothing saved; its frames are only drawn. An `init` replaces it.
@@ -211,6 +237,13 @@ export interface LibraryView {
 }
 
 export type FromWorker =
+  /** A source update: checkpoint the live world and reconnect this job in a fresh worker. */
+  | { t: 'creatorRestart'; job: string; page?: boolean; checkpoint: Extract<FromWorker, { t: 'saved' }> }
+  | { t: 'creatorApplied'; job: string; additions: number }
+  | { t: 'creatorBlocked'; job: string; reply: Text }
+  | { t: 'workshop'; view: WorkshopView }
+  | { t: 'workshopSaved'; views: WorkshopView[] }
+  | { t: 'workshopExport'; name: string; file: unknown }
   /** The shared log synced this far from this service: the next load goes on from here. */
   | { t: 'synced'; url: string; seq: number; /** the library changed: the position is stored with it, not before it */ changed: boolean }
   | { t: 'placement'; preview: PlacementPreview }
@@ -240,12 +273,12 @@ export type FromWorker =
   /** A talk over a new recipe: the craftsperson's words (`reply`), a draft, or why not (`problem`: the panel says it in the player's language). */
   /** The icons of these kinds, please (the page has the pictures; a research request carries them). */
   | { t: 'researchIcons'; types: string[] }
-  | { t: 'research'; who: string; reply?: Text; design?: ResearchDesign; token?: string; problem?: ResearchProblemCode | 'away' | 'busy' | 'off' | 'offline' | 'unreachable' | 'design'; missing?: ResearchMissing; made?: boolean; sketching?: boolean }
+  | { t: 'research'; who: string; reply?: Text; design?: ResearchDesign; token?: string; creatorOffer?: boolean; creatorProgress?: 'queued' | 'running' | 'repairing'; problem?: ResearchProblemCode | 'away' | 'busy' | 'off' | 'offline' | 'unreachable' | 'design'; missing?: ResearchMissing; made?: boolean; sketching?: boolean }
   /** The picture of the draft on the table is drawn (or could not be: the draft as it was). */
-  | { t: 'researchSketched'; who: string; token?: string; design: ResearchDesign }
+  | { t: 'researchSketched'; who: string; token?: string; design: ResearchDesign; review?: ResearchArtReview }
   /** The modder is making things the world does not have yet; the act waits for them. */
   | { t: 'creating'; names: Text[] }
-  | { t: 'error'; message: string }
+  | { t: 'error'; message: string; code?: 'action-refused' }
   /** The world map's data: the visited maps where they lie, their terrain, the waypoint stones. */
   | { t: 'atlas'; atlas: Atlas }
   | { t: 'codex'; codex: CodexView }

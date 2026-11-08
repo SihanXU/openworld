@@ -842,3 +842,20 @@ body.with-tabs .overlay .sheet { max-height: calc(100dvh - 72px); }
 .cv-model .cv-skip small { flex: 1 1 260px; font-size: 12px; line-height: 1.4; }
 
 }
+
+/* the ability strip (ui/abilities.ts): the workshop elemental uses of what is worn or held now, above the hotbar */
+.ability-strip { position: absolute; left: 50%; bottom: 118px; transform: translateX(-50%); display: flex; gap: 4px; align-items: center;
+  padding: 4px 6px; border-radius: 4px; background: linear-gradient(#2b2a33, #16151c); border: 2px solid #0a0a0e;
+  box-shadow: inset 0 1px 0 #4a4858, 0 2px 6px rgba(0,0,0,.5); }
+.ability-strip.hidden { display: none; }
+.ab-slot { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 3px 7px; cursor: pointer;
+  border-radius: 3px; background: radial-gradient(circle at 50% 40%, #2d3442, #11141b); border: 2px solid; border-color: #8a7a52 #4a3f26 #3a301c #7a6a44; }
+.ab-slot .ab-name { font: 700 11px var(--pixel); color: #ffe9a8; text-shadow: 1px 1px 0 #000; }
+.ab-slot .ab-detail { font: 500 9px var(--pixel); color: #b9b4c8; }
+.ab-slot.fam-fire { border-color: #c86a3a #6a2f18 #4a2010 #b85a2a; }
+.ab-slot.fam-water { border-color: #5a9ac8 #24486a #1a3448 #4a8ab8; }
+.ab-slot.fam-wind { border-color: #8ac8a0 #2a5a3a #1a3a28 #6ab888; }
+.ab-slot.fam-earth { border-color: #b89a5a #5a4a24 #3a3018 #a88a4a; }
+.ab-slot.fam-empower { border-color: #b48ad8 #4a2a6a #2a1a3a #a47ac8; }
+.ab-slot.chosen { box-shadow: 0 0 0 2px #ffd55a, inset 0 0 6px rgba(255,213,90,.35); }
+.ab-cycle { font: 600 9px var(--pixel); color: #ffe9a8; padding: 0 3px; text-shadow: 1px 1px 0 #000; }

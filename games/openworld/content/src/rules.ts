@@ -2014,6 +2014,22 @@ const CREATURE: Selector = { type: 'actor/creature' }
 
 const GENERAL: Rule[] = [
   rule({
+    id: 'furniture/pavilion',
+    label: L('Rest under {target}', '在{target}下歇脚'),
+    doc: 'An open pavilion is shelter, not a sealed building: a hand on it leans beside its post until the actor moves.',
+    host: { type: 'fixture/furniture/pavilion' },
+    on: 'impulse/handle',
+    tree: DO(emit('settle', 'actor', { pose: 'lean' }), log('You rest beneath {host}.', '你在{host}下歇了歇脚。')),
+  }),
+  ...(['chair', 'bench'] as const).map((family) => rule({
+    id: 'furniture/sit-' + family,
+    label: L('Sit on {target}', '坐在{target}上'),
+    doc: 'A hand on a seat asks the actor to sit at it; the native posture checks the source cell and ends when the actor moves.',
+    host: { type: 'fixture/furniture/' + family },
+    on: 'impulse/handle',
+    tree: DO(emit('settle', 'actor', { pose: 'sit' })),
+  })),
+  rule({
     id: 'creature/offered',
     doc: 'A creature held out a thing: something fibrous lashes it down (the rope goes onto it); something edible it snaps up (the food is told it is eaten: food/eaten); anything else, and anything offered a boss, is its own kind\'s to answer (undefined at the root).',
     host: CREATURE,

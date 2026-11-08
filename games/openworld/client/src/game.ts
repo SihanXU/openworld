@@ -3,6 +3,7 @@
 // own panels (ui/panels.ts: the companion's, the Held Ground's).
 
 import type { ClientGame } from '@openworld/runtime/src/game.ts'
+import { prepareCreator } from './creator.ts'
 import { describeItem, fishingBaitContextAction, fishingRodIconDecoration } from './itemTips.ts'
 import {
   BOON_BY_ID,
@@ -102,6 +103,7 @@ const CRAFT_KINDS = [
 ]
 
 export const CLIENT_GAME: ClientGame = {
+  creationMechanisms: async (engines) => (await import('./creationMechanisms.ts')).loadCreationMechanisms(engines),
   describeItem,
   itemIconDecoration: (item) => fishingRodIconDecoration(item, FORM_BY_ID),
   itemContextAction: fishingBaitContextAction,
@@ -120,6 +122,7 @@ export const CLIENT_GAME: ClientGame = {
   cover: {
     title: 'OpenWorld',
     tutorial: true,
+    workshopStart: 'creator',
     // the world behind the title, the Holy City's six showcase places one after another (docs/showcase.md), each from
     // where its own vista looks and at an hour that suits it: the abbey's front at dusk, the North Gate at dawn, the Bell
     // Ward's hall in the morning, the Market at its busiest, the Lamp Ward by its lamps, the Lower Town's quays at evening
@@ -224,6 +227,7 @@ export const CLIENT_GAME: ClientGame = {
     }
   },
   fresh(game) {
+    prepareCreator(game, RECIPES)
     const w = game.engine.world
     game.engine.author(() => (w.setFact(FIRSTLIGHT_LAYOUT, true), w.setFact(FIRSTLIGHT_HOUSES, true), w.setFact(PART_ONE_LAYOUT, true), w.setFact(PROLOGUE_LAYOUT, true), w.setFact(CHAPEL_LAYOUT, true), w.setFact(BOSS_ROOMS_LAYOUT, true), w.setFact(BOSS_LAYOUT, true), w.setFact(COMPANION_LAYOUT, true), w.setFact(COMPANION_NAME, true), w.setFact(OVERWORLD_LAYOUT, true), w.setFact(WAYPOINTS_LAYOUT, true), w.setFact(SMITHY_LAYOUT, true), w.setFact(HAVEN_LAYOUT, true), w.setFact(PLOTS_LAYOUT, true), w.setFact(STOCK_LAYOUT, true), w.setFact(STATS_LAYOUT, true), w.setFact(GEAR_LAYOUT, true), w.setFact(VOWS_LAYOUT, true)))
   },

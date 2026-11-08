@@ -9,7 +9,8 @@ import { assetsBase } from '../game.ts'
 /** A catalogue's path is the game's own art where it begins with one of these folders (under its assets/); any other is the pack's, under assets/na/. */
 export const OWN_ART = /^(lsw|own)\//
 /** Pack files live under the game's assets/na/ (copied by tools/copyAssets.ts, or taken by the editor); the game's own art under assets/lsw/ or assets/own/ (what the editor imports). */
-export const assetUrl = (path: string) => encodeURI(`${assetsBase()}${OWN_ART.test(path) ? path : `na/${path}`}`)
+const compositeUrls = new Map<string, string>()
+export const assetUrl = (path: string) => compositeUrls.get(path) ?? encodeURI(`${assetsBase()}${OWN_ART.test(path) ? path : `na/${path}`}`)
 
 /** A pack file as a CSS url() for a custom property. Absolute: a relative url() in a variable resolves against the
  *  stylesheet that uses it, which a build puts under assets/ (BASE_URL is './'), so it would point at assets/assets/. */
@@ -18,7 +19,8 @@ export const cssAssetUrl = (path: string) => `url("${new URL(assetUrl(path), doc
 /** Every image path the catalogue references (loaded up front; the pack subset is small). */
 export function imagePaths(c: Catalog): string[] {
   const s = new Set<string>()
-  const sd = (d?: SpriteDef) => d && s.add(d.img)
+  const sd = (d?: SpriteDef) => d && !c.composites?.[d.img] && s.add(d.img)
+  for (const composite of Object.values(c.composites ?? {})) for (const part of composite.parts) sd(part.sprite)
   for (const b of Object.values(c.blobs)) s.add(b.img)
   for (const list of Object.values(c.plain)) for (const [img] of list) s.add(img)
   for (const list of Object.values(c.decals)) list.forEach(sd)
@@ -41,6 +43,20 @@ export function imagePaths(c: Catalog): string[] {
 export function preloadCatalog(scene: Phaser.Scene, c: Catalog): void {
   for (const p of imagePaths(c)) if (!scene.textures.exists(p)) scene.load.image(p, assetUrl(p))
   // sounds and music load lazily, on first use (the game starts on the images alone)
+}
+
+/** Assemble authored atlas strips in their original projection; entities retain one movable sprite. */
+export function composeCatalog(scene: Phaser.Scene, c: Catalog): void {
+  for (const [key, definition] of Object.entries(c.composites ?? {})) {
+    if (scene.textures.exists(key)) continue
+    const canvas = document.createElement('canvas')
+    canvas.width = definition.width; canvas.height = definition.height
+    const ctx = canvas.getContext('2d')!
+    ctx.imageSmoothingEnabled = false
+    for (const { sprite: d, x, y } of definition.parts) ctx.drawImage(scene.textures.get(d.img).getSourceImage() as HTMLImageElement, d.x, d.y, d.w, d.h, x, y, d.w, d.h)
+    scene.textures.addCanvas(key, canvas)?.setFilter(Phaser.Textures.FilterMode.NEAREST)
+    compositeUrls.set(key, canvas.toDataURL())
+  }
 }
 
 /** Register a SpriteDef's frames on its image texture; returns frame names. */
