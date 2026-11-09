@@ -2298,7 +2298,7 @@ export interface Rule {
 // ------------------------------------------------------------------ outputs to the client
 
 export type FxEvent =
-  | { t: 'vfx'; fx: string; map: string; x: number; y: number; angle?: number; span?: number; /** who made it (a blow's swing, a bolt loosed): drawn wielding it wherever they are drawn now */ who?: Id }
+  | { t: 'vfx'; fx: string; map: string; x: number; y: number; z?: number; angle?: number; span?: number; /** Identity of a persistent effect that can be stopped. */ instance?: Id; /** Effect duration in simulation time. */ durationMs?: number; /** Actor the effect can attach to instead of a static tile. */ who?: Id }
   | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean; /** said to another (one person telling another): heard in passing, not a talk with the one at the keys */ to?: Id; /** called out (a companion leading the way): a bubble, never the talk's box */ aside?: boolean }
   | { t: 'emote'; who: Id; mood: Mood }
   | { t: 'fade'; dir: 'out' | 'in' }

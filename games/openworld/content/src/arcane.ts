@@ -7,6 +7,7 @@ import type { Recipe, Text } from '@openworld/engine'
 import { FORM_BY_ID } from './items.ts'
 import { unlockedBy } from './haven.ts'
 import { skillBook } from './skills.ts'
+import { CURSE_CHARMS } from './curse-charms.ts'
 
 const L = (en: string, zh: string): Text => ({ en, zh })
 const formName = (type: string): Text => {
@@ -28,6 +29,11 @@ const elementalStaff = (element: 'fire' | 'ice', reagent: string, en: string, zh
   make: { type: STAFF, tags: [`element:${element}`], props: { element } }, madeOf: true, station: 'arcane', level: 3, unlockedBy: unlockedBy('arcane2'),
 })
 export const ARCANE_RECIPES: Recipe[] = [
+  ...CURSE_CHARMS.map(charm => ({
+    id: charm.id, name: charm.name, sprite: charm.sprite, station: 'arcane',
+    unlockedBy: unlockedBy('arcane2'), needs: [...charm.needs],
+    make: { type: charm.id, props: { material: charm.material } },
+  })),
   { id: 'arcane/wand', name: formName('item/weapon/magic/wand'), sprite: sprite('item/weapon/magic/wand'), needs: needs([M.stick, 1], ['item/gem', 1]), make: { type: 'item/weapon/magic/wand' }, station: 'arcane', level: 1, unlockedBy: unlockedBy('arcane') },
   { id: 'arcane/staff', name: formName(STAFF), sprite: sprite(STAFF), needs: needs([M.stick, 2], ['item/gem', 1]), make: { type: STAFF }, station: 'arcane', level: 2, unlockedBy: unlockedBy('arcane') },
   elementalStaff('fire', 'item/material/fireweed', 'Fire Staff', '火焰法杖'),

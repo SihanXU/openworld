@@ -31,6 +31,23 @@ jobs:
       # a runner has a few cores: the slowest tests (a night in bed, rising at home) take 10 s each on a fast machine
       # and run beside the rest, so they get more than the local 30 s
       - run: npm test -- --testTimeout=120000
+  charms-portable:
+    name: charms (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck:game
+      - run: npm test -- games/openworld/content/test/curse-charms.test.ts packages/runtime/test/equipment-gesture.test.ts
   no-ai:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -47,3 +64,14 @@ jobs:
       - run: npm test -- --testTimeout=120000
       - run: npm run check:world
       - run: npm run build
+  merge-gate:
+    needs: [check, no-ai, charms-portable]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all checks
+        env:
+          CHECK: ${{ needs.check.result }}
+          NO_AI: ${{ needs.no-ai.result }}
+          CHARMS: ${{ needs.charms-portable.result }}
+        run: test "$CHECK" = success && test "$NO_AI" = success && test "$CHARMS" = success

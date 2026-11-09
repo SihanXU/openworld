@@ -10,6 +10,7 @@ import { AFFIX_TABLE, TROPHIES } from './trophies.ts'
 import { unlockedBy } from './haven.ts'
 import { VOW_IDS } from './powers.ts'
 import { SET_PIECES } from './gearsets/index.ts'
+import { CURSE_CHARMS } from './curse-charms.ts'
 
 export interface Form {
   id: string // full type path
@@ -319,6 +320,14 @@ const BASE_FORMS: Form[] = [
   W('item/valuable/coin_pouch', 'Coin Pouch', '钱袋', 'item:coins', { tags: ['money', 'leather'], props: { value: 20 }, where: { home: 1, npc: 1, dungeon: 1 } }),
   W('item/valuable/ring', 'Ring', '戒指', 'item:ring', { tags: ['wearable'], props: { atk: 1, slot: 'ring' }, materials: ['silver', 'gold', 'iron', 'bone', 'mithril'], elemental: true, where: { home: 0.5, dungeon: 1, npc: 0.3 } }),
   W('item/valuable/amulet', 'Amulet', '护符', 'item:amulet', { tags: ['wearable'], props: { def: 1, slot: 'neck' }, materials: ['silver', 'gold', 'bone', 'crystal'], elemental: true, where: { temple: 1, dungeon: 1 } }),
+  ...CURSE_CHARMS.map(charm => W(charm.id, charm.name.en, charm.name.zh, charm.sprite, {
+    tags: ['wearable', 'arcane', 'quality:legendary'],
+    props: {
+      slot: 'neck', material: charm.material, value: 90,
+      ...(charm.id === 'item/valuable/six_eye_shades' && { look: 'glasses.six_eye', lookColor: 'indigo' }),
+    },
+    where: {},
+  })),
   W('item/valuable/earring', 'Earring', '耳环', 'item:earring', { tags: ['wearable'], props: { xpRate: 0.1, slot: 'ear' }, materials: ['silver', 'gold', 'bone', 'crystal'], where: { home: 0.5, shop: 0.5, dungeon: 0.5 } }),
   W('item/valuable/goblet', 'Goblet', '高脚杯', 'item:goblet', { materials: ['silver', 'gold'], where: { temple: 1, dungeon: 0.5 } }),
   W('item/valuable/crown', 'Circlet', '头冠', 'item:crown', { tags: ['wearable'], props: { def: 1, slot: 'head', look: 'hat.circlet' }, materials: ['silver', 'gold', 'ringsteel'], where: { dungeon: 0.2 } }),

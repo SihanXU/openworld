@@ -372,7 +372,10 @@ export class EffectRunner {
         if (!host) return
         // a step to a place (a scene's direction, a person arriving through a portal), or one tile
         const p = ev.params
-        if (typeof p?.x === 'number' && typeof p?.y === 'number') return eng.placeSelf(host, { map: String(p.map ?? w.posOf(host)?.map ?? eng.activeMap), x: p.x, y: p.y })
+        if (typeof p?.x === 'number' && typeof p?.y === 'number') return eng.placeSelf(host, {
+          map: String(p.map ?? w.posOf(host)?.map ?? eng.activeMap), x: p.x, y: p.y,
+          ...(ev.origin === 'world' && typeof p.z === 'number' && Number.isSafeInteger(p.z) && { z: p.z }),
+        })
         // to a map with no place named: in through what sent it (a site, world-model.md §5.6)
         if (typeof p?.map === 'string') return eng.enterFrom(host, p.map, ev.roles.source && w.get(ev.roles.source.e))
         let dir = eff.dir ?? (p?.dir as Entity['facing'])

@@ -518,6 +518,7 @@ export class Engine {
     const w = this.world
     const p = w.player
     if (!w.hasStatus({ e: p.id }, 'down')) return
+    this.hooks.equipmentGesture?.clear()
     const effects: Effect[] = [{ op: 'emit', impulse: 'notify', to: 'target', params: { what: 'respawn', drop: home } }]
     if (home) {
       const at = this.homeOf(p)
@@ -1562,10 +1563,10 @@ export class Engine {
     const w = this.world
     // a flyer goes over what stops walkers (a companion over a wall, a river)
     // one body to a cell: where another stands, the nearest free tile (two people bound for one spot)
-    const open = w.hasTag(e, 'airborne') ? w.inBounds(to.map, to.x, to.y) : w.fits(e, to.map, to.x, to.y)
+    const open = w.hasTag(e, 'airborne') ? w.inBounds(to.map, to.x, to.y) : w.fits(e, to.map, to.x, to.y, to.z)
     const at = open ? to : (this.nearestFree(to, e) ?? to)
     this.touch({ e: e.id })
-    w.place(e, { on: 'tile', map: at.map, x: at.x, y: at.y })
+    w.place(e, { on: 'tile', map: at.map, x: at.x, y: at.y, ...(at.z && { z: at.z }) })
     this.touch({ e: e.id })
   }
 

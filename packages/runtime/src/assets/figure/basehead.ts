@@ -100,6 +100,16 @@ const GLASSES_ROUND_LEFT: BasePart = { top: 9, rows: [
   '.............o..........',
   '........o..oo...........',
 ] }
+const GLASSES_SIX_EYE_DOWN: BasePart = { top: 9, rows: [
+  '........oooooooo........',
+  '........opoonpoo........',
+  '.........oo..oo.........',
+] }
+const GLASSES_SIX_EYE_LEFT: BasePart = { top: 9, rows: [
+  '.........oooooon........',
+  '........opoonnno........',
+  '.........oo.............',
+] }
 const HAT_STRAW_DOWN: BasePart = { top: 3, rows: [
   '.........iiiiiii........',
   '........iffffffgi.......',
@@ -365,6 +375,7 @@ export const BASE_HEADS: Record<string, BaseHead> = {
   'mark.scar': { grids: { down: MARK_SCAR_DOWN, left: MARK_SCAR_LEFT } },
   'mark.freckles': { grids: { down: MARK_FRECKLES_DOWN, left: MARK_FRECKLES_LEFT } },
   'glasses.round': { grids: { down: GLASSES_ROUND_DOWN, left: GLASSES_ROUND_LEFT } },
+  'glasses.six_eye': { grids: { down: GLASSES_SIX_EYE_DOWN, left: GLASSES_SIX_EYE_LEFT } },
   'hat.straw': { grids: { down: HAT_STRAW_DOWN, up: HAT_STRAW_UP, left: HAT_STRAW_LEFT }, hides: { down: 7, left: 7, up: 7 } },
   'hat.kerchief': { grids: { down: HAT_KERCHIEF_DOWN, up: HAT_KERCHIEF_UP, left: HAT_KERCHIEF_LEFT }, hides: { down: 99, left: 99, up: 99 } },
   'hat.hood': { grids: { down: HAT_HOOD_DOWN, up: HAT_HOOD_UP, left: HAT_HOOD_LEFT }, hides: { down: 99, left: 99, up: 99 } },
