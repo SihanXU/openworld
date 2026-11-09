@@ -60,12 +60,13 @@ export type ToWorker =
   | { t: 'move'; dir: Dir | null; walk?: boolean; run?: boolean }
   /** Q: dash (the skill), the way the player faces. */
   | { t: 'dash' }
+  | { t: 'cancelEquipmentGesture' }
   /** Space: strike ahead with the held weapon (or a fist), again and again while it is held. */
   | { t: 'attack'; on: boolean }
   /** A fishing minigame button edge; release/cancel are accepted while paused to clear held input. */
   | { t: 'fishing'; action: FishingAction }
   /** One of the inputs (design.md §5.2): E the hand, G put, the right click's use (`secondary`); on a chosen layer of the tile. */
-  | { t: 'key'; key: Key; tile?: Tile; layer?: number; /** the right button dragged over a new cell: only if it sets something up */ drag?: boolean }
+  | { t: 'key'; key: Key; tile?: Tile; layer?: number; /** Physical pointer edges for equipped gestures. */ pointer?: 'down' | 'up'; /** the right button dragged over a new cell: only if it sets something up */ drag?: boolean }
   /** The left button pressed (its act at once) or let go; held, its act again at the aim as a swing's pace allows (Controls.again). */
   | { t: 'primary'; on: boolean; tile?: Tile }
   | { t: 'handUp'; up: boolean }

@@ -111,6 +111,12 @@ export type TickPhase = 'status' | 'behaviour' | 'end'
  * leaves the kernel's own behaviour.
  */
 export interface EngineHooks {
+  /** Opt-in mouse gestures and mode key supplied by equipped game content. */
+  equipmentGesture?: {
+    binding(button: 'left' | 'right' | 'mode'): { item: Id; double: boolean; repeat?: boolean } | undefined
+    press(button: 'left' | 'right' | 'mode', aim?: { x: number; y: number }, double?: boolean): void
+    clear(): void
+  }
   /** A step of every tick, after the kernel's own of that phase. */
   tick: { phase: TickPhase; run: (active: string) => void }[]
   /** The player has come onto a map (after the map is the active one). */

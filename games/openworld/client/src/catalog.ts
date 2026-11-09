@@ -923,6 +923,8 @@ export const CATALOG: Catalog = {
     'item:coins': icon('Items/Object/MoneyBag.png', 14, 15),
     'item:ring': icon('lsw/Items/Gear/Ring.png', 24, 24),
     'item:amulet': icon('lsw/Items/Gear/Amulet.png', 24, 24),
+    'item:mysterious_finger': icon('lsw/Items/Gear/MysteriousFinger.png', 16, 16),
+    'item:six_eye_shades': icon('lsw/Items/Gear/SixEyeShades.png', 16, 16),
     'item:goblet': icon('Items/Treasure/GoldCup.png', 9, 11),
     'item:crown': icon('Items/Resource/GemYellow.png', 14, 14),
     'item:shard': icon('Items/Resource/GemPurple.png', 16, 16),

@@ -154,6 +154,7 @@ export const LOOK_PARTS: Record<string, LookPart> = {
   'mark.scar': { slot: 'mark', name: T('scar', '伤疤'), bodies: ADULTS, uses: ['skin'], tags: [LOOK_TAG + 'scarred'], say: T('a scar across the cheek', '脸颊上一道伤疤'), gen: { w: 0.3, roles: ['guard', 'soldier', 'smith', 'hunter', 'trainer'] } },
   'mark.freckles': { slot: 'mark', name: T('freckles', '雀斑'), uses: ['skin'], tags: [LOOK_TAG + 'freckled'], say: T('freckles', '一脸雀斑'), gen: { w: 0.5, ages: [5, 35] } },
   'glasses.round': { slot: 'glasses', name: T('round spectacles', '圆眼镜'), bodies: ADULTS, colors: { 1: 'bronze' }, tags: [LOOK_TAG + 'spectacled'], say: T('round spectacles', '一副圆眼镜'), gen: { w: 0.1, roles: ['scholar'], ages: [16, 99], colors: { 1: ['bronze', 'iron', 'gold'] } } },
+  'glasses.six_eye': { slot: 'glasses', name: T('Six-Eye Shades', '六眼墨镜'), bodies: ADULTS, colors: { 1: 'indigo' }, tags: [LOOK_TAG + 'spectacled'], say: T('dark spectacles', '一副深色墨镜'), gen: { w: 0, worn: true } },
 
   // ---------------------------------------------------------------- hats
   'hat.straw': { slot: 'hat', name: T('straw hat', '草帽'), bodies: ADULTS, colors: { 1: 'ochre' }, tags: [LOOK_TAG + 'hatted'], say: T('a straw hat', '一顶草帽'), gen: { roles: ['farmer', 'herder', 'fisher'], only: true, colors: { 1: ['ochre', 'mustard', 'linen'] } } },

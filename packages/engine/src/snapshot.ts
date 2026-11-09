@@ -178,6 +178,8 @@ export interface ResidenceWarehouseView {
 }
 
 export interface Frame {
+  /** The host has paused the world's clock. Timed equipment effects follow it. */
+  effectsPaused?: boolean
   tick: number
   hour: number
   /** When night falls and ends now (clock hours): later dawns and earlier dusks as the story's night lengthens. */

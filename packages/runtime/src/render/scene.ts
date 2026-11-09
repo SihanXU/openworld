@@ -25,6 +25,7 @@ import type { ActorDef, Catalog, SpriteDef } from '../assets/types.ts'
 import { DIR_COL, actorFrames, assetUrl, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
 import { BossAnimationClock, bossAnimationFrame } from './boss-animation.ts'
 import { SkillFx } from './skillfx.ts'
+import { CharmFx } from './charmfx.ts'
 import { isStripBoss } from '../assets/bosses.ts'
 import { previewBoss, type BossPreviewMode } from '../boss-preview.ts'
 
@@ -196,6 +197,7 @@ export class WorldScene extends Phaser.Scene {
   private flash?: Phaser.GameObjects.Rectangle
   /** The skills' own effects, drawn by code (skillfx.ts). */
   private skillFx = new SkillFx({ scene: this, viewOf: (id) => (id ? this.views.get(id) : undefined), sfx: (name, volume) => this.sfx(name, volume) })
+  private charmFx = new CharmFx(this, (name, volume, rate) => this.sfx(name, volume, rate), id => this.views.get(id)?.root)
   private drops: { x: number; y: number; v: number; len: number }[] = []
   private weather = 'sun'
   private playerId = 'player'
@@ -377,6 +379,7 @@ export class WorldScene extends Phaser.Scene {
       return
     }
     if (!this.free) this.cameras.main.fadeIn(220, 8, 10, 16)
+    this.charmFx.clear()
     for (const v of this.views.values()) this.destroyView(v)
     this.views.clear()
     for (const t of this.tileFx.values()) t.sprites.forEach((s) => s.destroy())
@@ -655,6 +658,7 @@ export class WorldScene extends Phaser.Scene {
       return
     }
     if (f.map !== this.base.id) return
+    this.charmFx.setPaused(f.effectsPaused ?? false)
     // the HUD shows and hides its panels (the tracker): now and then the camera's margins follow it
     if (++this.padTick % 20 === 0) {
       const sig = JSON.stringify(this.hudPad())
@@ -662,6 +666,7 @@ export class WorldScene extends Phaser.Scene {
     }
     this.playerId = f.player.id
     this.mainHand = f.player.worn?.weapon?.sprite
+    if (this.playerAt && this.playerAt.z !== (f.player.z ?? 0)) this.charmFx.clear()
     this.playerAt = { x: f.player.x, y: f.player.y, z: f.player.z ?? 0 }
     this.walls.clear()
     this.floors.clear()
@@ -2566,6 +2571,11 @@ export class WorldScene extends Phaser.Scene {
       return this.sfx('thunder', 0.7)
     }
     if (fx.t === 'vfx') {
+      if (fx.fx.startsWith('charm:')) {
+        const z = fx.z ?? 0
+        if (fx.map === this.base?.id && (this.playerAt?.z ?? 0) === z) this.charmFx.play(fx, z * STOREY_LIFT)
+        return
+      }
       const x = fx.x * T + 8
       const y = fx.y * T + 8
       const [kind, a, b, c, d] = fx.fx.split(':')

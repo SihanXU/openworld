@@ -23,6 +23,7 @@ import { FAITH_RULES } from './faith.ts'
 import { LOOSE, type Amount, type Cond, type Effect, type Text, type EmitTo, type Impulse, type PropValue, type RoleName, type RoleRef, type Rule, type Selector, type Tree } from '@openworld/engine'
 import { HUNGRY_BELOW } from '@openworld/modules'
 import { ELEMENTAL, unlessElemental } from './elements.ts'
+import { CHARM_STASIS } from './curse-charms.ts'
 
 const rule = (r: Omit<Rule, 'source'>): Rule => ({ ...r, source: { origin: 'base' } })
 const L = (en: string, zh: string) => ({ en, zh })
@@ -293,6 +294,14 @@ const DEFEAT: Effect[] = [
 
 const BODIES: Rule[] = [
   rule({
+    id: 'charm/still',
+    doc: 'A creature in the still field cannot act while the field holds it. Closing the field ends this hold.',
+    host: ACTOR,
+    on: 'impulse/coat',
+    tree: IF(param('substance', 'charm-still'), DO(add(CHARM_STASIS)),
+      IF(param('substance', 'charm-still-release'), DO(remove(CHARM_STASIS)), 'inherit')),
+  }),
+  rule({
     id: 'body/rise',
     doc: 'One who has fallen, told by the story to rise (the death screen\'s choice): one gets up, whole — leaving what one carried bundled where one fell (one\'s coin loose beside it) and telling the bosses there that one is gone (each is whole again), when one rises at home (but what one wears, the weapon in one\'s hand and what is important stay with one). Told of a home (a bed slept in, a waypoint woken), one keeps it.',
     host: ESSENTIAL,
@@ -346,13 +355,16 @@ const BODIES: Rule[] = [
     doc: 'An actor struck takes the blow as anything with durability does — as well as what struck works on what it is made of (world-model.md §6.1, §6.8; a frozen one shatters under a blunt or earthen blow); the one who struck becomes its foe; the element of the blow reaches it.',
     host: ACTOR,
     on: 'impulse/strike',
-    tree: IF(
-      all(has('host', 'frozen'), any(param('edge', 'blunt'), param('element', 'earth'))),
-      DO(remove('frozen'), { op: 'hurt', amount: { param: 'power', mul: 1.5 }, blow: true }, { op: 'foe' }, vfx('shatter')),
+    tree: IF(param('charmStrike', true),
+      IF(param('pierce', true), DO({ op: 'hurt', amount: POWER, pierce: true }, { op: 'foe' }), DO({ op: 'hurt', amount: POWER }, { op: 'foe' })),
       IF(
-        { param: { key: 'element', cmp: { ne: '' } } },
-        DO({ op: 'hurt', amount: POWER, blow: true }, { op: 'foe' }, vfx('hit'), emit('element', 'host', { element: ELEMENT, power: POWER })),
-        DO({ op: 'hurt', amount: POWER, blow: true }, { op: 'foe' }, vfx('hit')),
+        all(has('host', 'frozen'), any(param('edge', 'blunt'), param('element', 'earth'))),
+        DO(remove('frozen'), { op: 'hurt', amount: { param: 'power', mul: 1.5 }, blow: true }, { op: 'foe' }, vfx('shatter')),
+        IF(
+          { param: { key: 'element', cmp: { ne: '' } } },
+          DO({ op: 'hurt', amount: POWER, blow: true }, { op: 'foe' }, vfx('hit'), emit('element', 'host', { element: ELEMENT, power: POWER })),
+          DO({ op: 'hurt', amount: POWER, blow: true }, { op: 'foe' }, vfx('hit')),
+        ),
       ),
     ),
   }),

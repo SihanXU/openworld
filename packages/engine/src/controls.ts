@@ -1332,7 +1332,10 @@ export class Controls {
     const id = item ?? w.prop(p, OFFHAND)
     if (this.eng.busy(p) || typeof id !== 'string' || !w.get(id)) return
     if (putOn && w.worn(p).some((e) => e.id === id)) return
+    const gestures = this.eng.hooks.equipmentGesture
+    const previous = gestures?.binding('left')?.item
     this.eng.act('use', p.id, { e: p.id }, { instrument: { e: id } })
+    if (previous !== gestures?.binding('left')?.item) gestures?.clear()
     this.sync()
   }
 

@@ -5,6 +5,7 @@ import { untilUp } from './untilUp.ts'
 import { portLink, serviceLink, resolveForSave, type ModderLink } from './modderLink.ts'
 import { FrameEncoder } from './frameDelta.ts'
 import { TransferQueue } from './transferQueue.ts'
+import { EquipmentGestures, type EquipmentButton } from './equipment-gesture.ts'
 import { scheduleTransferTurn } from './transferScheduler.ts'
 import { adoptDefinitions, artsToSend, forgetInvalid, holdForMaking, learnedRecipes, recipeOf, sharedPart, takeLogEntries, takePatch, withKept, withShipped, LogPosition, type Kept } from './learned.ts'
 import { AgentHost, lookProblems, signatureOf, difficultyOf, Game, RuleLibrary, buildRequest, tickAt, snapshot, previewPlacement, performPlacement, type Dir, type GameEvent, type LibraryData, type ModRequest, type Patch, type Frame, type Key, type KeyView, type Plan, type Ref, type Resolution, type WorldIndex, type Engine, type PlacementPreview, type FrameView, restoreLibrary, decodeRawChunk, decodeRawMap, type RawChunk, type Text, type MapChunk, CEILING, TICKS_PER_HOUR, rollAffixes, AI_WAIT_MS, DEFAULT_QUALITY, categoryOf, qualityOf, type AiLevel, type AiQuality, type Entity, type Look } from '@openworld/engine'
@@ -462,13 +463,17 @@ function keyViews(): Frame['keys'] {
   const out: NonNullable<Frame['keys']> = {}
   // E and G (a press: no layer chosen), the left click and the right click (a floor in hand: in the ceiling, as chosen)
   for (const k of ['hands', 'put', 'primary', 'secondary'] as const) {
+    if ((k === 'primary' || k === 'secondary') && eng.hooks.equipmentGesture?.binding(k === 'primary' ? 'left' : 'right')) {
+      shownTarget[k] = undefined
+      continue
+    }
     const pl = c.plan(k, aimTile, k === 'secondary' && handUp ? CEILING : undefined)
     shownTarget[k] = pl?.target
     const v = view(pl)
     out[k] = v && pl!.key !== k ? { ...v, act: pl!.key } : v
   }
   const p = eng.world.player
-  const use = c.plan('secondary', aimTile)
+  const use = eng.hooks.equipmentGesture?.binding('right') ? undefined : c.plan('secondary', aimTile)
   // an experiment with something in hand: where its chain reaches an undefined outcome
   noteProbe(use?.unknown && use.instrument && use.verb ? eng.preview(eng.actEvent(use.verb, p.id, use.target, use.instrument)).hole : undefined, use ? `${use.at.x},${use.at.y}` : '')
   return out
@@ -476,6 +481,31 @@ function keyViews(): Frame['keys'] {
 
 /** Time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player). */
 const timeStopped = (g: Game) => (paused && !backdropOn) || batchBusy() || !!g.engine.world.state.question || !!panel || !!g.mods.asking || (!!talk && !thinking()) || !!trade || !!pockets || !!gift
+
+const equipmentInputs = new EquipmentGestures<Tile | undefined>()
+
+function cancelEquipmentGesture(): void {
+  equipmentInputs.cancel()
+}
+
+function equipmentGesture(g: Game, button: EquipmentButton, aim?: Tile, held = false): boolean {
+  const eng = g.engine, hook = eng.hooks.equipmentGesture, w = eng.world
+  const binding = hook?.binding(button), at = w.posOf(w.player)
+  if (!hook || !binding || !at) return false
+  const ready = () => !starting && !backdropOn && !timeStopped(g) && !eng.busy(w.player) && !fishingActive(eng)
+  if (!ready()) return true
+  const perform = (target: Tile | undefined, double: boolean) => {
+    const now = w.posOf(w.player)
+    if (game !== g || !now || now.map !== at.map || (now.z ?? 0) !== (at.z ?? 0) || !ready() || hook.binding(button)?.item !== binding.item) return false
+    // A tall sprite can be picked above its foot tile. Use the visible actor's actual cell.
+    const picked = w.get(target?.stack?.[0]?.e)
+    const cell = picked && picked.id !== w.player.id && picked.type.startsWith('actor/') ? w.posOf(picked) : undefined
+    hook.press(button, cell?.map === now.map && (cell.z ?? 0) === (now.z ?? 0) ? cell : target, double)
+    return true
+  }
+  equipmentInputs.press({ button, scope: JSON.stringify([binding.item, at.map, at.z ?? 0]), aim, double: binding.double, repeat: binding.repeat, held, perform })
+  return true
+}
 /** The craftsperson one talks with is thinking an idea over: the talk holds no one up meanwhile. */
 const thinking = () => researchBusy && !!talk && researchSession?.who === talk.who
 
@@ -726,15 +756,21 @@ function loop(): void {
   if (!stopped) {
     if (moveDir) eng.movePlayer(moveDir, walk, run)
     // a line in the water is the player at work: a companion does not lead them off
-    if (fishingActive(eng)) (attacking = false), (swinging = undefined), eng.companions.stir()
+    if (fishingActive(eng)) {
+      attacking = false
+      swinging = undefined
+      equipmentInputs.cancel()
+      eng.companions.stir()
+    }
     else {
+      equipmentInputs.step(aimTile, t0)
       if (attacking) eng.controls.strike()
       // the left button held: its act again at the aim, as a swing's pace allows
       if (swinging) eng.controls.again(swinging, aimTile)
     }
     eng.tick()
     agentHost?.tick()
-  }
+  } else equipmentInputs.cancel()
   if (game.neededMaps().length) void ensureMaps()
   const w = eng.world
   const summonOf = played().summon
@@ -767,6 +803,7 @@ function loop(): void {
   // Batches pause ticks, but their progress frames still need new bag kinds and the hand.
   if (batchBusy()) eng.controls.keep()
   const frame = snapshot(eng, { panel, view })
+  if (eng.hooks.equipmentGesture) frame.effectsPaused = stopped
   // the world behind the title shows its places and their people: the traveller and the companions are not drawn
   if (backdropOn) frame.entities = frame.entities.filter((e) => e.id !== w.state.player && !w.companionIds.has(e.id))
   if (panel && !frame.container) panel = undefined // closed by the world (it burned, a rule shut it)
@@ -812,6 +849,7 @@ function loop(): void {
 async function backdrop(m: Extract<ToWorker, { t: 'backdrop' }>): Promise<void> {
   // a start under way is the player's choice: the title's next place never cancels it
   if (starting) return
+  cancelEquipmentGesture()
   const mine = ++generation
   // the world before stops at once: nothing of it is sent while the next is made
   if (timer) clearInterval(timer)
@@ -867,6 +905,7 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
 }
 
 async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, mine: number): Promise<void> {
+  cancelEquipmentGesture()
   backdropOn = false
   if (timer) clearInterval(timer)
   timer = undefined
@@ -970,7 +1009,10 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       }
       case 'dash':
-        if (game && !paused && !panel && !game.engine.world.state.question) dash(game.engine, game.engine.world.player)
+        if (game && !paused && !panel && !game.engine.world.state.question && !equipmentGesture(game, 'mode')) dash(game.engine, game.engine.world.player)
+        break
+      case 'cancelEquipmentGesture':
+        cancelEquipmentGesture()
         break
       case 'attack':
         {
@@ -1005,6 +1047,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         }
         if (!game || routeFishingWorkerInput(fishingActive(game.engine), { t: 'key', key: 'primary' }).kind === 'ignore') break
         if (paused || panel || game.engine.world.state.question) break
+        if (equipmentGesture(game, 'left', m.tile)) { swinging = undefined; break }
         const c = game.engine.controls
         // the target the left click's label named (one who walked a step off since stays it)
         const plan = c.planFor('primary', m.tile, undefined, shownTarget.primary)
@@ -1015,9 +1058,11 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         break
       }
       case 'key': {
+        if (m.key === 'secondary' && m.pointer === 'up') { equipmentInputs.release('right'); break }
         if (!game) break
         if (routeFishingWorkerInput(fishingActive(game.engine), m).kind === 'ignore') break
         if (paused || panel || game.engine.world.state.question) break
+        if (m.key === 'secondary' && m.pointer === 'down' && equipmentGesture(game, 'right', m.tile, true)) break
         const c = game.engine.controls
         // the target the key's label named (one who walked a step off since stays it); a layer chosen is that layer
         const plan = c.planFor(m.key, m.tile, m.layer, m.layer !== undefined ? undefined : shownTarget[m.key])
@@ -1249,6 +1294,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       }
       case 'pause':
         paused = m.on
+        if (m.on) cancelEquipmentGesture()
         if (!m.on) crafts.cancel()
         break
       case 'agents':
@@ -1291,6 +1337,7 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
         doSave()
         break
       case 'respawn':
+        cancelEquipmentGesture()
         game?.engine.respawn(m.home)
         break
       case 'advance':

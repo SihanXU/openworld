@@ -32,6 +32,7 @@ import { BOON_STATUSES } from './boons.ts'
 import { DEEDS, LAWS, SOCIAL, SOCIAL_STATUSES, SOCIAL_TYPES, TALK } from './social.ts'
 import { MINOR_SUBJECTS } from './protection.ts'
 import { LEADING } from './leading.ts'
+import { CHARM_STASIS, CHARM_STASIS_TICKS } from './curse-charms.ts'
 
 /** One char per terrain: maps are stored as strings. */
 export const TERRAIN_CHARS: Record<string, string> = {
@@ -340,6 +341,7 @@ export const STATUSES: StatusDef[] = [
   { id: 'adrenaline', name: { en: 'adrenaline', zh: '肾上腺素' }, duration: 50, every: 10 },
   // knocked senseless a moment (a Shield Bash, a Charge, actives.ts): it cannot move or strike
   { id: 'stunned', name: { en: 'stunned', zh: '眩晕' }, duration: 15, immobilize: true },
+  { id: CHARM_STASIS, name: { en: 'held by stillness', zh: '被静止领域定住' }, duration: CHARM_STASIS_TICKS, immobilize: true },
 ]
 
 import { ELEMENTS } from './elements.ts'
@@ -736,7 +738,7 @@ const fixtureTypes: TypeDef[] = [
 ]
 
 /** The engine's modules this game uses (docs/engine-split.md S3). */
-export const MODULES = ['classes', 'waypoints', 'boons', 'needs', 'society', 'loot', 'kits', 'fishing']
+export const MODULES = ['classes', 'waypoints', 'boons', 'needs', 'society', 'loot', 'kits', 'fishing', 'curse-charms']
 
 export function buildOntology(): Ontology {
   const types: Record<string, TypeDef> = {}
@@ -763,7 +765,7 @@ export function buildOntology(): Ontology {
     fishing: { maps: ['haven', 'haven.quarry', 'haven.timber', 'haven.lake', 'haven.springs'], extraType: 'item/food/fish/raw' },
     protection: {
       subjects: MINOR_SUBJECTS,
-      statuses: ['burning', 'electrified', 'frozen', 'bleeding', 'poisoned', 'stunned', 'knelt', 'entranced', 'mired', 'webbed', 'down', 'out_cold', 'jailed', 'doubted', 'robbed', 'pilfered'],
+      statuses: ['burning', 'electrified', 'frozen', 'bleeding', 'poisoned', 'stunned', CHARM_STASIS, 'knelt', 'entranced', 'mired', 'webbed', 'down', 'out_cold', 'jailed', 'doubted', 'robbed', 'pilfered'],
       refusal: { en: 'I will not harm a child.', zh: '我不会伤害孩子。' },
     },
     types,

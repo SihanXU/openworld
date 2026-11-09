@@ -1091,6 +1091,7 @@ window.addEventListener('keyup', (e) => {
 })
 window.addEventListener('blur', () => {
   stopMoving()
+  send({ t: 'cancelEquipmentGesture' })
   if (fishingIsActive() && !pauseRequested()) {
     fishingBlurPaused = true
     syncPause()
@@ -1176,6 +1177,8 @@ gameEl.addEventListener('mousedown', (e) => {
   if (hud.questionShown) return
   if (hud.dialogOpen) return hud.advanceDialog()
   if (menu.anyOpen || dev.open) return
+  // Send the resume before a click that arrives between closing a menu and the next frame.
+  if (pausedNow) syncPause()
   if (e.button === 0 && fishingIsActive()) {
     fishingPress('mouse')
     return
@@ -1199,11 +1202,14 @@ gameEl.addEventListener('mousedown', (e) => {
   // the right click: what is held used there; a built thing set up — at once, and again in each cell dragged over
   const sets = !!tile && !!lastFrame?.keys?.secondary?.sets
   if (sets) handDrag = handCell(tile!)
-  send({ t: 'key', key: 'secondary', ...(tile && { tile }), ...(sets && handUp && { layer: CEILING }) })
+  send({ t: 'key', key: 'secondary', pointer: 'down', ...(tile && { tile }), ...(sets && handUp && { layer: CEILING }) })
 })
 window.addEventListener('mouseup', (e) => {
   if (e.button === 0) building.release()
-  if (e.button === 2) handDrag = undefined
+  if (e.button === 2) {
+    handDrag = undefined
+    send({ t: 'key', key: 'secondary', pointer: 'up' })
+  }
   if (e.button === 0) setSwing(false)
   if (e.button === 0) fishingRelease('mouse')
 })
