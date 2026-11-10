@@ -958,7 +958,8 @@ export class RuleLibrary {
     for (const id of aside) lib.setAside(id)
     lib.types = d.types ?? []
     lib.statuses = d.statuses ?? []
-    lib.log = d.log ?? []
+    // A sandbox may restore directly from toJSON(): its appends belong to its own history.
+    lib.log = [...(d.log ?? [])]
     lib.version = d.version ?? 0
     return lib
   }

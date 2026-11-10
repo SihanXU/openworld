@@ -1,6 +1,10 @@
 // The engine runs here, off the render thread: 10 ticks per second, streaming snapshots.
 
 import { CRAFTSPERSON, ResearchProblem, artProblems, inventionId, researchCatalogue, researchPatch, trialResearch, readResearchReply, type PixelArt, type ResearchDesign, type ResearchOutcome, type ResearchRequest } from '@openworld/engine'
+import { researchCapabilities, restoreWorkshopPackages, runWorkshopUse, restoreCreationMaps, creationMapChunk, creationMaps, withCreationConnections, cellId } from '@openworld/engine'
+import { CreationWorkshop } from './workshop.ts'
+import { admitCreatorJob, adoptCreatorDrafts, creatorDiscussionOrder, retainedCreatorOrder, type CreatorReferences } from './creator.ts'
+import type { CreatorJobStatus, CreatorDiscussionRequest } from './modderProtocol.ts'
 import { untilUp } from './untilUp.ts'
 import { portLink, serviceLink, resolveForSave, type ModderLink } from './modderLink.ts'
 import { FrameEncoder } from './frameDelta.ts'
@@ -49,7 +53,23 @@ let panel: string | undefined
 /** The people's panels open (docs/npc-sandbox.md): the talk with someone (a guard's arrest), a merchant's trade, a person's pockets. */
 let talk: { who: string; arrest?: boolean } | undefined
 let researchBusy = false
-let researchSession: { owner: Game; who: string; history: ResearchRequest['history']; draft?: ResearchDesign; token?: string; episode?: string } | undefined
+let creatorBusy = false
+let creatorOnline = false
+let creatorDiscussionOnline = false
+let pendingCreatorJob: string | undefined
+let restartingCreatorJob: string | undefined
+let researchSession: { owner: Game; who: string; history: ResearchRequest['history']; draft?: ResearchDesign; token?: string; episode?: string; discussion?: { context: string; history: CreatorDiscussionRequest['history'] } } | undefined
+const workshop = new CreationWorkshop({
+  current: () => game, link: () => link, chars: () => played().terrainChars, recipes: () => Object.values(recipeById()),
+  post, kept: (type) => kept.types.add(type),
+  changed: () => {
+    if (!game) return
+    for (const record of creationMaps(game.engine)) if (!index.maps.some(m => m.id === record.raw.map.id)) index.maps.push({ id: record.raw.map.id, name: record.raw.map.name, kind: 'workshop', width: record.raw.map.width, height: record.raw.map.height, portals: record.raw.map.portals, npcs: 0, items: record.raw.entities.length })
+    frames.reset(); sendRecords(); sendRecipes(); sendArts()
+  },
+})
+
+function workshopError(err: unknown): void { post({ t: 'error', message: (err as Error).message }) }
 
 /** What came of the craftsperson's last proposal, said to the service once (they learn from it): made, refused, or left. */
 function researchCame(s: NonNullable<typeof researchSession>, result: ResearchOutcome['result'], problem?: string, missing?: ResearchOutcome['missing']): void {
@@ -101,11 +121,29 @@ async function askResearch(message: string): Promise<void> {
     const create = owner.engine.quality.create
     if (create === 'off') return void post({ t: 'research', who, problem: 'off' })
     if (!link?.research || !modderOnline) return void post({ t: 'research', who, problem: 'offline' })
-    const catalogue = researchCatalogue(owner.engine, gameRecipes())
+    if (creatorOnline && link.creatorOrder && link.creatorStatus) {
+      await askAutonomousCreator(message, session, link)
+      return
+    }
+    if (workshop.kind === 'map') {
+      await workshop.map(message)
+      post({ t: 'research', who, reply: { en: 'Here is the region we imagined. Try its layout, then we can connect it.', zh: '我们设想的区域画好了。先试验布局，再把它接进世界。' } })
+      workshop.publish()
+      return
+    }
+    const catalogue = { ...researchCatalogue(owner.engine, gameRecipes()), capabilities: researchCapabilities() }
     const npc = owner.engine.world.get(who)!
     const name = npc.name ?? owner.engine.world.onto.resolve(npc.type).name
-    const icons = await iconsOf(catalogue.prototypes)
-    const said = await link.research({ npc: typeof name === 'string' ? name : name?.en ?? 'Craftsperson', message, history: session.history.slice(-8), catalogue: { ...catalogue, ...(icons && Object.keys(icons).length && { icons }) }, ...(draft && { draft }), create }).catch((err: Error) => {
+    // One real icon per render key covers the game's visual vocabulary without granting new craft permissions.
+    const referenceTypes: string[] = [], seenSprites = new Set<string>()
+    for (const [type, form] of Object.entries(played().items.forms)) if (/^item\//.test(type) && !seenSprites.has(form.sprite)) {
+      seenSprites.add(form.sprite); referenceTypes.push(type)
+      if (referenceTypes.length === 24) break
+    }
+    const pictures = await iconsOf([...new Set([...catalogue.prototypes, ...referenceTypes])])
+    const icons = pictures && Object.fromEntries(Object.entries(pictures).filter(([id]) => catalogue.prototypes.includes(id)))
+    const artReferences = pictures && Object.fromEntries(referenceTypes.flatMap(id => pictures[id] ? [[id, pictures[id]]] : []))
+    const said = await link.research({ npc: typeof name === 'string' ? name : name?.en ?? 'Craftsperson', message, history: session.history.slice(-8), catalogue: { ...catalogue, ...(icons && Object.keys(icons).length && { icons }), ...(artReferences && { artReferences }) }, ...(draft && { draft }), ...workshop.context(), create }).catch((err: Error) => {
       throw Object.assign(err, { unreachable: true })
     })
     const result = readResearchReply(said, catalogue)
@@ -128,22 +166,190 @@ async function askResearch(message: string): Promise<void> {
     }
     const sketching = !!(result.design && result.sketch && link.researchSketch)
     post({ t: 'research', who, ...result, token: session.token, ...(sketching && { sketching }) })
+    workshop.proposal(owner, result)
     if (sketching) void sketched(session, result.design!, result.sketch!)
   } catch (err) {
     const problem = err instanceof ResearchProblem ? err.code : (err as { unreachable?: boolean }).unreachable ? 'unreachable' : 'design'
     if (researchSession === session && game === owner) post({ t: 'research', who, problem })
-  } finally { researchBusy = false }
+  } finally { researchBusy = false; creatorBusy = false }
+}
+
+async function askAutonomousCreator(message: string, session: NonNullable<typeof researchSession>, to: ModderLink): Promise<void> {
+  const owner = session.owner, who = session.who
+  creatorBusy = true
+  const context = workshop.context(), kind = workshop.kind === 'map' ? 'map' : context.subject ? 'uses' : 'item'
+  const installed = workshop.active?.owner === owner && workshop.active.adopted ? workshop.active : undefined
+  const subject = kind === 'map' ? (installed?.map ? installed.id : undefined) : installed?.item?.id ?? context.subject?.typeId
+  const refs = () => (owner.engine.world.state as typeof owner.engine.world.state & CreatorReferences).creatorJobs ?? []
+  const remember = (job: CreatorJobStatus) => owner.engine.author(() => {
+    const state = owner.engine.world.state as typeof owner.engine.world.state & CreatorReferences
+    const prior = refs().find(r => r.id === job.id)
+    if (prior?.applied) return
+    state.creatorJobs = [...refs().filter(r => r.id !== job.id), { awaitingApproval: true, ...prior, id: job.id, order: message, status: job.status, kind, ...(subject && { subject }) }]
+  })
+  const contextId = JSON.stringify([kind, subject ?? null])
+  const history = session.discussion?.context === contextId ? session.discussion.history : []
+  const previous = retainedCreatorOrder(refs(), message, kind, subject, history)
+  let order = message
+  if (!previous && creatorDiscussionOnline && to.creatorDiscuss) {
+    const answer = await to.creatorDiscuss({ message, history, kind, ...(subject && { subject }) })
+    if (game !== owner || link !== to) return
+    if (!answer.ready) {
+      session.discussion = { context: contextId, history: [...history, { player: message, npc: answer.reply }] }
+      post({ t: 'research', who, reply: answer.reply })
+      return
+    }
+    order = creatorDiscussionOrder(message, history)
+  }
+  let job = previous
+    ? await to.creatorStatus!(previous.id)
+    : await to.creatorOrder!({ order, save: owner.save(), kind, deferSource: true, ...(subject && { subject }), recipes: gameRecipes(), assets: played().catalog as unknown as Record<string, unknown> })
+  session.discussion = undefined
+  if (previous && job.status === 'failed' && to.creatorResume && game === owner && researchSession === session) job = await to.creatorResume(previous.id)
+  remember(job)
+  if (game === owner) doSave(true)
+  let reported: CreatorJobStatus['status'] | undefined
+  while (job.status !== 'ready' && job.status !== 'failed') {
+    if (game !== owner || link !== to) return
+    if (reported !== job.status) {
+      reported = job.status
+      post({ t: 'research', who, creatorProgress: job.status })
+    }
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    if (game !== owner || link !== to) return
+    job = await to.creatorStatus!(job.id)
+    remember(job)
+  }
+  if (game !== owner || link !== to) return
+  if (job.status === 'failed') {
+    doSave(true)
+    console.warn('Creator order retained', job.id, job.error)
+    post({ t: 'research', who, reply: { en: 'This attempt needs more work. I kept your order and progress. Repeat the request when you want me to continue.', zh: '这次还没试好。订单和进度都保留了，再说一次原来的要求，我就接着做。' } })
+    return
+  }
+  if (!job.candidate) throw new Error('The autonomous job has no verified candidate')
+  doSave(true)
+  const titles = Object.values(job.candidate.drafts).map(draft => draft.title)
+  post({ t: 'research', who, creatorOffer: true, token: `creator:${job.id}`, reply: {
+    en: `The design is ready. ${titles.map(title => typeof title === 'string' ? title : title.en).join(', ')}`,
+    zh: `设计已经试好，可以加载了。 ${titles.map(title => typeof title === 'string' ? title : title.zh ?? title.en).join('、')}`,
+  } })
+}
+
+async function confirmCreator(id: string): Promise<void> {
+  const owner = game, to = link, who = talk?.who
+  if (!owner || !to?.creatorStatus || !who || !researchHere(owner, who) || researchBusy || creatorBusy) return
+  const ref = (owner.engine.world.state as typeof owner.engine.world.state & CreatorReferences).creatorJobs?.find(r => r.id === id)
+  if (!ref || ref.applied || ref.status !== 'ready') return
+  creatorBusy = true
+  try {
+    let job = await to.creatorStatus(id)
+    if (game !== owner || link !== to || talk?.who !== who || !researchHere(owner, who)) throw new Error('Return to the craftsperson to load this order')
+    if (job.status !== 'ready' || !job.candidate) throw new Error(job.error ?? 'This order is not ready to load')
+    if (job.candidate.needsPublication) {
+      if (!to.creatorApprove) throw new Error('This service cannot publish the approved order')
+      job = await to.creatorApprove(id)
+    }
+    if (game !== owner || link !== to) return
+    owner.engine.author(() => { ref.awaitingApproval = false })
+    const admission = await applyAutonomousCreator(owner, job)
+    if (!admission) return
+    if (admission.ok) {
+      post({ t: 'creatorApplied', job: id, additions: admission.value.length })
+      post({ t: 'research', who, reply: { en: 'Loaded into this save.', zh: '已加载到当前存档。' } })
+    } else post({ t: 'research', who, reply: creatorRefusal(admission.reason), creatorOffer: true, token: `creator:${id}` })
+  } catch (error) {
+    post({ t: 'research', who, reply: creatorRefusal(error instanceof Error ? error.message : String(error)), creatorOffer: true, token: `creator:${id}` })
+  } finally { creatorBusy = false }
+}
+
+/** Reload source against the live checkpoint, then admit the verified draft bundle against current resources. */
+async function applyAutonomousCreator(owner: Game, job: CreatorJobStatus, freshSource = false) {
+  const candidate = job.candidate
+  if (!candidate) throw new Error('The autonomous job has no verified candidate')
+  if (candidate.needsPublication) throw new Error('Approve this order before loading its source')
+  const reference = () => (owner.engine.world.state as typeof owner.engine.world.state & CreatorReferences).creatorJobs?.find(r => r.id === job.id)
+  const ref = reference()
+  if (!ref || ref.applied || ref.awaitingApproval) return
+  if ((candidate.runtimeChanged || candidate.pageChanged) && !freshSource && !ref.sourceLoaded) {
+    if (restartingCreatorJob === job.id) return
+    if (agentHost?.seats().length) throw new Error('Ask connected agent players to leave their seats before reloading the game')
+    owner.engine.author(() => { ref.requiresReload = true })
+    const checkpoint = doSave(true)
+    if (!checkpoint) {
+      owner.engine.author(() => { delete ref.requiresReload })
+      throw new Error('The current world cannot be checkpointed for a source reload')
+    }
+    restartingCreatorJob = job.id
+    post({ t: 'creatorRestart', job: job.id, page: candidate.pageChanged, checkpoint })
+    return
+  }
+  let sourceError: { reason: unknown } | undefined
+  try { await played().creationMechanisms?.([owner.engine]) }
+  catch (reason) { sourceError = { reason } }
+  const current = reference()
+  if (game !== owner || !current || current.applied) return
+  const previousMap = owner.engine.world.posOf(owner.engine.world.player)?.map
+  const admission = admitCreatorJob(owner, current, freshSource, () => {
+    if (sourceError) throw sourceError.reason
+    return adoptCreatorDrafts(owner, workshop, candidate.drafts, gameRecipes(), played().terrainChars)
+  })
+  if (admission.ok) {
+    if (owner.engine.world.posOf(owner.engine.world.player)?.map !== previousMap) {
+      talk = undefined
+      researchSession = undefined
+    }
+    workshop.list(); sendArts(); sendRecipes(); sendRecords(); frames.reset()
+  }
+  doSave(true)
+  return admission
+}
+
+function creatorRefusal(reason: string): Text {
+  return {
+    en: `I kept your work. The current world refused it. Fix the following and repeat the same request to try again. ${reason}`,
+    zh: `这份改造已保留。处理下面的问题后，再说一次原来的订单就可以继续。 ${reason}`,
+  }
+}
+
+async function resumeCreator(owner: Game, id: string, to: ModderLink, freshSource: boolean): Promise<void> {
+  let integrating = false
+  try {
+    let job = await to.creatorStatus!(id)
+    while (job.status !== 'ready' && job.status !== 'failed' && game === owner && link === to) {
+      if (pendingCreatorJob === id) pendingCreatorJob = undefined
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      job = await to.creatorStatus!(id)
+    }
+    if (game !== owner || link !== to) return
+    owner.engine.author(() => { const ref = (owner.engine.world.state as typeof owner.engine.world.state & CreatorReferences).creatorJobs?.find(r => r.id === id); if (ref) ref.status = job.status })
+    if (job.status !== 'ready') { doSave(true); throw new Error(`The retained autonomous job ${id} is ${job.status}`) }
+    creatorBusy = integrating = true
+    const admission = await applyAutonomousCreator(owner, job, freshSource)
+    if (admission?.ok) post({ t: 'creatorApplied', job: id, additions: admission.value.length })
+    else if (admission) post({ t: 'creatorBlocked', job: id, reply: creatorRefusal(admission.reason) })
+  } catch (err) {
+    post({ t: 'error', message: `Autonomous job ${id} is retained: ${err instanceof Error ? err.message : String(err)}` })
+  } finally {
+    if (game === owner) { if (freshSource && pendingCreatorJob === id) pendingCreatorJob = undefined; if (integrating) creatorBusy = false }
+  }
 }
 
 /** The picture the craftsperson draws after answering: put on the draft (when it is still the one on the table) and shown. */
 async function sketched(session: NonNullable<typeof researchSession>, design: ResearchDesign, sketch: string): Promise<void> {
-  const art = await link?.researchSketch?.(sketch).catch(() => undefined)
+  const result = await link?.researchSketch?.(sketch).catch(() => undefined)
+  const art = result?.art
   if (researchSession !== session || session.draft !== design) return
   if (art && !artProblems(art).length) session.draft = design.kind === 'new' ? { ...design, ...(design.type && { type: { ...design.type, art } }) } : { ...design, art }
-  post({ t: 'researchSketched', who: session.who, token: session.token, design: session.draft })
+  post({ t: 'researchSketched', who: session.who, token: session.token, design: session.draft, ...(result?.review && { review: result.review }) })
+  workshop.picture(session.draft!)
 }
 
 function confirmResearch(token: string): void {
+  if (workshop.active?.item) {
+    post({ t: 'error', message: 'Try and adopt the current creation revision from its use tree' })
+    return
+  }
   const s = researchSession
   if (!s || !s.draft || !s.token || token !== s.token) return
   // not now (walked away, or still thinking): the draft and its token stay, so it can be tried again
@@ -194,12 +400,16 @@ const chunkOf = async (id: string) => decodeRawChunk(await fetchJson<RawChunk>(`
  */
 async function chunkFor(id: string): Promise<MapChunk> {
   const w = game!.engine.world
+  const created = creationMapChunk(game!.engine, id, played().terrainChars)
+  if (created) return withCreationConnections(game!.engine, created)
   let made = played().wild?.(w, id)
   if (!made && played().wild && !index.maps.some((m) => m.id === id)) {
     for (const m of index.maps.filter((x) => x.kind === 'overworld')) if (!w.state.maps[m.id]) game!.loadChunk(await chunkOf(m.id))
     made = played().wild?.(w, id)
   }
-  return made ?? (await chunkOf(id))
+  const connected = withCreationConnections(game!.engine, made ?? (await chunkOf(id)))
+  game!.engine.graph[id] = connected.map.portals
+  return connected
 }
 
 /** The build palette's entries that set a thing down (`put:<type>`), beside the placement recipes. */
@@ -253,6 +463,8 @@ async function connectModder(to: ModderLink | undefined, since?: number, stored?
   if (syncTimer) clearInterval(syncTimer)
   connecting?.stop()
   link = to
+  creatorOnline = false
+  creatorDiscussionOnline = false
   // the library restored has the log up to `since` in it already: only what came after is new (in the same log)
   synced.begin(link?.where ?? '', since, stored)
   if (game) {
@@ -271,6 +483,8 @@ async function probeModder(live: () => boolean): Promise<boolean> {
   try {
     const health = await link!.health()
     if (!game || !live()) return true
+    creatorOnline = !!health.creator?.enabled && (health.creator.protocol ?? 0) >= 2 && !!link!.creatorOrder && !!link!.creatorStatus
+    creatorDiscussionOnline = creatorOnline && !!health.creator?.discussion
     // a service with no model answers only from the shared library, which syncs here anyway:
     // asking it would only pause the world before the default, so the default runs at once
     if (health.model) {
@@ -285,11 +499,18 @@ async function probeModder(live: () => boolean): Promise<boolean> {
     modderOnline = true
     post({ t: 'modder', online: true, url: link!.where, model: health.model })
     await syncLibrary()
+    if (live() && creatorOnline && !restartingCreatorJob) {
+      const retained = [...((game.engine.world.state as typeof game.engine.world.state & CreatorReferences).creatorJobs ?? [])].reverse().find(r => !r.awaitingApproval && !r.applied && !r.admissionError && r.status !== 'failed')
+      const id = pendingCreatorJob ?? retained?.id
+      if (id) void resumeCreator(game, id, link!, pendingCreatorJob === id)
+    }
     if (live()) syncTimer = setInterval(() => void syncLibrary(), SYNC_MS)
     return true
   } catch {
     if (!live()) return true
     modderOnline = false
+    creatorOnline = false
+    creatorDiscussionOnline = false
     post({ t: 'modder', online: false, url: link?.where })
     return !game
   }
@@ -475,7 +696,7 @@ function keyViews(): Frame['keys'] {
 }
 
 /** Time stops while a menu, a dialogue or a yes/no question is open (Stardew, single player). */
-const timeStopped = (g: Game) => (paused && !backdropOn) || batchBusy() || !!g.engine.world.state.question || !!panel || !!g.mods.asking || (!!talk && !thinking()) || !!trade || !!pockets || !!gift
+const timeStopped = (g: Game) => (paused && !backdropOn) || !!restartingCreatorJob || batchBusy() || !!g.engine.world.state.question || !!panel || !!g.mods.asking || (!!talk && (!thinking() || creatorBusy)) || !!trade || !!pockets || !!gift
 /** The craftsperson one talks with is thinking an idea over: the talk holds no one up meanwhile. */
 const thinking = () => researchBusy && !!talk && researchSession?.who === talk.who
 
@@ -664,7 +885,7 @@ function inDanger(): boolean {
 }
 
 /** Save the game; `auto`: the world's own (the minute's, on arriving, as the story moves), said to no one. */
-function doSave(auto = false): void {
+function doSave(auto = false): Extract<FromWorker, { t: 'saved' }> | undefined {
   if (!game || backdropOn) return
   const w = game.engine.world
   const p = w.player
@@ -689,7 +910,9 @@ function doSave(auto = false): void {
     difficulty,
     ...(fallen && { ended: true }),
   }
-  post({ t: 'saved', save, library: storedLibrary(), summary, auto })
+  const checkpoint: Extract<FromWorker, { t: 'saved' }> = { t: 'saved', save, library: storedLibrary(), summary, auto }
+  post(checkpoint)
+  return checkpoint
 }
 
 /** How long the world stands still for the player's own question, in real seconds: an answer (the same at every AI setting), a thing being made. */
@@ -867,6 +1090,9 @@ async function start(init: Extract<ToWorker, { t: 'init' }>, fresh = false): Pro
 }
 
 async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, mine: number): Promise<void> {
+  await played().creationMechanisms?.(game ? [game.engine] : [])
+  if (mine !== generation) return
+  workshop.reset()
   backdropOn = false
   if (timer) clearInterval(timer)
   timer = undefined
@@ -894,6 +1120,8 @@ async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, min
   const lib = libraryFrom(taken.library ?? init.save?.library, index.protectedFacts)
   if (init.save && !fresh && compatible) {
     game = Game.load(init.save, index, ontology(), lib, played().upgradeSave)
+    for (const issue of restoreWorkshopPackages(game.engine)) post({ t: 'error', message: String(issue) })
+    for (const issue of restoreCreationMaps(game.engine, played().terrainChars)) post({ t: 'error', message: issue })
     // an older save brought up to the world as it is now: the game's own upgrades, the author's, on loading
     await played().upgrade?.(game, { index, chunk: chunkOf })
     // re-fetch the map we are standing on: its data, and its things as its file has them (the save kept what differs)
@@ -915,6 +1143,9 @@ async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, min
     if (init.scene && !game.engine.story.start(init.scene)) post({ t: 'error', message: `the story has no step ${init.scene} to begin` })
   }
   game.worldVersion = index.version
+  restartingCreatorJob = undefined
+  pendingCreatorJob = init.pendingCreatorJob ?? (game.engine.world.state as typeof game.engine.world.state & CreatorReferences).creatorJobs?.find(r => r.requiresReload && !r.applied)?.id
+  for (const record of creationMaps(game.engine)) if (!index.maps.some(m => m.id === record.raw.map.id)) index.maps.push({ id: record.raw.map.id, name: record.raw.map.name, kind: 'workshop', width: record.raw.map.width, height: record.raw.map.height, portals: record.raw.map.portals, npcs: 0, items: record.raw.entities.length })
   game.keepMaps = KEEP_MAPS
   frames.reset()
   view = undefined
@@ -942,6 +1173,7 @@ async function begin(init: Extract<ToWorker, { t: 'init' }>, fresh: boolean, min
   sendRecipes()
   sendRecords()
   // a modder named anew (the player's own, over a port of its own; a service's address), or the one asked before
+  workshop.list()
   const to = init.modderPort ? portLink(init.modderPort) : init.modder !== undefined ? (init.modder ? serviceLink(init.modder) : undefined) : link
   void connectModder(to, init.library ? init.librarySeq : 0, init.library)
   if (timer) clearInterval(timer)
@@ -1191,11 +1423,68 @@ self.onmessage = async (ev: MessageEvent<ToWorker>) => {
       case 'toggle':
         game?.engine.controls.toggle(m.what)
         break
+      case 'creatorRestartFailed':
+        if (restartingCreatorJob === m.job && game) {
+          restartingCreatorJob = undefined
+          const ref = (game.engine.world.state as typeof game.engine.world.state & CreatorReferences).creatorJobs?.find(r => r.id === m.job)
+          if (ref) game.engine.author(() => { delete ref.requiresReload })
+          doSave(true)
+          if (researchSession?.owner === game) post({ t: 'research', who: researchSession.who, reply: {
+            en: `I kept your order. Repeat it to retry the source update. ${m.reason}`,
+            zh: `订单已保留。再说一次原来的订单就能重试更新。 ${m.reason}`,
+          } })
+        }
+        break
       case 'researchAsk':
         void askResearch(m.message)
         break
+      case 'workshopKind':
+        if (researchSession) { researchCame(researchSession, 'left'); researchSession.draft = researchSession.token = undefined; researchSession.discussion = undefined }
+        workshop.reset(); workshop.kind = m.kind
+        break
+      case 'workshopTrial':
+        try { workshop.trial(m.id, m.revision) } catch (err) { workshopError(err) }
+        break
+      case 'workshopAdopt':
+        try {
+          workshop.adopt(m.id, m.revision)
+          if (researchSession && researchSession.owner === game) { researchCame(researchSession, 'made'); researchSession.draft = researchSession.token = undefined }
+          void ensureMaps()
+        } catch (err) { workshopError(err) }
+        break
+      case 'workshopList':
+        workshop.list()
+        break
+      case 'workshopOpen':
+        if (researchSession) { researchCame(researchSession, 'left'); researchSession.draft = researchSession.token = undefined }
+        workshop.open(m.id)
+        break
+      case 'workshopExtend':
+        try {
+          if (researchSession) { researchCame(researchSession, 'left'); researchSession.draft = researchSession.token = undefined }
+          workshop.extendHeld()
+        } catch (err) { workshopError(err) }
+        break
+      case 'workshopUse':
+        try {
+          if (!game) break
+          if (m.use === 'navigation' && workshop.enter(m.id)) { void ensureMaps(); break }
+          const target = m.target ? { e: m.target } : m.tile?.stack?.[0] ?? (m.tile ? { e: cellId(game.engine.activeMap, m.tile.x, m.tile.y, 'floor') } : undefined)
+          if (!runWorkshopUse(game.engine, m.id, m.use, target, m.item)) { post({ t: 'error', code: 'action-refused', message: 'Carry the required item and choose a reachable target for this use' }); return }
+        } catch (err) { workshopError(err) }
+        break
+      case 'workshopDisable':
+        try { workshop.disable(m.id) } catch (err) { workshopError(err) }
+        break
+      case 'workshopExport':
+        try { workshop.export(m.id) } catch (err) { workshopError(err) }
+        break
+      case 'workshopImport':
+        try { workshop.import(m.file) } catch (err) { workshopError(err) }
+        break
       case 'researchConfirm':
-        confirmResearch(m.token)
+        if (m.token.startsWith('creator:')) void confirmCreator(m.token.slice('creator:'.length))
+        else confirmResearch(m.token)
         break
       case 'researchIcons':
         iconsAnswer?.(m.icons)

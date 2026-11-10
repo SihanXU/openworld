@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ResearchWindow, fitIcon, missingLine } from '../src/ui/research.ts'
+import { ResearchWindow, canAdoptWorkshop, canUseWorkshop, fitIcon, missingLine, workshopTrial, workshopUseState } from '../src/ui/research.ts'
+import type { WorkshopView } from '../src/protocol.ts'
 
 vi.mock('../src/game.ts', () => ({ game: () => ({ items: { forms: {} } }), ontology: () => ({ types: {} }) }))
 vi.mock('../src/ui/common.ts', () => {
@@ -9,13 +10,117 @@ vi.mock('../src/ui/common.ts', () => {
 
 afterEach(() => vi.unstubAllGlobals())
 
+const workshop = (more: Partial<WorkshopView> = {}): WorkshopView => ({
+  id: 'jam', revision: 2, kind: 'item', title: { en: 'Berry jam', zh: '浆果果酱' },
+  uses: [{ id: 'eat', label: 'Eat', target: 'Yourself', status: 'tested' }],
+  ...more,
+})
+
+describe('a design is adopted after its own actual trial', () => {
+  it('does not treat the model saying tested as an actual trial', () => {
+    const view = workshop()
+    expect(workshopTrial(view)).toBeUndefined()
+    expect(workshopUseState(view, view.uses[0])).toBe('ready')
+    expect(canAdoptWorkshop(view)).toBe(false)
+  })
+
+  it('invalidates the prior revision trial after a natural-language revision', () => {
+    const view = workshop({ trial: { revision: 1, passed: true, checks: [{ id: 'eat', label: 'Eat', passed: true, observed: 'Food 10 → 13.' }] } })
+    expect(workshopTrial(view)).toBeUndefined()
+    expect(workshopUseState(view, view.uses[0])).toBe('ready')
+    expect(canAdoptWorkshop(view)).toBe(false)
+  })
+
+  it('marks only the branch reproduced by a matching trial', () => {
+    const view = workshop({
+      uses: [
+        { id: 'eat', label: 'Eat', target: 'Yourself', status: 'ready' },
+        { id: 'throw', label: 'Throw', target: 'A nearby creature', status: 'pending' },
+      ],
+      trial: { revision: 2, passed: true, checks: [{ id: 'eat', label: 'Eat', passed: true, observed: 'One jar consumed; food 10 → 13.' }] },
+    })
+    expect(workshopUseState(view, view.uses[0])).toBe('tested')
+    expect(workshopUseState(view, view.uses[1])).toBe('pending')
+    expect(canAdoptWorkshop(view)).toBe(true)
+    expect(canAdoptWorkshop({ ...view, adopted: true })).toBe(false)
+  })
+
+  it('keeps a failed trial actionable without enabling adoption', () => {
+    const view = workshop({ trial: { revision: 2, passed: false, checks: [{ id: 'eat', label: 'Eat', passed: false, observed: 'The jar was not consumed.' }] } })
+    expect(workshopUseState(view, view.uses[0])).toBe('failed')
+    expect(canAdoptWorkshop(view)).toBe(false)
+  })
+
+  it('ignores a late trial view for an older draft of the same idea', () => {
+    const view = workshop()
+    const w = Object.assign(Object.create(ResearchWindow.prototype), { plan: view }) as ResearchWindow
+    w.workshop(workshop({ revision: 1, trial: { revision: 1, passed: true, checks: [] } }))
+    expect((w as unknown as { plan: WorkshopView }).plan).toBe(view)
+  })
+
+  it('offers an adopted use only after that exact branch was verified in this revision', () => {
+    const view = workshop({ adopted: true, trial: { revision: 2, passed: true, checks: [{ id: 'eat', label: 'Eat', passed: true, observed: 'One jar consumed.' }] } })
+    expect(canUseWorkshop(view, view.uses[0])).toBe(true)
+    for (const status of ['pending', 'failed', 'ready'] as const)
+      expect(canUseWorkshop(view, { ...view.uses[0], status })).toBe(false)
+    expect(canUseWorkshop({ ...view, adopted: false }, view.uses[0])).toBe(false)
+    expect(canUseWorkshop({ ...view, trial: { ...view.trial!, revision: 1 } }, view.uses[0])).toBe(false)
+    expect(canUseWorkshop({ ...view, trial: { ...view.trial!, checks: [] } }, view.uses[0])).toBe(false)
+  })
+})
+
+describe('idea book transfer and disabling remain worker decisions', () => {
+  interface Node {
+    children: Node[]
+    dataset: Record<string, string>
+    textContent: string
+    hidden: boolean
+    disabled: boolean
+    onclick?: () => void
+    append(...nodes: Node[]): void
+    replaceChildren(...nodes: Node[]): void
+  }
+  const node = (): Node => ({
+    children: [], dataset: {}, textContent: '', hidden: false, disabled: false,
+    append(...nodes) { this.children.push(...nodes) },
+    replaceChildren(...nodes) { this.children = [...nodes] },
+    ...{ addEventListener: vi.fn(), setAttribute: vi.fn(), focus: vi.fn(), classList: { add: vi.fn(), remove: vi.fn(), toggle: vi.fn() }, querySelectorAll: () => [] },
+  })
+  const descendants = (n: Node): Node[] => [n, ...n.children.flatMap(descendants)]
+
+  it('dispatches exact package ids, offers transfer for adopted things and maps, and keeps rejected disable candidates visible', () => {
+    const host = node()
+    vi.stubGlobal('document', { createElement: node, querySelector: () => host })
+    const send = vi.fn(), receive = vi.fn(), disable = vi.fn()
+    const w = new ResearchWindow({
+      ask: vi.fn(), confirm: vi.fn(), cancel: vi.fn(), open: vi.fn(),
+      export: send, import: receive, disable,
+    })
+    const views = [workshop({ adopted: true }), workshop({ id: 'garden', kind: 'map', adopted: true }), workshop({ id: 'unfinished', adopted: false })]
+    w.saved(views)
+    const parts = w as unknown as { importButton: Node; notebookList: Node; savedViews: WorkshopView[] }
+    parts.importButton.onclick?.()
+    expect(receive).toHaveBeenCalledTimes(1)
+    const buttons = descendants(parts.notebookList)
+    expect(buttons.filter(b => b.dataset.researchExport).map(b => b.dataset.researchExport)).toEqual(['jam', 'garden'])
+    expect(buttons.filter(b => b.dataset.researchDisable).map(b => b.dataset.researchDisable)).toEqual(['jam', 'garden'])
+    buttons.find(b => b.dataset.researchExport === 'garden')!.onclick?.()
+    buttons.find(b => b.dataset.researchDisable === 'jam')!.onclick?.()
+    expect(send).toHaveBeenCalledExactlyOnceWith('garden')
+    expect(disable).toHaveBeenCalledExactlyOnceWith('jam')
+    // No optimistic deletion: the worker can refuse because the package is still in use.
+    expect(parts.savedViews).toEqual(views)
+    expect(descendants(parts.notebookList).filter(b => b.dataset.researchSaved).map(b => b.dataset.researchSaved)).toEqual(['jam', 'garden', 'unfinished'])
+  })
+})
+
 /** The panel's state alone, without its elements: open or not, thinking or not. */
 function panel(open: boolean, pending: boolean) {
   const element = { classList: { add: vi.fn(), remove: vi.fn(), toggle: vi.fn() }, focus: vi.fn() }
   vi.stubGlobal('document', { getElementById: () => element, querySelector: () => element })
   const cancel = vi.fn()
   const w = Object.assign(Object.create(ResearchWindow.prototype), {
-    root: { hidden: !open }, kept: new Map(), waiting: pending, pending: pending ? 'npc.garrick' : undefined, who: open ? 'npc.garrick' : undefined, actions: { ask: vi.fn(), confirm: vi.fn(), cancel },
+    root: { ...element, hidden: !open }, kept: new Map(), waiting: pending, pending: pending ? 'npc.garrick' : undefined, who: open ? 'npc.garrick' : undefined, actions: { ask: vi.fn(), confirm: vi.fn(), cancel },
   }) as ResearchWindow
   const announce = vi.fn()
   const changed = vi.fn()
@@ -67,6 +172,16 @@ describe('a craftsperson thinking holds no one up', () => {
     w.close()
     expect(cancel).toHaveBeenCalled()
     expect((w as unknown as { kept: Map<string, unknown> }).kept.get('npc.garrick')).toMatchObject({ reply: { en: 'An iron axe, then.', zh: 'An iron axe, then.' } })
+  })
+
+  it('keeps a background order pending until its load offer arrives', () => {
+    const { w, announce } = panel(false, true)
+    w.receive({ t: 'research', who: 'npc.garrick', creatorProgress: 'running' })
+    expect(announce).not.toHaveBeenCalled()
+    expect((w as unknown as { pending?: string }).pending).toBe('npc.garrick')
+    w.receive({ t: 'research', who: 'npc.garrick', creatorOffer: true, token: 'creator:garden' })
+    expect(announce).toHaveBeenCalledExactlyOnceWith('npc.garrick', false)
+    expect((w as unknown as { pending?: string }).pending).toBeUndefined()
   })
 
   it('a problem that comes after one walked away is said as one', () => {

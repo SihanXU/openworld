@@ -951,7 +951,7 @@ export function buildFord(opts: { overworld?: boolean } = {}): FordWorld {
     // mode of its own (docs/prologue.md)
     start: { map: summit.id, x: PAT.spawn[0], y: PAT.spawn[1] },
     // one comes round in the clearing early in the morning: a long day to get ready for the night
-    starts: { tutorial: { at: { map: tutorial.id, x: TUTORIAL.spawn[0], y: TUTORIAL.spawn[1] }, hour: 7, statuses: { out_cold: 50 } } },
+    starts: { tutorial: { at: { map: tutorial.id, x: TUTORIAL.spawn[0], y: TUTORIAL.spawn[1] }, hour: 7, statuses: { out_cold: 50 } }, creator: { at: { map: 'meadow.smithy', x: 6, y: 10 }, hour: 9, props: { creativeWorkshop: true, hunger: 10 } } },
     startHour: START_HOUR,
     maps: [...builders.map((b, i) => metaOf(b, chunks[i])), { id: overworld.map.id, name: overworld.map.name, kind: overworld.map.kind, region: overworld.map.region, width: overworld.map.width, height: overworld.map.height, portals: [], npcs: 0, items: 0 }, ...backdrop.map((c) => ({ ...backdropMeta(c), npcs: backdropPeople.get(c.map.id) ?? 0, ...(c.map.regions && Object.keys(c.map.regions).length && { regions: c.map.regions }) }))],
     // the continent's regions (docs/continent.md), as the world map draws them

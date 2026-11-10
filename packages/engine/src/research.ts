@@ -4,6 +4,7 @@
 // craftsperson thinks is needed; the service designs that kind (its numbers, makeup, station) and draws both, after the
 // reply (`sketch`): the player reads the craftsperson while the picture is drawn.
 import { artProblems } from './mod.ts'
+import { readCapabilityDescriptor, readResearchPlan, type CapabilityDescriptor, type ResearchPlan } from './creation.ts'
 import type { PixelArt, Text, Tier, TypeDef } from './types.ts'
 
 /** A researched kind is its prototype's child named apart: `<prototype>/invention_<id>`. */
@@ -16,6 +17,10 @@ export const isPrivateName = (id: string): boolean => id.startsWith(PRIVATE_RULE
 export interface ResearchCatalogue {
   prototypes: string[]
   materials: string[]
+  /** Registered uses the NPC can plan; omitted for clients using the recipe-only conversation. */
+  capabilities?: CapabilityDescriptor[]
+  /** Current user of the proposed item. Omitted by older clients; a missing profession means none is chosen. */
+  actor?: { level: number; profession?: string }
   /** The stations within reach of the one who asks (`hands` is always one): where a new kind may be made. */
   stations?: string[]
   /** Every kind an ordinary craft of the game makes, open to the player or not: no new kind is one's child. */
@@ -26,6 +31,8 @@ export interface ResearchCatalogue {
   tools?: string[]
   /** The prototypes' icons as the game draws them (the page has the pictures): a variant's icon is one of these, edited. */
   icons?: Record<string, PixelArt>
+  /** Original game icons for visual reference only; these confer no crafting or variant permission. */
+  artReferences?: Record<string, PixelArt>
   /** Planning hints only; confirmation recomputes all costs from the current game. */
   guidance?: {
     materials: { type: string; value: number; available: number }[]
@@ -62,11 +69,28 @@ export interface ResearchReply {
   /** In both languages: the game's language is switched at will, and the line follows it. */
   reply: Text
   design?: ResearchDesign
+  /** Proposed uses, bound to the created or existing save-private item at confirmation. */
+  plan?: ResearchPlan
   /** The service's record of this turn (the craftsperson's own memory): what came of it is reported against it. */
   episode?: string
   /** The design's picture is still being drawn: asked for by this id (the reply does not wait for it). */
   sketch?: string
 }
+
+/** An asynchronous artist's evidence. Only the accepted art is copied into the recipe/save. */
+export interface ResearchArtReview {
+  reference?: { type: string; art: PixelArt }
+  original?: PixelArt
+  repaired?: PixelArt
+  checks: { stage: 'original' | 'repair'; problems: string[] }[]
+  issues: string[]
+  criteria?: { recognizable: boolean; structure: boolean; style: boolean; material: boolean }
+  accepted: boolean
+  silhouette?: 'preserve' | 'free'
+  fallback?: 'original' | 'reference' | 'none'
+}
+
+export interface ResearchSketch { art?: PixelArt; review?: ResearchArtReview }
 
 export interface ResearchRequest {
   npc: string
@@ -75,6 +99,12 @@ export interface ResearchRequest {
   catalogue: ResearchCatalogue
   /** The draft on the table (the craftsperson's last proposal, its picture if drawn): what a change of mind changes. */
   draft?: ResearchDesign
+  /** The uses on the table, kept when the player asks to revise part of a proposal. */
+  plan?: ResearchPlan
+  /** An existing item whose uses are being extended, independent of its original recipe or current materials. */
+  subject?: { typeId: string; name: Text; plan: ResearchPlan }
+  /** Actual failed checks for the current draft, returned to the NPC when the player asks for a revision. */
+  trialFeedback?: { revision: number; errors: string[] }
   /**
    * The player's AI setting for making new things (design.md §13; never `off`, which asks nothing): low draws no
    * picture and keeps nothing in the craftsperson's notebook, high draws with more thought. Unset: medium.
@@ -133,9 +163,9 @@ export function readResearchOutcome(value: unknown): ResearchOutcome {
 
 /** Bound even direct HTTP callers before their text reaches a model or is logged. */
 export function readResearchRequest(value: unknown): ResearchRequest {
-  if (!record(value) || !keys(value, ['npc', 'message', 'history', 'catalogue', 'draft', 'create']) || !words(value.npc, 100) || !words(value.message, 1000)) throw new Error('Invalid research request')
+  if (!record(value) || !keys(value, ['npc', 'message', 'history', 'catalogue', 'draft', 'create', 'plan', 'subject', 'trialFeedback']) || !words(value.npc, 100) || !words(value.message, 1000)) throw new Error('Invalid research request')
   const c = value.catalogue
-  if (!record(c) || !keys(c, ['prototypes', 'materials', 'stations', 'tools', 'crafted', 'makes', 'icons', 'guidance'])) throw new Error('Invalid research catalogue')
+  if (!record(c) || !keys(c, ['prototypes', 'materials', 'stations', 'tools', 'crafted', 'makes', 'icons', 'artReferences', 'guidance', 'capabilities', 'actor'])) throw new Error('Invalid research catalogue')
   // a tool's tag (`hammer`): plain words, read into the craftsperson's system prompt
   const toolTags = (x: unknown): string[] => {
     if (!Array.isArray(x) || x.length > 40 || !x.every((t) => typeof t === 'string' && /^[a-z][a-z0-9_-]{0,40}$/.test(t))) throw new Error('Invalid research catalogue entries')
@@ -151,6 +181,16 @@ export function readResearchRequest(value: unknown): ResearchRequest {
     return { player: turn.player, npc: lineOf(turn.npc, 1600, 'Invalid research conversation', true) }
   })
   const catalogue: ResearchCatalogue = { prototypes: ids(c.prototypes), materials: ids(c.materials) }
+  if (c.actor !== undefined) {
+    const a = c.actor
+    if (!record(a) || !keys(a, ['level', 'profession']) || typeof a.level !== 'number' || !Number.isSafeInteger(a.level) || a.level < 1 || a.level > 1e6 || a.profession !== undefined && (typeof a.profession !== 'string' || !/^[a-zA-Z0-9_/-]{1,80}$/.test(a.profession))) throw new Error('Invalid research actor')
+    catalogue.actor = { level: a.level, ...(a.profession !== undefined && { profession: a.profession as string }) }
+  }
+  if (c.capabilities !== undefined) {
+    if (!Array.isArray(c.capabilities) || c.capabilities.length > 80) throw new Error('Invalid research capabilities')
+    catalogue.capabilities = c.capabilities.map(readCapabilityDescriptor)
+    if (new Set(catalogue.capabilities.map((x) => x.id)).size !== catalogue.capabilities.length) throw new Error('Repeated research capability')
+  }
   if (c.stations !== undefined) {
     if (!Array.isArray(c.stations) || c.stations.length > 40 || !c.stations.every((x) => words(x, 60))) throw new Error('Invalid research catalogue entries')
     catalogue.stations = [...new Set(c.stations as string[])]
@@ -177,6 +217,10 @@ export function readResearchRequest(value: unknown): ResearchRequest {
     if (!record(c.icons) || Object.keys(c.icons).length > 80) throw new Error('Invalid research catalogue entries')
     catalogue.icons = Object.fromEntries(Object.entries(c.icons).filter(([k]) => catalogue.prototypes.includes(k)).map(([k, v]) => [k, artOf(v)]))
   }
+  if (c.artReferences !== undefined) {
+    if (!record(c.artReferences) || Object.keys(c.artReferences).length > 24 || !Object.keys(c.artReferences).every(id => /^item\/[a-zA-Z0-9_/-]{1,150}$/.test(id))) throw new Error('Invalid research art references')
+    catalogue.artReferences = Object.fromEntries(Object.entries(c.artReferences).map(([id, art]) => [id, artOf(art)]))
+  }
   if (c.guidance !== undefined) {
     const g = c.guidance
     const positive = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0 && n <= 1e9
@@ -199,7 +243,20 @@ export function readResearchRequest(value: unknown): ResearchRequest {
     } catch { /* dropped */ }
   }
   if (value.create !== undefined && value.create !== 'low' && value.create !== 'medium' && value.create !== 'high') throw new Error('Invalid research request')
-  return { npc: value.npc, message: value.message, history, catalogue, ...(draft && { draft }), ...(value.create !== undefined && { create: value.create as Tier }) }
+  const plan = value.plan === undefined ? undefined : readResearchPlan(value.plan)
+  let subject: ResearchRequest['subject']
+  if (value.subject !== undefined) {
+    const s = value.subject
+    if (!record(s) || !keys(s, ['typeId', 'name', 'plan']) || typeof s.typeId !== 'string' || !/^item\/[a-zA-Z0-9_/-]{1,150}$/.test(s.typeId)) throw new Error('Invalid research subject')
+    subject = { typeId: s.typeId, name: lineOf(s.name, 80, 'Invalid research subject', true), plan: readResearchPlan(s.plan) }
+  }
+  let trialFeedback: ResearchRequest['trialFeedback']
+  if (value.trialFeedback !== undefined) {
+    const f = value.trialFeedback
+    if (!record(f) || !keys(f, ['revision', 'errors']) || !Number.isSafeInteger(f.revision) || Number(f.revision) < 1 || !Array.isArray(f.errors) || !f.errors.length || f.errors.length > 8 || !f.errors.every(e => words(e, 500))) throw new Error('Invalid research trial feedback')
+    trialFeedback = { revision: f.revision as number, errors: [...f.errors] as string[] }
+  }
+  return { npc: value.npc, message: value.message, history, catalogue, ...(draft && { draft }), ...(plan && { plan }), ...(subject && { subject }), ...(trialFeedback && { trialFeedback }), ...(value.create !== undefined && { create: value.create as Tier }) }
 }
 
 const record = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x) && (Object.getPrototypeOf(x) === Object.prototype || Object.getPrototypeOf(x) === null)
@@ -212,11 +269,11 @@ const words = (x: unknown, max: number): x is string => typeof x === 'string' &&
  * (researchCraft.ts). This is only structural validation; affordability, balance and reach are game checks.
  */
 export function readResearchReply(value: unknown, catalogue: ResearchCatalogue): ResearchReply {
-  if (!record(value) || !keys(value, ['reply', 'design', 'episode', 'sketch'])) throw new Error('Invalid research reply')
+  if (!record(value) || !keys(value, ['reply', 'design', 'episode', 'sketch', 'plan'])) throw new Error('Invalid research reply')
   const reply = lineOf(value.reply, 1600, 'Say the reply in English and in Chinese: {"en": …, "zh": …}')
   const handle = (x: unknown) => x === undefined || (typeof x === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(x))
   if (!handle(value.episode) || !handle(value.sketch)) throw new Error('Invalid research reply')
-  const episode = { ...(value.episode !== undefined && { episode: value.episode as string }), ...(value.sketch !== undefined && !!value.design && { sketch: value.sketch as string }) }
+  const episode = { ...(value.episode !== undefined && { episode: value.episode as string }), ...(value.sketch !== undefined && !!value.design && { sketch: value.sketch as string }), ...(value.plan !== undefined && { plan: readResearchPlan(value.plan) }) }
   if (value.design === undefined || value.design === null) return { reply, ...episode }
   const d = value.design
   if (!record(d) || !keys(d, ['kind', 'name', 'prototype', 'ingredients', 'art', 'idea', 'type'])) throw new Error('Invalid recipe design')
@@ -226,7 +283,8 @@ export function readResearchReply(value: unknown, catalogue: ResearchCatalogue):
     return { reply, design: { kind: 'new', name, idea: d.idea.trim(), ...(d.type !== undefined && { type: typeOf(d.type, catalogue) }) }, ...episode }
   }
   if (d.kind !== undefined && d.kind !== 'variant') throw new Error('Invalid recipe design')
-  if (typeof d.prototype !== 'string' || !catalogue.prototypes.includes(d.prototype)) throw new Error('Choose an available kind of item')
+  if (typeof d.prototype !== 'string') throw new Error('Choose an available kind of item')
+  if (!catalogue.prototypes.includes(d.prototype)) throw new Error(`Choose an available kind of item: "${d.prototype}" is not a currently available variant prototype. Only catalogue.prototypes authorizes a variant; entries in makes describe existing recipes, not variant permission. Use a listed prototype, design a genuinely distinct supported kind:new in an appropriate family, or ask one useful question with design null.`)
   return { reply, design: { name, prototype: d.prototype, ingredients: ingredientsOf(d.ingredients, catalogue), ...(d.art !== undefined && { art: artOf(d.art) }) }, ...episode }
 }
 

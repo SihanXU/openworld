@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Frame } from '@openworld/engine'
+import type { WorkshopView } from '../src/protocol.ts'
 import { Menu } from '../src/ui/menu.ts'
 import { ContextMenu } from '../src/ui/context-menu.ts'
 
@@ -173,6 +174,35 @@ async function settleContextMenuTimer(): Promise<void> {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('inventory context menu lifecycle', () => {
+  it('uses an adopted ability from the bag on the clicked instance without reopening the NPC', () => {
+    const dom = domHarness(); vi.stubGlobal('document', dom.document); vi.stubGlobal('window', dom.window)
+    const menu = bareMenu(), use = vi.fn()
+    const item = { id: 'berry-second', type: 'item/food/berries', name: 'Berries', props: {} }
+    Object.assign(menu, { send: { workshopUse: use }, frame: { player: { held: item, slots: [{ item }], worn: {} } } })
+    const view: WorkshopView = { id: 'berry-uses', revision: 1, kind: 'uses', title: 'Berries', typeId: item.type, adopted: true,
+      uses: [{ id: 'spread', label: 'Spread berries', capability: 'spread', target: 'Food', targetId: 'item', status: 'tested' }],
+      trial: { revision: 1, passed: true, checks: [{ id: 'spread', label: 'Spread berries', passed: true, observed: 'Food increased' }] } }
+    menu.workshop([view])
+    ;(menu as unknown as MenuInternals).contextMenu(20, 30, item.id)
+    dom.document.querySelector('.ctx')!.children[0]!.click()
+    expect(use).toHaveBeenCalledExactlyOnceWith('berry-uses', 'spread', 'item', 'berry-second')
+    expect(menu.creationItem('berry-uses')).toBe(item.id)
+    menu.workshop([{ ...view, revision: 2 }])
+    ;(menu as unknown as MenuInternals).contextMenu(20, 30, item.id)
+    expect(dom.document.querySelector('.ctx')!.children).toHaveLength(1)
+  })
+
+  it('lets a carried target receive the selected use while preserving the source instance', () => {
+    const dom = domHarness(); vi.stubGlobal('document', dom.document); vi.stubGlobal('window', dom.window)
+    const menu = bareMenu(), use = vi.fn()
+    const bread = { id: 'bread', type: 'item/food/bread', name: 'Bread', props: {} }
+    Object.assign(menu, { send: { workshopUse: use }, frame: { player: { slots: [{ item: bread }], worn: {} } }, creationViews: [] })
+    menu.creationTarget = { id: 'jam', use: 'spread', item: 'jam-second', label: 'Spread' }
+    ;(menu as unknown as MenuInternals).contextMenu(20, 30, bread.id)
+    dom.document.querySelector('.ctx')!.children[0]!.click()
+    expect(use).toHaveBeenCalledExactlyOnceWith('jam', 'spread', 'item', 'jam-second', 'bread')
+  })
+
   it.each([
     { sourceCount: 5, pickedCount: 3, remainder: '2' },
     { sourceCount: 6, pickedCount: 3, remainder: '3' },

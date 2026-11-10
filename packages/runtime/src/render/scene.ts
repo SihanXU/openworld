@@ -6,6 +6,7 @@ import Phaser from 'phaser'
 import { cellId, type Aim, type Dir, type EntitySnap, type Frame, type FxEvent, type LightPool, type Look, type MapData, type Mood, type Ref, type RegionLook, type Text, type Vista, type WindupPose } from '@openworld/engine'
 import { catalog, game, hasLooks, ontology } from '../game.ts'
 import { Soundscape } from '../audio/soundscape.ts'
+import { MapEnvironmentView, environmentLook, waterfallLevel } from './environment.ts'
 import { hexRgb, installWorldFilter, signalCamera } from './worldfilter.ts'
 import { LSW_FLOOR, LSW_STAIRS, LSW_WALL } from '../assets/types.ts'
 import { faceFrame, personLook } from '../assets/looks.ts'
@@ -22,7 +23,7 @@ import { prefs } from '../ui/common.ts'
 /** How much higher a storey is drawn than the one below it (world-model.md §5.2): one tile, a wall's height. */
 const STOREY_LIFT = T
 import type { ActorDef, Catalog, SpriteDef } from '../assets/types.ts'
-import { DIR_COL, actorFrames, assetUrl, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
+import { DIR_COL, actorFrames, assetUrl, composeCatalog, fxAnim, preloadCatalog, spriteFrames } from './assets.ts'
 import { BossAnimationClock, bossAnimationFrame } from './boss-animation.ts'
 import { SkillFx } from './skillfx.ts'
 import { isStripBoss } from '../assets/bosses.ts'
@@ -156,6 +157,7 @@ function hashStr(s: string, salt = 0): number {
 }
 
 export class WorldScene extends Phaser.Scene {
+  private environmentView = new MapEnvironmentView(this)
   hooks!: SceneHooks
   private atlas!: GroundAtlas
   private groundKey = 'ground'
@@ -185,6 +187,7 @@ export class WorldScene extends Phaser.Scene {
   private faded = new Set<Phaser.GameObjects.Image>()
   private views = new Map<string, EView>()
   private tileFx = new Map<string, { sprites: Phaser.GameObjects.GameObject[]; sig: string }>()
+  private creationFlightViews = new Map<string, () => void>()
   /** A stocked pond's water cells (MapData.fish), the fish shadows gliding in it now, and when the next one shows. */
   private fishWater: [x: number, y: number, open: boolean][] = []
   private fishShadows = new Set<Phaser.GameObjects.Image>()
@@ -250,6 +253,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create(): void {
+    composeCatalog(this, catalog())
     this.load.off('progress', this.onPreloadProgress, this)
     this.preloadBar?.destroy()
     this.preloadBar = undefined
@@ -357,7 +361,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** The shown look a step `k` (0…1) toward the region's. */
   private easeLook(k: number): void {
-    const t = this.regionLook
+    const t = (this.base && environmentLook(this.base)) ?? this.regionLook
     const s = this.shownLook
     const amount = t?.tint ? (t.tintAmount ?? 0.2) : 0
     if (t?.tint) {
@@ -371,12 +375,14 @@ export class WorldScene extends Phaser.Scene {
   }
 
   setMap(map: MapData): void {
+    this.environmentView.reset()
     if (!this.ready) {
       this.pending.map = map
       this.pending.frames = []
       return
     }
     if (!this.free) this.cameras.main.fadeIn(220, 8, 10, 16)
+    for (const finish of this.creationFlightViews.values()) finish()
     for (const v of this.views.values()) this.destroyView(v)
     this.views.clear()
     for (const t of this.tileFx.values()) t.sprites.forEach((s) => s.destroy())
@@ -757,7 +763,7 @@ export class WorldScene extends Phaser.Scene {
     }
     this.focusOn(f)
     this.drawMarks()
-    for (const fx of f.fx) this.playFx(fx)
+    for (const fx of f.fx) this.playFx(fx, f.tick)
     this.weather = (this.base.light ?? 'outdoor') === 'outdoor' ? f.calendar.weather : 'sun'
     this.updateNight(f)
     this.hearFrame(f)
@@ -1297,7 +1303,7 @@ export class WorldScene extends Phaser.Scene {
     return def ? { key: `cre:${key}`, def } : undefined
   }
 
-  private textureFor(e: EntitySnap): { img: string; frame: string; ax: number; ay: number; actor?: EView['actor'] } {
+  private textureFor(e: EntitySnap): { img: string; frame: string; ax: number; ay: number; scale?: number; actor?: EView['actor'] } {
     // a body (docs/npc-sandbox.md §2.8): the one it was, as they looked, lying where they fell
     if (e.tags.includes('body') && e.look && typeof e.look === 'object') {
       const a = figureDef(this, e.look)
@@ -1325,7 +1331,7 @@ export class WorldScene extends Phaser.Scene {
         const across = (e.facing === 'left' || e.facing === 'right') && f.across
         const d = ((e.statuses.includes('lit') || e.statuses.includes('attuned')) && f.lit) || (e.open && f.open) || across || (v >= 0 ? f.variants![v] : f.base)
         const [frame] = spriteFrames(this, `fix:${e.sprite}:${d === f.lit ? 'lit' : d === f.open ? 'open' : d === across ? 'across' : v >= 0 ? `v${v}` : 'base'}`, d)
-        return { img: d.img, frame, ax: d.ax, ay: d.ay }
+        return { img: d.img, frame, ax: d.ax, ay: d.ay, scale: f.scale }
       }
     }
     // gear lying on the ground is a bundle, all alike: what it is shows once it is picked up (its own icon in the bag)
@@ -1562,7 +1568,7 @@ export class WorldScene extends Phaser.Scene {
     }
     const body = this.add.sprite(0, 0, t.img, t.frame)
     body.setOrigin(t.ax / body.width, t.ay / body.height)
-    if (t.actor?.scale) body.setScale(t.actor.scale)
+    if (t.actor?.scale || t.scale) body.setScale(t.actor?.scale ?? t.scale!)
     if (e.type.startsWith('item/') && !e.spaces) body.setScale(0.8)
     // a built thing come loose lies as a thing does: its own picture, as small as an item's
     if (e.loose) body.setScale(Math.min(0.8, 14 / Math.max(body.width, body.height)))
@@ -1697,7 +1703,7 @@ export class WorldScene extends Phaser.Scene {
       const t = this.textureFor(e)
       v.actor = t.actor
       v.body.setTexture(t.img, t.frame)
-      v.body.setScale(t.actor?.scale ?? 1)
+      v.body.setScale(t.actor?.scale ?? t.scale ?? 1)
     }
     v.root.setDepth(this.depthOf(e))
     // what stands on a storey above the player over the room they are in is not drawn (one sees into
@@ -1886,6 +1892,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   update(time: number): void {
+    if (this.base) this.environmentView.update(this.base, [...this.views.values()].map(v => v.snap), time)
     if (this.cinema) this.driftCinema(time)
     this.drawWeather(time)
     this.drawGuide(time)
@@ -2196,7 +2203,7 @@ export class WorldScene extends Phaser.Scene {
     let fire = 0
     for (const e of f.entities)
       if (e.statuses.includes('lit') || e.statuses.includes('burning')) fire = Math.max(fire, 1 - Math.hypot(e.x - cx, e.y - cy) / 7)
-    a.ambience.update({ light, hour: f.hour, dusk: f.night.dusk, dawn: f.night.dawn, weather: this.weather, water: Math.min(1, water / 30), cold: cells ? Math.min(1, (cold / cells) * 1.6) : 0, fire: Math.max(0, fire) })
+    a.ambience.update({ light, hour: f.hour, dusk: f.night.dusk, dawn: f.night.dawn, weather: this.weather, water: Math.max(Math.min(1, water / 30), waterfallLevel(f.entities, cx, cy)), cold: cells ? Math.min(1, (cold / cells) * 1.6) : 0, fire: Math.max(0, fire) })
   }
   private terrainTags = new Map<string, Set<string>>()
 
@@ -2556,7 +2563,7 @@ export class WorldScene extends Phaser.Scene {
     this.sfx(name, 0.55)
   }
 
-  playFx(fx: FxEvent): void {
+  playFx(fx: FxEvent, tick?: number): void {
     if (fx.t === 'strike') {
       // lightning: a flash over everything, then the bolt where it lands
       this.flash?.setAlpha(0.75)
@@ -2568,6 +2575,38 @@ export class WorldScene extends Phaser.Scene {
     if (fx.t === 'vfx') {
       const x = fx.x * T + 8
       const y = fx.y * T + 8
+      if (fx.fx === 'creation-land') {
+        if (fx.instance) this.creationFlightViews.get(fx.instance)?.()
+        return
+      }
+      if (fx.fx.startsWith('creation-throw:')) {
+        const type = fx.fx.slice('creation-throw:'.length)
+        const art = `art:${type}`
+        const sprite = game().items.forms[type]?.sprite
+        const definition = sprite ? catalog().items[sprite] : undefined
+        const image = this.textures.exists(art) ? this.add.image(x, y, art)
+          : definition ? this.add.image(x, y, definition.img, spriteFrames(this, `throw:${sprite}`, definition)[0]) : undefined
+        if (!image) return
+        const span = fx.span ?? 0, angle = fx.angle ?? 0
+        const dx = Math.cos(angle) * span * T, dy = Math.sin(angle) * span * T
+        const shadow = this.add.ellipse(x, y + 5, 9, 3, 0x10191c, 0.3).setDepth(1e6 - 1)
+        image.setDepth(1e6)
+        const progress = { value: 0 }
+        let tween: Phaser.Tweens.Tween | undefined
+        const finish = () => { tween?.stop(); image.destroy(); shadow.destroy(); if (fx.instance) this.creationFlightViews.delete(fx.instance) }
+        if (fx.instance) { this.creationFlightViews.get(fx.instance)?.(); this.creationFlightViews.set(fx.instance, finish) }
+        this.sfx('attack', 0.2)
+        const duration = fx.untilTick !== undefined && tick !== undefined ? Math.max(1, fx.untilTick - tick) * 100 : fx.durationMs ?? 300
+        tween = this.tweens.add({ targets: progress, value: 1, duration,
+          onUpdate: () => {
+            const u = progress.value, px = x + dx * u, py = y + dy * u
+            image.setPosition(px, py - Math.sin(u * Math.PI) * Math.min(18, 6 + span * 3)).setAngle(u * 210)
+            shadow.setPosition(px, py + 5).setScale(1 - Math.sin(u * Math.PI) * 0.3)
+          },
+          onComplete: finish,
+        })
+        return
+      }
       const [kind, a, b, c, d] = fx.fx.split(':')
       if (kind === 'swing') {
         const [dx, dy] = dirVec(a)

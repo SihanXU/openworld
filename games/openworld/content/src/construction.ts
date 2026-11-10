@@ -1,5 +1,5 @@
 import type { PlacementNeed, PlacementRecipe, Text } from '@openworld/engine'
-import { VEGETABLE_CROPS } from './crops.ts'
+import { FLOWER_CROPS, VEGETABLE_CROPS } from './crops.ts'
 
 const text = (en: string, zh: string): Text => ({ en, zh })
 const material = (id: string, en: string, zh: string, count: number): PlacementNeed =>
@@ -34,7 +34,7 @@ export const FARMING: PlacementRecipe[] = [
   { id: 'till', category: 'farming', name: text('Till Soil', '开垦耕地'), sprite: 'item:hoe',
     description: text('Hoe empty soil into farmland.', '用锄头将空地翻成耕地。'), target: 'tile', site: { tags: ['diggable'] }, empty: 'non-actors', excludeTerrain: ['farmland'],
     needs: [tool('tool:hoe', 'Hoe', '锄头', 'item:hoe')], steps: [hit(0, 'farm/till')] },
-  ...VEGETABLE_CROPS.map((c): PlacementRecipe => ({ id: `sow-${c.id}`, category: 'farming', name: text(`Sow ${c.en}`, `播种${c.zh}`), sprite: `item:${c.id}_seed`,
+  ...[...VEGETABLE_CROPS, ...FLOWER_CROPS].map((c): PlacementRecipe => ({ id: `sow-${c.id}`, category: 'farming', name: text(`Sow ${c.en}`, `播种${c.zh}`), sprite: `item:${c.id}_seed`,
     description: text('One seed on empty farmland. Water at each growing stage.', '消耗一份种子，在空耕地播种。每个生长阶段都需要浇水。'), target: 'tile', site: { type: 'tile/farmland' }, empty: 'non-actors',
     needs: [{ match: { type: `item/seed/${c.id}` }, name: text(`${c.en} Seeds`, `${c.zh}种子`), sprite: `item:${c.id}_seed`, count: 1, consume: true }], steps: [hit(0, 'farm/sow')] })),
   { id: 'water', category: 'farming', name: text('Water', '浇水'), sprite: 'item:bucket_water',

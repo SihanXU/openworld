@@ -301,7 +301,7 @@ export class NpcSim {
     const dir = wayTo(x, y, nx, ny)!
     if (eng.step(e, dir)) (rt.path.shift(), (rt.blocked = 0))
     else if (++rt.blocked > 6) (rt.path = undefined), (rt.blocked = 0)
-    eng.setCooldown(e.id, NPC_STEP_TICKS)
+    eng.setCooldown(e.id, eng.combat.delay(e, NPC_STEP_TICKS, 'move'))
     return 'walking'
   }
 
@@ -371,7 +371,7 @@ export class NpcSim {
       if (s > best) (best = s), (bestDir = d)
     }
     if (bestDir) eng.step(e, bestDir)
-    eng.setCooldown(e.id, NPC_STEP_TICKS - 1)
+    eng.setCooldown(e.id, eng.combat.delay(e, NPC_STEP_TICKS - 1, 'move'))
     return true
   }
 
@@ -490,7 +490,7 @@ export class NpcSim {
         const dirs: Dir[] = ['up', 'down', 'left', 'right']
         const d = dirs[Math.floor(w.rand() * 4)]
         eng.step(e, d)
-        eng.setCooldown(e.id, NPC_STEP_TICKS * 3)
+        eng.setCooldown(e.id, eng.combat.delay(e, NPC_STEP_TICKS * 3, 'move'))
       }
       return true
     }
@@ -533,7 +533,7 @@ export class NpcSim {
       rt.blocked = 0
       rt.around = true
     }
-    eng.setCooldown(e.id, NPC_STEP_TICKS)
+    eng.setCooldown(e.id, eng.combat.delay(e, NPC_STEP_TICKS, 'move'))
     return true
   }
 }

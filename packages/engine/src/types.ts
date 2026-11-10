@@ -1319,6 +1319,13 @@ export interface Aim {
   over?: { x: number; y: number }
 }
 
+/** Bounded local presentation presets, without asset URLs or executable behavior. */
+export interface MapEnvironment {
+  palette?: 'verdant'
+  water?: 'stream'
+  fireflies?: boolean
+}
+
 export interface MapData {
   id: string
   name: Text
@@ -1354,6 +1361,7 @@ export interface MapData {
   rooms?: { style: string; x: number; y: number; w: number; h: number }[]
   music?: string
   light?: 'outdoor' | 'indoor' | 'dark'
+  environment?: MapEnvironment
   /**
    * Where the camera draws back and looks ahead (render hint, docs/showcase.md §3.3): standing in a vista's rect, the
    * view is `zoom` times the usual and centred `look` cells from whoever it follows — a cathedral's front seen whole from
@@ -2298,7 +2306,7 @@ export interface Rule {
 // ------------------------------------------------------------------ outputs to the client
 
 export type FxEvent =
-  | { t: 'vfx'; fx: string; map: string; x: number; y: number; angle?: number; span?: number; /** who made it (a blow's swing, a bolt loosed): drawn wielding it wherever they are drawn now */ who?: Id }
+  | { t: 'vfx'; fx: string; map: string; x: number; y: number; angle?: number; span?: number; /** Identity of a persistent effect, such as a thrown inventory instance. */ instance?: Id; /** Simulation-aligned duration supplied by trusted engine code. */ durationMs?: number; /** Fixed contact tick, allowing the renderer to account for snapshot delivery. */ untilTick?: number; /** who made it (a blow's swing, a bolt loosed): drawn wielding it wherever they are drawn now */ who?: Id }
   | { t: 'say'; who: Id; text: Text; mood?: Mood; scene?: boolean; /** said to another (one person telling another): heard in passing, not a talk with the one at the keys */ to?: Id; /** called out (a companion leading the way): a bubble, never the talk's box */ aside?: boolean }
   | { t: 'emote'; who: Id; mood: Mood }
   | { t: 'fade'; dir: 'out' | 'in' }

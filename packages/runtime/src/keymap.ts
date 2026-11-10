@@ -11,7 +11,7 @@
 export const ACTIONS = [
   'up', 'down', 'left', 'right', 'run', 'walk',
   'hands', 'put', 'rotate',
-  'attack', 'dash', 'draw', 'sneak',
+  'attack', 'dash', 'draw', 'sneak', 'ability',
   'cast1', 'cast2', 'cast3', 'cast4', 'cast5', 'cast6',
   'slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot10', 'row',
   'bag', 'craft', 'skills', 'skillPanel', 'quests', 'journal', 'map', 'build', 'companion',
@@ -51,6 +51,7 @@ export function defaultKeys(): Keymap {
     dash: [k('KeyQ')],
     draw: [k('KeyX')],
     sneak: [k('KeyV')],
+  ability: [k('KeyZ')],
     row: [k('Tab', true)],
     bag: [k('Tab'), k('KeyI')],
     craft: [k('KeyC')],
@@ -264,6 +265,7 @@ export const ACTION_NAME: Record<Action, [string, string]> = {
   dash: ['Dash', '冲刺'],
   draw: ['Draw or sheathe your weapon', '拔刀 / 收刀'],
   sneak: ['Sneak', '潜行'],
+  ability: ['Next ability (workshop elemental use)', '切换御术（造物能力）'],
   cast1: ['Skill 1', '技能 1'],
   cast2: ['Skill 2', '技能 2'],
   cast3: ['Skill 3', '技能 3'],
@@ -296,7 +298,7 @@ export const ACTION_NAME: Record<Action, [string, string]> = {
 export const GROUPS: { name: [string, string]; actions: Action[] }[] = [
   { name: ['Moving', '移动'], actions: ['up', 'down', 'left', 'right', 'run', 'walk'] },
   { name: ['Acting', '交互'], actions: ['hands', 'put', 'rotate'] },
-  { name: ['Fighting', '战斗'], actions: ['attack', 'dash', 'draw', 'sneak', 'cast1', 'cast2', 'cast3', 'cast4', 'cast5', 'cast6'] },
+  { name: ['Fighting', '战斗'], actions: ['attack', 'dash', 'draw', 'sneak', 'ability', 'cast1', 'cast2', 'cast3', 'cast4', 'cast5', 'cast6'] },
   { name: ['Toolbar', '快捷栏'], actions: ['slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8', 'slot9', 'slot10', 'row'] },
   { name: ['Panels', '面板'], actions: ['bag', 'craft', 'skills', 'skillPanel', 'quests', 'journal', 'map', 'build', 'companion'] },
 ]

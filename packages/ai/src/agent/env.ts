@@ -281,7 +281,7 @@ export async function chooseIsolation(): Promise<Isolation> {
 const SANDBOX_DIR = fileURLToPath(new URL('../../sandbox', import.meta.url))
 let imageAnswer: Promise<string> | undefined
 /** The sandbox image (LSW_SANDBOX_IMAGE, default `lsw-sandbox`, built from packages/ai/sandbox when missing). */
-export function sandboxImage(cli = 'docker'): Promise<string> {
+export function sandboxImage(cli: DockerCli = 'docker'): Promise<string> {
   imageAnswer ??= (async () => {
     const name = process.env.LSW_SANDBOX_IMAGE ?? 'lsw-sandbox'
     if ((await docker(cli, ['image', 'inspect', name], 30_000)).code === 0) return name

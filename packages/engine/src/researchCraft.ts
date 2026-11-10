@@ -60,6 +60,7 @@ const recipesOf = (eng: Engine, known: Iterable<Recipe> = []) => [...known, ...e
 const GOODS = /^item\/(material|food|gem)\//
 /** An ordinary craft: of goods, making the plain kind (a named set piece, with its own numbers, is none). */
 const ordinary = (r: Recipe) => r.needs.length > 0 && r.needs.every((n) => GOODS.test(n.type)) && !r.make.props && !r.make.tags && !r.bonus
+export { ordinary as isOrdinaryResearchRecipe }
 
 /** Open to the player now: their skill, the story's unlock. */
 function open(eng: Engine, r: Recipe): boolean {
@@ -95,7 +96,8 @@ export function researchCatalogue(eng: Engine, known?: Iterable<Recipe>): Resear
   const prototypes = [...new Set(recipesOf(eng, known).map((r) => r.make.type))].filter((id) => reference(eng, id, known)).slice(0, 80)
   // every kind an ordinary craft makes, open to the player or not: a new kind is never one's child (it is made at that craft)
   const crafted = [...new Set(recipesOf(eng, known).filter(ordinary).map((r) => r.make.type))].filter((t) => /^item\//.test(t)).slice(0, 400)
-  return { materials, prototypes, stations: ['hands', ...w.stationsNear(w.player)], tools: [...toolsCarried(eng)].slice(0, 40), crafted, makes: makesOf(eng, known), guidance: {
+  const profession = w.prop(w.player, 'profession')
+  return { materials, prototypes, actor: { level: w.num(w.player, 'level', 1), ...(typeof profession === 'string' && profession && { profession }) }, stations: ['hands', ...w.stationsNear(w.player)], tools: [...toolsCarried(eng)].slice(0, 40), crafted, makes: makesOf(eng, known), guidance: {
     materials: materials.map((type) => ({ type, value: price(eng, type), available: eng.controls.count(type) })),
     prototypes: prototypes.map((type) => {
       const r = reference(eng, type, known)!
@@ -118,18 +120,22 @@ export function researchPatch(eng: Engine, proposed: unknown, id: string, known?
 }
 
 const nameText = (n: VariantDesign['name']) => (typeof n === 'string' ? { en: n, zh: n } : n)
-const costOf = (eng: Engine, ingredients: { type: string; count: number }[]) => ingredients.reduce((n, m) => n + price(eng, m.type) * m.count, 0)
 const costIn = (onto: OntologyIndex, ingredients: { type: string; count: number }[]) => ingredients.reduce((n, m) => n + worth(onto, m.type) * m.count, 0)
+
+/** The same economic floor for conversation feedback and authoritative variant admission. No state is changed. */
+export function researchVariantCost(onto: OntologyIndex, prototype: string, ingredients: { type: string; count: number }[], recipeBaseline = 0): { cost: number; minimum: number } {
+  return { cost: costIn(onto, ingredients), minimum: Math.max(recipeBaseline, worth(onto, prototype)) }
+}
 
 /** A variant: the prototype's behaviour, skill, station and unlock; the first ingredient's material; the inputs' worth. */
 function variant(eng: Engine, design: VariantDesign, id: string, known?: Iterable<Recipe>): TypeDef {
   const base = reference(eng, design.prototype, known)
   if (!base) throw new ResearchProblem('locked', 'This craft is not unlocked')
   if (!id.startsWith(`${design.prototype}${INVENTION}`) || eng.world.onto.data.types[id]) throw new ResearchProblem('identity', 'Invalid invention identity')
-  const cost = costOf(eng, design.ingredients)
   const baseline = base.needs.reduce((n, m) => n + price(eng, m.type) * m.count, 0) / (base.count ?? 1)
+  const { cost, minimum } = researchVariantCost(eng.world.onto, design.prototype, design.ingredients, baseline)
   // A new material combination may not cheaply bypass an established production chain.
-  if (cost < Math.max(baseline, price(eng, design.prototype))) throw new ResearchProblem('cheap', 'The proposed materials are too cheap for this craft; add materials or choose a simpler item')
+  if (cost < minimum) throw new ResearchProblem('cheap', 'The proposed materials are too cheap for this craft; add materials or choose a simpler item')
   const original = eng.world.onto.resolve(design.prototype)
   const first = eng.world.onto.resolve(design.ingredients[0].type)
   const material = text(first.props.material || original.props.material)
@@ -203,6 +209,12 @@ export function newKindIn(onto: OntologyIndex, design: NewDesign, id: string, au
     // what it is made of: every new thing names it, and the engine holds it to the world's materials (newTypeProblems)
     if (k === 'material') {
       props[k] = v
+      continue
+    }
+    // Native magic reads its element from the instance or type; ordinary kin need not declare one.
+    if (k === 'element' && (parent === 'item/weapon/magic' || parent.startsWith('item/weapon/magic/'))) {
+      if (typeof v === 'string' && onto.data.elements.includes(v)) props[k] = v
+      else problems.push(['refused', `Unknown magic element "${v}"`])
       continue
     }
     const seen = kin.map((r) => r.props[k]).filter((x) => x !== undefined)

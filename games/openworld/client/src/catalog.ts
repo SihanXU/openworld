@@ -16,7 +16,7 @@ import { SLATE, type ReliefPalette } from '@openworld/runtime/src/assets/relief.
 import FACES from './faces.json'
 import BUILDINGS_JSON from './buildings.json'
 import LOUDNESS from './loudness.json'
-import { CROP_FIXTURES, CROP_ITEMS } from './crops.ts'
+import { CROP_FIXTURES, CROP_ITEMS, FLOWER_FIXTURES, FLOWER_ITEMS } from './crops.ts'
 import { SET_PIECES } from '@openworld-game/content'
 
 // ---------------------------------------------------------------------------------------------
@@ -223,6 +223,13 @@ const LOESS: ReliefPalette = { ...SLATE, outline: 0x3a2f1c, deep: 0x6b5a3a, dark
 const PEAT: ReliefPalette = { ...SLATE, outline: 0x131714, deep: 0x262d28, dark: 0x37403a, mid: 0x4b564d, light: 0x637062, lit: 0x7f8c7c, grass: 0x5f7350, grassShade: 0x3b4a34 }
 
 export const CATALOG: Catalog = {
+  composites: {
+    'composite:garden_pavilion': (() => {
+      const b = BUILDINGS.manor_gazebo
+      const top = Math.min(...b.slices.map(s => s.row - s.th + 1))
+      return { width: b.w * 16, height: (b.d - top) * 16, parts: b.slices.map(s => ({ sprite: px(b.img, s.x, s.y, s.tw * 16, s.th * 16), x: s.col * 16, y: (s.row - s.th + 1 - top) * 16 })) }
+    })(),
+  },
   // -------------------------------------------------------------------------------------------
   // Blobs. Every block below was checked two ways: (1) rendering a random island through
   // BLOB47 and looking at it, (2) per-tile neighbour classification. All listed blocks match.
@@ -791,6 +798,9 @@ export const CATALOG: Catalog = {
     'fixture:oak': { base: t(NATURE, 5, 9) },
     'fixture:oak_sapling': { base: t(NATURE, 5, 9) },
     ...CROP_FIXTURES,
+    ...FLOWER_FIXTURES,
+    'fixture:garden_pavilion': { base: px('composite:garden_pavilion', 0, 0, 48, 96, 24, 96) },
+    'fixture:waterfall': { base: t(WATER, 1, 7) },
     // Building: a timber rack for the frame, a stake, a sign post and a ring of stones.
     'fixture:build': { base: px(CAMP, 128, 48, 32, 32, 16, 30) },
     'fixture:frame': { base: px(CAMP, 128, 48, 32, 32, 16, 30) },
@@ -917,6 +927,7 @@ export const CATALOG: Catalog = {
     'item:seed': icon('Items/Food/Seed1.png', 8, 8),
     'item:wheat': t(ELEM, 12, 4),
     ...CROP_ITEMS,
+    ...FLOWER_ITEMS,
     // the main line's sets (docs/sets.md): a picture for every piece (tools/src/art/sets.ts)
     ...Object.fromEntries(SET_PIECES.map((p) => [p.sprite, icon(`lsw/Items/Sets/${p.set.id}/${p.piece.slot}.png`, 16, 16)])),
     'item:gem': icon('Items/Resource/GemRed.png', 15, 15),

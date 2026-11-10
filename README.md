@@ -31,6 +31,7 @@ OpenWorld is the research platform for the paper *Large Symbolic World* (in prep
 
 - [Features](#features)
 - [How the AI fits in](#how-the-ai-fits-in)
+- [NPC workshop](#npc-workshop)
 - [Getting started](#getting-started)
 - [Controls](#controls)
 - [Engine and editor](#engine-and-editor)
@@ -81,6 +82,16 @@ action does, the engine can ask a language model for one. The new rule may only 
 behaviour that is already defined, and it is tested in a sandbox before it is accepted. Accepted rules are shared,
 so the next player who tries the same thing gets the same result. Without a model, such actions fall back to a
 default, usually that nothing happens. Details: [docs/design.md](docs/design.md) §5.
+
+## NPC workshop
+
+Talk to a craftsperson and open the workshop. Describe a new item under **Things**, use **Add uses** for a held item, or choose **Places** for a new area. The agent works against a copy of the save. It checks recipes and dependencies, tries the proposed actions, and saves the candidate for review.
+
+If a key choice is missing, the craftsperson asks a short question before starting. A complete request goes straight to the agent, together with any earlier discussion. The conversation shows when the design is being worked on or adjusted after a failed trial. You can leave while the work continues. When the order is ready, **Load into this save** applies it to your current world. **Load later** leaves it pending. Return to the craftsperson, choose the same workshop tab, and repeat the request to retrieve the order. The game checks your current materials and package versions before admitting a draft. Item additions keep the original uses, and map additions keep existing objects and entrances.
+
+For local authoring, set `DEEPSEEK_API_KEY` and put Claude Code on your path. Generate the world once with `npm run gen:world`. Run `npm run creator` and `npm run dev:client` in separate terminals, then open [the local game](http://localhost:5173/?modder=http://127.0.0.1:8791). The authoring service uses the local checkout for trusted mechanism source. Player content goes into the selected save.
+
+The [creator workflow](docs/autonomous-creator.md) documents the job API, MCP tools, and executor hook for other harnesses. [Workshop examples](docs/creation-workshop.md) cover equipment, abilities, and maps.
 
 ## Getting started
 

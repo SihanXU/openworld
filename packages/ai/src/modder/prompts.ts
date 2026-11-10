@@ -5,10 +5,11 @@
 // harness replays it) is left out.
 
 import type { DraftContext, DraftKind } from './drafts.ts'
-import { isPatch, patchRules, ruleTier, tierOfRequest, type ModRequest, type ModSpec, type Patch, type PixelArt, type Rule, type StatusDef, type TypeDef } from '@openworld/engine'
+import { isPatch, patchRules, ruleTier, tierOfRequest, type ModRequest, type ModSpec, type Patch, type PixelArt, type ResearchPlan, type Rule, type StatusDef, type TypeDef } from '@openworld/engine'
 import type { Harness, EpisodeEntry, Episode as AgentEpisode, Lesson, SkillMeta } from '../agent/state.ts'
 import { compactRule } from './tools.ts'
 import { reflectFormat } from '../agent/state.ts'
+import type { ResearchTypeGuidance } from './type-guidance.ts'
 
 type Episode = AgentEpisode<ModRequest, Patch>
 
@@ -342,6 +343,8 @@ export interface Had {
   id: string
   name?: string
   props?: Record<string, unknown>
+  /** Units currently carried when this is a player's research request; omitted for an author's catalogue. */
+  available?: number
 }
 
 /**
@@ -349,10 +352,13 @@ export interface Had {
  * already have, at a place a player can have (the engine checks both, and that its numbers sit among its kind's).
  * What it does with other things is not written here: those are holes, answered act by act.
  */
-export function thingUser(intent: string, o: { catalogue: string; materials: string[]; had: Had[]; stations: string[]; elements?: string[] }): string {
+export function thingUser(intent: string, o: { catalogue: string; materials: string[]; had: Had[]; stations: string[]; elements?: string[]; plan?: ResearchPlan; guidance?: ResearchTypeGuidance }): string {
   return [
     '# A new thing',
     `The game's author wants a new thing in it: "${intent}"`,
+    ...(o.guidance ? ['', '# Working capability references from this game',
+      'These references passed the registered capability preconditions. Use their actual consumer tags and ordinary properties, not capability names as invented tags. A container shape alone does not supply its contents or a usable effect. Match the whole use plan, and stay within the family and ingredient-value bounds.',
+      JSON.stringify({ requirements: o.guidance.requirements, jointExamples: o.guidance.jointExamples, examples: o.guidance.examples, families: o.guidance.families, consumers: o.guidance.consumers }), ''] : []),
     'Design it as a type artifact (and, only if it cannot be made otherwise, one more new type it is made of):',
     '{"kind": "type", "type": {"id": "<parent>/<snake_case>", "name": {"en": "...", "zh": "..."}, "tags": ["what the world uses it by"], "props": {...}, "makeup": [{"type": "<a type>", "count": 1}], "station": "hands | <a station>"}}',
     '- The parent must exist; the new type inherits its rules and tags, so choose the parent whose behaviour fits (a blade under item/weapon if there is one, a tool under item/tool, a dish under item/food).',
@@ -361,15 +367,17 @@ export function thingUser(intent: string, o: { catalogue: string; materials: str
     o.materials.length ? `- props.material: what it is made of, one of: ${o.materials.join(', ')}.` : '- This world has no materials: leave props.material out.',
     ...(o.elements?.length ? [`- props.element: if what it is asked to be is of an element (it burns, freezes, sparks …), that element, one of: ${o.elements.join(', ')}; otherwise leave it out.`] : []),
     '- props: the numbers its kind uses (see the things a player can have, below), at a level that fits what it is: neither far above nor far below its kind.',
-    '- makeup: what it is made of, from the things a player can have (below), by type and count, so a player can make it; it is also what it leaves when broken.',
+    '- makeup: what it is made of, from the things a player can have (below), by type and count, so a player can make it; it is also what it leaves when broken. When available counts are given, use no more units than those counts.',
     `- station: where a player makes it: "hands"${o.stations.length ? `, or one of the stations a player can have: ${o.stations.join(', ')}` : ' (this world has no station a player can have)'}.`,
     '- Its name is what a player would call it, in both languages, and not another name for a thing the world has.',
+    '- Keep its physical form and description consistent with its actual makeup and supported uses. A crafted inventory unit has no extra portions, reusable container or recoverable parts unless those are represented by the game. Never name a material in its description that its makeup does not supply.',
     '- Write no rules: what it does with other things is asked act by act later. Do not draw it: an artist draws its icon next.',
+    ...(o.plan ? ['', 'The craftsperson has proposed these registered uses. Choose a coherent family, tags and ordinary properties for them; the game compiles the capabilities separately. Pending ideas are not implemented:', JSON.stringify(o.plan)] : []),
     '',
     'Things a player can have (id, name, own numbers):',
-    ...o.had.slice(0, 120).map((h) => `- ${h.id}${h.name ? ` (${h.name})` : ''}${h.props && Object.keys(h.props).length ? ` ${JSON.stringify(h.props)}` : ''}`),
+    ...o.had.slice(0, 120).map((h) => `- ${h.id}${h.name ? ` (${h.name})` : ''}${h.available !== undefined ? ` (available: ${h.available})` : ''}${h.props && Object.keys(h.props).length ? ` ${JSON.stringify(h.props)}` : ''}`),
     '',
-    'The catalogue (every kind the world has, by parent):',
+    o.guidance ? 'Relevant catalogue closure (working references, their parents, and the available inputs):' : 'The catalogue (every kind the world has, by parent):',
     o.catalogue,
     '',
     'Answer with ONLY the JSON object {"patch": {"artifacts": [...], "note": "<what it is, one line>"}, "looks": {"<each new type id>": "<what it looks like, one line, for its icon>"}}.',
@@ -404,9 +412,11 @@ export function draftUser(kind: DraftKind, intent: string, ctx: DraftContext): s
   return [
     '# A new map',
     `The game's author wants a new map: "${intent}"`,
-    'Write one map file: {"map": {"id", "name", "kind", "width", "height", "rows": [...], "anchors": {"<name>": [x, y]}, "light", "zone"}, "entities": [{"id", "type", "place": {"on": "tile", "map", "x", "y"}}]}.',
-    `- width and height: what the place needs, at most ${w} by ${h}; "rows" is height strings of width characters each, one character a cell, from the ground's characters below only.`,
+    'Write one map file: {"map": {"id", "name", "kind", "width", "height", "paint": {"base": "<ground char>", "strokes": [...]}, "anchors": {"<name>": [x, y]}, "light", "zone", "environment"?: {"palette"?: "verdant", "water"?: "stream", "fireflies"?: true}}, "entities": [{"id", "type", "place": {"on": "tile", "map", "x", "y"}}]}.',
+    `- width and height: what the place needs, at most ${w} by ${h}. Prefer structured paint for a new map: choose a known base ground character and at most 64 ordered strokes. Each stroke is {"op":"rect","char":"<known char>","x":integer,"y":integer,"w":positive integer,"h":positive integer} or {"op":"path","char":"<known char>","points":[[x,y],...],"width":1..6}. Rectangles stay entirely inside the map; paths have 2–32 in-bounds integer points. Later strokes overwrite earlier ones (paint water before a bridge crossing). The host compiles exact rows.`,
+    '- Supply paint OR rows, never both. Existing explicit rows may be preserved when revising: exactly height strings, each exactly width known ground characters. You choose the layout and coordinates; do not add executable code.',
     '- Shape it as the place it is: paths that lead somewhere, water and trees in natural shapes (not noise), an edge of trees or rock around a wild place.',
+    '- Optional environment selects actual renderer ambience: palette verdant for a lush place, water stream for flowing water, fireflies true for fireflies. Use these only when they fit the requested place. Place requested flowers/crops, a pavilion or waterfall only using the available ground and thing ids below; their labels describe the actual species and growth stage. A bridge must use the available bridge ground character across water, with walkable banks.',
     '- anchors: a few named spots people and scenes can use (a well, a door, a field), on walkable ground.',
     '- entities: the things set down on it (a chest, a sign, a bed, creatures …), of the kinds below, each on a walkable cell; ids "<map id>.<what>N".',
     '- kind: village, town, wild, forest, dungeon, cave or interior; light: outdoor, indoor or dark; zone: peaceful or combat.',
@@ -414,6 +424,8 @@ export function draftUser(kind: DraftKind, intent: string, ctx: DraftContext): s
     'The ground\'s characters:',
     ...(ctx.chars ?? []).map((c) => `${JSON.stringify(c.char)} ${c.terrain}${c.name ? ` (${c.name})` : ''}`),
     `Kinds of things: ${(ctx.things ?? []).slice(0, 160).map((x) => `${x.id}${x.name ? ` (${x.name})` : ''}`).join(', ')}`,
+    `Environment presets: ${JSON.stringify(ctx.environment ?? {})}`,
+    `Native activities: ${JSON.stringify(ctx.activities ?? {})}`,
     `Map ids taken: ${(ctx.taken ?? []).slice(0, 300).join(', ')}`,
     'Answer with ONLY the map file\'s JSON object.',
   ].filter(Boolean).join('\n')

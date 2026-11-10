@@ -42,10 +42,10 @@ describe('the keyboard map', () => {
     expect(swapped).toBe('put')
     expect(actionOf(map, 'KeyG', false)).toBe('hands')
     expect(actionOf(map, 'KeyE', false)).toBe('put')
-    // a free key: nothing traded
-    const free = bind(A(), 'dash', 1, { code: 'KeyZ' })
+    // a free key: nothing traded (use KeyT, which the default map leaves unbound)
+    const free = bind(A(), 'dash', 1, { code: 'KeyT' })
     expect(free.swapped).toBeUndefined()
-    expect(free.map.dash.map((b) => b.code)).toEqual(['KeyQ', 'KeyZ'])
+    expect(free.map.dash.map((b) => b.code)).toEqual(['KeyQ', 'KeyT'])
     // the action's own other key into this slot: the two slots trade
     const own = bind(A(), 'up', 0, { code: 'ArrowUp' })
     expect(own.map.up.map((b) => b.code)).toEqual(['ArrowUp', 'KeyW'])
@@ -57,6 +57,13 @@ describe('the keyboard map', () => {
     expect(bind(A(), 'hands', 0, { code: 'Escape' }).map.hands).toEqual(A().hands)
     expect(bind(A(), 'hands', 0, { code: 'ShiftLeft', shift: true }).map.hands).toEqual(A().hands)
     expect(unbind(A(), 'bag', 1).bag).toEqual([{ code: 'Tab' }])
+    // binding the ability key away from Z and back uses the same bind/actionOf API
+    const away = bind(A(), 'journal', 0, { code: 'KeyZ' })
+    expect(away.swapped).toBe('ability')
+    expect(actionOf(away.map, 'KeyZ', false)).toBe('journal')
+    const back = bind(away.map, 'ability', 0, { code: 'KeyZ' })
+    expect(actionOf(back.map, 'KeyZ', false)).toBe('ability')
+    expect(actionOf(back.map, 'KeyJ', false)).toBe('journal')
   })
 
   it('an action back to its default: its keys again, taken from whoever holds one now; changed says which differ', () => {

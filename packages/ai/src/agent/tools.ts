@@ -3,6 +3,7 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { createHash } from 'node:crypto'
 import { sh, type Env, type ExecResult } from './env.ts'
 import type { ToolSpec } from '../models/model.ts'
 
@@ -29,6 +30,12 @@ const SKIP_DIRS = new Set(['.git', 'node_modules', '.venv', '__pycache__', 'dist
 const str = (v: unknown, d = '') => (typeof v === 'string' ? v : v === undefined || v === null ? d : String(v))
 const exited = (r: ExecResult) => `exit ${r.code}${r.timedOut ? ' (timed out)' : ''}`
 const output = (r: ExecResult) => `${r.stdout}${r.stderr ? `\n[stderr]\n${r.stderr}` : ''}`
+const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')
+function requiredText(a: Record<string, unknown>, key: string, empty = false): string {
+  const value = a[key]
+  if (typeof value !== 'string' || !empty && !value.trim()) throw new Error(`${key} must be ${empty ? 'a string (an empty string is allowed)' : 'a non-empty string'}`)
+  return value
+}
 
 export function inside(root: string, p: string): string {
   const abs = resolve(root, p || '.')
@@ -117,14 +124,20 @@ export function agentTools(env: Env, hooks: ToolHooks = {}): AgentTool[] {
     },
     {
       name: 'read_file',
-      description: 'Read a file with line numbers. Use start/end (1-based, inclusive) for long files.',
-      parameters: { type: 'object', properties: { path: { type: 'string' }, start: { type: 'number' }, end: { type: 'number' } }, required: ['path'] },
+      description: 'Read a file. format=text gives code without line-number gutters; format=json gives text, source hash and line range. Text uses LF newlines. Default format=numbered. Use start/end (1-based, inclusive) for long files.',
+      parameters: { type: 'object', properties: { path: { type: 'string' }, start: { type: 'number' }, end: { type: 'number' }, format: { type: 'string', enum: ['numbered', 'text', 'json'] } }, required: ['path'] },
       run: (a) => {
-        const p = inside(root, str(a.path))
+        const path = requiredText(a, 'path'), p = inside(root, path)
         if (!existsSync(p)) return `(no file ${str(a.path)})`
-        const lines = readFileSync(p, 'utf8').split('\n')
+        if (!statSync(p).isFile()) throw new Error(`path is not a file: ${path}`)
+        const source = readFileSync(p, 'utf8'), lines = source.replace(/\r\n/g, '\n').split('\n')
         const s = Math.max(1, Number(a.start) || 1)
         const e = Math.min(lines.length, Number(a.end) || s + 399)
+        const format = a.format ?? 'numbered'
+        if (!['numbered', 'text', 'json'].includes(String(format))) throw new Error('format must be numbered, text or json')
+        const text = lines.slice(s - 1, e).join('\n')
+        if (format === 'text') return text
+        if (format === 'json') return JSON.stringify({ path, start: s, end: e, totalLines: lines.length, sha256: sha256(source), lineEnding: /\r\n/.test(source) ? /(^|[^\r])\n/.test(source) ? 'mixed' : 'CRLF' : source.includes('\n') ? 'LF' : 'none', text })
         return lines.slice(s - 1, e).map((l, i) => `${String(s + i).padStart(5)}  ${l}`).join('\n') + (e < lines.length ? `\n… (${lines.length} lines; read on with start=${e + 1})` : '')
       },
     },
@@ -133,7 +146,7 @@ export function agentTools(env: Env, hooks: ToolHooks = {}): AgentTool[] {
       description: 'Search file contents with a regular expression (ripgrep). Optional path and glob (e.g. "*.py").',
       parameters: { type: 'object', properties: { pattern: { type: 'string' }, path: { type: 'string' }, glob: { type: 'string' } }, required: ['pattern'] },
       run: async (a) => {
-        const pattern = str(a.pattern)
+        const pattern = requiredText(a, 'pattern')
         const path = str(a.path, '.')
         inside(root, path)
         const glob = str(a.glob)
@@ -147,25 +160,36 @@ export function agentTools(env: Env, hooks: ToolHooks = {}): AgentTool[] {
       description: 'Create or overwrite a file with the given content.',
       parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] },
       run: (a) => {
-        const p = insideForWrite(root, str(a.path))
+        const path = requiredText(a, 'path'), content = requiredText(a, 'content', true)
+        const p = insideForWrite(root, path)
+        if (existsSync(p) && !statSync(p).isFile()) throw new Error(`path is not a file: ${path}`)
         mkdirSync(dirname(p), { recursive: true })
-        writeFileSync(p, str(a.content))
-        return `wrote ${str(a.path)} (${str(a.content).split('\n').length} lines)`
+        writeFileSync(p, content)
+        return `wrote ${path} (${content.split('\n').length} lines)`
       },
     },
     {
       name: 'edit_file',
-      description: 'Replace an exact string in a file. old_string must occur exactly once (or set replace_all). Read the file first.',
-      parameters: { type: 'object', properties: { path: { type: 'string' }, old_string: { type: 'string' }, new_string: { type: 'string' }, replace_all: { type: 'boolean' } }, required: ['path', 'old_string', 'new_string'] },
+      description: 'Replace exact text after reading the file. LF/CRLF are equivalent in uniform-newline files; the source newline style is preserved. All other whitespace is exact. old_string must occur once (or set replace_all). Optional expected_sha256 rejects edits against stale reads.',
+      parameters: { type: 'object', properties: { path: { type: 'string' }, old_string: { type: 'string' }, new_string: { type: 'string' }, replace_all: { type: 'boolean' }, expected_sha256: { type: 'string' } }, required: ['path', 'old_string', 'new_string'] },
       run: (a) => {
-        const p = insideForWrite(root, str(a.path))
+        const path = requiredText(a, 'path'), old = requiredText(a, 'old_string', true), replacement = requiredText(a, 'new_string', true)
+        if (!old.length) throw new Error('old_string must not be empty')
+        if (a.replace_all !== undefined && typeof a.replace_all !== 'boolean') throw new Error('replace_all must be a boolean')
+        if (a.expected_sha256 !== undefined && (typeof a.expected_sha256 !== 'string' || !/^[a-f0-9]{64}$/i.test(a.expected_sha256))) throw new Error('expected_sha256 must be a SHA-256 hex string')
+        const p = insideForWrite(root, path)
         if (!existsSync(p)) return `(no file ${str(a.path)})`
+        if (!statSync(p).isFile()) throw new Error(`path is not a file: ${path}`)
         const s = readFileSync(p, 'utf8')
-        const from = str(a.old_string)
-        const n = from ? s.split(from).length - 1 : 0
+        if (a.expected_sha256 && sha256(s) !== a.expected_sha256) return 'File changed since the supplied read hash; read it again before editing'
+        const crlf = s.includes('\r\n'), mixed = crlf && /(^|[^\r])\n/.test(s), uniform = s.includes('\n') && !mixed
+        const normalize = (value: string) => value.replace(/\r\n/g, '\n')
+        const source = uniform ? normalize(s) : s, from = uniform ? normalize(old) : old, to = uniform ? normalize(replacement) : replacement
+        const n = source.split(from).length - 1
         if (!n) return 'old_string not found (it must match exactly, whitespace included)'
         if (n > 1 && !a.replace_all) return `old_string occurs ${n} times: add context to make it unique, or set replace_all`
-        writeFileSync(p, a.replace_all ? s.split(from).join(str(a.new_string)) : s.replace(from, () => str(a.new_string)))
+        const edited = a.replace_all ? source.split(from).join(to) : source.replace(from, () => to)
+        writeFileSync(p, crlf && !mixed ? edited.replace(/\n/g, '\r\n') : edited)
         return `edited ${str(a.path)} (${a.replace_all ? n : 1} replacement${n > 1 && a.replace_all ? 's' : ''})`
       },
     },
@@ -174,7 +198,7 @@ export function agentTools(env: Env, hooks: ToolHooks = {}): AgentTool[] {
       description: 'Run a shell command in the workspace (bash). Returns exit code, stdout and stderr.',
       parameters: { type: 'object', properties: { command: { type: 'string' }, timeout_sec: { type: 'number' } }, required: ['command'] },
       run: async (a) => {
-        const r = await env.exec(str(a.command), { timeoutMs: Math.min(600, Number(a.timeout_sec) || 120) * 1000 })
+        const r = await env.exec(requiredText(a, 'command'), { timeoutMs: Math.min(600, Number(a.timeout_sec) || 120) * 1000 })
         return `${exited(r)}\n${output(r)}`
       },
     },

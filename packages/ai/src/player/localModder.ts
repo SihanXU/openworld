@@ -251,6 +251,9 @@ export class LocalModder {
     await this.gameIn
     const modder = this.modder
     switch (c.op) {
+      case 'draft':
+        if (!modder) throw new Error('the modder has no game yet')
+        return modder.draft(c.body)
       case 'health':
         return { model: modder?.model?.name ?? null }
       case 'research':

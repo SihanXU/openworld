@@ -78,9 +78,13 @@ describe('research in the actual game', () => {
     const { eng, port } = world()
     const prototype = researchCatalogue(eng).prototypes.find((id) => eng.recipes.get(id)?.station === 'hands')!
     const before = JSON.stringify(eng.world.state)
+    const libraryBefore = JSON.stringify(eng.lib.toJSON())
+    const recipesBefore = JSON.stringify([...eng.recipes])
     const design = { name: { en: 'Oversized pack', zh: 'Oversized pack' }, prototype, ingredients: [{ type: 'item/material/log', count: 64 }, { type: 'item/material/stone', count: 64 }] }
     expect(() => trialResearch(eng, port, design, `${prototype}/invention_unaffordable`)).toThrow()
     expect(JSON.stringify(eng.world.state)).toBe(before)
+    expect(JSON.stringify(eng.lib.toJSON())).toBe(libraryBefore)
+    expect(JSON.stringify([...eng.recipes])).toBe(recipesBefore)
     expect(eng.lib.types).toHaveLength(0)
   })
   it('cannot learn the same invention twice or spend its materials a second time', () => {
@@ -191,6 +195,16 @@ describe('research in the actual game', () => {
       expect((caught as ResearchProblem).code).toBe(code)
       expect(eng.lib.types).toHaveLength(0)
     }
+  })
+
+  it('keeps a native magic element on a new craft and rejects elements outside the world vocabulary', () => {
+    const make = (element: string) => {
+      const { eng, port } = world()
+      const design = newDesign({ id: 'item/weapon/magic/fire_focus', name: { en: 'Fire Focus', zh: '焰符' }, props: { material: 'wood', power: 2, element }, makeup: [{ type: 'item/material/log', count: 20 }], station: 'hands' })
+      return trialResearch(eng, port, design, 'item/weapon/magic/invention_focus')
+    }
+    expect(make('fire').props?.element).toBe('fire')
+    expect(() => make('invented_element')).toThrow(/Unknown magic element/)
   })
 
   it('buys a new kind\'s numbers with what goes into it: two sticks make no dragon-slaying blade', () => {

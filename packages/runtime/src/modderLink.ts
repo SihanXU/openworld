@@ -1,9 +1,9 @@
 // How the engine's worker reaches a modder: a service over HTTP (its address), or the player's own modder in a
 // worker of this page over a port (docs/byok.md). Both answer the same five questions.
 
-import type { Engine, ModRequest, Patch, PixelArt, ResearchOutcome, ResearchRequest, ResearchReply, ModProgress, PatchLogEntry, ResolveBody, ResolveReply } from '@openworld/engine'
+import type { Engine, ModRequest, Patch, ResearchSketch, ResearchOutcome, ResearchRequest, ResearchReply, ModProgress, PatchLogEntry, ResolveBody, ResolveReply } from '@openworld/engine'
 import { withAside } from '@openworld/engine'
-import { LOCAL_MODDER, type LinkCall, type LinkReply } from './modderProtocol.ts'
+import { LOCAL_MODDER, type LinkCall, type LinkReply, type WorkshopMapRequest, type WorkshopMapReply, type CreatorOrderRequest, type CreatorJobStatus, type ModderHealth, type CreatorDiscussionRequest, type CreatorDiscussionReply } from './modderProtocol.ts'
 
 export interface PatchLog {
   seq: number
@@ -12,14 +12,20 @@ export interface PatchLog {
 }
 
 export interface ModderLink {
+  draft?(body: WorkshopMapRequest): Promise<WorkshopMapReply>
   /** Where it is: the service's address, or `local:` (what the shared log's position is kept under). */
   readonly where: string
   research?(body: ResearchRequest): Promise<ResearchReply>
   /** What came of a craftsperson's proposal in the game (they learn from it): said, not waited on. */
   researched?(outcome: ResearchOutcome): void
   /** A proposal's picture, drawn after its reply (none: it could not be). */
-  researchSketch?(sketch: string): Promise<PixelArt | undefined>
-  health(): Promise<{ model?: string | null }>
+  researchSketch?(sketch: string): Promise<ResearchSketch>
+  health(): Promise<ModderHealth>
+  creatorOrder?(body: CreatorOrderRequest): Promise<CreatorJobStatus>
+  creatorDiscuss?(body: CreatorDiscussionRequest): Promise<CreatorDiscussionReply>
+  creatorStatus?(id: string): Promise<CreatorJobStatus>
+  creatorResume?(id: string): Promise<CreatorJobStatus>
+  creatorApprove?(id: string): Promise<CreatorJobStatus>
   resolve(body: ResolveBody): Promise<ResolveReply>
   progress(request: string): Promise<ModProgress>
   patches(since: number): Promise<PatchLog>
@@ -47,7 +53,38 @@ export function serviceLink(url: string): ModderLink {
   const post = (path: string, body: unknown, ms: number) => fetch(`${at}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(ms) })
   return {
     where: at,
+    draft: async (body) => {
+      const r = await post('/draft', body, 240_000)
+      const data = await r.json()
+      if (!r.ok || data.error) throw new Error(data.error || 'Map drafting unavailable')
+      return data as WorkshopMapReply
+    },
     health: () => get('/health', 2500),
+    creatorDiscuss: async body => {
+      const r = await post('/creator/discuss', body, 60_000), data = await r.json()
+      if (!r.ok || data.error) throw new Error(data.error || 'Creator discussion unavailable')
+      return data as CreatorDiscussionReply
+    },
+    creatorOrder: async body => {
+      const r = await post('/creator/jobs', body, 30_000), data = await r.json()
+      if (!r.ok || data.error) throw new Error(data.error || 'Autonomous authoring unavailable')
+      return data as CreatorJobStatus
+    },
+    creatorStatus: async id => {
+      const r = await fetch(`${at}/creator/jobs?id=${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(10_000) }), data = await r.json()
+      if (!r.ok || data.id !== id) throw new Error(data.error || 'Autonomous authoring status unavailable')
+      return data as CreatorJobStatus
+    },
+    creatorResume: async id => {
+      const r = await post('/creator/jobs/resume', { id }, 30_000), data = await r.json()
+      if (!r.ok || data.id !== id) throw new Error(data.error || 'Autonomous authoring resume unavailable')
+      return data as CreatorJobStatus
+    },
+    creatorApprove: async id => {
+      const r = await post('/creator/jobs/approve', { id }, 30_000), data = await r.json()
+      if (!r.ok || data.error) throw new Error(data.error || 'Autonomous authoring approval unavailable')
+      return data as CreatorJobStatus
+    },
     research: async (body) => {
       // a new kind is designed before the reply (drawn after it): longer than a word
       const r = await post('/research', body, 240_000)
@@ -56,7 +93,7 @@ export function serviceLink(url: string): ModderLink {
       return data as ResearchReply
     },
     researched: (outcome) => void post('/research/outcome', outcome, 5000).catch(() => undefined),
-    researchSketch: async (sketch) => ((await (await post('/research/sketch', { sketch }, 240_000)).json()) as { art?: PixelArt }).art,
+    researchSketch: async (sketch) => (await (await post('/research/sketch', { sketch }, 240_000)).json()) as ResearchSketch,
     resolve: async (body) => (await (await post('/resolve', body, 240_000)).json()) as ResolveReply,
     progress: (request) => get(`/progress?id=${encodeURIComponent(request)}`, 2000),
     patches: (since) => get(`/patches?since=${since}`, 5000),
@@ -88,10 +125,11 @@ export function portLink(port: MessagePort): ModderLink {
     })
   return {
     where: LOCAL_MODDER,
+    draft: (body) => call({ op: 'draft', body }, 240_000),
     health: () => call({ op: 'health' }, 2500),
     research: (body) => call({ op: 'research', body }, 240_000),
     researched: (outcome) => void call({ op: 'researched', outcome }, 5000).catch(() => undefined),
-    researchSketch: async (sketch) => (await call<{ art?: PixelArt }>({ op: 'researchSketch', sketch }, 240_000)).art,
+    researchSketch: async (sketch) => call<ResearchSketch>({ op: 'researchSketch', sketch }, 240_000),
     resolve: (body) => call({ op: 'resolve', body }, 240_000),
     progress: (request) => call({ op: 'progress', request }, 2000),
     patches: (since) => call({ op: 'patches', since }, 5000),

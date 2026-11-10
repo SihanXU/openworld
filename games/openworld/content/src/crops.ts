@@ -32,6 +32,20 @@ export const GARDEN_CROPS: readonly VegetableCrop[] = VEGETABLE_CROPS.slice(0, 4
 
 export const CROP_STAGES = ['sprout', 'young', 'ripe'] as const
 
+/** Authored species vocabulary. Pack variants are references, not AI-generated species art. */
+export const FLOWER_CROPS = [
+  { id: 'sunflower', en: 'Sunflower', zh: '向日葵', aliases: ['sunflower', '向日葵'], perennial: false, flowerTile: [0, 11] },
+  { id: 'orchid', en: 'Orchid', zh: '兰花', aliases: ['orchid', '兰花', '兰草'], perennial: true, flowerTile: [6, 11] },
+  { id: 'sunrose', en: 'Sunrose', zh: '太阳花', aliases: ['sunrose', '太阳花', '松叶牡丹'], perennial: true, flowerTile: [1, 11] },
+  { id: 'rose', en: 'Rose', zh: '玫瑰', aliases: ['rose', '玫瑰'], perennial: true, flowerTile: [3, 11] },
+  { id: 'tulip', en: 'Tulip', zh: '郁金香', aliases: ['tulip', '郁金香'], perennial: true, flowerTile: [2, 11] },
+] as const
+
+export const GARDEN_SPECIES = [
+  ...FLOWER_CROPS.map(c => ({ id: c.id as string, aliases: [...c.aliases] as string[] })),
+  { id: 'wheat', aliases: ['wheat', '小麦', '麦子', '麦田'] },
+]
+
 /** Game hours per watered stage; other plants keep the two-hour pace. */
 export const cropHours = (id: string): number =>
   ['turnip', 'parsnip', 'radish'].includes(id) ? 1 :

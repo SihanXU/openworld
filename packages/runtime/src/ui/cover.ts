@@ -386,7 +386,8 @@ export class Cover {
       </div>`
     }).join('')
     const saves = `<section class="cv-journey-section" aria-labelledby="cvSaveTitle"><h2 id="cvSaveTitle">${zh ? '为故事留一个位置' : 'A place for your story'}</h2><div class="cv-slots cv-save-choices">${cards}</div><p class="cv-note muted">${t('cvNote')}</p></section>`
-    const footer = `<footer class="cv-new-footer">${hasLook ? `<button type="button" class="cv-btn cv-back" id="cvBack"><span class="cv-back-mark" aria-hidden="true"></span>${zh ? '返回装扮' : 'Back'}</button>` : tutorial}<span class="cv-start-note">${t('cvSlot').replace('{n}', String(this.newSlot))} · ${levels.find(([id]) => id === this.difficulty)![1]}</span><button type="button" class="cv-btn primary cv-continue" data-act="new" data-start="${this.newSlot}" data-slot="${this.newSlot}">${this.slots[this.newSlot - 1] ? zh ? '覆盖并出发' : 'Overwrite & begin' : zh ? '开始冒险' : 'Begin adventure'}<span class="cv-next-mark" aria-hidden="true"></span></button></footer>`
+    const workshop = game().cover?.workshopStart ? `<button type="button" class="cv-btn" id="cvWorkshop">${zh ? '创作工坊' : 'Creative workshop'}</button>` : ''
+    const footer = `<footer class="cv-new-footer">${hasLook ? `<button type="button" class="cv-btn cv-back" id="cvBack"><span class="cv-back-mark" aria-hidden="true"></span>${zh ? '返回装扮' : 'Back'}</button>` : tutorial}<span class="cv-start-note">${t('cvSlot').replace('{n}', String(this.newSlot))} · ${levels.find(([id]) => id === this.difficulty)![1]}</span>${workshop}<button type="button" class="cv-btn primary cv-continue" data-act="new" data-start="${this.newSlot}" data-slot="${this.newSlot}">${this.slots[this.newSlot - 1] ? zh ? '覆盖并出发' : 'Overwrite & begin' : zh ? '开始冒险' : 'Begin adventure'}<span class="cv-next-mark" aria-hidden="true"></span></button></footer>`
     return nav + `<div class="cv-journey-page">${pick}${saves}</div>` + footer
   }
 
@@ -440,6 +441,10 @@ export class Cover {
       return
     }
     document.querySelector<HTMLButtonElement>('#cvTutorial')?.addEventListener('click', () => (this.busy(), this.on.tutorial({ difficulty: this.difficulty, look: this.look })))
+    document.querySelector<HTMLButtonElement>('#cvWorkshop')?.addEventListener('click', async () => {
+      if (this.slots[this.newSlot - 1] && !await confirmDialog(t('cvConfirmOverwrite').replace('{n}', String(this.newSlot)), { danger: true })) return
+      this.busy(); this.on.start(this.newSlot, undefined, { difficulty: this.difficulty, look: this.look, start: game().cover!.workshopStart })
+    })
     const showStep = (step: 'look' | 'journey') => {
       this.newStep = step
       this.render()

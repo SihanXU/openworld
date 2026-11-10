@@ -23,6 +23,7 @@ import { compileProject } from '@openworld/format/src/node.ts'
 import { chooseModel, scriptFromFile } from '../src/index.ts'
 import { REPO } from '../src/node.ts'
 import { createModderServer, loadGame, openModder } from '../src/service/server.ts'
+import { CreatorCoordinator, deepseekCreatorEnvironment } from '../src/service/creator.ts'
 
 const argv = process.argv.slice(2)
 const flag = (name: string): string | undefined => {
@@ -40,6 +41,13 @@ const gameModule = flag('game') ?? process.env.OPENWORLD_GAME
 if (!gameModule) throw new Error('which game? --game <game> (or OPENWORLD_GAME): a bundle, a project\'s folder, or a module whose default export is the GameDef')
 const game = await loadGame(gameModule)
 const world = flag('world') ?? process.env.LSW_WORLD
+const creatorEnabled = argv.includes('--creator') || process.env.LSW_CREATOR === '1'
+if (argv.includes('--creator')) argv.splice(argv.indexOf('--creator'), 1)
+const creatorWorld = flag('creator-world')
+const creatorMechanisms = flag('creator-mechanisms')
+const creatorClient = flag('creator-client')
+const creatorModel = flag('creator-model') ?? process.env.DEEPSEEK_CREATOR_MODEL
+const creatorData = flag('creator-data')
 const [cmd = 'serve', ...args] = argv
 const stamp = () => new Date().toISOString().slice(11, 19)
 const modder = openModder({
@@ -68,13 +76,26 @@ switch (cmd) {
     const port = Number(args[0] ?? process.env.LSW_PORT ?? 8787)
     // what the validator no longer takes leaves the library before any client can sync it
     const pruned = library.prune()
-    const server = createModderServer(modder, { game: game.id })
+    let creator: CreatorCoordinator | undefined
+    if (creatorEnabled) {
+      if (!process.env.DEEPSEEK_API_KEY) throw new Error('Set DEEPSEEK_API_KEY before starting the creator service')
+      const worldPath = creatorWorld ?? world
+      if (!worldPath) throw new Error('Autonomous authoring needs --creator-world <world-directory> or --world <index.json>')
+      const directory = resolve(REPO, worldPath)
+      creator = new CreatorCoordinator({ root: REPO, data: resolve(REPO, creatorData ?? join(data ?? 'var', 'creator')),
+        gameModule: resolve(REPO, gameModule), worldDirectory: directory.endsWith('.json') ? dirname(directory) : directory,
+        ...(creatorMechanisms && { mechanismDirectory: resolve(REPO, creatorMechanisms) }),
+        ...(creatorClient && { clientDirectory: resolve(REPO, creatorClient) }),
+        ...(creatorModel && { model: creatorModel }), environment: deepseekCreatorEnvironment() })
+    }
+    const server = createModderServer(modder, { game: game.id, ...(creator && { creator, maxBody: 16_000_000 }) })
     server.listen(port, host, () => {
       const at = server.address() as AddressInfo
       console.log(`modder on http://${at.family === 'IPv6' ? `[${at.address}]` : at.address}:${at.port}  model: ${modder.model?.name ?? '(none: answers from the shared library only)'}`)
       for (const p of pruned) console.log(`library: rolled back ${p.rules.join(', ')}: ${p.reason}`)
       console.log(`library: ${library.patchRules().length} patch rules (seq ${library.seq}, log ${library.logId}) · self-state: ${state.dir}`)
       console.log(library.protectedFacts.length ? `library: ${library.protectedFacts.length} protected fact prefixes` : 'library: no protected facts known (--world <index.json>): commits are not checked against the story\'s facts')
+      if (creator) console.log('creator: autonomous local orders enabled at /creator/jobs')
     })
     break
   }

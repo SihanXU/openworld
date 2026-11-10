@@ -3,7 +3,7 @@
 // game's content only through game(). No module reads it at its top level, so the order the modules load in
 // does not matter, only that useGame() comes before the first frame.
 
-import type { Entity, Game, GameDef, ItemInfo, Look, LookBodyDef, LookColorDef, LookPartDef, LookTable, MapChunk, Ontology, PlacementRecipe, Pos, PropValue, Recipe, SkillDef, Text, World, WorldIndex } from '@openworld/engine'
+import type { Engine, Entity, Game, GameDef, ItemInfo, Look, LookBodyDef, LookColorDef, LookPartDef, LookTable, MapChunk, Ontology, PlacementRecipe, Pos, PropValue, Recipe, SkillDef, Text, World, WorldIndex } from '@openworld/engine'
 import type { ProfessionDef } from '@openworld/modules'
 import type { Catalog } from './assets/types.ts'
 import type { PanelFactory } from './ui/panels.ts'
@@ -78,6 +78,8 @@ export interface CoverDef {
   title?: Text
   /** The game has a tutorial run of its own (a start named `tutorial` in its world): offered as a new game begins. */
   tutorial?: boolean
+  /** Optional authored start for an in-game creative workshop. */
+  workshopStart?: string
   /**
    * The world behind the title: places of the game's world, one taken each time the title opens, drawn live (the
    * world runs there, at the hour given, with no story) under a camera drifting slowly about the place. None: a dark cover.
@@ -129,6 +131,8 @@ export interface WorldFilterDef {
 }
 
 export interface ClientGame extends GameDef {
+  /** Load trusted game-owned mechanism modules before restoring save-local use packages. */
+  creationMechanisms?(liveEngines?: Iterable<Engine>): Promise<void>
   /** Extra tooltip lines supplied by the game, including the item's current state. Code belongs in its plugin. */
   describeItem?(item: ItemInfo): Text[]
   /** A small game-owned sprite drawn over an item icon; x, y and size are fractions of that icon's dimensions. */

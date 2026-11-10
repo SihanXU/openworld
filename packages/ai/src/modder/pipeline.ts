@@ -16,12 +16,17 @@
 
 import {
   artProblems,
+  creationPlanProblems,
   PRIVATE_RULES,
   readResearchOutcome,
+  readResearchReply,
+  researchVariantCost,
   type ResearchMissing,
   readResearchRequest,
   type ResearchRequest,
   type ResearchReply,
+  type ResearchPlan,
+  type ResearchSketch,
   type NewDesign,
   type Text,
   buildModSpec,
@@ -71,7 +76,9 @@ import { auditOf, keepReflection, nodeSection, nodeStand, profileOf, reflectAfte
 import { buildTools, describeOutcome, type Tool, type ToolContext } from './tools.ts'
 import { audit, probe, type AuditResult } from '../checks/audit.ts'
 import { clipJson } from '../util.ts'
-import { RESEARCH_NODE, RESEARCH_TERM, craftReflectSystem, craftReflectUser, notebookOf, proposalOf, researchConversation, researchTerms, withoutArt } from './research.ts'
+import { RESEARCH_NODE, RESEARCH_TERM, craftReflectSystem, craftReflectUser, notebookOf, proposalOf, repairResearchPlan, researchConversation, researchMaterialProblems, researchPlanForType, researchRefusal, researchTerms, withoutArt } from './research.ts'
+import { researchEquipmentNotice, researchEquipmentRequirements, researchTypeGuidance, type ResearchTypeGuidance } from './type-guidance.ts'
+import { artReference, reviewedArt } from './art-review.ts'
 
 // (the backend's own failures are the models': kept exported here for the checks that read them from the pipeline)
 export { BACKEND_DOWN }
@@ -347,7 +354,7 @@ export class Modder {
   /** Proposals waiting to hear from the game what came of them (researched), by episode. */
   private proposed = new Map<string, { npc: string; ep: AgentEpisode }>()
   /** The pictures of proposals being drawn after their reply went out (researchSketch), by id. */
-  private sketches = new Map<string, Promise<PixelArt | undefined>>()
+  private sketches = new Map<string, Promise<ResearchSketch>>()
 
   private craftsperson(npc: string): SelfState {
     const own = this.opts.state
@@ -374,51 +381,65 @@ export class Modder {
     const rules = state?.relevantLessons([RESEARCH_TERM], level === 'low' ? 4 : 12) ?? []
     const skill = level === 'low' ? undefined : state?.skillAt(RESEARCH_NODE)
     const meter = new Meter(this.backend)
-    const said = await researchConversation(meter, request, notebookOf(rules.map((l) => l.text), skill && state!.readSkill(skill.name)?.trim()))
     const workshop: string[] = []
-    const worked = await this.researched(request, said, workshop)
+    const onto = this.opts.library.fullOntology()
+    const equipment = researchEquipmentRequirements(onto)
+    const said = await researchConversation(meter, request, notebookOf(rules.map((l) => l.text), skill && state!.readSkill(skill.name)?.trim()), (reply) => {
+      const d = reply.design
+      if (!d || d.kind === 'new' || !onto.types[d.prototype]) return []
+      const problems = reply.plan ? creationPlanProblems(researchPlanForType(reply.plan, request.catalogue)!, onto.types[d.prototype], onto) : []
+      problems.push(...researchEquipmentNotice(reply, onto.types[d.prototype], request.catalogue, onto))
+      const floor = request.catalogue.guidance?.prototypes.find(p => p.type === d.prototype)
+      if (floor) {
+        const { cost, minimum } = researchVariantCost(new OntologyIndex(onto), d.prototype, d.ingredients, floor.minCost)
+        if (cost < minimum) problems.push(`The proposed ingredients are worth ${Number(cost.toFixed(4))}; this prototype requires at least ${Number(minimum.toFixed(4))} (short by ${Number((minimum - cost).toFixed(4))}). Keep the player's intended item and named materials; correct the quantities within the inventory instead of substituting cheaper ingredients, or explain the shortage.`)
+      }
+      return problems
+    }, equipment, diagnostics => workshop.push(...diagnostics))
+    const worked = await this.researched(request, said, workshop, meter)
     const out = worked.reply
+    const hasProposal = !!(out.design || out.plan?.uses.length)
     // the reply goes out now; its picture is drawn meanwhile (the craftsperson sketches while the player reads)
     const handed: ResearchReply = worked.sketch ? { ...out, sketch: this.sketching(worked.sketch) } : out
     // at low the notebook is read, never written: no episode, so nothing is reported back or reflected on
     if (!state || level === 'low') return handed
     const ep: AgentEpisode = {
       id: state.newEpisodeId(), at: new Date().toISOString(), kind: 'research', node: RESEARCH_NODE,
-      summary: `${request.npc}: "${request.message.slice(0, 120)}" → ${proposalOf(out.design)}`,
-      request: { npc: request.npc, message: request.message, history: request.history },
-      key: request.message.slice(0, 200), terms: researchTerms(request.message, out.design),
-      outcome: out.design ? 'accepted' : 'covered',
+      summary: `${request.npc}: "${request.message.slice(0, 120)}" → ${request.subject ? `uses of ${request.subject.typeId}` : proposalOf(out.design)}`,
+      request: { npc: request.npc, message: request.message, history: request.history, ...(request.subject && { subject: request.subject }) },
+      key: request.message.slice(0, 200), terms: researchTerms(request.message, out.design, out.plan),
+      outcome: hasProposal ? 'accepted' : 'covered',
       attempts: workshop.length ? [{ phase: 'create', errors: workshop, warnings: [] }] : [],
-      tools: [], rules: [], patch: { reply: out.reply, design: out.design && withoutArt(out.design) },
+      tools: [], rules: [], patch: { reply: out.reply, design: out.design && withoutArt(out.design), ...(out.plan && { plan: out.plan }) },
       shown: { lessons: rules.map((l) => l.id), episodes: [], skills: skill ? [skill.name] : [] }, skillsRead: skill ? [skill.name] : [],
       harness: this.opts.state.harness().version, model: this.backend.name,
       usage: { calls: meter.calls, input: meter.input, output: meter.output, cost: meter.cost }, ms: Date.now() - t0,
     }
     // talk alone (a question, a refusal): kept, nothing to hear back
-    if (!out.design) return (state.recordEpisode(ep), handed)
+    if (!hasProposal) return (state.recordEpisode(ep), handed)
     this.proposed.set(ep.id, { npc: request.npc, ep })
     // (a game that never says: the oldest is kept as it stood)
     for (const [id, p] of this.proposed) if (this.proposed.size > 200) (this.proposed.delete(id), this.craftsperson(p.npc).recordEpisode({ ...p.ep, outcome: 'covered' }))
     return { ...handed, episode: ep.id }
   }
 
-  private sketching(draw: () => Promise<PixelArt | undefined>): string {
+  private sketching(draw: () => Promise<ResearchSketch>): string {
     const id = crypto.randomUUID()
-    this.sketches.set(id, draw().catch(() => undefined))
+    this.sketches.set(id, draw().catch(() => ({})))
     // (one never asked for: the oldest go)
     for (const k of this.sketches.keys()) if (this.sketches.size > 50) this.sketches.delete(k)
     return id
   }
 
   /** A proposal's picture, once drawn (none: it could not be, or it was asked for already). */
-  async researchSketch(body: unknown): Promise<{ art?: PixelArt }> {
+  async researchSketch(body: unknown): Promise<ResearchSketch> {
     const id = (body as { sketch?: unknown } | null)?.sketch
     if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(id)) throw new Error('Invalid research sketch')
     const drawing = this.sketches.get(id)
     if (!drawing) return {}
-    const art = await drawing
+    const result = await drawing
     this.sketches.delete(id)
-    return art ? { art } : {}
+    return result
   }
 
   /** What came of a proposal in the game: kept in its craftsperson's memory, and reflected on after. */
@@ -453,19 +474,33 @@ export class Modder {
   }
 
   /** The conversation's design worked out: a new kind designed (what went wrong on the way, in `workshop`), and how its picture is drawn after the reply. */
-  private async researched(request: ResearchRequest, said: ResearchReply, workshop: string[]): Promise<{ reply: ResearchReply; sketch?: () => Promise<PixelArt | undefined> }> {
+  private async researched(request: ResearchRequest, said: ResearchReply, workshop: string[], model: Model): Promise<{ reply: ResearchReply; sketch?: () => Promise<ResearchSketch> }> {
     const d = said.design
     if (!d) return { reply: said }
     // drawn by the craftsperson after they answer: the draft on the table's picture is the one changed, when it is of
-    // the same thing. As the setting draws: not at low (the kind's icon stands), cheaply at medium, with more thought
-    // and more tries at high
+    // the same thing. Low keeps the kind's icon; other levels generate once, then inspect and repair at most once.
     const level = request.create ?? 'medium'
-    const draw = (name: Text, id: string, look: string, base?: PixelArt) =>
-      level === 'low' ? undefined : () => this.drawOne(new Meter(this.backend!), { id, name } as TypeDef, look, level === 'high' ? ({ tier: 'high', create: 'high', find: true, chains: true } satisfies Workload) : undefined, base, level === 'high' ? undefined : 'low')
+    const draw = (name: Text, id: string, look: string, base?: PixelArt, variant = false) => level === 'low' ? undefined : async () => {
+      const artist = new Meter(this.backend!)
+      const type = { id, name }
+      const references = { ...request.catalogue.icons, ...request.catalogue.artReferences }
+      const preserve = variant || /^item\/(weapon|armor|clothing)(\/|$)/.test(id)
+      const result = await reviewedArt(artist, type, look, artReference(type, onto, references), base, preserve)
+      if (!this.opts.dry) this.opts.state.note('art-review', { type: id, ...result, usage: artist.usage })
+      return result
+    }
     const draft = request.draft
     const before = draft?.kind === 'new' ? draft.type?.art : draft?.art
     const onto = this.opts.library.fullOntology()
     const index = new OntologyIndex(onto)
+    const typePlan = researchPlanForType(said.plan, request.catalogue)
+    const finish = async (reply: ResearchReply, actual: TypeDef, sketch?: () => Promise<ResearchSketch>) => {
+      const problems = [...(reply.plan ? creationPlanProblems(reply.plan, actual, onto) : []), ...researchEquipmentNotice(reply, actual, request.catalogue, onto)]
+      if (!problems.length) return { reply, sketch }
+      workshop.push(...problems)
+      const repaired = await repairResearchPlan(model, request, reply, actual, onto, problems)
+      return { reply: repaired, ...(repaired.design && { sketch }) }
+    }
     const en = (t: Text) => (typeof t === 'string' ? t : t.en)
     const materialFirst = <M extends { type: string }>(ms: M[]): M[] => {
       const first = ms.findIndex((m) => m.type in onto.types && typeof index.resolve(m.type).props.material === 'string')
@@ -473,46 +508,64 @@ export class Modder {
     }
     // a new kind: designed as an author's new thing is (its numbers, makeup, station, picture), from what the player carries where they stand
     if (d.kind === 'new') {
-      const had = request.catalogue.materials.map((id) => ({ id, name: en(onto.types[id]?.name ?? id), props: onto.types[id]?.props }))
+      const available = new Map(request.catalogue.guidance?.materials.map((m) => [m.type, m.available]))
+      const had = request.catalogue.materials.map((id) => ({ id, name: en(onto.types[id]?.name ?? id), props: onto.types[id]?.props, ...(available.has(id) && { available: available.get(id)! }) }))
       // one kind, made of what the player carries (a second new kind it would need is not theirs to make)
       const theirs = (types: TypeDef[]) => types.find((t) => (t.makeup ?? []).length && t.makeup!.every((m) => request.catalogue.materials.includes(m.type)))
       // held to the game's own bounds for a new kind while it is designed: the craftsperson offers nothing the game refuses
       const authored = (k: string) => k in this.opts.library.ontology.types
       // designed as a kind of a craft on offer (a net under the fishing rod): a variant of that craft, as the conversation should have said
       let asVariant: { prototype: string; ingredients: { type: string; count: number }[] } | undefined
+      let admittedType: TypeDef | undefined
       const bounds = (types: TypeDef[]) => {
         const t = theirs(types)
-        if (!t) return [`make it of what the player carries, at most: ${request.catalogue.materials.join(', ')}`]
+        if (!t) return [`make it of what the player carries, at most: ${request.catalogue.materials.join(', ')}`, ...(typePlan && types[0] ? creationPlanProblems(typePlan, types[0], onto) : [])]
+        const capabilityProblems = typePlan ? creationPlanProblems(typePlan, t, onto) : []
+        try { readResearchReply({ reply: { en: 'draft', zh: 'draft' }, design: { ...d, type: t } }, request.catalogue) }
+        catch (err) { return [`${(err as Error).message}; stations within reach: ${(request.catalogue.stations ?? ['hands']).join(', ')}`, ...capabilityProblems] }
+        const missing = researchMaterialProblems(t.makeup!, request.catalogue)
+        if (missing.length) return [...missing, ...capabilityProblems]
         const parent = t.id.split('/').slice(0, -1).join('/')
         const craft = request.catalogue.guidance?.prototypes.find((p) => p.type === parent) ?? (request.catalogue.prototypes.includes(parent) ? { minCost: 0 } : undefined)
         if (craft) {
-          const cost = (t.makeup ?? []).reduce((n, m) => n + (Number(index.resolve(m.type).props.value) || 0) * m.count, 0)
-          if (cost < craft.minCost) return [`A ${parent.split('/').pop()} is made of goods worth at least ${craft.minCost} (this makeup is worth ${cost})`]
+          const { cost, minimum } = researchVariantCost(index, parent, t.makeup ?? [], craft.minCost)
+          if (cost < minimum) return [`A ${parent.split('/').pop()} is made of goods worth at least ${minimum} (this makeup is worth ${cost})`, ...capabilityProblems]
+          if (typePlan) {
+            const problems = creationPlanProblems(typePlan, onto.types[parent], onto)
+            if (problems.length) return problems
+          }
+          admittedType = onto.types[parent]
           asVariant = { prototype: parent, ingredients: t.makeup! }
           return []
         }
         asVariant = undefined
         try {
-          newKindIn(index, { ...d, type: t }, inventionId({ ...d, type: t }, 'check'), authored, (k) => (request.catalogue.crafted ?? request.catalogue.prototypes).includes(k), (k) => request.catalogue.prototypes.includes(k))
-          return []
+          const admitted = newKindIn(index, { ...d, type: t }, inventionId({ ...d, type: t }, 'check'), authored, (k) => (request.catalogue.crafted ?? request.catalogue.prototypes).includes(k), (k) => request.catalogue.prototypes.includes(k))
+          const problems = typePlan ? creationPlanProblems(typePlan, admitted, onto) : []
+          if (!problems.length) admittedType = admitted
+          return problems
         } catch (err) {
-          return (err as Error).message.split('; ')
+          return [...new Set([...(err as Error).message.split('; '), ...capabilityProblems])]
         }
       }
       // the bounds said before they are met (each costs a round when found after): a player's craft, among its sort
       const among = 'A player crafts it: give it only properties the things of its family already have, never more than theirs, and a makeup worth at least the least of its family.'
       // a change of mind about a new kind on the table: the designer revises it (the rest as it was)
       const revising = draft?.kind === 'new' && draft.type ? { previous: { patch: { artifacts: [{ kind: 'type', type: (withoutArt(draft) as NewDesign).type }] } }, feedback: request.message } : {}
-      const made = await this.createThing({ intent: `${en(d.name)}: ${d.idea.slice(0, 250)} ${among}`, had, stations: (request.catalogue.stations ?? []).filter((x) => x !== 'hands'), draw: false, ...revising }, bounds)
+      const guidance = researchTypeGuidance(onto, typePlan, request.catalogue, `${en(d.name)} ${d.idea}`, this.opts.library.base, authored)
+      const made = await this.createThing({ intent: `${en(d.name)}: ${d.idea.slice(0, 250)} ${among}`, had, stations: (request.catalogue.stations ?? []).filter((x) => x !== 'hands'), draw: false, ...revising }, bounds, typePlan, guidance)
       workshop.push(...made.diagnostics)
       const type = theirs((made.patch?.artifacts ?? []).flatMap((a) => (a.kind === 'type' ? [a.type] : [])))
-      if (!type) throw new Error(made.diagnostics.join('; ') || 'the new thing could not be worked out from what you carry')
+      if (!type) {
+        if (this.down()) throw new Error(this.down())
+        return { reply: researchRefusal(d.name, made.diagnostics, said.plan?.pending) }
+      }
       const look = made.look ?? d.idea
-      if (!asVariant) return { reply: { ...said, design: { ...d, type } }, sketch: draw(d.name, type.id, look, draft?.kind === 'new' ? before : undefined) }
+      if (!asVariant) return finish({ ...said, design: { ...d, type } }, admittedType ?? type, draw(d.name, type.id, look, draft?.kind === 'new' ? before : undefined))
       workshop.push(`designed as a kind of ${asVariant.prototype}, a craft on offer: made a variant of it`)
       const ingredients = materialFirst(asVariant.ingredients)
       const same = draft?.kind !== 'new' && draft?.prototype === asVariant.prototype
-      return { reply: { ...said, design: { kind: 'variant', name: d.name, prototype: asVariant.prototype, ingredients } }, sketch: draw(d.name, type.id, look, (same && before) || request.catalogue.icons?.[asVariant.prototype]) }
+      return finish({ ...said, design: { kind: 'variant', name: d.name, prototype: asVariant.prototype, ingredients } }, admittedType!, draw(d.name, type.id, look, (same && before) || request.catalogue.icons?.[asVariant.prototype], true))
     }
     // a variant: its first ingredient gives its material, so one that is a material goes first (wool is none; grass is)
     d.ingredients = materialFirst(d.ingredients)
@@ -520,7 +573,7 @@ export class Modder {
     const material = index.resolve(d.ingredients[0].type).props.material
     const look = `${en(d.name)}: a ${typeof material === 'string' ? `${material} ` : ''}${en(onto.types[d.prototype]?.name ?? d.prototype.split('/').pop()!)}`
     const same = draft?.kind !== 'new' && draft?.prototype === d.prototype
-    return { reply: { ...said, design: d }, sketch: draw(d.name, `${d.prototype}/drawn`, look, (same && before) || request.catalogue.icons?.[d.prototype]) }
+    return finish({ ...said, design: d }, onto.types[d.prototype], draw(d.name, `${d.prototype}/drawn`, look, (same && before) || request.catalogue.icons?.[d.prototype], true))
   }
 
   /**
@@ -528,7 +581,7 @@ export class Modder {
    * can have (`had`, as the editor counts it in the author's game), with its icon. Nothing is committed: the author
    * reviews the draft with the engine's checks, and `adopt`s it.
    */
-  async createThing(body: ThingBody, bounds?: (types: TypeDef[]) => string[]): Promise<ThingReply> {
+  async createThing(body: ThingBody, bounds?: (types: TypeDef[]) => string[], plan?: ResearchPlan, guidance?: ResearchTypeGuidance): Promise<ThingReply> {
     const why = this.down()
     if (why || !this.backend) return { patch: null, diagnostics: [why ? `model unavailable: ${why}` : 'no model'] }
     const intent = String(body?.intent ?? '').trim().slice(0, 500)
@@ -538,14 +591,15 @@ export class Modder {
     const model = new Meter(this.backend)
     const messages: ChatMessage[] = [
       { role: 'system', content: THING_SYSTEM },
-      { role: 'user', content: thingUser(intent, { catalogue: catalogueOf(Object.values(onto.types)), materials: Object.keys(onto.materials ?? {}), had: body.had ?? [], stations: body.stations ?? [], elements: onto.elements ?? [] }) },
+      { role: 'user', content: thingUser(intent, { catalogue: catalogueOf(guidance?.catalogue ?? Object.values(onto.types)), materials: Object.keys(onto.materials ?? {}), had: body.had ?? [], stations: body.stations ?? [], elements: onto.elements ?? [], plan, guidance }) },
     ]
     if (body.previous) messages.push({ role: 'user', content: reviseDraftUser(body.previous, body.feedback ?? '') })
     const diagnostics: string[] = []
+    let modelFailed = false
     const { step, end } = this.tracer(body.id)
     try {
       for (let round = 0; round < 3; round++) {
-        const answer = withoutThinking((await model.chat(messages, { json: true, temperature: 0.6, purpose: 'create', reasoning: 'medium', deadlineMs: DRAFT_MS })).content)
+        const answer = withoutThinking((await model.chat(messages, { json: true, temperature: 0.6, purpose: 'create', reasoning: 'medium', deadlineMs: DRAFT_MS }).catch(error => { modelFailed = true; throw error })).content)
         const j = parseJson(answer) as { patch?: Patch; looks?: Record<string, string>; look?: string } | undefined
         // a new thing is types alone: what it does is asked act by act, as holes
         const patch: Patch = { artifacts: (j?.patch?.artifacts ?? []).filter((a) => a?.kind === 'type'), ...(j?.patch?.note && { note: j.patch.note }) }
@@ -584,6 +638,7 @@ export class Modder {
     } catch (err) {
       this.pause((err as Error).message)
       step({ who: 'engine', text: (err as Error).message })
+      if (modelFailed) throw err
       return { patch: null, diagnostics: [...diagnostics, (err as Error).message] }
     } finally {
       end()
@@ -619,7 +674,7 @@ export class Modder {
         const problems = kind === 'person' ? personProblems(j, ctx) : mapProblems(j, ctx)
         if (!problems.length) {
           step({ who: 'engine', text: 'its shape holds' })
-          return { draft: kind === 'map' ? settleMap(j!) : j!, diagnostics: [], usage: model.usage }
+          return { draft: kind === 'map' ? settleMap(j!, ctx) : j!, diagnostics: [], usage: model.usage }
         }
         diagnostics.push(...problems)
         step({ who: 'engine', text: 'sent back to the AI', problems })
