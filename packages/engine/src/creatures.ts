@@ -1,7 +1,8 @@
 // The goals of things with a behaviour of their own (world-model.md §6.10; behaviour.ts runs them
 // in each actor's order). Threat: an actor attacks the nearest actor it is hostile to
 // (Engine.hostileTo: its foes, and the factions its own are hostile to when its temper says so)
-// that it can see; a passive one (a cow, a hen) never attacks: it runs from whoever struck it
+// that it can see, or that struck it a moment ago wherever it stands (Minecraft's mobs turn on whoever hurt them,
+// as far as their leash lets them); a passive one (a cow, a hen) never attacks: it runs from whoever struck it
 // (Minecraft's panic). Home: otherwise it keeps near home — by day its home, after dark where it
 // roams. Idle: near home, it wanders now and then. What fears fire never comes near a lit or
 // burning thing, nor chases anyone who stands by one. Attacks are ordinary acts, so every
@@ -17,6 +18,7 @@ const DIR_LIST: Dir[] = ['up', 'down', 'left', 'right']
 const LEASH = 8
 /** Beyond this many tiles from home, it heads back. */
 const HOME_NEAR = 4
+const PROVOKED = 100
 
 /** What a tick's goals share on the active map: who is about, the fires, the hour. */
 export interface Scene {
@@ -44,6 +46,11 @@ export function homeNow(e: Entity, sc: Scene): Pos {
   return sc.night && ai.night ? ai.night : ai.home
 }
 
+export function provokedBy(eng: Engine, e: Entity, o: Entity): boolean {
+  const c = e.combat
+  return c?.lastHurtBy === o.id && eng.world.state.tick - (c.lastHurtTick ?? -Infinity) < PROVOKED
+}
+
 /** Threat, for a thing with a behaviour: the nearest it would attack in sight, fought (or, passive, fled). */
 export function fight(eng: Engine, e: Entity, sc: Scene): boolean {
   const w = eng.world
@@ -61,7 +68,7 @@ export function fight(eng: Engine, e: Entity, sc: Scene): boolean {
     // one veiled in smoke (a Smoke Bomb, actives.ts) is not seen
     if (o.place.on !== 'tile' || !eng.hostileTo(e, o) || (o.combat?.veilUntil ?? 0) > eng.world.state.tick) continue
     const d = Math.abs(o.place.x - x) + Math.abs(o.place.y - y)
-    if (d <= ai.sight && d < best && safe(o.place.x, o.place.y)) (target = o), (best = d)
+    if ((d <= ai.sight || provokedBy(eng, e, o)) && d < best && safe(o.place.x, o.place.y)) (target = o), (best = d)
   }
   if (!target || target.place.on !== 'tile') return false
   if (ai.behaviour === 'passive') {

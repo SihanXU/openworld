@@ -253,3 +253,17 @@ wolves come at their foe from opposite sides), minor-balance.test.ts unchanged i
 
 Checks: kits.test.ts (the web left round the player, who wades in is webbed, a blow tears one, the rest sag away; the
 Spore Cloud poisons), demo.test.ts K3, trophies.test.ts (the sporecap's piece stands alone).
+
+## 13. Struck from afar (2026-11-19)
+
+A monster looked for foes only within its sight, so whoever struck it from beyond that was never answered: a bow's six
+cells against a wolf's five, and seven kinds of eight stood under the arrows. Now one that struck it in the last ten
+seconds (`combat.lastHurtBy`, `PROVOKED` in engine `creatures.ts`) is its foe wherever it stands, for the threat goal
+a minor monster's kit goal and its tactics alike (`provokedBy`; a boss's director already sees the whole map): it
+comes on, or into its own reach if it shoots, as far as its leash lets it. Once ten seconds pass without a blow, one out
+of its sight is forgotten and it goes back toward home (to within four cells of it); if they come into its sight again it fights them again, and one within its sight it fights on, as before. A passive animal struck from
+afar runs from the one who struck it for those ten seconds. A short leash still stops it: a skeleton on a leash of 3
+cannot reach an archer six cells off. Minecraft's mobs turn on whoever hurt them the same way.
+
+Checks: provoked.test.ts (a wolf and a fire imp shot from six cells come and fight back; one left alone stays; one
+struck once by someone who then goes out of its sight chases them, then goes home).
