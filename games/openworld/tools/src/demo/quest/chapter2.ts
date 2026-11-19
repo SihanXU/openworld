@@ -558,6 +558,7 @@ export function buildPillarYard(): MapBuilder {
   m.anchors.arrive = [CH2_AT.yard.arrive[0], CH2_AT.yard.arrive[1]]
   m.regions.yard = [2, 2, P.w - 4, P.h - 3]
   m.vistas.push({ at: [2, 2, P.w - 4, P.h - 4], zoom: 0.75, focus: [px, py + 2], share: 0.35 })
+  levelCreatures(m)
   return m
 }
 

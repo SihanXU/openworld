@@ -160,6 +160,7 @@ const LAYS: StageDef = { lasts: LAYS_EVERY, yields: [{ type: 'item/food/egg/raw'
 
 /** How many night-born walk a map at once, and how often (ticks) another may come (world-model.md §6.9). */
 export const NIGHT_CAP = 4
+export const NIGHT_WALKERS = { 'actor/creature/undead/zombie': 0.6, 'actor/creature/beast/bat': 0.4 }
 export const NIGHT_EVERY = 60
 /** The largest a room may be, in cells (larger is out of doors). */
 export const ROOM_SIZE = 256
@@ -857,7 +858,7 @@ export function buildOntology(): Ontology {
       // any outdoor map, a few at a time, slowly — every couple of hours, never more than a handful
       ...LITTER.map(([type, on, max]) => ({ types: { [type]: 1 }, on, max, every: LITTER_EVERY, where: { light: 'outdoor' as const } })),
       {
-        types: { 'actor/creature/undead/zombie': 0.6, 'actor/creature/beast/bat': 0.4 },
+        types: NIGHT_WALKERS,
         where: { zone: 'combat', light: 'outdoor' },
         night: true,
         ring: [6, 10],

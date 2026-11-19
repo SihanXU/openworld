@@ -1395,6 +1395,7 @@ export interface MapData {
   regionProps?: Record<string, Record<string, PropValue>>
   /** What appears on the map by itself (world-model.md §6.9): the ground's yield, creatures that come back. */
   appear?: AppearDef[]
+  levelled?: Record<string, Record<string, PropValue>>
   /** Older chunks' name for `appear`, one type each (read when a chunk is decoded). */
   forage?: Forage[]
   /** Peaceful (towns, camps: nothing comes out at night) or combat (default: zombies and bats come out after dark, nightspawn.ts). */

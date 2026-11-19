@@ -195,6 +195,15 @@
           },
           "description": "What appears on the map by itself (world-model.md §6.9): the ground's yield, creatures that come back."
         },
+        "levelled": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/definitions/PropValue"
+            }
+          }
+        },
         "forage": {
           "type": "array",
           "items": {

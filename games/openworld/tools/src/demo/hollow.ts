@@ -22,6 +22,7 @@ export const UNDER_BARROW = ['ossuary', 'sanctum'] as const
 /** Where things are (the quest test reads these). */
 export const HAT = {
   ring: [31, 13],
+  king: [10, 21],
   warden: [12, 11],
   lina: [6, 19],
   oskar: [27, 19],
@@ -75,6 +76,7 @@ export function buildHollow(): MapBuilder {
   for (const [x, y] of [[15, 21], [30, 15]] as const) m.creature('fungus/sporecap', x, y, HUNT(3))
   lay(m, 'item/material/stick', 2, [15, 3, 8, 5])
   hollowDressing(m)
+  m.creature('slime/king_slime', ...HAT.king, { ...HUNT(4), id: 'hollow.king_slime' })
   m.appear = [
     ...GROUND_YIELD,
     hunters('actor/creature/slime/green_slime', 3, 900, ['grass', 'drygrass']),

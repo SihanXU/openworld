@@ -204,7 +204,7 @@ export function buildConfluence(): MapBuilder {
   m.item({ form: 'item/weapon/blade/sword', material: 'iron', name: L("A pilgrim's sword, left at the door", '朝圣者留在门前的剑') }, ...spot(m, 24, 6, true))
   // the things that come up out of the dark between the channels
   for (const [x, y] of [[10, 10], [30, 12], [12, 22], [28, 22]] as Cell[]) m.creature('undead/ghost', ...spot(m, x, y, true), { behaviour: 'melee', temper: 'aggressive', sight: 5, leash: 6 })
-  for (const [x, y] of [[8, 16], [33, 8]] as Cell[]) m.creature('wisp', ...spot(m, x, y, true), { behaviour: 'melee', temper: 'aggressive', sight: 5, leash: 6 })
+  for (const [x, y] of [[8, 16], [33, 8]] as Cell[]) m.creature('wisp/storm_wisp', ...spot(m, x, y, true), { behaviour: 'ranged', temper: 'aggressive', sight: 5, leash: 6 })
   m.fixture('fixture/sacred/waypoint', ...spot(m, 22, 25), { id: 'wp.confluence', name: L('Confluence statue', '五渠汇传送雕像') })
   m.anchors = { stair: [20, 26] }
   m.regions.meeting = [12, 4, 16, 12]

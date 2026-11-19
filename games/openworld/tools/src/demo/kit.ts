@@ -2,7 +2,7 @@
 // the main quest's maps under quest/).
 
 import { APPEAR_EVERY, type AppearDef, type Text } from '@openworld/engine'
-import { CREATURE_ROLES, ROLES, creatureStats } from '@openworld-game/content'
+import { CREATURE_ROLES, NIGHT_WALKERS, ROLES, creatureStats } from '@openworld-game/content'
 import { MapBuilder, rng } from './builder.ts'
 
 export const L = (en: string, zh: string): Text => ({ en, zh })
@@ -36,8 +36,7 @@ export function clump(m: MapBuilder, cx: number, cy: number, r: number, p = 0.7)
  * keeps how it plays; the curve gives its health, attack and defence at the level.
  */
 export function levelCreatures(m: MapBuilder): void {
-  for (const e of m.entities) {
-    const role = CREATURE_ROLES[e.type]
-    if (role && e.type.startsWith('actor/creature/') && !e.type.startsWith('actor/creature/sin/')) e.props = { ...e.props, ...creatureStats(m.gearLevel, ROLES[role]) }
-  }
+  const statsOf = (type: string) => CREATURE_ROLES[type] && creatureStats(m.gearLevel, ROLES[CREATURE_ROLES[type]])
+  for (const e of m.entities) if (CREATURE_ROLES[e.type]) e.props = { ...e.props, ...statsOf(e.type) }
+  for (const type of [...Object.keys(NIGHT_WALKERS), ...m.appear.flatMap((a) => Object.keys(a.types))]) if (CREATURE_ROLES[type]) m.levelled[type] = statsOf(type)
 }

@@ -101,6 +101,7 @@ export class MapBuilder {
   law?: string
   /** What appears on the map by itself: the ground's yield, creatures that come back (MapData.appear). */
   appear: AppearDef[] = []
+  levelled: NonNullable<MapData['levelled']> = {}
   /** Peaceful (towns, camps) or combat (night brings monsters): MapData.zone. */
   zone: 'peaceful' | 'combat' = 'combat'
   /** Fish shadows show in its water now and then (MapData.fish): a stocked pond. */
@@ -713,6 +714,7 @@ export class MapBuilder {
         regionProps: Object.keys(this.regionProps).length ? this.regionProps : undefined,
         law: this.law,
         appear: this.appear.length ? this.appear : undefined,
+        ...(Object.keys(this.levelled).length && { levelled: this.levelled }),
         music: this.music,
         light: this.light,
         ...(this.vistas.length && { vistas: this.vistas }),

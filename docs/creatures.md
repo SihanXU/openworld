@@ -81,10 +81,15 @@ of about its level (the map's `gearLevel`), witnessed by demo requirement K2:
 | Giant crab | the Reed Bend (2) | the shore south of the spit |
 | Ice golem | the Cinder Pass (6) | the snow below, with the frost wolves |
 | Storm wisp | the Cinder Pass (6) | up the trail; and in a storm over the pass, up to two more (its own `appear` with `weather: ['storm']`) |
+| Slime King | Thornwood Hollow (2) | the bog at the west end, off the way to the barrow (demo requirement K4) |
 
 The world's night walkers stay the dead and the bats: the night's table is every outdoor combat map's, and a ghost
 (level 4) or a wisp (level 5) there would meet a level-1 player in the Ford's meadow. A kind of a later place comes
 by that place's own appearances, as the wisp's storm does.
+
+On a map of the later chapters a kind is of the map's level however it got there: `levelCreatures` sets those placed and
+fills `MapData.levelled`, the numbers `appear` gives each kind that comes by itself, the night's walkers among them
+(`tools/test/map-levels.test.ts`).
 
 ## 4. How it is built
 

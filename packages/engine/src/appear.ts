@@ -84,6 +84,7 @@ function one(eng: Engine, active: string, a: AppearDef): void {
     const made = w.create(type, { on: 'tile', map: active, x, y }, {
       ...(a.ai && { facing: 'down' as const, ai: { ...structuredClone(a.ai), home: { map: active, x, y } } }),
       ...(a.tag && { tags: [a.tag] }),
+      ...(map.levelled?.[type] && { props: { ...map.levelled[type] } }),
     })
     eng.touch({ e: made.id })
     for (const st of a.statuses ?? []) eng.applyStatus({ e: made.id }, st)
