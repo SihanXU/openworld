@@ -2,7 +2,9 @@
 // timed (the kits module) — and its rule, which says what lands. A skill is a creature's act (`use` with the param
 // `kit`); its rule answers with `unleash`, so what a wolf's lunge or a spider's web does is data like any other answer.
 // The skills come from the setting (docs/lore.md §2): the First Night seeping in — beasts gone strange, the dead that
-// do not rest, things of the night that do not belong to the world.
+// do not rest, things of the night that do not belong to the world. The late roads' three (docs/creatures.md §14) each ask
+// an answer none before them did: the Hollow Clerk weighs a blow and gives it back (wait it out), the bog wisp draws one
+// in to its corpse-light (step off its row), the Restless robe the dead and mend them (fell them first).
 
 import type { CreatureSkill, Effect, Rule, TypeDef } from '@openworld/engine'
 import { CALL, CLING, DO, ELEMENT, HARM, POWER, kitRule, skill, unleash } from './afflictions.ts'
@@ -25,8 +27,17 @@ const WEB = skill('web', 'Web Spit', '吐丝', { shape: 'circle', aim: 'target',
 const SPORES = skill('spores', 'Spore Cloud', '孢子云', { shape: 'circle', aim: 'self', radius: 2, range: [1, 2], windup: 12, cooldown: 60, color: CLING })
 const BREATH = skill('breath', 'Ember Breath', '余烬吐息', { shape: 'cone', aim: 'self', radius: 3, aligned: true, range: [1, 3], windup: 10, cooldown: 50, color: HARM })
 const SHELL = skill('shell', 'Shell Up', '缩壳', { shape: 'circle', aim: 'self', radius: 0, range: [1, 4], windup: 4, cooldown: 150, below: 0.5, color: CALL })
+const WEIGH = skill('weigh', 'Weigh', '称量', { shape: 'circle', aim: 'self', radius: 0, range: [1, 2], windup: 6, cooldown: 70, color: CALL })
+const TALLY = skill('tally', 'Strike the Account', '勾账', { shape: 'cone', aim: 'self', radius: 2, aligned: true, range: [1, 2], windup: 10, cooldown: 40, color: HARM })
+const BECKON = skill('beckon', 'Beckon', '招引', { shape: 'line', aim: 'target', radius: 5, aligned: true, range: [2, 4], windup: 10, cooldown: 60, then: 'corpse_light', color: CLING })
+const CORPSE_LIGHT = skill('corpse_light', 'Corpse Light', '尸火', { shape: 'circle', aim: 'self', radius: 1, range: [0, 0], windup: 6, cooldown: 0, color: HARM })
+const HOW_LONG = skill('how_long', 'How Long?', '还要多久', { shape: 'circle', aim: 'self', radius: 5, range: [1, 8], windup: 14, cooldown: 90, chance: 0.5, color: CALL })
+const PLEA = skill('plea', 'Plea', '哀求', { shape: 'line', aim: 'target', radius: 4, aligned: true, range: [2, 4], windup: 10, cooldown: 50, color: CLING })
 
 const C = 'actor/creature'
+const CLERK = `${C}/undead/clerk`
+const BOG_WISP = `${C}/wisp/bog_wisp`
+const RESTLESS = `${C}/undead/restless`
 /** A spider's web left on the ground: it holds who wades in, a blow or a flame tears it, it sags away in twelve seconds. */
 export const COBWEB = 'fixture/nature/web'
 const L = (en: string, zh: string) => ({ en, zh })
@@ -49,6 +60,9 @@ export const KITS: Record<string, CreatureSkill[]> = {
   [`${C}/whelp`]: [BREATH],
   [`${C}/crab`]: [SHELL],
   [`${C}/fungus`]: [SPORES],
+  [CLERK]: [WEIGH, TALLY],
+  [BOG_WISP]: [BECKON, CORPSE_LIGHT],
+  [RESTLESS]: [PLEA, HOW_LONG],
 }
 
 // ------------------------------------------------------------------ the rules
@@ -105,6 +119,25 @@ export const KIT_RULES: Rule[] = [
   ]),
   ...kitRule('kit/crab', `${C}/crab`, 'A crab\'s Shell Up, hurt: it draws into its shell, hard to hurt and slow a while.', [
     ['shell', DO({ op: 'addStatus', status: 'shelled' }, { op: 'vfx', fx: 'dust' })],
+  ]),
+  ...kitRule('kit/clerk', CLERK, 'A Hollow Clerk\'s skills: it lifts its scale and Weighs, standing a second and a half, and every blow it takes meanwhile it turns back on the one who struck; then it Strikes the Account, a cut across the cone before it.', [
+    ['weigh', DO({ op: 'addStatus', status: 'weighing' }, { op: 'vfx', fx: 'gust' })],
+    ['tally', DO(unleash({ power: POWER(1.4), edge: 'cut' }))],
+  ]),
+  rule({
+    id: 'clerk/weigh',
+    doc: 'A Hollow Clerk weighing takes no hurt from a blow, and the one who struck is struck back with the weight of its own (its own attack).',
+    host: { type: CLERK, status: ['weighing'] },
+    on: 'impulse/strike',
+    tree: DO({ op: 'emit', impulse: 'strike', to: 'actor', params: { power: { prop: 'atk', of: 'host' }, edge: 'magic' }, filter: { type: 'actor' } }, { op: 'vfx', fx: 'sparks' }),
+  }),
+  ...kitRule('kit/bog_wisp', BOG_WISP, 'A bog wisp\'s Beckon draws whoever stands in its row three cells toward it, and its Corpse Light burns the cells round it at once.', [
+    ['beckon', DO(unleash({ edge: 'magic', pull: 3 }))],
+    ['corpse_light', DO(unleash({ power: POWER(1.3), edge: 'magic' }), { op: 'vfx', fx: 'smoke' })],
+  ]),
+  ...kitRule('kit/restless', RESTLESS, 'The Restless cry How Long?: every one of the dead within five cells is robed and mends a while, itself too; their Plea reaches down the row and holds what it touches as in a mire.', [
+    ['how_long', DO({ op: 'addStatus', status: 'robed' }, { op: 'emit', impulse: 'coat', to: { around: 5 }, params: { substance: 'robed' }, filter: { tags: ['undead'] } }, { op: 'vfx', fx: 'gust' })],
+    ['plea', DO(unleash({ power: POWER(1), edge: 'magic', coat: 'mired' }))],
   ]),
 ]
 
@@ -173,6 +206,8 @@ export const CREATURE_TACTICS: Record<string, { keepAway?: number; fleeBelow?: n
   [`${C}/undead/ghost`]: { keepAway: 2 },
   [`${C}/beast/wolf`]: { fleeBelow: 0.2, pack: true },
   [`${C}/beast/frost_wolf`]: { fleeBelow: 0.2, pack: true },
+  [BOG_WISP]: { keepAway: 3 },
+  [RESTLESS]: { keepAway: 3 },
 }
 
 // ------------------------------------------------------------------ what the kits leave, and the new kinds (docs/creatures.md §12)
@@ -183,6 +218,9 @@ export const KIT_TYPES: TypeDef[] = [
   // the First Night's mark on the woods: mushrooms grown into things that walk (docs/lore.md §2)
   { id: `${C}/fungus`, name: L('fungus', '菌怪'), tags: ['fungus', 'plant', 'flammable'], sprite: 'creature:fungus' },
   { id: `${C}/fungus/sporecap`, name: L('sporecap', '孢子菇'), props: { speed: 9 } },
+  { id: CLERK, name: L('Hollow Clerk', '空心书记官'), tags: ['bone'], sprite: 'creature:clerk', props: { speed: 7 } },
+  { id: BOG_WISP, name: L('bog wisp', '沼火'), sprite: 'creature:wisp:bog_wisp', props: { speed: 5, range: 4 } },
+  { id: RESTLESS, name: L('Restless', '不安者'), tags: ['robed'], sprite: 'creature:restless', props: { speed: 6, range: 4 } },
 ]
 
 export const WEB_RULES: Rule[] = [

@@ -258,3 +258,30 @@ wolves come at their foe from opposite sides), minor-balance.test.ts unchanged i
 
 Checks: kits.test.ts (the web left round the player, who wades in is webbed, a blow tears one, the rest sag away; the
 Spore Cloud poisons), demo.test.ts K3, trophies.test.ts (the sporecap's piece stands alone).
+
+## 14. The late roads' kinds (2026-11-20)
+
+Chapters 3 to 5 had borrowed the Ford's kinds: the Black Balance's clerks were ghosts, the Pale Fens' wisps were storm
+wisps. Each chapter now has a kind of its own, and each asks an answer none before it did, the way a new enemy in a
+Souls game or Monster Hunter teaches one new read.
+
+- **The Hollow Clerk** 空心书记官 (`undead/clerk`, a fighter, the six desks of the Black Balance). **Weigh** 称量:
+  it stands 0.6 s, then is `weighing` for 1.5 s, gold on its body (the status's tint; the skill marks no cells). A
+  blow struck meanwhile does it no harm and comes back on the striker at the clerk's own attack (`clerk/weigh`, an
+  `impulse/strike` rule of the status). **Strike the Account** 勾账: a cone of 2 toward its foe, 1 s, atk × 1.4 cut.
+  The answer is to hold one's blows: the read Sekiro's and Dark Souls' parries ask of the player, turned round.
+- **The bog wisp** 沼火 (`wisp/bog_wisp`, a caster, keeps away at 3, the causeway and the drowned graves).
+  **Beckon** 招引: from 2 to 4 cells off in its row, a line of 5, 1 s, pulls 3 toward it (so from its farthest one lands beside it), and chains into **Corpse Light** 尸火: the ring of 8
+  round itself, 0.6 s, atk × 1.3. The will-o'-wisp that leads one into the bog, with a hook's two beats (Dota's Pudge):
+  step off the line and neither lands; pulled, step out of the ring.
+- **The Restless** 不安者 (`undead/restless`, a caster, keeps away at 3, two in the catacombs among the dead).
+  **Plea** 哀求: a line of 4, 1 s, atk × 1, mired. **How Long?** 还要多久: half the times it may, it stands 1.4 s
+  and robes itself and every undead within 5 (`coat robed`, the `body/afflict` rule), 5 s mending 4% of their health a
+  second (`body/robed`). Diablo's Fallen Shaman and Dark Souls' Channeler: the one to fell first, or to draw the others
+  away from.
+- Their pieces are a fourth trinket family, the Unreleased 未释者首饰 (the Ledger Ring, the Fenlight Earring, the
+  White-Robe Clasp; levels 12, 15, 18). The kits are eighteen.
+
+Checks: kits.test.ts (a clerk weighing takes no harm and strikes back; the wisp beckons and burns; the Restless robe
+the dead within reach and they mend), minor-balance.test.ts (a guard status is a wall: standing into it may cost a
+brute's 20, reading it a fighter's 12), demo.test.ts K5 (each kind on its maps, their kits and their set).

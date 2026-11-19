@@ -1,3 +1,6 @@
+// The minor monsters' balance (docs/creatures.md §8): each kind duelled with gear of its level, standing and dodging; one
+// who dodges steps off its marks and holds their blows while it guards (a Hollow Clerk weighing), and striking into the
+// guard may cost as much as a wall does.
 import { describe, expect, it } from 'vitest'
 import { Game, RuleLibrary, type Dir, type Entity } from '@openworld/engine'
 import { kitsOf } from '@openworld/modules'
@@ -64,7 +67,7 @@ function duel(type: string, dodge: boolean): Duel {
       }
     }
     const now = w.posOf(p)!
-    if (beside(now.x, now.y) && !bad(now.x, now.y)) {
+    if (beside(now.x, now.y) && !bad(now.x, now.y) && !(dodge && GUARDS.some((g) => c.statuses?.[g]))) {
       p.facing = ct.x > now.x ? 'right' : ct.x < now.x ? 'left' : ct.y > now.y ? 'down' : 'up'
       eng.playerAttack({ e: c.id })
     }
@@ -77,6 +80,8 @@ function duel(type: string, dodge: boolean): Duel {
 }
 
 const kinds = Object.entries(CREATURE_ROLES)
+const GUARDS = ['weighing']
+const GUARDED = ['actor/creature/undead/clerk']
 const hasKit = (type: string) => {
   for (let t = type; t; t = t.includes('/') ? t.slice(0, t.lastIndexOf('/')) : '') if (onto.kits?.[t]) return true
   return false
@@ -94,8 +99,9 @@ describe('minor monsters\' balance', () => {
     expect(stand.secs).toBeGreaterThanOrEqual(role === 'swarm' ? 1 : role === 'elite' ? 6 : 1.5)
     if (hasKit(type)) expect(stand.casts, 'it takes a skill up').toBeGreaterThan(0)
     // what one loses standing: a swarm or a fighter a little, a wall more, a gatekeeper a good part of one's health
-    expect(stand.lost).toBeLessThanOrEqual(role === 'elite' ? 30 : role === 'brute' ? 20 : 12)
+    expect(stand.lost).toBeLessThanOrEqual(role === 'elite' ? 30 : role === 'brute' || GUARDED.includes(type) ? 20 : 12)
     const dodge = duel(type, true)
     expect(dodge.won, 'won dodging').toBe(true)
+    if (GUARDED.includes(type)) expect(dodge.lost, 'reading its guard').toBeLessThanOrEqual(12)
   })
 })

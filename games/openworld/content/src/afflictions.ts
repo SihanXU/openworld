@@ -47,6 +47,8 @@ export const SKILL_STATUSES: StatusDef[] = [
   { id: 'frenzied', name: L('frenzied', '狂热'), duration: 80, moveDelay: 0.6, props: { atk: 1 } },
   // a crab drawn into its shell: hard to hurt, slow to move
   { id: 'shelled', name: L('shelled', '缩壳'), duration: 40, moveDelay: 2, props: { def: 4 } },
+  { id: 'weighing', name: L('weighing', '称量'), duration: 15, immobilize: true },
+  { id: 'robed', name: L('robed', '白袍'), duration: 50, every: 10 },
   // the Black Balance's famine (Ele, docs/chapter-3.md §4): hunger drains a little each second for three (body/famine)
   { id: 'famished', name: L('Famished', '饥馑'), duration: 30, every: 10 },
   // a Demon Hunter's hex (advancement.ts): weaker, softer and slower while it lasts
@@ -61,7 +63,7 @@ export const SKILL_STATUSES: StatusDef[] = [
 ]
 
 /** Every coat a body takes as a status of its own (body/afflict): the bosses' and the minor monsters'. */
-export const AFFLICTIONS = ['mired', 'entranced', 'webbed', 'poisoned', 'bleeding', 'stunned', 'frenzied', 'knelt', 'famished']
+export const AFFLICTIONS = ['mired', 'entranced', 'webbed', 'poisoned', 'bleeding', 'stunned', 'frenzied', 'knelt', 'famished', 'robed']
 /** The coats that hold a body where it is: once it is held, it is steadied a while after. */
 export const HOLDS = ['entranced', 'knelt', 'stunned']
 
@@ -83,6 +85,13 @@ export const AFFLICTION_RULES: Rule[] = [
     host: { type: 'actor', status: ['famished'] },
     on: 'time/period',
     tree: { if: { param: { key: 'status', cmp: 'famished' } }, then: DO({ op: 'feed', amount: -2 }), else: 'inherit' },
+  }),
+  rule({
+    id: 'body/robed',
+    doc: 'A robed body mends a twenty-fifth of its full health each second it lasts (the Restless\' robe on the dead).',
+    host: { type: 'actor', status: ['robed'] },
+    on: 'time/period',
+    tree: { if: { param: { key: 'status', cmp: 'robed' } }, then: DO({ op: 'heal', amount: { prop: 'maxHp', of: 'host', mul: 0.04 } }), else: 'inherit' },
   }),
   rule({
     id: 'body/poison',

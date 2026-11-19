@@ -273,6 +273,7 @@ export function buildCatacombs(): MapBuilder {
   })
   // the restless among them, up and wandering
   for (const [x, y] of [[No.x + 4, No.y + 2], [No.x + 19, No.y + 2], [P.spine.x + 1, P.spine.y + 4], [So.x + 6, So.y + 1]] as Cell[]) m.creature('undead/ghost', ...spot(m, x, y, true), HUNT(4))
+  for (const [x, y] of [[No.x + 9, No.y + 1], [So.x + 10, So.y]] as Cell[]) m.creature('undead/restless', ...spot(m, x, y, true), { behaviour: 'ranged', temper: 'aggressive', sight: 6, leash: 5 })
   m.fixture('fixture/sacred/waypoint', ...spot(m, P.entry.x + 2, P.entry.y), { id: 'wp.catacombs', name: L('Catacombs statue', '墓窟传送雕像') })
   m.anchors = { stair: [P.entry.x + 1, P.entry.y + 1] }
   m.regions.galleries = [No.x, No.y, No.w, No.h + 1]

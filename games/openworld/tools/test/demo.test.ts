@@ -1156,6 +1156,18 @@ req('K3', 'a kind of the First Night\'s own: sporecaps, mushrooms grown into thi
   expect(onto.types['actor/creature/fungus/sporecap'].props?.trophy).toBe('item/clothing/hat/sporecap')
 })
 
+req('K5', 'the late roads\' own kinds, each where its chapter says and each asking an answer none before did: the Hollow Clerks at their desks in the Black Balance (a guard that gives a blow back), bog wisps over the Long Causeway\'s water and the Drowned Graves (a beckon down the row), the Restless among the Witnesses\' niches (a robe that mends the dead) — its kit its own, the three a set of trinkets', ['actor/creature/undead/clerk', 'actor/creature/wisp/bog_wisp', 'actor/creature/undead/restless'], () => {
+  const f = fresh()
+  const w = W(f)
+  const maps = (type: string) => [...new Set(w.ofType(type).map((e) => w.posOf(e)?.map))].sort()
+  expect(maps('actor/creature/undead/clerk')).toEqual(['blackbalance'])
+  expect(maps('actor/creature/wisp/bog_wisp')).toEqual(['causeway', 'drowned'])
+  expect(maps('actor/creature/undead/restless')).toEqual(['catacombs'])
+  const kit = (type: string) => kitsOf(f.eng).kitOf(w.ofType(type)[0])?.map((s) => s.id)
+  expect([kit('actor/creature/undead/clerk'), kit('actor/creature/wisp/bog_wisp'), kit('actor/creature/undead/restless')]).toEqual([['weigh', 'tally'], ['beckon', 'corpse_light'], ['plea', 'how_long']])
+  expect(['actor/creature/undead/clerk', 'actor/creature/wisp/bog_wisp', 'actor/creature/undead/restless'].map((t) => onto.types[onto.types[t].props?.trophy as string]?.props?.set)).toEqual(['unreleased', 'unreleased', 'unreleased'])
+})
+
 // ------------------------------------------------------------------ W. the world model: breaking (world-model.md §10.3)
 
 /** A thing made the way a recipe makes it, in the player's bag (the test's own hand). */
@@ -4458,7 +4470,7 @@ req('CH3', "Chapter 3, the Third Seal (docs/chapter-3.md), offline: the grain ro
   waitFor('balance_court')
   ticks(f, 3)
   expect(q.stage('third_seal')).toBe(40)
-  expect(onMap(f, 'actor/creature/undead/ghost', 'blackbalance').length).toBe(6)
+  expect(onMap(f, 'actor/creature/undead/clerk', 'blackbalance').length).toBe(6)
   go('blackbalance.counting', 12, 12)
   waitFor('ledger')
   expect([w.fact(CH3.ledger), q.stage('third_seal')]).toEqual([1, 50])
@@ -4513,7 +4525,7 @@ req('CH3', "Chapter 3, the Third Seal (docs/chapter-3.md), offline: the grain ro
 req('CH4', "Chapter 4, the Fourth Seal (docs/chapter-4.md), offline: the fen road open with the Vale fed, out of Fairweight's fields, five days on the card; the Long Causeway's nailed graves; Nailgate on its piles, the sexton's nail, Liese at Piet's door not knowing his name; Nessa's sunset table beside the Church's chronicle of the Holy Body; the Drowned Graves at dusk and the Rider gathering the Pale; the Ossuary of the Holy Wood, the black Shroud and the grey man on his knees; Nacht at the Ford of the Dead, the Holy Wood and Lumi's fourth power, the dead knowing her, the pilgrim's hand on the lantern, a longer night; the ferry at Nailgate, the dead lying down, the chapter's card and the road west; the Fens' errands: the ferryman's coin, Jory's kite, nails", [
   'npc.klaas', 'npc.hedda', 'npc.piet', 'npc.liese', 'npc.sanne', 'npc.jory', 'npc.barnaby',
   'actor/creature/sin/nacht', 'fixture/sacred/nail_post', 'fixture/sacred/grave_post', 'fixture/sacred/shroud', 'fixture/sacred/holy_wood', 'item/valuable/kite',
-  'actor/creature/wisp/storm_wisp', 'actor/creature/undead/zombie', 'fixture/sacred/cross', 'fixture/sacred/sarcophagus', 'site/place/graveyard',
+  'actor/creature/wisp/bog_wisp', 'actor/creature/undead/zombie', 'fixture/sacred/cross', 'fixture/sacred/sarcophagus', 'site/place/graveyard',
 ], () => {
   const f = fresh()
   const w = W(f)
@@ -4581,7 +4593,7 @@ req('CH4', "Chapter 4, the Fourth Seal (docs/chapter-4.md), offline: the fen roa
   waitFor('rider')
   expect(w.fact(CH4.rider)).toBe(1)
   expect(onMap(f, 'actor/creature/undead/zombie', 'drowned').length).toBeGreaterThanOrEqual(4)
-  expect(onMap(f, 'actor/creature/wisp/storm_wisp', 'drowned').length + onMap(f, 'fixture/sacred/cross', 'drowned').length + onMap(f, 'fixture/sacred/sarcophagus', 'drowned').length).toBeGreaterThan(3)
+  expect(onMap(f, 'actor/creature/wisp/bog_wisp', 'drowned').length + onMap(f, 'fixture/sacred/cross', 'drowned').length + onMap(f, 'fixture/sacred/sarcophagus', 'drowned').length).toBeGreaterThan(3)
   expect(w.get('site.drowned')!.type).toBe('site/place/graveyard')
   // the kite to Sanne before the ferry
   go('nailgate', 9, 24)

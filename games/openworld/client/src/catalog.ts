@@ -1081,6 +1081,9 @@ export const CATALOG: Catalog = {
     'creature:imp:fire_imp': charCreature('DemonRed'),
     'creature:wisp': own('StormWisp'),
     'creature:wisp:storm_wisp': own('StormWisp'),
+    'creature:wisp:bog_wisp': mon('Spirit', 'SpriteSheet.png', 0xa8f0a0),
+    'creature:clerk': charCreature('Inspector', 0xb8b0a0),
+    'creature:restless': charCreature('Monk2', 0xf4f0e8),
     'creature:crab': own('Crab'),
     // the main quest's monsters
     'creature:spider': mon('SpiderRed'),

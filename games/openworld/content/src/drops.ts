@@ -61,6 +61,9 @@ export const CREATURE_DROPS: Record<string, { type: string; count: number }[]> =
   [`${C}/whelp`]: of([M.leather, 2], [M.coal, 2]),
   [`${C}/crab`]: of([M.fish, 4]),
   [`${C}/cyclops`]: of([M.leather, 6], [M.meat, 6]),
+  [`${C}/undead/clerk`]: of([M.cloth, 2], ['item/material/salt', 2]),
+  [`${C}/wisp/bog_wisp`]: of([ECTO, 2]),
+  [`${C}/undead/restless`]: of([M.cloth, 2], [M.bone, 2]),
 }
 
 const formName = (type: string): Text => {

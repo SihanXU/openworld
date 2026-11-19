@@ -87,6 +87,9 @@ export const TROPHIES: Trophy[] = [
   T('cyclops', 'item/valuable/amulet/cyclopseye', 'item:amulet', 'neck', "The Cyclops' Eye", '独眼巨人之瞳', 'wyrmblood', BOSS, 7, 150, { def: 1, critChance: 0.05, critDamage: 0.15 }),
   T('dragon', 'item/valuable/earring/cindertear', 'item:earring', 'ear', 'Cindertear Earring', '烬龙之泪', 'wyrmblood', BOSS, 10, 300, { atk: 2, critDamage: 0.2, lifesteal: 1 }),
   T('whelp', 'item/valuable/ring/whelpfang', 'item:ring', 'ring', 'Whelpfang Ring', '幼龙牙戒', 'wyrmblood', ELITE, 7, 60, { atk: 1, def: 1 }),
+  T('undead/clerk', 'item/valuable/ring/ledgerring', 'item:ring', 'ring', 'Ledger Ring', '账簿指环', 'unreleased', COMMON, 12, 40, { atk: 1, critDamage: 0.1 }),
+  T('wisp/bog_wisp', 'item/valuable/earring/fenlight', 'item:earring', 'ear', 'Fenlight Earring', '沼光耳坠', 'unreleased', COMMON, 15, 40, { dodge: 0.03, cdr: 0.04 }),
+  T('undead/restless', 'item/valuable/amulet/whiterobe', 'item:amulet', 'neck', 'White-Robe Clasp', '白袍搭扣', 'unreleased', COMMON, 18, 45, { def: 1, lifesteal: 1 }),
   // pieces that stand alone: stronger than any one piece of a set, in none
   T('undead/warden', 'item/armor/helmet/wardenhelm', 'item:helmet', 'head', "The Warden's Helm", '古墓守卫之盔', undefined, BOSS, 5, 120, { def: 2, luck: 0.1, lifesteal: 1 }),
   T('golem/stone_golem', 'item/armor/breastplate/stoneheart', 'item:armor', 'body', 'Stoneheart Plate', '石心胸甲', undefined, ELITE, 6, 70, { def: 3 }),
@@ -129,6 +132,13 @@ const FAMILIES: { id: string; en: string; zh: string; bonuses: GearSet['bonuses'
     bonuses: [
       { pieces: 2, props: { atk: 2, def: 2 }, text: L('Attack +2, defence +2', '攻击 +2，防御 +2') },
       { pieces: 3, props: { atk: 4, critDamage: 0.3, lifesteal: 1 }, text: L('Attack +4, critical damage +30%, each hit draws 1 health', '攻击 +4，暴伤 +30%，每次命中吸取 1 点生命') },
+    ],
+  },
+  {
+    id: 'unreleased', en: 'Trinkets of the Unreleased', zh: '未释者首饰',
+    bonuses: [
+      { pieces: 2, props: { def: 3, cdr: 0.06 }, text: L('Defence +3, cooldowns −6%', '防御 +3，冷却缩减 6%') },
+      { pieces: 3, props: { atk: 4, lifesteal: 1, luck: 0.1 }, text: L('Attack +4, each hit draws 1 health, luck +10%', '攻击 +4，每次命中吸取 1 点生命，幸运 +10%') },
     ],
   },
 ]

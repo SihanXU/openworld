@@ -472,7 +472,7 @@ export function buildBlackBalance(): MapBuilder {
   // the Hollow Clerks at their desks in the court
   for (const [x, y] of [[8, 11], [12, 11], [16, 11], [8, 19], [12, 19], [16, 19]] as Cell[]) {
     m.fixture('fixture/furniture/desk', x, y)
-    m.creature('undead/ghost', x, y + 1, { behaviour: 'melee', temper: 'aggressive', sight: 4, leash: 4 })
+    m.creature('undead/clerk', x, y + 1, { behaviour: 'melee', temper: 'aggressive', sight: 4, leash: 4 })
   }
   // the tithe-collectors' bones by the carts that never left
   for (const [x, y] of [[22, 12], [22, 19]] as Cell[]) m.creature('undead/skeleton', ...spot(m, x, y, true), { behaviour: 'melee', temper: 'aggressive', sight: 4, leash: 3 })

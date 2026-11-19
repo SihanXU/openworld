@@ -161,6 +161,39 @@ describe('creature kits', () => {
     expect(run(40, () => !!crab.statuses?.shelled)).toBe(true)
   })
 
+  it('a Hollow Clerk weighing takes no hurt from a blow and gives its own weight back to the one who struck', () => {
+    const { eng, w, p, spawn, run } = arena()
+    const clerk = spawn('actor/creature/undead/clerk', 1)
+    expect(run(200, () => !!clerk.statuses?.weighing)).toBe(true)
+    const mine = w.num(p, 'hp'), its = w.num(clerk, 'hp')
+    eng.playerAttack({ e: clerk.id })
+    run(3)
+    expect(w.num(clerk, 'hp')).toBe(its)
+    expect(w.num(p, 'hp')).toBeLessThan(mine)
+  })
+
+  it('a bog wisp beckons one down its row to its side and burns the cells round it', () => {
+    const { w, p, spawn, run } = arena()
+    const wisp = spawn('actor/creature/wisp/bog_wisp', 5)
+    const near = () => Math.abs(w.posOf(wisp)!.x - w.posOf(p)!.x) + Math.abs(w.posOf(wisp)!.y - w.posOf(p)!.y)
+    const x0 = w.posOf(p)!.x
+    const hp = w.num(p, 'hp')
+    expect(run(200, () => w.posOf(p)!.x > x0)).toBe(true)
+    expect(run(20, () => w.num(p, 'hp') < hp)).toBe(true)
+    expect(near()).toBeLessThanOrEqual(1)
+  })
+
+  it('the Restless robe the hurt dead round them, who mend; the living are not robed', () => {
+    const { w, p, spawn, run } = arena()
+    const bones = spawn('actor/creature/undead/skeleton', 3, { hp: 5 })
+    spawn('actor/creature/undead/restless', 6)
+    expect(run(300, () => !!bones.statuses?.robed)).toBe(true)
+    const hp = w.num(bones, 'hp')
+    run(20)
+    expect(w.num(bones, 'hp')).toBeGreaterThan(hp)
+    expect(p.statuses?.robed).toBeUndefined()
+  })
+
   it('the elites: the Slime King, hurt, splits off two green slimes, once', () => {
     const { eng, w, map, spawn, run } = arena()
     const king = spawn('actor/creature/slime/king_slime', 3, { hp: 40 })

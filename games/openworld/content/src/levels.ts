@@ -53,6 +53,9 @@ export const CREATURE_ROLES: Record<string, keyof typeof ROLES> = {
   [`${C}/whelp`]: 'caster',
   [`${C}/crab`]: 'brute',
   [`${C}/cyclops`]: 'elite',
+  [`${C}/undead/clerk`]: 'fighter',
+  [`${C}/wisp/bog_wisp`]: 'caster',
+  [`${C}/undead/restless`]: 'caster',
 }
 
 /**

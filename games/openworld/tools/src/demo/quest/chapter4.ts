@@ -111,8 +111,8 @@ export function buildCauseway(): MapBuilder {
   m.regions.arrival = [11, 0, 14, 9]
   fenLife(m, [[5, 4], [28, 7], [4, 20], [29, 25], [6, 30], [27, 36], [9, 41]])
   // what moves on the fen: lights over the water, and at night the Pale come up out of the mud
-  m.creature('wisp/storm_wisp', ...spot(m, 8, 22, true), { behaviour: 'ranged', temper: 'aggressive', sight: 5, leash: 6 })
-  m.creature('wisp/storm_wisp', ...spot(m, 28, 29, true), { behaviour: 'ranged', temper: 'aggressive', sight: 5, leash: 6 })
+  m.creature('wisp/bog_wisp', ...spot(m, 8, 22, true), { behaviour: 'ranged', temper: 'aggressive', sight: 5, leash: 6 })
+  m.creature('wisp/bog_wisp', ...spot(m, 28, 29, true), { behaviour: 'ranged', temper: 'aggressive', sight: 5, leash: 6 })
   m.creature('undead/zombie', ...spot(m, 27, 12, true), HUNT(4))
   m.creature('undead/zombie', ...spot(m, 9, 38, true), HUNT(4))
   m.appear = [appears('actor/creature/undead/zombie', ['mud'], 3, 2400, { ai: { behaviour: 'melee', temper: 'aggressive', sight: 5, leash: 6 }, night: true })]
@@ -279,7 +279,7 @@ export function buildDrownedGraves(): MapBuilder {
   for (const [x, y] of [[24, 6], [28, 15], [38, 15]] as Cell[]) fogLamp(m, ...spot(m, x, y))
   // the Pale: the dead who have forgotten everything
   for (const [x, y] of [[10, 10], [33, 8], [15, 28], [40, 26]] as Cell[]) m.creature('undead/zombie', ...spot(m, x, y, true), HUNT(5))
-  m.creature('wisp/storm_wisp', ...spot(m, 30, 24, true), { behaviour: 'ranged', temper: 'aggressive', sight: 5, leash: 6 })
+  m.creature('wisp/bog_wisp', ...spot(m, 30, 24, true), { behaviour: 'ranged', temper: 'aggressive', sight: 5, leash: 6 })
   m.appear = [appears('actor/creature/undead/zombie', ['mud'], 5, 1800, { ai: { behaviour: 'melee', temper: 'aggressive', sight: 5, leash: 8 }, night: true })]
   m.regions.graves = [0, 0, P.w, P.h]
   seal(m, ways(m, { north: P.north, east: P.east }), 'deepwater')
