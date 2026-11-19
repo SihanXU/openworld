@@ -60,6 +60,7 @@ export interface EntitySnap {
   sealed?: boolean
   element?: string
   open?: boolean
+  hasContents?: boolean
   held?: string // sprite key of the held item
   heldTags?: string[]
   /** A boss fight's body (the kits module's encounters, filled by its frame hook). */
@@ -593,6 +594,7 @@ export function snapshot(eng: Engine, opts: { panel?: Id; view?: FrameView } = {
       ...(w.sealed(e) && { sealed: true }),
       element: (w.prop(e, 'element') as string | undefined) ?? undefined,
       open: !!e.statuses?.open,
+      ...(e.contents?.length && { hasContents: true }),
       held: held ? (w.onto.resolve(held.type).sprite ?? held.type) : undefined,
       heldTags: held ? [...w.onto.resolve(held.type).tags, ...(held.tags ?? [])] : undefined,
     })

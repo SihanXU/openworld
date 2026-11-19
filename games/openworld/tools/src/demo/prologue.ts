@@ -7,7 +7,8 @@
 // the heights beside them, docs/release-1.md).
 
 import { MapBuilder } from './builder.ts'
-import { TUTORIAL_DUMMY, TUTORIAL_OPEN } from '@openworld-game/content'
+import { COURTYARD_BENCH, COURTYARD_LAMP, COURTYARD_STAMPS, COURTYARD_SUPPLIES, COURTYARD_TOWER } from '../../../client/src/cloudtop-courtyard.ts'
+import { TUTORIAL_DUMMY, TUTORIAL_OPEN, WATCH_SHELTER } from '@openworld-game/content'
 import { L, GROUND_YIELD, appears } from './kit.ts'
 import { flHouse } from './village.ts'
 import { bloom, rough, ruin, wildFloor } from './wildfloor.ts'
@@ -28,7 +29,7 @@ export const PAT = {
   cut: [20, 20],
   /** the rune-cut seal stone: nothing in the world defines it */
   relic: [20, 12],
-  footStone: [24, 20],
+  footStone: [22, 20],
   /** the ramp down off the high ground (two columns wide), from its top */
   ramp: [20, 3],
 } as const satisfies Record<string, readonly [number, number]>
@@ -49,16 +50,20 @@ export function buildSummit(): MapBuilder {
   // north-west corner and on its west side, its doorway on the south toward the cut, the hearth's chimney still standing
   // (art/arch/buildings/prologue.ts); snow has drifted in where the wall is down, and a stone that fell lies outside
   m.building('ct_shelter', 6, 3)
+  // Extend the interior flags under the inner face of the south-east wall.
+  m.scenery('ct_shelter_floor_edge', 14, 7)
   // what the watchman left: his cot, his chair at the table his log lies on (chapter1.ts), a barrel of stores long empty
-  m.fixture('fixture/furniture/bed', 7, 7)
-  m.fixture('fixture/furniture/chair', 12, 4)
-  m.fixture('fixture/container/barrel', 13, 7)
-  // the lookout on the rim: a log to sit on over the drop, where one sees the valley below
-  m.fixture('fixture/furniture/bench/log', 31, 19)
+  m.fixture('fixture/furniture/bed', 8, 6)
+  const chair = WATCH_SHELTER.chair
+  m.fixture('fixture/furniture/chair', chair.x, chair.y, { facing: 'up' })
+  const barrel = WATCH_SHELTER.barrel
+  m.fixture('fixture/container/barrel', barrel.x, barrel.y)
+  // The lookout seat on the rim faces the valley.
+  m.fixture('fixture/furniture/bench/log', COURTYARD_BENCH.x, COURTYARD_BENCH.y)
   // what lies before the shelter: berries on the crowberry in the tussock, sticks under the pines, stones by the
   // outcrops, grass in the tussock — what an axe is made of
   for (const [x, y] of [[6, 10], [8, 11], [4, 12]] as const) m.item('item/food/berries', x, y)
-  for (const [x, y] of [[27, 7], [29, 12]] as const) m.item('item/material/stick', x, y)
+  for (const [x, y] of [[27, 7], [28, 12]] as const) m.item('item/material/stick', x, y)
   for (const [x, y] of [[21, 9], [12, 16]] as const) m.item('item/material/stone', x, y)
   for (const [x, y] of [[6, 11], [7, 13]] as const) m.item('item/material/grass', x, y)
   // small things where they belong: tufts in the tussock (the snow has its own, drawn with the ground)
@@ -67,18 +72,36 @@ export function buildSummit(): MapBuilder {
   // tower's stump in the lee of the rocks, columns that marked the way through the snow, and the way's gate, an arch
   // alone in the rim over the cut
   ruin(m, 'ct_cairn', 17, 6)
-  ruin(m, 'snow_ruin_tower', 31, 13)
-  ruin(m, 'ct_waymark_0', 13, 10)
+  ruin(m, 'snow_ruin_tower', COURTYARD_TOWER.x, COURTYARD_TOWER.y)
+  ruin(m, 'ct_shelter_waymark', 13, 11)
   ruin(m, 'ct_waymark_1', 21, 15)
   ruin(m, 'ct_waymark_0', 17, 18)
-  m.building('snow_ruin_arch', PAT.cut[0] - 1, PAT.cut[1])
+  const [cx, cy] = PAT.cut
+  m.building('snow_ruin_arch', cx - 1, cy)
+  m.scenery('cloudtop_bridge', cx - 1, cy)
+  for (const dx of [-1, 1]) {
+    m.lights.push(
+      { x: cx + dx, y: cy - 0.75, w: 1.6, h: 1.9, color: '#ffae58', shape: 'glow', when: 'night', strength: 0.88, aboveScenery: true },
+      { x: cx + dx * 0.7, y: cy + 0.65, w: 2.6, h: 2.7, color: '#ffb66c', shape: 'glow', when: 'night', strength: 0.72 },
+    )
+  }
   // what lies about: needles under the pines, stones shed at the crags, never in the shelter
   wildFloor(m, 1, (x, y) => x >= 6 && x <= 14 && y >= 3 && y <= 8)
+  m.building('decor_needles', 5, 12)
+  for (const { key, x, y } of COURTYARD_STAMPS) m.scenery(key, x, y)
+  for (const [x, y, floorX, floorY, strength] of [
+    [COURTYARD_LAMP.x - 0.39, COURTYARD_LAMP.y - 1.35, COURTYARD_LAMP.x - 0.3, COURTYARD_LAMP.y + 0.45, 0.82],
+    [COURTYARD_SUPPLIES.x - 0.29, COURTYARD_SUPPLIES.y - 1.02, COURTYARD_SUPPLIES.x - 0.2, COURTYARD_SUPPLIES.y + 0.2, 0.69],
+  ]) {
+    m.lights.push(
+      { x, y, w: 1.55, h: 1.75, color: '#ffad55', shape: 'glow', when: 'night', strength, aboveScenery: true },
+      { x: floorX, y: floorY, w: 2.6, h: 2.1, color: '#ffb96d', shape: 'glow', when: 'night', strength: strength * 0.76 },
+    )
+  }
   // the heights, drawn by hand: the crags two levels above the plateau, their face along its north side (the shelter
   // built against it), and the plateau two levels above the way down, the rim's face below it; in the cut a ramp, each
   // row half a level lower
   m.lift('summit.heights')
-  const [cx, cy] = PAT.cut
   for (const [dy, h] of [[0, 3], [1, 2], [2, 1]] as const) m.raise(cx, cy + dy, 1, 1, h)
   m.anchor('spawn', ...PAT.spawn)
   // the ground's yield as everywhere (GROUND_YIELD), on the ground there is here: sticks and stones in the snow, grass in
@@ -112,16 +135,16 @@ export function buildFoot(): MapBuilder {
   const [hx, hy] = FOOT_HUT
   m.building('ft_hut', hx, hy, ['hut'])
   // the wood he split stacked against the cabin's west end, bones of his kills by the rack
-  m.building('decor_firewood', hx - 1, hy + 2)
-  m.building('decor_bones', 6, 18)
+  m.scenery('foot_hunter_woodshed', hx - 1, hy)
+  m.scenery('foot_hunter_ribs', 5, 19)
   m.fence('rail', [3, 16], [3, 20], [[3, 18]])
   m.fence('rail', [4, 20], [10, 20], [[7, 20]])
   m.fence('rail', [10, 16], [10, 19], [[10, 18]])
   m.fixture('fixture/nature/logpile/stack', hx + 5, hy + 2)
-  m.fixture('fixture/nature/stump', 8, 16)
-  m.fixture('fixture/furniture/rack', 4, 17)
+  m.fixture('fixture/nature/stump', 8, 18)
+  m.fixture('fixture/furniture/rack', 4, 18)
   for (const [x, y] of [[5, 19], [9, 19]] as const) m.item('item/material/bone', x, y)
-  m.fixture('fixture/sign', 20, 25, { props: { text: 'Vesper Ford ↓', text_zh: '晚祷渡 ↓' } })
+  m.fixture('fixture/sign', 18, 22, { props: { text: 'Vesper Ford ↓', text_zh: '晚祷渡 ↓' } })
   // small things where they belong: stones shed under the face, tufts in the scree, flowers along the trail, leaves
   // under the woods
   const rock = (t: string) => t === 'rock' || t === 'cave_wall'
@@ -139,21 +162,47 @@ export function buildFoot(): MapBuilder {
   // the old close round the stone, as the way's other places are (art/arch/buildings/wilds.ts): its walls fallen to their
   // last runs, its gate two columns where the trail comes in off the ramp; stumps of its colonnade, a saint toppled off
   // its plinth, its stones; a tower's stump out to the east
-  ruin(m, 'ruin_wall_x4', 14, 9)
+  ruin(m, 'foot_court_north_west', 14, 9)
   ruin(m, 'ruin_column_1', 19, 9)
-  ruin(m, 'ruin_column_2', 22, 9)
-  ruin(m, 'ruin_wall_x4', 23, 9)
-  ruin(m, 'ab_wall_y4', 13, 11)
-  ruin(m, 'ab_wall_y3', 27, 10)
-  ruin(m, 'ruin_stump_1', 15, 12)
-  ruin(m, 'ruin_stump_2', 25, 12)
-  ruin(m, 'ruin_stump_0', 15, 16)
-  ruin(m, 'ruin_stump_1', 25, 16)
-  ruin(m, 'ruin_tower', 29, 11)
-  ruin(m, 'decor_waycross', 22, 24)
-  for (const [name, x, y] of [['decor_column_fallen', 17, 15], ['decor_statue_fallen', 26, 14], ['decor_stones', 15, 14], ['decor_stones', 24, 11], ['decor_stones', 12, 10], ['decor_stones', 28, 13]] as [string, number, number][]) m.building(name, x, y)
+  ruin(m, 'ruin_column_2', 23, 10)
+  ruin(m, 'foot_court_north_east', 24, 9)
+  ruin(m, 'foot_court_west', 13, 11)
+  ruin(m, 'foot_court_east', 27, 10)
+  ruin(m, 'foot_court_column_broken', 15, 12)
+  ruin(m, 'foot_court_column_low', 26, 13)
+  ruin(m, 'foot_court_column_tall', 14, 17)
+  ruin(m, 'foot_court_column_broken', 27, 17)
+  // Low fragments frame the south opening without meeting the trail.
+  m.building('foot_court_south_west', 15, 18)
+  m.building('foot_court_south_east', 24, 18)
+  m.scenery('foot_shrine_banner', 16, 8)
+  m.scenery('foot_shrine_banner', 25, 8)
+  ruin(m, 'foot_court_tower', 29, 11)
+  m.scenery('foot_waycross', 22, 21)
+  // Gather fallen masonry by the west colonnade and at the foot of the tower.
+  m.building('decor_column_fallen', 16, 16)
+  m.building('decor_stones', 14, 14)
+  m.building('decor_statue_fallen', 26, 14)
+  m.building('decor_stones', 28, 13)
+  // A continuous broken surface preserves the ground's path and flower semantics.
+  m.scenery('foot_shrine_courtyard', 14, 9)
   wildFloor(m, 1, (x, y) => (x >= 14 && x <= 26 && y >= 7 && y <= 16) || (x >= 3 && x <= 10 && y >= 13 && y <= 20))
   bloom(m, 1, (x, y) => x >= 3 && x <= 10 && y >= 13 && y <= 20)
+  // Fixed, irregular clusters reuse the original flowers without adding harvest objects.
+  for (const [variant, x, y] of [[0, 16, 10], [1, 15, 13], [2, 12, 15],
+    [3, 12, 16], [1, 16, 16], [0, 25, 16], [2, 29, 14], [1, 28, 15],
+    [3, 30, 16], [0, 29, 18], [1, 30, 19],
+    // Small, uneven wayside groups leave both interaction approaches open.
+    [0, 16, 21], [4, 17, 22], [3, 16, 23], [1, 15, 22],
+    [3, 23, 20], [4, 23, 21], [0, 21, 21],
+    [0, 26, 20], [4, 27, 20], [1, 28, 21], [3, 26, 21]] as const) {
+    m.scenery(`foot_court_flower_${variant}`, x, y)
+  }
+  // Ground details remain visual only, with the gate and cabin threshold clear.
+  m.scenery('foot_hunter_hide', 4, 18)
+  m.scenery('foot_hunter_chips', 7, 18)
+  m.scenery('foot_hunter_glove_stone', 9, 18)
+  m.scenery('foot_hunter_broken_rail', 6, 20)
   m.appear = GROUND_YIELD
   return m
 }

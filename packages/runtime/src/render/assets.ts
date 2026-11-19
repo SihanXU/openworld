@@ -25,10 +25,12 @@ export function imagePaths(c: Catalog): string[] {
   for (const list of Object.values(c.plain)) for (const [img] of list) s.add(img)
   for (const list of Object.values(c.decals)) list.forEach(sd)
   for (const list of Object.values(c.terrainObjects)) list.forEach(sd)
+  for (const cells of Object.values(c.terrainObjectLooks ?? {})) for (const look of Object.values(cells)) sd(look.sprite)
   for (const p of Object.values(c.prefabs)) s.add(p.img)
   for (const r of Object.values(c.rooms)) s.add(r.img)
   for (const f of Object.values(c.fixtures)) (sd(f.base), sd(f.open), sd(f.lit), f.variants?.forEach(sd))
   for (const i of Object.values(c.items)) sd(i)
+  for (const p of Object.values(c.placedSprites ?? {})) (sd(p.sprite), sd(p.open), sd(p.filled))
   for (const a of [...Object.values(c.characters), ...Object.values(c.creatures)]) {
     s.add(`${a.dir}/${a.sheet}`)
     for (const clip of Object.values(a.clips ?? {})) s.add(`${a.dir}/${clip.sheet}`)

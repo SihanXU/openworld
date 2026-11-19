@@ -14,10 +14,11 @@ import { LSW_FLOOR, LSW_STAIRS, LSW_WALL, type ActorDef, type Catalog, type FxDe
 import { SIN_ACTORS, SIN_FX } from '@openworld/runtime/src/assets/bosses.ts'
 import { SLATE, type ReliefPalette } from '@openworld/runtime/src/assets/relief.ts'
 import FACES from './faces.json'
+import { COURTYARD_BENCH, COURTYARD_PREFABS, COURTYARD_SCALE, COURTYARD_TERRAIN_LOOKS } from './cloudtop-courtyard.ts'
 import BUILDINGS_JSON from './buildings.json'
 import LOUDNESS from './loudness.json'
 import { CROP_FIXTURES, CROP_ITEMS, FLOWER_FIXTURES, FLOWER_ITEMS } from './crops.ts'
-import { SET_PIECES } from '@openworld-game/content'
+import { SET_PIECES, WATCH_SHELTER } from '@openworld-game/content'
 
 // ---------------------------------------------------------------------------------------------
 // Sheet paths
@@ -153,7 +154,47 @@ function pf(img: string, c: number, r: number, grid: string[], terrain?: string)
  * row, standing on the row's cells and drawn at the row's depth, so whoever stands beside the building is drawn before
  * what is north of them and behind what is south. A map lays a building with `MapBuilder.building`.
  */
-export const BUILDINGS: Record<string, { img: string; w: number; d: number; doors: [number, number][]; ground?: boolean; terrain?: string; shadow?: { x: number; y: number; tw: number; th: number; dx: number; dy: number }; cover?: string[]; slices: { row: number; col: number; tw: number; th: number; x: number; y: number; grid: string[] }[] }> = (BUILDINGS_JSON as unknown as { buildings: never }).buildings
+const generatedBuildings: Record<string, { img: string; w: number; d: number; doors: [number, number][]; ground?: boolean; terrain?: string; pixelsPerTile?: number; shadow?: { x: number; y: number; tw: number; th: number; dx: number; dy: number }; cover?: string[]; slices: { row: number; col: number; tw: number; th: number; x: number; y: number; grid: string[] }[] }> = (BUILDINGS_JSON as unknown as { buildings: never }).buildings
+
+const CLOUDTOP_ART_TILE = 64
+
+/** The imported signs overhang their single solid tile on both sides. */
+function cloudtopBuilding(key: string, image: string, slices?: (typeof generatedBuildings)[string]['slices']): (typeof generatedBuildings)[string] {
+  const base = generatedBuildings[key]
+  return {
+    ...base,
+    img: `lsw/Buildings/${image}.png`,
+    pixelsPerTile: CLOUDTOP_ART_TILE,
+    slices: slices ?? base.slices,
+    ...(base.shadow && { shadow: { ...base.shadow, x: 3 * CLOUDTOP_ART_TILE } }),
+  }
+}
+
+function cloudtopWaymark(key: string, image: string): (typeof generatedBuildings)[string] {
+  return cloudtopBuilding(key, image, [{ row: 0, col: -1, tw: 3, th: 3, x: 0, y: 0, grid: ['   ', '   ', ' # '] }])
+}
+
+const signalTower = generatedBuildings.snow_ruin_tower
+
+export const BUILDINGS: typeof generatedBuildings = {
+  ...generatedBuildings,
+  ct_shelter_waymark: cloudtopWaymark('ct_shelter_waymark', 'cloudtop-sign-se'),
+  ct_waymark_1: cloudtopWaymark('ct_waymark_1', 'cloudtop-sign-sw'),
+  ct_waymark_0: cloudtopWaymark('ct_waymark_0', 'cloudtop-sign-gate'),
+  snow_ruin_arch: cloudtopBuilding('snow_ruin_arch', 'cloudtop-arch'),
+  snow_ruin_tower: {
+    ...signalTower,
+    img: 'lsw/Buildings/cloudtop-signal-tower.png',
+    pixelsPerTile: CLOUDTOP_ART_TILE,
+    ...(signalTower.shadow && { shadow: { ...signalTower.shadow, x: 5 * CLOUDTOP_ART_TILE } }),
+    // Keep the rear rows solid while the whole tower draws at the front row's depth.
+    slices: [
+      { row: 0, col: 0, tw: 3, th: 1, x: 0, y: 640, grid: ['###'] },
+      { row: 1, col: 0, tw: 3, th: 1, x: 0, y: 640, grid: ['###'] },
+      { row: 2, col: -1, tw: 5, th: 10, x: 0, y: 0, grid: [...Array<string>(9).fill('     '), ' ### '] },
+    ],
+  },
+}
 
 /** The showcase's furniture pictures (the props' sheet), as the fixtures' sprites: `fixture:<name>`; a tomb's two looks. */
 function propFixtures(): Catalog['fixtures'] {
@@ -174,12 +215,13 @@ function buildingPrefabs(): Record<string, PrefabDef> {
       if (s.grid[s.th - 1].includes('.')) p.front = true
       // a building laid as ground (a bridge's deck, a quay's steps): under whoever stands on it
       if (b.ground) p.ground = true
+      if (b.pixelsPerTile) p.pixelsPerTile = b.pixelsPerTile
       if (b.terrain) p.terrain = b.terrain
       out[`${name}@${s.row}`] = p
     }
   // its shadow, laid as ground (under all that stands), no cell of it changed
   for (const [name, b] of Object.entries(BUILDINGS))
-    if (b.shadow) out[`${name}@shadow`] = { img: b.img, x: b.shadow.x, y: b.shadow.y, tw: b.shadow.tw, th: b.shadow.th, grid: Array(b.shadow.th).fill(' '.repeat(b.shadow.tw)), ground: true }
+    if (b.shadow) out[`${name}@shadow`] = { img: b.img, x: b.shadow.x, y: b.shadow.y, tw: b.shadow.tw, th: b.shadow.th, grid: Array(b.shadow.th).fill(' '.repeat(b.shadow.tw)), ground: true, ...(b.pixelsPerTile && { pixelsPerTile: b.pixelsPerTile }) }
   return out
 }
 
@@ -223,6 +265,37 @@ const LOESS: ReliefPalette = { ...SLATE, outline: 0x3a2f1c, deep: 0x6b5a3a, dark
 const PEAT: ReliefPalette = { ...SLATE, outline: 0x131714, deep: 0x262d28, dark: 0x37403a, mid: 0x4b564d, light: 0x637062, lit: 0x7f8c7c, grass: 0x5f7350, grassShade: 0x3b4a34 }
 
 export const CATALOG: Catalog = {
+  furniturePoses: {
+    'foot.hut~5': { pose: 'sit', x: -5, y: -8, facing: 'right' },
+    [COURTYARD_BENCH.id]: { pose: 'sit', x: -4, y: -9 },
+    'fixture:bed': { pose: 'lie', x: 0, y: -21, reveal: 0.48, scale: 0.8, facing: 'down' },
+    [WATCH_SHELTER.chair.id]: { pose: 'sit', x: -8, y: -8 },
+  },
+  placedSprites: {
+    'foot.hut~4': { map: 'foot.hut', x: 6, y: 11, sprite: px('lsw/Fixtures/HunterInterior.png', 0, 0, 32, 48, 16, 37) },
+    'foot.hut~5': { map: 'foot.hut', x: 5, y: 11, sprite: px('lsw/Fixtures/HunterInterior.png', 32, 0, 32, 48, 20, 37) },
+    'foot~il': { map: 'foot', x: 9, y: 18, sprite: px('lsw/Fixtures/HunterYard.png', 160, 32, 32, 32, 9, 26) },
+    'foot~2': { map: 'foot', x: 9, y: 15, sprite: px('lsw/Fixtures/HunterYard.png', 160, 0, 48, 32, 16, 31) },
+    'foot~3': { map: 'foot', x: 8, y: 18, sprite: px('lsw/Fixtures/HunterYard.png', 80, 0, 48, 48, 24, 45) },
+    'foot~4': { map: 'foot', x: 4, y: 18, sprite: px('lsw/Fixtures/HunterYard.png', 32, 0, 48, 48, 12, 46) },
+    'foot~7': { map: 'foot', x: 18, y: 22, sprite: px('lsw/Fixtures/FootWayside.png', 64, 32, 32, 32, 15, 30) },
+    'foot~1': { map: 'foot', x: 20, y: 12, sprite: px('lsw/Fixtures/FootShrine.png', 0, 0, 32, 64, 16, 60) },
+    'ch1.drawing.stone': { map: 'foot', x: 22, y: 13, sprite: px('lsw/Fixtures/FootShrine.png', 32, 32, 32, 32, 16, 28) },
+    [COURTYARD_BENCH.id]: { map: 'summit', ...COURTYARD_BENCH, scale: COURTYARD_SCALE },
+    [WATCH_SHELTER.cloak.hook]: {
+      map: WATCH_SHELTER.map, x: WATCH_SHELTER.cloak.x, y: WATCH_SHELTER.cloak.y,
+      sprite: px('lsw/Fixtures/WatchShelter.png', 64, 0, 32, 24, 16, 44),
+      filled: px('lsw/Fixtures/WatchShelter.png', 0, 0, 32, 24, 16, 44),
+    },
+    [WATCH_SHELTER.chair.id]: { map: WATCH_SHELTER.map, x: WATCH_SHELTER.chair.x, y: WATCH_SHELTER.chair.y, sprite: px('lsw/Fixtures/WatchShelter.png', 96, 0, 32, 24, 24, 23) },
+    [WATCH_SHELTER.barrel.id]: {
+      map: WATCH_SHELTER.map, x: WATCH_SHELTER.barrel.x, y: WATCH_SHELTER.barrel.y,
+      // Seat the foot at the center of the tile, just behind the foreground wall.
+      sprite: px('lsw/Fixtures/WatchShelter.png', 128, 0, 32, 24, 16, 30),
+      open: px('lsw/Fixtures/WatchShelter.png', 160, 0, 32, 24, 16, 30),
+    },
+    [WATCH_SHELTER.log.id]: { map: WATCH_SHELTER.map, x: WATCH_SHELTER.log.x, y: WATCH_SHELTER.log.y, sprite: px('lsw/Fixtures/WatchShelter.png', 32, 0, 32, 24, 19, 23) },
+  },
   composites: {
     'composite:garden_pavilion': (() => {
       const b = BUILDINGS.manor_gazebo
@@ -385,6 +458,18 @@ export const CATALOG: Catalog = {
   // what grows or stands loose sits a few pixels off the grid: tall grass, flowers, bushes, and the world map's woods,
   // mountains, hills, reeds, mesas and snowy pines, so none of them stands in rows
   looseObjects: ['drygrass', 'flowers', 'bush', 'ow_forest', 'ow_mountain', 'ow_hills', 'ow_deadwood', 'ow_marsh', 'ow_badlands', 'ow_snow'],
+  snowSurfaceMaps: ['summit'],
+  terrainObjectLooks: {
+    summit: COURTYARD_TERRAIN_LOOKS,
+    // Presentation only: original flower terrain and harvesting stay at each cell.
+    foot: Object.fromEntries(Array.from({ length: 14 * 10 }, (_, i) => {
+      const x = 14 + i % 14, y = 9 + Math.floor(i / 14)
+      return [`${x},${y}`, { terrain: 'flowers', sprite: px('lsw/Fixtures/FootShrine.png', 80 + ((x + y * 2) % 3) * 16, 0, 16, 16, 8, 15) }]
+    })),
+  },
+  terrainObjectGaps: {
+    summit: { terrain: 'drygrass', cells: [[5, 9], [8, 10], [6, 12]] },
+  },
   terrainObjects: {
     tree: [
       px(NATURE, 0, 0, 32, 32, 16, 31), // round green, 2x2
@@ -518,6 +603,22 @@ export const CATALOG: Catalog = {
     ...fencePieces(),
     // the project's own buildings (tools/src/art/arch): a strip a footprint row, `<building>@<row>` (BUILDINGS)
     ...buildingPrefabs(),
+    ...COURTYARD_PREFABS,
+    // Decorative original flower variants, with no collision or new interaction.
+    foot_court_flower_0: pf(NATURE, 0, 11, [' ']),
+    foot_court_flower_1: pf(NATURE, 1, 11, [' ']),
+    foot_court_flower_2: pf(NATURE, 3, 11, [' ']),
+    foot_court_flower_3: pf(DETAIL, 5, 2, [' ']),
+    foot_court_flower_4: pf(NATURE, 4, 10, [' ']),
+    foot_hunter_woodshed: { img: 'lsw/Fixtures/HunterYard.png', x: 0, y: 0, tw: 2, th: 3, grid: ['  ', '  ', '##'], base: 2 },
+    foot_hunter_ribs: { img: 'lsw/Fixtures/HunterYard.png', x: 0, y: 64, tw: 2, th: 1, grid: ['  '], ground: true },
+    foot_hunter_hide: { img: 'lsw/Fixtures/HunterYard.png', x: 32, y: 48, tw: 3, th: 1, grid: ['   '], ground: true },
+    foot_hunter_chips: { img: 'lsw/Fixtures/HunterYard.png', x: 80, y: 48, tw: 3, th: 1, grid: ['   '], ground: true },
+    foot_hunter_glove_stone: { img: 'lsw/Fixtures/HunterYard.png', x: 0, y: 48, tw: 2, th: 1, grid: ['  '], ground: true },
+    foot_hunter_broken_rail: { img: 'lsw/Fixtures/HunterYard.png', x: 32, y: 64, tw: 2, th: 1, grid: ['  '], ground: true },
+    foot_waycross: { img: 'lsw/Fixtures/FootWayside.png', x: 32, y: 0, tw: 2, th: 4, grid: ['  ', '  ', '  ', '# '], base: 3 },
+    foot_shrine_courtyard: { img: 'lsw/Fixtures/FootCourtyard.png', x: 0, y: 0, tw: 14, th: 10, grid: Array(10).fill('              '), ground: true },
+    foot_shrine_banner: { img: 'lsw/Fixtures/FootShrine.png', x: 64, y: 32, tw: 1, th: 2, grid: [' ', ' '], base: 1 },
     // Bridges run north-south (planks across, rails on the east/west sides). 4 wide x 3 long.
     bridge_ns: pf(HOUSE, 9, 15, ['....', '....', '....'], 'bridge'),
     bridge_stone_ns: pf(HOUSE, 9, 19, ['....', '....', '....'], 'bridge'),
@@ -540,6 +641,13 @@ export const CATALOG: Catalog = {
     // mill's floor (2x2)
     waterwheel: { ...pf('lsw/Fixtures/WaterWheel.png', 0, 0, ['###', '###', '###'], 'water'), ground: true },
     millstones: pf('lsw/Fixtures/Millstones.png', 0, 0, ['##', '##'], 'woodwall'),
+    // the falls at the head of Vesper Ford (tools/src/art/ford-falls.ts): the river over the north cliff, eight cells
+    // wide and the cliff's three tall, laid over the river's top rows (its cells stay the river's water)
+    ford_falls: pf('lsw/Fixtures/FordFalls.png', 0, 0, ['########', '########', '########'], 'water'),
+    // a grey stone standing out of a river's current, the water white round it (the same module; one cell, the river's water under it)
+    river_rock: pf('lsw/Fixtures/RiverRock.png', 0, 0, ['#'], 'water'),
+    // a lily pad on still water (TilesetWater: a pond's open water with the pad on it), laid on a pond's inner cells
+    lily_pad: pf(WATER, 11, 3, ['#'], 'water'),
     // a bell's rope come down a tower's wall, its grip in reach of the floor (tools/src/art/bell-rope.ts; 1x2, walkable)
     bell_rope: pf('lsw/Fixtures/BellRope.png', 0, 0, ['.', '.']),
     // Desert lion-head wall fountain (2x3) and a square water basin (2x2).
@@ -547,6 +655,8 @@ export const CATALOG: Catalog = {
     pool: pf(DESERT, 8, 7, ['##', '##'], 'water'),
     // Firstlight's warm spring: the desert sheet's pale pool (3x3), its cells the spring one wades into
     spring: { ...pf(DESERT, 17, 7, ['###', '###', '###'], 'spring'), ground: true },
+    cloudtop_bridge: { img: 'lsw/Buildings/cloudtop-bridge.png', x: 0, y: 0, tw: 3, th: 4, grid: ['   ', '   ', '   ', '   '], ground: true, pixelsPerTile: CLOUDTOP_ART_TILE },
+    ct_shelter_floor_edge: { ...pf(IFLOOR, 12, 7, [' ']), ground: true },
   },
 
   // -------------------------------------------------------------------------------------------
@@ -729,7 +839,7 @@ export const CATALOG: Catalog = {
     'fixture:bones': { base: t(DETAIL, 13, 0) },
     'fixture:remains': { base: t(DETAIL, 13, 0) },
     // Chapter 1's own (tools/src/art/chapter1.ts): Pell's chalk drawings, the knight's briars
-    'fixture:chalk_stone': { base: px('lsw/Fixtures/Chalk.png', 0, 0, 16, 16, 8, 15), ground: true },
+    'fixture:chalk_stone': { base: px('lsw/Fixtures/Chalk.png', 0, 0, 16, 16, 8, 15) },
     'fixture:chalk_door': { base: px('lsw/Fixtures/Chalk.png', 16, 0, 16, 16, 8, 15), ground: true },
     'fixture:chalk_bridge': { base: px('lsw/Fixtures/Chalk.png', 32, 0, 16, 16, 8, 15), ground: true },
     'fixture:chalk_man': { base: px('lsw/Fixtures/Chalk.png', 48, 0, 16, 16, 8, 15), ground: true },

@@ -10,7 +10,8 @@
 import { describe, expect, it } from 'vitest'
 import { textOf, isPatch, restoreLibrary, EVENT_KINDS, FIRE_RADIUS, FIGHT_TICKS, APPEAR_EVERY, Game, RuleLibrary, SLOT_COUNT, TICKS_PER_HOUR, isRoot, kindCovers, leaves, rulesTie, tickAt, xpToNext, astar, performPlacement, snapshot, regionId, madeOf, CEILING, type Engine, type Entity, type GameEvent, type Key, type Patch, type Plan, type Ref, type World } from '@openworld/engine'
 import { travelToWaypoint, activeBoon, boonsOf, PROFESSION_LEVEL, takeProfession, socialOf, kitsOf } from '@openworld/modules'
-import { ALBERIC_ID, ACTIVE_SKILLS, SET_PIECES, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, PART_TWO, CHAPTER_TWO, CHAPTER_THREE, CHAPTER_FOUR, CHAPTER_FIVE, FINALE, CH3, CH4, CH5, FIN, THE_FIVE, DUST_HEAP, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP, BOSS_ROOMS } from '@openworld-game/content'
+import { ALBERIC_ID, ACTIVE_SKILLS, SET_PIECES, CH1, HAVEN_UPGRADES, SET_DEFS, BOSS_BY_ID, DRAWINGS, HAVEN, BASE_RULES, SOCIAL_COIN, CROP_STAGES, NIGHT_CAP, NIGHT_EVERY, TREE_GROWS, VEIN_REGROWS, FIRSTLIGHT, TUTORIAL_DONE, TUTORIAL_DUMMY, TUTORIAL_HOUSE, TUTORIAL_OPEN, PART_TWO, CHAPTER_TWO, CHAPTER_THREE, CHAPTER_FOUR, CHAPTER_FIVE, FINALE, CH3, CH4, CH5, FIN, THE_FIVE, DUST_HEAP, FORM_BY_ID, PLACEMENT_BY_ID, PROFESSION_BY_ID, RECIPE_BY_ID, RECIPES, SKILLS, STORY_RULES, GARDEN_CROPS, WILD_W, buildOntology, decodeChunk, wildCell, wildChunk, wildChunkFor, ABBOT_ID, SWORN_SCALLOP, BOSS_ROOMS, WATCH_SHELTER } from '@openworld-game/content'
+import OPENWORLD_GAME from '../../content/src/game.ts'
 import { OVERWORLD } from '../src/demo/overworld.ts'
 import { AT, FOOTBRIDGE, PASTURE_GAP, SOUTH_GAP, STAND, WEST_GAP, buildFord } from '../src/demo/world.ts'
 import { CH1_AT } from '../src/demo/quest/chapter1.ts'
@@ -3760,6 +3761,150 @@ req('C2', "Chapter 1's errands: Pell's drawings (four, where the grey man was), 
   talkTo(f, 'npc.edda')
   ticks(f, 2)
   expect([qs(f, 'nail'), qs(f, 'band'), c.count('item/tool/smith_hammer')]).toEqual(['done', 'done', 1])
+})
+
+it('Cloudtop: the barrel opens on the southern shelter floor', () => {
+  const f = fresh({ ai: false })
+  const w = W(f)
+  const { map, barrel } = WATCH_SHELTER
+  stand(f, barrel.x - 1, barrel.y, 'right', map)
+
+  expect(w.get(barrel.id)).toMatchObject({
+    type: 'fixture/container/barrel',
+    place: { on: 'tile', map, x: barrel.x, y: barrel.y },
+  })
+  const rendered = () => snapshot(f.eng).entities.find((entity) => entity.id === barrel.id)
+  expect(rendered()?.open).toBe(false)
+  expect(textOf(run(f, 'hands', barrel.x, barrel.y).label!)).toContain('Open')
+  expect(rendered()?.open).toBe(true)
+  // The container panel closes via an interaction on the open barrel.
+  f.eng.interact('interact', w.player.id, { e: barrel.id }, { instrument: null })
+  expect(rendered()?.open).toBe(false)
+})
+
+it('Cloudtop: take, drop and rehang the same cloak on its wall hooks', () => {
+  const f = fresh({ ai: false })
+  const w = W(f)
+  const { cloak, map } = WATCH_SHELTER
+  const controller = f.eng.controls
+  const hooks = () => w.get(cloak.hook)!
+  const garment = () => w.get(cloak.id)!
+  const onHooks = { on: 'inside', holder: cloak.hook }
+  const visible = () => snapshot(f.eng).entities.find((entity) => entity.id === cloak.hook)?.hasContents
+
+  stand(f, cloak.x, cloak.y + 1, 'up', map)
+  controller.select(w.player.slots!.findIndex((slot) => !slot))
+  expect(w.player.held).toBeUndefined()
+  expect(garment().place).toEqual(onHooks)
+  expect(hooks().contents).toEqual([cloak.id])
+  expect(visible()).toBe(true)
+  expect(textOf(run(f, 'hands', cloak.x, cloak.y).label!)).toContain('put on')
+  expect(w.worn(w.player).map((item) => item.id)).toContain(cloak.id)
+  expect(w.seenLook(w.player)).toMatchObject({ parts: { cloak: 'cloak.cloak' }, colors: { 'cloak.1': 'forest' } })
+  expect(visible()).toBeUndefined()
+
+  controller.wear(cloak.id)
+  controller.select(w.player.slotItems!.findIndex((ids) => ids?.includes(cloak.id)))
+  expect(w.player.held).toBe(cloak.id)
+
+  // G on clear ground still makes an ordinary loose item; it does not remount it on the wall.
+  run(f, 'put', cloak.x + 1, cloak.y + 1)
+  expect(garment().place).toMatchObject({ on: 'tile', map, x: cloak.x + 1, y: cloak.y + 1 })
+  expect(w.isLoose(garment())).toBe(true)
+  expect(visible()).toBeUndefined()
+  // A non-cloak item is refused even when the hook is empty.
+  const bread = w.player.contents!.find((id) => w.get(id)?.type === 'item/food/bread')!
+  hold(f, w.get(bread))
+  const tryBread = controller.plan('put', at(cloak.x, cloak.y), 0)
+  if (tryBread) controller.run(tryBread, true)
+  expect(w.player.held).toBe(bread)
+  expect(hooks().contents).toEqual([])
+  controller.select(w.player.slots!.findIndex((slot) => !slot))
+
+  run(f, 'hands', cloak.x + 1, cloak.y + 1)
+  expect(w.player.held).toBe(cloak.id)
+
+  expect(textOf(run(f, 'put', cloak.x, cloak.y).label!)).toContain('back up')
+  expect(garment().place).toEqual(onHooks)
+  expect(w.player.held).toBeUndefined()
+  expect(visible()).toBe(true)
+
+  // Test with a real save, including the map's authored baseline and the library.
+  const save = structuredClone(f.game.save())
+  const { index, chunks } = buildFord()
+  const loaded = Game.load(save, index, onto, restoreLibrary([...BASE_RULES, ...STORY_RULES], save.library, onto))
+  loaded.loadChunk(decodeChunk(chunks.find((chunk) => chunk.map.id === map)!))
+  const next = loaded.engine.controls
+  expect(loaded.engine.world.get(cloak.hook)?.contents).toEqual([cloak.id])
+  const take = next.plan('hands', at(cloak.x, cloak.y), 0)!
+  next.run(take, true)
+  const player = loaded.engine.world.player
+  expect(loaded.engine.world.worn(player).map((item) => item.id)).toContain(cloak.id)
+  next.wear(cloak.id)
+  next.select(player.slotItems!.findIndex((ids) => ids?.includes(cloak.id)))
+  expect(player.held).toBe(cloak.id)
+  const hang = next.plan('put', at(cloak.x, cloak.y), 0)!
+  next.run(hang, true)
+  expect(loaded.engine.world.get(cloak.id)?.place).toEqual(onHooks)
+
+  // The ordinary hand reach still applies.
+  stand(f, 12, 6, 'up', map)
+  const distant = controller.plan('hands', at(cloak.x, cloak.y), 0)
+  expect(isE(distant?.target, cloak.hook)).toBe(false)
+
+  // Taking the cloak must not take off equipment that was already on the player.
+  const other = author(f, () => w.create('item/armor/pauldrons', { on: 'inside', holder: w.player.id }))
+  controller.wear(other.id)
+  stand(f, cloak.x, cloak.y + 1, 'up', map)
+  expect(textOf(run(f, 'hands', cloak.x, cloak.y).label!)).toContain('off the hooks')
+  expect(w.worn(w.player).map((item) => item.id)).toContain(other.id)
+  expect(w.player.held).toBe(cloak.id)
+})
+
+it('Cloudtop: adding the wall hooks does not move a cloak in an older save', () => {
+  const { cloak, map } = WATCH_SHELTER
+  const { index, chunks } = buildFord()
+  const current = chunks.find((chunk) => chunk.map.id === map)!
+  const previous = structuredClone(current)
+  previous.entities = previous.entities.filter((e) => e.id !== cloak.hook)
+  const previousPlace = { on: 'tile' as const, map, x: 8, y: 5 }
+  const oldCloak = previous.entities.find((e) => e.id === cloak.id)!
+  oldCloak.place = previousPlace
+  delete oldCloak.props?.lookColor
+
+  const library = () => new RuleLibrary([...BASE_RULES, ...STORY_RULES])
+  const old = Game.create(index, onto, library())
+  old.loadChunk(decodeChunk(previous))
+  old.engine.author(() => old.engine.teleport(old.engine.world.player, { map, x: previousPlace.x, y: previousPlace.y + 1 }))
+  const take = old.engine.controls.plan('hands', at(previousPlace.x, previousPlace.y), 0)!
+  old.engine.controls.run(take, true)
+  expect(old.engine.world.player.held).toBe(cloak.id)
+
+  const resumed = Game.load(structuredClone(old.save()), index, onto, library(), OPENWORLD_GAME.upgradeSave)
+  resumed.loadChunk(decodeChunk(current))
+  const w = resumed.engine.world
+  expect(w.get(cloak.id)?.place).toEqual({ on: 'hand', holder: w.player.id })
+  expect(w.get(cloak.id)?.props?.lookColor).toBe(cloak.lookColor)
+  expect(w.get(cloak.hook)?.contents ?? []).toEqual([])
+  expect(snapshot(resumed.engine).entities.find((e) => e.id === cloak.hook)?.hasContents).toBeUndefined()
+  resumed.engine.author(() => resumed.engine.teleport(w.player, { map, x: cloak.x, y: cloak.y + 1 }))
+  const hang = resumed.engine.controls.plan('put', at(cloak.x, cloak.y), 0)!
+  resumed.engine.controls.run(hang, true)
+  expect(w.get(cloak.id)?.place).toEqual({ on: 'inside', holder: cloak.hook })
+
+  const ground = { ...previousPlace, x: 10 }
+  old.engine.author(() => {
+    old.engine.world.place(old.engine.world.get(cloak.id)!, ground)
+    old.engine.controls.sync()
+  })
+  old.loadChunk(decodeChunk(chunks.find((chunk) => chunk.map.id === 'foot')!))
+  old.engine.author(() => old.engine.teleport(old.engine.world.player, { map: 'foot', x: 19, y: 1 }))
+  const away = structuredClone(old.save())
+  expect(away.state.chunks?.[map]?.changed?.[cloak.id]?.place).toEqual({ x: ground.x })
+  const returned = Game.load(away, index, onto, library(), OPENWORLD_GAME.upgradeSave)
+  returned.loadChunk(decodeChunk(current))
+  expect(returned.engine.world.get(cloak.id)?.place).toEqual(ground)
+  expect(returned.engine.world.get(cloak.hook)?.contents ?? []).toEqual([])
 })
 
 req('C5', "Chapter 1 on every map before the knight: Cloudtop's watchman's log (Nessa's errand), the grassland's kneeling herd and Brin's night, the forest's cold camp of the pilgrim before (his scallop to Ilse; his shade after dark), the hollow's carved stones at the barrow mouth", [

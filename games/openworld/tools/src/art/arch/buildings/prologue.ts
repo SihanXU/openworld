@@ -175,8 +175,19 @@ function waymark(k: number): Model {
   return snowy(`ct_waymark_${k}`, one(`ct_waymark_${k}_bare`, ['#'], solids, [picture(['nn', 'nn'], { n: 'g4' }).at(C - 1, C + 5, h - 6)]))
 }
 
+function shelterWaymark(): Model {
+  const foot = box(2, 3, 0, 14, 13, 3, 'graniteRough')
+  const shaft: Solid = {
+    b: [4, 5, 3, 12, 11, 17], mat: 'graniteRough',
+    inside: (x, _y, z) => z <= worn(x, 67, 15, 13),
+  }
+  const wear = picture(['  n', ' n ', '   ', 'n  '], { n: 'g3' }).at(7, 11, 7)
+  return snowy('ct_shelter_waymark', one('ct_shelter_waymark', ['#'], [foot, shaft], [wear]))
+}
+
 export const PROLOGUE_BUILDINGS: Record<string, () => Model> = {
   ct_shelter: shelter,
+  ct_shelter_waymark: shelterWaymark,
   ct_cairn: cairn,
   cl_spring: springWall,
   cl_oak: oak,

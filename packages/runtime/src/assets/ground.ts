@@ -149,6 +149,7 @@ export class GroundAtlas {
   private next = 0
   private cols = 32
   private index = new Map<string, number>()
+  private tilePixels = new Map<number, Uint8ClampedArray>()
   blobs: Record<string, BlobTable> = {}
 
   constructor(
@@ -162,6 +163,16 @@ export class GroundAtlas {
     this.g = this.canvas.getContext('2d')!
     this.g.imageSmoothingEnabled = false
     void catalog
+  }
+
+  /** Read a composed tile once for the map-sized snow surface. Atlas tiles are immutable. */
+  rgba(index: number): Uint8ClampedArray {
+    let tile = this.tilePixels.get(index)
+    if (!tile) {
+      tile = this.g.getImageData((index % this.cols) * T, Math.floor(index / this.cols) * T, T, T).data
+      this.tilePixels.set(index, tile)
+    }
+    return tile
   }
 
   /** Index of a source tile (copied on first use), optionally tinted. */
@@ -281,7 +292,7 @@ function inSnow(catalog: Catalog, terrainAt: (x: number, y: number) => string, x
 }
 
 /** Resolve the atlas tile index for a cell. `terrainAt` returns the terrain at map coords. */
-export function groundTile(atlas: GroundAtlas, catalog: Catalog, terrainAt: (x: number, y: number) => string, x: number, y: number, shoreless = false): number {
+export function groundTile(atlas: GroundAtlas, catalog: Catalog, terrainAt: (x: number, y: number) => string, x: number, y: number, shoreless = false, snowSurface = false): number {
   const t = terrainAt(x, y)
   const key = drawnAs(catalog, t)
   const tint = TINT[t]
@@ -308,8 +319,13 @@ export function groundTile(atlas: GroundAtlas, catalog: Catalog, terrainAt: (x: 
     const sig = shoreless && water ? 255 : wantSig((dx, dy) => joins(terrainAt(x + dx, y + dy), x + dx, y + dy))
     // the whole tile, or one of its other looks
     const [dc, dr] = sig === 255 && b.fills ? fillOf(b.fills, h) : (BLOB47[sig] ?? nearestBlob(sig))
-    // a laid ground's open edge shows the ground beside it that lies below it
-    const beneath = b.over !== undefined && sig !== 255 ? fullTile(() => {}, catalog, drawnAs(catalog, laidOn(catalog, terrainAt, x, y, g, b.layer ?? Infinity, b.over))) : under
+    // Let transparent snow edges show the adjacent straw in the detailed snow maps.
+    const byStraw = snowSurface && snow && sig !== 255 && [-1, 0, 1].some(dy =>
+      [-1, 0, 1].some(dx => terrainAt(x + dx, y + dy) === 'drygrass'))
+    // A laid ground's open edge shows the ground beside it that lies below it.
+    const beneath = b.over !== undefined && sig !== 255
+      ? fullTile(() => {}, catalog, drawnAs(catalog, laidOn(catalog, terrainAt, x, y, g, b.layer ?? Infinity, b.over)))
+      : byStraw ? fullTile(() => {}, catalog, 'drygrass') : under
     return atlas.tile(b.img, b.col + dc, b.row + dr, tint, beneath)
   }
   // Cave walls: only the row facing open floor shows a rock face; deeper rock is dark void.
@@ -422,8 +438,12 @@ const LOOSE = ['drygrass', 'flowers', 'bush']
  * in the look its ground gives it, its heart's look deep inside a mass of its own kind (`<terrain>_inner`), picked by
  * position, a loose one nudged off the grid. `key` names the look and the pick.
  */
-export function objectAt(catalog: Catalog, terrainAt: (x: number, y: number) => string, groundAt: (x: number, y: number) => string, x: number, y: number): { key: string; def: SpriteDef; dx: number; dy: number } | undefined {
+export function objectAt(catalog: Catalog, terrainAt: (x: number, y: number) => string, groundAt: (x: number, y: number) => string, x: number, y: number, mapId?: string): { key: string; def: SpriteDef; dx: number; dy: number; scale?: number } | undefined {
   const t = terrainAt(x, y)
+  const replacement = mapId ? catalog.terrainObjectLooks?.[mapId]?.[`${x},${y}`] : undefined
+  if (replacement?.terrain === t) return { key: `${mapId}:${x},${y}`, def: replacement.sprite, dx: 0, dy: 0, scale: replacement.scale }
+  const gaps = mapId ? catalog.terrainObjectGaps?.[mapId] : undefined
+  if (gaps?.terrain === t && gaps.cells.some(([gx, gy]) => gx === x && gy === y)) return undefined
   let look = objectLook(catalog, t, groundAt(x, y))
   if (catalog.terrainObjects[`${look}_inner`]?.length && terrainAt(x, y - 1) === t && terrainAt(x + 1, y) === t && terrainAt(x, y + 1) === t && terrainAt(x - 1, y) === t) look = `${look}_inner`
   const list = catalog.terrainObjects[look]

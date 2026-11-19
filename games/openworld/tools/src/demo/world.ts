@@ -119,7 +119,8 @@ function buildMap(): MapBuilder {
   // (the rime runs down to the water and the ice lies along the bank under it, one frozen margin, never a white blob
   // on the grass: docs/release-1.md)
   m.organic(25.6, 4, 1.4, 2.4, 'snow', { only: (t) => t === 'grass' })
-  for (let y = 2; y <= 6; y++) m.set(NEAR[y], y, 'ice')
+  // (from the falls' foot down: the falls fill the river's top three rows)
+  for (let y = 3; y <= 6; y++) m.set(NEAR[y], y, 'ice')
   for (const [x, y] of [[28, 3], [28, 4], [28, 5]] as const) m.set(x, y, 'ice')
   // the spit the dead tree stands on: rock either side, so it can only be felled from the west, across the water
   m.set(28, 9, 'rock')
@@ -128,10 +129,15 @@ function buildMap(): MapBuilder {
   // the stair down the cliff from the mountain (docs/prologue.md): a gap in it, a trail to the camp
   const stair = PROLOGUE.fordNorth as readonly number[]
   const [s0, s1] = [stair[0], stair[stair.length - 1]]
-  for (let x = 0; x <= 22; x++) if (!stair.includes(x)) m.scenery(x === 22 || x === s0 - 1 ? 'cliff_r' : x === s1 + 1 ? 'cliff_l' : 'cliff_m', x, 0)
-  for (let x = 0; x <= 22; x++) for (let y = 0; y < 3; y++) m.set(x, y, stair.includes(x) ? 'path' : 'cave_wall')
-  // the woods close the north-east corner between the cliff and the river
+  // the woods stand at the cliff's foot in the corner by the river (drawn first: the cliff takes its top rows)
   clump(m, 24.5, 1.5, 2.6, 0.85)
+  // the cliff runs the whole north edge: from the west woods to the river, where the river comes over it in a fall,
+  // and on along the far bank (its east run is laid with the far bank's edge, below)
+  const westEnd = NEAR[0] - 1
+  for (let x = 0; x <= westEnd; x++) if (!stair.includes(x)) m.scenery(x === westEnd || x === s0 - 1 ? 'cliff_r' : x === s1 + 1 ? 'cliff_l' : 'cliff_m', x, 0)
+  for (let x = 0; x <= westEnd; x++) for (let y = 0; y < 3; y++) m.set(x, y, stair.includes(x) ? 'path' : 'cave_wall')
+  // the falls: the river over the brink between the cliff's two ends, into the pool it runs on from
+  m.scenery('ford_falls', NEAR[0], 0)
   // the hollow: a rock mound with a cave mouth, bare trodden earth before it, bones and stones
   m.organic(5.5, 5.6, 3.2, 1.8, 'dirt', { only: grass })
   m.item('item/material/bone', 3, 6)
@@ -155,12 +161,26 @@ function buildMap(): MapBuilder {
       const edge = y < 2 || y > m.h - 3 || (x > m.w - 3 && !(EAST_ROAD.fordEast as readonly number[]).includes(y))
       if (edge && grass(m.get(x, y))) m.set(x, y, rng.chance(0.3) ? 'pine' : 'tree')
     }
+  // the north cliff on along the far bank, east of the falls to the map's edge; its woods stand at its foot
+  for (let x = FAR[0] + 1; x < m.w; x++) {
+    for (let y = 0; y < 3; y++) m.set(x, y, 'cave_wall')
+    m.scenery(x === FAR[0] + 1 ? 'cliff_l' : 'cliff_m', x, 0)
+  }
   // ------------------------------------------------------------ the dry meadow (fire runs here)
   m.organic(11, 7.8, 5.6, 2.4, 'drygrass', { only: grass, rough: 0.3 })
   // ------------------------------------------------------------ the marsh (lightning runs here): small ponds among reeds
   // ponds are round: blobs of at least 3x3 (smaller ones render as slivers and diamonds)
-  for (let y = 21; y <= 23; y++) for (let x = 18; x <= 20; x++) m.set(x, y, 'water')
-  for (let y = 22; y <= 24; y++) for (let x = 22; x <= 25; x++) if (!(y === 24 && (x === 22 || x === 25))) m.set(x, y, 'water')
+  // one pond of two lobes, south of the road and west of the footbridge's trail, the woods behind it
+  const lobes = [[17.5, 24.5, 2.6, 1.9], [21.5, 23.4, 2.8, 1.7]] as const
+  for (let y = 21; y <= 27; y++)
+    for (let x = 14; x <= 24; x++) if (lobes.some(([cx, cy, rx, ry]) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1)) m.set(x, y, 'water')
+  // lily pads on its open water, never at its rim
+  for (const [x, y] of [[17, 24], [18, 25], [21, 23]] as const) m.scenery('lily_pad', x, y)
+  // reeds stand in clumps round its rim (more come by the marsh's own strewing, below)
+  for (const [x, y] of [[15, 23], [14, 24], [14, 25], [19, 22], [23, 22], [23, 25], [20, 26], [15, 26]] as const)
+    if (grass(m.get(x, y)) && m.free(x, y)) m.fixture('fixture/nature/reeds', x, y)
+  // the river's rocks, where no way across runs (the ice's row, the dead tree's, the ferry's, the footbridge's)
+  for (const [x, y] of [[31, 7], [33, 19], [30, 26], [32, 28]] as const) m.scenery('river_rock', x, y)
   // ------------------------------------------------------------ paths: the road in from the west, through the camp to the landing; trails
   m.path([[0, 19], [5, 19], [9, 19], [12, 20], [16, 20], [19, 18], [22, 16], [25, 16]], 'path', 2, { edge: 'dirt', edgeP: 0.18 })
   m.path([[14, 14], [13, 11], [10, 8], [7, 6]], 'path', 1)
@@ -211,6 +231,10 @@ function buildMap(): MapBuilder {
   m.anchor('landing.edge', 25, 13)
   m.anchor('far.landing', ...AT.farLanding)
   m.regions = { far_bank: [FAR_BANK, 0, m.w - FAR_BANK, m.h] }
+  // the far bank's ruins (the old way down the mountain, below): stood before the small things are strewn, so these
+  // keep to the open ground round them whatever the ground above was shaped into
+  ruin(m, 'ruin_tower', 38, 3)
+  ruin(m, 'ruin_wall_x3', 41, 18)
   // ------------------------------------------------------------ small things, by masks: where they belong, never uniform noise
   const by = (x: number, y: number, what: (t: string) => boolean) => m.near(x, y, what)
   const water = (t: string) => t === 'water'
@@ -242,8 +266,6 @@ function buildMap(): MapBuilder {
   // watchtower's stump on the far bank over the river, a run of wall by the road east
   ruin(m, 'ruin_column_1', 16, 3)
   ruin(m, 'ruin_column_2', 19, 3)
-  ruin(m, 'ruin_tower', 38, 3)
-  ruin(m, 'ruin_wall_x3', 41, 18)
   for (const [name, x, y] of [['decor_column_fallen', 20, 10], ['decor_stones', 26, 8], ['decor_stones', 43, 17]] as [string, number, number][]) m.building(name, x, y)
   // what lies about (wildfloor.ts): never at the camp, the landing or the hollow's mouth
   const camp = (x: number, y: number) => (x >= 4 && x <= 20 && y >= 11 && y <= 23) || (x >= 21 && x <= 29 && y >= 10 && y <= 23) || (x <= 9 && y <= 8)

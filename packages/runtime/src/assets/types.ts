@@ -5,8 +5,19 @@
 // file a project takes to its assets/na/. A path that begins with `lsw/` or `own/` is the game's
 // own art instead, under its assets/ (`own/`: what the editor imports).
 
-import type { Mood } from '@openworld/engine'
+import type { Dir, Mood } from '@openworld/engine'
 import type { ReliefPalette } from './relief.ts'
+
+/** Contact point of a bed or seat, in pixels relative to the foot of its tile. */
+export interface FurniturePose {
+  pose: 'lie' | 'sit'
+  x: number
+  y: number
+  /** Fraction of the standing frame visible above the bedding or seat. */
+  reveal?: number
+  scale?: number
+  facing?: Dir
+}
 
 /** A rectangle in an image, in pixels, plus the anchor that sits on the entity's tile. */
 export interface SpriteDef {
@@ -56,6 +67,8 @@ export interface PrefabDef {
   tw: number
   th: number
   grid: string[]
+  /** Source image pixels per tile (the world still uses 16 pixels per tile). */
+  pixelsPerTile?: number
   /** Terrain id the solid cells get in the engine (default 'wall'). */
   terrain?: string
   /** Drawn as ground (under whoever stands on it: a pool one wades into), not as a wall in front of them. */
@@ -154,6 +167,12 @@ export interface Catalog {
    * The renderer picks a variant per position.
    */
   terrainObjects: Record<string, SpriteDef[]>
+  /** Sprite replacements for named terrain at individual map cells. */
+  terrainObjectLooks?: Record<string, Record<string, { terrain: string; sprite: SpriteDef; scale?: number }>>
+  /** Map-specific gaps in terrain decoration, applied only while the named terrain is present. */
+  terrainObjectGaps?: Record<string, { terrain: string; cells: [number, number][] }>
+  /** Maps whose ground is composed with the detailed snow surface. */
+  snowSurfaceMaps?: readonly string[]
   /**
    * Terrains whose objects sit a little off the grid, never in rows (tall grass, a wood's trees). A terrain's
    * `<id>_inner` objects, where it has them, are drawn where all four of its sides are the same terrain: a wood's heart,
@@ -181,6 +200,10 @@ export interface Catalog {
   fixtures: Record<string, { base: SpriteDef; open?: SpriteDef; lit?: SpriteDef; variants?: SpriteDef[]; ground?: boolean; loose?: boolean; /** Reuse an authored prop at the world's tile scale. */ scale?: number; /** its picture turned east or west (a fence running north-south) */ across?: SpriteDef }>
   /** Item sprite keys used by the ontology ('item:sword', …) -> 16x16 icon; a weapon's, how it is seen as it strikes (`swing`). */
   items: Record<string, ItemSpriteDef>
+  /** A prop's picture at its authored placement, with optional frames for open and filled containers. */
+  placedSprites?: Record<string, { map: string; x: number; y: number; sprite: SpriteDef; open?: SpriteDef; filled?: SpriteDef; scale?: number }>
+  /** Posture contact points keyed by authored entity ID or fixture sprite. */
+  furniturePoses?: Record<string, FurniturePose>
   /** Character looks for NPCs and the player: key -> sheet. */
   characters: Record<string, ActorDef>
   /** NPC role ('farmer', 'guard', …, and 'player') -> character keys that suit it (variety). */

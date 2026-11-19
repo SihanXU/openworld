@@ -180,6 +180,17 @@ export class Chunks {
       delete cs.changed
       delete cs.things
     }
+    // A new map revision may put an existing item into a new fixture. The saved item's actual
+    // place wins over that authored link when the player had already moved or removed it.
+    for (const [id, authored] of inside) {
+      const holder = w.get(id)
+      if (!holder?.contents?.length) continue
+      const stale = authored.filter((child) => {
+        const place = w.get(child)?.place
+        return place?.on !== 'inside' || place.holder !== id
+      })
+      if (stale.length) holder.contents = holder.contents.filter((child) => !stale.includes(child))
+    }
     delete cs.lean
     return came
   }

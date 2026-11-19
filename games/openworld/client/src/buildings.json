@@ -7120,6 +7120,35 @@
     "dy": -4
    }
   },
+  "ct_shelter_waymark": {
+   "img": "lsw/Buildings/ct_shelter_waymark.png",
+   "w": 1,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 2,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 16,
+    "y": 0,
+    "tw": 4,
+    "th": 4,
+    "dx": 0,
+    "dy": -3
+   }
+  },
   "ct_waymark_0": {
    "img": "lsw/Buildings/ct_waymark_0.png",
    "w": 1,
@@ -15158,6 +15187,416 @@
     }
    ],
    "doors": []
+  },
+  "foot_court_column_broken": {
+   "img": "lsw/Buildings/foot_court_column_broken.png",
+   "w": 1,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 3,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 16,
+    "y": 0,
+    "tw": 4,
+    "th": 4,
+    "dx": 0,
+    "dy": -3
+   }
+  },
+  "foot_court_column_low": {
+   "img": "lsw/Buildings/foot_court_column_low.png",
+   "w": 1,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 2,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 16,
+    "y": 0,
+    "tw": 3,
+    "th": 3,
+    "dx": 0,
+    "dy": -2
+   }
+  },
+  "foot_court_column_tall": {
+   "img": "lsw/Buildings/foot_court_column_tall.png",
+   "w": 1,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 4,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 16,
+    "y": 0,
+    "tw": 5,
+    "th": 5,
+    "dx": 0,
+    "dy": -4
+   }
+  },
+  "foot_court_east": {
+   "img": "lsw/Buildings/foot_court_east.png",
+   "w": 1,
+   "d": 3,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 3,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      "#"
+     ]
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "tw": 1,
+     "th": 3,
+     "x": 16,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      "#"
+     ]
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "tw": 1,
+     "th": 2,
+     "x": 32,
+     "y": 0,
+     "grid": [
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 48,
+    "y": 0,
+    "tw": 4,
+    "th": 6,
+    "dx": 0,
+    "dy": -3
+   }
+  },
+  "foot_court_north_east": {
+   "img": "lsw/Buildings/foot_court_north_east.png",
+   "w": 3,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 3,
+     "th": 3,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "   ",
+      "   ",
+      "###"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [
+    "###"
+   ],
+   "shadow": {
+    "x": 48,
+    "y": 0,
+    "tw": 6,
+    "th": 4,
+    "dx": 0,
+    "dy": -3
+   }
+  },
+  "foot_court_north_west": {
+   "img": "lsw/Buildings/foot_court_north_west.png",
+   "w": 3,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 3,
+     "th": 4,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "   ",
+      "   ",
+      "   ",
+      "###"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [
+    "###",
+    " # "
+   ],
+   "shadow": {
+    "x": 48,
+    "y": 0,
+    "tw": 7,
+    "th": 5,
+    "dx": 0,
+    "dy": -4
+   }
+  },
+  "foot_court_south_east": {
+   "img": "lsw/Buildings/foot_court_south_east.png",
+   "w": 3,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 3,
+     "th": 3,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "   ",
+      "   ",
+      "###"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [
+    " ##"
+   ],
+   "shadow": {
+    "x": 48,
+    "y": 0,
+    "tw": 6,
+    "th": 4,
+    "dx": 0,
+    "dy": -3
+   }
+  },
+  "foot_court_south_west": {
+   "img": "lsw/Buildings/foot_court_south_west.png",
+   "w": 3,
+   "d": 1,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 3,
+     "th": 3,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "   ",
+      "   ",
+      "###"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [
+    " # "
+   ],
+   "shadow": {
+    "x": 48,
+    "y": 0,
+    "tw": 6,
+    "th": 4,
+    "dx": 0,
+    "dy": -3
+   }
+  },
+  "foot_court_tower": {
+   "img": "lsw/Buildings/foot_court_tower.png",
+   "w": 3,
+   "d": 3,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 3,
+     "th": 5,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "###"
+     ]
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "tw": 3,
+     "th": 5,
+     "x": 48,
+     "y": 0,
+     "grid": [
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "###"
+     ]
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "tw": 3,
+     "th": 5,
+     "x": 96,
+     "y": 0,
+     "grid": [
+      "   ",
+      "   ",
+      "   ",
+      "   ",
+      "###"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [
+    " # ",
+    " # ",
+    " # "
+   ],
+   "shadow": {
+    "x": 0,
+    "y": 80,
+    "tw": 8,
+    "th": 8,
+    "dx": 0,
+    "dy": -5
+   }
+  },
+  "foot_court_west": {
+   "img": "lsw/Buildings/foot_court_west.png",
+   "w": 1,
+   "d": 4,
+   "slices": [
+    {
+     "row": 0,
+     "col": 0,
+     "tw": 1,
+     "th": 3,
+     "x": 0,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      "#"
+     ]
+    },
+    {
+     "row": 1,
+     "col": 0,
+     "tw": 1,
+     "th": 4,
+     "x": 16,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      " ",
+      "#"
+     ]
+    },
+    {
+     "row": 2,
+     "col": 0,
+     "tw": 1,
+     "th": 3,
+     "x": 32,
+     "y": 0,
+     "grid": [
+      " ",
+      " ",
+      "#"
+     ]
+    },
+    {
+     "row": 3,
+     "col": 0,
+     "tw": 1,
+     "th": 2,
+     "x": 48,
+     "y": 0,
+     "grid": [
+      " ",
+      "#"
+     ]
+    }
+   ],
+   "doors": [],
+   "cover": [],
+   "shadow": {
+    "x": 64,
+    "y": 0,
+    "tw": 4,
+    "th": 7,
+    "dx": 0,
+    "dy": -3
+   }
   },
   "fort_armoury": {
    "img": "lsw/Buildings/fort_armoury.png",
