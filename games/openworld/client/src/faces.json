@@ -42,5 +42,6 @@
   "Actor/Character/Woman/Faceset.png": {"strip":"lsw/Faces/Actor/Character/Woman/Faceset.png","moods":["happy","sad","angry","surprised","shy"]},
   "Actor/Monster/Dragon/Faceset.png": {"strip":"lsw/Faces/Actor/Monster/Dragon/Faceset.png","moods":["happy","sad","angry","surprised","shy"]},
   "lsw/Characters/Alberic/Faceset.png": {"strip":"lsw/Faces/Characters/Alberic/Faceset.png","moods":["happy","sad","angry","surprised","shy"]},
-  "lsw/Companion/Fairy/Faceset.png": {"strip":"lsw/Faces/Companion/Fairy/Faceset.png","moods":["happy","sad","angry","surprised","shy"]}
+  "lsw/Companion/Fairy/Faceset.png": {"strip":"lsw/Faces/Companion/Fairy/Faceset.png","moods":["happy","sad","angry","surprised","shy"]},
+  "lsw/Creature/Restless/Faceset.png": {"strip":"lsw/Faces/Creature/Restless/Faceset.png","moods":["happy","sad","angry","surprised","shy"]}
 }

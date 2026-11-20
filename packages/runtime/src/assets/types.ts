@@ -109,6 +109,7 @@ export interface ActorDef {
   scale?: number
   /** Optional tint (0xRRGGBB) to recolour a monster for an element variant. */
   tint?: number
+  tone?: number
 }
 
 export interface FxDef {

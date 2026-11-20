@@ -1,9 +1,10 @@
-// The project's own sprites for the minor monsters the pack has no fitting sheet for (docs/creatures.md §6, Looks): the zombie
-// (it was the pack's caveman tinted green), the stone and the ice golem (the pack's statue), the giant crab (the pack's
-// mollusc) and the storm wisp (the pack's flame, tinted). Drawn by code on the bosses' raster (raster.ts): each part on
-// its own in its middle tone, lit from the top left and shaded to the bottom right, outlined in the pack's dark line, and
-// laid over the parts before it — so an arm, a head, a claw reads apart from the body. Sheets in the pack's layout:
-// 16x16 frames, columns down / up / left / right (right is left mirrored), rows the walk.
+// The project's own sprites for the minor monsters the pack has no fitting sheet for (docs/creatures.md §6, Looks): the
+// zombie (it was the pack's caveman tinted green), the stone and the ice golem (the pack's statue), the giant crab (the
+// pack's mollusc), the storm wisp (the pack's flame, tinted) and the bog wisp (the pack's spirit, tinted green). Drawn
+// by code on the bosses' raster (raster.ts): each part on its own in its middle tone, lit from the top left and shaded
+// to the bottom right, outlined in the pack's dark line, and laid over the parts before it — so an arm, a head, a claw
+// reads apart from the body. Sheets in the pack's layout: 16x16 frames, columns down / up / left / right (right is left
+// mirrored), rows the walk.
 //
 //   npx tsx games/openworld/tools/src/art/creatures.ts
 
@@ -237,6 +238,7 @@ function wisp(view: View, step: number): Raster {
 }
 
 const WISP: Palette = { k: hex('#2a2a4a'), b: hex('#f2c230'), c: hex('#fff07a'), d: hex('#ffffff'), x: hex('#bff4ff'), e: hex('#4a3a10') }
+const BOG_WISP: Palette = { k: hex('#16261c'), b: hex('#6cc47a'), c: hex('#c4f2a8'), d: hex('#f4fff0'), x: hex('#a8e8c4'), e: hex('#173022') }
 
 // ------------------------------------------------------------------ written
 
@@ -246,6 +248,7 @@ export const CREATURE_SHEETS: [string, (v: View, s: number) => Raster, Palette][
   ['Creature/Zombie/SpriteSheet.png', zombie, ZOMBIE],
   ['Creature/Crab/SpriteSheet.png', crab, CRAB],
   ['Creature/StormWisp/SpriteSheet.png', wisp, WISP],
+  ['Creature/BogWisp/SpriteSheet.png', wisp, BOG_WISP],
 ]
 
 // written only when run, never when imported

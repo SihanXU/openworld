@@ -40,11 +40,15 @@ export function catalogPaths(): string[] {
 /**
  * Pack files no catalogue entry names but the project's own tools read from `na/`: the trailer's music
  * (client/src/trailer/film.ts `MUSIC.file`) and the five item-and-weapon skill icons the gear-icon tool cuts
- * (tools/src/art/gear-icons.ts `ICONS`; its shield is drawn, not cut). They are copied too, so running this
- * script does not delete them.
+ * (tools/src/art/gear-icons.ts `ICONS`; its shield is drawn, not cut), and the two slimes the recolouring tool
+ * redraws (tools/src/art/recolours.ts). They are copied too, so running this script does not delete them.
  */
 export const KEEP = [
   'Audio/Musics/1 - Adventure Begin.ogg',
+  'Actor/Monster/Slime/Faceset.png',
+  'Actor/Monster/Slime/Slime.png',
+  'Actor/Monster/Slime2/Faceset.png',
+  'Actor/Monster/Slime2/Slime2.png',
   'Ui/Skill Icon/Items & Weapon/Amulet.png',
   'Ui/Skill Icon/Items & Weapon/Armor.png',
   'Ui/Skill Icon/Items & Weapon/Boot.png',

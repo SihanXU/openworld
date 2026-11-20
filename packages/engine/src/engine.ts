@@ -1089,7 +1089,6 @@ export class Engine {
     const dmg = this.combat.damage(e, Math.max(1, Math.round(amount - def)), attacker, !!pierce)
     // a blow that found nothing (dodged, or the moment after a dash)
     if (dmg <= 0) return
-    w.fx.push({ t: 'damage', who: e.id, amount: dmg, element, ...(affinity && { affinity }) })
     // who felled it (the death screen): the source of this harm, never an older blow's; none for a fall, hunger, the world.
     // A status's pulse from one now gone (a bleed they opened) keeps naming them, if they are the last who struck.
     const status = by?.kind.startsWith('time/') && typeof by.params?.status === 'string' ? by.params.status : undefined
@@ -1103,6 +1102,7 @@ export class Engine {
     // health stops at nothing: a blow past it is a blow that fells, not a debt (thresholds read lte 0)
     // health stops at nothing; what a combat module keeps from a lethal blow, it keeps (combat.lethal)
     const hp = this.combat.lethal(e, Math.max(0, w.num(e, 'hp', w.num(e, 'maxHp', 1)) - dmg))
+    w.fx.push({ t: 'damage', who: e.id, amount: dmg, element, ...(affinity && { affinity }), ...(attacker && attacker.id !== e.id && { by: attacker.id }), ...(hp <= 0 && { fell: true }) })
     this.setProp(e, 'hp', hp, by)
     // what a landed blow carries beyond its harm (a bleed, an affliction, health drawn back): the combat module's
     this.combat.wounded(e, by, attacker)
