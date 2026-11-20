@@ -358,7 +358,7 @@ const BODIES: Rule[] = [
   }),
   rule({
     id: 'element/actor',
-    doc: 'Elements on a body: fire sets it burning (steam off the wet, thaw off the frozen, hurting either way); the fiery and the icy are healed by their own element and hurt by its opposite; lightning arcs through the wet; wind blows it away.',
+    doc: 'Elements on a body: fire sets it burning (steam off the wet, thaw off the frozen, hurting either way); the fiery and the icy are healed by their own element and hurt by its opposite (how much, their resistances say: content affinities.ts); lightning arcs through the wet; wind blows it away.',
     host: ACTOR,
     on: 'impulse/element',
     tree: IF(
@@ -379,7 +379,7 @@ const BODIES: Rule[] = [
       ),
       IF(
         param('element', 'water'),
-        IF(tag('host', 'fiery'), IF({ param: { key: 'power', cmp: { gt: 0 } } }, DO({ op: 'hurt', amount: { param: 'power', mul: 1.2 } }, add('wet'), vfx('steam')), DO(add('wet'), vfx('steam'))), 'inherit'),
+        IF(tag('host', 'fiery'), IF({ param: { key: 'power', cmp: { gt: 0 } } }, DO({ op: 'hurt', amount: { param: 'power' } }, add('wet'), vfx('steam')), DO(add('wet'), vfx('steam'))), 'inherit'),
         IF(
           param('element', 'ice'),
           IF(tag('host', 'icy'), DO({ op: 'heal', amount: 2 }, vfx('frost')), 'inherit'),
@@ -388,7 +388,7 @@ const BODIES: Rule[] = [
             IF(
               has('host', 'wet'),
               DO(remove('wet'), add('electrified'), { op: 'hurt', amount: { param: 'power', mul: 0.8 } }, emit('element', { area: { radius: 2 } }, { element: 'lightning', power: 4 }, { chance: 0.9, filter: { status: ['wet'] } }), vfx('sparks')),
-              IF(tag('host', 'charged'), NOTHING, IF(tag('host', 'construct'), DO({ op: 'hurt', amount: { param: 'power', mul: 0.5 } }, vfx('sparks')), DO(add('electrified'), vfx('sparks')))),
+              IF(tag('host', 'charged'), NOTHING, IF(tag('host', 'construct'), DO({ op: 'hurt', amount: { param: 'power' } }, vfx('sparks')), DO(add('electrified'), vfx('sparks')))),
             ),
             IF(param('element', 'wind'), DO({ op: 'step', away: 'source', tiles: 2 }, vfx('gust')), 'inherit'),
           ),

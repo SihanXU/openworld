@@ -263,6 +263,7 @@ export const STRINGS: Record<string, [string, string]> = {
   skillOtherPath: ['Not your path: choose it at a trainer (the second advancement) to learn these', '不是你的分支：在职业导师处二转选它，才能学这些技能'],
   skillAfterThird: ['Learned after the third advancement', '三转后才能学'],
   levelUp: ['Level up! Level {n} · +1 skill point', '升级了！等级 {n} · 技能点 +1'],
+  immune: ['Immune', '免疫'],
   threads: ['Threadbook', '织线簿'],
   options: ['Options', '选项'],
   aiSection: ['AI', 'AI'],

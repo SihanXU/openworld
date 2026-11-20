@@ -877,7 +877,8 @@ export class Hud {
       case 'fade':
         return void $('#fade').classList.toggle('hidden', fx.dir !== 'out')
       case 'damage':
-        return this.floater(fx.who, fx.amount < 0 ? `+${-fx.amount}` : `-${fx.amount}`, fx.amount < 0 ? 'heal' : fx.element ?? 'hit')
+        if (fx.affinity === 'immune') return this.floater(fx.who, t('immune'), `${fx.element ?? 'hit'} f-immune`)
+        return this.floater(fx.who, fx.amount < 0 ? `+${-fx.amount}` : `-${fx.amount}${fx.affinity === 'weak' ? '!' : ''}`, fx.amount < 0 ? 'heal' : `${fx.element ?? 'hit'}${fx.affinity ? ` f-${fx.affinity}` : ''}`)
       case 'pickup':
         return this.pickup(fx)
       case 'levelup':

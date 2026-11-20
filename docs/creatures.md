@@ -285,3 +285,36 @@ Souls game or Monster Hunter teaches one new read.
 Checks: kits.test.ts (a clerk weighing takes no harm and strikes back; the wisp beckons and burns; the Restless robe
 the dead within reach and they mend), minor-balance.test.ts (a guard status is a wall: standing into it may cost a
 brute's 20, reading it a fighter's 12), demo.test.ts K5 (each kind on its maps, their kits and their set).
+
+## 15. Weaknesses and immunities (2026-11-20)
+
+Until now an element on a blow reached only what the element itself did (a burn, a chill, a shock); the blow's harm
+was the same whatever it struck, and the resistances the engine already had (world-model.md §6.8) were read by those
+reactions alone. Now the whole blow is the element's: `hurt` in answer to a strike that carries one meets the one
+struck's resistance to it (effects.ts), and the frame's `damage` says what it made of it — `weak`, `resisted`,
+`immune` — so the number is drawn larger with a `!`, smaller and dimmer, or as the word Immune (hud.ts).
+
+Each minor kind's resistances come from what it is (content `affinities.ts`), never from a list of kinds:
+
+- its own element it is immune to (a fire slime, the storm wisp, the ice golem);
+- each of its tags, inherited down the type tree, brings its nature's: the elemental ones their element's immunity and
+  the opposite's weakness (fiery to water, icy to fire, charged to earth, watery to lightning, stone to water), and
+  the rest a weakness or a share each — what burns (beasts, the sporecap), rots or wears cloth to fire, bone to earth,
+  spirits to wind, dragons to ice, constructs half lightning, fur a quarter of the cold;
+- of several, the strongest resistance and the worst weakness count. A weakness is half again the harm (−50), an
+  immunity none of it (100).
+
+References: Pokémon's type chart (the reads by a thing's nature, a dragon's cold, electric to ground), Monster Hunter's
+weakness stars (one or two weaknesses a kind, never a wall of numbers), Elin's per-element resistances (the engine's
+model already). The green slime, the spider and the cyclops stay neutral, a baseline. The bosses keep theirs as their
+owners set them: `CREATURE_ROLES` names the minor kinds alone.
+
+The element/actor reaction no longer weighs its harm itself (water on the fiery took 1.2 of the blow's power, lightning
+on a construct a half): the resistances carry it, so a weakness is never counted twice. The fireproof draught's
+resFire 75 now meets fire blows as well as burns, which its own words and the wiki already promised (the dragon's
+fire does a quarter of its harm to one who drank it).
+
+Checks: affinities.test.ts (a wolf takes half again from fire and less from ice, a storm wisp nothing from lightning,
+each with its mark in the frame; every kind immune to its own element, at most two immunities and two weaknesses, every
+element someone's weakness, the green slime neutral, every nature's tag worn by some minor kind; a reaction weighed once). The wiki's monster infobox
+reads the three rows from the data (templates.ts), and 元素 has the table.

@@ -36,7 +36,7 @@ export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
   addProp: 'addProp {key, delta, min?, max?} — delta and max are Amounts',
   addTag: 'addTag {tag}',
   removeTag: 'removeTag {tag}',
-  hurt: 'hurt {amount, element?, pierce?, blow?} — the host loses health, or durability (hp; its defence applies unless pierce); at none, threshold/cross "broken". blow: a strike\'s — times how well the instrument (what struck, else the striker\'s own body) works on the host\'s material (the efficiency table), and nothing if the instrument is softer than it ("too hard")',
+  hurt: 'hurt {amount, element?, pierce?, blow?} — the host loses health, or durability (hp; its defence applies unless pierce); at none, threshold/cross "broken". blow: a strike\'s — times how well the instrument (what struck, else the striker\'s own body) works on the host\'s material (the efficiency table), and nothing if the instrument is softer than it ("too hard"). The element (given, else the impulse/element or impulse/strike it answers carries) meets the host\'s resistance to it: a share taken away, all of it (immune), or more (below none, its weakness)',
   wear: 'wear — the host (an actor) puts on the thing of its own it is offered (param item, by its slot prop: a helmet on the head; of a slot there are more of, as two rings, the first free), what was in that slot coming off; offered what it wears, it takes it off (world-model.md §6.8); a profession\'s piece (tag profession:<id>, the warrior\'s shield) goes on only for that profession',
   posture: "posture — the host (an actor) takes a posture at the thing that asked it to (the source of a settle impulse: a chair, hay, an altar): param pose sit|lie|kneel|lean; for sit, lie and kneel it goes onto that thing's cell when its body fits there; it gains the pose's status (seated, lying, kneeling, leaning — or param status, a status whose pose it is), which ends as soon as it moves on",
   sleep: 'sleep — the host sleeps until it is time to rise (time passes at once for the one at the keys), and wakes with what it was missing given back as its room says (a bedroom: all; elsewhere: half)',
@@ -425,8 +425,9 @@ export class EffectRunner {
         if (host) w.removeTag(host, eff.tag)
         return
       case 'hurt': {
-        // harm done in answer to an element is that element's (what resists it takes a share away)
-        const element = eff.element ?? (ev.kind === 'impulse/element' && typeof ev.params?.element === 'string' ? ev.params.element : undefined)
+        // harm done in answer to an element, or to a strike that carries one, is that element's (what resists it takes a share away)
+        const carried = (ev.kind === 'impulse/element' || ev.kind === 'impulse/strike') && typeof ev.params?.element === 'string' && ev.params.element ? ev.params.element : undefined
+        const element = eff.element ?? carried
         if (host) eng.hurt(host, this.amount(ev, eff.amount), element, eff.pierce, ev, eff.blow)
         return
       }

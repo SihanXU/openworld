@@ -338,6 +338,7 @@ function creatureInfobox(ctx: Ctx, c: CreatureEnt): string {
     [L('防御', 'Defence'), String(p.def ?? 0)],
     [L('速度', 'Speed'), p.speed ? L(`每 ${p.speed} tick 走一格`, `One cell every ${p.speed} ticks`) : ''],
     [L('元素', 'Element'), p.element ? T(ctx, '元素', String(p.element)) : L('无', 'None')],
+    ...affinityRows(ctx, p),
     [L('飞行', 'Flying'), p.stance === 'air' ? L('是（不碰地面）', 'Yes (never touches the ground)') : ''],
     [L('射程', 'Range'), typeof p.range === 'number' ? cells(p.range) : ''],
     [L('经验', 'Experience'), String(p.maxHp ?? p.hp ?? '—')],
@@ -348,6 +349,21 @@ function creatureInfobox(ctx: Ctx, c: CreatureEnt): string {
     [L('编号', 'ID'), `<code>${esc(c.id)}</code>`],
   ]
   return infobox(ctx, c.name, fit(c.sprite, 96), rows)
+}
+
+const RES_OF: Record<string, string> = { fire: 'resFire', water: 'resWater', ice: 'resIce', lightning: 'resLightning', wind: 'resWind', earth: 'resEarth' }
+
+function affinities(ctx: Ctx, p: Record<string, unknown>, keep: (v: number) => boolean, pct = false): string {
+  const harm = (v: number) => par(L(`伤害 ${v < 0 ? '+' : '−'}${Math.abs(v)}%`, `${v < 0 ? '+' : '−'}${Math.abs(v)}% harm`))
+  return Object.entries(RES_OF).filter(([, r]) => keep(Number(p[r] ?? 0))).map(([e, r]) => `${T(ctx, '元素', e)}${pct ? harm(Number(p[r])) : ''}`).join(L('、', ', '))
+}
+
+function affinityRows(ctx: Ctx, p: Record<string, unknown>): [string, string][] {
+  return [
+    [L('弱点', 'Weak to'), affinities(ctx, p, (v) => v < 0, true)],
+    [L('抗性', 'Resists'), affinities(ctx, p, (v) => v > 0 && v < 100, true)],
+    [L('免疫', 'Immune to'), affinities(ctx, p, (v) => v >= 100)],
+  ]
 }
 
 function bossInfobox(ctx: Ctx, b: BossEnt): string {
@@ -951,9 +967,9 @@ function lists(ctx: Ctx, name: string, args: string[], written: string): string 
     case '物品表': return itemTable(ctx, argOf(name, args[0]) || '全部', written, args[0] ?? '')
     case '地区物产': return regionalGoods(ctx, args[0])
     case '居民表': return table(['', L('名字', 'Name'), L('身份', 'Role'), L('年龄', 'Age'), L('住在', 'Lives in'), L('任务', 'Quests')], g.people.map((p) => [fit(p.sprite, 40, 'face'), ctx.link(p.title, p.name), esc(p.roleName), p.age ? String(p.age) : '—', p.home ? mapLink(ctx, p.home) : p.kind === 'companion' ? L('跟着玩家', 'Follows the player') : L('只在剧情中', 'Story only'), String((idx(g).personQuests.get(p.id) ?? []).length || '—')]), 'wikitable sortable')
-    case '怪物表': return table(['', L('名字', 'Name'), L('类别', 'Family'), L('生命', 'Health'), L('攻击', 'Attack'), L('防御', 'Defence'), L('元素', 'Element'), L('出没', 'Found in')], g.creatures.map((c) => {
+    case '怪物表': return table(['', L('名字', 'Name'), L('类别', 'Family'), L('生命', 'Health'), L('攻击', 'Attack'), L('防御', 'Defence'), L('元素', 'Element'), L('弱点', 'Weak to'), L('出没', 'Found in')], g.creatures.map((c) => {
       const where = join([...whereCreature(ctx, c.id).map((m) => mapLink(ctx, m)), ...bornOf(ctx, c.id).short])
-      return [fit(c.sprite, 32), ctx.link(c.title, c.name), esc(c.groupName), String(c.props.maxHp ?? '—'), String(c.props.atk ?? '—'), String(c.props.def ?? 0), c.props.element ? T(ctx, '元素', String(c.props.element)) : '—', where === '—' ? `<span class="muted">${L('游戏里目前不会出现', 'Not in the game yet')}</span>` : where]
+      return [fit(c.sprite, 32), ctx.link(c.title, c.name), esc(c.groupName), String(c.props.maxHp ?? '—'), String(c.props.atk ?? '—'), String(c.props.def ?? 0), c.props.element ? T(ctx, '元素', String(c.props.element)) : '—', affinities(ctx, c.props, (v) => v < 0) || '—', where === '—' ? `<span class="muted">${L('游戏里目前不会出现', 'Not in the game yet')}</span>` : where]
     }), 'wikitable sortable')
     // what every kind leaves, from its makeup at the world's recovery rate (the game's own numbers, never a copy)
     case '掉落表': {

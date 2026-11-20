@@ -50,7 +50,8 @@ button.mini { padding: 1px 6px; font-size: 11px; }
 .bubble { position: absolute; left: 0; top: 0; max-width: 240px; padding: 5px 9px; background: #fbf7ea; color: #231d12; border-radius: 8px; font-size: 13px; line-height: 1.35; box-shadow: 0 2px 0 rgba(0,0,0,0.35); white-space: normal; }
 .bubble::after { content: ''; position: absolute; left: 50%; bottom: -5px; margin-left: -5px; border: 5px solid transparent; border-top-color: #fbf7ea; border-bottom: 0; }
 .floater { position: absolute; left: 0; top: 0; font: 600 14px var(--pixel); color: #fff; text-shadow: 0 1px 0 #000, 0 0 3px #000; }
-.f-fire { color: #ffae5a; } .f-ice { color: #a8ecff; } .f-lightning { color: #fff27a; } .f-water { color: #7ab8ff; } .f-heal { color: #7dff9a; }
+.f-weak { font-size: 19px; } .f-resisted { font-size: 11px; opacity: 0.75; } .f-immune { font-size: 12px; opacity: 0.85; }
+.f-fire { color: #ffae5a; } .f-ice { color: #a8ecff; } .f-lightning { color: #fff27a; } .f-water { color: #7ab8ff; } .f-wind { color: #c8f5d8; } .f-earth { color: #d6b27a; } .f-heal { color: #7dff9a; }
 .pending-dots { position: absolute; left: 0; top: 0; font: 600 18px var(--pixel); color: var(--ai); text-shadow: 0 0 6px rgba(240,138,60,0.9); animation: pulse 0.9s infinite; }
 
 .panel { position: absolute; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); display: flex; flex-direction: column; }

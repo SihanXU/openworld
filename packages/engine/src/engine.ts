@@ -1077,7 +1077,10 @@ export class Engine {
     // an element's harm, less what resists it (world-model.md §6.8: each element names its resistance; the
     // herbalist's draught gives it while it lasts, a worn thing may): all of it, none; below none, more
     const resist = element ? w.onto.data.resistances?.[element] : undefined
-    if (resist) amount *= 1 - Math.min(100, w.stat(e, resist)) / 100
+    const share = resist ? Math.min(100, w.stat(e, resist)) : 0
+    const affinity = share >= 100 ? 'immune' : share < 0 ? 'weak' : share > 0 ? 'resisted' : undefined
+    if (affinity === 'immune' && amount > 0) return void w.fx.push({ t: 'damage', who: e.id, amount: 0, element, affinity })
+    amount *= 1 - share / 100
     if (amount <= 0) return
     const def = pierce ? 0 : w.stat(e, 'def')
     // the combat talents of the one struck (combat.ts): dodge, a guarded moment, reductions, the brink
@@ -1086,7 +1089,7 @@ export class Engine {
     const dmg = this.combat.damage(e, Math.max(1, Math.round(amount - def)), attacker, !!pierce)
     // a blow that found nothing (dodged, or the moment after a dash)
     if (dmg <= 0) return
-    w.fx.push({ t: 'damage', who: e.id, amount: dmg, element })
+    w.fx.push({ t: 'damage', who: e.id, amount: dmg, element, ...(affinity && { affinity }) })
     // who felled it (the death screen): the source of this harm, never an older blow's; none for a fall, hunger, the world.
     // A status's pulse from one now gone (a bleed they opened) keeps naming them, if they are the last who struck.
     const status = by?.kind.startsWith('time/') && typeof by.params?.status === 'string' ? by.params.status : undefined
