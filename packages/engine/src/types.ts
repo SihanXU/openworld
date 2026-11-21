@@ -2026,10 +2026,11 @@ export type Effect =
   | { op: 'transform'; into: string }
   | { op: 'move'; to: RoleRef; into?: 'tile' | 'contents' | 'hand' }
   | { op: 'loosen' }
+  | { op: 'aloft' }
   | { op: 'step'; dir?: Dir; away?: RoleRef; tiles?: number }
   | { op: 'addStatus'; status: string; duration?: number }
   | { op: 'removeStatus'; status: string }
-  | { op: 'setProp'; key: string; value: PropValue | { param: string } }
+  | { op: 'setProp'; key: string; value: PropValue | null | { param: string } }
   | { op: 'addProp'; key: string; delta: Amount; min?: number; max?: Amount }
   | { op: 'addTag'; tag: string }
   | { op: 'removeTag'; tag: string }

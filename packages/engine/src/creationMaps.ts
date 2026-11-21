@@ -81,7 +81,7 @@ function installAppendedObjects(eng: Engine, raw: RawChunk, base: CreationMapRec
   // Keep live terrain, connections and the sparse records of moved or removed objects.
   chunk.map = liveMap
   const additions = chunk.entities.slice(base.raw.entities.length)
-  eng.author(() => { for (const entity of additions) eng.world.add({ ...entity, from: liveMap.id }) })
+  eng.furnish(additions.map(entity => ({ ...entity, from: liveMap.id })))
   eng.loadChunk(chunk)
   return chunk
 }
@@ -199,12 +199,7 @@ export function adoptCreationMap(eng: Engine, d: CreationMapDraft, report: Creat
   if (eng.world.onto.data.types[marker]) raw.entities.push({ id: `${raw.map.id}.return`, type: marker, name: { en: 'Return gate', zh: '返回的粉笔门' }, place: { on: 'tile', map: raw.map.id, x: fresh.gate![0], y: fresh.gate![1] } })
   const record: CreationMapRecord = { id: d.id, revision: d.revision, raw, source: clone(source), entry: fresh.entry!, gate: fresh.gate!, adoptedAt: eng.world.state.tick, enabled: true }
   installChunk(eng, raw, chars)
-  if (eng.world.onto.data.types[marker]) eng.author(() => {
-    const id = `creation.${d.id}.entrance`, old = eng.world.get(id)
-    const place = { on: 'tile' as const, map: source.map, x: source.x, y: source.y }
-    if (old) eng.world.place(old, place)
-    else eng.world.add({ id, type: marker, name: raw.map.name, place })
-  })
+  if (eng.world.onto.data.types[marker]) eng.furnish([{ id: `creation.${d.id}.entrance`, type: marker, name: raw.map.name, place: { on: 'tile', map: source.map, x: source.x, y: source.y } }])
   stateOf(eng).creationMaps = [...creationMaps(eng), record]
   sourceLink(eng, record)
   return record
@@ -255,6 +250,5 @@ export function disableCreationMap(eng: Engine, id: string): void {
     eng.graph[map.id] = map.portals
   }
   for (const [map, portals] of Object.entries(eng.graph)) eng.graph[map] = portals.filter(p => !ids.has(p.to))
-  const marker = eng.world.get(`creation.${id}.entrance`)
-  if (marker) eng.author(() => eng.world.destroy(marker))
+  eng.furnish([], [`creation.${id}.entrance`])
 }

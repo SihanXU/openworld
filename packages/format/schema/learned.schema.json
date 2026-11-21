@@ -376,6 +376,19 @@
           "properties": {
             "op": {
               "type": "string",
+              "const": "aloft"
+            }
+          },
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "type": "string",
               "const": "step"
             },
             "dir": {
@@ -444,6 +457,9 @@
               "anyOf": [
                 {
                   "$ref": "#/definitions/PropValue"
+                },
+                {
+                  "type": "null"
                 },
                 {
                   "type": "object",

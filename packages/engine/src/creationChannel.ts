@@ -1,4 +1,5 @@
-// Bounded elemental actions use existing strike/element reactions and actor-owned costs.
+// Bounded elemental actions use existing strike/element reactions and actor-owned costs. A cast arms its source and
+// records what it released each in an outcome of the thing it writes, so nothing is changed behind the rules.
 import type { Engine } from './engine.ts'
 import type { Effect, Entity, PropValue, Ref } from './types.ts'
 import type { WorkshopCapabilityBuild, WorkshopCapabilityContext, WorkshopCapabilityObservation, WorkshopDraft } from './creation.ts'
@@ -74,15 +75,16 @@ export function runChannel(eng: Engine, pkg: Identity, useId: string, capability
   if (!at || !to || at.map !== to.map || (at.z ?? 0) !== (to.z ?? 0)) return false
   if (!mode && (!victim || victim.frozenBy || victim.id === actor.id || eng.isProtected(victim) || eng.spares(actor, victim) || !eng.ready(`atk:${actor.id}`) || eng.combat.refuses(actor, item, 'fight') || !eng.lineOfSight(at.map, at, to) || at.x !== to.x && at.y !== to.y)) return false
   const hp = victim ? w.num(victim, 'hp') : 0, key = channelArmedKey(pkg, useId), mark = eng.traced
-  const hadProps = !!item.props, previous = item.props?.[key]
+  const previous = item.props?.[key] ?? null
+  // The probe resolves the compiled rule without drawing: a refused cast leaves the saved RNG untouched.
+  const probe = eng.actEvent('use', actor.id, target, { e: item.id }, { ...signal, ...(!mode && { attack: true }) })
+  const rule = `creation/${pkg.id}/r${pkg.revision}/${useId}`
   let strike: ReturnType<Engine['combat']['strike']> | undefined
   let element: string | undefined
-  eng.author(() => w.setProp(item, key, true))
+  eng.run([{ op: 'setProp', key, value: true }], probe, `${rule}/arm`)
   let ran = false
   try {
-    // The probe resolves the compiled rule without drawing: a refused cast leaves the saved RNG untouched.
-    const probe = eng.actEvent('use', actor.id, target, { e: item.id }, { ...signal, ...(!mode && { attack: true }) })
-    if (eng.resolveEvent(probe).rule?.id !== `creation/${pkg.id}/r${pkg.revision}/${useId}/use`) return false
+    if (eng.resolveEvent(probe).rule?.id !== `${rule}/use`) return false
     // One saved draw, after every refusal check: the element the damage, the status and the drawn bolt all share.
     // An empowered cast releases all four base elements, so it takes no draw (and no variant) at all.
     const rngBefore = w.state.rng
@@ -90,7 +92,7 @@ export function runChannel(eng: Engine, pkg: Identity, useId: string, capability
     strike = !mode && victim ? eng.combat.strike(actor, victim, Number(p.power) + w.stat(actor, 'atk', 1), Number(p.range), item, true) : undefined
     ran = eng.act('use', actor.id, target, { instrument: { e: item.id }, ...(mode ? {} : { reach: Number(p.range) }), params: { ...signal, creationReadyUntil: w.state.tick + Number(p.cooldown), ...(strike && { attack: true, creationPower: strike.power }), ...(element && { [CHANNEL_ELEMENT_PARAM]: element }) } }).defined
     if (!ran) w.state.rng = rngBefore
-  } finally { if (w.get(item.id)) eng.author(() => { w.setProp(item, key, previous); if (!hadProps && !Object.keys(item.props ?? {}).length) delete item.props }) }
+  } finally { if (w.get(item.id)) eng.run([{ op: 'setProp', key, value: previous }], probe, `${rule}/arm`) }
   if (!ran || eng.traced === mark || w.num(actor, readyKey(pkg, mode)) <= w.state.tick) return false
   if (strike) {
     eng.combat.struck(actor, victim, strike, hp, Number(p.range), true)
@@ -98,7 +100,7 @@ export function runChannel(eng: Engine, pkg: Identity, useId: string, capability
     eng.controls.face(to)
     const elements = state.empoweredUntil > w.state.tick ? CHANNEL_ELEMENTS : [element!]
     // The released element is recorded once, from the same draw the strike used: the renderer draws that one.
-    eng.author(() => w.setProp(actor, releasedKey(pkg), elements.join(',')))
+    eng.run([{ op: 'setProp', key: releasedKey(pkg), value: elements.join(',') }], { ...probe, host: { e: actor.id } }, `${rule}/released`)
     for (const element of elements) w.fx.push({ t: 'vfx', fx: `bolt:${element}:${actor.facing}:${Math.abs(to.x - at.x) + Math.abs(to.y - at.y)}`, map: at.map, x: at.x, y: at.y, who: actor.id })
   }
   eng.controls.sync()

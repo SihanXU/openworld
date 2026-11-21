@@ -61,7 +61,7 @@ Before registering a new mechanism:
 
 1. Identify the player action, source instance, target, allowed range and authoritative state change. Reuse an existing action/effect when possible.
 2. Write a real-world fixture proving the receiver changes, the resource is consumed/transferred exactly once, and rejected actions leave it available. Check the consumer of a status, not only its name.
-3. Implement feedback using committed world events and actual item assets. For timed behavior, define launch/contact/recovery, interruption and save/load semantics.
+3. Implement feedback using committed world events and actual item assets. For timed behavior, define launch/contact/recovery, interruption and save/load semantics. A host's own step that changes a thing (arming its source, a throw going aloft and landing, a record on the actor) runs as an outcome of that thing (`Engine.run` with primitives), never as the author; a trial lays its scene on its copy with the sandbox's `lay`, and a region's added objects arrive with `Engine.furnish`, as loading lays a map's things (`games/openworld/tools/test/writes.test.ts`).
 4. Add the descriptor/compiler/verifier in one owned module; expose it through `researchCapabilities`. Check unknown version/parameter rejection and ensure a repeated use cannot create resources.
 5. Run trial, adopt, real use, save/load, reuse and disable/dependency checks. Then update the capability version and this record.
 

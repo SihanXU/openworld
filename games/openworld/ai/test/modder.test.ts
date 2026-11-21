@@ -9,6 +9,8 @@ import { ModPort, RuleLibrary, buildSandbox, holeKey, patchKey, placePatch, rest
 import { Modder, ScriptedModel, SelfState, WorldLibrary, auditOf, briefOf, relatedRules, createModderServer, freeLunch, laneOf, deriveTests, parseJson, qualifyTerrains, scriptFromFile, stationFromRules, normalizePatch, nodeSkillName, signatureOf, skillNodeOf, type ChatMessage, type ChatOptions, type Model, type Script } from '@openworld/ai'
 import { BASE, SLIME, SLOW, jsonOffline, noAudit, offerRequest, onto, testModder, useRequest } from './fixtures.ts'
 
+const INSPECTED = { issues: [], finalChecks: { recognizable: true, structure: true, style: true, material: true } }
+
 function listening(server: Server): Promise<void> {
   return new Promise((resolve, reject) => {
     const ready = () => { server.off('error', failed); resolve() }
@@ -1437,6 +1439,7 @@ describe('a new thing an author asks for (the editor, M1)', () => {
     const rod = 'item/tool/fishing_rod'
     const model = new ScriptedModel((messages, opts) => {
       if (opts.purpose === 'art') return ART
+      if (opts.purpose === 'art-review') return INSPECTED
       if (messages[0].content.startsWith('You are a craftsperson')) return { reply: { en: 'A net, then.', zh: 'A net, then.' }, design: { kind: 'new', name: { en: 'Grass Net', zh: '草网' }, idea: 'a fishing net of grass and wool' } }
       return { patch: { artifacts: [{ kind: 'type', type: { id: `${rod}/grass_net`, name: { en: 'Grass Net', zh: '草网' }, props: { material: 'plant' }, makeup: [{ type: 'item/material/wool', count: 4 }, { type: 'item/material/grass', count: 6 }], station: 'hands' } }] }, look: 'a net' }
     })
@@ -1444,7 +1447,7 @@ describe('a new thing an author asks for (the editor, M1)', () => {
     const catalogue = { materials: ['item/material/wool', 'item/material/grass'], prototypes: [rod], stations: ['hands'], guidance: { materials: [], prototypes: [{ type: rod, minCost: 5, station: 'hands' }] } }
     const reply = await modder.research({ npc: 'Garrick', message: 'a net', history: [], catalogue })
     expect(reply.design).toEqual({ kind: 'variant', name: { en: 'Grass Net', zh: '草网' }, prototype: rod, ingredients: [{ type: 'item/material/grass', count: 6 }, { type: 'item/material/wool', count: 4 }] })
-    expect(await modder.researchSketch({ sketch: reply.sketch })).toEqual({ art: ART })
+    expect(await modder.researchSketch({ sketch: reply.sketch })).toMatchObject({ art: ART, review: { accepted: true } })
   })
 
   it('answers before the picture is drawn: the craftsperson\'s words come while the artist works, the picture after, once, drawn lightly', async () => {
@@ -1453,6 +1456,7 @@ describe('a new thing an author asks for (the editor, M1)', () => {
     const art: string[] = []
     const model = new ScriptedModel(async (messages, opts) => {
       if (opts.purpose === 'art') return (art.push(String(opts.reasoning)), await drawing, ART)
+      if (opts.purpose === 'art-review') return INSPECTED
       return { reply: { en: 'A stone axe, then.', zh: '那就做把石斧。' }, design: { kind: 'variant', name: { en: 'Stone Axe', zh: '石斧' }, prototype: 'item/tool/axe', ingredients: [{ type: 'item/material/stone', count: 3 }] } }
     })
     const { modder } = setup(model)
@@ -1462,7 +1466,7 @@ describe('a new thing an author asks for (the editor, M1)', () => {
     expect(reply.sketch).toMatch(/^[A-Za-z0-9_-]+$/)
     const sketch = modder.researchSketch({ sketch: reply.sketch })
     finish()
-    expect(await sketch).toEqual({ art: ART })
+    expect(await sketch).toMatchObject({ art: ART, review: { accepted: true } })
     expect(art).toEqual(['low'])
     expect(await modder.researchSketch({ sketch: reply.sketch })).toEqual({})
     await expect(modder.researchSketch({ sketch: '../x' })).rejects.toThrow(/Invalid research sketch/)
@@ -1472,6 +1476,7 @@ describe('a new thing an author asks for (the editor, M1)', () => {
     const art: string[] = []
     const model = new ScriptedModel((_messages, opts) => {
       if (opts.purpose === 'art') return (art.push(String(opts.reasoning)), ART)
+      if (opts.purpose === 'art-review') return INSPECTED
       return { reply: { en: 'A stone axe, then.', zh: '那就做把石斧。' }, design: { kind: 'variant', name: { en: 'Stone Axe', zh: '石斧' }, prototype: 'item/tool/axe', ingredients: [{ type: 'item/material/stone', count: 3 }] } }
     })
     const { modder, state } = setup(model)
@@ -1484,7 +1489,7 @@ describe('a new thing an author asks for (the editor, M1)', () => {
     const notebook = () => SelfState.open(state.fs.join(state.dir, 'people', 'garrick'), undefined, [], state.fs).episodes()
     expect(notebook()).toEqual([])
     const high = await modder.research({ ...body, create: 'high' })
-    expect(await modder.researchSketch({ sketch: high.sketch })).toEqual({ art: ART })
+    expect(await modder.researchSketch({ sketch: high.sketch })).toMatchObject({ art: ART, review: { accepted: true } })
     expect(art).toEqual(['high'])
     expect(high.episode).toMatch(/^[A-Za-z0-9_-]+$/)
     expect(modder.researchOutcome({ episode: high.episode, result: 'made' })).toEqual({ ok: true })
@@ -1582,6 +1587,7 @@ describe('a craftsperson who learns (their notebook)', () => {
     const reflected: string[] = []
     const model = new ScriptedModel((messages, opts) => {
       if (opts.purpose === 'art') return ART
+      if (opts.purpose === 'art-review') return INSPECTED
       if (opts.purpose === 'reflect') return (reflected.push(messages[1].content), { rules: { add: [{ text: 'An axe is made at the anvil: say the hammer is needed.', scope: 'kind' }] }, notes: [], skill: null })
       systems.push(messages[0].content)
       return { reply: { en: 'An axe, then.', zh: '那就打把斧头。' }, design: axe }

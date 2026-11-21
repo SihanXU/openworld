@@ -1,6 +1,7 @@
 // Sandboxed replay: build a tiny self-contained world from a Scenario, run one event
 // through a candidate rule library, and check expectations. Used by patch validation
-// (replay of the triggering event + the patch's own tests) and by unit tests.
+// (replay of the triggering event + the patch's own tests) and by unit tests. A trial on a copy
+// of a running world (the workshop's) has its scene laid on that copy the same way (`lay`).
 
 import { Engine, type Resolution } from './engine.ts'
 import { isTier } from './quality.ts'
@@ -8,7 +9,7 @@ import type { World } from './world.ts'
 import { cellId, parseCellId, type CellSpace } from './cells.ts'
 import type { Verb } from './types.ts'
 import type { RuleLibrary } from './rules.ts'
-import type { Entity, Expectation, FxEvent, GameEvent, MapData, Ontology, Ref, Scenario, Space, WorldState } from './types.ts'
+import type { Entity, Expectation, FxEvent, GameEvent, Id, MapData, Ontology, PropValue, Ref, Scenario, Space, WorldState } from './types.ts'
 import { REFUSAL } from './effects.ts'
 
 export const SANDBOX_MAP = 'sandbox'
@@ -59,6 +60,24 @@ export function buildSandbox(sc: Scenario, ontology: Ontology, lib: RuleLibrary)
   eng.author(() => fill(eng, sc, player))
   eng.seedRelations(SANDBOX_MAP)
   return eng
+}
+
+export interface Laid {
+  things?: (Omit<Entity, 'id'> & { id?: Id })[]
+  props?: Record<Id, Record<string, PropValue>>
+  terrain?: { map: string; x: number; y: number; terrain: string }[]
+  statuses?: { ref: Ref; status: string; until: number }[]
+}
+
+export function lay(eng: Engine, l: Laid): Id[] {
+  const w = eng.world
+  return eng.author(() => {
+    const made = (l.things ?? []).map((e) => (e.id ? w.add(e as Entity) : w.create(e.type, e.place, e)).id)
+    for (const [id, props] of Object.entries(l.props ?? {})) for (const [k, v] of Object.entries(props)) w.setProp(w.get(id)!, k, v)
+    for (const t of l.terrain ?? []) w.setTerrain(t.map, t.x, t.y, t.terrain)
+    for (const s of l.statuses ?? []) w.setStatus(s.ref, s.status, s.until)
+    return made
+  })
 }
 
 function fill(eng: Engine, sc: Scenario, player: string): void {

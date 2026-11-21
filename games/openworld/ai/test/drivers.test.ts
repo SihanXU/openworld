@@ -1,5 +1,6 @@
 // The drivers of the offline work (no model: an agent is never run here): the curriculum's cells, the engine
-// tasks and the ladder's commits as tasks, the RSI milestones, and the upstream loop's task.
+// tasks and the ladder's commits as tasks, the RSI milestones, and the upstream loop's task. An engine task runs the
+// engine's and the content's suites four times beside the rest of this one, each within its own five minutes.
 
 import { describe, expect, it } from 'vitest'
 import { RuleLibrary } from '@openworld/engine'
@@ -71,7 +72,7 @@ describe('a code task of the curriculum', () => {
 })
 
 describe('engine tasks', () => {
-  it('are real fail-to-pass tasks: the copy\'s tests pass, each hidden test fails on the engine as it is', { timeout: 600_000 }, async () => {
+  it('are real fail-to-pass tasks: the copy\'s tests pass, each hidden test fails on the engine as it is', { timeout: 1_260_000 }, async () => {
     const defs = engineTaskDefs()
     expect(defs.map((d) => d.id).sort()).toEqual(['prop-eq', 'toggle-status'])
     for (const def of defs) {

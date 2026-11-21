@@ -1,15 +1,17 @@
 // What the AI's tests on this game share: its ontology and base rules, and a modder over them in a fresh directory.
+// The base rules are the affordance set's (live.ts): the seats stay holes, as the tests on chairs were written.
 
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect } from 'vitest'
 import { ModPort, RuleLibrary, buildSandbox, placePatch, type ModRequest, type Patch, type Rule, type Scenario, type Tree } from '@openworld/engine'
-import { BASE_RULES, STORY_RULES, buildOntology } from '@openworld-game/content'
+import { buildOntology } from '@openworld-game/content'
 import { Modder, SelfState, WorldLibrary, auditOf, type Finding, type Harness, type Model } from '@openworld/ai'
+import { AFFORDANCE_RULES } from '../src/live.ts'
 
 export const onto = buildOntology()
-export const BASE = [...BASE_RULES, ...STORY_RULES]
+export const BASE = AFFORDANCE_RULES
 
 export const STONE = 'item/material/stone'
 export const BANE = 'item/weapon/blade/dragonsbane'

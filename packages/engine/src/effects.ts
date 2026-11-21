@@ -29,10 +29,11 @@ export const PRIMITIVES: Record<Exclude<Effect['op'], ModuleOp>, string> = {
   transform: 'transform {into} — the host becomes another type ("@prop:key" reads the type from its own prop, e.g. emptyType). A cell is made of things (tile/<terrain>: the floor, what roots in the soil, what fills the volume): water becoming ice is the water transforming; becoming a type whose space in its cell another thing holds (rock into gravel, where a floor is), the host is gone instead; a carried host become a thing that cannot be carried is set down at its holder\'s feet',
   move: 'move {to: role ref, into?: tile|contents|hand} — the host moves itself to a role\'s tile, contents or hand; a built thing (a fixture, a structure) that comes to rest on a tile lies loose there (packed as item/misc/bundle/loose, which a hand picks up) unless the event says it is set up (param build: the right click\'s, the build palette\'s)',
   loosen: 'loosen {} — the host, a built thing that can be carried standing on its cell (a bed, a wall), comes loose there whole (a tool knocking it loose): what it holds spills out, and it lies packed as an item for the magnet and the hand; a floor that bears something stays',
+  aloft: 'aloft {} — the host, a thing someone carries, leaves them for the air (thrown): it is nowhere until a move sets it down',
   step: 'step {dir?} — the host steps one tile (dir, or the act\'s `dir` param): walls and the solid stop it (a bump), portals carry it',
   addStatus: 'addStatus {status, duration?} — the host gains a status (a threshold/gain event follows)',
   removeStatus: 'removeStatus {status} — the host loses a status (threshold/lose)',
-  setProp: 'setProp {key, value}',
+  setProp: 'setProp {key, value} — value null takes the key away',
   addProp: 'addProp {key, delta, min?, max?} — delta and max are Amounts',
   addTag: 'addTag {tag}',
   removeTag: 'removeTag {tag}',
@@ -351,6 +352,12 @@ export class EffectRunner {
         eng.touch({ e: host.id })
         return
       }
+      case 'aloft': {
+        if (!host || (host.place.on !== 'inside' && host.place.on !== 'hand')) return
+        eng.touch({ e: host.id })
+        w.place(host, { on: 'none' })
+        return
+      }
       case 'loosen': {
         if (!host || host.place.on !== 'tile' || !w.isPortable(host) || !isBuilt(host.type) || w.bears(host)) return
         if (eng.isProtected(host)) return
@@ -407,7 +414,8 @@ export class EffectRunner {
       case 'setProp': {
         if (!host) return
         const v = typeof eff.value === 'object' && eff.value !== null ? ev.params?.[eff.value.param] : eff.value
-        if (v !== undefined) eng.setProp(host, eff.key, v, ev)
+        if (v === null) w.setProp(host, eff.key, undefined)
+        else if (v !== undefined) eng.setProp(host, eff.key, v, ev)
         return
       }
       case 'addProp': {

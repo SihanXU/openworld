@@ -5,6 +5,7 @@ import { RuleLibrary } from './rules.ts'
 import { trialResearch } from './researchCraft.ts'
 import { ROW } from './controls.ts'
 import { weaponOf } from './blows.ts'
+import { lay, type Laid } from './sandbox.ts'
 import { buildChannel, channelArmedKey, channelState, releasedKey, runChannel, variantChanceOf, verifyChannel } from './creationChannel.ts'
 import { canLaunchWorkshopFlight, installCreationFlightHooks, launchWorkshopFlight, workshopFlights, type CreationFlight } from './creationFlight.ts'
 import type { ResearchDesign } from './research.ts'
@@ -40,10 +41,11 @@ export interface ResearchPlan {
 export interface WorkshopDependency { id: string; revision: number }
 /** The immediate exporter whose revision this local package follows. */
 export interface WorkshopOrigin { id: string; typeId: string; revision: number; plan?: ResearchPlan }
+export type WorkshopKind = 'item' | 'uses' | 'map'
 export interface WorkshopManifest {
   id: string
   revision: number
-  kind: 'item' | 'uses' | 'map'
+  kind: WorkshopKind
   dependsOn?: WorkshopDependency[]
   origin?: WorkshopOrigin
 }
@@ -56,7 +58,7 @@ export interface WorkshopDraft extends Omit<WorkshopManifest, 'kind'> {
   design?: ResearchDesign
 }
 export interface WorkshopPackage extends WorkshopManifest {
-  kind: 'item' | 'uses'
+  kind: Exclude<WorkshopKind, 'map'>
   typeId: string
   plan: ResearchPlan
   typeDefinition?: TypeDef
@@ -405,7 +407,7 @@ function compile(eng: Engine, draft: WorkshopDraft): Compiled {
     }
     const target = use.target === 'self' ? { same: ['actor', 'target'] } : { is: { role: 'target', sel: targetSelector(use.target, use.capability === 'spread') } }
     const outcome: any = use.capability === 'throw-coat'
-      ? { if: { all: [{ param: { key: 'creationFlightPhase', cmp: 'impact' } }, { prop: { role: 'host', key: impactKey(draft, use), cmp: true } }] }, then: { do: build.effects }, else: { if: { param: { key: 'creationFlightPhase', cmp: 'launch' } }, then: { do: [] }, else: 'inherit' } }
+      ? { if: { all: [{ param: { key: 'creationFlightPhase', cmp: 'impact' } }, { prop: { role: 'host', key: impactKey(draft, use), cmp: true } }] }, then: { do: build.effects }, else: { if: { param: { key: 'creationFlightPhase', cmp: 'launch' } }, then: { do: [{ op: 'aloft' }] }, else: 'inherit' } }
       : build.empowered ? { if: { has: { role: 'actor', status: build.empowered.status } }, then: { do: build.empowered.effects }, else: { do: build.effects } } : { do: build.effects }
     rules.push({ id: `${prefix(draft, use)}/use`, host: { type: draft.typeId }, on: 'act/use', tree: { if: { all: [gate(draft, use), target as any, ...(build.actorEffects ? [armed('host')] : [])] }, then: outcome, else: 'inherit' }, source: clone(source), label: use.label })
   }
@@ -510,9 +512,9 @@ export function runWorkshopUse(eng: Engine, packageId: string, useId: string, ta
     const params = { ...action.params, creationFlightPhase: 'launch', attack: Number(paramsOf(use).power) > 0 }
     const probe = eng.resolveEvent(eng.actEvent(action.verb, actor.id, onto, { e: item.id }, params))
     if (probe.rule?.id !== `${prefix(pkg as WorkshopDraft, use)}/use`) return false
-    if (!eng.act(action.verb, actor.id, onto, { instrument: { e: item.id }, params, ...(reach !== undefined && { reach }) }).defined) return false
     ensureFlightHooks(eng)
-    return launchWorkshopFlight(eng, { itemId: item.id, typeId: item.type, actorId: actor.id, packageId, revision: pkg!.revision, useId, from, to, targetId: onto.e })
+    return launchWorkshopFlight(eng, { itemId: item.id, typeId: item.type, actorId: actor.id, packageId, revision: pkg!.revision, useId, from, to, targetId: onto.e },
+      () => eng.act(action.verb, actor.id, onto, { instrument: { e: item.id }, params, ...(reach !== undefined && { reach }) }).defined)
   }
   return eng.act(action.verb, actor.id, onto, { instrument: { e: item.id }, params: action.params, ...(reach !== undefined && { reach }) }).defined
 }
@@ -525,20 +527,16 @@ function ensureFlightHooks(eng: Engine): void {
     if (!target || !at || at.map !== flight.to.map || at.x !== flight.to.x || at.y !== flight.to.y || (at.z ?? 0) !== (flight.to.z ?? 0)) return false
     const item = eng.world.get(flight.itemId)
     if (!item) return false
-    // Only the host can arm impact; a phase string supplied to an ordinary action cannot land it.
-    eng.author(() => {
-      eng.world.place(item, { on: 'tile', ...flight.to })
-      eng.world.setProp(item, impactKey(pkg, use), true)
-    })
     const ev = eng.actEvent('use', flight.actorId, { e: target.id }, { e: flight.itemId }, { ...namedParams(pkg, use), creationFlightPhase: 'impact', attack: Number(paramsOf(use).power) > 0 })
+    // Only the host can arm impact; a phase string supplied to an ordinary action cannot land it.
+    eng.run([{ op: 'move', to: 'target', into: 'tile' }, { op: 'setProp', key: impactKey(pkg, use), value: true }], ev, `${prefix(pkg, use)}/land`)
     try {
       if (eng.resolveEvent(ev).rule?.id !== `${prefix(pkg, use)}/use`) return false
       const result = eng.dispatch(ev)
       eng.flush()
       return result.defined
     } finally {
-      const left = eng.world.get(flight.itemId)
-      if (left) eng.author(() => eng.world.setProp(left, impactKey(pkg, use), undefined))
+      if (eng.world.get(flight.itemId)) eng.run([{ op: 'setProp', key: impactKey(pkg, use), value: null }], ev, `${prefix(pkg, use)}/land`)
     }
   })
 }
@@ -568,10 +566,8 @@ function packageOf(eng: Engine, draft: WorkshopDraft, compiled: Compiled, typeDe
   return { id: draft.id, revision: draft.revision, kind: previous?.kind ?? (draft.design ? 'item' : 'uses'), typeId: draft.typeId, plan: clone(draft.plan), ...(draft.dependsOn && { dependsOn: clone(draft.dependsOn) }), ...((draft.origin ?? previous?.origin) && { origin: clone(draft.origin ?? previous!.origin!) }), ...((typeDefinition ?? previous?.typeDefinition) && { typeDefinition: clone(typeDefinition ?? previous!.typeDefinition!) }), capabilityVersions: versions(draft.plan), ruleIds: compiled.rules.map(r => r.id), statusIds: compiled.statuses.map(s => s.id), enabled: true, createdAt: new Date().toISOString() }
 }
 function remember(eng: Engine, pkg: WorkshopPackage): void {
-  eng.author(() => {
-    const state = eng.world.state as WorkshopState
-    state.workshopPackages = [...(state.workshopPackages ?? []).map(p => p.id === pkg.id ? { ...p, enabled: false } : p), clone(pkg)]
-  })
+  const state = eng.world.state as WorkshopState
+  state.workshopPackages = [...(state.workshopPackages ?? []).map(p => p.id === pkg.id ? { ...p, enabled: false } : p), clone(pkg)]
 }
 function removeOwnedRules(eng: Engine, id: string): void {
   for (const pkg of workshopPackages(eng).filter(p => p.id === id)) for (const rule of pkg.ruleIds) {
@@ -605,32 +601,31 @@ function trialUse(staged: Engine, draft: WorkshopDraft, use: ResearchUse): Works
     const currentWeapon = !draft.design && (capability.native === 'attack' || capability.equipped) ? weaponOf(w, actor) : undefined
     const existing = currentWeapon?.type === draft.typeId ? currentWeapon
       : !draft.design && capability.equipped ? w.worn(actor).find(entity => entity.type === draft.typeId) : undefined
-    let item: Entity, target: Ref = { e: actor.id }
-    eng.author(() => {
-      item = existing ?? w.create(draft.typeId, { on: 'inside', holder: actor.id })
-      // Known states for this isolated experiment, never writes to the running world.
-      if (use.target === 'self') { w.setProp(actor, 'hunger', 0); w.setProp(actor, 'maxHunger', 100); w.setProp(actor, 'hp', 1); w.setProp(actor, 'maxHp', 100) }
-      else if (use.target === 'person' || use.target === 'creature') {
-        const creature = Object.keys(w.onto.data.types).find(id => id.startsWith('actor/creature/'))
-        if (use.target === 'creature' && !creature) throw new Error('This game supplies no creature for the trial')
-        const e = w.add({ id: `creation-test-${use.id}`, type: use.target === 'person' ? 'actor/person' : creature!, place: { on: 'tile', map: at.map, x: near.x, y: near.y }, props: { hunger: 0, maxHunger: 100, hp: 100, maxHp: 100, age: 30 }, ...(use.target === 'person' && { npc: { role: 'villager', schedule: [] } }) })
-        target = { e: e.id }
-      } else if (use.target === 'item') {
-        const targetType = 'item/food/bread' in w.onto.data.types ? 'item/food/bread' : Object.keys(w.onto.data.types).find(id => id.startsWith('item/food/'))
-        if (!targetType) throw new Error('This game supplies no food target for the coating trial')
-        const e = w.create(targetType, { on: 'tile', map: at.map, x: near.x, y: near.y })
-        target = { e: e.id }
-      } else if (use.target === 'ground') {
-        if (use.capability === 'mine') w.setTerrain(at.map, near.x, near.y, 'rock')
-        target = w.cellRef(at.map, near.x, near.y)
-      }
-      else throw new Error(`No trial fixture for target ${use.target}`)
-      if (['channel', 'empower'].includes(use.capability)) { w.setProp(actor, 'hunger', staminaCapacity); w.setProp(actor, 'maxHunger', staminaCapacity) }
-      // Ice freezes and lightning charges only what is wet: the isolated trial target starts wet so either branch can show its reaction.
-      // Ice freezes only what is wet, so water's probabilistic trial starts wet; fire and lightning both
-      // show their native reaction on a dry creature, so fire's trial stays dry for the base-fire branch.
-      if (use.capability === 'channel' && String(paramsOf(use).element) === 'water' && variantChanceOf(paramsOf(use)) > 0) w.setStatus(target, 'wet', w.state.tick + 400)
-    })
+    // Known states for this isolated experiment, never writes to the running world.
+    const scene: Required<Pick<Laid, 'things' | 'terrain'>> = { things: existing ? [] : [{ type: draft.typeId, place: { on: 'inside', holder: actor.id } }], terrain: [] }
+    const props: Record<string, PropValue> = use.target === 'self' ? { hunger: 0, maxHunger: 100, hp: 1, maxHp: 100 } : {}
+    const tile = { on: 'tile' as const, map: at.map, x: near.x, y: near.y }
+    let target: Ref = { e: actor.id }
+    if (use.target === 'person' || use.target === 'creature') {
+      const creature = Object.keys(w.onto.data.types).find(id => id.startsWith('actor/creature/'))
+      if (use.target === 'creature' && !creature) throw new Error('This game supplies no creature for the trial')
+      target = { e: `creation-test-${use.id}` }
+      scene.things.push({ id: target.e, type: use.target === 'person' ? 'actor/person' : creature!, place: tile, props: { hunger: 0, maxHunger: 100, hp: 100, maxHp: 100, age: 30 }, ...(use.target === 'person' && { npc: { role: 'villager', schedule: [] } }) })
+    } else if (use.target === 'item') {
+      const targetType = 'item/food/bread' in w.onto.data.types ? 'item/food/bread' : Object.keys(w.onto.data.types).find(id => id.startsWith('item/food/'))
+      if (!targetType) throw new Error('This game supplies no food target for the coating trial')
+      target = { e: `creation-test-${use.id}` }
+      scene.things.push({ id: target.e, type: targetType, place: tile })
+    } else if (use.target === 'ground') {
+      if (use.capability === 'mine') scene.terrain.push({ ...tile, terrain: 'rock' })
+    } else if (use.target !== 'self') throw new Error(`No trial fixture for target ${use.target}`)
+    if (['channel', 'empower'].includes(use.capability)) Object.assign(props, { hunger: staminaCapacity, maxHunger: staminaCapacity })
+    // Ice freezes only what is wet, so water's probabilistic trial starts wet; fire and lightning both
+    // show their native reaction on a dry creature, so fire's trial stays dry for the base-fire branch.
+    const wet = use.capability === 'channel' && String(paramsOf(use).element) === 'water' && variantChanceOf(paramsOf(use)) > 0
+    const [made] = lay(eng, { ...scene, props: { [actor.id]: props }, statuses: wet ? [{ ref: target, status: 'wet', until: w.state.tick + 400 }] : [] })
+    if (use.target === 'ground') target = w.cellRef(at.map, near.x, near.y)
+    const item = existing ?? w.get(made)!
     if (['channel', 'empower'].includes(use.capability)) {
       if (/^item\/weapon\/magic(?:\/|$)/.test(item!.type)) { if (!selectNativeWeapon(eng, item!)) throw new Error('The magic focus could not be held') }
       else { eng.controls.wear(item!.id, true); if (!w.worn(actor).some(e => e.id === item!.id)) throw new Error('The elemental accessory could not be equipped') }
@@ -735,7 +730,8 @@ export function disableWorkshopPackage(eng: Engine, packageId: string): Workshop
   removeOwnedRules(eng, packageId)
   for (const p of workshopPackages(eng).filter(p => p.id === packageId)) for (const id of p.statusIds) { eng.lib.removeStatus(id); eng.world.onto.removeStatus(id) }
   if (pkg.kind === 'item') { eng.lib.removeType(pkg.typeId); eng.world.onto.removeType(pkg.typeId); eng.recipes.delete(pkg.typeId) }
-  eng.author(() => { const state = eng.world.state as WorkshopState; state.workshopPackages = (state.workshopPackages ?? []).map(p => p.id === packageId ? { ...p, enabled: false } : p) })
+  const state = eng.world.state as WorkshopState
+  state.workshopPackages = (state.workshopPackages ?? []).map(p => p.id === packageId ? { ...p, enabled: false } : p)
   return { ok: true, package: { ...pkg, enabled: false }, errors: [] }
 }
 /** Call after a save/library reload. Recompile data; never trust saved executable rules. */

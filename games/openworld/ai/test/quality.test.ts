@@ -288,8 +288,8 @@ describe('detecting what a model carries', () => {
     expect(await detector.start()).toMatchObject({ started: true, total: 3 })
     while (detector.running) await new Promise((r) => setTimeout(r, 20))
     expect(detector.error).toBeUndefined()
-    expect(detector.last?.runs.map((r) => [r.tier, r.ok])).toEqual(expect.arrayContaining([['low', true], ['medium', true], ['high', true]]))
-    expect(detector.last?.recommend.things).toBe('high')
+    expect(detector.last?.runs.map((r) => [r.tier, r.outcome])).toEqual(expect.arrayContaining([['low', 'accepted'], ['medium', 'accepted'], ['high', 'accepted']]))
+    expect(detector.last?.recommend).toEqual(recommendOf(detector.last!.runs))
     // nothing committed, nothing recorded
     expect(library.seq).toBe(0)
     expect(state.episodes()).toHaveLength(0)

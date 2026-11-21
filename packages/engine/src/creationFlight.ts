@@ -1,4 +1,5 @@
-// A bounded, saveable flight queue. Only loaded creation code supplies its impact handler.
+// A bounded, saveable flight queue. Only loaded creation code supplies its impact handler. The queue is the workshop's
+// record beside the things; the thrown thing itself goes aloft in its throw's outcome and comes down in its landing's.
 import type { Engine } from './engine.ts'
 import type { Pos, WorldState } from './types.ts'
 
@@ -27,18 +28,15 @@ function flightFx(eng: Engine, flight: CreationFlight, resume = false): void {
   const x = flight.from.x + (flight.to.x - flight.from.x) * progress, y = flight.from.y + (flight.to.y - flight.from.y) * progress
   eng.world.fx.push({ t: 'vfx', fx: `creation-throw:${flight.typeId}`, map: flight.from.map, x, y, angle: Math.atan2(flight.to.y - y, flight.to.x - x), span: Math.hypot(flight.to.x - x, flight.to.y - y), who: flight.actorId, instance: flight.itemId, durationMs: Math.max(1, flight.dueTick - eng.world.state.tick) * 100, untilTick: flight.dueTick })
 }
-export function launchWorkshopFlight(eng: Engine, input: Omit<CreationFlight, 'startTick' | 'dueTick'>): boolean {
+export function launchWorkshopFlight(eng: Engine, input: Omit<CreationFlight, 'startTick' | 'dueTick'>, throwIt: () => boolean): boolean {
   const w = eng.world, item = w.get(input.itemId), actor = w.get(input.actorId)
   const distance = Math.abs(input.to.x - input.from.x) + Math.abs(input.to.y - input.from.y)
   if (!canLaunchWorkshopFlight(eng) || !item || !actor || item.type !== input.typeId || input.from.map !== input.to.map || (input.from.z ?? 0) !== (input.to.z ?? 0) || !Number.isFinite(distance) || distance > 6 || !((item.place.on === 'inside' || item.place.on === 'hand') && item.place.holder === actor.id)) return false
+  if (!throwIt() || w.get(item.id)?.place.on !== 'none') return false
   const flight: CreationFlight = { ...copy(input), startTick: w.state.tick, dueTick: w.state.tick + creationThrowTicks(distance) }
-  eng.author(() => {
-    const dx = input.to.x - input.from.x, dy = input.to.y - input.from.y
-    if (dx || dy) actor.facing = Math.abs(dx) >= Math.abs(dy) ? dx > 0 ? 'right' : 'left' : dy > 0 ? 'down' : 'up'
-    w.place(item, { on: 'none' })
-    const s = w.state as FlightState
-    s.creationFlights = [...(s.creationFlights ?? []), flight]
-  })
+  const s = w.state as FlightState
+  s.creationFlights = [...(s.creationFlights ?? []), flight]
+  if (actor.id === w.player.id) eng.controls.face(input.to)
   eng.controls.sync()
   flightFx(eng, flight)
   return true
@@ -54,7 +52,7 @@ export function installCreationFlightHooks(eng: Engine, impact: (flight: Creatio
     const ready = (state.creationFlights ?? []).filter(f => f.dueTick <= state.tick)
     if (!ready.length) return
     // Remove before effects: a reentrant tick/load cannot land the same flight again.
-    eng.author(() => { state.creationFlights = (state.creationFlights ?? []).filter(f => f.dueTick > state.tick) })
+    state.creationFlights = (state.creationFlights ?? []).filter(f => f.dueTick > state.tick)
     for (const flight of ready) {
       eng.world.fx.push({ t: 'vfx', fx: 'creation-land', map: flight.to.map, x: flight.to.x, y: flight.to.y, instance: flight.itemId })
       const item = eng.world.get(flight.itemId)
@@ -65,8 +63,7 @@ export function installCreationFlightHooks(eng: Engine, impact: (flight: Creatio
         eng.world.fx.push({ t: 'vfx', fx: 'splash', map: flight.to.map, x: flight.to.x, y: flight.to.y })
         eng.world.fx.push({ t: 'log', text: { en: 'The throw lands without hitting its original target.', zh: '投掷物落下，没有击中原来的目标。' } })
       }
-      const left = eng.world.get(flight.itemId)
-      if (left) eng.author(() => eng.world.destroy(left))
+      if (eng.world.get(flight.itemId)) eng.run([{ op: 'destroy' }], eng.actEvent('use', flight.actorId, { e: flight.targetId }, { e: flight.itemId }, { creationFlightPhase: 'land' }), 'creation/flight/land')
     }
     eng.controls.sync()
   } })

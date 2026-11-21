@@ -478,14 +478,14 @@ export class Modder {
     const d = said.design
     if (!d) return { reply: said }
     // drawn by the craftsperson after they answer: the draft on the table's picture is the one changed, when it is of
-    // the same thing. Low keeps the kind's icon; other levels generate once, then inspect and repair at most once.
+    // the same thing. Low keeps the kind's icon; other levels generate once, then inspect and repair at most once, high with more thought.
     const level = request.create ?? 'medium'
     const draw = (name: Text, id: string, look: string, base?: PixelArt, variant = false) => level === 'low' ? undefined : async () => {
       const artist = new Meter(this.backend!)
       const type = { id, name }
       const references = { ...request.catalogue.icons, ...request.catalogue.artReferences }
       const preserve = variant || /^item\/(weapon|armor|clothing)(\/|$)/.test(id)
-      const result = await reviewedArt(artist, type, look, artReference(type, onto, references), base, preserve)
+      const result = await reviewedArt(artist, type, look, artReference(type, onto, references), base, preserve, level === 'high' ? 'high' : 'low')
       if (!this.opts.dry) this.opts.state.note('art-review', { type: id, ...result, usage: artist.usage })
       return result
     }

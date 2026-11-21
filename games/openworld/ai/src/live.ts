@@ -8,6 +8,9 @@
 //   npm run eval:research -- [filter]    what a craftsperson makes of forty-odd things players say (research)
 //   npm run eval:research-rsi -- [filter]  the same, before and after the craftsperson learns from a training set (researchRsi)
 //   a filter keeps the cases whose name contains it ("-stump": all but, for the Ford)
+//
+// The affordance set is asked of the base game without its seats (AFFORDANCE_RULES): chairs and benches gained a rule
+// after the set was made, and it keeps them holes so that its runs stay comparable with the ones before.
 
 import { cpSync, mkdtempSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -106,6 +109,8 @@ export const AFFORDANCE_CASES: AffordanceCase[] = [
   { name: 'counter', target: 'fixture/furniture/counter', expect: 'words' },
 ]
 
+export const AFFORDANCE_RULES = [...BASE_RULES, ...STORY_RULES].filter((r) => !r.id.startsWith('furniture/sit-'))
+
 /** The scene of a case: the player beside the thing (and, for an owned one, its owner beside them). */
 export function caseScene(c: AffordanceCase): Scenario {
   return {
@@ -119,7 +124,7 @@ export function caseScene(c: AffordanceCase): Scenario {
 }
 
 /** A bare hand on the case's thing, through the engine's own path: the engine and the port that holds its question. */
-export function askCase(c: AffordanceCase, lib = new RuleLibrary([...BASE_RULES, ...STORY_RULES])): { eng: Engine; port: ModPort } {
+export function askCase(c: AffordanceCase, lib = new RuleLibrary(AFFORDANCE_RULES)): { eng: Engine; port: ModPort } {
   const eng = buildSandbox(caseScene(c), buildOntology(), lib)
   const port = new ModPort(eng)
   eng.act('hands', 'actor', { e: 'it' }, { instrument: null })

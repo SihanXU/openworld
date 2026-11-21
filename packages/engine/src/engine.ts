@@ -3,7 +3,8 @@
 // the outcome is undefined, the Mod port is asked; with no one to ask, the leaf's default runs.
 // The engine also keeps time (timers, periods), the relations between things (contact and
 // containment, diffed after every outcome), sight, and the active, dormant and resident parts of
-// the world. Pure, deterministic, no AI.
+// the world. Pure, deterministic, no AI. What a save's own content adds to a map already loaded (a created region
+// grown, its entrance) is laid in as loading lays a map's things (`furnish`).
 
 import { TICKS_PER_HOUR, TICKS_PER_MINUTE } from './calendar.ts'
 import { EffectRunner } from './effects.ts'
@@ -2183,6 +2184,21 @@ export class Engine {
       const p = this.world.player
       this.write(() => this.teleport(p, to.entry ? this.entryPoint(p, to.map, to.entry) : to))
     }
+  }
+
+  furnish(things: Entity[], gone: Id[] = []): void {
+    const w = this.world
+    this.write(() => {
+      for (const e of things) {
+        const kept = w.get(e.id)
+        if (kept) w.place(kept, e.place)
+        else w.add(e)
+      }
+      for (const id of gone) {
+        const e = w.get(id)
+        if (e) w.destroy(e)
+      }
+    })
   }
 
   // ---------------------------------------------------------------- names

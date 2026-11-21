@@ -1327,6 +1327,7 @@ export class World {
     const was = e.props?.[key]
     if (value === undefined) {
       if (e.props) delete e.props[key]
+      if (e.props && !Object.keys(e.props).length) delete e.props
     } else (e.props ??= {})[key] = value
     if (was !== value) this.reprop(e, key, was)
     if (key === 'companion') this.indexCompanion(e)

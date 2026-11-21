@@ -51,7 +51,7 @@ const parse = (raw: string): unknown => { try { return parseJson(raw) } catch { 
 const CHECKS = ['recognizable', 'structure', 'style', 'material'] as const
 
 /** NPC sketches alone get one generation and one combined inspection/repair, independent of rule-pipeline budgets. */
-export async function reviewedArt(model: Model, type: TypeDef, what: string, reference?: ArtReference, base?: PixelArt, preserve = false): Promise<ResearchSketch> {
+export async function reviewedArt(model: Model, type: TypeDef, what: string, reference?: ArtReference, base?: PixelArt, preserve = false, reasoning: 'low' | 'high' = 'low'): Promise<ResearchSketch> {
   const name = typeof type.name === 'object' ? { en: type.name.en, zh: type.name.zh ?? type.name.en } : { en: type.name ?? type.id, zh: type.name ?? type.id }
   const review: ResearchArtReview = { ...(reference && { reference }), checks: [], issues: [], accepted: false, silhouette: preserve ? 'preserve' : 'free' }
   const shape = (art: PixelArt) => artShapeProblems(art, preserve ? reference?.art : undefined)
@@ -62,7 +62,7 @@ export async function reviewedArt(model: Model, type: TypeDef, what: string, ref
   }
   const source = base ?? (preserve ? reference?.art : undefined)
   const prompt = source ? artEditUser({ id: type.id, name }, what, source) : artUser({ id: type.id, name }, what)
-  const opts = { json: true, temperature: 0.3, purpose: 'art', reasoning: 'low', deadlineMs: 90_000 } as const
+  const opts = { json: true, temperature: 0.3, purpose: 'art', reasoning, deadlineMs: 90_000 } as const
   try {
     const first = await model.chat([{ role: 'system', content: ART_SYSTEM }, { role: 'user', content: `${prompt}\nThe actual family is ${type.id.split('/').slice(0, -1).join('/')}. ${reference ? `Original game visual reference: ${JSON.stringify(reference)}.` : ''} ${preserve ? 'This is a conservative source-icon edit: keep the EXACT source pose, outer alpha silhouette and internal transparent openings. Change palette/material and a few interior detail pixels only; no front-facing redesign of angled gear.' : 'The reference supplies style only: draw the intended physical form, not the reference object (a jar of jam is not a pile of berries).'} Show the requested material on its main functional component; secondary grips/straps may remain wood, leather or cloth. Do not turn the item into a lump of its material or a generic symbol.` }], opts)
     const original = readArt(parse(first.content))
