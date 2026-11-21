@@ -365,3 +365,28 @@ catalogue gives it, the bog wisp's too.
 
 The pack's Slime and Slime2, sheets and faces, stay copied as the sources (copyAssets.ts `KEEP`). No minor monster
 wears a tinted sheet now.
+
+## 18. Noticed (2026-11-21)
+
+A monster that turns on you used to do it without a sign; one at the edge of the screen was already on its way
+before you knew. Now it shows it: a "!" pops up over its head for a moment as it takes a foe up, as a Pokémon
+trainer's does when you cross their sight and a guard's in Metal Gear.
+
+- **When.** The moment it takes a foe up to fight or to run from (`ai.state` turned `chase` or `flee`): the threat
+  goal, the pack's tactics, and now the kit goal too, since one that opens with a skill is in a fight as much as one
+  that closes in. A passive creature that bolts shows it as well.
+- **Once.** It shows again only after five seconds without a foe (behaviour.ts `FORGET`), so a monster that turns
+  back at its leash and comes on again, or a foe at the edge of its sight, does not flicker it.
+- **The signal** is the one a startled person already gives (npc.ts): the `emote` fx with the mood `surprised`. The
+  engine adds no new kind of fx. The page draws it for a creature as a short pop (hud.ts `alert`, 0.9 s) rather than
+  a person's speech bubble, and above whatever the creature says at the same moment: a monster that opens with a
+  skill shows the "!" over the skill's name, which still warns of the wind-up. Any other surprise of a creature's (a
+  rule's or a scene's emote, a step into fire) is drawn the same way. Bosses (their own openings), people and
+  companions are left out.
+- **Kept** for the map in hand only, as the people's runtime is: a save forgets it, and a monster already after you
+  when a game is loaded shows it once more.
+
+Checks: `tools/test/motion.test.ts` holds that a monster that takes a foe up shows it once over eighty ticks, not at
+all while it sees nothing, and again when it sees once more after that; and that a wolf three cells off whose first
+act is its lunge has shown it by the time it winds up. Without the kit goal's change that second check fails. In
+the browser, a wolf on Dawnhill showed the "!" within 0.6 s of the player coming into its sight.

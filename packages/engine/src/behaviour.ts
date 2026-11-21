@@ -16,12 +16,14 @@
 // - home: back toward where it lives (after dark, where it roams);
 // - idle: a step now and then.
 // Every goal acts with the acts and moves the player has; one that cannot go on reports `stuck`.
+// A monster that takes a foe up (to fight or to flee) after five seconds without one shows it noticed: the startled
+// person's emote, "!" over its head (npc.ts). Kept for the map in hand only, as the people's runtime is.
 // Behaviour is the game's own logic, not the AI interface (design.md §5.4): its acts' outcomes are.
 
 import { fight, home, idle, sceneOf, type Scene } from './creatures.ts'
 import type { Engine } from './engine.ts'
 import type { Goal } from './module.ts'
-import type { Entity } from './types.ts'
+import type { Entity, Id } from './types.ts'
 
 /** The order goals are tried in when neither the type nor the world says (Elin's AIAct priorities). */
 export const GOALS: string[] = ['encounter', 'danger', 'threat', 'social', 'follow', 'need', 'schedule', 'home', 'idle']
@@ -46,7 +48,12 @@ export const KERNEL_GOALS: Record<string, Goal> = {
   idle: { paced: true, run: (eng, e, sc) => !e.boss && idle(eng, e, sc) },
 }
 
+const FORGET = 50
+
 export class Behaviour {
+  private engaged = new Map<Id, number>()
+  private map?: string
+
   constructor(private eng: Engine) {}
 
   /** The goals of a thing, in its order. */
@@ -66,7 +73,19 @@ export class Behaviour {
       const e = w.state.entities[id]
       if (typeof e.props?.companion === 'string' && !(e.place.on === 'tile' && e.place.map === active)) movers.push(e)
     }
-    for (const e of movers) this.turn(e, sc)
+    if (active !== this.map) this.engaged.clear(), (this.map = active)
+    for (const e of movers) this.turn(e, sc), this.notice(e)
+  }
+
+  private notice(e: Entity): void {
+    const ai = e.ai
+    if (!ai || e.npc || e.boss || e.props?.companion !== undefined || (ai.state !== 'chase' && ai.state !== 'flee')) return
+    const w = this.eng.world, now = w.state.tick, last = this.engaged.get(e.id)
+    if (last === undefined || now - last > FORGET) {
+      w.fx.push({ t: 'emote', who: e.id, mood: 'surprised' })
+      for (const [id, t] of this.engaged) if (now - t > FORGET) this.engaged.delete(id)
+    }
+    this.engaged.set(e.id, now)
   }
 
   /** The first of its goals that applies takes the actor's turn. */

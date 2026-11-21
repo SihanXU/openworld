@@ -5,19 +5,20 @@ import { buildFord } from '../src/demo/world.ts'
 
 // What the page needs to draw a minor monster's blows (runtime scene.ts: struck back from the striker, white for a moment,
 // a lunge for a blow dealt bare, a felling's burst): a landed blow names who dealt it and whether it felled, and the felled
-// one is gone in the same frame; a monster's own blow is a swing that names it.
+// one is gone in the same frame; a monster's own blow is a swing that names it; one that takes a foe up says so once ("!",
+// hud.ts), and again only after a while without one.
 
 const onto = buildOntology()
 const WOLF = 'actor/creature/beast/wolf'
 
-function setup(hp: number, ai = false) {
+function setup(hp: number, ai = false, dy = 1) {
   const { index, chunks } = buildFord()
   const g = Game.create(index, onto, new RuleLibrary([...BASE_RULES, ...STORY_RULES]))
   for (const c of chunks) g.loadChunk(decodeChunk(c))
   g.mods.provider = { resolve: () => new Promise<null>(() => {}) }
   const eng = g.engine, w = eng.world, p = w.player, at = w.posOf(p)!
   let foe!: Entity
-  eng.author(() => (foe = w.create(WOLF, { on: 'tile', map: at.map, x: at.x, y: at.y + 1 }, { props: { hp, maxHp: 200, def: 0 }, facing: 'up', ...(ai && { ai: { behaviour: 'melee', temper: 'aggressive', sight: 5, home: { map: at.map, x: at.x, y: at.y + 1 }, leash: 6 } }) })))
+  eng.author(() => (foe = w.create(WOLF, { on: 'tile', map: at.map, x: at.x, y: at.y + dy }, { props: { hp, maxHp: 200, def: 0 }, facing: 'up', ...(ai && { ai: { behaviour: 'melee', temper: 'aggressive', sight: 5, home: { map: at.map, x: at.x, y: at.y + dy }, leash: 6 } }) })))
   w.fx.length = 0
   return { eng, w, p, foe }
 }
@@ -52,5 +53,38 @@ describe('what a minor monster is drawn by', () => {
       w.fx.length = 0
     }
     expect(swing).toBeDefined()
+  })
+
+  it('a monster that takes a foe up shows it once, and again only after a while without one', () => {
+    const { eng, w, foe } = setup(200, true)
+    const notices = (ticks: number) => {
+      let n = 0
+      for (let i = 0; i < ticks; i++) {
+        eng.tick()
+        n += w.fx.filter((f) => f.t === 'emote' && f.who === foe.id && f.mood === 'surprised').length
+        w.fx.length = 0
+      }
+      return n
+    }
+    expect(notices(80)).toBe(1)
+    const sight = foe.ai!.sight
+    eng.author(() => (foe.ai!.sight = 0))
+    expect(notices(80)).toBe(0)
+    expect(foe.ai!.state).not.toBe('chase')
+    eng.author(() => (foe.ai!.sight = sight))
+    expect(notices(40)).toBe(1)
+  })
+
+  it('one that opens with a skill has shown it by the time it winds up', () => {
+    const { eng, w, foe } = setup(200, true, 3)
+    let shown = false, wound = false
+    for (let i = 0; i < 60 && !wound; i++) {
+      eng.tick()
+      shown ||= w.fx.some((f) => f.t === 'emote' && f.who === foe.id && f.mood === 'surprised')
+      wound = w.fx.some((f) => f.t === 'say' && f.who === foe.id)
+      w.fx.length = 0
+    }
+    expect(wound).toBe(true)
+    expect(shown).toBe(true)
   })
 })

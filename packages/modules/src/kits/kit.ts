@@ -1,6 +1,7 @@
 // The kit goal (docs/creatures.md, docs/skills.md): a minor monster's skills, taken up when their conditions hold —
 // the foe's distance, a row or a column, its own health, a chance, a cooldown (Elin's model). It looks once a second;
-// taking nothing up, it fights on as before (the threat goal). A boss's director takes its answering skills up by the
+// taking nothing up, it fights on as before (the threat goal). One that takes a skill up is in a fight, as one that
+// chases is (its `ai.state`, behaviour.ts). A boss's director takes its answering skills up by the
 // same conditions (`ready`).
 
 import type { Engine, Entity, KitSkill, Pos } from '@openworld/engine'
@@ -80,6 +81,7 @@ export function kitGoal(eng: Engine, e: Entity, active: string): boolean {
   if (!seen) return false
   for (const skill of kit) {
     if (!ready(eng, e, skill, pos, seen.at)) continue
+    e.ai.state = 'chase'
     ;(seen.foe.combat ??= {}).fightTick = w.state.tick
     const p = beginCast(eng, e, skill, seen.at, { target: seen.foe.id })
     if (!p) return false
